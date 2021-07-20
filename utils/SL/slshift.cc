@@ -11,6 +11,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 #include <Eigen/Eigen>
 
@@ -50,7 +51,7 @@ string   outfile;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
-
+boost::mt19937 random_gen;
 
 //===========================================================================
 

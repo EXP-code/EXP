@@ -1,6 +1,8 @@
 #ifndef _UserDiffRot_H
 #define _UserDiffRot_H
 
+#include <boost/random/normal_distribution.hpp>
+
 #include <ParticleFerry.H>
 #include <Component.H>
 #include <AxisymmetricBasis.H>
@@ -33,8 +35,7 @@ private:
 
   double get_dtime(Particle& p);
 
-  ACG *gen;
-  Normal *normal;
+  boost::random::normal_distribution<> normal;
 
   // Debug dynamical times
 

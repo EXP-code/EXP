@@ -2,9 +2,9 @@
 #define _ScatterMFP_H
 
 #include <utility>
-#include <ACG.h>
-#include <Normal.h>
-#include <Uniform.h>
+
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
 
 #include <ExternalForce.H>
 
@@ -27,9 +27,12 @@ private:
 
   vector <rpair> rr2;
 
-  ACG *gen;
-  Uniform *unif;
-  Normal *gaus;
+  //@{
+  //! Pseudorandom generation
+  boost::random::uniform_real_distribution<> unif;
+  boost::random::normal_distribution<>       norm;
+  //@}
+
   int cntacc;
 
   void initialize();

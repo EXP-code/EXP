@@ -45,7 +45,7 @@
 
 				// Boost stuff
 
-#include <boost/shared_ptr.hpp>
+#include <boost/random/mersenne_twister.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
@@ -89,6 +89,8 @@ pthread_mutex_t coef_lock;
 std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
+boost::mt19937 random_gen;
+
   
 // Helper class
 //

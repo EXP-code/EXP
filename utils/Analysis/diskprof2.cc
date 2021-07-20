@@ -43,6 +43,8 @@
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
+#include <boost/random/mersenne_twister.hpp>
+
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -88,6 +90,7 @@ pthread_mutex_t coef_lock;
 std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
+boost::mt19937 random_gen;
   
 				// Globals
 static  string outid;

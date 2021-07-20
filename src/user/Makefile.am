@@ -7,11 +7,11 @@ if ENABLE_CUDA
   NVCC_CXXFLAGS  = -I. -I$(top_srcdir)/src $(GENCODE_FLAGS) $(NVCC_EXTRA) @exp_eigen3_include@ -Xcompiler $(AM_CPPFLAGS)
 endif
 
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu	\
--I$(top_srcdir) -I$(top_srcdir)/src -I$(top_srcdir)/src/DSMC	\
--I/usr/include/mpi $(CUDA_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)		\
+-I$(top_srcdir)/src -I$(top_srcdir)/src/DSMC -I/usr/include/mpi	\
+$(CUDA_CFLAGS)
 
-BUILD_FLAGS =  -L$(top_srcdir)/expgnu/.libs -L$(top_srcdir)/exputil/.libs
+BUILD_FLAGS = -L$(top_srcdir)/exputil/.libs
 
 if ENABLE_GPTL
   ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
@@ -22,7 +22,7 @@ AM_FFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS)
 AM_CXXFLAGS = -fPIC -fno-inline-small-functions -Wall	\
 -D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS) \
 @exp_eigen3_include@ 
-AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil @exp_omp_lib@
+AM_LDFLAGS = -L$(top_srcdir)/exputil @exp_omp_lib@
 
 libdir = $(prefix)/lib/user
 

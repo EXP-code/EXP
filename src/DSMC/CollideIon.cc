@@ -474,11 +474,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   //
   csections = std::vector<NTC::InteractD> (nthrds);
 
-  // Random variable generators
-  //
-  gen  = new ACG(acg_seed+myid);
-  unit = new Uniform(0.0, 1.0, gen);
-
   // Energy diagnostics
   //
   totalSoFar = 0.0;
@@ -4727,7 +4722,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     // Use a random variate to select the interaction from the
     // discrete cumulatative probability distribution (CDF)
     //
-    double ran = (*unit)();
+    double ran = unit(random_gen);
     int index  = -1;
     for (size_t i = 0; i < CDF.size(); i++) {
       if (ran < CDF[i]) {
@@ -6225,14 +6220,14 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       const double tol = 1.0e-12;
       // Generate random vector if |u|~0 or |v1|~0
       if (v1i2 < tol*b1f2 or b1f2 < tol*v1i2) {
-	for (auto & v : w1) v = (*norm)();
+	for (auto & v : w1) v = norm(random_gen);
       }
       // Choose random orthogonal vector if uu || v1
       else if (wnrm < tol*v1i2) {
 	auto t3 = zorder(v1);
 	int i0 = std::get<0>(t3), i1 = std::get<1>(t3), i2 = std::get<2>(t3);
-	w1[i0] = (*norm)();
-	w1[i1] = (*norm)();
+	w1[i0] = norm(random_gen);
+	w1[i1] = norm(random_gen);
 	w1[i2] = -(w1[i0]*v1[i0] + w1[i1]*v1[i1])/v1[i2];
 	wnrm = 0.0; for (auto v : w1) wnrm += v*v;
       }
@@ -6449,7 +6444,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       // E2 = u*E0 = u*1/2*m_e*Wb*v0^2 = 1/2*m_e*Wb*v2^2
       // ---> v2^2 = u*v0^2
       //
-      double u  = (*unit)();
+      double u  = unit(random_gen);
       double vs1 = sqrt(q*(1.0 - u));
       double vs2 = sqrt(u);
 
@@ -6583,7 +6578,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       // ---> v2^2 = u*v0^2
       //
 
-      double u  = (*unit)();
+      double u  = unit(random_gen);
       double vs1 = sqrt((1.0 - q) + q*(1.0 - u));
       double vs2 = sqrt(u);
 
@@ -11361,7 +11356,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
     // Select for fractional scatter at random, if we can defer
     // inelastic energy change.  Otherwise, stick with n_p rounded up.
     //
-    if (use_cons>=0 and (*unit)() < static_cast<double>(n_p) - dn_p) {
+    if (use_cons>=0 and unit(random_gen) < static_cast<double>(n_p) - dn_p) {
       n_p--;
     }
 
@@ -11409,7 +11404,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
     //
     for (int n=0; n<n_p; n++) {
 
-      double Ptry = (*unit)();
+      double Ptry = unit(random_gen);
       auto it = std::lower_bound(P.begin(), P.end(), Ptry);
       auto ii = std::distance(P.begin(), it);
 
@@ -11928,11 +11923,11 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       // Neutrality rejection
       //
       if (l==0 or l==1) {
-	if ( (*unit)() > pp->frc1 ) continue;
+	if ( unit(random_gen) > pp->frc1 ) continue;
       }
 
       if (l==2) {
-	if ( (*unit)() > pp->frc2 ) continue;
+	if ( unit(random_gen) > pp->frc2 ) continue;
       }
 
       if (l==0) {
@@ -11941,9 +11936,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[0]->frc2 * PP[0]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) continue;
+	  if ( unit(random_gen) > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) continue;
+	  if ( unit(random_gen) > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -11961,9 +11956,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[1]->eta2 * PP[1]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) continue;
+	  if ( unit(random_gen) > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) continue;
+	  if ( unit(random_gen) > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -11981,9 +11976,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[2]->frc2 * PP[2]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) continue;
+	  if ( unit(random_gen) > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) continue;
+	  if ( unit(random_gen) > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -12001,9 +11996,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[3]->eta2 * PP[3]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) continue;
+	  if ( unit(random_gen) > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) continue;
+	  if ( unit(random_gen) > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -20013,9 +20008,9 @@ std::vector<double>& CollideIon::coulomb_vector
   double vfac = sqrt(rel2);
   if (vfac>0.0) for (auto & v : rel) v /= vfac;
 
-  double cosx   = (*coulombSel)(tau, (*unit)());
+  double cosx   = (*coulombSel)(tau, unit(random_gen));
   double sinx   = sqrt(fabs(1.0 - cosx*cosx));
-  double phi    = 2.0*M_PI*(*unit)();
+  double phi    = 2.0*M_PI*unit(random_gen);
   double cosp   = cos(phi);
   double sinp   = sin(phi);
   double g_perp = sqrt(rel[1]*rel[1] + rel[2]*rel[2]);

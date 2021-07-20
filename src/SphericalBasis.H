@@ -1,8 +1,9 @@
 #ifndef _SphericalBasis_H
 #define _SphericalBasis_H
 
-#include <ACG.h>
-#include <Normal.h>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/normal_distribution.hpp>
+
 #include <AxisymmetricBasis.H>
 #include <SphericalCoefs.H>
 
@@ -195,7 +196,7 @@ protected:
 
   //! Add noise
   void update_noise(void);
-
+  bool setup_noise;
 				// Parameters
   //! The maximum radius
   double rmax;
@@ -229,12 +230,13 @@ protected:
 
   //! Expected squared coefficient values for RMS noise computation
   Eigen::MatrixXd rmsC;
-  //! Seed for random number generator
-  int seedN;
-  //! Random number generator
-  ACG *gen;
-  //! Normal variate generator
-  Normal *nrand;
+
+  //@{
+  //! Pseudorandom generation
+  unsigned int seedN;
+  boost::mt19937 rgen;
+  boost::random::normal_distribution<> nrand;
+  //@}
 
   //! Subsample fraction of particles
   double ssfrac;

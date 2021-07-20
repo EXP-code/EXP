@@ -4,6 +4,8 @@
 #include <vector>
 #include <Eigen/Eigen>
 #include <boost/shared_ptr.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
 
 #include <ACG.h>
 #include <Uniform.h>
@@ -77,9 +79,10 @@ class AxiSymModel : public MassModel
 protected:
   //@{
   //! Stuff for gen_point
-  ACG *gen;
-  Uniform *Unit;
-  Normal *Gauss;
+
+  boost::random::uniform_real_distribution<> Unit;
+  boost::random::normal_distribution<> Gauss;
+
   bool gen_firstime;
   bool gen_firstime_E;
   bool gen_firstime_jeans;

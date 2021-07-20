@@ -63,6 +63,10 @@
 #include <cstdlib>
 #include <values.h>
 
+				// Boost random generator
+#include <boost/random/mersenne_twister.hpp>
+
+
                                 // C++/STL headers
 #include <iostream>
 #include <iomanip>
@@ -164,7 +168,8 @@ pthread_mutex_t coef_lock;
 double tpos = 0.0;
 double tnow = 0.0;
 string outdir, runtag;
-  
+boost::mt19937 random_gen;
+
 int 
 main(int argc, char **argv)
 {

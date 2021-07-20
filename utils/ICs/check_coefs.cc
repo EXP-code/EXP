@@ -16,10 +16,12 @@
 // Boost stuff
 //
 #include <boost/math/special_functions/bessel.hpp>
+#include <boost/random/mersenne_twister.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
+
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -208,6 +210,7 @@ vector<int> stepL(1, 0), stepN(1, 1);
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
 string outdir, runtag;
+boost::mt19937 random_gen;
   
 double DiskDens(double R, double z, double phi)
 {

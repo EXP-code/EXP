@@ -9,7 +9,7 @@ ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
 ADD_LIBS3     = -ldmallocth -ldmallocthcxx
 endif
 
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src $(CUDA_CFLAGS) `libpng-config --cflags`
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src $(CUDA_CFLAGS) `libpng-config --cflags`
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS3)
 AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(INCLUDES) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_vtk_include@ @exp_eigen3_include@ `libpng-config --ldflags`
 
@@ -19,8 +19,8 @@ endif
 
 COMMON_LIBS = $(LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ 
 MPI_LIBS = -lmpi
-EXPLIBS = -lexputil -lexpgnu $(COMMON_LIBS) $(ADD_LIBS3) $(MPI_LIBS) $(CUDA_LIBFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) $(YAML)
-EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs $(CUDA_LDFLAGS) @exp_omp_lib@
+EXPLIBS = -lexputil $(COMMON_LIBS) $(ADD_LIBS3) $(MPI_LIBS) $(CUDA_LIBFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) $(YAML)
+EXPFLAGS = -L$(top_srcdir)/exputil/.libs $(CUDA_LDFLAGS) @exp_omp_lib@
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =

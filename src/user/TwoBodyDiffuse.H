@@ -8,6 +8,9 @@ using namespace std;
 #include <vector>
 #include <string>
 
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
+
 #include <gaussQ.H>
 #include <massmodel.H>
 
@@ -55,9 +58,8 @@ private:
 
   LegeQuad *jq;
 
-  ACG *gen;
-  Uniform *urand;
-  Normal *nrand;
+  boost::random::uniform_real_distribution<> urand;
+  boost::random::normal_distribution<> nrand;
 
 public:
 

@@ -4,6 +4,9 @@
                                 // C++/STL headers
 #include <string>
 
+				// Boost random generator
+#include <boost/random/mersenne_twister.hpp>
+
 				// Option parsing
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
@@ -26,6 +29,7 @@ double tnow        = 0.0;
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
 string outdir, runtag;
+boost::mt19937 random_gen;
 
 void usage(char *prog)
 {

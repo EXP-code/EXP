@@ -1,15 +1,9 @@
-static char rcsid[] = "$Id$";
-
 #include <cmath>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <string>
 #include <algorithm>
-
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
 
 #include "expand.H"
 
@@ -68,10 +62,6 @@ ScatterMFP::ScatterMFP(const YAML::Node& conf) : ExternalForce(conf)
 
   cntr = vector<int>(nthrds);
 
-  gen = new ACG(11+myid, 20);
-  unif = new Uniform(0.0, 1.0, gen);
-  gaus = new Normal(0.0, 1.0, gen);
-  
   cntacc = 0;
 }
 
@@ -226,7 +216,7 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
 
     p->dattrib[mfp_index] += dtau[ind] * sqrt(v2) * dtime;
 
-    if (1.0 - exp(-p->dattrib[mfp_index]/tauscat)>(*unif)()) {
+    if (1.0 - exp(-p->dattrib[mfp_index]/tauscat)>unif(random_gen)) {
 
 				// Initialize optical depth
       p->dattrib[mfp_index] = 0.0;
@@ -261,9 +251,9 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
       vrel[2] = cC->Vel(k, 2) - cC->Vel(i, 2);
 
 				// Choose a random direction for velocity
-      vfnl[0] = (*gaus)();
-      vfnl[1] = (*gaus)();
-      vfnl[2] = (*gaus)();
+      vfnl[0] = norm(random_gen);
+      vfnl[1] = norm(random_gen);
+      vfnl[2] = norm(random_gen);
 
       vfnl *= sqrt(vrel.dot(vrel))/sqrt(vfnl.dot(vfnl));
 

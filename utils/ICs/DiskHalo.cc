@@ -49,9 +49,8 @@ DiskHalo(std::shared_ptr<SphericalSL> haloexp, std::shared_ptr<EmpCylSL> diskexp
 	 double H, double A, double HMass, double DMass, 
 	 string& filename, int DF1, int DIVERGE, double DIVERGE_RFAC)
 {
-  gen  = std::make_shared<ACG>    (SEED+myid, 20);
-  rndU = std::make_shared<Uniform>(0.0, 1.0, gen.get());
-  rndN = std::make_shared<Normal> (0.0, 1.0, gen.get());
+  gen.seed(SEED+myid);
+
   com_cov = false;
 
   for (int k=0; k<3; k++) center_pos[k] = center_vel[k] = 0.0;
@@ -135,10 +134,10 @@ set_halo_coordinates(std::vector<Particle>& phalo, int nhalo, int npart)
   model = halo;
 
   for (int i=0; i<npart; i++) {
-    targetmass = mmin + (mtot-mmin)*(*rndU)();
+    targetmass = mmin + (mtot-mmin)*rndU(gen);
     r = zbrent(mass_func, rmin, rmax, tol);
-    phi = 2.0*M_PI*(*rndU)();
-    costh = 2.0*(*rndU)() - 1.0;
+    phi = 2.0*M_PI*rndU(gen);
+    costh = 2.0*rndU(gen) - 1.0;
     sinth = sqrt(1.0 - costh*costh);
 
     p.pos[0] = r*sinth*cos(phi);
@@ -192,13 +191,13 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
   model = disk;
 
   for (int i=0; i<npart; i++) {
-    targetmass = mmin + (mtot-mmin)*(*rndU)();
+    targetmass = mmin + (mtot-mmin)*rndU(gen);
     R = zbrent(mass_func, rmin, rmax, tol);
-    phi = 2.0*M_PI*(*rndU)();
+    phi = 2.0*M_PI*rndU(gen);
 
     p.pos[0] = R*cos(phi);
     p.pos[1] = R*sin(phi);
-    p.pos[2] = scaleheight*atanh(2.0*(*rndU)()-1.0);
+    p.pos[2] = scaleheight*atanh(2.0*rndU(gen)-1.0);
 
     if (com_cov) {
       massp1 += p.mass;
@@ -870,8 +869,6 @@ set_vel_disk(vector<Particle>& part)
   for (int k=0; k<3; k++) vel[k] = vel1[k] = 0.0;
   massp = massp1 = 0.0;
 
-  Normal rn(0.0, 1.0, gen.get());
-
 				 // Better to make a 2-d table
   table_disk(part);
   
@@ -894,9 +891,9 @@ set_vel_disk(vector<Particle>& part)
     vvR = max<double>(vvR, MINDOUBLE);
     vvP = max<double>(vvP, MINDOUBLE);
     
-    vz   = rn()*sqrt(vvZ);
-    vr   = rn()*sqrt(vvR);
-    vp   = rn()*sqrt(vvP) + vphi(x, y, z);
+    vz   = rndN(gen)*sqrt(vvZ);
+    vr   = rndN(gen)*sqrt(vvR);
+    vp   = rndN(gen)*sqrt(vvP) + vphi(x, y, z);
     
     p.vel[0] = vr*x/R - vp*y/R;
     p.vel[1] = vr*y/R + vp*x/R;
@@ -1127,7 +1124,7 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
     
 				// Use Eddington
     
-    if (DF && 0.5*(1.0+erf((r-R_DF)/DR_DF)) > (*rndU)()) {
+    if (DF && 0.5*(1.0+erf((r-R_DF)/DR_DF)) > rndU(gen)) {
       halo2->gen_velocity(&p.pos[0], &p.vel[0], nok);
       
       if (nok) {
@@ -1141,7 +1138,7 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
     if (nok) {
       v2r = get_disp(p.pos[0], p.pos[1], p.pos[2]);
       vr = sqrt(max<double>(v2r, MINDOUBLE));
-      for (int k=0; k<3; k++) p.vel[k] = vr*(*rndN)();
+      for (int k=0; k<3; k++) p.vel[k] = vr*rndN(gen);
     }
     
     if (com_cov) {

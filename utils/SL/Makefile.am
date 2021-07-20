@@ -11,7 +11,7 @@ endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_eigen3_include@
-AM_CPPFLAGS= -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src $(CUDA_CFLAGS)
+AM_CPPFLAGS= -I$(top_srcdir)/include -I$(top_srcdir)/src $(CUDA_CFLAGS)
 
 if ENABLE_CUDA
 CUDA_LIBFLAGS  = -lcudart
@@ -19,7 +19,7 @@ endif
 
 bin_PROGRAMS = slcheck slshift orthochk diskpot qtest
 
-COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
+COMMON_LIBS = -lexputil $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
 $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@  $(CUDA_LDFLAGS)
 SYS_LIBS = -lstdc++ -lpthread -ldl $(LIBS)
 MPI_LIBS = -lmpi
@@ -27,7 +27,7 @@ MPI_LIBS = -lmpi
 BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 EXPLIBS = $(MPI_LIBS) $(SYS_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
-EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
+EXPFLAGS = -L$(top_srcdir)/exputil/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =

@@ -9,10 +9,8 @@
 #include <map>
 
 #include <boost/circular_buffer.hpp>
-
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
 
 #include "ExternalForce.H"
 #include "AsciiHisto.H"
@@ -230,13 +228,12 @@ protected:
   
   //@{
   //! Pseudorandom generation
-  ACG *gen;
-  Uniform *unit;
-  Normal *norm;
+  boost::random::uniform_real_distribution<> unit;
+  boost::random::normal_distribution<>       norm;
   //@}
   
   //! Cell diagnostic records indexed by thread
-  vector<Precord> prec;
+  std::vector<Precord> prec;
   
   //! collide return counters
   UU ret;

@@ -73,10 +73,6 @@ UserPeriodic::UserPeriodic(const YAML::Node& conf) : ExternalForce(conf)
 
   userinfo();
 
-  gen = new ACG(11+myid);
-  unit = new Uniform(0.0, 1.0, gen);
-  norm = new Normal(0.0, 1.0, gen);
-
   atomic_weights.resize(13, -1.0);
 
   atomic_weights[0]  = 0.000548579909; // Mass of electron
@@ -337,10 +333,10 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
 	  p->pos[k] = delta - offset[k];
 	  for (int j = 0; j < 3; j++) {
 	    if (j == k) {
-	      p->vel[j] = -sgn(p->vel[j])*fabs(sqrt(k_B*temp/mi)*(*norm)()/vunit);
+	      p->vel[j] = -sgn(p->vel[j])*fabs(sqrt(k_B*temp/mi)*norm(random_gen)/vunit);
 	    }
 	    else  {
-	      p->vel[j] = sqrt(k_B*temp/mi)*(*norm)()/vunit;
+	      p->vel[j] = sqrt(k_B*temp/mi)*norm(random_gen)/vunit;
 	    }
 	  }
 	} 
@@ -349,10 +345,10 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
 	  p->pos[k] =  L[k] - delta - offset[k];
 	  for (int j = 0; j < 3; j++) {
 	    if (j == k) {
-	      p->vel[j] = -sgn(p->vel[j])*fabs(sqrt(k_B*temp/mi)*(*norm)()/vunit);
+	      p->vel[j] = -sgn(p->vel[j])*fabs(sqrt(k_B*temp/mi)*norm(random_gen)/vunit);
 	    }
 	    else {
-	      p->vel[j] = sqrt(k_B*temp/mi)*(*norm)()/vunit;
+	      p->vel[j] = sqrt(k_B*temp/mi)*norm(random_gen)/vunit;
 	    }
 	  }
 	}

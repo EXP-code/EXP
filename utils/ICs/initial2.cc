@@ -80,6 +80,9 @@
 //
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
 
 namespace po = boost::program_options;
 
@@ -270,7 +273,8 @@ vector<int> stepL(1, 0), stepN(1, 1);
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
 string outdir, runtag;
-  
+boost::mt19937 random_gen;
+
 double DiskDens(double R, double z, double phi)
 {
   double ans = 0.0;
@@ -727,6 +731,14 @@ main(int ac, char **av)
     std::cout << "Number of threads=" << numthrd << std::endl;
   }
 #endif
+
+  //====================
+  // Random variates
+  //====================
+
+  random_gen.seed(SEED);
+  boost::random::uniform_real_distribution<> unit;
+  boost::random::normal_distribution<> unitN;
 
   //====================
   // Okay, now begin ...
@@ -1593,12 +1605,6 @@ main(int ac, char **av)
     double mfac = 1.0 - (1.0 + rmax/Scale_Length)*exp(-rmax/Scale_Length);
 
     //
-    // Random generators
-    //
-    ACG gen(10, 20);
-    Uniform unit(0.0, 1.0, &gen);
-
-    //
     // Trimmed Gaussian
     //
     double minK=0.0, maxK=1.0, sigma = 3.0;
@@ -1606,8 +1612,6 @@ main(int ac, char **av)
       minK = 0.5*(1.0+erf(-0.5*sigma));
       maxK = 0.5*(1.0+erf( 0.5*sigma));
     }
-    Uniform unitN(minK, maxK, &gen);
-
 
     double gmass, gmass0 = gas_mass/ngas;
     double KE=0.0, VC=0.0;
@@ -1621,8 +1625,8 @@ main(int ac, char **av)
 
     for (int n=0; n<ngas; n++) {
 
-      double F, dF, M=mmax*unit(), Z=unit();
-      double R = M*rmax, phi=2.0*M_PI*unit(), x, y, z, rr, vc;
+      double F, dF, M=mmax*unit(random_gen), Z=unit(random_gen);
+      double R = M*rmax, phi=2.0*M_PI*unit(random_gen), x, y, z, rr, vc;
       double ax, ay, az;
 
 				// Narrow with bisection
@@ -1673,7 +1677,7 @@ main(int ac, char **av)
       vc = fabs(a*vz[indr] + b*vz[indr+1]);
 
       z = zmin*exp(dz*(a*indz + b*(indz+1)));
-      if (unit()<0.5) z *= -1.0;
+      if (unit(random_gen)<0.5) z *= -1.0;
       rr = sqrt(R*R + z*z);
 
       if (const_height) {
@@ -1685,9 +1689,9 @@ main(int ac, char **av)
       x = R*cosp;
       y = R*sinp;
 
-      double u = -vc*sinp + vthermal*norminv(unitN());
-      double v =  vc*cosp + vthermal*norminv(unitN());
-      double w =  vthermal*norminv(unitN());
+      double u = -vc*sinp + vthermal*norminv(unitN(random_gen));
+      double v =  vc*cosp + vthermal*norminv(unitN(random_gen));
+      double w =  vthermal*norminv(unitN(random_gen));
       
       gmass = gmass0*exp(-R*(1.0/Scale_Length - 1.0/gscal_length)) * 
 	mmax*gscal_length*gscal_length/(mfac*Scale_Length*Scale_Length);

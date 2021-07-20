@@ -3,6 +3,9 @@
 
 #include <pthread.h>
 
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
+
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
@@ -41,9 +44,8 @@ private:
   bool firstime, verbose;
   int N, ncount, nSN;
 
-  ACG *gen;
-  Normal *norm;
-  Uniform *unit;
+  boost::random::normal_distribution<> norm;
+  boost::random::uniform_real_distribution<> unit;
 
   Component *c0;
 

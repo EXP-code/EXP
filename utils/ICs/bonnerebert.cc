@@ -38,9 +38,9 @@
 #include <cmath>
 #include <cstdlib>
 
-#include <ACG.h>
-#include <Normal.h>
-#include <Uniform.h>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
 
 using namespace std;
 
@@ -53,6 +53,7 @@ int myid = 0;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
+boost::mt19937 random_gen;
 
 static void usage (int status);
 
@@ -315,9 +316,10 @@ main (int argc, char **argv)
     double vcirc = sqrt(G*M*Munit*msun/(R*1e3*pc));
     double vfac = sqrt(cs2)/vcirc;
 
-    ACG gen(S);
-    Uniform unit(0.0, 1.0, &gen);
-    Normal  norm(0.0, 1.0, &gen);
+    random_gen.seed(S);
+    boost::random::uniform_real_distribution<> unit;
+    boost::random::normal_distribution<> norm;
+
     vector<double> pos(3);
     double mass = M/N, x, phi, cost, sint, m;
     double MMAX = linear(xt, 0, 3, solution);
@@ -326,11 +328,11 @@ main (int argc, char **argv)
     fout.precision(10);
 
     for (int i=0; i<N; i++) {
-      m = MMAX*unit();
+      m = MMAX*unit(random_gen);
       x = linear(m, 3, 0, solution) * rfac;
 
-      phi  = 2.0*M_PI*unit();
-      cost = 2.0*unit() - 1.0;
+      phi  = 2.0*M_PI*unit(random_gen);
+      cost = 2.0*unit(random_gen) - 1.0;
       sint = sqrt(1.0 - cost*cost);
 
       pos[0] = x*sint*cos(phi);
@@ -339,7 +341,7 @@ main (int argc, char **argv)
       
       fout << setw(18) << mass;
       for (int k=0; k<3; k++) fout << setw(18) << pos[k];
-      for (int k=0; k<3; k++) fout << setw(18) << vfac*norm();
+      for (int k=0; k<3; k++) fout << setw(18) << vfac*norm(random_gen);
       for (int k=0; k<4; k++) fout << setw(18) << 0.0;
       fout << endl;
     }

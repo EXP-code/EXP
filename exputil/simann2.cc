@@ -1,21 +1,19 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 #pragma implementation "simann2.h"
 
 // simanneal.c++   Implementation of a General Purpose Simulated Annealing Class
 /* Uses Cauchy training         */
 
-static const char rcsid[] = "@(#)simann.c++	1.3 15:55:47 3/30/93   EFC";
-
-#include <stdlib.h>
-#include <stddef.h>
-#include <math.h>
-
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cstdlib>
+#include <cmath>
+
+#include <boost/random/mersenne_twister.hpp>
 
 #include <simann2.h>
+
+extern boost::mt19937 random_gen;
 
 #ifndef HUGE
 #define HUGE	HUGE_VAL
@@ -31,10 +29,11 @@ SimAnneal::SimAnneal (Func1d* f, const int d):
   func (f), dimension (d), ddwell (20), rrange (PI2), t0 (0.0), K (1.0),
   rho (0.5), dt (0.1), tscale (0.1), maxit (400), c_jump (100.0), fsave(0)
 {
+  boost::random::uniform_real_distribution<>::param_type params1(-rrange, rrange);
+  boost::random::uniform_real_distribution<>::param_type params2(0.0, 1.0);
 
-  gen = new ACG (10, 20);
-  number_range = new Uniform (-rrange, rrange, gen);
-  number_01 = new Uniform (0.0, 1.0, gen);
+  number_range.param(params1);
+  number_01.param(params2);
 
   x = new double[dimension];
   xnew = new double[dimension];
@@ -54,8 +53,6 @@ set_up (Func1d *f, const int d, const uint32_t seed)
   dimension = d;
 
   func = f;
-
-  gen = new ACG (seed, 20);
 
   x = new double[dimension];
   xnew = new double[dimension];
@@ -96,7 +93,7 @@ melt (const int iters)
 
       for (j = 0; j < dimension; j++)
 	{
-	  xc = rho * t * tan ((*number_range) ());
+	  xc = rho * t * tan (number_range(random_gen));
 	  x[j] += xc;
 	}
 
@@ -139,7 +136,7 @@ equilibrate (const double t, const int n)
     {
       for (j = 0; j < dimension; j++)
 	{
-	  xc = rho * t * tan ((*number_range) ());
+	  xc = rho * t * tan (number_range(random_gen));
 	  xnew[j] = x[j] + xc;
 	}
       /* "energy" */
@@ -179,7 +176,7 @@ equilibrate (const double t, const int n)
 	  /*
 	     p = exp( - (ynew - y) / (K * t) );
 
-	     if ( p > (*number_01)() )
+	     if ( p > number_01(random_gen) )
 	     {
 	     xtmp = x;
 	     x = xnew;
@@ -229,7 +226,7 @@ anneal (const int iters)
 
       for (j = 0; j < dimension; j++)
 	{
-	  xc = rho * t * tan ((*number_range) ());
+	  xc = rho * t * tan (number_range(random_gen));
 	  xnew[j] = x[j] + xc;
 	}
       /* "energy" */
@@ -256,7 +253,7 @@ anneal (const int iters)
 	  /* keep xnew with probability, p, if ynew is increased */
 	  p = exp (-(ynew - y) / (K * t));
 
-	  if (p > (*number_01) ())
+	  if (p > number_01(random_gen))
 	    {
 	      xtmp = x;
 	      x = xnew;

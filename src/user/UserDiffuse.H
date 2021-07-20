@@ -1,9 +1,13 @@
 #ifndef _UserDiffuse_H
 #define _UserDiffuse_H
 
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
+
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
+#include <global.H>
 
 /** Random walk of each orbit on energy surface
 
@@ -68,9 +72,8 @@ private:
 
   LegeQuad *jq;
 
-  ACG *gen;
-  Uniform *urand;
-  Normal *nrand;
+  boost::random::uniform_real_distribution<> urand;
+  boost::random::normal_distribution<> nrand;
 
   string check_file;
   double **ev_mean_th, **ev_disp_th;

@@ -118,6 +118,14 @@ void initialize(void)
 	cout << "parse: using original (old) time-step algorithm" << endl;
     }
     
+    if (_G["random_seed"])     random_seed   = _G["random_seed"].as<unsigned int>();
+    if (myid==0) {
+      cout << "---- Random seed for Node 0 is: " << random_seed << std::endl;
+    }
+
+    // Initialize random number generator
+    random_gen.seed(random_seed+static_cast<unsigned int>(myid));
+
     if (_G["use_cwd"])         use_cwd       = _G["use_cwd"].as<bool>();
     if (_G["eqmotion"])        eqmotion      = _G["eqmotion"].as<bool>();
     if (_G["global_cov"])      global_cov    = _G["global_cov"].as<bool>();

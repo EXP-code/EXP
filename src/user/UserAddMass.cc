@@ -221,12 +221,6 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
     break;
   };
 
-  // Random number generation
-  //
-  gen   = boost::make_shared<ACG>    (seed+myid);
-  urand = boost::make_shared<Uniform>(0.0, 1.0, gen.get());
-  nrand = boost::make_shared<Normal> (0.0, 1.0, gen.get());
-
   switch (alg) {
   case Algorithm::Halo:
     for (int i=0; i<numRprof; i++) {
@@ -673,7 +667,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
       // Get radius
       //
-      MM=1.0*(*urand)();
+      MM=1.0*urand(random_gen);
       if (MM<Mprof[0]) continue;
       if (MM>Mprof[numRprof-2]) continue;
       
@@ -747,9 +741,9 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	{
 	  // Positions
 	  //
-	  double cosx = 2.0*(*urand)() - 1.0;
+	  double cosx = 2.0*urand(random_gen) - 1.0;
 	  double sinx = sqrt(fabs(1.0 - cosx*cosx));
-	  double phi  = 2.0*M_PI *(*urand)();
+	  double phi  = 2.0*M_PI *urand(random_gen);
 	  double cosp = cos(phi), sinp = sin(phi);
 	  
 	  std::array<std::array<double, 3>, 3> ev;
@@ -789,7 +783,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	  }
 	  sig = sqrt(fabs(sig));
 	  
-	  std::array<double, 3> vv = {(*nrand)(), (*nrand)(), (*nrand)()};
+	  std::array<double, 3> vv = {nrand(random_gen), nrand(random_gen), nrand(random_gen)};
 	  double vnorm = xnorm(vv);
 	  for (auto & v : vv) v /= vnorm;
 	  
@@ -802,18 +796,18 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	{
 	  // Positions
 	  //
-	  double phi = 2.0*M_PI*(*urand)();
+	  double phi = 2.0*M_PI*urand(random_gen);
 	  double cosp = cos(phi), sinp = sin(phi);
 	  for (int k=0; k<3; k++) P->pos[k] = rr*(ee[1][k]*cosp + ee[2][k]*sinp);
 
 	  //                                      ^               ^
 	  // These are perpendicular to the       |               |
 	  // mean angular momemtnum vector -------+---------------+
-	  double filp=(*urand)();
+	  double filp=urand(random_gen);
 	  int coin;
 	  if (filp>0.5) coin=1;
 	  else coin=-1;
-	  P->pos[2] += coin * atanh( (*urand)() ) * Zd + zmean[indx]/mas[indx];
+	  P->pos[2] += coin * atanh( urand(random_gen) ) * Zd + zmean[indx]/mas[indx];
 	  if (cforce) {		// Use force evaluation to get
 				// tangential veocity
 	    double tdens0, dpotl0, tdens, tpotl, tpotr, tpotz, tpotp;
@@ -833,7 +827,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	    
 	    // Velocities
 	    //
-      if (vdisp>=0) for (int k=0; k<3; k++) P->vel[k] = vt*(ee[2][k]*cosp - ee[1][k]*sinp) *( (*nrand)() * 1/1.732 * vdisp + 1.0) ;
+      if (vdisp>=0) for (int k=0; k<3; k++) P->vel[k] = vt*(ee[2][k]*cosp - ee[1][k]*sinp) *( nrand(random_gen) * 1/1.732 * vdisp + 1.0) ;
       else for (int k=0; k<3; k++) P->vel[k] = vt*(ee[2][k]*cosp - ee[1][k]*sinp);
 	    //                                                ^               ^
 	    // These are perpendicular to the                 |               |
@@ -881,7 +875,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	    //
 	    if (vdisp>=0.0) {
 	      for (int k=0; k<3; k++)
-		P->vel[k] = v3[k] *( (*nrand)() * 1/1.732 * vdisp + 1.0);
+		P->vel[k] = v3[k] *( nrand(random_gen) * 1/1.732 * vdisp + 1.0);
 	    } else {
 	      for (int k=0; k<3; k++) P->vel[k] = v3[k];
 	    }
@@ -894,9 +888,9 @@ void UserAddMass::determine_acceleration_and_potential(void)
 		 (lrmin + dr*indx) * (lrmin + dr*indx);
 
 	  // NB: sigma_z=pi*G*Sigma * scale_heigh, pi cancels here.
-	  P->vel[2] +=  (*nrand)() * sqrt( 2* mas[indx] /A *Zd ) + vzmean[indx]/mas[indx];
+	  P->vel[2] +=  nrand(random_gen) * sqrt( 2* mas[indx] /A *Zd ) + vzmean[indx]/mas[indx];
 
-	  for (int k=0; k<2; k++) P->vel[k] +=  vvdisp * ( *nrand)();
+	  for (int k=0; k<2; k++) P->vel[k] +=  vvdisp * nrand(random_gen);
 	}
 	
 	break;

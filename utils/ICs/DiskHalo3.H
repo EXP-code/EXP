@@ -1,16 +1,16 @@
-// This is -*- C++ -*-
-
 #ifndef _DiskHalo_H
 #define _DiskHalo_H
-
-#include <math.h>
-#include <stdlib.h>
 
 #include <stdexcept>
 #include <iostream>
 #include <iomanip>
 #include <string>
 #include <memory>
+#include <cmath>
+
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
 
 #include <ACG.h>
 #include <Uniform.h>
@@ -61,9 +61,10 @@ class DiskHalo
   Eigen::MatrixXd halotable;
   double dr, dc;
 
-  std::shared_ptr<Uniform> rndU;
-  std::shared_ptr<Normal>  rndN;
-  std::shared_ptr<ACG>     gen;
+  boost::mt19937 gen;
+  boost::random::uniform_real_distribution<> rndU;
+  boost::random::normal_distribution<> rndN;
+
   std::shared_ptr<QPDistF> qp;
 
   bool DF;

@@ -19,7 +19,7 @@ endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
+AM_CPPFLAGS = -I$(top_srcdir)/include 
 
 bin_PROGRAMS = pspinfo pspstat psp2ascii ascii2psp tipstd2psp		\
 		psp2histo psp2histo1d psp2histo1D2 psp2histoE		\
@@ -27,12 +27,12 @@ bin_PROGRAMS = pspinfo pspstat psp2ascii ascii2psp tipstd2psp		\
 		psp2histoT psp2histoTC pspstatT spl2psp ascii2psp2	\
 		psp2vtu psp2rings psp2bess psp2lagu psp2interp
 
-COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML) $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
+COMMON_LIBS = -lexputil $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML) $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
 
 BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 EXPLIBS = $(MPI_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
-EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
+EXPFLAGS = -L$(top_srcdir)/exputil/.libs
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS  = Grid2D.H
@@ -111,12 +111,12 @@ psp2range_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 psp2range_LDADD   = $(COMMON_LIBS) $(BOOST_LIBS)
 
 spl2psp_SOURCES  = spl2psp.cc PSP.cc header.cc header.H Particle.cc
-spl2psp_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
+spl2psp_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
 spl2psp_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 spl2psp_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS)
 
 psp2vtu_SOURCES  = psp2vtu.cc PSP.cc header.cc header.H Particle.cc
-psp2vtu_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
+psp2vtu_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
 psp2vtu_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 psp2vtu_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS)
 

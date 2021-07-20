@@ -34,7 +34,7 @@ AM_CFLAGS = -D_REENTRANT -fPIC $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2)	
 $(ADD_CFLAGS3) $(ADD_CFLAGS4) $(CUDA_CFLAGS)
 
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include			\
--I$(top_srcdir)/exputil -I$(top_srcdir)/expgnu -I$(top_srcdir)/src	\
+-I$(top_srcdir)/exputil -I$(top_srcdir)/src	\
  $(INCLUDE_DSMC) -I/usr/include/mpi
 
 AM_CXXFLAGS  = -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@ @exp_eigen3_include@ $(CUDA_CFLAGS) $(VERSION_FLAGS)
@@ -72,14 +72,14 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
 exp_DEPENDENCIES = $(EXPADD_DSMC)
 
 BOOST_LIBS = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_SYSTEM_LIB)
-COMMON_LIBS = -lexputil -lexpgnu $(LDFLAGS_DSMC) $(BOOST_LIBS)
+COMMON_LIBS = -lexputil $(LDFLAGS_DSMC) $(BOOST_LIBS)
 
 SYS_LIBS = -lpthread -ldl @exp_omp_lib@
 MPI_LIBS = -lmpi
 
 EXPLIBS  = $(COMMON_LIBS) @LAPACK_LIBS@ $(MPI_LIBS) $(SYS_LIBS) $(LIBS)
 LDADD    = $(COMMON_LIBS) @LAPACK_LIBS@ $(ADD_LIBS) $(CUDA_LDFLAGS)
-EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs $(LDFLAGS_DSMC) $(BOOST_LDFLAGS)
+EXPFLAGS = -L$(top_srcdir)/exputil/.libs $(LDFLAGS_DSMC) $(BOOST_LDFLAGS)
 
 exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)		\
 	$(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@	\

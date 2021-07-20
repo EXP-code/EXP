@@ -4,6 +4,8 @@
 #include <string>
 #include <cmath>
 
+#include <boost/random/mersenne_twister.hpp>
+
 #include <getopt.h>
 
 #include <biorth1d.H>
@@ -14,6 +16,7 @@
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
+boost::mt19937 random_gen;
 
 
 //===========================================================================

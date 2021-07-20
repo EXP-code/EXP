@@ -32,9 +32,7 @@
 #include <fstream>
 #include <cmath>
 
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
+#include <boost/random/mersenne_twister.hpp>
 
 #include <massmodel.H>
 #include <interp.H>
@@ -62,6 +60,7 @@ int      AxiSymModel::gen_itmax = 20000;
 const bool verbose = true;
 const double ftol = 0.01;
 
+extern boost::mt19937 random_gen;
 
 Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 {
@@ -90,9 +89,6 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
       double dx = (Emax - Emin - 2.0*tol)/(numr-1);
       double dy = (1.0 - gen_kmin - 2.0*tol)/(numj-1);
 
-      gen = new ACG(gen_seed, 20);
-      Unit = new Uniform(0.0, 1.0, gen);
-
       cout << "gen_point_2d[" << ModelID << "]: " << get_max_radius() << endl;
       
       gen_fomax = 0.0;
@@ -119,20 +115,20 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
     
     for (it=0; it<gen_itmax; it++) {
 
-      xxx = Emin + tol + (Emax - Emin - 2.0*tol)*(*Unit)();
-      yyy = gen_kmin + tol + (1.0 - gen_kmin - 2.0*tol)*(*Unit)();
+      xxx = Emin + tol + (Emax - Emin - 2.0*tol)*Unit(random_gen);
+      yyy = gen_kmin + tol + (1.0 - gen_kmin - 2.0*tol)*Unit(random_gen);
 
       gen_orb.new_orbit(xxx, yyy);
 
       zzz = distf(xxx, gen_orb.AngMom()) * gen_orb.Jmax()/gen_orb.get_freq(1);
 
-      if ((*Unit)() > zzz/gen_fomax ) continue;
+      if (Unit(random_gen) > zzz/gen_fomax ) continue;
 
-      w1 = 2.0*M_PI*(*Unit)();
+      w1 = 2.0*M_PI*Unit(random_gen);
       T = w1/gen_orb.get_freq(1);
       
       r = gen_orb.get_angle(6, T);
-      phi = 2.0*M_PI*(*Unit)() - gen_orb.get_angle(5, T);
+      phi = 2.0*M_PI*Unit(random_gen) - gen_orb.get_angle(5, T);
 
       pot = get_pot(r);
 
@@ -158,9 +154,6 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
       double dy = (1.0 - 2.0*tol)/(numj-1);
       double dr;
 
-      gen = new ACG(gen_seed, 20);
-      Unit = new Uniform(0.0, 1.0, gen);
-      
       gen_mass.resize(gen_N);
       gen_rloc.resize(gen_N);
       gen_fmax.resize(gen_N);
@@ -211,7 +204,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
       gen_firstime = false;
     }
 
-    r = odd2((*Unit)()*gen_mass[gen_N-1], gen_mass, gen_rloc, 0);
+    r = odd2(Unit(random_gen)*gen_mass[gen_N-1], gen_mass, gen_rloc, 0);
     fmax = odd2(r, gen_rloc, gen_fmax, 1);
     if (gen_logr) r = exp(r);
 
@@ -222,18 +215,18 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
     
     for (it=0; it<gen_itmax; it++) {
 
-      xxx = sqrt((*Unit)());
-      yyy = 0.5*M_PI*(*Unit)();
+      xxx = sqrt(Unit(random_gen));
+      yyy = 0.5*M_PI*Unit(random_gen);
 
       vr = vmax*xxx*cos(yyy);
       vt = vmax*xxx*sin(yyy);
       eee = pot + 0.5*(vr*vr + vt*vt);
 
-      if ((*Unit)() > distf(eee, r*vt)/fmax ) continue;
+      if (Unit(random_gen) > distf(eee, r*vt)/fmax ) continue;
 
-      if ((*Unit)()<0.5) vr *= -1.0;
+      if (Unit(random_gen)<0.5) vr *= -1.0;
     
-      phi = 2.0*M_PI*(*Unit)();
+      phi = 2.0*M_PI*Unit(random_gen);
 
       break;
     }
@@ -286,9 +279,6 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
     double dx = (1.0 - 2.0*tol)/(numr-1);
     double dy = (1.0 - 2.0*tol)/(numj-1);
 
-    gen = new ACG(gen_seed, 20);
-    Unit = new Uniform(0.0, 1.0, gen);
-      
     gen_mass.resize(gen_N);
     gen_rloc.resize(gen_N);
     gen_fmax.resize(gen_N);
@@ -334,18 +324,18 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
     
   for (it=0; it<gen_itmax; it++) {
 
-    xxx = sqrt((*Unit)());
-    yyy = 0.5*M_PI*(*Unit)();
+    xxx = sqrt(Unit(random_gen));
+    yyy = 0.5*M_PI*Unit(random_gen);
 
     vr = vmax*xxx*cos(yyy);
     vt = vmax*xxx*sin(yyy);
     eee = pot + 0.5*(vr*vr + vt*vt);
 
-    if ((*Unit)() > distf(eee, r*vt)/fmax ) continue;
+    if (Unit(random_gen) > distf(eee, r*vt)/fmax ) continue;
     
-    if ((*Unit)()<0.5) vr *= -1.0;
+    if (Unit(random_gen)<0.5) vr *= -1.0;
     
-    phi = 2.0*M_PI*(*Unit)();
+    phi = 2.0*M_PI*Unit(random_gen);
 
     break;
   }
@@ -407,9 +397,6 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
     double dx = (1.0 - 2.0*tol)/(numr-1);
     double dy = (1.0 - 2.0*tol)/(numj-1);
     double dr;
-
-    gen = new ACG(gen_seed, 20);
-    Unit = new Uniform(0.0, 1.0, gen);
 
     gen_mass.resize(gen_N);
     gen_rloc.resize(gen_N);
@@ -478,7 +465,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
     gen_firstime = false;
   }
 
-  r = odd2((*Unit)()*gen_mass[gen_N], gen_mass, gen_rloc, 0);
+  r = odd2(Unit(random_gen)*gen_mass[gen_N], gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   if (gen_logr) r = exp(r);
   
@@ -492,8 +479,8 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 
   for (it=0; it<gen_itmax; it++) {
 
-    xxx = -2.0*cos(acos((*Unit)())/3.0 - 2.0*M_PI/3.0);
-    yyy = (1.0 - xxx*xxx)*(*Unit)();
+    xxx = -2.0*cos(acos(Unit(random_gen))/3.0 - 2.0*M_PI/3.0);
+    yyy = (1.0 - xxx*xxx)*Unit(random_gen);
 
     vr = vmax*xxx;
     vt = vmax*sqrt(yyy);
@@ -509,11 +496,11 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
     }
     */
 
-    if ((*Unit)() > distf(eee, r*vt)/fmax ) continue;
+    if (Unit(random_gen) > distf(eee, r*vt)/fmax ) continue;
 
-    if ((*Unit)()<0.5) vr *= -1.0;
+    if (Unit(random_gen)<0.5) vr *= -1.0;
     
-    azi = 2.0*M_PI*(*Unit)();
+    azi = 2.0*M_PI*Unit(random_gen);
     vt1 = vt*cos(azi);
     vt2 = vt*sin(azi);
 
@@ -531,10 +518,10 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 
   ierr = 0;
   
-  if ((*Unit)()>=0.5) vr *= -1.0;
+  if (Unit(random_gen)>=0.5) vr *= -1.0;
 
-  phi = 2.0*M_PI*(*Unit)();
-  cost = 2.0*((*Unit)() - 0.5);
+  phi = 2.0*M_PI*Unit(random_gen);
+  cost = 2.0*(Unit(random_gen) - 0.5);
   sint = sqrt(1.0 - cost*cost);
   cosp = cos(phi);
   sinp = sin(phi);
@@ -591,8 +578,6 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
     orb = SphericalOrbit(this);
 #endif
     gen_orb = SphericalOrbit(this);
-    gen = new ACG(gen_seed, 20);
-    Unit = new Uniform(0.0, 1.0, gen);
 
     Emin_grid = get_pot(rmin)*(1.0 - gen_tolE);
     Emax_grid = get_pot(rmax)*(1.0 + gen_tolE);
@@ -680,8 +665,8 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
   double kmin = max<double>(Kmin, gen_tolK);
   double kmax = min<double>(Kmax, 1.0 - gen_tolK);
 
-  E = odd2(Mmin + (Mmax-Mmin)*(*Unit)(), EgridMass, Egrid, 0);
-  K = sqrt(kmin*kmin + (kmax*kmax - kmin*kmin)*(*Unit)());
+  E = odd2(Mmin + (Mmax-Mmin)*Unit(random_gen), EgridMass, Egrid, 0);
+  K = sqrt(kmin*kmin + (kmax*kmax - kmin*kmin)*Unit(random_gen));
 
   int indxE = int( (E - Emin_grid)/dEgrid );
   int indxK = int( (K - gen_tolK)/dKgrid );
@@ -701,7 +686,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
   r = 0.0;
   J = 0.0;
   jmax = 0.0;
-  w1t = M_PI*(*Unit)();
+  w1t = M_PI*Unit(random_gen);
 
   for (int ie=0; ie<2; ie++) {
     J += cE[ie]*Jmax[indxE+ie] * K;
@@ -724,16 +709,16 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
   }
   vr = sqrt( 2.0*(E - pot) - vt*vt );
 
-  if ((*Unit)()<0.5) vr *= -1.0;
+  if (Unit(random_gen)<0.5) vr *= -1.0;
     
-  azi = 2.0*M_PI*(*Unit)();
+  azi = 2.0*M_PI*Unit(random_gen);
   vt1 = vt*cos(azi);
   vt2 = vt*sin(azi);
 
   Eigen::VectorXd out(7);
 
-  phi = 2.0*M_PI*(*Unit)();
-  cost = 2.0*((*Unit)() - 0.5);
+  phi = 2.0*M_PI*Unit(random_gen);
+  cost = 2.0*(Unit(random_gen) - 0.5);
   sint = sqrt(1.0 - cost*cost);
   cosp = cos(phi);
   sinp = sin(phi);
@@ -781,10 +766,6 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
 
   if (gen_firstime_jeans) {
     double dr;
-
-    gen   = new ACG(gen_seed, 20);
-    Unit  = new Uniform(0.0, 1.0, gen);
-    Gauss = new Normal(0.0, 1.0, gen);
 
     gen_mass.resize(gen_N-1);
     gen_rloc.resize(gen_N-1);
@@ -852,7 +833,7 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
     gen_firstime_jeans = false;
   }
 
-  r = odd2((*Unit)()*gen_mass[gen_N], gen_mass, gen_rloc, 0);
+  r = odd2(Unit(random_gen)*gen_mass[gen_N], gen_mass, gen_rloc, 0);
   vv = odd2(r, gen_rloc, gen_fmax);
 
   if (gen_logr) r = exp(r);
@@ -864,22 +845,22 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
     vtot = 0.0;
     
   
-  xxx = -2.0*cos(acos((*Unit)())/3.0 - 2.0*M_PI/3.0);
-  yyy = (1.0 - xxx*xxx)*(*Unit)();
+  xxx = -2.0*cos(acos(Unit(random_gen))/3.0 - 2.0*M_PI/3.0);
+  yyy = (1.0 - xxx*xxx)*Unit(random_gen);
 
   vr = vtot*xxx;
   vt = vtot*sqrt(yyy);
 
-  azi = 2.0*M_PI*(*Unit)();
+  azi = 2.0*M_PI*Unit(random_gen);
   vt1 = vt*cos(azi);
   vt2 = vt*sin(azi);
 
   Eigen::VectorXd out(7);
 
-  if ((*Unit)()>=0.5) vr *= -1.0;
+  if (Unit(random_gen)>=0.5) vr *= -1.0;
 
-  phi = 2.0*M_PI*(*Unit)();
-  cost = 2.0*((*Unit)() - 0.5);
+  phi = 2.0*M_PI*Unit(random_gen);
+  cost = 2.0*(Unit(random_gen) - 0.5);
   sint = sqrt(1.0 - cost*cost);
   cosp = cos(phi);
   sinp = sin(phi);
@@ -923,10 +904,7 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
     double dy = (1.0 - 2.0*tol)/(numj-1);
     double dr;
 
-    gen = new ACG(gen_seed, 20);
-    Unit = new Uniform(0.0, 1.0, gen);
-
-    gen_mass.resize(gen_N);
+        gen_mass.resize(gen_N);
     gen_rloc.resize(gen_N);
     gen_fmax.resize(gen_N);
 
@@ -1000,18 +978,18 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
 
   for (it=0; it<gen_itmax; it++) {
 
-    xxx = -2.0*cos(acos((*Unit)())/3.0 - 2.0*M_PI/3.0);
-    yyy = (1.0 - xxx*xxx)*(*Unit)();
+    xxx = -2.0*cos(acos(Unit(random_gen))/3.0 - 2.0*M_PI/3.0);
+    yyy = (1.0 - xxx*xxx)*Unit(random_gen);
 
     vr = vmax*xxx;
     vt = vmax*sqrt(yyy);
     eee = pot + 0.5*(vr*vr + vt*vt);
 
-    if ((*Unit)() > distf(eee, r*vt)/fmax ) continue;
+    if (Unit(random_gen) > distf(eee, r*vt)/fmax ) continue;
 
-    if ((*Unit)()<0.5) vr *= -1.0;
+    if (Unit(random_gen)<0.5) vr *= -1.0;
     
-    azi = 2.0*M_PI*(*Unit)();
+    azi = 2.0*M_PI*Unit(random_gen);
     vt1 = vt*cos(azi);
     vt2 = vt*sin(azi);
 
@@ -1026,7 +1004,7 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
 
   ierr = 0;
   
-  if ((*Unit)()>=0.5) vr *= -1.0;
+  if (Unit(random_gen)>=0.5) vr *= -1.0;
 
   phi = atan2(pos[1], pos[0]);
   cost = pos[2]/(r+1.0e-18);
@@ -1058,9 +1036,6 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     double dx = (1.0 - 2.0*tol)/(numr-1);
     double dy = (1.0 - 2.0*tol)/(numj-1);
     double dr;
-
-    gen = new ACG(gen_seed, 20);
-    Unit = new Uniform(0.0, 1.0, gen);
 
     gen_mass.resize(gen_N);
     gen_rloc.resize(gen_N);
@@ -1186,7 +1161,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   }
 
 #if 1
-  mass = gen_mass[1] + (*Unit)()*(gen_mass[gen_N]-gen_mass[1]);
+  mass = gen_mass[1] + Unit(random_gen)*(gen_mass[gen_N]-gen_mass[1]);
   r = odd2(mass, gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   if (gen_logr) r = exp(r);
@@ -1202,7 +1177,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   int it;
   for (it=0; it<gen_itmax; it++) {
 
-  mass = gen_mass[1] + (*Unit)()*(gen_mass[gen_N]-gen_mass[1]);
+  mass = gen_mass[1] + Unit(random_gen)*(gen_mass[gen_N]-gen_mass[1]);
   r = odd2(mass, gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   if (gen_logr) r = exp(r);
@@ -1212,19 +1187,19 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 
 #endif
 
-    xxx = 2.0*sin(asin((*Unit)())/3.0);
-    yyy = (1.0 - xxx*xxx)*(*Unit)();
+    xxx = 2.0*sin(asin(Unit(random_gen))/3.0);
+    yyy = (1.0 - xxx*xxx)*Unit(random_gen);
 
     vr = vmax*xxx;
     vt = vmax*sqrt(yyy);
     eee = pot + 0.5*(vr*vr + vt*vt);
 
     if (fmax<=0.0) continue;
-    if ((*Unit)() > fake->distf(eee, r*vt)/fmax ) continue;
+    if (Unit(random_gen) > fake->distf(eee, r*vt)/fmax ) continue;
 
-    if ((*Unit)()<0.5) vr *= -1.0;
+    if (Unit(random_gen)<0.5) vr *= -1.0;
     
-    azi = 2.0*M_PI*(*Unit)();
+    azi = 2.0*M_PI*Unit(random_gen);
     vt1 = vt*cos(azi);
     vt2 = vt*sin(azi);
 
@@ -1242,10 +1217,10 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 
   ierr = 0;
   
-  if ((*Unit)()>=0.5) vr *= -1.0;
+  if (Unit(random_gen)>=0.5) vr *= -1.0;
 
-  phi = 2.0*M_PI*(*Unit)();
-  cost = 2.0*((*Unit)() - 0.5);
+  phi = 2.0*M_PI*Unit(random_gen);
+  cost = 2.0*(Unit(random_gen) - 0.5);
   sint = sqrt(1.0 - cost*cost);
   cosp = cos(phi);
   sinp = sin(phi);
@@ -1287,9 +1262,6 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
     double dx = (1.0 - 2.0*tol)/(numr-1);
     double dy = (1.0 - 2.0*tol)/(numj-1);
     double dr;
-
-    gen = new ACG(gen_seed, 20);
-    Unit = new Uniform(0.0, 1.0, gen);
 
     gen_mass.resize(gen_N);
     gen_rloc.resize(gen_N);
@@ -1371,19 +1343,19 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
   int it;
   for (it=0; it<gen_itmax; it++) {
 
-    xxx = 2.0*sin(asin((*Unit)())/3.0);
-    yyy = (1.0 - xxx*xxx)*(*Unit)();
+    xxx = 2.0*sin(asin(Unit(random_gen))/3.0);
+    yyy = (1.0 - xxx*xxx)*Unit(random_gen);
 
     vr = vmax*xxx;
     vt = vmax*sqrt(yyy);
     eee = pot + 0.5*(vr*vr + vt*vt);
 
     if (fmax<=0.0) continue;
-    if ((*Unit)() > fake->distf(eee, r*vt)/fmax ) continue;
+    if (Unit(random_gen) > fake->distf(eee, r*vt)/fmax ) continue;
 
-    if ((*Unit)()<0.5) vr *= -1.0;
+    if (Unit(random_gen)<0.5) vr *= -1.0;
     
-    azi = 2.0*M_PI*(*Unit)();
+    azi = 2.0*M_PI*Unit(random_gen);
     vt1 = vt*cos(azi);
     vt2 = vt*sin(azi);
 
@@ -1401,10 +1373,10 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
 
   ierr = 0;
   
-  if ((*Unit)()>=0.5) vr *= -1.0;
+  if (Unit(random_gen)>=0.5) vr *= -1.0;
 
-  phi = 2.0*M_PI*(*Unit)();
-  cost = 2.0*((*Unit)() - 0.5);
+  phi = 2.0*M_PI*Unit(random_gen);
+  cost = 2.0*(Unit(random_gen) - 0.5);
   sint = sqrt(1.0 - cost*cost);
   cosp = cos(phi);
   sinp = sin(phi);
@@ -1443,8 +1415,6 @@ Eigen::VectorXd
   if (gen_firstime_E) {
     
     gen_orb = SphericalOrbit(this);
-    gen = new ACG(gen_seed, 20);
-    Unit = new Uniform(0.0, 1.0, gen);
     
     Emin_grid = get_pot(rmin)*(1.0 - gen_tolE);
     Emax_grid = get_pot(rmax)*(1.0 + gen_tolE);
@@ -1539,8 +1509,8 @@ Eigen::VectorXd
   double kmin = max<double>(Kmin, gen_tolK);
   double kmax = min<double>(Kmax, 1.0 - gen_tolK);
 
-  E = odd2(Mmin + (Mmax-Mmin)*(*Unit)(), EgridMass, Egrid, 0);
-  K = sqrt(kmin*kmin + (kmax*kmax - kmin*kmin)*(*Unit)());
+  E = odd2(Mmin + (Mmax-Mmin)*Unit(random_gen), EgridMass, Egrid, 0);
+  K = sqrt(kmin*kmin + (kmax*kmax - kmin*kmin)*Unit(random_gen));
 
   int indxE = int( (E - Emin_grid)/dEgrid );
   int indxK = int( (K - gen_tolK)/dKgrid );
@@ -1560,7 +1530,7 @@ Eigen::VectorXd
   r = 0.0;
   J = 0.0;
   jmax = 0.0;
-  w1t = M_PI*(*Unit)();
+  w1t = M_PI*Unit(random_gen);
 
   for (int ie=0; ie<2; ie++) {
     J += cE[ie]*Jmax[indxE+ie] * K;
@@ -1583,16 +1553,16 @@ Eigen::VectorXd
   }
   vr = sqrt( 2.0*(E - pot) - vt*vt );
 
-  if ((*Unit)()<0.5) vr *= -1.0;
+  if (Unit(random_gen)<0.5) vr *= -1.0;
     
-  azi = 2.0*M_PI*(*Unit)();
+  azi = 2.0*M_PI*Unit(random_gen);
   vt1 = vt*cos(azi);
   vt2 = vt*sin(azi);
 
   Eigen::VectorXd out(7);
 
-  phi = 2.0*M_PI*(*Unit)();
-  cost = 2.0*((*Unit)() - 0.5);
+  phi = 2.0*M_PI*Unit(random_gen);
+  cost = 2.0*(Unit(random_gen) - 0.5);
   sint = sqrt(1.0 - cost*cost);
   cosp = cos(phi);
   sinp = sin(phi);

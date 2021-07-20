@@ -467,12 +467,6 @@ private:
   InteractSelect IS;
 
   //@{
-  //! Pseudo-random number generators
-  ACG     *gen;
-  Uniform *unit;
-  //@}
-  
-  //@{
   //! Inelastic work space
   typedef std::pair<double, double>                  CFreturn;
   typedef std::vector<CFreturn>                      CEvector;

@@ -547,10 +547,6 @@ Collide::Collide(ExternalForce *force, Component *comp,
   use_Kn   = -1;
   use_St   = -1;
   
-  gen  = new ACG     (seed+myid);
-  unit = new Uniform (0.0, 1.0, gen);
-  norm = new Normal  (0.0, 1.0, gen);
-  
   if (MFPDIAG) {
     prec .resize(nthrds);
     for (int n=0; n<nthrds; n++)
@@ -621,9 +617,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
 
 Collide::~Collide()
 {
-  delete gen;
-  delete unit;
-  delete norm;
+  // NADA
 }
 
 void Collide::debug_list()
@@ -1417,7 +1411,7 @@ void * Collide::collide_thread(void * arg)
 	// Fractional check
 	//
 	double frc = v.second() - np, wght = 1.0;
-	double  R0 = (*unit)();
+	double  R0 = unit(random_gen);
 #ifdef  XC_DEEP12
 	printf("FRC=%13.6e R=%13.6e T=%d\n", frc, R0, TT);
 #endif
@@ -1441,8 +1435,8 @@ void * Collide::collide_thread(void * arg)
 
 	// Pick a pair of particles from the cell
 	//
-	int i1 = std::min<int>(int(floor((*unit)()* nbods   )), nbods-1);
-	int i2 = std::min<int>(int(floor((*unit)()*(nbods-1))), nbods-2);
+	int i1 = std::min<int>(int(floor(unit(random_gen)* nbods   )), nbods-1);
+	int i2 = std::min<int>(int(floor(unit(random_gen)*(nbods-1))), nbods-2);
 	if (i2 >= i1) i2++;
 
 	// Get index from body map for the cell
@@ -1489,7 +1483,7 @@ void * Collide::collide_thread(void * arg)
 	  std::cout << "TARG=" << targ << " T=" << TT << std::endl;
 #endif
 	  if (NTC or NTCnodb)
-	    ok = ( targ > (*unit)() );
+	    ok = ( targ > unit(random_gen) );
 	  else
 	    ok = true;
 
@@ -2246,8 +2240,8 @@ void Collide::EPSM(pCell* const cell, int id)
       Particle* p1 = tree->Body(cell->bods[0]);
       Particle* p2 = tree->Body(cell->bods[1]);
       for (unsigned k=0; k<3; k++) {
-	R = (*unit)();
-	if ((*unit)()>0.5)
+	R = unit(random_gen);
+	if (unit(random_gen)>0.5)
 	  p1->vel[k] = mvel[k] + mdisp;
 	else 
 	  p1->vel[k] = mvel[k] - mdisp;
@@ -2260,7 +2254,7 @@ void Collide::EPSM(pCell* const cell, int id)
       Particle* p3 = tree->Body(cell->bods[2]);
       double v2, v3;
       for (unsigned k=0; k<3; k++) {
-	T = 2.0*M_PI*(*unit)();
+	T = 2.0*M_PI*unit(random_gen);
 	v2 = M_SQRT2*mdisp*cos(T);
 	v3 = M_SQRT2*mdisp*sin(T);
 	p1->vel[k] = mvel[k] - M_SQRT2*v2/sqrt3;
@@ -2274,15 +2268,15 @@ void Collide::EPSM(pCell* const cell, int id)
       Particle* p4 = tree->Body(cell->bods[3]);
       double v2, v3, e2, e4, v4;
       for (unsigned k=0; k<3; k++) {
-	R = (*unit)();
+	R = unit(random_gen);
 	e2 = mdisp*mdisp*(1.0 - R*R);
-	T = 2.0*M_PI*(*unit)();
+	T = 2.0*M_PI*unit(random_gen);
 	v2 = sqrt(2.0*e2)*cos(T);
 	v3 = sqrt(2.0*e2)*sin(T);
 	p1->vel[k] = mvel[k] - sqrt3*v2/2.0;
 	p2->vel[k] = p1->vel[k] + (2.0*v2 - M_SQRT2*v3)/sqrt3;
 	e4 = mdisp*mdisp*R*R;
-	if ((*unit)()>0.5) v4 =  sqrt(2.0*e4);
+	if (unit(random_gen)>0.5) v4 =  sqrt(2.0*e4);
 	else               v4 = -sqrt(2.0*e4);
 	p3->vel[k] = p2->vel[k] + (sqrt3*v3 - v4)/M_SQRT2;
 	p4->vel[k] = p3->vel[k] + M_SQRT2*v4;
@@ -2303,18 +2297,18 @@ void Collide::EPSM(pCell* const cell, int id)
 	  dim = kmax/2-1;
 	  Tk .resize(dim);
 	  for (int m=0; m<dim; m++) 
-	    Tk[m] = pow((*unit)(), 1.0/(kmax/2 - m - 1.5));
+	    Tk[m] = pow(unit(random_gen), 1.0/(kmax/2 - m - 1.5));
 	} else {			
 	  // Odd
 	  kmax = nbods-1;
 	  dim = kmax/2-1;
 	  Tk .resize(dim);
 	  for (int m=0; m<dim; m++) 
-	    Tk[m] = pow((*unit)(), 1.0/(kmax/2 - m - 1.0));
+	    Tk[m] = pow(unit(random_gen), 1.0/(kmax/2 - m - 1.0));
 	}
 	
 	e[1] = mdisp*mdisp*(1.0 - Tk[0]);
-	T = 2.0*M_PI*(*unit)();
+	T = 2.0*M_PI*unit(random_gen);
 	v[1] = sqrt(2.0*e[1])*cos(T);
 	v[2] = sqrt(2.0*e[1])*sin(T);
 	
@@ -2334,7 +2328,7 @@ void Collide::EPSM(pCell* const cell, int id)
 	  
 	  prod *= Tk[j/2-2];
 	  e[jj] = mdisp*mdisp*(1.0 - Tk[j/2-1])*prod;
-	  T = 2.0*M_PI*(*unit)();
+	  T = 2.0*M_PI*unit(random_gen);
 	  v[jj]   = sqrt(2.0*e[jj])*cos(T);
 	  v[jj+1] = sqrt(2.0*e[jj])*sin(T);
 	  
@@ -2348,10 +2342,10 @@ void Collide::EPSM(pCell* const cell, int id)
 	e[kmax-1] = mdisp*mdisp*prod;
 	
 	if (Even) {
-	  if ((*unit)()>0.5) v[nbods-1] =  sqrt(2.0*e[kmax-1]);
+	  if (unit(random_gen)>0.5) v[nbods-1] =  sqrt(2.0*e[kmax-1]);
 	  else               v[nbods-1] = -sqrt(2.0*e[kmax-1]);
 	} else {
-	  T = 2.0*M_PI*(*unit)();
+	  T = 2.0*M_PI*unit(random_gen);
 	  v[nbods-2] = sqrt(2.0*e[kmax-1])*cos(T);
 	  v[nbods-1] = sqrt(2.0*e[kmax-1])*sin(T);
 	  
@@ -2388,7 +2382,7 @@ void Collide::EPSM(pCell* const cell, int id)
       Particle* p = tree->Body(cell->bods[j]);
       
       for (unsigned k=0; k<3; k++) {
-	p->vel[k] = mdisp*(*norm)();
+	p->vel[k] = mdisp*norm(random_gen);
 	Tmvel[k] += p->mass*p->vel[k];
 	Tdisp[k] += p->mass*p->vel[k]*p->vel[k];
 	if (fabs(p->vel[k])>1e6 || std::isnan(p->vel[k])) {
@@ -3500,9 +3494,9 @@ void Collide::velocityUpdate(Particle* p1, Particle* p2, double cr)
   for(unsigned k=0; k<3; k++)
     vcm[k] = (p1->mass*p1->vel[k] + p2->mass*p2->vel[k]) / tmass;
 	    
-  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+  double cos_th = 1.0 - 2.0*unit(random_gen);       // Cosine and sine of
   double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-  double phi    = 2.0*M_PI*(*unit)();	       // Collision angle phi
+  double phi    = 2.0*M_PI*unit(random_gen);	       // Collision angle phi
   
   vrel[0] = cr*cos_th;	  // Compute post-collision
   vrel[1] = cr*sin_th*cos(phi); // relative velocity
@@ -3926,16 +3920,16 @@ std::vector<double> Collide::unit_vector()
   std::vector<double> ret(3);	// Return vector
 
   if (uv == trig) {
-    double cos_th = 1.0 - 2.0*(*unit)();
+    double cos_th = 1.0 - 2.0*unit(random_gen);
     double sin_th = sqrt(fabs(1.0 - cos_th*cos_th));
-    double phi    = 2.0*M_PI*(*unit)();
+    double phi    = 2.0*M_PI*unit(random_gen);
     ret[0] = sin_th*cos(phi);
     ret[1] = sin_th*sin(phi);
     ret[2] = cos_th;
   } else {
     double nrm = 0.0;
     for (auto & v : ret) {
-      v = (*norm)();
+      v = norm(random_gen);
       nrm += v*v;
     }
     nrm = sqrt(nrm);

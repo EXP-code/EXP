@@ -567,8 +567,8 @@ void * UserDSMC::determine_acceleration_and_potential_thread(void * arg)
     for (int nc=0; nc<ncount; nc++) {
 				// Pick two particles at random out of this cell
 				// 
-      int n1 = (int)floor((*unif)()* Nc);
-      int n2 = (1 + (int)floor((*unif)()*(Nc-1)+n1) ) % Nc;
+      int n1 = (int)floor(unif(random_gen)* Nc);
+      int n2 = (1 + (int)floor(unif(random_gen)*(Nc-1)+n1) ) % Nc;
 
       Particle *p1 = c0->Part(binlist[i][n1]);
       Particle *p2 = c0->Part(binlist[i][n2]);
@@ -588,7 +588,7 @@ void * UserDSMC::determine_acceleration_and_potential_thread(void * arg)
 
 				// Accept or reject candidate pair 
 				// according to relative speed
-      if (rvel/vmax[iw] > (*unif)() ) {
+      if (rvel/vmax[iw] > unif(random_gen) ) {
 
 				// Compute post-collision velocities
 	
@@ -600,12 +600,12 @@ void * UserDSMC::determine_acceleration_and_potential_thread(void * arg)
 
 				// Cosine and sine of collision angle theta
 				// 
-        double cos_th = 1.0 - 2.0*(*unif)(); 
+        double cos_th = 1.0 - 2.0*unif(random_gen); 
         double sin_th = sqrt(1.0 - cos_th*cos_th);
 
 				// Collision angle phi
 				// 
-        double phi = 2.0*M_PI*(*unif)();
+        double phi = 2.0*M_PI*unif(random_gen);
 
 				// Compute hard-sphere displacement following
 				// Alexander, Garcia & Alder (1995, PRL, 74, 5212)

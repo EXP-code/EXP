@@ -8,10 +8,6 @@
 #include <deque>
 #include <algorithm>
 
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
-
 #include <Eigen/Eigen>
 #include <Particle.H>
 

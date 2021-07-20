@@ -1,12 +1,12 @@
 #ifndef _UserReflect_H
 #define _UserReflect_H
 
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
+
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
-
-#include <ACG.h>
-#include <Uniform.h>
 
 /** Enforce reflecting boundary conditions for sphere
     @param compname is the name of the component whose particles will be subject to the boundary condition
@@ -26,8 +26,9 @@ private:
   double radius;
   bool debug;
   unsigned *wrong_dir, *too_big;
-  vector<ACG*> gen;
-  vector<Uniform*> unit;
+
+  std::vector<boost::mt19937> gen;
+  boost::random::uniform_real_distribution<> unit;
 
   Component *c0;
 

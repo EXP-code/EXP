@@ -45,11 +45,9 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   NOISE            = false;
   noiseN           = 1.0e-6;
   noise_model_file = "SLGridSph.model";
-  gen              = 0;
-  nrand            = 0;
-  seedN            = 11;
   ssfrac           = 0.0;
   subset           = false;
+  setup_noise      = true;
   coefMaster       = true;
   lastPlayTime     = -std::numeric_limits<double>::max();
 #if HAVE_LIBCUDA==1
@@ -284,8 +282,6 @@ SphericalBasis::~SphericalBasis()
   if (pcavar or pcaeof) {
     pthread_mutex_destroy(&cc_lock);
   }
-  delete gen;
-  delete nrand;
 
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) destroy_cuda();
@@ -1774,12 +1770,12 @@ void SphericalBasis::compute_rms_coefs(void)
 void SphericalBasis::update_noise(void)
 {
 
-  if (gen==0) {
-				// Want the same seed on each process
-    gen = new ACG(seedN);
-    nrand = new Normal(0.0, 1.0, gen);
+  if (setup_noise) {
+    setup_noise = false;	// Only do this initialization once
+    
+    rgen.seed(seedN);		// Want the same seed on each process
 
-    if (myid==0) {
+    if (myid==0) {		// Diagnostic output
       ofstream out("rmscoef.dat");
 
       for(int l=0; l<=Lmax; l++) {
@@ -1815,7 +1811,7 @@ void SphericalBasis::update_noise(void)
       if (m==0) {
 	for (int n=0; n<nmax; n++) {
 	  (*expcoef[loffset+moffset])[n] = 
-	    sqrt(fabs(rmsC(l, n) - meanC[n]*meanC[n])/factorial(l, m)/noiseN)*(*nrand)();
+	    sqrt(fabs(rmsC(l, n) - meanC[n]*meanC[n])/factorial(l, m)/noiseN)*nrand(rgen);
 	  if (l==0) (*expcoef[l])[n] += meanC[n];
 	}
 	moffset++;
@@ -1823,9 +1819,9 @@ void SphericalBasis::update_noise(void)
       else {
 	for (int n=0; n<nmax; n++) {
 	  (*expcoef[loffset+moffset+0])[n] = 
-	    sqrt(0.5*fabs(rmsC(l, n) - meanC[n]*meanC[n])/factorial(l, m)/noiseN)*(*nrand)();
+	    sqrt(0.5*fabs(rmsC(l, n) - meanC[n]*meanC[n])/factorial(l, m)/noiseN)*nrand(rgen);
 	  (*expcoef[loffset+moffset+1])[n] = 
-	    sqrt(0.5*fabs(rmsC(l, n) - meanC[n]*meanC[n])/factorial(l, m)/noiseN)*(*nrand)();
+	    sqrt(0.5*fabs(rmsC(l, n) - meanC[n]*meanC[n])/factorial(l, m)/noiseN)*nrand(rgen);
 	}
 	moffset+=2;
       }

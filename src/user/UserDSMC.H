@@ -1,10 +1,13 @@
 #ifndef _UserDSMC_H
 #define _UserDSMC_H
 
+#include <boost/random/uniform_real_distribution.hpp>
+
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 
+#include <global.H>
 #include <Timer.H>
 
 /**
@@ -121,8 +124,7 @@ private:
   vector<double> vmax;
 
 				// Pseudo-random-number generation
-  ACG *gen;
-  Uniform *unif;
+  boost::random::uniform_real_distribution<> unif;
 
   void makeGrid();
   void makeSort();
