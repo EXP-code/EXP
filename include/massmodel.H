@@ -358,10 +358,10 @@ public:
   //@{
   //! Get info about the model
   int get_num_param(void) { return num_params; }
-  double get_param(int i) { return params[i-1]; }
+  double get_param(int i) { return params[i]; }
 
-  double get_min_radius(void) { return mass.x[1]; }
-  double get_max_radius(void) { return mass.x[mass.num]; }
+  double get_min_radius(void) { return mass.x[0]; }
+  double get_max_radius(void) { return mass.x[mass.num-1]; }
   int grid_size(void) { return num; }
   void print_model(char const *name);
   //@}

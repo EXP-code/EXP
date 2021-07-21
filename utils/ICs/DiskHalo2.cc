@@ -2050,7 +2050,7 @@ void DiskHalo::table_halo_disp()
 
     pot = halo2->get_pot(r);
 
-    for (int n=1; n<=nlq; n++) {
+    for (int n=0; n<nlq; n++) {
       E = pot + (Emax - pot)*lq.knot(n);
       v2 = 2.0*(E - pot);
       if (v2<0.0) v2 = 0.0;

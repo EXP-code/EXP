@@ -132,7 +132,7 @@ Shift::Shift(double offset, double Rmin, double Rmax, int Lmax,
 
       phi = (0.5 + j)*dP;
       
-      for (int k=1; k<=numt; k++) {
+      for (int k=0; k<numt; k++) {
 	
 	theta = acos(2.0*(lq.knot(k)-0.5));
 	

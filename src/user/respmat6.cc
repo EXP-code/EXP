@@ -312,7 +312,7 @@ void RespMat::make_matrix(void)
   case jacoint:
     {
       JacoQuad jq(num_K, dof-2.0-DELTA, 0.0);
-      for (int k=1; k<=num_K; k++) {
+      for (int k=0; k<num_K; k++) {
 	mk[k-1] = jq.knot(k);
 	wk[k-1] = jq.weight(k);
       }
@@ -519,8 +519,8 @@ void RespMat::make_matrix_pv(void)
     {
       JacoQuad jq(num_K, dof-2.0-DELTA, 0.0);
       for (int k=0; k<num_K; k++) {
-	mk[k] = jq.knot(k+1);
-	wk[k] = jq.weight(k+1);
+	mk[k] = jq.knot(k);
+	wk[k] = jq.weight(k);
       }
     }
     break;

@@ -15,7 +15,7 @@ void Splint1(const Eigen::VectorXd &xa,
   int sz = xa.size();
 
   if (even) {
-    klo=(int)( (x-xa[0])/(xa[sz-1]-xa[0])*(double)(sz-1) ) + 0;
+    klo=(int)( (x-xa[0])/(xa[sz-1]-xa[0])*(double)(sz-1) );
     klo=klo<0 ? 0 : klo;
     klo=klo<sz-1 ? klo : sz-2;
     khi=klo+1;
@@ -36,13 +36,10 @@ void Splint1(const Eigen::VectorXd &xa,
     cerr << "Bad XA input to routine Splint1\n";
     exit(-1);
   }
-  a=(xa[khi]-x)/h;
-  b=(x-xa[klo])/h;
-  y=a*ya[klo]+b*ya[khi]+((a*a*a-a)*y2a[klo]+(b*b*b-b)*y2a[khi])*(h*h)/6.0;
-/*  yd=(-ya[klo]+ya[khi])/h +
-    (-(3.0*a*a-1.0)*y2a[klo]+(3.0*b*b-1.0)*y2a[khi])
-      *h/6.0;
-  ydd = a*y2a[klo]+b*y2a[khi]; */
+
+  a = (xa[khi]-x)/h;
+  b = (x-xa[klo])/h;
+  y = a*ya[klo]+b*ya[khi]+((a*a*a-a)*y2a[klo]+(b*b*b-b)*y2a[khi])*(h*h)/6.0;
 }
 
 void Splint2(const Eigen::VectorXd &xa,
@@ -55,7 +52,8 @@ void Splint2(const Eigen::VectorXd &xa,
   int sz = xa.size();
 
   if (even) {
-    klo=(int)( (x-xa[0])/(xa[sz-1]-xa[0])*(double)(sz-1) ) + 0;
+    klo=(int)( (x-xa[0])/(xa[sz-1]-xa[0])*(double)(sz-1) );
+    klo=klo<0 ? 0 : klo;
     klo=klo<sz-1 ? klo : sz-2;
     khi=klo+1;
   }
@@ -72,16 +70,16 @@ void Splint2(const Eigen::VectorXd &xa,
   h=xa[khi]-xa[klo];
   
   if (h == 0.0) {
+    cerr << "klo=" << klo << " khi=" << khi << " (lo, hi)=(" << xa[klo] << ", " << xa[khi] << ") sz=" << sz << " xa[0]=" << xa[0] << " xa[1]" << xa[1] << std::endl;
     cerr << "Bad XA input to routine Splint2\n";
     exit(-1);
   }
-  a=(xa[khi]-x)/h;
-  b=(x-xa[klo])/h;
-  y=a*ya[klo]+b*ya[khi]+((a*a*a-a)*y2a[klo]+(b*b*b-b)*y2a[khi])*(h*h)/6.0;
-  dy=(-ya[klo]+ya[khi])/h +
+  a = (xa[khi]-x)/h;
+  b = (x-xa[klo])/h;
+  y = a*ya[klo]+b*ya[khi]+((a*a*a-a)*y2a[klo]+(b*b*b-b)*y2a[khi])*(h*h)/6.0;
+  dy = (-ya[klo]+ya[khi])/h +
     (-(3.0*a*a-1.0)*y2a[klo]+(3.0*b*b-1.0)*y2a[khi])
-      *h/6.0;
-/*  ddy = a*y2a[klo]+b*y2a[khi]; */
+    *h/6.0;
 }
 
 
@@ -96,9 +94,10 @@ void Splint3(const Eigen::VectorXd &xa,
   int sz = xa.size();
 
   if (even) {
-    klo=(int)( (x-xa[0])/(xa[sz-1]-xa[0])*(double)(sz-1) );
-    klo=klo<sz-1 ? klo : sz-2;
-    khi=klo+1;
+    klo = (int)( (x-xa[0])/(xa[sz-1]-xa[0])*(double)(sz-1) );
+    klo = klo<0 ? 0 : klo;
+    klo = klo<sz-1 ? klo : sz-2;
+    khi = klo+1;
   }
   else {
     klo = 0;
@@ -110,16 +109,16 @@ void Splint3(const Eigen::VectorXd &xa,
     }
   }
 
-  h=xa[khi]-xa[klo];
+  h = xa[khi]-xa[klo];
   
   if (h == 0.0) {
     cerr << "Bad XA input to routine Splint3\n";
     exit(-1);
   }
-  a=(xa[khi]-x)/h;
-  b=(x-xa[klo])/h;
-  y=a*ya[klo]+b*ya[khi]+((a*a*a-a)*y2a[klo]+(b*b*b-b)*y2a[khi])*(h*h)/6.0;
-  dy=(-ya[klo]+ya[khi])/h +
+  a = (xa[khi]-x)/h;
+  b = (x-xa[klo])/h;
+  y = a*ya[klo]+b*ya[khi]+((a*a*a-a)*y2a[klo]+(b*b*b-b)*y2a[khi])*(h*h)/6.0;
+  dy = (-ya[klo]+ya[khi])/h +
     (-(3.0*a*a-1.0)*y2a[klo]+(3.0*b*b-1.0)*y2a[khi])
       *h/6.0;
   ddy = a*y2a[klo]+b*y2a[khi];

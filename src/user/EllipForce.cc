@@ -31,12 +31,12 @@ EllipForce::EllipForce(double A, double B, double C, double MASS,
 
     ans = 0.0;
     xfac = min<double>(r[v], a);
-    for (int i=1; i<=num; i++) {
+    for (int i=0; i<num; i++) {
       x = xfac*lq->knot(i);
-      for (int j=1; j<=num; j++) {
+      for (int j=0; j<num; j++) {
 	yfac = sqrt(xfac*xfac - x*x);
 	y = yfac*lq->knot(j);
-	for (int k=1; k<=num; k++) {
+	for (int k=0; k<num; k++) {
 	  zfac = sqrt(xfac*xfac - x*x - y*y);
 	  z = zfac*lq->knot(k);
 

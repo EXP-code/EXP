@@ -1730,7 +1730,7 @@ void SphericalBasis::compute_rms_coefs(void)
   double del = rmax - rmin;
   double r, rs;
 
-  for (int i=1; i<=numg; i++) {
+  for (int i=0; i<numg; i++) {
     r = rmin + del*qe.knot(i);
     rs = r / scale;
 

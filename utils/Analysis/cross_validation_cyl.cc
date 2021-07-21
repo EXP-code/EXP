@@ -136,7 +136,7 @@ main(int argc, char **argv)
   
   double RMIN, RMAX, rscale, minSNR;
   int NICE, LMAX, NMAX, NSNR, NPART;
-  int beg, end, stride, init, knots, num;
+  int beg, end, stride, init, num;
   std::string CACHEFILE, modelf, dir("./"), cname, prefix, table_cache;
   bool ignore;
 
@@ -200,8 +200,6 @@ main(int argc, char **argv)
      "PSP index stride")
     ("num",                 po::value<int>(&num)->default_value(10000),
      "Number of entries in Q table")
-    ("knots",               po::value<int>(&knots)->default_value(40),
-     "Number of Legendre integration knots")
     ("compname",            po::value<std::string>(&cname)->default_value("stars"),
      "train on Component (default=stars)")
     ("dir,d",               po::value<std::string>(&dir),

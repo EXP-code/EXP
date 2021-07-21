@@ -216,14 +216,14 @@ int main(int argc, char** argv)
     double Q1 = 0.0;
     if (use_logr) {
       double x0 = ortho->r_to_xi(exp(lrmin));
-      for (int k=1; k<=knots; k++) {
+      for (int k=0; k<knots; k++) {
 	double rr = exp(lrmin + (lr-lrmin)*lw.knot(k));
 	double xx = ortho->r_to_xi(rr);
 	Q1 += lw.weight(k) * ortho->get_dens(xx, L, N, 0) * pow(rr/r, 1.0+L) * rr*rr;
       }
       Q1 *= (lr - lrmin)/(2.0*L+1.0);
     } else {
-      for (int k=1; k<=knots; k++) {
+      for (int k=0; k<knots; k++) {
 	double xx =  ximin + (x - ximin)*lw.knot(k);
 	double rr = ortho->xi_to_r(xx);
 	Q1 += lw.weight(k) * ortho->get_dens(xx, L, N, 0) * pow(rr/r, 1.0+L) * rr / ortho->d_xi_to_r(xx);
@@ -236,14 +236,14 @@ int main(int argc, char** argv)
     //
     double Q2 = 0.0;
     if (use_logr) {
-      for (int k=1; k<=knots; k++) {
+      for (int k=0; k<knots; k++) {
 	double rr = exp(lr + (lrmax-lr)*lw.knot(k));
 	double xx = ortho->r_to_xi(rr);
 	Q2 += lw.weight(k) * ortho->get_dens(xx, L, N, 0) * pow(r/rr, L)  * rr*rr;
       }
       Q2 *= (lrmax - lr)/(2.0*L+1.0);
     } else {
-      for (int k=1; k<=knots; k++) {
+      for (int k=0; k<knots; k++) {
 	double xx =  x + (ximax - x)*lw.knot(k);
 	double rr = ortho->xi_to_r(xx);
 	Q2 += lw.weight(k) * ortho->get_dens(xx, L, N, 0) * pow(r/rr, L) * rr / ortho->d_xi_to_r(xx);

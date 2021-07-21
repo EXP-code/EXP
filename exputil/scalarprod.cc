@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -56,7 +54,7 @@ scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
 
   double r, del = rmax - rmin;
 
-  for (int i=1; i<=numg; i++) {
+  for (int i=0; i<numg; i++) {
     r = rmin + del*qe.knot(i);
     for (int n=0; n<numc; n++) {
       switch (type) {

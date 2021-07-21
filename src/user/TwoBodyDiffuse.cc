@@ -191,7 +191,7 @@ void TwoBodyDiffuse::compute_diffuse()
 
       F0 = F1 = F2 = 0.0;
 
-      for (int k=1; k<=jq->get_n(); k++) {
+      for (int k=0; k<jq->get_n(); k++) {
 
 	F0 += 2.0*model->distf(EE + (Emax - EE)*jq->knot(k), 0.5) * 
 	  jq->weight(k);

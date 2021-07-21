@@ -776,10 +776,10 @@ void DiskHalo::make_disk_DF(bool diag)
 
     vmax = sqrt(2.0*fabs(pmax - pot));
     den = vmean = vdisp = 0.0;
-    for (int ix=1; ix<=NINT; ix++) {
+    for (int ix=0; ix<NINT; ix++) {
       x = lq.knot(ix);
 
-      for (int iy=1; iy<=NINT; iy++) {
+      for (int iy=0; iy<NINT; iy++) {
 	y = lq.knot(iy);
 
 	E = pot + 0.5*vmax*vmax*(x*x + (1.0-x*x)*y*y);
@@ -839,7 +839,7 @@ void DiskHalo::make_disk_DF(bool diag)
   double energy=0.0, mass=0.0;
   dr = rmax - rmin;
 
-  for (int i=1; i<=NUMMS; i++) {
+  for (int i=0; i<NUMMS; i++) {
 
     if (RLOG)
       r = exp(rmin + dr*lq2.knot(i));
@@ -1079,7 +1079,7 @@ void DiskHalo::table_halo_disp()
 
     pot = halo2->get_pot(r);
 
-    for (int n=1; n<=nlq; n++) {
+    for (int n=0; n<nlq; n++) {
       E = pot + (Emax - pot)*lq.knot(n);
       v2 = 2.0*(E - pot);
       if (v2<0.0) v2 = 0.0;

@@ -131,6 +131,12 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 
   initialize();
 
+  // Enforce sane values for EOF integration
+  //
+  rnum = std::max<int>(10, rnum);
+  pnum = std::max<int>(1,  pnum);
+  tnum = std::max<int>(10, tnum);
+
   EmpCylSL::RMIN        = rcylmin;
   EmpCylSL::RMAX        = rcylmax;
   EmpCylSL::NUMX        = ncylnx;
@@ -1093,22 +1099,22 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       if (mix) {
 
 	if (use_external) {
-	  cC->Pos(&pos[id][1], indx, Component::Inertial);
-	  component->ConvertPos(&pos[id][1], Component::Local);
+	  cC->Pos(pos[id].data(), indx, Component::Inertial);
+	  component->ConvertPos(pos[id].data(), Component::Local);
 	} else
-	  cC->Pos(&pos[id][1], indx, Component::Local);
+	  cC->Pos(pos[id].data(), indx, Component::Local);
 
 	// Only apply this fraction of the force
-	mfactor = mix->Mixture(&pos[id][1]);
-	for (int k=1; k<=3; k++) pos[id][k] -= ctr[k-1];
+	mfactor = mix->Mixture(pos[id].data());
+	for (int k=0; k<3; k++) pos[id][k] -= ctr[k];
 
       } else {
 
 	if (use_external) {
-	  cC->Pos(&pos[id][1], indx, Component::Inertial);
-	  component->ConvertPos(&pos[id][1], Component::Local | Component::Centered);
+	  cC->Pos(pos[id].data(), indx, Component::Inertial);
+	  component->ConvertPos(pos[id].data(), Component::Local | Component::Centered);
 	} else
-	  cC->Pos(&pos[id][1], indx, Component::Local | Component::Centered);
+	  cC->Pos(pos[id].data(), indx, Component::Local | Component::Centered);
 
       }
 

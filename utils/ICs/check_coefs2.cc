@@ -849,7 +849,7 @@ main(int ac, char **av)
     double Zmax = log(RCYLMAX*AA);
 
 #pragma omp parallel for
-    for (int i=1; i<=NINT; i++) {	// Radial
+    for (int i=0; i<NINT; i++) {	// Radial
 #ifdef HAVE_OMP_H
       tid = omp_get_thread_num();
 #endif
@@ -859,7 +859,7 @@ main(int ac, char **av)
 
       double facX = lq.weight(i) * 2.0*M_PI * R * R * (Rmax - Rmin);
 
-      for (int j=1; j<=NINT; j++) { // Vertical
+      for (int j=0; j<NINT; j++) { // Vertical
 	
 	double y = Zmin + (Zmax - Zmin) * lq.knot(j);
 	double z = exp(y);
@@ -911,7 +911,7 @@ main(int ac, char **av)
   } else {
 
 #pragma omp parallel for
-    for (int i=1; i<=NINT; i++) {	// Radial
+    for (int i=0; i<NINT; i++) {	// Radial
 #ifdef HAVE_OMP_H
       tid = omp_get_thread_num();
 #endif
@@ -921,7 +921,7 @@ main(int ac, char **av)
 
       double facX = lq.weight(i) * 2.0 * M_PI * R * drdx(x, AA) * (xmax - xmin);
 
-      for (int j=1; j<=NINT; j++) { // Vertical
+      for (int j=0; j<NINT; j++) { // Vertical
 	
 	double y = ymax*(2.0*lq.knot(j) - 1.0);
 	double z = x_to_r(y, HH);

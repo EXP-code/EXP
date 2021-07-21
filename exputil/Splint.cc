@@ -50,6 +50,7 @@ void Splint2(const Eigen::VectorXd &xa,
   double h = xa[khi] - xa[klo];
   
   if (h == 0.0) {
+    cerr << "klo=" << klo << " khi=" << khi << " (lo, hi)=(" << xa[klo] << ", " << xa[khi] << ") sz=" << sz << " xa[0]=" << xa[0] << " xa[1]" << xa[1] << std::endl;
     cerr << "Bad XA input to routine Splint2\n";
     exit(-1);
   }

@@ -313,8 +313,8 @@ void SphericalOrbit::compute_angles(void)
   accum2 = 0.0;
   tl = -0.5*M_PI;
   sl =  0.5*M_PI;
-  for (i=0; i<recs; i++) {
-    t = dtp + dtm*Gkn.knot(i+1);
+  for (int i=0; i<recs; i++) {
+    t = dtp + dtm*Gkn.knot(i);
     r = ap + am*sin(t);
     accum1 += rombe2(tl,t,fw1,nbsct);
     s = asin((1.0/r - sp)/sm);
@@ -431,8 +431,8 @@ void SphericalOrbit::compute_angles_epi(void)
   a2 = 2.0*(EE-0.5*JJ*JJ/(r_circ*r_circ)-ur)/(freq[0]*freq[0]);
   a = sqrt(a2);
 
-  for (i=0; i<recs; i++) {
-    t = dtp + dtm*Gkn.knot(i+1);
+  for (int i=0; i<recs; i++) {
+    t = dtp + dtm*Gkn.knot(i);
     r = r_circ - a*cos(t);
     fac = sqrt(fabs(a2 - (r-r_circ)*(r-r_circ)));
     angle_grid.t(0, i) = t;
@@ -513,7 +513,7 @@ double SphericalOrbit::pot_trans(int l1, int l2, double (*func)(double))
 
   if (kappa < 1.0-TOLEPI) {
     for (int i=0; i<angle_grid.num; i++)
-      accum += Gkn.weight(i+1)*angle_grid.dw1dt(0, i)*
+      accum += Gkn.weight(i)*angle_grid.dw1dt(0, i)*
 	cos(angle_grid.w1(0, i)*l1 + angle_grid.f(0, i)*l2)*
 	  func(angle_grid.r(0, i));
 
@@ -556,7 +556,7 @@ double SphericalOrbit::pot_trans(int l1, int l2, int n)
 
   if (kappa < 1.0-TOLEPI) {
     for (int i=0; i<angle_grid.num; i++)
-      accum += Gkn.weight(i+1)*angle_grid.dw1dt(0, i) * cosvec[i] * 
+      accum += Gkn.weight(i)*angle_grid.dw1dt(0, i) * cosvec[i] * 
 	angle_grid.fr(i, n);
 
     accum *= dtm/M_PI;
@@ -600,7 +600,7 @@ void SphericalOrbit::pot_trans(int l1, int l2, Eigen::VectorXd& t)
 
   if (kappa < 1.0-TOLEPI) {
     for (int i=0; i<angle_grid.num; i++) {
-      tmpi = Gkn.weight(i+1)*angle_grid.dw1dt(0, i) * cosvec[i];
+      tmpi = Gkn.weight(i)*angle_grid.dw1dt(0, i) * cosvec[i];
       for (int n=0; n<nm; n++)
 	t[n] += tmpi * angle_grid.fr(i, n);
     }

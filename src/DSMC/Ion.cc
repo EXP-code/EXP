@@ -2400,7 +2400,7 @@ void Ion::radRecombMakeEvGrid(int id)
     double Ei = exp10(EminGrid + DeltaEGrid*n);
 
     radRecombGrid[n] = 0.0;
-    for (int i=1; i<=norder; i++) {
+    for (int i=0; i<norder; i++) {
       double E = Ebeg + dE * lq.knot(i);
       radRecombGrid[n] += lq.weight(i) * radRecombCrossSingle(E, id).back();
     }
@@ -3914,7 +3914,7 @@ atomicData::fraction(unsigned short Z, double T, int norder)
   for (auto & v : ionize) v.second = 0.0;
   for (auto & v : recomb) v.second = 0.0;
 
-  for (int i=1; i<=norder; i++) {
+  for (int i=0; i<norder; i++) {
 
     double y = Lagu->knot(i);
     double w = Lagu->weight(i);
@@ -3987,7 +3987,7 @@ atomicData::fraction(unsigned short Z, double T,
       double ymin = emin/kTeV;
       double dy   = ymax - ymin;
 
-      for (int i=1; i<=norder; i++) {
+      for (int i=0; i<norder; i++) {
 	double y = ymin + dy*Lege->knot(i);
 	v.second += Lege->weight(i)*dy * K * y*exp(-y) *
 	  IonList[v.first]->directIonCross(y*kTeV, 0);
@@ -4004,7 +4004,7 @@ atomicData::fraction(unsigned short Z, double T,
     double dy   = ymax - ymin;
 
     for (auto & v : recomb) {
-      for (int i=1; i<=norder; i++) {
+      for (int i=0; i<norder; i++) {
 	double y = ymin + dy*Lege->knot(i);
 	v.second += Lege->weight(i)*dy * K * y*exp(-y) *
 	  IonList[v.first]->radRecombCross(y*kTeV, 0).back();
@@ -4048,7 +4048,7 @@ atomicData::recombEquil(unsigned short Z, double T, int norder)
   for (auto & v : ionize) v.second = 0.0;
   for (auto & v : recomb) v.second = 0.0;
 
-  for (int i=1; i<=norder; i++) {
+  for (int i=0; i<norder; i++) {
 
     double y = Lagu->knot(i);
     double w = Lagu->weight(i);
@@ -4133,7 +4133,7 @@ atomicData::recombEquil(unsigned short Z, double T,
 
       double dy = ymax - ymin;
 
-      for (int i=1; i<=norder; i++) {
+      for (int i=0; i<norder; i++) {
 	if (use_log) {
 	  double y = exp(ymin + dy*Lege->knot(i));
 	  v.second += Lege->weight(i) * dy * K * y*y*exp(-y) *
@@ -4156,7 +4156,7 @@ atomicData::recombEquil(unsigned short Z, double T,
     double dy   = ymax - ymin;
 
     for (auto & v : recomb) {
-      for (int i=1; i<=norder; i++) {
+      for (int i=0; i<norder; i++) {
 	double y = ymin + dy*Lege->knot(i);
 	v.second += Lege->weight(i) * dy * K * y*exp(-y) *
 	  IonList[v.first]->radRecombCross(y*kTeV, 0).back();
@@ -4232,7 +4232,7 @@ atomicData::collEmiss(unsigned short Z, unsigned short C, double T,
     double ymax = Emax/kTeV;	// Scaled min and max energy
     double ymin = std::get<1>(v)/kTeV; 
 
-    for (int i=1; i<=norder; i++) {
+    for (int i=0; i<norder; i++) {
 
       double y = Lagu->knot(i);
       double w = Lagu->weight(i);

@@ -803,14 +803,14 @@ main(int ac, char **av)
     double Zmin = log(RCYLMIN*HH);
     double Zmax = log(RCYLMAX*AA);
 
-    for (int i=1; i<=NINT; i++) {	// Radial
+    for (int i=0; i<NINT; i++) {	// Radial
 
       double x = Rmin + (Rmax - Rmin) * lq.knot(i);
       double R = exp(x);
 
       double facX = lq.weight(i) * 2.0*M_PI * R * R * (Rmax - Rmin);
 
-      for (int j=1; j<=NINT; j++) { // Vertical
+      for (int j=0; j<NINT; j++) { // Vertical
 	
 	double y = Zmin + (Zmax - Zmin) * lq.knot(j);
 	double z = exp(y);
@@ -853,14 +853,14 @@ main(int ac, char **av)
 
   } else {
 
-    for (int i=1; i<=NINT; i++) {	// Radial
+    for (int i=0; i<NINT; i++) {	// Radial
 
       double x = xmin + (xmax - xmin) * lq.knot(i);
       double R = x_to_r(x, AA);
 
       double facX = lq.weight(i) * 2.0 * M_PI * R * drdx(x, AA) * (xmax - xmin);
 
-      for (int j=1; j<=NINT; j++) { // Vertical
+      for (int j=0; j<NINT; j++) { // Vertical
 	
 	double y = ymax*(2.0*lq.knot(j) - 1.0);
 	double z = x_to_r(y, HH);

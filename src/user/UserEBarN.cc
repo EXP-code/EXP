@@ -346,7 +346,7 @@ double UserEBarN::RhoBar(double r)
 
   for (int i=0; i<nphi; i++) {
     phi = dphi*i;
-    for (int j=1; j<=ntheta; j++) {
+    for (int j=0; j<ntheta; j++) {
       cosx = gt->knot(j);
       sinx = sqrt(1.0 - cosx*cosx);
 
@@ -377,7 +377,7 @@ double UserEBarN::Potential(vector<double> x)
     tmin = atan(solve(x, 1.0));
   }
 
-  for (int i=1; i<=N; i++) {
+  for (int i=0; i<N; i++) {
     t = tmin + (tmax - tmin)*gq->knot(i);
     u = tan(t);
     d = cos(t);
@@ -421,7 +421,7 @@ double UserEBarN::U22(double r)
 
   for (int i=0; i<nphi; i++) {
     phi = dphi*i;
-    for (int j=1; j<=ntheta; j++) {
+    for (int j=0; j<ntheta; j++) {
       cosx = 2.0*(gt->knot(j) - 0.5);
       sinx = sqrt(1.0 - cosx*cosx);
 
@@ -443,13 +443,13 @@ void UserEBarN::Inertia(vector<double>& I)
   vector<double> z(3);
   double fac;
 
-  for (int i=1; i<=N; i++) {
+  for (int i=0; i<N; i++) {
     z[0] = a[0]*gq->knot(i);
 
-    for (int j=1; j<=N; j++) {
+    for (int j=0; j<N; j++) {
       z[1] = a[1]*gq->knot(j);
 
-      for (int k=1; k<=N; k++) {
+      for (int k=0; k<N; k++) {
 	z[2] = a[2]*gq->knot(k);
 
 	fac = gq->weight(i)*gq->weight(j)*gq->weight(k) * Density(z); 

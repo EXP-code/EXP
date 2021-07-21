@@ -675,7 +675,7 @@ main(int argc, char **argv)
 
 	      // Inner range [0, r_i]
 	      //
-	      for (int k=1; k<=NINTR; k++) {
+	      for (int k=0; k<NINTR; k++) {
 		double x = XMIN + (xi - XMIN)*lr.knot(k);
 		double r = ortho.xi_to_r(x);
 		double wgtr = 2.0*M_PI/(2.0*L+1.0) *
@@ -683,7 +683,7 @@ main(int argc, char **argv)
 
 		double ylim = ortho.z_to_y(r);
 
-		for (int t=1; t<=NINTT; t++) {
+		for (int t=0; t<NINTT; t++) {
 
 		  double y    = -ylim + 2.0*ylim*lt.knot(t);
 		  double z    = ortho.y_to_z(y);
@@ -706,7 +706,7 @@ main(int argc, char **argv)
 	      // END: r integration
 
 
-	      for (int k=1; k<=NINTR; k++) {
+	      for (int k=0; k<NINTR; k++) {
 		// Outer range [ri, inf)
 		//
 		double x = xi + (XMAX - xi)*lr.knot(k);
@@ -716,7 +716,7 @@ main(int argc, char **argv)
 
 		double ylim = ortho.z_to_y(r);
 
-		for (int t=1; t<=NINTT; t++) {
+		for (int t=0; t<NINTT; t++) {
 
 		  double y    = -ylim + 2.0*ylim*lt.knot(t);
 		  double z    = ortho.y_to_z(y);

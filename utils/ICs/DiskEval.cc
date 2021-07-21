@@ -113,7 +113,7 @@ DiskEval::DiskEval
     for (int p=0; p<nump; p++) {
       double phi = p*dphi;
     
-      for (int n=1; n<=nint; n++) {
+      for (int n=0; n<nint; n++) {
         double cosx = lr->knot(n); // Assume rho(R, phi, z) = rho(R,phi, -z);
         double R = sqrt(1.0 - cosx*cosx) * r;
         double z = cosx * r;

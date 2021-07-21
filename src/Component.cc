@@ -1022,7 +1022,7 @@ void Component::initialize(void)
     orient = new Orient(nEJkeep, nEJwant, EJ, EJctl, EJlogfile, EJdT, EJdamp);
     
     if (restart && (EJ & Orient::CENTER)) {
-      for (int i=0; i<3; i++) center[i] = (orient->currentCenter())[i+1];
+      Eigen::VectorXd::Map(&center[0], 3) = orient->currentCenter();
     } else {
       if (EJlinear) orient -> set_linear();
       if (not com_system) {
@@ -2825,10 +2825,10 @@ void Component::fix_positions_cpu(unsigned mlevel)
     auto ctr = orient->currentCenter();
     bool ok    = true;
     for (int i=0; i<3; i++) {
-      if (std::isnan(ctr[i+1])) ok = false;
+      if (std::isnan(ctr[i])) ok = false;
     } 
     if (ok) {
-      for (int i=0; i<3; i++) center[i] += ctr[i+1];
+      for (int i=0; i<3; i++) center[i] += ctr[i];
     } else if (myid==0) {
       cout << "Orient: center failure, T=" << tnow 
 	   << ", adjustment skipped" << endl;

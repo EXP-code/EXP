@@ -59,7 +59,7 @@ void BarForcing::compute_quad_parameters(double a21, double a32)
   double A32 = a3*a3/geom/geom;
   
   double u, d, t, denom, ans1=0.0, ans2=0.0;
-  for (int i=1; i<=N; i++) {
+  for (int i=0; i<N; i++) {
     t = 0.5*M_PI*gq.knot(i);
     u = tan(t);
     d = cos(t);

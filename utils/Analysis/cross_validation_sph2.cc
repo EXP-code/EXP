@@ -271,7 +271,7 @@ main(int argc, char **argv)
     
     for (int n1=1; n1<=NMAX; n1++) {
       for (int n2=1; n2<=NMAX; n2++) {
-	for (int k=1; k<=knots; k++) {
+	for (int k=0; k<knots; k++) {
 	  double xx =  ximin + (ximax - ximin)*lw.knot(k);
 	  double rr = sl->xi_to_r(xx);
 	  O[L](n1-1, n2-1) +=

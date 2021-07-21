@@ -74,7 +74,7 @@ void Spline(const Eigen::VectorXd &x,
     y2[0] = -0.5;
     u[0]=(3.0/(x[1]-x[0]))*((y[1]-y[0])/(x[1]-x[0])-yp1);
   }
-  for (int i=1; i<sz-1; i++) {
+  for (int i=1; i<sz-2; i++) {
     sig=(x[i]-x[i-1])/(x[i+1]-x[i-1]);
     p=sig*y2[i-1]+2.0;
     y2[i]=(sig-1.0)/p;

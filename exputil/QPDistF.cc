@@ -381,7 +381,7 @@ void QPDistF::compute_distribution(void)
 
     if (t->dof()==2) {
 
-      for (int iR=1; iR<=NINT; iR++) {
+      for (int iR=0; iR<NINT; iR++) {
 
 	vv = vrmax * sqrt( wk.knot(iR) );
 	E = 0.5*vv*vv + pot;
@@ -406,10 +406,10 @@ void QPDistF::compute_distribution(void)
       }
     } else if (t->dof()==3) {
 
-      for (int ix=1; ix<=NINT; ix++) {
+      for (int ix=0; ix<NINT; ix++) {
 	double x = wk.knot(ix);
 
-	for (int iy=1; iy<=NINT; iy++) {
+	for (int iy=0; iy<NINT; iy++) {
 	  double y = wk.knot(iy);
 
 	  double E = pot + 0.5*vrmax*vrmax*(x*x + (1.0-x*x)*y*y);
@@ -439,7 +439,7 @@ void QPDistF::compute_distribution(void)
     }
 
     /*
-      for (int iR=1; iR<=NINT; iR++) {
+      for (int iR=0; iR<NINT; iR++) {
 
 	vv = vrmax * sqrt( wk.knot(iR) );
 	E = 0.5*vv*vv + pot;

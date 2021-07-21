@@ -159,7 +159,7 @@ main(int argc, char **argv)
   cout.precision(15);
 
   double beta, ans = 0.0;
-  for (int i=1; i<=nint; i++) {
+  for (int i=0; i<nint; i++) {
     beta = acos(2.0*(lq.knot(i)-0.5));
     ans += 2.0*lq.weight(i)*rot_matrix(L, m, M, beta)*rot_matrix(L, m, M, beta);
   }

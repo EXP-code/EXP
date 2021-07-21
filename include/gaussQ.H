@@ -63,10 +63,10 @@ public:
 
   GaussQuad() : alpha(0), beta(0), n(0) {}
 
-  double weight(const int i) { if (i<1 || i>n) return bomb("index out of bounds");
+  double weight(const int i) { if (i<0 || i>=n) return bomb("index out of bounds");
   return w[i]; }
 
-  double knot(const int i) { if (i<1 || i>n) return bomb("index out of bounds");
+  double knot(const int i) { if (i<0 || i>=n) return bomb("index out of bounds");
   return r[i]; }
 
   std::vector<double>& wV(void) { return w; }

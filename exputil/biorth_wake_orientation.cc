@@ -332,17 +332,17 @@ void BiorthWake::test_transform(void)
 				// 2-d integral over theta and phi
   LegeQuad wk(NINT);
 
-  int it, ip, m, n;
+  int m, n;
   double cost, sint, theta, phi, theta1, phi1, signflip, psi;
   KComplex fac, fac2;
 
-  for (it=1; it<=NINT; it++) {
+  for (int it=1; it<NINT; it++) {
     
     cost = 2.0*(wk.knot(it) - 0.5);
     sint = sqrt(1.0 - cost*cost);
     theta = acos(cost);
 
-    for (ip=1; ip<=NINT; ip++) {
+    for (int ip=0; ip<NINT; ip++) {
     
       phi = 2.0*M_PI*wk.knot(ip);
 

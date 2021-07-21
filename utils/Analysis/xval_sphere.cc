@@ -255,7 +255,7 @@ main(int argc, char **argv)
 	// Q1
 	//
 	double Q1 = 0.0;
-	for (int k=1; k<=knots; k++) {
+	for (int k=0; k<knots; k++) {
 	  double xx =  ximin + (x - ximin)*lw.knot(k);
 	  double rr = sl->xi_to_r(xx);
 	  Q1 += lw.weight(k) * sl->get_dens(xx, L, n, 0) * pow(rr/r, 1.0+L) * rr / sl->d_xi_to_r(xx);
@@ -266,7 +266,7 @@ main(int argc, char **argv)
 	// Q2
 	//
 	double Q2 = 0.0;
-	for (int k=1; k<=knots; k++) {
+	for (int k=0; k<knots; k++) {
 	  double xx =  x + (ximax - x)*lw.knot(k);
 	  double rr = sl->xi_to_r(xx);
 	  Q2 += lw.weight(k) * sl->get_dens(xx, L, n, 0) * pow(r/rr, L) * rr / sl->d_xi_to_r(xx);

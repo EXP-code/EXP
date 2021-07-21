@@ -84,7 +84,6 @@ static LegeQuad *lq = NULL;
 double gint_0(double a, double b, double (*f) (double), int NGauss)
 {
   double accum,bma,bpa;
-  int i;
 
 /* Get values weights and abcissas for Gauss-Legendre integration if needed */
 
@@ -98,7 +97,7 @@ double gint_0(double a, double b, double (*f) (double), int NGauss)
 
     /* debug! */
     if (DEBUG) {
-      for (i=1; i<=M; i++)
+      for (int i=0; i<M; i++)
 	cerr << setw(3) << i << "> " 
 	     << setw(18) << lq->knot(i)
 	     << setw(18) << lq->weight(i)
@@ -110,16 +109,16 @@ double gint_0(double a, double b, double (*f) (double), int NGauss)
 
   bma = 0.5*(b-a);
   bpa = 0.5*(b+a);
-  for (i=1, accum=0.0; i<M; i++) {
+  for (int i=0, accum=0.0; i<M; i++) {
     accum += lq->weight(i)*(*f)( bma*lq->knot(i)+bpa);
     accum += lq->weight(i)*(*f)(-bma*lq->knot(i)+bpa);
   }
 
   if (N+1-M == M)
-    accum += lq->weight(M)*(*f)( bma*lq->knot(M)+bpa);
+    accum += lq->weight(M-1)*(*f)( bma*lq->knot(M-1)+bpa);
   else {
-    accum += lq->weight(M)*(*f)( bma*lq->knot(M)+bpa);
-    accum += lq->weight(M)*(*f)(-bma*lq->knot(M)+bpa);
+    accum += lq->weight(M-1)*(*f)( bma*lq->knot(M-1)+bpa);
+    accum += lq->weight(M-1)*(*f)(-bma*lq->knot(M-1)+bpa);
   }
     
 
@@ -130,7 +129,6 @@ double gint_0(double a, double b, double (*f) (double), int NGauss)
 double gint_2(double a, double b, double (*f) (double), int NGauss)
 {
   double accum,bma;
-  int i;
 
 /* Get values weights and abcissas for Gauss-Legendre integration if needed */
 
@@ -144,7 +142,7 @@ double gint_2(double a, double b, double (*f) (double), int NGauss)
 
     /* debug! */
     if (DEBUG) {
-      for (i=1; i<=M; i++)
+      for (int i=0; i<M; i++)
 	cerr << setw(3) << i << "> " 
 	     << setw(18) << lq->knot(i)
 	     << setw(18) << lq->weight(i)
@@ -155,7 +153,7 @@ double gint_2(double a, double b, double (*f) (double), int NGauss)
 /* Do integral */
 
   bma = b-a;
-  for (i=1, accum=0.0; i<=M; i++)
+  for (int i=0, accum=0.0; i<M; i++)
     accum += 2.0*lq->weight(i)*(*f)(a+bma*lq->knot(i)*lq->knot(i));
 
 /* Done! */

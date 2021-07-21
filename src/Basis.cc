@@ -1,4 +1,3 @@
-
 #include <limits>
 #include "expand.H"
 #include <Basis.H>
@@ -15,13 +14,12 @@ Basis::Basis(const YAML::Node& conf) : PotAccel(conf)
 void Basis::legendre_R(int lmax, double x, Eigen::MatrixXd& p)
 {
   double fact, somx2, pll, pl1, pl2;
-  int m, l;
 
   p(0, 0) = pll = 1.0;
   if (lmax > 0) {
     somx2 = sqrt( (1.0 - x)*(1.0 + x) );
     fact = 1.0;
-    for (m=1; m<=lmax; m++) {
+    for (int m=1; m<=lmax; m++) {
       pll *= -fact*somx2;
       p(m, m) = pll;
       if (std::isnan(p(m, m)))
@@ -30,10 +28,10 @@ void Basis::legendre_R(int lmax, double x, Eigen::MatrixXd& p)
     }
   }
 
-  for (m=0; m<lmax; m++) {
+  for (int m=0; m<lmax; m++) {
     pl2 = p(m, m);
     p(m+1, m) = pl1 = x*(2*m+1)*pl2;
-    for (l=m+2; l<=lmax; l++) {
+    for (int l=m+2; l<=lmax; l++) {
       p(l, m) = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
       if (std::isnan(p(l, m)))
 	cerr << "legendre_R: p[" << l << "][" << m << "]: pll=" << pll << "\n";
@@ -45,8 +43,8 @@ void Basis::legendre_R(int lmax, double x, Eigen::MatrixXd& p)
 
   if (std::isnan(x))
     cerr << "legendre_R: x\n";
-  for(l=0; l<=lmax; l++)
-    for (m=0; m<=l; m++)
+  for(int l=0; l<=lmax; l++)
+    for (int m=0; m<=l; m++)
       if (std::isnan(p(l, m)))
 	cerr << "legendre_R: p[" << l << "][" << m << "] lmax=" 
 	     << lmax << "\n";

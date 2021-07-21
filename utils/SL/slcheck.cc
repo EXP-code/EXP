@@ -265,12 +265,12 @@ int main(int argc, char** argv)
 	double x, r, ans=0.0;
 	for (int i=0; i<num; i++) {
 
-	  x = ximin + (ximax - ximin)*lw.knot(i+1);
+	  x = ximin + (ximax - ximin)*lw.knot(i);
 	  r = ortho->xi_to_r(x);
 
 	  ans += r*r*ortho->get_pot(x, L, N1, 0)*
 	    ortho->get_dens(x, L, N2, 0) /
-	    ortho->d_xi_to_r(x) * (ximax - ximin)*lw.weight(i+1);
+	    ortho->d_xi_to_r(x) * (ximax - ximin)*lw.weight(i);
 
 	}
 

@@ -370,7 +370,7 @@ main(int argc, char** argv)
 	  double x, r, ans=0.0;
 	  for (int i=0; i<num; i++) {
 	    
-	    x = ximin + (ximax - ximin)*lw.knot(i+1);
+	    x = ximin + (ximax - ximin)*lw.knot(i);
 	    
 	    switch (Type) {
 	    case Trig:
@@ -382,7 +382,7 @@ main(int argc, char** argv)
 
 	      ans += ortho->potl(N1, i, x)*
 		ortho->dens(N2, i, x) *
-		ortho->d_r_to_rb(x) * (ximax - ximin)*lw.weight(i+1);
+		ortho->d_r_to_rb(x) * (ximax - ximin)*lw.weight(i);
 	      }
 	      
 	      break;

@@ -172,7 +172,7 @@ double CBDisk::potlRZ(int np, int m, double r, double z)
   double ans=0.0;
   double fac=1.0/(1.0+fabs(z));
 
-  for (int i=1; i<=numz; i++) {
+  for (int i=0; i<numz; i++) {
     q = L->knot(i);
     ans += L->weight(i) * jn(m, fac*r*q) * lag.f(2.0*fac*q, np-1) * 
       pow(q, -m);

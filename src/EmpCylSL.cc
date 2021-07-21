@@ -275,7 +275,7 @@ void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
     // Interval by Legendre
     //
     sigI[i] = 0.0;
-    for (int n=1; n<=NINT; n++) {
+    for (int n=0; n<NINT; n++) {
       double y   = lq.knot(n);
       double y12 = 1.0 - y*y;
       double z   = y/sqrt(y12)*H;
@@ -294,7 +294,7 @@ void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
     // Interval by Legendre
     //
     rhoI[i] = 0.0;
-    for (int n=1; n<=NINT; n++) {
+    for (int n=0; n<NINT; n++) {
       double x   = lq.knot(n);
       double x12 = 1.0 - x*x;
       double z   = x/sqrt(x12);
@@ -2013,7 +2013,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   
   // *** Radial quadrature loop
   //
-  for (int qr=1; qr<=numr; qr++) { 
+  for (int qr=0; qr<numr; qr++) { 
 
     // Diagnostic timing output for MPI process loop
     //
@@ -2030,7 +2030,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
     // *** cos(theta) quadrature loop
     //
 #pragma omp parallel for
-    for (int qt=1; qt<=numt; qt++) {
+    for (int qt=0; qt<numt; qt++) {
 #ifdef HAVE_OMP_H
       int id = omp_get_thread_num();
 #else
@@ -2110,7 +2110,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 		    for (int il2=0; il2<lE[m].size(); il2++) {
 
 		      int l2  = lE[m][il2];
-		      int nn2 = ir2 - 1 + NMAX*il2;
+		      int nn2 = ir2 + NMAX*il2;
 		    
 		      SCe[id][m][nn1][nn2] += 
 			facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * dens;
@@ -2189,7 +2189,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
 		if (m==0) {
 		
-		  for (int ir2=0; ir2<=NMAX; ir2++) {
+		  for (int ir2=0; ir2<NMAX; ir2++) {
 		    for (int l2=m; l2<=LMAX; l2++) {
 		      int nn2 = ir2 + NMAX*(l2-m);
 		    
@@ -2878,8 +2878,8 @@ void EmpCylSL::make_eof(void)
 	      varO[M](i, j) = SCo[0][M][i][j];
 	  }
 
-	  for (int i=1; i<NMAX*Osiz; i++) {
-	    for (int j=i; j<=NMAX*Osiz; j++) {
+	  for (int i=0; i<NMAX*Osiz; i++) {
+	    for (int j=i; j<NMAX*Osiz; j++) {
 	      varO[M](j, i) = SCo[0][M][i][j];
 	    }
 	  }
@@ -3096,7 +3096,7 @@ void EmpCylSL::make_eof(void)
 	  }
 
 	  for (int i=0; i<NMAX*Esiz; i++) {
-	    for (int j=i; j<=NMAX*Esiz; j++) {
+	    for (int j=i; j<NMAX*Esiz; j++) {
 	      varE[M](j, i) = SSe[0][M][i][j];
 	    }
 	  }
@@ -3125,7 +3125,7 @@ void EmpCylSL::make_eof(void)
     
 	  maxV = 0.0;
 	  for (int i=0; i<NMAX*Osiz; i++) {
-	    for (int j=i; j<=NMAX*Osiz; j++) {
+	    for (int j=i; j<NMAX*Osiz; j++) {
 	      tmp = fabs(varO[M](i, j));
 	      if (tmp > maxV) maxV = tmp;
 	    }
@@ -3378,7 +3378,7 @@ void EmpCylSL::accumulate_eof_thread(vector<Particle>& part, bool verbose)
 {
   setup_eof();
 
-  std::thread t[nthrds];
+  std::vector<std::thread> t(nthrds);
  
   // Launch the threads
   for (int id=0; id<nthrds; ++id) {
@@ -3455,7 +3455,7 @@ void EmpCylSL::accumulate_thread(vector<Particle>& part, int mlevel, bool verbos
 {
   setup_accumulation();
 
-  std::thread t[nthrds];
+  std::vector<std::thread> t(nthrds);
  
   // Launch the threads
   //
