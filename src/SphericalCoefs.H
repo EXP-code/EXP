@@ -37,7 +37,7 @@ public:
 
   struct Coefs
   {
-    double time;
+    double time, rscl;
     int nmax, lmax;
     std::vector<std::vector<double>> data;
     

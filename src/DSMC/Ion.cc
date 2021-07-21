@@ -3217,7 +3217,8 @@ atomicData::atomicData()
   // Done
 }
 
-void atomicData::createIonList(const std::set<unsigned short>& ZList)
+void atomicData::createIonList(const std::set<unsigned short>& ZList,
+			       const bool use_cuda)
 {
   // Fill the Chianti data base
   //
@@ -3231,7 +3232,7 @@ void atomicData::createIonList(const std::set<unsigned short>& ZList)
   }
 
 #if HAVE_LIBCUDA==1
-  cuda_initialize();
+  if (use_cuda) cuda_initialize();
 #endif
 }
 

@@ -171,6 +171,9 @@ bool Collide::NTC_DIST          = false;
 //
 int Collide::TestSpreadCount    = 40;
 
+// Set cuda
+bool Collide::use_cuda          = false;
+
 // For logging output
 //
 std::string Collide::printDivider(80, '-');

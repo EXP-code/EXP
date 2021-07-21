@@ -110,7 +110,7 @@ void OutPS::Run(int n, int mstep, bool last)
   for (auto c : comp->components) {
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {
-      if (not comp->fetched[c]) {
+      if (c->force->cudaAware() and not comp->fetched[c]) {
 	comp->fetched[c] = true;
 	c->CudaToParticles();
       }

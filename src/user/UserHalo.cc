@@ -13,9 +13,9 @@ UserHalo::UserHalo(const YAML::Node& conf) : ExternalForce(conf)
   id = "SphericalHalo";		// Halo model file
   model_file = "SLGridSph.model";
 
-  q1 = 1.0;			// Flattening of the Galactic Potentail to X-axis
-  q2 = 1.0;			// Flattening of the Galactic Potentail to Y-axis
-  q3 = 1.0;			// Flattening of the Galactic Potentail to Z-axis
+  q1 = 1.0;			// Flattening of the Galactic Potential to X-axis
+  q2 = 1.0;			// Flattening of the Galactic Potential to Y-axis
+  q3 = 1.0;			// Flattening of the Galactic Potential to Z-axis
   diverge = 0;			// Use analytic divergence (true/false)
   diverge_rfac = 1.0;		// Exponent for profile divergence
   comp_name = "";		// Default component name

@@ -1,34 +1,91 @@
 #include <cmath>
 
+#include <boost/make_unique.hpp> // For character buffer
+#include <yaml-cpp/yaml.h>	 // YAML support for header
+
 #include <localmpi.h>
+#include "global.H"
 #include "CylindricalCoefs.H"
 
 bool CylindricalCoefs::Coefs::read(std::istream& in)
 {
-  CylCoefHeader header;
-  in.read((char *)&header, sizeof(CylCoefHeader));
-  if (not in) return false;
+  if (in.eof()) return false;
 
-  time = header.time;
-  nmax = header.nmax;
-  mmax = header.mmax;
+  // iostream exception handling
+  //
+  in.exceptions ( std::istream::failbit | std::istream::badbit );
 
-  cos_c.resize(mmax+1);
-  sin_c.resize(mmax+1);
+  // Save initial stream position
+  //
+  auto curpos = in.tellg();
+
+  // Attempt to read coefficient magic number
+  //
+  const unsigned int cmagic = 0xc0a57a3;
+  unsigned int tmagic;
+
+  try {
+
+    in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+    if (tmagic == cmagic) {
+      
+      // YAML size
+      //
+      unsigned ssize;
+      in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+      
+      // Make and read char buffer
+      //
+      auto buf = boost::make_unique<char[]>(ssize+1);
+      in.read(buf.get(), ssize);
+      buf[ssize] = 0;		// Null terminate
+      
+      YAML::Node node = YAML::Load(buf.get());
+      
+      // Get parameters
+      //
+      time = node["time"].as<double>();
+      nmax = node["nmax"].as<int>();
+      mmax = node["mmax"].as<int>();
+      
+    } else {
+      
+      // Rewind file
+      //
+      in.clear();
+      in.seekg(curpos);
+      
+      CylCoefHeader header;
+      in.read((char *)&header, sizeof(CylCoefHeader));
+      
+      time = header.time;
+      nmax = header.nmax;
+      mmax = header.mmax;
+      
+    }
+
+    cos_c.resize(mmax+1);
+    sin_c.resize(mmax+1);
   
-  for (int mm=0; mm<=mmax; mm++) {
+    for (int mm=0; mm<=mmax; mm++) {
 
-    cos_c[mm].resize(nmax);
-    in.read((char *)cos_c[mm].data(), sizeof(double)*nmax);
-    if (not in) return false;
+      cos_c[mm].resize(nmax);
+      in.read((char *)&cos_c[mm][0], sizeof(double)*nmax);
 
-    if (mm) {
-      sin_c[mm].resize(nmax);
-      in.read((char *)sin_c[mm].data(), sizeof(double)*nmax);
-      if (not in) return false;
+      if (mm) {
+	sin_c[mm].resize(nmax);
+	in.read((char *)&sin_c[mm][0], sizeof(double)*nmax);
+      }
     }
   }
-
+  catch (std::istream::failure e) {
+    if (not in.eof())
+      std::cerr << "Coefficient read FAILED at T=" << time
+		<< ": " << e.what() << std::endl;
+    return false;
+  }
+    
   return true;
 }
 
@@ -109,6 +166,7 @@ CylindricalCoefs::DataPtr CylindricalCoefs::interpolate(const double T)
   if (time < times.front() or time > times.back()) {
     std::cerr << "Time=" << time << " is offgrid [" << times.front()
 	      << ", " << times.back() << "]" << std::endl;
+    stop_signal = 1;
   }
 
   auto it = std::lower_bound(times.begin(), times.end(), time);

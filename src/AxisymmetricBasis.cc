@@ -9,11 +9,13 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
   nmax      = 10;
   dof       = 3;
   npca      = 500;
+  npca0     = 0;
   pcavar    = false;
   pcaeof    = false;
   pcadiag   = false;
   pcavtk    = false;
   vtkfreq   = 1;
+  muse      = 0.0;
   hexp      = 1.0;
   snr       = 1.0;
   tksmooth  = 3.0;
@@ -21,7 +23,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
   tk_type   = None;
   subsamp   = false;
   defSampT  = 1;
-  sampT     = 0;
+  sampT     = 1;
 
   string val;
 
@@ -671,28 +673,56 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 {
   if (pcavar) {
 
-    // Report particles used
+    // Report particles used [with storage sanity checks]
     //
-    for (int n=1; n<nthrds; n++) use[0] += use[n];
-    MPI_Allreduce(&use[0], &used, 1,
-		  MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    if (use.size()>0) {
+      for (int n=1; n<nthrds; n++) use[0] += use[n];
+      MPI_Allreduce(&use[0], &used, 1,
+		    MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    } else {
+      std::cout << "[" << myid << "] AxisymmetricBasis: "
+		<< "use has zero size" << std::endl;
+    }
 
-    // Report mass used
-    //
-    MPI_Allreduce(&massT1[0], &massT[0], sampT,
-		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    if (sampT) {
 
-    // Reduce covariance and mean
-    //
-    for (unsigned T=0; T<sampT; T++) {
-      for (int l=0; l<(Lmax+1)*(Lmax+2)/2; l++) {
-	MPI_Allreduce(&(*expcoefT1[T][l])[1],
-		      &(*expcoefT [T][l])[1], nmax,
+      // Report mass used [with storage sanity checks]
+      //
+      if (massT1.size() == massT.size() and massT.size()==sampT)
+	MPI_Allreduce(&massT1[0], &massT[0], sampT,
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	for (int nn=1; nn<=nmax; nn++) {
-	  MPI_Allreduce(&(*expcoefM1[T][l])[nn][1],
-			&(*expcoefM [T][l])[nn][1], nmax,
-			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      else {
+	std::cout << "[" << myid << "] AxisymmetricBasis: "
+		  << "coef2 out of bounds in mass" << std::endl;
+      }
+      
+      // Reduce mean and covariance [with storage sanity checks]
+      //
+      for (unsigned T=0; T<sampT; T++) {
+	for (int l=0; l<(Lmax+1)*(Lmax+2)/2; l++) {
+	  if (expcoefT1[T][l]->getlength()==nmax and
+	      expcoefT [T][l]->getlength()==nmax) {
+	    MPI_Allreduce(&(*expcoefT1[T][l])[1],
+			  &(*expcoefT [T][l])[1], nmax,
+			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  } else {
+	    std::cout << "[" << myid << "] AxisymmetricBasis: "
+		      << "coef2 out of bounds in coef" << std::endl;
+	  }
+
+	  if (expcoefM1[T][l]->getnrows()==nmax and
+	      expcoefM1[T][l]->getncols()==nmax and
+	      expcoefM [T][l]->getnrows()==nmax and
+	      expcoefM [T][l]->getncols()==nmax) {
+	    for (int nn=1; nn<=nmax; nn++) {
+	      MPI_Allreduce(&(*expcoefM1[T][l])[nn][1],
+			    &(*expcoefM [T][l])[nn][1], nmax,
+			    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	    }
+	  } else {
+	    std::cout << "[" << myid << "] AxisymmetricBasis: "
+		      << "coef2 out of bounds in disp" << std::endl;
+	  }
 	}
       }
     }

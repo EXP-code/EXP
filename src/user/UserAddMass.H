@@ -42,31 +42,37 @@
     @param interp set to true for interpolation in angular momentum bins
     @param planar set to true enforces particles added in the x-y plane for testing (default: false)
     @param accel set to true assigns the acceration by evaluating the basis force (default: true)
+    @param maxtry is the maximum number of attempts to select a particle from the mass array
 **/
 class UserAddMass : public ExternalForce
 {
 private:
 
   std::vector<std::string> comp_list;
-  std::string comp_name;
+  std::string comp_name, fvdisp;
   std::vector<Component*> comp_vec;
   list<Component*> comp_acc;
   Component *c0;
 
-  bool logr, interp, cforce, planar, accel, mas_init;
+  bool logr, interp, cforce, planar, accel;
   unsigned number, numr;
   double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dt, debug, dnext;
   double tstart, scale, vdisp;
-  long int seed;
+  double Rd, drprof, Zd;
+  long int seed, numRprof, numzprof, numvdisp;
+  int maxtry;
+  
+  std::vector< std::vector<double> > mas_bins_current;
+  std::vector< double > Mprof, Rprof, vdispR, vdispV;
+
 
   const double ttol = 1.0e-8;
 
-  std::vector< double > mas_bins_adding;
-  std::vector< std::vector<double> > mas_bins_current;
 
   using vec3 = std::array<double, 3>;
   std::vector< std::vector<vec3> > vl_bins, v2_bins;
   std::vector< std::vector<vec3> > L3_bins;
+  std::vector< std::vector<double> > z_mean_bins, vz_mean_bins;
 
 
   void clear_bins();

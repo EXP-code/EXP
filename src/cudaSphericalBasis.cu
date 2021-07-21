@@ -894,32 +894,6 @@ void SphericalBasis::cudaStorage::resize_acc(int Lmax, int Nthread)
 
 void SphericalBasis::determine_coefficients_cuda(bool compute)
 {
-  if (pcavar) {
-
-    if (sampT == 0) {		// Allocate storage
-      sampT = floor(sqrt(component->CurTotal()));
-      massT    .resize(sampT, 0);
-      massT1   .resize(sampT, 0);
-
-      expcoefT .resize(sampT);
-      for (auto & t : expcoefT ) {
-	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & u : t) u = boost::make_shared<Vector>(1, nmax);
-      }
-	
-      expcoefT1.resize(sampT);
-      for (auto & t : expcoefT1 ) {
-	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & u : t) u = boost::make_shared<Vector>(1, nmax);
-      }
-    }
-  }
-
-  if (compute && mlevel==0) {	// Zero arrays
-    for (auto & t : expcoefT1) { for (auto & u : t) u->zero(); }
-    for (auto & v : massT1)    v = 0;
-  }
-
   // Only do this once but copying mapping coefficients and textures
   // must be done every time
   //
@@ -975,7 +949,6 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   
   // Zero counter and coefficients
   //
-  use[0] = 0;
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
   if (compute) {
@@ -1635,6 +1608,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	      << std::setw(20) << fabs(last->second.d - last->second.f)
 	      << std::endl;
   }
+
 }
 
 void SphericalBasis::determine_acceleration_cuda()

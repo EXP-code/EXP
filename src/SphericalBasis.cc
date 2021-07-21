@@ -18,7 +18,7 @@ static bool cudaAccelOverride = false;
 static pthread_mutex_t io_lock;
 #endif
 
-bool SphericalBasis::NewCoefs = false;
+bool SphericalBasis::NewCoefs = true;
 
 SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) : 
   AxisymmetricBasis(conf)
@@ -407,8 +407,6 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 				// subset of particles
   if (subset) nend = (int)floor(ssfrac*nend);
 
-  use[id] = 0;
-
   unsigned whch = 0;		// For PCA jacknife
 
   for (int i=nbeg; i<nend; i++) {
@@ -602,7 +600,7 @@ void SphericalBasis::determine_coefficients(void)
 
   if (compute) {
 
-    if (sampT == 0) {		// Allocate storage for subsampling
+    if (massT.size() == 0) {	// Allocate storage for subsampling
       if (defSampT) sampT = defSampT;
       else          sampT = floor(sqrt(component->CurTotal()));
       massT    .resize(sampT, 0);
@@ -640,6 +638,8 @@ void SphericalBasis::determine_coefficients(void)
       for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
       muse0 = 0.0;
       
+      for (int n=0; n<nthrds; n++) use[n] = 0.0;
+
       if (pcavar) {
 	for (auto & t : expcoefT1) { for (auto & v : t) v->zero(); }
 	for (auto & t : expcoefM1) { for (auto & v : t) v->zero(); }
@@ -704,6 +704,8 @@ void SphericalBasis::determine_coefficients(void)
   if (myid==0) cout << endl;
 #endif
     
+  std::fill(use.begin(), use.end(), 0);
+
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0 and use_cuda) {
     if (cudaAccumOverride) {
@@ -1411,7 +1413,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
   }
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0 and use_cuda) {
+  if (use_cuda and cC->cudaDevice>=0 and cC->force->cudaAware()) {
     if (cudaAccelOverride) {
       cC->CudaToParticles();
       exp_thread_fork(false);

@@ -468,7 +468,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   // Fill the Chianti data base
   //
-  ad.createIonList(ZList);
+  ad.createIonList(ZList, use_cuda);
 
   // Cross-section storage
   //
@@ -11423,12 +11423,15 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 	p2 = std::get<1>(accumIExc[id][ii]);
       }
 
-      double m1 = 0.0, m2 = 0.0, e2 = 0.0;
+      double m1 = 0.0, m2 = 0.0;
       for (auto s : SpList) {
 	m1 += p1->dattrib[s.second] / atomic_weights[s.first.first];
 	m2 += p2->dattrib[s.second] / atomic_weights[s.first.first];
-	e2 += p2->dattrib[s.second] / atomic_weights[s.first.first] * (s.first.second - 1);
       }
+      
+      // Ions are assigned their molecular weight.  The electron has
+      // its own weight, assigned below.
+      //
       m1  = 1.0/m1;
       m2  = 1.0/m2;
 
@@ -11436,15 +11439,18 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       double WW = W1>W2 ? W2 : W1;
       
       // Particle 1 is always Ion
+      //
       for (int k=0; k<3; k++) v1[k] = p1->vel[k];
 				
       // Particle 2 is Ion
+      //
       if (v.first == AccumType::ion_ion) {
 	for (int k=0; k<3; k++) v2[k] = p2->vel[k];
       }
       // Particle 2 is Electron
+      //
       else {			
-	m2 *= atomic_weights[0] * e2;
+	m2 = atomic_weights[0];
 	for (int k=0; k<3; k++) v2[k] = p2->dattrib[use_elec+k];
       }
 
@@ -11490,9 +11496,13 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 	}
 
 	vfac = sqrt(totE/kE);
-      }
 
-      if (dE!=0.0) std::cout << "CHECK: dE=" << dE << " kE=" << kE
+	// DEBUG energy info check
+	//
+	//  +--- False for production
+	//  |
+	//  v
+	if (false) std::cout << "CHECK: dE=" << dE << " kE=" << kE
 			     << " vfac=" << vfac
 			     << " vi="   << vi
 			     << " dn_p=" << dn_p
@@ -11500,7 +11510,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 			     << " m1="   << m1
 			     << " m2="   << m2
 			     << std::endl;
-    
+      }
 
       vrel = unit_vector();
   
@@ -11528,7 +11538,9 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 	for (int k=0; k<3; k++) p2->dattrib[use_elec+k] = v2[k];
       }
     }
+    // END: pair interaction loop
   }
+  // END: interaction type loop
 
   // Redistribute deferred energy
   //

@@ -449,13 +449,32 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     itmr = timer_sntr.begin();
   }
 
-  for (auto inter : interaction) {
-    for (auto other : inter->l) {
 
+  // Cuda logic
+  // ----------
+  // o The named component acts on those in the list 'l'
+  //
+  // o If the named component is not cuda aware, all other components
+  //   on the GPU have to be moved to the CPU and moved marked to be
+  //   moved back
+  //
+  // o If the named component is cuda aware and then only other
+  //   components that are cuda aware can be computed on the GPU.
+  //   Otherwise their force is computed on the CPU side, toggled by a
+  //   check in the cuda-aware force.
+  //
+
+  for (auto inter : interaction) {
+				// Iterate through the list 
+    for (auto other : inter->l) {
 #if HAVE_LIBCUDA==1
-      if (use_cuda and not inter->c->force->cudaAware() and not fetched[other]) {
-	other->CudaToParticles();
-	fetched[other] = true;
+      if (use_cuda) {
+	if (not inter->c->force->cudaAware() and not fetched[other]) {
+	  if (other->force->cudaAware()) {
+	    other->CudaToParticles();
+	    fetched[other] = true;
+	  }
+	}
       }
 #endif
 
@@ -478,19 +497,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       }
       other->time_so_far.start();
       inter->c->force->SetExternal();
-      inter->c->force->set_multistep_level(mlevel);
 
-      if (use_cuda and not inter->c->force->cudaAware()) {
-#if HAVE_LIBCUDA==1
-	inter->c->CudaToParticles();
-#endif
-	inter->c->force->get_acceleration_and_potential(other);
-#if HAVE_LIBCUDA==1
-	inter->c->ParticlesToCuda();
-#endif
-      } else {
-	inter->c->force->get_acceleration_and_potential(other);
-      }
+      inter->c->force->set_multistep_level(mlevel);
+      inter->c->force->get_acceleration_and_potential(other);
 
       inter->c->force->ClearExternal();
       other->time_so_far.stop();

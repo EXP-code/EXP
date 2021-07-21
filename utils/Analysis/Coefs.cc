@@ -5,6 +5,8 @@
 
 bool CylCoefs::read(std::istream& in, bool verbose)
 {
+  // iostream exception handling
+  //
   in.exceptions ( std::istream::failbit | std::istream::badbit );
   
   // Save initial stream position
@@ -65,10 +67,12 @@ bool CylCoefs::read(std::istream& in, bool verbose)
     }
   }
   catch (std::istream::failure e) {
-    if (verbose) std::cerr << "Exception reading coefficient file" << std::endl;
+    if (not in.eof())
+      std::cerr << "Exception reading coefficient file at T="
+		<< time << ": " << e.what() << std::endl;
     return false;
   }
-
+  
   cos_c.resize(mmax+1);
   sin_c.resize(mmax+1);
   
@@ -164,7 +168,9 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
     }
   }
   catch (std::istream::failure e) {
-    // std::cerr << "Exception reading coefficient file" << std::endl;
+    if (not in.eof())
+      std::cerr << "Exception reading coefficient file: "
+		<< e.what() << std::endl;
     return false;
   }
   

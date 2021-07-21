@@ -404,7 +404,7 @@ void OutLog::Run(int n, int mstep, bool last)
   
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {
-      if (not comp->fetched[c]) {
+      if (c->force->cudaAware() and not comp->fetched[c]) {
 	comp->fetched[c] = true;
 	c->CudaToParticles();
       }
@@ -596,7 +596,8 @@ void OutLog::Run(int n, int mstep, bool last)
 	  vbar2 +=  cov[i][j]*cov[i][j];
 	vbar2 /=  mtot[i]*mtot[i];
       }
-      ektot[i] -= 0.5*mtot[i]*vbar2; // Update KE
+				// Update KE to cov frame
+      if (nbodies[i]>1) ektot[i] -= 0.5*mtot[i]*vbar2;
       
       out << "|" << setw(cwid) << ektot[i];
       out << "|" << setw(cwid) << eptot[i] + eptotx[i];

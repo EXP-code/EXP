@@ -262,7 +262,10 @@ void cuda_compute_levels()
   //
   // Begin the update
   //
-  for (auto c : comp->components) c->force->multistep_update_begin();
+  for (auto c : comp->components) {
+    c->force->multistep_update_begin();
+    if (not c->force->cudaAware()) c->ParticlesToCuda();
+  }
 
   cudaDeviceProp deviceProp;
 
@@ -333,7 +336,7 @@ void cuda_compute_levels()
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
     cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
     
-    c->force->multistep_update_cuda();
+    if (not c->force->PlayBack()) c->force->multistep_update_cuda();
 
 #ifdef VERBOSE_TIMING
     finish = std::chrono::high_resolution_clock::now();

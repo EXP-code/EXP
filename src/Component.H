@@ -948,6 +948,7 @@ public:
     // Copy from Particle to cudaParticle
     //
     ParticlesToCuda(particles.begin(), particles.end());
+
     // Push to device
     //
     HostToDev(cuStream);

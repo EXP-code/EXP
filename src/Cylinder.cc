@@ -247,7 +247,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   }
 
   // Make sure that all structures are initialized to start (e.g. for
-  // multi- stepping but this should be done on 1st call to determine
+  // multi-stepping but this should be done on 1st call to determine
   // coefs by default
   //
   ortho->setup_accumulation();
@@ -1232,7 +1232,7 @@ void Cylinder::determine_acceleration_and_potential(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0 and use_cuda) {
+  if (use_cuda and cC->cudaDevice>=0 and cC->force->cudaAware()) {
     if (cudaAccelOverride) {
       cC->CudaToParticles();
       exp_thread_fork(false);
