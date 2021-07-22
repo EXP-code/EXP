@@ -779,7 +779,7 @@ main(int ac, char **av)
 	    << std::endl;
 #endif
   
-  if (n_particlesH + n_particlesD + n_particlesG <= 0) {
+  if (nhalo + ndisk + ngas <= 0) {
     if (myid==0) std::cout << "You have specified zero particles!" << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 3);
     exit(0);
@@ -833,7 +833,7 @@ main(int ac, char **av)
   SphericalSL::NUMR = NUMR;
   // Create expansion only if needed . . .
   boost::shared_ptr<SphericalSL> expandh;
-  if (n_particlesH) {
+  if (nhalo) {
     expandh = boost::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCMAP, SCSPH);
   }
 
@@ -861,7 +861,7 @@ main(int ac, char **av)
   boost::shared_ptr<EmpCylSL> expandd;
   bool save_eof = false;
 
-  if (n_particlesD) {
+  if (ndisk) {
 
     expandd = boost::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
 
@@ -1024,7 +1024,7 @@ main(int ac, char **av)
       }
     }
 
-    if (n_particlesD) {
+    if (ndisk) {
       out_disk.open(dbods.c_str());
       if (!out_disk) {
 	std::cout << "Could not open <" << dbods << "> for output" << std::endl;
@@ -1105,7 +1105,7 @@ main(int ac, char **av)
 
   } else {			// ---------------------------
 				// Generate new halo body file
-    if (n_particlesH) {		// ---------------------------
+    if (nhalo) {		// ---------------------------
       if (multi) {
 	if (myid==0) std::cout << "Generating halo phase space . . . " << std::flush;
 	diskhalo->set_halo(hparticles, nhalo, n_particlesH);
@@ -1119,14 +1119,14 @@ main(int ac, char **av)
     }
   }
 
-  if (n_particlesD) {
+  if (ndisk) {
     if (myid==0) std::cout << "Generating disk coordinates . . . " << std::flush;
     diskhalo->set_disk_coordinates(dparticles, ndisk, n_particlesD);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) std::cout << "done" << std::endl;
   }
 
-  if (n_particlesH) {
+  if (nhalo) {
     if (myid==0) std::cout << "Beginning halo accumulation . . . " << std::flush;
     expandh->accumulate(hparticles);
     MPI_Barrier(MPI_COMM_WORLD);
@@ -1147,7 +1147,7 @@ main(int ac, char **av)
 
   }
   
-  if (n_particlesD) {
+  if (ndisk) {
     if (myid==0) std::cout << "Beginning disk accumulation . . . " << std::flush;
     expandd->setup_accumulation();
 
@@ -1225,7 +1225,7 @@ main(int ac, char **av)
     
     std::cout << "Dumping basis images . . . " << std::flush;
     
-    if (n_particlesD) {
+    if (ndisk) {
       int nout = 200;
       string dumpstr = runtag + ".dump";
       expandd->dump_basis(dumpstr, 0);
@@ -1236,12 +1236,12 @@ main(int ac, char **av)
     }
 
 
-    if (n_particlesH) {
+    if (nhalo) {
       string extn("test");
       expandh->dump_basis(extn);
     }
     
-    if (n_particlesH) {
+    if (nhalo) {
       
       const int nstr = 5;
       const char *names[nstr] = {".dens", ".potl", ".potr", ".pott", ".potp"};
@@ -1295,7 +1295,7 @@ main(int ac, char **av)
       delete [] out;
     }
 
-    if (n_particlesD) {
+    if (ndisk) {
 
       const int nstr = 5;
       const char *names[nstr] = {".dens", ".pot", ".fr", ".fz", ".fp"};

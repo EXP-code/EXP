@@ -454,7 +454,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 	   << "  Rmax=" << get_max_radius()
 	   << endl;
 
-      for (int i=1; i<=gen_N; i++) {
+      for (int i=0; i<gen_N; i++) {
 	test << setw(15) << gen_rloc[i]
 	     << setw(15) << gen_mass[i]
 	     << setw(15) << gen_fmax[i]
@@ -465,7 +465,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
     gen_firstime = false;
   }
 
-  r = odd2(Unit(random_gen)*gen_mass[gen_N], gen_mass, gen_rloc, 0);
+  r = odd2(Unit(random_gen)*gen_mass[gen_N-1], gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   if (gen_logr) r = exp(r);
   
@@ -767,11 +767,11 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
   if (gen_firstime_jeans) {
     double dr;
 
-    gen_mass.resize(gen_N-1);
-    gen_rloc.resize(gen_N-1);
-    gen_fmax.resize(gen_N-1);
-    Eigen::VectorXd work(gen_N-1);
-    Eigen::VectorXd work2(gen_N-1);
+    gen_mass.resize(gen_N);
+    gen_rloc.resize(gen_N);
+    gen_fmax.resize(gen_N);
+    Eigen::VectorXd work(gen_N);
+    Eigen::VectorXd work2(gen_N);
 
     if (rmin <= 1.0e-16) gen_logr = 0;
     
@@ -781,7 +781,7 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
       dr = (get_max_radius() - rmin)/(gen_N-1);
 
 
-    for (int i=1; i<=gen_N; i++) {
+    for (int i=0; i<gen_N; i++) {
 
       if (gen_logr) {
 	gen_rloc[i] = log(rmin) + dr*(i-1);
@@ -799,8 +799,8 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
 
     Trapsum(gen_rloc, work, work2);
 
-    for (int i=1; i<=gen_N; i++)
-      gen_fmax[i] = 3.0*(work2[gen_N] - work2[i]);
+    for (int i=0; i<gen_N; i++)
+      gen_fmax[i] = 3.0*(work2[gen_N-1] - work2[i]);
 
 
     // Debug
@@ -812,7 +812,7 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
 	   << "  Rmax=" << get_max_radius()
 	   << endl;
 
-      for (int i=1; i<=gen_N; i++) {
+      for (int i=0; i<gen_N; i++) {
 	if (gen_logr) r = exp(gen_rloc[i]);
 	else r = gen_rloc[i];
 
@@ -833,7 +833,7 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
     gen_firstime_jeans = false;
   }
 
-  r = odd2(Unit(random_gen)*gen_mass[gen_N], gen_mass, gen_rloc, 0);
+  r = odd2(Unit(random_gen)*gen_mass[gen_N-1], gen_mass, gen_rloc, 0);
   vv = odd2(r, gen_rloc, gen_fmax);
 
   if (gen_logr) r = exp(r);
@@ -904,7 +904,7 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
     double dy = (1.0 - 2.0*tol)/(numj-1);
     double dr;
 
-        gen_mass.resize(gen_N);
+    gen_mass.resize(gen_N);
     gen_rloc.resize(gen_N);
     gen_fmax.resize(gen_N);
 
@@ -956,7 +956,7 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
     ofstream tout("test.dfgrid");
     tout << "# Rmin=" << rmin 
 	 << "  Rmax=" << get_max_radius() << endl;
-    for (int i=1; i<=gen_N; i++)
+    for (int i=0; i<gen_N; i++)
       tout << setw(18) << gen_rloc[i]
 	   << setw(18) << gen_mass[i]
 	   << setw(18) << gen_fmax[i]
@@ -1049,7 +1049,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     else
       dr = (rmax_gen - rmin_gen)/(gen_N-1);
 
-    for (int i=1; i<=gen_N; i++) {
+    for (int i=0; i<gen_N; i++) {
 
       if (gen_logr) {
 	gen_rloc[i] = log(rmin_gen) + dr*(i-1);
@@ -1141,7 +1141,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 	   << setw(15) << "+"
 	   << endl << setfill(' ');
 
-      for (int i=1; i<=gen_N; i++) {
+      for (int i=0; i<gen_N; i++) {
 	double r = exp(gen_rloc[i]);
 	double p = get_pot(r);
 	test << setw(15) << gen_rloc[i]
@@ -1161,7 +1161,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   }
 
 #if 1
-  mass = gen_mass[1] + Unit(random_gen)*(gen_mass[gen_N]-gen_mass[1]);
+  mass = gen_mass[1] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[1]);
   r = odd2(mass, gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   if (gen_logr) r = exp(r);
@@ -1177,7 +1177,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   int it;
   for (it=0; it<gen_itmax; it++) {
 
-  mass = gen_mass[1] + Unit(random_gen)*(gen_mass[gen_N]-gen_mass[1]);
+  mass = gen_mass[1] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[1]);
   r = odd2(mass, gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   if (gen_logr) r = exp(r);
@@ -1318,7 +1318,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
 	   << "  Rmax=" << rmax_gen
 	   << endl;
 
-      for (int i=1; i<=gen_N; i++) {
+      for (int i=0; i<gen_N; i++) {
 	test << setw(15) << gen_rloc[i]
 	     << setw(15) << gen_mass[i]
 	     << setw(15) << gen_fmax[i]

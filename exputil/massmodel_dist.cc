@@ -102,11 +102,11 @@ void SphericalModelTable::setup_df(int NUM, double RA)
 
 */
 
-  df.Q    = Eigen::VectorXd(NUM);
-  df.fQ   = Eigen::VectorXd(NUM);
-  df.ffQ  = Eigen::VectorXd(NUM);
-  df.fQ2  = Eigen::VectorXd(NUM);
-  df.ffQ2 = Eigen::VectorXd(NUM);
+  df.Q   .resize(NUM);
+  df.fQ  .resize(NUM);
+  df.ffQ .resize(NUM);
+  df.fQ2 .resize(NUM);
+  df.ffQ2.resize(NUM);
   df.num  = NUM;
 
   Qmax = pot.y[pot.num-1];
@@ -202,7 +202,7 @@ double SphericalModelTable::distf(double E, double L)
 
   double d, g, Q = log(E + 0.5*L*L/df.ra2 - df.off);
 
-  if (Q > df.Q[df.num])
+  if (Q > df.Q[df.num-1])
     d = 0.0;
   else {
     Splint1(df.Q, df.fQ, df.fQ2, Q, d);
@@ -221,7 +221,7 @@ double SphericalModelTable::dfde(double E, double L)
 
   double d, g, h, d1, Q = log(E + 0.5*L*L/df.ra2 - df.off);
 
-  if (Q > df.Q[df.num])
+  if (Q > df.Q[df.num-1])
     d1 = 0.0;
   else {
     Splint2(df.Q, df.fQ, df.fQ2, Q, d, h);
@@ -240,7 +240,7 @@ double SphericalModelTable::dfdl(double E, double L)
 
   double d, g, h, d1, Q = log(E + 0.5*L*L/df.ra2 - df.off);
 
-  if (Q > df.Q[df.num])
+  if (Q > df.Q[df.num-1])
     d1 = 0.0;
   else {
     Splint2(df.Q, df.fQ, df.fQ2, Q, d, h);
@@ -259,7 +259,7 @@ double SphericalModelTable::d2fde2(double E, double L)
 
   double d, g, h, k, d2, Q = E + 0.5*L*L/df.ra2;
 
-  if (Q > df.Q[df.num])
+  if (Q > df.Q[df.num-1])
     d2 = 0.0;
   else {
     Splint3(df.Q, df.fQ, df.fQ2, Q, d, h, k);
