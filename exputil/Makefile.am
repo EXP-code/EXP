@@ -34,10 +34,9 @@ ODE_SRC = rk4.cc bs.cc odesolve.cc
 SYMP_SRC = sia4.cc
 ROOT_SRC = rtbis.cc rtsafe.cc brent.cc zbrent.cc mnbrak.cc zbrak.cc zbrac.cc
 QUAD_SRC = qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc Trapsum.cc
-RANDOM_SRC =
 UTIL_SRC = nrutil.cc elemfunc.cc euler.cc euler_slater.cc		\
 	rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc	\
-	stack.cc VtkGrid.cc
+	stack.cc VtkGrid.cc localmpi.cc
 OPTIMIZATION_SRC = simann2.cc
 POLY_SRC = zroots.cc laguer.cc poly.cc cpoly.cc horner.cc syndiv.cc
 PHASE_SRC = phase.cc ensemble.cc io_ensemble.cc move_ensemble.cc \

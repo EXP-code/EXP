@@ -9,7 +9,7 @@
 
 #include <getopt.h>		// For long options
 
-#include <localmpi.H>
+#include <localmpi.H>		// MPI globals
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <CylindricalDisk.H>	// The axisymmetric potential solver
 #include <gaussQ.H>		// Gauss-Legendre quadrature
@@ -19,6 +19,7 @@
 //===========================================================================
 
 				// so one can link to exp libraries
+int myid;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;

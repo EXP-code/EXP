@@ -972,7 +972,7 @@ public:
       throw std::runtime_error(sout.str());
     }
 
-    return covM(0, T, m)[n][o];
+    return covM(0, T, m)(n, o);
   }
 
   double& set_tvar(int m, int i, int j)
@@ -983,7 +983,7 @@ public:
     if (i >= rank3 or j >= rank3)
       throw std::runtime_error("n>norder");
 
-    return tvar[0][m][i+1][j+1];
+    return tvar[0][m](i, j);
   }
 
   double& set_massT(int T)

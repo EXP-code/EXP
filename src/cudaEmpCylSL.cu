@@ -96,13 +96,13 @@ void EmpCylSL::initialize_cuda
       //
       for (int j=0; j<NUMY; j++) {
 	for (int i=0; i<NUMX; i++) {
-	  h_buffer[i+j*NUMX              ]   = potC   [mm][n][i][j];
-	  h_buffer[i+j*NUMX + NUMX*NUMY  ]   = rforceC[mm][n][i][j];
-	  h_buffer[i+j*NUMX + NUMX*NUMY*2]   = zforceC[mm][n][i][j];
+	  h_buffer[i+j*NUMX              ]   = potC   [mm][n](i, j);
+	  h_buffer[i+j*NUMX + NUMX*NUMY  ]   = rforceC[mm][n](i, j);
+	  h_buffer[i+j*NUMX + NUMX*NUMY*2]   = zforceC[mm][n](i, j);
 	  if (mm) {
-	    h_buffer[i+j*NUMX + NUMX*NUMY*3] = potS   [mm][n][i][j];
-	    h_buffer[i+j*NUMX + NUMX*NUMY*4] = rforceS[mm][n][i][j];
-	    h_buffer[i+j*NUMX + NUMX*NUMY*5] = zforceS[mm][n][i][j];
+	    h_buffer[i+j*NUMX + NUMX*NUMY*3] = potS   [mm][n](i, j);
+	    h_buffer[i+j*NUMX + NUMX*NUMY*4] = rforceS[mm][n](i, j);
+	    h_buffer[i+j*NUMX + NUMX*NUMY*5] = zforceS[mm][n](i, j);
 	  }
 	}
       }
@@ -174,7 +174,7 @@ void EmpCylSL::initialize_cuda
     for (int mm=0; mm<=MMAX; mm++) {
       for (size_t n=0; n<rank3; n++) {
 	
-	std::vector<Matrix*> orig =
+	std::vector<Eigen::MatrixXd*> orig =
 	  {&potC[mm][n], &rforceC[mm][n], &zforceC[mm][n],
 	   &potS[mm][n], &rforceS[mm][n], &zforceS[mm][n]};
 
@@ -186,7 +186,7 @@ void EmpCylSL::initialize_cuda
 	
 	  for (int j=0; j<NUMY; j++) {
 	    for (int i=0; i<NUMX; i++) {
-	      double a = (*orig[k])[i][j];
+	      double a = (*orig[k])(i, j);
 	      double b = xyg[j*NUMX + i];
 	      if (a>1.0e-18) {
 

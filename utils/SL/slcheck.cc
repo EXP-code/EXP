@@ -17,6 +17,7 @@ namespace po = boost::program_options;
 #include <SLGridMP2.H>
 #include <gaussQ.H>
 
+int myid;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;

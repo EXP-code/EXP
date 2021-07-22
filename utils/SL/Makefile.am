@@ -32,21 +32,23 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-slcheck_SOURCES = slcheck.cc localmpi.cc
+slcheck_SOURCES = slcheck.cc
 slcheck_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 slcheck_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS) $(BOOST_LIBS)
 
-slshift_SOURCES = slshift.cc SLSphere.cc localmpi.cc
+slshift_SOURCES = slshift.cc SLSphere.cc
 slshift_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 slshift_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS) $(BOOST_LIBS)
 
-orthochk_SOURCES = orthochk.cc localmpi.cc
-orthochk_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)
+orthochk_SOURCES = orthochk.cc
+orthochk_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
+orthochk_LDADD   = $(EXPLIBS) $(CUDA_LIBFLAGS)
 
-diskpot_SOURCES = diskpot.cc CylindricalDisk.cc SLSphere.cc localmpi.cc
+diskpot_SOURCES = diskpot.cc CylindricalDisk.cc SLSphere.cc
+diskpot_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 diskpot_LDADD   = $(EXPLIBS) $(CUDA_LIBFLAGS)
 
-qtest_SOURCES   = qtest.cc localmpi.cc
+qtest_SOURCES   = qtest.cc
 qtest_LDFLAGS   = $(EXPFLAGS) $(BOOST_LDFLAGS)
 qtest_LDADD     = $(EXPLIBS) $(CUDA_LIBFLAGS) $(BOOST_LIBS)
 

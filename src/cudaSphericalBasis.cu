@@ -1847,8 +1847,8 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	    int c = 0;
 	    for (size_t j=0; j<nmax; j++) {
 	      for (size_t k=j; k<nmax; k++) {
-		(*tvar[l])[j+1][k+1] += retV[csz*l + c];
-		if (j!=k) (*tvar[l])[k+1][j+1] += retV[csz*l + c];
+		(*tvar[l])(j, k) += retV[csz*l + c];
+		if (j!=k) (*tvar[l])(k, j) += retV[csz*l + c];
 		c++;
 	      }
 	    }
@@ -2040,11 +2040,11 @@ void SphericalBasis::multistep_update_cuda()
       for (int l=0, loffset=0, offst=0; l<=Lmax; loffset+=(2*l+1), l++) {
 	for (int m=0, moffset=0; m<=l; m++) {
 	  for (size_t n=0; n<nmax; n++) {
-	    differ1[0][olev][loffset+moffset][n+1] -= ret[2*n+offst];
-	    differ1[0][nlev][loffset+moffset][n+1] += ret[2*n+offst];
+	    differ1[0][olev](loffset+moffset, n) -= ret[2*n+offst];
+	    differ1[0][nlev](loffset+moffset, n) += ret[2*n+offst];
 	    if (m>0) {
-	      differ1[0][olev][loffset+moffset+1][n+1] -= ret[2*n+1+offst];
-	      differ1[0][nlev][loffset+moffset+1][n+1] += ret[2*n+1+offst];
+	      differ1[0][olev](loffset+moffset+1, n) -= ret[2*n+1+offst];
+	      differ1[0][nlev](loffset+moffset+1, n) += ret[2*n+1+offst];
 	    }
 	  }
 
