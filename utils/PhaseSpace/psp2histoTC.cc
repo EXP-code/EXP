@@ -27,6 +27,7 @@ using namespace std;
 #include <PSP.H>
 
 #include <boost/program_options.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 namespace po = boost::program_options;
 
@@ -37,6 +38,7 @@ int myid = 0;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
+boost::mt19937 random_gen;
 
 bool readSpeciesFileOld(std::string file,
 			std::map<speciesKey, int>& SpList,

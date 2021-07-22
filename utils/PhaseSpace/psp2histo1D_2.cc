@@ -32,7 +32,7 @@ int myid = 0;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
-#include <boost/random/mersenne_twister.hpp>
+boost::mt19937 random_gen;
 
 int
 main(int ac, char **av)
