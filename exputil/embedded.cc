@@ -5,7 +5,6 @@
 #include <cmath>
 #include <string>
 
-#include <logic.h>
 #include <QPDistF.H>
 #include <massmodel.H>
 

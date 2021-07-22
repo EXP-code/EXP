@@ -7,9 +7,6 @@
 #include <boost/random/uniform_real_distribution.hpp>
 #include <boost/random/normal_distribution.hpp>
 
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
 #include <orbit.H>
 
 class QPDistF;

@@ -6,10 +6,6 @@
 #include "expand.H"
 #include <localmpi.H>
 
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
-
 #include <UserAddMass.H>
 
 // For parsing parameters: Algorithm type

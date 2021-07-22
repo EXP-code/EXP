@@ -8,7 +8,6 @@
 
 #include <string>
 #include <biorth.H>
-#include <logic.h>
 
 class AxiSymBiorth;
 

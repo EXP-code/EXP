@@ -3,10 +3,6 @@
 
 #include <pthread.h>
 
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
-
 #include <TwoBodyDiffuse.H>
 #include <global.H>
 

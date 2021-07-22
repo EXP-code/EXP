@@ -4,7 +4,6 @@
 #include <vector>
 
 #include <Particle.H>
-#include <logic.h>
 #include <Particle.H>
 #include <SLGridMP2.H>
 
