@@ -25,6 +25,7 @@
 #include <boost/random/uniform_real.hpp>
 #include <boost/random/normal_distribution.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -66,6 +67,7 @@ string runtag, outdir;
 char threading_on = 0;
 int myid = 0;
 pthread_mutex_t mem_lock;
+boost::mt19937 random_gen;
 
 #ifdef DEBUG
 #include <fenv.h>

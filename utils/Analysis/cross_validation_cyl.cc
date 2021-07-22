@@ -64,7 +64,7 @@ namespace po = boost::program_options;
 				// MDW classes
 #include <numerical.H>
 #include "Particle.h"
-#include <PSP2.H>
+#include <PSP.H>
 #include <interp.H>
 #include <massmodel.H>
 #include <EmpCylSL.H>

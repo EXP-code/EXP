@@ -41,6 +41,7 @@
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 namespace po = boost::program_options;
 
@@ -78,6 +79,7 @@ pthread_mutex_t coef_lock;
 string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
+boost::mt19937 random_gen;
   
 int
 main(int argc, char **argv)

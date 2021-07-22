@@ -1,5 +1,3 @@
-// This is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -41,6 +39,7 @@
 				// Boost stuff
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 namespace po = boost::program_options;
 
@@ -70,7 +69,8 @@ pthread_mutex_t coef_lock;
 double tpos = 0.0;
 double tnow = 0.0;
 int myid = 0;  
-string outdir, outfile, runtag;
+std::string outdir, outfile, runtag;
+boost::mt19937 random_gen;
 
 //=============================================================================
 
