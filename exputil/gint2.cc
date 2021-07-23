@@ -83,9 +83,8 @@ static LegeQuad *lq = NULL;
 
 double gint_0(double a, double b, double (*f) (double), int NGauss)
 {
-  double accum,bma,bpa;
-
-/* Get values weights and abcissas for Gauss-Legendre integration if needed */
+  // Get values weights and abcissas for Gauss-Legendre integration if
+  // needed
 
   if (NGauss != N) {
 
@@ -105,11 +104,13 @@ double gint_0(double a, double b, double (*f) (double), int NGauss)
     }
   }
 
-/* Do integral */
+  // Do integral
 
-  bma = 0.5*(b-a);
-  bpa = 0.5*(b+a);
-  for (int i=0, accum=0.0; i<M; i++) {
+  double bma = 0.5*(b-a);
+  double bpa = 0.5*(b+a);
+  double accum = 0.0;
+
+  for (int i=0; i<M; i++) {
     accum += lq->weight(i)*(*f)( bma*lq->knot(i)+bpa);
     accum += lq->weight(i)*(*f)(-bma*lq->knot(i)+bpa);
   }
@@ -122,15 +123,14 @@ double gint_0(double a, double b, double (*f) (double), int NGauss)
   }
     
 
-/* Done! */
+  // Done!
   return bma*accum;
 }
 
 double gint_2(double a, double b, double (*f) (double), int NGauss)
 {
-  double accum,bma;
-
-/* Get values weights and abcissas for Gauss-Legendre integration if needed */
+  // Get values weights and abcissas for Gauss-Legendre integration if
+  // needed
 
   if (NGauss != N) {
     
@@ -140,7 +140,7 @@ double gint_2(double a, double b, double (*f) (double), int NGauss)
     M = (N+1)/2;
     lq = new LegeQuad(M);
 
-    /* debug! */
+    // Debug
     if (DEBUG) {
       for (int i=0; i<M; i++)
 	cerr << setw(3) << i << "> " 
@@ -150,13 +150,13 @@ double gint_2(double a, double b, double (*f) (double), int NGauss)
     }
   }
 
-/* Do integral */
-
-  bma = b-a;
-  for (int i=0, accum=0.0; i<M; i++)
+  // Do integral
+  double bma = b-a;
+  double accum = 0.0;
+  for (int i=0; i<M; i++)
     accum += 2.0*lq->weight(i)*(*f)(a+bma*lq->knot(i)*lq->knot(i));
 
-/* Done! */
+  // Done
   return sqrt(b-a)*accum;
 }
 

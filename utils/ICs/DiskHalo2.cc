@@ -237,10 +237,10 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   // Packs fake density and mass model with target (real) potential
   // and reinitializes the model
   //
-  double *r2 = new double [RNUM];
-  double *d2 = new double [RNUM];
-  double *m2 = new double [RNUM];
-  double *p2 = new double [RNUM];
+  std::vector<double> r2(RNUM);
+  std::vector<double> d2(RNUM);
+  std::vector<double> m2(RNUM);
+  std::vector<double> p2(RNUM);
   
   double rmin = halo2->get_min_radius();
   double rmax = halo2->get_max_radius();
@@ -261,19 +261,14 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     p2[i] = halo2 -> get_pot(r);
   }
   
-  halo3 = std::make_shared<SphericalModelTable>(RNUM, r2-1, d2-1, m2-1, p2-1, 
-						DIVERGE2, DIVERGE_RFAC2);
+  halo3 = std::make_shared<SphericalModelTable>
+    (RNUM, r2.data(), d2.data(), m2.data(), p2.data(), DIVERGE2, DIVERGE_RFAC2);
   halo3->setup_df(NUMDF, RA);
   if (VFLAG & 2) {
     halo3->print_model("diskhalo2_model.multi");
     halo3->print_df("diskhalo2_df.multi");
   }
     
-  delete [] r2;
-  delete [] d2;
-  delete [] m2;
-  delete [] p2;
-  
   //
   // Generate the multimass model
   //

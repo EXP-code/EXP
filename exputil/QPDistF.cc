@@ -423,8 +423,8 @@ void QPDistF::compute_distribution(void)
 	  double fac = wk.weight(ix)*wk.weight(iy) * 4.0*M_PI *
 	    vrmax*vrmax*vrmax * (1.0 - x*x)*y;
 
-	  for (int i=1; i<=EGRID; i++) {
-	    for (int j=1; j<=KGRID; j++) {
+	  for (int i=0; i<EGRID; i++) {
+	    for (int j=0; j<KGRID; j++) {
 	      basis[k](i, j) += fac *
 		kernel(E, K, Egrid[i], Kgrid[j], sigma_E[i], sigma_K[j]);
 	    }
@@ -451,8 +451,8 @@ void QPDistF::compute_distribution(void)
 
 	  if (verbose>4) if (K>ktmax) ktmax = K;
 
-	  for (i=1; i<=EGRID; i++) {
-	    for (j=1; j<=KGRID; j++) {
+	  for (i=0; i<EGRID; i++) {
+	    for (j=0; j<KGRID; j++) {
 	      basis[k][i][j] += 2.0*dt*wk.weight(iR)*vrmax*vrmax * 
 		2.0*M_PI*vv*sin(th) *
 		kernel(E, K, Egrid[i], Kgrid[j], sigma_E[i], sigma_K[j]);
@@ -602,7 +602,7 @@ void QPDistF::compute_distribution(void)
 	 << "-------------------\n";
       
     for (int i=0; i<C.rows(); i++) {
-      for (int j=0; j<=C.cols(); j++) 
+      for (int j=0; j<C.cols(); j++) 
 	cout << setw(16) << C(i, j);
       cout << endl;
     }
@@ -612,7 +612,7 @@ void QPDistF::compute_distribution(void)
 	 << "Constant vector:" << endl
 	 << "----------------" << endl;
       
-    for (int i=0; i<=D.size(); i++)
+    for (int i=0; i<D.size(); i++)
       cout << setw(4) << i << setw(16) << D[i];
     cout << endl;
 
@@ -659,9 +659,9 @@ void QPDistF::compute_distribution(void)
     cout << "----------------" << endl;
     cout << "Solution vector:" << endl;
     cout << "----------------" << endl;
-    int i=1;
-    for (int ix=1; ix<=EGRID; ix++) {
-      for (int iy=1; iy<=KGRID; iy++) {
+    int i=0;
+    for (int ix=0; ix<EGRID; ix++) {
+      for (int iy=0; iy<KGRID; iy++) {
 	if (X[i] > 1.0e-12)
 	  cout << setw(4) << ix
 	       << setw(4) << iy << "> "
@@ -912,10 +912,10 @@ double QPDistF::distf_EK(double E, double K)
   if (!df_computed) compute_distribution();
 
   double ans = 0.0;
-  int i=1;
+  int i=0;
 
-  for (int ix=1; ix<=EGRID; ix++) {
-    for (int iy=1; iy<=KGRID; iy++) {
+  for (int ix=0; ix<EGRID; ix++) {
+    for (int iy=0; iy<KGRID; iy++) {
       if (X[i] > 1.0e-10)
 	ans += X[i] * 
 	  kernel(E, K, Egrid[ix], Kgrid[iy], sigma_E[ix], sigma_K[iy]);
@@ -931,10 +931,10 @@ double QPDistF::dfdE_EK(double E, double K)
   if (!df_computed) compute_distribution();
 
   double ans = 0.0;
-  int i=1;
+  int i=0;
 
-  for (int ix=1; ix<=EGRID; ix++) {
-    for (int iy=1; iy<=KGRID; iy++) {
+  for (int ix=0; ix<EGRID; ix++) {
+    for (int iy=0; iy<KGRID; iy++) {
       if (X[i] > 1.0e-10)
 	ans += X[i] * 
 	  kernel_x(E, K, Egrid[ix], Kgrid[iy], sigma_E[ix], sigma_K[iy]);
@@ -950,10 +950,10 @@ double QPDistF::d2fdE2_EK(double E, double K)
   if (!df_computed) compute_distribution();
 
   double ans = 0.0;
-  int i=1;
+  int i=0;
 
-  for (int ix=1; ix<=EGRID; ix++) {
-    for (int iy=1; iy<=KGRID; iy++) {
+  for (int ix=0; ix<EGRID; ix++) {
+    for (int iy=0; iy<KGRID; iy++) {
       if (X[i] > 1.0e-10)
 	ans += X[i] * 
 	  kernel_x2(E, K, Egrid[ix], Kgrid[iy], sigma_E[ix], sigma_K[iy]);
@@ -969,10 +969,10 @@ double QPDistF::d2fdK2_EK(double E, double K)
   if (!df_computed) compute_distribution();
 
   double ans = 0.0;
-  int i=1;
+  int i=0;
 
-  for (int ix=1; ix<=EGRID; ix++) {
-    for (int iy=1; iy<=KGRID; iy++) {
+  for (int ix=0; ix<EGRID; ix++) {
+    for (int iy=0; iy<KGRID; iy++) {
       if (X[i] > 1.0e-10)
 	ans += X[i] * 
 	  kernel_y2(E, K, Egrid[ix], Kgrid[iy], sigma_E[ix], sigma_K[iy]);
@@ -988,10 +988,10 @@ double QPDistF::d2fdEK_EK(double E, double K)
   if (!df_computed) compute_distribution();
 
   double ans = 0.0;
-  int i=1;
+  int i=0;
 
-  for (int ix=1; ix<=EGRID; ix++) {
-    for (int iy=1; iy<=KGRID; iy++) {
+  for (int ix=0; ix<EGRID; ix++) {
+    for (int iy=0; iy<KGRID; iy++) {
       if (X[i] > 1.0e-10)
 	ans += X[i] * 
 	  kernel_xy(E, K, Egrid[ix], Kgrid[iy], sigma_E[ix], sigma_K[iy]);
@@ -1007,10 +1007,10 @@ double QPDistF::dfdK_EK(double E, double K)
   if (!df_computed) compute_distribution();
 
   double ans = 0.0;
-  int i=1;
+  int i=0;
 
-  for (int ix=1; ix<=EGRID; ix++) {
-    for (int iy=1; iy<=KGRID; iy++) {
+  for (int ix=0; ix<EGRID; ix++) {
+    for (int iy=0; iy<KGRID; iy++) {
       if (X[i] > 1.0e-10)
 	ans += X[i] * 
 	  kernel_y(E, K, Egrid[ix], Kgrid[iy], sigma_E[ix], sigma_K[iy]);

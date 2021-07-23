@@ -131,7 +131,7 @@ void SphericalModelTable::setup_df(int NUM, double RA)
   Spline(df.Q, df.ffQ, -1.0e30,-1.0e30, df.ffQ2);
 
 
-/* Tabulate the df! */
+  /* Tabulate the df! */
 
   for (int i=df.num-1; i>=0; i--)
     Splint2(df.Q, df.ffQ, df.ffQ2, df.Q[i], d, df.fQ[i]);
