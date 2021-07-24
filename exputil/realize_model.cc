@@ -170,11 +170,11 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
       for (int i=0; i<gen_N; i++) {
 
 	if (gen_logr) {
-	  gen_rloc[i] = log(rmin + dr*(i-1));
+	  gen_rloc[i] = log(rmin + dr*i);
 	  r = exp(gen_rloc[i]);
 	}
 	else {
-	  gen_rloc[i] = rmin + dr*(i-1);
+	  gen_rloc[i] = rmin + dr*i;
 	  r = gen_rloc[i];
 	}
 
@@ -289,7 +289,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
     double dr = (get_max_radius() - rmin)/gen_N;
 
     for (int i=0; i<gen_N; i++) {
-      gen_rloc[i] = rmin + dr*(i-1);
+      gen_rloc[i] = rmin + dr*i;
       gen_mass[i] = get_mass(gen_rloc[i]);
 
       pot = get_pot(gen_rloc[i]);
@@ -413,11 +413,11 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
     for (int i=0; i<gen_N; i++) {
 
       if (gen_logr) {
-	gen_rloc[i] = log(rmin) + dr*(i-1);
+	gen_rloc[i] = log(rmin) + dr*i;
 	r = exp(gen_rloc[i]);
       }
       else {
-	gen_rloc[i] = rmin + dr*(i-1);
+	gen_rloc[i] = rmin + dr*i;
 	r = gen_rloc[i];
       }
 
@@ -784,11 +784,11 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
     for (int i=0; i<gen_N; i++) {
 
       if (gen_logr) {
-	gen_rloc[i] = log(rmin) + dr*(i-1);
+	gen_rloc[i] = log(rmin) + dr*i;
 	r = exp(gen_rloc[i]);
       }
       else {
-	gen_rloc[i] = rmin + dr*(i-1);
+	gen_rloc[i] = rmin + dr*i;
 	r = gen_rloc[i];
       }
 
@@ -919,11 +919,11 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
     for (int i=0; i<gen_N; i++) {
 
       if (gen_logr) {
-	gen_rloc[i] = log(rmin) + dr*(i-1);
+	gen_rloc[i] = log(rmin) + dr*i;
 	r = exp(gen_rloc[i]);
       }
       else {
-	gen_rloc[i] = rmin + dr*(i-1);
+	gen_rloc[i] = rmin + dr*i;
 	r = gen_rloc[i];
       }
 
@@ -1052,11 +1052,11 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     for (int i=0; i<gen_N; i++) {
 
       if (gen_logr) {
-	gen_rloc[i] = log(rmin_gen) + dr*(i-1);
+	gen_rloc[i] = log(rmin_gen) + dr*i;
 	r = exp(gen_rloc[i]);
       }
       else {
-	gen_rloc[i] = rmin_gen + dr*(i-1);
+	gen_rloc[i] = rmin_gen + dr*i;
 	r = gen_rloc[i];
       }
 
@@ -1161,7 +1161,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   }
 
 #if 1
-  mass = gen_mass[1] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[1]);
+  mass = gen_mass[0] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[0]);
   r = odd2(mass, gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   if (gen_logr) r = exp(r);
@@ -1177,7 +1177,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   int it;
   for (it=0; it<gen_itmax; it++) {
 
-  mass = gen_mass[1] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[1]);
+  mass = gen_mass[0] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[0]);
   r = odd2(mass, gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   if (gen_logr) r = exp(r);
@@ -1239,6 +1239,8 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
   }
 
+  std::cout << "Mass[0]: " << out[0] << std::endl;
+
   return out;
 }
 
@@ -1277,11 +1279,11 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
     for (int i=0; i<gen_N; i++) {
 
       if (gen_logr) {
-	gen_rloc[i] = log(rmin_gen) + dr*(i-1);
+	gen_rloc[i] = log(rmin_gen) + dr*i;
 	r = exp(gen_rloc[i]);
       }
       else {
-	gen_rloc[i] = rmin_gen + dr*(i-1);
+	gen_rloc[i] = rmin_gen + dr*i;
 	r = gen_rloc[i];
       }
 
@@ -1392,6 +1394,8 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
   for (int i=0; i<7; i++) {
     if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
   }
+
+  std::cout << "Mass[1]: " << out[0] << std::endl;
 
   return out;
 }
