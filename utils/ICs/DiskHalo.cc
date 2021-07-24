@@ -943,9 +943,9 @@ table_halo(vector<Particle>& part)
   
   double x, y, z, theta, r, fr, fz, fp, pot, costh, sinth;
   double dens, potl, dpr, dpt, dpp, dpdr;
-  Eigen::VectorXd work(0, NHR-1);
-  Eigen::VectorXd workR(0, NHR-1);
-  Eigen::VectorXd workA(0, NHR-1);
+  Eigen::VectorXd work (NHR);
+  Eigen::VectorXd workR(NHR);
+  Eigen::VectorXd workA(NHR);
   
   // If no disk, add no force
   pot = fr = fz = fp = 0.0;

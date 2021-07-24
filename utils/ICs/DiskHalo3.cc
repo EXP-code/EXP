@@ -133,6 +133,8 @@ DiskHalo(std::shared_ptr<SphericalSL> haloexp, std::shared_ptr<EmpCylSL> diskexp
 	 std::string& filename1, int DIVERGE, double DIVERGE_RFAC,
 	 std::string& filename2, int DIVERGE2, double DIVERGE_RFAC2)
 {
+  gen.seed(SEED+myid);
+
   com         = false;
   cov         = false;
 

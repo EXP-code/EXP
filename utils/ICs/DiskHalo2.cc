@@ -1383,13 +1383,11 @@ table_disk(vector<Particle>& part)
 				// Update tables on all nodes
   for (int k=0; k<numprocs; k++) {
     for (int i=ibeg[k]; i<iend[k]; i++) {
-      MPI_Bcast(&epitable(i, 0), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      MPI_Bcast(&dv2table(i, 0), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      MPI_Bcast(&asytable(i, 0), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      for (int j=0; j<NDR; j++) {
-	MPI_Bcast(&disktableP[i](j, 0), NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
-	MPI_Bcast(&disktableN[i](j, 0), NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      }
+      MPI_Bcast(epitable.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      MPI_Bcast(dv2table.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      MPI_Bcast(asytable.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      MPI_Bcast(disktableP[i].data(), NDR*NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      MPI_Bcast(disktableN[i].data(), NDR*NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
     }
   }
 
