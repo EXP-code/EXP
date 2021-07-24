@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <Eigen/Eigen>
+#include <Eigen/Eigenvalues>
 
 
 int main()
@@ -21,9 +22,12 @@ int main()
   M(2, 0) = M(0, 2);
   M(2, 1) = M(1, 2);
   
-  EigenSolver<MatrixXd> es(M, false);
-  std::cout << "The eigenvalues of the 3x3 matrix of ones are:" 
-	    << std::endl << es.eigenvalues() << std::endl;  
+  Eigen::EigenSolver<Eigen::MatrixXd> es(M, false);
+  std::cout << "The eigenvalues of the 3x3 matrix:" << std::endl
+	    << M << std::endl << "is" << std::endl << es.eigenvalues()
+	    << std::endl;  
+
+  return(0);
 }
 	
 
