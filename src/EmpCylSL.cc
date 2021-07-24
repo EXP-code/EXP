@@ -494,6 +494,7 @@ SphModTblPtr EmpCylSL::make_sl()
 void EmpCylSL::send_eof_grid()
 {
 
+#ifdef SEND_DEBUG
   auto blab = [](auto& s, auto& t, auto id, auto m, auto v) {
 		 std::cout << "[" << id << "] " << s << "  " << t
 			     << " (" << m << ", " << v << ")" << std::endl;
@@ -501,6 +502,9 @@ void EmpCylSL::send_eof_grid()
   
   std::cout << "[" << myid << "] (MMAX, rank3)=("
 	    << MMAX << ", " << rank3 << ")" << std::endl;
+#else
+  auto blab = [](auto& s, auto& t, auto id, auto m, auto v) {};
+#endif
 
   // Send to slaves
   // 
