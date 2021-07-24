@@ -522,14 +522,12 @@ void EmpCylSL::send_eof_grid()
       blab("before", "rforceC", myid, m, v);
       MPI_Bcast(rforceC[m][v].data(), rforceC[m][v].size(),
 		MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      blab("after", "rforce", myid, m, v);
+      blab("after", "rforceC", myid, m, v);
 
       blab("before", "zforceC", myid, m, v);
       MPI_Bcast(zforceC[m][v].data(), zforceC[m][v].size(),
 		MPI_DOUBLE, 0, MPI_COMM_WORLD);
       blab("after", "zforceC", myid, m, v);
-
-      std::cout << "[" << myid << "] after zforceC" << std::endl;
 
       if (DENS) {
 	blab("before", "densC", myid, m, v);
