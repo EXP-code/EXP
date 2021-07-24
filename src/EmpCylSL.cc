@@ -422,10 +422,10 @@ SphModTblPtr EmpCylSL::make_sl()
 {
   const int number = 10000;
 
-  r =  vector<double>(number);
-  d =  vector<double>(number);
-  m =  vector<double>(number);
-  p =  vector<double>(number);
+  r.resize(number);
+  d.resize(number);
+  m.resize(number);
+  p.resize(number);
 
   vector<double> mm(number);
   vector<double> pw(number);
@@ -486,12 +486,22 @@ SphModTblPtr EmpCylSL::make_sl()
     out.close();
   }
 
-  return boost::make_shared<SphericalModelTable>(number, &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1);
+  return boost::make_shared<SphericalModelTable>
+    (number, r.data(), d.data(), m.data(), p.data());
 }
+
 
 void EmpCylSL::send_eof_grid()
 {
+
+  auto blab = [](auto& s, auto& t, auto id, auto m, auto v) {
+		 std::cout << "[" << id << "] " << s << "  " << t
+			     << " (" << m << ", " << v << ")" << std::endl;
+		 };
   
+  std::cout << "[" << myid << "] (MMAX, rank3)=("
+	    << MMAX << ", " << rank3 << ")" << std::endl;
+
   // Send to slaves
   // 
   for (int m=0; m<=MMAX; m++) {
@@ -500,18 +510,28 @@ void EmpCylSL::send_eof_grid()
     // 
     for (int v=0; v<rank3; v++) {
 
+      blab("before", "potC", myid, m, v);
       MPI_Bcast(potC[m][v].data(), potC[m][v].size(),
 		MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      blab("after", "potC", myid, m, v);
 
+      blab("before", "rforceC", myid, m, v);
       MPI_Bcast(rforceC[m][v].data(), rforceC[m][v].size(),
 		MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      blab("after", "rforce", myid, m, v);
 
+      blab("before", "zforceC", myid, m, v);
       MPI_Bcast(zforceC[m][v].data(), zforceC[m][v].size(),
 		MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      blab("after", "zforceC", myid, m, v);
+
+      std::cout << "[" << myid << "] after zforceC" << std::endl;
 
       if (DENS) {
+	blab("before", "densC", myid, m, v);
 	MPI_Bcast(densC[m][v].data(), densC[m][v].size(),
 		  MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	blab("after", "densC", myid, m, v);
       }
     }
   }
@@ -522,18 +542,26 @@ void EmpCylSL::send_eof_grid()
     //
     for (int v=0; v<rank3; v++) {
 
+      blab("before", "potS", myid, m, v);
       MPI_Bcast(potS[m][v].data(), potS[m][v].size(),
 		MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      blab("after", "potS", myid, m, v);
 
+      blab("before", "rforceS", myid, m, v);
       MPI_Bcast(rforceS[m][v].data(), rforceS[m][v].size(),
 		MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      blab("after", "rforceS", myid, m, v);
 
+      blab("before", "zforceS", myid, m, v);
       MPI_Bcast(zforceS[m][v].data(), zforceS[m][v].size(),
 		MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      blab("after", "zforceS", myid, m, v);
 
       if (DENS) {
+	blab("before", "densS", myid, m, v);
 	MPI_Bcast(densS[m][v].data(), densS[m][v].size(),
 		    MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	blab("after", "densS", myid, m, v);
       }
       
     }
@@ -2928,8 +2956,8 @@ void EmpCylSL::make_eof(void)
 
 	  if (EvenOdd) {
 
-	    for (int i=0; i<varE[M].size(); i++) {
-	      for (int j=0; j<varE[M].size(); j++) {
+	    for (int i=0; i<varE[M].rows(); i++) {
+	      for (int j=0; j<varE[M].cols(); j++) {
 		if (std::isnan(varE[M](i, j))) nancount++;
 	      }
 	    }
@@ -2959,8 +2987,8 @@ void EmpCylSL::make_eof(void)
 
 	  } else {
 
-	    for (int i=0; i<=var[M].rows(); i++) {
-	      for (int j=0; j<=var[M].cols(); j++) {
+	    for (int i=0; i<var[M].rows(); i++) {
+	      for (int j=0; j<var[M].cols(); j++) {
 		if (std::isnan(var[M](i, j))) nancount++;
 	      }
 	    }
@@ -2999,8 +3027,8 @@ void EmpCylSL::make_eof(void)
 	    }
 
 	    dout << std::endl;
-	    for (int i=0; i<=varO[M].rows(); i++) {
-	      for (int j=0; j<=varO[M].cols(); j++) {
+	    for (int i=0; i<varO[M].rows(); i++) {
+	      for (int j=0; j<varO[M].cols(); j++) {
 		dout << std::setw(16) << varO[M](i, j);
 	      }
 	      dout << std::endl;
@@ -3008,8 +3036,8 @@ void EmpCylSL::make_eof(void)
 
 	  } else {
 
-	    for (int i=0; i<=var[M].rows(); i++) {
-	      for (int j=0; j<=var[M].cols(); j++) {
+	    for (int i=0; i<var[M].rows(); i++) {
+	      for (int j=0; j<var[M].cols(); j++) {
 		dout << std::setw(16) << var[M](i, j);
 	      }
 	      dout << std::endl;
@@ -3169,8 +3197,8 @@ void EmpCylSL::make_eof(void)
 
 	  if (EvenOdd) {
 
-	    for (int i=0; i<=varE[M].rows(); i++) {
-	      for (int j=0; j<=varE[M].cols(); j++) {
+	    for (int i=0; i<varE[M].rows(); i++) {
+	      for (int j=0; j<varE[M].cols(); j++) {
 		if (std::isnan(varE[M](i, j))) nancount++;
 	      }
 	    }
@@ -4186,7 +4214,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	  // VTK basis
 	  //
 #ifndef STANDALONE
-	  for (int nn=1; nn<=rank3; nn++) {
+	  for (int nn=0; nn<rank3; nn++) {
 	    dump_images_basis_eof(runtag, 0.1, 0.01, 100, 40, mm, nn, eofcount,
 				  evecVar.col(nn));
 	  }
@@ -4375,7 +4403,7 @@ void EmpCylSL::get_trimmed
 	    smth[i] = 1.0/(1.0 + pow(snr*smth[i], HEXP));
 	}
 	if (tk_type == Truncate) {
-	  for (int i=0; i<=smth.size(); i++) {
+	  for (int i=0; i<smth.size(); i++) {
 	    if (1.0/smth[i]>snr) smth[i] = 1.0;
 	    else                 smth[i] = 0.0;
 	  }
@@ -4905,8 +4933,8 @@ void EmpCylSL::get_all(int mm, int nn,
   fr = 0.0;
   fz = 0.0;
   fp = 0.0;
-  p = 0.0;
-  d = 0.0;
+  p  = 0.0;
+  d  = 0.0;
 
   double rr = sqrt(r*r + z*z);
 
