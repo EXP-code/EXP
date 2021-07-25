@@ -1151,7 +1151,7 @@ table_disk(vector<Particle>& part)
 				// Sum mass grid and make radial mesh
   unsigned nzcnt=0;
   vector<double> nrD(nh+1);
-  for (int nzero=0; nzero<=nh; nzero++) if (nhN[nzero] >= mh) break;
+  for (nzero=0; nzero<=nh; nzero++) if (nhN[nzero] >= mh) break;
 
   if (nzero>nh) nzero=0;	// Not enough particles . . . 
   if (myid==0) std::cout << "Nzero=" << nzero << "/" << nh << std::endl;
@@ -1206,7 +1206,7 @@ table_disk(vector<Particle>& part)
 				// Use monopole approximation for dPhi/dr
       // workE[j] = odd2(workV[0][j], nrD, nhD, 1)/(R*R);
 				// Use basis evaluation (dPhi/dr)
-      workE[j]    = max<double>(-fr + dpr, 1.0e-20);
+      workE[j]    = std::max<double>(-fr + dpr, 1.0e-20);
 
       workV(1, j) = disk_surface_density(R);
 				// Sigma(R)*dPhi/dr*R
@@ -1361,11 +1361,9 @@ table_disk(vector<Particle>& part)
     if (CHEBY) cheb2 = new Cheby1d(workV.row(0), workV.row(4), NCHEB);
   
 
-    Eigen::VectorXd X(workV.row(0));
-    Eigen::VectorXd Y(workV.row(2));
-    Eigen::VectorXd Z(X.size());
+    Eigen::VectorXd Z(NDR);
 
-    Trapsum(X, Y, Z);
+    Trapsum(workV.row(0), workV.row(2), Z);
     workV.row(3) = Z;
 
     for (int j=0; j<NDR; j++) {
@@ -1386,10 +1384,8 @@ table_disk(vector<Particle>& part)
       MPI_Bcast(epitable.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
       MPI_Bcast(dv2table.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
       MPI_Bcast(asytable.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      for (int j=0; j<NDR; j++) {
-	MPI_Bcast(disktableP[i].row(j).data(), NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
-	MPI_Bcast(disktableN[i].row(j).data(), NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      }
+      MPI_Bcast(disktableP[i].data(), NDR*NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      MPI_Bcast(disktableN[i].data(), NDR*NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
     }
   }
 
@@ -2247,6 +2243,7 @@ double DiskHalo::get_disp(double xp,double yp, double zp)
     double r = sqrt(xp*xp + yp*yp + zp*zp);
     r = max<double>(r, halo2->get_min_radius());
     r = min<double>(r, halo2->get_max_radius());
+
     Eigen::VectorXd X(halotable.row(0)), Y(halotable.row(1));
     return odd2(r, X, Y, 0);
   }
