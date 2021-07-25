@@ -72,8 +72,8 @@ void SphericalModelTable::setup_df(int NUM, double RA)
   if (df.ra2 < 0 && -RA < get_max_radius())
     bomb("Illegal value for osipkov radius");
 
-/* Compute rho_Q(phi) */
-
+  // Compute rho_Q(phi)
+  //
   rhoQx.resize(num);
   rhoQy.resize(num);
   rhoQy2.resize(num);
@@ -131,8 +131,8 @@ void SphericalModelTable::setup_df(int NUM, double RA)
   Spline(df.Q, df.ffQ, -1.0e30,-1.0e30, df.ffQ2);
 
 
-  /* Tabulate the df! */
-
+  // Tabulate the df!
+  //
   for (int i=df.num-1; i>=0; i--)
     Splint2(df.Q, df.ffQ, df.ffQ2, df.Q[i], d, df.fQ[i]);
 
@@ -222,7 +222,7 @@ double SphericalModelTable::dfde(double E, double L)
 
   double d, g, h, d1, Q = log(E + 0.5*L*L/df.ra2 - df.off);
 
-  if (Q >= df.Q[df.num-1])
+  if (Q > df.Q[df.num-1])
     d1 = 0.0;
   else {
     Q = std::max<double>(df.Q[0], Q);
@@ -242,7 +242,7 @@ double SphericalModelTable::dfdl(double E, double L)
 
   double d, g, h, d1, Q = log(E + 0.5*L*L/df.ra2 - df.off);
 
-  if (Q >= df.Q[df.num-1])
+  if (Q > df.Q[df.num-1])
     d1 = 0.0;
   else {
     Q = std::max<double>(df.Q[0], Q);
@@ -262,7 +262,7 @@ double SphericalModelTable::d2fde2(double E, double L)
 
   double d, g, h, k, d2, Q = E + 0.5*L*L/df.ra2;
 
-  if (Q >= df.Q[df.num-1])
+  if (Q > df.Q[df.num-1])
     d2 = 0.0;
   else {
     Q = std::max<double>(df.Q[0], Q);

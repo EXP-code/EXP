@@ -586,7 +586,7 @@ void SphericalOrbit::pot_trans(int l1, int l2, Eigen::VectorXd& t)
   if (!angle_defined) compute_angles();
   if (!biorth_defined) compute_biorth();
 
-  if (l1s==0 && l2s==0) cosvec.resize(0, angle_grid.num-1);
+  if (l1s==0 && l2s==0) cosvec.resize(angle_grid.num);
   if (l1 != l1s || l2 != l2s) {
     for (int i=0; i<angle_grid.num; i++)
       cosvec[i] = cos(angle_grid.w1(0, i)*l1 + angle_grid.f(0, i)*l2);

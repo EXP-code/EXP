@@ -78,7 +78,6 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
   double Emin = get_pot(rmin);
   double Emax = get_pot(get_max_radius());
 
-  int it = 0;
 
   if (gen_EJ) {
 
@@ -113,7 +112,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
     
 				// Trial velocity point
     
-    for (it=0; it<gen_itmax; it++) {
+    for (int it=0; it<gen_itmax; it++) {
 
       xxx = Emin + tol + (Emax - Emin - 2.0*tol)*Unit(random_gen);
       yyy = gen_kmin + tol + (1.0 - gen_kmin - 2.0*tol)*Unit(random_gen);
@@ -610,8 +609,8 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
 	agrid = gen_orb.get_angle_grid();
 
 	for (int n=0; n<agrid->num; n++) {
-	  wr.w1.push_back(agrid->w1(1, n));
-	  wr.r.push_back(agrid->r(1, n));
+	  wr.w1.push_back(agrid->w1(0, n));
+	  wr.r.push_back(agrid->r(0, n));
 	}
 	wrvec.push_back(wr);
 
@@ -1475,8 +1474,8 @@ Eigen::VectorXd
 	agrid = gen_orb.get_angle_grid();
 	
 	for (int n=0; n<agrid->num; n++) {
-	  wr.w1.push_back(agrid->w1(1, n));
-	  wr.r.push_back(agrid->r(1, n));
+	  wr.w1.push_back(agrid->w1(0, n));
+	  wr.r.push_back(agrid->r(0, n));
 	}
 	wrvec.push_back(wr);
 
