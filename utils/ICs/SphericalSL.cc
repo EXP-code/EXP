@@ -397,26 +397,14 @@ void SphericalSL::accumulate(vector<Particle> &part)
   if (selector) compute = firstime;
 
   // Clean
-  for (int n=0; n<NMAX; n++) {
-    for (int l=0; l<=LMAX*(LMAX+2); l++) {
-      expcoef(l, n) = 0.0;
-    }
-  }
-
-  for (auto & v : expcoef1) {
-    for (int l=0; l<=LMAX*(LMAX+2); l++)
-      for (int n=0; n<NMAX; n++) v(l, n) = 0.0;
-  }
+  expcoef.setZero();
+  for (auto & v : expcoef1) v.setZero();
   
   for (auto & v : use) v = 0;
 
   if (selector && compute) {
     for (auto & v : cc1) {
-      for (int l=0; l<=LMAX*(LMAX+2); l++) {
-	for (int n=0; n<NMAX; n++) {
-	  for (int nn=0; nn<NMAX; nn++) v[l](n, nn) = 0.0;
-	}
-      }
+      for (int l=0; l<=LMAX*(LMAX+2); l++) v[l].setZero();
     }
   }
 

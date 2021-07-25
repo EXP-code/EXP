@@ -22,6 +22,7 @@ int SphericalModelTable::count = 0;
 int SphericalModelTable::even = 0;
 int SphericalModelTable::logscale = 1;
 int SphericalModelTable::linear = 1;
+int SphericalModelTable::chebyN = 0;
 
 SphericalModelTable::SphericalModelTable
 (string filename, int DIVERGE, double DIVERGE_RFAC, int EXTERNAL)
