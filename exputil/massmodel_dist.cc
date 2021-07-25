@@ -202,9 +202,10 @@ double SphericalModelTable::distf(double E, double L)
 
   double d, g, Q = log(E + 0.5*L*L/df.ra2 - df.off);
 
-  if (Q > df.Q[df.num-1])
+  if (Q >= df.Q[df.num-1])
     d = 0.0;
   else {
+    Q = std::max<double>(df.Q[0], Q);
     Splint1(df.Q, df.fQ, df.fQ2, Q, d);
     Splint1(df.Q, df.ffQ, df.ffQ2, Q, g);
     d *= - exp(g - Q);
@@ -221,9 +222,10 @@ double SphericalModelTable::dfde(double E, double L)
 
   double d, g, h, d1, Q = log(E + 0.5*L*L/df.ra2 - df.off);
 
-  if (Q > df.Q[df.num-1])
+  if (Q >= df.Q[df.num-1])
     d1 = 0.0;
   else {
+    Q = std::max<double>(df.Q[0], Q);
     Splint2(df.Q, df.fQ, df.fQ2, Q, d, h);
     Splint1(df.Q, df.ffQ, df.ffQ2, Q, g);
     d1  = - exp(g - 2.0*Q) * ( h + d*(d - 1.0) );
@@ -240,9 +242,10 @@ double SphericalModelTable::dfdl(double E, double L)
 
   double d, g, h, d1, Q = log(E + 0.5*L*L/df.ra2 - df.off);
 
-  if (Q > df.Q[df.num-1])
+  if (Q >= df.Q[df.num-1])
     d1 = 0.0;
   else {
+    Q = std::max<double>(df.Q[0], Q);
     Splint2(df.Q, df.fQ, df.fQ2, Q, d, h);
     Splint1(df.Q, df.ffQ, df.ffQ2, Q, g);
     d1  = - exp(g - 2.0*Q) * ( h + d*(d - 1.0) );
@@ -259,9 +262,10 @@ double SphericalModelTable::d2fde2(double E, double L)
 
   double d, g, h, k, d2, Q = E + 0.5*L*L/df.ra2;
 
-  if (Q > df.Q[df.num-1])
+  if (Q >= df.Q[df.num-1])
     d2 = 0.0;
   else {
+    Q = std::max<double>(df.Q[0], Q);
     Splint3(df.Q, df.fQ, df.fQ2, Q, d, h, k);
     Splint1(df.Q, df.ffQ, df.ffQ2, Q, g);
     d2  = - exp(g - 3.0*Q) * (
