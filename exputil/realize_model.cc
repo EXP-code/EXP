@@ -69,7 +69,8 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
     _exit (-1);
   }
 
-  double r=0.0, pot, vmax, xxx, yyy, zzz, vr=0.0, vt=0.0, eee, fmax, vv;
+  int it;			// Iteration counter
+  double r=0.0, pot, vmax, vr=0.0, vt=0.0, eee, fmax, vv;
   double phi=0.0, sinp, cosp;
   double T, w1;
   double tol = 1.0e-5;
@@ -78,7 +79,6 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
   double Emin = get_pot(rmin);
   double Emax = get_pot(get_max_radius());
 
-  int it;			// Iteration counter
 
   if (gen_EJ) {
 
@@ -94,14 +94,14 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
       gen_fomax = 0.0;
 
       for (int j=0; j<numr; j++) {
-	xxx = Emin + tol + dx*j;
+	double xxx = Emin + tol + dx*j;
 
 	for (int k=0; k<numj; k++) {
-	  yyy = gen_kmin + tol + dy*k;
+	  double yyy = gen_kmin + tol + dy*k;
 
 	  gen_orb.new_orbit(xxx, yyy);
 	    
-	  zzz = distf(xxx, gen_orb.AngMom())*gen_orb.Jmax()
+	  double zzz = distf(xxx, gen_orb.AngMom())*gen_orb.Jmax()
 	    /gen_orb.get_freq(1);
 	  gen_fomax = zzz>gen_fomax ? zzz : gen_fomax;
 	}
@@ -115,12 +115,12 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
     
     for (it=0; it<gen_itmax; it++) {
 
-      xxx = Emin + tol + (Emax - Emin - 2.0*tol)*Unit(random_gen);
-      yyy = gen_kmin + tol + (1.0 - gen_kmin - 2.0*tol)*Unit(random_gen);
+      double xxx = Emin + tol + (Emax - Emin - 2.0*tol)*Unit(random_gen);
+      double yyy = gen_kmin + tol + (1.0 - gen_kmin - 2.0*tol)*Unit(random_gen);
 
       gen_orb.new_orbit(xxx, yyy);
 
-      zzz = distf(xxx, gen_orb.AngMom()) * gen_orb.Jmax()/gen_orb.get_freq(1);
+      double zzz = distf(xxx, gen_orb.AngMom()) * gen_orb.Jmax()/gen_orb.get_freq(1);
 
       if (Unit(random_gen) > zzz/gen_fomax ) continue;
 
@@ -185,16 +185,16 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 
 	fmax = 0.0;
 	for (int j=0; j<numr; j++) {
-	  xxx = sqrt(tol + dx*j);
+	  double xxx = sqrt(tol + dx*j);
 
 	  for (int k=0; k<numj; k++) {
-	    yyy = 0.5*M_PI*(tol + dy*k);
+	    double yyy = 0.5*M_PI*(tol + dy*k);
 
 	    vr = vmax*xxx*cos(yyy);
 	    vt = vmax*xxx*sin(yyy);
 	    eee = pot + 0.5*(vr*vr + vt*vt);
 
-	    zzz = distf(eee, gen_rloc[i]*vt);
+	    double zzz = distf(eee, gen_rloc[i]*vt);
 	    fmax = zzz>fmax ? zzz : fmax;
 	  }
 	}
@@ -215,8 +215,8 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
     
     for (it=0; it<gen_itmax; it++) {
 
-      xxx = sqrt(Unit(random_gen));
-      yyy = 0.5*M_PI*Unit(random_gen);
+      double xxx = sqrt(Unit(random_gen));
+      double yyy = 0.5*M_PI*Unit(random_gen);
 
       vr = vmax*xxx*cos(yyy);
       vt = vmax*xxx*sin(yyy);
@@ -268,7 +268,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
   }
 
   int it;			// Iteration counter
-  double pot, vmax, xxx, yyy, zzz, vr=0.0, vt=0.0, eee, fmax;
+  double pot, vmax, vr=0.0, vt=0.0, eee, fmax;
   double phi=0.0, sinp, cosp;
   double rmin = max<double>(get_min_radius(), gen_rmin);
   double Emax = get_pot(get_max_radius());
@@ -297,16 +297,16 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
 
       fmax = 0.0;
       for (int j=0; j<numr; j++) {
-	xxx = sqrt(tol + dx*j);
+	double xxx = sqrt(tol + dx*j);
 
 	for (int k=0; k<numj; k++) {
-	  yyy = 0.5*M_PI*(tol + dy*k);
+	  double yyy = 0.5*M_PI*(tol + dy*k);
 
 	  vr = vmax*xxx*cos(yyy);
 	  vt = vmax*xxx*sin(yyy);
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
-	  zzz = distf(eee, gen_rloc[i]*vt);
+	  double zzz = distf(eee, gen_rloc[i]*vt);
 	  fmax = zzz>fmax ? zzz : fmax;
 	}
       }
@@ -324,8 +324,8 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
     
   for (it=0; it<gen_itmax; it++) {
 
-    xxx = sqrt(Unit(random_gen));
-    yyy = 0.5*M_PI*Unit(random_gen);
+    double xxx = sqrt(Unit(random_gen));
+    double yyy = 0.5*M_PI*Unit(random_gen);
 
     vr = vmax*xxx*cos(yyy);
     vt = vmax*xxx*sin(yyy);
@@ -378,16 +378,13 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
   static ofstream tout("gen3d.ktest");
 #endif
 
-  double r, pot, vmax, xxx, yyy, vr=0.0, vt, eee, vt1=0.0, vt2=0.0, fmax;
+  double r, pot, vmax, vr=0.0, vt, eee, vt1=0.0, vt2=0.0, fmax;
   double phi, sint, cost, sinp, cosp, azi;
 
   double rmin = max<double>(get_min_radius(), gen_rmin);
   double Emax = get_pot(get_max_radius());
 
   if (gen_firstime) {
-    double zzz;
-    // const int numr = 200;
-    // const int numj = 200;
 
 #ifdef DEBUG
     orb = SphericalOrbit(this);
@@ -428,16 +425,16 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 
       fmax = 0.0;
       for (int j=0; j<numr; j++) {
-	xxx = tol + dx*j;
+	double xxx = tol + dx*j;
 
 	for (int k=0; k<numj; k++) {
-	  yyy = tol + dy*k;
+	  double yyy = tol + dy*k;
 
 	  vr = vmax*xxx;
 	  vt = vmax*sqrt((1.0 - xxx*xxx)*yyy);
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
-	  zzz = distf(eee, r*vt);
+	  double zzz = distf(eee, r*vt);
 	  fmax = zzz>fmax ? zzz : fmax;
 	}
       }
@@ -479,8 +476,8 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 
   for (it=0; it<gen_itmax; it++) {
 
-    xxx = -2.0*cos(acos(Unit(random_gen))/3.0 - 2.0*M_PI/3.0);
-    yyy = (1.0 - xxx*xxx)*Unit(random_gen);
+    double xxx = -2.0*cos(acos(Unit(random_gen))/3.0 - 2.0*M_PI/3.0);
+    double yyy = (1.0 - xxx*xxx)*Unit(random_gen);
 
     vr = vmax*xxx;
     vt = vmax*sqrt(yyy);
@@ -760,7 +757,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
 
 Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
 {
-  double r, d, xxx, yyy, vr, vt, vt1, vt2, vv, vtot;
+  double r, d, vr, vt, vt1, vt2, vv, vtot;
   double phi, sint, cost, sinp, cosp, azi;
   double rmin = max<double>(get_min_radius(), gen_rmin);
 
@@ -845,8 +842,8 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
     vtot = 0.0;
     
   
-  xxx = -2.0*cos(acos(Unit(random_gen))/3.0 - 2.0*M_PI/3.0);
-  yyy = (1.0 - xxx*xxx)*Unit(random_gen);
+  double xxx = -2.0*cos(acos(Unit(random_gen))/3.0 - 2.0*M_PI/3.0);
+  double yyy = (1.0 - xxx*xxx)*Unit(random_gen);
 
   vr = vtot*xxx;
   vt = vtot*sqrt(yyy);
@@ -888,16 +885,13 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
     _exit (-1);
   }
 
-  double r, pot, vmax, xxx, yyy, vr=0.0, vt, eee, vt1=0.0, vt2=0.0, fmax;
+  double r, pot, vmax, vr=0.0, vt, eee, vt1=0.0, vt2=0.0, fmax;
   double phi, sint, cost, sinp, cosp, azi;
   double rmin = max<double>(get_min_radius(), gen_rmin);
 
   double Emax = get_pot(get_max_radius());
 
   if (gen_firstime) {
-    double zzz;
-    // const int numr = 200;
-    // const int numj = 200;
 
     double tol = 1.0e-5;
     double dx = (1.0 - 2.0*tol)/(numr-1);
@@ -934,16 +928,16 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
 
       fmax = 0.0;
       for (int j=0; j<numr; j++) {
-	xxx = tol + dx*j;
+	double xxx = tol + dx*j;
 
 	for (int k=0; k<numj; k++) {
-	  yyy = tol + dy*k;
+	  double yyy = tol + dy*k;
 
 	  vr = vmax*xxx;
 	  vt = vmax*sqrt((1.0 - xxx*xxx)*yyy);
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
-	  zzz = distf(eee, r*vt);
+	  double zzz = distf(eee, r*vt);
 	  fmax = zzz>fmax ? zzz : fmax;
 	}
       }
@@ -978,8 +972,8 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
 
   for (it=0; it<gen_itmax; it++) {
 
-    xxx = -2.0*cos(acos(Unit(random_gen))/3.0 - 2.0*M_PI/3.0);
-    yyy = (1.0 - xxx*xxx)*Unit(random_gen);
+    double xxx = -2.0*cos(acos(Unit(random_gen))/3.0 - 2.0*M_PI/3.0);
+    double yyy = (1.0 - xxx*xxx)*Unit(random_gen);
 
     vr = vmax*xxx;
     vt = vmax*sqrt(yyy);
@@ -1024,14 +1018,13 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     exit (-1);
   }
 
-  double r, pot, vmax, xxx, yyy;
+  double r, pot, vmax;
   double vr=0.0, vt=0.0, eee=0.0, vt1=0.0, vt2=0.0, fmax, emax;
   double mass, phi, sint, cost, sinp, cosp, azi;
 
   double Emax = get_pot(get_max_radius());
 
   if (gen_firstime) {
-    double zzz;
     double tol = 1.0e-5;
     double dx = (1.0 - 2.0*tol)/(numr-1);
     double dy = (1.0 - 2.0*tol)/(numj-1);
@@ -1062,26 +1055,26 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 
       gen_mass[i] = fake->get_mass(r);
 
-      pot = get_pot(r);
+      pot  = get_pot(r);
       vmax = sqrt(2.0*fabs(Emax - pot));
 
       emax = pot;
       fmax = 0.0;
       for (int j=0; j<numr; j++) {
-	xxx = tol + dx*j;
+	double xxx = tol + dx*j;
 
 	for (int k=0; k<numj; k++) {
-	  yyy = tol + dy*k;
+	  double yyy = tol + dy*k;
 
 	  vr = vmax*xxx;
 	  vt = vmax*sqrt((1.0 - xxx*xxx)*yyy);
 	  eee = pot + 0.5*(vr*vr + vt*vt);
-
-	  zzz = fake->distf(eee, r*vt);
+	  
+	  double zzz = fake->distf(eee, r*vt);
 	  if (zzz>fmax) {
 	    emax = eee;
+	    fmax = zzz;
 	  }
-	  fmax = zzz>fmax ? zzz : fmax;
 	}
       }
       gen_emax.push_back(emax);
@@ -1177,18 +1170,18 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   int it;
   for (it=0; it<gen_itmax; it++) {
 
-  mass = gen_mass[0] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[0]);
-  r = odd2(mass, gen_mass, gen_rloc, 0);
-  fmax = odd2(r, gen_rloc, gen_fmax, 1);
-  if (gen_logr) r = exp(r);
+    mass = gen_mass[0] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[0]);
+    r = odd2(mass, gen_mass, gen_rloc, 0);
+    fmax = odd2(r, gen_rloc, gen_fmax, 1);
+    if (gen_logr) r = exp(r);
   
-  pot = get_pot(r);
-  vmax = sqrt(2.0*max<double>(Emax - pot, 0.0));
+    pot = get_pot(r);
+    vmax = sqrt(2.0*max<double>(Emax - pot, 0.0));
 
 #endif
 
-    xxx = 2.0*sin(asin(Unit(random_gen))/3.0);
-    yyy = (1.0 - xxx*xxx)*Unit(random_gen);
+    double xxx = 2.0*sin(asin(Unit(random_gen))/3.0);
+    double yyy = (1.0 - xxx*xxx)*Unit(random_gen);
 
     vr = vmax*xxx;
     vt = vmax*sqrt(yyy);
@@ -1257,14 +1250,13 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
     exit (-1);
   }
 
-  double r, pot, vmax, xxx, yyy;
+  double r, pot, vmax;
   double vr=0.0, vt=0.0, eee=0.0, vt1=0.0, vt2=0.0, fmax;
   double phi, sint, cost, sinp, cosp, azi;
 
   double Emax = get_pot(get_max_radius());
 
   if (gen_firstime) {
-    double zzz;
     double tol = 1.0e-5;
     double dx = (1.0 - 2.0*tol)/(numr-1);
     double dy = (1.0 - 2.0*tol)/(numj-1);
@@ -1299,16 +1291,16 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
 
       fmax = 0.0;
       for (int j=0; j<numr; j++) {
-	xxx = tol + dx*j;
+	double xxx = tol + dx*j;
 
 	for (int k=0; k<numj; k++) {
-	  yyy = tol + dy*k;
+	  double yyy = tol + dy*k;
 
 	  vr = vmax*xxx;
 	  vt = vmax*sqrt((1.0 - xxx*xxx)*yyy);
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
-	  zzz = fake->distf(eee, r*vt);
+	  double zzz = fake->distf(eee, r*vt);
 	  fmax = zzz>fmax ? zzz : fmax;
 	}
       }
@@ -1350,8 +1342,8 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
   int it;			// Iteration counter
   for (it=0; it<gen_itmax; it++) {
 
-    xxx = 2.0*sin(asin(Unit(random_gen))/3.0);
-    yyy = (1.0 - xxx*xxx)*Unit(random_gen);
+    double xxx = 2.0*sin(asin(Unit(random_gen))/3.0);
+    double yyy = (1.0 - xxx*xxx)*Unit(random_gen);
 
     vr = vmax*xxx;
     vt = vmax*sqrt(yyy);

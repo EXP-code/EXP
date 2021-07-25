@@ -7,6 +7,7 @@
 #include <boost/random/uniform_real_distribution.hpp>
 #include <boost/random/normal_distribution.hpp>
 
+#include <interp.H>
 #include <orbit.H>
 
 class QPDistF;
@@ -30,6 +31,20 @@ public:
   Eigen::VectorXd ffQ;
   Eigen::VectorXd fQ2;
   Eigen::VectorXd ffQ2;
+  double ra2;
+  double off;
+  int num;
+};
+
+//! Chebyshev versino
+class FDISTC
+{
+public:
+
+  Eigen::VectorXd  Q;
+  Eigen::VectorXd  fQ;
+  Eigen::VectorXd  ffQ;
+  Cheby1d FF, GG;
   double ra2;
   double off;
   int num;
@@ -307,6 +322,7 @@ private:
   RUN density;
   RUN pot;
   struct FDIST df;
+  struct FDISTC dfc;
   int num;
   int numdf;
   int num_params;
@@ -314,6 +330,8 @@ private:
   double diverge_rfac;
   int diverge;
   int external;
+
+  void debug_fdist();
 
 public:
 
@@ -325,6 +343,9 @@ public:
 
   //! Log scale in df computation (default: yes)
   static int logscale;		
+
+  //! Chebyshev order (default: 0, no Chebyshev)
+  static int chebyN;
 
   //! Linear interpolation in model (default: no)
   static int linear;		
