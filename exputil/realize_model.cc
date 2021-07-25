@@ -1239,7 +1239,12 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
   }
 
-  std::cout << "Mass[0]: " << out[0] << std::endl;
+  /*
+  std::cout << "Mass[0]: "
+	    << std::setw(18) << eee
+	    << std::setw(18) << real->distf(eee, r*vt)
+	    << std::setw(18) << fake->distf(eee, r*vt) << std::endl;
+  */
 
   return out;
 }
@@ -1395,7 +1400,12 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
     if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
   }
 
-  std::cout << "Mass[1]: " << out[0] << std::endl;
+  /*
+  std::cout << "Mass[1]: "
+	    << std::setw(18) << eee
+	    << std::setw(18) << real->distf(eee, r*vt)
+	    << std::setw(18) << fake->distf(eee, r*vt) << std::endl;
+  */
 
   return out;
 }
