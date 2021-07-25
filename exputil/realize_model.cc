@@ -78,6 +78,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
   double Emin = get_pot(rmin);
   double Emax = get_pot(get_max_radius());
 
+  int it;			// Iteration counter
 
   if (gen_EJ) {
 
@@ -112,7 +113,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
     
 				// Trial velocity point
     
-    for (int it=0; it<gen_itmax; it++) {
+    for (it=0; it<gen_itmax; it++) {
 
       xxx = Emin + tol + (Emax - Emin - 2.0*tol)*Unit(random_gen);
       yyy = gen_kmin + tol + (1.0 - gen_kmin - 2.0*tol)*Unit(random_gen);
@@ -266,7 +267,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
     _exit (-1);
   }
 
-  int it;
+  int it;			// Iteration counter
   double pot, vmax, xxx, yyy, zzz, vr=0.0, vt=0.0, eee, fmax;
   double phi=0.0, sinp, cosp;
   double rmin = max<double>(get_min_radius(), gen_rmin);
@@ -471,9 +472,9 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
   pot = get_pot(r);
   vmax = sqrt(2.0*fabs(Emax - pot));
 
-                                // Trial velocity point
-    
-  int it;
+  // Trial velocity point
+  //
+  int it;			// Iteration counter
   double angmom[3];
 
   for (it=0; it<gen_itmax; it++) {
@@ -971,9 +972,9 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
   pot = get_pot(r);
   vmax = sqrt(2.0*fabs(Emax - pot));
 
-                                // Trial velocity point
-    
-  int it;
+  // Trial velocity point
+  //
+  int it;			// Iteration counter
 
   for (it=0; it<gen_itmax; it++) {
 
@@ -1168,9 +1169,9 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   pot = get_pot(r);
   vmax = sqrt(2.0*max<double>(Emax - pot, 0.0));
 
-                                // Trial velocity point
-    
-  int it;
+  // Trial velocity point
+  //
+  int it;			// Iteration counter
   for (it=0; it<gen_itmax; it++) {
 #else
   int it;
@@ -1344,9 +1345,9 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
   pot = get_pot(r);
   vmax = sqrt(2.0*max<double>(Emax - pot, 0.0));
 
-                                // Trial velocity point
-    
-  int it;
+  // Trial velocity point
+  //
+  int it;			// Iteration counter
   for (it=0; it<gen_itmax; it++) {
 
     xxx = 2.0*sin(asin(Unit(random_gen))/3.0);
