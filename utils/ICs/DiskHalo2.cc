@@ -1386,6 +1386,7 @@ table_disk(vector<Particle>& part)
       MPI_Bcast(epitable.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
       MPI_Bcast(dv2table.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
       MPI_Bcast(asytable.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+
       MPI_Bcast(disktableP[i].data(), NDR*NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
       MPI_Bcast(disktableN[i].data(), NDR*NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
     }
@@ -1799,7 +1800,11 @@ set_vel_disk(vector<Particle>& part)
       RVR   = R;
       if (VFLAG & 8)
 	std::cout << "maxVR: vvR = " << vvR
-		  << " x=" << x << " y=" << y << std::endl;
+		  << " x=" << x << " y=" << y
+		  << " epi=" << epi(x, y, 0.0)
+		  << " sig=" << disk_surface_density(R)
+		  << std::endl;
+
     }
     if (maxVP < vvP) {
       maxVP = vvP;
@@ -2169,9 +2174,7 @@ table_halo(vector<Particle>& part)
   //
   for (int k=0; k<numprocs; k++) {
     for (int i=ibeg[k]; i<iend[k]; i++) {
-      Eigen::VectorXd Z(halotable.row(i));
-      MPI_Bcast(Z.data(), NHR, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      halotable.row(i) = Z;
+      MPI_Bcast(halotable.row(i).data(), NHR, MPI_DOUBLE, k, MPI_COMM_WORLD);
     }
   }
   
