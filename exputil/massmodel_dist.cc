@@ -111,11 +111,11 @@ void SphericalModelTable::setup_df(int NUM, double RA)
     x = density.x[i];
     rhoQx[i] = pot.y[i];
     if (diverge) {
-      rhoQy[i] = (1.0 + x*x/df.ra2)*density.y[i]*pow(x,-diverge_rfac);
+      rhoQy[i] = (1.0 + x*x/ra2)*density.y[i]*pow(x,-diverge_rfac);
       rhoQy[i] = log(rhoQy[i] + TSTEP);
     }
     else
-      rhoQy[i] = (1.0 + x*x/df.ra2)*density.y[i];
+      rhoQy[i] = (1.0 + x*x/ra2)*density.y[i];
   }
 
   Spline(rhoQx, rhoQy, -1.0e30, -1.0e30, rhoQy2);
@@ -152,6 +152,7 @@ void SphericalModelTable::setup_df(int NUM, double RA)
       dfc.ffQ[i] = fac * gint_2(Q, Qmax, fint, NGauss);
     }
     
+    dfc.off = dfc.Q[0] * ( 1.0 + OFFSET );
     for (int i=0; i<dfc.num; i++) {
       dfc.Q[i] = log(dfc.Q[i] - dfc.off);
       dfc.ffQ[i] = log(-dfc.ffQ[i] + OFFTOL);
@@ -272,11 +273,10 @@ double SphericalModelTable::distf(double E, double L)
 
   if (chebyN) {
 
-    if (E + 0.5*L*L/dfc.ra2 - dfc.off<=0.0) return 0.0;
+    double Q = E + 0.5*L*L/dfc.ra2 - dfc.off;
+    if (Q<=0.0) return 0.0;
 
-    double  Q = log(E + 0.5*L*L/dfc.ra2 - dfc.off);
-
-    Q = max<double>(dfc.Q[0], Q);
+    Q = max<double>(dfc.Q[0], log(Q));
 
     if (Q > dfc.Q[dfc.num-1])
       d = 0.0;
@@ -288,9 +288,10 @@ double SphericalModelTable::distf(double E, double L)
 
   } else {
     
-    double  Q = log(E + 0.5*L*L/df.ra2 - dfc.off);
+    double Q = E + 0.5*L*L/df.ra2 - df.off;
+    if (Q<=0.0) return 0.0;
 
-    Q = max<double>(df.Q[0], Q);
+    Q = max<double>(df.Q[0], log(Q));
 
     if (Q > df.Q[df.num-1])
       d = 0.0;
@@ -319,9 +320,10 @@ double SphericalModelTable::dfde(double E, double L)
 
   if (chebyN) {
     
-    double Q = log(E + 0.5*L*L/dfc.ra2 - dfc.off);
+    double Q = E + 0.5*L*L/dfc.ra2 - dfc.off;
+    if (Q<=0.0) return 0.0;
 
-    Q = max<double>(dfc.Q[0], Q);
+    Q = max<double>(dfc.Q[0], log(Q));
 
     if (Q > dfc.Q[dfc.num])
       d1 = 0.0;
@@ -334,9 +336,10 @@ double SphericalModelTable::dfde(double E, double L)
 
   } else {
 
-    double  Q = log(E + 0.5*L*L/df.ra2 - dfc.off);
+    double Q = E + 0.5*L*L/df.ra2 - df.off;
+    if (Q<=0.0) return 0.0;
 
-    Q = max<double>(df.Q[0], Q);
+    Q = max<double>(df.Q[0], log(Q));
 
     if (Q > df.Q[df.num-1])
       d1 = 0.0;
@@ -375,9 +378,10 @@ double SphericalModelTable::dfdl(double E, double L)
 
   if (chebyN) {
     
-    double Q = log(E + 0.5*L*L/dfc.ra2 - dfc.off);
+    double Q = E + 0.5*L*L/dfc.ra2 - dfc.off;
+    if (Q<=0.0) return 0.0;
 
-    Q = max<double>(dfc.Q[0], Q);
+    Q = max<double>(dfc.Q[0], log(Q));
 
     if (Q > dfc.Q[dfc.num])
       d1 = 0.0;
@@ -390,7 +394,8 @@ double SphericalModelTable::dfdl(double E, double L)
 
   } else {
 
-    double Q = log(E + 0.5*L*L/df.ra2 - df.off);
+    double Q = E + 0.5*L*L/df.ra2 - df.off;
+    if (Q<=0.0) return 0.0;
 
     Q = max<double>(df.Q[0], Q);
 
@@ -425,17 +430,18 @@ double SphericalModelTable::d2fde2(double E, double L)
 
   if (chebyN) {
 
-    double Q = log(E + 0.5*L*L/dfc.ra2 - dfc.off);
+    double Q = E + 0.5*L*L/dfc.ra2 - dfc.off;
+    if (Q<=0.0) return 0.0;
 
-    Q = max<double>(dfc.Q[0], Q);
+    Q = max<double>(dfc.Q[0], log(Q));
     
     if (Q > dfc.Q[dfc.num])
       d2 = 0.0;
     else {
-      d = dfc.GG.eval(Q);
-      h = dfc.GG.deriv(Q);
-      k = dfc.GG.deriv2(Q);
-      g = dfc.FF.eval(Q);
+      d = dfc.FF.eval(Q);
+      h = dfc.FF.deriv(Q);
+      k = dfc.FF.deriv2(Q);
+      g = dfc.GG.eval(Q);
 
       d2  = - exp(g - 3.0*Q) * (
 				(d - 2.0) * ( h + d*(d - 1.0) ) +
@@ -446,9 +452,10 @@ double SphericalModelTable::d2fde2(double E, double L)
     
   } else {
 
-    double Q = E + 0.5*L*L/df.ra2;
+    double Q = E + 0.5*L*L/df.ra2 - df.off;
+    if (Q<=0.0) return 0.0;
 
-    Q = max<double>(df.Q[0], Q);
+    Q = max<double>(df.Q[0], log(Q));
 
     if (Q > df.Q[df.num-1])
       d2 = 0.0;
