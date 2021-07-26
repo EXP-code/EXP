@@ -719,6 +719,10 @@ main(int ac, char **av)
     return 0;
   }
 
+  // SphericalModel DF type (test)
+  //
+  SphericalModelTable::chebyN = 20;
+
   //====================
   // OpenMP control
   //====================
