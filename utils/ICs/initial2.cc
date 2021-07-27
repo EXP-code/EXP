@@ -383,6 +383,7 @@ main(int ac, char **av)
   int          CMAPR;
   int          CMAPZ;
   int          NCHEB;
+  int          TCHEB;
   int          CMTYPE;
   int          NDR;
   int          NDZ;
@@ -483,7 +484,8 @@ main(int ac, char **av)
     ("SVD",             po::value<bool>(&SVD)->default_value(false),                    "Use svd for symmetric eigenvalue problesm")
     ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
     ("CHEBY",           po::value<bool>(&CHEBY)->default_value(false),                  "Use Chebyshev smoothing for epicyclic and asymmetric drift")
-    ("NCHEB",           po::value<int>(&NCHEB)->default_value(16),                      "Chebyshev order for smoothing")
+    ("NCHEB",           po::value<int>(&NCHEB)->default_value(16),                      "Chebyshev order for smoothing in DiskHalo")
+    ("TCHEB",           po::value<int>(&TCHEB)->default_value(0),                      "Chebyshev order for smoothing in Eddington inversion")
     ("NUMDF",           po::value<int>(&NUMDF)->default_value(4000),                    "Number of grid points for Eddington inversion")
     ("NDR",             po::value<int>(&NDR)->default_value(1600),                      "Number of points in DiskHalo radial table for disk")
     ("NDZ",             po::value<int>(&NDZ)->default_value(400),                       "Number of points in DiskHalo vertical table for disk")
@@ -718,6 +720,13 @@ main(int ac, char **av)
     MPI_Finalize();
     return 0;
   }
+
+  //====================
+  // Cheb order for
+  // SphericalModel DF 
+  //====================
+
+  SphericalModelTable::chebyN = TCHEB;
 
   //====================
   // OpenMP control

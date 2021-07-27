@@ -1325,6 +1325,7 @@ table_disk(vector<Particle>& part)
 
 				// Compute epicylic freqs
     for (int j=0; j<NDR; j++) {
+
       if (i==0) {
 	if (CHEBY)
 	  workD(0, j) += cheb->eval(workR[j]);
@@ -1334,14 +1335,14 @@ table_disk(vector<Particle>& part)
 
       if (CHEBY) {
 #ifdef LOGCHEBY
-	Eigen::VectorXd Y(workV.row(0));
-	epitable(i, j) = drv2(workR[j], Y, workQ2smooth);
+	epitable(i, j) = drv2(workR[j], Eigen::VectorXd(workV.row(0)),
+			      workQ2smooth);
 #else
         epitable(i, j) = cheb->deriv(workR[j]);
 #endif
       } else {
-	Eigen::VectorXd Y(workV.row(0));
-	epitable(i, j) = drv2(workR[j], Y, workQ2);
+	epitable(i, j) = drv2(workR[j], Eigen::VectorXd(workV.row(0)),
+			      workQ2);
       }
 
       if (i==0) workD(1, j) = epitable(0, j);
@@ -1354,6 +1355,8 @@ table_disk(vector<Particle>& part)
     
 				// Cylindrical Jeans' equations
     for (int j=0; j<NDR; j++) {
+      double ep   = epitable(i, j);
+      double sf   = workV(1, j);
       double vr   = 3.36*workV(1, j)*Q/sqrt(epitable(i, j));
       workV(4, j) = log(workV(1, j)*vr*vr);
     }
@@ -1371,20 +1374,26 @@ table_disk(vector<Particle>& part)
       if (CHEBY) {
 	asytable(i, j) = cheb2->deriv(workV(0, j));
       } else {
-	Eigen::VectorXd X(workV.row(0));
-	Eigen::VectorXd Y(workV.row(4));
-	asytable(i, j) = drv2(workV(0, j), X, Y, 1);
+	asytable(i, j) = drv2(workV(0, j),
+			      Eigen::VectorXd(workV.row(0)),
+			      Eigen::VectorXd(workV.row(4)), 1);
       }
     }
   }
 
 				// Update tables on all nodes
+  Eigen::VectorXd Z(NDR);
   for (int k=0; k<numprocs; k++) {
     for (int i=ibeg[k]; i<iend[k]; i++) {
-      MPI_Bcast(epitable.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      MPI_Bcast(dv2table.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      MPI_Bcast(asytable.row(i).data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
-
+      if (k == myid) Z = epitable.row(i);
+      MPI_Bcast(Z.data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      if (k != myid) epitable.row(i) = Z;
+      if (k == myid) Z = dv2table.row(i);
+      MPI_Bcast(Z.data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      if (k != myid) dv2table.row(i) = Z; 
+      if (k == myid) Z = asytable.row(i);
+      MPI_Bcast(Z.data(), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      if (k != myid) asytable.row(i) = Z; 
       MPI_Bcast(disktableP[i].data(), NDR*NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
       MPI_Bcast(disktableN[i].data(), NDR*NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
     }
@@ -1766,7 +1775,8 @@ set_vel_disk(vector<Particle>& part)
 	  << std::setw(12) << "R |"    << std::setw(14) << "z |"   << std::setw(14) << "v_circ |"
 	  << std::setw(14) << "v_T |" << std::setw(14) << "drift |" << std::setw(14) << "kappa |"
 	  << std::setw(14) << "v_R |" << std::setw(14) << "v_phi |" << std::setw(14) << "v_z |"
-	  << std::setw(14) << "vv_R |" << std::setw(14) << "vv_phi |" << std::setw(14) << "vv_z |";
+	  << std::setw(14) << "vv_R |" << std::setw(14) << "vv_phi |" << std::setw(14) << "vv_z |"
+	  << std::setw(14) << "v_x |" << std::setw(14) << "v_y |";
     out << std::endl;
   }
 
@@ -1854,6 +1864,8 @@ set_vel_disk(vector<Particle>& part)
 	    << std::setw(14) << va  << std::setw(14) << ac  << std::setw(14) << epi(x, y, z)
 	    << std::setw(14) << vr  << std::setw(14) << vp  << std::setw(14) << vz
 	    << std::setw(14) << vvR << std::setw(14) << vvP << std::setw(14) << vvZ
+	    << std::setw(14) << vr*x/R - vp*y/R
+	    << std::setw(14) << vr*y/R + vp*x/R
 	    << std::endl;
       break;
       
@@ -1942,6 +1954,11 @@ set_vel_disk(vector<Particle>& part)
 
   MPI_Allreduce(&massp1, &massp, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(vel1,    vel,    3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  std::cout << "vel per node [" << myid << "] mass=" << massp1
+	    << " vx=" << vel1[0]/massp1
+	    << " vy=" << vel1[1]/massp1
+	    << " vz=" << vel1[2]/massp1 << std::endl;
 
   if (massp>0.0) {
     for (int k=0; k<3; k++) vel[k] /= massp;
@@ -2170,9 +2187,12 @@ table_halo(vector<Particle>& part)
   
   // Update tables on all nodes
   //
+  Eigen::VectorXd Z(NHR);
   for (int k=0; k<numprocs; k++) {
     for (int i=ibeg[k]; i<iend[k]; i++) {
-      MPI_Bcast(halotable.row(i).data(), NHR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      if (k == myid) Z = halotable.row(i);
+      MPI_Bcast(Z.data(), NHR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      if (k != myid) halotable.row(i) = Z;
     }
   }
   
