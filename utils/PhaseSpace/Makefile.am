@@ -29,7 +29,7 @@ bin_PROGRAMS = pspinfo pspstat psp2ascii ascii2psp tipstd2psp		\
 
 COMMON_LIBS = -lexputil $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML) $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
 
-BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
+BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 EXPLIBS = $(MPI_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs

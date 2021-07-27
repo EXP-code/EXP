@@ -22,7 +22,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src -I$(top_srcdir)/utils/
 COMMON_LIBS = -lexputil $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
 MPI_LIBS = -lmpi
 
-BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
+BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 EXPLIBS = $(MPI_LIBS) $(COMMON_LIBS) $(ADD_LIBS3) $(CUDA_LIBFLAGS) @exp_omp_lib@
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs $(CUDA_LDFLAGS)

@@ -115,6 +115,9 @@ protected:
   virtual void HtoD_coefs(const std::vector<VectorXdP>& coef);
   virtual void DtoH_coefs(std::vector<VectorXdP>& coef);
 
+  //! For debugging only
+  void coef_cuda_compare();
+
   std::vector<cudaArray_t> cuInterpArray;
   thrust::host_vector<cudaTextureObject_t> tex;
 

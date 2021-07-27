@@ -1263,352 +1263,6 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     return;
   }
 
-  // DEBUG, only useful for CUDAtest branch
-  //
-  if (false) {
-
-    constexpr bool compareC = false;
-
-
-    if (compareC) {
-      std::cout << std::string(2*4+4*20, '-') << std::endl
-		<< "---- Spherical "      << std::endl
-		<< std::string(2*4+4*20, '-') << std::endl;
-      std::cout << "L=M=0 coefficients" << std::endl
-		<< std::setprecision(10);
-
-      std::cout << std::setw(4)  << "n"
-		<< std::setw(4)  << "i"
-		<< std::setw(20) << "GPU"
-		<< std::setw(20) << "CPU"
-		<< std::setw(20) << "diff"
-		<< std::setw(20) << "rel diff"
-		<< std::endl;
-    } else {
-      std::cout << std::string(2*4+20, '-') << std::endl
-		<< "---- Spherical "      << std::endl
-		<< std::string(2*4+20, '-') << std::endl;
-      std::cout << "L=M=0 coefficients" << std::endl
-		<< std::setprecision(10);
-
-      std::cout << std::setw(4)  << "n"
-		<< std::setw(4)  << "i"
-		<< std::setw(20) << "GPU"
-		<< std::endl;
-    }
-
-    int i = Ilmn(0, 0, 'c', 0, nmax);
-    auto cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-
-    for (size_t n=0; n<nmax; n++) {
-      cuFP_t a = host_coefs[i+n];
-      cuFP_t b = (*expcoef[0])[n];
-      if (compareC) {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::setw(20) << b
-		  << std::setw(20) << a - b
-		  << std::setw(20) << (a - b)/fabs(*cmax)
-		  << std::endl;
-      } else {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::endl;
-      }
-    }
-
-    std::cout << "L=1, M=0 coefficients" << std::endl;
-
-    i = Ilmn(1, 0, 'c', 0, nmax);
-    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-
-    for (size_t n=0; n<nmax; n++) {
-      cuFP_t a = host_coefs[i+n];
-      cuFP_t b = (*expcoef[1])[n];
-      if (compareC) {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::setw(20) << b
-		  << std::setw(20) << a - b
-		  << std::setw(20) << (a - b)/fabs(*cmax)
-		  << std::endl;
-      } else {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::endl;
-      }
-    }
-
-    std::cout << "L=1, M=1c coefficients" << std::endl;
-
-    i = Ilmn(1, 1, 'c', 0, nmax);
-    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-
-    for (size_t n=0; n<nmax; n++) {
-      cuFP_t a = host_coefs[i+n];
-      cuFP_t b = (*expcoef[2])[n];
-      if (compareC) {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::setw(20) << b
-		  << std::setw(20) << a - b
-		  << std::setw(20) << (a - b)/fabs(*cmax)
-		  << std::endl;
-      } else {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::endl;
-      }
-    }
-
-    std::cout << "L=1, M=1s coefficients" << std::endl;
-
-    i = Ilmn(1, 1, 's', 0, nmax);
-    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-
-    for (size_t n=0; n<nmax; n++) {
-      cuFP_t a = host_coefs[i+n];
-      cuFP_t b = (*expcoef[3])[n];
-      if (compareC) {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::setw(20) << b
-		  << std::setw(20) << a - b
-		  << std::setw(20) << (a - b)/fabs(*cmax)
-		  << std::endl;
-      } else {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::endl;
-      }
-    }
-
-    std::cout << "L=2, M=0 coefficients" << std::endl;
-
-    i = Ilmn(2, 0, 'c', 0, nmax);
-    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-
-    for (size_t n=0; n<nmax; n++) {
-      cuFP_t a = host_coefs[i+n];
-      cuFP_t b = (*expcoef[4])[n];
-      if (compareC) {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::setw(20) << b
-		  << std::setw(20) << a - b
-		  << std::setw(20) << (a - b)/fabs(*cmax)
-		  << std::endl;
-      } else {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::endl;
-      }
-    }
-      
-    std::cout << "L=2, M=1c coefficients" << std::endl;
-
-    i = Ilmn(2, 1, 'c', 0, nmax);
-    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-
-    for (size_t n=0; n<nmax; n++) {
-      cuFP_t a = host_coefs[i+n];
-      cuFP_t b = (*expcoef[5])[n];
-      if (compareC) {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::setw(20) << b
-		  << std::setw(20) << a - b
-		  << std::setw(20) << (a - b)/fabs(*cmax)
-		  << std::endl;
-      } else {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::endl;
-      }
-    }
-
-    std::cout << "L=2, M=1c coefficients" << std::endl;
-
-    i = Ilmn(2, 1, 's', 0, nmax);
-    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-
-    for (size_t n=0; n<nmax; n++) {
-      cuFP_t a = host_coefs[i+n];
-      cuFP_t b = (*expcoef[6])[n];
-      if (compareC) {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::setw(20) << b
-		  << std::setw(20) << a - b
-		  << std::setw(20) << (a - b)/fabs(*cmax)
-		  << std::endl;
-      } else {
-	std::cout << std::setw(4)  << n
-		  << std::setw(4)  << i
-		  << std::setw(20) << a
-		  << std::endl;
-      }
-    }
-
-    std::cout << std::string(2*4+4*20, '-') << std::endl;
-  }
-
-  //
-  // TEST comparison of coefficients for debugging
-  //
-  if (false) {
-
-    struct Element
-    {
-      double d;
-      double f;
-      
-      int  l;
-      int  m;
-      int  n;
-      
-      char cs;
-    }
-    elem;
-
-    std::multimap<double, Element> compare;
-
-    std::ofstream out("test_sph.dat");
-
-    //		l loop
-    for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-      //		m loop
-      for (int m=0, moffset=0; m<=l; m++) {
-	
-	if (m==0) {
-	  for (int n=0; n<nmax; n++) {
-	    elem.l = l;
-	    elem.m = m;
-	    elem.n = n;
-	    elem.cs = 'c';
-	    elem.d = (*expcoef[loffset+moffset])[n];
-	    elem.f = host_coefs[Ilmn(l, m, 'c', n, nmax)];
-	    
-	    double test = fabs(elem.d - elem.f);
-	    if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
-	    
-	    compare.insert(std::make_pair(test, elem));
-	    
-	    out << std::setw( 5) << l
-		<< std::setw( 5) << m
-		<< std::setw( 5) << n
-		<< std::setw( 5) << 'c'
-		<< std::setw( 5) << Ilmn(l, m, 'c', n, nmax)
-		<< std::setw(14) << elem.d
-		<< std::setw(14) << elem.f
-		<< std::endl;
-	  }
-	  
-	  moffset++;
-	}
-	else {
-	  for (int n=0; n<nmax; n++) {
-	    elem.l = l;
-	    elem.m = m;
-	    elem.n = n;
-	    elem.cs = 'c';
-	    elem.d = (*expcoef[loffset+moffset])[n];
-	    elem.f = host_coefs[Ilmn(l, m, 'c', n, nmax)];
-
-	    out << std::setw( 5) << l
-		<< std::setw( 5) << m
-		<< std::setw( 5) << n
-		<< std::setw( 5) << 'c'
-		<< std::setw( 5) << Ilmn(l, m, 'c', n, nmax)
-		<< std::setw(14) << elem.d
-		<< std::setw(14) << elem.f
-		<< std::endl;
-
-	    double test = fabs(elem.d - elem.f);
-	    if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
-
-	    compare.insert(std::make_pair(test, elem));
-	  }
-	  for (int n=0; n<nmax; n++) {
-	    elem.l = l;
-	    elem.m = m;
-	    elem.n = n;
-	    elem.cs = 's';
-	    elem.d = (*expcoef[loffset+moffset+1])[n];
-	    elem.f = host_coefs[Ilmn(l, m, 's', n, nmax)];
-
-	    out << std::setw( 5) << l
-		<< std::setw( 5) << m
-		<< std::setw( 5) << n
-		<< std::setw( 5) << 's'
-		<< std::setw( 5) << Ilmn(l, m, 's', n, nmax)
-		<< std::setw(14) << elem.d
-		<< std::setw(14) << elem.f
-		<< std::endl;
-	    
-	    double test = fabs(elem.d - elem.f);
-	    if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
-	    
-	    compare.insert(std::make_pair(test, elem));
-	  }
-	  moffset+=2;
-	}
-      }
-    }
-    
-    std::map<double, Element>::iterator best = compare.begin();
-    std::map<double, Element>::iterator midl = best;
-    std::advance(midl, compare.size()/2);
-    std::map<double, Element>::reverse_iterator last = compare.rbegin();
-    
-    std::cout << std::string(4*2 + 3*20 + 22, '-') << std::endl
-	      << "---- Spherical coefficients" << std::endl
-	      << std::string(4*2 + 3*20 + 22, '-') << std::endl;
-
-    std::cout << "Best case: ["
-	      << std::setw( 2) << best->second.l << ", "
-	      << std::setw( 2) << best->second.m << ", "
-	      << std::setw( 2) << best->second.n << ", "
-	      << std::setw( 2) << best->second.cs << "] = "
-	      << std::setw(20) << best->second.d
-	      << std::setw(20) << best->second.f
-	      << std::setw(20) << fabs(best->second.d - best->second.f)
-	      << std::endl;
-  
-    std::cout << "Mid case:  ["
-	      << std::setw( 2) << midl->second.l << ", "
-	      << std::setw( 2) << midl->second.m << ", "
-	      << std::setw( 2) << midl->second.n << ", "
-	      << std::setw( 2) << midl->second.cs << "] = "
-	      << std::setw(20) << midl->second.d
-	      << std::setw(20) << midl->second.f
-	      << std::setw(20) << fabs(midl->second.d - midl->second.f)
-	      << std::endl;
-    
-    std::cout << "Last case: ["
-	      << std::setw( 2) << last->second.l << ", "
-	      << std::setw( 2) << last->second.m << ", "
-	      << std::setw( 2) << last->second.n << ", "
-	      << std::setw( 2) << last->second.cs << "] = "
-	      << std::setw(20) << last->second.d
-	      << std::setw(20) << last->second.f
-	      << std::setw(20) << fabs(last->second.d - last->second.f)
-	      << std::endl;
-  }
-
 }
 
 void SphericalBasis::determine_acceleration_cuda()
@@ -1857,7 +1511,361 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
       }
     }
   }
+
+  coef_cuda_compare();
 }
+
+
+void SphericalBasis::coef_cuda_compare()
+{
+
+  // DEBUG, only useful for CUDAtest branch
+  //
+
+  constexpr bool compareC = true; // Compare host and device
+  constexpr bool compareB = true;  // Tabulate largest errors
+
+
+  if (compareC) {
+    std::cout << std::string(2*4+4*20, '-') << std::endl
+	      << "---- Spherical "      << std::endl
+	      << std::string(2*4+4*20, '-') << std::endl;
+    std::cout << "L=M=0 coefficients" << std::endl
+	      << std::setprecision(10);
+    
+    std::cout << std::setw(4)  << "n"
+	      << std::setw(4)  << "i"
+	      << std::setw(20) << "GPU"
+	      << std::setw(20) << "CPU"
+	      << std::setw(20) << "diff"
+	      << std::setw(20) << "rel diff"
+	      << std::endl;
+  } else {
+    std::cout << std::string(2*4+20, '-') << std::endl
+	      << "---- Spherical "      << std::endl
+	      << std::string(2*4+20, '-') << std::endl;
+    std::cout << "L=M=0 coefficients" << std::endl
+	      << std::setprecision(10);
+    
+    std::cout << std::setw(4)  << "n"
+	      << std::setw(4)  << "i"
+	      << std::setw(20) << "GPU"
+	      << std::endl;
+  }
+  
+  int i = Ilmn(0, 0, 'c', 0, nmax);
+  auto cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+
+  for (size_t n=0; n<nmax; n++) {
+    cuFP_t a = host_coefs[i+n];
+    cuFP_t b = (*expcoef[0])[n];
+    if (compareC) {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::setw(20) << b
+		<< std::setw(20) << a - b
+		<< std::setw(20) << (a - b)/fabs(*cmax)
+		<< std::endl;
+    } else {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::endl;
+    }
+  }
+  
+  std::cout << "L=1, M=0 coefficients" << std::endl;
+
+  i = Ilmn(1, 0, 'c', 0, nmax);
+  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+
+  for (size_t n=0; n<nmax; n++) {
+    cuFP_t a = host_coefs[i+n];
+    cuFP_t b = (*expcoef[1])[n];
+    if (compareC) {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::setw(20) << b
+		<< std::setw(20) << a - b
+		<< std::setw(20) << (a - b)/fabs(*cmax)
+		<< std::endl;
+    } else {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::endl;
+    }
+  }
+
+  std::cout << "L=1, M=1c coefficients" << std::endl;
+  
+  i = Ilmn(1, 1, 'c', 0, nmax);
+  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+  
+  for (size_t n=0; n<nmax; n++) {
+    cuFP_t a = host_coefs[i+n];
+    cuFP_t b = (*expcoef[2])[n];
+    if (compareC) {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::setw(20) << b
+		<< std::setw(20) << a - b
+		<< std::setw(20) << (a - b)/fabs(*cmax)
+		<< std::endl;
+    } else {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::endl;
+    }
+  }
+  
+  std::cout << "L=1, M=1s coefficients" << std::endl;
+  
+  i = Ilmn(1, 1, 's', 0, nmax);
+  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+
+  for (size_t n=0; n<nmax; n++) {
+    cuFP_t a = host_coefs[i+n];
+    cuFP_t b = (*expcoef[3])[n];
+    if (compareC) {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::setw(20) << b
+		<< std::setw(20) << a - b
+		<< std::setw(20) << (a - b)/fabs(*cmax)
+		<< std::endl;
+    } else {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::endl;
+    }
+  }
+
+  std::cout << "L=2, M=0 coefficients" << std::endl;
+
+  i = Ilmn(2, 0, 'c', 0, nmax);
+  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+  
+  for (size_t n=0; n<nmax; n++) {
+    cuFP_t a = host_coefs[i+n];
+    cuFP_t b = (*expcoef[4])[n];
+    if (compareC) {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::setw(20) << b
+		<< std::setw(20) << a - b
+		<< std::setw(20) << (a - b)/fabs(*cmax)
+		<< std::endl;
+    } else {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::endl;
+    }
+  }
+      
+  std::cout << "L=2, M=1c coefficients" << std::endl;
+
+  i = Ilmn(2, 1, 'c', 0, nmax);
+  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+  
+  for (size_t n=0; n<nmax; n++) {
+    cuFP_t a = host_coefs[i+n];
+    cuFP_t b = (*expcoef[5])[n];
+    if (compareC) {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::setw(20) << b
+		<< std::setw(20) << a - b
+		<< std::setw(20) << (a - b)/fabs(*cmax)
+		<< std::endl;
+    } else {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::endl;
+    }
+  }
+
+  std::cout << "L=2, M=1c coefficients" << std::endl;
+    
+  i = Ilmn(2, 1, 's', 0, nmax);
+  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+  
+  for (size_t n=0; n<nmax; n++) {
+    cuFP_t a = host_coefs[i+n];
+    cuFP_t b = (*expcoef[6])[n];
+    if (compareC) {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::setw(20) << b
+		<< std::setw(20) << a - b
+		<< std::setw(20) << (a - b)/fabs(*cmax)
+		<< std::endl;
+    } else {
+      std::cout << std::setw(4)  << n
+		<< std::setw(4)  << i
+		<< std::setw(20) << a
+		<< std::endl;
+    }
+  }
+  
+  std::cout << std::string(2*4+4*20, '-') << std::endl;
+
+
+  //
+  // TEST comparison of coefficients for debugging
+  //
+  if (compareB) {
+
+    struct Element
+    {
+      double d;
+      double f;
+      
+      int  l;
+      int  m;
+      int  n;
+      
+      char cs;
+    }
+    elem;
+
+    std::multimap<double, Element> compare;
+
+    std::ofstream out("test_sph.dat");
+
+    //		l loop
+    for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+      //		m loop
+      for (int m=0, moffset=0; m<=l; m++) {
+	
+	if (m==0) {
+	  for (int n=0; n<nmax; n++) {
+	    elem.l = l;
+	    elem.m = m;
+	    elem.n = n;
+	    elem.cs = 'c';
+	    elem.d = (*expcoef[loffset+moffset])[n];
+	    elem.f = host_coefs[Ilmn(l, m, 'c', n, nmax)];
+	    
+	    double test = fabs(elem.d - elem.f);
+	    if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
+	    
+	    compare.insert(std::make_pair(test, elem));
+	    
+	    out << std::setw( 5) << l
+		<< std::setw( 5) << m
+		<< std::setw( 5) << n
+		<< std::setw( 5) << 'c'
+		<< std::setw( 5) << Ilmn(l, m, 'c', n, nmax)
+		<< std::setw(14) << elem.d
+		<< std::setw(14) << elem.f
+		<< std::endl;
+	  }
+	  
+	  moffset++;
+	}
+	else {
+	  for (int n=0; n<nmax; n++) {
+	    elem.l = l;
+	    elem.m = m;
+	    elem.n = n;
+	    elem.cs = 'c';
+	    elem.d = (*expcoef[loffset+moffset])[n];
+	    elem.f = host_coefs[Ilmn(l, m, 'c', n, nmax)];
+
+	    out << std::setw( 5) << l
+		<< std::setw( 5) << m
+		<< std::setw( 5) << n
+		<< std::setw( 5) << 'c'
+		<< std::setw( 5) << Ilmn(l, m, 'c', n, nmax)
+		<< std::setw(14) << elem.d
+		<< std::setw(14) << elem.f
+		<< std::endl;
+
+	    double test = fabs(elem.d - elem.f);
+	    if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
+
+	    compare.insert(std::make_pair(test, elem));
+	  }
+	  for (int n=0; n<nmax; n++) {
+	    elem.l = l;
+	    elem.m = m;
+	    elem.n = n;
+	    elem.cs = 's';
+	    elem.d = (*expcoef[loffset+moffset+1])[n];
+	    elem.f = host_coefs[Ilmn(l, m, 's', n, nmax)];
+
+	    out << std::setw( 5) << l
+		<< std::setw( 5) << m
+		<< std::setw( 5) << n
+		<< std::setw( 5) << 's'
+		<< std::setw( 5) << Ilmn(l, m, 's', n, nmax)
+		<< std::setw(14) << elem.d
+		<< std::setw(14) << elem.f
+		<< std::endl;
+	    
+	    double test = fabs(elem.d - elem.f);
+	    if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
+	    
+	    compare.insert(std::make_pair(test, elem));
+	  }
+	  moffset+=2;
+	}
+      }
+    }
+    
+    std::map<double, Element>::iterator best = compare.begin();
+    std::map<double, Element>::iterator midl = best;
+    std::advance(midl, compare.size()/2);
+    std::map<double, Element>::reverse_iterator last = compare.rbegin();
+    
+    std::cout << std::string(4*2 + 3*20 + 22, '-') << std::endl
+	      << "---- Spherical coefficients" << std::endl
+	      << std::string(4*2 + 3*20 + 22, '-') << std::endl;
+
+    std::cout << "Best case: ["
+	      << std::setw( 2) << best->second.l << ", "
+	      << std::setw( 2) << best->second.m << ", "
+	      << std::setw( 2) << best->second.n << ", "
+	      << std::setw( 2) << best->second.cs << "] = "
+	      << std::setw(20) << best->second.d
+	      << std::setw(20) << best->second.f
+	      << std::setw(20) << fabs(best->second.d - best->second.f)
+	      << std::endl;
+  
+    std::cout << "Mid case:  ["
+	      << std::setw( 2) << midl->second.l << ", "
+	      << std::setw( 2) << midl->second.m << ", "
+	      << std::setw( 2) << midl->second.n << ", "
+	      << std::setw( 2) << midl->second.cs << "] = "
+	      << std::setw(20) << midl->second.d
+	      << std::setw(20) << midl->second.f
+	      << std::setw(20) << fabs(midl->second.d - midl->second.f)
+	      << std::endl;
+    
+    std::cout << "Last case: ["
+	      << std::setw( 2) << last->second.l << ", "
+	      << std::setw( 2) << last->second.m << ", "
+	      << std::setw( 2) << last->second.n << ", "
+	      << std::setw( 2) << last->second.cs << "] = "
+	      << std::setw(20) << last->second.d
+	      << std::setw(20) << last->second.f
+	      << std::setw(20) << fabs(last->second.d - last->second.f)
+	      << std::endl;
+  }
+}
+
 
 void SphericalBasis::multistep_update_cuda()
 {
