@@ -20,7 +20,7 @@ AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src -I$(top_srcdir)/src/DSMC
 
-COMMON_LIBS = -lexputil $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
+COMMON_LIBS = -lexputil $(BOOST_RANDOM_LIB) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
 $(FLIBS) $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
 MPI_LIBS = -lmpi
 

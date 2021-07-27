@@ -71,7 +71,7 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      chkTimer.cc pHOT.cc VtkPCA.cc GravKernel.cc $(ADD_CUDA)
 exp_DEPENDENCIES = $(EXPADD_DSMC)
 
-BOOST_LIBS = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_SYSTEM_LIB)
+BOOST_LIBS = $(BOOST_RANDOM_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_SYSTEM_LIB)
 COMMON_LIBS = -lexputil $(LDFLAGS_DSMC) $(BOOST_LIBS)
 
 SYS_LIBS = -lpthread -ldl @exp_omp_lib@

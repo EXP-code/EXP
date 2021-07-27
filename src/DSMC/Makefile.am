@@ -59,17 +59,17 @@ libtestdsmc_a_LDFLAGS = $(EXPFLAGS)
 testCrossSection_SOURCES = testCross.cc
 testCrossSection_DEPENDENCIES = libtestdsmc.a
 testCrossSection_LDFLAGS = $(EXTRA_LDFLAGS) $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
-testCrossSection_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -ltestdsmc -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
+testCrossSection_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -ltestdsmc -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 testIonRecomb_SOURCES = testIonRecomb.cc
 testIonRecomb_DEPENDENCIES = libtestdsmc.a
 testIonRecomb_LDFLAGS = $(EXPFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
-testIonRecomb_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
+testIonRecomb_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 genIonRecomb_SOURCES = genIonRecomb.cc
 genIonRecomb_DEPENDENCIES = libtestdsmc.a
 genIonRecomb_LDFLAGS = $(EXPFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
-genIonRecomb_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
+genIonRecomb_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 testQuantile_SOURCES = testQuantile.cc
 testQuantile_DEPENDENCIES = libtestdsmc.a
@@ -79,22 +79,22 @@ testQuantile_LDADD   = libtestdsmc.a $(BOOST_PROGRAM_OPTIONS_LIB) $(CUDA_LIBFLAG
 testCrossCuda_SOURCES = testCrossCuda.cc
 testCrossCuda_DEPENDENCIES = libtestdsmc.a
 testCrossCuda_LDFLAGS = $(EXTRA_LDFLAGS) $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
-testCrossCuda_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
+testCrossCuda_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 testExciteRate_SOURCES = testExciteRate.cc
 testExciteRate_DEPENDENCIES = libtestdsmc.a
 testExciteRate_LDFLAGS = $(EXTRA_LDFLAGS) $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
-testExciteRate_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -ltestdsmc -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
+testExciteRate_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -ltestdsmc -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 testRatio_SOURCES = testRatio.cc
 testRatio_DEPENDENCIES = libtestdsmc.a
 testRatio_LDFLAGS = $(EXPFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
-testRatio_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
+testRatio_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 makeRecombCache_SOURCES = makeRecombCache.cc
 makeRecombCache_DEPENDENCIES = libtestdsmc.a
 makeRecombCache_LDFLAGS = $(EXPFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
-makeRecombCache_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS) $(YAML)
+makeRecombCache_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS) $(YAML)
 
 # the rule that can recognize *.cu files and compile the *.cu files to
 # *.lo and *.o files

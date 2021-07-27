@@ -76,10 +76,12 @@ dnl Look for BOOST libraries
 dnl ==========================================================================
 
 AX_BOOST_BASE([1.35.0])
+
+AX_BOOST_REGEX
 AX_BOOST_SYSTEM
+AX_BOOST_RANDOM
 AX_BOOST_FILESYSTEM
 AX_BOOST_SERIALIZATION
-AX_BOOST_REGEX
 AX_BOOST_PROGRAM_OPTIONS
 
 
