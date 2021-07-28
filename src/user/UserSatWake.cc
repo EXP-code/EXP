@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <values.h>
+#include <limits>
 
 #include <iostream>
 #include <fstream>

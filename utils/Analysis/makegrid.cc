@@ -3,7 +3,7 @@
 
 #include <cstdlib>
 #include <cmath>
-#include <values.h>
+#include <limits>
 
 #include "config.h"
 
@@ -49,8 +49,8 @@ public:
   int index;
   double min, max;
   
-  fRecord()      : index(-1), min(MAXDOUBLE), max(-MAXDOUBLE) {}
-  fRecord(int i) : index(i),  min(MAXDOUBLE), max(-MAXDOUBLE) {}
+  fRecord()      : index(-1), min(std::numeric_limits<double>::max()), max(-std::numeric_limits<double>::max()) {}
+  fRecord(int i) : index(i),  min(std::numeric_limits<double>::max()), max(-std::numeric_limits<double>::max()) {}
 };
 
 class fPosVel
@@ -67,8 +67,8 @@ public:
   fPosVel() {
     cnt  = 0;
     indx = -1;
-    vmin = std::vector<double>(6,  MAXDOUBLE);
-    vmax = std::vector<double>(6, -MAXDOUBLE);
+    vmin = std::vector<double>(6,  std::numeric_limits<double>::max());
+    vmax = std::vector<double>(6, -std::numeric_limits<double>::max());
   }
 
   void operator()(double* ps, double* vs)
@@ -130,9 +130,9 @@ int main(int argc, char**argv)
   string outfile("OUT");
   string cname, dname, sname;
   double time = 1.0;
-  unsigned long initial_dark = 0, final_dark = MAXLONG;
-  unsigned long initial_star = 0, final_star = MAXLONG;
-  unsigned long initial_gas  = 0, final_gas  = MAXLONG;
+  unsigned long initial_dark = 0, final_dark = std::numeric_limits<long>::max();
+  unsigned long initial_star = 0, final_star = std::numeric_limits<long>::max();
+  unsigned long initial_gas  = 0, final_gas  = std::numeric_limits<long>::max();
 
   bool COM      = false;
   bool mask     = false;
@@ -219,15 +219,15 @@ int main(int argc, char**argv)
      "output file ename")
     ("initial-gas", po::value<unsigned long>(&initial_gas)->default_value(0), 
      "initial gas particle index")
-    ("final-gas", po::value<unsigned long>(&final_gas)->default_value(MAXLONG), 
+    ("final-gas", po::value<unsigned long>(&final_gas)->default_value(std::numeric_limits<long>::max()), 
      "initial gas particle index")
     ("initial-star", po::value<unsigned long>(&initial_star)->default_value(0), 
      "initial star particle index")
-    ("final-star", po::value<unsigned long>(&final_star)->default_value(MAXLONG), 
+    ("final-star", po::value<unsigned long>(&final_star)->default_value(std::numeric_limits<long>::max()), 
      "initial star particle index")
     ("initial-dark", po::value<unsigned long>(&initial_dark)->default_value(0), 
      "initial dark particle index")
-    ("final-dark", po::value<unsigned long>(&final_dark)->default_value(MAXLONG), 
+    ("final-dark", po::value<unsigned long>(&final_dark)->default_value(std::numeric_limits<long>::max()), 
      "initial dark particle index")
     ;
   

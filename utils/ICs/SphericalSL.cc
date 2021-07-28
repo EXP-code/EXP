@@ -29,9 +29,8 @@
  *
  ***************************************************************************/
 
-#include <stdlib.h>
-#include <values.h>
-
+#include <cstdlib>
+#include <limits>
 #include <thread>
 #include <iostream>
 #include <iomanip>
@@ -172,7 +171,7 @@ void SphericalSL::compute_coefficients_single(vector<Particle> &part)
     double mass = p.mass;
 
     double r2 = (xx*xx + yy*yy + zz*zz);
-    double r = sqrt(r2) + MINDOUBLE;
+    double r = sqrt(r2) + std::numeric_limits<double>::min();
 
     if (r<=RMAX) {
       use[0]++;
@@ -321,7 +320,7 @@ void SphericalSL::compute_coefficients_thread_call(int id, std::vector<Particle>
     double mass = (*p)[n].mass;
 
     double r2 = (xx*xx + yy*yy + zz*zz);
-    double  r = sqrt(r2) + MINDOUBLE;
+    double  r = sqrt(r2) + std::numeric_limits<double>::min();
 
     if (r<=RMAX) {
 

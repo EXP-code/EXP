@@ -155,8 +155,8 @@ main(int ac, char **av)
 	  masmax[key] =  0.0;
 	  phimin[key] =  FLT_MAX;
 	  phimax[key] = -FLT_MAX;
-	  iavmin[key].resize(part->niatr(),  INT_MAX);
-	  iavmax[key].resize(part->niatr(), -INT_MAX);
+	  iavmin[key].resize(part->niatr(),  std::numeric_limits<int>::max());
+	  iavmax[key].resize(part->niatr(), -std::numeric_limits<int>::max());
 	  davmin[key].resize(part->ndatr(),  FLT_MAX);
 	  davmax[key].resize(part->ndatr(), -FLT_MAX);
 	  sofar.insert(key);

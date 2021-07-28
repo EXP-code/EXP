@@ -1,5 +1,5 @@
 
-#include <limits.h>
+#include <limits>
 
 #include <boost/make_shared.hpp>
 

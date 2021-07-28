@@ -8,8 +8,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
-
-#include <limits.h>
+#include <limits>
 
 #include <massmodel.H>
 #include <interp.H>
@@ -95,7 +94,7 @@ SphericalModelTable::SphericalModelTable
     mass.x[i] = radius;
     pot.x[i] = radius;
     if (DIVERGE)
-      density.y[i] *= pow(radius+DBL_MIN, DIVERGE_RFAC);
+      density.y[i] *= pow(radius+std::numeric_limits<double>::min(), DIVERGE_RFAC);
   }
   
   Spline(density.x, density.y, 0.0, 0.0, density.y2);
@@ -166,7 +165,7 @@ SphericalModelTable::SphericalModelTable(int NUM,
     pot.x[i] = radius;
 
     if (DIVERGE)
-      density.y[i] *= pow(radius+DBL_MIN, DIVERGE_RFAC);
+      density.y[i] *= pow(radius+std::numeric_limits<double>::min(), DIVERGE_RFAC);
   }
   
   Spline(density.x, density.y, 0.0, 0.0, density.y2);

@@ -1,7 +1,7 @@
-#include <limits.h>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <limits>
 #include <cmath>
 #include <chrono>
 #include <ctime>
@@ -117,7 +117,7 @@ Collide::ENHANCE       = 1.0;	// Currently, only used in LTE method
 
 // Target number of collisions per cell
 //
-unsigned Collide::collTnum = UINT_MAX;
+unsigned Collide::collTnum = std::numeric_limits<unsigned>::max();
 
 // Power of two interval for KE/cool histogram
 //
@@ -582,7 +582,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
   
   // Debug maximum work per cell
   //
-  minUsage .resize(nthrds*2, MAXLONG);
+  minUsage .resize(nthrds*2, std::numeric_limits<long>::max());
   maxUsage .resize(nthrds*2, 0);
   minPart  .resize(nthrds*2, -1);
   maxPart  .resize(nthrds*2, -1);
@@ -3299,7 +3299,7 @@ unsigned Collide::post_collide_diag()
 void Collide::CPUHogGather()
 {
   for (int i=0; i<2; i++) {
-    CPUH[i]   = MAXLONG;
+    CPUH[i]   = std::numeric_limits<long>::max();
     CPUH[6+i] = 0;
     CPUH[2+i] = CPUH[4+i] = CPUH[8+i] = CPUH[10+i] = -1;
   }
@@ -3317,7 +3317,7 @@ void Collide::CPUHogGather()
 	CPUH[10+i] = maxCollP[n*2+i];
       }
       // Clear values for next call
-      minUsage[n*2+i] = MAXLONG;
+      minUsage[n*2+i] = std::numeric_limits<long>::max();
       maxUsage[n*2+i] = 0;
       minPart [n*2+i] = -1;
       maxPart [n*2+i] = -1;
@@ -3333,7 +3333,7 @@ void Collide::CPUHogGather()
   if (myid==0) {
     
     for (int i=0; i<2; i++) {
-      CPUH[i]   = MAXLONG;
+      CPUH[i]   = std::numeric_limits<long>::max();
       CPUH[6+i] = 0;
       CPUH[2+i] = CPUH[4+i] = CPUH[8+i] = CPUH[10+i] = -1;
     }

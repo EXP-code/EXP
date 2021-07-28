@@ -3,8 +3,8 @@
 #include <sstream>
 #include <iomanip>
 #include <cassert>
+#include <limits>
 
-#include <values.h>
 #include <global.H>
 #include <ResPotOrb.H>
 #include <ZBrent.H>
@@ -486,7 +486,7 @@ double ResPotOrb::Jx(double x, double Jmin, double Jmax)
 double ResPotOrb::dxJ(double J, double Jmin, double Jmax)
 {
   if (J>=Jmax) return 1.0/(Jmax-Jmin);
-  if (J<=0.0) return MAXFLOAT;
+  if (J<=0.0) return std::numeric_limits<float>::max();
   return pow( (J-Jmin)/(Jmax-Jmin), ALPHA-1.0 )/(Jmax - Jmin);
 }
 

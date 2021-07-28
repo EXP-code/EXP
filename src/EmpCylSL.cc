@@ -6683,7 +6683,7 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
 double EmpCylSL::z_to_y(double z)
 {
   if (CMAPZ==1)
-    return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE));
+    return z/(fabs(z)+std::numeric_limits<double>::min())*asinh(fabs(z/HSCALE));
   else if (CMAPZ==2)
     return z/sqrt(z*z + HSCALE*HSCALE);
   else

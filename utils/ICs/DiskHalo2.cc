@@ -1225,11 +1225,11 @@ table_disk(vector<Particle>& part)
 
 	z = workZ[k] = dZ1*k;
 
-	r = sqrt(R*R + z*z) + MINDOUBLE;
+	r = sqrt(R*R + z*z) + std::numeric_limits<double>::min();
 
 				// Positive
 	disk_eval(R, z, phi, pot, fr, fz, fp);
-	theta = acos(z/(r + MINDOUBLE));
+	theta = acos(z/(r + std::numeric_limits<double>::min()));
 
 	if (expandh)
 	  expandh->determine_fields_at_point(R, theta, phi,
@@ -1249,7 +1249,7 @@ table_disk(vector<Particle>& part)
 	z *= -1.0;
 
 	disk_eval(R, z, phi, pot, fr, fz, fp);
-	theta = acos(z/(r + MINDOUBLE));
+	theta = acos(z/(r + std::numeric_limits<double>::min()));
 
 	if (expandh)
 	  expandh->determine_fields_at_point(R, theta, phi,
@@ -1270,7 +1270,7 @@ table_disk(vector<Particle>& part)
       else            Trapsum(workZ, workP, workA);
 
       for (int k=0; k<NDZ; k++)
-	disktableP[i](j, k) = max<double>(workA[NDZ-1] - workA[k], MINDOUBLE);
+	disktableP[i](j, k) = max<double>(workA[NDZ-1] - workA[k], std::numeric_limits<double>::min());
 
       if (i==ibeg[myid] && j==0 && VFLAG & 4) {
 	ostringstream ofile;
@@ -1290,7 +1290,7 @@ table_disk(vector<Particle>& part)
       else            Trapsum(workZ, workN, workA);
 
       for (int k=0; k<NDZ; k++)
-	disktableN[i](j, k) = max<double>(workA[NDZ-1] - workA[k], MINDOUBLE);
+	disktableN[i](j, k) = max<double>(workA[NDZ-1] - workA[k], std::numeric_limits<double>::min());
 
       if (i==ibeg[myid] && j==0 && VFLAG & 4) {
 	ostringstream ofile;
@@ -1557,7 +1557,7 @@ table_disk(vector<Particle>& part)
  */
 double DiskHalo::vp_disp2(double xp, double yp, double zp)
 {
-  double R     = sqrt(xp*xp + yp*yp) + MINDOUBLE;
+  double R     = sqrt(xp*xp + yp*yp) + std::numeric_limits<double>::min();
   double vc    = v_circ(xp, yp, zp);
   double omp   = vc/R;
   double kappa = epi(xp, yp, zp);
@@ -1788,16 +1788,16 @@ set_vel_disk(vector<Particle>& part)
     y = p.pos[1];
     z = p.pos[2];
 
-    R = sqrt(x*x + y*y) + MINDOUBLE;
+    R = sqrt(x*x + y*y) + std::numeric_limits<double>::min();
 
     vvZ = vz_disp2(x, y, z);
     vvR = vr_disp2(x, y, z);
     vvP = vp_disp2(x, y, z);
 				 // For safety; should only be a problem
 				 // on extrapolating the range
-    vvZ = std::max<double>(vvZ, MINDOUBLE);
-    vvR = std::max<double>(vvR, MINDOUBLE);
-    vvP = std::max<double>(vvP, MINDOUBLE);
+    vvZ = std::max<double>(vvZ, std::numeric_limits<double>::min());
+    vvR = std::max<double>(vvR, std::numeric_limits<double>::min());
+    vvP = std::max<double>(vvP, std::numeric_limits<double>::min());
     
     if (maxVZ < vvZ) {
       maxVZ = vvZ;
@@ -1853,11 +1853,11 @@ set_vel_disk(vector<Particle>& part)
       }
 
     case Jeans:
-      va = max<double>(vc - ac, MINDOUBLE);
+      va = max<double>(vc - ac, std::numeric_limits<double>::min());
      
-      vz   = rndN(gen)*sqrt(std::max<double>(vvZ, MINDOUBLE));
-      vr   = rndN(gen)*sqrt(std::max<double>(vvR, MINDOUBLE));
-      vp   = rndN(gen)*sqrt(std::max<double>(vvP, MINDOUBLE)) + va;
+      vz   = rndN(gen)*sqrt(std::max<double>(vvZ, std::numeric_limits<double>::min()));
+      vr   = rndN(gen)*sqrt(std::max<double>(vvR, std::numeric_limits<double>::min()));
+      vp   = rndN(gen)*sqrt(std::max<double>(vvP, std::numeric_limits<double>::min())) + va;
       
       if (out) 
 	out << std::setw(14) << R   << std::setw(14) << z   << std::setw(14) << vc
@@ -1931,7 +1931,7 @@ set_vel_disk(vector<Particle>& part)
 	Omg  = v_circ(x1, y1, z)/R1;
 
 				// Compute the final velocities
-	vz   = rndN(gen)*sqrt(std::max<double>(vvZ, MINDOUBLE));
+	vz   = rndN(gen)*sqrt(std::max<double>(vvZ, std::numeric_limits<double>::min()));
 	vr   = -kappa*X*sin(alpha);
 	vp   = Omg*R1 - 2.0*Omg*X*cos(alpha);
     
@@ -2165,7 +2165,7 @@ table_halo(vector<Particle>& part)
       
       if (expandd) disk_eval(x, z, 0.0, pot, fr, fz, fp);
       
-      theta = acos(z/(r + MINDOUBLE));
+      theta = acos(z/(r + std::numeric_limits<double>::min()));
       expandh->determine_fields_at_point(r, theta, 0.0,
 					 &dens, &potl, &dpr, &dpt, &dpp);
       
@@ -2178,7 +2178,7 @@ table_halo(vector<Particle>& part)
     // Splsum(workR, work, workA);
     Trapsum(workR, work, workA);
     for (int j=0; j<NHR; j++) {
-      halotable(i, j) = max<double>(workA[NHR-1] - workA[j], MINDOUBLE);
+      halotable(i, j) = max<double>(workA[NHR-1] - workA[j], std::numeric_limits<double>::min());
       if (fabs(halotable(i, j))>1.0e8) {
 	std::cerr << "Oops, val=" << halotable(i, j) << std::endl;
       }
@@ -2281,7 +2281,7 @@ double DiskHalo::get_disp(double xp,double yp, double zp)
   // Polar angle
   //
   r = sqrt(xp*xp + yp*yp + zp*zp);
-  t = zp/(r + MINDOUBLE) + 1.0;
+  t = zp/(r + std::numeric_limits<double>::min()) + 1.0;
   
   it = (int)( t/dc );
   it = min<int>( it, NHT-2 );
@@ -2349,7 +2349,7 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
 				// Use Jeans
     if (nok) {
       v2r = get_disp(p.pos[0], p.pos[1], p.pos[2]);
-      vr = sqrt(max<double>(v2r, MINDOUBLE));
+      vr = sqrt(max<double>(v2r, std::numeric_limits<double>::min()));
       for (int k=0; k<3; k++) p.vel[k] = vr*rndN(gen);
     }
     
@@ -2514,14 +2514,14 @@ void DiskHalo::virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart)
     yy = p.pos[1];
     zz = p.pos[2];
     
-    theta = acos(zz/(r+MINDOUBLE));
+    theta = acos(zz/(r+std::numeric_limits<double>::min()));
     phi = atan2(yy, xx);
     
     if (expandh)
       expandh->determine_fields_at_point(r, theta, phi,
 					 &dens, &potl, &potr, &pott, &potp);
     
-    R2 = xx*xx + yy*yy + MINDOUBLE;
+    R2 = xx*xx + yy*yy + std::numeric_limits<double>::min();
     R = sqrt(R2);
     
     if (expandd) 
@@ -2558,7 +2558,7 @@ void DiskHalo::virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart)
     yy = p.pos[1];
     zz = p.pos[2];
     
-    theta = acos(zz/(r+MINDOUBLE));
+    theta = acos(zz/(r+std::numeric_limits<double>::min()));
     phi = atan2(yy, xx);
     
     if (expandh)
@@ -2723,14 +2723,14 @@ void DiskHalo::virial_ratio(const char *hfile, const char *dfile)
       yy = pos[1];
       zz = pos[2];
 
-      theta = acos(zz/(r+MINDOUBLE));
+      theta = acos(zz/(r+std::numeric_limits<double>::min()));
       phi = atan2(yy, xx);
     
       if (expandh)
 	expandh->determine_fields_at_point(r, theta, phi,
 					 &dens, &potl, &potr, &pott, &potp);
       
-      R2 = xx*xx + yy*yy + MINDOUBLE;
+      R2 = xx*xx + yy*yy + std::numeric_limits<double>::min();
       R = sqrt(R2);
 
       if (expandd)
@@ -2841,8 +2841,8 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
 
     if (indx < numr && indx >= 0) {
 
-      double vr = ( xx*p.vel[0] + yy*p.vel[1])/(R+MINDOUBLE);
-      double vt = (-yy*p.vel[0] + xx*p.vel[1])/(R+MINDOUBLE);
+      double vr = ( xx*p.vel[0] + yy*p.vel[1])/(R+std::numeric_limits<double>::min());
+      double vt = (-yy*p.vel[0] + xx*p.vel[1])/(R+std::numeric_limits<double>::min());
 
       mass1[indx] += p.mass;
       velR1[indx] += p.mass*vr;

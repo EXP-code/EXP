@@ -22,7 +22,6 @@
                                 // System libs
 #include <unistd.h>
 #include <getopt.h>
-#include <values.h>
 
                                 // C++/STL headers
 #include <cmath>
@@ -34,6 +33,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <limits>
 
 #include <config.h>
 #ifdef HAVE_OMP_H

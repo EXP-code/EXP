@@ -1,6 +1,7 @@
 // This may look like C code, but it is really -*- C++ -*-
 
 #include <cstdlib>
+#include <limits>
 #include <cmath>
 
 #include <iostream>
@@ -8,8 +9,6 @@
 
 #include <string>
 #include <vector>
-
-#include <limits.h>
 
 #include <numerical.H>
 #include <interp.H>

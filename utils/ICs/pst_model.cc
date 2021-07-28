@@ -11,13 +11,13 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <limits>
 
 				// Boost random generator
 #include <boost/random/mersenne_twister.hpp>
 
                                 // System libs
 #include <getopt.h>
-#include <values.h>
 
                                 // MDW classes
 #include <numerical.H>

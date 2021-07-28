@@ -1,10 +1,8 @@
 #include <cstdlib>
 #include <iostream>
-#include <cmath>
-
 #include <cstdlib>
-
-#include <limits.h>
+#include <limits>
+#include <cmath>
 
 #include <interp.H>
 

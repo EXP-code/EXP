@@ -202,7 +202,7 @@ void UserDSMC::makeSort()
   MPI_Allreduce(&effT[0], &eff[0], numprocs, MPI_UNSIGNED, MPI_SUM, 
 		MPI_COMM_WORLD);
 
-  unsigned int maxT=0, minT=MAXINT;
+  unsigned int maxT=0, minT=std::numeric_limits<int>::max();
   for (int n=0; n<numprocs; n++) {
     minT = min<unsigned int>(minT, eff[n]);
     maxT = max<unsigned int>(maxT, eff[n]);

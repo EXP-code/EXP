@@ -60,7 +60,7 @@ bool     CollideIon::enforceMOM = false;
 bool     CollideIon::coulScale  = false;
 double   CollideIon::coulPow    = 2.0;
 unsigned CollideIon::NoDelC     = 0;
-unsigned CollideIon::maxCoul    = UINT_MAX;
+unsigned CollideIon::maxCoul    = std::numeric_limits<unsigned>::max();
 double   CollideIon::logL       = 20.0; // Coulombic logarithm
 double   CollideIon::logLfac    = 0.0;	// Scale intrinsic log L computation
 bool     CollideIon::TSESUM     = true;
@@ -15134,7 +15134,7 @@ void CollideIon::gatherSpecies()
   } // end: cell loop
 
     
-  if ( (aType==Hybrid or aType==Trace) and maxCoul < UINT_MAX) {
+  if ( (aType==Hybrid or aType==Trace) and maxCoul < std::numeric_limits<unsigned>::max()) {
 				// Get combined counts from all threads
     unsigned totl = 0, epsm = 0;
     for (auto & v : totlIE) { totl += v; v = 0; }
@@ -15560,7 +15560,7 @@ void CollideIon::gatherSpecies()
 		<< std::string(4+10+10+12, '-')   << std::endl
 		<< "Scatter check: time=" << tnow << std::endl;
 
-      if ((aType==Hybrid or aType==Trace) and maxCoul < UINT_MAX) {
+      if ((aType==Hybrid or aType==Trace) and maxCoul < std::numeric_limits<unsigned>::max()) {
 	double R = totlIE0>0 ? static_cast<double>(epsmIE0)/totlIE0 : epsmIE0;
 	std::cout << "Ion-Elec EPSM: " << epsmIE0 << "/" << totlIE0 << " [="
 		  << R << "]" << std::endl;
@@ -18437,7 +18437,7 @@ void CollideIon::processConfig()
       maxCoul = config["maxCoul"]["value"].as<unsigned>();
     else {
       config["maxCoul"]["desc"] = "Maximum number of elastic Coulombic collisions per step";
-      config["maxCoul"]["value"] = maxCoul = UINT_MAX;
+      config["maxCoul"]["value"] = maxCoul = std::numeric_limits<unsigned>::max();
     }
 
     if (config["logL"])
@@ -18465,7 +18465,7 @@ void CollideIon::processConfig()
       Collide::collTnum = config["collTnum"]["value"].as<unsigned>();
     else {
       config["collTnum"]["desc"] = "Target number of accepted collisions per cell for assigning time step";
-      config["collTnum"]["value"] = Collide::collTnum = UINT_MAX;
+      config["collTnum"]["value"] = Collide::collTnum = std::numeric_limits<unsigned>::max();
     }
 
     if (config["distDiag"])

@@ -56,12 +56,13 @@
 	Removed orphaned parameters
 */
 
-                                // System libs
 #include <cmath>
+#include <cstdlib>
+#include <limits>
+
+                                // System libs
 #include <unistd.h>
 #include <getopt.h>
-#include <cstdlib>
-#include <values.h>
 
 				// Boost random generator
 #include <boost/random/mersenne_twister.hpp>
