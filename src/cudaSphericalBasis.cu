@@ -1515,7 +1515,7 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
   // Set to false for production
   //   |
   //   v
-  if (true) coef_cuda_compare();
+  if (false) coef_cuda_compare();
 }
 
 
