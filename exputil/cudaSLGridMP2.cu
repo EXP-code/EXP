@@ -121,7 +121,7 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 
       // Copy to device memory some data located at address h_data
       // in host memory
-      cuFP_t fac = sqrt(table[l].ev[n+1]);
+      cuFP_t fac = sqrt(table[l].ev[n]);
       for (int j=0; j<numr; j++) tt[j] = table[l].ef(n, j) / fac;
 
       cuda_safe_call(cudaMemcpyToArray(cuArray[i], 0, 0, &tt[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
