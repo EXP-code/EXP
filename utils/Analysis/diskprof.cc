@@ -366,7 +366,7 @@ Eigen::VectorXd get_quart_truncated(Eigen::VectorXd& vv, double dz)
     if (vv[lo1]<0.0) break;
   }
 
-  for (; hi1<sz-1; hi1++) {
+  for (; hi1<sz; hi1++) {
     if (vv[hi1]<0.0) break;
   }
 

@@ -62,8 +62,9 @@ namespace po = boost::program_options;
 #include <localmpi.H>
 #include <foarray.H>
 
-				// Variables not used but needed for linking
-int VERBOSE = 4;
+// Variables not used but needed for linking
+//
+int VERBOSE = 0;
 int nthrds = 1;
 int this_step = 0;
 unsigned multistep = 0;
@@ -74,7 +75,7 @@ vector<int> stepL(1, 0), stepN(1, 1);
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
-string outdir, runtag;
+std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
 boost::mt19937 random_gen;

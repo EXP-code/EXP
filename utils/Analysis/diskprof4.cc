@@ -82,11 +82,11 @@ unsigned multistep = 0;
 unsigned maxlev = 100;
 int mstep = 1;
 int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
+std::vector<int> stepL(1, 0), stepN(1, 1);
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
-string outdir, runtag;
+std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
 boost::mt19937 random_gen;
@@ -393,7 +393,7 @@ double get_max_dens(Eigen::VectorXd& vv, double dz)
     }
   }
 
-  if (ipeak == 0)    ipeak = 1;
+  if (ipeak == 0   ) ipeak = 1;
   if (ipeak == sz-1) ipeak = sz-2;
 
 				// Solution of 2nd order Lagrange interpolation
@@ -466,7 +466,7 @@ Eigen::VectorXd get_quart_truncated(Eigen::VectorXd& vv, double dz)
     if (vv[lo1]<0.0) break;
   }
 
-  for (; hi1<sz-1; hi1++) {
+  for (; hi1<sz; hi1++) {
     if (vv[hi1]<0.0) break;
   }
 
@@ -1113,7 +1113,7 @@ main(int argc, char **argv)
      "make vertical slices")
     ("probe",
      po::value<bool>(&PROBE)->default_value(true),
-     "make 1d cuts in and perpendicular to the equitorial plane")
+     "make 1d cuts in and perpendicular to the equatorial plane")
     ("volume",
      po::value<bool>(&VOLUME)->default_value(false),
      "make volume for VTK rendering")

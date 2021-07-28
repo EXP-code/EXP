@@ -613,7 +613,7 @@ double SphereSL::get_power(double snr, double mass)
 void SphereSL::dens_pot_eval(double r, double costh, double phi,
 			     double& dens0, double& dens, 
 			     double& potl0, double& potl,
-			     int L1, int L2)
+			     int L1, int L2, int N1, int N2)
 {
   double fac1, cosm, sinm;
 
@@ -637,10 +637,14 @@ void SphereSL::dens_pot_eval(double r, double costh, double phi,
     // M loop
     for (int m=0, moffset=0; m<=l; m++) {
       fac1 = factorial(l, m);
-      if (m==0) { // Dot product-----------------------------+
-	dens += fac1*legs(l, m)* expcoef.row(loffset+moffset).dot(dend.row(l));
-
-	potl += fac1*legs(l, m)* expcoef.row(loffset+moffset).dot(potd.row(l));
+      if (m==0) {
+	double sumD=0.0, sumP=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumD += expcoef(loffset+moffset, n) * dend(l, n);
+	  sumP += expcoef(loffset+moffset, n) * potd(l, n);
+	}
+	dens += fac1*legs(l, m)* sumD;
+	potl += fac1*legs(l, m)* sumP;
 
 	moffset++;
       }
@@ -648,14 +652,16 @@ void SphereSL::dens_pot_eval(double r, double costh, double phi,
 	cosm = cos(phi*m);
 	sinm = sin(phi*m);
 
-	dens += fac1*legs(l, m)*
-	  ( expcoef.row(loffset+moffset+0) .dot(dend.row(l))*cosm + 
-	    expcoef.row(loffset+moffset+1) .dot(dend.row(l))*sinm );
-	// Dot product---------------------+
+	double sumD0=0.0, sumP0=0.0, sumD1=0.0, sumP1=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumD0 += expcoef(loffset+moffset+0, n) * dend(l, n);
+	  sumP0 += expcoef(loffset+moffset+0, n) * potd(l, n);
+	  sumD1 += expcoef(loffset+moffset+1, n) * dend(l, n);
+	  sumP1 += expcoef(loffset+moffset+1, n) * potd(l, n);
+	}
 
-	potl += fac1*legs(l, m)*
-	  ( expcoef.row(loffset+moffset+0) .dot(potd.row(l))*cosm + 
-	    expcoef.row(loffset+moffset+1) .dot(potd.row(l))*sinm );
+	dens += fac1*legs(l, m)*( sumD0*cosm + sumD1*sinm );
+	potl += fac1*legs(l, m)*( sumP0*cosm + sumP1*sinm );
 
 	moffset +=2;
       }
@@ -675,7 +681,7 @@ void SphereSL::dens_pot_eval(double r, double costh, double phi,
 void SphereSL::pot_force_eval(double r, double costh, double phi,
 			      double& potl,
 			      double& potr, double& pott, double& potp,
-			      int L1, int L2)
+			      int L1, int L2, int N1, int N2)
 {
   double fac1, cosm, sinm;
   double sinth = -sqrt(fabs(1.0 - costh*costh));
@@ -700,10 +706,15 @@ void SphereSL::pot_force_eval(double r, double costh, double phi,
     for (int m=0, moffset=0; m<=l; m++) {
       fac1 = factorial(l, m);
       if (m==0) {
-	potl += fac1*legs(l, m) * expcoef.row(loffset+moffset).dot(potd.row(l));
-	potr += fac1*legs(l, m) * expcoef.row(loffset+moffset).dot(dpot.row(l));
-	pott += fac1*dlegs(l, m)* expcoef.row(loffset+moffset).dot(potd.row(l));
-	// Dot products---------------------------------------+
+	double sumP=0.0, sumD=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumP += expcoef(loffset+moffset, n) * potd(l, n);
+	  sumD += expcoef(loffset+moffset, n) * dpot(l, n);
+	}
+
+	potl += fac1*legs(l, m) * sumP;
+	potr += fac1*legs(l, m) * sumD;
+	pott += fac1*dlegs(l, m)* sumP;
 
 	moffset++;
       }
@@ -711,18 +722,18 @@ void SphereSL::pot_force_eval(double r, double costh, double phi,
 	cosm = cos(phi*m);
 	sinm = sin(phi*m);
 
-	potl += fac1*legs(l, m)*
-	  ( expcoef.row(loffset+moffset+0).dot(potd.row(l))*cosm + 
-	    expcoef.row(loffset+moffset+1).dot(potd.row(l))*sinm );
-	potr += fac1*legs(l, m)*
-	  ( expcoef.row(loffset+moffset).dot(dpot.row(l))*cosm + 
-	    expcoef.row(loffset+moffset+1).dot(dpot.row(l))*sinm );
-	pott += fac1*dlegs(l, m)*
-	  ( expcoef.row(loffset+moffset+0).dot(potd.row(l))*cosm + 
-	    expcoef.row(loffset+moffset+1).dot(potd.row(l))*sinm );
-	potp += fac1*legs(l, m) * m *
-	  (-expcoef.row(loffset+moffset+0).dot(potd.row(l))*sinm + 
-	    expcoef.row(loffset+moffset+1).dot(potd.row(l))*cosm );
+	double sumD0=0.0, sumP0=0.0, sumD1=0.0, sumP1=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumD0 += expcoef(loffset+moffset+0, n) * potd(l, n);
+	  sumP0 += expcoef(loffset+moffset+0, n) * dpot(l, n);
+	  sumD1 += expcoef(loffset+moffset+1, n) * potd(l, n);
+	  sumP1 += expcoef(loffset+moffset+1, n) * dpot(l, n);
+	}
+
+	potl += fac1*legs(l, m) * ( sumD0*cosm + sumD1*sinm );
+	potr += fac1*legs(l, m) * ( sumP0*cosm + sumP1*sinm );
+	pott += fac1*dlegs(l, m)* ( sumD0*cosm + sumD1*sinm );
+	potp += fac1*legs(l, m) * m * ( -sumP0*sinm + sumP1*cosm );
 
 	moffset +=2;
       }
@@ -743,7 +754,7 @@ void SphereSL::all_eval(double r, double costh, double phi,
 			double& den0, double& den1,
 			double& pot0, double& pot1,
 			double& potr, double& pott, double& potp,
-			int L1, int L2)
+			int L1, int L2, int N1, int N2)
 {
   double fac1, cosm, sinm;
   double sinth = -sqrt(fabs(1.0 - costh*costh));
@@ -772,10 +783,18 @@ void SphereSL::all_eval(double r, double costh, double phi,
     for (int m=0, moffset=0; m<=l; m++) {
       fac1 = factorial(l, m);
       if (m==0) {
-	den1 += fac1*legs(1, m) * expcoef.row(loffset+moffset).dot(dend.row(l));
-	pot1 += fac1*legs(l, m) * expcoef.row(loffset+moffset).dot(potd.row(l));
-	potr += fac1*legs(l, m) * expcoef.row(loffset+moffset).dot(dpot.row(l));
-	pott += fac1*dlegs(l, m)* expcoef.row(loffset+moffset).dot(potd.row(l));
+
+	double sumR=0.0, sumP=0.0, sumD=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumR += expcoef(loffset+moffset, n) * dend(l, n);
+	  sumP += expcoef(loffset+moffset, n) * potd(l, n);
+	  sumD += expcoef(loffset+moffset, n) * dpot(l, n);
+	}
+
+	den1 += fac1*legs(1, m) * sumR;
+	pot1 += fac1*legs(l, m) * sumP;
+	potr += fac1*legs(l, m) * sumD;
+	pott += fac1*dlegs(l, m)* sumP;
 
 	moffset++;
       }
@@ -783,21 +802,22 @@ void SphereSL::all_eval(double r, double costh, double phi,
 	cosm = cos(phi*m);
 	sinm = sin(phi*m);
 
-	den1 += fac1*legs(l, m)*
-	  ( expcoef.row(loffset+moffset).dot(dend.row(l))*cosm + 
-	    expcoef.row(loffset+moffset+1).dot(dend.row(l))*sinm );
-	pot1 += fac1*legs(l, m)*
-	  ( expcoef.row(loffset+moffset).dot(potd.row(l))*cosm + 
-	    expcoef.row(loffset+moffset+1).dot(potd.row(l))*sinm );
-	potr += fac1*legs(l, m)*
-	  ( expcoef.row(loffset+moffset).dot(dpot.row(l))*cosm + 
-	    expcoef.row(loffset+moffset+1).dot(dpot.row(l))*sinm );
-	pott += fac1*dlegs(l, m)*
-	  ( expcoef.row(loffset+moffset).dot(potd.row(l))*cosm + 
-	    expcoef.row(loffset+moffset+1).dot(potd.row(l))*sinm );
-	potp += fac1*legs(l, m) * m *
-	  ( expcoef.row(loffset+moffset).dot(potd.row(l))*sinm + 
-	    expcoef.row(loffset+moffset+1).dot(potd.row(l))*cosm );
+	double sumR0=0.0, sumP0=0.0, sumD0=0.0;
+	double sumR1=0.0, sumP1=0.0, sumD1=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumR0 += expcoef(loffset+moffset+0, n) * dend(l, n);
+	  sumP0 += expcoef(loffset+moffset+0, n) * potd(l, n);
+	  sumD0 += expcoef(loffset+moffset+0, n) * dpot(l, n);
+	  sumR1 += expcoef(loffset+moffset+1, n) * dend(l, n);
+	  sumP1 += expcoef(loffset+moffset+1, n) * potd(l, n);
+	  sumD1 += expcoef(loffset+moffset+1, n) * dpot(l, n);
+	}
+
+	den1 += fac1*legs(l, m)*  ( sumR0*cosm + sumR1*sinm );
+	pot1 += fac1*legs(l, m)*  ( sumP0*cosm + sumP1*sinm );
+	potr += fac1*legs(l, m)*  ( sumD0*cosm + sumD1*sinm );
+	pott += fac1*dlegs(l, m)* ( sumP0*cosm + sumP1*sinm );
+	potp += fac1*legs(l, m) * m * ( -sumP0*sinm + sumP1*cosm );
 	
 	moffset +=2;
       }

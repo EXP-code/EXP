@@ -104,6 +104,7 @@ static  bool VHEIGHT;
 static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
+static  bool PROBE;
 
 // Center offset
 //
@@ -113,31 +114,47 @@ class Histogram
 {
 public:
 
-  std::vector<double> dataXY;
+  std::vector<double> dataXY, dataXZ, dataYZ;
   std::vector<std::vector<double>> dataZ;
-  int N;
-  double R, dR;
+  int N, M;
+  double R, dR, rmax;
+  double Z, dZ, zmax;
   
-  Histogram(int N, double R) : N(N), R(R)
+  Histogram(int N, int M, double R, double Z) : N(N), M(M)
   {
     N = std::max<int>(N, 2);
-    dR = 2.0*R/(N-1);		// Want grid points to be on bin centers
+    M = std::max<int>(M, 2);
+    dR = 2.0*R/(N-1);
+    dZ = 2.0*Z/(M-1);
+
+    rmax = R + 0.5*dR;
+    zmax = Z + 0.5*dZ;
+
     dataXY.resize(N*N, 0.0);
+    dataXZ.resize(N*M, 0.0);
+    dataYZ.resize(N*M, 0.0);
     dataZ .resize(N*N);
+
   }
 
   void Reset() {
     std::fill(dataXY.begin(), dataXY.end(), 0.0);
+    std::fill(dataXZ.begin(), dataXZ.end(), 0.0);
+    std::fill(dataYZ.begin(), dataYZ.end(), 0.0);
     for (auto & v : dataZ) v.clear();
   }
 
   void Syncr() { 
-    if (myid==0)
-      MPI_Reduce(MPI_IN_PLACE, &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0,
-		 MPI_COMM_WORLD);
-    else
-      MPI_Reduce(&dataXY[0],   &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0,
-		 MPI_COMM_WORLD);
+    if (myid==0) {
+      MPI_Reduce(MPI_IN_PLACE, &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, &dataXZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, &dataYZ[0], dataYZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
+    else {
+      MPI_Reduce(&dataXY[0],   &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&dataXZ[0],   &dataXZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&dataYZ[0],   &dataYZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
 
     std::vector<double> work;
     int nz;
@@ -166,16 +183,29 @@ public:
 
   void Add(double x, double y, double z, double m)
   {
-    if (x < -R-0.5*dR or x >= R+0.5*dR or
-	y < -R-0.5*dR or y >= R+0.5*dR  ) return;
+    if (x < -rmax or x >= rmax or
+	y < -rmax or y >= rmax or
+	z < -zmax or z >= zmax) return;
 
-    int indX = static_cast<int>(floor((x + R + 0.5*dR)/dR));
-    int indY = static_cast<int>(floor((y + R + 0.5*dR)/dR));
+    int indX = static_cast<int>(floor((x + rmax)/dR));
+    int indY = static_cast<int>(floor((y + rmax)/dR));
+    int indZ = static_cast<int>(floor((z + zmax)/dZ));
 
-    if (indX>=0 and indX<N and indY>=0 and indY<N) {
-      dataXY[indX*N + indY] += m;
-      dataZ [indX*N + indY].push_back(z);
-    }
+    indX = std::min<int>(indX, N-1);
+    indY = std::min<int>(indY, N-1);
+    indZ = std::min<int>(indZ, M-1);
+
+    dataXY[indY*N + indX] += m;
+    dataXZ[indX*M + indZ] += m;
+    dataYZ[indY*M + indZ] += m;
+
+    dataZ [indY*N + indX].push_back(z);
+    /*
+    dataXY[indX*N + indY] += m;
+    dataXZ[indX*M + indZ] += m;
+    dataYZ[indY*M + indZ] += m;
+    dataZ [indX*N + indY].push_back(z);
+    */
   }
 };
 
@@ -336,6 +366,8 @@ void partition(PSPptr psp, std::string& name, vector<Particle>& p, Histogram& h)
       nbods = stanza->comp.nbod;
   }
 
+  MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
   if (iok==0) {
     if (myid==0) std::cerr << "Could not find component named <" << name << ">" << std::endl;
     MPI_Finalize();
@@ -345,9 +377,8 @@ void partition(PSPptr psp, std::string& name, vector<Particle>& p, Histogram& h)
   add_particles(psp, nbods, p, h);
 }
 
-
-				// Find peak density
-
+// Find peak density
+// -----------------
 double get_max_dens(Eigen::VectorXd& vv, double dz)
 {
   int sz = vv.size();
@@ -362,7 +393,7 @@ double get_max_dens(Eigen::VectorXd& vv, double dz)
     }
   }
 
-  if (ipeak == 0)    ipeak = 1;
+  if (ipeak == 0   ) ipeak = 1;
   if (ipeak == sz-1) ipeak = sz-2;
 
 				// Solution of 2nd order Lagrange interpolation
@@ -452,11 +483,11 @@ Eigen::VectorXd get_quart_truncated(Eigen::VectorXd& vv, double dz)
     
     zz [i] = -ZMAX + dz*(i+lo1);
     sum[i] = 0.5*(prev + next);	// Trapezoidal rule
-    if (i>0) sum[i] += sum[i-1];
+    if (i>lo1) sum[i] += sum[i-1];
     prev = next;
   }
 
-  double max = sum[hi1];
+  double max = sum[sz1-1];
   Eigen::VectorXd ret(3);
   
   ret[0] = odd2(0.25*max, sum, zz);
@@ -554,7 +585,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     double dR = 2.0*RMAX/(OUTR-1);
     double dz = 2.0*ZMAX/(OUTZ-1);
     double x, y, z, r, phi, hh, d0;
-    Eigen::VectorXd vv(1, OUTZ);
+    Eigen::VectorXd vv(OUTZ);
     Eigen::VectorXd q;
     std::vector<double> indat(3*OUTR*OUTR, 0.0), otdat(3*OUTR*OUTR);
     
@@ -572,7 +603,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  phi = atan2(y, x);
 	  
 	  for (int k=0; k<OUTZ; k++)
-	    vv[k+1] = ortho.accumulated_dens_eval(r, -ZMAX + dz*k, phi, d0);
+	    vv[k] = ortho.accumulated_dens_eval(r, -ZMAX + dz*k, phi, d0);
 	  
 	  // q = get_quart(vv, dz);
 	  q = get_quart_truncated(vv, dz);
@@ -763,25 +794,35 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	}
       }
 
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      VtkGrid vtkXY(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
-      std::vector<double> data(OUTR*OUTR);
+      std::vector<double> dataXY(OUTR*OUTR);
 
       for (int n=0; n<noutS; n++) {
 	for (int j=0; j<OUTR; j++) {
 	  for (int l=0; l<OUTR; l++) {
-	    data[j*OUTR + l] = otdat[(n*OUTR+j)*OUTR+l];
+	    dataXY[j*OUTR + l] = otdat[(n*OUTR+j)*OUTR+l];
 	  }
 	}
-	vtk.Add(data, suffix[n]);
+	vtkXY.Add(dataXY, suffix[n]);
       }
 
-      vtk.Add(histo.dataXY, "histo");
+      vtkXY.Add(histo.dataXY, "histoXY");
 
       std::ostringstream sout;
-      sout << outdir + "/" + runtag + "_" + outid + "_surface" + sstr.str();
-      vtk.Write(sout.str());
+      sout << runtag + "_" + outid + "_surface" + sstr.str();
+      vtkXY.Write(sout.str());
+      
+      VtkGrid vtkZ(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
+
+      vtkZ.Add(histo.dataXZ, "histoXZ");
+      vtkZ.Add(histo.dataYZ, "histoYZ");
+
+      sout.str("");
+      sout << runtag + "_" + outid + "_vsurf" + sstr.str();
+      vtkZ.Write(sout.str());
     }
+
   } // END: SURFACE
 
   if (VSLICE) {
@@ -855,6 +896,91 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     }
   } // END: VSLICE
 
+
+  if (PROBE) {
+    
+    // ==================================================
+    // Write 1d prob parallel and perpendicular to
+    // to disk plane
+    // ==================================================
+    
+    double v;
+    float f;
+    
+    double dR = RMAX/OUTR;
+    double z=0, r=0, phi=0;
+    double p0, d0, p, fr, fz, fp;
+    
+    std::vector<double> indat(3*OUTR, 0.0), otdat(3*OUTR);
+    
+    for (int j=1; j<=OUTR; j++) {
+      r = dR*j;
+
+      if ((ncnt++)%numprocs == myid) {
+	  
+	phi = 0.0;
+	ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	
+	indat[0*OUTR + j] = fr;
+	
+	phi = 0.5*M_PI;
+	ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	indat[1*OUTR + j] = fr;
+	
+	phi = 0.0;
+	ortho.accumulated_eval(z, r, phi, p0, p, fr, fz, fp);
+	
+	indat[2*OUTR + j] = fz;
+      }
+    }
+    
+    MPI_Reduce(&indat[0], &otdat[0], 3*OUTR,
+	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    
+    
+    if (myid==0) {
+      
+      std::ostringstream sout;
+      sout << runtag + "_" + outid + ".probe";
+      std::ofstream out(sout.str());
+      if (out) {
+	// Begin: header
+	//
+	out << std::right
+	    << "# " << std::setw(14) << "r |"
+	    << std::setw(16) << "f_r(phi=0) |"
+	    << std::setw(16) << "f_r(phi=pi/2) |"
+	    << std::setw(16) << "f_z(r=0) |"
+	    << std::endl;
+
+	out << std::right
+	    << "# " << std::setw(14) << "[1] |"
+	    << std::setw(16) << "[2] |"
+	    << std::setw(16) << "[3] |"
+	    << std::setw(16) << "[4] |"
+	    << std::endl;
+
+	out << std::right
+	    << "#" << std::setfill('-') << std::setw(15) << "+"
+	    << std::setw(16) << "+"
+	    << std::setw(16) << "+"
+	    << std::setw(16) << "+"
+	    << std::endl << std::setfill(' ');
+	//
+	// END: header
+
+	for (int j=1; j<=OUTR; j++) {
+	  r = dR*j;
+	  out << std::setw(16) << r
+	      << std::setw(16) << otdat[0*OUTR + j]
+	      << std::setw(16) << otdat[1*OUTR + j]
+	      << std::setw(16) << otdat[2*OUTR + j]
+	      << std::endl;
+	}
+      }
+    }
+  } // END: PROBE
+
 }
 
 
@@ -910,16 +1036,17 @@ void writePVD(const std::string& filename,
 int
 main(int argc, char **argv)
 {
-  int nice, numx, numy, lmax, mmax, nmax, norder;
+  int nice, numx, numy, lmax, mmax, nmax, norder, m1, m2, n1, n2;
   int initc, partc, beg, end, stride, init, cmapr, cmapz;
   double rcylmin, rcylmax, rscale, vscale, snr, Hexp=4.0;
   bool DENS, PCA, PVD, verbose = false, mask = false, ignore, logl;
   std::string CACHEFILE, COEFFILE, cname, dir("./");
 
-  //
-  // Parse Command line
-  //
-  po::options_description desc("Allowed options");
+  // ==================================================
+  // Parse command line or input parameter file
+  // ==================================================
+  
+  po::options_description desc("Compute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
     ("help,h",
      "produce this help message")
@@ -970,6 +1097,18 @@ main(int argc, char **argv)
     ("norder",
      po::value<int>(&norder)->default_value(4), 
      "maximum radial order for each harmonic subspace")
+    ("M1",
+     po::value<int>(&m1)->default_value(0),
+     "minimum azimuthal order")
+    ("M2",
+     po::value<int>(&m2)->default_value(1000),
+     "maximum azimuthal order")
+    ("N1",
+     po::value<int>(&n1)->default_value(0),
+     "minimum radial order")
+    ("N2",
+     po::value<int>(&n2)->default_value(1000),
+     "maximum radial order")
     ("outr",
      po::value<int>(&OUTR)->default_value(40), 
      "number of radial points for output")
@@ -982,6 +1121,9 @@ main(int argc, char **argv)
     ("vslice",
      po::value<bool>(&VSLICE)->default_value(true),
      "make vertical slices")
+    ("probe",
+     po::value<bool>(&PROBE)->default_value(true),
+     "make 1d cuts in and perpendicular to the equatorial plane")
     ("volume",
      po::value<bool>(&VOLUME)->default_value(false),
      "make volume for VTK rendering")
@@ -1225,7 +1367,11 @@ main(int argc, char **argv)
 	in.read((char *)&numy,    sizeof(int));
 	in.read((char *)&nmax,    sizeof(int));
 	in.read((char *)&norder,  sizeof(int));
-	in.read((char *)&DENS,    sizeof(int)); 
+      
+	in.read((char *)&tmp,     sizeof(int)); 
+	if (tmp) DENS = true;
+	else     DENS = false;
+	
 	in.read((char *)&cmapr,   sizeof(int)); 
 	in.read((char *)&rcylmin, sizeof(double));
 	in.read((char *)&rcylmax, sizeof(double));
@@ -1248,11 +1394,16 @@ main(int argc, char **argv)
 				// Create expansion
 				//
   EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale);
-    
+
+				// Range limits for evaluation
+				//
+  ortho.set_mrange(m1, m2);
+  ortho.set_nrange(n1, n2);
+
+  Histogram histo(OUTR, OUTZ, RMAX, ZMAX);
   vector<Particle> particles;
   PSPptr psp;
-  Histogram histo(OUTR, RMAX);
-  
+
   std::vector<double> times;
   std::vector<std::string> outfiles;
 

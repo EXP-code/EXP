@@ -4651,7 +4651,7 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
   
   double ccos, ssin=0.0, fac;
   
-  for (int mm=0; mm<=std::min<int>(MLIM, MMAX); mm++) {
+  for (int mm=std::max<int>(0, MMIN); mm<=std::min<int>(MLIM, MMAX); mm++) {
     
     // Suppress odd M terms?
     if (EVEN_M && (mm/2)*2 != mm) continue;
@@ -4659,7 +4659,7 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
     ccos = cos(phi*mm);
     ssin = sin(phi*mm);
 
-    for (int n=0; n<rank3; n++) {
+    for (int n=std::max<int>(0, NMIN); n<std::min<int>(NLIM, rank3); n++) {
       
       fac = accum_cos[mm][n] * ccos;
       
@@ -4801,12 +4801,12 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
 
   double ccos, ssin=0.0, fac;
 
-  for (int mm=0; mm<=std::min<int>(MLIM, MMAX); mm++) {
+  for (int mm=std::max<int>(0, MMIN); mm<=std::min<int>(MLIM, MMAX); mm++) {
 
     ccos = cos(phi*mm);
     ssin = sin(phi*mm);
 
-    for (int n=0; n<rank3; n++) {
+    for (int n=std::max<int>(0, NMIN); n<std::min<int>(NLIM, rank3); n++) {
 
       fac = accum_cos[mm][n]*ccos;
 

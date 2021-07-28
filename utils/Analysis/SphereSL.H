@@ -121,18 +121,18 @@ public:
   void dens_pot_eval(double r, double costh, double phi,
 		     double& dens0, double& dens, 
 		     double& potl0, double& potl,
-		     int L1=0, int L2=10000);
+		     int L1=0, int L2=10000, int N1=0, int N2=10000);
 
   //! Evaluate potential and force
   void pot_force_eval(double r, double costh, double phi,
 		      double& potl, double& potr, double& pott, double& potp,
-		      int L1=0, int L2=10000);
+		      int L1=0, int L2=10000, int N1=0, int N2=10000);
   
   void all_eval(double r, double costh, double phi,
 		double& den0, double& den1,
 		double& pot0, double& pot1,
 		double& potr, double& pott, double& potp,
-		int L1=0, int L2=10000);
+		int L1=0, int L2=10000, int N1=0, int N2=10000);
 
   //! Return current maximum harmonic order in expansion
   int getLmax() { return lmax; }

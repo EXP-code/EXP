@@ -68,7 +68,8 @@ private:
   int NMAX;
   int LMAX;
   int MMAX;
-  int MLIM;
+  int MMIN, MLIM;
+  int NMIN, NLIM;
   int NORDER;
   int NKEEP;
 
@@ -514,6 +515,15 @@ public:
 
   //! Parameter access: get mmax
   int get_mmax(void) {return MMAX;}
+
+  //! Set radial order range for evaluation
+  void set_nrange(int nmin, int nmax) {NMIN=nmin; NLIM = nmax;}
+
+  //! Set azimuthal order range for evaluation
+  void set_mrange(int mmin, int mmax) {MMIN=mmin; MLIM = mmax;}
+
+  //! Set limit to mmax for testing
+  void set_mmin(int mmin) {MMIN = mmin;}
 
   //! Set limit to mmax for testing
   void set_mlim(int mlim) {MLIM = mlim;}

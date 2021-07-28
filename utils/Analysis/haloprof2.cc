@@ -84,7 +84,7 @@ boost::mt19937 random_gen;
 //
 std::string OUTFILE;
 double RMIN, RMAX;
-int OUTR, LMAX, NMAX, MMAX, L1, L2;
+int OUTR, LMAX, NMAX, MMAX, L1, L2, N1, N2;
 bool VOLUME, SURFACE, PROBE;
 
 // Center offset
@@ -168,9 +168,9 @@ void add_particles(PSPptr psp, int& nbods, vector<Particle>& p, Histogram& h)
 				// by eacn non-root node
     MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    vector<Particle>        t(nbody);
-    vector<double>        val(nbody);
-    vector<unsigned long> seq(nbody);
+    std::vector<Particle>        t(nbody);
+    std::vector<double>        val(nbody);
+    std::vector<unsigned long> seq(nbody);
 
     SParticle *part = psp->GetParticle();
     Particle bod;
@@ -248,9 +248,9 @@ void add_particles(PSPptr psp, int& nbods, vector<Particle>& p, Histogram& h)
 
     int nbody;
     MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    vector<Particle>        t(nbody);
-    vector<double>        val(nbody);
-    vector<unsigned long> seq(nbody);
+    std::vector<Particle>        t(nbody);
+    std::vector<double>        val(nbody);
+    std::vector<unsigned long> seq(nbody);
 				// Get and pack
 
     MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 11, 
@@ -375,7 +375,7 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo,
 	  costh = z/r;
 	  phi = atan2(y, x);
 	  
-	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp, L1, L2);
+	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp, L1, L2, N1, N2);
 	  
 	  data[((0*OUTR + k)*OUTR + l)*OUTR + j] = p0;
 	  data[((1*OUTR + k)*OUTR + l)*OUTR + j] = p1;
@@ -471,7 +471,7 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo,
 	  costh = z/r;
 	  phi = atan2(y, x);
 
-	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp, L1, L2);
+	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp, L1, L2, N1, N2);
 	  
 	  data[(0*OUTR+l)*OUTR+j] = p0;
 	  data[(1*OUTR+l)*OUTR+j] = p1;
@@ -711,8 +711,12 @@ main(int argc, char **argv)
      "Maximum harmonic order")
     ("L1",                  po::value<int>(&L1)->default_value(0),
      "minimum l harmonic")
-    ("L2",                  po::value<int>(&L2)->default_value(100),
+    ("L2",                  po::value<int>(&L2)->default_value(1000),
      "maximum l harmonic")
+    ("N1",                  po::value<int>(&N1)->default_value(0),
+     "minimum radial order")
+    ("N2",                  po::value<int>(&N2)->default_value(1000),
+     "maximum radial order")
     ("NPART",               po::value<int>(&NPART)->default_value(0),
      "Jackknife partition number for testing (0 means off, use standard eval)")
     ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),           "default Hall smoothing exponent")
