@@ -21,10 +21,10 @@ AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)  @exp_eigen3_include@
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
-bin_PROGRAMS = testConfig simpleConfig readSL testBarrier
+bin_PROGRAMS = testConfig simpleConfig readSL testBarrier testIter
 
 COMMON_LIBS = -lexputil $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
-$(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
+	$(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
@@ -47,6 +47,8 @@ readSL_LDADD          = $(COMMON_LIBS) $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
 testBarrier_SOURCES   = test_barrier.cc
 testBarrier_LDFLAGS = -L$(top_srcdir)/exputil/.libs $(BOOST_LDFLAGS)
 testBarrier_LDADD = $(COMMON_LIBS) $(BOOST_LIBS) $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
+
+testIter_SOURCES   = test_iter.cc
 
 CLEANFILES	=
 
