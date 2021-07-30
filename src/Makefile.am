@@ -5,7 +5,7 @@ VPATH = $(top_srcdir)/src:.
 CC  = mpicc
 CXX = mpiCC
 
-## Stuff for verbose output in parse.cc
+## Tag log file with git hash and version in parse.cc
 GIT_COMMIT=`git rev-parse HEAD`
 GIT_BRANCH=`git rev-parse --abbrev-ref HEAD`
 COMPILE_TIME=`date -u +'%Y-%m-%d %H:%M:%S UTC'`
@@ -54,22 +54,30 @@ endif
 
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
-exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
-     Cube.cc Cylinder.cc EmpCylSL.cc ExternalCollection.cc		\
-     ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc	\
-     ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc	\
-     SphericalCoefs.cc CylindricalCoefs.cc TwoCenter.cc EJcom.cc	\
-     global.cc begin.cc ddplgndr.cc Direct.cc Shells.cc NoForce.cc	\
-     end.cc OutputContainer.cc OutPS.cc OutPSQ.cc OutPSN.cc OutPSP.cc	\
-     OutCHKPT.cc OutCHKPTQ.cc Output.cc header.cc expand.cc		\
-     externalShock.cc generateRelaxation.cc HaloBulge.cc incpos.cc	\
-     incvel.cc ComponentContainer.cc OutAscii.cc OutMulti.cc		\
-     OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc	\
-     multistep.cc parse.cc Slab.cc SlabSL.cc step.cc sbessj.cc		\
-     sbessz.cc tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc	\
+lib_LTLIBRARIES = libexp.la
+
+libexp_la_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc		\
+     CBrockDisk.cc Cube.cc Cylinder.cc EmpCylSL.cc			\
+     ExternalCollection.cc ExternalForce.cc Hernquist.cc Orient.cc	\
+     Particle.cc PotAccel.cc ScatterMFP.cc SphericalBasis.cc		\
+     AxisymmetricBasis.cc Sphere.cc SphericalCoefs.cc			\
+     CylindricalCoefs.cc TwoCenter.cc EJcom.cc global.cc begin.cc	\
+     ddplgndr.cc Direct.cc Shells.cc NoForce.cc end.cc			\
+     OutputContainer.cc OutPS.cc OutPSQ.cc OutPSN.cc OutPSP.cc		\
+     OutCHKPT.cc OutCHKPTQ.cc Output.cc header.cc externalShock.cc	\
+     generateRelaxation.cc HaloBulge.cc incpos.cc incvel.cc		\
+     ComponentContainer.cc OutAscii.cc OutMulti.cc OutRelaxation.cc	\
+     OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc multistep.cc		\
+     parse.cc Slab.cc SlabSL.cc step.cc sbessj.cc sbessz.cc		\
+     tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc		\
      OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc chkSlurm.c	\
      chkTimer.cc pHOT.cc VtkPCA.cc GravKernel.cc $(ADD_CUDA)
-exp_DEPENDENCIES = $(EXPADD_DSMC)
+
+libexp_la_LDFLAGS = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)	\
+	$(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@	\
+	$(CUDA_LDFLAGS) $(CUDA_LIBFLAGS) $(YAML)
+libexp_la_LIBADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
+libexp_la_DEPENDENCIES = $(EXPADD_DSMC)
 
 BOOST_LIBS = $(BOOST_RANDOM_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_SYSTEM_LIB)
 COMMON_LIBS = -lexputil $(LDFLAGS_DSMC) $(BOOST_LIBS)
@@ -81,10 +89,15 @@ EXPLIBS  = $(COMMON_LIBS) @LAPACK_LIBS@ $(MPI_LIBS) $(SYS_LIBS) $(LIBS)
 LDADD    = $(COMMON_LIBS) @LAPACK_LIBS@ $(ADD_LIBS) $(CUDA_LDFLAGS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs $(LDFLAGS_DSMC) $(BOOST_LDFLAGS)
 
-exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)		\
-	$(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@	\
-	$(CUDA_LDFLAGS) $(CUDA_LIBFLAGS) $(YAML)
+exp_SOURCES = expand.cc
 
+exp_LDFLAGS = $(EXTRA_LDFLAGS) $(BOOST_LDFLAGS) $(BUILD_FLAGS)	\
+@exp_vtk_lib@ $(CUDA_LDFLAGS)
+
+exp_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB)			\
+$(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)			\
+$(BOOST_SYSTEM_LIB) -lexp -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS)	\
+$(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H		\
 	Cylinder.H ExternalCollection.H ExternalForce.H Hernquist.H	\
