@@ -30,14 +30,17 @@ ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
 ADD_LIBS4    = $(gptl_lib) -lgptl
 endif
 
-AM_CFLAGS = -D_REENTRANT -fPIC $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2)	\
-$(ADD_CFLAGS3) $(ADD_CFLAGS4) $(CUDA_CFLAGS)
+AM_CFLAGS = -D_REENTRANT -fPIC $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1)	\
+	$(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) $(CUDA_CFLAGS)
 
-AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include			\
--I$(top_srcdir)/exputil -I$(top_srcdir)/src	\
- $(INCLUDE_DSMC) -I/usr/include/mpi
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include		\
+-I$(top_srcdir)/exputil -I$(top_srcdir)/src $(INCLUDE_DSMC)	\
+-I/usr/include/mpi
 
-AM_CXXFLAGS  = -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@ @exp_eigen3_include@ $(CUDA_CFLAGS) $(VERSION_FLAGS)
+AM_CXXFLAGS = -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1)	\
+	$(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4)		\
+	@exp_vtk_include@ @exp_eigen3_include@ $(CUDA_CFLAGS)	\
+	$(VERSION_FLAGS)
 
 bin_PROGRAMS = exp
 
@@ -53,6 +56,8 @@ if ENABLE_CUDA
 endif
 
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
+
+# This is the main EXP library
 
 lib_LTLIBRARIES = libexp.la
 
@@ -76,10 +81,17 @@ libexp_la_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc		\
 libexp_la_LDFLAGS = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)	\
 	$(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@	\
 	$(CUDA_LDFLAGS) $(CUDA_LIBFLAGS) $(YAML)
-libexp_la_LIBADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
+
+libexp_la_LIBADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB)		\
+	$(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)		\
+	$(BOOST_SYSTEM_LIB) -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS)	\
+	$(BLAS_LIBS) $(CUDA_LIBFLAGS)
+
 libexp_la_DEPENDENCIES = $(EXPADD_DSMC)
 
-BOOST_LIBS = $(BOOST_RANDOM_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_SYSTEM_LIB)
+BOOST_LIBS = $(BOOST_RANDOM_LIB) $(BOOST_FILESYSTEM_LIB)		\
+	$(BOOST_SERIALIZATION_LIB) $(BOOST_SYSTEM_LIB)
+
 COMMON_LIBS = -lexputil $(LDFLAGS_DSMC) $(BOOST_LIBS)
 
 SYS_LIBS = -lpthread -ldl @exp_omp_lib@
@@ -89,15 +101,17 @@ EXPLIBS  = $(COMMON_LIBS) @LAPACK_LIBS@ $(MPI_LIBS) $(SYS_LIBS) $(LIBS)
 LDADD    = $(COMMON_LIBS) @LAPACK_LIBS@ $(ADD_LIBS) $(CUDA_LDFLAGS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs $(LDFLAGS_DSMC) $(BOOST_LDFLAGS)
 
+# This is the main driver routine
+
 exp_SOURCES = expand.cc
 
 exp_LDFLAGS = $(EXTRA_LDFLAGS) $(BOOST_LDFLAGS) $(BUILD_FLAGS)	\
-@exp_vtk_lib@ $(CUDA_LDFLAGS)
+	@exp_vtk_lib@ $(CUDA_LDFLAGS)
 
-exp_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB)			\
-$(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)			\
-$(BOOST_SYSTEM_LIB) -lexp -lexputil @exp_vtk_ldlib@ $(LAPACK_LIBS)	\
-$(BLAS_LIBS) $(CUDA_LIBFLAGS)
+exp_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB)		\
+	$(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)	\
+	$(BOOST_SYSTEM_LIB) -lexp -lexputil @exp_vtk_ldlib@	\
+	$(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H		\
 	Cylinder.H ExternalCollection.H ExternalForce.H Hernquist.H	\
