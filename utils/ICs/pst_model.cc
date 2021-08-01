@@ -13,9 +13,6 @@
 #include <vector>
 #include <limits>
 
-				// Boost random generator
-#include <boost/random/mersenne_twister.hpp>
-
                                 // System libs
 #include <getopt.h>
 
@@ -33,10 +30,11 @@
 #include <fpetrap.h>
 #endif
 
-#include "localmpi.H"
-void local_init_mpi(int argc, char **argv);
-string outdir, runtag;
-boost::mt19937 random_gen;
+
+// EXP support
+//
+#include <global.H>
+#include <localmpi.H>
 
 /*
   Param 0: r_max

@@ -13,7 +13,7 @@
 				// Boost
 #include <boost/assign/list_of.hpp>
 
-				// MDW
+				// EXP classes
 #include <interp.H>
 #include <numerical.H>
 #include <exponential.H>

@@ -76,37 +76,36 @@ void GadgetNative::read_and_load()
 
   // read in file data
   //
-  std::cout << "reading " << _file << " header...";
-        
   file.seekg(sizeof(int), std::ios::cur); // block count
 
   file.read((char*)&header, sizeof(gadget_header)); 
 
-  std::cout << "done." << std::endl << "reading " << _file << " particle data...";
-
   file.seekg(sizeof(int), std::ios::cur); // block count
 
-  // Count the total number of particles that we care about in this file
+  // Total number of particles in this stanza.  Note: this needs to be
+  // generalized for reading multiple Gadget native files per snap
   //
   totalCount = header.npart[ptype];
 
-  particles.clear();
-  Particle P;
+  particles.clear();		// Should be empty, but enforce that
+
+  Particle P;			// Temporary for packing array
 
   // Read positions
   //
   file.seekg(sizeof(int), std::ios::cur); // block count
 
+  float temp[3];		// Pos/vel temporary
+
   for (int k=0; k<6; k++) {
     if ( k == ptype ) {
-      float temp[3];
       for (int n=0; n<header.npart[k]; n++) {
 	file.read((char*)temp, 3*sizeof(float));
 	if (n % numprocs == myid) {
 	  P.pos[0] = temp[0];
 	  P.pos[1] = temp[1];
 	  P.pos[2] = temp[2];
-	  P.level  = 0;
+	  P.level  = 0;		// Assign level 0 to all particles
 	  particles.push_back(P);
 	}
       }
@@ -121,10 +120,9 @@ void GadgetNative::read_and_load()
             
   // Read velocities
   //
-  int pc = 0;
   for (int k=0; k<6; k++) {
     if ( k == ptype ) {
-      float temp[3];
+      int pc = 0;
       for (int n=0; n<header.npart[k]; n++) {
 	file.read((char*)temp, 3*sizeof(float));
 	if (n % numprocs == myid) {
@@ -146,9 +144,9 @@ void GadgetNative::read_and_load()
     
   // Read particle ID
   //
-  pc = 0;
   for (int k=0; k<6; k++) {
     if ( k == ptype ) {
+      int pc = 0;
       for (int n=0; n<header.npart[k]; n++) {
 	int temp;
 	file.read((char*)&temp, sizeof(int));
@@ -165,19 +163,18 @@ void GadgetNative::read_and_load()
 
   file.seekg(sizeof(int), std::ios::cur); // block count
 
-  // Read mass information
+  // Do we need to read mass stanza?
   bool with_mass = std::accumulate(header.mass, header.mass+6, 0.0)>0.0;
   if (with_mass) file.seekg(sizeof(int), std::ios::cur); // block count
 
-  pc = 0;
   for (int k=0; k<6; k++) {
     if ( k == ptype) {
+      int pc = 0;
       for (int n=0; n<header.npart[k]; n++) {
 	if (n % numprocs == myid) {
 	  if (header.mass[k]==0) {
-	    float temp;
-	    file.read((char*)&temp, sizeof(float));
-	    particles[pc].mass = temp;
+	    file.read((char*)temp, sizeof(float));
+	    particles[pc].mass = temp[0];
 	  }
 	  else
 	    particles[pc].mass = header.mass[k];
@@ -193,7 +190,7 @@ void GadgetNative::read_and_load()
 
   if (with_mass) file.seekg(sizeof(int), std::ios::cur); // block count
     
-  // Add other fields, as necessary
+  // Add other fields, as necessary.   Acceleration?
   
   file.close();
   std::cout << "done." << std::endl;

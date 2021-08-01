@@ -27,12 +27,14 @@ bin_PROGRAMS = pspinfo pspstat psp2ascii ascii2psp tipstd2psp		\
 		psp2histoT psp2histoTC pspstatT spl2psp ascii2psp2	\
 		psp2vtu psp2rings psp2bess psp2lagu psp2interp
 
-COMMON_LIBS = -lexputil $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML) $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
+COMMON_LIBS = -lexputil -lexp $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
+	$(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML)			\
+	$(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
 
 BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_RANDOM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 EXPLIBS = $(MPI_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
-EXPFLAGS = -L$(top_srcdir)/exputil/.libs
+EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/src/.libs
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS  = Grid2D.H

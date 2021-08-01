@@ -44,16 +44,14 @@
 
 using namespace std;
 
+// EXP support
+//
+#include <global.H>
+
 #include <sys/types.h>
 #include <getopt.h>
 
 #define EXIT_FAILURE 1
-
-int myid = 0;
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-string outdir, runtag;
-boost::mt19937 random_gen;
 
 static void usage (int status);
 
@@ -86,7 +84,7 @@ double X = 1000.0;
 double h = 0.01;
 double Munit = 1e12;		// Unit of mass in solar units
 double M = 1.0;			// number of units for halo
-double ratio = 14.0;		// rho_c/rho_t
+double Rratio = 14.0;		// rho_c/rho_t
 double T = 1000000.0;		// degrees kelvin
 double R = 300.0;		// Unit dimension in kpc
 unsigned N = 0;			// Number of particles
@@ -252,16 +250,16 @@ main (int argc, char **argv)
 
   int n;
 
-  if (ratio>=solution.back()[7])
+  if (Rratio>=solution.back()[7])
     n = solution.size()-2;
-  else if (ratio<=solution.front()[7]) 
+  else if (Rratio<=solution.front()[7]) 
     n = 0;
   else 
-    n = vlocate(ratio, 7, solution);
+    n = vlocate(Rratio, 7, solution);
 
   double denom = solution[n+1][7] - solution[n][7];
-  double A = (solution[n+1][7] - ratio)/denom;
-  double B = (ratio - solution[n][7])/denom;
+  double A = (solution[n+1][7] - Rratio)/denom;
+  double B = (Rratio - solution[n][7])/denom;
 
   double xt = A*solution[n][0] + B*solution[n+1][0];
   double mt = A*solution[n][6] + B*solution[n+1][6];
@@ -282,7 +280,7 @@ main (int argc, char **argv)
 
   double Pt = mt*cs2*cs2/(pow(G, 1.5)*M*Munit*msun); Pt *= Pt;
   double Rhot = Pt/cs2;
-  double Rhoc = Rhot*ratio;
+  double Rhoc = Rhot*Rratio;
 
 				// in units of halo
   double rfac   = sqrt(cs2/(4.0*M_PI*G*Rhoc))/(R*1.0e3*pc);
@@ -382,7 +380,7 @@ decode_switches (int argc, char **argv)
 	  h = atof(optarg);
 	  break;
 	case 'r':		/* --ratio */
-	  ratio = atof(optarg);
+	  Rratio = atof(optarg);
 	  break;
 	case 'R':		/* --runit */
 	  R = atof(optarg);

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <vector>
 #include <limits>
-				// MDW
+				// EXP classes
 #include <interp.H>
 #include <numerical.H>
 #include <exponential.H>

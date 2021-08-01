@@ -17,7 +17,6 @@
 
 // Boost stuff
 //
-#include <boost/random/mersenne_twister.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
@@ -25,13 +24,7 @@
 
 // Globals for exp libraries
 //
-int myid = 0;
-char threading_on  = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-boost::mt19937 random_gen;
-
+#include <global.H>
 
 namespace po = boost::program_options;
 

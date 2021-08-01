@@ -64,10 +64,6 @@
 #include <unistd.h>
 #include <getopt.h>
 
-				// Boost random generator
-#include <boost/random/mersenne_twister.hpp>
-
-
                                 // C++/STL headers
 #include <iostream>
 #include <iomanip>
@@ -151,25 +147,10 @@ int SEED = 11;
 
 string centerfile = "center.dat";
   
-// Global variables
-
+// EXP support
+//
+#include <global.H>
 #include <Particle.H>
-
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-double tpos = 0.0;
-double tnow = 0.0;
-string outdir, runtag;
-boost::mt19937 random_gen;
 
 int 
 main(int argc, char **argv)

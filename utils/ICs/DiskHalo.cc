@@ -4,7 +4,7 @@
 #include <sstream>
 #include <vector>
 #include <limits>
-				// MDW
+				// EXP
 #include <interp.H>
 #include <numerical.H>
 #include <exponential.H>

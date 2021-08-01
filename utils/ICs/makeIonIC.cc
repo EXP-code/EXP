@@ -25,7 +25,6 @@
 #include <boost/random/uniform_real.hpp>
 #include <boost/random/normal_distribution.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -60,14 +59,9 @@ typedef boost::variate_generator<boost::mt19937&, boost::random::uniform_int_dis
 
 
 //
-// Global variable for Particle
+// EXP support
 //
-unsigned multistep = 0;
-string runtag, outdir;
-char threading_on = 0;
-int myid = 0;
-pthread_mutex_t mem_lock;
-boost::mt19937 random_gen;
+#include <global.H>
 
 #ifdef DEBUG
 #include <fenv.h>
