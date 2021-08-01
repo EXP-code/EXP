@@ -108,10 +108,10 @@ exp_SOURCES = expand.cc
 exp_LDFLAGS = $(EXTRA_LDFLAGS) $(BOOST_LDFLAGS) $(BUILD_FLAGS)	\
 	@exp_vtk_lib@ $(CUDA_LDFLAGS)
 
-exp_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB)		\
-	$(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)	\
-	$(BOOST_SYSTEM_LIB) -lexputil -lexp @exp_vtk_ldlib@	\
-	$(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
+exp_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB)			\
+	$(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)		\
+	$(BOOST_SYSTEM_LIB) ../exputil/libexputil.la libexp.la		\
+	@exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H		\
 	Cylinder.H ExternalCollection.H ExternalForce.H Hernquist.H	\
