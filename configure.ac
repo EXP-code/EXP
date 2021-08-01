@@ -298,8 +298,8 @@ AC_MSG_CHECKING([for DSMC])
 
 AC_ARG_WITH([dsmc],
 	[AC_HELP_STRING([--with-dsmc=[yes|no]],
-	[compile the DSMC directory (default=no)])],
-	[dsmc_flag="$withval"],[dsmc_flag="no"])
+	[compile the DSMC directory (default=yes)])],
+	[dsmc_flag="$withval"],[dsmc_flag="yes"])
 
 dsmc_result=no
 have_dsmc=0
@@ -324,6 +324,10 @@ if test x$dsmc_flag = xyes; then
   EXPADD_DSMC="./DSMC/libexpdsmc.a"
   SUBDIR_DSMC="DSMC"
   AC_CONFIG_FILES([src/DSMC/Makefile])
+else
+  dsmc_result=no
+  have_dsmc=0
+  dsmc_make=""
 fi
   
 AC_MSG_RESULT([$dsmc_result])
