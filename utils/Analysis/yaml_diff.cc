@@ -110,16 +110,21 @@ int main(int argc, char** argv)
     return 0;
   }
   
-  
   std::vector<std::string> files;
 
-  if (vm.count("input-files") != 2) {
-    std::cout << std::endl
-	      << "You must provide exactly 2 file names!"
-	      << std::endl << std::endl << description << std::endl;
-    return 0;
-  } else {
+  if (vm.count("input-files")) {
     files = vm["input-files"].as<std::vector<std::string>>();
+    if (files.size() != 2) {
+      std::cout << std::endl
+		<< "You must provide exactly 2 file names!"
+		<< std::endl << std::endl << description << std::endl;
+      return 0;
+    }
+  } else {
+      std::cout << std::endl
+		<< "You must provide exactly 2 file names!"
+		<< std::endl << std::endl << description << std::endl;
+      return 0;
   }
   
   std::ifstream InFile1, InFile2;
