@@ -19,7 +19,7 @@ endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@
-AM_CPPFLAGS = -I$(top_srcdir)/include 
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src
 
 bin_PROGRAMS = pspinfo pspstat psp2ascii ascii2psp tipstd2psp		\
 		psp2histo psp2histo1d psp2histo1D2 psp2histoE		\
