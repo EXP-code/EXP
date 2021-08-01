@@ -11,12 +11,12 @@
 #include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 #include <Eigen/Eigen>
 
 namespace po = boost::program_options;
 
+#include <global.H>
 #include <localmpi.H>
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <gaussQ.H>		// Gauss-Legendre quadrature
@@ -44,15 +44,6 @@ int      numt;
 int      nump;
 string   outfile;
 
-
-//===========================================================================
-
-				// so one can link to exp libraries
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-string outdir, runtag;
-boost::mt19937 random_gen;
-
 //===========================================================================
 
 				// Local function defs
@@ -74,8 +65,8 @@ const string model_file = "SLGridSph.model";
 class Shift 
 {
 private:
-  SphericalModelTable *model;
-  vector<double> **multi;
+  std::shared_ptr<SphericalModelTable> model;
+  std::vector<std::vector<std::vector<double>>> multi;
   double dR;
   double rmin, rmax;
   int lmax, numr;
@@ -97,7 +88,7 @@ public:
 
 Shift::~Shift()
 {
-  delete model;
+  // NADA
 }
 
 Shift::Shift(double offset, double Rmin, double Rmax, int Lmax,
@@ -114,11 +105,13 @@ Shift::Shift(double offset, double Rmin, double Rmax, int Lmax,
   double dP = M_PI/nump;
   LegeQuad lq(numt);
 
-  multi = new vector<double>*[lmax+1];
+  multi.resize(lmax+1);
   for (int l=0; l<=lmax; l++) {
-    multi[l] = new vector<double>[lmax+1];
-    for (int m=0; m<=lmax; m++) 
-      multi[l][m] = vector<double>(numr, 0.0);
+    multi[l].resize(lmax+1);
+    for (int m=0; m<=lmax; m++) {
+      multi[l][m].resize(numr);
+      std::fill(multi[l][m].begin(), multi[l][m].end(), 0.0);
+    }
   }
 
   double r, theta, phi, rho, facp;

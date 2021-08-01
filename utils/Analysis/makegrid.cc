@@ -22,7 +22,6 @@
 // BOOST stuff
 //
 #include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 namespace po = boost::program_options;
 
@@ -98,26 +97,6 @@ const char* fPosVel::names[] = {"x", "y", "z", "u", "v", "z"};
 #include <StringTok.H>
 #include <header.H>
 #include <ParticleReader.H>
-
-				// Globals for exputil library
-				// Unused here
-int myid = 0;
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-boost::mt19937 random_gen;
-
 
 int main(int argc, char**argv)
 {

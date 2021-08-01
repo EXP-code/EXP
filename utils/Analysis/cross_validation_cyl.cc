@@ -51,7 +51,6 @@ using namespace std;
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 #include <Progress.H>
 
@@ -69,28 +68,10 @@ namespace po = boost::program_options;
 #include <EmpCylSL.H>
 #include <foarray.H>
 
+#include <global.H>
 #include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support
-
-// Variables not used but needed for linking
-//
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-std::string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-boost::mt19937 random_gen;
-
   
 // Globals
 //
@@ -136,7 +117,8 @@ main(int argc, char **argv)
   double RMIN, RMAX, rscale, minSNR;
   int NICE, LMAX, NMAX, NSNR, NPART;
   int beg, end, stride, init, num;
-  std::string CACHEFILE, modelf, dir("./"), cname, prefix, table_cache, fileType, filePrefix;
+  std::string CACHEFILE, modelf, dir("./"), cname;
+  std::string prefix, table_cache, fileType, filePrefix;
   bool ignore;
 
   // ==================================================
@@ -718,7 +700,7 @@ main(int argc, char **argv)
     
     PRptr reader = ParticleReader::createReader(fileType, file1, true);
 
-    tnow = reader->CurrentTime();
+    double tnow = reader->CurrentTime();
     if (myid==0) std::cout << "Beginning partition [time=" << tnow
 			   << ", index=" << ipsp << "] . . . "  << flush;
     

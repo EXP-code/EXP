@@ -1,4 +1,5 @@
 #include <vector>
+#include <memory>
 #include <cmath>
 
 using namespace std;
@@ -40,8 +41,8 @@ private:
 
 protected:
 
-  SphericalModelTable *model;
-  SLSphere *ortho;
+  boost::shared_ptr<SphericalModelTable> model;
+  boost::shared_ptr<SLSphere> ortho;
 
   std::vector<Eigen::VectorXd> coefs;
   double rmin, rmax;

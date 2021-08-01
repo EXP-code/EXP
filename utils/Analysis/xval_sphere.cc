@@ -61,27 +61,8 @@ namespace po = boost::program_options;
 #include <SphereSL.H>
 #include <foarray.H>
 
+#include <global.H>
 #include <localmpi.H>
-
-// Variables not used but needed for linking
-//
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-std::string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-  
-// Globals
-//
 
 extern double Ylm01(int ll, int mm);
 extern double plgndr(int, int, double);

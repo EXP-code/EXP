@@ -43,7 +43,6 @@ using namespace std;
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 namespace po = boost::program_options;
 
@@ -65,25 +64,7 @@ namespace po = boost::program_options;
 
 enum ProjectionType {Cylindrical=1, Spherical=2};
 
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-boost::mt19937 random_gen;
-  
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
   
 #ifdef DEBUG
@@ -92,7 +73,8 @@ main(int argc, char **argv)
   
   double RMIN, RMAX, ZMIN, ZMAX;
   int RBINS, ZBINS, IBEG, IEND, PBEG, PEND, ISKIP;
-  std::string OUTFILE, INFILE, RUNTAG, COMP, PROJ, fileType, filePrefix;
+  std::string OUTFILE, INFILE, RUNTAG, COMP, PROJ;
+  std::string fileType, filePrefix, runtag, dir;
   bool GNUPLOT;
 
   // ==================================================
@@ -108,7 +90,10 @@ main(int argc, char **argv)
     ("prefix,P",
      po::value<std::string>(&filePrefix)->default_value("OUT"),
      "prefix for phase-space files")
-    ("RMIN",                po::value<double>(&RMAX)->default_value(0.0),
+    ("dir,D",
+     po::value<std::string>(&dir)->default_value("."),
+     "directory for phase-space files")
+    ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
      "minimum radius for output")
     ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
@@ -182,27 +167,28 @@ main(int argc, char **argv)
   // Do round robin grid assignment of nodes
   // ==================================================
 
-  ofstream indx;
-  ifstream in;
-
-  vector<string> files;
+  std::vector<string> files;
 				// Root nodes looks for existence of files
   if (myid==0) {
     for (int i=IBEG; i<=IEND; i++) {
-      ostringstream lab;
-      lab << INFILE << "." 
-	  << RUNTAG << "." 
-	  << setw(5) << right << setfill('0') << i;
-      ifstream in(lab.str().c_str());
-      if (in) files.push_back(lab.str());
+      auto lab = ParticleReader::fileNameCreator(fileType, i, dir, runtag, filePrefix);
+      std::ifstream in(lab);
+      if (in) files.push_back(lab);
       else break;
-      cout << "." << i << flush;
+      std::cout << "." << i << flush;
     }
-    cout << endl;
+    std::cout << endl;
   }
 
   unsigned nfiles = files.size();
   MPI_Bcast(&nfiles, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+  if (nfiles==0) {
+    if (myid==0) std::cout << "No files found!" << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
   for (unsigned n=0; n<nfiles; n++) {
     unsigned sz;
     if (myid==0) sz = files[n].size();
@@ -237,87 +223,81 @@ main(int argc, char **argv)
 
   for (int n=0; n<nfiles; n++) {
 
-    if (n % numprocs == myid) {
+    PRptr reader = ParticleReader::createReader(fileType, files[n], true);
 
-      PRptr reader = ParticleReader::createReader(fileType, files[n], true);
+    times[n] = reader->CurrentTime();
 
-      if (reader) {
+    // Find the component
+    reader->SelectType(COMP);
 
-	times[n] = reader->CurrentTime();
-
-	// Find the component
-	reader->SelectType(COMP);
-
-	vector<double> L(3);
-	int icnt = 0;
-	for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
-
-	  if (icnt > PBEG) {
-	    
-	    if (proj==Cylindrical) {
-	      if (p->pos[2] >= ZCENTER-ZWIDTH && p->pos[2] <= ZCENTER+ZWIDTH) {
-		double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
-		if (R>RMIN && R<RMAX) {
-		  inside[n]++;
-		  minside[n] += p->mass;
-		  
-		  L[0] = p->mass*
-		    (p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
-		  L[1] = p->mass*
-		    (p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
-		  L[2] = p->mass*
-		    (p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
-		  
-		  for (int k=0; k<3; k++) linside[n][k] += L[k];
-		  
-		} else {
-		  outside[n]++;
-		  moutside[n] += p->mass;
-		  
-		  L[0] = p->mass*
-		    (p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
-		  L[1] = p->mass*
-		    (p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
-		  L[2] = p->mass*
-		    (p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
-		  
-		  for (int k=0; k<3; k++) loutside[n][k] += L[k];
-		}
-	      }
-	    }
-	    else { // proj==Spherical
-	      double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
-	      if (R>RMIN && R<RMAX) {
-		inside [n]++;
-		minside[n] += p->mass;
-		L[0] = p->mass*
-		  (p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
-		L[1] = p->mass*
-		  (p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
-		L[2] = p->mass*
-		  (p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
-		
-		for (int k=0; k<3; k++) linside[n][k] += L[k];
-	      } else {
-		outside [n]++;
-		moutside[n] += p->mass;
-		L[0] = p->mass*
-		  (p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
-		L[1] = p->mass*
-		  (p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
-		L[2] = p->mass*
-		  (p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
-		
-		for (int k=0; k<3; k++) loutside[n][k] += L[k];
-	      }
+    vector<double> L(3);
+    int icnt = 0;
+    for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
+      
+      if (icnt > PBEG) {
+	
+	if (proj==Cylindrical) {
+	  if (p->pos[2] >= ZCENTER-ZWIDTH && p->pos[2] <= ZCENTER+ZWIDTH) {
+	    double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	    if (R>RMIN && R<RMAX) {
+	      inside[n]++;
+	      minside[n] += p->mass;
+	      
+	      L[0] = p->mass*
+		(p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
+	      L[1] = p->mass*
+		(p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
+	      L[2] = p->mass*
+		(p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
+	      
+	      for (int k=0; k<3; k++) linside[n][k] += L[k];
+	      
+	    } else {
+	      outside[n]++;
+	      moutside[n] += p->mass;
+	      
+	      L[0] = p->mass*
+		(p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
+	      L[1] = p->mass*
+		(p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
+	      L[2] = p->mass*
+		(p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
+	      
+	      for (int k=0; k<3; k++) loutside[n][k] += L[k];
 	    }
 	  }
-	  
-	  if (PEND>0 && icnt>PEND) break;
-	  p = reader->nextParticle();
-	  icnt++;
+	}
+	else { // proj==Spherical
+	  double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	  if (R>RMIN && R<RMAX) {
+	    inside [n]++;
+	    minside[n] += p->mass;
+	    L[0] = p->mass*
+	      (p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
+	    L[1] = p->mass*
+	      (p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
+	    L[2] = p->mass*
+	      (p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
+	    
+	    for (int k=0; k<3; k++) linside[n][k] += L[k];
+	  } else {
+	    outside [n]++;
+	    moutside[n] += p->mass;
+	    L[0] = p->mass*
+	      (p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
+	    L[1] = p->mass*
+	      (p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
+	    L[2] = p->mass*
+	      (p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
+	    
+	    for (int k=0; k<3; k++) loutside[n][k] += L[k];
+	  }
 	}
       }
+      
+      if (PEND>0 && icnt>PEND) break;
+      p = reader->nextParticle();
+      icnt++;
     }
   }
   

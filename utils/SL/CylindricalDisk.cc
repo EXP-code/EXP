@@ -7,8 +7,7 @@ extern double plgndr(int, int, double);
 
 CylindricalDisk::~CylindricalDisk()
 {
-  delete model;
-  delete ortho;
+  // NADA
 }
 
 void CylindricalDisk::Initialize(double Rmin, double Rmax, bool logR,
@@ -82,13 +81,14 @@ void CylindricalDisk::Initialize(double Rmin, double Rmax, bool logR,
   numr = numR;
   numt = numT;
   numg = numG;
-
-  model = new SphericalModelTable(numR, 
-				  &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1,
-				  0, 0, 0, "Shells from cylinder");
   
-  ortho = new SLSphere(lmax, nmax, numr, rmin, rmax, 1, 1, model);
-
+  model = boost::make_shared<SphericalModelTable>
+    (numR, 
+     &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1,
+     0, 0, 0, "Shells from cylinder");
+  
+  ortho = boost::make_shared<SLSphere>
+    (lmax, nmax, numr, rmin, rmax, 1, 1, model);
 
   // Compute coefficients
 

@@ -172,12 +172,12 @@ main(int argc, char** argv)
   // Construct ortho
   //===================
   
-  OneDTrig *ortho = NULL;
-  SLGridSlab *orthoSL = NULL;
+  std::shared_ptr<OneDTrig> ortho;
+  std::shared_ptr<SLGridSlab> orthoSL;
 
   switch (Type) {
   case Trig:
-    ortho = new OneDTrig(KX, ZMAX);
+    ortho = std::make_shared<OneDTrig>(KX, ZMAX);
     break;
 
   case SL:
@@ -189,7 +189,7 @@ main(int argc, char** argv)
       SLGridSlab::H = H;
       if (use_mpi) SLGridSlab::mpi = 1;
 
-      orthoSL = new SLGridSlab(KMAX, NMAX, NUMZ, ZMAX);
+      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, NUMZ, ZMAX);
     }
     break;
 
@@ -411,9 +411,6 @@ main(int argc, char** argv)
       if (done) break;
     }
   }
-  
-  delete ortho;
-  delete orthoSL;
   
   if (use_mpi) MPI_Finalize();
   

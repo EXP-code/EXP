@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <numeric>
 
 #include <boost/algorithm/string.hpp> // For trim_copy
 #include <yaml-cpp/yaml.h>	      // YAML support
@@ -46,9 +47,11 @@ std::vector<std::string> GadgetNative::GetTypes()
   //
   std::cout << "reading " << _file << " header...";
         
-  file.seekg(sizeof(int), std::ios::cur); // skip 4 bytes
+  file.seekg(sizeof(int), std::ios::cur); // block count
 
   file.read((char*)&header, sizeof(gadget_header)); 
+
+  std::cout << "done" << std::endl;
 
   for (int n=0; n<6; n++) {
     if (header.npart[n] > 0) ret.push_back(Ptypes[n]);
@@ -75,75 +78,61 @@ void GadgetNative::read_and_load()
   //
   std::cout << "reading " << _file << " header...";
         
-  file.seekg(sizeof(int), std::ios::cur); // skip 4 bytes
+  file.seekg(sizeof(int), std::ios::cur); // block count
 
   file.read((char*)&header, sizeof(gadget_header)); 
 
-  file.seekg(sizeof(int), std::ios::cur); // skip 4 bytes
+  std::cout << "done." << std::endl << "reading " << _file << " particle data...";
 
-  // Read the header to determine the total number of particles in this file
-  //
-  int NumPart = 0;
-  for (int k=0; k<6; k++)
-    NumPart += header.npart[k]; // total number of particles in this file
-        
-  // Count the number of particles with masses in this file
-  int ntot_withmasses = 0;
-  for (int k=0; k<6; k++) {
-    if (header.mass[k]==0)
-      ntot_withmasses += header.npart[k];
-  }
+  file.seekg(sizeof(int), std::ios::cur); // block count
 
   // Count the total number of particles that we care about in this file
   //
-  int NumPartVec = 0;
-  for (int k=0; k<Ptypes.size(); k++)
-    NumPartVec += header.npart[k]; 
-        
-  int NumPartVecTot = 0;
-  for (int k=0; k<Ptypes.size(); k++)
-    NumPartVecTot += header.npartTotal[k];
+  totalCount = header.npart[ptype];
 
-  particles.resize(NumPartVecTot);
+  particles.clear();
+  Particle P;
 
   // Read positions
   //
-  file.seekg(sizeof(int), std::ios::cur); // skip 4 bytes
+  file.seekg(sizeof(int), std::ios::cur); // block count
+
+  for (int k=0; k<6; k++) {
+    if ( k == ptype ) {
+      float temp[3];
+      for (int n=0; n<header.npart[k]; n++) {
+	file.read((char*)temp, 3*sizeof(float));
+	if (n % numprocs == myid) {
+	  P.pos[0] = temp[0];
+	  P.pos[1] = temp[1];
+	  P.pos[2] = temp[2];
+	  P.level  = 0;
+	  particles.push_back(P);
+	}
+      }
+    }
+    else {
+      file.seekg(header.npart[k]*3*sizeof(float), std::ios::cur);
+    }
+  }
+        
+  file.seekg(sizeof(int), std::ios::cur); // block count
+  file.seekg(sizeof(int), std::ios::cur); // block count
+            
+  // Read velocities
+  //
   int pc = 0;
   for (int k=0; k<6; k++) {
     if ( k == ptype ) {
       float temp[3];
-      for(int n=0; n<header.npart[k]; n++) {
-	file.read((char*)temp, 3*sizeof(float));
-	// implicit float to double conversion
-	particles[pc].pos[0] = temp[0];
-	particles[pc].pos[1] = temp[1];
-	particles[pc].pos[2] = temp[2];
-	particles[pc].level  = 0;
-	pc++;
-      }
-    }
-    else {
-      file.seekg(header.npart[k]*3*sizeof(float), std::ios::cur);
-    }
-  }
-        
-  file.seekg(sizeof(int), std::ios::cur); // skip 4 bytes
-  file.seekg(sizeof(int), std::ios::cur); // skip 4 bytes
-            
-  // Read velocities
-  //
-  pc = 0;
-  for (int k=0; k<6; k++) {
-    if ( k = ptype ) {
-      float temp[3];
       for (int n=0; n<header.npart[k]; n++) {
 	file.read((char*)temp, 3*sizeof(float));
-	// implicit float to double conversion
-	particles[pc].vel[0] = temp[0];
-	particles[pc].vel[1] = temp[1];
-	particles[pc].vel[2] = temp[2];
-	pc++;
+	if (n % numprocs == myid) {
+	  particles[pc].vel[0] = temp[0];
+	  particles[pc].vel[1] = temp[1];
+	  particles[pc].vel[2] = temp[2];
+	  pc++;
+	}
       }
     }
     else {
@@ -152,18 +141,21 @@ void GadgetNative::read_and_load()
     
   }
 
-  file.seekg(sizeof(int), std::ios::cur); // skip 4 bytes
-  file.seekg(sizeof(int), std::ios::cur); // skip 4 bytes
+  file.seekg(sizeof(int), std::ios::cur); // block count
+  file.seekg(sizeof(int), std::ios::cur); // block count
     
   // Read particle ID
   //
+  pc = 0;
   for (int k=0; k<6; k++) {
     if ( k == ptype ) {
       for (int n=0; n<header.npart[k]; n++) {
 	int temp;
 	file.read((char*)&temp, sizeof(int));
-	particles[pc].indx = temp;
-	pc++;
+	if (n % numprocs == myid) {
+	  particles[pc].indx = temp;
+	  pc++;
+	}
       }
     }
     else {
@@ -171,43 +163,40 @@ void GadgetNative::read_and_load()
     }
   }
 
-  file.seekg(sizeof(int), std::ios::cur); // skip 4 bytes
+  file.seekg(sizeof(int), std::ios::cur); // block count
 
   // Read mass information
-  if (ntot_withmasses>0)
-    file.seekg(sizeof(int), std::ios::cur); // skip 4 bytes
+  bool with_mass = std::accumulate(header.mass, header.mass+6, 0.0)>0.0;
+  if (with_mass) file.seekg(sizeof(int), std::ios::cur); // block count
 
   pc = 0;
   for (int k=0; k<6; k++) {
     if ( k == ptype) {
       for (int n=0; n<header.npart[k]; n++) {
-	if (header.mass[k]==0) {
-	  float temp;
-	  file.read((char*)&temp, sizeof(float));
-	  particles[pc].mass = temp; //implicit float to double conversion
+	if (n % numprocs == myid) {
+	  if (header.mass[k]==0) {
+	    float temp;
+	    file.read((char*)&temp, sizeof(float));
+	    particles[pc].mass = temp;
+	  }
+	  else
+	    particles[pc].mass = header.mass[k];
+	  pc++;
 	}
-	else
-	  particles[pc].mass = header.mass[k]; //header is already double
-	pc++;
       }
     }
     else {
-      if (header.mass[k]==0) //make sure to still advance file pointer to stay on track
+      if (header.mass[k]==0)
 	file.seekg(header.npart[k]*sizeof(float), std::ios::cur);
     }
   }
 
-  if (ntot_withmasses>0)
-    file.seekg(sizeof(int), std::ios::cur); // skip 4 bytes
+  if (with_mass) file.seekg(sizeof(int), std::ios::cur); // block count
     
-  // for now this is unecessary, but this would be your chance to read
-  // more data from file to fill the rest of gadget_particle_data
-  // fields. (But these fields aren't in Particle class, so skip for
-  // now)
+  // Add other fields, as necessary
   
   file.close();
   std::cout << "done." << std::endl;
-
 }
 
 const Particle* GadgetNative::firstParticle()
@@ -1184,8 +1173,7 @@ std::string ParticleReader::fileNameCreator
     else                  ret << prefix << "_";
 
     ret << std::setw(3) << std::setfill('0') << number;
-    if (suffix.size()==0) ret << ".bin";
-    else                  ret << "." << suffix;
+    if (suffix.size()>0)  ret << "." << suffix;
 
     return ret.str();
   }

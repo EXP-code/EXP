@@ -39,7 +39,6 @@
 				// Boost stuff
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 namespace po = boost::program_options;
 
@@ -52,36 +51,18 @@ namespace po = boost::program_options;
 #include <ParticleReader.H>
 
 //=============================================================================
-// Variables not used but needed for linking
-//=============================================================================
-//
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-double tpos = 0.0;
-double tnow = 0.0;
-int myid = 0;  
-std::string outdir, outfile, runtag, cname;
-boost::mt19937 random_gen;
-
+// Global variables
 //=============================================================================
 
-int    TEMP;
-int    DENS;
-int    KNUD;
-int    STRL;
-int    Nbins;
-int    AXIS;
-double Rmin;
-double Rmax;
+int         TEMP;
+int         DENS;
+int         KNUD;
+int         STRL;
+int         Nbins;
+int         AXIS;
+double      Rmin;
+double      Rmax;
+std::string cname;
 
 void add_particles(PRptr reader, vector< vector<double> >& ret, int& nhist)
 {
@@ -138,7 +119,7 @@ main(int argc, char **argv)
 #endif  
   
   int IMIN, IMAX;
-  std::string fileType, filePrefix;
+  std::string fileType, filePrefix, outfile, runtag;
 
   // ==================================================
   // Parse command line or input parameter file

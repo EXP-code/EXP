@@ -110,7 +110,7 @@ exp_LDFLAGS = $(EXTRA_LDFLAGS) $(BOOST_LDFLAGS) $(BUILD_FLAGS)	\
 
 exp_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_RANDOM_LIB)		\
 	$(BOOST_SERIALIZATION_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)	\
-	$(BOOST_SYSTEM_LIB) -lexp -lexputil @exp_vtk_ldlib@	\
+	$(BOOST_SYSTEM_LIB) -lexputil -lexp @exp_vtk_ldlib@	\
 	$(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H		\

@@ -32,7 +32,7 @@ private:
   float xmin, xmax, ymin, ymax, zmin, zmax;
 
   // Knots
-  vtkFloatArrayP XX, YY, ZZ;
+  vtkSmartPointer<vtkFloatArrayP> XX, YY, ZZ;
 
   // Dataset
   vtkRectilinearGridP dataSet;

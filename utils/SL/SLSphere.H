@@ -1,6 +1,9 @@
 #ifndef _SLSphere_H
 #define _SLSphere_H
 
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
+
 #include <biorth.H>
 #include <SLGridMP2.H>
 
@@ -8,7 +11,7 @@ class SLSphere : public AxiSymBiorth
 {
 private:
 
-  SLGridSph *ortho;
+  boost::shared_ptr<SLGridSph> ortho;
   int lmax, nmax, numr;
   double rmin, rmax;
   double xmin, xmax;
@@ -16,7 +19,9 @@ private:
 public:
   
   SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
-	   int cmap, double rs, SphericalModelTable *mod=0);
+	   int cmap, double rs);
+  SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
+	   int cmap, double rs, boost::shared_ptr<SphericalModelTable> mod);
   ~SLSphere();
 
   double potl(const int n, const int l, const double x) 

@@ -78,6 +78,7 @@ public:
 class GadgetNative : public ParticleReader
 {
   gadget_header header;
+  unsigned long totalCount;
 
   double time;
   std::vector<Particle> particles;
@@ -103,8 +104,8 @@ public:
     auto it = findP.find(type);
     if (it != findP.end()) ptype = it->second;
     else {
-      std::cerr << "GadgetHDF5 error: no particle type <" << type << ">" << std::endl;
-      std::cerr << "Valid GadgetHDF5 types are:";
+      std::cerr << "GadgetNative error: no particle type <" << type << ">" << std::endl;
+      std::cerr << "Valid GadgetNative types are:";
       for (auto s : Ptypes) std::cerr << " " << s;
       std::cerr << std::endl;
     }
@@ -112,7 +113,7 @@ public:
   }
 
   //! Number of particles in the chosen type
-  unsigned long CurrentNumber() { return particles.size(); }
+  unsigned long CurrentNumber() { return totalCount; }
 
   //! Return list of particle types
   std::vector<std::string> GetTypes();
@@ -132,6 +133,8 @@ public:
 class GadgetHDF5 : public ParticleReader
 {
 protected:
+  unsigned long totalCount;
+
   double time;
   std::vector<Particle> particles;
   bool particles_read, _verbose;
@@ -166,7 +169,7 @@ public:
   }
 
   //! Number of particles in the chosen type
-  unsigned long CurrentNumber() { return particles.size(); }
+  unsigned long CurrentNumber() { return totalCount; }
 
   //! Return list of particle types
   std::vector<std::string> GetTypes();

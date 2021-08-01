@@ -16,29 +16,18 @@
 #include <dmalloc.h>
 #endif
 
-
+#include <Particle.H>
 #include <SLGridMP2.H>
-
-#include "coef.H"
+#include <coef.H>
+#include <global.H>
 
 #ifndef STANDALONE
-#include <global.H>
 #include "expand.H"
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
-
-#else
-
-#include "Particle.h"
-extern int this_step;
-extern int Mstep;
-extern int mstep;
-extern unsigned multistep;
-extern vector<int> stepL, stepN;
-extern pthread_mutex_t coef_lock;
 
 #endif
 

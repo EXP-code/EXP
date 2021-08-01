@@ -43,7 +43,6 @@
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
-#include <boost/random/mersenne_twister.hpp>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -68,23 +67,6 @@ namespace pt = boost::property_tree;
 
 const std::string overview = "Compute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
 
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag, coeffile;
-double tpos = 0.0;
-double tnow = 0.0;
-boost::mt19937 random_gen;
-  
 				// Globals
 static  string outid;
 static  double RMAX;
@@ -471,7 +453,7 @@ main(int argc, char **argv)
   int lmax=36, stride=1;
   double rcylmin, rcylmax, rscale, vscale;
   bool DENS, verbose = false, mask = false;
-  std::string CACHEFILE;
+  std::string CACHEFILE, coeffile;
 
   po::options_description desc("Allowed options");
   desc.add_options()

@@ -10,9 +10,9 @@ VtkGrid::VtkGrid(int nx, int ny, int nz,
   zmin(zmin), zmax(zmax)
 {
   // Set knots
-  auto XX   = vtkFloatArray::New();
-  auto YY   = vtkFloatArray::New();
-  auto ZZ   = vtkFloatArray::New();
+  auto XX   = vtkSmartPointer<vtkFloatArray>::New();
+  auto YY   = vtkSmartPointer<vtkFloatArray>::New();
+  auto ZZ   = vtkSmartPointer<vtkFloatArray>::New();
 
   XX -> SetName("X");
   YY -> SetName("Y");

@@ -9,19 +9,12 @@
 #include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 namespace po = boost::program_options;
 
 #include <localmpi.H>
 #include <SLGridMP2.H>
 #include <gaussQ.H>
-
-int myid;
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-string outdir, runtag;
-boost::mt19937 random_gen;
 
 int main(int argc, char** argv)
 {

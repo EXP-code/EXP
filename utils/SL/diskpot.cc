@@ -1,29 +1,20 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <memory>
 #include <string>
 #include <vector>
 #include <cmath>
 
-#include <boost/random/mersenne_twister.hpp>
-
 #include <getopt.h>		// For long options
 
+#include <global.H>		// EXP globals
 #include <localmpi.H>		// MPI globals
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <CylindricalDisk.H>	// The axisymmetric potential solver
 #include <gaussQ.H>		// Gauss-Legendre quadrature
 #include <exponential.H>	// Exponential disk
 #include <toomre.H>		// Toomre disk (including Kuzmin)
-
-//===========================================================================
-
-				// so one can link to exp libraries
-int myid;
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-string outdir, runtag;
-boost::mt19937 random_gen;
 
 //===========================================================================
 
@@ -189,21 +180,21 @@ main(int argc, char** argv)
   //===================
 
   vector<double> param(3);
-  CylindricalDisk *disk;
+  std::shared_ptr<CylindricalDisk> disk;
 
   if (Kuzmin) {
     param[0] = 1.0;		// Velocity scale
     param[1] = 0.01;		// Scale length
     param[2] = 0.001;		// Scale height
     
-    disk = new KuzminDisk;
+    disk = std::make_shared<KuzminDisk>();
 
   } else {
     param[0] = 0.1;		// Disk mass
     param[1] = 0.01;		// Scale length
     param[2] = 0.001;		// Scale height
 
-    disk = new CylindricalDisk;
+    disk = std::make_shared<CylindricalDisk>();
   }
 
   disk->Initialize(rmin, rmax, true, Nmax, Lmax, numr, numt, numg, param);
@@ -216,7 +207,7 @@ main(int argc, char** argv)
   double z, dz = 2.0*zmax/(numz-1);
   
   const int nfiles = 4;
-  ofstream *out = new ofstream [nfiles];
+  std::vector<ofstream> out(nfiles);
   string suffix[nfiles] = {".potl", ".dens", ".force", ".force0"};
   for (int i=0; i<nfiles; i++) {
     string ostr(outfile);
@@ -284,15 +275,15 @@ main(int argc, char** argv)
   }
   
   
-  AxiSymModel *edisk;
+  std::shared_ptr<AxiSymModel> edisk;
   double A, mass;
 
   if (Kuzmin) {
-    edisk = new ToomreDisk();
+    edisk = std::make_shared<ToomreDisk>();
     A = param[1];
     mass = param[0]*param[0];
   } else {
-    edisk = new ExponentialDisk(param[1]);
+    edisk = std::make_shared<ExponentialDisk>(param[1]);
     A = param[1];
     mass = param[0];
   }
@@ -338,7 +329,5 @@ main(int argc, char** argv)
     disk->dump_coefficients(ostr);
   }
   
-  delete disk;
-
   return 0;
 }
