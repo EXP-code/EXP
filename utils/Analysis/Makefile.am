@@ -43,8 +43,7 @@ halocoef_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
 halocoef_LDADD   = $(EXPLIBS) $(YAML) @exp_vtk_ldlib@ @exp_vtk_lib@ $(HDF5_LIBS)
 
 
-haloprof_SOURCES = haloprof2.cc SphereSL.cc localmpi.cc	\
-	ParticleReader.cc
+haloprof_SOURCES = haloprof2.cc SphereSL.cc ParticleReader.cc
 haloprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
 haloprof_LDADD = $(EXPLIBS) $(HDF5_LIBS)
 
