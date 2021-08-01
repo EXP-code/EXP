@@ -9,7 +9,7 @@ ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
 ADD_LIBS3     = -ldmallocth -ldmallocthcxx
 endif
 
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src $(CUDA_CFLAGS) `libpng-config --cflags`
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src $(CUDA_CFLAGS) $(HDF5_CPPFLAGS) `libpng-config --cflags`
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS3)
 AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(INCLUDES) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_vtk_include@ @exp_eigen3_include@ `libpng-config --ldflags`
 
@@ -19,7 +19,7 @@ endif
 
 COMMON_LIBS = $(LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ 
 MPI_LIBS = -lmpi
-EXPLIBS = -lexputil $(COMMON_LIBS) $(ADD_LIBS3) $(MPI_LIBS) $(CUDA_LIBFLAGS) $(BOOST_RANDOM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) $(YAML)
+EXPLIBS = -lexp -lexputil $(COMMON_LIBS) $(ADD_LIBS3) $(MPI_LIBS) $(CUDA_LIBFLAGS) $(BOOST_RANDOM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) $(YAML)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs $(CUDA_LDFLAGS) @exp_omp_lib@
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
@@ -32,133 +32,132 @@ pspxval_cyl pspxval_cyl2 diskeof pspKL_sph pspKL_cyl kdtest		\
 readcoefs2F pspxval_sph2 diskcoef halocoef
 
 diskcoef_SOURCES = diskprof_coef.cc EmpCylSL.cc localmpi.cc Coefs.cc
-diskcoef_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-diskcoef_LDADD   = $(EXPLIBS) $(YAML) @exp_vtk_ldlib@ @exp_vtk_lib@ 
+diskcoef_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+diskcoef_LDADD   = $(EXPLIBS) $(YAML) @exp_vtk_ldlib@ @exp_vtk_lib@ $(HDF5_LIBS)
 
 halocoef_SOURCES = haloprof_coef.cc EmpCylSL.cc localmpi.cc Coefs.cc SphereSL.cc
-halocoef_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-halocoef_LDADD   = $(EXPLIBS) $(YAML) @exp_vtk_ldlib@ @exp_vtk_lib@ 
+halocoef_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS) 
+halocoef_LDADD   = $(EXPLIBS) $(YAML) @exp_vtk_ldlib@ @exp_vtk_lib@ $(HDF5_LIBS)
 
 
-haloprof_SOURCES = PSP.cc header.cc haloprof2.cc SphereSL.cc localmpi.cc Particle.cc
-haloprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
-haloprof_LDADD = $(EXPLIBS)
+haloprof_SOURCES = header.cc haloprof2.cc SphereSL.cc	\
+	localmpi.cc ParticleReader.cc
+haloprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+haloprof_LDADD = $(EXPLIBS) $(HDF5_LIBS)
 
-slabprof_SOURCES =  slabprof.cc PSP.cc header.cc
-slabprof_LDFLAGS =  $(EXPFLAGS) $(BOOST_LDFLAGS)
-slabprof_LDADD   = $(COMMON_LIBS) $(EXPLIBS) $(CUDA_LIBFLAGS)
+slabprof_SOURCES =  slabprof.cc ParticleReader.cc header.cc
+slabprof_LDFLAGS =  $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+slabprof_LDADD   = $(COMMON_LIBS) $(EXPLIBS) $(CUDA_LIBFLAGS) $(HDF5_LIBS)
 
-psphisto_SOURCES = psphisto.cc PSP.cc header.cc localmpi.cc Particle.cc
-psphisto_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
-psphisto_LDADD   = $(EXPLIBS)
+psphisto_SOURCES = psphisto.cc ParticleReader.cc header.cc localmpi.cc
+psphisto_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+psphisto_LDADD   = $(EXPLIBS) $(HDF5_LIBS)
 
-gas2d_SOURCES =  gas2d.cc PSP.cc header.cc localmpi.cc Particle.cc
-gas2d_LDFLAGS =  $(EXPFLAGS) $(BOOST_LDFLAGS)
-gas2d_LDADD   =  $(EXPLIBS)
+gas2d_SOURCES =  gas2d.cc ParticleReader.cc header.cc localmpi.cc
+gas2d_LDFLAGS =  $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+gas2d_LDADD   =  $(EXPLIBS) $(HDF5_LIBS)
 
-gas2dcyl_SOURCES = gas2dcyl.cc PSP.cc header.cc localmpi.cc Particle.cc
-gas2dcyl_LDFLAGS = $(EXPFLAGS)  $(BOOST_LDFLAGS)
-gas2dcyl_LDADD   = $(EXPLIBS)
+gas2dcyl_SOURCES = gas2dcyl.cc ParticleReader.cc header.cc localmpi.cc
+gas2dcyl_LDFLAGS = $(EXPFLAGS)  $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+gas2dcyl_LDADD   = $(EXPLIBS) $(HDF5_LIBS)
 
-makegrid_SOURCES = makegrid.cc header.cc PSP.cc
-makegrid_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
-makegrid_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+makegrid_SOURCES = makegrid.cc header.cc ParticleReader.cc
+makegrid_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+makegrid_LDADD = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB)	\
+	@exp_vtk_ldlib@ @exp_vtk_lib@ $(HDF5_LIBS)
 
-pspbox_SOURCES = pspbox.cc header.cc PSP.cc localmpi.cc
-pspbox_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-pspbox_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB)
+pspbox_SOURCES = pspbox.cc header.cc ParticleReader.cc localmpi.cc
+pspbox_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS) 
+pspbox_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) $(HDF5_LIBS)
 
 eofpeek_SOURCES = eofpeek.cc
 
-diskprof_SOURCES = PSP.cc header.cc diskprof2.cc EmpCylSL.cc localmpi.cc Particle.cc
-diskprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-diskprof_LDADD   = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+diskprof_SOURCES = header.cc diskprof2.cc EmpCylSL.cc	\
+	localmpi.cc ParticleReader.cc
+diskprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS) $(HDF5_LDFLAGS)
+diskprof_LDADD = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB)	\
+	$(HDF5_LIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(HDF5_LIBS)
 
-diskfreqs_SOURCES = PSP.cc header.cc diskfreqs.cc EmpCylSL.cc localmpi.cc Particle.cc Coefs.cc SphereSL.cc
-diskfreqs_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-diskfreqs_LDADD   = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+diskfreqs_SOURCES = ParticleReader.cc header.cc diskfreqs.cc EmpCylSL.cc localmpi.cc Coefs.cc SphereSL.cc
+diskfreqs_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS) 
+diskfreqs_LDADD = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB)	\
+	@exp_vtk_ldlib@ @exp_vtk_lib@ $(HDF5_LIBS)
 
-mssaprofD_SOURCES  = PSP.cc header.cc mssaprof_disk.cc EmpCylSL.cc localmpi.cc Particle.cc
-mssaprofD_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-mssaprofD_LDADD    = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+mssaprofD_SOURCES  = ParticleReader.cc header.cc mssaprof_disk.cc EmpCylSL.cc localmpi.cc
+mssaprofD_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS) 
+mssaprofD_LDADD = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB)	\
+	@exp_vtk_ldlib@ @exp_vtk_lib@ $(HDF5_LIBS)
 
-mssaprofH_SOURCES  = PSP.cc header.cc mssaprof_halo.cc SphereSL.cc localmpi.cc Particle.cc
-mssaprofH_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-mssaprofH_LDADD    = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+mssaprofH_SOURCES  = ParticleReader.cc header.cc mssaprof_halo.cc SphereSL.cc localmpi.cc
+mssaprofH_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS) 
+mssaprofH_LDADD = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB)	\
+	@exp_vtk_ldlib@ @exp_vtk_lib@ $(HDF5_LIBS)
 
-pcatest_SOURCES = PSP.cc header.cc pcatest.cc EmpCylSL.cc localmpi.cc Particle.cc
-pcatest_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-pcatest_LDADD   = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+pcatest_SOURCES = ParticleReader.cc header.cc pcatest.cc EmpCylSL.cc localmpi.cc
+pcatest_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS) 
+pcatest_LDADD = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB)	\
+	@exp_vtk_ldlib@ @exp_vtk_lib@ $(HDF5_LIBS)
 
 readcoefs_SOURCES = readcoefs.cc Coefs.cc
-readcoefs_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-readcoefs_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
+readcoefs_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS) 
+readcoefs_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML) $(HDF5_LIBS)
 
 readcoefs2_SOURCES = readcoefs2.cc Coefs.cc
-readcoefs2_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-readcoefs2_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
+readcoefs2_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS) 
+readcoefs2_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML) $(HDF5_LIBS)
 
 readcoefs2F_SOURCES = readcoefs2F.cc Coefs.cc
-readcoefs2F_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-readcoefs2F_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
+readcoefs2F_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS) 
+readcoefs2F_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML) $(HDF5_LIBS)
 
-sphprof_SOURCES = PSP.cc header.cc sphprof.cc SphereSL.cc	\
-			localmpi.cc Particle.cc
-sphprof_LDFLAGS   = $(EXPFLAGS) $(BOOST_LDFLAGS)
-sphprof_LDADD     = $(EXPLIBS)
+sphprof_SOURCES = ParticleReader.cc header.cc sphprof.cc SphereSL.cc localmpi.cc
+sphprof_LDFLAGS   = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+sphprof_LDADD     = $(EXPLIBS) $(HDF5_LIBS)
 
 pspxval_sph_SOURCES = cross_validation_sph.cc SphereSL.cc localmpi.cc	\
-			PSP.cc Particle.cc header.cc
-pspxval_sph_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
-pspxval_sph_LDADD    = $(EXPLIBS)
+			ParticleReader.cc header.cc
+pspxval_sph_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+pspxval_sph_LDADD    = $(EXPLIBS) $(HDF5_LIBS)
 
 pspxval_sph2_SOURCES = cross_validation_sph2.cc SphereSL.cc localmpi.cc	\
-			PSP.cc Particle.cc header.cc
-pspxval_sph2_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
-pspxval_sph2_LDADD    = $(EXPLIBS)
+			ParticleReader.cc header.cc
+pspxval_sph2_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+pspxval_sph2_LDADD    = $(EXPLIBS) $(HDF5_LIBS)
 
 pspxval_cyl_SOURCES = cross_validation_cyl.cc EmpCylSL.cc localmpi.cc	\
-			PSP.cc Particle.cc header.cc dtorh1.f rout.f
-pspxval_cyl_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
-pspxval_cyl_LDADD    = $(EXPLIBS)
+			ParticleReader.cc header.cc dtorh1.f rout.f
+pspxval_cyl_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+pspxval_cyl_LDADD    = $(EXPLIBS) $(HDF5_LIBS)
 
 pspxval_cyl2_SOURCES = cross_validation_cyl2.cc EmpCylSL.cc localmpi.cc	\
-			PSP.cc Particle.cc header.cc
-pspxval_cyl2_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
-pspxval_cyl2_LDADD    = $(EXPLIBS)
+			ParticleReader.cc header.cc
+pspxval_cyl2_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+pspxval_cyl2_LDADD    = $(EXPLIBS) $(HDF5_LIBS)
 
-pspKL_sph_SOURCES = KL_sph.cc SphereSL.cc localmpi.cc PSP.cc	\
-	Particle.cc header.cc
-pspKL_sph_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
-pspKL_sph_LDADD    = $(EXPLIBS)
+pspKL_sph_SOURCES = KL_sph.cc SphereSL.cc localmpi.cc ParticleReader.cc	\
+	header.cc
+pspKL_sph_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+pspKL_sph_LDADD    = $(EXPLIBS) $(HDF5_LIBS)
 
-pspKL_cyl_SOURCES = KL_cyl.cc EmpCylSL.cc localmpi.cc PSP.cc	\
-	Particle.cc header.cc
-pspKL_cyl_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
-pspKL_cyl_LDADD    = $(EXPLIBS)
+pspKL_cyl_SOURCES = KL_cyl.cc EmpCylSL.cc localmpi.cc ParticleReader.cc	\
+	header.cc
+pspKL_cyl_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+pspKL_cyl_LDADD    = $(EXPLIBS) $(HDF5_LIBS)
 
-diskeof_SOURCES = diskeof.cc EmpCylSL.cc localmpi.cc PSP.cc	\
-			Particle.cc header.cc
-diskeof_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
-diskeof_LDADD    = $(EXPLIBS)
+diskeof_SOURCES = diskeof.cc EmpCylSL.cc localmpi.cc ParticleReader.cc header.cc
+diskeof_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+diskeof_LDADD    = $(EXPLIBS) $(HDF5_LIBS)
 
 yaml_diff_SOURCES = yaml_diff.cc
-yaml_diff_LDFLAGS = $(BOOST_LDFLAGS)
+yaml_diff_LDFLAGS = $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
 yaml_diff_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
 
-kdtest_SOURCES = KDcyltest.cc PSP.cc header.cc EmpCylSL.cc	\
-localmpi.cc Particle.cc
-kdtest_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
-kdtest_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
+kdtest_SOURCES = KDcyltest.cc ParticleReader.cc header.cc EmpCylSL.cc localmpi.cc
+kdtest_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+kdtest_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML) $(HDF5_LIBS)
 
 EmpCylSL.cc:	$(top_srcdir)/src/EmpCylSL.cc
 	cp $(top_srcdir)/src/$@ .
-
-PSP.H:	$(top_srcdir)/utils/PhaseSpace/PSP.H
-	cp $(top_srcdir)/utils/PhaseSpace/PSP.H .
-
-PSP.cc:	$(top_srcdir)/utils/PhaseSpace/PSP.cc header.cc header.H PSP.H
-	cp $(top_srcdir)/utils/PhaseSpace/PSP.cc .
 
 header.cc:	$(top_srcdir)/utils/PhaseSpace/header.cc header.H
 	cp $(top_srcdir)/utils/PhaseSpace/header.cc .
@@ -174,7 +173,7 @@ localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc
 dist_bin_SCRIPTS = parse_outfrac ion_collide.py ion_energy.py	\
 	ion_rate.py ion_frac.py ion_coll_number.py
 
-CLEANFILES = EmpCylSL.cc localmpi.cc PSP.cc PSP.H header.cc header.H
+CLEANFILES = EmpCylSL.cc localmpi.cc header.cc header.H
 
 ## utils/ICs/Makefile.am ends here
 

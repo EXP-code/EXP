@@ -59,8 +59,7 @@ namespace po = boost::program_options;
 
 				// MDW classes
 #include <numerical.H>
-#include "Particle.h"
-#include <PSP.H>
+#include <ParticleReader.H>
 #include <interp.H>
 #include <massmodel.H>
 #include <SphereSL.H>
@@ -109,7 +108,7 @@ main(int argc, char **argv)
   double RMIN, RMAX, rscale, minSNR0, Hexp;
   int NICE, LMAX, NMAX, NSNR, NPART;
   int beg, end, stride, init, knots, num;
-  std::string modelf, dir("./"), cname, prefix;
+  std::string modelf, dir("./"), cname, prefix, fileType, filePrefix;
 
   // ==================================================
   // Parse command line or input parameter file
@@ -127,16 +126,18 @@ main(int argc, char **argv)
      "Print this help message")
     ("verbose,v",
      "Verbose and diagnostic output for covariance computation")
-    ("OUT",
-     "assume original, single binary PSP files as input")
-    ("SPL",
-     "assume new split binary PSP files as input") 
     ("NCUT",
      "trim coefficient by order rather than SNR")
     ("LOG",
      "log scaling for SNR")
     ("Hall",
      "use Hall smoothing for SNR trim")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -208,10 +209,6 @@ main(int argc, char **argv)
     MPI_Finalize();
     return 0;
   }
-
-  bool SPL = false;
-  if (vm.count("SPL")) SPL = true;
-  if (vm.count("OUT")) SPL = false;
 
   bool LOG = false;
   if (vm.count("LOG")) LOG = true;
@@ -348,41 +345,15 @@ main(int argc, char **argv)
     int iok = 1;
     std::ostringstream s0, s1;
 
-    s1.str("");		// Clear stringstream
-    if (SPL) s1 << "SPL.";
-    else     s1 << "OUT.";
-    s1 << runtag << "."<< std::setw(5) << std::setfill('0') << ipsp;
-      
-				// Check for existence of next file
-    file = dir + s1.str();
-    std::ifstream in(file);
-    if (!in) {
-      std::cerr << "Error opening <" << file << ">" << endl;
-      iok = 0;
-    }
+    auto file1 = ParticleReader::fileNameCreator(fileType, ipsp, dir, runtag);
     
-    if (iok==0) break;
+    PRptr reader = ParticleReader::createReader(fileType, file1, true);
 
-    // ==================================================
-    // Open PSP file
-    // ==================================================
-    PSPptr psp;
-
-    if (SPL) psp = std::make_shared<PSPspl>(s1.str(), dir, true);
-    else     psp = std::make_shared<PSPout>(file, true);
-
-    tnow = psp->CurrentTime();
+    tnow = reader->CurrentTime();
     if (myid==0) std::cout << "Beginning partition [time=" << tnow
 			   << ", index=" << ipsp << "] . . . "  << flush;
     
-    if (not psp->GetNamed(cname)) {
-      if (myid==0) {
-	std::cout << "Error finding component named <" << cname << ">" << std::endl;
-	psp->PrintSummary(std::cout);
-      }
-      MPI_Finalize();
-      exit(-1);
-    }
+    reader->SelectType(cname);
       
     //------------------------------------------------------------ 
 
@@ -391,12 +362,12 @@ main(int argc, char **argv)
 			   << std::flush;
     ortho.reset_coefs();
 
-    SParticle *p = psp->GetParticle();
+    auto p = reader->firstParticle();
     int icnt = 0;
     do {
       if (icnt++ % numprocs == myid)
-	ortho.accumulate(p->pos(0), p->pos(1), p->pos(0), p->mass());
-      p = psp->NextParticle();
+	ortho.accumulate(p->pos[0], p->pos[1], p->pos[0], p->mass);
+      p = reader->nextParticle();
     } while (p);
     
     if (myid==0) std::cout << "done" << endl;
@@ -469,16 +440,16 @@ main(int argc, char **argv)
 	  
 	  // Particle loop
 	  //
-	  p = psp->GetParticle();
+	  p = reader->firstParticle();
 	  int icnt = 0;
 	  do {
 	    if (icnt++ % numprocs == myid) {
 	      double r = 0.0, costh = 0.0, phi = 0.0;
-	      for (int k=0; k<3; k++) r += p->pos(k)*p->pos(k);
+	      for (int k=0; k<3; k++) r += p->pos[k]*p->pos[k];
 	      r = sqrt(r);
-	      if (r>0.0) costh = p->pos(2)/r;
-	      phi = atan2(p->pos(1), p->pos(0));
-	      double mass = p->mass();
+	      if (r>0.0) costh = p->pos[2]/r;
+	      phi = atan2(p->pos[1], p->pos[0]);
+	      double mass = p->mass;
 	      
 	      double x = sl->r_to_xi(r);
 	      x = std::max<double>(ximin, x);
@@ -520,7 +491,7 @@ main(int argc, char **argv)
 	    
 	    // Queue up next particle
 	    //
-	    p = psp->NextParticle();
+	    p = reader->nextParticle();
 	  } while (p);
 	  //
 	  // END: particle loop
@@ -636,16 +607,16 @@ main(int argc, char **argv)
 	
 	  // Particle loop
 	  //
-	  p = psp->GetParticle();
+	  p = reader->firstParticle();
 	  int icnt = 0;
 	  do {
 	    if (icnt++ % numprocs == myid) {
 	      double r = 0.0, costh = 0.0, phi = 0.0;
-	      for (int k=0; k<3; k++) r += p->pos(k)*p->pos(k);
+	      for (int k=0; k<3; k++) r += p->pos[k]*p->pos[k];
 	      r = sqrt(r);
-	      if (r>0.0) costh = p->pos(2)/r;
-	      phi = atan2(p->pos(1), p->pos(0));
-	      double mass = p->mass();
+	      if (r>0.0) costh = p->pos[2]/r;
+	      phi = atan2(p->pos[1], p->pos[0]);
+	      double mass = p->mass;
 	    
 	      double x = sl->r_to_xi(r);
 	      x = std::max<double>(ximin, x);
@@ -688,7 +659,8 @@ main(int argc, char **argv)
 	    
 	    // Queue up next particle
 	    //
-	    p = psp->NextParticle();
+	    p = reader->nextParticle();
+
 	  } while (p);
 	  //
 	  // END: particle loop

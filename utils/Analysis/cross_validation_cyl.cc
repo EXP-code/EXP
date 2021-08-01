@@ -63,8 +63,7 @@ namespace po = boost::program_options;
 
 				// MDW classes
 #include <numerical.H>
-#include "Particle.h"
-#include <PSP.H>
+#include <ParticleReader.H>
 #include <interp.H>
 #include <massmodel.H>
 #include <EmpCylSL.H>
@@ -137,7 +136,7 @@ main(int argc, char **argv)
   double RMIN, RMAX, rscale, minSNR;
   int NICE, LMAX, NMAX, NSNR, NPART;
   int beg, end, stride, init, num;
-  std::string CACHEFILE, modelf, dir("./"), cname, prefix, table_cache;
+  std::string CACHEFILE, modelf, dir("./"), cname, prefix, table_cache, fileType, filePrefix;
   bool ignore;
 
   // ==================================================
@@ -156,14 +155,16 @@ main(int argc, char **argv)
      "Print this help message")
     ("verbose,v",
      "Verbose and diagnostic output for covariance computation")
-    ("OUT",
-     "assume original, single binary PSP files as input")
-    ("SPL",
-     "assume new split binary PSP files as input")
     ("LOG",
      "log scaling for SNR")
     ("Hall",
      "use Hall smoothing for SNR trim")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -191,13 +192,13 @@ main(int argc, char **argv)
     ("modelfile",           po::value<string>(&modelf)->default_value("SLGridSph.model"),
      "Halo model file")
     ("init",                po::value<int>(&init)->default_value(0),
-     "fiducial PSP index")
+     "fiducial phase-space index")
     ("beg",                 po::value<int>(&beg)->default_value(0),
-     "initial PSP index")
+     "initial phase-space index")
     ("end",                 po::value<int>(&end)->default_value(99999),
-     "final PSP index")
+     "final phase-space index")
     ("stride",              po::value<int>(&stride)->default_value(1),
-     "PSP index stride")
+     "phase-space index stride")
     ("num",                 po::value<int>(&num)->default_value(10000),
      "Number of entries in Q table")
     ("compname",            po::value<std::string>(&cname)->default_value("stars"),
@@ -242,10 +243,6 @@ main(int argc, char **argv)
     return 0;
   }
 
-  bool SPL = false;
-  if (vm.count("SPL")) SPL = true;
-  if (vm.count("OUT")) SPL = false;
-
   bool LOG = false;
   if (vm.count("LOG")) LOG = true;
 
@@ -270,19 +267,18 @@ main(int argc, char **argv)
   }
 
   // ==================================================
-  // PSP input stream
+  // Phase-space input stream
   // ==================================================
 
   int iok = 1;
-  ifstream in0, in1;
-  std::ostringstream s0, s1;
+  std::ifstream in0;
+
+  auto file0 = ParticleReader::fileNameCreator(fileType, beg, dir, runtag);
+
   if (myid==0) {
-    if (SPL) s0 << "SPL.";
-    else     s0 << "OUT.";
-    s0 << runtag << "." << std::setw(5) << std::setfill('0') << init;
-    in0.open(s0.str());
+    in0.open(file0);
     if (!in0) {
-      cerr << "Error opening <" << s0.str() << ">" << endl;
+      cerr << "Error opening <" << file0 << ">" << endl;
       iok = 0;
     }
   }
@@ -418,7 +414,7 @@ main(int argc, char **argv)
   if (NPART) ortho.setSampT(NPART);
 
   std::vector<Particle> particles;
-  PSPptr psp;
+  PRptr reader;
   
   std::vector<double> times;
   std::vector<std::string> outfiles;
@@ -709,47 +705,24 @@ main(int argc, char **argv)
   for (int ipsp=beg; ipsp<=end; ipsp+=stride) {
 
     // ==================================================
-    // PSP input stream
+    // Phase-space input stream
     // ==================================================
 
     int iok = 1;
-    std::ostringstream s0, s1;
 
-    s1.str("");		// Clear stringstream
-    if (SPL) s1 << "SPL.";
-    else     s1 << "OUT.";
-    s1 << runtag << "."<< std::setw(5) << std::setfill('0') << ipsp;
-      
-				// Check for existence of next file
-    file = dir + s1.str();
-    std::ifstream in(file);
-    if (!in) {
-      std::cerr << "Error opening <" << file << ">" << endl;
-      iok = 0;
-    }
+    // ==================================================
+    // Open phase-space reader
+    // ==================================================
+
+    auto file1 = ParticleReader::fileNameCreator(fileType, ipsp, dir, runtag);
     
-    if (iok==0) break;
+    PRptr reader = ParticleReader::createReader(fileType, file1, true);
 
-    // ==================================================
-    // Open PSP file
-    // ==================================================
-    PSPptr psp;
-
-    if (SPL) psp = std::make_shared<PSPspl>(s1.str(), dir, true);
-    else     psp = std::make_shared<PSPout>(file, true);
-
-    tnow = psp->CurrentTime();
+    tnow = reader->CurrentTime();
     if (myid==0) std::cout << "Beginning partition [time=" << tnow
 			   << ", index=" << ipsp << "] . . . "  << flush;
     
-    if (not psp->GetNamed(cname)) {
-      if (myid==0) {
-	std::cout << "Error finding component named <" << cname << ">" << std::endl;
-	psp->PrintSummary(std::cout);
-      }
-      MPI_Finalize();
-      exit(-1);
-    }
+    reader->SelectType(cname);
       
     //------------------------------------------------------------ 
 
@@ -758,22 +731,22 @@ main(int argc, char **argv)
 			   << std::flush;
 
     ortho.setup_accumulation();
-    ortho.setHall("test", psp->GetNamed(cname)->comp.nbod);
+    ortho.setHall("test", reader->CurrentNumber());
 
-    SParticle *p = psp->GetParticle();
+    auto p = reader->firstParticle();
     int icnt = 0;
     do {
       if (icnt++ % numprocs == myid) {
-	double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-	double phi = atan2(p->pos(1), p->pos(0));
-	ortho.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0, 0, true);
-	//                                                        ^  ^  ^
-	//                                                        |  |  |
-	// Thread id ---------------------------------------------+  |  |
-	// Level ----------------------------------------------------+  |
-	// Compute covariance ------------------------------------------+
+	double R   = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	double phi = atan2(p->pos[1], p->pos[0]);
+	ortho.accumulate(R, p->pos[2], phi, p->mass, p->indx, 0, 0, true);
+	//                                                    ^  ^  ^
+	//                                                    |  |  |
+	// Thread id -----------------------------------------+  |  |
+	// Level ------------------------------------------------+  |
+	// Compute covariance --------------------------------------+
       }
-      p = psp->NextParticle();
+      p = reader->nextParticle();
     } while (p);
     
     if (myid==0) std::cout << "done" << endl;
@@ -879,14 +852,14 @@ main(int argc, char **argv)
 
 	// Particle loop
 	//
-	p = psp->GetParticle();
+	p = reader->firstParticle();
 	int icnt = 0;
 	do {
 	  if (icnt++ % numprocs == myid) {
-	    double r = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-	    double z = p->pos(2);
-	    double phi = atan2(p->pos(1), p->pos(0));
-	    double mass = p->mass();
+	    double r = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	    double z = p->pos[2];
+	    double phi = atan2(p->pos[1], p->pos[0]);
+	    double mass = p->mass;
 	    
 	    double x = ortho.r_to_xi(r);
 	    x = std::max<double>(XMIN, x);
@@ -967,7 +940,7 @@ main(int argc, char **argv)
 	    
 	  // Queue up next particle
 	  //
-	  p = psp->NextParticle();
+	  p = reader->nextParticle();
 	} while (p);
 	//
 	// END: particle loop

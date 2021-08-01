@@ -153,7 +153,7 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
 
 
 void Particle::writeBinary(unsigned rsize, 
-			   bool indexing, std::ostream *out)
+			   bool indexing, std::ostream *out) const
 {
   // Working variable
   float tf;

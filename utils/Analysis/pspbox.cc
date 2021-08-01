@@ -54,8 +54,7 @@ namespace po = boost::program_options;
 
 				// MDW classes
 #include <numerical.H>
-#include "Particle.h"
-#include <PSP.H>
+#include <ParticleReader.H>
 #include <interp.H>
 #include <massmodel.H>
 #include <SphereSL.H>
@@ -93,7 +92,7 @@ main(int argc, char **argv)
   
   double RMIN, RMAX, ZMIN, ZMAX;
   int RBINS, ZBINS, IBEG, IEND, PBEG, PEND, ISKIP;
-  std::string OUTFILE, INFILE, RUNTAG, COMP, PROJ;
+  std::string OUTFILE, INFILE, RUNTAG, COMP, PROJ, fileType, filePrefix;
   bool GNUPLOT;
 
   // ==================================================
@@ -103,10 +102,12 @@ main(int argc, char **argv)
   po::options_description desc("Compute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
     ("help,h",                                                                       "Print this help message")
-    ("OUT",
-     "assume that PSP files are in original format")
-    ("SPL",
-     "assume that PSP files are in split format")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("RMIN",                po::value<double>(&RMAX)->default_value(0.0),
      "minimum radius for output")
     ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
@@ -238,103 +239,83 @@ main(int argc, char **argv)
 
     if (n % numprocs == myid) {
 
-      PSPptr psp;
-      if (vm.count("SPL")) psp = std::make_shared<PSPspl>(files[n]);
-      else                 psp = std::make_shared<PSPout>(files[n]);
+      PRptr reader = ParticleReader::createReader(fileType, files[n], true);
 
-      if (psp) {
+      if (reader) {
 
-	times[n] = psp->CurrentTime();
-
-	// Do we need to close and reopen?
-	if (in.rdstate() & ios::eofbit) {
-	  in.close();
-	  in.open(files[n].c_str());
-	}
+	times[n] = reader->CurrentTime();
 
 	// Find the component
-	PSPstanza *stanza;
-	for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
-	  if (stanza->name == COMP) break;
-	}
+	reader->SelectType(COMP);
 
-	if (stanza==0) {
-	  std::cout << "Could not find Component <" << COMP << "> at time = "
-		    << psp->CurrentTime() << std::endl;
-	} else {
+	vector<double> L(3);
+	int icnt = 0;
+	for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
 
-	  in.seekg(stanza->pspos);
-
-	  vector<double> L(3);
-	  int icnt = 0;
-	  for (SParticle* 
-		 p=psp->GetParticle(); p!=0; p=psp->NextParticle()) {
-
-	    if (icnt > PBEG) {
-
-	      if (proj==Cylindrical) {
-		if (p->pos(2) >= ZCENTER-ZWIDTH && p->pos(2) <= ZCENTER+ZWIDTH) {
-		  double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-		  if (R>RMIN && R<RMAX) {
-		    inside[n]++;
-		    minside[n] += p->mass();
-
-		    L[0] = p->mass()*
-		      (p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
-		    L[1] = p->mass()*
-		      (p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
-		    L[2] = p->mass()*
-		      (p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
-		    
-		    for (int k=0; k<3; k++) linside[n][k] += L[k];
-
-		  } else {
-		    outside[n]++;
-		    moutside[n] += p->mass();
-
-		    L[0] = p->mass()*
-		      (p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
-		    L[1] = p->mass()*
-		      (p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
-		    L[2] = p->mass()*
-		      (p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
-		    
-		    for (int k=0; k<3; k++) loutside[n][k] += L[k];
-		  }
-		}
-	      }
-	      else { // proj==Spherical
-		double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
+	  if (icnt > PBEG) {
+	    
+	    if (proj==Cylindrical) {
+	      if (p->pos[2] >= ZCENTER-ZWIDTH && p->pos[2] <= ZCENTER+ZWIDTH) {
+		double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
 		if (R>RMIN && R<RMAX) {
-		  inside [n]++;
-		  minside[n] += p->mass();
-		  L[0] = p->mass()*
-		    (p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
-		  L[1] = p->mass()*
-		    (p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
-		  L[2] = p->mass()*
-		    (p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
+		  inside[n]++;
+		  minside[n] += p->mass;
+		  
+		  L[0] = p->mass*
+		    (p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
+		  L[1] = p->mass*
+		    (p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
+		  L[2] = p->mass*
+		    (p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
 		  
 		  for (int k=0; k<3; k++) linside[n][k] += L[k];
+		  
 		} else {
-		  outside [n]++;
-		  moutside[n] += p->mass();
-		  L[0] = p->mass()*
-		    (p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
-		  L[1] = p->mass()*
-		    (p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
-		  L[2] = p->mass()*
-		    (p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
+		  outside[n]++;
+		  moutside[n] += p->mass;
+		  
+		  L[0] = p->mass*
+		    (p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
+		  L[1] = p->mass*
+		    (p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
+		  L[2] = p->mass*
+		    (p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
 		  
 		  for (int k=0; k<3; k++) loutside[n][k] += L[k];
 		}
 	      }
 	    }
-	    
-	    if (PEND>0 && icnt>PEND) break;
-	    p = psp->NextParticle();
-	    icnt++;
+	    else { // proj==Spherical
+	      double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	      if (R>RMIN && R<RMAX) {
+		inside [n]++;
+		minside[n] += p->mass;
+		L[0] = p->mass*
+		  (p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
+		L[1] = p->mass*
+		  (p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
+		L[2] = p->mass*
+		  (p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
+		
+		for (int k=0; k<3; k++) linside[n][k] += L[k];
+	      } else {
+		outside [n]++;
+		moutside[n] += p->mass;
+		L[0] = p->mass*
+		  (p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
+		L[1] = p->mass*
+		  (p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
+		L[2] = p->mass*
+		  (p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
+		
+		for (int k=0; k<3; k++) loutside[n][k] += L[k];
+	      }
+	    }
 	  }
+	  
+	  if (PEND>0 && icnt>PEND) break;
+	  p = reader->nextParticle();
+	  icnt++;
 	}
       }
     }

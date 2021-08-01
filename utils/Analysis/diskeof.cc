@@ -66,8 +66,7 @@ namespace pt = boost::property_tree;
 
 				// MDW classes
 #include <numerical.H>
-#include "Particle.h"
-#include <PSP.H>
+#include <ParticleReader.H>
 #include <interp.H>
 #include <EmpCylSL.H>
 
@@ -200,7 +199,7 @@ main(int argc, char **argv)
 {
   int lmax=64, mmax, Nmin, Nmax, nmax, norder, numx, numy, cmapr=1, cmapz=1;
   double rcylmin, rcylmax, rscale, vscale, RMAX;
-  std::string CACHEFILE, COEFFILE, cname, prefix;
+  std::string CACHEFILE, COEFFILE, cname, prefix, fileType, filePrefix;
   int beg, end, stride, mbeg, mend, OUTR;
 
   //
@@ -218,6 +217,12 @@ main(int argc, char **argv)
      "use gray map for PNG matrix output")
     ("5col",
      "use five color heat map for PNG matrix output")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("rmax,r",
      po::value<double>(&RMAX)->default_value(0.03),
      "maximum output radius")
@@ -441,14 +446,12 @@ main(int argc, char **argv)
     // ==================================================
 
     int iok = 1;
-    std::ostringstream s1;
-    s1 << "OUT." << runtag << "."
-       << std::setw(5) << std::setfill('0') << indx;
-      
+    auto file1 = ParticleReader::fileNameCreator(fileType, indx, "", runtag);
+
     if (myid==0) {
-      std::ifstream in1(s1.str());	// Now, try to open a new one . . . 
+      std::ifstream in1(file1);	// Now, try to open a new one . . . 
       if (!in1) {
-	cerr << "Error opening <" << s1.str() << ">" << endl;
+	cerr << "Error opening <" << file1 << ">" << endl;
 	iok = 0;
       }
     }
@@ -460,17 +463,11 @@ main(int argc, char **argv)
     // Open frame list
     // ==================================================
     
-    auto psp = boost::make_shared<PSPout>(s1.str());
-    
-    if (psp->GetNamed(cname) == 0) {
-      if (myid==0) std::cout << "Could not find component <" << cname
-			     << "> in PSP file <" << s1.str() << ">"
-			     << std::endl;
-      MPI_Finalize();
-      exit(-2);
-    }
+    PRptr reader = ParticleReader::createReader(fileType, file1, true);
 
-    tnow = psp->CurrentTime();
+    reader->SelectType(cname);
+
+    tnow = reader->CurrentTime();
 
     if (myid==0) {
       cout << "Beginning disk partition [time=" << tnow
@@ -480,7 +477,7 @@ main(int argc, char **argv)
     times.push_back(tnow);
     indices.push_back(indx);
     
-    SParticle *p = psp->GetParticle();
+    auto p = reader->firstParticle();
 
     CoefArray coefC(mmax + 1);	// Per snapshot storage for
     CoefArray coefS(mmax + 1);	// coefficients
@@ -496,10 +493,10 @@ main(int argc, char **argv)
       if (count++ % numprocs == myid) {
 	// Only need mass and position
 	//
-	double m = p->mass();
-	double x = p->pos(0);
-	double y = p->pos(1);
-	double z = p->pos(2);
+	double m = p->mass;
+	double x = p->pos[0];
+	double y = p->pos[1];
+	double z = p->pos[2];
 	double p = atan2(y, x);
 
 	// Get coefficient contribution for this particle
@@ -528,7 +525,7 @@ main(int argc, char **argv)
 	  }
 	}
       }
-      p = psp->NextParticle();
+      p = reader->nextParticle();
     }
 
     coefsC.push_back(coefC);

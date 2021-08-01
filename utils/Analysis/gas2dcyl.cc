@@ -53,8 +53,7 @@ namespace po = boost::program_options;
 
 				// MDW classes
 #include <numerical.H>
-#include "Particle.h"
-#include <PSP.H>
+#include <ParticleReader.H>
 #include <interp.H>
 #include <massmodel.H>
 #include <SphereSL.H>
@@ -89,7 +88,7 @@ main(int argc, char **argv)
   
   double RMAX, ZMIN, ZMAX;
   int RBINS, IBEG, IEND, ISKIP, PBEG, PEND, ZBINS;
-  std::string OUTFILE, INFILE, RUNTAG, CNAME;
+  std::string OUTFILE, INFILE, RUNTAG, CNAME, fileType, filePrefix;
   bool GNUPLOT;
 
   // ==================================================
@@ -99,10 +98,12 @@ main(int argc, char **argv)
   po::options_description desc("\nCompute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
     ("help,h",                                                                       "Print this help message")
-    ("OUT",
-     "assume that PSP files are in original format")
-    ("SPL",
-     "assume that PSP files are in split format")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
     ("ZMIN",                po::value<double>(&ZMIN)->default_value(-1.0),
@@ -211,56 +212,42 @@ main(int argc, char **argv)
 
     if (n % numprocs == myid) {
 
-      PSPptr psp;
-      if (vm.count("SPL")) psp = std::make_shared<PSPspl>(files[n]);
-      else                 psp = std::make_shared<PSPout>(files[n]);
+      PRptr reader = ParticleReader::createReader(fileType, files[n], true);
 
-      if (psp) {
+      times[n] = reader->CurrentTime();
+      histo[n] = vector< vector<double> >(nval);
+      for (int k=0; k<nval; k++) 
+	histo[n][k] = vector<double>(RBINS*ZBINS, 0.0);
+      
+      
+      vector<Particle> particles;
 
-	times[n] = psp->CurrentTime();
-	histo[n] = vector< vector<double> >(nval);
-	for (int k=0; k<nval; k++) 
-	  histo[n][k] = vector<double>(RBINS*ZBINS, 0.0);
+      reader->SelectType(CNAME);
 
-	// Do we need to close and reopen?
-	if (in.rdstate() & ios::eofbit) {
-	  in.close();
-	  in.open(files[n].c_str());
-	}
-
-	int icnt = 0;
-	vector<Particle> particles;
-
-	PSPstanza *gas = psp->GetNamed(CNAME);
-	if (!gas) {
-	  if (myid==0) std::cerr << "No component named <" << CNAME << ">"
-				 << std::endl;
-	  MPI_Finalize();
-	  exit(-2);
-	}
-	SParticle *p = psp->GetParticle();
+      auto p = reader->firstParticle();
 	
-	while (p) {
+      unsigned icnt = 0;
 
-	  if (icnt > PBEG) {
-	    double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1) );
-	    if (p->pos(2) >= ZMIN && p->pos(2) < ZMAX && R < RMAX) {
-	      int indR = static_cast<int>(floor( R/dR ));
-	      int indZ = static_cast<int>(floor( (p->pos(2) - ZMIN)/dZ ));
-	      if (indR >=0 && indR<RBINS &&
-		  indZ >=0 && indZ<ZBINS ) {
-		histo[n][0][indZ*RBINS+indR] += p->mass();
-		histo[n][1][indZ*RBINS+indR] += p->mass() * p->datr(0);
-		histo[n][2][indZ*RBINS+indR] += p->mass() * p->datr(1);
-		histo[n][3][indZ*RBINS+indR] += p->mass() * p->datr(0) * p->datr(1);
-	      }
+      while (p) {
+
+	if (icnt > PBEG) {
+	  double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1] );
+	  if (p->pos[2] >= ZMIN && p->pos[2] < ZMAX && R < RMAX) {
+	    int indR = static_cast<int>(floor( R/dR ));
+	    int indZ = static_cast<int>(floor( (p->pos[2] - ZMIN)/dZ ));
+	    if (indR >=0 && indR<RBINS &&
+		indZ >=0 && indZ<ZBINS ) {
+	      histo[n][0][indZ*RBINS+indR] += p->mass;
+	      histo[n][1][indZ*RBINS+indR] += p->mass * p->dattrib[0];
+	      histo[n][2][indZ*RBINS+indR] += p->mass * p->dattrib[1];
+	      histo[n][3][indZ*RBINS+indR] += p->mass * p->dattrib[0] * p->dattrib[1];
 	    }
 	  }
-	    
-	  if (PEND>0 && icnt>PEND) break;
-	  p = psp->NextParticle();
-	  icnt++;
 	}
+	
+	if (PEND>0 && icnt>PEND) break;
+	p = reader->nextParticle();
+	icnt++;
       }
     }
   }

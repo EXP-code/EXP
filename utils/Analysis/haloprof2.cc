@@ -53,8 +53,7 @@ namespace po = boost::program_options;
 
 				// MDW classes
 #include <numerical.H>
-#include "Particle.h"
-#include <PSP.H>
+#include <ParticleReader.H>
 #include <interp.H>
 #include <massmodel.H>
 #include <SphereSL.H>
@@ -157,172 +156,37 @@ public:
 };
 
 
-void add_particles(PSPptr psp, int& nbods, vector<Particle>& p, Histogram& h)
+void add_particles(PRptr reader, const std::string comp, vector<Particle>& p, Histogram& h)
 {
-  if (myid==0) {
+  // Request particle type
+  //
+  reader->SelectType(comp);
 
-    int nbody = nbods/numprocs;
-    int nbody0 = nbods - nbody*(numprocs-1);
-
-				// Send number of bodies to be received
-				// by eacn non-root node
-    MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    std::vector<Particle>        t(nbody);
-    std::vector<double>        val(nbody);
-    std::vector<unsigned long> seq(nbody);
-
-    SParticle *part = psp->GetParticle();
-    Particle bod;
+  // Begin reading particles
+  //
+  auto part = reader->firstParticle();
     
+  while (part) {
+
+    // Copy the Particle
     //
-    // Root's particles
-    //
-    for (int i=0; i<nbody0; i++) {
-      if (part==0) {
-	cerr << "Error reading particle [n=" << 0 << ", i=" << i << "]" << endl;
-	exit(-1);
-      }
-
-      // Make a Particle
-      //
-      bod.mass = part->mass();
-      for (int k=0; k<3; k++) bod.pos[k] = part->pos(k) - c0[k];
-      for (int k=0; k<3; k++) bod.vel[k] = part->vel(k);
-      bod.indx = part->indx();
-      p.push_back(bod);
-
-      part = psp->NextParticle();
-
-      // Add to histogram
-      //
-      if (part) h.Add(part->pos(0) - c0[0],
-		      part->pos(1) - c0[1],
-		      part->pos(2) - c0[2],
-		      part->mass());
-    }
-
-    //
-    // Send the rest of the particles to the other nodes
-    //
-    for (int n=1; n<numprocs; n++) {
-      
-      for (int i=0; i<nbody; i++) {
-	if (part==0) {
-	  cerr << "Error reading particle [n=" 
-	       << n << ", i=" << i << "]" << endl;
-	  exit(-1);
-	}
-	t[i].mass = part->mass();
-	for (int k=0; k<3; k++) t[i].pos[k] = part->pos(k) - c0[k];
-	for (int k=0; k<3; k++) t[i].vel[k] = part->vel(k);
-	part = psp->NextParticle();
-      }
-  
-      for (int i=0; i<nbody; i++) val[i] = t[i].mass;
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 11, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[0];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 12, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[1];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 13, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[2];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 14, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[0];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 15, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[1];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 16, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[2];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 17, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) seq[i] = t[i].indx;
-      MPI_Send(&seq[0], nbody, MPI_UNSIGNED_LONG, n, 18, MPI_COMM_WORLD);
-    }
-
-  } else {
-
-    int nbody;
-    MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    std::vector<Particle>        t(nbody);
-    std::vector<double>        val(nbody);
-    std::vector<unsigned long> seq(nbody);
-				// Get and pack
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 11, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].mass = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 12, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[0] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 13, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[1] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 14, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[2] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 15, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[0] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 16, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[1] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 17, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[2] = val[i];
-
-    MPI_Recv(&seq[0], nbody, MPI_UNSIGNED_LONG, 0, 18, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].indx = seq[i];
-
-    p.insert(p.end(), t.begin(), t.end());
-
+    p.push_back(Particle(*part));
+    
     // Add to histogram
     //
-    for (auto part : t)
-      h.Add(part.pos[0], part.pos[1], part.pos[2], part.mass);
+    if (part) h.Add(part->pos[0] - c0[0],
+		    part->pos[1] - c0[1],
+		    part->pos[2] - c0[2],
+		    part->mass);
+
+    // Iterate
+    //
+    part = reader->nextParticle();
   }
 
   // Synchronize histogram
   //
   h.Syncr();
-}
-
-void partition(PSPptr psp, std::string& name, vector<Particle>& p, Histogram& h)
-{
-  p.erase(p.begin(), p.end());
-
-  PSPstanza* stanza;
-
-  int iok = 1, nbods = 0;
-
-  if (myid==0) {
-    stanza = psp->GetNamed(name);
-    if (stanza==0)
-      iok = 0;
-    else
-      nbods = stanza->comp.nbod;
-  }
-
-  MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-  if (iok==0) {
-    if (myid==0) std::cerr << "Could not find component named <" << name << ">" << std::endl;
-    MPI_Finalize();
-    exit(-1);
-  }
-
-  add_particles(psp, nbods, p, h);
 }
 
 enum class Slice {xy, xz, yz};
@@ -665,7 +529,8 @@ main(int argc, char **argv)
   double snr, rscale, Hexp;
   int NICE, LMAX, NMAX, NPART;
   int beg, end, stride, init;
-  std::string MODFILE, INDEX, dir("./"), cname, coefs;
+  std::string MODFILE, INDEX, dir("./"), cname, coefs, fileType, filePrefix;
+
 
   // ==================================================
   // Parse command line or input parameter file
@@ -673,8 +538,8 @@ main(int argc, char **argv)
   
   std::ostringstream sout;
   sout << std::string(60, '-') << std::endl
-       << "Compute halo potential, force and density profiles from" << std::endl
-       << "PSP phase-space output files" << std::endl
+       << "Compute halo potential, force and density profiles from " << std::endl
+       << "phase-space output files" << std::endl
        << std::string(60, '-') << std::endl << std::endl
        << "Allowed options";
   
@@ -683,10 +548,6 @@ main(int argc, char **argv)
     ("help,h",                                                                          "Print this help message")
     ("verbose,v",
      "Verbose and diagnostic output for covariance computation")
-    ("OUT",
-     "assume original, single binary PSP files as input")
-    ("SPL",
-     "assume new split binary PSP files as input")
     ("CONLY",
      "make coefficient file only")
     ("xy",
@@ -695,6 +556,12 @@ main(int argc, char **argv)
      "print x-z slice for surface fields")
     ("yz",
      "print y-z slice for surface fields")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -747,7 +614,7 @@ main(int argc, char **argv)
     ("compname",            po::value<std::string>(&cname)->default_value("stars"),
      "train on Component (default=stars)")
     ("dir,d",               po::value<std::string>(&dir),
-     "directory for SPL files")
+     "directory for phase-space files")
     ("coefs,c",               po::value<std::string>(&coefs),
      "file of computed coefficients")
     ("snr,S",
@@ -858,23 +725,26 @@ main(int argc, char **argv)
   for (int indx=beg; indx<=end; indx+=stride) {
 
     // ==================================================
-    // PSP input stream
+    // Phase-space input stream
     // ==================================================
 
     int iok = 1;
-    std::ostringstream s0, s1;
 
-    if (myid==0) {
-      s1.str("");		// Clear stringstream
-      if (SPL) s1 << "SPL.";
-      else     s1 << "OUT.";
-      s1 << runtag << "."<< std::setw(5) << std::setfill('0') << indx;
-      
-				// Check for existence of next file
-      file = dir + s1.str();
-      std::ifstream in(file);
+    auto file0 = ParticleReader::fileNameCreator(fileType, init, dir, runtag);
+    auto file1 = ParticleReader::fileNameCreator(fileType, indx, dir, runtag);
+
+    {
+      std::ifstream in(file0);
       if (!in) {
-	cerr << "Error opening <" << file << ">" << endl;
+	cerr << "Error opening <" << file0 << ">" << endl;
+	iok = 0;
+      }
+    }      
+
+    {
+      std::ifstream in(file1);
+      if (!in) {
+	cerr << "Error opening <" << file1 << ">" << endl;
 	iok = 0;
       }
     }
@@ -883,24 +753,19 @@ main(int argc, char **argv)
     if (iok==0) break;
 
     // ==================================================
-    // Open PSP file
+    // Open phase-space file
     // ==================================================
-    PSPptr psp;
+    //
+    PRptr reader = ParticleReader::createReader(fileType, file1, true);
 
-    if (myid==0) {
-
-      if (SPL) psp = std::make_shared<PSPspl>(s1.str(), dir, true);
-      else     psp = std::make_shared<PSPout>(file, true);
-
-      tnow = psp->CurrentTime();
-      cout << "Beginning partition [time=" << tnow
-	   << ", index=" << indx << "] . . . "  << flush;
-    }
+    tnow = reader->CurrentTime();
+    if (myid==0) cout << "Beginning partition [time=" << tnow
+		      << ", index=" << indx << "] . . . "  << flush;
     
     Histogram histo(OUTR, RMAX);
     std::vector<Particle> particles;
 
-    partition(psp, cname, particles, histo);
+    add_particles(reader, cname, particles, histo);
     if (myid==0) cout << "done" << endl;
 
     //------------------------------------------------------------ 
@@ -951,7 +816,7 @@ main(int argc, char **argv)
 
     double time = 0.0;
     if (myid==0) {
-      time = psp->CurrentTime();
+      time = reader->CurrentTime();
       if (outcoef.good()) {
 	cout << "Writing coefficients . . . " << flush;
 	try {

@@ -1,37 +1,33 @@
-#include <iterator>
+#ifndef Iterable_H
+#define Iterable_H
 
-class myit
+#include <iterator> // For std::forward_iterator_tag
+#include <cstddef>  // For std::ptrdiff_t
+
+template <typename T>
+struct Iterator 
+{
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type   = std::ptrdiff_t;
+    using value_type        = T;
+    using pointer           = T*;  // or also value_type*
+    using reference         = T&;  // or also value_type&
+};
+
+
+template <typename T>
+class Iterable: public Iterator<T>
 {
 private:
-    int value_;
-    class intholder
-    {
-        int value_;
-    public:
-        intholder(int value): value_(value) {}
-        int operator*() { return value_; }
-    };
+  T* ptr;
 public:
-    // Previously provided by std::iterator - see update below
-    typedef int                     value_type;
-    typedef std::ptrdiff_t          difference_type;
-    typedef int*                    pointer;
-    typedef int&                    reference;
-    typedef std::input_iterator_tag iterator_category;
-
-    explicit myit(int value) : value_(value) {}
-    int operator*() const { return value_; }
-    bool operator==(const myit& other) const { return value_ == other.value_; }
-    bool operator!=(const myit& other) const { return !(*this == other); }
-    intholder operator++(int)
-    {
-        intholder ret(value_);
-        ++*this;
-        return ret;
-    }
-    myit& operator++()
-    {
-        ++value_;
-        return *this;
-    }
+  explicit Iterable(T* _ptr) : ptr(_ptr) {}
+  Iterable& operator++() {ptr++; return *this;}
+  Iterable operator++(int) {Iterable retval = *this; ++(*this); return retval;}
+  bool operator==(Iterable other) const {return ptr == other.ptr;}
+  bool operator!=(Iterable other) const {return !(*this == other);}
+  T* operator*() const {return ptr;}
 };
+
+
+#endif

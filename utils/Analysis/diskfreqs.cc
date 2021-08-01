@@ -53,8 +53,7 @@ namespace pt = boost::property_tree;
 
 				// MDW classes
 #include <numerical.H>
-#include "Particle.h"
-#include <PSP.H>
+#include <ParticleReader.H>
 #include <interp.H>
 #include <EmpCylSL.H>
 #include <SphereSL.H>
@@ -90,7 +89,7 @@ main(int argc, char **argv)
   int numx, numy, lmax=36, mmax, nmax, norder, cmapr, cmapz, numr;
   double rcylmin, rcylmax, rscale, vscale, RMAX, Tmin, Tmax, dT, H, eps;
   bool DENS, verbose = false, mask = false, ignore, logl;
-  std::string CACHEFILE, COEFFILE, COEFFILE2, MODEL, OUTFILE;
+  std::string CACHEFILE, COEFFILE, COEFFILE2, MODEL, OUTFILE, fileType, filePrefix;
 
   //
   // Parse Command line
@@ -101,6 +100,12 @@ main(int argc, char **argv)
      "produce this help message")
     ("verbose,v",
      "verbose output")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("Tmin,t",
      po::value<double>(&Tmin)->default_value(0.0),
      "Minimum time point for freq evaluation")

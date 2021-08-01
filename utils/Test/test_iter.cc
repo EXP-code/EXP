@@ -4,29 +4,35 @@
 
 #include "Iterable.H"
 
+template <typename T>
 class Numbers
 {
 private:
-  const int start_;
-  const int end_;
+  std::vector<T> array;
+
+  T *start_; 
+  T *end_;
 public:
-  Numbers(int start, int end) : start_(start) , end_(end) {}
-  myit begin() { return myit(start_); }
-  myit end()   { return myit(end_); }
+  Numbers(std::vector<T>& data)
+  {
+    start_ = &data[0];
+    end_   = &data[data.size()];
+  }
+  Iterable<T> begin() { return Iterable<T>(start_); }
+  Iterable<T> end()   { return Iterable<T>(end_); }
 };
 
 
 int main()
 {
-  // Numbers will be 3, 4
-  for (auto n : Numbers(3, 5)) std::cout << n << ",";
+  std::vector<int> data = {3, 5, 7, 9, 11};
+
+  for (auto n : Numbers<int>(data)) std::cout << *n << ",";
   std::cout << std::endl;
 
-  // Fills vec with 7, 8, 9
-  Numbers nums(7, 10);
-  std::vector<int> vec{std::begin(nums), std::end(nums)};
-  for (auto v : vec) {
-    std::cout << v << ",";
+  Numbers<int> nums(data);
+  for (auto v : nums) {
+    std::cout << *v << ",";
   }
   std::cout << std::endl;
   

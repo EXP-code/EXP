@@ -1,4 +1,3 @@
-
 #ifndef Particle_H
 #define Particle_H
 
@@ -100,7 +99,7 @@ public:
   void writeAscii(bool indexing, bool accel, std::ostream* out);
 
   //! Write a particle in binary format (PSP)
-  void writeBinary(unsigned rsize, bool indexing, std::ostream *out);
+  void writeBinary(unsigned rsize, bool indexing, std::ostream *out) const;
 
   //! Write a particle in binary format (PSP) to buffer for MPI
   int writeBinaryMPI(char* buf, unsigned rsize, bool indexing);

@@ -1034,7 +1034,7 @@ void SphereSL::dump_coefs(double time, ostream& out)
   out.write((char *)&nmax,  sizeof(int));
   out.write((char *)&lmax,  sizeof(int));
 
-  for (int ir=1; ir<=nmax; ir++) {
+  for (int ir=0; ir<nmax; ir++) {
     for (int l=0; l<=lmax*(lmax+2); l++)
       out.write((char *)&expcoef(l, ir), sizeof(double));
   }
