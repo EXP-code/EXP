@@ -529,7 +529,7 @@ main(int argc, char **argv)
   double snr, rscale, Hexp;
   int NICE, LMAX, NMAX, NPART;
   int beg, end, stride, init;
-  std::string MODFILE, INDEX, dir("./"), cname, coefs, fileType, filePrefix;
+  std::string MODFILE, INDEX, dir("."), cname, coefs, fileType, filePrefix;
 
 
   // ==================================================

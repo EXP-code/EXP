@@ -905,7 +905,7 @@ main(int argc, char **argv)
   int initc, partc, beg, end, stride, init, cmapr, cmapz;
   double rcylmin, rcylmax, rscale, vscale, snr, Hexp=4.0;
   bool DENS, PCA, PVD, verbose = false, mask = false, ignore, logl;
-  std::string CACHEFILE, COEFFILE, cname, dir("./"), fileType, filePrefix;
+  std::string CACHEFILE, COEFFILE, cname, dir("."), fileType, filePrefix;
 
   // ==================================================
   // Parse command line or input parameter file

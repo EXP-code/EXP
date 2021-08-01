@@ -1164,7 +1164,7 @@ std::string ParticleReader::fileNameCreator
     else                  ret << "." << prefix;
 
     ret << runtag << "."
-	<< std::setw(6) << std::setfill('0') << number;
+	<< std::setw(5) << std::setfill('0') << number;
 
     return ret.str();
   }
@@ -1174,7 +1174,7 @@ std::string ParticleReader::fileNameCreator
     else                  ret << "." << prefix;
 
     ret << runtag << "."
-	<< std::setw(6) << std::setfill('0') << number;
+	<< std::setw(5) << std::setfill('0') << number;
 
     return ret.str();
   }
