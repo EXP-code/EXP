@@ -1360,10 +1360,10 @@ main(int argc, char **argv)
     // ==================================================
 
     iok = 1;
+
+    file1 = ParticleReader::fileNameCreator(fileType, indx, dir, runtag);
+
     if (myid==0) {
-
-      file1 = ParticleReader::fileNameCreator(fileType, indx, dir, runtag);
-
       std::ifstream in(file1);
       if (!in) {
 	cerr << "Error opening <" << file1 << ">" << endl;
@@ -1378,13 +1378,14 @@ main(int argc, char **argv)
     // Open frame list
     // ==================================================
     
+    reader = ParticleReader::createReader(fileType, file1, true);
+
+    tnow = reader->CurrentTime();
+
     if (myid==0) {
-
-      reader = ParticleReader::createReader(fileType, file1, true);
-
-      tnow = reader->CurrentTime();
       cout << "Beginning disk partition [time=" << tnow
 	   << ", index=" << indx << "] . . . "  << flush;
+
       times.push_back(tnow);
       ostringstream filen;
       filen << runtag << "_" << outid << "_surface."
