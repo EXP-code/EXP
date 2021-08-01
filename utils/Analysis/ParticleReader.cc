@@ -65,14 +65,11 @@ void GadgetNative::read_and_load()
   // attempt to open file
   //
   std::ifstream file(_file, std::ios::binary | std::ios::in);
-  if (!file.is_open())
-    {
-      std::cerr << "Error opening file: " << _file << std::endl;
-      int flag;
-      MPI_Initialized(&flag);
-      if (flag)	MPI_Finalize();
-      exit(1);
-    }
+  if (!file.is_open()) {
+    std::ostringstream ost;
+    ost << "Error opening file: " << _file;
+    throw std::runtime_error(ost.str());
+  }
 
   // read in file data
   //
@@ -441,7 +438,9 @@ void GadgetHDF5::read_and_load()
   // catch failure caused by the H5File operations
   catch(H5::FileIException error)
     {
-      error.printErrorStack();
+      std::ostringstream ost;
+      ost << "Error opening HDF5 file: " << _file;
+      throw std::runtime_error(ost.str());
     }
   
   // catch failure caused by the DataSet operations

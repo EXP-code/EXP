@@ -1267,7 +1267,14 @@ main(int argc, char **argv)
   
   if (ortho.read_cache()==0) {
     
-    reader = ParticleReader::createReader(fileType, file0, true);
+    try {
+      reader = ParticleReader::createReader(fileType, file0, true);
+    }
+    catch (std::runtime_error &error) {
+      std::cerr << error.what() << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
 
     if (myid==0) std::cout << "Beginning disk partition [time="
 			   << reader->CurrentTime()
@@ -1360,7 +1367,14 @@ main(int argc, char **argv)
     // Open frame list
     // ==================================================
     
-    reader = ParticleReader::createReader(fileType, file1, true);
+    try {
+      reader = ParticleReader::createReader(fileType, file1, true);
+    }
+    catch (std::runtime_error &error) {
+      std::cerr << error.what() << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
 
     double tnow = reader->CurrentTime();
 

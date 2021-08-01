@@ -738,7 +738,16 @@ main(int argc, char **argv)
     // Open phase-space file
     // ==================================================
     //
-    PRptr reader = ParticleReader::createReader(fileType, file1, true);
+    PRptr reader;
+
+    try {
+      reader = ParticleReader::createReader(fileType, file1, true);
+    }
+    catch (std::runtime_error &error) {
+      std::cerr << error.what() << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
 
     double tnow = reader->CurrentTime();
     if (myid==0) cout << "Beginning partition [time=" << tnow
