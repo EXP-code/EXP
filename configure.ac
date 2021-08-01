@@ -321,7 +321,7 @@ if test x$dsmc_flag = xyes; then
   dsmc_make="src/DSMC/Makefile"
   LDFLAGS_DSMC="-L\$(top_srcdir)/src/DSMC -lexpdsmc"
   INCLUDE_DSMC="-I\$(top_srcdir)/src/DSMC"
-  EXPADD_DSMC="./DSMC/libexpdsmc.a"
+  EXPADD_DSMC="./DSMC/libexpdsmc.la"
   SUBDIR_DSMC="DSMC"
   AC_CONFIG_FILES([src/DSMC/Makefile])
 else
