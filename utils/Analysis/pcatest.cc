@@ -50,10 +50,9 @@ namespace pt = boost::property_tree;
 #include <sys/time.h>
 #include <sys/resource.h>
 
-				// MDW classes
+				// EXP classes
+#include <global.H>
 #include <numerical.H>
-#include "Particle.h"
-#include <PSP.H>
 #include <interp.H>
 #include <EmpCylSL.H>
 
@@ -91,10 +90,6 @@ main(int argc, char **argv)
      "produce this help message")
     ("verbose,v",
      "verbose output")
-    ("OUT",
-     "assume that PSP files are in original format")
-    ("SPL",
-     "assume that PSP files are in split format")
     ("RMAX,R",
      po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
