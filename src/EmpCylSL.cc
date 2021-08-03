@@ -837,21 +837,23 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
       for (int v=0; v<rank3; v++) {
 
-	// Deal with column-major rather the EXP row-major order
-	//                                 |
-	//                                 v
-	out.write((const char *)potC[m][v].transpose().data(),
-		  potC[m][v].size()*sizeof(double));
-
-	out.write((const char *)rforceC[m][v].transpose().data(),
-		  rforceC[m][v].size()*sizeof(double));
-
-	out.write((const char *)zforceC[m][v].transpose().data(),
-		  zforceC[m][v].size()*sizeof(double));
-
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    out.write((const char *)&potC[m][v](ix, iy), sizeof(double));
+	
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    out.write((const char *)&rforceC[m][v](ix, iy), sizeof(double));
+	  
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    out.write((const char *)&zforceC[m][v](ix, iy), sizeof(double));
+	  
 	if (DENS) {
-	  out.write((const char *)densC[m][v].transpose().data(),
-		    densC[m][v].size()*sizeof(double));
+	  for (int ix=0; ix<=NUMX; ix++)
+	    for (int iy=0; iy<=NUMY; iy++)
+	      out.write((const char *)&densC[m][v](ix, iy), sizeof(double));
+
 	}
       }
     }
@@ -860,18 +862,22 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
       for (int v=0; v<rank3; v++) {
 
-	out.write((const char *)potS[m][v].transpose().data(),
-		  potS[m][v].size()*sizeof(double));
-
-	out.write((const char *)rforceS[m][v].transpose().data(),
-		  rforceS[m][v].size()*sizeof(double));
-
-	out.write((const char *)zforceS[m][v].transpose().data(),
-		  zforceS[m][v].size()*sizeof(double));
-
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    out.write((const char *)&potS[m][v](ix, iy), sizeof(double));
+	
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    out.write((const char *)&rforceS[m][v](ix, iy), sizeof(double));
+	  
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    out.write((const char *)&zforceS[m][v](ix, iy), sizeof(double));
+	
 	if (DENS) {
-	  out.write((const char *)densS[m][v].transpose().data(),
-		    densS[m][v].size()*sizeof(double));
+	  for (int ix=0; ix<=NUMX; ix++)
+	    for (int iy=0; iy<=NUMY; iy++)
+	      out.write((const char *)&densS[m][v](ix, iy), sizeof(double));
 	}
       }
 
@@ -1016,18 +1022,23 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
       for (int v=0; v<rank3; v++) {
 
-	in.read((char *)work.data(), work.size()*sizeof(double));
-	potC[m][v] = work.transpose();
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    in.read((char *)&potC[m][v](ix, iy), sizeof(double));
 	
-	in.read((char *)work.data(), work.size()*sizeof(double));
-	rforceC[m][v] = work.transpose();
-
-	in.read((char *)work.data(), work.size()*sizeof(double));
-	zforceC[m][v] = work.transpose();
-
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    in.read((char *)&rforceC[m][v](ix, iy), sizeof(double));
+	  
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    in.read((char *)&zforceC[m][v](ix, iy), sizeof(double));
+	  
 	if (DENS) {
-	  in.read((char *)work.data(), work.size()*sizeof(double));
-	  densC[m][v] = work.transpose();
+	  for (int ix=0; ix<=NUMX; ix++)
+	    for (int iy=0; iy<=NUMY; iy++)
+	      in.read((char *)&densC[m][v](ix, iy), sizeof(double));
+
 	}
       }
 
@@ -1037,18 +1048,22 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
       for (int v=0; v<rank3; v++) {
 
-	in.read((char *)work.data(), work.size()*sizeof(double));
-	potS[m][v] = work.transpose();
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    in.read((char *)&potS[m][v](ix, iy), sizeof(double));
 	
-	in.read((char *)work.data(), work.size()*sizeof(double));
-	rforceS[m][v] = work.transpose();
-
-	in.read((char *)work.data(), work.size()*sizeof(double));
-	zforceS[m][v] = work.transpose();
-
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    in.read((char *)&rforceS[m][v](ix, iy), sizeof(double));
+	  
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    in.read((char *)&zforceS[m][v](ix, iy), sizeof(double));
+	
 	if (DENS) {
-	  in.read((char *)work.data(), work.size()*sizeof(double));
-	  densS[m][v] = work.transpose();
+	  for (int ix=0; ix<=NUMX; ix++)
+	    for (int iy=0; iy<=NUMY; iy++)
+	      in.read((char *)&densS[m][v](ix, iy), sizeof(double));
 	}
       }
 
@@ -1246,16 +1261,16 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	    
 	    int nn = ir + NMAX*(l-m);
 
-	    tpot[v](ix, iy) +=  ef(v+1, nn) * potl;
+	    tpot[v](ix, iy) +=  ef(nn, v) * potl;
 
 	    trforce[v](ix, iy) += 
-	      -ef(v+1, nn) * (potr*r/rr - pott*z*r/(rr*rr*rr));
+	      -ef(nn, v) * (potr*r/rr - pott*z*r/(rr*rr*rr));
 
 	    tzforce[v](ix, iy) += 
-	      -ef(v+1, nn) * (potr*z/rr + pott*r*r/(rr*rr*rr));
+	      -ef(nn, v) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
 	    if (DENS) 
-	      tdens[v](ix, iy) +=  ef(v+1, nn) * dens;
+	      tdens[v](ix, iy) +=  ef(nn, v) * dens;
 	  }
 	}
       }
@@ -1385,8 +1400,6 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
       //
       for (int v=0; v<Neven; v++) {
 
-	int w = v + 1;
-
 	for (int ir=0; ir<NMAX; ir++) {
 
 	  for (int il=0; il<lE[m].size(); il++) {
@@ -1417,23 +1430,23 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	    
 	    int nn = ir + NMAX*il;
 
-	    tpot[v](ix, iy) +=  efE(w, nn) * potl;
+	    tpot[v](ix, iy) +=  efE(nn, v) * potl;
 
 	    trforce[v](ix, iy) += 
-	      -efE(w, nn) * (potr*r/rr - pott*z*r/(rr*rr*rr));
+	      -efE(nn, v) * (potr*r/rr - pott*z*r/(rr*rr*rr));
 
 	    tzforce[v](ix, iy) += 
-	      -efE(w, nn) * (potr*z/rr + pott*r*r/(rr*rr*rr));
+	      -efE(nn, v) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
 	    if (DENS) 
-	      tdens[v](ix, iy) +=  efE(w, nn) * dens;
+	      tdens[v](ix, iy) +=  efE(nn, v) * dens;
 	  }
 	}
       }
 
       for (int v=Neven; v<NORDER; v++) {
 
-	int w = v - Neven + 1;	// Index in odd eigenfunctions
+	int w = v - Neven;	// Index in odd eigenfunctions
 
 	for (int ir=0; ir<NMAX; ir++) {
 
@@ -1465,16 +1478,16 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	    
 	    int nn = ir + NMAX*il;
 
-	    tpot[v](ix, iy) +=  efO(w, nn) * potl;
+	    tpot[v](ix, iy) +=  efO(nn, w) * potl;
 
 	    trforce[v](ix, iy) += 
-	      -efO(w, nn) * (potr*r/rr - pott*z*r/(rr*rr*rr));
+	      -efO(nn, w) * (potr*r/rr - pott*z*r/(rr*rr*rr));
 
 	    tzforce[v](ix, iy) += 
-	      -efO(w, nn) * (potr*z/rr + pott*r*r/(rr*rr*rr));
+	      -efO(nn, w) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
 	    if (DENS) 
-	      tdens[v](ix, iy) +=  efO(w, nn) * dens;
+	      tdens[v](ix, iy) +=  efO(nn, w) * dens;
 	  }
 	}
       }
