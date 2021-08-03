@@ -712,8 +712,10 @@ main(int argc, char **argv)
 
     int iok = 1;
 
-    auto file0 = ParticleReader::fileNameCreator(fileType, init, dir, runtag);
-    auto file1 = ParticleReader::fileNameCreator(fileType, indx, dir, runtag);
+    auto file0 = ParticleReader::fileNameCreator
+      (fileType, init, dir, runtag, filePrefix);
+    auto file1 = ParticleReader::fileNameCreator
+      (fileType, indx, dir, runtag, filePrefix);
 
     {
       std::ifstream in(file0);
