@@ -42,4 +42,3 @@ target_include_directories(
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${VTK_INCLUDE})
 target_link_libraries(exputil PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX)
-

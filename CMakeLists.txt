@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(
   EXP
   VERSION 1.0.0
-  LANGUAGES C CXX CUDA)
+  LANGUAGES C CXX)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 set(CMAKE_CXX_STANDARD 14)
@@ -25,10 +25,16 @@ set(MPI_CXX_SKIP_MPICXX
   CACHE BOOL
   "If true, the MPI-2 C++ bindings are disabled using definitions.")
 
+option(DSMC_ENABLED "Enable DSCM module" TRUE)
+
 # required compiler features
 find_package(MPI REQUIRED)
-find_package(OpenMP REQUIRED)
+find_package(OpenMP)
 find_package(VTK REQUIRED)
+find_package(HDF5)
+find_package(SLURM)
+find_package(CUDA)
+find_package(PNG)
 include(${VTK_USE_FILE}) # I don't like this global setting stuff, but it's not really
 # documented otherwise
 
@@ -43,6 +49,29 @@ else()
   set(DEP_LIB ${BLAS_LIBRARIES}
     ${LAPACK_LIBRARIES})
 endif()
+
+
+if(OpenMP_FOUND)
+  set(HAVE_OMP_H TRUE)
+endif()
+if(SLURM_FOUND)
+  set(HAVE_LIBSLURM TRUE)
+endif()
+if(VTK_FOUND)
+  set(HAVE_VTK TRUE)
+endif()
+if(CUDA_FOUND)
+  set(HAVE_LIBCUDA TRUE)
+endif()
+if(HDF5_FOUND)
+  set(HAVE_HDF5 TRUE)
+endif()
+if(PNG_FOUND)
+  include_directories(${PROJECT_SOURCE_DIR}/extern/png++)
+  set(HAVE_LIBPNGPP TRUE)
+endif()
+
+configure_file(config_cmake.h.in config.h)
 
 add_subdirectory(extern/yaml-cpp)
 
