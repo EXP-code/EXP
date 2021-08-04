@@ -243,8 +243,8 @@ void SphereSL::make_coefs()
       MPI_Allreduce(MPI_IN_PLACE, &totalMass, 1, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
 
-    for (int l=0; l<=lmax*(lmax+2); l++) {
-      MPI_Allreduce(&expcoef(l, 1), &work[1], nmax, MPI_DOUBLE,
+    for (int l=0; l<(lmax+1)*(lmax+1); l++) {
+      MPI_Allreduce(expcoef.row(l).data(), work.data(), nmax, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
 
       expcoef.row(l) = work;
@@ -417,7 +417,7 @@ Eigen::MatrixXd SphereSL::get_trimmed(double snr, double mass, bool Hall)
       Eigen::VectorXd W(esize);
       for (int m=0, moffset=0; m<=l; m++) {
 	if (m==0) {
-	  for (int n=0; n<=nmax; n++) {
+	  for (int n=0; n<nmax; n++) {
 	    W[m*nmax + n] = fabs(expcoef(loffset+moffset+0, n))
 	      / (norm*mass);
 	  }
@@ -485,7 +485,7 @@ Eigen::MatrixXd SphereSL::get_trimmed(double snr, double mass, bool Hall)
 
     const int minSize = 600;
     int ndupX = 1, ndupY = 1;
-				// Sanity check
+    // Sanity check
     NEV = std::min<int>(NEV, nmax);
     
     for (int L=0; L<=lmax; L++) {
@@ -574,14 +574,14 @@ double SphereSL::get_power(double snr, double mass)
       Eigen::VectorXd W(esize);
       for (int m=0, moffset=0; m<=l; m++) {
 	if (m==0) {
-	  for (int n=0; n<=nmax; n++) {
+	  for (int n=0; n<nmax; n++) {
 	    W[m*nmax + n] = fabs(expcoef(loffset+moffset+0, n))
 	      / (norm*mass);
 	  }
 	  moffset++;
 
 	} else {
-	  for (int n=0; n<=nmax; n++) {
+	  for (int n=0; n<nmax; n++) {
 	    W[m*nmax + n] =
 	      sqrt(expcoef(loffset+moffset+0, n)*expcoef(loffset+moffset+0, n)
 		   +

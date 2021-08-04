@@ -1145,10 +1145,10 @@ std::string ParticleReader::fileNameCreator
   ret << dir << "/";
 
   if (myType.find("PSPout") == 0) {
-    if (prefix.size()==0) ret << "OUT.";
-    else                  ret << "." << prefix;
+    if (prefix.size()==0) ret << "OUT";
+    else                  ret << prefix;
 
-    ret << runtag << "."
+    ret << "." << runtag << "."
 	<< std::setw(5) << std::setfill('0') << number;
 
     return ret.str();
@@ -1156,9 +1156,9 @@ std::string ParticleReader::fileNameCreator
   
   if (myType.find("PSPspl") == 0) {
     if (prefix.size()==0) ret << "SPL.";
-    else                  ret << "." << prefix;
+    else                  ret << prefix;
 
-    ret << runtag << "."
+    ret << "." << runtag << "."
 	<< std::setw(5) << std::setfill('0') << number;
 
     return ret.str();
