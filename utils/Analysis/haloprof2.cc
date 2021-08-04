@@ -591,7 +591,7 @@ main(int argc, char **argv)
      "final PSP index")
     ("stride",              po::value<int>(&stride)->default_value(1),
      "PSP index stride")
-    ("compname",            po::value<std::string>(&cname)->default_value("stars"),
+    ("compname",            po::value<std::string>(&cname)->default_value("dark"),
      "train on Component (default=stars)")
     ("dir,d",               po::value<std::string>(&dir),
      "directory for phase-space files")
