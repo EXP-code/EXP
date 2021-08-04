@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(
   EXP
   VERSION 1.0.0
-  LANGUAGES C CXX)
+  LANGUAGES C CXX Fortran)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 set(CMAKE_CXX_STANDARD 14)
