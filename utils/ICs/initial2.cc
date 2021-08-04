@@ -538,6 +538,7 @@ main(int ac, char **av)
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ("newcache",                                                                        "Use new YAML header version for EOF cache file")
     ("ortho",                                                                           "Perform orthogonality check for basis")
+    ("probe",                                                                           "Print a profile along the x axis for the halo reconstruction fields")
     ;
         
   po::variables_map vm;
@@ -961,7 +962,7 @@ main(int ac, char **av)
     if (myid==0) std::cout << "done" << std::endl;
   }
   
-  std::ifstream center(centerfile.c_str());
+  std::ifstream center(centerfile);
   if (center) {
 
     bool ok = true;
@@ -1009,7 +1010,7 @@ main(int ac, char **av)
   std::ofstream out_halo, out_disk;
   if (myid==0) {
     if (not evolved and n_particlesH) {
-      out_halo.open(hbods.c_str());
+      out_halo.open(hbods);
       if (!out_halo) {
 	cout << "Could not open <" << hbods << "> for output\n";
 	MPI_Abort(MPI_COMM_WORLD, 4);
@@ -1018,7 +1019,7 @@ main(int ac, char **av)
     }
 
     if (ndisk) {
-      out_disk.open(dbods.c_str());
+      out_disk.open(dbods);
       if (!out_disk) {
 	std::cout << "Could not open <" << dbods << "> for output" << std::endl;
 	MPI_Abort(MPI_COMM_WORLD, 4);
@@ -1132,8 +1133,54 @@ main(int ac, char **av)
 	sout << "halo_coefs.";
 	if (suffix.size()>0) sout << suffix;
 	else                 sout << "dump";
-	ofstream out(sout.str().c_str());
+	ofstream out(sout.str());
 	if (out) expandh->dump_coefs(out, false);
+	std::cout << "done" << std::endl;
+      }
+      if (vm.count("probe")) {
+	std::cout << "Dumping a probe through the halo . . . " << std::flush;
+	ostringstream sout;
+	sout << "halo_probe.";
+	if (suffix.size()>0) sout << suffix;
+	else                 sout << "dump";
+	ofstream out(sout.str());
+	if (out) {
+	  // Header
+	  out << "#" << std::setw(15) << std::right << "radius |"
+	      << std::setw(16) << std::right << "density |"
+	      << std::setw(16) << std::right << "potential |"
+	      << std::setw(16) << std::right << "d(pot)/dr |"
+	      << std::setw(16) << std::right << "d(pot)/dt |"
+	      << std::setw(16) << std::right << "d(pot)/dp |"
+	      << std::endl
+	      << "#" << std::setw(15) << std::right << "[1] |"
+	      << std::setw(16) << std::right << "[2] |"
+	      << std::setw(16) << std::right << "[3] |"
+	      << std::setw(16) << std::right << "[4] |"
+	      << std::setw(16) << std::right << "[5] |"
+	      << std::setw(16) << std::right << "[6] |"
+	      << std::endl;
+
+	  // Do the probe
+	  //
+	  const int nn = 1000;
+	  double dr = (log(RSPHSL) - log(RMIN))/(nn-1);
+	  for (int n=0; n<nn; n++) {
+	    double rr = RMIN*exp(dr*n);
+	    double dens, potl, dpr, dpt, dpp;
+	    expandh->determine_fields_at_point(rr, 0.0, 0.0,
+					       &dens, &potl, &dpr, &dpt, &dpp);
+	    out << std::setw(16) << rr
+		<< std::setw(16) << dens
+		<< std::setw(16) << potl
+		<< std::setw(16) << dpr
+		<< std::setw(16) << dpt
+		<< std::setw(16) << dpp
+		<< std::endl;
+	  }
+	} else {
+	  std::cout << "Could not open file: " << sout.str() << std::endl;
+	}
 	std::cout << "done" << std::endl;
       }
     }
@@ -1187,7 +1234,7 @@ main(int ac, char **av)
 	sout << "disk_coefs.";
 	if (suffix.size()>0) sout << suffix;
 	else                 sout << "dump";
-	ofstream out(sout.str().c_str());
+	ofstream out(sout.str());
 	if (out) expandd->dump_coefs(out);
 	std::cout << "done" << std::endl;
       }
@@ -1248,7 +1295,7 @@ main(int ac, char **av)
       for (int i=0; i<nstr; i++) {
         string name("halo");
         name += names[i];
-        out[i].open(name.c_str());
+        out[i].open(name);
         
         out[i].write((char *)&nout, sizeof(int));
         out[i].write((char *)&nout, sizeof(int));
@@ -1302,7 +1349,7 @@ main(int ac, char **av)
       for (int i=0; i<nstr; i++) {
         string name("disk");
         name += names[i];
-        out[i].open(name.c_str());
+        out[i].open(name);
         
         out[i].write((char *)&nout, sizeof(int));
         out[i].write((char *)&nout, sizeof(int));
@@ -1483,7 +1530,7 @@ main(int ac, char **av)
       string ztable("ztable.dat");
       std::cout << "Writing " << setw(15) << right << ztable
 		<< " [gas] . . . " << std::flush;
-      ofstream ztest(ztable.c_str());
+      ofstream ztest(ztable);
       for (int i=0; i<nrint; i++) {
 	for (int j=0; j<nzint; j++) {
 	  ztest << setw(15) << rmin + dR*i
