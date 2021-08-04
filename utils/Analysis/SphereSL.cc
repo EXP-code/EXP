@@ -4,6 +4,8 @@
 #include <fstream>
 #include <cmath>
 
+#include <yaml-cpp/yaml.h>
+
 #include <SphereSL.H>
 
 #ifdef HAVE_LIBPNGPP
@@ -1019,23 +1021,42 @@ void SphereSL::install_coefs(Eigen::MatrixXd& newcoef)
 
 void SphereSL::dump_coefs(double time, ostream& out)
 {
-  ostringstream sout;
-  sout << "SphereSL";
+  // This is a node of simple {key: value} pairs.  More general
+  // content can be added as needed.
+  //
+  YAML::Node node;
 
-  char buf[64];
-  for (int i=0; i<64; i++) {
-    if (i<sout.str().length())  buf[i] = sout.str().c_str()[i];
-    else                        buf[i] = '\0';
-  }
+  node["id"    ] = "SphereSL";
+  node["time"  ] = time;
+  node["scale" ] = rscl;
+  node["nmax"  ] = nmax;
+  node["lmax"  ] = lmax;
+  node["normed"] = true;
 
-  out.write((char *)&buf,64*sizeof(char));
-  out.write((char *)&time , sizeof(double));
-  out.write((char *)&rscl,  sizeof(double));
-  out.write((char *)&nmax,  sizeof(int));
-  out.write((char *)&lmax,  sizeof(int));
+  // Serialize the node
+  //
+  YAML::Emitter y; y << node;
+  
+  // Get the size of the string
+  //
+  unsigned int hsize = strlen(y.c_str());
+  
+  // Write magic #
+  //
+  out.write(reinterpret_cast<const char *>(&cmagic),   sizeof(unsigned int));
+  
+  // Write YAML string size
+  //
+  out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+    
+  // Write YAML string
+  //
+  out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
 
+  // Write the data
+  //
   for (int ir=0; ir<nmax; ir++) {
-    for (int l=0; l<=lmax*(lmax+2); l++)
+    for (int l=0; l<(lmax+1)*(lmax+1); l++)
       out.write((char *)&expcoef(l, ir), sizeof(double));
   }
 

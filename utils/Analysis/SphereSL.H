@@ -49,6 +49,9 @@ private:
 
   void bomb(char *s);
 
+  //! Coefficient magic number
+  const unsigned int cmagic = 0xc0a57a2;
+
 public:
 
   //! Number of eigenfunctions for each subspace for PNG figure
