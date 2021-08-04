@@ -510,7 +510,7 @@ main(int argc, char **argv)
   
   double snr, rscale, Hexp;
   int NICE, LMAX, NMAX, NPART;
-  int beg, end, stride, init;
+  int beg, end, stride;
   std::string MODFILE, INDEX, dir("."), cname, coefs, fileType, filePrefix;
 
 
@@ -585,8 +585,6 @@ main(int argc, char **argv)
      "Output directory path")
     ("MODFILE",             po::value<string>(&MODFILE)->default_value("SLGridSph.model"),
      "Halo model file")
-    ("init",                po::value<int>(&init)->default_value(0),
-     "fiducial PSP index")
     ("beg",                 po::value<int>(&beg)->default_value(0),
      "initial PSP index")
     ("end",                 po::value<int>(&end)->default_value(99999),
@@ -712,18 +710,8 @@ main(int argc, char **argv)
 
     int iok = 1;
 
-    auto file0 = ParticleReader::fileNameCreator
-      (fileType, init, dir, runtag, filePrefix);
     auto file1 = ParticleReader::fileNameCreator
       (fileType, indx, dir, runtag, filePrefix);
-
-    {
-      std::ifstream in(file0);
-      if (!in) {
-	cerr << "Error opening <" << file0 << ">" << endl;
-	iok = 0;
-      }
-    }      
 
     {
       std::ifstream in(file1);
