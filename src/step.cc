@@ -404,6 +404,8 @@ void do_step(int n)
     timer_vel  .reset();
     timer_pot  .reset();
     timer_adj  .reset();
+    timer_out  .reset();
+    timer_bal  .reset();
     timer_tot  .reset();
     if (use_cuda) comp->timer_cuda.reset();
     if (use_cuda) comp->timer_orient.reset();
