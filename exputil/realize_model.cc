@@ -149,7 +149,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 
     if (gen_firstime) {
 
-      double tol = 1.0e-5;
+      double tol = 1.0e-2;
       double dx = (1.0 - 2.0*tol)/(numr-1);
       double dy = (1.0 - 2.0*tol)/(numj-1);
       double dr;
