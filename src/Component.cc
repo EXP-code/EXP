@@ -172,6 +172,7 @@ Component::Component(YAML::Node& CONF)
 
   pBufSiz     = 100000;		// Default number particles in MPI-IO buffer
   blocking    = false;		// Default for MPI_File_write blocking
+  buffered    = true;		// Use buffered writes for POSIX binary
 
   set_default_values();
 
@@ -244,6 +245,7 @@ void Component::set_default_values()
   if (!cconf["keyPos"])          cconf["keyPos"]      = keyPos;
   if (!cconf["pBufSiz"])         cconf["pBufSiz"]     = pBufSiz;
   if (!cconf["blocking"])        cconf["blocking"]    = blocking;
+  if (!cconf["buffered"])        cconf["buffered"]    = buffered;
 }
 
 
@@ -2170,7 +2172,17 @@ void Component::write_binary_particles(ostream* out, bool real4)
   if (real4) rsize = sizeof(float);
   else       rsize = sizeof(double);
 
-  for (auto p : particles) p.second->writeBinary(rsize, indexing, out);
+  // Use buffered writes
+  if (buffered) {
+    ParticleBuffer buf(rsize, indexing, particles.begin()->second.get());
+    for (auto p : particles)
+      p.second->writeBinaryBuffered(rsize, indexing, out, buf);
+    buf.writeBuffer(out, true);	// Complete the write
+  }
+  // Unbuffered, direct writes
+  else {
+    for (auto p : particles) p.second->writeBinary(rsize, indexing, out);
+  }
 }
 
 

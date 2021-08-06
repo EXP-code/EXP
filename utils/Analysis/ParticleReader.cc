@@ -913,8 +913,8 @@ const Particle *PSPout::nextParticle()
     else
       dpart.read(in, pcount++, spos);
 
-    // Stride by numprocs
-    // ------------------
+    // Stride by numprocs-1
+    // --------------------
     for (int n=0; n<numprocs-1; n++)  {
       if (pcount < spos->comp.nbod) {
 	if (spos->r_size == 4)
@@ -1014,8 +1014,8 @@ const Particle* PSPspl::nextParticle()
       dpart.read(in, pcount++, spos);
     fcount++;
     
-    // Stride by numprocs
-    // ------------------
+    // Stride by numprocs-1
+    // --------------------
     for (int n=0; n<numprocs-1; n++)  {
       if (pcount < spos->comp.nbod) {
 	if (fcount==N) openNextBlob();
