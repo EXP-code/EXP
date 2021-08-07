@@ -207,7 +207,7 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
 	   << " | " << ret.peri << ", " << ret.apo << endl
 	   << setw(30) << "Radial period" 
 	   << " | " << ret.radial_period << endl
-	   << setw(30) << "Aximuthal period" 
+	   << setw(30) << "Azimuthal period" 
 	   << " | " << ret.azimuthal_period << endl;
     }
   }
@@ -261,9 +261,9 @@ Eigen::Vector3d SatelliteOrbit::get_satellite_orbit(double T)
     phi = orb->Orb().get_angle(7, T);
   }
 
-  v0[1] = r*cos(phi);
-  v0[2] = r*sin(phi);
-  v0[3] = 0.0;
+  v0[0] = r*cos(phi);
+  v0[1] = r*sin(phi);
+  v0[2] = 0.0;
 
 				// Set current satellite position
   currentTime = T;
@@ -284,14 +284,14 @@ void SatelliteOrbit::get_satellite_orbit(double T, double *v)
     phi = orb->Orb().get_angle(7, T);
   }
 
-  v0[1] = r*cos(phi);
-  v0[2] = r*sin(phi);
-  v0[3] = 0.0;
+  v0[0] = r*cos(phi);
+  v0[1] = r*sin(phi);
+  v0[2] = 0.0;
 
 				// Set current satellite position
   currentTime = T;
   currentR = rotate*v0;
 
-  for (int k=0; k<3; k++) v[k] = currentR[k+1];
+  for (int k=0; k<3; k++) v[k] = currentR[k];
 }
 
