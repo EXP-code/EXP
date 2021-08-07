@@ -1281,6 +1281,7 @@ main(int argc, char **argv)
 			   << reader->CurrentTime()
 			   << "] . . . " << std::flush;
       
+    particles.clear();
     add_particles(reader, cname, particles, histo);
 
     if (myid==0)
@@ -1393,6 +1394,7 @@ main(int argc, char **argv)
       
     histo.Reset();		// Reset surface histogram
 
+    particles.clear();
     add_particles(reader, cname, particles, histo);
     if (myid==0) cout << "done" << endl;
     
