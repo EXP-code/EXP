@@ -76,7 +76,7 @@ libebarp_la_LIBADD = libcommon.a
 libebars_la_SOURCES = UserEBarS.cc
 libebars_la_LIBADD = libcommon.a
 
-libsat_la_SOURCES = UserSat.cc
+libsat_la_SOURCES = UserSat.cc cudaUserSat.cu
 libsat_la_LIBADD = libcommon.a
 
 libdiffuse_la_SOURCES = UserDiffuse.cc

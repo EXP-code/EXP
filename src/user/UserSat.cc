@@ -1,55 +1,4 @@
-#include <math.h>
-#include "expand.H"
-#include <localmpi.H>
-#include <UnboundOrbit.H>
-#include <LinearOrbit.H>
-#include <SatelliteOrbit.h>
-
-#include <AxisymmetricBasis.H>
-#include <ExternalCollection.H>
-#include <FindOrb.H>
-
-class UserSat : public ExternalForce
-{
-private:
-  
-  string com_name, orbfile;
-  Component *c0;
-
-  YAML::Node config;
-
-  Trajectory *traj;
-
-  void * determine_acceleration_and_potential_thread(void * arg);
-  void initialize();
-
-  double core, mass, ton, toff, delta, toffset;
-
-  bool orbit;			//! Print out orbit trajectory
-  bool shadow;			//! Add a reflection-symmetric satellite
-  bool verbose;			//! Print diagnostic messages
-  bool zbflag;			//! Zero body flag
-  bool pinning;			//! Pin center to a component
-
-  double omega, phase, r0, tlast;
-
-  void userinfo();
-
-  enum TrajType {circ, bound, unbound, linear} traj_type;
-
-public:
-  
-  //! For debugging . . .
-  static int instances;
-
-  //! Constructor
-  UserSat(const YAML::Node& conf);
-
-  //! Destuctor
-  ~UserSat();
-
-};
-
+#include <UserSat.H>
 
 int UserSat::instances = 0;
 
@@ -250,6 +199,16 @@ void UserSat::initialize()
     exit(-1);
   }
 }  
+
+
+void UserSat::determine_acceleration_and_potential(void)
+{
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  determine_acceration_and_potential_cuda();
+#else
+  exp_thread_fork(false);
+#endif
+}
 
 
 void * UserSat::determine_acceleration_and_potential_thread(void * arg) 
