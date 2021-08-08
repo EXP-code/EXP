@@ -415,7 +415,7 @@ main(int argc, char **argv)
      "Analysis id name")
     ("coeffile",
      po::value<std::string>(&coeffile)->default_value("coef.file"),
-     "coefficient file name from exp_mssa")
+     "coefficient file name")
     ("modfile",
      po::value<std::string>(&modelfile)->default_value("SLGridSph.model"),
      "SL model filename")
@@ -448,10 +448,10 @@ main(int argc, char **argv)
   if (vm.count("mask")) mask = true;
 
   if (vm.count("noCommand")==0) {
-    std::string cmdFile = "mssaprof." + outid + ".cmd_line";
+    std::string cmdFile = "haloprof." + outid + ".cmd_line";
     std::ofstream cmd(cmdFile.c_str());
     if (!cmd) {
-      std::cerr << "mssaprof: error opening <" << cmdFile
+      std::cerr << "haloprof: error opening <" << cmdFile
 		<< "> for writing" << std::endl;
     } else {
       cmd << cmd_line << std::endl;
