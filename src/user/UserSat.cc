@@ -203,13 +203,12 @@ void UserSat::initialize()
 
 void UserSat::determine_acceleration_and_potential(void)
 {
-#if HAVE_LIBCUDA==1		// Cuda compatibility
+#if HAVE_LIBCUDA==1
   determine_acceration_and_potential_cuda();
 #else
   exp_thread_fork(false);
 #endif
 }
-
 
 void * UserSat::determine_acceleration_and_potential_thread(void * arg) 
 {

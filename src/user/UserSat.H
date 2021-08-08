@@ -23,10 +23,14 @@ private:
 
   Trajectory *traj;
 
+  //! Overload to switch between cuda and cpu threaded implementation
   void determine_acceleration_and_potential();
-#if HAVE_LIBCUDA==1		// Cuda version
+
+#if HAVE_LIBCUDA==1
+  //! Cuda implementation
   void determine_acceration_and_potential_cuda();
 #endif
+  //! CPU threaded implementation
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 

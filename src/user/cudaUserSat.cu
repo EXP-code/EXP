@@ -6,7 +6,7 @@
 #include <Component.H>
 #include "UserSat.H"
 
-// Global symbols
+// Global device symbols for CUDA kernel
 //
 __device__ __constant__
 cuFP_t userSatMass, userSatCore2, userSatCen[3], userSatPos[3];
@@ -14,15 +14,19 @@ cuFP_t userSatMass, userSatCore2, userSatCen[3], userSatPos[3];
 __device__ __constant__
 bool userSatShadow;
 
+// Cuda implementation of satellite force
+//
 __global__ void
 userSatForceKernel(dArray<cudaParticle> P, dArray<int> I,
 		   int stride, PII lohi)
 {
-  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
   for (int n=0; n<stride; n++) {
     int i     = tid*stride + n;	// Index in the stride
     int npart = i + lohi.first;	// Particle index
+
+    cuFP_t fpos[3];		// Temporary relative position
 
     if (npart < lohi.second) {
       
@@ -31,10 +35,11 @@ userSatForceKernel(dArray<cudaParticle> P, dArray<int> I,
 #endif
       cudaParticle & p = P._v[I._v[npart]];
       
+      // Compute softened radius
       cuFP_t rr = userSatCore2;
       for (int k=0; k<3; k++) {
-	cuFP_t f = p.pos[k] - userSatCen[k] - userSatPos[k];
-	rr += f*f;
+	fpos[k] = p.pos[k] - userSatCen[k] - userSatPos[k];
+	rr += fpos[k] * fpos[k];
       }
 
       rr = pow(rr, -0.5);
@@ -42,17 +47,18 @@ userSatForceKernel(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t ffac = -userSatMass*rr*rr*rr;
 
       // Add acceration
-      for (int k=0; k<3; k++)
-	p.acc[k] += ffac*(p.pos[k] - userSatCen[k] - userSatPos[k]);
+      for (int k=0; k<3; k++) {
+	p.acc[k] += ffac * fpos[k];
+      }
 
-      p.potext += -userSatMass*rr;
+      p.potext += -userSatMass * rr;
 
       // Add the shadow satellite
       if (userSatShadow) {
 	rr = userSatCore2;
 	for (int k=0; k<3; k++) {
-	  cuFP_t f = p.pos[k] - userSatCen[k] + userSatPos[k];
-	  rr += f*f;
+	  fpos[k] = p.pos[k] - userSatCen[k] + userSatPos[k];
+	  rr += fpos[k] * fpos[k];
 	}
 
 	rr = pow(rr, -0.5);
@@ -60,12 +66,13 @@ userSatForceKernel(dArray<cudaParticle> P, dArray<int> I,
 	ffac = -userSatMass*rr*rr*rr;
 	
 	// Add acceration
-	for (int k=0; k<3; k++)
-	  p.acc[k] += ffac*(p.pos[k] - userSatCen[k] + userSatPos[k]);
+	for (int k=0; k<3; k++) {
+	  p.acc[k] += ffac * fpos[k];
+	}
 
-	p.potext += -userSatMass*rr;
+	p.potext += -userSatMass * rr;
       }
-
+      
     } // Particle index block
 
   } // END: stride loop
@@ -180,8 +187,6 @@ void UserSat::determine_acceration_and_potential_cuda()
   if (N>0) {
 
     if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
-
-    unsigned int Nthread = gridSize*BLOCK_SIZE;
 
     // Shared memory size for the reduction
     //
