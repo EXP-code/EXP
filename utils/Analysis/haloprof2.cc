@@ -679,12 +679,13 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  SphericalModelTable halo(MODFILE);
+  auto halo = boost::make_shared<SphericalModelTable>(MODFILE);
+
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
   SphereSL::HEXP = Hexp;
 
-  SphereSL ortho(&halo, LMAX, NMAX, 1, rscale, true, NPART);
+  SphereSL ortho(halo, LMAX, NMAX, 1, rscale, true, NPART);
   
   std::string file;
 

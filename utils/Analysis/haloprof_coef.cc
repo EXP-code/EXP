@@ -40,6 +40,7 @@
 
 				// BOOST stuff
 #include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
@@ -496,11 +497,11 @@ main(int argc, char **argv)
   int lmax     = data[0]->header.Lmax;
   int nmax     = data[0]->header.nmax;
 
-  SphericalModelTable halo(modelfile);
+  auto halo = boost::make_shared<SphericalModelTable>(modelfile);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
 
-  SphereSL ortho(&halo, lmax, nmax);
+  SphereSL ortho(halo, lmax, nmax);
   
   std::vector<std::string> outfiles1, outfiles2, outfiles3;
   std::vector<double> T;

@@ -4,6 +4,8 @@
 #include <fstream>
 #include <cmath>
 
+#include <boost/make_shared.hpp>
+
 #include <yaml-cpp/yaml.h>
 
 #include <SphereSL.H>
@@ -18,18 +20,17 @@ bool   SphereSL::mpi  = false;	// Initially off
 double SphereSL::HEXP = 1.0;	// Hall exponent
 
 //! Constructor
-SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
-		   int CMAP, double Scale, bool COVAR, int NPART)
+SphereSL::SphereSL(boost::shared_ptr<SphericalModelTable> mod,
+		   int LMAX, int NMAX, int CMAP, double Scale,
+		   bool COVAR, int NPART)
 {
-  SphericalModelTable *model = mod;
-  
   SLGridSph::mpi = mpi ? 1 : 0;
 
-  double rmin = max<double>(mod->get_min_radius()*2.0, 
-			    mod->get_max_radius()*1.0e-4);
-  double rmax = mod->get_max_radius()*0.99;
+  rmin = max<double>(mod->get_min_radius()*2.0, 
+		     mod->get_max_radius()*1.0e-4);
+  rmax = mod->get_max_radius()*0.99;
 
-  sl = new SLGridSph(LMAX, NMAX, NUMR, rmin, rmax, model, CMAP, Scale);
+  sl = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, rmin, rmax, mod, CMAP, Scale);
 
   lmax = LMAX;
   nmax = NMAX;
@@ -52,7 +53,7 @@ SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
 
 SphereSL::~SphereSL(void)
 {
-  delete sl;
+  // NADA
 }
 
 void SphereSL::bomb(char *s)
@@ -162,6 +163,8 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
   double phi = atan2(y,x);
   double rs = r/rscl;
 	
+  if (r < rmin or r > rmax) return;
+
   used++;
   totalMass += mass;
 

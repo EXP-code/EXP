@@ -16,8 +16,9 @@ class SphereSL
 
 private:
 
-  SLGridSph *sl;
+  boost::shared_ptr<SLGridSph> sl;
   int lmax, nmax;
+  double rmin, rmax;
 
   Eigen::MatrixXd potd, dpot, dpt2, dend;
   Eigen::MatrixXd legs, dlegs, d2legs;
@@ -75,7 +76,7 @@ public:
       \param COVAR true will evaluate the covariance matrix for coeffficients
       \param NPART >0 will evaluate the covariance matrix using a jackknife partition with number given
   */
-  SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
+  SphereSL(boost::shared_ptr<SphericalModelTable> mod, int LMAX, int NMAX,
 	   int CMAP=0, double SCALE=0.067, bool COVAR=false, int NPART=0);
   
   //! Destructor
@@ -151,7 +152,7 @@ public:
   // @}
 
   //! Access to basis
-  SLGridSph *basis(void) { return sl; }
+  boost::shared_ptr<SLGridSph> basis(void) { return sl; }
 
   //! Dump coefficients using the standard header
   void dump_coefs(double time, std::ostream& out);

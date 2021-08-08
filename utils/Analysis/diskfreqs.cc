@@ -38,6 +38,7 @@
 
 				// BOOST stuff
 #include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -331,10 +332,10 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  SphericalModelTable halo(MODEL);
+  auto halo = boost::make_shared<SphericalModelTable>(MODEL);
   SphereSL::NUMR = 4000;
   int LMAX = 1, NMAX = coefsH.begin()->second->coefs[0].size();
-  SphereSL ortho_halo(&halo, LMAX, NMAX);
+  SphereSL ortho_halo(halo, LMAX, NMAX);
 
     
   // Begin grid creation
