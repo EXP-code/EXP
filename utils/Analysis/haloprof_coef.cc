@@ -535,7 +535,7 @@ main(int argc, char **argv)
 	
     if (myid==0) cout << "Writing output for T="
 		      << d->header.tnow << " . . . " << flush;
-    write_output(ortho, indx, d->header.tnow, file1, file2, file3);
+    write_output(ortho, indx++, d->header.tnow, file1, file2, file3);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
     
