@@ -103,7 +103,7 @@ void UserSat::determine_acceration_and_potential_cuda()
 
   zbflag = true;
 
-  double rs[3];
+  double rs[3], sps[3];
 
   if (traj_type==circ) {
     double phi = phase + omega*tnow;
@@ -142,10 +142,9 @@ void UserSat::determine_acceration_and_potential_cuda()
 
   // Assign expansion center
   //
-  std::vector<cuFP_t> ctr, sps;
+  std::vector<cuFP_t> ctr;
 
-  for (auto v : component->getCenter(Component::Inertial))
-    ctr.push_back(v);
+  for (auto v : cC->getCenter()) ctr.push_back(v);
 
   for (int k=0; k<3; k++) {
     sps[k] = rs[k];
@@ -162,11 +161,11 @@ void UserSat::determine_acceration_and_potential_cuda()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying userSatMass");
   
-  cuda_safe_call(cudaMemcpyToSymbol(userSatCen, &ctr[0], sizeof(cuFP_t)*3,
+  cuda_safe_call(cudaMemcpyToSymbol(userSatCen, ctr.data(), sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying userSatCen");
 
-  cuda_safe_call(cudaMemcpyToSymbol(userSatPos, &sps[0], sizeof(cuFP_t)*3,
+  cuda_safe_call(cudaMemcpyToSymbol(userSatPos, sps, sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying userSatPos");
 
