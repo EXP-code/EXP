@@ -201,6 +201,9 @@ protected:
   void update_noise(void);
   bool setup_noise;
 				// Parameters
+  //! The minimum radius
+  double rmin;
+
   //! The maximum radius
   double rmax;
 

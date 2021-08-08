@@ -1588,8 +1588,8 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
   nmax  = NMAX;
   numr  = NUMR;
 
-  rmin  = RMIN;
-  rmax  = RMAX;
+  rmin  = std::max<double>(RMIN, model->get_min_radius());
+  rmax  = std::min<double>(RMAX, model->get_max_radius());
 
   cache = CACHE;
   cmap  = CMAP;
