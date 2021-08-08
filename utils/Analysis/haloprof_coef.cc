@@ -381,7 +381,7 @@ main(int argc, char **argv)
     cmd_line += " ";
   }
 
-  bool DENS, verbose = false, mask = false, All, PCs = false;
+  bool DENS, verbose = false, mask = false;
   std::string modelfile, coeffile;
   int stride;
 
@@ -470,12 +470,6 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  if (not PCs and not All) {
-    if (myid==0) std::cout << "All output is off . . . exiting" << std::endl;
-    exit(0);
-  }
-
-
   // ==================================================
   // All processes will now compute the basis functions
   // *****Using MPI****
