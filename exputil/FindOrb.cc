@@ -111,8 +111,8 @@ OrbValues FindOrb::Anneal()
   ret.value     = CostFunction(x);
   ret.peri      = orb->peri();
   ret.apo       = orb->apo();
-  ret.radial_period  = 2.0*M_PI/orb->get_freq(1);
-  ret.azimuthal_period  = 2.0*M_PI/orb->get_freq(2);
+  ret.radial_period  = 2.0*M_PI/orb->get_freq(0);
+  ret.azimuthal_period  = 2.0*M_PI/orb->get_freq(1);
 
   return ret;
 }
