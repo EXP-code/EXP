@@ -413,12 +413,12 @@ main(int argc, char **argv)
     ("outid,o",
      po::value<std::string>(&outid)->default_value("halocoef"),
      "Analysis id name")
-    ("coeffile",
+    ("coeffile,c",
      po::value<std::string>(&coeffile)->default_value("coef.file"),
      "coefficient file name")
-    ("modfile",
+    ("modfile,m",
      po::value<std::string>(&modelfile)->default_value("SLGridSph.model"),
-     "SL model filename")
+     "SLGrid model filename")
     ("runtag,r",
      po::value<std::string>(&runtag)->default_value("run1"),
      "runtag for phase space files")
@@ -483,6 +483,12 @@ main(int argc, char **argv)
 
   auto data = spherical_read(coeffile, stride);
 
+  if (data.size()==0) {
+    std::cerr << argv[0] << ": no data read from coefficient file <"
+	      << coeffile << ">?" << std::endl;
+    exit(-1);
+  }
+
   // ==================================================
   // Make SL expansion
   // ==================================================
@@ -493,6 +499,7 @@ main(int argc, char **argv)
   SphericalModelTable halo(modelfile);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
+
   SphereSL ortho(&halo, lmax, nmax);
   
   std::vector<std::string> outfiles1, outfiles2, outfiles3;
