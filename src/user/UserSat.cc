@@ -68,6 +68,7 @@ UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
     std::ostringstream sout;
     sout << outdir << "UserSat." << runtag << "." << ++instances;
     orbfile = sout.str();
+<<<<<<< HEAD
     std::ofstream out (orbfile);
     if (out) {
       out << left << setfill('-')
@@ -93,6 +94,28 @@ UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
       std::cerr << "UserSat: could not open orbit diagnostic file <"
 		<< orbfile << ">" << std::endl;
     }
+=======
+    ofstream out (orbfile.c_str());
+    out << left << setfill('-')
+	<< setw(15) << "#"
+	<< setw(15) << "+"
+	<< setw(15) << "+"
+	<< setw(15) << "+"
+	<< setw(15) << "+"
+	<< endl << setfill(' ')
+	<< setw(15) << "# Time"
+	<< setw(15) << "+ Mass"
+	<< setw(15) << "+ X-pos"
+	<< setw(15) << "+ Y-pos"
+	<< setw(15) << "+ Z-pos"
+	<< endl << setfill('-')
+	<< setw(15) << "#"
+	<< setw(15) << "+"
+	<< setw(15) << "+"
+	<< setw(15) << "+"
+	<< setw(15) << "+"
+	<< endl << setfill(' ');
+>>>>>>> fd1926869a732cd90f8e45b55f4909b0a9b12b10
       
     tlast = tnow;
   }

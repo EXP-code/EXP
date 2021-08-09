@@ -5,6 +5,7 @@ if ENABLE_CUDA
   endif
   CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
   NVCC_CXXFLAGS  = -I. -I$(top_srcdir)/src $(GENCODE_FLAGS) $(NVCC_EXTRA) @exp_eigen3_include@ -Xcompiler $(AM_CPPFLAGS)
+  CUDA_USERSAT   = cudaUserSat.cu
 endif
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)		\
@@ -76,7 +77,7 @@ libebarp_la_LIBADD = libcommon.a
 libebars_la_SOURCES = UserEBarS.cc
 libebars_la_LIBADD = libcommon.a
 
-libsat_la_SOURCES = UserSat.cc cudaUserSat.cu
+libsat_la_SOURCES = UserSat.cc $(CUDA_USERSAT)
 libsat_la_LIBADD = libcommon.a
 
 libdiffuse_la_SOURCES = UserDiffuse.cc

@@ -35,9 +35,11 @@
  *
  ***************************************************************************/
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <math.h>
+#include <iostream>
+#include <iomanip>
+#include <cstdlib>
+#include <cmath>
+
 #include <Eigen/Eigen>
 
 // #define TEST for test program
@@ -49,7 +51,7 @@ Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY)
 {
   double sph, cph, sth, cth, sps, cps;
 
-  Eigen::Matrix3d euler(3, 3);
+  Eigen::Matrix3d euler;
 
   sph = sin(PHI);
   cph = cos(PHI);
@@ -94,27 +96,26 @@ Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY)
 
 #ifdef TEST
 
+int
 main(int argc, char **argv)
 {
   double phi, theta, psi;
 
-  cout << "Phi, Theta, Psi: ";
-  cin >> phi;
-  cin >> theta;
-  cin >> psi;
+  std::cout << "Phi, Theta, Psi: ";
+  std::cin >> phi;
+  std::cin >> theta;
+  std::cin >> psi;
 
-  Matrix euler0 = return_euler(phi, theta, psi, 0);
-  Matrix euler1 = return_euler(phi, theta, psi, 1);
+  auto euler0 = return_euler(phi, theta, psi, 0);
+  auto euler1 = return_euler(phi, theta, psi, 1);
 
-  cout << endl;
-  euler0.print(cout);
-  cout << endl;
-  euler1.print(cout);
+  std::cout << std::endl << euler0 << std::endl;
+  std::cout << std::endl << euler1 << std::endl;
 
-  Matrix eulert = euler0*euler1;
-  cout << endl;
-  eulert.print(cout);
+  auto eulert = euler0*euler1;
+  std::cout << std::endl << eulert << std::endl;
 
+  return 0;
 }
 
 #endif // TEST
