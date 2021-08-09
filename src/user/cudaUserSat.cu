@@ -112,7 +112,7 @@ void UserSat::determine_acceration_and_potential_cuda()
     rs[2] = 0.0;
   }
   else
-    traj->get_satellite_orbit(tnow - toffset, &rs[0]);
+    traj->get_satellite_orbit(tnow - toffset, rs);
 
   double satmass = mass * 
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
@@ -123,9 +123,9 @@ void UserSat::determine_acceration_and_potential_cuda()
   if (orbit && myid==0 && mlevel==0 && tnow>tlast) {
     std::ofstream out (orbfile.c_str(), ios::app);
     if (out) {
-      out << setw(15) << tnow;
-      for (int k=0; k<3; k++) out << setw(15) << rs[k];
-      out << endl;
+      out << std::setw(15) << tnow << std::setw(15) << satmass;
+      for (int k=0; k<3; k++) out << std::setw(15) << rs[k];
+      out << std::endl;
       tlast = tnow;
     } else {
       std::cout << "Error opening trajectory file: " << orbfile << endl;
