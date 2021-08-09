@@ -42,14 +42,14 @@
 
 // #define TEST for test program
 
-Eigen::MatrixXd return_euler(double PHI, double THETA, double PSI, int BODY);
+Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY);
 
 
-Eigen::MatrixXd return_euler(double PHI, double THETA, double PSI, int BODY)
+Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY)
 {
   double sph, cph, sth, cth, sps, cps;
 
-  Eigen::MatrixXd euler(3, 3);
+  Eigen::Matrix3d euler(3, 3);
 
   sph = sin(PHI);
   cph = cos(PHI);
