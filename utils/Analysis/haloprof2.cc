@@ -692,7 +692,7 @@ main(int argc, char **argv)
   std::ofstream outcoef;	// Coefficient file
 
   if (vm.count("coefs")) {
-    std::string coeffile = outdir + "/" + OUTFILE + ".coefs";
+    std::string coeffile = outdir + "/" + coefs + ".coefs";
 				// Set exceptions to be thrown on failure
     outcoef.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 

@@ -53,6 +53,10 @@ private:
   //! Coefficient magic number
   const unsigned int cmagic = 0xc0a57a2;
 
+  //! For coefficient writing
+  typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
+  EigenColMajor;
+
 public:
 
   //! Number of eigenfunctions for each subspace for PNG figure

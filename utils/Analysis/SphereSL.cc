@@ -1056,11 +1056,8 @@ void SphereSL::dump_coefs(double time, ostream& out)
   //
   out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
 
-  // Write the data
+  // Write the data using Eigen in col-major order
   //
-  for (int ir=0; ir<nmax; ir++) {
-    for (int l=0; l<(lmax+1)*(lmax+1); l++)
-      out.write((char *)&expcoef(l, ir), sizeof(double));
-  }
-
+  EigenColMajor t(expcoef);
+  out.write((char *)t.data(), t.size()*sizeof(double));
 }

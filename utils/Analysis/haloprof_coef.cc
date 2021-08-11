@@ -519,10 +519,10 @@ main(int argc, char **argv)
     for (int l=0; l<LL; l++) {
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<d->header.nmax; n++) 
-	  expcoef(lindx, n) = d->coefs[lindx][n];
+	  expcoef(lindx, n) = d->coefs(lindx, n);
 	if (m) {
 	  for (int n=0; n<d->header.nmax; n++)
-	    expcoef(lindx+1, n) = d->coefs[lindx+1][n];
+	    expcoef(lindx+1, n) = d->coefs(lindx+1, n);
 	}
 	if (m) lindx += 2;
 	else   lindx += 1;

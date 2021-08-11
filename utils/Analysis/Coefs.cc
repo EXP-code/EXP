@@ -129,6 +129,8 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
       unsigned int hsize;
       in.read(reinterpret_cast<char *>(&hsize), sizeof(unsigned int));
     
+      if (in.eof()) return false;
+
       // Create buffer
       //
       auto buf = boost::make_unique<char[]>(hsize+1);
@@ -167,13 +169,8 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
 
     if (not in) return false;
 
-    coefs.resize((header.Lmax+1)*(header.Lmax+1));
-    for (auto & v : coefs) v.resize(header.nmax);
-    
-    for (int ir=0; ir<header.nmax; ir++) {
-      for (int l=0; l<(header.Lmax+1)*(header.Lmax+1); l++)
-	in.read((char *)&coefs[l][ir], sizeof(double));
-    }
+    coefs.resize((header.Lmax+1)*(header.Lmax+1), header.nmax);
+    in.read((char *)coefs.data(), coefs.size()*sizeof(double));
   }
   catch (std::istream::failure e) {
     if (not in.eof())
@@ -196,12 +193,12 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
 	if (m != 0) fac *= M_SQRT2;
 
 	// Cosine terms
-	for (int ir=0; ir<header.nmax; ir++) coefs[k][ir] *= fac;
+	for (int ir=0; ir<header.nmax; ir++) coefs(k, ir) *= fac;
 	k++;
 
 	// Sine terms
 	if (m != 0) {
-	  for (int ir=0; ir<header.nmax; ir++) coefs[k][ir] *= fac;
+	  for (int ir=0; ir<header.nmax; ir++) coefs(k, ir) *= fac;
 	  k++;
 	}
       }

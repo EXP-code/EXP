@@ -2,6 +2,7 @@
 #define _COEFS_H
 
 #include <boost/make_unique.hpp>
+#include <Eigen/Eigen>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -21,7 +22,12 @@ typedef std::shared_ptr<CylCoefs> CylCoefsPtr;
 struct SphCoefs
 {
   SphCoefHeader header;
-  std::vector< std::vector<double> > coefs;
+
+  typedef
+  Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
+  EigenColMajor;
+
+  EigenColMajor coefs;
 
   bool read(std::istream& in, bool exp_type);
 };

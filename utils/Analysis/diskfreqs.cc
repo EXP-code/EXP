@@ -334,7 +334,7 @@ main(int argc, char **argv)
 
   auto halo = boost::make_shared<SphericalModelTable>(MODEL);
   SphereSL::NUMR = 4000;
-  int LMAX = 1, NMAX = coefsH.begin()->second->coefs[0].size();
+  int LMAX = 1, NMAX = coefsH.begin()->second->coefs.cols();
   SphereSL ortho_halo(halo, LMAX, NMAX);
 
     
@@ -396,7 +396,7 @@ main(int argc, char **argv)
       // Set halo coefficients for l=m=0 only
       //
       auto itH = coefsH.find(t)->second;
-      for (int n=0; n<NMAX; n++) sphcoef(0, n) = itH->coefs[0][n];
+      for (int n=0; n<NMAX; n++) sphcoef(0, n) = itH->coefs(0, n);
       ortho_halo.install_coefs(sphcoef);
 
       for (auto r : rgrid) {
