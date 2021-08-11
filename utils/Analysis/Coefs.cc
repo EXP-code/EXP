@@ -105,6 +105,10 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
   //
   auto curpos = in.tellg();
 
+  // Norm flag
+  //
+  bool normed = false;
+
   // Coefficient magic number
   //
   const unsigned int cmagic = 0xc0a57a2;
@@ -143,6 +147,10 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
       header.tnow  = node["time"  ].as<double>();
       header.scale = node["scale" ].as<double>();
       
+      // Look for norm flag
+      //
+      if (node["normed"]) normed = node["normed"].as<bool>();
+
       std::fill(header.id, header.id+64, 0);
       std::string ID = node["id"].as<std::string>();
       strncpy(header.id, ID.c_str(), std::min<int>(64, ID.size()));
@@ -174,9 +182,11 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
     return false;
   }
   
+  if (in.eof()) return false;
+
   // Apply prefactors to make _true_ normed coefficients
   //
-  if (exp_type) {
+  if (exp_type and not normed) {
     int k = 0;
     for (int l=0; l<=header.Lmax; l++) {
       for (int m=0; m<=l; m++) {

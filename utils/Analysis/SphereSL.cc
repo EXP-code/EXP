@@ -187,7 +187,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 	fac = factorial(l, m) * legs(l, m);
 	for (int n=0; n<nmax; n++) {
 	  fac4 = potd(l, n)*fac;
-	  expcoef(loffset+moffset, n) += fac4 * norm *mass;
+	  expcoef(loffset+moffset, n) += fac4 * norm * mass;
 	  if (compute_covar) workE[m*nmax + n] = fac4;
 	}
 
@@ -249,9 +249,9 @@ void SphereSL::make_coefs()
 		    MPI_SUM, MPI_COMM_WORLD);
 
     for (int l=0; l<(lmax+1)*(lmax+1); l++) {
-      MPI_Allreduce(expcoef.row(l).data(), work.data(), nmax, MPI_DOUBLE,
+      work = expcoef.row(l);
+      MPI_Allreduce(MPI_IN_PLACE, work.data(), nmax, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
-
       expcoef.row(l) = work;
     }
 

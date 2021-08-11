@@ -79,6 +79,7 @@ int main(int argc, char **argv)
     if (not c->read(in, exp_type)) break;
 
     coefs[c->header.tnow] = c;
+    std::cout << "Size: " << coefs.size() << std::endl;
   }
   
   for (auto c : coefs) {
