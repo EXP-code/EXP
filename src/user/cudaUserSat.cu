@@ -9,10 +9,10 @@
 // Global device symbols for CUDA kernel
 //
 __device__ __constant__
-cuFP_t userSatMass, userSatCore2, userSatCen[3], userSatPos[3];
+cuFP_t userSatMass, userSatCore, userSatCen[3], userSatPos[3];
 
 __device__ __constant__
-bool userSatShadow;
+int userSatShadow;
 
 // Cuda implementation of satellite force
 //
@@ -36,7 +36,7 @@ userSatForceKernel(dArray<cudaParticle> P, dArray<int> I,
       cudaParticle & p = P._v[I._v[npart]];
       
       // Compute softened radius
-      cuFP_t rr = userSatCore2;
+      cuFP_t rr = userSatCore;
       for (int k=0; k<3; k++) {
 	fpos[k] = p.pos[k] - userSatCen[k] - userSatPos[k];
 	rr += fpos[k] * fpos[k];
@@ -55,7 +55,7 @@ userSatForceKernel(dArray<cudaParticle> P, dArray<int> I,
 
       // Add the shadow satellite
       if (userSatShadow) {
-	rr = userSatCore2;
+	rr = userSatCore;
 	for (int k=0; k<3; k++) {
 	  fpos[k] = p.pos[k] - userSatCen[k] + userSatPos[k];
 	  rr += fpos[k] * fpos[k];
@@ -79,6 +79,26 @@ userSatForceKernel(dArray<cudaParticle> P, dArray<int> I,
 
 }
 
+
+__global__
+void testConstantsUserSat(cuFP_t tnow)
+{
+  printf("-------------------------\n");
+  printf("---UserSat constants-----\n");
+  printf("-------------------------\n");
+  printf("   Time   = %e\n", tnow        );
+  printf("   Core^2 = %e\n", userSatCore );
+  printf("   Smass  = %e\n", userSatMass );
+  printf("   Center = %e, %e, %e\n",
+	 userSatCen[0], userSatCen[1], userSatCen[2] );
+  printf("   Satpos = %e, %e, %e\n",
+	 userSatPos[0], userSatPos[1], userSatPos[2] );
+  if (userSatShadow)
+    printf("   Shadow = true\n");
+  else
+    printf("   Shadow = false\n");
+  printf("-------------------------\n");
+}
 
 void UserSat::determine_acceration_and_potential_cuda()
 {
@@ -142,18 +162,17 @@ void UserSat::determine_acceration_and_potential_cuda()
 
   // Assign expansion center
   //
-  std::vector<cuFP_t> ctr;
-
-  for (auto v : cC->getCenter()) ctr.push_back(v);
-
+  auto cn = cC->getCenter();
+  cuFP_t ctr[3];
   for (int k=0; k<3; k++) {
-    sps[k] = rs[k];
+    ctr[k] = cn[k];
     if (pinning) ctr[k] += c0->com[k];
+    sps[k] = rs[k];
   }
 
-  cuFP_t cuSatCore2 = core * core, cuSatMass = satmass;
+  cuFP_t cuSatCore = core*core, cuSatMass = satmass;
 
-  cuda_safe_call(cudaMemcpyToSymbol(userSatCore2, &cuSatCore2, sizeof(cuFP_t),
+  cuda_safe_call(cudaMemcpyToSymbol(userSatCore, &cuSatCore, sizeof(cuFP_t),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying userSatCore");
   
@@ -161,7 +180,7 @@ void UserSat::determine_acceration_and_potential_cuda()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying userSatMass");
   
-  cuda_safe_call(cudaMemcpyToSymbol(userSatCen, ctr.data(), sizeof(cuFP_t)*3,
+  cuda_safe_call(cudaMemcpyToSymbol(userSatCen, ctr, sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying userSatCen");
 
@@ -169,9 +188,23 @@ void UserSat::determine_acceration_and_potential_cuda()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying userSatPos");
 
-  cuda_safe_call(cudaMemcpyToSymbol(userSatShadow, &shadow,  sizeof(bool),
+  int cuShadow = 0;
+  if (shadow) cuShadow = 1;
+  cuda_safe_call(cudaMemcpyToSymbol(userSatShadow, &cuShadow,  sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying userSatShadow");
+
+  // VERBOSE diagnostic output on first ncheck calls
+  //
+  static int cntr = 0;
+  const  int ncheck = 100;
+  
+  if (myid==0 and VERBOSE>4 and cntr < ncheck) {
+    testConstantsUserSat<<<1, 1, 0, cr->stream>>>(tnow);
+    cudaDeviceSynchronize();
+    cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);
+    cntr++;
+  }
 
   // Get particle index range for levels [mlevel, multistep]
   //
@@ -187,13 +220,9 @@ void UserSat::determine_acceration_and_potential_cuda()
 
     if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
-    // Shared memory size for the reduction
-    //
-    int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
-    
     // Do the work
     //
-    userSatForceKernel<<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
+    userSatForceKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
       (toKernel(cr->cuda_particles), toKernel(cr->indx1), stride, lohi);
   }
 }

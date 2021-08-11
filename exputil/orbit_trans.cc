@@ -261,9 +261,9 @@ void SphericalOrbit::compute_freq_epi(void)
   if (!freq_defined) compute_freq();
   
   d2udr2 = model->get_dpot2(r_circ);
-  freq[1] = sqrt(3.0*jmax*jmax*kappa*kappa/(r_circ*r_circ*r_circ*r_circ) + 
+  freq[0] = sqrt(3.0*jmax*jmax*kappa*kappa/(r_circ*r_circ*r_circ*r_circ) + 
 		 d2udr2);
-  freq[2] = jmax*kappa/(r_circ*r_circ);
+  freq[1] = jmax*kappa/(r_circ*r_circ);
 
 }
 
