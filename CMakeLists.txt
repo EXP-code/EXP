@@ -20,25 +20,31 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   # using Visual Studio C++
 endif()
 
+add_compile_options(-D_REENTRANT)
+
 set(MPI_CXX_SKIP_MPICXX
   true
   CACHE BOOL
   "If true, the MPI-2 C++ bindings are disabled using definitions.")
 
 option(DSMC_ENABLED "Enable DSCM module" TRUE)
+option(ENABLE_CUDA "Enable CUDA" TRUE)
 
 # required compiler features
 find_package(MPI REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem math program_options random serialization)
 find_package(OpenMP)
 find_package(VTK REQUIRED)
 find_package(HDF5)
 find_package(SLURM)
-find_package(CUDA)
+find_package(Eigen3 REQUIRED)
+if(ENABLE_CUDA)
+  find_package(CUDA REQUIRED)
+  enable_language(CUDA)
+endif()
 find_package(PNG)
 include(${VTK_USE_FILE}) # I don't like this global setting stuff, but it's not really
 # documented otherwise
-
-# FIXME: Add variable CUDA_SRC (and detect cuda, obviously)
 
 find_package(MKL)
 if(MKL_FOUND)
