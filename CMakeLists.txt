@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(
   EXP
-  VERSION 1.0.0
+  VERSION 7.697
+  HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
@@ -77,8 +78,34 @@ if(PNG_FOUND)
   set(HAVE_LIBPNGPP TRUE)
 endif()
 
+# Get the current working branch
+execute_process(
+  COMMAND git rev-parse --abbrev-ref HEAD
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_BRANCH
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+# Get the latest abbreviated commit hash of the working branch
+execute_process(
+  COMMAND git rev-parse HEAD
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+# Get the build date
+execute_process(
+  COMMAND date -u +%Y-%m-%d\ %H:%M:%S\ UTC
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE COMPILE_TIME
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
+
 configure_file(config_cmake.h.in config.h)
 
 add_subdirectory(extern/yaml-cpp)
-
 add_subdirectory(exputil)
+add_subdirectory(src)
