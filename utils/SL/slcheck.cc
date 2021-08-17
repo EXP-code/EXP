@@ -176,7 +176,7 @@ int main(int argc, char** argv)
 	out << "# "
 	    << std::setw(13) << " x |"
 	    << std::setw(15) << " r |";
-	for (int n=Nmin; n<=Nmax; n++) {
+	for (int n=Nmin; n<Nmax; n++) {
 	  std::ostringstream sout1, sout2, sout3;
 	  sout1 << " Pot(r, " << n << ") |";
 	  sout2 << " Force(r, " << n << ") |";
@@ -230,7 +230,7 @@ int main(int argc, char** argv)
 	  r = ortho->xi_to_r(x);
 	  out << setw(15) << x
 	      << setw(15) << r;
-	  for (int n=Nmin; n<=Nmax; n++)
+	  for (int n=Nmin; n<Nmax; n++)
 	    out << setw(15) << ortho->get_pot  (x, L, n, 0)
 		<< setw(15) << ortho->get_force(x, L, n, 0)
 		<< setw(15) << ortho->get_dens (x, L, n, 0);

@@ -139,6 +139,31 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   }
 
 
+  dnext  = tnext;		// Time for next debug output
+  tstart = tnext;
+
+  if (comp_list.size()>0) {
+				// Components for force evaluation
+    for (auto name : comp_list) {
+      bool found = false; 
+      for (auto c : comp->components) { // Look for each specified component
+	if ( !name.compare(c->name) ) {
+	  comp_vec.push_back(c);
+	  found = true;
+	  break;
+	}
+      }
+
+      if (!found) {
+	cerr << "Process " << myid << ": can't find desired list component <"
+	     << name << ">" << endl;
+	MPI_Abort(MPI_COMM_WORLD, 34);
+      }
+    }
+    cforce = true;
+  }
+
+
   if (comp_name.size()>0) {
 				// Look for the fiducial component
     bool found = false;
@@ -418,9 +443,9 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
       switch (alg) {
       case Algorithm::Halo:
-	for (int k=0; k<3; k++) vl_bins[0][i][k] += vl_bins[n][i][k];
-	for (int k=0; k<3; k++) v2_bins[0][i][k] += v2_bins[n][i][k];
-	break;
+	      for (int k=0; k<3; k++) vl_bins[0][i][k] += vl_bins[n][i][k];
+	      for (int k=0; k<3; k++) v2_bins[0][i][k] += v2_bins[n][i][k];
+	    break;
       case Algorithm::Disk:
       default:
 	for (int k=0; k<3; k++) L3_bins[0][i][k] += L3_bins[n][i][k];

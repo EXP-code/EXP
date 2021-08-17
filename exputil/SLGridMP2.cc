@@ -1056,14 +1056,12 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   integer *iflag = new integer [nmax];
   integer *invec = new integer [nmax+3];
 
-  // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-  // pdef[NUM*N];
   double *t=0, *rho=0;
-  double *ev = new double [N];
+  double *ev    = new double [N];
   double *store = new double [26*(NUM+16)];
-  double *xef = new double [NUM+16];
-  double *ef = new double [NUM*N];
-  double *pdef = new double [NUM*N];
+  double *xef   = new double [NUM+16];
+  double *ef    = new double [NUM*N];
+  double *pdef  = new double [NUM*N];
   double f;
 
 				// Inner  BC
@@ -1152,7 +1150,7 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
 				// Load table
 
   table->ev.resize(N);
-  for (int i=0; i<N; i++) table->ev[i+1] = ev[i];
+  for (int i=0; i<N; i++) table->ev[i] = ev[i];
 
   table->ef.resize(N, numr);
 
@@ -1261,14 +1259,13 @@ void SLGridCyl::compute_table_slave(void)
     integer *iflag = new integer [nmax];
     integer *invec = new integer [nmax+3];
 
-    // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-    // pdef[NUM*N];
+
     double *t=0, *rho=0;
-    double *ev = new double [N];
+    double *ev    = new double [N];
     double *store = new double [26*(NUM+16)];
-    double *xef = new double [NUM+16];
-    double *ef = new double [NUM*N];
-    double *pdef = new double [NUM*N];
+    double *xef   = new double [NUM+16];
+    double *ef    = new double [NUM*N];
+    double *pdef  = new double [NUM*N];
     double f;
 
     f = cylpot(cons[6]);
@@ -2293,14 +2290,12 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   integer *iflag = new integer [nmax];
   integer *invec = new integer [nmax+3];
 
-  // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-  // pdef[NUM*N];
   double *t=0, *rho=0;
-  double *ev = new double [N];
+  double *ev    = new double [N];
   double *store = new double [26*(NUM+16)];
-  double *xef = new double [NUM+16];
-  double *ef = new double [NUM*N];
-  double *pdef = new double [NUM*N];
+  double *xef   = new double [NUM+16];
+  double *ef    = new double [NUM*N];
+  double *pdef  = new double [NUM*N];
   double f;
 
 				// Inner BC
@@ -2386,7 +2381,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 				// Load table
 
   table->ev.resize(N);
-  for (int i=0; i<N; i++) table->ev[i+1] = ev[i];
+  for (int i=0; i<N; i++) table->ev[i] = ev[i];
 
   table->ef.resize(N, numr);
 
@@ -2494,14 +2489,12 @@ void SLGridSph::compute_table_slave(void)
     integer *iflag = new integer [nmax];
     integer *invec = new integer [nmax+3];
 
-    // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-    // pdef[NUM*N];
     double *t=0, *rho=0;
-    double *ev = new double [N];
+    double *ev    = new double [N];
     double *store = new double [26*(NUM+16)];
-    double *xef = new double [NUM+16];
-    double *ef = new double [NUM*N];
-    double *pdef = new double [NUM*N];
+    double *xef   = new double [NUM+16];
+    double *ef    = new double [NUM*N];
+    double *pdef  = new double [NUM*N];
     double f;
 
     f = sphpot(cons[6]);
@@ -3470,14 +3463,12 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   integer *iflag = new integer [nmax];
   integer *invec = new integer [nmax+3];
 
-  // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-  // pdef[NUM*N];
   double *t=0, *rho=0;
-  double *ev = new double [N];
+  double *ev    = new double [N];
   double *store = new double [26*(NUM+16)];
-  double *xef = new double [NUM+16];
-  double *ef = new double [NUM*N];
-  double *pdef = new double [NUM*N];
+  double *xef   = new double [NUM+16];
+  double *ef    = new double [NUM*N];
+  double *pdef  = new double [NUM*N];
   double f, df;
 
   KKZ = 2.0*M_PI/L * sqrt((double)(KX*KX + KY*KY));
@@ -3726,18 +3717,15 @@ void SLGridSlab::compute_table_slave(void)
 				// of each or one more symmetric
     N = (int)( 0.5*nmax + 0.501);
 
-    // integer iflag[nmax], invec[nmax+3];
     integer *iflag = new integer [nmax];
     integer *invec = new integer [nmax+3];
 
-    // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-    // pdef[NUM*N];
     double *t=0, *rho=0;
-    double *ev = new double [N];
+    double *ev    = new double [N];
     double *store = new double [26*(NUM+16)];
-    double *xef = new double [NUM+16];
-    double *ef = new double [NUM*N];
-    double *pdef = new double [NUM*N];
+    double *xef   = new double [NUM+16];
+    double *ef    = new double [NUM*N];
+    double *pdef  = new double [NUM*N];
     double f, df;
 
     KKZ = 2.0*M_PI/L * sqrt((double)(KX*KX + KY*KY));
