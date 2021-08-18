@@ -63,13 +63,6 @@ int main(int argc, char** argv)
     ;
 
   //===================
-  // MPI preliminaries 
-  //===================
-  if (use_mpi) {
-    local_init_mpi(argc, argv);
-  }
-
-  //===================
   // Parse options
   //===================
   po::variables_map vm;
@@ -82,10 +75,16 @@ int main(int argc, char** argv)
   } catch (po::error& e) {
     if (myid==0) std::cout << "Option error on command line: "
 			   << e.what() << std::endl;
-    MPI_Finalize();
     return -1;
   }
   
+  //===================
+  // MPI preliminaries 
+  //===================
+  if (use_mpi) {
+    local_init_mpi(argc, argv);
+  }
+
   // Print help message and exit
   //
   if (vm.count("help")) {
