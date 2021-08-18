@@ -992,8 +992,8 @@ epi(double xp, double yp, double zp)
 
   // Make sure that the grid position is good, otherwise truncate to
   // lowest good radius
-  if (ir1 < nzero) {
-    ir1 = nzero;
+  if (ir1 < nzepi) {
+    ir1 = nzepi;
     ir2 = ir1 + 1; 
 
     cr[1] = 0.0;
@@ -1013,15 +1013,15 @@ epi(double xp, double yp, double zp)
     cp[1]*cr[0]* epitable(iphi2, ir1) +
     cp[1]*cr[1]* epitable(iphi2, ir2) ;
     
-  if (ans>1.0) return sqrt(ans);
+  if (ans>0.0) return sqrt(ans);
   else {
 
     // Move forward
     int j;
     bool ok = false;
     for (j=ir2; j<NDR/4; j++) {
-      if (epitable(iphi1, j)<1.0) continue;
-      if (epitable(iphi2, j)<1.0) continue;
+      if (epitable(iphi1, j)<=0.0) continue;
+      if (epitable(iphi2, j)<=0.0) continue;
       ok = true;
       ans = 
 	cp[0]* epitable(iphi1, j) +
@@ -1069,7 +1069,8 @@ epi(double xp, double yp, double zp)
 	  << "    ep4=" << epitable(iphi2, ir2)   << std::endl
 	  << std::endl;
 
-      return 1.0;
+      ans = cp[0]*epitable(iphi1, nzepi) + cp[1]*epitable(iphi2, nzepi);
+      return sqrt(ans);
 
     }
   }
@@ -1368,8 +1369,6 @@ table_disk(vector<Particle>& part)
       if (i==0) workD(3, j) = epitable(0, j);
     }
 
-    
-    
 				// Cylindrical Jeans' equations
     for (int j=0; j<NDR; j++) {
       double ep   = epitable(i, j);
@@ -1415,6 +1414,13 @@ table_disk(vector<Particle>& part)
       MPI_Bcast(disktableN[i].data(), NDR*NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
     }
   }
+
+				// Compute minimum >zero index
+  nzepi = 0;
+  for (int i=0; i<NDP; i++) {
+    while (epitable(i, nzepi) <= 0.0) nzepi++;
+  }
+  std::cout << "NZEPI=" << nzepi << std::endl;
 
 				// For debugging the solution
   if (myid==curid && expandh && VFLAG & 4) {

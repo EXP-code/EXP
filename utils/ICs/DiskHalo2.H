@@ -86,6 +86,7 @@ class DiskHalo
   vector<double>   nhD;		// Mass in bins
   vector<unsigned> nhN;		// Number in bins
   int nzero;			// Computed minimum mesh point
+  int nzepi;			// Computed minimum epi value
 
   // Use Spline integration rather than Trapezoidal rule
   //
