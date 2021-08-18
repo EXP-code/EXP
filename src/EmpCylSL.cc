@@ -98,7 +98,10 @@ EmpCylSL::EmpCylSL(void)
   sampT      = 1;
   tk_type    = None;
   EVEN_M     = false;
+  MMIN       = 0;
   MLIM       = std::numeric_limits<int>::max();
+  NMIN       = 0;
+  NLIM       = std::numeric_limits<int>::max();
   EvenOdd    = false;
   Neven      = 0;
   Nodd       = 0;
@@ -142,7 +145,10 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   MMAX     = mmax;
   LMAX     = lmax;
   NORDER   = nord;
+  MMIN     = 0;
   MLIM     = std::numeric_limits<int>::max();
+  NMIN     = 0;
+  NLIM     = std::numeric_limits<int>::max();
   EvenOdd  = false;
   Neven    = 0;
   Nodd     = 0;
@@ -209,7 +215,10 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   MMAX     = mmax;
   LMAX     = lmax;
   NORDER   = nord;
+  MMIN     = 0;
   MLIM     = std::numeric_limits<int>::max();
+  NMIN     = 0;
+  NLIM     = std::numeric_limits<int>::max();
   EvenOdd  = false;
 
   // Set number of even and odd terms

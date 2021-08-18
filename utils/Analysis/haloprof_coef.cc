@@ -40,6 +40,7 @@
 
 				// BOOST stuff
 #include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
@@ -381,7 +382,7 @@ main(int argc, char **argv)
     cmd_line += " ";
   }
 
-  bool DENS, verbose = false, mask = false, All, PCs = false;
+  bool DENS, verbose = false, mask = false;
   std::string modelfile, coeffile;
   int stride;
 
@@ -413,12 +414,12 @@ main(int argc, char **argv)
     ("outid,o",
      po::value<std::string>(&outid)->default_value("halocoef"),
      "Analysis id name")
-    ("coeffile",
+    ("coeffile,c",
      po::value<std::string>(&coeffile)->default_value("coef.file"),
-     "coefficient file name from exp_mssa")
-    ("modfile",
+     "coefficient file name")
+    ("modfile,m",
      po::value<std::string>(&modelfile)->default_value("SLGridSph.model"),
-     "SL model filename")
+     "SLGrid model filename")
     ("runtag,r",
      po::value<std::string>(&runtag)->default_value("run1"),
      "runtag for phase space files")
@@ -448,10 +449,10 @@ main(int argc, char **argv)
   if (vm.count("mask")) mask = true;
 
   if (vm.count("noCommand")==0) {
-    std::string cmdFile = "mssaprof." + outid + ".cmd_line";
+    std::string cmdFile = "haloprof." + outid + ".cmd_line";
     std::ofstream cmd(cmdFile.c_str());
     if (!cmd) {
-      std::cerr << "mssaprof: error opening <" << cmdFile
+      std::cerr << "haloprof: error opening <" << cmdFile
 		<< "> for writing" << std::endl;
     } else {
       cmd << cmd_line << std::endl;
@@ -470,12 +471,6 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  if (not PCs and not All) {
-    if (myid==0) std::cout << "All output is off . . . exiting" << std::endl;
-    exit(0);
-  }
-
-
   // ==================================================
   // All processes will now compute the basis functions
   // *****Using MPI****
@@ -489,6 +484,12 @@ main(int argc, char **argv)
 
   auto data = spherical_read(coeffile, stride);
 
+  if (data.size()==0) {
+    std::cerr << argv[0] << ": no data read from coefficient file <"
+	      << coeffile << ">?" << std::endl;
+    exit(-1);
+  }
+
   // ==================================================
   // Make SL expansion
   // ==================================================
@@ -496,10 +497,11 @@ main(int argc, char **argv)
   int lmax     = data[0]->header.Lmax;
   int nmax     = data[0]->header.nmax;
 
-  SphericalModelTable halo(modelfile);
+  auto halo = boost::make_shared<SphericalModelTable>(modelfile);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
-  SphereSL ortho(&halo, lmax, nmax);
+
+  SphereSL ortho(halo, lmax, nmax);
   
   std::vector<std::string> outfiles1, outfiles2, outfiles3;
   std::vector<double> T;
@@ -517,10 +519,10 @@ main(int argc, char **argv)
     for (int l=0; l<LL; l++) {
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<d->header.nmax; n++) 
-	  expcoef(lindx, n) = d->coefs[lindx][n];
+	  expcoef(lindx, n) = d->coefs(lindx, n);
 	if (m) {
 	  for (int n=0; n<d->header.nmax; n++)
-	    expcoef(lindx+1, n) = d->coefs[lindx+1][n];
+	    expcoef(lindx+1, n) = d->coefs(lindx+1, n);
 	}
 	if (m) lindx += 2;
 	else   lindx += 1;
@@ -533,7 +535,7 @@ main(int argc, char **argv)
 	
     if (myid==0) cout << "Writing output for T="
 		      << d->header.tnow << " . . . " << flush;
-    write_output(ortho, indx, d->header.tnow, file1, file2, file3);
+    write_output(ortho, indx++, d->header.tnow, file1, file2, file3);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
     

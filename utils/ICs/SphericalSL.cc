@@ -443,7 +443,7 @@ void SphericalSL::accumulate(vector<Particle> &part)
   int iflg = 0;
   
   for (int n=0; n<NMAX; n++) {
-    for (int l=0; l<=LMAX*(LMAX+2); l++) {
+    for (int l=0; l<(LMAX+1)*(LMAX+1); l++) {
       if (std::isnan(expcoef(l, n))) {
 	std::cerr << "expcoef[" << l << "][" << n << "] is NaN"
 		  << std::endl;
@@ -532,11 +532,11 @@ void SphericalSL::determine_fields_at_point
 	double fac4 = fac2 * dlegs[0](l, m);
 	double pc, ps, dpc, dps;
 	
-	get_dens_coefs(l, expcoef.row(loffset+moffset), pc);
+	get_dens_coefs(l, expcoef.row(loffset+moffset+0), pc);
 	get_dens_coefs(l, expcoef.row(loffset+moffset+1), ps);
 	dens += dfac*fac3*(pc*cosm[id][m] + ps*sinm[id][m]);
 	
-	get_pot_coefs(l,expcoef.row(loffset+moffset), pc, dpc);
+	get_pot_coefs(l,expcoef.row(loffset+moffset+0), pc, dpc);
 	get_pot_coefs(l,expcoef.row(loffset+moffset+1), ps, dps);
 
 				// External solution

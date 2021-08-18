@@ -4,6 +4,10 @@
 #include <fstream>
 #include <cmath>
 
+#include <boost/make_shared.hpp>
+
+#include <yaml-cpp/yaml.h>
+
 #include <SphereSL.H>
 
 #ifdef HAVE_LIBPNGPP
@@ -16,18 +20,17 @@ bool   SphereSL::mpi  = false;	// Initially off
 double SphereSL::HEXP = 1.0;	// Hall exponent
 
 //! Constructor
-SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
-		   int CMAP, double Scale, bool COVAR, int NPART)
+SphereSL::SphereSL(boost::shared_ptr<SphericalModelTable> mod,
+		   int LMAX, int NMAX, int CMAP, double Scale,
+		   bool COVAR, int NPART)
 {
-  SphericalModelTable *model = mod;
-  
   SLGridSph::mpi = mpi ? 1 : 0;
 
-  double rmin = max<double>(mod->get_min_radius()*2.0, 
-			    mod->get_max_radius()*1.0e-4);
-  double rmax = mod->get_max_radius()*0.99;
+  rmin = max<double>(mod->get_min_radius()*2.0, 
+		     mod->get_max_radius()*1.0e-4);
+  rmax = mod->get_max_radius()*0.99;
 
-  sl = new SLGridSph(LMAX, NMAX, NUMR, rmin, rmax, model, CMAP, Scale);
+  sl = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, rmin, rmax, mod, CMAP, Scale);
 
   lmax = LMAX;
   nmax = NMAX;
@@ -50,7 +53,7 @@ SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
 
 SphereSL::~SphereSL(void)
 {
-  delete sl;
+  // NADA
 }
 
 void SphereSL::bomb(char *s)
@@ -160,6 +163,8 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
   double phi = atan2(y,x);
   double rs = r/rscl;
 	
+  if (r < rmin or r > rmax) return;
+
   used++;
   totalMass += mass;
 
@@ -182,7 +187,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 	fac = factorial(l, m) * legs(l, m);
 	for (int n=0; n<nmax; n++) {
 	  fac4 = potd(l, n)*fac;
-	  expcoef(loffset+moffset, n) += fac4 * norm *mass;
+	  expcoef(loffset+moffset, n) += fac4 * norm * mass;
 	  if (compute_covar) workE[m*nmax + n] = fac4;
 	}
 
@@ -243,10 +248,10 @@ void SphereSL::make_coefs()
       MPI_Allreduce(MPI_IN_PLACE, &totalMass, 1, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
 
-    for (int l=0; l<=lmax*(lmax+2); l++) {
-      MPI_Allreduce(&expcoef(l, 1), &work[1], nmax, MPI_DOUBLE,
+    for (int l=0; l<(lmax+1)*(lmax+1); l++) {
+      work = expcoef.row(l);
+      MPI_Allreduce(MPI_IN_PLACE, work.data(), nmax, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
-
       expcoef.row(l) = work;
     }
 
@@ -417,7 +422,7 @@ Eigen::MatrixXd SphereSL::get_trimmed(double snr, double mass, bool Hall)
       Eigen::VectorXd W(esize);
       for (int m=0, moffset=0; m<=l; m++) {
 	if (m==0) {
-	  for (int n=0; n<=nmax; n++) {
+	  for (int n=0; n<nmax; n++) {
 	    W[m*nmax + n] = fabs(expcoef(loffset+moffset+0, n))
 	      / (norm*mass);
 	  }
@@ -485,7 +490,7 @@ Eigen::MatrixXd SphereSL::get_trimmed(double snr, double mass, bool Hall)
 
     const int minSize = 600;
     int ndupX = 1, ndupY = 1;
-				// Sanity check
+    // Sanity check
     NEV = std::min<int>(NEV, nmax);
     
     for (int L=0; L<=lmax; L++) {
@@ -574,14 +579,14 @@ double SphereSL::get_power(double snr, double mass)
       Eigen::VectorXd W(esize);
       for (int m=0, moffset=0; m<=l; m++) {
 	if (m==0) {
-	  for (int n=0; n<=nmax; n++) {
+	  for (int n=0; n<nmax; n++) {
 	    W[m*nmax + n] = fabs(expcoef(loffset+moffset+0, n))
 	      / (norm*mass);
 	  }
 	  moffset++;
 
 	} else {
-	  for (int n=0; n<=nmax; n++) {
+	  for (int n=0; n<nmax; n++) {
 	    W[m*nmax + n] =
 	      sqrt(expcoef(loffset+moffset+0, n)*expcoef(loffset+moffset+0, n)
 		   +
@@ -1019,24 +1024,40 @@ void SphereSL::install_coefs(Eigen::MatrixXd& newcoef)
 
 void SphereSL::dump_coefs(double time, ostream& out)
 {
-  ostringstream sout;
-  sout << "SphereSL";
+  // This is a node of simple {key: value} pairs.  More general
+  // content can be added as needed.
+  //
+  YAML::Node node;
 
-  char buf[64];
-  for (int i=0; i<64; i++) {
-    if (i<sout.str().length())  buf[i] = sout.str().c_str()[i];
-    else                        buf[i] = '\0';
-  }
+  node["id"    ] = "SphereSL";
+  node["time"  ] = time;
+  node["scale" ] = rscl;
+  node["nmax"  ] = nmax;
+  node["lmax"  ] = lmax;
+  node["normed"] = true;
 
-  out.write((char *)&buf,64*sizeof(char));
-  out.write((char *)&time , sizeof(double));
-  out.write((char *)&rscl,  sizeof(double));
-  out.write((char *)&nmax,  sizeof(int));
-  out.write((char *)&lmax,  sizeof(int));
+  // Serialize the node
+  //
+  YAML::Emitter y; y << node;
+  
+  // Get the size of the string
+  //
+  unsigned int hsize = strlen(y.c_str());
+  
+  // Write magic #
+  //
+  out.write(reinterpret_cast<const char *>(&cmagic),   sizeof(unsigned int));
+  
+  // Write YAML string size
+  //
+  out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+    
+  // Write YAML string
+  //
+  out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
 
-  for (int ir=0; ir<nmax; ir++) {
-    for (int l=0; l<=lmax*(lmax+2); l++)
-      out.write((char *)&expcoef(l, ir), sizeof(double));
-  }
-
+  // Write the data using Eigen in col-major order
+  //
+  EigenColMajor t(expcoef);
+  out.write((char *)t.data(), t.size()*sizeof(double));
 }

@@ -194,8 +194,8 @@ double SphericalOrbit::get_angle(const int i, const double time)
      7      phi
    */
 
-  double w1 = freq[1]*time;
-  double w2 = freq[2]*time;
+  double w1 = freq[0]*time;
+  double w2 = freq[1]*time;
   double ans = 0.0;
   int branch=0;
 

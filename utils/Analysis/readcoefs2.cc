@@ -100,15 +100,15 @@ int main(int argc, char **argv)
 	    if (angle)
 	      std::cout << std::setw(18) << 0.0;
 	    else
-	      std::cout << std::setw(18) << fabs(c.second->coefs[I][nn]);
+	      std::cout << std::setw(18) << fabs(c.second->coefs(I, nn));
 	  } else {
 	    if (angle) {
-	      double arg = atan2(c.second->coefs[I+1][nn], c.second->coefs[I][nn]);
+	      double arg = atan2(c.second->coefs(I+1, nn), c.second->coefs(I, nn));
 	      std::cout << std::setw(18) << arg;
 	    } else {
 	      double amp =
-		c.second->coefs[I+0][nn] * c.second->coefs[I+0][nn] +
-		c.second->coefs[I+1][nn] * c.second->coefs[I+1][nn] ;
+		c.second->coefs(I+0, nn) * c.second->coefs(I+0, nn) +
+		c.second->coefs(I+1, nn) * c.second->coefs(I+1, nn) ;
 	      std::cout << std::setw(18) << sqrt(amp);
 	    }
 	  }

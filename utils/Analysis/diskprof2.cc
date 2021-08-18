@@ -1108,7 +1108,8 @@ main(int argc, char **argv)
 
   int iok = 1;
 
-  auto file0 = ParticleReader::fileNameCreator(fileType, init, dir, runtag);
+  auto file0 = ParticleReader::fileNameCreator
+    (fileType, init, dir, runtag, filePrefix);
 
   if (myid==0) {
     std::ifstream in(file0);
@@ -1280,6 +1281,8 @@ main(int argc, char **argv)
 			   << reader->CurrentTime()
 			   << "] . . . " << std::flush;
       
+    particles.clear();		// Empty the particle vector
+				// Then read in new particles
     add_particles(reader, cname, particles, histo);
 
     if (myid==0)
@@ -1350,7 +1353,8 @@ main(int argc, char **argv)
 
     iok = 1;
 
-    file1 = ParticleReader::fileNameCreator(fileType, indx, dir, runtag);
+    file1 = ParticleReader::fileNameCreator
+      (fileType, indx, dir, runtag, filePrefix);
 
     if (myid==0) {
       std::ifstream in(file1);
@@ -1391,6 +1395,8 @@ main(int argc, char **argv)
       
     histo.Reset();		// Reset surface histogram
 
+    particles.clear();		// Empty the particle vector
+				// Then read in new particles
     add_particles(reader, cname, particles, histo);
     if (myid==0) cout << "done" << endl;
     

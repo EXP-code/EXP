@@ -1,55 +1,4 @@
-#include <math.h>
-#include "expand.H"
-#include <localmpi.H>
-#include <UnboundOrbit.H>
-#include <LinearOrbit.H>
-#include <SatelliteOrbit.h>
-
-#include <AxisymmetricBasis.H>
-#include <ExternalCollection.H>
-#include <FindOrb.H>
-
-class UserSat : public ExternalForce
-{
-private:
-  
-  string com_name, orbfile;
-  Component *c0;
-
-  YAML::Node config;
-
-  Trajectory *traj;
-
-  void * determine_acceleration_and_potential_thread(void * arg);
-  void initialize();
-
-  double core, mass, ton, toff, delta, toffset;
-
-  bool orbit;			//! Print out orbit trajectory
-  bool shadow;			//! Add a reflection-symmetric satellite
-  bool verbose;			//! Print diagnostic messages
-  bool zbflag;			//! Zero body flag
-  bool pinning;			//! Pin center to a component
-
-  double omega, phase, r0, tlast;
-
-  void userinfo();
-
-  enum TrajType {circ, bound, unbound, linear} traj_type;
-
-public:
-  
-  //! For debugging . . .
-  static int instances;
-
-  //! Constructor
-  UserSat(const YAML::Node& conf);
-
-  //! Destuctor
-  ~UserSat();
-
-};
-
+#include <UserSat.H>
 
 int UserSat::instances = 0;
 
@@ -116,26 +65,34 @@ UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
   }
 
   if (orbit && myid==0) {
-    ostringstream sout;
+    std::ostringstream sout;
     sout << outdir << "UserSat." << runtag << "." << ++instances;
     orbfile = sout.str();
-    ofstream out (orbfile.c_str());
-    out << left << setfill('-')
-	<< setw(15) << "#"
-	<< setw(15) << "+"
-	<< setw(15) << "+"
-	<< setw(15) << "+"
-	<< endl << setfill(' ')
-	<< setw(15) << "# Time"
-	<< setw(15) << "+ X-pos"
-	<< setw(15) << "+ Y-pos"
-	<< setw(15) << "+ Z-pos"
-	<< endl << setfill('-')
-	<< setw(15) << "#"
-	<< setw(15) << "+"
-	<< setw(15) << "+"
-	<< setw(15) << "+"
-	<< endl << setfill(' ');
+    std::ofstream out (orbfile);
+    if (out) {
+      out << left << setfill('-')
+	  << setw(15) << "#"
+	  << setw(15) << "+"
+	  << setw(15) << "+"
+	  << setw(15) << "+"
+	  << setw(15) << "+"
+	  << endl << setfill(' ')
+	  << setw(15) << "# Time"
+	  << setw(15) << "+ Mass"
+	  << setw(15) << "+ X-pos"
+	  << setw(15) << "+ Y-pos"
+	  << setw(15) << "+ Z-pos"
+	  << endl << setfill('-')
+	  << setw(15) << "#"
+	  << setw(15) << "+"
+	  << setw(15) << "+"
+	  << setw(15) << "+"
+	  << setw(15) << "+"
+	  << endl << setfill(' ');
+    } else {
+      std::cerr << "UserSat: could not open orbit diagnostic file <"
+		<< orbfile << ">" << std::endl;
+    }
       
     tlast = tnow;
   }
@@ -252,6 +209,15 @@ void UserSat::initialize()
 }  
 
 
+void UserSat::determine_acceleration_and_potential(void)
+{
+#if HAVE_LIBCUDA==1
+  determine_acceration_and_potential_cuda();
+#else
+  exp_thread_fork(false);
+#endif
+}
+
 void * UserSat::determine_acceleration_and_potential_thread(void * arg) 
 {
   double pos[3], rs[3], fac, ffac, phi;
@@ -292,7 +258,7 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
     rs[2] = 0.0;
   }
   else
-    traj->get_satellite_orbit(tnow - toffset, &rs[0]);
+    traj->get_satellite_orbit(tnow - toffset, rs);
 
   satmass = mass * 
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
@@ -303,7 +269,7 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
   if (orbit && myid==0 && id==0 && mlevel==0 && tnow>tlast) {
     ofstream out (orbfile.c_str(), ios::app);
     if (out) {
-      out << setw(15) << tnow;
+      out << setw(15) << tnow << setw(15) << satmass;
       for (int k=0; k<3; k++) out << setw(15) << rs[k];
       out << endl;
       tlast = tnow;

@@ -11,6 +11,9 @@
 
 using namespace std;
 
+// Helper class for buffered binary writes
+class ParticleBuffer;
+
 //! Keeps track of all info for one particle
 /*!
   The iattrib and dattrib vectors are used by individual components to
@@ -22,6 +25,7 @@ private:
 
   //! MPI buffer
   std::vector<char> buffer;
+
 
 public:
 
@@ -99,6 +103,9 @@ public:
   void writeAscii(bool indexing, bool accel, std::ostream* out);
 
   //! Write a particle in binary format (PSP)
+  void writeBinaryBuffered(unsigned rsize, bool indexing, std::ostream *out, ParticleBuffer& buf) const;
+
+  //! Write a particle in binary format (PSP)
   void writeBinary(unsigned rsize, bool indexing, std::ostream *out) const;
 
   //! Write a particle in binary format (PSP) to buffer for MPI
@@ -112,6 +119,39 @@ public:
     return csize;
   }
 };
+
+//! Helper class for writing a buffer of particles
+class ParticleBuffer
+{
+protected:
+  //! Write buffer
+  std::vector<char> charBuffer;
+
+  //! Buffer size
+  unsigned bufSize;
+
+  //! Buffer particle count
+  unsigned bufCount;
+
+  //! Buffer maximum particle count
+  const unsigned maxBufCount = 2048;
+
+public:
+
+  //! Buffer location
+  char* Loc;
+
+  //! Constructor
+  ParticleBuffer(unsigned rsize, bool indexing, const Particle *p);
+
+  //! Write buffer
+  void writeBuffer(std::ostream *out, bool finish=false);
+
+  //! Increment the particle counter
+  void operator++(int) { bufCount++; }
+
+};
+
 
 typedef boost::shared_ptr<Particle> PartPtr;
 typedef std::unordered_map<unsigned long, PartPtr> PartMap;

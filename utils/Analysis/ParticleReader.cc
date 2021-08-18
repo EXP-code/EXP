@@ -913,8 +913,8 @@ const Particle *PSPout::nextParticle()
     else
       dpart.read(in, pcount++, spos);
 
-    // Stride by numprocs
-    // ------------------
+    // Stride by numprocs-1
+    // --------------------
     for (int n=0; n<numprocs-1; n++)  {
       if (pcount < spos->comp.nbod) {
 	if (spos->r_size == 4)
@@ -1014,8 +1014,8 @@ const Particle* PSPspl::nextParticle()
       dpart.read(in, pcount++, spos);
     fcount++;
     
-    // Stride by numprocs
-    // ------------------
+    // Stride by numprocs-1
+    // --------------------
     for (int n=0; n<numprocs-1; n++)  {
       if (pcount < spos->comp.nbod) {
 	if (fcount==N) openNextBlob();
@@ -1145,10 +1145,10 @@ std::string ParticleReader::fileNameCreator
   ret << dir << "/";
 
   if (myType.find("PSPout") == 0) {
-    if (prefix.size()==0) ret << "OUT.";
-    else                  ret << "." << prefix;
+    if (prefix.size()==0) ret << "OUT";
+    else                  ret << prefix;
 
-    ret << runtag << "."
+    ret << "." << runtag << "."
 	<< std::setw(5) << std::setfill('0') << number;
 
     return ret.str();
@@ -1156,9 +1156,9 @@ std::string ParticleReader::fileNameCreator
   
   if (myType.find("PSPspl") == 0) {
     if (prefix.size()==0) ret << "SPL.";
-    else                  ret << "." << prefix;
+    else                  ret << prefix;
 
-    ret << runtag << "."
+    ret << "." << runtag << "."
 	<< std::setw(5) << std::setfill('0') << number;
 
     return ret.str();

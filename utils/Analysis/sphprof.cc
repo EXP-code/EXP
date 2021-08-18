@@ -42,6 +42,7 @@ using namespace std;
 				// Boost stuff
 
 #include <boost/program_options.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/filesystem.hpp>
 
 namespace po = boost::program_options;
@@ -557,10 +558,10 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  SphericalModelTable halo(MODFILE);
+  auto halo = boost::make_shared<SphericalModelTable>(MODFILE);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
-  SphereSL ortho(&halo, LMAX, NMAX);
+  SphereSL ortho(halo, LMAX, NMAX);
 
   // ==================================================
   // Begin sequence

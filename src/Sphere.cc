@@ -15,7 +15,6 @@ Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m
 {
   id = "Sphere SL";
 				// Defaults
-  rmin = min<double>(1.0e-6, 1.0e-6*rmax);
   rs = 0.067*rmax;
   numr = 2000;
   nums = 2000;
@@ -49,6 +48,10 @@ Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m
   ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, true,
 					cmap, rs, diverge, dfac);
 
+				// Get the min and max expansion radii
+  rmin  = ortho->getRmin();
+  rmax  = ortho->getRmax();
+
   setup();
 }
 
@@ -56,7 +59,6 @@ Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m
 void Sphere::initialize()
 {
   try {
-    if (conf["rmin"])      rmin       = conf["rmin"].as<double>();
     if (conf["rs"])        rs         = conf["rs"].as<double>();
     if (conf["numr"])      numr       = conf["numr"].as<int>();
     if (conf["nums"])      nums       = conf["nums"].as<int>();

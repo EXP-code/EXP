@@ -273,6 +273,12 @@ public:
   */
   void get_force(Eigen::MatrixXd& tab, double x, int which=1);
 
+  //@{
+  //! Get the current minimum and maximum radii for the expansion
+  double getRmin() { return rmin; }
+  double getRmax() { return rmax; }
+  //@}
+
 };
 
 

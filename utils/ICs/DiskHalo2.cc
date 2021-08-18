@@ -1,6 +1,8 @@
 #define LOGCHEBY		// Test smoothing using log scaling
 				// from Mike P
 
+#undef ENFORCE_KAPPA		// Clamp kappa^2
+
 				// System
 #include <values.h>
 				// C++/STL
@@ -967,24 +969,26 @@ epi(double xp, double yp, double zp)
     exit(0);
   }
 
-  double lR, phi, cp[2], cr[2], ans;
-  int iphi1, iphi2, ir1, ir2;
-
   // Azimuth
   //
-  phi = atan2(yp, xp);
+  double phi = atan2(yp, xp);
   if (phi<0.0) phi = 2.0*M_PI + phi;
 
-  iphi1 = floor( phi/dP );
+  int iphi1 = floor( phi/dP );
+  iphi1 = std::min<int>(iphi1, NDP-1);
+  int iphi2 = iphi1 + 1;
   if (iphi1==NDP-1) iphi2 = 0;	// Modulo 2Pi
-  else iphi2 = iphi1+1;
+
+  double cp[2], cr[2];
+
   cp[1] = (phi - dP*iphi1)/dP;
   cp[0] = 1.0 - cp[1];
 
   // Cylindrical radius
   //
-  lR = log(max<double>(RDMIN, sqrt(xp*xp + yp*yp)));
-  ir1 = floor( (lR - log(RDMIN))/dR );
+  double lR = log(max<double>(RDMIN, sqrt(xp*xp + yp*yp)));
+  int ir1 = floor( (lR - log(RDMIN))/dR );
+  int ir2 = ir1 + 1;
 
   // Make sure that the grid position is good, otherwise truncate to
   // lowest good radius
@@ -995,29 +999,29 @@ epi(double xp, double yp, double zp)
     cr[1] = 0.0;
     cr[0] = 1.0;
   }  else {
-    ir1 = min<int>( ir1, NDR-2 );
-    ir1 = max<int>( ir1, 0 );
+    ir1 = std::min<int>( ir1, NDR-2 );
+    ir1 = std::max<int>( ir1, 0 );
     ir2 = ir1 + 1;
   
     cr[1] = (lR - log(RDMIN) - dR*ir1)/dR;
     cr[0] = 1.0 - cr[1];
   }
 
-  ans = 
+  double ans = 
     cp[0]*cr[0]* epitable(iphi1, ir1) +
     cp[0]*cr[1]* epitable(iphi1, ir2) +
     cp[1]*cr[0]* epitable(iphi2, ir1) +
     cp[1]*cr[1]* epitable(iphi2, ir2) ;
     
-  if (ans>0.0) return sqrt(ans);
+  if (ans>1.0) return sqrt(ans);
   else {
 
     // Move forward
     int j;
     bool ok = false;
     for (j=ir2; j<NDR/4; j++) {
-      if (epitable(iphi1, j)<0.0) continue;
-      if (epitable(iphi2, j)<0.0) continue;
+      if (epitable(iphi1, j)<1.0) continue;
+      if (epitable(iphi2, j)<1.0) continue;
       ok = true;
       ans = 
 	cp[0]* epitable(iphi1, j) +
@@ -1065,7 +1069,7 @@ epi(double xp, double yp, double zp)
 	  << "    ep4=" << epitable(iphi2, ir2)   << std::endl
 	  << std::endl;
 
-      return 1.0e-8;
+      return 1.0;
 
     }
   }
@@ -1137,6 +1141,8 @@ table_disk(vector<Particle>& part)
   Eigen::VectorXd workE2(NDR);
   Eigen::VectorXd workQ (NDR);
   Eigen::VectorXd workQ2(NDR);
+  Eigen::VectorXd workQ3(NDR);
+  Eigen::VectorXd workQ4(NDR);
 #ifdef LOGCHEBY
   Eigen::VectorXd workQ2log   (NDR);
   Eigen::VectorXd workQ2smooth(NDR);
@@ -1215,6 +1221,9 @@ table_disk(vector<Particle>& part)
       workQ[j]    = sqrt(workE[j]/R);
 				// r^2*[1/r dPhi/dr]^{1/2} = r^2 * Omega
       workQ2[j]   = workQ[j] * R*R;
+
+      workQ3[j]   = -fr;	// For testing only
+      workQ4[j]   = dpr;	// For testing only
 
       if (i==0) {
 	workD(4, j) = -fr;
@@ -1345,6 +1354,14 @@ table_disk(vector<Particle>& part)
 			      workQ2);
       }
 
+#ifdef ENFORCE_KAPPA
+      {
+	double om2 = workQ[j]*workQ[j];
+	epitable(i, j) = std::max<double>(epitable(i, j), om2    );
+	epitable(i, j) = std::min<double>(epitable(i, j), om2*4.0);
+      }
+#endif
+
       if (i==0) workD(1, j) = epitable(0, j);
       epitable(i, j) *= 2.0*workQ[j]/exp(2.0*workR[j]);
       if (i==0) workD(2, j) = epitable(0, j);
@@ -1443,23 +1460,25 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << workR[j]		// #3
 	  << setw(14) << workQ[j]		// #4
 	  << setw(14) << workQ2[j]		// #5
-	  << setw(14) << deriv2                 // #6
-	  << setw(14) << vrq0                   // #7
-	  << setw(14) << vrq1                   // #8
-	  << setw(14) << v_circ(r, 0.0, 0.0)    // #9
-	  << setw(14) << workD(0, j)		// #10  dV(tot)/dR
-	  << setw(14) << workD(1, j)		// #11  d^2V(tot)/dlnR
-	  << setw(14) << workD(2, j)		// #12  d^2V(tot)/dlnR + 3V(tot)
-	  << setw(14) << workD(3, j)		// #13  kappa^2
-	  << setw(14) << workD(4, j)		// #14  dV(disk)/dR
-	  << setw(14) << workD(5, j)		// #15  dV(halo)/dR
-	  << setw(14) << rho			// #16
-	  << setw(14) << deriv			// #17
-	  << setw(14) << lhs			// #18
-	  << setw(14) << rhs			// #19
-	  << setw(14) << lhs - rhs		// #20
-	  << setw(14) << odd2(log(r), nrD, nhD) // #21  Enclosed mass
-	  << setw(14) << epi(r, 0.0, 0.0)	// #22  Epi routine
+	  << setw(14) << workQ3[j]		// #6
+	  << setw(14) << workQ4[j]		// #7
+	  << setw(14) << deriv2                 // #8
+	  << setw(14) << vrq0                   // #9
+	  << setw(14) << vrq1                   // #10
+	  << setw(14) << v_circ(r, 0.0, 0.0)    // #11
+	  << setw(14) << workD(0, j)		// #12  dV(tot)/dR
+	  << setw(14) << workD(1, j)		// #13  d^2V(tot)/dlnR
+	  << setw(14) << workD(2, j)		// #14  d^2V(tot)/dlnR + 3V(tot)
+	  << setw(14) << workD(3, j)		// #15  kappa^2
+	  << setw(14) << workD(4, j)		// #16  dV(disk)/dR
+	  << setw(14) << workD(5, j)		// #17  dV(halo)/dR
+	  << setw(14) << rho			// #18
+	  << setw(14) << deriv			// #19
+	  << setw(14) << lhs			// #20
+	  << setw(14) << rhs			// #21
+	  << setw(14) << lhs - rhs		// #22
+	  << setw(14) << odd2(log(r), nrD, nhD) // #23  Enclosed mass
+	  << setw(14) << epi(r, 0.0, 0.0)	// #24  Epi routine
 	  << std::endl;
     }
 
@@ -1675,7 +1694,7 @@ double DiskHalo::a_drift(double xp, double yp, double zp)
   if (phi<0.0) phi = 2.0*M_PI + phi;
 
   int iphi1 = floor( phi/dP );
-  iphi1 = min<int>(iphi1, NDP-1);
+  iphi1 = std::min<int>(iphi1, NDP-1);
   int iphi2 = iphi1 + 1;
   if (iphi1==NDP-1) iphi2 = 0; // Modulo 2Pi
 

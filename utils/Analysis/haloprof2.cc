@@ -510,7 +510,7 @@ main(int argc, char **argv)
   
   double snr, rscale, Hexp;
   int NICE, LMAX, NMAX, NPART;
-  int beg, end, stride, init;
+  int beg, end, stride;
   std::string MODFILE, INDEX, dir("."), cname, coefs, fileType, filePrefix;
 
 
@@ -585,15 +585,13 @@ main(int argc, char **argv)
      "Output directory path")
     ("MODFILE",             po::value<string>(&MODFILE)->default_value("SLGridSph.model"),
      "Halo model file")
-    ("init",                po::value<int>(&init)->default_value(0),
-     "fiducial PSP index")
     ("beg",                 po::value<int>(&beg)->default_value(0),
      "initial PSP index")
     ("end",                 po::value<int>(&end)->default_value(99999),
      "final PSP index")
     ("stride",              po::value<int>(&stride)->default_value(1),
      "PSP index stride")
-    ("compname",            po::value<std::string>(&cname)->default_value("stars"),
+    ("compname",            po::value<std::string>(&cname)->default_value("dark"),
      "train on Component (default=stars)")
     ("dir,d",               po::value<std::string>(&dir),
      "directory for phase-space files")
@@ -681,19 +679,20 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  SphericalModelTable halo(MODFILE);
+  auto halo = boost::make_shared<SphericalModelTable>(MODFILE);
+
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
   SphereSL::HEXP = Hexp;
 
-  SphereSL ortho(&halo, LMAX, NMAX, 1, rscale, true, NPART);
+  SphereSL ortho(halo, LMAX, NMAX, 1, rscale, true, NPART);
   
   std::string file;
 
   std::ofstream outcoef;	// Coefficient file
 
   if (vm.count("coefs")) {
-    std::string coeffile = outdir + "/" + OUTFILE + ".coefs";
+    std::string coeffile = outdir + "/" + coefs + ".coefs";
 				// Set exceptions to be thrown on failure
     outcoef.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
@@ -712,18 +711,8 @@ main(int argc, char **argv)
 
     int iok = 1;
 
-    auto file0 = ParticleReader::fileNameCreator
-      (fileType, init, dir, runtag, filePrefix);
     auto file1 = ParticleReader::fileNameCreator
       (fileType, indx, dir, runtag, filePrefix);
-
-    {
-      std::ifstream in(file0);
-      if (!in) {
-	cerr << "Error opening <" << file0 << ">" << endl;
-	iok = 0;
-      }
-    }      
 
     {
       std::ifstream in(file1);

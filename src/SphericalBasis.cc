@@ -60,10 +60,15 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
     else
       scale = 1.0;
 
+    if (conf["rmin"]) 
+      rmin = conf["rmin"].as<double>();
+    else
+      rmax = 0.0;
+
     if (conf["rmax"]) 
       rmax = conf["rmax"].as<double>();
     else
-      rmax = 10.0;
+      rmax = std::numeric_limits<double>::max();
 
     if (conf["self_consistent"]) {
       self_consistent = conf["self_consistent"].as<bool>();
@@ -403,7 +408,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
     r2 = (xx*xx + yy*yy + zz*zz);
     r = sqrt(r2) + DSMALL;
       
-    if (r<rmax) {
+    if (r>=rmin and r<=rmax) {
 
       use[id]++;
       costh = zz/r;
