@@ -381,7 +381,7 @@ void SphericalModelTable::print_df(char const *name)
   }
   else if (dfc.num) {
   
-    for (int i=0; i<df.Q.size(); i++) {
+    for (int i=0; i<dfc.Q.size(); i++) {
       
       d = dfc.FF.eval(dfc.Q[i]);
       g = dfc.GG.eval(dfc.Q[i]);
