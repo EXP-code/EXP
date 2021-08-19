@@ -1418,9 +1418,9 @@ table_disk(vector<Particle>& part)
 				// Compute minimum >zero index
   nzepi = 0;
   for (int i=0; i<NDP; i++) {
-    while (epitable(i, nzepi) <= 0.0) nzepi++;
+    while (epitable(i, nzepi) <= 0.0 and nzepi<NDR) nzepi++;
   }
-  std::cout << "NZEPI=" << nzepi << std::endl;
+  std::cout << "NZEPI=" << nzepi << "/" << NDR << std::endl;
 
 				// For debugging the solution
   if (myid==curid && expandh && VFLAG & 4) {
