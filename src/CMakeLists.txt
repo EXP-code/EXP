@@ -20,18 +20,18 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc chkSlurm.c
   chkTimer.cc pHOT.cc VtkPCA.cc GravKernel.cc ${CUDA_SRC})
 
-# shared lib
-add_library(exp SHARED ${exp_SOURCES})
-set_target_properties(exp PROPERTIES OUTPUT_NAME exp)
-target_include_directories(
-  exp
-  PUBLIC $<INSTALL_INTERFACE:include>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
-  ${CMAKE_BINARY_DIR} ${DEP_INC}
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${VTK_INCLUDE})
-target_link_libraries(exp PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX Boost::random ${CUDA_LIBRARIES})
+# # shared lib
+# add_library(exp SHARED ${exp_SOURCES})
+# set_target_properties(exp PROPERTIES OUTPUT_NAME exp)
+# target_include_directories(
+#   exp
+#   PUBLIC $<INSTALL_INTERFACE:include>
+#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
+#   ${CMAKE_BINARY_DIR} ${DEP_INC}
+#   ${CMAKE_CURRENT_SOURCE_DIR}
+#   ${VTK_INCLUDE})
+# target_link_libraries(exp PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX Boost::random yaml-cpp ${CUDA_LIBRARIES})
 
 
 add_library(exp_static STATIC ${exp_SOURCES})
@@ -44,4 +44,6 @@ target_include_directories(
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${VTK_INCLUDE})
-target_link_libraries(exp_static PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX Boost::random ${CUDA_LIBRARIES})
+target_link_libraries(exp_static PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX Boost::random yaml-cpp ${CUDA_LIBRARIES})
+
+add_subdirectory(DSMC)

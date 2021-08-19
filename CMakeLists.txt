@@ -102,6 +102,8 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
+
 message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
 
 configure_file(config_cmake.h.in config.h)
