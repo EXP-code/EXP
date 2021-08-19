@@ -13,15 +13,13 @@
 #include <massmodel.H>
 #include <interp.H>
 
-using namespace std;
-
 int wordSplit(string& x, vector<string>& words);
 
-int SphericalModelTable::count = 0;
-int SphericalModelTable::even = 0;
+int SphericalModelTable::count    = 0;
+int SphericalModelTable::even     = 0;
 int SphericalModelTable::logscale = 1;
-int SphericalModelTable::linear = 1;
-int SphericalModelTable::chebyN = 0;
+int SphericalModelTable::linear   = 1;
+int SphericalModelTable::chebyN   = 0;
 
 SphericalModelTable::SphericalModelTable
 (string filename, int DIVERGE, double DIVERGE_RFAC, int EXTERNAL)
@@ -69,18 +67,19 @@ SphericalModelTable::SphericalModelTable
   istringstream ist(x, istringstream::in);
   ist >> num;
 
-  density.x.resize(num);
-  density.y.resize(num);
+  density.x. resize(num);
+  density.y. resize(num);
   density.y2.resize(num);
-  mass.x.resize(num);
-  mass.y.resize(num);
-  mass.y2.resize(num);
-  pot.x.resize(num);
-  pot.y.resize(num);
-  pot.y2.resize(num);
+  mass.   x. resize(num);
+  mass.   y. resize(num);
+  mass.   y2.resize(num);
+  pot.    x. resize(num);
+  pot.    y. resize(num);
+  pot.    y2.resize(num);
+
   density.num = num;
-  mass.num = num;
-  pot.num = num;
+  mass.num    = num;
+  pot.num     = num;
   
   for (int i=0; i<num; i++) {
     from.getline(cbuf, MAXLINE);
@@ -137,22 +136,22 @@ SphericalModelTable::SphericalModelTable(int NUM,
   num = NUM;
 
   double radius = 0.0;
-
-  density.x.resize(num);
-  density.y.resize(num);
+  
+  density.x. resize(num);
+  density.y. resize(num);
   density.y2.resize(num);
 
-  mass.x.resize(num);
-  mass.y.resize(num);
+  mass.x. resize(num);
+  mass.y. resize(num);
   mass.y2.resize(num);
 
-  pot.x.resize(num);
-  pot.y.resize(num);
+  pot.x. resize(num);
+  pot.y. resize(num);
   pot.y2.resize(num);
 
   density.num = num;
-  mass.num = num;
-  pot.num = num;
+  mass.num    = num;
+  pot.num     = num;
   
   for (int i=0; i<num; i++) {
     radius = r[i];
@@ -357,26 +356,45 @@ void SphericalModelTable::print_df(char const *name)
     return;
   }
 
-  double g, d;
-  for (int i=0; i<df.Q.size(); i++) {
+  double g, d, h;
 
-    if (linear) {
-      d = odd2(df.Q[i], df.Q, df.fQ);
-      g = odd2(df.Q[i], df.Q, df.ffQ);
-    } else {
-      Splint1(df.Q, df.fQ, df.fQ2, df.Q[i], d);
-      Splint1(df.Q, df.ffQ, df.ffQ2, df.Q[i], g);
+  if (df.num) {
+    
+    for (int i=0; i<df.Q.size(); i++) {
+
+      if (linear) {
+	d = odd2(df.Q[i], df.Q, df.fQ);
+	g = odd2(df.Q[i], df.Q, df.ffQ);
+      } else {
+	Splint1(df.Q, df.fQ, df.fQ2, df.Q[i], d);
+	Splint1(df.Q, df.ffQ, df.ffQ2, df.Q[i], g);
+      }
+      
+      h = - d*exp(g - df.Q[i]);
+
+      out << std::setw(16) << df.Q[i]
+	  << std::setw(16) << d
+	  << std::setw(16) << g
+	  << std::setw(16) << h
+	  << std::endl;
     }
-
-    d *= - exp(g - df.Q[i]);
-
-    out << setw(16) << df.Q[i]
-	<< setw(16) << df.fQ[i]
-	<< setw(16) << df.ffQ[i]
-	<< setw(16) << d
-	<< setw(16) << -d*exp(g - df.Q[i])
-	<< endl;
   }
+  else if (dfc.num) {
+  
+    for (int i=0; i<df.Q.size(); i++) {
+      
+      d = dfc.FF.eval(dfc.Q[i]);
+      g = dfc.GG.eval(dfc.Q[i]);
+      h = - d*exp(g - dfc.Q[i]);
+
+      out << std::setw(16) << dfc.Q[i]
+	  << std::setw(16) << d
+	  << std::setw(16) << g
+	  << std::setw(16) << h
+	  << std::endl;
+    }
+  }
+
 }
 
 
@@ -390,29 +408,29 @@ void SphericalModelTable::print_model(char const *name)
 
   out.setf(ios::left);
 
-  out << "# ModelID=" << ModelID << endl;
-  out << setw(22) << "# Radius" 
-      << setw(22) << "Density" 
-      << setw(22) << "Mass" 
-      << setw(22) << "Potential" 
-      << endl;
+  out << "# ModelID=" << ModelID << std::endl;
+  out << std::setw(22) << "# Radius" 
+      << std::setw(22) << "Density" 
+      << std::setw(22) << "Mass" 
+      << std::setw(22) << "Potential" 
+      << std::endl;
 
   char c = out.fill('-');
-  out << setw(22) << "# [1]"
-      << setw(22) << "| [2]"
-      << setw(22) << "| [3]"
-      << setw(22) << "| [4]"
-      << endl;
+  out << std::setw(22) << "# [1]"
+      << std::setw(22) << "| [2]"
+      << std::setw(22) << "| [3]"
+      << std::setw(22) << "| [4]"
+      << std::endl;
   out.fill(c);
 
-  out << density.num << endl;
+  out << density.num << std::endl;
   out << setprecision(12) << scientific;
   for (int i=0; i<density.num; i++) {
-    out << setw(22) << density.x[i]
-	<< setw(22) << density.y[i]
-	<< setw(22) << mass.y[i]
-	<< setw(22) << pot.y[i]
-	<< endl;
+    out << std::setw(22) << density.x[i]
+	<< std::setw(22) << density.y[i]
+	<< std::setw(22) << mass.y[i]
+	<< std::setw(22) << pot.y[i]
+	<< std::endl;
   }
 
 }

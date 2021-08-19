@@ -5,8 +5,6 @@
 #include <unistd.h>
 #include <numerical.H>
 
-using namespace std;
-
 Eigen::MatrixXd build_cubic_table(Eigen::VectorXd &xt,
 				  Eigen::VectorXd &ft,
 				  Eigen::Vectorxd &dft)

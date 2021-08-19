@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 //  Routines for computing biorthonormal pairs based on grid
 //
 //  MDW 11/13/91 [based on "findwake" by MDW: 12/26/1987]
@@ -11,8 +9,6 @@
 
 #include <interp.H>
 #include <biorth.H>
-
-using namespace std;
 
 double factrl(int n);
 double plgndr(int l, int m, double x);
@@ -130,7 +126,7 @@ double plgndr(int l, int m, double x)
   int i,ll;
   
   if (m < 0 || m > l || fabs(x) > 1.0) {
-    cerr << "Bad arguments in routine PLGNDR\n";
+    std::cerr << "Bad arguments in routine PLGNDR" << std::endl;
     exit(-1);
   }
   pmm=1.0;
@@ -163,7 +159,7 @@ double plgndr(int l, int m, double x)
 double dplgndr(int l, int m, double x)
 {
   if (m < 0 || m > l || fabs(x) > 1.0) {
-    cerr << "Bad arguments in routine DPLGNDR\n";
+    std::cerr << "Bad arguments in routine DPLGNDR" << std::endl;
     exit(-1);
   }
 

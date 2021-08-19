@@ -1,13 +1,12 @@
-
-using namespace std;
-
 //***************************************************************************
 // Wake stuff
 //***************************************************************************
 
 #include <string>
 #include <iostream>
-#include <math.h>
+#include <iomanip>
+#include <cmath>
+
 #include <biorth.H>
 #include <biorth_wake.H>
 
@@ -33,7 +32,7 @@ BiorthWake::BiorthWake(AxiSymBiorth *BIO, int LMAX, int NMAX)
   }
 
 				// Orientation parameters
-  I = complex<double>(0.0, 1.0);
+  I = std::complex<double>(0.0, 1.0);
   iter = iterDef;
   tol = tolDef;
   init_orientation = false;
@@ -57,7 +56,8 @@ BiorthWake::~BiorthWake(void)
 
 void BiorthWake::bomb(const char *s)
 {
-  cerr << "ERROR from BiorthWake(" << bio->BiorthID << "): " << s << '\n';
+  std::cerr << "ERROR from BiorthWake(" << bio->BiorthID << "): " << s
+	    << std::endl;
   exit(-1);
 }
 

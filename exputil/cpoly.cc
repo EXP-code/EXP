@@ -6,8 +6,6 @@
 
 #include <cpoly.H>
 
-using namespace std;
-
 /*
 	Default constructor; make a null vector.
 */
