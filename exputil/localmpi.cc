@@ -13,7 +13,7 @@
 //
 MPI_Comm MPI_COMM_SLAVE;
 MPI_Group world_group, slave_group;
-int numprocs, slaves, myid, proc_namelen;
+int numprocs=1, slaves, myid=0, proc_namelen;
 char processor_name[MPI_MAX_PROCESSOR_NAME];
 std::ofstream mpi_debug;
 
