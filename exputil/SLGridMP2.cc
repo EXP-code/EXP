@@ -2545,7 +2545,7 @@ void SLGridSph::compute_table_slave(void)
     std::cout.precision(6);
     std::cout.setf(ios::scientific);
 
-    for (i=0; i<N; i++) {
+    for (int i=0; i<N; i++) {
       std::cout << std::setw(15) << invec[3+i] 
 		<< std::setw(15) << ev[i]
 		<< std::setw( 5) << iflag[i]
@@ -2559,7 +2559,7 @@ void SLGridSph::compute_table_slave(void)
 		    << std::setw(25) << "(pu`)(x)"
 		    << std::endl;
 	  int k = NUM*i;
-	  for (j=0; j<NUM; j++) {
+	  for (int j=0; j<NUM; j++) {
 	    std::cout << std::setw(25) << xef[j]
 		      << std::setw(25) << ef[j+k]
 		      << std::setw(25) << pdef[j+k]
@@ -3792,7 +3792,7 @@ void SLGridSlab::compute_table_slave(void)
     std::cout.precision(6);
     std::cout.setf(ios::scientific);
 
-    for (i=0; i<N; i++) {
+    for (int i=0; i<N; i++) {
       std::cout << std::setw(15) << invec[3+i] 
 		<< std::setw(15) << ev[i]
 		<< std::setw( 5) << iflag[i]
@@ -3806,7 +3806,7 @@ void SLGridSlab::compute_table_slave(void)
 		    << std::setw(25) << "(pu`)(x)"
 		    << std::endl;
 	  int k = NUM*i;
-	  for (j=0; j<NUM; j++) {
+	  for (int j=0; j<NUM; j++) {
 	    std::cout << std::setw(25) << xef[j]
 		      << std::setw(25) << ef[j+k]
 		      << std::setw(25) << pdef[j+k]
@@ -3850,7 +3850,7 @@ void SLGridSlab::compute_table_slave(void)
     std::cout.precision(6);
     std::cout.setf(ios::scientific);
 
-    for (i=0; i<N; i++) {
+    for (int i=0; i<N; i++) {
       std::cout << std::setw(15) << invec[3+i] 
 		<< std::setw(15) << ev[i]
 		<< std::setw( 5) << iflag[i]
@@ -3864,7 +3864,7 @@ void SLGridSlab::compute_table_slave(void)
 		    << std::setw(25) << "(pu`)(x)"
 		    << std::endl;
 	  int k = NUM*i;
-	  for (j=0; j<NUM; j++) {
+	  for (int j=0; j<NUM; j++) {
 	    std::cout << std::setw(25) << xef[j]
 		      << std::setw(25) << ef[j+k]
 		      << std::setw(25) << pdef[j+k]
