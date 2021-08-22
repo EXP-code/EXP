@@ -230,7 +230,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   //
   SphericalModelTable::even     = 0;
   SphericalModelTable::logscale = LOGSCALE;
-  SphericalModelTable::linear   = 0;
+  SphericalModelTable::linear   = 1;
   
   halo3 = std::make_shared<SphericalModelTable>(filename2, DIVERGE2, DIVERGE_RFAC2);
 

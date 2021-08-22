@@ -132,7 +132,6 @@ class DiskHalo
 
   static double R_DF;		// Change over points for DF and Jeans
   static double DR_DF;
-  static double ECUT_DF;	// Mass ratio cutoff in energy
 
   static int LOGSCALE;		// Log DF in SphericalModelTable
 
