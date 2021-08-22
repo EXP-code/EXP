@@ -46,7 +46,6 @@ int    DiskHalo::RNUM        = 4000;
 
 double DiskHalo::R_DF        = 20.0;
 double DiskHalo::DR_DF       = 5.0;
-double DiskHalo::ECUT_DF     = 1.0;
 
 int    DiskHalo::LOGSCALE    = 0;
 bool   DiskHalo::LOGR        = true;
