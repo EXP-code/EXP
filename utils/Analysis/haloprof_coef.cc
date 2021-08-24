@@ -384,7 +384,7 @@ main(int argc, char **argv)
 
   bool DENS, verbose = false, mask = false;
   std::string modelfile, coeffile;
-  int stride;
+  int stride, ibeg, iend;
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -426,6 +426,12 @@ main(int argc, char **argv)
     ("stride,s",
      po::value<int>(&stride)->default_value(1), 
      "stride for time output")
+    ("beg",
+     po::value<int>(&ibeg)->default_value(0), 
+     "initial coefficient frame")
+    ("end",
+     po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()), 
+     "final coefficient frame")
     ;
   
   po::variables_map vm;
@@ -506,8 +512,8 @@ main(int argc, char **argv)
   std::vector<std::string> outfiles1, outfiles2, outfiles3;
   std::vector<double> T;
 
-  int indx = 0;
-  for (auto d: data) {
+  for (int indx=ibeg; indx<=std::min<int>(iend, data.size()); indx++) {
+    auto d = data[indx];
 
     Eigen::MatrixXd expcoef;
     
@@ -535,7 +541,7 @@ main(int argc, char **argv)
 	
     if (myid==0) cout << "Writing output for T="
 		      << d->header.tnow << " . . . " << flush;
-    write_output(ortho, indx++, d->header.tnow, file1, file2, file3);
+    write_output(ortho, indx, d->header.tnow, file1, file2, file3);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
     
@@ -553,7 +559,7 @@ main(int argc, char **argv)
   //
   if (myid==0) {
     std::ostringstream prefix;
-    prefix << runtag << "." << indx;
+    prefix << runtag << "." << ibeg << "_" << iend;
     if (outfiles1.size()) writePVD(prefix.str()+".volume.pvd",  T, outfiles1);
     if (outfiles2.size()) writePVD(prefix.str()+".surface.pvd", T, outfiles2);
     if (outfiles3.size()) writePVD(prefix.str()+".vslice.pvd",  T, outfiles3);
