@@ -396,7 +396,7 @@ main(int argc, char **argv)
     cmd_line += " ";
   }
 
-  int lmax=36, stride=1;
+  int lmax=36, stride=1, ibeg, iend;
   double rcylmin, rcylmax, rscale, vscale;
   bool DENS, verbose = false, mask = false;
   std::string CACHEFILE, coeffile;
@@ -447,6 +447,12 @@ main(int argc, char **argv)
     ("stride,s",
      po::value<int>(&stride)->default_value(1), 
      "stride for time output")
+    ("beg",
+     po::value<int>(&ibeg)->default_value(0), 
+     "initial coefficient frame")
+    ("end",
+     po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()), 
+     "final coefficient frame")
     ;
   
   po::variables_map vm;
@@ -616,9 +622,9 @@ main(int argc, char **argv)
 
   std::vector<std::string> outfiles1, outfiles2, outfiles3;
 
-  int indx = 0;
-  for (auto d : data) {
+  for (int indx=ibeg; indx<=std::min<int>(iend, data.size()); indx++) {
     
+    auto d = data[indx];
     bool zero = true;
     for (int M=0; M<=d->mmax; M++) {
       ortho.set_coefs(M, d->cos_c[M], d->sin_c[M], zero);
@@ -630,7 +636,7 @@ main(int argc, char **argv)
     if (myid==0) cout << "Writing output for T=" << d->time
 		      << " . . . " << flush;
 
-    write_output(ortho, indx++, d->time, file1, file2, file3);
+    write_output(ortho, indx, d->time, file1, file2, file3);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
     
