@@ -11372,6 +11372,18 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       deferE = 0.0;
     }
     dE /= n_p;
+    
+#ifdef XC_DEEP16
+    // Print out deferred energy per particle interaction for deep
+    // debugging
+    //
+    if (dE > 0.0)
+      std::cout << "Cell [" << std::setw(10) << std::hex << c << "] dE="
+		<< std::setw(18) << std::left << dE
+		<< " N=" << std::setw(6) << std::dec << std::left << n_p
+		<< " T=" << (v.first == AccumType::ion_electron ? "ion-electron" : "ion-ion")
+	      << std::endl;
+#endif
 
     // Construct accum
     //

@@ -4044,6 +4044,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
     } // END: outer body loop
 
+    // Mean weight per particle
+    //
+    numbP /= nbods;
+
     // Deep debug for implementation check only
     //
     if (xc_check) {
@@ -4053,6 +4057,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       printf("-------------------------\n");
 
       cuFP_t totalNsel = 0.0;
+
       for (int k=0; k<numxc; k++) {
 	cuInteract elem = cross._v[sP+k];
 
@@ -4905,6 +4910,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    if (J1.sp==cuElectron) W1 = w1 * EI.Eta1;
 	    if (J2.sp==cuElectron) W2 = w2 * EI.Eta2;
 	  }
+
+#ifdef XC_DEEP16
+	  if (dE>0.0) {
+	    cuFP_t ac = accum[ion_ion][energy] + accum[ion_electron][energy];
+	    printf("Cell [%6x] body dE=%13.6e N0=%13.6e ac=%13.6e [%s]\n",
+		   cid, dE, N0, ac, cudaInterNames[T]);
+	  }
+#endif
 	}
 	// END: selection ok
       }
@@ -4941,7 +4954,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	n_p--;
       }
       
-      if (n_p<=0) continue;
+      if (n_p<=0) {
+#ifdef XC_DEEP16
+	if (deferE>0.0) printf("Cell [%6x] energy dE=%13.6e with dN=%13.6e\n", cid, deferE, dn_p);
+#endif
+	continue;
+      }
       
       // Normalize accum
       //
@@ -4962,6 +4980,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       cuFP_t dE = deferE/n_p;
       deferE = 0.0;
       
+#ifdef XC_DEEP16
+      // Print out deferred energy per particle interaction for deep
+      // debugging
+      //
+      if (dE>0.0)
+	printf("Cell [%10x] dE=%13.6e N=%6d T=%d\n", cid, dE, n_p, it);
+#endif
+
       // Loop over number of pairs
       //
       for (int n=0; n<n_p; n++) {
@@ -4976,8 +5002,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  printf("Crazy value for Ptry=%f max=%f n1=%d, n2=%d\n", Ptry, maxVal, n1-n0, n2-n0);
 	}
 
-	// printf("Ptry=%f lo=%f hi=%f max=%f nz=%d n1=%d n2=%d nbods=%d np=%d\n", Ptry, pairs._v[n1].xcvp[it], pairs._v[n1+1].xcvp[it], maxVal, nonZero, n1-n0, n2-n0, nbods, n_p);
-	
 	cudaParticle* p1 = &in._v[n1];
 	cudaParticle* p2 = &in._v[n2];
 

@@ -623,8 +623,8 @@ main(int argc, char **argv)
   std::vector<std::string> outfiles1, outfiles2, outfiles3;
 
   for (int indx=ibeg; indx<=std::min<int>(iend, data.size()); indx++) {
-    
     auto d = data[indx];
+
     bool zero = true;
     for (int M=0; M<=d->mmax; M++) {
       ortho.set_coefs(M, d->cos_c[M], d->sin_c[M], zero);
