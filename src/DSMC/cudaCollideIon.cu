@@ -4956,7 +4956,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       
       if (n_p<=0) {
 #ifdef XC_DEEP16
-	if (deferE>0.0) printf("Cell [%6x] energy dE=%13.6e with dN=%13.6e\n", cid, deferE, dn_p);
+	if (deferE>0.0) printf("Cell [%6x] energy dE=%13.6e with dN=%13.6e N=%d\n", cid, deferE, dn_p, n_p);
 #endif
 	continue;
       }
