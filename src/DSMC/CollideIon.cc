@@ -1995,8 +1995,9 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
   size_t nbods = c->bods.size();
   double Cross = 0.0, crsvel;
 
+  bool xc_check = false;
 #ifdef XC_DEEP8
-  std::cout << "nbods: N=" << nbods << std::endl;
+  xc_check = true;
 #endif
   // Loop through all pairs
   //
@@ -2478,10 +2479,11 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
   //                        |
   // False for production --+
   //
-  if (firstime and myid==0) {
+  if ((firstime or xc_check) and myid==0) {
     std::cout << std::string(60, '-') << std::endl
-	      << "Interactions" << std::endl
-	      << "------------" << std::endl;
+	      << "Interactions [nbods="
+	      << nbods << "]" << std::endl
+	      << std::string(60, '-') << std::endl;
     for (auto p : csections[id].v) {
       auto TT = std::get<0>(p.first);
       auto k1 = std::get<1>(p.first);
@@ -2492,6 +2494,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 		<< ", " << std::setw(6) << k1.second << "]"
 		<< " [" << std::setw(6) << k2.first
 		<< ", " << std::setw(6) << k2.second << "]"
+		<< ": " << std::setw(18) << p.second()
 		<< std::endl;
     }
     std::cout << std::string(60, '-') << std::endl << std::endl;
@@ -4598,8 +4601,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  std::cout << "xsc: [ei] kEe=" << kEe2[id]
 		    << " (Z, P)=(" << Z2 << ", " << C2 << ")"
 		    << " gVel=" << eVelP1[id] << " eta=" << etaP1[id]
-		    << " rc=" << crs << " dE=" << 0.0
-		    << " fac=" << fac2 << std::endl;
+		    << " rc=" << crs << " dE=" << 0.0 << std::endl;
 #endif
 	}
 
@@ -11497,14 +11499,14 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 	//  +--- False for production
 	//  |
 	//  v
-	if (false) std::cout << "CHECK: dE=" << dE << " kE=" << kE
-			     << " vfac=" << vfac
-			     << " vi="   << vi
-			     << " dn_p=" << dn_p
-			     << " np="   << n_p
-			     << " m1="   << m1
-			     << " m2="   << m2
-			     << std::endl;
+	if (KE_DEBUG) std::cout << "CHECK: dE=" << dE << " kE=" << kE
+				<< " vfac=" << vfac
+				<< " vi="   << vi
+				<< " dn_p=" << dn_p
+				<< " np="   << n_p
+				<< " m1="   << m1
+				<< " m2="   << m2
+				<< std::endl;
       }
 
       vrel = unit_vector();

@@ -18,7 +18,7 @@
 // Cross section test output
 // #define XC_COMPARE
 
-//! Some thrust definitions for species handling
+// Some thrust definitions for species handling
 //@{
 typedef thrust::pair<unsigned short, unsigned short> cuSpeciesKey;
 
@@ -42,7 +42,7 @@ struct cudaPairIntr
 };
 
 
-//! Swap value in device code
+// Swap value in device code
 template <class T>
 __device__
 void cuSwap(T & x, T & y)
@@ -52,6 +52,7 @@ void cuSwap(T & x, T & y)
   y   = t;
 }
 
+// Constants for device defintions
 __constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H, cuEsu;
 __constant__ cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
 
@@ -2326,11 +2327,11 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
   // Sanity checks
   //
   if (I1 >= in._s) {
-    printf("cross section: i1 wanted %d/%d\n", I1, in._s);
+    printf("cross section: i1 wanted %d/%u\n", I1, in._s);
   }
 
   if (I2 >= in._s) {
-    printf("cross section: i2 wanted %d/%d\n", I2, in._s);
+    printf("cross section: i2 wanted %d/%u\n", I2, in._s);
   }
 
   // Pointer to particle structure for convenience
@@ -2628,7 +2629,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	printf("xsc: xne=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e\n",
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e [He 1]\n",
 	       Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, crs);
 #endif
       }
@@ -2654,7 +2655,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	printf("xsc: xne=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e\n",
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e [He 2]\n",
 	       Einfo->kEe2, Z2, C2, Einfo->eVel1, Einfo->Eta1, crs);
 #endif
       }
@@ -3974,8 +3975,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       thrust::get<3>(cross._v[sP+k]) = 0.0;
     }
 
+    bool xc_check = false;
 #ifdef XC_DEEP8
-    printf("nbods: N=%d\n", nbods);
+    xc_check = true;
 #endif
     
     enum AccumType {ion_ion, ion_electron};
@@ -4044,7 +4046,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
     // Deep debug for implementation check only
     //
-    if (false) {
+    if (xc_check) {
+
+      printf("-------------------------\n");
+      printf("nbods: N=%d\n", nbods       );
+      printf("-------------------------\n");
 
       cuFP_t totalNsel = 0.0;
       for (int k=0; k<numxc; k++) {
@@ -4062,17 +4068,17 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	if (J1.sp == J2.sp) nsel *= 0.5;
 	totalNsel += nsel;
 
-	if (J1.sp == cuElectron) 
+	if (J1.sp == cuElectron and xc>0.0) 
 	  printf("%20s (%d, %d) electron: %13.6e %13.6e\n",
 		 cudaInterNames[T],
 		 J2.sp.first, J2.sp.second,
 		 xc, nsel);
-	else if (J2.sp == cuElectron)
+	else if (J2.sp == cuElectron and xc>0.0)
 	  printf("%20s (%d, %d) electron: %13.6e %13.6e\n",
 		 cudaInterNames[T],
 		 J1.sp.first, J1.sp.second,
 		 xc, nsel);
-	else
+	else if (xc>0.0)
 	  printf("%20s (%d, %d) (%d, %d):   %13.6e %13.6e\n",
 		 cudaInterNames[T],
 		 J1.sp.first, J1.sp.second,
@@ -4172,7 +4178,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 			     cid, n1, n2, T, &J1, &J2, state, &EI);
       
 #ifdef XC_DEEP5
-	printf("ctest: cross=%e selcM=%e Vel=%e Tau=%e\n", xc*cuLunit*cuLunit*1.0e14, nsel, EI.vel, spTau._v[cid]);
+	printf("ctest: T=%d cross=%e selcM=%e Vel=%e Tau=%e\n", T, curXC, nsel, EI.vel, spTau._v[cid]);
 #endif
 	cuFP_t crsvel = curXC * EI.vel;
 
@@ -4616,7 +4622,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  if (T == recombine) {
 	    
 	    if (Prob > 1.0) {
-	      printf("In recombine: crazy prob [%e] not possible: Prob=%e\n", Prob);
+	      printf("In recombine: crazy prob not possible: Prob=%e\n", Prob);
 	    }
 	    
 	    if (J2.sp == cuElectron) {		// Ion is p1
@@ -4788,7 +4794,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	    } // END: electron-ion
 	    else {
-	      printf("**ERROR: recombine without a valid state [no e]: (%d %d %d) (%d %d %d) (%d %d) T=%d J=%d N=%d\n",
+	      printf("**ERROR: recombine without a valid state [no e]: (%d %d %d) (%d %d %d) T=%d N=%d\n",
 		     Z1, C1, J1.I, Z2, C2, J2.I, T, numxc);
 	    } // END: unexpected
 	    
