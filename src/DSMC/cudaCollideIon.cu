@@ -4947,12 +4947,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       // inelastic energy change.  Otherwise, stick with n_p rounded up.
       //
 #if cuREAL == 4
-      if (cuCons>=0 and curand_uniform(state) < static_cast<cuFP_t>(n_p) - dn_p) {
+      if (cuCons>=0 and curand_uniform(state) < static_cast<cuFP_t>(n_p) - dn_p) n_p--;
 #else
-      if (cuCons>=0 and curand_uniform_double(state) < static_cast<double>(n_p) - dn_p) {
+      if (cuCons>=0 and curand_uniform_double(state) < static_cast<double>(n_p) - dn_p) n_p--;
 #endif
-	n_p--;
-      }
       
       if (n_p<=0) {
 #ifdef XC_DEEP16
@@ -5102,6 +5100,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	}
       }
     }
+
     // END: accum
     
     // Redistribute deferred energy
