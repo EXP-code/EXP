@@ -63,6 +63,8 @@
 
  Updates for constructing disk velocities from an evolved halo 01/20 by MDW
 
+ Added double-exponential disk preconditioning 08/21 by MDW
+
 */
                                 // C++/STL headers
 #include <cmath>
@@ -241,21 +243,25 @@ const double f_H = 0.76;
 
 // Global variables
 //
-enum DiskType { constant, gaussian, mn, exponential };
+enum DiskType { constant, gaussian, mn, exponential, doubleexpon };
 
 std::map<std::string, DiskType> dtlookup =
   { {"constant",    DiskType::constant},
     {"gaussian",    DiskType::gaussian},
     {"mn",          DiskType::mn},
-    {"exponential", DiskType::exponential}
+    {"exponential", DiskType::exponential},
+    {"doubleexpon", DiskType::doubleexpon}
   };
 
 DiskType     DTYPE;
 double       ASCALE;
 double       ASHIFT;
 double       HSCALE;
-double       RTRUNC = 1.0;
-double       RWIDTH = 0.0;
+double       RTRUNC  = 1.0;
+double       RWIDTH  = 0.0;
+double       ARATIO  = 1.0;
+double       HRATIO  = 1.0;
+double       DWEIGHT = 1.0;
 
 #include <Particle.H>
 
@@ -285,6 +291,23 @@ double DiskDens(double R, double z, double phi)
     }
     break;
 
+  case DiskType::doubleexpon:
+    {
+      double a1 = ASCALE;
+      double a2 = ASCALE*ARATIO;
+      double h1 = HSCALE;
+      double h2 = HSCALE*HRATIO;
+      double w1 = 1.0/(1.0+DWEIGHT);
+      double w2 = DWEIGHT/(1.0+DWEIGHT);
+      
+      double f1 = cosh(z/h1);
+      double f2 = cosh(z/h2);
+
+      ans =
+	w1*exp(-R/a1)/(4.0*M_PI*a1*a1*h1*f1*f1) +
+	w2*exp(-R/a2)/(4.0*M_PI*a2*a2*h2*f2*f2) ;
+    }
+    break;
   case DiskType::exponential:
   default:
     {
@@ -530,7 +553,7 @@ main(int ac, char **av)
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),               "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
     ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
-    ("condition",       po::value<string>(&dtype)->default_value("exponential"),                "Disk type for condition (one of: constant, gaussian, mn, exponential)")
+    ("condition",       po::value<string>(&dtype)->default_value("exponential"),                "Disk type for condition (one of: constant, gaussian, mn, exponential, doubleexpon)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("evolved",         po::value<bool>(&evolved)->default_value(false),                "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
