@@ -18,6 +18,12 @@
 // Cross section test output
 // #define XC_COMPARE
 
+// Maximum number of pairs on the list
+//
+#define MAX_PAIRS 64
+
+constexpr int PAIR_LEN = MAX_PAIRS*(MAX_PAIRS-1);
+
 // Some thrust definitions for species handling
 //@{
 typedef thrust::pair<unsigned short, unsigned short> cuSpeciesKey;
@@ -31,16 +37,6 @@ struct cuSpeciesDef
 typedef thrust::tuple<int, cuSpeciesDef, cuSpeciesDef, cuFP_t> cuInteract;
 
 //@}
-
-//! Store the first interaction pair for subsequent processing
-struct cudaPairIntr
-{
-  int    pair[2];
-  cuFP_t xcvp[2];
-  cuFP_t xcmx[2];
-  cuFP_t Mu1, Mu2[2], Eta2;
-};
-
 
 // Swap value in device code
 template <class T>
@@ -1759,7 +1755,7 @@ enum cudaInterTypes {
 
 // This is only used for debugging
 //
-__constant__ char cudaInterNames[11][16] = { 
+__constant__ char cudaInterNames[11][12] = { 
   "nothing",
   "neut_neut",
   "neut_elec",
@@ -1795,7 +1791,7 @@ __constant__ int    cuSp0, cuCons, cuElec, cuEcon;
 const int maxAtomicNumber = 15;
 __constant__ cuFP_t cuda_atomic_weights[maxAtomicNumber], cuFloorEV;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuEunit;
-__constant__ cuFP_t cuLogL, cuCrossfac, cuMinMass;
+__constant__ cuFP_t cuLogL, cuCrossfac, cuMinMass, cuEV;
 __constant__ bool   cuNewRecombAlg, cuNoCool, cuRecombIP;
 __constant__ bool   cuSpreadDef;
 
@@ -2067,6 +2063,9 @@ void CollideIon::cuda_atomic_weights_init()
   v = TreeDSMC::Eunit;
   cuda_safe_call(cudaMemcpyToSymbol(cuEunit, &v, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuEunit");
+  v = eV;
+  cuda_safe_call(cudaMemcpyToSymbol(cuEunit, &v, sizeof(cuFP_t)), 
+		 __FILE__, __LINE__, "Error copying cuEV");
   v = logL;
   cuda_safe_call(cudaMemcpyToSymbol(cuLogL, &v, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuLogL");
@@ -2161,7 +2160,7 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
       // Sanity check
       //
       if (i + cellI._v[c] >= in._s) {
-	printf("Cell init: Wanted %d/%d\n", i + cellI._v[c], in._s);
+	printf("Cell init: Wanted %lu/%lu\n", i + cellI._v[c], in._s);
       }
       
       // The particle
@@ -2306,7 +2305,7 @@ __device__
 void printEI(cuFP_t xc, cuEnergyInfo& E)
 {
   printf("[xc=%e Eta1=%f Eta2=%f Mu1=%f Mu2=%f kEi=%e kEe1=%e kEe2=%e iE1=%e iE2=%e]\n",
-	 xc, E.Eta1, E.Eta2, E.Mu1, E.Mu2, E.iE1, E.iE2);
+	 xc, E.Eta1, E.Eta2, E.Mu1, E.Mu2, E.kEi, E.kEe1, E.kEe2, E.iE1, E.iE2);
 }
 
 
@@ -2327,11 +2326,11 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
   // Sanity checks
   //
   if (I1 >= in._s) {
-    printf("cross section: i1 wanted %d/%u\n", I1, in._s);
+    printf("cross section: i1 wanted %d/%lu\n", I1, in._s);
   }
 
   if (I2 >= in._s) {
-    printf("cross section: i2 wanted %d/%u\n", I2, in._s);
+    printf("cross section: i2 wanted %d/%lu\n", I2, in._s);
   }
 
   // Pointer to particle structure for convenience
@@ -3874,7 +3873,7 @@ void computeEta(cuFP_t*                F,
 
 template <class T>
 __device__
-int xc_lower_bound (int first, int last, int c, dArray<cudaPairIntr> pairs,
+int xc_lower_bound (int first, int last, dArray<float> cum,
 		    const T& val)
 {
   int count = last - first, step, cur;
@@ -3883,7 +3882,7 @@ int xc_lower_bound (int first, int last, int c, dArray<cudaPairIntr> pairs,
     cur  = first;
     step = count/2;
     cur += step;
-    if (pairs._v[cur].xcvp[c]<val) {
+    if (cum._v[cur]<val) {
       first  = cur + 1;
       count -= step + 1;
     }
@@ -3897,11 +3896,9 @@ int xc_lower_bound (int first, int last, int c, dArray<cudaPairIntr> pairs,
 // cross sections
 //
 __global__ void partInteractions(dArray<cudaParticle>   in,
-				 dArray<cudaPairIntr>   pairs,
 				 dArray<curandState>    randS,
 				 dArray<cuFP_t>         coul4,
 				 dArray<cuFP_t>         nSel,
-				 dArray<cuInteract>     cross,
 				 dArray<int>            cellI,
 				 dArray<int>            cellN,
 				 dArray<cuFP_t>         volC,
@@ -3918,7 +3915,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 				 dArray<cuFP_t>         spTau,
 				 dArray<cuInteract>     iK,
 				 dArray<cuFP_t>         F1,
-				 dArray<cuFP_t>         F2)
+				 dArray<cuFP_t>         F2,
+				 dArray<int>            prs,
+				 dArray<float>          cum
+				 )
 {
   const int Nsp   = elems._s;
   const int numxc = iK._s;
@@ -3955,79 +3955,79 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     //
     int fP = cid*Nsp;
 
-    // For shuffling
-    //  
-    int sP = cid*numxc;
+    // For per cell indexing
+    //
+    int fN = cid*PAIR_LEN;
 
     // Compute Coulombic (plasma) interactions
     //
     computeCoulombicScatter(in, coul4, cellI, cellN, PiProb, ABrate, elems, spTau,
 			    state, cid);
     
+    // For storing pair info
+    //
+    union {
+      int   I2;
+      short SS[2];
+    } conv_;
+
+
     // Compute total cross sections for interactions in this cell
     //
     cuFP_t mtotal = 0.0;
     
-    // Zero the cross section list
-    //
-    for (int k=0; k<numxc; k++) {
-      cross._v[sP+k] = iK._v[k];
-      thrust::get<3>(cross._v[sP+k]) = 0.0;
-    }
-
     bool xc_check = false;
 #ifdef XC_DEEP8
     xc_check = true;
 #endif
     
-    enum AccumType {ion_ion, ion_electron};
-    enum AccumValu {count, energy};
+    enum AccumType {ion_ion, ion_electron, electron_electron};
     
-    cuFP_t accum[2][2] = {0.0, 0.0, 0.0, 0.0};
-
-    // Zero the pair data
-    //
-    for (size_t i=0; i<nbods; i++) {
-      pairs._v[n0+i].pair[0] = -1;
-      pairs._v[n0+i].pair[1] = -1;
-      pairs._v[n0+i].xcvp[0] = 0.0;
-      pairs._v[n0+i].xcvp[1] = 0.0;
-    }
+    AccumType type = AccumType::ion_ion;
 
     double IEadjust = 0.0, numbP = 0.0;
 
-    // Pair-wise cross-section loop
+    // Interaction-type loop
     //
-    for (size_t i=0; i<nbods; i++) {
-      
-      cuFP_t mass = in._v[n0+i].mass;
-      mtotal += mass;
-      
-      for (int k=0; k<elems._s; k++) {
-	cuIonElement* E = &elems._v[k];
-	cuFP_t ww       = in._v[n0+i].datr[E->I + cuSp0]/cuda_atomic_weights[E->Z];
-	numbP += mass * ww;
-      }
+    for (int k=0; k<numxc; k++) {
 
-      for (size_t j=i+1; j<nbods; j++) {
+      int           T = thrust::get<0>(iK._v[k]);
+      cuSpeciesDef J1 = thrust::get<1>(iK._v[k]);
+      cuSpeciesDef J2 = thrust::get<2>(iK._v[k]);
+
+      int count = 0;
+
+      // Pair-wise cross-section loop
+      //
+      for (size_t i=0; i<nbods; i++) {
+      
+	cuFP_t mass = in._v[n0+i].mass;
+	mtotal += mass;
+      
+	for (int k=0; k<elems._s; k++) {
+	  cuIonElement* E = &elems._v[k];
+	  cuFP_t ww       = in._v[n0+i].datr[E->I + cuSp0]/cuda_atomic_weights[E->Z];
+	  numbP += mass * ww;
+	}
+
+	for (size_t j=i+1; j<nbods; j++) {
 	
-	setupCrossSection(in, elems, cid, n0+i, n0+j, state, &EI);
+	  setupCrossSection(in, elems, cid, n0+i, n0+j, state, &EI);
 
-	for (int k=0; k<numxc; k++) {
-
-	  int           T = thrust::get<0>(cross._v[sP+k]);
-	  cuSpeciesDef J1 = thrust::get<1>(cross._v[sP+k]);
-	  cuSpeciesDef J2 = thrust::get<2>(cross._v[sP+k]);
-
-	  cuFP_t ph, xc, cur;
+	  cuFP_t ph, xc;
 	  
 	  // p1 on p2
 	  //
 	  xc = singleCrossSection(in, elems, &ph, xsc_H, xsc_He, xsc_pH, xsc_pHe,
 				  cid, n0+i, n0+j, T, &J1, &J2, state, &EI) * EI.vel;
-	  cur = thrust::get<3>(cross._v[sP+k]);
-	  if (cur < xc) thrust::get<3>(cross._v[sP+k]) = xc;
 
+	  if (xc>0.0) {
+	    conv_.SS[0]   = i;
+	    conv_.SS[1]   = j;
+	    prs._v[fN+count] = conv_.I2;
+	    cum._v[fN+count] = xc;
+	    count++;
+	  }
 
 	  // p2 on p1
 	  //
@@ -4035,81 +4035,37 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    xc = singleCrossSection(in, elems, &ph, xsc_H, xsc_He, xsc_pH, xsc_pHe,
 				    cid, n0+j, n0+i, T, &J1, &J2, state, &EI) * EI.vel;
 
-	    cur = thrust::get<3>(cross._v[sP+k]);
-	    if (cur < xc) thrust::get<3>(cross._v[sP+k]) = xc;
+
+	    if (xc>0.0) {
+	      conv_.SS[0]   = j;
+	      conv_.SS[1]   = i;
+	      prs._v[fN+count] = conv_.I2;
+	      cum._v[fN+count] = xc;
+	      count++;
+	    }
 	  }
-	}
-	  
-      } // END: inner body loop
+	
+	  if (count >= PAIR_LEN) break;
 
-    } // END: outer body loop
+	} // END: inner body loop
 
-    // Mean weight per particle
-    //
-    numbP /= nbods;
+	if (count >= PAIR_LEN) break;
 
-    // Deep debug for implementation check only
-    //
-    if (xc_check) {
+      } // END: outer body loop
 
-      printf("-------------------------\n");
-      printf("nbods: N=%d\n", nbods       );
-      printf("-------------------------\n");
 
-      cuFP_t totalNsel = 0.0;
+      if (count==0) continue;
 
-      for (int k=0; k<numxc; k++) {
-	cuInteract elem = cross._v[sP+k];
-
-	int           T = thrust::get<0>(elem);
-	cuSpeciesDef J1 = thrust::get<1>(elem);
-	cuSpeciesDef J2 = thrust::get<2>(elem);
-	cuFP_t       xc = thrust::get<3>(elem);
-
-	cuFP_t Prob  = mtotal/vol * cuMunit/amu *
-	  spTau._v[cid] * xc  * 1e-14 / (cuLunit*cuLunit);
-
-	cuFP_t nsel = Prob * (nbods-1);
-	if (J1.sp == J2.sp) nsel *= 0.5;
-	totalNsel += nsel;
-
-	if (J1.sp == cuElectron and xc>0.0) 
-	  printf("%20s (%d, %d) electron: %13.6e %13.6e\n",
-		 cudaInterNames[T],
-		 J2.sp.first, J2.sp.second,
-		 xc, nsel);
-	else if (J2.sp == cuElectron and xc>0.0)
-	  printf("%20s (%d, %d) electron: %13.6e %13.6e\n",
-		 cudaInterNames[T],
-		 J1.sp.first, J1.sp.second,
-		 xc, nsel);
-	else if (xc>0.0)
-	  printf("%20s (%d, %d) (%d, %d):   %13.6e %13.6e\n",
-		 cudaInterNames[T],
-		 J1.sp.first, J1.sp.second,
-		 J2.sp.first, J2.sp.second,
-		 xc, nsel);
-      }
-      printf("Total Nsel=%13.6e\n", totalNsel);
-    }
-
-    // Run down the species list and perform interactions
-    //
-    for (int k=0; k<numxc; k++) {
-
-      cuInteract elem = cross._v[sP+k];
-      
-      int           T = thrust::get<0>(elem);
-      cuSpeciesDef J1 = thrust::get<1>(elem);
-      cuSpeciesDef J2 = thrust::get<2>(elem);
-      cuFP_t xcvelmax = thrust::get<3>(elem);
-
-      if (xcvelmax <= 0.0) continue;
+      // Compute cumulative cross section
+      //
+      for (int c=1; c<count; c++) cum._v[fN+c] += cum._v[fN+c-1];
 
       // Interaction probability
       //
       cuFP_t Prob  = mtotal/vol * cuMunit/amu *
-	spTau._v[cid] * xcvelmax * 1e-14 / (cuLunit*cuLunit);
+	spTau._v[cid] * cum._v[fN+count-1] * 1e-14 / (cuLunit*cuLunit);
+
+      // printf("**TEST cum xc=%13.6e dens=%13.6e count=%4d [%s]\n", cum._v[fN+count-1], mtotal/vol, count, cudaInterNames[T]);
 
       // Number of interaction candidate pairs
       //
@@ -4140,40 +4096,30 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	//
 #if cuREAL == 4
 	cuFP_t R0 = curand_uniform(state);
-#ifdef XC_DEEP12
-	printf("FRC=%13.6e R=%13.6e T=%d\n", frc, R0, T);
-#endif
-	if (frc < R0) break;
-
-	cuFP_t R1 = curand_uniform(state);
-	cuFP_t R2 = curand_uniform(state);
-	int    n1 = floorf(R1*nbods);
-	int    n2 = floorf(R2*(nbods-1));
 #else
 	cuFP_t R0 = curand_uniform_double(state);
+#endif
+
 #ifdef XC_DEEP12
-	printf("FRC=%13.6e R=%13.6e T=%d\n", frc, R0, T);
+	printf("FRC=%13.6e R=%13.6e T=%2d [%s] \n", frc, R0, T, cudaInterNames[T]);
 #endif
 	if (frc < R0) break;
 
-	cuFP_t R1 = curand_uniform_double(state);
-	cuFP_t R2 = curand_uniform_double(state);
-	int    n1 = floor(R1*nbods);
-	int    n2 = floor(R2*(nbods-1));
-#endif
-	
-	if (n1 >= nbods)   n1 = nbods-1;
-	if (n2 >= nbods-1) n2 = nbods-2;
-	if (n2 >= n1)      n2++;
-	
+	int cc    = xc_lower_bound(0, count-1, cum, R0*cum._v[fN+count-1]);
+	conv_.I2  = prs._v[fN+cc];
+
+	// Sanity check
+	//
+	if (cc >= count) printf("**ERROR cc=%d is bigger than count=%d (%d, %d)\n", cc, count, conv_.SS[0], conv_.SS[1]);
+
+	int    n1 = conv_.SS[0] + n0;
+	int    n2 = conv_.SS[1] + n0;
+
 #ifdef SANITY_DEBUG
 	if (n1==n2) {
 	  printf("Crazy error! n1[%d]=n2[%d] nbods=%d\n", n1, n2, nbods);
       }
 #endif
-	n1 += n0;
-	n2 += n0;
-      
 	setupCrossSection(in, elems, cid, n1, n2, state, &EI);
 
 	cuFP_t dE=0, ph;
@@ -4183,841 +4129,577 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 			     cid, n1, n2, T, &J1, &J2, state, &EI);
       
 #ifdef XC_DEEP5
-	printf("ctest: T=%d cross=%e selcM=%e Vel=%e Tau=%e\n", T, curXC, nsel, EI.vel, spTau._v[cid]);
+	printf("ctest: T=%12s cross=%e selcM=%e Vel=%e Tau=%e ph=%e\n", cudaInterNames[T], curXC, nsel, EI.vel, spTau._v[cid], ph);
 #endif
-	cuFP_t crsvel = curXC * EI.vel;
+	if (curXC <= 0.0) continue;
 
-#if cuREAL == 4
-	cuFP_t unit = curand_uniform(state);
-#else
-	cuFP_t unit = curand_uniform_double(state);
-#endif
-	double targ = crsvel / xcvelmax;
 	
-#ifdef XC_DEEP12
-	printf("TARG=%13.6e T=%d\n", targ, T);
-#endif
-
-	if ( targ > unit ) {
-
-#ifdef XC_DEEP12
-	  printf("SELECTED %d\n", T);
-#endif
-
-	  cudaParticle* p1 = &in._v[n1];
-	  cudaParticle* p2 = &in._v[n2];
+	cudaParticle* p1 = &in._v[n1];
+	cudaParticle* p2 = &in._v[n2];
       
-	  // Electron and molecular weight
-	  //
-	  {
-	    cuFP_t sum1 = 0.0, sum2 = 0.0;
-	    for (int k=0; k<Nsp; k++) {
-	      cuIonElement& E = elems._v[k];
-	      
-	      F1._v[fP+k] = p1->datr[E.I+cuSp0];
-	      F2._v[fP+k] = p2->datr[E.I+cuSp0];
-	      sum1 += F1._v[fP+k];
-	      sum2 += F2._v[fP+k];
-	    }
-	    for (int k=0; k<Nsp; k++) {
-	      F1._v[fP+k] /= sum1;
-	      F2._v[fP+k] /= sum2;
-	    }
+	// Electron and molecular weight
+	//
+	{
+	  cuFP_t sum1 = 0.0, sum2 = 0.0;
+	  for (int k=0; k<Nsp; k++) {
+	    cuIonElement& E = elems._v[k];
+	    
+	    F1._v[fP+k] = p1->datr[E.I+cuSp0];
+	    F2._v[fP+k] = p2->datr[E.I+cuSp0];
+	    sum1 += F1._v[fP+k];
+	    sum2 += F2._v[fP+k];
 	  }
+	  for (int k=0; k<Nsp; k++) {
+	    F1._v[fP+k] /= sum1;
+	    F2._v[fP+k] /= sum2;
+	  }
+	}
 	  
-	  cuFP_t w1  = p1->mass/EI.Mu1;
-	  cuFP_t w2  = p2->mass/EI.Mu2;
-	  cuFP_t W1  = w1;
-	  cuFP_t W2  = w2;
+	cuFP_t w1  = p1->mass/EI.Mu1;
+	cuFP_t w2  = p2->mass/EI.Mu2;
+	cuFP_t W1  = w1;
+	cuFP_t W2  = w2;
 	
-	  // For electron energy conservation during ionization level change
-	  //
-	  cuFP_t elecAdj[2] = {0.0, 0.0};
-	  
-	  unsigned short Z1 = J1.sp.first;
-	  unsigned short Z2 = J2.sp.first;
-	  
-	  unsigned short C1 = J1.sp.second;
-	  unsigned short C2 = J2.sp.second;
-	  
-	  if (J1.sp==cuElectron) W1 *= EI.Eta1;
-	  if (J2.sp==cuElectron) W2 *= EI.Eta2;
+	// For electron energy conservation during ionization level change
+	//
+	cuFP_t elecAdj[2] = {0.0, 0.0};
+	
+	unsigned short Z1 = J1.sp.first;
+	unsigned short Z2 = J2.sp.first;
+	
+	unsigned short C1 = J1.sp.second;
+	unsigned short C2 = J2.sp.second;
+	
+	if (J1.sp==cuElectron) W1 *= EI.Eta1;
+	if (J2.sp==cuElectron) W2 *= EI.Eta2;
 
-	  cuFP_t GG = cuMunit/amu;
-	  cuFP_t N0 = GG;
+	cuFP_t GG = cuMunit/amu;
+	cuFP_t N0 = GG;
 	  
-	  if (W1>W2) N0 *= W2;
-	  else       N0 *= W1;
+	if (W1>W2) N0 *= W2;
+	else       N0 *= W1;
 
-	  if (J2.sp == cuElectron and
-	      J1.sp != cuElectron) {
-	    Prob = p1->datr[J1.I+cuSp0] * EI.Eta2;
-	  }
-	  else if (J1.sp == cuElectron and
-		   J2.sp != cuElectron) {
-	    Prob = p2->datr[J2.I+cuSp0] * EI.Eta1;
-	  }
-	  else if (J1.sp != cuElectron and
-		   J2.sp != cuElectron) {
-	    Prob = p1->datr[J1.I+cuSp0] * p2->datr[J2.I+cuSp0];
-	  }
-	  else if (J1.sp == cuElectron and
-		   J2.sp == cuElectron) {
-	    printf("CRAZY pair: two electrons\n");
-	  }
+	if (J2.sp == cuElectron and
+	    J1.sp != cuElectron) {
+	  Prob = p1->datr[J1.I+cuSp0] * EI.Eta2;
+	  type = AccumType::ion_electron;
+	}
+	else if (J1.sp == cuElectron and
+		 J2.sp != cuElectron) {
+	  Prob = p2->datr[J2.I+cuSp0] * EI.Eta1;
+	  type = AccumType::ion_electron;
+	}
+	else if (J1.sp != cuElectron and
+		 J2.sp != cuElectron) {
+	  Prob = p1->datr[J1.I+cuSp0] * p2->datr[J2.I+cuSp0];
+	  type = AccumType::ion_ion;
+	}
+	else if (J1.sp == cuElectron and
+		 J2.sp == cuElectron) {
+	  printf("CRAZY pair: two electrons\n");
+	  type = AccumType::electron_electron;
+	}
+	
+	//-----------------------------
+	// Parse each interaction type
+	//-----------------------------
 	  
-	  //-----------------------------
-	  // Parse each interaction type
-	  //-----------------------------
-	  
-	  cuFP_t weight = crsvel * Prob;
+	cuFP_t weight = curXC * Prob;
 
-	  if (T == neut_neut) {
+	if (T == neut_neut) {
 #ifdef XC_DEEP2
-	    printf("testT: nnDE=%e W=%e Z1=%d Z2=%d\n", 0.0, Prob, Z1, Z2);
+	  printf("testT: nnDE=%e W=%e Z1=%d Z2=%d\n", 0.0, Prob, Z1, Z2);
+#endif
+#ifdef XC_DEEP9
+	  atomicAdd(&w_countr[T], 1ull);
+	  atomicAdd(&w_weight[T], Prob);
+#endif
+	}
+	  
+	if (T == neut_elec) {
+#ifdef XC_DEEP2
+	  if (J1.sp != cuElectron)
+	    printf("testT: neDE=%e W=%e Z1=%d\n", 0.0, Prob, Z1);
+	  else
+	    printf("testT: neDE=%e W=%e Z2=%d\n", 0.0, Prob, Z2);
+#endif
+#ifdef XC_DEEP9
+	  atomicAdd(&w_countr[T], 1ull);
+	  atomicAdd(&w_weight[T], Prob);
+#endif
+	}
+	  
+	if (T == neut_prot) {
+#ifdef XC_DEEP2
+	  if (Z1==1 and C1==2)
+	    printf("testT: npDE=%e W=%e Z2=%d C2=%d\n", 0.0, Prob, Z2, C2);
+	  else
+	    printf("testT: npDE=%e W=%e Z1=%d C1=%d\n", 0.0, Prob, Z1, C1);
 #endif
 #ifdef XC_DEEP9
 	    atomicAdd(&w_countr[T], 1ull);
 	    atomicAdd(&w_weight[T], Prob);
 #endif
-	    accum[ion_ion][count] += Prob * (W1>W2 ? W2 : W1);
-
-	    if (pairs._v[n1].pair[0] < 0) {
-	      pairs._v[n1].pair[0] = n2;
-	      pairs._v[n1].xcvp[0] = weight;
-	      pairs._v[n1].xcmx[0] = weight;
-	      pairs._v[n1].Mu1     = EI.Mu1;
-	      pairs._v[n1].Mu2 [0] = EI.Mu2;
-	    } else {
-	      if (weight > pairs._v[n1].xcmx[0]) {
-		pairs._v[n1].pair[0] = n2;
-		pairs._v[n1].xcmx[0] = weight;
-		pairs._v[n1].Mu2 [0] = EI.Mu2;
-	      }
-	      pairs._v[n1].xcvp[0] += weight;
-	    }
-
-	  }
+	}
 	  
-	  if (T == neut_elec) {
-#ifdef XC_DEEP2
-	    if (J1.sp != cuElectron)
-	      printf("testT: neDE=%e W=%e Z1=%d\n", 0.0, Prob, Z1);
-	    else
-	      printf("testT: neDE=%e W=%e Z2=%d\n", 0.0, Prob, Z2);
-#endif
-#ifdef XC_DEEP9
-	    atomicAdd(&w_countr[T], 1ull);
-	    atomicAdd(&w_weight[T], Prob);
-#endif
-	    accum[ion_electron][count] += Prob * (W1>W2 ? W2 : W1);
-
-	    if (pairs._v[n1].pair[0] < 0) {
-	      pairs._v[n1].pair[0] = n2;
-	      pairs._v[n1].xcvp[0] = weight;
-	      pairs._v[n1].xcmx[0] = weight;
-	      pairs._v[n1].Mu1     = EI.Mu1;
-	      pairs._v[n1].Mu2 [0] = EI.Mu2;
-	    } else {
-	      if (weight > pairs._v[n1].xcmx[0]) {
-		pairs._v[n1].pair[0] = n2;
-		pairs._v[n1].xcmx[0] = weight;
-		pairs._v[n1].Mu2 [0] = EI.Mu2;
-	      }
-	      pairs._v[n1].xcvp[0] += weight;
-	    }
-
-	  }
-	  
-	  if (T == neut_prot) {
-#ifdef XC_DEEP2
-	    if (Z1==1 and C1==2)
-	      printf("testT: npDE=%e W=%e Z2=%d C2=%d\n", 0.0, Prob, Z2, C2);
-	    else
-	      printf("testT: npDE=%e W=%e Z1=%d C1=%d\n", 0.0, Prob, Z1, C1);
-#endif
-#ifdef XC_DEEP9
-	    atomicAdd(&w_countr[T], 1ull);
-	    atomicAdd(&w_weight[T], Prob);
-#endif
-	    accum[ion_ion][count] += Prob * (W1>W2 ? W2 : W1);
-
-	    if (pairs._v[n1].pair[0] < 0) {
-	      pairs._v[n1].pair[0] = n2;
-	      pairs._v[n1].xcvp[0] = weight;
-	      pairs._v[n1].xcmx[0] = weight;
-	      pairs._v[n1].Mu1     = EI.Mu1;
-	      pairs._v[n1].Mu2 [0] = EI.Mu2;
-	    } else {
-	      if (weight > pairs._v[n1].xcmx[0]) {
-		pairs._v[n1].pair[0] = n2;
-		pairs._v[n1].xcmx[0] = weight;
-		pairs._v[n1].Mu2 [0] = EI.Mu2;
-	      }
-	      pairs._v[n1].xcvp[0] += weight;
-	    }
-	  }
-	  
-	  if (T == free_free) {
+	if (T == free_free) {
 	    
-	    dE = ph * Prob;
+	  dE = ph * Prob;
 	    
-	    // Sanity
+	  // Sanity
 #ifdef SANITY_DEBUG
-	    if (::isnan(dE)) {
-	      printf("Crazy dE value in free-free: XE=%e P=%e\n", dE, Prob);
-	      dE = 0.0;
-	    }
+	  if (::isnan(dE)) {
+	    printf("Crazy dE value in free-free: XE=%e P=%e\n", dE, Prob);
+	    dE = 0.0;
+	  }
 #endif	  
 #ifdef XC_DEEP2
-	    if (J2.sp == cuElectron)
-	      printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z1, C1);
-	    else
-	      printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z2, C2);
+	  if (J2.sp == cuElectron)
+	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z1, C1);
+	  else
+	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z2, C2);
+#endif
+#ifdef XC_DEEP9
+	  atomicAdd(&w_countr[T], 1ull);
+	  atomicAdd(&w_weight[T], Prob);
+#endif
+	}
+	  
+	if (T == col_excite) {
+	    
+	  dE = ph * Prob;
+	    
+	  // Sanity
+#ifdef SANITY_DEBUG
+	  if (::isnan(dE)) {
+	    printf("Crazy dE value in col excite: XE=%e P=%e\n", ph, Prob);
+	    dE = 0.0;
+	  }
+#endif
+#ifdef XC_DEEP2
+	  if (J2.sp == cuElectron)
+	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z1, C1);
+	  else
+	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z2, C2);
 #endif
 #ifdef XC_DEEP9
 	    atomicAdd(&w_countr[T], 1ull);
 	    atomicAdd(&w_weight[T], Prob);
 #endif
-	    
-	    accum[ion_electron][count]  += Prob * (W1>W2 ? W2 : W1);
-	    accum[ion_electron][energy] += N0 * dE;
-
-	    if (pairs._v[n1].pair[1] < 0) {
-	      pairs._v[n1].pair[1] = n2;
-	      pairs._v[n1].xcvp[1] = weight;
-	      pairs._v[n1].xcmx[1] = weight;
-	      pairs._v[n1].Mu1     = EI.Mu1;
-	      pairs._v[n1].Mu2 [1] = EI.Mu2;
-	      pairs._v[n1].Eta2    = EI.Eta2;
-	    } else {
-	      if (weight > pairs._v[n1].xcmx[1]) {
-		pairs._v[n1].pair[1] = n2;
-		pairs._v[n1].xcmx[1] = weight;
-		pairs._v[n1].Mu2 [1] = EI.Mu2;
-		pairs._v[n1].Eta2    = EI.Eta2;
-	      }
-	      pairs._v[n1].xcvp[1] += weight;
-	    }
-	  }
+	} // END: col_excite
 	  
-	  if (T == col_excite) {
+	if (T == col_ionize) {
 	    
+	  // Ion is p1, electron is p2
+	  //
+	  if (J2.sp == cuElectron) {
+	      
+	    cuFP_t WW = Prob;
+#ifdef SANITY_DEBUG
+	    if (J1.I>Nsp-2) {
+	      printf("Crazy ionize I1=%d\n", J1.I);
+	    }
+#endif
+	    int pos = fP + J1.I;
+	      
+	    if (WW < F1._v[pos]) {
+	      F1._v[pos  ] -= WW;
+	      F1._v[pos+1] += WW;
+	    } else {
+	      WW = F1._v[pos];
+	      F1._v[pos  ]  = 0.0;
+	      F1._v[pos+1] += WW;
+	    }
+	      
+#ifdef XC_DEEP9
+	    atomicAdd(&w_countr[T], 1ull);
+	    atomicAdd(&w_weight[T], WW);
+#endif
+	    Prob = WW;
+	      
 	    dE = ph * Prob;
-	    
+	      
 	    // Sanity
 #ifdef SANITY_DEBUG
 	    if (::isnan(dE)) {
-	      printf("Crazy dE value in col excite: XE=%e P=%e\n", ph, Prob);
+	      printf("Crazy dE value in col ionize: XE=%e P=%e\n", ph, Prob);
+	      dE = 0.0;
+	    }
+#endif	    
+	    // The kinetic energy of the ionized electron is lost
+	    // from the COM KE
+	    //
+	    cuFP_t wEta;
+	    computeEta(&F1._v[fP], &wEta, elems);
+	    wEta = wEta - EI.Eta1;
+
+	    cuFP_t Echg = EI.iE1 * wEta;
+#ifdef XC_DEEP0
+	    printf("Ionize[1]: W=%e eV=%e,%e sys=%e\n", wEta, EI.iE1, EI.iE2, Echg*N0*eV/cuEunit);
+#endif
+	    elecAdj[0] += Echg;
+	      
+	    // Energy for ionized electron comes from COM
+	    //
+	    dE += Echg;
+	      
+	    // Sanity
+#ifdef SANITY_DEBUG
+	    if (::isnan(dE)) {
+	      printf("Crazy dE value in col ionize: XE=%e P=%e E1=%e E2=%e\n", ph, Prob, EI.iE1*WW, EI.IE2*WW);
+	      dE = 0.0;
+	    }
+#endif	    
+	      
+#ifdef XC_DEEP2
+	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z1, C1);
+#endif
+	  }
+	  // END: ion-electron
+	    
+	  // Ion is p2, electron is p1
+	  //
+	  else if (J1.sp == cuElectron) {
+	      
+	    cuFP_t WW = Prob;
+	      
+#ifdef SANITY_DEBUG
+	    if (J2.I > Nsp-2) {
+	      printf("Crazy ionize I2=%d\n", J2.I);
+	    }
+#endif
+	    int pos = fP + J2.I;
+	      
+	    if (WW < F2._v[pos]) {
+	      F2._v[pos  ] -= WW;
+	      F2._v[pos+1] += WW;
+	    } else {
+	      WW = F2._v[pos];
+	      F2._v[pos  ]  = 0.0;
+	      F2._v[pos+1] += WW;
+	    }
+	      
+#ifdef XC_DEEP9
+	    atomicAdd(&w_countr[T], 1ull);
+	    atomicAdd(&w_weight[T], WW);
+#endif
+	    Prob = WW;
+	      
+	    dE = ph * Prob;
+	      
+	    // Sanity
+#ifdef SANITY_DEBUG
+	    if (::isnan(dE)) {
+	      printf("Crazy dE value in col ionize: XE=%e P=%e\n", XE, Prob);
 	      dE = 0.0;
 	    }
 #endif
-#ifdef XC_DEEP2
-	    if (J2.sp == cuElectron)
-	      printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z1, C1);
-	    else
-	      printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z2, C2);
+	      
+	    // The kinetic energy of the ionized electron is lost
+	    // from the COM KE
+	    //
+	    cuFP_t wEta;
+	    computeEta(&F2._v[fP], &wEta, elems);
+	    wEta = wEta - EI.Eta2;
+	    
+	    cuFP_t Echg = EI.iE2 * wEta;
+#ifdef XC_DEEP0
+	    printf("Ionize[2]: W=%e eV=%e,%e sys=%e\n", wEta, EI.iE2, EI.iE1, Echg*N0*eV/cuEunit);
 #endif
+	    elecAdj[0] += Echg;
+	      
+	    // Energy for ionized electron comes from COM
+	    //
+	    dE += Echg;
+	      
+	    // Sanity
+#ifdef SANITY_DEBUG
+	    if (::isnan(dE)) {
+	      printf("Crazy dE value in col ionize: XE=%e P=%e E1=%e E2=%e\n", XE, Prob, EI.iE1*WW, EI.iE2*WW);
+	      dE = 0.0;
+	    }
+#endif	    
+	      
+#ifdef XC_DEEP2
+	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z2, C2);
+#endif
+	  }
+	  // END: electron-ion
+	    
+	  // Sanity check
+	  //
+	  else {
+	    printf("**ERROR: col_ionize without a valid state [no e]: p1=[%d, %d, %d] p2=[%d, %d, %d]\n", Z1, C1, J1.I, Z2, C2, J2.I);
+	  }
+	  
+	} // END: ionize
+	  
+	if (T == recombine) {
+	    
+	  if (Prob > 1.0) {
+	    printf("In recombine: crazy prob not possible: Prob=%e\n", Prob);
+	  }
+	    
+	  if (J2.sp == cuElectron) {		// Ion is p1
+	      
+	    cuFP_t WW = Prob;
+	      
+	    int pos = fP + J1.I;
+	      
+#ifdef SANITY_DEBUG
+	    if (C1<=1 or Z2!=0) {
+	      
+	      printf("Crazy recombine [p1] (%d %d %d) (%d %d %d) (%d %d) T=%d N=%d\n",
+		     Z1, C1, J1.I, Z2, C2, J2.I, T, numxc)
+		}
+	    
+	    if (WW < 0.0 or WW > 1.0)
+	      printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f1=%e P0=%e\n",
+		     Z1, C1, J1.I, 
+		     Z2, C2, J2.I,
+		     WW, F1._v[pos], Prob);
+#endif
+	    if (WW < F1._v[pos]) {
+	      F1._v[pos  ] -= WW;
+	      F1._v[pos-1] += WW;
+	    } else {
+	      WW = F1._v[pos];
+	      F1._v[pos  ]  = 0.0;
+	      F1._v[pos-1] += WW;
+	    }
+	      
 #ifdef XC_DEEP9
 	    atomicAdd(&w_countr[T], 1ull);
-	    atomicAdd(&w_weight[T], Prob);
+	    atomicAdd(&w_weight[T], WW);
 #endif
-	    accum[ion_electron][count]  += Prob * (W1>W2 ? W2 : W1);
-	    accum[ion_electron][energy] += N0 * dE;
-
-	    if (pairs._v[n1].pair[1] < 0) {
-	      pairs._v[n1].pair[1] = n2;
-	      pairs._v[n1].xcvp[1] = weight;
-	      pairs._v[n1].xcmx[1] = weight;
-	      pairs._v[n1].Mu1     = EI.Mu1;
-	      pairs._v[n1].Mu2 [1] = EI.Mu2;
-	      pairs._v[n1].Eta2    = EI.Eta2;
-	    } else {
-	      if (weight > pairs._v[n1].xcmx[1]) {
-		pairs._v[n1].pair[1] = n2;
-		pairs._v[n1].xcmx[1] = weight;
-		pairs._v[n1].Mu2 [1] = EI.Mu2;
-		pairs._v[n1].Eta2    = EI.Eta2;
-	      }
-	      pairs._v[n1].xcvp[1] += weight;
-	    }
-	  } // END: col_excite
-	  
-	  if (T == col_ionize) {
-	    
-	    // Ion is p1, electron is p2
+	    Prob = WW;
+	      
+	    // Electron KE lost in recombination is radiated
 	    //
-	    if (J2.sp == cuElectron) {
-	      
-	      cuFP_t WW = Prob;
-#ifdef SANITY_DEBUG
-	      if (J1.I>Nsp-2) {
-		printf("Crazy ionize I1=%d\n", J1.I);
-	      }
-#endif
-	      int pos = fP + J1.I;
-	      
-	      if (WW < F1._v[pos]) {
-		F1._v[pos  ] -= WW;
-		F1._v[pos+1] += WW;
-	      } else {
-		WW = F1._v[pos];
-		F1._v[pos  ]  = 0.0;
-		F1._v[pos+1] += WW;
-	      }
-	      
-#ifdef XC_DEEP9
-	      atomicAdd(&w_countr[T], 1ull);
-	      atomicAdd(&w_weight[T], WW);
-#endif
-	      Prob = WW;
-	      
-	      dE = ph * Prob;
-	      
-	      // Sanity
-#ifdef SANITY_DEBUG
-	      if (::isnan(dE)) {
-		printf("Crazy dE value in col ionize: XE=%e P=%e\n", ph, Prob);
-		dE = 0.0;
-	      }
-#endif	    
-	      // The kinetic energy of the ionized electron is lost
-	      // from the COM KE
-	      //
-	      cuFP_t wEta;
-	      computeEta(&F1._v[fP], &wEta, elems);
-	      wEta = wEta - EI.Eta1;
-
-	      cuFP_t Echg = EI.iE1 * wEta;
-#ifdef XC_DEEP0
-	      printf("Ionize[1]: W=%e eV=%e,%e sys=%e\n", wEta, EI.iE1, EI.iE2, Echg*N0*eV/cuEunit);
-#endif
-	      elecAdj[0] += Echg;
-	      
-	      // Energy for ionized electron comes from COM
-	      //
-	      dE += Echg;
-	      
-	      // Sanity
-#ifdef SANITY_DEBUG
-	      if (::isnan(dE)) {
-		printf("Crazy dE value in col ionize: XE=%e P=%e E1=%e E2=%e\n", ph, Prob, EI.iE1*WW, EI.IE2*WW);
-		dE = 0.0;
-	     }
-#endif	    
-	      
-#ifdef XC_DEEP2
-	      printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z1, C1);
-#endif
-	      if (pairs._v[n1].pair[1] < 0) {
-		pairs._v[n1].pair[1] = n2;
-		pairs._v[n1].xcvp[1] = weight;
-		pairs._v[n1].xcmx[1] = weight;
-		pairs._v[n1].Mu1     = EI.Mu1;
-		pairs._v[n1].Mu2 [1] = EI.Mu2;
-		pairs._v[n1].Eta2    = EI.Eta2;
-	      } else {
-		if (weight > pairs._v[n1].xcmx[1]) {
-		  pairs._v[n1].pair[1] = n2;
-		  pairs._v[n1].xcmx[1] = weight;
-		  pairs._v[n1].Eta2    = EI.Eta2;
-		}
-		pairs._v[n1].xcvp[1] += weight;
-	      }
-
-	    } // END: ion-electron
+	    cuFP_t wEta;
+	    computeEta(&F1._v[fP], &wEta, elems);
+	    wEta = EI.Eta1 - wEta;
 	    
-	    // Ion is p2, electron is p1
+	    cuFP_t Edel = (EI.iE2 - EI.iE1) * wEta;
+	    cuFP_t Echg = EI.iE1 * wEta;
+	      
+#ifdef XC_DEEP0
+	    printf("Recombine[1]: W=%e E=%e eV=%e\n", wEta, EI.iE1, Echg);
+#endif
+	      
+	    dE += Edel;
+	    elecAdj[1] += Echg;
+	      
+	    // KE Echg2 + IP is radiated.  Echg2 is lost from the COM
+	    // but Echg1 is used as a proxy to conserve internal energy
 	    //
-	    else if (J1.sp == cuElectron) {
 	      
-	      cuFP_t WW = Prob;
-	      
+	    // Sanity
 #ifdef SANITY_DEBUG
-	      if (J2.I > Nsp-2) {
-		printf("Crazy ionize I2=%d\n", J2.I);
-	      }
-#endif
-	      int pos = fP + J2.I;
-	      
-	      if (WW < F2._v[pos]) {
-		F2._v[pos  ] -= WW;
-		F2._v[pos+1] += WW;
-	      } else {
-		WW = F2._v[pos];
-		F2._v[pos  ]  = 0.0;
-		F2._v[pos+1] += WW;
-	      }
-	      
-#ifdef XC_DEEP9
-	      atomicAdd(&w_countr[T], 1ull);
-	      atomicAdd(&w_weight[T], WW);
-#endif
-	      Prob = WW;
-	      
-	      dE = ph * Prob;
-	      
-	      // Sanity
-#ifdef SANITY_DEBUG
-	      if (::isnan(dE)) {
-		printf("Crazy dE value in col ionize: XE=%e P=%e\n", XE, Prob);
-		dE = 0.0;
-	      }
-#endif
-	      
-	      // The kinetic energy of the ionized electron is lost
-	      // from the COM KE
-	      //
-	      cuFP_t wEta;
-	      computeEta(&F2._v[fP], &wEta, elems);
-	      wEta = wEta - EI.Eta2;
-
-	      cuFP_t Echg = EI.iE2 * wEta;
-#ifdef XC_DEEP0
-	      printf("Ionize[2]: W=%e eV=%e,%e sys=%e\n", wEta, EI.iE2, EI.iE1, Echg*N0*eV/cuEunit);
-#endif
-	      elecAdj[0] += Echg;
-	      
-	      // Energy for ionized electron comes from COM
-	      //
-	      dE += Echg;
-	      
-	      // Sanity
-#ifdef SANITY_DEBUG
-	      if (::isnan(dE)) {
-		printf("Crazy dE value in col ionize: XE=%e P=%e E1=%e E2=%e\n", XE, Prob, EI.iE1*WW, EI.iE2*WW);
-		dE = 0.0;
-	      }
+	    if (::isnan(dE)) {
+	      printf("Crazy dE value in recomb: P=%e\n", Prob);
+	      dE = 0.0;
+	    }
 #endif	    
 	      
 #ifdef XC_DEEP2
-	      printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z2, C2);
+	    printf("testT: rcDE=%e W=%e Z=%d C=%d\n", ph, Prob, Z1, C1);
 #endif
-	      if (pairs._v[n2].pair[1] < 0) {
-		pairs._v[n2].pair[1] = n1;
-		pairs._v[n2].xcvp[1] = weight;
-		pairs._v[n2].xcmx[1] = weight;
-		pairs._v[n2].Mu1     = EI.Mu2;
-		pairs._v[n2].Mu2 [1] = EI.Mu1;
-		pairs._v[n2].Eta2    = EI.Eta1;
-	      } else {
-		if (weight > pairs._v[n2].xcmx[1]) {
-		  pairs._v[n2].pair[1] = n1;
-		  pairs._v[n2].xcmx[1] = weight;
-		  pairs._v[n2].Mu2 [1] = EI.Mu1;
-		  pairs._v[n2].Eta2    = EI.Eta1;
-		}
-		pairs._v[n2].xcvp[1] += weight;
-	      }
-
-	    }
-	    // END: electron-ion
-	    
-	    // Sanity check
-	    //
-	    else {
-	      printf("**ERROR: col_ionize without a valid state [no e]: p1=[%d, %d, %d] p2=[%d, %d, %d]\n", Z1, C1, J1.I, Z2, C2, J2.I);
-	    }
-	    
-	    accum[ion_electron][count]  += Prob * (W1>W2 ? W2 : W1);
-	    accum[ion_electron][energy] += N0 * dE;
-
-	  } // END: ionize
-	  
-	  if (T == recombine) {
-	    
-	    if (Prob > 1.0) {
-	      printf("In recombine: crazy prob not possible: Prob=%e\n", Prob);
-	    }
-	    
-	    if (J2.sp == cuElectron) {		// Ion is p1
+	  } // END: ion-electron
+	  else if (J1.sp == cuElectron) { // Ion is p2
 	      
-	      cuFP_t WW = Prob;
+	    cuFP_t WW = Prob;
 	      
-	      int pos = fP + J1.I;
+	    int pos = fP + J2.I;
 	      
 #ifdef SANITY_DEBUG
-	      if (C1<=1 or Z2!=0) {
-		
-		printf("Crazy recombine [p1] (%d %d %d) (%d %d %d) (%d %d) T=%d N=%d\n",
-		       Z1, C1, J1.I, Z2, C2, J2.I, T, numxc)
-		  }
-	      
-	      if (WW < 0.0 or WW > 1.0)
-		printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f1=%e P0=%e\n",
-		       Z1, C1, J1.I, 
-		       Z2, C2, J2.I,
-		       WW, F1._v[pos], Prob);
-#endif
-	      if (WW < F1._v[pos]) {
-		F1._v[pos  ] -= WW;
-		F1._v[pos-1] += WW;
-	      } else {
-		WW = F1._v[pos];
-		F1._v[pos  ]  = 0.0;
-		F1._v[pos-1] += WW;
-	      }
-	      
-#ifdef XC_DEEP9
-	      atomicAdd(&w_countr[T], 1ull);
-	      atomicAdd(&w_weight[T], WW);
-#endif
-	      Prob = WW;
-	      
-	      // Electron KE lost in recombination is radiated
-	      //
-	      cuFP_t wEta;
-	      computeEta(&F1._v[fP], &wEta, elems);
-	      wEta = EI.Eta1 - wEta;
-
-	      cuFP_t Edel = (EI.iE2 - EI.iE1) * wEta;
-	      cuFP_t Echg = EI.iE1 * wEta;
-	      
-#ifdef XC_DEEP0
-	      printf("Recombine[1]: W=%e E=%e eV=%e\n", wEta, EI.iE1, Echg);
-#endif
-	      
-	      dE += Edel;
-	      elecAdj[1] += Echg;
-	      
-	      // KE Echg2 + IP is radiated.  Echg2 is lost from the COM
-	      // but Echg1 is used as a proxy to conserve internal energy
-	      //
-	      
-	      // Sanity
-#ifdef SANITY_DEBUG
-	      if (::isnan(dE)) {
-		printf("Crazy dE value in recomb: P=%e\n", Prob);
-		dE = 0.0;
-	      }
-#endif	    
-	      
-#ifdef XC_DEEP2
-	      printf("testT: rcDE=%e W=%e Z=%d C=%d\n", ph, Prob, Z1, C1);
-#endif
-	      
-	      if (pairs._v[n1].pair[1] < 0) {
-		pairs._v[n1].pair[1] = n2;
-		pairs._v[n1].xcvp[1] = weight;
-		pairs._v[n1].xcmx[1] = weight;
-		pairs._v[n1].Mu1     = EI.Mu1;
-		pairs._v[n1].Mu2 [1] = EI.Mu2;
-		pairs._v[n1].Eta2    = EI.Eta2;
-	      } else {
-		if (weight > pairs._v[n1].xcmx[1]) {
-		  pairs._v[n1].pair[1] = n2;
-		  pairs._v[n1].xcmx[1] = weight;
-		  pairs._v[n1].Mu2 [1] = EI.Mu2;
-		  pairs._v[n1].Eta2    = EI.Eta2;
-		}
-		pairs._v[n1].xcvp[1] += weight;
-	      }
-
-	    } // END: ion-electron
-	    else if (J1.sp == cuElectron) { // Ion is p2
-	      
-	      cuFP_t WW = Prob;
-	      
-	      int pos = fP + J2.I;
-	      
-#ifdef SANITY_DEBUG
-	      if (C2<=1 or Z1!=0) {
-		printf("Crazy recombine [p2] (%d %d %d) (%d %d %d) (%d %d) T=%d N=%d\n",
-		       Z1, C1, J1.I, Z2, C2, J2.I, T, numxc);
-	      }
-	      
-	      if (WW < 0.0 or WW > 1.0)
-		printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f2=%e P0=%e cf=%e\n",
-		       Z1, C1, J1.I, 
-		       Z2, C2, J2.I,
-		       WW, F2._v[pos], Prob);
-#endif	    
-	      if (WW < F2._v[pos]) {
-		F2._v[pos  ] -= WW;
-		F2._v[pos-1] += WW;
-	      } else {
-		WW = F2._v[pos];
-		F2._v[pos  ]  = 0.0;
-		F2._v[pos-1] += WW;
-	      }
-	      
-#ifdef XC_DEEP9
-	      atomicAdd(&w_countr[T], 1ull);
-	      atomicAdd(&w_weight[T], WW);
-#endif
-	      Prob = WW;
-	      
-	      // Electron KE lost in recombination is radiated
-	      //
-	      cuFP_t wEta;
-	      computeEta(&F2._v[fP], &wEta, elems);
-	      wEta = EI.Eta2 - wEta;
-
-	      cuFP_t Edel = (EI.iE1 - EI.iE2) * wEta;
-	      cuFP_t Echg = EI.iE2 * wEta;
-	      
-	      // Echg2 is lost from the electron pool by the algorithm
-	      //
-	      dE += Edel;
-	      elecAdj[1] += Echg;
-	      
-#ifdef XC_DEEP0
-	      printf("Recombine[2]: W=%e E=%e ke=%e eV=%e sys=%e\n", wEta, EI.iE2, Echg*N0*eV/cuEunit);
-#endif
-	      // Echg1 + IP is radiated.  Echg1 is lost from the COM but
-	      // Echg2 is used as a proxy to conserve internal energy
-	      //
-	      
-	      // Sanity
-#ifdef SANITY_DEBUG
-	      if (::isnan(dE)) {
-		printf("Crazy dE value in recomb: P=%e\n", Prob);
-		dE = 0.0;
-	      }
-#endif	    
-	      
-#ifdef XC_DEEP2
-	      printf("testT: rcDE=%e W=%e Z=%d C=%d\n", ph, Prob, Z2, C2);
-#endif
-
-	      if (pairs._v[n2].pair[1] < 0) {
-		pairs._v[n2].pair[1] = n1;
-		pairs._v[n2].xcvp[1] = weight;
-		pairs._v[n2].xcmx[1] = weight;
-		pairs._v[n2].Mu1     = EI.Mu2;
-		pairs._v[n2].Mu2 [1] = EI.Mu1;
-		pairs._v[n2].Eta2    = EI.Eta1;
-	      } else {
-		if (weight > pairs._v[n2].xcmx[1]) {
-		  pairs._v[n2].pair[1] = n1;
-		  pairs._v[n2].xcmx[1] = weight;
-		  pairs._v[n2].Mu2 [1] = EI.Mu1;
-		  pairs._v[n2].Eta2    = EI.Eta1;
-		}
-		pairs._v[n2].xcvp[1] += weight;
-	      }
-
-	    } // END: electron-ion
-	    else {
-	      printf("**ERROR: recombine without a valid state [no e]: (%d %d %d) (%d %d %d) T=%d N=%d\n",
+	    if (C2<=1 or Z1!=0) {
+	      printf("Crazy recombine [p2] (%d %d %d) (%d %d %d) (%d %d) T=%d N=%d\n",
 		     Z1, C1, J1.I, Z2, C2, J2.I, T, numxc);
-	    } // END: unexpected
-	    
-	    accum[ion_electron][count]  += Prob * (W1>W2 ? W2 : W1);
-	    accum[ion_electron][energy] += N0 * dE;
+	    }
+	      
+	    if (WW < 0.0 or WW > 1.0)
+	      printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f2=%e P0=%e cf=%e\n",
+		     Z1, C1, J1.I, 
+		     Z2, C2, J2.I,
+		     WW, F2._v[pos], Prob);
+#endif	    
+	    if (WW < F2._v[pos]) {
+	      F2._v[pos  ] -= WW;
+	      F2._v[pos-1] += WW;
+	    } else {
+	      WW = F2._v[pos];
+	      F2._v[pos  ]  = 0.0;
+	      F2._v[pos-1] += WW;
+	    }
+	      
+#ifdef XC_DEEP9
+	    atomicAdd(&w_countr[T], 1ull);
+	    atomicAdd(&w_weight[T], WW);
+#endif
+	    Prob = WW;
+	      
+	    // Electron KE lost in recombination is radiated
+	    //
+	    cuFP_t wEta;
+	    computeEta(&F2._v[fP], &wEta, elems);
+	    wEta = EI.Eta2 - wEta;
 
-	  } // END: recomb
+	    cuFP_t Edel = (EI.iE1 - EI.iE2) * wEta;
+	    cuFP_t Echg = EI.iE2 * wEta;
+	      
+	    // Echg2 is lost from the electron pool by the algorithm
+	    //
+	    dE += Edel;
+	    elecAdj[1] += Echg;
+	      
+#ifdef XC_DEEP0
+	    printf("Recombine[2]: W=%e E=%e ke=%e eV=%e sys=%e\n", wEta, EI.iE2, Echg*N0*eV/cuEunit);
+#endif
+	    // Echg1 + IP is radiated.  Echg1 is lost from the COM but
+	    // Echg2 is used as a proxy to conserve internal energy
+	    //
+	      
+	    // Sanity
+#ifdef SANITY_DEBUG
+	    if (::isnan(dE)) {
+	      printf("Crazy dE value in recomb: P=%e\n", Prob);
+	      dE = 0.0;
+	    }
+#endif	    
+	      
+#ifdef XC_DEEP2
+	    printf("testT: rcDE=%e W=%e Z=%d C=%d\n", ph, Prob, Z2, C2);
+#endif
+	  } // END: electron-ion
+	  else {
+	    printf("**ERROR: recombine without a valid state [no e]: (%d %d %d) (%d %d %d) T=%d N=%d\n",
+		   Z1, C1, J1.I, Z2, C2, J2.I, T, numxc);
+	  }
+	  // END: unexpected
+	  
+	} // END: recomb
 	
 
 #ifdef XC_DEEP6
-	  printf("ctest: E=%e\n", EE);
+	printf("ctest: E=%e\n", EE);
 #endif
-	  // Cumulate ionization and recombation energy adjustment
-	  //
-	  IEadjust += (elecAdj[1] - elecAdj[0]) * N0;
+	// Cumulate ionization and recombation energy adjustment
+	//
+	IEadjust += (elecAdj[1] - elecAdj[0]) * N0;
 	  
-	  // Recompute electron fraction from possibly new weights
+	// Recompute electron fraction from possibly new weights
+	//
+	{
+	  cuFP_t sum1 = 0.0, sum2 = 0.0;
+	  for (int k=0; k<Nsp; k++) {
+	    
+	    if (F1._v[fP+k]<0.0)
+	      printf("**ERROR: F1[%d]=%e\n", k, F1._v[fP+k]);
+	    
+	    if (F2._v[fP+k]<0.0)
+	      printf("**ERROR: F2[%d]=%e\n", k, F2._v[fP+k]);
+	      
+	    sum1 += F1._v[fP+k];
+	    sum2 += F2._v[fP+k];
+	  }
+	    
+	  // Sanity check
 	  //
-	  {
-	    cuFP_t sum1 = 0.0, sum2 = 0.0;
-	    for (int k=0; k<Nsp; k++) {
-	      
-	      if (F1._v[fP+k]<0.0)
-		printf("**ERROR: F1[%d]=%e\n", k, F1._v[fP+k]);
-	      
-	      if (F2._v[fP+k]<0.0)
-		printf("**ERROR: F2[%d]=%e\n", k, F2._v[fP+k]);
-	      
-	      sum1 += F1._v[fP+k];
-	      sum2 += F2._v[fP+k];
-	    }
-	    
-	    // Sanity check
-	    //
-	    if (fabs(sum1 - 1.0) > 1.0e-10) {
-	      printf("**ERROR: sum1=%e\n", sum1-1.0);
-	      for (int k=0; k<Nsp; k++) {
-		cuIonElement& E = elems._v[k];
-		printf("**[%d]=%13.6e  %13.6e\n", k, F1._v[fP+k], p1->datr[E.I+cuSp0]);
-	      }
-	    }
-	    
-	    if (fabs(sum2 - 1.0) > 1.0e-10) {
-	      printf("**ERROR: sum2=%e\n", sum2-1.0);
-	      for (int k=0; k<Nsp; k++) {
-		cuIonElement& E = elems._v[k];
-		printf("**[%d]=%13.6e  %13.6e\n", k, F2._v[fP+k], p2->datr[E.I+cuSp0]);
-	      }
-	    }
-	    
-	    // Deep sanity check
-	    //
-	    if (false) {
-	      for (int k=0; k<Nsp; k++) {
-		cuIonElement& E = elems._v[k];
-		cuFP_t dif = fabs(F1._v[fP+k] - p1->datr[E.I+cuSp0]);
-		if (dif > 0.2) {
-		  printf("**WARNING: dF1[%d]=%13.6e  new=%13.6e  old=%13.6e\n", k, dif, F1._v[fP+k], p1->datr[E.I+cuSp0]);
-		}
-		dif = fabs(F2._v[fP+k] - p2->datr[E.I+cuSp0]);
-		if (dif > 0.2) {
-		  printf("**WARNING: dF2[%d]=%13.6e  new=%13.6e  old=%13.6e\n", k, dif, F2._v[fP+k], p2->datr[E.I+cuSp0]);
-		}
-	      }
-	    }
-	    
-	    cuFP_t Sum1 = 0.0, Sum2 = 0.0, Eta1 = 0.0, Eta2 = 0.0;
-	    cuFP_t Test1 = 0.0, Test2 = 0.0;
+	  if (fabs(sum1 - 1.0) > 1.0e-10) {
+	    printf("**ERROR: sum1=%e\n", sum1-1.0);
 	    for (int k=0; k<Nsp; k++) {
 	      cuIonElement& E = elems._v[k];
-	      
-	      p1->datr[E.I+cuSp0] = F1._v[fP+k]/sum1;
-	      p2->datr[E.I+cuSp0] = F2._v[fP+k]/sum2;
-	      
-	      // Number fraction of ions
-	      cuFP_t one = p1->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
-	      cuFP_t two = p2->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
-	      
-	      // Electron number fraction
-	      Eta1 += one * (E.C - 1);
-	      Eta2 += two * (E.C - 1);
-	      
-	      Sum1 += one;
-	      Sum2 += two;
-	      
-	      Test1 += p1->datr[E.I+cuSp0];
-	      Test2 += p2->datr[E.I+cuSp0];
+	      printf("**[%d]=%13.6e  %13.6e\n", k, F1._v[fP+k], p1->datr[E.I+cuSp0]);
 	    }
+	  }
 	    
-	    // Deep sanity check
-	    //
-	    if (true) {
-	      if (fabs(Test1 - 1.0) > 1.0e-12) {
-		printf("**WARNING: dF1=%13.6e\n", Test1 - 1.0);
+	  if (fabs(sum2 - 1.0) > 1.0e-10) {
+	    printf("**ERROR: sum2=%e\n", sum2-1.0);
+	    for (int k=0; k<Nsp; k++) {
+	      cuIonElement& E = elems._v[k];
+	      printf("**[%d]=%13.6e  %13.6e\n", k, F2._v[fP+k], p2->datr[E.I+cuSp0]);
+	    }
+	  }
+	  
+	  // Deep sanity check
+	  //
+	  if (false) {
+	    for (int k=0; k<Nsp; k++) {
+	      cuIonElement& E = elems._v[k];
+	      cuFP_t dif = fabs(F1._v[fP+k] - p1->datr[E.I+cuSp0]);
+	      if (dif > 0.2) {
+		printf("**WARNING: dF1[%d]=%13.6e  new=%13.6e  old=%13.6e\n", k, dif, F1._v[fP+k], p1->datr[E.I+cuSp0]);
 	      }
-	      if (fabs(Test2 - 1.0) > 1.0e-12) {
-		printf("**WARNING: dF2=%13.6e\n", Test2 - 1.0);
+	      dif = fabs(F2._v[fP+k] - p2->datr[E.I+cuSp0]);
+	      if (dif > 0.2) {
+		printf("**WARNING: dF2[%d]=%13.6e  new=%13.6e  old=%13.6e\n", k, dif, F2._v[fP+k], p2->datr[E.I+cuSp0]);
 	      }
 	    }
-	    
-	    // Recompute the number of electrons per particle
-	    //
-	    EI.Eta1 = (Eta1 /= Sum1);
-	    EI.Eta2 = (Eta2 /= Sum2);
-	    
-	    // Reassign the weights for standard Trace algorithm
-	    //
-	    if (J1.sp==cuElectron) W1 = w1 * EI.Eta1;
-	    if (J2.sp==cuElectron) W2 = w2 * EI.Eta2;
 	  }
-
-#ifdef XC_DEEP16
-	  if (dE>0.0) {
-	    cuFP_t ac = accum[ion_ion][energy] + accum[ion_electron][energy];
-	    printf("Cell [%6x] body dE=%13.6e N0=%13.6e ac=%13.6e [%s]\n",
-		   cid, dE, N0, ac, cudaInterNames[T]);
+	  
+	  cuFP_t Sum1 = 0.0, Sum2 = 0.0, Eta1 = 0.0, Eta2 = 0.0;
+	  cuFP_t Test1 = 0.0, Test2 = 0.0;
+	  for (int k=0; k<Nsp; k++) {
+	    cuIonElement& E = elems._v[k];
+	    
+	    p1->datr[E.I+cuSp0] = F1._v[fP+k]/sum1;
+	    p2->datr[E.I+cuSp0] = F2._v[fP+k]/sum2;
+	    
+	    // Number fraction of ions
+	    cuFP_t one = p1->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
+	    cuFP_t two = p2->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
+	    
+	    // Electron number fraction
+	    Eta1 += one * (E.C - 1);
+	    Eta2 += two * (E.C - 1);
+	      
+	    Sum1 += one;
+	    Sum2 += two;
+	      
+	    Test1 += p1->datr[E.I+cuSp0];
+	    Test2 += p2->datr[E.I+cuSp0];
 	  }
-#endif
+	    
+	  // Deep sanity check
+	  //
+	  if (true) {
+	    if (fabs(Test1 - 1.0) > 1.0e-12) {
+	      printf("**WARNING: dF1=%13.6e\n", Test1 - 1.0);
+	    }
+	    if (fabs(Test2 - 1.0) > 1.0e-12) {
+	      printf("**WARNING: dF2=%13.6e\n", Test2 - 1.0);
+	    }
+	  }
+	  
+	  // Recompute the number of electrons per particle
+	  //
+	  EI.Eta1 = (Eta1 /= Sum1);
+	  EI.Eta2 = (Eta2 /= Sum2);
+	  
+	  // Reassign the weights for standard Trace algorithm
+	  //
+	  if (J1.sp==cuElectron) W1 = w1 * EI.Eta1;
+	  if (J2.sp==cuElectron) W2 = w2 * EI.Eta2;
 	}
-	// END: selection ok
-      }
-      // END: pair loop
-    }
-    // END: interaction loop
 
-    cuFP_t deferE = 0.0;
-
-    for (auto & v : accum) v[1] *= eV/cuEunit;
-
-    // Loop over all interaction types to apply energy changes while
-    // conserving energy
-    //
-    for (int it : {ion_ion, ion_electron}) {
-      
-      // Number of pairs
-      //
-      cuFP_t dn_p = accum[it][count]/numbP;
-      int     n_p = std::ceil(dn_p);
-
-      // Add accumulated energy loss
-      //
-      deferE += accum[it][energy];
-
-      // Select for fractional scatter at random, if we can defer
-      // inelastic energy change.  Otherwise, stick with n_p rounded up.
-      //
-#if cuREAL == 4
-      if (cuCons>=0 and curand_uniform(state) < static_cast<cuFP_t>(n_p) - dn_p) n_p--;
-#else
-      if (cuCons>=0 and curand_uniform_double(state) < static_cast<double>(n_p) - dn_p) n_p--;
-#endif
-      
-      if (n_p<=0) {
-#ifdef XC_DEEP16
-	if (deferE>0.0) printf("Cell [%6x] energy dE=%13.6e with dN=%13.6e N=%d\n", cid, deferE, dn_p, n_p);
-#endif
-	continue;
-      }
-      
-      // Normalize accum
-      //
-      int nonZero = 0;
-      for (int n=n0; n<n0+nbods; n++) if (pairs._v[n].xcvp[it]>0) nonZero++;
-
-      if (nonZero==0) continue;
-
-      for (int n=n0+1; n<n0+nbods; n++)
-	pairs._v[n].xcvp[it] += pairs._v[n-1].xcvp[it];
-
-      cuFP_t maxVal = pairs._v[n0+nbods-1].xcvp[it];
-      for (int n=n0+0; n<n0+nbods; n++) pairs._v[n].xcvp[it] /= maxVal;
-
-
-      // Mean inelastic energy change
-      //
-      cuFP_t dE = deferE/n_p;
-      deferE = 0.0;
-      
-#ifdef XC_DEEP16
-      // Print out deferred energy per particle interaction for deep
-      // debugging
-      //
-      if (dE>0.0)
-	printf("Cell [%10x] dE=%13.6e N=%6d T=%d\n", cid, dE, n_p, it);
-#endif
-
-      // Loop over number of pairs
-      //
-      for (int n=0; n<n_p; n++) {
-	
-	double Ptry = curand_uniform(state);
-	int n1 = xc_lower_bound(n0, n0+nbods, it, pairs, Ptry);
-	int n2 = pairs._v[n1].pair[it];
-
-	// This is for deep sanity debugging only
+	// Convert energy change to system units
 	//
-	if (n1<0 or n2<0) {
-	  printf("Crazy value for Ptry=%f max=%f n1=%d, n2=%d\n", Ptry, maxVal, n1-n0, n2-n0);
-	}
-
-	cudaParticle* p1 = &in._v[n1];
-	cudaParticle* p2 = &in._v[n2];
+	dE *= N0*cuEV/cuEunit;
 
 	// The ions have the molecular weight in an interaction. The
 	// elctrons have the true electron weight, assigned below.
 
-	cuFP_t m1  = pairs._v[n1].Mu1;
-	cuFP_t m2  = pairs._v[n2].Mu2[it];
-	cuFP_t W1  = p1->mass/m1;
-	cuFP_t W2  = p2->mass/m2;
-	cuFP_t WW  = W1>W2 ? W2 : W1;
+	cuFP_t m1  = EI.Mu1;
+	cuFP_t m2  = EI.Mu2;
+
 	cuFP_t v1[3], v2[3];
 	
 	// Particle 1 is always Ion
 	for (int k=0; k<3; k++) v1[k] = p1->vel[k];
 	
 	// Particle 2 is Ion
-	if (it == AccumType::ion_ion) {
+	if (type == AccumType::ion_ion) {
 	  for (int k=0; k<3; k++) v2[k] = p2->vel[k];
 	}
 	// Particle 2 is Electron
@@ -5029,11 +4711,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	// Total effective mass in the collision
 	//
 	double mt = m1 + m2;
-
+	
 	// Reduced mass (atomic mass units)
 	//
 	double mu = m1 * m2 / mt;
-      
+	
 	// Set COM frame
 	//
 	cuFP_t vcom[] = {0.0, 0.0, 0.0};
@@ -5048,13 +4730,34 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	
 	// Energy in COM
 	//
+	double WW = W1>W2 ? W2 : W1;
 	double kE = 0.5*WW*mu*vi;
 	
+	// Attempt to apply deferred energy
+	//
+	double deferE = 0.0;
+	if (cuCons>=0) {
+	  if (m1>0.5 or cuEcon<0) {
+	    deferE += p1->datr[cuCons];
+	    p1->datr[cuCons] = 0.0;
+	  } else {
+	    deferE += p1->datr[cuEcon];
+	    p1->datr[cuEcon] = 0.0;
+	  }
+	  if (m2>0.0 or cuEcon<0) {
+	    deferE += p2->datr[cuCons];
+	    p2->datr[cuCons] = 0.0;
+	  } else {
+	    deferE += p2->datr[cuEcon];
+	    p2->datr[cuEcon] = 0.0;
+	  }
+	}
+
 	// Energy reduced by loss
 	//
-	double totE = kE - dE;
+	double totE = kE - dE - deferE;
 	double vfac = 0.0;
-	
+
 	// KE is positive
 	//
 	if (kE>0.0) {
@@ -5062,8 +4765,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  //
 	  if (totE < 0.0) {
 	    if (cuCons>=0) {
-	      p1->datr[cuCons] += 0.5*(-totE);
-	      p2->datr[cuCons] += 0.5*(-totE);
+	      if (m1>0.5 or cuEcon<0)
+		p1->datr[cuCons] += 0.5*(-totE);
+	      else
+		p1->datr[cuEcon] += 0.5*(-totE);
+	      if (m2>0.5 or cuEcon<0)
+		p2->datr[cuCons] += 0.5*(-totE);
+	      else
+		p2->datr[cuEcon] += 0.5*(-totE);
 	    }
 	    totE = 0.0;
 	  }
@@ -5071,8 +4780,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  vfac = sqrt(totE/kE);
 	}
 	
-	if (dE != 0.0) printf("CHECK: dE=%e kE=%e vfac=%e vi=%e n1=%d n2=%d np=%d m1=%e m2=%e\n", dE, kE, vfac, vi, n1-n0, n2-n0, n_p, m1, m2);
-
 	cudaUnitVector(vrel, state);
 	
 	vi   = sqrt(vi);
@@ -5089,29 +4796,21 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	
 	// Particle 1 is always Ion
 	for (int k=0; k<3; k++) p1->vel[k] = v1[k];
-				
+	
 	// Particle 2 is Ion
-	if (it == AccumType::ion_ion) {
+	if (type == AccumType::ion_ion) {
 	  for (int k=0; k<3; k++) p2->vel[k] = v2[k];
 	}
 	// Particle 2 is Electron
 	else {
 	  for (int k=0; k<3; k++) p2->datr[cuElec+k] = v2[k];
 	}
-      }
-    }
 
-    // END: accum
+      }
+      // END: pair loop
+    }
+    // END: interaction loop
     
-    // Redistribute deferred energy
-    //
-    if (cuCons>=0) {
-      for (size_t i=0; i<nbods; i++) {
-	cudaParticle* p = &in._v[n0+i];
-	p->datr[cuCons] = deferE/nbods;
-      }
-    }
-
     // Spread deferred (test)
     //
     if (cuSpreadDef) {
@@ -5442,7 +5141,6 @@ void * CollideIon::collide_thread_cuda(void * arg)
   
   thrust::device_vector<cuFP_t>       d_tauP(h_tauP);
   thrust::device_vector<cudaParticle> d_part(c0->host_particles);
-  thrust::device_vector<cudaPairIntr> d_pair(c0->host_particles.size());
   
   // Copy cell boundaries and counts to DEVICE
   //
@@ -5483,26 +5181,31 @@ void * CollideIon::collide_thread_cuda(void * arg)
   //
   unsigned int XCsize = ilist.size();
   
-  thrust::device_vector<cuInteract> d_cross(N*XCsize);
   thrust::device_vector<cuFP_t>     d_delph(N), d_Coul4(N*4), d_Nsel(N);
 
   int esz = cuElems.size();
   thrust::device_vector<cuFP_t>     d_F1(N*esz), d_F2(N*esz);
   thrust::device_vector<cuInteract> d_Init(ilist);
 
+  // Work space for pair selection in kernel
+  //
+  thrust::device_vector<int>        d_pairs(N*PAIR_LEN);
+  thrust::device_vector<float>      d_xccum(N*PAIR_LEN);
+
 #ifdef XC_DEEPT
   std::cout << "**TIME=" << tnow << std::endl;
 #endif
   
   partInteractions<<<gridSize, BLOCK_SIZE>>>
-    (toKernel(d_part),   toKernel(d_pair),   toKernel(d_randS),  
-     toKernel(d_Coul4),  toKernel(d_Nsel),   toKernel(d_cross),  
+    (toKernel(d_part),   toKernel(d_randS),  toKernel(d_Coul4),  toKernel(d_Nsel),
      toKernel(d_cellI),  toKernel(d_cellN),  toKernel(d_volC),   
      toKernel(d_Ivel2),  toKernel(d_Evel2),  toKernel(xsc_H),    
      toKernel(xsc_He),   toKernel(xsc_pH),   toKernel(xsc_pHe),  
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(cuElems),  
      toKernel(d_tauC),   toKernel(d_Init),
-     toKernel(d_F1),     toKernel(d_F2)    );
+     toKernel(d_F1),     toKernel(d_F2),
+     toKernel(d_pairs),  toKernel(d_xccum)
+     );
   
 #ifdef XC_DEEP9
   {
