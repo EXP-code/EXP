@@ -14707,6 +14707,10 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   for (auto & v : selcM.v) {
     
+#ifdef XC_DEEP5
+    double saveXc = v.second();
+#endif
+
     v.second() *= (num - 1) * dens * rateF * crs_units;
 
     auto k1 = std::get<1>(v.first);
@@ -14717,6 +14721,16 @@ NTC::InteractD CollideIon::generateSelectionTrace
     // For correct Poisson statistics
     //
     totSelcM += v.second();
+
+#ifdef XC_DEEP5
+    auto TT = std::get<0>(v.first);
+    std::cout << "ctest: " << std::setw(12) << interLabels[TT]
+	      << " cross=" << saveXc*crs_units*TreeDSMC::Lunit*TreeDSMC::Lunit/1e-14
+	      << " selcM=" << v.second()
+	      << " Vel=" << crm
+	      << " Tau=" << tau
+	      << std::endl;
+#endif
   }
 
 
@@ -14728,12 +14742,14 @@ NTC::InteractD CollideIon::generateSelectionTrace
   colUps[id][3] += colCf[id];
 
 #ifdef XC_DEEP5
+  /*
   std::cout << "ctest: cross="
 	    << crossRat*TreeDSMC::Lunit*TreeDSMC::Lunit/1e-14
 	    << " selcM=" << totSelcM
 	    << " Vel=" << crm
 	    << " Tau=" << tau
 	    << std::endl;
+  */
 #endif
 
   if (collLim) {		// Sanity clamp

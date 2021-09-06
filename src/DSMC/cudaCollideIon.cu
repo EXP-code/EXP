@@ -1759,7 +1759,7 @@ enum cudaInterTypes {
 
 // This is only used for debugging
 //
-__constant__ char cudaInterNames[11][16] = { 
+__constant__ char cudaInterNames[11][12] = { 
   "nothing",
   "neut_neut",
   "neut_elec",
@@ -2161,7 +2161,7 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
       // Sanity check
       //
       if (i + cellI._v[c] >= in._s) {
-	printf("Cell init: Wanted %d/%d\n", i + cellI._v[c], in._s);
+	printf("Cell init: Wanted %lu/%lu\n", i + cellI._v[c], in._s);
       }
       
       // The particle
@@ -2306,7 +2306,7 @@ __device__
 void printEI(cuFP_t xc, cuEnergyInfo& E)
 {
   printf("[xc=%e Eta1=%f Eta2=%f Mu1=%f Mu2=%f kEi=%e kEe1=%e kEe2=%e iE1=%e iE2=%e]\n",
-	 xc, E.Eta1, E.Eta2, E.Mu1, E.Mu2, E.iE1, E.iE2);
+	 xc, E.Eta1, E.Eta2, E.Mu1, E.Mu2, E.kEi, E.kEe1, E.kEe2, E.iE1, E.iE2);
 }
 
 
@@ -2327,11 +2327,11 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
   // Sanity checks
   //
   if (I1 >= in._s) {
-    printf("cross section: i1 wanted %d/%u\n", I1, in._s);
+    printf("cross section: i1 wanted %d/%lu\n", I1, in._s);
   }
 
   if (I2 >= in._s) {
-    printf("cross section: i2 wanted %d/%u\n", I2, in._s);
+    printf("cross section: i2 wanted %d/%lu\n", I2, in._s);
   }
 
   // Pointer to particle structure for convenience
@@ -3039,14 +3039,15 @@ cuFP_t cuCA_eval(cuFP_t tau)
   }
 }
 
-__global__ void photoIonizeKernel(dArray<cudaParticle> in,    // Particle array
-				  dArray<cuFP_t>       dT,    // Time steps
-				  dArray<int>          cellI, // Particle offset for each cell
-				  dArray<int>          cellN, // Number of bodes for each cell
-				  dArray<curandState>  randS, // Cuda random number objects
-				  const
-				  dArray<cuIonElement> elems  // Species map
-				  )
+__global__
+void photoIonizeKernel(dArray<cudaParticle> in,    // Particle array
+		       dArray<cuFP_t>       dT,    // Time steps
+		       dArray<int>          cellI, // Particle offset for each cell
+		       dArray<int>          cellN, // Number of bodes for each cell
+		       dArray<curandState>  randS, // Cuda random number objects
+		       const
+		       dArray<cuIonElement> elems  // Species map
+		       )
 {
   const int Nsp = elems._s;
 
@@ -3896,29 +3897,30 @@ int xc_lower_bound (int first, int last, int c, dArray<cudaPairIntr> pairs,
 // Compute particle interactions for each cell given the computed
 // cross sections
 //
-__global__ void partInteractions(dArray<cudaParticle>   in,
-				 dArray<cudaPairIntr>   pairs,
-				 dArray<curandState>    randS,
-				 dArray<cuFP_t>         coul4,
-				 dArray<cuFP_t>         nSel,
-				 dArray<cuInteract>     cross,
-				 dArray<int>            cellI,
-				 dArray<int>            cellN,
-				 dArray<cuFP_t>         volC,
-				 dArray<cuFP_t>         Ivel2,
-				 dArray<cuFP_t>         Evel2,
-				 dArray<cuFP_t>         xsc_H,
-				 dArray<cuFP_t>         xsc_He,
-				 dArray<cuFP_t>         xsc_pH,
-				 dArray<cuFP_t>         xsc_pHe,
-				 dArray<cuFP_t>         PiProb,
-				 dArray<cuFP_t>         ABrate,
-				 const
-				 dArray<cuIonElement>   elems,
-				 dArray<cuFP_t>         spTau,
-				 dArray<cuInteract>     iK,
-				 dArray<cuFP_t>         F1,
-				 dArray<cuFP_t>         F2)
+__global__
+void partInteractions(dArray<cudaParticle>   in,
+		      dArray<cudaPairIntr>   pairs,
+		      dArray<curandState>    randS,
+		      dArray<cuFP_t>         coul4,
+		      dArray<cuFP_t>         nSel,
+		      dArray<cuInteract>     cross,
+		      dArray<int>            cellI,
+		      dArray<int>            cellN,
+		      dArray<cuFP_t>         volC,
+		      dArray<cuFP_t>         Ivel2,
+		      dArray<cuFP_t>         Evel2,
+		      dArray<cuFP_t>         xsc_H,
+		      dArray<cuFP_t>         xsc_He,
+		      dArray<cuFP_t>         xsc_pH,
+		      dArray<cuFP_t>         xsc_pHe,
+		      dArray<cuFP_t>         PiProb,
+		      dArray<cuFP_t>         ABrate,
+		      const
+		      dArray<cuIonElement>   elems,
+		      dArray<cuFP_t>         spTau,
+		      dArray<cuInteract>     iK,
+		      dArray<cuFP_t>         F1,
+		      dArray<cuFP_t>         F2)
 {
   const int Nsp   = elems._s;
   const int numxc = iK._s;
@@ -4074,17 +4076,17 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	totalNsel += nsel;
 
 	if (J1.sp == cuElectron and xc>0.0) 
-	  printf("%20s (%d, %d) electron: %13.6e %13.6e\n",
+	  printf("%12s (%d, %d) electron: %13.6e %13.6e\n",
 		 cudaInterNames[T],
 		 J2.sp.first, J2.sp.second,
 		 xc, nsel);
 	else if (J2.sp == cuElectron and xc>0.0)
-	  printf("%20s (%d, %d) electron: %13.6e %13.6e\n",
+	  printf("%12s (%d, %d) electron: %13.6e %13.6e\n",
 		 cudaInterNames[T],
 		 J1.sp.first, J1.sp.second,
 		 xc, nsel);
 	else if (xc>0.0)
-	  printf("%20s (%d, %d) (%d, %d):   %13.6e %13.6e\n",
+	  printf("%12s (%d, %d) (%d, %d):   %13.6e %13.6e\n",
 		 cudaInterNames[T],
 		 J1.sp.first, J1.sp.second,
 		 J2.sp.first, J2.sp.second,
@@ -4093,7 +4095,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       printf("Total Nsel=%13.6e\n", totalNsel);
     }
 
-    // Run down the species list and perform interactions
+    // Run down the species list and perform interactions by
+    // interaction type
     //
     for (int k=0; k<numxc; k++) {
 
@@ -4183,7 +4186,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 			     cid, n1, n2, T, &J1, &J2, state, &EI);
       
 #ifdef XC_DEEP5
-	printf("ctest: T=%d cross=%e selcM=%e Vel=%e Tau=%e\n", T, curXC, nsel, EI.vel, spTau._v[cid]);
+	printf("ctest: T=%12s cross=%e selcM=%e Vel=%e Tau=%e\n", cudaInterNames[T], curXC, nsel, EI.vel, spTau._v[cid]);
 #endif
 	cuFP_t crsvel = curXC * EI.vel;
 
@@ -4952,155 +4955,155 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       if (cuCons>=0 and curand_uniform_double(state) < static_cast<double>(n_p) - dn_p) n_p--;
 #endif
       
-      if (n_p<=0) {
 #ifdef XC_DEEP16
-	if (deferE>0.0) printf("Cell [%6x] energy dE=%13.6e with dN=%13.6e N=%d\n", cid, deferE, dn_p, n_p);
-#endif
-	continue;
-      }
-      
-      // Normalize accum
-      //
-      int nonZero = 0;
-      for (int n=n0; n<n0+nbods; n++) if (pairs._v[n].xcvp[it]>0) nonZero++;
-
-      if (nonZero==0) continue;
-
-      for (int n=n0+1; n<n0+nbods; n++)
-	pairs._v[n].xcvp[it] += pairs._v[n-1].xcvp[it];
-
-      cuFP_t maxVal = pairs._v[n0+nbods-1].xcvp[it];
-      for (int n=n0+0; n<n0+nbods; n++) pairs._v[n].xcvp[it] /= maxVal;
-
-
-      // Mean inelastic energy change
-      //
-      cuFP_t dE = deferE/n_p;
-      deferE = 0.0;
-      
-#ifdef XC_DEEP16
-      // Print out deferred energy per particle interaction for deep
-      // debugging
-      //
-      if (dE>0.0)
-	printf("Cell [%10x] dE=%13.6e N=%6d T=%d\n", cid, dE, n_p, it);
+      if (deferE>0.0) printf("Cell [%6x] energy dE=%13.6e with dN=%13.6e N=%d\n", cid, deferE, dn_p, n_p);
 #endif
 
-      // Loop over number of pairs
-      //
-      for (int n=0; n<n_p; n++) {
-	
-	double Ptry = curand_uniform(state);
-	int n1 = xc_lower_bound(n0, n0+nbods, it, pairs, Ptry);
-	int n2 = pairs._v[n1].pair[it];
-
-	// This is for deep sanity debugging only
-	//
-	if (n1<0 or n2<0) {
-	  printf("Crazy value for Ptry=%f max=%f n1=%d, n2=%d\n", Ptry, maxVal, n1-n0, n2-n0);
-	}
-
-	cudaParticle* p1 = &in._v[n1];
-	cudaParticle* p2 = &in._v[n2];
-
-	// The ions have the molecular weight in an interaction. The
-	// elctrons have the true electron weight, assigned below.
-
-	cuFP_t m1  = pairs._v[n1].Mu1;
-	cuFP_t m2  = pairs._v[n2].Mu2[it];
-	cuFP_t W1  = p1->mass/m1;
-	cuFP_t W2  = p2->mass/m2;
-	cuFP_t WW  = W1>W2 ? W2 : W1;
-	cuFP_t v1[3], v2[3];
-	
-	// Particle 1 is always Ion
-	for (int k=0; k<3; k++) v1[k] = p1->vel[k];
-	
-	// Particle 2 is Ion
-	if (it == AccumType::ion_ion) {
-	  for (int k=0; k<3; k++) v2[k] = p2->vel[k];
-	}
-	// Particle 2 is Electron
-	else {			
-	  m2 = cuda_atomic_weights[0];
-	  for (int k=0; k<3; k++) v2[k] = p2->datr[cuElec+k];
-	}
-
-	// Total effective mass in the collision
-	//
-	double mt = m1 + m2;
-
-	// Reduced mass (atomic mass units)
-	//
-	double mu = m1 * m2 / mt;
+      if (n_p>0) {
       
-	// Set COM frame
+	// Normalize accum
 	//
-	cuFP_t vcom[] = {0.0, 0.0, 0.0};
-	cuFP_t vrel[] = {0.0, 0.0, 0.0};
-	double vi = 0.0;
-	
-	for (size_t k=0; k<3; k++) {
-	  vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
-	  vrel[k] = v1[k] - v2[k];
-	  vi += vrel[k] * vrel[k];
-	}
-	
-	// Energy in COM
+	int nonZero = 0;
+	for (int n=n0; n<n0+nbods; n++) if (pairs._v[n].xcvp[it]>0) nonZero++;
+
+	if (nonZero==0) continue;
+
+	for (int n=n0+1; n<n0+nbods; n++)
+	  pairs._v[n].xcvp[it] += pairs._v[n-1].xcvp[it];
+
+	cuFP_t maxVal = pairs._v[n0+nbods-1].xcvp[it];
+	for (int n=n0+0; n<n0+nbods; n++) pairs._v[n].xcvp[it] /= maxVal;
+
+
+	// Mean inelastic energy change
 	//
-	double kE = 0.5*WW*mu*vi;
-	
-	// Energy reduced by loss
+	cuFP_t dE = deferE/n_p;
+	deferE = 0.0;
+      
+#ifdef XC_DEEP16
+	// Print out deferred energy per particle interaction for deep
+	// debugging
 	//
-	double totE = kE - dE;
-	double vfac = 0.0;
-	
-	// KE is positive
+	if (dE>0.0)
+	  printf("Cell [%10x] dE=%13.6e N=%6d T=%d\n", cid, dE, n_p, it);
+#endif
+
+	// Loop over number of pairs
 	//
-	if (kE>0.0) {
-	  // More loss energy requested than available?
+	for (int n=0; n<n_p; n++) {
+	
+	  double Ptry = curand_uniform(state);
+	  int n1 = xc_lower_bound(n0, n0+nbods, it, pairs, Ptry);
+	  int n2 = pairs._v[n1].pair[it];
+
+	  // This is for deep sanity debugging only
 	  //
-	  if (totE < 0.0) {
-	    if (cuCons>=0) {
-	      p1->datr[cuCons] += 0.5*(-totE);
-	      p2->datr[cuCons] += 0.5*(-totE);
+	  if (n1<0 or n2<0) {
+	    printf("Crazy value for Ptry=%f max=%f n1=%d, n2=%d\n", Ptry, maxVal, n1-n0, n2-n0);
+	  }
+
+	  cudaParticle* p1 = &in._v[n1];
+	  cudaParticle* p2 = &in._v[n2];
+
+	  // The ions have the molecular weight in an interaction. The
+	  // elctrons have the true electron weight, assigned below.
+
+	  cuFP_t m1  = pairs._v[n1].Mu1;
+	  cuFP_t m2  = pairs._v[n2].Mu2[it];
+	  cuFP_t W1  = p1->mass/m1;
+	  cuFP_t W2  = p2->mass/m2;
+	  cuFP_t WW  = W1>W2 ? W2 : W1;
+	  cuFP_t v1[3], v2[3];
+	
+	  // Particle 1 is always Ion
+	  for (int k=0; k<3; k++) v1[k] = p1->vel[k];
+	
+	  // Particle 2 is Ion
+	  if (it == AccumType::ion_ion) {
+	    for (int k=0; k<3; k++) v2[k] = p2->vel[k];
+	  }
+	  // Particle 2 is Electron
+	  else {			
+	    m2 = cuda_atomic_weights[0];
+	    for (int k=0; k<3; k++) v2[k] = p2->datr[cuElec+k];
+	  }
+
+	  // Total effective mass in the collision
+	  //
+	  double mt = m1 + m2;
+
+	  // Reduced mass (atomic mass units)
+	  //
+	  double mu = m1 * m2 / mt;
+	  
+	  // Set COM frame
+	  //
+	  cuFP_t vcom[] = {0.0, 0.0, 0.0};
+	  cuFP_t vrel[] = {0.0, 0.0, 0.0};
+	  double vi = 0.0;
+	
+	  for (size_t k=0; k<3; k++) {
+	    vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
+	    vrel[k] = v1[k] - v2[k];
+	    vi += vrel[k] * vrel[k];
+	  }
+	
+	  // Energy in COM
+	  //
+	  double kE = 0.5*WW*mu*vi;
+	
+	  // Energy reduced by loss
+	  //
+	  double totE = kE - dE;
+	  double vfac = 0.0;
+	  
+	  // KE is positive
+	  //
+	  if (kE>0.0) {
+	    // More loss energy requested than available?
+	    //
+	    if (totE < 0.0) {
+	      if (cuCons>=0) {
+		p1->datr[cuCons] += 0.5*(-totE);
+		p2->datr[cuCons] += 0.5*(-totE);
+	      }
+	      totE = 0.0;
 	    }
-	    totE = 0.0;
+	    
+	    vfac = sqrt(totE/kE);
+	  }
+	
+	  if (dE != 0.0) printf("CHECK: dE=%e kE=%e vfac=%e vi=%e n1=%d n2=%d np=%d m1=%e m2=%e\n", dE, kE, vfac, vi, n1-n0, n2-n0, n_p, m1, m2);
+
+	  cudaUnitVector(vrel, state);
+	
+	  vi   = sqrt(vi);
+	  for (auto & v : vrel) v *= vi;
+	  //                         ^
+	  //                         |
+	  // Velocity in center of mass, computed from v1, v2 and adjusted
+	  // according to the inelastic energy loss
+	
+	  for (int k=0; k<3; k++) {
+	    v1[k] = vcom[k] + m2/mt*vrel[k] * vfac;
+	    v2[k] = vcom[k] - m1/mt*vrel[k] * vfac;
 	  }
 	  
-	  vfac = sqrt(totE/kE);
-	}
-	
-	if (dE != 0.0) printf("CHECK: dE=%e kE=%e vfac=%e vi=%e n1=%d n2=%d np=%d m1=%e m2=%e\n", dE, kE, vfac, vi, n1-n0, n2-n0, n_p, m1, m2);
-
-	cudaUnitVector(vrel, state);
-	
-	vi   = sqrt(vi);
-	for (auto & v : vrel) v *= vi;
-	//                         ^
-	//                         |
-	// Velocity in center of mass, computed from v1, v2 and adjusted
-	// according to the inelastic energy loss
-	
-	for (int k=0; k<3; k++) {
-	  v1[k] = vcom[k] + m2/mt*vrel[k] * vfac;
-	  v2[k] = vcom[k] - m1/mt*vrel[k] * vfac;
-	}
-	
-	// Particle 1 is always Ion
-	for (int k=0; k<3; k++) p1->vel[k] = v1[k];
-				
-	// Particle 2 is Ion
-	if (it == AccumType::ion_ion) {
-	  for (int k=0; k<3; k++) p2->vel[k] = v2[k];
-	}
-	// Particle 2 is Electron
-	else {
-	  for (int k=0; k<3; k++) p2->datr[cuElec+k] = v2[k];
+	  // Particle 1 is always Ion
+	  for (int k=0; k<3; k++) p1->vel[k] = v1[k];
+	  
+	  // Particle 2 is Ion
+	  if (it == AccumType::ion_ion) {
+	    for (int k=0; k<3; k++) p2->vel[k] = v2[k];
+	  }
+	  // Particle 2 is Electron
+	  else {
+	    for (int k=0; k<3; k++) p2->datr[cuElec+k] = v2[k];
+	  }
 	}
       }
+      // END: n_p>0
     }
-
     // END: accum
     
     // Redistribute deferred energy
