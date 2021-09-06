@@ -15,14 +15,18 @@
 // Sanity debug PP flag
 // #define SANITY_DEBUG
 
-// Cross section test output
-// #define XC_COMPARE
-
-// Maximum number of pairs on the list
+// Use explicit energy conservation in COM frame
 //
-#define MAX_PAIRS 64
+#define EXPLICIT_ECOM
 
-constexpr int PAIR_LEN = MAX_PAIRS*(MAX_PAIRS-1);
+// Number of pairs to store in partInteraction
+//
+constexpr int MAX_PAIRS = 64;
+constexpr int PLIST_LEN = MAX_PAIRS*MAX_PAIRS;
+
+// Relative error for energy conservation check
+//
+constexpr cuFP_t EDEL_TOL = 1.0e-09;
 
 // Some thrust definitions for species handling
 //@{
@@ -2427,13 +2431,6 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
   cuFP_t kEe2 = 0.5  * mu2 * eVel1*eVel1 * vel*vel / eV;
   cuFP_t kE1s = 0.5  * mu1 * sVel1*sVel1 * vel*vel / eV;
   cuFP_t kE2s = 0.5  * mu2 * sVel2*sVel2 * vel*vel / eV;
-
-  /*
-  cuFP_t kEe1 = 0.5  * mu1 * Eta2 * eVel2*eVel2 * vel*vel / eV;
-  cuFP_t kEe2 = 0.5  * mu2 * Eta1 * eVel1*eVel1 * vel*vel / eV;
-  cuFP_t kE1s = 0.5  * mu1 * Eta2 * sVel1*sVel1 * vel*vel / eV;
-  cuFP_t kE2s = 0.5  * mu2 * Eta1 * sVel2*sVel2 * vel*vel / eV;
-  */
 	
   // Assign energy info for return
   //
@@ -3092,13 +3089,87 @@ __global__ void photoIonizeKernel(dArray<cudaParticle> in,    // Particle array
 	    in._v[n].datr[I+1+cuSp0] += ww;
 	  }
 	
-	} // End: bound electron block
+	}
+	// End: bound electron block
+      }
+      // End: species loop
+    }
+    // End: particles per cell
+  }
+  // End: cell loop
+}
 
-      } // End: species loop
 
-    } // End: particles per cell
+// Compute the kinetic energy for all particles in a single cell
+//
+__device__
+cuFP_t cellEnergy(int cid,		      // Cell index
+		  dArray<cudaParticle> in,    // Particle array
+		  dArray<int>          cellI, // Particle offset for each cell
+		  dArray<int>          cellN, // Number of bodes for each cell
+		  const
+		  dArray<cuIonElement> elems  // Species map
+		  )
+{
+  const int Nsp = elems._s;
 
-  } // End: cell loop
+  int n0     = cellI._v[cid];
+  int nbods  = cellN._v[cid];
+  cuFP_t sum = 0.0;
+    
+  for (size_t i=0; i<nbods; i++) {
+      
+    int n = n0 + i;
+    cudaParticle* p = &in._v[n];
+    cuFP_t eta = 0.0;
+
+    for (int s=0; s<Nsp; s++) {
+      const cuIonElement& elem = elems._v[s];
+	
+      int Z = elem.Z;
+      int C = elem.C;
+      int I = elem.I;
+      
+      cuFP_t cc = p->datr[I+cuSp0] / cuda_atomic_weights[Z];
+      eta += cc * (C - 1);
+    }
+
+    // Velocity and KE quantities
+    //
+    cuFP_t vi2 = 0.0, ve2 = 0.0;
+    for (int k=0; k<3; k++) {
+      vi2 += p->vel[k] * p->vel[k];
+      ve2 += p->datr[cuElec+k] * p->datr[cuElec+k];
+    }
+    
+    sum += 0.5*p->mass*(vi2 + eta*cuda_atomic_weights[0]*ve2);
+    if (cuCons>=0.0) sum -= p->datr[cuCons];
+    if (cuEcon>=0.0) sum -= p->datr[cuEcon];
+      
+  } // End: particles per cell
+
+  return sum;
+}
+
+__global__
+void totalCellEnergy(dArray<cudaParticle> in,    // Particle array
+		     dArray<int>          cellI, // Particle offset for each cell
+		     dArray<int>          cellN, // Number of bodes for each cell
+		     dArray<cuFP_t>       cellE, // Per cell energy
+		     const
+		     dArray<cuIonElement> elems  // Species map
+		     )
+{
+  // Loop through all cells
+  //
+  for (int cid = blockIdx.x * blockDim.x + threadIdx.x; 
+       cid < cellI._s; 
+       cid += blockDim.x * gridDim.x) {
+
+    cellE._v[cid] = cellEnergy(cid, in, cellI, cellN, elems);
+
+  }
+  // END: cell loop
 }
 
 
@@ -3205,11 +3276,11 @@ void cudaDeferredEnergy
 
 __device__
 void cudaScatterTrace
-(cuFP_t m1,    cuFP_t m2,
- cuFP_t eta1,  cuFP_t eta2,
- cuFP_t W1,    cuFP_t W2,
- cuFP_t *E1,   cuFP_t *E2,  cuFP_t &totE,
- cuFP_t *v1,   cuFP_t *v2,  cuFP_t delE,  
+(cuFP_t m1,     cuFP_t m2,
+ cuFP_t eta1, cuFP_t eta2,
+ cuFP_t W1,   cuFP_t W2,
+ cuFP_t *E1,  cuFP_t *E2,
+ cuFP_t *v1,  cuFP_t *v2, cuFP_t delE,  
  curandState *state
  )
 {
@@ -3268,7 +3339,7 @@ void cudaScatterTrace
 	cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2);
 #ifdef XC_DEEP3
 	fixE = -totE;
-	printf("deferE[1]=%e\n", totE);
+	printf("deferE[1]=%e kE=%e dE=%e\n", totE, kE, delE);
 #endif
 	totE = 0.0;
       }
@@ -3355,7 +3426,7 @@ void cudaScatterTrace
       cuFP_t KEf = 0.5*W1*m1*k1 + 0.5*W2*m2*k2;
       cuFP_t KEd = KEi - KEf - delE + fixE;
       cuFP_t KEm = 0.5*(KEi + KEf);
-      if (fabs(KEd)/KEm > 1.0e-10) {
+      if (fabs(KEd)/KEm > EDEL_TOL) {
 	printf("**ERROR deltaE: R=%e KEi=%e KEf=%e dKE=%e kE=%e delE=%e fixE=%e\n", KEd/KEm, KEi, KEf, KEd, kE, delE, fixE);
       }
       else if (false) {
@@ -3367,6 +3438,144 @@ void cudaScatterTrace
   } // END: Energy conservation algorithm
     
 } // END: cudaScatterTrace
+
+
+// Uses full molecular weight for scattering that explicitly conserves
+// center-of-mass energy
+//
+__device__
+void cudaScatterTraceExplicit
+(cuFP_t m1,     cuFP_t m2,
+ cuFP_t eta1, cuFP_t eta2,
+ cuFP_t W1,   cuFP_t W2,
+ cuFP_t *E1,  cuFP_t *E2,
+ cuFP_t *v1,  cuFP_t *v2, cuFP_t delE,  
+ curandState *state
+ )
+{
+  cuFP_t M1 = W1*m1;
+  cuFP_t M2 = W2*m2;
+
+#ifdef XC_DEEP3
+  // KE debug check
+  //
+  cuFP_t KEi = 0.0;
+  {
+    cuFP_t k1 = 0.0, k2 = 0.0;
+    for (int k=0; k<3; k++) {
+      k1 += v1[k]*v1[k];
+      k2 += v2[k]*v2[k];
+    }
+    KEi = 0.5*M1*k1 + 0.5*M2*k2;
+  }
+#endif
+
+  // Total effective mass in the collision (atomic mass units)
+  //
+  cuFP_t mt = M1 + M2;
+
+  // Reduced mass (atomic mass units)
+  //
+  cuFP_t mu = M1 * M2 / mt;
+
+  // Set COM frame
+  //
+  cuFP_t vcom[3], vrel[3];
+  cuFP_t vi = 0.0, vfac = 1.0;
+    
+  for (size_t k=0; k<3; k++) {
+    vcom[k] = (M1*v1[k] + M2*v2[k])/mt;
+    vrel[k] = v1[k] - v2[k];
+    vi += vrel[k] * vrel[k];
+  }
+				// Energy in COM
+  cuFP_t kE = 0.5*mu*vi;
+				// Energy reduced by loss
+  cuFP_t totE = kE - delE;
+
+#ifdef XC_DEEP3
+  cuFP_t fixE = 0.0;
+#endif
+
+  // KE is positive
+  //
+  if (kE>0.0) {
+    // More loss energy requested than available?
+    //
+    if (totE < 0.0) {
+      // Add to energy bucket for these particles
+      //
+      cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2);
+#ifdef XC_DEEP3
+      fixE = -totE;
+      printf("deferE[1]=%e kE=%e dE=%e\n", totE, kE, delE);
+#endif
+      totE = 0.0;
+    }
+    // Update the outgoing energy in COM
+    vfac = sqrt(totE/kE);
+  }
+  // KE is zero (limiting case)
+  //
+  else {
+    if (delE>0.0) {
+      // Defer all energy loss
+      //
+      cudaDeferredEnergy(delE, m1, m2, W1, W2, E1, E2);
+#ifdef XC_DEEP3
+      fixE = delE;
+      printf("deferE[0]=%e\n", delE);
+#endif
+      delE = 0.0;
+    } else {
+      // Apply delE to COM
+      //
+      vi = -2.0*delE/mu;
+    }
+  }
+
+  // Assign interaction energy variables
+  //
+  cudaUnitVector(vrel, state);
+  
+  vi = sqrt(vi);
+  for (auto & v : vrel) v *= vi;
+  //                         ^
+  //                         |
+  // Velocity in center of mass, computed from v1, v2 and adjusted
+  // according to the inelastic energy loss
+  //
+
+  // Assign new velocities
+  //
+  for (int i=0; i<3; i++) {
+    v1[i] = vcom[i] + M2/mt*vrel[i]*vfac;
+    v2[i] = vcom[i] - M1/mt*vrel[i]*vfac;
+  }
+
+#ifdef XC_DEEP3
+  // KE debug check
+  //
+  {
+    cuFP_t k1 = 0.0, k2 = 0.0;
+    for (int k=0; k<3; k++) {
+      k1 += v1[k]*v1[k];
+      k2 += v2[k]*v2[k];
+    }
+    cuFP_t KEf = 0.5*M1*k1 + 0.5*M2*k2;
+    cuFP_t KEd = KEi - KEf - delE + fixE;
+    cuFP_t KEm = 0.5*(KEi + KEf);
+    if (fabs(KEd)/KEm > EDEL_TOL) {
+      printf("**ERROR deltaE: R=%e KEi=%e KEf=%e dKE=%e kE=%e delE=%e fixE=%e\n", KEd/KEm, KEi, KEf, KEd, kE, delE, fixE);
+    }
+    else if (false) {
+      printf("OK deltaE: R=%e KEi=%e KEf=%e dKE=%e kE=%e delE=%e fixE=%e\n", KEd/KEm, KEi, KEf, KEd, kE, delE, fixE);
+    }
+  }
+#endif
+
+}
+// END: cudaScatterTraceExplicit
 
 
 __device__
@@ -3827,7 +4036,7 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
     cuFP_t KEi  = KE1i + KE2i;
     cuFP_t KEf  = KE1f + KE2f;
     cuFP_t delE = KEi  - KEf;
-    if (fabs(delE)/KEi > 1.0e-10) {
+    if (fabs(delE)/KEi > EDEL_TOL) {
       printf("**ERROR in Coulombic: delE/KEi=%e [%8d, %8d]\n", delE/KEi, i1, i2);
     }
 #endif
@@ -3897,6 +4106,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 				 dArray<cuFP_t>         nSel,
 				 dArray<int>            cellI,
 				 dArray<int>            cellN,
+				 dArray<cuFP_t>         deltE,
 				 dArray<cuFP_t>         volC,
 				 dArray<cuFP_t>         Ivel2,
 				 dArray<cuFP_t>         Evel2,
@@ -3937,6 +4147,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
   //
   for (int cid = blockIdx.x * blockDim.x + threadIdx.x; cid < cellI._s; cid += blockDim.x * gridDim.x) {
 
+#ifdef XC_DEEP3
+    cuFP_t begE = cellEnergy(cid, in, cellI, cellN, elems);
+#endif
     curandState* state = &randS._v[cid];
     
     int n0     = cellI._v[cid];
@@ -3953,12 +4166,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
     // For per cell indexing
     //
-    int fN = cid*PAIR_LEN;
+    int fN = cid*PLIST_LEN;
 
     // Compute Coulombic (plasma) interactions
     //
-    computeCoulombicScatter(in, coul4, cellI, cellN, PiProb, ABrate, elems, spTau,
-			    state, cid);
+    computeCoulombicScatter(in, coul4, cellI, cellN, PiProb, ABrate, elems, spTau, state, cid);
     
     // For storing pair info
     //
@@ -3967,6 +4179,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       short SS[2];
     } conv_;
 
+
+    cuFP_t E1[2] = {0.0, 0.0}, E2[2] = {0.0, 0.0};
 
     // Compute total cross sections for interactions in this cell
     //
@@ -3986,6 +4200,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       cuSpeciesDef J1 = thrust::get<1>(iK._v[k]);
       cuSpeciesDef J2 = thrust::get<2>(iK._v[k]);
 
+#ifdef XC_NOCHANGE
+      if (T==8 or T==9) continue;
+#endif
       int count = 0;
 
       // Pair-wise cross-section loop
@@ -4037,11 +4254,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    }
 	  }
 	
-	  if (count >= PAIR_LEN) break;
+	  if (count >= PLIST_LEN) break;
 
 	} // END: inner body loop
 
-	if (count >= PAIR_LEN) break;
+	if (count >= PLIST_LEN) break;
 
       } // END: outer body loop
 
@@ -4056,8 +4273,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       //
       cuFP_t Prob  = mtotal/vol * cuMunit/amu *
 	spTau._v[cid] * cum._v[fN+count-1] * 1e-14 / (cuLunit*cuLunit);
-
-      // printf("**TEST cum xc=%13.6e dens=%13.6e count=%4d [%s]\n", cum._v[fN+count-1], mtotal/vol, count, cudaInterNames[T]);
 
       // Number of interaction candidate pairs
       //
@@ -4694,9 +4909,17 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  if (J2.sp==cuElectron) W2 = w2 * EI.Eta2;
 	}
 
+	if (J1.sp==cuElectron) {
+	  printf("ERROR: particle 1 is electron\n");
+	}
+
 	// Convert energy change to system units
 	//
 	dE *= N0*cuEV/cuEunit;
+
+#ifdef XC_DEEP3
+	dE = 0.0;
+#endif
 
 	// The ions have the molecular weight in an interaction. The
 	// elctrons have the true electron weight, assigned below.
@@ -4722,125 +4945,24 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  for (int k=0; k<3; k++) v2[k] = p2->datr[cuElec+k];
 	}
 
-	// Total effective mass in the collision
+	// Perform the scatter
 	//
-	double mt = m1 + m2;
-	
-	// Reduced mass (atomic mass units)
-	//
-	double mu = m1 * m2 / mt;
-	
-	// Set COM frame
-	//
-	cuFP_t vcom[] = {0.0, 0.0, 0.0};
-	cuFP_t vrel[] = {0.0, 0.0, 0.0};
-	double vi = 0.0, v12 = 0.0, v22 = 0.0;
-	
-	for (size_t k=0; k<3; k++) {
-	  vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
-	  vrel[k] = v1[k] - v2[k];
-	  vi  += vrel[k] * vrel[k];
-	  v12 += v1[k]*v1[k];
-	  v22 += v2[k]*v2[k];
-	}
-	
-	// TEST ENERGY
-	//
-	double kEbeg = 0.5*m1*v12 + 0.5*m2*v22;
+#ifdef EXPLICIT_ECOM
+	cudaScatterTraceExplicit
+	  (m1, m2, EI.Eta1, EI.Eta2, W1, W2,
+	   &E1[0], &E2[0], &v1[0], &v2[0], dE, state);
+#else
+	cudaScatterTrace
+	  (m1, m2, EI.Eta1, EI.Eta2, W1, W2,
+	   &E1[0], &E2[0], &v1[0], &v2[0], dE, state);
+#endif
 
-	// Energy in COM
+	// Copy scattered velocities back to particle
 	//
-	double kE = 0.5*mu*vi;
-	
-	// Attempt to apply deferred energy
-	//
-	double deferE = 0.0;
-	if (cuCons>=0) {
-	  if (m1>0.5 or cuEcon<0) {
-	    deferE += p1->datr[cuCons];
-	    p1->datr[cuCons] = 0.0;
-	  } else {
-	    deferE += p1->datr[cuEcon];
-	    p1->datr[cuEcon] = 0.0;
-	  }
-	  if (m2>0.0 or cuEcon<0) {
-	    deferE += p2->datr[cuCons];
-	    p2->datr[cuCons] = 0.0;
-	  } else {
-	    deferE += p2->datr[cuEcon];
-	    p2->datr[cuEcon] = 0.0;
-	  }
-	}
-
-	// Energy reduced by loss
-	//
-	double totE = kE - dE - deferE;
-	double vfac = 0.0;
-
-	// KE is positive
-	//
-	if (kE>0.0) {
-	  // More loss energy requested than available?
-	  //
-	  if (totE < 0.0) {
-	    if (cuCons>=0) {
-	      if (m1>0.5 or cuEcon<0)
-		p1->datr[cuCons] += 0.5*(-totE);
-	      else
-		p1->datr[cuEcon] += 0.5*(-totE);
-	      if (m2>0.5 or cuEcon<0)
-		p2->datr[cuCons] += 0.5*(-totE);
-	      else
-		p2->datr[cuEcon] += 0.5*(-totE);
-	    }
-	    totE = 0.0;
-	  }
-	  
-	  vfac = sqrt(totE/kE);
-	}
-	
-	cudaUnitVector(vrel, state);
-	
-	vi   = sqrt(vi);
-	for (auto & v : vrel) v *= vi;
-	//                         ^
-	//                         |
-	// Velocity in center of mass, computed from v1, v2 and adjusted
-	// according to the inelastic energy loss
-	
 	for (int k=0; k<3; k++) {
-	  v1[k] = vcom[k] + m2/mt*vrel[k] * vfac;
-	  v2[k] = vcom[k] - m1/mt*vrel[k] * vfac;
-	}
-	
-	// Particle 1 is always Ion
-	for (int k=0; k<3; k++) p1->vel[k] = v1[k];
-	
-	// Particle 2 is Ion
-	if (type == AccumType::ion_ion) {
-	  for (int k=0; k<3; k++) p2->vel[k] = v2[k];
-	}
-	// Particle 2 is Electron
-	else {
-	  for (int k=0; k<3; k++) p2->datr[cuElec+k] = v2[k];
-	}
-
-
-	// TEST ENERGY
-	//
-	if (false) {
-	  v12 = v22 = 0.0;
-	  for (size_t k=0; k<3; k++) {
-	    v12 += v1[k]*v1[k];
-	    v22 += v2[k]*v2[k];
-	  }
-	
-	  double kEfin = 0.5*m1*v12 + 0.5*m2*v22;
-
-	  if (fabs(kEfin/kEbeg - 1.0) > 1.0e-14) {
-	    printf("**ENERGY loss: beg=%e end=%e dif=%e vfac=%e\n", kEbeg, kEfin,
-		   kEfin/kEbeg - 1.0, vfac);
-	  }
+	  p1->vel[k] = v1[k];
+	  if (type == AccumType::ion_ion) p2->vel[k] = v2[k];
+	  else                            p2->datr[cuElec+k] = v2[k];
 	}
 
       }
@@ -4848,6 +4970,18 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     }
     // END: interaction loop
     
+    for (size_t i=0; i<nbods; i++) {
+      cudaParticle* p = &in._v[n0+i];
+      if (cuCons>=0) {
+	p->datr[cuCons] += (E1[0] + E2[0])/nbods;
+	if (cuEcon>=0)
+	  p->datr[cuEcon] += (E1[1] + E2[1])/nbods;
+	else
+	  p->datr[cuCons] += (E1[1] + E2[1])/nbods;
+      }
+    }
+
+
     // Spread deferred (test)
     //
     if (cuSpreadDef) {
@@ -4864,6 +4998,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       }
     }
 
+#ifdef XC_DEEP3
+    deltE._v[cid] = cellEnergy(cid, in, cellI, cellN, elems) - begE;
+#endif
   }
   // END: Grid stride loop for cells
 }
@@ -4961,7 +5098,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
   
 
   // DEEP DEBUG
-  if (true) {
+  if (false) {
     unsigned elem = 0, celltot = 0, cellsum = 0;
     for (auto v : cellist) {
       elem++;
@@ -5226,16 +5363,25 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   // Work space for pair selection in kernel
   //
-  thrust::device_vector<int>        d_pairs(N*PAIR_LEN);
-  thrust::device_vector<float>      d_xccum(N*PAIR_LEN);
+  thrust::device_vector<int>        d_pairs(N*PLIST_LEN);
+  thrust::device_vector<float>      d_xccum(N*PLIST_LEN);
+  thrust::device_vector<cuFP_t>     d_deltE(N);
 
 #ifdef XC_DEEPT
   std::cout << "**TIME=" << tnow << std::endl;
 #endif
   
+#ifdef CELL_ECHK
+  thrust::device_vector<cuFP_t>     d_Ebeg(N), d_Efin(N);
+
+  totalCellEnergy<<<gridSize, BLOCK_SIZE>>>
+  (toKernel(d_part),   toKernel(d_cellI),  toKernel(d_cellN),
+   toKernel(d_Ebeg),   toKernel(cuElems));
+#endif
+
   partInteractions<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),  toKernel(d_Coul4),  toKernel(d_Nsel),
-     toKernel(d_cellI),  toKernel(d_cellN),  toKernel(d_volC),   
+     toKernel(d_cellI),  toKernel(d_cellN),  toKernel(d_deltE),  toKernel(d_volC),   
      toKernel(d_Ivel2),  toKernel(d_Evel2),  toKernel(xsc_H),    
      toKernel(xsc_He),   toKernel(xsc_pH),   toKernel(xsc_pHe),  
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(cuElems),  
@@ -5244,6 +5390,41 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(d_pairs),  toKernel(d_xccum)
      );
   
+#ifdef CELL_ECHK
+  totalCellEnergy<<<gridSize, BLOCK_SIZE>>>
+  (toKernel(d_part),   toKernel(d_cellI),  toKernel(d_cellN),
+   toKernel(d_Efin),   toKernel(cuElems));
+
+  // Copy diagnostics to host
+  //
+  thrust::host_vector<cuFP_t> h_Ebeg = d_Ebeg;
+  thrust::host_vector<cuFP_t> h_Efin = d_Efin;
+  thrust::host_vector<cuFP_t> h_dltE = d_deltE;
+  
+  int countBad = 0;
+  cuFP_t sumEdif = 0.0, sumEtot = 0.0, maxEcel = 0.0;
+  for (int n=0; n<N; n++) {
+    sumEtot += h_Ebeg[n];
+    sumEdif += h_Efin[n] - h_Ebeg[n];
+    if (fabs(h_Efin[n]/h_Ebeg[n] - 1.0) > EDEL_TOL) countBad++;
+    cuFP_t emean = 0.5*(h_Ebeg[n] + h_Efin[n]);
+    cuFP_t reldE = fabs(h_dltE[n])/emean;
+    maxEcel = std::max<cuFP_t>(maxEcel, reldE);
+    if (reldE > EDEL_TOL) {
+      std::cout << "[" << std::setw(4) << n << "] delta="
+		<< std::setw(16) << h_dltE[n] << " (" << reldE << ")"
+		<< std::endl;
+    }
+  }
+
+  if (countBad)
+    std::cout << "Total energy dif=" << sumEdif << " total=" << sumEtot
+	      << " [" << sumEdif/sumEtot << "] max/cell=" << maxEcel
+	      << " | bad: " << countBad << "/" << N
+	      << std::endl;
+#endif
+
+
 #ifdef XC_DEEP9
   {
     cudaMemcpyFromSymbol(&xc_counter[0], w_countr, 11*sizeof(unsigned long long));
