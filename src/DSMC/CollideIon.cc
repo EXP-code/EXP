@@ -31,7 +31,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.45 [12/16/20 Badnell xc]"
+#define VERSION_ID "0.46 [08/31/21 cuda kinetic]"
 
 using namespace std;
 using namespace NTC;
@@ -14999,7 +14999,6 @@ void CollideIon::gatherSpecies()
       for (auto b : cell->bods) {
 	Particle *p = c0->Tree()->Body(b);
 	double countE = 0.0;	// Number of electrons
-	double mu = 0.0;	// Inverse molecular weight
 	  
 	// Compute effective number of electrons
 	//
@@ -15009,11 +15008,9 @@ void CollideIon::gatherSpecies()
 	    unsigned short Z = s.first.first;
 	    unsigned short P = s.first.second - 1;
 	    countE += p->dattrib[s.second] / atomic_weights[Z] * P;
-	    mu     += p->dattrib[s.second] / atomic_weights[Z];
 	  }
 	  
 	  countE *= p->mass;
-	  mu     *= p->mass;
 	} else {
 	  KeyConvert k(p->iattrib[use_key]);
 	    
@@ -15024,7 +15021,6 @@ void CollideIon::gatherSpecies()
 	    countE = k.C() - 1;
 	  }
 	  countE *= p->mass/atomic_weights[k.Z()];
-	  mu      = p->mass/atomic_weights[k.Z()];
 	}
 
 	for (unsigned k=0; k<3; k++) {
@@ -17707,8 +17703,9 @@ void CollideIon::printSpeciesTrace()
 	     << std::setw(18) << std::right << "KE_i"
 	     << std::setw(18) << std::right << "Temp_e"
 	     << std::setw(18) << std::right << "KE_e"
-	     << std::setw(18) << std::right << "Tot_E";
-	nhead = 5;
+	     << std::setw(18) << std::right << "Tot_E"
+	     << std::setw(18) << std::right << "ConsE";
+	nhead = 6;
       } else {
 	dout << "# "
 	     << std::setw(18) << std::right << "Time  "
@@ -17741,8 +17738,7 @@ void CollideIon::printSpeciesTrace()
     }
   }
 
-  const double Tfac = 2.0*TreeDSMC::Eunit/3.0 * amu  /
-    TreeDSMC::Munit/boltz;
+  const double Tfac = 2.0*TreeDSMC::Eunit/3.0 * amu / TreeDSMC::Munit/boltz;
   
   double Ti = 0.0, Te = 0.0;
   if (tM[1]>0.0)       Ti = Tfac*tM[0]/tM[1];
@@ -17761,7 +17757,8 @@ void CollideIon::printSpeciesTrace()
   if (use_elec>=0)
     dout << std::setw(18) << std::right << Te
 	 << std::setw(18) << std::right << tM[2]
-	 << std::setw(18) << std::right << tM[0] + tM[2] - consE - consG;
+	 << std::setw(18) << std::right << tM[0] + tM[2] - consE - consG
+	 << std::setw(18) << consE + consG;
   for (spDItr it=specM.begin(); it != specM.end(); it++)
     dout << std::setw(18) << std::right << it->second;
   dout << std::endl;
