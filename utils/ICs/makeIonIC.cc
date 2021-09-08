@@ -1346,7 +1346,7 @@ void InitializeSpeciesTrace
  std::vector<double>& M,
  std::vector< std::map<unsigned char, double> >& T,
  std::vector<double>& L,
- Mtype model, int sp, int ne)
+ Mtype model, int sp, int ne, bool ECtype)
 {
   size_t Ncomp = T.size();
 
@@ -1581,6 +1581,7 @@ void InitializeSpeciesTrace
     double test = 0.0;
 
     int cur = sp;
+    double Eta = 0.0, Mol = 0.0;
     // Get the species
     //
     for (int indx=0; indx<NS; indx++) { 
@@ -1590,18 +1591,26 @@ void InitializeSpeciesTrace
       auto it = sC.find(sZ[indx]);
       if (it != sC.end()) maxC = it->second;
 
+      double cc = sF[indx]/PT[sZ[indx]]->weight();
+      Mol += cc;
+
       for (int j=0; j<maxC; j++) {
 	particles[i].dattrib[cur++] = sF[indx]*frac[wh][indx][j];
 	test += sF[indx] * frac[wh][indx][j];
+	Eta  += frac[wh][indx][j] * cc * j;
       }
     }
     assert ( fabs(test-1.0) < 1.0e-12 );
+
+    eta[wh] = Eta/Mol;
+    std::cout << "eta=" << eta[wh] << std::endl;
 
     double KEi = 0.0, KEe = 0.0;
     for (int k=0; k<3; k++) {
       KEi += particles[i].vel[k] * particles[i].vel[k];
       if (ne>=0) {
-	particles[i].dattrib[ne+k] /= sqrt(eta[wh]); // mean-mass correction
+	if (ECtype)		// mean-mass correction
+	  particles[i].dattrib[ne+k] *= 1.0/sqrt(eta[wh]);
 	KEe += particles[i].dattrib[ne+k] * particles[i].dattrib[ne+k];
       }
     }
@@ -1695,8 +1704,10 @@ void InitializeSpeciesTrace
 int
 main (int ac, char **av)
 {
-  Itype type  = Direct;
-  Mtype model = Uniform;
+  Itype type   = Direct;
+  Mtype model  = Uniform;
+  bool  ECtype = false;
+
   double D, L, R, Temp, Telec, Ecut;
   std::string config;
   std::string oname;
@@ -1717,6 +1728,7 @@ main (int ac, char **av)
     ("meanmass",        "set up for the mean-mass algorithm")
     ("yaml",            "write YAML species config file")
     ("old",             "write old-style species config file")
+    ("traceEC",         "use explicit conservation interactions mode for Trace")
     ("CHIANTI,C",	po::value<bool>(&use_chianti)->default_value(false),
      "use CHIANTI to set recombination-ionization equilibrium")
     ("INIT,I",	        po::value<bool>(&use_init_file)->default_value(false),
@@ -1779,6 +1791,10 @@ main (int ac, char **av)
 
   if (vm.count("old")) {
     use_yaml = false;
+  }
+
+  if (vm.count("traceEC")) {
+    ECtype = true;
   }
 
   if (myid==0) {
@@ -2032,7 +2048,8 @@ main (int ac, char **av)
     InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, sp, ne);
     break;
   case Trace:
-    InitializeSpeciesTrace (particles, sZ, sF, sC, Mass, T, LL, model, sp, ne);
+    InitializeSpeciesTrace (particles, sZ, sF, sC, Mass, T, LL, model, sp, ne,
+			    ECtype);
     // Compute molecular weight
     molW = 0.0;
     for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/PT[sZ[k]]->weight();
