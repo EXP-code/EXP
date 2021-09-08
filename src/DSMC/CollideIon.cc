@@ -316,6 +316,11 @@ bool CollideIon::elec_balance   = true;
 //
 bool CollideIon::ke_weight      = true;
 
+// Use mean-electron mass for explicit energy conservation for
+// the Trace algorithm
+//
+bool CollideIon::mean_mass      = true;
+
 // Per-species cross-section scale factor for testing
 //
 static std::vector<double> cscl_;
@@ -16021,12 +16026,18 @@ void CollideIon::printSpeciesColl()
       sout << outdir << runtag << ".DSMC_spc_log";
       ofstream mout(sout.str().c_str(), ios::app);
 
+      // Evaluate at runtime not compile time
+      //
       const double Tfac = 2.0*TreeDSMC::Eunit/3.0 * amu  /
 	TreeDSMC::Munit/boltz;
 
+      // Temperature computation
+      //
       double Ti = 0.0, Te = 0.0;
-      if (tM[1]>0.0) Ti = Tfac*tM[0]/tM[1];
-      if (tM[3]>0.0) Te = Tfac*tM[2]/tM[3];
+      if (tM[1]>0.0)        Ti = Tfac*tM[0]/tM[1];
+      if (mean_mass) {
+	if (tM[1]>0.0)      Te = Tfac*tM[2]/tM[1];
+      } else if (tM[3]>0.0) Te = Tfac*tM[2]/tM[3];
 
       // Print the header
       //
@@ -17741,8 +17752,10 @@ void CollideIon::printSpeciesTrace()
   const double Tfac = 2.0*TreeDSMC::Eunit/3.0 * amu / TreeDSMC::Munit/boltz;
   
   double Ti = 0.0, Te = 0.0;
-  if (tM[1]>0.0)       Ti = Tfac*tM[0]/tM[1];
-  if (tM[3]>0.0)       Te = Tfac*tM[2]/tM[3];
+  if (tM[1]>0.0)        Ti = Tfac*tM[0]/tM[1];
+  if (mean_mass) {
+    if (tM[1]>0.0)      Te = Tfac*tM[2]/tM[1];
+  } else if (tM[3]>0.0) Te = Tfac*tM[2]/tM[3];
 
   // Open for append
   //
@@ -17988,6 +18001,7 @@ void CollideIon::printSpeciesElectrons
     TreeDSMC::Munit/boltz;
 
   double totlE = tM[0] + tM[2], numbE = tM[3], tempE = tM[2];
+  if (mean_mass) numbE = tM[1];
   if (numbE>0.0) tempE = Tfac*totlE/numbE;
 
   dout << std::setw(wid) << std::right << consE
@@ -18119,6 +18133,15 @@ void CollideIon::processConfig()
       config["ENERGY_WEIGHT"]["desc"] = "Energy conservation weighted by superparticle number count";
       config["ENERGY_WEIGHT"]["value"] = AlgWght = false;
     }
+
+    if (config["MeanMass"])
+      mean_mass = config["MeanMass"]["value"].as<bool>();
+    else {
+      config["MeanMass"]["desc"] = "Add excess energy directly to the electrons";
+      config["MeanMass"]["value"] = mean_mass = false;
+    }
+
+    std::cout << "CHECK: MeanMass is " << std::boolalpha << mean_mass << std::endl;
 
     if (config["TRACE_ELEC"])
       TRACE_ELEC = config["TRACE_ELEC"]["value"].as<bool>();
