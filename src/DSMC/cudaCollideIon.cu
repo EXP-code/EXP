@@ -4917,9 +4917,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	//
 	dE *= N0*cuEV/cuEunit;
 
-#ifdef XC_DEEP3
-	dE = 0.0;
-#endif
+	if (cuNoCool) dE = 0.0;
 
 	// The ions have the molecular weight in an interaction. The
 	// elctrons have the true electron weight, assigned below.
