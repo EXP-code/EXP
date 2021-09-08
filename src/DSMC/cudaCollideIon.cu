@@ -4216,8 +4216,28 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	
 	  setupCrossSection(in, elems, cid, n0+i, n0+j, state, &EI);
 
-	  cuFP_t ph, xc;
+	  cudaParticle* p1 = &in._v[n0+i];
+	  cudaParticle* p2 = &in._v[n0+j];
+
+	  cuFP_t ph, xc, Prob;
 	  
+	  if (J2.sp == cuElectron and
+	      J1.sp != cuElectron) {
+	    Prob = p1->datr[J1.I+cuSp0] * EI.Eta2;
+	  }
+	  else if (J1.sp == cuElectron and
+		   J2.sp != cuElectron) {
+	    Prob = p2->datr[J2.I+cuSp0] * EI.Eta1;
+	  }
+	  else if (J1.sp != cuElectron and
+		   J2.sp != cuElectron) {
+	    Prob = p1->datr[J1.I+cuSp0] * p2->datr[J2.I+cuSp0];
+	  }
+	  else if (J1.sp == cuElectron and
+		   J2.sp == cuElectron) {
+	    printf("CRAZY pair: two electrons\n");
+	  }
+
 	  // p1 on p2
 	  //
 	  xc = singleCrossSection(in, elems, &ph, xsc_H, xsc_He, xsc_pH, xsc_pHe,
@@ -4227,7 +4247,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    conv_.SS[0] = i;
 	    conv_.SS[1] = j;
 	    prs._v[fN+count] = conv_.I2;
-	    cum._v[fN+count] = xc;
+	    cum._v[fN+count] = xc * Prob;
 	    count++;
 	    if (false and T==7) {
 	      cuFP_t val = xc/EI.vel;
@@ -4245,7 +4265,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      conv_.SS[0] = j;
 	      conv_.SS[1] = i;
 	      prs._v[fN+count] = conv_.I2;
-	      cum._v[fN+count] = xc;
+	      cum._v[fN+count] = xc * Prob;
 	      count++;
 	      if (false and T==7) {
 		cuFP_t val = xc/EI.vel;
@@ -4269,16 +4289,18 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       //
       for (int c=1; c<count; c++) cum._v[fN+c] += cum._v[fN+c-1];
 
-      // Interaction probability
-      //
-      cuFP_t Prob  = mtotal/vol * cuMunit/amu *
-	spTau._v[cid] * cum._v[fN+count-1] * 1e-14 / (cuLunit*cuLunit);
-
       // Number of interaction candidate pairs
       //
-      cuFP_t nsel = Prob * (nbods-1);
-      
-      if (J1.sp == J2.sp) nsel *= 0.5;
+      //                  +--- mean mass  +--- true particles per unit mass
+      //                  |               |
+      //                  v               v
+      cuFP_t nsel = mtotal/nbods * cuMunit/amu * 
+	cum._v[fN+count-1] * 1e-14 / (cuLunit*cuLunit) * spTau._v[cid] / vol;
+
+      // Double counting of ion-electron pairs
+      //
+      if (J1.sp==cuElectron or J2.sp==cuElectron) nsel *= 0.5;
+
 #if cuREAL == 4
       int    npairs = ceilf(nsel);
 #else
@@ -4402,7 +4424,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	if (J2.sp==cuElectron) W2 *= EI.Eta2;
 
 	cuFP_t GG = cuMunit/amu;
-	cuFP_t N0 = GG;
+	cuFP_t N0 = GG, Prob;
 	  
 	if (W1>W2) N0 *= W2;
 	else       N0 *= W1;
