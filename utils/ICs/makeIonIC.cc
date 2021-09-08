@@ -1603,7 +1603,6 @@ void InitializeSpeciesTrace
     assert ( fabs(test-1.0) < 1.0e-12 );
 
     eta[wh] = Eta/Mol;
-    std::cout << "eta=" << eta[wh] << std::endl;
 
     double KEi = 0.0, KEe = 0.0;
     for (int k=0; k<3; k++) {
