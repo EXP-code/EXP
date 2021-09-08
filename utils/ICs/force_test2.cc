@@ -72,8 +72,7 @@ main(int ac, char **av)
     ("H",               po::value<double>(&H)->default_value(0.001),                     "Vertical scale length for disk basis construction")
     ("r",               po::value<double>(&rinn)->default_value(0.0001),                 "Minimum cylindrical radius for test output")
     ("R",               po::value<double>(&rout)->default_value(0.3),                    "Maximum cylindrical radius for test output")
-    ("Z",               po::value<double>(&zout)->default_value(0.1),                    "Maximum height for testoutput") 
-    ("N",               po::value<int>(&nout)->default_value(60),                        "Number of grid points for test plane");
+    ("Z",               po::value<double>(&zout)->default_value(0.1),                    "Maximum height for testoutput");
        
   po::variables_map vm;
   
@@ -91,7 +90,7 @@ main(int ac, char **av)
   // Print help message and exit
   //
   if (vm.count("help")) {
-    const char *mesg = "Force errors using DiskEval";
+    const char *mesg = "Force errors using DiskEval, evaluated at specific input locations.";
     std::cout << mesg << std::endl
 	      << desc << std::endl << std::endl;
     return 1;
@@ -109,15 +108,20 @@ main(int ac, char **av)
   //
   EmpCylSL::AxiDiskPtr model;
 
-  if (dmodel.compare("FEED")==0) // Ferrers + Evacuated Exponential Disk. most options are hardwired here relative to the disc scale length currently
+  if (dmodel.compare("FEED")==0) {// Ferrers + Evacuated Exponential Disk. most options are hardwired here relative to the disc scale length currently
+    std::cout << "Using model FEED" << endl;
     model = boost::make_shared<FEED>(1.4*A,(0.4/1.4)*A, (0.2/1.4)*A, A, H, 0.2);
-  else if (dmodel.compare("Ferrers")==0) // Ferrers
+  } else if (dmodel.compare("Ferrers")==0) {// Ferrers
+    std::cout << "Using model Ferrers" << endl;
     model = boost::make_shared<Ferrers>(A, H, A/10.);
-  else if (dmodel.compare("MN")==0) // Miyamoto-Nagai
+  } else if (dmodel.compare("MN")==0) {// Miyamoto-Nagai
+    std::cout << "Using Miyamoto-Nagai disk model" << endl;
     model = boost::make_shared<MNdisk>(A, H);
-  else			// Default to exponential
+  } else {			// Default to exponential
+    std::cout << "Using standard exponential model" << endl;
     model = boost::make_shared<Exponential>(A, H);
-      
+  }
+
   DiskEval test(model, rmin, rmax, A, lmax, numr, nint, true, mmax, nump);
 
   // Open mass, position [3], acceleration [3] data
@@ -127,23 +131,11 @@ main(int ac, char **av)
     std::cout << "Error opening <" << fdata << ">" << std::endl;
     exit(-2);
   }
+
+  // this is BAD hardwire right now, need to read from fdata
   int nbods = 1000000;
   //in.read((char *)&nbods, sizeof(int));
     
-  // Make sure that nout is even to prevent divide by zero
-  //
-  if (2*(nout/2) != nout) nout++;
-
-  double dR = (rout - rinn)/(nout-1);
-  double dZ = 2.0*zout/(nout-1);
-
-  using Dvector = std::vector< std::vector<double> >;
-
-  Dvector mass(nout), meanFR2(nout), meanFz2(nout);
-
-  for (auto & v : mass)    v.resize(nout);
-  for (auto & v : meanFR2) v.resize(nout);
-  for (auto & v : meanFz2) v.resize(nout);
 
   std::cout << std::endl << "Begin: particle force eval   "
 	    << std::endl << "-----------------------------"
