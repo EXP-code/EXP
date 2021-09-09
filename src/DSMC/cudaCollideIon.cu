@@ -4185,7 +4185,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
     // Compute total cross sections for interactions in this cell
     //
-    cuFP_t mtotal = 0.0;
+    cuFP_t mean_mass = 0.0;
+    for (int i=0; i<nbods; i++) mean_mass += in._v[n0+i].mass;
+    mean_mass /= nbods;		// Mean mass in the cell
     
     enum AccumType {ion_ion, ion_electron, electron_electron};
     
@@ -4211,7 +4213,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       for (int i=0; i<nbods; i++) {
       
 	cuFP_t mass = in._v[n0+i].mass;
-	mtotal += mass;
       
 	for (int j=i+1; j<nbods; j++) {
 	
@@ -4291,10 +4292,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
       // Number of interaction candidate pairs
       //
-      //                  +--- mean mass  +--- true particles per unit mass
-      //                  |               |
-      //                  v               v
-      cuFP_t nsel = mtotal/nbods * cuMunit/amu * 
+      //            +--- mean mass     +--- true particles per unit mass
+      //            |                  |
+      //            v                  v
+      cuFP_t nsel = mean_mass * cuMunit/amu * 
 	cum._v[fN+count-1] * 1e-14 / (cuLunit*cuLunit) * spTau._v[cid] / vol;
 
       // Double counting of ion-electron pairs
