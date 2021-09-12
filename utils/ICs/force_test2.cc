@@ -117,6 +117,9 @@ main(int ac, char **av)
   } else if (dmodel.compare("MN")==0) {// Miyamoto-Nagai
     std::cout << "Using Miyamoto-Nagai disk model" << endl;
     model = boost::make_shared<MNdisk>(A, H);
+  } else if (dmodel.compare("DoubleExponential")==0) {// Double Exponential. Most options are hardwired right now.
+    std::cout << "Using Double Exponential disk model" << endl;
+    model = boost::make_shared<DoubleExponential>(A, H, A, H/3, 0.5);
   } else {			// Default to exponential
     std::cout << "Using standard exponential model" << endl;
     model = boost::make_shared<Exponential>(A, H);
