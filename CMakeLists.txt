@@ -23,17 +23,12 @@ endif()
 
 add_compile_options(-D_REENTRANT)
 
-set(MPI_CXX_SKIP_MPICXX
-  true
-  CACHE BOOL
-  "If true, the MPI-2 C++ bindings are disabled using definitions.")
-
 option(DSMC_ENABLED "Enable DSCM module" TRUE)
 option(ENABLE_CUDA "Enable CUDA" TRUE)
 
 # required compiler features
 find_package(MPI REQUIRED)
-find_package(Boost REQUIRED COMPONENTS filesystem math program_options random serialization)
+find_package(Boost REQUIRED COMPONENTS filesystem program_options random serialization)
 find_package(OpenMP)
 find_package(VTK REQUIRED)
 find_package(HDF5)
@@ -47,16 +42,9 @@ find_package(PNG)
 include(${VTK_USE_FILE}) # I don't like this global setting stuff, but it's not really
 # documented otherwise
 
-find_package(MKL)
-if(MKL_FOUND)
-  set(DEP_LIB ${MKL_SDL_LIBRARY})
-else()
-  find_package(BLAS REQUIRED)
-  find_package(LAPACK REQUIRED)
-  set(DEP_LIB ${BLAS_LIBRARIES}
-    ${LAPACK_LIBRARIES})
-endif()
-
+find_package(BLAS REQUIRED)
+find_package(LAPACK REQUIRED)
+set(DEP_LIB ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
 
 if(OpenMP_FOUND)
   set(HAVE_OMP_H TRUE)
