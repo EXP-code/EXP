@@ -86,6 +86,7 @@ class DiskHalo
   vector<double>   nhD;		// Mass in bins
   vector<unsigned> nhN;		// Number in bins
   int nzero;			// Computed minimum mesh point
+  int nzepi;			// Computed minimum epi value
 
   // Use Spline integration rather than Trapezoidal rule
   //
@@ -131,7 +132,6 @@ class DiskHalo
 
   static double R_DF;		// Change over points for DF and Jeans
   static double DR_DF;
-  static double ECUT_DF;	// Mass ratio cutoff in energy
 
   static int LOGSCALE;		// Log DF in SphericalModelTable
 

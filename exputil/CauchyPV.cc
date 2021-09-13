@@ -32,10 +32,9 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+
 #include <OrthoPoly.H>
 #include <CauchyPV.H>
-
-using namespace std;
 
 double sqrarg;
 #define SQR(a) ((sqrarg=(a)) == 0.0 ? 0.0 : sqrarg*sqrarg)
@@ -62,7 +61,7 @@ void tqli(Eigen::VectorXd& d,
       }
       if (m != l) {
 	if (iter++ == 30) {
-	  cerr << "Too many iterations in tqli\n";
+	  std::cerr << "Too many iterations in tqli" << std::endl;
 	  exit(-1);
 	}
 	g = (d[l+1]-d[l])/(2.0*e[l]);

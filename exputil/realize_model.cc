@@ -34,6 +34,7 @@
 
 #include <boost/random/mersenne_twister.hpp>
 
+#include <localmpi.H>
 #include <massmodel.H>
 #include <interp.H>
 
@@ -43,18 +44,18 @@ static SphericalOrbit orb;
 #endif
 
 
-bool     AxiSymModel::gen_EJ = true;
-int      AxiSymModel::numr = 50;
-int      AxiSymModel::numj = 50;
-int      AxiSymModel::gen_N = 400;
-int      AxiSymModel::gen_E = 400;
-int      AxiSymModel::gen_K = 200;
-double   AxiSymModel::gen_tolE = 0.01;
-double   AxiSymModel::gen_tolK = 0.02;
-double   AxiSymModel::gen_rmin = 0.0;
-int      AxiSymModel::gen_logr = 1;
-double   AxiSymModel::gen_kmin = 0.0;
-uint32_t AxiSymModel::gen_seed = 11;
+bool     AxiSymModel::gen_EJ    = true;
+int      AxiSymModel::numr      = 50;
+int      AxiSymModel::numj      = 50;
+int      AxiSymModel::gen_N     = 400;
+int      AxiSymModel::gen_E     = 400;
+int      AxiSymModel::gen_K     = 200;
+double   AxiSymModel::gen_tolE  = 0.01;
+double   AxiSymModel::gen_tolK  = 0.02;
+double   AxiSymModel::gen_rmin  = 0.0;
+int      AxiSymModel::gen_logr  = 1;
+double   AxiSymModel::gen_kmin  = 0.0;
+uint32_t AxiSymModel::gen_seed  = 11;
 int      AxiSymModel::gen_itmax = 20000;
 
 const bool verbose = true;
@@ -65,7 +66,8 @@ extern boost::mt19937 random_gen;
 Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 {
   if (!dist_defined) {
-    cerr << "AxiSymModel: must define distribution before realizing!\n";
+    std::cerr << "AxiSymModel: must define distribution before realizing!"
+	      << std::endl;
     _exit (-1);
   }
 
@@ -89,7 +91,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
       double dx = (Emax - Emin - 2.0*tol)/(numr-1);
       double dy = (1.0 - gen_kmin - 2.0*tol)/(numj-1);
 
-      cout << "gen_point_2d[" << ModelID << "]: " << get_max_radius() << endl;
+      std::cout << "gen_point_2d[" << ModelID << "]: " << get_max_radius() << std::endl;
       
       gen_fomax = 0.0;
 
@@ -158,7 +160,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
       gen_rloc.resize(gen_N);
       gen_fmax.resize(gen_N);
 
-      cout << "gen_point_2d[" << ModelID << "]: " << get_max_radius() << endl;
+      std::cout << "gen_point_2d[" << ModelID << "]: " << get_max_radius() << std::endl;
 
       if (rmin <= 1.0e-16) gen_logr = 0;
 
@@ -237,7 +239,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
   Eigen::VectorXd out(7);
 
   if (it==gen_itmax) {
-    cerr << "Velocity selection failed, r=" << r << "\n";
+    std::cerr << "Velocity selection failed, r=" << r << std::endl;
     ierr = 1;
     out.setZero();
     return out;
@@ -263,7 +265,8 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
 {
   if (!dist_defined) {
-    cerr << "AxiSymModel: must define distribution before realizing!\n";
+    std::cerr << "AxiSymModel: must define distribution before realizing!"
+	      << std::endl;
     _exit (-1);
   }
 
@@ -283,8 +286,8 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
     gen_rloc.resize(gen_N);
     gen_fmax.resize(gen_N);
 
-    cout << "gen_point_2d[" << ModelID << "]: " << rmin
-	 << ", " << get_max_radius() << endl;
+    std::cout << "gen_point_2d[" << ModelID << "]: " << rmin
+	 << ", " << get_max_radius() << std::endl;
 
     double dr = (get_max_radius() - rmin)/gen_N;
 
@@ -344,7 +347,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
   Eigen::VectorXd out(7);
 
   if (it==gen_itmax) {
-    cerr << "Velocity selection failed, r=" << r << "\n";
+    std::cerr << "Velocity selection failed, r=" << r << std::endl;
     ierr = 1;
     out.setZero();
     return out;
@@ -370,7 +373,8 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
 Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 {
   if (!dist_defined) {
-    cerr << "AxiSymModel: must define distribution before realizing!\n";
+    std::cerr << "AxiSymModel: must define distribution before realizing!"
+	      << std::endl;
     _exit (-1);
   }
 
@@ -443,19 +447,21 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
     }
 
     // Debug
-    
-    std::ofstream test("test.grid");
-    if (test) {
+    //
+    if (myid==0) {
+      std::ofstream test("test.grid");
+      if (test) {
 
-      test << "# Rmin=" << rmin
-	   << "  Rmax=" << get_max_radius()
-	   << endl;
-
-      for (int i=0; i<gen_N; i++) {
-	test << setw(15) << gen_rloc[i]
-	     << setw(15) << gen_mass[i]
-	     << setw(15) << gen_fmax[i]
-	     << endl;
+	test << "# Rmin=" << rmin
+	     << "  Rmax=" << get_max_radius()
+	     << std::endl;
+	
+	for (int i=0; i<gen_N; i++) {
+	  test << std::setw(15) << gen_rloc[i]
+	       << std::setw(15) << gen_mass[i]
+	       << std::setw(15) << gen_fmax[i]
+	       << std::endl;
+	}
       }
     }
 
@@ -486,10 +492,10 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
     // Debug
     /*
     if (sqrt(vr*vr + vt*vt)>0.99*vmax) {
-      cout << "Check: df val = " << distf(eee, r*vt)/fmax 
+      std::cout << "Check: df val = " << distf(eee, r*vt)/fmax 
 	   << "  v/vmax = " << sqrt(vr*vr + vt*vt)/vmax 
 	   << "  eee = " << eee
-	   << endl;
+	   << std::endl;
     }
     */
 
@@ -537,13 +543,13 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
   angmom[0] = out[2]*out[6] - out[3]*out[5];
   angmom[1] = out[3]*out[4] - out[1]*out[6];
   angmom[2] = out[1]*out[5] - out[2]*out[4];
-  tout << setw(15) << eee
-       << setw(15) << sqrt(angmom[0]*angmom[0]+
-			   angmom[1]*angmom[1]+
+  tout << std::setw(15) << eee
+       << std::setw(15) << sqrt(angmom[0]*angmom[0]+
+				angmom[1]*angmom[1]+
 			   angmom[2]*angmom[2])/orb.Jmax()
-       << setw(15) << r
-       << setw(15) << sqrt(out[4]*out[4]+out[5]*out[5]+out[6]*out[6])
-       << "\n";
+       << std::setw(15) << r
+       << std::setw(15) << sqrt(out[4]*out[4]+out[5]*out[5]+out[6]*out[6])
+       << std::endl;
 #endif
 
 
@@ -555,7 +561,8 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
 					  double Kmin, double Kmax, int& ierr)
 {
   if (!dist_defined) {
-    cerr << "AxiSymModel: must define distribution before realizing!\n";
+    std::cerr << "AxiSymModel: must define distribution before realizing!"
+	      << std::endl;
     _exit (-1);
   }
 
@@ -631,13 +638,13 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
 
       test << "# Emin=" << Emin_grid
 	   << "  Emax=" << Emax_grid
-	   << endl;
+	   << std::endl;
 
       for (int i=0; i<gen_E; i++) {
-	test << setw(15) << Egrid[i]
-	     << setw(15) << EgridMass[i]
-	     << setw(15) << Jmax[i]
-	     << endl;
+	test << std::setw(15) << Egrid[i]
+	     << std::setw(15) << EgridMass[i]
+	     << std::setw(15) << Jmax[i]
+	     << std::endl;
       }
     }
 
@@ -647,7 +654,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
     tout << "# Emin=" << Emin_grid << "  Emax=" << Emax_grid
 	 << "  Mass frac=" << 
       ( odd2(Emax, Egrid, EgridMass, 1) - 
-	odd2(Emin, Egrid, EgridMass, 1) )/EgridMass[gen_E-1] << endl;
+	odd2(Emin, Egrid, EgridMass, 1) )/EgridMass[gen_E-1] << std::endl;
 #endif    
   }
 
@@ -737,17 +744,17 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
   angmom[0] = out[2]*out[6] - out[3]*out[5];
   angmom[1] = out[3]*out[4] - out[1]*out[6];
   angmom[2] = out[1]*out[5] - out[2]*out[4];
-  tout << setw(15) << eee
-       << setw(15) << E
-       << setw(15) << sqrt(angmom[0]*angmom[0]+
+  tout << std::setw(15) << eee
+       << std::setw(15) << E
+       << std::setw(15) << sqrt(angmom[0]*angmom[0]+
 			   angmom[1]*angmom[1]+
 			   angmom[2]*angmom[2])/orb.Jmax()
-       << setw(15) << K
-       << setw(15) << r
-       << setw(15) << sqrt(out[4]*out[4]+out[5]*out[5]+out[6]*out[6])
-       << setw(15) << orb.Jmax()
-       << setw(15) << jmax
-       << "\n";
+       << std::setw(15) << K
+       << std::setw(15) << r
+       << std::setw(15) << sqrt(out[4]*out[4]+out[5]*out[5]+out[6]*out[6])
+       << std::setw(15) << orb.Jmax()
+       << std::setw(15) << jmax
+       << std::endl;
 #endif
 
   return out;
@@ -807,7 +814,7 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
 
       test << "# [Jeans] Rmin=" << rmin
 	   << "  Rmax=" << get_max_radius()
-	   << endl;
+	   << std::endl;
 
       for (int i=0; i<gen_N; i++) {
 	if (gen_logr) r = exp(gen_rloc[i]);
@@ -819,11 +826,11 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
 	else
 	  vtot = 0.0;
 
-	test << setw(15) << gen_rloc[i]
-	     << setw(15) << gen_mass[i]
-	     << setw(15) << gen_fmax[i]
-	     << setw(15) << vtot
-	     << endl;
+	test << std::setw(15) << gen_rloc[i]
+	     << std::setw(15) << gen_mass[i]
+	     << std::setw(15) << gen_fmax[i]
+	     << std::setw(15) << vtot
+	     << std::endl;
       }
     }
 
@@ -881,7 +888,8 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
       bomb( "AxiSymModel: gen_velocity only implemented for 3d model!" );
 
   if (!dist_defined) {
-    cerr << "AxiSymModel: must define distribution before realizing!\n";
+    std::cerr << "AxiSymModel: must define distribution before realizing!"
+	      << std::endl;
     _exit (-1);
   }
 
@@ -949,12 +957,12 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
 #ifdef DEBUG
     ofstream tout("test.dfgrid");
     tout << "# Rmin=" << rmin 
-	 << "  Rmax=" << get_max_radius() << endl;
+	 << "  Rmax=" << get_max_radius() << std::endl;
     for (int i=0; i<gen_N; i++)
-      tout << setw(18) << gen_rloc[i]
-	   << setw(18) << gen_mass[i]
-	   << setw(18) << gen_fmax[i]
-	   << endl;
+      tout << std::setw(18) << gen_rloc[i]
+	   << std::setw(18) << gen_mass[i]
+	   << std::setw(18) << gen_fmax[i]
+	   << std::endl;
 #endif
   }
 
@@ -991,7 +999,7 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
   }
                 
   if (it==gen_itmax) {
-    cerr << "Velocity selection failed, r=" << r << "\n";
+    std::cerr << "Velocity selection failed, r=" << r << std::endl;
     ierr = 1;
     return;
   }
@@ -1014,7 +1022,7 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
 Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 {
   if (!real->dist_defined || !fake->dist_defined) {
-    cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!\n";
+    std::cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!" << std::endl;
     exit (-1);
   }
 
@@ -1025,6 +1033,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   double Emax = get_pot(get_max_radius());
 
   if (gen_firstime) {
+
     double tol = 1.0e-5;
     double dx = (1.0 - 2.0*tol)/(numr-1);
     double dy = (1.0 - 2.0*tol)/(numj-1);
@@ -1033,7 +1042,21 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     gen_mass.resize(gen_N);
     gen_rloc.resize(gen_N);
     gen_fmax.resize(gen_N);
-    vector<double> gen_emax, gen_vmax;
+
+    gen_mass.setZero();
+    gen_rloc.setZero();
+    gen_fmax.setZero();
+
+    std::vector<int> ibeg(numprocs);
+    std::vector<int> iend(numprocs);
+
+    int dN = gen_N/numprocs;
+    for (int n=0; n<numprocs; n++) {
+      ibeg[n] = dN*n;
+      iend[n] = dN*(n+1);
+    }
+
+    std::vector<double> gen_emax(gen_N, 0.0), gen_vmax(gen_N, 0.0);
 
     if (rmin_gen <= 1.0e-16) gen_logr = 0;
     
@@ -1042,7 +1065,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     else
       dr = (rmax_gen - rmin_gen)/(gen_N-1);
 
-    for (int i=0; i<gen_N; i++) {
+    for (int i=ibeg[myid]; i<iend[myid]; i++) {
 
       if (gen_logr) {
 	gen_rloc[i] = log(rmin_gen) + dr*i;
@@ -1077,76 +1100,103 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 	  }
 	}
       }
-      gen_emax.push_back(emax);
-      gen_vmax.push_back(vmax);
+      gen_emax[i] = emax;
+      gen_vmax[i] = vmax;
       gen_fmax[i] = fmax*(1.0 + ftol);
-
     }
 
+    // These are for diagnostic output only
+    //
+    if (myid==0) {		// Node 0 receives
+      MPI_Reduce(MPI_IN_PLACE, gen_emax.data(), gen_N, MPI_DOUBLE, MPI_SUM,
+		 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, gen_vmax.data(), gen_N, MPI_DOUBLE, MPI_SUM,
+		 0, MPI_COMM_WORLD);
+    } else {			// Nodes >0 send
+      MPI_Reduce(gen_emax.data(), 0, gen_N, MPI_DOUBLE, MPI_SUM,
+		 0, MPI_COMM_WORLD);
+      MPI_Reduce(gen_vmax.data(), 0, gen_N, MPI_DOUBLE, MPI_SUM,
+		 0, MPI_COMM_WORLD);
+    }
+
+    // All processes need these . . .
+    //
+    MPI_Allreduce(MPI_IN_PLACE, gen_rloc.data(), gen_N, MPI_DOUBLE, MPI_SUM,
+		  MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, gen_mass.data(), gen_N, MPI_DOUBLE, MPI_SUM,
+		  MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, gen_fmax.data(), gen_N, MPI_DOUBLE, MPI_SUM,
+		  MPI_COMM_WORLD);
+
     // Debug
-    
-    ofstream test("test_multi.grid");
-    if (test) {
+    //
+    if (myid==0) {
 
-      test << "# Rmin=" << rmin_gen
-	   << "  Rmax=" << rmax_gen
-	   << endl;
+      std::ofstream test("test_multi.grid");
+      if (test) {
 
-      test << left 
-	   << endl << setfill('-') // Separator
-	   << setw(15) << "#"	
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << endl << setfill(' ') // Labels
-	   << setw(15) << "# radius"
-	   << setw(15) << "+ mass"
-	   << setw(15) << "+ Emax"
-	   << setw(15) << "+ Vmax"
-	   << setw(15) << "+ Fmax"
-	   << setw(15) << "+ Phi(r)"
-	   << setw(15) << "+ F_real(Phi)"
-	   << setw(15) << "+ F_fake(Phi)"
-	   << setw(15) << "+ Ratio"
-	   << endl
-	   << setw(15) << "# [1]" // Column number
-	   << setw(15) << "+ [2]"
-	   << setw(15) << "+ [3]"
-	   << setw(15) << "+ [4]"
-	   << setw(15) << "+ [5]"
-	   << setw(15) << "+ [6]"
-	   << setw(15) << "+ [7]"
-	   << setw(15) << "+ [8]"
-	   << setw(15) << "+ [9]"
-	   << endl << setfill('-') // Separator
-	   << setw(15) << "#"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << setw(15) << "+"
-	   << endl << setfill(' ');
+	test << "# Rmin=" << rmin_gen
+	     << "  Rmax=" << rmax_gen
+	     << std::endl;
 
-      for (int i=0; i<gen_N; i++) {
-	double r = exp(gen_rloc[i]);
-	double p = get_pot(r);
-	test << setw(15) << gen_rloc[i]
-	     << setw(15) << gen_mass[i]
-	     << setw(15) << gen_emax[i]
-	     << setw(15) << gen_vmax[i]
-	     << setw(15) << gen_fmax[i]
-	     << setw(15) << p
-	     << setw(15) << real->distf(p, 0.5)
-	     << setw(15) << fake->distf(p, 0.5)
-	     << setw(15) << real->get_density(r)/fake->get_density(r)
-	     << endl;
+	test << std::left 
+	     << std::endl << std::setfill('-') // Separator
+	     << std::setw(15) << "#"	
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::endl << std::setfill(' ') // Labels
+	     << std::setw(15) << "# radius"
+	     << std::setw(15) << "+ mass"
+	     << std::setw(15) << "+ Emax"
+	     << std::setw(15) << "+ Vmax"
+	     << std::setw(15) << "+ Fmax"
+	     << std::setw(15) << "+ Phi(r)"
+	     << std::setw(15) << "+ F_real(Phi)"
+	     << std::setw(15) << "+ F_fake(Phi)"
+	     << std::setw(15) << "+ Ratio"
+	     << std::endl
+	     << std::setw(15) << "# [1]" // Column number
+	     << std::setw(15) << "+ [2]"
+	     << std::setw(15) << "+ [3]"
+	     << std::setw(15) << "+ [4]"
+	     << std::setw(15) << "+ [5]"
+	     << std::setw(15) << "+ [6]"
+	     << std::setw(15) << "+ [7]"
+	     << std::setw(15) << "+ [8]"
+	     << std::setw(15) << "+ [9]"
+	     << std::endl << std::setfill('-') // Separator
+	     << std::setw(15) << "#"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
+	     << std::endl << std::setfill(' ');
+
+	for (int i=0; i<gen_N; i++) {
+	  double r = exp(gen_rloc[i]);
+	  double p = get_pot(r);
+	  test << std::setw(15) << gen_rloc[i]
+	       << std::setw(15) << gen_mass[i]
+	       << std::setw(15) << gen_emax[i]
+	       << std::setw(15) << gen_vmax[i]
+	       << std::setw(15) << gen_fmax[i]
+	       << std::setw(15) << p
+	       << std::setw(15) << real->distf(p, 0.5)
+	       << std::setw(15) << fake->distf(p, 0.5)
+	       << std::setw(15) << real->get_density(r)/fake->get_density(r)
+	       << std::endl;
+	}
+      } else {
+	std::cerr << "Error opening <test_multi.grid>" << std::endl;
       }
     }
 
@@ -1177,7 +1227,6 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   
     pot = get_pot(r);
     vmax = sqrt(2.0*max<double>(Emax - pot, 0.0));
-
 #endif
 
     double xxx = 2.0*sin(asin(Unit(random_gen))/3.0);
@@ -1202,7 +1251,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   Eigen::VectorXd out(7);
 
   if (it==gen_itmax) {
-    if (verbose) cerr << "Velocity selection failed, r=" << r << "\n";
+    if (verbose) std::cerr << "Velocity selection failed, r=" << r << std::endl;
     ierr = 1;
     out.setZero();
     return out;
@@ -1212,7 +1261,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   
   if (Unit(random_gen)>=0.5) vr *= -1.0;
 
-  phi = 2.0*M_PI*Unit(random_gen);
+  phi  = 2.0*M_PI*Unit(random_gen);
   cost = 2.0*(Unit(random_gen) - 0.5);
   sint = sqrt(1.0 - cost*cost);
   cosp = cos(phi);
@@ -1220,7 +1269,24 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 
   eee = std::min<double>(eee, gen_ecut);
 
-  out[0] = real->distf(eee, r*vt)/fake->distf(eee, r*vt);
+  double dfr = real->distf(eee, r*vt);
+  double dfn = fake->distf(eee, r*vt);
+  double rat = dfr/dfn;
+
+  // Deep debug
+  //
+#ifdef DEBUG
+  if (rat <= 0.0) {
+    std::cout << "[" << std::setw(3) << myid << "] Bad mass: rat=" << std::setw(16) << rat
+	      << " df(M)=" << std::setw(16) << dfr
+	      << " df(N)=" << std::setw(16) << dfn
+	      << " r="     << std::setw(16) << r
+	      << " E="     << std::setw(16) << eee
+	      << std::endl;
+  }
+#endif
+  
+  out[0] = rat;
   out[1] = r * sint*cosp;
   out[2] = r * sint*sinp;
   out[3] = r * cost;
@@ -1232,13 +1298,6 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
   }
 
-  /*
-  std::cout << "Mass[0]: "
-	    << std::setw(18) << eee
-	    << std::setw(18) << real->distf(eee, r*vt)
-	    << std::setw(18) << fake->distf(eee, r*vt) << std::endl;
-  */
-
   return out;
 }
 
@@ -1246,7 +1305,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
 {
   if (!real->dist_defined || !fake->dist_defined) {
-    cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!\n";
+    std::cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!" << std::endl;
     exit (-1);
   }
 
@@ -1309,32 +1368,32 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
     }
 
     // Debug
-    
+    //
     ofstream test("test_multi.grid");
     if (test) {
 
       test << "# Rmin=" << rmin_gen
 	   << "  Rmax=" << rmax_gen
-	   << endl;
+	   << std::endl;
 
       for (int i=0; i<gen_N; i++) {
-	test << setw(15) << gen_rloc[i]
-	     << setw(15) << gen_mass[i]
-	     << setw(15) << gen_fmax[i]
-	     << setw(15) << get_pot(exp(gen_rloc[i]))
-	     << setw(15) << fake->distf(get_pot(exp(gen_rloc[i])), 0.5)
-	     << endl;
+	test << std::setw(15) << gen_rloc[i]
+	     << std::setw(15) << gen_mass[i]
+	     << std::setw(15) << gen_fmax[i]
+	     << std::setw(15) << get_pot(exp(gen_rloc[i]))
+	     << std::setw(15) << fake->distf(get_pot(exp(gen_rloc[i])), 0.5)
+	     << std::endl;
       }
     }
 
     gen_firstime = false;
   }
 
-  r = max<double>(rmin_gen, min<double>(rmax_gen, radius));
+  r    = max<double>(rmin_gen, min<double>(rmax_gen, radius));
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   if (gen_logr) r = exp(r);
   
-  pot = get_pot(r);
+  pot  = get_pot(r);
   vmax = sqrt(2.0*max<double>(Emax - pot, 0.0));
 
   // Trial velocity point
@@ -1364,7 +1423,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
   Eigen::VectorXd out(7);
 
   if (it==gen_itmax) {
-    if (verbose) cerr << "Velocity selection failed, r=" << r << "\n";
+    if (verbose) std::cerr << "Velocity selection failed, r=" << r << std::endl;
     ierr = 1;
     out.setZero();
     return out;
@@ -1374,13 +1433,31 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
   
   if (Unit(random_gen)>=0.5) vr *= -1.0;
 
-  phi = 2.0*M_PI*Unit(random_gen);
+  phi  = 2.0*M_PI*Unit(random_gen);
   cost = 2.0*(Unit(random_gen) - 0.5);
   sint = sqrt(1.0 - cost*cost);
   cosp = cos(phi);
   sinp = sin(phi);
 
-  out[0] = real->distf(eee, r*vt)/fake->distf(eee, r*vt);
+  double dfr = real->distf(eee, r*vt);
+  double dfn = fake->distf(eee, r*vt);
+  double rat = dfr/dfn;
+
+  // Deep debug
+  //
+#ifdef DEBUG
+  if (rat <= 0.0) {
+    std::cout << "[" << std::setw(3) << myid << "] Bad mass: rat="
+	      << std::setw(16) << rat
+	      << " df(M)=" << std::setw(16) << dfr
+	      << " df(N)=" << std::setw(16) << dfn
+	      << " r="     << std::setw(16) << r
+	      << " E="     << std::setw(16) << eee
+	      << std::endl;
+  }
+#endif
+
+  out[0] = rat;
   out[1] = r * sint*cosp;
   out[2] = r * sint*sinp;
   out[3] = r * cost;
@@ -1391,14 +1468,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
   for (int i=0; i<7; i++) {
     if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
   }
-
-  /*
-  std::cout << "Mass[1]: "
-	    << std::setw(18) << eee
-	    << std::setw(18) << real->distf(eee, r*vt)
-	    << std::setw(18) << fake->distf(eee, r*vt) << std::endl;
-  */
-
+  
   return out;
 }
 
@@ -1408,7 +1478,7 @@ Eigen::VectorXd
 				 double Kmax, int& ierr)
 {
   if (!real->dist_defined || !fake->dist_defined) {
-    cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!\n";
+    std::cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!" << std::endl;
     exit (-1);
   }
   
@@ -1426,11 +1496,11 @@ Eigen::VectorXd
     Emax_grid = get_pot(rmax)*(1.0 + gen_tolE);
 
     if (verbose) {
-      cout << "Initial radial bounds: " << rmin
-	   << ", " << rmax << endl;
+      std::cout << "Initial radial bounds: " << rmin
+	   << ", " << rmax << std::endl;
 
-      cout << "Initial energy bounds: " << Emin_grid 
-	   << ", " << Emax_grid << " [" << gen_tolE << "]" << endl;
+      std::cout << "Initial energy bounds: " << Emin_grid 
+	   << ", " << Emax_grid << " [" << gen_tolE << "]" << std::endl;
     }
 
 				// Enforce limits
@@ -1491,13 +1561,13 @@ Eigen::VectorXd
 
       test << "# Emin=" << Emin_grid
 	   << "  Emax=" << Emax_grid
-	   << endl;
+	   << std::endl;
 
       for (int i=0; i<gen_E; i++) {
-	test << setw(15) << Egrid[i]
-	     << setw(15) << EgridMass[i]
-	     << setw(15) << Jmax[i]
-	     << endl;
+	test << std::setw(15) << Egrid[i]
+	     << std::setw(15) << EgridMass[i]
+	     << std::setw(15) << Jmax[i]
+	     << std::endl;
       }
     }
     

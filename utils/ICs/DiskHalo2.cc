@@ -46,7 +46,6 @@ int    DiskHalo::RNUM        = 4000;
 
 double DiskHalo::R_DF        = 20.0;
 double DiskHalo::DR_DF       = 5.0;
-double DiskHalo::ECUT_DF     = 1.0;
 
 int    DiskHalo::LOGSCALE    = 0;
 bool   DiskHalo::LOGR        = true;
@@ -231,7 +230,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   //
   SphericalModelTable::even     = 0;
   SphericalModelTable::logscale = LOGSCALE;
-  SphericalModelTable::linear   = 0;
+  SphericalModelTable::linear   = 1;
   
   halo3 = std::make_shared<SphericalModelTable>(filename2, DIVERGE2, DIVERGE_RFAC2);
 
@@ -992,8 +991,8 @@ epi(double xp, double yp, double zp)
 
   // Make sure that the grid position is good, otherwise truncate to
   // lowest good radius
-  if (ir1 < nzero) {
-    ir1 = nzero;
+  if (ir1 < nzepi) {
+    ir1 = nzepi;
     ir2 = ir1 + 1; 
 
     cr[1] = 0.0;
@@ -1013,15 +1012,15 @@ epi(double xp, double yp, double zp)
     cp[1]*cr[0]* epitable(iphi2, ir1) +
     cp[1]*cr[1]* epitable(iphi2, ir2) ;
     
-  if (ans>1.0) return sqrt(ans);
+  if (ans>0.0) return sqrt(ans);
   else {
 
     // Move forward
     int j;
     bool ok = false;
     for (j=ir2; j<NDR/4; j++) {
-      if (epitable(iphi1, j)<1.0) continue;
-      if (epitable(iphi2, j)<1.0) continue;
+      if (epitable(iphi1, j)<=0.0) continue;
+      if (epitable(iphi2, j)<=0.0) continue;
       ok = true;
       ans = 
 	cp[0]* epitable(iphi1, j) +
@@ -1069,7 +1068,8 @@ epi(double xp, double yp, double zp)
 	  << "    ep4=" << epitable(iphi2, ir2)   << std::endl
 	  << std::endl;
 
-      return 1.0;
+      ans = cp[0]*epitable(iphi1, nzepi) + cp[1]*epitable(iphi2, nzepi);
+      return sqrt(ans);
 
     }
   }
@@ -1161,7 +1161,7 @@ table_disk(vector<Particle>& part)
 
   if (nzero>nh) nzero=0;	// Not enough particles . . . 
   if (myid==0) std::cout << "Nzero=" << nzero << "/" << nh << std::endl;
-
+  
   nzero = floor( (hDmin + nzero*dRh - log(RDMIN))/dR ) + 1;
   if (myid==0) std::cout << "Nzero=" << nzero << "/" << NDR << std::endl;
 
@@ -1170,24 +1170,47 @@ table_disk(vector<Particle>& part)
 
 				// Compute this table in parallel
 
-  vector<int> ibeg(numprocs), iend(numprocs);
-  int curid = -1;
-  for (int i=0; i<numprocs; i++) {
-    ibeg[i] = (i  )*NDP/numprocs;
-    iend[i] = (i+1)*NDP/numprocs;
-    if (curid<0 && iend[i]-ibeg[i]>0) curid = i;
-    if (myid==0) {
-      if (i==0) std::cout << std::endl << " *** Processor phi angles *** " << std::endl;
+  std::vector<int> ibeg(numprocs), iend(numprocs);
+
+  // Default values.  If not reset, process computation will be skipped
+  //
+  std::fill(ibeg.begin(), ibeg.end(), 0);
+  std::fill(iend.begin(), iend.end(), 0);
+
+  // Do at most NDP computations
+  //
+  if (numprocs > NDP) {
+
+    for (int i=0; i<NDP; i++) {
+      ibeg[i] = i;
+      iend[i] = i + 1;
+    }
+
+  }
+  // Fewer than numprocs phi points
+  //
+  else {
+
+    for (int i=0; i<numprocs; i++) {
+      ibeg[i] = (i  )*NDP/numprocs;
+      iend[i] = (i+1)*NDP/numprocs;
+    }
+    
+  }
+
+  if (myid==0) {
+    std::cout << std::endl << " *** Processor phi angles *** " << std::endl;
+    for (int i=0; i<numprocs; i++)
       std::cout << "# " << setw(3) << i << ": " 
 		<< setw(10) << ibeg[i]
 		<< setw(10) << iend[i]
 		<< std::endl;
-    }
   }
 
   Cheby1d *cheb = 0, *cheb2 = 0;
 
-
+  // If numprocs>NDP, some processes will skip this loop
+  //
   for (int i=ibeg[myid]; i<iend[myid]; i++) {
 
     phi = dP*i;
@@ -1368,8 +1391,6 @@ table_disk(vector<Particle>& part)
       if (i==0) workD(3, j) = epitable(0, j);
     }
 
-    
-    
 				// Cylindrical Jeans' equations
     for (int j=0; j<NDR; j++) {
       double ep   = epitable(i, j);
@@ -1398,7 +1419,10 @@ table_disk(vector<Particle>& part)
     }
   }
 
-				// Update tables on all nodes
+  MPI_Barrier(MPI_COMM_WORLD);	// Inactive processes will wait here
+
+  // Update tables on all nodes
+  //
   Eigen::VectorXd Z(NDR);
   for (int k=0; k<numprocs; k++) {
     for (int i=ibeg[k]; i<iend[k]; i++) {
@@ -1416,8 +1440,16 @@ table_disk(vector<Particle>& part)
     }
   }
 
+  // Compute minimum >zero index
+  //
+  nzepi = 0;
+  for (int i=0; i<NDP; i++) {
+    while (epitable(i, nzepi) <= 0.0 and nzepi<NDR) nzepi++;
+  }
+  if (myid==0) std::cout << "NZEPI=" << nzepi << "/" << NDR << std::endl;
+
 				// For debugging the solution
-  if (myid==curid && expandh && VFLAG & 4) {
+  if (myid==0 && expandh && VFLAG & 4) {
     ostringstream sout;
     sout << "ep_test." << RUNTAG;
     ofstream out(sout.str().c_str());
@@ -1460,25 +1492,23 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << workR[j]		// #3
 	  << setw(14) << workQ[j]		// #4
 	  << setw(14) << workQ2[j]		// #5
-	  << setw(14) << workQ3[j]		// #6
-	  << setw(14) << workQ4[j]		// #7
-	  << setw(14) << deriv2                 // #8
-	  << setw(14) << vrq0                   // #9
-	  << setw(14) << vrq1                   // #10
-	  << setw(14) << v_circ(r, 0.0, 0.0)    // #11
-	  << setw(14) << workD(0, j)		// #12  dV(tot)/dR
-	  << setw(14) << workD(1, j)		// #13  d^2V(tot)/dlnR
-	  << setw(14) << workD(2, j)		// #14  d^2V(tot)/dlnR + 3V(tot)
-	  << setw(14) << workD(3, j)		// #15  kappa^2
-	  << setw(14) << workD(4, j)		// #16  dV(disk)/dR
-	  << setw(14) << workD(5, j)		// #17  dV(halo)/dR
-	  << setw(14) << rho			// #18
-	  << setw(14) << deriv			// #19
-	  << setw(14) << lhs			// #20
-	  << setw(14) << rhs			// #21
-	  << setw(14) << lhs - rhs		// #22
-	  << setw(14) << odd2(log(r), nrD, nhD) // #23  Enclosed mass
-	  << setw(14) << epi(r, 0.0, 0.0)	// #24  Epi routine
+	  << setw(14) << deriv2                 // #6
+	  << setw(14) << vrq0                   // #7
+	  << setw(14) << vrq1                   // #8
+	  << setw(14) << v_circ(r, 0.0, 0.0)    // #9
+	  << setw(14) << workD(0, j)		// #10  dV(tot)/dR
+	  << setw(14) << workD(1, j)		// #11  d^2V(tot)/dlnR
+	  << setw(14) << workD(2, j)		// #12  d^2V(tot)/dlnR + 3V(tot)
+	  << setw(14) << workD(3, j)		// #13  kappa^2
+	  << setw(14) << workD(4, j)		// #14  dV(disk)/dR
+	  << setw(14) << workD(5, j)		// #15  dV(halo)/dR
+	  << setw(14) << rho			// #16
+	  << setw(14) << deriv			// #17
+	  << setw(14) << lhs			// #18
+	  << setw(14) << rhs			// #19
+	  << setw(14) << lhs - rhs		// #20
+	  << setw(14) << odd2(log(r), nrD, nhD) // #21  Enclosed mass
+	  << setw(14) << epi(r, 0.0, 0.0)	// #22  Epi routine
 	  << std::endl;
     }
 
@@ -1520,7 +1550,7 @@ table_disk(vector<Particle>& part)
     dump.close();
   }
     
-  if (myid==curid && VFLAG & 4) {
+  if (myid==0 && VFLAG & 4) {
     ostringstream sout;
     sout << "ep_disk." << RUNTAG;
     ofstream out(sout.str().c_str());
@@ -1544,7 +1574,7 @@ table_disk(vector<Particle>& part)
     out.close();
   }
 
-  if (myid==curid && VFLAG & 4) {
+  if (myid==0 && VFLAG & 4) {
     ostringstream sout;
     sout << "table_disk." << RUNTAG;
     ofstream out(sout.str().c_str());
@@ -1571,9 +1601,9 @@ table_disk(vector<Particle>& part)
 }
 
 
-/*
-  Closure using the 2nd moment of the cylindrical CBE
- */
+
+// Closure using the 2nd moment of the cylindrical CBE
+//  
 double DiskHalo::vp_disp2(double xp, double yp, double zp)
 {
   double R     = sqrt(xp*xp + yp*yp) + std::numeric_limits<double>::min();
@@ -1590,9 +1620,8 @@ double DiskHalo::vp_disp2(double xp, double yp, double zp)
 }
 
 
-/*
-  Interpolate from Jeans' solution integral table
-*/
+// Interpolate from Jeans' solution integral table
+//
 double DiskHalo::vz_disp2(double xp,double yp, double zp)
 {
   if (disktableP.size()==0) {
@@ -1669,9 +1698,8 @@ double DiskHalo::vz_disp2(double xp,double yp, double zp)
   return resvd;
 }
 
-/*
-  Constant Toomre Q
-*/
+// Constant Toomre Q
+//
 double DiskHalo::vr_disp2(double xp, double yp,double zp)
 {
   double r = sqrt(xp*xp + yp*yp);
@@ -1680,9 +1708,8 @@ double DiskHalo::vr_disp2(double xp, double yp,double zp)
   return sigmar*sigmar;
 }
 
-/*
-  Asymmetric drift equation: returns v_a*(v_a - 2*v_c)/sigma_rr^2
-*/
+// Asymmetric drift equation: returns v_a*(v_a - 2*v_c)/sigma_rr^2
+//
 double DiskHalo::a_drift(double xp, double yp, double zp)
 {
 				// sigma_r and sigma_p
@@ -1736,9 +1763,9 @@ double DiskHalo::a_drift(double xp, double yp, double zp)
     cp[1]*cr[1] * asytable(iphi2, ir2) ;
 }
 
-/*
-  Analytic rotation curve
-*/
+
+// Analytic rotation curve
+//
 double DiskHalo::v_circ(double xp, double yp, double zp)
 {
   double R = sqrt(xp*xp + yp*yp);

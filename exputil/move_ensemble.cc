@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <cmath>
 #include <cstdlib>
 
@@ -6,8 +7,6 @@
 #include <numerical.H>
 
 #include "phase.H"
-
-using namespace std;
 
 Ensemble Ensemble::Step_Positions(double dt)
 {
@@ -69,8 +68,8 @@ Ensemble Ensemble::integrate_to(double tfin, freezing_function frozen)
 	  newstars.stars[i] = stars[i];
 	}
       if (i%(Nstars/10) == 1) 
-	cerr << "accuracy = "
-	     << newstars.stars[i].Accuracy(stars[i]) << '\n';
+	std::cerr << "accuracy = "
+		  << newstars.stars[i].Accuracy(stars[i]) << std::endl;
     }
   newstars.t = tfin;
   
@@ -97,14 +96,14 @@ Ensemble Ensemble::integrate_to(double tfin)
 	{
 	  time_t realtime;
 	  time(&realtime);
-	  cerr << ctime(&realtime);
-	  cerr << "integrating star #" << i 
-	       << " of " << Nstars << "       ";
+	  std::cerr << ctime(&realtime);
+	  std::cerr << "integrating star #" << i 
+		    << " of " << Nstars << "       ";
 	}
       newstars.stars[i] = stars[i].integrate_to(tfin);
       if (Nstars < 20 || i%(Nstars/10) == 1)
-	cerr << "accuracy = " <<
-	  newstars.stars[i].Accuracy(stars[i]) << '\n';
+	std::cerr << "accuracy = " <<
+	  newstars.stars[i].Accuracy(stars[i]) << std::endl;
     }
   newstars.t = tfin;
   

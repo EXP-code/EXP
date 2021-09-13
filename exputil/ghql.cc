@@ -1,13 +1,11 @@
-#include <unistd.h>
-#include <math.h>
+#include <cmath>
 
 #include <iostream>
-
-using namespace std;
+#include <iomanip>
 
 static void bomb_ghql(char* msg)
 {
-  cerr << msg << endl;
+  std::cerr << msg << std::endl;
   exit(-1);
 }
 

@@ -927,6 +927,10 @@ public:
   */
   static bool   TSESUM;
 
+  //! Use the mean-mass algorithm for explicit energy conservation for
+  //! the Trace algorithm
+  static bool mean_mass;
+
   //! Multiplicative factor for choosing cooling time step (default: 0.05)
   static double TSCOOL;
 

@@ -63,6 +63,8 @@
 
  Updates for constructing disk velocities from an evolved halo 01/20 by MDW
 
+ Added double-exponential disk preconditioning 08/21 by MDW
+
 */
                                 // C++/STL headers
 #include <cmath>
@@ -241,21 +243,25 @@ const double f_H = 0.76;
 
 // Global variables
 //
-enum DiskType { constant, gaussian, mn, exponential };
+enum DiskType { constant, gaussian, mn, exponential, doubleexpon };
 
 std::map<std::string, DiskType> dtlookup =
   { {"constant",    DiskType::constant},
     {"gaussian",    DiskType::gaussian},
     {"mn",          DiskType::mn},
-    {"exponential", DiskType::exponential}
+    {"exponential", DiskType::exponential},
+    {"doubleexpon", DiskType::doubleexpon}
   };
 
 DiskType     DTYPE;
 double       ASCALE;
 double       ASHIFT;
 double       HSCALE;
-double       RTRUNC = 1.0;
-double       RWIDTH = 0.0;
+double       RTRUNC  = 1.0;
+double       RWIDTH  = 0.0;
+double       ARATIO  = 1.0;
+double       HRATIO  = 1.0;
+double       DWEIGHT = 1.0;
 
 #include <Particle.H>
 
@@ -285,6 +291,23 @@ double DiskDens(double R, double z, double phi)
     }
     break;
 
+  case DiskType::doubleexpon:
+    {
+      double a1 = ASCALE;
+      double a2 = ASCALE*ARATIO;
+      double h1 = HSCALE;
+      double h2 = HSCALE*HRATIO;
+      double w1 = 1.0/(1.0+DWEIGHT);
+      double w2 = DWEIGHT/(1.0+DWEIGHT);
+      
+      double f1 = cosh(z/h1);
+      double f2 = cosh(z/h2);
+
+      ans =
+	w1*exp(-R/a1)/(4.0*M_PI*a1*a1*h1*f1*f1) +
+	w2*exp(-R/a2)/(4.0*M_PI*a2*a2*h2*f2*f2) ;
+    }
+    break;
   case DiskType::exponential:
   default:
     {
@@ -349,7 +372,6 @@ main(int ac, char **av)
   double       RSPHSL;
   double       DMFAC;
   double       RFACTOR;
-  double       ECUT;
   double       X0;
   double       Y0;
   double       Z0;
@@ -445,11 +467,13 @@ main(int ac, char **av)
     ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),               "Maximum disk radius")
     ("SCMAP",           po::value<int>(&SCMAP)->default_value(1),                       "Turn on Spherical SL coordinate mapping (1, 2, 0=off")
     ("SCSPH",           po::value<double>(&SCSPH)->default_value(1.0),                  "Scale for Spherical SL coordinate mapping")
-    ("ECUT",            po::value<double>(&ECUT)->default_value(1.0),                   "Energy cutoff for multimass ratio grid")
     ("RSPHSL",          po::value<double>(&RSPHSL)->default_value(47.5),                "Maximum halo expansion radius")
     ("ASCALE",          po::value<double>(&ASCALE)->default_value(1.0),                 "Radial scale length for disk basis construction")
     ("ASHIFT",          po::value<double>(&ASHIFT)->default_value(0.0),                 "Fraction of scale length for shift in conditioning function")
     ("HSCALE",          po::value<double>(&HSCALE)->default_value(0.1),                 "Vertical scale length for disk basis construction")
+    ("ARATIO",          po::value<double>(&ARATIO)->default_value(1.0),                 "Radial scale length ratio for disk basis construction with doubleexpon")
+    ("HRATIO",          po::value<double>(&HRATIO)->default_value(1.0),                 "Vertical scale height ratio for disk basis construction with doubleexpon")
+    ("DWEIGHT",         po::value<double>(&DWEIGHT)->default_value(1.0),                 "Ratio of second disk relative to the first disk for disk basis construction with doubleexpon")
     ("RTRUNC",          po::value<double>(&RTRUNC)->default_value(0.1),                 "Maximum disk radius for erf truncation of EOF conditioning density")
     ("RWIDTH",          po::value<double>(&RWIDTH)->default_value(0.0),                 "Width for erf truncationofr EOF conditioning density (ignored if zero)")
     ("DMFAC",           po::value<double>(&DMFAC)->default_value(1.0),                  "Disk mass scaling factor for spherical deprojection model")
@@ -532,7 +556,7 @@ main(int ac, char **av)
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),               "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
     ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
-    ("condition",       po::value<string>(&dtype)->default_value("exponential"),                "Disk type for condition (one of: constant, gaussian, mn, exponential)")
+    ("condition",       po::value<string>(&dtype)->default_value("exponential"),                "Disk type for condition (one of: constant, gaussian, mn, exponential, doubleexpon)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("evolved",         po::value<bool>(&evolved)->default_value(false),                "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
@@ -662,21 +686,27 @@ main(int ac, char **av)
   // generate the EOF basis.  If "deproject" is set, this will be
   // overriden in EmpCylSL.
   //
+
+				// Convert mtype string to lower case
+  std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
   EmpCylSL::mtype = EmpCylSL::Exponential;
   if (vm.count("mtype")) {
-    if (mtype.compare("Exponential")==0)
+    if (mtype.compare("exponential")==0)
       EmpCylSL::mtype = EmpCylSL::Exponential;
-    else if (mtype.compare("Gaussian")==0)
+    else if (mtype.compare("gaussian")==0)
       EmpCylSL::mtype = EmpCylSL::Gaussian;
-    else if (mtype.compare("Plummer")==0)
+    else if (mtype.compare("plummer")==0)
       EmpCylSL::mtype = EmpCylSL::Plummer;
-    else if (mtype.compare("Power")==0) {
+    else if (mtype.compare("power")==0) {
       EmpCylSL::mtype = EmpCylSL::Power;
       EmpCylSL::PPOW  = PPower;
     } else {
       if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
 			     << mtype << ">, valid types are: "
-			     << "Exponential, Gaussian, Plummer" << std::endl;
+			     << "Exponential, Gaussian, Plummer, Power "
+			     << "(not case sensitive)" << std::endl;
       MPI_Finalize();
       return 0;
     }
@@ -805,7 +835,6 @@ main(int ac, char **av)
   DiskHalo::Q           = ToomreQ;
   DiskHalo::R_DF        = R_DF;
   DiskHalo::DR_DF       = DR_DF;
-  DiskHalo::ECUT_DF     = ECUT;
   DiskHalo::SEED        = SEED;
   DiskHalo::VFLAG       = static_cast<unsigned int>(DFLAG);
   DiskHalo::CHEBY       = CHEBY;

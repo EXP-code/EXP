@@ -20,6 +20,9 @@ public:
   Eigen::VectorXd y;
   Eigen::VectorXd y2;
   int num;
+
+  //! Simple constructor.  Use value of num to check for initialization.
+  RUN() : num(0) {}
 };
 
 //! A one-dimensional Merritt-Osipkov distribution
@@ -34,9 +37,13 @@ public:
   double ra2;
   double off;
   int num;
+
+  //! Simple constructor.  Use value of num to check for initialization.
+  FDIST() : num(0) {}
+
 };
 
-//! Chebyshev versino
+//! Chebyshev version
 class FDISTC
 {
 public:
@@ -48,6 +55,10 @@ public:
   double ra2;
   double off;
   int num;
+
+  //! Simple constructor.  Use value of num to check for initialization.
+  FDISTC() : num(0) {}
+
 };
 
 //! A three-dimensional density-potential model
@@ -321,8 +332,8 @@ private:
   RUN mass;
   RUN density;
   RUN pot;
-  struct FDIST df;
-  struct FDISTC dfc;
+  FDIST df;
+  FDISTC dfc;
   int num;
   int numdf;
   int num_params;
