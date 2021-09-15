@@ -1,0 +1,44 @@
+/* True if DSMC is enabled */
+#cmakedefine DSMC_ENABLED @DSMC_ENABLED@
+
+/* "Have C++0x (set standard to cxx14 so legacy define)*/
+#define HAVE_CXX0X
+
+/* Similarly */
+#define HAVE_HASH
+
+/* Defined if you have HDF5 support */
+#cmakedefine HAVE_HDF5 @HDF5_FOUND@
+
+/* Define to 1 if you have the `cuda' library. */
+#cmakedefine HAVE_LIBCUDA 1
+
+/* Defined if you have the have the png++ wrapper */
+#cmakedefine HAVE_LIBPNGPP @LIBPNGPP_FOUND@
+
+/* Define to 1 if you have the `slurm' library (-lslurm). */
+#cmakedefine HAVE_LIBSLURM @LIBSLURM_FOUND@
+
+/* Define if you have the <omp.h> header file. */
+#cmakedefine HAVE_OMP_H
+
+/* define if VTK is available */
+#cmakedefine HAVE_VTK
+
+/* Define to the full name and version of this package. */
+#define PACKAGE_STRING "@PROJECT_NAME@ @PROJECT_VERSION@"
+
+/* Define to the home page for this package. */
+#define PACKAGE_URL "@PROJECT_HOMEPAGE_URL@"
+
+/* Version number of package */
+#define VERSION "@PROJECT_VERSION@"
+
+/* Git commit at configure */
+#define GIT_COMMIT "@GIT_COMMIT@"
+
+/* Git branch at configure */
+#define GIT_BRANCH "@GIT_BRANCH@"
+
+/* Date/time at configure */
+#define COMPILE_TIME "@COMPILE_TIME@"
