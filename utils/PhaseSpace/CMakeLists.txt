@@ -1,3 +1,8 @@
+set(CUDA_EXTRA_LIBS)
+if(ENABLE_CUDA)
+  list(APPEND CUDA_EXTRA_LIBS ${CUDA_nvToolsExt_LIBRARY})
+endif()
+
 set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp tipstd2psp
   psp2histo psp2histo1d psp2histo1D2 psp2histoE psp2histoH pspreal
   pspstatS psp2range psp2eHisto psp2histoT psp2histoTC pspstatT
@@ -5,7 +10,7 @@ set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp tipstd2psp
 		
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
   Boost::program_options testdsmc yaml-cpp EXP exputil
-  ${CUDA_LIBRARIES} ${VTK_LIBRARIES})
+  ${CUDA_LIBRARIES} ${CUDA_EXTRA_LIBS} ${VTK_LIBRARIES})
 
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>
