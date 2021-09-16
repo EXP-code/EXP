@@ -40,6 +40,7 @@ find_package(Eigen3 REQUIRED)
 if(ENABLE_CUDA)
   find_package(CUDA REQUIRED)
   enable_language(CUDA)
+  list(APPEND CUDA_LIBRARIES ${CUDA_nvToolsExt_LIBRARY})
 endif()
 find_package(PNG)
 include(${VTK_USE_FILE}) # I don't like this global setting stuff, but it's not really
@@ -103,3 +104,28 @@ add_subdirectory(extern/yaml-cpp)
 add_subdirectory(exputil)
 add_subdirectory(src)
 add_subdirectory(utils)
+
+find_package(Doxygen)
+
+option(BUILD_DOCUMENTATION "Create and install the HTML based API
+documentation (requires Doxygen)" ${DOXYGEN_FOUND})
+
+if(BUILD_DOCUMENTATION)
+  if(NOT DOXYGEN_FOUND)
+    message(FATAL_ERROR "Doxygen is needed to build the documentation.")
+  endif()
+
+  set(doxyfile_in ${CMAKE_CURRENT_SOURCE_DIR}/doc/exp.cfg)
+
+  configure_file(${doxyfile_in} @ONLY)
+
+  message("Doxygen build started.")
+
+  add_custom_target(doc
+    COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile_in}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc
+    COMMENT "Generating API documentation with Doxygen"
+    VERBATIM)
+
+  #    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html DESTINATION     share/doc)
+endif()
