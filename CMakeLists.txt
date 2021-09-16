@@ -23,9 +23,9 @@ endif()
 
 add_compile_options(-D_REENTRANT)
 
-option(DSMC_ENABLED "Enable DSCM module" TRUE)
-option(ENABLE_CUDA "Enable CUDA" TRUE)
-option(USER_ENABLED "Enable basic user modules" TRUE)
+option(DSMC_ENABLED "Enable DSCM module" FALSE)
+option(ENABLE_CUDA "Enable CUDA" FALSE)
+option(USER_ENABLED "Enable basic user modules" FALSE)
 option(USER_ALL "Enable all user modules" FALSE)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
