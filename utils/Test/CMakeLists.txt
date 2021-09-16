@@ -4,7 +4,7 @@ set(bin_PROGRAMS testConfig simpleConfig readSL testBarrier)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
   Boost::program_options testdsmc yaml-cpp EXP exputil
-  ${CUDA_LIBRARIES} ${VTK_LIBRARIES})
+  ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY} ${VTK_LIBRARIES})
 
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>

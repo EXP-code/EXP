@@ -39,7 +39,7 @@ target_include_directories(
   ${VTK_INCLUDE})
 target_link_libraries(EXP PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX
   MPI::MPI_CXX Boost::random yaml-cpp ${CUDA_LIBRARIES}
-  ${CUDA_EXTRA_LIBS})
+  ${CUDA_nvToolsExt_LIBRARY})
 
 set(DSMC_LIBS)
 if (DSMC_ENABLED)

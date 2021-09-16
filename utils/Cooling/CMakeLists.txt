@@ -6,7 +6,7 @@ add_executable(hctest hctest.cc)
 
 target_link_libraries(hctest OpenMP::OpenMP_CXX MPI::MPI_CXX
   Boost::program_options expdsmc yaml-cpp exputil EXP
-  ${CUDA_LIBRARIES} ${VTK_LIBRARIES})
+  ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY} ${VTK_LIBRARIES})
 
 target_include_directories(hctest
   PUBLIC $<INSTALL_INTERFACE:include>
