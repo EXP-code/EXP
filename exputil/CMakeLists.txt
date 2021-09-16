@@ -31,25 +31,18 @@ set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
   ${QPDISTF_SRC} ${BESSEL_SRC} ${OPTIMIZATION_SRC}
   ${SLEDGE_SRC} ${CUDA_SRC})
 
-# # shared lib
-# add_library(exputil SHARED ${exputil_SOURCES})
-# set_target_properties(exputil PROPERTIES OUTPUT_NAME exputil)
-# target_include_directories(
-#   exputil
-#   PUBLIC $<INSTALL_INTERFACE:include>
-#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
-#   ${CMAKE_BINARY_DIR} ${DEP_INC}
-#   ${VTK_INCLUDE})
-# target_link_libraries(exputil PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX Boost::random ${CUDA_LIBRARIES})
-
-add_library(exputil_static STATIC ${exputil_SOURCES})
-set_target_properties(exputil_static PROPERTIES OUTPUT_NAME exputil)
+# shared lib
+add_library(exputil ${exputil_SOURCES})
+set_target_properties(exputil PROPERTIES OUTPUT_NAME exputil)
 target_include_directories(
-  exputil_static
+  exputil
   PUBLIC $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
+  ${EIGEN3_INCLUDE_DIR}
+  ${CUDA_TOOLKIT_INCLUDE}
   ${VTK_INCLUDE})
-target_link_libraries(exputil_static PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX Boost::random ${CUDA_LIBRARIES})
+target_link_libraries(exputil PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX Boost::random ${CUDA_LIBRARIES})
+
+install(TARGETS exputil DESTINATION lib)

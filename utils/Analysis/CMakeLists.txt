@@ -1,0 +1,49 @@
+set(bin_PROGRAMS diskcoef halocoef diskcoef diskprof haloprof slabprof
+  psphisto gas2d makegrid pspbox eofpeek diskfreqs mssaprofD mssaprofH
+  pcatest readcoefsD readcoefsH sphprof pspxvalH pspxvalH2 pspxvalD
+  pspxvalD2 pspKLH pspKLD diskeof yaml_diff kdtest)
+
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
+  Boost::program_options testdsmc yaml-cpp exputil EXP
+  ${CUDA_LIBRARIES} ${VTK_LIBRARIES} ${HDF5_LIBRARIES}
+  ${HDF5_HL_LIBRARIES})
+
+set(common_INCLUDE $<INSTALL_INTERFACE:include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/> ${CMAKE_BINARY_DIR}
+  ${DEP_INC} ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/.. ${HDF5_INCLUDE_DIRS} ${VTK_INCLUDE})
+
+add_executable(diskcoef    diskprof_coef.cc Coefs.cc)
+add_executable(halocoef    haloprof_coef.cc Coefs.cc SphereSL.cc)
+add_executable(diskprof    diskprof2.cc ParticleReader.cc)	    
+add_executable(haloprof    haloprof2.cc SphereSL.cc ParticleReader.cc)
+add_executable(slabprof    slabprof.cc ParticleReader.cc)
+add_executable(psphisto    psphisto.cc ParticleReader.cc)
+add_executable(gas2d       gas2dcyl.cc ParticleReader.cc)
+add_executable(makegrid    makegrid.cc ParticleReader.cc)
+add_executable(pspbox      pspbox.cc ParticleReader.cc)
+add_executable(eofpeek     eofpeek.cc)                                 
+add_executable(diskfreqs   diskfreqs.cc Coefs.cc SphereSL.cc ParticleReader.cc)
+add_executable(mssaprofD   mssaprof_disk.cc ParticleReader.cc)
+add_executable(mssaprofH   mssaprof_halo.cc SphereSL.cc ParticleReader.cc)
+add_executable(pcatest     pcatest.cc ParticleReader.cc)
+add_executable(readcoefsD  readcoefs.cc  Coefs.cc)
+add_executable(readcoefsH  readcoefs2F.cc Coefs.cc)
+add_executable(sphprof     sphprof.cc ParticleReader.cc SphereSL.cc)
+add_executable(pspxvalH    cross_validation_sph.cc ParticleReader.cc SphereSL.cc)
+add_executable(pspxvalH2   cross_validation_sph2.cc ParticleReader.cc SphereSL.cc)
+add_executable(pspxvalD    cross_validation_cyl.cc ParticleReader.cc dtorh1.f rout.f)
+add_executable(pspxvalD2   cross_validation_cyl2.cc ParticleReader.cc)
+add_executable(pspKLH      KL_sph.cc SphereSL.cc ParticleReader.cc)
+add_executable(pspKLD      KL_cyl.cc ParticleReader.cc)
+add_executable(diskeof     diskeof.cc ParticleReader.cc)
+add_executable(yaml_diff   yaml_diff.cc)
+add_executable(kdtest      KDcyltest.cc ParticleReader.cc)
+
+
+foreach(program ${bin_PROGRAMS})
+  target_link_libraries(${program} ${common_LINKLIB})
+  target_include_directories(${program} PUBLIC ${common_INCLUDE})
+  install(TARGETS ${program} DESTINATION bin)
+endforeach()

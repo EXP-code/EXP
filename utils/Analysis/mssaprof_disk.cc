@@ -56,7 +56,7 @@ namespace pt = boost::property_tree;
 
 				// MDW classes
 #include <numerical.H>
-#include "Particle.h"
+#include <Particle.H>
 #include <interp.H>
 #include <EmpCylSL.H>
 
