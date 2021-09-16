@@ -4,8 +4,8 @@ set(bin_PROGRAMS shrinkics gendisk gsphere pstmod empinfo empdump
   forcetest hdf52accel forcetest2)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
-  Boost::program_options testdsmc yaml-cpp EXP exputil
-  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+  Boost::program_options yaml-cpp EXP exputil ${VTK_LIBRARIES}
+  ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})

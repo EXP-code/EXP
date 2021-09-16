@@ -6,8 +6,7 @@ set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp tipstd2psp
   spl2psp ascii2psp2 psp2vtu psp2rings psp2bess psp2lagu psp2interp)
 		
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
-  Boost::program_options testdsmc yaml-cpp EXP exputil
-  ${VTK_LIBRARIES})
+  Boost::program_options yaml-cpp EXP exputil ${VTK_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})

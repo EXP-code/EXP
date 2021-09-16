@@ -2,8 +2,7 @@
 set(bin_PROGRAMS testConfig simpleConfig readSL testBarrier)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
-  Boost::program_options testdsmc yaml-cpp EXP exputil
-  ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY} ${VTK_LIBRARIES})
+  Boost::program_options yaml-cpp EXP exputil ${VTK_LIBRARIES})
 
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>
@@ -14,6 +13,10 @@ set(common_INCLUDE
   ${CMAKE_CURRENT_SOURCE_DIR}/..
   ${VTK_INCLUDE}
   )
+
+if (ENABLE_CUDA)
+  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY} )
+endif()
 
 add_executable(testConfig     test_config.cc)
 add_executable(simpleConfig   simple_config.cc)

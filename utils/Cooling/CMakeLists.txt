@@ -4,8 +4,7 @@ set(bin_PROGRAMS hctest)
 add_executable(hctest hctest.cc)
 
 target_link_libraries(hctest OpenMP::OpenMP_CXX MPI::MPI_CXX
-  Boost::program_options expdsmc yaml-cpp exputil EXP
-  ${VTK_LIBRARIES})
+  Boost::program_options yaml-cpp exputil EXP ${VTK_LIBRARIES})
 
 if(HAVE_CUDA)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
