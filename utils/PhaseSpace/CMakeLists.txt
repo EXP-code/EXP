@@ -4,7 +4,7 @@ set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp tipstd2psp
   spl2psp ascii2psp2 psp2vtu psp2rings psp2bess psp2lagu psp2interp)
 		
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
-  Boost::program_options testdsmc yaml-cpp exputil
+  Boost::program_options testdsmc yaml-cpp EXP exputil
   ${CUDA_LIBRARIES} ${VTK_LIBRARIES})
 
 set(common_INCLUDE
