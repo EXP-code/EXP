@@ -105,6 +105,13 @@ add_subdirectory(exputil)
 add_subdirectory(src)
 add_subdirectory(utils)
 
+# Force installation of the yaml-cpp libraries
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/extern/yaml-cpp/
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  FILES_MATCHING PATTERN "libyaml-cpp.so*")
+
+# Look for the Doxygen and enable building with the doc target
+# using "make doc"
 find_package(Doxygen)
 
 option(BUILD_DOCUMENTATION "Create and install the HTML based API
