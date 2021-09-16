@@ -36,7 +36,7 @@ set(common_INCLUDE_DIRS
 
 set(common_LINKLIB
   ${DSMC_LIBS} exputil OpenMP::OpenMP_CXX
-  MPI::MPI_CXX Boost::program_options testdsmc yaml-cpp
+  MPI::MPI_CXX Boost::program_options yaml-cpp
   ${CUDA_LIBRARIES} ${VTK_LIBRARIES})
 
 if(CUDA_FOUND)
