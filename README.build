@@ -1,8 +1,28 @@
 This version uses CMake to configure.  The basis steps are as follows:
 
+# We are now using git submodules to install png++ and yaml-cpp, which
+# are not common in the HPC environments.  So, from the top-level directory,
+# do the following:
+
+git submodule update --init --recursive 
+
 # Make a build directory and change to that
 mkdir -p build
 cd build
+
+# You may need to adjust the cmake call below.  Besides Cuda, make sure that
+# the Eigen3_DIR is set to the install location so CMake can find the Eigen3
+# rules.
+
+# The install location will need to be changed in the example below.  E.g. I
+# would use -DCMAKE_INSTALL_PREFIX=/home/mdw_umass_edu on the UMass Unity
+# cluster.
+
+# There are various options.  User modules are off by default.  These can be
+# enabled by -DUSER_ENABLED=YES.  This compiles a subset of user modules.  The
+# full set can be compiled using -DUSER_ALL=YES.
+
+# DSMC compilation is off by default.
 
 # With cuda.  NB: different version of CMake seem to treat Cuda
 # architecture specification differently.  This recipe bypasses CMake
