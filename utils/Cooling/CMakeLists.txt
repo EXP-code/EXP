@@ -1,3 +1,5 @@
+message(${CMAKE_CURRENT_SOURCE_DIR})
+
 set(bin_PROGRAMS hctest)
 
 add_executable(hctest hctest.cc)

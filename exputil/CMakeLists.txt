@@ -1,3 +1,4 @@
+message(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(ODE_SRC rk4.cc bs.cc odesolve.cc)
 set(SYMP_SRC sia4.cc)
@@ -43,6 +44,7 @@ target_include_directories(
   ${EIGEN3_INCLUDE_DIR}
   ${CUDA_TOOLKIT_INCLUDE}
   ${VTK_INCLUDE})
-target_link_libraries(exputil PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX Boost::random ${CUDA_LIBRARIES})
+target_link_libraries(exputil PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX
+  MPI::MPI_CXX Boost::random ${CUDA_LIBRARIES})
 
 install(TARGETS exputil DESTINATION lib)

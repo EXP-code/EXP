@@ -1,13 +1,11 @@
 message(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(CUDA_SRC)
-set(CUDA_EXTRA_LIBS)
 if (ENABLE_CUDA)
   list(APPEND CUDA_SRC 
     cudaParticle.cu cudaSphericalBasis.cu cudaCylinder.cu
     cudaEmpCylSL.cu cudaComponent.cu NVTX.cc cudaHOT.cu
     cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu cudaOrient.cu)
-  list(APPEND CUDA_EXTRA_LIBS ${CUDA_nvToolsExt_LIBRARY})
 endif()
 
 set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc

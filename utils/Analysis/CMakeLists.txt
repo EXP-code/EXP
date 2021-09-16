@@ -1,3 +1,5 @@
+message(${CMAKE_CURRENT_SOURCE_DIR})
+
 set(bin_PROGRAMS diskcoef halocoef diskcoef diskprof haloprof slabprof
   psphisto gas2d makegrid pspbox eofpeek diskfreqs mssaprofD mssaprofH
   pcatest readcoefsD readcoefsH sphprof pspxvalH pspxvalH2 pspxvalD

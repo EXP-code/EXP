@@ -1,3 +1,4 @@
+message(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(DSMC_SRC TreeDSMC.cc Collide.cc CollideLTE.cc HeatCool.cc
   CollideIon.cc Ion.cc interactSelect.cc Elastic.cc TopBase.cc

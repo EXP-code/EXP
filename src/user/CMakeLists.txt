@@ -1,3 +1,4 @@
+message(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(USER_MODULES user bar ebar logpot disk ebarp halo ebars ebarn
   periodic atmos reflect trigger mndisk tidalrad massevo addmass )
