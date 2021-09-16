@@ -24,11 +24,8 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc chkSlurm.c
   chkTimer.cc pHOT.cc VtkPCA.cc GravKernel.cc ${CUDA_SRC})
 
-add_library(EXP ${exp_SOURCES})
-set_target_properties(EXP PROPERTIES OUTPUT_NAME EXP)
-target_include_directories(
-  EXP
-  PUBLIC $<INSTALL_INTERFACE:include>
+set(common_INCLUDE_DIRS 
+  $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
@@ -36,9 +33,21 @@ target_include_directories(
   ${EIGEN3_INCLUDE_DIR}
   ${CUDA_TOOLKIT_INCLUDE}
   ${VTK_INCLUDE})
-target_link_libraries(EXP PUBLIC ${DEP_LIB} OpenMP::OpenMP_CXX
-  MPI::MPI_CXX Boost::random yaml-cpp ${CUDA_LIBRARIES}
-  ${CUDA_nvToolsExt_LIBRARY})
+
+set(common_LINKLIB
+  ${DSMC_LIBS} exputil OpenMP::OpenMP_CXX
+  MPI::MPI_CXX Boost::program_options testdsmc yaml-cpp
+  ${CUDA_LIBRARIES} ${VTK_LIBRARIES})
+
+if(CUDA_FOUND)
+  list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
+  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+endif()
+
+add_library(EXP ${exp_SOURCES})
+set_target_properties(EXP PROPERTIES OUTPUT_NAME EXP)
+target_include_directories(EXP PUBLIC ${common_INCLUDE_DIRS})
+target_link_libraries(EXP PUBLIC ${common_LINKLIB})
 
 set(DSMC_LIBS)
 if (DSMC_ENABLED)
@@ -51,22 +60,8 @@ if (USER_ENABLED OR USER_ALL)
 endif()
 
 add_executable(exp expand.cc)
-
-target_link_libraries(exp ${DSMC_LIBS} exputil EXP OpenMP::OpenMP_CXX
-  MPI::MPI_CXX Boost::program_options testdsmc yaml-cpp
-  ${CUDA_LIBRARIES} ${VTK_LIBRARIES})
-
-target_include_directories(exp
-  PUBLIC $<INSTALL_INTERFACE:include>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
-  ${CMAKE_BINARY_DIR} ${DEP_INC}
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/..
-  ${EIGEN3_INCLUDE_DIR}
-  ${CUDA_TOOLKIT_INCLUDE}
-  ${VTK_INCLUDE}
-  )
+target_include_directories(exp PUBLIC ${common_INCLUDE_DIRS})
+target_link_libraries(exp PUBLIC ${common_LINKLIB} EXP)
 
 install(TARGETS EXP DESTINATION lib)
 install(TARGETS exp DESTINATION bin)

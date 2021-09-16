@@ -9,7 +9,7 @@ if (USER_ALL)
 endif()
 
 
-set (PUBLIC_INCLUDE_LIST
+set (common_INCLUDE_DIRS
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
@@ -18,9 +18,14 @@ set (PUBLIC_INCLUDE_LIST
   ${CMAKE_CURRENT_SOURCE_DIR}/..
   ${VTK_INCLUDE})
 
-set (PUBLIC_LINK_LIST ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
-Boost::random Boost::serialization Boost::filesystem exputil
-yaml-cpp ${CUDA_LIBRARIES})
+set (common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
+  Boost::random Boost::serialization Boost::filesystem exputil
+  yaml-cpp)
+
+if(CUDA_FOUND)
+  list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
+  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+endif()
 
 set (common_SRC ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc
   EllipForce.cc SatelliteOrbit.cc CircularOrbit.cc
@@ -31,13 +36,13 @@ set (common_SRC ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc
 set (swake_SRC respmat6.cc cratint.cc rombeveccmp.cc)
 
 add_library(common ${common_SRC})
-target_include_directories(common PUBLIC ${PUBLIC_INCLUDE_LIST})
-target_link_libraries(common PUBLIC ${PUBLIC_LINK_LIST})
+target_include_directories(common PUBLIC ${common_INCLUDE_DIRS})
+target_link_libraries(common PUBLIC ${common_LINKLIBS})
 
 if (USER_ALL)
   add_library(swake ${common_SRC})
-  target_include_directories(swake PUBLIC ${PUBLIC_INCLUDE_LIST})
-  target_link_libraries(swake PUBLIC ${PUBLIC_LINK_LIST})
+  target_include_directories(swake PUBLIC ${common_INCLUDE_DIRS})
+  target_link_libraries(swake PUBLIC ${common_LINKLIBS})
 endif()
 
 set(user_SRC      UserTest.cc)
@@ -82,12 +87,12 @@ endif()
 foreach(mlib ${USER_MODULES})
   add_library(${mlib} ${${mlib}_SRC})
   set_target_properties(${mlib} PROPERTIES OUTPUT_NAME ${mlib})
-  target_include_directories(${mlib} PUBLIC ${PUBLIC_INCLUDE_LIST})
-  target_link_libraries(${mlib} PUBLIC common ${PUBLIC_LINK_LIST})
+  target_include_directories(${mlib} PUBLIC ${common_INCLUDE_DIRS})
+  target_link_libraries(${mlib} PUBLIC common ${common_LINKLIBS})
   install(TARGETS ${mlib} DESTINATION lib/user)
 endforeach()
 
 if (USER_ALL)
-  target_link_libraries(satwake PUBLIC common swake ${PUBLIC_LINK_LIST})
+  target_link_libraries(satwake PUBLIC common swake ${common_LINKLIBS})
 endif()
 

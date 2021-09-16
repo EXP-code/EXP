@@ -5,8 +5,11 @@ set(bin_PROGRAMS shrinkics gendisk gsphere pstmod empinfo empdump
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
   Boost::program_options testdsmc yaml-cpp EXP exputil
-  ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY} ${VTK_LIBRARIES}
-  ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+
+if(CUDA_FOUND)
+  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+endif()
 
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>

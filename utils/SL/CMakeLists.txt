@@ -3,7 +3,11 @@ set(bin_PROGRAMS slcheck slshift orthochk diskpot qtest)
 		
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
   Boost::program_options testdsmc yaml-cpp EXP exputil
-  ${CUDA_LIBRARIES} ${VTK_LIBRARIES})
+  ${VTK_LIBRARIES})
+
+if(CUDA_FOUND)
+  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+endif()
 
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>

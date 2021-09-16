@@ -6,8 +6,15 @@ set(bin_PROGRAMS diskcoef halocoef diskcoef diskprof haloprof slabprof
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
   Boost::program_options testdsmc yaml-cpp exputil EXP
-  ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY} ${VTK_LIBRARIES}
-  ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES} ${SLURM_LIBRARY})
+  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+
+if(CUDA_FOUND)
+  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+endif()
+
+if(SLURM_FOUND)
+  list(APPEND common_LINKLIB ${SLURM_LIBRARY})
+endif()
 
 set(common_INCLUDE $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
