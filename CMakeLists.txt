@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(
   EXP
-  VERSION 7.697
+  VERSION 7.698
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
@@ -66,7 +66,7 @@ if(HDF5_FOUND)
   set(HAVE_HDF5 TRUE)
 endif()
 if(PNG_FOUND)
-  include_directories(${PROJECT_SOURCE_DIR}/extern/png++)
+  include_directories(${PROJECT_SOURCE_DIR}/extern)
   set(HAVE_LIBPNGPP TRUE)
 endif()
 

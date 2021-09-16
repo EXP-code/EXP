@@ -8,6 +8,7 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <config.h>
 #include <SphereSL.H>
 
 #ifdef HAVE_LIBPNGPP
