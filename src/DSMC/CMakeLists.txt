@@ -1,4 +1,3 @@
-message(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(DSMC_SRC TreeDSMC.cc Collide.cc CollideLTE.cc HeatCool.cc
   CollideIon.cc Ion.cc interactSelect.cc Elastic.cc TopBase.cc
@@ -23,7 +22,7 @@ set(COMMON_INCLUDE_DIRS
 set(COMMON_LINK_LIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
   Boost::random Boost::serialization Boost::filesystem
   Boost::program_options exputil yaml-cpp ${CUDA_LIBRARIES}
-  ${VTK_LIBRARIES})
+  ${VTK_LIBRARIES} ${SLURM_LIBRARY})
 
 add_library(expdsmc ${DSMC_SRC})
 set_target_properties(expdsmc PROPERTIES OUTPUT_NAME expdsmc)

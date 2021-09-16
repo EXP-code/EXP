@@ -1,4 +1,3 @@
-message(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(ODE_SRC rk4.cc bs.cc odesolve.cc)
 set(SYMP_SRC sia4.cc)

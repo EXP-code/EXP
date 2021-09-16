@@ -1,4 +1,3 @@
-message(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(bin_PROGRAMS diskcoef halocoef diskcoef diskprof haloprof slabprof
   psphisto gas2d makegrid pspbox eofpeek diskfreqs mssaprofD mssaprofH
@@ -8,7 +7,7 @@ set(bin_PROGRAMS diskcoef halocoef diskcoef diskprof haloprof slabprof
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
   Boost::program_options testdsmc yaml-cpp exputil EXP
   ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY} ${VTK_LIBRARIES}
-  ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+  ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES} ${SLURM_LIBRARY})
 
 set(common_INCLUDE $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>

@@ -1,4 +1,3 @@
-message(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(bin_PROGRAMS shrinkics gendisk gsphere pstmod empinfo empdump
   eofbasis makeIon phIon phConv eofcomp testcoefs testcoefs2 testdeval

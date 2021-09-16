@@ -1,4 +1,3 @@
-message(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(bin_PROGRAMS slcheck slshift orthochk diskpot qtest)
 		

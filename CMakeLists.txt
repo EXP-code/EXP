@@ -40,6 +40,7 @@ find_package(Eigen3 REQUIRED)
 if(ENABLE_CUDA)
   find_package(CUDA REQUIRED)
   enable_language(CUDA)
+  find_cuda_helper_libs(nvToolsExt)
 endif()
 find_package(PNG)
 include(${VTK_USE_FILE}) # I don't like this global setting stuff, but it's not really
