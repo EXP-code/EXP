@@ -6,6 +6,8 @@
 #include <vector>
 #include <cmath>
 
+#include <boost/random/mersenne_twister.hpp>
+
 #include <getopt.h>		// For long options
 
 #include <global.H>		// EXP globals
@@ -46,6 +48,9 @@ void usage(char *prog)
 
   exit(0);
 }
+
+string outdir, runtag;
+boost::mt19937 random_gen;
 
 int 
 main(int argc, char** argv)
