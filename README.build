@@ -18,15 +18,17 @@ cd build
 # would use -DCMAKE_INSTALL_PREFIX=/home/mdw_umass_edu on the UMass Unity
 # cluster.
 
-# There are various options.  User modules are off by default.  These can be
-# enabled by -DUSER_ENABLED=YES.  This compiles a subset of user modules.  The
-# full set can be compiled using -DUSER_ALL=YES.
+# There are various options.  A subset of user modules are ON by
+# default.  These can be disabled by -DUSER_ENABLED=NO.  This compiles
+# a subset of user modules.  The full set can be compiled using
+# -DUSER_ALL=YES.
 
 # DSMC compilation is off by default.
 
 # With cuda.  NB: different version of CMake seem to treat Cuda
 # architecture specification differently.  This recipe bypasses CMake
-# and simply sets the flags directly.
+# and simply sets the flags directly.  This should be fixed at some
+# point.
 #
 cmake -DCUDA_NVCC_FLAGS="-arch=sm_52 -gencode=arch=compute_61,code=sm_61 -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_75,code=sm_75" -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUDA=YES -DUSER_ENABLED=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
 

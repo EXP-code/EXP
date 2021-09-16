@@ -25,7 +25,7 @@ add_compile_options(-D_REENTRANT)
 
 option(DSMC_ENABLED "Enable DSCM module" FALSE)
 option(ENABLE_CUDA "Enable CUDA" FALSE)
-option(USER_ENABLED "Enable basic user modules" FALSE)
+option(USER_ENABLED "Enable basic user modules" ON)
 option(USER_ALL "Enable all user modules" FALSE)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
