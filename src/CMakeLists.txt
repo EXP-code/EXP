@@ -34,14 +34,17 @@ set(common_INCLUDE_DIRS
   ${CUDA_TOOLKIT_INCLUDE}
   ${VTK_INCLUDE})
 
-set(common_LINKLIB
-  ${DSMC_LIBS} exputil OpenMP::OpenMP_CXX
-  MPI::MPI_CXX Boost::program_options yaml-cpp
-  ${CUDA_LIBRARIES} ${VTK_LIBRARIES})
+set(common_LINKLIB ${DSMC_LIBS} exputil OpenMP::OpenMP_CXX
+  MPI::MPI_CXX Boost::filesystem Boost::program_options yaml-cpp
+  ${VTK_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+endif()
+
+if(SLURM_FOUND)
+  list(APPEND common_LINKLIB ${SLURM_LIBRARY})
 endif()
 
 add_library(EXP ${exp_SOURCES})

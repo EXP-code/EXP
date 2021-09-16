@@ -98,7 +98,7 @@ include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
 
 message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
 
-configure_file(config_cmake.h.in config.h)
+configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h.in ${CMAKE_SOURCE_DIR}/config.h)
 
 add_subdirectory(extern/yaml-cpp)
 add_subdirectory(exputil)
@@ -124,8 +124,6 @@ if(BUILD_DOCUMENTATION)
 
   set(doxyfile_in ${CMAKE_CURRENT_SOURCE_DIR}/doc/exp.cfg)
 
-  configure_file(${doxyfile_in} @ONLY)
-
   message("Doxygen build started.")
 
   add_custom_target(doc
@@ -134,5 +132,6 @@ if(BUILD_DOCUMENTATION)
     COMMENT "Generating API documentation with Doxygen"
     VERBATIM)
 
-  #    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html DESTINATION     share/doc)
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html
+    DESTINATION share/doc)
 endif()
