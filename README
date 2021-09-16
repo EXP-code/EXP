@@ -35,27 +35,7 @@ using 'mpirun'.
 Compile hints:
 --------------
 
-Run: 
-
-libtoolize
-aclocal -I m4
-autoheader
-automake -a
-automake
-autoconf
-
-And then configure using the following:
-
-./configure --with-vtk-version=6.3 --prefix=/home/someuser --with-boost-libdir=/usr/lib/x86_64-linux-gnu LDFLAGS=-lmpi --with-vtk-lib-suffix=6.3 --with-dsmc
-
-where the --with-vtk* flags are necessary if your distribution uses versioned VTK.  In this example, the VTK version is 6.3.  You will only need the 
---with-dsmc if you are working with DSMC.
-
-When configuring alter /home/someuser in the above command to your desired prefix.
-Finally run make:
-
-make LDFLAGS="-L." CXXFLAGS="-O3 -DOMPI_SKIP_MPICXX" CFLAGS="-O3" NVCC_EXTRA="-O3" -j16
-make install
+See README.compile for a brief synposis.
 
 If you are using DSMC, download and install the CHIANTI database from https://www.chiantidatabase.org
 
