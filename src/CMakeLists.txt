@@ -27,7 +27,7 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
 set(common_INCLUDE_DIRS 
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${EIGEN3_INCLUDE_DIR}

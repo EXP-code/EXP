@@ -35,14 +35,16 @@ set (common_SRC ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc
 
 set (swake_SRC respmat6.cc cratint.cc rombeveccmp.cc)
 
-add_library(common ${common_SRC})
-target_include_directories(common PUBLIC ${common_INCLUDE_DIRS})
-target_link_libraries(common PUBLIC ${common_LINKLIBS})
+add_library(expuser_common ${common_SRC})
+target_include_directories(expuser_common PUBLIC ${common_INCLUDE_DIRS})
+target_link_libraries(expuser_common PUBLIC ${common_LINKLIBS})
+install(TARGETS expuser_common DESTINATION lib)
 
 if (USER_ALL)
-  add_library(swake ${common_SRC})
-  target_include_directories(swake PUBLIC ${common_INCLUDE_DIRS})
-  target_link_libraries(swake PUBLIC ${common_LINKLIBS})
+  add_library(expuser_swake ${swake_SRC})
+  target_include_directories(expuser_swake PUBLIC ${common_INCLUDE_DIRS})
+  target_link_libraries(expuser_swake PUBLIC ${common_LINKLIBS})
+  install(TARGETS expuser_swake DESTINATION lib)
 endif()
 
 set(user_SRC      UserTest.cc)
@@ -88,11 +90,12 @@ foreach(mlib ${USER_MODULES})
   add_library(${mlib} ${${mlib}_SRC})
   set_target_properties(${mlib} PROPERTIES OUTPUT_NAME ${mlib})
   target_include_directories(${mlib} PUBLIC ${common_INCLUDE_DIRS})
-  target_link_libraries(${mlib} PUBLIC common ${common_LINKLIBS})
+  target_link_libraries(${mlib} PUBLIC expuser_common ${common_LINKLIBS})
   install(TARGETS ${mlib} DESTINATION lib/user)
 endforeach()
 
 if (USER_ALL)
-  target_link_libraries(satwake PUBLIC common swake ${common_LINKLIBS})
+  target_link_libraries(satwake PUBLIC expuser_common expuser_swake
+    ${common_LINKLIBS})
 endif()
 
