@@ -23,7 +23,6 @@ endif()
 
 add_compile_options(-D_REENTRANT)
 
-option(ENABLE_DOC "Create the Doxygen documentation" FALSE)
 option(ENABLE_CUDA "Enable CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
@@ -114,27 +113,24 @@ install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/extern/yaml-cpp/
 # Look for the Doxygen and enable building with the doc target
 # using "make doc"
 
-if(ENABLE_DOC)
+find_package(Doxygen)
 
-  find_package(Doxygen)
+if(DOXYGEN_FOUND)
 
-  if(DOXYGEN_FOUND)
+  set(doxyfile_in ${CMAKE_CURRENT_SOURCE_DIR}/doc/exp.cfg)
 
-    set(doxyfile_in ${CMAKE_CURRENT_SOURCE_DIR}/doc/exp.cfg)
+  message("Making documenation using Doxygen.")
 
-    message("Making documenation using Doxygen.")
+  add_custom_target(doc
+    COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile_in}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc
+    COMMENT "Generating API documentation with Doxygen"
+    VERBATIM)
+  
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc/html
+    DESTINATION share/EXP/doc)
+endif()
 
-    add_custom_target(doc
-      COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile_in}
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc
-      COMMENT "Generating API documentation with Doxygen"
-      VERBATIM)
-    
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc/html
-      DESTINATION share/doc)
-  endif()
-
-  if(NOT DOXYGEN_FOUND)
-    message("Doxygen is needed to build the documentation.")
-  endif()
+if(NOT DOXYGEN_FOUND)
+  message("Doxygen is needed to build the documentation.  This is optional.")
 endif()

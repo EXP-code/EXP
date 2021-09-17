@@ -21,9 +21,9 @@ cd build
 # There are various options.  A subset of user modules are ON by
 # default.  These can be disabled by -DENABLE_USER=NO.  This compiles
 # a subset of user modules.  The full set can be compiled using
-# -DUSER_ALL=YES.
+# -DENABLE_USER_ALL=YES.
 
-# DSMC compilation is off by default.
+# ENABLE_DSMC compiles the dsmc module and off by default.
 
 # With cuda.  NB: different version of CMake seem to treat Cuda
 # architecture specification differently.  This recipe bypasses CMake
@@ -39,7 +39,10 @@ cmake -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INST
 # Make the package
 make -j N
 
-# Make the documentation (optional)
+# Make the documentation (optional).  The doc will be installed in
+# share/EXP/html under the install path.  The documentation is not
+# made by default, and you can skip this.
+
 make doc
 
 # Install to the target location
