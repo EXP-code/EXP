@@ -1,4 +1,3 @@
-message(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp tipstd2psp
   psp2histo psp2histo1d psp2histo1D2 psp2histoE psp2histoH pspreal
