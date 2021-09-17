@@ -21,8 +21,8 @@ private:
   void determine_coefficients(void) {}
   void determine_acceleration_and_potential(void) {}
 
-  void * determine_coefficients_thread(void * arg) {}
-  void * determine_acceleration_and_potential_thread(void * arg) {}
+  void * determine_coefficients_thread(void * arg) { return 0; }
+  void * determine_acceleration_and_potential_thread(void * arg) { return 0;}
 
 public:
 
