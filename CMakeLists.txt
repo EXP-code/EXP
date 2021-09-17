@@ -114,17 +114,10 @@ install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/extern/yaml-cpp/
 # using "make doc"
 find_package(Doxygen)
 
-option(BUILD_DOCUMENTATION "Create and install the HTML based API
-documentation (requires Doxygen)" ${DOXYGEN_FOUND})
-
-if(BUILD_DOCUMENTATION)
-  if(NOT DOXYGEN_FOUND)
-    message(FATAL_ERROR "Doxygen is needed to build the documentation.")
-  endif()
-
+if(DOXYGEN_FOUND)
   set(doxyfile_in ${CMAKE_CURRENT_SOURCE_DIR}/doc/exp.cfg)
 
-  message("Doxygen build started.")
+  message("Making documenation using Doxygen.")
 
   add_custom_target(doc
     COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile_in}
@@ -132,6 +125,10 @@ if(BUILD_DOCUMENTATION)
     COMMENT "Generating API documentation with Doxygen"
     VERBATIM)
 
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc/html
     DESTINATION share/doc)
+endif()
+
+if(NOT DOXYGEN_FOUND)
+  message("Doxygen is needed to build the documentation.")
 endif()
