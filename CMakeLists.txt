@@ -28,6 +28,7 @@ option(ENABLE_DSMC "Enable DSCM module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
 option(ENABLE_USER_ALL "Enable all user modules" FALSE)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+option(BUILD_DOCS "Build documentation" OFF)
 
 # required compiler features
 find_package(MPI REQUIRED)
@@ -106,22 +107,18 @@ add_subdirectory(src)
 add_subdirectory(utils)
 
 # Force installation of the yaml-cpp libraries
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/extern/yaml-cpp/
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  FILES_MATCHING PATTERN "libyaml-cpp.so*")
+install(TARGETS yaml-cpp DESTINATION lib)
 
-# Look for the Doxygen and enable building with the doc target
-# using "make doc"
-
-find_package(Doxygen)
+if (BUILD_DOCS)
+  find_package(Doxygen REQUIRED)
+endif()
 
 if(DOXYGEN_FOUND)
-
   set(doxyfile_in ${CMAKE_CURRENT_SOURCE_DIR}/doc/exp.cfg)
 
   message("Making documenation using Doxygen.")
 
-  add_custom_target(doc
+  add_custom_target(doc ALL
     COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile_in}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc
     COMMENT "Generating API documentation with Doxygen"
@@ -129,8 +126,6 @@ if(DOXYGEN_FOUND)
   
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc/html
     DESTINATION share/EXP/doc)
-endif()
-
-if(NOT DOXYGEN_FOUND)
-  message("Doxygen is needed to build the documentation.  This is optional.")
+else()
+  message("Doxygen is needed to build the documentation. This is optional.")
 endif()
