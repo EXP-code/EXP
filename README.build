@@ -26,11 +26,13 @@ cd build
 # ENABLE_DSMC compiles the dsmc module and off by default.
 
 # With cuda.  NB: different version of CMake seem to treat Cuda
-# architecture specification differently.  This recipe bypasses CMake
-# and simply sets the flags directly.  This should be fixed at some
-# point.
+# architecture specification differently.  The current implementation
+# uses an archetecture list set within the top-level
+# CMakeLists. Version >= 3.18 uses a command-line settable variable.
+# This should switched over once we are using versions >= 3.18
+# everywhere.
 #
-cmake -DCUDA_NVCC_FLAGS="-arch=sm_52 -gencode=arch=compute_61,code=sm_61 -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_75,code=sm_75" -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUDA=YES -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
+cmake -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUDA=YES -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
 
 # Without cuda
 #

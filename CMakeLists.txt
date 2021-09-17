@@ -42,6 +42,8 @@ if(ENABLE_CUDA)
   find_package(CUDA REQUIRED)
   enable_language(CUDA)
   find_cuda_helper_libs(nvToolsExt)
+  cuda_select_nvcc_arch_flags(ARCH_FLAGS 5.2 6.1 7.2 7.5)
+  list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
 endif()
 find_package(PNG)
 include(${VTK_USE_FILE}) # I don't like this global setting stuff, but it's not really
@@ -126,6 +128,8 @@ if(DOXYGEN_FOUND)
   
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc/html
     DESTINATION share/EXP/doc)
-else()
+endif()
+
+if (NOT DOXYGEN_FOUND AND BUILD_DOCS)
   message("Doxygen is needed to build the documentation. This is optional.")
 endif()
