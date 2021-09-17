@@ -53,12 +53,12 @@ target_include_directories(EXP PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(EXP PUBLIC ${common_LINKLIB})
 
 set(DSMC_LIBS)
-if (DSMC_ENABLED)
+if (ENABLE_DSMC)
   add_subdirectory(DSMC)
   list(APPEND DSMC_LIBS expdsmc)
 endif()
 
-if (USER_ENABLED OR USER_ALL)
+if (ENABLE_USER OR ENABLE_USER_ALL)
   add_subdirectory(user)
 endif()
 

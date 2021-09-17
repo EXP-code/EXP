@@ -1,5 +1,5 @@
 
-if(DSMC_ENABLED)
+if(ENABLE_DSMC)
 
   set(bin_PROGRAMS hctest)
 
