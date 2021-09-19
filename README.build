@@ -1,8 +1,8 @@
 This version uses CMake to configure.  The basis steps are as follows:
 
-# We are now using git submodules to install png++ and yaml-cpp, which
-# are not common in the HPC environments.  So, from the top-level directory,
-# do the following:
+# We are now using git submodules to yaml-cpp, which is not common in
+# the HPC environments.  So, from the top-level directory, do the
+# following:
 
 git submodule update --init --recursive 
 
@@ -47,6 +47,8 @@ cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/shar
 
 # Make the package
 make -j N
+# Here, 'N' is the number of jobs to run simultaneously.
+
 
 # Install to the target location
 make install

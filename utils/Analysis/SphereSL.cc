@@ -31,7 +31,7 @@ SphereSL::SphereSL(boost::shared_ptr<SphericalModelTable> mod,
 		     mod->get_max_radius()*1.0e-4);
   rmax = mod->get_max_radius()*0.99;
 
-  sl = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, rmin, rmax, mod, CMAP, Scale);
+  sl = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, rmin, rmax, mod, true, CMAP, Scale);
 
   lmax = LMAX;
   nmax = NMAX;
