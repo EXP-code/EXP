@@ -75,7 +75,7 @@ public:
 
   //! Constructor
   SLGridCyl(int mmax, int nmax, int numr, int numk, double rmin, double rmax,
-	    double l, bool cache=true, int Cmap=0, double Scale=1.0,
+	    double l, bool cache, int Cmap, double Scale,
 	    bool Verbose=false);
   //! Destructor
   ~SLGridCyl();
@@ -187,14 +187,14 @@ public:
 				// Constructors
 
   //! Constructor with model table
-  SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
-	    boost::shared_ptr<SphericalModelTable> mod, 
-	    bool cache, int Cmap=0, double Scale=1.0, bool Verbose=false);
+  SLGridSph(boost::shared_ptr<SphericalModelTable> mod,
+	    int lmax, int nmax, int numr, double rmin, double rmax,
+	    bool cache, int Cmap, double Scale, bool Verbose=false);
 
   //! Constructor (uses file *model_file_name* for file)
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
-	    bool cache, int Cmap=0, double Scale=1.0, 
-	    int DIVERGE=0, double DFAC=1.0, bool Verbose=false);
+	    bool cache, int Cmap, double Scale, 
+	    int DIVERGE, double DFAC, bool Verbose=false);
 
   //! Destructor
   virtual ~SLGridSph();

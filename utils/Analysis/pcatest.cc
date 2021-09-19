@@ -59,8 +59,6 @@ namespace pt = boost::property_tree;
 #include <localmpi.H>
 #include <foarray.H>
 
-#include <VtkGrid.H>
-
 #ifdef DEBUG
 #ifndef _REDUCED
 #pragma message "NOT using reduced particle structure"

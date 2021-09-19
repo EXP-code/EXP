@@ -1562,9 +1562,8 @@ SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
 }
 
-SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
-		     double RMIN, double RMAX, 
-		     boost::shared_ptr<SphericalModelTable> mod,
+SLGridSph::SLGridSph(boost::shared_ptr<SphericalModelTable> mod,
+		     int LMAX, int NMAX, int NUMR, double RMIN, double RMAX, 
 		     bool CACHE, int CMAP, double SCALE, bool VERBOSE)
 {
   mpi_buf  = 0;

@@ -57,7 +57,7 @@ namespace po = boost::program_options;
 #include <interp.H>
 #include <massmodel.H>
 #include <SphereSL.H>
-#include <VtkGrid.H>
+#include <DataGrid.H>
 #include <localmpi.H>
 #include <foarray.H>
 
@@ -161,7 +161,7 @@ void write_output(SphereSL& ortho, int icnt, double time)
     
     if (myid==0) {
 
-      VtkGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
+      DataGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
 
       std::vector<double> data(OUTR*OUTR*OUTR);
 

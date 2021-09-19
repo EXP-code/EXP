@@ -63,7 +63,7 @@ namespace pt = boost::property_tree;
 #include <localmpi.H>
 #include <foarray.H>
 
-#include <VtkGrid.H>
+#include <DataGrid.H>
 
 #ifdef DEBUG
 #ifndef _REDUCED
@@ -468,7 +468,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       
     if (myid==0) {
 
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::string names[3] = {"surf", "height", "mid"};
       
@@ -548,7 +548,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     
     if (myid==0) {
 
-      VtkGrid vtk(OUTR, OUTR, OUTZ, -RMAX, RMAX, -RMAX, RMAX, -ZMAX, ZMAX);
+      DataGrid vtk(OUTR, OUTR, OUTZ, -RMAX, RMAX, -RMAX, RMAX, -ZMAX, ZMAX);
 
       std::vector<double> data(OUTR*OUTR*OUTZ);
 
@@ -641,7 +641,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	}
       }
 
-      VtkGrid vtkXY(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid vtkXY(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> dataXY(OUTR*OUTR);
 
@@ -660,7 +660,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       sout << runtag + "_" + outid + "_surface" + sstr.str();
       vtkXY.Write(sout.str());
       
-      VtkGrid vtkZ(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
+      DataGrid vtkZ(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
 
       vtkZ.Add(histo.dataXZ, "histoXZ");
       vtkZ.Add(histo.dataYZ, "histoYZ");
@@ -724,7 +724,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     
     if (myid==0) {
       
-      VtkGrid vtk(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTZ);
 

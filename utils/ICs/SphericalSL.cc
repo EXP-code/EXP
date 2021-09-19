@@ -146,14 +146,15 @@ void SphericalSL::reset(int Nth, int lmax, int nmax, int CMAP, double SCALE)
   
 				// Generate Sturm-Liouville grid
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX, true, CMAP, SCALE);
+  ortho = boost::make_shared<SLGridSph>
+    (LMAX, NMAX, NUMR, RMIN, RMAX, true, CMAP, SCALE, 0, 1.0);
 
 }
 
 
 SphericalSL::~SphericalSL(void)
 {
-  delete ortho;
+  // NADA
 }
 
 

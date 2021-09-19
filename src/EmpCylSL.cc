@@ -24,7 +24,9 @@
 #ifndef STANDALONE
 #include "expand.H"
 #include "global.H"
+#ifdef HAVE_VTK
 #include <VtkPCA.H>
+#endif
 #else  
 #include <yaml-cpp/yaml.h>	// YAML support
 #include "EXPException.H"
@@ -46,7 +48,7 @@ extern int VERBOSE;
 #include <numerical.H>
 #include <gaussQ.H>
 #include <EmpCylSL.H>
-#include <VtkGrid.H>
+#include <DataGrid.H>
 
 #undef  TINY
 #define TINY 1.0e-16
@@ -236,8 +238,8 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   dfac   = ffac/ascale;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
-					make_sl(), false, 1, 1.0);
+  ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+					RMIN, RMAX*0.99, false, 1, 1.0);
 
   coefs_made = vector<short>(multistep+1, false);
   eof_made = false;
@@ -697,8 +699,8 @@ int EmpCylSL::read_eof_file(const string& eof_file)
   dfac = ffac/ASCALE;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
-					make_sl(), false, 1, 1.0);
+  ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+					RMIN, RMAX*0.99, false, 1, 1.0);
 
   setup_eof();
   setup_accumulation();
@@ -1204,8 +1206,8 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
   // Check for existence of ortho and create if necessary
   //
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
-					  make_sl(), false, 1, 1.0);
+    ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+					  RMIN, RMAX*0.99, false, 1, 1.0);
 
 
   //  Read in coefficient matrix or
@@ -1372,8 +1374,9 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
   // check for ortho
   //
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
-					  make_sl(), false, 1, 1.0);
+    ortho = boost::make_shared<SLGridSph>(make_sl(),
+					  LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					  false, 1, 1.0);
 
   double fac1, fac2, dens, potl, potr, pott, fac3, fac4;
   
@@ -2039,8 +2042,8 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   // Create spherical orthogonal basis if necessary
   //
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
-					  make_sl(), false, 1, 1.0);
+    ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+					  RMIN, RMAX*0.99, false, 1, 1.0);
   // Initialize fixed variables and storage
   //
   setup_eof();
@@ -2335,8 +2338,8 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 			      int id, int mlevel)
 {
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
-					  make_sl(), false, 1, 1.0);
+    ortho = boost::make_shared<SLGridSph>
+      (make_sl(), LMAX, NMAX, NUMR, RMIN, RMAX*0.99, false, 1, 1.0);
   if (eof_made) {
     if (VFLAG & 2)
       cerr << "accumulate_eof: Process " << setw(4) << myid << ", Thread " 
@@ -4027,7 +4030,9 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 		    << ocount << std::endl;
       }
       
+#ifdef HAVE_VTK
       if (ocount % VTKFRQ==0) vtkpca = VtkPCAptr(new VtkPCA(rank3));
+#endif
     }
 #endif
 
@@ -6398,7 +6403,16 @@ void EmpCylSL::dump_images_basis_pca(const string& runtag,
 
   Eigen::VectorXd PP(1, NORDER), DD(1, NORDER), RF(1, NORDER), ZF(1, NORDER);
   
-  VtkGrid vtk(OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
+  boost::shared_ptr<ThreeDGrid> grid;
+
+#ifdef HAVE_VTK
+  grid = boost::make_shared<VtkGrid>
+    (OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
+#else
+  grid = boost::make_shared<TableGrid>
+    (OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
+#endif
+  
 
   for (int iz=0; iz<OUTZ; iz++) {
 
@@ -6438,12 +6452,12 @@ void EmpCylSL::dump_images_basis_pca(const string& runtag,
     }
   }
 
-  for (int i=0; i<Number; i++) vtk.Add(dataC[i], Types[i]+"(cos)");
-  if (M) for (int i=0; i<Number; i++) vtk.Add(dataS[i], Types[i]+"(sin)");
+  for (int i=0; i<Number; i++) grid->Add(dataC[i], Types[i]+"(cos)");
+  if (M) for (int i=0; i<Number; i++) grid->Add(dataS[i], Types[i]+"(sin)");
   
   std::ostringstream sout;
   sout << runtag << "_pcabasis_" << K << "_m" << M << "_n" << N;
-  vtk.Write(sout.str());
+  grid->Write(sout.str());
 }
 
 
@@ -6470,7 +6484,7 @@ void EmpCylSL::dump_images_basis_eof(const string& runtag,
 
   Eigen::VectorXd PP(1, NORDER), DD(1, NORDER), RF(1, NORDER), ZF(1, NORDER);
   
-  VtkGrid vtk(OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
+  DataGrid grid(OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
 
   for (int iz=0; iz<OUTZ; iz++) {
 
@@ -6509,12 +6523,12 @@ void EmpCylSL::dump_images_basis_eof(const string& runtag,
     }
   }
 
-  for (int i=0; i<Number; i++) vtk.Add(dataC[i], Types[i]+"(cos)");
-  if (M) for (int i=0; i<Number; i++) vtk.Add(dataS[i], Types[i]+"(sin)");
+  for (int i=0; i<Number; i++) grid.Add(dataC[i], Types[i]+"(cos)");
+  if (M) for (int i=0; i<Number; i++) grid.Add(dataS[i], Types[i]+"(sin)");
   
   std::ostringstream sout;
   sout << runtag << "_pcaeof_" << K << "_m" << M << "_n" << N;
-  vtk.Write(sout.str());
+  grid.Write(sout.str());
 }
 
 

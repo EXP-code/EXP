@@ -29,12 +29,12 @@ public:
   static int mpi;		// default: 0=off
 
 				// Check for cached table
-  static int cache;		// default: 1=yes
+  static bool cache;		// default: true
 
 				// Constructors
 
   SphereSL(int lmax, int nmax, int numr, double rmin, double rmax,
-	   double scale, SphericalModelTable *mod);
+	   double scale, boost::shared_ptr<SphericalModelTable> mod);
   ~SphereSL(void);
 
 				// Required members

@@ -540,6 +540,8 @@ struct linear_index_to_row_index : public thrust::unary_function<T,T> {
 
 void Component::fix_positions_cuda(unsigned mlevel)
 {
+  (*barrier)("Container::fix_positions_cuda: BEGIN", __FILE__, __LINE__);
+
   const int maxBunch = 40000;
 
 				// Zero center
@@ -729,6 +731,8 @@ void Component::fix_positions_cuda(unsigned mlevel)
 	   << ", adjustment skipped" << endl;
     }
   }
+
+  (*barrier)("Container::fix_positions_cuda: FINISH", __FILE__, __LINE__);
 }
 
 

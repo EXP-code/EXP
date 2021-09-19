@@ -13,7 +13,7 @@ SLSphere::SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
 
 				// Generate Sturm-Liouville grid
   ortho = boost::make_shared<SLGridSph>
-    (Lmax, nmax, numr, rmin, rmax, false, cmap, rs);
+    (Lmax, nmax, numr, rmin, rmax, false, cmap, rs, 0, 1.0);
 
   xmin = ortho->r_to_xi(rmin);
   xmax = ortho->r_to_xi(rmax);
@@ -34,10 +34,10 @@ SLSphere::SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
 				// Generate Sturm-Liouville grid
   if (mod)
     ortho = boost::make_shared<SLGridSph>
-      (Lmax, nmax, numr, rmin, rmax, mod, false, cmap, rs);
+      (mod, Lmax, nmax, numr, rmin, rmax, false, cmap, rs);
   else
     ortho = boost::make_shared<SLGridSph>
-      (Lmax, nmax, numr, rmin, rmax, false, cmap, rs);
+      (Lmax, nmax, numr, rmin, rmax, false, cmap, rs, 0, 1.0);
 
   xmin = ortho->r_to_xi(rmin);
   xmax = ortho->r_to_xi(rmax);

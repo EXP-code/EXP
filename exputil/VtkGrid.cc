@@ -4,10 +4,7 @@ VtkGrid::VtkGrid(int nx, int ny, int nz,
 		 double xmin, double xmax,
 		 double ymin, double ymax,
 		 double zmin, double zmax) :
-  nx(nx), ny(ny), nz(nz),
-  xmin(xmin), xmax(xmax),
-  ymin(ymin), ymax(ymax),
-  zmin(zmin), zmax(zmax)
+  ThreeDGrid(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax)
 {
   // Set knots
   auto XX   = vtkSmartPointer<vtkFloatArray>::New();

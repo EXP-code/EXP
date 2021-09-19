@@ -62,7 +62,7 @@ namespace pt = boost::property_tree;
 #include <localmpi.H>
 #include <foarray.H>
 
-#include <VtkGrid.H>
+#include <DataGrid.H>
 
 const std::string overview = "Compute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
   
@@ -143,7 +143,7 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
     
     if (myid==0) {
 
-      VtkGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
+      DataGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
 
       std::vector<double> data(OUTR*OUTR*OUTR);
 
@@ -214,7 +214,7 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
     
     if (myid==0) {
       
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTR);
 
@@ -281,7 +281,7 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
     
     if (myid==0) {
       
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTR);
 

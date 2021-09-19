@@ -277,7 +277,7 @@ void Sphere::make_model_bin()
 
   // Regenerate Sturm-Liouville grid
   //
-  ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numR, Rmin, Rmax, mod, false);
+  ortho = boost::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0);
 
   // Update time trigger
   //
@@ -416,7 +416,7 @@ void Sphere::make_model_plummer()
 
   // Regenerate Sturm-Liouville grid
   //
-  ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, Rmin, Rmax, mod, false);
+  ortho = boost::make_shared<SLGridSph>(mod, Lmax, nmax, numr, Rmin, Rmax, false, 1, 1.0);
 
   // Update time trigger
   //

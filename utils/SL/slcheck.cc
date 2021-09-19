@@ -106,11 +106,14 @@ int main(int argc, char** argv)
 
 				// Generate Sturm-Liouville grid
   auto ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, 
-					     true, cmap, rs, true);
-  //                                         |               |
-  // Use cache file--------------------------+               |
-  //                                                         |
-  // Turn on diagnostic output in SL creation----------------+
+					     true, cmap, rs, 0, 1.0, true);
+  //                                         ^               ^       ^
+  //                                         |               |       |
+  // Use cache file--------------------------+               |       |
+  //                                                         |       |
+  // Cusp extrapolation--------------------------------------+       |
+  //                                                                 |
+  // Turn on diagnostic output in SL creation------------------------+
 
 				// Slaves exit
   if (use_mpi && myid>0) {

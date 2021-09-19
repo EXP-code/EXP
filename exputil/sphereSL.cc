@@ -3,8 +3,8 @@
 #include <sphereSL.H>
 
 
-int SphereSL::mpi = 0;
-int SphereSL::cache = 1;
+int  SphereSL::mpi   = 0;
+bool SphereSL::cache = true;
 
 /**
    This is now a wrapper class for SLGridSph
@@ -12,7 +12,7 @@ int SphereSL::cache = 1;
 */
 SphereSL::SphereSL(int LMAX, int NMAX, int NUMR,
 		   double RMIN, double RMAX, double SCALE, 
-		   SphericalModelTable* mod)
+		   boost::shared_ptr<SphericalModelTable> mod)
 {
   BiorthID = "SphereSL";
   dof = 3;
@@ -30,7 +30,7 @@ SphereSL::SphereSL(int LMAX, int NMAX, int NUMR,
   SLGridSph::mpi = mpi;
   int cmap = 0;
 
-  slgrid = new SLGridSph(lmax, nmax, numr, rmin, rmax, mod, cache, cmap, scale);
+  slgrid = new SLGridSph(mod, lmax, nmax, numr, rmin, rmax, cache, cmap, scale);
 
 }
 

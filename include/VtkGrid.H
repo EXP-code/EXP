@@ -25,12 +25,11 @@ using vtkRectilinearGridP       = vtkSmartPointer<vtkRectilinearGrid>;
 using vtkRectilinearGridWriterP = vtkSmartPointer<vtkXMLRectilinearGridWriter>;
 using vtkFloatArrayP            = vtkSmartPointer<vtkFloatArray>;
 
-class VtkGrid
+#include <ThreeDGrid.H>
+
+class VtkGrid : public ThreeDGrid
 {
 private:
-  int nx, ny, nz;
-  float xmin, xmax, ymin, ymax, zmin, zmax;
-
   // Knots
   vtkSmartPointer<vtkFloatArrayP> XX, YY, ZZ;
 
@@ -51,6 +50,7 @@ public:
   void Write(const std::string& name);
 };
 
-typedef boost::shared_ptr<VtkGrid> VtkGridptr;
+typedef boost::shared_ptr<VtkGrid> VtkGridPtr;
 
 #endif
+
