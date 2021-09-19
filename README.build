@@ -1,8 +1,8 @@
 This version uses CMake to configure.  The basis steps are as follows:
 
-# We are now using git submodules to install png++ and yaml-cpp, which
-# are not common in the HPC environments.  So, from the top-level directory,
-# do the following:
+# We are now using git submodules to yaml-cpp, which is not common in
+# the HPC environments.  So, from the top-level directory, do the
+# following:
 
 git submodule update --init --recursive 
 
