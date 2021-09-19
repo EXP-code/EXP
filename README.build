@@ -25,6 +25,10 @@ cd build
 
 # ENABLE_DSMC compiles the dsmc module and off by default.
 
+# BUILD_DOCS enables the Doxygen build of the online manual.  If
+# BUILD_DOCS=ON and Doxygen is found, you'll get the html docs
+# installed in shared/EXP
+
 # With cuda.  NB: different version of CMake seem to treat Cuda
 # architecture specification differently.  The current implementation
 # uses an archetecture list set within the top-level
@@ -43,12 +47,6 @@ cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/shar
 
 # Make the package
 make -j N
-
-# Make the documentation (optional).  The doc will be installed in
-# share/EXP/html under the install path.  The documentation is not
-# made by default, and you can skip this.
-
-make doc
 
 # Install to the target location
 make install
