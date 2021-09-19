@@ -62,9 +62,13 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
   cenvel0.setZero();
   axis   .setZero();
 
-  axis[2] = 1;
+				// Initialize last time to something
+				// in the near infinite past
+  lasttime = -std::numeric_limits<double>::max();
 
-  used = 0;
+  axis[2] = 1;			// This sets the axis to the z-axis
+
+  used = 0;			// No particles used to start
 
 				// Set up identity
   body.setIdentity();
