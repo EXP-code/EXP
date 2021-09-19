@@ -5,6 +5,16 @@
 #include <sstream>
 #include <boost/shared_ptr.hpp>
 
+/**
+   This is an API for populating a 3d grid rectangular grid database
+   for diagnostic output.
+
+   The user provides the size of the grid and extents.  Calls to Add()
+   add additiional data fields with the predefined rectangular grid
+   shape.  The input array is flattened and packed in C (not Fortran)
+   order.  A call to Write() dumps the array in the format implemented
+   by the derived class.
+ */
 class ThreeDGrid
 {
 protected:
@@ -29,7 +39,7 @@ public:
 		 ymin(0), ymax(0),
 		 zmin(0), zmax(0) {}
 
-  //! Add data
+  //! Add a data field to the rectangular grid database
   virtual
   void Add(const std::vector<double>& data, const std::string& name) = 0;
 

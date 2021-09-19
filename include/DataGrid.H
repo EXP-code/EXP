@@ -12,6 +12,14 @@
 #include <VtkGrid.H>
 #endif
 
+
+/**
+   This implementation of ThreeDGrid instantiates at VtkGrid if VTK is
+   available and TableGrid if not.
+
+   This is really syntactic glue that allows one call without checking
+   for VTK in application codes.
+*/
 class DataGrid : public ThreeDGrid
 {
 private:

@@ -11,6 +11,11 @@
 
 #include <ThreeDGrid.H>
 
+/**
+   This implementation of ThreeDGrid will write ascii files with
+   records of the form X, Y, Z, D1, D2, D3, ... where Dn are the data
+   fields loaded by n called to the Add() member.
+ */
 class TableGrid : public ThreeDGrid
 {
 protected:

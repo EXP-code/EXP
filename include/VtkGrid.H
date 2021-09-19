@@ -27,6 +27,10 @@ using vtkFloatArrayP            = vtkSmartPointer<vtkFloatArray>;
 
 #include <ThreeDGrid.H>
 
+/**
+   A ThreeDGrid implementation of the rectangular grid database
+   implement in VTK and designed for consumption by PyVTK or ParaView.
+ */
 class VtkGrid : public ThreeDGrid
 {
 private:
