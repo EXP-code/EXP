@@ -4008,9 +4008,10 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
     else
       pb = PCAbasisPtr(new PCAbasis(MMAX, rank3));
     
-#ifndef STANDALONE
-    VtkPCAptr vtkpca;
     static unsigned ocount = 0, eofcount = 0;
+
+#if defined HAVE_VTK and !defined STANDALONE
+    VtkPCAptr vtkpca;
 
     if (PCAVAR and PCAVTK and myid==0) {
 
@@ -4030,9 +4031,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 		    << ocount << std::endl;
       }
       
-#ifdef HAVE_VTK
       if (ocount % VTKFRQ==0) vtkpca = VtkPCAptr(new VtkPCA(rank3));
-#endif
     }
 #endif
 
@@ -4294,7 +4293,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	  maxSNR = std::max<double>(maxSNR, 1.0/b);
 	}
 
-#ifndef STANDALONE
+#if defined HAVE_VTK and !defined STANDALONE
 	if (vtkpca) vtkpca->Add((*pb)[mm]->meanJK,
 				(*pb)[mm]->ratio, snrval,
 				(*pb)[mm]->evalJK,
@@ -4343,7 +4342,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
       }
     }
 
-#ifndef STANDALONE
+#if defined HAVE_VTK and !defined STANDALONE
     if (vtkpca) {
       std::ostringstream sout;
       sout << hallfile << "_" << std::setfill('0') << std::setw(5) << ocount++;

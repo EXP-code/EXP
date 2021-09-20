@@ -2,8 +2,8 @@
  *  Description:
  *  -----------
  *
- *  Read in coefficients and compute VTK slices, and compute volume
- *  for VTK rendering
+ *  Read in coefficients and compute grid slices, and compute volume
+ *  for rendering
  *
  *
  *  Call sequence:
@@ -975,7 +975,7 @@ main(int argc, char **argv)
      "make 1d cuts in and perpendicular to the equatorial plane")
     ("volume",
      po::value<bool>(&VOLUME)->default_value(false),
-     "make volume for VTK rendering")
+     "make volume for rendering")
     ("axihgt",
      po::value<bool>(&AXIHGT)->default_value(false),
      "compute midplane height profiles")
@@ -1466,11 +1466,13 @@ main(int argc, char **argv)
     
   } // Dump loop
 
+#ifdef HAVE_VTK
   // Create PVD file
   //
   if (myid==0 and PVD) {
     writePVD(outdir + "/" + runtag + ".pvd", times, outfiles);
   }
+#endif
 
   // Shutdown MPI
   //

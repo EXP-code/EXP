@@ -3,7 +3,7 @@
  *  -----------
  *
  *  Create EOF from a sequence of PSP files.  Compute per component
- *  VTK rendering for insight.
+ *  grid generation for insight.
  *
  *
  *  Call sequence:
@@ -54,7 +54,7 @@
 
 #include <Eigen/Eigen>		// Eigen 3
 
-#include <VtkGrid.H>		// For VTK output
+#include <DataGrid.H>		// For VTK or ASCII grid output
 
 namespace po = boost::program_options;
 namespace pt = boost::property_tree;
@@ -72,8 +72,6 @@ namespace pt = boost::property_tree;
 #include <global.H>
 #include <localmpi.H>
 #include <foarray.H>
-
-#include <VtkGrid.H>
 
 #ifdef DEBUG
 #ifndef _REDUCED
@@ -152,7 +150,7 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmin, int nord,
       
     for (int n=0; n<nord; n++) {
 
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid grid(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> dataD(OUTR*OUTR), dataP(OUTR*OUTR);
 
@@ -162,8 +160,8 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmin, int nord,
 	  dataP[j*OUTR + l] = otdat[nord*((1*OUTR+j)*OUTR+l) + n];
 	}
       }
-      vtk.Add(dataD, "d");
-      vtk.Add(dataP, "p");
+      grid.Add(dataD, "d");
+      grid.Add(dataP, "p");
 
       std::ostringstream sout;
       sout << prefix << "_rotated_" << runtag 
@@ -171,7 +169,7 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmin, int nord,
 	   << "." << std::setfill('0') << std::setw(5) << n+nmin
 	   << "." << std::setfill('0') << std::setw(3) << t;
       
-      vtk.Write(sout.str());
+      grid.Write(sout.str());
     }
   }
 
@@ -211,13 +209,13 @@ main(int argc, char **argv)
      "maximum output radius")
     ("nout,n",
      po::value<int>(&OUTR)->default_value(50),
-     "number of points on a side for VTK output")
+     "number of points on a side for grid output")
     ("mbeg",
      po::value<int>(&mbeg)->default_value(2),
-     "minimum azimuthal order for VTK; output off if m<0")
+     "minimum azimuthal order for grid; output off if m<0")
     ("mend",
      po::value<int>(&mend)->default_value(2),
-     "maximum azimuthal order for VTK")
+     "maximum azimuthal order for grid")
     ("beg",
      po::value<int>(&beg)->default_value(0),
      "initial PSP index")

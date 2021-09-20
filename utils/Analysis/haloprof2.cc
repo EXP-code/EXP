@@ -2,8 +2,8 @@
  *  Description:
  *  -----------
  *
- *  Read in coefficients and compute gnuplot slices, 
- *  and compute volume for VTK rendering
+ *  Read in coefficients and compute gnuplot slices, and compute
+ *  volume for rendering
  *
  *
  *  Call sequence:
@@ -576,7 +576,7 @@ main(int argc, char **argv)
     ("SURFACE",             po::value<bool>(&SURFACE)->default_value(true),
      "Make equitorial and vertical slices")
     ("VOLUME",              po::value<bool>(&VOLUME)->default_value(false),
-     "Make volume for VTK")
+     "Make volume grid")
     ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("haloprof"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),

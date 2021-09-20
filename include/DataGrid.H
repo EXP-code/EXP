@@ -43,7 +43,7 @@ public:
     ptr = boost::make_shared<TableGrid>(nx, ny, nz,
 					xmin, xmax,
 					ymin, ymax,
-					zmin, zmax)
+					zmin, zmax);
 #endif
   }
     

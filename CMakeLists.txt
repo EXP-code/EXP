@@ -47,8 +47,6 @@ if(ENABLE_CUDA)
   message("CUDA arch flags are: ${ARCH_FLAGS}")
 endif()
 find_package(PNG)
-include(${VTK_USE_FILE}) # I don't like this global setting stuff, but it's not really
-# documented otherwise
 
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
@@ -62,6 +60,8 @@ if(SLURM_FOUND)
 endif()
 if(VTK_FOUND)
   set(HAVE_VTK TRUE)
+  include(${VTK_USE_FILE}) # I don't like this global setting stuff,
+			   # but it's not really documented otherwise
 endif()
 if(CUDA_FOUND)
   set(HAVE_LIBCUDA TRUE)

@@ -3,7 +3,10 @@
 
 #include "expand.H"
 #include <AxisymmetricBasis.H>
+
+#ifdef HAVE_VTK
 #include <VtkPCA.H>
+#endif
 
 AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf) 
 {
@@ -199,9 +202,10 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
   if (compute) {
 
-    VtkPCAptr vtkpca;
-
     static unsigned ocount = 0;
+
+#ifdef HAVE_VTK
+    VtkPCAptr vtkpca;
 
     if (pcavtk and myid==0) {
 
@@ -224,6 +228,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	vtkpca = VtkPCAptr(new VtkPCA(nmax));
       }
     }
+#endif
 
     if (dof==3) {
       L0    = 0;
@@ -461,12 +466,14 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    
 	  }
 
+#ifdef HAVE_VTK
 	  if (vtkpca and myid==0) {
 	    if (dof==3)
 	      vtkpca->Add(meanJK, s_Hall[indxC], snrval, evalJK, evecJK.transpose(), covrJK, l, m);
 	    else
 	      vtkpca->Add(meanJK, s_Hall[indxC], snrval, evalJK, evecJK.transpose(), covrJK, m);
 	  }
+#endif
 	  
 	}
 	
@@ -525,6 +532,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
       }
     }
 
+#ifdef HAVE_VTK
     if (vtkpca) {
       std::ostringstream sout;
       
@@ -532,6 +540,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	   << "_" << std::setfill('0') << std::setw(5) << ocount++;
       vtkpca->Write(sout.str());
     }
+#endif
 
   }
 
