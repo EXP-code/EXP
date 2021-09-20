@@ -51,10 +51,17 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUD
 
 # Note on cuda: I have tried to include an SM capability list that
 # covers many commonly used architectures.  I have had a bit of
-# trouble getting precompiled elf binaries rather than PTX code.  This
-# seems to be CMake and Cuda configuration dependent.  If this is
-# causing problems, you can add (e.g.) "-arch compute_60
+# trouble getting precompiled elf binaries rather than PTX code.
+# Precompiled elf seems to be necessary for a module deployment; I am
+# not sure why the JIT PTX compiler can not handle this.  Which
+# versions get compiled seems to be CMake and Cuda configuration
+# dependent even for the same capability list.  If this is causing
+# problems, you can add (e.g.) "-arch compute_60
 # -code=sm_60,sm_61,sm_70,sm_75" to the CMAKE_CUDA_FLAGS variable.
+# You can use the 'cuobjdump' to examine the compiled SM code; e.g. in
+# the build directory, 'cuobjdump
+# exputil/CMakeFiles/exputil.dir/cudaSLGridMP2.cu.o' will tell you the
+# precompiled elf code in the cu fatbinary.
 
 # Without cuda
 #
