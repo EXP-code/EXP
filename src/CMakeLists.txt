@@ -30,11 +30,18 @@ endif()
 set(common_INCLUDE_DIRS 
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/DSMC/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${EIGEN3_INCLUDE_DIR}
   ${VTK_INCLUDE})
+
+set(DSMC_LIBS)
+if (ENABLE_DSMC)
+  add_subdirectory(DSMC)
+  list(APPEND DSMC_LIBS expdsmc)
+endif()
 
 set(common_LINKLIB ${DSMC_LIBS} exputil OpenMP::OpenMP_CXX
   MPI::MPI_CXX Boost::filesystem Boost::program_options yaml-cpp
@@ -53,12 +60,6 @@ add_library(EXP ${exp_SOURCES})
 set_target_properties(EXP PROPERTIES OUTPUT_NAME EXP)
 target_include_directories(EXP PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(EXP PUBLIC ${common_LINKLIB})
-
-set(DSMC_LIBS)
-if (ENABLE_DSMC)
-  add_subdirectory(DSMC)
-  list(APPEND DSMC_LIBS expdsmc)
-endif()
 
 if (ENABLE_USER OR ENABLE_USER_ALL)
   add_subdirectory(user)

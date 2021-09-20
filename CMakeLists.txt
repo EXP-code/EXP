@@ -73,6 +73,9 @@ if(PNG_FOUND)
   include_directories(${PROJECT_SOURCE_DIR}/extern)
   set(HAVE_LIBPNGPP TRUE)
 endif()
+if(ENABLE_DSMC)
+  set(DSMC_ENABLED 1)
+endif()
 
 # Get the current working branch
 execute_process(
