@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -42,8 +40,7 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include <Vector.h>
-#include <orbit.h>
+#include <orbit.H>
 #include <LinearOrbit.H>
 
 using namespace std;
@@ -51,7 +48,8 @@ using namespace std;
 #include <global.H>
 				// External prototype for Euler matrix
 
-Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
+Eigen::Matrix3d
+return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
 // ===================================================================
 // Constructor
@@ -97,10 +95,10 @@ LinearOrbit::LinearOrbit(const YAML::Node& conf)
 
   if (myid==0) {
     
-    Vector a(1, 3), b(1, 3);
-    a[1] = X0;
-    a[2] = Y0;
-    a[3] = Z0;
+    Eigen::Vector3d a, b;
+    a[0] = X0;
+    a[1] = Y0;
+    a[2] = Z0;
 
     cout << "LinearOrbit initialized with:" << endl << left
 	 << setw(5) << "" << setw(10) << "THETA" << " = "
@@ -111,9 +109,9 @@ LinearOrbit::LinearOrbit(const YAML::Node& conf)
 	 << PHIP * 180.0/M_PI << endl
 	 << "Initial position and velocity is:" << endl
 	 << setw(5) << "" << setw(10) << "(X, Y, Z)" 
-	 << " = (" << a[1]
+	 << " = (" << a[0]
+	 << ", "   << a[1]
 	 << ", "   << a[2]
-	 << ", "   << a[3]
 	 << ")" << endl
 	 << setw(5) << "" << setw(10) << "(U, V, W)" 
 	 << " = (" << 0
@@ -124,18 +122,18 @@ LinearOrbit::LinearOrbit(const YAML::Node& conf)
 
     b = rotate * a;
     cout << setw(5) << "" << setw(10) << "(X, Y, Z)" 
-	 << " = (" << b[1] 
+	 << " = (" << b[0] 
+	 << ", "   << b[1]
 	 << ", "   << b[2]
-	 << ", "   << b[3]
 	 << ")" << endl;
 
-    a[1] = a[3] = 0.0;
-    a[2] = Vsat;
+    a[0] = a[2] = 0.0;
+    a[1] = Vsat;
     b = rotate * a;
     cout << setw(5) << "" << setw(10) << "(U, V, W)" 
-	 << " = (" << b[1]
+	 << " = (" << b[0]
+	 << ", "   << b[1]
 	 << ", "   << b[2]
-	 << ", "   << b[3]
 	 << ")" << endl;
   }
 
@@ -151,13 +149,13 @@ LinearOrbit::~LinearOrbit(void)
   // Nothing
 }
 
-Vector LinearOrbit::get_satellite_orbit(double t)
+Eigen::Vector3d LinearOrbit::get_satellite_orbit(double t)
 {
-  Vector ret(1, 3);
+  Eigen::Vector3d ret;
 
-  ret[1] = X0;
-  ret[2] = Y0 + Vsat * t;
-  ret[3] = Z0;
+  ret[0] = X0;
+  ret[1] = Y0 + Vsat * t;
+  ret[2] = Z0;
 
   ret = rotate * ret;
 

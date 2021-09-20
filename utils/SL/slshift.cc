@@ -12,11 +12,14 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 
+#include <Eigen/Eigen>
+
 namespace po = boost::program_options;
 
-#include <localmpi.h>
+#include <global.H>
+#include <localmpi.H>
 #include <SLSphere.H>		// Defines biorthogonal SL class
-#include <gaussQ.h>		// Gauss-Legendre quadrature
+#include <gaussQ.H>		// Gauss-Legendre quadrature
 
 
 //===========================================================================
@@ -41,21 +44,13 @@ int      numt;
 int      nump;
 string   outfile;
 
-
-//===========================================================================
-
-				// so one can link to exp libraries
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-string outdir, runtag;
-
-
 //===========================================================================
 
 				// Local function defs
-Vector scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
-		   AxiSymBiorth& s, double (*func)(double, int, int), 
-		   int numc, int numg);
+Eigen::VectorXd
+scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
+	    AxiSymBiorth& s, double (*func)(double, int, int), 
+	    int numc, int numg);
 
 double plgndr(int l, int m, double costh); 
 
@@ -70,8 +65,8 @@ const string model_file = "SLGridSph.model";
 class Shift 
 {
 private:
-  SphericalModelTable *model;
-  vector<double> **multi;
+  std::shared_ptr<SphericalModelTable> model;
+  std::vector<std::vector<std::vector<double>>> multi;
   double dR;
   double rmin, rmax;
   int lmax, numr;
@@ -93,7 +88,7 @@ public:
 
 Shift::~Shift()
 {
-  delete model;
+  // NADA
 }
 
 Shift::Shift(double offset, double Rmin, double Rmax, int Lmax,
@@ -110,11 +105,13 @@ Shift::Shift(double offset, double Rmin, double Rmax, int Lmax,
   double dP = M_PI/nump;
   LegeQuad lq(numt);
 
-  multi = new vector<double>*[lmax+1];
+  multi.resize(lmax+1);
   for (int l=0; l<=lmax; l++) {
-    multi[l] = new vector<double>[lmax+1];
-    for (int m=0; m<=lmax; m++) 
-      multi[l][m] = vector<double>(numr, 0.0);
+    multi[l].resize(lmax+1);
+    for (int m=0; m<=lmax; m++) {
+      multi[l][m].resize(numr);
+      std::fill(multi[l][m].begin(), multi[l][m].end(), 0.0);
+    }
   }
 
   double r, theta, phi, rho, facp;
@@ -128,7 +125,7 @@ Shift::Shift(double offset, double Rmin, double Rmax, int Lmax,
 
       phi = (0.5 + j)*dP;
       
-      for (int k=1; k<=numt; k++) {
+      for (int k=0; k<numt; k++) {
 	
 	theta = acos(2.0*(lq.knot(k)-0.5));
 	
@@ -194,7 +191,7 @@ class Reconstruct
 {
 private:
   AxiSymBiorth *biorth;
-  Vector **coefs;
+  std::vector<std::vector<Eigen::VectorXd>> coefs;
   int lmax, nmax;
 
 public:
@@ -218,8 +215,7 @@ public:
 
 Reconstruct::~Reconstruct()
 {
-  for (int l=0; l<=lmax; l++) delete [] coefs[l];
-  delete [] coefs;
+  // NADA
 }
 
 Reconstruct::Reconstruct(AxiSymBiorth *bio, double rmin, double rmax,
@@ -230,9 +226,9 @@ Reconstruct::Reconstruct(AxiSymBiorth *bio, double rmin, double rmax,
   nmax = Nmax;
 
   biorth = bio;
-  coefs = new Vector*[lmax+1];
+  coefs.resize(lmax+1);
   for (int l=0; l<=lmax; l++) {
-    coefs[l] = new Vector [lmax+1];
+    coefs[l].resize(lmax+1);
     for (int m=0; m<=l; m++)
       coefs[l][m] = scalar_prod(density, rmin, rmax, l, m, *biorth,
 				shift_func, nmax, 400);

@@ -1,6 +1,6 @@
 
 #ifndef STANDALONE
-#include "expand.h"
+#include "expand.H"
 #else
 #include <iostream>
 #include <iomanip>
@@ -152,8 +152,116 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
 }
 
 
+// Create the particle buffer
+ParticleBuffer::ParticleBuffer(unsigned rsize, bool indexing, const Particle* p)
+{
+  // Compute size of buffer and allocate space
+  bufSize = 0;
+  
+  if (indexing) bufSize += sizeof(unsigned long);
+
+  unsigned fsize = sizeof(double);
+  if (rsize == sizeof(float)) fsize = sizeof(float);
+
+  bufSize += fsize*8;		// mass + pos[3] + vel[3] + pot
+  bufSize += p->iattrib.size() * sizeof(int);
+  bufSize += p->dattrib.size() * fsize;
+
+  bufSize *= maxBufCount;
+
+				// Allocate character buffer
+  charBuffer.resize(bufSize);
+
+  bufCount = 0;			// Buffer counter
+  Loc = charBuffer.data();	// Buffer location
+}
+
+// Write the particle buffer
+void ParticleBuffer::writeBuffer(std::ostream *out, bool finish)
+{
+  if (finish)
+    out->write(charBuffer.data(), Loc - charBuffer.data());
+  else {
+    if (bufCount == maxBufCount) {
+      out->write(charBuffer.data(), charBuffer.size());
+      bufCount = 0;
+      Loc = charBuffer.data();
+    }
+  }
+}
+
+
+void Particle::writeBinaryBuffered
+(unsigned rsize, bool indexing, std::ostream *out, ParticleBuffer& buf) const
+{
+  // Write buffer if necessary and reset
+  buf.writeBuffer(out);
+
+  // Working variable for floats
+  float tf;
+
+  // Cache index if desired
+  if (indexing)
+    buf.Loc = (char *)std::memcpy(buf.Loc, &indx, sizeof(unsigned long)) + sizeof(unsigned long);
+
+  // Mass
+  if (rsize == sizeof(float)) {
+    tf = static_cast<float>(mass);
+    buf.Loc = (char *)std::memcpy(buf.Loc, &tf, sizeof(float)) + sizeof(float);
+  }
+  else
+    buf.Loc = (char *)std::memcpy(buf.Loc, &mass, sizeof(double)) + sizeof(double);
+  
+  // Position
+  for (int i=0; i<3; i++) {
+    double pv = pos[i];
+    if (rsize == sizeof(float)) {
+      tf = static_cast<float>(pv);
+      buf.Loc = (char *)std::memcpy(buf.Loc, &tf, sizeof(float)) + sizeof(float);
+    }
+    else
+      buf.Loc = (char *)std::memcpy(buf.Loc, &pv, sizeof(double)) + sizeof(double);
+  }
+  
+  // Velocity
+  for (int i=0; i<3; i++) {
+    double pv = vel[i];
+    if (rsize == sizeof(float)) {
+      tf = static_cast<float>(pv);
+      buf.Loc = (char *)std::memcpy(buf.Loc, &tf, sizeof(float)) + sizeof(float);
+    }
+    else
+      buf.Loc = (char *)std::memcpy(buf.Loc, &pv, sizeof(double)) + sizeof(double);
+  }
+
+  // Potential
+  double pot0 = pot + potext;
+  if (rsize == sizeof(float)) {
+    tf = static_cast<float>(pot0);
+    buf.Loc = (char *)std::memcpy(buf.Loc, &tf, sizeof(float)) + sizeof(float);
+  }
+  else
+    buf.Loc = (char *)std::memcpy(buf.Loc, &pot0, sizeof(double)) + sizeof(double);
+
+  // Integer attribute vector
+  if (iattrib.size())
+    buf.Loc = (char *)std::memcpy(buf.Loc, &iattrib[0], iattrib.size()*sizeof(int)) + iattrib.size()*sizeof(int);
+  
+  // Real attribute vector
+  if (dattrib.size())
+    if (rsize == sizeof(float))
+      buf.Loc = (char *)std::memcpy(buf.Loc, &dattrib[0], dattrib.size()*sizeof(float)) +
+	dattrib.size()*sizeof(float);
+    else
+      buf.Loc = (char *)std::memcpy(buf.Loc, &dattrib[0], dattrib.size()*sizeof(double)) +
+	dattrib.size()*sizeof(double);
+
+  buf++;			// Increment buffer counter
+}
+
+
 void Particle::writeBinary(unsigned rsize, 
-			   bool indexing, std::ostream *out)
+			   bool indexing, std::ostream *out) const
 {
   // Working variable
   float tf;
@@ -293,7 +401,7 @@ void Particle::readAscii(bool indexing, int seq, std::istream* fin)
   //
   // Character array for file reading
   //
-  const int nline = 2048;
+  const int nline = 262144;
   char line[nline];
 
   //

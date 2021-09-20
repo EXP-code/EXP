@@ -1,17 +1,17 @@
 #ifndef _SLSphere_H
 #define _SLSphere_H
 
-static const char rcsid_SLSphere[] = "$Id$";
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 
-
-#include <biorth.h>
-#include <SLGridMP2.h>
+#include <biorth.H>
+#include <SLGridMP2.H>
 
 class SLSphere : public AxiSymBiorth
 {
 private:
 
-  SLGridSph *ortho;
+  boost::shared_ptr<SLGridSph> ortho;
   int lmax, nmax, numr;
   double rmin, rmax;
   double xmin, xmax;
@@ -19,7 +19,9 @@ private:
 public:
   
   SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
-	   int cmap, double rs, SphericalModelTable *mod=0);
+	   int cmap, double rs);
+  SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
+	   int cmap, double rs, boost::shared_ptr<SphericalModelTable> mod);
   ~SLSphere();
 
   double potl(const int n, const int l, const double x) 
@@ -43,12 +45,12 @@ public:
   }
 				// Fast for expansion! 
 				// (using recursion relation)
-  void potl(const int nmax, const int l, const double r, Vector& vec)
+  void potl(const int nmax, const int l, const double r, Eigen::VectorXd& vec)
   {
     ortho->get_pot(vec, r, l, 1);
   }
 
-  void dens(const int nmax, const int l, const double r, Vector& vec)
+  void dens(const int nmax, const int l, const double r, Eigen::VectorXd& vec)
   {
     ortho->get_dens(vec, r, l, 1);
 

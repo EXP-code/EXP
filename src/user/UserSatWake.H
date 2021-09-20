@@ -4,7 +4,6 @@
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
-#include <kevin_complex.h>
 
 /** Halo model based on SphericalModelTable
 
@@ -93,8 +92,8 @@ private:
 
   //============================================================
 
-  vector<CVector> curcoefs;
-  vector< vector<CVector> > rcoefs;
+  vector<Eigen::VectorXcd> curcoefs;
+  vector< vector<Eigen::VectorXcd> > rcoefs;
   vector<double> Times;
   vector<int> Lhalo, Mhalo;
 
@@ -106,10 +105,10 @@ private:
   void initialize_coefficients();
   void compute_coefficients();
   void check_response();
-  void gnuplot_out(vector<CVector>& coefs, 
+  void gnuplot_out(std::vector<Eigen::VectorXcd>& coefs, 
 		   RespMat::gravity grav, RespMat::response type,
 		   bool relative, string& file);
-  KComplex I;
+  std::complex<double> I;
   double rtol;
   int Nhalo;
   string cachefile;

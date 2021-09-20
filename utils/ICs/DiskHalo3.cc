@@ -1,21 +1,19 @@
-				// System
-#include <values.h>
 				// C++/STL
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 #include <vector>
-				// MDW
-#include <interp.h>
-#include <numerical.h>
-#include <exponential.h>
-#include <Vector.h>
-#include <interp.h>
+#include <limits>
+				// EXP classes
+#include <interp.H>
+#include <numerical.H>
+#include <exponential.H>
+#include <interp.H>
 				// Local
 #include <AddDisk.H>
 #include <CylDisk.H>
-#include "DiskWithHalo.h"
+#include "DiskWithHalo.H"
 #include <DiskHalo3.H>
 
 				// Grid parameters and Toomre Q
@@ -74,9 +72,8 @@ DiskHalo(std::shared_ptr<SphericalSL> haloexp, std::shared_ptr<EmpCylSL> diskexp
 	 double H, double A, double DMass, 
 	 string& filename, int DF1, int DIVERGE, double DIVERGE_RFAC)
 {
-  gen        = std::make_shared<ACG>    (SEED+myid, 20);
-  rndU       = std::make_shared<Uniform>(0.0, 1.0, gen.get());
-  rndN       = std::make_shared<Normal> (0.0, 1.0, gen.get());
+  gen.seed(SEED+myid);
+
   com        = false;
   cov        = false;
 
@@ -135,9 +132,8 @@ DiskHalo(std::shared_ptr<SphericalSL> haloexp, std::shared_ptr<EmpCylSL> diskexp
 	 std::string& filename1, int DIVERGE, double DIVERGE_RFAC,
 	 std::string& filename2, int DIVERGE2, double DIVERGE_RFAC2)
 {
-  gen         = std::make_shared<ACG>    (SEED+myid, 20);
-  rndU        = std::make_shared<Uniform>(0.0, 1.0, gen.get());
-  rndN        = std::make_shared<Normal> (0.0, 1.0, gen.get());
+  gen.seed(SEED+myid);
+
   com         = false;
   cov         = false;
 
@@ -197,10 +193,10 @@ DiskHalo(std::shared_ptr<SphericalSL> haloexp, std::shared_ptr<EmpCylSL> diskexp
   // Packs fake density and mass model with target (real) potential
   // and reinitializes the model
   //
-  double *r2 = new double [RNUM];
-  double *d2 = new double [RNUM];
-  double *m2 = new double [RNUM];
-  double *p2 = new double [RNUM];
+  std::vector<double> r2(RNUM);
+  std::vector<double> d2(RNUM);
+  std::vector<double> m2(RNUM);
+  std::vector<double> p2(RNUM);
   
   double rmin = halo2->get_min_radius();
   double rmax = halo2->get_max_radius();
@@ -221,19 +217,14 @@ DiskHalo(std::shared_ptr<SphericalSL> haloexp, std::shared_ptr<EmpCylSL> diskexp
     p2[i] = halo2 -> get_pot(r);
   }
   
-  halo3 = std::make_shared<SphericalModelTable>(RNUM, r2-1, d2-1, m2-1, p2-1, 
-						DIVERGE2, DIVERGE_RFAC2);
+  halo3 = std::make_shared<SphericalModelTable>
+    (RNUM, r2.data(), d2.data(), m2.data(), p2.data(), DIVERGE2, DIVERGE_RFAC2);
   halo3->setup_df(NUMDF, RA);
   if (VFLAG & 2) {
     halo3->print_model("diskhalo2_model.multi");
     halo3->print_df("diskhalo2_df.multi");
   }
     
-  delete [] r2;
-  delete [] d2;
-  delete [] m2;
-  delete [] p2;
-  
   //
   // Generate the multimass model
   //
@@ -275,10 +266,6 @@ DiskHalo::DiskHalo(const DiskHalo &p)
   halotable = p.halotable;
   dr = p.dr;
   dc = p.dc;
-
-  gen  = std::make_shared<ACG>    (SEED+myid, 20);
-  rndU = std::make_shared<Uniform>(0.0, 1.0, gen.get());
-  rndN = std::make_shared<Normal> (0.0, 1.0, gen.get());
 
   DF    = p.DF;
   MULTI = p.MULTI;
@@ -326,7 +313,7 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   double meanmass = (mtot - mmin)/nhalo;
 
   Particle p;
-  Vector ps(0, 6);
+  Eigen::VectorXd ps(7);
   int ierr;
 
   int count1=0, count=0;
@@ -434,12 +421,12 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   MPI_Barrier(MPI_COMM_WORLD);
 
   for (int i=0; i<npart; i++) {
-    targetmass = mmin + (mtot - mmin)*(*rndU)();
+    targetmass = mmin + (mtot - mmin)*rndU(gen);
 
     r = zbrent(mass_func, rmin, rmax, tol);
     
-    phi = 2.0*M_PI*(*rndU)();
-    costh = 2.0*(*rndU)() - 1.0;
+    phi = 2.0*M_PI*rndU(gen);
+    costh = 2.0*rndU(gen) - 1.0;
     sinth = sqrt(1.0 - costh*costh);
 
     p.pos[0] = r*sinth*cos(phi);
@@ -785,10 +772,10 @@ void DiskHalo::make_disk_DF(bool diag)
 
     vmax = sqrt(2.0*fabs(pmax - pot));
     den = vmean = vdisp = 0.0;
-    for (int ix=1; ix<=NINT; ix++) {
+    for (int ix=0; ix<NINT; ix++) {
       x = lq.knot(ix);
 
-      for (int iy=1; iy<=NINT; iy++) {
+      for (int iy=0; iy<NINT; iy++) {
 	y = lq.knot(iy);
 
 	E = pot + 0.5*vmax*vmax*(x*x + (1.0-x*x)*y*y);
@@ -848,7 +835,7 @@ void DiskHalo::make_disk_DF(bool diag)
   double energy=0.0, mass=0.0;
   dr = rmax - rmin;
 
-  for (int i=1; i<=NUMMS; i++) {
+  for (int i=0; i<NUMMS; i++) {
 
     if (RLOG)
       r = exp(rmin + dr*lq2.knot(i));
@@ -956,17 +943,17 @@ set_disk(vector<Particle>& pdisk, int ndisk, int npart)
 
   for (int i=0; i<npart; i++) {
 				// Get an E and K from the QP solution
-    pr = qp->gen_EK((*rndU)(), (*rndU)());
+    pr = qp->gen_EK(rndU(gen), rndU(gen));
 
     E = pr.first;
     K = pr.second;
     orb.new_orbit(E, K);
 
-    T   = 2.0*M_PI*(*rndU)()/orb.get_freq(1);
+    T   = 2.0*M_PI*rndU(gen)/orb.get_freq(1);
     w1  = orb.get_angle(1, T);
     f   = orb.get_angle(5, T);
     R   = orb.get_angle(6, T);
-    phi = 2.0*M_PI*(*rndU)() + f;
+    phi = 2.0*M_PI*rndU(gen) + f;
 
     vt  = orb.Jmax()*K/R;
     vr  = 2.0*(E - dmodel.get_pot(R)) - vt*vt;
@@ -974,11 +961,11 @@ set_disk(vector<Particle>& pdisk, int ndisk, int npart)
     if (vr>0.0) vr = (w1 < M_PI) ? sqrt(vr) : -sqrt(vr);
     else vr = 0.0;
 
-    vz = (*rndN)()*sqrt(M_PI*dmodel.get_density(R)*scaleheight);
+    vz = rndN(gen)*sqrt(M_PI*dmodel.get_density(R)*scaleheight);
 
     p.pos[0] = R*cos(phi);
     p.pos[1] = R*sin(phi);
-    p.pos[2] = scaleheight*atanh(2.0*(*rndU)()-1.0);
+    p.pos[2] = scaleheight*atanh(2.0*rndU(gen)-1.0);
 
     p.vel[0] = vr*cos(phi) - vt*sin(phi);
     p.vel[1] = vr*sin(phi) + vt*cos(phi);
@@ -1051,9 +1038,9 @@ void DiskHalo::table_halo_disp()
     throw DiskHaloException(msg, __FILE__, __LINE__);
   }
 
-  if (halotable.getchigh() == NHR-1 && halotable.getrhigh() == 2) return;
+  if (halotable.cols() == NHR && halotable.rows() == 3) return;
   
-  halotable.setsize(0, 2, 0, NHR-1);
+  halotable.resize(3, NHR);
   
   double rmin = halo2->get_min_radius();
   double rmax = halo2->get_max_radius();
@@ -1070,7 +1057,7 @@ void DiskHalo::table_halo_disp()
   else
     dr = (rmax - rmin)/(NHR - 1);
   
-  halotable.zero();
+  halotable.setZero();
   
   const int nlq = 400;
   LegeQuad lq(nlq);
@@ -1082,39 +1069,34 @@ void DiskHalo::table_halo_disp()
 
   for (int i=ibeg; i<iend; i++) {
     if (LOGR)
-      halotable[0][i] = r = exp(log(rmin) + dr*i);
+      halotable(0, i) = r = exp(log(rmin) + dr*i);
     else
-      halotable[0][i] = r = rmin + dr*i;
+      halotable(0, i) = r = rmin + dr*i;
 
     pot = halo2->get_pot(r);
 
-    for (int n=1; n<=nlq; n++) {
+    for (int n=0; n<nlq; n++) {
       E = pot + (Emax - pot)*lq.knot(n);
       v2 = 2.0*(E - pot);
       if (v2<0.0) v2 = 0.0;
       v = sqrt(v2);
       fac = (Emax - pot)*lq.weight(n)*halo2->distf(E, 0.5);
 				// velocity dispersion
-      halotable[1][i] += fac * v * v2;
+      halotable(1, i) += fac * v * v2;
 				// density
-      halotable[2][i] += fac * v;
+      halotable(2, i) += fac * v;
     }
 
-    if (halotable[2][i]>0.0) halotable[1][i] /= halotable[2][i];
-    else halotable[1][i] = 0.0;
+    if (halotable(2, i)>0.0) halotable(1, i) /= halotable(2, i);
+    else halotable(1, i) = 0.0;
   }
 
 
   // Update tables on all nodes
   //
-  MPI_Allreduce(&halotable[0][0], &halotable[0][0], NHR, MPI_DOUBLE, 
+  MPI_Allreduce(MPI_IN_PLACE, halotable.data(), halotable.size(), MPI_DOUBLE, 
 		MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(&halotable[1][0], &halotable[1][0], NHR, MPI_DOUBLE, 
-		MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(&halotable[2][0], &halotable[2][0], NHR, MPI_DOUBLE, 
-		MPI_SUM, MPI_COMM_WORLD);
-  
-  
+
   //
   // DEBUG output
   //
@@ -1126,10 +1108,10 @@ void DiskHalo::table_halo_disp()
     out.precision(2);
     
     for (int k=0; k<NHR; k++)
-      out << setw(18) << halotable[0][k]
-	  << setw(18) << halotable[1][k]
-	  << setw(18) << 4.0*M_PI*halotable[2][k]
-	  << setw(18) << halo->get_density(halotable[0][k]) << endl;
+      out << setw(18) << halotable(0, k)
+	  << setw(18) << halotable(1, k)
+	  << setw(18) << 4.0*M_PI*halotable(2, k)
+	  << setw(18) << halo->get_density(halotable(0, k)) << endl;
   }
 
 }
@@ -1137,9 +1119,9 @@ void DiskHalo::table_halo_disp()
 void DiskHalo::
 table_halo(vector<Particle>& part)
 {
-  if (halotable.getchigh() == NHR-1) return;
+  if (halotable.cols() == NHR) return;
   
-  halotable.setsize(0, NHT-1, 0, NHR-1);
+  halotable.resize(NHT, NHR);
   
   dc = 2.0/(NHT-1);
   double r2, maxr = 0.0, maxr1 = 0.0;
@@ -1164,9 +1146,9 @@ table_halo(vector<Particle>& part)
 
   double x, y, z, theta, r, fr, fz, fp, pot, costh, sinth;
   double dens, potl, dpr, dpt, dpp, dpdr;
-  Vector work(0, NHR-1);
-  Vector workR(0, NHR-1);
-  Vector workA(0, NHR-1);
+  Eigen::VectorXd work (NHR);
+  Eigen::VectorXd workR(NHR);
+  Eigen::VectorXd workA(NHR);
   
   // If no disk, add no force
   //
@@ -1195,7 +1177,7 @@ table_halo(vector<Particle>& part)
       
       if (expandd) disk_eval(x, z, 0.0, pot, fr, fz, fp);
       
-      theta = acos(z/(r + MINDOUBLE));
+      theta = acos(z/(r + std::numeric_limits<double>::min()));
       expandh->determine_fields_at_point(r, theta, 0.0,
 					 &dens, &potl, &dpr, &dpt, &dpp);
       
@@ -1208,9 +1190,9 @@ table_halo(vector<Particle>& part)
     // Splsum(workR, work, workA);
     Trapsum(workR, work, workA);
     for (int j=0; j<NHR; j++) {
-      halotable[i][j] = max<double>(workA[NHR-1] - workA[j], MINDOUBLE);
-      if (fabs(halotable[i][j])>1.0e8) {
-	cerr << "Oops, val=" << halotable[i][j] << endl;
+      halotable(i, j) = max<double>(workA[NHR-1] - workA[j], std::numeric_limits<double>::min());
+      if (fabs(halotable(i, j))>1.0e8) {
+	cerr << "Oops, val=" << halotable(i, j) << endl;
       }
     }
   }
@@ -1219,7 +1201,7 @@ table_halo(vector<Particle>& part)
   //
   for (int k=0; k<numprocs; k++) {
     for (int i=ibeg[k]; i<iend[k]; i++) {
-      MPI_Bcast(&halotable[i][0], NHR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      MPI_Bcast(&halotable(i, 0), NHR, MPI_DOUBLE, k, MPI_COMM_WORLD);
     }
   }
   
@@ -1237,7 +1219,7 @@ table_halo(vector<Particle>& part)
       for (int k=0; k<NHR; k++) {
 	out << setw(18) << -1.0 + dc*j
 	    << setw(18) << RHMIN*exp(dr*k)
-	    << setw(18) << halotable[j][k] << endl;
+	    << setw(18) << halotable(j, k) << endl;
       }
       out << endl;
     }
@@ -1275,7 +1257,7 @@ table_halo(vector<Particle>& part)
 	xx = rr*sqrt(1.0 - costh*costh);
 	zz = rr*costh;
 	out3 
-	  << setw(14) << halotable[j][k] -  
+	  << setw(14) << halotable(j, k) -  
 	  get_disp(xx, 0.0, zz) * halo->get_density(rr);
       }
       out3 << endl;
@@ -1291,10 +1273,12 @@ double DiskHalo::get_disp(double xp,double yp, double zp)
     double r = sqrt(xp*xp + yp*yp + zp*zp);
     r = max<double>(r, halo2->get_min_radius());
     r = min<double>(r, halo2->get_max_radius());
-    return odd2(r, halotable[0], halotable[1], 0);
+    Eigen::VectorXd X(halotable.row(0));
+    Eigen::VectorXd Y(halotable.row(1));
+    return odd2(r, X, Y, 0);
   }
 
-  if (halotable.getchigh() != NHR-1) {
+  if (halotable.cols() != NHR) {
     cerr << "DiskHalo::get_disp: must call table_halo first\n";
     MPI_Abort(MPI_COMM_WORLD, 100);
     exit(0);
@@ -1306,7 +1290,7 @@ double DiskHalo::get_disp(double xp,double yp, double zp)
   // Polar angle
   //
   r = sqrt(xp*xp + yp*yp + zp*zp);
-  t = zp/(r + MINDOUBLE) + 1.0;
+  t = zp/(r + std::numeric_limits<double>::min()) + 1.0;
   
   it = (int)( t/dc );
   it = min<int>( it, NHT-2 );
@@ -1323,10 +1307,10 @@ double DiskHalo::get_disp(double xp,double yp, double zp)
   
   resv = 
     
-    ct[0]*cr[0] * halotable[it  ][ir  ]  +
-    ct[0]*cr[1] * halotable[it  ][ir+1]  +
-    ct[1]*cr[0] * halotable[it+1][ir  ]  +
-    ct[1]*cr[1] * halotable[it+1][ir+1]  ;
+    ct[0]*cr[0] * halotable(it  , ir  )  +
+    ct[0]*cr[1] * halotable(it  , ir+1)  +
+    ct[1]*cr[0] * halotable(it+1, ir  )  +
+    ct[1]*cr[1] * halotable(it+1, ir+1)  ;
   
   double dens = halo->get_density(r);
   if (dens>0.0) resv /= dens;
@@ -1361,7 +1345,7 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
     
 				// Use Eddington
     
-    if (DF && 0.5*(1.0+erf((r-R_DF)/DR_DF)) > (*rndU)()) {
+    if (DF && 0.5*(1.0+erf((r-R_DF)/DR_DF)) > rndU(gen)) {
       halo2->gen_velocity(&p.pos[0], &p.vel[0], nok);
       
       if (nok) {
@@ -1374,8 +1358,8 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
 				// Use Jeans
     if (nok) {
       v2r = get_disp(p.pos[0], p.pos[1], p.pos[2]);
-      vr = sqrt(max<double>(v2r, MINDOUBLE));
-      for (int k=0; k<3; k++) p.vel[k] = vr*(*rndN)();
+      vr = sqrt(max<double>(v2r, std::numeric_limits<double>::min()));
+      for (int k=0; k<3; k++) p.vel[k] = vr*rndN(gen);
     }
     
     massp1 += p.mass;
@@ -1574,14 +1558,14 @@ void DiskHalo::virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart)
     yy = p.pos[1];
     zz = p.pos[2];
     
-    theta = acos(zz/(r+MINDOUBLE));
+    theta = acos(zz/(r+std::numeric_limits<double>::min()));
     phi = atan2(yy, xx);
     
     if (expandh)
       expandh->determine_fields_at_point(r, theta, phi,
 					 &dens, &potl, &potr, &pott, &potp);
     
-    R2 = xx*xx + yy*yy + MINDOUBLE;
+    R2 = xx*xx + yy*yy + std::numeric_limits<double>::min();
     R = sqrt(R2);
     
     if (expandd) 
@@ -1618,7 +1602,7 @@ void DiskHalo::virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart)
     yy = p.pos[1];
     zz = p.pos[2];
     
-    theta = acos(zz/(r+MINDOUBLE));
+    theta = acos(zz/(r+std::numeric_limits<double>::min()));
     phi = atan2(yy, xx);
     
     if (expandh)
@@ -1783,14 +1767,14 @@ void DiskHalo::virial_ratio(const char *hfile, const char *dfile)
       yy = pos[1];
       zz = pos[2];
 
-      theta = acos(zz/(r+MINDOUBLE));
+      theta = acos(zz/(r+std::numeric_limits<double>::min()));
       phi = atan2(yy, xx);
     
       if (expandh)
 	expandh->determine_fields_at_point(r, theta, phi,
 					 &dens, &potl, &potr, &pott, &potp);
       
-      R2 = xx*xx + yy*yy + MINDOUBLE;
+      R2 = xx*xx + yy*yy + std::numeric_limits<double>::min();
       R = sqrt(R2);
 
       if (expandd)

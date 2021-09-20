@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -33,9 +31,8 @@ static char rcsid_plotrespot[] = "$Id$";
 
 using namespace std;
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <math.h>
+#include <cstdlib>
+#include <cmath>
 
 #include <iostream>
 #include <iomanip>
@@ -43,24 +40,22 @@ using namespace std;
 #include <sstream>
 #include <string>
 
-#include <kevin_complex.h>
-#include <Vector.h>
-#include <orbit.h>
-#include <massmodel.h>
-#include <biorth.h>
-#include <gaussQ.h>
+#include <orbit.H>
+#include <massmodel.H>
+#include <biorth.H>
+#include <gaussQ.H>
 
-#include <biorth.h>
-#include <sphereSL.h>
-#include <model3d.h>
-#include <isothermal.h>
-#include <hernquist.h>
-#include <plummer.h>
+#include <biorth.H>
+#include <sphereSL.H>
+#include <model3d.H>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <plummer.H>
 
 #include <BarForcing.H>
 #include <ResPot.H>
 
-#include <numerical.h>
+#include <numerical.H>
 
 int parse_args(int, char **);
 void write_parm(void);
@@ -113,7 +108,7 @@ pthread_mutex_t mem_lock;
 
 //
 
-Matrix return_euler(double PHI, double THETA, double PSI, int BODY);
+Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY);
 
 AxiSymModel *halo_model;
 

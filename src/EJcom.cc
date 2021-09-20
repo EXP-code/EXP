@@ -1,6 +1,6 @@
-#include <limits.h>
+#include <limits>
 
-#include "expand.h"
+#include "expand.H"
 
 #include <EJcom.H>
 

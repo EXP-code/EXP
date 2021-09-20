@@ -9,6 +9,7 @@
 // BOOST stuff
 //
 #include <boost/program_options.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 // Library variables
 

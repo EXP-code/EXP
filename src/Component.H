@@ -10,11 +10,11 @@
 #include <global.H>
 #include <Orient.H>
 #include <header.H>
-#include <localmpi.h>
+#include <localmpi.H>
 #include <ParticleFerry.H>
 #include <PotAccel.H>
 #include <Circular.H>
-#include <Timer.h>
+#include <Timer.H>
 
 #include "config.h"
 
@@ -175,6 +175,9 @@ struct loadb_datum
 
   <li> <em>blocking</em> set to true chooses blocking writes when
   using MPI-IO with OutPSP
+
+  <li> <em>buffered</em> set to true chooses buffered writes when
+  using POSIX binary
 
   <li> <em>ignore</em> the PSP info stanza on restart (i.e. for
   specifying alternative parameters, using an old-style PSP file, or
@@ -491,6 +494,9 @@ public:
 
   //! CUDA timing info
   bool timers;
+
+  //! Use buffered binary writes
+  bool buffered;
 
   //! Orientation cache
   Orient *orient;

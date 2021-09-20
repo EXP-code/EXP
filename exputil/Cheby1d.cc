@@ -2,15 +2,14 @@
 // Chebyshev fitting and smoothing class
 //
 
-#include <stdarg.h>
-
+#include <cstdarg>
 #include <iostream>
 #include <string>
 #include <vector>
 #include <cmath>
 #include <cstdlib>
 
-#include <interp.h>
+#include <interp.H>
 
 
 Cheby1d::Cheby1d()
@@ -37,7 +36,7 @@ Cheby1d &Cheby1d::operator=(const Cheby1d &p)
 }
 
 
-Cheby1d::Cheby1d(vector<double>& X, vector<double> &Y, int N)
+Cheby1d::Cheby1d(std::vector<double>& X, std::vector<double> &Y, int N)
 {
 
 				// set private values
@@ -50,7 +49,7 @@ Cheby1d::Cheby1d(vector<double>& X, vector<double> &Y, int N)
 }
 
 Cheby1d::Cheby1d(double A, double B, 
-		 vector<double>& X, vector<double> &Y, int N)
+		 std::vector<double>& X, std::vector<double> &Y, int N)
 {
   
 				// set private values
@@ -63,18 +62,18 @@ Cheby1d::Cheby1d(double A, double B,
 }
 
 
-Cheby1d::Cheby1d(const Vector& X, const Vector& Y, int N)
+Cheby1d::Cheby1d(const Eigen::VectorXd& X, const Eigen::VectorXd& Y, int N)
 {
 
 				// set private values
   n = N;
-  a = X[X.getlow()];
-  b = X[X.gethigh()];
+  a = X[0];
+  b = X[X.size()-1];
 
-  vector<double> XX(X.getlength()), YY(X.getlength());
-  for (int n=0; n<X.getlength(); n++) {
-    XX[n] = X[X.getlow()+n];
-    YY[n] = Y[X.getlow()+n];
+  std::vector<double> XX(X.size()), YY(X.size());
+  for (int n=0; n<X.size(); n++) {
+    XX[n] = X[n];
+    YY[n] = Y[n];
   }
 
   new_data(XX, YY, N);
@@ -82,7 +81,7 @@ Cheby1d::Cheby1d(const Vector& X, const Vector& Y, int N)
 }
 
 Cheby1d::Cheby1d(double A, double B, 
-		 const Vector& X, const Vector& Y, int N)
+		 const Eigen::VectorXd& X, const Eigen::VectorXd& Y, int N)
 {
   
 				// set private values
@@ -90,10 +89,10 @@ Cheby1d::Cheby1d(double A, double B,
   a = A;
   b = B;
 
-  vector<double> XX(X.getlength()), YY(X.getlength());
-  for (int n=0; n<X.getlength(); n++) {
-    XX[n] = X[X.getlow()+n];
-    YY[n] = Y[X.getlow()+n];
+  std::vector<double> XX(X.size()), YY(X.size());
+  for (int n=0; n<X.size(); n++) {
+    XX[n] = X[n];
+    YY[n] = Y[n];
   }
 
   new_data(XX, YY, N);
@@ -115,10 +114,10 @@ void Cheby1d::new_func(double (*func)(double), double A, double B, int N)
   b = B;
   n = N;
 
-  vector<double> f(n);
-  c = vector<double>(n);
-  c1 = vector<double>(n);
-  c2 = vector<double>(n);
+  std::vector<double> f(n);
+  c  = std::vector<double>(n);
+  c1 = std::vector<double>(n);
+  c2 = std::vector<double>(n);
 
   bma = 0.5*(b - a);
   bpa = 0.5*(b + a);
@@ -142,14 +141,15 @@ void Cheby1d::new_func(double (*func)(double), double A, double B, int N)
 }
 
 
-void Cheby1d::new_data(vector<double>& X, vector<double>& Y, int N)
+void Cheby1d::new_data(std::vector<double>& X, std::vector<double>& Y, int N)
 {
   double y, sum, fac, bpa, bma;
 
-  vector<double> f(n);
-  c = vector<double>(n);
-  c1 = vector<double>(n);
-  c2 = vector<double>(n);
+  std::vector<double> f(n);
+
+  c  = std::vector<double>(n);
+  c1 = std::vector<double>(n);
+  c2 = std::vector<double>(n);
 
   bma = 0.5*(b - a);
   bpa = 0.5*(b + a);
@@ -173,7 +173,7 @@ void Cheby1d::new_data(vector<double>& X, vector<double>& Y, int N)
 }
 
 
-void Cheby1d::chder(vector<double>& cin, vector<double>& cder)
+void Cheby1d::chder(std::vector<double>& cin, std::vector<double>& cder)
 {
   double con;
 
@@ -188,7 +188,7 @@ void Cheby1d::chder(vector<double>& cin, vector<double>& cder)
 }
 
 
-double Cheby1d::chebev(double x, vector<double>& cin)
+double Cheby1d::chebev(double x, std::vector<double>& cin)
 {
   double d=0.0, dd=0.0, sv, y, y2;
   if ((x-a)*(x-b) > 0.0) bomb("Cheby1d::chebev", "x out of range", 0);
@@ -215,10 +215,10 @@ void Cheby1d::bomb(const char *a, ...)
   va_end(ap);
 
   if (b != (char *)0)
-    cerr << a << ": " << b;
+    std::cerr << a << ": " << b;
   if (c != (char *)0)
-    cerr << ", " << c;
-  cerr << '\n';
+    std::cerr << ", " << c;
+  std::cerr << std::endl;
 
   exit(-1);
 }

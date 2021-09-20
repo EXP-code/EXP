@@ -9,20 +9,18 @@
 #include <iomanip>
 #include <memory>
 
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
-#include <Random.h>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
 
-#include <exponential.h>
+#include <exponential.H>
 
-#include <gaussQ.h>
-#include <localmpi.h>
-#include <Vector.h>
+#include <gaussQ.H>
+#include <localmpi.H>
 
 #include <AddDisk.H>
 #include <SphericalSL.H>
-#include "EmpCylSL.h"
+#include "EmpCylSL.H"
 #include "SParticle.H"
 
 class DiskHalo
@@ -37,17 +35,18 @@ class DiskHalo
   std::shared_ptr<SphericalSL> expandh;
   std::shared_ptr<EmpCylSL>    expandd;
 
-  std::vector<Matrix> disktableP, disktableN;
-  Matrix epitable;
+  std::vector<Eigen::MatrixXd> disktableP, disktableN;
+  Eigen::MatrixXd epitable;
   double dP, dR, dZ, epiRmin;
 
-  Matrix halotable;
+  Eigen::MatrixXd halotable;
   double dr, dc;
 
   std::shared_ptr<LegeQuad> lwz;
-  std::shared_ptr<Uniform>  rndU;
-  std::shared_ptr<Normal>   rndN;
-  std::shared_ptr<ACG>      gen;
+
+  boost::mt19937 gen;
+  boost::random::uniform_real_distribution<> rndU;
+  boost::random::normal_distribution<> rndN;
 
   bool DF;
   bool com_cov;

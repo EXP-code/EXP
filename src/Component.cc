@@ -25,7 +25,7 @@
 #include <Orient.H>
 #include <pHOT.H>
 
-#include "expand.h"
+#include "expand.H"
 
 // For sort algorithm below
 bool less_loadb(const loadb_datum& one, const loadb_datum& two)
@@ -172,6 +172,7 @@ Component::Component(YAML::Node& CONF)
 
   pBufSiz     = 100000;		// Default number particles in MPI-IO buffer
   blocking    = false;		// Default for MPI_File_write blocking
+  buffered    = true;		// Use buffered writes for POSIX binary
 
   set_default_values();
 
@@ -244,6 +245,7 @@ void Component::set_default_values()
   if (!cconf["keyPos"])          cconf["keyPos"]      = keyPos;
   if (!cconf["pBufSiz"])         cconf["pBufSiz"]     = pBufSiz;
   if (!cconf["blocking"])        cconf["blocking"]    = blocking;
+  if (!cconf["buffered"])        cconf["buffered"]    = buffered;
 }
 
 
@@ -447,7 +449,7 @@ void Component::print_level_lists(double T)
       if (tot) {
 
 	std::ostringstream ofil;
-	ofil << runtag << ".levels";
+	ofil << outdir << runtag << ".levels";
 	std::ofstream out(ofil.str().c_str(), ios::app);
 
 	unsigned curn, dtcnt, sum=0;
@@ -1022,7 +1024,7 @@ void Component::initialize(void)
     orient = new Orient(nEJkeep, nEJwant, EJ, EJctl, EJlogfile, EJdT, EJdamp);
     
     if (restart && (EJ & Orient::CENTER)) {
-      for (int i=0; i<3; i++) center[i] = (orient->currentCenter())[i+1];
+      Eigen::VectorXd::Map(&center[0], 3) = orient->currentCenter();
     } else {
       if (EJlinear) orient -> set_linear();
       if (not com_system) {
@@ -2170,7 +2172,17 @@ void Component::write_binary_particles(ostream* out, bool real4)
   if (real4) rsize = sizeof(float);
   else       rsize = sizeof(double);
 
-  for (auto p : particles) p.second->writeBinary(rsize, indexing, out);
+  // Use buffered writes
+  if (buffered) {
+    ParticleBuffer buf(rsize, indexing, particles.begin()->second.get());
+    for (auto p : particles)
+      p.second->writeBinaryBuffered(rsize, indexing, out, buf);
+    buf.writeBuffer(out, true);	// Complete the write
+  }
+  // Unbuffered, direct writes
+  else {
+    for (auto p : particles) p.second->writeBinary(rsize, indexing, out);
+  }
 }
 
 
@@ -2822,13 +2834,13 @@ void Component::fix_positions_cpu(unsigned mlevel)
   }
 
   if ((EJ & Orient::CENTER) && !EJdryrun) {
-    Vector ctr = orient->currentCenter();
+    auto ctr = orient->currentCenter();
     bool ok    = true;
     for (int i=0; i<3; i++) {
-      if (std::isnan(ctr[i+1])) ok = false;
+      if (std::isnan(ctr[i])) ok = false;
     } 
     if (ok) {
-      for (int i=0; i<3; i++) center[i] += ctr[i+1];
+      for (int i=0; i<3; i++) center[i] += ctr[i];
     } else if (myid==0) {
       cout << "Orient: center failure, T=" << tnow 
 	   << ", adjustment skipped" << endl;

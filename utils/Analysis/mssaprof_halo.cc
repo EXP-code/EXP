@@ -40,6 +40,7 @@
 
 				// BOOST stuff
 #include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
@@ -53,37 +54,21 @@ namespace pt = boost::property_tree;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
-#include <interp.h>
+#include <interp.H>
 #include <SphereSL.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
-#include <VtkGrid.H>
+#include <DataGrid.H>
 
 const std::string overview = "Compute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
-
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag, coeffile;
-double tpos = 0.0;
-double tnow = 0.0;
   
 				// Globals
 static  string outid;
+static  string runtag;
 static  double RMAX;
 static  int    OUTR;
   
@@ -158,7 +143,7 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
     
     if (myid==0) {
 
-      VtkGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
+      DataGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
 
       std::vector<double> data(OUTR*OUTR*OUTR);
 
@@ -229,7 +214,7 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
     
     if (myid==0) {
       
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTR);
 
@@ -296,7 +281,7 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
     
     if (myid==0) {
       
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTR);
 
@@ -478,7 +463,7 @@ main(int argc, char **argv)
   }
 
   bool DENS, verbose = false, mask = false, All, PCs = false;
-  std::string modelfile;
+  std::string modelfile, coeffile;
   int stride;
 
   po::options_description desc("Allowed options");
@@ -600,10 +585,10 @@ main(int argc, char **argv)
   int nmax     = std::get<1>(data);
   auto & coefs = std::get<2>(data);
 
-  SphericalModelTable halo(modelfile);
+  auto halo = boost::make_shared<SphericalModelTable>(modelfile);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
-  SphereSL ortho(&halo, lmax, nmax);
+  SphereSL ortho(halo, lmax, nmax);
   
   if (PCs) {
 
@@ -611,7 +596,7 @@ main(int argc, char **argv)
 
       std::vector<std::string> outfiles1, outfiles2, outfiles3;
       std::vector<double> T;
-      Matrix expcoef;
+      Eigen::MatrixXd expcoef;
       
       int count = 0;
       
@@ -619,8 +604,8 @@ main(int argc, char **argv)
 	
 	if (count++ % stride) continue;
 	
-	expcoef.setsize(0, lmax*(lmax+2), 1, nmax);
-	expcoef.zero();
+	expcoef.resize((lmax+1)*(lmax+1), nmax);
+	expcoef.setZero();
 	
 	int lindx = 0;
 	for (int l=0; l<=lmax; l++) {
@@ -628,10 +613,10 @@ main(int argc, char **argv)
 	    LM lm = {l, m};
 	    if (LMset.find(lm) != LMset.end()) {
 	      for (int n=0; n<nmax; n++) 
-		expcoef[lindx][n+1] = u.second[lm].cos[n];
+		expcoef(lindx, n) = u.second[lm].cos[n];
 	      if (m) {
 		for (int n=0; n<nmax; n++)
-		  expcoef[lindx+1][n+1] = u.second[lm].sin[n];
+		  expcoef(lindx+1, n) = u.second[lm].sin[n];
 	      }
 	    }
 	    if (m) lindx += 2;
@@ -676,7 +661,7 @@ main(int argc, char **argv)
   // Sum over all PCs
   if (All) {
     std::vector<std::string> outfiles1, outfiles2, outfiles3;
-    std::map<double, Matrix> expcoef;
+    std::map<double, Eigen::MatrixXd> expcoef;
     
     if (myid==0)
       std::cout << "Number of groups in coefficient array:"
@@ -691,12 +676,12 @@ main(int argc, char **argv)
 
 				// Find the time in the amp
 	double time = u.first;
-	std::map<double, Matrix>::iterator expc = expcoef.find(time);
+	std::map<double, Eigen::MatrixXd>::iterator expc = expcoef.find(time);
 
 				// Create the coefficient array
 	if (expc == expcoef.end()) {
-	  expcoef[time].setsize(0, lmax*(lmax+2), 1, nmax);
-	  expcoef[time].zero();
+	  expcoef[time].resize((lmax+1)*(lmax+1), nmax);
+	  expcoef[time].setZero();
 	  expc = expcoef.find(time);
 	}
 
@@ -706,10 +691,10 @@ main(int argc, char **argv)
 	    LM lm = {l, m};
 	    if (LMset.find(lm) != LMset.end()) {
 	      for (int n=0; n<nmax; n++)
-		expc->second[lindx][n+1] += u.second[lm].cos[n];
+		expc->second(lindx, n) += u.second[lm].cos[n];
 	      if (m) {
 		for (int n=0; n<nmax; n++)
-		  expc->second[lindx+1][n+1] += u.second[lm].sin[n];
+		  expc->second(lindx+1, n) += u.second[lm].sin[n];
 	      }
 	    }
 	    if (m) lindx += 2;

@@ -16,8 +16,8 @@ using namespace std;
 
 #include <string>
 
-#include <ACG.h>
-#include <Uniform.h>
+#include <boost/random/uniform_real_distribution.hpp>
+
 #include <Func1d.H>
 
 #ifndef PI
@@ -41,12 +41,12 @@ class SimAnneal
   double c_jump;		// phase transition step size
   int fsave;			// 
 
-  ACG *gen;			// Random number generation from libg++
-  Uniform *number_range;	// Define function pointers for ANSI
-  Uniform *number_01;
   int err;
   double *x, *xnew, *xbest;
   double y, dy, ybest;
+
+				// Random number distributions
+  boost::random::uniform_real_distribution<> number_range, number_01;
 
   int equilibrate(const double t, const int n);
   string fname;
@@ -57,9 +57,10 @@ class SimAnneal
   SimAnneal() :	 func(NULL), dimension(1), ddwell(20), rrange(PI/2.0), 
     t0(0.0), K(1.0), rho(0.5), dt(0.1), tscale(0.1), maxit(400), c_jump(100.0),
     fsave(0) {
-    gen = new ACG(10,20);
-    number_range = new Uniform(-rrange, rrange, gen);
-    number_01 = new Uniform(0.0, 1.0, gen);
+    boost::random::uniform_real_distribution<>::param_type params1(-rrange, rrange);
+    boost::random::uniform_real_distribution<>::param_type params2(0.0, 1.0);
+    number_range.param(params1);
+    number_01.param(params2);
   }
 
   SimAnneal(Func1d* f, const int d = 1);
@@ -67,7 +68,6 @@ class SimAnneal
   ~SimAnneal() 
   { 
     delete [] x; delete [] xnew; delete [] xbest; 
-    delete gen; delete number_range; delete number_01; 
   }
   
   int set_up(Func1d* f, const int d = 1, const uint32_t seed=10);
@@ -97,8 +97,9 @@ class SimAnneal
   double range(const double r = -1.0)
     { 
       if ( r > 0.0 ) 
-	{ rrange = r; delete number_range; 
-	number_range=new Uniform(-r,r,gen);}
+	{ rrange = r;
+	  boost::random::uniform_real_distribution<>::param_type params1(-rrange, rrange);
+	  number_range.param(params1);}
       return rrange; 
     }
   void initial(double* xinit);

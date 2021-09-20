@@ -31,11 +31,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <Vector.h>
-#include <kevin_complex.h>
-
-//#include "poly.h"
-#include "cpoly.h"
+#include "cpoly.H"
 
 void syn_poly_div(Poly &p1, Poly &p2, Poly &Quotient, Poly &Remainder)
 {

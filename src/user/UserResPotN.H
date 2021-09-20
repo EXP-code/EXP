@@ -1,8 +1,8 @@
 #ifndef _UserResPoTN_H
 #define _UserResPoTN_H
 
-#include <massmodel.h>
-#include <biorth.h>
+#include <massmodel.H>
+#include <biorth.H>
 #include <ResPot.H>
 #include <TwoBodyDiffuse.H>
 

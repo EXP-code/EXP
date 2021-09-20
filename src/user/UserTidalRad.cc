@@ -2,9 +2,9 @@
 #include <numeric>
 #include <cmath>
 
-#include "expand.h"
-#include <localmpi.h>
-#include <gaussQ.h>
+#include "expand.H"
+#include <localmpi.H>
+#include <gaussQ.H>
 
 #include <UserTidalRad.H>
 

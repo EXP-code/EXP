@@ -1,9 +1,9 @@
 #include <math.h>
 #include <sstream>
 
-#include "expand.h"
-#include <localmpi.h>
-#include <gaussQ.h>
+#include "expand.H"
+#include <localmpi.H>
+#include <gaussQ.H>
 
 #include <UserBar.H>
 

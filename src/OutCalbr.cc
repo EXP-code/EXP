@@ -3,8 +3,8 @@
 #include <iomanip>
 #include <sstream>
 
-#include <expand.h>
-#include <Timer.h>
+#include <expand.H>
+#include <Timer.H>
 #include <OutCalbr.H>
 
 

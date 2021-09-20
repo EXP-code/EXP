@@ -20,8 +20,8 @@
 #include <iomanip>
 #include <vector>
 
-#include <SLGridMP2.h>
-#include <massmodel.h>
+#include <SLGridMP2.H>
+#include <massmodel.H>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -213,7 +213,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
   cylrfac = RMAX*RMAX/A*A;
 #endif
 
-  kv.setsize(0, NUMK);
+  kv.resize(NUMK+1);
   // dk = M_PI/L;
   dk = 0.5*M_PI/L;
   for (k=0; k<=NUMK; k++) kv[k] = dk*k;
@@ -434,14 +434,15 @@ int SLGridCyl::read_cached_table(void)
 	return 0;
       }
 
-      table[m][k].ev.setsize(1, nmax);
-      table[m][k].ef.setsize(1, nmax, 0, numr-1);
+      table[m][k].ev.resize(nmax);
+      table[m][k].ef.resize(nmax, numr);
 
-      for (j=1; j<=nmax; j++) in.read((char *)&table[m][k].ev[j], sizeof(double));
+      for (int j=0; j<nmax; j++)
+	in.read((char *)&table[m][k].ev[j], sizeof(double));
 
-      for (j=1; j<=nmax; j++)
+      for (int j=0; j<nmax; j++)
 	for (i=0; i<numr; i++)
-	  in.read((char *)&table[m][k].ef[j][i], sizeof(double));
+	  in.read((char *)&table[m][k].ef(j, i), sizeof(double));
     }
   }
 
@@ -459,17 +460,15 @@ void SLGridCyl::write_cached_table(void)
     return;
   }
 
-  int i, j;
-
-  out.write((char *)&mmax, sizeof(int));
-  out.write((char *)&nmax, sizeof(int));
-  out.write((char *)&numr, sizeof(int));
-  out.write((char *)&numk, sizeof(int));
-  out.write((char *)&rmin, sizeof(double));
-  out.write((char *)&rmax, sizeof(double));
-  out.write((char *)&l, sizeof(double));
-  out.write((char *)&A, sizeof(double));
-  out.write((char *)&cmap, sizeof(int));
+  out.write((char *)&mmax,  sizeof(int));
+  out.write((char *)&nmax,  sizeof(int));
+  out.write((char *)&numr,  sizeof(int));
+  out.write((char *)&numk,  sizeof(int));
+  out.write((char *)&rmin,  sizeof(double));
+  out.write((char *)&rmax,  sizeof(double));
+  out.write((char *)&l,     sizeof(double));
+  out.write((char *)&A,     sizeof(double));
+  out.write((char *)&cmap,  sizeof(int));
   out.write((char *)&scale, sizeof(double));
 
   for (int m=0; m<=mmax; m++) {
@@ -478,12 +477,12 @@ void SLGridCyl::write_cached_table(void)
       out.write((char *)&table[m][k].m, sizeof(int));
       out.write((char *)&table[m][k].k, sizeof(int));
 
-      for (j=1; j<=nmax; j++)
+      for (int j=1; j<nmax; j++)
 	out.write((char *)&table[m][k].ev[j], sizeof(double));
 
-      for (j=1; j<=nmax; j++)
-	for (i=0; i<numr; i++)
-	  out.write((char *)&table[m][k].ef[j][i], sizeof(double));
+      for (int j=0; j<nmax; j++)
+	for (int i=0; i<numr; i++)
+	  out.write((char *)&table[m][k].ef(j, i), sizeof(double));
     }
   }
 
@@ -559,10 +558,10 @@ double SLGridCyl::get_pot(double x, int m, int n, int k, int which)
   
 
 #ifdef USE_TABLE
-  return (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1])/
+  return (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))/
     sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
-  return (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1])/
+  return (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))/
     sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
 #endif
 }
@@ -587,11 +586,11 @@ double SLGridCyl::get_dens(double x, int m, int n, int k, int which)
   double x2 = (x - xi[indx])/dxi;
   
 #ifdef USE_TABLE
-  return (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1]) *
+  return (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1)) *
     sqrt(fabs(table[m][k].ev[n])) * (x1*d0[indx] + x2*d0[indx+1])
     * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #else
-  return (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1]) *
+  return (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1)) *
     sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
     * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
@@ -623,14 +622,14 @@ double SLGridCyl::get_force(double x, int m, int n, int k, int which)
 				// Point  1: indx+1
 
   return d_xi_to_r(x)/dxi * (
-			     (p - 0.5)*table[m][k].ef[n][indx-1]*p0[indx-1]
-			     -2.0*p*table[m][k].ef[n][indx]*p0[indx]
-			     + (p + 0.5)*table[m][k].ef[n][indx+1]*p0[indx+1]
+			     (p - 0.5)*table[m][k].ef(n, indx-1)*p0[indx-1]
+			     -2.0*p*table[m][k].ef(n, indx)*p0[indx]
+			     + (p + 0.5)*table[m][k].ef(n, indx+1)*p0[indx+1]
 			     ) / sqrt(fabs(table[m][k].ev[n]));
 }
 
 
-void SLGridCyl::get_pot(Matrix& mat, double x, int m, int which)
+void SLGridCyl::get_pot(Eigen::MatrixXd& mat, double x, int m, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -639,7 +638,7 @@ void SLGridCyl::get_pot(Matrix& mat, double x, int m, int which)
     if (x>=1.0) x=1.0-XOFFSET;
   }
 
-  mat.setsize(0, numk, 1, nmax);
+  mat.resize(numk+1, nmax);
 
 				// XI grid is same for all k
 
@@ -653,16 +652,16 @@ void SLGridCyl::get_pot(Matrix& mat, double x, int m, int which)
   
 
   for (int k=0; k<=numk; k++) {
-    for (int n=1; n<=nmax; n++) {
+    for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-      mat[k][n] = (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1])/
+      mat(k, n) = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))/
 	sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
-      mat[k][n] = (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1])/
+      mat(k, n) = (x1*table[m][k].ef(n, indx) + x2*table(m, k).ef(n, indx+1))/
 	sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
 #endif
 #ifdef DEBUG_NAN
-      if (std::isnan(mat[k][n]) || std::isinf(mat[k][n]) ) {
+      if (std::isnan(mat(k, n)) || std::isinf(mat(k, n)) ) {
 	std::cerr << "SLGridCyl::get_pot: invalid value" << std::endl;
       }
 #endif
@@ -672,7 +671,7 @@ void SLGridCyl::get_pot(Matrix& mat, double x, int m, int which)
 }
 
 
-void SLGridCyl::get_dens(Matrix& mat, double x, int m, int which)
+void SLGridCyl::get_dens(Eigen::MatrixXd& mat, double x, int m, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -681,7 +680,7 @@ void SLGridCyl::get_dens(Matrix& mat, double x, int m, int which)
     if (x>=1.0) x=1.0-XOFFSET;
   }
 
-  mat.setsize(0, numk, 1, nmax);
+  mat.resize(numk+1, nmax);
 
 
 				// XI grid is same for all k
@@ -696,13 +695,13 @@ void SLGridCyl::get_dens(Matrix& mat, double x, int m, int which)
   
 
   for (int k=0; k<=numk; k++) {
-    for (int n=1; n<=nmax; n++) {
+    for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-      mat[k][n] = (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1])*
+      mat(k, n) = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))*
 	sqrt(fabs(table[m][k].ev[n])) * (x1*d0[indx] + x2*d0[indx+1])
       * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #else
-      mat[k][n] = (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1])*
+      mat(k, n) = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))*
 	sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
 	* table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
@@ -712,7 +711,7 @@ void SLGridCyl::get_dens(Matrix& mat, double x, int m, int which)
 }
 
 
-void SLGridCyl::get_force(Matrix& mat, double x, int m, int which)
+void SLGridCyl::get_force(Eigen::MatrixXd& mat, double x, int m, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -721,7 +720,7 @@ void SLGridCyl::get_force(Matrix& mat, double x, int m, int which)
     if (x>=1.0) x=1.0-XOFFSET;
   }
 
-  mat.setsize(0, numk, 1, nmax);
+  mat.resize(numk+1, nmax);
 
 
 				// XI grid is same for all k
@@ -735,14 +734,14 @@ void SLGridCyl::get_force(Matrix& mat, double x, int m, int which)
   double fac = d_xi_to_r(x)/dxi;
 
   for (int k=0; k<=numk; k++) {
-    for (int n=1; n<=nmax; n++) {
-      mat[k][n] = fac * (
-			 (p - 0.5)*table[m][k].ef[n][indx-1]*p0[indx-1]
-			 -2.0*p*table[m][k].ef[n][indx]*p0[indx]
-			 + (p + 0.5)*table[m][k].ef[n][indx+1]*p0[indx+1]
+    for (int n=0; n<nmax; n++) {
+      mat(k, n) = fac * (
+			 (p - 0.5)*table[m][k].ef(n, indx-1)*p0[indx-1]
+			 -2.0*p*table[m][k].ef(n, indx)*p0[indx]
+			 + (p + 0.5)*table[m][k].ef(n, indx+1)*p0[indx+1]
 			 ) / sqrt(fabs(table[m][k].ev[n]));
 #ifdef DEBUG_NAN
-      if (std::isnan(mat[k][n]) || std::isinf(mat[k][n]) ) {
+      if (std::isnan(mat(k, n)) || std::isinf(mat(k, n)) ) {
 	std::cerr << "SLGridCyl::get_force: invalid value" << std::endl;
       }
 #endif
@@ -752,7 +751,7 @@ void SLGridCyl::get_force(Matrix& mat, double x, int m, int which)
 }
 
 
-void SLGridCyl::get_pot(Vector& vec, double x, int m, int k, int which)
+void SLGridCyl::get_pot(Eigen::VectorXd& vec, double x, int m, int k, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -761,7 +760,7 @@ void SLGridCyl::get_pot(Vector& vec, double x, int m, int k, int which)
     if (x>=1.0) x=1.0-XOFFSET;
   }
 
-  vec.setsize(1, nmax);
+  vec.resize(nmax);
 
 
 				// XI grid is same for all k
@@ -775,12 +774,12 @@ void SLGridCyl::get_pot(Vector& vec, double x, int m, int k, int which)
   double x2 = (x - xi[indx])/dxi;
   
 
-  for (int n=1; n<=nmax; n++) {
+  for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-    vec[n] = (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1])/
+    vec[n] = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))/
       sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
-    vec[n] = (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1])/
+    vec[n] = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))/
       sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
 #endif
   }
@@ -788,7 +787,7 @@ void SLGridCyl::get_pot(Vector& vec, double x, int m, int k, int which)
 }
 
 
-void SLGridCyl::get_dens(Vector& vec, double x, int m, int k, int which)
+void SLGridCyl::get_dens(Eigen::VectorXd& vec, double x, int m, int k, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -797,7 +796,7 @@ void SLGridCyl::get_dens(Vector& vec, double x, int m, int k, int which)
     if (x>=1.0) x=1.0-XOFFSET;
   }
 
-  vec.setsize(1, nmax);
+  vec.resize(nmax);
 
 
 				// XI grid is same for all k
@@ -811,13 +810,13 @@ void SLGridCyl::get_dens(Vector& vec, double x, int m, int k, int which)
   double x2 = (x - xi[indx])/dxi;
   
 
-  for (int n=1; n<=nmax; n++) {
+  for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-    vec[n] = (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1])*
+    vec[n] = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))*
       sqrt(fabs(table[m][k].ev[n])) * (x1*d0[indx] + x2*d0[indx+1])
       * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #else
-    vec[n] = (x1*table[m][k].ef[n][indx] + x2*table[m][k].ef[n][indx+1])*
+    vec[n] = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))*
       sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
       * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
@@ -826,7 +825,7 @@ void SLGridCyl::get_dens(Vector& vec, double x, int m, int k, int which)
 }
 
 
-void SLGridCyl::get_force(Vector& vec, double x, int m, int k, int which)
+void SLGridCyl::get_force(Eigen::VectorXd& vec, double x, int m, int k, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -835,7 +834,7 @@ void SLGridCyl::get_force(Vector& vec, double x, int m, int k, int which)
     if (x>=1.0) x=1.0-XOFFSET;
   }
 
-  vec.setsize(1, nmax);
+  vec.resize(nmax);
 
 
 				// XI grid is same for all k
@@ -848,18 +847,18 @@ void SLGridCyl::get_force(Vector& vec, double x, int m, int k, int which)
   double p = (x - xi[indx])/dxi;
   double fac = d_xi_to_r(x)/dxi;
 
-  for (int n=1; n<=nmax; n++) {
+  for (int n=0; n<nmax; n++) {
     vec[n] = fac * (
-		    (p - 0.5)*table[m][k].ef[n][indx-1]*p0[indx-1]
-		    -2.0*p*table[m][k].ef[n][indx]*p0[indx]
-		    + (p + 0.5)*table[m][k].ef[n][indx+1]*p0[indx+1]
+		    (p - 0.5)*table[m][k].ef(n, indx-1)*p0[indx-1]
+		    -2.0*p*table[m][k].ef(n, indx)*p0[indx]
+		    + (p + 0.5)*table[m][k].ef(n, indx+1)*p0[indx+1]
 		    ) / sqrt(fabs(table[m][k].ev[n]));
   }
 
 }
 
 
-void SLGridCyl::get_pot(Matrix* mat, double x, int mMin, int mMax, int which)
+void SLGridCyl::get_pot(Eigen::MatrixXd* mat, double x, int mMin, int mMax, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -871,7 +870,7 @@ void SLGridCyl::get_pot(Matrix* mat, double x, int mMin, int mMax, int which)
   if (mmax < mMax) mMax = mmax;
 
   for (int m=mMin; m<=mMax; m++)
-    mat[m].setsize(0, numk, 1, nmax);
+    mat[m].resize(numk+1, nmax);
 
 
 				// XI grid is same for all k
@@ -887,28 +886,28 @@ void SLGridCyl::get_pot(Matrix* mat, double x, int mMin, int mMax, int which)
 
   for (int m=mMin; m<=mMax; m++) {
     for (int k=0; k<=numk; k++) {
-      for (int n=1; n<=nmax; n++) {
+      for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-	mat[m][k][n] = (x1*table[m][k].ef[n][indx] + 
-			x2*table[m][k].ef[n][indx+1])/
+	mat[m](k, n) = (x1*table[m][k].ef(n, indx) + 
+			x2*table[m][k].ef(n, indx+1))/
 	  sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
-	mat[m][k][n] = (x1*table[m][k].ef[n][indx] + 
-			x2*table[m][k].ef[n][indx+1])/
+	mat[m](k, n) = (x1*table[m][k].ef(n, indx) + 
+			x2*table[m][k].ef(n, indx+1))/
 	  sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
 #endif
 #ifdef DEBUG_NAN
-	if (std::isnan(mat[m][k][n]) || std::isinf(mat[m][k][n]) ) {
+	if (std::isnan(mat[m](k, n)) || std::isinf(mat[m](k, n)) ) {
 	  std::cerr << "SLGridCyl::get_pot: invalid value" << std::endl;
 	  std::cerr <<   "  x1=" << x1
 		    << "\n  x2=" << x2
-		    << "\n  t0=" << table[m][k].ef[n][indx]
+		    << "\n  t0=" << table[m][k].ef(n, indx)
 		    << "\n  p0=" << p0[indx]
-		    << "\n  tp=" << table[m][k].ef[n][indx+1]
+		    << "\n  tp=" << table[m][k].ef(n, indx+1)
 		    << "\n  pp=" << p0[indx+1]
 		    << "\n  ev=" << fabs(table[m][k].ev[n])
-		    << "\n val=" << (x1*table[m][k].ef[n][indx] + 
-				     x2*table[m][k].ef[n][indx+1])/
+		    << "\n val=" << (x1*table[m][k].ef(n, indx) + 
+				     x2*table[m][k].ef(n, indx+1))/
 	    sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1])
 		    << "" << std::endl;
 	}
@@ -920,7 +919,7 @@ void SLGridCyl::get_pot(Matrix* mat, double x, int mMin, int mMax, int which)
 }
 
 
-void SLGridCyl::get_dens(Matrix* mat, double x, int mMin, int mMax, int which)
+void SLGridCyl::get_dens(Eigen::MatrixXd* mat, double x, int mMin, int mMax, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -932,7 +931,7 @@ void SLGridCyl::get_dens(Matrix* mat, double x, int mMin, int mMax, int which)
   if (mmax < mMax) mMax = mmax;
 
   for (int m=mMin; m<=mMax; m++)
-    mat[m].setsize(0, numk, 1, nmax);
+    mat[m].resize(numk+1, nmax);
 
 
 				// XI grid is same for all k
@@ -948,15 +947,15 @@ void SLGridCyl::get_dens(Matrix* mat, double x, int mMin, int mMax, int which)
 
   for (int m=mMin; m<=mMax; m++) {
     for (int k=0; k<=numk; k++) {
-      for (int n=1; n<=nmax; n++) {
+      for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-	mat[m][k][n] = (x1*table[m][k].ef[n][indx] + 
-			x2*table[m][k].ef[n][indx+1])*
+	mat[m](k, n) = (x1*table[m][k].ef(n, indx) + 
+			x2*table[m][k].ef(n, indx+1))*
 	  sqrt(fabs(table[m][k].ev[n])) * (x1*d0[indx] + x2*d0[indx+1])
 	  * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #else
-	mat[m][k][n] = (x1*table[m][k].ef[n][indx] + 
-			x2*table[m][k].ef[n][indx+1])*
+	mat[m](k, n) = (x1*table[m][k].ef(n, indx) + 
+			x2*table[m][k].ef(n, indx+1))*
 	  sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
 	  * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
@@ -967,7 +966,7 @@ void SLGridCyl::get_dens(Matrix* mat, double x, int mMin, int mMax, int which)
 }
 
 
-void SLGridCyl::get_force(Matrix* mat, double x, int mMin, int mMax, int which)
+void SLGridCyl::get_force(Eigen::MatrixXd* mat, double x, int mMin, int mMax, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -979,7 +978,7 @@ void SLGridCyl::get_force(Matrix* mat, double x, int mMin, int mMax, int which)
   if (mmax < mMax) mMax = mmax;
 
   for (int m=mMin; m<=mMax; m++)
-    mat[m].setsize(0, numk, 1, nmax);
+    mat[m].resize(numk+1, nmax);
 
 
 				// XI grid is same for all k
@@ -994,27 +993,27 @@ void SLGridCyl::get_force(Matrix* mat, double x, int mMin, int mMax, int which)
 
   for (int m=mMin; m<=mMax; m++) {
     for (int k=0; k<=numk; k++) {
-      for (int n=1; n<=nmax; n++) {
-	mat[m][k][n] = fac * (
-			      (p - 0.5)*table[m][k].ef[n][indx-1]*p0[indx-1]
-			      -2.0*p*table[m][k].ef[n][indx]*p0[indx]
-			      + (p + 0.5)*table[m][k].ef[n][indx+1]*p0[indx+1]
+      for (int n=0; n<nmax; n++) {
+	mat[m](k, n) = fac * (
+			      (p - 0.5)*table[m][k].ef(n, indx-1)*p0[indx-1]
+			      -2.0*p*table[m][k].ef(n, indx)*p0[indx]
+			      + (p + 0.5)*table[m][k].ef(n, indx+1)*p0[indx+1]
 			      ) / sqrt(fabs(table[m][k].ev[n]));
 #ifdef DEBUG_NAN
-	if (std::isnan(mat[m][k][n]) || std::isinf(mat[m][k][n]) ) {
+	if (std::isnan(mat[m](k, n)) || std::isinf(mat[m](k, n)) ) {
 	  std::cerr << "SLGridCyl::get_force: invalid value" << std::endl;
 	  std::cerr <<   "   p=" << p
-		    << "\n  tm=" << table[m][k].ef[n][indx-1]
+		    << "\n  tm=" << table[m][k].ef(n, indx-1)
 		    << "\n  pm=" << p0[indx-1]
-		    << "\n  t0=" << table[m][k].ef[n][indx]
+		    << "\n  t0=" << table[m][k].ef(n, indx)
 		    << "\n  p0=" << p0[indx]
-		    << "\n  tp=" << table[m][k].ef[n][indx+1]
+		    << "\n  tp=" << table[m][k].ef(n, indx+1)
 		    << "\n  pp=" << p0[indx+1]
 		    << "\n  ev=" << fabs(table[m][k].ev[n])
 		    << "\n val=" << fac * (
-					   (p - 0.5)*table[m][k].ef[n][indx-1]*p0[indx-1]
-					   -2.0*p*table[m][k].ef[n][indx]*p0[indx]
-					   + (p + 0.5)*table[m][k].ef[n][indx+1]*p0[indx+1]
+					   (p - 0.5)*table[m][k].ef(n, indx-1)*p0[indx-1]
+					   -2.0*p*table[m][k].ef(n, indx)*p0[indx]
+					   + (p + 0.5)*table[m][k].ef(n, indx+1)*p0[indx+1]
 					   ) / sqrt(fabs(table[m][k].ev[n]))
 		    << "" << std::endl;
 	}
@@ -1036,7 +1035,7 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   double tol[6] = {1.0e-4*scale,1.0e-5,  
 		   1.0e-4*scale,1.0e-5,  
 		   1.0e-4*scale,1.0e-5};
-  int i, j, VERBOSE=0;
+  int VERBOSE=0;
   integer NUM, N, M;
   logical type[8];
   logical endfin[2] = {1, 1};
@@ -1057,14 +1056,12 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   integer *iflag = new integer [nmax];
   integer *invec = new integer [nmax+3];
 
-  // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-  // pdef[NUM*N];
   double *t=0, *rho=0;
-  double *ev = new double [N];
+  double *ev    = new double [N];
   double *store = new double [26*(NUM+16)];
-  double *xef = new double [NUM+16];
-  double *ef = new double [NUM*N];
-  double *pdef = new double [NUM*N];
+  double *xef   = new double [NUM+16];
+  double *ef    = new double [NUM*N];
+  double *pdef  = new double [NUM*N];
   double f;
 
 				// Inner  BC
@@ -1093,7 +1090,7 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   invec[1] = 3;			// spectrum is ignored
   invec[2] = N;			// estimates for N eigenvalues/functions
 
-  for (i=0; i<N; i++) invec[3+i] = i;
+  for (int i=0; i<N; i++) invec[3+i] = i;
 
   //
   //     Set the JOB(*) vector:
@@ -1107,7 +1104,7 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   //
   //     Output mesh
   //
-  for (i=0; i<NUM; i++) xef[i] = r[i];
+  for (int i=0; i<NUM; i++) xef[i] = r[i];
 
   //     
   //     Open file for output.
@@ -1124,7 +1121,7 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
     std::cout.precision(6);
     std::cout.setf(ios::scientific);
 
-    for (i=0; i<N; i++) {
+    for (int i=0; i<N; i++) {
       std::cout << std::setw(15) << invec[3+i] 
 		<< std::setw(15) << ev[i]
 		<< std::setw( 5) << iflag[i]
@@ -1138,7 +1135,7 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
 		    << std::setw(25) << "(pu`)(x)"
 		    << std::endl;
 	  k = NUM*i;
-	  for (j=0; j<NUM; j++) {
+	  for (int j=0; j<NUM; j++) {
 	    std::cout << std::setw(25) << xef[j]
 		      << std::setw(25) << ef[j+k]
 		      << std::setw(25) << pdef[j+k]
@@ -1152,14 +1149,14 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   
 				// Load table
 
-  table->ev.setsize(1, N);
-  for (i=0; i<N; i++) table->ev[i+1] = ev[i];
+  table->ev.resize(N);
+  for (int i=0; i<N; i++) table->ev[i] = ev[i];
 
-  table->ef.setsize(1, N, 0, numr-1);
+  table->ef.resize(N, numr);
 
-  for (i=0; i<numr; i++) {
-    for(j=0; j<N; j++) 
-      table->ef[j+1][i] = ef[j*NUM+i];
+  for (int i=0; i<numr; i++) {
+    for(int j=0; j<N; j++) 
+      table->ef(j, i) = ef[j*NUM+i];
   }
 
   table->m = m;
@@ -1178,13 +1175,10 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
 
 void SLGridCyl::init_table(void)
 {
-
-  int i;
-
-  xi.setsize(0, numr-1);
-  r.setsize(0, numr-1);
-  p0.setsize(0, numr-1);
-  d0.setsize(0, numr-1);
+  xi.resize(numr);
+  r .resize(numr);
+  p0.resize(numr);
+  d0.resize(numr);
 
   if (cmap) {
     xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
@@ -1196,9 +1190,9 @@ void SLGridCyl::init_table(void)
     dxi = (xmax-xmin)/(numr-1);
   }
 
-  for (i=0; i<numr; i++) {
+  for (int i=0; i<numr; i++) {
     xi[i] = xmin + dxi*i;
-    r[i] = xi_to_r(xi[i]);
+    r[i]  = xi_to_r(xi[i]);
     p0[i] = cylpot(r[i]);
     d0[i] = cyldens(r[i]);
   }
@@ -1265,14 +1259,13 @@ void SLGridCyl::compute_table_slave(void)
     integer *iflag = new integer [nmax];
     integer *invec = new integer [nmax+3];
 
-    // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-    // pdef[NUM*N];
+
     double *t=0, *rho=0;
-    double *ev = new double [N];
+    double *ev    = new double [N];
     double *store = new double [26*(NUM+16)];
-    double *xef = new double [NUM+16];
-    double *ef = new double [NUM*N];
-    double *pdef = new double [NUM*N];
+    double *xef   = new double [NUM+16];
+    double *ef    = new double [NUM*N];
+    double *pdef  = new double [NUM*N];
     double f;
 
     f = cylpot(cons[6]);
@@ -1386,13 +1379,13 @@ void SLGridCyl::compute_table_slave(void)
 
 				// Load table
 
-    table.ev.setsize(1, N);
-    for (i=0; i<N; i++) table.ev[i+1] = ev[i];
+    table.ev.resize(N);
+    for (int i=0; i<N; i++) table.ev[i] = ev[i];
 
-    table.ef.setsize(1, N, 0, numr-1);
-    for (i=0; i<numr; i++) {
-      for(j=0; j<N; j++) 
-	table.ef[j+1][i] = ef[j*NUM+i];
+    table.ef.resize(N, numr);
+    for (int i=0; i<numr; i++) {
+      for (int j=0; j<N; j++) 
+	table.ef(j, i) = ef[j*NUM+i];
     }
 
     table.m = M;
@@ -1456,7 +1449,7 @@ int SLGridCyl::mpi_pack_table(struct TableCyl* table, int m, int k)
 
   for (j=1; j<=nmax; j++)
     for (i=0; i<numr; i++)
-      MPI_Pack( &table->ef[j][i], 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
+      MPI_Pack( &table->ef(j, i), 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
 		&position, MPI_COMM_WORLD);
 
   return position;
@@ -1465,7 +1458,7 @@ int SLGridCyl::mpi_pack_table(struct TableCyl* table, int m, int k)
 
 void SLGridCyl::mpi_unpack_table(void)
 {
-  int i, j, length, position = 0;
+  int length, position = 0;
   int m, k;
 
 #ifdef DEBUG
@@ -1491,17 +1484,17 @@ void SLGridCyl::mpi_unpack_table(void)
 
   table[m][k].m = m;
   table[m][k].k = k;
-  table[m][k].ev.setsize(1, nmax);
-  table[m][k].ef.setsize(1, nmax, 0, numr-1);
+  table[m][k].ev.resize(nmax);
+  table[m][k].ef.resize(nmax, numr);
 
 
-  for (j=1; j<=nmax; j++)
+  for (int j=1; j<=nmax; j++)
     MPI_Unpack( mpi_buf, length, &position, &table[m][k].ev[j], 1, MPI_DOUBLE,
 		MPI_COMM_WORLD);
 
-  for (j=1; j<=nmax; j++)
-    for (i=0; i<numr; i++)
-      MPI_Unpack( mpi_buf, length, &position, &table[m][k].ef[j][i], 1, 
+  for (int j=1; j<=nmax; j++)
+    for (int i=0; i<numr; i++)
+      MPI_Unpack( mpi_buf, length, &position, &table[m][k].ef(j, i), 1, 
 		  MPI_DOUBLE, MPI_COMM_WORLD);
 }
 
@@ -1569,9 +1562,8 @@ SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
 }
 
-SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
-		     double RMIN, double RMAX, 
-		     boost::shared_ptr<SphericalModelTable> mod,
+SLGridSph::SLGridSph(boost::shared_ptr<SphericalModelTable> mod,
+		     int LMAX, int NMAX, int NUMR, double RMIN, double RMAX, 
 		     bool CACHE, int CMAP, double SCALE, bool VERBOSE)
 {
   mpi_buf  = 0;
@@ -1592,8 +1584,8 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
   nmax  = NMAX;
   numr  = NUMR;
 
-  rmin  = RMIN;
-  rmax  = RMAX;
+  rmin  = std::max<double>(RMIN, model->get_min_radius());
+  rmax  = std::min<double>(RMAX, model->get_max_radius());
 
   cache = CACHE;
   cmap  = CMAP;
@@ -1767,9 +1759,9 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
 }
 
-void check_vector_values_SL(const Vector& v)
+void check_vector_values_SL(const Eigen::VectorXd& v)
 {
-  for (int i=v.getlow(); i<=v.gethigh(); i++)
+  for (int i=0; i<v.size(); i++)
     if (std::isinf(v[i]) || std::isnan(v[i]))
       {
 	std::cerr << "check_vector: Illegal value" << std::endl;
@@ -1783,7 +1775,7 @@ int SLGridSph::read_cached_table(void)
   ifstream in(sph_cache_name.c_str());
   if (!in) return 0;
 
-  int LMAX, NMAX, NUMR, i, j, CMAP;
+  int LMAX, NMAX, NUMR, CMAP;
   double RMIN, RMAX, SCL;
 
   if (myid==0) 
@@ -1811,18 +1803,18 @@ int SLGridSph::read_cached_table(void)
 	return 0;
     }
 
-    table[l].ev.setsize(1, nmax);
-    table[l].ef.setsize(1, nmax, 0, numr-1);
+    table[l].ev.resize(nmax);
+    table[l].ef.resize(nmax, numr);
 
-    for (j=1; j<=nmax; j++) in.read((char *)&table[l].ev[j], sizeof(double));
+    for (int j=0; j<nmax; j++) in.read((char *)&table[l].ev[j], sizeof(double));
 
 #ifdef DEBUG_NAN
     check_vector_values_SL(table[l].ev);
 #endif
 
-    for (j=1; j<=nmax; j++) {
-      for (i=0; i<numr; i++)
-	in.read((char *)&table[l].ef[j][i], sizeof(double));
+    for (int j=0; j<nmax; j++) {
+      for (int i=0; i<numr; i++)
+	in.read((char *)&table[l].ef(j, i), sizeof(double));
 #ifdef DEBUG_NAN
       check_vector_values_SL(table[l].ef[j]);
 #endif
@@ -1858,12 +1850,12 @@ void SLGridSph::write_cached_table(void)
 
     out.write((char *)&table[l].l, sizeof(int));
 
-    for (j=1; j<=nmax; j++)
+    for (int j=0; j<nmax; j++)
       out.write((char *)&table[l].ev[j], sizeof(double));
 
-    for (j=1; j<=nmax; j++)
-      for (i=0; i<numr; i++)
-	out.write((char *)&table[l].ef[j][i], sizeof(double));
+    for (int j=0; j<nmax; j++)
+      for (int i=0; i<numr; i++)
+	out.write((char *)&table[l].ef(j, i), sizeof(double));
   }
 
   std::cerr << "SLGridSph::write_cached_table: done!!" << std::endl;
@@ -1961,10 +1953,10 @@ double SLGridSph::get_pot(double x, int l, int n, int which)
   
 
 #ifdef USE_TABLE
-  return (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1])/
+  return (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1))/
     sqrt(table[l].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
-  return (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1])/
+  return (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1))/
     sqrt(table[l].ev[n]) * sphpot(xi_to_r(x));
 #endif
 }
@@ -1994,10 +1986,10 @@ double SLGridSph::get_dens(double x, int l, int n, int which)
   double x2 = (x - xi[indx])/dxi;
   
 #ifdef USE_TABLE
-  return (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1]) *
+  return (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1)) *
     sqrt(table[l].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]);
 #else
-  return (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1]) *
+  return (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1)) *
     sqrt(table[l].ev[n]) * sphdens(xi_to_r(x));
 #endif
 
@@ -2033,14 +2025,14 @@ double SLGridSph::get_force(double x, int l, int n, int which)
 				// Point  1: indx+1
 
   return d_xi_to_r(x)/dxi * (
-			     (p - 0.5)*table[l].ef[n][indx-1]*p0[indx-1]
-			     -2.0*p*table[l].ef[n][indx]*p0[indx]
-			     + (p + 0.5)*table[l].ef[n][indx+1]*p0[indx+1]
+			     (p - 0.5)*table[l].ef(n, indx-1)*p0[indx-1]
+			     -2.0*p*table[l].ef(n, indx)*p0[indx]
+			     + (p + 0.5)*table[l].ef(n, indx+1)*p0[indx+1]
 			     ) / sqrt(table[l].ev[n]);
 }
 
 
-void SLGridSph::get_pot(Matrix& mat, double x, int which)
+void SLGridSph::get_pot(Eigen::MatrixXd& mat, double x, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -2055,7 +2047,7 @@ void SLGridSph::get_pot(Matrix& mat, double x, int which)
     }
   }
 
-  mat.setsize(0, lmax, 1, nmax);
+  mat.resize(lmax+1, nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<0) indx = 0;
@@ -2067,12 +2059,12 @@ void SLGridSph::get_pot(Matrix& mat, double x, int which)
   
 
   for (int l=0; l<=lmax; l++) {
-    for (int n=1; n<=nmax; n++) {
+    for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-      mat[l][n] = (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1])/
+      mat(l, n) = (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1))/
 	sqrt(table[l].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
-      mat[l][n] = (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1])/
+      mat(l, n) = (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1))/
 	sqrt(table[l].ev[n]) * sphpot(xi_to_r(x));
 #endif
     }
@@ -2081,7 +2073,7 @@ void SLGridSph::get_pot(Matrix& mat, double x, int which)
 }
 
 
-void SLGridSph::get_dens(Matrix& mat, double x, int which)
+void SLGridSph::get_dens(Eigen::MatrixXd& mat, double x, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -2096,7 +2088,7 @@ void SLGridSph::get_dens(Matrix& mat, double x, int which)
     }
   }
 
-  mat.setsize(0, lmax, 1, nmax);
+  mat.resize(lmax+1, nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<0) indx = 0;
@@ -2108,12 +2100,12 @@ void SLGridSph::get_dens(Matrix& mat, double x, int which)
   
 
   for (int l=0; l<=lmax; l++) {
-    for (int n=1; n<=nmax; n++) {
+    for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-      mat[l][n] = (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1])*
+      mat(l, n) = (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1))*
 	sqrt(table[l].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]);
 #else
-      mat[l][n] = (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1])*
+      mat(l, n) = (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1))*
 	sqrt(table[l].ev[n]) * sphdens(xi_to_r(x));
 #endif
     }
@@ -2122,7 +2114,7 @@ void SLGridSph::get_dens(Matrix& mat, double x, int which)
 }
 
 
-void SLGridSph::get_force(Matrix& mat, double x, int which)
+void SLGridSph::get_force(Eigen::MatrixXd& mat, double x, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -2137,7 +2129,7 @@ void SLGridSph::get_force(Matrix& mat, double x, int which)
     }
   }
 
-  mat.setsize(0, lmax, 1, nmax);
+  mat.resize(lmax+1, nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<1) indx = 1;
@@ -2148,11 +2140,11 @@ void SLGridSph::get_force(Matrix& mat, double x, int which)
   double fac = d_xi_to_r(x)/dxi;
 
   for (int l=0; l<=lmax; l++) {
-    for (int n=1; n<=nmax; n++) {
-      mat[l][n] = fac * (
-			 (p - 0.5)*table[l].ef[n][indx-1]*p0[indx-1]
-			 -2.0*p*table[l].ef[n][indx]*p0[indx]
-			 + (p + 0.5)*table[l].ef[n][indx+1]*p0[indx+1]
+    for (int n=0; n<nmax; n++) {
+      mat(l, n) = fac * (
+			 (p - 0.5)*table[l].ef(n, indx-1)*p0[indx-1]
+			 -2.0*p*table[l].ef(n, indx)*p0[indx]
+			 + (p + 0.5)*table[l].ef(n, indx+1)*p0[indx+1]
 			 ) / sqrt(table[l].ev[n]);
     }
   }
@@ -2160,7 +2152,7 @@ void SLGridSph::get_force(Matrix& mat, double x, int which)
 }
 
 
-void SLGridSph::get_pot(Vector& vec, double x, int l, int which)
+void SLGridSph::get_pot(Eigen::VectorXd& vec, double x, int l, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -2175,7 +2167,7 @@ void SLGridSph::get_pot(Vector& vec, double x, int l, int which)
     }
   }
 
-  vec.setsize(1, nmax);
+  vec.resize(nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<0) indx = 0;
@@ -2185,12 +2177,12 @@ void SLGridSph::get_pot(Vector& vec, double x, int l, int which)
   double x2 = (x - xi[indx])/dxi;
   
 
-  for (int n=1; n<=nmax; n++) {
+  for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-    vec[n] = (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1])/
+    vec[n] = (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1))/
       sqrt(table[l].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
-    vec[n] = (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1])/
+    vec[n] = (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1))/
       sqrt(table[l].ev[n]) * sphpot(xi_to_r(x));
 #endif
   }
@@ -2198,7 +2190,7 @@ void SLGridSph::get_pot(Vector& vec, double x, int l, int which)
 }
 
 
-void SLGridSph::get_dens(Vector& vec, double x, int l, int which)
+void SLGridSph::get_dens(Eigen::VectorXd& vec, double x, int l, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -2213,7 +2205,7 @@ void SLGridSph::get_dens(Vector& vec, double x, int l, int which)
     }
   }
 
-  vec.setsize(1, nmax);
+  vec.resize(nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<0) indx = 0;
@@ -2223,12 +2215,12 @@ void SLGridSph::get_dens(Vector& vec, double x, int l, int which)
   double x2 = (x - xi[indx])/dxi;
   
 
-  for (int n=1; n<=nmax; n++) {
+  for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-    vec[n] = (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1])*
+    vec[n] = (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1))*
       sqrt(table[l].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]);
 #else
-    vec[n] = (x1*table[l].ef[n][indx] + x2*table[l].ef[n][indx+1])*
+    vec[n] = (x1*table[l].ef(n, indx) + x2*table[l].ef(n, indx+1))*
       sqrt(table[l].ev[n]) * sphdens(xi_to_r(x));
 #endif
   }
@@ -2236,7 +2228,7 @@ void SLGridSph::get_dens(Vector& vec, double x, int l, int which)
 }
 
 
-void SLGridSph::get_force(Vector& vec, double x, int l, int which)
+void SLGridSph::get_force(Eigen::VectorXd& vec, double x, int l, int which)
 {
   if (which || !cmap)
     x = r_to_xi(x);
@@ -2251,7 +2243,7 @@ void SLGridSph::get_force(Vector& vec, double x, int l, int which)
     }
   }
 
-  vec.setsize(1, nmax);
+  vec.resize(nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<1) indx = 1;
@@ -2261,11 +2253,11 @@ void SLGridSph::get_force(Vector& vec, double x, int l, int which)
   double p = (x - xi[indx])/dxi;
   double fac = d_xi_to_r(x)/dxi;
 
-  for (int n=1; n<=nmax; n++) {
+  for (int n=0; n<nmax; n++) {
     vec[n] = fac * (
-		    (p - 0.5)*table[l].ef[n][indx-1]*p0[indx-1]
-		    -2.0*p*table[l].ef[n][indx]*p0[indx]
-		    + (p + 0.5)*table[l].ef[n][indx+1]*p0[indx+1]
+		    (p - 0.5)*table[l].ef(n, indx-1)*p0[indx-1]
+		    -2.0*p*table[l].ef(n, indx)*p0[indx]
+		    + (p + 0.5)*table[l].ef(n, indx+1)*p0[indx+1]
 		    ) / sqrt(table[l].ev[n]);
   }
 
@@ -2278,7 +2270,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   double tol[6] = {1.0e-4*scale,1.0e-6,  
 		   1.0e-4*scale,1.0e-6,  
 		   1.0e-4*scale,1.0e-6};
-  int i, j, k, VERBOSE=0;
+  int VERBOSE=0;
   integer NUM, N;
   logical type[8] = {0, 0, 1, 0, 0, 0, 1, 0};
   logical endfin[2] = {1, 1};
@@ -2297,14 +2289,12 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   integer *iflag = new integer [nmax];
   integer *invec = new integer [nmax+3];
 
-  // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-  // pdef[NUM*N];
   double *t=0, *rho=0;
-  double *ev = new double [N];
+  double *ev    = new double [N];
   double *store = new double [26*(NUM+16)];
-  double *xef = new double [NUM+16];
-  double *ef = new double [NUM*N];
-  double *pdef = new double [NUM*N];
+  double *xef   = new double [NUM+16];
+  double *ef    = new double [NUM*N];
+  double *pdef  = new double [NUM*N];
   double f;
 
 				// Inner BC
@@ -2330,7 +2320,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   invec[1] = 3;			// spectrum is ignored
   invec[2] = N;			// estimates for N eigenvalues/functions
 
-  for (i=0; i<N; i++) invec[3+i] = i;
+  for (int i=0; i<N; i++) invec[3+i] = i;
 
   //
   //     Set the JOB(*) vector:
@@ -2344,7 +2334,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   //
   //     Output mesh
   //
-  for (i=0; i<NUM; i++) xef[i] = r[i];
+  for (int i=0; i<NUM; i++) xef[i] = r[i];
 
   //     
   //     Open file for output.
@@ -2360,7 +2350,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
     std::cout.precision(6);
     std::cout.setf(ios::scientific);
 
-    for (i=0; i<N; i++) {
+    for (int i=0; i<N; i++) {
       std::cout << std::setw(15) << invec[3+i] 
 		<< std::setw(15) << ev[i]
 		<< std::setw( 5) << iflag[i]
@@ -2373,8 +2363,8 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 		    << std::setw(25) << "u(x)"
 		    << std::setw(25) << "(pu`)(x)"
 		    << std::endl;
-	  k = NUM*i;
-	  for (j=0; j<NUM; j++) {
+	  int k = NUM*i;
+	  for (int j=0; j<NUM; j++) {
 	    std::cout << std::setw(25) << xef[j]
 		      << std::setw(25) << ef[j+k]
 		      << std::setw(25) << pdef[j+k]
@@ -2389,14 +2379,14 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   
 				// Load table
 
-  table->ev.setsize(1, N);
-  for (i=0; i<N; i++) table->ev[i+1] = ev[i];
+  table->ev.resize(N);
+  for (int i=0; i<N; i++) table->ev[i] = ev[i];
 
-  table->ef.setsize(1, N, 0, numr-1);
+  table->ef.resize(N, numr);
 
-  for (i=0; i<numr; i++) {
-    for(j=0; j<N; j++) 
-      table->ef[j+1][i] = ef[j*NUM+i];
+  for (int i=0; i<numr; i++) {
+    for(int j=0; j<N; j++) 
+      table->ef(j, i) = ef[j*NUM+i];
   }
 
   table->l = l;
@@ -2414,13 +2404,10 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 
 void SLGridSph::init_table(void)
 {
-
-  int i;
-
-  xi.setsize(0, numr-1);
-  r.setsize(0, numr-1);
-  p0.setsize(0, numr-1);
-  d0.setsize(0, numr-1);
+  xi.resize(numr);
+  r. resize(numr);
+  p0.resize(numr);
+  d0.resize(numr);
 
   if (cmap==1) {
     xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
@@ -2435,9 +2422,9 @@ void SLGridSph::init_table(void)
   }
   dxi = (xmax-xmin)/(numr-1);
     
-  for (i=0; i<numr; i++) {
+  for (int i=0; i<numr; i++) {
     xi[i] = xmin + dxi*i;
-    r[i] = xi_to_r(xi[i]);
+    r[i]  = xi_to_r(xi[i]);
     p0[i] = sphpot(r[i]);
     d0[i] = sphdens(r[i]);
   }
@@ -2453,7 +2440,7 @@ void SLGridSph::compute_table_slave(void)
 		   1.0e-1*scale,1.0e-6,  
 		   1.0e-1*scale,1.0e-6};
 
-  int i, j, VERBOSE=0;
+  int VERBOSE=0;
   integer NUM;
   logical type[8] = {0, 0, 1, 0, 0, 0, 1, 0};
   logical endfin[2] = {1, 1};
@@ -2501,14 +2488,12 @@ void SLGridSph::compute_table_slave(void)
     integer *iflag = new integer [nmax];
     integer *invec = new integer [nmax+3];
 
-    // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-    // pdef[NUM*N];
     double *t=0, *rho=0;
-    double *ev = new double [N];
+    double *ev    = new double [N];
     double *store = new double [26*(NUM+16)];
-    double *xef = new double [NUM+16];
-    double *ef = new double [NUM*N];
-    double *pdef = new double [NUM*N];
+    double *xef   = new double [NUM+16];
+    double *ef    = new double [NUM*N];
+    double *pdef  = new double [NUM*N];
     double f;
 
     f = sphpot(cons[6]);
@@ -2526,7 +2511,7 @@ void SLGridSph::compute_table_slave(void)
     invec[1] = 3;		// spectrum is ignored
     invec[2] = N;		// estimates for N eigenvalues/functions
 
-    for (i=0; i<N; i++) invec[3+i] = i;
+    for (int i=0; i<N; i++) invec[3+i] = i;
 
     //
     //     Set the JOB(*) vector:
@@ -2540,7 +2525,7 @@ void SLGridSph::compute_table_slave(void)
     //
     //     Output mesh
     //
-    for (i=0; i<NUM; i++) xef[i] = r[i];
+    for (int i=0; i<NUM; i++) xef[i] = r[i];
 
     //     
     //     Open file for output.
@@ -2559,7 +2544,7 @@ void SLGridSph::compute_table_slave(void)
     std::cout.precision(6);
     std::cout.setf(ios::scientific);
 
-    for (i=0; i<N; i++) {
+    for (int i=0; i<N; i++) {
       std::cout << std::setw(15) << invec[3+i] 
 		<< std::setw(15) << ev[i]
 		<< std::setw( 5) << iflag[i]
@@ -2573,7 +2558,7 @@ void SLGridSph::compute_table_slave(void)
 		    << std::setw(25) << "(pu`)(x)"
 		    << std::endl;
 	  int k = NUM*i;
-	  for (j=0; j<NUM; j++) {
+	  for (int j=0; j<NUM; j++) {
 	    std::cout << std::setw(25) << xef[j]
 		      << std::setw(25) << ef[j+k]
 		      << std::setw(25) << pdef[j+k]
@@ -2586,13 +2571,13 @@ void SLGridSph::compute_table_slave(void)
 #endif
 				// Load table
 
-    table.ev.setsize(1, N);
-    for (i=0; i<N; i++) table.ev[i+1] = ev[i];
+    table.ev.resize(N);
+    for (int i=0; i<N; i++) table.ev[i] = ev[i];
 
-    table.ef.setsize(1, N, 0, numr-1);
-    for (i=0; i<numr; i++) {
-      for(j=0; j<N; j++) 
-	table.ef[j+1][i] = ef[j*NUM+i];
+    table.ef.resize(N, numr);
+    for (int i=0; i<numr; i++) {
+      for (int j=0; j<N; j++) 
+	table.ef(j, i) = ef[j*NUM+i];
     }
 
     table.l = L;
@@ -2641,18 +2626,18 @@ void SLGridSph::mpi_setup(void)
 
 int SLGridSph::mpi_pack_table(struct TableSph* table, int l)
 {
-  int i, j, position = 0;
+  int position = 0;
 
   MPI_Pack( &l, 1, MPI_INT, mpi_buf, mpi_bufsz, 
 	    &position, MPI_COMM_WORLD);
 
-  for (j=1; j<=nmax; j++)
+  for (int j=0; j<nmax; j++)
     MPI_Pack( &table->ev[j], 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
 	      &position, MPI_COMM_WORLD);
 
-  for (j=1; j<=nmax; j++)
-    for (i=0; i<numr; i++)
-      MPI_Pack( &table->ef[j][i], 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
+  for (int j=0; j<nmax; j++)
+    for (int i=0; i<numr; i++)
+      MPI_Pack( &table->ef(j, i), 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
 		&position, MPI_COMM_WORLD);
 
   return position;
@@ -2661,8 +2646,7 @@ int SLGridSph::mpi_pack_table(struct TableSph* table, int l)
 
 void SLGridSph::mpi_unpack_table(void)
 {
-  int i, j, length, position = 0;
-  int l;
+  int l, length, position = 0;
 
   /*
   MPI_Get_count( &status, MPI_PACKED, &length);
@@ -2683,16 +2667,16 @@ void SLGridSph::mpi_unpack_table(void)
 
 
   table[l].l = l;
-  table[l].ev.setsize(1, nmax);
-  table[l].ef.setsize(1, nmax, 0, numr-1);
+  table[l].ev.resize(nmax);
+  table[l].ef.resize(nmax, numr);
 
-  for (j=1; j<=nmax; j++)
+  for (int j=0; j<nmax; j++)
     MPI_Unpack( mpi_buf, length, &position, &table[l].ev[j], 1, MPI_DOUBLE,
 		MPI_COMM_WORLD);
 
-  for (j=1; j<=nmax; j++)
-    for (i=0; i<numr; i++)
-      MPI_Unpack( mpi_buf, length, &position, &table[l].ef[j][i], 1, 
+  for (int j=0; j<nmax; j++)
+    for (int i=0; i<numr; i++)
+      MPI_Unpack( mpi_buf, length, &position, &table[l].ef(j, i), 1, 
 		  MPI_DOUBLE, MPI_COMM_WORLD);
 }
 
@@ -2939,7 +2923,7 @@ int SLGridSlab::read_cached_table(void)
   ifstream in(Slab_cache_name.c_str());
   if (!in) return 0;
 
-  int NUMK, NMAX, NUMZ, i, j;
+  int NUMK, NMAX, NUMZ;
   double ZMAX, HH, LL, zbeg, zend;
 
   if (myid==0)
@@ -2979,18 +2963,19 @@ int SLGridSlab::read_cached_table(void)
 	return 0;
       }
 
-      table[kx][ky].ev.setsize(1, nmax);
-      table[kx][ky].ef.setsize(1, nmax, 0, numz-1);
+      table[kx][ky].ev.resize(nmax);
+      table[kx][ky].ef.resize(nmax, numz);
 
-      for (j=1; j<=nmax; j++) in.read((char *)&table[kx][ky].ev[j], sizeof(double));
+      for (int j=0; j<nmax; j++)
+	in.read((char *)&table[kx][ky].ev[j], sizeof(double));
       
 #ifdef DEBUG_NAN
       check_vector_values_SL(table[kx][ky].ev);
 #endif
 
-      for (j=1; j<=nmax; j++) {
-	for (i=0; i<numz; i++)
-	  in.read((char *)&table[kx][ky].ef[j][i], sizeof(double));
+      for (int j=0; j<nmax; j++) {
+	for (int i=0; i<numz; i++)
+	  in.read((char *)&table[kx][ky].ef(j, i), sizeof(double));
 #ifdef DEBUG_NAN
 	check_vector_values_SL(table[kx][ky].ef[j]);
 #endif
@@ -3013,8 +2998,6 @@ void SLGridSlab::write_cached_table(void)
     return;
   }
 
-  int i, j;
-
   out.write((char *)&numk, sizeof(int));
   out.write((char *)&nmax, sizeof(int));
   out.write((char *)&numz, sizeof(int));
@@ -3030,12 +3013,12 @@ void SLGridSlab::write_cached_table(void)
       out.write((char *)&table[kx][ky].kx, sizeof(int));
       out.write((char *)&table[kx][ky].ky, sizeof(int));
 
-      for (j=1; j<=nmax; j++)
+      for (int j=0; j<nmax; j++)
 	out.write((char *)&table[kx][ky].ev[j], sizeof(double));
 
-      for (j=1; j<=nmax; j++)
-	for (i=0; i<numz; i++)
-	  out.write((char *)&table[kx][ky].ef[j][i], sizeof(double));
+      for (int j=0; j<nmax; j++)
+	for (int i=0; i<numz; i++)
+	  out.write((char *)&table[kx][ky].ef(j, i), sizeof(double));
     }
   }
 
@@ -3136,10 +3119,10 @@ double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
   
 
 #ifdef USE_TABLE
-  return (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1])/
+  return (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
     sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign;
 #else
-  return (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1])/
+  return (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
     sqrt(table[kx][ky].ev[n]) * slabpot(xi_to_z(x)) * sign;
 #endif
 }
@@ -3171,10 +3154,10 @@ double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
   double x2 = (x - xi[indx])/dxi;
   
 #ifdef USE_TABLE
-  return (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1]) *
+  return (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1)) *
     sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign;
 #else
-  return (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1]) *
+  return (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1)) *
     sqrt(table[kx][ky].ev[n]) * slabdens(xi_to_z(x)) * sign;
 #endif
 
@@ -3211,14 +3194,14 @@ double SLGridSlab::get_force(double x, int kx, int ky, int n, int which)
 				// Point  1: indx+1
 
   return d_xi_to_z(x)/dxi * (
-			     (p - 0.5)*table[kx][ky].ef[n][indx-1]*p0[indx-1]
-			     -2.0*p*table[kx][ky].ef[n][indx]*p0[indx]
-			     + (p + 0.5)*table[kx][ky].ef[n][indx+1]*p0[indx+1]
+			     (p - 0.5)*table[kx][ky].ef(n, indx-1)*p0[indx-1]
+			     -2.0*p*table[kx][ky].ef(n, indx)*p0[indx]
+			     + (p + 0.5)*table[kx][ky].ef(n, indx+1)*p0[indx+1]
 			     ) / sqrt(table[kx][ky].ev[n]) * sign;
 }
 
 
-void SLGridSlab::get_pot(Matrix& mat, double x, int which)
+void SLGridSlab::get_pot(Eigen::MatrixXd& mat, double x, int which)
 {
   int sign=1, sign2;
   if (x<0) sign = -1;
@@ -3228,7 +3211,7 @@ void SLGridSlab::get_pot(Matrix& mat, double x, int which)
     x = z_to_xi(x);
 
   int ktot = (numk+1)*(numk+2)/2;
-  mat.setsize(0, ktot, 1, nmax);
+  mat.resize(ktot+1, nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<0) indx = 0;
@@ -3243,12 +3226,12 @@ void SLGridSlab::get_pot(Matrix& mat, double x, int which)
   for (int kx=0; kx<=numk; kx++) {
     for (int ky=0; ky<=kx; ky++) {
       sign2 = 1;
-      for (int n=1; n<=nmax; n++) {
+      for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-	mat[l][n] = (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1])/
+	mat(l, n) = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
 	  sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign2;
 #else
-	mat[l][n] = (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1])/
+	mat(l, n) = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
 	  sqrt(table[kx][ky].ev[n]) * slabpot(xi_to_z(x)) * sign2;
 #endif
 	sign2 *= sign;
@@ -3260,7 +3243,7 @@ void SLGridSlab::get_pot(Matrix& mat, double x, int which)
 }
 
 
-void SLGridSlab::get_dens(Matrix& mat, double x, int which)
+void SLGridSlab::get_dens(Eigen::MatrixXd& mat, double x, int which)
 {
   int sign=1, sign2;
   if (x<0) sign = -1;
@@ -3270,7 +3253,7 @@ void SLGridSlab::get_dens(Matrix& mat, double x, int which)
     x = z_to_xi(x);
 
   int ktot = (numk+1)*(numk+2)/2;
-  mat.setsize(0, ktot, 1, nmax);
+  mat.resize(ktot+1, nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<0) indx = 0;
@@ -3283,12 +3266,12 @@ void SLGridSlab::get_dens(Matrix& mat, double x, int which)
   for (int kx=0; kx<=numk; kx++) {
     for (int ky=0; ky<=kx; ky++) {
       sign2 = 1;
-      for (int n=1; n<=nmax; n++) {
+      for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-	mat[l][n] = (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1])*
+	mat(l, n) = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))*
 	  sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign2;
 #else
-	mat[l][n] = (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1])*
+	mat(l, n) = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))*
 	  sqrt(table[kx][ky].ev[n]) * slabdens(xi_to_z(x)) * sign2;
 #endif
 	sign2 *= sign;
@@ -3300,7 +3283,7 @@ void SLGridSlab::get_dens(Matrix& mat, double x, int which)
 }
 
 
-void SLGridSlab::get_force(Matrix& mat, double x, int which)
+void SLGridSlab::get_force(Eigen::MatrixXd& mat, double x, int which)
 {
   int sign=1, sign2;
   if (x<0) sign = -1;
@@ -3310,7 +3293,7 @@ void SLGridSlab::get_force(Matrix& mat, double x, int which)
     x = z_to_xi(x);
 
   int ktot = (numk+1)*(numk+2)/2;
-  mat.setsize(0, ktot, 1, nmax);
+  mat.resize(ktot+1, nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<1) indx = 1;
@@ -3324,11 +3307,11 @@ void SLGridSlab::get_force(Matrix& mat, double x, int which)
   for (int kx=0; kx<=numk; kx++) {
     for (int ky=0; ky<=kx; ky++) {
       sign2 = sign;
-      for (int n=1; n<=nmax; n++) {
-	mat[l][n] = fac * (
-			   (p - 0.5)*table[kx][ky].ef[n][indx-1]*p0[indx-1]
-			   -2.0*p*table[kx][ky].ef[n][indx]*p0[indx]
-			   + (p + 0.5)*table[kx][ky].ef[n][indx+1]*p0[indx+1]
+      for (int n=0; n<nmax; n++) {
+	mat(l, n) = fac * (
+			   (p - 0.5)*table[kx][ky].ef(n, indx-1)*p0[indx-1]
+			   -2.0*p*table[kx][ky].ef(n, indx)*p0[indx]
+			   + (p + 0.5)*table[kx][ky].ef(n, indx+1)*p0[indx+1]
 			   ) / sqrt(table[kx][ky].ev[n]) * sign2;
 	sign2 *= -sign;
       }
@@ -3339,7 +3322,7 @@ void SLGridSlab::get_force(Matrix& mat, double x, int which)
 }
 
 
-void SLGridSlab::get_pot(Vector& vec, double x, int kx, int ky, int which)
+void SLGridSlab::get_pot(Eigen::VectorXd& vec, double x, int kx, int ky, int which)
 {
   int hold;
 
@@ -3356,7 +3339,7 @@ void SLGridSlab::get_pot(Vector& vec, double x, int kx, int ky, int which)
     kx = hold;
   }
 
-  vec.setsize(1, nmax);
+  vec.resize(nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<0) indx = 0;
@@ -3367,12 +3350,12 @@ void SLGridSlab::get_pot(Vector& vec, double x, int kx, int ky, int which)
   
 
   sign2 = 1;
-  for (int n=1; n<=nmax; n++) {
+  for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-    vec[n] = (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1])/
+    vec[n] = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
       sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign2;
 #else
-    vec[n] = (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1])/
+    vec[n] = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
       sqrt(table[kx][ky].ev[n]) * slabpot(xi_to_z(x)) * sign2;
 #endif
     sign2 *= sign;
@@ -3381,7 +3364,7 @@ void SLGridSlab::get_pot(Vector& vec, double x, int kx, int ky, int which)
 }
 
 
-void SLGridSlab::get_dens(Vector& vec, double x, int kx, int ky, int which)
+void SLGridSlab::get_dens(Eigen::VectorXd& vec, double x, int kx, int ky, int which)
 {
   int sign=1, sign2;
   if (x<0) sign = -1;
@@ -3390,7 +3373,7 @@ void SLGridSlab::get_dens(Vector& vec, double x, int kx, int ky, int which)
   if (which)
     x = z_to_xi(x);
 
-  vec.setsize(1, nmax);
+  vec.resize(nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<0) indx = 0;
@@ -3401,12 +3384,12 @@ void SLGridSlab::get_dens(Vector& vec, double x, int kx, int ky, int which)
   
 
   sign2 = 1;
-  for (int n=1; n<=nmax; n++) {
+  for (int n=0; n<nmax; n++) {
 #ifdef USE_TABLE
-    vec[n] = (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1])*
+    vec[n] = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))*
       sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign2;
 #else
-    vec[n] = (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1])*
+    vec[n] = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))*
       sqrt(table[kx][ky].ev[n]) * slabdens(xi_to_z(x)) * sign2;
 #endif
     sign2 *= sign;
@@ -3415,7 +3398,7 @@ void SLGridSlab::get_dens(Vector& vec, double x, int kx, int ky, int which)
 }
 
 
-void SLGridSlab::get_force(Vector& vec, double x, int kx, int ky, int which)
+void SLGridSlab::get_force(Eigen::VectorXd& vec, double x, int kx, int ky, int which)
 {
   int hold;
 
@@ -3432,7 +3415,7 @@ void SLGridSlab::get_force(Vector& vec, double x, int kx, int ky, int which)
     kx = hold;
   }
 
-  vec.setsize(1, nmax);
+  vec.resize(nmax);
 
   int indx = (int)( (x-xmin)/dxi );
   if (indx<1) indx = 1;
@@ -3443,11 +3426,11 @@ void SLGridSlab::get_force(Vector& vec, double x, int kx, int ky, int which)
   double fac = d_xi_to_z(x)/dxi;
 
   sign2 = sign;
-  for (int n=1; n<=nmax; n++) {
+  for (int n=0; n<nmax; n++) {
     vec[n] = fac * (
-		    (p - 0.5)*table[kx][ky].ef[n][indx-1]*p0[indx-1]
-		    -2.0*p*table[kx][ky].ef[n][indx]*p0[indx]
-		    + (p + 0.5)*table[kx][ky].ef[n][indx+1]*p0[indx+1]
+		    (p - 0.5)*table[kx][ky].ef(n, indx-1)*p0[indx-1]
+		    -2.0*p*table[kx][ky].ef(n, indx)*p0[indx]
+		    + (p + 0.5)*table[kx][ky].ef(n, indx+1)*p0[indx+1]
 		    ) / sqrt(table[kx][ky].ev[n]) * sign2;
     sign2 *= sign;
   }
@@ -3459,7 +3442,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
   double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
-  int i, j, k, VERBOSE=0;
+  int VERBOSE=0;
   integer NUM, N;
   logical type[8] = {1, 0, 0, 0, 1, 0, 0, 0};
   logical endfin[2] = {1, 1};
@@ -3479,14 +3462,12 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   integer *iflag = new integer [nmax];
   integer *invec = new integer [nmax+3];
 
-  // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-  // pdef[NUM*N];
   double *t=0, *rho=0;
-  double *ev = new double [N];
+  double *ev    = new double [N];
   double *store = new double [26*(NUM+16)];
-  double *xef = new double [NUM+16];
-  double *ef = new double [NUM*N];
-  double *pdef = new double [NUM*N];
+  double *xef   = new double [NUM+16];
+  double *ef    = new double [NUM*N];
+  double *pdef  = new double [NUM*N];
   double f, df;
 
   KKZ = 2.0*M_PI/L * sqrt((double)(KX*KX + KY*KY));
@@ -3513,7 +3494,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   invec[1] = 3;			// spectrum is ignored
   invec[2] = N;			// estimates for N eigenvalues/functions
 
-  for (i=0; i<N; i++) invec[3+i] = i;
+  for (int i=0; i<N; i++) invec[3+i] = i;
 
   //
   //     Set the JOB(*) vector:
@@ -3527,7 +3508,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   //
   //     Output mesh
   //
-  for (i=0; i<NUM; i++) xef[i] = z[i];
+  for (int i=0; i<NUM; i++) xef[i] = z[i];
 
   //     
   //     Open file for output.
@@ -3546,7 +3527,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
     std::cout.setf(ios::scientific);
 
     std::cout << "Even:" << std::endl;
-    for (i=0; i<N; i++) {
+    for (int i=0; i<N; i++) {
       std::cout << std::setw(15) << invec[3+i] 
 		<< std::setw(15) << ev[i]
 		<< std::setw( 5) << iflag[i]
@@ -3559,8 +3540,8 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 	       << std::setw(25) << "u(x)"
 	       << std::setw(25) << "(pu`)(x)"
 	       << std::endl;
-	  k = NUM*i;
-	  for (j=0; j<NUM; j++) {
+	  int k = NUM*i;
+	  for (int j=0; j<NUM; j++) {
 	    std::cout << std::setw(25) << xef[j]
 		      << std::setw(25) << ef[j+k]
 		      << std::setw(25) << pdef[j+k]
@@ -3575,13 +3556,13 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 
 				// Load table
 
-  table->ev.setsize(1, nmax);
-  for (i=0; i<N; i++) table->ev[i*2+1] = ev[i];
+  table->ev.resize(nmax);
+  for (int i=0; i<N; i++) table->ev[i*2] = ev[i];
 
-  table->ef.setsize(1, nmax, 0, numz-1);
-  for (i=0; i<numz; i++) {
-    for(j=0; j<N; j++) 
-      table->ef[j*2+1][i] = ef[j*NUM+i];
+  table->ef.resize(nmax, numz);
+  for (int i=0; i<numz; i++) {
+    for (int j=0; j<N; j++) 
+      table->ef(j*2, i) = ef[j*NUM+i];
   }
 
 
@@ -3604,7 +3585,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
     std::cout.setf(ios::scientific);
     
     std::cout << "Odd:" << std::endl;
-    for (i=0; i<N; i++) {
+    for (int i=0; i<N; i++) {
       std::cout << std::setw(15) << invec[3+i] 
 		<< std::setw(15) << ev[i]
 		<< std::setw( 5) << iflag[i]
@@ -3617,8 +3598,8 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 	       << std::setw(25) << "u(x)"
 	       << std::setw(25) << "(pu`)(x)"
 	       << std::endl;
-	  k = NUM*i;
-	  for (j=0; j<NUM; j++) {
+	  int k = NUM*i;
+	  for (int j=0; j<NUM; j++) {
 	    std::cout << std::setw(25) << xef[j]
 		      << std::setw(25) << ef[j+k]
 		      << std::setw(25) << pdef[j+k]
@@ -3633,11 +3614,11 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 
   N = nmax - N;
 
-  for (i=0; i<N; i++) table->ev[i*2+2] = ev[i];
+  for (int i=0; i<N; i++) table->ev[i*2+2] = ev[i];
 
-  for (i=0; i<numz; i++) {
-    for(j=0; j<N; j++) 
-      table->ef[j*2+2][i] = ef[j*NUM+i];
+  for (int i=0; i<numz; i++) {
+    for (int j=0; j<N; j++) 
+      table->ef(j*2+2, i) = ef[j*NUM+i];
   }
 
 				// Correct for symmetrizing
@@ -3658,22 +3639,19 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 
 void SLGridSlab::init_table(void)
 {
-
-  int i;
-
-  xi.setsize(0, numz-1);
-  z.setsize(0, numz-1);
-  p0.setsize(0, numz-1);
-  d0.setsize(0, numz-1);
+  xi.resize(numz);
+  z. resize(numz);
+  p0.resize(numz);
+  d0.resize(numz);
 
   xmin = z_to_xi( ZBEG);
   xmax = z_to_xi( zmax);
   dxi = (xmax-xmin)/(numz-1);
 
 
-  for (i=0; i<numz; i++) {
+  for (int i=0; i<numz; i++) {
     xi[i] = xmin + dxi*i;
-    z[i] = xi_to_z(xi[i]);
+    z[i]  = xi_to_z(xi[i]);
     p0[i] = slabpot(z[i]);
     d0[i] = slabdens(z[i]);
   }
@@ -3688,7 +3666,7 @@ void SLGridSlab::compute_table_slave(void)
   //  double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
   double cons[8];
   double tol[6] = {1.0e-6,1.0e-7,  1.0e-6,1.0e-7,  1.0e-6,1.0e-7};
-  int i, j, VERBOSE=0;
+  int VERBOSE=0;
   integer NUM;
   logical type[8] = {1, 0, 0, 0, 1, 0, 0, 0};
   logical endfin[2] = {1, 1};
@@ -3738,18 +3716,15 @@ void SLGridSlab::compute_table_slave(void)
 				// of each or one more symmetric
     N = (int)( 0.5*nmax + 0.501);
 
-    // integer iflag[nmax], invec[nmax+3];
     integer *iflag = new integer [nmax];
     integer *invec = new integer [nmax+3];
 
-    // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-    // pdef[NUM*N];
     double *t=0, *rho=0;
-    double *ev = new double [N];
+    double *ev    = new double [N];
     double *store = new double [26*(NUM+16)];
-    double *xef = new double [NUM+16];
-    double *ef = new double [NUM*N];
-    double *pdef = new double [NUM*N];
+    double *xef   = new double [NUM+16];
+    double *ef    = new double [NUM*N];
+    double *pdef  = new double [NUM*N];
     double f, df;
 
     KKZ = 2.0*M_PI/L * sqrt((double)(KX*KX + KY*KY));
@@ -3782,7 +3757,7 @@ void SLGridSlab::compute_table_slave(void)
     invec[1] = 3;		// spectrum is ignored
     invec[2] = N;		// estimates for N eigenvalues/functions
 
-    for (i=0; i<N; i++) invec[3+i] = i;
+    for (int i=0; i<N; i++) invec[3+i] = i;
 
     //
     //     Set the JOB(*) vector:
@@ -3796,7 +3771,7 @@ void SLGridSlab::compute_table_slave(void)
     //
     //     Output mesh
     //
-    for (i=0; i<NUM; i++) xef[i] = z[i];
+    for (int i=0; i<NUM; i++) xef[i] = z[i];
 
     //     
     //     Open file for output.
@@ -3816,7 +3791,7 @@ void SLGridSlab::compute_table_slave(void)
     std::cout.precision(6);
     std::cout.setf(ios::scientific);
 
-    for (i=0; i<N; i++) {
+    for (int i=0; i<N; i++) {
       std::cout << std::setw(15) << invec[3+i] 
 		<< std::setw(15) << ev[i]
 		<< std::setw( 5) << iflag[i]
@@ -3830,7 +3805,7 @@ void SLGridSlab::compute_table_slave(void)
 		    << std::setw(25) << "(pu`)(x)"
 		    << std::endl;
 	  int k = NUM*i;
-	  for (j=0; j<NUM; j++) {
+	  for (int j=0; j<NUM; j++) {
 	    std::cout << std::setw(25) << xef[j]
 		      << std::setw(25) << ef[j+k]
 		      << std::setw(25) << pdef[j+k]
@@ -3845,13 +3820,13 @@ void SLGridSlab::compute_table_slave(void)
 #endif
 				// Load table
 
-    table.ev.setsize(1, nmax);
-    for (i=0; i<N; i++) table.ev[i*2+1] = ev[i];
+    table.ev.resize(nmax);
+    for (int i=0; i<N; i++) table.ev[i*2] = ev[i];
 
-    table.ef.setsize(1, nmax, 0, numz-1);
-    for (i=0; i<numz; i++) {
-      for(j=0; j<N; j++) 
-	table.ef[j*2+1][i] = ef[j*NUM+i];
+    table.ef.resize(nmax, numz);
+    for (int i=0; i<numz; i++) {
+      for (int j=0; j<N; j++) 
+	table.ef(j*2, i) = ef[j*NUM+i];
     }
 
 
@@ -3874,7 +3849,7 @@ void SLGridSlab::compute_table_slave(void)
     std::cout.precision(6);
     std::cout.setf(ios::scientific);
 
-    for (i=0; i<N; i++) {
+    for (int i=0; i<N; i++) {
       std::cout << std::setw(15) << invec[3+i] 
 		<< std::setw(15) << ev[i]
 		<< std::setw( 5) << iflag[i]
@@ -3888,7 +3863,7 @@ void SLGridSlab::compute_table_slave(void)
 		    << std::setw(25) << "(pu`)(x)"
 		    << std::endl;
 	  int k = NUM*i;
-	  for (j=0; j<NUM; j++) {
+	  for (int j=0; j<NUM; j++) {
 	    std::cout << std::setw(25) << xef[j]
 		      << std::setw(25) << ef[j+k]
 		      << std::setw(25) << pdef[j+k]
@@ -3905,11 +3880,11 @@ void SLGridSlab::compute_table_slave(void)
 
     N = nmax - N;
 
-    for (i=0; i<N; i++) table.ev[i*2+2] = ev[i];
+    for (int i=0; i<N; i++) table.ev[i*2+2] = ev[i];
 
-    for (i=0; i<numz; i++) {
-      for(j=0; j<N; j++) 
-	table.ef[j*2+2][i] = ef[j*NUM+i];
+    for (int i=0; i<numz; i++) {
+      for (int j=0; j<N; j++) 
+	table.ef(j*2+2, i) = ef[j*NUM+i];
     }
 
 				// Correct for symmetrizing
@@ -3962,7 +3937,7 @@ void SLGridSlab::mpi_setup(void)
 
 int SLGridSlab::mpi_pack_table(struct TableSlab* table, int kx, int ky)
 {
-  int i, j, position = 0;
+  int position = 0;
 
   MPI_Pack( &kx, 1, MPI_INT, mpi_buf, mpi_bufsz, 
 	    &position, MPI_COMM_WORLD);
@@ -3970,13 +3945,13 @@ int SLGridSlab::mpi_pack_table(struct TableSlab* table, int kx, int ky)
   MPI_Pack( &ky, 1, MPI_INT, mpi_buf, mpi_bufsz, 
 	    &position, MPI_COMM_WORLD);
 
-  for (j=1; j<=nmax; j++)
+  for (int j=0; j<nmax; j++)
     MPI_Pack( &table->ev[j], 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
 	      &position, MPI_COMM_WORLD);
 
-  for (j=1; j<=nmax; j++)
-    for (i=0; i<numz; i++) {
-      MPI_Pack( &table->ef[j][i], 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
+  for (int j=0; j<nmax; j++)
+    for (int i=0; i<numz; i++) {
+      MPI_Pack( &table->ef(j, i), 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
 		&position, MPI_COMM_WORLD);
     }
 
@@ -3986,7 +3961,7 @@ int SLGridSlab::mpi_pack_table(struct TableSlab* table, int kx, int ky)
 
 void SLGridSlab::mpi_unpack_table(void)
 {
-  int i, j, length, position = 0;
+  int length, position = 0;
   int kx, ky;
 
 #ifdef DEBUG
@@ -4010,22 +3985,18 @@ void SLGridSlab::mpi_unpack_table(void)
 
   table[kx][ky].kx = kx;
   table[kx][ky].ky = ky;
-  table[kx][ky].ev.setsize(1, nmax);
-  table[kx][ky].ef.setsize(1, nmax, 0, numz-1);
+  table[kx][ky].ev.resize(nmax);
+  table[kx][ky].ef.resize(nmax, numz);
 
-  for (j=1; j<=nmax; j++)
+  for (int j=0; j<nmax; j++)
     MPI_Unpack( mpi_buf, length, &position, &table[kx][ky].ev[j], 1, MPI_DOUBLE,
 		MPI_COMM_WORLD);
 
-  for (j=1; j<=nmax; j++)
-    for (i=0; i<numz; i++)
-      MPI_Unpack( mpi_buf, length, &position, &table[kx][ky].ef[j][i], 1, 
+  for (int j=0; j<nmax; j++)
+    for (int i=0; i<numz; i++)
+      MPI_Unpack( mpi_buf, length, &position, &table[kx][ky].ef(j, i), 1, 
 		  MPI_DOUBLE, MPI_COMM_WORLD);
 }
-
-
-
-
 
 
 //======================================================================

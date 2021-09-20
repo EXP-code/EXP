@@ -40,6 +40,7 @@
 
 				// BOOST stuff
 #include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
@@ -53,38 +54,22 @@ namespace pt = boost::property_tree;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include "Coefs.H"
-#include <interp.h>
+#include <interp.H>
 #include <SphereSL.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
-#include <VtkGrid.H>
+#include <DataGrid.H>
 
 const std::string overview = "Compute disk potential, force and density profiles from\nEXP coefficient files\n";
 
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag, coeffile;
-double tpos = 0.0;
-double tnow = 0.0;
-  
 				// Globals
 static  string outid;
+static  string runtag;
 static  double RMAX;
 static  int    OUTR;
   
@@ -158,7 +143,7 @@ void write_output(SphereSL& ortho, int indx, double time,
     
     if (myid==0) {
 
-      VtkGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
+      DataGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
 
       std::vector<double> data(OUTR*OUTR*OUTR);
 
@@ -229,7 +214,7 @@ void write_output(SphereSL& ortho, int indx, double time,
     
     if (myid==0) {
       
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTR);
 
@@ -296,7 +281,7 @@ void write_output(SphereSL& ortho, int indx, double time,
     
     if (myid==0) {
       
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTR);
 
@@ -397,9 +382,9 @@ main(int argc, char **argv)
     cmd_line += " ";
   }
 
-  bool DENS, verbose = false, mask = false, All, PCs = false;
-  std::string modelfile;
-  int stride;
+  bool DENS, verbose = false, mask = false;
+  std::string modelfile, coeffile;
+  int stride, ibeg, iend;
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -429,18 +414,24 @@ main(int argc, char **argv)
     ("outid,o",
      po::value<std::string>(&outid)->default_value("halocoef"),
      "Analysis id name")
-    ("coeffile",
+    ("coeffile,c",
      po::value<std::string>(&coeffile)->default_value("coef.file"),
-     "coefficient file name from exp_mssa")
-    ("modfile",
+     "coefficient file name")
+    ("modfile,m",
      po::value<std::string>(&modelfile)->default_value("SLGridSph.model"),
-     "SL model filename")
+     "SLGrid model filename")
     ("runtag,r",
      po::value<std::string>(&runtag)->default_value("run1"),
      "runtag for phase space files")
     ("stride,s",
      po::value<int>(&stride)->default_value(1), 
      "stride for time output")
+    ("beg",
+     po::value<int>(&ibeg)->default_value(0), 
+     "initial coefficient frame")
+    ("end",
+     po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()), 
+     "final coefficient frame")
     ;
   
   po::variables_map vm;
@@ -464,10 +455,10 @@ main(int argc, char **argv)
   if (vm.count("mask")) mask = true;
 
   if (vm.count("noCommand")==0) {
-    std::string cmdFile = "mssaprof." + outid + ".cmd_line";
+    std::string cmdFile = "haloprof." + outid + ".cmd_line";
     std::ofstream cmd(cmdFile.c_str());
     if (!cmd) {
-      std::cerr << "mssaprof: error opening <" << cmdFile
+      std::cerr << "haloprof: error opening <" << cmdFile
 		<< "> for writing" << std::endl;
     } else {
       cmd << cmd_line << std::endl;
@@ -486,12 +477,6 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  if (not PCs and not All) {
-    if (myid==0) std::cout << "All output is off . . . exiting" << std::endl;
-    exit(0);
-  }
-
-
   // ==================================================
   // All processes will now compute the basis functions
   // *****Using MPI****
@@ -505,6 +490,12 @@ main(int argc, char **argv)
 
   auto data = spherical_read(coeffile, stride);
 
+  if (data.size()==0) {
+    std::cerr << argv[0] << ": no data read from coefficient file <"
+	      << coeffile << ">?" << std::endl;
+    exit(-1);
+  }
+
   // ==================================================
   // Make SL expansion
   // ==================================================
@@ -512,30 +503,32 @@ main(int argc, char **argv)
   int lmax     = data[0]->header.Lmax;
   int nmax     = data[0]->header.nmax;
 
-  SphericalModelTable halo(modelfile);
+  auto halo = boost::make_shared<SphericalModelTable>(modelfile);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
-  SphereSL ortho(&halo, lmax, nmax);
+
+  SphereSL ortho(halo, lmax, nmax);
   
   std::vector<std::string> outfiles1, outfiles2, outfiles3;
   std::vector<double> T;
 
-  int indx = 0;
-  for (auto d: data) {
+  for (int indx=ibeg; indx<=std::min<int>(iend, data.size()); indx++) {
+    auto d = data[indx];
 
-    Matrix expcoef;
+    Eigen::MatrixXd expcoef;
     
-    expcoef.setsize(0, d->header.Lmax*(d->header.Lmax+2), 1, d->header.nmax);
-    expcoef.zero();
+    int LL = d->header.Lmax + 1;
+    expcoef.resize(LL*LL, d->header.nmax);
+    expcoef.setZero();
 	
     int lindx = 0;
-    for (int l=0; l<=d->header.Lmax; l++) {
+    for (int l=0; l<LL; l++) {
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<d->header.nmax; n++) 
-	  expcoef[lindx][n+1] = d->coefs[lindx][n];
+	  expcoef(lindx, n) = d->coefs(lindx, n);
 	if (m) {
 	  for (int n=0; n<d->header.nmax; n++)
-	    expcoef[lindx+1][n+1] = d->coefs[lindx+1][n];
+	    expcoef(lindx+1, n) = d->coefs(lindx+1, n);
 	}
 	if (m) lindx += 2;
 	else   lindx += 1;
@@ -566,7 +559,7 @@ main(int argc, char **argv)
   //
   if (myid==0) {
     std::ostringstream prefix;
-    prefix << runtag << "." << indx;
+    prefix << runtag << "." << ibeg << "_" << iend;
     if (outfiles1.size()) writePVD(prefix.str()+".volume.pvd",  T, outfiles1);
     if (outfiles2.size()) writePVD(prefix.str()+".surface.pvd", T, outfiles2);
     if (outfiles3.size()) writePVD(prefix.str()+".vslice.pvd",  T, outfiles3);

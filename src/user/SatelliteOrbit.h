@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 // ======================================================================
 // Class to compute orbit of a satellite in spherical halo
 //
@@ -15,10 +13,8 @@
 #define _SatelliteOrbit_h
 
 #include <string>
-
-#include <Vector.h>
-#include <massmodel.h>
-#include <model3d.h>
+#include <massmodel.H>
+#include <model3d.H>
 
 #include <FindOrb.H>
 #include <Trajectory.H>
@@ -31,9 +27,9 @@ private:
   SphericalModelTable *m;
   AxiSymModel *halo_model;
   FindOrb *orb;
-  Matrix rotate, rotateI;
-  Three_Vector v, v0, u, u0, non;
-  Matrix tidalRot, tidalRotI;
+  Eigen::Matrix3d rotate, rotateI;
+  Eigen::Vector3d v, v0, u, u0, non;
+  Eigen::Matrix3d tidalRot, tidalRotI;
   double omega, domega;
   double rsat, vsat, Omega;
   bool circ;
@@ -42,7 +38,7 @@ private:
 
 				// Keep current satellte position
   double currentTime;
-  Three_Vector currentR;
+  Eigen::Vector3d currentR;
 
 public:
 
@@ -55,7 +51,7 @@ public:
 				// Members
 
   //! Get satellite position in halo frame
-  Vector get_satellite_orbit(double T);
+  Eigen::Vector3d get_satellite_orbit(double T);
 
   //! Get satellite position in halo frame
   void get_satellite_orbit(double T, double *v);

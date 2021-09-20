@@ -540,17 +540,17 @@ HeatCool::HeatCool(double nmin, double nmax, double tmin, double tmax,
       if (crate > 0.0) 
 	r.crate = log(crate);
       else
-	r.crate = log(DBL_MIN);
+	r.crate = log(std::numeric_limits<double>::min());
 
       if (hrate > 0.0)
 	r.hrate = log(hrate);
       else
-	r.hrate = log(DBL_MIN);
+	r.hrate = log(std::numeric_limits<double>::min());
 
       if (cmpcrate > 0.0)
 	r.cmpcrate = cmpcrate;
       else
-	r.cmpcrate = log(DBL_MIN);
+	r.cmpcrate = log(std::numeric_limits<double>::min());
 
       r.trate = trate;
 

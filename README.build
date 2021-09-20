@@ -1,0 +1,81 @@
+# ------------------------------------
+# This version uses CMake to configure
+# ------------------------------------
+
+# The basis steps are as follows:
+
+# We are now using git submodules to yaml-cpp, which is not common in
+# the HPC environments.  So, from the top-level directory, do the
+# following:
+
+git submodule update --init --recursive
+
+# This will install yaml-cpp in the extern directory.  The png++ C++
+# wrappers to the png library are also installed in extern.
+
+# Now, make a build directory and change to that
+
+mkdir -p build
+cd build
+
+# We will build out of source.  This allows one to have build various
+# versions avaialble from the same source, such as Release and Debug.
+
+# You may need to adjust the cmake call below.  Besides Cuda, make
+# sure that the Eigen3_DIR is set to the install location so CMake can
+# find the Eigen3 rules.
+
+# The install location will need to be changed in the example below.  E.g. I
+# would use -DCMAKE_INSTALL_PREFIX=/home/mdw_umass_edu on the UMass Unity
+# cluster.
+
+# There are various options.  A subset of user modules are ON by
+# default.  These can be disabled by -DENABLE_USER=NO.  This compiles
+# a subset of user modules.  The full set can be compiled using
+# -DENABLE_USER_ALL=YES.
+
+# ENABLE_DSMC compiles the dsmc module and off by default.
+
+# BUILD_DOCS enables the Doxygen build of the online manual.  If
+# BUILD_DOCS=ON and Doxygen is found, you'll get the html docs
+# installed in shared/EXP
+
+# With cuda.  NB: different version of CMake seem to treat Cuda
+# architecture specification differently.  The current implementation
+# uses an archetecture list set within the top-level
+# CMakeLists. Version >= 3.18 uses a command-line settable variable.
+# This should switched over once we are using versions >= 3.18
+# everywhere.
+
+cmake -DCMAKE_BUILD_TYPE=Release -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUDA=YES -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
+
+# Note on cuda: I have tried to include an SM capability list that
+# covers many commonly used architectures.  I have had a bit of
+# trouble getting precompiled elf binaries rather than PTX code.
+# Precompiled elf seems to be necessary for a module deployment; I am
+# not sure why the JIT PTX compiler can not handle this.  Which
+# versions get compiled seems to be CMake and Cuda configuration
+# dependent even for the same capability list.  If this is causing
+# problems, you can add (e.g.) "-arch compute_60
+# -code=sm_60,sm_61,sm_70,sm_75" to the CMAKE_CUDA_FLAGS variable.
+# You can use the 'cuobjdump' to examine the compiled SM code; e.g. in
+# the build directory, 'cuobjdump
+# exputil/CMakeFiles/exputil.dir/cudaSLGridMP2.cu.o' will tell you the
+# precompiled elf code in the cu fatbinary.
+
+# Without cuda
+#
+cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
+
+# You can use CMake build type Debug for debugging and etc. or use None or
+# 'empty' and set your own CFLAGS and CXXFLAGS.  See the CMake manual.
+
+# Make the package make -j N # Here, 'N' is the number of jobs to run
+# simultaneously.  I often use N=2*<number of cores> to take advantage
+# of hyperthreading
+
+# Finally, install to the target location.  You can select the target
+# install location using the CMAKE_INSTALL_PREFIX variable in CMake
+
+make install
+

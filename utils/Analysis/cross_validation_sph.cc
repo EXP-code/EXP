@@ -44,6 +44,7 @@ using namespace std;
 				// Boost stuff
 
 #include <boost/program_options.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/filesystem.hpp>
 
 namespace po = boost::program_options;
@@ -57,34 +58,16 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include "Particle.h"
-#include <PSP2.H>
-#include <interp.h>
-#include <massmodel.h>
+#include <numerical.H>
+#include <ParticleReader.H>
+#include <interp.H>
+#include <massmodel.H>
 #include <SphereSL.H>
 #include <foarray.H>
 
-#include <localmpi.h>
+#include <global.H>
+#include <localmpi.H>
 
-// Variables not used but needed for linking
-//
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-std::string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-  
 // Globals
 //
 
@@ -108,7 +91,7 @@ main(int argc, char **argv)
   double RMIN, RMAX, rscale, minSNR0, Hexp;
   int NICE, LMAX, NMAX, NSNR, NPART;
   int beg, end, stride, init, knots, num;
-  std::string modelf, dir("./"), cname, prefix;
+  std::string modelf, dir("./"), cname, prefix, fileType, filePrefix;
 
   // ==================================================
   // Parse command line or input parameter file
@@ -126,16 +109,18 @@ main(int argc, char **argv)
      "Print this help message")
     ("verbose,v",
      "Verbose and diagnostic output for covariance computation")
-    ("OUT",
-     "assume original, single binary PSP files as input")
-    ("SPL",
-     "assume new split binary PSP files as input") 
     ("NCUT",
      "trim coefficient by order rather than SNR")
     ("LOG",
      "log scaling for SNR")
     ("Hall",
      "use Hall smoothing for SNR trim")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -208,10 +193,6 @@ main(int argc, char **argv)
     return 0;
   }
 
-  bool SPL = false;
-  if (vm.count("SPL")) SPL = true;
-  if (vm.count("OUT")) SPL = false;
-
   bool LOG = false;
   if (vm.count("LOG")) LOG = true;
 
@@ -242,11 +223,13 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  SphericalModelTable halo(modelf);
+  auto halo = boost::make_shared<SphericalModelTable>(modelf);
+
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
   SphereSL::HEXP = Hexp;
-  SphereSL ortho(&halo, LMAX, NMAX, 1, rscale, true, NPART);
+
+  SphereSL ortho(halo, LMAX, NMAX, 1, rscale, true, NPART);
 
   auto sl = ortho.basis();
 
@@ -269,7 +252,7 @@ main(int argc, char **argv)
     
     for (int n1=1; n1<=NMAX; n1++) {
       for (int n2=1; n2<=NMAX; n2++) {
-	for (int k=1; k<=knots; k++) {
+	for (int k=0; k<knots; k++) {
 	  double xx =  ximin + (ximax - ximin)*lw.knot(k);
 	  double rr = sl->xi_to_r(xx);
 	  O[L](n1-1, n2-1) +=
@@ -306,7 +289,7 @@ main(int argc, char **argv)
 	// Q1
 	//
 	double Q1 = 0.0;
-	for (int k=1; k<=knots; k++) {
+	for (int k=0; k<knots; k++) {
 	  double xx =  ximin + (x - ximin)*lw.knot(k);
 	  double rr = sl->xi_to_r(xx);
 	  Q1 += lw.weight(k) * sl->get_dens(xx, L, n, 0) * pow(rr/r, 1.0+L) * rr / sl->d_xi_to_r(xx);
@@ -317,7 +300,7 @@ main(int argc, char **argv)
 	// Q2
 	//
 	double Q2 = 0.0;
-	for (int k=1; k<=knots; k++) {
+	for (int k=0; k<knots; k++) {
 	  double xx =  x + (ximax - x)*lw.knot(k);
 	  double rr = sl->xi_to_r(xx);
 	  Q2 += lw.weight(k) * sl->get_dens(xx, L, n, 0) * pow(r/rr, L) * rr / sl->d_xi_to_r(xx);
@@ -347,41 +330,15 @@ main(int argc, char **argv)
     int iok = 1;
     std::ostringstream s0, s1;
 
-    s1.str("");		// Clear stringstream
-    if (SPL) s1 << "SPL.";
-    else     s1 << "OUT.";
-    s1 << runtag << "."<< std::setw(5) << std::setfill('0') << ipsp;
-      
-				// Check for existence of next file
-    file = dir + s1.str();
-    std::ifstream in(file);
-    if (!in) {
-      std::cerr << "Error opening <" << file << ">" << endl;
-      iok = 0;
-    }
+    auto file1 = ParticleReader::fileNameCreator(fileType, ipsp, dir, runtag);
     
-    if (iok==0) break;
+    PRptr reader = ParticleReader::createReader(fileType, file1, true);
 
-    // ==================================================
-    // Open PSP file
-    // ==================================================
-    PSPptr psp;
-
-    if (SPL) psp = std::make_shared<PSPspl>(s1.str(), dir, true);
-    else     psp = std::make_shared<PSPout>(file, true);
-
-    tnow = psp->CurrentTime();
+    double tnow = reader->CurrentTime();
     if (myid==0) std::cout << "Beginning partition [time=" << tnow
 			   << ", index=" << ipsp << "] . . . "  << flush;
     
-    if (not psp->GetNamed(cname)) {
-      if (myid==0) {
-	std::cout << "Error finding component named <" << cname << ">" << std::endl;
-	psp->PrintSummary(std::cout);
-      }
-      MPI_Finalize();
-      exit(-1);
-    }
+    reader->SelectType(cname);
       
     //------------------------------------------------------------ 
 
@@ -390,12 +347,12 @@ main(int argc, char **argv)
 			   << std::flush;
     ortho.reset_coefs();
 
-    SParticle *p = psp->GetParticle();
+    auto p = reader->firstParticle();
     int icnt = 0;
     do {
       if (icnt++ % numprocs == myid)
-	ortho.accumulate(p->pos(0), p->pos(1), p->pos(0), p->mass());
-      p = psp->NextParticle();
+	ortho.accumulate(p->pos[0], p->pos[1], p->pos[0], p->mass);
+      p = reader->nextParticle();
     } while (p);
     
     if (myid==0) std::cout << "done" << endl;
@@ -425,7 +382,7 @@ main(int argc, char **argv)
 
       auto coefs = ortho.retrieve_coefs();
 
-      for (int ncut=1; ncut<=NMAX; ncut++) {
+      for (int ncut=0; ncut<NMAX; ncut++) {
 
 	// Zero out the accumulators
 	//
@@ -443,16 +400,16 @@ main(int argc, char **argv)
 	  for (int L=0; L<=LMAX; L++) {
 	    int lbeg = L*L;	// Offset into coefficient array
 	    for (int M=0; M<=L; M++) {
-	      for (int n1=1; n1<=ncut; n1++) {
-		for (int n2=1; n2<=ncut; n2++) {
+	      for (int n1=0; n1<ncut; n1++) {
+		for (int n2=0; n2<ncut; n2++) {
 		  if (M==0)
 		    term1[L] +=
-		      coefs[lbeg][n1]*O[L](n1-1, n2-1)*coefs[lbeg][n2];
+		      coefs(lbeg, n1)*O[L](n1-1, n2-1)*coefs(lbeg, n2);
 		  else {
 		    int ll = lbeg + 2*(M-1) + 1;
 		    term1[L] +=
-		      coefs[ll+0][n1]*O[L](n1-1, n2-1)*coefs[ll+0][n2] +
-		      coefs[ll+1][n1]*O[L](n1-1, n2-1)*coefs[ll+1][n2];
+		      coefs(ll+0, n1)*O[L](n1-1, n2-1)*coefs(ll+0, n2) +
+		      coefs(ll+1, n1)*O[L](n1-1, n2-1)*coefs(ll+1, n2);
 		  }
 		}
 	      }
@@ -468,16 +425,16 @@ main(int argc, char **argv)
 	  
 	  // Particle loop
 	  //
-	  p = psp->GetParticle();
+	  p = reader->firstParticle();
 	  int icnt = 0;
 	  do {
 	    if (icnt++ % numprocs == myid) {
 	      double r = 0.0, costh = 0.0, phi = 0.0;
-	      for (int k=0; k<3; k++) r += p->pos(k)*p->pos(k);
+	      for (int k=0; k<3; k++) r += p->pos[k]*p->pos[k];
 	      r = sqrt(r);
-	      if (r>0.0) costh = p->pos(2)/r;
-	      phi = atan2(p->pos(1), p->pos(0));
-	      double mass = p->mass();
+	      if (r>0.0) costh = p->pos[2]/r;
+	      phi = atan2(p->pos[1], p->pos[0]);
+	      double mass = p->mass;
 	      
 	      double x = sl->r_to_xi(r);
 	      x = std::max<double>(ximin, x);
@@ -494,7 +451,7 @@ main(int argc, char **argv)
 
 		double ylm = Ylm_fac(L, M) * plgndr(L, M, costh);
 
-		for (int n=1; n<=ncut; n++) {
+		for (int n=0; n<ncut; n++) {
 
 		  std::pair<int, int> I(L, n);
 		  double Qval = A*(*Q[I])[indx] + B*(*Q[I])[indx+1];
@@ -502,11 +459,11 @@ main(int argc, char **argv)
 		
 		  if (M==0) {
 		    if (r<RMAX)
-		      work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
-		    work3[L] += -mass*coefs[lbeg+0][n]*ylm*Qval;
+		      work2[L] += mass*coefs(lbeg+0, n)*ylm*potl;
+		    work3[L] += -mass*coefs(lbeg+0, n)*ylm*Qval;
 		  } else {
 		    int ll = lbeg + 2*(M-1) + 1;
-		    double fac = (coefs[ll][n]*cos(phi*M) + coefs[ll+1][n]*sin(phi*M))*ylm;
+		    double fac = (coefs(ll, n)*cos(phi*M) + coefs(ll+1, n)*sin(phi*M))*ylm;
 		    if (r<RMAX) work2[L] += mass*potl * fac;
 		    work3[L] += -mass*Qval * fac;
 		  }
@@ -519,7 +476,7 @@ main(int argc, char **argv)
 	    
 	    // Queue up next particle
 	    //
-	    p = psp->NextParticle();
+	    p = reader->nextParticle();
 	  } while (p);
 	  //
 	  // END: particle loop
@@ -542,7 +499,7 @@ main(int argc, char **argv)
 	  double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
 	  double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
 	  
-	  if (ncut==1) term4tot = term1tot;
+	  if (ncut==0) term4tot = term1tot;
 	  
 	  out << std::setw(18) << term1tot
 	      << std::setw(18) << term2tot
@@ -614,12 +571,12 @@ main(int argc, char **argv)
 		for (int n2=1; n2<=NMAX; n2++) {
 		  if (M==0)
 		    term1[L] +=
-		      coefs[lbeg][n1]*O[L](n1-1, n2-1)*coefs[lbeg][n2];
+		      coefs(lbeg, n1)*O[L](n1-1, n2-1)*coefs(lbeg, n2);
 		  else {
 		    int ll = lbeg + 2*(M-1) + 1;
 		    term1[L] +=
-		      coefs[ll+0][n1]*O[L](n1-1, n2-1)*coefs[ll+0][n2] +
-		      coefs[ll+1][n1]*O[L](n1-1, n2-1)*coefs[ll+1][n2];
+		      coefs(ll+0, n1)*O[L](n1-1, n2-1)*coefs(ll+0, n2) +
+		      coefs(ll+1, n1)*O[L](n1-1, n2-1)*coefs(ll+1, n2);
 		  }
 		}
 	      }
@@ -635,16 +592,16 @@ main(int argc, char **argv)
 	
 	  // Particle loop
 	  //
-	  p = psp->GetParticle();
+	  p = reader->firstParticle();
 	  int icnt = 0;
 	  do {
 	    if (icnt++ % numprocs == myid) {
 	      double r = 0.0, costh = 0.0, phi = 0.0;
-	      for (int k=0; k<3; k++) r += p->pos(k)*p->pos(k);
+	      for (int k=0; k<3; k++) r += p->pos[k]*p->pos[k];
 	      r = sqrt(r);
-	      if (r>0.0) costh = p->pos(2)/r;
-	      phi = atan2(p->pos(1), p->pos(0));
-	      double mass = p->mass();
+	      if (r>0.0) costh = p->pos[2]/r;
+	      phi = atan2(p->pos[1], p->pos[0]);
+	      double mass = p->mass;
 	    
 	      double x = sl->r_to_xi(r);
 	      x = std::max<double>(ximin, x);
@@ -669,11 +626,11 @@ main(int argc, char **argv)
 		  
 		  if (M==0) {
 		    if (r<RMAX)
-		      work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
-		    work3[L] += mass*coefs[lbeg+0][n]*ylm*Qval;
+		      work2[L] += mass*coefs(lbeg+0, n)*ylm*potl;
+		    work3[L] += mass*coefs(lbeg+0, n)*ylm*Qval;
 		  } else {
 		    int ll = lbeg + 2*(M-1) + 1;
-		    double fac = (coefs[ll][n]*cos(phi*M) + coefs[ll+1][n]*sin(phi*M))*ylm;
+		    double fac = (coefs(ll, n)*cos(phi*M) + coefs(ll+1, n)*sin(phi*M))*ylm;
 		    if (r<RMAX)
 		      work2[L] += mass*potl * fac;
 		    work3[L] += mass*Qval * fac;
@@ -687,7 +644,8 @@ main(int argc, char **argv)
 	    
 	    // Queue up next particle
 	    //
-	    p = psp->NextParticle();
+	    p = reader->nextParticle();
+
 	  } while (p);
 	  //
 	  // END: particle loop

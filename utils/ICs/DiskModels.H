@@ -1,7 +1,7 @@
 #ifndef _DISK_MODELS_H
 #define _DISK_MODELS_H
 
-#include <EmpCylSL.h>
+#include <EmpCylSL.H>
 
 
 //! A Ferrers Ellipsoid + Evacuated Exponential Disc (semi-realistic bar+disk model)
@@ -120,6 +120,29 @@ public:
 
 };
 
+//! A mixture of two exponential disks
+class DoubleExponential : public EmpCylSL::AxiDisk
+{
+private:
+  double a, h, a2, h2, Mfac, d1, d2;
+
+public:
+
+  DoubleExponential(double a, double h, double a2, double h2, double Mfac, double M=1) :
+    a(a), h(h), a2(a2), h2(h2), Mfac(Mfac), EmpCylSL::AxiDisk(M, "DoubleExponential") {}
+
+  double operator()(double R, double z, double phi=0.)
+  {
+    double sh = 1.0/cosh(z/h);
+    d1 = 0.25*M*Mfac/(M_PI*a*a*h) * exp(-R/a) * sh * sh;
+    
+    sh = 1.0/cosh(z/h2);
+    d2 = 0.25*M*(1-Mfac)/(M_PI*a2*a2*h2) * exp(-R/a2) * sh * sh;
+
+    return d1 + d2;
+  }
+
+};
 
 
 

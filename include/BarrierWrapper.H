@@ -15,7 +15,7 @@ using namespace std;
 
 #include <boost/shared_ptr.hpp>
 
-#include <Timer.h>
+#include <Timer.H>
 #include <mpi.h>
 
 

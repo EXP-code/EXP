@@ -1,4 +1,4 @@
-#include "expand.h"
+#include "expand.H"
 
 void do_step (int);
 void clean_up(void);
@@ -58,7 +58,7 @@ void set_fpu_invalid_handler(void)
 	{FE_UNDERFLOW, "underflow"} };
     
     int _flags = fegetexcept();
-    std::cout << "Enabled FE flags: <";
+    std::cout << "---- Enabled FE flags: <";
     for (auto v : flags) {
       if (v.first & _flags) std::cout << v.second << ' ';
     }

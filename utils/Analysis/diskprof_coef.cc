@@ -44,6 +44,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
 
+
 #include <yaml-cpp/yaml.h>	// YAML support
 
 namespace po = boost::program_options;
@@ -55,37 +56,21 @@ namespace pt = boost::property_tree;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <interp.H>
+#include <EmpCylSL.H>
 #include "Particle.h"
 #include "Coefs.H"
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
-#include <VtkGrid.H>
+#include <DataGrid.H>
 
 const std::string overview = "Compute disk potential, force and density profiles from\nEXP coefficient files\n";
 
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag, coeffile;
-double tpos = 0.0;
-double tnow = 0.0;
-  
-				// Globals
+// Globals
+//
 static  string outid;
 static  double RMAX;
 static  double ZMAX;
@@ -166,7 +151,7 @@ void write_output(EmpCylSL& ortho, int indx, double time,
     
     if (myid==0) {
 
-      VtkGrid vtk(OUTR, OUTR, OUTZ, -RMAX, RMAX, -RMAX, RMAX, -ZMAX, ZMAX);
+      DataGrid vtk(OUTR, OUTR, OUTZ, -RMAX, RMAX, -RMAX, RMAX, -ZMAX, ZMAX);
 
       std::vector<double> data(OUTR*OUTR*OUTZ);
 
@@ -241,7 +226,7 @@ void write_output(EmpCylSL& ortho, int indx, double time,
     
     if (myid==0) {
       
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTR);
 
@@ -311,7 +296,7 @@ void write_output(EmpCylSL& ortho, int indx, double time,
     
     if (myid==0) {
       
-      VtkGrid vtk(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTZ);
 
@@ -411,10 +396,10 @@ main(int argc, char **argv)
     cmd_line += " ";
   }
 
-  int lmax=36, stride=1;
+  int lmax=36, stride=1, ibeg, iend;
   double rcylmin, rcylmax, rscale, vscale;
   bool DENS, verbose = false, mask = false;
-  std::string CACHEFILE;
+  std::string CACHEFILE, coeffile;
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -462,6 +447,12 @@ main(int argc, char **argv)
     ("stride,s",
      po::value<int>(&stride)->default_value(1), 
      "stride for time output")
+    ("beg",
+     po::value<int>(&ibeg)->default_value(0), 
+     "initial coefficient frame")
+    ("end",
+     po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()), 
+     "final coefficient frame")
     ;
   
   po::variables_map vm;
@@ -631,9 +622,9 @@ main(int argc, char **argv)
 
   std::vector<std::string> outfiles1, outfiles2, outfiles3;
 
-  int indx = 0;
-  for (auto d : data) {
-    
+  for (int indx=ibeg; indx<=std::min<int>(iend, data.size()); indx++) {
+    auto d = data[indx];
+
     bool zero = true;
     for (int M=0; M<=d->mmax; M++) {
       ortho.set_coefs(M, d->cos_c[M], d->sin_c[M], zero);
@@ -645,7 +636,7 @@ main(int argc, char **argv)
     if (myid==0) cout << "Writing output for T=" << d->time
 		      << " . . . " << flush;
 
-    write_output(ortho, indx++, d->time, file1, file2, file3);
+    write_output(ortho, indx, d->time, file1, file2, file3);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
     

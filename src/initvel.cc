@@ -2,7 +2,7 @@
   Initialize the velocities of the bodies for the initial timestep
 */
 
-#include "expand.h"
+#include "expand.H"
 
 void init_velocity(void)
 {

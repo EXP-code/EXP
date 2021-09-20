@@ -4,9 +4,9 @@
 #include <sstream>
 #include <vector>
 
-#include <localmpi.h>
-#include <massmodel.h>
-#include <interp.h>
+#include <localmpi.H>
+#include <massmodel.H>
+#include <interp.H>
 #include <AddDisk.H>
 
 int AddDisk::number = 4000;
@@ -21,10 +21,10 @@ AddDisk::AddDisk(std::shared_ptr<AxiSymModel> halo, std::shared_ptr<AxiSymModel>
   double rmin = max<double>(halo->get_min_radius(), Rmin);
   double rmax = halo->get_max_radius();
 
-  r =  vector<double>(number);
-  d =  vector<double>(number);
-  m =  vector<double>(number);
-  p =  vector<double>(number);
+  r.resize(number);
+  d.resize(number);
+  m.resize(number);
+  p.resize(number);
 
   vector<double> dt(number);
   vector<double> dm(number);
@@ -96,7 +96,8 @@ AddDisk::AddDisk(std::shared_ptr<AxiSymModel> halo, std::shared_ptr<AxiSymModel>
  }
 #endif
 
- mod = std::make_shared<SphericalModelTable>(number, &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1);
+ mod = std::make_shared<SphericalModelTable>
+   (number, r.data(), d.data(), m.data(), p.data());
 
 #ifdef DEBUG
   {

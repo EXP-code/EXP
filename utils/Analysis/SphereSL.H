@@ -1,11 +1,10 @@
 #ifndef SphereSL_H
 #define SphereSL_H 1
 
-#include <Vector.h>
 #include <string>
 
-#include <SLGridMP2.h>
-#include <localmpi.h>
+#include <SLGridMP2.H>
+#include <localmpi.H>
 #include <eigen3/Eigen/Eigen>
 
 /**
@@ -17,15 +16,16 @@ class SphereSL
 
 private:
 
-  SLGridSph *sl;
+  boost::shared_ptr<SLGridSph> sl;
   int lmax, nmax;
+  double rmin, rmax;
 
-  Matrix potd, dpot, dpt2, dend;
-  Matrix legs, dlegs, d2legs;
+  Eigen::MatrixXd potd, dpot, dpt2, dend;
+  Eigen::MatrixXd legs, dlegs, d2legs;
 
   bool coefs_defined;
-  Matrix factorial;
-  Matrix expcoef;
+  Eigen::MatrixXd factorial;
+  Eigen::MatrixXd expcoef;
   double rscl;
   int used;
 
@@ -46,9 +46,16 @@ private:
 
   double minSNR, maxSNR;
 
-  Vector work;
+  Eigen::VectorXd work;
 
   void bomb(char *s);
+
+  //! Coefficient magic number
+  const unsigned int cmagic = 0xc0a57a2;
+
+  //! For coefficient writing
+  typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
+  EigenColMajor;
 
 public:
 
@@ -73,7 +80,7 @@ public:
       \param COVAR true will evaluate the covariance matrix for coeffficients
       \param NPART >0 will evaluate the covariance matrix using a jackknife partition with number given
   */
-  SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
+  SphereSL(boost::shared_ptr<SphericalModelTable> mod, int LMAX, int NMAX,
 	   int CMAP=0, double SCALE=0.067, bool COVAR=false, int NPART=0);
   
   //! Destructor
@@ -92,10 +99,10 @@ public:
   void make_covar(bool verbose=false);
 
   //! Install coefficients
-  void install_coefs(Matrix& newcoef);
+  void install_coefs(Eigen::MatrixXd& newcoef);
 
   //! Retrieve coefficients
-  Matrix retrieve_coefs(void) { return expcoef; }
+  Eigen::MatrixXd retrieve_coefs(void) { return expcoef; }
 
   //! Minimum SNR coefficient value
   double getMinSNR(void) { return minSNR; }
@@ -107,7 +114,7 @@ public:
   double getMass(void)   { return totalMass; }
 
   //! Retrieve coefficients with SNR trim
-  Matrix get_trimmed(double snr, double mass, bool Hall=false);
+  Eigen::MatrixXd get_trimmed(double snr, double mass, bool Hall=false);
 
   //! Get fractional power in trimmed coefficients
   double get_power(double snr, double mass);
@@ -122,18 +129,18 @@ public:
   void dens_pot_eval(double r, double costh, double phi,
 		     double& dens0, double& dens, 
 		     double& potl0, double& potl,
-		     int L1=0, int L2=10000);
+		     int L1=0, int L2=10000, int N1=0, int N2=10000);
 
   //! Evaluate potential and force
   void pot_force_eval(double r, double costh, double phi,
 		      double& potl, double& potr, double& pott, double& potp,
-		      int L1=0, int L2=10000);
+		      int L1=0, int L2=10000, int N1=0, int N2=10000);
   
   void all_eval(double r, double costh, double phi,
 		double& den0, double& den1,
 		double& pot0, double& pot1,
 		double& potr, double& pott, double& potp,
-		int L1=0, int L2=10000);
+		int L1=0, int L2=10000, int N1=0, int N2=10000);
 
   //! Return current maximum harmonic order in expansion
   int getLmax() { return lmax; }
@@ -142,13 +149,14 @@ public:
   int getNmax() { return nmax; }
 
   // @{ Evaluate Legendre polynomials and derivatives
-  void legendre_R(int lmax, double x, Matrix &p);
-  void legendre_R(int lmax, double x, Matrix &p, Matrix &dp);
-  void legendre_R(int lmax, double x, Matrix &p, Matrix &dp, Matrix& d2p);
+  void legendre_R(int lmax, double x, Eigen::MatrixXd &p);
+  void legendre_R(int lmax, double x, Eigen::MatrixXd &p, Eigen::MatrixXd &dp);
+  void legendre_R(int lmax, double x, Eigen::MatrixXd &p, Eigen::MatrixXd &dp,
+		  Eigen::MatrixXd& d2p);
   // @}
 
   //! Access to basis
-  SLGridSph *basis(void) { return sl; }
+  boost::shared_ptr<SLGridSph> basis(void) { return sl; }
 
   //! Dump coefficients using the standard header
   void dump_coefs(double time, std::ostream& out);

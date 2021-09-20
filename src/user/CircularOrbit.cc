@@ -1,19 +1,14 @@
-// This may look like C code, but it is really -*- C++ -*-
-
-#include <stdlib.h>
+#include <cstdlib>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-#include <math.h>
+#include <cmath>
 
-#include <CVector.h>
-#include <clinalg.h>
-
-#include <biorth.h>
-#include <model3d.h>
-#include <isothermal.h>
-#include <hernquist.h>
-#include <gaussQ.h>
+#include <biorth.H>
+#include <model3d.H>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <gaussQ.H>
 
 #include <CircularOrbit.H>
 
@@ -35,8 +30,8 @@ CircularOrbit::CircularOrbit(int NMAX, int L, int M,
 
 void CircularOrbit::compute_coefficients()
 {
-  bcoef.setsize(1, nmax);
-  for (int n=1; n<=nmax; n++)
+  bcoef.resize(nmax);
+  for (int n=0; n<nmax; n++)
     bcoef[n] = biorth->potl(n, l, biorth->r_to_rb(radius));
   bcoef *= -4.0*M_PI*mass*Ylm01(l, m);
 }

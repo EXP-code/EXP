@@ -1,21 +1,20 @@
 
-#include <limits.h>
+#include <limits>
 
 #include <boost/make_shared.hpp>
 
-#include "expand.h"
+#include "expand.H"
 
-#include <gaussQ.h>
+#include <gaussQ.H>
 #include <Sphere.H>
-#include <plummer.h>
-#include <interp.h>
+#include <plummer.H>
+#include <interp.H>
 
 
 Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m)
 {
   id = "Sphere SL";
 				// Defaults
-  rmin = min<double>(1.0e-6, 1.0e-6*rmax);
   rs = 0.067*rmax;
   numr = 2000;
   nums = 2000;
@@ -49,6 +48,10 @@ Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m
   ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, true,
 					cmap, rs, diverge, dfac);
 
+				// Get the min and max expansion radii
+  rmin  = ortho->getRmin();
+  rmax  = ortho->getRmax();
+
   setup();
 }
 
@@ -56,7 +59,6 @@ Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m
 void Sphere::initialize()
 {
   try {
-    if (conf["rmin"])      rmin       = conf["rmin"].as<double>();
     if (conf["rs"])        rs         = conf["rs"].as<double>();
     if (conf["numr"])      numr       = conf["numr"].as<int>();
     if (conf["nums"])      nums       = conf["nums"].as<int>();
@@ -88,25 +90,25 @@ Sphere::~Sphere(void)
 }
 
 
-void Sphere::get_dpotl(int lmax, int nmax, double r, Matrix& p, Matrix& dp,
-		       int tid)
+void Sphere::get_dpotl(int lmax, int nmax, double r, Eigen::MatrixXd& p,
+		       Eigen::MatrixXd& dp, int tid)
 {
   ortho->get_pot(p, r);
   ortho->get_force(dp, r);
 }
 
-void Sphere::get_potl(int lmax, int nmax, double r, Matrix& p, int tid)
+void Sphere::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
   ortho->get_pot(p, r);
 }
 
-void Sphere::get_dens(int lmax, int nmax, double r, Matrix& p, int tid)
+void Sphere::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
   ortho->get_dens(p, r);
 }
 
-void Sphere::get_potl_dens(int lmax, int nmax, double r, Matrix& p, Matrix& d,
-			   int tid)
+void Sphere::get_potl_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p,
+			   Eigen::MatrixXd& d, int tid)
 {
   ortho->get_pot(p, r);
   ortho->get_dens(d, r);
@@ -275,7 +277,7 @@ void Sphere::make_model_bin()
 
   // Regenerate Sturm-Liouville grid
   //
-  ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numR, Rmin, Rmax, mod, false);
+  ortho = boost::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0);
 
   // Update time trigger
   //
@@ -414,7 +416,7 @@ void Sphere::make_model_plummer()
 
   // Regenerate Sturm-Liouville grid
   //
-  ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, Rmin, Rmax, mod, false);
+  ortho = boost::make_shared<SLGridSph>(mod, Lmax, nmax, numr, Rmin, Rmax, false, 1, 1.0);
 
   // Update time trigger
   //

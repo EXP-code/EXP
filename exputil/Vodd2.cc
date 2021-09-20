@@ -40,71 +40,19 @@
 
 #include <cstring>
 #include <cstdlib>
+#include <vector>
+#include <deque>
 
-#include <Vector.h>
-#include <interp.h>
-
-
-double odd2(double x, const Vector &xtab, const Vector &ftab, int even)
-{
-  int index,min,max;
-  double ans;
-
-  // find position in grid  */
-
-  min = xtab.getlow();
-  max = xtab.gethigh();
-
-  if (even)
-    index = (int)((x-xtab[min])/(xtab[max]-xtab[min])*(double)(max-min)) + min;
-  else
-    index = Vlocate(x, xtab);
-
-  if (index < min) index=min;
-  if (index >= max) index=max-1;
-
-  ans = ( ftab[index+1]*(x-xtab[index]  ) -
-	  ftab[index  ]*(x-xtab[index+1]) )
-    /( xtab[index+1]-xtab[index] ) ;
-
-  return ans;
-
-}
-
-double drv2(double x, const Vector &xtab, const Vector &ftab, int even)
-{
-  int index,min,max;
-  double ans;
-
-  //  find position in grid
-
-  min = xtab.getlow();
-  max = xtab.gethigh();
-
-  if (even)
-    index = (int)((x-xtab[min])/(xtab[max]-xtab[min])*(double)(max-min)) + min;
-  else
-    index = Vlocate(x, xtab);
-
-  if (index < min) index=min;
-  if (index >= max) index=max-1;
-
-  ans = ( ftab[index+1] -ftab[index] )/( xtab[index+1]-xtab[index] ) ;
-
-  return ans;
-
-}
+#include <interp.H>
 
 template <class V>
 double odd2(double x, const V &xtab, const V &ftab, int even)
 {
-  int index,min,max;
-  double ans;
-
   // find position in grid
-
-  min = 0;
-  max = xtab.size() - 1;
+  //
+  int min = 0;
+  int max = xtab.size() - 1;
+  int index;
 
   if (even)
     index = (int)((x-xtab[min])/(xtab[max]-xtab[min])*(double)(max-min)) + min;
@@ -114,50 +62,50 @@ double odd2(double x, const V &xtab, const V &ftab, int even)
   if (index < min) index=min;
   if (index >= max) index=max-1;
 
-  ans = ( ftab[index+1]*(x-xtab[index]  ) -
-	  ftab[index  ]*(x-xtab[index+1]) )
+  double ans = ( ftab[index+1]*(x-xtab[index]  ) -
+		 ftab[index  ]*(x-xtab[index+1]) )
     /( xtab[index+1]-xtab[index] ) ;
 
   return ans;
-
 }
 
 template <class V>
 double drv2(double x, const V &xtab, const V &ftab, int even)
 {
-  int index,min,max;
-  double ans;
-
   // find position in grid
-
-  min = 0;
-  max = xtab.size() - 1;
+  //
+  int min = 0;
+  int max = xtab.size() - 1;
+  int index;
 
   if (even)
     index = (int)((x-xtab[min])/(xtab[max]-xtab[min])*(double)(max-min)) + min;
   else
     index = Vlocate(x, xtab);
 
-  if (index < min) index=min;
+  if (index <  min) index=min;
   if (index >= max) index=max-1;
 
-  ans = ( ftab[index+1] -ftab[index] )/( xtab[index+1]-xtab[index] ) ;
+  double ans = ( ftab[index+1] -ftab[index] )/( xtab[index+1]-xtab[index] ) ;
 
   return ans;
-
 }
 
+template double odd2(double x, const std::vector<double>& xtab, 
+		     const std::vector<double>& ftab, int even=0);
 
-template double odd2(double x, const vector<double>& xtab, 
-			    const vector<double>& ftab, int even=0);
+template double odd2(double x, const std::deque<double>& xtab, 
+		     const std::deque<double>& ftab, int even=0);
 
-template double odd2(double x, const deque<double>& xtab, 
-			    const deque<double>& ftab, int even=0);
+template double odd2(double x, const Eigen::VectorXd& xtab, 
+		     const Eigen::VectorXd& ftab, int even=0);
 
-template double drv2(double x, const vector<double>& xtab, 
-			    const vector<double>& ftab, int even=0);
+template double drv2(double x, const std::vector<double>& xtab, 
+		     const std::vector<double>& ftab, int even=0);
 
-template double drv2(double x, const deque<double>& xtab, 
-			    const deque<double>& ftab, int even=0);
+template double drv2(double x, const std::deque<double>& xtab, 
+		     const std::deque<double>& ftab, int even=0);
 
+template double drv2(double x, const Eigen::VectorXd& xtab, 
+		     const Eigen::VectorXd& ftab, int even=0);
 

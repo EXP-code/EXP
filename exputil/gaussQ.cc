@@ -3,8 +3,7 @@
 #include <cmath>
 #include <string>
 
-#include <Vector.h>
-#include <gaussQ.h>
+#include <gaussQ.H>
 
 extern "C" {
   void Hermite(int n, double alpha, double abscis[], double weight[]);
@@ -20,12 +19,12 @@ HermQuad::HermQuad(int N, double ALPHA)
   n = N;
   alpha = ALPHA;
 
-  w.setsize(1, n);
-  r.setsize(1, n);
+  w.resize(n);
+  r.resize(n);
 
-  Hermite( n, alpha, r.array(0,n-1), w.array(0,n-1) );
+  Hermite( n, alpha, r.data(), w.data() );
 
-  w *= exp(lgamma(0.5+0.5*alpha));
+  for (auto & v : w) v *= exp(lgamma(0.5+0.5*alpha));
 }
 
 LaguQuad::LaguQuad(int N, double ALPHA)
@@ -35,12 +34,12 @@ LaguQuad::LaguQuad(int N, double ALPHA)
   n = N;
   alpha = ALPHA;
 
-  w.setsize(1, n);
-  r.setsize(1, n);
+  w.resize(n);
+  r.resize(n);
 
-  Laguerre( n, alpha, r.array(0,n-1), w.array(0,n-1) );
+  Laguerre( n, alpha, r.data(), w.data() );
 
-  w *= exp(lgamma(1.0+alpha));
+  for (auto & v : w) v *= exp(lgamma(1.0+alpha));
 }
 
 JacoQuad::JacoQuad(int N, double ALPHA, double BETA)
@@ -51,11 +50,12 @@ JacoQuad::JacoQuad(int N, double ALPHA, double BETA)
   alpha = ALPHA;
   beta = BETA;
 
-  w.setsize(1, n);
-  r.setsize(1, n);
+  w.resize(n);
+  r.resize(n);
 
-  Jacobi( n, alpha, beta, r.array(0,n-1), w.array(0,n-1) );
+  Jacobi( n, alpha, beta, r.data(), w.data() );
 
-  w *= exp(lgamma(1.0+alpha) + lgamma(1.0+beta) - lgamma(2.0+alpha+beta));
+  for (auto & v : w )
+    v *= exp(lgamma(1.0+alpha) + lgamma(1.0+beta) - lgamma(2.0+alpha+beta));
 }
 

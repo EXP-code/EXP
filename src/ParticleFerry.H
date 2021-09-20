@@ -2,7 +2,7 @@
 #define ParticleFerry_H
 
 #include <vector>
-#include "localmpi.h"
+#include "localmpi.H"
 #include "Particle.H"
 
 #include <boost/shared_ptr.hpp>

@@ -2,7 +2,7 @@
   Compute accelerations, potential, and density.
 */
 
-#include <expand.h>
+#include <expand.H>
 
 #include <vector>
 
@@ -52,11 +52,11 @@ void ComponentContainer::initialize(void)
     string resfile = outdir + infile;
     ifstream in(resfile.c_str());
     if (in) {
-      cerr << "ComponentContainer::initialize: successfully opened <"
+      cerr << "---- ComponentContainer successfully opened <"
 	   << resfile << ">, assuming a restart" << endl;
       ir = 1;
     } else {
-      cerr << "ComponentContainer::initialize: could not open <"
+      cerr << "---- ComponentContainer could not open <"
 	   << resfile << ">, assuming a new run" << endl;
       ir = 0;
     }
@@ -1133,7 +1133,7 @@ void ComponentContainer::read_rates(void)
       }
 
     } else {			// Assign equal rates to all nodes
-      cerr << "setup: can not find <" << ratefile << "> . . . will assume homogeneous cluster\n";
+      std::cerr << "---- ComponentContainer can not find <" << ratefile << "> . . . will assume homogeneous cluster" << std::endl;
       for (int n=0; n<numprocs; n++) {
 	rates[n] = 1.0;
 	norm += rates[n];

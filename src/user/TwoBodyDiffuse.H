@@ -8,9 +8,11 @@ using namespace std;
 #include <vector>
 #include <string>
 
-#include <gaussQ.h>
-#include <massmodel.h>
-#include <Vector.h>
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
+
+#include <gaussQ.H>
+#include <massmodel.H>
 
 /** Random walk of each orbit on energy surface
 
@@ -56,9 +58,8 @@ private:
 
   LegeQuad *jq;
 
-  ACG *gen;
-  Uniform *urand;
-  Normal *nrand;
+  boost::random::uniform_real_distribution<> urand;
+  boost::random::normal_distribution<> nrand;
 
 public:
 

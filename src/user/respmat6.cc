@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -71,29 +69,29 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <string>
 
 #include <global.H>
-#include <RespMat3.h>
-#include <interp.h>
-#include <clinalg.h>
+#include <RespMat3.H>
+#include <interp.H>
+#include <Eigen/SVD>
 
-/* Global definitions */
+// Global definitions
 
 void rat_integral_set_parameters(double eps, int idbg=0);
-KComplex compute_rat_integral(double a, double b, CVector& x_data, CVector& y_data);
+std::complex<double> compute_rat_integral(double a, double b, Eigen::VectorXcd& x_data, Eigen::VectorXcd& y_data);
 
      
 double get_exact_potl(int n, double r);	// Exact potential evaluation
 
-int inverse_svd(CMatrix& a, CMatrix& x, double threshold);
 static double svd_tol = 1.0e-6;
 
-KComplex Crombe(double a, double b, CVector& f);
-double   Vrombe(double a, double b, Vector& f);
+std::complex<double> Crombe(double a, double b, Eigen::VectorXcd& f);
+double   Vrombe(double a, double b, Eigen::VectorXd& f);
 
 void write_contr(ostream& out,
 		 double xmin, double xmax, double ymin, double ymax, 
-		 Matrix& mat);
+		 Eigen::MatrixXd& mat);
 
 double sign(double x) 
 {
@@ -111,7 +109,6 @@ RespMat::RespMat()
 {
   model = NULL;
   biorth = NULL;
-  hold = NULL;
 
   ID = "UnknownDimensional(UnInitialized)";
 
@@ -128,14 +125,13 @@ RespMat::RespMat()
   PVALUE = defaultPVALUE;
   time_in_inner_loop=0.0;
   time_in_biorth_gen=0.0;
-  hold = NULL;
   CPREAD = 0;
   CHECKPT = 0;
   CHK_NAME = "";
   disp_computed = 0;
 }
 
-RespMat::RespMat(KComplex omp0, int ll, int mm,
+RespMat::RespMat(std::complex<double> omp0, int ll, int mm,
 		 int llmax, int nnmax, int nnptsK, int nnptsE, 
 		 AxiSymModel *MODEL, AxiSymBiorth *BIORTH,
 		 int old, int cpread, int checkpt, int verbose, 
@@ -191,7 +187,6 @@ RespMat::RespMat(KComplex omp0, int ll, int mm,
   PVALUE = defaultPVALUE;
   time_in_inner_loop=0.0;
   time_in_biorth_gen=0.0;
-  hold = NULL;
   CPREAD = 0;
   CHECKPT = 0;
   CHK_NAME = "";
@@ -224,8 +219,6 @@ RespMat::RespMat(const RespMat& p)
   matrix_computed = p.matrix_computed;
   matrix_computed_pv = p.matrix_computed_pv;
   ID = p.ID;
-
-  hold = NULL;
 
   disp_computed = p.disp_computed;
   disp = p.disp;
@@ -287,8 +280,7 @@ void RespMat::set_principal_value(int pvalue)
 void RespMat::make_matrix(void)
 {
   double dk, kap2, expok, fac, tol1, tol2, tot_time, tot_time_d;
-  int i, j, k;
-  KComplex temp;
+  std::complex<double> temp;
   
   /* Set up global values */
   
@@ -300,18 +292,18 @@ void RespMat::make_matrix(void)
   if (dof==2) l2 = l;
   num_E = 1 + (int)(pow(2.0,(double)nptsE)+1.0e-6);
   num_K = 1 + (int)(pow(2.0,(double)nptsK)+1.0e-6);
-  pp_x.setsize(1, num_E);
-  pp_y.setsize(1, num_E);
-  mr.setsize(1, nmax, 1, nmax);
-  mr2.setsize(1, nmax, 1, nmax);
+  pp_x.resize(num_E);
+  pp_y.resize(num_E);
+  mr.  resize(nmax, nmax);
+  mr2. resize(nmax, nmax);
   
   expok = 1.0/(dof-1.0-DELTA);
   tol1 = pow(TOL, 1.0/expok);
   tol2 = TOL/expok;
   dk = (1.0 - tol1-tol2)/(double)(num_K-1);
 
-  CVector mk(1,num_K);
-  CVector wk(1,num_K);
+  Eigen::VectorXcd mk(num_K);
+  Eigen::VectorXcd wk(num_K);
   
   switch (SITYPE) {
   case ratint:
@@ -320,16 +312,16 @@ void RespMat::make_matrix(void)
   case jacoint:
     {
       JacoQuad jq(num_K, dof-2.0-DELTA, 0.0);
-      for (k=1; k<=num_K; k++) {
-	mk[k] = jq.knot(k);
-	wk[k] = jq.weight(k);
+      for (int k=0; k<num_K; k++) {
+	mk[k-1] = jq.knot(k);
+	wk[k-1] = jq.weight(k);
       }
     }
     break;
   case rombint:
-    for (k=1; k<=num_K; k++) {
-      for (k=1; k<=num_K; k++) {
-	mk[k] = TOL + dk*(k-1);
+    for (int k=0; k<num_K; k++) {
+      for (int k=0; k<num_K; k++) {
+	mk[k] = TOL + dk*k;
 	wk[k] = 1.0;
       }
     }
@@ -339,15 +331,10 @@ void RespMat::make_matrix(void)
   /* Set up for matrix element computation
      define and clean array . . . */
   
-  mab = (CVector **) new CVector* [nmax] - 1;
-  for (i=1; i<=nmax; i++) mab[i] = new CVector[nmax] - 1;
-  for (i=1; i<=nmax; i++) {
-    for (j=1; j<=nmax; j++) {
-      for (ikap=1; ikap<=num_K; ikap++) {
-	mab[i][j].setsize(1, num_K);
-	mab[i][j].zero();
-      }
-    }
+  mab.resize(nmax*nmax);
+  for (auto & v : mab) {
+    v.resize(num_K);
+    v.setZero();
   }
   
   /* Set up for array of orbits in <E> at fixed <kappa> */
@@ -415,30 +402,30 @@ void RespMat::make_matrix(void)
   
   if (SITYPE != jacoint) {
 
-    for (k=1; k<=num_K; k++) {
+    for (int k=0; k<num_K; k++) {
       fac = pow(mk[k].real(), DELTA) * expok;
       
-      for (alpha=1; alpha<=nmax; alpha++) {
-	for (beta=alpha; beta<=nmax; beta++) {
-	  mab[alpha][beta][k] *= fac;
+      for (alpha=0; alpha<nmax; alpha++) {
+	for (beta=alpha; beta<nmax; beta++) {
+	  mab[alpha*nmax+beta][k] *= fac;
 	}
       }
     }
 
   }
   
-  for (alpha=1; alpha<=nmax; alpha++) {
+  for (alpha=0; alpha<=nmax; alpha++) {
     for (beta=alpha; beta<=nmax; beta++) {
       
       switch (SITYPE) {
       case ratint:
-	temp = compute_rat_integral(0.0, 1.0, mk, mab[alpha][beta]);
+	temp = compute_rat_integral(0.0, 1.0, mk, mab[alpha*nmax+beta]);
 	break;
       case jacoint:
-	temp = wk*mab[alpha][beta];
+	temp = wk.adjoint()*mab[alpha*nmax+beta];
 	break;
       case rombint:
-	temp = Crombe(mk[1].real(), mk[num_K].real(), mab[alpha][beta]);
+	temp = Crombe(mk[1].real(), mk[num_K].real(), mab[alpha*nmax+beta]);
 	break;
       }
       
@@ -484,22 +471,10 @@ void RespMat::make_matrix(void)
 //----------------------------------------------------------------------
 //
       }
-      mr[alpha][beta] = temp;
-      mr[beta][alpha] = temp;
+      mr(alpha, beta) = temp;
+      mr(beta, alpha) = temp;
     }
   }
-
-				// Clean up
-
-  for (i=1; i<=nmax; i++) delete [] (mab[i]+1);
-  delete [] (mab + 1);
-  mab = NULL;
-  delete Orb;
-  if (hold) {
-    for (i=1; i<=nmax; i++) delete [] (hold[i]+1);
-    delete [] (hold + 1);
-  }
-  hold = NULL;
 
 				// Set computed flag
   matrix_computed = 1;
@@ -509,8 +484,7 @@ void RespMat::make_matrix(void)
 void RespMat::make_matrix_pv(void)
 {
   double dk, kap2, expok, fac, tol1, tol2, tot_time, tot_time_d;
-  int i, j, k;
-  KComplex temp, temp2;
+  std::complex<double> temp, temp2;
   
   /* Set up global values */
   
@@ -522,20 +496,20 @@ void RespMat::make_matrix_pv(void)
   if (dof==2) l2 = l;
   num_E = 1 + (int)(pow(2.0,(double)nptsE)+1.0e-6);
   num_K = 1 + (int)(pow(2.0,(double)nptsK)+1.0e-6);
-  pp_x.setsize(1, num_E);
-  pp_y.setsize(1, num_E);
-  pp_x2.setsize(1, num_E);
+  pp_x. resize(num_E);
+  pp_y. resize(num_E);
+  pp_x2.resize(num_E);
 
-  mr.setsize(1, nmax, 1, nmax);
-  mr2.setsize(1, nmax, 1, nmax);
+  mr. resize(nmax, nmax);
+  mr2.resize(nmax, nmax);
   
   expok = 1.0/(dof-1.0-DELTA);
   tol1 = pow(TOL, 1.0/expok);
   tol2 = TOL/expok;
   dk = (1.0 - tol1-tol2)/(double)(num_K-1);
 
-  CVector mk(1,num_K);
-  CVector wk(1,num_K);
+  Eigen::VectorXcd mk(num_K);
+  Eigen::VectorXcd wk(num_K);
   
   switch (SITYPE) {
   case ratint:
@@ -544,18 +518,16 @@ void RespMat::make_matrix_pv(void)
   case jacoint:
     {
       JacoQuad jq(num_K, dof-2.0-DELTA, 0.0);
-      for (k=1; k<=num_K; k++) {
+      for (int k=0; k<num_K; k++) {
 	mk[k] = jq.knot(k);
 	wk[k] = jq.weight(k);
       }
     }
     break;
   case rombint:
-    for (k=1; k<=num_K; k++) {
-      for (k=1; k<=num_K; k++) {
-	mk[k] = TOL + dk*(k-1);
-	wk[k] = 1.0;
-      }
+    for (int k=0; k<num_K; k++) {
+      mk[k] = TOL + dk*k;
+      wk[k] = 1.0;
     }
     break;
   }
@@ -563,17 +535,10 @@ void RespMat::make_matrix_pv(void)
   /* Set up for matrix element computation
      define and clean array . . . */
   
-  mab = (CVector **) new CVector* [nmax] - 1;
-  for (i=1; i<=nmax; i++) {
-    mab[i] = new CVector[nmax] - 1;
-  }
-  for (i=1; i<=nmax; i++) {
-    for (j=1; j<=nmax; j++) {
-      for (ikap=1; ikap<=num_K; ikap++) {
-	mab[i][j].setsize(1, num_K);
-	mab[i][j].zero();
-      }
-    }
+  mab.resize(nmax*nmax);
+  for (auto & v : mab) {
+    v.resize(num_K);
+    v.setZero();
   }
   
   /* Set up for array of orbits in <E> at fixed <kappa> */
@@ -639,30 +604,30 @@ void RespMat::make_matrix_pv(void)
   
   if (SITYPE != jacoint) {
 
-    for (k=1; k<=num_K; k++) {
+    for (int k=0; k<num_K; k++) {
       fac = pow(mk[k].real(), DELTA) * expok;
       
-      for (alpha=1; alpha<=nmax; alpha++) {
-	for (beta=alpha; beta<=nmax; beta++) {
-	  mab[alpha][beta][k] *= fac;
+      for (alpha=0; alpha<nmax; alpha++) {
+	for (beta=alpha; beta<nmax; beta++) {
+	  mab[alpha*nmax+beta][k] *= fac;
 	}
       }
     }
 
   }
   
-  for (alpha=1; alpha<=nmax; alpha++) {
-    for (beta=alpha; beta<=nmax; beta++) {
+  for (alpha=0; alpha<nmax; alpha++) {
+    for (beta=alpha; beta<nmax; beta++) {
       
       switch (SITYPE) {
       case ratint:
-	temp = compute_rat_integral(0.0, 1.0, mk, mab[alpha][beta]);
+	temp = compute_rat_integral(0.0, 1.0, mk, mab[alpha*nmax+beta]);
 	break;
       case jacoint:
-	temp = wk*mab[alpha][beta];
+	temp = wk.adjoint()*mab[alpha*nmax+beta];
 	break;
       case rombint:
-	temp = Crombe(mk[1].real(), mk[num_K].real(), mab[alpha][beta]);
+	temp = Crombe(mk[1].real(), mk[num_K].real(), mab[alpha*nmax+beta]);
 	break;
       }
       
@@ -708,42 +673,27 @@ void RespMat::make_matrix_pv(void)
 //----------------------------------------------------------------------
 //
       }
-      mr[alpha][beta] = temp;
-      mr[beta][alpha] = temp;
+      mr(alpha, beta) = temp;
+      mr(beta, alpha) = temp;
     }
   }
 
-  for (alpha=1; alpha<=nmax; alpha++) {
-    for (beta=1; beta<=nmax; beta++) {
+  for (alpha=0; alpha<nmax; alpha++) {
+    for (beta=0; beta<nmax; beta++) {
       
-      mr2[beta][alpha] = KComplex(
-				  mr[alpha][beta].real(),
-				  2.0*mr[alpha][beta].imag()
-				  );
+      mr2(beta, alpha) = std::complex<double>(
+					      mr(alpha, beta).real(),
+					      2.0*mr(alpha, beta).imag()
+					      );
     }
   }
 
-
-
-
-				// Clean up
-
-  for (i=1; i<=nmax; i++) delete [] (mab[i]+1);
-  delete [] (mab + 1);
-  mab = NULL;
 
   delete ORes;
-  if (hold) {
-    for (i=1; i<=nmax; i++) delete [] (hold[i]+1);
-    delete [] (hold + 1);
-  }
-  hold = NULL;
-
 
 				// Set computed flag
   matrix_computed = 1;
   matrix_computed_pv = 1;
-
 }
 
 #undef TOL
@@ -772,21 +722,20 @@ OrbitTable::OrbitTable(RespMat* pp, int recs)
     orbits[i].set_biorth(*(p->biorth), p->l, p->nmax, 1);
   }
 
-  PotTrans = new Vector [p->num_E] -1;
-  EInt.setsize(1, p->num_E);
-  dfqE.setsize(1, p->num_E);
-  dfqL.setsize(1, p->num_E);
-  norm.setsize(1, p->nmax);
-  for (i=1; i<=p->num_E; i++)
-    PotTrans[i].setsize(1, p->nmax);
-  for (i=1; i<=p->nmax; i++)
-    norm[i] = 1.0/sqrt((p->biorth)->norm(i-1, p->l));
+  PotTrans.resize(p->num_E);
+  EInt.resize(p->num_E);
+  dfqE.resize(p->num_E);
+  dfqL.resize(p->num_E);
+  norm.resize(p->nmax);
+
+  for (auto & v : PotTrans) v.resize(p->nmax);
+  for (int i=0; i<p->nmax; i++)
+    norm[i] = 1.0/sqrt((p->biorth)->norm(i, p->l));
 }
 
 OrbitTable::~OrbitTable()
 {
   delete [] (orbits+1);
-  delete [] (PotTrans+1);
 }
 
 void OrbitTable::setup()
@@ -855,46 +804,43 @@ double OrbResTable::derivative_step = 1.0e-3;
 
 OrbResTable::OrbResTable(RespMat* pp, int recs)
 {
-  int i;
 
   p = pp;			// Pointer to calling object
 
-  orbits = new SphericalOrbit [p->num_E] - 1;
+  orbits = new SphericalOrbit [p->num_E];
   if (!orbits) p->bomb("couldn't allocate orbits");
-  for (i=1; i<=p->num_E; i++) {
 
+  for (int i=0; i<p->num_E; i++) {
     orbits[i] = SphericalOrbit(p->model);
     orbits[i].set_numerical_params(recs);
     orbits[i].set_biorth(*(p->biorth), p->l, p->nmax, 1);
-
   }
 
   torbit = SphericalOrbit(p->model);
   torbit.set_numerical_params(recs);
   torbit.set_biorth(*(p->biorth), p->l, p->nmax, 1);
     
-  PotTrans = new Vector [p->num_E] -1;
-  PotTrans2 = new Vector [p->num_E] -1;
-  EInt.setsize(1, p->num_E);
-  ELoc.setsize(1, p->num_E);
-  ERes.setsize(1, p->num_E);
-  EJac.setsize(1, p->num_E);
-  dfqE.setsize(1, p->num_E);
-  dfqL.setsize(1, p->num_E);
-  norm.setsize(1, p->nmax);
-  for (i=1; i<=p->num_E; i++) {
-    PotTrans[i].setsize(1, p->nmax);
-    PotTrans2[i].setsize(1, p->nmax);
-  }
-  for (i=1; i<=p->nmax; i++)
-    norm[i] = 1.0/sqrt((p->biorth)->norm(i-1, p->l));
+  PotTrans .resize(p->num_E);
+  PotTrans2.resize(p->num_E);
+
+  for (auto & v : PotTrans)  v.resize(p->nmax);
+  for (auto & v : PotTrans2) v.resize(p->nmax);
+
+  EInt.resize(p->num_E);
+  ELoc.resize(p->num_E);
+  ERes.resize(p->num_E);
+  EJac.resize(p->num_E);
+  dfqE.resize(p->num_E);
+  dfqL.resize(p->num_E);
+  norm.resize(p->nmax);
+  
+  for (int i=0; i<p->nmax; i++)
+    norm[i] = 1.0/sqrt((p->biorth)->norm(i, p->l));
 }
 
 OrbResTable::~OrbResTable()
 {
-  delete [] (orbits+1);
-  delete [] (PotTrans+1);
-  delete [] (PotTrans2+1);
+  delete [] orbits;
 }
 
 void OrbResTable::setup()
@@ -998,7 +944,7 @@ void OrbResTable::setup_E_array(void)
 
 void RespMat::integrand_unroll(void)
 {	   
-  KComplex temp;
+  std::complex<double> temp;
 
   Orb->setup();
 
@@ -1021,14 +967,14 @@ void RespMat::integrand_unroll(void)
 
 				// ALPHA & BETA loop
     
-      for (alpha=1; alpha<=nmax; alpha++) {
+      for (alpha=0; alpha<nmax; alpha++) {
 
-	for (beta=alpha; beta<=nmax; beta++) {
+	for (beta=alpha; beta<nmax; beta++) {
 
 	  
 				//* Do <E> integral
 	  
-	  for (int k=1; k<=num_E; k++)
+	  for (int k=0; k<num_E; k++)
 	    pp_y[k] = Orb->EInt[k] * Orb->PotTrans[k][alpha] *
 	      Orb->PotTrans[k][beta];
 
@@ -1039,11 +985,11 @@ void RespMat::integrand_unroll(void)
 	    temp = compute_rat_integral(Emodmin, Emax, pp_x, pp_y);
 	  else
 	    temp = Crombe(pp_x[1].real(), pp_x[num_E].real(), pp_y);
-	  // temp = compute_rat_integral(Emodmin, Emax, pp_x, pp_y);
+
 	  if (VERBOSE) {
 	    time_in_inner_loop += timer.getTime() - t0;
 	  }
-	  mab[alpha][beta][ikap] += temp*Orb->norm[alpha]*Orb->norm[beta];
+	  mab[alpha*nmax+beta][ikap] += temp*Orb->norm[alpha]*Orb->norm[beta];
 	}
       }
     }
@@ -1053,26 +999,15 @@ void RespMat::integrand_unroll(void)
 
 void RespMat::integrand_rolled(void)
 {	   
-  KComplex temp;
-  int i, j;
+  std::complex<double> temp;
 
-  if (!hold) {
-
-    hold = new CVector* [nmax] -1;
-    for (i=1; i<=nmax; i++) {
-      hold[i] = new CVector [nmax] -1;
-      for (j=1; j<=nmax; j++)
-	hold[i][j].setsize(1, num_E);
-    }
+  if (hold.size()==0) {
+    hold.resize(nmax*nmax);
+    for (auto & v : hold) v.resize(num_E);
   }
 
 				// Clear storage
-  for (i=1; i<=nmax; i++) {
-    for (j=1; j<=nmax; j++)
-      hold[i][j].zero();
-  }
-
-
+  for (auto & v : hold) v.setZero();
 
   int llm, llp;
   if (dof==3) {
@@ -1096,12 +1031,12 @@ void RespMat::integrand_rolled(void)
 
 				// ALPHA & BETA loop
       
-      for (alpha=1; alpha<=nmax; alpha++) {
+      for (alpha=0; alpha<=nmax; alpha++) {
 
 	for (beta=alpha; beta<=nmax; beta++) {
 
-	  for (int k=1; k<=num_E; k++)
-	    hold[alpha][beta][k] += Orb->EInt[k] * 
+	  for (int k=0; k<num_E; k++)
+	    hold[alpha*nmax+beta][k] += Orb->EInt[k] * 
 	      Orb->PotTrans[k][alpha] * Orb->PotTrans[k][beta];
 	  
 	}
@@ -1109,22 +1044,22 @@ void RespMat::integrand_rolled(void)
     }
   }
 
-  for (alpha=1; alpha<=nmax; alpha++) {
+  for (alpha=0; alpha<nmax; alpha++) {
 
-    for (beta=alpha; beta<=nmax; beta++) {
+    for (beta=alpha; beta<nmax; beta++) {
 
       double t0=0;
       if (VERBOSE) {
 	t0 = timer.getTime();
       }
       if (RATINT)
-	temp = compute_rat_integral(Emodmin, Emax, pp_x, hold[alpha][beta]);
+	temp = compute_rat_integral(Emodmin, Emax, pp_x, hold[alpha*nmax+beta]);
       else
-	temp = Crombe(pp_x[1].real(), pp_x[num_E].real(), hold[alpha][beta]);
+	temp = Crombe(pp_x[1].real(), pp_x[num_E].real(), hold[alpha*nmax+beta]);
       if (VERBOSE) {
 	time_in_inner_loop += timer.getTime() - t0;
       }
-      mab[alpha][beta][ikap] += temp*Orb->norm[alpha]*Orb->norm[beta];
+      mab[alpha*nmax+beta][ikap] += temp*Orb->norm[alpha]*Orb->norm[beta];
 
     }
   }
@@ -1133,30 +1068,19 @@ void RespMat::integrand_rolled(void)
 
 void RespMat::integrand_pv(void)
 {	   
-  KComplex temp, fac;
-  int i, j, nres=0;
+  std::complex<double> temp, fac;
+  int nres=0;
   double t0=0;
 
-  if (!hold) {
-
-    hold = new CVector* [nmax] -1;
-    for (i=1; i<=nmax; i++) {
-      hold[i] = new CVector [nmax] -1;
-      for (j=1; j<=nmax; j++) {
-	hold[i][j].setsize(1, num_E);
-      }
-    }
-
-    holdR.setsize(1, nmax, 1, nmax);
+  if (hold.size()==0) {
+    hold.resize(nmax*nmax);
+    for (auto & v : hold) v.resize(num_E);
+    holdR.resize(nmax, nmax);
   }
 
 				// Clear storage
-  for (i=1; i<=nmax; i++) {
-    for (j=1; j<=nmax; j++) {
-      hold[i][j].zero();
-    }
-  }
-  holdR.zero();
+  for (auto & v : hold) v.setZero();
+  holdR.setZero();
 
 
   int llm, llp;
@@ -1185,12 +1109,12 @@ void RespMat::integrand_pv(void)
 
 	nres++;
 
-	for (alpha=1; alpha<=nmax; alpha++) {
-	  for (beta=alpha; beta<=nmax; beta++) {
+	for (alpha=0; alpha<nmax; alpha++) {
+	  for (beta=alpha; beta<nmax; beta++) {
 
-	    for (int k=1; k<=num_E; k++) {
+	    for (int k=0; k<num_E; k++) {
 
-	      hold[alpha][beta][k] += ORes->EInt[k] * 
+	      hold[alpha*nmax+beta][k] += ORes->EInt[k] * 
 		ORes->PotTrans[k][alpha] * ORes->PotTrans[k][beta];
 	  
 	    }
@@ -1204,7 +1128,6 @@ void RespMat::integrand_pv(void)
 	  t0 = timer.getTime();
 	}
 
-	int k = 1;
 	int n = 1;
 	double lastE;
 
@@ -1215,13 +1138,15 @@ void RespMat::integrand_pv(void)
 	// For residues and singularities
 
 	
-	lastE = pp_x2[1];
+	lastE = pp_x2[0];
 
-	for (k=2; k<=num_E; k++) {
+	for (int k=0; k<num_E; k++) {
 	      
-	  for (alpha=1; alpha<=nmax; alpha++) {
-	    for (beta=alpha; beta<=nmax; beta++)
-	      holdR[alpha][beta] += 0.5 * (pp_x2[k] - pp_x2[k-1]) *
+	  for (alpha=0; alpha<nmax; alpha++) {
+
+	    for (beta=alpha; beta<nmax; beta++) {
+
+	      holdR(alpha, beta) += 0.5 * (pp_x2[k] - pp_x2[k-1]) *
 		(
 		 ORes->EInt[k]*
 		 ORes->PotTrans[k][alpha]*ORes->PotTrans[k][beta] -
@@ -1235,6 +1160,7 @@ void RespMat::integrand_pv(void)
 		 ORes->PotTrans2[n][alpha]*ORes->PotTrans2[n][beta]/
 		 (pp_x2[k-1] - ORes->ELoc[n])
 		 );
+	    }
 	  }
 
 	  if (n<num && 
@@ -1274,12 +1200,12 @@ void RespMat::integrand_pv(void)
 	    fac =  ORes->ERes[n] *
 	      (  
 	       log((pp_x2[k]-ORes->ELoc[n])/(ORes->ELoc[n]-lastE)) 
-	       + M_PI*KComplex(0.0, 1.0)*sign(ORes->EJac[n])
+	       + M_PI*std::complex<double>(0.0, 1.0)*sign(ORes->EJac[n])
 	       );
 	    
-	    for (alpha=1; alpha<=nmax; alpha++) {
+	    for (alpha=0; alpha<=nmax; alpha++) {
 	      for (beta=alpha; beta<=nmax; beta++)
-		holdR[alpha][beta] += fac *
+		holdR(alpha, beta) += fac *
 		  ORes->PotTrans2[n][alpha]*ORes->PotTrans2[n][beta];
 	    }
 
@@ -1325,12 +1251,12 @@ void RespMat::integrand_pv(void)
 	fac =  ORes->ERes[n] *
 	  (  
 	   log((pp_x2[num_E]-ORes->ELoc[n])/(ORes->ELoc[n]-lastE)) 
-	   + M_PI*KComplex(0.0, 1.0)*sign(ORes->EJac[n])
+	   + M_PI*std::complex<double>(0.0, 1.0)*sign(ORes->EJac[n])
 	   );
 	    
 	for (alpha=1; alpha<=nmax; alpha++) {
 	  for (beta=alpha; beta<=nmax; beta++)
-	    holdR[alpha][beta] += fac *
+	    holdR(alpha, beta) += fac *
 	      ORes->PotTrans2[n][alpha]*ORes->PotTrans2[n][beta];
 	}
 	
@@ -1347,12 +1273,12 @@ void RespMat::integrand_pv(void)
 
 	// Principal value with singularity subtracted
 
-	for (int k=1; k<=num_E; k++) {
+	for (int k=0; k<num_E; k++) {
 
-	  for (alpha=1; alpha<=nmax; alpha++) {
-	    for (beta=alpha; beta<=nmax; beta++)
+	  for (alpha=0; alpha<nmax; alpha++) {
+	    for (beta=alpha; beta<nmax; beta++)
 	    
-	      hold[alpha][beta][k] += ORes->EInt[k] *
+	      hold[alpha*nmax+beta][k] += ORes->EInt[k] *
 		ORes->PotTrans[k][alpha] * ORes->PotTrans[k][beta] -
 		ORes->ERes[num] *
 		ORes->PotTrans2[num][alpha] * ORes->PotTrans2[num][beta]/
@@ -1393,12 +1319,12 @@ void RespMat::integrand_pv(void)
 	fac =  ORes->ERes[num] *
 	  (  
 	   log((pp_x2[num_E]-ORes->ELoc[num])/(ORes->ELoc[num]-pp_x2[1]))
-	   + M_PI*KComplex(0.0, 1.0)*PVALUE*sign(ORes->EJac[num])
+	   + M_PI*std::complex<double>(0.0, 1.0)*static_cast<double>(PVALUE)*sign(ORes->EJac[num])
 	   );
 	
-	for (alpha=1; alpha<=nmax; alpha++) {
-	  for (beta=alpha; beta<=nmax; beta++)
-	    holdR[alpha][beta] += fac *
+	for (alpha=0; alpha<nmax; alpha++) {
+	  for (beta=alpha; beta<nmax; beta++)
+	    holdR(alpha, beta) += fac *
 	      ORes->PotTrans2[num][alpha] * ORes->PotTrans2[num][beta];
 	}
 
@@ -1412,24 +1338,24 @@ void RespMat::integrand_pv(void)
     }
   }
 
-  for (alpha=1; alpha<=nmax; alpha++) {
-    for (beta=alpha; beta<=nmax; beta++) {
+  for (alpha=0; alpha<nmax; alpha++) {
+    for (beta=alpha; beta<nmax; beta++) {
 
       if (VERBOSE) {
 	t0 = timer.getTime();
       }
 
       if (RATINT)
-	temp = compute_rat_integral(Emodmin, Emax, pp_x, hold[alpha][beta]);
+	temp = compute_rat_integral(Emodmin, Emax, pp_x, hold[alpha*nmax+beta]);
       else
-	temp = Crombe(pp_x[1].real(), pp_x[num_E].real(), hold[alpha][beta]);
+	temp = Crombe(pp_x[0].real(), pp_x[num_E-1].real(), hold[alpha*nmax+beta]);
       
 
       if (VERBOSE) {
 	time_in_inner_loop += timer.getTime() - t0;
       }
 
-      mab[alpha][beta][ikap] += (temp + holdR[alpha][beta]) *
+      mab[alpha*nmax+beta][ikap] += (temp + holdR(alpha, beta)) *
 	ORes->norm[alpha] * ORes->norm[beta];
 
     }
@@ -1442,7 +1368,7 @@ void RespMat::integrand_pv(void)
 
 void RespMat::integrand_orig(void)
 {	   
-  KComplex temp;
+  std::complex<double> temp;
   double fac, facd;
   int i;
   int llm, llp;
@@ -1460,11 +1386,11 @@ void RespMat::integrand_orig(void)
 
 				// ALPHA & BETA loop
   
-  for (alpha=1; alpha<=nmax; alpha++) {
+  for (alpha=0; alpha<nmax; alpha++) {
     
-    for (beta=alpha; beta<=nmax; beta++) {
+    for (beta=alpha; beta<nmax; beta++) {
 
-      pp_y.zero();
+      pp_y.setZero();
 				// Fourier loop
 
       for (l1=(-lmax); l1<=lmax;  l1++) {
@@ -1497,7 +1423,7 @@ void RespMat::integrand_orig(void)
 	temp = Crombe(pp_x[1].real(), pp_x[num_E].real(), pp_y);
       // temp = compute_rat_integral(Emodmin, Emax, pp_x, pp_y);
       time_in_inner_loop += timer.getTime() - t0;
-      mab[alpha][beta][ikap] += temp*Orb->norm[alpha]*Orb->norm[beta];
+      mab[alpha*nmax+beta][ikap] += temp*Orb->norm[alpha]*Orb->norm[beta];
     }
   }
   
@@ -1528,22 +1454,21 @@ double RespMat::Ylm02(int ll, int mm)
 
 bool RespMat::get_chkpnt(void)
 {
-  KComplex omp01;
+  std::complex<double> omp01;
   double rtmp, itmp;
   int ll1,mm1,llmax1,nnmax1,nptsK1,nptsE1;
-  int i,j,k;
 
-  ifstream fin((outdir + CHK_NAME).c_str());
+  std::ifstream fin((outdir + CHK_NAME).c_str());
   if (!fin) {
-    cerr << "Couldn't open " << outdir + CHK_NAME << '\n';
-    cerr << "continuing . . . \n";
+    std::cerr << "Couldn't open " << outdir + CHK_NAME << std::endl;
+    std::cerr << "continuing . . ." << std::endl;
     return false;
   }
 
   
   fin.read((char *)&rtmp,    sizeof(double));
   fin.read((char *)&itmp,    sizeof(double));
-  omp01 = KComplex(rtmp, itmp);
+  omp01 = std::complex<double>(rtmp, itmp);
   fin.read((char *)&ll1,     sizeof(int)   );
   fin.read((char *)&mm1,     sizeof(int)   );
   fin.read((char *)&llmax1,  sizeof(int)   );
@@ -1572,12 +1497,12 @@ bool RespMat::get_chkpnt(void)
 
   fin.read((char *)&ikap,  sizeof(int));
 
-  for (i=1; i<=nmax; i++) {
-    for (j=1; j<=nmax; j++) {
-      for (k=1; k<=num_K; k++) {
+  for (int i=0; i<nmax; i++) {
+    for (int j=0; j<nmax; j++) {
+      for (int k=0; k<num_K; k++) {
 	fin.read((char *)&rtmp, sizeof(double));
 	fin.read((char *)&itmp, sizeof(double));
-	mab[i][j][k] = KComplex(rtmp,itmp);
+	mab[i*nmax+j][k] = std::complex<double>(rtmp,itmp);
 	}
     }
   }
@@ -1588,14 +1513,13 @@ bool RespMat::get_chkpnt(void)
 
 void RespMat::put_chkpnt(void)
 {
-  int i,j,k;
-  string chkname;
+  std::string chkname;
   
   if (CHK_NAME.size()) {
 				// Make unique check.point name
-    ifstream fin(string(outdir+CHK_NAME).c_str());
-    ostringstream sout;
-    i = 0;
+    std::ifstream fin(std::string(outdir+CHK_NAME).c_str());
+    std::ostringstream sout;
+    int i = 0;
     while(fin) {
       fin.close();
       sout.str("");
@@ -1618,9 +1542,7 @@ void RespMat::put_chkpnt(void)
     return;
   }
 
-  
-  fout.write((char const *)&omp.real(),    sizeof(double));
-  fout.write((char const *)&omp.imag(),    sizeof(double));
+  fout.write((char const *)&omp,   sizeof(std::complex<double>));
   fout.write((char const *)&l,     sizeof(int)   );
   fout.write((char const *)&m,     sizeof(int)   );
   fout.write((char const *)&lmax,  sizeof(int)   );
@@ -1631,18 +1553,20 @@ void RespMat::put_chkpnt(void)
   // write run parameters
   
   char buff[128];
-  strncpy(buff, model->ModelID.c_str(), 128);
+  strncpy(buff, model->ModelID.c_str(), 127);
   fout.write((const char *)buff, 128);
 
 /* Ok, write em out . . . */
 
   fout.write((char const *)&ikap,  sizeof(int)   );
 
-  for (i=1; i<=nmax; i++) {
-    for (j=1; j<=nmax; j++) {
-      for (k=1; k<=num_K; k++) {
-	fout.write((char const *)&mab[i][j][k].real(), sizeof(double));
-	fout.write((char const *)&mab[i][j][k].imag(), sizeof(double));
+  for (int i=0; i<nmax; i++) {
+    for (int j=0; j<nmax; j++) {
+      for (int k=0; k<num_K; k++) {
+	double op = mab[i*nmax+j][k].real();
+	double ip = mab[i*nmax+j][k].imag();
+	fout.write((char const *)&op, sizeof(double));
+	fout.write((char const *)&ip, sizeof(double));
 	}
     }
   }
@@ -1749,29 +1673,32 @@ void RespMat::write_out(ostream &fout)
 
   fout.write((char const *)&nmax, sizeof(int));
 
-  for (int i=1; i<=nmax; i++) {
-    for (int j=1; j<=nmax; j++) {
-      fout.write((char const *)&mr[i][j].real(), sizeof(double));
-      fout.write((char const *)&mr[i][j].imag(), sizeof(double));
+  for (int i=0; i<nmax; i++) {
+    for (int j=0; j<nmax; j++) {
+      double op = mr(i, j).real();
+      double ip = mr(i, j).imag();
+      fout.write((char const *)&op, sizeof(double));
+      fout.write((char const *)&ip, sizeof(double));
     }
   }
 
-  for (int i=1; i<=nmax; i++) {
-    for (int j=1; j<=nmax; j++) {
-      fout.write((char const *)&mr2[i][j].real(), sizeof(double));
-      fout.write((char const *)&mr2[i][j].imag(), sizeof(double));
+  for (int i=0; i<nmax; i++) {
+    for (int j=0; j<nmax; j++) {
+      double op = mr2(i, j).real();
+      double ip = mr2(i, j).imag();
+      fout.write((char const *)&op, sizeof(double));
+      fout.write((char const *)&ip, sizeof(double));
     }
   }
 
-  fout.write((char const *)&omp.real(), sizeof(double));
-  fout.write((char const *)&omp.imag(), sizeof(double));
-  fout.write((char const *)&l, sizeof(int));
-  fout.write((char const *)&m, sizeof(int));
+  fout.write((char const *)&omp,  sizeof(std::complex<double>));
+  fout.write((char const *)&l,    sizeof(int));
+  fout.write((char const *)&m,    sizeof(int));
   fout.write((char const *)&lmax, sizeof(int));
   fout.write((char const *)&nptsK, sizeof(int));
   fout.write((char const *)&nptsE, sizeof(int));
-  fout.write((char const *)&pv, sizeof(int));
-  fout.write((char const *)&dof, sizeof(int));
+  fout.write((char const *)&pv,   sizeof(int));
+  fout.write((char const *)&dof,  sizeof(int));
   fout.write((char const *)&isotropic, sizeof(int));
   fout.write((char const *)&SITYPE, sizeof(int));
 
@@ -1786,25 +1713,23 @@ void RespMat::write_out(ostream &fout)
 void RespMat::read_in(istream &fin)
 {
   fin.read((char *)&nmax, sizeof(int));
-  mr .setsize(1, nmax, 1, nmax);
-  mr2.setsize(1, nmax, 1, nmax);
 
-  for (int i=1; i<=nmax; i++) {
-    for (int j=1; j<=nmax; j++) {
-      fin.read((char *)&mr[i][j].real(), sizeof(double));
-      fin.read((char *)&mr[i][j].imag(), sizeof(double));
+  mr .resize(nmax, nmax);
+  mr2.resize(nmax, nmax);
+
+  for (int i=0; i<nmax; i++) {
+    for (int j=0; j<nmax; j++) {
+      fin.read((char *)&mr(i, j), sizeof(std::complex<double>));
     }
   }
 
-  for (int i=1; i<=nmax; i++) {
-    for (int j=1; j<=nmax; j++) {
-      fin.read((char *)&mr2[i][j].real(), sizeof(double));
-      fin.read((char *)&mr2[i][j].imag(), sizeof(double));
+  for (int i=0; i<nmax; i++) {
+    for (int j=0; j<nmax; j++) {
+      fin.read((char *)&mr2(i, j), sizeof(std::complex<double>));
     }
   }
 
-  fin.read((char *)&omp.real(), sizeof(double));
-  fin.read((char *)&omp.imag(), sizeof(double));
+  fin.read((char *)&omp, sizeof(std::complex<double>));
   fin.read((char *)&l, sizeof(int));
   fin.read((char *)&m, sizeof(int));
   fin.read((char *)&lmax, sizeof(int));
@@ -1823,26 +1748,24 @@ void RespMat::read_in(istream &fin)
 
 }
 
-KComplex RespMat::disper(void)
+std::complex<double> RespMat::disper(void)
 {
   if (disp_computed) return disp;
   disp_computed = 1;
 
-  CMatrix ident(1, mr.getnrows(), 1, mr.getnrows());
-  ident.zero();
-  for (int i=1; i<=ident.getnrows(); i++) ident[i][i] = 1.0;
+  Eigen::MatrixXcd ident(mr.rows(), mr.cols());
+  ident.setIdentity();
   ident -= mr;
 
-  disp = determinant(ident);
+  disp = ident.determinant();
 
   return disp;
 }
 
 
-CVector RespMat::get_response (CVector& ext, gravity grav)
+Eigen::VectorXcd RespMat::get_response (Eigen::VectorXcd& ext, gravity grav)
 {
-  int i;
-  CVector resp;
+  Eigen::VectorXcd resp;
 
   switch (grav) {
 
@@ -1858,21 +1781,28 @@ CVector RespMat::get_response (CVector& ext, gravity grav)
 	else make_matrix();
       }
 
-      CMatrix ident(1, mr.getnrows(), 1, mr.getnrows());
-      ident.zero();
-      for (i=1; i<=ident.getnrows(); i++) ident[i][i] = 1.0;
-
+      Eigen::MatrixXcd ident(mr.rows(), mr.cols());
+      ident.setIdentity();
       ident -= mr;
 
 #ifdef SVD_INVERSE      
-      if ((i=inverse_svd(ident, ident, svd_tol))) {
-	cout << "svd: " << i << " singular values\n";
+      {
+	Eigen::JacobiSVD<Eigen::MatrixXcd>
+	  svd(ident, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	auto sv = svd.singularValues();
+	auto isv = sv;
+	int cnt = 0;
+	for (int i=0; i<sv.size(); i++) {
+	  if (fabs(sv[i]) > fabs(sv[0])*svd_tol) {
+	    isv[i] = 1.0/sv[i];
+	    cnt++;
+	  }  else isv[i] = 0.0;
+	}
+	ident = svd.matrixV().transpose()*isv.transpose()*svd.matrixU();
+	cout << "svd: " << cnt << " singular values" << std::endl;
       }
 #else
-      if (inverse(ident, ident)) {
-	cout << "clinalg: Error compuing inverse\n";
-	exit(-1);
-      }
+      ident = ident.inverse();
 #endif // SVD_INVERSE
 
       if (pv) 
@@ -1902,14 +1832,15 @@ CVector RespMat::get_response (CVector& ext, gravity grav)
   return resp;
 }
 
-Matrix RespMat::get_wake (CVector& ext,
-			  double xmin, double xmax, double ymin, double ymax,
-			  int numx, int numy,
-			  gravity grav, response type,
-			  double phi, double theta)
+Eigen::MatrixXd RespMat::get_wake
+(Eigen::VectorXcd& ext,
+ double xmin, double xmax, double ymin, double ymax,
+ int numx, int numy,
+ gravity grav, response type,
+ double phi, double theta)
 {
-  Matrix wake(1, numx, 1, numy);
-  wake.zero();
+  Eigen::MatrixXd wake(numx, numy);
+  wake.setZero();
 
   get_wake(wake, ext, xmin, xmax, ymin, ymax, numx, numy, grav, type, 
 	    phi, theta);
@@ -1917,7 +1848,8 @@ Matrix RespMat::get_wake (CVector& ext,
   return wake;
 }
 
-void RespMat::get_wake (Matrix& wake, CVector& ext,
+void RespMat::get_wake (Eigen::MatrixXd& wake,
+			Eigen::VectorXcd& ext,
 			double xmin, double xmax, double ymin, double ymax,
 			int numx, int numy,
 			gravity grav, response type,
@@ -1925,7 +1857,7 @@ void RespMat::get_wake (Matrix& wake, CVector& ext,
 {
 
 				// Transformation
-  Matrix return_euler(double PHI, double THETA, double PSI, int BODY);
+  Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY);
   double plgndr(int l, int m, double x);
 
   if (biorth->get_dof()==2) {
@@ -1934,15 +1866,14 @@ void RespMat::get_wake (Matrix& wake, CVector& ext,
   }
 
   double onedeg = M_PI/180.0;
-  Matrix trans = return_euler(phi*onedeg, theta*onedeg, 0.0, 0);
+  auto trans = return_euler(phi*onedeg, theta*onedeg, 0.0, 0);
 
-  Vector x0(1,3), xt(1,3);
-  x0.zero();
-  xt.zero();
-
+  Eigen::Vector3d x0, xt;
+  x0.setZero();
+  xt.setZero();
 				// Get response
 
-  CVector resp = get_response (ext, grav);
+  auto resp = get_response (ext, grav);
   
 				// Compute wake
 
@@ -1953,23 +1884,23 @@ void RespMat::get_wake (Matrix& wake, CVector& ext,
   double dx = (xmax - xmin)/(numx-1);
   double dy = (ymax - ymin)/(numy-1);
   double r, factr1=0, factr2=0;
-  KComplex I(0.0, 1.0);
-  Vector f;
+  constexpr std::complex<double> I(0.0, 1.0);
+  Eigen::VectorXd f;
 
-  for (int i=1; i<=numx; i++) {
+  for (int i=0; i<numx; i++) {
 
-    x0[2] = ymin + dy*(i-1);
+    x0[1] = ymin + dy*i;
 
-    for (int j=1; j<=numy; j++) {
-      x0[1] = xmin + dx*(j-1);
+    for (int j=0; j<numy; j++) {
+      x0[0] = xmin + dx*(j-1);
     
       xt = trans*x0;
 
-      r = sqrt(xt*xt);
+      r = sqrt(xt.adjoint()*xt);
       if (r <= model->get_max_radius()) {
-	phi = atan2(xt[2],xt[1]);
+	phi = atan2(xt[1],xt[0]);
       
-	f = Re( exp(I*phi*m) * resp );
+	f = ( exp(I*phi*static_cast<double>(m)) * resp ).real();
 
 	if (biorth->get_dof()==2) factr1 = 1.0/sqrt(2.0*M_PI);
 	if (biorth->get_dof()==3) factr1 = Ylm * plgndr(l, M, xt[3]/r);
@@ -1978,11 +1909,11 @@ void RespMat::get_wake (Matrix& wake, CVector& ext,
 	case density:
 	  if (biorth->get_dof()==2) factr2 = 1.0/(2.0*M_PI);
 	  if (biorth->get_dof()==3) factr2 = 1.0/(4.0*M_PI);
-	  wake[i][j] += biorth->get_dens(r, l, f) * factr1 * factr2;
+	  wake(i, j) += biorth->get_dens(r, l, f) * factr1 * factr2;
 
 	  break;
 	case potential:
-	  wake[i][j] += biorth->get_potl(r, l, f) * factr1;
+	  wake(i, j) += biorth->get_potl(r, l, f) * factr1;
 	  break;
 	}
       }
@@ -1992,14 +1923,14 @@ void RespMat::get_wake (Matrix& wake, CVector& ext,
 }
 
 
-Matrix RespMat::get_bkgrnd (
+Eigen::MatrixXd RespMat::get_bkgrnd (
 			    double xmin, double xmax, double ymin, double ymax,
 			    int numx, int numy, response type,
 			    double phi, double theta)
 {
 
 				// Transformation
-  Matrix return_euler(double PHI, double THETA, double PSI, int BODY);
+  Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY);
 
 
   if (biorth->get_dof()==2) {
@@ -2008,43 +1939,41 @@ Matrix RespMat::get_bkgrnd (
   }
 
   double onedeg = M_PI/180.0;
-  Matrix trans = return_euler(phi*onedeg, theta*onedeg, 0.0, 0);
+  Eigen::Matrix3d trans = return_euler(phi*onedeg, theta*onedeg, 0.0, 0);
 
-  Vector x0(1,3), xt(1,3);
-  x0.zero();
-  xt.zero();
-
+  Eigen::Vector3d x0, xt;
+  x0.setZero();
+  xt.setZero();
 				// Compute background
 
-
-  Matrix wake(1, numx, 1, numy);
+  Eigen::MatrixXd wake(numx, numy);
 
   double dx = (xmax - xmin)/(numx-1);
   double dy = (ymax - ymin)/(numy-1);
   double r;
-  Vector f;
+  Eigen::VectorXd f;
 
-  for (int i=1; i<=numx; i++) {
+  for (int i=0; i<numx; i++) {
 
-    x0[2] = ymin + dy*(i-1);
+    x0[1] = ymin + dy*i;
 
-    for (int j=1; j<=numy; j++) {
-      x0[1] = xmin + dx*(j-1);
+    for (int j=0; j<numy; j++) {
+      x0[0] = xmin + dx*j;
     
       xt = trans*x0;
-      r = sqrt(xt*xt);
+      r = sqrt(xt.adjoint()*xt);
 
       if (r > model->get_max_radius())
-	wake[i][j] = 0.0;
+	wake(i, j) = 0.0;
       else {
-	phi = atan2(xt[2],xt[1]);
+	phi = atan2(xt[2], xt[0]);
       
 	switch (type) {
 	case density:
-	  wake[i][j] = model->get_density(xt[1], xt[2], xt[3]);
+	  wake(i, j) = model->get_density(xt[0], xt[1], xt[2]);
 	  break;
 	case potential:
-	  wake[i][j] = model->get_pot(xt[1], xt[2], xt[3]);
+	  wake(i, j) = model->get_pot(xt[0], xt[1], xt[2]);
 	  break;
 	}
       }
@@ -2057,7 +1986,7 @@ Matrix RespMat::get_bkgrnd (
 }
 
 
-void RespMat::print_wake_volume (ostream& out, CVector& ext,
+void RespMat::print_wake_volume (ostream& out, Eigen::VectorXcd& ext,
 				 double xmin, double xmax, 
 				 double ymin, double ymax,
 				 double zmin, double zmax,
@@ -2065,10 +1994,10 @@ void RespMat::print_wake_volume (ostream& out, CVector& ext,
 				 bool bkgrnd, gravity grav, response type)
 {
   double plgndr(int l, int m, double x);
-  Vector xt(1,3);
+  Eigen::Vector3d xt;
 
 				// Get response
-  CVector resp = get_response (ext, grav);
+  Eigen::VectorXcd resp = get_response (ext, grav);
 
 				// Compute wake
 
@@ -2080,8 +2009,8 @@ void RespMat::print_wake_volume (ostream& out, CVector& ext,
   double dy = (ymax - ymin)/(numy-1);
   double dz = (zmax - zmin)/(numz-1);
   double r, costh, phi;
-  KComplex I(0.0, 1.0);
-  Vector f;
+  std::complex<double> I(0.0, 1.0);
+  Eigen::VectorXd f;
   float z;
 
   out.write((const char *)&numx, sizeof(int));
@@ -2096,23 +2025,23 @@ void RespMat::print_wake_volume (ostream& out, CVector& ext,
   out.write((const char *)&(z=zmax), sizeof(float));
 
   
-  for (int k=1; k<=numz; k++) {
-    xt[3] = zmin + dz*(k-1);
+  for (int k=0; k<numz; k++) {
+    xt[2] = zmin + dz*k;
 
-    for (int i=1; i<=numy; i++) {
-      xt[2] = ymin + dy*(i-1);
+    for (int i=0; i<numy; i++) {
+      xt[1] = ymin + dy*i;
 
-      for (int j=1; j<=numx; j++) {
-	xt[1] = xmin + dx*(j-1);
+      for (int j=0; j<numx; j++) {
+	xt[0] = xmin + dx*j;
     
-	r = sqrt(xt*xt);
+	r = sqrt(xt.adjoint()*xt);
 	if (r > model->get_max_radius())
 	  z = 0.0;
 	else {
-	  phi = atan2(xt[2],xt[1]);
-	  costh = xt[3]/r;
+	  phi = atan2(xt[1], xt[0]);
+	  costh = xt[2]/r;
       
-	  f = Re( exp(I*phi*m) * resp );
+	  f = ( exp(I*phi*static_cast<double>(m)) * resp ).real();
 
 	  switch (type) {
 	  case density:
@@ -2148,7 +2077,8 @@ void RespMat::print_wake_volume (ostream& out, CVector& ext,
 }
 
 
-void RespMat::get_wake_volume (Matrix* mat, CVector& ext,
+void RespMat::get_wake_volume (std::vector<Eigen::MatrixXd>& mat,
+			       Eigen::VectorXcd& ext,
 			       double xmin, double xmax, 
 			       double ymin, double ymax,
 			       double zmin, double zmax,
@@ -2156,10 +2086,10 @@ void RespMat::get_wake_volume (Matrix* mat, CVector& ext,
 			       bool bkgrnd, gravity grav, response type)
 {
   double plgndr(int l, int m, double x);
-  Vector xt(1,3);
+  Eigen::Vector3d xt;
 
 				// Get response
-  CVector resp = get_response (ext, grav);
+  Eigen::VectorXcd resp = get_response (ext, grav);
 
 				// Compute wake
 
@@ -2171,26 +2101,26 @@ void RespMat::get_wake_volume (Matrix* mat, CVector& ext,
   double dy = (ymax - ymin)/(numy-1);
   double dz = (zmax - zmin)/(numz-1);
   double z=0, r, costh, phi;
-  KComplex I(0.0, 1.0);
-  Vector f;
+  constexpr std::complex<double> I(0.0, 1.0);
+  Eigen::VectorXd f;
   
-  for (int k=1; k<=numz; k++) {
-    xt[3] = zmin + dz*(k-1);
+  for (int k=0; k<numz; k++) {
+    xt[2] = zmin + dz*k;
 
-    for (int i=1; i<=numy; i++) {
-      xt[2] = ymin + dy*(i-1);
+    for (int i=0; i<numy; i++) {
+      xt[1] = ymin + dy*i;
 
-      for (int j=1; j<=numx; j++) {
-	xt[1] = xmin + dx*(j-1);
+      for (int j=0; j<numx; j++) {
+	xt[0] = xmin + dx*j;
     
-	r = sqrt(xt*xt);
+	r = sqrt(xt.adjoint()*xt);
 	if (r > model->get_max_radius())
 	  z = 0.0;
 	else {
-	  phi = atan2(xt[2],xt[1]);
-	  costh = xt[3]/r;
+	  phi = atan2(xt[1],xt[0]);
+	  costh = xt[2]/r;
       
-	  f = Re( exp(I*phi*m) * resp );
+	  f = ( exp(I*phi*static_cast<double>(m)) * resp ).real();
 
 	  switch (type) {
 	  case density:
@@ -2217,7 +2147,7 @@ void RespMat::get_wake_volume (Matrix* mat, CVector& ext,
 	  }
 	}
 
-	mat[k][i][j] += z;
+	mat[k](i, j) += z;
 
       }
     }
@@ -2229,12 +2159,12 @@ void RespMat::get_wake_volume (Matrix* mat, CVector& ext,
 
 void write_contr(ostream& out,
 		 double xmin, double xmax, double ymin, double ymax, 
-		 Matrix& mat)
+		 Eigen::MatrixXd& mat)
 {
   float z;
 
-  int numx = mat.getncols();
-  int numy = mat.getnrows();
+  int numx = mat.cols();
+  int numy = mat.rows();
 
   out.write((const char *)&numx, sizeof(int));
   out.write((const char *)&numy, sizeof(int));
@@ -2244,8 +2174,9 @@ void write_contr(ostream& out,
   out.write((const char *)&(z=ymin), sizeof(float));
   out.write((const char *)&(z=ymax), sizeof(float));
 
-  for (int i=1; i<=numy; i++) 
-    for (int j=1; j<=numx; j++) out.write((const char *)&(z=mat[i][j]), sizeof(float));
+  for (int i=0; i<numy; i++) 
+    for (int j=0; j<numx; j++)
+      out.write((const char *)&(z=mat(i, j)), sizeof(float));
 }
 
 
@@ -2254,7 +2185,7 @@ void write_volume_hips (ostream& out,
 			double ymin, double ymax,
 			double zmin, double zmax,
 			int numx, int numy, int numz,
-			Matrix* mat)
+			std::vector<Eigen::MatrixXd>& mat)
 {
   float z;
 
@@ -2271,13 +2202,13 @@ void write_volume_hips (ostream& out,
   out << "comment" << endl;
   out << "." << endl;
 
-  for (int k=1; k<=numz; k++) {
+  for (int k=0; k<numz; k++) {
 
-    for (int i=1; i<=numy; i++) {
+    for (int i=0; i<numy; i++) {
 
-      for (int j=1; j<=numx; j++) {
+      for (int j=0; j<numx; j++) {
 
-	z = mat[k][i][j];
+	z = mat[k](i, j);
 	out.write((const char *)&z, sizeof(float));
 
       }
@@ -2296,11 +2227,11 @@ typedef struct {
 
 
 void write_volume_cubes (ostream& out,
-			double xmin, double xmax, 
-			double ymin, double ymax,
-			double zmin, double zmax,
-			int numx, int numy, int numz,
-			Matrix* mat)
+			 double xmin, double xmax, 
+			 double ymin, double ymax,
+			 double zmin, double zmax,
+			 int numx, int numy, int numz,
+			 std::vector<Eigen::MatrixXd>& mat)
 {
   long l;
 
@@ -2314,15 +2245,15 @@ void write_volume_cubes (ostream& out,
   node n;
   n.valid = 1;
   
-  for (int k=1; k<=numz; k++) {
+  for (int k=0; k<numz; k++) {
     n.z = zmin + dz*(k-1);
 
-    for (int i=1; i<=numy; i++) {
+    for (int i=0; i<numy; i++) {
       n.y = ymin + dy*(i-1);
 
-      for (int j=1; j<=numx; j++) {
+      for (int j=0; j<numx; j++) {
 	n.x = xmin + dx*(j-1);
-	n.nodeValue = mat[k][i][j];
+	n.nodeValue = mat[k](i, j);
 
 	out.write((const char *)&n, sizeof(node));
       }
@@ -2332,13 +2263,13 @@ void write_volume_cubes (ostream& out,
 
 
 
-void RespMat::print_wake (ostream& out, CVector& ext,
+void RespMat::print_wake (ostream& out, Eigen::VectorXcd& ext,
 			  double xmin, double xmax, double ymin, double ymax,
 			  int numx, int numy,
 			  gravity grav, response type,
 			  double phi, double theta)
 {
-  Matrix mat = get_wake (ext, xmin, xmax, ymin, ymax, numx, numy,
+  Eigen::MatrixXd mat = get_wake (ext, xmin, xmax, ymin, ymax, numx, numy,
 		  grav, type, phi, theta);
 
   write_contr (out, xmin, xmax, ymin, ymax, mat);
@@ -2346,7 +2277,7 @@ void RespMat::print_wake (ostream& out, CVector& ext,
 
 
 void RespMat::print_wake_volume_hips 
-	(ostream& out, CVector& ext,
+	(ostream& out, Eigen::VectorXcd& ext,
 	 double xmin, double xmax, 
 	 double ymin, double ymax,
 	 double zmin, double zmax,
@@ -2354,21 +2285,18 @@ void RespMat::print_wake_volume_hips
 	 gravity grav, response type)
 {
 
-  Matrix* mat = new Matrix [numz] - 1;
-  for (int k=1; k<=numz; k++) mat[k].setsize(1, numy, 1, numx);
+  std::vector<Eigen::MatrixXd> mat(numz);
+  for (auto & m : mat) m.resize(numy, numx);
 
   get_wake_volume(mat, ext, xmin, xmax, ymin, ymax, zmin, zmax,
 		  numx, numy, numz, bkgrnd, grav, type);
 
   write_volume_hips(out, xmin, xmax, ymin, ymax, zmin, zmax, 
 		    numx, numy, numz, mat);
-
-  delete [] (mat+1);
-
 }
 
 void RespMat::print_wake_volume_cubes
-	(ostream& out, CVector& ext,
+	(ostream& out, Eigen::VectorXcd& ext,
 	 double xmin, double xmax, 
 	 double ymin, double ymax,
 	 double zmin, double zmax,
@@ -2376,24 +2304,23 @@ void RespMat::print_wake_volume_cubes
 	 gravity grav, response type)
 {
 
-  Matrix* mat = new Matrix [numz] - 1;
-  for (int k=1; k<=numz; k++) mat[k].setsize(1, numy, 1, numx);
+  std::vector<Eigen::MatrixXd> mat(numz);
+  for (auto & m : mat) m.resize(numy, numx);
 
   get_wake_volume(mat, ext, xmin, xmax, ymin, ymax, zmin, zmax,
 		  numx, numy, numz, bkgrnd, grav, type);
 
   write_volume_cubes(out, xmin, xmax, ymin, ymax, zmin, zmax, 
 		    numx, numy, numz, mat);
-
-  delete [] (mat+1);
-
 }
 
+void MatrixXcdSynchronize(Eigen::MatrixXcd& mat, int id);
+void ComplexSynchronize(std::complex<double>& c, int id);
 
 void RespMat::MPISynchronize(int id)
 {
-  CMatrixSynchronize(mr,  id);
-  CMatrixSynchronize(mr2, id);
+  MatrixXcdSynchronize(mr,  id);
+  MatrixXcdSynchronize(mr2, id);
   ComplexSynchronize(omp, id);
 
   MPI_Bcast(&matrix_computed, 1, MPI_INT, id, MPI_COMM_WORLD);

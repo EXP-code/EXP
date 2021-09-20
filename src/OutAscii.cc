@@ -5,7 +5,7 @@ using namespace std;
 #include <iomanip>
 #include <sstream>
 
-#include "expand.h"
+#include "expand.H"
 #include <global.H>
 
 #include <AxisymmetricBasis.H>

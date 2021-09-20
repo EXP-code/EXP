@@ -50,18 +50,14 @@ namespace pt = boost::property_tree;
 #include <sys/time.h>
 #include <sys/resource.h>
 
-				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include "Particle.h"
-#include <PSP.H>
-#include <interp.h>
-#include <EmpCylSL.h>
+				// EXP classes
+#include <global.H>
+#include <numerical.H>
+#include <interp.H>
+#include <EmpCylSL.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
-
-#include <VtkGrid.H>
 
 #ifdef DEBUG
 #ifndef _REDUCED
@@ -71,23 +67,8 @@ namespace pt = boost::property_tree;
 
 const std::string overview = "Compute and print PCA basis for rendering";
 
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-  
-				// Globals
+// Globals
+//
 
 int
 main(int argc, char **argv)
@@ -107,10 +88,6 @@ main(int argc, char **argv)
      "produce this help message")
     ("verbose,v",
      "verbose output")
-    ("OUT",
-     "assume that PSP files are in original format")
-    ("SPL",
-     "assume that PSP files are in split format")
     ("RMAX,R",
      po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")

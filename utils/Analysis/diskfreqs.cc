@@ -38,6 +38,7 @@
 
 				// BOOST stuff
 #include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -51,37 +52,19 @@ namespace pt = boost::property_tree;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include "Particle.h"
-#include <PSP.H>
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <ParticleReader.H>
+#include <interp.H>
+#include <EmpCylSL.H>
 #include <SphereSL.H>
 
 				// Local coefficient classes
 #include "Coefs.H"
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
 const std::string overview = "Compute azimuthal and vertical disk frequencies from coefficients";
-
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-std::vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-std::string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
 
 int
 main(int argc, char **argv)
@@ -89,7 +72,7 @@ main(int argc, char **argv)
   int numx, numy, lmax=36, mmax, nmax, norder, cmapr, cmapz, numr;
   double rcylmin, rcylmax, rscale, vscale, RMAX, Tmin, Tmax, dT, H, eps;
   bool DENS, verbose = false, mask = false, ignore, logl;
-  std::string CACHEFILE, COEFFILE, COEFFILE2, MODEL, OUTFILE;
+  std::string CACHEFILE, COEFFILE, COEFFILE2, MODEL, OUTFILE, fileType, filePrefix;
 
   //
   // Parse Command line
@@ -100,6 +83,12 @@ main(int argc, char **argv)
      "produce this help message")
     ("verbose,v",
      "verbose output")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("Tmin,t",
      po::value<double>(&Tmin)->default_value(0.0),
      "Minimum time point for freq evaluation")
@@ -343,10 +332,10 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  SphericalModelTable halo(MODEL);
+  auto halo = boost::make_shared<SphericalModelTable>(MODEL);
   SphereSL::NUMR = 4000;
-  int LMAX = 1, NMAX = coefsH.begin()->second->coefs[0].size();
-  SphereSL ortho_halo(&halo, LMAX, NMAX);
+  int LMAX = 1, NMAX = coefsH.begin()->second->coefs.cols();
+  SphereSL ortho_halo(halo, LMAX, NMAX);
 
     
   // Begin grid creation
@@ -379,8 +368,8 @@ main(int argc, char **argv)
 
   if (outR and outZ) {
 
-    Matrix sphcoef(0, LMAX*(LMAX+2), 1, NMAX);
-    sphcoef.zero();		// Need this?
+    Eigen::MatrixXd sphcoef((LMAX+1)*(LMAX+1), NMAX);
+    sphcoef.setZero();		// Need this?
 
     // Radial grid points
     //
@@ -407,7 +396,7 @@ main(int argc, char **argv)
       // Set halo coefficients for l=m=0 only
       //
       auto itH = coefsH.find(t)->second;
-      for (int n=0; n<NMAX; n++) sphcoef[0][n+1] = itH->coefs[0][n];
+      for (int n=0; n<NMAX; n++) sphcoef(0, n) = itH->coefs(0, n);
       ortho_halo.install_coefs(sphcoef);
 
       for (auto r : rgrid) {

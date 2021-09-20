@@ -657,10 +657,20 @@ namespace NTC
     NTCdb()
     {
       // Attempt to restore from save set
-      std::string filename = ".ntcdb." + runtag;
-      if ( boost::filesystem::exists(filename) ) {
-	restore_myself(filename);
+      try {
+	std::string filename = ".ntcdb." + runtag;
+	if ( boost::filesystem::exists(filename) ) {
+	  restore_myself(filename);
+	}
       }
+      catch (boost::archive::archive_exception & error) {
+	if (myid==0) {
+	  std::cout << "Failure to open archive <.ntcdb." << runtag
+		    << "> with error: " << error.what() << std::endl
+		    << "We will make a new archive.  Continuing . . . "
+		    << std::endl;
+	}
+      }	
       //
       curr_time = tnow;
       next_time = curr_time + dtime*(static_cast<double>(intvl)-eps);

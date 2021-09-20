@@ -2,7 +2,7 @@
 #include <math.h>
 #include <sstream>
 
-#include "expand.h"
+#include "expand.H"
 
 #include <UserBarTrigger.H>
 

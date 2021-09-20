@@ -1,9 +1,6 @@
 #include <math.h>
 
-#include "expand.h"
-
-#include <ACG.h>
-#include <Normal.h>
+#include "expand.H"
 
 #include <UserDiffRot.H>
 
@@ -68,8 +65,6 @@ UserDiffRot::UserDiffRot(const YAML::Node& conf) : ExternalForce(conf)
     c1 = NULL;
 
   pos = vector<double>(4*maxpm);
-  gen = new ACG(seed);
-  normal = new Normal(0.0, 1.0, gen);
   width = width*M_PI/180.0;
 
 				// Dynamical time distribution initialization
@@ -83,8 +78,7 @@ UserDiffRot::UserDiffRot(const YAML::Node& conf) : ExternalForce(conf)
 
 UserDiffRot::~UserDiffRot()
 {
-  delete gen;
-  delete normal;
+  // NADA
 }
 
 
@@ -330,7 +324,7 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
       cC->Part(i)->dattrib[indx] = tnow + get_dtime(*(cC->Part(i)))/rate;
 
 				// Do rotation
-      phi =  width * (*normal)();
+      phi =  width * normal(random_gen);
       cosp = cos(phi);
       sinp = sin(phi);
       

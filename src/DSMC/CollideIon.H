@@ -467,12 +467,6 @@ private:
   InteractSelect IS;
 
   //@{
-  //! Pseudo-random number generators
-  ACG     *gen;
-  Uniform *unit;
-  //@}
-  
-  //@{
   //! Inelastic work space
   typedef std::pair<double, double>                  CFreturn;
   typedef std::vector<CFreturn>                      CEvector;
@@ -932,6 +926,10 @@ public:
      Compare maximum delE per COM KE per interaction, if FALSE
   */
   static bool   TSESUM;
+
+  //! Use the mean-mass algorithm for explicit energy conservation for
+  //! the Trace algorithm
+  static bool mean_mass;
 
   //! Multiplicative factor for choosing cooling time step (default: 0.05)
   static double TSCOOL;

@@ -8,8 +8,8 @@
 #include <boost/program_options.hpp>
 
                                 // MDW classes
-#include <EmpCylSL.h>
-#include <localmpi.h>
+#include <EmpCylSL.H>
+#include <localmpi.H>
 
 				// Global variables
 int nthrds         = 1;

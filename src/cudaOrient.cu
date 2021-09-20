@@ -4,7 +4,7 @@
 #include <cudaUtil.cuH>
 #include <cudaParticle.cuH>
 
-#include "expand.h"
+#include "expand.H"
 #include "global.H"
 
 __device__ __constant__
@@ -36,8 +36,8 @@ EL3 cudaToEL3(const cudaEL3& p, double time)
   ret.M = p.M;
   ret.E = p.E;
   for (int k=0; k<3; k++) {
-    ret.L[k+1] = p.L[k];
-    ret.R[k+1] = p.R[k];
+    ret.L[k] = p.L[k];
+    ret.R[k] = p.R[k];
   }
 
   return ret;
@@ -66,7 +66,7 @@ __global__ void EL3Kernel
   //
   cuFP_t pos[3], psa[3];
 
-  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
   for (int n=0; n<stride; n++) {
     int i = tid*stride + n;
@@ -112,7 +112,7 @@ void Orient::accumulate_gpu(double time, Component *c)
   //
   cuFP_t cen[3], com[3];
   for (int k=0; k<3; k++) {
-    cen[k] = center[k+1];
+    cen[k] = center[k];
     com[k] = c->com0[k];
   }
   
@@ -185,8 +185,12 @@ void Orient::accumulate_gpu(double time, Component *c)
 
     // Copy from cuda to host structure and load the std::set
     //
-    for (auto v : hostEL3) angm.insert(cudaToEL3(v, time));
-    if (angm.size() > tkeep) {	// Keep only tkeep smallest
+    for (int n=0; n<std::min<int>(N, tkeep); n++)
+      angm.insert(cudaToEL3(hostEL3[n], time));
+
+    // Trim array to tkeep smallest
+    //
+    if (angm.size() > tkeep) {
       auto it = angm.begin();
       std::advance(it, tkeep);
       angm.erase(it, angm.end());

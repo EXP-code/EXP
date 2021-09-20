@@ -1,11 +1,10 @@
 #include <vector>
+#include <memory>
 #include <cmath>
 
 using namespace std;
 
-#include <Vector.h>
-#include <massmodel.h>
-
+#include <massmodel.H>
 #include <SLSphere.H>
 
 /** 
@@ -42,10 +41,10 @@ private:
 
 protected:
 
-  SphericalModelTable *model;
-  SLSphere *ortho;
+  boost::shared_ptr<SphericalModelTable> model;
+  boost::shared_ptr<SLSphere> ortho;
 
-  vector<Vector> coefs;
+  std::vector<Eigen::VectorXd> coefs;
   double rmin, rmax;
   int lmax, nmax, numr, numt, numg;
 

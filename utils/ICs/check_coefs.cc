@@ -16,10 +16,12 @@
 // Boost stuff
 //
 #include <boost/math/special_functions/bessel.hpp>
+#include <boost/random/mersenne_twister.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
+
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -30,17 +32,17 @@ namespace po = boost::program_options;
 #include <omp.h>
 #endif
 
-// MDW classes
+// EXP classes
 //
-#include <numerical.h>
-#include <gaussQ.h>
-#include <isothermal.h>
-#include <hernquist.h>
-#include <model3d.h>
-#include <biorth.h>
+#include <numerical.H>
+#include <gaussQ.H>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <model3d.H>
+#include <biorth.H>
 #include <SphericalSL.H>
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <interp.H>
+#include <EmpCylSL.H>
 #include <DiskModels.H>
 #include <DiskEval.H>
 
@@ -168,7 +170,7 @@ void set_fpu_gdb_handler(void)
 #endif
 
                                 // Local headers
-#include <localmpi.h>
+#include <localmpi.H>
 
 
 // Hydrogen fraction
@@ -191,24 +193,11 @@ DiskType     dtype;
 double       AA, HH;
 double       ASHIFT;
 
+// EXP support
+//
+#include <global.H>
 #include <Particle.H>
 
-int VERBOSE        = 4;
-int nthrds         = 1;
-int this_step      = 0;
-unsigned multistep = 0;
-unsigned maxlev    = 100;
-int mstep          = 1;
-int Mstep          = 1;
-char threading_on  = 0;
-double tpos        = 0.0;
-double tnow        = 0.0;
-
-vector<int> stepL(1, 0), stepN(1, 1);
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-  
 double DiskDens(double R, double z, double phi)
 {
   double ans = 0.0;
@@ -800,14 +789,14 @@ main(int ac, char **av)
     double Zmin = log(RCYLMIN*HH);
     double Zmax = log(RCYLMAX*AA);
 
-    for (int i=1; i<=NINT; i++) {	// Radial
+    for (int i=0; i<NINT; i++) {	// Radial
 
       double x = Rmin + (Rmax - Rmin) * lq.knot(i);
       double R = exp(x);
 
       double facX = lq.weight(i) * 2.0*M_PI * R * R * (Rmax - Rmin);
 
-      for (int j=1; j<=NINT; j++) { // Vertical
+      for (int j=0; j<NINT; j++) { // Vertical
 	
 	double y = Zmin + (Zmax - Zmin) * lq.knot(j);
 	double z = exp(y);
@@ -850,14 +839,14 @@ main(int ac, char **av)
 
   } else {
 
-    for (int i=1; i<=NINT; i++) {	// Radial
+    for (int i=0; i<NINT; i++) {	// Radial
 
       double x = xmin + (xmax - xmin) * lq.knot(i);
       double R = x_to_r(x, AA);
 
       double facX = lq.weight(i) * 2.0 * M_PI * R * drdx(x, AA) * (xmax - xmin);
 
-      for (int j=1; j<=NINT; j++) { // Vertical
+      for (int j=0; j<NINT; j++) { // Vertical
 	
 	double y = ymax*(2.0*lq.knot(j) - 1.0);
 	double z = x_to_r(y, HH);

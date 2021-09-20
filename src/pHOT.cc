@@ -1,4 +1,3 @@
-#include <values.h>
 
 #include "config.h"
 
@@ -10,6 +9,7 @@
 #include <cstdio>
 #include <ctime>
 #include <bitset>
+#include <limits>
 
 #include <iostream>
 #include <iomanip>
@@ -886,7 +886,7 @@ void pHOT::makeTree()
 
   // Find min and max cell occupation
   //
-  unsigned min1=MAXINT, max1=0, nt;
+  unsigned min1=std::numeric_limits<int>::max(), max1=0, nt;
   for (auto i : frontier) {
     nt = i.second->bods.size();
     min1 = min<unsigned>(min1, nt);
@@ -2070,7 +2070,7 @@ double pHOT::minVol()
 
 double pHOT::maxVol()
 {
-  unsigned MinLev = MAXINT;
+  unsigned MinLev = std::numeric_limits<int>::max();
   for (auto i : frontier)
     MinLev = min<unsigned>(MinLev, i.second->level);
 
@@ -4693,7 +4693,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
       unsigned j = 1;
       for (unsigned i=0; i<keys.size(); i++) {
 	twght += keys[i].second;
-	if (static_cast<unsigned>(floor(srate*(i+1)-DBL_MIN)) == j) {
+	if (static_cast<unsigned>(floor(srate*(i+1)-std::numeric_limits<double>::min())) == j) {
 	  keylist1.push_back(key_wght(keys[i].first, twght));
 	  twght = 0.0;
 	  j++;

@@ -1,8 +1,8 @@
 #include <math.h>
 #include <sstream>
 
-#include "expand.h"
-#include <localmpi.h>
+#include "expand.H"
+#include <localmpi.H>
 #include <UserEBarS.H>
 
 UserEBarS::UserEBarS(const YAML::Node& conf) : ExternalForce(conf)
@@ -298,7 +298,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
     double u, d, t, denom, ans1=0.0, ans2=0.0;
     double mass = barmass * fabs(amplitude);
 
-    for (int i=1; i<=N; i++) {
+    for (int i=0; i<N; i++) {
       t = 0.5*M_PI*gq.knot(i);
       u = tan(t);
       d = cos(t);

@@ -6,8 +6,8 @@
 #include <vector>
 #include <algorithm>
 
-#include <interp.h>
-#include <gaussQ.h>
+#include <interp.H>
+#include <gaussQ.H>
 
 /** Defines monopole mass and potential for homogeneous ellipsoid
     

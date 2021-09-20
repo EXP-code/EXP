@@ -1,10 +1,9 @@
 #ifndef _Cylinder_H
 #define _Cylinder_H
 
-#include <Vector.h>
 #include <Orient.H>
 #include <Basis.H>
-#include <EmpCylSL.h>
+#include <EmpCylSL.H>
 #include <CylindricalCoefs.H>
 
 #include "config.h"
@@ -116,8 +115,7 @@ private:
   int eof, ncompcyl;
   double cylmass, resetT;
 
-  // Three_Vector *pos, *frc;
-  Vector *pos, *frc;
+  std::vector<Eigen::Vector3d> pos, frc;
 
   std::vector<double> cylmass0;
   std::vector<int> offgrid;

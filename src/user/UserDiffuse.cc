@@ -1,14 +1,11 @@
 #include <math.h>
 #include <pthread.h>
 
-#include "expand.h"
-#include <localmpi.h>
+#include "expand.H"
+#include <localmpi.H>
 
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
-#include <gaussQ.h>
-#include <massmodel.h>
+#include <gaussQ.H>
+#include <massmodel.H>
 
 #include <UserDiffuse.H>
 
@@ -73,9 +70,6 @@ UserDiffuse::~UserDiffuse()
 {
   delete model;
   delete jq;
-  delete gen;
-  delete urand;
-  delete nrand;
 }
 
 void UserDiffuse::userinfo()
@@ -136,11 +130,6 @@ void UserDiffuse::initialize()
     MPI_Finalize();
     exit(-1);
   }
-
-
-  gen = new ACG(seed+myid);
-  urand = new Uniform(0.0, 1.0, gen);
-  nrand = new Normal(0.0, 1.0, gen);
 
   if (check_ev) {
     ev_mean_th = new double* [nthrds];
@@ -321,9 +310,9 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
 
 				// Normal random variates
     pthread_mutex_lock(&randlock);
-    double r1 = (*nrand)();
-    double r2 = (*nrand)();
-    double r3 = (*urand)();
+    double r1 = nrand(random_gen);
+    double r2 = nrand(random_gen);
+    double r3 = urand(random_gen);
     pthread_mutex_unlock(&randlock);
 				// Clip
 
@@ -580,7 +569,7 @@ void UserDiffuse::compute_diffuse()
 
       F0 = F1 = F2 = 0.0;
 
-      for (int k=1; k<=jq->get_n(); k++) {
+      for (int k=0; k<jq->get_n(); k++) {
 
 	F0 += 2.0*model->distf(EE + (Emax - EE)*jq->knot(k), 0.5) * 
 	  jq->weight(k);

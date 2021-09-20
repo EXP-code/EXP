@@ -1,6 +1,10 @@
+#include <boost/random/mersenne_twister.hpp>
 #include <Configuration.H>
 
 #define DEFAULT_LABEL "not found"
+
+string outdir, runtag;
+boost::mt19937 random_gen;
 
 int main(int argc, char **argv)
 {

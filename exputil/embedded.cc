@@ -2,14 +2,11 @@
 // Embedded disk model
 //
 
-#include <math.h>
-
+#include <cmath>
 #include <string>
 
-#include <logic.h>
-#include <Vector.h>
-#include <QPDistF.h>
-#include <massmodel.h>
+#include <QPDistF.H>
+#include <massmodel.H>
 
 EmbeddedDiskModel::EmbeddedDiskModel (AxiSymModel **T, 
 				      double *M_scale, double *R_scale, 

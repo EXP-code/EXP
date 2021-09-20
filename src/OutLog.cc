@@ -6,7 +6,7 @@ namespace fs = boost::filesystem;
 
 #include <cstdio>
 #include <sstream>
-#include "expand.h"
+#include "expand.H"
 
 #include <OutLog.H>
 

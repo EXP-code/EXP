@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -39,14 +37,13 @@
 #include <cmath>
 #include <string>
 
-#include <Vector.h>
-#include <orbit.h>
-#include <massmodel.h>
+#include <orbit.H>
+#include <massmodel.H>
 
-#include <isothermal.h>
-#include <hernquist.h>
-#include <model3d.h>
-#include <interp.h>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <model3d.H>
+#include <interp.H>
 
 #include <UnboundOrbit.H>
 
@@ -55,7 +52,8 @@ using namespace std;
 #include <global.H>
 				// External prototype for Euler matrix
 
-Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
+Eigen::Matrix3d
+return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
 // ===================================================================
 // Constructor
@@ -228,47 +226,47 @@ UnboundOrbit::UnboundOrbit(const YAML::Node& conf)
   }
 
 
-  Three_Vector In, Out;
+  Eigen::Vector3d In, Out;
   THETA   = THETA   * M_PI/180.0;
   PSI     = PSI     * M_PI/180.0;
   PHIP    = PHIP    * M_PI/180.0;
-  Matrix Trans = return_euler_slater(PHIP, THETA, PSI, 1);
+  Eigen::Matrix3d Trans = return_euler_slater(PHIP, THETA, PSI, 1);
   
   for (unsigned i=R.size()-1; i>=1; i--) {
-    In[1] = R[i]*cos(-PHI[i]);
-    In[2] = R[i]*sin(-PHI[i]);
-    In[3] = 0.0;
+    In[0] = R[i]*cos(-PHI[i]);
+    In[1] = R[i]*sin(-PHI[i]);
+    In[2] = 0.0;
     Out  = Trans * In;
 
     Time.push_back(-T[i]);
-    Xpos.push_back(Out[1]);
-    Ypos.push_back(Out[2]);
-    Zpos.push_back(Out[3]);
+    Xpos.push_back(Out[0]);
+    Ypos.push_back(Out[1]);
+    Zpos.push_back(Out[2]);
     
     if (out)
       out << setw(18) << -T[i]
+	  << setw(18) << Out[0]
 	  << setw(18) << Out[1]
 	  << setw(18) << Out[2]
-	  << setw(18) << Out[3]
 	  << endl;
   }
 
   for (unsigned i=0; i<R.size(); i++) {
-    In[1] = R[i]*cos(PHI[i]);
-    In[2] = R[i]*sin(PHI[i]);
-    In[3] = 0.0;
+    In[0] = R[i]*cos(PHI[i]);
+    In[1] = R[i]*sin(PHI[i]);
+    In[2] = 0.0;
     Out  = Trans * In;
 
     Time.push_back(T[i]);
-    Xpos.push_back(Out[1]);
-    Ypos.push_back(Out[2]);
-    Zpos.push_back(Out[3]);
+    Xpos.push_back(Out[0]);
+    Ypos.push_back(Out[1]);
+    Zpos.push_back(Out[2]);
     
     if (out)
       out << setw(18) << T[i]
+	  << setw(18) << Out[0]
 	  << setw(18) << Out[1]
 	  << setw(18) << Out[2]
-	  << setw(18) << Out[3]
 	  << endl;
   }
 
@@ -307,15 +305,15 @@ UnboundOrbit::~UnboundOrbit(void)
   else   delete model;
 }
 
-Vector UnboundOrbit::get_satellite_orbit(double t)
+Eigen::Vector3d UnboundOrbit::get_satellite_orbit(double t)
 {
-  Vector ret(1, 3);
+  Eigen::Vector3d ret;
   t = max<double>(t, Time.front());
   t = min<double>(t, Time.back() );
 
-  ret[1] = odd2(t, Time, Xpos);
-  ret[2] = odd2(t, Time, Ypos);
-  ret[3] = odd2(t, Time, Zpos);
+  ret[0] = odd2(t, Time, Xpos);
+  ret[1] = odd2(t, Time, Ypos);
+  ret[2] = odd2(t, Time, Zpos);
 
   return ret;
 }

@@ -25,7 +25,7 @@ ExpMPI/exputil/uint128.cc -text
 ExpMPI/include/BWData.H -text
 ExpMPI/include/BWHelper.H -text
 ExpMPI/include/BarrierWrapper.H -text
-ExpMPI/include/DiskWithHalo.h -text
+ExpMPI/include/DiskWithHalo.H -text
 ExpMPI/include/FileUtils.H -text
 ExpMPI/include/ProgramParam.H -text
 ExpMPI/include/RunningTime.H -text

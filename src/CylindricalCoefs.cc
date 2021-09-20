@@ -3,7 +3,7 @@
 #include <boost/make_unique.hpp> // For character buffer
 #include <yaml-cpp/yaml.h>	 // YAML support for header
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include "global.H"
 #include "CylindricalCoefs.H"
 

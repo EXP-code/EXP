@@ -32,12 +32,12 @@ VtkPCA::VtkPCA(int N, bool reorder, bool smooth) :
   dataSet->SetZCoordinates (ZZ);
 }
 
-void VtkPCA::Add(const Vector& Coef, 
-		 const Vector& Hall,
-		 const Vector& SnrV,
-		 const Vector& Eval,
-		 const Matrix& Evec,
-		 const Matrix& Covr,
+void VtkPCA::Add(const Eigen::VectorXd& Coef, 
+		 const Eigen::VectorXd& Hall,
+		 const Eigen::VectorXd& SnrV,
+		 const Eigen::VectorXd& Eval,
+		 const Eigen::MatrixXd& Evec,
+		 const Eigen::MatrixXd& Covr,
 		 int m)
 {
   vtkFloatArrayP C = vtkFloatArrayP::New();
@@ -54,10 +54,10 @@ void VtkPCA::Add(const Vector& Coef,
 
   if (reorder) {
     std::multimap<double, int> reord;
-    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) reord.insert(std::make_pair(SnrV[i], i));;
+    for (int i=0; i<=SnrV.size(); i++) reord.insert(std::make_pair(SnrV[i], i));;
     for (auto i=reord.rbegin(); i!=reord.rend(); i++) R.push_back(i->second);
   } else {
-    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) R.push_back(i);
+    for (int i=0; i<=SnrV.size(); i++) R.push_back(i);
   }
     
   // Insert grid data
@@ -69,13 +69,13 @@ void VtkPCA::Add(const Vector& Coef,
       vtkIdType n = dataSet->FindPoint(x, y, 0);
 
       if (n>=0) {
-	f = Evec[R[i]][j+1];	// Evec
+	f = Evec(R[i], j);	// Evec
 	if (smooth) f *= Hall[R[i]];
 	if (std::isnan(f)) f = 0.0;
 	T->InsertTuple(n, &f);
 	f *= f;
 	Y->InsertTuple(n, &f);  // Evec squared
-	f = Covr[i+1][j+1];	// Covariance
+	f = Covr(i, j);		// Covariance
 	U->InsertTuple(n, &f);
       } else {
 	std::cout << "Could not find point at (" << x << ", " << y << ")"
@@ -127,12 +127,12 @@ void VtkPCA::Add(const Vector& Coef,
   elab.push_back(lab.str());
 }
 
-void VtkPCA::Add(const Vector& Coef,
-		 const Vector& Hall,
-		 const Vector& SnrV,
-		 const Vector& Eval,
-		 const Matrix& Evec,
-		 const Matrix& Covr,
+void VtkPCA::Add(const Eigen::VectorXd& Coef,
+		 const Eigen::VectorXd& Hall,
+		 const Eigen::VectorXd& SnrV,
+		 const Eigen::VectorXd& Eval,
+		 const Eigen::MatrixXd& Evec,
+		 const Eigen::MatrixXd& Covr,
 		 int l, int m)
 {
   vtkFloatArrayP C = vtkFloatArrayP::New();
@@ -149,10 +149,10 @@ void VtkPCA::Add(const Vector& Coef,
 
   if (reorder) {
     std::multimap<double, int> reord;
-    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) reord.insert(std::make_pair(SnrV[i], i));
+    for (int i=0; i<=SnrV.size(); i++) reord.insert(std::make_pair(SnrV[i], i));
     for (auto i=reord.rbegin(); i!=reord.rend(); i++) R.push_back(i->second);
   } else {
-    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) R.push_back(i);
+    for (int i=0; i<=SnrV.size(); i++) R.push_back(i);
   }
 
   // Insert grid data
@@ -164,14 +164,14 @@ void VtkPCA::Add(const Vector& Coef,
       vtkIdType n = dataSet->FindPoint(x, y, 0);
 
       if (n>=0) {
-	f = Evec[R[i]][j+1];
+	f = Evec(R[i], j);
 	if (smooth) f *= Hall[R[i]];
 	if (std::isnan(f)) f = 0.0;
 	T->InsertTuple(n, &f);
 	f *= f;
 	Y->InsertTuple(n, &f);
 	
-	f = Covr[i+1][j+1];	// Covariance
+	f = Covr(i, j);		// Covariance
 	U->InsertTuple(n, &f);
       } else {
 	std::cout << "Could not find point at (" << x << ", " << y << ")"

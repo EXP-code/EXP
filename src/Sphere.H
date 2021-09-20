@@ -4,7 +4,7 @@
 #include <map>
 #include <boost/make_shared.hpp>
 
-#include <SLGridMP2.h>
+#include <SLGridMP2.H>
 #include <SphericalBasis.H>
 
 typedef boost::shared_ptr<SLGridSph> SLGridSphPtr;
@@ -53,9 +53,9 @@ private:
 
   void initialize(void);
 
-  void get_dpotl(int lmax, int nmax, double r, Matrix& p, Matrix& dp, int tid);
+  void get_dpotl(int lmax, int nmax, double r, Eigen::MatrixXd& p, Eigen::MatrixXd& dp, int tid);
 
-  void get_potl(int lmax, int nmax, double r, Matrix& p, int tid);
+  void get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid);
 
   double mapIntrp(const std::map<double, double> &data, double x);
   double mapDeriv(const std::map<double, double> &data, double x);
@@ -81,9 +81,10 @@ private:
 
 #endif
 
-  void get_dens(int lmax, int nmax, double r, Matrix& p, int tid);
+  void get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid);
 
-  void get_potl_dens(int lmax, int nmax, double r, Matrix& p, Matrix& d, int tid);
+  void get_potl_dens(int lmax, int nmax, double r,
+		     Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid);
 
 				// Parameters
   double rsphSL;

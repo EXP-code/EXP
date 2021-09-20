@@ -240,7 +240,7 @@ void CollideLTE::initialize_cell_dsmc
 
     if (ESOL) {
 				// Instantaneous loss rate
-      double h = tau*cell->Mass()*KEdspS/(coolheat[id]+DBL_MIN);
+      double h = tau*cell->Mass()*KEdspS/(coolheat[id]+std::numeric_limits<double>::min());
       h0 = h = rfac * min<double>(tau, h);
 
 				// Energy to temperature
@@ -256,7 +256,7 @@ void CollideLTE::initialize_cell_dsmc
       int icnt=0;
 #endif
       double k1, k2, k3, k4, t=0.0, TT;
-      while (t<tau*(1.0-2.0*DBL_MIN)) {
+      while (t<tau*(1.0-2.0*std::numeric_limits<double>::min())) {
 	h = min<double>(h, tau-t);
 				// Safety
 	h = max<double>(h, 1.0e-4*tau);
@@ -390,7 +390,7 @@ void CollideLTE::initialize_cell_dsmc
 				// Energy ratio for time step estimation
   if (use_delt>=0) {
 
-    double Ctime =  tau*cell->Mass()*KEdspC/(coolheat[id]+DBL_MIN);
+    double Ctime =  tau*cell->Mass()*KEdspC/(coolheat[id]+std::numeric_limits<double>::min());
     //                                                     ^
     // to prevent inf values ------------------------------|
     //

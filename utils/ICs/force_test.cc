@@ -24,12 +24,7 @@
 
 // Globals for exp libraries
 //
-int myid = 0;
-char threading_on  = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-
+#include <global.H>
 
 namespace po = boost::program_options;
 

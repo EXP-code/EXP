@@ -11,7 +11,7 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include <expand.h>
+#include <expand.H>
 #include <ExternalCollection.H>
 #include <TreeDSMC.H>
 #include <CollideLTE.H>

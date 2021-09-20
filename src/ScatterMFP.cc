@@ -1,20 +1,12 @@
-static char rcsid[] = "$Id$";
-
-#include <math.h>
-
+#include <cmath>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <string>
 #include <algorithm>
 
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
+#include "expand.H"
 
-#include "expand.h"
-
-#include <Vector.h>
 
 #include <ScatterMFP.H>
 
@@ -70,10 +62,6 @@ ScatterMFP::ScatterMFP(const YAML::Node& conf) : ExternalForce(conf)
 
   cntr = vector<int>(nthrds);
 
-  gen = new ACG(11+myid, 20);
-  unif = new Uniform(0.0, 1.0, gen);
-  gaus = new Normal(0.0, 1.0, gen);
-  
   cntacc = 0;
 }
 
@@ -198,7 +186,7 @@ void ScatterMFP::get_acceleration_and_potential(Component* C)
 void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
 {
 
-  Three_Vector vcom, vrel, vfnl;
+  Eigen::Vector3d vcom, vrel, vfnl;
 
   int i, k, ind;
   double v2;
@@ -228,7 +216,7 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
 
     p->dattrib[mfp_index] += dtau[ind] * sqrt(v2) * dtime;
 
-    if (1.0 - exp(-p->dattrib[mfp_index]/tauscat)>(*unif)()) {
+    if (1.0 - exp(-p->dattrib[mfp_index]/tauscat)>unif(random_gen)) {
 
 				// Initialize optical depth
       p->dattrib[mfp_index] = 0.0;
@@ -254,29 +242,29 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
 
       Particle *q = cC->Part(k);
 
-      vcom[1] = 0.5*(cC->Vel(i, 0) + cC->Vel(k, 0));
-      vcom[2] = 0.5*(cC->Vel(i, 1) + cC->Vel(k, 1));
-      vcom[3] = 0.5*(cC->Vel(i, 2) + cC->Vel(k, 2));
+      vcom[0] = 0.5*(cC->Vel(i, 0) + cC->Vel(k, 0));
+      vcom[1] = 0.5*(cC->Vel(i, 1) + cC->Vel(k, 1));
+      vcom[2] = 0.5*(cC->Vel(i, 2) + cC->Vel(k, 2));
 
-      vrel[1] = cC->Vel(k, 0) - cC->Vel(i, 0);
-      vrel[2] = cC->Vel(k, 1) - cC->Vel(i, 1);
-      vrel[3] = cC->Vel(k, 2) - cC->Vel(i, 2);
+      vrel[0] = cC->Vel(k, 0) - cC->Vel(i, 0);
+      vrel[1] = cC->Vel(k, 1) - cC->Vel(i, 1);
+      vrel[2] = cC->Vel(k, 2) - cC->Vel(i, 2);
 
 				// Choose a random direction for velocity
-      vfnl[1] = (*gaus)();
-      vfnl[2] = (*gaus)();
-      vfnl[3] = (*gaus)();
+      vfnl[0] = norm(random_gen);
+      vfnl[1] = norm(random_gen);
+      vfnl[2] = norm(random_gen);
 
-      vfnl *= sqrt(vrel*vrel)/sqrt(vfnl*vfnl);
+      vfnl *= sqrt(vrel.dot(vrel))/sqrt(vfnl.dot(vfnl));
 
 				// To lab frame
-      p->vel[0] = vcom[1] + 0.5*vfnl[1];
-      p->vel[1] = vcom[2] + 0.5*vfnl[2];
-      p->vel[2] = vcom[3] + 0.5*vfnl[3];
+      p->vel[0] = vcom[0] + 0.5*vfnl[0];
+      p->vel[1] = vcom[1] + 0.5*vfnl[1];
+      p->vel[2] = vcom[2] + 0.5*vfnl[2];
 
-      q->vel[0] = vcom[1] - 0.5*vfnl[1];
-      q->vel[1] = vcom[2] - 0.5*vfnl[2];
-      q->vel[2] = vcom[3] - 0.5*vfnl[3];
+      q->vel[0] = vcom[0] - 0.5*vfnl[0];
+      q->vel[1] = vcom[1] - 0.5*vfnl[1];
+      q->vel[2] = vcom[2] - 0.5*vfnl[2];
 
       cntr[id]++;
     }

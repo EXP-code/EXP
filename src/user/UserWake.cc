@@ -1,8 +1,8 @@
 #include <cmath>
 #include <sstream>
 
-#include <expand.h>
-#include <localmpi.h>
+#include <expand.H>
+#include <localmpi.H>
 
 #include <ExternalCollection.H>
 #include <Basis.H>
@@ -87,11 +87,11 @@ UserWake::UserWake(const YAML::Node& conf) : ExternalForce(conf)
   nend = npix*(myid+1)/numprocs;
 
   double onedeg = M_PI/180.0;
-  Matrix rotate = return_euler_slater(PHI*onedeg, 
-				      THETA*onedeg, 
-				      PSI*onedeg, 1);
-  Three_Vector P0, P1;
-  P0.zero();
+  Eigen::Matrix3d rotate = return_euler_slater(PHI*onedeg, 
+					       THETA*onedeg, 
+					       PSI*onedeg, 1);
+  Eigen::Vector3d P0, P1;
+  P0.setZero();
     
 
   double dX = (XMAX - XMIN)/(NUMX-1);
@@ -100,20 +100,20 @@ UserWake::UserWake(const YAML::Node& conf) : ExternalForce(conf)
 
   for (int j=0; j<NUMY; j++) {
 
-    P0[2] = YMIN + dY*j;
+    P0[1] = YMIN + dY*j;
 
     for (int i=0; i<NUMX; i++) {
 
-      P0[1] = XMIN + dX*i;
+      P0[0] = XMIN + dX*i;
 
       P1 = rotate * P0;
 
-      R = sqrt(P0[1]*P1[1] + P1[2]*P1[2] + P1[3]*P1[3]);
+      R = sqrt(P0.adjoint()*P0);
 
 				// Location of the rotated plane
       r.push_back(R);
-      theta.push_back(acos(P1[3]/R));
-      phi.push_back(atan2(P1[2], P1[1]));
+      theta.push_back(acos(P1[2]/R));
+      phi.push_back(atan2(P1[1], P1[0]));
     }
   }
     

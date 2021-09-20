@@ -1,8 +1,4 @@
-#include <stdlib.h>
-#include <math.h>
-
-#include <kevin_complex.h>
-
+#include <cmath>
 
 #define odd(x) ( (int)(x/2)*2 != x )
 #define sign(x) ( copysign(1.0, x) )
@@ -125,7 +121,7 @@ main(int argc, char **argv)
 #include <iostream>
 #include <iomanip>
 
-#include <gaussQ.h>
+#include <gaussQ.H>
 
 main(int argc, char **argv)
 {
@@ -163,7 +159,7 @@ main(int argc, char **argv)
   cout.precision(15);
 
   double beta, ans = 0.0;
-  for (int i=1; i<=nint; i++) {
+  for (int i=0; i<nint; i++) {
     beta = acos(2.0*(lq.knot(i)-0.5));
     ans += 2.0*lq.weight(i)*rot_matrix(L, m, M, beta)*rot_matrix(L, m, M, beta);
   }

@@ -1,8 +1,8 @@
 #ifndef _UserResPoT_H
 #define _UserResPoT_H
 
-#include <massmodel.h>
-#include <biorth.h>
+#include <massmodel.H>
+#include <biorth.H>
 #include <ResPot.H>
 
 /** Apply specific component of resonance potential and

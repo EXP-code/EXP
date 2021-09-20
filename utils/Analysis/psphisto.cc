@@ -51,41 +51,23 @@ using namespace std;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include "Particle.h"
-#include <PSP.H>
-#include <interp.h>
-#include <massmodel.h>
+#include <numerical.H>
+#include <ParticleReader.H>
+#include <interp.H>
+#include <massmodel.H>
 #include <SphereSL.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
 enum ProjectionType {Cylindrical=1, Spherical=2};
-
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
   
 int
 main(int argc, char **argv)
 {
   double rmin, rmax, zcen, zwid;
   int nbins, pbeg, pend, proj, ibeg, iend, iskip;
-  string comp, outfile, infile, runtag;
+  string comp, outfile, infile, runtag, fileType, filePrefix;
   bool rlog, logr;
 
 #ifdef DEBUG
@@ -99,10 +81,12 @@ main(int argc, char **argv)
   po::options_description desc("\nCompute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
     ("help,h",                                                                       "Print this help message")
-    ("OUT",
-     "assume that PSP files are in original format")
-    ("SPL",
-     "assume that PSP files are in split format")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("RMIN",                po::value<double>(&rmin)->default_value(0.0),
      "minimum radius for output")
     ("RMAX",                po::value<double>(&rmax)->default_value(0.1),
@@ -237,89 +221,67 @@ main(int argc, char **argv)
 
     if (n % numprocs == myid) {
 
-      PSPptr psp;
-      if (vm.count("SPL")) psp = std::make_shared<PSPspl>(files[n]);
-      else                 psp = std::make_shared<PSPout>(files[n]);
+      PRptr reader = ParticleReader::createReader(fileType, files[n], true);
 
-      if (psp) {
+      times[n] = reader->CurrentTime();
 
-	times[n] = psp->CurrentTime();
+      reader->SelectType(comp);
 
-	// Do we need to close and reopen?
-	if (in.rdstate() & ios::eofbit) {
-	  in.close();
-	  in.open(files[n].c_str());
-	}
+      int icnt = 0;
+      for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
 
-	// Find the component
-	PSPstanza *stanza;
-	for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
-	  if (stanza->name == comp) break;
-	}
-
-	if (stanza==0) {
-	  std::cout << "Could not find Component <" << comp << "> at time = "
-		    << psp->CurrentTime() << std::endl;
-	} else {
-
-	  int icnt = 0;
-	  for (SParticle* 
-		 p=psp->GetParticle(); p!=0; p=psp->NextParticle()) {
-
-	    if (icnt > pbeg) {
+	if (icnt > pbeg) {
 	      
-	      vector<double> L(3);
-	      L[0] = p->mass()*(p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
-	      L[1] = p->mass()*(p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
-	      L[2] = p->mass()*(p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
-
-	      if (proj==Cylindrical) {
-		if (p->pos(2) >= zcen-zwid && p->pos(2) <= zcen+zwid) {
-		  double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-		  if (rlog) {
-		    if (R>0.0) {
-		      R = log(R);
-		      int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		      if (indx >=0 && indx<nbins) {
-			histo[n][indx] += p->mass();
-			for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
-		      }
-		    }
-		  } else {
-		    int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		    if (indx >=0 && indx<nbins) {
-		      histo[n][indx] += p->mass();
-		      for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
-		    }
-		  }
-		}
-	      }
-	      else {
-		// if (PROJ==Spherical) {
-		double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-		if (rlog) {
-		  if (R>0.0) {
-		    R = log(R);
-		    int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		    if (indx >=0 && indx<nbins) {
-		      histo[n][indx] += p->mass();
-		      for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
-		    }
-		  }
-		} else {
+	  vector<double> L(3);
+	  L[0] = p->mass*(p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
+	  L[1] = p->mass*(p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
+	  L[2] = p->mass*(p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
+	  
+	  if (proj==Cylindrical) {
+	    if (p->pos[2] >= zcen-zwid && p->pos[2] <= zcen+zwid) {
+	      double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	      if (rlog) {
+		if (R>0.0) {
+		  R = log(R);
 		  int indx = static_cast<int>(floor( (R - rmin)/dR ));
 		  if (indx >=0 && indx<nbins) {
-		    histo[n][indx] += p->mass();
+		    histo[n][indx] += p->mass;
 		    for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
 		  }
 		}
+	      } else {
+		int indx = static_cast<int>(floor( (R - rmin)/dR ));
+		if (indx >=0 && indx<nbins) {
+		  histo[n][indx] += p->mass;
+		  for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
+		}
 	      }
 	    }
-	    
-	    if (pend>0 && icnt>pend) break;
-	    icnt++;
+	  }
+	  else {
+	    // if (PROJ==Spherical) {
+	    double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	    if (rlog) {
+	      if (R>0.0) {
+		R = log(R);
+		int indx = static_cast<int>(floor( (R - rmin)/dR ));
+		if (indx >=0 && indx<nbins) {
+		  histo[n][indx] += p->mass;
+		  for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
+		}
+	      }
+	    } else {
+	      int indx = static_cast<int>(floor( (R - rmin)/dR ));
+	      if (indx >=0 && indx<nbins) {
+		histo[n][indx] += p->mass;
+		for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
+	      }
+	    }
 	  }
 	}
+	
+	if (pend>0 && icnt>pend) break;
+	icnt++;
       }
     }
   }

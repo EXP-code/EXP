@@ -1,12 +1,11 @@
 #include <iostream>
 #include <string>
 
-#include <orbit.h>
-#include <massmodel.h>
-#include <biorth.h>
-#include <CVector.h>
-#include <interp.h>
-#include <numerical.h>
+#include <orbit.H>
+#include <massmodel.H>
+#include <biorth.H>
+#include <interp.H>
+#include <numerical.H>
 
 #include <Perturbation.H>
 
@@ -77,7 +76,7 @@ private:
   bool getValues(double I1, double I2,
 		 double& O1, double& O2,
 		 double& Jm, double& dJm,
-		 KComplex& Ul, KComplex& dUldE, KComplex& dUldK);
+		 std::complex<double>& Ul, std::complex<double>& dUldE, std::complex<double>& dUldK);
   
   double xJ(double J, double Jmin, double Jmax);
   double Jx(double x, double Jmin, double Jmax);
@@ -137,7 +136,7 @@ public:
   static int ITMAX;
 
   //! Complex sqrt(-1)
-  static KComplex I;
+  static std::complex<double> I;
   
   //! Constructor
   ResPot(AxiSymModel *mod, Perturbation *pert, int l, int m, int l1, int l2);
@@ -183,7 +182,7 @@ public:
 
 double rot_matrix(int l, int m, int n, double beta);
 double Ylm01(int ll, int mm);
-KComplex VeeBeta(int l, int l2, int m, double beta);
+std::complex<double> VeeBeta(int l, int l2, int m, double beta);
 extern string respot_mpi_id();
 
 #endif

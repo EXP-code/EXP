@@ -2,7 +2,7 @@
   Multi-timestepping support routines
 */
 
-#include <expand.h>
+#include <expand.H>
 #include <sstream>
 #include <chrono>
 #include <map>

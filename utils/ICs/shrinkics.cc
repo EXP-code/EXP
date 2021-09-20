@@ -11,10 +11,9 @@
 #include <getopt.h>
 #include <pthread.h>
 
-int myid = 0;
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-std::string outdir, runtag;
+// EXP support
+//
+#include <global.H>
 
 using namespace std;
 

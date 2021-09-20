@@ -41,71 +41,22 @@
  *
  ***************************************************************************/
 
-#include <cstdio>
-#include <cstdlib>
+#include <iostream>
 #include <vector>
 #include <deque>
-
-#include <Vector.h>
-
-int Vlocate(double x, const Vector& xx)
-{
-  int ascnd, ju, jm, jl, min, max;
-  
-  min = xx.getlow();
-  max = xx.gethigh();
-  jl = min-1;
-  ju = max+1;
-  ascnd = xx[max] > xx[min];
-  while (ju-jl > 1) {
-    jm = (ju+jl) >> 1;
-    if ((x > xx[jm]) == ascnd)
-      jl = jm;
-    else
-      ju = jm;
-  }
-  return jl;
-}
-
-
-int Vlocate_with_guard(double value, const Vector& vector)
-{
-  int which, min, max;
-
-  min = vector.getlow();
-  max = vector.gethigh();
-  which = (vector[min] < vector[max]);
-
-  if( ( vector[min] < value == which ) &&
-      ( value < vector[max] == which ) ) {
-    return Vlocate(value, vector);
-  }
-  else{
-    if( (value <= vector[min]  ) == which ){
-      return min;
-    }
-    else if( (value >= vector[max]) == which ){
-      return max;
-    }
-    else{
-      puts("WARNING: misordered data in locate_with_guard");
-      return -1;
-    }
-  }
-}
+#include <Eigen/Eigen>
 
 template <class V>
 int Vlocate(double x, const V& xx)
 {
-  int ascnd, ju, jm, jl, min, max;
-  
-  min = 0;
-  max = xx.size() - 1;
-  jl = min-1;
-  ju = max+1;
-  ascnd = xx[max] > xx[min];
+  int min = 0;
+  int max = xx.size() - 1;
+  int jl = min-1;
+  int ju = max+1;
+  int ascnd = xx[max] > xx[min];
+
   while (ju-jl > 1) {
-    jm = (ju+jl) >> 1;
+    int jm = (ju+jl) >> 1;
     if ((x > xx[jm]) == ascnd)
       jl = jm;
     else
@@ -118,37 +69,38 @@ int Vlocate(double x, const V& xx)
 template <class V>
 int Vlocate_with_guard(double value, const V& vec)
 {
-  int which, min, max;
-
-  min = 0;
-  max = vec.size() - 1;
-  which = (vec[min] < vec[max]);
+  int min = 0;
+  int max = vec.size() - 1;
+  int which = (vec[min] < vec[max]);
 
   if( ( vec[min] < value == which ) &&
       ( value < vec[max] == which ) ) {
     return Vlocate(value, vec);
   }
-  else{
-    if( (value <= vec[min]  ) == which ){
+  else {
+    if ( (value <= vec[min]  ) == which ){
       return min;
     }
     else if( (value >= vec[max]) == which ){
       return max;
     }
     else{
-      puts("WARNING: misordered data in locate_with_guard");
+      std::cerr << "WARNING: misordered data in locate_with_guard" << std::endl;
       return -1;
     }
   }
 }
 
 
-template int Vlocate(double x, const vector<double>& xtab);
+template int Vlocate(double x, const std::vector<double>& xtab);
 
-template int Vlocate(double x, const deque<double>& xtab);
+template int Vlocate(double x, const std::deque<double>& xtab);
 
-template int Vlocate_with_guard(double x, const vector<double>& xtab);
+template int Vlocate(double x, const Eigen::VectorXd& xtab);
 
-template int Vlocate_with_guard(double x, const deque<double>& xtab);
+template int Vlocate_with_guard(double x, const std::vector<double>& xtab);
 
+template int Vlocate_with_guard(double x, const std::deque<double>& xtab);
+
+template int Vlocate_with_guard(double x, const Eigen::VectorXd& xtab);
 

@@ -1,10 +1,10 @@
-#include <stdlib.h>
-#include <math.h>
+#include <complex>
+#include <cstdlib>
+#include <cmath>
 
-#include "expand.h"
+#include "expand.H"
 
-#include <kevin_complex.h>
-#include <biorth1d.h>
+#include <biorth1d.H>
 
 #include <Slab.H>
 
@@ -25,53 +25,33 @@ Slab::Slab(const YAML::Node& conf) : PotAccel(conf)
   imz = nmaxz;
   jmax = imx*imy*imz;
 
-  expccof = new KComplex* [nthrds];
-  for (int i=0; i<nthrds; i++)
-    expccof[i] = new KComplex [jmax];
-
-  expreal  = new double [jmax];
-  expreal1 = new double [jmax];
-  expimag  = new double [jmax];
-  expimag1 = new double [jmax];
+  expccof.resize(nthrds);
+  for (auto & v : expccof) v.resize(jmax);
   
   dfac = 2.0*M_PI;
-  kfac = KComplex(0.0, dfac);
+  kfac = std::complex<double>(0.0, dfac);
   
   nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
 				// I believe that these are thread safe
-  trig = new OneDTrig* [nnmax+1];
+  trig.resize(nnmax+1);
   for (int i=0; i<=nnmax; i++) {
-    trig[i] = new OneDTrig [i+1];
+    trig[i].resize(i+1);
     for (int j=0; j<=i; j++) 
       trig[i][j].reset(dfac*sqrt((double)(i*i + j*j))+KEPS, zmax);
   }
 
-  zpot = new Vector [nthrds];
-  zfrc = new Vector [nthrds];
-  for (int i=0; i<nthrds; i++) {
-    zpot[i].setsize(1, nmaxz);
-    zfrc[i].setsize(1, nmaxz);
-  }
+  zpot.resize(nthrds);
+  zfrc.resize(nthrds);
+  
+  for (auto & v : zpot) v.resize(nmaxz);
+  for (auto & v : zfrc) v.resize(nmaxz);
 
 }
 
 Slab::~Slab()
 {
-  for (int i=0; i<nthrds; i++) delete [] expccof[i];
-  delete [] expccof;
-
-  delete [] expreal;
-  delete [] expreal1;
-  delete [] expimag;
-  delete [] expimag1;
-  
-  for (int i=0; i<=nnmax; i++) delete [] trig[i];
-  delete [] trig;
-
-  delete [] zpot;
-  delete [] zfrc;
-
+  // NADA
 }
 
 void Slab::initialize()
@@ -106,16 +86,9 @@ void Slab::determine_coefficients(void)
 
   // Clean 
 
-  for (int indx=0; indx<jmax; indx++) {
-    expreal[indx] = 0.0;
-    expimag[indx] = 0.0;
-    expreal1[indx] = 0.0;
-    expimag1[indx] = 0.0;
-  }
-
   for (int i=0; i<nthrds; i++) {
     use[i] = 0;
-    for (int indx=0; indx<jmax; indx++) expccof[i][indx] = 0.0;
+    expccof[i].setZero();
   }
 
   exp_thread_fork(true);
@@ -123,29 +96,24 @@ void Slab::determine_coefficients(void)
   int used1 = 0;
   used = 0;
   for (int i=0; i<nthrds; i++) used1 += use[i];
-  
+  for (int i=1; i<nthrds; i++) {
+    used1 += use[i];
+    for (int n=0; n<expccof[0].size(); n++)
+      expccof[0][n] += expccof[i][n];
+  }
+
   MPI_Allreduce ( &used1, &used,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-  for (int i=0; i<nthrds; i++) {
-    for (int indx=0; indx<jmax; indx++) {
-      expreal1[indx] += expccof[i][indx].real();
-      expimag1[indx] += expccof[i][indx].imag();
-    }
-  }
-  
-  MPI_Allreduce( expreal1, expreal, jmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce( expimag1, expimag, jmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-  for (int indx=0; indx<jmax; indx++)
-    expccof[0][indx] = KComplex(expreal[indx], expimag[indx]);
+   MPI_Allreduce( MPI_IN_PLACE, expccof[0].data(), expccof[0].size(),
+		  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 }
 
 void * Slab::determine_coefficients_thread(void * arg)
 {
   int ix, iy, iz, iix, iiy, indx, dum;
 
-  KComplex startx, starty, facx, facy;
-  KComplex stepx, stepy;
+  std::complex<double> startx, starty, facx, facy;
+  std::complex<double> stepx, stepy;
 
   unsigned  nbodies = cC->Number();
   int id = *((int*)arg);
@@ -182,8 +150,8 @@ void * Slab::determine_coefficients_thread(void * arg)
     stepy = exp(-kfac*cC->Pos(i, 1));
     
 				// Initial values
-    startx = exp(nmaxx*kfac*cC->Pos(i, 0));
-    starty = exp(nmaxy*kfac*cC->Pos(i, 1));
+    startx = exp(static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
+    starty = exp(static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
@@ -243,9 +211,9 @@ void * Slab::determine_acceleration_and_potential_thread(void * arg)
 {
   int ix, iy, iz, iix, iiy, ii, jj, indx, dum;
 
-  KComplex fac, startx, starty, facx, facy, potl, facf;
-  KComplex stepx, stepy;
-  KComplex accx, accy, accz;
+  std::complex<double> fac, startx, starty, facx, facy, potl, facf;
+  std::complex<double> stepx, stepy;
+  std::complex<double> accx, accy, accz;
 
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
@@ -268,8 +236,8 @@ void * Slab::determine_acceleration_and_potential_thread(void * arg)
     stepy = exp(kfac*cC->Pos(i, 1));
 
 				// Initial values (note sign change)
-    startx = exp(-nmaxx*kfac*cC->Pos(i, 0));
-    starty = exp(-nmaxy*kfac*cC->Pos(i, 1));
+    startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
+    starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
@@ -322,21 +290,21 @@ void * Slab::determine_acceleration_and_potential_thread(void * arg)
 	  
 	  potl += fac;
 	  
-	  accx += -dfac*ii*KComplex(0.0,1.0)*fac;
-	  accy += -dfac*jj*KComplex(0.0,1.0)*fac;
+	  accx += -dfac*ii*std::complex<double>(0.0,1.0)*fac;
+	  accy += -dfac*jj*std::complex<double>(0.0,1.0)*fac;
 	  accz += facf;
 	  
 	}
       }
     }
     
-    cC->AddAcc(i, 0, Re(accx));
-    cC->AddAcc(i, 1, Re(accy));
-    cC->AddAcc(i, 2, Re(accz));
+    cC->AddAcc(i, 0, accx.real());
+    cC->AddAcc(i, 1, accy.real());
+    cC->AddAcc(i, 2, accz.real());
     if (use_external)
-      cC->AddPotExt(i, Re(potl));
+      cC->AddPotExt(i, potl.real());
     else
-      cC->AddPot(i, Re(potl));
+      cC->AddPot(i, potl.real());
   }
 
   return (NULL);
@@ -354,9 +322,6 @@ void Slab::dump_coefs(ostream& out)
   coefheader.jmax = (1+2*nmaxx)*(1+2*nmaxy)*nmaxz;
   
   out.write((char *)&coefheader, sizeof(SlabCoefHeader));
-  for (int i=0; i<coefheader.jmax; i++) {
-    out.write((char *)&expccof[0][i].real(), sizeof(double));
-    out.write((char *)&expccof[0][i].imag(), sizeof(double));
-  }
+  out.write((char *)expccof[0].data(), jmax*sizeof(std::complex<double>));
 }
 

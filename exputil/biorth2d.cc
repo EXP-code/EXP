@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 //  Routines for computing biorthonormal pairs based on 
 //  Clutton-Brock's 2-dimensional series
 //
@@ -9,9 +7,9 @@
 #include <iostream>
 #include <cmath>
 
-#include <Vector.h>
-#include <biorth2d.h>
-#include <gaussQ.h>
+#include <biorth2d.H>
+#include <OrthoPoly.H>
+#include <gaussQ.H>
 
 
 CBDisk::CBDisk(void) : AxiSymBiorth(2) {
@@ -59,7 +57,7 @@ double CBDisk::potl(int np, int m, double r)
 
 				// By recurrance relation
 
-void CBDisk::potl(int np, int m, double r, Vector& a)
+void CBDisk::potl(int np, int m, double r, Eigen::VectorXd& a)
 {
   int n = np-1;
   double pfac = pow(r, (double)m+1.0e-20);
@@ -107,7 +105,7 @@ double CBDisk::dens(int nn, int m, double r)
 }
 
 
-void CBDisk::dens(int np, int mm, double r, Vector& a)
+void CBDisk::dens(int np, int mm, double r, Eigen::VectorXd& a)
 {
   int n = np-1;
   double pfac = pow(r, (double)mm+1.0e-20);
@@ -160,14 +158,6 @@ double CBDisk::norm(int n, int m)
 }
 
 
-#ifndef _gaussQ_h
-#include <gaussQ.h>
-#endif
-
-#ifndef _OrthoPoly_h
-#include <OrthoPoly.h>
-#endif
-
 double CBDisk::potlRZ(int np, int m, double r, double z)
 {
   GenLagu lag(2.0*m);
@@ -182,7 +172,7 @@ double CBDisk::potlRZ(int np, int m, double r, double z)
   double ans=0.0;
   double fac=1.0/(1.0+fabs(z));
 
-  for (int i=1; i<=numz; i++) {
+  for (int i=0; i<numz; i++) {
     q = L->knot(i);
     ans += L->weight(i) * jn(m, fac*r*q) * lag.f(2.0*fac*q, np-1) * 
       pow(q, -m);
@@ -197,16 +187,17 @@ double CBDisk::potlRZ(int np, int m, double r, double z)
 //  Bessel functions
 //
 
-Vector bessjz(int, int);
+Eigen::VectorXd bessjz(int, int);
 
-BSDisk::BSDisk(double RMAX, int NMAX, int MMAX) : AxiSymBiorth(2) {
+BSDisk::BSDisk(double RMAX, int NMAX, int MMAX) : AxiSymBiorth(2)
+{
   BiorthID = "BSDisk";
   numz = 80;
   rmax = RMAX;
   nmax = NMAX;
   mmax = MMAX;
 
-  a = new Vector[mmax+2];
+  a.resize(mmax+2);
 
   for (int m=0; m<=mmax+1; m++) {
     a[m] = bessjz(m, nmax);
@@ -218,7 +209,6 @@ BSDisk::BSDisk(double RMAX, int NMAX, int MMAX) : AxiSymBiorth(2) {
 
 BSDisk::~BSDisk(void)
 {
-  delete [] a;
 }
 
 
@@ -236,29 +226,28 @@ double BSDisk::potl(int n, int m, double r)
 void BSDisk::setup_potl_table(void)
 {
   t_n = 40000;
-  t_dr.setsize(0, mmax);
-  t_f.setsize(0, mmax, 1, nmax);
-  t_y.setsize(0, mmax, 0, t_n);
+  t_dr.resize(mmax);
+  t_f. resize(mmax, nmax);
+  t_y. resize(mmax, t_n+1);
 
   double nrm;
 
   for (int m=0; m<=mmax; m++) {
 
-    t_dr[m] = a[m][nmax]/t_n;
+    t_dr[m] = a[m][nmax-1]/t_n;
 
-    int i;
-    for (i=0; i<=t_n; i++) 
-      t_y[m][i] = jn(m, t_dr[m]*i);
+    for (int i=0; i<=t_n; i++) 
+      t_y(m, i) = jn(m, t_dr[m]*i);
 
-    for (i=1; i<=nmax; i++) {
+    for (int i=0; i<nmax; i++) {
       nrm = sqrt(1.0 - (double)(m*m)/(a[m][i]*a[m][i])) * jn(m, a[m][i]);
-      t_f[m][i] = M_SQRT2/fabs(rmax*nrm);
+      t_f(m, i) = M_SQRT2/fabs(rmax*nrm);
     }
   }
 
 }
 
-void BSDisk::potl(int n, int m, double r, Vector& t)
+void BSDisk::potl(int n, int m, double r, Eigen::VectorXd& t)
 {
   if (m > mmax) bomb("potl: m too large");
   if (n > nmax) bomb("potl: n too large");
@@ -275,8 +264,8 @@ void BSDisk::potl(int n, int m, double r, Vector& t)
 
     r0 = t_dr[m]*indx;
    
-    t[i] = t_f[m][i]*(t_y[m][indx]*(r0 + t_dr[m] - rs) + 
-		      t_y[m][indx+1]*(rs - r0))/t_dr[m];
+    t[i] = t_f(m, i)*(t_y(m, indx)*(r0 + t_dr[m] - rs) + 
+		      t_y(m, indx+1)*(rs - r0))/t_dr[m];
   }
 
 }
@@ -292,7 +281,8 @@ double BSDisk::dens(int n, int m, double r)
   return M_SQRT2/fabs(rmax*nrm) * jn(m, a[m][n]*r/rmax);
 }
 
-void BSDisk::dens(int n, int m, double r, Vector& t) {
+void BSDisk::dens(int n, int m, double r, Eigen::VectorXd& t)
+{
   potl(n, m, r, t);
 }
 

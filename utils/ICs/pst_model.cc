@@ -11,28 +11,30 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <limits>
 
                                 // System libs
 #include <getopt.h>
-#include <values.h>
 
                                 // MDW classes
-#include <numerical.h>
+#include <numerical.H>
 #include <EllipsoidForce.H>
 #include <CylindricalDisk.H>
-#include <massmodel.h>
-#include <interp.h>
+#include <massmodel.H>
+#include <interp.H>
 #include <ZBrent.H>
-#include "localmpi.h"
+#include "localmpi.H"
 
                                 // For debugging
 #ifdef DEBUG
 #include <fpetrap.h>
 #endif
 
-#include "localmpi.h"
-void local_init_mpi(int argc, char **argv);
-string outdir, runtag;
+
+// EXP support
+//
+#include <global.H>
+#include <localmpi.H>
 
 /*
   Param 0: r_max
@@ -649,18 +651,19 @@ main(int argc, char **argv)
       nout << setw(12) << Number << setw(12) << niatr << setw(12) << ndatr
 	   << endl;
 
-      ACG gen(SEED, 20);
-      Uniform unit(0.0, 1.0, &gen);
-      Normal  vel1(0.0, k*T/mp*Vunit*Vunit/1e10, &gen);
+      random_gen.seed(SEED);
+      boost::random::uniform_real_distribution<> unit(0.0, 1.0);
+      boost::random::normal_distribution<> vel1(0.0, k*T/mp*Vunit*Vunit/1e10);
+
       double R, z, phi, bfrc, fr, fz, velc;
       double mass = M_PI*r_disk*r_disk*gasD/Number;
 
       for (int n=0; n<Number; n++) {
 				// Pick a particle in the disk
-	R = r_disk*sqrt(unit());
-	z = 1.0e-3*H/Lunit*atanh(2.0*(unit() - 0.5));
+	R = r_disk*sqrt(unit(random_gen));
+	z = 1.0e-3*H/Lunit*atanh(2.0*(unit(random_gen) - 0.5));
 	r = sqrt(R*R + z*z);
-	phi = 2.0*M_PI*unit();
+	phi = 2.0*M_PI*unit(random_gen);
 
 				// Midplane force
 	bfrc = -bulge.get_mass(R)/(R*R);
@@ -671,9 +674,9 @@ main(int argc, char **argv)
 	     << setw(16) << R*cos(phi)
 	     << setw(16) << R*sin(phi)
 	     << setw(16) << z
-	     << setw(16) << -velc*sin(phi) + vel1()
-	     << setw(16) <<  velc*cos(phi) + vel1()
-	     << setw(16) << vel1();
+	     << setw(16) << -velc*sin(phi) + vel1(random_gen)
+	     << setw(16) <<  velc*cos(phi) + vel1(random_gen)
+	     << setw(16) << vel1(random_gen);
 	for (int i=0; i<niatr; i++) nout << setw(10) << 0;
 	for (int i=0; i<ndatr; i++) nout << setw(16) << 0.0;
 	nout << endl;

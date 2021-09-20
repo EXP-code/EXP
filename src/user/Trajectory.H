@@ -2,10 +2,10 @@
 #define _Trajectory_H
 
 #include <string>
+#include <vector>
 
-#include <Vector.h>
-#include <massmodel.h>
-#include <model3d.h>
+#include <massmodel.H>
+#include <model3d.H>
 
 #include <FindOrb.H>
 
@@ -24,7 +24,7 @@ public:
 
 				// Members
   //! Get satellite position
-  virtual Vector get_satellite_orbit(double T) = 0;
+  virtual Eigen::Vector3d get_satellite_orbit(double T) = 0;
 
   //! Get satellite position
   virtual void get_satellite_orbit(double T, double *v) = 0;

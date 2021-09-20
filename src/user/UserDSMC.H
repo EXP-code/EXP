@@ -1,11 +1,14 @@
 #ifndef _UserDSMC_H
 #define _UserDSMC_H
 
+#include <boost/random/uniform_real_distribution.hpp>
+
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 
-#include <Timer.h>
+#include <global.H>
+#include <Timer.H>
 
 /**
    Helper class describing a comparison for sorting particles in radius
@@ -121,8 +124,7 @@ private:
   vector<double> vmax;
 
 				// Pseudo-random-number generation
-  ACG *gen;
-  Uniform *unif;
+  boost::random::uniform_real_distribution<> unif;
 
   void makeGrid();
   void makeSort();

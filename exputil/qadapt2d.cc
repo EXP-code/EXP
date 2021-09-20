@@ -1,5 +1,5 @@
 #include <math.h>
-#include <numerical.h>
+#include <numerical.H>
 #include <stdio.h>
 
 

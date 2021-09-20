@@ -53,36 +53,16 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include <PSP2.H>
-#include <interp.h>
-#include <massmodel.h>
+#include <interp.H>
+#include <massmodel.H>
 #include <SphereSL.H>
 #include <foarray.H>
 
-#include <localmpi.h>
-
-// Variables not used but needed for linking
-//
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-std::string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-  
-// Globals
-//
+#include <global.H>
+#include <localmpi.H>
 
 extern double Ylm01(int ll, int mm);
 extern double plgndr(int, int, double);
@@ -256,7 +236,7 @@ main(int argc, char **argv)
 	// Q1
 	//
 	double Q1 = 0.0;
-	for (int k=1; k<=knots; k++) {
+	for (int k=0; k<knots; k++) {
 	  double xx =  ximin + (x - ximin)*lw.knot(k);
 	  double rr = sl->xi_to_r(xx);
 	  Q1 += lw.weight(k) * sl->get_dens(xx, L, n, 0) * pow(rr/r, 1.0+L) * rr / sl->d_xi_to_r(xx);
@@ -267,7 +247,7 @@ main(int argc, char **argv)
 	// Q2
 	//
 	double Q2 = 0.0;
-	for (int k=1; k<=knots; k++) {
+	for (int k=0; k<knots; k++) {
 	  double xx =  x + (ximax - x)*lw.knot(k);
 	  double rr = sl->xi_to_r(xx);
 	  Q2 += lw.weight(k) * sl->get_dens(xx, L, n, 0) * pow(r/rr, L) * rr / sl->d_xi_to_r(xx);

@@ -51,33 +51,15 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include "Particle.h"
-#include <PSP.H>
-#include <interp.h>
-#include <massmodel.h>
+#include <numerical.H>
+#include <ParticleReader.H>
+#include <interp.H>
+#include <massmodel.H>
 #include <SphereSL.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-  
 int
 main(int argc, char **argv)
 {
@@ -89,7 +71,7 @@ main(int argc, char **argv)
   int IBEG, IEND, NBINS, PBEG, PEND, ISKIP;
   double RMAX, ZCENTER, ZWIDTH;
   bool LOG;
-  std::string OUTFILE, INFILE, RUNTAG, cname;
+  std::string OUTFILE, INFILE, RUNTAG, cname, fileType, filePrefix;
 
   // ==================================================
   // Parse command line or input parameter file
@@ -98,6 +80,12 @@ main(int argc, char **argv)
   po::options_description desc("Compute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
     ("ZCENTER",             po::value<double>(&ZCENTER)->default_value(0.0),
@@ -204,13 +192,11 @@ main(int argc, char **argv)
 
     if (n % numprocs == myid) {
 
-      PSPptr psp;
-      if (vm.count("SPL")) psp = std::make_shared<PSPspl>(files[n]);
-      else                 psp = std::make_shared<PSPout>(files[n]);
+      PRptr reader = ParticleReader::createReader(fileType, files[n], true);
 
-      if (psp) {
+      if (reader) {
 
-	times[n] = psp->CurrentTime();
+	times[n] = reader->CurrentTime();
 	histo[n] = vector< vector<double> >(nval);
 	for (int k=0; k<nval; k++) 
 	  histo[n][k] = vector<double>(NBINS*NBINS, 0.0);
@@ -224,34 +210,29 @@ main(int argc, char **argv)
 	int icnt = 0;
 	vector<Particle> particles;
 
-	PSPstanza *gas = psp->GetNamed(cname);
-	if (!gas) {
-	  if (myid==0) std::cerr << "No component named <" << cname << ">"
-				 << std::endl;
-	  MPI_Finalize();
-	  exit(-2);
-	}
-	SParticle *p = psp->GetParticle();
+	reader->SelectType(cname);
+
+	auto p = reader->firstParticle();
 	
 	while (p) {
 
 	  if (icnt > PBEG) {
-	    if (p->pos(2) >= ZCENTER-ZWIDTH && p->pos(2) <= ZCENTER+ZWIDTH) {
-	      int indX = static_cast<int>(floor( (p->pos(0) + RMAX)/dR ));
-	      int indY = static_cast<int>(floor( (p->pos(1) + RMAX)/dR ));
+	    if (p->pos[2] >= ZCENTER-ZWIDTH && p->pos[2] <= ZCENTER+ZWIDTH) {
+	      int indX = static_cast<int>(floor( (p->pos[0] + RMAX)/dR ));
+	      int indY = static_cast<int>(floor( (p->pos[1] + RMAX)/dR ));
 	      if (indX >=0 && indX<NBINS &&
 		  indY >=0 && indY<NBINS ) {
-		histo[n][0][indY*NBINS+indX] += p->mass();
-		histo[n][1][indY*NBINS+indX] += p->mass() * p->datr(0);
-		histo[n][2][indY*NBINS+indX] += p->mass() * p->datr(1);
+		histo[n][0][indY*NBINS+indX] += p->mass;
+		histo[n][1][indY*NBINS+indX] += p->mass * p->dattrib[0];
+		histo[n][2][indY*NBINS+indX] += p->mass * p->dattrib[1];
 		histo[n][3][indY*NBINS+indX] += 
-		  p->mass() * p->datr(0) * p->datr(1);
+		  p->mass * p->dattrib[0] * p->dattrib[1];
 	      }
 	    }
 	  }
 	    
 	  if (PEND>0 && icnt>PEND) break;
-	  p = psp->NextParticle();
+	  p = reader->nextParticle();
 	  icnt++;
 	}
       }

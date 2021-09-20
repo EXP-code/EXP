@@ -3,7 +3,7 @@
 
 #include <cstdlib>
 #include <cmath>
-#include <values.h>
+#include <limits>
 
 #include "config.h"
 
@@ -48,8 +48,8 @@ public:
   int index;
   double min, max;
   
-  fRecord()      : index(-1), min(MAXDOUBLE), max(-MAXDOUBLE) {}
-  fRecord(int i) : index(i),  min(MAXDOUBLE), max(-MAXDOUBLE) {}
+  fRecord()      : index(-1), min(std::numeric_limits<double>::max()), max(-std::numeric_limits<double>::max()) {}
+  fRecord(int i) : index(i),  min(std::numeric_limits<double>::max()), max(-std::numeric_limits<double>::max()) {}
 };
 
 class fPosVel
@@ -66,8 +66,8 @@ public:
   fPosVel() {
     cnt  = 0;
     indx = -1;
-    vmin = std::vector<double>(6,  MAXDOUBLE);
-    vmax = std::vector<double>(6, -MAXDOUBLE);
+    vmin = std::vector<double>(6,  std::numeric_limits<double>::max());
+    vmax = std::vector<double>(6, -std::numeric_limits<double>::max());
   }
 
   void operator()(double* ps, double* vs)
@@ -96,26 +96,7 @@ const char* fPosVel::names[] = {"x", "y", "z", "u", "v", "z"};
 //
 #include <StringTok.H>
 #include <header.H>
-#include <PSP.H>
-
-				// Globals for exputil library
-				// Unused here
-int myid = 0;
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-
+#include <ParticleReader.H>
 
 int main(int argc, char**argv)
 {
@@ -126,11 +107,11 @@ int main(int argc, char**argv)
   double vscale = 1.0, rmin, rmax, zcut = -100.0;
   string infile("OUT.bin");
   string outfile("OUT");
-  string cname, dname, sname;
+  string cname, dname, sname, fileType, filePrefix;
   double time = 1.0;
-  unsigned long initial_dark = 0, final_dark = MAXLONG;
-  unsigned long initial_star = 0, final_star = MAXLONG;
-  unsigned long initial_gas  = 0, final_gas  = MAXLONG;
+  unsigned long initial_dark = 0, final_dark = std::numeric_limits<long>::max();
+  unsigned long initial_star = 0, final_star = std::numeric_limits<long>::max();
+  unsigned long initial_gas  = 0, final_gas  = std::numeric_limits<long>::max();
 
   bool COM      = false;
   bool mask     = false;
@@ -172,9 +153,13 @@ int main(int argc, char**argv)
     ("mask,b", "blank empty cells")
     ("monopole,M", "subtract tabulated monopole")
     ("relative,D", "density relative to tabulated monopole")
-    ("OUT", "assume that PSP files are in original format")
-    ("SPL", "assume that PSP files are in split format")
     ("COM,C", "use COM as origin")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("numx,1", po::value<int>(&numx)->default_value(20), 
      "number of bins in x direction")
     ("numy,2", po::value<int>(&numy)->default_value(20), 
@@ -217,15 +202,15 @@ int main(int argc, char**argv)
      "output file ename")
     ("initial-gas", po::value<unsigned long>(&initial_gas)->default_value(0), 
      "initial gas particle index")
-    ("final-gas", po::value<unsigned long>(&final_gas)->default_value(MAXLONG), 
+    ("final-gas", po::value<unsigned long>(&final_gas)->default_value(std::numeric_limits<long>::max()), 
      "initial gas particle index")
     ("initial-star", po::value<unsigned long>(&initial_star)->default_value(0), 
      "initial star particle index")
-    ("final-star", po::value<unsigned long>(&final_star)->default_value(MAXLONG), 
+    ("final-star", po::value<unsigned long>(&final_star)->default_value(std::numeric_limits<long>::max()), 
      "initial star particle index")
     ("initial-dark", po::value<unsigned long>(&initial_dark)->default_value(0), 
      "initial dark particle index")
-    ("final-dark", po::value<unsigned long>(&final_dark)->default_value(MAXLONG), 
+    ("final-dark", po::value<unsigned long>(&final_dark)->default_value(std::numeric_limits<long>::max()), 
      "initial dark particle index")
     ;
   
@@ -266,18 +251,16 @@ int main(int argc, char**argv)
 
 				// Parse the PSP file
 				// ------------------
-  PSPptr psp;
-  if (vm.count("SPL")) psp = std::make_shared<PSPspl>(infile);
-  else                 psp = std::make_shared<PSPout>(infile);
+  PRptr reader = ParticleReader::createReader(fileType, infile, true);
 
 				// Now write a summary
 				// -------------------
-  if (verbose) {
+  if (verbose and myid==0 and fileType.find("PSP") != string::npos) {
 
-    psp->PrintSummary(std::cerr);
+    dynamic_cast<PSP*>(reader.get())->PrintSummary(std::cerr);
     
     std::cerr << std::endl << "Best fit dump to <" << time << "> has time <" 
-	      << psp->CurrentTime() << ">" << std::endl;
+	      << reader->CurrentTime() << ">" << std::endl;
   }
 
 				// Make the arrays
@@ -415,9 +398,6 @@ int main(int argc, char**argv)
 
   int offset = 0;
   
-  PSPstanza* its;
-  SParticle* prt;
-
   //
   // Compute COM for the entire phase space
   //
@@ -425,16 +405,13 @@ int main(int argc, char**argv)
 
     double tot_mass = 0.0;
 
-    for (its=psp->GetStanza(); its!=0; its=psp->NextStanza()) {
+    for (auto s : reader->GetTypes()) {
 
-      indx = 0;
-      for (prt=psp->GetParticle(); prt!=0; prt=psp->NextParticle()) {
-	
-	if (its->index_size) indx = prt->indx();
-	else                 indx++;
-	
-	ms = prt->mass();
-	for (int i=0; i<3; i++) com[i] += ms*prt->pos(i);
+      reader->SelectType(s);
+
+      for (auto prt=reader->firstParticle(); prt!=0; prt=reader->nextParticle()) {
+	ms = prt->mass;
+	for (int i=0; i<3; i++) com[i] += ms*prt->pos[i];
 	tot_mass += ms;
       }
     }
@@ -448,28 +425,25 @@ int main(int argc, char**argv)
   }
   
 
-  for (its=psp->GetStanza(); its!=0; its=psp->NextStanza()) {
-
-    if (dname.compare(its->name) == 0) {
+  for (auto s : reader->GetTypes()) {
+    reader->SelectType(s);
+    
+    if (dname.compare(s) == 0) {
 
       found_dark = true;
 
       if (posvel.find("dark") == posvel.end()) posvel["dark"] = fPosVel();
 
-      indx = 0;
-      for (prt=psp->GetParticle(); prt!=0; prt=psp->NextParticle()) {
+      for (auto prt=reader->firstParticle(); prt!=0; prt=reader->nextParticle()) {
 
-	if (its->index_size) indx = prt->indx();
-	else                 indx++;
-
-	ms = prt->mass();
-	for (int i=0; i<3; i++) ps[i] = prt->pos(i) - com[i];
-	for (int i=0; i<3; i++) vs[i] = prt->vel(i);
+	ms = prt->mass;
+	for (int i=0; i<3; i++) ps[i] = prt->pos[i] - com[i];
+	for (int i=0; i<3; i++) vs[i] = prt->vel[i];
 	if (verbose) posvel["dark"](ps, vs);
 
 				// Accumulate
 				// 
-	if (indx > initial_dark && indx <= final_dark) {
+	if (prt->indx > initial_dark && prt->indx <= final_dark) {
 	  if (ps[0] >= xmin && ps[0] < xmax       &&
 	      ps[1] >= ymin && ps[1] < ymax       &&
 	      ps[2] >= zmin && ps[2] < zmax       &&
@@ -491,28 +465,24 @@ int main(int argc, char**argv)
 	}
       }
 
-    } else if (sname.compare(its->name) == 0) {
+    } else if (sname.compare(s) == 0) {
 
       found_star = true;
 
       if (posvel.find("star") == posvel.end()) posvel["star"] = fPosVel();
 
       
-      indx = 0;
-      for (prt=psp->GetParticle(); prt!=0; prt=psp->NextParticle()) {
+      for (auto prt=reader->firstParticle(); prt!=0; prt=reader->nextParticle()) {
 
-	if (its->index_size) indx = prt->indx();
-	else                 indx++;
-
-	ms = prt->mass();
-	for (int i=0; i<3; i++) ps[i] = prt->pos(i) - com[i];
-	for (int i=0; i<3; i++) vs[i] = prt->vel(i);
+	ms = prt->mass;
+	for (int i=0; i<3; i++) ps[i] = prt->pos[i] - com[i];
+	for (int i=0; i<3; i++) vs[i] = prt->vel[i];
 	if (verbose) posvel["star"](ps, vs);
 
 	  
 				// Accumulate
 				// 
-	if (indx > initial_star && indx <= final_star &&
+	if (prt->indx > initial_star && prt->indx <= final_star &&
 	    ps[0] >= xmin && ps[0] < xmax       &&
 	    ps[1] >= ymin && ps[1] < ymax       &&
 	    ps[2] >= zmin && ps[2] < zmax       ) {
@@ -526,23 +496,19 @@ int main(int argc, char**argv)
 	}
       }
 
-      } else if (cname.compare(its->name) == 0) {
+    } else if (cname.compare(s) == 0) {
 
       found_gas = true;
 
       if (posvel.find("gas") == posvel.end()) posvel["gas"] = fPosVel();
 
-      indx = 0;
-      for (prt=psp->GetParticle(); prt!=0; prt=psp->NextParticle()) {
+      for (auto prt=reader->firstParticle(); prt!=0; prt=reader->nextParticle()) {
 
-	if (its->index_size) indx = prt->indx();
-	else                 indx++;
-
-	ms = prt->mass();
-	for (int i=0; i<3; i++) ps[i]  = prt->pos(i) - com[i];
-	for (int i=0; i<3; i++) xyz[i] = prt->pos(i) - com[i];
-	for (int i=0; i<3; i++) vs[i]  = prt->vel(i);
-	for (int i=0; i<3; i++) uvw[i] = prt->vel(i);
+	ms = prt->mass;
+	for (int i=0; i<3; i++) ps[i]  = prt->pos[i] - com[i];
+	for (int i=0; i<3; i++) xyz[i] = prt->pos[i] - com[i];
+	for (int i=0; i<3; i++) vs[i]  = prt->vel[i];
+	for (int i=0; i<3; i++) uvw[i] = prt->vel[i];
       
 				// Coordinate limits
 				// 
@@ -550,7 +516,7 @@ int main(int argc, char**argv)
 
 				// Accumulate
 				// 
-	if (indx > initial_gas && indx <= final_gas &&
+	if (prt->indx > initial_gas && prt->indx <= final_gas &&
 	    ps[0] >= xmin && ps[0] < xmax       &&
 	    ps[1] >= ymin && ps[1] < ymax       &&
 	    ps[2] >= zmin && ps[2] < zmax       ) {
@@ -561,14 +527,14 @@ int main(int argc, char**argv)
 	  
 	  mass [ii][jj][kk] += ms;
 	  gnumb[ii][jj][kk] += 1.0;
-	  if (its->comp.ndatr>0) 
-	    { gtemp[ii][jj][kk] += ms*prt->datr(0); btemp=true; }
-	  if (its->comp.ndatr>1) 
-	    { gdens[ii][jj][kk] += ms*prt->datr(1); bdens=true; }
-	  if (its->comp.ndatr>4) 
-	    { gknud[ii][jj][kk] += ms*prt->datr(4); bknud=true; }
-	  if (its->comp.ndatr>5) 
-	    { gstrl[ii][jj][kk] += ms*prt->datr(5); bstrl=true; }
+	  if (prt->dattrib.size()>0) 
+	    { gtemp[ii][jj][kk] += ms*prt->dattrib[0]; btemp=true; }
+	  if (prt->dattrib.size()>1) 
+	    { gdens[ii][jj][kk] += ms*prt->dattrib[1]; bdens=true; }
+	  if (prt->dattrib.size()>4) 
+	    { gknud[ii][jj][kk] += ms*prt->dattrib[4]; bknud=true; }
+	  if (prt->dattrib.size()>5) 
+	    { gstrl[ii][jj][kk] += ms*prt->dattrib[5]; bstrl=true; }
 	  for (int ll=0; ll<3; ll++) vel[ii][jj][kk][ll] += ms*vs[ll];
 	  
 	  // Get ranges
@@ -577,9 +543,9 @@ int main(int argc, char**argv)
 	    for (auto i : fields) {
 	      string f = i.first;
 	      int id   = i.second.index;
-	      if (id>=0 && its->comp.ndatr>id) {
-		fields[f].min = min<double>(prt->datr(id), fields[f].min);
-		fields[f].max = max<double>(prt->datr(id), fields[f].max);
+	      if (id>=0 && prt->dattrib.size()>id) {
+		fields[f].min = min<double>(prt->dattrib[id], fields[f].min);
+		fields[f].max = max<double>(prt->dattrib[id], fields[f].max);
 	      }
 	    }
 	  }
@@ -587,10 +553,10 @@ int main(int argc, char**argv)
 	  // Pack gas arrays
 	  //
 	  part->InsertPoint(offset, &xyz[0]);
-	  if (btemp) temp->InsertTuple(offset, &(ftmp=prt->datr(0)));
-	  if (bdens) dens->InsertTuple(offset, &(ftmp=prt->datr(1)));
-	  if (bknud) knud->InsertTuple(offset, &(ftmp=prt->datr(4)));
-	  if (bstrl) strl->InsertTuple(offset, &(ftmp=prt->datr(5)));
+	  if (btemp) temp->InsertTuple(offset, &(ftmp=prt->dattrib[0]));
+	  if (bdens) dens->InsertTuple(offset, &(ftmp=prt->dattrib[1]));
+	  if (bknud) knud->InsertTuple(offset, &(ftmp=prt->dattrib[4]));
+	  if (bstrl) strl->InsertTuple(offset, &(ftmp=prt->dattrib[5]));
 	  velo->InsertTuple(offset, &uvw[0]);
 	  offset++;
 	}

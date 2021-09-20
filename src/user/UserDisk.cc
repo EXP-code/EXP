@@ -1,8 +1,8 @@
 #include <math.h>
 #include <sstream>
 
-#include "expand.h"
-#include <gaussQ.h>
+#include "expand.H"
+#include <gaussQ.H>
 
 #include <UserDisk.H>
 
@@ -187,7 +187,7 @@ void UserDisk::genTable()
       Z = dZ*j;
 
       ansP = ansR = ansZ = 0.0;
-      for (int k=1; k<=Nint; k++) {
+      for (int k=0; k<Nint; k++) {
 
 				// Do integral over finite domain
 				// through change of variables

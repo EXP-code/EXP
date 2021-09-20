@@ -2,7 +2,7 @@
 #include <math.h>
 #include <sstream>
 
-#include <expand.h>
+#include <expand.H>
 #include <global.H>
 
 #include <UserSNheat.H>
@@ -66,10 +66,6 @@ UserSNheat::UserSNheat(const YAML::Node& conf) : ExternalForce(conf)
   }
   
   userinfo();
-
-  gen = new ACG(7+myid);
-  unit = new Uniform(0.0, 1.0, gen);
-  norm = new Normal(0.0, 1.0, gen);
 
   Vunit = Lunit/Tunit;
   Eunit = Munit*Vunit*Vunit;
@@ -173,9 +169,6 @@ UserSNheat::UserSNheat(const YAML::Node& conf) : ExternalForce(conf)
 
 UserSNheat::~UserSNheat()
 {
-  delete unit;
-  delete norm;
-  delete gen;
 }
 
 
@@ -186,7 +179,7 @@ int UserSNheat::arrivalTime(double dt)
   int    k = 0;
   do {
     k++;
-    p *= (*unit)();
+    p *= unit(random_gen);
   } while (p>L);
 
   return k - 1;
@@ -370,7 +363,7 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
     for (auto s : plist[id]) {
       Particle *p = cC->Part(s);
       for (int k=0; k<3; k++) {
-	double vel = disp*(*norm)();
+	double vel = disp*norm(random_gen);
 	ke1[id] += 0.5*p->mass * vel*vel;
 	p->vel[k] = mom[k] + vel;
       }

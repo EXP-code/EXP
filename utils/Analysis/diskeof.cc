@@ -3,7 +3,7 @@
  *  -----------
  *
  *  Create EOF from a sequence of PSP files.  Compute per component
- *  VTK rendering for insight.
+ *  grid generation for insight.
  *
  *
  *  Call sequence:
@@ -54,7 +54,7 @@
 
 #include <Eigen/Eigen>		// Eigen 3
 
-#include <VtkGrid.H>		// For VTK output
+#include <DataGrid.H>		// For VTK or ASCII grid output
 
 namespace po = boost::program_options;
 namespace pt = boost::property_tree;
@@ -64,17 +64,14 @@ namespace pt = boost::property_tree;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include "Particle.h"
-#include <PSP2.H>
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <ParticleReader.H>
+#include <interp.H>
+#include <EmpCylSL.H>
 
-#include <localmpi.h>
+#include <global.H>
+#include <localmpi.H>
 #include <foarray.H>
-
-#include <VtkGrid.H>
 
 #ifdef DEBUG
 #ifndef _REDUCED
@@ -86,23 +83,7 @@ using CoefArray  = std::vector<Eigen::VectorXd>;
 using DvarArray  = std::vector<Eigen::MatrixXd>;
 
 const std::string overview = "Compute new EOF basis PSP phase-space output files";
-
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-std::vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-std::string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-  
+ 
 void write_output(EmpCylSL& ortho, int t, int m, int nmin, int nord,
 		  double RMAX, int OUTR, std::string& prefix,
 		  std::vector<CoefArray>& cc, std::vector<CoefArray>& ss)
@@ -169,7 +150,7 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmin, int nord,
       
     for (int n=0; n<nord; n++) {
 
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid grid(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> dataD(OUTR*OUTR), dataP(OUTR*OUTR);
 
@@ -179,8 +160,8 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmin, int nord,
 	  dataP[j*OUTR + l] = otdat[nord*((1*OUTR+j)*OUTR+l) + n];
 	}
       }
-      vtk.Add(dataD, "d");
-      vtk.Add(dataP, "p");
+      grid.Add(dataD, "d");
+      grid.Add(dataP, "p");
 
       std::ostringstream sout;
       sout << prefix << "_rotated_" << runtag 
@@ -188,7 +169,7 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmin, int nord,
 	   << "." << std::setfill('0') << std::setw(5) << n+nmin
 	   << "." << std::setfill('0') << std::setw(3) << t;
       
-      vtk.Write(sout.str());
+      grid.Write(sout.str());
     }
   }
 
@@ -199,7 +180,7 @@ main(int argc, char **argv)
 {
   int lmax=64, mmax, Nmin, Nmax, nmax, norder, numx, numy, cmapr=1, cmapz=1;
   double rcylmin, rcylmax, rscale, vscale, RMAX;
-  std::string CACHEFILE, COEFFILE, cname, prefix;
+  std::string CACHEFILE, COEFFILE, cname, prefix, fileType, filePrefix;
   int beg, end, stride, mbeg, mend, OUTR;
 
   //
@@ -217,18 +198,24 @@ main(int argc, char **argv)
      "use gray map for PNG matrix output")
     ("5col",
      "use five color heat map for PNG matrix output")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("rmax,r",
      po::value<double>(&RMAX)->default_value(0.03),
      "maximum output radius")
     ("nout,n",
      po::value<int>(&OUTR)->default_value(50),
-     "number of points on a side for VTK output")
+     "number of points on a side for grid output")
     ("mbeg",
      po::value<int>(&mbeg)->default_value(2),
-     "minimum azimuthal order for VTK; output off if m<0")
+     "minimum azimuthal order for grid; output off if m<0")
     ("mend",
      po::value<int>(&mend)->default_value(2),
-     "maximum azimuthal order for VTK")
+     "maximum azimuthal order for grid")
     ("beg",
      po::value<int>(&beg)->default_value(0),
      "initial PSP index")
@@ -440,14 +427,12 @@ main(int argc, char **argv)
     // ==================================================
 
     int iok = 1;
-    std::ostringstream s1;
-    s1 << "OUT." << runtag << "."
-       << std::setw(5) << std::setfill('0') << indx;
-      
+    auto file1 = ParticleReader::fileNameCreator(fileType, indx, "", runtag);
+
     if (myid==0) {
-      std::ifstream in1(s1.str());	// Now, try to open a new one . . . 
+      std::ifstream in1(file1);	// Now, try to open a new one . . . 
       if (!in1) {
-	cerr << "Error opening <" << s1.str() << ">" << endl;
+	cerr << "Error opening <" << file1 << ">" << endl;
 	iok = 0;
       }
     }
@@ -459,17 +444,11 @@ main(int argc, char **argv)
     // Open frame list
     // ==================================================
     
-    auto psp = boost::make_shared<PSPout>(s1.str());
-    
-    if (psp->GetNamed(cname) == 0) {
-      if (myid==0) std::cout << "Could not find component <" << cname
-			     << "> in PSP file <" << s1.str() << ">"
-			     << std::endl;
-      MPI_Finalize();
-      exit(-2);
-    }
+    PRptr reader = ParticleReader::createReader(fileType, file1, true);
 
-    tnow = psp->CurrentTime();
+    reader->SelectType(cname);
+
+    double tnow = reader->CurrentTime();
 
     if (myid==0) {
       cout << "Beginning disk partition [time=" << tnow
@@ -479,7 +458,7 @@ main(int argc, char **argv)
     times.push_back(tnow);
     indices.push_back(indx);
     
-    SParticle *p = psp->GetParticle();
+    auto p = reader->firstParticle();
 
     CoefArray coefC(mmax + 1);	// Per snapshot storage for
     CoefArray coefS(mmax + 1);	// coefficients
@@ -495,10 +474,10 @@ main(int argc, char **argv)
       if (count++ % numprocs == myid) {
 	// Only need mass and position
 	//
-	double m = p->mass();
-	double x = p->pos(0);
-	double y = p->pos(1);
-	double z = p->pos(2);
+	double m = p->mass;
+	double x = p->pos[0];
+	double y = p->pos[1];
+	double z = p->pos[2];
 	double p = atan2(y, x);
 
 	// Get coefficient contribution for this particle
@@ -527,7 +506,7 @@ main(int argc, char **argv)
 	  }
 	}
       }
-      p = psp->NextParticle();
+      p = reader->nextParticle();
     }
 
     coefsC.push_back(coefC);

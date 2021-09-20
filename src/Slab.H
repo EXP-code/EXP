@@ -1,8 +1,8 @@
 #ifndef _Slab_H
 #define _Slab_H
 
-#include <kevin_complex.h>
-#include <biorth1d.h>
+#include <complex>
+#include <biorth1d.H>
 
 #include <PotAccel.H>
 
@@ -23,10 +23,8 @@ struct SlabCoefHeader {
 
 private:
 
-  KComplex **expccof;
-  double *expreal, *expimag;
-  double *expreal1, *expimag1;
-  OneDTrig **trig;
+  std::vector<Eigen::VectorXcd> expccof;
+  std::vector<std::vector<OneDTrig>> trig;
 
   int nmaxx, nmaxy, nmaxz;
   int nminx, nminy;
@@ -34,9 +32,9 @@ private:
 
   int imx, imy, imz, jmax, nnmax;
   double  dfac;
-  KComplex kfac;
+  std::complex<double> kfac;
 
-  Vector *zfrc, *zpot;
+  std::vector<Eigen::VectorXd> zfrc, zpot;
 
   SlabCoefHeader coefheader;
 

@@ -2,7 +2,7 @@
 //  Parse command line
 //
 
-#include "expand.h"
+#include "expand.H"
 
 #include <stdlib.h>
 #include <errno.h>
@@ -115,9 +115,17 @@ void initialize(void)
     if (_G["DTold"]) {
       DTold = _G["DTold"].as<bool>();
       if (DTold and myid==0)
-	cout << "parse: using original (old) time-step algorithm" << endl;
+	cout << "---- Using original (old) time-step algorithm" << endl;
     }
     
+    if (_G["random_seed"])     random_seed   = _G["random_seed"].as<unsigned int>();
+    if (myid==0) {
+      cout << "---- Random seed for Node 0 is: " << random_seed << std::endl;
+    }
+
+    // Initialize random number generator
+    random_gen.seed(random_seed+static_cast<unsigned int>(myid));
+
     if (_G["use_cwd"])         use_cwd       = _G["use_cwd"].as<bool>();
     if (_G["eqmotion"])        eqmotion      = _G["eqmotion"].as<bool>();
     if (_G["global_cov"])      global_cov    = _G["global_cov"].as<bool>();
@@ -140,7 +148,7 @@ void initialize(void)
     if (_G["debug_wait"]) {
       debug_wait = _G["debug_wait"].as<bool>();
       if (myid==0) {
-	std::cout << "Found <debug_wait=" << std::boolalpha
+	std::cout << "---- Found <debug_wait=" << std::boolalpha
 		  << debug_wait << ">" << std::endl;
 	if (debug_wait) {
 	  std::cout << "----" << std::endl;
@@ -159,7 +167,7 @@ void initialize(void)
 	mpi_wait  = true;
       } else mpi_wait = false;
       if (myid==0) {
-	std::cout << "Found <mpi_wait=" << std::boolalpha
+	std::cout << "---- Found <mpi_wait=" << std::boolalpha
 		  << mpi_wait << ">" << std::endl;
 	if (mpi_wait)
 	  std::cout << "----" << std::endl
@@ -177,7 +185,7 @@ void initialize(void)
 	fpe_wait  = false;
       } else fpe_trap = false;
       if (myid==0) {
-	std::cout << "Found <fpe_trap=" << std::boolalpha
+	std::cout << "---- Found <fpe_trap=" << std::boolalpha
 		  << fpe_trap << ">" << std::endl;
 	if (fpe_trap) std::cout << "----" << std::endl
 				<< "---- Set a breakpoint in fpetrap.h:25 to catch and debug FP errors" << std::endl
@@ -192,9 +200,9 @@ void initialize(void)
 	fpe_wait  = false;
       } else fpe_trace = false;
       if (myid==0) {
-	std::cout << "Found <fpe_trace=" << std::boolalpha
+	std::cout << "---- Found <fpe_trace=" << std::boolalpha
 		  << fpe_trace << ">" << std::endl
-		  << "Found <gdb_trace=" << std::boolalpha
+		  << "---- Found <gdb_trace=" << std::boolalpha
 		  << gdb_trace << ">" << std::endl;
 	if (fpe_trace) std::cout << "----" << std::endl
 				 << "---- Print a backtrace to stderr on detecting an FP error" << std::endl
@@ -209,7 +217,7 @@ void initialize(void)
 	fpe_wait  = true;
       } else fpe_wait = false;
       if (myid==0) {
-	std::cout << "Found <fpe_wait=" << std::boolalpha
+	std::cout << "---- Found <fpe_wait=" << std::boolalpha
 		  << fpe_wait << ">" << std::endl;
 	if (fpe_wait)
 	  std::cout << "----" << std::endl
@@ -251,17 +259,17 @@ void initialize(void)
 	struct stat sb;		// Stat buffer structure
 	if (stat(outdir.c_str(), &sb) == -1) {
 	  // Error in opening the candidate directory
-	  cout << "parse: I can't open directory <" << outdir << ">" << endl;
+	  cout << "---- I can't open directory <" << outdir << ">" << endl;
 	  // Maybe we need to create it?
-	  cout << "parse: I will attempt to create it" << endl;
+	  cout << "---- I will attempt to create it" << endl;
 	  if (mkdir(outdir.c_str(), 0755) == -1) {
-	    cout << "parse: error creating directory <" << outdir
+	    cout << "---- Error creating directory <" << outdir
 		 << ">, aborting" << endl;
 	    perror("mkdir");
 	    nOK = 1;
 	  }
 	} else {
-	  cout << "parse: output path <" << outdir << "> is "; // 
+	  cout << "---- Output path <" << outdir << "> is "; // 
 	  switch (sb.st_mode & S_IFMT) {
 	  case S_IFBLK:  cout << "a block device";     ok=false;  break;
 	  case S_IFCHR:  cout << "a character device"; ok=false;  break;
@@ -301,11 +309,11 @@ void initialize(void)
       unlink(tfile.str().c_str()); 
 
 				// Print results to output log
-      cout << "parse: ";
+      cout << "---- ";
       if (ok) 
-	cout << "test file opened and deleted in output directory, good!";
+	cout << "Test file opened and deleted in output directory, good!";
       else    
-	cout << "we can't open files in this path, attempted to create: " 
+	cout << "We can't open files in this path, attempted to create: " 
 	     << tfile.str();
       cout << endl;
     }

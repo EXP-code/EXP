@@ -1,6 +1,4 @@
-using namespace std;
-
-#include <unistd.h>
+#include <unistd.h>		// for getpid()
 #include <sys/types.h>
 
 #include <iostream>
@@ -8,14 +6,14 @@ using namespace std;
 #include <sstream>
 #include <vector>
 
-#include <localmpi.h>
+#include <localmpi.H>
 
 //
 // MPI variables
 //
 MPI_Comm MPI_COMM_SLAVE;
 MPI_Group world_group, slave_group;
-int numprocs, slaves, myid, proc_namelen;
+int numprocs=1, slaves, myid=0, proc_namelen;
 char processor_name[MPI_MAX_PROCESSOR_NAME];
 std::ofstream mpi_debug;
 
@@ -38,7 +36,7 @@ void local_init_mpi(int argc, char **argv)
 
   if (slaves) {
     MPI_Comm_group(MPI_COMM_WORLD, &world_group);
-    vector<int> nslaves (slaves);
+    std::vector<int> nslaves (slaves);
 
     for (int n=1; n<numprocs; n++) nslaves[n-1] = n;
     MPI_Group_incl(world_group, slaves, &nslaves[0], &slave_group);
@@ -71,9 +69,9 @@ void local_init_mpi(int argc, char **argv)
       
       if (n) {
 	int m; MPI_Group_rank ( slave_group, &m );
-	std::cout << " | " << setw(10) << "SLAVE: " << m << endl;
+	std::cout << " | " << std::setw(10) << "SLAVE: " << m << std::endl;
       } else {
-	std::cout << " | " << setw(10) << "MASTER" << endl;
+	std::cout << " | " << std::setw(10) << "MASTER" << std::endl;
       }
     }
     MPI_Barrier(MPI_COMM_WORLD);
@@ -86,7 +84,7 @@ void local_init_mpi(int argc, char **argv)
   for (int n=0; n<argc; n++) {
     std::string token(argv[n]);
     if (token.compare("--mpi-debug") == 0) {
-      ostringstream sout;
+      std::ostringstream sout;
       sout << "mpi_debug." <<  myid;
       mpi_debug.open(sout.str().c_str());
       break;

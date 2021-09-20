@@ -17,6 +17,7 @@ using namespace std;
 #include <list>
 
 #include <boost/program_options.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 #include <Progress.H>
 
@@ -33,6 +34,7 @@ namespace po = boost::program_options;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 std::string outdir, runtag;
+boost::mt19937 random_gen;
 
 //
 // MPI variables

@@ -5,10 +5,9 @@
 #include <sstream>
 
 #include <time.h>
-#include <numerical.h>
-#include <Vector.h>
+#include <numerical.H>
 
-#include <phase.h>
+#include <phase.H>
 
 using namespace std;
 
@@ -26,7 +25,7 @@ using namespace std;
 void Ensemble::write_log(ostream& logfile)
 {
   double pe, ke;
-  Three_Vector xcm, vcm, J;
+  Eigen::Vector3d xcm, vcm, J;
   time_t realtime;
   
   time(&realtime);

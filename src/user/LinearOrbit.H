@@ -5,7 +5,6 @@
 
 #include <string>
 
-#include <Vector.h>
 #include <Trajectory.H>
 
 //! Computes a linear satellite trajectory
@@ -14,7 +13,7 @@ class LinearOrbit : public Trajectory
 private:
 
   double X0, Y0, Z0, Vsat;
-  Matrix rotate;
+  Eigen::Matrix3d rotate;
 
 				// Private members
 
@@ -32,13 +31,13 @@ public:
 				// Members
 
   //! Get satellite position in halo frame
-  Vector get_satellite_orbit(double T);
+  Eigen::Vector3d get_satellite_orbit(double T);
 
   //! Get satellite position in halo frame
   void get_satellite_orbit(double T, double *v)
   {
-    Vector ret = get_satellite_orbit(T);
-    for (unsigned i=0; i<3; i++) v[i] = ret[i+1];
+    auto ret = get_satellite_orbit(T);
+    for (unsigned i=0; i<3; i++) v[i] = ret[i];
   }
 
 };

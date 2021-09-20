@@ -56,12 +56,13 @@
 	Removed orphaned parameters
 */
 
-                                // System libs
 #include <cmath>
+#include <cstdlib>
+#include <limits>
+
+                                // System libs
 #include <unistd.h>
 #include <getopt.h>
-#include <cstdlib>
-#include <values.h>
 
                                 // C++/STL headers
 #include <iostream>
@@ -76,14 +77,14 @@
 #endif
 
                                 // MDW classes
-#include <numerical.h>
-#include <gaussQ.h>
-#include <isothermal.h>
-#include <hernquist.h>
-#include <model3d.h>
-#include <biorth.h>
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <gaussQ.H>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <model3d.H>
+#include <biorth.H>
+#include <interp.H>
+#include <EmpCylSL.H>
 
                                 // For debugging
 #ifdef DEBUG
@@ -92,7 +93,7 @@
 
                                 // Local headers
 #include <DiskHalo.H> 
-#include <localmpi.h>
+#include <localmpi.H>
 void local_init_mpi(int argc, char **argv);
 
                                 // Parameters
@@ -146,25 +147,11 @@ int SEED = 11;
 
 string centerfile = "center.dat";
   
-// Global variables
-
+// EXP support
+//
+#include <global.H>
 #include <Particle.H>
 
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-double tpos = 0.0;
-double tnow = 0.0;
-string outdir, runtag;
-  
 int 
 main(int argc, char **argv)
 {

@@ -21,7 +21,7 @@
 #include <Badnell.H>
 #include <KarzasLatter.H>
 
-#include <gaussQ.h>
+#include <gaussQ.H>
 
 #if HAVE_LIBCUDA==1
 #include <cuda.h>
@@ -34,7 +34,7 @@
 #endif
 
 #include <Species.H>		// For speciesKey
-#include <localmpi.h>		// For myid
+#include <localmpi.H>		// For myid
 
 // Structures for caching the Cspline instances for each Ion instance
 //

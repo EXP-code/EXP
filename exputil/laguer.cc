@@ -1,16 +1,18 @@
-#include <stdio.h>
-#include <math.h>
-#include "kevin_complex.h"
+#include <complex>
+#include <cmath>
+#include <Eigen/Eigen>
+
 
 // const double EPSS=6.0e-8;
 const double EPSS=6.0e-16;
 const int MAXIT=2000;
 
-void laguer_root(CVector& a, int m, KComplex *x, double eps, int polish)
+void laguer_root(Eigen::VectorXcd& a, int m,
+		 std::complex<double> *x, double eps, int polish)
 {
   int j,iter;
   double err,dxold,cdx,abx;
-  KComplex sq,h,gp,gm,g2,g,b,d,dx,f,x1;
+  std::complex<double> sq,h,gp,gm,g2,g,b,d,dx,f,x1;
 
   dxold= fabs(*x);
   for (iter=1; iter<=MAXIT; iter++) {
@@ -29,11 +31,12 @@ void laguer_root(CVector& a, int m, KComplex *x, double eps, int polish)
     g = d/b;
     g2 = g*g;
     h = g2 - 2.0*f/b;
-    sq = sqrt((h*m - g2)*(m-1));
+    double dm = m;
+    sq = sqrt((h*dm - g2)*(dm-1.0));
     gp = g + sq;
     gm = g - sq;
     if (fabs(gp) < fabs(gm)) gp = gm;
-    dx = KComplex((double)m,0.0)/gp;
+    dx = std::complex<double>((double)m,0.0)/gp;
     x1 = *x - dx;
     if (x->real() == x1.real() && x->imag() == x1.imag()) return;
     *x = x1;

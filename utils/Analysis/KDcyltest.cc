@@ -58,36 +58,18 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include "Particle.h"
-#include <PSP2.H>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <ParticleReader.H>
+#include <EmpCylSL.H>
 #include <foarray.H>
 #include <KDtree.H>
 
-#include <localmpi.h>
+#include <global.H>
+#include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
 
-// Variables not used but needed for linking
-//
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-std::string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-  
 int
 main(int argc, char **argv)
 {
@@ -98,7 +80,7 @@ main(int argc, char **argv)
   
   double RMIN, rscale, minSNR0, Hexp, ROUT, ZOUT;
   int NICE, LMAX, NMAX, NSNR, indx, nbunch, Ndens, NOUT, NPHI;
-  std::string CACHEFILE, dir("./"), cname, prefix;
+  std::string CACHEFILE, dir("./"), cname, prefix, fileType, filePrefix;
   bool ignore;
 
   // ==================================================
@@ -115,10 +97,12 @@ main(int argc, char **argv)
   desc.add_options()
     ("help,h",
      "Print this help message")
-    ("OUT",
-     "assume original, single binary PSP files as input")
-    ("SPL",
-     "assume new split binary PSP files as input")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("Ndens,K",             po::value<int>(&Ndens)->default_value(32),
      "KD density estimate count (use 0 for expansion estimate)")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
@@ -175,10 +159,6 @@ main(int argc, char **argv)
     MPI_Finalize();
     return 0;
   }
-
-  bool SPL = false;
-  if (vm.count("SPL")) SPL = true;
-  if (vm.count("OUT")) SPL = false;
 
   // ==================================================
   // Nice process
@@ -303,8 +283,6 @@ main(int argc, char **argv)
 				//
   EmpCylSL ortho(NMAX, LMAX, mmax, norder, rscale, vscale);
     
-  PSPptr psp;
-  
   if (ortho.read_cache()==0) {
     std::cout << "Could not read cache file <" << CACHEFILE << ">"
 	      << " . . . quitting" << std::endl;
@@ -337,18 +315,12 @@ main(int argc, char **argv)
   // ==================================================
 
   int iok = 1;
-  std::ostringstream s1;
-  
-  s1.str("");		// Clear stringstream
-  if (SPL) s1 << "SPL.";
-  else     s1 << "OUT.";
-  s1 << runtag << "."<< std::setw(5) << std::setfill('0') << indx;
-      
-				// Check for existence of next file
-  file = dir + s1.str();
-  std::ifstream in(file);
+
+  auto file1 = ParticleReader::fileNameCreator(fileType, indx, dir, runtag);
+
+  std::ifstream in(file1);
   if (!in) {
-    std::cerr << "Error opening <" << file << ">" << endl;
+    std::cerr << "Error opening <" << file1 << ">" << endl;
     iok = 0;
   }
   
@@ -371,23 +343,15 @@ main(int argc, char **argv)
   // Open PSP file
   // ==================================================
 
-  if (SPL) psp = std::make_shared<PSPspl>(s1.str(), dir, true);
-  else     psp = std::make_shared<PSPout>(file, true);
+  PRptr reader = ParticleReader::createReader(fileType, file1, true);
   
-  tnow = psp->CurrentTime();
+  double tnow = reader->CurrentTime();
   if (myid==0) std::cout << "Beginning partition [time=" << tnow
 			 << ", index=" << indx << "] . . . "  << flush;
   
-  if (not psp->GetNamed(cname)) {
-    if (myid==0) {
-      std::cout << "Error finding component named <" << cname << ">" << std::endl;
-      psp->PrintSummary(std::cout);
-    }
-    MPI_Finalize();
-    exit(-1);
-  }
-      
-  int nbod = psp->GetNamed(cname)->comp.nbod;
+  reader->SelectType(cname);
+
+  int nbod = reader->CurrentNumber();
 
   boost::shared_ptr<boost::progress_display> progress;
   if (myid==0) {
@@ -397,7 +361,7 @@ main(int argc, char **argv)
     progress = boost::make_shared<boost::progress_display>(nbod);
   }
 
-  SParticle *p = psp->GetParticle();
+  auto p = reader->firstParticle();
   int icnt = 0;
 
   ortho.setup_accumulation();
@@ -406,11 +370,11 @@ main(int argc, char **argv)
     if (myid==0) ++(*progress);
 
     if (icnt++ % numprocs == myid) {
-      double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-      double phi = atan2(p->pos(1), p->pos(0));
-      ortho.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0);
+      double R   = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+      double phi = atan2(p->pos[1], p->pos[0]);
+      ortho.accumulate(R, p->pos[2], phi, p->mass, p->indx, 0);
     }
-    p = psp->NextParticle();
+    p = reader->nextParticle();
   } while (p);
   
 
@@ -430,10 +394,9 @@ main(int argc, char **argv)
   // implemented in KDtree.H)
   //
   double KDmass = 0.0;
-  for (auto part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
-    double ms = part->mass();
-    KDmass += ms;
-    points.push_back(point3({part->pos(0), part->pos(1), part->pos(2)}, ms));
+  for (auto part=reader->firstParticle(); part!=0; part=reader->nextParticle()) {
+    KDmass += part->mass;
+    points.push_back(point3({part->pos[0], part->pos[1], part->pos[2]}, part->mass));
   }
     
   // Make the k-d tree

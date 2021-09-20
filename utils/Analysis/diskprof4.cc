@@ -43,6 +43,7 @@
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
+#include <boost/random/mersenne_twister.hpp>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -54,14 +55,13 @@ namespace pt = boost::property_tree;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
-#include <PSP2.H>
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <PSP.H>
+#include <interp.H>
+#include <EmpCylSL.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
 #include <VtkGrid.H>
@@ -82,13 +82,14 @@ unsigned multistep = 0;
 unsigned maxlev = 100;
 int mstep = 1;
 int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
+std::vector<int> stepL(1, 0), stepN(1, 1);
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
-string outdir, runtag;
+std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
+boost::mt19937 random_gen;
   
 				// Globals
 static  string outid;
@@ -378,23 +379,22 @@ void partition(PSPptr psp, std::string& name, vector<Particle>& p, Histogram& h)
 
 // Find peak density
 // -----------------
-double get_max_dens(Vector& vv, double dz)
+double get_max_dens(Eigen::VectorXd& vv, double dz)
 {
-  int lo = vv.getlow();
-  int hi = vv.gethigh();
+  int sz = vv.size();
 
   int ipeak=0;
   double pvalue=-1.0e18;
 
-  for (int i=lo; i<=hi; i++) {
+  for (int i=0; i<sz; i++) {
     if (vv[i] > pvalue) {
       ipeak = i;
       pvalue = vv[i];
     }
   }
 
-  if (ipeak == lo) ipeak = lo+1;
-  if (ipeak == hi) ipeak = hi-1;
+  if (ipeak == 0   ) ipeak = 1;
+  if (ipeak == sz-1) ipeak = sz-2;
 
 				// Solution of 2nd order Lagrange interpolation
 				// formula
@@ -413,46 +413,44 @@ double get_max_dens(Vector& vv, double dz)
 
 
 
-Vector get_quart(Vector& vv, double dz)
+Eigen::VectorXd get_quart(Eigen::VectorXd& vv, double dz)
 {
-  int lo = vv.getlow();
-  int hi = vv.gethigh();
+  int sz = vv.size();
 
   double next, prev=0.0;
-  Vector sum(lo, hi), zz(lo, hi);
+  Eigen::VectorXd sum(sz), zz(sz);
 
-  for (int i=lo; i<=hi; i++) {
+  for (int i=0; i<sz; i++) {
 
     if (vv[i] > 0.0)
       next = vv[i];
     else
       next = 0.0;
     
-    zz [i] = -ZMAX + dz*(i-lo);
+    zz [i] = -ZMAX + dz*i;
     sum[i] = 0.5*(prev + next);	// Trapezoidal rule
-    if (i>lo) sum[i] += sum[i-1];
+    if (i>0) sum[i] += sum[i-1];
     prev = next;
   }
 
-  double max = sum[hi];
-  Vector ret(-1,1);
+  double max = sum[sz-1];
+  Eigen::VectorXd ret(3);
   
-  ret[-1] = odd2(0.25*max, sum, zz);
-  ret[ 0] = odd2(0.50*max, sum, zz);
-  ret[ 1] = odd2(0.75*max, sum, zz);
+  ret[0] = odd2(0.25*max, sum, zz);
+  ret[1] = odd2(0.50*max, sum, zz);
+  ret[2] = odd2(0.75*max, sum, zz);
 
   return ret;
 }
 
-Vector get_quart_truncated(Vector& vv, double dz)
+Eigen::VectorXd get_quart_truncated(Eigen::VectorXd& vv, double dz)
 {
-  int lo = vv.getlow();
-  int hi = vv.gethigh();
+  int sz = vv.size();
 
   int ipeak=0;			// First find peak
   double pvalue=-1.0e18;
 
-  for (int i=lo; i<=hi; i++) {
+  for (int i=0; i<sz; i++) {
     if (vv[i] > pvalue) {
       ipeak = i;
       pvalue = vv[i];
@@ -464,36 +462,37 @@ Vector get_quart_truncated(Vector& vv, double dz)
   int lo1 = ipeak;
   int hi1 = ipeak;
 
-  for (; lo1>lo; lo1--) {
+  for (; lo1>0; lo1--) {
     if (vv[lo1]<0.0) break;
   }
 
-  for (; hi1<hi; hi1++) {
+  for (; hi1<sz; hi1++) {
     if (vv[hi1]<0.0) break;
   }
 
   double next, prev=0.0;
-  Vector sum(lo1, hi1), zz(lo1, hi1);
+  int sz1 = hi1 - lo1 + 1;
+  Eigen::VectorXd sum(sz1), zz(sz1);
 
-  for (int i=lo1; i<=hi1; i++) {
+  for (int i=0; i<sz1; i++) {
 
-    if (vv[i] > 0.0)
-      next = vv[i];
+    if (vv[i+lo1] > 0.0)
+      next = vv[i+lo1];
     else
       next = 0.0;
     
-    zz [i] = -ZMAX + dz*(i-lo);
+    zz [i] = -ZMAX + dz*(i+lo1);
     sum[i] = 0.5*(prev + next);	// Trapezoidal rule
     if (i>lo1) sum[i] += sum[i-1];
     prev = next;
   }
 
-  double max = sum[hi1];
-  Vector ret(-1,1);
+  double max = sum[sz1-1];
+  Eigen::VectorXd ret(3);
   
-  ret[-1] = odd2(0.25*max, sum, zz);
-  ret[ 0] = odd2(0.50*max, sum, zz);
-  ret[ 1] = odd2(0.75*max, sum, zz);
+  ret[0] = odd2(0.25*max, sum, zz);
+  ret[1] = odd2(0.50*max, sum, zz);
+  ret[2] = odd2(0.75*max, sum, zz);
 
   return ret;
 }
@@ -523,8 +522,8 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     double dR = RMAX/(OUTR-1);
     double dz = ZMAX/(OUTZ-1);
     double z, r, phi, hh, d0;
-    Vector vv(1, OUTZ);
-    Vector q;
+    Eigen::VectorXd vv(OUTZ);
+    Eigen::VectorXd q;
     
     vector<double> indat(3*OUTR, 0.0), otdat(3*OUTR);
     
@@ -537,11 +536,10 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	for (int k=0; k<OUTZ; k++) {
 	  z = -ZMAX + dz*k;
 	  phi = 0.0;
-	  vv[k+1] = ortho.accumulated_dens_eval(r, z, phi, d0);
+	  vv[k] = ortho.accumulated_dens_eval(r, z, phi, d0);
 	}
 	
 	indat[0*OUTR+l] = get_max_dens(vv, dz);
-	// q = get_quart(vv, dz);
 	q = get_quart_truncated(vv, dz);
 	indat[1*OUTR+l] = q[0];
 	indat[2*OUTR+l] = q[1] - q[-1];
@@ -586,8 +584,8 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     double dR = 2.0*RMAX/(OUTR-1);
     double dz = 2.0*ZMAX/(OUTZ-1);
     double x, y, z, r, phi, hh, d0;
-    Vector vv(1, OUTZ);
-    Vector q;
+    Eigen::VectorXd vv(OUTZ);
+    Eigen::VectorXd q;
     std::vector<double> indat(3*OUTR*OUTR, 0.0), otdat(3*OUTR*OUTR);
     
     for (int j=0; j<OUTR; j++) {
@@ -604,9 +602,8 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  phi = atan2(y, x);
 	  
 	  for (int k=0; k<OUTZ; k++)
-	    vv[k+1] = ortho.accumulated_dens_eval(r, -ZMAX + dz*k, phi, d0);
+	    vv[k] = ortho.accumulated_dens_eval(r, -ZMAX + dz*k, phi, d0);
 	  
-	  // q = get_quart(vv, dz);
 	  q = get_quart_truncated(vv, dz);
 	  
 	  indat[(0*OUTR + j)*OUTR + l] =  get_max_dens(vv, dz);
@@ -1116,7 +1113,7 @@ main(int argc, char **argv)
      "make vertical slices")
     ("probe",
      po::value<bool>(&PROBE)->default_value(true),
-     "make 1d cuts in and perpendicular to the equitorial plane")
+     "make 1d cuts in and perpendicular to the equatorial plane")
     ("volume",
      po::value<bool>(&VOLUME)->default_value(false),
      "make volume for VTK rendering")

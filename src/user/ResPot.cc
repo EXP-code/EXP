@@ -3,12 +3,12 @@
 #include <sstream>
 #include <iomanip>
 #include <cassert>
+#include <limits>
 
-#include <values.h>
 #include <global.H>
 #include <ResPot.H>
 #include <ZBrent.H>
-#include <localmpi.h>
+#include <localmpi.H>
 
 #include <pthread.h>  
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
@@ -27,7 +27,7 @@ int ResPot::NUME = 200;
 int ResPot::NUMX = 200;
 int ResPot::RECS = 100;
 int ResPot::ITMAX = 50;
-KComplex ResPot::I(0.0, 1.0);
+std::complex<double> ResPot::I(0.0, 1.0);
 
 static Perturbation *pbar;
 static double perturb(double r)
@@ -158,14 +158,14 @@ void ResPot::compute_grid()
       struct ANGLE_GRID * grid = orb->get_angle_grid();
       
       for (int j=0; j<grid->num; j++) {
-	rw.r.push_back(grid->r[1][j]);
-	rw.w1.push_back(grid->w1[1][j]);
-	rw.f.push_back(grid->f[1][j]);
+	rw.r.push_back(grid->r(0, j));
+	rw.w1.push_back(grid->w1(0, j));
+	rw.f.push_back(grid->f(0, j));
       }
       rw.num = grid->num;
-      rw.O1 = orb->get_freq(1);
-      rw.O2 = orb->get_freq(2);
-      rw.I1 = orb->get_action(1);
+      rw.O1 = orb->get_freq(0);
+      rw.O2 = orb->get_freq(1);
+      rw.I1 = orb->get_action(0);
       rw.E = E;
       rw.K = K;
       rw.Jm = orb->Jmax();
@@ -456,7 +456,7 @@ double ResPot::Jx(double x, double Jmin, double Jmax)
 double ResPot::dxJ(double J, double Jmin, double Jmax)
 {
   if (J>=Jmax) return 1.0/(Jmax-Jmin);
-  if (J<=0.0) return MAXFLOAT;
+  if (J<=0.0) return std::numeric_limits<float>::max();
   return pow( (J-Jmin)/(Jmax-Jmin), ALPHA-1.0 )/(Jmax - Jmin);
 }
 
@@ -593,7 +593,7 @@ bool ResPot::getValues(double I1, double I2,
 bool ResPot::getValues(double I1, double I2,
 		       double& O1, double& O2,
 		       double& Jm, double& dJm,
-		       KComplex& Ul, KComplex& dUldE, KComplex& dUldK)
+		       std::complex<double>& Ul, std::complex<double>& dUldE, std::complex<double>& dUldK)
 {
   O1 = 0.0;
   O2 = 0.0;
@@ -1034,9 +1034,9 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     beta = BETA;
   }
   
-  KComplex VB = VeeBeta(L, L2, M, beta);
+  std::complex<double> VB = VeeBeta(L, L2, M, beta);
   
-  KComplex DVB = 
+  std::complex<double> DVB = 
     (VeeBeta(L, L2, M, betaP) - VeeBeta(L, L2, M, betaM)) / (betaP - betaM);
   
   // Iterative implicit solution
@@ -1055,7 +1055,7 @@ ResPot::ReturnCode ResPot::Update2(double dt,
   //                \_ Initial step
   //
   double If, Jm, dJm, dEIs=0.0, dKIs=0.0, dKI1=0.0, dKI2=0.0, I3;
-  KComplex Fw, FI, Ul, Ff, dUldE, dUldK, dUldI2, UldVdIs;
+  std::complex<double> Fw, FI, Ul, Ff, dUldE, dUldK, dUldI2, UldVdIs;
   bool done = false;
   
 #ifdef DEBUG_DEBUG
@@ -1155,7 +1155,7 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     
     
     dUldI2 = Ul * DVB * amp / (tan(beta)*I2);
-    UldVdIs = dUldI2 * L2;
+    UldVdIs = dUldI2 * static_cast<double>(L2);
     Ul *= VB * amp;
     dUldE *= VB * amp;
     dUldK *= VB * amp;
@@ -1384,9 +1384,9 @@ ResPot::ReturnCode ResPot::Update3(double dt,
     beta = BETA;
   }
   
-  KComplex VB = VeeBeta(L, L2, M, beta);
+  std::complex<double> VB = VeeBeta(L, L2, M, beta);
   
-  KComplex DVB = 
+  std::complex<double> DVB = 
     (VeeBeta(L, L2, M, betaP) - VeeBeta(L, L2, M, betaM)) / (betaP - betaM);
   
   // Iterative implicit solution
@@ -1407,7 +1407,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
   //
   double If1, If2;
   double Jm, dJm, dEIs=0.0, dKIs=0.0, dKI1=0.0, dKI2=0.0, I3, I30;
-  KComplex Fw, FI, Ul, F1, F2, dUldE, dUldK, dUldb;
+  std::complex<double> Fw, FI, Ul, F1, F2, dUldE, dUldK, dUldb;
   bool done = false;
   
 #ifdef DEBUG_DEBUG
@@ -1499,7 +1499,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
     }
     
     
-    dUldb = -Ul * DVB * amp * M / (sin(beta)*I2);
+    dUldb = -Ul * DVB * amp * static_cast<double>(M) / (sin(beta)*I2);
     Ul *= VB * amp;
     dUldE *= VB * amp;
     dUldK *= VB * amp;

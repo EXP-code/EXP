@@ -4,16 +4,20 @@
 #include <string>
 #include <cmath>
 
+#include <boost/random/mersenne_twister.hpp>
+
 #include <getopt.h>
 
-#include <biorth1d.h>
-#include <SLGridMP2.h>
-#include <gaussQ.h>
-#include <localmpi.h>
+#include <biorth1d.H>
+#include <SLGridMP2.H>
+#include <gaussQ.H>
+#include <localmpi.H>
 
+int myid;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
+boost::mt19937 random_gen;
 
 
 //===========================================================================
@@ -168,12 +172,12 @@ main(int argc, char** argv)
   // Construct ortho
   //===================
   
-  OneDTrig *ortho = NULL;
-  SLGridSlab *orthoSL = NULL;
+  std::shared_ptr<OneDTrig> ortho;
+  std::shared_ptr<SLGridSlab> orthoSL;
 
   switch (Type) {
   case Trig:
-    ortho = new OneDTrig(KX, ZMAX);
+    ortho = std::make_shared<OneDTrig>(KX, ZMAX);
     break;
 
   case SL:
@@ -185,7 +189,7 @@ main(int argc, char** argv)
       SLGridSlab::H = H;
       if (use_mpi) SLGridSlab::mpi = 1;
 
-      orthoSL = new SLGridSlab(KMAX, NMAX, NUMZ, ZMAX);
+      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, NUMZ, ZMAX);
     }
     break;
 
@@ -367,7 +371,7 @@ main(int argc, char** argv)
 	  double x, r, ans=0.0;
 	  for (int i=0; i<num; i++) {
 	    
-	    x = ximin + (ximax - ximin)*lw.knot(i+1);
+	    x = ximin + (ximax - ximin)*lw.knot(i);
 	    
 	    switch (Type) {
 	    case Trig:
@@ -379,7 +383,7 @@ main(int argc, char** argv)
 
 	      ans += ortho->potl(N1, i, x)*
 		ortho->dens(N2, i, x) *
-		ortho->d_r_to_rb(x) * (ximax - ximin)*lw.weight(i+1);
+		ortho->d_r_to_rb(x) * (ximax - ximin)*lw.weight(i);
 	      }
 	      
 	      break;
@@ -407,9 +411,6 @@ main(int argc, char** argv)
       if (done) break;
     }
   }
-  
-  delete ortho;
-  delete orthoSL;
   
   if (use_mpi) MPI_Finalize();
   

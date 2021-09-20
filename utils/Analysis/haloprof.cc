@@ -41,6 +41,7 @@ using namespace std;
 
 				// Boost stuff
 
+#include <boost/random/mersenne_twister.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
@@ -51,19 +52,19 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include <PSP.H>
-#include <interp.h>
-#include <massmodel.h>
+#include <interp.H>
+#include <massmodel.H>
 #include <SphereSL.H>
 #include <VtkGrid.H>
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
-				// Variables not used but needed for linking
-int VERBOSE = 4;
+// Variables not used but needed for linking
+//
+int VERBOSE = 0;
 int nthrds = 1;
 int this_step = 0;
 unsigned multistep = 0;
@@ -74,9 +75,10 @@ vector<int> stepL(1, 0), stepN(1, 1);
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
-string outdir, runtag;
+std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
+boost::mt19937 random_gen;
   
 string OUTFILE, INFILE;
 double RMIN, RMAX, TIME;

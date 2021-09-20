@@ -3,11 +3,8 @@
 
 #include <pthread.h>
 
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
-
 #include <TwoBodyDiffuse.H>
+#include <global.H>
 
 static pthread_mutex_t randlock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -41,10 +38,6 @@ TwoBodyDiffuse::TwoBodyDiffuse(
 
   Gamma = 4.0*M_PI*pmass*logL;
   
-  gen = new ACG(seed);
-  urand = new Uniform(0.0, 1.0, gen);
-  nrand = new Normal(0.0, 1.0, gen);
-
   compute_diffuse();
 }
 
@@ -52,9 +45,6 @@ TwoBodyDiffuse::~TwoBodyDiffuse()
 {
   delete model;
   delete jq;
-  delete gen;
-  delete urand;
-  delete nrand;
 }
 
 void TwoBodyDiffuse::get_diffusion(double dtime, double* pos, double* vel,
@@ -105,9 +95,9 @@ void TwoBodyDiffuse::get_diffusion(double dtime, double* pos, double* vel,
 
 				// Normal random variates
     pthread_mutex_lock(&randlock);
-    double r1 = (*nrand)();
-    double r2 = (*nrand)();
-    double r3 = (*urand)();
+    double r1 = nrand(random_gen);
+    double r2 = nrand(random_gen);
+    double r3 = urand(random_gen);
     pthread_mutex_unlock(&randlock);
 
 				// Clip
@@ -197,7 +187,7 @@ void TwoBodyDiffuse::compute_diffuse()
 
       F0 = F1 = F2 = 0.0;
 
-      for (int k=1; k<=jq->get_n(); k++) {
+      for (int k=0; k<jq->get_n(); k++) {
 
 	F0 += 2.0*model->distf(EE + (Emax - EE)*jq->knot(k), 0.5) * 
 	  jq->weight(k);

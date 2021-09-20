@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <sstream>
 
-#include <expand.h>
+#include <expand.H>
 
 #include <OrbTrace.H>
 

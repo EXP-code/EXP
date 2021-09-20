@@ -3,7 +3,7 @@
 #include <Component.H>
 #include <Cylinder.H>
 #include <cudaReduce.cuH>
-#include "expand.h"
+#include "expand.H"
 
 #include <boost/make_shared.hpp>
 
@@ -986,7 +986,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   if (orient) {
     std::vector<cuFP_t> trans(9);
     for (int i=0; i<3; i++) 
-      for (int j=0; j<3; j++) trans[i*3+j] = component->orient->transformBody()[i][j];
+      for (int j=0; j<3; j++) trans[i*3+j] = component->orient->transformBody()(i, j);
   
     cuda_safe_call(cudaMemcpyToSymbol(cylBody, &trans[0], sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		   __FILE__, __LINE__, "Error copying cylBody");
@@ -1760,14 +1760,14 @@ void Cylinder::determine_acceleration_cuda()
     std::vector<cuFP_t> trans(9);
     for (int i=0; i<3; i++) 
       for (int j=0; j<3; j++)
-	trans[i*3+j] = component->orient->transformBody()[i][j];
+	trans[i*3+j] = component->orient->transformBody()(i, j);
   
     cuda_safe_call(cudaMemcpyToSymbol(cylBody, &trans[0], sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		   __FILE__, __LINE__, "Error copying cylBody");
 
     for (int i=0; i<3; i++) 
       for (int j=0; j<3; j++)
-	trans[i*3+j] = component->orient->transformOrig()[i][j];
+	trans[i*3+j] = component->orient->transformOrig()(i, j);
   
     cuda_safe_call(cudaMemcpyToSymbol(cylOrig, &trans[0], sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		   __FILE__, __LINE__, "Error copying cylOrig");
@@ -2045,11 +2045,11 @@ void Cylinder::multistep_update_cuda()
 	// n loop
 	//
 	for (int n=0; n<ncylorder; n++) {
-	  ortho->differC1[0][olev][m][n] -= ret[2*n+offst];
-	  ortho->differC1[0][nlev][m][n] += ret[2*n+offst];
+	  ortho->differC1[0][olev](m, n) -= ret[2*n+offst];
+	  ortho->differC1[0][nlev](m, n) += ret[2*n+offst];
 	  if (m>0) {
-	    ortho->differS1[0][olev][m][n] -= ret[2*n+1+offst];
-	    ortho->differS1[0][nlev][m][n] += ret[2*n+1+offst];
+	    ortho->differS1[0][olev](m, n) -= ret[2*n+1+offst];
+	    ortho->differS1[0][nlev](m, n) += ret[2*n+1+offst];
 	  }
 	}
 	// END: n loop

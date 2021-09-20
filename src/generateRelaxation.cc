@@ -1,5 +1,5 @@
 
-#include "expand.h"
+#include "expand.H"
 
 #include <generateRelaxation.H>
 

@@ -4,7 +4,11 @@
 #include <fstream>
 #include <cmath>
 
-#include <Vector.h>
+#include <boost/make_shared.hpp>
+
+#include <yaml-cpp/yaml.h>
+
+#include <config.h>
 #include <SphereSL.H>
 
 #ifdef HAVE_LIBPNGPP
@@ -17,18 +21,18 @@ bool   SphereSL::mpi  = false;	// Initially off
 double SphereSL::HEXP = 1.0;	// Hall exponent
 
 //! Constructor
-SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
-		   int CMAP, double Scale, bool COVAR, int NPART)
+SphereSL::SphereSL(boost::shared_ptr<SphericalModelTable> mod,
+		   int LMAX, int NMAX, int CMAP, double Scale,
+		   bool COVAR, int NPART)
 {
-  SphericalModelTable *model = mod;
-  
   SLGridSph::mpi = mpi ? 1 : 0;
 
-  double rmin = max<double>(mod->get_min_radius()*2.0, 
-			    mod->get_max_radius()*1.0e-4);
-  double rmax = mod->get_max_radius()*0.99;
+  rmin = max<double>(mod->get_min_radius()*2.0, 
+		     mod->get_max_radius()*1.0e-4);
+  rmax = mod->get_max_radius()*0.99;
 
-  sl = new SLGridSph(LMAX, NMAX, NUMR, rmin, rmax, model, CMAP, Scale);
+  sl = boost::make_shared<SLGridSph>
+    (mod, LMAX, NMAX, NUMR, rmin, rmax, true, CMAP, Scale);
 
   lmax = LMAX;
   nmax = NMAX;
@@ -37,21 +41,21 @@ SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
   coefs_defined = false;
   rscl = 1.0;
 
-  potd.setsize  (0, LMAX, 1, NMAX);
-  dpot.setsize  (0, LMAX, 1, NMAX);
-  dpt2.setsize  (0, LMAX, 1, NMAX);
-  dend.setsize  (0, LMAX, 1, NMAX);
+  potd.resize(LMAX+1, NMAX);
+  dpot.resize(LMAX+1, NMAX);
+  dpt2.resize(LMAX+1, NMAX);
+  dend.resize(LMAX+1, NMAX);
     
-  legs.setsize  (0, LMAX, 0, LMAX);
-  dlegs.setsize (0, LMAX, 0, LMAX);
-  d2legs.setsize(0, LMAX, 0, LMAX);
+  legs  .resize(LMAX+1, LMAX+1);
+  dlegs .resize(LMAX+1, LMAX+1);
+  d2legs.resize(LMAX+1, LMAX+1);
 
   npart = NPART;
 }
 
 SphereSL::~SphereSL(void)
 {
-  delete sl;
+  // NADA
 }
 
 void SphereSL::bomb(char *s)
@@ -62,7 +66,7 @@ void SphereSL::bomb(char *s)
 
 void SphereSL::reset_coefs(void)
 {
-  if (expcoef.getnrows()>0 && expcoef.getncols()>0) expcoef.zero();
+  if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
   if (compute_covar) {
     minSNR = std::numeric_limits<double>::max();
     maxSNR = 0.0;
@@ -71,8 +75,10 @@ void SphereSL::reset_coefs(void)
     mean.resize(lmax+1);
     for (int L=0; L<=lmax; L++) {
       int size = (L+1)*nmax;
-      covar[L] = Eigen::MatrixXd::Zero(size, size);
-      mean [L] = Eigen::VectorXd::Zero(size);
+      covar[L].resize(size, size);
+      mean [L].resize(size);
+      covar[L].setZero();
+      mean [L].setZero();
     }
     if (npart) {
       curbin = 0;
@@ -82,7 +88,8 @@ void SphereSL::reset_coefs(void)
 	meanB[n].resize(lmax+1);
 	for (int L=0; L<=lmax; L++) {
 	  int size = (L+1)*nmax;
-	  meanB[n][L] = Eigen::VectorXd::Zero(size);
+	  meanB[n][L].resize(size);
+	  meanB[n][L].setZero();
 	}
 	massB[n] = 0.0;
       }
@@ -101,10 +108,10 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 
     coefs_defined = true;
 
-    expcoef.setsize(0, lmax*(lmax+2), 1, nmax);
-    expcoef.zero();		// Need this?
+    expcoef.resize((lmax+1)*(lmax+1), nmax);
+    expcoef.setZero();
 
-    work.setsize(1, nmax);
+    work.resize(nmax);
 
     if (compute_covar) {
       minSNR = std::numeric_limits<double>::max();
@@ -114,8 +121,10 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
       mean.resize(lmax+1);
       for (int L=0; L<=lmax; L++) {
 	int size = (L+1)*nmax;
-	covar[L] = Eigen::MatrixXd::Zero(size, size);
-	mean [L] = Eigen::VectorXd::Zero(size);
+	covar[L].resize(size, size);
+	mean [L].resize(size);
+	covar[L].setZero();
+	mean [L].setZero();
       }
       if (npart) {
 	curbin = 0;
@@ -125,20 +134,21 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 	  meanB[n].resize(lmax+1);
 	  for (int L=0; L<=lmax; L++) {
 	    int size = (L+1)*nmax;
-	    meanB[n][L] = Eigen::VectorXd::Zero(size);
+	    meanB[n][L].resize(size);
+	    meanB[n][L].setZero();
 	  }
 	  massB[n] = 0.0;
 	}
       }
     }
 
-    factorial.setsize(0, lmax, 0, lmax);
+    factorial.resize(lmax+1, lmax+1);
 
     for (int l=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
-	factorial[l][m] = sqrt( (0.5*l+0.25)/M_PI * 
+	factorial(l, m) = sqrt( (0.5*l+0.25)/M_PI * 
 				exp(lgamma(1.0+l-m) - lgamma(1.0+l+m)) );
-	if (m != 0) factorial[l][m] *= M_SQRT2;
+	if (m != 0) factorial(l, m) *= M_SQRT2;
       }
     }
 
@@ -155,6 +165,8 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
   double phi = atan2(y,x);
   double rs = r/rscl;
 	
+  if (r < rmin or r > rmax) return;
+
   used++;
   totalMass += mass;
 
@@ -174,24 +186,24 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
     for (int m=0, moffset=0, moffE=0; m<=l; m++) {
 
       if (m==0) {
-	fac = factorial[l][m] * legs[l][m];
-	for (int n=1; n<=nmax; n++) {
-	  fac4 = potd[l][n]*fac;
-	  expcoef[loffset+moffset][n] += fac4 * norm *mass;
-	  if (compute_covar) workE[m*nmax + n - 1] = fac4;
+	fac = factorial(l, m) * legs(l, m);
+	for (int n=0; n<nmax; n++) {
+	  fac4 = potd(l, n)*fac;
+	  expcoef(loffset+moffset, n) += fac4 * norm * mass;
+	  if (compute_covar) workE[m*nmax + n] = fac4;
 	}
 
 	moffset++;
       }
       else {
-	fac  = factorial[l][m] * legs[l][m];
+	fac  = factorial(l, m) * legs(l, m);
 	fac1 = fac*cos(phi*m);
 	fac2 = fac*sin(phi*m);
-	for (int n=1; n<=nmax; n++) {
-	  fac4 = potd[l][n];
-	  expcoef[loffset+moffset  ][n] += fac1 * fac4 * norm * mass;
-	  expcoef[loffset+moffset+1][n] += fac2 * fac4 * norm * mass;
-	  if (compute_covar) workE[m*nmax + n - 1] = fac * fac4;
+	for (int n=0; n<nmax; n++) {
+	  fac4 = potd(l, n);
+	  expcoef(loffset+moffset  , n) += fac1 * fac4 * norm * mass;
+	  expcoef(loffset+moffset+1, n) += fac2 * fac4 * norm * mass;
+	  if (compute_covar) workE[m*nmax + n] = fac * fac4;
 	}
 
 	moffset+=2;
@@ -238,11 +250,11 @@ void SphereSL::make_coefs()
       MPI_Allreduce(MPI_IN_PLACE, &totalMass, 1, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
 
-    for (int l=0; l<=lmax*(lmax+2); l++) {
-      MPI_Allreduce(&expcoef[l][1], &work[1], nmax, MPI_DOUBLE,
+    for (int l=0; l<(lmax+1)*(lmax+1); l++) {
+      work = expcoef.row(l);
+      MPI_Allreduce(MPI_IN_PLACE, work.data(), nmax, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
-
-      expcoef[l] = work;
+      expcoef.row(l) = work;
     }
 
     if (compute_covar) {
@@ -392,12 +404,12 @@ void SphereSL::make_covar(bool verbose)
   }
 }
 
-Matrix SphereSL::get_trimmed(double snr, double mass, bool Hall)
+Eigen::MatrixXd SphereSL::get_trimmed(double snr, double mass, bool Hall)
 {
   constexpr double norm = 4.0*M_PI;
 
-  Matrix ret(0, lmax*(lmax+2), 1, nmax);
-  ret.zero();
+  Eigen::MatrixXd ret((lmax+1)*(lmax+1), nmax);
+  ret.setZero();
 
   if (compute_covar) {
     
@@ -412,18 +424,18 @@ Matrix SphereSL::get_trimmed(double snr, double mass, bool Hall)
       Eigen::VectorXd W(esize);
       for (int m=0, moffset=0; m<=l; m++) {
 	if (m==0) {
-	  for (int n=1; n<=nmax; n++) {
-	    W[m*nmax + n - 1] = fabs(expcoef[loffset+moffset+0][n])
+	  for (int n=0; n<nmax; n++) {
+	    W[m*nmax + n] = fabs(expcoef(loffset+moffset+0, n))
 	      / (norm*mass);
 	  }
 	  moffset++;
 
 	} else {
-	  for (int n=1; n<=nmax; n++) {
-	    W[m*nmax + n - 1] =
-	      sqrt(expcoef[loffset+moffset+0][n]*expcoef[loffset+moffset+0][n]
+	  for (int n=0; n<nmax; n++) {
+	    W[m*nmax + n] =
+	      sqrt(expcoef(loffset+moffset+0, n)*expcoef(loffset+moffset+0, n)
 		   +
-		   expcoef[loffset+moffset+1][n]*expcoef[loffset+moffset+1][n])
+		   expcoef(loffset+moffset+1, n)*expcoef(loffset+moffset+1, n))
 	      / (norm*mass);
 	  }
 
@@ -453,18 +465,18 @@ Matrix SphereSL::get_trimmed(double snr, double mass, bool Hall)
       //
       for (int m=0, moffset=0; m<=l; m++) {
 	if (m==0) {
-	  for (int n=1; n<=nmax; n++) {
-	    ret[loffset+moffset][n] = Q[m*nmax + n - 1] * norm * mass;
-	    if (expcoef[loffset+moffset][n] < 0.0)
-	      ret[loffset+moffset][n] *= -1.0 ;
+	  for (int n=0; n<nmax; n++) {
+	    ret(loffset+moffset, n) = Q[m*nmax + n] * norm * mass;
+	    if (expcoef(loffset+moffset, n) < 0.0)
+	      ret(loffset+moffset, n) *= -1.0 ;
 	  }
 	  moffset++;
 
 	} else {
-	  for (int n=1; n<=nmax; n++) {
-	    double phi = atan2(expcoef[loffset+moffset+1][n], expcoef[loffset+moffset+0][n]);
-	    ret[loffset+moffset+0][n] = cos(phi) * Q[m*nmax + n - 1] * norm * mass;
-	    ret[loffset+moffset+1][n] = sin(phi) * Q[m*nmax + n - 1] * norm * mass;
+	  for (int n=0; n<nmax; n++) {
+	    double phi = atan2(expcoef(loffset+moffset+1, n), expcoef(loffset+moffset+0, n));
+	    ret(loffset+moffset+0, n) = cos(phi) * Q[m*nmax + n] * norm * mass;
+	    ret(loffset+moffset+1, n) = sin(phi) * Q[m*nmax + n] * norm * mass;
 	  }
 
 	  moffset+=2;
@@ -480,7 +492,7 @@ Matrix SphereSL::get_trimmed(double snr, double mass, bool Hall)
 
     const int minSize = 600;
     int ndupX = 1, ndupY = 1;
-				// Sanity check
+    // Sanity check
     NEV = std::min<int>(NEV, nmax);
     
     for (int L=0; L<=lmax; L++) {
@@ -569,18 +581,18 @@ double SphereSL::get_power(double snr, double mass)
       Eigen::VectorXd W(esize);
       for (int m=0, moffset=0; m<=l; m++) {
 	if (m==0) {
-	  for (int n=1; n<=nmax; n++) {
-	    W[m*nmax + n - 1] = fabs(expcoef[loffset+moffset+0][n])
+	  for (int n=0; n<nmax; n++) {
+	    W[m*nmax + n] = fabs(expcoef(loffset+moffset+0, n))
 	      / (norm*mass);
 	  }
 	  moffset++;
 
 	} else {
-	  for (int n=1; n<=nmax; n++) {
-	    W[m*nmax + n - 1] =
-	      sqrt(expcoef[loffset+moffset+0][n]*expcoef[loffset+moffset+0][n]
+	  for (int n=0; n<nmax; n++) {
+	    W[m*nmax + n] =
+	      sqrt(expcoef(loffset+moffset+0, n)*expcoef(loffset+moffset+0, n)
 		   +
-		   expcoef[loffset+moffset+1][n]*expcoef[loffset+moffset+1][n])
+		   expcoef(loffset+moffset+1, n)*expcoef(loffset+moffset+1, n))
 	      / (norm*mass);
 	  }
 
@@ -608,19 +620,19 @@ double SphereSL::get_power(double snr, double mass)
 void SphereSL::dens_pot_eval(double r, double costh, double phi,
 			     double& dens0, double& dens, 
 			     double& potl0, double& potl,
-			     int L1, int L2)
+			     int L1, int L2, int N1, int N2)
 {
   double fac1, cosm, sinm;
 
-  fac1 = factorial[0][0];
+  fac1 = factorial(0, 0);
 
   sl->get_dens(dend, r/rscl);
   sl->get_pot (potd, r/rscl);
 
   legendre_R(lmax, costh, legs, dlegs);
 
-  dens0 = fac1 * expcoef[0]*dend[0];
-  potl0 = fac1 * expcoef[0]*potd[0];
+  dens0 = fac1 * expcoef.row(0).dot(dend.row(0));
+  potl0 = fac1 * expcoef.row(0).dot(potd.row(0));
 
   dens = 0.0;
   potl = 0.0;
@@ -631,11 +643,15 @@ void SphereSL::dens_pot_eval(double r, double costh, double phi,
 
     // M loop
     for (int m=0, moffset=0; m<=l; m++) {
-      fac1 = factorial[l][m];
+      fac1 = factorial(l, m);
       if (m==0) {
-	dens += fac1*legs[l][m]* (expcoef[loffset+moffset] * dend[l]);
-
-	potl += fac1*legs[l][m]* (expcoef[loffset+moffset] * potd[l]);
+	double sumD=0.0, sumP=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumD += expcoef(loffset+moffset, n) * dend(l, n);
+	  sumP += expcoef(loffset+moffset, n) * potd(l, n);
+	}
+	dens += fac1*legs(l, m)* sumD;
+	potl += fac1*legs(l, m)* sumP;
 
 	moffset++;
       }
@@ -643,13 +659,16 @@ void SphereSL::dens_pot_eval(double r, double costh, double phi,
 	cosm = cos(phi*m);
 	sinm = sin(phi*m);
 
-	dens += fac1*legs[l][m]*
-	  ( expcoef[loffset+moffset]   * dend[l]*cosm + 
-	    expcoef[loffset+moffset+1] * dend[l]*sinm );
+	double sumD0=0.0, sumP0=0.0, sumD1=0.0, sumP1=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumD0 += expcoef(loffset+moffset+0, n) * dend(l, n);
+	  sumP0 += expcoef(loffset+moffset+0, n) * potd(l, n);
+	  sumD1 += expcoef(loffset+moffset+1, n) * dend(l, n);
+	  sumP1 += expcoef(loffset+moffset+1, n) * potd(l, n);
+	}
 
-	potl += fac1*legs[l][m]*
-	  ( expcoef[loffset+moffset]   * potd[l]*cosm + 
-	    expcoef[loffset+moffset+1] * potd[l]*sinm );
+	dens += fac1*legs(l, m)*( sumD0*cosm + sumD1*sinm );
+	potl += fac1*legs(l, m)*( sumP0*cosm + sumP1*sinm );
 
 	moffset +=2;
       }
@@ -669,20 +688,20 @@ void SphereSL::dens_pot_eval(double r, double costh, double phi,
 void SphereSL::pot_force_eval(double r, double costh, double phi,
 			      double& potl,
 			      double& potr, double& pott, double& potp,
-			      int L1, int L2)
+			      int L1, int L2, int N1, int N2)
 {
   double fac1, cosm, sinm;
   double sinth = -sqrt(fabs(1.0 - costh*costh));
 
-  fac1 = factorial[0][0];
+  fac1 = factorial(0, 0);
 
   sl->get_pot  (potd, r/rscl);
   sl->get_force(dpot, r/rscl);
 
   legendre_R(lmax, costh, legs, dlegs);
 
-  potl = fac1 * expcoef[0]*potd[0];
-  potr = fac1 * expcoef[0]*dpot[0];
+  potl = fac1 * expcoef.row(0).dot(potd.row(0));
+  potr = fac1 * expcoef.row(0).dot(dpot.row(0));
   pott = 0.0;
   potp = 0.0;
 
@@ -692,11 +711,17 @@ void SphereSL::pot_force_eval(double r, double costh, double phi,
 
     // M loop
     for (int m=0, moffset=0; m<=l; m++) {
-      fac1 = factorial[l][m];
+      fac1 = factorial(l, m);
       if (m==0) {
-	potl += fac1*legs[l][m]* (expcoef[loffset+moffset] * potd[l]);
-	dpot += fac1*legs[l][m]* (expcoef[loffset+moffset] * dpot[l]);
-	pott += fac1*dlegs[l][m]* (expcoef[loffset+moffset] * potd[l]);
+	double sumP=0.0, sumD=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumP += expcoef(loffset+moffset, n) * potd(l, n);
+	  sumD += expcoef(loffset+moffset, n) * dpot(l, n);
+	}
+
+	potl += fac1*legs(l, m) * sumP;
+	potr += fac1*legs(l, m) * sumD;
+	pott += fac1*dlegs(l, m)* sumP;
 
 	moffset++;
       }
@@ -704,18 +729,18 @@ void SphereSL::pot_force_eval(double r, double costh, double phi,
 	cosm = cos(phi*m);
 	sinm = sin(phi*m);
 
-	potl += fac1*legs[l][m]*
-	  ( expcoef[loffset+moffset]   * potd[l]*cosm + 
-	    expcoef[loffset+moffset+1] * potd[l]*sinm );
-	dpot += fac1*legs[l][m]*
-	  ( expcoef[loffset+moffset]   * dpot[l]*cosm + 
-	    expcoef[loffset+moffset+1] * dpot[l]*sinm );
-	pott += fac1*dlegs[l][m]*
-	  ( expcoef[loffset+moffset]   * potd[l]*cosm + 
-	    expcoef[loffset+moffset+1] * potd[l]*sinm );
-	potp += fac1*legs[l][m] * m *
-	  (-expcoef[loffset+moffset]   * potd[l]*sinm + 
-	    expcoef[loffset+moffset+1] * potd[l]*cosm );
+	double sumD0=0.0, sumP0=0.0, sumD1=0.0, sumP1=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumD0 += expcoef(loffset+moffset+0, n) * potd(l, n);
+	  sumP0 += expcoef(loffset+moffset+0, n) * dpot(l, n);
+	  sumD1 += expcoef(loffset+moffset+1, n) * potd(l, n);
+	  sumP1 += expcoef(loffset+moffset+1, n) * dpot(l, n);
+	}
+
+	potl += fac1*legs(l, m) * ( sumD0*cosm + sumD1*sinm );
+	potr += fac1*legs(l, m) * ( sumP0*cosm + sumP1*sinm );
+	pott += fac1*dlegs(l, m)* ( sumD0*cosm + sumD1*sinm );
+	potp += fac1*legs(l, m) * m * ( -sumP0*sinm + sumP1*cosm );
 
 	moffset +=2;
       }
@@ -736,12 +761,12 @@ void SphereSL::all_eval(double r, double costh, double phi,
 			double& den0, double& den1,
 			double& pot0, double& pot1,
 			double& potr, double& pott, double& potp,
-			int L1, int L2)
+			int L1, int L2, int N1, int N2)
 {
   double fac1, cosm, sinm;
   double sinth = -sqrt(fabs(1.0 - costh*costh));
 
-  fac1 = factorial[0][0];
+  fac1 = factorial(0, 0);
 
   sl->get_dens (dend, r/rscl);
   sl->get_pot  (potd, r/rscl);
@@ -749,9 +774,9 @@ void SphereSL::all_eval(double r, double costh, double phi,
 
   legendre_R(lmax, costh, legs, dlegs);
 
-  den0 = fac1 * expcoef[0]*dend[0];
-  pot0 = fac1 * expcoef[0]*potd[0];
-  potr = fac1 * expcoef[0]*dpot[0];
+  den0 = fac1 * expcoef.row(0).dot(dend.row(0));
+  pot0 = fac1 * expcoef.row(0).dot(potd.row(0));
+  potr = fac1 * expcoef.row(0).dot(dpot.row(0));
   den1 = 0.0;
   pot1 = 0.0;
   pott = 0.0;
@@ -763,12 +788,20 @@ void SphereSL::all_eval(double r, double costh, double phi,
 
     // M loop
     for (int m=0, moffset=0; m<=l; m++) {
-      fac1 = factorial[l][m];
+      fac1 = factorial(l, m);
       if (m==0) {
-	den1 += fac1*legs[1][m] * (expcoef[loffset+moffset] * dend[l]);
-	pot1 += fac1*legs[l][m] * (expcoef[loffset+moffset] * potd[l]);
-	dpot += fac1*legs[l][m] * (expcoef[loffset+moffset] * dpot[l]);
-	pott += fac1*dlegs[l][m]* (expcoef[loffset+moffset] * potd[l]);
+
+	double sumR=0.0, sumP=0.0, sumD=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumR += expcoef(loffset+moffset, n) * dend(l, n);
+	  sumP += expcoef(loffset+moffset, n) * potd(l, n);
+	  sumD += expcoef(loffset+moffset, n) * dpot(l, n);
+	}
+
+	den1 += fac1*legs(1, m) * sumR;
+	pot1 += fac1*legs(l, m) * sumP;
+	potr += fac1*legs(l, m) * sumD;
+	pott += fac1*dlegs(l, m)* sumP;
 
 	moffset++;
       }
@@ -776,22 +809,23 @@ void SphereSL::all_eval(double r, double costh, double phi,
 	cosm = cos(phi*m);
 	sinm = sin(phi*m);
 
-	den1 += fac1*legs[l][m]*
-	  ( expcoef[loffset+moffset]   * dend[l]*cosm + 
-	    expcoef[loffset+moffset+1] * dend[l]*sinm );
-	pot1 += fac1*legs[l][m]*
-	  ( expcoef[loffset+moffset]   * potd[l]*cosm + 
-	    expcoef[loffset+moffset+1] * potd[l]*sinm );
-	dpot += fac1*legs[l][m]*
-	  ( expcoef[loffset+moffset]   * dpot[l]*cosm + 
-	    expcoef[loffset+moffset+1] * dpot[l]*sinm );
-	pott += fac1*dlegs[l][m]*
-	  ( expcoef[loffset+moffset]   * potd[l]*cosm + 
-	    expcoef[loffset+moffset+1] * potd[l]*sinm );
-	potp += fac1*legs[l][m] * m *
-	  (-expcoef[loffset+moffset]   * potd[l]*sinm + 
-	    expcoef[loffset+moffset+1] * potd[l]*cosm );
+	double sumR0=0.0, sumP0=0.0, sumD0=0.0;
+	double sumR1=0.0, sumP1=0.0, sumD1=0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  sumR0 += expcoef(loffset+moffset+0, n) * dend(l, n);
+	  sumP0 += expcoef(loffset+moffset+0, n) * potd(l, n);
+	  sumD0 += expcoef(loffset+moffset+0, n) * dpot(l, n);
+	  sumR1 += expcoef(loffset+moffset+1, n) * dend(l, n);
+	  sumP1 += expcoef(loffset+moffset+1, n) * potd(l, n);
+	  sumD1 += expcoef(loffset+moffset+1, n) * dpot(l, n);
+	}
 
+	den1 += fac1*legs(l, m)*  ( sumR0*cosm + sumR1*sinm );
+	pot1 += fac1*legs(l, m)*  ( sumP0*cosm + sumP1*sinm );
+	potr += fac1*legs(l, m)*  ( sumD0*cosm + sumD1*sinm );
+	pott += fac1*dlegs(l, m)* ( sumP0*cosm + sumP1*sinm );
+	potp += fac1*legs(l, m) * m * ( -sumP0*sinm + sumP1*cosm );
+	
 	moffset +=2;
       }
     }
@@ -812,30 +846,29 @@ void SphereSL::all_eval(double r, double costh, double phi,
 
 #define MINEPS 1.0e-10
 
-void SphereSL::legendre_R(int lmax, double x, Matrix& p)
+void SphereSL::legendre_R(int lmax, double x, Eigen::MatrixXd& p)
 {
   double fact, somx2, pll, pl1, pl2;
-  int m, l;
   
-  p[0][0] = pll = 1.0;
+  p(0, 0) = pll = 1.0;
   if (lmax > 0) {
     somx2 = sqrt( (1.0 - x)*(1.0 + x) );
     fact = 1.0;
-    for (m=1; m<=lmax; m++) {
+    for (int m=1; m<=lmax; m++) {
       pll *= -fact*somx2;
-      p[m][m] = pll;
-      if (std::isnan(p[m][m]))
+      p(m, m) = pll;
+      if (std::isnan(p(m, m)))
 	cerr << "legendre_R: p[" << m << "][" << m << "]: pll=" << pll << "\n";
       fact += 2.0;
     }
   }
   
-  for (m=0; m<lmax; m++) {
-    pl2 = p[m][m];
-    p[m+1][m] = pl1 = x*(2*m+1)*pl2;
-    for (l=m+2; l<=lmax; l++) {
-      p[l][m] = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
-      if (std::isnan(p[l][m]))
+  for (int m=0; m<lmax; m++) {
+    pl2 = p(m, m);
+    p(m+1, m) = pl1 = x*(2*m+1)*pl2;
+    for (int l=m+2; l<=lmax; l++) {
+      p(l, m) = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
+      if (std::isnan(p(l, m)))
 	cerr << "legendre_R: p[" << l << "][" << m << "]: pll=" << pll << "\n";
       
       pl2 = pl1;
@@ -845,35 +878,35 @@ void SphereSL::legendre_R(int lmax, double x, Matrix& p)
   
   if (std::isnan(x))
     cerr << "legendre_R: x\n";
-  for(l=0; l<=lmax; l++)
-    for (m=0; m<=l; m++)
-      if (std::isnan(p[l][m]))
+  for (int l=0; l<=lmax; l++)
+    for (int m=0; m<=l; m++)
+      if (std::isnan(p(l, m)))
 	cerr << "legendre_R: p[" << l << "][" << m << "] lmax=" 
 	     << lmax << "\n";
   
 }
 
-void SphereSL::legendre_R(int lmax, double x, Matrix &p, Matrix &dp)
+void SphereSL::legendre_R(int lmax, double x, Eigen::MatrixXd& p,
+			  Eigen::MatrixXd &dp)
 {
   double fact, somx2, pll, pl1, pl2;
-  int m, l;
   
-  p[0][0] = pll = 1.0;
+  p(0, 0) = pll = 1.0;
   if (lmax > 0) {
     somx2 = sqrt( (1.0 - x)*(1.0 + x) );
     fact = 1.0;
-    for (m=1; m<=lmax; m++) {
+    for (int m=1; m<=lmax; m++) {
       pll *= -fact*somx2;
-      p[m][m] = pll;
+      p(m, m) = pll;
       fact += 2.0;
     }
   }
   
-  for (m=0; m<lmax; m++) {
-    pl2 = p[m][m];
-    p[m+1][m] = pl1 = x*(2*m+1)*pl2;
-    for (l=m+2; l<=lmax; l++) {
-      p[l][m] = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
+  for (int m=0; m<lmax; m++) {
+    pl2 = p(m, m);
+    p(m+1, m) = pl1 = x*(2*m+1)*pl2;
+    for (int l=m+2; l<=lmax; l++) {
+      p(l, m) = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
       pl2 = pl1;
       pl1 = pll;
     }
@@ -885,35 +918,35 @@ void SphereSL::legendre_R(int lmax, double x, Matrix &p, Matrix &dp)
   }
   
   somx2 = 1.0/(x*x - 1.0);
-  dp[0][0] = 0.0;
-  for (l=1; l<=lmax; l++) {
-    for (m=0; m<l; m++)
-      dp[l][m] = somx2*(x*l*p[l][m] - (l+m)*p[l-1][m]);
-    dp[l][l] = somx2*x*l*p[l][l];
+  dp(0, 0) = 0.0;
+  for (int l=1; l<=lmax; l++) {
+    for (int m=0; m<l; m++)
+      dp(l, m) = somx2*(x*l*p(l, m) - (l+m)*p(l-1, m));
+    dp(l, l) = somx2*x*l*p(l, l);
   }
 }
 
-void SphereSL::legendre_R(int lmax, double x, Matrix &p, Matrix &dp, Matrix& d2p)
+void SphereSL::legendre_R(int lmax, double x, Eigen::MatrixXd &p,
+			  Eigen::MatrixXd &dp, Eigen::MatrixXd& d2p)
 {
   double fact, somx2, pll, pl1, pl2;
-  int m, l;
   
-  p[0][0] = pll = 1.0;
+  p(0, 0) = pll = 1.0;
   if (lmax > 0) {
     somx2 = sqrt( (1.0 - x)*(1.0 + x) );
     fact = 1.0;
-    for (m=1; m<=lmax; m++) {
+    for (int m=1; m<=lmax; m++) {
       pll *= -fact*somx2;
-      p[m][m] = pll;
+      p(m, m) = pll;
       fact += 2.0;
     }
   }
   
-  for (m=0; m<lmax; m++) {
-    pl2 = p[m][m];
-    p[m+1][m] = pl1 = x*(2*m+1)*pl2;
-    for (l=m+2; l<=lmax; l++) {
-      p[l][m] = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
+  for (int m=0; m<lmax; m++) {
+    pl2 = p(m, m);
+    p(m+1, m) = pl1 = x*(2*m+1)*pl2;
+    for (int l=m+2; l<=lmax; l++) {
+      p(l, m) = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
       pl2 = pl1;
       pl1 = pll;
     }
@@ -925,51 +958,53 @@ void SphereSL::legendre_R(int lmax, double x, Matrix &p, Matrix &dp, Matrix& d2p
   }
   
   somx2 = 1.0/(x*x - 1.0);
-  dp[0][0] = 0.0;
+  dp(0, 0) = 0.0;
   if (lmax) {
-    for (l=1; l<=lmax; l++) {
-      for (m=0; m<l; m++)
-	dp[l][m] = somx2*(x*l*p[l][m] - (l+m)*p[l-1][m]);
-      dp[l][l] = somx2*x*l*p[l][l];
+    for (int l=1; l<=lmax; l++) {
+      for (int m=0; m<l; m++)
+	dp(l, m) = somx2*(x*l*p(l, m) - (l+m)*p(l-1, m));
+      dp(l, l) = somx2*x*l*p(l, l);
     }
   }
   
-  for (l=0; l<=lmax; l++) {
-    for (m=0; m<=l; m++)
-      d2p[l][m] = -somx2*(2.0*x*dp[l][m] - p[l][m]*(somx2*m*m + l*(l+1)));
+  for (int l=0; l<=lmax; l++) {
+    for (int m=0; m<=l; m++)
+      d2p(l, m) = -somx2*(2.0*x*dp(l, m) - p(l, m)*(somx2*m*m + l*(l+1)));
   }
   
 }
 
 
-void SphereSL::install_coefs(Matrix& newcoef)
+void SphereSL::install_coefs(Eigen::MatrixXd& newcoef)
 {
   if (!coefs_defined) {
 
     coefs_defined = true;
     
-    expcoef.setsize(0, lmax*(lmax+2), 1, nmax);
-    expcoef.zero();		// Need this?
+    expcoef.resize((lmax+1)*(lmax+1), nmax);
+    expcoef.setZero();
 
-    work.setsize(1, nmax);
+    work.resize(nmax);
 
     if (compute_covar) {
       covar.resize(lmax+1);
       mean.resize(lmax+1);
       for (int L=0; L<=lmax; L++) {
 	int size = (L+1)*nmax;
-	covar[L] = Eigen::MatrixXd::Zero(size, size);
-	mean[L]  = Eigen::VectorXd::Zero(size);
+	covar[L].resize(size, size);
+	mean[L] .resize(size);
+	covar[L].setZero();
+	mean[L] .setZero();
       }
     }
 
-    factorial.setsize(0, lmax, 0, lmax);
+    factorial.resize(lmax+1, lmax+1);
 
     for (int l=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
-	factorial[l][m] = sqrt( (0.5*l+0.25)/M_PI * 
+	factorial(l, m) = sqrt( (0.5*l+0.25)/M_PI * 
 				exp(lgamma(1.0+l-m) - lgamma(1.0+l+m)) );
-	if (m != 0) factorial[l][m] *= M_SQRT2;
+	if (m != 0) factorial(l, m) *= M_SQRT2;
       }
     }
 
@@ -977,12 +1012,10 @@ void SphereSL::install_coefs(Matrix& newcoef)
   }
 
   // Sanity check
-  if (newcoef.getrhigh() != expcoef.getrhigh() ||
-      newcoef.getrlow()  != expcoef.getrlow()  ||
-      newcoef.getchigh() != expcoef.getchigh() ||
-      newcoef.getclow()  != expcoef.getclow()  )
+  if (newcoef.rows() != expcoef.rows() ||
+      newcoef.cols() != expcoef.cols()  )
     {
-      cerr << "SphereSL: can not install coefficients, dimension mismatch\n";
+      std::cerr << "SphereSL: can not install coefficients, dimension mismatch\n";
       return;
     }
 
@@ -993,24 +1026,40 @@ void SphereSL::install_coefs(Matrix& newcoef)
 
 void SphereSL::dump_coefs(double time, ostream& out)
 {
-  ostringstream sout;
-  sout << "SphereSL";
+  // This is a node of simple {key: value} pairs.  More general
+  // content can be added as needed.
+  //
+  YAML::Node node;
 
-  char buf[64];
-  for (int i=0; i<64; i++) {
-    if (i<sout.str().length())  buf[i] = sout.str().c_str()[i];
-    else                        buf[i] = '\0';
-  }
+  node["id"    ] = "SphereSL";
+  node["time"  ] = time;
+  node["scale" ] = rscl;
+  node["nmax"  ] = nmax;
+  node["lmax"  ] = lmax;
+  node["normed"] = true;
 
-  out.write((char *)&buf,64*sizeof(char));
-  out.write((char *)&time , sizeof(double));
-  out.write((char *)&rscl,  sizeof(double));
-  out.write((char *)&nmax,  sizeof(int));
-  out.write((char *)&lmax,  sizeof(int));
+  // Serialize the node
+  //
+  YAML::Emitter y; y << node;
+  
+  // Get the size of the string
+  //
+  unsigned int hsize = strlen(y.c_str());
+  
+  // Write magic #
+  //
+  out.write(reinterpret_cast<const char *>(&cmagic),   sizeof(unsigned int));
+  
+  // Write YAML string size
+  //
+  out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+    
+  // Write YAML string
+  //
+  out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
 
-  for (int ir=1; ir<=nmax; ir++) {
-    for (int l=0; l<=lmax*(lmax+2); l++)
-      out.write((char *)&expcoef[l][ir], sizeof(double));
-  }
-
+  // Write the data using Eigen in col-major order
+  //
+  EigenColMajor t(expcoef);
+  out.write((char *)t.data(), t.size()*sizeof(double));
 }

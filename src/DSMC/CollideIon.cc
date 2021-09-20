@@ -20,7 +20,7 @@
 #include "global.H"
 #include "TreeDSMC.H"
 #include "CollideIon.H"
-#include "localmpi.h"
+#include "localmpi.H"
 #include "Species.H"
 #include "InitContainer.H"
 
@@ -31,7 +31,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.45 [12/16/20 Badnell xc]"
+#define VERSION_ID "0.46 [08/31/21 cuda kinetic]"
 
 using namespace std;
 using namespace NTC;
@@ -60,7 +60,7 @@ bool     CollideIon::enforceMOM = false;
 bool     CollideIon::coulScale  = false;
 double   CollideIon::coulPow    = 2.0;
 unsigned CollideIon::NoDelC     = 0;
-unsigned CollideIon::maxCoul    = UINT_MAX;
+unsigned CollideIon::maxCoul    = std::numeric_limits<unsigned>::max();
 double   CollideIon::logL       = 20.0; // Coulombic logarithm
 double   CollideIon::logLfac    = 0.0;	// Scale intrinsic log L computation
 bool     CollideIon::TSESUM     = true;
@@ -316,6 +316,11 @@ bool CollideIon::elec_balance   = true;
 //
 bool CollideIon::ke_weight      = true;
 
+// Use mean-electron mass for explicit energy conservation for
+// the Trace algorithm
+//
+bool CollideIon::mean_mass      = true;
+
 // Per-species cross-section scale factor for testing
 //
 static std::vector<double> cscl_;
@@ -473,11 +478,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   // Cross-section storage
   //
   csections = std::vector<NTC::InteractD> (nthrds);
-
-  // Random variable generators
-  //
-  gen  = new ACG(acg_seed+myid);
-  unit = new Uniform(0.0, 1.0, gen);
 
   // Energy diagnostics
   //
@@ -2000,8 +2000,9 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
   size_t nbods = c->bods.size();
   double Cross = 0.0, crsvel;
 
+  bool xc_check = false;
 #ifdef XC_DEEP8
-  std::cout << "nbods: N=" << nbods << std::endl;
+  xc_check = true;
 #endif
   // Loop through all pairs
   //
@@ -2483,10 +2484,11 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
   //                        |
   // False for production --+
   //
-  if (firstime and myid==0) {
+  if ((firstime or xc_check) and myid==0) {
     std::cout << std::string(60, '-') << std::endl
-	      << "Interactions" << std::endl
-	      << "------------" << std::endl;
+	      << "Interactions [nbods="
+	      << nbods << "]" << std::endl
+	      << std::string(60, '-') << std::endl;
     for (auto p : csections[id].v) {
       auto TT = std::get<0>(p.first);
       auto k1 = std::get<1>(p.first);
@@ -2497,6 +2499,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 		<< ", " << std::setw(6) << k1.second << "]"
 		<< " [" << std::setw(6) << k2.first
 		<< ", " << std::setw(6) << k2.second << "]"
+		<< ": " << std::setw(18) << p.second()
 		<< std::endl;
     }
     std::cout << std::string(60, '-') << std::endl << std::endl;
@@ -4603,8 +4606,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  std::cout << "xsc: [ei] kEe=" << kEe2[id]
 		    << " (Z, P)=(" << Z2 << ", " << C2 << ")"
 		    << " gVel=" << eVelP1[id] << " eta=" << etaP1[id]
-		    << " rc=" << crs << " dE=" << 0.0
-		    << " fac=" << fac2 << std::endl;
+		    << " rc=" << crs << " dE=" << 0.0 << std::endl;
 #endif
 	}
 
@@ -4727,7 +4729,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     // Use a random variate to select the interaction from the
     // discrete cumulatative probability distribution (CDF)
     //
-    double ran = (*unit)();
+    double ran = unit(random_gen);
     int index  = -1;
     for (size_t i = 0; i < CDF.size(); i++) {
       if (ran < CDF[i]) {
@@ -6225,14 +6227,14 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       const double tol = 1.0e-12;
       // Generate random vector if |u|~0 or |v1|~0
       if (v1i2 < tol*b1f2 or b1f2 < tol*v1i2) {
-	for (auto & v : w1) v = (*norm)();
+	for (auto & v : w1) v = norm(random_gen);
       }
       // Choose random orthogonal vector if uu || v1
       else if (wnrm < tol*v1i2) {
 	auto t3 = zorder(v1);
 	int i0 = std::get<0>(t3), i1 = std::get<1>(t3), i2 = std::get<2>(t3);
-	w1[i0] = (*norm)();
-	w1[i1] = (*norm)();
+	w1[i0] = norm(random_gen);
+	w1[i1] = norm(random_gen);
 	w1[i2] = -(w1[i0]*v1[i0] + w1[i1]*v1[i1])/v1[i2];
 	wnrm = 0.0; for (auto v : w1) wnrm += v*v;
       }
@@ -6449,7 +6451,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       // E2 = u*E0 = u*1/2*m_e*Wb*v0^2 = 1/2*m_e*Wb*v2^2
       // ---> v2^2 = u*v0^2
       //
-      double u  = (*unit)();
+      double u  = unit(random_gen);
       double vs1 = sqrt(q*(1.0 - u));
       double vs2 = sqrt(u);
 
@@ -6583,7 +6585,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       // ---> v2^2 = u*v0^2
       //
 
-      double u  = (*unit)();
+      double u  = unit(random_gen);
       double vs1 = sqrt((1.0 - q) + q*(1.0 - u));
       double vs2 = sqrt(u);
 
@@ -11361,7 +11363,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
     // Select for fractional scatter at random, if we can defer
     // inelastic energy change.  Otherwise, stick with n_p rounded up.
     //
-    if (use_cons>=0 and (*unit)() < static_cast<double>(n_p) - dn_p) {
+    if (use_cons>=0 and unit(random_gen) < static_cast<double>(n_p) - dn_p) {
       n_p--;
     }
 
@@ -11375,6 +11377,18 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       deferE = 0.0;
     }
     dE /= n_p;
+    
+#ifdef XC_DEEP16
+    // Print out deferred energy per particle interaction for deep
+    // debugging
+    //
+    if (dE > 0.0)
+      std::cout << "Cell [" << std::setw(10) << std::hex << c << "] dE="
+		<< std::setw(18) << std::left << dE
+		<< " N=" << std::setw(6) << std::dec << std::left << n_p
+		<< " T=" << (v.first == AccumType::ion_electron ? "ion-electron" : "ion-ion")
+	      << std::endl;
+#endif
 
     // Construct accum
     //
@@ -11409,7 +11423,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
     //
     for (int n=0; n<n_p; n++) {
 
-      double Ptry = (*unit)();
+      double Ptry = unit(random_gen);
       auto it = std::lower_bound(P.begin(), P.end(), Ptry);
       auto ii = std::distance(P.begin(), it);
 
@@ -11502,14 +11516,14 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 	//  +--- False for production
 	//  |
 	//  v
-	if (false) std::cout << "CHECK: dE=" << dE << " kE=" << kE
-			     << " vfac=" << vfac
-			     << " vi="   << vi
-			     << " dn_p=" << dn_p
-			     << " np="   << n_p
-			     << " m1="   << m1
-			     << " m2="   << m2
-			     << std::endl;
+	if (KE_DEBUG) std::cout << "CHECK: dE=" << dE << " kE=" << kE
+				<< " vfac=" << vfac
+				<< " vi="   << vi
+				<< " dn_p=" << dn_p
+				<< " np="   << n_p
+				<< " m1="   << m1
+				<< " m2="   << m2
+				<< std::endl;
       }
 
       vrel = unit_vector();
@@ -11928,11 +11942,11 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       // Neutrality rejection
       //
       if (l==0 or l==1) {
-	if ( (*unit)() > pp->frc1 ) continue;
+	if ( unit(random_gen) > pp->frc1 ) continue;
       }
 
       if (l==2) {
-	if ( (*unit)() > pp->frc2 ) continue;
+	if ( unit(random_gen) > pp->frc2 ) continue;
       }
 
       if (l==0) {
@@ -11941,9 +11955,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[0]->frc2 * PP[0]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) continue;
+	  if ( unit(random_gen) > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) continue;
+	  if ( unit(random_gen) > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -11961,9 +11975,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[1]->eta2 * PP[1]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) continue;
+	  if ( unit(random_gen) > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) continue;
+	  if ( unit(random_gen) > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -11981,9 +11995,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[2]->frc2 * PP[2]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) continue;
+	  if ( unit(random_gen) > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) continue;
+	  if ( unit(random_gen) > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -12001,9 +12015,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[3]->eta2 * PP[3]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) continue;
+	  if ( unit(random_gen) > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) continue;
+	  if ( unit(random_gen) > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -14698,6 +14712,10 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   for (auto & v : selcM.v) {
     
+#ifdef XC_DEEP5
+    double saveXc = v.second();
+#endif
+
     v.second() *= (num - 1) * dens * rateF * crs_units;
 
     auto k1 = std::get<1>(v.first);
@@ -14708,6 +14726,16 @@ NTC::InteractD CollideIon::generateSelectionTrace
     // For correct Poisson statistics
     //
     totSelcM += v.second();
+
+#ifdef XC_DEEP5
+    auto TT = std::get<0>(v.first);
+    std::cout << "ctest: " << std::setw(12) << interLabels[TT]
+	      << " cross=" << saveXc*crs_units*TreeDSMC::Lunit*TreeDSMC::Lunit/1e-14
+	      << " selcM=" << v.second()
+	      << " Vel=" << crm
+	      << " Tau=" << tau
+	      << std::endl;
+#endif
   }
 
 
@@ -14719,12 +14747,14 @@ NTC::InteractD CollideIon::generateSelectionTrace
   colUps[id][3] += colCf[id];
 
 #ifdef XC_DEEP5
+  /*
   std::cout << "ctest: cross="
 	    << crossRat*TreeDSMC::Lunit*TreeDSMC::Lunit/1e-14
 	    << " selcM=" << totSelcM
 	    << " Vel=" << crm
 	    << " Tau=" << tau
 	    << std::endl;
+  */
 #endif
 
   if (collLim) {		// Sanity clamp
@@ -14974,7 +15004,6 @@ void CollideIon::gatherSpecies()
       for (auto b : cell->bods) {
 	Particle *p = c0->Tree()->Body(b);
 	double countE = 0.0;	// Number of electrons
-	double mu = 0.0;	// Inverse molecular weight
 	  
 	// Compute effective number of electrons
 	//
@@ -14984,11 +15013,9 @@ void CollideIon::gatherSpecies()
 	    unsigned short Z = s.first.first;
 	    unsigned short P = s.first.second - 1;
 	    countE += p->dattrib[s.second] / atomic_weights[Z] * P;
-	    mu     += p->dattrib[s.second] / atomic_weights[Z];
 	  }
 	  
 	  countE *= p->mass;
-	  mu     *= p->mass;
 	} else {
 	  KeyConvert k(p->iattrib[use_key]);
 	    
@@ -14999,7 +15026,6 @@ void CollideIon::gatherSpecies()
 	    countE = k.C() - 1;
 	  }
 	  countE *= p->mass/atomic_weights[k.Z()];
-	  mu      = p->mass/atomic_weights[k.Z()];
 	}
 
 	for (unsigned k=0; k<3; k++) {
@@ -15139,7 +15165,7 @@ void CollideIon::gatherSpecies()
   } // end: cell loop
 
     
-  if ( (aType==Hybrid or aType==Trace) and maxCoul < UINT_MAX) {
+  if ( (aType==Hybrid or aType==Trace) and maxCoul < std::numeric_limits<unsigned>::max()) {
 				// Get combined counts from all threads
     unsigned totl = 0, epsm = 0;
     for (auto & v : totlIE) { totl += v; v = 0; }
@@ -15565,7 +15591,7 @@ void CollideIon::gatherSpecies()
 		<< std::string(4+10+10+12, '-')   << std::endl
 		<< "Scatter check: time=" << tnow << std::endl;
 
-      if ((aType==Hybrid or aType==Trace) and maxCoul < UINT_MAX) {
+      if ((aType==Hybrid or aType==Trace) and maxCoul < std::numeric_limits<unsigned>::max()) {
 	double R = totlIE0>0 ? static_cast<double>(epsmIE0)/totlIE0 : epsmIE0;
 	std::cout << "Ion-Elec EPSM: " << epsmIE0 << "/" << totlIE0 << " [="
 		  << R << "]" << std::endl;
@@ -16000,12 +16026,18 @@ void CollideIon::printSpeciesColl()
       sout << outdir << runtag << ".DSMC_spc_log";
       ofstream mout(sout.str().c_str(), ios::app);
 
+      // Evaluate at runtime not compile time
+      //
       const double Tfac = 2.0*TreeDSMC::Eunit/3.0 * amu  /
 	TreeDSMC::Munit/boltz;
 
+      // Temperature computation
+      //
       double Ti = 0.0, Te = 0.0;
-      if (tM[1]>0.0) Ti = Tfac*tM[0]/tM[1];
-      if (tM[3]>0.0) Te = Tfac*tM[2]/tM[3];
+      if (tM[1]>0.0)        Ti = Tfac*tM[0]/tM[1];
+      if (mean_mass) {
+	if (tM[1]>0.0)      Te = Tfac*tM[2]/tM[1];
+      } else if (tM[3]>0.0) Te = Tfac*tM[2]/tM[3];
 
       // Print the header
       //
@@ -17682,8 +17714,9 @@ void CollideIon::printSpeciesTrace()
 	     << std::setw(18) << std::right << "KE_i"
 	     << std::setw(18) << std::right << "Temp_e"
 	     << std::setw(18) << std::right << "KE_e"
-	     << std::setw(18) << std::right << "Tot_E";
-	nhead = 5;
+	     << std::setw(18) << std::right << "Tot_E"
+	     << std::setw(18) << std::right << "ConsE";
+	nhead = 6;
       } else {
 	dout << "# "
 	     << std::setw(18) << std::right << "Time  "
@@ -17716,12 +17749,13 @@ void CollideIon::printSpeciesTrace()
     }
   }
 
-  const double Tfac = 2.0*TreeDSMC::Eunit/3.0 * amu  /
-    TreeDSMC::Munit/boltz;
+  const double Tfac = 2.0*TreeDSMC::Eunit/3.0 * amu / TreeDSMC::Munit/boltz;
   
   double Ti = 0.0, Te = 0.0;
-  if (tM[1]>0.0)       Ti = Tfac*tM[0]/tM[1];
-  if (tM[3]>0.0)       Te = Tfac*tM[2]/tM[3];
+  if (tM[1]>0.0)        Ti = Tfac*tM[0]/tM[1];
+  if (mean_mass) {
+    if (tM[1]>0.0)      Te = Tfac*tM[2]/tM[1];
+  } else if (tM[3]>0.0) Te = Tfac*tM[2]/tM[3];
 
   // Open for append
   //
@@ -17736,7 +17770,8 @@ void CollideIon::printSpeciesTrace()
   if (use_elec>=0)
     dout << std::setw(18) << std::right << Te
 	 << std::setw(18) << std::right << tM[2]
-	 << std::setw(18) << std::right << tM[0] + tM[2] - consE - consG;
+	 << std::setw(18) << std::right << tM[0] + tM[2] - consE - consG
+	 << std::setw(18) << consE + consG;
   for (spDItr it=specM.begin(); it != specM.end(); it++)
     dout << std::setw(18) << std::right << it->second;
   dout << std::endl;
@@ -17966,6 +18001,7 @@ void CollideIon::printSpeciesElectrons
     TreeDSMC::Munit/boltz;
 
   double totlE = tM[0] + tM[2], numbE = tM[3], tempE = tM[2];
+  if (mean_mass) numbE = tM[1];
   if (numbE>0.0) tempE = Tfac*totlE/numbE;
 
   dout << std::setw(wid) << std::right << consE
@@ -18097,6 +18133,15 @@ void CollideIon::processConfig()
       config["ENERGY_WEIGHT"]["desc"] = "Energy conservation weighted by superparticle number count";
       config["ENERGY_WEIGHT"]["value"] = AlgWght = false;
     }
+
+    if (config["MeanMass"])
+      mean_mass = config["MeanMass"]["value"].as<bool>();
+    else {
+      config["MeanMass"]["desc"] = "Add excess energy directly to the electrons";
+      config["MeanMass"]["value"] = mean_mass = false;
+    }
+
+    std::cout << "CHECK: MeanMass is " << std::boolalpha << mean_mass << std::endl;
 
     if (config["TRACE_ELEC"])
       TRACE_ELEC = config["TRACE_ELEC"]["value"].as<bool>();
@@ -18442,7 +18487,7 @@ void CollideIon::processConfig()
       maxCoul = config["maxCoul"]["value"].as<unsigned>();
     else {
       config["maxCoul"]["desc"] = "Maximum number of elastic Coulombic collisions per step";
-      config["maxCoul"]["value"] = maxCoul = UINT_MAX;
+      config["maxCoul"]["value"] = maxCoul = std::numeric_limits<unsigned>::max();
     }
 
     if (config["logL"])
@@ -18470,7 +18515,7 @@ void CollideIon::processConfig()
       Collide::collTnum = config["collTnum"]["value"].as<unsigned>();
     else {
       config["collTnum"]["desc"] = "Target number of accepted collisions per cell for assigning time step";
-      config["collTnum"]["value"] = Collide::collTnum = UINT_MAX;
+      config["collTnum"]["value"] = Collide::collTnum = std::numeric_limits<unsigned>::max();
     }
 
     if (config["distDiag"])
@@ -20013,9 +20058,9 @@ std::vector<double>& CollideIon::coulomb_vector
   double vfac = sqrt(rel2);
   if (vfac>0.0) for (auto & v : rel) v /= vfac;
 
-  double cosx   = (*coulombSel)(tau, (*unit)());
+  double cosx   = (*coulombSel)(tau, unit(random_gen));
   double sinx   = sqrt(fabs(1.0 - cosx*cosx));
-  double phi    = 2.0*M_PI*(*unit)();
+  double phi    = 2.0*M_PI*unit(random_gen);
   double cosp   = cos(phi);
   double sinp   = sin(phi);
   double g_perp = sqrt(rel[1]*rel[1] + rel[2]*rel[2]);

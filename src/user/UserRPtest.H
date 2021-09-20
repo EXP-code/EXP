@@ -1,8 +1,8 @@
 #ifndef _UserResPoT_H
 #define _UserResPoT_H
 
-#include <massmodel.h>
-#include <biorth.h>
+#include <massmodel.H>
+#include <biorth.H>
 
 /** Apply specific component of resonance potential and
     optionally, the spherical restoring force
@@ -29,7 +29,7 @@ private:
   string com_name;
   Component *c0;
 
-  CVector bcoef;
+  Eigen::VectorXcd bcoef;
   AxiSymModel  *halo_model;
   AxiSymBiorth *halo_ortho;
   ResPot *respot;

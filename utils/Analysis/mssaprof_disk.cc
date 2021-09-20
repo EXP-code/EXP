@@ -55,35 +55,18 @@ namespace pt = boost::property_tree;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include "Particle.h"
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <Particle.H>
+#include <interp.H>
+#include <EmpCylSL.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
-#include <VtkGrid.H>
+#include <DataGrid.H>
 
 const std::string overview = "Compute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
 
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag, coeffile;
-double tpos = 0.0;
-double tnow = 0.0;
-  
 				// Globals
 static  string outid;
 static  double RMAX;
@@ -166,7 +149,7 @@ void write_output(EmpCylSL& ortho, int indx, int icnt, double time,
     
     if (myid==0) {
 
-      VtkGrid vtk(OUTR, OUTR, OUTZ, -RMAX, RMAX, -RMAX, RMAX, -ZMAX, ZMAX);
+      DataGrid vtk(OUTR, OUTR, OUTZ, -RMAX, RMAX, -RMAX, RMAX, -ZMAX, ZMAX);
 
       std::vector<double> data(OUTR*OUTR*OUTZ);
 
@@ -241,7 +224,7 @@ void write_output(EmpCylSL& ortho, int indx, int icnt, double time,
     
     if (myid==0) {
       
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTR);
 
@@ -311,7 +294,7 @@ void write_output(EmpCylSL& ortho, int indx, int icnt, double time,
     
     if (myid==0) {
       
-      VtkGrid vtk(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
+      DataGrid vtk(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTZ);
 
@@ -470,7 +453,7 @@ main(int argc, char **argv)
   int lmax=36, stride=1;
   double rcylmin, rcylmax, rscale, vscale;
   bool DENS, verbose = false, mask = false;
-  std::string CACHEFILE;
+  std::string CACHEFILE, coeffile;
 
   po::options_description desc("Allowed options");
   desc.add_options()

@@ -1,8 +1,8 @@
 #include <cmath>
 #include <sstream>
 
-#include <expand.h>
-#include <localmpi.h>
+#include <expand.H>
+#include <localmpi.H>
 
 #include <ExternalCollection.H>
 #include <Basis.H>

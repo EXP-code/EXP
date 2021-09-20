@@ -1,4 +1,4 @@
-#include "expand.h"
+#include "expand.H"
 
 #include <ExternalForce.H>
 

@@ -61,38 +61,20 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include "Particle.h"
-#include <PSP2.H>
-#include <interp.h>
-#include <massmodel.h>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <ParticleReader.H>
+#include <interp.H>
+#include <massmodel.H>
+#include <EmpCylSL.H>
 #include <foarray.H>
 
-#include <localmpi.h>
+#include <global.H>
+#include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
 #include "largest.H"
 
-// Variables not used but needed for linking
-//
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-std::string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-  
 // Globals
 //
 extern double plgndr(int ll, int mm, double x);
@@ -172,7 +154,8 @@ main(int argc, char **argv)
   double RMIN, RMAX, rscale, minSNR0, Hexp;
   int NICE, LMAX, NMAX, NSNR, NPART, NINTR, NINTT, MLIM;
   int beg, end, stride, init, numr;
-  std::string CACHEFILE, modelf, dir("./"), cname, prefix, table_cache;
+  std::string CACHEFILE, modelf, dir("./"), cname;
+  std::string prefix, table_cache, fileType, filePrefix;
   bool ignore;
 
   // ==================================================
@@ -195,14 +178,16 @@ main(int argc, char **argv)
      "Use Truncate method for SNR trimming rather than the default Hall")
     ("debug,",
      "Debug max values")
-    ("OUT",
-     "assume original, single binary PSP files as input")
-    ("SPL",
-     "assume new split binary PSP files as input")
     ("LOG",
      "log scaling for SNR")
     ("Hall",
      "use Hall smoothing for SNR trim")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -326,15 +311,12 @@ main(int argc, char **argv)
   // ==================================================
 
   int iok = 1;
-  ifstream in0, in1;
-  std::ostringstream s0, s1;
+  auto file0 = ParticleReader::fileNameCreator(fileType, init, dir, runtag);
+
   if (myid==0) {
-    if (SPL) s0 << "SPL.";
-    else     s0 << "OUT.";
-    s0 << runtag << "."<< std::setw(5) << std::setfill('0') << init;
-    in0.open(s0.str());
+    std::ofstream in0(file0);
     if (!in0) {
-      cerr << "Error opening <" << s0.str() << ">" << endl;
+      cerr << "Error opening <" << file0 << ">" << endl;
       iok = 0;
     }
   }
@@ -472,7 +454,6 @@ main(int argc, char **argv)
   if (NPART) ortho.setSampT(NPART);
 
   vector<Particle> particles;
-  PSPptr psp;
   
   std::vector<double> times;
   std::vector<std::string> outfiles;
@@ -674,7 +655,7 @@ main(int argc, char **argv)
 
 	      // Inner range [0, r_i]
 	      //
-	      for (int k=1; k<=NINTR; k++) {
+	      for (int k=0; k<NINTR; k++) {
 		double x = XMIN + (xi - XMIN)*lr.knot(k);
 		double r = ortho.xi_to_r(x);
 		double wgtr = 2.0*M_PI/(2.0*L+1.0) *
@@ -682,7 +663,7 @@ main(int argc, char **argv)
 
 		double ylim = ortho.z_to_y(r);
 
-		for (int t=1; t<=NINTT; t++) {
+		for (int t=0; t<NINTT; t++) {
 
 		  double y    = -ylim + 2.0*ylim*lt.knot(t);
 		  double z    = ortho.y_to_z(y);
@@ -705,7 +686,7 @@ main(int argc, char **argv)
 	      // END: r integration
 
 
-	      for (int k=1; k<=NINTR; k++) {
+	      for (int k=0; k<NINTR; k++) {
 		// Outer range [ri, inf)
 		//
 		double x = xi + (XMAX - xi)*lr.knot(k);
@@ -715,7 +696,7 @@ main(int argc, char **argv)
 
 		double ylim = ortho.z_to_y(r);
 
-		for (int t=1; t<=NINTT; t++) {
+		for (int t=0; t<NINTT; t++) {
 
 		  double y    = -ylim + 2.0*ylim*lt.knot(t);
 		  double z    = ortho.y_to_z(y);
@@ -888,19 +869,14 @@ main(int argc, char **argv)
     // ==================================================
 
     int iok = 1;
-    std::ostringstream s0, s1;
+    auto file1 = ParticleReader::fileNameCreator(fileType, ipsp, dir, runtag);
 
-    s1.str("");		// Clear stringstream
-    if (SPL) s1 << "SPL.";
-    else     s1 << "OUT.";
-    s1 << runtag << "."<< std::setw(5) << std::setfill('0') << ipsp;
-      
-				// Check for existence of next file
-    file = dir + s1.str();
-    std::ifstream in(file);
-    if (!in) {
-      std::cerr << "Error opening <" << file << ">" << endl;
-      iok = 0;
+    if (myid==0) {
+      std::ifstream in(file1);
+      if (!in) {
+	std::cerr << "Error opening <" << file1 << ">" << endl;
+	iok = 0;
+      }
     }
     
     if (iok==0) break;
@@ -908,24 +884,15 @@ main(int argc, char **argv)
     // ==================================================
     // Open PSP file
     // ==================================================
-    PSPptr psp;
+    //
+    PRptr reader = ParticleReader::createReader(fileType, file1, true);
 
-    if (SPL) psp = std::make_shared<PSPspl>(s1.str(), dir, true);
-    else     psp = std::make_shared<PSPout>(file, true);
-
-    tnow = psp->CurrentTime();
+    double tnow = reader->CurrentTime();
     if (myid==0) std::cout << "Beginning partition [time=" << tnow
 			   << ", index=" << ipsp << "] . . . "  << flush;
     
-    if (not psp->GetNamed(cname)) {
-      if (myid==0) {
-	std::cout << "Error finding component named <" << cname << ">" << std::endl;
-	psp->PrintSummary(std::cout);
-      }
-      MPI_Finalize();
-      exit(-1);
-    }
-      
+    reader->SelectType(cname);
+
     //------------------------------------------------------------ 
 
     if (myid==0) std::cout << std::endl
@@ -933,22 +900,22 @@ main(int argc, char **argv)
 			   << std::flush;
 
     ortho.setup_accumulation();
-    ortho.setHall("test", psp->GetNamed(cname)->comp.nbod);
+    ortho.setHall("test", reader->CurrentNumber());
 
-    SParticle *p = psp->GetParticle();
+    auto p = reader->firstParticle();
     int icnt = 0;
     do {
       if (icnt++ % numprocs == myid) {
-	double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-	double phi = atan2(p->pos(1), p->pos(0));
-	ortho.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0, 0, true);
-	//                                                        ^  ^  ^
-	//                                                        |  |  |
-	// Thread id ---------------------------------------------+  |  |
-	// Level ----------------------------------------------------+  |
-	// Compute covariance ------------------------------------------+
+	double R   = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	double phi = atan2(p->pos[1], p->pos[0]);
+	ortho.accumulate(R, p->pos[2], phi, p->mass, p->indx, 0, 0, true);
+	//                                                    ^  ^  ^
+	//                                                    |  |  |
+	// Thread id -----------------------------------------+  |  |
+	// Level ------------------------------------------------+  |
+	// Compute covariance --------------------------------------+
       }
-      p = psp->NextParticle();
+      p = reader->nextParticle();
     } while (p);
     
     if (myid==0) std::cout << "done" << endl;
@@ -995,9 +962,9 @@ main(int argc, char **argv)
     }
 
     double term4tot = 0.0;
-    std::vector<Vector> ac_cos, ac_sin;
-    std::vector<Vector> rt_cos, rt_sin;
-    std::vector<Vector> sn_rat;
+    std::vector<Eigen::VectorXd> ac_cos, ac_sin;
+    std::vector<Eigen::VectorXd> rt_cos, rt_sin;
+    std::vector<Eigen::VectorXd> sn_rat;
 
     for (int nsnr=0; nsnr<NSNR; nsnr++) {
 
@@ -1078,18 +1045,18 @@ main(int argc, char **argv)
 
       // Particle loop
       //
-      p = psp->GetParticle();
+      p = reader->firstParticle();
       int icnt = 0;
       do {
 	if (icnt++ % numprocs == myid) {
 	  // Cylindrical particle radius
-	  double R    = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
+	  double R    = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
 
 	  // Height above disk
-	  double z    = p->pos(2);
+	  double z    = p->pos[2];
 
 	  // Azimuthal angle
-	  double phi  = atan2(p->pos(1), p->pos(0));
+	  double phi  = atan2(p->pos[1], p->pos[0]);
 
 	  // Spherical radius
 	  double r    = sqrt(R*R + z*z);
@@ -1098,7 +1065,7 @@ main(int argc, char **argv)
 	  double cosx = z/r;
 
 	  // Particle mass
-	  double mass = p->mass();
+	  double mass = p->mass;
 	    
 	  // Term 2
 	  //
@@ -1215,7 +1182,7 @@ main(int argc, char **argv)
 	    
 	// Queue up next particle
 	//
-	p = psp->NextParticle();
+	p = reader->nextParticle();
       } while (p);
       //
       // END: particle loop

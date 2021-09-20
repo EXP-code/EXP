@@ -1,6 +1,6 @@
 using namespace std;
 
-#include "expand.h"
+#include "expand.H"
 
 #include <stdlib.h>
 #include <math.h>
@@ -8,18 +8,17 @@ using namespace std;
 #include <iomanip>
 #include <fstream>
 #include <string>
-#include <Vector.h>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
 #endif
 
-#include <numerical.h>
-#include <orbit.h>
-#include <massmodel.h>
-#include <model3d.h>
-#include <isothermal.h>
-#include <hernquist.h>
+#include <numerical.H>
+#include <orbit.H>
+#include <massmodel.H>
+#include <model3d.H>
+#include <isothermal.H>
+#include <hernquist.H>
 
 #include <HaloBulge.H>
 

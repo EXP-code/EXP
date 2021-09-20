@@ -1,5 +1,3 @@
-// This is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -49,51 +47,29 @@ namespace po = boost::program_options;
 #include <sys/time.h>
 #include <sys/resource.h>
 
-				// MDW classes
-#include <PSP.H>
+				// EXP classes
+#include <ParticleReader.H>
 
 //=============================================================================
-// Variables not used but needed for linking
-//=============================================================================
-//
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-double tpos = 0.0;
-double tnow = 0.0;
-int myid = 0;  
-string outdir, outfile, runtag;
-
+// Global variables
 //=============================================================================
 
-enum ComponentType {Star=1, Gas=2, Halo=4};
+int         TEMP;
+int         DENS;
+int         KNUD;
+int         STRL;
+int         Nbins;
+int         AXIS;
+double      Rmin;
+double      Rmax;
+std::string cname;
 
-int    CFLAGS;
-int    TEMP;
-int    DENS;
-int    KNUD;
-int    STRL;
-int    Nbins;
-int    AXIS;
-double Rmin;
-double Rmax;
-
-void add_particles(PSPptr psp, vector< vector<double> >& ret, int& nhist)
+void add_particles(PRptr reader, vector< vector<double> >& ret, int& nhist)
 {
   
-  int nbods = psp->GetStanza()->comp.nbod;
-
   nhist = 4;
 
-  if (CFLAGS & Gas) {
+  if (cname.find("Gas") == 0) {
     if (TEMP>=0) nhist++;
     if (DENS>=0) nhist++;
     if (KNUD>=0) nhist++;
@@ -102,17 +78,12 @@ void add_particles(PSPptr psp, vector< vector<double> >& ret, int& nhist)
 
   ret = vector< vector<double> >(Nbins);
 
-  SParticle *part = psp->GetParticle();
   double pos;
   int indx;
     
-  for (int i=0; i<nbods; i++) {
-    if (part==0) {
-      cerr << "Error reading particle [n=" << 0 << ", i=" << i << "]" << endl;
-      exit(-1);
-    }
+  for (auto part=reader->firstParticle(); part!=0; part=reader->nextParticle()) {
 
-    pos = part->pos(AXIS);
+    pos = part->pos[AXIS];
 
     if (pos>=Rmin && pos<Rmax) {
     
@@ -121,20 +92,18 @@ void add_particles(PSPptr psp, vector< vector<double> >& ret, int& nhist)
 
       int cnt = 0;
 
-      ret[indx][cnt++] += part->mass();
-      ret[indx][cnt++] += part->mass() * part->vel(0);
-      ret[indx][cnt++] += part->mass() * part->vel(1);
-      ret[indx][cnt++] += part->mass() * part->vel(2);
+      ret[indx][cnt++] += part->mass;
+      ret[indx][cnt++] += part->mass * part->vel[0];
+      ret[indx][cnt++] += part->mass * part->vel[1];
+      ret[indx][cnt++] += part->mass * part->vel[2];
 
-      if (CFLAGS & Gas) {
-	if (TEMP>=0) ret[indx][cnt++] += part->mass() * part->datr(TEMP);
-	if (DENS>=0) ret[indx][cnt++] += part->mass() * part->datr(DENS);
-	if (KNUD>=0) ret[indx][cnt++] += part->mass() * part->datr(KNUD);
-	if (STRL>=0) ret[indx][cnt++] += part->mass() * part->datr(STRL);
+      if (cname.find("Gas") == 0) {
+	if (TEMP>=0) ret[indx][cnt++] += part->mass * part->dattrib[TEMP];
+	if (DENS>=0) ret[indx][cnt++] += part->mass * part->dattrib[DENS];
+	if (KNUD>=0) ret[indx][cnt++] += part->mass * part->dattrib[KNUD];
+	if (STRL>=0) ret[indx][cnt++] += part->mass * part->dattrib[STRL];
       }
     }
-
-    part = psp->NextParticle();
   }
 
   return;
@@ -150,6 +119,7 @@ main(int argc, char **argv)
 #endif  
   
   int IMIN, IMAX;
+  std::string fileType, filePrefix, outfile, runtag;
 
   // ==================================================
   // Parse command line or input parameter file
@@ -157,13 +127,16 @@ main(int argc, char **argv)
   
   po::options_description desc("Compute 1-dimensional projection of shocktube runs\nAllowed options");
   desc.add_options()
-    ("help,h",                                                                       "Print this help message")
-    ("OUT",
-     "assume that PSP files are in original format")
-    ("SPL",
-     "assume that PSP files are in split format")
-    ("CFLAGS",              po::value<int>(&CFLAGS)->default_value(2),
-     "component flags (Star=1)")
+    ("help,h",
+     "Print this help message")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
+    ("compname",            po::value<std::string>(&cname)->default_value("slab"),
+     "train on Component (default=slab)")
     ("TEMP",                po::value<int>(&TEMP)->default_value(0),
      "temperature (default=0)")
     ("DENS",                po::value<int>(&DENS)->default_value(1),
@@ -227,28 +200,18 @@ main(int argc, char **argv)
 
   for (int i=IMIN; i<=IMAX; i++) {
 
-    ostringstream sout;
-    if (vm.count("SPL")) sout << "SPL.";
-    else                 sout << "OUT.";
-    sout << runtag << "." << right << setw(5) << setfill('0') << i;
+    auto file = ParticleReader::fileNameCreator(fileType, i, "", runtag);
+    
+    PRptr reader = ParticleReader::createReader(fileType, file, true);
+    reader->SelectType(cname);
 
-    in.close();
-    in.open(sout.str().c_str());
-    if (!in) continue;
-
-    cout << "Reading <" << sout.str() << "> . . ." << flush;
-  
-    PSPptr psp;
-    if (vm.count("SPL")) psp = std::make_shared<PSPspl>(sout.str());
-    else                 psp = std::make_shared<PSPout>(sout.str());
-
-    double time = psp->CurrentTime();
+    double time = reader->CurrentTime();
 
     vector< vector<double> > ret;
     int nhist;
     double dz = (Rmax-Rmin)/Nbins;
 
-    add_particles(psp, ret, nhist);
+    add_particles(reader, ret, nhist);
       
     for (int n=0; n<Nbins; n++) {
       out << setw(15) << time

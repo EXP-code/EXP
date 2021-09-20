@@ -1,31 +1,25 @@
-// This is -*- C++ -*-
-
 #ifndef _DiskHalo_H
 #define _DiskHalo_H
 
-#include <math.h>
-#include <stdlib.h>
-
+#include <stdexcept>
 #include <iostream>
 #include <iomanip>
 #include <string>
-#include <stdexcept>
+#include <cmath>
 
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
-#include <Random.h>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
 
-#include <exponential.h>
-#include <massmodel.h>
+#include <exponential.H>
+#include <massmodel.H>
 
-#include <gaussQ.h>
-#include <localmpi.h>
-#include <Vector.h>
+#include <gaussQ.H>
+#include <localmpi.H>
 
 #include <AddDisk.H>
 #include <SphericalSL.H>
-#include "EmpCylSL.h"
+#include "EmpCylSL.H"
 #include "SParticle.H"
 
 class DiskHaloException : public std::runtime_error
@@ -55,16 +49,16 @@ class DiskHalo
   SphericalSLptr expandh;
   EmpCylSLptr    expandd;
 
-  std::vector<Matrix> disktableP, disktableN;
-  Matrix epitable, dv2table, asytable;
+  std::vector<Eigen::MatrixXd> disktableP, disktableN;
+  Eigen::MatrixXd epitable, dv2table, asytable;
   double dP, dR, dZ;
 
-  Matrix halotable;
+  Eigen::MatrixXd halotable;
   double dr, dc;
 
-  std::shared_ptr<Uniform> rndU;
-  std::shared_ptr<Normal>  rndN;
-  std::shared_ptr<ACG>     gen;
+  boost::mt19937 gen;
+  boost::random::uniform_real_distribution<> rndU;
+  boost::random::normal_distribution<> rndN;
 
   bool DF;
   bool MULTI;
@@ -92,6 +86,7 @@ class DiskHalo
   vector<double>   nhD;		// Mass in bins
   vector<unsigned> nhN;		// Number in bins
   int nzero;			// Computed minimum mesh point
+  int nzepi;			// Computed minimum epi value
 
   // Use Spline integration rather than Trapezoidal rule
   //
@@ -137,7 +132,6 @@ class DiskHalo
 
   static double R_DF;		// Change over points for DF and Jeans
   static double DR_DF;
-  static double ECUT_DF;	// Mass ratio cutoff in energy
 
   static int LOGSCALE;		// Log DF in SphericalModelTable
 

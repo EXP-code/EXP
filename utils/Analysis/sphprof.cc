@@ -42,6 +42,7 @@ using namespace std;
 				// Boost stuff
 
 #include <boost/program_options.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/filesystem.hpp>
 
 namespace po = boost::program_options;
@@ -51,182 +52,33 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include "Particle.h"
-#include <PSP2.H>
-#include <interp.h>
-#include <massmodel.h>
+#include <numerical.H>
+#include <ParticleReader.H>
+#include <interp.H>
+#include <massmodel.H>
 #include <SphereSL.H>
-#include <VtkGrid.H>
-#include <localmpi.h>
+#include <DataGrid.H>
+#include <localmpi.H>
 #include <foarray.H>
 
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-  
+// Globals
+
 string OUTFILE;
 double RMIN, RMAX, TIME;
 int OUTR, NICE, LMAX, NMAX, MMAX, PARTFLAG, L1, L2;
 bool ALL, VOLUME, SURFACE, PROBE;
 
-typedef std::shared_ptr<PSP> PSPptr;
-
-void add_particles(PSPptr psp, int& nbods, vector<Particle>& p)
+void add_particles(PRptr reader, std::string& name, vector<Particle>& p)
 {
-  if (myid==0) {
+  reader->SelectType(name);
 
-    int nbody = nbods/numprocs;
-    int nbody0 = nbods - nbody*(numprocs-1);
-
-				// Send number of bodies to be received
-				// by eacn non-root node
-    MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    vector<Particle> t(nbody);
-    vector<double> val(nbody);
-
-    SParticle *part = psp->GetParticle();
-    Particle bod;
-    
-    //
-    // Root's particles
-    //
-    for (int i=0; i<nbody0; i++) {
-      if (part==0) {
-	cerr << "Error reading particle [n=" << 0 << ", i=" << i << "]" << endl;
-	exit(-1);
-      }
-      bod.mass = part->mass();
-      for (int k=0; k<3; k++) bod.pos[k] = part->pos(k);
-      for (int k=0; k<3; k++) bod.vel[k] = part->vel(k);
-      p.push_back(bod);
-
-      part = psp->NextParticle();
-    }
-
-
-
-    //
-    // Send the rest of the particles to the other nodes
-    //
-    for (int n=1; n<numprocs; n++) {
-      
-      for (int i=0; i<nbody; i++) {
-	if (part==0) {
-	  cerr << "Error reading particle [n=" 
-	       << n << ", i=" << i << "]" << endl;
-	  exit(-1);
-	}
-	t[i].mass = part->mass();
-	for (int k=0; k<3; k++) t[i].pos[k] = part->pos(k);
-	for (int k=0; k<3; k++) t[i].vel[k] = part->vel(k);
-	part = psp->NextParticle();
-      }
-  
-      for (int i=0; i<nbody; i++) val[i] = t[i].mass;
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 11, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[0];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 12, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[1];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 13, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[2];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 14, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[0];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 15, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[1];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 16, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[2];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 17, MPI_COMM_WORLD);
-    }
-
-  } else {
-
-    int nbody;
-    MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    vector<Particle> t(nbody);
-    vector<double> val(nbody);
-				// Get and pack
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 11, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].mass = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 12, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[0] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 13, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[1] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 14, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[2] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 15, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[0] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 16, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[1] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 17, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[2] = val[i];
-
-    p.insert(p.end(), t.begin(), t.end());
+  //
+  // Root's particles
+  //
+  for (auto part=reader->firstParticle(); part != 0; part=reader->nextParticle()) {
+    p.push_back(*part);
   }
-
 }
-
-void partition(PSPptr psp, std::string& name, vector<Particle>& p)
-{
-  p.erase(p.begin(), p.end());
-  
-  PSPstanza* stanza;
-
-  int iok = 1, nbods = 0;
-
-  if (myid==0) {
-    stanza = psp->GetNamed(name);
-    if (stanza==0) iok = 0;
-    nbods = stanza->comp.nbod;
-  }
-
-  MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  
-  if (iok==0) {
-    if (myid==0)
-      std::cerr << "Could not find component named <" << name << ">"
-		<< std::endl;
-    MPI_Finalize();
-    exit(-1);
-  }
-
-  add_particles(psp, nbods, p);
-}
-
 
 typedef struct {
   double  x;
@@ -309,7 +161,7 @@ void write_output(SphereSL& ortho, int icnt, double time)
     
     if (myid==0) {
 
-      VtkGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
+      DataGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
 
       std::vector<double> data(OUTR*OUTR*OUTR);
 
@@ -577,7 +429,7 @@ main(int argc, char **argv)
 #endif  
   
   int NICE, LMAX, NMAX, ibeg, iend;
-  std::string MODFILE, runtag, cname, dir("./");
+  std::string MODFILE, runtag, cname, dir("./"), fileType, filePrefix;
   bool ALL;
 
   // ==================================================
@@ -594,10 +446,12 @@ main(int argc, char **argv)
   po::options_description desc(sout.str());
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
-    ("OUT",
-     "assume original, single binary PSP files as input")
-    ("SPL",
-     "assume new split binary PSP files as input")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -668,10 +522,6 @@ main(int argc, char **argv)
     return 0;
   }
 
-  bool SPL = false;
-  if (vm.count("SPL")) SPL = true;
-  if (vm.count("OUT")) SPL = false;
-
   if (vm.count("noCommand")==0) {
     std::string cmdFile = runtag + "." + OUTFILE + ".cmd_line";
     std::ofstream cmd(cmdFile);
@@ -708,10 +558,10 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  SphericalModelTable halo(MODFILE);
+  auto halo = boost::make_shared<SphericalModelTable>(MODFILE);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
-  SphereSL ortho(&halo, LMAX, NMAX);
+  SphereSL ortho(halo, LMAX, NMAX);
 
   // ==================================================
   // Begin sequence
@@ -719,19 +569,13 @@ main(int argc, char **argv)
 
   for (int n=ibeg; n<=iend; n++) {
 
+    auto file0 = ParticleReader::fileNameCreator(fileType, n, dir, runtag);
+
     int iok = 1;
-    std::ostringstream s0;
-
     if (myid==0) {
-      std::ostringstream s0;
-      if (SPL) s0 << "SPL.";
-      else     s0 << "OUT.";
-      s0 << runtag << "." << std::setw(5) << std::setfill('0') << n;
-
-      std::string file = dir + s0.str();
-      std::ifstream in(file);
+      std::ifstream in(file0);
       if (!in) {
-	cerr << "Error opening <" << file << ">" << endl;
+	cerr << "Error opening <" << file0 << ">" << endl;
 	iok = 0;
       }
     }
@@ -743,21 +587,18 @@ main(int argc, char **argv)
     // ==================================================
     // Open frame list
     // ==================================================
-    PSPptr psp;
+    PRptr reader = ParticleReader::createReader(fileType, file0, true);
+    
+    double tnow = reader->CurrentTime();
 
     if (myid==0) {
-
-      if (SPL) psp = PSPptr(new PSPspl(s0.str(), dir, true));
-      else     psp = PSPptr(new PSPout(s0.str(), true));
-
-      tnow = psp->CurrentTime();
-      cout << "Beginning halo partition [time=" << tnow
+      cout << "Beginning halo partition [time=" << reader->CurrentTime()
 	   << ", index=" << n << "] . . . "  << flush;
     }
 
-    vector<Particle> particles;
+    std::vector<Particle> particles;
 
-    partition(psp, cname, particles);
+    add_particles(reader, cname, particles);
     if (myid==0) cout << "done" << endl;
 
     //------------------------------------------------------------ 

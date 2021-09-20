@@ -25,6 +25,7 @@ using namespace std;
 #include <InitContainer.H>
 
 #include <boost/program_options.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 namespace po = boost::program_options;
 
@@ -35,6 +36,7 @@ int myid = 0;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
+boost::mt19937 random_gen;
 
 int
 main(int ac, char **av)
@@ -145,18 +147,18 @@ main(int ac, char **av)
 	
 				// Initialize maps?
 	if (sofar.find(key) == sofar.end()) {
-	  posmin[key].resize(3,  FLT_MAX);
-	  posmax[key].resize(3, -FLT_MAX);
-	  velmin[key].resize(3,  FLT_MAX);
-	  velmax[key].resize(3, -FLT_MAX);
-	  masmin[key] =  FLT_MAX;
+	  posmin[key].resize(3,  std::numeric_limits<float>::max());
+	  posmax[key].resize(3, -std::numeric_limits<float>::max());
+	  velmin[key].resize(3,  std::numeric_limits<float>::max());
+	  velmax[key].resize(3, -std::numeric_limits<float>::max());
+	  masmin[key] =  std::numeric_limits<float>::max();
 	  masmax[key] =  0.0;
-	  phimin[key] =  FLT_MAX;
-	  phimax[key] = -FLT_MAX;
-	  iavmin[key].resize(part->niatr(),  INT_MAX);
-	  iavmax[key].resize(part->niatr(), -INT_MAX);
-	  davmin[key].resize(part->ndatr(),  FLT_MAX);
-	  davmax[key].resize(part->ndatr(), -FLT_MAX);
+	  phimin[key] =  std::numeric_limits<float>::max();
+	  phimax[key] = -std::numeric_limits<float>::max();
+	  iavmin[key].resize(part->niatr(),  std::numeric_limits<int>::max());
+	  iavmax[key].resize(part->niatr(), -std::numeric_limits<int>::max());
+	  davmin[key].resize(part->ndatr(),  std::numeric_limits<float>::max());
+	  davmax[key].resize(part->ndatr(), -std::numeric_limits<float>::max());
 	  sofar.insert(key);
 	}
 	

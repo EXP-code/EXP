@@ -12,13 +12,9 @@
 
 namespace po = boost::program_options;
 
-#include <localmpi.h>
-#include <SLGridMP2.h>
-#include <gaussQ.h>
-
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-string outdir, runtag;
+#include <localmpi.H>
+#include <SLGridMP2.H>
+#include <gaussQ.H>
 
 int main(int argc, char** argv)
 {
@@ -67,13 +63,6 @@ int main(int argc, char** argv)
     ;
 
   //===================
-  // MPI preliminaries 
-  //===================
-  if (use_mpi) {
-    local_init_mpi(argc, argv);
-  }
-
-  //===================
   // Parse options
   //===================
   po::variables_map vm;
@@ -86,10 +75,16 @@ int main(int argc, char** argv)
   } catch (po::error& e) {
     if (myid==0) std::cout << "Option error on command line: "
 			   << e.what() << std::endl;
-    MPI_Finalize();
     return -1;
   }
   
+  //===================
+  // MPI preliminaries 
+  //===================
+  if (use_mpi) {
+    local_init_mpi(argc, argv);
+  }
+
   // Print help message and exit
   //
   if (vm.count("help")) {
@@ -112,11 +107,14 @@ int main(int argc, char** argv)
 
 				// Generate Sturm-Liouville grid
   auto ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, 
-					     true, cmap, rs, true);
-  //                                         |               |
-  // Use cache file--------------------------+               |
-  //                                                         |
-  // Turn on diagnostic output in SL creation----------------+
+					     true, cmap, rs, 0, 1.0, true);
+  //                                         ^               ^       ^
+  //                                         |               |       |
+  // Use cache file--------------------------+               |       |
+  //                                                         |       |
+  // Model extrapoltion--------------------------------------+       |
+  //                                                                 |
+  // Turn on diagnostic output in SL creation------------------------+
 
 				// Slaves exit
   if (use_mpi && myid>0) {
@@ -214,14 +212,14 @@ int main(int argc, char** argv)
     double Q1 = 0.0;
     if (use_logr) {
       double x0 = ortho->r_to_xi(exp(lrmin));
-      for (int k=1; k<=knots; k++) {
+      for (int k=0; k<knots; k++) {
 	double rr = exp(lrmin + (lr-lrmin)*lw.knot(k));
 	double xx = ortho->r_to_xi(rr);
 	Q1 += lw.weight(k) * ortho->get_dens(xx, L, N, 0) * pow(rr/r, 1.0+L) * rr*rr;
       }
       Q1 *= (lr - lrmin)/(2.0*L+1.0);
     } else {
-      for (int k=1; k<=knots; k++) {
+      for (int k=0; k<knots; k++) {
 	double xx =  ximin + (x - ximin)*lw.knot(k);
 	double rr = ortho->xi_to_r(xx);
 	Q1 += lw.weight(k) * ortho->get_dens(xx, L, N, 0) * pow(rr/r, 1.0+L) * rr / ortho->d_xi_to_r(xx);
@@ -234,14 +232,14 @@ int main(int argc, char** argv)
     //
     double Q2 = 0.0;
     if (use_logr) {
-      for (int k=1; k<=knots; k++) {
+      for (int k=0; k<knots; k++) {
 	double rr = exp(lr + (lrmax-lr)*lw.knot(k));
 	double xx = ortho->r_to_xi(rr);
 	Q2 += lw.weight(k) * ortho->get_dens(xx, L, N, 0) * pow(r/rr, L)  * rr*rr;
       }
       Q2 *= (lrmax - lr)/(2.0*L+1.0);
     } else {
-      for (int k=1; k<=knots; k++) {
+      for (int k=0; k<knots; k++) {
 	double xx =  x + (ximax - x)*lw.knot(k);
 	double rr = ortho->xi_to_r(xx);
 	Q2 += lw.weight(k) * ortho->get_dens(xx, L, N, 0) * pow(r/rr, L) * rr / ortho->d_xi_to_r(xx);

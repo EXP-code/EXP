@@ -1,10 +1,10 @@
 #include <stdlib.h>
 #include <iomanip>
-#include <sphereSL.h>
+#include <sphereSL.H>
 
 
-int SphereSL::mpi = 0;
-int SphereSL::cache = 1;
+int  SphereSL::mpi   = 0;
+bool SphereSL::cache = true;
 
 /**
    This is now a wrapper class for SLGridSph
@@ -12,7 +12,7 @@ int SphereSL::cache = 1;
 */
 SphereSL::SphereSL(int LMAX, int NMAX, int NUMR,
 		   double RMIN, double RMAX, double SCALE, 
-		   SphericalModelTable* mod)
+		   boost::shared_ptr<SphericalModelTable> mod)
 {
   BiorthID = "SphereSL";
   dof = 3;
@@ -30,7 +30,7 @@ SphereSL::SphereSL(int LMAX, int NMAX, int NUMR,
   SLGridSph::mpi = mpi;
   int cmap = 0;
 
-  slgrid = new SLGridSph(lmax, nmax, numr, rmin, rmax, mod, cache, cmap, scale);
+  slgrid = new SLGridSph(mod, lmax, nmax, numr, rmin, rmax, cache, cmap, scale);
 
 }
 
@@ -73,11 +73,12 @@ double SphereSL::dens(const int n, const int l, const double xx)
   return slgrid->get_dens(xx, l, n);
 }
 
-double SphereSL::get_potl(const double r, const int l, const Vector& coef)
+double SphereSL::get_potl(const double r, const int l,
+			  const Eigen::VectorXd& coef)
 {
   double x = r_to_rb(r);
   double ans=0.0;
-  Vector val(1, nmax);
+  Eigen::VectorXd val(nmax);
 
   slgrid->get_pot(val, x, l);
   for (int n=1; n<=nmax; n++) ans += val[n]*coef[n];
@@ -86,12 +87,12 @@ double SphereSL::get_potl(const double r, const int l, const Vector& coef)
 }
 
 
-double SphereSL::get_dens(const double r, const int l, const Vector& coef)
+double SphereSL::get_dens(const double r, const int l, const Eigen::VectorXd& coef)
 {
   double x = r_to_rb(r);
 
   double ans=0.0;
-  Vector val(1, nmax);
+  Eigen::VectorXd val(1, nmax);
 
   slgrid->get_dens(val, x, l);
   for (int n=1; n<=nmax; n++) ans += val[n]*coef[n];
@@ -100,17 +101,17 @@ double SphereSL::get_dens(const double r, const int l, const Vector& coef)
 }
 
 void SphereSL::potl(const int nn, const int l, const double x,
-		    Vector& t)
+		    Eigen::VectorXd& t)
 {
-  t.setsize(1, nmax);
+  t.resize(nmax);
   slgrid->get_pot(t, x, l);
 }
 
 
 void SphereSL::dens(const int nn, const int l, const double x,
-		    Vector& t)
+		    Eigen::VectorXd& t)
 {
-  t.setsize(1, nmax);
+  t.resize(nmax);
   slgrid->get_dens(t, x, l);
 }
 

@@ -7,16 +7,16 @@
 #include <string>
 #include <vector>
 
+#include <boost/random/mersenne_twister.hpp>
+
 using namespace std;
 
-#include <Timer.h>
-#include "HeatCool.H"
+#include <Timer.H>
+#include <HeatCool.H>
 
-int myid = 0;
-char threading_on = 0;
 string outdir = "";
 string runtag = "test";
-pthread_mutex_t mem_lock;
+boost::mt19937 random_gen;
 
 //===========================================================================
 

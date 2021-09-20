@@ -4,7 +4,7 @@
   Global flag "finish" is set to 1
 */
 
-#include <expand.h>
+#include <expand.H>
 #include <global.H>
 #include <OutputContainer.H>
 #include <ExternalCollection.H>

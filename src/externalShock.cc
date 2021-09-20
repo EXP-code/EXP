@@ -1,10 +1,9 @@
 
-#include "expand.h"
+#include "expand.H"
 
 #include <stdlib.h>
 #include <string>
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 
 #include <externalShock.H>
 

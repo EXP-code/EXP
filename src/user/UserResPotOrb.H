@@ -1,8 +1,8 @@
 #ifndef _UserResPotOrb_H
 #define _UserResPotOrb_H
 
-#include <massmodel.h>
-#include <biorth.h>
+#include <massmodel.H>
+#include <biorth.H>
 #include <ResPotOrb.H>
 #include <TwoBodyDiffuse.H>
 

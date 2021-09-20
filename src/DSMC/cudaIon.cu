@@ -9,7 +9,7 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-#include <Timer.h>
+#include <Timer.H>
 #include <cudaUtil.cuH>
 
 __constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H;

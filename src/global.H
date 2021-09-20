@@ -15,6 +15,8 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <boost/random/mersenne_twister.hpp>
+
 using namespace std;
 
 /*! \file global.H
@@ -237,7 +239,7 @@ extern unsigned char quit_signal;
 //! Used to flag separate behavior on inintialization (unused)
 extern int is_init;
 
-#ifndef _localmpi_h
+#ifndef _localmpi_H
 //! Maintains number of processes, slaves, MPI id, etc.
 //@{
 extern int numprocs, slaves, myid, proc_namelen;
@@ -341,6 +343,11 @@ extern bool main_wait;
 
 //! Set to false to suppress cuda computation
 extern bool use_cuda;
+
+//! Mersenne random number generator provided by Boost.Random.  This
+//! could be changed to another if needed.
+extern unsigned int   random_seed;
+extern boost::mt19937 random_gen;
 
 //! For toggling CUDA profiling
 extern bool cuda_prof;

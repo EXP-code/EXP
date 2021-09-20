@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -31,8 +29,6 @@
  *
  ****************************************************************************/
 
-// static char rcsid_SatelliteOrbit[] = "$Id: SatelliteOrbit.cc 1478 2011-02-21 04:52:58Z weinberg $";
-
 #include <cstdlib>
 #include <cmath>
 #include <iostream>
@@ -43,25 +39,23 @@
 #include <dmalloc.h>
 #endif
 
-#include <kevin_complex.h>
-#include <Vector.h>
-#include <orbit.h>
-#include <massmodel.h>
+#include <orbit.H>
+#include <massmodel.H>
 
-#include <model2d.h>
-#include <model3d.h>
-#include <isothermal.h>
-#include <hernquist.h>
-#include <mestel.h>
-#include <toomre.h>
-#include <exponential.h>
+#include <model2d.H>
+#include <model3d.H>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <mestel.H>
+#include <toomre.H>
+#include <exponential.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <global.H>
 #include <SatelliteOrbit.h>
 				// External prototype for Euler matrix
 
-Matrix return_euler(double PHI, double THETA, double PSI, int BODY);
+Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY);
 
 // ===================================================================
 // Constructor
@@ -174,7 +168,7 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
   
 				// Set orientation of satellite orbit
   rotate  = return_euler(PHIP, INCLINE, PSI, 1);
-  rotateI = rotate.Inverse();
+  rotateI = rotate.inverse();
   
 				// In case non-inertial is not desired
   omega = domega = 0.0;
@@ -213,7 +207,7 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
 	   << " | " << ret.peri << ", " << ret.apo << endl
 	   << setw(30) << "Radial period" 
 	   << " | " << ret.radial_period << endl
-	   << setw(30) << "Aximuthal period" 
+	   << setw(30) << "Azimuthal period" 
 	   << " | " << ret.azimuthal_period << endl;
     }
   }
@@ -227,13 +221,13 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
       double T = orbtmin;
 
       while (T < orbtmax) {
-	Vector ps = get_satellite_orbit(T);
+	auto ps = get_satellite_orbit(T);
 
 	out << setw(18) << T
+	    << setw(18) << ps[0]
 	    << setw(18) << ps[1]
 	    << setw(18) << ps[2]
-	    << setw(18) << ps[3]
-	    << endl;
+	    << std::endl;
 	
 	T += orbdelt;
       }
@@ -255,7 +249,7 @@ SatelliteOrbit::~SatelliteOrbit(void)
   delete orb;
 }
 
-Vector SatelliteOrbit::get_satellite_orbit(double T)
+Eigen::Vector3d SatelliteOrbit::get_satellite_orbit(double T)
 {
   double r, phi;
 
@@ -267,9 +261,9 @@ Vector SatelliteOrbit::get_satellite_orbit(double T)
     phi = orb->Orb().get_angle(7, T);
   }
 
-  v0[1] = r*cos(phi);
-  v0[2] = r*sin(phi);
-  v0[3] = 0.0;
+  v0[0] = r*cos(phi);
+  v0[1] = r*sin(phi);
+  v0[2] = 0.0;
 
 				// Set current satellite position
   currentTime = T;
@@ -290,14 +284,14 @@ void SatelliteOrbit::get_satellite_orbit(double T, double *v)
     phi = orb->Orb().get_angle(7, T);
   }
 
-  v0[1] = r*cos(phi);
-  v0[2] = r*sin(phi);
-  v0[3] = 0.0;
+  v0[0] = r*cos(phi);
+  v0[1] = r*sin(phi);
+  v0[2] = 0.0;
 
 				// Set current satellite position
   currentTime = T;
   currentR = rotate*v0;
 
-  for (int k=0; k<3; k++) v[k] = currentR[k+1];
+  for (int k=0; k<3; k++) v[k] = currentR[k];
 }
 

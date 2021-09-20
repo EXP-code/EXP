@@ -101,13 +101,13 @@ public:
   const std::string&   abbrev() { return std::get<1>(*this); }
 
   //! Atomic number
-  const unsigned       number() { return std::get<2>(*this); }
+  unsigned             number() { return std::get<2>(*this); }
 
   //! Atomic weight
-  const double         weight() { return std::get<3>(*this); }
+  double               weight() { return std::get<3>(*this); }
 
   //! Data (used for cross-section scale factor by CollideIon)
-  const double         scale()  { return std::get<4>(*this); }
+  double               scale()  { return std::get<4>(*this); }
 
   //! Set double value (currently used by CollideIon as above)
   void set(double s) { std::get<4>(*this) = s; }

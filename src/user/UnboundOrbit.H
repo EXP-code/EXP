@@ -7,9 +7,8 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include <Vector.h>
-#include <massmodel.h>
-#include <model3d.h>
+#include <massmodel.H>
+#include <model3d.H>
 
 #include <Trajectory.H>
 
@@ -25,7 +24,7 @@ private:
   vector<double> Time, Xpos, Ypos, Zpos;
   double TOFFSET;
 
-  Matrix rotate, rotateI;
+  Eigen::Matrix3d rotate, rotateI;
 
 				// Private members
 
@@ -43,7 +42,7 @@ public:
 				// Members
 
   //! Get satellite position in halo frame
-  Vector get_satellite_orbit(double T);
+  Eigen::Vector3d get_satellite_orbit(double T);
 
   //! Get satellite position in halo frame
   void get_satellite_orbit(double T, double *v);

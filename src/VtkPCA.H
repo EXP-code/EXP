@@ -3,7 +3,7 @@
 
 #include <sstream>
 #include <boost/shared_ptr.hpp>
-#include <Vector.h>
+#include <Eigen/Eigen>
 
 //
 // VTK stuff
@@ -53,21 +53,21 @@ public:
   VtkPCA(int N, bool reorder=false, bool smooth=false);
 
   //! Add data for two-dimensional cylindrical basis
-  void Add(const Vector& coef,
-	   const Vector& hall,
-	   const Vector& snr,
-	   const Vector& eval,
-	   const Matrix& evec,
-	   const Matrix& covr,
+  void Add(const Eigen::VectorXd& coef,
+	   const Eigen::VectorXd& hall,
+	   const Eigen::VectorXd& snr,
+	   const Eigen::VectorXd& eval,
+	   const Eigen::MatrixXd& evec,
+	   const Eigen::MatrixXd& covr,
 	   int m);
 
   //! Add data for three-dimensional spherical basis
-  void Add(const Vector& coef,
-	   const Vector& hall,
-	   const Vector& snr,
-	   const Vector& eval,
-	   const Matrix& evec,
-	   const Matrix& covr,
+  void Add(const Eigen::VectorXd& coef,
+	   const Eigen::VectorXd& hall,
+	   const Eigen::VectorXd& snr,
+	   const Eigen::VectorXd& eval,
+	   const Eigen::MatrixXd& evec,
+	   const Eigen::MatrixXd& covr,
 	   int l, int m);
   
   //! Write output file

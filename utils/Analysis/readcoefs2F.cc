@@ -75,10 +75,21 @@ int main(int argc, char **argv)
   std::map<double, SphCoefsPtr> coefs;
 
   while (in) {
-    SphCoefsPtr c = std::make_shared<SphCoefs>();
-    if (not c->read(in, exp_type)) break;
+    try {
+      SphCoefsPtr c = std::make_shared<SphCoefs>();
+      if (not c->read(in, exp_type)) break;
 
-    coefs[c->header.tnow] = c;
+      coefs[c->header.tnow] = c;
+    }
+    catch(std::runtime_error& error) {
+      std::cout << "Error (runtime): " << error.what() << std::endl;
+      break;
+    }
+    catch(std::logic_error& error) {
+      std::cout << "Error (logic): " << error.what() << std::endl;
+      break;
+    }
+      
   }
   
   for (auto c : coefs) {
@@ -91,7 +102,7 @@ int main(int argc, char **argv)
 	for (int s=0; s<S; s++) {
 	  std::cout << std::setw(18) << c.first << std::setw(5) << ll << std::setw(5) << mm << std::setw(5) << s;
 	  for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->header.nmax); nn++) 
-	    std::cout << std::setw(18) << c.second->coefs[I+s][nn];
+	    std::cout << std::setw(18) << c.second->coefs(I+s, nn);
 	  std::cout << std::endl;
 	  if (mm==0) break;
 	}

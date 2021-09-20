@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-#include "expand.h"
+#include "expand.H"
 #include <Component.H>
 #include <cudaReduce.cuH>
 

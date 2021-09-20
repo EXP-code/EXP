@@ -12,13 +12,10 @@
 
 namespace po = boost::program_options;
 
-#include <localmpi.h>
-#include <SLGridMP2.h>
-#include <gaussQ.h>
-
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-string outdir, runtag;
+#include <global.H>
+#include <localmpi.H>
+#include <SLGridMP2.H>
+#include <gaussQ.H>
 
 int main(int argc, char** argv)
 {
@@ -65,13 +62,6 @@ int main(int argc, char** argv)
     ;
 
   //===================
-  // MPI preliminaries 
-  //===================
-  if (use_mpi) {
-    local_init_mpi(argc, argv);
-  }
-
-  //===================
   // Parse options
   //===================
   po::variables_map vm;
@@ -84,10 +74,16 @@ int main(int argc, char** argv)
   } catch (po::error& e) {
     if (myid==0) std::cout << "Option error on command line: "
 			   << e.what() << std::endl;
-    MPI_Finalize();
     return -1;
   }
   
+  //===================
+  // MPI preliminaries 
+  //===================
+  if (use_mpi) {
+    local_init_mpi(argc, argv);
+  }
+
   // Print help message and exit
   //
   if (vm.count("help")) {
@@ -110,11 +106,14 @@ int main(int argc, char** argv)
 
 				// Generate Sturm-Liouville grid
   auto ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, 
-					     true, cmap, rs, true);
-  //                                         |               |
-  // Use cache file--------------------------+               |
-  //                                                         |
-  // Turn on diagnostic output in SL creation----------------+
+					     true, cmap, rs, 0, 1.0, true);
+  //                                         ^               ^       ^
+  //                                         |               |       |
+  // Use cache file--------------------------+               |       |
+  //                                                         |       |
+  // Cusp extrapolation--------------------------------------+       |
+  //                                                                 |
+  // Turn on diagnostic output in SL creation------------------------+
 
 				// Slaves exit
   if (use_mpi && myid>0) {
@@ -179,7 +178,7 @@ int main(int argc, char** argv)
 	out << "# "
 	    << std::setw(13) << " x |"
 	    << std::setw(15) << " r |";
-	for (int n=Nmin; n<=Nmax; n++) {
+	for (int n=Nmin; n<Nmax; n++) {
 	  std::ostringstream sout1, sout2, sout3;
 	  sout1 << " Pot(r, " << n << ") |";
 	  sout2 << " Force(r, " << n << ") |";
@@ -233,7 +232,7 @@ int main(int argc, char** argv)
 	  r = ortho->xi_to_r(x);
 	  out << setw(15) << x
 	      << setw(15) << r;
-	  for (int n=Nmin; n<=Nmax; n++)
+	  for (int n=Nmin; n<Nmax; n++)
 	    out << setw(15) << ortho->get_pot  (x, L, n, 0)
 		<< setw(15) << ortho->get_force(x, L, n, 0)
 		<< setw(15) << ortho->get_dens (x, L, n, 0);
@@ -263,12 +262,12 @@ int main(int argc, char** argv)
 	double x, r, ans=0.0;
 	for (int i=0; i<num; i++) {
 
-	  x = ximin + (ximax - ximin)*lw.knot(i+1);
+	  x = ximin + (ximax - ximin)*lw.knot(i);
 	  r = ortho->xi_to_r(x);
 
 	  ans += r*r*ortho->get_pot(x, L, N1, 0)*
 	    ortho->get_dens(x, L, N2, 0) /
-	    ortho->d_xi_to_r(x) * (ximax - ximin)*lw.weight(i+1);
+	    ortho->d_xi_to_r(x) * (ximax - ximin)*lw.weight(i);
 
 	}
 

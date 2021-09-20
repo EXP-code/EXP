@@ -72,7 +72,7 @@ SphericalModelTable::SphericalModelTable(string filename,
     mass.x[i] = radius;
     pot.x[i] = radius;
     if (DIVERGE)
-      density.y[i] *= pow(radius+MINFLOAT,DIVERGE_RFAC);
+      density.y[i] *= pow(radius+std::numeric_limits<float>::min(),DIVERGE_RFAC);
   }
   
   Spline(density.x, density.y, 0.0, 0.0, density.y2);
@@ -139,7 +139,7 @@ SphericalModelTable::SphericalModelTable(int NUM,
     pot.x[i] = radius;
 
     if (DIVERGE)
-      density.y[i] *= pow(radius+MINFLOAT,DIVERGE_RFAC);
+      density.y[i] *= pow(radius+std::numeric_limits<float>::min(),DIVERGE_RFAC);
   }
   
   Spline(density.x, density.y, 0.0, 0.0, density.y2);

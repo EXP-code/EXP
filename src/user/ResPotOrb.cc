@@ -3,12 +3,12 @@
 #include <sstream>
 #include <iomanip>
 #include <cassert>
+#include <limits>
 
-#include <values.h>
 #include <global.H>
 #include <ResPotOrb.H>
 #include <ZBrent.H>
-#include <localmpi.h>
+#include <localmpi.H>
 
 #include <pthread.h>  
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
@@ -27,7 +27,7 @@ int ResPotOrb::NUME = 200;
 int ResPotOrb::NUMX = 200;
 int ResPotOrb::RECS = 100;
 int ResPotOrb::ITMAX = 50;
-KComplex ResPotOrb::I(0.0, 1.0);
+std::complex<double> ResPotOrb::I(0.0, 1.0);
 
 const char* ResPotOrb::ReturnDesc[] = {
   "OK", 
@@ -153,17 +153,17 @@ void ResPotOrb::compute_grid()
       
       for (int j=0; j<grid->num; j++) {
 	rw.ff.push_back(
-			Gkn.weight(j+1)*grid->dw1dt[1][j]*
-			cos(grid->w1[1][j]*L1 + grid->f[1][j]*L2));
-	rw.w1.push_back(grid->w1[1][j]);
-	rw.f.push_back(grid->f[1][j]);
-	rw.r.push_back(grid->r[1][j]);
+			Gkn.weight(j+1)*grid->dw1dt(0, j) *
+			cos(grid->w1(0, j)*L1 + grid->f(0, j)*L2));
+	rw.w1.push_back(grid->w1(0, j));
+	rw.f.push_back(grid->f(0, j));
+	rw.r.push_back(grid->r(0, j));
       }
 
       rw.num = grid->num;
-      rw.O1 = orb->get_freq(1);
-      rw.O2 = orb->get_freq(2);
-      rw.I1 = orb->get_action(1);
+      rw.O1 = orb->get_freq(0);
+      rw.O2 = orb->get_freq(1);
+      rw.I1 = orb->get_action(0);
       rw.E = E;
       rw.K = K;
       rw.Jm = orb->Jmax();
@@ -204,9 +204,9 @@ void ResPotOrb::compute_grid()
       grid = orb->get_angle_grid();
       for (int j=0; j<grid->num; j++) {
 	rw.ff_Ep.push_back(
-			   Gkn.weight(j+1)*grid->dw1dt[1][j]*
-			   cos(grid->w1[1][j]*L1 + grid->f[1][j]*L2));
-	rw.r_Ep.push_back(grid->r[1][j]);
+			   Gkn.weight(j+1)*grid->dw1dt(0, j)*
+			   cos(grid->w1(0, j)*L1 + grid->f(0, j)*L2));
+	rw.r_Ep.push_back(grid->r(0, j));
       }
       rw.dJm = orb->Jmax();
       
@@ -214,9 +214,9 @@ void ResPotOrb::compute_grid()
       grid = orb->get_angle_grid();
       for (int j=0; j<grid->num; j++) {
 	rw.ff_Em.push_back(
-			   Gkn.weight(j+1)*grid->dw1dt[1][j]*
-			   cos(grid->w1[1][j]*L1 + grid->f[1][j]*L2));
-	rw.r_Em.push_back(grid->r[1][j]);
+			   Gkn.weight(j+1)*grid->dw1dt(0, j)*
+			   cos(grid->w1(0, j)*L1 + grid->f(0, j)*L2));
+	rw.r_Em.push_back(grid->r(0, j));
       }
       
       // Kappa deriv
@@ -224,18 +224,18 @@ void ResPotOrb::compute_grid()
       grid = orb->get_angle_grid();
       for (int j=0; j<grid->num; j++) {
 	rw.ff_Kp.push_back(
-			   Gkn.weight(j+1)*grid->dw1dt[1][j]*
-			   cos(grid->w1[1][j]*L1 + grid->f[1][j]*L2));
-	rw.r_Kp.push_back(grid->r[1][j]);
+			   Gkn.weight(j+1)*grid->dw1dt(0, j)*
+			   cos(grid->w1(0, j)*L1 + grid->f(0, j)*L2));
+	rw.r_Kp.push_back(grid->r(0, j));
       }
 
       orb->new_orbit(E, Km);
       grid = orb->get_angle_grid();
       for (int j=0; j<grid->num; j++) {
 	rw.ff_Km.push_back(
-			   Gkn.weight(j+1)*grid->dw1dt[1][j]*
-			   cos(grid->w1[1][j]*L1 + grid->f[1][j]*L2));
-	rw.r_Km.push_back(grid->r[1][j]);
+			   Gkn.weight(j+1)*grid->dw1dt(0, j)*
+			   cos(grid->w1(0, j)*L1 + grid->f(0, j)*L2));
+	rw.r_Km.push_back(grid->r(0, j));
       }
       
       // Finally, store the data for this phase space point
@@ -486,7 +486,7 @@ double ResPotOrb::Jx(double x, double Jmin, double Jmax)
 double ResPotOrb::dxJ(double J, double Jmin, double Jmax)
 {
   if (J>=Jmax) return 1.0/(Jmax-Jmin);
-  if (J<=0.0) return MAXFLOAT;
+  if (J<=0.0) return std::numeric_limits<float>::max();
   return pow( (J-Jmin)/(Jmax-Jmin), ALPHA-1.0 )/(Jmax - Jmin);
 }
 
@@ -623,7 +623,7 @@ bool ResPotOrb::getValues(double I1, double I2,
 bool ResPotOrb::getValues(double rsat, double I1, double I2,
 			  double& O1, double& O2,
 			  double& Jm, double& dJm,
-			  KComplex& Ul, KComplex& dUldE, KComplex& dUldK)
+			  std::complex<double>& Ul, std::complex<double>& dUldE, std::complex<double>& dUldK)
 {
   O1 = 0.0;
   O2 = 0.0;
@@ -1098,9 +1098,9 @@ ResPotOrb::ReturnCode ResPotOrb::Update2(double dt,
     beta = BETA;
   }
   
-  KComplex VB = VeeBeta(L, L2, M, beta);
+  std::complex<double> VB = VeeBeta(L, L2, M, beta);
   
-  KComplex DVB = 
+  std::complex<double> DVB = 
     (VeeBeta(L, L2, M, betaP) - VeeBeta(L, L2, M, betaM)) / (betaP - betaM);
   
   // Iterative implicit solution
@@ -1119,7 +1119,7 @@ ResPotOrb::ReturnCode ResPotOrb::Update2(double dt,
   //                \_ Initial step
   //
   double If, Jm, dJm, dEIs=0.0, dKIs=0.0, dKI1=0.0, dKI2=0.0, I3;
-  KComplex Fw, FI, Ul, Ff, dUldE, dUldK, dUldI2, UldVdIs;
+  std::complex<double> Fw, FI, Ul, Ff, dUldE, dUldK, dUldI2, UldVdIs;
   bool done = false;
   
 #ifdef DEBUG_DEBUG
@@ -1219,7 +1219,7 @@ ResPotOrb::ReturnCode ResPotOrb::Update2(double dt,
     
     
     dUldI2 = Ul * DVB * amp / (tan(beta)*I2);
-    UldVdIs = dUldI2 * L2;
+    UldVdIs = dUldI2 * static_cast<double>(L2);
     Ul *= VB * amp;
     dUldE *= VB * amp;
     dUldK *= VB * amp;
@@ -1448,9 +1448,9 @@ ResPotOrb::ReturnCode ResPotOrb::Update3(double dt,
     beta = BETA;
   }
   
-  KComplex VB = VeeBeta(L, L2, M, beta);
+  std::complex<double> VB = VeeBeta(L, L2, M, beta);
   
-  KComplex DVB = 
+  std::complex<double> DVB = 
     (VeeBeta(L, L2, M, betaP) - VeeBeta(L, L2, M, betaM)) / (betaP - betaM);
   
   // Iterative implicit solution
@@ -1471,7 +1471,7 @@ ResPotOrb::ReturnCode ResPotOrb::Update3(double dt,
   //
   double If1, If2;
   double Jm, dJm, dEIs=0.0, dKIs=0.0, dKI1=0.0, dKI2=0.0, I3, I30;
-  KComplex Fw, FI, Ul, F1, F2, dUldE, dUldK, dUldb;
+  std::complex<double> Fw, FI, Ul, F1, F2, dUldE, dUldK, dUldb;
   bool done = false;
   
 #ifdef DEBUG_DEBUG
@@ -1563,7 +1563,7 @@ ResPotOrb::ReturnCode ResPotOrb::Update3(double dt,
     }
     
     
-    dUldb = -Ul * DVB * amp * M / (sin(beta)*I2);
+    dUldb = -Ul * DVB * amp * static_cast<double>(M) / (sin(beta)*I2);
     Ul *= VB * amp;
     dUldE *= VB * amp;
     dUldK *= VB * amp;

@@ -2,7 +2,7 @@
 #include <fstream>
 #include <iomanip>
 
-#include "expand.h"
+#include "expand.H"
 #include <global.H>
 
 #include <AxisymmetricBasis.H>

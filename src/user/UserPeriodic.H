@@ -1,13 +1,11 @@
 #ifndef _UserPeriodic_H
 #define _UserPeriodic_H
 
+#include <boost/random/normal_distribution.hpp>
+
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
-
-#include <ACG.h>
-#include <Uniform.h>
-#include <Normal.h>
 
 /** Enforce periodic boundary conditions in a rectangular prism (box)
     @param ctrname is the name of the component whose particles will be subject to the boundary condition
@@ -56,11 +54,8 @@ private:
 
   void userinfo();
 
-  // Pseudorandom generation
-  //
-  ACG *gen;
-  Uniform *unit;
-  Normal *norm;
+  //! Pseudorandom generation
+  boost::random::normal_distribution<> norm;
 
 public:
 

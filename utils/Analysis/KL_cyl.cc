@@ -45,7 +45,6 @@
 
 				// Boost stuff
 
-#include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
@@ -60,40 +59,21 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
-#include "Particle.h"
-#include <PSP2.H>
-#include <interp.h>
-#include <massmodel.h>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <ParticleReader.H>
+#include <interp.H>
+#include <massmodel.H>
+#include <EmpCylSL.H>
 #include <foarray.H>
 #include <KDtree.H>
 
-#include <localmpi.h>
+#include <global.H>
+#include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
-// Variables not used but needed for linking
-//
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-std::string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-  
 // Helper class
 //
-
 class CoefStruct
 {
 
@@ -149,7 +129,7 @@ main(int argc, char **argv)
   
   double RMIN, rscale, minSNR0, Hexp;
   int NICE, LMAX, NMAX, NSNR, indx, nbunch, Ndens;
-  std::string CACHEFILE, dir("./"), cname, prefix;
+  std::string CACHEFILE, dir("./"), cname, prefix, fileType, filePrefix;
   bool ignore;
 
   // ==================================================
@@ -172,14 +152,16 @@ main(int argc, char **argv)
      "Use Truncate method for SNR trimming rather than the default Hall")
     ("debug,",
      "Debug max values")
-    ("OUT",
-     "assume original, single binary PSP files as input")
-    ("SPL",
-     "assume new split binary PSP files as input")
     ("LOG",
      "log scaling for SNR")
     ("Hall",
      "use Hall smoothing for SNR trim")
+    ("filetype,F",
+     po::value<std::string>(&fileType)->default_value("PSPout"),
+     "input file type")
+    ("prefix,P",
+     po::value<std::string>(&filePrefix)->default_value("OUT"),
+     "prefix for phase-space files")
     ("Ndens,K",             po::value<int>(&Ndens)->default_value(32),
      "KD density estimate count (use 0 for expansion estimate)")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
@@ -241,10 +223,6 @@ main(int argc, char **argv)
     MPI_Finalize();
     return 0;
   }
-
-  bool SPL = false;
-  if (vm.count("SPL")) SPL = true;
-  if (vm.count("OUT")) SPL = false;
 
   bool LOG = false;
   if (vm.count("LOG")) {
@@ -395,8 +373,6 @@ main(int argc, char **argv)
     ortho1.setTK("Hall");
   }
 
-  PSPptr psp;
-  
   if (ortho0.read_cache()==0 or ortho1.read_cache()==0) {
     std::cout << "Could not read cache file <" << CACHEFILE << ">"
 	      << " . . . quitting" << std::endl;
@@ -420,18 +396,12 @@ main(int argc, char **argv)
   // ==================================================
 
   int iok = 1;
-  std::ostringstream s1;
-  
-  s1.str("");		// Clear stringstream
-  if (SPL) s1 << "SPL.";
-  else     s1 << "OUT.";
-  s1 << runtag << "."<< std::setw(5) << std::setfill('0') << indx;
-      
-				// Check for existence of next file
-  file = dir + s1.str();
+  auto file1 = ParticleReader::fileNameCreator(fileType, indx, dir, runtag);
+
   std::ifstream in(file);
   if (!in) {
-    std::cerr << "Error opening <" << file << ">" << endl;
+    if (myid==0) 
+      std::cerr << "Error opening <" << file << ">" << endl;
     iok = 0;
   }
   
@@ -467,23 +437,15 @@ main(int argc, char **argv)
   // Open PSP file
   // ==================================================
 
-  if (SPL) psp = std::make_shared<PSPspl>(s1.str(), dir, true);
-  else     psp = std::make_shared<PSPout>(file, true);
-  
-  tnow = psp->CurrentTime();
+  PRptr reader = ParticleReader::createReader(fileType, file1, true);
+
+  double tnow = reader->CurrentTime();
   if (myid==0) std::cout << "Beginning partition [time=" << tnow
 			 << ", index=" << indx << "] . . . "  << flush;
   
-  if (not psp->GetNamed(cname)) {
-    if (myid==0) {
-      std::cout << "Error finding component named <" << cname << ">" << std::endl;
-      psp->PrintSummary(std::cout);
-    }
-    MPI_Finalize();
-    exit(-1);
-  }
+  reader->SelectType(cname);
       
-  int nbod = psp->GetNamed(cname)->comp.nbod;
+  int nbod = reader->CurrentNumber();
 
   std::vector<double> KDdens;
 
@@ -498,22 +460,22 @@ main(int argc, char **argv)
   ortho0.setup_accumulation();
   ortho0.setHall("test", nbod);
 
-  SParticle *p = psp->GetParticle();
+  auto p = reader->firstParticle();
   int icnt = 0;
   do {
     if (myid==0) ++(*progress);
 
     if (icnt++ % numprocs == myid) {
-      double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-      double phi = atan2(p->pos(1), p->pos(0));
-      ortho0.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0, 0, true);
-      //                                                         ^  ^  ^
-      //                                                         |  |  |
-      // Thread id ----------------------------------------------+  |  |
-      // Level -----------------------------------------------------+  |
-      // Compute covariance -------------------------------------------+
+      double R   = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+      double phi = atan2(p->pos[1], p->pos[0]);
+      ortho0.accumulate(R, p->pos[2], phi, p->mass, p->indx, 0, 0, true);
+      //                                                     ^  ^  ^
+      //                                                     |  |  |
+      // Thread id ------------------------------------------+  |  |
+      // Level -------------------------------------------------+  |
+      // Compute covariance ---------------------------------------+
     }
-    p = psp->NextParticle();
+    p = reader->nextParticle();
   } while (p);
   
     
@@ -532,10 +494,9 @@ main(int argc, char **argv)
     // implemented in KDtree.H)
     //
     double KDmass = 0.0;
-    for (auto part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
-      double ms = part->mass();
-      KDmass += ms;
-      points.push_back(point3({part->pos(0), part->pos(1), part->pos(2)}, ms));
+    for (auto part=reader->firstParticle(); part!=0; part=reader->nextParticle()) {
+      KDmass += part->mass;
+      points.push_back(point3({part->pos[0], part->pos[1], part->pos[2]}, part->mass));
     }
     
     tree3 tree(points.begin(), points.end());
@@ -587,7 +548,7 @@ main(int argc, char **argv)
   double ampfac = 1.0;
   if (nbunch0 > 1) ampfac = 1.0/(nbunch0 - 1);
 
-  p = psp->GetParticle();
+  p = reader->firstParticle();
   icnt = 0;
     
   std::vector<boost::shared_ptr<CoefStruct>> coefs;
@@ -628,18 +589,18 @@ main(int argc, char **argv)
 				// between nodes
     if (icnt++ % numprocs == myid) {
       
-      double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-      double phi = atan2(p->pos(1), p->pos(0));
-      ortho1.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0, 0, false);
-      //                                                         ^  ^  ^
-      //                                                         |  |  |
-      // Thread id ----------------------------------------------+  |  |
-      // Level -----------------------------------------------------+  |
-      // Compute covariance -------------------------------------------+
+      double R   = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+      double phi = atan2(p->pos[1], p->pos[0]);
+      ortho1.accumulate(R, p->pos[2], phi, p->mass, p->indx, 0, 0, false);
+      //                                                     ^  ^  ^
+      //                                                     |  |  |
+      // Thread id ------------------------------------------+  |  |
+      // Level -------------------------------------------------+  |
+      // Compute covariance ---------------------------------------+
 
-      curMass += p->mass();	// Accumulate mass per bunch
+      curMass += p->mass;	// Accumulate mass per bunch
     }
-    p = psp->NextParticle();
+    p = reader->nextParticle();
   } while (p);
   
   //------------------------------------------------------------ 
@@ -702,13 +663,13 @@ main(int argc, char **argv)
   }
 
 
-  using OrthoCoefs = std::vector<Vector>;
+  using OrthoCoefs = std::vector<Eigen::VectorXd>;
   std::vector<OrthoCoefs> ac_cos(coefs.size()), ac_sin(coefs.size());
   for (int j=0; j<coefs.size(); j++) {
     ac_cos[j].resize(mmax+1), ac_sin[j].resize(mmax+1);
     for (int mm=0; mm<=mmax; mm++) {
-      ac_cos[j][mm].setsize(0, norder-1);
-      ac_sin[j][mm].setsize(0, norder-1);
+      ac_cos[j][mm].resize(norder);
+      ac_sin[j][mm].resize(norder);
     }
   }
 
@@ -747,7 +708,7 @@ main(int argc, char **argv)
     
     // Reset particle loop again for KL
     //
-    p = psp->GetParticle();
+    p = reader->firstParticle();
     int icnt = 0, ibnch = 0;
 
     // KL values, density workspace
@@ -780,9 +741,9 @@ main(int argc, char **argv)
       if (icnt % numprocs == myid) {
 
 				// Compute density basis for each particle
-	double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-	double phi = atan2(p->pos(1), p->pos(0));
-	double z   = p->pos(2);
+	double R   = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	double phi = atan2(p->pos[1], p->pos[0]);
+	double z   = p->pos[2];
 	
 				// Get density grid interpolated entries
 	std::fill(DD.begin(), DD.end(), 0.0);
@@ -802,13 +763,13 @@ main(int argc, char **argv)
 	  if (j==ibnch) continue;
 	  if (Ndens) {
 	    if (KDdens[icnt]>0.0 and DD[j]>0.0) {
-	      KL[ibnch] += p->mass() * log(KDdens[icnt]/DD[j]);
+	      KL[ibnch] += p->mass * log(KDdens[icnt]/DD[j]);
 	      good++;
 	      if (false) {
 		static int jcnt = 0;
 		if (myid==0 and j==0 and jcnt<100) {
 		  std::cout << "DENS: "
-			    << std::setw( 6) << p->indx()
+			    << std::setw( 6) << p->indx
 			    << std::setw(18) << KDdens[icnt]
 			    << std::setw(18) << DD[0]
 			    << std::endl;
@@ -820,7 +781,7 @@ main(int argc, char **argv)
 	    }
 	  } else {
 	    if (DD[ibnch]>0.0 and DD[j]>0.0) {
-	      KL[ibnch] += p->mass() * log(DD[ibnch]/DD[j]);
+	      KL[ibnch] += p->mass * log(DD[ibnch]/DD[j]);
 	      good++;
 	    } else {
 	      bad++;
@@ -828,11 +789,11 @@ main(int argc, char **argv)
 	  }
 	}
 
-	tmas += p->mass();
+	tmas += p->mass;
       }
       // END: parallelized work
       
-      p = psp->NextParticle();
+      p = reader->nextParticle();
       icnt++;
     } while (p);
     

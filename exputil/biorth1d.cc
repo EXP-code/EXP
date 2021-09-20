@@ -31,9 +31,9 @@
  *
  ***************************************************************************/
 
-#include <math.h>
-#include <numerical.h>
-#include <biorth1d.h>
+#include <cmath>
+#include <numerical.H>
+#include <biorth1d.H>
 
 double OneDTrig::KSTOL=1.0e-6;
 double OneDTrig::KSZTOL=1.0e-10;
@@ -90,18 +90,15 @@ void OneDTrig::reset(double KX, double ZMAX)
 
 void OneDTrig::compute_norm(void)
 {
-  cnorm.setsize(1, 2*nrmax+1);
+  cnorm.resize(2*nrmax+1);
 
-  int n;
-
-  for (int nn=1; nn<=nrmax; nn++) {
+  for (int n=0; n<nrmax; n++) {
     
-    n = nn-1;
-    cnorm[1+2*n] = sqrt(1.0/(zmax * 
-       (1.0 + 0.5*sin(2.0*kstar[n]*zmax)/(kstar[n]*zmax) ) ) );
+    cnorm[0+2*n] = sqrt(1.0/(zmax * 
+			     (1.0 + 0.5*sin(2.0*kstar[n]*zmax)/(kstar[n]*zmax) ) ) );
 
-    cnorm[2+2*n] = sqrt(1.0/(zmax * 
-       (1.0 - 0.5*sin(2.0*kbstar[n]*zmax)/(kbstar[n]*zmax) ) ) );
+    cnorm[1+2*n] = sqrt(1.0/(zmax * 
+			     (1.0 - 0.5*sin(2.0*kbstar[n]*zmax)/(kbstar[n]*zmax) ) ) );
   }
 
 }
@@ -174,44 +171,44 @@ double OneDTrig::force(int nn, int zilch, double z)
 
 }
 
-void OneDTrig::potl(int zilch1, int zilch2, double z, Vector& ret)
+void OneDTrig::potl(int zilch1, int zilch2, double z, Eigen::VectorXd& ret)
 {
-  int nnmax = ret.gethigh();
-  int n=0;
+  int nnmax = ret.size();
   double zz = fabs(z);
 
-  for (int nn=1; nn<=nnmax; nn++) {
+  for (int n=0; n<nnmax; n++) {
 
     if (zz > zmax)
-      ret[nn] = cnorm[nn]/sqrt(kstar[n]*kstar[n] + kx*kx) * cos(kstar[n]*zmax)
+      ret[n] = cnorm[n]/sqrt(kstar[n]*kstar[n] + kx*kx) * cos(kstar[n]*zmax)
 	* exp(-kx*(zz-zmax));
     else
-      ret[nn] = cnorm[nn]/sqrt(kstar[n]*kstar[n] + kx*kx) * cos(kstar[n]*z);
+      ret[n] = cnorm[n]/sqrt(kstar[n]*kstar[n] + kx*kx) * cos(kstar[n]*z);
 
-    if (nn++ == nnmax) return;
+    if (++n == nnmax) return;
 
     if (zz > zmax)
-      ret[nn] = cnorm[nn]/sqrt(kbstar[n]*kbstar[n] + kx*kx) * sin(kbstar[n]*zmax)
+      ret[n] = cnorm[n]/sqrt(kbstar[n]*kbstar[n] + kx*kx) * sin(kbstar[n]*zmax)
 	* exp(-kx*(zz-zmax));
     else
-      ret[nn] = cnorm[nn]/sqrt(kbstar[n]*kbstar[n] + kx*kx) * sin(kbstar[n]*z);
+      ret[n] = cnorm[n]/sqrt(kbstar[n]*kbstar[n] + kx*kx) * sin(kbstar[n]*z);
     
     n++;
   }
 
 }
 
-void OneDTrig::dens(int zilch1, int zilch2, double z, Vector& ret)
+void OneDTrig::dens(int zilch1, int zilch2, double z, Eigen::VectorXd& ret)
 {
-  int nnmax = ret.gethigh();
-  int n=0;
+  int nnmax = ret.size();
 
   if (fabs(z) > zmax) {
-    ret.zero();
+    ret.setZero();
     return;
   }
 
-  for (int nn=1; nn<=nnmax; nn++) {
+  int n=0;
+  
+  for (int nn=0; nn<nnmax; nn++) {
 
     ret[nn] = cnorm[nn]*sqrt(kstar[n]*kstar[n] + kx*kx) * cos(kstar[n]*z);
     if (nn++ == nnmax) return;
@@ -224,13 +221,14 @@ void OneDTrig::dens(int zilch1, int zilch2, double z, Vector& ret)
 }
 
 
-void OneDTrig::force(int zilch1, int zilch2, double z, Vector& ret)
+void OneDTrig::force(int zilch1, int zilch2, double z, Eigen::VectorXd& ret)
 {
-  int nnmax = ret.gethigh();
-  int n=0;
+  int nnmax = ret.size();
   double zz = fabs(z);
 
-  for (int nn=1; nn<=nnmax; nn++) {
+  int n=0;
+
+  for (int nn=0; nn<nnmax; nn++) {
 
     if (zz > zmax)
       ret[nn] = cnorm[nn]/sqrt(kstar[n]*kstar[n] + kx*kx) * cos(kstar[n]*zmax)
@@ -254,47 +252,47 @@ void OneDTrig::force(int zilch1, int zilch2, double z, Vector& ret)
 }
 
 
-double OneDTrig::get_potl(double z, int l, Vector& coef)
+double OneDTrig::get_potl(double z, int l, Eigen::VectorXd& coef)
 {
   int zilch1 = 0, zilch2 = 0;
-  Vector ret(1, coef.gethigh());
+  Eigen::VectorXd ret(coef.size());
 
   potl(zilch1, zilch2, z, ret);
 
   double ans = 0.0;
-  int nmax = ret.gethigh();
-  for (int n=1; n<=nmax; n++)
+  int nmax = ret.size();
+  for (int n=0; n<nmax; n++)
     ans += coef[n]*ret[n];
 
   return ans;
 }
 
 
-double OneDTrig::get_dens(double z, int l, Vector& coef)
+double OneDTrig::get_dens(double z, int l, Eigen::VectorXd& coef)
 {
   int zilch1=0, zilch2=0;
-  Vector ret(1, coef.gethigh());
+  Eigen::VectorXd ret(coef.size());
 
   dens(zilch1, zilch2, z, ret);
 
   double ans = 0.0;
-  int nmax = ret.gethigh();
-  for (int n=1; n<=nmax; n++)
+  int nmax = ret.size();
+  for (int n=0; n<nmax; n++)
     ans += coef[n]*ret[n];
 
   return ans;
 }
 
-double OneDTrig::get_force(double z, int l, Vector& coef)
+double OneDTrig::get_force(double z, int l, Eigen::VectorXd& coef)
 {
   int zilch1=0, zilch2=0;
-  Vector ret(1, coef.gethigh());
+  Eigen::VectorXd ret(coef.size());
 
   force(zilch1, zilch2, z, ret);
 
   double ans = 0.0;
-  int nmax = ret.gethigh();
-  for (int n=1; n<=nmax; n++)
+  int nmax = ret.size();
+  for (int n=0; n<nmax; n++)
     ans += coef[n]*ret[n];
 
   return ans;
@@ -319,8 +317,8 @@ void OneDTrig::compute_kstar(int n)
   if (n<nrmax && n>0) return;
 
   nrmax = n;
-  kstar.setsize(0, nrmax);
-  kbstar.setsize(0, nrmax);
+  kstar.resize(nrmax+1);
+  kbstar.resize(nrmax+1);
 
   comp_kx = kx;
   comp_l = zmax;

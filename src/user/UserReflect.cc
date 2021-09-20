@@ -2,7 +2,7 @@
 #include <math.h>
 #include <sstream>
 
-#include "expand.h"
+#include "expand.H"
 
 #include <UserReflect.H>
 
@@ -44,10 +44,8 @@ UserReflect::UserReflect(const YAML::Node& conf) : ExternalForce(conf)
     too_big   = 0;
   }
 
-  for (int n=0; n<nthrds; n++) {
-    gen.push_back(new ACG(11 + nthrds*myid + n));
-    unit.push_back(new Uniform(0.0, 1.0, gen.back()));
-  }
+  // Set random number seeds for procs and threads
+  for (int n=0; n<nthrds; n++) gen[n].seed(11 + nthrds*myid + n);
 
   userinfo();
 }
@@ -56,10 +54,6 @@ UserReflect::~UserReflect()
 {
   delete [] wrong_dir;
   delete [] too_big;
-  for (int n=0; n<nthrds; n++) {
-    delete unit[n];
-    delete gen[n];
-  }
 }
 
 void UserReflect::userinfo()
@@ -210,7 +204,7 @@ void * UserReflect::determine_acceleration_and_potential_thread(void * arg)
       if (fabs(delr) > 0.2*radius) {
 				// Make it sane, probably the result of CBA,
 				// by choosing a random radius
-	delr = radius * (*unit[id])();
+	delr = radius * unit(gen[id]);
 	for (int k=0; k<3; k++)
 	  pos[k] = delr * pos[k]/rr;
 

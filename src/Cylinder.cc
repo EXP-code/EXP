@@ -1,13 +1,15 @@
+#include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <chrono>
 #include <limits>
 
-#include "expand.h"
-#include <gaussQ.h>
-#include <EmpCylSL.h>
+#include "expand.H"
+#include <gaussQ.H>
+#include <EmpCylSL.H>
 #include <Cylinder.H>
 #include <MixtureBasis.H>
-#include <Timer.h>
+#include <Timer.H>
 
 Timer timer_debug;
 
@@ -128,6 +130,12 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 #endif
 
   initialize();
+
+  // Enforce sane values for EOF integration
+  //
+  rnum = std::max<int>(10, rnum);
+  pnum = std::max<int>(1,  pnum);
+  tnum = std::max<int>(10, tnum);
 
   EmpCylSL::RMIN        = rcylmin;
   EmpCylSL::RMAX        = rcylmax;
@@ -312,12 +320,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
       
   ncompcyl = 0;
 
-  pos = new Vector [nthrds];
-  frc = new Vector [nthrds];
-  for (int i=0; i<nthrds; i++) {
-    pos[i].setsize(1, 3);
-    frc[i].setsize(1, 3);
-  }
+  pos.resize(nthrds);
+  frc.resize(nthrds);
 
 #ifdef DEBUG
   offgrid.resize(nthrds);
@@ -328,8 +332,6 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 Cylinder::~Cylinder()
 {
   delete ortho;
-  delete [] pos;
-  delete [] frc;
 }
 
 void Cylinder::initialize()
@@ -511,17 +513,17 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Debugging output
   //=================
   if (VERBOSE>3 && myid==1 && component->EJ) {
-    std::string toutfile = homedir + "test.orientation." + runtag;
+    std::string toutfile = outdir + "test.orientation." + runtag;
     std::ofstream debugf(toutfile.c_str(), ios::app);
-    Vector axis = component->orient->currentAxis();
+    auto axis = component->orient->currentAxis();
     debugf << tnow << " "
+	   << component->orient->currentAxis()[0] << " " 
 	   << component->orient->currentAxis()[1] << " " 
 	   << component->orient->currentAxis()[2] << " " 
-	   << component->orient->currentAxis()[3] << " " 
 	   << component->orient->currentAxisVar() << " "
+	   << component->orient->currentCenter()[0] << " " 
 	   << component->orient->currentCenter()[1] << " " 
 	   << component->orient->currentCenter()[2] << " " 
-	   << component->orient->currentCenter()[3] << " " 
 	   << component->orient->currentCenterVar() << " "
 	   << component->orient->currentCenterVarZ() << " "
 	   << component->orient->currentE() << " "
@@ -530,6 +532,16 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   }
 
 }
+
+std::ostream& operator<< (std::ostream& os, const Eigen::Vector3d& p)
+{
+  std::streamsize sp = os.precision();
+  os.precision(6);
+  for (int i=0; i<3; i++) os << std::setw(16) << p[i];
+  os.precision(sp);
+  return os;
+}
+
 
 void * Cylinder::determine_coefficients_thread(void * arg)
 {
@@ -575,19 +587,19 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     
       if (mix) {
 	for (int j=0; j<3; j++) 
-	  pos[id][j+1] = cC->Pos(indx, j, Component::Local) - ctr[j];
+	  pos[id][j] = cC->Pos(indx, j, Component::Local) - ctr[j];
       } else {
 	for (int j=0; j<3; j++) 
-	  pos[id][j+1] = cC->Pos(indx, j, 
-				 Component::Local | Component::Centered);
+	  pos[id][j] = cC->Pos(indx, j, 
+			       Component::Local | Component::Centered);
       }
       
       if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
 	pos[id] = cC->orient->transformBody() * pos[id];
 
-      xx = pos[id][1];
-      yy = pos[id][2];
-      zz = pos[id][3];
+      xx = pos[id][0];
+      yy = pos[id][1];
+      zz = pos[id][2];
 
       r2 = xx*xx + yy*yy;
       r = sqrt(r2);
@@ -628,14 +640,14 @@ void * Cylinder::determine_coefficients_thread(void * arg)
       if (cC->freeze(indx)) continue;
     
       for (int j=0; j<3; j++) 
-	pos[id][j+1] = cC->Pos(indx, j, Component::Local | Component::Centered);
+	pos[id][j] = cC->Pos(indx, j, Component::Local | Component::Centered);
 
       if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
 	pos[id] = cC->orient->transformBody() * pos[id];
 
-      xx = pos[id][1];
-      yy = pos[id][2];
-      zz = pos[id][3];
+      xx = pos[id][0];
+      yy = pos[id][1];
+      zz = pos[id][2];
 
       r2 = xx*xx + yy*yy;
       r = sqrt(r2);
@@ -664,11 +676,9 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	       << endl;
 
 	  if (std::isnan(R2)) {
-	    cout << endl;
-	    cC->orient->transformBody().print(cout);
-	    cout << endl;
-	    cC->orient->currentAxis().print(cout);
-	    cout << endl;
+	    cout << endl
+		 << cC->orient->transformBody() << endl
+		 << cC->orient->currentAxis()   << endl;
 	    MPI_Abort(MPI_COMM_WORLD, -1);
 	  }
 	}
@@ -946,6 +956,9 @@ void Cylinder::determine_coefficients(void)
   // Dump coefficients for debugging
   //================================
 
+  //  +--- Deep debugging. Set to 'false' for production.
+  //  |
+  //  v
   if (false and myid==0 and mstep==0 and mlevel==multistep) {
     std::cout << std::string(60, '-') << std::endl
 	      << "-- Cylinder T=" << std::setw(16) << tnow << std::endl
@@ -1086,31 +1099,31 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       if (mix) {
 
 	if (use_external) {
-	  cC->Pos(&pos[id][1], indx, Component::Inertial);
-	  component->ConvertPos(&pos[id][1], Component::Local);
+	  cC->Pos(pos[id].data(), indx, Component::Inertial);
+	  component->ConvertPos(pos[id].data(), Component::Local);
 	} else
-	  cC->Pos(&pos[id][1], indx, Component::Local);
+	  cC->Pos(pos[id].data(), indx, Component::Local);
 
 	// Only apply this fraction of the force
-	mfactor = mix->Mixture(&pos[id][1]);
-	for (int k=1; k<=3; k++) pos[id][k] -= ctr[k-1];
+	mfactor = mix->Mixture(pos[id].data());
+	for (int k=0; k<3; k++) pos[id][k] -= ctr[k];
 
       } else {
 
 	if (use_external) {
-	  cC->Pos(&pos[id][1], indx, Component::Inertial);
-	  component->ConvertPos(&pos[id][1], Component::Local | Component::Centered);
+	  cC->Pos(pos[id].data(), indx, Component::Inertial);
+	  component->ConvertPos(pos[id].data(), Component::Local | Component::Centered);
 	} else
-	  cC->Pos(&pos[id][1], indx, Component::Local | Component::Centered);
+	  cC->Pos(pos[id].data(), indx, Component::Local | Component::Centered);
 
       }
 
       if ( (component->EJ & Orient::AXIS) && !component->EJdryrun) 
 	pos[id] = component->orient->transformBody() * pos[id];
 
-      xx    = pos[id][1];
-      yy    = pos[id][2];
-      zz    = pos[id][3];
+      xx    = pos[id][0];
+      yy    = pos[id][1];
+      zz    = pos[id][2];
       
       r2    = xx*xx + yy*yy;
       r     = sqrt(r2) + DSMALL;
@@ -1122,9 +1135,9 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       if (ratio >= 1.0) {
 	frac       = 0.0;
 	cfrac      = 1.0;
+	frc[id][0] = 0.0;
 	frc[id][1] = 0.0;
 	frc[id][2] = 0.0;
-	frc[id][3] = 0.0;
       } else if (ratio > ratmin) {
 	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth ));
 	cfrac = 1.0 - frac;
@@ -1142,9 +1155,9 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 #ifdef DEBUG
 	check_force_values(phi, p, fr, fz, fp);
 #endif
-	frc[id][1] = ( fr*xx/r - fp*yy/r2 ) * frac;
-	frc[id][2] = ( fr*yy/r + fp*xx/r2 ) * frac;
-	frc[id][3] = fz * frac;
+	frc[id][0] = ( fr*xx/r - fp*yy/r2 ) * frac;
+	frc[id][1] = ( fr*yy/r + fp*xx/r2 ) * frac;
+	frc[id][2] = fz * frac;
 	pa         = p  * frac;
 	
 #ifdef DEBUG
@@ -1158,9 +1171,9 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	p = -cylmass/sqrt(r3);	// -M/r
 	fr = p/r3;		// -M/r^3
 
-	frc[id][1] += xx*fr * cfrac;
-	frc[id][2] += yy*fr * cfrac;
-	frc[id][3] += zz*fr * cfrac;
+	frc[id][0] += xx*fr * cfrac;
+	frc[id][1] += yy*fr * cfrac;
+	frc[id][2] += zz*fr * cfrac;
 	pa         += p     * cfrac;
 
 #ifdef DEBUG
@@ -1177,7 +1190,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       if ( (component->EJ & Orient::AXIS) && !component->EJdryrun) 
 	frc[id] = component->orient->transformOrig() * frc[id];
 
-      for (int j=0; j<3; j++) cC->AddAcc(indx, j, frc[id][j+1]);
+      for (int j=0; j<3; j++) cC->AddAcc(indx, j, frc[id][j]);
 
 #ifdef DEBUG
       if (firstime && myid==0 && id==0 && q < 5) {
@@ -1187,9 +1200,9 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	    << setw(18) << xx         << endl
 	    << setw(18) << yy         << endl
 	    << setw(18) << zz         << endl
+	    << setw(18) << frc[0][0]  << endl
 	    << setw(18) << frc[0][1]  << endl
-	    << setw(18) << frc[0][2]  << endl
-	    << setw(18) << frc[0][3]  << endl;
+	    << setw(18) << frc[0][2]  << endl;
       }
 #endif
     }

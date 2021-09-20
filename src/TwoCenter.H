@@ -1,7 +1,7 @@
 #ifndef _TwoCenter_H
 #define _TwoCenter_H
 
-#include <SLGridMP2.h>
+#include <SLGridMP2.H>
 
 #include <CBrock.H>
 #include <Sphere.H>
@@ -58,8 +58,8 @@ private:
 
   //@{
   //! The required force members, but this class does not multithread directly
-  void * determine_coefficients_thread(void * arg) {};
-  void * determine_acceleration_and_potential_thread(void * arg) {};
+  void * determine_coefficients_thread(void * arg) { return 0; }
+  void * determine_acceleration_and_potential_thread(void * arg) { return 0; }
   //@}
 
   //! Zero out the histogram bins

@@ -4,8 +4,11 @@
 
 #define _Perturbation_h 1
 
-#include <massmodel.h>
-#include <biorth.h>
+#include <complex>
+#include <Eigen/Eigen>
+
+#include <massmodel.H>
+#include <biorth.H>
 
 /**
    Abstract perturbation applied through a biorthogonal expansion
@@ -16,15 +19,18 @@ protected:
 
   //! Cached model instance
   AxiSymModel *model;
+
   //! Cached biorthogonal function instance
   AxiSymBiorth *biorth;
+
   //! True if perturbation has been computed
   bool computed;
+
   //! True if perturbation frequency has been computed
   bool omega_computed;
 
   //! String identifying type of perturbation
-  string ID;
+  std::string ID;
 
   //! Harmonic orders and radial terms
   //@{
@@ -42,20 +48,24 @@ protected:
   //@}
 
   //! Perturabtion vector
-  Vector bcoef;
+  Eigen::VectorXd bcoef;
+
   //! Temporary storage
   //@{
-  CMatrix working, current, asymp;
+  Eigen::MatrixXcd working, current, asymp;
   //@}
   //! Method to compute response matrix
   void make_response(void);
 
   //! Default value for Energy grid
   static const int default_Epts=5;
+
   //! Default value for Kappa grid
   static const int default_Kpts=4;
+
   //! Default value for number of points in orbit table
   static const int default_RECS=400;
+
   //! Constant imaginary part of forcing frequency (can't make this const because of portability standard)
   static double default_OMPI;
 
@@ -63,10 +73,13 @@ public:
 
   //! Number of integration knots
   static int NINT;
+
   //! Maximum in "l_1" expansion
   static int L1MAX;
+
   //! Use self gravity 
   static bool selfgrav;
+
   //! Verbose comments
   static bool verbose;
 
@@ -100,7 +113,7 @@ public:
   //! Compute (recompute) the perturbation
   void compute_perturbation(AxiSymModel *halo_model, 
 			    AxiSymBiorth *halo_ortho,
-			    CVector& total, CVector& pp);
+			    Eigen::VectorXcd& total, Eigen::VectorXcd& pp);
 
 
   //! Register halo model with perturbation

@@ -3,7 +3,7 @@
   particle data to body data file or when computing diagnostics
 */
 
-#include "expand.h"
+#include "expand.H"
 
 void synchronize_velocity(int sign)
 {

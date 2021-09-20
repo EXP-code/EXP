@@ -3,29 +3,29 @@
 //
 
 #include <cstdlib>
+#include <cstdarg>
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <vector>
 #include <cmath>
 
-#include <stdarg.h>
-#include <interp.h>
-#include <ChebFit.h>
+#include <interp.H>
+#include <ChebFit.H>
 
-ChebFit::ChebFit(Vector& X, Vector &Y, int N)
+ChebFit::ChebFit(Eigen::VectorXd& X, Eigen::VectorXd &Y, int N)
 {
 
 				// set private values
   n = N;
-  a = X[X.getlow()];
-  b = X[X.gethigh()];
+  a = X[0];
+  b = X[X.size()-1];
   rcheck = true;
 
   new_data(X, Y, N);
-
 }
 
-ChebFit::ChebFit(double A, double B, Vector& X, Vector &Y, int N)
+ChebFit::ChebFit(double A, double B, Eigen::VectorXd& X, Eigen::VectorXd &Y, int N)
 {
 
 				// set private values
@@ -54,10 +54,10 @@ void ChebFit::new_func(double (*func)(double), double A, double B, int N)
   b = B;
   n = N;
 
-  Vector f(0,n-1);
-  c.setsize(0,n-1);
-  c1.setsize(0,n-1);
-  c2.setsize(0,n-1);
+  Eigen::VectorXd f(n);
+  c.resize(n);
+  c1.resize(n);
+  c2.resize(n);
 
   bma = 0.5*(b - a);
   bpa = 0.5*(b + a);
@@ -81,18 +81,18 @@ void ChebFit::new_func(double (*func)(double), double A, double B, int N)
 }
 
 
-void ChebFit::new_data(Vector& X, Vector& Y, int N)
+void ChebFit::new_data(Eigen::VectorXd& X, Eigen::VectorXd& Y, int N)
 {
   double y, sum, fac, bpa, bma;
 
-  a = X[X.getlow()];
-  b = X[X.gethigh()];
+  a = X[0];
+  b = X[X.size()-1];
   n = N;
 
-  Vector f(0,n-1);
-  c.setsize(0,n-1);
-  c1.setsize(0,n-1);
-  c2.setsize(0,n-1);
+  Eigen::VectorXd f(n);
+  c.resize(n);
+  c1.resize(n);
+  c2.resize(n);
 
   bma = 0.5*(b - a);
   bpa = 0.5*(b + a);
@@ -116,7 +116,7 @@ void ChebFit::new_data(Vector& X, Vector& Y, int N)
 }
 
 
-void ChebFit::chder(Vector& cin, Vector& cder)
+void ChebFit::chder(Eigen::VectorXd& cin, Eigen::VectorXd& cder)
 {
   double con;
 
@@ -131,7 +131,7 @@ void ChebFit::chder(Vector& cin, Vector& cder)
 }
 
 
-double ChebFit::chebev(double x, Vector& cin)
+double ChebFit::chebev(double x, Eigen::VectorXd& cin)
 {
   double d=0.0, dd=0.0, sv, y, y2;
   if (rcheck && (x-a)*(x-b) > 0.0) 
@@ -159,10 +159,10 @@ void ChebFit::bomb(const char *a, ...)
   va_end(ap);
 
   if (b != (char *)0)
-    cerr << a << ": " << b;
+    std::cerr << a << ": " << b;
   if (c != (char *)0)
-    cerr << ", " << c;
-  cerr << '\n';
+    std::cerr << ", " << c;
+  std::cerr << std::endl;
 
   exit(-1);
 }

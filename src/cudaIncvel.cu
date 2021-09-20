@@ -1,7 +1,7 @@
 // -*- C++ -*-
 
 #include <Component.H>
-#include <expand.h>
+#include <expand.H>
 #include <cudaUtil.cuH>
 #include <cudaReduce.cuH>
 #include <cudaParticle.cuH>
