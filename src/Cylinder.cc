@@ -513,7 +513,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Debugging output
   //=================
   if (VERBOSE>3 && myid==1 && component->EJ) {
-    std::string toutfile = homedir + "test.orientation." + runtag;
+    std::string toutfile = outdir + "test.orientation." + runtag;
     std::ofstream debugf(toutfile.c_str(), ios::app);
     auto axis = component->orient->currentAxis();
     debugf << tnow << " "
