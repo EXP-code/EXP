@@ -1,18 +1,29 @@
-This version uses CMake to configure.  The basis steps are as follows:
+# ------------------------------------
+# This version uses CMake to configure
+# ------------------------------------
+
+# The basis steps are as follows:
 
 # We are now using git submodules to yaml-cpp, which is not common in
 # the HPC environments.  So, from the top-level directory, do the
 # following:
 
-git submodule update --init --recursive 
+git submodule update --init --recursive
 
-# Make a build directory and change to that
+# This will install yaml-cpp in the extern directory.  The png++ C++
+# wrappers to the png library are also installed in extern.
+
+# Now, make a build directory and change to that
+
 mkdir -p build
 cd build
 
-# You may need to adjust the cmake call below.  Besides Cuda, make sure that
-# the Eigen3_DIR is set to the install location so CMake can find the Eigen3
-# rules.
+# We will build out of source.  This allows one to have build various
+# versions avaialble from the same source, such as Release and Debug.
+
+# You may need to adjust the cmake call below.  Besides Cuda, make
+# sure that the Eigen3_DIR is set to the install location so CMake can
+# find the Eigen3 rules.
 
 # The install location will need to be changed in the example below.  E.g. I
 # would use -DCMAKE_INSTALL_PREFIX=/home/mdw_umass_edu on the UMass Unity
@@ -35,21 +46,29 @@ cd build
 # CMakeLists. Version >= 3.18 uses a command-line settable variable.
 # This should switched over once we are using versions >= 3.18
 # everywhere.
-#
+
 cmake -DCMAKE_BUILD_TYPE=Release -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUDA=YES -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
+
+# Note on cuda: I have tried to include an SM capability list that
+# covers many commonly used architectures.  I have had a bit of
+# trouble getting precompiled elf binaries rather than PTX code.  This
+# seems to be CMake and Cuda configuration dependent.  If this is
+# causing problems, you can add (e.g.) "-arch compute_60
+# -code=sm_60,sm_61,sm_70,sm_75" to the CMAKE_CUDA_FLAGS variable.
 
 # Without cuda
 #
 cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
 
-# You can use build type Debug for debugging and etc. or use None or
+# You can use CMake build type Debug for debugging and etc. or use None or
 # 'empty' and set your own CFLAGS and CXXFLAGS.  See the CMake manual.
 
-# Make the package
-make -j N
-# Here, 'N' is the number of jobs to run simultaneously.
+# Make the package make -j N # Here, 'N' is the number of jobs to run
+# simultaneously.  I often use N=2*<number of cores> to take advantage
+# of hyperthreading
 
+# Finally, install to the target location.  You can select the target
+# install location using the CMAKE_INSTALL_PREFIX variable in CMake
 
-# Install to the target location
 make install
 
