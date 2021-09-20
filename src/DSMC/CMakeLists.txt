@@ -4,8 +4,8 @@ set(DSMC_SRC TreeDSMC.cc Collide.cc CollideLTE.cc HeatCool.cc
   NTC.cc Quantile.cc QuantileBag.cc phfit2.f Badnell.cc
   atomic_constants.cc spline.cc cudaCollideIon.cu)
 
-set(TESTDSMC_SRC Ion.cc interactSelect.cc Elastic.cc TopBase.cc
-  Quantile.cc QuantileBag.cc phfit2.f atomic_constants.cc
+set(TESTDSMC_SRC Ion.cc interactSelect.cc Elastic.cc HeatCool.cc
+  TopBase.cc Quantile.cc QuantileBag.cc phfit2.f atomic_constants.cc
   Badnell.cc spline.cc cudaIon.cu)
 
 set(common_INCLUDE_DIRS
