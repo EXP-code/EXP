@@ -19,7 +19,7 @@
 //
 #define EXPLICIT_ECOM
 
-// Number of pairs to store in partInteraction
+// Number of pairs to store in partInteractions
 //
 constexpr int MAX_PAIRS = 64;
 constexpr int PLIST_LEN = MAX_PAIRS*MAX_PAIRS;
@@ -4208,11 +4208,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #endif
       int count = 0;
 
+      cuFP_t pfrc = 0.0, pmas = 0.0;
+
       // Pair-wise cross-section loop
       //
       for (int i=0; i<nbods; i++) {
-      
-	cuFP_t mass = in._v[n0+i].mass;
       
 	for (int j=i+1; j<nbods; j++) {
 	
@@ -4221,22 +4221,27 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  cudaParticle* p1 = &in._v[n0+i];
 	  cudaParticle* p2 = &in._v[n0+j];
 
-	  cuFP_t ph, xc, Prob;
+	  cuFP_t ph, xc, Prob1, Prob2;
 	  
-	  if (J2.sp == cuElectron and
-	      J1.sp != cuElectron) {
-	    Prob = p1->datr[J1.I+cuSp0] * EI.Eta2;
+	  auto Z = J1.sp.first;
+
+	  if (J2.sp == cuElectron and J1.sp != cuElectron) {
+	    Prob1  = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z] * EI.Eta2;
+	    Prob2  = p2->datr[J1.I+cuSp0] / cuda_atomic_weights[Z] * EI.Eta1;
+	    if (j==i+1) {
+	      pfrc += p1->mass * EI.Eta1;
+	      pmas += p1->mass;
+	    }
 	  }
-	  else if (J1.sp == cuElectron and
-		   J2.sp != cuElectron) {
-	    Prob = p2->datr[J2.I+cuSp0] * EI.Eta1;
+	  else if (J1.sp != cuElectron and J2.sp != cuElectron) {
+	    Prob1 = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z];
+	    Prob2 = p2->datr[J1.I+cuSp0] / cuda_atomic_weights[Z];
+	    if (j==i+1) {
+	      pfrc += p1->mass * p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z];
+	      pmas += p1->mass;
+	    }
 	  }
-	  else if (J1.sp != cuElectron and
-		   J2.sp != cuElectron) {
-	    Prob = p1->datr[J1.I+cuSp0] * p2->datr[J2.I+cuSp0];
-	  }
-	  else if (J1.sp == cuElectron and
-		   J2.sp == cuElectron) {
+	  else if (J1.sp == cuElectron and J2.sp == cuElectron) {
 	    printf("CRAZY pair: two electrons\n");
 	  }
 
@@ -4249,7 +4254,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    conv_.SS[0] = i;
 	    conv_.SS[1] = j;
 	    prs._v[fN+count] = conv_.I2;
-	    cum._v[fN+count] = xc * Prob;
+	    cum._v[fN+count] = xc * Prob1;
 	    count++;
 	    if (false and T==7) {
 	      cuFP_t val = xc/EI.vel;
@@ -4267,7 +4272,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      conv_.SS[0] = j;
 	      conv_.SS[1] = i;
 	      prs._v[fN+count] = conv_.I2;
-	      cum._v[fN+count] = xc * Prob;
+	      cum._v[fN+count] = xc * Prob2;
 	      count++;
 	      if (false and T==7) {
 		cuFP_t val = xc/EI.vel;
@@ -4290,17 +4295,19 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       //
       for (int c=1; c<count; c++) cum._v[fN+c] += cum._v[fN+c-1];
 
+      // Mean number of interacting species
+      //
+      if (pmas>0.0) pfrc = pfrc * nbods / pmas;
+
       // Number of interaction candidate pairs
       //
-      //            +--- mean mass     +--- true particles per unit mass
+      //            +--- mean mass     +--- amu per unit mass
       //            |                  |
-      //            v                  v
-      cuFP_t nsel = mean_mass * cuMunit/amu * 
+      //            |                  |      +--- effective number of
+      //            |                  |      |    interacting particles
+      //            v                  v      v
+      cuFP_t nsel = mean_mass * cuMunit/amu * pfrc *
 	cum._v[fN+count-1] * 1e-14 / (cuLunit*cuLunit) * spTau._v[cid] / vol;
-
-      // Double counting of ion-electron pairs
-      //
-      if (J1.sp==cuElectron or J2.sp==cuElectron) nsel *= 0.5;
 
 #if cuREAL == 4
       int    npairs = ceilf(nsel);
@@ -4421,28 +4428,25 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	unsigned short C1 = J1.sp.second;
 	unsigned short C2 = J2.sp.second;
 	
-	if (J1.sp==cuElectron) W1 *= EI.Eta1;
-	if (J2.sp==cuElectron) W2 *= EI.Eta2;
-
 	cuFP_t GG = cuMunit/amu;
 	cuFP_t N0 = GG, Prob;
 	  
-	if (W1>W2) N0 *= W2;
-	else       N0 *= W1;
-
 	if (J2.sp == cuElectron and
 	    J1.sp != cuElectron) {
-	  Prob = p1->datr[J1.I+cuSp0] * EI.Eta2;
+	  Prob = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z1];
+	  N0  *= p1->mass * Prob * pfrc;
 	  type = AccumType::ion_electron;
 	}
 	else if (J1.sp == cuElectron and
 		 J2.sp != cuElectron) {
-	  Prob = p2->datr[J2.I+cuSp0] * EI.Eta1;
+	  Prob = p1->datr[J2.I+cuSp0] / cuda_atomic_weights[Z2];
+	  N0  *= p1->mass * Prob * pfrc;
 	  type = AccumType::ion_electron;
 	}
 	else if (J1.sp != cuElectron and
 		 J2.sp != cuElectron) {
-	  Prob = p1->datr[J1.I+cuSp0] * p2->datr[J2.I+cuSp0];
+	  Prob = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z1];
+	  N0  *= p1->mass * Prob * pfrc;
 	  type = AccumType::ion_ion;
 	}
 	else if (J1.sp == cuElectron and
@@ -4936,7 +4940,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  printf("ERROR: particle 1 is electron\n");
 	}
 
-	// Convert energy change to system units
+	// Upscale to super particle and convert energy change to
+	// system units
 	//
 	dE *= N0*cuEV/cuEunit;
 
