@@ -45,7 +45,10 @@ cd build
 # uses an archetecture list set within the top-level
 # CMakeLists. Version >= 3.18 uses a command-line settable variable.
 # This should switched over once we are using versions >= 3.18
-# everywhere.
+# everywhere.  If you are having trouble, you can set the flags
+# directly using the CMAKE_CUDA_FLAGS variable.  E.g. "-arch
+# compute_61 -code sm_61,sm_70,sm_75" for a combination of GPU types
+# with a common virtual architecture.
 
 cmake -DCMAKE_BUILD_TYPE=Release -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUDA=YES -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
 
