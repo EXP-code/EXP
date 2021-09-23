@@ -8,15 +8,7 @@
 
 #include <Eigen/Eigen>
 
-// Globals for exputil library
-// Unused here
-//
-int myid = 0;
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-std::string outdir, runtag;
-boost::mt19937 random_gen;
-
+#include <localmpi.H>
 
 // Structure from SLGridSph
 //

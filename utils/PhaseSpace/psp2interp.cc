@@ -29,20 +29,11 @@ namespace po = boost::program_options;
 #include <Grid2D.H>
 #include <PSP.H>
 
-				// Globals for exputil library
-				// Unused here
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-std::string outdir, runtag;
-boost::mt19937 random_gen;
-
 //
 // MPI variables
 //
 int numprocs, myid, proc_namelen;
 char processor_name[MPI_MAX_PROCESSOR_NAME];
-
-
 
 int
 main(int ac, char **av)
@@ -58,7 +49,7 @@ main(int ac, char **av)
   bool verbose = false;
   double rmax;
   int numr, ibeg, iend;
-  std::string cname, dir, outp, fpre;
+  std::string cname, dir, outp, fpre, runtag;
 
   // Parse command line
   //

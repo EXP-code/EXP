@@ -2312,6 +2312,28 @@ void printEI(cuFP_t xc, cuEnergyInfo& E)
 	 xc, E.Eta1, E.Eta2, E.Mu1, E.Mu2, E.kEi, E.kEe1, E.kEe2, E.iE1, E.iE2);
 }
 
+// Swap two values (compiler: do your thing)
+//
+template <typename T>
+__device__ void inline swap_val(T& a, T& b)
+{
+    T c(a); a=b; b=c;
+}
+
+// Swap particle 1 and 2 info
+//
+__device__
+void swapEI(cuEnergyInfo& E)
+{
+  swap_val(E.Eta1,  E.Eta2);
+  swap_val(E.kEe1,  E.kEe2);
+  swap_val(E.kE1s,  E.kE2s);
+  swap_val(E.eVel1, E.eVel2);
+  swap_val(E.sVel1, E.sVel2);
+  swap_val(E.iE1,   E.iE2);
+  swap_val(E.Sum1,  E.Sum2);
+}
+
 
 // Computes the cross section for a pair of particles
 //
@@ -2770,6 +2792,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
     //  V         V
     if (P2<Z2 and J1->sp==cuElectron) {
 	    
+      printf("SURPRISE: col_excite with Ion in J2\n");
+
       cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV, ph, xc;
 
       computeColExcite(ke, ph, xc, elems, J2->k);
@@ -4098,6 +4122,27 @@ int xc_lower_bound (int first, int last, int fN, dArray<float> cum,
 }
 
 
+template <class T>
+__device__
+int xc_upper_bound (int first, int last, int fN, dArray<float> cum,
+		    const T& val)
+{
+  int count = last - first, step, cur;
+  while (count>0)
+  {
+    cur  = first;
+    step = count/2;
+    cur += step;
+    if (!(val < cum._v[fN+cur])) {
+      first  = cur + 1;
+      count -= step + 1;
+    }
+    else count = step;
+  }
+  return first;
+}
+
+
 // Compute particle interactions for each cell given the computed
 // cross sections
 //
@@ -4155,6 +4200,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     
     int n0     = cellI._v[cid];
     int nbods  = cellN._v[cid];
+    cuFP_t tau = spTau._v[cid];
     cuFP_t vol = volC ._v[cid];
     
     // For selection diagnostics
@@ -4208,8 +4254,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #endif
       int count = 0;
 
-      cuFP_t pfrc = 0.0, pmas = 0.0;
-
       // Pair-wise cross-section loop
       //
       for (int i=0; i<nbods; i++) {
@@ -4225,30 +4269,39 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	  auto Z = J1.sp.first;
 
+	  // Ion--Electron
 	  if (J2.sp == cuElectron and J1.sp != cuElectron) {
+	    // One power of eta for electron partner probability
 	    Prob1  = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z] * EI.Eta2;
 	    Prob2  = p2->datr[J1.I+cuSp0] / cuda_atomic_weights[Z] * EI.Eta1;
-	    if (j==i+1) {
-	      pfrc += p1->mass * EI.Eta1;
-	      pmas += p1->mass;
-	    }
+#ifdef EXPLICIT_ECOM
+	    // Correct ballistic velocity for mass scaling
+	    Prob1 *= sqrt(EI.Eta2);
+	    Prob2 *= sqrt(EI.Eta1);
+#endif
 	  }
+	  // Ion--Ion
 	  else if (J1.sp != cuElectron and J2.sp != cuElectron) {
 	    Prob1 = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z];
 	    Prob2 = p2->datr[J1.I+cuSp0] / cuda_atomic_weights[Z];
-	    if (j==i+1) {
-	      pfrc += p1->mass * p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z];
-	      pmas += p1->mass;
-	    }
 	  }
-	  else if (J1.sp == cuElectron and J2.sp == cuElectron) {
+	  // Sanity checks: neither of these next two should happen
+	  else if (J1.sp == cuElectron and J2.sp != cuElectron) {
+	    printf("CRAZY pair: p1 is electron and p2 is ion\n");
+	  } else if (J1.sp == cuElectron and J2.sp == cuElectron) {
 	    printf("CRAZY pair: two electrons\n");
 	  }
 
 	  // p1 on p2
 	  //
-	  xc = singleCrossSection(in, elems, &ph, xsc_H, xsc_He, xsc_pH, xsc_pHe,
-				  cid, n0+i, n0+j, T, &J1, &J2, state, &EI) * EI.vel;
+	  // returns cross section for ion-ion
+	  //
+	  // returns cross section times relative ion-electron velocity for
+	  // ion-electron interactions
+	  //
+	  xc = singleCrossSection
+	    (in, elems, &ph, xsc_H, xsc_He, xsc_pH, xsc_pHe,
+	     cid, n0+i, n0+j, T, &J1, &J2, state, &EI) * EI.vel;
 
 	  if (xc>0.0) {
 	    conv_.SS[0] = i;
@@ -4258,15 +4311,21 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    count++;
 	    if (false and T==7) {
 	      cuFP_t val = xc/EI.vel;
-	      printf("col_excite [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e\n", cid, i, j, nbods, val, EI.kEe1, EI.kEe2);
+	      printf("col_excite [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e\n",
+		     cid, i, j, nbods, val, EI.kEe1, EI.kEe2);
 	    }
 	  }
+
+	  if (count >= PLIST_LEN) break;
 
 	  // p2 on p1
 	  //
 	  if (J1.sp != J2.sp) {
-	    xc = singleCrossSection(in, elems, &ph, xsc_H, xsc_He, xsc_pH, xsc_pHe,
-				    cid, n0+j, n0+i, T, &J1, &J2, state, &EI) * EI.vel;
+	    swapEI(EI);
+
+	    xc = singleCrossSection
+	      (in, elems, &ph, xsc_H, xsc_He, xsc_pH, xsc_pHe,
+	       cid, n0+j, n0+i, T, &J1, &J2, state, &EI) * EI.vel;
 
 	    if (xc>0.0) {
 	      conv_.SS[0] = j;
@@ -4276,7 +4335,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      count++;
 	      if (false and T==7) {
 		cuFP_t val = xc/EI.vel;
-		printf("col_excite [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e\n", cid, j, i, nbods, val, EI.kEe1, EI.kEe2);
+		printf("col_excite [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e\n",
+		       cid, j, i, nbods, val, EI.kEe1, EI.kEe2);
 	      }
 	    }
 	  }
@@ -4291,23 +4351,28 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
       if (count==0) continue;
 
-      // Compute cumulative cross section
+      if (count >= PLIST_LEN) {
+	printf("TEST: count=%d [%d]\n", count, PLIST_LEN);
+      }
+
+      // Compute cumulative <cross section*v>.  This scales as
+      // nbods*(nbods-1)/2.
       //
       for (int c=1; c<count; c++) cum._v[fN+c] += cum._v[fN+c-1];
 
-      // Mean number of interacting species
-      //
-      if (pmas>0.0) pfrc = pfrc * nbods / pmas;
 
       // Number of interaction candidate pairs
       //
       //            +--- mean mass     +--- amu per unit mass
       //            |                  |
-      //            |                  |      +--- effective number of
-      //            |                  |      |    interacting particles
-      //            v                  v      v
-      cuFP_t nsel = mean_mass * cuMunit/amu * pfrc *
-	cum._v[fN+count-1] * 1e-14 / (cuLunit*cuLunit) * spTau._v[cid] / vol;
+      //            |                  |
+      //            |                  |
+      //            v                  v
+      cuFP_t nsel = mean_mass * cuMunit/amu *
+	cum._v[fN+count-1] * 1e-14 / (cuLunit*cuLunit) * tau / vol;
+      //   ^
+      //   |
+      //   +--- Cross section times velocity
 
 #if cuREAL == 4
       int    npairs = ceilf(nsel);
@@ -4317,7 +4382,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     
       nSel._v[cid] += nsel;
 
-      if (false and T==7) printf("col_excite [%d]: npairs=%d nsel=%e\n", cid, npairs, nsel);
+      if (false and T==7) printf("col_excite [%d]: npairs=%d nsel=%e Z=%d\n", cid, npairs, nsel, J1.sp.first);
 
 #ifdef XC_DEEP12
       printf("NPAIR=%8d NSEL=%13.6e T=%d\n", npairs, nsel, T);
@@ -4351,11 +4416,18 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	cuFP_t R0 = curand_uniform_double(state);
 #endif
 	cuFP_t RC = R0*cum._v[fN+count-1];
-	int cc    = xc_lower_bound(0, count-1, fN, cum, RC);
+	int cc    = xc_lower_bound(0, count, fN, cum, RC);
+
+	// Sanity check
+	if (cc >= count) {
+	  printf("ERROR: unexpected cc=%d >= %d\n", cc, count);
+	  cc = count - 1;
+	}
+
 	if (cc==0)
 	  conv_.I2  = prs._v[fN];
 	else
-	  conv_.I2  = prs._v[fN+cc-1];
+	  conv_.I2  = prs._v[fN+cc];
 
 	// Sanity check
 	//
@@ -4375,17 +4447,20 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	cuFP_t curXC =
 	  singleCrossSection(in, elems, &ph, 
 			     xsc_H, xsc_He, xsc_pH, xsc_pHe,
-			     cid, n1, n2, T, &J1, &J2, state, &EI);
+			     cid, n1, n2, T, &J1, &J2, state, &EI) * EI.vel;
       
 #ifdef XC_DEEP5
 	printf("ctest: T=%12s cross=%e selcM=%e Vel=%e Tau=%e ph=%e\n", cudaInterNames[T], curXC, nsel, EI.vel, spTau._v[cid], ph);
 	if (false and T==7) {		// col_excite
+	  cuFP_t Prob  = in._v[n1].datr[J1.I+cuSp0] /
+	    cuda_atomic_weights[J1.sp.first] * pow(EI.Eta2, 1.5);
+	  
 	  if (cc==0) {
-	    printf("col_excite [%d]: cc=%d [%e < %e] xc=%e (%d/%d) [%d, %d] e1=%e e2=%e\n", cid, cc,
-		   RC, cum._v[fN], curXC, r, npairs, n1-n0, n2-n0, EI.kEe1, EI.kEe2);
+	    printf("col_excite [%d]: cc=%d [%e < %e] xc=%e (%d/%d) [%d, %d] e1=%e e2=%e dE=%e\n", cid, cc,
+		   RC, cum._v[fN], curXC*Prob, r, npairs, n1-n0, n2-n0, EI.kEe1, EI.kEe2, ph);
 	  } else {
-	    printf("col_excite [%d]: cc=%d [%e < %e < %e] xc=%e (%d/%d) [%d, %d] e1=%e e2=%e\n", cid, cc,
-		   cum._v[fN+cc-1], RC, cum._v[fN+cc], curXC, r, npairs, n1-n0, n2-n0, EI.kEe1, EI.kEe2);
+	    printf("col_excite [%d]: cc=%d [%e < %e < %e] xc=%e [%e] (%d/%d) [%d, %d] e1=%e e2=%e dE=%e\n", cid, cc,
+		   cum._v[fN+cc-1], RC, cum._v[fN+cc], curXC*Prob, cum._v[fN+cc] - cum._v[fN+cc-1], r, npairs, n1-n0, n2-n0, EI.kEe1, EI.kEe2, ph);
 	  }
 	}
 #endif
@@ -4434,19 +4509,20 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	if (J2.sp == cuElectron and
 	    J1.sp != cuElectron) {
 	  Prob = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z1];
-	  N0  *= p1->mass * Prob * pfrc;
+	  N0  *= p1->mass;
 	  type = AccumType::ion_electron;
 	}
 	else if (J1.sp == cuElectron and
 		 J2.sp != cuElectron) {
 	  Prob = p1->datr[J2.I+cuSp0] / cuda_atomic_weights[Z2];
-	  N0  *= p1->mass * Prob * pfrc;
+	  N0  *= p1->mass;
 	  type = AccumType::ion_electron;
+	  printf("CRAZY pair: you should never see this\n");
 	}
 	else if (J1.sp != cuElectron and
 		 J2.sp != cuElectron) {
 	  Prob = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z1];
-	  N0  *= p1->mass * Prob * pfrc;
+	  N0  *= p1->mass;
 	  type = AccumType::ion_ion;
 	}
 	else if (J1.sp == cuElectron and
@@ -4971,6 +5047,31 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  for (int k=0; k<3; k++) v2[k] = p2->datr[cuElec+k];
 	}
 
+	if (T==7) {
+	  cuFP_t k1 = 0.0, k2 = 0.0;
+	  for (int k=0; k<3; k++) {
+	    k1 += v1[k]*v1[k];
+	    k2 += v2[k]*v2[k];
+	  }
+	  cuFP_t tKE = 0.5*W1*m1*k1 + 0.5*W2*m2*k2;
+
+	  printf("col_excite [%d]: dE=%e KE=%e\n", cid, dE, tKE);
+	}
+
+	// Add deferred energy
+	//
+	if (cuCons>=0) {
+	  dE += p1->datr[cuCons];
+	  p1->datr[cuCons] = 0.0;
+	  if (cuEcon>=0) {
+	    dE += p2->datr[cuEcon];
+	    p2->datr[cuEcon];
+	  } else {
+	    dE += p2->datr[cuCons];
+	    p2->datr[cuCons] = 0.0;
+	  }
+	}
+
 	// Perform the scatter
 	//
 #ifdef EXPLICIT_ECOM
@@ -4996,6 +5097,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     }
     // END: interaction loop
     
+    // Spread out interaction deferred energy loss to all all particles
+    //
     for (size_t i=0; i<nbods; i++) {
       cudaParticle* p = &in._v[n0+i];
       if (cuCons>=0) {
@@ -5008,7 +5111,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     }
 
 
-    // Spread deferred (test)
+    // Spread deferred over the entire cell (test algorithm)
     //
     if (cuSpreadDef) {
       cuFP_t totCons = 0.0, totEcon = 0.0;
@@ -5017,6 +5120,17 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	if (cuCons>=0) totCons += p->datr[cuCons];
 	if (cuEcon>=0) totEcon += p->datr[cuEcon];
       }
+
+#ifdef XC_DEEP5
+      if (totCons>0.0) {
+	printf("DEFERRED [%d] [cuCons]=%e [%d]\n", cid, totCons/nbods, nbods);
+      }
+
+      if (totEcon>0.0) {
+	printf("DEFERRED [%d] [cuEcon]=%e [%d]\n", cid, totEcon/nbods, nbods);
+      }
+#endif
+
       for (size_t i=0; i<nbods; i++) {
 	cudaParticle* p = &in._v[n0+i];
 	if (cuCons>=0) p->datr[cuCons] = totCons/nbods;

@@ -30,14 +30,6 @@ using namespace std;
 namespace po = boost::program_options;
 
 
-				// Globals for exputil library
-				// Unused here
-int myid = 0;
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-string outdir, runtag;
-boost::mt19937 random_gen;
-
 int
 main(int ac, char **av)
 {

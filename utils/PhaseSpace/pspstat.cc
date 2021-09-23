@@ -24,14 +24,6 @@ using namespace std;
 #include <header.H>
 #include <PSP.H>
 
-				// Globals for exputil library
-				// Unused here
-int myid = 0;
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-string outdir, runtag;
-boost::mt19937 random_gen;
-
 //-------------
 // Help message
 //-------------

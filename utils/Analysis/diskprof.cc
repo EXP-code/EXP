@@ -67,22 +67,6 @@ namespace po = boost::program_options;
 #pragma message "NOT using reduced particle structure"
 #endif
 #endif
-				// Variables not used but needed for linking
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-double tpos = 0.0;
-double tnow = 0.0;
-boost::mt19937 random_gen;
   
 class Histogram
 {

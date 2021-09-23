@@ -214,12 +214,6 @@ void epi2(double r, SphericalModelTable& bulge, CylindricalDisk& disk,
 
 }
 
-int myid = 0;
-int numprocs = 1;
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-
 int 
 main(int argc, char **argv)
 {

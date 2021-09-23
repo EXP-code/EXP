@@ -230,13 +230,6 @@ LaguCoefs::add(double mass, double R, double phi, double vr, double vt, double v
   }
 }
 
-				// Globals for exputil library
-				// Unused here
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-string outdir, runtag;
-boost::mt19937 random_gen;
-
 int
 main(int ac, char **av)
 {
@@ -251,7 +244,7 @@ main(int ac, char **av)
 
   char *prog = av[0];
   bool verbose = false, finegrain= false;
-  std::string cname, tname, new_dir, suffix, work_dir;
+  std::string cname, tname, new_dir, suffix, work_dir, runtag;
   int axis, nmax, comp, mmax, ibeg, iend;
   double rscl;
 
