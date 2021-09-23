@@ -687,7 +687,7 @@ private:
   {
     double lE = log10(E);	// Histogram log10 values
     if (lE>=rcmbEVmin and lE<rcmbEVmax) {
-      unsigned indx = (lE - rcmbEVmin)/rcmbDelta;
+      int indx = (lE - rcmbEVmin)/rcmbDelta;
       if (indx>=0 and indx<rcmbNsiz) rcmbTotl[id][indx] += w;
     }
   }
