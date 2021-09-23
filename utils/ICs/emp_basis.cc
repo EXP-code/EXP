@@ -11,21 +11,6 @@
 #include <EmpCylSL.H>
 #include <localmpi.H>
 
-				// Global variables
-int nthrds         = 1;
-int this_step      = 0;
-unsigned multistep = 0;
-unsigned maxlev    = 100;
-int mstep          = 1;
-int Mstep          = 1;
-char threading_on  = 0;
-double tpos        = 0.0;
-double tnow        = 0.0;
-
-pthread_mutex_t mem_lock;
-pthread_mutex_t coef_lock;
-string outdir, runtag;
-
 void usage(char *prog)
 {
   cout << setw(70) << setfill('-') << '-' << endl;
