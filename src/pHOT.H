@@ -231,7 +231,7 @@ public:
   void makeTree();
   void Repartition(unsigned);
   void adjustTree(unsigned);
-  Particle * const Body(unsigned k)
+  Particle * Body(unsigned k) const
   {
     PartMap::iterator ie = cc->particles.end();
     PartMap::iterator it = cc->particles.find(k);
