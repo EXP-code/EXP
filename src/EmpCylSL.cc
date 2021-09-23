@@ -481,7 +481,7 @@ SphModTblPtr EmpCylSL::make_sl()
   for (int i=0; i<number; i++) 
     p[i] = -mm[i]/(r[i]+1.0e-10) - (pw[number-1] - pw[i]);
 
-  if (VFLAG & 1) {
+  if (VFLAG & 16) {
     ostringstream outf;
     outf << "test_adddisk_sl." << myid;
     ofstream out(outf.str().c_str());
@@ -1105,14 +1105,14 @@ void EmpCylSL::receive_eof(int request_id, int MM)
 
   int current_source = status.MPI_SOURCE;
 
-  if (VFLAG & 8)
+  if (VFLAG & 16)
     cerr << "Master beginning to receive from " << current_source 
 	 << " . . . " << endl;
 
   MPI_Recv(&mm, 1, MPI_INT, current_source, MPI_ANY_TAG, 
 	   MPI_COMM_WORLD, &status);
 
-  if (VFLAG & 8)
+  if (VFLAG & 16)
     cerr << "Master receiving from " << current_source << ": type=" << type 
 	 << "   M=" << mm << endl;
 
@@ -1193,7 +1193,7 @@ void EmpCylSL::receive_eof(int request_id, int MM)
     }
   }
   
-  if (VFLAG & 8)
+  if (VFLAG & 16)
     cerr << "Master finished receiving: type=" << type << "   M=" 
 	 << mm << endl;
 
@@ -1248,19 +1248,19 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
 	  for (int l=m; l<=LMAX; l++) {
 
-	    fac1 = sqrt((2.0*l+1.0)/(4.0*M_PI));
+	    fac1 = 1.;//sqrt((2.0*l+1.0)/(4.0*M_PI));
 
 	    if (m==0) {
-	      fac2 = fac1*legs[0](l, m);
+	      fac2 = legs[0](l, m);
 
 	      dens = fac2*dend(l, ir) * dfac;
 	      potl = fac2*potd(l, ir) * pfac;
 	      potr = fac2*dpot(l, ir) * ffac;
-	      pott = fac1*dlegs[0](l, m)*potd(l, ir) * pfac;
+	      pott = dlegs[0](l, m)*potd(l, ir) * pfac;
 
 	    } else {
 
-	      fac2 = M_SQRT2 * fac1 * exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1)));
+	      fac2 = M_SQRT2;
 	      fac3 = fac2 * legs[0](l, m);
 	      fac4 = fac2 * dlegs[0](l, m);
 	      
@@ -1308,7 +1308,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
       for (int iy=0; iy<=NUMY; iy++)
 	mpi_double_buf2[off + icnt++] = tpot[n](ix, iy);
     
-    if (VFLAG & 8)
+    if (VFLAG & 16)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " send Potential" << endl;
 
@@ -1323,7 +1323,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
       for (int iy=0; iy<=NUMY; iy++)
 	mpi_double_buf2[off + icnt++] = trforce[n](ix, iy);
     
-    if (VFLAG & 8)
+    if (VFLAG & 16)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " sending R force" << endl;
 
@@ -1338,7 +1338,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
       for (int iy=0; iy<=NUMY; iy++)
 	mpi_double_buf2[off + icnt++] = tzforce[n](ix, iy);
     
-    if (VFLAG & 8)
+    if (VFLAG & 16)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " sending Z force" << endl;
 
@@ -1355,7 +1355,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	for (int iy=0; iy<=NUMY; iy++)
 	  mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
     
-      if (VFLAG & 8)
+      if (VFLAG & 16)
 	cerr << "Slave " << setw(4) << myid 
 	     << ": with request_id=" << request_id
 	     << ", M=" << m << " sending Density" << endl;
@@ -1418,19 +1418,19 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 
 	    int l = lE[m][il];	// Even l values first
 	    
-	    fac1 = sqrt((2.0*l+1.0)/(4.0*M_PI));
+	    fac1 = 1.;//sqrt((2.0*l+1.0)/(4.0*M_PI));
 
 	    if (m==0) {
-	      fac2 = fac1*legs[0](l, m);
+	      fac2 = legs[0](l, m);
 
 	      dens = fac2*dend(l, ir) * dfac;
 	      potl = fac2*potd(l, ir) * pfac;
 	      potr = fac2*dpot(l, ir) * ffac;
-	      pott = fac1*dlegs[0](l, m)*potd(l, ir) * pfac;
+	      pott = dlegs[0](l, m)*potd(l, ir) * pfac;
 
 	    } else {
 
-	      fac2 = M_SQRT2 * fac1 * exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1)));
+	      fac2 = M_SQRT2;
 	      fac3 = fac2 * legs[0](l, m);
 	      fac4 = fac2 * dlegs[0](l, m);
 	      
@@ -1466,19 +1466,19 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 
 	    int l = lO[m][il];
 
-	    fac1 = sqrt((2.0*l+1.0)/(4.0*M_PI));
+	    fac1 = 1.;//sqrt((2.0*l+1.0)/(4.0*M_PI));
 
 	    if (m==0) {
-	      fac2 = fac1*legs[0](l, m);
+	      fac2 = legs[0](l, m);
 
 	      dens = fac2*dend(l, ir) * dfac;
 	      potl = fac2*potd(l, ir) * pfac;
 	      potr = fac2*dpot(l, ir) * ffac;
-	      pott = fac1*dlegs[0](l, m)*potd(l, ir) * pfac;
+	      pott = dlegs[0](l, m)*potd(l, ir) * pfac;
 
 	    } else {
 
-	      fac2 = M_SQRT2 * fac1 * exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1)));
+	      fac2 = M_SQRT2;
 	      fac3 = fac2 * legs[0](l, m);
 	      fac4 = fac2 * dlegs[0](l, m);
 	      
@@ -1526,7 +1526,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
       for (int iy=0; iy<=NUMY; iy++)
 	mpi_double_buf2[off + icnt++] = tpot[n](ix, iy);
     
-    if (VFLAG & 8)
+    if (VFLAG & 16)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " send Potential" << endl;
 
@@ -1541,7 +1541,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
       for (int iy=0; iy<=NUMY; iy++)
 	mpi_double_buf2[off + icnt++] = trforce[n](ix, iy);
     
-    if (VFLAG & 8)
+    if (VFLAG & 16)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " sending R force" << endl;
 
@@ -1556,7 +1556,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
       for (int iy=0; iy<=NUMY; iy++)
 	mpi_double_buf2[off + icnt++] = tzforce[n](ix, iy);
     
-    if (VFLAG & 8)
+    if (VFLAG & 16)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " sending Z force" << endl;
 
@@ -1573,7 +1573,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	for (int iy=0; iy<=NUMY; iy++)
 	  mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
     
-      if (VFLAG & 8)
+      if (VFLAG & 16)
 	cerr << "Slave " << setw(4) << myid 
 	     << ": with request_id=" << request_id
 	     << ", M=" << m << " sending Density" << endl;
@@ -1619,7 +1619,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
       howmany1[M].resize(nthrds, 0);
     }
 
-    if (VFLAG & 8)
+    if (VFLAG & 16)
       cerr << "Slave " << setw(4) << myid 
 	   << ": tables allocated, MMAX=" << MMAX << endl;
 
@@ -2124,13 +2124,14 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	    //
 	    for (int l=m; l<=LMAX; l++) {
 		
-	      double ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
-		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id](l, m);
+	      double ylm = pfac * legs[id](l, m);
 
 	      if (m==0) {
 
 		facC[id](ir, l-m) = ylm*table[0](l, ir);
-		
+		 
+                // very deep debug for model problems. Not necessarily worth a debug flag.
+		//if (std::isnan(facC[id](ir, l-m))) cerr << "Process " << myid << ": EmpCylSL. Has nan in facC. table=[" << table[0](l, ir) << "] ylm=[" << ylm << "]" << endl;
 	      }
 	      else {
 		
@@ -2367,8 +2368,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
       // *** l loop
       for (int l=m; l<=LMAX; l++) {
 
-	double ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
-	  exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id](l, m);
+	double ylm = pfac * legs[id](l, m);
 
 	if (m==0) {
 
@@ -2573,7 +2573,7 @@ void EmpCylSL::make_eof(void)
 
   }
 
-  if (VFLAG & 8) {
+  if (VFLAG & 16) {
 
     for (int mm=0; mm<=MMAX; mm++) {
       bool bad = false;
@@ -2739,7 +2739,7 @@ void EmpCylSL::make_eof(void)
   // DEBUG: check for nan
   //
 
-  if (VFLAG & 8) {
+  if (VFLAG & 16) {
 
     for (int n=0; n<numprocs; n++) {
       if (myid==n) {
@@ -2829,7 +2829,7 @@ void EmpCylSL::make_eof(void)
 	  request_id = 0;
 	}
 	
-	if (VFLAG & 8)
+	if (VFLAG & 16)
 	  cerr << "master in make_eof: done waiting on Slave " << slave 
 	       << ", next M=" << M << endl;
       }
@@ -2858,7 +2858,7 @@ void EmpCylSL::make_eof(void)
     //
     // <Wait for all slaves to return and flag to continue>
     //
-    if (VFLAG & 8)
+    if (VFLAG & 16)
       cerr << "master in make_eof: now waiting for all slaves to finish" 
 	   << endl;
       
@@ -2887,7 +2887,7 @@ void EmpCylSL::make_eof(void)
       
 				// Done!
       if (request_id<0) {
-	if (VFLAG & 8)
+	if (VFLAG & 16)
 	  cerr << "Slave " << setw(4) << myid 
 	       << ": received DONE signal" << endl;
 	break;
@@ -2896,7 +2896,7 @@ void EmpCylSL::make_eof(void)
       MPI_Recv(&M, 1, 
 	       MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
 	
-      if (VFLAG & 8)
+      if (VFLAG & 16)
 	cerr << "Slave " << setw(4) << myid << ": received orders type="
 	     << request_id << "  M=" << M << endl;
 
@@ -5815,86 +5815,137 @@ double EmpCylSL::d_xi_to_r(double xi)
 
 #define MINEPS 1.0e-10
 
+
 void EmpCylSL::legendre_R(int lmax, double x, Eigen::MatrixXd& p)
 {
-  double fact, somx2, pll, pl1, pl2;
+  /* return the associated Legendre functions up to lmax, evaluated at
+     x = cos(theta) \in [-1,1].
 
-  p(0, 0) = pll = 1.0;
+  Using the standard forward column method from Holmes & Featherstone (2002), Section 2.1. 
+  The novelty is an un-normalised associated legendre function, which remains within the limits
+    of double precision to very high order.
+
+
+   */
+  double u,pll,norm;
+  int l1,l2; // for recursion
+
+  // start with the diagonal: l=m
+  // 
+
+  u = sqrt(1-x*x); // sin( acos(x));
+
+  // precompute the initial values
+  p(0, 0) = 1.0;
+  p(1, 1) = pll = -sqrt(3)*u;
+
+  // follow the Colombo 1981 recursion, eq. 13 of F&H2002
   if (lmax > 0) {
-    somx2 = sqrt( (1.0 - x)*(1.0 + x) );
-    fact = 1.0;
-    for (int m=1; m<=lmax; m++) {
-      pll *= -fact*somx2;
+    for (int m=2; m<=lmax; m++) {
+
+      // apply the recursion, eq. 13, with extra negative for Condon-Shortley convention.
+      pll *= -u*sqrt((2.*m+1)/(2.*m));
+      
       p(m, m) = pll;
+
+      // check for NaNs
       if (std::isnan(p(m, m)))
-	cerr << "legendre_R: p[" << m << "][" << m << "]: pll=" << pll << endl;
-      fact += 2.0;
+	cerr << "legendre_R: p[" << m << "][" << m << "]: pllHF=" << pll << endl;
     }
   }
 
-  for (int m=0; m<lmax; m++) {
-    pl2 = p(m, m);
-    p(m+1, m) = pl1 = x*(2*m+1)*pl2;
-    for (int l=m+2; l<=lmax; l++) {
-      p(l, m) = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
-      if (std::isnan(p(l, m)))
-	cerr << "legendre_R: p[" << l << "][" << m << "]: pll=" << pll << endl;
+  // now march down the m degrees for each l order
+  // (see Fig 2 of Holmes & Featherstone 2002)
+  for (int l=1; l<=lmax; l++) { // start at 1 because we already have p(0,0) computed
+    
+    for (int m=0; m<l; m++) { // don't include m=l because we already have the diagonal p(l,l) computed
 
-      pl2 = pl1;
-      pl1 = pll;
+      // check that we aren't requesting an invalid location
+      l1 = max(0,l - 1);
+      l2 = max(0,l - 2);
+
+      // apply the recursion, eq. 11 (and using equations 12)
+      p(l,m) = sqrt((2.*l - 1)*(2*l + 1)/(l-m)/(l+m))*x*p(l1,m)
+	       - sqrt((2.*l + 1)*(l+m-1)*(l-m-1)/(l-m)/(l+m)/(2*l-3))*p(l2,m);
+
+      // version using broken-out defintions
+      //p(l,m) = aml(l,m)*x*p(l1,m) - bml(l,m)*p(l2,m);
     }
   }
 
+  
   if (std::isnan(x))
     cerr << "legendre_R: x" << endl;
 
+  // recheck whole table for NaNs, apply overall norm to match conventions
   for(int l=0; l<=lmax; l++)
-    for (int m=0; m<=l; m++)
+    for (int m=0; m<=l; m++) {
+      if (m>0) {
+	norm = sqrt(8.*M_PI);
+      } else {
+	norm = sqrt(4.*M_PI);
+      };
+      p(l,m) = p(l,m)/norm;
+      
       if (std::isnan(p(l, m)))
 	cerr << "legendre_R: p[" << l << "][" << m << "] lmax=" 
 	     << lmax << endl;
-
+    }
 }
+
 
 void EmpCylSL::dlegendre_R(int lmax, double x,
 			   Eigen::MatrixXd &p, Eigen::MatrixXd &dp)
 {
-  double fact, somx2, pll, pl1, pl2;
+  /* return the associated Legendre functions up to lmax, evaluated at
+     x = cos(theta) \in [-1,1].
+        
+         AND
+  
+     the derivatives, P_{lm}^(1).
 
-  p(0, 0) = pll = 1.0;
-  if (lmax > 0) {
-    somx2 = sqrt( (1.0 - x)*(1.0 + x) );
-    fact = 1.0;
-    for (int m=1; m<=lmax; m++) {
-      pll *= -fact*somx2;
-      p(m, m) = pll;
-      fact += 2.0;
-    }
-  }
+  Using the standard forward column method from Holmes & Featherstone (2002), Section 2.1. 
+  The novelty is an un-normalised associated legendre function, which remains within the limits
+    of double precision to very high order.
 
-  for (int m=0; m<lmax; m++) {
-    pl2 = p(m, m);
-    p(m+1, m) = pl1 = x*(2*m+1)*pl2;
-    for (int l=m+2; l<=lmax; l++) {
-      p(l, m) = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
-      pl2 = pl1;
-      pl1 = pll;
-    }
-  }
+
+   */
+  int l1;
+  
+  // call out to fill the P_{lm}^(0) table
+  legendre_R(lmax, x, p);
 
   if (1.0-fabs(x) < MINEPS) {
     if (x>0) x =   1.0 - MINEPS;
     else     x = -(1.0 - MINEPS);
   }
 
-  somx2 = 1.0/(x*x - 1.0);
-  dp(0, 0) = 0.0;
-  for (int l=1; l<=lmax; l++) {
-    for (int m=0; m<l; m++)
-      dp(l, m) = somx2*(x*l*p(l, m) - (l+m)*p(l-1, m));
-    dp(l, l) = somx2*x*l*p(l, l);
+  // now we are prepared to fill out the P_{lm}^(1) table
+  
+  // follow whole table to fill out values
+  for (int l=0; l<=lmax; l++) {
+    
+    for (int m=0; m<=l; m++) {
+  
+      // check that we aren't requesting an invalid location (computing l=m=0)
+      l1 = max(0,l - 1);
+
+      // eq. 15 of F&H
+      //dp(l,m) = ( l*x*p(l,m) - fml(l,m)*p(l1,m) )/u;
+
+      // match Martin's norm (i.e. different u definition)
+      dp(l,m) = ( l*x*p(l,m) - sqrt((l*l-m*m)*(2.*l+1)/(2.*l-1))*p(l1,m) )/(x*x - 1);
+
+      // the sectoral diagonal (l=m) follows a special relation (eq 16), but also satisfies the recursion (eq 15), so no need for anything special.
+
+    }
+
   }
+      
 }
+
+
+
 
 void EmpCylSL::sinecosine_R(int mmax, double phi,
 			    Eigen::VectorXd& c, Eigen::VectorXd& s)
