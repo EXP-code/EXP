@@ -1797,7 +1797,7 @@ __constant__ cuFP_t cuda_atomic_weights[maxAtomicNumber], cuFloorEV;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuEunit;
 __constant__ cuFP_t cuLogL, cuCrossfac, cuMinMass, cuEV;
 __constant__ bool   cuNewRecombAlg, cuNoCool, cuRecombIP;
-__constant__ bool   cuSpreadDef;
+__constant__ bool   cuSpreadDef, cuMeanMass;
 
 const int coulSelNumT = 2000;
 __constant__ cuFP_t coulSelA[coulSelNumT];
@@ -1838,6 +1838,10 @@ void testConstantsIon(int idev)
     printf("** Spread def = true\n"                      );
   else
     printf("** Spread def = false\n"                     );
+  if (cuMeanMass) 
+    printf("** Mean mass  = true\n"                      );
+  else
+    printf("** Mean mass  = false\n"                     );
   printf("** -----------------------------------------\n");
 }
 
@@ -2082,6 +2086,9 @@ void CollideIon::cuda_atomic_weights_init()
   v = esu;
   cuda_safe_call(cudaMemcpyToSymbol(cuEsu, &v, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuEsu");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuMeanMass, &mean_mass, sizeof(bool)), 
+		 __FILE__, __LINE__, "Error copying cuMeanMass");
 
   cuda_safe_call(cudaMemcpyToSymbol(cuSpreadDef, &SpreadDef, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuSpreadDef");
@@ -2440,11 +2447,17 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
 	
   cuFP_t  m1  = Mu1 * amu;
   cuFP_t  m2  = Mu2 * amu;
-  cuFP_t  me  = cuda_atomic_weights[0] * amu;
+  cuFP_t me1  = cuda_atomic_weights[0] * amu;
+  cuFP_t me2  = cuda_atomic_weights[0] * amu;
 
-  cuFP_t mu0  = m1 * m2 / (m1 + m2);
-  cuFP_t mu1  = m1 * me / (m1 + me);
-  cuFP_t mu2  = m2 * me / (m2 + me);
+  if (cuMeanMass) {
+    me1 *= Eta1;
+    me2 *= Eta2;
+  }
+
+  cuFP_t mu0  = m1 * m2  / (m1 + m2);
+  cuFP_t mu1  = m1 * me2 / (m1 + me2);
+  cuFP_t mu2  = m2 * me1 / (m2 + me1);
   
   // Available COM energy
 
