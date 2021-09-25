@@ -1492,23 +1492,25 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << workR[j]		// #3
 	  << setw(14) << workQ[j]		// #4
 	  << setw(14) << workQ2[j]		// #5
-	  << setw(14) << deriv2                 // #6
-	  << setw(14) << vrq0                   // #7
-	  << setw(14) << vrq1                   // #8
-	  << setw(14) << v_circ(r, 0.0, 0.0)    // #9
-	  << setw(14) << workD(0, j)		// #10  dV(tot)/dR
-	  << setw(14) << workD(1, j)		// #11  d^2V(tot)/dlnR
-	  << setw(14) << workD(2, j)		// #12  d^2V(tot)/dlnR + 3V(tot)
-	  << setw(14) << workD(3, j)		// #13  kappa^2
-	  << setw(14) << workD(4, j)		// #14  dV(disk)/dR
-	  << setw(14) << workD(5, j)		// #15  dV(halo)/dR
-	  << setw(14) << rho			// #16
-	  << setw(14) << deriv			// #17
-	  << setw(14) << lhs			// #18
-	  << setw(14) << rhs			// #19
-	  << setw(14) << lhs - rhs		// #20
-	  << setw(14) << odd2(log(r), nrD, nhD) // #21  Enclosed mass
-	  << setw(14) << epi(r, 0.0, 0.0)	// #22  Epi routine
+	  << setw(14) << workQ3[j]		// #6
+	  << setw(14) << workQ4[j]		// #7
+	  << setw(14) << deriv2                 // #8
+	  << setw(14) << vrq0                   // #9
+	  << setw(14) << vrq1                   // #10
+	  << setw(14) << v_circ(r, 0.0, 0.0)    // #11
+	  << setw(14) << workD(0, j)		// #12  dV(tot)/dR
+	  << setw(14) << workD(1, j)		// #13  d^2V(tot)/dlnR
+	  << setw(14) << workD(2, j)		// #14  d^2V(tot)/dlnR + 3V(tot)
+	  << setw(14) << workD(3, j)		// #15  kappa^2
+	  << setw(14) << workD(4, j)		// #16  dV(disk)/dR
+	  << setw(14) << workD(5, j)		// #17  dV(halo)/dR
+	  << setw(14) << rho			// #18
+	  << setw(14) << deriv			// #19
+	  << setw(14) << lhs			// #20
+	  << setw(14) << rhs			// #21
+	  << setw(14) << lhs - rhs		// #22
+	  << setw(14) << odd2(log(r), nrD, nhD) // #23  Enclosed mass
+	  << setw(14) << epi(r, 0.0, 0.0)	// #24  Epi routine
 	  << std::endl;
     }
 
