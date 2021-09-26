@@ -15,10 +15,6 @@
 // Sanity debug PP flag
 // #define SANITY_DEBUG
 
-// Use explicit energy conservation in COM frame
-//
-#define EXPLICIT_ECOM
-
 // Number of pairs to store in partInteractions
 //
 constexpr int MAX_PAIRS = 64;
@@ -4287,11 +4283,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // One power of eta for electron partner probability
 	    Prob1  = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z] * EI.Eta2;
 	    Prob2  = p2->datr[J1.I+cuSp0] / cuda_atomic_weights[Z] * EI.Eta1;
-#ifdef EXPLICIT_ECOM
+
 	    // Correct ballistic velocity for mass scaling
-	    Prob1 *= sqrt(EI.Eta2);
-	    Prob2 *= sqrt(EI.Eta1);
-#endif
+	    if (cuMeanMass) {
+	      Prob1 *= sqrt(EI.Eta2);
+	      Prob2 *= sqrt(EI.Eta1);
+	    }
 	  }
 	  // Ion--Ion
 	  else if (J1.sp != cuElectron and J2.sp != cuElectron) {
@@ -5087,16 +5084,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	// Perform the scatter
 	//
-#ifdef EXPLICIT_ECOM
-	cudaScatterTraceExplicit
-	  (m1, m2, EI.Eta1, EI.Eta2, W1, W2,
-	   &E1[0], &E2[0], &v1[0], &v2[0], dE, state);
-#else
-	cudaScatterTrace
-	  (m1, m2, EI.Eta1, EI.Eta2, W1, W2,
-	   &E1[0], &E2[0], &v1[0], &v2[0], dE, state);
-#endif
-
+	if (cuMeanMass)
+	  cudaScatterTraceExplicit
+	    (m1, m2, EI.Eta1, EI.Eta2, W1, W2,
+	     &E1[0], &E2[0], &v1[0], &v2[0], dE, state);
+	else
+	  cudaScatterTrace
+	    (m1, m2, EI.Eta1, EI.Eta2, W1, W2,
+	     &E1[0], &E2[0], &v1[0], &v2[0], dE, state);
+	
 	// Copy scattered velocities back to particle
 	//
 	for (int k=0; k<3; k++) {
