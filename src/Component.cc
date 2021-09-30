@@ -144,9 +144,8 @@ Component::Component(YAML::Node& CONF)
   com_system  = false;
   com_log     = false;
 
-#if HAVE_LIBCUDA==1
   bunchSize   = 100000;
-#endif
+
   timers      = false;
 				// Null out pointers
   orient      = 0;
@@ -614,9 +613,8 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   com_log     = false;
   com_restart = 0;
 
-#if HAVE_LIBCUDA==1
   bunchSize   = 100000;
-#endif
+
   timers      = false;
 
   force       = 0;		// Null out pointers
