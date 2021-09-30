@@ -223,7 +223,10 @@ double SphericalModelTable::get_density(double r)
 
   if (r>density.x[density.num-1]) return density.y[density.num-1];
   
-  Splint1(density.x, density.y, density.y2, r, ans, even);
+  if (linear)
+    ans = odd2(r, density.x, density.y, even);
+  else
+    Splint1(density.x, density.y, density.y2, r, ans, even);
 
   return ans;
 }
@@ -252,9 +255,9 @@ double SphericalModelTable::get_pot(const double r)
   if (r>pot.x[pot.num-1]) return pot.y[pot.num-1]*pot.x[pot.num-1]/r;
   
   if (linear)
-    Splint1(pot.x, pot.y, pot.y2, r, ans, even);
-  else
     ans = odd2(r, pot.x, pot.y, even);
+  else
+    Splint1(pot.x, pot.y, pot.y2, r, ans, even);
 
   return ans;
 }
