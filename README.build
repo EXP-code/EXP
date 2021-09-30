@@ -79,6 +79,16 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUD
 #
 cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
 
+# Many users will like configuring with one the CMake gui tools, such as
+# 'ccmake' or 'cmake-gui' instead of the command-line 'cmake'.  The
+# gui will allow you to change the parameters interactively and display the
+# help info for each parameter.  For example:
+
+ccmake ..
+
+# and then enter your preferred build type and other options interactively.
+# This provides a nice view of the configuration as a bonus.
+
 # You can use CMake build type Debug for debugging and etc. or use None or
 # 'empty' and set your own CFLAGS and CXXFLAGS.  See the CMake manual.
 
