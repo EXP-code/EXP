@@ -71,7 +71,7 @@ Component::cudaStreamData::~cudaStreamData()
 
 void Component::cuda_initialize()
 {
-  cuStream = boost::make_shared<cudaStreamData>();
+  cuStream = std::make_shared<cudaStreamData>();
 }
 
 

@@ -472,11 +472,13 @@ void EmbeddedDiskModel::save_df(string& file)
 }
 
 
-SphericalModelMulti::SphericalModelMulti(AxiSymModel* Real, AxiSymModel* Fake) 
+SphericalModelMulti::SphericalModelMulti(AxiSymModPtr Real,
+					 AxiSymModPtr Fake) 
 {
   real  = Real;
   fake  = Fake;
-  noneg = false;
+  noneg = false;		// Will requeue samples with negative
+				// mass ratio if true
 
   rmin_gen = max<double>(Fake->get_min_radius(), Real->get_min_radius());
   rmin_gen = max<double>(rmin_gen, gen_rmin);

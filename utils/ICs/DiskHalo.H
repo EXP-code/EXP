@@ -129,20 +129,20 @@ class DiskHalo
     virtual double r_to_x(double r) { return (r + scale)/(r - scale);   }
   };
 
-  boost::shared_ptr<CMap> cmap;
+  std::shared_ptr<CMap> cmap;
   double Xmin, Xmax;
   std::string mtype;
 
-  boost::shared_ptr<CMap> make_cmap(std::string type, double scale)
+  std::shared_ptr<CMap> make_cmap(std::string type, double scale)
   {
     std::for_each(type.begin(), type.end(), [](char & c){ c = ::tolower(c); });
 
-    boost::shared_ptr<CMap> cmap;
+    std::shared_ptr<CMap> cmap;
 
-    if (type.find("linear") == 0)   cmap = boost::make_shared<CLin>();
-    else if (type.find("log") == 0) cmap = boost::make_shared<CLog>();
-    else if (type.find("rat") == 0) cmap = boost::make_shared<CRat>(scale);
-    else                            cmap = boost::make_shared<CLog>();
+    if (type.find("linear") == 0)   cmap = std::make_shared<CLin>();
+    else if (type.find("log") == 0) cmap = std::make_shared<CLog>();
+    else if (type.find("rat") == 0) cmap = std::make_shared<CRat>(scale);
+    else                            cmap = std::make_shared<CLog>();
 
     return cmap;
   }
@@ -199,6 +199,8 @@ public:
   static bool CHEBY;		// Use Cheybshev fit for epicylic derivatives
 
   static int  NCHEB;		// Order for Cheybshev fit
+
+  static bool NONEG;            // No negative mass in multimass model
 
   static int SEED;		// Initial seed
 

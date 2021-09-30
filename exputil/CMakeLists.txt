@@ -16,7 +16,7 @@ set(PHASE_SRC phase.cc ensemble.cc io_ensemble.cc move_ensemble.cc
   rotcurv.cc needle.cc hubble.cc quad.cc)
 set(SPECFUNC_SRC gammln.cc bessel.cc OrthoPoly.cc CauchyPV.cc) # modbessel.cc
 set(INTERP_SRC Spline.cc SplintE.cc Vodd2.cc Vlocate.cc levsurf.cc ChebFit.cc Interp1d.cc Cheby1d.cc)
-set(MASSMODEL_SRC massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc realize_model.cc
+set(MASSMODEL_SRC massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc realize_model.cc GenPoly.cc
   toomre.cc exponential.cc)
 set(ORBIT_SRC orbit.cc orbit_trans.cc FindOrb.cc)
 set(BIORTH_SRC biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc

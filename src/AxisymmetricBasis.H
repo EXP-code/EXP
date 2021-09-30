@@ -87,8 +87,8 @@ protected:
      efficiency.
   */
   //@{
-  typedef boost::shared_ptr<Eigen::VectorXd> VectorP;
-  typedef boost::shared_ptr<Eigen::MatrixXd> MatrixP;
+  typedef std::shared_ptr<Eigen::VectorXd> VectorP;
+  typedef std::shared_ptr<Eigen::MatrixXd> MatrixP;
 
   std::vector<VectorP> expcoef, expcoef1;
 

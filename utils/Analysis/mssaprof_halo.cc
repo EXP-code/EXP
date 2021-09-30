@@ -39,7 +39,7 @@
 #include <cmath>
 
 				// BOOST stuff
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/make_shared.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -585,7 +585,7 @@ main(int argc, char **argv)
   int nmax     = std::get<1>(data);
   auto & coefs = std::get<2>(data);
 
-  auto halo = boost::make_shared<SphericalModelTable>(modelfile);
+  auto halo = std::make_shared<SphericalModelTable>(modelfile);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
   SphereSL ortho(halo, lmax, nmax);

@@ -1188,7 +1188,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// Read in Node 0's particles
     for (unsigned i=1; i<=nbodies_table[0]; i++) {
 
-      PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+      PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
       
       part->readAscii(aindex, i, &fin);
 				// Get the radius
@@ -1214,7 +1214,7 @@ void Component::read_bodies_and_distribute_ascii(void)
       ibufcount = 0;
       while (icount < nbodies_table[n]) {
 
-	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+	PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
 
 	int i = nbodies_index[n-1] + 1 + icount;
 	part->readAscii(aindex, i, &fin);
@@ -1456,7 +1456,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
     rmax1 = 0.0;
     for (unsigned i=1; i<=nbodies_table[0]; i++)
     {
-      PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+      PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
       
       part->readBinary(rsize, indexing, ++seq_cur, in);
 
@@ -1484,7 +1484,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 
       icount = 0;
       while (icount < nbodies_table[n]) {
-	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+	PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
 
 	part->readBinary(rsize, indexing, ++seq_cur, in);
 
@@ -1791,7 +1791,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
     rmax1 = 0.0;
     for (unsigned i=1; i<=nbodies_table[0]; i++)
     {
-      PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+      PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
       
       part->readBinary(rsize, indexing, ++seq_cur, &fin);
 
@@ -1825,7 +1825,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 
       icount = 0;
       while (icount < nbodies_table[n]) {
-	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+	PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
 
 	part->readBinary(rsize, indexing, ++seq_cur, &fin);
 
@@ -3547,7 +3547,7 @@ Particle* Component::GetNewPart()
 {
   // Create new particle
   //
-  PartPtr newp = boost::make_shared<Particle>(niattrib, ndattrib);
+  PartPtr newp = std::make_shared<Particle>(niattrib, ndattrib);
 
   // Denote unsequenced particle
   //

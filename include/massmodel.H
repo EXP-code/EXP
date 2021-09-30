@@ -2,8 +2,10 @@
 #define _massmodel_H
 
 #include <vector>
+#include <memory>
+
 #include <Eigen/Eigen>
-#include <boost/shared_ptr.hpp>
+
 #include <boost/random/uniform_real_distribution.hpp>
 #include <boost/random/normal_distribution.hpp>
 
@@ -23,6 +25,14 @@ public:
 
   //! Simple constructor.  Use value of num to check for initialization.
   RUN() : num(0) {}
+
+  void resize(int N)
+  {
+    num = N;
+    x.resize(N);
+    y.resize(N);
+    y2.resize(N);
+  }
 };
 
 //! A one-dimensional Merritt-Osipkov distribution
@@ -259,18 +269,19 @@ public:
 class EmbeddedDiskModel : public AxiSymModel
 {
 private:
-  AxiSymModel **t;
-  double *m_scale;
-  double *r_scale;
+  std::vector<std::shared_ptr<AxiSymModel>> t;
+  std::vector<double> m_scale;
+  std::vector<double> r_scale;
   int number;
 
   double rmin, rmax;
 
-  QPDistF *df;
+  std::shared_ptr<QPDistF> df;
 
 public:
-  EmbeddedDiskModel(AxiSymModel **T, double *M_scale, double *R_scale, 
-		      int NUMBER);
+  EmbeddedDiskModel(std::vector<std::shared_ptr<AxiSymModel>>& T,
+		    std::vector<double>& M_scale, std::vector<double>& R_scale, 
+		    int NUMBER);
 
   virtual ~EmbeddedDiskModel();
 
@@ -420,8 +431,7 @@ public:
 class SphericalModelMulti : public AxiSymModel
 {
 protected:
-  AxiSymModel* real;
-  AxiSymModel* fake;
+  std::shared_ptr<AxiSymModel> real, fake;
 
   SphericalOrbit orb, gen_orb;
 
@@ -431,7 +441,8 @@ protected:
 public:
 
   //! Constructor
-  SphericalModelMulti(AxiSymModel* Real, AxiSymModel* Fake);
+  SphericalModelMulti(std::shared_ptr<AxiSymModel> Real,
+		      std::shared_ptr<AxiSymModel> Fake);
 
   //@{
   //! Evaluate the profile at a radial point
@@ -482,15 +493,16 @@ public:
   void set_max_radius(const double& r) { rmax_gen = r; }
   //@}
 
-  //! Suppress negative masses
+  //! Suppress negative masses by rejecting particle and requeueing
+  //! selection
   void noNegativeMass() { noneg = true; }
 
 };
 
-typedef boost::shared_ptr<AxiSymModel>         AxiSymModPtr;
-typedef boost::shared_ptr<EmbeddedDiskModel>   EmbDiskModPtr;
-typedef boost::shared_ptr<SphericalModelMulti> SphModMultPtr;
-typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
+typedef std::shared_ptr<AxiSymModel>         AxiSymModPtr;
+typedef std::shared_ptr<EmbeddedDiskModel>   EmbDiskModPtr;
+typedef std::shared_ptr<SphericalModelMulti> SphModMultPtr;
+typedef std::shared_ptr<SphericalModelTable> SphModTblPtr;
 
 #include <QPDistF.H>
 

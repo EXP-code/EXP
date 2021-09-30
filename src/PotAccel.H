@@ -7,7 +7,7 @@
 #include <list>
 #include <map>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <yaml-cpp/yaml.h>
 
 #include <Particle.H>

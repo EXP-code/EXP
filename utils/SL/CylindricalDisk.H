@@ -41,8 +41,8 @@ private:
 
 protected:
 
-  boost::shared_ptr<SphericalModelTable> model;
-  boost::shared_ptr<SLSphere> ortho;
+  std::shared_ptr<SphericalModelTable> model;
+  std::shared_ptr<SLSphere> ortho;
 
   std::vector<Eigen::VectorXd> coefs;
   double rmin, rmax;

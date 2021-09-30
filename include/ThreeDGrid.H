@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <sstream>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 /**
    This is an API for populating a 3d grid rectangular grid database
@@ -48,6 +48,6 @@ public:
   void Write(const std::string& name) = 0;
 };
 
-typedef boost::shared_ptr<ThreeDGrid> ThreeDGridPtr;
+typedef std::shared_ptr<ThreeDGrid> ThreeDGridPtr;
 
 #endif

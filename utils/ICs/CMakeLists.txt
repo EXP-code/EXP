@@ -25,8 +25,9 @@ set(common_INCLUDE
 
 add_executable(shrinkics shrinkics.cc)
 
-add_executable(gensph gensph.cc SphericalSL.cc
+add_executable(gensph gensph.cc SphericalSL.cc EllipForce.cc
   legendre.cc SParticle.cc ddplgndr.cc sinecosine.cc)
+target_link_libraries(gensph fftw3)
 
 add_executable(gendisk initial.cc DiskHalo.cc SphericalSL.cc
   legendre.cc SParticle.cc ddplgndr.cc sinecosine.cc AddDisk.cc)

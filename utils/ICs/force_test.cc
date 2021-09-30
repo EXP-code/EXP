@@ -106,9 +106,9 @@ main(int ac, char **av)
   EmpCylSL::AxiDiskPtr model;
       
   if (dmodel.compare("MN")==0) // Miyamoto-Nagai
-    model = boost::make_shared<MNdisk>(A, H);
+    model = std::make_shared<MNdisk>(A, H);
   else			// Default to exponential
-    model = boost::make_shared<Exponential>(A, H);
+    model = std::make_shared<Exponential>(A, H);
       
   DiskEval test(model, rmin, rmax, A, lmax, numr, nint, true);
 

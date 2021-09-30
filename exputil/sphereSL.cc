@@ -12,7 +12,7 @@ bool SphereSL::cache = true;
 */
 SphereSL::SphereSL(int LMAX, int NMAX, int NUMR,
 		   double RMIN, double RMAX, double SCALE, 
-		   boost::shared_ptr<SphericalModelTable> mod)
+		   std::shared_ptr<SphericalModelTable> mod)
 {
   BiorthID = "SphereSL";
   dof = 3;

@@ -38,7 +38,7 @@
 #include <string>
 
 				// BOOST stuff
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 

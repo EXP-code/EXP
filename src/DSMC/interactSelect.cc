@@ -24,7 +24,7 @@ InteractSelect::InteractSelect()
 
 
 std::pair<double, double> InteractSelect::selectCEInteract
-(const boost::shared_ptr<Ion> a, const Ion::collType& cumCross) 
+(const std::shared_ptr<Ion> a, const Ion::collType& cumCross) 
 {
 				// Location in the cumulative distribution
 				//
@@ -41,7 +41,7 @@ std::pair<double, double> InteractSelect::selectCEInteract
 }
 
 
-double InteractSelect::DIInterLoss(const boost::shared_ptr<Ion> a) 
+double InteractSelect::DIInterLoss(const std::shared_ptr<Ion> a) 
 {
   const unsigned short Z1 = a->getZ(); 
   const unsigned short C1 = a->getC();
@@ -59,7 +59,7 @@ double InteractSelect::DIInterLoss(const boost::shared_ptr<Ion> a)
 }
 
 double InteractSelect::selectRRInteract
-(const boost::shared_ptr<Ion> a, const std::vector<double>& cumCross, double Ee) 
+(const std::shared_ptr<Ion> a, const std::vector<double>& cumCross, double Ee) 
 {
   std::vector<double> normed;
   std::vector<double> kgrid_log;

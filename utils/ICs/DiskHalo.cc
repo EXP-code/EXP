@@ -53,6 +53,7 @@ bool   DiskHalo::LOGR        = true;
 // these appear to be good settings, but may not be the best. use with caution!
 int    DiskHalo::NCHEB       = 8;
 bool   DiskHalo::CHEBY       = false;
+bool   DiskHalo::NONEG       = false;
 
 unsigned DiskHalo::VFLAG     = 7;
 unsigned DiskHalo::NBUF      = 65568;
@@ -277,8 +278,9 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   //
   // Generate the multimass model
   //
-  multi = std::make_shared<SphericalModelMulti>(halo2.get(), halo3.get());
+  multi = std::make_shared<SphericalModelMulti>(halo2, halo3);
   multi -> gen_tolE = TOLE;
+  if (NONEG) multi -> noNegativeMass();
 
   // For frequency computation
   //
@@ -335,7 +337,7 @@ DiskHalo::DiskHalo(const DiskHalo &p)
   MULTI = p.MULTI;
   com   = p.com;
   cov   = p.cov;
-  mtype = p.maptype;
+  mtype = p.mtype;
   cmap  = p.cmap;
   Xmin  = p.Xmin;
   Xmax  = p.Xmax;

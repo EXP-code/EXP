@@ -38,7 +38,7 @@
 #include <string>
 
 				// BOOST stuff
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>

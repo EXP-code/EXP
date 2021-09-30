@@ -459,116 +459,226 @@ main(int ac, char **av)
   
   po::options_description desc("Allowed options");
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("conf,c",          po::value<string>(&config),                                     "Write template options file with current and all default values")
-    ("input,f",         po::value<string>(&config),                                     "Parameter configuration file")
-    ("deproject",       po::value<string>(&dmodel),                                     "The EmpCylSL deprojection from specified disk model (EXP or MN)")
-    ("NUMR",            po::value<int>(&NUMR)->default_value(2000),                     "Size of radial grid for Spherical SL")
-    ("RMIN",            po::value<double>(&RMIN)->default_value(0.005),                 "Minimum halo radius")
-    ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
-    ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),               "Maximum disk radius")
-    ("SCMAP",           po::value<int>(&SCMAP)->default_value(1),                       "Turn on Spherical SL coordinate mapping (1, 2, 0=off")
-    ("SCSPH",           po::value<double>(&SCSPH)->default_value(1.0),                  "Scale for Spherical SL coordinate mapping")
-    ("RSPHSL",          po::value<double>(&RSPHSL)->default_value(47.5),                "Maximum halo expansion radius")
-    ("ASCALE",          po::value<double>(&ASCALE)->default_value(1.0),                 "Radial scale length for disk basis construction")
-    ("ASHIFT",          po::value<double>(&ASHIFT)->default_value(0.0),                 "Fraction of scale length for shift in conditioning function")
-    ("HSCALE",          po::value<double>(&HSCALE)->default_value(0.1),                 "Vertical scale length for disk basis construction")
-    ("ARATIO",          po::value<double>(&ARATIO)->default_value(1.0),                 "Radial scale length ratio for disk basis construction with doubleexpon")
-    ("HRATIO",          po::value<double>(&HRATIO)->default_value(1.0),                 "Vertical scale height ratio for disk basis construction with doubleexpon")
-    ("DWEIGHT",         po::value<double>(&DWEIGHT)->default_value(1.0),                 "Ratio of second disk relative to the first disk for disk basis construction with doubleexpon")
-    ("RTRUNC",          po::value<double>(&RTRUNC)->default_value(0.1),                 "Maximum disk radius for erf truncation of EOF conditioning density")
-    ("RWIDTH",          po::value<double>(&RWIDTH)->default_value(0.0),                 "Width for erf truncationofr EOF conditioning density (ignored if zero)")
-    ("DMFAC",           po::value<double>(&DMFAC)->default_value(1.0),                  "Disk mass scaling factor for spherical deprojection model")
-    ("RFACTOR",         po::value<double>(&RFACTOR)->default_value(1.0),                "Disk radial scaling factor for spherical deprojection model")
-    ("X0",              po::value<double>(&X0)->default_value(0.0),                     "Disk-Halo x center position")
-    ("Y0",              po::value<double>(&Y0)->default_value(0.0),                     "Disk-Halo y center position")
-    ("Z0",              po::value<double>(&Z0)->default_value(0.0),                     "Disk-Halo z center position")
-    ("U0",              po::value<double>(&U0)->default_value(0.0),                     "Disk-Halo x velocity center position")
-    ("V0",              po::value<double>(&V0)->default_value(0.0),                     "Disk-Halo y velocity center position")
-    ("W0",              po::value<double>(&W0)->default_value(0.0),                     "Disk-Halo z velocity center position")
-    ("RNUM",            po::value<int>(&RNUM)->default_value(200),                      "Number of radial knots for EmpCylSL basis construction quadrature")
-    ("PNUM",            po::value<int>(&PNUM)->default_value(80),                       "Number of azimthal knots for EmpCylSL basis construction quadrature")
-    ("TNUM",            po::value<int>(&TNUM)->default_value(80),                       "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
-    ("CMAPR",           po::value<int>(&CMAPR)->default_value(1),                     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
-    ("CMAPZ",           po::value<int>(&CMAPZ)->default_value(1),                     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
-    ("SVD",             po::value<bool>(&SVD)->default_value(false),                    "Use svd for symmetric eigenvalue problesm")
-    ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
-    ("CHEBY",           po::value<bool>(&CHEBY)->default_value(false),                  "Use Chebyshev smoothing for epicyclic and asymmetric drift")
-    ("NCHEB",           po::value<int>(&NCHEB)->default_value(16),                      "Chebyshev order for smoothing in DiskHalo")
-    ("TCHEB",           po::value<int>(&TCHEB)->default_value(0),                      "Chebyshev order for smoothing in Eddington inversion")
-    ("NUMDF",           po::value<int>(&NUMDF)->default_value(4000),                    "Number of grid points for Eddington inversion")
-    ("NDR",             po::value<int>(&NDR)->default_value(1600),                      "Number of points in DiskHalo radial table for disk")
-    ("NDZ",             po::value<int>(&NDZ)->default_value(400),                       "Number of points in DiskHalo vertical table for disk")
-    ("NHR",             po::value<int>(&NHR)->default_value(1600),                      "Number of points in DiskHalo radial table for halo")
-    ("NHT",             po::value<int>(&NHT)->default_value(200),                       "Number of points in DiskHalo cos(theta) table for halo")
-    ("NDP",             po::value<int>(&NDP)->default_value(16),                        "Number of points in DiskHalo phi grid for epicyclic freq (16)")
-    ("SHFAC",           po::value<double>(&SHFAC)->default_value(16.0),                 "Scale height factor for assigning vertical table size")
-    ("LMAX",            po::value<int>(&LMAX)->default_value(6),                        "Number of harmonics for Spherical SL for halo/spheroid")
-    ("NMAX",            po::value<int>(&NMAX)->default_value(12),                       "Number of radial basis functions in Spherical SL for halo/spheroid")
-    ("NMAX2",           po::value<int>(&NMAX2)->default_value(36),                      "Number of radial basis functions in Spherical SL for determining disk basis")
-    ("LMAX2",           po::value<int>(&LMAX2)->default_value(36),                      "Number of harmonics for Spherical SL for determining disk basis")
-    ("MMAX",            po::value<int>(&MMAX)->default_value(4),                        "Number of azimuthal harmonics for disk basis")
-    ("NUMX",            po::value<int>(&NUMX)->default_value(256),                      "Radial grid size for disk basis table")
-    ("NUMY",            po::value<int>(&NUMY)->default_value(128),                      "Vertical grid size for disk basis table")
-    ("NORDER",          po::value<int>(&NORDER)->default_value(16),                     "Number of disk basis functions per M-order")
-    ("NORDER1",         po::value<int>(&NORDER1)->default_value(1000),                  "Restricts disk basis function to NORDER1<NORDER after basis construction for testing")
-    ("NODD",            po::value<int>(&NODD)->default_value(-1),                       "Number of vertically antisymmetric disk basis functions per M-order")
-    ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                     "Number of radial basis functions to output for each harmonic order")
-    ("SELECT",          po::value<bool>(&SELECT)->default_value(false),                 "Enable significance selection in coefficient computation")
-    ("DUMPCOEF",        po::value<bool>(&DUMPCOEF)->default_value(false),               "Dump coefficients")
-    ("DIVERGE",         po::value<int>(&DIVERGE)->default_value(0),                     "Cusp extrapolation for primary halo model")
-    ("DIVERGE_RFAC",    po::value<double>(&DIVERGE_RFAC)->default_value(1.0),           "Extrapolation exponent for primary mass model")
-    ("DIVERGE2",        po::value<int>(&DIVERGE2)->default_value(0),                    "Cusp extrapolation for number model")
-    ("DIVERGE_RFAC2",   po::value<double>(&DIVERGE_RFAC2)->default_value(1.0),          "Extrapolation exponent for number model")
-    ("DF",              po::value<int>(&DF)->default_value(0),                          "Use change-over from Jeans to Eddington")
-    ("R_DF",            po::value<double>(&R_DF)->default_value(20.0),                  "Change over radius for Eddington")
-    ("DR_DF",           po::value<double>(&DR_DF)->default_value(5.0),                  "Width of change for to Eddington")
-    ("scale_height",    po::value<double>(&scale_height)->default_value(0.1),           "Scale height for disk realization")
-    ("scale_length",    po::value<double>(&scale_length)->default_value(2.0),           "Scale length for disk realization")
-    ("scale_lenfkN",    po::value<double>(&scale_lenfkN)->default_value(-1.0),          "Scale for multimass gas")
-    ("disk_mass",       po::value<double>(&disk_mass)->default_value(1.0),              "Mass of stellar adisk")
-    ("gas_mass",        po::value<double>(&gas_mass)->default_value(1.0),               "Mass of gaseous disk")
-    ("gscal_length",    po::value<double>(&gscal_length)->default_value(4.0),           "Gas disk scale length")
-    ("ToomreQ",         po::value<double>(&ToomreQ)->default_value(1.2),                "Toomre Q parameter for stellar disk generation")
-    ("Temp",            po::value<double>(&Temp)->default_value(2000.0),                "Gas temperature (in K)")
-    ("Tmin",            po::value<double>(&Tmin)->default_value(500.0),                 "Temperature floor (in K) for gas disk generation")
-    ("PPOW",            po::value<double>(&PPower)->default_value(5.0),                 "Power exponent in spherical model for deprojection")
-    ("const_height",    po::value<bool>(&const_height)->default_value(true),            "Use constant disk scale height")
-    ("images",          po::value<bool>(&images)->default_value(false),                 "Print out reconstructed disk profiles")
-    ("multi",           po::value<bool>(&multi)->default_value(false),                  "Use multimass halo")
-    ("SEED",            po::value<int>(&SEED)->default_value(11),                       "Random number seed")
-    ("DENS",            po::value<bool>(&DENS)->default_value(true),                    "Compute the density basis functions")
-    ("basis",           po::value<bool>(&basis)->default_value(false),                  "Print out disk and halo basis")
-    ("zero",            po::value<bool>(&zero)->default_value(false),                   "zero center of mass and velocity")
-    ("nhalo",           po::value<int>(&nhalo)->default_value(1000),                    "Number of halo particles")
-    ("ndisk",           po::value<int>(&ndisk)->default_value(1000),                    "Number of disk particles")
-    ("ngas",            po::value<int>(&ngas)->default_value(1000),                     "Number of gas particles")
-    ("ngparam",         po::value<int>(&ngparam)->default_value(3),                     "Number of gas particle parameters")
-    ("hbods",           po::value<string>(&hbods)->default_value("halo.bods"),          "Halo particle output file")
-    ("dbods",           po::value<string>(&dbods)->default_value("disk.bods"),          "Disk particle output file")
-    ("gbods",           po::value<string>(&gbods)->default_value("gas.bods"),           "Gas particle output file")
-    ("suffix",          po::value<string>(&suffix)->default_value(""),                  "Suffix appended for body files")
-    ("VFLAG",           po::value<int>(&VFLAG)->default_value(0),                       "Output flags for EmpCylSL")
-    ("DFLAG",           po::value<int>(&DFLAG)->default_value(0),                       "Output flags for DiskHalo")
-    ("threads",         po::value<int>(&nthrds)->default_value(1),                      "Number of lightweight threads")
-    ("expcond",         po::value<bool>(&expcond)->default_value(true),                 "Use analytic density function for computing EmpCylSL basis")
-    ("centerfile",      po::value<string>(&centerfile)->default_value("center.dat"),    "Read position and velocity center from this file")
-    ("halofile1",       po::value<string>(&halofile1)->default_value("SLGridSph.model"),        "File with input halo model")
-    ("halofile2",       po::value<string>(&halofile2)->default_value("SLGridSph.model.fake"),   "File with input halo model for multimass")
-    ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
-    ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
-    ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),               "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
-    ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
-    ("ctype",           po::value<string>(&ctype)->default_value("Log"),                        "DiskHalo radial coordinate scaling type (one of: Linear, Log, Rat)")
-    ("condition",       po::value<string>(&dtype)->default_value("exponential"),                "Disk type for condition (one of: constant, gaussian, mn, exponential, doubleexpon)")
-    ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
-    ("evolved",         po::value<bool>(&evolved)->default_value(false),                "Use existing halo body file given by <hbods> and do not create a new halo")
-    ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
-    ("newcache",                                                                        "Use new YAML header version for EOF cache file")
-    ("ortho",                                                                           "Perform orthogonality check for basis")
-    ("probe",                                                                           "Print a profile along the x axis for the halo reconstruction fields")
+    ("help,h",
+     "Print this help message")
+    ("conf,c",          po::value<string>(&config),
+     "Write template options file with current and all default values")
+    ("input,f",         po::value<string>(&config),
+     "Parameter configuration file")
+    ("deproject",       po::value<string>(&dmodel),
+     "The EmpCylSL deprojection from specified disk model (EXP or MN)")
+    ("NUMR",            po::value<int>(&NUMR)->default_value(2000),
+     "Size of radial grid for Spherical SL")
+    ("RMIN",            po::value<double>(&RMIN)->default_value(0.005),
+     "Minimum halo radius")
+    ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),
+     "Minimum disk radius")
+    ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),
+     "Maximum disk radius")
+    ("SCMAP",           po::value<int>(&SCMAP)->default_value(1),
+     "Turn on Spherical SL coordinate mapping (1, 2, 0=off")
+    ("SCSPH",           po::value<double>(&SCSPH)->default_value(1.0),
+     "Scale for Spherical SL coordinate mapping")
+    ("RSPHSL",          po::value<double>(&RSPHSL)->default_value(47.5),
+     "Maximum halo expansion radius")
+    ("ASCALE",          po::value<double>(&ASCALE)->default_value(1.0),
+     "Radial scale length for disk basis construction")
+    ("ASHIFT",          po::value<double>(&ASHIFT)->default_value(0.0),
+     "Fraction of scale length for shift in conditioning function")
+    ("HSCALE",          po::value<double>(&HSCALE)->default_value(0.1),
+     "Vertical scale length for disk basis construction")
+    ("ARATIO",          po::value<double>(&ARATIO)->default_value(1.0),
+     "Radial scale length ratio for disk basis construction with doubleexpon")
+    ("HRATIO",          po::value<double>(&HRATIO)->default_value(1.0),
+     "Vertical scale height ratio for disk basis construction with doubleexpon")
+    ("DWEIGHT",         po::value<double>(&DWEIGHT)->default_value(1.0),
+     "Ratio of second disk relative to the first disk for disk basis construction with doubleexpon")
+    ("RTRUNC",          po::value<double>(&RTRUNC)->default_value(0.1),
+     "Maximum disk radius for erf truncation of EOF conditioning density")
+    ("RWIDTH",          po::value<double>(&RWIDTH)->default_value(0.0),
+     "Width for erf truncationofr EOF conditioning density (ignored if zero)")
+    ("DMFAC",           po::value<double>(&DMFAC)->default_value(1.0),
+     "Disk mass scaling factor for spherical deprojection model")
+    ("RFACTOR",         po::value<double>(&RFACTOR)->default_value(1.0),
+     "Disk radial scaling factor for spherical deprojection model")
+    ("X0",              po::value<double>(&X0)->default_value(0.0),
+     "Disk-Halo x center position")
+    ("Y0",              po::value<double>(&Y0)->default_value(0.0),
+     "Disk-Halo y center position")
+    ("Z0",              po::value<double>(&Z0)->default_value(0.0),
+     "Disk-Halo z center position")
+    ("U0",              po::value<double>(&U0)->default_value(0.0),
+     "Disk-Halo x velocity center position")
+    ("V0",              po::value<double>(&V0)->default_value(0.0),
+     "Disk-Halo y velocity center position")
+    ("W0",              po::value<double>(&W0)->default_value(0.0),
+     "Disk-Halo z velocity center position")
+    ("RNUM",            po::value<int>(&RNUM)->default_value(200),
+     "Number of radial knots for EmpCylSL basis construction quadrature")
+    ("PNUM",            po::value<int>(&PNUM)->default_value(80),
+     "Number of azimthal knots for EmpCylSL basis construction quadrature")
+    ("TNUM",            po::value<int>(&TNUM)->default_value(80),
+     "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
+    ("CMAPR",           po::value<int>(&CMAPR)->default_value(1),
+     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
+    ("CMAPZ",           po::value<int>(&CMAPZ)->default_value(1),
+     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
+    ("SVD",             po::value<bool>(&SVD)->default_value(false),
+     "Use svd for symmetric eigenvalue problesm")
+    ("LOGR",            po::value<bool>(&LOGR)->default_value(false),
+     "Make a logarithmic coordinate mapping")
+    ("CHEBY",           po::value<bool>(&CHEBY)->default_value(false),
+     "Use Chebyshev smoothing for epicyclic and asymmetric drift")
+    ("NCHEB",           po::value<int>(&NCHEB)->default_value(16),
+     "Chebyshev order for smoothing in DiskHalo")
+    ("TCHEB",           po::value<int>(&TCHEB)->default_value(0),
+     "Chebyshev order for smoothing in Eddington inversion")
+    ("NUMDF",           po::value<int>(&NUMDF)->default_value(4000),
+     "Number of grid points for Eddington inversion")
+    ("NDR",             po::value<int>(&NDR)->default_value(1600),
+     "Number of points in DiskHalo radial table for disk")
+    ("NDZ",             po::value<int>(&NDZ)->default_value(400),
+     "Number of points in DiskHalo vertical table for disk")
+    ("NHR",             po::value<int>(&NHR)->default_value(1600),
+     "Number of points in DiskHalo radial table for halo")
+    ("NHT",             po::value<int>(&NHT)->default_value(200),
+     "Number of points in DiskHalo cos(theta) table for halo")
+    ("NDP",             po::value<int>(&NDP)->default_value(16),
+     "Number of points in DiskHalo phi grid for epicyclic freq (16)")
+    ("SHFAC",           po::value<double>(&SHFAC)->default_value(16.0),
+     "Scale height factor for assigning vertical table size")
+    ("LMAX",            po::value<int>(&LMAX)->default_value(6),
+     "Number of harmonics for Spherical SL for halo/spheroid")
+    ("NMAX",            po::value<int>(&NMAX)->default_value(12),
+     "Number of radial basis functions in Spherical SL for halo/spheroid")
+    ("NMAX2",           po::value<int>(&NMAX2)->default_value(36),
+     "Number of radial basis functions in Spherical SL for determining disk basis")
+    ("LMAX2",           po::value<int>(&LMAX2)->default_value(36),
+     "Number of harmonics for Spherical SL for determining disk basis")
+    ("MMAX",            po::value<int>(&MMAX)->default_value(4),
+     "Number of azimuthal harmonics for disk basis")
+    ("NUMX",            po::value<int>(&NUMX)->default_value(256),
+     "Radial grid size for disk basis table")
+    ("NUMY",            po::value<int>(&NUMY)->default_value(128),
+     "Vertical grid size for disk basis table")
+    ("NORDER",          po::value<int>(&NORDER)->default_value(16),
+     "Number of disk basis functions per M-order")
+    ("NORDER1",         po::value<int>(&NORDER1)->default_value(1000),
+     "Restricts disk basis function to NORDER1<NORDER after basis construction for testing")
+    ("NODD",            po::value<int>(&NODD)->default_value(-1),
+     "Number of vertically antisymmetric disk basis functions per M-order")
+    ("NOUT",            po::value<int>(&NOUT)->default_value(1000),
+     "Number of radial basis functions to output for each harmonic order")
+    ("SELECT",          po::value<bool>(&SELECT)->default_value(false),
+     "Enable significance selection in coefficient computation")
+    ("DUMPCOEF",        po::value<bool>(&DUMPCOEF)->default_value(false),
+     "Dump coefficients")
+    ("DIVERGE",         po::value<int>(&DIVERGE)->default_value(0),
+     "Cusp extrapolation for primary halo model")
+    ("DIVERGE_RFAC",    po::value<double>(&DIVERGE_RFAC)->default_value(1.0),
+     "Extrapolation exponent for primary mass model")
+    ("DIVERGE2",        po::value<int>(&DIVERGE2)->default_value(0),
+     "Cusp extrapolation for number model")
+    ("DIVERGE_RFAC2",   po::value<double>(&DIVERGE_RFAC2)->default_value(1.0),
+     "Extrapolation exponent for number model")
+    ("DF",              po::value<int>(&DF)->default_value(0),
+     "Use change-over from Jeans to Eddington")
+    ("R_DF",            po::value<double>(&R_DF)->default_value(20.0),
+     "Change over radius for Eddington")
+    ("DR_DF",           po::value<double>(&DR_DF)->default_value(5.0),
+     "Width of change for to Eddington")
+    ("scale_height",    po::value<double>(&scale_height)->default_value(0.1),
+     "Scale height for disk realization")
+    ("scale_length",    po::value<double>(&scale_length)->default_value(2.0),
+     "Scale length for disk realization")
+    ("scale_lenfkN",    po::value<double>(&scale_lenfkN)->default_value(-1.0),
+     "Scale for multimass gas")
+    ("disk_mass",       po::value<double>(&disk_mass)->default_value(1.0),
+     "Mass of stellar adisk")
+    ("gas_mass",        po::value<double>(&gas_mass)->default_value(1.0),
+     "Mass of gaseous disk")
+    ("gscal_length",    po::value<double>(&gscal_length)->default_value(4.0),
+     "Gas disk scale length")
+    ("ToomreQ",         po::value<double>(&ToomreQ)->default_value(1.2),
+     "Toomre Q parameter for stellar disk generation")
+    ("Temp",            po::value<double>(&Temp)->default_value(2000.0),
+     "Gas temperature (in K)")
+    ("Tmin",            po::value<double>(&Tmin)->default_value(500.0),
+     "Temperature floor (in K) for gas disk generation")
+    ("PPOW",            po::value<double>(&PPower)->default_value(5.0),
+     "Power exponent in spherical model for deprojection")
+    ("const_height",    po::value<bool>(&const_height)->default_value(true),
+     "Use constant disk scale height")
+    ("images",          po::value<bool>(&images)->default_value(false),
+     "Print out reconstructed disk profiles")
+    ("multi",           po::value<bool>(&multi)->default_value(false),
+     "Use multimass halo")
+    ("SEED",            po::value<int>(&SEED)->default_value(11),
+     "Random number seed")
+    ("DENS",            po::value<bool>(&DENS)->default_value(true),
+     "Compute the density basis functions")
+    ("basis",           po::value<bool>(&basis)->default_value(false),
+     "Print out disk and halo basis")
+    ("zero",            po::value<bool>(&zero)->default_value(false),
+     "zero center of mass and velocity")
+    ("nhalo",           po::value<int>(&nhalo)->default_value(1000),
+     "Number of halo particles")
+    ("ndisk",           po::value<int>(&ndisk)->default_value(1000),
+     "Number of disk particles")
+    ("ngas",            po::value<int>(&ngas)->default_value(1000),
+     "Number of gas particles")
+    ("ngparam",         po::value<int>(&ngparam)->default_value(3),
+     "Number of gas particle parameters")
+    ("hbods",           po::value<string>(&hbods)->default_value("halo.bods"),
+     "Halo particle output file")
+    ("dbods",           po::value<string>(&dbods)->default_value("disk.bods"),
+     "Disk particle output file")
+    ("gbods",           po::value<string>(&gbods)->default_value("gas.bods"),
+     "Gas particle output file")
+    ("suffix",          po::value<string>(&suffix)->default_value(""),
+     "Suffix appended for body files")
+    ("VFLAG",           po::value<int>(&VFLAG)->default_value(0),
+     "Output flags for EmpCylSL")
+    ("DFLAG",           po::value<int>(&DFLAG)->default_value(0),
+     "Output flags for DiskHalo")
+    ("threads",         po::value<int>(&nthrds)->default_value(1),
+     "Number of lightweight threads")
+    ("expcond",         po::value<bool>(&expcond)->default_value(true),
+     "Use analytic density function for computing EmpCylSL basis")
+    ("centerfile",      po::value<string>(&centerfile)->default_value("center.dat"),
+     "Read position and velocity center from this file")
+    ("halofile1",       po::value<string>(&halofile1)->default_value("SLGridSph.model"),
+     "File with input halo model")
+    ("halofile2",       po::value<string>(&halofile2)->default_value("SLGridSph.model.fake"),
+     "File with input halo model for multimass")
+    ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),
+     "Name of EOF cache file")
+    ("runtag",          po::value<string>(&runtag)->default_value("run000"),
+     "Label prefix for diagnostic images")
+    ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),
+     "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
+    ("mtype",           po::value<string>(&mtype),
+     "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
+    ("ctype",           po::value<string>(&ctype)->default_value("Log"),
+     "DiskHalo radial coordinate scaling type (one of: Linear, Log, Rat)")
+    ("condition",       po::value<string>(&dtype)->default_value("exponential"),
+     "Disk type for condition (one of: constant, gaussian, mn, exponential, doubleexpon)")
+    ("report",          po::value<bool>(&report)->default_value(true),
+     "Report particle progress in EOF computation")
+    ("evolved",         po::value<bool>(&evolved)->default_value(false),
+     "Use existing halo body file given by <hbods> and do not create a new halo")
+    ("ignore",          po::value<bool>(&ignore)->default_value(false),
+     "Ignore any existing cache file and recompute the EOF")
+    ("newcache",
+     "Use new YAML header version for EOF cache file")
+    ("ortho",
+     "Perform orthogonality check for basis")
+    ("probe",
+     "Print a profile along the x axis for the halo reconstruction fields")
+    ("noneg",
+     "Suppress negative mass creation for multi-mass models")
     ;
-        
+
   po::variables_map vm;
   
   // Parse command line for control and critical parameters
@@ -844,8 +954,9 @@ main(int ac, char **av)
   DiskHalo::VFLAG       = static_cast<unsigned int>(DFLAG);
   DiskHalo::CHEBY       = CHEBY;
   DiskHalo::NCHEB       = NCHEB;
-  if (suffix.size())
-    DiskHalo::RUNTAG    = suffix;
+
+  if (vm.count("noneg")) DiskHalo::NONEG  = true;
+  if (suffix.size())     DiskHalo::RUNTAG = suffix;
   
   AddDisk::use_mpi      = true;
   AddDisk::Rmin         = RMIN;
@@ -860,9 +971,9 @@ main(int ac, char **av)
   SphericalSL::RMAX = RSPHSL;
   SphericalSL::NUMR = NUMR;
   // Create expansion only if needed . . .
-  boost::shared_ptr<SphericalSL> expandh;
+  std::shared_ptr<SphericalSL> expandh;
   if (nhalo) {
-    expandh = boost::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCMAP, SCSPH);
+    expandh = std::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCMAP, SCSPH);
   }
 
   //===========================Cylindrical expansion===========================
@@ -886,12 +997,12 @@ main(int ac, char **av)
   if (basis) EmpCylSL::DENS = true;
 
                                 // Create expansion only if needed . . .
-  boost::shared_ptr<EmpCylSL> expandd;
+  std::shared_ptr<EmpCylSL> expandd;
   bool save_eof = false;
 
   if (ndisk) {
 
-    expandd = boost::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
+    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
 
 #ifdef DEBUG
    std::cout << "Process " << myid << ": "
@@ -938,12 +1049,12 @@ main(int ac, char **av)
       EmpCylSL::AxiDiskPtr model;
 
       if (dmodel.compare("MN")==0) // Miyamoto-Nagai
-	model = boost::make_shared<MNdisk>(1.0, H);
+	model = std::make_shared<MNdisk>(1.0, H);
       else			// Default to exponential
-	model = boost::make_shared<Exponential>(1.0, H);
+	model = std::make_shared<Exponential>(1.0, H);
 
       if (RWIDTH>0.0) {
-	model = boost::make_shared<Truncated>(RTRUNC/scale_length,
+	model = std::make_shared<Truncated>(RTRUNC/scale_length,
 					      RWIDTH/scale_length,
 					      model);
 	if (myid==0)
@@ -971,12 +1082,12 @@ main(int ac, char **av)
 
   //====================Create the disk & halo model===========================
 
-  boost::shared_ptr<DiskHalo> diskhalo;
+  std::shared_ptr<DiskHalo> diskhalo;
 
   if (multi) {
     if (myid==0) std::cout << "Initializing for a MULTI-MASS halo . . . " << std::flush;
     diskhalo =
-      boost::make_shared<DiskHalo>
+      std::make_shared<DiskHalo>
       (expandh, expandd,
        scale_height, scale_length, disk_mass, ctype,
        halofile1, DIVERGE,  DIVERGE_RFAC,
@@ -987,7 +1098,7 @@ main(int ac, char **av)
   } else {
 
     if (myid==0) std::cout << "Initializing for a SINGLE-MASS halo . . . " << std::flush;
-    diskhalo = boost::make_shared<DiskHalo>
+    diskhalo = std::make_shared<DiskHalo>
       (expandh, expandd,
        scale_height, scale_length, 
        disk_mass, ctype, halofile1,

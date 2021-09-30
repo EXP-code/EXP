@@ -37,7 +37,7 @@
 #include <string>
 
 				// BOOST stuff
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
@@ -332,7 +332,7 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  auto halo = boost::make_shared<SphericalModelTable>(MODEL);
+  auto halo = std::make_shared<SphericalModelTable>(MODEL);
   SphereSL::NUMR = 4000;
   int LMAX = 1, NMAX = coefsH.begin()->second->coefs.cols();
   SphereSL ortho_halo(halo, LMAX, NMAX);

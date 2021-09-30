@@ -935,7 +935,7 @@ public:
   //! Initialize the stream(s)
   void cuda_initialize();
 
-  typedef boost::shared_ptr<cudaStreamData> cuSharedStream;
+  typedef std::shared_ptr<cudaStreamData> cuSharedStream;
   cuSharedStream cuStream;
   //@}
 
