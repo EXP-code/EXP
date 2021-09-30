@@ -485,7 +485,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   massSoFar  = 0.0;
   lostSoFar  = vector<double>(nthrds, 0.0);
 
-  collD = boost::shared_ptr<collDiag>(new collDiag(this));
+  collD = std::shared_ptr<collDiag>(new collDiag(this));
 
   // Banners logging the test algorithms
   //
@@ -895,7 +895,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   elecElec = NTC::T(CollideIon::elec_elec, NTC::electron, NTC::electron);
 
   if (aType == Hybrid) {
-    coulombSel = boost::make_shared<coulombSelect>();
+    coulombSel = std::make_shared<coulombSelect>();
   }
 
   spectrumSetup();
@@ -914,7 +914,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   if ( (use_ratio or ratfink) and aType == Trace) {
 				// Loop through element list
     for (auto Z : ZList) {	// and make ratio tables
-      recombRatio[Z] = boost::make_shared<RecombRatio>(Z, ad, Tmin, Tmax, numT);
+      recombRatio[Z] = std::make_shared<RecombRatio>(Z, ad, Tmin, Tmax, numT);
     }
   }
 
@@ -973,7 +973,7 @@ void CollideIon::cellMinMax(pCell* const cell, int id)
     const  double xmin=0.001, xmax=5.0, h=0.005;
     static double medianVal;
 
-    typedef boost::shared_ptr<tk::spline> tksplPtr;
+    typedef std::shared_ptr<tk::spline> tksplPtr;
     static tksplPtr spl;
 
     if (spl.get() == 0) {
@@ -20050,7 +20050,7 @@ void CollideIon::Fspc::normTest(unsigned short n, const std::string& lab)
 std::vector<double>& CollideIon::coulomb_vector
 (std::vector<double>& rel, double tau)
 {
-  if (not coulombSel.get()) coulombSel = boost::make_shared<coulombSelect>();
+  if (not coulombSel.get()) coulombSel = std::make_shared<coulombSelect>();
 
 				// Normalize
   double rel2 = 0.0;

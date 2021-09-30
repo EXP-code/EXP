@@ -3,10 +3,10 @@
 
 #include <sstream>
 #include <vector>
+#include <memory>
 #include <map>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 #include <boost/multi_array.hpp>
 
 #include <ThreeDGrid.H>
@@ -24,7 +24,7 @@ protected:
 
   // Data
   typedef boost::multi_array<float, 3> dtype;
-  typedef boost::shared_ptr<dtype> dptr;
+  typedef std::shared_ptr<dtype> dptr;
   std::map<std::string, dptr> arrays;
 
 public:
@@ -41,6 +41,6 @@ public:
   void Write(const std::string& name);
 };
 
-typedef boost::shared_ptr<TableGrid> TableGridPtr;
+typedef std::shared_ptr<TableGrid> TableGridPtr;
 
 #endif

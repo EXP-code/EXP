@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <sstream>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include <config.h>
 
@@ -35,12 +35,12 @@ public:
 	   double zmin, double zmax)
   {
 #ifdef HAVE_VTK
-    ptr = boost::make_shared<VtkGrid>(nx, ny, nz,
+    ptr = std::make_shared<VtkGrid>(nx, ny, nz,
 				      xmin, xmax,
 				      ymin, ymax,
 				      zmin, zmax);
 #else    
-    ptr = boost::make_shared<TableGrid>(nx, ny, nz,
+    ptr = std::make_shared<TableGrid>(nx, ny, nz,
 					xmin, xmax,
 					ymin, ymax,
 					zmin, zmax);
@@ -60,6 +60,6 @@ public:
   }
 };
 
-typedef boost::shared_ptr<DataGrid> DataGridPtr;
+typedef std::shared_ptr<DataGrid> DataGridPtr;
 
 #endif

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <iomanip>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/make_shared.hpp>
 
 #include <Progress.H>		// Progress bar
@@ -63,7 +63,7 @@ DiskEval::DiskEval
     
   // Gauss-Legendre
   //
-  boost::shared_ptr<LegeQuad> lr = boost::make_shared<LegeQuad>(nint);
+  std::shared_ptr<LegeQuad> lr = std::make_shared<LegeQuad>(nint);
 
   int numthrd = 1, tid = 0;
 #ifdef HAVE_OMP_H
@@ -76,7 +76,7 @@ DiskEval::DiskEval
   }
 #endif
 
-  boost::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<boost::progress_display> progress;
   if (use_progress) {
     std::cout << std::endl << "Begin: exact force evaluation"
 	      << std::endl << "-----------------------------"
@@ -84,7 +84,7 @@ DiskEval::DiskEval
       
     std::cout << std::endl << "Multipole density coefficients"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(numr/numthrd);
+    progress = std::make_shared<boost::progress_display>(numr/numthrd);
   }
   
   // Compute \rho_{lm} on radial grid
@@ -177,7 +177,7 @@ DiskEval::DiskEval
   if (use_progress) {
     std::cout << std::endl << "Quadrature loop multipole expansion"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(numrads);
+    progress = std::make_shared<boost::progress_display>(numrads);
   }
   
   // l loop

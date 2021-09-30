@@ -1,5 +1,5 @@
 
-set(bin_PROGRAMS shrinkics gendisk gsphere pstmod empinfo empdump
+set(bin_PROGRAMS shrinkics gensph gendisk gsphere pstmod empinfo empdump
   eofbasis makeIon phIon phConv eofcomp testcoefs testcoefs2 testdeval
   forcetest hdf52accel forcetest2)
 
@@ -25,7 +25,11 @@ set(common_INCLUDE
 
 add_executable(shrinkics shrinkics.cc)
 
-add_executable(gendisk initial2.cc DiskHalo2.cc SphericalSL.cc
+add_executable(gensph gensph.cc SphericalSL.cc EllipForce.cc
+  legendre.cc SParticle.cc ddplgndr.cc sinecosine.cc)
+target_link_libraries(gensph fftw3)
+
+add_executable(gendisk initial.cc DiskHalo.cc SphericalSL.cc
   legendre.cc SParticle.cc ddplgndr.cc sinecosine.cc AddDisk.cc)
 
 add_executable(gsphere bonnerebert.cc)

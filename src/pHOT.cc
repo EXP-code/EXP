@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 // Hardwired DEBUGGING statements for pHOT
 // [set all to false for production]
@@ -1298,7 +1298,7 @@ void pHOT::dumpFrontier(std::ostream& out)
 	  MPI_Probe(n, 234, MPI_COMM_WORLD, &status);
 	  MPI_Get_count(&status, MPI_CHAR, &len);
 				// Receive the string
-	  boost::shared_ptr<char> buf(new char[len]);
+	  std::shared_ptr<char> buf(new char[len]);
 	  MPI_Recv(buf.get(), len, MPI_CHAR, n, 234, MPI_COMM_WORLD, &status);
 				// Add to output list
 	  output.push_back(std::string(buf.get(), len));
@@ -2418,7 +2418,7 @@ void pHOT::Repartition(unsigned mlevel)
 
   if (Fcnt) {
     for (unsigned i=0; i<Fcnt; i++) {
-      PartPtr part = boost::make_shared<Particle>();
+      PartPtr part = std::make_shared<Particle>();
       pf->particleUnpack(part, &precv[i*bufsiz]);
       if (part->mass<=0.0 || std::isnan(part->mass)) {
 	cout << "[Repartition, myid=" << myid 
@@ -3176,7 +3176,7 @@ void pHOT::adjustTree(unsigned mlevel)
     timer_convert.start();
     
     for (unsigned i=0; i<Fcnt; i++) {
-      PartPtr part = boost::make_shared<Particle>();
+      PartPtr part = std::make_shared<Particle>();
       pf->particleUnpack(part, &precv[i*bufsiz]);
       if (part->mass<=0.0 || std::isnan(part->mass)) {
 	cout << "[adjustTree, myid=" << myid
@@ -3279,7 +3279,7 @@ void pHOT::adjustTree(unsigned mlevel)
 		   n+1, 136, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	  for (int i=0; i<head_num; i++) {
-	    PartPtr part = boost::make_shared<Particle>();
+	    PartPtr part = std::make_shared<Particle>();
 	    pf->particleUnpack(part, &Precv[i*bufsiz]);
 	    cc->Particles()[part->indx] = part;
 	    key_pair newpair(part->key, part->indx);
@@ -3383,7 +3383,7 @@ void pHOT::adjustTree(unsigned mlevel)
 		   n, 135, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	  for (int i=0; i<tail_num; i++) {
-	    PartPtr part = boost::make_shared<Particle>();
+	    PartPtr part = std::make_shared<Particle>();
 	    pf->particleUnpack(part, &Precv[i*bufsiz]);
 	    cc->Particles()[part->indx] = part;
 	    key_pair newpair(part->key, part->indx);
@@ -4619,7 +4619,7 @@ void pHOT::spreadOOB()
   if (Fcnt) {
     Particle part;
     for (unsigned i=0; i<Fcnt; i++) {
-      PartPtr part = boost::make_shared<Particle>();
+      PartPtr part = std::make_shared<Particle>();
       pf->particleUnpack(part, &precv[i*bufsiz]);
       if (part->mass<=0.0 || std::isnan(part->mass)) {
 	cout << "[spreadOOB, myid=" << myid 

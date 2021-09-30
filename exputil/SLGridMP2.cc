@@ -1519,7 +1519,7 @@ extern "C" {
 }
 
 
-static boost::shared_ptr<AxiSymModel> model;
+static std::shared_ptr<AxiSymModel> model;
 
 double sphpot(double r)
 {
@@ -1562,7 +1562,7 @@ SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
 }
 
-SLGridSph::SLGridSph(boost::shared_ptr<SphericalModelTable> mod,
+SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 		     int LMAX, int NMAX, int NUMR, double RMIN, double RMAX, 
 		     bool CACHE, int CMAP, double SCALE, bool VERBOSE)
 {

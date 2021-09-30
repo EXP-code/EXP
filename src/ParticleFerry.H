@@ -2,11 +2,10 @@
 #define ParticleFerry_H
 
 #include <vector>
+#include <memory>
+
 #include "localmpi.H"
 #include "Particle.H"
-
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
 
 using namespace std;
 
@@ -64,6 +63,6 @@ public:
   size_t getBufsize() { return bufsiz; }
 };
 
-typedef boost::shared_ptr<ParticleFerry> ParticleFerryPtr;
+typedef std::shared_ptr<ParticleFerry> ParticleFerryPtr;
 
 #endif

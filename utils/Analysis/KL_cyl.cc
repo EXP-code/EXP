@@ -449,12 +449,12 @@ main(int argc, char **argv)
 
   std::vector<double> KDdens;
 
-  boost::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<boost::progress_display> progress;
   if (myid==0) {
     std::cout << std::endl
 	      << "Accumulating particle positions . . . "
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(nbod);
+    progress = std::make_shared<boost::progress_display>(nbod);
   }
 
   ortho0.setup_accumulation();
@@ -551,10 +551,10 @@ main(int argc, char **argv)
   p = reader->firstParticle();
   icnt = 0;
     
-  std::vector<boost::shared_ptr<CoefStruct>> coefs;
+  std::vector<std::shared_ptr<CoefStruct>> coefs;
 
   if (myid==0) {
-    progress = boost::make_shared<boost::progress_display>(nbunch0*nbunch1);
+    progress = std::make_shared<boost::progress_display>(nbunch0*nbunch1);
   }
 
   double curMass = 0.0;
@@ -580,7 +580,7 @@ main(int argc, char **argv)
 	}
 	coefs.back()->sync(curMass);
       }
-      coefs.push_back(boost::make_shared<CoefStruct>(mmax, norder));
+      coefs.push_back(std::make_shared<CoefStruct>(mmax, norder));
       ortho1.setup_accumulation();
       curMass = 0.0;
     }
@@ -690,7 +690,7 @@ main(int argc, char **argv)
     //
     if (myid==0) {
       std::cout << std::endl << "Trimming coefficients . . ." << std::endl;
-      progress = boost::make_shared<boost::progress_display>(coefs.size());
+      progress = std::make_shared<boost::progress_display>(coefs.size());
     }
 
     for (int j=0; j<coefs.size(); j++) {
@@ -722,7 +722,7 @@ main(int argc, char **argv)
       std::cout << std::endl
 		<< "Computing KL for subsamples . . . "
 		<< std::endl;
-      progress = boost::make_shared<boost::progress_display>(nbunch0*nbunch1);
+      progress = std::make_shared<boost::progress_display>(nbunch0*nbunch1);
     }
 
     do {

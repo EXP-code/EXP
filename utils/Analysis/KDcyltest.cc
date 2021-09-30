@@ -43,7 +43,7 @@
 
 				// Boost stuff
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
@@ -353,12 +353,12 @@ main(int argc, char **argv)
 
   int nbod = reader->CurrentNumber();
 
-  boost::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<boost::progress_display> progress;
   if (myid==0) {
     std::cout << std::endl
 	      << "Accumulating particle positions . . . "
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(nbod);
+    progress = std::make_shared<boost::progress_display>(nbod);
   }
 
   auto p = reader->firstParticle();
@@ -414,7 +414,7 @@ main(int argc, char **argv)
     std::cout << std::endl
 	      << "Evaluating field quantities . . . "
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(NOUT*NOUT);
+    progress = std::make_shared<boost::progress_display>(NOUT*NOUT);
   }
 
   // Evaluate the fields

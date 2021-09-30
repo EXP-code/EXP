@@ -223,7 +223,7 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  auto halo = boost::make_shared<SphericalModelTable>(modelf);
+  auto halo = std::make_shared<SphericalModelTable>(modelf);
 
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;

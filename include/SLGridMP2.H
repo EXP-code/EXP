@@ -187,7 +187,7 @@ public:
 				// Constructors
 
   //! Constructor with model table
-  SLGridSph(boost::shared_ptr<SphericalModelTable> mod,
+  SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 	    int lmax, int nmax, int numr, double rmin, double rmax,
 	    bool cache, int Cmap, double Scale, bool Verbose=false);
 

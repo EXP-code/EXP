@@ -6,9 +6,6 @@
 #include <limits>
 #include <string>
 
-
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
 #include <boost/multi_array.hpp>
 
@@ -238,8 +235,8 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   dfac   = ffac/ascale;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
-					RMIN, RMAX*0.99, false, 1, 1.0);
+  ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+				      RMIN, RMAX*0.99, false, 1, 1.0);
 
   coefs_made = vector<short>(multistep+1, false);
   eof_made = false;
@@ -497,7 +494,7 @@ SphModTblPtr EmpCylSL::make_sl()
     out.close();
   }
 
-  return boost::make_shared<SphericalModelTable>
+  return std::make_shared<SphericalModelTable>
     (number, r.data(), d.data(), m.data(), p.data());
 }
 
@@ -699,7 +696,7 @@ int EmpCylSL::read_eof_file(const string& eof_file)
   dfac = ffac/ASCALE;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+  ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					RMIN, RMAX*0.99, false, 1, 1.0);
 
   setup_eof();
@@ -1206,7 +1203,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
   // Check for existence of ortho and create if necessary
   //
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+    ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					  RMIN, RMAX*0.99, false, 1, 1.0);
 
 
@@ -1374,7 +1371,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
   // check for ortho
   //
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>(make_sl(),
+    ortho = std::make_shared<SLGridSph>(make_sl(),
 					  LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
 					  false, 1, 1.0);
 
@@ -1604,10 +1601,10 @@ void EmpCylSL::setup_accumulation(int mlevel)
     howmany .resize(multistep+1, 0);
 
     for (unsigned M=0; M<=multistep; M++) {
-      cosL[M] = boost::make_shared<VectorD2>(nthrds);
-      cosN[M] = boost::make_shared<VectorD2>(nthrds);
-      sinL[M] = boost::make_shared<VectorD2>(nthrds);
-      sinN[M] = boost::make_shared<VectorD2>(nthrds);
+      cosL[M] = std::make_shared<VectorD2>(nthrds);
+      cosN[M] = std::make_shared<VectorD2>(nthrds);
+      sinL[M] = std::make_shared<VectorD2>(nthrds);
+      sinN[M] = std::make_shared<VectorD2>(nthrds);
       
       for (int nth=0; nth<nthrds; nth++) {
 	cosL(M)[nth].resize(MMAX+1);
@@ -2042,7 +2039,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   // Create spherical orthogonal basis if necessary
   //
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+    ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					  RMIN, RMAX*0.99, false, 1, 1.0);
   // Initialize fixed variables and storage
   //
@@ -2058,10 +2055,10 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   omp_set_num_threads(nthrds);	// OpenMP set up
 #endif
 
-  boost::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<boost::progress_display> progress;
   if (VFLAG & 16 && myid==0) {
     std::cout << std::endl << "Quadrature loop progress" << std::endl;
-    progress = boost::make_shared<boost::progress_display>(numr);
+    progress = std::make_shared<boost::progress_display>(numr);
   }
 
   int cntr = 0;			// Loop counter for spreading load to nodes
@@ -2339,7 +2336,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 			      int id, int mlevel)
 {
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>
+    ortho = std::make_shared<SLGridSph>
       (make_sl(), LMAX, NMAX, NUMR, RMIN, RMAX*0.99, false, 1, 1.0);
   if (eof_made) {
     if (VFLAG & 2)
@@ -6453,13 +6450,13 @@ void EmpCylSL::dump_images_basis_pca(const string& runtag,
 
   Eigen::VectorXd PP(1, NORDER), DD(1, NORDER), RF(1, NORDER), ZF(1, NORDER);
   
-  boost::shared_ptr<ThreeDGrid> grid;
+  std::shared_ptr<ThreeDGrid> grid;
 
 #ifdef HAVE_VTK
-  grid = boost::make_shared<VtkGrid>
+  grid = std::make_shared<VtkGrid>
     (OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
 #else
-  grid = boost::make_shared<TableGrid>
+  grid = std::make_shared<TableGrid>
     (OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
 #endif
   

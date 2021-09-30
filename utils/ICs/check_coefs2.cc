@@ -711,8 +711,8 @@ main(int ac, char **av)
                                 // Create expansion only if needed . . .
   bool save_eof = false;
 
-  boost::shared_ptr<EmpCylSL> expandd =
-    boost::make_shared<EmpCylSL>(NMAX, LMAX, MMAX, NORDER, ASCALE, HSCALE, NODD);
+  std::shared_ptr<EmpCylSL> expandd =
+    std::make_shared<EmpCylSL>(NMAX, LMAX, MMAX, NORDER, ASCALE, HSCALE, NODD);
 
   // Try to read existing cache to get EOF
   //
@@ -745,9 +745,9 @@ main(int ac, char **av)
       EmpCylSL::AxiDiskPtr model;
       
       if (dmodel.compare("MN")==0) // Miyamoto-Nagai
-	model = boost::make_shared<MNdisk>(1.0, H);
+	model = std::make_shared<MNdisk>(1.0, H);
       else			// Default to exponential
-	model = boost::make_shared<Exponential>(1.0, H);
+	model = std::make_shared<Exponential>(1.0, H);
       
       expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
     }
@@ -819,12 +819,12 @@ main(int ac, char **av)
   }
 #endif
 
-  boost::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<boost::progress_display> progress;
   if (use_progress) {
     std::cout << std::endl << "Begin: coefficient eval"
 	      << std::endl << "-----------------------"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(NINT/nomp);
+    progress = std::make_shared<boost::progress_display>(NINT/nomp);
   }
 
   if (LOGR2) {
@@ -974,12 +974,12 @@ main(int ac, char **av)
   EmpCylSL::AxiDiskPtr modl;
       
   if (dmodel.compare("MN")==0) // Miyamoto-Nagai
-    modl = boost::make_shared<MNdisk>(AA, HH);
+    modl = std::make_shared<MNdisk>(AA, HH);
   else			// Default to exponential
-    modl = boost::make_shared<Exponential>(AA, HH);
+    modl = std::make_shared<Exponential>(AA, HH);
 
   if (rwidth>0.0) {
-    modl = boost::make_shared<Truncated>(rtrunc, rwidth, modl);
+    modl = std::make_shared<Truncated>(rtrunc, rwidth, modl);
     std::cout << "Made truncated model with R=" << rtrunc
 	      << " and W=" << rwidth<< std::endl;
   }
@@ -1006,7 +1006,7 @@ main(int ac, char **av)
       
     std::cout << std::endl << "Midplane force evaluation"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(NFRC1D);
+    progress = std::make_shared<boost::progress_display>(NFRC1D);
   }
 
   // Quick radial force check
@@ -1190,7 +1190,7 @@ main(int ac, char **av)
   if (use_progress) {
     std::cout << std::endl << "Meridional force evaluation"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(NFRC2D);
+    progress = std::make_shared<boost::progress_display>(NFRC2D);
   }
 
   double Rmin =  0.1*HH;

@@ -6,7 +6,7 @@
 #include <vector>
 #include <map>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 class atomicData;
 class Ion;
@@ -65,7 +65,7 @@ public:
     void sync(int myid=0);
   };
   
-  using bdPtr = boost::shared_ptr<BadnellRec>;
+  using bdPtr = std::shared_ptr<BadnellRec>;
 
   std::map<lQ, bdPtr> data;
 

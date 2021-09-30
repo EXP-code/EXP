@@ -169,7 +169,7 @@ public:
 //! Truncate a AxiDisk
 class Truncated : public EmpCylSL::AxiDisk
 {
-  typedef boost::shared_ptr<EmpCylSL::AxiDisk> AxiDiskPtr;
+  typedef std::shared_ptr<EmpCylSL::AxiDisk> AxiDiskPtr;
   
 private:
   

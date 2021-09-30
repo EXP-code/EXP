@@ -29,7 +29,7 @@ private:
   std::vector<double> pe;
 
   //! Spline pointer
-  typedef boost::shared_ptr<tk::spline> tksplPtr;
+  typedef std::shared_ptr<tk::spline> tksplPtr;
 
   //! GF data
   std::map<std::pair<int, int>, std::vector<double> > gfb;

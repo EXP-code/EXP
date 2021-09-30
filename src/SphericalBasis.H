@@ -48,7 +48,7 @@ protected:
 
   //@{
   //! Matrices per thread for obtaining expansion coefficients
-  typedef boost::shared_ptr<Eigen::VectorXd> VectorXdP;
+  typedef std::shared_ptr<Eigen::VectorXd> VectorXdP;
   std::vector<std::vector<VectorXdP>> expcoef0;
   //@}
 

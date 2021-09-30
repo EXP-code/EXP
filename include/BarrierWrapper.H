@@ -13,14 +13,14 @@
 
 using namespace std;
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include <Timer.H>
 #include <mpi.h>
 
 
-typedef boost::shared_ptr<char> CharPtr;
-typedef boost::shared_ptr<MPI_Request> ReqPtr;
+typedef std::shared_ptr<char> CharPtr;
+typedef std::shared_ptr<MPI_Request> ReqPtr;
 
 class Info 
 {
@@ -75,7 +75,7 @@ public:
 
 };
 
-typedef boost::shared_ptr<Info> InfoPtr;
+typedef std::shared_ptr<Info> InfoPtr;
 
 
 class BWData 
@@ -115,7 +115,7 @@ public:
 };
 
 
-typedef boost::shared_ptr<BWData> BWPtr;
+typedef std::shared_ptr<BWData> BWPtr;
 
 class BarrierWrapper
 {

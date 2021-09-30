@@ -181,11 +181,11 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
     expcoefN[i].resize((Lmax+1)*(Lmax+1));
     expcoefL[i].resize((Lmax+1)*(Lmax+1));
     for (auto & v : expcoefN[i]) {
-      v = boost::make_shared<Eigen::VectorXd>(nmax);
+      v = std::make_shared<Eigen::VectorXd>(nmax);
       v->setZero();
     }
     for (auto & v : expcoefL[i]) {
-      v = boost::make_shared<Eigen::VectorXd>(nmax);
+      v = std::make_shared<Eigen::VectorXd>(nmax);
       v->setZero();
     }
   }
@@ -193,13 +193,13 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   expcoef .resize((Lmax+1)*(Lmax+1));
   expcoef1.resize((Lmax+1)*(Lmax+1));
   
-  for (auto & v : expcoef ) v = boost::make_shared<Eigen::VectorXd>(nmax);
-  for (auto & v : expcoef1) v = boost::make_shared<Eigen::VectorXd>(nmax);
+  for (auto & v : expcoef ) v = std::make_shared<Eigen::VectorXd>(nmax);
+  for (auto & v : expcoef1) v = std::make_shared<Eigen::VectorXd>(nmax);
   
   expcoef0.resize(nthrds);
   for (auto & t : expcoef0) {
     t.resize((Lmax+1)*(Lmax+1));
-    for (auto & v : t) v = boost::make_shared<Eigen::VectorXd>(nmax);
+    for (auto & v : t) v = std::make_shared<Eigen::VectorXd>(nmax);
   }
 
   // Allocate normalization matrix
@@ -527,7 +527,7 @@ void SphericalBasis::determine_coefficients(void)
 
 				// Set coefficient matrix size
     expcoef.resize((Lmax+1)*(Lmax+1));
-    for (auto & v : expcoef) v = boost::make_shared<Eigen::VectorXd>(1, nmax);
+    for (auto & v : expcoef) v = std::make_shared<Eigen::VectorXd>(1, nmax);
 
     if (coefMaster) {
 
@@ -584,25 +584,25 @@ void SphericalBasis::determine_coefficients(void)
       expcoefT .resize(sampT);
       for (auto & t : expcoefT ) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = boost::make_shared<Eigen::VectorXd>(nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::VectorXd>(nmax);
       }
       
       expcoefT1.resize(sampT);
       for (auto & t : expcoefT1) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = boost::make_shared<Eigen::VectorXd>(nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::VectorXd>(nmax);
       }
 
       expcoefM .resize(sampT);
       for (auto & t : expcoefM ) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = boost::make_shared<Eigen::MatrixXd>(nmax, nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::MatrixXd>(nmax, nmax);
       }
       
       expcoefM1.resize(sampT);
       for (auto & t : expcoefM1) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = boost::make_shared<Eigen::MatrixXd>(nmax, nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::MatrixXd>(nmax, nmax);
       }
 
     }

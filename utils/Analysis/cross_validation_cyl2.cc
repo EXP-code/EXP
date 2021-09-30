@@ -47,7 +47,7 @@
 
 				// Boost stuff
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -606,7 +606,7 @@ main(int argc, char **argv)
 
   if (MakeCache) {
 
-    boost::shared_ptr<boost::progress_display> progress;
+    std::shared_ptr<boost::progress_display> progress;
     if (myid==0) {
       int cnt = 0;
       for (int L=0; L<=LMAX; L++) {
@@ -614,7 +614,7 @@ main(int argc, char **argv)
       }
       cnt *= (numr + 1)*norder;
 
-      progress = boost::make_shared<boost::progress_display>(cnt);
+      progress = std::make_shared<boost::progress_display>(cnt);
     }
 
     LegeQuad lr(NINTR);

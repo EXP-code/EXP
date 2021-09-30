@@ -250,7 +250,7 @@ public:
   }
 };
 
-typedef boost::shared_ptr<CollisionTypeDiag> collTDPtr;
+typedef std::shared_ptr<CollisionTypeDiag> collTDPtr;
 typedef std::map<speciesKey, collTDPtr> sKeyCollTD;
 
 class CollideIon;
@@ -893,7 +893,7 @@ private:
     double operator()(unsigned short C, double T);
   };
 
-  std::map<unsigned short, boost::shared_ptr<RecombRatio>> recombRatio;
+  std::map<unsigned short, std::shared_ptr<RecombRatio>> recombRatio;
   //@}
 
 public:
@@ -1000,7 +1000,7 @@ protected:
   //! pairs
   std::vector<NTC::InteractD> csections;
 
-  boost::shared_ptr<collDiag> collD;
+  std::shared_ptr<collDiag> collD;
 
   //! Set of the elements (atomic number) for direct multi-species
   //! implementation
@@ -1170,7 +1170,7 @@ protected:
 		      double *crm, const NTC::T& itype);
 
   //! Coulombic scattering angle lookup
-  boost::shared_ptr<coulombSelect> coulombSel;
+  std::shared_ptr<coulombSelect> coulombSel;
 
   class Fspc
   {

@@ -12,7 +12,7 @@ SLSphere::SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
   rmax = Rmax;
 
 				// Generate Sturm-Liouville grid
-  ortho = boost::make_shared<SLGridSph>
+  ortho = std::make_shared<SLGridSph>
     (Lmax, nmax, numr, rmin, rmax, false, cmap, rs, 0, 1.0);
 
   xmin = ortho->r_to_xi(rmin);
@@ -21,7 +21,7 @@ SLSphere::SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
 
 SLSphere::SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
 		   int cmap, double rs,
-		   boost::shared_ptr<SphericalModelTable> mod)
+		   std::shared_ptr<SphericalModelTable> mod)
 {
   dof = 3;
 
@@ -33,10 +33,10 @@ SLSphere::SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
 
 				// Generate Sturm-Liouville grid
   if (mod)
-    ortho = boost::make_shared<SLGridSph>
+    ortho = std::make_shared<SLGridSph>
       (mod, Lmax, nmax, numr, rmin, rmax, false, cmap, rs);
   else
-    ortho = boost::make_shared<SLGridSph>
+    ortho = std::make_shared<SLGridSph>
       (Lmax, nmax, numr, rmin, rmax, false, cmap, rs, 0, 1.0);
 
   xmin = ortho->r_to_xi(rmin);

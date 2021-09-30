@@ -7,7 +7,7 @@
 //
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/make_shared.hpp>
 
 namespace po = boost::program_options;
@@ -105,7 +105,7 @@ int main(int argc, char** argv)
   SLGridSph::sph_cache_name = cachefile;
 
 				// Generate Sturm-Liouville grid
-  auto ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, 
+  auto ortho = std::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, 
 					     true, cmap, rs, 0, 1.0, true);
   //                                         ^               ^       ^
   //                                         |               |       |

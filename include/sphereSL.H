@@ -34,7 +34,7 @@ public:
 				// Constructors
 
   SphereSL(int lmax, int nmax, int numr, double rmin, double rmax,
-	   double scale, boost::shared_ptr<SphericalModelTable> mod);
+	   double scale, std::shared_ptr<SphericalModelTable> mod);
   ~SphereSL(void);
 
 				// Required members

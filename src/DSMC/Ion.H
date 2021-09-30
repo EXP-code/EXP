@@ -5,11 +5,11 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 #include <set>
 #include <map>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+
 #include <boost/multi_array.hpp>
 
 #include <Eigen/Eigen>
@@ -39,7 +39,7 @@
 // Structures for caching the Cspline instances for each Ion instance
 //
 typedef Cspline<double, double>      CsplineD2;
-typedef boost::shared_ptr<CsplineD2> CsplD2Ptr;
+typedef std::shared_ptr<CsplineD2> CsplD2Ptr;
 typedef std::map<int, CsplD2Ptr>     CacheSplList;
 
 
@@ -223,11 +223,11 @@ protected:
 
   //! Gauss-Laguerre structure for integration of Maxwell-Boltzmann
   //! distribution
-  boost::shared_ptr<LaguQuad> Lagu;
+  std::shared_ptr<LaguQuad> Lagu;
 
   //! Gauss-Legendre structure for integration of Maxwell-Boltzmann
   //! distribution with boundaries
-  boost::shared_ptr<LegeQuad> Lege;
+  std::shared_ptr<LegeQuad> Lege;
 
 #if HAVE_LIBCUDA==1
   //! CUDA methods
@@ -281,10 +281,10 @@ public:
   double abundanceAll[numEle];
 
   //! TopBase data
-  boost::shared_ptr<TopBase> tb;
+  std::shared_ptr<TopBase> tb;
 
   //! Access to data for individual Ions
-  std::map <lQ,  boost::shared_ptr<Ion> > IonList;
+  std::map <lQ,  std::shared_ptr<Ion> > IonList;
 
   //! Not sure what this does . . . looks like cruft.  Remove??
   std::map< int, double > Ni;
@@ -865,6 +865,6 @@ public:
 
 };
 
-typedef boost::shared_ptr<Ion> IonPtr;
+typedef std::shared_ptr<Ion> IonPtr;
 
 #endif

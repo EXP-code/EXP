@@ -9,7 +9,7 @@
 //
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/make_shared.hpp>
 
 #include <Eigen/Eigen>
@@ -174,7 +174,7 @@ double Shift::shift(double r, int l, int m)
 }
 
 
-boost::shared_ptr<Shift> shift;
+std::shared_ptr<Shift> shift;
 
 double shift_func(double r, int l, int m)
 {
@@ -466,7 +466,7 @@ main(int argc, char** argv)
     //===================
 
 				// Construct coefficients
-    shift = boost::make_shared<Shift>(delr, rmin, rmax, Lmax, numr, numt, nump);
+    shift = std::make_shared<Shift>(delr, rmin, rmax, Lmax, numr, numt, nump);
 
     //===================
     // Shifted profile

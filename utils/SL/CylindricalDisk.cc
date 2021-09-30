@@ -82,12 +82,12 @@ void CylindricalDisk::Initialize(double Rmin, double Rmax, bool logR,
   numt = numT;
   numg = numG;
   
-  model = boost::make_shared<SphericalModelTable>
+  model = std::make_shared<SphericalModelTable>
     (numR, 
      &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1,
      0, 0, 0, "Shells from cylinder");
   
-  ortho = boost::make_shared<SLSphere>
+  ortho = std::make_shared<SLSphere>
     (lmax, nmax, numr, rmin, rmax, 1, 1, model);
 
   // Compute coefficients

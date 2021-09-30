@@ -47,7 +47,7 @@ using namespace std;
 
 				// Boost stuff
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>

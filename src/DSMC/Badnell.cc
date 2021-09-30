@@ -97,7 +97,7 @@ void BadnellData::initialize(atomicData* ad)
     double E, X;
     
     // Create a data record
-    bdPtr d = boost::make_shared<BadnellRec>();
+    bdPtr d = std::make_shared<BadnellRec>();
 
     bool looking = true;
     while (in) {

@@ -5,7 +5,7 @@
 #include <iomanip>
 #include <vector>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 //! Process a std::vector into an ASCII histogram
 template <typename T = double>
@@ -138,8 +138,8 @@ public:
   }
 };
 
-typedef boost::shared_ptr< AsciiHisto<unsigned> > ahistoUPtr;
-typedef boost::shared_ptr< AsciiHisto<double  > > ahistoDPtr;
-typedef boost::shared_ptr< AsciiHisto<int     > > ahistoIPtr;
+typedef std::shared_ptr< AsciiHisto<unsigned> > ahistoUPtr;
+typedef std::shared_ptr< AsciiHisto<double  > > ahistoDPtr;
+typedef std::shared_ptr< AsciiHisto<int     > > ahistoIPtr;
 
 #endif

@@ -704,8 +704,8 @@ main(int ac, char **av)
                                 // Create expansion only if needed . . .
   bool save_eof = false;
 
-  boost::shared_ptr<EmpCylSL> expandd =
-    boost::make_shared<EmpCylSL>(NMAX, LMAX, MMAX, NORDER, ASCALE, HSCALE);
+  std::shared_ptr<EmpCylSL> expandd =
+    std::make_shared<EmpCylSL>(NMAX, LMAX, MMAX, NORDER, ASCALE, HSCALE);
 
   // Try to read existing cache to get EOF
   //
@@ -738,9 +738,9 @@ main(int ac, char **av)
       EmpCylSL::AxiDiskPtr model;
       
       if (dmodel.compare("MN")==0) // Miyamoto-Nagai
-	model = boost::make_shared<MNdisk>(1.0, H);
+	model = std::make_shared<MNdisk>(1.0, H);
       else			// Default to exponential
-	model = boost::make_shared<Exponential>(1.0, H);
+	model = std::make_shared<Exponential>(1.0, H);
       
       expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
     }

@@ -21,7 +21,7 @@ bool   SphereSL::mpi  = false;	// Initially off
 double SphereSL::HEXP = 1.0;	// Hall exponent
 
 //! Constructor
-SphereSL::SphereSL(boost::shared_ptr<SphericalModelTable> mod,
+SphereSL::SphereSL(std::shared_ptr<SphericalModelTable> mod,
 		   int LMAX, int NMAX, int CMAP, double Scale,
 		   bool COVAR, int NPART)
 {
@@ -31,7 +31,7 @@ SphereSL::SphereSL(boost::shared_ptr<SphericalModelTable> mod,
 		     mod->get_max_radius()*1.0e-4);
   rmax = mod->get_max_radius()*0.99;
 
-  sl = boost::make_shared<SLGridSph>
+  sl = std::make_shared<SLGridSph>
     (mod, LMAX, NMAX, NUMR, rmin, rmax, true, CMAP, Scale);
 
   lmax = LMAX;

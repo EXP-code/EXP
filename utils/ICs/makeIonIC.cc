@@ -29,7 +29,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include <boost/program_options.hpp>
 
@@ -48,13 +48,13 @@ namespace po = boost::program_options;
 //
 // Boost random types
 //
-typedef boost::shared_ptr<boost::mt19937> gen_ptr;
-typedef boost::shared_ptr<boost::uniform_real<> > uniform_ptr;
-typedef boost::shared_ptr<boost::normal_distribution<> > normal_ptr;
+typedef std::shared_ptr<boost::mt19937> gen_ptr;
+typedef std::shared_ptr<boost::uniform_real<> > uniform_ptr;
+typedef std::shared_ptr<boost::normal_distribution<> > normal_ptr;
 typedef boost::variate_generator<boost::mt19937&, boost::uniform_real<> > unif_var;
-typedef boost::shared_ptr<unif_var> unit_ptr;
+typedef std::shared_ptr<unif_var> unit_ptr;
 typedef boost::variate_generator<boost::mt19937&, boost::normal_distribution<> > norm_var;
-typedef boost::shared_ptr<norm_var> norm_ptr;
+typedef std::shared_ptr<norm_var> norm_ptr;
 typedef boost::variate_generator<boost::mt19937&, boost::random::uniform_int_distribution<> > unid_var;
 
 

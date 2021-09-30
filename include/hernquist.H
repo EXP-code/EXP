@@ -1,3 +1,6 @@
+#ifndef _hernquist_H
+#define _hernquist_H
+
 #include <cmath>
 #include <massmodel.H>
 
@@ -79,5 +82,4 @@ public:
 
 };
 
-
-
+#endif

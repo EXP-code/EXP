@@ -1,5 +1,5 @@
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <BarrierWrapper.H>
 #include <unistd.h>
 

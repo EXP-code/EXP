@@ -110,19 +110,19 @@ main(int ac, char **av)
 
   if (dmodel.compare("FEED")==0) {// Ferrers + Evacuated Exponential Disk. most options are hardwired here relative to the disc scale length currently
     std::cout << "Using model FEED" << endl;
-    model = boost::make_shared<FEED>(1.4*A,(0.4/1.4)*A, (0.2/1.4)*A, A, H, 0.2);
+    model = std::make_shared<FEED>(1.4*A,(0.4/1.4)*A, (0.2/1.4)*A, A, H, 0.2);
   } else if (dmodel.compare("Ferrers")==0) {// Ferrers
     std::cout << "Using model Ferrers" << endl;
-    model = boost::make_shared<Ferrers>(A, H, A/10.);
+    model = std::make_shared<Ferrers>(A, H, A/10.);
   } else if (dmodel.compare("MN")==0) {// Miyamoto-Nagai
     std::cout << "Using Miyamoto-Nagai disk model" << endl;
-    model = boost::make_shared<MNdisk>(A, H);
+    model = std::make_shared<MNdisk>(A, H);
   } else if (dmodel.compare("DoubleExponential")==0) {// Double Exponential. Most options are hardwired right now.
     std::cout << "Using Double Exponential disk model" << endl;
-    model = boost::make_shared<DoubleExponential>(A, H, A, H/3, 0.5);
+    model = std::make_shared<DoubleExponential>(A, H, A, H/3, 0.5);
   } else {			// Default to exponential
     std::cout << "Using standard exponential model" << endl;
-    model = boost::make_shared<Exponential>(A, H);
+    model = std::make_shared<Exponential>(A, H);
   }
 
   DiskEval test(model, rmin, rmax, A, lmax, numr, nint, true, mmax, nump);

@@ -2913,7 +2913,7 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
       std::cerr << "Ion: creating new TopBase instance"
 		<< std::endl;
     }
-    ad->tb = boost::shared_ptr<TopBase>(new TopBase);
+    ad->tb = std::shared_ptr<TopBase>(new TopBase);
     // For debugging (set to 'false' for production)
     //  |
     //  v
@@ -3448,7 +3448,7 @@ void VernerData::initialize(atomicData* ad)
 	  
 	  if (v.size() < 10) break;
 	  
-	  vrPtr dat = boost::make_shared<VernerRec>();
+	  vrPtr dat = std::make_shared<VernerRec>();
 
 	  dat->n    = atoi(v[0].c_str());
 	  dat->io   = atoi(v[1].c_str());
@@ -3527,7 +3527,7 @@ void VernerData::initialize(atomicData* ad)
     //
     for (int i=0; i<vsiz; i++) {
       // Generate new element
-      vrPtr v = boost::make_shared<VernerRec>(); 
+      vrPtr v = std::make_shared<VernerRec>(); 
 
       // Get data from root process
       v->sync();
@@ -3896,9 +3896,9 @@ std::map<unsigned short, double>
 atomicData::fraction(unsigned short Z, double T, int norder)
 {
   if (Lagu.get() == 0) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
   else if (Lagu->n != norder) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
 
   std::map<unsigned short, double> ret;
 
@@ -3957,9 +3957,9 @@ atomicData::fraction(unsigned short Z, double T,
 		 double Emin, double Emax, int norder)
 {
   if (Lege.get() == 0) 
-    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::shared_ptr<LegeQuad>(new LegeQuad(norder));
   else if (Lege->n != norder) 
-    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::shared_ptr<LegeQuad>(new LegeQuad(norder));
 
   std::map<unsigned short, double> ret;
 
@@ -4030,9 +4030,9 @@ std::map<unsigned short, std::vector<double> >
 atomicData::recombEquil(unsigned short Z, double T, int norder)
 {
   if (Lagu.get() == 0) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
   else if (Lagu->n != norder) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
 
   std::map<unsigned short, std::vector<double> > ret;
 
@@ -4095,9 +4095,9 @@ atomicData::recombEquil(unsigned short Z, double T,
 		    double Emin, double Emax, int norder, bool use_log)
 {
   if (Lege.get() == 0) 
-    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::shared_ptr<LegeQuad>(new LegeQuad(norder));
   else if (Lege->n != norder) 
-    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::shared_ptr<LegeQuad>(new LegeQuad(norder));
 
   std::map<unsigned short, std::vector<double> > ret;
 
@@ -4188,13 +4188,13 @@ atomicData::collEmiss(unsigned short Z, unsigned short C, double T,
   // Laguerre weights and knots
   //
   if (Lagu.get() == 0) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
   else if (Lagu->n != norder) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
 
   // Check for and retrieve the Ion
   //
-  boost::shared_ptr<Ion> I;
+  std::shared_ptr<Ion> I;
   lQ Q(Z, C);
   auto itr = IonList.find(Q);
 
