@@ -87,7 +87,8 @@ cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/shar
 ccmake ..
 
 # and then enter your preferred build type and other options interactively.
-# This provides a nice view of the configuration as a bonus.
+# This provides a nice view of the configuration as a bonus.  I recommend
+# 'ccmake' rather than the Qt 'cmake-gui'.
 
 # You can use CMake build type Debug for debugging and etc. or use None or
 # 'empty' and set your own CFLAGS and CXXFLAGS.  See the CMake manual.
