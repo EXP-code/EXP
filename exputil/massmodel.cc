@@ -474,8 +474,9 @@ void EmbeddedDiskModel::save_df(string& file)
 
 SphericalModelMulti::SphericalModelMulti(AxiSymModel* Real, AxiSymModel* Fake) 
 {
-  real = Real;
-  fake = Fake;
+  real  = Real;
+  fake  = Fake;
+  noneg = false;
 
   rmin_gen = max<double>(Fake->get_min_radius(), Real->get_min_radius());
   rmin_gen = max<double>(rmin_gen, gen_rmin);

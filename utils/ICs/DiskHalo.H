@@ -92,7 +92,63 @@ class DiskHalo
   //
   static const int use_spline = 0;
 
- public:
+  class CMap
+  {
+  public:
+    virtual double x_to_r(double x) = 0;
+    virtual double r_to_x(double r) = 0;
+  };
+
+  class CLin : public CMap
+  {
+  public:
+
+    virtual double x_to_r(double x) { return x; }
+    virtual double r_to_x(double r) { return r; }
+  };
+
+  class CLog : public CMap
+  {
+  public:
+
+    virtual double x_to_r(double x) { return exp(x); }
+    virtual double r_to_x(double r) { return log(r); }
+  };
+
+  class CRat : public CMap
+  {
+  public:
+    double scale;
+
+  public:
+
+    CRat(double scale)  : scale(scale)   {}
+    CRat(const CRat& p) : scale(p.scale) {}
+
+    virtual double x_to_r(double x) { return scale*(x + 1.0)/(x - 1.0); }
+    virtual double r_to_x(double r) { return (r + scale)/(r - scale);   }
+  };
+
+  boost::shared_ptr<CMap> cmap;
+  double Xmin, Xmax;
+  std::string mtype;
+
+  boost::shared_ptr<CMap> make_cmap(std::string type, double scale)
+  {
+    std::for_each(type.begin(), type.end(), [](char & c){ c = ::tolower(c); });
+
+    boost::shared_ptr<CMap> cmap;
+
+    if (type.find("linear") == 0)   cmap = boost::make_shared<CLin>();
+    else if (type.find("log") == 0) cmap = boost::make_shared<CLog>();
+    else if (type.find("rat") == 0) cmap = boost::make_shared<CRat>(scale);
+    else                            cmap = boost::make_shared<CLog>();
+
+    return cmap;
+  }
+
+public:
+
   enum DiskGenType { Jeans, Asymmetric, Epicyclic };
   static std::map<std::string, DiskGenType> getDiskGenType;
 
@@ -170,13 +226,13 @@ class DiskHalo
 
   //! Constructor: equal mass
   DiskHalo(SphericalSLptr expandh, EmpCylSLptr expandd,
-	   double H, double A, double DMass,
+	   double H, double A, double DMass, std::string maptype,
 	   string& filename, int DF=0, int DIVERGE=0, double DIVERGE_RFAC=1.0,
 	   DiskGenType type=Asymmetric);
 
   //! Constructor: multi mass
   DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
-	   double H, double A, double DMass, 
+	   double H, double A, double DMass, std::string maptype,
 	   string& filename1, int DIVERGE,  double DIVERGE_RFAC,
 	   string& filename2, int DIVERGE2, double DIVERGE_RFAC2,
 	   DiskGenType type=Asymmetric);

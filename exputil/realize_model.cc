@@ -1,3 +1,5 @@
+#define DEBUG
+
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -1203,6 +1205,8 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     gen_firstime = false;
   }
 
+  double uuu, vvv;
+
 #if 1
   mass = gen_mass[0] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[0]);
   r = odd2(mass, gen_mass, gen_rloc, 0);
@@ -1237,9 +1241,15 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     eee = pot + 0.5*(vr*vr + vt*vt);
 
     if (fmax<=0.0) continue;
-    if (Unit(random_gen) > fake->distf(eee, r*vt)/fmax ) continue;
 
-    if (Unit(random_gen)<0.5) vr *= -1.0;
+    uuu = real->distf(eee, r*vt);
+    vvv = fake->distf(eee, r*vt);
+
+    if (uuu<=0.0 or vvv<=0.0) continue;
+
+    if (Unit(random_gen) > vvv/fmax ) continue;
+
+    if (Unit(random_gen) < 0.5) vr *= -1.0;
     
     azi = 2.0*M_PI*Unit(random_gen);
     vt1 = vt*cos(azi);
@@ -1280,6 +1290,8 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     std::cout << "[" << std::setw(3) << myid << "] Bad mass: rat=" << std::setw(16) << rat
 	      << " df(M)=" << std::setw(16) << dfr
 	      << " df(N)=" << std::setw(16) << dfn
+	      << " dF(M)=" << std::setw(16) << uuu
+	      << " dF(N)=" << std::setw(16) << vvv
 	      << " r="     << std::setw(16) << r
 	      << " E="     << std::setw(16) << eee
 	      << std::endl;

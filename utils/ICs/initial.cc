@@ -232,7 +232,7 @@ void set_fpu_gdb_handler(void)
 
                                 // Local headers
 #include <SphericalSL.H>
-#include <DiskHalo2.H>
+#include <DiskHalo.H>
 #include <localmpi.H>
 
 
@@ -395,6 +395,7 @@ main(int ac, char **av)
   int          NDZ;
   int          NHR;
   int          NHT;
+  int          NDP;
   double       SHFAC;
   int          NMAX2;
   int          LMAX2;
@@ -454,6 +455,7 @@ main(int ac, char **av)
   string       dtype;
   string       dmodel;
   string       mtype;
+  string       ctype;
   
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -499,6 +501,7 @@ main(int ac, char **av)
     ("NDZ",             po::value<int>(&NDZ)->default_value(400),                       "Number of points in DiskHalo vertical table for disk")
     ("NHR",             po::value<int>(&NHR)->default_value(1600),                      "Number of points in DiskHalo radial table for halo")
     ("NHT",             po::value<int>(&NHT)->default_value(200),                       "Number of points in DiskHalo cos(theta) table for halo")
+    ("NDP",             po::value<int>(&NDP)->default_value(16),                        "Number of points in DiskHalo phi grid for epicyclic freq (16)")
     ("SHFAC",           po::value<double>(&SHFAC)->default_value(16.0),                 "Scale height factor for assigning vertical table size")
     ("LMAX",            po::value<int>(&LMAX)->default_value(6),                        "Number of harmonics for Spherical SL for halo/spheroid")
     ("NMAX",            po::value<int>(&NMAX)->default_value(12),                       "Number of radial basis functions in Spherical SL for halo/spheroid")
@@ -556,6 +559,7 @@ main(int ac, char **av)
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),               "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
     ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
+    ("ctype",           po::value<string>(&ctype)->default_value("Log"),                        "DiskHalo radial coordinate scaling type (one of: Linear, Log, Rat)")
     ("condition",       po::value<string>(&dtype)->default_value("exponential"),                "Disk type for condition (one of: constant, gaussian, mn, exponential, doubleexpon)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("evolved",         po::value<bool>(&evolved)->default_value(false),                "Use existing halo body file given by <hbods> and do not create a new halo")
@@ -828,6 +832,7 @@ main(int ac, char **av)
   DiskHalo::NDZ         = NDZ;
   DiskHalo::NHR         = NHR;
   DiskHalo::NHT         = NHT;
+  DiskHalo::NDP         = NDP;
   DiskHalo::SHFACTOR    = SHFAC;
   DiskHalo::COMPRESSION = DMFAC;
   DiskHalo::LOGSCALE    = 1;
@@ -973,7 +978,7 @@ main(int ac, char **av)
     diskhalo =
       boost::make_shared<DiskHalo>
       (expandh, expandd,
-       scale_height, scale_length, disk_mass, 
+       scale_height, scale_length, disk_mass, ctype,
        halofile1, DIVERGE,  DIVERGE_RFAC,
        halofile2, DIVERGE2, DIVERGE_RFAC2,
        DiskHalo::getDiskGenType[gentype]);
@@ -985,7 +990,7 @@ main(int ac, char **av)
     diskhalo = boost::make_shared<DiskHalo>
       (expandh, expandd,
        scale_height, scale_length, 
-       disk_mass, halofile1,
+       disk_mass, ctype, halofile1,
        DF, DIVERGE, DIVERGE_RFAC,
        DiskHalo::getDiskGenType[gentype]);
     if (myid==0) std::cout << "done" << std::endl;

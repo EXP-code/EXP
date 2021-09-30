@@ -426,6 +426,7 @@ protected:
   SphericalOrbit orb, gen_orb;
 
   double rmin_gen, rmax_gen;
+  bool noneg;
 
 public:
 
@@ -480,6 +481,10 @@ public:
   void set_min_radius(const double& r) { rmin_gen = r; }
   void set_max_radius(const double& r) { rmax_gen = r; }
   //@}
+
+  //! Suppress negative masses
+  void noNegativeMass() { noneg = true; }
+
 };
 
 typedef boost::shared_ptr<AxiSymModel>         AxiSymModPtr;

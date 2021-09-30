@@ -22,7 +22,7 @@
 #include <interp.H>
 				// Local
 #include <AddDisk.H>
-#include <DiskHalo2.H>
+#include <DiskHalo.H>
 
 				// Grid parameters and Toomre Q
 double DiskHalo::RHMIN       = 1.0e-4;
@@ -86,7 +86,7 @@ DiskHalo()
 
 DiskHalo::
 DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
-	 double H, double A, double DMass, 
+	 double H, double A, double DMass, std::string maptype,
 	 string& filename, int DF1, int DIVERGE, double DIVERGE_RFAC,
 	 DiskGenType type)
 {
@@ -94,7 +94,9 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 
   com        = false;
   cov        = false;
+  mtype      = maptype;
   this->type = type;
+  cmap       = make_cmap(mtype, A);
 
   for (int k=0; k<3; k++) center_pos[k] = center_vel[k] = 0.0;
 
@@ -164,7 +166,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 
 DiskHalo::
 DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
-	 double H, double A, double DMass, 
+	 double H, double A, double DMass, std::string maptype,
 	 std::string& filename1, int DIVERGE, double DIVERGE_RFAC,
 	 std::string& filename2, int DIVERGE2, double DIVERGE_RFAC2,
 	 DiskGenType type)
@@ -173,7 +175,9 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 
   com        = false;
   cov        = false;
+  mtype      = maptype;
   this->type = type;
+  cmap       = make_cmap(mtype, A);
 
   for (int k=0; k<3; k++) center_pos[k] = center_vel[k] = 0.0;
 
@@ -331,6 +335,10 @@ DiskHalo::DiskHalo(const DiskHalo &p)
   MULTI = p.MULTI;
   com   = p.com;
   cov   = p.cov;
+  mtype = p.maptype;
+  cmap  = p.cmap;
+  Xmin  = p.Xmin;
+  Xmax  = p.Xmax;
 }
 
 
@@ -1109,7 +1117,10 @@ table_disk(vector<Particle>& part)
   MPI_Allreduce(&maxr1, &maxr, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
   MPI_Allreduce(&maxz1, &maxz, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
-  dR = (log(maxr) - log(RDMIN))/(NDR-1);
+  Xmin = cmap->r_to_x(RDMIN);
+  Xmax = cmap->r_to_x(maxr );
+
+  dR = (Xmax - Xmin)/(NDR-1);
   dZ = maxz/(NDZ-1);
 
   if (myid==0) {
@@ -1118,14 +1129,16 @@ table_disk(vector<Particle>& part)
 	      << "  RDMIN=" << RDMIN           << std::endl
 	      << "   maxr=" << maxr            << std::endl
 	      << "   maxz=" << maxz            << std::endl
-	      << "   dR=" << dR                << std::endl
-	      << "   dZ=" << dZ                << std::endl
+	      << "   Xmin=" << Xmin            << std::endl
+	      << "   Xmax=" << Xmax            << std::endl
+	      << "   dR="   << dR              << std::endl
+	      << "   dZ="   << dZ              << std::endl
 	      << std::endl;
   }
 
   double dZ1 = maxz/(NDZ-1);
 
-  double R, r, x, y, z, phi, fr, fz, fp, theta;
+  double R, X, r, x, y, z, phi, fr, fz, fp, theta;
   double pot, dens, potl, dpr, dpt, dpp, dpdz;
 
 				// Add no force if no component exists
@@ -1220,7 +1233,7 @@ table_disk(vector<Particle>& part)
       R = RDMIN*exp(dR*j);
       x = R*cos(phi);
       y = R*sin(phi);
-      workR[j] = log(RDMIN) + dR*j;
+      workR[j] = Xmin + dR*j;
 
 				// For epicyclic frequency
 				// 
