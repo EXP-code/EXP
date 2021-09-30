@@ -50,6 +50,11 @@ cd build
 # compute_61 -code sm_61,sm_70,sm_75" for a combination of GPU types
 # with a common virtual architecture.
 #
+# The cuda real size is double (real*8) by default.  You can configure
+# EXP to use real*4 with the -DENABLE_CUDA_SINGLE=on flag to CMake.  This
+# will save some GPU memory if you are close to your hardware limit, but
+# I don't recommend this generally.
+#
 # The cuda particle structure can carry a fixed number real attributes.
 # This is configurable at compile time using the -DCUDA_EXP_DATTRIB=X flag
 # for X attributes.  This is 0 by default.

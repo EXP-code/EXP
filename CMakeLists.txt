@@ -24,6 +24,7 @@ endif()
 add_compile_options(-D_REENTRANT)
 
 option(ENABLE_CUDA "Enable CUDA" FALSE)
+option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
 option(ENABLE_USER_ALL "Enable all user modules" FALSE)
@@ -75,6 +76,9 @@ if(PNG_FOUND)
 endif()
 if(ENABLE_DSMC)
   set(DSMC_ENABLED 1)
+endif()
+if(ENABLE_CUDA_SINGLE)
+  add_compile_definitions(O_SINGLE=1)
 endif()
 
 # For setting the default size of the Cuda real attribute array
