@@ -83,7 +83,7 @@ endif()
 
 # For setting the default size of the Cuda real attribute array
 set(CUDA_EXP_DATTRIB "0" CACHE STRING "Number of real particle attributes for Cuda particle structure")
-add_compile_definitions(CUDA_DATTRIB=${CUDA_EXP_DATTRIB})
+add_compile_definitions(DATTRIB_CUDA=${CUDA_EXP_DATTRIB})
 
 # Get the current working branch
 execute_process(
