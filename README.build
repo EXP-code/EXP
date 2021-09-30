@@ -49,6 +49,10 @@ cd build
 # directly using the CMAKE_CUDA_FLAGS variable.  E.g. "-arch
 # compute_61 -code sm_61,sm_70,sm_75" for a combination of GPU types
 # with a common virtual architecture.
+#
+# The cuda particle structure can carry a fixed number real attributes.
+# This is configurable at compile time using the -DCUDA_EXP_DATTRIB=X flag
+# for X attributes.  This is 0 by default.
 
 cmake -DCMAKE_BUILD_TYPE=Release -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUDA=YES -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
 

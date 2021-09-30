@@ -3,9 +3,9 @@
 #ifndef PARTICLE_CUH
 #define PARTICLE_CUH
 
-// This has to be a fixed value for the Cuda API
+// Sets the fixed default number of real attributes.  This currently
+// defined by CMake
 //
-#define DATTRIB_CUDA 12
 // #define DATTRIB_CUDA 4
 
 #include <cuda.h>
@@ -15,6 +15,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 #include <thrust/sort.h>
+
+#include <config.h>
 
 #include <cudaUtil.cuH>
 
