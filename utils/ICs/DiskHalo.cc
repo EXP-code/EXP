@@ -47,7 +47,6 @@ int    DiskHalo::RNUM        = 4000;
 double DiskHalo::R_DF        = 20.0;
 double DiskHalo::DR_DF       = 5.0;
 
-int    DiskHalo::LOGSCALE    = 0;
 bool   DiskHalo::LOGR        = true;
 
 // these appear to be good settings, but may not be the best. use with caution!
@@ -115,7 +114,6 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 
   AxiSymModel::gen_seed = SEED + myid;
   SphericalModelTable::even = 0;
-  SphericalModelTable::logscale = LOGSCALE;
 
   halo = std::make_shared<SphericalModelTable>(filename, DIVERGE, DIVERGE_RFAC);
 
@@ -194,7 +192,6 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 
   AxiSymModel::gen_seed = SEED + myid;
   SphericalModelTable::even = 0;
-  SphericalModelTable::logscale = LOGSCALE;
 
   halo = std::make_shared<SphericalModelTable>(filename1, DIVERGE, DIVERGE_RFAC);
 
@@ -234,7 +231,6 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   // Generate "fake" profile
   //
   SphericalModelTable::even     = 0;
-  SphericalModelTable::logscale = LOGSCALE;
   SphericalModelTable::linear   = 1;
   
   halo3 = std::make_shared<SphericalModelTable>(filename2, DIVERGE2, DIVERGE_RFAC2);

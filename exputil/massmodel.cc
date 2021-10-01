@@ -17,7 +17,6 @@ int wordSplit(string& x, vector<string>& words);
 
 int SphericalModelTable::count    = 0;
 int SphericalModelTable::even     = 0;
-int SphericalModelTable::logscale = 1;
 int SphericalModelTable::linear   = 1;
 int SphericalModelTable::chebyN   = 0;
 

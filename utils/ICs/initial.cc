@@ -945,7 +945,6 @@ main(int ac, char **av)
   DiskHalo::NDP         = NDP;
   DiskHalo::SHFACTOR    = SHFAC;
   DiskHalo::COMPRESSION = DMFAC;
-  DiskHalo::LOGSCALE    = 1;
   DiskHalo::NUMDF       = NUMDF;
   DiskHalo::Q           = ToomreQ;
   DiskHalo::R_DF        = R_DF;

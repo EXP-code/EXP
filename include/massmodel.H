@@ -363,9 +363,6 @@ public:
   //! Assume even spacing in the mass model table (default: yes)
   static int even;		
 
-  //! Log scale in df computation (default: yes)
-  static int logscale;		
-
   //! Chebyshev order (default: 0, no Chebyshev)
   static int chebyN;
 

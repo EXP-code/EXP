@@ -189,8 +189,6 @@ public:
   static double R_DF;		// Change over points for DF and Jeans
   static double DR_DF;
 
-  static int LOGSCALE;		// Log DF in SphericalModelTable
-
   static unsigned NBUF;		// Number of particles in MPI buffer
 				// default: 8192
 

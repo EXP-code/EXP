@@ -56,7 +56,7 @@ int
 main(int argc, char **argv)
 {
   int HMODEL, N, NUMDF, NUMR, NUMJ, NUME, NUMG, NREPORT, SEED, ITMAX, NUMMODEL, RNUM;
-  int  DIVERGE, DIVERGE2, LOGSCALE, LINEAR, NUMINT, NI, ND;
+  int  DIVERGE, DIVERGE2, LINEAR, NUMINT, NI, ND;
   double DIVERGE_RFAC, DIVERGE_RFAC2, NN, MM, RA, RMODMIN, RMOD, EPS;
   double X0, Y0, Z0, U0, V0, W0, TOLE;
   double Emin0, Emax0, Kmin0, Kmax0, RBAR, MBAR, BRATIO, CRATIO, SMOOTH;
@@ -122,8 +122,6 @@ main(int argc, char **argv)
      "Inner cusp slope")
     ("LOGR",          po::value<bool>(&LOGR)->default_value(false),
      "Use logarithmic scale for internal radial grid")
-    ("LOGSCALE",      po::value<int>(&LOGSCALE)->default_value(0),
-     "Use logarithmic scale for SphericalModelTable")
     ("LINEAR",        po::value<int>(&LINEAR)->default_value(0),
      "Use logarithmic scale for SphericalModelTable")
     ("NN",            po::value<double>(&NN)->default_value(2.5),
@@ -337,7 +335,6 @@ main(int argc, char **argv)
   SphModMultPtr multi;
   
   SphericalModelTable::even = 0;
-  SphericalModelTable::logscale = 1;
   
   AxiSymModel::numr     = NUMR;
   AxiSymModel::numj     = NUMJ;
@@ -351,7 +348,6 @@ main(int argc, char **argv)
     switch (HMODEL) {
     case file:
       SphericalModelTable::even = 0;
-      SphericalModelTable::logscale = LOGSCALE;
       SphericalModelTable::linear   = LINEAR;
       htmodel = std::make_shared<SphericalModelTable>(INFILE, DIVERGE, DIVERGE_RFAC);
       
@@ -572,7 +568,6 @@ main(int argc, char **argv)
   if (MULTI) {
     
     SphericalModelTable::even = 0;
-    SphericalModelTable::logscale = LOGSCALE;
     SphericalModelTable::linear   = LINEAR;
     
     // Generate "fake" profile
