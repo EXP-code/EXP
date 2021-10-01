@@ -1229,13 +1229,18 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 				// Save DF evaluations
   double uuu, vvv;
 
+  // Iteration counter
+  int it;			// Needs to be defined outside the loop
+				// to easily check the iteration count
+
   // +---This keeps radius fixed.  As long as only a few states are
   // |   rejected for numerical issues, reselecting radius will be 
   // |   faster.
   // v
 #if  0
+  // Generate a radius (outside the loop)
   mass = gen_mass[0] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[0]);
-  r = odd2(mass, gen_mass, gen_rloc, 0);
+  r    = odd2(mass, gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   if (gen_logr) r = exp(r);
   
@@ -1244,12 +1249,12 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 
   // Trial velocity point
   //
-  int it;			// Iteration counter
   for (it=0; it<gen_itmax; it++) {
 #else
-  int it;
+  // Trial phase-space point
   for (it=0; it<gen_itmax; it++) {
 
+    // Generate a radius (inside the loop)
     mass = gen_mass[0] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[0]);
     r = odd2(mass, gen_mass, gen_rloc, 0);
     fmax = odd2(r, gen_rloc, gen_fmax, 1);
