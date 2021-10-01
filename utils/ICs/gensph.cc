@@ -121,9 +121,9 @@ main(int argc, char **argv)
     ("DIVERGE_RFAC2", po::value<double>(&DIVERGE_RFAC2)->default_value(1.5),
      "Inner cusp slope")
     ("LOGR",          po::value<bool>(&LOGR)->default_value(false),
-     "Use logarithmic scale for internal radial grid")
-    ("LINEAR",        po::value<int>(&LINEAR)->default_value(0),
-     "Use logarithmic scale for SphericalModelTable")
+     "Use logarithmic mapping for internal radial grid")
+    ("LINEAR",        po::value<int>(&LINEAR)->default_value(1),
+     "Use linear interpolation for SphericalModelTable")
     ("NN",            po::value<double>(&NN)->default_value(2.5),
      "First polytropic index (energy)")
     ("MM",            po::value<double>(&MM)->default_value(0.5),
@@ -685,7 +685,6 @@ main(int argc, char **argv)
   
   rmodel->set_seed(SEED+myid);
   rmodel->set_itmax(ITMAX);
-  
   
   if (MODELS and myid==0) {
     std::ofstream outmod(OUTFILE);
