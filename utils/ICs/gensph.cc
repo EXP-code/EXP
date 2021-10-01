@@ -314,6 +314,12 @@ main(int argc, char **argv)
   // Prepare output streams
   //
   std::ostringstream sout;
+  if (myid==0) {		// Remove old files
+    sout << "rm " << OUTPS << ".* &> /dev/null";
+    system(sout.str().c_str());
+    sout.str("");
+  } 
+				// Create new files
   sout << OUTPS << "." << myid;
   std::ofstream out(sout.str());
   if (!out) {
@@ -729,7 +735,7 @@ main(int argc, char **argv)
   // Diagnostic variables
   //
   int count=0, negms=0;
-  double TT=0.0, WW=0.0, VC=0.0, RR;
+  double TT=0.0, WW=0.0, VC=0.0;
   
   if (myid==0)
     cout << "-----------" << endl
@@ -755,13 +761,14 @@ main(int argc, char **argv)
     
     if (ps[0] <= 0.0) negms++;
     
-    RR=0.0;
+    double RR=0.0;
     for (int i=1; i<=3; i++) {
       RR += ps[i]*ps[i];
       TT += 0.5*mass*ps[0]*ps[3+i]*ps[3+i];
     }
-    VC += -mass*ps[0]*rmodel->get_mass(sqrt(RR))/sqrt(RR);
-    WW += 0.5*mass*ps[0]*rmodel->get_pot(sqrt(RR));
+    RR  =  sqrt(RR);
+    VC += -mass*ps[0]*rmodel->get_mass(RR)/RR;
+    WW +=  0.5*mass*ps[0]*rmodel->get_pot(RR);
     
     for (int i=1; i<=6; i++) out << setw(20) << ps[i]+ps0[i];
     
@@ -777,7 +784,6 @@ main(int argc, char **argv)
     out << endl;
     
     if (myid==0 and !((n+1)%NREPORT)) cout << '\r' << (n+1)*numprocs << flush;
-    
   }
   
   if (myid) {
@@ -808,6 +814,19 @@ main(int argc, char **argv)
     std::cout << setw(60) << std::setfill('-') << '-' << std::endl << std::setfill(' ');
   }
   
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // Make the final phase-space file and clean up
+  //
+  if (myid==0) {
+    std::ostringstream sout;
+    sout << "cat " << OUTPS << ".* > " << OUTPS;
+    system(sout.str().c_str());
+    sout.str("");
+    sout << "rm " << OUTPS << ".*";
+    system(sout.str().c_str());
+  }
+
   MPI_Finalize();
   
   return 0;
