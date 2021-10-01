@@ -350,6 +350,7 @@ private:
   int num_params;
   double *params;
   double diverge_rfac;
+  double foffset;
   int diverge;
   int external;
 

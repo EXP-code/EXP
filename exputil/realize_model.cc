@@ -238,8 +238,13 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
                 
   Eigen::VectorXd out(7);
 
+  static unsigned totcnt = 0, toomany = 0;
+  totcnt++;
+  
   if (it==gen_itmax) {
-    std::cerr << "Velocity selection failed, r=" << r << std::endl;
+    std::cerr << "Velocity selection failed [" << myid << "]: r="
+	      << std::setw(12) << r << " %=" << std::setw(12)
+	      << static_cast<double>(++toomany)/totcnt << std::endl;
     ierr = 1;
     out.setZero();
     return out;
@@ -346,8 +351,13 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
   
   Eigen::VectorXd out(7);
 
+  static unsigned totcnt = 0, toomany = 0;
+  totcnt++;
+
   if (it==gen_itmax) {
-    std::cerr << "Velocity selection failed, r=" << r << std::endl;
+    std::cerr << "Velocity selection failed [" << myid << "]: r="
+	      << std::setw(12) << r << " %=" << std::setw(12)
+	      << static_cast<double>(++toomany)/totcnt << std::endl;
     ierr = 1;
     out.setZero();
     return out;
@@ -512,8 +522,13 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
                 
   Eigen::VectorXd out(7);
 
+  static unsigned totcnt = 0, toomany = 0;
+  totcnt++;
+
   if (it==gen_itmax) {
-    std::cerr << "Velocity selection failed, r=" << r << std::endl;
+    std::cerr << "Velocity selection failed [" << myid << "]: r="
+	      << std::setw(12) << r << " %=" << std::setw(12)
+	      << static_cast<double>(++toomany)/totcnt << std::endl;
     ierr = 1;
     out.setZero();
     return out;
@@ -998,8 +1013,13 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
     break;
   }
                 
+  static unsigned totcnt = 0, toomany = 0;
+  totcnt++;
+
   if (it==gen_itmax) {
-    std::cerr << "Velocity selection failed, r=" << r << std::endl;
+    std::cerr << "Velocity selection failed [" << myid << "]: r="
+	      << std::setw(12) << r << " %=" << std::setw(12)
+	      << static_cast<double>(++toomany)/totcnt << std::endl;
     ierr = 1;
     return;
   }
@@ -1149,6 +1169,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 	     << std::setw(15) << "+"
 	     << std::setw(15) << "+"
 	     << std::setw(15) << "+"
+	     << std::setw(15) << "+"
 	     << std::endl << std::setfill(' ') // Labels
 	     << std::setw(15) << "# radius"
 	     << std::setw(15) << "+ mass"
@@ -1203,9 +1224,16 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     gen_firstime = false;
   }
 
+				// Diagnostics
+  int reject=0, negmass=0, badfmax=0;
+				// Save DF evaluations
   double uuu, vvv;
 
-#if 1
+  // +---This keeps radius fixed.  As long as only a few states are
+  // |   rejected for numerical issues, reselecting radius will be 
+  // |   faster.
+  // v
+#if  0
   mass = gen_mass[0] + Unit(random_gen)*(gen_mass[gen_N-1]-gen_mass[0]);
   r = odd2(mass, gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
@@ -1238,14 +1266,23 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     vt = vmax*sqrt(yyy);
     eee = pot + 0.5*(vr*vr + vt*vt);
 
-    if (fmax<=0.0) continue;
+    if (fmax<=0.0) {
+      badfmax++;
+      continue;
+    }
 
     uuu = real->distf(eee, r*vt);
     vvv = fake->distf(eee, r*vt);
 
-    if (uuu<=0.0 or vvv<=0.0) continue;
+    if (uuu<=0.0 or vvv<=0.0) {
+      negmass++;
+      continue;
+    }
 
-    if (Unit(random_gen) > vvv/fmax ) continue;
+    if (Unit(random_gen) > vvv/fmax ) {
+      reject++;
+      continue;
+    }
 
     if (Unit(random_gen) < 0.5) vr *= -1.0;
     
@@ -1258,8 +1295,20 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
                 
   Eigen::VectorXd out(7);
 
+  static unsigned totcnt = 0, toomany = 0;
+  totcnt++;
+
+
   if (it==gen_itmax) {
-    if (verbose) std::cerr << "Velocity selection failed, r=" << r << std::endl;
+    if (verbose) {
+      std::cerr << "Velocity selection failed [" << myid << "]: r="
+		<< std::setw(12) << r
+		<< " fmax="    << std::setw( 6) << badfmax
+		<< " reject="  << std::setw( 6) << reject
+		<< " negmass=" << std::setw( 6) << negmass
+		<< " %=" << std::setw(12)
+		<< static_cast<double>(++toomany)/totcnt << std::endl;
+    }
     ierr = 1;
     out.setZero();
     return out;
@@ -1408,6 +1457,8 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
 
   // Trial velocity point
   //
+				// Diagnostic counters
+  int reject=0, badfmax=0;
   int it;			// Iteration counter
   for (it=0; it<gen_itmax; it++) {
 
@@ -1418,8 +1469,15 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
     vt = vmax*sqrt(yyy);
     eee = pot + 0.5*(vr*vr + vt*vt);
 
-    if (fmax<=0.0) continue;
-    if (Unit(random_gen) > fake->distf(eee, r*vt)/fmax ) continue;
+    if (fmax<=0.0) {
+      badfmax++;
+      continue;
+    }
+
+    if (Unit(random_gen) > fake->distf(eee, r*vt)/fmax ) {
+      reject++;
+      continue;
+    }
 
     if (Unit(random_gen)<0.5) vr *= -1.0;
     
@@ -1433,7 +1491,15 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
   Eigen::VectorXd out(7);
 
   if (it==gen_itmax) {
-    if (verbose) std::cerr << "Velocity selection failed, r=" << r << std::endl;
+    if (verbose) {
+      static unsigned totcnt = 0;
+      std::cerr << "Velocity selection failed [" << std::setw(7) << ++totcnt
+		<< "," << std::setw(4) << myid << "]: r="
+		<< std::setw(12) << r
+		<< " fmax="    << std::setw( 6) << badfmax
+		<< " reject="  << std::setw( 6) << reject
+		<< std::endl;
+    }
     ierr = 1;
     out.setZero();
     return out;

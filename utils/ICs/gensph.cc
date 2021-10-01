@@ -106,7 +106,7 @@ main(int argc, char **argv)
      "Report after generating NREPORT points")
     ("SEED",          po::value<int>(&SEED)->default_value(11),
      "Initial seed for random number generator")
-    ("ITMAX",         po::value<int>(&ITMAX)->default_value(10000),
+    ("ITMAX",         po::value<int>(&ITMAX)->default_value(100000),
      "Maximum number of interations for acceptance-rejection method")
     ("NUMMODEL",      po::value<int>(&NUMMODEL)->default_value(500),
      "Number of points for GeneralizedPolytrope")
@@ -194,6 +194,8 @@ main(int argc, char **argv)
      "Number of interger attributes")
     ("ND",            po::value<int>(&ND)->default_value(0),
      "Number of double attributes")
+    ("noneg",
+     "Suppress negative multimass ratios by requeueing")
     ;
   
   po::variables_map vm;
@@ -676,6 +678,8 @@ main(int argc, char **argv)
     else
       multi = std::make_shared<SphericalModelMulti>(htmodel,  mmmodel);
     
+    if (vm.count("noneg")) multi->noNegativeMass();
+
     rmodel = multi;
   }
   
@@ -738,7 +742,7 @@ main(int argc, char **argv)
   int beg = myid*npernode;
   int end = beg + npernode;
   
-  if (myid==numprocs - 1) end = N;
+  if (myid==numprocs-1) end = N;
   
   for (int n=beg; n<end; n++) {
     
