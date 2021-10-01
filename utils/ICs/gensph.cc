@@ -60,7 +60,7 @@ main(int argc, char **argv)
   double DIVERGE_RFAC, DIVERGE_RFAC2, NN, MM, RA, RMODMIN, RMOD, EPS;
   double X0, Y0, Z0, U0, V0, W0, TOLE;
   double Emin0, Emax0, Kmin0, Kmax0, RBAR, MBAR, BRATIO, CRATIO, SMOOTH;
-  bool LOGR, PSP, MULTI, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR;
+  bool LOGR, PSP, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR;
   std::string INFILE, MMFILE, OUTFILE, OUTPS, config;
   
 #ifdef DEBUG
@@ -172,8 +172,6 @@ main(int argc, char **argv)
      "Number of points for bar monopole grid")
     ("PSP",           po::value<bool>(&PSP)->default_value(true),
      "PSP ascii output")
-    ("MULTI",         po::value<bool>(&MULTI)->default_value(false),
-     "Use multimass")
     ("ELIMIT",        po::value<bool>(&ELIMIT)->default_value(false),
      "Limit energy and angular momentum (kappa)")
     ("VERBOSE",       po::value<bool>(&VERBOSE)->default_value(false),
@@ -565,7 +563,7 @@ main(int argc, char **argv)
   double mass = hmodel->get_mass(hmodel->get_max_radius())/N;
   AxiSymModPtr rmodel = hmodel;
   
-  if (MULTI) {
+  if (vm.count("MMFILE")) {
     
     SphericalModelTable::even = 0;
     SphericalModelTable::linear   = LINEAR;
