@@ -92,7 +92,7 @@ main(int argc, char **argv)
      "Halo type (0=file)")
     ("N",             po::value<int>(&N)->default_value(1000000),
      "Number of bodies")
-    ("NUMDF",         po::value<int>(&NUMDF)->default_value(800),
+    ("NUMDF",         po::value<int>(&NUMDF)->default_value(10000),
      "Number of points in energy grid for Eddington inversion")
     ("NUMR",          po::value<int>(&NUMR)->default_value(400),
      "Number of points in radial grid for halo model")

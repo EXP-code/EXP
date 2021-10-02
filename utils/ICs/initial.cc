@@ -533,7 +533,7 @@ main(int ac, char **av)
      "Chebyshev order for smoothing in DiskHalo")
     ("TCHEB",           po::value<int>(&TCHEB)->default_value(0),
      "Chebyshev order for smoothing in Eddington inversion")
-    ("NUMDF",           po::value<int>(&NUMDF)->default_value(4000),
+    ("NUMDF",           po::value<int>(&NUMDF)->default_value(10000),
      "Number of grid points for Eddington inversion")
     ("NDR",             po::value<int>(&NDR)->default_value(1600),
      "Number of points in DiskHalo radial table for disk")
