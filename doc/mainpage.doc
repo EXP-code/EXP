@@ -17,7 +17,7 @@ galactic interactions to be studied
 </p>
 
 <p> The current version is ANSI C++ compliant (or nearly so and uses
-c++-11 features) and includes dynamic loading of user libraries with a
+c++-14 features) and includes dynamic loading of user libraries with a
 standard interface, allowing independent development and testing of
 force routines, component interactions, etc. without recompiling or
 affecting the main code (see: \ref modules).  The source is maintained
