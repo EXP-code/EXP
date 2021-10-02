@@ -309,20 +309,21 @@ main(int argc, char **argv)
     }
   }
   
-  // Prepare output streams
+  // Prepare output streams and create new files
   //
   std::ostringstream sout;
-  if (myid==0) {		// Remove old files
-    sout << "rm " << OUTPS << ".* &> /dev/null";
-    system(sout.str().c_str());
-    sout.str("");
-  } 
-				// Create new files
   sout << OUTPS << "." << myid;
   std::ofstream out(sout.str());
+  int bad = 0;
   if (!out) {
-    std::cerr << "Couldn't open <" << sout.str() << "> for output" << std::endl;
-    exit (-1);
+    std::cerr << "[" << myid << "] Couldn't open <" << sout.str()
+	      << "> for output" << std::endl;
+    bad = 1;
+  }
+  MPI_Allreduce(MPI_IN_PLACE, &bad, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  if (bad) {
+    MPI_Finalize();
+    exit(-1);
   }
   
   out.precision(11);
@@ -810,6 +811,7 @@ main(int argc, char **argv)
     std::cout << setw(60) << std::setfill('-') << '-' << std::endl << std::setfill(' ');
   }
   
+  out.close();
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Make the final phase-space file and clean up
@@ -817,9 +819,6 @@ main(int argc, char **argv)
   if (myid==0) {
     std::ostringstream sout;
     sout << "cat " << OUTPS << ".* > " << OUTPS;
-    system(sout.str().c_str());
-    sout.str("");
-    sout << "rm " << OUTPS << ".*";
     system(sout.str().c_str());
   }
 
