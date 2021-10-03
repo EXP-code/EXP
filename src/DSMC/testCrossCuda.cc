@@ -111,7 +111,11 @@ int main (int ac, char **av)
 
   atomicData ad;
 
-  ad.createIonList(ZList);
+  // Using CUDA-----------+
+  //                      |
+  //                      v
+  ad.createIonList(ZList, true);
+
   std::cout << "# Ions = " << ad.IonList.size() << std::endl;
   ad.testCross(num);
   
