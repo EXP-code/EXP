@@ -35,11 +35,13 @@ add_library(expdsmc ${DSMC_SRC})
 set_target_properties(expdsmc PROPERTIES OUTPUT_NAME expdsmc)
 target_include_directories(expdsmc PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(expdsmc PUBLIC ${common_LINK_LIBS})
+install(TARGETS expdsmc DESTINATION lib)
 
 add_library(testdsmc ${TESTDSMC_SRC})
 set_target_properties(testdsmc PROPERTIES OUTPUT_NAME testdsmc)
 target_include_directories(testdsmc PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(testdsmc PUBLIC ${common_LINK_LIBS})
+install(TARGETS testdsmc DESTINATION lib)
 
 set(bin_PROGRAMS testCross testIonRecomb genIonRecomb testQuantile
   testExciteRate testRatio makeRecombCache)
@@ -52,7 +54,7 @@ foreach(program ${bin_PROGRAMS})
   add_executable(${program} ${program}.cc)
   target_link_libraries(${program} testdsmc ${common_LINK_LIBS})
   target_include_directories(${program} PUBLIC ${common_INCLUDE_DIRS})
+  install(TARGETS ${program} DESTINATION bin)
 endforeach()
 
-install(TARGETS expdsmc DESTINATION lib)
 
