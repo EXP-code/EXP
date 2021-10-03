@@ -491,9 +491,9 @@ public:
   void set_max_radius(const double& r) { rmax_gen = r; }
   //@}
 
-  //! Suppress negative masses by rejecting particle and requeueing
-  //! selection
-  void noNegativeMass() { noneg = true; }
+  //! Turn off negative mass suppression by NOT requeueing particle
+  //! selection if the DF ratio is negative
+  void allowNegativeMass() { noneg = false; }
 
 };
 

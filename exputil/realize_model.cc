@@ -1294,7 +1294,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
     uuu = real->distf(eee, r*vt);
     vvv = fake->distf(eee, r*vt);
 
-    if (uuu<=0.0 or vvv<=0.0) {
+    if (noneg and (uuu<=0.0 or vvv<=0.0)) {
       negmass++;
       continue;
     }

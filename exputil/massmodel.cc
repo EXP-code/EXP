@@ -479,8 +479,8 @@ SphericalModelMulti::SphericalModelMulti(AxiSymModPtr Real,
 {
   real  = Real;
   fake  = Fake;
-  noneg = false;		// Will requeue samples with negative
-				// mass ratio if true
+  noneg = true;			// Will requeue samples with negative
+				// DF (mass) ratio if true
 
   rmin_gen = max<double>(Fake->get_min_radius(), Real->get_min_radius());
   rmin_gen = max<double>(rmin_gen, gen_rmin);

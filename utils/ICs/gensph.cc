@@ -194,8 +194,8 @@ main(int argc, char **argv)
      "Number of interger attributes")
     ("ND",            po::value<int>(&ND)->default_value(0),
      "Number of double attributes")
-    ("noneg",
-     "Suppress negative multimass ratios by requeueing")
+    ("allow",
+     "No not suppress negative multimass ratios by requeueing")
     ;
   
   po::variables_map vm;
@@ -679,7 +679,7 @@ main(int argc, char **argv)
     else
       multi = std::make_shared<SphericalModelMulti>(htmodel,  mmmodel);
     
-    if (vm.count("noneg")) multi->noNegativeMass();
+    if (vm.count("allow")) multi->allowNegativeMass();
 
     rmodel = multi;
   }

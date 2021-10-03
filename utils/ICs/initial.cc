@@ -675,8 +675,8 @@ main(int ac, char **av)
      "Perform orthogonality check for basis")
     ("probe",
      "Print a profile along the x axis for the halo reconstruction fields")
-    ("noneg",
-     "Suppress negative mass creation for multi-mass models")
+    ("allow",
+     "No suppression of negative mass creation for multi-mass models")
     ;
 
   po::variables_map vm;
@@ -954,7 +954,7 @@ main(int ac, char **av)
   DiskHalo::CHEBY       = CHEBY;
   DiskHalo::NCHEB       = NCHEB;
 
-  if (vm.count("noneg")) DiskHalo::NONEG  = true;
+  if (vm.count("allow")) DiskHalo::ALLOW  = true;
   if (suffix.size())     DiskHalo::RUNTAG = suffix;
   
   AddDisk::use_mpi      = true;
