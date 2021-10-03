@@ -198,7 +198,8 @@ public:
 
   static int  NCHEB;		// Order for Cheybshev fit
 
-  static bool NONEG;            // No negative mass in multimass model
+  static bool ALLOW;            // Turn off negative mass requeueing in
+				// multimass model
 
   static int SEED;		// Initial seed
 
