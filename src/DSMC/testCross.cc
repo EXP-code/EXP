@@ -79,7 +79,7 @@ int main (int ac, char **av)
      "number of evaluations")
     ("kdel,k",          po::value<double>(&kdel)->default_value(0.25),
      "default logarithmic spacing for k grid")
-    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
+    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Badnell"),
      "cross-section type")
     ;
 

@@ -388,6 +388,12 @@ public:
 		 thrust::device_vector<cuIonElement> & cuElems,
 		 thrust::device_vector<cuFP_t> & x1,
 		 thrust::device_vector<cuFP_t> & x2);
+
+  //! Test cross sections using stand-alone test routine for
+  //! comparsion with the CPU version
+  void testCrossCompare(int Nenergy, double Emin, double Emax,
+			bool eVout=false);
+
 #endif
   
 };

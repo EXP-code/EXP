@@ -64,14 +64,22 @@ int main (int ac, char **av)
   }
 
   int num;
+  double emin, emax;
+  bool eVout = false;
+
 
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",		"produce help message")
+    ("eV",		"print results in eV")
+    ("compare,c",       "for comparison with CPU version")
     ("Num,N",		po::value<int>(&num)->default_value(200),
      "number of evaluations")
+    ("Emin,e",		po::value<double>(&emin)->default_value(0.001),
+     "minimum energy (Rydbergs)")
+    ("Emax,E",		po::value<double>(&emax)->default_value(100.0),
+     "maximum energy (Rydbergs)")
     ;
-
 
   po::variables_map vm;
 
@@ -86,11 +94,12 @@ int main (int ac, char **av)
 
   if (vm.count("help")) {
     std::cout << desc << std::endl;
-    std::cout << "Example: Helium II recombination" << std::endl;
-    std::cout << "\t" << av[0]
-	      << " -Z 2 -C 2" << std::endl;
     MPI_Finalize();
     return 1;
+  }
+
+  if (vm.count("eV")) {
+    eVout = true;
   }
 
   std::string prefix("crossCuda");
@@ -117,7 +126,10 @@ int main (int ac, char **av)
   ad.createIonList(ZList, true);
 
   std::cout << "# Ions = " << ad.IonList.size() << std::endl;
-  ad.testCross(num);
+  if (vm.count("compare"))
+    ad.testCrossCompare(num, emin, emax, eVout);
+  else
+    ad.testCross(num);
   
   MPI_Finalize();
 

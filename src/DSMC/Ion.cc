@@ -1562,7 +1562,7 @@ void Ion::directIonMakeGrid(int id)
 
   // Get max energy
   ionizeEmin = ip;
-  ionizeEmax = EmaxGrid;
+  ionizeEmax = exp10(EmaxGrid);
 
   // Number of elements in energy grid
   NionizeGrid = 1 + std::floor( (ionizeEmax - ionizeEmin)/DeltaEGrid );
@@ -4309,12 +4309,13 @@ void atomicData::cuda_initialize()
     
 				// Make grids
 				// 
-    if (not v.second->freeFreeGridComputed)
+    if (v.first.second>1 and not v.second->freeFreeGridComputed)
       v.second->freeFreeMakeEvGrid(0);
 
-    if (v.first.second>1 and not v.second->radRecombGridComputed)
+    if (v.first.second>1 and not v.second->radRecombGridComputed) {
       v.second->radRecombMakeEvGrid(0);
-
+    }
+      
     if (v.first.second<=v.first.first) {
       if (not v.second->exciteGridComputed) v.second->collExciteMakeGrid(0);
       if (not v.second->ionizeGridComputed) v.second->directIonMakeGrid(0);
