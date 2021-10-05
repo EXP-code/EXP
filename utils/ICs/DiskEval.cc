@@ -16,7 +16,7 @@ const std::string DiskEval::cachefile = ".DiskEval.cache";
 
 DiskEval::DiskEval
 (EmpCylSL::AxiDiskPtr model, double rmin, double rmax, double ascl,
- int lmax, int numr, int nint, bool use_progress, int mmax, int nump) :
+ int lmax, int numr, int nint, bool use_progress, int mmax, int nump, bool cache) :
   model(model), ascl(ascl), lmax(lmax), numr(numr)
 {
 
@@ -50,7 +50,9 @@ DiskEval::DiskEval
 
   dx = (xmax - xmin)/(numr-1);	// Radial grid spacing
 
-  if (read_cache()) return;
+  if (cache) {
+    if (read_cache()) return;
+  }
 
   // First: compute the disk density components
   //
