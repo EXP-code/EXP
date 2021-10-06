@@ -345,7 +345,7 @@ public:
   {
   protected:
     std::string ID;
-
+    std::vector<double> params;
     double M;
 
   public:
@@ -358,6 +358,12 @@ public:
 
     //! Get ID
     std::string getID() { return ID; }
+
+    //! Get Mass
+    int getMass() { return M; }
+
+    //! Get parameters
+    std::vector<double> getParams() { return params; }
   };
   
   typedef std::shared_ptr<AxiDisk> AxiDiskPtr;

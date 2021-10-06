@@ -2067,11 +2067,11 @@ void Ion::freeFreeMakeEvGrid(int id)
 	//
 	// dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
 	//
-	constexpr double nfac = 32.0*M_PI/(3.0*sqrt(3.0)) * r0*r0 * afs*afs*afs;
+	constexpr double nfac = 16.0/(3.0*sqrt(3.0)) * afs*afs*afs * M_PI*a0*a0;
 
-	double sig = nfac*Z*Z * sqrt(Ef/Ei)/k * corr * gff;
-	
-	cum = cum + sig * dk * k;
+	double sig = nfac * eta_f*eta_f * corr * gff;
+
+	cum = cum + sig * dk;
 	
       } else {
 

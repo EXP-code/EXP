@@ -87,6 +87,7 @@ private:
   std::vector< std::vector< std::vector<double> > > rho, T1, T2;
 
   //! Ylm angular factors
+  // CAUTION: this will fail at l>150 owing to double precision issues in exp call.
   double Nlm(int l, int m)
   {
     return sqrt( (2.0*l+1.0)/(4.0*M_PI) ) * 
@@ -94,6 +95,7 @@ private:
   }
 
   //! Ylm evaluation
+  // CAUTION: this will fail at l>150 owing to double precision issues.
   double Ylm(int l, int m, double cosx)
   {
     int M = abs(m);
@@ -136,11 +138,13 @@ private:
   bool read_cache();
   void write_cache();
 
+  const unsigned hmagic = 0x57ee1ed;
+  
 public:
 
   //! Constructor
   DiskEval(EmpCylSL::AxiDiskPtr model, double rmin, double rmax,
-	   double ascl, int lmax, int numr, int nint, bool progress=true, int mmax=1, int nump=1);
+	   double ascl, int lmax, int numr, int nint, bool progress=true, int mmax=1, int nump=1, bool cache=true);
 
   //! Evaluation where the return tuple is potential, dPhi/dR, dPhi/dz, dPhi/dphi
   std::tuple<double, double, double, double> operator()(double R, double z, double phi=0);

@@ -67,6 +67,8 @@ int main (int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("eV",		"print results in eV")
+    ("vanHoof",         "Use Gaunt factor from van Hoof et al.")
+    ("KandM",           "Use original Koch & Motz cross section")
     ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
      "atomic number")
     ("C,C",		po::value<unsigned short>(&C)->default_value(3),
@@ -111,6 +113,14 @@ int main (int ac, char **av)
 
   if (vm.count("kdel")) {
     Ion::kdel = kdel;
+  }
+
+  if (vm.count("vanHoof")) {
+    Ion::use_VAN_HOOF = true;
+  }
+
+  if (vm.count("KandM")) {
+    Ion::use_VAN_HOOF = false;
   }
 
   std::string prefix("crossSection");
