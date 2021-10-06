@@ -138,6 +138,8 @@ private:
   bool read_cache();
   void write_cache();
 
+  const unsigned hmagic = 0x57ee1ed;
+  
 public:
 
   //! Constructor
