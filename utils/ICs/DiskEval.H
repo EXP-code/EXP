@@ -144,7 +144,7 @@ public:
 
   //! Constructor
   DiskEval(EmpCylSL::AxiDiskPtr model, double rmin, double rmax,
-	   double ascl, int lmax, int numr, int nint, bool progress=true, int mmax=1, int nump=1, bool cache=false);
+	   double ascl, int lmax, int numr, int nint, bool progress=true, int mmax=1, int nump=1, bool cache=true);
 
   //! Evaluation where the return tuple is potential, dPhi/dR, dPhi/dz, dPhi/dphi
   std::tuple<double, double, double, double> operator()(double R, double z, double phi=0);

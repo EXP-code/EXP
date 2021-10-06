@@ -460,9 +460,10 @@ void DiskEval::write_cache()
     YAML::Node node;
 
     node["model"  ] = model->getID();
+    node["mass"   ] = model->getMass();
     node["params" ] = model->getParams();
     node["xmin"   ] = xmin;
-    node["xmin"   ] = xmax;
+    node["xmax"   ] = xmax;
     node["dx"     ] = dx;
     node["ascl"   ] = ascl;
     node["lmax"   ] = lmax;
@@ -509,11 +510,13 @@ void DiskEval::write_cache()
     }
     
   } else {
-    std::cerr << "DiskEval: could not open cache file <"
+    std::cerr << std::endl
+	      << "DiskEval: could not open cache file <"
 	      << cachefile << "> for writing" << std::endl;
   }
 
-  std::cerr << "DiskEval: wrote cache file <"
+  std::cerr << std::endl
+	    << "DiskEval: wrote cache file <"
 	    << cachefile << ">" << std::endl;
 }
 
@@ -522,7 +525,7 @@ bool DiskEval::read_cache()
   std::ifstream cache(cachefile);
   if (cache) {
     std::string model1;
-    double xmin1, xmax1, dx1, ascl1;
+    double mass1, xmin1, xmax1, dx1, ascl1;
     std::vector<double> params1;
     int lmax1, numr1;
     unsigned char clogr, cxscl;
@@ -552,7 +555,8 @@ bool DiskEval::read_cache()
       }
       catch (YAML::Exception& error) {
 	if (myid)
-	  std::cerr << "YAML: error parsing <" << buf.get() << "> "
+	  std::cerr << std::endl
+		    << "YAML: error parsing <" << buf.get() << "> "
 		    << "in " << __FILE__ << ":" << __LINE__ << std::endl
 		    << "YAML error: " << error.what() << std::endl;
 	throw error;
@@ -560,15 +564,24 @@ bool DiskEval::read_cache()
 
       // Get parameters
       //
-      model1  = node["model"  ].as<std::string>();
-      params1 = node["params" ].as<std::vector<double>>();
-      xmin1   = node["xmin"   ].as<double>();
-      xmax1   = node["xmax"   ].as<double>();
-      dx1     = node["dx"     ].as<double>();
-      lmax1   = node["lmax"   ].as<int>();
-      numr1   = node["numr"   ].as<int>();
-      logr1   = node["logr"   ].as<bool>();
-      xscl1   = node["xscl"   ].as<bool>();
+      try {
+	model1  = node["model"  ].as<std::string>();
+	mass1   = node["mass"   ].as<double>();
+	params1 = node["params" ].as<std::vector<double>>();
+	xmin1   = node["xmin"   ].as<double>();
+	xmax1   = node["xmax"   ].as<double>();
+	dx1     = node["dx"     ].as<double>();
+	lmax1   = node["lmax"   ].as<int>();
+	numr1   = node["numr"   ].as<int>();
+	logr1   = node["logr"   ].as<bool>();
+	xscl1   = node["xscl"   ].as<bool>();
+      }
+      catch (YAML::Exception& error) {
+	if (myid)
+	  std::cerr << "YAML: error reading parameters" << std::endl
+		    << "YAML error: " << error.what() << std::endl;
+	throw error;
+      }
 
       // Check parameters
       //
@@ -576,7 +589,8 @@ bool DiskEval::read_cache()
    
       if (model1.compare(model->getID()))  {
 	okay = false;
-	std::cout << "DiskEval:read_cache: model ID mismatch <"
+	std::cout << std::endl
+		  << "DiskEval:read_cache: model ID mismatch <"
 		  << model1 << "> != <" << model->getID() << ">"
 		  << std::endl;
       }
@@ -584,48 +598,63 @@ bool DiskEval::read_cache()
       // Get parameters
       auto params = model->getParams();
 
+      if (fabs(mass1 - model->getMass()) > 1.0e-18) {
+	okay = false;
+	std::cout << std::endl
+		  << "DiskEval:read_cache: model mass mismatch <"
+		  << mass1 << "> != <" << model->getMass() << ">"
+		  << std::endl;
+      }
+    
+
       // First check parameter size
       if (params1.size() == params.size()) {
 	// Now check each parameter
 	for (int i=0; i<params.size(); i++) {
 	  if (fabs(params1[i] - params[i]) > 1.0e-18) {
 	    okay = false;
-	    std::cout << "DiskEval:read_cache: model parameter ("
+	    std::cout << std::endl
+		      << "DiskEval:read_cache: model parameter ("
 		      << i+1 << ") mismatch<" << params1[i] << "> != <"
 		      << params[i] << ">" << std::endl;
 	  }
 	}
       } else {
 	    okay = false;
-	    std::cout << "DiskEval:read_cache: parameter size mismatch<"
+	    std::cout << std::endl
+		      << "DiskEval:read_cache: parameter size mismatch<"
 		      << params1.size() << "> != <" << params.size() << ">"
 		      << std::endl;
       }
 
       if (fabs(dx1 - dx)     > 1.0e-18) {
 	okay = false;
-	std::cout << "DiskEval:read_cache: dx mismatch <"
+	std::cout << std::endl
+		  << "DiskEval:read_cache: dx mismatch <"
 		  << dx1 << "> != <" << dx << ">"
 		  << std::endl;
       }
     
       if (lmax1 != lmax) {
 	okay = false;
-	std::cout << "DiskEval:read_cache: lmax mismatch <"
+	std::cout << std::endl
+		  << "DiskEval:read_cache: lmax mismatch <"
 		  << lmax1 << "> != <" << lmax << ">"
 		  << std::endl;
       }
     
       if (numr1 != numr) {
 	okay = false;
-	std::cout << "DiskEval:read_cache: numr mismatch <"
+	std::cout << std::endl
+		  << "DiskEval:read_cache: numr mismatch <"
 		  << numr1 << "> != <" << numr << ">"
 		  << std::endl;
       }
     
       if ((logr1 and not logr) or (not logr1 and logr)) {
 	okay = false;
-	std::cout << "DiskEval:read_cache: logr mismatch <"
+	std::cout << std::endl
+		  << "DiskEval:read_cache: logr mismatch <"
 		  << std::boolalpha << logr1 << "> != <"
 		  << std::boolalpha << logr << ">" << std::endl;
 	
@@ -633,7 +662,8 @@ bool DiskEval::read_cache()
       
       if ((xscl1 and not xscl) or (not xscl1 and xscl)) {
 	okay = false;
-	std::cout << "DiskEval:read_cache: xscl mismatch <"
+	std::cout << std::endl
+		  << "DiskEval:read_cache: xscl mismatch <"
 		  << std::boolalpha << xscl1 << "> != <"
 		  << std::boolalpha << xscl << ">" << std::endl;
       }
