@@ -461,6 +461,7 @@ void DiskEval::write_cache()
 
     node["model"  ] = model->getID();
     node["mass"   ] = model->getMass();
+    if (model->getParams().size())
     node["params" ] = model->getParams();
     node["xmin"   ] = xmin;
     node["xmax"   ] = xmax;
@@ -567,6 +568,7 @@ bool DiskEval::read_cache()
       try {
 	model1  = node["model"  ].as<std::string>();
 	mass1   = node["mass"   ].as<double>();
+	if (node["params"])
 	params1 = node["params" ].as<std::vector<double>>();
 	xmin1   = node["xmin"   ].as<double>();
 	xmax1   = node["xmax"   ].as<double>();
