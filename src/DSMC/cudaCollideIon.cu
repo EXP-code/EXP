@@ -1,3 +1,4 @@
+
 #include <algorithm>
 #include <numeric>
 
@@ -1290,7 +1291,7 @@ void computeColExcite
     // Sanity check
     //
     if (indx > elem->NColl-2) indx = elem->NColl - 2;
-    if (indx < 0)            indx = 0;
+    if (indx < 0)             indx = 0;
     
     double eA   = elem->ceEmin + elem->ceDelE*indx;
     double eB   = elem->ceEmin + elem->ceDelE*(indx+1);
@@ -4319,10 +4320,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    prs._v[fN+count] = conv_.I2;
 	    cum._v[fN+count] = xc * Prob1;
 	    count++;
+	    if (false and T==6) {
+	      cuFP_t val = xc/EI.vel;
+	      printf("free_free [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e ph=%e\n",
+		     cid, i, j, nbods, val, EI.kEe1, EI.kEe2, ph);
+	    }
 	    if (false and T==7) {
 	      cuFP_t val = xc/EI.vel;
-	      printf("col_excite [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e\n",
-		     cid, i, j, nbods, val, EI.kEe1, EI.kEe2);
+	      printf("col_excite [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e ph=%e\n",
+		     cid, i, j, nbods, val, EI.kEe1, EI.kEe2, ph);
 	    }
 	  }
 
@@ -4343,10 +4349,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      prs._v[fN+count] = conv_.I2;
 	      cum._v[fN+count] = xc * Prob2;
 	      count++;
+	      if (false and T==6) {
+		cuFP_t val = xc/EI.vel;
+		printf("free_free [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e ph=%e\n",
+		       cid, j, i, nbods, val, EI.kEe1, EI.kEe2, ph);
+	      }
 	      if (false and T==7) {
 		cuFP_t val = xc/EI.vel;
-		printf("col_excite [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e\n",
-		       cid, j, i, nbods, val, EI.kEe1, EI.kEe2);
+		printf("col_excite [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e ph=%e\n",
+		       cid, j, i, nbods, val, EI.kEe1, EI.kEe2, ph);
 	      }
 	    }
 	  }
@@ -4391,6 +4402,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #endif
     
       nSel._v[cid] += nsel;
+
+      if (false and T==6) printf("free-free [%d]: npairs=%d nsel=%e Z=%d\n", cid, npairs, nsel, J1.sp.first);
 
       if (false and T==7) printf("col_excite [%d]: npairs=%d nsel=%e Z=%d\n", cid, npairs, nsel, J1.sp.first);
 
@@ -4474,6 +4487,21 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  }
 	}
 #endif
+
+	if (false and T==6) {
+
+	  cuFP_t Prob  = in._v[n1].datr[J1.I+cuSp0] /
+	    cuda_atomic_weights[J1.sp.first] * pow(EI.Eta2, 1.5);
+	  
+	  if (cc==0) {
+	    printf("free_free [%d]: cc=%d [%e < %e] xc=%e (%d/%d) [%d, %d] e1=%e e2=%e dE=%e\n", cid, cc,
+		   RC, cum._v[fN], curXC*Prob, r, npairs, n1-n0, n2-n0, EI.kEe1, EI.kEe2, ph);
+	  } else {
+	    printf("free_free [%d]: cc=%d [%e < %e < %e] xc=%e [%e] (%d/%d) [%d, %d] e1=%e e2=%e dE=%e\n", cid, cc,
+		   cum._v[fN+cc-1], RC, cum._v[fN+cc], curXC*Prob, cum._v[fN+cc] - cum._v[fN+cc-1], r, npairs, n1-n0, n2-n0, EI.kEe1, EI.kEe2, ph);
+	  }
+	}
+
 	if (curXC <= 0.0) continue;
 
 	
