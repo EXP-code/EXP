@@ -71,6 +71,8 @@ int main (int ac, char **av)
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",		"produce help message")
+    ("vanHoof",         "Use Gaunt factor from van Hoof et al.")
+    ("KandM",           "Use original Koch & Motz cross section")
     ("eV",		"print results in eV")
     ("compare,c",       "for comparison with CPU version")
     ("Num,N",		po::value<int>(&num)->default_value(200),
@@ -100,6 +102,14 @@ int main (int ac, char **av)
 
   if (vm.count("eV")) {
     eVout = true;
+  }
+
+  if (vm.count("vanHoof")) {
+    Ion::use_VAN_HOOF = true;
+  }
+
+  if (vm.count("KandM")) {
+    Ion::use_VAN_HOOF = false;
   }
 
   std::string prefix("crossCuda");
