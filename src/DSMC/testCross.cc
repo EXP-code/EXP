@@ -170,6 +170,10 @@ int main (int ac, char **av)
 
   // Print cross section for requested ion
   //
+
+				// Bohr cross section (pi*a_0^2) in nm
+  const cuFP_t b_cross = 0.00879735542978;
+
 				// Convert from Rydberg to eV
   const double ryd      = 27.2113845/2.0;
   const double eVerg    = 1.60217733e-12;
@@ -178,6 +182,16 @@ int main (int ac, char **av)
   emax = log(emax);
 
   double dE = (emax - emin)/(num - 1);
+
+  double scale = 1.0;
+
+  if (vm.count("Born")) {
+    scale = 1.0/b_cross;
+  }
+
+  if (vm.count("Megabarn")) {
+    scale = 1.0e+04;
+  }
 
   lQ Q(Z, C), QL(Z, C-1);
 
@@ -251,16 +265,16 @@ int main (int ac, char **av)
 
     std::cout << std::setw(16) << (eVout ? EeV : E)
 	      << std::setw(16) << 0.0001239841842144513*1.0e8/EeV
-	      << std::setw(16) << geom       * 1.0e+04 // Mb
-	      << std::setw(16) << elas       * 1.0e+04 // Mb
-	      << std::setw(16) << coul       * 1.0e+04 // Mb
-	      << std::setw(16) << ffre.first * 1.0e+04 // Mb
-	      << std::setw(16) << coll       * 1.0e+04 // Mb
-	      << std::setw(16) << ionz       * 1.0e+04 // Mb
-	      << std::setw(16) << RE1.back() * 1.0e+04 // Mb
-	      << std::setw(16) << PI1.back() * 1.0e+04 // Mb
-	      << std::setw(16) << csum		       // Mb
-	      << std::setw(16) << sum		       // Mb
+	      << std::setw(16) << geom       * scale
+	      << std::setw(16) << elas       * scale
+	      << std::setw(16) << coul       * scale
+	      << std::setw(16) << ffre.first * scale
+	      << std::setw(16) << coll       * scale
+	      << std::setw(16) << ionz       * scale
+	      << std::setw(16) << RE1.back() * scale
+	      << std::setw(16) << PI1.back() * scale
+	      << std::setw(16) << csum
+	      << std::setw(16) << sum
 	      << std::endl;
   }
 

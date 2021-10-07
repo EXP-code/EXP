@@ -66,6 +66,7 @@ int main (int ac, char **av)
   int num;
   double emin, emax;
   bool eVout = false;
+  std::string scaling;
 
 
   po::options_description desc("Allowed options");
@@ -81,6 +82,8 @@ int main (int ac, char **av)
      "minimum energy (Rydbergs)")
     ("Emax,E",		po::value<double>(&emax)->default_value(100.0),
      "maximum energy (Rydbergs)")
+    ("scaling,S",	po::value<std::string>(&scaling),
+     "cross-section scaling (born, mbarn, (null))")
     ;
 
   po::variables_map vm;
@@ -137,7 +140,7 @@ int main (int ac, char **av)
 
   std::cout << "# Ions = " << ad.IonList.size() << std::endl;
   if (vm.count("compare"))
-    ad.testCrossCompare(num, emin, emax, eVout);
+    ad.testCrossCompare(num, emin, emax, eVout, scaling);
   else
     ad.testCross(num);
   

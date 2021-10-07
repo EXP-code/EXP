@@ -392,7 +392,7 @@ public:
   //! Test cross sections using stand-alone test routine for
   //! comparsion with the CPU version
   void testCrossCompare(int Nenergy, double Emin, double Emax,
-			bool eVout=false);
+			bool eVout, std::string scaling);
 
 #endif
   

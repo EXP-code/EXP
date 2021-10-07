@@ -527,6 +527,7 @@ cuFP_t cudaElasticInterp(cuFP_t E, dArray<cuFP_t> xsc, int Z,
 			 bool pin = true)
 {
   // Bohr cross section (pi*a_0^2) in nm
+  //
   const cuFP_t b_cross = 0.00879735542978;
 
   cuFP_t Emin, H;
@@ -616,23 +617,23 @@ __global__
 void sanityFreeFree(const cuIonElement elem)
 {
   for (int i=0; i<ionEgridNumber; i++) {
-    cuFP_t t1 = int2_as_double(tex1D<int2>(elem.ff_0, i));
 #if cuREAL == 4
-    cuFP_t t2  = tex3D<float>(elem.ff_d, i, 0,          0);
-    cuFP_t t3  = tex3D<float>(elem.ff_d, i, CHCUMK/4,   0);
-    cuFP_t t4  = tex3D<float>(elem.ff_d, i, CHCUMK/2,   0);
-    cuFP_t t5  = tex3D<float>(elem.ff_d, i, 3*CHCUMK/4, 0);
-    cuFP_t t6  = tex3D<float>(elem.ff_d, i, CHCUMK-1,   0);
+    cuFP_t t1 = tex1D<float>(elem.ff_0, i);
+    cuFP_t t2 = tex3D<float>(elem.ff_d, i, 0,          0);
+    cuFP_t t3 = tex3D<float>(elem.ff_d, i, CHCUMK/4,   0);
+    cuFP_t t4 = tex3D<float>(elem.ff_d, i, CHCUMK/2,   0);
+    cuFP_t t5 = tex3D<float>(elem.ff_d, i, 3*CHCUMK/4, 0);
+    cuFP_t t6 = tex3D<float>(elem.ff_d, i, CHCUMK-1,   0);
 #else
+    cuFP_t t1 = int2_as_double(tex1D<int2>(elem.ff_0, i));
     cuFP_t t2 = int2_as_double(tex3D<int2>(elem.ff_d, i, 0,          0));
     cuFP_t t3 = int2_as_double(tex3D<int2>(elem.ff_d, i, CHCUMK/4,   0));
     cuFP_t t4 = int2_as_double(tex3D<int2>(elem.ff_d, i, CHCUMK/2,   0));
     cuFP_t t5 = int2_as_double(tex3D<int2>(elem.ff_d, i, 3*CHCUMK/4, 0));
     cuFP_t t6 = int2_as_double(tex3D<int2>(elem.ff_d, i, CHCUMK-1,   0));
 #endif
-    // printf("%5d %13.6e %13.6e %13.6e %13.6e %13.6e %13.6e\n",
-    // i, t1, t2, t3, t4, t5, t6);
-    printf("%5d %13.6e %13.6e %13.6e %13.6e\n", i, t1, t2, t3, t6);
+    printf("%5d %13.6e %13.6e %13.6e %13.6e %13.6e %13.6e\n",
+	   i, t1, t2, t3, t4, t5, t6);
   }
 }
 
@@ -765,10 +766,7 @@ void atomicData::cuda_initialize_textures()
 	    double d = *ub - *lb;
 	    double a = (C - *lb) / d;
 	    double b = (*ub - C) / d;
-	    /*
-	    std::cout << "[a, b] = [" << a << ", " << b << "]"
-		      << ", c = " << C << std::endl;
-	    */
+
 	    kk  = a * I->kgrid[ii] + b * I->kgrid[jj];
 	  }
 
@@ -1248,9 +1246,13 @@ void computeFreeFree
       A*tex1D<float>(elem.ff_0, indx  ) +
       B*tex1D<float>(elem.ff_0, indx+1) ;
 #else
-    A*int2_as_double(tex1D<int2>(elem.ff_0, indx  )) +
+      A*int2_as_double(tex1D<int2>(elem.ff_0, indx  )) +
       B*int2_as_double(tex1D<int2>(elem.ff_0, indx+1)) ;
 #endif
+
+      if (std::isnan(xc) or std::isnan(ph)) {
+	printf("free-free test: E=%e xc=%e ph=%e %d/%d Z=%d C=%d\n", E, xc, ph, indx, ionEgridNumber, elem.Z, elem.C);
+      }
 
     /*
 #if cuREAL == 4
@@ -1263,6 +1265,9 @@ void computeFreeFree
 
     printf("free-free test: E=%e A=%e B=%e %d/%d Z=%d C=%d\n", E, t1, t2, indx, ionEgridNumber, elem.Z, elem.C);
     */
+
+      // printf("free-free test: E=%e xc=%e ph=%e %d/%d Z=%d C=%d\n", E, xc, ph, indx, ionEgridNumber, elem.Z, elem.C);
+
   }
 }
 
@@ -1530,6 +1535,10 @@ void atomicData::testCross(int Nenergy,
 
 void atomicData::testCross(int Nenergy)
 {
+  // Bohr cross section (pi*a_0^2) in nm
+  //
+  const cuFP_t b_cross = 0.00879735542978;
+
   // Timers
   //
   Timer serial, cuda;
@@ -1560,7 +1569,7 @@ void atomicData::testCross(int Nenergy)
     //
     double dE = (I->EmaxGrid - I->EminGrid)/(Nenergy-1) * 0.999;
     for (int i=0; i<Nenergy; i++) {
-      energy_h[i] = I->EminGrid + dE*i;
+      energy_h[i] = exp10(I->EminGrid + dE*i);
       randsl_h[i] = static_cast<cuFP_t>(rand())/RAND_MAX;
     }
 
@@ -1600,8 +1609,6 @@ void atomicData::testCross(int Nenergy)
       testRadRecomb<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
 					      toKernel(xRC_d), cuIonElem[k]);
       
-    // std::cout << "k=" << k << " delE=" << E.ceDelE << std::endl;
-
     thrust::host_vector<cuFP_t> xEE_h = xEE_d;
     thrust::host_vector<cuFP_t> eFF_h = eFF_d;
     thrust::host_vector<cuFP_t> xFF_h = xFF_d;
@@ -1630,14 +1637,14 @@ void atomicData::testCross(int Nenergy)
       if (E.C==1) retEE = elastic(E.Z, energy_h[i]);
       if (retEE>0.0) {
 	xEE_0[i] = (xEE_h[i] - retEE)/retEE;
-	/*
-	std::cout << std::setw(16) << energy_h[i]
-		  << std::setw(16) << xEE_h[i]/b_cross
-		  << std::setw(16) << retEE/b_cross
-		  << std::setw(4)  << E.Z
-		  << std::setw(4)  << E.C
-		  << std::endl;
-	*/
+	if (debug) 
+	  std::cout << std::setw(12) << "N-e"
+		    << std::setw(16) << energy_h[i]
+		    << std::setw(16) << xEE_h[i]/b_cross
+		    << std::setw(16) << retEE/b_cross
+		    << std::setw(4)  << E.Z
+		    << std::setw(4)  << E.C
+		    << std::endl;
       }
 
 				// Free-free
@@ -1699,15 +1706,6 @@ void atomicData::testCross(int Nenergy)
 		    << std::endl;
       }
 
-      /*
-      if (retCE.second>0.0)
-	eCE_0[i]   = (eCE_h[i] - retCE.second)/retCE.second;
-
-      if (cuC[k]<=cuZ[k])
-	std::cout << std::setw(14) << xCE_h[i]
-		  << std::setw(14) << eCE_h[i]
-		  << std::endl;
-      */
     }
 
     serial.stop();
@@ -1790,12 +1788,16 @@ void atomicData::testCross(int Nenergy)
 
 
 void atomicData::testCrossCompare(int Nenergy, double Emin, double Emax,
-				  bool eVout)
+				  bool eVout, std::string scaling)
 {
   // Convert from Rydberg to eV
   //
   const double ryd      = 27.2113845/2.0;
   const double eVerg    = 1.60217733e-12;
+
+  // Bohr cross section (pi*a_0^2) in nm
+  //
+  const cuFP_t b_cross  = 0.00879735542978;
 
   // Timers
   //
@@ -1914,6 +1916,13 @@ void atomicData::testCrossCompare(int Nenergy, double Emin, double Emax,
     
     const bool debug = false;
 
+				// No scaling
+    double scale = 1.0;
+				// Scale to Born xc
+    if (scaling.find("born") ==0) scale = 1.0/b_cross;
+				// Scale to MB
+    if (scaling.find("mbarn")==0) scale = 1.0e+04;
+
     Elastic elastic;
 
     for (int i=0; i<Nenergy; i++) {
@@ -1922,11 +1931,11 @@ void atomicData::testCrossCompare(int Nenergy, double Emin, double Emax,
       double ERyd = EeV / ryd;
 
       std::cout << std::setw(16) << (eVout ? EeV : ERyd)
-		<< std::setw(16) << xEE_h[i]   * 1.0e+04 // Mb
-		<< std::setw(16) << xFF_h[i]   * 1.0e+04 // Mb
-		<< std::setw(16) << xCE_h[i]   * 1.0e+04 // Mb
-		<< std::setw(16) << xCI_h[i]   * 1.0e+04 // Mb
-		<< std::setw(16) << xRC_h[i]   * 1.0e+04 // Mb
+		<< std::setw(16) << xEE_h[i]   * scale
+		<< std::setw(16) << xFF_h[i]   * scale
+		<< std::setw(16) << xCE_h[i]   * scale
+		<< std::setw(16) << xCI_h[i]   * scale
+		<< std::setw(16) << xRC_h[i]   * scale
 		<< std::endl;
     }
 
