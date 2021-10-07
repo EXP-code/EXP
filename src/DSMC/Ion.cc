@@ -1785,11 +1785,11 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
     //
     // dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
     //
-    constexpr double nfac = 32.0*M_PI/(3.0*sqrt(3.0)) * r0*r0 * afs*afs*afs;
+    constexpr double nfac = 16.0/(3.0*sqrt(3.0)) * afs*afs*afs * M_PI*a0*a0;
 
-    double sig = nfac*Z*Z * sqrt(Ef/Ei)/k * corr * gff;
+    double sig = nfac*Z*Z * eta_f*eta_f * corr * gff;
 
-    cum = cum + sig * dk * k;
+    cum = cum + sig * dk;
 
     diff.push_back(sig);
     cuml.push_back(cum);
@@ -2019,67 +2019,68 @@ void Ion::freeFreeMakeEvGrid(int id)
 	
       // Can't emit a photon if not enough KE!
       //
-      if (Ef <= 0.0) break;
+      if (Ef > 0.0) {
       
-      // Scaled inverse energy (final)
-      //
-      double nf     = sqrt( RydtoeV*(C-1)*(C-1)/Ef );
-      
-      // Elwert factor
-      //
-      double corr   = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
-	
-      if (use_VAN_HOOF) {
-
-	double gff = 1.0;
-
-	// Gaunt factor
+	// Scaled inverse energy (final)
 	//
-	double eta_f    = 1.0/sqrt(Ei/(RydtoeV*Z*Z));
-	double eta_i    = 1.0/sqrt(Ef/(RydtoeV*Z*Z));
+	double nf     = sqrt( RydtoeV*(C-1)*(C-1)/Ef );
+      
+	// Elwert factor
+	//
+	double corr   = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
 	
-	double nfr      = eta_f/eta_i;
-	double nfr2     = nfr*nfr;
-	double crit     = (1.0 - nfr2)*eta_f;
+	if (use_VAN_HOOF) {
 
-	if (crit > 1.0e4) {
+	  double gff = 1.0;
 
-	  double fac1     = pow(crit, -2.0/3.0);
-	  double fac2     = fac1*fac1;
-	
-	  constexpr double c1 = 0.1728260369;
-	  constexpr double c2 = 0.04959570168;
-	  constexpr double c3 = 0.01714285714;
+	  // Gaunt factor
+	  //
+	  double eta_f    = 1.0/sqrt(Ei/(RydtoeV*Z*Z));
+	  double eta_i    = 1.0/sqrt(Ef/(RydtoeV*Z*Z));
 	  
-	  gff = 1.0 +
-	    c1*(1.0 + nfr2)*fac1 -
-	    c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*fac2 -
-	    c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*fac1*fac2 +
-	    0.0025*fac2*fac2;
+	  double nfr      = eta_f/eta_i;
+	  double nfr2     = nfr*nfr;
+	  double crit     = (1.0 - nfr2)*eta_f;
 
+	  if (crit > 1.0e4) {
+
+	    double fac1     = pow(crit, -2.0/3.0);
+	    double fac2     = fac1*fac1;
+	
+	    constexpr double c1 = 0.1728260369;
+	    constexpr double c2 = 0.04959570168;
+	    constexpr double c3 = 0.01714285714;
+	  
+	    gff = 1.0 +
+	      c1*(1.0 + nfr2)*fac1 -
+	      c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*fac2 -
+	      c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*fac1*fac2 +
+	      0.0025*fac2*fac2;
+	    
+	  } else {
+	    
+	    gff = ad->gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
+	    
+	  }
+	
+	  // Differential cross section contribution
+	  //
+	  // dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
+	  //
+	  constexpr double nfac = 16.0/(3.0*sqrt(3.0)) * afs*afs*afs * M_PI*a0*a0;
+
+	  double sig = nfac * eta_f*eta_f * corr * gff;
+
+	  cum = cum + sig * dk;
+	
 	} else {
 
-	  gff = ad->gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
-
+	  // Differential cross section contribution
+	  //
+	  double dsig   = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
+	
+	  cum = cum + dsig;
 	}
-	
-	// Differential cross section contribution
-	//
-	// dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
-	//
-	constexpr double nfac = 16.0/(3.0*sqrt(3.0)) * afs*afs*afs * M_PI*a0*a0;
-
-	double sig = nfac * eta_f*eta_f * corr * gff;
-
-	cum = cum + sig * dk;
-	
-      } else {
-
-	// Differential cross section contribution
-	//
-	double dsig   = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
-	
-	cum = cum + dsig;
       }
 	
       freeFreeGrid[n].push_back(cum);
