@@ -589,7 +589,7 @@ cuFP_t cudaElasticInterp(cuFP_t E, dArray<cuFP_t> xsc, int Z,
     }
   }
 
-  if (logV) val = pow(10.0, val);
+  if (logV) val = exp10(val);
   
   return b_cross * val;
 }
@@ -745,8 +745,8 @@ void atomicData::cuda_initialize_textures()
 	  //
 	  std::vector<double>::iterator ub = lb;
 	  //
-	  // If is the first element, increment
-	  // the upper boundary
+	  // If iterator points to the first element, increment the
+	  // upper boundary
 	  //
 	  if (lb == temp.begin()) { if (temp.size()>1) ub++; }
 	  //
@@ -913,15 +913,6 @@ void atomicData::cuda_initialize_textures()
       E.ceDelE = I->delCollideE;
       E.NColl  = I->NcollideGrid;
 
-      /*
-      std::cout << " k=" << k
-		<< " Emin=" << E.ceEmin
-		<< " Emax=" << E.ceEmax
-		<< " delE=" << E.ceDelE
-		<< " nCol=" << E.NColl
-		<< std::endl;
-      */
-
       cudaTextureDesc texDesc;
       
       memset(&texDesc, 0, sizeof(texDesc));
@@ -934,10 +925,6 @@ void atomicData::cuda_initialize_textures()
       // Temporary storage
       //
       cuFP_t *d_Interp;
-      /*
-      std::cout << "Size(" << I->Z << ", " << I->C << ")="
-		<< I->NcollideGrid << std::endl;
-      */
       cuda_safe_call(cudaMalloc((void **)&d_Interp, I->NcollideGrid*2*sizeof(cuFP_t)),
 		     __FILE__, __LINE__,
 		     "Error allocating d_Interp for texture construction");
@@ -1020,10 +1007,6 @@ void atomicData::cuda_initialize_textures()
       
       thrust::host_vector<cuFP_t> tt(I->NionizeGrid);
       
-      /*
-      std::cout << "Size(" << I->Z << ", " << I->C << ")="
-		<< I->NionizeGrid << std::endl;
-      */
       cuda_safe_call(cudaMallocArray(&cuCIarray[k], &channelDesc, I->NionizeGrid), __FILE__, __LINE__, "malloc cuArray");
 
       // Copy to device memory some data located at address h_data
@@ -1236,7 +1219,7 @@ void computeFreeFree
 
     // Assign the photon energy
     //
-    ph = pow(10, K) * hbc;
+    ph = exp10(K) * hbc;
 
     // Use the integrated cross section from the differential grid
     //
@@ -1249,10 +1232,6 @@ void computeFreeFree
       A*int2_as_double(tex1D<int2>(elem.ff_0, indx  )) +
       B*int2_as_double(tex1D<int2>(elem.ff_0, indx+1)) ;
 #endif
-
-      if (std::isnan(xc) or std::isnan(ph)) {
-	printf("free-free test: E=%e xc=%e ph=%e %d/%d Z=%d C=%d\n", E, xc, ph, indx, ionEgridNumber, elem.Z, elem.C);
-      }
 
     /*
 #if cuREAL == 4
@@ -1497,11 +1476,6 @@ void computeRadRecomb
       A*int2_as_double(tex1D<int2>(elem.rc_d, indx  )) +
       B*int2_as_double(tex1D<int2>(elem.rc_d, indx+1)) ;
 #endif
-    /*
-    cuFP_t t1 = int2_as_double(tex1D<int2>(elem.rc_d, indx  ));
-    cuFP_t t2 = int2_as_double(tex1D<int2>(elem.rc_d, indx+1));
-    printf("rad-recomb test: E=%e A=%e B=%e\n", E, t1, t2);
-    */
   }
   // DONE
 }
