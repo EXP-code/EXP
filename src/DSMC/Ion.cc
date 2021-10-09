@@ -811,7 +811,7 @@ Ion::Ion(std::string name, atomicData* ad) : ad(ad)
 
   kgr10.resize(kffsteps);
   for (int i=0; i<kffsteps; i++) {
-    kgr10[i] = pow(10, kgrid[i]) * hbc;
+    kgr10[i] = exp10(kgrid[i]) * hbc;
   }
 
   // Initialize the nu-grid for photoionization (in units of the
@@ -923,7 +923,7 @@ Ion::Ion(unsigned short Z, unsigned short C, atomicData* ad) : ad(ad), Z(Z), C(C
 
   kgr10.resize(kffsteps);
   for (int i=0; i<kffsteps; i++) {
-    kgr10[i] = pow(10, kgrid[i]) * hbc;
+    kgr10[i] = exp10(kgrid[i]) * hbc;
   }
 
   // Initialize the nu-grid for photoionization (in units of the
@@ -1690,7 +1690,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id)
     
     // Assign the photon energy
     //
-    ffWaveCross = pow(10, k) * hbc;
+    ffWaveCross = exp10(k) * hbc;
 
     // Use the integrated cross section from the differential grid
     //
@@ -1723,7 +1723,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
   // Integration variables
   //
   double cum    = 0;
-  double dk     = (kgrid[1] - kgrid[0])*log(10.0);
+  double dk     = (kgrid[1] - kgrid[0])*log(10.0); // Natural log interval
 
   std::vector<double> diff, cuml;
 
@@ -1781,7 +1781,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
 
     }
 
-    // Differential cross section contribution
+    // Differential cross section contribution, following Sutherland (1998)
     //
     // dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
     //
@@ -1845,7 +1845,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
     
     // Assign the photon energy
     //
-    ffWaveCross = pow(10, k) * hbc;
+    ffWaveCross = exp10(k) * hbc;
 
     // Use the integrated cross section from the differential grid
     //
@@ -2222,7 +2222,7 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
 
     // Assign the photon energy
     //
-    ffWaveCross = pow(10, K) * hbc;
+    ffWaveCross = exp10(K) * hbc;
 
     // Use the integrated cross section from the differential grid
     //
@@ -2364,7 +2364,7 @@ std::pair<double, double> Ion::freeFreeCrossEvGridTest(double E, double rn, int 
 
     // Assign the photon energy
     //
-    ffWaveCross = pow(10, K) * hbc;
+    ffWaveCross = exp10(K) * hbc;
 
     // Use the integrated cross section from the differential grid
     //

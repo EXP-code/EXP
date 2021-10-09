@@ -1433,9 +1433,10 @@ void * Collide::collide_thread(void * arg)
 
 	// Pick a pair of particles from the cell
 	//
-	int i1 = std::min<int>(int(floor(unit(random_gen)* nbods   )), nbods-1);
-	int i2 = std::min<int>(int(floor(unit(random_gen)*(nbods-1))), nbods-2);
-	if (i2 >= i1) i2++;
+	auto pr = pairSelect(id, T, nbods);
+
+	int i1 = pr.first;
+	int i2 = pr.second;
 
 	// Get index from body map for the cell
 	//

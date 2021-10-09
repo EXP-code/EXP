@@ -392,6 +392,16 @@ protected:
 	   Particle* const p1, Particle* const p2, double cr) = 0;
 
 
+  //! Select an interaction pair
+  virtual std::pair<int, int> pairSelect(int id, NTC::T T, int nbods)
+  {
+    std::pair<int, int> ret;
+    ret.first  = std::min<int>(int(floor(unit(random_gen)* nbods   )), nbods-1);
+    ret.second = std::min<int>(int(floor(unit(random_gen)*(nbods-1))), nbods-2);
+    if (ret.second >= ret.first) ret.second++;
+    return ret;
+  }
+
   //! Return the particle selection matrix
   virtual NTC::InteractD generateSelection
   (pCell* const c, double crm, sKeyDmap* const Fn, double tau,

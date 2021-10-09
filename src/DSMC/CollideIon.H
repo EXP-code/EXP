@@ -1000,6 +1000,11 @@ protected:
   //! pairs
   std::vector<NTC::InteractD> csections;
 
+  //! List of cross sections for mean-mass trace algorithm
+  std::vector<std::map<NTC::T, std::vector<std::tuple<double, int, int>>>> cseccache;
+  std::vector<std::map<NTC::T, std::vector<double>>> cseccum;
+
+
   std::shared_ptr<collDiag> collD;
 
   //! Set of the elements (atomic number) for direct multi-species
@@ -1375,21 +1380,25 @@ protected:
   void list_sizes_proc(ostream*);
   //@}
   
-  virtual NTC::InteractD generateSelectionDirect(pCell* const c, double crm, sKeyDmap* const Fn,
-						  double tau, double& meanLambda, double& meanCollP, 
-						  double& totalNsel, int id);
+  virtual NTC::InteractD generateSelectionDirect
+  (pCell* const c, double crm, sKeyDmap* const Fn,
+   double tau, double& meanLambda, double& meanCollP, 
+   double& totalNsel, int id);
 
-  virtual NTC::InteractD generateSelectionWeight(pCell* const c, double crm, sKeyDmap* const Fn,
-						  double tau, double& meanLambda, double& meanCollP, 
-						  double& totalNsel, int id);
+  virtual NTC::InteractD generateSelectionWeight
+  (pCell* const c, double crm, sKeyDmap* const Fn,
+   double tau, double& meanLambda, double& meanCollP, 
+   double& totalNsel, int id);
 
-  virtual NTC::InteractD generateSelectionTrace(pCell* const c, double crm, sKeyDmap* const Fn, 
-						 double tau, double& meanLambda, double& meanCollP, 
-						 double& totalNsel, int id);
+  virtual NTC::InteractD generateSelectionTrace
+  (pCell* const c, double crm, sKeyDmap* const Fn, 
+   double tau, double& meanLambda, double& meanCollP, 
+   double& totalNsel, int id);
 
-  virtual NTC::InteractD generateSelectionHybrid(pCell* const c, double crm, sKeyDmap* const Fn, 
-						  double tau, double& meanLambda, double& meanCollP, 
-						  double& totalNsel, int id);
+  virtual NTC::InteractD generateSelectionHybrid
+  (pCell* const c, double crm, sKeyDmap* const Fn, 
+   double tau, double& meanLambda, double& meanCollP, 
+   double& totalNsel, int id);
 
   //@{
   //! Trace species maps for diagnostics
@@ -1578,7 +1587,7 @@ protected:
   //! Compute the interaction for the trace method
   void scatterTrace
   (PordPtr pp, KE_& KE, double W,
-   std::vector<double>* V1, std::vector<double>* V2, int id);
+   std::vector<double>& V1, std::vector<double>& V2, int id);
 
   //! For photoionization ion-electron recoil
   void scatterPhotoTrace(Particle* p, lQ Q, double Pr, double dE);
@@ -1634,6 +1643,9 @@ protected:
 
   double radRecombCrossFudgeFactor(double cellTemp, speciesKey recomb_ion);
   //@}
+
+  //! Select an interaction pair
+  virtual std::pair<int, int> pairSelect(int id, NTC::T T, int nbods);
 
 public:
 
