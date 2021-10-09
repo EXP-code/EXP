@@ -170,9 +170,8 @@ int main (int ac, char **av)
 
   // Print cross section for requested ion
   //
-
 				// Bohr cross section (pi*a_0^2) in nm
-  const cuFP_t b_cross = 0.00879735542978;
+  const double b_cross = 0.00879735542978;
 
 				// Convert from Rydberg to eV
   const double ryd      = 27.2113845/2.0;
