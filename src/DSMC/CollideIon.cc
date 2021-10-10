@@ -321,6 +321,12 @@ bool CollideIon::ke_weight      = true;
 //
 bool CollideIon::mean_mass      = true;
 
+// Relative error for energy conservation check
+//
+#ifdef XC_DEEP3
+constexpr double EDEL_TOL = 1.0e-09;
+#endif
+
 // Per-species cross-section scale factor for testing
 //
 static std::vector<double> cscl_;
@@ -4162,9 +4168,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 #ifdef XC_DEEP12
       if (Z1==1)
-	printf("H TEST: xnn=%e cv=%e\n", crs1, crs1*cr);
+	std::cout << "H TEST: xnn=" crs1 << " cv=" << crs1*cr << std::endl;
       if (Z1==2)
-	printf("He TEST: xnn=%e cv=%e\n", crs1, crs1*cr);
+	std::cout << "He TEST: xnn=" crs1 << " cv=" << crs1*cr << std::endl;
 #endif
 
       if (DEBUG_CRS) trap_crs(crs1, neut_prot);
@@ -4185,9 +4191,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
 #ifdef XC_DEEP12
       if (Z2==1)
-	printf("H TEST: xnn=%e cv=%e\n", crs1, crs1*cr);
+	std::cout << "H TEST: xnn=" << crs1 << " cv=" << crs1*cr << std::endl;
       if (Z2==2)
-	printf("He TEST: xnn=%e cv=%e\n", crs1, crs1*cr);
+	std::cout << "He TEST: xnn=" << crs1 << " cv=" << crs1*cr << std::endl;
 #endif
 
       if (DEBUG_CRS) trap_crs(crs1, neut_prot);
@@ -10238,7 +10244,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  wEta = F.eta(2) - etaP2[id];
 	  double Echg = iE2 * wEta;
 #ifdef XC_DEEP0
-	  printf("Ionize[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
+	  std::cout << "Ionize[2]: W=" << wEta << " E=" << iE2 << " eV="
+		    << Echg << " sys=" << Echg*eV/TreeDSMC::Eunit
+		    << std::endl;
 #endif
 	  dE += Echg;
 	  ionExtra[1] += Echg;
@@ -10333,7 +10341,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  wEta = F.eta(1) - etaP1[id];
 	  double Echg = iE1 * wEta;
 #ifdef XC_DEEP0
-	  printf("Ionize[1]: W=%e E=%e eV=%e sys=%e\n", wEta, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
+	  std::cout << "Ionize[1]: W=" << wEta << " E=" << iE1 << "eV="
+		    << Echg << " sys=" Echg*eV/TreeDSMC::Eunit << std::endl;
 #endif
 	  dE += Echg;
 	  ionExtra[0] += Echg;
@@ -10448,7 +10457,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  rcbExtra[1] += Echg;
 
 #ifdef XC_DEEP0
-	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
+	  std::cout << "Recombine[2]: W=" << wEta << " E=" << iE2 << " eV="
+		    << Echg << " sys=" << Echg*eV/TreeDSMC::Eunit << std::endl;
 #endif
 	  // Electron KE radiated in recombination
 	  //
@@ -10580,7 +10590,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  rcbExtra[0] += Echg;
 
 #ifdef XC_DEEP0
-	  printf("Recombine[1]: W=%e E=%e eV=%e sys=%e\n", WW, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
+	  std::cout << "Recombine[1]: W=" << WW << " E=" iE1 << " eV="
+		    << Echg << " sys=" << Echg*eV/TreeDSMC::Eunit << std::endl;
 #endif
 	  // Electron KE fraction in recombination
 	  //
@@ -10831,7 +10842,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double totalDE = PE;
 
 #ifdef XC_DEEP0
-  printf("totalDE=%e T=%d\n", totalDE, interFlag);
+  std::cout << "totalDE=" << totalDE << " T=" << interFlag << std::endl;
 #endif
 
   if (NOCOOL) {
@@ -10879,13 +10890,17 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   KE_ KE;
   double PPsav1 = 0.0, PPsav2 = 0.0;
 
+  if (interFlag == free_free) {
+    std::cout << "Free-free dE[0]=" << dE << std::endl;
+  }
+
   //
   // Perform the electronic interactions
   //
   if (use_elec) {
     
     if (false) {
-      printf("ke1=%e ke2=%e\n", kEe1[id], kEe2[id]);
+      std::cout << "ke1=" << kEe1[id] << " ke2=" << kEe2[id] << std::endl;
     }
 
     // This recomputes the ionization-state dependent values such eta
@@ -10958,6 +10973,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       testKE[id][4] += PE;
       
     } // END: Atom-atom interaction
+
+    if (interFlag == free_free) {
+      std::cout << "Free-free dE[1]=" << dE << std::endl;
+    }
 
     //
     // Apply ion/neutral-electron scattering and energy loss
@@ -11759,7 +11778,8 @@ void CollideIon::scatterTrace
 	deferredEnergyTrace(pp, -totE, id);
 #ifdef XC_DEEP3
 	fixE = -totE;
-	printf("deferE[1]=%e kE=%e dE=%e\n", totE, kE, delE);
+	std::cout << "deferE[1]=" << totE << " kE=" << kE << " dE=" << KE.delE
+		  << std::endl;
 #endif
 	totE = 0.0;
       }
@@ -11775,8 +11795,8 @@ void CollideIon::scatterTrace
 	deferredEnergyTrace(pp, KE.delE, id);
 	
 #ifdef XC_DEEP3
-	fixE = delE;
-	printf("deferE[0]=%e\n", KE.delE);
+	fixE = KE.delE;
+	std::cout << "deferE[0]=" << KE.delE << std::endl;
 #endif
 	KE.delE = 0.0;
       } else {
@@ -11815,13 +11835,17 @@ void CollideIon::scatterTrace
 	k2 += v2[k]*v2[k];
     }
       double KEf = 0.5*M1*k1 + 0.5*M2*k2;
-      double KEd = KEi - KEf - delE + fixE;
+      double KEd = KEi - KEf - KE.delE + fixE;
       double KEm = 0.5*(KEi + KEf);
       if (fabs(KEd)/KEm > EDEL_TOL) {
-	printf("**ERROR deltaE: R=%e KEi=%e KEf=%e dKE=%e kE=%e delE=%e fixE=%e\n", KEd/KEm, KEi, KEf, KEd, kE, delE, fixE);
+	std::cout << "**ERROR deltaE: R=" << KEd/KEm << " KEi=" << KEi
+		  << " KEf=" << KEf << " dKE=" << KEd << " kE=" << kE
+		  << " delE=" << KE.delE << " fixE=" << fixE << std::endl;
       }
-      else if (false) {
-	printf("OK deltaE: R=%e KEi=%e KEf=%e dKE=%e kE=%e delE=%e fixE=%e\n", KEd/KEm, KEi, KEf, KEd, kE, delE, fixE);
+      else if (KE.delE!=0 or fixE!=0) {
+	std::cout << "OK deltaE: R=" << KEd/KEm << " KEi=" << KEi
+		  << " KEf=" << KEf << " dKE=" << KEd << " kE=" << kE
+		  << " delE=" << KE.delE << " fixE=" << fixE << std::endl;
       }
     }
 #endif
@@ -11970,8 +11994,9 @@ void CollideIon::coulombicScatterDirect(int id, pCell* const c, double dT)
       double tau  = ABrate[id][l]*afac*afac*pVel * dT;
       
 #ifdef XC_DEEP11
-	printf("coul5: l=%d pVel=%e afac=%e dt=%e tau=%e mu=%e m1=%e m2=%e\n",
-	       l, pVel, afac, dT, tau, mu/amu, m1/amu, m2/amu);
+      std::cout << "coul5: l=" << l << " pVel=" << pVel << " afac=" << afac
+		<< " dt=" << dT << " tau=" << tau << " mu=" << mu/amu
+		<< " m1=" << m1/amu << " m2=" << m2/amu << std::endl;
 #endif
 
       tauD[id][l].push_back(tau);
@@ -12326,8 +12351,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       double tau  = ABrate[id][l]*afac*afac*pVel * dT;
       
 #ifdef XC_DEEP11
-	printf("coul5: l=%d pVel=%e afac=%e dt=%e tau=%e mu=%e m1=%e m2=%e\n",
-	       l, pVel, afac, dT, tau, mu, m1, m2);
+      std::cout << "coul5: l=" << l << " pVel=" << pVel << " afac=" << afac
+		<< " dt=" << dT << " tau=" << tau << " mu=" << mu/amu
+		<< " m1=" << m1/amu << " m2=" << m2/amu << std::endl;
 #endif
 
       tauD[id][l].push_back(tau);
@@ -12580,9 +12606,8 @@ void CollideIon::deferredEnergyTrace(PordPtr pp, const double E, int id)
   }
 
 #ifdef XC_DEEP15
-  printf("deferE=%e 1=[%e, %e]\n", E,
-	 pp->KE1[0], pp->KE1[1],
-	 pp->KE2[0], pp->KE2[1]);
+  std::cout << "deferE=" << E << " 1=[" << pp->KE1[0] << ", " << pp->KE1[1]
+	    << "]  2=[" << pp->KE2[0] << ", " << pp->KE2[1] << "]" << std::endl;
 #endif
 
   // Save energy adjustments for next interation.  Split between like
@@ -12710,7 +12735,7 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
   KE.defer -= testE;
 
 #ifdef XC_DEEP0
-  printf("testE=%e\n", testE);
+  std::cout << "testE=" << testE << std::endl;
 #endif
 
   // Add to electron deferred energy
