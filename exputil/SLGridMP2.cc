@@ -1761,11 +1761,34 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
 void check_vector_values_SL(const Eigen::VectorXd& v)
 {
-  for (int i=0; i<v.size(); i++)
-    if (std::isinf(v[i]) || std::isnan(v[i]))
-      {
-	std::cerr << "check_vector: Illegal value" << std::endl;
-      }
+  unsigned c_inf = 0;
+  unsigned c_nan = 0;
+  unsigned c_sub = 0;
+
+  // Classify all numbers in the vector
+  //
+  for (int i=0; i<v.size(); i++) {
+
+    switch(std::fpclassify(v[i])) {
+    case FP_INFINITE:		// Count infinities
+      c_inf++;
+      break;
+    case FP_NAN:		// Count non-a-numbers
+      c_nan++;
+      break;
+    case FP_SUBNORMAL:		// Count denormalized numbers
+      c_sub++;
+      break;
+    }
+  }
+
+  // Print any errors
+  //
+  if (c_inf+c_nan+c_sub>0) {
+    std::cerr << "check_vector [size=" << v.size() << "]: "
+	      << " NaN=" << c_nan << " Inf=" << c_inf << "Sub=" << c_sub
+	      << std::endl;
+  }
 }
 
 int SLGridSph::read_cached_table(void)
