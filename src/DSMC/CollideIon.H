@@ -1395,6 +1395,11 @@ protected:
    double tau, double& meanLambda, double& meanCollP, 
    double& totalNsel, int id);
 
+  virtual NTC::InteractD generateSelectionTraceMeanMass
+  (pCell* const c, double crm, sKeyDmap* const Fn, 
+   double tau, double& meanLambda, double& meanCollP, 
+   double& totalNsel, int id);
+
   virtual NTC::InteractD generateSelectionHybrid
   (pCell* const c, double crm, sKeyDmap* const Fn, 
    double tau, double& meanLambda, double& meanCollP, 

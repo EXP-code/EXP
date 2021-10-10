@@ -2356,11 +2356,17 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	      }
 
 	      if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
-		csections[id][Tord(T)][crsvel];
-		crsvel *= p1->dattrib[s1.second] * p2->dattrib[s2.second];
+		if (mean_mass) {
+		  crsvel /=
+		    atomic_weights[s1.first.first] *
+		    atomic_weights[s2.first.first] ;
+		  cseccache[id][T].push_back({crsvel, i, j});		  
+		  csections[id][Tord(T)][crsvel];
+		} else {
+		  csections[id][Tord(T)][crsvel];
+		  crsvel *= p1->dattrib[s1.second] * p2->dattrib[s2.second];
+		}
 		std::get<2>(IIxc) += crsvel;
-		if (mean_mass)
-		  cseccache[id][T].push_back({crsvel, i, j});
 	      }
 	    }
 	      
@@ -2377,10 +2383,18 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	      }
 	      
 	      if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
-		csections[id][Tord(T)][crsvel];
-		crsvel *= p1->dattrib[s1.second] * p2->dattrib[s2.second];
+		if (mean_mass) {
+		  crsvel *= p1->dattrib[s1.second] * p2->dattrib[s2.second];
+		  crsvel /=
+		    atomic_weights[s1.first.first] *
+		    atomic_weights[s2.first.first] ;
+		  cseccache[id][T].push_back({crsvel, i, j});
+		  csections[id][Tord(T)][crsvel];		
+		} else {
+		  csections[id][Tord(T)][crsvel];
+		  crsvel *= p1->dattrib[s1.second] * p2->dattrib[s2.second];
+		}
 		std::get<2>(IIxc) += crsvel;
-		if (mean_mass) cseccache[id][T].push_back({crsvel, i, j});
 	      }
 	    }
 	    
@@ -2395,16 +2409,28 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
-	      csections[id][Tord(T)][crsvel];
-	      crsvel *= p1->dattrib[s1.second] * Eta2;
+	      if (mean_mass) {
+		crsvel *= p1->dattrib[s1.second] * pow(Eta2, 1.5) /
+		  atomic_weights[s1.first.first];
+		csections[id][Tord(T)][crsvel];
+		cseccache[id][T].push_back({crsvel, i, j});
+	      } else {
+		csections[id][Tord(T)][crsvel];
+		crsvel *= p1->dattrib[s1.second] * Eta2;
+	      }
 	      std::get<2>(IExc12) += crsvel;
-	      if (mean_mass) cseccache[id][T].push_back({crsvel, i, j});
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
-	      csections[id][Tord(T)][crsvel];
-	      crsvel *= p2->dattrib[s1.second] * Eta1;
+	      if (mean_mass) {
+		crsvel *= p2->dattrib[s1.second] * pow(Eta1, 1.5) / 
+		  atomic_weights[s1.first.first];
+		cseccache[id][T].push_back({crsvel, j, i});
+		csections[id][Tord(T)][crsvel];
+	      } else {
+		csections[id][Tord(T)][crsvel];
+		crsvel *= p2->dattrib[s1.second] * Eta1;
+	      }
 	      std::get<2>(IExc21) += crsvel;
-	      if (mean_mass) cseccache[id][T].push_back({crsvel, j, i});
 	    }
 	  }
 
@@ -2416,16 +2442,28 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
-	      csections[id][Tord(T)][crsvel];
-	      crsvel *= p1->dattrib[s1.second] * Eta2;
+	      if (mean_mass) {
+		crsvel *= p1->dattrib[s1.second] * pow(Eta2, 1.5) / 
+		  atomic_weights[s1.first.first];
+		cseccache[id][T].push_back({crsvel, i, j});
+		csections[id][Tord(T)][crsvel];
+	      } else {
+		csections[id][Tord(T)][crsvel];
+		crsvel *= p1->dattrib[s1.second] * Eta2;
+	      }
 	      std::get<2>(IExc12) += crsvel;
-	      if (mean_mass) cseccache[id][T].push_back({crsvel, i, j});
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
-	      csections[id][Tord(T)][crsvel];
-	      crsvel *= p2->dattrib[s1.second] * Eta1;
+	      if (mean_mass) {
+		crsvel *= p2->dattrib[s1.second] * pow(Eta1, 1.5) /
+		  atomic_weights[s1.first.first];
+		cseccache[id][T].push_back({crsvel, j, i});
+		csections[id][Tord(T)][crsvel];
+	      } else {
+		csections[id][Tord(T)][crsvel];
+		crsvel *= p2->dattrib[s1.second] * Eta1;
+	      }
 	      std::get<2>(IExc21) += crsvel;
-	      if (mean_mass) cseccache[id][T].push_back({crsvel, j, i});
 	    }
 	  }
 	  
@@ -2437,16 +2475,28 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
-	      csections[id][Tord(T)][crsvel];
-	      crsvel *= p1->dattrib[s1.second] * Eta2;
+	      if (mean_mass) {
+		crsvel *= p1->dattrib[s1.second] * pow(Eta2, 1.5) /
+		  atomic_weights[s1.first.first];
+		cseccache[id][T].push_back({crsvel, i, j});
+		csections[id][Tord(T)][crsvel];
+	      } else {
+		csections[id][Tord(T)][crsvel];
+		crsvel *= p1->dattrib[s1.second] * Eta2;
+	      }
 	      std::get<2>(IExc12) += crsvel;
-	      if (mean_mass) cseccache[id][T].push_back({crsvel, i, j});
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
-	      csections[id][Tord(T)][crsvel];
-	      crsvel *= p2->dattrib[s1.second] * Eta1;
+	      if (mean_mass) {
+		crsvel *= p2->dattrib[s1.second] * pow(Eta1, 1.5) /
+		  atomic_weights[s1.first.first];
+		cseccache[id][T].push_back({crsvel, j, i});
+		csections[id][Tord(T)][crsvel];
+	      } else {
+		csections[id][Tord(T)][crsvel];
+		crsvel *= p2->dattrib[s1.second] * Eta1;
+	      }
 	      std::get<2>(IExc21) += crsvel;
-	      if (mean_mass) cseccache[id][T].push_back({crsvel, j, i});
 	    }
 	  }
 	    
@@ -2458,16 +2508,28 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
-	      csections[id][Tord(T)][crsvel];
-	      crsvel *= p1->dattrib[s1.second] * Eta2;
+	      if (mean_mass) {
+		crsvel *= p1->dattrib[s1.second] * pow(Eta2, 1.5) /
+		  atomic_weights[s1.first.first];
+		cseccache[id][T].push_back({crsvel, i, j});
+		csections[id][Tord(T)][crsvel];
+	      } else {
+		csections[id][Tord(T)][crsvel];
+		crsvel *= p1->dattrib[s1.second] * Eta2;
+	      }
 	      std::get<2>(IExc12) += crsvel;
-	      if (mean_mass) cseccache[id][T].push_back({crsvel, i, j});
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
-	      csections[id][Tord(T)][crsvel];
-	      crsvel *= p2->dattrib[s1.second] * Eta1;
+	      if (mean_mass) {
+		crsvel *= p2->dattrib[s1.second] * pow(Eta1, 1.5) /
+		  atomic_weights[s1.first.first];
+		csections[id][Tord(T)][crsvel];
+		cseccache[id][T].push_back({crsvel, j, i});
+	      } else {
+		csections[id][Tord(T)][crsvel];
+		crsvel *= p2->dattrib[s1.second] * Eta1;
+	      }
 	      std::get<2>(IExc21) += crsvel;
-	      if (mean_mass) cseccache[id][T].push_back({crsvel, j, i});
 	    }
 	  }
 
@@ -2479,16 +2541,28 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
-	      csections[id][Tord(T)][crsvel];
-	      crsvel *= p1->dattrib[s1.second] * Eta2;
+	      if (mean_mass) {
+		crsvel *= p1->dattrib[s1.second] * pow(Eta2, 1.5) /
+		  atomic_weights[s1.first.first];
+		cseccache[id][T].push_back({crsvel, i, j});
+		csections[id][Tord(T)][crsvel];
+	      } else {
+		csections[id][Tord(T)][crsvel];
+		crsvel *= p1->dattrib[s1.second] * Eta2;
+	      }
 	      std::get<2>(IExc12) += crsvel;
-	      if (mean_mass) cseccache[id][T].push_back({crsvel, i, j});
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
-	      csections[id][Tord(T)][crsvel];
-	      crsvel *= p2->dattrib[s1.second] * Eta1;
+	      if (mean_mass) {
+		crsvel *= p2->dattrib[s1.second] * pow(Eta1, 1.5) /
+		  atomic_weights[s1.first.first];
+		cseccache[id][T].push_back({crsvel, j, i});
+		csections[id][Tord(T)][crsvel];
+	      } else {
+		csections[id][Tord(T)][crsvel];
+		crsvel *= p2->dattrib[s1.second] * Eta1;
+	      }
 	      std::get<2>(IExc21) += crsvel * p2->dattrib[s1.second] * Eta1;
-	      if (mean_mass) cseccache[id][T].push_back({crsvel, j, i});
 	    }
 	  }
 	}
@@ -8045,7 +8119,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   // Convert to super particle (current in eV)
   //
-  double N0 = PP->W2 * TreeDSMC::Munit / amu;
+  double N0;
+  if (mean_mass)
+    N0 = PP->W1 * TreeDSMC::Munit / amu;
+  else
+    N0 = PP->W2 * TreeDSMC::Munit / amu;
   PE[1] *= N0;
 
   // Debugging test
@@ -9942,7 +10020,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(FF2[id]);
 
-	  dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
+	  if (mean_mass)
+	    dE = tmpE;
+	  else
+	    dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
 
 #ifdef XC_DEEP2
 	  std::cout << "testT: ffDE=" << tmpE
@@ -9973,7 +10054,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(FF1[id]);
 
-	  dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
+	  if (mean_mass)
+	    dE = tmpE;
+	  else
+	    dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
 
 #ifdef XC_DEEP2
 	  std::cout << "testT: ffDE=" << tmpE
@@ -10010,7 +10094,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = CE2[id].second;
 
-	  dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
+	  if (mean_mass)
+	    dE = tmpE;
+	  else
+	    dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
 
 #ifdef XC_DEEP2
 	  {
@@ -10047,7 +10134,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = CE1[id].second;
 
-	  dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
+	  if (mean_mass)
+	    dE = tmpE;
+	  else
+	    dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
 
 #ifdef XC_DEEP2
 	  {
@@ -10132,7 +10222,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  Prob = WW;
 	  
 	  double tmpE = IS.DIInterLoss(ad.IonList[Q2]);
-	  dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
+	  if (mean_mass)
+	    dE = tmpE;
+	  else
+	    dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
 
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
@@ -10223,7 +10316,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  Prob = WW;
 
 	  double tmpE = IS.DIInterLoss(ad.IonList[Q1]);
-	  dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
+	  if (mean_mass)
+	    dE = tmpE;
+	  else
+	    dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
 	  
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
@@ -14651,9 +14747,14 @@ NTC::InteractD CollideIon::generateSelection
   else if (aType == Hybrid)
     return generateSelectionHybrid
       (c, crm, Fn, tau, meanLambda, meanCollP, totalNsel, id);
-  else if (aType == Trace)
-    return generateSelectionTrace
-      (c, crm, Fn, tau, meanLambda, meanCollP, totalNsel, id);
+  else if (aType == Trace) {
+    if (mean_mass)
+      return generateSelectionTraceMeanMass
+	(c, crm, Fn, tau, meanLambda, meanCollP, totalNsel, id);
+    else
+      return generateSelectionTrace
+	(c, crm, Fn, tau, meanLambda, meanCollP, totalNsel, id);
+  }
   else {
     std::cerr << "Algorithm error in generateSelection, can't be here"
 	      << std::endl;
@@ -14858,7 +14959,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
     double saveXc = v.second();
 #endif
 
-    v.second() *= (num - 1) * dens * rateF * crs_units;
+    v.second() *= dens * rateF * crs_units;
 
     auto k1 = std::get<1>(v.first);
     auto k2 = std::get<2>(v.first);
@@ -14868,17 +14969,6 @@ NTC::InteractD CollideIon::generateSelectionTrace
     // For correct Poisson statistics
     //
     totSelcM += v.second();
-
-
-    // Make commulative cross section for particle pair selection
-    //
-    if (mean_mass) {
-      cseccum[id][v.first].clear();
-      for (auto u : cseccache[id][v.first])
-	cseccum[id][v.first].push_back(std::get<0>(u));
-      for (int i=1; i<cseccum[id][v.first].size(); i++)
-	cseccum[id][v.first][i] += cseccum[id][v.first][i-1];
-    }
 
 #ifdef XC_DEEP5
     auto TT = std::get<0>(v.first);
@@ -14915,6 +15005,125 @@ NTC::InteractD CollideIon::generateSelectionTrace
       totSelcM = std::min<double>(maxSel, totSelcM);
     }
   }
+
+  selD[id].push_back(totSelcM);
+
+  return selcM;
+}
+
+
+NTC::InteractD CollideIon::generateSelectionTraceMeanMass
+(pCell* const c, double crm, sKeyDmap* const Fn, double tau,
+ double& meanLambda, double& meanCollP, double& totalNsel, int id)
+{
+  // Return data structure
+  //
+  NTC::InteractD selcM;
+
+  speciesKey key(Particle::defaultKey);
+
+  // Convert from NTCdb to system units
+  //
+  const double crs_units = 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
+
+  // For NTCdb <cross section>*<relative velocity>
+  //
+  const sKeyPair defKeyPair(Particle::defaultKey, Particle::defaultKey);
+
+  // Number of bodies in this cell
+  //
+  unsigned num = static_cast<unsigned>(c->bods.size());
+  
+  if (num==0) return selcM;
+
+  // Mass density in the cell
+  //
+  double volc = c->Volume();
+  double mmas = c->Mass() / volc / num;
+
+  // Cross section selection
+  //
+  double crossRat = 0.0;
+
+  std::map<NTC::T, double> bySpc;
+
+  for (auto v : csections[id].v) {
+    NTC::T      T = v.first;
+    bySpc[T]     += v.second();
+    crossRat     += v.second();
+  }
+
+  // Copy to Interact map
+  //
+  for (auto v : bySpc) selcM[v.first] = v.second;
+
+  crossRat *= crs_units;
+
+  crTotl[id]++;
+
+  // Compute collision rates in system units
+  //
+  double crossM = (*Fn)[key] * mmas * crossRat;
+  double collPM = crossM * crm * tau;
+
+  // Cache time step for estimating "over" cooling timestep is use_delt>=0
+  //
+  spTau[id]  = tau;
+
+  // For Collide diagnostics
+  //
+  meanLambda = 1.0/crossM;
+  meanCollP  = collPM;
+
+  // Rate factor
+  //
+  double rateF = (*Fn)[key] * tau;
+
+  // Accumulate total number
+  //
+  double totSelcM = 0.0;
+
+  for (auto & v : selcM.v) {
+    
+#ifdef XC_DEEP5
+    double saveXc = v.second();
+#endif
+
+    v.second() *= mmas * rateF * crs_units;
+
+    auto k1 = std::get<1>(v.first);
+    auto k2 = std::get<2>(v.first);
+
+    totSelcM += v.second();
+
+    // Make commulative cross section for particle pair selection
+    //
+    if (mean_mass) {
+      cseccum[id][v.first].clear();
+      for (auto u : cseccache[id][v.first])
+	cseccum[id][v.first].push_back(std::get<0>(u));
+      for (int i=1; i<cseccum[id][v.first].size(); i++)
+	cseccum[id][v.first][i] += cseccum[id][v.first][i-1];
+    }
+
+#ifdef XC_DEEP5
+    auto TT = std::get<0>(v.first);
+    std::cout << "ctest: " << std::setw(12) << interLabels[TT]
+	      << " cross=" << saveXc*crs_units*TreeDSMC::Lunit*TreeDSMC::Lunit/1e-14
+	      << " selcM=" << v.second()
+	      << " Vel=" << crm
+	      << " Tau=" << tau
+	      << std::endl;
+#endif
+
+  }
+
+  colCf[id] = 1.0;
+
+  colUps[id][0] += 1;
+  colUps[id][1] += totSelcM;
+  colUps[id][2] += totSelcM * totSelcM;
+  colUps[id][3] += colCf[id];
 
   selD[id].push_back(totSelcM);
 
