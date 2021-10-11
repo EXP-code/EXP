@@ -10244,7 +10244,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  wEta = F.eta(2) - etaP2[id];
 	  double Echg = iE2 * wEta;
 #ifdef XC_DEEP0
-	  std::cout << "Ionize[2]: W=" << wEta << " E=" << iE2 << " eV="
+	  std::cout << "Ionize[2]: W=" << wEta << " E=" << iE2 << " Ec="
 		    << Echg << " sys=" << Echg*eV/TreeDSMC::Eunit
 		    << std::endl;
 #endif
@@ -10341,7 +10341,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  wEta = F.eta(1) - etaP1[id];
 	  double Echg = iE1 * wEta;
 #ifdef XC_DEEP0
-	  std::cout << "Ionize[1]: W=" << wEta << " E=" << iE1 << "eV="
+	  std::cout << "Ionize[1]: W=" << wEta << " E=" << iE1 << " Ec="
 		    << Echg << " sys=" << Echg*eV/TreeDSMC::Eunit
 		    << std::endl;
 #endif
