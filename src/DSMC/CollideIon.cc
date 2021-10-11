@@ -10342,7 +10342,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double Echg = iE1 * wEta;
 #ifdef XC_DEEP0
 	  std::cout << "Ionize[1]: W=" << wEta << " E=" << iE1 << "eV="
-		    << Echg << " sys=" Echg*eV/TreeDSMC::Eunit << std::endl;
+		    << Echg << " sys=" << Echg*eV/TreeDSMC::Eunit
+		    << std::endl;
 #endif
 	  dE += Echg;
 	  ionExtra[0] += Echg;
@@ -10590,7 +10591,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  rcbExtra[0] += Echg;
 
 #ifdef XC_DEEP0
-	  std::cout << "Recombine[1]: W=" << WW << " E=" iE1 << " eV="
+	  std::cout << "Recombine[1]: W=" << WW << " E=" << iE1 << " eV="
 		    << Echg << " sys=" << Echg*eV/TreeDSMC::Eunit << std::endl;
 #endif
 	  // Electron KE fraction in recombination
