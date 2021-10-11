@@ -1235,6 +1235,7 @@ protected:
     double         W2, w2;
     pType          P;
     double         thresh;
+    bool           swap_enable;
     bool           swap;
     bool           wght;
     speciesKey     k1, k2;

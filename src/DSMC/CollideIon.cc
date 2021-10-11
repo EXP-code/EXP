@@ -10843,7 +10843,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double totalDE = PE;
 
 #ifdef XC_DEEP0
-  std::cout << "totalDE=" << totalDE << " T=" << interFlag << std::endl;
+  std::cout << "totalDE=" << totalDE << " T=" << interFlag
+	    << " Swap=" << std::boolalpha << PP->swap << std::endl;
 #endif
 
   if (NOCOOL) {
@@ -10892,7 +10893,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double PPsav1 = 0.0, PPsav2 = 0.0;
 
   if (interFlag == free_free) {
-    std::cout << "Free-free dE[0]=" << dE << std::endl;
+    std::cout << "Free-free dE[0]=" << dE << " totalDE=" << totalDE
+	      << std::endl;
   }
 
   //
@@ -10976,7 +10978,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     } // END: Atom-atom interaction
 
     if (interFlag == free_free) {
-      std::cout << "Free-free dE[1]=" << dE << std::endl;
+      std::cout << "Free-free dE[1]=" << dE << " totalDE=" << totalDE
+		<< std::endl;
     }
 
     //
@@ -15420,7 +15423,6 @@ void CollideIon::gatherSpecies()
 	    unsigned short P = s.first.second - 1;
 	    countE += p->dattrib[s.second] / atomic_weights[Z] * P;
 	  }
-	  
 	  countE *= p->mass;
 	} else {
 	  KeyConvert k(p->iattrib[use_key]);
@@ -19748,7 +19750,7 @@ void CollideIon::post_cell_loop(int id)
 CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
 		       double WW1, double WW2, pType p, double T) :
   caller(c), p1(P1), p2(P2), w1(WW1), w2(WW2), P(p),
-  thresh(T), swap(false), wght(false),
+  thresh(T), swap_enable(true), swap(false), wght(false),
   E1({0, 0}), E2({0, 0}), KE1({0, 0}), KE2({0, 0})
 {
   // Assign weights (proportional to number of true ion/atom particles)
@@ -19757,6 +19759,10 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
   W2 = w2;
 
   if (c->aType == Trace) {
+
+    // Turn off particle swapping for mean_mass trace variant
+    //
+    if (c->mean_mass) swap_enable = false;
 
     k1 = k2 = speciesKey(0, 0);
     Z1 = Z2 = 0;
@@ -19911,14 +19917,19 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     break;
   }
   
-  // Swap needed?
-  //
-  if (W1 < W2) swapPs();
+  if (swap_enable) {
 
-  // Trace ratio (in possibly swapped state)
-  //
-  if (W1>0.0) q = W2/W1;
-  else        q = 1.0;
+    // Swap needed?
+    //
+    if (W1 < W2) swapPs();
+
+    // Trace ratio (in possibly swapped state)
+    //
+    if (W1>0.0) q = W2/W1;
+    else        q = 1.0;
+  } else {
+    q = 1.0;
+  }
 
   // Compute initial KE
   //
@@ -20072,13 +20083,17 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
       break;
     }
 
-    // Swap needed?
-    //
-    if (W1 < W2) {
-      swapPs();
-    }
+    if (swap_enable) {
 
-    q = W2/W1;
+      // Swap needed?
+      //
+      if (W1 < W2) {
+	swapPs();
+      }
+
+      q = W2/W1;
+    }
+    
   } // END: wght == true
 
   // Compute KE
