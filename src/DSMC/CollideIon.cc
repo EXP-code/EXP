@@ -14716,6 +14716,12 @@ void CollideIon::parseSpecies()
       exit(69);
     }    
     
+    // Set necessary parameters in Collide for correct behavior of
+    // Trace algorithm
+    //
+    NTC = false;
+    if (mean_mass) NTCnodb = false;
+
   } else {
       if (myid==0) {
 	std::cerr << "**ERROR in "
