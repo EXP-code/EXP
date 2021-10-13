@@ -38,6 +38,9 @@
 
 #include <fftw3.h>
 
+// EXP classes
+//
+#include <global.H>
 #include <numerical.H>
 #include <massmodel.H>
 #include <model3d.H>

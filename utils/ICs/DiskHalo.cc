@@ -112,7 +112,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   expandh     = haloexp;
   expandd     = diskexp;
 
-  AxiSymModel::gen_seed = SEED + myid;
+  random_gen.seed(SEED*numprocs + myid);
   SphericalModelTable::even = 0;
 
   halo = std::make_shared<SphericalModelTable>(filename, DIVERGE, DIVERGE_RFAC);
@@ -190,7 +190,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   expandh     = haloexp;
   expandd     = diskexp;
 
-  AxiSymModel::gen_seed = SEED + myid;
+  random_gen.seed(SEED*numprocs + myid);
   SphericalModelTable::even = 0;
 
   halo = std::make_shared<SphericalModelTable>(filename1, DIVERGE, DIVERGE_RFAC);
