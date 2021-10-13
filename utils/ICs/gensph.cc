@@ -684,7 +684,7 @@ main(int argc, char **argv)
     rmodel = multi;
   }
   
-  rmodel->set_seed(SEED+myid);
+  random_gen.seed(SEED*numprocs+myid);
   rmodel->set_itmax(ITMAX);
   
   if (MODELS and myid==0) {
