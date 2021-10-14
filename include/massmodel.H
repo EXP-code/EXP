@@ -402,6 +402,7 @@ public:
   double get_max_radius(void) { return mass.x[mass.num-1]; }
   int grid_size(void) { return num; }
   void print_model(char const *name);
+  void print_model_eval(char const *name, int number);
   //@}
 
   //@{
