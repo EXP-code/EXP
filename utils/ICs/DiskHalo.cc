@@ -53,6 +53,7 @@ bool   DiskHalo::LOGR        = true;
 int    DiskHalo::NCHEB       = 8;
 bool   DiskHalo::CHEBY       = false;
 bool   DiskHalo::ALLOW       = false;
+bool   DiskHalo::use_mono    = true;
 
 unsigned DiskHalo::VFLAG     = 7;
 unsigned DiskHalo::NBUF      = 65568;
@@ -231,7 +232,6 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   // Generate "fake" profile
   //
   SphericalModelTable::even     = 0;
-  SphericalModelTable::linear   = 1;
   
   halo3 = std::make_shared<SphericalModelTable>(filename2, DIVERGE2, DIVERGE_RFAC2);
 
@@ -267,8 +267,9 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     (RNUM, r2.data(), d2.data(), m2.data(), p2.data(), DIVERGE2, DIVERGE_RFAC2);
   halo3->setup_df(NUMDF, RA);
   if (VFLAG & 2) {
-    halo3->print_model("diskhalo2_model.multi");
-    halo3->print_df("diskhalo2_df.multi");
+    halo3->print_model("diskhalo_model.multi");
+    halo3->print_model_eval("diskhalo_model_eval.multi", RNUM*5);
+    halo3->print_df("diskhalo_df.multi");
   }
     
   //
@@ -1231,6 +1232,7 @@ table_disk(vector<Particle>& part)
       R = RDMIN*exp(dR*j);
       x = R*cos(phi);
       y = R*sin(phi);
+      
       workR[j] = Xmin + dR*j;
 
 				// For epicyclic frequency
@@ -1243,10 +1245,15 @@ table_disk(vector<Particle>& part)
 
       
       workV(0, j) = log(RDMIN) + dR*j;
-				// Use monopole approximation for dPhi/dr
-      // workE[j] = odd2(workV[0][j], nrD, nhD, 1)/(R*R);
-				// Use basis evaluation (dPhi/dr)
-      workE[j]    = std::max<double>(-fr + dpr, 1.0e-20);
+				
+      if (use_mono) {
+	// Use monopole approximation for dPhi/dr
+	//
+	workE[j] = odd2(workV.row(0)[j], nrD, nhD, 1)/(R*R);
+      } else
+	// Use basis evaluation (dPhi/dr)
+	//
+	workE[j]    = std::max<double>(-fr + dpr, 1.0e-20);
 
       workV(1, j) = disk_surface_density(R);
 				// Sigma(R)*dPhi/dr*R
@@ -1500,7 +1507,7 @@ table_disk(vector<Particle>& part)
 
       out << setw(14) << r			// #1
 	  << setw(14) << epitable(0, j)		// #2
-	  << setw(14) << workR[j]		// #3
+	  << setw(14) << workE[j]		// #3
 	  << setw(14) << workQ[j]		// #4
 	  << setw(14) << workQ2[j]		// #5
 	  << setw(14) << workQ3[j]		// #6
