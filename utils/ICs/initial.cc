@@ -680,6 +680,8 @@ main(int ac, char **av)
      "Print a profile along the x axis for the halo reconstruction fields")
     ("allow",
      "No suppression of negative mass creation for multi-mass models")
+    ("spline",
+     "Use spline interpolation for SphericalModelTable rather than linear")
     ;
 
   po::variables_map vm;
@@ -797,6 +799,12 @@ main(int ac, char **av)
   //
   if (vm.count("newcache")) {
     EmpCylSL::NewCache = true;
+  }
+
+  if (vm.count("spline")) {
+    SphericalModelTable::linear = 0;
+  } else {
+    SphericalModelTable::linear = 1;
   }
 
   // Set EmpCylSL mtype.  This is the spherical function used to
