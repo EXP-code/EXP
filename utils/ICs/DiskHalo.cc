@@ -273,12 +273,11 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     halo3->print_df("diskhalo_df.multi");
   }
     
-  //
   // Generate the multimass model
   //
   multi = std::make_shared<SphericalModelMulti>(halo2, halo3);
   multi -> gen_tolE = TOLE;
-  rmodel->set_itmax(ITMAX);
+  multi -> set_itmax(ITMAX);
   if (ALLOW) multi -> allowNegativeMass();
 
   // For frequency computation
