@@ -39,6 +39,7 @@ int    DiskHalo::NDR         = 800;
 int    DiskHalo::NHR         = 800;
 int    DiskHalo::NHT         = 40;
 int    DiskHalo::SEED        = 11;
+int    DiskHalo::ITMAX       = 1000000;
 
 double DiskHalo::RA          = 1.0e20;
 int    DiskHalo::NUMDF       = 800;
@@ -276,6 +277,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   //
   multi = std::make_shared<SphericalModelMulti>(halo2, halo3);
   multi -> gen_tolE = TOLE;
+  rmodel->set_itmax(ITMAX);
   if (ALLOW) multi -> allowNegativeMass();
 
   // For frequency computation

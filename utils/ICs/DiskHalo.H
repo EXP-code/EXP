@@ -203,6 +203,8 @@ public:
 
   static int SEED;		// Initial seed
 
+  static int ITMAX;		// Maximum number of DF iterations
+
   static double RA;		// Anisotropy radius (default: 1e20)
 
   static int NUMDF;		// Number of DF grid points (default: 1200)

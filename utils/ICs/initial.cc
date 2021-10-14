@@ -432,6 +432,7 @@ main(int ac, char **av)
   bool         multi;
   bool         SVD;
   int          SEED;
+  int          itmax;
   bool         DENS;
   bool         basis;
   bool         zero;
@@ -669,6 +670,8 @@ main(int ac, char **av)
      "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),
      "Ignore any existing cache file and recompute the EOF")
+    ("itmax",           po::value<int>(&itmax),
+     "set maximum number of iterations in SphericalModelTableMulti in DiskHalo")
     ("newcache",
      "Use new YAML header version for EOF cache file")
     ("ortho",
@@ -954,6 +957,7 @@ main(int ac, char **av)
   DiskHalo::CHEBY       = CHEBY;
   DiskHalo::NCHEB       = NCHEB;
 
+  if (vm.count("itmax")) DiskHalo::ITMAX  = itmax;
   if (vm.count("allow")) DiskHalo::ALLOW  = true;
   if (suffix.size())     DiskHalo::RUNTAG = suffix;
   
