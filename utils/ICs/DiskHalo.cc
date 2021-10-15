@@ -274,7 +274,6 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     halo3->print_df("diskhalo_df.multi");
   }
     
-  //
   // Generate the multimass model
   //
   multi = std::make_shared<SphericalModelMulti>(halo2, halo3);
