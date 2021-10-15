@@ -161,8 +161,9 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   hDmin = log(max<double>(disk->get_min_radius(), RDMIN));
   hDmax = log(disk->get_max_radius());
   dRh = (hDmax - hDmin)/nh;
-  nhN = vector<unsigned>(nh+1, 0);
-  nhD = vector<double>  (nh+1, 0.0);
+  nhN = vector<unsigned>(nh+1, 0  ); // Counts per bin
+  nhD = vector<double>  (nh+1, 0.0); // Mass per bin
+  nhM = vector<double>  (nh+1, 0.0); // Cumulative mass
 }
 
 DiskHalo::
@@ -278,7 +279,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   //
   multi = std::make_shared<SphericalModelMulti>(halo2, halo3);
   multi -> gen_tolE = TOLE;
-  rmodel->set_itmax(ITMAX);
+  multi -> set_itmax(ITMAX);
   if (ALLOW) multi -> allowNegativeMass();
 
   // For frequency computation
@@ -286,8 +287,9 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   hDmin = log(max<double>(disk->get_min_radius(), RDMIN));
   hDmax = log(disk->get_max_radius());
   dRh   = (hDmax - hDmin)/nh;
-  nhN   = vector<unsigned>(nh+1, 0);
-  nhD   = vector<double>  (nh+1, 0.0);
+  nhN   = vector<unsigned>(nh+1, 0  ); // Counts per bin
+  nhD   = vector<double>  (nh+1, 0.0); // Mass per bin
+  nhM   = vector<double>  (nh+1, 0.0); // Cumulative mass
 }
 
 
@@ -1179,8 +1181,10 @@ table_disk(vector<Particle>& part)
   nzero = floor( (hDmin + nzero*dRh - log(RDMIN))/dR ) + 1;
   if (myid==0) std::cout << "Nzero=" << nzero << "/" << NDR << std::endl;
 
+				// X grid in log radius for mass
   for (int n=0; n<=nh; n++) nrD[n] = hDmin + dRh*n;
-  for (int n=1; n<=nh; n++) nhD[n] += nhD[n-1];
+  nhM[0] = nhD[0];		// Compute cumulative mass
+  for (int n=1; n<=nh; n++) nhM[n] = nhD[n] + nhM[n-1];
 
 				// Compute this table in parallel
 
@@ -1221,7 +1225,27 @@ table_disk(vector<Particle>& part)
 		<< std::endl;
   }
 
-  Cheby1d *cheb = 0, *cheb2 = 0;
+  std::shared_ptr<Cheby1d> cheb, cheb2, cheb3;
+
+				// Test cumulative mass evaluation
+  cheb3 = std::make_shared<Cheby1d>(nrD, nhM, 8); 
+
+  if (true and myid==0) {
+    std::ofstream tout("mass.debug");
+    if (tout) {
+      for (int i=0; i<nrD.size(); i++) {
+	tout << std::setw(16) << nrD[i]
+	     << std::setw(16) << nhD[i]
+	     << std::setw(16) << nhM[i]
+	     << std::setw(16) << cheb3->eval(nrD[i])
+	     << std::setw(16) << cheb3->integral(nrD[i])
+	     << std::endl;
+      }
+    } else {
+      std::cout << "DiskHalo: could not open test file <mass.debug>"
+		<< std::endl;
+    }
+  }
 
   // If numprocs>NDP, some processes will skip this loop
   //
@@ -1251,7 +1275,7 @@ table_disk(vector<Particle>& part)
       if (use_mono) {
 	// Use monopole approximation for dPhi/dr
 	//
-	workE[j] = odd2(workV.row(0)[j], nrD, nhD, 1)/(R*R);
+	workE[j] = odd2(workV.row(0)[j], nrD, nhM, 1)/(R*R);
       } else
 	// Use basis evaluation (dPhi/dr)
 	//
@@ -1365,13 +1389,13 @@ table_disk(vector<Particle>& part)
 	workQ2log[j] = log(workQ2[j]);
       }
 
-      cheb = new Cheby1d(workR, workQ2log, NCHEB);
+      cheb = std::make_shared<Cheby1d>(workR, workQ2log, NCHEB);
 
       for (int j=0; j<NDR; j++) {
 	workQ2smooth[j] = exp(cheb->eval(workR[j]));
       }
 #else
-      cheb = new Cheby1d(workR, workQ2, NCHEB);
+      cheb = std::make_shared<Cheby1d>(workR, workQ2, NCHEB);
 #endif
     }
 
@@ -1419,7 +1443,8 @@ table_disk(vector<Particle>& part)
       workV(4, j) = log(workV(1, j)*vr*vr);
     }
 
-    if (CHEBY) cheb2 = new Cheby1d(workV.row(0), workV.row(4), NCHEB);
+    if (CHEBY)
+      cheb2 = std::make_shared<Cheby1d>(workV.row(0), workV.row(4), NCHEB);
   
 
     Eigen::VectorXd Z(NDR);
@@ -1529,7 +1554,7 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << lhs			// #20
 	  << setw(14) << rhs			// #21
 	  << setw(14) << lhs - rhs		// #22
-	  << setw(14) << odd2(log(r), nrD, nhD) // #23  Enclosed mass
+	  << setw(14) << odd2(log(r), nrD, nhM, 1) // #23  Enclosed mass
 	  << setw(14) << epi(r, 0.0, 0.0)	// #24  Epi routine
 	  << std::endl;
     }
@@ -1617,9 +1642,6 @@ table_disk(vector<Particle>& part)
   }
 
   if (myid==0) std::cout << "[table] " << std::flush;
-
-  delete cheb;
-  delete cheb2;
 }
 
 

@@ -84,6 +84,7 @@ class DiskHalo
 				// Boundaries and delta
   double hDmin, hDmax, dRh;
   vector<double>   nhD;		// Mass in bins
+  vector<double>   nhM;		// Cumulative mass in bins
   vector<unsigned> nhN;		// Number in bins
   int nzero;			// Computed minimum mesh point
   int nzepi;			// Computed minimum epi value
