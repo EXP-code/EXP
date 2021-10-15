@@ -165,7 +165,8 @@ read(const std::string & datafilename, int xColumn, int fColumn)
 
 void 
 MonotCubicInterpolator::
-addPair(double newx, double newf) throw(const char*) {
+addPair(double newx, double newf)
+{
   if (isnan(newx) || isinf(newx) || isnan(newf) || isinf(newf)) {
     throw("MonotCubicInterpolator: addPair() received inf/nan input.");
   }
@@ -179,8 +180,8 @@ addPair(double newx, double newf) throw(const char*) {
 
    
 double 
-MonotCubicInterpolator::
-evaluate(double x) const throw(const char*){
+MonotCubicInterpolator::evaluate(double x) const
+{
 
   if (isnan(x) || isinf(x)) {
     throw("MonotCubicInterpolator: evaluate() received inf/nan input.");
@@ -300,11 +301,10 @@ toString() const
 }
 
 
-pair<double,double>
-MonotCubicInterpolator::
-getMissingX() const throw(const char*)
+std::pair<double,double>
+MonotCubicInterpolator::getMissingX() const
 {
-  if( data.size() < 2) {
+  if (data.size() < 2) {
     throw("MonotCubicInterpolator::getMissingX() only one datapoint."); 
   }
   
@@ -334,9 +334,9 @@ getMissingX() const throw(const char*)
 
 
 
-pair<double,double>
-MonotCubicInterpolator::
-getMaximumF() const throw(const char*) {
+std::pair<double,double>
+MonotCubicInterpolator::getMaximumF() const
+{
   if (data.size() <= 1) {
     throw ("MonotCubicInterpolator::getMaximumF() empty data.") ;
   }
@@ -357,9 +357,9 @@ getMaximumF() const throw(const char*) {
 }
 
 
-pair<double,double>
-MonotCubicInterpolator::
-getMinimumF() const throw(const char*) {
+std::pair<double,double>
+MonotCubicInterpolator::getMinimumF() const
+{
   if (data.size() <= 1) {
     throw ("MonotCubicInterpolator::getMinimumF() empty data.") ;
   }

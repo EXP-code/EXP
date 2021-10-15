@@ -165,4 +165,6 @@ public:
   double eval(const double& x, const double& y);
 };
 
+#include <MonotCubicInterpolator.H>
+
 #endif

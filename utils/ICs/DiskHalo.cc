@@ -23,8 +23,6 @@
 				// Local
 #include <AddDisk.H>
 #include <DiskHalo.H>
-#include <MonotCubicInterpolator.H>
-
 				// Grid parameters and Toomre Q
 double DiskHalo::RHMIN       = 1.0e-4;
 double DiskHalo::RHMAX       = 50.0;
