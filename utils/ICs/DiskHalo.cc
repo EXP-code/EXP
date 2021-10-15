@@ -23,6 +23,7 @@
 				// Local
 #include <AddDisk.H>
 #include <DiskHalo.H>
+#include <MonotCubicInterpolator.H>
 
 				// Grid parameters and Toomre Q
 double DiskHalo::RHMIN       = 1.0e-4;
@@ -1224,10 +1225,10 @@ table_disk(vector<Particle>& part)
 		<< std::endl;
   }
 
-  std::shared_ptr<Cheby1d> cheb, cheb2, cheb3;
+  std::shared_ptr<Cheby1d> cheb, cheb2;
 
 				// Test cumulative mass evaluation
-  cheb3 = std::make_shared<Cheby1d>(nrD, nhM, 8); 
+  MonotCubicInterpolator monoT(nrD, nhM); 
 
   if (true and myid==0) {
     std::ofstream tout("mass.debug");
@@ -1236,8 +1237,7 @@ table_disk(vector<Particle>& part)
 	tout << std::setw(16) << nrD[i]
 	     << std::setw(16) << nhD[i]
 	     << std::setw(16) << nhM[i]
-	     << std::setw(16) << cheb3->eval(nrD[i])
-	     << std::setw(16) << cheb3->integral(nrD[i])
+	     << std::setw(16) << monoT.evaluate(nrD[i])
 	     << std::endl;
       }
     } else {
@@ -1274,7 +1274,8 @@ table_disk(vector<Particle>& part)
       if (use_mono) {
 	// Use monopole approximation for dPhi/dr
 	//
-	workE[j] = odd2(workV.row(0)[j], nrD, nhM, 1)/(R*R);
+	workE[j] = monoT.evaluate(workV.row(0)[j])/(R*R);
+
       } else
 	// Use basis evaluation (dPhi/dr)
 	//

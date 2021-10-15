@@ -30,7 +30,8 @@ add_executable(gensph gensph.cc SphericalSL.cc EllipForce.cc
 target_link_libraries(gensph fftw3)
 
 add_executable(gendisk initial.cc DiskHalo.cc SphericalSL.cc
-  legendre.cc SParticle.cc ddplgndr.cc sinecosine.cc AddDisk.cc)
+  legendre.cc SParticle.cc ddplgndr.cc sinecosine.cc AddDisk.cc
+  MonotCubicInterpolator.cc)
 
 add_executable(gsphere bonnerebert.cc)
 

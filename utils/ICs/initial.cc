@@ -682,6 +682,8 @@ main(int ac, char **av)
      "No suppression of negative mass creation for multi-mass models")
     ("spline",
      "Use spline interpolation for SphericalModelTable rather than linear")
+    ("nomono",
+     "Use the basis, not the monopole, for computing the epicyclic frequency")
     ;
 
   po::variables_map vm;
@@ -965,9 +967,10 @@ main(int ac, char **av)
   DiskHalo::CHEBY       = CHEBY;
   DiskHalo::NCHEB       = NCHEB;
 
-  if (vm.count("itmax")) DiskHalo::ITMAX  = itmax;
-  if (vm.count("allow")) DiskHalo::ALLOW  = true;
-  if (suffix.size())     DiskHalo::RUNTAG = suffix;
+  if (vm.count("itmax"))  DiskHalo::ITMAX    = itmax;
+  if (vm.count("allow"))  DiskHalo::ALLOW    = true;
+  if (vm.count("nomono")) DiskHalo::use_mono = false;
+  if (suffix.size())      DiskHalo::RUNTAG   = suffix;
   
   AddDisk::use_mpi      = true;
   AddDisk::Rmin         = RMIN;
