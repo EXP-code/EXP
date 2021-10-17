@@ -1,3 +1,4 @@
+pkg_check_modules(TIRPC libtirpc)
 
 set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp tipstd2psp
   psp2histo psp2histo1d psp2histo1D2 psp2histoE psp2histoH pspreal
@@ -59,3 +60,8 @@ foreach(program ${bin_PROGRAMS})
   target_include_directories(${program} PUBLIC ${common_INCLUDE})
   install(TARGETS ${program} DESTINATION bin)
 endforeach()
+
+target_link_libraries(tipstd2psp ${TIRPC_LIBRARIES})
+include_directories(tipstd2psp ${TIRPC_INCLUDE_DIRS})
+
+
