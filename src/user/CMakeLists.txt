@@ -1,11 +1,12 @@
 
 set(USER_MODULES user bar ebar logpot disk ebarp halo ebars ebarn
-  periodic atmos reflect trigger mndisk tidalrad massevo addmass )
+  periodic atmos reflect trigger mndisk tidalrad massevo addmass sat
+  satfix)
 
 if (ENABLE_USER_ALL)
-  list(APPEND USER_MODULES diffuse torque sat satfix diffrot respot
-    respotn respotorb rptest wake atmos satwake pst userslab shear
-    snheat profile)
+  list(APPEND USER_MODULES diffuse torque diffrot respot respotn
+    respotorb rptest wake atmos satwake pst userslab shear snheat
+    profile)
 endif()
 
 
