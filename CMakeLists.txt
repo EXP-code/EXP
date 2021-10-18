@@ -49,6 +49,12 @@ if(ENABLE_CUDA)
 endif()
 find_package(PNG)
 
+# Check for Sun rpc support
+include(CheckIncludeFile)
+include(FindPkgConfig)
+pkg_check_modules(TIRPC libtirpc)
+check_include_file("rpc/types.h" HAVE_RPC_TYPES)
+
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 set(DEP_LIB ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
@@ -79,6 +85,12 @@ if(ENABLE_DSMC)
 endif()
 if(ENABLE_CUDA_SINGLE)
   add_compile_definitions(O_SINGLE=1)
+endif()
+if(TIRPC_FOUND)
+  set(HAVE_XDR TRUE)
+endif()
+if(HAVE_RPC_TYPES)
+  set(HAVE_XDR TRUE)
 endif()
 
 # For setting the default size of the Cuda real attribute array

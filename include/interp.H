@@ -79,8 +79,9 @@ private:
   std::vector<double> c1;
   std::vector<double> c2;
   
-  void chder(std::vector<double>& cin, std::vector<double>& cder);
+  void   chder(std::vector<double>& cin, std::vector<double>& cder);
   double chebev(double x, std::vector<double>& cin);
+  double chebint(double x);
 
   bool defined;
 
@@ -98,9 +99,11 @@ public:
   ~Cheby1d();
 
   double eval(const double& x)
-  {if (defined) return chebev(x, c); else bomb("no data!"); return 0.0;}
+  {if (defined) return chebev(x, c);  else bomb("no data!"); return 0.0;}
   double deriv(const double& x)
   {if (defined) return chebev(x, c1); else bomb("no data!"); return 0.0;}
+  double integral(const double& x)
+  {if (defined) return chebint(x);    else bomb("no data!"); return 0.0;}
 
 				// New member functions
 
@@ -161,5 +164,7 @@ public:
 
   double eval(const double& x, const double& y);
 };
+
+#include <MonotCubicInterpolator.H>
 
 #endif

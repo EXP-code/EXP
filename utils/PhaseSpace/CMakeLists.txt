@@ -1,11 +1,15 @@
 
-set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp tipstd2psp
-  psp2histo psp2histo1d psp2histo1D2 psp2histoE psp2histoH pspreal
-  pspstatS psp2range psp2histoT psp2histoTC pspstatT spl2psp
-  ascii2psp2 psp2rings psp2bess psp2lagu psp2interp)
+set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp psp2histo
+  psp2histo1d psp2histo1D2 psp2histoE psp2histoH pspreal pspstatS
+  psp2range psp2histoT psp2histoTC pspstatT spl2psp ascii2psp2
+  psp2rings psp2bess psp2lagu psp2interp)
 		
 if(HAVE_VTK)
   list(APPEND bin_PROGRAMS psp2eHisto psp2vtu)
+endif()
+
+if(HAVE_XDR)
+  list(APPEND bin_PROGRAMS tipstd2psp)
 endif()
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
@@ -59,3 +63,8 @@ foreach(program ${bin_PROGRAMS})
   target_include_directories(${program} PUBLIC ${common_INCLUDE})
   install(TARGETS ${program} DESTINATION bin)
 endforeach()
+
+target_link_libraries(tipstd2psp ${TIRPC_LIBRARIES})
+include_directories(tipstd2psp ${TIRPC_INCLUDE_DIRS})
+
+

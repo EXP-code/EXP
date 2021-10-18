@@ -23,7 +23,6 @@
 				// Local
 #include <AddDisk.H>
 #include <DiskHalo.H>
-
 				// Grid parameters and Toomre Q
 double DiskHalo::RHMIN       = 1.0e-4;
 double DiskHalo::RHMAX       = 50.0;
@@ -39,6 +38,7 @@ int    DiskHalo::NDR         = 800;
 int    DiskHalo::NHR         = 800;
 int    DiskHalo::NHT         = 40;
 int    DiskHalo::SEED        = 11;
+int    DiskHalo::ITMAX       = 1000000;
 
 double DiskHalo::RA          = 1.0e20;
 int    DiskHalo::NUMDF       = 800;
@@ -53,6 +53,7 @@ bool   DiskHalo::LOGR        = true;
 int    DiskHalo::NCHEB       = 8;
 bool   DiskHalo::CHEBY       = false;
 bool   DiskHalo::ALLOW       = false;
+bool   DiskHalo::use_mono    = true;
 
 unsigned DiskHalo::VFLAG     = 7;
 unsigned DiskHalo::NBUF      = 65568;
@@ -159,8 +160,9 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   hDmin = log(max<double>(disk->get_min_radius(), RDMIN));
   hDmax = log(disk->get_max_radius());
   dRh = (hDmax - hDmin)/nh;
-  nhN = vector<unsigned>(nh+1, 0);
-  nhD = vector<double>  (nh+1, 0.0);
+  nhN = vector<unsigned>(nh+1, 0  ); // Counts per bin
+  nhD = vector<double>  (nh+1, 0.0); // Mass per bin
+  nhM = vector<double>  (nh+1, 0.0); // Cumulative mass
 }
 
 DiskHalo::
@@ -231,7 +233,6 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   // Generate "fake" profile
   //
   SphericalModelTable::even     = 0;
-  SphericalModelTable::linear   = 1;
   
   halo3 = std::make_shared<SphericalModelTable>(filename2, DIVERGE2, DIVERGE_RFAC2);
 
@@ -267,15 +268,16 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     (RNUM, r2.data(), d2.data(), m2.data(), p2.data(), DIVERGE2, DIVERGE_RFAC2);
   halo3->setup_df(NUMDF, RA);
   if (VFLAG & 2) {
-    halo3->print_model("diskhalo2_model.multi");
-    halo3->print_df("diskhalo2_df.multi");
+    halo3->print_model("diskhalo_model.multi");
+    halo3->print_model_eval("diskhalo_model_eval.multi", RNUM*5);
+    halo3->print_df("diskhalo_df.multi");
   }
     
-  //
   // Generate the multimass model
   //
   multi = std::make_shared<SphericalModelMulti>(halo2, halo3);
   multi -> gen_tolE = TOLE;
+  multi -> set_itmax(ITMAX);
   if (ALLOW) multi -> allowNegativeMass();
 
   // For frequency computation
@@ -283,8 +285,9 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   hDmin = log(max<double>(disk->get_min_radius(), RDMIN));
   hDmax = log(disk->get_max_radius());
   dRh   = (hDmax - hDmin)/nh;
-  nhN   = vector<unsigned>(nh+1, 0);
-  nhD   = vector<double>  (nh+1, 0.0);
+  nhN   = vector<unsigned>(nh+1, 0  ); // Counts per bin
+  nhD   = vector<double>  (nh+1, 0.0); // Mass per bin
+  nhM   = vector<double>  (nh+1, 0.0); // Cumulative mass
 }
 
 
@@ -1176,8 +1179,10 @@ table_disk(vector<Particle>& part)
   nzero = floor( (hDmin + nzero*dRh - log(RDMIN))/dR ) + 1;
   if (myid==0) std::cout << "Nzero=" << nzero << "/" << NDR << std::endl;
 
+				// X grid in log radius for mass
   for (int n=0; n<=nh; n++) nrD[n] = hDmin + dRh*n;
-  for (int n=1; n<=nh; n++) nhD[n] += nhD[n-1];
+  nhM[0] = nhD[0];		// Compute cumulative mass
+  for (int n=1; n<=nh; n++) nhM[n] = nhD[n] + nhM[n-1];
 
 				// Compute this table in parallel
 
@@ -1218,7 +1223,26 @@ table_disk(vector<Particle>& part)
 		<< std::endl;
   }
 
-  Cheby1d *cheb = 0, *cheb2 = 0;
+  std::shared_ptr<Cheby1d> cheb, cheb2;
+
+				// Test cumulative mass evaluation
+  MonotCubicInterpolator monoT(nrD, nhM); 
+
+  if (true and myid==0) {
+    std::ofstream tout("mass.debug");
+    if (tout) {
+      for (int i=0; i<nrD.size(); i++) {
+	tout << std::setw(16) << nrD[i]
+	     << std::setw(16) << nhD[i]
+	     << std::setw(16) << nhM[i]
+	     << std::setw(16) << monoT.evaluate(nrD[i])
+	     << std::endl;
+      }
+    } else {
+      std::cout << "DiskHalo: could not open test file <mass.debug>"
+		<< std::endl;
+    }
+  }
 
   // If numprocs>NDP, some processes will skip this loop
   //
@@ -1231,6 +1255,7 @@ table_disk(vector<Particle>& part)
       R = RDMIN*exp(dR*j);
       x = R*cos(phi);
       y = R*sin(phi);
+      
       workR[j] = Xmin + dR*j;
 
 				// For epicyclic frequency
@@ -1243,10 +1268,16 @@ table_disk(vector<Particle>& part)
 
       
       workV(0, j) = log(RDMIN) + dR*j;
-				// Use monopole approximation for dPhi/dr
-      // workE[j] = odd2(workV[0][j], nrD, nhD, 1)/(R*R);
-				// Use basis evaluation (dPhi/dr)
-      workE[j]    = std::max<double>(-fr + dpr, 1.0e-20);
+				
+      if (use_mono) {
+	// Use monopole approximation for dPhi/dr
+	//
+	workE[j] = monoT.evaluate(workV.row(0)[j])/(R*R);
+
+      } else
+	// Use basis evaluation (dPhi/dr)
+	//
+	workE[j]    = std::max<double>(-fr + dpr, 1.0e-20);
 
       workV(1, j) = disk_surface_density(R);
 				// Sigma(R)*dPhi/dr*R
@@ -1356,13 +1387,13 @@ table_disk(vector<Particle>& part)
 	workQ2log[j] = log(workQ2[j]);
       }
 
-      cheb = new Cheby1d(workR, workQ2log, NCHEB);
+      cheb = std::make_shared<Cheby1d>(workR, workQ2log, NCHEB);
 
       for (int j=0; j<NDR; j++) {
 	workQ2smooth[j] = exp(cheb->eval(workR[j]));
       }
 #else
-      cheb = new Cheby1d(workR, workQ2, NCHEB);
+      cheb = std::make_shared<Cheby1d>(workR, workQ2, NCHEB);
 #endif
     }
 
@@ -1410,7 +1441,8 @@ table_disk(vector<Particle>& part)
       workV(4, j) = log(workV(1, j)*vr*vr);
     }
 
-    if (CHEBY) cheb2 = new Cheby1d(workV.row(0), workV.row(4), NCHEB);
+    if (CHEBY)
+      cheb2 = std::make_shared<Cheby1d>(workV.row(0), workV.row(4), NCHEB);
   
 
     Eigen::VectorXd Z(NDR);
@@ -1500,7 +1532,7 @@ table_disk(vector<Particle>& part)
 
       out << setw(14) << r			// #1
 	  << setw(14) << epitable(0, j)		// #2
-	  << setw(14) << workR[j]		// #3
+	  << setw(14) << workE[j]		// #3
 	  << setw(14) << workQ[j]		// #4
 	  << setw(14) << workQ2[j]		// #5
 	  << setw(14) << workQ3[j]		// #6
@@ -1520,7 +1552,7 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << lhs			// #20
 	  << setw(14) << rhs			// #21
 	  << setw(14) << lhs - rhs		// #22
-	  << setw(14) << odd2(log(r), nrD, nhD) // #23  Enclosed mass
+	  << setw(14) << odd2(log(r), nrD, nhM, 1) // #23  Enclosed mass
 	  << setw(14) << epi(r, 0.0, 0.0)	// #24  Epi routine
 	  << std::endl;
     }
@@ -1608,9 +1640,6 @@ table_disk(vector<Particle>& part)
   }
 
   if (myid==0) std::cout << "[table] " << std::flush;
-
-  delete cheb;
-  delete cheb2;
 }
 
 

@@ -432,6 +432,7 @@ main(int ac, char **av)
   bool         multi;
   bool         SVD;
   int          SEED;
+  int          itmax;
   bool         DENS;
   bool         basis;
   bool         zero;
@@ -669,6 +670,8 @@ main(int ac, char **av)
      "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),
      "Ignore any existing cache file and recompute the EOF")
+    ("itmax",           po::value<int>(&itmax),
+     "set maximum number of iterations in SphericalModelTableMulti in DiskHalo")
     ("newcache",
      "Use new YAML header version for EOF cache file")
     ("ortho",
@@ -677,6 +680,10 @@ main(int ac, char **av)
      "Print a profile along the x axis for the halo reconstruction fields")
     ("allow",
      "No suppression of negative mass creation for multi-mass models")
+    ("spline",
+     "Use spline interpolation for SphericalModelTable rather than linear")
+    ("nomono",
+     "Use the basis, not the monopole, for computing the epicyclic frequency")
     ;
 
   po::variables_map vm;
@@ -794,6 +801,12 @@ main(int ac, char **av)
   //
   if (vm.count("newcache")) {
     EmpCylSL::NewCache = true;
+  }
+
+  if (vm.count("spline")) {
+    SphericalModelTable::linear = 0;
+  } else {
+    SphericalModelTable::linear = 1;
   }
 
   // Set EmpCylSL mtype.  This is the spherical function used to
@@ -954,8 +967,10 @@ main(int ac, char **av)
   DiskHalo::CHEBY       = CHEBY;
   DiskHalo::NCHEB       = NCHEB;
 
-  if (vm.count("allow")) DiskHalo::ALLOW  = true;
-  if (suffix.size())     DiskHalo::RUNTAG = suffix;
+  if (vm.count("itmax"))  DiskHalo::ITMAX    = itmax;
+  if (vm.count("allow"))  DiskHalo::ALLOW    = true;
+  if (vm.count("nomono")) DiskHalo::use_mono = false;
+  if (suffix.size())      DiskHalo::RUNTAG   = suffix;
   
   AddDisk::use_mpi      = true;
   AddDisk::Rmin         = RMIN;

@@ -78,12 +78,13 @@ class DiskHalo
   // For frequency computation
   //
 				// Number of mass and number bins, log spaced
-  static const unsigned nh = 200;
+  static const unsigned nh = 50;
 				// Minimum number on grid before computing
   static const unsigned mh = 5;
 				// Boundaries and delta
   double hDmin, hDmax, dRh;
   vector<double>   nhD;		// Mass in bins
+  vector<double>   nhM;		// Cumulative mass in bins
   vector<unsigned> nhN;		// Number in bins
   int nzero;			// Computed minimum mesh point
   int nzepi;			// Computed minimum epi value
@@ -202,6 +203,12 @@ public:
 				// multimass model
 
   static int SEED;		// Initial seed
+
+
+  static int ITMAX;		// Maximum number of DF iterations
+
+  static bool use_mono;	        // Use monopole approximation for
+				// computing total d(phi)/dr
 
   static double RA;		// Anisotropy radius (default: 1e20)
 

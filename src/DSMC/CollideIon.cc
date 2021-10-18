@@ -15133,13 +15133,11 @@ NTC::InteractD CollideIon::generateSelectionTraceMeanMass
 
     // Make commulative cross section for particle pair selection
     //
-    if (mean_mass) {
-      cseccum[id][v.first].clear();
-      for (auto u : cseccache[id][v.first])
-	cseccum[id][v.first].push_back(std::get<0>(u));
-      for (int i=1; i<cseccum[id][v.first].size(); i++)
-	cseccum[id][v.first][i] += cseccum[id][v.first][i-1];
-    }
+    cseccum[id][v.first].clear();
+    for (auto u : cseccache[id][v.first])
+      cseccum[id][v.first].push_back(std::get<0>(u));
+    for (int i=1; i<cseccum[id][v.first].size(); i++)
+      cseccum[id][v.first][i] += cseccum[id][v.first][i-1];
 
 #ifdef XC_DEEP5
     auto TT = std::get<0>(v.first);
@@ -15152,6 +15150,30 @@ NTC::InteractD CollideIon::generateSelectionTraceMeanMass
 #endif
 
   }
+
+#ifdef XC_DEEP14
+  std::cout << std::string(58, '-') << std::endl
+	    << std::setw(20) << "Interaction"
+	    << std::setw( 6) << "Z1"
+	    << std::setw( 6) << "C1"
+	    << std::setw( 6) << "Z2"
+	    << std::setw( 6) << "C2"
+	    << std::setw(14) << "#" << std::endl
+	    << std::string(58, '-') << std::endl;
+  for (auto & v : selcM.v) {
+    auto TT = std::get<0>(v.first);
+    auto p1 = std::get<1>(v.first);
+    auto p2 = std::get<2>(v.first);
+    std::cout << std::setw(20) << interLabels[TT]
+	      << std::setw( 6) << p1.first
+	      << std::setw( 6) << p1.second
+	      << std::setw( 6) << p2.first
+	      << std::setw( 6) << p2.second
+	      << std::setw(14) << v.second()
+	      << std::endl;
+  }
+  std::cout << std::string(58, '-') << std::endl;
+#endif
 
   colCf[id] = 1.0;
 

@@ -437,6 +437,62 @@ void SphericalModelTable::print_model(char const *name)
 
 }
 
+void SphericalModelTable::print_model_eval(char const *name, int number)
+{
+  ofstream out(name);
+  if (!out) {
+    cerr << "Couldn't open <" << name << "\n";
+    return;
+  }
+
+  out.setf(ios::left);
+
+  out << "# ModelID=" << ModelID << std::endl;
+  out << std::setw(22) << "# Radius" 
+      << std::setw(22) << "Density" 
+      << std::setw(22) << "Mass" 
+      << std::setw(22) << "Potential" 
+      << std::setw(22) << "Derivative" 
+      << std::setw(22) << "Monopole" 
+      << std::endl;
+
+  char c = out.fill('-');
+  out << std::setw(22) << "# [1]"
+      << std::setw(22) << "| [2]"
+      << std::setw(22) << "| [3]"
+      << std::setw(22) << "| [4]"
+      << std::setw(22) << "| [5]"
+      << std::setw(22) << "| [6]"
+      << std::endl;
+  out.fill(c);
+
+  double rmin = density.x[0];
+  double rmax = density.x[density.x.size()-1];
+
+  bool logscale = false;
+  if (rmin>0.0) {
+    logscale = true;
+    rmin = log(rmin);
+    rmax = log(rmax);
+  }
+
+  double dr   = (rmax - rmin)/(number - 1);
+
+  out << setprecision(12) << scientific;
+  for (int i=0; i<number; i++) {
+    double r = rmin + dr*i;
+    if (logscale) r = exp(r);
+    out << std::setw(22) << r
+	<< std::setw(22) << get_density(r)
+	<< std::setw(22) << get_mass(r)
+	<< std::setw(22) << get_pot(r)
+	<< std::setw(22) << get_dpot(r)
+	<< std::setw(22) << get_mass(r)/(r*r)
+	<< std::endl;
+  }
+
+}
+
 
 void EmbeddedDiskModel::verbose_df(void)
 {
