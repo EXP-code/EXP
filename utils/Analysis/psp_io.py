@@ -73,7 +73,7 @@ class Input():
         # auto-determine the file type
         if 'SPL.' in filename:
             self.style = 'SPL'
-        elif 'OUT.':
+        elif 'OUT.' in filename:
             self.style = 'OUT'
         else:
             self.style = 'unknown'
