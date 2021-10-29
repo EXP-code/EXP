@@ -504,11 +504,15 @@ SLGridCyl::~SLGridCyl()
 
 double SLGridCyl::r_to_xi(double r)
 {
+  if (r<0.0) {
+    std::ostringstream ostr;
+    ostr << "radius=" << r << " < 0!";
+    bomb(ostr.str());
+  }
+
   if (cmap) {
-    if (r<0.0) bomb("radius < 0!");
     return (r/scale-1.0)/(r/scale+1.0);
   } else {
-    if (r<0.0) bomb("radius < 0!");
     return r;
   }
 }
@@ -516,8 +520,17 @@ double SLGridCyl::r_to_xi(double r)
 double SLGridCyl::xi_to_r(double xi)
 {
   if (cmap) {
-    if (xi<-1.0) bomb("xi < -1!");
-    if (xi>=1.0) bomb("xi >= 1!");
+    if (xi<-1.0) {
+      std::ostringstream ostr;
+      ostr << "xi=" << xi << " < -1!";
+      bomb(ostr.str());
+    }
+
+    if (xi>=1.0) {
+      std::ostringstream ostr;
+      ostr << "xi=" << xi << " >= 1!";
+      bomb(ostr.str());
+    }
 
     return (1.0+xi)/(1.0 - xi) * scale;
   } else {
@@ -529,9 +542,18 @@ double SLGridCyl::xi_to_r(double xi)
 double SLGridCyl::d_xi_to_r(double xi)
 {
   if (cmap) {
-    if (xi<-1.0) bomb("xi < -1!");
-    if (xi>=1.0) bomb("xi >= 1!");
+    if (xi<-1.0) {
+      std::ostringstream ostr;
+      ostr << "xi=" << xi << " < -1!";
+      bomb(ostr.str());
+    }
 
+    if (xi>=1.0) {
+      std::ostringstream ostr;
+      ostr << "xi=" << xi << " >= 1!";
+      bomb(ostr.str());
+    }
+    
     return 0.5*(1.0-xi)*(1.0-xi)/scale;
   } else {
     return 1.0;

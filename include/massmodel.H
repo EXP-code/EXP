@@ -157,7 +157,6 @@ public:
   static double gen_rmin;
   static double gen_kmin;
   static double gen_tolE, gen_tolK;
-  static unsigned int gen_seed;
   //@}
   
   //! The distribution is defined and computed
@@ -175,9 +174,6 @@ public:
   //! Destructor
   virtual ~AxiSymModel() {}
   
-  //! Set the random number seed
-  void set_seed(int s)  { gen_seed = s;}
-
   //! Maximum number of iterations for obtaining a valid variate
   void set_itmax(int s) { gen_itmax = s;}
   

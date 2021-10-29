@@ -61,7 +61,6 @@ double   AxiSymModel::gen_tolK  = 0.02;
 double   AxiSymModel::gen_rmin  = 0.0;
 int      AxiSymModel::gen_logr  = 1;
 double   AxiSymModel::gen_kmin  = 0.0;
-uint32_t AxiSymModel::gen_seed  = 11;
 int      AxiSymModel::gen_itmax = 20000;
 
 const bool verbose = true;
