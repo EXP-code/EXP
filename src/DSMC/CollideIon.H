@@ -578,6 +578,10 @@ private:
 
   //@}
 
+  //! Trace maximum first pass interaction mass ('hardwired' but could
+  //! be a variable in the future)
+  const int traceZ = 3;
+
   //! This defines the various types of interactions used to tag
   //! non-zero cross sections and subsequent interaction processing
   enum InterTypes { 
@@ -1607,6 +1611,10 @@ protected:
 
   //! Compute the interaction for the TraceAccum method
   void accumTraceScatter(pCell* const c, int id);
+
+  //! Spread inactive energy loss to entire cell for elements with Z >
+  //! traceZ
+  void spreadTraceEnergy(pCell* const c, int id);
 
   //! For deep debugging
   void KEcheck(PordPtr pp, double& KE_initl_check,
