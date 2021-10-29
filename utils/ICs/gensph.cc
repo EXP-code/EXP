@@ -410,7 +410,7 @@ main(int argc, char **argv)
   
   if (EBAR) {
     
-    if (myid==0) cout << "-----------" << endl;
+    if (myid==0) cout << "-----------" << std::endl;
     auto ellip = std::make_shared<EllipForce>
       (RBAR, RBAR*BRATIO, RBAR*BRATIO*CRATIO, MBAR, NUMINT, 200);
     
@@ -452,12 +452,12 @@ main(int argc, char **argv)
 	b[indx] = exp( -z*z/(2.0*SMOOTH*SMOOTH)) / sqrt(2.0*M_PI*SMOOTH*SMOOTH);
 	
 	if (myid==0)
-	  tin << setw(10) << indx
-	      << setw(20) << x
-	      << setw(20) << a[indx]
-	      << setw(20) << z
-	      << setw(20) << b[indx]
-	      << endl;
+	  tin << std::setw(10) << indx
+	      << std::setw(20) << x
+	      << std::setw(20) << a[indx]
+	      << std::setw(20) << z
+	      << std::setw(20) << b[indx]
+	      << std::endl;
       }
       
       fftw_execute(pa);
@@ -490,10 +490,10 @@ main(int argc, char **argv)
 	  mm[i] = (1.0 - fac)*y + fac*c[i-1];
 	
 	if (myid==0)
-	  tout << setw(20) << x
-	       << setw(20) << y
-	       << setw(20) << mm[i]
-	       << endl;
+	  tout << std::setw(20) << x
+	       << std::setw(20) << y
+	       << std::setw(20) << mm[i]
+	       << std::endl;
       }
       
       fftw_destroy_plan(pa);
@@ -549,22 +549,22 @@ main(int argc, char **argv)
       if (outmod) {
 	outmod.setf(ios::scientific);
 	outmod.precision(11);
-	outmod << "# Internal model with ellip" << endl;
-	outmod << RNUM << endl;
+	outmod << "# Internal model with ellip" << std::endl;
+	outmod << RNUM << std::endl;
 	for (int i=0; i<RNUM; i++) {
 	  if (LOGR)
 	    r = rmin*exp(dr*i);
 	  else
 	    r = rmin + dr*i;
 	  
-	  outmod << setw(20) << r2[i]
-		 << setw(20) << d2[i]
-		 << setw(20) << m2[i]
-		 << setw(20) << p2[i]
-		 << endl;
+	  outmod << std::setw(20) << r2[i]
+		 << std::setw(20) << d2[i]
+		 << std::setw(20) << m2[i]
+		 << std::setw(20) << p2[i]
+		 << std::endl;
 	}
       } else {
-	cerr << "Error opening <" << mname << endl;
+	cerr << "Error opening <" << mname << std::endl;
       }
     }
     
@@ -620,8 +620,8 @@ main(int argc, char **argv)
       }
       
       if (VERBOSE and myid==0)
-	cout << "-----------" << endl
-	     << "Mass (computed)=" << mt2[RNUM-1] << endl;
+	cout << "-----------" << std::endl
+	     << "Mass (computed)=" << mt2[RNUM-1] << std::endl;
     }
     
     for (int i=0; i<RNUM; i++) {
@@ -660,22 +660,22 @@ main(int argc, char **argv)
       if (outmod) {
 	outmod.setf(ios::scientific);
 	outmod.precision(11);
-	outmod << "# Internal multimass model" << endl;
-	outmod << RNUM << endl;
+	outmod << "# Internal multimass model" << std::endl;
+	outmod << RNUM << std::endl;
 	for (int i=0; i<RNUM; i++) {
 	  if (LOGR)
 	    r = rmin*exp(dr*i);
 	  else
 	    r = rmin + dr*i;
 	  
-	  outmod << setw(20) << r
-		 << setw(20) << mmmodel->get_density(r)
-		 << setw(20) << mmmodel->get_mass(r)
-		 << setw(20) << mmmodel->get_pot(r)
-		 << endl;
+	  outmod << std::setw(20) << r
+		 << std::setw(20) << mmmodel->get_density(r)
+		 << std::setw(20) << mmmodel->get_mass(r)
+		 << std::setw(20) << mmmodel->get_pot(r)
+		 << std::endl;
 	}
       } else {
-	cerr << "Error opening <" << mname << endl;
+	cerr << "Error opening <" << mname << std::endl;
       }
     }
     
@@ -699,22 +699,22 @@ main(int argc, char **argv)
     if (outmod) {
       outmod.setf(ios::scientific);
       outmod.precision(11);
-      outmod << "# Internal model" << endl;
-      outmod << RNUM << endl;
+      outmod << "# Internal model" << std::endl;
+      outmod << RNUM << std::endl;
       for (int i=0; i<RNUM; i++) {
 	if (LOGR)
 	  r = rmin*exp(dr*i);
 	else
 	  r = rmin + dr*i;
 	
-	outmod << setw(20) << r
-	       << setw(20) << rmodel->get_density(r)
-	       << setw(20) << rmodel->get_mass(r)
-	       << setw(20) << rmodel->get_pot(r)
-	       << endl;
+	outmod << std::setw(20) << r
+	       << std::setw(20) << rmodel->get_density(r)
+	       << std::setw(20) << rmodel->get_mass(r)
+	       << std::setw(20) << rmodel->get_pot(r)
+	       << std::endl;
       }
     } else {
-      cerr << "Error opening <" << OUTFILE << endl;
+      std::cerr << "Error opening <" << OUTFILE << std::endl;
     }
     
   }
@@ -731,9 +731,9 @@ main(int argc, char **argv)
   ps0[6] = W0;
   
   if (myid==0) {
-    if (PSP) out << setw(8) << N
-		 << setw(6) << NI << setw(6) << ND << endl;
-    else     out << setw(8) << N << setw(15) << 0.0 << endl;
+    if (PSP) out << std::setw(8) << N
+		 << std::setw(6) << NI << std::setw( 6) << ND  << std::endl;
+    else     out << std::setw(8) << N  << std::setw(15) << 0.0 << std::endl;
   }
   
   // Diagnostic variables
@@ -742,8 +742,8 @@ main(int argc, char **argv)
   double TT=0.0, WW=0.0, VC=0.0;
   
   if (myid==0)
-    cout << "-----------" << endl
-	 << "Body count:" << endl;
+    std::cout << "-----------" << std::endl
+	      << "Body count:" << std::endl;
   
   int npernode = N/numprocs;
   int beg = myid*npernode;
@@ -787,19 +787,19 @@ main(int argc, char **argv)
       if (zerovel) for (int i=4; i<7; i++) zz[i] -= ps[0]*ps[i];
     }
     else {
-      out << setw(20) << mass * ps[0];
-      for (int i=1; i<=6; i++) out << setw(20) << ps[i]+ps0[i];
+      out << std::setw(20) << mass * ps[0];
+      for (int i=1; i<=6; i++) out << std::setw(20) << ps[i]+ps0[i];
     
       if (PSP) {
 	if (NI) {
-	  for (int n=0; n<NI; n++) out << setw(10) << 0;
+	  for (int n=0; n<NI; n++) out << std::setw(10) << 0;
 	}
 	if (ND) {
-	  for (int n=0; n<ND; n++) out << setw(20) << 0.0;
+	  for (int n=0; n<ND; n++) out << std::setw(20) << 0.0;
 	}
       }
     
-      out << endl;
+      out << std::endl;
     }
     
     if (myid==0 and !((n+1)%NREPORT)) cout << '\r' << (n+1)*numprocs << flush;
@@ -812,19 +812,19 @@ main(int argc, char **argv)
     }
 
     for (auto ps : PS) {
-      out << setw(20) << ps[0];
-      for (int i=1; i<=6; i++) out << setw(20) << ps[i]+ps0[i];
+      out << std::setw(20) << ps[0];
+      for (int i=1; i<=6; i++) out << std::setw(20) << ps[i]+ps0[i];
     
       if (PSP) {
 	if (NI) {
-	  for (int n=0; n<NI; n++) out << setw(10) << 0;
+	  for (int n=0; n<NI; n++) out << std::setw(10) << 0;
 	}
 	if (ND) {
-	  for (int n=0; n<ND; n++) out << setw(20) << 0.0;
+	  for (int n=0; n<ND; n++) out << std::setw(20) << 0.0;
 	}
       }
       
-      out << endl;
+      out << std::endl;
     }
   }
     
@@ -844,16 +844,16 @@ main(int argc, char **argv)
     MPI_Reduce(MPI_IN_PLACE, &WW,    1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, &VC,    1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
-    cout << endl << "-----------" << endl << endl;
-    cout << setw(20) << "States rejected: " << count      << endl;
-    cout << setw(20) << "Negative masses: " << negms      << endl;
-    cout << setw(60) << setfill('-') << '-' << endl       << setfill(' ');
-    cout << setw(20) << "KE="               << TT         << endl;
-    cout << setw(20) << "PE="               << WW         << endl;
-    cout << setw(20) << "VC="               << VC         << endl;
-    cout << setw(20) << "Ratio (-2T/W)="    << -2.0*TT/WW << endl;
-    cout << setw(20) << "Ratio (-2T/C)="    << -2.0*TT/VC << endl;
-    std::cout << setw(60) << std::setfill('-') << '-' << std::endl << std::setfill(' ');
+    cout << std::endl << "-----------" << std::endl << std::endl;
+    cout << std::setw(20) << "States rejected: " << count      << std::endl;
+    cout << std::setw(20) << "Negative masses: " << negms      << std::endl;
+    cout << std::setw(60) << setfill('-') << '-' << std::endl       << setfill(' ');
+    cout << std::setw(20) << "KE="               << TT         << std::endl;
+    cout << std::setw(20) << "PE="               << WW         << std::endl;
+    cout << std::setw(20) << "VC="               << VC         << std::endl;
+    cout << std::setw(20) << "Ratio (-2T/W)="    << -2.0*TT/WW << std::endl;
+    cout << std::setw(20) << "Ratio (-2T/C)="    << -2.0*TT/VC << std::endl;
+    std::cout << std::setw(60) << std::setfill('-') << '-' << std::endl << std::setfill(' ');
   }
   
   out.close();
