@@ -84,6 +84,10 @@ main(int argc, char **argv)
   desc.add_options()
     ("help,h",
      "Print this help message")
+    ("zeropos",
+     "Set the origin at the center of mass")
+    ("zerovel",
+     "Set the total momentum of the realization to zero")
     ("conf,c",        po::value<string>(&config),
      "Write template options file with current and all default values")
     ("input,f",       po::value<string>(&config),
@@ -744,6 +748,13 @@ main(int argc, char **argv)
   
   if (myid==numprocs-1) end = N;
   
+  std::vector<Eigen::VectorXd> PS;
+  Eigen::VectorXd zz = Eigen::VectorXd::Zero(7);
+
+  bool zeropos = false, zerovel = false;
+  if (vm.count("zeropos")) zeropos = true;
+  if (vm.count("zerovel")) zerovel = true;
+
   for (int n=beg; n<end; n++) {
     
     do {
@@ -753,8 +764,6 @@ main(int argc, char **argv)
 	ps = rmodel->gen_point(ierr);
       if (ierr) count++;
     } while (ierr);
-    
-    out << setw(20) << mass * ps[0];
     
     if (ps[0] <= 0.0) negms++;
     
@@ -767,22 +776,55 @@ main(int argc, char **argv)
     VC += -mass*ps[0]*rmodel->get_mass(RR)/RR;
     WW +=  0.5*mass*ps[0]*rmodel->get_pot(RR);
     
-    for (int i=1; i<=6; i++) out << setw(20) << ps[i]+ps0[i];
-    
-    if (PSP) {
-      if (NI) {
-	for (int n=0; n<NI; n++) out << setw(10) << 0;
-      }
-      if (ND) {
-	for (int n=0; n<ND; n++) out << setw(20) << 0.0;
-      }
+    if (zeropos or zerovel) {
+      ps[0] *= mass;
+      PS.push_back(ps);
+      zz[0] += ps[0];
+      if (zeropos) for (int i=1; i<3; i++) zz[i] += ps[0]*ps[i];
+      if (zerovel) for (int i=4; i<7; i++) zz[i] += ps[0]*ps[i];
     }
+    else {
+      out << setw(20) << mass * ps[0];
+      for (int i=1; i<=6; i++) out << setw(20) << ps[i]+ps0[i];
     
-    out << endl;
+      if (PSP) {
+	if (NI) {
+	  for (int n=0; n<NI; n++) out << setw(10) << 0;
+	}
+	if (ND) {
+	  for (int n=0; n<ND; n++) out << setw(20) << 0.0;
+	}
+      }
+    
+      out << endl;
+    }
     
     if (myid==0 and !((n+1)%NREPORT)) cout << '\r' << (n+1)*numprocs << flush;
   }
-  
+
+  if (zeropos or zerovel) {
+
+    if (zz[0] > 0.0) {
+      for (int i=1; i<7; i++) ps0[i] += zz[i]/zz[0];
+    }
+
+    for (auto ps : PS) {
+      out << setw(20) << ps[0];
+      for (int i=1; i<=6; i++) out << setw(20) << ps[i]+ps0[i];
+    
+      if (PSP) {
+	if (NI) {
+	  for (int n=0; n<NI; n++) out << setw(10) << 0;
+	}
+	if (ND) {
+	  for (int n=0; n<ND; n++) out << setw(20) << 0.0;
+	}
+      }
+      
+      out << endl;
+    }
+  }
+    
   if (myid) {
     
     MPI_Reduce(&count, 0, 1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
@@ -819,7 +861,7 @@ main(int argc, char **argv)
   if (myid==0) {
     std::ostringstream sout;
     sout << "cat " << OUTPS << ".* > " << OUTPS;
-    system(sout.str().c_str());
+    int ret = system(sout.str().c_str());
   }
 
   MPI_Finalize();
