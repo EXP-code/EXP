@@ -783,8 +783,8 @@ main(int argc, char **argv)
       ps[0] *= mass;
       PS.push_back(ps);
       zz[0] += ps[0];
-      if (zeropos) for (int i=1; i<3; i++) zz[i] += ps[0]*ps[i];
-      if (zerovel) for (int i=4; i<7; i++) zz[i] += ps[0]*ps[i];
+      if (zeropos) for (int i=1; i<3; i++) zz[i] -= ps[0]*ps[i];
+      if (zerovel) for (int i=4; i<7; i++) zz[i] -= ps[0]*ps[i];
     }
     else {
       out << setw(20) << mass * ps[0];
