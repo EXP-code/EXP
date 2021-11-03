@@ -622,17 +622,6 @@ private:
   //! Default electron-electron interaction type
   static NTC::T elecElec;
 
-  //@{
-  //! Variables for Trace accumulation algorithm
-  enum class AccumType {ion_ion, ion_electron};
-  typedef std::tuple<double, double> accumTypeData;
-  typedef std::map<AccumType, accumTypeData> accumTypeMap;
-  std::vector<accumTypeMap> accumData;
-
-  typedef std::tuple<Particle*, Particle*, double> PairXC;
-  std::vector< std::vector<PairXC> > accumIIxc, accumIExc;
-  //@}
-
   //! Mnemonic for the type of algorithm selected by the user
   enum AlgorithmType { Direct, Weight, Trace, Hybrid };
   const char* AlgorithmLabels[4] = {"Direct", "Weight", "Trace", "Hybrid"};
@@ -931,10 +920,6 @@ public:
   */
   static bool   TSESUM;
 
-  //! Use the mean-mass algorithm for explicit energy conservation for
-  //! the Trace algorithm
-  static bool mean_mass;
-
   //! Multiplicative factor for choosing cooling time step (default: 0.05)
   static double TSCOOL;
 
@@ -1005,7 +990,7 @@ protected:
   std::vector<NTC::InteractD> csections;
 
   //! List of cross sections for mean-mass trace algorithm
-  std::vector<std::map<NTC::T, std::vector<std::tuple<double, int, int>>>> cseccache;
+  std::vector<std::map<NTC::T, std::vector<std::tuple<double, int, int, double>>>> cseccache;
   std::vector<std::map<NTC::T, std::vector<double>>> cseccum;
 
 
@@ -1153,7 +1138,9 @@ protected:
 		      Particle* const p1, Particle* const p2, 
 		      double *crm, const NTC::T& type);
 
-  double crossSectionTrace(int id, pCell* const c, 
+  using CrsRet = std::tuple<double, double>;
+
+  CrsRet crossSectionTrace(int id, pCell* const c, 
 			   Particle* const p1, Particle* const p2, 
 			   double crm, const NTC::T& type);
 
@@ -1332,7 +1319,7 @@ protected:
       return crossSectionWeight(id, c, p1, p2, crm, itype);
 
     if (aType == Trace)
-      return crossSectionTrace (id, c, p1, p2, crm, itype);
+      return std::get<0>(crossSectionTrace (id, c, p1, p2, crm, itype));
 
     if (aType == Hybrid)
       return crossSectionHybrid(id, c, p1, p2, crm, itype);
@@ -1400,10 +1387,8 @@ protected:
    double tau, double& meanLambda, double& meanCollP, 
    double& totalNsel, int id);
 
-  virtual NTC::InteractD generateSelectionTraceMeanMass
-  (pCell* const c, double crm, sKeyDmap* const Fn, 
-   double tau, double& meanLambda, double& meanCollP, 
-   double& totalNsel, int id);
+  virtual void generateTraceEnergyLoss
+  (pCell* const c, sKeyDmap* const Fn, double tau, int id);
 
   virtual NTC::InteractD generateSelectionHybrid
   (pCell* const c, double crm, sKeyDmap* const Fn, 
@@ -1601,13 +1586,6 @@ protected:
 
   //! For photoionization ion-electron recoil
   void scatterPhotoTrace(Particle* p, lQ Q, double Pr, double dE);
-
-  //! Reset TraceAccum accumulation counters for energy change and weights
-  void accumReset(int id) {
-    accumData[id].clear();
-    accumIIxc[id].clear();
-    accumIExc[id].clear();
-  }
 
   //! Compute the interaction for the TraceAccum method
   void accumTraceScatter(pCell* const c, int id);

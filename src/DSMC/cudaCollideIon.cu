@@ -1787,14 +1787,14 @@ static std::string interLabels[] =
 
 // use_cons value
 //
-__constant__ int    cuSp0, cuCons, cuElec, cuEcon;
+__constant__ int    cuSp0, cuCons, cuElec, cuEcon, cuTrcZ;
 
 const int maxAtomicNumber = 15;
 __constant__ cuFP_t cuda_atomic_weights[maxAtomicNumber], cuFloorEV;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuEunit;
 __constant__ cuFP_t cuLogL, cuCrossfac, cuMinMass, cuEV;
 __constant__ bool   cuNewRecombAlg, cuNoCool, cuRecombIP;
-__constant__ bool   cuSpreadDef, cuMeanMass;
+__constant__ bool   cuSpreadDef;
 
 const int coulSelNumT = 2000;
 __constant__ cuFP_t coulSelA[coulSelNumT];
@@ -1810,6 +1810,7 @@ void testConstantsIon(int idev)
   printf("** Cons posn  = %d\n",     cuCons              );
   printf("** Elec posn  = %d\n",     cuElec              );
   printf("** Econ posn  = %d\n",     cuEcon              );
+  printf("** traceZ     = %d\n",     cuTrcZ              );
   printf("** Lunit      = %13.6e\n", cuLunit             );
   printf("** Tunit      = %13.6e\n", cuTunit             );
   printf("** Vunit      = %13.6e\n", cuVunit             );
@@ -1835,10 +1836,6 @@ void testConstantsIon(int idev)
     printf("** Spread def = true\n"                      );
   else
     printf("** Spread def = false\n"                     );
-  if (cuMeanMass) 
-    printf("** Mean mass  = true\n"                      );
-  else
-    printf("** Mean mass  = false\n"                     );
   printf("** -----------------------------------------\n");
 }
 
@@ -1987,6 +1984,9 @@ void CollideIon::cuda_initialize()
   cuda_safe_call(cudaMemcpyToSymbol(cuEcon, &elccons, sizeof(int)), 
 		 __FILE__, __LINE__, "Error copying cuEcon");
 
+  cuda_safe_call(cudaMemcpyToSymbol(cuTrcZ, &traceZ, sizeof(int)), 
+		 __FILE__, __LINE__, "Error copying cuEcon");
+
   cuda_safe_call(cudaMemcpyToSymbol(coulSelTau_i, &tau_i, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying coulSelTau_i");
 
@@ -2083,9 +2083,6 @@ void CollideIon::cuda_atomic_weights_init()
   v = esu;
   cuda_safe_call(cudaMemcpyToSymbol(cuEsu, &v, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuEsu");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cuMeanMass, &mean_mass, sizeof(bool)), 
-		 __FILE__, __LINE__, "Error copying cuMeanMass");
 
   cuda_safe_call(cudaMemcpyToSymbol(cuSpreadDef, &SpreadDef, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuSpreadDef");
@@ -2442,15 +2439,10 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
   sVel1 = sqrt(sVel1) * cuVunit / vel;
   sVel2 = sqrt(sVel2) * cuVunit / vel;
 	
-  cuFP_t  m1  = Mu1 * amu;
-  cuFP_t  m2  = Mu2 * amu;
+  cuFP_t  m1  = Mu1 * amu * Eta1;
+  cuFP_t  m2  = Mu2 * amu * Eta2;
   cuFP_t me1  = cuda_atomic_weights[0] * amu;
   cuFP_t me2  = cuda_atomic_weights[0] * amu;
-
-  if (cuMeanMass) {
-    me1 *= Eta1;
-    me2 *= Eta2;
-  }
 
   cuFP_t mu0  = m1 * m2  / (m1 + m2);
   cuFP_t mu1  = m1 * me2 / (m1 + me2);
@@ -4286,10 +4278,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    Prob2  = p2->datr[J1.I+cuSp0] / cuda_atomic_weights[Z] * EI.Eta1;
 
 	    // Correct ballistic velocity for mass scaling
-	    if (cuMeanMass) {
-	      Prob1 *= sqrt(EI.Eta2);
-	      Prob2 *= sqrt(EI.Eta1);
-	    }
+	    Prob1 *= sqrt(EI.Eta2);
+	    Prob2 *= sqrt(EI.Eta1);
 	  }
 	  // Ion--Ion
 	  else if (J1.sp != cuElectron and J2.sp != cuElectron) {
@@ -5103,7 +5093,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  p1->datr[cuCons] = 0.0;
 	  if (cuEcon>=0) {
 	    dE += p2->datr[cuEcon];
-	    p2->datr[cuEcon];
+	    p2->datr[cuEcon] = 0.0;
 	  } else {
 	    dE += p2->datr[cuCons];
 	    p2->datr[cuCons] = 0.0;
@@ -5112,29 +5102,26 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	// Perform the scatter
 	//
-	if (cuMeanMass)
+	if (J1.sp.first < cuTrcZ) {
 	  cudaScatterTraceExplicit
 	    (m1, m2, EI.Eta1, EI.Eta2, W1, W2,
 	     &E1[0], &E2[0], &v1[0], &v2[0], dE, state);
-	else
-	  cudaScatterTrace
-	    (m1, m2, EI.Eta1, EI.Eta2, W1, W2,
-	     &E1[0], &E2[0], &v1[0], &v2[0], dE, state);
-	
-	// Copy scattered velocities back to particle
-	//
-	for (int k=0; k<3; k++) {
-	  p1->vel[k] = v1[k];
-	  if (type == AccumType::ion_ion) p2->vel[k] = v2[k];
-	  else                            p2->datr[cuElec+k] = v2[k];
-	}
-
+	  // Copy scattered velocities back to particle
+	  //
+	  for (int k=0; k<3; k++) {
+	    p1->vel[k] = v1[k];
+	    if (type == AccumType::ion_ion) p2->vel[k] = v2[k];
+	    else                            p2->datr[cuElec+k] = v2[k];
+	  }
+	} else {
+	  cudaDeferredEnergy(dE, m1, m2, W1, W2, E1, E2);
+	}	
       }
       // END: pair loop
     }
     // END: interaction loop
     
-    // Spread out interaction deferred energy loss to all all particles
+    // Spread out interaction deferred energy loss to all particles
     //
     for (size_t i=0; i<nbods; i++) {
       cudaParticle* p = &in._v[n0+i];
@@ -5146,7 +5133,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  p->datr[cuCons] += (E1[1] + E2[1])/nbods;
       }
     }
-
 
     // Spread deferred over the entire cell (test algorithm)
     //
