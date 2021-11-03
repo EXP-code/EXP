@@ -20,8 +20,7 @@ set(common_INCLUDE
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/..
-  ${HDF5_INCLUDE_DIRS}
-  ${VTK_INCLUDE})
+  ${HDF5_INCLUDE_DIRS})
 
 add_executable(shrinkics shrinkics.cc)
 

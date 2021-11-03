@@ -16,8 +16,7 @@ set (common_INCLUDE_DIRS
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/..
-  ${VTK_INCLUDE})
+  ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 set (common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
   Boost::random Boost::serialization Boost::filesystem exputil

@@ -26,9 +26,7 @@ set(common_INCLUDE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/..
-  ${VTK_INCLUDE}
-  )
+  ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 add_executable(pspinfo pspinfo.cc PSP.cc)
 add_executable(pspstat pspstat.cc PSP.cc)

@@ -15,9 +15,7 @@ set(common_INCLUDE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/..
-  ${VTK_INCLUDE}
-  )
+  ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 add_executable(slcheck slcheck.cc)
 add_executable(slshift slshift.cc SLSphere.cc)

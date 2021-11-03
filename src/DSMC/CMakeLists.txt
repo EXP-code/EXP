@@ -15,8 +15,7 @@ set(common_INCLUDE_DIRS
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/..
-  ${EIGEN3_INCLUDE_DIR}
-  ${VTK_INCLUDE})
+  ${EIGEN3_INCLUDE_DIR})
 
 set(common_LINK_LIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
   Boost::random Boost::serialization Boost::filesystem
