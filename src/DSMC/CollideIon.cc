@@ -4120,11 +4120,6 @@ CollideIon::crossSectionTrace(int id, pCell* const c,
 	      << std::endl;
 #endif
 
-    cross *=
-      _p1->dattrib[SpList[K1]]/atomic_weights[Z1] *
-      _p2->dattrib[SpList[K2]]/atomic_weights[Z2] ; 
-
-
     return {cross, 0.0};
   }
   // END: neutral elastic scattering
