@@ -50,6 +50,8 @@ if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES})
 endif()
 
+message("VTK include is: ${VTK_INCLUDE}")
+
 # shared lib
 add_library(exputil ${exputil_SOURCES})
 set_target_properties(exputil PROPERTIES OUTPUT_NAME exputil)
