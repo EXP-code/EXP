@@ -67,8 +67,11 @@ if(SLURM_FOUND)
 endif()
 if(VTK_FOUND)
   set(HAVE_VTK TRUE)
-  include(${VTK_USE_FILE}) # I don't like this global setting stuff,
-			   # but it's not really documented otherwise
+  if (VTK_VERSION VERSION_LESS "8.90.0")
+    include(${VTK_USE_FILE}) # I don't like this global setting stuff
+  else()
+    include_directories("${VTK_PREFIX_PATH}/include/vtk-${VTK_MAJOR_VERSION}.${VTK_MINOR_VERSION}")
+  endif()
 endif()
 if(CUDA_FOUND)
   set(HAVE_LIBCUDA TRUE)
@@ -149,7 +152,7 @@ if(DOXYGEN_FOUND)
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc
     COMMENT "Generating API documentation with Doxygen"
     VERBATIM)
-  
+
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc/html
     DESTINATION share/EXP/doc)
 endif()
