@@ -1,5 +1,5 @@
 
-set(bin_PROGRAMS testConfig simpleConfig readSL testBarrier)
+set(bin_PROGRAMS readSL testBarrier)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
   Boost::program_options yaml-cpp exputil EXP ${VTK_LIBRARIES})
@@ -16,8 +16,6 @@ if (ENABLE_CUDA)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY} )
 endif()
 
-add_executable(testConfig     test_config.cc)
-add_executable(simpleConfig   simple_config.cc)
 add_executable(readSL         read_slsph.cc)
 add_executable(testBarrier    test_barrier.cc)
 
