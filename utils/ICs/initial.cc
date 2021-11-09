@@ -67,14 +67,15 @@
 
 */
                                 // C++/STL headers
-#include <cmath>
-#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
 #include <string>
 #include <vector>
+#include <cmath>
 
 #include <fenv.h>
 
@@ -724,7 +725,7 @@ main(int ac, char **av)
   if (vm.count("conf")) {
     // Do not overwrite existing config file
     //
-    if (boost::filesystem::exists(config)) {
+    if (std::filesystem::exists(config)) {
       if (myid == 0)
 	std::cerr << av[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;

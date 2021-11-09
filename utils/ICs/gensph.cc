@@ -26,10 +26,11 @@
  *
  ***************************************************************************/
 
-#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cstdlib>
 #include <string>
 #include <memory>
 
@@ -245,7 +246,7 @@ main(int argc, char **argv)
   if (vm.count("conf")) {
     // Do not overwrite existing config file
     //
-    if (boost::filesystem::exists(config)) {
+    if (std::filesystem::exists(config)) {
       if (myid == 0)
 	std::cerr << argv[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;

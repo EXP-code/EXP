@@ -35,11 +35,11 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
-#include <cmath>
 #include <string>
 #include <memory>
 #include <vector>
 #include <queue>
+#include <cmath>
 #include <map>
 
 				// Eigen3
@@ -367,7 +367,7 @@ main(int argc, char **argv)
 	
 	// Make and read char buffer
 	//
-	auto buf = boost::make_unique<char[]>(ssize+1);
+	auto buf = std::make_unique<char[]>(ssize+1);
 	in.read(buf.get(), ssize);
 	buf[ssize] = 0;		// Null terminate
 
@@ -524,7 +524,7 @@ main(int argc, char **argv)
 
       // Make and read char buffer
       //
-      auto buf = boost::make_unique<char[]>(ssize+1);
+      auto buf = std::make_unique<char[]>(ssize+1);
       in.read(buf.get(), ssize);
       buf[ssize] = 0;		// Null terminate
 

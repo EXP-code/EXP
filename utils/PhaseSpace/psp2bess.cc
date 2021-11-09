@@ -11,9 +11,11 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <numeric>
 #include <memory>
 #include <vector>
 #include <string>
+#include <random>
 #include <list>
 #include <map>
 
@@ -22,9 +24,8 @@
 #include <FileUtils.H>
 
 #include <boost/program_options.hpp>
-#include <boost/math/special_functions/bessel.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
+#include <Bess.H>
 #include <Progress.H>
 
 #include <mpi.h>
@@ -37,52 +38,6 @@ namespace po = boost::program_options;
 int numprocs, myid, proc_namelen;
 char processor_name[MPI_MAX_PROCESSOR_NAME];
 
-
-
-//! Generate orthonormal Bessel functions of integral order
-class Bess
-{
-private:
-
-  unsigned int nroots;
-  double order;
-  std::vector<double> roots, norm;
-
-public:
-
-  //! Constructor: set the order and number of radial functions
-  Bess(double order, unsigned int nroots) : order(order), nroots(nroots)
-  {
-    boost::math::cyl_bessel_j_zero(order, 1, nroots, std::back_inserter(roots));
-    norm.resize(nroots);
-    for (unsigned int m=0; m<nroots; m++) {
-      double val = boost::math::cyl_bessel_j(order+1.0, roots[m]);
-      norm[m] = sqrt(0.5*val*val);
-    }
-  }
-  
-  //! Get the norm for radial order m
-  double getNorm(int m)
-  {
-    if (m>=nroots) return 0.0;
-    else           return norm[m];
-  }
-  
-  //! Evaluate the Bessel for x in [0, 1] for radial order m
-  double operator()(double& x, const unsigned& m)
-  {
-    if (m>=nroots) return 0.0;
-    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]) / norm[m];
-  } 
-
-  //! Evaluate the Bessel for x in [0, 1] for radial order m
-  double eval(double& x, unsigned& m)
-  {
-    if (m>=nroots) return 0.0;
-    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]) / norm[m];
-  } 
-
-}; 
 
 
 //! Coefficient file header

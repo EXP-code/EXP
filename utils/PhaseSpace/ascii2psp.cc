@@ -15,6 +15,7 @@ using namespace std;
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <random>
 
 #include <boost/random/mersenne_twister.hpp>
 
@@ -22,7 +23,7 @@ using namespace std;
 				// Globals for exputil library
 				// Unused here
 std::string outdir, runtag;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 
 //-------------
 // Help message

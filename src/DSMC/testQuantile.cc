@@ -9,14 +9,13 @@
 #include <boost/program_options.hpp>
 #include <boost/math/distributions/weibull.hpp>
 #include <boost/math/distributions/normal.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 #include "Quantile.H"
  
 // Unused globals needed in libexputil
 //
 int myid;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 std::string outdir, runtag;
 
 namespace po = boost::program_options;

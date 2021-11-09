@@ -6,6 +6,8 @@
 
 #include <iostream>
 #include <iomanip>
+#include <memory>
+#include <random>
 #include <fstream>
 #include <sstream>
 

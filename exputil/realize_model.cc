@@ -30,9 +30,9 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <random>
+#include <memory>
 #include <cmath>
-
-#include <boost/random/mersenne_twister.hpp>
 
 #include <localmpi.H>
 #include <massmodel.H>
@@ -66,7 +66,7 @@ int      AxiSymModel::gen_itmax = 20000;
 const bool verbose = true;
 const double ftol = 0.01;
 
-extern boost::mt19937 random_gen;
+extern std::mt19937 random_gen;
 
 Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 {

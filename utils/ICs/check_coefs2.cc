@@ -4,14 +4,19 @@
 */
 
                                 // C++/STL headers
-#include <cmath>
-#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
+#include <utility>
+#include <random>
+#include <memory>
 #include <string>
 #include <vector>
+#include <cmath>
+#include <any>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -24,12 +29,9 @@
 
 // Boost stuff
 //
-#include <boost/random/mersenne_twister.hpp>
 #include <boost/math/special_functions/bessel.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/make_unique.hpp>
 
 #include <Progress.H>		// Progress bar
 
@@ -439,7 +441,7 @@ main(int ac, char **av)
   if (vm.count("conf")) {
     // Do not overwrite existing config file
     //
-    if (boost::filesystem::exists(config)) {
+    if (std::filesystem::exists(config)) {
       if (myid == 0)
 	std::cerr << av[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;
@@ -460,21 +462,21 @@ main(int ac, char **av)
 	  if (it.first.find("conf")==0) continue;
 
 	  out << std::setw(20) << std::left << it.first << " = ";
-	  auto& value = it.second.value();
-	  if (auto v = boost::any_cast<uint32_t>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<int>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<unsigned>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<float>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<double>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<bool>(&value))
-	    out << std::setw(32) << std::left << std::boolalpha << *v;
-	  else if (auto v = boost::any_cast<std::string>(&value))
-	    out << std::setw(32) << std::left << *v;
+	  auto value = std::any(it.second.value());
+	  if (auto v = std::any_cast<uint32_t>(value))
+	    out << std::setw(32) << std::left << v;
+	  else if (auto v = std::any_cast<int>(value))
+	    out << std::setw(32) << std::left << v;
+	  else if (auto v = std::any_cast<unsigned>(value))
+	    out << std::setw(32) << std::left << v;
+	  else if (auto v = std::any_cast<float>(value))
+	    out << std::setw(32) << std::left << v;
+	  else if (auto v = std::any_cast<double>(value))
+	    out << std::setw(32) << std::left << v;
+	  else if (auto v = std::any_cast<bool>(value))
+	    out << std::setw(32) << std::left << std::boolalpha << v;
+	  else if (auto v = std::any_cast<char*>(value))
+	    out << std::setw(32) << std::left << v;
 	  else
 	    out << "error";
 
@@ -617,7 +619,7 @@ main(int ac, char **av)
 
 	// Make and read char buffer
 	//
-	auto buf = boost::make_unique<char[]>(ssize+1);
+	auto buf = std::make_unique<char[]>(ssize+1);
 	in.read(buf.get(), ssize);
 	buf[ssize] = 0;		// Null terminate
 

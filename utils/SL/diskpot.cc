@@ -50,7 +50,7 @@ void usage(char *prog)
 }
 
 string outdir, runtag;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 
 int 
 main(int argc, char** argv)

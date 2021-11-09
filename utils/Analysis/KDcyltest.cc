@@ -42,10 +42,6 @@
 #include <map>
 
 				// Boost stuff
-
-#include <memory>
-#include <boost/make_shared.hpp>
-#include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
@@ -207,7 +203,7 @@ main(int argc, char **argv)
 	
 	// Make and read char buffer
 	//
-	auto buf = boost::make_unique<char[]>(ssize+1);
+	auto buf = std::make_unique<char[]>(ssize+1);
 	in.read(buf.get(), ssize);
 	buf[ssize] = 0;		// Null terminate
 

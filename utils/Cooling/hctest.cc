@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <string>
 #include <vector>
+#include <random>
 
 #include <boost/random/mersenne_twister.hpp>
 
@@ -16,7 +17,7 @@ using namespace std;
 
 string outdir = "";
 string runtag = "test";
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 
 //===========================================================================
 

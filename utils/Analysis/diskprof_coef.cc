@@ -34,12 +34,11 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
-#include <cmath>
+#include <memory>
 #include <string>
+#include <cmath>
 
 				// BOOST stuff
-#include <memory>
-#include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
@@ -535,7 +534,7 @@ main(int argc, char **argv)
 	
     // Make and read char buffer
     //
-    auto buf = boost::make_unique<char[]>(ssize+1);
+    auto buf = std::make_unique<char[]>(ssize+1);
     in.read(buf.get(), ssize);
     buf[ssize] = 0;		// Null terminate
     

@@ -18,13 +18,10 @@
 #include <iostream>
 #include <iomanip>
 #include <numeric>
+#include <memory>
 #include <limits>
+#include <random>
 #include <tuple>
-
-#include <boost/random.hpp>
-#include <boost/random/uniform_real.hpp>
-#include <boost/random/normal_distribution.hpp>
-#include <boost/random/uniform_int_distribution.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -46,17 +43,11 @@ namespace po = boost::program_options;
 #include <sys/stat.h>
 
 //
-// Boost random types
+// Random types
 //
-typedef std::shared_ptr<boost::mt19937> gen_ptr;
-typedef std::shared_ptr<boost::uniform_real<> > uniform_ptr;
-typedef std::shared_ptr<boost::normal_distribution<> > normal_ptr;
-typedef boost::variate_generator<boost::mt19937&, boost::uniform_real<> > unif_var;
-typedef std::shared_ptr<unif_var> unit_ptr;
-typedef boost::variate_generator<boost::mt19937&, boost::normal_distribution<> > norm_var;
-typedef std::shared_ptr<norm_var> norm_ptr;
-typedef boost::variate_generator<boost::mt19937&, boost::random::uniform_int_distribution<> > unid_var;
-
+typedef std::shared_ptr<std::mt19937> gen_ptr;
+typedef std::shared_ptr<std::uniform_real_distribution<> > uniform_ptr;
+typedef std::shared_ptr<std::normal_distribution<> > normal_ptr;
 
 //
 // EXP support
@@ -218,13 +209,11 @@ std::vector<double> LL;
 PeriodicTable PT;
 
 //
-// boost RNGs
+// std RNGs
 //
 gen_ptr     gen;
 uniform_ptr uniform;
 normal_ptr  normal;
-unit_ptr    Unit;
-norm_ptr    Norm;
 
 // ION collide types
 //
@@ -321,8 +310,8 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
     if (type == Trace) {
       
       for (unsigned k=0; k<3; k++) {
-	p[i].pos[k] = L[k]*(*Unit)();
-	p[i].vel[k] = varI[0]*(*Norm)();
+	p[i].pos[k] = L[k]*((*uniform)(*gen));
+	p[i].vel[k] = varI[0]*((*normal)(*gen));
       }
       
       if (ne>=0) {
@@ -330,7 +319,7 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
 	do {
 	  totE = 0.0;
 	  for (int l=0; l<3; l++) {
-	    double v = (*Norm)();
+	    double v = (*normal)(*gen);
 	    totE += v*v;
 	    p[i].dattrib[ne+l] = varE[0] * v;
 	  }
@@ -345,14 +334,14 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
       // unsigned short C = sKey.second;
       
       for (unsigned k=0; k<3; k++) {
-	p[i].pos[k] = L[k]*(*Unit)();
-	p[i].vel[k] = varI[Z] * (*Norm)();
+	p[i].pos[k] = L[k]*(*uniform)(*gen);
+	p[i].vel[k] = varI[Z] * (*normal)(*gen);
 	KE += p[i].vel[k] * p[i].vel[k];
       }
       
       if (ne>=0) {
 	for (int l=0; l<3; l++) {
-	  p[i].dattrib[ne+l] = varE[Z] * (*Norm)();
+	  p[i].dattrib[ne+l] = varE[Z] * (*normal)(*gen);
 	}
       }
       
@@ -438,14 +427,13 @@ void InitializeInterface(std::vector<Particle>& p,
   
   double ttemp;
 
-  boost::random::uniform_int_distribution<> dist(0, 1);
-  unid_var selP(*gen, dist);
+  std::uniform_int_distribution<> dist(0, 1);
 
   for (unsigned i=0; i<npart; i++) {
     
     double KE = 0.0;
     
-    unsigned char wh = static_cast<unsigned char>(selP());
+    unsigned char wh = static_cast<unsigned char>(dist(*gen));
 
 
     p[i].iattrib.resize(ni, 0);
@@ -455,15 +443,15 @@ void InitializeInterface(std::vector<Particle>& p,
       
       for (unsigned k=0; k<3; k++) {
 	if (k==0)
-	  p[i].pos[k] = 0.5*L[k]*((*Unit)() + wh);
+	  p[i].pos[k] = 0.5*L[k]*((*uniform)(*gen) + wh);
 	else
-	  p[i].pos[k] = L[k]*(*Unit)();
-	p[i].vel[k] = varI[wh][0]*(*Norm)();
+	  p[i].pos[k] = L[k]*(*uniform)(*gen);
+	p[i].vel[k] = varI[wh][0]*(*normal)(*gen);
       }
       
       if (ne>=0) {
 	for (int l=0; l<3; l++) {
-	  p[i].dattrib[ne+l] = varE[wh][0] * (*Norm)();
+	  p[i].dattrib[ne+l] = varE[wh][0] * (*normal)(*gen);
 	}
       }
 
@@ -478,16 +466,16 @@ void InitializeInterface(std::vector<Particle>& p,
       
       for (unsigned k=0; k<3; k++) {
 	if (k==0)
-	  p[i].pos[k] = 0.5*L[k]*((*Unit)() + wh);
+	  p[i].pos[k] = 0.5*L[k]*((*uniform)(*gen) + wh);
 	else
-	  p[i].pos[k] = L[k]*(*Unit)();
-	p[i].vel[k] = varI[wh][Z] * (*Norm)();
+	  p[i].pos[k] = L[k]*(*uniform)(*gen);
+	p[i].vel[k] = varI[wh][Z] * (*normal)(*gen);
 	KE += p[i].vel[k] * p[i].vel[k];
       }
       
       if (ne>=0) {
 	for (int l=0; l<3; l++) {
-	  p[i].dattrib[ne+l] = varE[wh][Z] * (*Norm)();
+	  p[i].dattrib[ne+l] = varE[wh][Z] * (*normal)(*gen);
 	}
       }
       
@@ -768,8 +756,8 @@ void InitializeSpeciesDirect
 
   for (int i=0; i<N; i++) {
     
-    double rz = (*Unit)();
-    double rc = (*Unit)();
+    double rz = (*uniform)(*gen);
+    double rc = (*uniform)(*gen);
     
     unsigned char Ci = 1, Zi;
     size_t indx;
@@ -1013,14 +1001,13 @@ void InitializeSpeciesWeight
   for (size_t i=1; i<NS; i++)
     wght[i] = frcS[i]/PT[sZ[i]]->weight();
   
-  boost::random::uniform_int_distribution<> dist(0, NS-1);
-  unid_var unifd(*gen, dist);
+  std::uniform_int_distribution<> dist(0, NS-1);
   
   for (int i=0; i<N; i++) {
     // Get the species
-    size_t indx = unifd();
+    size_t indx = dist(*gen);
     unsigned char Ci = 1, Zi = sZ[indx];
-    double rc = (*Unit)();
+    double rc = (*uniform)(*gen);
     
     // Get the ionization state
     for (int j=0; j<Zi+1; j++) {
@@ -1265,12 +1252,11 @@ void InitializeSpeciesHybrid
   for (size_t i=1; i<NS; i++)
     wght[i] = frcS[i]/PT[sZ[i]]->weight();
   
-  boost::random::uniform_int_distribution<> dist(0, NS-1);
-  unid_var unifd(*gen, dist);
+  std::uniform_int_distribution<> dist(0, NS-1);
   
   for (int i=0; i<N; i++) {
     // Get the species
-    size_t indx = unifd();
+    size_t indx = dist(*gen);
     unsigned char Ci = 0, Zi = sZ[indx];
 
     particles[i].mass  = M[0]/N * sF[indx] * NS;
@@ -1821,11 +1807,9 @@ main (int ac, char **av)
   Munit  *= msun;
   Vunit   = Lunit/Tunit;
   
-  gen     = gen_ptr    (new boost::mt19937(seed));
-  uniform = uniform_ptr(new boost::uniform_real<>(0.0, 1.0));
-  normal  = normal_ptr (new boost::normal_distribution<>(0.0, 1.0));
-  Unit    = unit_ptr   (new unif_var(*gen, *uniform));
-  Norm    = norm_ptr   (new norm_var(*gen, *normal));
+  gen     = std::make_shared<std::mt19937>(seed);
+  uniform = std::make_shared<std::uniform_real_distribution<>>(0.0, 1.0);
+  normal  = std::make_shared<std::normal_distribution<>>(0.0, 1.0);
   
   //
   // Define the atomic species statistics

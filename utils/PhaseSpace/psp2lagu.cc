@@ -11,6 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <numeric>
 #include <memory>
 #include <vector>
 #include <string>
@@ -24,8 +25,6 @@
 #include <Progress.H>
 
 #include <boost/program_options.hpp>
-#include <boost/math/special_functions/laguerre.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 #include <mpi.h>
 
@@ -68,14 +67,14 @@ public:
   double operator()(double& r, const unsigned& n)
   {
     if (n>=nmax) return 0.0;
-    return boost::math::laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
+    return std::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
   } 
 
   //! Evaluate the the orthogonal Laguerre polynomial
   double eval(double& r, unsigned& n)
   {
     if (n>=nmax) return 0.0;
-    return boost::math::laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
+    return std::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
   } 
 
   //! Evaluate the the orthogonal Laguerre polynomial
@@ -86,13 +85,8 @@ public:
     // Initialization
     //
     double x = 2.0*r/rscl;
-    ret[0] = boost::math::laguerre(0, 1, x);
-    if (nmax>1) ret[1] = boost::math::laguerre(1, 1, x);
-
-    // Recursion
-    //
-    for (int n=2; n<nmax; n++) 
-      ret[n] = boost::math::laguerre_next(n-1, 1, x, ret[n-1], ret[n-2]);
+    for (int n=0; n<nmax; n++) 
+      ret[n] = std::assoc_laguerre(n, 1, x);
 
     // Normalization
     //

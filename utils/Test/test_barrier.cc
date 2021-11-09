@@ -46,7 +46,7 @@
 
 #include <BarrierWrapper.H>
 
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 std::string outdir, runtag;
 
 namespace po = boost::program_options;

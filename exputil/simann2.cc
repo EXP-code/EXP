@@ -7,13 +7,12 @@
 #include <iomanip>
 #include <fstream>
 #include <cstdlib>
+#include <random>
 #include <cmath>
-
-#include <boost/random/mersenne_twister.hpp>
 
 #include <simann2.h>
 
-extern boost::mt19937 random_gen;
+extern std::mt19937 random_gen;
 
 #ifndef HUGE
 #define HUGE	HUGE_VAL

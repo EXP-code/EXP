@@ -1,8 +1,6 @@
 #include <iostream>
 #include <iomanip>
-
 #include <memory>
-#include <boost/make_unique.hpp>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -545,7 +543,7 @@ bool DiskEval::read_cache()
 
       // Make and read char buffer
       //
-      auto buf = boost::make_unique<char[]>(ssize+1);
+      auto buf = std::make_unique<char[]>(ssize+1);
       cache.read(buf.get(), ssize);
       buf[ssize] = 0;		// Null terminate
 

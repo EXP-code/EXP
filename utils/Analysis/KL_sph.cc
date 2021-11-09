@@ -44,9 +44,6 @@
 #include <Eigen/Eigen>
 
 				// Boost stuff
-
-#include <boost/make_shared.hpp>
-#include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 

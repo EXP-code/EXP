@@ -32,7 +32,7 @@ bool CylCoefs::read(std::istream& in, bool verbose)
       
       // Make and read char buffer
       //
-      auto buf = boost::make_unique<char[]>(ssize+1);
+      auto buf = std::make_unique<char[]>(ssize+1);
       in.read(buf.get(), ssize);
       buf[ssize] = 0;		// Null terminate
       
@@ -133,7 +133,7 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
 
       // Create buffer
       //
-      auto buf = boost::make_unique<char[]>(hsize+1);
+      auto buf = std::make_unique<char[]>(hsize+1);
 
       // Read YAML string
       //

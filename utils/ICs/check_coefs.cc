@@ -2,26 +2,24 @@
   Check orthgonality for cylindrical basis
 */
                                 // C++/STL headers
-#include <cmath>
-#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
 #include <string>
 #include <vector>
+#include <memory>
+#include <random>
+#include <cmath>
 
 #include <fenv.h>
 
 // Boost stuff
 //
 #include <boost/math/special_functions/bessel.hpp>
-#include <boost/random/mersenne_twister.hpp>
 #include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/make_unique.hpp>
-
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -433,7 +431,7 @@ main(int ac, char **av)
   if (vm.count("conf")) {
     // Do not overwrite existing config file
     //
-    if (boost::filesystem::exists(config)) {
+    if (std::filesystem::exists(config)) {
       if (myid == 0)
 	std::cerr << av[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;
@@ -610,7 +608,7 @@ main(int ac, char **av)
 
 	// Make and read char buffer
 	//
-	auto buf = boost::make_unique<char[]>(ssize+1);
+	auto buf = std::make_unique<char[]>(ssize+1);
 	in.read(buf.get(), ssize);
 	buf[ssize] = 0;		// Null terminate
 

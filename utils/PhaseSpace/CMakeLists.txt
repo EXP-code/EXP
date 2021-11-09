@@ -47,7 +47,7 @@ add_executable(psp2histoTC psp2histoTC.cc PSP.cc)
 add_executable(psp2range psp2range.cc PSP.cc)
 add_executable(spl2psp spl2psp.cc PSP.cc)
 add_executable(psp2rings psp2rings.cc PSP.cc)
-add_executable(psp2bess psp2bess.cc PSP.cc)
+add_executable(psp2bess psp2bess.cc PSP.cc Bess.cc)
 add_executable(psp2lagu psp2lagu.cc PSP.cc)
 add_executable(psp2interp psp2interp.cc PSP.cc)
 

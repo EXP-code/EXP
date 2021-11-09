@@ -126,7 +126,7 @@ CheckpointTimer chktimer;
 string restart_cmd;
 
 unsigned int random_seed = 11;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 
 MPI_Datatype MPI_EXP_KEYTYPE;
 

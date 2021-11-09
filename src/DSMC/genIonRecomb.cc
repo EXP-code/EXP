@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iomanip>
 #include <numeric>
+#include <random>
 #include <tuple>
 
 #include <boost/random/mersenne_twister.hpp>
@@ -25,7 +26,7 @@ std::string outdir(".");
 std::string runtag("run");
 char threading_on = 0;
 pthread_mutex_t mem_lock;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 
 int main (int ac, char **av)
 {

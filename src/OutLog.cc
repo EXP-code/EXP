@@ -1,11 +1,9 @@
 using namespace std;
 
-#include <boost/filesystem.hpp>
-
-namespace fs = boost::filesystem;
-
-#include <cstdio>
+#include <filesystem>
 #include <sstream>
+#include <cstdio>
+
 #include "expand.H"
 
 #include <OutLog.H>
@@ -197,12 +195,12 @@ void OutLog::Run(int n, int mstep, bool last)
 	string backupfile = filename + ".bak";
 
 	try {
-	  fs::rename(filename, backupfile);
-	} catch (const boost::filesystem::filesystem_error& e) {
+	  std::filesystem::rename(filename, backupfile);
+	} catch (const std::filesystem::filesystem_error& e) {
 	  std::ostringstream message;
 	  message << "OutLog::Run(): error creating backup file <" 
 		  << backupfile << "> from <" << filename 
-		  << ">, BOOST message: " << e.code().message();
+		  << ">, message: " << e.code().message();
 	  bomb(message.str());
 	}
 
