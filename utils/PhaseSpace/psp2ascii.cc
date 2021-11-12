@@ -35,16 +35,16 @@ main(int argc, char **argv)
   cxxopts::Options options("psp2ascii", "Convert PSP output to ascii for analysis");
   
   options.add_options()
-    ("help,h", "this help message")
-    ("verbose,v", "verbose output")
-    ("input,a", "use input format")
-    ("time,t", "desired input time slice",
+    ("h,help", "this help message")
+    ("v,verbose", "verbose output")
+    ("a,input", "use input format")
+    ("t,time", "desired input time slice",
      cxxopts::value<double>(time)->default_value("1.0e+20"))
-    ("outname,o", "prefix name for each component (default: comp)",
+    ("o,outname", "prefix name for each component (default: comp)",
      cxxopts::value<std::string>(cname)->default_value("comp"))
-    ("dirname,d", "replacement SPL file directory",
+    ("d,dirname", "replacement SPL file directory",
      cxxopts::value<std::string>(new_dir)->default_value("./"))
-    ("filename,f", "input PSP file",
+    ("f,filename", "input PSP file",
      cxxopts::value<std::string>(filename))
     ;
 

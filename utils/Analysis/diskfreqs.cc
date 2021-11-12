@@ -71,45 +71,46 @@ main(int argc, char **argv)
   cxxopts::Options options("diskfreqs", overview);
 
   options.add_options()
-   ("help,h", "produce this help message")
-   ("verbose,v", "verbose output")
-   ("filetype,F", "input file type",
+    ("h,help", "produce this help message")
+    ("v,verbose", "verbose output")
+    ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-   ("prefix,P", "prefix for phase-space files",
+    ("P,prefix", "prefix for phase-space files",
      cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
-   ("Tmin,t", "Minimum time point for freq evaluation",
+    ("t,Tmin", "Minimum time point for freq evaluation",
      cxxopts::value<double>(Tmin)->default_value("0.0"))
-   ("Tmax,T", "Maximum time point for freq evaluation",
+    ("T,Tmax", "Maximum time point for freq evaluation",
      cxxopts::value<double>(Tmax)->default_value("6.0"))
-   ("dT,d", "Delta time point for freq evaluation",
+    ("d,dT", "Delta time point for freq evaluation",
      cxxopts::value<double>(dT)->default_value("0.1"))
-   ("RMAX,R", "maximum radius for output",
+    ("R,RMAX", "maximum radius for output",
      cxxopts::value<double>(RMAX)->default_value("0.1"))
-   ("numr,N", "number of output radial grid points",
+    ("N,numr", "number of output radial grid points",
      cxxopts::value<int>(numr)->default_value("40"))
-   ("rscale", "radial scale length for basis expansion",
+    ("rscale", "radial scale length for basis expansion",
      cxxopts::value<double>(rscale)->default_value("0.01"))
-   ("vscale", "vertical scale length for basis expansion",
+    ("vscale", "vertical scale length for basis expansion",
      cxxopts::value<double>(vscale)->default_value("0.001"))
-   ("H,H", "disk scale height for computing numerical derivative of fz",
+    ("H,H", "disk scale height for computing numerical derivative of fz",
      cxxopts::value<double>(H)->default_value("0.002"))
-   ("eps", "disk scale height fraction for computing numerical derivative of fz",
+    ("eps", "disk scale height fraction for computing numerical derivative of fz",
      cxxopts::value<double>(eps)->default_value("0.1"))
-   ("cachefile", "cachefile name",
+    ("cachefile", "cachefile name",
      cxxopts::value<std::string>(CACHEFILE)->default_value(".eof.cache.file"))
-   ("coeffile", "Disk coefficient file name",
+    ("coeffile", "Disk coefficient file name",
      cxxopts::value<std::string>(COEFFILE))
-   ("coeffile2", "Halo coefficient file name",
+    ("coeffile2", "Halo coefficient file name",
      cxxopts::value<std::string>(COEFFILE2))
-   ("model", "Spherical basis model file",
+    ("model", "Spherical basis model file",
      cxxopts::value<std::string>(MODEL))
-   ("logl", "use logarithmic radius scale in cylindrical grid computation",
+    ("logl", "use logarithmic radius scale in cylindrical grid computation",
      cxxopts::value<bool>(logl)->default_value("true"))
-   ("ignore", "rebuild EOF grid if input parameters do not match the cachefile",
+    ("ignore", "rebuild EOF grid if input parameters do not match the cachefile",
      cxxopts::value<bool>(ignore)->default_value("false"))
-   ("output,o", "output data table",
+    ("o,output", "output data table",
      cxxopts::value<std::string>(OUTFILE)->default_value("diskfreqs"))
     ;
+
   
   auto vm = options.parse(argc, argv);
 

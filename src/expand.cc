@@ -4,6 +4,7 @@ void do_step (int);
 void clean_up(void);
 
 #include <signal.h>
+#include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>

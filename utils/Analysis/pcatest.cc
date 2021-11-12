@@ -78,11 +78,11 @@ main(int argc, char **argv)
   cxxopts::Options options("pcatest", "Unpack and summarize the pca basis");
 
   options.add_options()
-    ("help,h", "produce this help message")
-    ("verbose,v", "verbose output")
-    ("RMAX,R", "maximum radius for output",
+    ("h,help", "produce this help message")
+    ("v,verbose", "verbose output")
+    ("R,RMAX", "maximum radius for output",
      cxxopts::value<double>(RMAX)->default_value("0.1"))
-    ("ZMAX,Z", "maximum height for output",
+    ("Z,ZMAX", "maximum height for output",
      cxxopts::value<double>(ZMAX)->default_value("0.01"))
     ("rcylmin", "minimum radius for cylindrical basis table",
      cxxopts::value<double>(rcylmin)->default_value("0.001"))

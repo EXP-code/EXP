@@ -345,35 +345,35 @@ main(int ac, char **av)
   cxxopts::Options options("testcoefs", "Check orthgonality for cylindrical basis");
 
   options.add_options()
-   ("help,h", "Print this help message")
+    ("h,help", "Print this help message")
     ("condition", "Condition EmpCylSL deprojection from specified disk model (EXP or MN)",
      cxxopts::value<string>(dmodel))
-   ("NINT", "Number of Gauss-Legendre knots",
+    ("NINT", "Number of Gauss-Legendre knots",
      cxxopts::value<int>(NINT)->default_value("100"))
-   ("NUMR", "Size of radial grid for Spherical SL",
+    ("NUMR", "Size of radial grid for Spherical SL",
      cxxopts::value<int>(NUMR)->default_value("2000"))
-   ("RCYLMIN", "Minimum disk radius",
+    ("RCYLMIN", "Minimum disk radius",
      cxxopts::value<double>(RCYLMIN)->default_value("0.001"))
-   ("RCYLMAX", "Maximum disk radius",
+    ("RCYLMAX", "Maximum disk radius",
      cxxopts::value<double>(RCYLMAX)->default_value("20.0"))
-   ("ASCALE", "Radial scale length for disk basis construction",
+    ("ASCALE", "Radial scale length for disk basis construction",
      cxxopts::value<double>(ASCALE)->default_value("1.0"))
-   ("ASHIFT", "Fraction of scale length for shift in conditioning function",
+    ("ASHIFT", "Fraction of scale length for shift in conditioning function",
      cxxopts::value<double>(ASHIFT)->default_value("0.0"))
-   ("HSCALE", "Vertical scale length for disk basis construction",
+    ("HSCALE", "Vertical scale length for disk basis construction",
      cxxopts::value<double>(HSCALE)->default_value("0.1"))
-   ("RFACTOR", "Disk radial scaling for deprojection computation",
+    ("RFACTOR", "Disk radial scaling for deprojection computation",
      cxxopts::value<double>(RFACTOR)->default_value("1.0"))
-   ("AEXP", "Radial scale length for disk basis test",
+    ("AEXP", "Radial scale length for disk basis test",
      cxxopts::value<double>(AEXP)->default_value("1.0"))
-   ("HEXP", "Vertical scale length for disk basis test",
+    ("HEXP", "Vertical scale length for disk basis test",
      cxxopts::value<double>(HEXP)->default_value("0.1"))
-   ("RNUM", "Number of radial knots for EmpCylSL basis construction quadrature",
+    ("RNUM", "Number of radial knots for EmpCylSL basis construction quadrature",
      cxxopts::value<int>(RNUM)->default_value("200"))
-   ("PNUM", "Number of azimthal knots for EmpCylSL basis construction quadrature",
+    ("PNUM", "Number of azimthal knots for EmpCylSL basis construction quadrature",
      cxxopts::value<int>(PNUM)->default_value("80"))
-   ("TNUM", "Number of cos(theta) knots for EmpCylSL basis construction quadrature",
-    cxxopts::value<int>(TNUM)->default_value("80"))
+    ("TNUM", "Number of cos(theta) knots for EmpCylSL basis construction quadrature",
+     cxxopts::value<int>(TNUM)->default_value("80"))
     ("CMAPR", "Radial coordinate mapping type for cylindrical grid (0=none, 1=ractional function",
      cxxopts::value<int>(CMAPR)->default_value("1"))
     ;

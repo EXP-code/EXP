@@ -78,8 +78,8 @@ int main(int argc, char** argv)
   cxxopts::Options options(NAME_ID, "Compare two YAML files");
 
   options.add_options()
-    ("help,h", "Display this help message")
-    ("version,v", "Display version number")
+    ("h,help", "Display this help message")
+    ("v,version", "Display version number")
     ("input-files", "Input files", cxxopts::value<std::vector<std::string>>());
   
   auto vm = options.parse(argc, argv);

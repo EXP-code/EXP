@@ -353,7 +353,7 @@ main(int ac, char **av)
     ("help,h", "Print this help message")
     ("conf,c", "Write template options file with current and all default values",
      cxxopts::value<string>(config))
-    ("input,f", "Parameter configuration file",
+    ("f,input", "Parameter configuration file",
      cxxopts::value<string>(config))
     ("condition", "Condition EmpCylSL deprojection from specified disk model (EXP or MN)",
      cxxopts::value<string>(dmodel))

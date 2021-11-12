@@ -432,11 +432,11 @@ void YAML_parse_args(int argc, char** argv)
     cxxopts::Options options("exp", "Basis-function EXPansion code");
 
     options.add_options()
-      ("help,h", "this help message")
-      ("file,f", "the input parameter file",
+      ("h,help", "this help message")
+      ("f,file", "the input parameter file",
        cxxopts::value<std::string>(curparm)->default_value("config.yml"))
-      ("display,d", "display a default parameter file")
-      ("git,v", "display verbose GIT version info")
+      ("d,display", "display a default parameter file")
+      ("v,git", "display verbose GIT version info")
       ;
     
     auto vm = options.parse(argc, argv);

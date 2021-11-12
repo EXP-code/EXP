@@ -893,18 +893,18 @@ main(int argc, char **argv)
   cxxopts::Options options("diskprof", "Compute disk potential, force and density profiles from phase-space output files");
 
   options.add_options()
-    ("help,h", "produce this help message")
-    ("verbose,v", "verbose output")
-    ("mask,b", "blank empty cells")
-    ("filetype,F", "input file type",
+    ("h,help", "produce this help message")
+    ("v,verbose", "verbose output")
+    ("b,mask", "blank empty cells")
+    ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-    ("prefix,P", "prefix for phase-space files",
+    ("P,prefix", "prefix for phase-space files",
      cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
     ("nice", "number of bins in x direction",
      cxxopts::value<int>(nice)->default_value("0"))
-    ("RMAX,R", "maximum radius for output",
+    ("R,RMAX", "maximum radius for output",
      cxxopts::value<double>(RMAX)->default_value("0.1"))
-    ("ZMAX,Z", "maximum height for output",
+    ("Z,ZMAX", "maximum height for output",
      cxxopts::value<double>(ZMAX)->default_value("0.01"))
     ("rcylmin", "minimum radius for cylindrical basis table",
      cxxopts::value<double>(rcylmin)->default_value("0.001"))

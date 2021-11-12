@@ -86,7 +86,7 @@ main(int argc, char **argv)
   cxxopts::Options options("gensph", "Generate single-mass or multi-mass spherical ICs");
   
   options.add_options()
-   ("help,h", "Print this help message")
+   ("h,help", "Print this help message")
    ("zeropos", "Set the origin at the center of mass")
    ("zerovel", "Set the total momentum of the realization to zero")
    ("HMODEL", "Halo type (0=file)",

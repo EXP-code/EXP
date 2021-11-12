@@ -27,18 +27,18 @@ int main(int argc, char** argv)
   cxxopts::Options options("hctest", "Heating and cooling test");
 
   options.add_options()
-    ("help,h", "print this help message")
-    ("Nmin,1", "minimum number density (H/cc)",
+    ("h,help", "print this help message")
+    ("1,Nmin", "minimum number density (H/cc)",
      cxxopts::value<double>(Nmin)->default_value("1.0e-08"))
-    ("Nmax,2", "maximum number density (H/cc)",
+    ("2,Nmax", "maximum number density (H/cc)",
      cxxopts::value<double>(Nmax)->default_value("1.0e10"))
-    ("Tmin,3", "minimum temperature",
+    ("3,Tmin", "minimum temperature",
      cxxopts::value<double>(Tmin)->default_value("1.0e+02"))
-    ("Tmax,4", "maximum temperature",
+    ("4,Tmax", "maximum temperature",
      cxxopts::value<double>(Tmax)->default_value("1.0e+07"))
-    ("filename,f", "output filename",
+    ("f,filename", "output filename",
      cxxopts::value<std::string>(filename)->default_value("hctest.dat"))
-    ("cachefile,c", "cache file",
+    ("c,cachefile", "cache file",
      cxxopts::value<std::string>(cachefile)->default_value(".HeatCool"))
     ("Nnum", "number of density points",
      cxxopts::value<unsigned int>(Nnum)->default_value("100"))

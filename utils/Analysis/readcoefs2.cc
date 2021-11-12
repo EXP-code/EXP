@@ -18,11 +18,11 @@ int main(int argc, char **argv)
   cxxopts::Options options("readcoefs2", "Read disk coefficient file and tabulate coefficients for each harmonic subspace in time");
 
   options.add_options()
-    ("help,h",
+    ("h,help",
      "produce this help message")
-    ("PA,p",
+    ("p,PA",
      "compute position angle rather than amplitude")
-    ("verbose,v",
+    ("v,verbose",
      "verbose output")
     ("readcoef",
      "using readcoef output")

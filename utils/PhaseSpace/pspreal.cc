@@ -37,12 +37,12 @@ main(int argc, char **argv)
   //
   cxxopts::Options options("pspreal", "Convert the PSP to and from float and double");
   options.add_options()
-    ("help,h", "this help message")
-    ("verbose,v", "verbose output")
-    ("tofloat,4", "convert to default (default)")
-    ("todouble,8", "convert to double")
-    ("input,i", "input file", cxxopts::value<std::string>(file))
-    ("output,o", "output file", cxxopts::value<std::string>(ofil))
+    ("h,help", "this help message")
+    ("v,verbose", "verbose output")
+    ("4,tofloat", "convert to default (default)")
+    ("8,todouble", "convert to double")
+    ("i,input", "input file", cxxopts::value<std::string>(file))
+    ("o,output", "output file", cxxopts::value<std::string>(ofil))
     ;
 
   auto vm = options.parse(argc, argv);

@@ -101,14 +101,14 @@ main(int argc, char **argv)
   cxxopts::Options options("pspxval2", sout.str());
 
   options.add_options()
-    ("help,h", "Print this help message")
-    ("verbose,v", "Verbose and diagnostic output for covariance computation")
+    ("h,help", "Print this help message")
+    ("v,verbose", "Verbose and diagnostic output for covariance computation")
     ("NCUT", "trim coefficient by order rather than SNR")
     ("LOG", "log scaling for SNR")
     ("Hall", "use Hall smoothing for SNR trim")
-    ("filetype,F", "input file type",
+    ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-    ("prefix,P", "prefix for phase-space files",
+    ("P,prefix", "prefix for phase-space files",
      cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
     ("NICE", "system priority",
      cxxopts::value<int>(NICE)->default_value("0"))
@@ -124,13 +124,13 @@ main(int argc, char **argv)
      cxxopts::value<int>(NMAX)->default_value("12"))
     ("NPART", "Jackknife partition number for testing (0 means off, use standard eval)",
      cxxopts::value<int>(NPART)->default_value("0"))
-    ("NSNR, N", "Number of SNR evaluations",
+    ("N,NSNR", "Number of SNR evaluations",
      cxxopts::value<int>(NSNR)->default_value("20"))
-     ("minSNR", "minimum SNR value for loop output",
-      cxxopts::value<double>(minSNR0)->default_value("0.01"))
-     ("Hexp", "default Hall smoothing exponent",
+    ("minSNR", "minimum SNR value for loop output",
+     cxxopts::value<double>(minSNR0)->default_value("0.01"))
+    ("Hexp", "default Hall smoothing exponent",
      cxxopts::value<double>(Hexp)->default_value("1.0"))
-     ("prefix", "Filename prefix",
+    ("prefix", "Filename prefix",
      cxxopts::value<std::string>(prefix)->default_value("crossval"))
     ("runtag", "Phase space file",
      cxxopts::value<string>(runtag)->default_value("run1"))
@@ -150,7 +150,7 @@ main(int argc, char **argv)
      cxxopts::value<int>(knots)->default_value("40"))
     ("compname", "train on Component (default=stars)",
      cxxopts::value<std::string>(cname)->default_value("stars"))
-    ("dir,d", "directory for SPL files",
+    ("d,dir", "directory for SPL files",
      cxxopts::value<std::string>(dir))
     ;
 

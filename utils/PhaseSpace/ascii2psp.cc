@@ -35,11 +35,11 @@ main(int argc, char **argv)
   cxxopts::Options options("ascii2psp", "Construct a PSP file from ascii input files");
 
   options.add_options()
-    ("help,h", "print this help message")
-    ("verbose,v", "print verbose output messages")
-    ("output,o", "output PSP file name",
+    ("h,help", "print this help message")
+    ("v,verbose", "print verbose output messages")
+    ("o,output", "output PSP file name",
      cxxopts::value<std::string>(outfile)->default_value("new.psp"))
-    ("time,t", "desired time stamp",
+    ("t,time", "desired time stamp",
      cxxopts::value<double>(time)->default_value("0.0"))
     ;
 

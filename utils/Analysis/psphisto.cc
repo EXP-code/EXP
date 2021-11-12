@@ -78,46 +78,46 @@ main(int argc, char **argv)
 	     "Compute disk potential, force and density profiles from PSP phase-space output files");
 
   options.add_options()
-   ("help,h", "Print this help message")
-   ("filetype,F", "input file type",
+    ("h,help", "Print this help message")
+    ("F,iletype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-   ("prefix,P", "prefix for phase-space files",
+    ("P,prefix", "prefix for phase-space files",
      cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
-   ("RMIN", "minimum radius for output",
+    ("RMIN", "minimum radius for output",
      cxxopts::value<double>(rmin)->default_value("0.0"))
-   ("RMAX", "maximum radius for output",
+    ("RMAX", "maximum radius for output",
      cxxopts::value<double>(rmax)->default_value("0.1"))
-   ("ZCENTER", "disk midplane",
+    ("ZCENTER", "disk midplane",
      cxxopts::value<double>(zcen)->default_value("0.0"))
-   ("ZWIDTH", "disk halfwidth",
+    ("ZWIDTH", "disk halfwidth",
      cxxopts::value<double>(zwid)->default_value("0.05"))
-   ("NBINS", "number of bins",
+    ("NBINS", "number of bins",
      cxxopts::value<int>(nbins)->default_value("40"))
-   ("IBEG", "first PSP index",
+    ("IBEG", "first PSP index",
      cxxopts::value<int>(ibeg)->default_value("0"))
-   ("IEND", "last PSP index",
+    ("IEND", "last PSP index",
      cxxopts::value<int>(iend)->default_value("100"))
-   ("ISKIP", "skip PSP interval",
+    ("ISKIP", "skip PSP interval",
      cxxopts::value<int>(iskip)->default_value("1"))
-   ("PBEG", "first particle index",
+    ("PBEG", "first particle index",
      cxxopts::value<int>(pbeg)->default_value("0"))
-   ("PEND", "last particle index",
+    ("PEND", "last particle index",
      cxxopts::value<int>(pend)->default_value("-1"))
-   ("LOG", "use logarithmic scaling for radial axis",
+    ("LOG", "use logarithmic scaling for radial axis",
      cxxopts::value<bool>(rlog)->default_value("false"))
-   ("PROJ", "projection (1=cyl)",
+    ("PROJ", "projection (1=cyl)",
      cxxopts::value<int>(proj)->default_value("1"))
-   ("COMP", "component name",
+    ("COMP", "component name",
      cxxopts::value<std::string>(comp)->default_value("disk"))
-   ("LOG", "use logarithmic scaling for radial axis",
+    ("LOG", "use logarithmic scaling for radial axis",
      cxxopts::value<bool>(logr)->default_value("false"))
-   ("OUTFILE", "filename prefix",
+    ("OUTFILE", "filename prefix",
      cxxopts::value<std::string>(outfile)->default_value("histo"))
-   ("INFILE", "phase space file prefix",
+    ("INFILE", "phase space file prefix",
      cxxopts::value<std::string>(infile)->default_value("OUT"))
-   ("RUNTAG", "EXP run tag",
+    ("RUNTAG", "EXP run tag",
      cxxopts::value<std::string>(runtag)->default_value("run"))
-     ;
+    ;
   
   
   // ==================================================

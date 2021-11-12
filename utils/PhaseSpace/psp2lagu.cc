@@ -249,31 +249,31 @@ main(int ac, char **av)
   cxxopts::Options options("psp2lagu", "Separate a psp structure and make a kinematic Fourier coefficients series in Laguerre functions");
 
   options.add_options()
-    ("help,h", "produce help message")
-    ("verbose,v", "verbose output")
+    ("h,help", "produce help message")
+    ("v,verbose", "verbose output")
     ("finegrain", "fine-grained progress report")
     ("append", "append to existing output file")
-    ("beg,i", "initial snapshot index",
+    ("i,beg", "initial snapshot index",
      cxxopts::value<int>(ibeg)->default_value("0"))
-    ("end,e", "final snapshot index",
+    ("e,end", "final snapshot index",
      cxxopts::value<int>(iend)->default_value(std::to_string(std::numeric_limits<int>::max())))
-    ("mmax,M", "maximum Fourier component in bin",
+    ("M,mmax", "maximum Fourier component in bin",
      cxxopts::value<int>(mmax)->default_value("4"))
-    ("rscale,a", "exponential disk scale",
+    ("a,rscale", "exponential disk scale",
      cxxopts::value<double>(rscl)->default_value("0.01"))
-    ("nmax,n", "maximum Laguerre order",
+    ("n,nmax", "maximum Laguerre order",
      cxxopts::value<int>(nmax)->default_value("8"))
-    ("name,c", "component name",
+    ("c,name", "component name",
      cxxopts::value<std::string>(cname)->default_value("comp"))
-    ("dir,d", "rewrite directory location for SPL files",
+    ("d,dir", "rewrite directory location for SPL files",
      cxxopts::value<std::string>(new_dir)->default_value("./"))
-    ("work,w", "working directory for output file",
+    ("w,work", "working directory for output file",
      cxxopts::value<std::string>(work_dir)->default_value("."))
-    ("type,t", "PSP output type (OUT or SPL)",
+    ("t,type", "PSP output type (OUT or SPL)",
      cxxopts::value<std::string>(tname)->default_value("OUT"))
-    ("runtag,T", "Runtag id",
+    ("T,runtag", "Runtag id",
      cxxopts::value<std::string>(runtag)->default_value("run0"))
-    ("suffix,s", "Output file suffix",
+    ("s,suffix", "Output file suffix",
      cxxopts::value<std::string>(suffix)->default_value("ring_coefs"))
     ;
       
