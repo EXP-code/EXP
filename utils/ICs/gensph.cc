@@ -171,6 +171,14 @@ main(int argc, char **argv)
   
   auto vm = options.parse(argc, argv);
   
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
   // Print help message and exit
   //
   if (vm.count("help")) {

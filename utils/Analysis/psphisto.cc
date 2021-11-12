@@ -109,8 +109,6 @@ main(int argc, char **argv)
      cxxopts::value<int>(proj)->default_value("1"))
     ("COMP", "component name",
      cxxopts::value<std::string>(comp)->default_value("disk"))
-    ("LOG", "use logarithmic scaling for radial axis",
-     cxxopts::value<bool>(logr)->default_value("false"))
     ("OUTFILE", "filename prefix",
      cxxopts::value<std::string>(outfile)->default_value("histo"))
     ("INFILE", "phase space file prefix",
@@ -126,7 +124,15 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  auto vm = options.parse(argc, argv);
+  cxxopts::ParseResult vm;
+
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
   // ==================================================
   // Print help message and exit

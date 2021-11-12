@@ -43,9 +43,15 @@ int main(int argc, char **argv)
      cxxopts::value<std::string>(&file)->default_value("coef.dat"))
     ;
   
-  auto vm = options.parse(argc, argv);
+  cxxopts::ParseResult vm;
 
-  const std::string overview = 
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
   if (vm.count("help")) {
     std::cout << overview << std::endl;

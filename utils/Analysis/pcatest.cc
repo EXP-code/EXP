@@ -118,7 +118,21 @@ main(int argc, char **argv)
      cxxopts::value<bool>(LOGSC)->default_value("false"))
     ;
   
-  auto vm = options.parse(argc, argv);
+  // ==================================================
+  // MPI preliminaries
+  // ==================================================
+
+  local_init_mpi(argc, argv);
+  
+  cxxopts::ParseResult vm;
+
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
   if (vm.count("help")) {
     std::cout << options.help() << std::endl;
@@ -145,12 +159,6 @@ main(int argc, char **argv)
 				//
   EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale);
     
-  // ==================================================
-  // MPI preliminaries
-  // ==================================================
-
-  local_init_mpi(argc, argv);
-  
   // ==================================================
   // Initialize and/or create basis
   // ==================================================

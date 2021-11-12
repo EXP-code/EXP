@@ -11,13 +11,11 @@
 #include <numeric>
 #include <tuple>
 
-#include <boost/program_options.hpp>
-
 #include "atomic_constants.H"
 #include "Ion.H"
 #include "Elastic.H"
+#include <cxxopts.H>
 
-namespace po = boost::program_options;
 
 #include <mpi.h>
 
@@ -64,43 +62,42 @@ int main (int ac, char **av)
   bool eVout = false;
   int num;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("eV",		"print results in eV")
-    ("vanHoof",         "Use Gaunt factor from van Hoof et al.")
-    ("KandM",           "Use original Koch & Motz cross section")
-    ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
-     "atomic number")
-    ("C,C",		po::value<unsigned short>(&C)->default_value(3),
-     "ionic charge")
-    ("Emin,e",		po::value<double>(&emin)->default_value(0.001),
-     "minimum energy (Rydbergs)")
-    ("Emax,E",		po::value<double>(&emax)->default_value(100.0),
-     "maximum energy (Rydbergs)")
-    ("Num,N",		po::value<int>(&num)->default_value(200),
-     "number of evaluations")
-    ("kdel,k",          po::value<double>(&kdel)->default_value(0.25),
-     "default logarithmic spacing for k grid")
-    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Badnell"),
-     "cross-section type")
+  cxxopts::Options options(av[0], "Test radiative cross section computation");
+
+  options.add_options()
+   ("h,help", "produce help message")
+   ("eV", "print results in eV")
+   ("vanHoof", "Use Gaunt factor from van Hoof et al.")
+   ("KandM", "Use original Koch & Motz cross section")
+   ("Z,Z", "atomic number",
+     cxxopts::value<unsigned short>(Z)->default_value("2"))
+   ("C,C", "ionic charge",
+     cxxopts::value<unsigned short>(C)->default_value("3"))
+   ("e,Emin", "minimum energy (Rydbergs)",
+     cxxopts::value<double>(emin)->default_value("0.001"))
+   ("E,Emax", "maximum energy (Rydbergs)",
+     cxxopts::value<double>(emax)->default_value("100.0"))
+   ("N,Num", "number of evaluations",
+     cxxopts::value<int>(num)->default_value("200"))
+   ("k,kdel", "default logarithmic spacing for k grid",
+     cxxopts::value<double>(kdel)->default_value("0.25"))
+   ("R,RRtype", "cross-section type",
+     cxxopts::value<std::string>(RRtype)->default_value("Badnell"))
     ;
 
-
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
-    return -1;
+    exit(-1);
   }
 
+
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: Helium II recombination" << std::endl;
     std::cout << "\t" << av[0]
 	      << " -Z 2 -C 2" << std::endl;

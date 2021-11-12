@@ -65,9 +65,16 @@ main(int argc, char **argv)
   bool DENS, verbose = false, mask = false, ignore, logl;
   std::string CACHEFILE, COEFFILE, COEFFILE2, MODEL, OUTFILE, fileType, filePrefix;
 
-  //
+  // ==================================================
+  // MPI preliminaries
+  // ==================================================
+
+  local_init_mpi(argc, argv);
+
+  // ==================================================
   // Parse Command line
-  //
+  // ==================================================
+
   cxxopts::Options options("diskfreqs", overview);
 
   options.add_options()
@@ -112,7 +119,15 @@ main(int argc, char **argv)
     ;
 
   
-  auto vm = options.parse(argc, argv);
+  cxxopts::ParseResult vm;
+
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
   if (vm.count("help")) {
     std::cout << std::string(60, '-') << std::endl;
@@ -129,11 +144,6 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
 
-  // ==================================================
-  // MPI preliminaries
-  // ==================================================
-
-  local_init_mpi(argc, argv);
   
   // Okay here is the plan
   // ---------------------

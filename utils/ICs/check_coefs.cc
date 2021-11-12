@@ -381,8 +381,16 @@ main(int ac, char **av)
   
   // Parse command line for control and critical parameters
   //
-  auto vm = options.parse(ac, av);
-  
+  cxxopts::ParseResult vm;
+
+  try {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
   // Print help message and exit
   //
   if (vm.count("help")) {

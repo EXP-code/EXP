@@ -50,7 +50,16 @@ int main(int argc, char** argv)
      cxxopts::value<unsigned int>(tnum)->default_value("40"))
     ;
 
-  auto vm = options.parse(argc, argv);
+  
+
+  cxxopts::ParseResult vm;
+
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
+  }
 
   if (vm.count("help")) {
     std::cout << options.help() << std::endl;
