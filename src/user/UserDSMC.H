@@ -1,7 +1,7 @@
 #ifndef _UserDSMC_H
 #define _UserDSMC_H
 
-#include <boost/random/uniform_real_distribution.hpp>
+#include <random>
 
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
@@ -124,7 +124,7 @@ private:
   vector<double> vmax;
 
 				// Pseudo-random-number generation
-  boost::random::uniform_real_distribution<> unif;
+  std::uniform_real_distribution<> unif;
 
   void makeGrid();
   void makeSort();

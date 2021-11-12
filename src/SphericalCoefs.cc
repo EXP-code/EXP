@@ -1,8 +1,8 @@
 #include <localmpi.H>
 
-#include <boost/make_unique.hpp> // For character buffer
 #include <yaml-cpp/yaml.h>	 // YAML support
 #include <cstring>		 // For strncpy
+#include <memory>		 // Shared pointers
 
 #include "global.H"
 #include "SphericalCoefs.H"
@@ -45,7 +45,7 @@ bool SphericalCoefs::Coefs::read(std::istream& in)
     
       // Create buffer
       //
-      auto buf = boost::make_unique<char[]>(hsize+1);
+      auto buf = std::make_unique<char[]>(hsize+1);
 
       // Read YAML string
       //

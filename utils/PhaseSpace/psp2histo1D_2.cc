@@ -13,6 +13,7 @@ using namespace std;
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <random>
 #include <string>
 #include <list>
 #include <map>
@@ -21,7 +22,6 @@ using namespace std;
 #include <PSP.H>
 
 #include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 namespace po = boost::program_options;
 

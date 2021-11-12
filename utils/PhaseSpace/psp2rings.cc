@@ -12,6 +12,7 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <random>
 #include <string>
 #include <list>
 #include <map>
@@ -20,7 +21,6 @@
 #include <PSP.H>
 #include <FileUtils.H>
 
-#include <boost/random/mersenne_twister.hpp>
 #include <boost/program_options.hpp>
 
 #include <Progress.H>
@@ -192,7 +192,7 @@ main(int ac, char **av)
     out.write((const char *)&b, sizeof(double));
   }
 
-  boost::progress_display progress(iend - ibeg + 1);
+  progress::progress_display progress(iend - ibeg + 1);
 
   for (int n=ibeg; n<=iend; n++) {
 

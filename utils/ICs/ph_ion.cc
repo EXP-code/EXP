@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <random>
 #include <string>
 #include <cmath>
 #include <array>
@@ -9,7 +10,6 @@
 // BOOST stuff
 //
 #include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 // Library variables
 

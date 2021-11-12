@@ -6,7 +6,6 @@
 #include <limits>
 #include <string>
 
-#include <boost/make_unique.hpp>
 #include <boost/multi_array.hpp>
 
 #include <Progress.H>		// Progress bar
@@ -2055,10 +2054,10 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   omp_set_num_threads(nthrds);	// OpenMP set up
 #endif
 
-  std::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (VFLAG & 16 && myid==0) {
     std::cout << std::endl << "Quadrature loop progress" << std::endl;
-    progress = std::make_shared<boost::progress_display>(numr);
+    progress = std::make_shared<progress::progress_display>(numr);
   }
 
   int cntr = 0;			// Loop counter for spreading load to nodes

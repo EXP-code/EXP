@@ -5,11 +5,8 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <random>
 #include <cmath>
-
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
 
 #include <exponential.H>
 #include <massmodel.H>
@@ -56,9 +53,9 @@ class DiskHalo
   Eigen::MatrixXd halotable;
   double dr, dc;
 
-  boost::mt19937 gen;
-  boost::random::uniform_real_distribution<> rndU;
-  boost::random::normal_distribution<> rndN;
+  std::mt19937 gen;
+  std::uniform_real_distribution<> rndU;
+  std::normal_distribution<> rndN;
 
   bool DF;
   bool MULTI;

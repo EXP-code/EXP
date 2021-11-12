@@ -9,6 +9,8 @@
 #include <OutputContainer.H>
 #include <ExternalCollection.H>
 
+#include <sys/types.h>
+#include <unistd.h>
 
 void clean_up(void)
 {

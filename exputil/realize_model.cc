@@ -73,7 +73,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
   if (!dist_defined) {
     std::cerr << "AxiSymModel: must define distribution before realizing!"
 	      << std::endl;
-    _exit (-1);
+    exit (-1);
   }
 
   int it;			// Iteration counter
@@ -280,7 +280,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
   if (!dist_defined) {
     std::cerr << "AxiSymModel: must define distribution before realizing!"
 	      << std::endl;
-    _exit (-1);
+    exit (-1);
   }
 
   int it;			// Iteration counter
@@ -396,7 +396,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
   if (!dist_defined) {
     std::cerr << "AxiSymModel: must define distribution before realizing!"
 	      << std::endl;
-    _exit (-1);
+    exit (-1);
   }
 
 #ifdef DEBUG
@@ -592,7 +592,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
   if (!dist_defined) {
     std::cerr << "AxiSymModel: must define distribution before realizing!"
 	      << std::endl;
-    _exit (-1);
+    exit (-1);
   }
 
 #ifdef DEBUG
@@ -919,7 +919,7 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
   if (!dist_defined) {
     std::cerr << "AxiSymModel: must define distribution before realizing!"
 	      << std::endl;
-    _exit (-1);
+    exit (-1);
   }
 
   double r, pot, vmax, vr=0.0, vt, eee, vt1=0.0, vt2=0.0, fmax;

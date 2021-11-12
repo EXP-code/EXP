@@ -4,9 +4,6 @@
                                 // C++/STL headers
 #include <string>
 
-				// Boost random generator
-#include <boost/random/mersenne_twister.hpp>
-
 				// Option parsing
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;

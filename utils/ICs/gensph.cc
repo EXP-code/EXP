@@ -34,8 +34,10 @@
 #include <string>
 #include <memory>
 
-#include <boost/program_options.hpp>
+// Can be replaced by std in c++17
+//
 #include <boost/filesystem.hpp>
+#include <boost/any.hpp>
 
 #include <fftw3.h>
 
@@ -51,8 +53,7 @@
 #include <EllipForce.H>
 #include <localmpi.H>
 #include <fpetrap.h>
-
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
 // Global variables
 
@@ -79,164 +80,105 @@ main(int argc, char **argv)
   //
   local_init_mpi(argc, argv);
   
-  
   // Option parsing
   //
-  const char *DESC = "Generate single-mass or multi-mass spherical ICs.\n\nOptions";
+
+  cxxopts::Options options("gensph", "Generate single-mass or multi-mass spherical ICs");
   
-  po::options_description desc(DESC);
-  desc.add_options()
-    ("help,h",
-     "Print this help message")
-    ("zeropos",
-     "Set the origin at the center of mass")
-    ("zerovel",
-     "Set the total momentum of the realization to zero")
-    ("conf,c",        po::value<string>(&config),
-     "Write template options file with current and all default values")
-    ("input,f",       po::value<string>(&config),
-     "Parameter configuration file")
-    ("HMODEL",        po::value<int>(&HMODEL)->default_value(0),
-     "Halo type (0=file)")
-    ("N",             po::value<int>(&N)->default_value(1000000),
-     "Number of bodies")
-    ("NUMDF",         po::value<int>(&NUMDF)->default_value(10000),
-     "Number of points in energy grid for Eddington inversion")
-    ("NUMR",          po::value<int>(&NUMR)->default_value(400),
-     "Number of points in radial grid for halo model")
-    ("NUMJ",          po::value<int>(&NUMJ)->default_value(400),
-     "Number of points in kappa grid for Eddington inversion")
-    ("NUME",          po::value<int>(&NUME)->default_value(400),
-     "Number of energy points in PS generation table")
-    ("NUMG",          po::value<int>(&NUMG)->default_value(800),
-     "Number of pointsin mass table for model realization")
-    ("NREPORT",       po::value<int>(&NREPORT)->default_value(1000),
-     "Report after generating NREPORT points")
-    ("SEED",          po::value<int>(&SEED)->default_value(11),
-     "Initial seed for random number generator")
-    ("ITMAX",         po::value<int>(&ITMAX)->default_value(100000),
-     "Maximum number of interations for acceptance-rejection method")
-    ("NUMMODEL",      po::value<int>(&NUMMODEL)->default_value(500),
-     "Number of points for GeneralizedPolytrope")
-    ("RNUM",          po::value<int>(&RNUM)->default_value(10000),
-     "Number of radial points for interally computed mass model")
-    ("DIVERGE",       po::value<int>(&DIVERGE)->default_value(0),
-     "Use inner cusp extrapolation on real mass-density model")
-    ("DIVERGE_RFAC",  po::value<double>(&DIVERGE_RFAC)->default_value(1.5),
-     "Inner cusp slope")
-    ("DIVERGE2",      po::value<int>(&DIVERGE2)->default_value(0),
-     "Use inner cusp extrapolation on (pseudo) number-density model")
-    ("DIVERGE_RFAC2", po::value<double>(&DIVERGE_RFAC2)->default_value(1.5),
-     "Inner cusp slope")
-    ("LOGR",          po::value<bool>(&LOGR)->default_value(false),
-     "Use logarithmic mapping for internal radial grid")
-    ("LINEAR",        po::value<int>(&LINEAR)->default_value(1),
-     "Use linear interpolation for SphericalModelTable")
-    ("NN",            po::value<double>(&NN)->default_value(2.5),
-     "First polytropic index (energy)")
-    ("MM",            po::value<double>(&MM)->default_value(0.5),
-     "Second polytropic index (ang. mom.)")
-    ("RA",            po::value<double>(&RA)->default_value(1.0e8),
-     "Anisotropy index")
-    ("RMODMIN",       po::value<double>(&RMODMIN)->default_value(1.0e-2),
-     "Inner radius for Istothermal and Hernquist model")
-    ("RMOD",          po::value<double>(&RMOD)->default_value(100.0),
-     "Outer radius for Isothermal and Hernquist model")
-    ("EPS",           po::value<double>(&EPS)->default_value(1.0e-5),
-     "step size for computing polytrope")
-    ("X0",            po::value<double>(&X0)->default_value(0.0),
-     "Phase space offset")
-    ("Y0",            po::value<double>(&Y0)->default_value(0.0),
-     "Phase space offset")
-    ("Z0",            po::value<double>(&Z0)->default_value(0.0),
-     "Phase space offset")
-    ("U0",            po::value<double>(&U0)->default_value(0.0),
-     "Phase space offset")
-    ("V0",            po::value<double>(&V0)->default_value(0.0),
-     "Phase space offset")
-    ("W0",            po::value<double>(&W0)->default_value(0.0),
-     "Phase space offset")
-    ("TOLE",          po::value<double>(&TOLE)->default_value(1.0e-4),
-     "Point generation fractional energy offset for Eddington grid")
-    ("Emin0",         po::value<double>(&Emin0)->default_value(-3.0),
-     "Minimum energy (if ELIMIT=true)")
-    ("Emax0",         po::value<double>(&Emax0)->default_value(-1.0),
-     "Maximum energy (if ELIMIT=true)")
-    ("Kmin0",         po::value<double>(&Kmin0)->default_value(0.0),
-     "Minimum kappa (if ELIMIT=true)")
-    ("Kmax0",         po::value<double>(&Kmax0)->default_value(1.0),
-     "Maximum kappa (if ELIMIT=true)")
-    ("RBAR",          po::value<double>(&RBAR)->default_value(0.067),
-     "Semi-major axis for bar ellipsoid")
-    ("MBAR",          po::value<double>(&MBAR)->default_value(0.00103739),
-     "Mass of bar ellipsoid")
-    ("BRATIO",        po::value<double>(&BRATIO)->default_value(0.2),
-     "axis ratio b/a")
-    ("CRATIO",        po::value<double>(&CRATIO)->default_value(0.05),
-     "axis ratio c/b")
-    ("SMOOTH",        po::value<double>(&SMOOTH)->default_value(-1.0),
-     "smooth generated profile before inversion with width SMOOTH (neg. means no smoothing")
-    ("NUMINT",        po::value<int>(&NUMINT)->default_value(40),
-     "Number of points for bar monopole grid")
-    ("PSP",           po::value<bool>(&PSP)->default_value(true),
-     "PSP ascii output")
-    ("ELIMIT",        po::value<bool>(&ELIMIT)->default_value(false),
-     "Limit energy and angular momentum (kappa)")
-    ("VERBOSE",       po::value<bool>(&VERBOSE)->default_value(false),
-     "Additional diagnostic output")
-    ("GRIDPOT",       po::value<bool>(&GRIDPOT)->default_value(false),
-     "Compute potential internally for multimass")
-    ("MODELS",        po::value<bool>(&MODELS)->default_value(false),
-     "Write out internal models")
-    ("EBAR",          po::value<bool>(&EBAR)->default_value(false),
-     "Add an ellipsoid bar model")
-    ("INFILE",        po::value<string>(&INFILE)->default_value("infile"),
-     "Mass-model file for halo")
-    ("MMFILE",        po::value<string>(&MMFILE),
-     "Model file for  (pseudo) number-density profile")
-    ("OUTFILE",       po::value<string>(&OUTFILE)->default_value("model.out"),
-     "Output file for internally generated models")
-    ("OUTPS",         po::value<string>(&OUTPS)->default_value("new.bods"),
-     "Output phase space file")
-    ("NI",            po::value<int>(&NI)->default_value(0),
-     "Number of interger attributes")
-    ("ND",            po::value<int>(&ND)->default_value(0),
-     "Number of double attributes")
-    ("allow",
-     "No not suppress negative multimass ratios by requeueing")
+  options.add_options()
+   ("help,h", "Print this help message")
+   ("zeropos", "Set the origin at the center of mass")
+   ("zerovel", "Set the total momentum of the realization to zero")
+   ("HMODEL", "Halo type (0=file)",
+     cxxopts::value<int>(HMODEL)->default_value("0"))
+   ("N", "Number of bodies",
+     cxxopts::value<int>(N)->default_value("1000000"))
+   ("NUMDF", "Number of points in energy grid for Eddington inversion",
+     cxxopts::value<int>(NUMDF)->default_value("10000"))
+   ("NUMR", "Number of points in radial grid for halo model",
+     cxxopts::value<int>(NUMR)->default_value("400"))
+   ("NUMJ", "Number of points in kappa grid for Eddington inversion",
+     cxxopts::value<int>(NUMJ)->default_value("400"))
+   ("NUME", "Number of energy points in PS generation table",
+     cxxopts::value<int>(NUME)->default_value("400"))
+   ("NUMG", "Number of pointsin mass table for model realization",
+     cxxopts::value<int>(NUMG)->default_value("800"))
+   ("NREPORT", "Report after generating NREPORT points",
+     cxxopts::value<int>(NREPORT)->default_value("1000"))
+   ("SEED", "Initial seed for random number generator",
+     cxxopts::value<int>(SEED)->default_value("11"))
+   ("ITMAX", "Maximum number of interations for acceptance-rejection method",
+     cxxopts::value<int>(ITMAX)->default_value("100000"))
+   ("NUMMODEL", "Number of points for GeneralizedPolytrope",
+     cxxopts::value<int>(NUMMODEL)->default_value("500"))
+   ("RNUM", "Number of radial points for interally computed mass model",
+     cxxopts::value<int>(RNUM)->default_value("10000"))
+   ("DIVERGE", "Use inner cusp extrapolation on real mass-density model",
+     cxxopts::value<int>(DIVERGE)->default_value("0"))
+   ("DIVERGE_RFAC", "Inner cusp slope",
+     cxxopts::value<double>(DIVERGE_RFAC)->default_value("1.5"))
+   ("DIVERGE2", "Use inner cusp extrapolation on (pseudo) number-density model",
+     cxxopts::value<int>(DIVERGE2)->default_value("0"))
+   ("DIVERGE_RFAC2", "Inner cusp slope",
+     cxxopts::value<double>(DIVERGE_RFAC2)->default_value("1.5"))
+   ("LOGR", "Use logarithmic mapping for internal radial grid",
+     cxxopts::value<bool>(LOGR)->default_value("false"))
+   ("LINEAR", "Use linear interpolation for SphericalModelTable",
+     cxxopts::value<int>(LINEAR)->default_value("1"))
+   ("NN", "First polytropic index (energy)",
+     cxxopts::value<double>(NN)->default_value("2.5"))
+   ("MM", "Second polytropic index (ang. mom.)",
+     cxxopts::value<double>(MM)->default_value("0.5"))
+   ("RA", "Anisotropy index",
+     cxxopts::value<double>(RA)->default_value("1.0e8"))
+   ("RMODMIN", "Inner radius for Istothermal and Hernquist model",
+     cxxopts::value<double>(RMODMIN)->default_value("1.0e-2"))
+   ("RMOD", "Outer radius for Isothermal and Hernquist model",
+     cxxopts::value<double>(RMOD)->default_value("100.0"))
+   ("EPS", "step size for computing polytrope",
+     cxxopts::value<double>(EPS)->default_value("1.0e-5"))
+   ("X0", "Phase space offset",
+     cxxopts::value<double>(X0)->default_value("0.0"))
+   ("Y0", "Phase space offset",
+     cxxopts::value<double>(Y0)->default_value("0.0"))
+   ("Z0", "Phase space offset",
+     cxxopts::value<double>(Z0)->default_value("0.0"))
+   ("U0", "Phase space offset",
+     cxxopts::value<double>(U0)->default_value("0.0"))
+   ("V0", "Phase space offset",
+     cxxopts::value<double>(V0)->default_value("0.0"))
+   ("W0", "Phase space offset",
+     cxxopts::value<double>(W0)->default_value("0.0"))
+   ("TOLE", "Point generation fractional energy offset for Eddington grid",
+     cxxopts::value<double>(TOLE)->default_value("1.0e-4"))
+   ("Emin0", "Minimum energy (if ELIMIT=true)",
+     cxxopts::value<double>(Emin0)->default_value("-3.0"))
+   ("Emax0", "Maximum energy (if ELIMIT=true)",
+     cxxopts::value<double>(Emax0)->default_value("-1.0"))
+   ("Kmin0", "Minimum kappa (if ELIMIT=true)",
+     cxxopts::value<double>(Kmin0)->default_value("0.0"))
+   ("Kmax0", "Maximum kappa (if ELIMIT=true)",
+     cxxopts::value<double>(Kmax0)->default_value("1.0"))
+   ("RBAR", "Semi-major axis for bar ellipsoid",
+     cxxopts::value<double>(RBAR)->default_value("0.067"))
+   ("MBAR", "Mass of bar ellipsoid",
+     cxxopts::value<double>(MBAR)->default_value("0.00103739"))
+   ("BRATIO", "axis ratio b/a",
+     cxxopts::value<double>(BRATIO)->default_value("0.2"))
+   ("CRATIO", "axis ratio c/b",
+     cxxopts::value<double>(CRATIO)->default_value("0.05"))
     ;
   
-  po::variables_map vm;
-  
-  try
-    {
-      po::store(po::parse_command_line(argc, argv, desc), vm);
-      
-      po::notify(vm); // throws on error, so do after help in case
-                      // there are any problems
-    }
-  catch(boost::program_options::error& e)
-    {
-      if (myid==0) std::cout << "Option error on command line: "
-			     << e.what() << std::endl;
-      MPI_Finalize();
-      return -1;
-    }
+  auto vm = options.parse(argc, argv);
   
   // Print help message and exit
   //
   if (vm.count("help")) {
     if (myid == 0) {
       std::cout << std::string(80, '%') << std::endl
-		<< desc << std::endl << std::endl
-		<< "Examples: " << std::endl
-		<< "\t" << "Use parameters read from a config file in INI style"  << std::endl
-		<< "\t" << argv[0] << " --input=gendisk.config"  << std::endl << std::endl
-		<< "\t" << "Generate a template config file in INI style from current defaults"  << std::endl
-		<< "\t" << argv[0] << " --conf=template.config" << std::endl << std::endl
-		<< "\t" << "Override a single parameter in a config file from the command line"  << std::endl
-		<< "\t" << argv[0] << " --conf=template.config" << std::endl << std::endl;
+		<< options.help() << std::endl << std::endl;
     }
+
     MPI_Finalize();
     return 0;
   }
@@ -246,7 +188,8 @@ main(int argc, char **argv)
   if (vm.count("conf")) {
     // Do not overwrite existing config file
     //
-    if (std::filesystem::exists(config)) {
+    // if (std::filesystem::exists(config)) {
+    if (boost::filesystem::exists(config)) {
       if (myid == 0)
 	std::cerr << argv[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;
@@ -262,36 +205,7 @@ main(int argc, char **argv)
       if (out) {
 	// Iterate map and print out key--value pairs and description
 	//
-	for (const auto& it : vm) {
-				// Don't write this parameter
-	  if (it.first.find("conf")==0) continue;
-
-	  out << std::setw(20) << std::left << it.first << " = ";
-	  auto& value = it.second.value();
-	  if (auto v = boost::any_cast<uint32_t>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<int>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<unsigned>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<float>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<double>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<bool>(&value))
-	    out << std::setw(32) << std::left << std::boolalpha << *v;
-	  else if (auto v = boost::any_cast<std::string>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else
-	    out << "error";
-
-
-	  //                               NO approximations -----+
-	  // Add description as a comment                         |
-	  //                                                      V
-	  const po::option_description& rec = desc.find(it.first, false);
-	  out << " # " << rec.description() << std::endl;
-	}
+	out << vm.arguments_string() << std::endl;
       } else {
 	if (myid==0)
 	  std::cerr << argv[0] << ": error opening template config file <"
@@ -302,21 +216,6 @@ main(int argc, char **argv)
     return 0;
   }
 
-  // Read parameters fron the config file
-  //
-  if (vm.count("input")) {
-    try {
-      std::ifstream in(config);
-      po::store(po::parse_config_file(in, desc), vm);
-      po::notify(vm);
-    } catch (po::error& e) {
-      if (myid==0) std::cout << "Option error in configuration file: "
-			     << e.what() << std::endl;
-      MPI_Finalize();
-      return 0;
-    }
-  }
-  
   // Prepare output streams and create new files
   //
   std::ostringstream sout;

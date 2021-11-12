@@ -34,20 +34,17 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <memory>
 #include <cmath>
 #include <string>
 
 				// BOOST stuff
-#include <memory>
-#include <boost/make_unique.hpp>
-#include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
 
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
-namespace po = boost::program_options;
 namespace pt = boost::property_tree;
 
                                 // System libs
@@ -62,8 +59,8 @@ namespace pt = boost::property_tree;
 #include <global.H>
 #include <localmpi.H>
 #include <foarray.H>
-
 #include <DataGrid.H>
+#include <cxxopts.H>
 
 #ifdef DEBUG
 #ifndef _REDUCED
@@ -893,173 +890,105 @@ main(int argc, char **argv)
   // Parse command line or input parameter file
   // ==================================================
   
-  po::options_description desc("Compute disk potential, force and density profiles\nfrom phase-space output files\n\nAllowed options");
-  desc.add_options()
-    ("help,h",
-     "produce this help message")
-    ("verbose,v",
-     "verbose output")
-    ("mask,b",
-     "blank empty cells")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("nice",
-     po::value<int>(&nice)->default_value(0), 
-     "number of bins in x direction")
-    ("RMAX,R",
-     po::value<double>(&RMAX)->default_value(0.1),
-     "maximum radius for output")
-    ("ZMAX,Z",
-     po::value<double>(&ZMAX)->default_value(0.01),
-     "maximum height for output")
-    ("rcylmin",
-     po::value<double>(&rcylmin)->default_value(0.001),
-     "minimum radius for cylindrical basis table")
-    ("rcylmax",
-     po::value<double>(&rcylmax)->default_value(20.0),
-     "maximum radius for cylindrical basis table")
-    ("NUMX",
-     po::value<int>(&numx)->default_value(128), 
-     "number of radial table entries")
-    ("NUMY",
-     po::value<int>(&numy)->default_value(64), 
-     "number of vertical table entries")
-    ("rscale",
-     po::value<double>(&rscale)->default_value(0.01), 
-     "radial scale length for basis expansion")
-    ("vscale",
-     po::value<double>(&vscale)->default_value(0.001), 
-     "vertical scale length for basis expansion")
-    ("lmax",
-     po::value<int>(&lmax)->default_value(36), 
-     "maximum harmonic order for spherical expansion")
-    ("nmax",
-     po::value<int>(&nmax)->default_value(8),
-     "maximum harmonic order for spherical expansion")
-    ("mmax",
-     po::value<int>(&mmax)->default_value(4), 
-     "maximum azimuthal harmonic order for cylindrical expansion")
-    ("norder",
-     po::value<int>(&norder)->default_value(4), 
-     "maximum radial order for each harmonic subspace")
-    ("M1",
-     po::value<int>(&m1)->default_value(0),
-     "minimum azimuthal order")
-    ("M2",
-     po::value<int>(&m2)->default_value(1000),
-     "maximum azimuthal order")
-    ("N1",
-     po::value<int>(&n1)->default_value(0),
-     "minimum radial order")
-    ("N2",
-     po::value<int>(&n2)->default_value(1000),
-     "maximum radial order")
-    ("outr",
-     po::value<int>(&OUTR)->default_value(40), 
-     "number of radial points for output")
-    ("outz",
-     po::value<int>(&OUTZ)->default_value(40), 
-     "number of vertical points for output")
-    ("surface",
-     po::value<bool>(&SURFACE)->default_value(true),
-     "make equatorial slices")
-    ("vslice",
-     po::value<bool>(&VSLICE)->default_value(true),
-     "make vertical slices")
-    ("probe",
-     po::value<bool>(&PROBE)->default_value(true),
-     "make 1d cuts in and perpendicular to the equatorial plane")
-    ("volume",
-     po::value<bool>(&VOLUME)->default_value(false),
-     "make volume for rendering")
-    ("axihgt",
-     po::value<bool>(&AXIHGT)->default_value(false),
-     "compute midplane height profiles")
-    ("height",
-     po::value<bool>(&VHEIGHT)->default_value(false),
-     "compute height profiles")
-    ("pca",
-     po::value<bool>(&PCA)->default_value(false),
-     "perform the PCA analysis for the disk")
-    ("snr,S",
-     po::value<double>(&snr)->default_value(-1.0),
-     "if not negative: do a SNR cut on the PCA basis")
-    ("center,C", po::value<std::vector<double> >(&c0)->multitoken(),
-     "Accumulation center")
-    ("diff",
-     "render the difference between the trimmed and untrimmed basis")
-    ("density",
-     po::value<bool>(&DENS)->default_value(true),
-     "compute density")
-    ("pvd",
-     po::value<bool>(&PVD)->default_value(false),
-     "Compute PVD file for ParaView")
-    ("compname",
-     po::value<std::string>(&cname)->default_value("stars"),
-     "train on Component (default=stars)")
-    ("init",
-     po::value<int>(&init)->default_value(0),
-     "fiducial index")
-    ("beg",
-     po::value<int>(&beg)->default_value(0),
-     "initial index")
-    ("end",
-     po::value<int>(&end)->default_value(99999),
-     "final index")
-    ("stride",
-     po::value<int>(&stride)->default_value(1),
-     "index stride")
-    ("outdir",
-     po::value<std::string>(&outdir)->default_value("."),
-     "Output directory path")
-    ("outfile",
-     po::value<std::string>(&outid)->default_value("diskprof2"),
-     "Filename prefix")
-    ("cachefile",
-     po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
-     "cachefile name")
-    ("coeffile",
-     po::value<std::string>(&COEFFILE),
-     "coefficient output file name")
-    ("cmapr",
-     po::value<int>(&cmapr)->default_value(1),
-     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
-    ("cmapz",
-     po::value<int>(&cmapz)->default_value(1),
-     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
-    ("logl",
-     po::value<bool>(&logl)->default_value(true),
-     "use logarithmic radius scale in cylindrical grid computation")
-    ("ignore",
-     po::value<bool>(&ignore)->default_value(false),
-     "rebuild EOF grid if input parameters do not match the cachefile")
-    ("runtag",
-     po::value<std::string>(&runtag)->default_value("run1"),
-     "runtag for phase space files")
-    ("dir,d",
-     po::value<std::string>(&dir),
-     "directory for phase-space files")
+  cxxopts::Options options("diskprof", "Compute disk potential, force and density profiles from phase-space output files");
+
+  options.add_options()
+    ("help,h", "produce this help message")
+    ("verbose,v", "verbose output")
+    ("mask,b", "blank empty cells")
+    ("filetype,F", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("prefix,P", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("nice", "number of bins in x direction",
+     cxxopts::value<int>(nice)->default_value("0"))
+    ("RMAX,R", "maximum radius for output",
+     cxxopts::value<double>(RMAX)->default_value("0.1"))
+    ("ZMAX,Z", "maximum height for output",
+     cxxopts::value<double>(ZMAX)->default_value("0.01"))
+    ("rcylmin", "minimum radius for cylindrical basis table",
+     cxxopts::value<double>(rcylmin)->default_value("0.001"))
+    ("rcylmax", "maximum radius for cylindrical basis table",
+     cxxopts::value<double>(rcylmax)->default_value("20.0"))
+    ("NUMX", "number of radial table entries",
+     cxxopts::value<int>(numx)->default_value("128"))
+    ("NUMY", "number of vertical table entries",
+     cxxopts::value<int>(numy)->default_value("64"))
+    ("rscale", "radial scale length for basis expansion",
+     cxxopts::value<double>(rscale)->default_value("0.01"))
+    ("vscale", "vertical scale length for basis expansion",
+     cxxopts::value<double>(vscale)->default_value("0.001"))
+    ("lmax", "maximum harmonic order for spherical expansion",
+     cxxopts::value<int>(lmax)->default_value("36"))
+    ("nmax", "maximum harmonic order for spherical expansion",
+     cxxopts::value<int>(nmax)->default_value("8"))
+    ("mmax", "maximum azimuthal harmonic order for cylindrical expansion",
+     cxxopts::value<int>(mmax)->default_value("4"))
+    ("norder", "maximum radial order for each harmonic subspace",
+     cxxopts::value<int>(norder)->default_value("4"))
+    ("M1", "minimum azimuthal order",
+     cxxopts::value<int>(m1)->default_value("0"))
+    ("M2", "maximum azimuthal order",
+     cxxopts::value<int>(m2)->default_value("1000"))
+    ("N1", "minimum radial order",
+     cxxopts::value<int>(n1)->default_value("0"))
+    ("N2", "maximum radial order",
+     cxxopts::value<int>(n2)->default_value("1000"))
+    ("outr", "number of radial points for output",
+     cxxopts::value<int>(OUTR)->default_value("40"))
+    ("outz", "number of vertical points for output",
+     cxxopts::value<int>(OUTZ)->default_value("40"))
+    ("surface", "make equatorial slices",
+     cxxopts::value<bool>(SURFACE)->default_value("true"))
+    ("vslice", "make vertical slices",
+     cxxopts::value<bool>(VSLICE)->default_value("true"))
+    ("probe", "make 1d cuts in and perpendicular to the equatorial plane",
+     cxxopts::value<bool>(PROBE)->default_value("true"))
+    ("volume", "make volume for rendering",
+     cxxopts::value<bool>(VOLUME)->default_value("false"))
+    ("axihgt", "compute midplane height profiles",
+     cxxopts::value<bool>(AXIHGT)->default_value("false"))
+    ("height", "compute height profiles",
+     cxxopts::value<bool>(VHEIGHT)->default_value("false"))
+    ("pca", "perform the PCA analysis for the disk",
+     cxxopts::value<bool>(PCA)->default_value("false"))
+    ("snr,S", "if not negative: do a SNR cut on the PCA basis",
+     cxxopts::value<double>(snr)->default_value("-1.0"))
+    ("center,C", "Accumulation center",
+     cxxopts::value<std::vector<double> >(c0))
+    ("diff", "render the difference between the trimmed and untrimmed basis")
+    ("density", "compute density",
+     cxxopts::value<bool>(DENS)->default_value("true"))
+    ("pvd", "Compute PVD file for ParaView",
+     cxxopts::value<bool>(PVD)->default_value("false"))
+    ("compname", "train on Component (default=stars)",
+     cxxopts::value<std::string>(cname)->default_value("stars"))
+    ("init", "fiducial index",
+     cxxopts::value<int>(init)->default_value("0"))
+    ("beg", "initial index",
+     cxxopts::value<int>(beg)->default_value("0"))
+    ("end", "final index",
+     cxxopts::value<int>(end)->default_value("99999"))
+    ("stride", "index stride",
+     cxxopts::value<int>(stride)->default_value("1"))
+    ("outdir", "Output directory path",
+     cxxopts::value<std::string>(outdir)->default_value("."))
+    ("outfile", "Filename prefix",
+     cxxopts::value<std::string>(outid)->default_value("diskprof2"))
+    ("cachefile", "cachefile name",
+     cxxopts::value<std::string>(CACHEFILE)->default_value(".eof.cache.file"))
+    ("coeffile", "coefficient output file name",
+     cxxopts::value<std::string>(COEFFILE))
+    ("cmapr", "Radial coordinate mapping type for cylindrical grid (0=none,, 1=sech, 2=power in z",
+     cxxopts::value<int>(cmapr)->default_value("1"))
     ;
   
-  po::variables_map vm;
-
-  try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
-    exit(-1);
-  }
+  auto vm = options.parse(argc, argv);
 
   if (vm.count("help")) {
     std::cout << std::string(60, '-') << std::endl;
-    std::cout << overview << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << std::string(60, '-') << std::endl << std::endl;
-    std::cout << desc     << std::endl;
     return 1;
   }
  
@@ -1161,7 +1090,7 @@ main(int argc, char **argv)
 	
 	// Make and read char buffer
 	//
-	auto buf = boost::make_unique<char[]>(ssize+1);
+	auto buf = std::make_unique<char[]>(ssize+1);
 	in.read(buf.get(), ssize);
 	buf[ssize] = 0;		// Null terminate
 

@@ -94,42 +94,29 @@ void BiorthWake::orientation(int L, int M,
 
 void BiorthWake::orientation_init(void)
 {
-  param = new double [ndim];
-  psum = new double [ndim] - 1;
-  ptry = new double [ndim] - 1;
-  ambp = new double* [ndim+1] - 1;
-  amby = new double  [ndim+1] - 1;
+  param .resize(ndim);
+  psum  .resize(ndim);
+  ptry  .resize(ndim);
+  ambp  .resize(ndim+1);
+  amby  .resize(ndim+1);
 
-  for (int i=1; i<=ndim+1; i++) ambp[i] = new double [ndim] - 1;
+  for (auto & v : ambp) v.resize(ndim);
 
   init_orientation = true;
 }
 
-BiorthWake* current;
-
-				// World function accessible by SA
-class SA_Energy : public Func1d
-{
-public:
-  double CostFunction(double *params)
-  {
-    return current->energy(params);
-  }
-} sa_energy;
-
-double BiorthWake::energy(double *params)
+double BiorthWake::energy(std::vector<double>& params)
 {
   std::complex<double> ansp=0.0, ansm=0.0;
-  int n;
 
-  for (n=-ll; n<=ll; n++) {
+  for (int n=-ll; n<=ll; n++) {
     std::complex<double> cn = -n, cmm = -mm;
     ansp += exp(I*params[2]*cn) * exp(I*params[0]*cmm) * ylm[ll+n]
       * rot_matrix(ll, mm, n, params[1]);  
   }
   
   if (mm != 0) {
-    for (n=-ll; n<=ll; n++) {
+    for (int n=-ll; n<=ll; n++) {
       std::complex<double> cn = -n, cmm = mm;
       ansm += exp(I*params[2]*cn) * exp(I*params[0]*cmm) * ylm[ll+n]
 	* rot_matrix(ll, -mm, n, params[1]);  
@@ -139,20 +126,18 @@ double BiorthWake::energy(double *params)
   return -(ansp.real()*ansp.real() + ansm.real()*ansm.real());
 }
 
-double BiorthWake::amoeba_energy(double *params)
+double BiorthWake::amoeba_energy(std::vector<double>& params)
 {
-  return energy(params+1);
+  return energy(params);
 }
 
-void BiorthWake::modulo_param(double *params)
+void BiorthWake::modulo_param(std::vector<double>& params)
 {
-  int i, indx;
-
   params[1] += M_PI;
 
-  for (i=0; i<3; i++) {
+  for (int i=0; i<3; i++) {
 
-    indx = (int)(0.5*params[i]/M_PI);
+    int indx = (int)(0.5*params[i]/M_PI);
 
     if (params[i]>=0.0)
       params[i] -= 2.0*M_PI*indx;
@@ -170,16 +155,14 @@ void BiorthWake::get_transform(double& phi, double& theta, double& psi,
 {
   if (!init_orientation) orientation_init();
 
-  int i;
-
 				// Initialize SimAnneal
 
 				// Initial values
-  for (i=0; i<=ndim; i++) param[i] = 0.5*M_PI;
+  for (int i=0; i<ndim; i++) param[i] = 0.5*M_PI;
 
-  current = this;
+  auto F = [this](std::vector<double>& p) {return this->energy(p);};
 
-  SimAnneal sa(&sa_energy, ndim);
+  SimAnneal sa(F, ndim);
 
   if ( !sa ) {
     cerr << "problem initializing SimAnneal object\n";
@@ -192,51 +175,48 @@ void BiorthWake::get_transform(double& phi, double& theta, double& psi,
   modulo_param(param);
 
 
-  for (i=1; i<=ndim; i++) 
-    ambp[1][i] = ambp[2][i] = ambp[3][i] = ambp[4][i] = param[i-1];
-  for (i=1; i<=ndim; i++) ambp[i][i] += 1.0e-2;
-  for (i=1; i<=ndim+1; i++) amby[i] = energy( ambp[i] );
+  for (int i=0; i<ndim; i++) 
+    ambp[0][i] = ambp[1][i] = ambp[2][i] = ambp[3][i] = param[i];
+  for (int i=0; i<ndim; i++)   ambp[i][i] += 1.0e-2;
+  for (int i=0; i<ndim+1; i++) amby[i] = energy(ambp[i]);
 
   amoeba();
 
-  int which=1;
-  double zmin = amby[1];
-  for (i=2; i<=ndim+1; i++) 
+  int which=0;
+  double zmin = amby[0];
+  for (int i=1; i<ndim+1; i++) 
     if (amby[i] < zmin) {
       which = i;
       zmin = amby[i];
     }
 
-  phi = ambp[which][1];
-  theta = ambp[which][2];
-  psi = ambp[which][3];
-  cost = zmin;
+  phi   = ambp[which][0];
+  theta = ambp[which][1];
+  psi   = ambp[which][2];
+  cost  = zmin;
 
 }
-
 
 #define NMAX 5000
 #define ALPHA 1.0
 #define BETA 0.5
 #define GAMMA 2.0
   
-#define GET_PSUM for (j=1;j<=ndim;j++) { for (i=1,sum=0.0;i<=mpts;i++)\
-					   sum += ambp[i][j]; psum[j]=sum;}
+#define GET_PSUM for (int j=0;j<ndim;j++) { \
+    for (int i=0, sum=0.0; i<mpts;i++)	    \
+      sum += ambp[i][j]; psum[j]=sum;}
 
 
 double BiorthWake::amotry(int ihi, double fac)
 {
-  int j;
-  double fac1, fac2, ytry;
-
-  fac1 = (1.0-fac)/ndim;
-  fac2 = fac1-fac;
-  for (j=1;j<=ndim;j++) ptry[j] = psum[j]*fac1-ambp[ihi][j]*fac2;
-  ytry = amoeba_energy(ptry);
+  double fac1 = (1.0-fac)/ndim;
+  double fac2 = fac1-fac;
+  for (int j=0; j<ndim; j++) ptry[j] = psum[j]*fac1-ambp[ihi][j]*fac2;
+  double ytry = amoeba_energy(ptry);
   ++nfunk;
   if (ytry < amby[ihi]) {
     amby[ihi] = ytry;
-    for (j=1;j<=ndim;j++) {
+    for (int j=0; j<ndim; j++) {
       psum[j] += ptry[j]-ambp[ihi][j];
       ambp[ihi][j] = ptry[j];
     }
@@ -254,8 +234,8 @@ void BiorthWake::amoeba(void)
   GET_PSUM
     for (;;) {
       ilo = 1;
-      ihi = amby[1]>amby[2] ? (inhi=2,1) : (inhi=1,2);
-      for (i=1;i<=mpts;i++) {
+      ihi = amby[0]>amby[1] ? (inhi=1,0) : (inhi=0,1);
+      for (int i=0; i<mpts; i++) {
 	if (amby[i] < amby[ilo]) ilo = i;
 	if (amby[i] > amby[ihi]) {
 	  inhi = ihi;
@@ -274,9 +254,9 @@ void BiorthWake::amoeba(void)
 	ysave = amby[ihi];
 	ytry = amotry(ihi,BETA);
 	if (ytry >= ysave) {
-	  for (i=1;i<=mpts;i++) {
+	  for (int i=0 ; i<mpts; i++) {
 	    if (i != ilo) {
-	      for (j=1;j<=ndim;j++) {
+	      for (int j=1; j<ndim; j++) {
 		psum[j] = 0.5*(ambp[i][j]+ambp[ilo][j]);
 		ambp[i][j] = psum[j];
 	      }

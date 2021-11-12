@@ -1,8 +1,7 @@
 #ifndef _UserReflect_H
 #define _UserReflect_H
 
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
+#include <random>
 
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
@@ -27,8 +26,8 @@ private:
   bool debug;
   unsigned *wrong_dir, *too_big;
 
-  std::vector<boost::mt19937> gen;
-  boost::random::uniform_real_distribution<> unit;
+  std::vector<std::mt19937> gen;
+  std::uniform_real_distribution<> unit;
 
   Component *c0;
 

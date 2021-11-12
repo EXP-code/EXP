@@ -141,7 +141,7 @@ main(int ac, char **av)
 	    << std::endl << "-----------------------------"
 	    << std::endl;
   
-  boost::progress_display progress(nbods);
+  progress::progress_display progress(nbods);
 
   while (true) {
 
@@ -220,7 +220,7 @@ main(int ac, char **av)
 	      << std::endl << "-----------------------------"
 	      << std::endl;
       
-    boost::progress_display progress(nout*nout);
+    progress::progress_display progress(nout*nout);
   
 
     auto ret = test(A, 0.0);

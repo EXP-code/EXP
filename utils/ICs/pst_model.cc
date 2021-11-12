@@ -1,7 +1,3 @@
-/*
-
-*/
-
                                 // C++/STL headers
 #include <cmath>
 #include <cstdlib>
@@ -12,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <limits>
+#include <random>
 
                                 // System libs
 #include <getopt.h>
@@ -646,8 +643,8 @@ main(int argc, char **argv)
 	   << endl;
 
       random_gen.seed(SEED);
-      boost::random::uniform_real_distribution<> unit(0.0, 1.0);
-      boost::random::normal_distribution<> vel1(0.0, k*T/mp*Vunit*Vunit/1e10);
+      std::uniform_real_distribution<> unit(0.0, 1.0);
+      std::normal_distribution<> vel1(0.0, k*T/mp*Vunit*Vunit/1e10);
 
       double R, z, phi, bfrc, fr, fz, velc;
       double mass = M_PI*r_disk*r_disk*gasD/Number;

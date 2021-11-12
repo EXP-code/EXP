@@ -3,9 +3,7 @@
 
                                 // C++/STL headers
 #include <string>
-
-				// Boost random generator
-#include <boost/random/mersenne_twister.hpp>
+#include <random>
 
                                 // EXP support
 #include <global.H>

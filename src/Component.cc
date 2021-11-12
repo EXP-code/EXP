@@ -1,12 +1,11 @@
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
 #include <vector>
 #include <string>
-#include <algorithm>
+#include <memory>
 #include <map>
-
-#include <boost/make_shared.hpp>
 
 #include <Component.H>
 #include <Bessel.H>
@@ -1308,7 +1307,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
   ComponentHeader header;
 				// Node local parameter buffer
   int ninfochar;
-  boost::shared_array<char> info;
+  std::shared_ptr<char> info;
   
   if (myid == 0) {
 
@@ -1334,9 +1333,10 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
     ndattrib    = header.ndatr;
     ninfochar   = header.ninfochar;
 
-    info = boost::shared_array<char>(new char [ninfochar+1]);
+    info = std::make_shared<char>(ninfochar+1);
+
 				// Zero fill array
-    std::fill(info.get(), info.get() + (ninfochar+1), 0);
+    std::fill(info.get(), info.get()+ninfochar+1, 0);
 				// Copy into array
     memcpy(info.get(), header.info.get(), ninfochar);
   }
@@ -1351,9 +1351,9 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
   MPI_Bcast(&ndattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ninfochar,   1, MPI_INT, 0, MPI_COMM_WORLD);
   if (myid) {
-    info = boost::shared_array<char>(new char [ninfochar+1]);
+    info = std::make_shared<char>(ninfochar+1);
 				// Zero fill array
-    std::fill(info.get(), info.get() + (ninfochar+1), 0);
+    std::fill(info.get(), info.get()+ninfochar+1, 0);
   }
   MPI_Bcast(info.get(), ninfochar, MPI_CHAR, 0, MPI_COMM_WORLD);
 
@@ -1599,7 +1599,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
   // Node local parameter buffer
   //
   int ninfochar;
-  boost::shared_array<char> info;
+  std::unique_ptr<char[]> info;
   
   // Number of split files
   int number = 0;
@@ -1636,7 +1636,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
     ndattrib    = header.ndatr;
     ninfochar   = header.ninfochar;
 
-    info = boost::shared_array<char>(new char [ninfochar+1]);
+    info = std::make_unique<char[]>(ninfochar+1);
 
     // Zero fill array
     //
@@ -1657,7 +1657,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
   MPI_Bcast(&ndattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ninfochar,   1, MPI_INT, 0, MPI_COMM_WORLD);
   if (myid) {
-    info = boost::shared_array<char>(new char [ninfochar+1]);
+    info = std::make_unique<char[]>(ninfochar+1);
 
     // Zero fill array
     //
@@ -2061,7 +2061,7 @@ void Component::write_binary(ostream* out, bool real4)
     size_t infosz = outs.str().size() + 4;
     if (header.ninfochar < outs.str().size()) {
       header.ninfochar = outs.str().size();
-      header.info = boost::shared_array<char>(new char [header.ninfochar]);
+      header.info = std::make_shared<char>(header.ninfochar+1);
     }
 
     // Copy to info string
@@ -2127,7 +2127,7 @@ void Component::write_binary_header(ostream* out, bool real4, const std::string 
     size_t infosz = outs.str().size() + 4;
     if (header.ninfochar < outs.str().size()) {
       header.ninfochar = outs.str().size();
-      header.info = boost::shared_array<char>(new char [header.ninfochar]);
+      header.info = std::make_shared<char>(header.ninfochar+1);
     }
 
     // Copy to info string

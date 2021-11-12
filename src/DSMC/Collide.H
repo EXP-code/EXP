@@ -4,13 +4,12 @@
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
+#include <random>
 #include <vector>
 #include <tuple>
 #include <map>
 
 #include <boost/circular_buffer.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
 
 #include "ExternalForce.H"
 #include "AsciiHisto.H"
@@ -228,8 +227,8 @@ protected:
   
   //@{
   //! Pseudorandom generation
-  boost::random::uniform_real_distribution<> unit;
-  boost::random::normal_distribution<>       norm;
+  std::uniform_real_distribution<> unit;
+  std::normal_distribution<>       norm;
   //@}
   
   //! Cell diagnostic records indexed by thread

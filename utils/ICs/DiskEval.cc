@@ -78,7 +78,7 @@ DiskEval::DiskEval
   }
 #endif
 
-  std::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (use_progress) {
     std::cout << std::endl << "Begin: exact force evaluation"
 	      << std::endl << "-----------------------------"
@@ -86,7 +86,7 @@ DiskEval::DiskEval
       
     std::cout << std::endl << "Multipole density coefficients"
 	      << std::endl;
-    progress = std::make_shared<boost::progress_display>(numr/numthrd);
+    progress = std::make_shared<progress::progress_display>(numr/numthrd);
   }
   
   // Compute \rho_{lm} on radial grid
@@ -179,7 +179,7 @@ DiskEval::DiskEval
   if (use_progress) {
     std::cout << std::endl << "Quadrature loop multipole expansion"
 	      << std::endl;
-    progress = std::make_shared<boost::progress_display>(numrads);
+    progress = std::make_shared<progress::progress_display>(numrads);
   }
   
   // l loop

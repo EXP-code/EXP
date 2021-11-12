@@ -1,8 +1,7 @@
 #ifndef _SphericalBasis_H
 #define _SphericalBasis_H
 
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/normal_distribution.hpp>
+#include <random>
 
 #include <AxisymmetricBasis.H>
 #include <SphericalCoefs.H>
@@ -240,8 +239,8 @@ protected:
   //@{
   //! Pseudorandom generation
   unsigned int seedN;
-  boost::mt19937 rgen;
-  boost::random::normal_distribution<> nrand;
+  std::mt19937 rgen;
+  std::normal_distribution<> nrand;
   //@}
 
   //! Subsample fraction of particles

@@ -15,7 +15,7 @@
 #include "FindOrb.H"
 
 
-void FindOrb::mapvars(double *x, double& ee, double& kk)
+void FindOrb::mapvars(std::vector<double>& x, double& ee, double& kk)
 {
   ee = Emin + (Emax-Emin)*(atan(x[0])/M_PI + 0.5);
   kk = Kmin + (Kmax-Kmin)*(atan(x[1])/M_PI + 0.5);
@@ -48,11 +48,14 @@ FindOrb::~FindOrb()
   delete  orb;
 }
 
-double FindOrb::CostFunction(double* ek)
+double FindOrb::operator()(std::vector<double>& ek)
 {
   double ee, kk;
+
   mapvars(ek, ee, kk);
+
   orb->new_orbit(ee, kk);
+
   double APO = orb->apo() - apo;
   double PERI = orb->peri() - peri;
 
@@ -65,12 +68,12 @@ double FindOrb::CostFunction(double* ek)
 OrbValues FindOrb::Anneal()
 {
   
-  double *x = new double [2];
+  std::vector<double> x(2);
 				// Guesses
   x[0] = 0.5*(Emax-Emin);
   x[1] = 0.5*(Kmax-Kmin);
 
-  SimAnneal sa (this, 2);
+  SimAnneal sa (*this, 2);
 
   if ( !sa )
     {
@@ -108,7 +111,7 @@ OrbValues FindOrb::Anneal()
   ret.tf        = t;
   ret.energy    = ee;
   ret.kappa     = kk;
-  ret.value     = CostFunction(x);
+  ret.value     = (*this)(x);
   ret.peri      = orb->peri();
   ret.apo       = orb->apo();
   ret.radial_period  = 2.0*M_PI/orb->get_freq(0);

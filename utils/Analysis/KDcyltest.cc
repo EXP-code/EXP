@@ -349,12 +349,12 @@ main(int argc, char **argv)
 
   int nbod = reader->CurrentNumber();
 
-  std::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (myid==0) {
     std::cout << std::endl
 	      << "Accumulating particle positions . . . "
 	      << std::endl;
-    progress = std::make_shared<boost::progress_display>(nbod);
+    progress = std::make_shared<progress::progress_display>(nbod);
   }
 
   auto p = reader->firstParticle();
@@ -410,7 +410,7 @@ main(int argc, char **argv)
     std::cout << std::endl
 	      << "Evaluating field quantities . . . "
 	      << std::endl;
-    progress = std::make_shared<boost::progress_display>(NOUT*NOUT);
+    progress = std::make_shared<progress::progress_display>(NOUT*NOUT);
   }
 
   // Evaluate the fields

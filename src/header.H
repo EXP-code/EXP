@@ -4,8 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-
-#include <boost/shared_array.hpp>
+#include <memory>
 
 #include "localmpi.H"
 
@@ -51,7 +50,7 @@ public:
   int ninfochar;
 
   //! Info string
-  boost::shared_array<char> info;
+  std::shared_ptr<char> info;
   
   //! Default size of info string (if not specified explicitly or read)
   static int defaultInfoSize;
@@ -60,14 +59,16 @@ public:
   ComponentHeader() 
   {
     ninfochar = defaultInfoSize;
-    info = boost::shared_array<char>(new char [ninfochar]);
+    info = std::make_shared<char>(ninfochar+1);
+    std::fill(info.get(), info.get()+ninfochar+1, 0);
   }
 
   //! Construct component with info field of length n
   ComponentHeader(int n)
   {
     ninfochar = n;
-    info = boost::shared_array<char>(new char [ninfochar]);
+    info = std::make_shared<char>(ninfochar+1);
+    std::fill(info.get(), info.get()+ninfochar+1, 0);
   }
 
   //! Write binary header to output stream
@@ -94,7 +95,7 @@ public:
        << std::setw(14) << std::right << "N(real)" << " : "
        << std::setw(14) << std::left  << p.ndatr << std::endl
        << std::setw(14) << std::right << "Info" << " : "
-       << std::setw(60) << std::right << p.info.get() << std::endl;
+       << std::setw(60) << std::right << p.info << std::endl;
     
     return os;
   }

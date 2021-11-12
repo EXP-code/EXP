@@ -3,11 +3,9 @@
 
 #include <vector>
 #include <memory>
+#include <random>
 
 #include <Eigen/Eigen>
-
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
 
 #include <interp.H>
 #include <orbit.H>
@@ -113,8 +111,8 @@ protected:
   //@{
   //! Stuff for gen_point
 
-  boost::random::uniform_real_distribution<> Unit;
-  boost::random::normal_distribution<> Gauss;
+  std::uniform_real_distribution<> Unit;
+  std::normal_distribution<> Gauss;
 
   bool gen_firstime;
   bool gen_firstime_E;

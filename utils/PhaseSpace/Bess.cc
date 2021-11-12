@@ -6,6 +6,10 @@
 #include <tuple>
 #include <cmath>
 
+// This can be replaced by std as of c++17
+//
+#include <boost/math/special_functions/bessel.hpp>
+
 #include <Bess.H>
 
 /**
@@ -157,7 +161,8 @@ std::vector<double> Bess::zeros(double Nu, int Nz, double tol)
 
   std::vector<double> refine(Nz);
 
-  std::function<double(double)> B = [Nu](double x){return std::cyl_bessel_j(Nu, x);};
+  // std::function<double(double)> B = [Nu](double x){return std::cyl_bessel_j(Nu, x);};
+  std::function<double(double)> B = [Nu](double x){return boost::math::cyl_bessel_j(Nu, x);};
 
   for (int k=0; k<Nz; k++) {
     try {

@@ -7,9 +7,7 @@ using namespace std;
 #include <iomanip>
 #include <vector>
 #include <string>
-
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
+#include <random>
 
 #include <gaussQ.H>
 #include <massmodel.H>
@@ -58,8 +56,8 @@ private:
 
   LegeQuad *jq;
 
-  boost::random::uniform_real_distribution<> urand;
-  boost::random::normal_distribution<> nrand;
+  std::uniform_real_distribution<> urand;
+  std::normal_distribution<> nrand;
 
 public:
 

@@ -33,19 +33,9 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <memory>
 #include <cmath>
 #include <string>
-
-				// BOOST stuff
-#include <memory>
-#include <boost/make_shared.hpp>
-#include <boost/make_unique.hpp>
-#include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp> 
-
-namespace po = boost::program_options;
-namespace pt = boost::property_tree;
 
                                 // System libs
 #include <sys/time.h>
@@ -63,6 +53,7 @@ namespace pt = boost::property_tree;
 
 #include <localmpi.H>
 #include <foarray.H>
+#include <cxxopts.H>
 
 const std::string overview = "Compute azimuthal and vertical disk frequencies from coefficients";
 
@@ -77,90 +68,61 @@ main(int argc, char **argv)
   //
   // Parse Command line
   //
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",
-     "produce this help message")
-    ("verbose,v",
-     "verbose output")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("Tmin,t",
-     po::value<double>(&Tmin)->default_value(0.0),
-     "Minimum time point for freq evaluation")
-    ("Tmax,T",
-     po::value<double>(&Tmax)->default_value(6.0),
-     "Maximum time point for freq evaluation")
-    ("dT,d",
-     po::value<double>(&dT)->default_value(0.1),
-     "Delta time point for freq evaluation")
-    ("RMAX,R",
-     po::value<double>(&RMAX)->default_value(0.1),
-     "maximum radius for output")
-    ("numr,N",
-     po::value<int>(&numr)->default_value(40),
-     "number of output radial grid points")
-    ("rscale",
-     po::value<double>(&rscale)->default_value(0.01), 
-     "radial scale length for basis expansion")
-    ("vscale",
-     po::value<double>(&vscale)->default_value(0.001), 
-     "vertical scale length for basis expansion")
-    ("H,H",
-     po::value<double>(&H)->default_value(0.002), 
-     "disk scale height for computing numerical derivative of fz")
-    ("eps",
-     po::value<double>(&eps)->default_value(0.1), 
-     "disk scale height fraction for computing numerical derivative of fz")
-    ("cachefile",
-     po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
-     "cachefile name")
-    ("coeffile",
-     po::value<std::string>(&COEFFILE),
-     "Disk coefficient file name")
-    ("coeffile2",
-     po::value<std::string>(&COEFFILE2),
-     "Halo coefficient file name")
-    ("model",
-     po::value<std::string>(&MODEL),
-     "Spherical basis model file")
-    ("logl",
-     po::value<bool>(&logl)->default_value(true),
-     "use logarithmic radius scale in cylindrical grid computation")
-    ("ignore",
-     po::value<bool>(&ignore)->default_value(false),
-     "rebuild EOF grid if input parameters do not match the cachefile")
-    ("output,o",
-     po::value<std::string>(&OUTFILE)->default_value("diskfreqs"),
-     "output data table")
+  cxxopts::Options options("diskfreqs", overview);
+
+  options.add_options()
+   ("help,h", "produce this help message")
+   ("verbose,v", "verbose output")
+   ("filetype,F", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+   ("prefix,P", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+   ("Tmin,t", "Minimum time point for freq evaluation",
+     cxxopts::value<double>(Tmin)->default_value("0.0"))
+   ("Tmax,T", "Maximum time point for freq evaluation",
+     cxxopts::value<double>(Tmax)->default_value("6.0"))
+   ("dT,d", "Delta time point for freq evaluation",
+     cxxopts::value<double>(dT)->default_value("0.1"))
+   ("RMAX,R", "maximum radius for output",
+     cxxopts::value<double>(RMAX)->default_value("0.1"))
+   ("numr,N", "number of output radial grid points",
+     cxxopts::value<int>(numr)->default_value("40"))
+   ("rscale", "radial scale length for basis expansion",
+     cxxopts::value<double>(rscale)->default_value("0.01"))
+   ("vscale", "vertical scale length for basis expansion",
+     cxxopts::value<double>(vscale)->default_value("0.001"))
+   ("H,H", "disk scale height for computing numerical derivative of fz",
+     cxxopts::value<double>(H)->default_value("0.002"))
+   ("eps", "disk scale height fraction for computing numerical derivative of fz",
+     cxxopts::value<double>(eps)->default_value("0.1"))
+   ("cachefile", "cachefile name",
+     cxxopts::value<std::string>(CACHEFILE)->default_value(".eof.cache.file"))
+   ("coeffile", "Disk coefficient file name",
+     cxxopts::value<std::string>(COEFFILE))
+   ("coeffile2", "Halo coefficient file name",
+     cxxopts::value<std::string>(COEFFILE2))
+   ("model", "Spherical basis model file",
+     cxxopts::value<std::string>(MODEL))
+   ("logl", "use logarithmic radius scale in cylindrical grid computation",
+     cxxopts::value<bool>(logl)->default_value("true"))
+   ("ignore", "rebuild EOF grid if input parameters do not match the cachefile",
+     cxxopts::value<bool>(ignore)->default_value("false"))
+   ("output,o", "output data table",
+     cxxopts::value<std::string>(OUTFILE)->default_value("diskfreqs"))
     ;
   
-  po::variables_map vm;
-
-  try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
-    exit(-1);
-  }
+  auto vm = options.parse(argc, argv);
 
   if (vm.count("help")) {
     std::cout << std::string(60, '-') << std::endl;
-    std::cout << overview << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << std::string(60, '-') << std::endl << std::endl;
-    std::cout << desc     << std::endl;
     return 1;
   }
  
   if (vm.count("verbose")) verbose = true;
 
   if (vm.count("mask")) mask = true;
-
 
 #ifdef DEBUG
   sleep(20);
@@ -203,7 +165,7 @@ main(int argc, char **argv)
 	
       // Make and read char buffer
       //
-      auto buf = boost::make_unique<char[]>(ssize+1);
+      auto buf = std::make_unique<char[]>(ssize+1);
       in.read(buf.get(), ssize);
       buf[ssize] = 0;		// Null terminate
       

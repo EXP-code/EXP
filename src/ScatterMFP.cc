@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <fstream>
 #include <string>
+#include <random>
 #include <algorithm>
 
 #include "expand.H"

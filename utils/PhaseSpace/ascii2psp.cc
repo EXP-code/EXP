@@ -17,27 +17,12 @@ using namespace std;
 #include <string>
 #include <random>
 
-#include <boost/random/mersenne_twister.hpp>
-
 #include <header.H>
+#include <cxxopts.H>
 				// Globals for exputil library
 				// Unused here
 std::string outdir, runtag;
 std::mt19937 random_gen;
-
-//-------------
-// Help message
-//-------------
-
-void Usage(char* prog) {
-  cerr << prog << ": [-t time -v -h]\n\n";
-  cerr << "    -t time         header time\n";
-  cerr << "    -o outfile      output file\n";
-  cerr << "    -h              print this help message\n";
-  cerr << "    -v              verbose output\n\n";
-  exit(0);
-}
-
 
 int
 main(int argc, char **argv)
@@ -47,35 +32,26 @@ main(int argc, char **argv)
   bool verbose = false;
   string outfile("new.psp");
 
-  // Parse command line
+  cxxopts::Options options("ascii2psp", "Construct a PSP file from ascii input files");
 
-  while (1) {
+  options.add_options()
+    ("help,h", "print this help message")
+    ("verbose,v", "print verbose output messages")
+    ("output,o", "output PSP file name",
+     cxxopts::value<std::string>(outfile)->default_value("new.psp"))
+    ("time,t", "desired time stamp",
+     cxxopts::value<double>(time)->default_value("0.0"))
+    ;
 
-    int c = getopt(argc, argv, "t:o:vh");
+  auto vm = options.parse(argc, argv);
 
-    if (c == -1) break;
+  if (vm.count("help")) {
+    std::cout << options.help() << std::endl;
+    exit(-1);
+  }
 
-    switch (c) {
-
-    case 't':
-      time = atof(optarg);
-      break;
-
-    case 'o':
-      outfile.erase();
-      outfile = optarg;
-      break;
-
-    case 'v':
-      verbose = true;
-      break;
-
-    case '?':
-    case 'h':
-    default:
-      Usage(prog);
-    }
-
+  if (vm.count("verbose")) {
+    verbose = true;
   }
 
   ofstream out(outfile.c_str());
@@ -83,7 +59,6 @@ main(int argc, char **argv)
     cerr << "Error opening <" << outfile << "> for output\n";
     exit(-1);
   }
-
 
   const int lenbuf = 1024;
   char buf[lenbuf];

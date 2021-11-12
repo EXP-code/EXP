@@ -3,6 +3,8 @@
 #include <iomanip>
 #include <sstream>
 
+#include <unistd.h>		// for unlink
+
 #include <expand.H>
 #include <Timer.H>
 #include <OutFrac.H>

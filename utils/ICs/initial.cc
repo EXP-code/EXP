@@ -74,6 +74,7 @@
 #include <sstream>
 #include <cstdlib>
 #include <string>
+#include <random>
 #include <vector>
 #include <cmath>
 
@@ -83,9 +84,6 @@
 //
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
 
 namespace po = boost::program_options;
 
@@ -725,7 +723,7 @@ main(int ac, char **av)
   if (vm.count("conf")) {
     // Do not overwrite existing config file
     //
-    if (std::filesystem::exists(config)) {
+    if (boost::filesystem::exists(config)) {
       if (myid == 0)
 	std::cerr << av[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;
@@ -889,8 +887,8 @@ main(int ac, char **av)
   //====================
 
   random_gen.seed(SEED);
-  boost::random::uniform_real_distribution<> unit;
-  boost::random::normal_distribution<> unitN;
+  std::uniform_real_distribution<> unit;
+  std::normal_distribution<> unitN;
 
   //====================
   // Okay, now begin ...

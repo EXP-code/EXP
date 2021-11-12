@@ -41,16 +41,7 @@ BiorthWake::BiorthWake(AxiSymBiorth *BIO, int LMAX, int NMAX)
 
 BiorthWake::~BiorthWake(void)
 {
-  if (init_orientation) {
-    delete [] param;
-    delete [] (psum+1);
-    delete [] (ptry+1);
-
-    const int num=3;
-    for (int i=1; i<=num+1; i++) delete [] (ambp[i]+1);
-    delete [] (ambp+1);
-    delete [] (amby+1);
-  }
+  // NONE
 }
 
 

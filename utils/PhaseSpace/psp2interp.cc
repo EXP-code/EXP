@@ -17,7 +17,6 @@ using namespace std;
 #include <list>
 
 #include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 #include <Progress.H>
 
@@ -159,9 +158,9 @@ main(int ac, char **av)
 	      << std::endl;
   }
 
-  std::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (myid==0) {
-    progress = std::make_shared<boost::progress_display>(iend - ibeg + 1);
+    progress = std::make_shared<progress::progress_display>(iend - ibeg + 1);
   }
 
   // Snapshot loop

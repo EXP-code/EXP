@@ -1,8 +1,6 @@
 #include <mpi.h>
 #include <string>
 
-#include <boost/random/mersenne_twister.hpp>
-
 #include <coef.H>
 #include <ComponentContainer.H>
 #include <ExternalForce.H>

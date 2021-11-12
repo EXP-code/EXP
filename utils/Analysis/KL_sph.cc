@@ -318,9 +318,9 @@ main(int argc, char **argv)
 
   std::vector<double> KDdens;
 
-  std::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (myid==0) {
-    progress = std::make_shared<boost::progress_display>(nbod);
+    progress = std::make_shared<progress::progress_display>(nbod);
   }
 
   auto p = reader->firstParticle();
@@ -414,7 +414,7 @@ main(int argc, char **argv)
   std::vector<std::shared_ptr<CoefStruct>> coefs;
 
   if (myid==0) {
-    progress = std::make_shared<boost::progress_display>(nbunch0*nbunch1);
+    progress = std::make_shared<progress::progress_display>(nbunch0*nbunch1);
   }
 
   double curMass = 0.0;
@@ -524,7 +524,7 @@ main(int argc, char **argv)
 
     if (myid==0) {
       std::cout << std::endl << "Trimming coefficients . . ." << std::endl;
-      progress = std::make_shared<boost::progress_display>(coefs.size());
+      progress = std::make_shared<progress::progress_display>(coefs.size());
     }
 
     for (int j=0; j<coefs.size(); j++) {
@@ -549,7 +549,7 @@ main(int argc, char **argv)
     double tmas = 0.0;
 
     if (myid==0) {
-      progress = std::make_shared<boost::progress_display>(nbunch0*nbunch1);
+      progress = std::make_shared<progress::progress_display>(nbunch0*nbunch1);
     }
 
     do {

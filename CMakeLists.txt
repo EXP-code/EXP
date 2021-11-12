@@ -6,7 +6,7 @@ project(
   LANGUAGES C CXX Fortran)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # compiler flags
@@ -36,7 +36,7 @@ find_package(MPI REQUIRED)
 find_package(Boost REQUIRED COMPONENTS filesystem program_options random serialization)
 find_package(OpenMP)
 find_package(VTK)
-find_package(HDF5 COMPONENTS C CXX HL)
+find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
 find_package(SLURM)
 find_package(Eigen3 REQUIRED)
 if(ENABLE_CUDA)

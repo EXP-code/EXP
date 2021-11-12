@@ -11,10 +11,9 @@
 #include <fstream>
 #include <iomanip>
 #include <vector>
+#include <random>
 #include <string>
 #include <memory>
-
-#include <boost/random/mersenne_twister.hpp>
 
 #include <PSP.H>
 

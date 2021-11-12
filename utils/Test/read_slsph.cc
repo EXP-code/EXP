@@ -4,8 +4,6 @@
 #include <cstdlib>
 #include <string>
 
-#include <boost/random/mersenne_twister.hpp>
-
 #include <Eigen/Eigen>
 
 #include <localmpi.H>

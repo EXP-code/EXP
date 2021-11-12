@@ -146,7 +146,7 @@ main(int ac, char **av)
 
   
   
-  boost::progress_display progress(nbods);
+  progress::progress_display progress(nbods);
 
   std::ofstream out(outfile);
 

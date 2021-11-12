@@ -1,7 +1,7 @@
 #ifndef _UserDiffRot_H
 #define _UserDiffRot_H
 
-#include <boost/random/normal_distribution.hpp>
+#include <random>
 
 #include <ParticleFerry.H>
 #include <Component.H>
@@ -35,7 +35,7 @@ private:
 
   double get_dtime(Particle& p);
 
-  boost::random::normal_distribution<> normal;
+  std::normal_distribution<> normal;
 
   // Debug dynamical times
 

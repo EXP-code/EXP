@@ -19,12 +19,10 @@
 #ifndef PROGRESS_H
 #define PROGRESS_H
 
-#include <boost/noncopyable.hpp>
-#include <boost/cstdint.hpp>  // for uintmax_t
 #include <iostream>           // for ostream, cout, etc
 #include <string>             // for string
 
-namespace boost {
+namespace progress {
 
 //  progress_display  --------------------------------------------------------//
 
@@ -35,7 +33,7 @@ namespace boost {
 // found some compilers couldn't handle the required conversion to double.
 // Reverted to unsigned long until the compilers catch up. 
 
-class progress_display : private noncopyable
+class progress_display
 {
  public:
   explicit progress_display( unsigned long expected_count_,
@@ -44,7 +42,7 @@ class progress_display : private noncopyable
                              const std::string & s2 = "",
                              const std::string & s3 = "" )
    // os is hint; implementation may ignore, particularly in embedded systems
-   : noncopyable(), m_os(os), m_s1(s1), m_s2(s2), m_s3(s3) { restart(expected_count_); }
+   : m_os(os), m_s1(s1), m_s2(s2), m_s3(s3) { restart(expected_count_); }
 
   void           restart( unsigned long expected_count_ )
   //  Effects: display appropriate scale

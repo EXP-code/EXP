@@ -1,5 +1,6 @@
-#include <math.h>
 #include <sstream>
+#include <cstdlib>
+#include <cmath>
 
 #include "expand.H"
 #include <localmpi.H>
@@ -248,7 +249,8 @@ void UserEBarN::initialize()
 	break;
       default:
 	if (myid==0)
-	  cerr << "UnderEBarN: no such bar profile=" << atoi(optarg) << endl;
+	  std::cerr << "UnderEBarN: no such bar profile="
+		    << conf["bartype"].as<int>() << std::endl;
 	MPI_Abort(MPI_COMM_WORLD, 36);
       }
     }

@@ -3,10 +3,7 @@
 #include <fstream>
 #include <memory>
 
-#include <boost/program_options.hpp>
-
-namespace po = boost::program_options;
-
+#include <cxxopts.H>
 #include "Coefs.H"
 
 int main(int argc, char **argv)
@@ -18,8 +15,9 @@ int main(int argc, char **argv)
   //
   // Parse Command line
   //
-  po::options_description desc("Allowed options");
-  desc.add_options()
+  cxxopts::Options options("readcoefs2", "Read disk coefficient file and tabulate coefficients for each harmonic subspace in time");
+
+  options.add_options()
     ("help,h",
      "produce this help message")
     ("PA,p",
@@ -29,33 +27,25 @@ int main(int argc, char **argv)
     ("readcoef",
      "using readcoef output")
     ("nmin",
-     po::value<int>(&nmin)->default_value(0), 
-     "minimum order for radial coefficients")
+     "minimum order for radial coefficients"
+     cxxopts::value<int>(&nmin)->default_value("0"))
     ("nmax",
-     po::value<int>(&nmax)->default_value(6), 
-     "maximum order for radial coefficients")
+     "maximum order for radial coefficients",
+     cxxopts::value<int>(&nmax)->default_value("6"), 
     ("lmin",
-     po::value<int>(&lmin)->default_value(0), 
-     "minimum harmonic order")
+     "minimum harmonic order",
+     cxxopts::value<int>(&lmin)->default_value("0"))
     ("lmax",
-     po::value<int>(&lmax)->default_value(4), 
-     "maximum harmonic order")
+     "maximum harmonic order",
+     cxxopts::value<int>(&lmax)->default_value("4")), 
     ("file",
-     po::value<std::string>(&file)->default_value("coef.dat"),
-     "coefficient file")
+     "coefficient file",
+     cxxopts::value<std::string>(&file)->default_value("coef.dat"))
     ;
   
-  po::variables_map vm;
+  auto vm = options.parse(argc, argv);
 
-  try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
-    exit(-1);
-  }
-
-  const std::string overview = "Read disk coefficient file and tabulate coefficients for each harmonic subspace in time\n";
+  const std::string overview = 
 
   if (vm.count("help")) {
     std::cout << overview << std::endl;

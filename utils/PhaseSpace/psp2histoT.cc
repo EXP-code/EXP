@@ -27,7 +27,6 @@ using namespace std;
 #include <PSP.H>
 
 #include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 namespace po = boost::program_options;
 

@@ -5,6 +5,7 @@
 #include <sstream>
 #include <vector>
 #include <random>
+#include <memory>
 #include <cfloat>
 #include <cmath>
 #include <ctime>
@@ -12,7 +13,6 @@
 #include <map>
 
 #include <boost/filesystem.hpp>
-#include <boost/make_unique.hpp>
 
 #include <errno.h>
 #include <sys/stat.h>
@@ -20369,7 +20369,7 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, atomicData& ad,
     
     // Create buffer
     //
-    auto buf = boost::make_unique<char[]>(hsize+1);
+    auto buf = std::make_unique<char[]>(hsize+1);
 
     // Read YAML string
     //

@@ -293,8 +293,8 @@ protected:
 
   bool VERBOSE;
   
-  list<PSPstanza> stanzas;
-  list<PSPstanza>::iterator spos;
+  std::list<PSPstanza> stanzas;
+  std::list<PSPstanza>::iterator spos;
   PSPstanza *cur;
 
   PParticle<float>   fpart;

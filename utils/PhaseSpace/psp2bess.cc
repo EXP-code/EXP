@@ -280,9 +280,9 @@ main(int ac, char **av)
     exit(-1);
   }
 
-  std::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (myid==0 and not verbose and not finegrain) {
-    progress = std::make_shared<boost::progress_display>(iend - ibeg + 1);
+    progress = std::make_shared<progress::progress_display>(iend - ibeg + 1);
   }
 
   for (int n=ibeg; n<=iend; n++) {
@@ -343,7 +343,7 @@ main(int ac, char **av)
 
       if (myid==0 and finegrain) {
 	std::cout << "Using filename: " << file << std::endl;
-	progress = std::make_shared<boost::progress_display>(stanza->comp.nbod/numprocs);
+	progress = std::make_shared<progress::progress_display>(stanza->comp.nbod/numprocs);
       }
 
       for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {

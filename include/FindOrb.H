@@ -1,7 +1,7 @@
 #ifndef _FIND_ORB_H
 #define _FIND_ORB_H
 
-#include <Func1d.H>
+#include <functional>
 
 struct OrbValues {
   double Boltzmann, rate, t0, tf;
@@ -10,7 +10,7 @@ struct OrbValues {
   double radial_period, azimuthal_period;
 };
 
-class FindOrb : public Func1d
+class FindOrb : public std::function<double(std::vector<double>&)>
 {
 private:
   SphericalOrbit* orb;
@@ -21,8 +21,8 @@ private:
   double rate, melt;
   int maxit;
 
-  void mapvars(double *x, double& ee, double& kk);
-  double CostFunction(double* ek);
+  void mapvars(std::vector<double>&, double& ee, double& kk);
+  double operator()(std::vector<double>& ek);
 
 public:
 
