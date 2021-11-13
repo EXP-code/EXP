@@ -20,13 +20,10 @@ using namespace std;
 #include <Species.H>
 
 #include <StringTok.H>
+#include <cxxopts.H>
 #include <header.H>
 #include <PSP.H>
 
-#include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
-
-namespace po = boost::program_options;
 
 int
 main(int ac, char **av)
@@ -41,49 +38,48 @@ main(int ac, char **av)
   int axis, numb, comp, sindx, eindx;
 
   // Parse command line
-
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("mweight,m",       "mass-weighted values")
-    ("nweight,n",       "number-weighted values")
-    ("areal,A",         "areal average")
-    ("verbose,v",       "verbose output")
-    ("OUT",             "assume that PSP files are in original format")
-    ("SPL",             "assume that PSP files are in split format")
-    ("axis,a",		po::value<int>(&axis)->default_value(3),
-     "histogram along desired axis: x=1, y=2, z=3")
-    ("pmin,p",	        po::value<double>(&pmin)->default_value(-100.0),
-     "minimum position along axis")
-    ("pmax,P",	        po::value<double>(&pmax)->default_value(100.0),
-     "maximum position along axis")
-    ("bins,b",	        po::value<int>(&numb)->default_value(40),
-     "number of bins")
-    ("comp,i",		po::value<int>(&comp)->default_value(9),
-     "index for extended value")
-    ("species,s",	po::value<int>(&sindx)->default_value(-1),
-     "position of species index")
-    ("electrons,e",	po::value<int>(&eindx)->default_value(-1),
-     "position of electron index")
-    ("name,c",	        po::value<std::string>(&cname)->default_value("comp"),
-     "component name")
-    ("files,f",         po::value< std::vector<std::string> >(), 
-     "input files")
+  //
+  cxxopts::Options options(prog, "Separate a psp structure and make a 1-d histogram");
+    
+  options.add_options()
+    ("h,help", "produce help message")
+    ("m,mweight", "mass-weighted values")
+    ("n,nweight", "number-weighted values")
+    ("A,areal", "areal average")
+    ("v,verbose", "verbose output")
+    ("OUT", "assume that PSP files are in original format")
+    ("SPL", "assume that PSP files are in split format")
+    ("a,axis", "histogram along desired axis: x=1, y=2, z=3",
+     cxxopts::value<int>(axis)->default_value("3"))
+    ("p,pmin", "minimum position along axis",
+     cxxopts::value<double>(pmin)->default_value("-100.0"))
+    ("P,pmax", "maximum position along axis",
+     cxxopts::value<double>(pmax)->default_value("100.0"))
+    ("b,bins", "number of bins",
+     cxxopts::value<int>(numb)->default_value("40"))
+    ("i,comp", "index for extended value",
+     cxxopts::value<int>(comp)->default_value("9"))
+    ("s,species", "position of species index",
+     cxxopts::value<int>(sindx)->default_value("-1"))
+    ("e,electrons", "position of electron index",
+     cxxopts::value<int>(eindx)->default_value("-1"))
+    ("c,name", "component name",
+     cxxopts::value<std::string>(cname)->default_value("comp"))
+    ("f,files", "input files",
+     cxxopts::value< std::vector<std::string> >())
     ;
 
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
 	      << " --temp=25000 --number=250000 --output=out.bod" << std::endl;
