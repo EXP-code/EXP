@@ -1,6 +1,10 @@
 #ifndef _Bess_H
 #define _Bess_H
 
+// This can be replaced by std as of c++17
+//
+#include <boost/math/special_functions/bessel.hpp>
+
 //! Generate orthonormal Bessel functions of integral order
 class Bess
 {

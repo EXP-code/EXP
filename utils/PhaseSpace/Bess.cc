@@ -6,10 +6,6 @@
 #include <tuple>
 #include <cmath>
 
-// This can be replaced by std as of c++17
-//
-#include <boost/math/special_functions/bessel.hpp>
-
 #include <Bess.H>
 
 /**
