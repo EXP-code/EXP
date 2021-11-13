@@ -1333,7 +1333,12 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
     ndattrib    = header.ndatr;
     ninfochar   = header.ninfochar;
 
-    info = std::make_shared<char>(ninfochar+1);
+    // Use this as of C++17
+    // info = std::make_shared<char[]>(ninfochar+1);
+
+    // C++14 Workaround
+    info = std::shared_ptr<char>(new char[ninfochar+1],
+				 std::default_delete<char[]>());
 
 				// Zero fill array
     std::fill(info.get(), info.get()+ninfochar+1, 0);
@@ -1351,7 +1356,13 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
   MPI_Bcast(&ndattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ninfochar,   1, MPI_INT, 0, MPI_COMM_WORLD);
   if (myid) {
-    info = std::make_shared<char>(ninfochar+1);
+    // Use this as of C++17
+    // info = std::make_shared<char[]>(ninfochar+1);
+
+    // C++14 workaround:
+    info = std::shared_ptr<char>(new char[ninfochar+1],
+				 std::default_delete<char[]>());
+
 				// Zero fill array
     std::fill(info.get(), info.get()+ninfochar+1, 0);
   }
@@ -2061,7 +2072,12 @@ void Component::write_binary(ostream* out, bool real4)
     size_t infosz = outs.str().size() + 4;
     if (header.ninfochar < outs.str().size()) {
       header.ninfochar = outs.str().size();
-      header.info = std::make_shared<char>(header.ninfochar+1);
+      // Use this as of C++17
+      // header.info = std::make_shared<char[]>(header.ninfochar+1);
+
+      // C++14 workaround:
+      header.info = std::shared_ptr<char>(new char[header.ninfochar+1],
+					  std::default_delete<char[]>());
     }
 
     // Copy to info string
@@ -2127,7 +2143,12 @@ void Component::write_binary_header(ostream* out, bool real4, const std::string 
     size_t infosz = outs.str().size() + 4;
     if (header.ninfochar < outs.str().size()) {
       header.ninfochar = outs.str().size();
-      header.info = std::make_shared<char>(header.ninfochar+1);
+      // Use this as of C++17
+      // header.info = std::make_shared<char[]>(header.ninfochar+1);
+
+      // C++14 workaround:
+      header.info = std::shared_ptr<char>(new char[header.ninfochar+1],
+					  std::default_delete<char[]>());
     }
 
     // Copy to info string

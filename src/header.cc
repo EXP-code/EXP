@@ -93,7 +93,12 @@ bool ComponentHeader::read(istream *in)
 
   if (ninfo != ninfochar) {
     ninfochar = ninfo;
-    info = std::make_shared<char>(ninfochar+1);
+    // Use this as of C++17
+    // info = std::make_shared<char[]>(ninfochar+1);
+
+    // C++14 workaround:
+    info = std::shared_ptr<char>(new char[ninfochar+1],
+				 std::default_delete<char[]>());
     // This ensures that info is null terminated
     std::fill(info.get(), info.get()+ninfochar+1, '\0');
   }

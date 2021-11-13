@@ -15,8 +15,10 @@ class MasterHeader {
 public:
   //! Current time for phase space
   double time;
+
   //! Number of particles in entire phase space
   int ntot;
+
   //! Number of individual components
   int ncomp;
 
@@ -59,7 +61,12 @@ public:
   ComponentHeader() 
   {
     ninfochar = defaultInfoSize;
-    info = std::make_shared<char>(ninfochar+1);
+    // Use this as of C++17
+    // info = std::make_shared<char[]>(ninfochar+1);
+
+    // C++14 workaround:
+    info = std::shared_ptr<char>(new char[ninfochar+1],
+				 std::default_delete<char[]>());
     std::fill(info.get(), info.get()+ninfochar+1, 0);
   }
 
@@ -67,7 +74,12 @@ public:
   ComponentHeader(int n)
   {
     ninfochar = n;
-    info = std::make_shared<char>(ninfochar+1);
+    // Use this as of C++17
+    // info = std::make_shared<char[]>(ninfochar+1);
+
+    // C++14 workaround:
+    info = std::shared_ptr<char>(new char[ninfochar+1],
+				 std::default_delete<char[]>());
     std::fill(info.get(), info.get()+ninfochar+1, 0);
   }
 
