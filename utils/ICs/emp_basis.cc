@@ -1,27 +1,13 @@
-                                // System libs
-#include <unistd.h>
-
                                 // C++/STL headers
 #include <string>
 
 				// Option parsing
-#include <boost/program_options.hpp>
+#include <cxxopts.H>
 
                                 // MDW classes
 #include <EmpCylSL.H>
 #include <localmpi.H>
 
-void usage(char *prog)
-{
-  cout << setw(70) << setfill('-') << '-' << endl;
-  cout << "Dump the entire disk orthgonal function file in ascii" << endl;
-  cout << setw(70) << setfill('-') << '-' << endl;
-  cout << "Usage: " << prog << " emp_file dump_file" << endl;
-  cout << setw(70) << setfill('-') << '-' << endl;
-
-  MPI_Finalize();
-  exit(-1);
-}
 
 int 
 main(int argc, char **argv)
@@ -30,37 +16,35 @@ main(int argc, char **argv)
   double rmin, zmax;
   int nout;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",
-     "produce this help message")
-    ("eof,i",      po::value<std::string>(&eof)->default_value(".eof.cache.file")
-     "the EOF cache file")
-    ("out,o",      po::value<std::string>(&tag)->default_value("eof_basis")
-     "output prefix for basis functions")
-    ("Rmax,R",     po::value<double>(&rmax)->default_value(0.05), 
-     "Extent in cylindrical radius")
-    ("Zmax,Z",     po::value<double>(&zmax)->default_value(0.005), 
-     "Extent in vertical distance above and below plane")
-    ("nout,n",     po::value<int>(&nout)->default_value(40), 
-     "number of grid points in each dimension")
-    ;
+ cxxopts::Options options(argv[0], "Dump the entire disk orthgonal function file in ascii");
+
+ options.add_options()
+   ("h,help", "produce this help message")
+   ("i,eof", "the EOF cache file",
+    cxxopts::value<std::string>(eof)->default_value(".eof.cache.file"))
+   ("o,out", "output prefix for basis functions")
+   cxxopts::value<std::string>(tag)->default_value("eof_basis")
+   ("R,Rmax", "Extent in cylindrical radius",
+    cxxopts::value<double>(rmax)->default_value("0.05"))
+   ("Z,Zmax", "Extent in vertical distance above and below plane",
+    cxxopts::value<double>(zmax)->default_value("0.005"))
+   ("n,nout", "number of grid points in each dimension",
+    cxxopts::value<int>(nout)->default_value("40"))
+   ;
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << "\n";
+    std::cout << options.help() << "\n";
     return 1;
   }
-
 
   std::ifstream in(argv[1]);
   if (not in.good()) {

@@ -4,7 +4,7 @@
 
 /* Manual compile string:
 
-mpiCC -g -o testCrossCuda testCrossCuda.o Ion.o cudaIon.o TopBase.o spline.o phfit2.o -lexputil -lexpgnu -lboost_program_options -lvtkCommonCore-7.1 -lvtkCommonDataModel-7.1 -lvtkIOXML-7.1 -lmpi -lcuda -lcudart
+mpiCC -g -o testCrossCuda testCrossCuda.o Ion.o cudaIon.o TopBase.o spline.o phfit2.o -lexputil -lexpgnu -lvtkCommonCore-7.1 -lvtkCommonDataModel-7.1 -lvtkIOXML-7.1 -lmpi -lcuda -lcudart
 
 */
 
