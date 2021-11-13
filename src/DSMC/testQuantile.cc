@@ -1,4 +1,4 @@
-// Compile string: mpiCC -std=c++11 -O3 -o testQ testQuantile.cc Quantile.cc -lboost_program_options -lmpi
+// Compile string: mpiCC -std=c++11 -O3 -o testQ testQuantile.cc Quantile.cc -lmpi
 
 #include <iostream>
 #include <iomanip>

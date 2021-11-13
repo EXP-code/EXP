@@ -429,7 +429,7 @@ void YAML_parse_args(int argc, char** argv)
 
   if (myid==0) {
 
-    cxxopts::Options options("exp", "Basis-function EXPansion code");
+    cxxopts::Options options("exp", "Basis-function EXPansion code\n");
 
     options.add_options()
       ("h,help", "this help message")
@@ -453,6 +453,10 @@ void YAML_parse_args(int argc, char** argv)
       std::cout << options.help() << std::endl
 		<< "See EXP/doc/html/index.html for extensive documentation"
 		<< std::endl << std::endl;
+      done = 1;
+    }
+    
+    if (vm.count("git")) {
       done = 1;
     }
     

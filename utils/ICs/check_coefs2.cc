@@ -16,7 +16,6 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <any>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -34,6 +33,7 @@
 
 #include <Progress.H>		// Progress bar
 #include <cxxopts.H>		// Option parsing
+#include <EXPini.H>		// For loading config data
 
 // EXP classes
 //
@@ -408,6 +408,42 @@ main(int ac, char **av)
     }
     MPI_Finalize();
     return 1;
+  }
+
+  // Write YAML template config file and exit
+  //
+  if (vm.count("conf")) {
+    // Do not overwrite existing config file
+    //
+    if (boost::filesystem::exists(config)) {
+      if (myid == 0)
+	std::cerr << av[0] << ": config file <" << config
+		  << "> exists, will not overwrite" << std::endl;
+      MPI_Finalize();
+      return 0;
+    }
+
+    NOUT = std::min<int>(NOUT, NORDER);
+
+    // Write template file
+    //
+    if (myid==0) SaveConfig(vm, config);
+
+    MPI_Finalize();
+    return 0;
+  }
+
+  // Read parameters fron the YAML config file
+  //
+  if (vm.count("input")) {
+    try {
+      vm = LoadConfig(options, config);
+    } catch (cxxopts::OptionException& e) {
+      if (myid==0) std::cout << "Option error in configuration file: "
+			     << e.what() << std::endl;
+      MPI_Finalize();
+      return 0;
+    }
   }
 
   // Set EmpCylSL mtype

@@ -26,18 +26,13 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
-#include <memory>
-
-#include <boost/program_options.hpp>
-
-namespace po = boost::program_options;
-
 #include <yaml-cpp/yaml.h>
 
 #include "Particle.H"
 #include "globalInit.H"
 #include "Species.H"
 #include "atomic_constants.H"
+#include <cxxopts.H>
 
 #include <errno.h>
 #include <sys/stat.h>
@@ -1706,63 +1701,50 @@ main (int ac, char **av)
     cmd_line += " ";
   }
   
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("electrons",       "set up for trace, weighted or hybrid species with electrons")
-    ("meanmass",        "set up for the mean-mass algorithm")
-    ("yaml",            "write YAML species config file")
-    ("old",             "write old-style species config file")
-    ("traceEC",         "use explicit conservation interactions mode for Trace")
-    ("CHIANTI,C",	po::value<bool>(&use_chianti)->default_value(false),
-     "use CHIANTI to set recombination-ionization equilibrium")
-    ("INIT,I",	        po::value<bool>(&use_init_file)->default_value(false),
-     "use init file to set recombination-ionization equilibrium")
-    ("dens,D",		po::value<double>(&D)->default_value(1.0),
-     "density in particles per cc")
-    ("temp,T",		po::value<double>(&Temp)->default_value(-1.0),
-     "override config file temperature for Trace, if >0")
-    ("Telec",		po::value<double>(&Telec)->default_value(-1.0),
-     "temperature for electrons, if Telec>0")
-    ("length,L",	po::value<double>(&L)->default_value(1.0),
-     "length in system units")
-    ("ratio,R",		po::value<double>(&R)->default_value(1.0),
-     "slab length ratio (1 is cube")
-    ("number,N",	po::value<int>(&npart)->default_value(250000),
-     "number of particles")
-    ("seed,s",		po::value<unsigned>(&seed)->default_value(11),
-     "random number seed")
-    ("Lunit,l",		po::value<double>(&Lunit)->default_value(1.0),
-     "length scale of the system in pc")
-    ("Tunit,t",		po::value<double>(&Tunit)->default_value(1.0e3),
-     "time scale in years")
-    ("Munit,m",		po::value<double>(&Munit)->default_value(1.0),
-     "mass scale in solar masses")
-    ("Ecut,E",		po::value<double>(&Ecut)->default_value(std::numeric_limits<double>::max()),
-     "truncation of electron tail in kT")
-    ("num-int,i",	po::value<int>(&ni)->default_value(2),
-     "number of integer attributes")
-    ("num-double,d",	po::value<int>(&nd)->default_value(6),
-     "base number of double attributes")
-    ("config,c",	po::value<std::string>(&config)->default_value("makeIon.config"),
-     "element config file")
-    ("output,o",	po::value<std::string>(&oname)->default_value("out"),
-     "output prefix")
+  cxxopts::Options options(av[0], "Compute gas initial conditions for DSMC\n");
+
+  options.add_options()
+    ("h,help", "produce help message")
+    ("electrons", "set up for trace, weighted or hybrid species with electrons")
+    ("meanmass", "set up for the mean-mass algorithm")
+    ("yaml", "write YAML species config file")
+    ("old", "write old-style species config file")
+    ("traceEC", "use explicit conservation interactions mode for Trace")
+    ("C,CHIANTI", "use CHIANTI to set recombination-ionization equilibrium",
+     cxxopts::value<bool>(use_chianti)->default_value("false"))
+    ("I,INIT", "use init file to set recombination-ionization equilibrium",
+     cxxopts::value<bool>(use_init_file)->default_value("false"))
+    ("D,dens", "density in particles per cc",
+     cxxopts::value<double>(D)->default_value("1.0"))
+    ("T,temp", "override config file temperature for Trace, if >0",
+     cxxopts::value<double>(Temp)->default_value("-1.0"))
+    ("Telec", "temperature for electrons, if Telec>0",
+     cxxopts::value<double>(Telec)->default_value("-1.0"))
+    ("L,length", "length in system units",
+     cxxopts::value<double>(L)->default_value("1.0"))
+    ("R,ratio", "slab length ratio (1 is cube)",
+     cxxopts::value<double>(R)->default_value("1.0"))
+    ("i,num-int", "number of integer attributes",
+     cxxopts::value<int>(ni)->default_value("2"))
+    ("d,num-double", "base number of double attributes",
+     cxxopts::value<int>(nd)->default_value("6"))
+    ("c,config", "element config file",
+     cxxopts::value<std::string>(config)->default_value("makeIon.config"))
+    ("o,output", "output prefix",
+     cxxopts::value<std::string>(oname)->default_value("out"))
     ;
   
-  
-  po::variables_map vm;
-  
+  cxxopts::ParseResult vm;
+
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
-  
+
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
 	      << "--length=0.0001 --number=1000 --dens=0.01 --electrons -c trace.config --output=out"

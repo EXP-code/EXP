@@ -37,7 +37,6 @@
 // Can be replaced by std in c++17
 //
 #include <boost/filesystem.hpp>
-#include <boost/any.hpp>
 
 #include <fftw3.h>
 
@@ -54,6 +53,7 @@
 #include <localmpi.H>
 #include <fpetrap.h>
 #include <cxxopts.H>
+#include <EXPini.H>
 
 // Global variables
 
@@ -86,86 +86,90 @@ main(int argc, char **argv)
   cxxopts::Options options("gensph", "Generate single-mass or multi-mass spherical ICs");
   
   options.add_options()
-   ("h,help", "Print this help message")
-   ("zeropos", "Set the origin at the center of mass")
-   ("zerovel", "Set the total momentum of the realization to zero")
-   ("HMODEL", "Halo type (0=file)",
+    ("h,help", "Print this help message")
+    ("c,conf", "Write template options file with current and all default values",
+     cxxopts::value<string>(config))
+    ("f,input", "Parameter configuration file",
+     cxxopts::value<string>(config))
+    ("zeropos", "Set the origin at the center of mass")
+    ("zerovel", "Set the total momentum of the realization to zero")
+    ("HMODEL", "Halo type (0=file)",
      cxxopts::value<int>(HMODEL)->default_value("0"))
-   ("N", "Number of bodies",
+    ("N", "Number of bodies",
      cxxopts::value<int>(N)->default_value("1000000"))
-   ("NUMDF", "Number of points in energy grid for Eddington inversion",
+    ("NUMDF", "Number of points in energy grid for Eddington inversion",
      cxxopts::value<int>(NUMDF)->default_value("10000"))
-   ("NUMR", "Number of points in radial grid for halo model",
+    ("NUMR", "Number of points in radial grid for halo model",
      cxxopts::value<int>(NUMR)->default_value("400"))
-   ("NUMJ", "Number of points in kappa grid for Eddington inversion",
+    ("NUMJ", "Number of points in kappa grid for Eddington inversion",
      cxxopts::value<int>(NUMJ)->default_value("400"))
-   ("NUME", "Number of energy points in PS generation table",
+    ("NUME", "Number of energy points in PS generation table",
      cxxopts::value<int>(NUME)->default_value("400"))
-   ("NUMG", "Number of pointsin mass table for model realization",
+    ("NUMG", "Number of pointsin mass table for model realization",
      cxxopts::value<int>(NUMG)->default_value("800"))
-   ("NREPORT", "Report after generating NREPORT points",
+    ("NREPORT", "Report after generating NREPORT points",
      cxxopts::value<int>(NREPORT)->default_value("1000"))
-   ("SEED", "Initial seed for random number generator",
+    ("SEED", "Initial seed for random number generator",
      cxxopts::value<int>(SEED)->default_value("11"))
-   ("ITMAX", "Maximum number of interations for acceptance-rejection method",
+    ("ITMAX", "Maximum number of interations for acceptance-rejection method",
      cxxopts::value<int>(ITMAX)->default_value("100000"))
-   ("NUMMODEL", "Number of points for GeneralizedPolytrope",
+    ("NUMMODEL", "Number of points for GeneralizedPolytrope",
      cxxopts::value<int>(NUMMODEL)->default_value("500"))
-   ("RNUM", "Number of radial points for interally computed mass model",
+    ("RNUM", "Number of radial points for interally computed mass model",
      cxxopts::value<int>(RNUM)->default_value("10000"))
-   ("DIVERGE", "Use inner cusp extrapolation on real mass-density model",
+    ("DIVERGE", "Use inner cusp extrapolation on real mass-density model",
      cxxopts::value<int>(DIVERGE)->default_value("0"))
-   ("DIVERGE_RFAC", "Inner cusp slope",
+    ("DIVERGE_RFAC", "Inner cusp slope",
      cxxopts::value<double>(DIVERGE_RFAC)->default_value("1.5"))
-   ("DIVERGE2", "Use inner cusp extrapolation on (pseudo) number-density model",
+    ("DIVERGE2", "Use inner cusp extrapolation on (pseudo) number-density model",
      cxxopts::value<int>(DIVERGE2)->default_value("0"))
-   ("DIVERGE_RFAC2", "Inner cusp slope",
+    ("DIVERGE_RFAC2", "Inner cusp slope",
      cxxopts::value<double>(DIVERGE_RFAC2)->default_value("1.5"))
-   ("LOGR", "Use logarithmic mapping for internal radial grid",
+    ("LOGR", "Use logarithmic mapping for internal radial grid",
      cxxopts::value<bool>(LOGR)->default_value("false"))
-   ("LINEAR", "Use linear interpolation for SphericalModelTable",
+    ("LINEAR", "Use linear interpolation for SphericalModelTable",
      cxxopts::value<int>(LINEAR)->default_value("1"))
-   ("NN", "First polytropic index (energy)",
+    ("NN", "First polytropic index (energy)",
      cxxopts::value<double>(NN)->default_value("2.5"))
-   ("MM", "Second polytropic index (ang. mom.)",
+    ("MM", "Second polytropic index (ang. mom.)",
      cxxopts::value<double>(MM)->default_value("0.5"))
-   ("RA", "Anisotropy index",
+    ("RA", "Anisotropy index",
      cxxopts::value<double>(RA)->default_value("1.0e8"))
-   ("RMODMIN", "Inner radius for Istothermal and Hernquist model",
+    ("RMODMIN", "Inner radius for Istothermal and Hernquist model",
      cxxopts::value<double>(RMODMIN)->default_value("1.0e-2"))
-   ("RMOD", "Outer radius for Isothermal and Hernquist model",
+    ("RMOD", "Outer radius for Isothermal and Hernquist model",
      cxxopts::value<double>(RMOD)->default_value("100.0"))
-   ("EPS", "step size for computing polytrope",
+    ("EPS", "step size for computing polytrope",
      cxxopts::value<double>(EPS)->default_value("1.0e-5"))
-   ("X0", "Phase space offset",
+    ("X0", "Phase space offset",
      cxxopts::value<double>(X0)->default_value("0.0"))
-   ("Y0", "Phase space offset",
+    ("Y0", "Phase space offset",
      cxxopts::value<double>(Y0)->default_value("0.0"))
-   ("Z0", "Phase space offset",
+    ("Z0", "Phase space offset",
      cxxopts::value<double>(Z0)->default_value("0.0"))
-   ("U0", "Phase space offset",
+    ("U0", "Phase space offset",
      cxxopts::value<double>(U0)->default_value("0.0"))
-   ("V0", "Phase space offset",
+    ("V0", "Phase space offset",
      cxxopts::value<double>(V0)->default_value("0.0"))
-   ("W0", "Phase space offset",
+    ("W0", "Phase space offset",
      cxxopts::value<double>(W0)->default_value("0.0"))
-   ("TOLE", "Point generation fractional energy offset for Eddington grid",
+    ("TOLE", "Point generation fractional energy offset for Eddington grid",
      cxxopts::value<double>(TOLE)->default_value("1.0e-4"))
-   ("Emin0", "Minimum energy (if ELIMIT=true)",
+    ("Emin0", "Minimum energy (if ELIMIT=true)",
      cxxopts::value<double>(Emin0)->default_value("-3.0"))
-   ("Emax0", "Maximum energy (if ELIMIT=true)",
+    ("Emax0", "Maximum energy (if ELIMIT=true)",
      cxxopts::value<double>(Emax0)->default_value("-1.0"))
-   ("Kmin0", "Minimum kappa (if ELIMIT=true)",
+    ("Kmin0", "Minimum kappa (if ELIMIT=true)",
      cxxopts::value<double>(Kmin0)->default_value("0.0"))
-   ("Kmax0", "Maximum kappa (if ELIMIT=true)",
+    ("Kmax0", "Maximum kappa (if ELIMIT=true)",
      cxxopts::value<double>(Kmax0)->default_value("1.0"))
-   ("RBAR", "Semi-major axis for bar ellipsoid",
+    ("RBAR", "Semi-major axis for bar ellipsoid",
      cxxopts::value<double>(RBAR)->default_value("0.067"))
-   ("MBAR", "Mass of bar ellipsoid",
+    ("MBAR", "Mass of bar ellipsoid",
      cxxopts::value<double>(MBAR)->default_value("0.00103739"))
-   ("BRATIO", "axis ratio b/a",
+    ("BRATIO", "axis ratio b/a",
      cxxopts::value<double>(BRATIO)->default_value("0.2"))
-   ("CRATIO", "axis ratio c/b",
+    ("CRATIO", "axis ratio c/b",
      cxxopts::value<double>(CRATIO)->default_value("0.05"))
     ;
   
@@ -205,25 +209,27 @@ main(int argc, char **argv)
       return 0;
     }
 
-    // Write template file
+    // Write YAML template file
     //
-    if (myid==0) {
-      std::ofstream out(config);
+    if (myid==0) SaveConfig(vm, config);
 
-      if (out) {
-	// Iterate map and print out key--value pairs and description
-	//
-	out << vm.arguments_string() << std::endl;
-      } else {
-	if (myid==0)
-	  std::cerr << argv[0] << ": error opening template config file <"
-		    << config << ">" << std::endl;
-      }
-    }
     MPI_Finalize();
     return 0;
   }
 
+  // Read parameters fron the YAML config file
+  //
+  if (vm.count("input")) {
+    try {
+      vm = LoadConfig(options, config);
+    } catch (cxxopts::OptionException& e) {
+      if (myid==0) std::cout << "Option error in configuration file: "
+			     << e.what() << std::endl;
+      MPI_Finalize();
+      return 0;
+    }
+  }
+  
   // Prepare output streams and create new files
   //
   std::ostringstream sout;
