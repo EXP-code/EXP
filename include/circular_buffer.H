@@ -9,8 +9,15 @@
 #include <utility>
 
 
+/**
+   Circular buffer implementation from
+   https://github.com/vinitjames/circularbuffer
+
+   Hopefully, this can be replaced by STL eventually
+*/
 template<typename T>
-class circular_buffer {
+class circular_buffer
+{
 private:
   
   typedef T value_type;
@@ -24,9 +31,11 @@ private:
   
   
 public:
+  //! Constructor
   explicit circular_buffer(size_t size)
     :_buff{std::unique_ptr<T[]>(new value_type[size])}, _max_size{size}{}
   
+  //! Copy constructor
   circular_buffer(const circular_buffer& other)
     :_buff{std::unique_ptr<T[]>(new value_type[other._max_size])},
      _max_size{other._max_size},
@@ -37,6 +46,7 @@ public:
      }
   
   
+  //! Assignment operator
   circular_buffer& operator=(const circular_buffer& other){
     if ( this != &other){
       _buff.reset(new value_type[other._max_size]);
