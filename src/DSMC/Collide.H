@@ -141,7 +141,7 @@ public:
   typedef std::pair<double, vector<double> > Precord;
 
   //! Collide return tuple
-  typedef std::tuple<unsigned, unsigned>     UU;
+  typedef std::tuple<unsigned, unsigned> UU;
   
   //@{
   //! Electron species key

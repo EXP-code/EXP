@@ -1,16 +1,18 @@
-#include <boost/algorithm/string.hpp>
-#include <string>
-#include <cstdlib>
-#include <cmath>
+#include <algorithm>
 #include <iostream>
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <vector>
+#include <string>
+#include <cctype>
 #include <tuple>
+#include <cmath>
 #include <map>
 
 #include <localmpi.H>
+#include <Sutils.H>
 
 #include "Ion.H"
 #include "interactSelect.H"
@@ -104,20 +106,19 @@ void Ion::convertName()
   std::string ele;
   std::string charge;
   
-  std::vector<std::string> v;
   std::string die = "d";	// Set to dielectronic
   size_t      isd;
   
   // split the name up into its element ab. and charge
   // In C, this would be: sscanf(MasterName, "%s_%s", ele, charge);
   //
-  boost::split(v, MasterName, boost::is_any_of("_") );
+  std::vector<std::string> v = str_split(MasterName, '_');
 
   eleName = v[0];
   
   // get the Z value for the element by looking up through table
   for (int i = 0; i < numEle; i++) {
-    if (boost::iequals(v[0], eleNameList[i])) {
+    if (str_to_lower(v[0]) == str_to_lower(eleNameList[i])) {
       Z = i+1; break;
     }
   }
@@ -755,8 +756,7 @@ Ion::Ion(std::string name, atomicData* ad) : ad(ad)
 {
   MasterName = name;
 
-  std::vector<std::string> v;
-  boost::split(v, MasterName, boost::is_any_of("_") );
+  std::vector<std::string> v = str_split(MasterName, '_');
   eleName = v[0];
 
   convertName();		// Sets Z and C . . . 
@@ -834,8 +834,7 @@ Ion::Ion(unsigned short Z, unsigned short C, atomicData* ad) : ad(ad), Z(Z), C(C
   d = false;
   MasterName = ZCtoName(Z, C);
 
-  std::vector<std::string> v;
-  boost::split(v, MasterName, boost::is_any_of("_") );
+  std::vector<std::string> v = str_split(MasterName, '_');
   eleName = v[0];
 
   freeFreeGridComputed  = false;
@@ -3012,9 +3011,7 @@ void atomicData::readMaster()
   if (masterFile.is_open()) {
     while(masterFile.good()) {
       getline(masterFile, line);
-      std::vector<std::string> v;
-      // std::cout << line <<std::endl;
-      boost::split(v, line, boost::is_any_of(" "));
+      std::vector<std::string> v = str_split(line, ' ');
       masterNames.insert(v[0]);			
     }
     masterFile.close();

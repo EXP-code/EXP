@@ -12,9 +12,6 @@
 #include <algorithm>
 #include <memory>
 #include <vector>
-				// Boost
-#include <boost/assign/list_of.hpp>
-
 				// EXP classes
 #include <interp.H>
 #include <numerical.H>
@@ -62,10 +59,11 @@ string DiskHalo::RUNTAG      = "debug";
 
 // lower-case string to enum map for setting disk-velocity type
 std::map<std::string, DiskHalo::DiskGenType>
-DiskHalo::getDiskGenType = boost::assign::map_list_of
-  ("jeans",      DiskHalo::Jeans)
-  ("asymmetric", DiskHalo::Asymmetric)
-  ("epicyclic",  DiskHalo::Epicyclic);
+DiskHalo::getDiskGenType = {
+  {"jeans",      DiskHalo::Jeans     },
+  {"asymmetric", DiskHalo::Asymmetric},
+  {"epicyclic",  DiskHalo::Epicyclic }
+};
 
 static std::shared_ptr<AxiSymModel> model;
 double targetmass;

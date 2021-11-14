@@ -1,20 +1,16 @@
 #ifndef _InteractSelect_H
 #define _InteractSelect_H
 
-#include <boost/random.hpp>
+#include <random>
 #include <memory>
-#include <boost/random/linear_congruential.hpp>
-#include <boost/random/uniform_int.hpp>
-#include <boost/random/uniform_real.hpp>
-#include <boost/random/variate_generator.hpp>
 
-#include "Cspline.H"
-#include "Ion.H"
+#include <Cspline.H>
+#include <Ion.H>
 
 using namespace std;
 
-typedef boost::uniform_real<> dist_type;
-typedef boost::variate_generator<boost::minstd_rand, dist_type> gen_type;
+typedef std::uniform_real_distribution<> dist_type;
+typedef std::minstd_rand gen_type;
 typedef std::shared_ptr<gen_type> gen_ptr;
 typedef std::shared_ptr<dist_type> dist_ptr;
 
@@ -22,7 +18,7 @@ class InteractSelect
 {
 private:
   void setSeed();
-  boost::minstd_rand generator;
+  gen_type generator;
   dist_ptr uni_dist;
   gen_ptr uni;
 

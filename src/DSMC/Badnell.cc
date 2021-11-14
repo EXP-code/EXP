@@ -8,8 +8,6 @@
 #include <Badnell.H>
 #include <scandir.H>
 
-#include <boost/make_shared.hpp>
-
 std::string BadnellData::datapath = "./";
 bool        BadnellData::reweight = false;
 

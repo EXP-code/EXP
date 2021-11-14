@@ -1,6 +1,6 @@
-#include <boost/algorithm/string.hpp> // For trim_copy
-#include <yaml-cpp/yaml.h>	      // YAML support
+#include <yaml-cpp/yaml.h>	// YAML support
 
+#include <Sutils.H>		// For trim_copy
 #include <PSP.H>
 
 bool badstatus(istream& in)
@@ -139,10 +139,10 @@ PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose, "")
       // Parse the info string
       // ---------------------
       StringTok<string> tokens(stanza.comp.info.get());
-      stanza.name       = boost::trim_copy(tokens(":"));
-      stanza.id         = boost::trim_copy(tokens(":"));
-      stanza.cparam     = boost::trim_copy(tokens(":"));
-      stanza.fparam     = boost::trim_copy(tokens(":"));
+      stanza.name       = trim_copy(tokens(":"));
+      stanza.id         = trim_copy(tokens(":"));
+      stanza.cparam     = trim_copy(tokens(":"));
+      stanza.fparam     = trim_copy(tokens(":"));
       stanza.index_size = 0;
       stanza.r_size     = rsize;
       

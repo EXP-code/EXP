@@ -1,8 +1,6 @@
 
 #include <limits>
 
-#include <boost/make_shared.hpp>
-
 #include "expand.H"
 
 #include <gaussQ.H>

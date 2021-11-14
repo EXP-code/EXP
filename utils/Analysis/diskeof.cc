@@ -38,12 +38,6 @@
 #include <cmath>
 #include <string>
 
-				// BOOST stuff
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp> 
-
-namespace pt = boost::property_tree;
-
 #include <config.h>		// CMake generated config
 
 #ifdef HAVE_LIBPNGPP

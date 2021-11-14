@@ -2,24 +2,15 @@
 #include "interactSelect.H"
 
 using namespace std;
-using namespace boost;
 
 void InteractSelect::setSeed() 
 {
-  // generator.seed(static_cast<unsigned int>(time(0)));
-  
-  srand(unsigned(time(NULL)));
-  // ^
-  // |
-  // + ---- is most probably not a good idea to use the built-in generator
-  //
+  generator.seed(static_cast<unsigned int>(time(0)));
 }
 
 InteractSelect::InteractSelect() 
 {
   setSeed();
-  // uni_dist = dist_ptr(new dist_type(0, 1));
-  // uni = gen_ptr(new gen_type(generator, *uni_dist));
 }
 
 

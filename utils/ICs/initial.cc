@@ -80,10 +80,9 @@
 
 #include <fenv.h>
 
-// Boost stuff
+// Boost stuff (can be replaced as of c++17)
 //
 #include <boost/filesystem.hpp>
-#include <boost/any.hpp>
 
 #include <config.h>
 #ifdef HAVE_OMP_H
