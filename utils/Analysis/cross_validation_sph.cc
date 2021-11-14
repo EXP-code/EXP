@@ -38,12 +38,6 @@
 #include <memory>
 #include <vector>
 #include <map>
-
-using namespace std;
-
-				// Boost stuff
-#include <boost/filesystem.hpp>
-
 				// Eigen3
 #include <Eigen/Eigen>
 

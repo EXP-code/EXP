@@ -11,8 +11,6 @@
 #include <random>
 #include <tuple>
 
-#include <boost/filesystem.hpp>
-
 #include <yaml-cpp/yaml.h>
 
 #include <errno.h>

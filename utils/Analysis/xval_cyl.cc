@@ -38,12 +38,6 @@
 #include <memory>
 #include <vector>
 #include <map>
-
-using namespace std;
-
-				// Boost stuff (can be replaced at c++17
-#include <boost/filesystem.hpp>
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>

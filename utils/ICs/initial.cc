@@ -80,10 +80,6 @@
 
 #include <fenv.h>
 
-// Boost stuff (can be replaced as of c++17)
-//
-#include <boost/filesystem.hpp>
-
 #include <config.h>
 #ifdef HAVE_OMP_H
 #include <omp.h>
@@ -556,7 +552,7 @@ main(int ac, char **av)
   if (vm.count("conf")) {
     // Do not overwrite existing config file
     //
-    if (boost::filesystem::exists(config)) {
+    if (std::filesystem::exists(config)) {
       if (myid == 0)
 	std::cerr << av[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;

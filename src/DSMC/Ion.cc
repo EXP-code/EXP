@@ -3006,13 +3006,19 @@ void atomicData::readMaster()
   std::string fileName(val);
   fileName.append("/masterlist/masterlist.ions");
   std::string line;
-  ifstream masterFile(fileName.c_str());
+  std::ifstream masterFile(fileName.c_str());
 
   if (masterFile.is_open()) {
     while(masterFile.good()) {
-      getline(masterFile, line);
+      std::getline(masterFile, line);
       std::vector<std::string> v = str_split(line, ' ');
-      masterNames.insert(v[0]);			
+      if (v.size()) masterNames.insert(v[0]);			
+      else {
+	std::cout << "atomicData::readMaster: "
+		  << "masterFile parsing found line <" << line << ">, "
+		  << "continuing with " << masterNames.size() << " read"
+		  << std::endl;
+      }
     }
     masterFile.close();
   }

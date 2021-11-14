@@ -10,10 +10,6 @@
 #include <random>
 #include <tuple>
 
-// Can be replaced by std at c++17
-//
-#include <boost/filesystem.hpp>
-
 #include <errno.h>
 #include <sys/stat.h>
 

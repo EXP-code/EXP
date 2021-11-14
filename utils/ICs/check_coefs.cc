@@ -16,10 +16,6 @@
 
 #include <fenv.h>
 
-// Boost stuff
-//
-#include <boost/math/special_functions/bessel.hpp>
-
 #include <yaml-cpp/yaml.h>	// YAML support
 
 #include <config.h>
@@ -840,10 +836,10 @@ main(int ac, char **av)
 
     } else {			// Default to exponential
       double y = r/(2.0*AA);
-      double i0 = boost::math::cyl_bessel_i(0, y);
-      double k0 = boost::math::cyl_bessel_k(0, y);
-      double i1 = boost::math::cyl_bessel_i(1, y);
-      double k1 = boost::math::cyl_bessel_k(1, y);
+      double i0 = std::cyl_bessel_i(0, y);
+      double k0 = std::cyl_bessel_k(0, y);
+      double i1 = std::cyl_bessel_i(1, y);
+      double k1 = std::cyl_bessel_k(1, y);
       P  = -0.5*mass*r/(AA*AA) * (i0*k1 - i1*k0);
       FR = -y/(AA*AA)*(i0*k0 - i1*k1);
 

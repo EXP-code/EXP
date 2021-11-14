@@ -5,22 +5,18 @@
   MDWeinberg 08/13/20
 */
 
-#include <cstdlib>
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <numeric>
+#include <cstdlib>
 #include <memory>
 #include <vector>
 #include <string>
+#include <cmath>
 #include <list>
 #include <map>
-
-// This can be done with std cmath beginning with c++17
-//
-#include <boost/math/special_functions/laguerre.hpp>
 
 #include <header.H>
 #include <PSP.H>
@@ -66,16 +62,14 @@ public:
   double operator()(double& r, const unsigned& n)
   {
     if (n>=nmax) return 0.0;
-    // return std::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
-    return boost::math::laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
+    return std::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
   } 
 
   //! Evaluate the the orthogonal Laguerre polynomial
   double eval(double& r, unsigned& n)
   {
     if (n>=nmax) return 0.0;
-    // return std::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
-    return boost::math::laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
+    return std::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
   } 
 
   //! Evaluate the the orthogonal Laguerre polynomial
@@ -87,8 +81,7 @@ public:
     //
     double x = 2.0*r/rscl;
     for (int n=0; n<nmax; n++) 
-      // ret[n] = std::assoc_laguerre(n, 1, x);
-      ret[n] = boost::math::laguerre(n, 1, x);
+      ret[n] = std::assoc_laguerre(n, 1, x);
 
     // Normalization
     //

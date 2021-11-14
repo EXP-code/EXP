@@ -15,10 +15,6 @@
 
 #include <fenv.h>
 
-// Boost stuff (can be replaced by c++17)
-//
-#include <boost/filesystem.hpp>
-
 #include <Progress.H>		// Progress bar
 #include <cxxopts.H>		// Command line parsing
 

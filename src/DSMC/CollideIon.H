@@ -6,10 +6,6 @@
 #include <tuple>
 #include <array>
 
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
-
-#include <boost/circular_buffer.hpp>
 #include <boost/assign.hpp>
 #include <boost/bimap.hpp>
 
@@ -24,6 +20,7 @@
 #include "StatsMPI.H"
 #include "BN.H"
 #include "Species.H"
+#include <circular_buffer.H>
 
 // For debugging xc species: set XC_DEEP
 //
@@ -631,8 +628,10 @@ private:
   const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
   std::vector<double> elecV, ionV;
   const size_t bufCap = 16384;
-  std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD, crsD, selD;
-  std::vector< std::vector< boost::circular_buffer<double> > > tauD;
+  typedef circular_buffer<double> circBuf;
+  typedef std::shared_ptr<circBuf> circBufPtr;
+  std::vector< circBufPtr > velER, keER, keIR, momD, crsD, selD;
+  std::vector< std::vector< circBufPtr > > tauD;
   ahistoDPtr elecT, elecH, ionsT, ionET, ionH, lossH, keEH, keIH, momH, crsH, Ecoll, tauH[4], selH;
   std::map<unsigned short, ahistoDPtr> elecZH, ionZH;
   unsigned Ovr_s, Acc_s, Tot_s, CntE, Num_s;
@@ -649,13 +648,13 @@ private:
   static bool elecDist;
   static bool rcmbDist;
   static bool rcmbDlog;
-  std::vector< boost::circular_buffer<double> > elecEV;
-  std::vector< boost::circular_buffer<double> > elecRC;
-  std::vector< boost::circular_buffer<double> > elecEVmin;
-  std::vector< boost::circular_buffer<double> > elecEVavg;
-  std::vector< boost::circular_buffer<double> > elecEVmax;
-  std::vector< boost::circular_buffer<double> > elecEVsub;
-  std::vector< boost::circular_buffer<double> > plasmaP;
+  std::vector<circBufPtr> elecEV;
+  std::vector<circBufPtr> elecRC;
+  std::vector<circBufPtr> elecEVmin;
+  std::vector<circBufPtr> elecEVavg;
+  std::vector<circBufPtr> elecEVmax;
+  std::vector<circBufPtr> elecEVsub;
+  std::vector<circBufPtr> plasmaP;
   ahistoDPtr elecEVH, elecEVHmin, elecEVHavg, elecEVHmax;
   ahistoDPtr elecEVHsub, elecRCH, elecRCN, logLH;
 
@@ -1465,7 +1464,6 @@ protected:
 
   const std::string tpaths[4] = {"./test.0", "./test.1", 
 				 "./test.2", "./test.3"};
-  boost::filesystem::path getcwd;
   std::string hostname;
   unsigned long itp;
   std::map<unsigned long, std::tuple<double, double> > data[2];

@@ -9,7 +9,6 @@
 #include <tuple>
 #include <map>
 
-#include <boost/circular_buffer.hpp>
 
 #include "ExternalForce.H"
 #include "AsciiHisto.H"
@@ -17,6 +16,8 @@
 #include "pHOT.H"
 #include "Timer.H"
 #include "NTC.H"
+
+#include <circular_buffer.H>
 
 class Collide;
 
@@ -480,7 +481,9 @@ protected:
   //@{
   //! NTC diagnostoics
   const size_t bufCap = 16384;
-  std::vector< boost::circular_buffer<double> > ntcVal, wgtVal;
+  typedef circular_buffer<double> circBuf;
+  typedef std::shared_ptr<circBuf> circBufPtr;
+  std::vector<circBufPtr> ntcVal, wgtVal;
   std::vector<double> wgtSum, ntcSum;
   //@}
 

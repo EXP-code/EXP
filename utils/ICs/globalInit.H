@@ -6,7 +6,6 @@
 #include <getopt.h>
 #include <time.h>
 
-#include <boost/algorithm/string.hpp>
 #include <string>
 #include <stdlib.h>
 #include <stdio.h>
@@ -17,6 +16,7 @@
 #include <sstream>
 #include <vector>
 
+#include <Sutils.H>
 
 // Unused globals
 extern unsigned multistep;

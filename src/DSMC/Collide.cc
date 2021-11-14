@@ -404,8 +404,8 @@ Collide::Collide(ExternalForce *force, Component *comp,
   ntcTot.resize(nthrds, 0);
   ntcVal.resize(nthrds);
   wgtVal.resize(nthrds);
-  for (auto &v : ntcVal) v.set_capacity(bufCap);
-  for (auto &v : wgtVal) v.set_capacity(bufCap);
+  for (auto &v : ntcVal) v = std::make_shared<circBuf>(bufCap);
+  for (auto &v : wgtVal) v = std::make_shared<circBuf>(bufCap);
 
   if (MFPDIAG) {
     // List of ratios of free-flight length to cell size
@@ -1513,7 +1513,7 @@ void * Collide::collide_thread(void * arg)
 	  //
 	  if (NTC) {
 				// Diagnostic
-	    ntcVal[id].push_back(targ);
+	    ntcVal[id]->push_back(targ);
 				// Over NTC max average
 	    if (targ >= 1.0) ntcOvr[id]++;
 				// Used / Total
@@ -3542,13 +3542,13 @@ void Collide::NTCgather()
 				// Accumulate into id=0
     ntcSum.clear();
     for (int n=0; n<nthrds; n++) {
-      ntcSum.insert(ntcSum.end(), ntcVal[n].begin(), ntcVal[n].end());
+      ntcSum.insert(ntcSum.end(), ntcVal[n]->begin(), ntcVal[n]->end());
     }
 
 				// Accumulate into wgtTot
     wgtSum.clear();
     for (int n=0; n<nthrds; n++) {
-      wgtSum.insert(wgtSum.end(), wgtVal[n].begin(), wgtVal[n].end());
+      wgtSum.insert(wgtSum.end(), wgtVal[n]->begin(), wgtVal[n]->end());
     }
 
     // Only check for crazy collisions after first step

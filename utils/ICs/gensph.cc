@@ -34,10 +34,6 @@
 #include <string>
 #include <memory>
 
-// Can be replaced by std in c++17
-//
-#include <boost/filesystem.hpp>
-
 #include <fftw3.h>
 
 // EXP classes
@@ -200,8 +196,7 @@ main(int argc, char **argv)
   if (vm.count("conf")) {
     // Do not overwrite existing config file
     //
-    // if (std::filesystem::exists(config)) {
-    if (boost::filesystem::exists(config)) {
+    if (std::filesystem::exists(config)) {
       if (myid == 0)
 	std::cerr << argv[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;

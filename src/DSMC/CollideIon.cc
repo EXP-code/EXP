@@ -12,8 +12,6 @@
 #include <tuple>
 #include <map>
 
-#include <boost/filesystem.hpp>
-
 #include <errno.h>
 #include <sys/stat.h>
 
@@ -827,15 +825,15 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     for (auto &u : v) u = 0.0;
   }
 
-  for (auto &v : velER) v.set_capacity(bufCap);
-  for (auto &v : momD ) v.set_capacity(bufCap);
-  for (auto &v : crsD ) v.set_capacity(bufCap);
+  for (auto &v : velER) v = std::make_shared<circBuf>(bufCap);
+  for (auto &v : momD ) v = std::make_shared<circBuf>(bufCap);
+  for (auto &v : crsD ) v = std::make_shared<circBuf>(bufCap);
   for (auto &u : tauD ) {
-    for (auto &v : u) v.set_capacity(bufCap);
+    for (auto &v : u) v = std::make_shared<circBuf>(bufCap);
   }
-  for (auto &v : selD ) v.set_capacity(bufCap);
-  for (auto &v : keER ) v.set_capacity(bufCap);
-  for (auto &v : keIR ) v.set_capacity(bufCap);
+  for (auto &v : selD ) v = std::make_shared<circBuf>(bufCap);
+  for (auto &v : keER ) v = std::make_shared<circBuf>(bufCap);
+  for (auto &v : keIR ) v = std::make_shared<circBuf>(bufCap);
 
   for (auto &v : clampdat) v = clamp0;
   for (auto &v : spEmax)   v = DBL_MAX;
@@ -843,19 +841,19 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   if (elecDist) {
     elecEV.resize(nthrds);
-    for (auto &v : elecEV)    v.set_capacity(bufCap);
+    for (auto &v : elecEV)    v = std::make_shared<circBuf>(bufCap);
     elecEVmin.resize(nthrds);
-    for (auto &v : elecEVmin) v.set_capacity(bufCap);
+    for (auto &v : elecEVmin) v = std::make_shared<circBuf>(bufCap);
     elecEVavg.resize(nthrds);
-    for (auto &v : elecEVavg) v.set_capacity(bufCap);
+    for (auto &v : elecEVavg) v = std::make_shared<circBuf>(bufCap);
     elecEVmax.resize(nthrds);
-    for (auto &v : elecEVmax) v.set_capacity(bufCap);
+    for (auto &v : elecEVmax) v = std::make_shared<circBuf>(bufCap);
     elecEVsub.resize(nthrds);
-    for (auto &v : elecEVsub) v.set_capacity(bufCap);
+    for (auto &v : elecEVsub) v = std::make_shared<circBuf>(bufCap);
     elecRC.resize(nthrds);
-    for (auto &v : elecRC)    v.set_capacity(bufCap);
+    for (auto &v : elecRC)    v = std::make_shared<circBuf>(bufCap);
     plasmaP.resize(nthrds);
-    for (auto &v : plasmaP)   v.set_capacity(bufCap);
+    for (auto &v : plasmaP)   v = std::make_shared<circBuf>(bufCap);
 
     setupRcmbTotl();
   }
@@ -1838,7 +1836,7 @@ void CollideIon::initialize_cell
     // For verbose diagnostic output only
     //
     if (elecDist) {
-      plasmaP[id].push_back(plasma[id]);
+      plasmaP[id]->push_back(plasma[id]);
     }
 
 #ifdef XC_DEEP7
@@ -3502,8 +3500,8 @@ double CollideIon::crossSectionHybrid
   // For verbose diagnostic output only
   //
   if (elecDist) {
-    elecEV[id].push_back(kEe1[id]);
-    elecEV[id].push_back(kEe2[id]);
+    elecEV[id]->push_back(kEe1[id]);
+    elecEV[id]->push_back(kEe2[id]);
   }
 
   //--------------------------------------------------
@@ -4036,8 +4034,8 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
   // For verbose diagnostic output only
   //
   if (elecDist) {
-    elecEV[id].push_back(kEe1[id]);
-    elecEV[id].push_back(kEe2[id]);
+    elecEV[id]->push_back(kEe1[id]);
+    elecEV[id]->push_back(kEe2[id]);
   }
 }
 
@@ -5311,7 +5309,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
     // Debug electron energy loss/gain
     //
-    velER[id].push_back(vf2/vi2);
+    velER[id]->push_back(vf2/vi2);
 
 
     // Secondary electron-ion scattering
@@ -5347,7 +5345,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
     // Debug electron energy loss/gain
     //
-    velER[id].push_back(vf2/vi2);
+    velER[id]->push_back(vf2/vi2);
 
 
     // Secondary electron-ion scattering
@@ -6560,7 +6558,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
     // For diagnostic electron energy loss/gain distribution
     //
-    velER[id].push_back(vf2/vi2);
+    velER[id]->push_back(vf2/vi2);
 
   } else if (use_elec and interFlag > 200 and interFlag < 300) {
 
@@ -6694,7 +6692,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
     // For diagnostic electron energy loss/gain distribution
     //
-    velER[id].push_back(vf2/vi2);
+    velER[id]->push_back(vf2/vi2);
 
   } else {
     for (size_t k=0; k<3; k++) {
@@ -6722,13 +6720,13 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     double dKE  = tKEi - tKEf;	// Energy balance
 
     if (m1<1.0) {
-      if (KE1i > 0) keER[id].push_back((KE1i - KE1f)/KE1i);
-      if (KE2i > 0) keIR[id].push_back((KE2i - KE2f)/KE2i);
+      if (KE1i > 0) keER[id]->push_back((KE1i - KE1f)/KE1i);
+      if (KE2i > 0) keIR[id]->push_back((KE2i - KE2f)/KE2i);
     }
 
     if (m2<1.0) {
-      if (KE1i > 0) keIR[id].push_back((KE1i - KE1f)/KE1i);
-      if (KE2i > 0) keER[id].push_back((KE2i - KE2f)/KE2i);
+      if (KE1i > 0) keIR[id]->push_back((KE1i - KE1f)/KE1i);
+      if (KE2i > 0) keER[id]->push_back((KE2i - KE2f)/KE2i);
     }
 				// Check energy balance including excess
     double testE = dKE;
@@ -9453,13 +9451,13 @@ void CollideIon::checkEnergyHybrid
     double dKE  = tKEi - tKEf;		// Kinetic energy balance
 
     if (pp->m1<1.0) {
-      if (KE.i(1) > 0) keER[id].push_back((KE.i(1) - KE.f(1))/KE.i(1));
-      if (KE.i(2) > 0) keIR[id].push_back((KE.i(2) - KE.f(2))/KE.i(2));
+      if (KE.i(1) > 0) keER[id]->push_back((KE.i(1) - KE.f(1))/KE.i(1));
+      if (KE.i(2) > 0) keIR[id]->push_back((KE.i(2) - KE.f(2))/KE.i(2));
     }
 
     if (pp->m2<1.0) {
-      if (KE.i(1) > 0) keIR[id].push_back((KE.i(1) - KE.f(1))/KE.i(1));
-      if (KE.i(2) > 0) keER[id].push_back((KE.i(2) - KE.f(2))/KE.i(2));
+      if (KE.i(1) > 0) keIR[id]->push_back((KE.i(1) - KE.f(1))/KE.i(1));
+      if (KE.i(2) > 0) keER[id]->push_back((KE.i(2) - KE.f(2))/KE.i(2));
     }
 
     // Check energy balance including excess from momentum algorithm
@@ -9754,7 +9752,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   // For debugging diagnostics
   //
   if (elecDist) {
-    elecEVsub[id].push_back(std::max<double>(kEe1[id], kEe2[id]));
+    elecEVsub[id]->push_back(std::max<double>(kEe1[id], kEe2[id]));
   }
 
   /*
@@ -10447,7 +10445,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    double val = kEe2[id];
 	    rcmbTotlAdd(val, WW, id);
 	    if (rcmbDlog) val = log10(val);
-	    elecRC[id].push_back(val);
+	    elecRC[id]->push_back(val);
 	  }
 
 	  // Add the KE from the recombined electron back to the free pool
@@ -10585,7 +10583,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    double val = kEe1[id];
 	    rcmbTotlAdd(val, WW, id);
 	    if (rcmbDlog) val = log10(val);
-	    elecRC[id].push_back(val);
+	    elecRC[id]->push_back(val);
 	  }
 
 	  // Add the KE from the recombined electron back to the free pool
@@ -10756,7 +10754,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     double rat = (p1->dattrib[use_cons] + p2->dattrib[use_cons])/KE_initl_check + 1.0e-10;
     if (rat>0.0) {
       double lfc = 0.43429448190325176*log(rat);
-      crsD[id].push_back(lfc);
+      crsD[id]->push_back(lfc);
     }
     std::get<0>(energyA[id])[0] =
       std::min<double>(std::get<0>(energyA[id])[0], rat);
@@ -11790,7 +11788,7 @@ void CollideIon::coulombicScatterDirect(int id, pCell* const c, double dT)
 		<< " m1=" << m1/amu << " m2=" << m2/amu << std::endl;
 #endif
 
-      tauD[id][l].push_back(tau);
+      tauD[id][l]->push_back(tau);
 
       // Set COM frame
       //
@@ -12194,7 +12192,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 		<< " m1=" << m1/amu << " m2=" << m2/amu << std::endl;
 #endif
 
-      tauD[id][l].push_back(tau);
+      tauD[id][l]->push_back(tau);
 
       // Set COM frame
       //
@@ -14892,6 +14890,31 @@ NTC::InteractD CollideIon::generateSelectionTrace
   std::cout << std::string(58, '-') << std::endl;
 #endif
 
+#ifdef XC_DEEP16
+  std::cout << std::string(58, '-') << std::endl
+	    << std::setw(20) << "Interaction"
+	    << std::setw( 6) << "Z1"
+	    << std::setw( 6) << "C1"
+	    << std::setw( 6) << "Z2"
+	    << std::setw( 6) << "C2"
+	    << std::setw(14) << "#" << std::endl
+	    << std::string(58, '-') << std::endl;
+  for (auto & v : cseccum[id]) {
+    auto TT = std::get<0>(v.first);
+    auto p1 = std::get<1>(v.first);
+    auto p2 = std::get<2>(v.first);
+    std::cout << std::setw(20) << interLabels[TT]
+	      << std::setw( 6) << p1.first
+	      << std::setw( 6) << p1.second
+	      << std::setw( 6) << p2.first
+	      << std::setw( 6) << p2.second
+	      << std::setw(14) << v.second().back()
+	      << std::endl;
+  }
+  std::cout << std::string(58, '-') << std::endl;
+#endif
+
+
   colCf[id] = 1.0;
 
   colUps[id][0] += 1;
@@ -14899,7 +14922,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
   colUps[id][2] += totSelcM * totSelcM;
   colUps[id][3] += colCf[id];
 
-  selD[id].push_back(totSelcM);
+  selD[id]->push_back(totSelcM);
 
   return selcM;
 }
@@ -16668,8 +16691,8 @@ void CollideIon::electronGather()
     RhoN = 0.0;			// MFP: count
 
     for (int t=0; t<nthrds; t++) {
-      loss.insert(loss.end(), velER[t].begin(), velER[t].end());
-      velER[t].clear();
+      loss.insert(loss.end(), velER[t]->begin(), velER[t]->end());
+      velER[t]->clear();
 
       Ovr  += elecOvr[t];
       Acc  += elecAcc[t];
@@ -16711,19 +16734,19 @@ void CollideIon::electronGather()
       std::vector<double> eEV, eRC, eEVmin, eEVavg, eEVmax, eEVsub, logLE;
       for (int t=0; t<nthrds; t++) {
 	eEV.insert(eEV.end(),
-		   elecEV[t].begin(), elecEV[t].end());
+		   elecEV[t]->begin(), elecEV[t]->end());
 	eRC.insert(eRC.end(),
-		   elecRC[t].begin(), elecRC[t].end());
+		   elecRC[t]->begin(), elecRC[t]->end());
 	eEVmin.insert(eEVmin.end(),
-		      elecEVmin[t].begin(), elecEVmin[t].end());
+		      elecEVmin[t]->begin(), elecEVmin[t]->end());
 	eEVavg.insert(eEVavg.end(),
-		      elecEVavg[t].begin(), elecEVavg[t].end());
+		      elecEVavg[t]->begin(), elecEVavg[t]->end());
 	eEVmax.insert(eEVmax.end(),
-		      elecEVmax[t].begin(), elecEVmax[t].end());
+		      elecEVmax[t]->begin(), elecEVmax[t]->end());
 	eEVsub.insert(eEVsub.end(),
-		      elecEVsub[t].begin(), elecEVsub[t].end());
+		      elecEVsub[t]->begin(), elecEVsub[t]->end());
 	logLE.insert(logLE.end(),
-		      plasmaP[t].begin(), plasmaP[t].end());
+		      plasmaP[t]->begin(), plasmaP[t]->end());
       }
 
       // All processes send to root
@@ -16888,17 +16911,17 @@ void CollideIon::electronGather()
 
     if (ExactE and DebugE) {
       for (int t=0; t<nthrds; t++) {
-	mom.insert(mom.end(), momD[t].begin(), momD[t].end());
+	mom.insert(mom.end(), momD[t]->begin(), momD[t]->end());
       }
     }
     
     if (aType==Trace) {
 				// Merge per-thread data
       for (int t=0; t<nthrds; t++) {
-	crs.insert(crs.end(), crsD[t].begin(), crsD[t].end());
-	nsl.insert(nsl.end(), selD[t].begin(), selD[t].end());
+	crs.insert(crs.end(), crsD[t]->begin(), crsD[t]->end());
+	nsl.insert(nsl.end(), selD[t]->begin(), selD[t]->end());
 	for (int n=0; n<4; n++)
-	  ndt[n].insert(ndt[n].end(), tauD[t][n].begin(), tauD[t][n].end());
+	  ndt[n].insert(ndt[n].end(), tauD[t][n]->begin(), tauD[t][n]->end());
       }
 
       energyD = energyA[0];
@@ -16921,8 +16944,8 @@ void CollideIon::electronGather()
 
     if (KE_DEBUG) {
       for (int t=0; t<nthrds; t++) {
-	keE.insert(keE.end(), keER[t].begin(), keER[t].end());
-	keI.insert(keI.end(), keIR[t].begin(), keIR[t].end());
+	keE.insert(keE.end(), keER[t]->begin(), keER[t]->end());
+	keI.insert(keI.end(), keIR[t]->begin(), keIR[t]->end());
       }
     }
 

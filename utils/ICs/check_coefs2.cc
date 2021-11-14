@@ -26,11 +26,6 @@
 #include <omp.h>
 #endif
 
-// Boost stuff (can be replaced by std in c++17)
-//
-#include <boost/math/special_functions/bessel.hpp>
-#include <boost/filesystem.hpp>
-
 #include <Progress.H>		// Progress bar
 #include <cxxopts.H>		// Option parsing
 #include <EXPini.H>		// For loading config data
@@ -415,7 +410,7 @@ main(int ac, char **av)
   if (vm.count("conf")) {
     // Do not overwrite existing config file
     //
-    if (boost::filesystem::exists(config)) {
+    if (std::filesystem::exists(config)) {
       if (myid == 0)
 	std::cerr << av[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;

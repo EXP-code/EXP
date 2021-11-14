@@ -40,14 +40,8 @@
 #include <memory>
 #include <queue>
 #include <map>
-
-using namespace std;
-
 				// Eigen3
 #include <Eigen/Eigen>
-
-				// Boost stuff (can be replaced at c++17)
-#include <boost/filesystem.hpp>
 
 #include <Progress.H>
 
