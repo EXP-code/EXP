@@ -39,13 +39,6 @@
 
 using namespace std;
 
-				// Boost stuff
-
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
-namespace po = boost::program_options;
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -59,6 +52,7 @@ namespace po = boost::program_options;
 #include <DataGrid.H>
 #include <localmpi.H>
 #include <foarray.H>
+#include <cxxopts.H>
 #include <global.H>
   
 // Globals
@@ -522,88 +516,80 @@ main(int argc, char **argv)
   sout << std::string(60, '-') << std::endl
        << "Compute halo potential, force and density profiles from " << std::endl
        << "phase-space output files" << std::endl
-       << std::string(60, '-') << std::endl << std::endl
-       << "Allowed options";
+       << std::string(60, '-') << std::endl;
   
-  po::options_description desc(sout.str());
-  desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("verbose,v",
-     "Verbose and diagnostic output for covariance computation")
-    ("CONLY",
-     "make coefficient file only")
-    ("xy",
-     "print x-y slice for surface fields (default)")
-    ("xz",
-     "print x-z slice for surface fields")
-    ("yz",
-     "print y-z slice for surface fields")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("NICE",                po::value<int>(&NICE)->default_value(0),
-     "system priority")
-    ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
-     "minimum radius for output")
-    ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
-     "maximum radius for output")
-    ("RSCALE",              po::value<double>(&rscale)->default_value(0.067),
-     "coordinate mapping scale factor")
-    ("LMAX",                po::value<int>(&LMAX)->default_value(4),
-     "Maximum harmonic order for spherical expansion")
-    ("NMAX",                po::value<int>(&NMAX)->default_value(12),
-     "Maximum radial order for spherical expansion")
-    ("MMAX",                po::value<int>(&MMAX)->default_value(4),
-     "Maximum harmonic order")
-    ("L1",                  po::value<int>(&L1)->default_value(0),
-     "minimum l harmonic")
-    ("L2",                  po::value<int>(&L2)->default_value(1000),
-     "maximum l harmonic")
-    ("N1",                  po::value<int>(&N1)->default_value(0),
-     "minimum radial order")
-    ("N2",                  po::value<int>(&N2)->default_value(1000),
-     "maximum radial order")
-    ("NPART",               po::value<int>(&NPART)->default_value(0),
-     "Jackknife partition number for testing (0 means off, use standard eval)")
-    ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),           "default Hall smoothing exponent")
-    ("OUTR",                po::value<int>(&OUTR)->default_value(40),
-     "Number of radial points for output")
-    ("PROBE",               po::value<bool>(&PROBE)->default_value(false),
-     "Make traces along axes")
-    ("SURFACE",             po::value<bool>(&SURFACE)->default_value(true),
-     "Make equitorial and vertical slices")
-    ("VOLUME",              po::value<bool>(&VOLUME)->default_value(false),
-     "Make volume grid")
-    ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("haloprof"),
-     "Filename prefix")
-    ("runtag",              po::value<string>(&runtag)->default_value("run1"),
-     "Phase space file")
-    ("outdir",              po::value<string>(&outdir)->default_value("."),
-     "Output directory path")
-    ("MODFILE",             po::value<string>(&MODFILE)->default_value("SLGridSph.model"),
-     "Halo model file")
-    ("beg",                 po::value<int>(&beg)->default_value(0),
-     "initial PSP index")
-    ("end",                 po::value<int>(&end)->default_value(99999),
-     "final PSP index")
-    ("stride",              po::value<int>(&stride)->default_value(1),
-     "PSP index stride")
-    ("compname",            po::value<std::string>(&cname)->default_value("dark"),
-     "train on Component (default=stars)")
-    ("dir,d",               po::value<std::string>(&dir),
-     "directory for phase-space files")
-    ("coefs,c",               po::value<std::string>(&coefs),
-     "file of computed coefficients")
-    ("snr,S",
-     po::value<double>(&snr)->default_value(-1.0),
-     "if not negative: do a SNR cut on the PCA basis")
-    ("center,C", po::value<std::vector<double> >(&c0)->multitoken(),
-     "Accumulation center")
-    ("diff",
-     "render the difference between the trimmed and untrimmed basis")
+  cxxopts::Options options(argv[0], sout.str());
+  
+  options.add_options()
+    ("h,help", "Print this help message")
+    ("v,verbose", "Verbose and diagnostic output for covariance computation")
+    ("CONLY", "make coefficient file only")
+    ("xy", "print x-y slice for surface fields (default)")
+    ("xz", "print x-z slice for surface fields")
+    ("yz", "print y-z slice for surface fields")
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("NICE", "system priority",
+     cxxopts::value<int>(NICE)->default_value("0"))
+    ("RMIN", "minimum radius for output",
+     cxxopts::value<double>(RMIN)->default_value("0.0"))
+    ("RMAX", "maximum radius for output",
+     cxxopts::value<double>(RMAX)->default_value("0.1"))
+    ("RSCALE", "coordinate mapping scale factor",
+     cxxopts::value<double>(rscale)->default_value("0.067"))
+    ("LMAX", "Maximum harmonic order for spherical expansion",
+     cxxopts::value<int>(LMAX)->default_value("4"))
+    ("NMAX", "Maximum radial order for spherical expansion",
+     cxxopts::value<int>(NMAX)->default_value("12"))
+    ("MMAX", "Maximum harmonic order",
+     cxxopts::value<int>(MMAX)->default_value("4"))
+    ("L1", "minimum l harmonic",
+     cxxopts::value<int>(L1)->default_value("0"))
+    ("L2", "maximum l harmonic",
+     cxxopts::value<int>(L2)->default_value("1000"))
+    ("N1", "minimum radial order",
+     cxxopts::value<int>(N1)->default_value("0"))
+    ("N2", "maximum radial order",
+     cxxopts::value<int>(N2)->default_value("1000"))
+    ("NPART", "Jackknife partition number for testing (0 means off, use standard eval)",
+     cxxopts::value<int>(NPART)->default_value("0"))
+    ("Hexp", "default Hall smoothing exponent",
+     cxxopts::value<double>(Hexp)->default_value("1.0"))
+    ("OUTR", "Number of radial points for output",
+     cxxopts::value<int>(OUTR)->default_value("40"))
+    ("PROBE", "Make traces along axes",
+     cxxopts::value<bool>(PROBE)->default_value("false"))
+    ("SURFACE", "Make equitorial and vertical slices",
+     cxxopts::value<bool>(SURFACE)->default_value("true"))
+    ("VOLUME", "Make volume grid",
+     cxxopts::value<bool>(VOLUME)->default_value("false"))
+    ("OUTFILE", "Filename prefix",
+     cxxopts::value<string>(OUTFILE)->default_value("haloprof"))
+    ("runtag", "Phase space file",
+     cxxopts::value<string>(runtag)->default_value("run1"))
+    ("outdir", "Output directory path",
+     cxxopts::value<string>(outdir)->default_value("."))
+    ("MODFILE", "Halo model file",
+     cxxopts::value<string>(MODFILE)->default_value("SLGridSph.model"))
+    ("beg", "initial PSP index",
+     cxxopts::value<int>(beg)->default_value("0"))
+    ("end", "final PSP index",
+     cxxopts::value<int>(end)->default_value("99999"))
+    ("stride", "PSP index stride",
+     cxxopts::value<int>(stride)->default_value("1"))
+    ("compname", "train on Component (default=stars)",
+     cxxopts::value<std::string>(cname)->default_value("dark"))
+    ("d,dir", "directory for phase-space files",
+     cxxopts::value<std::string>(dir))
+    ("c,coefs", "file of computed coefficients",
+     cxxopts::value<std::string>(coefs))
+    ("S,snr", "if not negative: do a SNR cut on the PCA basis",
+     cxxopts::value<double>(snr)->default_value("-1.0"))
+    ("C,center", "Accumulation center",
+     cxxopts::value<std::vector<double> >(c0))
+    ("diff", "render the difference between the trimmed and untrimmed basis")
     ;
   
   
@@ -613,12 +599,11 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
     exit(-1);
@@ -629,7 +614,7 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    std::cout << std::endl << desc << std::endl;
+    std::cout << std::endl << options.help() << std::endl;
     return 0;
   }
 

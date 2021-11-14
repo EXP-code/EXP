@@ -35,6 +35,7 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <memory>
 #include <string>
 #include <memory>
 #include <vector>
@@ -45,16 +46,8 @@
 				// Eigen3
 #include <Eigen/Eigen>
 
-				// Boost stuff
-
-#include <memory>
-#include <boost/make_unique.hpp>
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
 #include <Progress.H>
-
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
                                 // System libs
 #include <sys/time.h>
