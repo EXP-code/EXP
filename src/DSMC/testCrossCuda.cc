@@ -19,6 +19,7 @@ mpiCC -g -o testCrossCuda testCrossCuda.o Ion.o cudaIon.o TopBase.o spline.o phf
 #include "atomic_constants.H"
 #include "Ion.H"
 #include "Elastic.H"
+#include <cxxopts.H>
 
 #include <mpi.h>
 
@@ -73,19 +74,19 @@ int main (int ac, char **av)
     ("eV", "print results in eV")
     ("c,compare", "for comparison with CPU version")
     ("N,Num", "number of evaluations",
-     cxxopts::value<int>(&num)->default_value("200"))
+     cxxopts::value<int>(num)->default_value("200"))
     ("e,Emin", "minimum energy (Rydbergs)",
-     cxxopts::value<double>(&emin)->default_value("0.001"))
+     cxxopts::value<double>(emin)->default_value("0.001"))
     ("E,Emax", "maximum energy (Rydbergs)",
-     cxxopts::value<double>(&emax)->default_value("100.0"))
-    ("S,scaling", "cross-section scaling (born,mbarn, (null))",
-     cxxopts::value<std::string>(&scaling))
+     cxxopts::value<double>(emax)->default_value("100.0"))
+    ("S,scaling", "cross-section scaling (born, mbarn, (null))",
+     cxxopts::value<std::string>(scaling))
     ;
 
   cxxopts::ParseResult vm;
 
   try {
-    vm = options.parse(argc, argv);
+    vm = options.parse(ac, av);
   } catch (cxxopts::OptionException& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
@@ -93,7 +94,7 @@ int main (int ac, char **av)
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     MPI_Finalize();
     return 1;
   }
