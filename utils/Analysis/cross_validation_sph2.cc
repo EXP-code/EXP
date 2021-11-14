@@ -41,9 +41,6 @@
 
 using namespace std;
 
-				// Boost stuff (this can be removed at c++17)
-#include <boost/filesystem.hpp>
-
 				// Eigen3
 #include <Eigen/Eigen>
 

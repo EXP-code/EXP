@@ -42,12 +42,8 @@
 
 				// Eigen3
 #include <Eigen/Eigen>
-
-				// Boost stuff (can be replaced at c++17)
-#include <boost/filesystem.hpp>
-
+				// Progress barp
 #include <Progress.H>
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>

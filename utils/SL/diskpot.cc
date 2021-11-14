@@ -6,8 +6,6 @@
 #include <vector>
 #include <cmath>
 
-#include <boost/random/mersenne_twister.hpp>
-
 #include <getopt.h>		// For long options
 
 #include <global.H>		// EXP globals

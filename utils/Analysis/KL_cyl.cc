@@ -44,9 +44,6 @@
 				// Eigen3
 #include <Eigen/Eigen>
 
-				// Boost stuff (can be replaced by std at c++17)
-#include <boost/filesystem.hpp>
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>

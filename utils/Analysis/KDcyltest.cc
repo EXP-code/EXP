@@ -41,9 +41,6 @@
 #include <queue>
 #include <map>
 
-				// Boost stuff (can be removed at c++17)
-#include <boost/filesystem.hpp>
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>

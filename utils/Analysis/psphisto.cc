@@ -37,9 +37,6 @@
 #include <cmath>
 #include <string>
 
-				// Boost stuff (can be removed as of c++17)
-#include <boost/filesystem.hpp>
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
