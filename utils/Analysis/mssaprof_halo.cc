@@ -34,18 +34,16 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <memory>
 #include <tuple>
 #include <string>
 #include <cmath>
+#include <set>
 
 				// BOOST stuff
-#include <memory>
-#include <boost/make_shared.hpp>
-#include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
 
-namespace po = boost::program_options;
 namespace pt = boost::property_tree;
 
 
@@ -63,6 +61,7 @@ namespace pt = boost::property_tree;
 #include <foarray.H>
 
 #include <DataGrid.H>
+#include <cxxopts.H>
 
 const std::string overview = "Compute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
   
@@ -466,66 +465,49 @@ main(int argc, char **argv)
   std::string modelfile, coeffile;
   int stride;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",
-     "produce this help message")
-    ("verbose,v",
-     "verbose output")
-    ("mask,b",
-     "blank empty cells")
-    ("noCommand,X",
-     "do not save command line")
-    ("PC,p",
-     "make rendering for each PC")
-    ("All,a",
-     po::value<bool>(&All)->default_value(true),
-     "make rendering for all PCs")
-    ("RMAX,R",
-     po::value<double>(&RMAX)->default_value(0.1),
-     "maximum radius for output")
-    ("outr",
-     po::value<int>(&OUTR)->default_value(40), 
-     "number of radial points for output")
-    ("surface",
-     po::value<bool>(&SURFACE)->default_value(true),
-     "make surface equitorial slices")
-    ("vslice",
-     po::value<bool>(&VSLICE)->default_value(false),
-     "make surface vertical slices")
-    ("volume",
-     po::value<bool>(&VOLUME)->default_value(false),
-     "make volume for VTK rendering")
-    ("outid,o",
-     po::value<std::string>(&outid)->default_value("mssaprof_halo"),
-     "Analysis id name")
-    ("coeffile",
-     po::value<std::string>(&coeffile)->default_value("coef.file"),
-     "coefficient file name from exp_mssa")
-    ("modfile",
-     po::value<std::string>(&modelfile)->default_value("SLGridSph.model"),
-     "SL model filename")
-    ("runtag,r",
-     po::value<std::string>(&runtag)->default_value("run1"),
-     "runtag for phase space files")
-    ("stride,s",
-     po::value<int>(&stride)->default_value(1), 
-     "stride for time output")
+  cxxopts::Options options(argv[0], overview);
+
+  options.add_options()
+   ("h,help", "produce this help message")
+   ("v,verbose", "verbose output")
+   ("b,mask", "blank empty cells")
+   ("X,noCommand", "do not save command line")
+   ("p,PC", "make rendering for each PC")
+   ("a,All", "make rendering for all PCs",
+     cxxopts::value<bool>(All)->default_value("true"))
+   ("R,RMAX", "maximum radius for output",
+     cxxopts::value<double>(RMAX)->default_value("0.1"))
+   ("outr", "number of radial points for output",
+     cxxopts::value<int>(OUTR)->default_value("40"))
+   ("surface", "make surface equitorial slices",
+     cxxopts::value<bool>(SURFACE)->default_value("true"))
+   ("vslice", "make surface vertical slices",
+     cxxopts::value<bool>(VSLICE)->default_value("false"))
+   ("volume", "make volume for VTK rendering",
+     cxxopts::value<bool>(VOLUME)->default_value("false"))
+   ("o,outid", "Analysis id name",
+     cxxopts::value<std::string>(outid)->default_value("mssaprof_halo"))
+   ("coeffile", "coefficient file name from exp_mssa",
+     cxxopts::value<std::string>(coeffile)->default_value("coef.file"))
+   ("modfile", "SL model filename",
+     cxxopts::value<std::string>(modelfile)->default_value("SLGridSph.model"))
+   ("r,runtag", "runtag for phase space files",
+     cxxopts::value<std::string>(runtag)->default_value("run1"))
+   ("s,stride", "stride for time output",
+     cxxopts::value<int>(stride)->default_value("1"))
     ;
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << overview << std::endl;
-    std::cout << desc     << std::endl;
+    std::cout << options.help() << std::endl;
     return 1;
   }
  

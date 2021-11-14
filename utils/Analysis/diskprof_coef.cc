@@ -39,14 +39,12 @@
 #include <cmath>
 
 				// BOOST stuff
-#include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
 
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
-namespace po = boost::program_options;
 namespace pt = boost::property_tree;
 
 
@@ -56,9 +54,10 @@ namespace pt = boost::property_tree;
 
 				// MDW classes
 #include <numerical.H>
-#include <interp.H>
+#include <cxxopts.H>
 #include <EmpCylSL.H>
 #include "Particle.h"
+#include <interp.H>
 #include "Coefs.H"
 
 #include <localmpi.H>
@@ -400,73 +399,55 @@ main(int argc, char **argv)
   bool DENS, verbose = false, mask = false;
   std::string CACHEFILE, coeffile;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",
-     "produce this help message")
-    ("verbose,v",
-     "verbose output")
-    ("mask,b",
-     "blank empty cells")
-    ("noCommand,X",
-     "do not save command line")
-    ("RMAX,R",
-     po::value<double>(&RMAX)->default_value(0.1),
-     "maximum radius for output")
-    ("ZMAX,Z",
-     po::value<double>(&ZMAX)->default_value(0.01),
-     "maximum height for output")
-    ("outr",
-     po::value<int>(&OUTR)->default_value(40), 
-     "number of radial points for output")
-    ("outz",
-     po::value<int>(&OUTZ)->default_value(40), 
-     "number of vertical points for output")
-    ("surface",
-     po::value<bool>(&SURFACE)->default_value(true),
-     "make equatorial slices")
-    ("vslice",
-     po::value<bool>(&VSLICE)->default_value(true),
-     "make vertical slices")
-    ("volume",
-     po::value<bool>(&VOLUME)->default_value(false),
-     "make volume for VTK rendering")
-    ("outid,o",
-     po::value<std::string>(&outid)->default_value("diskcoef"),
-     "Analysis id name")
-    ("cachefile",
-     po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
-     "cachefile name")
-    ("coeffile",
-     po::value<std::string>(&coeffile)->default_value("coef.file"),
-     "cachefile name")
-    ("runtag,r",
-     po::value<std::string>(&runtag)->default_value("run1"),
-     "runtag for phase space files")
-    ("stride,s",
-     po::value<int>(&stride)->default_value(1), 
-     "stride for time output")
-    ("beg",
-     po::value<int>(&ibeg)->default_value(0), 
-     "initial coefficient frame")
-    ("end",
-     po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()), 
-     "final coefficient frame")
+  cxxopts::Options options(argv[0], "");
+
+  options.add_options()
+    ("h,help", "produce this help message")
+    ("v,verbose", "verbose output")
+    ("b,mask", "blank empty cells")
+    ("X,noCommand", "do not save command line")
+    ("R,RMAX", "maximum radius for output",
+     cxxopts::value<double>(RMAX)->default_value("0.1"))
+    ("Z,ZMAX", "maximum height for output",
+     cxxopts::value<double>(ZMAX)->default_value("0.01"))
+    ("outr", "number of radial points for output",
+     cxxopts::value<int>(OUTR)->default_value("40"))
+    ("outz", "number of vertical points for output",
+     cxxopts::value<int>(OUTZ)->default_value("40"))
+    ("surface", "make equatorial slices",
+     cxxopts::value<bool>(SURFACE)->default_value("true"))
+    ("vslice", "make vertical slices",
+     cxxopts::value<bool>(VSLICE)->default_value("true"))
+    ("volume", "make volume for VTK rendering",
+     cxxopts::value<bool>(VOLUME)->default_value("false"))
+    ("o,outid", "Analysis id name",
+     cxxopts::value<std::string>(outid)->default_value("diskcoef"))
+    ("cachefile", "cachefile name",
+     cxxopts::value<std::string>(CACHEFILE)->default_value(".eof.cache.file"))
+    ("coeffile", "cachefile name",
+     cxxopts::value<std::string>(coeffile)->default_value("coef.file"))
+    ("r,runtag", "runtag for phase space files",
+     cxxopts::value<std::string>(runtag)->default_value("run1"))
+    ("s,stride", "stride for time output",
+     cxxopts::value<int>(stride)->default_value("1"))
+    ("beg", "initial coefficient frame",
+     cxxopts::value<int>(ibeg)->default_value("0"))
+    ("end", "final coefficient frame",
+     cxxopts::value<int>(iend)->default_value(std::to_string(std::numeric_limits<int>::max())))
     ;
   
-  po::variables_map vm;
+  
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << overview << std::endl;
-    std::cout << desc     << std::endl;
+    std::cout << options.help() << std::endl;
     return 1;
   }
  
