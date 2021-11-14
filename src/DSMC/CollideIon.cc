@@ -14908,7 +14908,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
 	      << std::setw( 6) << p1.second
 	      << std::setw( 6) << p2.first
 	      << std::setw( 6) << p2.second
-	      << std::setw(14) << v.second().back()
+	      << std::setw(14) << v.second.back()
 	      << std::endl;
   }
   std::cout << std::string(58, '-') << std::endl;
