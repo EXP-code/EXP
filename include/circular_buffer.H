@@ -8,12 +8,11 @@
 #include <stdexcept>
 #include <utility>
 
-
 /**
    Circular buffer implementation from
-   https://github.com/vinitjames/circularbuffer
-
-   Hopefully, this can be replaced by STL eventually
+   https://github.com/vinitjames/circularbuffer to temporarily replace
+   the boost::circular_buffer implementation. Hopefully, this can be
+   replaced by STL eventually.
 */
 template<typename T>
 class circular_buffer
