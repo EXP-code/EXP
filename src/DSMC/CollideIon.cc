@@ -3945,11 +3945,18 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
   double mu1 = m1 * me / (m1 + me);
   double mu2 = me * m2 / (me + m2);
 
-  eVelP1[id] = eVel1;
-  eVelP2[id] = eVel2;
+  // Correction for electron mass
+  // changes  --------------+
+  //                        |
+  //                        v
+  eVelP1[id] = eVel1 * sqrt(Eta1) / TreeDSMC::Vunit;
+  eVelP2[id] = eVel2 * sqrt(Eta2) / TreeDSMC::Vunit;
 
-  sVelP1[id] = sVel1;
-  sVelP2[id] = sVel2;
+  sVelP1[id] = sVel1 * sqrt(Eta1) / TreeDSMC::Vunit;
+  sVelP2[id] = sVel2 * sqrt(Eta2) / TreeDSMC::Vunit;
+  //                                ^
+  //                                |
+  // Convert back to system units --+
 
   // Available COM energy
   //
@@ -14767,7 +14774,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   // Convert from NTCdb to system units
   //
-  const double crs_units = 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit) / TreeDSMC::Vunit;
+  const double crs_units = 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
 
   // For NTCdb <cross section>*<relative velocity>
   //
@@ -14848,9 +14855,10 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
     // Make commulative cross section for particle pair selection
     //
+    double Pscale = mmas * rateF * crs_units / (num - 1);
     cseccum[id][v.first].clear();
     for (auto u : cseccache[id][v.first])
-      cseccum[id][v.first].push_back(std::get<0>(u));
+      cseccum[id][v.first].push_back(std::get<0>(u) * Pscale);
     for (int i=1; i<cseccum[id][v.first].size(); i++)
       cseccum[id][v.first][i] += cseccum[id][v.first][i-1];
 
@@ -14891,14 +14899,19 @@ NTC::InteractD CollideIon::generateSelectionTrace
 #endif
 
 #ifdef XC_DEEP16
-  std::cout << std::string(58, '-') << std::endl
+  std::cout << std::string(64, '-') << std::endl
+	    << "Time=" << tnow << " Tau=" << tau
+	    << " Bodies=" << num << std::endl
+	    << " Cell=" << std::hex << c << std::dec
+	    << std::string(64, '-') << std::endl
 	    << std::setw(20) << "Interaction"
 	    << std::setw( 6) << "Z1"
 	    << std::setw( 6) << "C1"
 	    << std::setw( 6) << "Z2"
 	    << std::setw( 6) << "C2"
+	    << std::setw( 6) << "N"
 	    << std::setw(14) << "#" << std::endl
-	    << std::string(58, '-') << std::endl;
+	    << std::string(64, '-') << std::endl;
   for (auto & v : cseccum[id]) {
     auto TT = std::get<0>(v.first);
     auto p1 = std::get<1>(v.first);
@@ -14908,10 +14921,11 @@ NTC::InteractD CollideIon::generateSelectionTrace
 	      << std::setw( 6) << p1.second
 	      << std::setw( 6) << p2.first
 	      << std::setw( 6) << p2.second
+	      << std::setw( 6) << v.second.size()
 	      << std::setw(14) << v.second.back()
 	      << std::endl;
   }
-  std::cout << std::string(58, '-') << std::endl;
+  std::cout << std::string(64, '-') << std::endl;
 #endif
 
 
@@ -19231,7 +19245,7 @@ void CollideIon::processConfig()
     }
 
     // Update atomic weight databases IF ElctronMass is specified
-    // using direct call to underlying boost::property_tree
+    // using direct call to underlying YAML structure
     //
     if (config["ElectronMass"])
       {

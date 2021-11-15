@@ -2,9 +2,8 @@
 #include <iomanip>
 #include <sstream>
 #include <fstream>
+#include <memory>
 #include <cmath>
-
-#include <boost/make_shared.hpp>
 
 #include <yaml-cpp/yaml.h>
 

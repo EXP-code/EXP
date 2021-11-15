@@ -23,14 +23,10 @@ using namespace std;
 #include <Species.H>
 
 #include <StringTok.H>
+#include <writePVD.H>
 #include <cxxopts.H>
 #include <header.H>
 #include <PSP.H>
-
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp> 
-
-namespace pt = boost::property_tree;
 
 //
 // VTK stuff
@@ -53,54 +49,6 @@ using vtkRectilinearGridWriterP = vtkSmartPointer<vtkXMLRectilinearGridWriter>;
 using vtkFloatArrayP            = vtkSmartPointer<vtkFloatArray>;
 
 typedef std::vector< std::vector<unsigned> > I2Vector;
-
-void writePVD(const std::string& filename,
-	      const std::vector<double>& times,
-	      const std::vector<std::string>& files)
-{
-  // Sanity check
-  //
-  if (times.size() != files.size()) {
-    std::cerr << "Mismatch in file and time arrays" << std::endl;
-    exit(-3);
-  }
-
-  // Make file collection elements
-  //
-  pt::ptree ptC;
-
-  for (size_t i=0; i<times.size(); i++) {
-    boost::property_tree::ptree x;
-    x.put("<xmlattr>.timestep", times[i]);
-    x.put("<xmlattr>.part", 0);
-    x.put("<xmlattr>.file", files[i]);
-
-    ptC.add_child("DataSet", x);
-  }
-
-  // Add VTKFile attributes
-  //
-  pt::ptree ptP;
-  
-  ptP.put("<xmlattr>.type", "Collection");
-  ptP.put("<xmlattr>.version", "0.1");
-  ptP.put("<xmlattr>.byte_order", "LittleEndian");
-  ptP.put("<xmlattr>.compressor", "vtkZLibDataCompressor");
-  ptP.add_child("Collection", ptC);
-  
-  // Make the top-level property tree
-  //
-  pt::ptree PT;
-
-  PT.add_child("VTKFile", ptP);
-
-  // Write the property tree to the XML file.
-  //
-  pt::xml_parser::write_xml(filename.c_str(), PT, std::locale(), pt::xml_writer_make_settings<std::string>(' ', 4));
-
-  std::cout << "Wrote PVD file <" << filename.c_str() << "> "
-	    << " with " << times.size() << " data sets." << std::endl;
-}
 
 
 // Add "time" value to a VTK dataset.

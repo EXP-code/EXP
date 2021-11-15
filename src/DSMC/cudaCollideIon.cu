@@ -5690,8 +5690,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
   thrust::host_vector<cuFP_t> h_Nsel  = d_Nsel;
   
   for (int n=0; n<N; n++) {
-    for (int l=0; l<4; l++) tauD[id][l].push_back(h_Coul4[n*4+l]);
-    selD[id].push_back(h_Nsel[n]);
+    for (int l=0; l<4; l++) tauD[id][l]->push_back(h_Coul4[n*4+l]);
+    selD[id]->push_back(h_Nsel[n]);
   }
   
   thread_timing_end(id);

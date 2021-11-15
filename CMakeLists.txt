@@ -59,6 +59,9 @@ find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 set(DEP_LIB ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
 
+# For PNG and rapidxml
+include_directories(${PROJECT_SOURCE_DIR}/extern)
+
 if(OpenMP_FOUND)
   set(HAVE_OMP_H TRUE)
 endif()
@@ -80,7 +83,6 @@ if(HDF5_FOUND)
   set(HAVE_HDF5 TRUE)
 endif()
 if(PNG_FOUND)
-  include_directories(${PROJECT_SOURCE_DIR}/extern)
   set(HAVE_LIBPNGPP TRUE)
 endif()
 if(ENABLE_DSMC)
