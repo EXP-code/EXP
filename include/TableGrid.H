@@ -7,7 +7,6 @@
 #include <map>
 
 #include <memory>
-#include <boost/multi_array.hpp>
 
 #include <ThreeDGrid.H>
 
@@ -23,7 +22,7 @@ protected:
   std::vector<float> XX, YY, ZZ;
 
   // Data
-  typedef boost::multi_array<float, 3> dtype;
+  typedef Dynamic3dArray<double> dtype;
   typedef std::shared_ptr<dtype> dptr;
   std::map<std::string, dptr> arrays;
 

@@ -9,9 +9,6 @@
 #include <set>
 #include <map>
 
-
-#include <boost/multi_array.hpp>
-
 #include <Eigen/Eigen>
 
 #include <atomic_constants.H>

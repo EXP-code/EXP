@@ -16,8 +16,6 @@ using namespace std;
 #include <string>
 #include <list>
 
-#include <boost/random/mersenne_twister.hpp>
-
 #include <StringTok.H>
 #include <header.H>
 #include <PSP.H>

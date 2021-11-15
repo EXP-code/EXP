@@ -6,9 +6,8 @@
 #include <limits>
 #include <string>
 
-#include <boost/multi_array.hpp>
-
 #include <Progress.H>		// Progress bar
+#include <TableGrid.H>		// For three-dimensional array
 
 #include <interp.H>
 #include <Timer.H>
@@ -6331,44 +6330,42 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   out << setw(20) << left << "time"    << " : " << time    << endl;
   out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
 
-				// Read table
-
+  // Read table
+  //
   int nfield = 3;
   if (DENS) nfield += 1;
   
-  typedef boost::multi_array<double, 3> array_type;
-  typedef array_type::index index;
-  array_type mat(boost::extents[nfield][numx+1][numy+1]);
-
-  for (index m=0; m<=mmax; m++) {
+  Dynamic3dArray<double> mat(nfield, numx+1, numy+1);
+  
+  for (int m=0; m<=mmax; m++) {
     
-    for (index v=0; v<norder; v++) {
+    for (int v=0; v<norder; v++) {
 
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++) {
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++) {
 	  in.read((char *)&mat[0][ix][iy], sizeof(double));
 	}
       
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++)
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[1][ix][iy], sizeof(double));
       
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++)
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[2][ix][iy], sizeof(double));
       
       if (DENS) {
-	for (index ix=0; ix<=numx; ix++)
-	  for (index iy=0; iy<=numy; iy++)
+	for (int ix=0; ix<=numx; ix++)
+	  for (int iy=0; iy<=numy; iy++)
 	    in.read((char *)&mat[3][ix][iy], sizeof(double));
 	
       }
       
-      for (index ix=0; ix<numx; ix++) {
-	for (index iy=0; iy<numy; iy++) {
+      for (int ix=0; ix<numx; ix++) {
+	for (int iy=0; iy<numy; iy++) {
 	  out << left << setw(4) << m << setw(4) << v 
 	      << setw(4) << ix << setw(4) << iy;
-	  for (index n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
+	  for (int n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
 	  out << endl;
 	}
 	
@@ -6379,33 +6376,33 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
 
   }
 
-  for (index m=1; m<=mmax; m++) {
+  for (int m=1; m<=mmax; m++) {
     
-    for (index v=0; v<norder; v++) {
+    for (int v=0; v<norder; v++) {
       
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++)
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[0][ix][iy], sizeof(double));
       
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++)
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[1][ix][iy], sizeof(double));
       
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++)
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[2][ix][iy], sizeof(double));
       
       if (DENS) {
-	for (index ix=0; ix<=numx; ix++)
-	  for (index iy=0; iy<=numy; iy++)
+	for (int ix=0; ix<=numx; ix++)
+	  for (int iy=0; iy<=numy; iy++)
 	    in.read((char *)&mat[3][ix][iy], sizeof(double));
       }
 
-      for (index ix=0; ix<numx; ix++) {
-	for (index iy=0; iy<numy; iy++) {
+      for (int ix=0; ix<numx; ix++) {
+	for (int iy=0; iy<numy; iy++) {
 	  out << left << setw(4) << m << setw(4) << v 
 	      << setw(4) << ix << setw(4) << iy;
-	  for (index n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
+	  for (int n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
 	  out << endl;
 	}
       }
