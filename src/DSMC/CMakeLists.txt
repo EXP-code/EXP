@@ -18,8 +18,7 @@ set(common_INCLUDE_DIRS
   ${EIGEN3_INCLUDE_DIR})
 
 set(common_LINK_LIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
-  Boost::random Boost::serialization Boost::filesystem
-  Boost::program_options exputil yaml-cpp ${VTK_LIBRARIES})
+  Boost::serialization exputil yaml-cpp ${VTK_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
