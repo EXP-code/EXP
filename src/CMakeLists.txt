@@ -43,8 +43,7 @@ if (ENABLE_DSMC)
 endif()
 
 set(common_LINKLIB ${DSMC_LIBS} exputil OpenMP::OpenMP_CXX
-  MPI::MPI_CXX Boost::filesystem Boost::program_options yaml-cpp
-  ${VTK_LIBRARIES})
+  MPI::MPI_CXX yaml-cpp ${VTK_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})

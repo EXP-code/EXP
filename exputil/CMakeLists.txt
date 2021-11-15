@@ -43,7 +43,7 @@ set(common_INCLUDE_DIRS
   ${EIGEN3_INCLUDE_DIR})
 
 set(common_LINKLIBS
-  ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX Boost::random)
+  ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX)
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})

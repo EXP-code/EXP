@@ -12,8 +12,8 @@ if(HAVE_XDR)
   list(APPEND bin_PROGRAMS tipstd2psp)
 endif()
 
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
-  Boost::program_options yaml-cpp EXP exputil ${VTK_LIBRARIES})
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp EXP
+  exputil ${VTK_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})

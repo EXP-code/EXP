@@ -19,8 +19,7 @@ set (common_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 set (common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
-  Boost::random Boost::serialization Boost::filesystem exputil
-  yaml-cpp)
+  exputil yaml-cpp)
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
