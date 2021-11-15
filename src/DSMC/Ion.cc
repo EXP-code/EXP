@@ -3014,12 +3014,6 @@ void atomicData::readMaster()
       std::getline(masterFile, line);
       std::vector<std::string> v = str_split(line, ' ');
       if (v.size()) masterNames.insert(v[0]);			
-      else {
-	std::cout << "atomicData::readMaster: "
-		  << "masterFile parsing found line <" << line << ">, "
-		  << "continuing with " << masterNames.size() << " read"
-		  << std::endl;
-      }
     }
     masterFile.close();
   }
