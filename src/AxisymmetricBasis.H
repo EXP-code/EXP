@@ -51,7 +51,7 @@ protected:
   //! Maximum radial basis index
   int nmax;
 
-  //! Use principal component boostrap analysis of variance to select
+  //! Use principal component bootstrap analysis of variance to select
   //! coefficients
   bool pcavar;
 
