@@ -50,14 +50,14 @@ inline void check_bad(const char *msg, int v)
 std::string sForm(const std::string& label,
 		  const double time, const double total)
 {
-  std::ostringstream str;
   double pcnt = 0.0;
   if (total>0) pcnt = time/total*100.0;
   
-  str << std::setw(20) << std::left   << label << ": "
-      << std::setw(18) << std::left   << time  << " ["
-      << std::setw( 7) << std::right  << pcnt  << "%"
-      << std::endl;
+  std::ostringstream str;
+  str << std::setw(20) << std::left     << label << ": "
+      << std::setw(18) << std::left     << time  << " ["
+      << std::setw( 6) << std::right    << std::setprecision(2)
+      << std::fixed    << pcnt << " %]" << std::endl;
 
   return str.str();
 }
