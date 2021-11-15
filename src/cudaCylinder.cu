@@ -5,8 +5,6 @@
 #include <cudaReduce.cuH>
 #include "expand.H"
 
-#include <boost/make_shared.hpp>
-
 // Define for debugging
 //
 // #define OFF_GRID_ALERT
