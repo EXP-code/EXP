@@ -1,6 +1,7 @@
 #ifndef _NTC_H
 #define _NTC_H
 
+#include <filesystem>
 #include <algorithm>
 #include <iostream>
 #include <sstream>
@@ -27,14 +28,14 @@
 #include <boost/serialization/list.hpp>
 #include <boost/serialization/map.hpp>
 
-#include <boost/filesystem.hpp>
-
 #include <boost/version.hpp>
 
 #include "pHOT_types.H"
 #include "QuantileBag.H"
 #include "Species.H"
 #include "global.H"		// For simulation time: tnow
+
+
 
 
 // Serialize std::array and std::tuple(...)
@@ -559,16 +560,18 @@ namespace NTC
     //! Save contents to a file
     void save_myself(const std::string& filename)
     {
+      namespace fs = std::filesystem;
+      
       // Synchronize
       sync();
       
       // Only the root process makes an archive
       if (myid==0) {
 	std::ofstream ofs;
-	bool exists = boost::filesystem::exists(filename);
+	bool exist = fs::exists(filename);
 	std::string tfile(".tmp." + filename);
 	
-	if (exists) {
+	if (exist) {
 	  ofs.open(tfile.c_str());
 	} else {
 	  ofs.open(filename.c_str());
@@ -584,8 +587,8 @@ namespace NTC
 	oa << BOOST_SERIALIZATION_NVP(next_time);
 	oa << BOOST_SERIALIZATION_NVP(debug_count);
 
-	if (exists) {
-	  boost::filesystem::rename(tfile, filename);
+	if (exist) {
+	  fs::rename(tfile, filename);
 	}
 
 	if (chatty and NTCitem::live()) {
@@ -656,14 +659,16 @@ namespace NTC
     //! Constructor
     NTCdb()
     {
+      namespace fs = std::filesystem;
+
       // Attempt to restore from save set
       try {
 	std::string filename = ".ntcdb." + runtag;
-	if ( boost::filesystem::exists(filename) ) {
+	if ( fs::exists(filename) ) {
 	  restore_myself(filename);
 	}
       }
-      catch (boost::archive::archive_exception & error) {
+      catch (fs::filesystem_error & error) {
 	if (myid==0) {
 	  std::cout << "Failure to open archive <.ntcdb." << runtag
 		    << "> with error: " << error.what() << std::endl
