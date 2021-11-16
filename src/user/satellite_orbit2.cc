@@ -94,27 +94,27 @@ extern "C" void satellite_orbit(double T, double* X, double* Y, double* Z)
 // Initilize HALO model
 // ===================================================================
     
-    SphericalModelTable *m;
-    AxiSymModel *halo_model;
+    std::shared_ptr<SphericalModelTable> m;
+    AxiSymModPtr halo_model;
 
     switch (HALO_MODEL) {
     case file:
-      m = new SphericalModelTable(MODFILE, DIVERGE, DIVERGE_RFAC);
+      m = std::make_shared<SphericalModelTable>(MODFILE, DIVERGE, DIVERGE_RFAC);
       m->setup_df(NUMDF, RA);
       halo_model = m;
       Model3dNames[0] = MODFILE;	// Assign filename to ID string
       break;
 
     case sing_isothermal:
-      halo_model = new SingIsothermalSphere(1.0, RMODMIN, RMODMAX);
+      halo_model = std::make_shared<SingIsothermalSphere>(1.0, RMODMIN, RMODMAX);
       break;
 
     case isothermal:
-      halo_model = new IsothermalSphere(RCORE, RMODMAX, VROT);
+      halo_model = std::make_shared<IsothermalSphere>(RCORE, RMODMAX, VROT);
       break;
 
     case hernquist_model:
-      halo_model = new HernquistSphere(1.0, RMODMIN, RMODMAX); // Halo model
+      halo_model = std::make_shared<HernquistSphere>(1.0, RMODMIN, RMODMAX);
       break; 
 
     default:

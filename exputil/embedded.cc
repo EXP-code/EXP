@@ -98,16 +98,17 @@ void EmbeddedDiskModel::setup_df(int egrid, int kgrid, int mgrid,
   if (rmmax<0.0) rmmax = rmax;
   double remax = rmax;
 
-  df = std::make_shared<QPDistF>(this, rmmax, remax, egrid, kgrid, mgrid, 
+  df = std::make_shared<QPDistF>(shared_from_this(),
+				 rmmax, remax, egrid, kgrid, mgrid, 
 				   sigma, lambda, alpha, beta, gama,
-				   roff, eoff, koff, kmin, kmax, nint, numt);
+				 roff, eoff, koff, kmin, kmax, nint, numt);
 
   dist_defined = true;
 }
 
 void EmbeddedDiskModel::setup_df(string &file)
 {
-  df = std::make_shared<QPDistF>(this, file);
+  df = std::make_shared<QPDistF>(shared_from_this(), file);
   dist_defined = true;
 }
 

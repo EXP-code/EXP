@@ -50,12 +50,12 @@ void Perturbation::set_respmat_parameters(int epts, int kpts, int recs)
   Recs = recs;
 }
 
-void Perturbation::compute_perturbation(AxiSymModel  *halo_model, 
-					AxiSymBiorth *halo_ortho,
+void Perturbation::compute_perturbation(AxiSymModPtr halo_model, 
+					AxiSymBioPtr halo_ortho,
 					Eigen::VectorXcd& total,
 					Eigen::VectorXcd& pp )
 {
-  model = halo_model;
+  model  = halo_model;
   biorth = halo_ortho;
 
   Eigen::MatrixXcd Response(nmax, nmax);

@@ -9,8 +9,8 @@
 //
 // ======================================================================
 
-#ifndef _SatelliteOrbit_h
-#define _SatelliteOrbit_h
+#ifndef _SatelliteOrbit_H
+#define _SatelliteOrbit_H
 
 #include <string>
 #include <massmodel.H>
@@ -24,9 +24,9 @@ class SatelliteOrbit : public Trajectory
 {
 private:
 
-  SphericalModelTable *m;
-  AxiSymModel *halo_model;
-  FindOrb *orb;
+  std::shared_ptr<SphericalModelTable> m;
+  std::shared_ptr<AxiSymModel> halo_model;
+  std::shared_ptr<FindOrb> orb;
   Eigen::Matrix3d rotate, rotateI;
   Eigen::Vector3d v, v0, u, u0, non;
   Eigen::Matrix3d tidalRot, tidalRotI;

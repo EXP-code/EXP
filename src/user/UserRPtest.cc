@@ -1,8 +1,7 @@
-#include <math.h>
 #include "expand.H"
 #include <localmpi.H>
 
-#include <SatelliteOrbit.h>
+#include <SatelliteOrbit.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 #include <ResPot.H>
@@ -12,6 +11,8 @@
 #include <BarForcing.H>
 
 #include <sstream>
+#include <memory>
+#include <cmath>
 
 
 UserRPtest::UserRPtest(const YAML::Node& conf) : ExternalForce(conf)
@@ -70,25 +71,24 @@ UserRPtest::UserRPtest(const YAML::Node& conf) : ExternalForce(conf)
 				// Perturbation
   BarForcing::L0 = L0;
   BarForcing::M0 = M0;
-  BarForcing *bar = new BarForcing(NMAX, 0.1, 0.1, 1.0);
+  auto bar = std::make_shared<BarForcing>(NMAX, 0.1, 0.1, 1.0);
   bar->compute_quad_parameters(0.2, 0.2);
 
 				// Set up for resonance potential
-  SphericalModelTable *hm = new SphericalModelTable(model_file);
+  auto hm = std::make_shared<SphericalModelTable>(model_file);
   halo_model = hm;
 
   ResPot::NUMX = NUMX;
   ResPot::NUME = NUME;
   ResPot::RECS = RECS;
-  respot = new ResPot(halo_model, bar, L0, M0, L1, L2);
+  respot = std::make_shared<ResPot>(halo_model, bar, L0, M0, L1, L2);
 
   userinfo();
 }
 
 UserRPtest::~UserRPtest()
 {
-  delete halo_model;
-  delete respot;
+  // Nothing
 }
 
 void UserRPtest::userinfo()

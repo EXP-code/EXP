@@ -1,10 +1,11 @@
 #ifndef EllipForce_H
 #define EllipForce_H
 
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <vector>
-#include <algorithm>
+#include <memory>
 
 #include <interp.H>
 #include <gaussQ.H>
@@ -23,9 +24,8 @@ private:
 
   double a, b, c, mass;
   int num, numr;
-  LegeQuad *lq;
-
-  vector<double> r, m, p;
+  std::shared_ptr<LegeQuad> lq;
+  std::vector<double> r, m, p;
 
 public:
 

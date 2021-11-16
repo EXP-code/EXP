@@ -1,11 +1,11 @@
 
 set(USER_MODULES user bar ebar logpot disk ebarp halo ebars ebarn
-  periodic atmos reflect trigger mndisk tidalrad massevo addmass sat
+  periodic reflect trigger mndisk tidalrad massevo addmass sat
   satfix)
 
 if (ENABLE_USER_ALL)
   list(APPEND USER_MODULES diffuse torque diffrot respot respotn
-    respotorb rptest wake atmos satwake pst userslab shear snheat
+    respotorb rptest wake atmos satwake userslab shear snheat
     profile)
 endif()
 
@@ -32,7 +32,7 @@ set (common_SRC ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc
   UnboundOrbit.cc Synchronize.cc
   )
 
-set (swake_SRC respmat6.cc cratint.cc rombeveccmp.cc)
+set (swake_SRC RespMat.cc cratint.cc rombeveccmp.cc)
 
 add_library(expuser_common ${common_SRC})
 target_include_directories(expuser_common PUBLIC ${common_INCLUDE_DIRS})
@@ -75,10 +75,11 @@ set(snheat_SRC    UserSNheat.cc)
 set(atmos_SRC     UserAtmos.cc)
 set(reflect_SRC   UserReflect.cc)
 set(satwake_SRC   UserSatWake.cc)
-set(slab_SRC      UserSlabHalo.cc)
+set(userslab_SRC  UserSlabHalo.cc)
 set(trigger_SRC   UserBarTrigger.cc)
 set(shear_SRC     UserShear.cc)
 set(profile_SRC   UserProfile.cc)
+set(wake_SRC      UserWake.cc)
 
 if (ENABLE_CUDA)
   list(APPEND sat_SRC cudaUserSat.cu)

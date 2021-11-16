@@ -14,7 +14,7 @@
 #include <biorth2d.H>
 #include <interp.H>
 
-#include <RespMat3.H>
+#include <RespMat.H>
 #include <model3d.H>
 #include <sphereSL.H>
 #include <TimeSeriesCoefs.H>
@@ -154,9 +154,7 @@ UserSatWake::UserSatWake(const YAML::Node& conf) : ExternalForce(conf)
 
 UserSatWake::~UserSatWake()
 {
-  
-  delete halo_model;
-  delete u;
+  // Nothing
 }
 
 void UserSatWake::userinfo()
@@ -335,10 +333,8 @@ void UserSatWake::initialize_coefficients()
   // Initilize HALO model
   // ===================================================================
   
-  SphericalModelTable::logscale = 0;
-  SphericalModelTable *m = 0;
-  
-  m = new SphericalModelTable(INFILE, DIVERGE, DIVEXPON);
+  // SphericalModelTable::linear = 1;
+  auto m = std::make_shared<SphericalModelTable>(INFILE, DIVERGE, DIVEXPON);
   m->setup_df(NUMDF, RA);
   halo_model = m;
   Model3dNames[0] = INFILE;	// Assign filename to ID string
@@ -349,13 +345,13 @@ void UserSatWake::initialize_coefficients()
   
   switch (HALO_TYPE) {
   case bessel:
-    u = new BSSphere(RMODMAX, nmax, LMAX);
+    u = std::make_shared<BSSphere>(RMODMAX, nmax, LMAX);
     break;
   case clutton_brock:
-    u = new CBSphere;
+    u = std::make_shared<CBSphere>();
     break;
   case hernquist:
-    u = new HQSphere;
+    u = std::make_shared<HQSphere>();
     break;
   case sturm:
     if (rmin<0.0) 
@@ -365,7 +361,7 @@ void UserSatWake::initialize_coefficients()
 
     SLGridSph::sph_cache_name = ".slgrid_sph_cache." + runtag;
     SphereSL::mpi = 1;
-    u = new SphereSL(LMAX, nmax, numr, rmin, rmax, scale, m);
+    u = std::make_shared<SphereSL>(LMAX, nmax, numr, rmin, rmax, scale, m);
     break;
   default:
     {

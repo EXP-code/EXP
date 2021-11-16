@@ -57,7 +57,7 @@ SphericalOrbit::SphericalOrbit(void) {
   set_numerical_params();
 }
 
-SphericalOrbit::SphericalOrbit(AxiSymModel *Model)
+SphericalOrbit::SphericalOrbit(AxiSymModPtr Model)
 {
   dof = Model->dof();
   OrbitID = "SphericalOrbit";
@@ -82,7 +82,7 @@ SphericalOrbit::SphericalOrbit(AxiSymModel *Model)
   set_numerical_params();
 }
 
-SphericalOrbit::SphericalOrbit(AxiSymModel *Model,
+SphericalOrbit::SphericalOrbit(AxiSymModPtr Model,
 			       double Energy, double Kappa, double Beta)
 {
   dof = Model->dof();

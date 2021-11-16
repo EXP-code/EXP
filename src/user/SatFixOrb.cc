@@ -53,7 +53,7 @@ SatFixOrb::SatFixOrb(const YAML::Node& conf) : ExternalForce(conf)
 
   last = vector<unsigned int>(numprocs, 0);
 
-  orb = new SatelliteOrbit(conf);
+  orb = std::make_shared<SatelliteOrbit>(conf);
 
   userinfo();
 }

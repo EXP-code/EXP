@@ -41,8 +41,8 @@ protected:
   std::complex<double> omp;
 
   int l, m, lmax, nmax, nptsK, nptsE;
-  AxiSymModel *model;
-  AxiSymBiorth *biorth;
+  AxiSymModPtr model;
+  AxiSymBioPtr biorth;
 
   int OLD, VERBOSE;
   IntegrationType SITYPE;
@@ -94,8 +94,8 @@ protected:
   int disp_computed;
   std::complex<double> disp;
 
-  OrbitTable  *Orb;
-  OrbResTable *ORes;
+  std::shared_ptr<OrbitTable>  Orb;
+  std::shared_ptr<OrbResTable> ORes;
 
   int CPREAD, CHECKPT;
 
@@ -120,7 +120,7 @@ protected:
 
   RespMat(std::complex<double> omp0, int ll, int mm,
 	  int llmax, int nnmax, int nnptsK, int nnptsE, 
-	  AxiSymModel *MODEL, AxiSymBiorth *BIORTH,
+	  AxiSymModPtr MODEL, AxiSymBioPtr BIORTH,
 	  int old, int cpread, int checkpt, int verbose, 
 	  IntegrationType type, 
 	  int principal=1, int ratint=0, int isotropic=0);
@@ -128,16 +128,16 @@ protected:
 				// Transformed response version
   RespMat(double omp0, int ll, int mm,
 	  int llmax, int nnmax, int nnptsK, int nnptsE, 
-	  AxiSymModel *MODEL, AxiSymBiorth *BIORTH,
-	  string& chkpt, int verbose);
+	  AxiSymModPtr MODEL, AxiSymBioPtr BIORTH,
+	  std::string& chkpt, int verbose);
 
-  RespMat(istream& in, AxiSymModel *MODEL, AxiSymBiorth *BIORTH) {
-    model = MODEL;
+  RespMat(std::istream& in, AxiSymModPtr MODEL, AxiSymBioPtr BIORTH) {
+    model  = MODEL;
     biorth = BIORTH;
     read_in(in);
   }
 
-  RespMat(string& from, AxiSymModel *MODEL, AxiSymBiorth *BIORTH) {
+  RespMat(std::string& from, AxiSymModPtr MODEL, AxiSymBioPtr BIORTH) {
     model = MODEL;
     biorth = BIORTH;
     read_in(from);
@@ -182,8 +182,8 @@ protected:
     if (!matrix_computed_pv) make_matrix_pv();
     return mr2;}
 
-  AxiSymBiorth* bio() { return biorth; }
-  AxiSymModel* modl() { return model; }
+  AxiSymBioPtr bio()  { return biorth; }
+  AxiSymModPtr modl() { return model;  }
 
   // Utilities
 
@@ -274,17 +274,17 @@ protected:
 class OrbitTable
 {
 private:
-  RespMat* p;
+  std::shared_ptr<RespMat> p;
   Timer timer;
 
 public:
 				// Constructor
-  OrbitTable(RespMat* p, int recs=200);
+  OrbitTable(std::shared_ptr<RespMat> p, int recs=200);
 				// Destructor
   ~OrbitTable(void);
     
 				// Data
-  SphericalOrbit *orbits;
+  std::vector<SphericalOrbit>  orbits;
   std::vector<Eigen::VectorXd> PotTrans;
   Eigen::VectorXd dfqE, dfqL;
   Eigen::VectorXd norm;
@@ -299,7 +299,7 @@ public:
 class OrbResTable
 {
 private:
-  RespMat* p;
+  std::shared_ptr<RespMat> p;
   Timer timer;
 
 public:
@@ -307,12 +307,13 @@ public:
 				// Constructor
   
 
-  OrbResTable(RespMat* p, int recs=200);
+  OrbResTable(std::shared_ptr<RespMat> p, int recs=200);
 				// Destructor
   ~OrbResTable(void);
     
 				// Data
-  SphericalOrbit *orbits, torbit;
+  std::vector<std::shared_ptr<SphericalOrbit>> orbits;
+  SphericalOrbit torbit;
   std::vector<Eigen::VectorXd> PotTrans;
   std::vector<Eigen::VectorXd> PotTrans2;
   Eigen::VectorXd dfqE, dfqL;

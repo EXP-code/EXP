@@ -20,8 +20,8 @@ private:
 
 				// Model
   bool nt;
-  AxiSymModel *t;
-  SphericalOrbit *orb;
+  std::shared_ptr<AxiSymModel> t;
+  std::shared_ptr<SphericalOrbit> orb;
 
 				// Parameters
   double RMMAX, REMAX;
@@ -110,7 +110,7 @@ public:
       @param nint is the number of knots in the velocity magnitude integral
       @param numt is the number of knots in the velocity angular integral
    */
-  QPDistF(AxiSymModel *T, AxiSymModel *H, double rmmax, double remax, 
+  QPDistF(AxiSymModPtr T, AxiSymModPtr H, double rmmax, double remax, 
 	  int egrid, int kgrid, int mgrid,
 	  double sigma=2.0, double lambda=0.0, double alpha=-4.0, 
 	  double beta=1.0, double gama=1.0,
@@ -118,7 +118,7 @@ public:
 	  double kmin=0.0, double kmax=1.0,
 	  int nint=80, int numt=40);
 
-  QPDistF(AxiSymModel *T, double rmmax, double remax, 
+  QPDistF(AxiSymModPtr T, double rmmax, double remax, 
 	  int egrid, int kgrid, int mgrid,
 	  double sigma=2.0, double lambda=0.0, double alpha=-4.0, 
 	  double beta=1.0, double gama=1.0,
@@ -126,7 +126,7 @@ public:
 	  double kmin=0.0, double kmax=1.0,
 	  int nint=80, int numt=40);
 
-  QPDistF(AxiSymModel *T, string file);
+  QPDistF(AxiSymModPtr T, string file);
 
   ~QPDistF(void);
 

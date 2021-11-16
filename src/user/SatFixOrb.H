@@ -1,4 +1,6 @@
+#include <memory>
 #include <cmath>
+
 #include <expand.H>
 #include <SatelliteOrbit.h>
 
@@ -41,10 +43,10 @@ private:
   Component *c0;
 
   int begin, end;
-  vector<unsigned int> ncount, last;
-  vector<int> send, recv;
+  std::vector<unsigned int> ncount, last;
+  std::vector<int> send, recv;
 
-  SatelliteOrbit *orb;
+  std::shared_ptr<SatelliteOrbit> orb;
 
   void initialize();
   void userinfo();

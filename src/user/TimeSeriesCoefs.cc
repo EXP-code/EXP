@@ -8,7 +8,7 @@
 #include <TimeSeriesCoefs.H>
 
 vector<double> TimeSeriesCoefs::compute_df(double smass, double lnL,
-					   vector<double>& ps, AxiSymModel *m)
+					   vector<double>& ps, AxiSymModPtr m)
 {
   double rmin = m->get_min_radius();
   double r = sqrt(ps[0]*ps[0] + ps[1]*ps[1] + rmin*rmin);
@@ -32,7 +32,7 @@ vector<double> TimeSeriesCoefs::compute_df(double smass, double lnL,
 }
 
 TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi, double rsoft,
-				 double dT, double Time, AxiSymModel *model, 
+				 double dT, double Time, AxiSymModPtr model, 
 				 double M, double lnL, string OUTFILE) :
   E(Energy), Rperi(rperi), delT(dT), Tmax(Time)
 {
@@ -167,12 +167,12 @@ TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi, double rsoft,
 }
 
 void TimeSeriesCoefs::coefs(int L, int M, int Nmax, int NINT,
-			    AxiSymBiorth *t,
-			    vector<complex<double>>& Freqs,
-			    vector<double>& Times,
-			    vector<Eigen::MatrixXcd>& coefs)
+			    AxiSymBioPtr t,
+			    std::vector<complex<double>>& Freqs,
+			    std::vector<double>& Times,
+			    std::vector<Eigen::MatrixXcd>& coefs)
 {
-  constexpr complex<double> I(0.0, 1.0);
+  constexpr std::complex<double> I(0.0, 1.0);
 
 // ===================================================================
 // Do integrals: begin at Times[min]

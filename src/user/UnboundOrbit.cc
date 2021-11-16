@@ -123,30 +123,28 @@ UnboundOrbit::UnboundOrbit(const YAML::Node& conf)
   switch (MODEL) {
 
   case file:
-    m = new SphericalModelTable(INFILE, 
-				DIVERGE,
-				DIVEXPON);
+    m = std::make_shared<SphericalModelTable>(INFILE, DIVERGE, DIVEXPON);
     model = m;
 				// Assign filename to ID string
     Model3dNames[0] = INFILE;
     break;
 
   case sing_isothermal:
-    model = new SingIsothermalSphere(1.0, 
-				     RMODMIN,
-				     RMODMAX);
+    model = std::make_shared<SingIsothermalSphere>(1.0, 
+						   RMODMIN,
+						   RMODMAX);
     break;
 
   case isothermal:
-    model = new IsothermalSphere(RCORE,
-				 RMODMAX,
-				 VROT);
+    model = std::make_shared<IsothermalSphere>(RCORE,
+					       RMODMAX,
+					       VROT);
     break;
 
   case hernquist_model:
-    model = new HernquistSphere(1.0, 
-				RMODMIN, 
-				RMODMAX);
+    model = std::make_shared<HernquistSphere>(1.0, 
+					      RMODMIN, 
+					      RMODMAX);
     break; 
 
   default:
@@ -301,8 +299,7 @@ UnboundOrbit::UnboundOrbit(const YAML::Node& conf)
 
 UnboundOrbit::~UnboundOrbit(void)
 {
-  if (m) delete m;
-  else   delete model;
+  // Nothing
 }
 
 Eigen::Vector3d UnboundOrbit::get_satellite_orbit(double t)

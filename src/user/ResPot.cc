@@ -42,7 +42,7 @@ const char* ResPot::ReturnDesc[] = {
   "UpdateBadL", "UpdateIterate", "UpdateBadVal"};
 
 
-ResPot::ResPot(AxiSymModel *mod, Perturbation* pert,
+ResPot::ResPot(AxiSymModPtr mod, std::shared_ptr<Perturbation> pert,
 	       int l, int m, int l1, int l2)
 {
   halo_model = mod;
@@ -65,16 +65,16 @@ ResPot::ResPot(AxiSymModel *mod, Perturbation* pert,
   Kupd = 0.0;
   
   // SphericalOrbit::RMAXF=1.0;
-  orb = new SphericalOrbit(halo_model);
+  orb = std::make_shared<SphericalOrbit>(halo_model);
   orb->set_numerical_params(RECS);
   
-  pbar = pert;
+  pbar = pert.get();
   compute_grid();
 }
 
 ResPot::~ResPot()
 {
-  delete orb;
+  // None
 }
 
 static AxiSymModel *hmod;
@@ -114,7 +114,7 @@ void ResPot::compute_grid()
   
   dX = 1.0/(NUMX-1);
   
-  hmod = halo_model;
+  hmod = halo_model.get();
   
   int iret;
   ZBrent<double> circ;

@@ -76,7 +76,7 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
       }
 	
       // Open new output stream for writing
-      ofstream out(filename);
+      std::ofstream out(filename);
       if (!out) {
 	throw FileCreateError(filename,
 			      "UserTidalRad: error opening new log file",

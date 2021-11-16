@@ -91,7 +91,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 
     if (gen_firstime) {
 
-      gen_orb = SphericalOrbit(this);
+      gen_orb = SphericalOrbit(shared_from_this());
 
       double dx = (Emax - Emin - 2.0*tol)/(numr-1);
       double dy = (1.0 - gen_kmin - 2.0*tol)/(numj-1);
@@ -608,9 +608,9 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
   if (gen_firstime_E) {
 
 #ifdef DEBUG
-    orb = SphericalOrbit(this);
+    orb = SphericalOrbit(shared_from_this());
 #endif
-    gen_orb = SphericalOrbit(this);
+    gen_orb = SphericalOrbit(shared_from_this());
 
     Emin_grid = get_pot(rmin)*(1.0 - gen_tolE);
     Emax_grid = get_pot(rmax)*(1.0 + gen_tolE);
@@ -1583,7 +1583,7 @@ Eigen::VectorXd
 
   if (gen_firstime_E) {
     
-    gen_orb = SphericalOrbit(this);
+    gen_orb = SphericalOrbit(shared_from_this());
     
     Emin_grid = get_pot(rmin)*(1.0 - gen_tolE);
     Emax_grid = get_pot(rmax)*(1.0 + gen_tolE);

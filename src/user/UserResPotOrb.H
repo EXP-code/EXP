@@ -51,8 +51,8 @@ private:
   string com_name;
   Component *c0;
 
-  AxiSymModel  *halo_model;
-  vector<ResPotOrb*> respot;
+  AxiSymModPtr halo_model;
+  std::vector<std::shared_ptr<ResPotOrb>> respot;
 
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg);
@@ -62,7 +62,7 @@ private:
   
   int LMAX, NMAX, NUMR, L0, M0, usetag;
   double ALPHA, scale, Klim;
-  vector<int> L1, L2;
+  std::vector<int> L1, L2;
   int numRes;
   
   double MASS, MFRAC, LENGTH, AMP, COROT, A21, A32;
@@ -79,24 +79,24 @@ private:
 
   bool debug;
 
-  vector<int> btotn;
-  vector< vector<int> > bcount;
-  vector< vector<double> > difLz;
-  vector<double> difLz0, difLNP;
+  std::vector<int> btotn;
+  std::vector< vector<int> > bcount;
+  std::vector< vector<double> > difLz;
+  std::vector<double> difLz0, difLNP;
 
-  string ctr_name;
-  string model_file;
-  string data_file;
-  string filename;
-  string fileomega;
+  std::string ctr_name;
+  std::string model_file;
+  std::string data_file;
+  std::string filename;
+  std::string fileomega;
 
-  vector<double> Time, Radius, Phase, Omega;
+  std::vector<double> Time, Radius, Phase, Omega;
   double get_radius(double);
   double get_phase(double);
   double get_omega(double);
 
   double pmass;
-  TwoBodyDiffuse *diffuse;
+  std::shared_ptr<TwoBodyDiffuse> diffuse;
 
   void userinfo();
 

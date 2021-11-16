@@ -776,8 +776,8 @@ main(int argc, char **argv)
     std::cout << std::endl;
 
 
-    Eigen::VectorXd Eavg  = Eigen::vectorXd::Zeros(NUME);
-    Eigen::VectorXd Emass = Eigen::vectorXd::Zeros(NUME);
+    Eigen::VectorXd Eavg  = Eigen::VectorXd::Zero(NUME);
+    Eigen::VectorXd Emass = Eigen::VectorXd::Zero(NUME);
 
     for (int i=0; i<NUME; i++) {
       
@@ -833,7 +833,7 @@ main(int argc, char **argv)
       string CUMFILE = OUTFILE + ".cum";
       ofstream outc(CUMFILE.c_str(), ios_base::out | ios_base::app);
       if (outc) {
-	Eigen::VectorXd delL = Eigen::VectorXd::Zeros(NUME);
+	Eigen::VectorXd delL = Eigen::VectorXd::Zero(NUME);
 	Eigen::VectorXd cumL = Eavg;
 	Eigen::VectorXd cumM = Emass;
 	for (int i=0; i<NUME; i++) {

@@ -126,8 +126,9 @@ private:
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
-  vector<double> teval;
-  double bps[3], vel[3], acc[3], acc1[3], **tacc;
+  std::vector<double> teval;
+  std::vector< std::vector<double> > tacc;
+  double bps[3], vel[3], acc[3], acc1[3];
 
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
   double TmonoOn, TmonoOff, DeltaMonoT, modelp, monoamp;
@@ -149,7 +150,7 @@ private:
   void userinfo();
   
   double rho0;
-  LegeQuad *gq, *gt;
+  std::shared_ptr<LegeQuad> gq, gt;
   double Density(vector<double> x);
   double Potential(vector<double> x);
   double RhoBar(double r);

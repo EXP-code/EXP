@@ -74,9 +74,9 @@ private:
   string com_name;
   Component *c0;
 
-  AxiSymModel  *halo_model;
-  Perturbation *pert;
-  ResPot *respot;
+  std::shared_ptr<AxiSymModel>  halo_model;
+  std::shared_ptr<Perturbation> pert;
+  std::shared_ptr<ResPot>       respot;
 
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg);

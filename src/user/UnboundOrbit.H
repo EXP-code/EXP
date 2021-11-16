@@ -3,6 +3,7 @@
 #ifndef _UnboundOrbit_H
 #define _UnboundOrbit_h
 
+#include <memory>
 #include <string>
 
 #include <yaml-cpp/yaml.h>
@@ -17,8 +18,8 @@ class UnboundOrbit : public Trajectory
 {
 private:
 
-  SphericalModelTable *m;
-  AxiSymModel *model;
+  std::shared_ptr<SphericalModelTable> m;
+  std::shared_ptr<AxiSymModel> model;
 
   vector<double> R, T, PHI;
   vector<double> Time, Xpos, Ypos, Zpos;

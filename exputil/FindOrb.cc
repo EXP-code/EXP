@@ -30,13 +30,13 @@ double FindOrb::RATE=0.25;
 double FindOrb::EFAC=1.0;
 double FindOrb::T0=1.0;
 
-FindOrb::FindOrb(AxiSymModel *mod, double PERI, double APO)
+FindOrb::FindOrb(std::shared_ptr<AxiSymModel> mod, double PERI, double APO)
 {
   halo_model = mod;
   peri = PERI;
   apo =  APO;
 
-  orb = new SphericalOrbit(halo_model);
+  orb = std::make_shared<SphericalOrbit>(halo_model);
   Emin = halo_model->get_pot(halo_model->get_min_radius());
   Emax = halo_model->get_pot(EFAC*halo_model->get_max_radius());
   Kmin = KMIN;
@@ -45,7 +45,7 @@ FindOrb::FindOrb(AxiSymModel *mod, double PERI, double APO)
 
 FindOrb::~FindOrb()
 {
-  delete  orb;
+  // Nothing
 }
 
 double FindOrb::operator()(std::vector<double>& ek)

@@ -27,8 +27,6 @@
  *
  ***************************************************************************/
 
-static char rcsid_plotrespot[] = "$Id$";
-
 using namespace std;
 
 #include <cstdlib>
@@ -38,6 +36,7 @@ using namespace std;
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <memory>
 #include <string>
 
 #include <orbit.H>
@@ -110,7 +109,7 @@ pthread_mutex_t mem_lock;
 
 Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY);
 
-AxiSymModel *halo_model;
+AxiSymModPtr halo_model;
 
 double pot(double r)
 {
@@ -217,11 +216,11 @@ main(int argc, char **argv)
 // Initialize spherical model
 // ===================================================================
 
-  SphericalModelTable *ml=0;
+  std::shared_ptr<SphericalModelTable> ml;
 
   switch (HALO_MODEL) {
   case file:
-    ml =  new SphericalModelTable(INFILE);
+    ml =  std::make_shared<SphericalModelTable>(INFILE);
     ml->setup_df(400);			// isotropic
     halo_model = ml;
     Model3dNames[0] = INFILE;		// Assign filename to ID string
@@ -229,22 +228,22 @@ main(int argc, char **argv)
     break;
 
   case sing_isothermal:
-    halo_model = new SingIsothermalSphere(1.0, RMODMIN, RMODMAX);
+    halo_model = std::shared_ptr<SingIsothermalSphere>(1.0, RMODMIN, RMODMAX);
     rmax = RMODMAX;
     break;
 
   case isothermal:
-    halo_model = new IsothermalSphere(RCORE, RMODMAX, VROT);
+    halo_model = std::make_shared<IsothermalSphere>(RCORE, RMODMAX, VROT);
     rmax = RMODMAX;
     break;
 
   case hernquist_model:
-    halo_model = new HernquistSphere(1.0, RMODMIN, RMODMAX);
+    halo_model = std::make_shared<HernquistSphere>(1.0, RMODMIN, RMODMAX);
     rmax = RMODMAX;
     break; 
 
   case plummer:
-    halo_model = new PlummerSphere(1.0, RMODMIN, RMODMAX);
+    halo_model = std::make_shared<PlummerSphere>(1.0, RMODMIN, RMODMAX);
     rmax = RMODMAX;
     break; 
 
@@ -258,20 +257,20 @@ main(int argc, char **argv)
 // Initilize biorthogonal functions (halo) 
 // -------------------------------------------------------------------
 
-  AxiSymBiorth *halo_ortho;
+  AxiSymBioPtr halo_ortho;
   switch (HALO_TYPE) {
   case bessel:
-    halo_ortho = new BSSphere(rmax, NMAX, (LMAX>0?LMAX:1) );
+    halo_ortho = std::make_shared<BSSphere>(rmax, NMAX, (LMAX>0?LMAX:1) );
     break;
   case clutton_brock:
-    halo_ortho = new CBSphere;
+    halo_ortho = std::make_shared<CBSphere>();
     break;
   case hernquist:
-    halo_ortho = new HQSphere;
+    halo_ortho = std::make_shared<HQSphere>();
     break;
   case sturm:
     SphereSL::cache = 1;
-    halo_ortho = new SphereSL(LMAX, NMAX, NUMR, rmin, rmax, 1.0, ml);
+    halo_ortho = std::make_shared<SphereSL>(LMAX, NMAX, NUMR, rmin, rmax, 1.0, ml);
     break;
   default:
     cerr << "Illegal spherical biorthongal series: " << HALO_TYPE << '\n';

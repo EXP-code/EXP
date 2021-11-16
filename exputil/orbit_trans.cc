@@ -12,7 +12,7 @@
 #include <biorth.H>
 
 				// Global variables
-static AxiSymModel *mm;
+static AxiSymModPtr mm;
 static double EE, JJ, KK;
 static double ap, am, sp, sm;
 

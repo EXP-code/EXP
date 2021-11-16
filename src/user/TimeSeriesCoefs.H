@@ -17,17 +17,17 @@ private:
   std::string outfile;
 
   vector<double> compute_df(double mass, double logL, 
-			    vector<double>& ps, AxiSymModel* model);
+			    vector<double>& ps, AxiSymModPtr model);
 
 public:
 
   //! Constructor
   TimeSeriesCoefs (double Energy, double rperi, double rsoft,
-		   double dT, double T, AxiSymModel *model, 
+		   double dT, double T, AxiSymModPtr model, 
 		   double mass, double logL, string OUTFILE="");
   
   //! Do the calculation
-  void coefs(int L, int M, int Nmax, int NINT, AxiSymBiorth *t, 
+  void coefs(int L, int M, int Nmax, int NINT, AxiSymBioPtr t, 
 	     vector<complex<double>>& Freqs,
 	     vector<double>& Times, 
 	     vector<Eigen::MatrixXcd>& coefs);

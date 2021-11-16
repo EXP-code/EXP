@@ -125,7 +125,7 @@ double QPDistF::kernel_y2(double x, double y,
 
 
 
-static AxiSymModel *m;
+static AxiSymModPtr m;
 static double find_rofm_mass;
 
 static double find_rofm(double r)
@@ -133,7 +133,7 @@ static double find_rofm(double r)
   return find_rofm_mass - m->get_mass(r);
 }
 
-QPDistF::QPDistF(AxiSymModel *T, AxiSymModel *H, 
+QPDistF::QPDistF(AxiSymModPtr T, AxiSymModPtr H, 
 		 double rmmax, double remax, 
 		 int egrid, int kgrid, int mgrid,
 		 double sigma, double lambda, double alpha, double beta,
@@ -142,7 +142,7 @@ QPDistF::QPDistF(AxiSymModel *T, AxiSymModel *H,
 		 int nint, int numt)
 {
 				// Model
-  t       = new DiskWithHalo(T, H);
+  t       = std::make_shared<DiskWithHalo>(T, H);
   nt      = true;
 				// Parameters
   RMMAX   = rmmax;
@@ -169,7 +169,7 @@ QPDistF::QPDistF(AxiSymModel *T, AxiSymModel *H,
   df_computed = false;
 }
 
-QPDistF::QPDistF(AxiSymModel *T,
+QPDistF::QPDistF(AxiSymModPtr T,
 		 double rmmax, double remax, 
 		 int egrid, int kgrid, int mgrid,
 		 double sigma, double lambda, double alpha, double beta,
@@ -205,7 +205,7 @@ QPDistF::QPDistF(AxiSymModel *T,
   df_computed = false;
 }
 
-QPDistF::QPDistF(AxiSymModel *T, string file)
+QPDistF::QPDistF(AxiSymModPtr T, std::string file)
 {
 				// Model
   t  = T;
@@ -214,7 +214,7 @@ QPDistF::QPDistF(AxiSymModel *T, string file)
 				// Read in computed model
   read_state(file);
 				// Initialize spherical orbit
-  orb = new SphericalOrbit(t);
+  orb = std::make_shared<SphericalOrbit>(t);
 
   df_computed = true;
 				// Check registered model with ID
@@ -225,8 +225,7 @@ QPDistF::QPDistF(AxiSymModel *T, string file)
 
 QPDistF::~QPDistF(void)
 {
-  if (nt) delete t;
-  if (df_computed) delete orb;
+  // Nothing
 }
 
 void QPDistF::set_verbose(void)
@@ -365,7 +364,7 @@ void QPDistF::compute_distribution(void)
 
   double vrmax, vv, th, pot, E, K, dt=0.5*M_PI/NUMT;
   LegeQuad wk(NINT);
-  orb = new SphericalOrbit(t);
+  orb = std::make_shared<SphericalOrbit>(t);
   std::vector<Eigen::MatrixXd> basis(MGRID);
   for (int k=0; k<MGRID; k++) {
 

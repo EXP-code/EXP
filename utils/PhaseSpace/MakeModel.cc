@@ -3,9 +3,9 @@
 #include <fstream>
 #include <memory>
 
+#include <localmpi.H>
 #include <MakeModel.H>
-
-void Splsum(const Eigen::VectorXd& x, const Eigen::VectorXd& y, Eigen::VectorXd& z);
+#include <interp.H>
 
 MakeModel::MakeModel(int N, double Rmin, double Rmax, bool LogR)
 {

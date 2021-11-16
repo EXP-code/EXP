@@ -75,8 +75,8 @@ private:
   std::normal_distribution<> nrand;
 
   string check_file;
-  double **ev_mean_th, **ev_disp_th;
-  int *ev_numb_th;
+  std::vector< std::vector<double> > ev_mean_th, ev_disp_th;
+  std::vector<int> ev_numb_th;
 
 public:
 

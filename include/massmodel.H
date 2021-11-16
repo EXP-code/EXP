@@ -71,6 +71,7 @@ public:
 
 //! A three-dimensional density-potential model
 class MassModel
+
 {
 public:
 
@@ -105,7 +106,8 @@ public:
   
 
 //! A specification of a MassModel to the axisymmetric case
-class AxiSymModel : public MassModel
+class AxiSymModel : public MassModel,
+		    public std::enable_shared_from_this<AxiSymModel>
 {
 protected:
   //@{
@@ -311,12 +313,12 @@ public:
 
   void setup_df(string& file);
 
-  void verbose_df(void);
+  void   verbose_df(void);
   double distf(double E, double L);
   double dfde(double E, double L);
   double dfdl(double E, double L);
   double d2fde2(double E, double L);
-  void save_df(string& file);
+  void   save_df(string& file);
 
 };
 
@@ -342,7 +344,7 @@ private:
   int num;
   int numdf;
   int num_params;
-  double *params;
+  std::vector<double> params;
   double diverge_rfac;
   double foffset;
   int diverge;
@@ -366,13 +368,18 @@ public:
 
   //! Constructor (from a table)
   SphericalModelTable(string filename, 
-		 int DIVERGE = 0, double DIVERGE_RFAC = 1.0, int EXTERNAL = 0);
+		      int DIVERGE = 0, double DIVERGE_RFAC = 1.0, int EXTERNAL = 0);
 
   //! Constructor (from array pointers)
-  SphericalModelTable(int num, 
-		 double *r, double *d, double *m, double *p,
-	         int DIVERGE = 0, double DIVERGE_RFAC = 0, int EXTERNAL = 0,
-					   string ID = "" );
+  SphericalModelTable(int num, double *r, double *d, double *m, double *p,
+		      int DIVERGE = 0, double DIVERGE_RFAC = 0,
+		      int EXTERNAL = 0, std::string ID = "" );
+
+  //! Constructor (from vectors)
+  SphericalModelTable(std::vector<double>& r, std::vector<double>& d,
+		      std::vector<double>& m, std::vector<double>& p,
+		      int DIVERGE = 0, double DIVERGE_RFAC = 0,
+		      int EXTERNAL = 0, std::string ID = "" );
 
   //! Destructor
   virtual ~SphericalModelTable();

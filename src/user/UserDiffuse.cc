@@ -132,13 +132,13 @@ void UserDiffuse::initialize()
   }
 
   if (check_ev) {
-    ev_mean_th = new double* [nthrds];
-    ev_disp_th = new double* [nthrds];
-    ev_numb_th = new int [nthrds];
+    ev_mean_th.resize(nthrds);
+    ev_disp_th.resize(nthrds);
+    ev_numb_th.resize(nthrds);
 
     for (int i=0; i<nthrds; i++) {
-      ev_mean_th[i] = new double [6];
-      ev_disp_th[i] = new double [6];
+      ev_mean_th[i].resize(6);
+      ev_disp_th[i].resize(6);
     }
 
     if (myid==0) {

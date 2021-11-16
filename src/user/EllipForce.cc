@@ -10,7 +10,7 @@ EllipForce::EllipForce(double A, double B, double C, double MASS,
   numr = NUMR;
   mass = MASS;
 
-  lq = new LegeQuad(num);
+  lq = std::make_shared<LegeQuad>(num);
 
   double x, y, z, dr = a/numr;
   double ans, xfac, yfac, zfac;
@@ -71,7 +71,7 @@ EllipForce::EllipForce(double A, double B, double C, double MASS,
   
 EllipForce::~EllipForce()
 {
-  delete lq;
+  // Nothing
 }
 
 double EllipForce::getMass(double x)

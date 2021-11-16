@@ -97,8 +97,8 @@ private:
   vector<double> Times;
   vector<int> Lhalo, Mhalo;
 
-  AxiSymModel  *halo_model;
-  AxiSymBiorth *u;
+  AxiSymModPtr halo_model;
+  AxiSymBioPtr u;
   Component    *c0;
   
   void userinfo();

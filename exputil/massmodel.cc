@@ -110,7 +110,7 @@ SphericalModelTable::SphericalModelTable
     vector<string> words;
     num_params = wordSplit(x, words);
     if (num_params>0) {
-      params = new double [num_params];
+      params.resize(num_params);
       for (int i=0; i<num_params; i++) params[i] = atof(words[i].c_str());
     }
   }
@@ -122,10 +122,11 @@ SphericalModelTable::SphericalModelTable
 
 }
 
-SphericalModelTable::SphericalModelTable(int NUM, 
-			 double *r, double *d, double *m, double *p,
-			 int DIVERGE, double DIVERGE_RFAC, int EXTERNAL,
-					 string ID)
+SphericalModelTable::SphericalModelTable
+(int NUM, 
+ double *r, double *d, double *m, double *p,
+ int DIVERGE, double DIVERGE_RFAC, int EXTERNAL,
+ string ID)
 {
   count++;
 
@@ -181,10 +182,69 @@ SphericalModelTable::SphericalModelTable(int NUM,
 
 }
 
+SphericalModelTable::SphericalModelTable
+(std::vector<double>& r, std::vector<double>& d,
+ std::vector<double>& m, std::vector<double>& p,
+ int DIVERGE, double DIVERGE_RFAC, int EXTERNAL,
+ string ID)
+{
+  count++;
+
+  dim = 3;
+  ModelID = "SphericalModelTable(" + ID + ")";
+  dist_defined = false;
+  num = r.size();
+
+  double radius = 0.0;
+  
+  density.x. resize(num);
+  density.y. resize(num);
+  density.y2.resize(num);
+
+  mass.x. resize(num);
+  mass.y. resize(num);
+  mass.y2.resize(num);
+
+  pot.x. resize(num);
+  pot.y. resize(num);
+  pot.y2.resize(num);
+
+  density.num = num;
+  mass.num    = num;
+  pot.num     = num;
+  
+  for (int i=0; i<num; i++) {
+    radius = r[i];
+    density.y[i] = d[i];
+    mass.y[i] = m[i];
+    pot.y[i] = p[i];
+
+    density.x[i] = radius;
+    mass.x[i] = radius;
+    pot.x[i] = radius;
+
+    if (DIVERGE)
+      density.y[i] *= pow(radius+std::numeric_limits<double>::min(), DIVERGE_RFAC);
+  }
+  
+  Spline(density.x, density.y, 0.0, 0.0, density.y2);
+  Spline(mass.x, mass.y, 0.0, 0.0, mass.y2);
+  if (EXTERNAL)
+    Spline(pot.x, pot.y, 0.0, mass.y[mass.num-1]/(radius*radius),pot.y2);
+  else
+    Spline(pot.x, pot.y, -1.0e30, -1.0e30, pot.y2);
+  
+  num_params = 0;
+
+  diverge = DIVERGE;
+  diverge_rfac = DIVERGE_RFAC;
+  external = EXTERNAL;
+
+}
+
 
 SphericalModelTable::~SphericalModelTable()
 {
-  if (num_params) delete [] params;
   count--;
 }
 

@@ -107,24 +107,20 @@ UserEBarN::UserEBarN(const YAML::Node& conf) : ExternalForce(conf)
   for (int k=0; k<3; k++) bps[k] = vel[k] = acc[k] = 0.0;
 
   // Assign working vectors for each thread
-  tacc = new double* [nthrds];
-  for (int n=0; n<nthrds; n++) tacc[n] = new double [3];
+  tacc.resize(nthrds);
+  for (int n=0; n<nthrds; n++) tacc[n].resize(3);
 
   userinfo();
 
   // Only turn on bar timing for extreme debugging levels
   if (VERBOSE>49) timing = true;
 
-  gt = 0;
-  gq = new LegeQuad(N);
+  gq = std::make_shared<LegeQuad>(N);
 }
 
 UserEBarN::~UserEBarN()
 {
-  for (int n=0; n<nthrds; n++) delete [] tacc[n];
-  delete [] tacc;
-  delete gt;
-  delete gq;
+  // Nothing
 }
 
 void UserEBarN::userinfo()
@@ -344,7 +340,7 @@ double UserEBarN::RhoBar(double r)
 
   double cosx, sinx, phi, ans=0.0;
 
-  if (gt==0) gt = new LegeQuad(ntheta);
+  if (gt==0) gt = std::make_shared<LegeQuad>(ntheta);
 
   for (int i=0; i<nphi; i++) {
     phi = dphi*i;
@@ -419,7 +415,7 @@ double UserEBarN::U22(double r)
 
   double cosx, sinx, phi, ans=0.0;
 
-  if (gt==0) gt = new LegeQuad(ntheta);
+  if (gt==0) gt = std::make_shared<LegeQuad>(ntheta);
 
   for (int i=0; i<nphi; i++) {
     phi = dphi*i;
@@ -704,7 +700,7 @@ void UserEBarN::determine_acceleration_and_potential(void)
 	}
 
 	// Open new output stream for writing
-	ofstream out(string(outdir+name).c_str());
+	std::ofstream out(string(outdir+name).c_str());
 	if (!out) {
 	  throw FileCreateError(outdir+name, "UserEbarN: error opening new log file",
 				__FILE__, __LINE__);

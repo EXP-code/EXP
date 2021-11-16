@@ -3,7 +3,8 @@
 
 #include <functional>
 
-struct OrbValues {
+struct OrbValues
+{
   double Boltzmann, rate, t0, tf;
   double energy, kappa, value;
   double peri, apo;
@@ -13,8 +14,8 @@ struct OrbValues {
 class FindOrb : public std::function<double(std::vector<double>&)>
 {
 private:
-  SphericalOrbit* orb;
-  AxiSymModel *halo_model;
+  std::shared_ptr<SphericalOrbit> orb;
+  std::shared_ptr<AxiSymModel>    halo_model;
 
   double Kmin, Kmax, Emin, Emax;
   double apo, peri;
@@ -38,7 +39,7 @@ public:
   //@}
   
   /// Constructor
-  FindOrb(AxiSymModel *mod, double PERI, double APO);
+  FindOrb(std::shared_ptr<AxiSymModel> mod, double PERI, double APO);
 
   /// Destructor
   ~FindOrb();
