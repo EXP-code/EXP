@@ -13,6 +13,7 @@ using namespace std;
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <memory>
 #include <vector>
 #include <string>
 #include <list>
@@ -329,7 +330,7 @@ main(int ac, char **av)
 
   for (auto file : files ) {
 
-    ifstream *in = new ifstream(file.c_str());
+    auto in = std::make_shared<std::ifstream>(file.c_str());
     if (!*in) {
       cerr << "Error opening file <" << file << "> for input\n";
       exit(-1);
@@ -350,14 +351,13 @@ main(int ac, char **av)
       
       psp->PrintSummary(cerr);
     
-      cerr << std::endl << "Best fit dump to <" << time << "> has time <" 
-	   << psp->CurrentTime() << ">" << std::endl;
+      std::cerr << std::endl << "Best fit dump to <" << time << "> has time <" 
+		<< psp->CurrentTime() << ">" << std::endl;
     }
 
 				// Reopen file for data input
 				// --------------------------
-    delete in;
-    in = new ifstream(file);
+    in = std::make_shared<std::ifstream>(file);
     
   
     vector<double> pos(3), vel(3);

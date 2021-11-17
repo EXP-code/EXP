@@ -486,7 +486,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   massSoFar  = 0.0;
   lostSoFar  = vector<double>(nthrds, 0.0);
 
-  collD = std::shared_ptr<collDiag>(new collDiag(this));
+  collD = std::make_shared<collDiag>(this);
 
   // Banners logging the test algorithms
   //
@@ -16480,7 +16480,7 @@ void CollideIon::photoWGather()
 	}
 
 	frcHist[s.first] =
-	  ahistoDPtr(new AsciiHisto<double>(data[s.first], diagBins, use_log));
+	  std::make_shared<AsciiHisto<double>>(data[s.first], diagBins, use_log);
 
 	frcQ1[s.first] = data[s.first][q1];
 	frcQ2[s.first] = data[s.first][q2];
@@ -16902,22 +16902,22 @@ void CollideIon::electronGather()
 
       if (myid==0) {
 	if (eEV.size()) {
-	  elecEVH = ahistoDPtr(new AsciiHisto<double>(eEV, 20, 0.01));
+	  elecEVH = std::make_shared<AsciiHisto<double>>(eEV, 20, 0.01);
 	  if (IDBG) dbg << std::setw(16) << "eEV.size() = "
 			<< std::setw(10) << eEV.size() << std::endl;
 	}
-	if (eEVmin.size()) elecEVHmin = ahistoDPtr(new AsciiHisto<double>(eEVmin, 20,  0.01 ));
-	if (eEVavg.size()) elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20,  0.01 ));
-	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20,  0.01 ));
-	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20,  0.01 ));
-	if (logLE.size())  logLH      = ahistoDPtr(new AsciiHisto<double>(logLE,  20,  0.01 ));
-	if (eRC.size())    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
+	if (eEVmin.size()) elecEVHmin = std::make_shared<AsciiHisto<double>>(eEVmin, 20,  0.01);
+	if (eEVavg.size()) elecEVHavg = std::make_shared<AsciiHisto<double>>(eEVavg, 20,  0.01);
+	if (eEVmax.size()) elecEVHmax = std::make_shared<AsciiHisto<double>>(eEVmax, 20,  0.01);
+	if (eEVsub.size()) elecEVHsub = std::make_shared<AsciiHisto<double>>(eEVsub, 20,  0.01);
+	if (logLE.size())  logLH      = std::make_shared<AsciiHisto<double>>(logLE,  20,  0.01);
+	if (eRC.size())    elecRCH    = std::make_shared<AsciiHisto<double>>(eRC,    100, 0.005);
 	
 	if (rcmbTotlSum>0) {
 	  std::vector<unsigned> rcmbT;
 	  rcmbScale = 1.0e9/rcmbTotlSum;
 	  for (auto v : rcmbLH) rcmbT.push_back(std::round(v*rcmbScale));
-	  elecRCN = ahistoDPtr(new AsciiHisto<double>(rcmbT, rcmbEVmin, rcmbEVmax));
+	  elecRCN = std::make_shared<AsciiHisto<double>>(rcmbT, rcmbEVmin, rcmbEVmax);
 	}
       }
 
@@ -17123,7 +17123,7 @@ void CollideIon::electronGather()
 
       if (myid==0) {
 	for (auto &u : ee) {
-	  eeHisto[u.first] = ahistoDPtr(new AsciiHisto<double>(u.second, 20, 0.01));
+	  eeHisto[u.first] = std::make_shared<AsciiHisto<double>>(u.second, 20, 0.01);
 	}
       }
 
@@ -17484,22 +17484,22 @@ void CollideIon::electronGather()
 	std::sort(iVel.begin(), iVel.end());
 
 	// Make the histograms
-	elecT = ahistoDPtr(new AsciiHisto<double>(eEeV, 20, 0.01));
-	ionsT = ahistoDPtr(new AsciiHisto<double>(eIeV, 20, 0.01));
-	ionET = ahistoDPtr(new AsciiHisto<double>(eJeV, 20, 0.01));
-	elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20, 0.01));
-	ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20, 0.01));
+	elecT = std::make_shared<AsciiHisto<double>>(eEeV, 20, 0.01);
+	ionsT = std::make_shared<AsciiHisto<double>>(eIeV, 20, 0.01);
+	ionET = std::make_shared<AsciiHisto<double>>(eJeV, 20, 0.01);
+	elecH = std::make_shared<AsciiHisto<double>>(eVel, 20, 0.01);
+	ionH  = std::make_shared<AsciiHisto<double>>(iVel, 20, 0.01);
 
 	elecT_max = *std::max_element(eEeV.begin(), eEeV.end());
 	ionsT_max = *std::max_element(eIeV.begin(), eIeV.end());
 	ionET_max = *std::max_element(eJeV.begin(), eJeV.end());
 
 	for (auto v : eEeVsp) {
-	  elecZH[v.first] = ahistoDPtr(new AsciiHisto<double>(v.second, 20, 0.01));
+	  elecZH[v.first] = std::make_shared<AsciiHisto<double>>(v.second, 20, 0.01);
 	}
 
 	for (auto v : eIeVsp) {
-	  ionZH[v.first] = ahistoDPtr(new AsciiHisto<double>(v.second, 20, 0.01));
+	  ionZH[v.first] = std::make_shared<AsciiHisto<double>>(v.second, 20, 0.01);
 	}
 
 	// Make the quantiles
@@ -17513,33 +17513,33 @@ void CollideIon::electronGather()
       }
 
       if (loss.size()) {
-	lossH = ahistoDPtr(new AsciiHisto<double>(loss, 20, 0.01));
+	lossH = std::make_shared<AsciiHisto<double>>(loss, 20, 0.01);
       }
 
       if (keE.size()) {
-	keEH = ahistoDPtr(new AsciiHisto<double>(keE, 20, 0.01));
+	keEH = std::make_shared<AsciiHisto<double>>(keE, 20, 0.01);
       }
 
       if (keI.size()) {
-	keIH = ahistoDPtr(new AsciiHisto<double>(keI, 20, 0.01));
+	keIH = std::make_shared<AsciiHisto<double>>(keI, 20, 0.01);
       }
 
       if (mom.size()) {
-	momH = ahistoDPtr(new AsciiHisto<double>(mom, 20, 0.01));
+	momH = std::make_shared<AsciiHisto<double>>(mom, 20, 0.01);
       }
 
       if (crs.size()) {
-	crsH = ahistoDPtr(new AsciiHisto<double>(crs, 20, 0.01, true));
+	crsH = std::make_shared<AsciiHisto<double>>(crs, 20, 0.01, true);
       }
 
       for (int n=0; n<4; n++) {
 	if (ndt[n].size()) {
-	  tauH[n] = ahistoDPtr(new AsciiHisto<double>(ndt[n], 20, 0.01, true));
+	  tauH[n] = std::make_shared<AsciiHisto<double>>(ndt[n], 20, 0.01, true);
 	}
       }
 
       if (nsl.size()) {
-	selH = ahistoDPtr(new AsciiHisto<double>(nsl, 20, 0.01, true));
+	selH = std::make_shared<AsciiHisto<double>>(nsl, 20, 0.01, true);
       }
 
     }

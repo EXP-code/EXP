@@ -3895,9 +3895,9 @@ std::map<unsigned short, double>
 atomicData::fraction(unsigned short Z, double T, int norder)
 {
   if (Lagu.get() == 0) 
-    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
   else if (Lagu->n != norder) 
-    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
 
   std::map<unsigned short, double> ret;
 
@@ -3956,9 +3956,9 @@ atomicData::fraction(unsigned short Z, double T,
 		 double Emin, double Emax, int norder)
 {
   if (Lege.get() == 0) 
-    Lege = std::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::make_shared<LegeQuad>(norder);
   else if (Lege->n != norder) 
-    Lege = std::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::make_shared<LegeQuad>(norder);
 
   std::map<unsigned short, double> ret;
 
@@ -4029,9 +4029,9 @@ std::map<unsigned short, std::vector<double> >
 atomicData::recombEquil(unsigned short Z, double T, int norder)
 {
   if (Lagu.get() == 0) 
-    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
   else if (Lagu->n != norder) 
-    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
 
   std::map<unsigned short, std::vector<double> > ret;
 
@@ -4094,9 +4094,9 @@ atomicData::recombEquil(unsigned short Z, double T,
 		    double Emin, double Emax, int norder, bool use_log)
 {
   if (Lege.get() == 0) 
-    Lege = std::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::make_shared<LegeQuad>(norder);
   else if (Lege->n != norder) 
-    Lege = std::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::make_shared<LegeQuad>(norder);
 
   std::map<unsigned short, std::vector<double> > ret;
 
@@ -4187,9 +4187,9 @@ atomicData::collEmiss(unsigned short Z, unsigned short C, double T,
   // Laguerre weights and knots
   //
   if (Lagu.get() == 0) 
-    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
   else if (Lagu->n != norder) 
-    Lagu = std::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
 
   // Check for and retrieve the Ion
   //

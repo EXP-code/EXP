@@ -88,14 +88,14 @@ main(int argc, char **argv)
     }
   }
 
-  vector<ifstream*> in;
-  vector<ComponentHeader> headers;
+  std::vector<std::shared_ptr<ifstream>> in;
+  std::vector<ComponentHeader> headers;
 
   int ntmp, ntot=0;
   ComponentHeader header;
 
   for (int i=0; i<N; i++) {
-    ifstream *in2 = new ifstream(names[i].c_str());
+    auto in2 = std::make_shared<ifstream>(names[i].c_str());
     if (!*in2) {
       cerr << "Error opening file <" << names[i] << "> for input\n";
       exit(-1);
@@ -143,7 +143,7 @@ main(int argc, char **argv)
   master.time = time;
   master.ntot = ntot;
   master.ncomp = N;
-
+  
   // Write master header
   out.write((char *)&master, sizeof(MasterHeader));
   
@@ -151,8 +151,8 @@ main(int argc, char **argv)
 
   for (int i=0; i<N; i++) {
 
-    vector<int>     ivec(max<int>(1, headers[i].niatr));
-    vector<double>  dvec(max<int>(1, headers[i].ndatr));
+    std::vector<int>     ivec(max<int>(1, headers[i].niatr));
+    std::vector<double>  dvec(max<int>(1, headers[i].ndatr));
 
     headers[i].write(&out);
 

@@ -162,7 +162,7 @@ main(int argc, char **argv)
     ("DIVERGE", "Flag for cusp extrapolation (non-zero means ON)",
      cxxopts::value<int>(DIVERGE)->default_value("0"))
     ("COMP", "Flag for computing model from phase space itself",
-     cxxopts::value<string>(COMP)->default_value("0"))
+     cxxopts::value<string>(COMP)->default_value("dark"))
     ("nthrds", "Desired number of OpenMP threads",
      cxxopts::value<int>(nthrds)->default_value("1"))
     ("WHICHPS", "Which phase-space file to use (1=first, 2=second)",
