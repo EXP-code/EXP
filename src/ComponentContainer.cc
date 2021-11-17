@@ -5,6 +5,7 @@
 #include <expand.H>
 
 #include <vector>
+#include <memory>
 
 #include <ComponentContainer.H>
 #include <ExternalCollection.H>
@@ -264,7 +265,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 {
   nvTracerPtr tPtr, tPtr1;
   if (cuda_prof)
-    tPtr = nvTracerPtr(new nvTracer("ComponentContainer::compute_potential"));
+    tPtr = std::make_shared<nvTracer>("ComponentContainer::compute_potential");
 
 #ifdef DEBUG
   cout << "Process " << myid << ": entered <compute_potential>\n";
@@ -313,7 +314,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     if (cuda_prof) {
       std::ostringstream sout; sout << "ComponentContainer, init [" << c->name << "]";
       tPtr1.reset();
-      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+      tPtr1 = std::make_shared<nvTracer>(sout.str().c_str());
     }
 
     if (timing) {
@@ -367,7 +368,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     if (cuda_prof) {
       std::ostringstream sout; sout << "ComponentContainer::set_multistep [" << c->name << "]";
       tPtr1.reset();
-      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+      tPtr1 = std::make_shared<nvTracer>(sout.str().c_str());
     }
 
 #if HAVE_LIBCUDA==1
@@ -382,7 +383,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     if (cuda_prof) {
       std::ostringstream sout; sout << "ComponentContainer::get_accel [" << c->name << "]";
       tPtr1.reset();
-      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+      tPtr1 = std::make_shared<nvTracer>(sout.str().c_str());
     }
 
     if (use_cuda and not c->force->cudaAware()) {
@@ -488,7 +489,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	std::ostringstream sout; sout << "ComponentContainer, interaction [" << inter->c->name
 				      << "-->" << other->name << "]";
 	tPtr1.reset();
-	tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+	tPtr1 = std::make_shared<nvTracer>(sout.str().c_str());
       }
 
       if (timing) {
@@ -554,7 +555,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   if (cuda_prof) {
     tPtr1.reset();
-    tPtr1 = nvTracerPtr(new nvTracer("ComponentContainer::external forces"));
+    tPtr1 = std::make_shared<nvTracer>("ComponentContainer::external forces");
   }
 
   if (timing) {
@@ -611,7 +612,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   if (cuda_prof) {
     tPtr1.reset();
-    tPtr1 = nvTracerPtr(new nvTracer("ComponentContainer::house keeping"));
+    tPtr1 = std::make_shared<nvTracer>("ComponentContainer::house keeping");
   }
 
 

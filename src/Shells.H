@@ -32,12 +32,13 @@ private:
   typedef pair<double, double> Dpair;
   vector<Dpair> grid;
 
-  vector<double>   *rgridT, *mgridT;
-  vector<int>      *igridT, igrid1, *igrid;
-  vector<double>   rgrid1, mgrid1;
-  vector<double>   rgrid0, mgrid0, pgrid0;
-  map<int, double> *rgrid, *mgrid;
-  vector<int>      *update_fr, *update_to, *update_ii;
+  std::vector< std::vector<double> >  rgridT, mgridT;
+  std::vector< std::vector<int>    >  igridT, igrid;
+  std::vector<int>                    igrid1;
+  vector<double>                      rgrid1, mgrid1;
+  vector<double>                      rgrid0, mgrid0, pgrid0;
+  std::vector<std::map<int, double>>  rgrid, mgrid;
+  std::vector<std::vector<int>>       update_fr, update_to, update_ii;
 
   vector<int> snumbr, rnumbr, sdispl, rdispl, sndcts, rcvcts;
 

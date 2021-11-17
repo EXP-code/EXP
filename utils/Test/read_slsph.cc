@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iomanip>
 #include <cstdlib>
+#include <memory>
 #include <string>
 
 #include <Eigen/Eigen>
@@ -67,7 +68,7 @@ int main(int argc, char **argv)
 	    << "#" << std::endl << std::right;
     
 
-  TableSph* table = new TableSph [lmax+1];
+  std::vector<TableSph> table(lmax+1);
 
   for (int l=0; l<=lmax; l++) {
 

@@ -239,7 +239,7 @@ private:
   int nmax;
   int lmax;
 
-  Eigen::VectorXd *a;
+  std::vector<Eigen::VectorXd> a;
   Eigen::MatrixXd t_f, t_y, t_g;
   Eigen::VectorXd t_dr;
   int t_n;

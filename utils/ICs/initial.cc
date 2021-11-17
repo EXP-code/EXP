@@ -1230,7 +1230,7 @@ main(int ac, char **av)
       
       const int nstr = 5;
       const char *names[nstr] = {".dens", ".potl", ".potr", ".pott", ".potp"};
-      ofstream *out = new ofstream [nstr];
+      std::vector<std::ofstream> out(nstr);
       
       int nout = 200;
       double rmax = 6.0*scale_length;
@@ -1277,14 +1277,13 @@ main(int ac, char **av)
       }
     
       for (int i=0; i<nstr; i++) out[i].close();
-      delete [] out;
     }
 
     if (ndisk) {
 
       const int nstr = 5;
       const char *names[nstr] = {".dens", ".pot", ".fr", ".fz", ".fp"};
-      ofstream *out = new ofstream [nstr];
+      std::vector<std::ofstream> out(nstr);
     
       int nout = 200;
       double rmax = DiskHalo::RDMAX;
@@ -1331,7 +1330,6 @@ main(int ac, char **av)
       }
     
       for (int i=0; i<nstr; i++) out[i].close();
-      delete [] out;
     }
     
     std::cout << "done" << std::endl;

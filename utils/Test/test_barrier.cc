@@ -155,8 +155,8 @@ int main(int argc, char **argv)
   // Do stuff
   //--------------------------------------------------
 
-  typedef std::shared_ptr<BarrierWrapper> BWptr;
-  BWptr barrier(new BarrierWrapper(MPI_COMM_WORLD, barrier_label));
+  auto barrier =
+    std::make_shared<BarrierWrapper>(MPI_COMM_WORLD, barrier_label);
 
   if (barrier_check) barrier->on();
   else               barrier->off();

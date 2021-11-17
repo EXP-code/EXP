@@ -7449,11 +7449,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   double cfac = fac1 * fac2;
 
   if (k1 != NTC::electron and k2 != NTC::electron) {
-    PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion,      qCrit) );
+    PP = std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::ion_ion,      qCrit);
     Prob = p1->dattrib[spc_pos+P1] * p1->dattrib[spc_pos+P2];
   }
   else if (k2 == NTC::electron) {
-    PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, qCrit) );
+    PP = std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::ion_electron, qCrit);
     for (int P=0; P<Z2; P++) {
       double fac = p2->dattrib[spc_pos+P]/atomic_weights[Z2];
       eta += P * fac;
@@ -7464,7 +7464,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     cid = 1;
   }
   else if (k1 == NTC::electron) {
-    PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, qCrit) );
+    PP = std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::electron_ion, qCrit);
     for (int P=0; P<Z1; P++) {
       double fac = p1->dattrib[spc_pos+P]/atomic_weights[Z1];
       eta += P * fac;
@@ -9822,7 +9822,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   if (k2 == NTC::electron and
       k1 != NTC::electron)
     {
-      PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX));
+      PP = std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX);
       cid = 1;
       int pos = SpList[k1];
       Prob = p1->dattrib[pos];
@@ -9831,7 +9831,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   else if (k1 == NTC::electron and
       k2 != NTC::electron)
     {
-      PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX));
+      PP = std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX);
       cid = 2;
       int pos = SpList[k2];
       Prob = p2->dattrib[pos];
@@ -9840,7 +9840,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   else if (k1 != NTC::electron and
       k2 != NTC::electron)
     {
-      PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion, DBL_MAX));
+      PP = std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::ion_ion, DBL_MAX);
       cid = 0;
       int pos1 = SpList[k1];
       int pos2 = SpList[k2];
@@ -11945,10 +11945,10 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
     double W2 = p2->mass/Mu2, ww2;
 
     std::array<PordPtr, 4> PP =
-      { PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion,           DBL_MAX) ),
-	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron,      DBL_MAX) ),
-	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion,      DBL_MAX) ),
-	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_electron, DBL_MAX) ) };
+      { std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::ion_ion,           DBL_MAX),
+	std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::ion_electron,      DBL_MAX),
+	std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::electron_ion,      DBL_MAX),
+	std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::electron_electron, DBL_MAX) };
 
     ww1     = PP[0]->frc1 * PP[0]->W1;
     ww2     = PP[0]->frc2 * PP[0]->W2;
@@ -12002,10 +12002,10 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
     double W2 = p2->mass/Mu2;
 
     std::array<PordPtr, 4> PP =
-      { PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion,           DBL_MAX) ),
-	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron,      DBL_MAX) ),
-	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion,      DBL_MAX) ),
-	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_electron, DBL_MAX) ) };
+      {std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::ion_ion,           DBL_MAX),
+       std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::ion_electron,      DBL_MAX),
+       std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::electron_ion,      DBL_MAX),
+       std::make_shared<Pord>(this, p1, p2, W1, W2, Pord::electron_electron, DBL_MAX)};
 
 
     for (int l=0; l<4; l++) {

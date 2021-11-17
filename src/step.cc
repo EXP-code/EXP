@@ -2,6 +2,8 @@
   Call necessary routines to advance phase-space one step
 */
 
+#include <memory>
+
 // Uncomment for time step debugging
 //
 // #define CHK_STEP
@@ -116,7 +118,7 @@ void do_step(int n)
 
 				// Write multistep output
       if (step_timing) timer_out.start();
-      if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+      if (cuda_prof) tPtr = std::make_shared<nvTracer>("Data output");
       output->Run(n, mstep);
       if (step_timing) timer_out.stop();
 
@@ -132,7 +134,7 @@ void do_step(int n)
 	//
 	nvTracerPtr tPtr2;
 	if (cuda_prof) {
-	  tPtr2 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
+	  tPtr2 = std::make_shared<nvTracer>("Velocity kick [1]");
 	}
 	if (step_timing) timer_vel.start();
 	incr_velocity(0.5*DT, M);
@@ -147,7 +149,7 @@ void do_step(int n)
 	//
 	if (cuda_prof) {
 	  tPtr2.reset();
-	  tPtr2 = nvTracerPtr(new nvTracer("Drift"));
+	  tPtr2 = std::make_shared<nvTracer>("Drift");
 	}
 	if (step_timing) timer_drift.start();
 	incr_position(DT, M);
@@ -163,7 +165,7 @@ void do_step(int n)
 	//
 	if (cuda_prof) {
 	  tPtr2.reset();
-	  tPtr2 = nvTracerPtr(new nvTracer("Expansion"));
+	  tPtr2 = std::make_shared<nvTracer>("Expansion");
 	}
 	if (step_timing) timer_coef.start();
 	comp->compute_expansion(M);
@@ -181,7 +183,7 @@ void do_step(int n)
       // Compute potential for all the particles active at this step
       //
       nvTracerPtr tPtr1;
-      if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
+      if (cuda_prof) tPtr1 = std::make_shared<nvTracer>("Potential");
       if (step_timing) timer_pot.start();
       mdrft = mstep + 1;	// Drifted position in multistep array
       comp->compute_potential(mfirst[mstep]);
@@ -199,7 +201,7 @@ void do_step(int n)
       //
       if (cuda_prof) {
 	tPtr1.reset();
-	tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
+	tPtr1 = std::make_shared<nvTracer>("Velocity kick [2]");
       }
 
       if (step_timing) timer_vel.start();
@@ -230,12 +232,12 @@ void do_step(int n)
 
     // Write output
     if (step_timing) timer_out.start();
-    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    if (cuda_prof) tPtr = std::make_shared<nvTracer>("Data output");
     output->Run(n);
     if (step_timing) timer_out.stop();
 
     if (cuda_prof) {
-      tPtr = nvTracerPtr(new nvTracer("Adjust multistep"));
+      tPtr = std::make_shared<nvTracer>("Adjust multistep");
     }
 
     // COM update: second velocity half-kick
@@ -272,7 +274,7 @@ void do_step(int n)
     tnow += dtime;
 				// Velocity by 1/2 step
     nvTracerPtr tPtr1;
-    if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
+    if (cuda_prof) tPtr1 = std::make_shared<nvTracer>("Velocity kick [1]");
     if (step_timing) timer_vel.start();
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
@@ -280,7 +282,7 @@ void do_step(int n)
 				// Position by whole step
     if (cuda_prof) {
       tPtr1.reset();
-      tPtr1 = nvTracerPtr(new nvTracer("Drift"));
+      tPtr1 = std::make_shared<nvTracer>("Drift");
     }
     if (step_timing) timer_drift.start();
     incr_position(dtime);
@@ -295,7 +297,7 @@ void do_step(int n)
 				// Compute acceleration
     if (cuda_prof) {
       tPtr1.reset();
-      tPtr1 = nvTracerPtr(new nvTracer("Potential"));
+      tPtr1 = std::make_shared<nvTracer>("Potential");
     }
     if (step_timing) timer_pot.start();
     comp->compute_potential();
@@ -303,7 +305,7 @@ void do_step(int n)
 				// Velocity by 1/2 step
     if (cuda_prof) {
       tPtr1.reset();
-      tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
+      tPtr1 = std::make_shared<nvTracer>("Velocity kick [2]");
     }
     if (step_timing) timer_vel.start();
     incr_velocity(0.5*dtime);
@@ -313,7 +315,7 @@ void do_step(int n)
                                  // Write output
     if (step_timing) timer_out.start();
     nvTracerPtr tPtr;
-    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    if (cuda_prof) tPtr = std::make_shared<nvTracer>("Data output");
     output->Run(n);
     if (step_timing) timer_out.stop();
 
@@ -329,7 +331,7 @@ void do_step(int n)
 				// Load balance
   if (cuda_prof) {
     tPtr.reset();
-    tPtr = nvTracerPtr(new nvTracer("Load balance"));
+    tPtr = std::make_shared<nvTracer>("Load balance");
   }
   if (step_timing) timer_bal.start();
   comp->load_balance();

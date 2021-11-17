@@ -67,13 +67,13 @@ main(int ac, char **av)
     
     // Open the hdf5 file
     //
-    H5::H5File* file = new H5::H5File(FILE_NAME, H5F_ACC_RDWR);
+    auto file = std::make_shared<H5::H5File>(FILE_NAME, H5F_ACC_RDWR);
     
     // Open header
     //
-    H5::Group* header   = new H5::Group(file->openGroup("Header"));
-    H5::Attribute* attr = new H5::Attribute(header->openAttribute("MassTable"));
-    H5::DataType* type  = new H5::DataType(attr->getDataType());
+    auto header   = std::make_shared<H5::Group>(file->openGroup("Header"));
+    auto attr     = std::make_shared<H5::Attribute>(header->openAttribute("MassTable"));
+    auto type    = std::make_shared<H5::DataType>(attr->getDataType());
 
     std::vector<double> mass(6);
     attr->read(*type, &mass[0]);
@@ -83,7 +83,7 @@ main(int ac, char **av)
 
     // Get the disk particle group
     //
-    H5::Group* group = new H5::Group(file->openGroup("PartType2"));
+    auto group = std::make_shared<H5::Group>(file->openGroup("PartType2"));
     
     const H5std_string SetName1( "Coordinates" );
     const H5std_string SetName2( "Acceleration" );
@@ -156,17 +156,6 @@ main(int ac, char **av)
       out.write((const char *)&accels[j*3], sizeof(float)*3);
     }
     
-    // Dallocate objects
-    //
-    delete type;
-    delete attr;
-    delete header;
-
-    // Close the group and file.
-    //
-    delete group;
-    delete file;
-
   }
   // end of try block
   //

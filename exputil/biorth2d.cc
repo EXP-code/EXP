@@ -162,9 +162,9 @@ double CBDisk::potlRZ(int np, int m, double r, double z)
 {
   GenLagu lag(2.0*m);
   static int M=-1;
-  static LaguQuad* L;
+  static std::shared_ptr<LaguQuad> L;
   if (m!=M) {
-    L = new LaguQuad(numz, 2*m);
+    L = std::make_shared<LaguQuad>(numz, 2*m);
     M = m;
   };
 

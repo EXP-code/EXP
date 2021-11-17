@@ -10,37 +10,37 @@ Shells::Shells(const YAML::Node& conf) : PotAccel(conf)
   initialize();
 
 				// For accumulation
-  rgridT = new vector<double> [nthrds];
-  mgridT = new vector<double> [nthrds];
-  igridT = new vector<int   > [nthrds];
-  usedT  = vector<int> (nthrds);
+  rgridT.resize(nthrds);
+  mgridT.resize(nthrds);
+  igridT.resize(nthrds);
+  usedT .resize(nthrds);
 
 				// For Alltoallv calls
-  sdispl  = vector<int> (numprocs, 0);
-  sndcts  = vector<int> (numprocs, 1);
-  rcvcts  = vector<int> (numprocs);
+  sdispl.resize(numprocs);
+  std::fill(sdispl.begin(), sdispl.end(), 0);
+  
+  sndcts.resize(numprocs);
+  std::fill(sndcts.begin(), sndcts.end(), 1);
+
+  rcvcts.resize(numprocs);
   for (int n=0; n<numprocs; n++) rcvcts[n] = n;
-  rdispl  = vector<int> (numprocs);
-  snumbr  = vector<int> (numprocs);
-  rnumbr  = vector<int> (numprocs);
+
+  rdispl.resize(numprocs);
+  snumbr.resize(numprocs);
+  rnumbr.resize(numprocs);
 
 				// For storage of samples at each level
-  rgrid = new map<int, double> [multistep+1];
-  mgrid = new map<int, double> [multistep+1];
+  rgrid.resize(multistep+1);
+  mgrid.resize(multistep+1);
 
-  update_fr = new vector<int> [nthrds];
-  update_to = new vector<int> [nthrds];
-  update_ii = new vector<int> [nthrds];
+  update_fr.resize(nthrds);
+  update_to.resize(nthrds);
+  update_ii.resize(nthrds);
 }
 
 Shells::~Shells()
 {
-  delete [] rgridT;
-  delete [] mgridT;
-  delete [] igridT;
-
-  delete [] rgrid;
-  delete [] mgrid;
+  // Nothing
 }
 
 

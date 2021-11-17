@@ -49,9 +49,8 @@ EllipsoidForce::EllipsoidForce(double a0, double a1, double a2, double mass,
     break;
   }
 
-  gq = new LegeQuad(N);
-  gz = new LegeQuad(4*N);
-  gt = 0;
+  gq = std::make_shared<LegeQuad>(N);
+  gz = std::make_shared<LegeQuad>(4*N);
 
   if (quadr) {
 
@@ -100,9 +99,7 @@ EllipsoidForce::EllipsoidForce(double a0, double a1, double a2, double mass,
 //
 EllipsoidForce::~EllipsoidForce()
 {
-  delete gq;
-  delete gz;
-  delete gt;
+  // Nothing
 }
 
 
@@ -307,7 +304,7 @@ double EllipsoidForce::U22(double r)
 
   double cosx, sinx, phi, ans=0.0;
 
-  if (gt==0) gt = new LegeQuad(ntheta);
+  if (gt==0) gt = std::make_shared<LegeQuad>(ntheta);
 
   for (int i=0; i<nphi; i++) {
     phi = dphi*i;
@@ -335,7 +332,7 @@ double EllipsoidForce::RhoBar(double r)
 
   double cosx, sinx, phi, ans=0.0;
 
-  if (gt==0) gt = new LegeQuad(ntheta);
+  if (gt==0) gt = std::make_shared<LegeQuad>(ntheta);
 
   for (int i=0; i<nphi; i++) {
     phi = dphi*i;
