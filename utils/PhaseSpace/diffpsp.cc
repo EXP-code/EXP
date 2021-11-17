@@ -295,7 +295,7 @@ main(int argc, char **argv)
       out[i].open(filename[i].c_str());
 
       if (!out[i]) {
-	cerr << "Error opening <" << filename[i] << ">\n";
+	cerr << "Error opening <" << filename[i] << ">" << std::endl;
 	good = false;
       }
     }
@@ -313,7 +313,7 @@ main(int argc, char **argv)
   // ===================================================================
 
   if (!std::ifstream(INFILE1)) {
-    std::cerr << "Error opening <" << INFILE1 << std::endl;
+    std::cerr << "Error opening <" << INFILE1 << ">" << std::endl;
     exit(-1);
   }
 
@@ -326,7 +326,7 @@ main(int argc, char **argv)
 
     std::cout << "File 2: " << INFILE2 << endl;
     if (!std::ifstream(INFILE2)) {
-      std::cerr << "Error opening <" << INFILE2 << std::endl;
+      std::cerr << "Error opening <" << INFILE2 << ">" << std::endl;
       exit(-1);
     }
   }
@@ -473,7 +473,7 @@ main(int argc, char **argv)
     string DSTFILE = OUTFILE + ".dist";
     dout.open(DSTFILE.c_str());
     if (!dout) {
-      cerr << "Couldn't open <" << DSTFILE << ">\n";
+      cerr << "Couldn't open <" << DSTFILE << ">" << std::endl;
       LZDIST = false;
     }
   }
