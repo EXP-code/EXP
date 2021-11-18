@@ -902,9 +902,9 @@ main(int argc, char **argv)
      cxxopts::value<bool>(VHEIGHT)->default_value("false"))
     ("pca", "perform the PCA analysis for the disk",
      cxxopts::value<bool>(PCA)->default_value("false"))
-    ("snr,S", "if not negative: do a SNR cut on the PCA basis",
+    ("S,snr", "if not negative: do a SNR cut on the PCA basis",
      cxxopts::value<double>(snr)->default_value("-1.0"))
-    ("center,C", "Accumulation center",
+    ("C,center", "Accumulation center",
      cxxopts::value<std::vector<double> >(c0))
     ("diff", "render the difference between the trimmed and untrimmed basis")
     ("density", "compute density",
