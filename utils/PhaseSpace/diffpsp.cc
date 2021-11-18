@@ -110,14 +110,17 @@ main(int argc, char **argv)
     "=======================================================\n"		\
     "   Output file key:\n"						\
     "   ----------------\n"						\
-    "   OUTFILE.DM       Mass per bin (E, K)        [2d]\n"		\
-    "   OUTFILE.DE       Delta E(E, K)              [2d]\n"		\
-    "   OUTFILE.DK       Delta J(E, K)              [2d]\n"		\
-    "   OUTFILE.DJ       Ang mom per bin (E, K)     [2d]\n"		\
-    "   OUTFILE.DKJ      Delta J(E, K)/J_avg(E)     [2d]\n"		\
-    "   OUTFILE.Dm       Mean mass per bin (E, K)   [2d]\n"		\
-    "   OUTFILE.DR       Run mass, J, Delta J (R)   [1d]\n"		\
-    "   OUTFILE.chk      Orbital element check          \n"		\
+    "   OUTFILE.DM       Mass per bin (E, K)            [2d]\n"		\
+    "   OUTFILE.DE       Delta E(E, K)                  [2d]\n"		\
+    "   OUTFILE.DK       Delta H(E, K) (tangen action)  [2d]\n"		\
+    "   OUTFILE.DI       Delta I(E, K) (radial action)  [2d]\n"		\
+    "   OUTFILE.DJ       Ang mom per bin (E, K)         [2d]\n"		\
+    "   OUTFILE.DKJ      Delta J(E, K)/J_avg(E)         [2d]\n"		\
+    "   OUTFILE.Dm       Mean mass per bin (E, K)       [2d]\n"		\
+    "   OUTFILE.DR       Run mass, J, Delta J (R)       [1d]\n"		\
+    "   OUTFILE.chk      Orbital element check              \n"		\
+    "=======================================================\n"
+    " E=Energy, K=J/J_{max}(E)                              \n"
     "=======================================================\n";
 
 
