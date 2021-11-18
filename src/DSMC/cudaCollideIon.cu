@@ -1,3 +1,4 @@
+// -*- C++ -*-
 
 #include <algorithm>
 #include <numeric>

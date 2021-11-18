@@ -2350,7 +2350,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	      }
 
 	      crsret = crossSectionTrace(id, c, p1, p2, cr, T);
-	      crsvel = std::get<0>(crsret) * P1 * P2 * cr;
+	      crsvel = std::get<0>(crsret) * P1 * P2;
 	      ph     = std::get<1>(crsret);
 
 	      if (crsvel > 0.0) {
@@ -2375,7 +2375,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	      }
 	      
 	      crsret = crossSectionTrace(id, c, p1, p2, cr, T);
-	      crsvel = std::get<0>(crsret) * P1 * P2 * cr;
+	      crsvel = std::get<0>(crsret) * P1 * P2;
 	      ph     = std::get<1>(crsret);
 
 	      if (crsvel > 0.0) {
@@ -2400,7 +2400,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    crsret = crossSectionTrace(id, c, p1, p2, cr, T);
-	    crsvel = std::get<0>(crsret) * P1 * Eta2 * eVelP2[id];
+	    crsvel = std::get<0>(crsret) * P1 * Eta2;
 	    ph     = std::get<1>(crsret);
 	    
 	    if (crsvel > 0.0) {
@@ -2412,7 +2412,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    }
 	    
 	    crsret = crossSectionTrace(id, c, p2, p1, cr, T);
-	    crsvel = std::get<0>(crsret) * P2 * Eta1 * eVelP1[id];
+	    crsvel = std::get<0>(crsret) * P2 * Eta1;
 	    ph     = std::get<1>(crsret);
 
 	    if (crsvel > 0.0) {
@@ -2432,7 +2432,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    crsret = crossSectionTrace(id, c, p1, p2, cr, T);
-	    crsvel = std::get<0>(crsret) * P1 * Eta2 * eVelP2[id];
+	    crsvel = std::get<0>(crsret) * P1 * Eta2;
 	    ph     = std::get<1>(crsret);
 
 	    if (crsvel > 0.0) {
@@ -2443,7 +2443,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    }
 
 	    crsret = crossSectionTrace(id, c, p2, p1, cr, T);
-	    crsvel = std::get<0>(crsret) * P2 * Eta1 * eVelP1[id];
+	    crsvel = std::get<0>(crsret) * P2 * Eta1;
 	    ph     = std::get<1>(crsret);
 
 	    if (crsvel > 0.0) {
@@ -2462,7 +2462,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    crsret = crossSectionTrace(id, c, p1, p2, cr, T);
-	    crsvel = std::get<0>(crsret) * P1 * Eta2 * eVelP2[id];
+	    crsvel = std::get<0>(crsret) * P1 * Eta2;
 	    ph     = std::get<1>(crsret);
 	    
 	    if (crsvel > 0.0) {
@@ -2473,7 +2473,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    }
 
 	    crsret = crossSectionTrace(id, c, p2, p1, cr, T);
-	    crsvel = std::get<0>(crsret) *P2 * Eta1 * eVelP1[id];
+	    crsvel = std::get<0>(crsret) * P2 * Eta1;
 	    ph     = std::get<1>(crsret);
 	    
 	    if (crsvel > 0.0) {
@@ -2492,7 +2492,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    crsret = crossSectionTrace(id, c, p1, p2, cr, T);
-	    crsvel = std::get<0>(crsret) * P1 * Eta2 * eVelP2[id];
+	    crsvel = std::get<0>(crsret) * P1 * Eta2;
 	    ph     = std::get<1>(crsret);
 	    
 	    if (crsvel > 0.0) {
@@ -2503,7 +2503,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    }
 
 	    crsret = crossSectionTrace(id, c, p1, p2, cr, T);
-	    crsvel = std::get<0>(crsret) * P2 * Eta1 * eVelP1[id];
+	    crsvel = std::get<0>(crsret) * P2 * Eta1;
 	    ph     = std::get<1>(crsret);
 	    
 	    if (crsvel > 0.0) {
@@ -2522,7 +2522,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    crsret = crossSectionTrace(id, c, p1, p2, cr, T);
-	    crsvel = std::get<0>(crsret) * P1 * Eta2 * eVelP2[id];
+	    crsvel = std::get<0>(crsret) * P1 * Eta2;
 	    ph     = std::get<1>(crsret);
 	    
 	    if (crsvel > 0.0) {
@@ -2533,7 +2533,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    }
 
 	    crsret = crossSectionTrace(id, c, p2, p1, cr, T);
-	    crsvel = std::get<0>(crsret) * P2 * Eta1 * eVelP1[id];
+	    crsvel = std::get<0>(crsret) * P2 * Eta1;
 	    ph     = std::get<1>(crsret);
 	    
 	    if (crsvel > 0.0) {
