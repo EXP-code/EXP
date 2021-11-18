@@ -567,7 +567,7 @@ main(int argc, char **argv)
      cxxopts::value<bool>(VOLUME)->default_value("false"))
     ("OUTFILE", "Filename prefix",
      cxxopts::value<string>(OUTFILE)->default_value("haloprof"))
-    ("runtag", "Phase space file",
+    ("r,runtag", "Runtag name for phase-space files",
      cxxopts::value<string>(runtag)->default_value("run1"))
     ("outdir", "Output directory path",
      cxxopts::value<string>(outdir)->default_value("."))

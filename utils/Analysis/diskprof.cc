@@ -850,6 +850,8 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("P,prefix", "prefix for phase-space files",
      cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("r,runtag", "Runtag name for phase-space files",
+     cxxopts::value<string>(runtag)->default_value("run1"))
     ("nice", "number of bins in x direction",
      cxxopts::value<int>(nice)->default_value("0"))
     ("R,RMAX", "maximum radius for output",
