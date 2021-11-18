@@ -113,7 +113,7 @@ main(int argc, char **argv)
      cxxopts::value<int>(mmax)->default_value("4"))
    ("norder", "maximum radial order for each harmonic subspace",
      cxxopts::value<int>(norder)->default_value("4"))
-   ("NPART", "Jackknife partition number for testing (0 means off,
+    ("NPART", "Jackknife partition number for testing (0 means off, use standard eval)",
      cxxopts::value<int>(NPART)->default_value("0"))
    (" N,NSNR", "Number of SNR evaluations",
      cxxopts::value<int>(NSNR)->default_value("20"))
@@ -167,6 +167,7 @@ main(int argc, char **argv)
 
   if (vm.count("help")) {
     if (myid==0) std::cout << std::endl << options.help() << std::endl;
+    MPI_Finalize();
     return 0;
   }
 

@@ -132,7 +132,8 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    std::cout << std::endl << options.help() << std::endl;
+    if (myid==0) std::cout << std::endl << options.help() << std::endl;
+    MPI_Finalize();
     return 0;
   }
 
@@ -140,18 +141,18 @@ main(int argc, char **argv)
   // Do round robin grid assignment of nodes
   // ==================================================
 
-  ofstream indx;
-  ifstream in;
+  std::ofstream indx;
+  std::ifstream in;
 
-  vector<string> files;
+  std::vector<string> files;
 				// Root nodes looks for existence of files
   if (myid==0) {
     for (int i=IBEG; i<=IEND; i++) {
-      ostringstream lab;
+      std::ostringstream lab;
       lab << INFILE << "." 
 	  << RUNTAG << "." 
 	  << setw(5) << right << setfill('0') << i;
-      ifstream in(lab.str().c_str());
+      std::ifstream in(lab.str().c_str());
       if (in) files.push_back(lab.str());
       else break;
       cout << "." << i << flush;

@@ -135,8 +135,9 @@ main(int argc, char **argv)
   }
 
   if (vm.count("help")) {
-    std::cout << options.help() << std::endl;
-    return 1;
+    if (myid==0) std::cout << options.help() << std::endl;
+    MPI_Finalize();
+    return 0;
   }
 
   // ==================================================

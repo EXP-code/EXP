@@ -512,6 +512,7 @@ main(int argc, char **argv)
 
   if (vm.count("help")) {
     std::cout << std::endl << options.help() << std::endl;
+    MPI_Finalize();
     return 0;
   }
 

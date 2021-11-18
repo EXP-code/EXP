@@ -383,6 +383,13 @@ CoefData get_coefficients(const std::string& coefs)
 int
 main(int argc, char **argv)
 {
+  // ==================================================
+  // MPI preliminaries
+  // ==================================================
+
+  local_init_mpi(argc, argv);
+  
+
   //--------------------------------------------------
   // Command-line parsing
   //--------------------------------------------------
@@ -435,21 +442,23 @@ main(int argc, char **argv)
   try {
     vm = options.parse(argc, argv);
   } catch (cxxopts::OptionException& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
 
   if (vm.count("help")) {
-    std::cout << options.help() << std::endl;
-    return 1;
+    if (myid==0) std::cout << options.help() << std::endl;
+    MPI_Finalize();
+    return 0;
   }
  
   if (vm.count("verbose")) verbose = true;
 
   if (vm.count("mask")) mask = true;
 
-  if (vm.count("noCommand")==0) {
+  if (vm.count("noCommand")==0 and myid==0) {
     std::string cmdFile = "mssaprof." + outid + ".cmd_line";
     std::ofstream cmd(cmdFile.c_str());
     if (!cmd) {
@@ -466,12 +475,6 @@ main(int argc, char **argv)
 #ifdef DEBUG
   sleep(20);
 #endif  
-  
-  // ==================================================
-  // MPI preliminaries
-  // ==================================================
-
-  local_init_mpi(argc, argv);
   
   // ==================================================
   // All processes will now compute the basis functions

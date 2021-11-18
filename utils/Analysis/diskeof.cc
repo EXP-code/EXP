@@ -170,6 +170,15 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmin, int nord,
 int
 main(int argc, char **argv)
 {
+  // ==================================================
+  // MPI preliminaries
+  // ==================================================
+  local_init_mpi(argc, argv);
+  
+
+  // ==================================================
+  // Parameter parsing
+  // ==================================================
   int lmax=64, mmax, Nmin, Nmax, nmax, norder, numx, numy, cmapr=1, cmapz=1;
   double rcylmin, rcylmax, rscale, vscale, RMAX;
   std::string CACHEFILE, COEFFILE, cname, prefix, fileType, filePrefix;
@@ -178,9 +187,6 @@ main(int argc, char **argv)
   cxxopts::Options options(argv[0],
 			   "Create EOF from a sequence of PSP files.\nCompute per component grid generation for insight.\n");
 
-  //
-  // Parse Command line
-  //
   options.add_options()
    ("h,help", "produce this help message")
    ("v,verbose", "verbose output")
@@ -233,10 +239,13 @@ main(int argc, char **argv)
   }
 
   if (vm.count("help")) {
-    std::cout << std::string(60, '-') << std::endl;
-    std::cout << options.help() << std::endl;
-    std::cout << std::string(60, '-') << std::endl << std::endl;
-    return 1;
+    if (myid==0) {
+      std::cout << std::string(60, '-') << std::endl;
+      std::cout << options.help() << std::endl;
+      std::cout << std::string(60, '-') << std::endl << std::endl;
+    }
+    MPI_Finalize();
+    return 0;
   }
  
   bool PNG = false;
@@ -247,12 +256,6 @@ main(int argc, char **argv)
 #endif  
 
   bool DENS = false;
-  
-  // ==================================================
-  // MPI preliminaries
-  // ==================================================
-
-  local_init_mpi(argc, argv);
   
   // ==================================================
   // Read basis cache
