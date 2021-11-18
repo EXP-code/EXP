@@ -17,11 +17,7 @@ Ensemble::Ensemble(void)
 {
   Nstars = 0;
   t = 0.0;
-  stars = NULL;
 }
-
-
-
 
 
 /*
@@ -33,12 +29,7 @@ Ensemble::Ensemble(int n)
 {
   Nstars = n;
   t = 0.0;
-  stars = new Phase[Nstars];
-  if (stars == NULL) 
-    {
-      puts("could not allocate ensemble");
-      exit(0);
-    }
+  stars.resize(Nstars);
 }
 
 
@@ -49,22 +40,11 @@ Ensemble::Ensemble(int n)
 
 Ensemble::Ensemble(Ensemble &e)
 {
-  int i;
-  
   Nstars = e.Nstars;
   t = e.t;
-  stars = new Phase[Nstars];
-  if (stars == NULL) 
-    {
-      puts("could not allocate ensemble");
-      exit(0);
-    }
-  for (i=0; i<Nstars; i++) stars[i] = e.stars[i];
+  stars.resize(Nstars);
+  for (int i=0; i<Nstars; i++) stars[i] = e.stars[i];
 }
-
-
-
-
 
 
 /*
@@ -74,17 +54,8 @@ Ensemble::Ensemble(Ensemble &e)
 
 Ensemble::~Ensemble(void)
 {
-  if (stars != NULL) delete [] stars;
-  else
-    {
-      puts("Ensemble: destructor called for NULL object");
-      exit(0);
-    }
+  // Nothing
 }
-
-
-
-
 
 
 /*
@@ -92,21 +63,12 @@ Ensemble::~Ensemble(void)
   or to change the size.
 */
 
-
-
-
 void Ensemble::setsize(int n)
 {
-  if (stars) delete stars;
   Nstars = n;
   std::cout << "Nstars = " << Nstars << std::endl;
-  stars = new Phase[Nstars];
+  stars.resize(Nstars);
   puts("done allocating stars");
-  if (stars == NULL) 
-    {
-      puts("could not allocate ensemble");
-      exit(0);
-    }
 }
 
 
@@ -132,12 +94,8 @@ Ensemble &Ensemble::operator=(Ensemble &e)
   
   Nstars = e.Nstars;
   t = e.t;
-  if (!stars) stars = new Phase[Nstars];
-  if (stars == NULL) 
-    {
-      puts("could not allocate ensemble");
-      exit(0);
-    }
+  stars.resize(Nstars);
+
   for (i=0; i<Nstars; i++) stars[i] = e.stars[i];
   
   return *this;

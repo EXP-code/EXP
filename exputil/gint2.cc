@@ -61,12 +61,13 @@
  *
  ***************************************************************************/
 
-#include <stdlib.h>
-#include <math.h>
-
 #include <iostream>
 #include <iomanip>
+#include <cstdlib>
 #include <vector>
+#include <memory>
+#include <cmath>
+
 
 using namespace std;
 
@@ -79,7 +80,7 @@ using namespace std;
 #endif
 
 static int N=0,M;             /* N=0 force comp. of knots on first call */
-static LegeQuad *lq = NULL;
+static std::shared_ptr<LegeQuad> lq;
 
 double gint_0(double a, double b, double (*f) (double), int NGauss)
 {
@@ -88,11 +89,9 @@ double gint_0(double a, double b, double (*f) (double), int NGauss)
 
   if (NGauss != N) {
 
-    if (lq) delete lq;
-
     N = NGauss;
     M = (N+1)/2;
-    lq = new LegeQuad(M);
+    lq = std::make_shared<LegeQuad>(M);
 
     /* debug! */
     if (DEBUG) {
@@ -134,11 +133,9 @@ double gint_2(double a, double b, double (*f) (double), int NGauss)
 
   if (NGauss != N) {
     
-    if (lq) delete lq;
-
     N = NGauss;
     M = (N+1)/2;
-    lq = new LegeQuad(M);
+    lq = std::make_shared<LegeQuad>(M);
 
     // Debug
     if (DEBUG) {

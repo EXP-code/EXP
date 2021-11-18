@@ -225,7 +225,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
       }
       
       if (compute and ocount % vtkfreq==0) {
-	vtkpca = VtkPCAptr(new VtkPCA(nmax));
+	vtkpca = std::make_shared<VtkPCA>(nmax);
       }
     }
 #endif

@@ -2473,7 +2473,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    }
 
 	    crsret = crossSectionTrace(id, c, p2, p1, cr, T);
-	    crsvel = std::get<0>(crsret) *P2 * Eta1 * eVelP1[id];
+	    crsvel = std::get<0>(crsret) * P2 * Eta1 * eVelP1[id];
 	    ph     = std::get<1>(crsret);
 	    
 	    if (crsvel > 0.0) {
@@ -4301,7 +4301,7 @@ CollideIon::crossSectionTrace(int id, pCell* const c,
     if (K2==NTC::electron and P1<Z1 and etaP2[id]>0.0) {
 
       double ke = std::max<double>(kEe1[id], FloorEv);
-
+      
       auto cumCross = ad.IonList[Q1]->collExciteCross(ke, id);
       CE1[id] = IS.selectCEInteract(ad.IonList[Q1], cumCross);
 
@@ -4310,11 +4310,6 @@ CollideIon::crossSectionTrace(int id, pCell* const c,
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
-      /*
-      std::cout << "TEST: ke=" << ke << " xc=" << CE1[id].first
-		<< " ph=" << CE1[id].second << std::endl;
-      */
-
       if (crs > 0.0) {
 #ifdef XC_DEEP1
 	std::cout << "xsc: xc=" << crs << " v=" << eVelP2[id] << std::endl;
@@ -4339,11 +4334,6 @@ CollideIon::crossSectionTrace(int id, pCell* const c,
 
       auto cumCross = ad.IonList[Q2]->collExciteCross(ke, id);
       CE2[id] = IS.selectCEInteract(ad.IonList[Q2], cumCross);
-
-      /*
-      std::cout << "TEST: ke=" << ke << " xc=" << CE2[id].first
-		<< " ph=" << CE2[id].second << std::endl;
-      */
 
       double crs = eVelP1[id] * CE2[id].first;
       ph = CE2[id].second;
