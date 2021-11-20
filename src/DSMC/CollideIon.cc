@@ -14843,9 +14843,9 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
     totSelcM += v.second();
 
-    // Make commulative cross section for particle pair selection
+    // Make cumulative cross section for particle pair selection
     //
-    double Pscale = mmas * rateF * crs_units / (num - 1);
+    double Pscale = mmas * rateF * crs_units;
     cseccum[id][v.first].clear();
     for (auto u : cseccache[id][v.first])
       cseccum[id][v.first].push_back(std::get<0>(u) * Pscale);
