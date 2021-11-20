@@ -57,7 +57,9 @@
 #include <DataGrid.H>
 #include <cxxopts.H>
 
-const std::string overview = "Compute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
+				// Program info string
+
+const std::string overview = "\nCompute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
   
 				// Globals
 static  string outid;
