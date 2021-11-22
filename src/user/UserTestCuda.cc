@@ -58,7 +58,14 @@ void * UserTestCuda::determine_acceleration_and_potential_thread(void * arg)
   //
   if (maxcall>0 and callno++ < maxcall) {
 #if HAVE_LIBCUDA == 1
-    cuda_user_test(myid, id, tnow, instance, callno);
+    if (use_cuda) {
+      cuda_user_test(myid, id, tnow, instance, callno);
+    } else {
+      std::cout << "Process " << myid 
+		<< ", id=" << id << ": Time=" << tnow 
+		<< ", Instance=" << instance << ", #="
+		<< callno << std::endl;
+    }
 #else
     std::cout << "Process " << myid 
 	      << ", id=" << id << ": Time=" << tnow 
