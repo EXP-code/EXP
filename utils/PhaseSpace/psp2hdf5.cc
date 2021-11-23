@@ -7,7 +7,11 @@
 #include <H5Cpp.h>
 #include <cxxopts.H>
 
-
+/**
+   Create a Gadget2 HDF5 file from PSP.  This should be easy to
+   generalize to other HDF5 phase-space variants, most of which are
+   Gadget2 like.
+ */
 int
 main(int argc, char **argv)
 {
@@ -19,7 +23,7 @@ main(int argc, char **argv)
   bool verbose = false;
 
 
-  cxxopts::Options options(argv[0], "\nMake a Gadget2-style HDF5 file from a PSP file and a Gadget template file\nNo cosmological parameters are set\n");
+  cxxopts::Options options(argv[0], "\nMake a Gadget2-style HDF5 file from a PSP file and a Gadget template file.\nNo cosmological parameters are set.  No subgrid parameters will be set.\nUse the numerical flags to assign component names to Gadget particle types.\n");
 
   options.add_options()
     ("h,help", "print this help message")
@@ -32,17 +36,17 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(dir))
     ("o,outfile", "the hdf5 file",
      cxxopts::value<std::string>(hdf5file)->default_value("new.hdf5"))
-    ("0,gas",    "PSP name of gas particles",
+    ("0,gas",    "PSP component name for gas",
      cxxopts::value<std::string>(partNames[0]))
-    ("1,halo",   "PSP name of halo particles",
+    ("1,halo",   "PSP component name for halo",
      cxxopts::value<std::string>(partNames[1]))
-    ("2,disk",   "PSP name of disk particles",
+    ("2,disk",   "PSP component name for disk",
      cxxopts::value<std::string>(partNames[2]))
-    ("3,bulge",  "PSP name of bulge particles",
+    ("3,bulge",  "PSP component name for bulge",
      cxxopts::value<std::string>(partNames[3]))
-    ("4,stars",  "PSP name of star particles",
+    ("4,stars",  "PSP component name for stars",
      cxxopts::value<std::string>(partNames[4]))
-    ("5,bndry",  "PSP name of boundary particles",
+    ("5,bndry",  "PSP component name for boundary particles (not used)",
      cxxopts::value<std::string>(partNames[5]))
     ;
 
