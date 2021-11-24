@@ -45,7 +45,7 @@ double GadgetNative::CurrentTime()
   // read in file data
   //
   if (myid==0 and _verbose)
-    std::cout << "reading " << _file << " header...";
+    std::cout << "GadgetNative: reading " << _file << " header...";
         
   file.seekg(sizeof(int), std::ios::cur); // block count
 
@@ -73,7 +73,8 @@ std::vector<std::string> GadgetNative::GetTypes()
 
   // read in file data
   //
-  if (myid==0 and _verbose) std::cout << "reading " << _file << " header...";
+  if (myid==0 and _verbose)
+    std::cout << "GadgetNative: reading " << _file << " header...";
         
   file.seekg(sizeof(int), std::ios::cur); // block count
 
@@ -98,6 +99,9 @@ void GadgetNative::read_and_load()
     ost << "Error opening file: " << _file;
     throw std::runtime_error(ost.str());
   }
+
+  if (myid==0 and _verbose)
+    std::cout << "GadgetNative: opened <" << _file << ">" << std::endl;
 
   // read in file data
   //
@@ -215,7 +219,7 @@ void GadgetNative::read_and_load()
 
   if (with_mass) file.seekg(sizeof(int), std::ios::cur); // block count
     
-  // Add other fields, as necessary.   Acceleration?
+  // Add other fields, as necessary. Acceleration?
   
   file.close();
   if (myid==0 and _verbose) std::cout << "done." << std::endl;
@@ -428,10 +432,11 @@ void GadgetHDF5::read_and_load()
 	hsize_t dims[2];
 	int ndims = dataspace.getSimpleExtentDims( dims, NULL);
 	if (myid==0 and _verbose)
-	  std::cout << "rank " << rank << ", dimensions " <<
+	  std::cout << "GadgetHDF5: coordinate rank " << rank
+		    << ", dimensions " <<
 	    (unsigned long)(dims[0]) << " x " <<
 	    (unsigned long)(dims[1]) << std::endl;
-	  
+	
 	// Define the memory space to read dataset.
 	//
 	H5::DataSpace mspace(rank, dims);
@@ -439,9 +444,12 @@ void GadgetHDF5::read_and_load()
 	std::vector<float> buf(dims[0]*dims[1]);
 	dataset.read(&buf[0], H5::PredType::NATIVE_FLOAT, mspace, dataspace );
 	
+	if (myid==0 and _verbose)
+	  std::cout << "GadgetHDF5: coordinate storage size="
+		    << dataset.getStorageSize() << std::endl;
+
 	// Set the particle vector
 	//
-
 	Particle P;
 
 	for (int n=0; n<dims[0]; n++) {
@@ -462,6 +470,10 @@ void GadgetHDF5::read_and_load()
 	std::vector<float> vel(dims[0]*dims[1]);
 	dataset.read(&vel[0], H5::PredType::NATIVE_FLOAT, mspace, dataspace );
 	
+	if (myid==0 and _verbose)
+	  std::cout << "GadgetHDF5: velocity storage size="
+		    << dataset.getStorageSize() << std::endl;
+
 	auto it = particles.begin();
 	for (int n=0; n<dims[0]; n++) {
 	  if (n % numprocs ==  myid) {
@@ -473,13 +485,14 @@ void GadgetHDF5::read_and_load()
 	dataspace.close();
 	dataset.close();
 
-	// Try to get Masses
+	// Try to get Masses.  This will override the assignment from
+	// the headerif the data exists.
 	//
 	dataset = grp.openDataSet("Masses");
 
 	if (myid==0 and _verbose)
-	  std::cout << "Storage size=" << dataset.getStorageSize()
-		    << std::endl;
+	  std::cout << "GadgetHDF5: mass storage size="
+		    << dataset.getStorageSize() << std::endl;
 
 	if (dataset.getStorageSize()) {
 
@@ -511,8 +524,8 @@ void GadgetHDF5::read_and_load()
 	
 
 	if (myid==0 and _verbose)
-	  std::cout << "Storage size=" << dataset.getStorageSize()
-		    << std::endl;
+	  std::cout << "GadgetHDF5: particle ID storage size="
+		    << dataset.getStorageSize() << std::endl;
 
 	if (dataset.getStorageSize()) {
 

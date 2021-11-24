@@ -506,6 +506,7 @@ main(int argc, char **argv)
   int NICE, LMAX, NMAX, NPART;
   int beg, end, stride;
   std::string MODFILE, INDEX, dir("."), cname, coefs, fileType, filePrefix;
+  bool COM = false;
 
 
   // ==================================================
@@ -527,6 +528,7 @@ main(int argc, char **argv)
     ("xy", "print x-y slice for surface fields (default)")
     ("xz", "print x-z slice for surface fields")
     ("yz", "print y-z slice for surface fields")
+    ("COM", "compute the center of mass")
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("P,prefix", "prefix for phase-space files",
@@ -653,6 +655,12 @@ main(int argc, char **argv)
     }
   }
 
+  if (vm.count("COM")) {
+    if (myid==0) std::cout << "Will use the COM center for each snapshot"
+			   << std::endl;
+    COM = true;
+  }
+
   // ==================================================
   // Nice process
   // ==================================================
@@ -742,11 +750,33 @@ main(int argc, char **argv)
 
     if (myid==0) cout << "Accumulating particle positions . . . " << flush;
 
+    std::vector<double> com(3, 0.0);
+    double mastot = 0.0;
+
+    if (COM) {
+      for (auto &i : particles) {
+	for (int k=0; k<3; k++) com[k] += i.mass * i.pos[k];
+	mastot += i.mass;
+      }
+      MPI_Allreduce(MPI_IN_PLACE, com.data(), 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, &mastot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      if (mastot>0.0) {
+	for (int k=0; k<3; k++) com[k] /= mastot;
+      }
+      if (myid==0) {
+	std::cout << "COM: [";
+	for (int k=0; k<3; k++) std::cout << std::setw(16) << com[k];
+	std::cout << "]" << std::endl;
+      }
+    }
+
     ortho.reset_coefs();
     for (auto &i : particles) {
-      ortho.accumulate(i.pos[0], i.pos[1], i.pos[2], i.mass);
+      ortho.accumulate(i.pos[0]-com[0], i.pos[1]-com[1], i.pos[2]-com[2], i.mass);
     }
+
     MPI_Barrier(MPI_COMM_WORLD);
+
     if (myid==0) cout << "done" << endl;
   
     //------------------------------------------------------------ 
