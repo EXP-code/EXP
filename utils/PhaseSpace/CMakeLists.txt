@@ -2,7 +2,7 @@
 set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp psp2histo
   psp2histo1d psp2histo1D2 psp2histoE psp2histoH pspreal pspstatS
   psp2range psp2histoT psp2histoTC pspstatT spl2psp ascii2psp2
-  psp2rings psp2bess psp2lagu psp2interp diffpsp)
+  psp2rings psp2bess psp2lagu psp2interp diffpsp psp2hdf5)
 		
 if(HAVE_VTK)
   list(APPEND bin_PROGRAMS psp2eHisto psp2vtu)
@@ -13,7 +13,7 @@ if(HAVE_XDR)
 endif()
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp EXP
-  exputil ${VTK_LIBRARIES})
+  exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
@@ -26,7 +26,8 @@ set(common_INCLUDE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/..)
+  ${CMAKE_CURRENT_SOURCE_DIR}/..
+  ${HDF5_INCLUDE_DIRS})
 
 add_executable(pspinfo pspinfo.cc PSP.cc)
 add_executable(pspstat pspstat.cc PSP.cc)
@@ -51,6 +52,7 @@ add_executable(psp2bess psp2bess.cc PSP.cc Bess.cc)
 add_executable(psp2lagu psp2lagu.cc PSP.cc)
 add_executable(psp2interp psp2interp.cc PSP.cc)
 add_executable(diffpsp diffpsp.cc MakeModel.cc PSP.cc)
+add_executable(psp2hdf5 psp2hdf5.cc PSP.cc)
 
 if(HAVE_VTK)
   add_executable(psp2eHisto psp2eHisto.cc PSP.cc)
