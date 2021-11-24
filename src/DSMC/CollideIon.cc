@@ -14756,10 +14756,12 @@ NTC::InteractD CollideIon::generateSelectionTrace
 (pCell* const c, double crm, sKeyDmap* const Fn, double tau,
  double& meanLambda, double& meanCollP, double& totalNsel, int id)
 {
-  // Return data structure
+  // Return data structure (currently blank)
   //
   NTC::InteractD selcM;
 
+  // Indexed to a default key for trace algorithm
+  //
   speciesKey key(Particle::defaultKey);
 
   // Convert from NTCdb to system units
@@ -14785,20 +14787,18 @@ NTC::InteractD CollideIon::generateSelectionTrace
   //
   double crossRat = 0.0;
 
+  // Collect the cross sections by interaction type and species
+  //
   std::map<NTC::T, double> bySpc;
 
   for (auto v : csections[id].v) {
-    NTC::T      T = v.first;
+    NTC::T T = v.first;
     if (std::get<1>(T).first < traceZ) {
       bySpc[T]     += v.second();
       crossRat     += v.second();
     }
   }
 
-  // Copy to Interact map
-  //
-  for (auto v : bySpc) selcM[v.first] = v.second;
-  
   crossRat *= crs_units;
 
   crTotl[id]++;
@@ -14825,24 +14825,8 @@ NTC::InteractD CollideIon::generateSelectionTrace
   //
   double totSelcM = 0.0;
 
-  for (auto & v : selcM.v) {
+  for (auto v : bySpc) {
     
-#ifdef XC_DEEP5
-    double saveXc = v.second();
-#endif
-
-    double tst  = v.second();
-    v.second() *= mmas * rateF * crs_units;
-
-    auto k1 = std::get<1>(v.first);
-    auto k2 = std::get<2>(v.first);
-
-    if (v.second() > 1.0e+06) {
-      std::cout << "Selection too large: " << v.second() << std::endl;
-    }
-
-    totSelcM += v.second();
-
     // Make cumulative cross section for particle pair selection
     //
     double Pscale = mmas * rateF * crs_units;
@@ -14852,47 +14836,36 @@ NTC::InteractD CollideIon::generateSelectionTrace
     for (int i=1; i<cseccum[id][v.first].size(); i++)
       cseccum[id][v.first][i] += cseccum[id][v.first][i-1];
 
+    double totSel = cseccum[id][v.first].back();
+
+#ifdef XC_DEEP5
+#endif
+
+    auto k1 = std::get<1>(v.first);
+    auto k2 = std::get<2>(v.first);
+
+    if (totSel > 1.0e+06) {
+      std::cout << "Selection too large: " << totSel << std::endl;
+    }
+
+    totSelcM += totSel;
+
 #ifdef XC_DEEP5
     auto TT = std::get<0>(v.first);
     std::cout << "ctest: " << std::setw(12) << interLabels[TT]
-	      << " cross=" << saveXc*crs_units*TreeDSMC::Lunit*TreeDSMC::Lunit/1e-14
-	      << " selcM=" << v.second()
+	      << " totSel=" << totSel
 	      << " Vel=" << crm
 	      << " Tau=" << tau
 	      << std::endl;
 #endif
-
   }
-
-#ifdef XC_DEEP14
-  std::cout << std::string(58, '-') << std::endl
-	    << std::setw(20) << "Interaction"
-	    << std::setw( 6) << "Z1"
-	    << std::setw( 6) << "C1"
-	    << std::setw( 6) << "Z2"
-	    << std::setw( 6) << "C2"
-	    << std::setw(14) << "#" << std::endl
-	    << std::string(58, '-') << std::endl;
-  for (auto & v : selcM.v) {
-    auto TT = std::get<0>(v.first);
-    auto p1 = std::get<1>(v.first);
-    auto p2 = std::get<2>(v.first);
-    std::cout << std::setw(20) << interLabels[TT]
-	      << std::setw( 6) << p1.first
-	      << std::setw( 6) << p1.second
-	      << std::setw( 6) << p2.first
-	      << std::setw( 6) << p2.second
-	      << std::setw(14) << v.second()
-	      << std::endl;
-  }
-  std::cout << std::string(58, '-') << std::endl;
-#endif
 
 #ifdef XC_DEEP16
   std::cout << std::string(64, '-') << std::endl
 	    << "Time=" << tnow << " Tau=" << tau
-	    << " Bodies=" << num << std::endl
-	    << " Cell=" << std::hex << c << std::dec
+	    << " Bodies=" << num
+	    << " Cell=" << std::hex << c
+	    << std::dec << std::endl
 	    << std::string(64, '-') << std::endl
 	    << std::setw(20) << "Interaction"
 	    << std::setw( 6) << "Z1"
@@ -14928,6 +14901,10 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   selD[id]->push_back(totSelcM);
 
+  // Copy to fresh interact map for testing
+  //
+  for (auto & v : cseccum[id]) selcM[v.first] = v.second.back();
+  
   return selcM;
 }
 
