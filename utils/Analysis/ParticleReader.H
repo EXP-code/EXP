@@ -120,7 +120,7 @@ public:
   std::vector<std::string> GetTypes();
 
   //! Get current time
-  double CurrentTime() { return time; }
+  double CurrentTime();
 
   //! Reset to beginning of particles for this component
   const Particle* firstParticle();
@@ -176,7 +176,7 @@ public:
   std::vector<std::string> GetTypes();
 
   //! Get current time
-  double CurrentTime() { return time; }
+  double CurrentTime();
 
   //! Reset to beginning of particles for this component
   const Particle* firstParticle();

@@ -28,6 +28,34 @@ GadgetNative::GadgetNative(const std::string& file, bool verbose)
   particles_read = false;
 }
 
+double GadgetNative::CurrentTime()
+{
+  // attempt to open file
+  //
+  std::ifstream file(_file, std::ios::binary | std::ios::in);
+  if (!file.is_open())
+    {
+      std::cerr << "Error opening file: " << _file << std::endl;
+      int flag;
+      MPI_Initialized(&flag);
+      if (flag)	MPI_Finalize();
+      exit(1);
+    }
+
+  // read in file data
+  //
+  if (myid==0 and _verbose)
+    std::cout << "reading " << _file << " header...";
+        
+  file.seekg(sizeof(int), std::ios::cur); // block count
+
+  file.read((char*)&header, sizeof(gadget_header)); 
+
+  if (myid==0 and _verbose) std::cout << "done" << std::endl;
+
+  return header.time;
+}
+
 std::vector<std::string> GadgetNative::GetTypes()
 {
   std::vector<std::string> ret;
@@ -45,13 +73,13 @@ std::vector<std::string> GadgetNative::GetTypes()
 
   // read in file data
   //
-  if (myid==0) std::cout << "reading " << _file << " header...";
+  if (myid==0 and _verbose) std::cout << "reading " << _file << " header...";
         
   file.seekg(sizeof(int), std::ios::cur); // block count
 
   file.read((char*)&header, sizeof(gadget_header)); 
 
-  if (myid==0) std::cout << "done" << std::endl;
+  if (myid==0 and _verbose) std::cout << "done" << std::endl;
 
   for (int n=0; n<6; n++) {
     if (header.npart[n] > 0) ret.push_back(Ptypes[n]);
@@ -190,7 +218,7 @@ void GadgetNative::read_and_load()
   // Add other fields, as necessary.   Acceleration?
   
   file.close();
-  if (myid==0) std::cout << "done." << std::endl;
+  if (myid==0 and _verbose) std::cout << "done." << std::endl;
 }
 
 const Particle* GadgetNative::firstParticle()
@@ -224,6 +252,53 @@ GadgetHDF5::GadgetHDF5(const std::string& file, bool verbose)
 
   ptype = 1;			// Default is halo particles
   particles_read = false;
+}
+
+double GadgetHDF5::CurrentTime()
+{
+  // Try to catch and HDF5 and parsing errors
+  //
+  try {
+    // Turn off the auto-printing when failure occurs so that we can
+    // handle the errors appropriately
+    H5::Exception::dontPrint();
+    
+    const H5std_string FILE_NAME (_file);
+    const H5std_string GROUP_NAME_what ("/Header");
+    
+    H5::H5File    file( FILE_NAME, H5F_ACC_RDONLY );
+    H5::Group     what(file.openGroup( GROUP_NAME_what ));
+
+    // Get time
+    {
+      H5::Attribute attr(what.openAttribute("Time"));
+      H5::DataType  type(attr.getDataType());
+    
+      attr.read(type, &time);
+      return time;
+    }
+  }
+  // end of try block
+  
+  // catch failure caused by the H5File operations
+  catch(H5::FileIException error)
+    {
+      error.printErrorStack();
+    }
+  
+  // catch failure caused by the DataSet operations
+  catch(H5::DataSetIException error)
+    {
+      error.printErrorStack();
+    }
+  
+  // catch failure caused by the DataSpace operations
+  catch(H5::DataSpaceIException error)
+    {
+      error.printErrorStack();
+    }
+
+  return time;
 }
 
 std::vector<std::string> GadgetHDF5::GetTypes()
@@ -352,9 +427,10 @@ void GadgetHDF5::read_and_load()
 	//
 	hsize_t dims[2];
 	int ndims = dataspace.getSimpleExtentDims( dims, NULL);
-	if (myid==0) std::cout << "rank " << rank << ", dimensions " <<
-		       (unsigned long)(dims[0]) << " x " <<
-		       (unsigned long)(dims[1]) << std::endl;
+	if (myid==0 and _verbose)
+	  std::cout << "rank " << rank << ", dimensions " <<
+	    (unsigned long)(dims[0]) << " x " <<
+	    (unsigned long)(dims[1]) << std::endl;
 	  
 	// Define the memory space to read dataset.
 	//
@@ -402,8 +478,9 @@ void GadgetHDF5::read_and_load()
 	dataset = grp.openDataSet("ParticleIDs");
 	
 
-	if (myid==0) std::cout << "Storage size=" << dataset.getStorageSize()
-			       << std::endl;
+	if (myid==0 and _verbose)
+	  std::cout << "Storage size=" << dataset.getStorageSize()
+		    << std::endl;
 
 	if (dataset.getStorageSize()) {
 

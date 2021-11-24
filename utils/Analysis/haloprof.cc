@@ -720,7 +720,7 @@ main(int argc, char **argv)
     PRptr reader;
 
     try {
-      reader = ParticleReader::createReader(fileType, file1, myid, true);
+      reader = ParticleReader::createReader(fileType, file1, myid, verbose);
     }
     catch (std::runtime_error &error) {
       std::cerr << error.what() << std::endl;
