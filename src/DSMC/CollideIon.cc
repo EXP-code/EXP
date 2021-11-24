@@ -673,7 +673,11 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "Coll ionize cache"
 	      << (Ion::useIonizeGrid ? "on" : "off") << std::endl
 	      <<  " " << std::setw(20) << std::left << "new Gaunt factor"
-	      << (Ion::use_VAN_HOOF ? "on" : "off") << std::endl;
+	      << (Ion::use_VAN_HOOF ? "on" : "off") << std::endl
+	      <<  " " << std::setw(20) << std::left << "NTC algorithm"
+	      << (NTC ? "on" : "off") << std::endl
+	      <<  " " << std::setw(20) << std::left << "NTC without db"
+	      << (NTCnodb ? "on" : "off") << std::endl;
     if (aType == Trace)
     std::cout <<  " " << std::setw(20) << std::left << "stateXS"
 	      << (stateXS ? "on" : "off")           << std::endl;
@@ -10768,10 +10772,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double N0 = PP->w2 * TreeDSMC::Munit / amu;
   double PN = Prob * N0;
 
-#ifdef XC_DEEP6
-  std::cout << "ctest:"
-	    << " E=" << dE
-	    << std::endl;
+#ifdef XC_DEEP17
+  if (interFlag == colexcite) {
+    std::cout << "collisional event "
+	      << std::setw(16) << PP->w1
+	      << std::setw(16) << PP->w2
+	      << std::setw(16) << dE
+	      << std::endl;
+  }
 #endif
 
   // Convert energy loss from eV to system units

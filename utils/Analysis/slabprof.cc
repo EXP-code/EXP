@@ -189,9 +189,9 @@ main(int argc, char **argv)
 
   for (int i=IMIN; i<=IMAX; i++) {
 
-    auto file = ParticleReader::fileNameCreator(fileType, i, "", runtag);
+    auto file = ParticleReader::fileNameCreator(fileType, i, myid, "", runtag);
     
-    PRptr reader = ParticleReader::createReader(fileType, file, true);
+    PRptr reader = ParticleReader::createReader(fileType, file, myid, true);
     reader->SelectType(cname);
 
     double time = reader->CurrentTime();

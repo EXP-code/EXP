@@ -235,7 +235,7 @@ main(int argc, char **argv)
   int iok = 1;
   std::ifstream in0;
 
-  auto file0 = ParticleReader::fileNameCreator(fileType, beg, dir, runtag);
+  auto file0 = ParticleReader::fileNameCreator(fileType, beg, myid, dir, runtag);
 
   if (myid==0) {
     in0.open(file0);
@@ -676,9 +676,10 @@ main(int argc, char **argv)
     // Open phase-space reader
     // ==================================================
 
-    auto file1 = ParticleReader::fileNameCreator(fileType, ipsp, dir, runtag);
+    auto file1 = ParticleReader::fileNameCreator
+      (fileType, ipsp, myid, dir, runtag);
     
-    PRptr reader = ParticleReader::createReader(fileType, file1, true);
+    PRptr reader = ParticleReader::createReader(fileType, file1, myid, true);
 
     double tnow = reader->CurrentTime();
     if (myid==0) std::cout << "Beginning partition [time=" << tnow

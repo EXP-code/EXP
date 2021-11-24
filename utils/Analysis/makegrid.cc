@@ -243,7 +243,7 @@ int main(int argc, char**argv)
 
 				// Parse the PSP file
 				// ------------------
-  PRptr reader = ParticleReader::createReader(fileType, infile, true);
+  PRptr reader = ParticleReader::createReader(fileType, infile, myid, true);
 
 				// Now write a summary
 				// -------------------
