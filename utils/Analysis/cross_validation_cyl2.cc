@@ -293,7 +293,7 @@ main(int argc, char **argv)
   // ==================================================
 
   int iok = 1;
-  auto file0 = ParticleReader::fileNameCreator(fileType, init, dir, runtag);
+  auto file0 = ParticleReader::fileNameCreator(fileType, init, myid, dir, runtag);
 
   if (myid==0) {
     std::ofstream in0(file0);
@@ -851,7 +851,8 @@ main(int argc, char **argv)
     // ==================================================
 
     int iok = 1;
-    auto file1 = ParticleReader::fileNameCreator(fileType, ipsp, dir, runtag);
+    auto file1 = ParticleReader::fileNameCreator
+      (fileType, ipsp, myid, dir, runtag);
 
     if (myid==0) {
       std::ifstream in(file1);
@@ -867,7 +868,7 @@ main(int argc, char **argv)
     // Open PSP file
     // ==================================================
     //
-    PRptr reader = ParticleReader::createReader(fileType, file1, true);
+    PRptr reader = ParticleReader::createReader(fileType, file1, myid, true);
 
     double tnow = reader->CurrentTime();
     if (myid==0) std::cout << "Beginning partition [time=" << tnow

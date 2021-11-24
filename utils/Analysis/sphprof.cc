@@ -563,7 +563,8 @@ main(int argc, char **argv)
 
   for (int n=ibeg; n<=iend; n++) {
 
-    auto file0 = ParticleReader::fileNameCreator(fileType, n, dir, runtag);
+    auto file0 = ParticleReader::fileNameCreator
+      (fileType, n, myid, dir, runtag);
 
     int iok = 1;
     if (myid==0) {
@@ -581,7 +582,7 @@ main(int argc, char **argv)
     // ==================================================
     // Open frame list
     // ==================================================
-    PRptr reader = ParticleReader::createReader(fileType, file0, true);
+    PRptr reader = ParticleReader::createReader(fileType, file0, myid, true);
     
     double tnow = reader->CurrentTime();
 

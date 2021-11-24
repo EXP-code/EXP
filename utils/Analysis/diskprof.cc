@@ -992,7 +992,7 @@ main(int argc, char **argv)
   int iok = 1;
 
   auto file0 = ParticleReader::fileNameCreator
-    (fileType, init, dir, runtag, filePrefix);
+    (fileType, init, myid, dir, runtag, filePrefix);
 
   if (myid==0) {
     std::ifstream in(file0);
@@ -1152,7 +1152,7 @@ main(int argc, char **argv)
   if (ortho.read_cache()==0) {
     
     try {
-      reader = ParticleReader::createReader(fileType, file0, true);
+      reader = ParticleReader::createReader(fileType, file0, myid, true);
     }
     catch (std::runtime_error &error) {
       std::cerr << error.what() << std::endl;
@@ -1237,7 +1237,7 @@ main(int argc, char **argv)
     iok = 1;
 
     file1 = ParticleReader::fileNameCreator
-      (fileType, indx, dir, runtag, filePrefix);
+      (fileType, indx, myid, dir, runtag, filePrefix);
 
     if (myid==0) {
       std::ifstream in(file1);
@@ -1255,7 +1255,7 @@ main(int argc, char **argv)
     // ==================================================
     
     try {
-      reader = ParticleReader::createReader(fileType, file1, true);
+      reader = ParticleReader::createReader(fileType, file1, myid, true);
     }
     catch (std::runtime_error &error) {
       std::cerr << error.what() << std::endl;

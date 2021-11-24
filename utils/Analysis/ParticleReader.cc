@@ -45,13 +45,13 @@ std::vector<std::string> GadgetNative::GetTypes()
 
   // read in file data
   //
-  std::cout << "reading " << _file << " header...";
+  if (myid==0) std::cout << "reading " << _file << " header...";
         
   file.seekg(sizeof(int), std::ios::cur); // block count
 
   file.read((char*)&header, sizeof(gadget_header)); 
 
-  std::cout << "done" << std::endl;
+  if (myid==0) std::cout << "done" << std::endl;
 
   for (int n=0; n<6; n++) {
     if (header.npart[n] > 0) ret.push_back(Ptypes[n]);
@@ -190,7 +190,7 @@ void GadgetNative::read_and_load()
   // Add other fields, as necessary.   Acceleration?
   
   file.close();
-  std::cout << "done." << std::endl;
+  if (myid==0) std::cout << "done." << std::endl;
 }
 
 const Particle* GadgetNative::firstParticle()
@@ -352,9 +352,9 @@ void GadgetHDF5::read_and_load()
 	//
 	hsize_t dims[2];
 	int ndims = dataspace.getSimpleExtentDims( dims, NULL);
-	std::cout << "rank " << rank << ", dimensions " <<
-	  (unsigned long)(dims[0]) << " x " <<
-	  (unsigned long)(dims[1]) << std::endl;
+	if (myid==0) std::cout << "rank " << rank << ", dimensions " <<
+		       (unsigned long)(dims[0]) << " x " <<
+		       (unsigned long)(dims[1]) << std::endl;
 	  
 	// Define the memory space to read dataset.
 	//
@@ -402,7 +402,8 @@ void GadgetHDF5::read_and_load()
 	dataset = grp.openDataSet("ParticleIDs");
 	
 
-	std::cout << "Storage size=" << dataset.getStorageSize() << std::endl;
+	if (myid==0) std::cout << "Storage size=" << dataset.getStorageSize()
+			       << std::endl;
 
 	if (dataset.getStorageSize()) {
 
@@ -1135,7 +1136,7 @@ std::vector<std::string> ParticleReader::readerTypes
 
 
 std::string ParticleReader::fileNameCreator
-(const std::string& myType, int number,
+(const std::string& myType, int number, int myid,
  const std::string& dir,
  const std::string& runtag,
  const std::string& prefix,
@@ -1192,10 +1193,14 @@ std::string ParticleReader::fileNameCreator
     return ret.str();
   }
 
-  std::cout << "ParticleReader: unknown file format <" << myType << ">" << std::endl
-	    << "Available readers are:";
-  for (auto s : readerTypes) std::cout << " " << s;
-  std::cout << " custom" << std::endl;
+  if (myid==0) {
+    std::cout << "ParticleReader: unknown file format <" << myType << ">"
+	      << std::endl
+	      << "Available readers are:";
+    for (auto s : readerTypes) std::cout << " " << s;
+    std::cout << " custom" << std::endl;
+  }
+  
   exit(1);
 
   return ret.str();
@@ -1205,7 +1210,7 @@ std::string ParticleReader::fileNameCreator
 std::shared_ptr<ParticleReader>
 ParticleReader::createReader(const std::string& reader,
 			     const std::string& file,
-			     bool verbose)
+			     int myid, bool verbose)
 {
   if (reader.find("PSPout") == 0)
     return std::make_shared<PSPout>(file, verbose);
@@ -1216,10 +1221,13 @@ ParticleReader::createReader(const std::string& reader,
   else if (reader.find("GadgetHDF5") == 0)
     return std::make_shared<GadgetHDF5>(file, verbose);
   else {
-    std::cout << "ParticleReader: I don't know about reader <" << reader << ">" << std::endl
-	      << "Available readers are:";
-    for (auto s : readerTypes) std::cout << " " << s;
-    std::cout << std::endl;
+    if (myid==0) {
+      std::cout << "ParticleReader: I don't know about reader <" << reader
+		<< ">" << std::endl
+		<< "Available readers are:";
+      for (auto s : readerTypes) std::cout << " " << s;
+      std::cout << std::endl;
+    }
     exit(1);
   }
 }

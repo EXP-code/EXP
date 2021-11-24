@@ -66,13 +66,14 @@ public:
 
   //! Filename creator
   static std::string fileNameCreator
-  (const std::string& myType, int number,
+  (const std::string& myType, int number, int myid,
    const std::string& dir, const std::string& runtag,
    const std::string& prefix="", const std::string& suffix="");
 
   //! Create a shared pointer to derived instance of the desired type and return it
   static std::shared_ptr<ParticleReader>
-  createReader(const std::string& type, const std::string& file, bool verbose=false);
+  createReader(const std::string& type, const std::string& file, int myid,
+	       bool verbose=false);
 };
 
 class GadgetNative : public ParticleReader

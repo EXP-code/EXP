@@ -697,8 +697,11 @@ main(int argc, char **argv)
     int iok = 1;
 
     auto file1 = ParticleReader::fileNameCreator
-      (fileType, indx, dir, runtag, filePrefix);
+      (fileType, indx, myid, dir, runtag, filePrefix);
 
+    if (verbose and myid==0) {
+      std::cout << "Will try to open <" << file1 << ">" << std::endl;
+    }
     {
       std::ifstream in(file1);
       if (!in) {
@@ -717,7 +720,7 @@ main(int argc, char **argv)
     PRptr reader;
 
     try {
-      reader = ParticleReader::createReader(fileType, file1, true);
+      reader = ParticleReader::createReader(fileType, file1, myid, true);
     }
     catch (std::runtime_error &error) {
       std::cerr << error.what() << std::endl;

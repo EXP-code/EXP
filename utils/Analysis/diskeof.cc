@@ -181,7 +181,7 @@ main(int argc, char **argv)
   // ==================================================
   int lmax=64, mmax, Nmin, Nmax, nmax, norder, numx, numy, cmapr=1, cmapz=1;
   double rcylmin, rcylmax, rscale, vscale, RMAX;
-  std::string CACHEFILE, COEFFILE, cname, prefix, fileType, filePrefix;
+  std::string CACHEFILE, COEFFILE, cname, prefix, fileType, filePrefix, dir;
   int beg, end, stride, mbeg, mend, OUTR;
 
   cxxopts::Options options(argv[0],
@@ -400,7 +400,8 @@ main(int argc, char **argv)
     // ==================================================
 
     int iok = 1;
-    auto file1 = ParticleReader::fileNameCreator(fileType, indx, "", runtag);
+    auto file1 = ParticleReader::fileNameCreator
+      (fileType, indx, myid, dir, runtag);
 
     if (myid==0) {
       std::ifstream in1(file1);	// Now, try to open a new one . . . 
@@ -417,7 +418,7 @@ main(int argc, char **argv)
     // Open frame list
     // ==================================================
     
-    PRptr reader = ParticleReader::createReader(fileType, file1, true);
+    PRptr reader = ParticleReader::createReader(fileType, file1, myid, true);
 
     reader->SelectType(cname);
 
