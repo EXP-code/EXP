@@ -583,7 +583,7 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(cname)->default_value("dark"))
     ("d,dir", "directory for phase-space files",
      cxxopts::value<std::string>(dir))
-    ("c,coefs", "file of computed coefficients",
+    ("c,coefs", "file of computed coefficients or to be computed (with CONLY)",
      cxxopts::value<std::string>(coefs))
     ("S,snr", "if not negative: do a SNR cut on the PCA basis",
      cxxopts::value<double>(snr)->default_value("-1.0"))

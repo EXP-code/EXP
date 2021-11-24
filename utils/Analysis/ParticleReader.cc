@@ -473,6 +473,38 @@ void GadgetHDF5::read_and_load()
 	dataspace.close();
 	dataset.close();
 
+	// Try to get Masses
+	//
+	dataset = grp.openDataSet("Masses");
+
+	if (myid==0 and _verbose)
+	  std::cout << "Storage size=" << dataset.getStorageSize()
+		    << std::endl;
+
+	if (dataset.getStorageSize()) {
+
+	  dataspace = dataset.getSpace();
+	  
+	  int rank = dataspace.getSimpleExtentNdims();
+	  
+	  hsize_t dims[rank];
+
+	  int ndims = dataspace.getSimpleExtentDims(dims, NULL);
+
+	  H5::DataSpace mspace(rank, dims);
+	  
+	  std::vector<float> masses(dims[0]);
+	  dataset.read(&masses[0], H5::PredType::NATIVE_FLOAT, mspace, dataspace );
+	
+	  auto it = particles.begin();
+	  for (int n=0; n<dims[0]; n++) {
+	    if (n % numprocs == myid) (it++)->mass = masses[n];
+	  }
+	}
+
+	dataspace.close();
+	dataset.close();
+
 	// Try to get particle ids
 	//
 	dataset = grp.openDataSet("ParticleIDs");
