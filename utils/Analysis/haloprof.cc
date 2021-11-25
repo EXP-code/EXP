@@ -659,7 +659,7 @@ main(int argc, char **argv)
     }
   }
 
-  if (vm.count("COM")) {
+  if (vm.count("COM") and not vm.count("KD")) {
     if (myid==0) std::cout << "Will use the COM center for each snapshot"
 			   << std::endl;
     COM = true;
