@@ -1,21 +1,15 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <random>
 #include <string>
 #include <cmath>
 #include <array>
 
-//
-// BOOST stuff
-//
-#include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
-
 // Library variables
 
 #include <libvars.H>
-
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
 int main(int argc, char**argv)
 {
@@ -24,33 +18,33 @@ int main(int argc, char**argv)
   int niter;
   std::string outf;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h", "produce this help message")
-    ("density,D", po::value<double>(&n0)->default_value(1.0e-4), 
-     "Density in amu/cc. Good for n0<8.5e-2")
-    ("temp,T", po::value<unsigned>(&T)->default_value(25000), 
-     "Temperature in Kelvin (integer value)")
-    ("tol,e",     po::value<double>(&tol)->default_value(1.0e-10), 
-     "error tolerance")
-    ("iter,n",    po::value<int>(&niter)->default_value(1000), 
-     "maximum number of iterations")
-    ("outfile,o", po::value<std::string>(&outf)->default_value("IonRecombFrac.data"),
-     "data file for makeIon input")
+  cxxopts::Options options(argv[0], "Test of ionization equilibrium");
+
+  options.add_options()
+   ("h,help", "produce this help message")
+   ("D,density", "Density in amu/cc. Good for n0<8.5e-2",
+     cxxopts::value<double>(n0)->default_value("1.0e-4"))
+   ("T,temp", "Temperature in Kelvin (integer value)",
+     cxxopts::value<unsigned>(T)->default_value("25000"))
+   ("e,tol", "error tolerance",
+     cxxopts::value<double>(tol)->default_value("1.0e-10"))
+   ("n,iter", "maximum number of iterations",
+     cxxopts::value<int>(niter)->default_value("1000"))
+   ("o,outfile", "data file for makeIon input",
+     cxxopts::value<std::string>(outf)->default_value("IonRecombFrac.data"))
     ;
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << "\n";
+    std::cout << options.help() << std::endl;
     return 1;
   }
 

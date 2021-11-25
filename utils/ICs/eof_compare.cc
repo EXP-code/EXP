@@ -1,31 +1,12 @@
-                                // System libs
-#include <unistd.h>
-
                                 // C++/STL headers
 #include <string>
-				// Boost random generator
-#include <boost/random/mersenne_twister.hpp>
-
-				// Option parsing
-#include <boost/program_options.hpp>
-namespace po = boost::program_options;
 
                                 // EXP support
 #include <global.H>
 #include <EmpCylSL.H>
 #include <localmpi.H>
+#include <cxxopts.H>
 
-void usage(char *prog)
-{
-  cout << setw(70) << setfill('-') << '-' << endl;
-  cout << "Dump the entire disk orthgonal function file in ascii" << endl;
-  cout << setw(70) << setfill('-') << '-' << endl;
-  cout << "Usage: " << prog << " emp_file dump_file" << endl;
-  cout << setw(70) << setfill('-') << '-' << endl;
-
-  MPI_Finalize();
-  exit(-1);
-}
 
 int 
 main(int argc, char **argv)
@@ -44,51 +25,46 @@ main(int argc, char **argv)
   int nmax, lmax, mmax, norder, nodd;
   double acyl, hcyl;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help",
-     "produce this help message")
-    ("eof1,1",     po::value<std::string>(&eof1)->default_value(".eof.cache.file1"),
-     "First EOF file")
-    ("eof2,2",     po::value<std::string>(&eof2)->default_value(".eof.cache.file2"),
-     "Second EOF file")
-    ("lmax,l",     po::value<int>(&lmax)->default_value(32),
-     "maximum spherical azimuthal order")
-    ("nmax,n",     po::value<int>(&nmax)->default_value(64),
-     "maximum spherical radial order")
-    ("mmax,m",     po::value<int>(&mmax)->default_value(6),
-     "maximum cylindrical azimuthal order")
-    ("norder,N",   po::value<int>(&norder)->default_value(18), 
-     "maximum cylindrical radial order")
-    ("nodd,d",     po::value<int>(&nodd)->default_value(-1), 
-     "number of vertically antisymmetric functions per M-order")
-    ("ascale,a",   po::value<double>(&acyl)->default_value(0.01), 
-     "disk scale length")
-    ("hscale,h",   po::value<double>(&hcyl)->default_value(0.001), 
-     "disk scale height")
+  cxxopts::Options options(argv[0], "Compute two orthogonal function files");
+  
+  options.add_options()
+   ("help", "produce this help message")
+   ("1,eof1", "First EOF file",
+     cxxopts::value<std::string>(eof1)->default_value(".eof.cache.file1"))
+   ("2,eof2", "Second EOF file",
+     cxxopts::value<std::string>(eof2)->default_value(".eof.cache.file2"))
+   ("l,lmax", "maximum spherical azimuthal order",
+     cxxopts::value<int>(lmax)->default_value("32"))
+   ("n,nmax", "maximum spherical radial order",
+     cxxopts::value<int>(nmax)->default_value("64"))
+   ("m,mmax", "maximum cylindrical azimuthal order",
+     cxxopts::value<int>(mmax)->default_value("6"))
+   ("N,norder", "maximum cylindrical radial order",
+     cxxopts::value<int>(norder)->default_value("18"))
+   ("d,nodd", "number of vertically antisymmetric functions per M-order",
+     cxxopts::value<int>(nodd)->default_value("-1"))
+   ("a,ascale", "disk scale length",
+     cxxopts::value<double>(acyl)->default_value("0.01"))
+   ("h,hscale", "disk scale height",
+     cxxopts::value<double>(hcyl)->default_value("0.001"))
      ;
   
-     po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    if (myid==0)
-      std::cout << "Option error: " << e.what() << std::endl;
-
-    MPI_Finalize();
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
     if (myid==0)
-      std::cout << desc << std::endl;
+      std::cout << options.help() << std::endl;
 
     MPI_Finalize();
     return 1;
   }
-
 
   std::ifstream in1(eof1);
   if (not in1.good()) {

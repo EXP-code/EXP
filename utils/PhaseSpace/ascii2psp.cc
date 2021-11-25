@@ -15,28 +15,14 @@ using namespace std;
 #include <iomanip>
 #include <vector>
 #include <string>
-
-#include <boost/random/mersenne_twister.hpp>
+#include <random>
 
 #include <header.H>
+#include <cxxopts.H>
 				// Globals for exputil library
 				// Unused here
 std::string outdir, runtag;
-boost::mt19937 random_gen;
-
-//-------------
-// Help message
-//-------------
-
-void Usage(char* prog) {
-  cerr << prog << ": [-t time -v -h]\n\n";
-  cerr << "    -t time         header time\n";
-  cerr << "    -o outfile      output file\n";
-  cerr << "    -h              print this help message\n";
-  cerr << "    -v              verbose output\n\n";
-  exit(0);
-}
-
+std::mt19937 random_gen;
 
 int
 main(int argc, char **argv)
@@ -46,35 +32,33 @@ main(int argc, char **argv)
   bool verbose = false;
   string outfile("new.psp");
 
-  // Parse command line
+  cxxopts::Options options("ascii2psp", "Construct a PSP file from ascii input files");
 
-  while (1) {
+  options.add_options()
+    ("h,help", "print this help message")
+    ("v,verbose", "print verbose output messages")
+    ("o,output", "output PSP file name",
+     cxxopts::value<std::string>(outfile)->default_value("new.psp"))
+    ("t,time", "desired time stamp",
+     cxxopts::value<double>(time)->default_value("0.0"))
+    ;
 
-    int c = getopt(argc, argv, "t:o:vh");
+  cxxopts::ParseResult vm;
 
-    if (c == -1) break;
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
+  }
 
-    switch (c) {
+  if (vm.count("help")) {
+    std::cout << options.help() << std::endl;
+    exit(-1);
+  }
 
-    case 't':
-      time = atof(optarg);
-      break;
-
-    case 'o':
-      outfile.erase();
-      outfile = optarg;
-      break;
-
-    case 'v':
-      verbose = true;
-      break;
-
-    case '?':
-    case 'h':
-    default:
-      Usage(prog);
-    }
-
+  if (vm.count("verbose")) {
+    verbose = true;
   }
 
   ofstream out(outfile.c_str());
@@ -82,7 +66,6 @@ main(int argc, char **argv)
     cerr << "Error opening <" << outfile << "> for output\n";
     exit(-1);
   }
-
 
   const int lenbuf = 1024;
   char buf[lenbuf];
@@ -105,14 +88,14 @@ main(int argc, char **argv)
     }
   }
 
-  vector<ifstream*> in;
-  vector<ComponentHeader> headers;
+  std::vector<std::shared_ptr<ifstream>> in;
+  std::vector<ComponentHeader> headers;
 
   int ntmp, ntot=0;
   ComponentHeader header;
 
   for (int i=0; i<N; i++) {
-    ifstream *in2 = new ifstream(names[i].c_str());
+    auto in2 = std::make_shared<ifstream>(names[i].c_str());
     if (!*in2) {
       cerr << "Error opening file <" << names[i] << "> for input\n";
       exit(-1);
@@ -160,7 +143,7 @@ main(int argc, char **argv)
   master.time = time;
   master.ntot = ntot;
   master.ncomp = N;
-
+  
   // Write master header
   out.write((char *)&master, sizeof(MasterHeader));
   
@@ -168,8 +151,8 @@ main(int argc, char **argv)
 
   for (int i=0; i<N; i++) {
 
-    vector<int>     ivec(max<int>(1, headers[i].niatr));
-    vector<double>  dvec(max<int>(1, headers[i].ndatr));
+    std::vector<int>     ivec(max<int>(1, headers[i].niatr));
+    std::vector<double>  dvec(max<int>(1, headers[i].ndatr));
 
     headers[i].write(&out);
 

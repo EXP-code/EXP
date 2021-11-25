@@ -13,13 +13,13 @@
 double factrl(int n);
 double plgndr(int l, int m, double x);
 
-BiorthGrid::BiorthGrid(AxiSymBiorth& T, double RMIN, double RMAX, 
+BiorthGrid::BiorthGrid(AxiSymBioPtr T, double RMIN, double RMAX, 
 		       int NMAX, int LMAX, int RNUM)
 {
-  BiorthID = "BiorthGrid(" + T.BiorthID + ")";
-  dof = T.get_dof();
+  BiorthID = "BiorthGrid(" + T->BiorthID + ")";
+  dof = T->get_dof();
   
-  t = &T;
+  t = T;
 
   rmin = RMIN;
   rmax = RMAX;
@@ -27,8 +27,8 @@ BiorthGrid::BiorthGrid(AxiSymBiorth& T, double RMIN, double RMAX,
   nmax = NMAX;
   rnum = RNUM;
 
-  xmin = T.r_to_rb(rmin);
-  xmax = T.r_to_rb(rmax);
+  xmin = T->r_to_rb(rmin);
+  xmax = T->r_to_rb(rmax);
 
   potl_grid  .resize(lmax+1);
   potl_grid2 .resize(lmax+1);
@@ -52,12 +52,12 @@ BiorthGrid::BiorthGrid(AxiSymBiorth& T, double RMIN, double RMAX,
 
     for (int n=0; n<nmax; n++) {
 
-      krnl_grid(n, l) = T.krnl(n, l);
-      norm_grid(n, l) = sqrt(T.norm(n, l));
+      krnl_grid(n, l) = T->krnl(n, l);
+      norm_grid(n, l) = sqrt(T->norm(n, l));
 
       for (int ir=0; ir<rnum; ir++) {
-	potl_grid[l](n, ir) = T.potl(n, l, x_grid[ir]);
-	dens_grid[l](n, ir) = T.dens(n, l, x_grid[ir]);
+	potl_grid[l](n, ir) = T->potl(n, l, x_grid[ir]);
+	dens_grid[l](n, ir) = T->dens(n, l, x_grid[ir]);
       }
 
       Eigen::VectorXd work(potl_grid2[l].row(n).size());

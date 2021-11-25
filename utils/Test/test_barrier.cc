@@ -27,11 +27,12 @@
  *
  ***************************************************************************/
 
-#include <cstdlib>
+#include <functional>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
 #include <string>
 #include <cstring>
 #include <vector>
@@ -41,12 +42,13 @@
 #include <cstdlib>
 #include <cmath>
 
-#include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
+#include <unistd.h>
 
 #include <BarrierWrapper.H>
+#include <cxxopts.H>
 
-namespace po = boost::program_options;
+std::mt19937 random_gen;
+std::string outdir, runtag;
 
 using namespace std;
 
@@ -72,36 +74,42 @@ int main(int argc, char **argv)
   bool barrier_extra, barrier_debug, barrier_label;
   int  times, vsize, ndice;
 
-  po::variables_map vm;
+  cxxopts::Options options(argv[0], "Test mpi barrier wrapper");
 
-  po::options_description desc("Available options");
-  desc.add_options()
-    ("help,h",
-     "Produce help message")
-    ("mistake,m",
-     "Make an intentional mistake to break synchronization")
-    ("broken,b",
-     "Intentionally change label to test synchronization error")
-    ("times,n", po::value<int >(&times)->default_value(10),            "number of iterations")
-    ("dice,d",  po::value<int >(&ndice)->default_value(1),             "number of dice to roll")
-    ("size,s",  po::value<int >(&vsize)->default_value(1000),          "data size")
-    ("check,C", po::value<bool>(&barrier_check)->default_value(true),  "check the barrier")
-    ("label,l", po::value<bool>(&barrier_label)->default_value(true),  "use labeling")
-    ("light,L", po::value<bool>(&barrier_light)->default_value(false), "light-weight barrier")
-    ("extra,V", po::value<bool>(&barrier_extra)->default_value(false),  "extra verbose")
-    ("debug,D", po::value<bool>(&barrier_debug)->default_value(false),  "turn on debugging")
+  options.add_options()
+   ("h,help", "Produce help message")
+   ("m,mistake", "Make an intentional mistake to break synchronization")
+   ("b,broken", "Intentionally change label to test synchronization error")
+   ("n,times", "number of iterations",
+     cxxopts::value<int >(times)->default_value("10"))
+   ("d,dice", "number of dice to roll",
+     cxxopts::value<int >(ndice)->default_value("1"))
+   ("s,size", "data size",
+     cxxopts::value<int >(vsize)->default_value("1000"))
+   ("C,check", "check the barrier",
+     cxxopts::value<bool>(barrier_check)->default_value("true"))
+   ("l,label", "use labeling",
+     cxxopts::value<bool>(barrier_label)->default_value("true"))
+   ("L,light", "light-weight barrier",
+     cxxopts::value<bool>(barrier_light)->default_value("false"))
+   ("V,extra", "extra verbose",
+     cxxopts::value<bool>(barrier_extra)->default_value("false"))
+   ("D,debug", "turn on debugging",
+     cxxopts::value<bool>(barrier_debug)->default_value("false"))
     ;
 
+  cxxopts::ParseResult vm;
+
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch(boost::program_options::error& e){
-    std::cerr << "Invalid_option_value exception thrown parsing config file:"
-	      << std::endl << e.what() << std::endl;
-    return 2;
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
+    return 1;
   } catch(std::exception e){
-    std::cerr <<"Exception thrown parsing config file:" 
-	      << std::endl << e.what() << std::endl;
+    if (myid==0) std::cerr <<"Exception thrown parsing config file:" 
+			   << std::endl << e.what() << std::endl;
+    MPI_Finalize();
     return 2;
   }
 
@@ -116,7 +124,7 @@ int main(int argc, char **argv)
 		<< "Usage: " << argv[0] << " [options] file" << std::endl
 		<< std::setfill('-') << setw(76) << '-' 
 		<< std::endl << std::setfill(' ')
-		<< desc << std::endl;
+		<< options.help() << std::endl;
     }
     
     MPI_Finalize();
@@ -147,8 +155,8 @@ int main(int argc, char **argv)
   // Do stuff
   //--------------------------------------------------
 
-  typedef std::shared_ptr<BarrierWrapper> BWptr;
-  BWptr barrier(new BarrierWrapper(MPI_COMM_WORLD, barrier_label));
+  auto barrier =
+    std::make_shared<BarrierWrapper>(MPI_COMM_WORLD, barrier_label);
 
   if (barrier_check) barrier->on();
   else               barrier->off();

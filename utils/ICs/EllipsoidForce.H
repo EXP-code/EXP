@@ -1,10 +1,11 @@
 #ifndef EllipForce_H
 #define EllipForce_H
 
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
+#include <memory>
 #include <vector>
-#include <algorithm>
 
 #include <interp.H>
 #include <gaussQ.H>
@@ -52,7 +53,7 @@ private:
   double mass, param, rho0, rmin, rmax;
   BarType bartype;
 
-  LegeQuad *gq, *gz, *gt;
+  std::shared_ptr<LegeQuad> gq, gz, gt;
 
   int num, numr, N;
 

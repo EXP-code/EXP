@@ -16,12 +16,8 @@ using namespace std;
 #include <string>
 #include <list>
 
-#include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
-
 #include <Progress.H>
-
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
 #include <StringTok.H>
 #include <FileUtils.H>
@@ -53,55 +49,45 @@ main(int ac, char **av)
 
   // Parse command line
   //
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",
-     "produce help message")
-    ("verbose,v",
-     "verbose output")
-    ("rmax,R",
-     po::value<double>(&rmax)->default_value(0.05),
-     "maximum component extent")
-    ("numr,N",
-     po::value<int>(&numr)->default_value(40),
-     "number of grid points per dimension")
-    ("comp,c",
-     po::value<std::string>(&cname)->default_value("star"),
-     "component name")
-    ("dir,d",
-     po::value<std::string>(&dir)->default_value("./"),
-     "output directory")
-    ("output,o",
-     po::value<std::string>(&outp)->default_value("densgrid"),
-     "output prefix")
-    ("psptype,p",
-     po::value<std::string>(&fpre)->default_value("OUT"),
-     "PSP type (OUT or SPL)")
-    ("runtag,r",
-     po::value<std::string>(&runtag)->default_value("run001"),
-     "run tag")
-    ("beg,i",
-     po::value<int>(&ibeg)->default_value(0),
-     "initial snap shot number")
-    ("end,f",
-     po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()),
-     "final snap shot number")
+  cxxopts::Options options(prog, "Separate a psp structure and make a 2d density grid\n");
+
+  options.add_options()
+   ("h,help", "produce help message")
+   ("v,verbose", "verbose output")
+   ("R,rmax", "maximum component extent",
+     cxxopts::value<double>(rmax)->default_value("0.05"))
+   ("N,numr", "number of grid points per dimension",
+     cxxopts::value<int>(numr)->default_value("40"))
+   ("c,comp", "component name",
+     cxxopts::value<std::string>(cname)->default_value("star"))
+   ("d,dir", "output directory",
+     cxxopts::value<std::string>(dir)->default_value("./"))
+   ("o,output", "output prefix",
+     cxxopts::value<std::string>(outp)->default_value("densgrid"))
+   ("p,psptype", "PSP type (OUT or SPL)",
+     cxxopts::value<std::string>(fpre)->default_value("OUT"))
+   ("r,runtag", "run tag",
+     cxxopts::value<std::string>(runtag)->default_value("run001"))
+   ("i,beg", "initial snap shot number",
+     cxxopts::value<int>(ibeg)->default_value("0"))
+   ("f,end", "final snap shot number",
+     cxxopts::value<int>(iend)->default_value(std::to_string(std::numeric_limits<int>::max())))
     ;
 
-  po::variables_map vm;
+  
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
 
   if (vm.count("help")) {
     if (myid==0) {
-      std::cout << desc << std::endl;
+      std::cout << options.help() << std::endl;
       std::cout << "Example: " << std::endl;
       std::cout << "\t" << av[0]
 		<< " --runtag=run001" << std::endl;
@@ -159,9 +145,9 @@ main(int ac, char **av)
 	      << std::endl;
   }
 
-  std::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (myid==0) {
-    progress = std::make_shared<boost::progress_display>(iend - ibeg + 1);
+    progress = std::make_shared<progress::progress_display>(iend - ibeg + 1);
   }
 
   // Snapshot loop

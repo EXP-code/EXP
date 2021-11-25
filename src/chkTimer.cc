@@ -6,6 +6,8 @@
 #include <sstream>
 #include <vector>
 
+#include <unistd.h>		// for sleep()
+
 #include <expand.H>
 #include <chkTimer.H>
 

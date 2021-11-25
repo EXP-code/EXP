@@ -2,24 +2,17 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <memory>
 #include <vector>
 #include <cmath>
 
-// Boost stuff
-//
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-
 #include <Eigen/Eigen>
-
-namespace po = boost::program_options;
 
 #include <global.H>
 #include <localmpi.H>
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <gaussQ.H>		// Gauss-Legendre quadrature
+#include <cxxopts.H>		// Option parsing
 
 
 //===========================================================================
@@ -174,7 +167,7 @@ double Shift::shift(double r, int l, int m)
 }
 
 
-boost::shared_ptr<Shift> shift;
+std::shared_ptr<Shift> shift;
 
 double shift_func(double r, int l, int m)
 {
@@ -340,47 +333,48 @@ main(int argc, char** argv)
   // Parse command line
   //====================
 
-  po::options_description desc("Check the consistency of a linear shift in the basis\nAllowed options");
-  desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("use_mpi",             po::value<bool>(&use_mpi)->default_value(false),
-     "using parallel computation")
-    ("check_bio",           po::value<bool>(&check_bio)->default_value(false),
-     "check consistency of biorthogonal set")
-    ("surface",             po::value<bool>(&surface)->default_value(false),
-     "print out surface cuts of the reconstructed shift")
-    ("dump",                po::value<bool>(&dump)->default_value(false),
-     "print the coefficients to a file")
-    ("cmap",                po::value<int>(&cmap)->default_value(0),
-     "coordinate scaling in SphereSL")
-    ("scale",               po::value<double>(&scale)->default_value(1.0),
-     "scaling from real coordinates to table")
-    ("Lmax",                po::value<int>(&Lmax)->default_value(2),
-     "maximum number of angular harmonics in the expansion")
-    ("nmax",                po::value<int>(&nmax)->default_value(10),
-     "maximum number of radial harmonics in the expansion")
-    ("numr",                po::value<int>(&numr)->default_value(1000),
-     "radial knots in the shift operator")
-    ("rmin",                po::value<double>(&rmin)->default_value(0.0001),
-     "minimum radius for the shift operator")
-    ("rmax",                po::value<double>(&rmax)->default_value(1.95),
-     "maximum radius for the shift operator")
-    ("rs",                  po::value<double>(&rs)->default_value(0.067),
-     "cmap scale factor")
-    ("delr",                po::value<double>(&delr)->default_value(0.003),
-     "horizontal shift for test")
-    ("xmax",                po::value<double>(&xmax)->default_value(1.0),
-     "radial scale for output")
-    ("numx",                po::value<int>(&numx)->default_value(100),
-     "number of output knots per side")
-    ("numt",                po::value<int>(&numt)->default_value(40),
-     "number of theta knots in shift operator")
-    ("nump",                po::value<int>(&nump)->default_value(40),
-     "number of phi knots in shift operator")
-    ("delta",               po::value<double>(&delta)->default_value(0.05),
-     "fractional displacement for two-point numerical derivative")
-    ("outfile",             po::value<string>(&outfile)->default_value("slshift"),
-     "output file prefix")
+  cxxopts::Options options(argv[0], "Check the consistency of a linear shift in the basis");
+
+  options.add_options()
+   ("h,help", "Print this help message")
+   ("use_mpi", "using parallel computation",
+     cxxopts::value<bool>(use_mpi)->default_value("false"))
+   ("check_bio", "check consistency of biorthogonal set",
+     cxxopts::value<bool>(check_bio)->default_value("false"))
+   ("surface", "print out surface cuts of the reconstructed shift",
+     cxxopts::value<bool>(surface)->default_value("false"))
+   ("dump", "print the coefficients to a file",
+     cxxopts::value<bool>(dump)->default_value("false"))
+   ("cmap", "coordinate scaling in SphereSL",
+     cxxopts::value<int>(cmap)->default_value("0"))
+   ("scale", "scaling from real coordinates to table",
+     cxxopts::value<double>(scale)->default_value("1.0"))
+   ("Lmax", "maximum number of angular harmonics in the expansion",
+     cxxopts::value<int>(Lmax)->default_value("2"))
+   ("nmax", "maximum number of radial harmonics in the expansion",
+     cxxopts::value<int>(nmax)->default_value("10"))
+   ("numr", "radial knots in the shift operator",
+     cxxopts::value<int>(numr)->default_value("1000"))
+   ("rmin", "minimum radius for the shift operator",
+     cxxopts::value<double>(rmin)->default_value("0.0001"))
+   ("rmax", "maximum radius for the shift operator",
+     cxxopts::value<double>(rmax)->default_value("1.95"))
+   ("rs", "cmap scale factor",
+     cxxopts::value<double>(rs)->default_value("0.067"))
+   ("delr", "horizontal shift for test",
+     cxxopts::value<double>(delr)->default_value("0.003"))
+   ("xmax", "radial scale for output",
+     cxxopts::value<double>(xmax)->default_value("1.0"))
+   ("numx", "number of output knots per side",
+     cxxopts::value<int>(numx)->default_value("100"))
+   ("numt", "number of theta knots in shift operator",
+     cxxopts::value<int>(numt)->default_value("40"))
+   ("nump", "number of phi knots in shift operator",
+     cxxopts::value<int>(nump)->default_value("40"))
+   ("delta", "fractional displacement for two-point numerical derivative",
+     cxxopts::value<double>(delta)->default_value("0.05"))
+   ("outfile", "output file prefix",
+     cxxopts::value<string>(outfile)->default_value("slshift"))
     ;
 
   //===================
@@ -390,25 +384,22 @@ main(int argc, char** argv)
     local_init_mpi(argc, argv);
   }
 
-  po::variables_map vm;
-  
-  // Parse command line for control and critical parameters
-  //
+
+  cxxopts::ParseResult vm;
+
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    if (myid==0) std::cout << "Option error on command line: "
-			   << e.what() << std::endl;
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
-    return -1;
+    return 2;
   }
-  
+
   // Print help message and exit
   //
   if (vm.count("help")) {
     if (myid == 0) {
-      std::cout << desc << std::endl << std::endl;
+      std::cout << options.help() << std::endl << std::endl;
     }
     if (use_mpi) MPI_Finalize();
     return 1;
@@ -466,7 +457,7 @@ main(int argc, char** argv)
     //===================
 
 				// Construct coefficients
-    shift = boost::make_shared<Shift>(delr, rmin, rmax, Lmax, numr, numt, nump);
+    shift = std::make_shared<Shift>(delr, rmin, rmax, Lmax, numr, numt, nump);
 
     //===================
     // Shifted profile

@@ -4,9 +4,8 @@ set(bin_PROGRAMS diskcoef halocoef diskcoef diskprof haloprof slabprof
   pcatest readcoefsD readcoefsH sphprof pspxvalH pspxvalH2 pspxvalD
   pspxvalD2 pspKLH pspKLD diskeof yaml_diff kdtest)
 
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
-  Boost::program_options PNG::PNG yaml-cpp exputil EXP
-  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG yaml-cpp
+  exputil EXP ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
@@ -20,12 +19,12 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC} ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/.. ${HDF5_INCLUDE_DIRS} ${VTK_INCLUDE})
+  ${CMAKE_CURRENT_SOURCE_DIR}/.. ${HDF5_INCLUDE_DIRS})
 
 add_executable(diskcoef    diskprof_coef.cc Coefs.cc)
 add_executable(halocoef    haloprof_coef.cc Coefs.cc SphereSL.cc)
-add_executable(diskprof    diskprof2.cc ParticleReader.cc)	    
-add_executable(haloprof    haloprof2.cc SphereSL.cc ParticleReader.cc)
+add_executable(diskprof    diskprof.cc ParticleReader.cc)	    
+add_executable(haloprof    haloprof.cc SphereSL.cc ParticleReader.cc)
 add_executable(slabprof    slabprof.cc ParticleReader.cc)
 add_executable(psphisto    psphisto.cc ParticleReader.cc)
 add_executable(gas2d       gas2dcyl.cc ParticleReader.cc)
@@ -36,8 +35,8 @@ add_executable(diskfreqs   diskfreqs.cc Coefs.cc SphereSL.cc ParticleReader.cc)
 add_executable(mssaprofD   mssaprof_disk.cc ParticleReader.cc)
 add_executable(mssaprofH   mssaprof_halo.cc SphereSL.cc ParticleReader.cc)
 add_executable(pcatest     pcatest.cc ParticleReader.cc)
-add_executable(readcoefsD  readcoefs.cc  Coefs.cc)
-add_executable(readcoefsH  readcoefs2F.cc Coefs.cc)
+add_executable(readcoefsD  readcoefsD.cc  Coefs.cc)
+add_executable(readcoefsH  readcoefsH.cc Coefs.cc)
 add_executable(sphprof     sphprof.cc ParticleReader.cc SphereSL.cc)
 add_executable(pspxvalH    cross_validation_sph.cc ParticleReader.cc SphereSL.cc)
 add_executable(pspxvalH2   cross_validation_sph2.cc ParticleReader.cc SphereSL.cc)

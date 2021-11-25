@@ -11,8 +11,8 @@ class DiskWithHalo : public AxiSymModel
 {
 private:
   
-  AxiSymModel *d;
-  AxiSymModel *h;
+  std::shared_ptr<AxiSymModel> d;
+  std::shared_ptr<AxiSymModel> h;
 
 public:
 
@@ -20,7 +20,7 @@ public:
   DiskWithHalo() : d(0), h(0) {}
 
   // Useful constructor
-  DiskWithHalo(AxiSymModel *D, AxiSymModel* H) 
+  DiskWithHalo(std::shared_ptr<AxiSymModel> D, std::shared_ptr<AxiSymModel> H) 
   {
     d       = D;
     h       = H;

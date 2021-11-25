@@ -1,12 +1,11 @@
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
 #include <vector>
 #include <string>
-#include <algorithm>
+#include <memory>
 #include <map>
-
-#include <boost/make_shared.hpp>
 
 #include <Component.H>
 #include <Bessel.H>
@@ -147,6 +146,7 @@ Component::Component(YAML::Node& CONF)
 #if HAVE_LIBCUDA==1
   bunchSize   = 100000;
 #endif
+  
   timers      = false;
 				// Null out pointers
   orient      = 0;
@@ -619,6 +619,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 #if HAVE_LIBCUDA==1
   bunchSize   = 100000;
 #endif
+
   timers      = false;
 
   force       = 0;		// Null out pointers
@@ -710,6 +711,9 @@ void Component::configure(void)
     if (cconf["keypos"  ])     keyPos  = cconf["keypos"  ].as<int>();
     if (cconf["pbufsiz" ])    pBufSiz  = cconf["pbufsiz" ].as<int>();
     if (cconf["blocking"])   blocking  = cconf["blocking"].as<bool>();
+#if HAVE_LIBCUDA==1
+    if (cconf["bunch"   ])  bunchSize  = cconf["bunch"   ].as<int>();
+#endif
     
     if (cconf["ton"]) {
       ton = cconf["ton"].as<double>();
@@ -1188,7 +1192,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// Read in Node 0's particles
     for (unsigned i=1; i<=nbodies_table[0]; i++) {
 
-      PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+      PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
       
       part->readAscii(aindex, i, &fin);
 				// Get the radius
@@ -1214,7 +1218,7 @@ void Component::read_bodies_and_distribute_ascii(void)
       ibufcount = 0;
       while (icount < nbodies_table[n]) {
 
-	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+	PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
 
 	int i = nbodies_index[n-1] + 1 + icount;
 	part->readAscii(aindex, i, &fin);
@@ -1303,7 +1307,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
   ComponentHeader header;
 				// Node local parameter buffer
   int ninfochar;
-  boost::shared_array<char> info;
+  std::shared_ptr<char> info;
   
   if (myid == 0) {
 
@@ -1329,9 +1333,15 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
     ndattrib    = header.ndatr;
     ninfochar   = header.ninfochar;
 
-    info = boost::shared_array<char>(new char [ninfochar+1]);
+    // Use this as of C++17
+    // info = std::make_shared<char[]>(ninfochar+1);
+
+    // C++14 Workaround
+    info = std::shared_ptr<char>(new char[ninfochar+1],
+				 std::default_delete<char[]>());
+
 				// Zero fill array
-    std::fill(info.get(), info.get() + (ninfochar+1), 0);
+    std::fill(info.get(), info.get()+ninfochar+1, 0);
 				// Copy into array
     memcpy(info.get(), header.info.get(), ninfochar);
   }
@@ -1346,9 +1356,15 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
   MPI_Bcast(&ndattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ninfochar,   1, MPI_INT, 0, MPI_COMM_WORLD);
   if (myid) {
-    info = boost::shared_array<char>(new char [ninfochar+1]);
+    // Use this as of C++17
+    // info = std::make_shared<char[]>(ninfochar+1);
+
+    // C++14 workaround:
+    info = std::shared_ptr<char>(new char[ninfochar+1],
+				 std::default_delete<char[]>());
+
 				// Zero fill array
-    std::fill(info.get(), info.get() + (ninfochar+1), 0);
+    std::fill(info.get(), info.get()+ninfochar+1, 0);
   }
   MPI_Bcast(info.get(), ninfochar, MPI_CHAR, 0, MPI_COMM_WORLD);
 
@@ -1456,7 +1472,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
     rmax1 = 0.0;
     for (unsigned i=1; i<=nbodies_table[0]; i++)
     {
-      PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+      PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
       
       part->readBinary(rsize, indexing, ++seq_cur, in);
 
@@ -1484,7 +1500,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 
       icount = 0;
       while (icount < nbodies_table[n]) {
-	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+	PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
 
 	part->readBinary(rsize, indexing, ++seq_cur, in);
 
@@ -1594,7 +1610,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
   // Node local parameter buffer
   //
   int ninfochar;
-  boost::shared_array<char> info;
+  std::unique_ptr<char[]> info;
   
   // Number of split files
   int number = 0;
@@ -1631,7 +1647,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
     ndattrib    = header.ndatr;
     ninfochar   = header.ninfochar;
 
-    info = boost::shared_array<char>(new char [ninfochar+1]);
+    info = std::make_unique<char[]>(ninfochar+1);
 
     // Zero fill array
     //
@@ -1652,7 +1668,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
   MPI_Bcast(&ndattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ninfochar,   1, MPI_INT, 0, MPI_COMM_WORLD);
   if (myid) {
-    info = boost::shared_array<char>(new char [ninfochar+1]);
+    info = std::make_unique<char[]>(ninfochar+1);
 
     // Zero fill array
     //
@@ -1791,7 +1807,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
     rmax1 = 0.0;
     for (unsigned i=1; i<=nbodies_table[0]; i++)
     {
-      PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+      PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
       
       part->readBinary(rsize, indexing, ++seq_cur, &fin);
 
@@ -1825,7 +1841,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 
       icount = 0;
       while (icount < nbodies_table[n]) {
-	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+	PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
 
 	part->readBinary(rsize, indexing, ++seq_cur, &fin);
 
@@ -2056,7 +2072,12 @@ void Component::write_binary(ostream* out, bool real4)
     size_t infosz = outs.str().size() + 4;
     if (header.ninfochar < outs.str().size()) {
       header.ninfochar = outs.str().size();
-      header.info = boost::shared_array<char>(new char [header.ninfochar]);
+      // Use this as of C++17
+      // header.info = std::make_shared<char[]>(header.ninfochar+1);
+
+      // C++14 workaround:
+      header.info = std::shared_ptr<char>(new char[header.ninfochar+1],
+					  std::default_delete<char[]>());
     }
 
     // Copy to info string
@@ -2122,7 +2143,12 @@ void Component::write_binary_header(ostream* out, bool real4, const std::string 
     size_t infosz = outs.str().size() + 4;
     if (header.ninfochar < outs.str().size()) {
       header.ninfochar = outs.str().size();
-      header.info = boost::shared_array<char>(new char [header.ninfochar]);
+      // Use this as of C++17
+      // header.info = std::make_shared<char[]>(header.ninfochar+1);
+
+      // C++14 workaround:
+      header.info = std::shared_ptr<char>(new char[header.ninfochar+1],
+					  std::default_delete<char[]>());
     }
 
     // Copy to info string
@@ -3547,7 +3573,7 @@ Particle* Component::GetNewPart()
 {
   // Create new particle
   //
-  PartPtr newp = boost::make_shared<Particle>(niattrib, ndattrib);
+  PartPtr newp = std::make_shared<Particle>(niattrib, ndattrib);
 
   // Denote unsequenced particle
   //

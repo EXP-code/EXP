@@ -41,18 +41,6 @@
 #include <queue>
 #include <map>
 
-				// Boost stuff
-
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/make_unique.hpp>
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
-#include <Progress.H>
-
-namespace po = boost::program_options;
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -66,6 +54,8 @@ namespace po = boost::program_options;
 
 #include <global.H>
 #include <localmpi.H>
+#include <Progress.H>
+#include <cxxopts.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -80,7 +70,7 @@ main(int argc, char **argv)
   
   double RMIN, rscale, minSNR0, Hexp, ROUT, ZOUT;
   int NICE, LMAX, NMAX, NSNR, indx, nbunch, Ndens, NOUT, NPHI;
-  std::string CACHEFILE, dir("./"), cname, prefix, fileType, filePrefix;
+  std::string cachefile, dir("./"), cname, prefix, fileType, filePrefix;
   bool ignore;
 
   // ==================================================
@@ -93,58 +83,53 @@ main(int argc, char **argv)
        << std::string(60, '-') << std::endl << std::endl
        << "Allowed options";
   
-  po::options_description desc(sout.str());
-  desc.add_options()
-    ("help,h",
-     "Print this help message")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("Ndens,K",             po::value<int>(&Ndens)->default_value(32),
-     "KD density estimate count (use 0 for expansion estimate)")
-    ("NICE",                po::value<int>(&NICE)->default_value(0),
-     "system priority")
-    ("NOUT",                po::value<int>(&NOUT)->default_value(40),
-     "Number of grid points for surface output")
-    ("ROUT",                po::value<double>(&ROUT)->default_value(0.05),
-     "Maximum radius for output")
-    ("ZOUT",                po::value<double>(&ZOUT)->default_value(0.01),
-     "Maximum height for output")
-    ("NPHI",                po::value<int>(&NPHI)->default_value(16),
-     "Number of azimuthal bins")
-    ("prefix",              po::value<string>(&prefix)->default_value("kdtest"),
-     "Filename prefix")
-    ("runtag",              po::value<string>(&runtag)->default_value("run1"),
-     "Phase space file")
-    ("outdir",              po::value<string>(&outdir)->default_value("."),
-     "Output directory path")
-    ("indx",                po::value<int>(&indx)->default_value(0),
-     "PSP index")
-    ("dir,d",               po::value<std::string>(&dir),
-     "directory for SPL files")
-    ("cachefile",
-     po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
-     "cachefile name")
-    ("cname",
-     po::value<std::string>(&cname)->default_value("star disk"),
-     "component name")
+  cxxopts::Options options("kdtest", sout.str());
+
+  options.add_options()
+    ("h,help", "Print this help message")
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,type", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("K,Ndens", "KD density estimate count (use 0 for expansion estimate)",
+     cxxopts::value<int>(Ndens)->default_value("32"))
+    ("NICE", "system priority",
+     cxxopts::value<int>(NICE)->default_value("0"))
+    ("NOUT", "Number of grid points for surface output",
+     cxxopts::value<int>(NOUT)->default_value("40"))
+    ("ROUT", "Maximum radius for output",
+     cxxopts::value<double>(ROUT)->default_value("0.05"))
+    ("ZOUT", "Maximum height for output",
+     cxxopts::value<double>(ZOUT)->default_value("0.01"))
+    ("NPHI", "Number of azimuthal bins",
+     cxxopts::value<int>(NPHI)->default_value("16"))
+    ("prefix", "Filename prefix",
+     cxxopts::value<std::string>(prefix)->default_value("kdtest"))
+    ("runtag", "Phase space file",
+     cxxopts::value<std::string>(runtag)->default_value("run1"))
+    ("outdir", "Output directory path",
+     cxxopts::value<std::string>(outdir)->default_value("."))
+    ("indx", "PSP index",
+     cxxopts::value<int>(indx)->default_value("0"))
+    ("d,dir", "directory for SPL files",
+     cxxopts::value<std::string>(dir))
+    ("cachefile", "cachefile name",
+     cxxopts::value<std::string>(cachefile)->default_value(".eof.cache.file"))
+    ("cname","component name",
+     cxxopts::value<std::string>(cname)->default_value("star disk"))
     ;
   
   // ==================================================
   // MPI preliminaries
   // ==================================================
-
+  
   local_init_mpi(argc, argv);
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
     exit(-1);
@@ -155,7 +140,7 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    if (myid==0) std::cout << std::endl << desc << std::endl;
+    if (myid==0) std::cout << std::endl << options.help() << std::endl;
     MPI_Finalize();
     return 0;
   }
@@ -178,12 +163,12 @@ main(int argc, char **argv)
 
   if (not ignore) {
 
-    std::ifstream in(CACHEFILE);
+    std::ifstream in(cachefile);
     if (!in) {
       std::cerr << "Error opening cachefile named <" 
-		<< CACHEFILE << "> . . ."
+		<< cachefile << "> . . ."
 		<< std::endl
-		<< "I will build <" << CACHEFILE
+		<< "I will build <" << cachefile
 		<< "> but it will take some time."
 		<< std::endl
 		<< "If this is NOT what you want, "
@@ -207,7 +192,7 @@ main(int argc, char **argv)
 	
 	// Make and read char buffer
 	//
-	auto buf = boost::make_unique<char[]>(ssize+1);
+	auto buf = std::make_unique<char[]>(ssize+1);
 	in.read(buf.get(), ssize);
 	buf[ssize] = 0;		// Null terminate
 
@@ -277,14 +262,14 @@ main(int argc, char **argv)
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = logl;
   EmpCylSL::DENS        = DENS;
-  EmpCylSL::CACHEFILE   = CACHEFILE;
+  EmpCylSL::CACHEFILE   = cachefile;
 
 				// Create expansion
 				//
   EmpCylSL ortho(NMAX, LMAX, mmax, norder, rscale, vscale);
     
   if (ortho.read_cache()==0) {
-    std::cout << "Could not read cache file <" << CACHEFILE << ">"
+    std::cout << "Could not read cache file <" << cachefile << ">"
 	      << " . . . quitting" << std::endl;
     MPI_Finalize();
     exit(0);
@@ -316,7 +301,8 @@ main(int argc, char **argv)
 
   int iok = 1;
 
-  auto file1 = ParticleReader::fileNameCreator(fileType, indx, dir, runtag);
+  auto file1 = ParticleReader::fileNameCreator
+    (fileType, indx, myid, dir, runtag);
 
   std::ifstream in(file1);
   if (!in) {
@@ -343,7 +329,7 @@ main(int argc, char **argv)
   // Open PSP file
   // ==================================================
 
-  PRptr reader = ParticleReader::createReader(fileType, file1, true);
+  PRptr reader = ParticleReader::createReader(fileType, file1, myid, true);
   
   double tnow = reader->CurrentTime();
   if (myid==0) std::cout << "Beginning partition [time=" << tnow
@@ -353,12 +339,12 @@ main(int argc, char **argv)
 
   int nbod = reader->CurrentNumber();
 
-  boost::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (myid==0) {
     std::cout << std::endl
 	      << "Accumulating particle positions . . . "
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(nbod);
+    progress = std::make_shared<progress::progress_display>(nbod);
   }
 
   auto p = reader->firstParticle();
@@ -414,7 +400,7 @@ main(int argc, char **argv)
     std::cout << std::endl
 	      << "Evaluating field quantities . . . "
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(NOUT*NOUT);
+    progress = std::make_shared<progress::progress_display>(NOUT*NOUT);
   }
 
   // Evaluate the fields

@@ -18,10 +18,10 @@ class Perturbation  {
 protected:
 
   //! Cached model instance
-  AxiSymModel *model;
+  std::shared_ptr<AxiSymModel> model;
 
   //! Cached biorthogonal function instance
-  AxiSymBiorth *biorth;
+  std::shared_ptr<AxiSymBiorth> biorth;
 
   //! True if perturbation has been computed
   bool computed;
@@ -111,13 +111,13 @@ public:
   double Omega(void) { if (!omega_computed) compute_omega(); return omega; }
 
   //! Compute (recompute) the perturbation
-  void compute_perturbation(AxiSymModel *halo_model, 
-			    AxiSymBiorth *halo_ortho,
+  void compute_perturbation(AxiSymModPtr halo_model, 
+			    AxiSymBioPtr halo_ortho,
 			    Eigen::VectorXcd& total, Eigen::VectorXcd& pp);
 
 
   //! Register halo model with perturbation
-  void set_model(AxiSymModel *halo_model) { model = halo_model; }
+  void set_model(AxiSymModPtr halo_model) { model = halo_model; }
 
 
   //! Compute the expansion coefficients

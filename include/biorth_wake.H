@@ -47,8 +47,8 @@ private:
   std::complex<double> I;
   Eigen::VectorXcd ylm;
   bool init_orientation;
-  double *param;
-  double **ambp, *amby, *ptry, *psum;
+  std::vector<double> param, psum, ptry, amby;
+  std::vector<std::vector<double>> ambp;
 
   int iter, ll, mm;
   double tol;
@@ -57,9 +57,9 @@ private:
   static int ndim;
 
   int nfunk;
-  void modulo_param(double *params);
+  void modulo_param(std::vector<double>& params);
   void orientation_init(void);
-  double amoeba_energy(double *params);
+  double amoeba_energy(std::vector<double>& params);
   void get_transform(double& phi, double& theta, double& psi, double& cost);
   void amoeba(void);
   double amotry(int ihi, double fac);
@@ -93,7 +93,7 @@ public:
 
   int get_amoeba_iterations(void) { return nfunk; }
 
-  double energy(double *params);
+  double energy(std::vector<double>& params);
 };
 
 

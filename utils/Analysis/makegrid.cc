@@ -19,13 +19,6 @@
 #include <map>
 
 //
-// BOOST stuff
-//
-#include <boost/program_options.hpp>
-
-namespace po = boost::program_options;
-
-//
 // VTK stuff
 //
 #include <vtkSmartPointer.h>
@@ -38,6 +31,8 @@ namespace po = boost::program_options;
 #include <vtkXMLRectilinearGridWriter.h>
 #include <vtkLookupTable.h>
 #include <vtkVersion.h>
+
+#include <cxxopts.H>
 
 //
 // Helper class for diagnostics
@@ -143,89 +138,86 @@ int main(int argc, char**argv)
        << std::endl
        << "ranges of particle indices for each component"
        << std::endl
-       << std::string(60, '-') << std::endl
-       << std::endl << "Allowed options";
+       << std::string(60, '-') << std::endl;
 
-  po::options_description desc(sout.str());
-  desc.add_options()
-    ("help,h", "produce this help message")
-    ("verbose,v", "verbose output")
-    ("mask,b", "blank empty cells")
-    ("monopole,M", "subtract tabulated monopole")
-    ("relative,D", "density relative to tabulated monopole")
-    ("COM,C", "use COM as origin")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("numx,1", po::value<int>(&numx)->default_value(20), 
-     "number of bins in x direction")
-    ("numy,2", po::value<int>(&numy)->default_value(20), 
-     "number of bins in y direction")
-    ("numz,3", po::value<int>(&numz)->default_value(20), 
-     "number of bins in z direction")
-    ("numr,0", po::value<int>(&numr),
-     "number of bins in each coordinate direction")
-    ("xmin,x", po::value<double>(&xmin)->default_value(-1.0), 
-     "minimum x value")
-    ("xmax,X", po::value<double>(&xmax)->default_value(1.0), 
-     "maximum x value")
-    ("ymin,y", po::value<double>(&ymin)->default_value(-1.0), 
-     "minimum y value")
-    ("ymax,Y", po::value<double>(&ymax)->default_value(1.0), 
-     "maximum y value")
-    ("zmin,z", po::value<double>(&zmin)->default_value(-1.0), 
-     "minimum z value")
-    ("zmax,Z", po::value<double>(&zmax)->default_value(1.0), 
-     "maximum z value")
-    ("rmin,r", po::value<double>(&rmin),
-     "minimum coord value for all dimensions")
-    ("rmax,R", po::value<double>(&rmax),
-     "maximum coord value for all dimensions")
-    ("vscale,V", po::value<double>(&vscale)->default_value(1.0), 
-     "vertical scale factor")
-    ("planecut,P", po::value<double>(&zcut)->default_value(-100.0), 
-     "vertical plane cut")
-    ("time,t", po::value<double>(&time)->default_value(0.0), 
-     "desired PSP time")
-    ("dark-name,d", po::value<string>(&dname),
-     "PSP dark component name")
-    ("star-name,s", po::value<string>(&sname),
-     "PSP star component name")
-    ("gas-name,g", po::value<string>(&cname),
-     "PSP gas component name")
-    ("input,i", po::value<string>(&infile)->default_value("OUT.bin"),
-     "input file name")
-    ("output,o", po::value<string>(&outfile)->default_value("OUT"),
-     "output file ename")
-    ("initial-gas", po::value<unsigned long>(&initial_gas)->default_value(0), 
-     "initial gas particle index")
-    ("final-gas", po::value<unsigned long>(&final_gas)->default_value(std::numeric_limits<long>::max()), 
-     "initial gas particle index")
-    ("initial-star", po::value<unsigned long>(&initial_star)->default_value(0), 
-     "initial star particle index")
-    ("final-star", po::value<unsigned long>(&final_star)->default_value(std::numeric_limits<long>::max()), 
-     "initial star particle index")
-    ("initial-dark", po::value<unsigned long>(&initial_dark)->default_value(0), 
-     "initial dark particle index")
-    ("final-dark", po::value<unsigned long>(&final_dark)->default_value(std::numeric_limits<long>::max()), 
-     "initial dark particle index")
+  cxxopts::Options options(argv[0], sout.str());
+
+  options.add_options()
+    ("h,help", "produce this help message")
+    ("v,verbose", "verbose output")
+    ("b,mask", "blank empty cells")
+    ("M,monopole", "subtract tabulated monopole")
+    ("D,relative", "density relative to tabulated monopole")
+    ("C,COM", "use COM as origin")
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("1,numx", "number of bins in x direction",
+     cxxopts::value<int>(numx)->default_value("20"))
+    ("2,numy", "number of bins in y direction",
+     cxxopts::value<int>(numy)->default_value("20"))
+    ("3,numz", "number of bins in z direction",
+     cxxopts::value<int>(numz)->default_value("20"))
+    ("0,numr", "number of bins in each coordinate direction",
+     cxxopts::value<int>(numr))
+    ("x,xmin", "minimum x value",
+     cxxopts::value<double>(xmin)->default_value("-1.0"))
+    ("X,xmax", "maximum x value",
+     cxxopts::value<double>(xmax)->default_value("1.0"))
+    ("y,ymin", "minimum y value",
+     cxxopts::value<double>(ymin)->default_value("-1.0"))
+    ("Y,ymax", "maximum y value",
+     cxxopts::value<double>(ymax)->default_value("1.0"))
+    ("z,zmin", "minimum z value",
+     cxxopts::value<double>(zmin)->default_value("-1.0"))
+    ("Z,zmax", "maximum z value",
+     cxxopts::value<double>(zmax)->default_value("1.0"))
+    ("r,rmin", "minimum coord value for all dimensions",
+     cxxopts::value<double>(rmin))
+    ("R,rmax", "maximum coord value for all dimensions",
+     cxxopts::value<double>(rmax))
+    ("V,vscale", "vertical scale factor",
+     cxxopts::value<double>(vscale)->default_value("1.0"))
+    ("P,planecut", "vertical plane cut",
+     cxxopts::value<double>(zcut)->default_value("-100.0"))
+    ("t,time", "desired PSP time",
+     cxxopts::value<double>(time)->default_value("0.0"))
+    ("d,dark-name", "PSP dark component name",
+     cxxopts::value<string>(dname))
+    ("s,star-name", "PSP star component name",
+     cxxopts::value<string>(sname))
+    ("g,gas-name", "PSP gas component name",
+     cxxopts::value<string>(cname))
+    ("i,input", "input file name",
+     cxxopts::value<string>(infile)->default_value("OUT.bin"))
+    ("o,output", "output file ename",
+     cxxopts::value<string>(outfile)->default_value("OUT"))
+    ("initial-gas", "initial gas particle index",
+     cxxopts::value<unsigned long>(initial_gas)->default_value("0"))
+    ("final-gas", "initial gas particle index",
+     cxxopts::value<unsigned long>(final_gas)->default_value(std::to_string(std::numeric_limits<long>::max())))
+    ("initial-star", "initial star particle index",
+     cxxopts::value<unsigned long>(initial_star)->default_value("0"))
+    ("final-star", "initial star particle index",
+     cxxopts::value<unsigned long>(final_star)->default_value(std::to_string(std::numeric_limits<long>::max())))
+    ("initial-dark", "initial dark particle index",
+     cxxopts::value<unsigned long>(initial_dark)->default_value("0"))
+    ("final-dark", "initial dark particle index",
+     cxxopts::value<unsigned long>(final_dark)->default_value(std::to_string(std::numeric_limits<long>::max())))
     ;
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
-    cout << desc << "\n";
+    cout << options.help() << std::endl;
     return 1;
   }
  
@@ -251,7 +243,7 @@ int main(int argc, char**argv)
 
 				// Parse the PSP file
 				// ------------------
-  PRptr reader = ParticleReader::createReader(fileType, infile, true);
+  PRptr reader = ParticleReader::createReader(fileType, infile, myid, true);
 
 				// Now write a summary
 				// -------------------

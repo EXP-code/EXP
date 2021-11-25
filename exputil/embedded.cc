@@ -4,12 +4,14 @@
 
 #include <cmath>
 #include <string>
+#include <memory>
 
 #include <QPDistF.H>
 #include <massmodel.H>
 
-EmbeddedDiskModel::EmbeddedDiskModel (AxiSymModel **T, 
-				      double *M_scale, double *R_scale, 
+EmbeddedDiskModel::EmbeddedDiskModel (std::vector<AxiSymModPtr>& T, 
+				      std::vector<double>& M_scale,
+				      std::vector<double>& R_scale, 
 				      int NUMBER)
 {
   number = NUMBER;
@@ -39,7 +41,7 @@ EmbeddedDiskModel::EmbeddedDiskModel (AxiSymModel **T,
 
 EmbeddedDiskModel::~EmbeddedDiskModel()
 {
-  if (dist_defined) delete df;
+  // NADA
 }
 
 double EmbeddedDiskModel::get_mass(const double r)
@@ -96,16 +98,17 @@ void EmbeddedDiskModel::setup_df(int egrid, int kgrid, int mgrid,
   if (rmmax<0.0) rmmax = rmax;
   double remax = rmax;
 
-  df = new QPDistF(this, rmmax, remax, egrid, kgrid, mgrid, 
-		   sigma, lambda, alpha, beta, gama,
-		   roff, eoff, koff, kmin, kmax, nint, numt);
+  df = std::make_shared<QPDistF>(shared_from_this(),
+				 rmmax, remax, egrid, kgrid, mgrid, 
+				   sigma, lambda, alpha, beta, gama,
+				 roff, eoff, koff, kmin, kmax, nint, numt);
 
   dist_defined = true;
 }
 
 void EmbeddedDiskModel::setup_df(string &file)
 {
-  df = new QPDistF(this, file);
+  df = std::make_shared<QPDistF>(shared_from_this(), file);
   dist_defined = true;
 }
 

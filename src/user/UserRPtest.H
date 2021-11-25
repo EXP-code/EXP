@@ -30,9 +30,9 @@ private:
   Component *c0;
 
   Eigen::VectorXcd bcoef;
-  AxiSymModel  *halo_model;
-  AxiSymBiorth *halo_ortho;
-  ResPot *respot;
+  AxiSymModPtr halo_model;
+  AxiSymBioPtr halo_ortho;
+  std::shared_ptr<ResPot> respot;
 
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg);

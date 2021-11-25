@@ -48,7 +48,7 @@
 #include <interp.H>
 
 #define OFFSET 1.0e-3
-#define OFFTOL 1.0e-5
+#define OFFTOL 1.2
 
 extern double gint_0(double a, double b, double (*f) (double), int NGauss);
 extern double gint_2(double a, double b, double (*f) (double), int NGauss);
@@ -143,6 +143,7 @@ void SphericalModelTable::setup_df(int NUM, double RA)
     Qmin = get_pot(pot.x[0]);
     dQ = (Qmax - Qmin)/(double)(dfc.num-1);
   
+    foffset = -std::numeric_limits<double>::max();
     dfc.Q[dfc.num-1] = Qmax;
     dfc.ffQ[dfc.num-1] = 0.0;
     fac = 1.0/(sqrt(8.0)*M_PI*M_PI);
@@ -150,12 +151,20 @@ void SphericalModelTable::setup_df(int NUM, double RA)
       dfc.Q[i] = dfc.Q[i+1] - dQ;
       Q = dfc.Q[i];
       dfc.ffQ[i] = fac * gint_2(Q, Qmax, fint, NGauss);
+      foffset = std::max<double>(foffset, dfc.ffQ[i]);
     }
     
+    // 'foffset' is now the largest value of the integral. Shift a bit
+    // larger.
+    //
+    if      (foffset >  0.0) foffset *= OFFTOL;
+    else if (foffset == 0.0) foffset = 1.0e-5;
+    else                     foffset /= OFFTOL;
+
     dfc.off = dfc.Q[0] * ( 1.0 + OFFSET );
     for (int i=0; i<dfc.num; i++) {
       dfc.Q[i] = log(dfc.Q[i] - dfc.off);
-      dfc.ffQ[i] = log(-dfc.ffQ[i] + OFFTOL);
+      dfc.ffQ[i] = log(-dfc.ffQ[i] + foffset);
     }
     
     dfc.GG = Cheby1d(dfc.Q, dfc.ffQ, chebyN);
@@ -183,16 +192,25 @@ void SphericalModelTable::setup_df(int NUM, double RA)
     df.Q[df.num-1] = Qmax;
     df.ffQ[df.num-1] = 0.0;
     fac = 1.0/(sqrt(8.0)*M_PI*M_PI);
+    foffset = -std::numeric_limits<double>::max();
     for (int i=df.num-2; i>=0; i--) {
       df.Q[i] = df.Q[i+1] - dQ;
       Q = df.Q[i];
       df.ffQ[i] = fac * gint_2(Q, Qmax, fint, NGauss);
+      foffset = std::max<double>(foffset, df.ffQ[i]);
     }
     
+    // 'foffset' is now the largest value of the integral. Shift a bit
+    // larger.
+    //
+    if      (foffset > 0.0)  foffset *= OFFTOL;
+    else if (foffset == 0.0) foffset = 1.0e-5;
+    else                     foffset /= OFFTOL;
+
     df.off = df.Q[0] * ( 1.0 + OFFSET );
     for (int i=0; i<df.num; i++) {
       df.Q[i] = log(df.Q[i] - df.off);
-      df.ffQ[i] = log(-df.ffQ[i] + OFFTOL);
+      df.ffQ[i] = log(-df.ffQ[i] + foffset);
     }
     
     Spline(df.Q, df.ffQ, -1.0e30,-1.0e30, df.ffQ2);
@@ -200,10 +218,15 @@ void SphericalModelTable::setup_df(int NUM, double RA)
     
     // Tabulate the df!
     //
-    for (int i=df.num-1; i>=0; i--)
-      Splint2(df.Q, df.ffQ, df.ffQ2, df.Q[i], d, df.fQ[i]);
+    if (linear) {
+      for (int i=df.num-1; i>=0; i--)
+	df.fQ[i] = drv2(df.Q[i], df.Q, df.ffQ);
+    } else {
+      for (int i=df.num-1; i>=0; i--)
+	Splint2(df.Q, df.ffQ, df.ffQ2, df.Q[i], d, df.fQ[i]);
     
-    Spline(df.Q, df.fQ, -1.0e30, -1.0e30, df.fQ2);
+      Spline(df.Q, df.fQ, -1.0e30, -1.0e30, df.fQ2);
+    }
   }
 
   dist_defined = true;

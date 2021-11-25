@@ -4,51 +4,19 @@
   MDWeinberg 03/15/10, 11/24/19
 */
 
-using namespace std;
-
-#include <cstdlib>
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <cstdlib>
 #include <vector>
 #include <string>
 #include <list>
 
-#include <boost/random/mersenne_twister.hpp>
-
 #include <StringTok.H>
+#include <cxxopts.H>
 #include <header.H>
 #include <PSP.H>
-
-//-------------
-// Help message
-//-------------
-
-void Usage(char* prog) {
-  cerr << prog << ": [-t time -v -h] filename\n\n";
-  cerr << "    -t time         use dump closest to <time>\n";
-  cerr << "    -x xmin         minimum x component\n";
-  cerr << "    -X xmax         maximum x component\n";
-  cerr << "    -x ymin         minimum y component\n";
-  cerr << "    -Y ymax         maximum y component\n";
-  cerr << "    -z zmin         minimum z component\n";
-  cerr << "    -Z zmax         maximum z component\n";
-  cerr << "    -1 numx         number of bins in x direction\n";
-  cerr << "    -2 numy         number of bins in y direction\n";
-  cerr << "    -o name         component name (default: comp)\n";
-  cerr << "    -c comp         value index\n";
-  cerr << "    -d dir          replacement SPL file directory\n";
-  cerr << "    -r              spherical radius\n";
-  cerr << "    -R              cylindrical radius\n";
-  cerr << "    -A              areal average\n";
-  cerr << "    -m              mass-weighted values\n";
-  cerr << "    -n              number-weighted values\n";
-  cerr << "    -h              print this help message\n";
-  cerr << "    -v              verbose output\n\n";
-  exit(0);
-}
 
 
 int
@@ -60,7 +28,7 @@ main(int argc, char **argv)
   bool nweight = false;
   bool areal   = false;
   bool verbose = false;
-  std::string cname("comp"), new_dir("./");
+  std::string cname("comp"), new_dir("./"), file;
   double xmin = 0.0, xmax = 1.0;
   double ymin = 0.0, ymax = 1.0;
   double zmin = -100.0, zmax = 100.0;
@@ -68,104 +36,55 @@ main(int argc, char **argv)
   int numy = 40;
   int comp = 9;
 
+  //--------------------
   // Parse command line
+  //--------------------
 
-  while (1) {
+  cxxopts::Options options(argv[0], "Compute histograms from PSP phase-space field quantities\n");
 
-    int c = getopt(argc, argv, "x:X:y:Y:z:Z:1:2:c:o:mnAvrRh");
+  options.add_options()
+    ("t,time", "use PSP closest to given time",
+     cxxopts::value<double>(time)->default_value("1.0e20"))
+    ("x,xmin", "minimum x component",
+     cxxopts::value<double>(xmin)->default_value("0.0"))
+    ("X,xmax", "maximum x component",
+     cxxopts::value<double>(xmax)->default_value("1.0"))
+    ("x,xmin", "minimum x component",
+     cxxopts::value<double>(ymin)->default_value("0.0"))
+    ("Y,ymax", "maximum y component",
+     cxxopts::value<double>(ymax)->default_value("1.0"))
+    ("z,zmin", "minimum z component",
+     cxxopts::value<double>(zmin)->default_value("0.0"))
+    ("Z,zmax", "maximum z component",
+     cxxopts::value<double>(zmax)->default_value("1.0"))
+    ("1,numx", "number of bins in x direction",
+     cxxopts::value<int>(numx)->default_value("40"))
+    ("1,numx", "number of bins in x direction",
+     cxxopts::value<int>(numx)->default_value("40"))
+    ("2,numy", "number of bins in y direction",
+     cxxopts::value<int>(numy)->default_value("40"))
+    ("o,comp", "component name",
+     cxxopts::value<std::string>(cname)->default_value("comp"))
+    ("i,index", "attribute index",
+     cxxopts::value<int>()->default_value("0"))
+    ("d,dir", "output date location directory",
+     cxxopts::value<std::string>()->default_value("./"))
+    ("f,file", "input PSP file",
+     cxxopts::value<std::string>()->default_value("out.psp"))
+    ("m,mweight", "use mass-weighted values")
+    ("n,nweight", "use number-weighted values")
+    ("a,areal",   "areal average")
+    ("v,verbose", "verbose output")
+    ;
 
-    if (c == -1) break;
+  auto vm = options.parse(argc, argv);
 
-    switch (c) {
+  if (vm.count("mweight")) mweight = true;
+  if (vm.count("nweight")) nweight = true;
+  if (vm.count("areal")  ) areal   = true;
+  if (vm.count("verbose")) verbose = true;
 
-    case 'x':
-      xmin = atof(optarg);
-      break;
-
-    case 'X':
-      xmax = atof(optarg);
-      break;
-
-    case 'y':
-      ymin = atof(optarg);
-      break;
-
-    case 'Y':
-      ymax = atof(optarg);
-      break;
-
-    case 'z':
-      zmin = atof(optarg);
-      break;
-
-    case 'Z':
-      zmax = atof(optarg);
-      break;
-
-    case '1':
-      numx = atoi(optarg);
-      break;
-
-    case '2':
-      numy = atoi(optarg);
-      break;
-
-    case 'c':
-      comp = atoi(optarg);
-      break;
-
-    case 'm':
-      mweight = true;
-      nweight = false;
-      break;
-
-    case 'n':
-      mweight = false;
-      nweight = true;
-      break;
-
-    case 'A':
-      areal = true;
-      break;
-
-    case 'v':
-      verbose = true;
-      break;
-
-    case 'o':
-      cname.erase();
-      cname = string(optarg);
-      break;
-
-    case 'd':
-      new_dir.erase();
-      new_dir = string(optarg);
-      break;
-
-    case '?':
-    case 'h':
-    default:
-      Usage(prog);
-    }
-
-  }
-
-  std::string file;
-
-  if (optind < argc) {
-
-    file = std::string(argv[optind]);
-    std::ifstream in(file);
-    if (!in) {
-      std::cerr << "Error opening file <" << file << "> for input\n";
-      exit(-1);
-    }
-
-    if (verbose) cerr << "Using filename: " << file << endl;
-
-  } else {
-    Usage(prog);
-  }
+  if (verbose) cerr << "Using filename: " << file << endl;
 
 
 				// Parse the PSP file

@@ -13,8 +13,8 @@ private:
   double E, K, PER, AMPL;
   string INFILE;
 
-  SphericalModelTable *model;
-  SphericalOrbit *t;
+  std::shared_ptr<SphericalModelTable> model;
+  std::shared_ptr<SphericalOrbit> t;
 
   double get_tidal_shock(double T);
 

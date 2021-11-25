@@ -42,18 +42,8 @@
 
 				// Eigen3
 #include <Eigen/Eigen>
-
-				// Boost stuff
-
-#include <boost/make_shared.hpp>
-#include <boost/make_unique.hpp>
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
+				// Progress barp
 #include <Progress.H>
-
-namespace po = boost::program_options;
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -65,6 +55,7 @@ namespace po = boost::program_options;
 #include <massmodel.H>
 #include <SphereSL.H>
 #include <foarray.H>
+#include <cxxopts.H>		// Command-line parsing
 #include <KDtree.H>
 
 #include <global.H>
@@ -129,63 +120,53 @@ main(int argc, char **argv)
   std::ostringstream sout;
   sout << std::string(60, '-') << std::endl
        << "Kullback-Leibler analysis for spherical models" << std::endl
-       << std::string(60, '-') << std::endl << std::endl
-       << "Allowed options";
+       << std::string(60, '-') << std::endl << std::endl;
   
-  po::options_description desc(sout.str());
-  desc.add_options()
-    ("help,h",
-     "Print this help message")
-    ("verbose,v",
-     "Verbose and diagnostic output for covariance computation")
-    ("truncate,t",
-     "Use Truncate method for SNR trimming rather than the default Hall")
-    ("debug,",
-     "Debug max values")
-    ("LOG",
-     "log scaling for SNR")
-    ("Hall",
-     "use Hall smoothing for SNR trim")
-    ("Ndens,K",             po::value<int>(&Ndens)->default_value(32),
-     "KD density estimate count (use 0 for expansion estimate)")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("NICE",                po::value<int>(&NICE)->default_value(0),
-     "system priority")
-    ("LMAX",                po::value<int>(&LMAX)->default_value(8),
-     "Maximum harmonic order for spherical expansion")
-    ("NMAX",                po::value<int>(&NMAX)->default_value(18),
-     "Maximum harmonic order for spherical expansion")
-    ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
-     "Number of SNR evaluations")
-    ("minSNR",              po::value<double>(&minSNR0),
-     "minimum SNR value for loop output")
-    ("rscale",              po::value<double>(&rscale)->default_value(0.067),
-     "Radial scale for coordinate mapping (cmap)")
-    ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),
-     "default Hall smoothing exponent")
-    ("prefix",              po::value<string>(&prefix)->default_value("KLsph"),
-     "Filename prefix")
-    ("runtag",              po::value<string>(&runtag)->default_value("run1"),
-     "Phase space file")
-    ("outdir",              po::value<string>(&outdir)->default_value("."),
-     "Output directory path")
-    ("indx",                po::value<int>(&indx)->default_value(0),
-     "PSP index")
-    ("nbunch",              po::value<int>(&nbunch)->default_value(-1),
-     "Desired bunch size (default: sqrt(nbod) if value is < 0)")
-    ("dir,d",               po::value<std::string>(&dir),
-     "directory for SPL files")
-    ("modelfile",
-     po::value<std::string>(&modelf)->default_value("SLGridSph.model"),
-     "halo model file name")
-    ("cname",
-     po::value<std::string>(&cname)->default_value("dark halo"),
-     "component name")
+  cxxopts::Options options(argv[0], sout.str());
+
+  options.add_options()
+    ("h,help", "Print this help message")
+    ("v,verbose", "Verbose and diagnostic output for covariance computation")
+    ("t,truncate", "Use Truncate method for SNR trimming rather than the default Hall")
+    (",debug", "Debug max values")
+    ("LOG", "log scaling for SNR")
+    ("Hall", "use Hall smoothing for SNR trim")
+    ("K,Ndens", "KD density estimate count (use 0 for expansion estimate)",
+     cxxopts::value<int>(Ndens)->default_value("32"))
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("NICE", "system priority",
+     cxxopts::value<int>(NICE)->default_value("0"))
+    ("LMAX", "Maximum harmonic order for spherical expansion",
+     cxxopts::value<int>(LMAX)->default_value("8"))
+    ("NMAX", "Maximum harmonic order for spherical expansion",
+     cxxopts::value<int>(NMAX)->default_value("18"))
+    (" N,NSNR", "Number of SNR evaluations",
+     cxxopts::value<int>(NSNR)->default_value("20"))
+    ("minSNR", "minimum SNR value for loop output",
+     cxxopts::value<double>(minSNR0))
+    ("rscale", "Radial scale for coordinate mapping (cmap)",
+     cxxopts::value<double>(rscale)->default_value("0.067"))
+    ("Hexp", "default Hall smoothing exponent",
+     cxxopts::value<double>(Hexp)->default_value("1.0"))
+    ("prefix", "Filename prefix",
+     cxxopts::value<string>(prefix)->default_value("KLsph"))
+    ("runtag", "Phase space file",
+     cxxopts::value<string>(runtag)->default_value("run1"))
+    ("outdir", "Output directory path",
+     cxxopts::value<string>(outdir)->default_value("."))
+    ("indx", "PSP index",
+     cxxopts::value<int>(indx)->default_value("0"))
+    ("nbunch", "Desired bunch size (default: sqrt(nbod) if value is < 0)",
+     cxxopts::value<int>(nbunch)->default_value("-1"))
+    ("d,dir", "directory for SPL files",
+     cxxopts::value<std::string>(dir))
+    ("modelfile", "halo model file name",
+     cxxopts::value<std::string>(modelf)->default_value("SLGridSph.model"))
+    ("cname", "component name",
+     cxxopts::value<std::string>(cname)->default_value("dark halo"))
     ;
   
   // ==================================================
@@ -194,14 +175,12 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
-    MPI_Finalize();
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
@@ -210,7 +189,7 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    if (myid==0) std::cout << std::endl << desc << std::endl;
+    if (myid==0) std::cout << std::endl << options.help() << std::endl;
     MPI_Finalize();
     return 0;
   }
@@ -242,7 +221,8 @@ main(int argc, char **argv)
   // ==================================================
 
   int iok = 1;
-  auto file1 = ParticleReader::fileNameCreator(fileType, indx, dir, runtag);
+  auto file1 = ParticleReader::fileNameCreator
+    (fileType, indx, myid, dir, runtag);
 
   if (myid==0) {
     std::ifstream in(file1);
@@ -286,7 +266,7 @@ main(int argc, char **argv)
   // Open PSP file
   // ==================================================
 
-  PRptr reader = ParticleReader::createReader(fileType, file1, true);
+  PRptr reader = ParticleReader::createReader(fileType, file1, myid, true);
   
   double tnow = reader->CurrentTime();
   if (myid==0) std::cout << "Beginning partition [time=" << tnow
@@ -299,7 +279,7 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  auto halo = boost::make_shared<SphericalModelTable>(modelf);
+  auto halo = std::make_shared<SphericalModelTable>(modelf);
 
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
@@ -321,9 +301,9 @@ main(int argc, char **argv)
 
   std::vector<double> KDdens;
 
-  boost::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (myid==0) {
-    progress = boost::make_shared<boost::progress_display>(nbod);
+    progress = std::make_shared<progress::progress_display>(nbod);
   }
 
   auto p = reader->firstParticle();
@@ -414,10 +394,10 @@ main(int argc, char **argv)
   p = reader->firstParticle();
   icnt = 0;
     
-  std::vector<boost::shared_ptr<CoefStruct>> coefs;
+  std::vector<std::shared_ptr<CoefStruct>> coefs;
 
   if (myid==0) {
-    progress = boost::make_shared<boost::progress_display>(nbunch0*nbunch1);
+    progress = std::make_shared<progress::progress_display>(nbunch0*nbunch1);
   }
 
   double curMass = 0.0;
@@ -439,7 +419,7 @@ main(int argc, char **argv)
 	coefs.back()->coefs = ortho1.retrieve_coefs();
 	coefs.back()->sync(curMass);
       }
-      coefs.push_back(boost::make_shared<CoefStruct>(LMAX, NMAX));
+      coefs.push_back(std::make_shared<CoefStruct>(LMAX, NMAX));
       ortho1.reset_coefs();
       curMass = 0.0;
     }
@@ -527,7 +507,7 @@ main(int argc, char **argv)
 
     if (myid==0) {
       std::cout << std::endl << "Trimming coefficients . . ." << std::endl;
-      progress = boost::make_shared<boost::progress_display>(coefs.size());
+      progress = std::make_shared<progress::progress_display>(coefs.size());
     }
 
     for (int j=0; j<coefs.size(); j++) {
@@ -552,7 +532,7 @@ main(int argc, char **argv)
     double tmas = 0.0;
 
     if (myid==0) {
-      progress = boost::make_shared<boost::progress_display>(nbunch0*nbunch1);
+      progress = std::make_shared<progress::progress_display>(nbunch0*nbunch1);
     }
 
     do {

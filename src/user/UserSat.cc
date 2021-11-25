@@ -48,13 +48,13 @@ UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
     traj = 0;
     break;
   case bound:
-    traj = new SatelliteOrbit(config);
+    traj = std::make_shared<SatelliteOrbit>(config);
     break;
   case unbound:
-    traj = new UnboundOrbit(config);
+    traj = std::make_shared<UnboundOrbit>(config);
     break;
   case linear:
-    traj = new LinearOrbit(config);
+    traj = std::make_shared<LinearOrbit>(config);
     break;
   default:
     if (myid==0) {
@@ -104,7 +104,7 @@ UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
 
 UserSat::~UserSat()
 {
-  delete traj;
+  // Nothing
 }
 
 void UserSat::userinfo()
@@ -212,7 +212,11 @@ void UserSat::initialize()
 void UserSat::determine_acceleration_and_potential(void)
 {
 #if HAVE_LIBCUDA==1
-  determine_acceration_and_potential_cuda();
+  if (use_cuda) {
+    determine_acceration_and_potential_cuda();
+  } else {
+    exp_thread_fork(false);
+  }
 #else
   exp_thread_fork(false);
 #endif

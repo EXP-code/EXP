@@ -3,9 +3,7 @@
 #include <fstream>
 #include <memory>
 
-#include <boost/program_options.hpp>
-namespace po = boost::program_options;
-
+#include <cxxopts.H>
 #include "Coefs.H"
 
 int main(int argc, char **argv)
@@ -17,46 +15,43 @@ int main(int argc, char **argv)
   //
   // Parse Command line
   //
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",
+  cxxopts::Options options("readcoefs", "Read disk coefficient file and tabulate coefficients for each harmonic subspace in time");
+
+  options.add_options()
+    ("h,help",
      "produce this help message")
-    ("PA,p",
+    ("p,PA",
      "compute position angle rather than amplitude")
-    ("verbose,v",
+    ("v,verbose",
      "verbose output")
     ("nmin",
-     po::value<int>(&nmin)->default_value(0), 
-     "minimum order for radial coefficients")
+     "minimum order for radial coefficients",
+     cxxopts::value<int>(nmin)->default_value("0"))
     ("nmax",
-     po::value<int>(&nmax)->default_value(6), 
-     "maximum order for radial coefficients")
+     "maximum order for radial coefficients",
+     cxxopts::value<int>(nmax)->default_value("6"))
     ("mmin",
-     po::value<int>(&mmin)->default_value(0), 
-     "minimum azimuthal order")
+     "minimum azimuthal order",
+     cxxopts::value<int>(mmin)->default_value("0"))
     ("mmax",
-     po::value<int>(&mmax)->default_value(4), 
-     "maximum azimuthal order")
+     "maximum azimuthal order",
+     cxxopts::value<int>(mmax)->default_value("4"))
     ("file",
-     po::value<std::string>(&file)->default_value("coef.dat"),
-     "coefficient file")
+     "coefficient file",
+     cxxopts::value<std::string>(file)->default_value("coef.dat"))
     ;
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
-  const std::string overview = "Read disk coefficient file and tabulate coefficients for each harmonic subspace in time\n";
-
   if (vm.count("help")) {
-    std::cout << overview << std::endl;
-    std::cout << desc     << std::endl;
+    std::cout << options.help() << std::endl;
     return 1;
   }
 

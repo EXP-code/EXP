@@ -2,8 +2,6 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include <boost/lexical_cast.hpp>
-
 #include "expand.H"
 #include <PotAccel.H>
 

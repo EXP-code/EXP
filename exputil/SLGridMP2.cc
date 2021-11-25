@@ -504,11 +504,15 @@ SLGridCyl::~SLGridCyl()
 
 double SLGridCyl::r_to_xi(double r)
 {
+  if (r<0.0) {
+    std::ostringstream ostr;
+    ostr << "radius=" << r << " < 0!";
+    bomb(ostr.str());
+  }
+
   if (cmap) {
-    if (r<0.0) bomb("radius < 0!");
     return (r/scale-1.0)/(r/scale+1.0);
   } else {
-    if (r<0.0) bomb("radius < 0!");
     return r;
   }
 }
@@ -516,8 +520,17 @@ double SLGridCyl::r_to_xi(double r)
 double SLGridCyl::xi_to_r(double xi)
 {
   if (cmap) {
-    if (xi<-1.0) bomb("xi < -1!");
-    if (xi>=1.0) bomb("xi >= 1!");
+    if (xi<-1.0) {
+      std::ostringstream ostr;
+      ostr << "xi=" << xi << " < -1!";
+      bomb(ostr.str());
+    }
+
+    if (xi>=1.0) {
+      std::ostringstream ostr;
+      ostr << "xi=" << xi << " >= 1!";
+      bomb(ostr.str());
+    }
 
     return (1.0+xi)/(1.0 - xi) * scale;
   } else {
@@ -529,9 +542,18 @@ double SLGridCyl::xi_to_r(double xi)
 double SLGridCyl::d_xi_to_r(double xi)
 {
   if (cmap) {
-    if (xi<-1.0) bomb("xi < -1!");
-    if (xi>=1.0) bomb("xi >= 1!");
+    if (xi<-1.0) {
+      std::ostringstream ostr;
+      ostr << "xi=" << xi << " < -1!";
+      bomb(ostr.str());
+    }
 
+    if (xi>=1.0) {
+      std::ostringstream ostr;
+      ostr << "xi=" << xi << " >= 1!";
+      bomb(ostr.str());
+    }
+    
     return 0.5*(1.0-xi)*(1.0-xi)/scale;
   } else {
     return 1.0;
@@ -1519,7 +1541,7 @@ extern "C" {
 }
 
 
-static boost::shared_ptr<AxiSymModel> model;
+static std::shared_ptr<AxiSymModel> model;
 
 double sphpot(double r)
 {
@@ -1562,7 +1584,7 @@ SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
 }
 
-SLGridSph::SLGridSph(boost::shared_ptr<SphericalModelTable> mod,
+SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 		     int LMAX, int NMAX, int NUMR, double RMIN, double RMAX, 
 		     bool CACHE, int CMAP, double SCALE, bool VERBOSE)
 {
@@ -1761,11 +1783,34 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
 void check_vector_values_SL(const Eigen::VectorXd& v)
 {
-  for (int i=0; i<v.size(); i++)
-    if (std::isinf(v[i]) || std::isnan(v[i]))
-      {
-	std::cerr << "check_vector: Illegal value" << std::endl;
-      }
+  unsigned c_inf = 0;
+  unsigned c_nan = 0;
+  unsigned c_sub = 0;
+
+  // Classify all numbers in the vector
+  //
+  for (int i=0; i<v.size(); i++) {
+
+    switch(std::fpclassify(v[i])) {
+    case FP_INFINITE:		// Count infinities
+      c_inf++;
+      break;
+    case FP_NAN:		// Count non-a-numbers
+      c_nan++;
+      break;
+    case FP_SUBNORMAL:		// Count denormalized numbers
+      c_sub++;
+      break;
+    }
+  }
+
+  // Print any errors
+  //
+  if (c_inf+c_nan+c_sub>0) {
+    std::cerr << "check_vector [size=" << v.size() << "]: "
+	      << " NaN=" << c_nan << " Inf=" << c_inf << "Sub=" << c_sub
+	      << std::endl;
+  }
 }
 
 int SLGridSph::read_cached_table(void)

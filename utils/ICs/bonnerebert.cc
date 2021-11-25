@@ -34,13 +34,10 @@
 #include <iomanip>
 #include <sstream>
 #include <fstream>
-#include <vector>
-#include <cmath>
 #include <cstdlib>
-
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
+#include <vector>
+#include <random>
+#include <cmath>
 
 using namespace std;
 
@@ -315,8 +312,8 @@ main (int argc, char **argv)
     double vfac = sqrt(cs2)/vcirc;
 
     random_gen.seed(S);
-    boost::random::uniform_real_distribution<> unit;
-    boost::random::normal_distribution<> norm;
+    std::uniform_real_distribution<> unit;
+    std::normal_distribution<> norm;
 
     vector<double> pos(3);
     double mass = M/N, x, phi, cost, sint, m;

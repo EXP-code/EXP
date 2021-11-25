@@ -1,6 +1,7 @@
 #include <sys/timeb.h>
 #include <math.h>
 #include <sstream>
+#include <random>
 
 #include <expand.H>
 #include <global.H>

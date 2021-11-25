@@ -16,9 +16,8 @@ using namespace std;
 #include <vector>
 #include <string>
 #include <memory>
+#include <limits>
 #include <list>
-
-#include <boost/random/mersenne_twister.hpp>
 
 #include <StringTok.H>
 #include <header.H>

@@ -1,8 +1,7 @@
 #ifndef _UserAddMass_H
 #define _UserAddMass_H
 
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
+#include <random>
 
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
@@ -91,8 +90,8 @@ private:
   static std::map<std::string, Algorithm> AlgMap;
   static std::map<Algorithm, std::string> AlgMapInv;
 
-  boost::random::uniform_real_distribution<> urand;
-  boost::random::normal_distribution<> nrand;
+  std::uniform_real_distribution<> urand;
+  std::normal_distribution<> nrand;
 
 public:
 

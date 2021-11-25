@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <sstream>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 /**
    This is an API for populating a 3d grid rectangular grid database
@@ -48,6 +48,82 @@ public:
   void Write(const std::string& name) = 0;
 };
 
-typedef boost::shared_ptr<ThreeDGrid> ThreeDGridPtr;
+typedef std::shared_ptr<ThreeDGrid> ThreeDGridPtr;
+
+//! Make a two-d wrapper for nested std::vectors
+template <typename T>
+class Dynamic2dArray
+{
+public:
+  //! Default constructor
+  Dynamic2dArray() {};
+
+  //! Allocation constructor
+  Dynamic2dArray(int rows, int cols) {
+    dArray.resize(rows);
+    for (auto & v : dArray) v.resize(cols);
+  }
+  
+  //! Get reference to second dimension
+  std::vector<T> & operator[](int i) 
+  { 
+    return dArray[i];
+  }
+
+  //! Get reference to second dimension (const version)
+  const std::vector<T> & operator[] (int i) const 
+  { 
+    return dArray[i];
+  }
+
+  //! Resize the two dimentional array
+  void resize(int rows, int cols)
+  {
+    dArray.resize(rows);
+    for(int i = 0;i < rows;++i) dArray[i].resize(cols);
+  }
+
+private:
+  std::vector<std::vector<T> > dArray;  
+};
+
+//! Make a three-d wrapper for nested std::vectors
+template <typename T>
+class Dynamic3dArray
+{
+public:
+  //! Default constructor
+  Dynamic3dArray() {};
+
+  //! Allocation constructor
+  Dynamic3dArray(int rows, int cols, int levs)
+  {
+    tArray.resize(rows);
+    for (auto & d : tArray) d.resize(cols, levs);
+  }
+  
+  //! Return a Dynamic2DArray reference for first index
+  Dynamic2dArray<T> & operator[](int i) 
+  { 
+    return tArray[i];
+  }
+
+  //! Return a Dynamic2DArray reference for first index (constant version)
+  const Dynamic2dArray<T> & operator[] (int i) const 
+  { 
+    return tArray[i];
+  }
+
+  //! Resize the three dimentional array .
+  void resize(int rows, int cols, int levs)
+  {
+    tArray.resize(rows);
+    for (auto & v : tArray) v.resize(cols, levs);
+  }
+
+private:
+  std::vector<Dynamic2dArray<T>> tArray;
+};
+
 
 #endif

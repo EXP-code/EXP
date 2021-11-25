@@ -365,7 +365,7 @@ BSSphere::BSSphere(double RMAX, int NMAX, int LMAX) : AxiSymBiorth(3) {
   nmax = NMAX;
   lmax = LMAX;
 
-  a = new Eigen::VectorXd[lmax+1];
+  a.resize(lmax+1);
 
   for (int l=0; l<=lmax; l++) {
     a[l] = sbessjz(l-1,nmax);
@@ -377,7 +377,7 @@ BSSphere::BSSphere(double RMAX, int NMAX, int LMAX) : AxiSymBiorth(3) {
 
 BSSphere::~BSSphere(void)
 {
-  delete [] a;
+  // Nothing
 }
 
 

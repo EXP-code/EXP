@@ -34,24 +34,24 @@ public:
 private:
   int L, M, L1, L2;
 
-  AxiSymModel *halo_model;
-  SphericalOrbit *orb;
+  AxiSymModPtr halo_model;
+  std::shared_ptr<SphericalOrbit> orb;
   
   class RW {
   public:
-    vector<double> r, ff, w1, f;
-    vector<double> r_Ep, ff_Ep;
-    vector<double> r_Em, ff_Em;
-    vector<double> r_Kp, ff_Kp;
-    vector<double> r_Km, ff_Km;
+    std::vector<double> r, ff, w1, f;
+    std::vector<double> r_Ep, ff_Ep;
+    std::vector<double> r_Em, ff_Em;
+    std::vector<double> r_Kp, ff_Kp;
+    std::vector<double> r_Km, ff_Km;
     double O1, O2, Jm, dJm, E, K, I1;
     int num;
   };
   
   void check_rw(RW&);
   
-  typedef vector<RW> ovector;
-  typedef vector<ovector> o2vector;
+  typedef std::vector<RW> ovector;
+  typedef std::vector<ovector> o2vector;
   
   o2vector orbmat;
   
@@ -61,13 +61,13 @@ private:
 
   double W, dWE, dWK;
 
-  typedef vector<double> dvector;
+  typedef std::vector<double> dvector;
   bool actions_computed;
   
   int numx;
   double dX;
-  vector<dvector> I1X, EX;
-  vector<double> EminX;
+  std::vector<dvector> I1X, EX;
+  std::vector<double> EminX;
   
   
   bool getValues(double I1, double I2,
@@ -87,12 +87,12 @@ private:
   
   void getInterp(double I1, double I2, int& indxX, int& indxE, double cX[2], double cE[2], bool& noboundary);
 
-  ReturnCode Update2(double dt, vector<double>& Phase,
+  ReturnCode Update2(double dt, std::vector<double>& Phase,
 		     double rsat, double amp,
 		     double* posI, double* velI,
 		     double* posO, double* velO);
   
-  ReturnCode Update3(double dt, vector<double>& Phase,
+  ReturnCode Update3(double dt, std::vector<double>& Phase,
 		     double rsat, double amp,
 		     double* posI, double* velI,
 		     double* posO, double* velO);
@@ -140,7 +140,7 @@ public:
   static std::complex<double> I;
   
   //! Constructor
-  ResPotOrb(AxiSymModel *mod, double mass, int l, int m, int l1, int l2);
+  ResPotOrb(AxiSymModPtr mod, double mass, int l, int m, int l1, int l2);
 
   //! Destructor
   ~ResPotOrb();
@@ -158,7 +158,7 @@ public:
 		   double w1, double w2, double w3);
   
   //! Update actions
-  ReturnCode Update(double dt, vector<double>& Phase,
+  ReturnCode Update(double dt, std::vector<double>& Phase,
 		    double rsat, double amp,
 		    double* posI, double* velI,
 		    double* posO, double* velO);
@@ -167,7 +167,8 @@ public:
   double K() { return Kupd; }
   
   //! Force
-  ReturnCode Force(double dt, vector<double>& Phase, double rsat, double amp, 
+  ReturnCode Force(double dt, std::vector<double>& Phase,
+		   double rsat, double amp, 
 		   double* pos, double* vel, double* acc);
   
   //! Set first order implicit symplectic integration

@@ -2,10 +2,10 @@
 #define _massmodel_H
 
 #include <vector>
+#include <memory>
+#include <random>
+
 #include <Eigen/Eigen>
-#include <boost/shared_ptr.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
 
 #include <interp.H>
 #include <orbit.H>
@@ -23,6 +23,14 @@ public:
 
   //! Simple constructor.  Use value of num to check for initialization.
   RUN() : num(0) {}
+
+  void resize(int N)
+  {
+    num = N;
+    x.resize(N);
+    y.resize(N);
+    y2.resize(N);
+  }
 };
 
 //! A one-dimensional Merritt-Osipkov distribution
@@ -63,6 +71,7 @@ public:
 
 //! A three-dimensional density-potential model
 class MassModel
+
 {
 public:
 
@@ -97,14 +106,15 @@ public:
   
 
 //! A specification of a MassModel to the axisymmetric case
-class AxiSymModel : public MassModel
+class AxiSymModel : public MassModel,
+		    public std::enable_shared_from_this<AxiSymModel>
 {
 protected:
   //@{
   //! Stuff for gen_point
 
-  boost::random::uniform_real_distribution<> Unit;
-  boost::random::normal_distribution<> Gauss;
+  std::uniform_real_distribution<> Unit;
+  std::normal_distribution<> Gauss;
 
   bool gen_firstime;
   bool gen_firstime_E;
@@ -147,7 +157,6 @@ public:
   static double gen_rmin;
   static double gen_kmin;
   static double gen_tolE, gen_tolK;
-  static unsigned int gen_seed;
   //@}
   
   //! The distribution is defined and computed
@@ -165,9 +174,6 @@ public:
   //! Destructor
   virtual ~AxiSymModel() {}
   
-  //! Set the random number seed
-  void set_seed(int s)  { gen_seed = s;}
-
   //! Maximum number of iterations for obtaining a valid variate
   void set_itmax(int s) { gen_itmax = s;}
   
@@ -259,18 +265,19 @@ public:
 class EmbeddedDiskModel : public AxiSymModel
 {
 private:
-  AxiSymModel **t;
-  double *m_scale;
-  double *r_scale;
+  std::vector<std::shared_ptr<AxiSymModel>> t;
+  std::vector<double> m_scale;
+  std::vector<double> r_scale;
   int number;
 
   double rmin, rmax;
 
-  QPDistF *df;
+  std::shared_ptr<QPDistF> df;
 
 public:
-  EmbeddedDiskModel(AxiSymModel **T, double *M_scale, double *R_scale, 
-		      int NUMBER);
+  EmbeddedDiskModel(std::vector<std::shared_ptr<AxiSymModel>>& T,
+		    std::vector<double>& M_scale, std::vector<double>& R_scale, 
+		    int NUMBER);
 
   virtual ~EmbeddedDiskModel();
 
@@ -306,12 +313,12 @@ public:
 
   void setup_df(string& file);
 
-  void verbose_df(void);
+  void   verbose_df(void);
   double distf(double E, double L);
   double dfde(double E, double L);
   double dfdl(double E, double L);
   double d2fde2(double E, double L);
-  void save_df(string& file);
+  void   save_df(string& file);
 
 };
 
@@ -337,8 +344,9 @@ private:
   int num;
   int numdf;
   int num_params;
-  double *params;
+  std::vector<double> params;
   double diverge_rfac;
+  double foffset;
   int diverge;
   int external;
 
@@ -352,9 +360,6 @@ public:
   //! Assume even spacing in the mass model table (default: yes)
   static int even;		
 
-  //! Log scale in df computation (default: yes)
-  static int logscale;		
-
   //! Chebyshev order (default: 0, no Chebyshev)
   static int chebyN;
 
@@ -363,13 +368,18 @@ public:
 
   //! Constructor (from a table)
   SphericalModelTable(string filename, 
-		 int DIVERGE = 0, double DIVERGE_RFAC = 1.0, int EXTERNAL = 0);
+		      int DIVERGE = 0, double DIVERGE_RFAC = 1.0, int EXTERNAL = 0);
 
   //! Constructor (from array pointers)
-  SphericalModelTable(int num, 
-		 double *r, double *d, double *m, double *p,
-	         int DIVERGE = 0, double DIVERGE_RFAC = 0, int EXTERNAL = 0,
-					   string ID = "" );
+  SphericalModelTable(int num, double *r, double *d, double *m, double *p,
+		      int DIVERGE = 0, double DIVERGE_RFAC = 0,
+		      int EXTERNAL = 0, std::string ID = "" );
+
+  //! Constructor (from vectors)
+  SphericalModelTable(std::vector<double>& r, std::vector<double>& d,
+		      std::vector<double>& m, std::vector<double>& p,
+		      int DIVERGE = 0, double DIVERGE_RFAC = 0,
+		      int EXTERNAL = 0, std::string ID = "" );
 
   //! Destructor
   virtual ~SphericalModelTable();
@@ -393,6 +403,7 @@ public:
   double get_max_radius(void) { return mass.x[mass.num-1]; }
   int grid_size(void) { return num; }
   void print_model(char const *name);
+  void print_model_eval(char const *name, int number);
   //@}
 
   //@{
@@ -420,17 +431,18 @@ public:
 class SphericalModelMulti : public AxiSymModel
 {
 protected:
-  AxiSymModel* real;
-  AxiSymModel* fake;
+  std::shared_ptr<AxiSymModel> real, fake;
 
   SphericalOrbit orb, gen_orb;
 
   double rmin_gen, rmax_gen;
+  bool noneg;
 
 public:
 
   //! Constructor
-  SphericalModelMulti(AxiSymModel* Real, AxiSymModel* Fake);
+  SphericalModelMulti(std::shared_ptr<AxiSymModel> Real,
+		      std::shared_ptr<AxiSymModel> Fake);
 
   //@{
   //! Evaluate the profile at a radial point
@@ -480,12 +492,17 @@ public:
   void set_min_radius(const double& r) { rmin_gen = r; }
   void set_max_radius(const double& r) { rmax_gen = r; }
   //@}
+
+  //! Turn off negative mass suppression by NOT requeueing particle
+  //! selection if the DF ratio is negative
+  void allowNegativeMass() { noneg = false; }
+
 };
 
-typedef boost::shared_ptr<AxiSymModel>         AxiSymModPtr;
-typedef boost::shared_ptr<EmbeddedDiskModel>   EmbDiskModPtr;
-typedef boost::shared_ptr<SphericalModelMulti> SphModMultPtr;
-typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
+typedef std::shared_ptr<AxiSymModel>         AxiSymModPtr;
+typedef std::shared_ptr<EmbeddedDiskModel>   EmbDiskModPtr;
+typedef std::shared_ptr<SphericalModelMulti> SphModMultPtr;
+typedef std::shared_ptr<SphericalModelTable> SphModTblPtr;
 
 #include <QPDistF.H>
 

@@ -11,96 +11,100 @@
 #include <fstream>
 #include <iomanip>
 #include <vector>
+#include <random>
 #include <string>
 #include <memory>
 
-#include <boost/random/mersenne_twister.hpp>
-
+#include <cxxopts.H>
 #include <PSP.H>
 
-//-------------
-// Help message
-//-------------
-
-void Usage(char* prog) {
-  cerr << prog << ": [[-v] [-S] [-s] [-T] [-d data_dir]] filename\n";
-  cerr << "        -v      verbose output\n";
-  cerr << "        -S      assume split PSP files\n";
-  cerr << "        -s      particle and velocity statistics\n";
-  cerr << "        -T      print time info only\n";
-  cerr << "        -d dir  data directory\n";
-  exit(-1);
-}
 
 int
 main(int argc, char *argv[])
 {
-  bool spl = false;
-  bool stats = false;
+  bool stats    = false;
   bool timeonly = false;
-  bool verbose = false;
+  bool verbose  = false;
+  bool angle    = false;
   std::string new_dir("./");
-  int c;
-  
-  while (1) {
-    c = getopt(argc, argv, "vsSTd:h");
-    if (c == -1) break;
+  int mmin;
 
-    switch (c) {
-      
-    case 'v':
-      verbose = true;
-      break;
+  // Option parsing
+  //
+  cxxopts::Options options(argv[0], "Read a PSP file (either OUT or SPL) and print the metadata\n");
 
-    case 'S':
-      spl = true;
-      break;
+  options.add_options()
+    ("h,help", "print this help message")
+    ("v,verbose", "print verbose output")
+    ("s,stats", "compute and print particle and velocity statistics")
+    ("T,time", "print system time info only")
+    ("d,dir", "use the provided directory as the data file location",
+     cxxopts::value<std::string>(new_dir)->default_value("./"))
+    ;
 
-    case 's':
-      stats = true;
-      break;
+  cxxopts::ParseResult vm;
 
-    case 'T':
-      timeonly = true;
-      break;
-
-    case 'd':
-      new_dir.erase();
-      new_dir = string(optarg);
-      break;
-
-    case 'h':
-    case '?':
-    default:
-      Usage(argv[0]); 
-    
-    }
-  }
-
-  if (optind >= argc) Usage(argv[0]);
-
-  std::string file(argv[optind]);
-
-  if (not spl and file.find("SPL")!=std::string::npos) spl = true;
-
-  std::shared_ptr<PSP> psp;
   try {
-    if (spl) psp = std::make_shared<PSPspl>(argv[optind], new_dir, verbose);
-    else     psp = std::make_shared<PSPout>(argv[optind], verbose);
-  }
-  catch (const std::exception& e)  {
-    std::cout << "pspinfo runtime error: " << e.what() << std::endl;
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
-  catch (...) {
-    std::cout << "pspinfo unknown error" << std::endl;
-    exit(-2);
+
+  if (vm.count("help")) {
+    std::cout << options.help() << std::endl;
+    return 1;
   }
 
-  cerr << "Filename: " << file << endl;
+  if (vm.count("verbose")) verbose = true;
 
-  psp->PrintSummary(cout, stats, timeonly);
+  if (vm.count("PA")) {
+    angle = true;
+    mmin = std::max<int>(mmin, 1);
+  }
+
+  if (vm.count("time")) {
+    timeonly = true;
+  }
+
+  if (vm.count("stats")) {
+    stats = true;
+  }
+
+  // Get trailing arguments
+  //
+  auto files = vm.unmatched();
+
+  // Sanity check: need at least one file
+  //
+  if (files.size()==0) {
+    std::cout << "You need at least one file" << std::endl
+	      << options.help() << std::endl;
+    exit(-1);
+  }
+
+  // Process the file list
+  //
+  for (auto file : files) {
+
+    std::shared_ptr<PSP> psp;
+    try {
+      psp = PSP::getPSP(file, new_dir, verbose);
+    }
+    catch (const std::exception& e)  {
+      std::cout << "pspinfo runtime error: " << e.what() << std::endl;
+      exit(-1);
+    }
+    catch (...) {
+      std::cout << "pspinfo unknown error" << std::endl;
+      exit(-2);
+    }
+      
+    std::cout << std::string(60, '-')  << std::endl
+	      << "Filename: " << file << std::endl;
+    psp->PrintSummary(cout, stats, timeonly);
+  }
 
   return 0;
 }
-  
+

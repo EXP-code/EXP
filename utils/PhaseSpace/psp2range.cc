@@ -23,11 +23,7 @@ using namespace std;
 #include <header.H>
 #include <PSP.H>
 #include <InitContainer.H>
-
-#include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
-
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
 int
 main(int ac, char **av)
@@ -39,34 +35,33 @@ main(int ac, char **av)
   int sindx;
 
   // Parse command line
+  //
+  cxxopts::Options options(prog, "Compute min and max for all fields\n");
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("verbose,v",       "verbose output")
-    ("species,s",	po::value<int>(&sindx)->default_value(-1),
-     "position of species index")
-    ("name,c",	        po::value<std::string>(&cname)->default_value("comp"),
-     "component name")
-    ("files,f",         po::value< std::vector<std::string> >(), 
-     "input files")
-    ("dir,d",           po::value<std::string>(&new_dir), 
-     "replacement SPL file directory")
+  options.add_options()
+   ("h,help", "produce help message")
+   ("v,verbose", "verbose output")
+   ("s,species", "position of species index",
+     cxxopts::value<int>(sindx)->default_value("-1"))
+   ("c,name", "component name",
+     cxxopts::value<std::string>(cname)->default_value("comp"))
+   ("f,files", "input files",
+     cxxopts::value< std::vector<std::string> >())
+   ("d,dir", "replacement SPL file directory",
+     cxxopts::value<std::string>(new_dir))
     ;
 
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
 	      << " -f OUT.run.00001 -s 1 -c gas" << std::endl;

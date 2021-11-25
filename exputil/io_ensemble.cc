@@ -1,8 +1,9 @@
 
-#include <cstdlib>
-#include <cmath>
 #include <iostream>
+#include <cstdlib>
 #include <sstream>
+#include <memory>
+#include <cmath>
 
 #include <time.h>
 #include <numerical.H>
@@ -73,15 +74,14 @@ void Ensemble::write_log(ostream& logfile)
 
 void Ensemble::write_snapshot(ostream& fp)
 {
-  double p;
-  int i;
-  
   fp << Nstars << " " << t << '\n';
-  for (i=0; i<Nstars; i++)
+
+  for (int i=0; i<Nstars; i++)
     {
+      double p = 0.0;
       if (Phase::potential_defined) 
 	p = (*Phase::Potential)(t, stars[i].x);
-      else p = 0.0;
+
       fp << stars[i].m << " " 
 	 << stars[i].x[1] << " " 
 	 << stars[i].x[2] << " "
@@ -96,9 +96,7 @@ void Ensemble::write_snapshot(ostream& fp)
 
 void Ensemble::read_snapshot(istream& fp)
 {
-  int i;
   char buffer[512];
-  
   
   fp.get(buffer, 512);
   {
@@ -107,17 +105,12 @@ void Ensemble::read_snapshot(istream& fp)
     sbuf >> t;
   }
   
-  if (!stars) stars = new Phase[Nstars];
-  if (stars == NULL) 
-    {
-      cerr << "could not allocate ensemble\n";
-      exit(0);
-    }
+  stars.resize(Nstars);
   
-  for (i=0; i<Nstars; i++)
+  for (int i=0; i<Nstars; i++)
     {
       fp.get(buffer, 512);
-      istringstream sbuf(buffer);
+      std::istringstream sbuf(buffer);
       sbuf >> stars[i].m;
       sbuf >> stars[i].x[1];
       sbuf >> stars[i].x[2];
@@ -136,33 +129,26 @@ void Ensemble::read_snapshot(istream& fp)
 
 void Ensemble::read_tidesfile(istream& fp)
 {
-  int i;
   char tidbuf[512];
   
   // Determine the number of stars in the dump
   // Admittedly, this is wasteful . . . 
   
   Nstars = 0;
-  int icnt;
   double tmp;		// Translation of c construct; may have
   // bugs . . .
   while (fp.get(tidbuf, 512)) {
-    istringstream sbuf(tidbuf);
-    icnt = 0;
+    std::istringstream sbuf(tidbuf);
+    int icnt = 0;
     while ((sbuf >> tmp)) icnt++;
     if (icnt == 9) Nstars++;
   }
   fp.seekg(ios::beg);
   
-  if (!stars) stars = new Phase[Nstars];
-  if (stars == NULL) 
-    {
-      cerr << "could not allocate ensemble\n";
-      exit(0);
-    }
+  stars.resize(Nstars);
   
   double m = 1.0/Nstars;
-  for (i=0; i<Nstars; i++)
+  for (int i=0; i<Nstars; i++)
     {
       fp.get(tidbuf, 512);
       istringstream sbuf(tidbuf);
@@ -177,12 +163,6 @@ void Ensemble::read_tidesfile(istream& fp)
       stars[i].work = 0.0;
     }
 }
-
-
-
-
-
-
 
 
 
@@ -204,10 +184,9 @@ void Ensemble::read_tidesfile(istream& fp)
 
 void Ensemble::write_orbits(ostream& fp)
 {
-  int i;
-  
   fp << Nstars << '\n';
-  for (i=0; i<Nstars; i++)
+
+  for (int i=0; i<Nstars; i++)
     {
       fp << stars[i].t << " "
 	 << stars[i].x[1] << " " 
@@ -224,7 +203,6 @@ void Ensemble::write_orbits(ostream& fp)
 
 void Ensemble::read_orbits(istream& fp)
 {
-  int i;
   char tmp[128];
   
   fp >> tmp;
@@ -233,14 +211,9 @@ void Ensemble::read_orbits(istream& fp)
   fp >> tmp;
   fp >> Nstars;
   
-  if (!stars) stars = new Phase[Nstars];
-  if (stars == NULL) 
-    {
-      cerr << "could not allocate ensemble\n";
-      exit(0);
-    }
+  stars.resize(Nstars);
   
-  for (i=0; i<Nstars; i++)
+  for (int i=0; i<Nstars; i++)
     {
       fp >> stars[i].t;
       fp >> stars[i].x[1];
@@ -270,21 +243,18 @@ void Ensemble::read_orbits(istream& fp)
 
 void Ensemble::binwrite(ostream& fp)
 {
-  int i;
-  
   fp.write((char *)&Nstars, sizeof(int));
-  for (i=0; i<Nstars; i++) stars[i].binwrite(fp);
+  for (int i=0; i<Nstars; i++) stars[i].binwrite(fp);
 }
 
 void Ensemble::binread(istream& fp)
 {
-  int i, n;
-  
+  int n;
   fp.read((char *)&n, sizeof(int));
   
   setsize(n);
   
-  for (i=0; i<Nstars; i++)
+  for (int i=0; i<Nstars; i++)
     {
       stars[i].binread(fp);
     }

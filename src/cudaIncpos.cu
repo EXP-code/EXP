@@ -6,8 +6,6 @@
 #include <cudaReduce.cuH>
 #include <cudaParticle.cuH>
 
-#include <boost/make_shared.hpp>
-
 __global__ void coordDrift
 (dArray<cudaParticle> P, dArray<int> I, cuFP_t dt, int dim, int stride, PII lohi)
 {

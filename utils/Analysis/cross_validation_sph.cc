@@ -38,17 +38,6 @@
 #include <memory>
 #include <vector>
 #include <map>
-
-using namespace std;
-
-				// Boost stuff
-
-#include <boost/program_options.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/filesystem.hpp>
-
-namespace po = boost::program_options;
-
 				// Eigen3
 #include <Eigen/Eigen>
 
@@ -67,6 +56,7 @@ namespace po = boost::program_options;
 
 #include <global.H>
 #include <localmpi.H>
+#include <cxxopts.H>
 
 // Globals
 //
@@ -97,73 +87,62 @@ main(int argc, char **argv)
   // Parse command line or input parameter file
   // ==================================================
   
-  std::ostringstream sout;
-  sout << std::string(60, '-') << std::endl
-       << "Cross-validation analysis for spherical models" << std::endl
-       << std::string(60, '-') << std::endl << std::endl
-       << "Allowed options";
-  
-  po::options_description desc(sout.str());
-  desc.add_options()
-    ("help,h",
-     "Print this help message")
-    ("verbose,v",
-     "Verbose and diagnostic output for covariance computation")
-    ("NCUT",
-     "trim coefficient by order rather than SNR")
-    ("LOG",
-     "log scaling for SNR")
-    ("Hall",
-     "use Hall smoothing for SNR trim")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("NICE",                po::value<int>(&NICE)->default_value(0),
-     "system priority")
-    ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
-     "minimum radius for Q table")
-    ("RSCALE",              po::value<double>(&rscale)->default_value(0.067),
-     "coordinate mapping scale factor")
-    ("RMAX",                po::value<double>(&RMAX)->default_value(2.0),
-     "maximum radius for Q table")
-    ("LMAX",                po::value<int>(&LMAX)->default_value(4),
-     "Maximum harmonic order for spherical expansion")
-    ("NMAX",                po::value<int>(&NMAX)->default_value(12),
-     "Maximum radial order for spherical expansion")
-    ("NPART",               po::value<int>(&NPART)->default_value(0),
-     "Jackknife partition number for testing (0 means off, use standard eval)")
-    ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
-     "Number of SNR evaluations")
-    ("minSNR",              po::value<double>(&minSNR0)->default_value(0.01),
-     "minimum SNR value for loop output")
-    ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),           "default Hall smoothing exponent")
-    ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
-     "Filename prefix")
-    ("runtag",              po::value<string>(&runtag)->default_value("run1"),
-     "Phase space file")
-    ("outdir",              po::value<string>(&outdir)->default_value("."),
-     "Output directory path")
-    ("modelfile",           po::value<string>(&modelf)->default_value("SLGridSph.model"),
-     "Halo model file")
-    ("init",                po::value<int>(&init)->default_value(0),
-     "fiducial PSP index")
-    ("beg",                 po::value<int>(&beg)->default_value(0),
-     "initial PSP index")
-    ("end",                 po::value<int>(&end)->default_value(99999),
-     "final PSP index")
-    ("stride",              po::value<int>(&stride)->default_value(1),
-     "PSP index stride")
-    ("num",                 po::value<int>(&num)->default_value(10000),
-     "Number of entries in Q table")
-    ("knots",               po::value<int>(&knots)->default_value(40),
-     "Number of Legendre integration knots")
-    ("compname",            po::value<std::string>(&cname)->default_value("stars"),
-     "train on Component (default=stars)")
-    ("dir,d",               po::value<std::string>(&dir),
-     "directory for SPL files")
+  cxxopts::Options options("pspxvalH",  "Cross-validation analysis for spherical models");
+
+  options.add_options()
+    ("h,help", "Print this help message")
+    ("v,verbose", "Verbose and diagnostic output for covariance computation")
+    ("NCUT", "trim coefficient by order rather than SNR")
+    ("LOG", "log scaling for SNR")
+    ("Hall", "use Hall smoothing for SNR trim")
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("NICE", "system priority",
+     cxxopts::value<int>(NICE)->default_value("0"))
+    ("RMIN", "minimum radius for Q table",
+     cxxopts::value<double>(RMIN)->default_value("0.0"))
+    ("RSCALE", "coordinate mapping scale factor",
+     cxxopts::value<double>(rscale)->default_value("0.067"))
+    ("RMAX", "maximum radius for Q table",
+     cxxopts::value<double>(RMAX)->default_value("2.0"))
+    ("LMAX", "Maximum harmonic order for spherical expansion",
+     cxxopts::value<int>(LMAX)->default_value("4"))
+    ("NMAX", "Maximum radial order for spherical expansion",
+     cxxopts::value<int>(NMAX)->default_value("12"))
+    ("NPART", "Jackknife partition number for testing (0 means off, use standard eval)",
+     cxxopts::value<int>(NPART)->default_value("0"))
+    ("N,NSNR", "Number of SNR evaluations",
+     cxxopts::value<int>(NSNR)->default_value("20"))
+    ("minSNR", "minimum SNR value for loop output",
+     cxxopts::value<double>(minSNR0)->default_value("0.01"))
+    ("Hexp", "default Hall smoothing exponent",
+     cxxopts::value<double>(Hexp)->default_value("1.0"))
+    ("prefix", "Filename prefix",
+     cxxopts::value<string>(prefix)->default_value("crossval"))
+    ("runtag", "Phase space file",
+     cxxopts::value<string>(runtag)->default_value("run1"))
+    ("outdir", "Output directory path",
+     cxxopts::value<string>(outdir)->default_value("."))
+    ("modelfile", "Halo model file",
+     cxxopts::value<string>(modelf)->default_value("SLGridSph.model"))
+    ("init", "fiducial PSP index",
+     cxxopts::value<int>(init)->default_value("0"))
+    ("beg", "initial PSP index",
+     cxxopts::value<int>(beg)->default_value("0"))
+    ("end", "final PSP index",
+     cxxopts::value<int>(end)->default_value("99999"))
+    ("stride", "PSP index stride",
+     cxxopts::value<int>(stride)->default_value("1"))
+    ("num", "Number of entries in Q table",
+     cxxopts::value<int>(num)->default_value("10000"))
+    ("knots", "Number of Legendre integration knots",
+     cxxopts::value<int>(knots)->default_value("40"))
+    ("compname", "train on Component (default=stars)",
+     cxxopts::value<std::string>(cname)->default_value("stars"))
+    ("d,dir", "directory for SPL files",
+     cxxopts::value<std::string>(dir))
     ;
   
   // ==================================================
@@ -172,12 +151,11 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
     exit(-1);
@@ -188,7 +166,7 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    if (myid==0) std::cout << std::endl << desc << std::endl;
+    if (myid==0) std::cout << std::endl << options.help() << std::endl;
     MPI_Finalize();
     return 0;
   }
@@ -223,7 +201,7 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  auto halo = boost::make_shared<SphericalModelTable>(modelf);
+  auto halo = std::make_shared<SphericalModelTable>(modelf);
 
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
@@ -330,7 +308,8 @@ main(int argc, char **argv)
     int iok = 1;
     std::ostringstream s0, s1;
 
-    auto file1 = ParticleReader::fileNameCreator(fileType, ipsp, dir, runtag);
+    auto file1 = ParticleReader::fileNameCreator
+      (fileType, ipsp, myid, dir, runtag);
     
     PRptr reader = ParticleReader::createReader(fileType, file1, true);
 

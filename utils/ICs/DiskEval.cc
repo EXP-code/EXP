@@ -1,8 +1,8 @@
 #include <iostream>
 #include <iomanip>
+#include <memory>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <yaml-cpp/yaml.h>	// YAML support
 
 #include <Progress.H>		// Progress bar
 
@@ -16,7 +16,7 @@ const std::string DiskEval::cachefile = ".DiskEval.cache";
 
 DiskEval::DiskEval
 (EmpCylSL::AxiDiskPtr model, double rmin, double rmax, double ascl,
- int lmax, int numr, int nint, bool use_progress, int mmax, int nump) :
+ int lmax, int numr, int nint, bool use_progress, int mmax, int nump, bool cache) :
   model(model), ascl(ascl), lmax(lmax), numr(numr)
 {
 
@@ -50,7 +50,9 @@ DiskEval::DiskEval
 
   dx = (xmax - xmin)/(numr-1);	// Radial grid spacing
 
-  if (read_cache()) return;
+  if (cache) {
+    if (read_cache()) return;
+  }
 
   // First: compute the disk density components
   //
@@ -63,7 +65,7 @@ DiskEval::DiskEval
     
   // Gauss-Legendre
   //
-  boost::shared_ptr<LegeQuad> lr = boost::make_shared<LegeQuad>(nint);
+  std::shared_ptr<LegeQuad> lr = std::make_shared<LegeQuad>(nint);
 
   int numthrd = 1, tid = 0;
 #ifdef HAVE_OMP_H
@@ -76,7 +78,7 @@ DiskEval::DiskEval
   }
 #endif
 
-  boost::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (use_progress) {
     std::cout << std::endl << "Begin: exact force evaluation"
 	      << std::endl << "-----------------------------"
@@ -84,7 +86,7 @@ DiskEval::DiskEval
       
     std::cout << std::endl << "Multipole density coefficients"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(numr/numthrd);
+    progress = std::make_shared<progress::progress_display>(numr/numthrd);
   }
   
   // Compute \rho_{lm} on radial grid
@@ -177,7 +179,7 @@ DiskEval::DiskEval
   if (use_progress) {
     std::cout << std::endl << "Quadrature loop multipole expansion"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(numrads);
+    progress = std::make_shared<progress::progress_display>(numrads);
   }
   
   // l loop
@@ -449,26 +451,44 @@ void DiskEval::write_cache()
 {
   std::ofstream cache(cachefile);
   if (cache) {
-    char str[32];
-    std::fill(str, str+32, 0);
-    std::string id = model->getID();
-    int idlen = id.size();
-    strncpy(str, id.c_str(), idlen);
-    unsigned char clogr = 0, cxscl = 0;
-    if (logr) clogr = 1;
-    if (xscl) cxscl = 1;
 
-    // Parameters
+    // This is a node of simple {key: value} pairs.  More general
+    // content can be added as needed.
+
+    YAML::Node node;
+
+    node["model"  ] = model->getID();
+    node["mass"   ] = model->getMass();
+    if (model->getParams().size())
+    node["params" ] = model->getParams();
+    node["xmin"   ] = xmin;
+    node["xmax"   ] = xmax;
+    node["dx"     ] = dx;
+    node["ascl"   ] = ascl;
+    node["lmax"   ] = lmax;
+    node["numr"   ] = numr;
+    node["logr"   ] = logr;
+    node["xscl"   ] = xscl;
+
+    // Serialize the node
     //
-    cache.write((const char *)str,    sizeof(char)*32);
-    cache.write((const char *)&xmin,  sizeof(double));
-    cache.write((const char *)&xmax,  sizeof(double));
-    cache.write((const char *)&dx,    sizeof(double));
-    cache.write((const char *)&ascl,  sizeof(double));
-    cache.write((const char *)&lmax,  sizeof(int   ));
-    cache.write((const char *)&numr,  sizeof(int   ));
-    cache.write((const char *)&clogr, sizeof(unsigned char));
-    cache.write((const char *)&cxscl, sizeof(unsigned char));
+    YAML::Emitter y; y << node;
+
+    // Get the size of the string
+    //
+    unsigned int hsize = strlen(y.c_str());
+
+    // Write magic #
+    //
+    cache.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
+
+    // Write YAML string size
+    //
+    cache.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+    
+    // Write YAML string
+    //
+    cache.write(reinterpret_cast<const char *>(y.c_str()), hsize);
 
     // Cache Term1 and Term2 from the multipole expansion
     //
@@ -489,11 +509,13 @@ void DiskEval::write_cache()
     }
     
   } else {
-    std::cerr << "DiskEval: could not open cache file <"
+    std::cerr << std::endl
+	      << "DiskEval: could not open cache file <"
 	      << cachefile << "> for writing" << std::endl;
   }
 
-  std::cerr << "DiskEval: wrote cache file <"
+  std::cerr << std::endl
+	    << "DiskEval: wrote cache file <"
 	    << cachefile << ">" << std::endl;
 }
 
@@ -501,113 +523,177 @@ bool DiskEval::read_cache()
 {
   std::ifstream cache(cachefile);
   if (cache) {
-    char str[32];
-    double xmin1, xmax1, dx1, ascl1;
+    std::string model1;
+    double mass1, xmin1, xmax1, dx1, ascl1;
+    std::vector<double> params1;
     int lmax1, numr1;
     unsigned char clogr, cxscl;
     bool logr1 = false, xscl1 = false;
 
-    // Parameters
+    // Attempt to read magic number
     //
-    cache.read((char *)str,    sizeof(char)*32);
-    cache.read((char *)&xmin1, sizeof(double));
-    cache.read((char *)&xmax1, sizeof(double));
-    cache.read((char *)&dx1,   sizeof(double));
-    cache.read((char *)&ascl1, sizeof(double));
-    cache.read((char *)&lmax1, sizeof(int   ));
-    cache.read((char *)&numr1, sizeof(int   ));
-    cache.read((char *)&clogr, sizeof(unsigned char));
-    cache.read((char *)&cxscl, sizeof(unsigned char));
+    unsigned int tmagic;
+    cache.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
 
-    if (clogr) logr1 = true;
-    if (cxscl) xscl1 = true;
+    if (tmagic == hmagic) {
+      // YAML size
+      //
+      unsigned ssize;
+      cache.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
 
-    std::string ID1(str);
+      // Make and read char buffer
+      //
+      auto buf = std::make_unique<char[]>(ssize+1);
+      cache.read(buf.get(), ssize);
+      buf[ssize] = 0;		// Null terminate
 
-    // Check parameters
-    bool okay = true;
-   
-    if (ID1.compare(model->getID()))  {
-      okay = false;
-      std::cout << "DiskEval:read_cache: model ID mismatch <"
-		<< ID1 << "> != <" << model->getID() << ">"
-		<< std::endl;
-    }
-    if (fabs(xmin1 - xmin) > 1.0e-18) {
-      okay = false;
-      std::cout << "DiskEval:read_cache: xmin mismatch <"
-		<< xmin1 << "> != <" << xmin << ">"
-		<< std::endl;
-    }
-
-    if (fabs(xmax1 - xmax) > 1.0e-18) {
-      okay = false;
-      std::cout << "DiskEval:read_cache: xmax mismatch <"
-		<< xmax1 << "> != <" << xmax << ">"
-		<< std::endl;
-    }
-    
-    if (fabs(dx1 - dx)     > 1.0e-18) {
-      okay = false;
-      std::cout << "DiskEval:read_cache: dx mismatch <"
-		<< dx1 << "> != <" << dx << ">"
-		<< std::endl;
-    }
-    
-    if (lmax1 != lmax) {
-      okay = false;
-      std::cout << "DiskEval:read_cache: lmax mismatch <"
-		<< lmax1 << "> != <" << lmax << ">"
-		<< std::endl;
-    }
-    
-    if (numr1 != numr) {
-      okay = false;
-      std::cout << "DiskEval:read_cache: numr mismatch <"
-		<< numr1 << "> != <" << numr << ">"
-		<< std::endl;
-    }
-    
-    if ((logr1 and not logr) or (not logr1 and logr)) {
-      okay = false;
-      std::cout << "DiskEval:read_cache: logr mismatch <"
-		<< std::boolalpha << logr1 << "> != <"
-		<< std::boolalpha << logr << ">" << std::endl;
+      YAML::Node node;
       
-    }
-    
-    if ((xscl1 and not xscl) or (not xscl1 and xscl)) {
-      okay = false;
-      std::cout << "DiskEval:read_cache: xscl mismatch <"
-		<< std::boolalpha << xscl1 << "> != <"
-		<< std::boolalpha << xscl << ">" << std::endl;
-    }
-    
-    if (not okay) return false;
-    
-    // Read multipole expansion terms
-    //
-    T1.resize(lmax+1);
-    T2.resize(lmax+1);
-
-    for (int ll=0; ll<=lmax; ll++) {
-      T1[ll].resize(lmax+1);
-      T2[ll].resize(lmax+1);
-      for (int mm=0; mm<=lmax; mm++) {
-	T1[ll][mm].resize(numr);
-	T2[ll][mm].resize(numr);
+      try {
+	node = YAML::Load(buf.get());
       }
-    }
-
-    for (int ll=0; ll<=lmax; ll++) {
-      for (int mm=0; mm<=lmax; mm++) {
-	for (int rr=0; rr<numr; rr++) cache.read((char *)&T1[ll][mm][rr], sizeof(double));
+      catch (YAML::Exception& error) {
+	if (myid)
+	  std::cerr << std::endl
+		    << "YAML: error parsing <" << buf.get() << "> "
+		    << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		    << "YAML error: " << error.what() << std::endl;
+	throw error;
       }
-    }
+
+      // Get parameters
+      //
+      try {
+	model1  = node["model"  ].as<std::string>();
+	mass1   = node["mass"   ].as<double>();
+	if (node["params"])
+	params1 = node["params" ].as<std::vector<double>>();
+	xmin1   = node["xmin"   ].as<double>();
+	xmax1   = node["xmax"   ].as<double>();
+	dx1     = node["dx"     ].as<double>();
+	lmax1   = node["lmax"   ].as<int>();
+	numr1   = node["numr"   ].as<int>();
+	logr1   = node["logr"   ].as<bool>();
+	xscl1   = node["xscl"   ].as<bool>();
+      }
+      catch (YAML::Exception& error) {
+	if (myid)
+	  std::cerr << "YAML: error reading parameters" << std::endl
+		    << "YAML error: " << error.what() << std::endl;
+	throw error;
+      }
+
+      // Check parameters
+      //
+      bool okay = true;
+   
+      if (model1.compare(model->getID()))  {
+	okay = false;
+	std::cout << std::endl
+		  << "DiskEval:read_cache: model ID mismatch <"
+		  << model1 << "> != <" << model->getID() << ">"
+		  << std::endl;
+      }
+
+      // Get parameters
+      auto params = model->getParams();
+
+      if (fabs(mass1 - model->getMass()) > 1.0e-18) {
+	okay = false;
+	std::cout << std::endl
+		  << "DiskEval:read_cache: model mass mismatch <"
+		  << mass1 << "> != <" << model->getMass() << ">"
+		  << std::endl;
+      }
     
-    for (int ll=0; ll<=lmax; ll++) {
-      for (int mm=0; mm<=lmax; mm++) {
-	for (int rr=0; rr<numr; rr++) cache.read((char *)&T2[ll][mm][rr], sizeof(double));
+
+      // First check parameter size
+      if (params1.size() == params.size()) {
+	// Now check each parameter
+	for (int i=0; i<params.size(); i++) {
+	  if (fabs(params1[i] - params[i]) > 1.0e-18) {
+	    okay = false;
+	    std::cout << std::endl
+		      << "DiskEval:read_cache: model parameter ("
+		      << i+1 << ") mismatch<" << params1[i] << "> != <"
+		      << params[i] << ">" << std::endl;
+	  }
+	}
+      } else {
+	    okay = false;
+	    std::cout << std::endl
+		      << "DiskEval:read_cache: parameter size mismatch<"
+		      << params1.size() << "> != <" << params.size() << ">"
+		      << std::endl;
+      }
+
+      if (fabs(dx1 - dx)     > 1.0e-18) {
+	okay = false;
+	std::cout << std::endl
+		  << "DiskEval:read_cache: dx mismatch <"
+		  << dx1 << "> != <" << dx << ">"
+		  << std::endl;
+      }
+    
+      if (lmax1 != lmax) {
+	okay = false;
+	std::cout << std::endl
+		  << "DiskEval:read_cache: lmax mismatch <"
+		  << lmax1 << "> != <" << lmax << ">"
+		  << std::endl;
+      }
+    
+      if (numr1 != numr) {
+	okay = false;
+	std::cout << std::endl
+		  << "DiskEval:read_cache: numr mismatch <"
+		  << numr1 << "> != <" << numr << ">"
+		  << std::endl;
+      }
+    
+      if ((logr1 and not logr) or (not logr1 and logr)) {
+	okay = false;
+	std::cout << std::endl
+		  << "DiskEval:read_cache: logr mismatch <"
+		  << std::boolalpha << logr1 << "> != <"
+		  << std::boolalpha << logr << ">" << std::endl;
+	
+      }
+      
+      if ((xscl1 and not xscl) or (not xscl1 and xscl)) {
+	okay = false;
+	std::cout << std::endl
+		  << "DiskEval:read_cache: xscl mismatch <"
+		  << std::boolalpha << xscl1 << "> != <"
+		  << std::boolalpha << xscl << ">" << std::endl;
+      }
+      
+      if (not okay) return false;
+    
+      // Read multipole expansion terms
+      //
+      T1.resize(lmax+1);
+      T2.resize(lmax+1);
+
+      for (int ll=0; ll<=lmax; ll++) {
+	T1[ll].resize(lmax+1);
+	T2[ll].resize(lmax+1);
+	for (int mm=0; mm<=lmax; mm++) {
+	  T1[ll][mm].resize(numr);
+	  T2[ll][mm].resize(numr);
+	}
+      }
+      
+      for (int ll=0; ll<=lmax; ll++) {
+	for (int mm=0; mm<=lmax; mm++) {
+	  for (int rr=0; rr<numr; rr++) cache.read((char *)&T1[ll][mm][rr], sizeof(double));
+	}
+      }
+      
+      for (int ll=0; ll<=lmax; ll++) {
+	for (int mm=0; mm<=lmax; mm++) {
+	  for (int rr=0; rr<numr; rr++) cache.read((char *)&T2[ll][mm][rr], sizeof(double));
+	}
       }
     }
     

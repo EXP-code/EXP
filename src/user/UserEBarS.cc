@@ -119,21 +119,17 @@ UserEBarS::UserEBarS(const YAML::Node& conf) : ExternalForce(conf)
 
   // Assign working vectors for each thread
   okM  = 0;
-  TzM  = new double  [comp->ncomp];
-  TzN  = new double  [nthrds];
-  tacc = new double* [nthrds];
-  for (int n=0; n<nthrds; n++) tacc[n] = new double [3];
+  TzM.resize(comp->ncomp);
+  TzN.resize(nthrds);
+  tacc.resize(nthrds);
+  for (auto & v : tacc) v.resize(3);
   
   userinfo();
 }
 
 UserEBarS::~UserEBarS()
 {
-  for (int n=0; n<nthrds; n++) delete [] tacc[n];
-  delete [] tacc;
-  delete [] TzM;
-  delete [] TzN;
-  delete ellip;
+  // Nothing
 }
 
 void UserEBarS::userinfo()
@@ -247,8 +243,8 @@ void UserEBarS::determine_acceleration_and_potential(void)
 
   if (firstime) {
     
-    ellip = new EllipForce(length, length*bratio, length*bratio*cratio,
-			   barmass, 200, 200);
+    ellip = std::make_shared<EllipForce>
+      (length, length*bratio, length*bratio*cratio, barmass, 200, 200);
 
     if (omega0 < 0.0) {
 

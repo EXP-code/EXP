@@ -37,24 +37,13 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <memory>
 #include <queue>
 #include <map>
-
-using namespace std;
-
 				// Eigen3
 #include <Eigen/Eigen>
 
-				// Boost stuff
-
-#include <boost/shared_ptr.hpp>
-#include <boost/make_unique.hpp>
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
 #include <Progress.H>
-
-namespace po = boost::program_options;
 
                                 // System libs
 #include <sys/time.h>
@@ -69,6 +58,7 @@ namespace po = boost::program_options;
 #include <foarray.H>
 
 #include <global.H>
+#include <cxxopts.H>
 #include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support
@@ -128,74 +118,65 @@ main(int argc, char **argv)
   std::ostringstream sout;
   sout << std::string(60, '-') << std::endl
        << "Cross-validation analysis for cylindrical models" << std::endl
-       << std::string(60, '-') << std::endl << std::endl
-       << "Allowed options";
+       << std::string(60, '-') << std::endl;
   
-  po::options_description desc(sout.str());
-  desc.add_options()
-    ("help,h",
-     "Print this help message")
-    ("verbose,v",
-     "Verbose and diagnostic output for covariance computation")
-    ("LOG",
-     "log scaling for SNR")
-    ("Hall",
-     "use Hall smoothing for SNR trim")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("NICE",                po::value<int>(&NICE)->default_value(0),
-     "system priority")
-    ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
-     "minimum radius for output")
-    ("RSCALE",              po::value<double>(&rscale)->default_value(0.067),
-     "coordinate mapping scale factor")
-    ("RMAX",                po::value<double>(&RMAX)->default_value(2.0),
-     "maximum radius for output")
-    ("LMAX",                po::value<int>(&LMAX)->default_value(4),
-     "Maximum harmonic order for spherical expansion")
-    ("NMAX",                po::value<int>(&NMAX)->default_value(12),
-     "Maximum radial order for spherical expansion")
-    ("NPART",               po::value<int>(&NPART)->default_value(0),
-     "Jackknife partition number for testing (0 means off, use standard eval)")
-    ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
-     "Number of SNR evaluations")
-    ("minSNR",              po::value<double>(&minSNR)->default_value(0.01),
-     "minimum SNR value for loop output")
-    ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
-     "Filename prefix")
-    ("runtag",              po::value<string>(&runtag)->default_value("run1"),
-     "Phase space file")
-    ("outdir",              po::value<string>(&outdir)->default_value("."),
-     "Output directory path")
-    ("modelfile",           po::value<string>(&modelf)->default_value("SLGridSph.model"),
-     "Halo model file")
-    ("init",                po::value<int>(&init)->default_value(0),
-     "fiducial phase-space index")
-    ("beg",                 po::value<int>(&beg)->default_value(0),
-     "initial phase-space index")
-    ("end",                 po::value<int>(&end)->default_value(99999),
-     "final phase-space index")
-    ("stride",              po::value<int>(&stride)->default_value(1),
-     "phase-space index stride")
-    ("num",                 po::value<int>(&num)->default_value(10000),
-     "Number of entries in Q table")
-    ("compname",            po::value<std::string>(&cname)->default_value("stars"),
-     "train on Component (default=stars)")
-    ("dir,d",               po::value<std::string>(&dir),
-     "directory for SPL files")
-    ("ignore",
-     po::value<bool>(&ignore)->default_value(false),
-     "rebuild EOF grid if input parameters do not match the cachefile")
-    ("cachefile",
-     po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
-     "cachefile name")
-    ("tablefile",
-     po::value<std::string>(&table_cache)->default_value(".cross_val_cyl"),
-     "table file name")
+  cxxopts::Options options(argv[0], sout.str());
+
+  options.add_options()
+    ("h,help", "Print this help message")
+    ("v,verbose", "Verbose and diagnostic output for covariance computation")
+    ("LOG", "log scaling for SNR")
+    ("Hall", "use Hall smoothing for SNR trim")
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("NICE", "system priority",
+     cxxopts::value<int>(NICE)->default_value("0"))
+    ("RMIN", "minimum radius for output",
+     cxxopts::value<double>(RMIN)->default_value("0.0"))
+    ("RSCALE", "coordinate mapping scale factor",
+     cxxopts::value<double>(rscale)->default_value("0.067"))
+    ("RMAX", "maximum radius for output",
+     cxxopts::value<double>(RMAX)->default_value("2.0"))
+    ("LMAX", "Maximum harmonic order for spherical expansion",
+     cxxopts::value<int>(LMAX)->default_value("4"))
+    ("NMAX", "Maximum radial order for spherical expansion",
+     cxxopts::value<int>(NMAX)->default_value("12"))
+    ("NPART", "Jackknife partition number for testing (0 means off, use standard eval)",
+     cxxopts::value<int>(NPART)->default_value("0"))
+    (" N,NSNR", "Number of SNR evaluations",
+     cxxopts::value<int>(NSNR)->default_value("20"))
+    ("minSNR", "minimum SNR value for loop output",
+     cxxopts::value<double>(minSNR)->default_value("0.01"))
+    ("prefix", "Filename prefix",
+     cxxopts::value<string>(prefix)->default_value("crossval"))
+    ("runtag", "Phase space file",
+     cxxopts::value<string>(runtag)->default_value("run1"))
+    ("outdir", "Output directory path",
+     cxxopts::value<string>(outdir)->default_value("."))
+    ("modelfile", "Halo model file",
+     cxxopts::value<string>(modelf)->default_value("SLGridSph.model"))
+    ("init", "fiducial phase-space index",
+     cxxopts::value<int>(init)->default_value("0"))
+    ("beg", "initial phase-space index",
+     cxxopts::value<int>(beg)->default_value("0"))
+    ("end", "final phase-space index",
+     cxxopts::value<int>(end)->default_value("99999"))
+    ("stride", "phase-space index stride",
+     cxxopts::value<int>(stride)->default_value("1"))
+    ("num", "Number of entries in Q table",
+     cxxopts::value<int>(num)->default_value("10000"))
+    ("compname", "train on Component (default=stars)",
+     cxxopts::value<std::string>(cname)->default_value("stars"))
+    ("d,dir", "directory for SPL files",
+     cxxopts::value<std::string>(dir))
+    ("ignore", "rebuild EOF grid if input parameters do not match the cachefile",
+     cxxopts::value<bool>(ignore)->default_value("false"))
+    ("cachefile", "cachefile name",
+     cxxopts::value<std::string>(CACHEFILE)->default_value(".eof.cache.file"))
+    ("tablefile", "table file name",
+     cxxopts::value<std::string>(table_cache)->default_value(".cross_val_cyl"))
     ;
   
   // ==================================================
@@ -204,14 +185,13 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  po::variables_map vm;
+  
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
-    MPI_Finalize();
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
@@ -220,7 +200,7 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    if (myid==0) std::cout << std::endl << desc << std::endl;
+    if (myid==0) std::cout << std::endl << options.help() << std::endl;
     MPI_Finalize();
     return 0;
   }
@@ -255,7 +235,7 @@ main(int argc, char **argv)
   int iok = 1;
   std::ifstream in0;
 
-  auto file0 = ParticleReader::fileNameCreator(fileType, beg, dir, runtag);
+  auto file0 = ParticleReader::fileNameCreator(fileType, beg, myid, dir, runtag);
 
   if (myid==0) {
     in0.open(file0);
@@ -311,7 +291,7 @@ main(int argc, char **argv)
 	
 	// Make and read char buffer
 	//
-	auto buf = boost::make_unique<char[]>(ssize+1);
+	auto buf = std::make_unique<char[]>(ssize+1);
 	in.read(buf.get(), ssize);
 	buf[ssize] = 0;		// Null terminate
 
@@ -460,7 +440,7 @@ main(int argc, char **argv)
 
       // Make and read char buffer
       //
-      auto buf = boost::make_unique<char[]>(ssize+1);
+      auto buf = std::make_unique<char[]>(ssize+1);
       in.read(buf.get(), ssize);
       buf[ssize] = 0;		// Null terminate
 
@@ -696,9 +676,10 @@ main(int argc, char **argv)
     // Open phase-space reader
     // ==================================================
 
-    auto file1 = ParticleReader::fileNameCreator(fileType, ipsp, dir, runtag);
+    auto file1 = ParticleReader::fileNameCreator
+      (fileType, ipsp, myid, dir, runtag);
     
-    PRptr reader = ParticleReader::createReader(fileType, file1, true);
+    PRptr reader = ParticleReader::createReader(fileType, file1, myid, true);
 
     double tnow = reader->CurrentTime();
     if (myid==0) std::cout << "Beginning partition [time=" << tnow

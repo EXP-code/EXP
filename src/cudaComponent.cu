@@ -1,5 +1,7 @@
 // -*- C++ -*-
 
+#include <memory>
+
 #include "expand.H"
 #include "Component.H"
 #include "cudaParticle.cuH"
@@ -9,8 +11,6 @@
 #include <thrust/generate.h>
 #include <thrust/sequence.h>
 #include <thrust/reduce.h>
-
-#include <boost/make_shared.hpp>
 
 unsigned Component::cudaStreamData::totalInstances=0;
 
@@ -71,7 +71,7 @@ Component::cudaStreamData::~cudaStreamData()
 
 void Component::cuda_initialize()
 {
-  cuStream = boost::make_shared<cudaStreamData>();
+  cuStream = std::make_shared<cudaStreamData>();
 }
 
 

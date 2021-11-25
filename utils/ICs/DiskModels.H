@@ -4,7 +4,8 @@
 #include <EmpCylSL.H>
 
 
-//! A Ferrers Ellipsoid + Evacuated Exponential Disc (semi-realistic bar+disk model)
+//! A Ferrers Ellipsoid + Evacuated Exponential Disc (semi-realistic
+//! bar+disk model)
 class FEED : public EmpCylSL::AxiDisk
 {
 private:
@@ -20,15 +21,24 @@ private:
   CAUTION: some parameter combinations result in aphysical densities, 
   which this routine will simply zero out. 
 
-  This almost certainly is not the desired behavior; it is recommended that you check the density structure of the input model
-  before proceeding.
+  This almost certainly is not the desired behavior; it is recommended
+  that you check the density structure of the input model before
+  proceeding.
 
    */
 
 public:
 
   FEED(double a, double b, double c, double r0, double z0, double fbar, double M=1) :
-    a(a), b(b), c(c), r0(r0), z0(z0), fbar(fbar), EmpCylSL::AxiDisk(M, "FEED") {}
+    a(a), b(b), c(c), r0(r0), z0(z0), fbar(fbar), EmpCylSL::AxiDisk(M, "FEED")
+  {
+    params.push_back(a);
+    params.push_back(b);
+    params.push_back(c);
+    params.push_back(r0);
+    params.push_back(z0);
+    params.push_back(fbar);
+  }
 
   double operator()(double R, double z, double phi=0.)
   {
@@ -75,7 +85,12 @@ private:
 public:
 
   Ferrers(double a, double b, double c, double M=1) :
-    a(a), b(b), c(c), EmpCylSL::AxiDisk(M, "Ferrers") {}
+    a(a), b(b), c(c), EmpCylSL::AxiDisk(M, "Ferrers")
+  {
+    params.push_back(a);
+    params.push_back(b);
+    params.push_back(c);
+  }
 
   double operator()(double R, double z, double phi=0.)
   {
@@ -110,7 +125,11 @@ private:
 public:
 
   Exponential(double a, double h, double M=1) :
-    a(a), h(h), EmpCylSL::AxiDisk(M, "Exponential") {}
+    a(a), h(h), EmpCylSL::AxiDisk(M, "Exponential")
+  {
+    params.push_back(a);
+    params.push_back(h);
+  }
 
   double operator()(double R, double z, double phi=0.)
   {
@@ -129,7 +148,14 @@ private:
 public:
 
   DoubleExponential(double a, double h, double a2, double h2, double Mfac, double M=1) :
-    a(a), h(h), a2(a2), h2(h2), Mfac(Mfac), EmpCylSL::AxiDisk(M, "DoubleExponential") {}
+    a(a), h(h), a2(a2), h2(h2), Mfac(Mfac), EmpCylSL::AxiDisk(M, "DoubleExponential")
+  {
+    params.push_back(a);
+    params.push_back(h);
+    params.push_back(a2);
+    params.push_back(h2);
+    params.push_back(Mfac);
+  }
 
   double operator()(double R, double z, double phi=0.)
   {
@@ -155,7 +181,11 @@ private:
 public:
 
   MNdisk(double a, double h, double M=1) :
-    a(a), h(h), EmpCylSL::AxiDisk(M, "Miyamoto-Nagai") {}
+    a(a), h(h), EmpCylSL::AxiDisk(M, "Miyamoto-Nagai")
+  {
+    params.push_back(a);
+    params.push_back(h);
+  }
 
   double operator()(double R, double z, double phi=0.)
   {
@@ -169,7 +199,7 @@ public:
 //! Truncate a AxiDisk
 class Truncated : public EmpCylSL::AxiDisk
 {
-  typedef boost::shared_ptr<EmpCylSL::AxiDisk> AxiDiskPtr;
+  typedef std::shared_ptr<EmpCylSL::AxiDisk> AxiDiskPtr;
   
 private:
   
@@ -182,6 +212,8 @@ public:
     rt(R), rw(W), model(p)
   {
     ID = p->getID() + " [truncated]";
+    params.push_back(rt);
+    params.push_back(rw);
   }
 
   double operator()(double R, double z, double phi=0.)

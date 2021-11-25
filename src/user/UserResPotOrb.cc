@@ -2,7 +2,7 @@
 #include "expand.H"
 #include <localmpi.H>
 
-#include <SatelliteOrbit.h>
+#include <SatelliteOrbit.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 #include <ResPotOrb.H>
@@ -145,7 +145,7 @@ UserResPotOrb::UserResPotOrb(const YAML::Node& conf) : ExternalForce(conf)
   }
 
 				// Set up for resonance potential
-  SphericalModelTable *hm = new SphericalModelTable(model_file);
+  auto hm = std::make_shared<SphericalModelTable>(model_file);
   halo_model = hm;
 
   double r = get_radius(tnow);
@@ -162,7 +162,7 @@ UserResPotOrb::UserResPotOrb(const YAML::Node& conf) : ExternalForce(conf)
   ResPotOrb::DELTA_B = DELB;
 				// Instantiate one for each resonance
   for (int i=0; i<numRes; i++) {
-    respot.push_back(new ResPotOrb(halo_model, MASS, L0, M0, L1[i], L2[i]));
+    respot.push_back(std::make_shared<ResPotOrb>(halo_model, MASS, L0, M0, L1[i], L2[i]));
   }
 				// Construct debug file names
   for (int i=0; i<numRes; i++) {
@@ -174,7 +174,7 @@ UserResPotOrb::UserResPotOrb(const YAML::Node& conf) : ExternalForce(conf)
 
   // Initialize two-body diffusion
   if (pmass>0.0) {
-    diffuse = new TwoBodyDiffuse (pmass);
+    diffuse = std::make_shared<TwoBodyDiffuse>(pmass);
     if (debug) {
       ostringstream file;
       file << outdir << "diffusion_grid." << runtag << "." << myid;
@@ -227,9 +227,7 @@ UserResPotOrb::UserResPotOrb(const YAML::Node& conf) : ExternalForce(conf)
 
 UserResPotOrb::~UserResPotOrb()
 {
-  for (int i=0; i<numRes; i++) delete respot[i];
-  delete halo_model;
-  delete diffuse;
+  // Nothing
 }
 
 void UserResPotOrb::userinfo()

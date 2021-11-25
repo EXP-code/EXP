@@ -15,7 +15,7 @@ private:
   double *MPIin, *MPIout;
   bool MPIset;
 
-  boost::shared_ptr<SLGridSph> ortho;
+  std::shared_ptr<SLGridSph> ortho;
 
   Eigen::MatrixXd expcoef;
   std::vector<Eigen::MatrixXd> cc;
@@ -85,7 +85,7 @@ public:
   int get_maxNR(void) {return NMAX;}
   int get_maxNL(void) {return LMAX;}
 				// Pointer to orthgonal function instance
-  boost::shared_ptr<SLGridSph> SL(void) {return ortho;}
+  std::shared_ptr<SLGridSph> SL(void) {return ortho;}
 
 				// Main member functions
 
@@ -116,6 +116,6 @@ public:
 
 };
 
-typedef boost::shared_ptr<SphericalSL> SphericalSLptr;
+typedef std::shared_ptr<SphericalSL> SphericalSLptr;
 
 #endif

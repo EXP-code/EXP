@@ -1,5 +1,3 @@
-#include <boost/lexical_cast.hpp>
-
 #include "expand.H"
 #include <Output.H>
 

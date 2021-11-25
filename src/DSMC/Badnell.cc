@@ -8,8 +8,6 @@
 #include <Badnell.H>
 #include <scandir.H>
 
-#include <boost/make_shared.hpp>
-
 std::string BadnellData::datapath = "./";
 bool        BadnellData::reweight = false;
 
@@ -97,7 +95,7 @@ void BadnellData::initialize(atomicData* ad)
     double E, X;
     
     // Create a data record
-    bdPtr d = boost::make_shared<BadnellRec>();
+    bdPtr d = std::make_shared<BadnellRec>();
 
     bool looking = true;
     while (in) {

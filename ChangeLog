@@ -1899,7 +1899,7 @@ Other
 - Add VFKY toggle to YAML CollideIon database. [Martin D. Weinberg]
 - A few more comments in Verner-Yakovlev initialize. [Martin D.
   Weinberg]
-- Added boost::make_shared for clarity of intent. [Martin D. Weinberg]
+- Added std::make_shared for clarity of intent. [Martin D. Weinberg]
 - Some additional documentation. [Martin D. Weinberg]
 - Added a TODO list for DSMC directory. [Martin D. Weinberg]
 - DSMC version bump. [Martin D. Weinberg]

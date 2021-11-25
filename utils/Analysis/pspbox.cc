@@ -39,14 +39,6 @@
 
 using namespace std;
 
-				// Boost stuff
-
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
-namespace po = boost::program_options;
-
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -59,6 +51,7 @@ namespace po = boost::program_options;
 #include <SphereSL.H>
 
 #include <localmpi.H>
+#include <cxxopts.H>
 #include <foarray.H>
 
 
@@ -81,52 +74,50 @@ int main(int argc, char **argv)
   // Parse command line or input parameter file
   // ==================================================
   
-  po::options_description desc("Compute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
-  desc.add_options()
-    ("help,h",                                                                       "Print this help message")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("dir,D",
-     po::value<std::string>(&dir)->default_value("."),
-     "directory for phase-space files")
-    ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
-     "minimum radius for output")
-    ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
-     "maximum radius for output")
-    ("ZMIN",                po::value<double>(&ZMIN)->default_value(-1.0),
-     "minimum z position")
-    ("ZMAX",                po::value<double>(&ZMAX)->default_value(1.0),
-     "maximum z position")
-    ("RBINS",               po::value<int>(&RBINS)->default_value(50),
-     "number of radial bins")
-    ("ZBINS",               po::value<int>(&ZBINS)->default_value(50),
-     "number of vertical bins")
-    ("IBEG",                po::value<int>(&IBEG)->default_value(0),
-     "first PSP index")
-    ("IEND",                po::value<int>(&IEND)->default_value(100),
-     "last PSP index")
-    ("ISKIP",               po::value<int>(&ISKIP)->default_value(1),
-     "skip PSP interval")
-    ("PBEG",                po::value<int>(&PBEG)->default_value(0),
-     "first particle index")
-    ("PEND",                po::value<int>(&PEND)->default_value(-1),
-     "last particle index")
-    ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("gashisto"),
-     "filename prefix")
-    ("INFILE",              po::value<string>(&INFILE)->default_value("OUT"),
-     "phase space file")
-    ("RUNTAG",              po::value<string>(&RUNTAG)->default_value("run"),
-     "file containing desired indices for PSP output")
-    ("COMP",                po::value<string>(&COMP)->default_value("dark"),
-     "component name")
-    ("PROJ",                po::value<string>(&PROJ)->default_value("cylindrical"),
-     "Projection (cylindrical or spherical)")
-    ("GNUPLOT",             po::value<bool>(&GNUPLOT)->default_value(false),
-     "Write gnuplot type output")
+  cxxopts::Options options(argv[0], "Compute disk potential, force and density profiles\nfrom PSP phase-space output files\n");
+
+  options.add_options()
+    ("h,help", "Print this help message")
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("D,dir", "directory for phase-space files",
+     cxxopts::value<std::string>(dir)->default_value("."))
+    ("RMIN", "minimum radius for output",
+     cxxopts::value<double>(RMIN)->default_value("0.0"))
+    ("RMAX", "maximum radius for output",
+     cxxopts::value<double>(RMAX)->default_value("0.1"))
+    ("ZMIN", "minimum z position",
+     cxxopts::value<double>(ZMIN)->default_value("-1.0"))
+    ("ZMAX", "maximum z position",
+     cxxopts::value<double>(ZMAX)->default_value("1.0"))
+    ("RBINS", "number of radial bins",
+     cxxopts::value<int>(RBINS)->default_value("50"))
+    ("ZBINS", "number of vertical bins",
+     cxxopts::value<int>(ZBINS)->default_value("50"))
+    ("IBEG", "first PSP index",
+     cxxopts::value<int>(IBEG)->default_value("0"))
+    ("IEND", "last PSP index",
+     cxxopts::value<int>(IEND)->default_value("100"))
+    ("ISKIP", "skip PSP interval",
+     cxxopts::value<int>(ISKIP)->default_value("1"))
+    ("PBEG", "first particle index",
+     cxxopts::value<int>(PBEG)->default_value("0"))
+    ("PEND", "last particle index",
+     cxxopts::value<int>(PEND)->default_value("-1"))
+    ("OUTFILE", "filename prefix",
+     cxxopts::value<string>(OUTFILE)->default_value("gashisto"))
+    ("INFILE", "phase space file",
+     cxxopts::value<string>(INFILE)->default_value("OUT"))
+    ("RUNTAG", "file containing desired indices for PSP output",
+     cxxopts::value<string>(RUNTAG)->default_value("run"))
+    ("COMP", "component name",
+     cxxopts::value<string>(COMP)->default_value("dark"))
+    ("PROJ", "Projection (cylindrical or spherical)",
+     cxxopts::value<string>(PROJ)->default_value("cylindrical"))
+    ("GNUPLOT", "Write gnuplot type output",
+     cxxopts::value<bool>(GNUPLOT)->default_value("false"))
     ;
 
   // ==================================================
@@ -135,22 +126,24 @@ int main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
+
 
   // ==================================================
   // Print help message and exit
   // ==================================================
 
   if (vm.count("help")) {
-    std::cout << std::endl << desc << std::endl;
+    if (myid==0) std::cout << std::endl << options.help() << std::endl;
+    MPI_Finalize();
     return 0;
   }
 
@@ -171,7 +164,8 @@ int main(int argc, char **argv)
 				// Root nodes looks for existence of files
   if (myid==0) {
     for (int i=IBEG; i<=IEND; i++) {
-      auto lab = ParticleReader::fileNameCreator(fileType, i, dir, runtag, filePrefix);
+      auto lab = ParticleReader::fileNameCreator
+	(fileType, i, myid, dir, runtag, filePrefix);
       std::ifstream in(lab);
       if (in) files.push_back(lab);
       else break;
@@ -223,7 +217,7 @@ int main(int argc, char **argv)
 
   for (int n=0; n<nfiles; n++) {
 
-    PRptr reader = ParticleReader::createReader(fileType, files[n], true);
+    PRptr reader = ParticleReader::createReader(fileType, files[n], myid, true);
 
     times[n] = reader->CurrentTime();
 

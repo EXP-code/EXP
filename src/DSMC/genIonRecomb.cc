@@ -7,14 +7,11 @@
 #include <sstream>
 #include <iomanip>
 #include <numeric>
+#include <random>
 #include <tuple>
 
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/program_options.hpp>
-
 #include "Ion.H"
-
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
 #include <mpi.h>
 
@@ -25,7 +22,7 @@ std::string outdir(".");
 std::string runtag("run");
 char threading_on = 0;
 pthread_mutex_t mem_lock;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 
 int main (int ac, char **av)
 {
@@ -42,34 +39,32 @@ int main (int ac, char **av)
   std::string RRtype;
   int norder;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
-     "atomic number")
-    ("Temp,T",		po::value<double>(&T),
-     "temperature")
-    ("norder,n",	po::value<int>(&norder)->default_value(20),
-     "Laguerre order")
-    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
-     "cross-section type")
+  cxxopts::Options options(av[0], "Test radiative cross section");
+
+  options.add_options()
+    ("h,help", "produce help message")
+    ("Z,Z", "atomic number",
+     cxxopts::value<unsigned short>(Z)->default_value("2"))
+    ("T,Temp", "temperature",
+     cxxopts::value<double>(T))
+    ("n,norder", "Laguerre order",
+     cxxopts::value<int>(norder)->default_value("20"))
+    ("R,RRtype", "cross-section type",
+     cxxopts::value<std::string>(RRtype)->default_value("Verner"))
     ;
 
-
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
-    return -1;
+    exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: Helium ionization fractions at T=40,000 K" << std::endl;
     std::cout << "\t" << av[0]
 	      << " -Z 2 -T 40000" << std::endl;

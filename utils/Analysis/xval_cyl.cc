@@ -38,16 +38,6 @@
 #include <memory>
 #include <vector>
 #include <map>
-
-using namespace std;
-
-				// Boost stuff
-
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
-namespace po = boost::program_options;
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -62,6 +52,7 @@ namespace po = boost::program_options;
 #include <foarray.H>
 
 #include <global.H>
+#include <cxxopts.H>
 #include <localmpi.H>
 
 // Globals
@@ -90,80 +81,68 @@ main(int argc, char **argv)
   std::ostringstream sout;
   sout << std::string(60, '-') << std::endl
        << "Cross-validation analysis for spherical models" << std::endl
-       << std::string(60, '-') << std::endl << std::endl
-       << "Allowed options";
+       << std::string(60, '-') << std::endl << std::endl;
   
-  po::options_description desc(sout.str());
-  desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("verbose,v",                                                                       "Verbose and diagnostic output for covariance computation")
-    ("OUT",
-     "assume original, single binary PSP files as input")
-    ("SPL",
-     "assume new split binary PSP files as input")
-    ("LOG",
-     "log scaling for SNR")
-    ("Hall",
-     "use Hall smoothing for SNR trim")
-    ("NICE",                po::value<int>(&NICE)->default_value(0),
-     "system priority")
-    ("rcylmin",
-     po::value<double>(&rcylmin)->default_value(0.001),
-     "minimum radius for cylindrical basis table")
-    ("rcylmax",
-     po::value<double>(&rcylmax)->default_value(20.0),
-     "maximum radius for cylindrical basis table")
-    ("NUMX",
-     po::value<int>(&numx)->default_value(128), 
-     "number of radial table entries")
-    ("NUMY",
-     po::value<int>(&numy)->default_value(64), 
-     "number of vertical table entries")
-    ("rscale",
-     po::value<double>(&rscale)->default_value(0.01), 
-     "radial scale length for basis expansion")
-    ("vscale",
-     po::value<double>(&vscale)->default_value(0.001), 
-     "vertical scale length for basis expansion")
-    ("lmax",
-     po::value<int>(&lmax)->default_value(36), 
-     "maximum harmonic order for spherical expansion")
-    ("mmax",
-     po::value<int>(&mmax)->default_value(4), 
-     "maximum azimuthal harmonic order for cylindrical expansion")
-    ("norder",
-     po::value<int>(&norder)->default_value(4), 
-     "maximum radial order for each harmonic subspace")
-    ("NPART",               po::value<int>(&NPART)->default_value(0),
-     "Jackknife partition number for testing (0 means off, use standard eval)")
-    ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
-     "Number of SNR evaluations")
-    ("minSNR",              po::value<double>(&minSNR0)->default_value(0.01),
-     "minimum SNR value for loop output")
-    ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
-     "Filename prefix")
-    ("runtag",              po::value<string>(&runtag)->default_value("run1"),
-     "Phase space file")
-    ("outdir",              po::value<string>(&outdir)->default_value("."),
-     "Output directory path")
-    ("modelfile",           po::value<string>(&modelf)->default_value("SLGridSph.model"),
-     "Halo model file")
-    ("init",                po::value<int>(&init)->default_value(0),
-     "fiducial PSP index")
-    ("beg",                 po::value<int>(&beg)->default_value(0),
-     "initial PSP index")
-    ("end",                 po::value<int>(&end)->default_value(99999),
-     "final PSP index")
-    ("stride",              po::value<int>(&stride)->default_value(1),
-     "PSP index stride")
-    ("num",                 po::value<int>(&num)->default_value(10000),
-     "Number of entries in Q table")
-    ("knots",               po::value<int>(&knots)->default_value(40),
-     "Number of Legendre integration knots")
-    ("compname",            po::value<std::string>(&cname)->default_value("stars"),
-     "train on Component (default=stars)")
-    ("dir,d",               po::value<std::string>(&dir),
-     "directory for SPL files")
+  cxxopts::Options options(argv[0], sout.str());
+
+  options.add_options()
+   ("h,help", "Print this help message")
+   ("v,verbose", "Verbose and diagnostic output for covariance computation")
+   ("OUT", single binary PSP files as input",
+     "assume original)
+   ("SPL", "assume new split binary PSP files as input")
+   ("LOG", "log scaling for SNR")
+   ("Hall", "use Hall smoothing for SNR trim")
+   ("NICE", "system priority",
+     cxxopts::value<int>(NICE)->default_value("0"))
+   ("rcylmin", "minimum radius for cylindrical basis table",
+     cxxopts::value<double>(rcylmin)->default_value("0.001"))
+   ("rcylmax", "maximum radius for cylindrical basis table",
+     cxxopts::value<double>(rcylmax)->default_value("20.0"))
+   ("NUMX", "number of radial table entries",
+     cxxopts::value<int>(numx)->default_value("128"))
+   ("NUMY", "number of vertical table entries",
+     cxxopts::value<int>(numy)->default_value("64"))
+   ("rscale", "radial scale length for basis expansion",
+     cxxopts::value<double>(rscale)->default_value("0.01"))
+   ("vscale", "vertical scale length for basis expansion",
+     cxxopts::value<double>(vscale)->default_value("0.001"))
+   ("lmax", "maximum harmonic order for spherical expansion",
+     cxxopts::value<int>(lmax)->default_value("36"))
+   ("mmax", "maximum azimuthal harmonic order for cylindrical expansion",
+     cxxopts::value<int>(mmax)->default_value("4"))
+   ("norder", "maximum radial order for each harmonic subspace",
+     cxxopts::value<int>(norder)->default_value("4"))
+    ("NPART", "Jackknife partition number for testing (0 means off, use standard eval)",
+     cxxopts::value<int>(NPART)->default_value("0"))
+   (" N,NSNR", "Number of SNR evaluations",
+     cxxopts::value<int>(NSNR)->default_value("20"))
+   ("minSNR", "minimum SNR value for loop output",
+     cxxopts::value<double>(minSNR0)->default_value("0.01"))
+   ("prefix", "Filename prefix",
+     cxxopts::value<string>(prefix)->default_value("crossval"))
+   ("runtag", "Phase space file",
+     cxxopts::value<string>(runtag)->default_value("run1"))
+   ("outdir", "Output directory path",
+     cxxopts::value<string>(outdir)->default_value("."))
+   ("modelfile", "Halo model file",
+     cxxopts::value<string>(modelf)->default_value("SLGridSph.model"))
+   ("init", "fiducial PSP index",
+     cxxopts::value<int>(init)->default_value("0"))
+   ("beg", "initial PSP index",
+     cxxopts::value<int>(beg)->default_value("0"))
+   ("end", "final PSP index",
+     cxxopts::value<int>(end)->default_value("99999"))
+   ("stride", "PSP index stride",
+     cxxopts::value<int>(stride)->default_value("1"))
+   ("num", "Number of entries in Q table",
+     cxxopts::value<int>(num)->default_value("10000"))
+   ("knots", "Number of Legendre integration knots",
+     cxxopts::value<int>(knots)->default_value("40"))
+   ("compname", "train on Component (default=stars)",
+     cxxopts::value<std::string>(cname)->default_value("stars"))
+   ("d,dir", "directory for SPL files",
+     cxxopts::value<std::string>(dir))
     ;
   
   // ==================================================
@@ -172,13 +151,13 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
@@ -187,7 +166,8 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    if (myid==0) std::cout << std::endl << desc << std::endl;
+    if (myid==0) std::cout << std::endl << options.help() << std::endl;
+    MPI_Finalize();
     return 0;
   }
 

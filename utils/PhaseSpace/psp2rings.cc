@@ -12,6 +12,7 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <random>
 #include <string>
 #include <list>
 #include <map>
@@ -20,12 +21,9 @@
 #include <PSP.H>
 #include <FileUtils.H>
 
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/program_options.hpp>
-
 #include <Progress.H>
+#include <cxxopts.H>
 
-namespace po = boost::program_options;
 
 //! Coefficient file header
 struct RingCoefHeader
@@ -98,51 +96,51 @@ main(int ac, char **av)
   double pmin, pmax;
 
   // Parse command line
+  //
+  cxxopts::Options options(prog, "Separate a psp structure and make a kinematic Fourier coefficients series in rings.\n");
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("verbose,v",       "verbose output")
-    ("beg,i",	        po::value<int>(&ibeg)->default_value(0),
-     "initial snapshot index")
-    ("end,e",	        po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()),
-     "final snapshot index")
-    ("mmin,m",	        po::value<int>(&mmin)->default_value(1),
-     "minimum Fourier component in bin")
-    ("mmax,M",	        po::value<int>(&mmax)->default_value(4),
-     "maximum Fourier component in bin")
-    ("rmin,r",	        po::value<double>(&pmin)->default_value(0.0),
-     "minimum bin radius")
-    ("rmax,R",	        po::value<double>(&pmax)->default_value(0.04),
-     "maximum bin radius")
-    ("bins,b",	        po::value<int>(&numb)->default_value(40),
-     "number of bins")
-    ("name,c",	        po::value<std::string>(&cname)->default_value("comp"),
-     "component name")
-    ("dir,d",           po::value<std::string>(&new_dir)->default_value("./"),
-     "rewrite directory location for SPL files")
-    ("work,w",          po::value<std::string>(&work_dir)->default_value("."),
-     "working directory for output file")
-    ("type,t",          po::value<std::string>(&tname)->default_value("OUT"),
-     "PSP output type (OUT or SPL)")
-    ("runtag,T",        po::value<std::string>(&runtag)->default_value("run0"),
-     "Runtag id")
-    ("suffix,s",        po::value<std::string>(&suffix)->default_value("ring_coefs"),
-     "Output file suffix")
+  options.add_options()
+   ("h,help", "produce help message")
+   ("v,verbose", "verbose output")
+   ("i,beg", "initial snapshot index",
+     cxxopts::value<int>(ibeg)->default_value("0"))
+   ("e,end", "final snapshot index",
+     cxxopts::value<int>(iend)->default_value(std::to_string(std::numeric_limits<int>::max())))
+   ("m,mmin", "minimum Fourier component in bin",
+     cxxopts::value<int>(mmin)->default_value("1"))
+   ("M,mmax", "maximum Fourier component in bin",
+     cxxopts::value<int>(mmax)->default_value("4"))
+   ("r,rmin", "minimum bin radius",
+     cxxopts::value<double>(pmin)->default_value("0.0"))
+   ("R,rmax", "maximum bin radius",
+     cxxopts::value<double>(pmax)->default_value("0.04"))
+   ("b,bins", "number of bins",
+     cxxopts::value<int>(numb)->default_value("40"))
+   ("c,name", "component name",
+     cxxopts::value<std::string>(cname)->default_value("comp"))
+   ("d,dir", "rewrite directory location for SPL files",
+     cxxopts::value<std::string>(new_dir)->default_value("./"))
+   ("w,work", "working directory for output file",
+     cxxopts::value<std::string>(work_dir)->default_value("."))
+   ("t,type", "PSP output type (OUT or SPL)",
+     cxxopts::value<std::string>(tname)->default_value("OUT"))
+   ("T,runtag", "Runtag id",
+     cxxopts::value<std::string>(runtag)->default_value("run0"))
+   ("s,suffix", "Output file suffix",
+     cxxopts::value<std::string>(suffix)->default_value("ring_coefs"))
     ;
 
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
 	      << " --output=out.bod" << std::endl;
@@ -192,7 +190,7 @@ main(int ac, char **av)
     out.write((const char *)&b, sizeof(double));
   }
 
-  boost::progress_display progress(iend - ibeg + 1);
+  progress::progress_display progress(iend - ibeg + 1);
 
   for (int n=ibeg; n<=iend; n++) {
 

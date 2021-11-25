@@ -6,37 +6,20 @@
 
 using namespace std;
 
-#include <unistd.h>
-#include <stdlib.h>
-
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <random>
 #include <list>
-
-#include <boost/random/mersenne_twister.hpp>
 
 #include <StringTok.H>
 #include <header.H>
 #include <PSP.H>
-
-//-------------
-// Help message
-//-------------
-
-void Usage(char* prog) {
-  cerr << prog << ": [-t time -v -h] filename\n\n";
-  cerr << "    -o name         prefix name for each component (default: comp)\n";
-  cerr << "    -a              use input format\n";
-  cerr << "    -d dir          replacement SPL file directory\n";
-  cerr << "    -h              print this help message\n";
-  cerr << "    -v              verbose output\n\n";
-  exit(0);
-}
-
+#include <cxxopts.H>
 
 int
 main(int argc, char **argv)
@@ -45,62 +28,68 @@ main(int argc, char **argv)
   double time=1e20;
   bool verbose = false;
   bool input   = false;
-  string cname("comp"), new_dir("./");
+  std::string cname("comp"), new_dir("./"), filename;
 
   // Parse command line
+  //
+  cxxopts::Options options("psp2ascii", "Convert PSP output to ascii for analysis");
+  
+  options.add_options()
+    ("h,help", "this help message")
+    ("v,verbose", "verbose output")
+    ("a,input", "use input format")
+    ("t,time", "desired input time slice",
+     cxxopts::value<double>(time)->default_value("1.0e+20"))
+    ("o,outname", "prefix name for each component (default: comp)",
+     cxxopts::value<std::string>(cname)->default_value("comp"))
+    ("d,dirname", "replacement SPL file directory",
+     cxxopts::value<std::string>(new_dir)->default_value("./"))
+    ("f,filename", "input PSP file",
+     cxxopts::value<std::string>(filename))
+    ;
 
-  while (1) {
+  cxxopts::ParseResult vm;
 
-    int c = getopt(argc, argv, "t:o:avh");
-
-    if (c == -1) break;
-
-    switch (c) {
-
-    case 'v':
-      verbose = true;
-      break;
-
-    case 'o':
-      cname.erase();
-      cname = string(optarg);
-      break;
-
-    case 'd':
-      new_dir.erase();
-      new_dir = string(optarg);
-      break;
-
-    case 'a':
-      input = true;
-      break;
-
-    case '?':
-    case 'h':
-    default:
-      Usage(prog);
-    }
-
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
   }
 
-  std::string filename;
 
-  if (optind < argc) {
+  // Print help message and exit
+  //
+  if (vm.count("help")) {
+    if (myid==0) {
+      std::cout << options.help() << std::endl;
+    }
+    return 1;
+  }
 
-    filename = std::string(argv[optind]);
-    
+  if (vm.count("verbose")) {
+    verbose = true;
+  }
+
+  if (vm.count("input")) {
+    input = true;
+  }
+
+
+  if (vm.count("filename")) {
+
     std::ifstream in(filename);
     if (!in) {
       cerr << "Error opening file <" << filename << "> for input\n";
       exit(-1);
     }
-
+    
     if (verbose) cerr << "Using filename: " << filename << endl;
 
   } else {
-    Usage(prog);
+    std::cout << options.help() << std::endl;
+    exit(-1);
   }
-
 				// Parse the PSP file
 				// ------------------
   PSPptr psp;

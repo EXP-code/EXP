@@ -1,7 +1,7 @@
 #ifndef _UserPeriodic_H
 #define _UserPeriodic_H
 
-#include <boost/random/normal_distribution.hpp>
+#include <random>
 
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
@@ -55,7 +55,7 @@ private:
   void userinfo();
 
   //! Pseudorandom generation
-  boost::random::normal_distribution<> norm;
+  std::normal_distribution<> norm;
 
 public:
 

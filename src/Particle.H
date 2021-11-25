@@ -3,11 +3,7 @@
 
 #include <unordered_map>
 #include <vector>
-
-// Boost shared pointer implementation
-//
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 using namespace std;
 
@@ -25,7 +21,6 @@ private:
 
   //! MPI buffer
   std::vector<char> buffer;
-
 
 public:
 
@@ -153,7 +148,7 @@ public:
 };
 
 
-typedef boost::shared_ptr<Particle> PartPtr;
+typedef std::shared_ptr<Particle> PartPtr;
 typedef std::unordered_map<unsigned long, PartPtr> PartMap;
 typedef std::unordered_map<unsigned long, PartPtr>::iterator PartMapItr;
 typedef std::pair<unsigned long, PartPtr> PMapType;

@@ -21,13 +21,9 @@ using namespace std;
 #include <Species.H>
 
 #include <StringTok.H>
+#include <cxxopts.H>
 #include <header.H>
 #include <PSP.H>
-
-#include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
-
-namespace po = boost::program_options;
 
 int
 main(int ac, char **av)
@@ -39,44 +35,44 @@ main(int ac, char **av)
   int numb, comp, sindx, eindx;
 
   // Parse command line
+  //
+  cxxopts::Options options(prog, "Separate a psp structure and make a 1-d histogram.\n");
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("verbose,v",       "verbose output")
-    ("OUT",             "assume that PSP files are in original format")
-    ("SPL",             "assume that PSP files are in split format")
-    ("Lunit,L",		po::value<double>(&Lunit)->default_value(3.086e18),
-     "System length in physical units (cgs)")
-    ("Tunit,T",		po::value<double>(&Tunit)->default_value(3.15569e12),
-     "System time in physical units (cgs)")
-    ("Emax,E",		po::value<double>(&Emax)->default_value(200.0),
-     "Maximum energy in eV")
-    ("bins,b",	        po::value<int>(&numb)->default_value(40),
-     "number of bins")
-    ("species,s",	po::value<int>(&sindx)->default_value(0),
-     "position of species index")
-    ("electrons,e",	po::value<int>(&eindx)->default_value(7),
-     "position of electron index")
-    ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
-     "component name")
-    ("files,f",         po::value< std::vector<std::string> >(), 
-     "input files")
+  options.add_options()
+   ("h,help", "produce help message")
+   ("v,verbose", "verbose output")
+   ("OUT", "assume that PSP files are in original format")
+   ("SPL", "assume that PSP files are in split format")
+   ("L,Lunit", "System length in physical units (cgs)",
+     cxxopts::value<double>(Lunit)->default_value("3.086e18"))
+   ("T,Tunit", "System time in physical units (cgs)",
+     cxxopts::value<double>(Tunit)->default_value("3.15569e12"))
+   ("E,Emax", "Maximum energy in eV",
+     cxxopts::value<double>(Emax)->default_value("200.0"))
+   ("b,bins", "number of bins",
+     cxxopts::value<int>(numb)->default_value("40"))
+   ("s,species", "position of species index",
+     cxxopts::value<int>(sindx)->default_value("0"))
+   ("e,electrons", "position of electron index",
+     cxxopts::value<int>(eindx)->default_value("7"))
+   ("c,name", "component name",
+     cxxopts::value<std::string>(cname)->default_value("gas"))
+   ("f,files", "input files",
+     cxxopts::value< std::vector<std::string> >())
     ;
 
 
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
 	      << " -E 300 -n 100 -f OUT.run.00001" << std::endl;

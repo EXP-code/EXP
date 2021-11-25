@@ -21,15 +21,11 @@ using namespace std;
 #include <Species.H>
 
 #include <StringTok.H>
+#include <cxxopts.H>
 #include <header.H>
 #include <PSP.H>
 
 #include "atomic_constants.H"
-
-#include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
-
-namespace po = boost::program_options;
 
 int
 main(int ac, char **av)
@@ -42,48 +38,49 @@ main(int ac, char **av)
 
   // Parse command line
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("verbose,v",       "verbose output")
-    ("trace",           "trace element method")
-    ("OUT",             "assume that PSP files are in original format")
-    ("SPL",             "assume that PSP files are in split format")
-    ("species,s",	po::value<int>(&sindx)->default_value(-1),
-     "position of species index")
-    ("electrons,e",	po::value<int>(&eindx)->default_value(10),
-     "position of electron index")
-    ("consI,I",         po::value<int>(&icons)->default_value(-1),
-     "position of ion conservation (-1 to ignore)")
-    ("consE,E",         po::value<int>(&econs)->default_value(-1),
-     "position of electron conservation (-1 to ignore)")
-    ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
-     "component name")
-    ("Lunit,L",         po::value<double>(&Lunit)->default_value(1.0),
-     "physical length unit in pc")
-    ("Munit,M",         po::value<double>(&Munit)->default_value(0.1),
-     "physical mass unit in solar masses")
-    ("Tunit,T",         po::value<double>(&Tunit)->default_value(1.0e+05),
-     "physical time unit in years")
-    ("files,f",         po::value< std::vector<std::string> >(), 
-     "input files")
+  cxxopts::Options options(prog, "Compute simple statistics from psp dump");
+
+  options.add_options()
+   ("h,help", "produce help message")
+   ("v,verbose", "verbose output")
+   ("trace", "trace element method")
+   ("OUT", "assume that PSP files are in original format")
+   ("SPL", "assume that PSP files are in split format")
+   ("s,species", "position of species index",
+     cxxopts::value<int>(sindx)->default_value("-1"))
+   ("e,electrons", "position of electron index",
+     cxxopts::value<int>(eindx)->default_value("10"))
+   ("I,consI", "position of ion conservation (-1 to ignore)",
+     cxxopts::value<int>(icons)->default_value("-1"))
+   ("E,consE", "position of electron conservation (-1 to ignore)",
+     cxxopts::value<int>(econs)->default_value("-1"))
+   ("c,name", "component name",
+     cxxopts::value<std::string>(cname)->default_value("gas"))
+   ("L,Lunit", "physical length unit in pc",
+     cxxopts::value<double>(Lunit)->default_value("1.0"))
+   ("M,Munit", "physical mass unit in solar masses",
+     cxxopts::value<double>(Munit)->default_value("0.1"))
+   ("T,Tunit", "physical time unit in years",
+     cxxopts::value<double>(Tunit)->default_value("1.0e+05"))
+   ("f,files", "input files",
+     cxxopts::value< std::vector<std::string> >())
     ;
 
 
   double mu0 = 1.0/(0.76/atomic_mass[1] + 0.24/atomic_mass[2]);
 
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
+
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
 	      << " -c gas -s 0 -f OUT.run.00001" << std::endl;

@@ -2,6 +2,8 @@
 #define _phase_H
 
 #include <ostream>
+#include <vector>
+
 #include <Eigen/Eigen>
 
 #include <numerical.H>
@@ -165,7 +167,7 @@ class Ensemble
 {
 protected:
   int Nstars;
-  Phase *stars;
+  std::vector<Phase> stars;
   double t;
   
 public:

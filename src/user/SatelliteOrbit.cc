@@ -30,10 +30,11 @@
  ****************************************************************************/
 
 #include <cstdlib>
-#include <cmath>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <memory>
+#include <cmath>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -52,7 +53,7 @@
 
 #include <localmpi.H>
 #include <global.H>
-#include <SatelliteOrbit.h>
+#include <SatelliteOrbit.H>
 				// External prototype for Euler matrix
 
 Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY);
@@ -131,7 +132,7 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
 				// Initilize HALO model
   switch (HALO_MODEL) {
   case file:
-    m = new SphericalModelTable(MODFILE, DIVERGE, DIVRG_RFAC);
+    m = std::make_shared<SphericalModelTable>(MODFILE, DIVERGE, DIVRG_RFAC);
     m->setup_df(NUMDF, RA);
     halo_model = m;
 				// Assign filename to ID string
@@ -139,17 +140,15 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
     break;
     
   case sing_isothermal:
-    halo_model = new SingIsothermalSphere(VROT, RMODMIN, RMODMAX);
+    halo_model = std::make_shared<SingIsothermalSphere>(VROT, RMODMIN, RMODMAX);
     break;
 
   case isothermal:
-    halo_model = new IsothermalSphere(RCORE, RMODMAX, VROT);
+    halo_model = std::make_shared<IsothermalSphere>(RCORE, RMODMAX, VROT);
     break;
 
   case hernquist_model:
-    halo_model = new HernquistSphere(1.0, // Halo model
-				     RMODMIN, 
-				     RMODMAX);
+    halo_model = std::make_shared<HernquistSphere>(1.0, RMODMIN, RMODMAX);
     break; 
 
   default:
@@ -183,11 +182,7 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
 
     FindOrb::MAXIT = MAXIT;
 
-    orb = new FindOrb(
-		      halo_model,
-		      PERI, 
-		      APO
-		      );
+    orb = std::make_shared<FindOrb>(halo_model, PERI, APO);
 
     OrbValues ret = orb->Anneal();
 
@@ -238,15 +233,12 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
 }
 
 // ===================================================================
-// Destructior
+// Destructor
 // ===================================================================
 
 SatelliteOrbit::~SatelliteOrbit(void)
 {
-  if (m) delete m;
-  else   delete halo_model;
-  
-  delete orb;
+  // Nothing
 }
 
 Eigen::Vector3d SatelliteOrbit::get_satellite_orbit(double T)

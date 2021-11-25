@@ -39,16 +39,30 @@ inline void
 cuda_safe_call_mpi(cudaError_t code, const char *file, int line, int myid,
 		   const std::string& message = "")
 {
+  std::stringstream ss;
+  int bad = 0, tot = 0;
+
   if (code != cudaSuccess) {
     const char * errorMessage = cudaGetErrorString(code);
-    std::stringstream ss;
     ss << "CUDA error returned from " << file << ":" << line
        << ", mpi rank=" << myid
        << " Error code: " << code << "(" << errorMessage << ")";
     if (message.size()>0) ss << " [" << message << "]";
-    
-    MPI_Abort(MPI_COMM_WORLD, 18);
+    bad = 1;
+  }
+  
+  // All processes get the total number of errors
+  MPI_Allreduce(&bad, &tot, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
+  // Print local error
+  if (bad) {
+    std::cerr << "[" << myid << "] " << ss.str() << std::endl << std::flush;
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // All processes throw if any process has an error
+  if (tot) {
     throw thrust::system_error(code, thrust::cuda_category(), ss.str());
   }
 }

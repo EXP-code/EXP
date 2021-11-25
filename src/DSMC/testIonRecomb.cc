@@ -7,14 +7,11 @@
 #include <sstream>
 #include <iomanip>
 #include <numeric>
+#include <random>
 #include <tuple>
 
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/program_options.hpp>
-
 #include "Ion.H"
-
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
 #include <mpi.h>
 
@@ -25,7 +22,7 @@ std::string outdir(".");
 std::string runtag("run");
 char threading_on = 0;
 pthread_mutex_t mem_lock;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 
 int main (int ac, char **av)
 {
@@ -50,49 +47,46 @@ int main (int ac, char **av)
   size_t nout = 1;
   bool rates = false, use_log = false;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("long,l",		"long-form output")
-    ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
-     "atomic number")
-    ("Tmin,t",		po::value<double>(&Tmin)->default_value(1000.0),
-     "minimum temperature")
-    ("Tmax,T",		po::value<double>(&Tmax)->default_value(1000000.0),
-     "maximum temperature")
-    ("Emin,e",		po::value<double>(&Emin)->default_value(0.001),
-     "minimum energy in eV")
-    ("Emax,E",		po::value<double>(&Emax)->default_value(1000.0),
-     "maximum energy in eV")
-    ("NumT,N",		po::value<int>(&numT)->default_value(200),
-     "number of temperature points")
-    ("NumE,M",		po::value<int>(&numE)->default_value(1),
-     "number of incremental energy points")
-    ("rates",
-     "plot VALUES of rate coefficients")
-    ("use_log",
-     "use logarithmic spacing in Legendre integration")
-    ("norder,n",	po::value<int>(&norder)->default_value(20),
-     "Laguerre order")
-    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
-     "cross-section type")
+  cxxopts::Options options(av[0], "Test recombination cross section");
+
+  options.add_options()
+   ("h,help", "produce help message")
+   ("l,long", "long-form output")
+   ("Z,Z", "atomic number",
+     cxxopts::value<unsigned short>(Z)->default_value("2"))
+   ("t,Tmin", "minimum temperature",
+     cxxopts::value<double>(Tmin)->default_value("1000.0"))
+   ("T,Tmax", "maximum temperature",
+     cxxopts::value<double>(Tmax)->default_value("1000000.0"))
+   ("e,Emin", "minimum energy in eV",
+     cxxopts::value<double>(Emin)->default_value("0.001"))
+   ("E,Emax", "maximum energy in eV",
+     cxxopts::value<double>(Emax)->default_value("1000.0"))
+   ("N,NumT", "number of temperature points",
+     cxxopts::value<int>(numT)->default_value("200"))
+   ("M,NumE", "number of incremental energy points",
+     cxxopts::value<int>(numE)->default_value("1"))
+   ("rates", "plot VALUES of rate coefficients")
+   ("use_log", "use logarithmic spacing in Legendre integration")
+   ("n,norder", "Laguerre order",
+     cxxopts::value<int>(norder)->default_value("20"))
+   ("R,RRtype", "cross-section type",
+     cxxopts::value<std::string>(RRtype)->default_value("Verner"))
     ;
 
-
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
-    return -1;
+    exit(-1);
   }
 
+
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: Helium ionization fractions at T=40,000 K" << std::endl;
     std::cout << "\t" << av[0]
 	      << " -Z 2 -T 40000" << std::endl;

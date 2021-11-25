@@ -1,16 +1,19 @@
-#include <boost/algorithm/string.hpp>
-#include <string>
-#include <cstdlib>
-#include <cmath>
+#include <algorithm>
+#include <iterator>
 #include <iostream>
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <vector>
+#include <string>
+#include <cctype>
 #include <tuple>
+#include <cmath>
 #include <map>
 
 #include <localmpi.H>
+#include <Sutils.H>
 
 #include "Ion.H"
 #include "interactSelect.H"
@@ -104,20 +107,19 @@ void Ion::convertName()
   std::string ele;
   std::string charge;
   
-  std::vector<std::string> v;
   std::string die = "d";	// Set to dielectronic
   size_t      isd;
   
   // split the name up into its element ab. and charge
   // In C, this would be: sscanf(MasterName, "%s_%s", ele, charge);
   //
-  boost::split(v, MasterName, boost::is_any_of("_") );
+  std::vector<std::string> v = str_split(MasterName, '_');
 
   eleName = v[0];
   
   // get the Z value for the element by looking up through table
   for (int i = 0; i < numEle; i++) {
-    if (boost::iequals(v[0], eleNameList[i])) {
+    if (str_to_lower(v[0]) == str_to_lower(eleNameList[i])) {
       Z = i+1; break;
     }
   }
@@ -755,8 +757,7 @@ Ion::Ion(std::string name, atomicData* ad) : ad(ad)
 {
   MasterName = name;
 
-  std::vector<std::string> v;
-  boost::split(v, MasterName, boost::is_any_of("_") );
+  std::vector<std::string> v = str_split(MasterName, '_');
   eleName = v[0];
 
   convertName();		// Sets Z and C . . . 
@@ -811,7 +812,7 @@ Ion::Ion(std::string name, atomicData* ad) : ad(ad)
 
   kgr10.resize(kffsteps);
   for (int i=0; i<kffsteps; i++) {
-    kgr10[i] = pow(10, kgrid[i]) * hbc;
+    kgr10[i] = exp10(kgrid[i]) * hbc;
   }
 
   // Initialize the nu-grid for photoionization (in units of the
@@ -834,8 +835,7 @@ Ion::Ion(unsigned short Z, unsigned short C, atomicData* ad) : ad(ad), Z(Z), C(C
   d = false;
   MasterName = ZCtoName(Z, C);
 
-  std::vector<std::string> v;
-  boost::split(v, MasterName, boost::is_any_of("_") );
+  std::vector<std::string> v = str_split(MasterName, '_');
   eleName = v[0];
 
   freeFreeGridComputed  = false;
@@ -923,7 +923,7 @@ Ion::Ion(unsigned short Z, unsigned short C, atomicData* ad) : ad(ad), Z(Z), C(C
 
   kgr10.resize(kffsteps);
   for (int i=0; i<kffsteps; i++) {
-    kgr10[i] = pow(10, kgrid[i]) * hbc;
+    kgr10[i] = exp10(kgrid[i]) * hbc;
   }
 
   // Initialize the nu-grid for photoionization (in units of the
@@ -1562,7 +1562,7 @@ void Ion::directIonMakeGrid(int id)
 
   // Get max energy
   ionizeEmin = ip;
-  ionizeEmax = EmaxGrid;
+  ionizeEmax = exp10(EmaxGrid);
 
   // Number of elements in energy grid
   NionizeGrid = 1 + std::floor( (ionizeEmax - ionizeEmin)/DeltaEGrid );
@@ -1690,7 +1690,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id)
     
     // Assign the photon energy
     //
-    ffWaveCross = pow(10, k) * hbc;
+    ffWaveCross = exp10(k) * hbc;
 
     // Use the integrated cross section from the differential grid
     //
@@ -1723,7 +1723,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
   // Integration variables
   //
   double cum    = 0;
-  double dk     = (kgrid[1] - kgrid[0])*log(10.0);
+  double dk     = (kgrid[1] - kgrid[0])*log(10.0); // Natural log interval
 
   std::vector<double> diff, cuml;
 
@@ -1781,15 +1781,15 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
 
     }
 
-    // Differential cross section contribution
+    // Differential cross section contribution, following Sutherland (1998)
     //
     // dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
     //
-    constexpr double nfac = 32.0*M_PI/(3.0*sqrt(3.0)) * r0*r0 * afs*afs*afs;
+    constexpr double nfac = 16.0/(3.0*sqrt(3.0)) * afs*afs*afs * M_PI*a0*a0;
 
-    double sig = nfac*Z*Z * sqrt(Ef/Ei)/k * corr * gff;
+    double sig = nfac*Z*Z * eta_f*eta_f * corr * gff;
 
-    cum = cum + sig * dk * k;
+    cum = cum + sig * dk;
 
     diff.push_back(sig);
     cuml.push_back(cum);
@@ -1845,7 +1845,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
     
     // Assign the photon energy
     //
-    ffWaveCross = pow(10, k) * hbc;
+    ffWaveCross = exp10(k) * hbc;
 
     // Use the integrated cross section from the differential grid
     //
@@ -2019,67 +2019,68 @@ void Ion::freeFreeMakeEvGrid(int id)
 	
       // Can't emit a photon if not enough KE!
       //
-      if (Ef <= 0.0) break;
+      if (Ef > 0.0) {
       
-      // Scaled inverse energy (final)
-      //
-      double nf     = sqrt( RydtoeV*(C-1)*(C-1)/Ef );
-      
-      // Elwert factor
-      //
-      double corr   = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
-	
-      if (use_VAN_HOOF) {
-
-	double gff = 1.0;
-
-	// Gaunt factor
+	// Scaled inverse energy (final)
 	//
-	double eta_f    = 1.0/sqrt(Ei/(RydtoeV*Z*Z));
-	double eta_i    = 1.0/sqrt(Ef/(RydtoeV*Z*Z));
+	double nf     = sqrt( RydtoeV*(C-1)*(C-1)/Ef );
+      
+	// Elwert factor
+	//
+	double corr   = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
 	
-	double nfr      = eta_f/eta_i;
-	double nfr2     = nfr*nfr;
-	double crit     = (1.0 - nfr2)*eta_f;
+	if (use_VAN_HOOF) {
 
-	if (crit > 1.0e4) {
+	  double gff = 1.0;
 
-	  double fac1     = pow(crit, -2.0/3.0);
-	  double fac2     = fac1*fac1;
-	
-	  constexpr double c1 = 0.1728260369;
-	  constexpr double c2 = 0.04959570168;
-	  constexpr double c3 = 0.01714285714;
+	  // Gaunt factor
+	  //
+	  double eta_f    = 1.0/sqrt(Ei/(RydtoeV*Z*Z));
+	  double eta_i    = 1.0/sqrt(Ef/(RydtoeV*Z*Z));
 	  
-	  gff = 1.0 +
-	    c1*(1.0 + nfr2)*fac1 -
-	    c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*fac2 -
-	    c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*fac1*fac2 +
-	    0.0025*fac2*fac2;
+	  double nfr      = eta_f/eta_i;
+	  double nfr2     = nfr*nfr;
+	  double crit     = (1.0 - nfr2)*eta_f;
 
+	  if (crit > 1.0e4) {
+
+	    double fac1     = pow(crit, -2.0/3.0);
+	    double fac2     = fac1*fac1;
+	
+	    constexpr double c1 = 0.1728260369;
+	    constexpr double c2 = 0.04959570168;
+	    constexpr double c3 = 0.01714285714;
+	  
+	    gff = 1.0 +
+	      c1*(1.0 + nfr2)*fac1 -
+	      c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*fac2 -
+	      c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*fac1*fac2 +
+	      0.0025*fac2*fac2;
+	    
+	  } else {
+	    
+	    gff = ad->gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
+	    
+	  }
+	
+	  // Differential cross section contribution
+	  //
+	  // dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
+	  //
+	  constexpr double nfac = 16.0/(3.0*sqrt(3.0)) * afs*afs*afs * M_PI*a0*a0;
+
+	  double sig = nfac * eta_f*eta_f * corr * gff;
+
+	  cum = cum + sig * dk;
+	
 	} else {
 
-	  gff = ad->gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
-
+	  // Differential cross section contribution
+	  //
+	  double dsig   = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
+	
+	  cum = cum + dsig;
 	}
-	
-	// Differential cross section contribution
-	//
-	// dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
-	//
-	constexpr double nfac = 32.0*M_PI/(3.0*sqrt(3.0)) * r0*r0 * afs*afs*afs;
-
-	double sig = nfac*Z*Z * sqrt(Ef/Ei)/k * corr * gff;
-	
-	cum = cum + sig * dk * k;
-	
-      } else {
-
-	// Differential cross section contribution
-	//
-	double dsig   = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
-	
-	cum = cum + dsig;
       }
 	
       freeFreeGrid[n].push_back(cum);
@@ -2221,7 +2222,7 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
 
     // Assign the photon energy
     //
-    ffWaveCross = pow(10, K) * hbc;
+    ffWaveCross = exp10(K) * hbc;
 
     // Use the integrated cross section from the differential grid
     //
@@ -2363,7 +2364,7 @@ std::pair<double, double> Ion::freeFreeCrossEvGridTest(double E, double rn, int 
 
     // Assign the photon energy
     //
-    ffWaveCross = pow(10, K) * hbc;
+    ffWaveCross = exp10(K) * hbc;
 
     // Use the integrated cross section from the differential grid
     //
@@ -2913,7 +2914,7 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
       std::cerr << "Ion: creating new TopBase instance"
 		<< std::endl;
     }
-    ad->tb = boost::shared_ptr<TopBase>(new TopBase);
+    ad->tb = std::shared_ptr<TopBase>(new TopBase);
     // For debugging (set to 'false' for production)
     //  |
     //  v
@@ -3006,15 +3007,13 @@ void atomicData::readMaster()
   std::string fileName(val);
   fileName.append("/masterlist/masterlist.ions");
   std::string line;
-  ifstream masterFile(fileName.c_str());
+  std::ifstream masterFile(fileName.c_str());
 
   if (masterFile.is_open()) {
     while(masterFile.good()) {
-      getline(masterFile, line);
-      std::vector<std::string> v;
-      // std::cout << line <<std::endl;
-      boost::split(v, line, boost::is_any_of(" "));
-      masterNames.insert(v[0]);			
+      std::getline(masterFile, line);
+      std::vector<std::string> v = str_split(line, ' ');
+      if (v.size()) masterNames.insert(v[0]);			
     }
     masterFile.close();
   }
@@ -3448,7 +3447,7 @@ void VernerData::initialize(atomicData* ad)
 	  
 	  if (v.size() < 10) break;
 	  
-	  vrPtr dat = boost::make_shared<VernerRec>();
+	  vrPtr dat = std::make_shared<VernerRec>();
 
 	  dat->n    = atoi(v[0].c_str());
 	  dat->io   = atoi(v[1].c_str());
@@ -3527,7 +3526,7 @@ void VernerData::initialize(atomicData* ad)
     //
     for (int i=0; i<vsiz; i++) {
       // Generate new element
-      vrPtr v = boost::make_shared<VernerRec>(); 
+      vrPtr v = std::make_shared<VernerRec>(); 
 
       // Get data from root process
       v->sync();
@@ -3896,9 +3895,9 @@ std::map<unsigned short, double>
 atomicData::fraction(unsigned short Z, double T, int norder)
 {
   if (Lagu.get() == 0) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
   else if (Lagu->n != norder) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
 
   std::map<unsigned short, double> ret;
 
@@ -3957,9 +3956,9 @@ atomicData::fraction(unsigned short Z, double T,
 		 double Emin, double Emax, int norder)
 {
   if (Lege.get() == 0) 
-    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::make_shared<LegeQuad>(norder);
   else if (Lege->n != norder) 
-    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::make_shared<LegeQuad>(norder);
 
   std::map<unsigned short, double> ret;
 
@@ -4030,9 +4029,9 @@ std::map<unsigned short, std::vector<double> >
 atomicData::recombEquil(unsigned short Z, double T, int norder)
 {
   if (Lagu.get() == 0) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
   else if (Lagu->n != norder) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
 
   std::map<unsigned short, std::vector<double> > ret;
 
@@ -4095,9 +4094,9 @@ atomicData::recombEquil(unsigned short Z, double T,
 		    double Emin, double Emax, int norder, bool use_log)
 {
   if (Lege.get() == 0) 
-    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::make_shared<LegeQuad>(norder);
   else if (Lege->n != norder) 
-    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+    Lege = std::make_shared<LegeQuad>(norder);
 
   std::map<unsigned short, std::vector<double> > ret;
 
@@ -4188,13 +4187,13 @@ atomicData::collEmiss(unsigned short Z, unsigned short C, double T,
   // Laguerre weights and knots
   //
   if (Lagu.get() == 0) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
   else if (Lagu->n != norder) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+    Lagu = std::make_shared<LaguQuad>(norder, 0.0);
 
   // Check for and retrieve the Ion
   //
-  boost::shared_ptr<Ion> I;
+  std::shared_ptr<Ion> I;
   lQ Q(Z, C);
   auto itr = IonList.find(Q);
 
@@ -4309,12 +4308,13 @@ void atomicData::cuda_initialize()
     
 				// Make grids
 				// 
-    if (not v.second->freeFreeGridComputed)
+    if (v.first.second>1 and not v.second->freeFreeGridComputed)
       v.second->freeFreeMakeEvGrid(0);
 
-    if (v.first.second>1 and not v.second->radRecombGridComputed)
+    if (v.first.second>1 and not v.second->radRecombGridComputed) {
       v.second->radRecombMakeEvGrid(0);
-
+    }
+      
     if (v.first.second<=v.first.first) {
       if (not v.second->exciteGridComputed) v.second->collExciteMakeGrid(0);
       if (not v.second->ionizeGridComputed) v.second->directIonMakeGrid(0);

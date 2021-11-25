@@ -4,40 +4,26 @@
   MDWeinberg 01/07/13
 */
 
-using namespace std;
-
 #include <cstdlib>
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <random>
 #include <vector>
 #include <string>
 #include <list>
 
-#include <boost/random/mersenne_twister.hpp>
-
 #include <StringTok.H>
 #include <header.H>
 #include <PSP.H>
+#include <cxxopts.H>
 
 //-------------
 // Help message
 //-------------
 
-void Usage(char* prog) {
-  cerr << "Synposis: convert PSP file real fields to " << sizeof(float)
-       << "-byte (single) or " << sizeof(double) 
-       << "-byte (double) float types" << std::endl << std::endl;
-  cerr << "Usage: " << prog << ": [-4 -8 -v -h] filename output\n\n";
-  cerr << "    -4              convert to float (default)\n";
-  cerr << "    -8              convert to double\n";
-  cerr << "    -h              print this help message\n";
-  cerr << "    -S              use SPL format\n";
-  cerr << "    -v              verbose output\n\n";
-  exit(0);
-}
 
 
 int
@@ -45,68 +31,79 @@ main(int argc, char **argv)
 {
   char *prog = argv[0];
   bool real8 = false, verbose = false, SPL = false;
+  std::string file, ofil;
 
   // Parse command line
+  //
+  cxxopts::Options options("pspreal", "Convert the PSP to and from float and double");
+  options.add_options()
+    ("h,help", "this help message")
+    ("v,verbose", "verbose output")
+    ("4,tofloat", "convert to default (default)")
+    ("8,todouble", "convert to double")
+    ("i,input", "input file", cxxopts::value<std::string>(file))
+    ("o,output", "output file", cxxopts::value<std::string>(ofil))
+    ;
 
-  while (1) {
+  cxxopts::ParseResult vm;
 
-    int c = getopt(argc, argv, "t:48vh");
-
-    if (c == -1) break;
-
-    switch (c) {
-
-    case '4':
-      real8 = false;
-      break;
-
-    case '8':
-      real8 = true;
-      break;
-
-    case 'S':
-      SPL = true;
-      break;
-
-    case 'v':
-      verbose = true;
-      break;
-
-    case '?':
-    case 'h':
-    default:
-      Usage(prog);
-    }
-
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
   }
 
-  std::string file = argv[optind];
-  std::string ofil = argv[optind+1];
+  if (vm.count("help")) {
+    std::cout << options.help() << std::endl;
+    exit(-1);
+  }
+
+  if (vm.count("verbose")) {
+    verbose = true;
+  }
+
+  if (vm.count("float")) {
+    real8 = false;
+  }
+
+  if (vm.count("double")) {
+    real8 = true;
+  }
+
+  if (vm.count("SPL")) {
+    SPL = true;
+  }
+
+  if (vm.count("input")==0) {
+    std::cout << "You must specify the input file" << std::endl;
+    exit(-1);
+  }
+
+  if (vm.count("output")==0) {
+    std::cout << "You must specify the output file" << std::endl;
+    exit(-1);
+  }
+
   std::ofstream out;
 
-  if (optind+1 < argc) {
-
-    std::ifstream in(file);
-    if (!in) {
-      std::cerr << "Error opening file <" << file << "> for input" << std::endl;
-      exit(-1);
-    }
-
-    if (verbose) std::cerr << "Using input filename: " << file << std::endl;
-
-    
-    out.open(ofil);
-    if (!out) {
-      std::cerr << "Error opening file <" << ofil << "> for output" << std::endl;
-      exit(-1);
-    }
-
-    if (verbose) cerr << "Using output filename: " << ofil << endl;
-    
-  } else {
-    Usage(prog);
+  std::ifstream in(file);
+  if (!in) {
+    std::cerr << "Error opening file <" << file << "> for input" << std::endl;
+    exit(-1);
   }
 
+  if (verbose) std::cerr << "Using input filename: " << file << std::endl;
+
+    
+  out.open(ofil);
+  if (!out) {
+    std::cerr << "Error opening file <" << ofil << "> for output" << std::endl;
+    exit(-1);
+  }
+
+  if (verbose) cerr << "Using output filename: " << ofil << endl;
+    
 
 				// Parse the PSP file
 				// ------------------

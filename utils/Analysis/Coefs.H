@@ -1,7 +1,7 @@
 #ifndef _COEFS_H
 #define _COEFS_H
 
-#include <boost/make_unique.hpp>
+#include <memory>
 #include <Eigen/Eigen>
 
 #include <yaml-cpp/yaml.h>	// YAML support

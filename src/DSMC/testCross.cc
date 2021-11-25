@@ -6,17 +6,16 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <random>
+#include <memory>
 #include <numeric>
 #include <tuple>
-
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/program_options.hpp>
 
 #include "atomic_constants.H"
 #include "Ion.H"
 #include "Elastic.H"
+#include <cxxopts.H>
 
-namespace po = boost::program_options;
 
 #include <mpi.h>
 
@@ -39,7 +38,7 @@ std::string outdir(".");
 std::string runtag("run");
 char threading_on = 0;
 pthread_mutex_t mem_lock;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 
 int main (int ac, char **av)
 {
@@ -63,41 +62,42 @@ int main (int ac, char **av)
   bool eVout = false;
   int num;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("eV",		"print results in eV")
-    ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
-     "atomic number")
-    ("C,C",		po::value<unsigned short>(&C)->default_value(3),
-     "ionic charge")
-    ("Emin,e",		po::value<double>(&emin)->default_value(0.001),
-     "minimum energy (Rydbergs)")
-    ("Emax,E",		po::value<double>(&emax)->default_value(100.0),
-     "maximum energy (Rydbergs)")
-    ("Num,N",		po::value<int>(&num)->default_value(200),
-     "number of evaluations")
-    ("kdel,k",          po::value<double>(&kdel)->default_value(0.25),
-     "default logarithmic spacing for k grid")
-    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
-     "cross-section type")
+  cxxopts::Options options(av[0], "Test radiative cross section computation");
+
+  options.add_options()
+   ("h,help", "produce help message")
+   ("eV", "print results in eV")
+   ("vanHoof", "Use Gaunt factor from van Hoof et al.")
+   ("KandM", "Use original Koch & Motz cross section")
+   ("Z,Z", "atomic number",
+     cxxopts::value<unsigned short>(Z)->default_value("2"))
+   ("C,C", "ionic charge",
+     cxxopts::value<unsigned short>(C)->default_value("3"))
+   ("e,Emin", "minimum energy (Rydbergs)",
+     cxxopts::value<double>(emin)->default_value("0.001"))
+   ("E,Emax", "maximum energy (Rydbergs)",
+     cxxopts::value<double>(emax)->default_value("100.0"))
+   ("N,Num", "number of evaluations",
+     cxxopts::value<int>(num)->default_value("200"))
+   ("k,kdel", "default logarithmic spacing for k grid",
+     cxxopts::value<double>(kdel)->default_value("0.25"))
+   ("R,RRtype", "cross-section type",
+     cxxopts::value<std::string>(RRtype)->default_value("Badnell"))
     ;
 
-
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
-    return -1;
+    exit(-1);
   }
 
+
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: Helium II recombination" << std::endl;
     std::cout << "\t" << av[0]
 	      << " -Z 2 -C 2" << std::endl;
@@ -111,6 +111,14 @@ int main (int ac, char **av)
 
   if (vm.count("kdel")) {
     Ion::kdel = kdel;
+  }
+
+  if (vm.count("vanHoof")) {
+    Ion::use_VAN_HOOF = true;
+  }
+
+  if (vm.count("KandM")) {
+    Ion::use_VAN_HOOF = false;
   }
 
   std::string prefix("crossSection");
@@ -160,6 +168,9 @@ int main (int ac, char **av)
 
   // Print cross section for requested ion
   //
+				// Bohr cross section (pi*a_0^2) in nm
+  const double b_cross = 0.00879735542978;
+
 				// Convert from Rydberg to eV
   const double ryd      = 27.2113845/2.0;
   const double eVerg    = 1.60217733e-12;
@@ -168,6 +179,16 @@ int main (int ac, char **av)
   emax = log(emax);
 
   double dE = (emax - emin)/(num - 1);
+
+  double scale = 1.0;
+
+  if (vm.count("Born")) {
+    scale = 1.0/b_cross;
+  }
+
+  if (vm.count("Megabarn")) {
+    scale = 1.0e+04;
+  }
 
   lQ Q(Z, C), QL(Z, C-1);
 
@@ -241,16 +262,16 @@ int main (int ac, char **av)
 
     std::cout << std::setw(16) << (eVout ? EeV : E)
 	      << std::setw(16) << 0.0001239841842144513*1.0e8/EeV
-	      << std::setw(16) << geom       * 1.0e+04 // Mb
-	      << std::setw(16) << elas       * 1.0e+04 // Mb
-	      << std::setw(16) << coul       * 1.0e+04 // Mb
-	      << std::setw(16) << ffre.first * 1.0e+04 // Mb
-	      << std::setw(16) << coll       * 1.0e+04 // Mb
-	      << std::setw(16) << ionz       * 1.0e+04 // Mb
-	      << std::setw(16) << RE1.back() * 1.0e+04 // Mb
-	      << std::setw(16) << PI1.back() * 1.0e+04 // Mb
-	      << std::setw(16) << csum		       // Mb
-	      << std::setw(16) << sum		       // Mb
+	      << std::setw(16) << geom       * scale
+	      << std::setw(16) << elas       * scale
+	      << std::setw(16) << coul       * scale
+	      << std::setw(16) << ffre.first * scale
+	      << std::setw(16) << coll       * scale
+	      << std::setw(16) << ionz       * scale
+	      << std::setw(16) << RE1.back() * scale
+	      << std::setw(16) << PI1.back() * scale
+	      << std::setw(16) << csum
+	      << std::setw(16) << sum
 	      << std::endl;
   }
 

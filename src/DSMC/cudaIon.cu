@@ -527,6 +527,7 @@ cuFP_t cudaElasticInterp(cuFP_t E, dArray<cuFP_t> xsc, int Z,
 			 bool pin = true)
 {
   // Bohr cross section (pi*a_0^2) in nm
+  //
   const cuFP_t b_cross = 0.00879735542978;
 
   cuFP_t Emin, H;
@@ -588,7 +589,7 @@ cuFP_t cudaElasticInterp(cuFP_t E, dArray<cuFP_t> xsc, int Z,
     }
   }
 
-  if (logV) val = pow(10.0, val);
+  if (logV) val = exp10(val);
   
   return b_cross * val;
 }
@@ -610,6 +611,43 @@ void testConstantsIon()
   printf("** Egrid(del) = %f\n", ionDeltaEGrid);
   printf("** Egrid(num) = %d\n", ionEgridNumber);
   printf("** Rgrid(num) = %d\n", ionRadRecombNumber);
+}
+
+__global__
+void sanityFreeFree(const cuIonElement elem)
+{
+  for (int i=0; i<ionEgridNumber; i++) {
+#if cuREAL == 4
+    cuFP_t t1 = tex1D<float>(elem.ff_0, i);
+    cuFP_t t2 = tex3D<float>(elem.ff_d, i, 0,          0);
+    cuFP_t t3 = tex3D<float>(elem.ff_d, i, CHCUMK/4,   0);
+    cuFP_t t4 = tex3D<float>(elem.ff_d, i, CHCUMK/2,   0);
+    cuFP_t t5 = tex3D<float>(elem.ff_d, i, 3*CHCUMK/4, 0);
+    cuFP_t t6 = tex3D<float>(elem.ff_d, i, CHCUMK-1,   0);
+#else
+    cuFP_t t1 = int2_as_double(tex1D<int2>(elem.ff_0, i));
+    cuFP_t t2 = int2_as_double(tex3D<int2>(elem.ff_d, i, 0,          0));
+    cuFP_t t3 = int2_as_double(tex3D<int2>(elem.ff_d, i, CHCUMK/4,   0));
+    cuFP_t t4 = int2_as_double(tex3D<int2>(elem.ff_d, i, CHCUMK/2,   0));
+    cuFP_t t5 = int2_as_double(tex3D<int2>(elem.ff_d, i, 3*CHCUMK/4, 0));
+    cuFP_t t6 = int2_as_double(tex3D<int2>(elem.ff_d, i, CHCUMK-1,   0));
+#endif
+    printf("%5d %13.6e %13.6e %13.6e %13.6e %13.6e %13.6e\n",
+	   i, t1, t2, t3, t4, t5, t6);
+  }
+}
+
+__global__
+void sanityRadRecomb(const cuIonElement elem)
+{
+  for (int i=0; i<ionEgridNumber; i++) {
+#if cuREAL == 4
+    cuFP_t t1 = tex1D<float>(elem.rc_d, i);
+#else
+    cuFP_t t1 = int2_as_double(tex1D<int2>(elem.rc_d, i));
+#endif
+    printf("%5d %13.6e\n", i, t1);
+  }
 }
 
 void atomicData::cuda_initialize_textures()
@@ -707,8 +745,8 @@ void atomicData::cuda_initialize_textures()
 	  //
 	  std::vector<double>::iterator ub = lb;
 	  //
-	  // If is the first element, increment
-	  // the upper boundary
+	  // If iterator points to the first element, increment the
+	  // upper boundary
 	  //
 	  if (lb == temp.begin()) { if (temp.size()>1) ub++; }
 	  //
@@ -728,10 +766,7 @@ void atomicData::cuda_initialize_textures()
 	    double d = *ub - *lb;
 	    double a = (C - *lb) / d;
 	    double b = (*ub - C) / d;
-	    /*
-	    std::cout << "[a, b] = [" << a << ", " << b << "]"
-		      << ", c = " << C << std::endl;
-	    */
+
 	    kk  = a * I->kgrid[ii] + b * I->kgrid[jj];
 	  }
 
@@ -803,6 +838,16 @@ void atomicData::cuda_initialize_textures()
 	 __FILE__, __LINE__, "Failure in 2d texture creation");
       
       cuda_safe_call(cudaFree(d_Interp), __FILE__, __LINE__, "Failure freeing device memory");
+
+#ifdef SANITY_CHECK
+      std::cout << std::string(60, '-') << std::endl
+		<< "Free-free Z=" << E.Z << " C=" << E.C << std::endl
+		<< std::string(60, '-') << std::endl;
+
+      sanityFreeFree<<<1, 1>>>(E);
+
+      std::cout << std::string(60, '-') << std::endl;
+#endif
     }
 
     // Radiative recombination texture (1-d)
@@ -847,6 +892,16 @@ void atomicData::cuda_initialize_textures()
       resDesc.res.array.array = cuRCarray[k];
       
       cuda_safe_call(cudaCreateTextureObject(&E.rc_d, &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
+
+#ifdef SANITY_CHECK
+      std::cout << std::string(60, '-') << std::endl
+		<< "Rad-recomb Z=" << E.Z << " C=" << E.C << std::endl
+		<< std::string(60, '-') << std::endl;
+
+      sanityRadRecomb<<<1, 1>>>(E);
+
+      std::cout << std::string(60, '-') << std::endl;
+#endif
     }
 
     // The collisional excitation array
@@ -857,15 +912,6 @@ void atomicData::cuda_initialize_textures()
       E.ceEmax = I->collideEmax;
       E.ceDelE = I->delCollideE;
       E.NColl  = I->NcollideGrid;
-
-      /*
-      std::cout << " k=" << k
-		<< " Emin=" << E.ceEmin
-		<< " Emax=" << E.ceEmax
-		<< " delE=" << E.ceDelE
-		<< " nCol=" << E.NColl
-		<< std::endl;
-      */
 
       cudaTextureDesc texDesc;
       
@@ -879,10 +925,6 @@ void atomicData::cuda_initialize_textures()
       // Temporary storage
       //
       cuFP_t *d_Interp;
-      /*
-      std::cout << "Size(" << I->Z << ", " << I->C << ")="
-		<< I->NcollideGrid << std::endl;
-      */
       cuda_safe_call(cudaMalloc((void **)&d_Interp, I->NcollideGrid*2*sizeof(cuFP_t)),
 		     __FILE__, __LINE__,
 		     "Error allocating d_Interp for texture construction");
@@ -965,10 +1007,6 @@ void atomicData::cuda_initialize_textures()
       
       thrust::host_vector<cuFP_t> tt(I->NionizeGrid);
       
-      /*
-      std::cout << "Size(" << I->Z << ", " << I->C << ")="
-		<< I->NionizeGrid << std::endl;
-      */
       cuda_safe_call(cudaMallocArray(&cuCIarray[k], &channelDesc, I->NionizeGrid), __FILE__, __LINE__, "malloc cuArray");
 
       // Copy to device memory some data located at address h_data
@@ -1077,11 +1115,10 @@ void atomicData::cuda_initialize_grid_constants()
     Emax = v.second->EmaxGrid;
     delE = v.second->DeltaEGrid;
 
-    NE   = v.second->NfreeFreeGrid;
-
+    NE = NR = 0;
     if (v.first.second>1) {
+      NE = v.second->NfreeFreeGrid;
       NR = v.second->NradRecombGrid;
-      break;
     }
   }
 
@@ -1124,66 +1161,94 @@ void computeFreeFree
   //
   constexpr double hbc = 197.327;
 
-  // Enforce minimum and maximum energies
+  // Check neutrality
   //
-  if (E<ionEminGrid) E = ionEminGrid;
-  if (E>ionEmaxGrid) E = ionEmaxGrid;
+  if (elem.C==1) {
 
-  size_t indx = std::floor( (E - ionEminGrid)/ionDeltaEGrid );
+    xc = 0.0;
+    ph = 0.0;
+
+  } else {
+
+    // Energy grid is in log10
+    //
+    E = log10(E);
+
+    // Enforce minimum and maximum energies
+    //
+    if (E<ionEminGrid) E = ionEminGrid;
+    if (E>ionEmaxGrid) E = ionEmaxGrid;
+
+    int indx = std::floor( (E - ionEminGrid)/ionDeltaEGrid );
     
-  if (indx >= ionEgridNumber - 1) indx = ionEgridNumber-2;
+    if (indx >= ionEgridNumber - 1) indx = ionEgridNumber-2;
 
-  double eA = ionEminGrid + ionDeltaEGrid*indx;
-  double eB = ionEminGrid + ionDeltaEGrid*(indx+1);
+    double eA = ionEminGrid + ionDeltaEGrid*indx;
+    double eB = ionEminGrid + ionDeltaEGrid*(indx+1);
   
-  double A = (eB - E)/ionDeltaEGrid;
-  double B = (E - eA)/ionDeltaEGrid;
-  
-  // Location in cumulative cross section grid
-  //
-  double rn = rr;
-  double dC = 1.0/(CHCUMK-1);
-  int lb    = rn/dC;
-  cuFP_t k[4];
+    double A = (eB - E)/ionDeltaEGrid;
+    double B = (E - eA)/ionDeltaEGrid;
+    
+    // Location in cumulative cross section grid
+    //
+    double rn = rr;
+    double dC = 1.0/(CHCUMK-1);
+    int lb    = rn/dC;
+    cuFP_t k[4];
 
-  // Interpolate the cross section array
-  //
+    // Interpolate the cross section array
+    //
 #if cuREAL == 4
-  k[0]  = tex3D<float>(elem.ff_d, indx,   lb  , 0);
-  k[1]  = tex3D<float>(elem.ff_d, indx+1, lb  , 0);
-  k[2]  = tex3D<float>(elem.ff_d, indx,   lb+1, 0);
-  k[3]  = tex3D<float>(elem.ff_d, indx+1, lb+1, 0);
+    k[0]  = tex3D<float>(elem.ff_d, indx,   lb  , 0);
+    k[1]  = tex3D<float>(elem.ff_d, indx+1, lb  , 0);
+    k[2]  = tex3D<float>(elem.ff_d, indx,   lb+1, 0);
+    k[3]  = tex3D<float>(elem.ff_d, indx+1, lb+1, 0);
 #else
-  k[0] = int2_as_double(tex3D<int2>(elem.ff_d, indx,   lb  , 0));
-  k[1] = int2_as_double(tex3D<int2>(elem.ff_d, indx+1, lb  , 0));
-  k[2] = int2_as_double(tex3D<int2>(elem.ff_d, indx,   lb+1, 0));
-  k[3] = int2_as_double(tex3D<int2>(elem.ff_d, indx+1, lb+1, 0));
+    k[0] = int2_as_double(tex3D<int2>(elem.ff_d, indx,   lb  , 0));
+    k[1] = int2_as_double(tex3D<int2>(elem.ff_d, indx+1, lb  , 0));
+    k[2] = int2_as_double(tex3D<int2>(elem.ff_d, indx,   lb+1, 0));
+    k[3] = int2_as_double(tex3D<int2>(elem.ff_d, indx+1, lb+1, 0));
 #endif
   
-  // Linear interpolation
-  //
-  double a = (rn - dC*(lb+0)) / dC;
-  double b = (dC*(lb+1) - rn) / dC;
+    // Linear interpolation
+    //
+    double a = (rn - dC*(lb+0)) / dC;
+    double b = (dC*(lb+1) - rn) / dC;
+    
+    double K = A*(a*k[0] + b*k[2]) + B*(a*k[1] + b*k[3]);
 
-  double K = A*(a*k[0] + b*k[2]) + B*(a*k[1] + b*k[3]);
+    // Assign the photon energy
+    //
+    ph = exp10(K) * hbc;
 
-  // Assign the photon energy
-  //
-  ph = pow(10, K) * hbc;
+    // Use the integrated cross section from the differential grid
+    //
 
-  // Use the integrated cross section from the differential grid
-  //
-
-  xc = 
+    xc = 
 #if cuREAL == 4
-    A*tex1D<float>(elem.ff_0, indx  ) +
-    B*tex1D<float>(elem.ff_0, indx+1) ;
+      A*tex1D<float>(elem.ff_0, indx  ) +
+      B*tex1D<float>(elem.ff_0, indx+1) ;
 #else
-    A*int2_as_double(tex1D<int2>(elem.ff_0, indx  )) +
-    B*int2_as_double(tex1D<int2>(elem.ff_0, indx+1)) ;
+      A*int2_as_double(tex1D<int2>(elem.ff_0, indx  )) +
+      B*int2_as_double(tex1D<int2>(elem.ff_0, indx+1)) ;
 #endif
+
+    /*
+#if cuREAL == 4
+    cuFP_t t1 = tex1D<float>(elem.ff_0, indx  ));
+    cuFP_t t2 = tex1D<float>(elem.ff_0, indx+1));
+#else
+    cuFP_t t1 = int2_as_double(tex1D<int2>(elem.ff_0, indx  ));
+    cuFP_t t2 = int2_as_double(tex1D<int2>(elem.ff_0, indx+1));
+#endif
+
+    printf("free-free test: E=%e A=%e B=%e %d/%d Z=%d C=%d\n", E, t1, t2, indx, ionEgridNumber, elem.Z, elem.C);
+    */
+
+      // printf("free-free test: E=%e xc=%e ph=%e %d/%d Z=%d C=%d\n", E, xc, ph, indx, ionEgridNumber, elem.Z, elem.C);
+
+  }
 }
-
 
 __global__
 void testElasticE
@@ -1381,7 +1446,7 @@ __device__
 void computeRadRecomb
 (cuFP_t E, cuFP_t& xc, const cuIonElement elem)
 {
-  if (E < ionEminGrid or E > ionEmaxGrid) {
+  if (E < ionEminGrid or E > ionEmaxGrid or elem.C==1) {
 
     xc = 0.0;
 
@@ -1444,6 +1509,10 @@ void atomicData::testCross(int Nenergy,
 
 void atomicData::testCross(int Nenergy)
 {
+  // Bohr cross section (pi*a_0^2) in nm
+  //
+  const cuFP_t b_cross = 0.00879735542978;
+
   // Timers
   //
   Timer serial, cuda;
@@ -1474,7 +1543,7 @@ void atomicData::testCross(int Nenergy)
     //
     double dE = (I->EmaxGrid - I->EminGrid)/(Nenergy-1) * 0.999;
     for (int i=0; i<Nenergy; i++) {
-      energy_h[i] = I->EminGrid + dE*i;
+      energy_h[i] = exp10(I->EminGrid + dE*i);
       randsl_h[i] = static_cast<cuFP_t>(rand())/RAND_MAX;
     }
 
@@ -1514,8 +1583,6 @@ void atomicData::testCross(int Nenergy)
       testRadRecomb<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
 					      toKernel(xRC_d), cuIonElem[k]);
       
-    // std::cout << "k=" << k << " delE=" << E.ceDelE << std::endl;
-
     thrust::host_vector<cuFP_t> xEE_h = xEE_d;
     thrust::host_vector<cuFP_t> eFF_h = eFF_d;
     thrust::host_vector<cuFP_t> xFF_h = xFF_d;
@@ -1544,14 +1611,14 @@ void atomicData::testCross(int Nenergy)
       if (E.C==1) retEE = elastic(E.Z, energy_h[i]);
       if (retEE>0.0) {
 	xEE_0[i] = (xEE_h[i] - retEE)/retEE;
-	/*
-	std::cout << std::setw(16) << energy_h[i]
-		  << std::setw(16) << xEE_h[i]/b_cross
-		  << std::setw(16) << retEE/b_cross
-		  << std::setw(4)  << E.Z
-		  << std::setw(4)  << E.C
-		  << std::endl;
-	*/
+	if (debug) 
+	  std::cout << std::setw(12) << "N-e"
+		    << std::setw(16) << energy_h[i]
+		    << std::setw(16) << xEE_h[i]/b_cross
+		    << std::setw(16) << retEE/b_cross
+		    << std::setw(4)  << E.Z
+		    << std::setw(4)  << E.C
+		    << std::endl;
       }
 
 				// Free-free
@@ -1613,15 +1680,6 @@ void atomicData::testCross(int Nenergy)
 		    << std::endl;
       }
 
-      /*
-      if (retCE.second>0.0)
-	eCE_0[i]   = (eCE_h[i] - retCE.second)/retCE.second;
-
-      if (cuC[k]<=cuZ[k])
-	std::cout << std::setw(14) << xCE_h[i]
-		  << std::setw(14) << eCE_h[i]
-		  << std::endl;
-      */
     }
 
     serial.stop();
@@ -1694,6 +1752,168 @@ void atomicData::testCross(int Nenergy)
 
     k++;
 
+  } // END: Ion list
+
+  std::cout << separator << std::endl
+	    << "Serial time: " << serial() << std::endl
+	    << "Cuda time  : " << cuda()   << std::endl
+	    << separator << std::endl;
+}
+
+
+void atomicData::testCrossCompare(int Nenergy, double Emin, double Emax,
+				  bool eVout, std::string scaling)
+{
+  // Convert from Rydberg to eV
+  //
+  const double ryd      = 27.2113845/2.0;
+  const double eVerg    = 1.60217733e-12;
+
+  // Bohr cross section (pi*a_0^2) in nm
+  //
+  const cuFP_t b_cross  = 0.00879735542978;
+
+  // Timers
+  //
+  Timer serial, cuda;
+
+  // Set energy grid
+  //
+  Emin = log(Emin);
+  Emax = log(Emax);
+
+  double dE = (Emax - Emin)/(Nenergy - 1);
+
+  // Initial header
+  //
+  int nf = 6;			// Number of output fields
+
+  std::string separator(16*nf, '-'); separator[0] = '#';
+
+  std::cout << separator << std::endl
+	    << std::left
+	    << std::setw(16) << "# Energy"
+	    << std::setw(16) << "Elastic"
+	    << std::setw(16) << "Free-free"
+	    << std::setw(16) << "Collisional"
+	    << std::setw(16) << "Ionization"
+	    << std::setw(16) << "Recombination"
+	    << std::endl;
+
+  std::cout << std::setw(16) << "# [1]";
+  for (int i=1; i<nf; i++) {
+    std::ostringstream sout; sout << " [" << i+1  << "]";
+    std::cout << std::setw(16) << sout.str();
+  }
+  std::cout << std::endl << separator << std::endl;
+
+
+  // Loop over ions and tabulate statistics
+  //
+
+  thrust::host_vector<cuFP_t> energy_h(Nenergy), randsl_h(Nenergy);
+
+  thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
+
+  cudaElasticInit(xsc_H, xsc_He, xsc_pH, xsc_pHe);
+
+  size_t k = 0;
+  for (auto v : IonList) {
+    
+    unsigned short Z = v.first.first;
+    unsigned short C = v.first.second;
+
+    IonPtr I = v.second;
+    cuIonElement& E = cuIonElem[k];
+
+    // Ion type
+    std::cout << separator << std::endl
+	      << "# Q=(" << Z << ", " << C << ")" << std::endl
+	      << separator << std::endl;
+
+
+    // Make an energy grid
+    //
+    for (int i=0; i<Nenergy; i++) {
+      energy_h[i] = exp(Emin + dE*i) * ryd;
+      randsl_h[i] = static_cast<cuFP_t>(rand())/RAND_MAX;
+    }
+
+    thrust::device_vector<cuFP_t> energy_d = energy_h;
+    thrust::device_vector<cuFP_t> randsl_d = randsl_h;
+
+    // Only free-free for non-neutral species
+    //
+    thrust::device_vector<cuFP_t> eFF_d(Nenergy), xFF_d(Nenergy);
+    thrust::device_vector<cuFP_t> eCE_d(Nenergy), xCE_d(Nenergy);
+    thrust::device_vector<cuFP_t> eCI_d(Nenergy), xCI_d(Nenergy);
+    thrust::device_vector<cuFP_t> xRC_d(Nenergy), xEE_d(Nenergy);
+
+    unsigned int gridSize  = Nenergy/BLOCK_SIZE;
+    if (Nenergy > gridSize*BLOCK_SIZE) gridSize++;
+
+    cuda.start();
+
+    testElasticE<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(xEE_d),
+					   toKernel(xsc_H), toKernel(xsc_He),
+					   cuIonElem[k]);
+    if (C>1)
+      testFreeFree<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(randsl_d),
+					     toKernel(eFF_d), toKernel(xFF_d),
+					     cuIonElem[k]);
+    if (C<=Z)
+      testColExcite<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
+					      toKernel(eCE_d), toKernel(xCE_d),
+					      cuIonElem[k]);
+
+    if (C<=Z)
+      testColIonize<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
+					      toKernel(eCI_d), toKernel(xCI_d),
+					      cuIonElem[k]);
+      
+    if (C>1)
+      testRadRecomb<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
+					      toKernel(xRC_d), cuIonElem[k]);
+      
+    thrust::host_vector<cuFP_t> xEE_h = xEE_d;
+    thrust::host_vector<cuFP_t> eFF_h = eFF_d;
+    thrust::host_vector<cuFP_t> xFF_h = xFF_d;
+    thrust::host_vector<cuFP_t> eCE_h = eCE_d;
+    thrust::host_vector<cuFP_t> xCE_h = xCE_d;
+    thrust::host_vector<cuFP_t> eCI_h = eCI_d;
+    thrust::host_vector<cuFP_t> xCI_h = xCI_d;
+    thrust::host_vector<cuFP_t> xRC_h = xRC_d;
+    
+    cuda.stop();
+    
+    serial.start();
+    
+    const bool debug = false;
+
+				// No scaling
+    double scale = 1.0;
+				// Scale to Born xc
+    if (scaling.find("born") ==0) scale = 1.0/b_cross;
+				// Scale to MB
+    if (scaling.find("mbarn")==0) scale = 1.0e+04;
+
+    Elastic elastic;
+
+    for (int i=0; i<Nenergy; i++) {
+
+      double EeV  = energy_h[i];
+      double ERyd = EeV / ryd;
+
+      std::cout << std::setw(16) << (eVout ? EeV : ERyd)
+		<< std::setw(16) << xEE_h[i]   * scale
+		<< std::setw(16) << xFF_h[i]   * scale
+		<< std::setw(16) << xCE_h[i]   * scale
+		<< std::setw(16) << xCI_h[i]   * scale
+		<< std::setw(16) << xRC_h[i]   * scale
+		<< std::endl;
+    }
+
+    k++;
   } // END: Ion list
 
   std::cout << separator << std::endl

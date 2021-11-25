@@ -2,7 +2,7 @@
 #include "expand.H"
 #include <localmpi.H>
 
-#include <SatelliteOrbit.h>
+#include <SatelliteOrbit.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 #include <ResPot.H>
@@ -112,7 +112,7 @@ UserResPot::UserResPot(const YAML::Node& conf) : ExternalForce(conf)
     c0 = NULL;
 
 				// Set up for resonance potential
-  SphericalModelTable *hm = new SphericalModelTable(model_file);
+  auto hm = std::make_shared<SphericalModelTable>(model_file);
   halo_model = hm;
 
 				// Perturbation
@@ -121,7 +121,7 @@ UserResPot::UserResPot(const YAML::Node& conf) : ExternalForce(conf)
   if (usebar) {
     BarForcing::L0 = L0;
     BarForcing::M0 = M0;
-    BarForcing *bar = new BarForcing(NMAX, MFRAC*MASS, LENGTH, COROT);
+    auto bar = std::make_shared<BarForcing>(NMAX, MFRAC*MASS, LENGTH, COROT);
 
     bar->set_model(halo_model);
     bar->compute_quad_parameters(A21, A32);
@@ -130,7 +130,7 @@ UserResPot::UserResPot(const YAML::Node& conf) : ExternalForce(conf)
 
     pert = bar;
   } else {
-    CircularOrbit *orb = new CircularOrbit(NMAX, L0, M0, MASS, LENGTH);
+    auto orb = std::make_shared<CircularOrbit>(NMAX, L0, M0, MASS, LENGTH);
 
     if(omega <= 0.0)
       omega = omega0 = sqrt(MASS/(LENGTH*LENGTH*LENGTH));
@@ -146,7 +146,7 @@ UserResPot::UserResPot(const YAML::Node& conf) : ExternalForce(conf)
   ResPot::NUME = NUME;
   ResPot::RECS = RECS;
   ResPot::ITMAX = ITMAX;
-  respot = new ResPot(halo_model, pert, L0, M0, L1, L2);
+  respot = std::make_shared<ResPot>(halo_model, pert, L0, M0, L1, L2);
 
 				// Construct debug file name
   ostringstream sout;
@@ -194,9 +194,7 @@ UserResPot::UserResPot(const YAML::Node& conf) : ExternalForce(conf)
 
 UserResPot::~UserResPot()
 {
-  delete halo_model;
-  delete respot;
-  delete pert;
+  // Nothing
 }
 
 void UserResPot::userinfo()

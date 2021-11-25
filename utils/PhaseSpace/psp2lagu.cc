@@ -5,15 +5,16 @@
   MDWeinberg 08/13/20
 */
 
-#include <cstdlib>
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <numeric>
+#include <cstdlib>
 #include <memory>
 #include <vector>
 #include <string>
+#include <cmath>
 #include <list>
 #include <map>
 
@@ -22,22 +23,15 @@
 #include <FileUtils.H>
 
 #include <Progress.H>
-
-#include <boost/program_options.hpp>
-#include <boost/math/special_functions/laguerre.hpp>
-#include <boost/random/mersenne_twister.hpp>
+#include <cxxopts.H>
 
 #include <mpi.h>
-
-namespace po = boost::program_options;
 
 //
 // MPI variables
 //
 int numprocs, myid, proc_namelen;
 char processor_name[MPI_MAX_PROCESSOR_NAME];
-
-
 
 //! Generate orthonormal Laguerre functions
 class Laguerre
@@ -68,14 +62,14 @@ public:
   double operator()(double& r, const unsigned& n)
   {
     if (n>=nmax) return 0.0;
-    return boost::math::laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
+    return std::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
   } 
 
   //! Evaluate the the orthogonal Laguerre polynomial
   double eval(double& r, unsigned& n)
   {
     if (n>=nmax) return 0.0;
-    return boost::math::laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
+    return std::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
   } 
 
   //! Evaluate the the orthogonal Laguerre polynomial
@@ -86,13 +80,8 @@ public:
     // Initialization
     //
     double x = 2.0*r/rscl;
-    ret[0] = boost::math::laguerre(0, 1, x);
-    if (nmax>1) ret[1] = boost::math::laguerre(1, 1, x);
-
-    // Recursion
-    //
-    for (int n=2; n<nmax; n++) 
-      ret[n] = boost::math::laguerre_next(n-1, 1, x, ret[n-1], ret[n-2]);
+    for (int n=0; n<nmax; n++) 
+      ret[n] = std::assoc_laguerre(n, 1, x);
 
     // Normalization
     //
@@ -250,52 +239,55 @@ main(int ac, char **av)
 
   // Parse command line
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("verbose,v",       "verbose output")
-    ("finegrain",       "fine-grained progress report")
-    ("append",          "append to existing output file")
-    ("beg,i",	        po::value<int>(&ibeg)->default_value(0),
-     "initial snapshot index")
-    ("end,e",	        po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()),
-     "final snapshot index")
-    ("mmax,M",	        po::value<int>(&mmax)->default_value(4),
-     "maximum Fourier component in bin")
-    ("rscale,a",        po::value<double>(&rscl)->default_value(0.01),
-     "exponential disk scale")
-    ("nmax,n",	        po::value<int>(&nmax)->default_value(8),
-     "maximum Laguerre order")
-    ("name,c",	        po::value<std::string>(&cname)->default_value("comp"),
-     "component name")
-    ("dir,d",           po::value<std::string>(&new_dir)->default_value("./"),
-     "rewrite directory location for SPL files")
-    ("work,w",          po::value<std::string>(&work_dir)->default_value("."),
-     "working directory for output file")
-    ("type,t",          po::value<std::string>(&tname)->default_value("OUT"),
-     "PSP output type (OUT or SPL)")
-    ("runtag,T",        po::value<std::string>(&runtag)->default_value("run0"),
-     "Runtag id")
-    ("suffix,s",        po::value<std::string>(&suffix)->default_value("ring_coefs"),
-     "Output file suffix")
-    ;
+  cxxopts::Options options("psp2lagu", "Separate a psp structure and make a kinematic Fourier coefficients series in Laguerre functions");
 
-  po::variables_map vm;
+  options.add_options()
+    ("h,help", "produce help message")
+    ("v,verbose", "verbose output")
+    ("finegrain", "fine-grained progress report")
+    ("append", "append to existing output file")
+    ("i,beg", "initial snapshot index",
+     cxxopts::value<int>(ibeg)->default_value("0"))
+    ("e,end", "final snapshot index",
+     cxxopts::value<int>(iend)->default_value(std::to_string(std::numeric_limits<int>::max())))
+    ("M,mmax", "maximum Fourier component in bin",
+     cxxopts::value<int>(mmax)->default_value("4"))
+    ("a,rscale", "exponential disk scale",
+     cxxopts::value<double>(rscl)->default_value("0.01"))
+    ("n,nmax", "maximum Laguerre order",
+     cxxopts::value<int>(nmax)->default_value("8"))
+    ("c,name", "component name",
+     cxxopts::value<std::string>(cname)->default_value("comp"))
+    ("d,dir", "rewrite directory location for SPL files",
+     cxxopts::value<std::string>(new_dir)->default_value("./"))
+    ("w,work", "working directory for output file",
+     cxxopts::value<std::string>(work_dir)->default_value("."))
+    ("t,type", "PSP output type (OUT or SPL)",
+     cxxopts::value<std::string>(tname)->default_value("OUT"))
+    ("T,runtag", "Runtag id",
+     cxxopts::value<std::string>(runtag)->default_value("run0"))
+    ("s,suffix", "Output file suffix",
+     cxxopts::value<std::string>(suffix)->default_value("ring_coefs"))
+    ;
+      
+
+  // Parse command line for control and critical parameters
+  //
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
+  // Print help message and exit
+  //
   if (vm.count("help")) {
     if (myid==0) {
-      std::cout << desc << std::endl;
-      std::cout << "Example: " << std::endl;
-      std::cout << "\t" << av[0]
-		<< " --runtag=run001" << std::endl;
+      std::cout << options.help() << std::endl;
     }
     return 1;
   }
@@ -344,9 +336,9 @@ main(int ac, char **av)
     exit(-1);
   }
 
-  std::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (myid==0 and not verbose and not finegrain) {
-    progress = std::make_shared<boost::progress_display>(iend - ibeg + 1);
+    progress = std::make_shared<progress::progress_display>(iend - ibeg + 1);
   }
 
   for (int n=ibeg; n<=iend; n++) {
@@ -407,7 +399,7 @@ main(int ac, char **av)
 
       if (myid==0 and finegrain) {
 	std::cout << "Using filename: " << file << std::endl;
-	progress = std::make_shared<boost::progress_display>(stanza->comp.nbod/numprocs);
+	progress = std::make_shared<progress::progress_display>(stanza->comp.nbod/numprocs);
       }
 
       for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {

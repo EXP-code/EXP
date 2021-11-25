@@ -69,16 +69,17 @@ private:
   
   string ctr_name, table_name;
   Component *c0;
-  EllipForce *ellip;
+  std::shared_ptr<EllipForce> ellip;
 
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
   double tevalS;
-  vector<double> teval;
-  double bps[3], vel[3], acc[3], acc1[3], **tacc;
-  double *TzM, *TzN;
+  std::vector<double> teval;
+  std::vector< std::vector<double> > tacc;
+  double bps[3], vel[3], acc[3], acc1[3];
+  std::vector<double> TzM, TzN;
   int okM;
   int cid;
 

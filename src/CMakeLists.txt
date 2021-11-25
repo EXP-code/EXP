@@ -34,8 +34,7 @@ set(common_INCLUDE_DIRS
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${EIGEN3_INCLUDE_DIR}
-  ${VTK_INCLUDE})
+  ${EIGEN3_INCLUDE_DIR})
 
 set(DSMC_LIBS)
 if (ENABLE_DSMC)
@@ -44,8 +43,7 @@ if (ENABLE_DSMC)
 endif()
 
 set(common_LINKLIB ${DSMC_LIBS} exputil OpenMP::OpenMP_CXX
-  MPI::MPI_CXX Boost::filesystem Boost::program_options yaml-cpp
-  ${VTK_LIBRARIES})
+  MPI::MPI_CXX yaml-cpp ${VTK_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})

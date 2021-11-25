@@ -1,6 +1,7 @@
 #ifndef _orbit_H
 #define _orbit_H
 
+#include <memory>
 #include <Eigen/Eigen>
 #include <gaussQ.H>
 
@@ -59,8 +60,8 @@ private:
   double r_apo;
   double r_circ;
 
-  AxiSymModel *model;
-  AxiSymBiorth *biorth;
+  std::shared_ptr<AxiSymModel>  model;
+  std::shared_ptr<AxiSymBiorth> biorth;
   int RECUR;
 
   void compute_action(void) { compute_freq(); }
@@ -102,9 +103,10 @@ public:
 
 
   SphericalOrbit(void);
-  SphericalOrbit(AxiSymModel *model);
-  SphericalOrbit(AxiSymModel *model, double Energy, double kappa,
-		 double beta = 0.0);
+  SphericalOrbit(std::shared_ptr<AxiSymModel> model);
+  SphericalOrbit(std::shared_ptr<AxiSymModel> model,
+		 double Energy, double kappa, double beta = 0.0);
+
   virtual ~SphericalOrbit() {}
 
   SphericalOrbit(const SphericalOrbit &);
@@ -140,13 +142,10 @@ public:
 
   void new_orbit(double Energy, double kappa, double beta = 0.0);
 
-  void set_biorth(AxiSymBiorth &type, int ll, int max, int recur = 0) 
-    { nmax = max; l = ll; biorth = &type; RECUR = recur; 
-    biorth_defined = false; }
-
-  void set_biorth(AxiSymBiorth *type, int ll, int max, int recur = 0) 
+  void set_biorth(std::shared_ptr<AxiSymBiorth> type,
+		  int ll, int max, int recur = 0) 
     { nmax = max; l = ll; biorth = type; RECUR = recur; 
-      biorth_defined = false; }
+    biorth_defined = false; }
 
   void set_numerical_params(int RECS=64, int NMAX=40, int NBSCT=3)
     { recs=RECS; nmax=NMAX; nbsct=NBSCT;}

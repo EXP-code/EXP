@@ -10,13 +10,10 @@
 #include <chrono>
 #include <random>
 
-#include <boost/program_options.hpp>
-
 #include "atomic_constants.H"
 #include "Ion.H"
 #include "Elastic.H"
-
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
 #include <mpi.h>
 
@@ -48,37 +45,35 @@ int main (int ac, char **av)
   bool eVout = false;
   int num;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("eV",		"print results in eV")
-    ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
-     "atomic number")
-    ("C,C",		po::value<unsigned short>(&C)->default_value(3),
-     "ionic charge")
-    ("Emin,e",		po::value<double>(&emin)->default_value(0.001),
-     "minimum energy (Rydbergs)")
-    ("Emax,E",		po::value<double>(&emax)->default_value(100.0),
-     "maximum energy (Rydbergs)")
-    ("Num,N",		po::value<int>(&num)->default_value(1000000),
-     "number of evaluations")
-    ("kdel,k",          po::value<double>(&kdel)->default_value(0.25),
-     "default logarithmic spacing for k grid")
-    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
-     "cross-section type")
+  cxxopts::Options options(av[0], "Test runtime performance of cross section evaluation");
+
+  options.add_options()
+    ("h,help", "produce help message")
+    ("eV", "print results in eV")
+    ("Z,Z", "atomic number",
+     cxxopts::value<unsigned short>(&Z)->default_value("2"))
+    ("C,C", "ionic charge",
+     cxxopts::value<unsigned short>(&C)->default_value("3"))
+    ("e,Emin", "minimum energy (Rydbergs)",
+     cxxopts::value<double>(&emin)->default_value("0.001"))
+    ("E,Emax", "maximum energy (Rydbergs)",
+     cxxopts::value<double>(&emax)->default_value("100.0"))
+    ("N,Num", "number of evaluations",
+     cxxopts::value<int>(&num)->default_value("1000000"))
+    ("k,kdel", "default logarithmic spacing for k grid",
+     cxxopts::value<double>(&kdel)->default_value("0.25"))
+    ("R,RRtype", "cross-section type",
+     cxxopts::value<std::string>(&RRtype)->default_value("Verner"))
     ;
-
-
-
-  po::variables_map vm;
+  
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
-    return -1;
+    exit(-1);
   }
 
   if (vm.count("help")) {

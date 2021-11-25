@@ -6,6 +6,8 @@
 
 #include <vector>
 #include <string>
+#include <memory>
+#include <random>
 
 #include <list>
 #include <coef.H>
@@ -14,8 +16,6 @@
 #include <BarrierWrapper.H>
 
 #include <yaml-cpp/yaml.h>
-
-#include <boost/random/mersenne_twister.hpp>
 
 using namespace std;
 
@@ -347,7 +347,7 @@ extern bool use_cuda;
 //! Mersenne random number generator provided by Boost.Random.  This
 //! could be changed to another if needed.
 extern unsigned int   random_seed;
-extern boost::mt19937 random_gen;
+extern std::mt19937   random_gen;
 
 //! For toggling CUDA profiling
 extern bool cuda_prof;

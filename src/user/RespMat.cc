@@ -72,7 +72,7 @@
 #include <string>
 
 #include <global.H>
-#include <RespMat3.H>
+#include <RespMat.H>
 #include <interp.H>
 #include <Eigen/SVD>
 
@@ -107,9 +107,6 @@ double sign(double x)
 
 RespMat::RespMat()
 {
-  model = NULL;
-  biorth = NULL;
-
   ID = "UnknownDimensional(UnInitialized)";
 
 				// Parameter flags
@@ -133,7 +130,7 @@ RespMat::RespMat()
 
 RespMat::RespMat(std::complex<double> omp0, int ll, int mm,
 		 int llmax, int nnmax, int nnptsK, int nnptsE, 
-		 AxiSymModel *MODEL, AxiSymBiorth *BIORTH,
+		 AxiSymModPtr MODEL, AxiSymBioPtr BIORTH,
 		 int old, int cpread, int checkpt, int verbose, 
 		 IntegrationType type, 
 		 int principal, int ratint, int ISOTROPIC)
@@ -344,7 +341,7 @@ void RespMat::make_matrix(void)
   
   /* Initialize orbit list */
   
-  Orb = new OrbitTable(this, RECS);
+  Orb = std::shared_ptr<OrbitTable>(this, RECS);
   
   /* Set up grids to do angular momentum <kappa> integrals */
   
@@ -548,7 +545,7 @@ void RespMat::make_matrix_pv(void)
   
   /* Initialize orbit list */
   
-  ORes = new OrbResTable(this, RECS);
+  ORes = make_shared<OrbResTable>(this, RECS);
   
   /* Set up grids to do angular momentum <kappa> integrals */
   
@@ -710,13 +707,11 @@ void RespMat::make_matrix_pv(void)
 
 OrbitTable::OrbitTable(RespMat* pp, int recs)
 {
-  int i;
-
   p = pp;			// Pointer to calling object
 
-  orbits = new SphericalOrbit [p->num_E] - 1;
+  orbits.resize(p->num_E);
   if (!orbits) p->bomb("couldn't allocate orbits");
-  for (i=1; i<=p->num_E; i++) {
+  for (int i=0; i<p->num_E; i++) {
     orbits[i] = SphericalOrbit(p->model);
     orbits[i].set_numerical_params(recs);
     orbits[i].set_biorth(*(p->biorth), p->l, p->nmax, 1);
@@ -735,16 +730,15 @@ OrbitTable::OrbitTable(RespMat* pp, int recs)
 
 OrbitTable::~OrbitTable()
 {
-  delete [] (orbits+1);
+  // None
 }
 
 void OrbitTable::setup()
 {
   double dE, fac;
-  int i;
 
   dE = (p->Emax - p->Emodmin - 2.0*p->ESTEP)/(double)(p->num_E-1);
-  for (i=1; i<=p->num_E; i++) {
+  for (int i=0; i<p->num_E; i++) {
     p->pp_x[i] = p->Emodmin + p->ESTEP + dE*(i-1);
     orbits[i].new_orbit(p->pp_x[i].real(), p->kappa);
     if (p->dof==2)
@@ -762,7 +756,6 @@ void OrbitTable::setup()
 
 void OrbitTable::setup_p_array(void)
 {
-  int i;
   double fac, facd;
 
   if (p->dof==3) 
@@ -770,7 +763,7 @@ void OrbitTable::setup_p_array(void)
   else
     facd = 1.0;
 
-  for (i=1; i<=p->num_E; i++) {
+  for (int i=0; i<p->num_E; i++) {
     fac = orbits[i].get_freq(1)*p->l1 + orbits[i].get_freq(2)*p->l2;
     EInt[i] = (dfqE[i]*fac + dfqL[i]*p->l2) * facd/( p->omp + fac );
 
@@ -781,7 +774,7 @@ void OrbitTable::setup_p_array(void)
     t0 = timer.getTime();
   }
 
-  for (i=1; i<=p->num_E; i++)
+  for (int i=10 i<p->num_E; i++)
     orbits[i].pot_trans(p->l1, p->l2, PotTrans[i]);
   if (p->VERBOSE) {
     p->time_in_biorth_gen += timer.getTime() - t0;
@@ -807,7 +800,7 @@ OrbResTable::OrbResTable(RespMat* pp, int recs)
 
   p = pp;			// Pointer to calling object
 
-  orbits = new SphericalOrbit [p->num_E];
+  orbits.resize(p->num_E);
   if (!orbits) p->bomb("couldn't allocate orbits");
 
   for (int i=0; i<p->num_E; i++) {
@@ -878,13 +871,13 @@ void OrbResTable::setup_E_array(void)
 
   number = 0;
 
-  for (int i=1; i<=p->num_E; i++) {
+  for (int i=0; i<p->num_E; i++) {
     last = fac;
     fac = p->omp.real() + 
       orbits[i].get_freq(1)*p->l1 + orbits[i].get_freq(2)*p->l2;
     EInt[i] = (dfqE[i]*(fac - p->omp.real()) + dfqL[i]*p->l2) * facd/fac;
       
-    if (i==1) continue;
+    if (i==0) continue;
 
     if (last*fac <= 0.0) {
 				// Interpolate to derive E res

@@ -1,12 +1,14 @@
 #ifndef _UserSat_H
 #define _UserSat_H
 
+#include <memory>
 #include <cmath>
+
 #include "expand.H"
 #include <localmpi.H>
 #include <UnboundOrbit.H>
 #include <LinearOrbit.H>
-#include <SatelliteOrbit.h>
+#include <SatelliteOrbit.H>
 
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
@@ -21,7 +23,7 @@ private:
 
   YAML::Node config;
 
-  Trajectory *traj;
+  std::shared_ptr<Trajectory> traj;
 
   //! Overload to switch between cuda and cpu threaded implementation
   void determine_acceleration_and_potential();

@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 project(
   EXP
-  VERSION 7.699
+  VERSION 7.6991
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # compiler flags
@@ -24,6 +24,7 @@ endif()
 add_compile_options(-D_REENTRANT)
 
 option(ENABLE_CUDA "Enable CUDA" FALSE)
+option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
 option(ENABLE_USER_ALL "Enable all user modules" FALSE)
@@ -32,10 +33,10 @@ option(BUILD_DOCS "Build documentation" OFF)
 
 # required compiler features
 find_package(MPI REQUIRED)
-find_package(Boost REQUIRED COMPONENTS filesystem program_options random serialization)
+find_package(Boost COMPONENTS serialization)
 find_package(OpenMP)
 find_package(VTK)
-find_package(HDF5 COMPONENTS C CXX HL)
+find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
 find_package(SLURM)
 find_package(Eigen3 REQUIRED)
 if(ENABLE_CUDA)
@@ -48,9 +49,18 @@ if(ENABLE_CUDA)
 endif()
 find_package(PNG)
 
+# Check for Sun rpc support
+include(CheckIncludeFile)
+include(FindPkgConfig)
+pkg_check_modules(TIRPC libtirpc)
+check_include_file("rpc/types.h" HAVE_RPC_TYPES)
+
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 set(DEP_LIB ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+
+# For PNG and rapidxml
+include_directories(${PROJECT_SOURCE_DIR}/extern)
 
 if(OpenMP_FOUND)
   set(HAVE_OMP_H TRUE)
@@ -60,8 +70,11 @@ if(SLURM_FOUND)
 endif()
 if(VTK_FOUND)
   set(HAVE_VTK TRUE)
-  include(${VTK_USE_FILE}) # I don't like this global setting stuff,
-			   # but it's not really documented otherwise
+  if (VTK_VERSION VERSION_LESS "8.90.0")
+    include(${VTK_USE_FILE}) # I don't like this global setting stuff
+  else()
+    include_directories("${VTK_PREFIX_PATH}/include/vtk-${VTK_MAJOR_VERSION}.${VTK_MINOR_VERSION}")
+  endif()
 endif()
 if(CUDA_FOUND)
   set(HAVE_LIBCUDA TRUE)
@@ -70,12 +83,27 @@ if(HDF5_FOUND)
   set(HAVE_HDF5 TRUE)
 endif()
 if(PNG_FOUND)
-  include_directories(${PROJECT_SOURCE_DIR}/extern)
   set(HAVE_LIBPNGPP TRUE)
 endif()
 if(ENABLE_DSMC)
+  if(NOT BOOST_FOUND)
+    message(SEND_ERROR "You need Boost to compile DSMC")
+  endif()
   set(DSMC_ENABLED 1)
 endif()
+if(ENABLE_CUDA_SINGLE)
+  add_compile_definitions(O_SINGLE=1)
+endif()
+if(TIRPC_FOUND)
+  set(HAVE_XDR TRUE)
+endif()
+if(HAVE_RPC_TYPES)
+  set(HAVE_XDR TRUE)
+endif()
+
+# For setting the default size of the Cuda real attribute array
+set(CUDA_EXP_DATTRIB "0" CACHE STRING "Number of real particle attributes for Cuda particle structure")
+add_compile_definitions(DATTRIB_CUDA=${CUDA_EXP_DATTRIB})
 
 # Get the current working branch
 execute_process(
@@ -129,7 +157,7 @@ if(DOXYGEN_FOUND)
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc
     COMMENT "Generating API documentation with Doxygen"
     VERBATIM)
-  
+
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc/html
     DESTINATION share/EXP/doc)
 endif()
@@ -137,3 +165,59 @@ endif()
 if (NOT DOXYGEN_FOUND AND BUILD_DOCS)
   message("Doxygen is needed to build the documentation. This is optional.")
 endif()
+
+# Add sanitizer build types
+set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE}
+  CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel Tsan Asan Lsan Msan Ubsan"
+  FORCE)
+
+# ThreadSanitizer
+set(CMAKE_C_FLAGS_TSAN
+  "-fsanitize=thread -g -O1"
+  CACHE STRING "Flags used by the C compiler during ThreadSanitizer builds."
+  FORCE)
+
+set(CMAKE_CXX_FLAGS_TSAN
+  "-fsanitize=thread -g -O1"
+  CACHE STRING "Flags used by the C++ compiler during ThreadSanitizer builds."
+  FORCE)
+
+# AddressSanitize
+set(CMAKE_C_FLAGS_ASAN
+  "-fsanitize=address -fno-optimize-sibling-calls -fsanitize-address-use-after-scope -fno-omit-frame-pointer -g -O1"
+  CACHE STRING "Flags used by the C compiler during AddressSanitizer builds."
+  FORCE)
+set(CMAKE_CXX_FLAGS_ASAN
+  "-fsanitize=address -fno-optimize-sibling-calls -fsanitize-address-use-after-scope -fno-omit-frame-pointer -g -O1"
+  CACHE STRING "Flags used by the C++ compiler during AddressSanitizer builds."
+  FORCE)
+
+# LeakSanitizer
+set(CMAKE_C_FLAGS_LSAN
+  "-fsanitize=leak -fno-omit-frame-pointer -g -O1"
+  CACHE STRING "Flags used by the C compiler during LeakSanitizer builds."
+  FORCE)
+set(CMAKE_CXX_FLAGS_LSAN
+  "-fsanitize=leak -fno-omit-frame-pointer -g -O1"
+  CACHE STRING "Flags used by the C++ compiler during LeakSanitizer builds."
+  FORCE)
+
+# MemorySanitizer
+set(CMAKE_C_FLAGS_MSAN
+  "-fsanitize=memory -fno-optimize-sibling-calls -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -g -O2"
+  CACHE STRING "Flags used by the C compiler during MemorySanitizer builds."
+  FORCE)
+set(CMAKE_CXX_FLAGS_MSAN
+  "-fsanitize=memory -fno-optimize-sibling-calls -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -g -O2"
+  CACHE STRING "Flags used by the C++ compiler during MemorySanitizer builds."
+  FORCE)
+
+# UndefinedBehaviour
+set(CMAKE_C_FLAGS_UBSAN
+  "-fsanitize=undefined"
+  CACHE STRING "Flags used by the C compiler during UndefinedBehaviourSanitizer builds."
+  FORCE)
+set(CMAKE_CXX_FLAGS_UBSAN
+  "-fsanitize=undefined"
+  CACHE STRING "Flags used by the C++ compiler during UndefinedBehaviourSanitizer builds."
+  FORCE)

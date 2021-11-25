@@ -1,21 +1,22 @@
-#include <boost/algorithm/string.hpp> // For trim_copy
+#include <ios>
 #include <yaml-cpp/yaml.h>	      // YAML support
+#include <Sutils.H>		      // For trim-copy
 
 #include <PSP.H>
 
-bool badstatus(istream& in)
+bool badstatus(std::istream& in)
 {
-  ios::iostate i = in.rdstate();
+  std::ios::iostate i = in.rdstate();
   
-  if (i & ios::eofbit) {
+  if (i & std::ios::eofbit) {
     std::cout << "EOF encountered" << std::endl;
     return true;
   }
-  else if(i & ios::failbit) {
+  else if(i & std::ios::failbit) {
     std::cout << "Non-Fatal I/O error" << std::endl;;
     return true;
   }  
-  else if(i & ios::badbit) {
+  else if(i & std::ios::badbit) {
     std::cout << "Fatal I/O error" << std::endl;
     return true;
   }
@@ -139,10 +140,10 @@ PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose, "")
       // Parse the info string
       // ---------------------
       StringTok<string> tokens(stanza.comp.info.get());
-      stanza.name       = boost::trim_copy(tokens(":"));
-      stanza.id         = boost::trim_copy(tokens(":"));
-      stanza.cparam     = boost::trim_copy(tokens(":"));
-      stanza.fparam     = boost::trim_copy(tokens(":"));
+      stanza.name       = trim_copy(tokens(":"));
+      stanza.id         = trim_copy(tokens(":"));
+      stanza.cparam     = trim_copy(tokens(":"));
+      stanza.fparam     = trim_copy(tokens(":"));
       stanza.index_size = 0;
       stanza.r_size     = rsize;
       
@@ -647,3 +648,11 @@ void SParticle::write(std::ostream& out, bool real4, size_t isiz)
   }
 }
 
+// PSP factory: choose type based on file name
+std::shared_ptr<PSP> PSP::getPSP(const std::string& file, const std::string dir, bool verbose)
+{
+  if (file.find("SPL") != std::string::npos)
+    return std::make_shared<PSPspl>(file, dir, verbose);
+  else
+    return std::make_shared<PSPout>(file, verbose);
+}

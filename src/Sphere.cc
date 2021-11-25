@@ -1,8 +1,6 @@
 
 #include <limits>
 
-#include <boost/make_shared.hpp>
-
 #include "expand.H"
 
 #include <gaussQ.H>
@@ -45,7 +43,7 @@ Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m
   id += ", model=" + SLGridSph::model_file_name;
 
 				// Generate Sturm-Liouville grid
-  ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, true,
+  ortho = std::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, true,
 					cmap, rs, diverge, dfac);
 
 				// Get the min and max expansion radii
@@ -273,11 +271,11 @@ void Sphere::make_model_bin()
 
   // Create a new spherical model
   //
-  SphModTblPtr mod = boost::make_shared<SphericalModelTable>(numR, &R[0]-1, &D[0]-1, &M[0]-1, &P[0]-1);
+  SphModTblPtr mod = std::make_shared<SphericalModelTable>(numR, &R[0]-1, &D[0]-1, &M[0]-1, &P[0]-1);
 
   // Regenerate Sturm-Liouville grid
   //
-  ortho = boost::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0);
+  ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0);
 
   // Update time trigger
   //
@@ -412,11 +410,11 @@ void Sphere::make_model_plummer()
 
   // Create a new spherical model
   //
-  SphModTblPtr mod = boost::make_shared<SphericalModelTable>(nums, &R[0]-1, &D[0]-1, &M[0]-1, &P[0]-1);
+  SphModTblPtr mod = std::make_shared<SphericalModelTable>(nums, &R[0]-1, &D[0]-1, &M[0]-1, &P[0]-1);
 
   // Regenerate Sturm-Liouville grid
   //
-  ortho = boost::make_shared<SLGridSph>(mod, Lmax, nmax, numr, Rmin, Rmax, false, 1, 1.0);
+  ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numr, Rmin, Rmax, false, 1, 1.0);
 
   // Update time trigger
   //

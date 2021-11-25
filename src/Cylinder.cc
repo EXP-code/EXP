@@ -159,7 +159,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 
   // Make the empirical orthogonal basis instance
   //
-  ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl, ncylodd);
+  ortho = std::make_shared<EmpCylSL>
+    (nmax, lmax, mmax, ncylorder, acyl, hcyl, ncylodd);
   
   // Set azimuthal harmonic order restriction?
   //
@@ -331,7 +332,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 
 Cylinder::~Cylinder()
 {
-  delete ortho;
+  // Nothing
 }
 
 void Cylinder::initialize()
@@ -444,7 +445,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 {
   nvTracerPtr tPtr;
   if (cuda_prof)
-    tPtr = nvTracerPtr(new nvTracer("Cylinder::get_acceleration"));
+    tPtr = std::make_shared<nvTracer>("Cylinder::get_acceleration");
 
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 
@@ -464,7 +465,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   if (use_external) {
     nvTracerPtr tPtr1;
     if (cuda_prof) {
-      tPtr1 = nvTracerPtr(new nvTracer("Cylinder: in external"));
+      tPtr1 = std::make_shared<nvTracer>("Cylinder: in external");
     }
 
     MPL_start_timer();
@@ -745,7 +746,7 @@ void Cylinder::determine_coefficients(void)
 
   nvTracerPtr tPtr;
   if (cuda_prof)
-    tPtr = nvTracerPtr(new nvTracer("Cylinder::determine_coefficients"));
+    tPtr = std::make_shared<nvTracer>("Cylinder::determine_coefficients");
 
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 
@@ -916,7 +917,7 @@ void Cylinder::determine_coefficients(void)
       
       nvTracerPtr tPtr2;
       if (cuda_prof) {
-	tPtr2 = nvTracerPtr(new nvTracer("Cylinder::dump basis"));
+	tPtr2 = std::make_shared<nvTracer>("Cylinder::dump basis");
       }
 
       ortho->dump_basis(runtag.c_str(), this_step);
@@ -1223,7 +1224,7 @@ void Cylinder::determine_acceleration_and_potential(void)
 {
   nvTracerPtr tPtr;
   if (cuda_prof)
-    tPtr = nvTracerPtr(new nvTracer("Cylinder::determine_acceleration"));
+    tPtr = std::make_shared<nvTracer>("Cylinder::determine_acceleration");
 
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 

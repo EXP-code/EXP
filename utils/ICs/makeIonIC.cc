@@ -18,22 +18,11 @@
 #include <iostream>
 #include <iomanip>
 #include <numeric>
+#include <cassert>
+#include <memory>
 #include <limits>
+#include <random>
 #include <tuple>
-
-#include <boost/random.hpp>
-#include <boost/random/uniform_real.hpp>
-#include <boost/random/normal_distribution.hpp>
-#include <boost/random/uniform_int_distribution.hpp>
-
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
-
-#include <boost/shared_ptr.hpp>
-
-#include <boost/program_options.hpp>
-
-namespace po = boost::program_options;
 
 #include <yaml-cpp/yaml.h>
 
@@ -41,22 +30,17 @@ namespace po = boost::program_options;
 #include "globalInit.H"
 #include "Species.H"
 #include "atomic_constants.H"
+#include <cxxopts.H>
 
 #include <errno.h>
 #include <sys/stat.h>
 
 //
-// Boost random types
+// Random types
 //
-typedef boost::shared_ptr<boost::mt19937> gen_ptr;
-typedef boost::shared_ptr<boost::uniform_real<> > uniform_ptr;
-typedef boost::shared_ptr<boost::normal_distribution<> > normal_ptr;
-typedef boost::variate_generator<boost::mt19937&, boost::uniform_real<> > unif_var;
-typedef boost::shared_ptr<unif_var> unit_ptr;
-typedef boost::variate_generator<boost::mt19937&, boost::normal_distribution<> > norm_var;
-typedef boost::shared_ptr<norm_var> norm_ptr;
-typedef boost::variate_generator<boost::mt19937&, boost::random::uniform_int_distribution<> > unid_var;
-
+typedef std::shared_ptr<std::mt19937> gen_ptr;
+typedef std::shared_ptr<std::uniform_real_distribution<> > uniform_ptr;
+typedef std::shared_ptr<std::normal_distribution<> > normal_ptr;
 
 //
 // EXP support
@@ -218,13 +202,11 @@ std::vector<double> LL;
 PeriodicTable PT;
 
 //
-// boost RNGs
+// std RNGs
 //
 gen_ptr     gen;
 uniform_ptr uniform;
 normal_ptr  normal;
-unit_ptr    Unit;
-norm_ptr    Norm;
 
 // ION collide types
 //
@@ -321,8 +303,8 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
     if (type == Trace) {
       
       for (unsigned k=0; k<3; k++) {
-	p[i].pos[k] = L[k]*(*Unit)();
-	p[i].vel[k] = varI[0]*(*Norm)();
+	p[i].pos[k] = L[k]*((*uniform)(*gen));
+	p[i].vel[k] = varI[0]*((*normal)(*gen));
       }
       
       if (ne>=0) {
@@ -330,7 +312,7 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
 	do {
 	  totE = 0.0;
 	  for (int l=0; l<3; l++) {
-	    double v = (*Norm)();
+	    double v = (*normal)(*gen);
 	    totE += v*v;
 	    p[i].dattrib[ne+l] = varE[0] * v;
 	  }
@@ -345,14 +327,14 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
       // unsigned short C = sKey.second;
       
       for (unsigned k=0; k<3; k++) {
-	p[i].pos[k] = L[k]*(*Unit)();
-	p[i].vel[k] = varI[Z] * (*Norm)();
+	p[i].pos[k] = L[k]*(*uniform)(*gen);
+	p[i].vel[k] = varI[Z] * (*normal)(*gen);
 	KE += p[i].vel[k] * p[i].vel[k];
       }
       
       if (ne>=0) {
 	for (int l=0; l<3; l++) {
-	  p[i].dattrib[ne+l] = varE[Z] * (*Norm)();
+	  p[i].dattrib[ne+l] = varE[Z] * (*normal)(*gen);
 	}
       }
       
@@ -438,14 +420,13 @@ void InitializeInterface(std::vector<Particle>& p,
   
   double ttemp;
 
-  boost::random::uniform_int_distribution<> dist(0, 1);
-  unid_var selP(*gen, dist);
+  std::uniform_int_distribution<> dist(0, 1);
 
   for (unsigned i=0; i<npart; i++) {
     
     double KE = 0.0;
     
-    unsigned char wh = static_cast<unsigned char>(selP());
+    unsigned char wh = static_cast<unsigned char>(dist(*gen));
 
 
     p[i].iattrib.resize(ni, 0);
@@ -455,15 +436,15 @@ void InitializeInterface(std::vector<Particle>& p,
       
       for (unsigned k=0; k<3; k++) {
 	if (k==0)
-	  p[i].pos[k] = 0.5*L[k]*((*Unit)() + wh);
+	  p[i].pos[k] = 0.5*L[k]*((*uniform)(*gen) + wh);
 	else
-	  p[i].pos[k] = L[k]*(*Unit)();
-	p[i].vel[k] = varI[wh][0]*(*Norm)();
+	  p[i].pos[k] = L[k]*(*uniform)(*gen);
+	p[i].vel[k] = varI[wh][0]*(*normal)(*gen);
       }
       
       if (ne>=0) {
 	for (int l=0; l<3; l++) {
-	  p[i].dattrib[ne+l] = varE[wh][0] * (*Norm)();
+	  p[i].dattrib[ne+l] = varE[wh][0] * (*normal)(*gen);
 	}
       }
 
@@ -478,16 +459,16 @@ void InitializeInterface(std::vector<Particle>& p,
       
       for (unsigned k=0; k<3; k++) {
 	if (k==0)
-	  p[i].pos[k] = 0.5*L[k]*((*Unit)() + wh);
+	  p[i].pos[k] = 0.5*L[k]*((*uniform)(*gen) + wh);
 	else
-	  p[i].pos[k] = L[k]*(*Unit)();
-	p[i].vel[k] = varI[wh][Z] * (*Norm)();
+	  p[i].pos[k] = L[k]*(*uniform)(*gen);
+	p[i].vel[k] = varI[wh][Z] * (*normal)(*gen);
 	KE += p[i].vel[k] * p[i].vel[k];
       }
       
       if (ne>=0) {
 	for (int l=0; l<3; l++) {
-	  p[i].dattrib[ne+l] = varE[wh][Z] * (*Norm)();
+	  p[i].dattrib[ne+l] = varE[wh][Z] * (*normal)(*gen);
 	}
       }
       
@@ -768,8 +749,8 @@ void InitializeSpeciesDirect
 
   for (int i=0; i<N; i++) {
     
-    double rz = (*Unit)();
-    double rc = (*Unit)();
+    double rz = (*uniform)(*gen);
+    double rc = (*uniform)(*gen);
     
     unsigned char Ci = 1, Zi;
     size_t indx;
@@ -1013,14 +994,13 @@ void InitializeSpeciesWeight
   for (size_t i=1; i<NS; i++)
     wght[i] = frcS[i]/PT[sZ[i]]->weight();
   
-  boost::random::uniform_int_distribution<> dist(0, NS-1);
-  unid_var unifd(*gen, dist);
+  std::uniform_int_distribution<> dist(0, NS-1);
   
   for (int i=0; i<N; i++) {
     // Get the species
-    size_t indx = unifd();
+    size_t indx = dist(*gen);
     unsigned char Ci = 1, Zi = sZ[indx];
-    double rc = (*Unit)();
+    double rc = (*uniform)(*gen);
     
     // Get the ionization state
     for (int j=0; j<Zi+1; j++) {
@@ -1265,12 +1245,11 @@ void InitializeSpeciesHybrid
   for (size_t i=1; i<NS; i++)
     wght[i] = frcS[i]/PT[sZ[i]]->weight();
   
-  boost::random::uniform_int_distribution<> dist(0, NS-1);
-  unid_var unifd(*gen, dist);
+  std::uniform_int_distribution<> dist(0, NS-1);
   
   for (int i=0; i<N; i++) {
     // Get the species
-    size_t indx = unifd();
+    size_t indx = dist(*gen);
     unsigned char Ci = 0, Zi = sZ[indx];
 
     particles[i].mass  = M[0]/N * sF[indx] * NS;
@@ -1720,63 +1699,50 @@ main (int ac, char **av)
     cmd_line += " ";
   }
   
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("electrons",       "set up for trace, weighted or hybrid species with electrons")
-    ("meanmass",        "set up for the mean-mass algorithm")
-    ("yaml",            "write YAML species config file")
-    ("old",             "write old-style species config file")
-    ("traceEC",         "use explicit conservation interactions mode for Trace")
-    ("CHIANTI,C",	po::value<bool>(&use_chianti)->default_value(false),
-     "use CHIANTI to set recombination-ionization equilibrium")
-    ("INIT,I",	        po::value<bool>(&use_init_file)->default_value(false),
-     "use init file to set recombination-ionization equilibrium")
-    ("dens,D",		po::value<double>(&D)->default_value(1.0),
-     "density in particles per cc")
-    ("temp,T",		po::value<double>(&Temp)->default_value(-1.0),
-     "override config file temperature for Trace, if >0")
-    ("Telec",		po::value<double>(&Telec)->default_value(-1.0),
-     "temperature for electrons, if Telec>0")
-    ("length,L",	po::value<double>(&L)->default_value(1.0),
-     "length in system units")
-    ("ratio,R",		po::value<double>(&R)->default_value(1.0),
-     "slab length ratio (1 is cube")
-    ("number,N",	po::value<int>(&npart)->default_value(250000),
-     "number of particles")
-    ("seed,s",		po::value<unsigned>(&seed)->default_value(11),
-     "random number seed")
-    ("Lunit,l",		po::value<double>(&Lunit)->default_value(1.0),
-     "length scale of the system in pc")
-    ("Tunit,t",		po::value<double>(&Tunit)->default_value(1.0e3),
-     "time scale in years")
-    ("Munit,m",		po::value<double>(&Munit)->default_value(1.0),
-     "mass scale in solar masses")
-    ("Ecut,E",		po::value<double>(&Ecut)->default_value(std::numeric_limits<double>::max()),
-     "truncation of electron tail in kT")
-    ("num-int,i",	po::value<int>(&ni)->default_value(2),
-     "number of integer attributes")
-    ("num-double,d",	po::value<int>(&nd)->default_value(6),
-     "base number of double attributes")
-    ("config,c",	po::value<std::string>(&config)->default_value("makeIon.config"),
-     "element config file")
-    ("output,o",	po::value<std::string>(&oname)->default_value("out"),
-     "output prefix")
+  cxxopts::Options options(av[0], "Compute gas initial conditions for DSMC\n");
+
+  options.add_options()
+    ("h,help", "produce help message")
+    ("electrons", "set up for trace, weighted or hybrid species with electrons")
+    ("meanmass", "set up for the mean-mass algorithm")
+    ("yaml", "write YAML species config file")
+    ("old", "write old-style species config file")
+    ("traceEC", "use explicit conservation interactions mode for Trace")
+    ("C,CHIANTI", "use CHIANTI to set recombination-ionization equilibrium",
+     cxxopts::value<bool>(use_chianti)->default_value("false"))
+    ("I,INIT", "use init file to set recombination-ionization equilibrium",
+     cxxopts::value<bool>(use_init_file)->default_value("false"))
+    ("D,dens", "density in particles per cc",
+     cxxopts::value<double>(D)->default_value("1.0"))
+    ("T,temp", "override config file temperature for Trace, if >0",
+     cxxopts::value<double>(Temp)->default_value("-1.0"))
+    ("Telec", "temperature for electrons, if Telec>0",
+     cxxopts::value<double>(Telec)->default_value("-1.0"))
+    ("L,length", "length in system units",
+     cxxopts::value<double>(L)->default_value("1.0"))
+    ("R,ratio", "slab length ratio (1 is cube)",
+     cxxopts::value<double>(R)->default_value("1.0"))
+    ("i,num-int", "number of integer attributes",
+     cxxopts::value<int>(ni)->default_value("2"))
+    ("d,num-double", "base number of double attributes",
+     cxxopts::value<int>(nd)->default_value("6"))
+    ("c,config", "element config file",
+     cxxopts::value<std::string>(config)->default_value("makeIon.config"))
+    ("o,output", "output prefix",
+     cxxopts::value<std::string>(oname)->default_value("out"))
     ;
   
-  
-  po::variables_map vm;
-  
+  cxxopts::ParseResult vm;
+
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
-  
+
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
 	      << "--length=0.0001 --number=1000 --dens=0.01 --electrons -c trace.config --output=out"
@@ -1821,18 +1787,13 @@ main (int ac, char **av)
   Munit  *= msun;
   Vunit   = Lunit/Tunit;
   
-  gen     = gen_ptr    (new boost::mt19937(seed));
-  uniform = uniform_ptr(new boost::uniform_real<>(0.0, 1.0));
-  normal  = normal_ptr (new boost::normal_distribution<>(0.0, 1.0));
-  Unit    = unit_ptr   (new unif_var(*gen, *uniform));
-  Norm    = norm_ptr   (new norm_var(*gen, *normal));
+  gen     = std::make_shared<std::mt19937>(seed);
+  uniform = std::make_shared<std::uniform_real_distribution<>>(0.0, 1.0);
+  normal  = std::make_shared<std::normal_distribution<>>(0.0, 1.0);
   
   //
   // Define the atomic species statistics
   //
-  
-  // Short alias for this namespace
-  namespace pt = boost::property_tree;
   
   // Element data
   std::vector<unsigned char> sZ;
@@ -1853,37 +1814,46 @@ main (int ac, char **av)
 
   // Parse element file
   {
-    // Create a root
-    pt::ptree iroot;
-  
-    // Load the json file in this ptree
-    pt::read_json(config, iroot);
+    // Load the json/yaml file
+    //
+    YAML::Node iroot = YAML::LoadFile(config);
   
     double norm = 0.0;
 
-    std::string st = iroot.get("type", "Direct");
-    if (Types.find(st) == Types.end()) {
-      std::cout << "Type <" << st << "> is not valid" << std::endl
-		<< "Valid types are:";
-      for (auto v : Types) std::cout << " " << v.first;
-      std::cout << std::endl;
-      exit(-1);
-    }
+    // Look for the type
+    //
+    std::string st("Direct");
 
+    if (iroot["type"]) {
+      st = iroot["type"].as<std::string>();
+      
+      if (Types.find(st) == Types.end()) {
+	std::cout << "Type <" << st << "> is not valid" << std::endl
+		  << "Valid types are:";
+	for (auto v : Types) std::cout << " " << v.first;
+	std::cout << std::endl;
+	exit(-1);
+      }
+    } 
+    
     type = Types[st];
 
-    std::string md = iroot.get("model", "Uniform");
-    if (Models.find(md) == Models.end()) {
-      std::cout << "Model <" << md << "> is not valid" << std::endl
-		<< "Valid types are:";
-      for (auto v : Models) std::cout << " " << v.first;
-      std::cout << std::endl;
-      exit(-1);
+    std::string md("Uniform");
+    if (iroot["model"]) {
+      md = iroot["model"].as<std::string>();
+
+      if (Models.find(md) == Models.end()) {
+	std::cout << "Model <" << md << "> is not valid" << std::endl
+		  << "Valid types are:";
+	for (auto v : Models) std::cout << " " << v.first;
+	std::cout << std::endl;
+	exit(-1);
+      }
     }
 
     model = Models[md];
 
-    if (iroot.get("electrons", true)) {
+    if (iroot["electrons"]) {
       ne = 0;
     }
   
@@ -1895,30 +1865,43 @@ main (int ac, char **av)
 
     double fH = 0.0;
 
-    for (pt::ptree::value_type &row : iroot.get_child("elements")) {
-    
-      std::istringstream sin(row.first);
-      unsigned i;
-      sin >> i;
-    
-      sZ.push_back(i);
+    if (iroot["elements"]) {
 
-      if (row.second.count("logN")) {
-	if (i==1) fH = row.second.get<double>("logN");
-	double wgt = pow(10.0, row.second.get<double>("logN") - fH)*PT[i]->weight();
-	sF.push_back(wgt);
-	norm += sF.back();
-      } else if (row.second.count("mfrac")) {
-	sF.push_back(row.second.get<double>("mfrac"));
-	norm += sF.back();
-      } else if (row.second.count("cmax")) {
-	sC[i] = row.second.get<unsigned char>("cmax");
-    } else {
-	std::cerr << "Missing element definition for atomic number " << i
-		  << std::endl;
-	exit(-3);
+      for (YAML::const_iterator it=iroot["elements"].begin(); it != iroot["elements"].end(); ++it) {
+	
+	unsigned i = it->first.as<int>();
+
+	sZ.push_back(i);
+
+	for (YAML::const_iterator jt=it->second.begin(); jt != it->second.end(); ++jt) {
+	  std::string    tag = jt->first.as<std::string>();
+	  
+	  if (tag == "logN") {
+	    double val = jt->second.as<double>();
+	    if (i==1) fH = val;
+	    double wgt = pow(10.0, val - fH)*PT[i]->weight();
+	    sF.push_back(wgt);
+	    norm += sF.back();
+	  } else if (tag == "mfrac") {
+	    double val = jt->second.as<double>();
+	    sF.push_back(val);
+	    norm += sF.back();
+	  } else if (tag == "cmax") {
+	    unsigned char cval = jt->second.as<unsigned char>();
+	    sC[i] = cval;
+	  } else {
+	    std::cerr << "Missing element definition for atomic number " << i
+		      << std::endl;
+	    exit(-3);
+	  }
+	}
+
+	if (type != Trace) {
+	  if (it->second["temp"]) {
+	    T[0][i] = it->second["temp"].as<double>();
+	  }
+	}
       }
-      if (type!=Trace) T[0][i] = row.second.get<double>("temp");
     }
 
     if (norm>0.0) {
@@ -1937,25 +1920,31 @@ main (int ac, char **av)
 
     if (model==Interface) {
       rho.resize(2);
-      try {
-	rho[0]  = iroot.get<double>("components.1.Density");
-	rho[1]  = iroot.get<double>("components.2.Density");
-	T[0][0] = iroot.get<double>("components.1.Temp");
-	T[0][1] = iroot.get<double>("components.1.Etemp", T[0][0]);
-	T[1][0] = iroot.get<double>("components.2.Temp");
-	T[1][1] = iroot.get<double>("components.2.Etemp", T[1][0]);
-      }
-      catch (pt::ptree_error & error) {
-	std::cerr << "Error: " << error.what() << std::endl;
-	exit(-2);
+      
+      if (iroot["components"]) {
+	
+	// Iterate through component sequence
+	for (YAML::const_iterator it=iroot["components"].begin(); it != iroot["elements"].end(); ++it) {
+	
+	  for (YAML::const_iterator jt=it->second.begin(); jt != it->second.end(); ++jt) {
+	    unsigned j = jt->first.as<int>(); // Unpack component variables
+	    if (j>0 and j<2) {
+	      rho[j-1]  = jt->second["Density"].as<double>();
+	      T[j-1][0] = jt->second["Temp"   ].as<double>();
+	      T[j-1][1] = jt->second["Etemp"  ].as<double>();
+	    }
+	  }
+	    
+	}
+
       }
     } else {
       rho.push_back(D);
       if (Temp>0.0) T[0][0]  = Temp;
-      else          T[0][0]  = iroot.get("temp", 100000.0);
+      else          T[0][0]  = iroot["temp"].as<double>();
       T[0][1] = T[0][0];
       if (Telec>0.0) T[0][1] = Telec;
-      else           T[0][1] = iroot.get("telc", T[0][0]);
+      else           T[0][1] = iroot["telc"].as<double>();
     }
       
     if (type==Trace) {

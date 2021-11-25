@@ -7,20 +7,17 @@
 #include <sstream>
 #include <iomanip>
 #include <numeric>
+#include <random>
+#include <random>
 #include <tuple>
-
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
 
 #include <yaml-cpp/yaml.h>
 
 #include <errno.h>
 #include <sys/stat.h>
 
+#include <cxxopts.H>
 #include "Ion.H"
-
-namespace po = boost::program_options;
 
 #include <mpi.h>
 
@@ -58,7 +55,7 @@ std::string outdir(".");
 std::string runtag("run");
 char threading_on = 0;
 pthread_mutex_t mem_lock;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 
 int main (int ac, char **av)
 {
@@ -88,40 +85,38 @@ int main (int ac, char **av)
   std::string RRtype, prefix;
   int numT;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("long,l",          "long output: print each rate and ratio")
-    ("nogrid",          "turn off recombination cross section cache")
-    ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
-     "atomic number")
-    ("Tmin,t",		po::value<double>(&Tmin)->default_value(1000.0),
-     "minimum temperature")
-    ("Tmax,T",		po::value<double>(&Tmax)->default_value(10000000.0),
-     "maximum temperature")
-    ("NumT,N",		po::value<int>(&numT)->default_value(400),
-     "number of temperature points")
-    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
-     "cross-section type")
-    ("prefix,p",	po::value<std::string>(&prefix)->default_value(".recomb_ratio_test"),
-     "cache name prefix")
+  cxxopts::Options options(av[0], "Make recombination ratio caches");
+
+  options.add_options()
+   ("h,help", "produce help message")
+   ("l,long", "long output: print each rate and ratio")
+   ("nogrid", "turn off recombination cross section cache")
+   ("Z,Z", "atomic number",
+     cxxopts::value<unsigned short>(Z)->default_value("2"))
+   ("t,Tmin", "minimum temperature",
+     cxxopts::value<double>(Tmin)->default_value("1000.0"))
+   ("T,Tmax", "maximum temperature",
+     cxxopts::value<double>(Tmax)->default_value("10000000.0"))
+   ("N,NumT", "number of temperature points",
+     cxxopts::value<int>(numT)->default_value("400"))
+   ("R,RRtype", "cross-section type",
+     cxxopts::value<std::string>(RRtype)->default_value("Verner"))
+   ("p,prefix", "cache name prefix",
+     cxxopts::value<std::string>(prefix)->default_value(".recomb_ratio_test"))
     ;
 
-
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
-    return -1;
+    exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "\t" << av[0]
 	      << " -Z 1" << std::endl;
     MPI_Finalize();

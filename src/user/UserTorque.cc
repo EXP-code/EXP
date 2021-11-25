@@ -12,8 +12,8 @@
 class UserTorque : public ExternalForce
 {
   typedef vector<float> fvector;
-  SphericalModelTable *halo;
-  SphericalOrbit *orb;
+  std::shared_ptr<SphericalModelTable> halo;
+  std::shared_ptr<SphericalOrbit> orb;
 
 private:
   
@@ -91,8 +91,6 @@ UserTorque::UserTorque(const YAML::Node& conf) : ExternalForce(conf)
 
 UserTorque::~UserTorque()
 {
-  delete orb;
-  delete halo;
   pthread_mutex_destroy(&orb_lock);
 }
 
@@ -165,8 +163,8 @@ void UserTorque::initialize()
     throw "UserTorque: could not open input file";
   }
   
-  halo = new SphericalModelTable(model_name, diverge, diverge_rfac);
-  orb  = new SphericalOrbit(halo);
+  halo = std::make_shared<SphericalModelTable>(model_name, diverge, diverge_rfac);
+  orb  = std::make_shared<SphericalOrbit>(halo);
 }
 
 double UserTorque::interpolate(double E, double K)

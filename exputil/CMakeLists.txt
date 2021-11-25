@@ -2,10 +2,11 @@
 set(ODE_SRC rk4.cc bs.cc odesolve.cc)
 set(SYMP_SRC sia4.cc)
 set(ROOT_SRC rtbis.cc rtsafe.cc brent.cc zbrent.cc mnbrak.cc zbrak.cc zbrac.cc)
-set(QUAD_SRC qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc Trapsum.cc)
+set(QUAD_SRC qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc
+Trapsum.cc Splsum.cc)
 set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc
-  stack.cc localmpi.cc TableGrid.cc)
+  stack.cc localmpi.cc TableGrid.cc writePVD.cc)
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkGrid.cc)
 endif()
@@ -15,8 +16,8 @@ set(PHASE_SRC phase.cc ensemble.cc io_ensemble.cc move_ensemble.cc
   diag_ensemble.cc map.cc pc.cc models.cc prolate.cc perfect.cc
   rotcurv.cc needle.cc hubble.cc quad.cc)
 set(SPECFUNC_SRC gammln.cc bessel.cc OrthoPoly.cc CauchyPV.cc) # modbessel.cc
-set(INTERP_SRC Spline.cc SplintE.cc Vodd2.cc Vlocate.cc levsurf.cc ChebFit.cc Interp1d.cc Cheby1d.cc)
-set(MASSMODEL_SRC massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc realize_model.cc
+set(INTERP_SRC Spline.cc SplintE.cc Vodd2.cc Vlocate.cc levsurf.cc Interp1d.cc Cheby1d.cc MonotCubicInterpolator.cc)
+set(MASSMODEL_SRC massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc realize_model.cc GenPoly.cc
   toomre.cc exponential.cc)
 set(ORBIT_SRC orbit.cc orbit_trans.cc FindOrb.cc)
 set(BIORTH_SRC biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc
@@ -40,11 +41,10 @@ set(common_INCLUDE_DIRS
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
-  ${EIGEN3_INCLUDE_DIR}
-  ${VTK_INCLUDE})
+  ${EIGEN3_INCLUDE_DIR})
 
 set(common_LINKLIBS
-  ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX Boost::random)
+  ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX)
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})

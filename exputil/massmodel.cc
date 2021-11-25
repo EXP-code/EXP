@@ -17,7 +17,6 @@ int wordSplit(string& x, vector<string>& words);
 
 int SphericalModelTable::count    = 0;
 int SphericalModelTable::even     = 0;
-int SphericalModelTable::logscale = 1;
 int SphericalModelTable::linear   = 1;
 int SphericalModelTable::chebyN   = 0;
 
@@ -111,7 +110,7 @@ SphericalModelTable::SphericalModelTable
     vector<string> words;
     num_params = wordSplit(x, words);
     if (num_params>0) {
-      params = new double [num_params];
+      params.resize(num_params);
       for (int i=0; i<num_params; i++) params[i] = atof(words[i].c_str());
     }
   }
@@ -123,10 +122,11 @@ SphericalModelTable::SphericalModelTable
 
 }
 
-SphericalModelTable::SphericalModelTable(int NUM, 
-			 double *r, double *d, double *m, double *p,
-			 int DIVERGE, double DIVERGE_RFAC, int EXTERNAL,
-					 string ID)
+SphericalModelTable::SphericalModelTable
+(int NUM, 
+ double *r, double *d, double *m, double *p,
+ int DIVERGE, double DIVERGE_RFAC, int EXTERNAL,
+ string ID)
 {
   count++;
 
@@ -182,10 +182,69 @@ SphericalModelTable::SphericalModelTable(int NUM,
 
 }
 
+SphericalModelTable::SphericalModelTable
+(std::vector<double>& r, std::vector<double>& d,
+ std::vector<double>& m, std::vector<double>& p,
+ int DIVERGE, double DIVERGE_RFAC, int EXTERNAL,
+ string ID)
+{
+  count++;
+
+  dim = 3;
+  ModelID = "SphericalModelTable(" + ID + ")";
+  dist_defined = false;
+  num = r.size();
+
+  double radius = 0.0;
+  
+  density.x. resize(num);
+  density.y. resize(num);
+  density.y2.resize(num);
+
+  mass.x. resize(num);
+  mass.y. resize(num);
+  mass.y2.resize(num);
+
+  pot.x. resize(num);
+  pot.y. resize(num);
+  pot.y2.resize(num);
+
+  density.num = num;
+  mass.num    = num;
+  pot.num     = num;
+  
+  for (int i=0; i<num; i++) {
+    radius = r[i];
+    density.y[i] = d[i];
+    mass.y[i] = m[i];
+    pot.y[i] = p[i];
+
+    density.x[i] = radius;
+    mass.x[i] = radius;
+    pot.x[i] = radius;
+
+    if (DIVERGE)
+      density.y[i] *= pow(radius+std::numeric_limits<double>::min(), DIVERGE_RFAC);
+  }
+  
+  Spline(density.x, density.y, 0.0, 0.0, density.y2);
+  Spline(mass.x, mass.y, 0.0, 0.0, mass.y2);
+  if (EXTERNAL)
+    Spline(pot.x, pot.y, 0.0, mass.y[mass.num-1]/(radius*radius),pot.y2);
+  else
+    Spline(pot.x, pot.y, -1.0e30, -1.0e30, pot.y2);
+  
+  num_params = 0;
+
+  diverge = DIVERGE;
+  diverge_rfac = DIVERGE_RFAC;
+  external = EXTERNAL;
+
+}
+
 
 SphericalModelTable::~SphericalModelTable()
 {
-  if (num_params) delete [] params;
   count--;
 }
 
@@ -223,7 +282,10 @@ double SphericalModelTable::get_density(double r)
 
   if (r>density.x[density.num-1]) return density.y[density.num-1];
   
-  Splint1(density.x, density.y, density.y2, r, ans, even);
+  if (linear)
+    ans = odd2(r, density.x, density.y, even);
+  else
+    Splint1(density.x, density.y, density.y2, r, ans, even);
 
   return ans;
 }
@@ -252,9 +314,9 @@ double SphericalModelTable::get_pot(const double r)
   if (r>pot.x[pot.num-1]) return pot.y[pot.num-1]*pot.x[pot.num-1]/r;
   
   if (linear)
-    Splint1(pot.x, pot.y, pot.y2, r, ans, even);
-  else
     ans = odd2(r, pot.x, pot.y, even);
+  else
+    Splint1(pot.x, pot.y, pot.y2, r, ans, even);
 
   return ans;
 }
@@ -435,6 +497,62 @@ void SphericalModelTable::print_model(char const *name)
 
 }
 
+void SphericalModelTable::print_model_eval(char const *name, int number)
+{
+  ofstream out(name);
+  if (!out) {
+    cerr << "Couldn't open <" << name << "\n";
+    return;
+  }
+
+  out.setf(ios::left);
+
+  out << "# ModelID=" << ModelID << std::endl;
+  out << std::setw(22) << "# Radius" 
+      << std::setw(22) << "Density" 
+      << std::setw(22) << "Mass" 
+      << std::setw(22) << "Potential" 
+      << std::setw(22) << "Derivative" 
+      << std::setw(22) << "Monopole" 
+      << std::endl;
+
+  char c = out.fill('-');
+  out << std::setw(22) << "# [1]"
+      << std::setw(22) << "| [2]"
+      << std::setw(22) << "| [3]"
+      << std::setw(22) << "| [4]"
+      << std::setw(22) << "| [5]"
+      << std::setw(22) << "| [6]"
+      << std::endl;
+  out.fill(c);
+
+  double rmin = density.x[0];
+  double rmax = density.x[density.x.size()-1];
+
+  bool logscale = false;
+  if (rmin>0.0) {
+    logscale = true;
+    rmin = log(rmin);
+    rmax = log(rmax);
+  }
+
+  double dr   = (rmax - rmin)/(number - 1);
+
+  out << setprecision(12) << scientific;
+  for (int i=0; i<number; i++) {
+    double r = rmin + dr*i;
+    if (logscale) r = exp(r);
+    out << std::setw(22) << r
+	<< std::setw(22) << get_density(r)
+	<< std::setw(22) << get_mass(r)
+	<< std::setw(22) << get_pot(r)
+	<< std::setw(22) << get_dpot(r)
+	<< std::setw(22) << get_mass(r)/(r*r)
+	<< std::endl;
+  }
+
+}
+
 
 void EmbeddedDiskModel::verbose_df(void)
 {
@@ -472,10 +590,13 @@ void EmbeddedDiskModel::save_df(string& file)
 }
 
 
-SphericalModelMulti::SphericalModelMulti(AxiSymModel* Real, AxiSymModel* Fake) 
+SphericalModelMulti::SphericalModelMulti(AxiSymModPtr Real,
+					 AxiSymModPtr Fake) 
 {
-  real = Real;
-  fake = Fake;
+  real  = Real;
+  fake  = Fake;
+  noneg = true;			// Will requeue samples with negative
+				// DF (mass) ratio if true
 
   rmin_gen = max<double>(Fake->get_min_radius(), Real->get_min_radius());
   rmin_gen = max<double>(rmin_gen, gen_rmin);

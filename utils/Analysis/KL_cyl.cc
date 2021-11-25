@@ -37,22 +37,12 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <random>
 #include <queue>
 #include <map>
 
 				// Eigen3
 #include <Eigen/Eigen>
-
-				// Boost stuff
-
-#include <boost/make_shared.hpp>
-#include <boost/make_unique.hpp>
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
-#include <Progress.H>
-
-namespace po = boost::program_options;
 
                                 // System libs
 #include <sys/time.h>
@@ -66,6 +56,8 @@ namespace po = boost::program_options;
 #include <EmpCylSL.H>
 #include <foarray.H>
 #include <KDtree.H>
+#include <Progress.H>
+#include <cxxopts.H>
 
 #include <global.H>
 #include <localmpi.H>
@@ -139,62 +131,51 @@ main(int argc, char **argv)
   std::ostringstream sout;
   sout << std::string(60, '-') << std::endl
        << "Kullback-Leibler analysis for cylindrical models" << std::endl
-       << std::string(60, '-') << std::endl << std::endl
-       << "Allowed options";
+       << std::string(60, '-') << std::endl << std::endl;
   
-  po::options_description desc(sout.str());
-  desc.add_options()
-    ("help,h",
-     "Print this help message")
-    ("verbose,v",
-     "Verbose and diagnostic output for covariance computation")
-    ("truncate,t",
-     "Use Truncate method for SNR trimming rather than the default Hall")
-    ("debug,",
-     "Debug max values")
-    ("LOG",
-     "log scaling for SNR")
-    ("Hall",
-     "use Hall smoothing for SNR trim")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("Ndens,K",             po::value<int>(&Ndens)->default_value(32),
-     "KD density estimate count (use 0 for expansion estimate)")
-    ("NICE",                po::value<int>(&NICE)->default_value(0),
-     "system priority")
-    ("LMAX",                po::value<int>(&LMAX)->default_value(36),
-     "Maximum harmonic order for spherical expansion")
-    ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
-     "Number of SNR evaluations")
-    ("minSNR",              po::value<double>(&minSNR0),
-     "minimum SNR value for loop output")
-    ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),
-     "default Hall smoothing exponent")
-    ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
-     "Filename prefix")
-    ("runtag",              po::value<string>(&runtag)->default_value("run1"),
-     "Phase space file")
-    ("outdir",              po::value<string>(&outdir)->default_value("."),
-     "Output directory path")
-    ("indx",                po::value<int>(&indx)->default_value(0),
-     "PSP index")
-    ("nbunch",              po::value<int>(&nbunch)->default_value(-1),
-     "Desired bunch size (default: sqrt(nbod) if value is < 0)")
-    ("dir,d",               po::value<std::string>(&dir),
-     "directory for SPL files")
-    ("ignore",
-     po::value<bool>(&ignore)->default_value(false),
-     "rebuild EOF grid if input parameters do not match the cachefile")
-    ("cachefile",
-     po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
-     "cachefile name")
-    ("cname",
-     po::value<std::string>(&cname)->default_value("star disk"),
-     "component name")
+  cxxopts::Options options(argv[0], sout.str());
+
+  options.add_options()
+    ("H,help", "Print this help message")
+    ("v,verbose", "Verbose and diagnostic output for covariance computation")
+    ("t,truncate", "Use Truncate method for SNR trimming rather than the default Hall")
+    ("debug", "Debug max values")
+    ("LOG", "log scaling for SNR")
+    ("Hall", "use Hall smoothing for SNR trim")
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("K,Ndens", "KD density estimate count (use 0 for expansion estimate)",
+     cxxopts::value<int>(Ndens)->default_value("32"))
+    ("NICE", "system priority",
+     cxxopts::value<int>(NICE)->default_value("0"))
+    ("LMAX", "Maximum harmonic order for spherical expansion",
+     cxxopts::value<int>(LMAX)->default_value("36"))
+    ("NSNR, N", "Number of SNR evaluations",
+     cxxopts::value<int>(NSNR)->default_value("20"))
+    ("minSNR", "minimum SNR value for loop output",
+     cxxopts::value<double>(minSNR0))
+    ("Hexp", "default Hall smoothing exponent",
+     cxxopts::value<double>(Hexp)->default_value("1.0"))
+    ("prefix", "Filename prefix",
+     cxxopts::value<string>(prefix)->default_value("crossval"))
+    ("runtag", "Phase space file",
+     cxxopts::value<string>(runtag)->default_value("run1"))
+    ("outdir", "Output directory path",
+     cxxopts::value<string>(outdir)->default_value("."))
+    ("indx", "PSP index",
+     cxxopts::value<int>(indx)->default_value("0"))
+    ("nbunch", "Desired bunch size (default: sqrt(nbod) if value is < 0)",
+     cxxopts::value<int>(nbunch)->default_value("-1"))
+    ("dir,d", "directory for SPL files",
+     cxxopts::value<std::string>(dir))
+    ("ignore", "rebuild EOF grid if input parameters do not match the cachefile",
+     cxxopts::value<bool>(ignore)->default_value("false"))
+    ("cachefile", "cachefile name",
+     cxxopts::value<std::string>(CACHEFILE)->default_value(".eof.cache.file"))
+    ("cname", "component name",
+     cxxopts::value<std::string>(cname)->default_value("star disk"))
     ;
   
   // ==================================================
@@ -203,12 +184,11 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
     exit(-1);
@@ -219,7 +199,7 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    if (myid==0) std::cout << std::endl << desc << std::endl;
+    if (myid==0) std::cout << std::endl << options.help() << std::endl;
     MPI_Finalize();
     return 0;
   }
@@ -285,7 +265,7 @@ main(int argc, char **argv)
 	
 	// Make and read char buffer
 	//
-	auto buf = boost::make_unique<char[]>(ssize+1);
+	auto buf = std::make_unique<char[]>(ssize+1);
 	in.read(buf.get(), ssize);
 	buf[ssize] = 0;		// Null terminate
 
@@ -396,7 +376,8 @@ main(int argc, char **argv)
   // ==================================================
 
   int iok = 1;
-  auto file1 = ParticleReader::fileNameCreator(fileType, indx, dir, runtag);
+  auto file1 = ParticleReader::fileNameCreator
+    (fileType, indx, myid, dir, runtag);
 
   std::ifstream in(file);
   if (!in) {
@@ -437,7 +418,7 @@ main(int argc, char **argv)
   // Open PSP file
   // ==================================================
 
-  PRptr reader = ParticleReader::createReader(fileType, file1, true);
+  PRptr reader = ParticleReader::createReader(fileType, file1, myid, true);
 
   double tnow = reader->CurrentTime();
   if (myid==0) std::cout << "Beginning partition [time=" << tnow
@@ -449,12 +430,12 @@ main(int argc, char **argv)
 
   std::vector<double> KDdens;
 
-  boost::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (myid==0) {
     std::cout << std::endl
 	      << "Accumulating particle positions . . . "
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(nbod);
+    progress = std::make_shared<progress::progress_display>(nbod);
   }
 
   ortho0.setup_accumulation();
@@ -551,10 +532,10 @@ main(int argc, char **argv)
   p = reader->firstParticle();
   icnt = 0;
     
-  std::vector<boost::shared_ptr<CoefStruct>> coefs;
+  std::vector<std::shared_ptr<CoefStruct>> coefs;
 
   if (myid==0) {
-    progress = boost::make_shared<boost::progress_display>(nbunch0*nbunch1);
+    progress = std::make_shared<progress::progress_display>(nbunch0*nbunch1);
   }
 
   double curMass = 0.0;
@@ -580,7 +561,7 @@ main(int argc, char **argv)
 	}
 	coefs.back()->sync(curMass);
       }
-      coefs.push_back(boost::make_shared<CoefStruct>(mmax, norder));
+      coefs.push_back(std::make_shared<CoefStruct>(mmax, norder));
       ortho1.setup_accumulation();
       curMass = 0.0;
     }
@@ -690,7 +671,7 @@ main(int argc, char **argv)
     //
     if (myid==0) {
       std::cout << std::endl << "Trimming coefficients . . ." << std::endl;
-      progress = boost::make_shared<boost::progress_display>(coefs.size());
+      progress = std::make_shared<progress::progress_display>(coefs.size());
     }
 
     for (int j=0; j<coefs.size(); j++) {
@@ -722,7 +703,7 @@ main(int argc, char **argv)
       std::cout << std::endl
 		<< "Computing KL for subsamples . . . "
 		<< std::endl;
-      progress = boost::make_shared<boost::progress_display>(nbunch0*nbunch1);
+      progress = std::make_shared<progress::progress_display>(nbunch0*nbunch1);
     }
 
     do {

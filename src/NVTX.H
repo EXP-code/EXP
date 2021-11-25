@@ -1,7 +1,7 @@
 #ifndef NVTX_H
 #define NVTX_H
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include "config.h"
 
@@ -28,6 +28,6 @@ public:
 };
 #endif
 
-typedef boost::shared_ptr<nvTracer> nvTracerPtr;
+typedef std::shared_ptr<nvTracer> nvTracerPtr;
 
 #endif

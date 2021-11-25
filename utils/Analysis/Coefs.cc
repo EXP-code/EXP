@@ -18,6 +18,8 @@ bool CylCoefs::read(std::istream& in, bool verbose)
   const unsigned int cmagic = 0xc0a57a3;
   unsigned int tmagic;
 
+  // Catch iostream exceptions on reading
+  //
   try {
 
     in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
@@ -32,7 +34,7 @@ bool CylCoefs::read(std::istream& in, bool verbose)
       
       // Make and read char buffer
       //
-      auto buf = boost::make_unique<char[]>(ssize+1);
+      auto buf = std::make_unique<char[]>(ssize+1);
       in.read(buf.get(), ssize);
       buf[ssize] = 0;		// Null terminate
       
@@ -117,6 +119,8 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
   //
   unsigned int tmagic;
 
+  // Catch iostream exceptions on reading
+  //
   try {
     in.read(reinterpret_cast<char *>(&tmagic), sizeof(unsigned int));
 
@@ -133,7 +137,7 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
 
       // Create buffer
       //
-      auto buf = boost::make_unique<char[]>(hsize+1);
+      auto buf = std::make_unique<char[]>(hsize+1);
 
       // Read YAML string
       //
@@ -157,6 +161,24 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
       std::string ID = node["id"].as<std::string>();
       strncpy(header.id, ID.c_str(), std::min<int>(64, ID.size()));
       
+
+      coefs.resize((header.Lmax+1)*(header.Lmax+1), header.nmax);
+      
+      for (int ir=0; ir<header.nmax; ir++) {
+	for (int l=0, loffset=0; l<=header.Lmax; loffset+=(2*l+1), l++) {
+	  for (int m=0, moffset=0; m<=l; m++) {
+	    if (m==0) {
+	      in.read((char *)&coefs(loffset+moffset+0, ir), sizeof(double));
+	      moffset += 1;
+	    } else {
+	      in.read((char *)&coefs(loffset+moffset+0, ir), sizeof(double));
+	      in.read((char *)&coefs(loffset+moffset+1, ir), sizeof(double));
+	      moffset += 2;
+	    }
+	  }
+	}
+      }
+
     } else {
       
       // Rewind file
@@ -165,12 +187,12 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
       in.seekg(curpos);
       
       in.read((char *)&header, sizeof(SphCoefHeader));
+
+      if (not in) return false;
+
+      coefs.resize((header.Lmax+1)*(header.Lmax+1), header.nmax);
+      in.read((char *)coefs.data(), coefs.size()*sizeof(double));
     }
-
-    if (not in) return false;
-
-    coefs.resize((header.Lmax+1)*(header.Lmax+1), header.nmax);
-    in.read((char *)coefs.data(), coefs.size()*sizeof(double));
   }
   catch (std::istream::failure e) {
     if (not in.eof())

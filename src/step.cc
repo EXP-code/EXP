@@ -2,9 +2,7 @@
   Call necessary routines to advance phase-space one step
 */
 
-// For string formatting
-//
-#include <boost/format.hpp>
+#include <memory>
 
 // Uncomment for time step debugging
 //
@@ -48,6 +46,22 @@ inline void check_bad(const char *msg, int v)
     std::cout << "Process " << myid 
 	      << ": found BAD values " << msg << ", M=" << v << std::endl;
 #endif
+}
+
+// Hide all of the format manipulators here
+std::string sForm(const std::string& label,
+		  const double time, const double total)
+{
+  double pcnt = 0.0;
+  if (total>0) pcnt = time/total*100.0;
+  
+  std::ostringstream str;
+  str << std::setw(20) << std::left     << label << ": "
+      << std::setw(18) << std::left     << time  << " ["
+      << std::setw( 6) << std::right    << std::setprecision(2)
+      << std::fixed    << pcnt << " %]" << std::endl;
+
+  return str.str();
 }
 
 void do_step(int n)
@@ -104,7 +118,7 @@ void do_step(int n)
 
 				// Write multistep output
       if (step_timing) timer_out.start();
-      if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+      if (cuda_prof) tPtr = std::make_shared<nvTracer>("Data output");
       output->Run(n, mstep);
       if (step_timing) timer_out.stop();
 
@@ -120,7 +134,7 @@ void do_step(int n)
 	//
 	nvTracerPtr tPtr2;
 	if (cuda_prof) {
-	  tPtr2 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
+	  tPtr2 = std::make_shared<nvTracer>("Velocity kick [1]");
 	}
 	if (step_timing) timer_vel.start();
 	incr_velocity(0.5*DT, M);
@@ -135,7 +149,7 @@ void do_step(int n)
 	//
 	if (cuda_prof) {
 	  tPtr2.reset();
-	  tPtr2 = nvTracerPtr(new nvTracer("Drift"));
+	  tPtr2 = std::make_shared<nvTracer>("Drift");
 	}
 	if (step_timing) timer_drift.start();
 	incr_position(DT, M);
@@ -151,7 +165,7 @@ void do_step(int n)
 	//
 	if (cuda_prof) {
 	  tPtr2.reset();
-	  tPtr2 = nvTracerPtr(new nvTracer("Expansion"));
+	  tPtr2 = std::make_shared<nvTracer>("Expansion");
 	}
 	if (step_timing) timer_coef.start();
 	comp->compute_expansion(M);
@@ -169,7 +183,7 @@ void do_step(int n)
       // Compute potential for all the particles active at this step
       //
       nvTracerPtr tPtr1;
-      if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
+      if (cuda_prof) tPtr1 = std::make_shared<nvTracer>("Potential");
       if (step_timing) timer_pot.start();
       mdrft = mstep + 1;	// Drifted position in multistep array
       comp->compute_potential(mfirst[mstep]);
@@ -187,7 +201,7 @@ void do_step(int n)
       //
       if (cuda_prof) {
 	tPtr1.reset();
-	tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
+	tPtr1 = std::make_shared<nvTracer>("Velocity kick [2]");
       }
 
       if (step_timing) timer_vel.start();
@@ -218,12 +232,12 @@ void do_step(int n)
 
     // Write output
     if (step_timing) timer_out.start();
-    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    if (cuda_prof) tPtr = std::make_shared<nvTracer>("Data output");
     output->Run(n);
     if (step_timing) timer_out.stop();
 
     if (cuda_prof) {
-      tPtr = nvTracerPtr(new nvTracer("Adjust multistep"));
+      tPtr = std::make_shared<nvTracer>("Adjust multistep");
     }
 
     // COM update: second velocity half-kick
@@ -260,7 +274,7 @@ void do_step(int n)
     tnow += dtime;
 				// Velocity by 1/2 step
     nvTracerPtr tPtr1;
-    if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
+    if (cuda_prof) tPtr1 = std::make_shared<nvTracer>("Velocity kick [1]");
     if (step_timing) timer_vel.start();
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
@@ -268,7 +282,7 @@ void do_step(int n)
 				// Position by whole step
     if (cuda_prof) {
       tPtr1.reset();
-      tPtr1 = nvTracerPtr(new nvTracer("Drift"));
+      tPtr1 = std::make_shared<nvTracer>("Drift");
     }
     if (step_timing) timer_drift.start();
     incr_position(dtime);
@@ -283,7 +297,7 @@ void do_step(int n)
 				// Compute acceleration
     if (cuda_prof) {
       tPtr1.reset();
-      tPtr1 = nvTracerPtr(new nvTracer("Potential"));
+      tPtr1 = std::make_shared<nvTracer>("Potential");
     }
     if (step_timing) timer_pot.start();
     comp->compute_potential();
@@ -291,7 +305,7 @@ void do_step(int n)
 				// Velocity by 1/2 step
     if (cuda_prof) {
       tPtr1.reset();
-      tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
+      tPtr1 = std::make_shared<nvTracer>("Velocity kick [2]");
     }
     if (step_timing) timer_vel.start();
     incr_velocity(0.5*dtime);
@@ -301,7 +315,7 @@ void do_step(int n)
                                  // Write output
     if (step_timing) timer_out.start();
     nvTracerPtr tPtr;
-    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    if (cuda_prof) tPtr = std::make_shared<nvTracer>("Data output");
     output->Run(n);
     if (step_timing) timer_out.stop();
 
@@ -317,7 +331,7 @@ void do_step(int n)
 				// Load balance
   if (cuda_prof) {
     tPtr.reset();
-    tPtr = nvTracerPtr(new nvTracer("Load balance"));
+    tPtr = std::make_shared<nvTracer>("Load balance");
   }
   if (step_timing) timer_bal.start();
   comp->load_balance();
@@ -329,8 +343,6 @@ void do_step(int n)
 				// Timer output
   if (step_timing && this_step!=0 && (this_step % tskip) == 0) {
     if (myid==0) {
-      // Use boost::format to remove all of the manipulators; until C++20
-      boost::format F("%|1$-20|: %|2$-18.6e|[%|3$5.1f|]\n");
       auto totalT = timer_tot.getTime();
       std::ostringstream sout;
       sout << "--- Timer info [T=" << tnow << "] ";
@@ -339,20 +351,19 @@ void do_step(int n)
 		<< std::setw(70) << left << sout.str()       << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ') << std::right
-		<< F % "Drift"    % timer_drift.getTime() % (timer_drift.getTime()/totalT*1e2)
-		<< F % "Velocity" % timer_vel.getTime()   % (timer_vel.getTime()  /totalT*1e2)
-		<< F % "Force"    % timer_pot.getTime()   % (timer_pot.getTime()  /totalT*1e2)
-		<< F % "Coefs"    % timer_coef.getTime()  % (timer_coef.getTime() /totalT*1e2)
-		<< F % "Output"   % timer_out.getTime()   % (timer_out.getTime()  /totalT*1e2)
-
-		<< F % "Balance"  % timer_bal.getTime()   % (timer_bal.getTime()  /totalT*1e2);
+		<< sForm("Drift",    timer_drift.getTime(), totalT)
+		<< sForm("Velocity", timer_vel.getTime(),   totalT)
+		<< sForm("Force",    timer_pot.getTime(),   totalT)
+		<< sForm("Coefs",    timer_coef.getTime(),  totalT)
+		<< sForm("Output",   timer_out.getTime(),   totalT)
+		<< sForm("Balance",  timer_bal.getTime(),   totalT);
       if (multistep)
-	std::cout << F % "Adjust" % timer_adj.getTime()   % (timer_adj.getTime()  /totalT*1e2);
+	std::cout << sForm("Adjust", timer_adj.getTime(),   totalT);
       if (use_cuda) {
-	std::cout << F % "Cuda copy" % comp->timer_cuda.getTime()   % (comp->timer_cuda.getTime()  /totalT*1e2)
-		  << F % "Orient"    % comp->timer_orient.getTime() % (comp->timer_orient.getTime()/totalT*1e2);
+	std::cout << sForm("Cuda copy", comp->timer_cuda.getTime(),   totalT)
+		  << sForm("Orient",    comp->timer_orient.getTime(), totalT);
       }
-      std::cout << F % "Total" % timer_tot.getTime() % 1e2
+      std::cout << sForm("Total", timer_tot.getTime(), totalT)
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ');
     }

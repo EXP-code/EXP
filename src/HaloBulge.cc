@@ -47,13 +47,13 @@ HaloBulge::HaloBulge(const YAML::Node& conf) : ExternalForce(conf)
 
   switch (HMODEL) {
   case file:
-    model = new SphericalModelTable(INFILE); // Halo model
+    model = std::make_shared<SphericalModelTable>(INFILE);
     break;
   case isothermal:
-    model = new IsothermalSphere(1.0, RMODMIN, RMOD); // Halo model
+    model = std::make_shared<IsothermalSphere>(1.0, RMODMIN, RMOD);
     break;
   case hernquist_model:
-    model = new HernquistSphere(1.0, RMODMIN, RMOD); // Halo model
+    model = std::make_shared<HernquistSphere>(1.0, RMODMIN, RMOD);
     break; 
   default:
     {
@@ -63,7 +63,7 @@ HaloBulge::HaloBulge(const YAML::Node& conf) : ExternalForce(conf)
     }
   }
 
-  bmodel = new HernquistSphere(RBCORE, RBMODMIN, RBMOD);
+  bmodel = std::make_shared<HernquistSphere>(RBCORE, RBMODMIN, RBMOD);
 }
 
 

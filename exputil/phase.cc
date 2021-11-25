@@ -76,7 +76,7 @@ double Phase::Jacobi(void)
   double centrifugal, w;
   
   w = Frame.omega;
-  centrifugal = 0.5*m*w*w*(x[1]*x[1] + x[2]*x[2]);
+  centrifugal = 0.5*m*w*w*(x[0]*x[0] + x[1]*x[1]);
   
   return Energy() - centrifugal;
 }
@@ -94,21 +94,20 @@ void Phase::print(ostream& out)
 {
   out << t << " "
       << m << " "
+      << x[0] << " "
       << x[1] << " "
       << x[2] << " "
-      << x[3] << " "
+      << v[0] << " "
       << v[1] << " "
       << v[2] << " "
-      << v[3] << " "
       << '\n';
 }
 
 void Newton(double t, Eigen::VectorXd& u, Eigen::VectorXd& dudt)
 {
   static Eigen::Vector3d f, x, v;
-  int i;
   
-  for (i=1; i<=3; i++)
+  for (int i=0; i<3; i++)
     {
       dudt[i] = u[i+3];
       v[i] = u[i+3];
@@ -118,11 +117,11 @@ void Newton(double t, Eigen::VectorXd& u, Eigen::VectorXd& dudt)
   //	f = Force(t, x, v);
   f = (*Phase::Force)(t, x, v);
   
+  dudt[3] = f[0];
   dudt[4] = f[1];
   dudt[5] = f[2];
-  dudt[6] = f[3];
   
-  dudt[7] = f.dot(v);
+  dudt[6] = f.dot(v);
 }
 
 
@@ -130,9 +129,8 @@ void SNewton(double t, Eigen::VectorXd& xx, Eigen::VectorXd& vv,
 	     Eigen::VectorXd& dudt)
 {
   static Eigen::Vector3d f, x, v;
-  int i;
   
-  for (i=1; i<=3; i++)
+  for (int i=0; i<3; i++)
     {
       x[i] = xx[i];
       v[i] = vv[i];
@@ -141,11 +139,9 @@ void SNewton(double t, Eigen::VectorXd& xx, Eigen::VectorXd& vv,
   //	f = Force(t, x, v);
   f = (*Phase::Force)(t, x, v);
   
-  dudt[1] = f[1];
-  dudt[2] = f[2];
-  dudt[3] = f[3];
+  for (int i=0; i<3; i++) dudt[i] = f[i];
   
-  dudt[7] = f.dot(v);
+  dudt[6] = f.dot(v);
 }
 
 

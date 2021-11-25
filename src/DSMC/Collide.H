@@ -4,13 +4,11 @@
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
+#include <random>
 #include <vector>
 #include <tuple>
 #include <map>
 
-#include <boost/circular_buffer.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
 
 #include "ExternalForce.H"
 #include "AsciiHisto.H"
@@ -18,6 +16,8 @@
 #include "pHOT.H"
 #include "Timer.H"
 #include "NTC.H"
+
+#include <circular_buffer.H>
 
 class Collide;
 
@@ -142,7 +142,7 @@ public:
   typedef std::pair<double, vector<double> > Precord;
 
   //! Collide return tuple
-  typedef std::tuple<unsigned, unsigned>     UU;
+  typedef std::tuple<unsigned, unsigned> UU;
   
   //@{
   //! Electron species key
@@ -228,8 +228,8 @@ protected:
   
   //@{
   //! Pseudorandom generation
-  boost::random::uniform_real_distribution<> unit;
-  boost::random::normal_distribution<>       norm;
+  std::uniform_real_distribution<> unit;
+  std::normal_distribution<>       norm;
   //@}
   
   //! Cell diagnostic records indexed by thread
@@ -392,6 +392,16 @@ protected:
 	   Particle* const p1, Particle* const p2, double cr) = 0;
 
 
+  //! Select an interaction pair
+  virtual std::pair<int, int> pairSelect(int id, NTC::T T, int nbods)
+  {
+    std::pair<int, int> ret;
+    ret.first  = std::min<int>(int(floor(unit(random_gen)* nbods   )), nbods-1);
+    ret.second = std::min<int>(int(floor(unit(random_gen)*(nbods-1))), nbods-2);
+    if (ret.second >= ret.first) ret.second++;
+    return ret;
+  }
+
   //! Return the particle selection matrix
   virtual NTC::InteractD generateSelection
   (pCell* const c, double crm, sKeyDmap* const Fn, double tau,
@@ -471,7 +481,9 @@ protected:
   //@{
   //! NTC diagnostoics
   const size_t bufCap = 16384;
-  std::vector< boost::circular_buffer<double> > ntcVal, wgtVal;
+  typedef circular_buffer<double> circBuf;
+  typedef std::shared_ptr<circBuf> circBufPtr;
+  std::vector<circBufPtr> ntcVal, wgtVal;
   std::vector<double> wgtSum, ntcSum;
   //@}
 

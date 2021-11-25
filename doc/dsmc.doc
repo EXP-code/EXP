@@ -281,12 +281,13 @@ from the difference in velocities between the electrons and ions.
 \section milne Radiative Recombination using the Milne relation
 
 We may derive an expression for radiative recombination by noting that
-it is the inverse process of photoionization: that is, \f$σ_{fb}\f$ is
-the cross-section for an ion recapturing its electron and emitting a
-photon. We'll use detailed balance in thermal equilibrium to derive a
-relationship for \f$\sigma_{fb}\f$ in terms of \f$\sigma_{bf}\f$. This
-is called the Milne Relation. Even though our derivation uses thermal
-equilibrium, the end result is independent of thermal equilibrium.
+it is the inverse process of photoionization: that is,
+\f$\sigma_{fb}\f$ is the cross-section for an ion recapturing its
+electron and emitting a photon. We'll use detailed balance in thermal
+equilibrium to derive a relationship for \f$\sigma_{fb}\f$ in terms of
+\f$\sigma_{bf}\f$. This is called the Milne Relation. Even though our
+derivation uses thermal equilibrium, the end result is independent of
+thermal equilibrium.
 
 Thermal equilibrium demands that the radiative
 recombinations rate equal the photoionization rate. Specifically:

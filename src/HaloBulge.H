@@ -33,7 +33,7 @@ private:
   //! Bulge maximum model radius (default: 20.0)
   double RBMOD;
   
-  AxiSymModel *model, *bmodel;
+  AxiSymModPtr model, bmodel;
 
   void * determine_acceleration_and_potential_thread(void * arg);
 

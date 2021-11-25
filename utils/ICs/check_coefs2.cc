@@ -4,14 +4,18 @@
 */
 
                                 // C++/STL headers
-#include <cmath>
-#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
+#include <utility>
+#include <random>
+#include <memory>
 #include <string>
 #include <vector>
+#include <cmath>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -22,18 +26,9 @@
 #include <omp.h>
 #endif
 
-// Boost stuff
-//
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/math/special_functions/bessel.hpp>
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/make_unique.hpp>
-
 #include <Progress.H>		// Progress bar
-
-namespace po = boost::program_options;
+#include <cxxopts.H>		// Option parsing
+#include <EXPini.H>		// For loading config data
 
 // EXP classes
 //
@@ -347,169 +342,104 @@ main(int ac, char **av)
   string       mtype;
   string       prefix;
   
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("conf,c",          po::value<string>(&config),                                     "Write template options file with current and all default values")
-    ("input,f",         po::value<string>(&config),                                     "Parameter configuration file")
-    ("condition",       po::value<string>(&dmodel),                                     "Condition EmpCylSL deprojection from specified disk model (EXP or MN)")
-    ("NINT",            po::value<int>(&NINT)->default_value(100),                       "Number of Gauss-Legendre knots")
-    ("NUMR",            po::value<int>(&NUMR)->default_value(2000),                     "Size of radial grid for Spherical SL")
-    ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
-    ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),               "Maximum disk radius")
-    ("ASCALE",          po::value<double>(&ASCALE)->default_value(1.0),                 "Radial scale length for disk basis construction")
-    ("ASHIFT",          po::value<double>(&ASHIFT)->default_value(0.0),                 "Fraction of scale length for shift in conditioning function")
-    ("HSCALE",          po::value<double>(&HSCALE)->default_value(0.1),                 "Vertical scale length for disk basis construction")
-    ("RFACTOR",         po::value<double>(&RFACTOR)->default_value(1.0),                "Disk radial scaling for deprojection computation")
-    ("AEXP",            po::value<double>(&AEXP)->default_value(1.0),                 "Radial scale length for disk basis test")
-    ("HEXP",            po::value<double>(&HEXP)->default_value(0.1),                 "Vertical scale length for disk basis test")
-    ("RNUM",            po::value<int>(&RNUM)->default_value(200),                      "Number of radial knots for EmpCylSL basis construction quadrature")
-    ("PNUM",            po::value<int>(&PNUM)->default_value(80),                       "Number of azimthal knots for EmpCylSL basis construction quadrature")
-    ("TNUM",            po::value<int>(&TNUM)->default_value(80),                       "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
-    ("CMAPR",           po::value<int>(&CMAPR)->default_value(1),                     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
-    ("CMAPZ",           po::value<int>(&CMAPZ)->default_value(1),                     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
-    ("SVD",             po::value<bool>(&SVD)->default_value(false),                    "Use svd for symmetric eigenvalue problesm")
-    ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
-    ("LOGR2",           po::value<bool>(&LOGR2)->default_value(false),                   "Make a logarithmic coordinate mapping for coefficient eval")
-    ("LMAX",            po::value<int>(&LMAX)->default_value(6),                        "Number of harmonics for Spherical SL for halo/spheroid")
-    ("NMAX",            po::value<int>(&NMAX)->default_value(12),                       "Number of radial basis functions in Spherical SL for halo/spheroid")
-    ("MMAX",            po::value<int>(&MMAX)->default_value(4),                        "Number of azimuthal harmonics for disk basis")
-    ("NUMX",            po::value<int>(&NUMX)->default_value(256),                      "Radial grid size for disk basis table")
-    ("NUMY",            po::value<int>(&NUMY)->default_value(128),                      "Vertical grid size for disk basis table")
-    ("NORDER",          po::value<int>(&NORDER)->default_value(16),                     "Number of disk basis functions per M-order")
-    ("NODD",            po::value<int>(&NODD)->default_value(-1),                       "Number of antisymmetric vertical functions per M-order")
-    ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                     "Number of radial basis functions to output for each harmonic order")
-    ("NFRC1D",          po::value<int>(&NFRC1D)->default_value(1000),                   "Number of radial knots for force check for 1-d trace")
-    ("NFRC2D",          po::value<int>(&NFRC2D)->default_value(100),                    "Number of radial knots for force check for 2-d plane")
-    ("NSCL",            po::value<double>(&NSCL)->default_value(8.0),                  "Number of scales for 2-d plane output")
-    ("DENS",            po::value<bool>(&DENS)->default_value(true),                    "Compute the density basis functions")
-    ("VFLAG",           po::value<int>(&VFLAG)->default_value(0),                       "Output flags for EmpCylSL")
-    ("threads",         po::value<int>(&nthrds)->default_value(1),                      "Number of lightweight threads")
-    ("expcond",         po::value<bool>(&expcond)->default_value(true),                 "Use analytic density function for computing EmpCylSL basis")
-    ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
-    ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
-    ("scale_height",    po::value<double>(&scale_height)->default_value(0.1),           "Scale height for disk realization")
-    ("scale_length",    po::value<double>(&scale_length)->default_value(2.0),           "Scale length for disk realization")
-    ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
-    ("DTYPE",           po::value<string>(&disktype)->default_value("exponential"),             "Disk type for condition (one of: constant, gaussian, mn, exponential)")
-    ("PPOW",            po::value<double>(&ppower)->default_value(5.0),             "Power-law density exponent for general Plummer density for EMP construction")
-    ("rtrunc",          po::value<double>(&rtrunc)->default_value(0.1),             "Truncation radius for error-function density tapir")
-    ("rwidth",          po::value<double>(&rwidth)->default_value(0.0),             "Width for error-function density tapir")
-    ("ignore",          po::value<bool>(&ignore)->default_value(false),              "Ignore any existing cache file and recompute the EOF")
-    ("ortho",           po::value<bool>(&orthotst)->default_value(false),            "Check basis orthogonality by scalar product")
-    ("prefix",          po::value<std::string>(&prefix)->default_value("testcoefs"), "Output file prefix")
-    ("progress",        po::value<bool>(&use_progress)->default_value(false),        "Print progress bar")
-    ;
-        
-  po::variables_map vm;
+  cxxopts::Options options("testcoefs2", "Check coefficient expansion for cylindrical basis and compare to a high-order multipole expansion for force and potential");
+
+  options.add_options()
+    ("help,h", "Print this help message")
+    ("conf,c", "Write template options file with current and all default values",
+     cxxopts::value<string>(config))
+    ("f,input", "Parameter configuration file",
+     cxxopts::value<string>(config))
+    ("condition", "Condition EmpCylSL deprojection from specified disk model (EXP or MN)",
+     cxxopts::value<string>(dmodel))
+    ("NINT", "Number of Gauss-Legendre knots",
+     cxxopts::value<int>(NINT)->default_value("100"))
+    ("NUMR", "Size of radial grid for Spherical SL",
+     cxxopts::value<int>(NUMR)->default_value("2000"))
+    ("RCYLMIN", "Minimum disk radius",
+     cxxopts::value<double>(RCYLMIN)->default_value("0.001"))
+    ("RCYLMAX", "Maximum disk radius",
+     cxxopts::value<double>(RCYLMAX)->default_value("20.0"))
+    ("ASCALE", "Radial scale length for disk basis construction",
+     cxxopts::value<double>(ASCALE)->default_value("1.0"))
+    ("ASHIFT", "Fraction of scale length for shift in conditioning function",
+     cxxopts::value<double>(ASHIFT)->default_value("0.0"))
+    ("HSCALE", "Vertical scale length for disk basis construction",
+     cxxopts::value<double>(HSCALE)->default_value("0.1"))
+    ("RFACTOR", "Disk radial scaling for deprojection computation",
+     cxxopts::value<double>(RFACTOR)->default_value("1.0"))
+    ("AEXP", "Radial scale length for disk basis test",
+     cxxopts::value<double>(AEXP)->default_value("1.0"))
+    ("HEXP", "Vertical scale length for disk basis test",
+     cxxopts::value<double>(HEXP)->default_value("0.1"))
+    ("RNUM", "Number of radial knots for EmpCylSL basis construction quadrature",
+     cxxopts::value<int>(RNUM)->default_value("200"))
+    ("PNUM", "Number of azimthal knots for EmpCylSL basis construction quadrature",
+     cxxopts::value<int>(PNUM)->default_value("80"))
+    ("TNUM", "Number of cos(theta) knots for EmpCylSL basis construction quadrature",
+     cxxopts::value<int>(TNUM)->default_value("80"))
+    ("CMAPR", "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational function)",
+     cxxopts::value<int>(CMAPR)->default_value("1"))
+     ;
   
+							       
   // Parse command line for control and critical parameters
   //
+  cxxopts::ParseResult vm;
+
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    if (myid==0) std::cout << "Option error on command line: "
-			   << e.what() << std::endl;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
-    return -1;
+    exit(-1);
   }
-  
+
   // Print help message and exit
   //
   if (vm.count("help")) {
     if (myid == 0) {
-      const char *mesg = "Generates a Monte Carlo realization of a halo\nwith an embedded disk using Jeans' equations.";
-      std::cout << mesg << std::endl
-		<< desc << std::endl << std::endl
-		<< "Examples: " << std::endl
-		<< "\t" << "Use parameters read from a config file in INI style"  << std::endl
-		<< "\t" << av[0] << " --input=gendisk.config"  << std::endl << std::endl
-		<< "\t" << "Generate a template config file in INI style from current defaults"  << std::endl
-		<< "\t" << av[0] << " --conf=template.config" << std::endl << std::endl
-		<< "\t" << "Override a single parameter in a config file from the command line"  << std::endl
-		<< "\t" << av[0] << "--LMAX=8 --conf=template.config" << std::endl << std::endl;
+      std::cout << options.help() << std::endl << std::endl;
     }
     MPI_Finalize();
     return 1;
   }
 
-  // Write template config file in INI style and exit
+  // Write YAML template config file and exit
   //
   if (vm.count("conf")) {
     // Do not overwrite existing config file
     //
-    if (boost::filesystem::exists(config)) {
+    if (std::filesystem::exists(config)) {
       if (myid == 0)
 	std::cerr << av[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;
       MPI_Finalize();
-      return 2;
+      return 0;
     }
+
+    NOUT = std::min<int>(NOUT, NORDER);
 
     // Write template file
     //
-    if (myid==0) {
-      std::ofstream out(config);
+    if (myid==0) SaveConfig(vm, config);
 
-      if (out) {
-	// Iterate map and print out key--value pairs and description
-	//
-	for (const auto& it : vm) {
-				// Don't write this parameter
-	  if (it.first.find("conf")==0) continue;
-
-	  out << std::setw(20) << std::left << it.first << " = ";
-	  auto& value = it.second.value();
-	  if (auto v = boost::any_cast<uint32_t>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<int>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<unsigned>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<float>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<double>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else if (auto v = boost::any_cast<bool>(&value))
-	    out << std::setw(32) << std::left << std::boolalpha << *v;
-	  else if (auto v = boost::any_cast<std::string>(&value))
-	    out << std::setw(32) << std::left << *v;
-	  else
-	    out << "error";
-
-
-	  //                               NO approximations -----+
-	  // Add description as a comment                         |
-	  //                                                      V
-	  const po::option_description& rec = desc.find(it.first, false);
-	  out << " # " << rec.description() << std::endl;
-	}
-      } else {
-	if (myid==0)
-	  std::cerr << av[0] << ": error opening template config file <"
-		    << config << ">" << std::endl;
-      }
-    }
     MPI_Finalize();
-    return 3;
+    return 0;
   }
 
-  // Read parameters fron the config file
+  // Read parameters fron the YAML config file
   //
   if (vm.count("input")) {
     try {
-      std::ifstream in(config);
-      po::store(po::parse_config_file(in, desc), vm);
-      po::notify(vm);    
-    } catch (po::error& e) {
-      if (myid==0) std::cout << "Option error in configuraton file: "
+      vm = LoadConfig(options, config);
+    } catch (cxxopts::OptionException& e) {
+      if (myid==0) std::cout << "Option error in configuration file: "
 			     << e.what() << std::endl;
       MPI_Finalize();
-      return -1;
+      return 0;
     }
   }
-  
 
   // Set EmpCylSL mtype
   //
@@ -617,7 +547,7 @@ main(int ac, char **av)
 
 	// Make and read char buffer
 	//
-	auto buf = boost::make_unique<char[]>(ssize+1);
+	auto buf = std::make_unique<char[]>(ssize+1);
 	in.read(buf.get(), ssize);
 	buf[ssize] = 0;		// Null terminate
 
@@ -711,8 +641,8 @@ main(int ac, char **av)
                                 // Create expansion only if needed . . .
   bool save_eof = false;
 
-  boost::shared_ptr<EmpCylSL> expandd =
-    boost::make_shared<EmpCylSL>(NMAX, LMAX, MMAX, NORDER, ASCALE, HSCALE, NODD);
+  std::shared_ptr<EmpCylSL> expandd =
+    std::make_shared<EmpCylSL>(NMAX, LMAX, MMAX, NORDER, ASCALE, HSCALE, NODD);
 
   // Try to read existing cache to get EOF
   //
@@ -745,9 +675,9 @@ main(int ac, char **av)
       EmpCylSL::AxiDiskPtr model;
       
       if (dmodel.compare("MN")==0) // Miyamoto-Nagai
-	model = boost::make_shared<MNdisk>(1.0, H);
+	model = std::make_shared<MNdisk>(1.0, H);
       else			// Default to exponential
-	model = boost::make_shared<Exponential>(1.0, H);
+	model = std::make_shared<Exponential>(1.0, H);
       
       expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
     }
@@ -819,12 +749,12 @@ main(int ac, char **av)
   }
 #endif
 
-  boost::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (use_progress) {
     std::cout << std::endl << "Begin: coefficient eval"
 	      << std::endl << "-----------------------"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(NINT/nomp);
+    progress = std::make_shared<progress::progress_display>(NINT/nomp);
   }
 
   if (LOGR2) {
@@ -974,12 +904,12 @@ main(int ac, char **av)
   EmpCylSL::AxiDiskPtr modl;
       
   if (dmodel.compare("MN")==0) // Miyamoto-Nagai
-    modl = boost::make_shared<MNdisk>(AA, HH);
+    modl = std::make_shared<MNdisk>(AA, HH);
   else			// Default to exponential
-    modl = boost::make_shared<Exponential>(AA, HH);
+    modl = std::make_shared<Exponential>(AA, HH);
 
   if (rwidth>0.0) {
-    modl = boost::make_shared<Truncated>(rtrunc, rwidth, modl);
+    modl = std::make_shared<Truncated>(rtrunc, rwidth, modl);
     std::cout << "Made truncated model with R=" << rtrunc
 	      << " and W=" << rwidth<< std::endl;
   }
@@ -1006,7 +936,7 @@ main(int ac, char **av)
       
     std::cout << std::endl << "Midplane force evaluation"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(NFRC1D);
+    progress = std::make_shared<progress::progress_display>(NFRC1D);
   }
 
   // Quick radial force check
@@ -1190,7 +1120,7 @@ main(int ac, char **av)
   if (use_progress) {
     std::cout << std::endl << "Meridional force evaluation"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(NFRC2D);
+    progress = std::make_shared<progress::progress_display>(NFRC2D);
   }
 
   double Rmin =  0.1*HH;

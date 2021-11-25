@@ -7,16 +7,13 @@
 #include <sstream>
 #include <iomanip>
 #include <numeric>
+#include <random>
 #include <tuple>
 
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/program_options.hpp>
-
+#include <cxxopts.H>
 #include "atomic_constants.H"
 #include "Ion.H"
 #include "Elastic.H"
-
-namespace po = boost::program_options;
 
 #include <mpi.h>
 
@@ -25,7 +22,7 @@ std::string outdir(".");
 std::string runtag("run");
 char threading_on = 0;
 pthread_mutex_t mem_lock;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 
 int main (int ac, char **av)
 {
@@ -51,42 +48,41 @@ int main (int ac, char **av)
   double tmin, tmax; 
   int num, zmin, zmax, nc;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("eV",		"print results in eV")
-    ("zmin",		po::value<int>(&zmin)->default_value(1),
-     "minimum atomic number")
-    ("zmax",		po::value<int>(&zmax)->default_value(2),
-     "maximum atomic number")
-    ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
-     "atomic number")
-    ("C,C",		po::value<unsigned short>(&C)->default_value(3),
-     "ionic charge")
-    ("Tmin,t",		po::value<double>(&tmin)->default_value(10000.0),
-     "minimum temperature")
-    ("Tmax,T",		po::value<double>(&tmax)->default_value(1000000.0),
-     "maximum temperature")
-    ("Num,N",		po::value<int>(&num)->default_value(200),
-     "number of temperatures")
-    ("knots,n",		po::value<int>(&nc)->default_value(40),
-     "number of Laguerre knots")
+  cxxopts::Options options(av[0], "Test collisional excitation rate");
+
+  options.add_options()
+   ("h,help", "produce help message")
+   ("eV", "print results in eV")
+   ("zmin", "minimum atomic number",
+     cxxopts::value<int>(zmin)->default_value("1"))
+   ("zmax", "maximum atomic number",
+     cxxopts::value<int>(zmax)->default_value("2"))
+   ("Z,Z", "atomic number",
+     cxxopts::value<unsigned short>(Z)->default_value("2"))
+   ("C,C", "ionic charge",
+     cxxopts::value<unsigned short>(C)->default_value("3"))
+   ("t,Tmin", "minimum temperature",
+     cxxopts::value<double>(tmin)->default_value("10000.0"))
+   ("T,Tmax", "maximum temperature",
+     cxxopts::value<double>(tmax)->default_value("1000000.0"))
+   ("N,Num", "number of temperatures",
+     cxxopts::value<int>(num)->default_value("200"))
+   ("n,knots", "number of Laguerre knots",
+     cxxopts::value<int>(nc)->default_value("40"))
     ;
 
 
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
-    return -1;
+    exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: Helium II recombination" << std::endl;
     std::cout << "\t" << av[0]
 	      << " -Z 2 -C 2" << std::endl;

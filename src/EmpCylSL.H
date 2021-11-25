@@ -2,8 +2,7 @@
 #define _EmpCylSL_H
 
 #include <vector>
-
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <Eigen/Eigen>
 
@@ -44,8 +43,8 @@ class EmpCylSL
 {
 public:
 
-  using SphModTblPtr = boost::shared_ptr<SphericalModelTable>;
-  using SLGridSphPtr = boost::shared_ptr<SLGridSph>;
+  using SphModTblPtr = std::shared_ptr<SphericalModelTable>;
+  using SLGridSphPtr = std::shared_ptr<SLGridSph>;
   using VectorM      = std::vector<Eigen::VectorXd>;
   using MatrixM      = std::vector<Eigen::MatrixXd>;
   using ContribArray = std::vector<Eigen::VectorXd>;
@@ -130,7 +129,7 @@ private:
   std::vector<Eigen::MatrixXd> tzforce;
   
   typedef std::vector<std::vector<Eigen::VectorXd>> VectorD2;
-  typedef boost::shared_ptr<VectorD2> VectorD2ptr;
+  typedef std::shared_ptr<VectorD2> VectorD2ptr;
 
   /** Some syntactic sugar for array of shared pointers: define an
       operator to the object of the shared pointer.  That is, for:
@@ -267,7 +266,7 @@ private:
     
   };
 
-  typedef boost::shared_ptr<PCAelement> PCAelemPtr;
+  typedef std::shared_ptr<PCAelement> PCAelemPtr;
 
   //! PCA basis structure for caching and diagnostics
   class PCAbasis : public std::map<int, PCAelemPtr>
@@ -299,7 +298,7 @@ private:
 
   };
 
-  typedef boost::shared_ptr<PCAbasis> PCAbasisPtr;
+  typedef std::shared_ptr<PCAbasis> PCAbasisPtr;
 
   //! Cache PCA information between calls
   PCAbasisPtr pb;
@@ -346,7 +345,7 @@ public:
   {
   protected:
     std::string ID;
-
+    std::vector<double> params;
     double M;
 
   public:
@@ -359,9 +358,15 @@ public:
 
     //! Get ID
     std::string getID() { return ID; }
+
+    //! Get Mass
+    int getMass() { return M; }
+
+    //! Get parameters
+    std::vector<double> getParams() { return params; }
   };
   
-  typedef boost::shared_ptr<AxiDisk> AxiDiskPtr;
+  typedef std::shared_ptr<AxiDisk> AxiDiskPtr;
 
   //! TRUE if density is computed (default: false)
   static bool DENS;
@@ -1012,7 +1017,7 @@ extern void dlegendre_R(int lmax, double x,
 extern void sinecosine_R(int mmax, double phi,
 			 Eigen::VectorXd& c, Eigen::VectorXd& s);
 
-typedef boost::shared_ptr<EmpCylSL> EmpCylSLptr;
+typedef std::shared_ptr<EmpCylSL> EmpCylSLptr;
 
 #endif
 

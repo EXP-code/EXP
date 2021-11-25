@@ -34,20 +34,11 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <memory>
 #include <tuple>
 #include <string>
 #include <cmath>
-
-				// BOOST stuff
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp> 
-
-namespace po = boost::program_options;
-namespace pt = boost::property_tree;
-
+#include <set>
 
                                 // System libs
 #include <sys/time.h>
@@ -59,12 +50,16 @@ namespace pt = boost::property_tree;
 #include <interp.H>
 #include <SphereSL.H>
 
+#include <writePVD.H>
 #include <localmpi.H>
 #include <foarray.H>
 
 #include <DataGrid.H>
+#include <cxxopts.H>
 
-const std::string overview = "Compute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
+				// Program info string
+
+const std::string overview = "\nCompute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
   
 				// Globals
 static  string outid;
@@ -303,56 +298,6 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
 
 }
 
-
-void writePVD(const std::string& filename,
-	      const std::vector<double>& times,
-	      const std::vector<std::string>& files)
-{
-  // Sanity check
-  //
-  if (times.size() != files.size()) {
-    std::cerr << "Mismatch in file and time arrays" << std::endl;
-    exit(-3);
-  }
-
-  // Make file collection elements
-  //
-  pt::ptree ptC;
-
-  for (size_t i=0; i<times.size(); i++) {
-    boost::property_tree::ptree x;
-    x.put("<xmlattr>.timestep", times[i]);
-    x.put("<xmlattr>.part", 0);
-    x.put("<xmlattr>.file", files[i]);
-
-    ptC.add_child("DataSet", x);
-  }
-
-  // Add VTKFile attributes
-  //
-  pt::ptree ptP;
-  
-  ptP.put("<xmlattr>.type", "Collection");
-  ptP.put("<xmlattr>.version", "0.1");
-  ptP.put("<xmlattr>.byte_order", "LittleEndian");
-  ptP.put("<xmlattr>.compressor", "vtkZLibDataCompressor");
-  ptP.add_child("Collection", ptC);
-  
-  // Make the top-level property tree
-  //
-  pt::ptree PT;
-
-  PT.add_child("VTKFile", ptP);
-
-  // Write the property tree to the XML file.
-  //
-  pt::xml_parser::write_xml(filename.c_str(), PT, std::locale(), pt::xml_writer_make_settings<std::string>(' ', 4));
-
-  std::cout << "Wrote PVD file <" << filename.c_str() << "> "
-	    << " with " << times.size() << " data sets." << std::endl;
-}
-
-
 const unsigned int magic_word = 0x5ecede4;
 
 struct CoefElem
@@ -453,6 +398,13 @@ get_coefficients(const std::string& coefs)
 int
 main(int argc, char **argv)
 {
+  // ==================================================
+  // MPI preliminaries
+  // ==================================================
+
+  local_init_mpi(argc, argv);
+  
+
   //--------------------------------------------------
   // Command-line parsing
   //--------------------------------------------------
@@ -466,67 +418,52 @@ main(int argc, char **argv)
   std::string modelfile, coeffile;
   int stride;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",
-     "produce this help message")
-    ("verbose,v",
-     "verbose output")
-    ("mask,b",
-     "blank empty cells")
-    ("noCommand,X",
-     "do not save command line")
-    ("PC,p",
-     "make rendering for each PC")
-    ("All,a",
-     po::value<bool>(&All)->default_value(true),
-     "make rendering for all PCs")
-    ("RMAX,R",
-     po::value<double>(&RMAX)->default_value(0.1),
-     "maximum radius for output")
-    ("outr",
-     po::value<int>(&OUTR)->default_value(40), 
-     "number of radial points for output")
-    ("surface",
-     po::value<bool>(&SURFACE)->default_value(true),
-     "make surface equitorial slices")
-    ("vslice",
-     po::value<bool>(&VSLICE)->default_value(false),
-     "make surface vertical slices")
-    ("volume",
-     po::value<bool>(&VOLUME)->default_value(false),
-     "make volume for VTK rendering")
-    ("outid,o",
-     po::value<std::string>(&outid)->default_value("mssaprof_halo"),
-     "Analysis id name")
-    ("coeffile",
-     po::value<std::string>(&coeffile)->default_value("coef.file"),
-     "coefficient file name from exp_mssa")
-    ("modfile",
-     po::value<std::string>(&modelfile)->default_value("SLGridSph.model"),
-     "SL model filename")
-    ("runtag,r",
-     po::value<std::string>(&runtag)->default_value("run1"),
-     "runtag for phase space files")
-    ("stride,s",
-     po::value<int>(&stride)->default_value(1), 
-     "stride for time output")
+  cxxopts::Options options(argv[0], overview);
+
+  options.add_options()
+   ("h,help", "produce this help message")
+   ("v,verbose", "verbose output")
+   ("b,mask", "blank empty cells")
+   ("X,noCommand", "do not save command line")
+   ("p,PC", "make rendering for each PC")
+   ("a,All", "make rendering for all PCs",
+     cxxopts::value<bool>(All)->default_value("true"))
+   ("R,RMAX", "maximum radius for output",
+     cxxopts::value<double>(RMAX)->default_value("0.1"))
+   ("outr", "number of radial points for output",
+     cxxopts::value<int>(OUTR)->default_value("40"))
+   ("surface", "make surface equitorial slices",
+     cxxopts::value<bool>(SURFACE)->default_value("true"))
+   ("vslice", "make surface vertical slices",
+     cxxopts::value<bool>(VSLICE)->default_value("false"))
+   ("volume", "make volume for VTK rendering",
+     cxxopts::value<bool>(VOLUME)->default_value("false"))
+   ("o,outid", "Analysis id name",
+     cxxopts::value<std::string>(outid)->default_value("mssaprof_halo"))
+   ("coeffile", "coefficient file name from exp_mssa",
+     cxxopts::value<std::string>(coeffile)->default_value("coef.file"))
+   ("modfile", "SL model filename",
+     cxxopts::value<std::string>(modelfile)->default_value("SLGridSph.model"))
+   ("r,runtag", "runtag for phase space files",
+     cxxopts::value<std::string>(runtag)->default_value("run1"))
+   ("s,stride", "stride for time output",
+     cxxopts::value<int>(stride)->default_value("1"))
     ;
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << overview << std::endl;
-    std::cout << desc     << std::endl;
-    return 1;
+    if (myid==0) std::cout << options.help() << std::endl;
+    MPI_Finalize();
+    return 0;
   }
  
   if (vm.count("verbose")) verbose = true;
@@ -535,7 +472,7 @@ main(int argc, char **argv)
 
   if (vm.count("PC")) PCs = true;
 
-  if (vm.count("noCommand")==0) {
+  if (vm.count("noCommand")==0 and myid==0) {
     std::string cmdFile = "mssaprof." + outid + ".cmd_line";
     std::ofstream cmd(cmdFile.c_str());
     if (!cmd) {
@@ -551,12 +488,6 @@ main(int argc, char **argv)
 #ifdef DEBUG
   sleep(20);
 #endif  
-  
-  // ==================================================
-  // MPI preliminaries
-  // ==================================================
-
-  local_init_mpi(argc, argv);
   
   if (not PCs and not All) {
     if (myid==0) std::cout << "All output is off . . . exiting" << std::endl;
@@ -585,7 +516,7 @@ main(int argc, char **argv)
   int nmax     = std::get<1>(data);
   auto & coefs = std::get<2>(data);
 
-  auto halo = boost::make_shared<SphericalModelTable>(modelfile);
+  auto halo = std::make_shared<SphericalModelTable>(modelfile);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
   SphereSL ortho(halo, lmax, nmax);

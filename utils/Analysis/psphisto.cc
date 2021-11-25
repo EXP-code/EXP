@@ -37,15 +37,6 @@
 #include <cmath>
 #include <string>
 
-				// Boost stuff
-
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
-namespace po = boost::program_options;
-
-using namespace std;
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -59,6 +50,7 @@ using namespace std;
 
 #include <localmpi.H>
 #include <foarray.H>
+#include <cxxopts.H>
 
 enum ProjectionType {Cylindrical=1, Spherical=2};
   
@@ -78,50 +70,49 @@ main(int argc, char **argv)
   // Parse command line or input parameter file
   // ==================================================
   
-  po::options_description desc("\nCompute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
-  desc.add_options()
-    ("help,h",                                                                       "Print this help message")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("RMIN",                po::value<double>(&rmin)->default_value(0.0),
-     "minimum radius for output")
-    ("RMAX",                po::value<double>(&rmax)->default_value(0.1),
-     "maximum radius for output")
-    ("ZCENTER",             po::value<double>(&zcen)->default_value(0.0),
-     "disk midplane")
-    ("ZWIDTH",              po::value<double>(&zwid)->default_value(0.05),
-     "disk halfwidth")
-    ("NBINS",               po::value<int>(&nbins)->default_value(40),
-     "number of bins")
-    ("IBEG",                po::value<int>(&ibeg)->default_value(0),
-     "first PSP index")
-    ("IEND",                po::value<int>(&iend)->default_value(100),
-     "last PSP index")
-    ("ISKIP",               po::value<int>(&iskip)->default_value(1),
-     "skip PSP interval")
-    ("PBEG",                po::value<int>(&pbeg)->default_value(0),
-     "first particle index")
-    ("PEND",                po::value<int>(&pend)->default_value(-1),
-     "last particle index")
-    ("LOG",                 po::value<bool>(&rlog)->default_value(false),
-     "use logarithmic scaling for radial axis")
-    ("PROJ",                po::value<int>(&proj)->default_value(1),
-     "projection (1=cyl)")
-    ("COMP",                po::value<string>(&comp)->default_value("disk"),
-     "component name")
-     ("LOG",                po::value<bool>(&logr)->default_value(false),
-     "use logarithmic scaling for radial axis")
-    ("OUTFILE",             po::value<string>(&outfile)->default_value("histo"),
-     "filename prefix")
-    ("INFILE",              po::value<string>(&infile)->default_value("OUT"),
-     "phase space file prefix")
-    ("RUNTAG",              po::value<string>(&runtag)->default_value("run"),
-     "EXP run tag")
-     ;
+  cxxopts::Options
+    options ("psphisto",
+	     "Compute disk potential, force and density profiles from PSP phase-space output files");
+
+  options.add_options()
+    ("h,help", "Print this help message")
+    ("F,iletype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("RMIN", "minimum radius for output",
+     cxxopts::value<double>(rmin)->default_value("0.0"))
+    ("RMAX", "maximum radius for output",
+     cxxopts::value<double>(rmax)->default_value("0.1"))
+    ("ZCENTER", "disk midplane",
+     cxxopts::value<double>(zcen)->default_value("0.0"))
+    ("ZWIDTH", "disk halfwidth",
+     cxxopts::value<double>(zwid)->default_value("0.05"))
+    ("NBINS", "number of bins",
+     cxxopts::value<int>(nbins)->default_value("40"))
+    ("IBEG", "first PSP index",
+     cxxopts::value<int>(ibeg)->default_value("0"))
+    ("IEND", "last PSP index",
+     cxxopts::value<int>(iend)->default_value("100"))
+    ("ISKIP", "skip PSP interval",
+     cxxopts::value<int>(iskip)->default_value("1"))
+    ("PBEG", "first particle index",
+     cxxopts::value<int>(pbeg)->default_value("0"))
+    ("PEND", "last particle index",
+     cxxopts::value<int>(pend)->default_value("-1"))
+    ("LOG", "use logarithmic scaling for radial axis",
+     cxxopts::value<bool>(rlog)->default_value("false"))
+    ("PROJ", "projection (1=cyl)",
+     cxxopts::value<int>(proj)->default_value("1"))
+    ("COMP", "component name",
+     cxxopts::value<std::string>(comp)->default_value("disk"))
+    ("OUTFILE", "filename prefix",
+     cxxopts::value<std::string>(outfile)->default_value("histo"))
+    ("INFILE", "phase space file prefix",
+     cxxopts::value<std::string>(infile)->default_value("OUT"))
+    ("RUNTAG", "EXP run tag",
+     cxxopts::value<std::string>(runtag)->default_value("run"))
+    ;
   
   
   // ==================================================
@@ -130,13 +121,13 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
@@ -145,7 +136,8 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    std::cout << std::endl << desc << std::endl;
+    if (myid==0) std::cout << std::endl << options.help() << std::endl;
+    MPI_Finalize();
     return 0;
   }
 
@@ -153,21 +145,21 @@ main(int argc, char **argv)
   // Do round robin grid assignment of nodes
   // ==================================================
 
-  ofstream indx;
-  ifstream in;
+  std::ofstream indx;
+  std::ifstream in;
 
-  vector<string> files;
+  std::vector<std::string> files;
 				// Root looks for existence of files
 				// with the given tag
   if (myid==0) {
     for (int i=ibeg; i<=iend; i++) {
-      ostringstream lab;
+      std::ostringstream lab;
       lab << infile << "." << runtag << "."
-	  << setw(5) << right << setfill('0') << i;
-      ifstream in(lab.str().c_str());
+	  << std::setw(5) << std::right << std::setfill('0') << i;
+      std::ifstream in(lab.str());
       if (in) files.push_back(lab.str());
       else break;
-      cout << "." << i << flush;
+      std::cout << "." << i << std::flush;
     }
     cout << endl;
   }
@@ -221,7 +213,8 @@ main(int argc, char **argv)
 
     if (n % numprocs == myid) {
 
-      PRptr reader = ParticleReader::createReader(fileType, files[n], true);
+      PRptr reader = ParticleReader::createReader
+	(fileType, files[n], myid, true);
 
       times[n] = reader->CurrentTime();
 

@@ -4,8 +4,6 @@
 #include <string>
 #include <cmath>
 
-#include <boost/random/mersenne_twister.hpp>
-
 #include <getopt.h>
 
 #include <biorth1d.H>

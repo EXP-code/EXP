@@ -6,10 +6,10 @@
 
 #include <iostream>
 #include <iomanip>
+#include <memory>
+#include <random>
 #include <fstream>
 #include <sstream>
-
-#include <boost/lexical_cast.hpp>
 
 #include <expand.H>
 #include <ExternalCollection.H>
@@ -1074,7 +1074,7 @@ void TreeDSMC::determine_acceleration_and_potential(void)
   
   (*barrier)("TreeDSMC: AFTER Collide::collide", __FILE__, __LINE__);
   
-  // Collide:UU is a boost::tuple<unsigned, unsigned>
+  // Collide:UU is a std::tuple<unsigned, unsigned>
   //
   // Tuple_0 is the body count at this level
   // Tuple_1 is the collision count

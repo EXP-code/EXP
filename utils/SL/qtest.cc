@@ -1,20 +1,13 @@
 #include <iostream>
 #include <iomanip>
+#include <memory>
 #include <string>
 #include <cmath>
-
-// Boost stuff
-//
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-
-namespace po = boost::program_options;
 
 #include <localmpi.H>
 #include <SLGridMP2.H>
 #include <gaussQ.H>
+#include <cxxopts.H>
 
 int main(int argc, char** argv)
 {
@@ -27,56 +20,42 @@ int main(int argc, char** argv)
   // Parse command line
   //====================
 
-  po::options_description desc("Check the consistency a spherical SL basis\nAllowed options");
-  desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("mpi",                 po::value<bool>(&use_mpi)->default_value(false),
-     "using parallel computation")
-    ("logr",                po::value<bool>(&use_logr)->default_value(false),
-     "logarithmic spacing for orthogonality check")
-    ("cmap",                po::value<int>(&cmap)->default_value(0),
-     "coordinates in SphereSL: use mapped (1) or linear(0) coordinates")
-    ("scale",               po::value<double>(&scale)->default_value(1.0),
-     "scaling from real coordinates to table")
-    ("Lmax",                po::value<int>(&Lmax)->default_value(2),
-     "maximum number of angular harmonics in the expansion")
-    ("nmax",                po::value<int>(&nmax)->default_value(10),
-     "maximum number of radial harmonics in the expansion")
-    ("numr",                po::value<int>(&numr)->default_value(1000),
-     "radial knots for the SL grid")
-    ("rmin",                po::value<double>(&rmin)->default_value(0.0001),
-     "minimum radius for the SL grid")
-    ("rmax",                po::value<double>(&rmax)->default_value(1.95),
-     "maximum radius for the SL grid")
-    ("rs",                  po::value<double>(&rs)->default_value(0.067),
-     "cmap scale factor")
-    ("diverge",             po::value<int>(&diverge)->default_value(0),
-     "cusp divergence for spherical model")
-    ("dfac",                po::value<double>(&dfac)->default_value(1.0),
-     "cusp divergence exponent for spherical model")
-    ("knots",               po::value<int>(&knots)->default_value(40),
-     "Number of Legendre integration knots")
-    ("filename",            po::value<string>(&filename)->default_value("SLGridSph.model"),
-     "model file")
-    ("cache",               po::value<string>(&cachefile)->default_value(".slgrid_sph_cache"),
-     "cache file")
+  cxxopts::Options options(argv[0], "Check the consistency a spherical SL basis");
+
+  options.add_options()
+   ("h,help", "Print this help message")
+   ("mpi", "using parallel computation",
+     cxxopts::value<bool>(use_mpi)->default_value("false"))
+   ("logr", "logarithmic spacing for orthogonality check",
+     cxxopts::value<bool>(use_logr)->default_value("false"))
+   ("cmap", "coordinates in SphereSL: use mapped (1) or linear(0) coordinates",
+     cxxopts::value<int>(cmap)->default_value("0"))
+   ("scale", "scaling from real coordinates to table",
+     cxxopts::value<double>(scale)->default_value("1.0"))
+   ("Lmax", "maximum number of angular harmonics in the expansion",
+     cxxopts::value<int>(Lmax)->default_value("2"))
+   ("nmax", "maximum number of radial harmonics in the expansion",
+     cxxopts::value<int>(nmax)->default_value("10"))
+   ("numr", "radial knots for the SL grid",
+     cxxopts::value<int>(numr)->default_value("1000"))
+   ("rmin", "minimum radius for the SL grid",
+     cxxopts::value<double>(rmin)->default_value("0.0001"))
+   ("rmax", "maximum radius for the SL grid",
+     cxxopts::value<double>(rmax)->default_value("1.95"))
+   ("rs", "cmap scale factor",
+     cxxopts::value<double>(rs)->default_value("0.067"))
+   ("diverge", "cusp divergence for spherical model",
+     cxxopts::value<int>(diverge)->default_value("0"))
+   ("dfac", "cusp divergence exponent for spherical model",
+     cxxopts::value<double>(dfac)->default_value("1.0"))
+   ("knots", "Number of Legendre integration knots",
+     cxxopts::value<int>(knots)->default_value("40"))
+   ("filename", "model file",
+     cxxopts::value<string>(filename)->default_value("SLGridSph.model"))
+   ("cache", "cache file",
+     cxxopts::value<string>(cachefile)->default_value(".slgrid_sph_cache"))
     ;
 
-  //===================
-  // Parse options
-  //===================
-  po::variables_map vm;
-  
-  // Parse command line for control and critical parameters
-  //
-  try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    if (myid==0) std::cout << "Option error on command line: "
-			   << e.what() << std::endl;
-    return -1;
-  }
   
   //===================
   // MPI preliminaries 
@@ -85,11 +64,25 @@ int main(int argc, char** argv)
     local_init_mpi(argc, argv);
   }
 
+  //===================
+  // Parse options
+  //===================
+
+  cxxopts::ParseResult vm;
+
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    if (use_mpi) MPI_Finalize();
+    return 2;
+  }
+
   // Print help message and exit
   //
   if (vm.count("help")) {
     if (myid == 0) {
-      std::cout << desc << std::endl << std::endl;
+      std::cout << options.help() << std::endl << std::endl;
     }
     if (use_mpi) MPI_Finalize();
     return 1;
@@ -106,7 +99,7 @@ int main(int argc, char** argv)
   SLGridSph::sph_cache_name = cachefile;
 
 				// Generate Sturm-Liouville grid
-  auto ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, 
+  auto ortho = std::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, 
 					     true, cmap, rs, 0, 1.0, true);
   //                                         ^               ^       ^
   //                                         |               |       |

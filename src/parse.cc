@@ -3,30 +3,16 @@
 //
 
 #include "expand.H"
+#include <cxxopts.H>
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <getopt.h>
 
 #include <iostream>
 #include <string>
-
-void exp_usage(char *prog)
-{
-  cerr << "Usage" << endl
-       << "-----" << endl << endl
-       << "[mpirun -np N ...] " << prog << " [ [-f file] [-d] [-v] [-h] ]" << endl << endl
-       << "where" << endl << endl
-       << "  -f file   specifies the input parameter file" << endl
-       << "  -d        displays a default parameter file"  << endl
-       << "  -v        displays verbose GIT version info"  << endl
-       << "  -h        shows this help"                    << endl  << endl
-       << "See EXP/doc/html/index.html for extensive documentation" << endl
-       << endl;
-}
 
 void exp_version()
 {
@@ -433,48 +419,49 @@ void print_default(void)
 
 void YAML_parse_args(int argc, char** argv)
 {
-  extern char *optarg;
   char *prog = argv[0];
-  int myid;
-  char file[128];
-  int c;
   string curparm("config.yml");	// Default config file if none specified
 
+  int myid;
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   
   int done = 0;
 
   if (myid==0) {
 
-    while ((c = getopt(argc, argv, "f:dvh")) != -1)
-      switch (c) {
-      case 'f': 
-	curparm.clear();
-	curparm = optarg;
-	break;
-      case 'd':
-	print_default();
-	done = 1;
-	break;
-      case '?':
-      case 'v':
-      case 'h':
-	exp_usage(prog);
-	done = 1;
-      }
-    
-    MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    cxxopts::Options options("exp", "Basis-function EXPansion code\n");
 
-    if (done) {
+    options.add_options()
+      ("h,help", "this help message")
+      ("f,file", "the input parameter file",
+       cxxopts::value<std::string>(curparm)->default_value("config.yml"))
+      ("d,display", "display a default parameter file")
+      ("v,git", "display verbose GIT version info")
+      ;
+    
+    cxxopts::ParseResult vm;
+
+    try {
+      vm = options.parse(argc, argv);
+    } catch (cxxopts::OptionException& e) {
+      if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
       MPI_Finalize();
-      exit(EXIT_SUCCESS);
+      exit(-1);
     }
 
-    ifstream in(curparm.c_str());
-    if (!in) {
-      char mbuf[512];
-      cerr << "MAIN: can not open parameter file <" << parmfile << ">\n";
-      cerr << "MAIN: pwd is <" << getcwd(mbuf, 512) << ">\n";
+    if (vm.count("help")) {
+      std::cout << options.help() << std::endl
+		<< "See EXP/doc/html/index.html for extensive documentation"
+		<< std::endl << std::endl;
+      done = 1;
+    }
+    
+    if (vm.count("git")) {
+      done = 1;
+    }
+    
+    if (vm.count("display")) {
+      print_default();
       done = 1;
     }
 
@@ -485,15 +472,31 @@ void YAML_parse_args(int argc, char** argv)
       exit(EXIT_SUCCESS);
     }
 
+    std::ifstream in(curparm);
+    if (!in) {
+      char mbuf[512];
+      cerr << "MAIN: can not open parameter file <" << parmfile << ">\n";
+      cerr << "MAIN: pwd is <" << getcwd(mbuf, 512) << ">\n";
+      done = 1;
+    }
+    
+    MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    
+    if (done) {
+      MPI_Finalize();
+      exit(EXIT_SUCCESS);
+    }
+    
     try {
       parse = YAML::Load(in);
     }
     catch (YAML::Exception & error) {
-      if (myid==0) std::cout << "Error parsing config file: "
-			     << error.what() << std::endl;
-      MPI_Finalize();
-      exit(-1);
+      std::cout << "Error parsing config file: "
+		<< error.what() << std::endl;
+      done = 1;
     }
+
+    MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     std::ostringstream serial;
     serial << parse << std::endl;
@@ -501,7 +504,7 @@ void YAML_parse_args(int argc, char** argv)
     int line_size = serial.str().size();
     MPI_Bcast(&line_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(const_cast<char*>(serial.str().data()), line_size, MPI_CHAR, 0, MPI_COMM_WORLD);
-
+    
   } else {
     
     MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -518,18 +521,24 @@ void YAML_parse_args(int argc, char** argv)
       exit(EXIT_SUCCESS);
     }
 
+    MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (done) {
+      MPI_Finalize();
+      exit(EXIT_SUCCESS);
+    }
+
     int line_size;
     MPI_Bcast(&line_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
+    
     std::string config;
     config.resize(line_size);
 
     MPI_Bcast(const_cast<char*>(config.data()), line_size, MPI_CHAR, 0, MPI_COMM_WORLD);
     
     std::istringstream sin(config);
-
+    
     parse = YAML::Load(sin);
-
   }
 
   initialize();

@@ -3,10 +3,9 @@
 #include <fstream>
 #include <string>
 
-#include <boost/program_options.hpp>
 #include <yaml-cpp/yaml.h>
 
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
 #define NAME_ID    "yaml_diff"
 #define VERSION_ID "0.1"
@@ -76,22 +75,25 @@ void recurse(YAML::Node& config1, YAML::Node& config2, int level)
 
 int main(int argc, char** argv)
 {
-  po::options_description description(std::string(NAME_ID) + " usage");
+  cxxopts::Options options(NAME_ID, "Compare two YAML files");
 
-  description.add_options()
-    ("help,h", "Display this help message")
-    ("version,v", "Display version number")
-    ("input-files", po::value<std::vector<std::string>>(), "Input files");
+  options.add_options()
+    ("h,help", "Display this help message")
+    ("v,version", "Display version number")
+    ("input-files", "Input files", cxxopts::value<std::vector<std::string>>());
   
-  po::positional_options_description p;
-  p.add("input-files", -1);
 
-  po::variables_map vm;
-  po::store(po::command_line_parser(argc, argv).options(description).positional(p).run(), vm);
-  po::notify(vm);
+  cxxopts::ParseResult vm;
+
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
+  }
 
   if (vm.count("help")) {
-    std::cout << description;
+    std::cout << options.help();
     
     std::cout << std::endl
 	      << "This routine recursively checks every node in the 'fiducial file' against the " << std::endl
@@ -117,13 +119,13 @@ int main(int argc, char** argv)
     if (files.size() != 2) {
       std::cout << std::endl
 		<< "You must provide exactly 2 file names!"
-		<< std::endl << std::endl << description << std::endl;
+		<< std::endl << std::endl << options.help() << std::endl;
       return 0;
     }
   } else {
       std::cout << std::endl
 		<< "You must provide exactly 2 file names!"
-		<< std::endl << std::endl << description << std::endl;
+		<< std::endl << std::endl << options.help() << std::endl;
       return 0;
   }
   

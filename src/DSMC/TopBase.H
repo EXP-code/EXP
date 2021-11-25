@@ -1,7 +1,7 @@
 #ifndef _TopBase_H
 #define _TopBase_H
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <sstream>
 #include <vector>
 #include <map>
@@ -23,7 +23,7 @@ public:
     std::vector<double> E, S;
   };
 
-  typedef boost::shared_ptr<TBline> TBptr;
+  typedef std::shared_ptr<TBline> TBptr;
 
   //! A collection of lines for a single electronic config indexed by
   //! line level

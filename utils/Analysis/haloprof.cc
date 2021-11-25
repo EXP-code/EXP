@@ -2,8 +2,8 @@
  *  Description:
  *  -----------
  *
- *  Read in coefficients and compute gnuplot slices, 
- *  and compute volume for VTK rendering
+ *  Read in coefficients and compute gnuplot slices, and compute
+ *  volume for rendering
  *
  *
  *  Call sequence:
@@ -39,193 +39,151 @@
 
 using namespace std;
 
-				// Boost stuff
-
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
-namespace po = boost::program_options;
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
 
 				// MDW classes
 #include <numerical.H>
-#include "Particle.h"
-#include <PSP.H>
+#include <ParticleReader.H>
 #include <interp.H>
 #include <massmodel.H>
 #include <SphereSL.H>
-#include <VtkGrid.H>
+#include <DataGrid.H>
 #include <localmpi.H>
 #include <foarray.H>
-
-string OUTFILE, INFILE;
-double RMIN, RMAX, TIME;
-int OUTR, NICE, LMAX, NMAX, MMAX, PARTFLAG, L1, L2;
-bool ALL, VOLUME, SURFACE, PROBE;
-
-void add_particles(PSPptr psp, int& nbods, vector<Particle>& p)
-{
-  if (myid==0) {
-
-    int nbody = nbods/numprocs;
-    int nbody0 = nbods - nbody*(numprocs-1);
-
-				// Send number of bodies to be received
-				// by eacn non-root node
-    MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    vector<Particle> t(nbody);
-    vector<double> val(nbody);
-
-    SParticle *part = psp->GetParticle();
-    Particle bod;
-    
-    //
-    // Root's particles
-    //
-    for (int i=0; i<nbody0; i++) {
-      if (part==0) {
-	cerr << "Error reading particle [n=" << 0 << ", i=" << i << "]" << endl;
-	exit(-1);
-      }
-      bod.mass = part->mass();
-      for (int k=0; k<3; k++) bod.pos[k] = part->pos(k);
-      for (int k=0; k<3; k++) bod.vel[k] = part->vel(k);
-      p.push_back(bod);
-
-      part = psp->NextParticle();
-    }
-
-
-
-    //
-    // Send the rest of the particles to the other nodes
-    //
-    for (int n=1; n<numprocs; n++) {
-      
-      for (int i=0; i<nbody; i++) {
-	if (part==0) {
-	  cerr << "Error reading particle [n=" 
-	       << n << ", i=" << i << "]" << endl;
-	  exit(-1);
-	}
-	t[i].mass = part->mass();
-	for (int k=0; k<3; k++) t[i].pos[k] = part->pos(k);
-	for (int k=0; k<3; k++) t[i].vel[k] = part->vel(k);
-	part = psp->NextParticle();
-      }
+#include <cxxopts.H>
+#include <global.H>
+#include <KDtree.H>
   
-      for (int i=0; i<nbody; i++) val[i] = t[i].mass;
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 11, MPI_COMM_WORLD);
+// Globals
+//
+std::string OUTFILE;
+double RMIN, RMAX;
+int OUTR, LMAX, NMAX, MMAX, L1, L2, N1, N2;
+bool VOLUME, SURFACE, PROBE;
 
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[0];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 12, MPI_COMM_WORLD);
+// Center offset
+//
+std::vector<double> c0 = {0.0, 0.0, 0.0};
 
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[1];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 13, MPI_COMM_WORLD);
+class Histogram
+{
+public:
 
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[2];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 14, MPI_COMM_WORLD);
+  std::vector<double> dataXY, dataXZ, dataYZ;
+  double R, dR;
+  int N;
+  
+  Histogram(int N, double R) : N(N), R(R)
+  {
+    N = std::max<int>(N, 2);
+    dR = 2.0*R/(N-1);		// Want grid points to be on bin centers
 
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[0];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 15, MPI_COMM_WORLD);
+    dataXY.resize(N*N);
+    dataXZ.resize(N*N);
+    dataYZ.resize(N*N);
 
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[1];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 16, MPI_COMM_WORLD);
+    Reset();
+  }
 
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[2];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 17, MPI_COMM_WORLD);
+  void Reset() {
+    std::fill(dataXY.begin(), dataXY.end(), 0.0);
+    std::fill(dataXZ.begin(), dataXZ.end(), 0.0);
+    std::fill(dataYZ.begin(), dataYZ.end(), 0.0);
+  }
+
+  void Syncr() { 
+    if (myid==0) {
+      MPI_Reduce(MPI_IN_PLACE, &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, &dataXZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, &dataYZ[0], dataYZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
+    else {
+      MPI_Reduce(&dataXY[0],         NULL, dataXY.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&dataXZ[0],         NULL, dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&dataYZ[0],         NULL, dataYZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     }
 
-  } else {
-
-    int nbody;
-    MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    vector<Particle> t(nbody);
-    vector<double> val(nbody);
-				// Get and pack
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 11, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].mass = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 12, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[0] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 13, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[1] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 14, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[2] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 15, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[0] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 16, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[1] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 17, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[2] = val[i];
-
-    p.insert(p.end(), t.begin(), t.end());
   }
 
-}
+  void Add(double x, double y, double z, double m)
+  {
+    if (x < -R-0.5*dR or x >= R+0.5*dR or
+	y < -R-0.5*dR or y >= R+0.5*dR or
+	z < -R-0.5*dR or z >= R+0.5*dR) return;
 
-void partition(PSPptr psp, std::string cname, vector<Particle>& p)
+    int indX = static_cast<int>(floor((x + R + 0.5*dR)/dR));
+    int indY = static_cast<int>(floor((y + R + 0.5*dR)/dR));
+    int indZ = static_cast<int>(floor((z + R + 0.5*dR)/dR));
+
+    indX = std::max<int>(indX, 0);
+    indY = std::max<int>(indY, 0);
+    indZ = std::max<int>(indZ, 0);
+
+    indX = std::min<int>(indX, N-1);
+    indY = std::min<int>(indY, N-1);
+    indZ = std::min<int>(indZ, N-1);
+
+    dataXY[indX*N + indY] += m;
+    dataXZ[indX*N + indZ] += m;
+    dataYZ[indY*N + indZ] += m;
+  }
+
+};
+
+
+void add_particles(PRptr reader, const std::string comp, vector<Particle>& p, Histogram& h)
 {
-  p.erase(p.begin(), p.end());
+  // Request particle type
+  //
+  reader->SelectType(comp);
 
-  if (not psp->GetNamed(cname)) {
-    if (myid==0)
-      std::cerr << "No component named <" << cname << ">" << std::endl;
-    MPI_Finalize();
-    exit(-2);
+  // Begin reading particles
+  //
+  auto part = reader->firstParticle();
+    
+  while (part) {
+
+    // Copy the Particle
+    //
+    p.push_back(Particle(*part));
+    
+    // Add to histogram
+    //
+    if (part) h.Add(part->pos[0] - c0[0],
+		    part->pos[1] - c0[1],
+		    part->pos[2] - c0[2],
+		    part->mass);
+
+    // Iterate
+    //
+    part = reader->nextParticle();
   }
 
-  int nbods = psp->GetStanza()->comp.nbod;
-  add_particles(psp, nbods, p);
+  // Synchronize histogram
+  //
+  h.Syncr();
 }
-
-
-typedef struct {
-  double  x;
-  double  y;
-  double  z;
-  double  value;
-  int valid;
-} Node;
-
 
 enum class Slice {xy, xz, yz};
 
-void write_output(SphereSL& ortho, double time,
+void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo,
 		  Slice slice=Slice::xy)
 {
   unsigned ncnt = 0;
-  Node node;
-  int nout;
-  
-  node.valid = 1;
 
   // ==================================================
   // Setup for output files
   // ==================================================
   
   ostringstream sstr;
+  sstr << "." << std::setw(4) << std::setfill('0') << std::right << icnt;
 
-  nout = 8;
-  string suffix[8] = {"p0", "p", "fr", "ft", "fp", "d0", "d", "dd"};
+  const int nout1 = 10;
+  const int nout2 = 13;
+  string suffix[13] = {"p0", "p1", "p", "fr", "ft", "fp", "d0", "d1", "d", "dd",
+		       "histoXY", "histoXZ", "histoYZ"};
 
   if (VOLUME) {
       
@@ -240,7 +198,7 @@ void write_output(SphereSL& ortho, double time,
     double x, y, z, r, phi, costh;
     double p0, p1, d0, d1, pl, fr, ft, fp;
     
-    vector<double> indat(nout*OUTR*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR*OUTR);
+    std::vector<double> data(nout1*OUTR*OUTR*OUTR, 0.0);
     
     for (int k=0; k<OUTR; k++) {
       
@@ -258,46 +216,50 @@ void write_output(SphereSL& ortho, double time,
 	  costh = z/r;
 	  phi = atan2(y, x);
 	  
-	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp, L1, L2);
+	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp, L1, L2, N1, N2);
 	  
-	  indat[((0*OUTR + k)*OUTR + l)*OUTR + j] = p0;
-	  indat[((1*OUTR + k)*OUTR + l)*OUTR + j] = p1;
-	  indat[((2*OUTR + k)*OUTR + l)*OUTR + j] = fr;
-	  indat[((3*OUTR + k)*OUTR + l)*OUTR + j] = ft;
-	  indat[((4*OUTR + k)*OUTR + l)*OUTR + j] = fp;
-	  indat[((5*OUTR + k)*OUTR + l)*OUTR + j] = d0;
-	  indat[((6*OUTR + k)*OUTR + l)*OUTR + j] = d1;
+	  data[((0*OUTR + k)*OUTR + l)*OUTR + j] = p0;
+	  data[((1*OUTR + k)*OUTR + l)*OUTR + j] = p1;
+	  data[((2*OUTR + k)*OUTR + l)*OUTR + j] = fr;
+	  data[((3*OUTR + k)*OUTR + l)*OUTR + j] = ft;
+	  data[((4*OUTR + k)*OUTR + l)*OUTR + j] = fp;
+	  data[((5*OUTR + k)*OUTR + l)*OUTR + j] = d0;
+	  data[((6*OUTR + k)*OUTR + l)*OUTR + j] = d1;
 	  if (d0>0.0)
-	    indat[((7*OUTR + k)*OUTR + l)*OUTR + j] = d1/d0;
+	    data[((7*OUTR + k)*OUTR + l)*OUTR + j] = d1/d0;
 	  else
-	    indat[((7*OUTR + k)*OUTR + l)*OUTR + j] = 0.0;
+	    data[((7*OUTR + k)*OUTR + l)*OUTR + j] = 0.0;
 	}
       }
     }
     
     
-    MPI_Reduce(&indat[0], &otdat[0], nout*OUTR*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
+    if (myid==0)
+      MPI_Reduce(MPI_IN_PLACE, &data[0], nout1*OUTR*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
+		 0, MPI_COMM_WORLD);
+    
+    MPI_Reduce(&data[0], NULL, nout1*OUTR*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
     
     if (myid==0) {
 
-      VtkGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
+      DataGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
 
-      std::vector<double> data(OUTR*OUTR*OUTR);
+      std::vector<double> tmp(OUTR*OUTR*OUTR);
 
-      for (int n=0; n<nout; n++) {
+      for (int n=0; n<nout1; n++) {
 	for (int k=0; k<OUTR; k++) {
 	  for (int l=0; l<OUTR; l++) {
 	    for (int j=0; j<OUTR; j++) {
-	      data[(j*OUTR + l)*OUTR + k] = otdat[((n*OUTR + k)*OUTR + l)*OUTR + j];
+	      tmp[(j*OUTR + l)*OUTR + k] = data[((n*OUTR + k)*OUTR + l)*OUTR + j];
 	    }
 	  }
 	}
-	vtk.Add(data, suffix[n]);
+	vtk.Add(tmp, suffix[n]);
       }
 
       std::ostringstream sout;
-      sout << OUTFILE + "_volume";
+      sout << outdir + "/" + OUTFILE + "_volume";
       vtk.Write(sout.str());
     }
 
@@ -313,21 +275,21 @@ void write_output(SphereSL& ortho, double time,
     double v;
     float f;
     
-    double dR = 2.0*RMAX/(OUTR-1);
+    double dR = 2.0*RMAX/OUTR;
     double x, y, z=0.0, r, phi, costh;
     double p0, p1, d0, d1, fr, ft, fp;
     
-    vector<double> indat(nout*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR);
+    vector<double> data(nout1*OUTR*OUTR, 0.0);
     
     for (int l=0; l<OUTR; l++) {
       
-      double y0 = -RMAX + dR*l;
+      double y0 = -RMAX + dR*(0.5+l);
       
       for (int j=0; j<OUTR; j++) {
 	
 	if ((ncnt++)%numprocs == myid) {
 	  
-	  double x0 = -RMAX + dR*j;
+	  double x0 = -RMAX + dR*(0.5+j);
 	  
 	  switch (slice) {
 	  case Slice::xy:
@@ -350,88 +312,57 @@ void write_output(SphereSL& ortho, double time,
 	  costh = z/r;
 	  phi = atan2(y, x);
 
-	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
+	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp, L1, L2, N1, N2);
 	  
-	  indat[(0*OUTR+l)*OUTR+j] = p0;
-	  indat[(1*OUTR+l)*OUTR+j] = p1;
-	  indat[(2*OUTR+l)*OUTR+j] = fr;
-	  indat[(3*OUTR+l)*OUTR+j] = ft;
-	  indat[(4*OUTR+l)*OUTR+j] = fp;
-	  indat[(5*OUTR+l)*OUTR+j] = d0;
-	  indat[(6*OUTR+l)*OUTR+j] = d1;
+	  data[(0*OUTR+l)*OUTR+j] = p0;
+	  data[(1*OUTR+l)*OUTR+j] = p1;
+	  data[(2*OUTR+l)*OUTR+j] = p0 + p1;
+	  data[(3*OUTR+l)*OUTR+j] = fr;
+	  data[(4*OUTR+l)*OUTR+j] = ft;
+	  data[(5*OUTR+l)*OUTR+j] = fp;
+	  data[(6*OUTR+l)*OUTR+j] = d0;
+	  data[(7*OUTR+l)*OUTR+j] = d1;
+	  data[(8*OUTR+l)*OUTR+j] = d0 + d1;
+
 	  if (d0>0.0)
-	    indat[(7*OUTR+l)*OUTR+j] = d1/d0;
+	    data[(9*OUTR+l)*OUTR+j] = d1/d0;
 	  else
-	    indat[(7*OUTR+l)*OUTR+j] = 0.0;
+	    data[(9*OUTR+l)*OUTR+j] = 0.0;
 	}
       }
     }
     
-    MPI_Reduce(&indat[0], &otdat[0], nout*OUTR*OUTR,
-	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (myid==0) 
+      MPI_Reduce(MPI_IN_PLACE, &data[0], nout1*OUTR*OUTR,
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    else
+      MPI_Reduce(&data[0], NULL, nout1*OUTR*OUTR,
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
     
     if (myid==0) {
       
-      string name = OUTFILE + ".surf";
+      std::vector<double> dataXY(OUTR*OUTR);
 
-      ofstream out(name.c_str());
+      DataGrid vtkXY(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
-      if (out) {
-
-	// ==================================================
-	// Horizontal line
-	// ==================================================
-	for (int n=0; n<nout+2; n++)
-	  if (n==0) out << "#" << setw(17) << setfill('-') << '-';
-	  else out << "|" << setw(17) << setfill('-') << '-';
-	out << endl << setfill(' ');
-	// ==================================================
-	// Field names
-	// ==================================================
-	out << "# " << setw(16) << left << "x"
-	    << "| " << setw(16) << left << "y";
-	for (int n=0; n<nout; n++)
-	  out << "| " << setw(16) << left << suffix[n];
-	out << endl;
-	// ==================================================
-	// Field index
-	// ==================================================
-	for (int n=0; n<nout+2; n++)
-	  if (n==0) out << "# " << setw(16) << n+1;
-	  else out << "| " << setw(16) << n+1;
-	out << endl;
-	// ==================================================
-	// Horizontal line
-	// ==================================================
-	for (int n=0; n<nout+2; n++)
-	  if (n==0) out << "#" << setw(17) << setfill('-') << '-';
-	  else out << "|" << setw(17) << setfill('-') << '-';
-	out << endl << setfill(' ');
-	
-	// ==================================================
-	// Surface data in GNUPLOT format
-	// ==================================================
-	for (int l=0; l<OUTR; l++) {
-	  y = -RMAX + dR*l;
-	
-	  for (int j=0; j<OUTR; j++) {
-	    x = -RMAX + dR*j;
-	    
-	    out << setw(18) << x << setw(18) << y;
-	    for (int n=0; n<nout; n++)
-	      out << setw(18) << otdat[(n*OUTR+l)*OUTR+j];
-	    out << endl;
+      for (int n=0; n<nout1; n++) {
+	for (int j=0; j<OUTR; j++) {
+	  for (int l=0; l<OUTR; l++) {
+	    dataXY[j*OUTR + l] = data[(n*OUTR+j)*OUTR+l];
 	  }
-
-	  out << endl;
-
 	}
-
-      } else {
-	cout << "Error opening surface file <" << name << "> for output"
-	     << endl;
+	vtkXY.Add(dataXY, suffix[n]);
       }
+
+      vtkXY.Add(histo.dataXY, suffix[10]);
+      vtkXY.Add(histo.dataXZ, suffix[11]);
+      vtkXY.Add(histo.dataYZ, suffix[12]);
+
+      std::ostringstream sout;
+      sout << outdir + "/" + runtag + "_" + OUTFILE + "_surface" + sstr.str();
+      vtkXY.Write(sout.str());
+
     }
   }
 
@@ -458,7 +389,7 @@ void write_output(SphereSL& ortho, double time,
     double p0, p1, d0, d1, fr, ft, fp;
     int indx;
     
-    vector<double> indat(3*nout*OUTR, 0.0), otdat(3*nout*OUTR);
+    vector<double> data(3*nout1*OUTR, 0.0);
     
     for (int l=0; l<OUTR; l++) {
       
@@ -467,71 +398,78 @@ void write_output(SphereSL& ortho, double time,
       
       if ((ncnt++)%numprocs == myid) {
 	  
-	indx = 3*nout*l;
+	indx = 3*nout1*l;
 
 	costh = 0.0;
 	phi   = 0.0;
 	ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
 	  
-	indat[indx + 0] = p0;
-	indat[indx + 1] = p1;
-	indat[indx + 2] = fr;
-	indat[indx + 3] = ft;
-	indat[indx + 4] = fp;
-	indat[indx + 5] = d0;
-	indat[indx + 6] = d1;
+	data[indx + 0] = p0;
+	data[indx + 1] = p1;
+	data[indx + 2] = p0 + p1;
+	data[indx + 3] = fr;
+	data[indx + 4] = ft;
+	data[indx + 5] = fp;
+	data[indx + 6] = d0;
+	data[indx + 7] = d1;
+	data[indx + 8] = d0 + d1;
 	if (d0>0.0)
-	  indat[indx + 7] = d1/d0;
+	  data[indx + 9] = d1/d0;
 	else
-	  indat[indx + 7] = 0.0;
+	  data[indx + 9] = 0.0;
 
 	costh = 0.0;
 	phi   = 0.5*M_PI;
 	ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
 	  
-	indx += nout;
-	indat[indx + 0] = p0;
-	indat[indx + 1] = p1;
-	indat[indx + 2] = fr;
-	indat[indx + 3] = ft;
-	indat[indx + 4] = fp;
-	indat[indx + 5] = d0;
-	indat[indx + 6] = d1;
+	indx += nout1;
+	data[indx + 0] = p0;
+	data[indx + 1] = p1;
+	data[indx + 2] = p0 + p1;
+	data[indx + 3] = fr;
+	data[indx + 4] = ft;
+	data[indx + 5] = fp;
+	data[indx + 6] = d0;
+	data[indx + 7] = d1;
+	data[indx + 8] = d0 + d1;
 	if (d0>0.0)
-	  indat[indx + 7] = d1/d0;
+	  data[indx + 9] = d1/d0;
 	else
-	  indat[indx + 7] = 0.0;
+	  data[indx + 9] = 0.0;
 
 	costh = 1.0;
 	phi   = 0.0;
 	ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
 	  
-	indx += nout;
-	indat[indx + 0] = p0;
-	indat[indx + 1] = p1;
-	indat[indx + 2] = fr;
-	indat[indx + 3] = ft;
-	indat[indx + 4] = fp;
-	indat[indx + 5] = d0;
-	indat[indx + 6] = d1;
+	indx += nout1;
+	data[indx + 0] = p0;
+	data[indx + 1] = p1;
+	data[indx + 2] = p0 + p1;
+	data[indx + 3] = fr;
+	data[indx + 4] = ft;
+	data[indx + 5] = fp;
+	data[indx + 6] = d0;
+	data[indx + 7] = d1;
 	if (d0>0.0)
-	  indat[indx + 7] = d1/d0;
+	  data[indx + 8] = d1/d0;
 	else
-	  indat[indx + 7] = 0.0;
+	  data[indx + 8] = 0.0;
 
       }
     }
     
-    MPI_Reduce(&indat[0], &otdat[0], 3*nout*OUTR, MPI_DOUBLE, MPI_SUM, 
+    if (myid==0)
+      MPI_Reduce(MPI_IN_PLACE, &data[0], 3*nout1*OUTR, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
-    
+    else
+      MPI_Reduce(&data[0], NULL, 3*nout1*OUTR, MPI_DOUBLE, MPI_SUM, 
+	       0, MPI_COMM_WORLD);
     
     if (myid==0) {
       
-      vector<string> names(nout);
-      for (int i=0; i<nout; i++) {
-	names[i] = OUTFILE + "." + suffix[i] + ".cut";
-	if (ALL) names[i] += sstr.str();
+      vector<string> names(nout1);
+      for (int i=0; i<nout1; i++) {
+	names[i] = outdir + "/" + OUTFILE + "." + suffix[i] + ".cut" + sstr.str();
       }
 
       foarray out(names, true);
@@ -541,17 +479,17 @@ void write_output(SphereSL& ortho, double time,
 	r = dR*l;
 	if (use_log) r = RMIN*exp(r);
       
-	indx = 3*nout*l;
+	indx = 3*nout1*l;
 	
-	for (int n=0; n<nout; n++)
+	for (int n=0; n<nout1; n++)
 	  out[n] << setw(18) << time << setw(18) << r
-		 << setw(18) << otdat[indx + 0*nout + n]
-		 << setw(18) << otdat[indx + 1*nout + n]
-		 << setw(18) << otdat[indx + 2*nout + n]
+		 << setw(18) << data[indx + 0*nout1 + n]
+		 << setw(18) << data[indx + 1*nout1 + n]
+		 << setw(18) << data[indx + 2*nout1 + n]
 		 << endl;
       }
       
-      for (int n=0; n<nout; n++) out[n] << endl;
+      for (int n=0; n<nout1; n++) out[n] << endl;
     }
   }
 }
@@ -565,9 +503,12 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  int NICE, LMAX, NMAX, PARTFLAG;
-  std::string MODFILE, INFILE, compname;
-  bool ALL;
+  double snr, rscale, Hexp;
+  int NICE, LMAX, NMAX, NPART, Ndens;
+  int beg, end, stride;
+  std::string MODFILE, INDEX, dir("."), cname, coefs, fileType, filePrefix;
+  bool COM = false, KD = false;
+
 
   // ==================================================
   // Parse command line or input parameter file
@@ -575,60 +516,86 @@ main(int argc, char **argv)
   
   std::ostringstream sout;
   sout << std::string(60, '-') << std::endl
-       << "Compute disk potential, force and density profiles from" << std::endl
-       << "PSP phase-space output files" << std::endl
-       << std::string(60, '-') << std::endl << std::endl
-       << "Allowed options";
+       << "Compute halo potential, force and density profiles from " << std::endl
+       << "phase-space output files" << std::endl
+       << std::string(60, '-') << std::endl;
   
-  po::options_description desc(sout.str());
-  desc.add_options()
-    ("help,h",                                                                       "Print this help message")
-    ("OUT",
-     "assume that PSP files are in original format")
-    ("SPL",
-     "assume that PSP files are in split format")
-    ("xy",
-     "print x-y slice for surface fields (default)")
-    ("xz",
-     "print x-z slice for surface fields")
-    ("yz",
-     "print y-z slice for surface fields")
-    ("NICE",                po::value<int>(&NICE)->default_value(0),
-     "system priority")
-    ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
-     "minimum radius for output")
-    ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
-     "maximum radius for output")
-    ("TIME",                po::value<double>(&TIME)->default_value(0.0),
-     "Desired time slice")
-    ("LMAX",                po::value<int>(&LMAX)->default_value(4),
-     "Maximum harmonic order for spherical expansion")
-    ("NMAX",                po::value<int>(&NMAX)->default_value(12),
-     "Maximum radial order for spherical expansion")
-    ("MMAX",                po::value<int>(&MMAX)->default_value(4),
-     "Maximum harmonic order")
-    ("L1",                  po::value<int>(&L1)->default_value(0),
-     "minimum l harmonic")
-    ("L2",                  po::value<int>(&L2)->default_value(100),
-     "maximum l harmonic")
-    ("OUTR",                po::value<int>(&OUTR)->default_value(40),
-     "Number of radial points for output")
-    ("PROBE",               po::value<bool>(&PROBE)->default_value(true),
-     "Make traces along axes")
-    ("SURFACE",             po::value<bool>(&SURFACE)->default_value(true),
-     "Make equitorial and vertical slices")
-    ("VOLUME",              po::value<bool>(&VOLUME)->default_value(false),
-     "Make volume for VTK")
-    ("ALL",                 po::value<bool>(&ALL)->default_value(false),
-     "Compute output for every time slice")
-    ("COMPNAME",            po::value<string>(&compname),
-     "Component name")
-    ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("haloprof"),
-     "Filename prefix")
-    ("INFILE",              po::value<string>(&INFILE)->default_value("OUT"),
-     "Phase space file")
-    ("MODFILE",             po::value<string>(&MODFILE)->default_value("SLGridSph.model"),
-     "Halo model file")
+  cxxopts::Options options(argv[0], sout.str());
+  
+  options.add_options()
+    ("h,help", "Print this help message")
+    ("v,verbose", "Verbose and diagnostic output for covariance computation")
+    ("CONLY", "make coefficient file only")
+    ("xy", "print x-y slice for surface fields (default)")
+    ("xz", "print x-z slice for surface fields")
+    ("yz", "print y-z slice for surface fields")
+    ("COM", "compute the center of mass")
+    ("KD",  "use density-weight center of mass")
+    ("K,Ndens", "KD density estimate count (use 0 for expansion estimate)",
+     cxxopts::value<int>(Ndens)->default_value("32"))
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("NICE", "system priority",
+     cxxopts::value<int>(NICE)->default_value("0"))
+    ("RMIN", "minimum radius for output",
+     cxxopts::value<double>(RMIN)->default_value("0.0"))
+    ("RMAX", "maximum radius for output",
+     cxxopts::value<double>(RMAX)->default_value("0.1"))
+    ("RSCALE", "coordinate mapping scale factor",
+     cxxopts::value<double>(rscale)->default_value("0.067"))
+    ("LMAX", "Maximum harmonic order for spherical expansion",
+     cxxopts::value<int>(LMAX)->default_value("4"))
+    ("NMAX", "Maximum radial order for spherical expansion",
+     cxxopts::value<int>(NMAX)->default_value("12"))
+    ("MMAX", "Maximum harmonic order",
+     cxxopts::value<int>(MMAX)->default_value("4"))
+    ("L1", "minimum l harmonic",
+     cxxopts::value<int>(L1)->default_value("0"))
+    ("L2", "maximum l harmonic",
+     cxxopts::value<int>(L2)->default_value("1000"))
+    ("N1", "minimum radial order",
+     cxxopts::value<int>(N1)->default_value("0"))
+    ("N2", "maximum radial order",
+     cxxopts::value<int>(N2)->default_value("1000"))
+    ("NPART", "Jackknife partition number for testing (0 means off, use standard eval)",
+     cxxopts::value<int>(NPART)->default_value("0"))
+    ("Hexp", "default Hall smoothing exponent",
+     cxxopts::value<double>(Hexp)->default_value("1.0"))
+    ("OUTR", "Number of radial points for output",
+     cxxopts::value<int>(OUTR)->default_value("40"))
+    ("PROBE", "Make traces along axes",
+     cxxopts::value<bool>(PROBE)->default_value("false"))
+    ("SURFACE", "Make equitorial and vertical slices",
+     cxxopts::value<bool>(SURFACE)->default_value("true"))
+    ("VOLUME", "Make volume grid",
+     cxxopts::value<bool>(VOLUME)->default_value("false"))
+    ("OUTFILE", "Filename prefix",
+     cxxopts::value<string>(OUTFILE)->default_value("haloprof"))
+    ("r,runtag", "Runtag name for phase-space files",
+     cxxopts::value<string>(runtag)->default_value("run1"))
+    ("outdir", "Output directory path",
+     cxxopts::value<string>(outdir)->default_value("."))
+    ("MODFILE", "Halo model file",
+     cxxopts::value<string>(MODFILE)->default_value("SLGridSph.model"))
+    ("beg", "initial PSP index",
+     cxxopts::value<int>(beg)->default_value("0"))
+    ("end", "final PSP index",
+     cxxopts::value<int>(end)->default_value("99999"))
+    ("stride", "PSP index stride",
+     cxxopts::value<int>(stride)->default_value("1"))
+    ("compname", "train on Component (default=stars)",
+     cxxopts::value<std::string>(cname)->default_value("dark"))
+    ("d,dir", "directory for phase-space files",
+     cxxopts::value<std::string>(dir))
+    ("c,coefs", "file of computed coefficients or to be computed (with CONLY)",
+     cxxopts::value<std::string>(coefs))
+    ("S,snr", "if not negative: do a SNR cut on the PCA basis",
+     cxxopts::value<double>(snr)->default_value("-1.0"))
+    ("C,center", "Accumulation center",
+     cxxopts::value<std::vector<double> >(c0))
+    ("diff", "render the difference between the trimmed and untrimmed basis")
     ;
   
   
@@ -638,13 +605,13 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
@@ -653,14 +620,57 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    std::cout << std::endl << desc << std::endl;
+    std::cout << std::endl << options.help() << std::endl;
     return 0;
   }
+
+  bool rendering = true;
+  if (vm.count("coefs") and vm.count("CONLY")) {
+    rendering = false;
+  }
+
+  bool SPL = false;
+  if (vm.count("SPL")) SPL = true;
+  if (vm.count("OUT")) SPL = false;
+
+  bool Hall = false;
+  if (vm.count("Hall")) Hall = true;
+
+  bool verbose = false;
+  if (vm.count("verbose")) verbose = true;
 
   Slice slice = Slice::xy;
   if (vm.count("xy")) slice = Slice::xy;
   if (vm.count("xz")) slice = Slice::xz;
   if (vm.count("yz")) slice = Slice::yz;
+
+  if (vm.count("center")) {
+    if (c0.size() != 3) {
+      if (myid==0) std::cout << "Center vector needs three components"
+			     << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+
+    if (myid==0) {
+      std::cout << "Using center: ";
+      for (auto v : c0) std::cout << " " << v << " ";
+      std::cout << std::endl;
+    }
+  }
+
+  if (vm.count("COM")) {
+    if (myid==0) std::cout << "Will use the COM center for each snapshot"
+			   << std::endl;
+    COM = true;
+  }
+
+  if (vm.count("KD")) {
+    if (myid==0) std::cout << "Will use the density-weight COM center for each snapshot"
+			   << std::endl;
+    COM = true;
+    KD  = true;
+  }
 
   // ==================================================
   // Nice process
@@ -673,63 +683,231 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  SphericalModelTable halo(MODFILE);
-  SphereSL::mpi = true;
+  auto halo = std::make_shared<SphericalModelTable>(MODFILE);
+
+  SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
-  SphereSL ortho(&halo, LMAX, NMAX);
+  SphereSL::HEXP = Hexp;
 
-  // ==================================================
-  // Open frame list
-  // ==================================================
+  SphereSL ortho(halo, LMAX, NMAX, 1, rscale, true, NPART);
+  
+  std::string file;
 
-  if (myid==0) {
+  std::ofstream outcoef;	// Coefficient file
 
-    std::ifstream in(INFILE);
-    if (!in) {
-      std::cerr << "Error opening <" << INFILE
-		<< ">" << std::endl;
-      exit(-1);
+  if (vm.count("coefs")) {
+    std::string coeffile = outdir + "/" + coefs + ".coefs";
+				// Set exceptions to be thrown on failure
+    outcoef.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+    try {
+      outcoef.open(coeffile, std::ofstream::out | std::ofstream::app);
+    } catch (std::system_error& e) {
+      std::cerr << e.code().message() << std::endl;
     }
   }
 
-  PSPptr psp;
-  if (vm.count("SPL")) psp = std::make_shared<PSPspl>(INFILE);
-  else                 psp = std::make_shared<PSPout>(INFILE);
+  for (int indx=beg; indx<=end; indx+=stride) {
 
-  vector<Particle> particles;
+    // ==================================================
+    // Phase-space input stream
+    // ==================================================
 
-  if (myid==0) {
-    cout << "Beginning particle partition [time="
-	 << psp->CurrentTime() << "] . . . " << flush;
-  }
+    int iok = 1;
 
-  partition(psp, compname, particles);
-  if (myid==0) cout << "done" << endl;
+    auto file1 = ParticleReader::fileNameCreator
+      (fileType, indx, myid, dir, runtag, filePrefix);
 
-  //------------------------------------------------------------ 
+    if (verbose and myid==0) {
+      std::cout << "Will try to open <" << file1 << ">" << std::endl;
+    }
+    {
+      std::ifstream in(file1);
+      if (!in) {
+	cerr << "Error opening <" << file1 << ">" << endl;
+	iok = 0;
+      }
+    }
+    
+    MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (iok==0) break;
 
-  if (myid==0) cout << "Accumulating for basis . . . " << flush;
-  ortho.reset_coefs();
-  for (auto &i : particles) {
-    ortho.accumulate(i.pos[0], i.pos[1], i.pos[2], i.mass);
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (myid==0) cout << "done" << endl;
+    // ==================================================
+    // Open phase-space file
+    // ==================================================
+    //
+    PRptr reader;
+
+    try {
+      reader = ParticleReader::createReader(fileType, file1, myid, verbose);
+    }
+    catch (std::runtime_error &error) {
+      std::cerr << error.what() << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+
+    double tnow = reader->CurrentTime();
+    if (myid==0) cout << "Beginning partition [time=" << tnow
+		      << ", index=" << indx << "] . . . "  << flush;
+    
+    Histogram histo(OUTR, RMAX);
+    std::vector<Particle> particles;
+
+    add_particles(reader, cname, particles, histo);
+    if (myid==0) cout << "done" << endl;
+
+    //------------------------------------------------------------ 
+
+    if (myid==0) cout << "Accumulating particle positions . . . " << flush;
+
+    std::vector<double> com(3, 0.0);
+    double mastot = 0.0;
+
+    if (COM) {
+
+      // Density weight COM
+      //
+      if (KD) {
+	typedef point <double, 3> point3;
+	typedef kdtree<double, 3> tree3;
+
+	std::vector<point3> points;
+
+	double KDmass = 0.0;
+	for (auto p : particles) {
+	  KDmass += p.mass;
+	  points.push_back(point3({p.pos[0], p.pos[1], p.pos[2]}, p.mass));
+	}
+	
+	std::vector<double> dd;
+	int sz;
+
+	for (int n=0; n<numprocs; n++) {
+	  if (myid==n) {
+	    sz = points.size();
+	    MPI_Bcast(&sz, 1, MPI_INT, n, MPI_COMM_WORLD);
+	    dd.resize(sz*4);
+	    for (int i=0; i<sz; i++) {
+	      dd[i*4+0] = points[i].get(0);
+	      dd[i*4+1] = points[i].get(1);
+	      dd[i*4+2] = points[i].get(2);
+	      dd[i*4+3] = points[i].mass();
+	    }
+	    MPI_Bcast(dd.data(), sz*4, MPI_DOUBLE, n, MPI_COMM_WORLD);
+	  } else {
+	    MPI_Bcast(&sz, 1, MPI_INT, n, MPI_COMM_WORLD);
+	    dd.resize(sz*4);
+	    MPI_Bcast(dd.data(), sz*4, MPI_DOUBLE, n, MPI_COMM_WORLD);
+	    for (int i=0; i<sz; i++) {
+	      points.push_back(point3({dd[i*4+0], dd[i*4+1], dd[i*4+2]}, dd[i*4+3]));
+	      KDmass += dd[i*4+3];
+	    }
+	  }
+	}
+	
+	tree3 tree(points.begin(), points.end());
+    
+	int nbods = particles.size();
+	for (int i=0; i<nbods; i++) {
+	  auto ret = tree.nearestN(points[i], Ndens);
+	  double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
+	  double density = 0.0;
+	  if (volume>0.0 and KDmass>0.0)
+	    density = std::get<1>(ret)/volume/KDmass;
+	  for (int k=0; k<3; k++) com[k] += density * points[i].get(k);
+	  mastot += density;
+	}
+      }
+      // Pure COM version
+      else {
+	for (auto &i : particles) {
+	  for (int k=0; k<3; k++) com[k] += i.mass * i.pos[k];
+	  mastot += i.mass;
+	}
+      }
+      
+      MPI_Allreduce(MPI_IN_PLACE, com.data(), 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, &mastot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      if (mastot>0.0) {
+	for (int k=0; k<3; k++) com[k] /= mastot;
+      }
+      if (myid==0) {
+	std::cout << std::endl << "Computed COM: [";
+	for (int k=0; k<3; k++) std::cout << std::setw(16) << com[k];
+	std::cout << "]" << std::endl;
+      }
+    }
+
+    ortho.reset_coefs();
+    for (auto &i : particles) {
+      ortho.accumulate(i.pos[0]-com[0],
+		       i.pos[1]-com[1],
+		       i.pos[2]-com[2], i.mass);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if (myid==0) cout << "done" << endl;
   
-  //------------------------------------------------------------ 
+    //------------------------------------------------------------ 
 
-  if (myid==0) cout << "Making coefficients . . . " << flush;
-  ortho.make_coefs();
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (myid==0) cout << "done" << endl;
+    if (myid==0) cout << "Making coefficients . . . " << flush;
+    ortho.make_coefs();
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (myid==0) cout << "done" << endl;
 
-  //------------------------------------------------------------ 
+    //------------------------------------------------------------ 
+    //
+    // Coefficient trimming
+    //
+    if (snr>=0.0) {
 
-  if (myid==0) cout << "Writing output . . . " << flush;
-  write_output(ortho, psp->CurrentTime(), slice);
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (myid==0) cout << "done" << endl;
+      if (myid==0) {
+	std::cout << "Computing SNR=" << snr;
+	if (Hall) std::cout << " using Hall smoothing, " << flush;
+	else      std::cout << " using truncation, " << flush;
+      }
+    
+      ortho.make_covar(verbose);
 
+      // Get the snr trimmed coefficients
+      //
+      Eigen::MatrixXd origc = ortho.retrieve_coefs();
+      Eigen::MatrixXd coefs = ortho.get_trimmed(snr, ortho.getMass(), Hall);
+
+      std::cout << "power in trim=" << ortho.get_power(snr, ortho.getMass())
+		<< " . . . ";
+
+      if (vm.count("diff")) coefs = coefs - origc;
+      ortho.install_coefs(coefs);
+    }
+
+    //------------------------------------------------------------ 
+
+    double time = 0.0;
+    if (myid==0) {
+      time = reader->CurrentTime();
+      if (outcoef.good()) {
+	cout << "Writing coefficients . . . " << flush;
+	try {
+	  ortho.dump_coefs(time, outcoef);
+	} catch (std::system_error& e) {
+	  std::cerr << e.code().message() << std::endl;
+	}
+	cout << "done" << endl;
+      }
+    }
+    if (rendering) {
+      if (myid==0) cout << "Writing output . . . " << flush;
+      write_output(ortho, indx, time, histo, slice);
+      if (myid==0) cout << "done" << endl;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    //------------------------------------------------------------ 
+
+  } // Dump loop
 
   MPI_Finalize();
 

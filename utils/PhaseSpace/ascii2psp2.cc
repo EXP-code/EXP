@@ -9,13 +9,13 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <random>
 #include <string>
 #include <cstring>
 
-#include <boost/shared_array.hpp>
-#include <boost/random/mersenne_twister.hpp>
+#include <getopt.h>		// C-style option parsing
 
-#include <yaml-cpp/yaml.h>	      // YAML support
+#include <yaml-cpp/yaml.h>	// YAML support
 #include <PSP.H>
 
 //-------------
@@ -152,7 +152,7 @@ main(int argc, char **argv)
 
     if (headers[i].ninfochar < outs.str().size()) {
       headers[i].ninfochar = outs.str().size();
-      headers[i].info = boost::shared_array<char>(new char [headers[i].ninfochar]);
+      headers[i].info = std::make_shared<char>(headers[i].ninfochar+1);
     }
 
     // Copy to info string

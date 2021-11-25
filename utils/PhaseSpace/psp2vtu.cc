@@ -20,16 +20,10 @@ using namespace std;
 #include <Species.H>
 
 #include <StringTok.H>
+#include <cxxopts.H>
 #include <header.H>
+#include <writePVD.H>
 #include <PSP.H>
-
-#include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp> 
-#include <boost/random/mersenne_twister.hpp>
-
-namespace po = boost::program_options;
-namespace pt = boost::property_tree;
 
 //
 // VTK stuff
@@ -54,56 +48,7 @@ using vtkFloatArrayP            = vtkSmartPointer<vtkFloatArray>;
 //
 #include <KDtree.H>
 
-
 typedef std::vector< std::vector<unsigned> > I2Vector;
-
-void writePVD(const std::string& filename,
-	      const std::vector<double>& times,
-	      const std::vector<std::string>& files)
-{
-  // Sanity check
-  //
-  if (times.size() != files.size()) {
-    std::cerr << "Mismatch in file and time arrays" << std::endl;
-    exit(-3);
-  }
-
-  // Make file collection elements
-  //
-  pt::ptree ptC;
-
-  for (size_t i=0; i<times.size(); i++) {
-    boost::property_tree::ptree x;
-    x.put("<xmlattr>.timestep", times[i]);
-    x.put("<xmlattr>.part", 0);
-    x.put("<xmlattr>.file", files[i]);
-
-    ptC.add_child("DataSet", x);
-  }
-
-  // Add VTKFile attributes
-  //
-  pt::ptree ptP;
-  
-  ptP.put("<xmlattr>.type", "Collection");
-  ptP.put("<xmlattr>.version", "0.1");
-  ptP.put("<xmlattr>.byte_order", "LittleEndian");
-  ptP.put("<xmlattr>.compressor", "vtkZLibDataCompressor");
-  ptP.add_child("Collection", ptC);
-  
-  // Make the top-level property tree
-  //
-  pt::ptree PT;
-
-  PT.add_child("VTKFile", ptP);
-
-  // Write the property tree to the XML file.
-  //
-  pt::xml_parser::write_xml(filename.c_str(), PT, std::locale(), pt::xml_writer_make_settings<std::string>(' ', 4));
-
-  std::cout << "Wrote PVD file <" << filename.c_str() << "> "
-	    << " with " << times.size() << " data sets." << std::endl;
-}
 
 int
 main(int ac, char **av)
@@ -116,41 +61,42 @@ main(int ac, char **av)
   int comp, sindx, eindx, hindx, dim;
 
   // Parse command line
+  //
+  cxxopts::Options options(prog, "Compute a VTK point file with optional density computation from a PSP file\n");
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("verbose,v",       "verbose output")
-    ("OUT",             "assume that PSP files are in original format")
-    ("SPL",             "assume that PSP files are in split format")
-    ("PVD,P",		"create a ParaView PVD file")
-    ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
-     "component name")
-    ("rtag,t",		po::value<std::string>(&rtag)->default_value("run"), 
-     "runtag name")
-    ("begin,1",		po::value<int>(&ibeg)->default_value(0),
-     "initial sequence counter")
-    ("final,2",		po::value<int>(&iend)->default_value(1000000),
-     "final sequence counter")
-    ("stride,s",	po::value<int>(&istride)->default_value(1),
-     "sequence counter stride")
-    ("Ndens,N",		po::value<int>(&Ndens)->default_value(0),
-     "KD density estimate count")
+  options.add_options()
+   ("h,help", "produce help message")
+   ("v,verbose", "verbose output")
+   ("OUT", "assume that PSP files are in original format")
+   ("SPL", "assume that PSP files are in split format")
+   ("P,PVD", "create a ParaView PVD file")
+   ("c,name", "component name",
+     cxxopts::value<std::string>(cname)->default_value("gas"))
+   ("t,rtag", "runtag name",
+     cxxopts::value<std::string>(rtag)->default_value("run"))
+   ("1,begin", "initial sequence counter",
+     cxxopts::value<int>(ibeg)->default_value("0"))
+   ("2,final", "final sequence counter",
+     cxxopts::value<int>(iend)->default_value("1000000"))
+   ("s,stride", "sequence counter stride",
+     cxxopts::value<int>(istride)->default_value("1"))
+   ("N,Ndens", "KD density estimate count",
+     cxxopts::value<int>(Ndens)->default_value("0"))
     ;
 
 
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
+
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
 	      << " -E 300 -n 100 -f OUT.run.00001" << std::endl;

@@ -45,7 +45,19 @@ cd build
 # uses an archetecture list set within the top-level
 # CMakeLists. Version >= 3.18 uses a command-line settable variable.
 # This should switched over once we are using versions >= 3.18
-# everywhere.
+# everywhere.  If you are having trouble, you can set the flags
+# directly using the CMAKE_CUDA_FLAGS variable.  E.g. "-arch
+# compute_61 -code sm_61,sm_70,sm_75" for a combination of GPU types
+# with a common virtual architecture.
+#
+# The cuda real size is double (real*8) by default.  You can configure
+# EXP to use real*4 with the -DENABLE_CUDA_SINGLE=on flag to CMake.  This
+# will save some GPU memory if you are close to your hardware limit, but
+# I don't recommend this generally.
+#
+# The cuda particle structure can carry a fixed number real attributes.
+# This is configurable at compile time using the -DCUDA_EXP_DATTRIB=X flag
+# for X attributes.  This is 0 by default.
 
 cmake -DCMAKE_BUILD_TYPE=Release -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUDA=YES -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
 
@@ -66,6 +78,17 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUD
 # Without cuda
 #
 cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
+
+# Many users will like configuring with one the CMake gui tools, such as
+# 'ccmake' or 'cmake-gui' instead of the command-line 'cmake'.  The
+# gui will allow you to change the parameters interactively and display the
+# help info for each parameter.  For example:
+
+ccmake ..
+
+# and then enter your preferred build type and other options interactively.
+# This provides a nice view of the configuration as a bonus.  I recommend
+# 'ccmake' rather than the Qt 'cmake-gui'.
 
 # You can use CMake build type Debug for debugging and etc. or use None or
 # 'empty' and set your own CFLAGS and CXXFLAGS.  See the CMake manual.

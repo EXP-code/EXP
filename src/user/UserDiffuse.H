@@ -1,8 +1,7 @@
 #ifndef _UserDiffuse_H
 #define _UserDiffuse_H
 
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
+#include <random>
 
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
@@ -72,12 +71,12 @@ private:
 
   LegeQuad *jq;
 
-  boost::random::uniform_real_distribution<> urand;
-  boost::random::normal_distribution<> nrand;
+  std::uniform_real_distribution<> urand;
+  std::normal_distribution<> nrand;
 
   string check_file;
-  double **ev_mean_th, **ev_disp_th;
-  int *ev_numb_th;
+  std::vector< std::vector<double> > ev_mean_th, ev_disp_th;
+  std::vector<int> ev_numb_th;
 
 public:
 

@@ -1,8 +1,8 @@
 #include <localmpi.H>
 
-#include <boost/make_unique.hpp> // For character buffer
 #include <yaml-cpp/yaml.h>	 // YAML support
 #include <cstring>		 // For strncpy
+#include <memory>		 // Shared pointers
 
 #include "global.H"
 #include "SphericalCoefs.H"
@@ -31,13 +31,15 @@ bool SphericalCoefs::Coefs::read(std::istream& in)
   //
   SphCoefHeader header;
 
+  // Catch iostream exceptions on reading
+  //
   try {
     in.read(reinterpret_cast<char *>(&tmagic), sizeof(unsigned int));
 
     // Found new-style coefficient file
     //
     if (cmagic == tmagic) {
-
+      
       // Read YAML string size
       //
       unsigned int hsize;
@@ -45,7 +47,7 @@ bool SphericalCoefs::Coefs::read(std::istream& in)
     
       // Create buffer
       //
-      auto buf = boost::make_unique<char[]>(hsize+1);
+      auto buf = std::make_unique<char[]>(hsize+1);
 
       // Read YAML string
       //
@@ -67,6 +69,24 @@ bool SphericalCoefs::Coefs::read(std::istream& in)
       
       if (node["normed"]) normed = node["normed"].as<bool>();
 
+      data.resize((header.Lmax+1)*(header.Lmax+1));
+      for (auto & v : data) v.resize(header.nmax);
+
+      for (int ir=0; ir<header.nmax; ir++) {
+	for (int l=0, loffset=0; l<=header.Lmax; loffset+=(2*l+1), l++) {
+	  for (int m=0, moffset=0; m<=l; m++) {
+	    if (m==0) {
+	      in.read((char *)&data[loffset+moffset+0][ir], sizeof(double));
+	      moffset += 1;
+	    } else {
+	      in.read((char *)&data[loffset+moffset+0][ir], sizeof(double));
+	      in.read((char *)&data[loffset+moffset+1][ir], sizeof(double));
+	      moffset += 2;
+	    }
+	  }
+	}
+      }
+
     } else {
       
       // Rewind file
@@ -76,16 +96,15 @@ bool SphericalCoefs::Coefs::read(std::istream& in)
       
       in.read((char *)&header, sizeof(SphCoefHeader));
 
-    }
+      if (not in) return false;
 
-    if (not in) return false;
-
-    data.resize((header.Lmax+1)*(header.Lmax+1));
-    for (auto & v : data) v.resize(header.nmax);
+      data.resize((header.Lmax+1)*(header.Lmax+1));
+      for (auto & v : data) v.resize(header.nmax);
     
-    for (int ir=0; ir<header.nmax; ir++) {
-      for (int l=0; l<(header.Lmax+1)*(header.Lmax+1); l++)
-	in.read((char *)&data[l][ir], sizeof(double));
+      for (int ir=0; ir<header.nmax; ir++) {
+	for (int l=0; l<(header.Lmax+1)*(header.Lmax+1); l++)
+	  in.read((char *)&data[l][ir], sizeof(double));
+      }
     }
 
     lmax = header.Lmax;

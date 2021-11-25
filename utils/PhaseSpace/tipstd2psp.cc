@@ -20,12 +20,12 @@ extern "C" {
 #include <vector>
 #include <string>
 
-#include <boost/random/mersenne_twister.hpp>
-
 #include <header.H>
 
+#include <getopt.h>		// C-style option parsing
+
 //-------------
-// Help message
+// help message
 //-------------
 
 void Usage(char* prog) {

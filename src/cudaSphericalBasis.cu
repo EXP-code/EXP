@@ -7,8 +7,6 @@
 #include <SphericalBasis.H>
 #include <cudaReduce.cuH>
 
-#include <boost/make_shared.hpp>
-
 // Define for debugging
 //
 // #define OFF_GRID_ALERT

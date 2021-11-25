@@ -1,6 +1,8 @@
 #ifndef _Cylinder_H
 #define _Cylinder_H
 
+#include <memory>
+
 #include <Orient.H>
 #include <Basis.H>
 #include <EmpCylSL.H>
@@ -111,7 +113,7 @@ private:
   double ashift;
   unsigned int vflag;
 
-  EmpCylSL *ortho;
+  std::shared_ptr<EmpCylSL> ortho;
   int eof, ncompcyl;
   double cylmass, resetT;
 

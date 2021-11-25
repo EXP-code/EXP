@@ -11,7 +11,7 @@
 #include <cmath>
 #include <list>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include <StringTok.H>
 #include <header.H>
@@ -26,7 +26,7 @@ public:
   std::string fparam;
   size_t index_size, r_size;
 
-  streampos pos, pspos;
+  std::streampos pos, pspos;
   std::vector<std::string> nparts;
 
   bool operator==(const PSPstanza& x) const
@@ -48,11 +48,11 @@ public:
   real vel[3];
   real phi;
 
-  vector<int>    iatr;
-  vector<real>   datr;
-  unsigned long  indx;
+  std::vector<int>   iatr;
+  std::vector<real>  datr;
+  unsigned long      indx;
 
-  void read(std::istream& in, int pcount, list<PSPstanza>::iterator spos) 
+  void read(std::istream& in, int pcount, std::list<PSPstanza>::iterator spos) 
   {
     // Sequence value
     // --------------
@@ -65,11 +65,11 @@ public:
     // -----------------
     if (spos->comp.niatr) {
       if (iatr.size() != spos->comp.niatr)
-	iatr = vector<int>(spos->comp.niatr);
+	iatr = std::vector<int>(spos->comp.niatr);
     }
     if (spos->comp.ndatr) {
       if (datr.size() != spos->comp.ndatr)
-	datr = vector<real>(spos->comp.ndatr);
+	datr = std::vector<real>(spos->comp.ndatr);
     }
 
 
@@ -94,8 +94,8 @@ private:
   unsigned s;
 
 public:
-  boost::shared_ptr< PParticle<float>  > f;
-  boost::shared_ptr< PParticle<double> > d;
+  std::shared_ptr< PParticle<float>  > f;
+  std::shared_ptr< PParticle<double> > d;
 
   SParticle() : s(0) {}
 
@@ -203,13 +203,13 @@ public:
 
     s = rsize;
     if (s == sizeof(float))
-      f = boost::shared_ptr< PParticle<float>  >( new PParticle<float>() );
+      f = std::shared_ptr< PParticle<float>  >( new PParticle<float>() );
     else 
-      d = boost::shared_ptr< PParticle<double> >( new PParticle<double>() );
+      d = std::shared_ptr< PParticle<double> >( new PParticle<double>() );
   }
 
   void read(std::istream& in, unsigned rsize, int pcount, 
-	    list<PSPstanza>::iterator spos) 
+	    std::list<PSPstanza>::iterator spos) 
   {
     setSize(rsize);
     if (s == sizeof(float)) 
@@ -234,8 +234,8 @@ protected:
 
   bool VERBOSE;
   
-  list<PSPstanza> stanzas;
-  list<PSPstanza>::iterator spos;
+  std::list<PSPstanza> stanzas;
+  std::list<PSPstanza>::iterator spos;
   PSPstanza *cur;
 
   SParticle part;
@@ -249,7 +249,7 @@ protected:
   std::vector<float> vmin, vmed, vmax;
   void ComputeStats();
   void write_binary(std::ostream& out,
-		    list<PSPstanza>::iterator its, bool real4);
+		    std::list<PSPstanza>::iterator its, bool real4);
 
   //! Append '/' if necessary
   void check_dirname();
@@ -278,7 +278,7 @@ public:
   double CurrentTime()    {return header.time;}
   
   //! Print summary phase-space info
-  void   PrintSummary     (ostream &out, bool stats=false, bool timeonly=false);
+  void   PrintSummary     (std::ostream &out, bool stats=false, bool timeonly=false);
 
   //! Set stanza to name
   virtual PSPstanza *GetNamed(const std::string& name)
@@ -304,8 +304,24 @@ public:
   //! Get next particle and return null at end.
   virtual SParticle *NextParticle() = 0;
 
+  //@{
+  //! Define necessary member functions to be a valid container
+  //! iterator
+  virtual SParticle* begin() { return GetParticle(); }
+  virtual SParticle* end  () { return 0; }
+  virtual SParticle* operator++() { NextParticle(); return &part; }
+  virtual bool operator==(SParticle* const &other)
+  { return &part == other; }
+  virtual bool operator!=(SParticle* const &other)
+  { return &part != other; }
+  //@}
+
   //! Write a new PSP file
   void writePSP(std::ostream& out,  bool real4);
+
+  //! PSP factory: choose type based on file name
+  static
+  std::shared_ptr<PSP> getPSP(const std::string& file, const std::string dir = "", bool verbose=false);
 
 };
 
@@ -317,7 +333,7 @@ public:
 class PSPout : public PSP
 {
 private:
-  streampos pos;
+  std::streampos pos;
 
 public:
   PSPout(const std::string& file, bool verbose=false);
@@ -325,8 +341,11 @@ public:
   //! Destructor
   virtual ~PSPout() {}
 
+  //@{
+  //! Iterators
   virtual SParticle* GetParticle ();
   virtual SParticle* NextParticle();
+  //@}
 };
 
 /**
@@ -354,8 +373,8 @@ public:
 
 };
 
-extern std::string trimLeft(const string);
-extern std::string trimRight(const string);
+extern std::string trimLeft (const std::string);
+extern std::string trimRight(const std::string);
 
 typedef std::shared_ptr<PSP> PSPptr;
 

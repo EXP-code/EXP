@@ -4,7 +4,7 @@
 
 /* Manual compile string:
 
-mpiCC -g -o testCrossCuda testCrossCuda.o Ion.o cudaIon.o TopBase.o spline.o phfit2.o -lexputil -lexpgnu -lboost_program_options -lvtkCommonCore-7.1 -lvtkCommonDataModel-7.1 -lvtkIOXML-7.1 -lmpi -lcuda -lcudart
+mpiCC -g -o testCrossCuda testCrossCuda.o Ion.o cudaIon.o TopBase.o spline.o phfit2.o -lexputil -lexpgnu -lvtkCommonCore-7.1 -lvtkCommonDataModel-7.1 -lvtkIOXML-7.1 -lmpi -lcuda -lcudart
 
 */
 
@@ -13,16 +13,13 @@ mpiCC -g -o testCrossCuda testCrossCuda.o Ion.o cudaIon.o TopBase.o spline.o phf
 #include <sstream>
 #include <iomanip>
 #include <numeric>
+#include <random>
 #include <tuple>
-
-#include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 #include "atomic_constants.H"
 #include "Ion.H"
 #include "Elastic.H"
-
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
 #include <mpi.h>
 
@@ -45,7 +42,7 @@ std::string outdir(".");
 std::string runtag("run");
 char threading_on = 0;
 pthread_mutex_t mem_lock;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 
 int main (int ac, char **av)
 {
@@ -64,33 +61,54 @@ int main (int ac, char **av)
   }
 
   int num;
+  double emin, emax;
+  bool eVout = false;
+  std::string scaling;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("Num,N",		po::value<int>(&num)->default_value(200),
-     "number of evaluations")
+  cxxopts::Options options(av[0], "Cross-section test routine for cuda");
+
+  options.add_options()
+    ("h,help", "produce help message")
+    ("vanHoof", "Use Gaunt factor from van Hoof et al.")
+    ("KandM", "Use original Koch & Motz cross section")
+    ("eV", "print results in eV")
+    ("c,compare", "for comparison with CPU version")
+    ("N,Num", "number of evaluations",
+     cxxopts::value<int>(num)->default_value("200"))
+    ("e,Emin", "minimum energy (Rydbergs)",
+     cxxopts::value<double>(emin)->default_value("0.001"))
+    ("E,Emax", "maximum energy (Rydbergs)",
+     cxxopts::value<double>(emax)->default_value("100.0"))
+    ("S,scaling", "cross-section scaling (born, mbarn, (null))",
+     cxxopts::value<std::string>(scaling))
     ;
 
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     MPI_Finalize();
-    return -1;
+    exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
-    std::cout << "Example: Helium II recombination" << std::endl;
-    std::cout << "\t" << av[0]
-	      << " -Z 2 -C 2" << std::endl;
+    std::cout << options.help() << std::endl;
     MPI_Finalize();
     return 1;
+  }
+
+  if (vm.count("eV")) {
+    eVout = true;
+  }
+
+  if (vm.count("vanHoof")) {
+    Ion::use_VAN_HOOF = true;
+  }
+
+  if (vm.count("KandM")) {
+    Ion::use_VAN_HOOF = false;
   }
 
   std::string prefix("crossCuda");
@@ -111,9 +129,16 @@ int main (int ac, char **av)
 
   atomicData ad;
 
-  ad.createIonList(ZList);
+  // Using CUDA-----------+
+  //                      |
+  //                      v
+  ad.createIonList(ZList, true);
+
   std::cout << "# Ions = " << ad.IonList.size() << std::endl;
-  ad.testCross(num);
+  if (vm.count("compare"))
+    ad.testCrossCompare(num, emin, emax, eVout, scaling);
+  else
+    ad.testCross(num);
   
   MPI_Finalize();
 

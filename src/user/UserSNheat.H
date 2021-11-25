@@ -1,10 +1,8 @@
 #ifndef _UserSNheat_H
 #define _UserSNheat_H
 
+#include <random>
 #include <pthread.h>
-
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
 
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
@@ -44,8 +42,8 @@ private:
   bool firstime, verbose;
   int N, ncount, nSN;
 
-  boost::random::normal_distribution<> norm;
-  boost::random::uniform_real_distribution<> unit;
+  std::normal_distribution<> norm;
+  std::uniform_real_distribution<> unit;
 
   Component *c0;
 

@@ -4,29 +4,13 @@
                                 // C++/STL headers
 #include <string>
 
-				// Boost random generator
-#include <boost/random/mersenne_twister.hpp>
-
 				// Option parsing
-#include <boost/program_options.hpp>
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
                                 // EXP support
 #include <global.H>
 #include <EmpCylSL.H>
 #include <localmpi.H>
-
-void usage(char *prog)
-{
-  cout << setw(70) << setfill('-') << '-' << endl;
-  cout << "Dump the entire disk orthgonal function file in ascii" << endl;
-  cout << setw(70) << setfill('-') << '-' << endl;
-  cout << "Usage: " << prog << " emp_file dump_file" << endl;
-  cout << setw(70) << setfill('-') << '-' << endl;
-
-  MPI_Finalize();
-  exit(-1);
-}
 
 int 
 main(int argc, char **argv)
@@ -45,47 +29,42 @@ main(int argc, char **argv)
   double rmax, zmax;
   int nout, mmax, norder;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",
-     "produce this help message")
-    ("eof,i",      po::value<std::string>(&eof)->default_value(".eof.cache.file"),
-     "the EOF cache file")
-    ("out,o",      po::value<std::string>(&tag)->default_value("eof_basis"),
-     "output prefix for basis functions")
-    ("Rmax,R",     po::value<double>(&rmax)->default_value(0.05), 
-     "Extent in cylindrical radius")
-    ("Zmax,Z",     po::value<double>(&zmax)->default_value(0.005), 
-     "Extent in vertical distance above and below plane")
-    ("mmax,m",     po::value<int>(&mmax)->default_value(6), 
-     "maximum azimuthal order")
-    ("nmax,n",     po::value<int>(&norder)->default_value(18), 
-     "maximum radial order")
-    ("nout,N",     po::value<int>(&nout)->default_value(40), 
-     "number of grid points in each dimension")
+  cxxopts::Options options(argv[0], "Dump the entire disk orthgonal function file in ascii");
+
+  options.add_options()
+    ("h,help", "produce this help message")
+    ("i,eof", "the EOF cache file",
+     cxxopts::value<std::string>(eof)->default_value(".eof.cache.file"))
+    ("o,out", "output prefix for basis functions",
+     cxxopts::value<std::string>(tag)->default_value("eof_basis"))
+    ("R,Rmax", "Extent in cylindrical radius",
+     cxxopts::value<double>(rmax)->default_value("0.05"))
+    ("Z,Zmax", "Extent in vertical distance above and below plane",
+     cxxopts::value<double>(zmax)->default_value("0.005"))
+    ("m,mmax", "maximum azimuthal order",
+     cxxopts::value<int>(mmax)->default_value("6"))
+    ("n,nmax", "maximum radial order",
+     cxxopts::value<int>(norder)->default_value("18"))
+    ("N,nout", "number of grid points in each dimension",
+     cxxopts::value<int>(nout)->default_value("40"))
     ;
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    if (myid==0)
-      std::cout << "Option error: " << e.what() << std::endl;
-
-    MPI_Finalize();
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
     if (myid==0)
-      std::cout << desc << std::endl;
+      std::cout << options.help() << std::endl;
 
     MPI_Finalize();
     return 1;
   }
-
 
   std::ifstream in(eof);
   if (not in.good()) {

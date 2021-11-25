@@ -12,9 +12,7 @@
 #include <H5public.h>		// For version info
 #endif
 
-#include <boost/program_options.hpp>
-
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
 int 
 main(int ac, char **av)
@@ -26,32 +24,29 @@ main(int ac, char **av)
   std::string       hdf5file;
   std::string       outfile;
   
-  po::options_description desc("Allowed options");
-  desc.add_options()
+  cxxopts::Options options(av[0], "Get the acceleration field from a Gadget-stype HDF5 file");
+
+  options.add_options()
     ("help,h", "Print this help message")
-    ("hdf5", po::value<std::string>(&hdf5file)->default_value("snapfile_001.hdf5"), "HDF5 Gadget2 file")
-    ("output", po::value<std::string>(&outfile)->default_value("force.data"), "Force data from N-body evluation")
+    ("hdf5", "HDF5 Gadget2 file",
+     cxxopts::value<std::string>(hdf5file)->default_value("snapfile_001.hdf5"))
+    ("output", "Force data from N-body evluation",
+     cxxopts::value<std::string>(outfile)->default_value("force.data"))
     ;
        
-  po::variables_map vm;
-  
-  // Parse command line for control and critical parameters
-  //
+  cxxopts::ParseResult vm;
+
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error on command line: "
-	      << e.what() << std::endl;
-    return -1;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
   }
-  
+
   // Print help message and exit
   //
   if (vm.count("help")) {
-    const char *mesg = "Convert hdf5 Gadget2 file to m, pos, accel binary";
-    std::cout << mesg << std::endl
-	      << desc << std::endl << std::endl;
+    std::cout << options.help() << std::endl << std::endl;
     return 1;
   }
 
@@ -72,13 +67,13 @@ main(int ac, char **av)
     
     // Open the hdf5 file
     //
-    H5::H5File* file = new H5::H5File(FILE_NAME, H5F_ACC_RDWR);
+    auto file = std::make_shared<H5::H5File>(FILE_NAME, H5F_ACC_RDWR);
     
     // Open header
     //
-    H5::Group* header   = new H5::Group(file->openGroup("Header"));
-    H5::Attribute* attr = new H5::Attribute(header->openAttribute("MassTable"));
-    H5::DataType* type  = new H5::DataType(attr->getDataType());
+    auto header   = std::make_shared<H5::Group>(file->openGroup("Header"));
+    auto attr     = std::make_shared<H5::Attribute>(header->openAttribute("MassTable"));
+    auto type    = std::make_shared<H5::DataType>(attr->getDataType());
 
     std::vector<double> mass(6);
     attr->read(*type, &mass[0]);
@@ -88,7 +83,7 @@ main(int ac, char **av)
 
     // Get the disk particle group
     //
-    H5::Group* group = new H5::Group(file->openGroup("PartType2"));
+    auto group = std::make_shared<H5::Group>(file->openGroup("PartType2"));
     
     const H5std_string SetName1( "Coordinates" );
     const H5std_string SetName2( "Acceleration" );
@@ -161,17 +156,6 @@ main(int ac, char **av)
       out.write((const char *)&accels[j*3], sizeof(float)*3);
     }
     
-    // Dallocate objects
-    //
-    delete type;
-    delete attr;
-    delete header;
-
-    // Close the group and file.
-    //
-    delete group;
-    delete file;
-
   }
   // end of try block
   //

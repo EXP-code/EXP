@@ -1,8 +1,8 @@
 
 set(bin_PROGRAMS slcheck slshift orthochk diskpot qtest)
 		
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
-  Boost::program_options yaml-cpp EXP exputil ${VTK_LIBRARIES})
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
+  EXP ${VTK_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
@@ -15,9 +15,7 @@ set(common_INCLUDE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/..
-  ${VTK_INCLUDE}
-  )
+  ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 add_executable(slcheck slcheck.cc)
 add_executable(slshift slshift.cc SLSphere.cc)

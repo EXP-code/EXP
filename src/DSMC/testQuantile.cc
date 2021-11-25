@@ -1,4 +1,4 @@
-// Compile string: mpiCC -std=c++11 -O3 -o testQ testQuantile.cc Quantile.cc -lboost_program_options -lmpi
+// Compile string: mpiCC -std=c++11 -O3 -o testQ testQuantile.cc Quantile.cc -lmpi
 
 #include <iostream>
 #include <iomanip>
@@ -6,20 +6,18 @@
 #include <vector>
 #include <random>
 
-#include <boost/program_options.hpp>
 #include <boost/math/distributions/weibull.hpp>
 #include <boost/math/distributions/normal.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
+#include <cxxopts.H>
 #include "Quantile.H"
  
 // Unused globals needed in libexputil
 //
 int myid;
-boost::mt19937 random_gen;
+std::mt19937 random_gen;
 std::string outdir, runtag;
 
-namespace po = boost::program_options;
 using namespace NTC;
 
 int main(int ac, char** av)
@@ -29,41 +27,41 @@ int main(int ac, char** av)
   unsigned long N;
   unsigned n;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("Normal",          "use Normal distribution for sampling")
-    ("Weibull",         "use Weibull distribution for sampling")
-    ("mean",            po::value<double>(&mean)->default_value(0.5),
-     "mean for normal distribution")
-    ("stddev",          po::value<double>(&stddev)->default_value(2.0),
-     "stddev for normal distribution")
-    ("alpha",           po::value<double>(&alpha)->default_value(1.5),
-     "shape parameter for Weibull distribution")
-    ("beta",            po::value<double>(&beta)->default_value(0.5),
-     "scale parameter for Weibull distribution")
-    ("p1",            po::value<double>(&p1)->default_value(0.37),
-     "first test quantile")
-    ("p2",            po::value<double>(&p2)->default_value(0.65),
-     "first test quantile")
-    ("N",               po::value<unsigned long>(&N)->default_value(100000),
-     "number of samples")
-    ("n",               po::value<unsigned>(&n)->default_value(100),
-     "number of bins")
+  cxxopts::Options options(av[0], "Test the quantile class");
+
+  options.add_options()
+   ("h,help", "produce help message")
+   ("Normal", "use Normal distribution for sampling")
+   ("Weibull", "use Weibull distribution for sampling")
+   ("mean", "mean for normal distribution",
+    cxxopts::value<double>(mean)->default_value("0.5"))
+   ("stddev", "stddev for normal distribution",
+    cxxopts::value<double>(stddev)->default_value("2.0"))
+   ("alpha", "shape parameter for Weibull distribution",
+    cxxopts::value<double>(alpha)->default_value("1.5"))
+   ("beta", "scale parameter for Weibull distribution",
+    cxxopts::value<double>(beta)->default_value("0.5"))
+   ("p1", "first test quantile",
+    cxxopts::value<double>(p1)->default_value("0.37"))
+   ("p2", "first test quantile",
+    cxxopts::value<double>(p2)->default_value("0.65"))
+   ("N", "number of samples",
+    cxxopts::value<unsigned long>(N)->default_value("100000"))
+   ("n", "number of bins",
+    cxxopts::value<unsigned>(n)->default_value("100"))
     ;
 
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
-    return -1;
+    exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     return 1;
   }
 

@@ -1,11 +1,10 @@
 
-set(bin_PROGRAMS shrinkics gendisk gsphere pstmod empinfo empdump
+set(bin_PROGRAMS shrinkics gensph gendisk gsphere pstmod empinfo empdump
   eofbasis makeIon phIon phConv eofcomp testcoefs testcoefs2 testdeval
   forcetest hdf52accel forcetest2)
 
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX
-  Boost::program_options yaml-cpp EXP exputil ${VTK_LIBRARIES}
-  ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp EXP
+  exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
@@ -20,12 +19,15 @@ set(common_INCLUDE
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/..
-  ${HDF5_INCLUDE_DIRS}
-  ${VTK_INCLUDE})
+  ${HDF5_INCLUDE_DIRS})
 
 add_executable(shrinkics shrinkics.cc)
 
-add_executable(gendisk initial2.cc DiskHalo2.cc SphericalSL.cc
+add_executable(gensph gensph.cc SphericalSL.cc EllipForce.cc
+  legendre.cc SParticle.cc ddplgndr.cc sinecosine.cc)
+target_link_libraries(gensph fftw3)
+
+add_executable(gendisk initial.cc DiskHalo.cc SphericalSL.cc
   legendre.cc SParticle.cc ddplgndr.cc sinecosine.cc AddDisk.cc)
 
 add_executable(gsphere bonnerebert.cc)

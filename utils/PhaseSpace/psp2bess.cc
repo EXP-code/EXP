@@ -11,9 +11,11 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <numeric>
 #include <memory>
 #include <vector>
 #include <string>
+#include <random>
 #include <list>
 #include <map>
 
@@ -21,15 +23,11 @@
 #include <PSP.H>
 #include <FileUtils.H>
 
-#include <boost/program_options.hpp>
-#include <boost/math/special_functions/bessel.hpp>
-#include <boost/random/mersenne_twister.hpp>
-
+#include <Bess.H>
 #include <Progress.H>
+#include <cxxopts.H>
 
 #include <mpi.h>
-
-namespace po = boost::program_options;
 
 //
 // MPI variables
@@ -37,52 +35,6 @@ namespace po = boost::program_options;
 int numprocs, myid, proc_namelen;
 char processor_name[MPI_MAX_PROCESSOR_NAME];
 
-
-
-//! Generate orthonormal Bessel functions of integral order
-class Bess
-{
-private:
-
-  unsigned int nroots;
-  double order;
-  std::vector<double> roots, norm;
-
-public:
-
-  //! Constructor: set the order and number of radial functions
-  Bess(double order, unsigned int nroots) : order(order), nroots(nroots)
-  {
-    boost::math::cyl_bessel_j_zero(order, 1, nroots, std::back_inserter(roots));
-    norm.resize(nroots);
-    for (unsigned int m=0; m<nroots; m++) {
-      double val = boost::math::cyl_bessel_j(order+1.0, roots[m]);
-      norm[m] = sqrt(0.5*val*val);
-    }
-  }
-  
-  //! Get the norm for radial order m
-  double getNorm(int m)
-  {
-    if (m>=nroots) return 0.0;
-    else           return norm[m];
-  }
-  
-  //! Evaluate the Bessel for x in [0, 1] for radial order m
-  double operator()(double& x, const unsigned& m)
-  {
-    if (m>=nroots) return 0.0;
-    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]) / norm[m];
-  } 
-
-  //! Evaluate the Bessel for x in [0, 1] for radial order m
-  double eval(double& x, unsigned& m)
-  {
-    if (m>=nroots) return 0.0;
-    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]) / norm[m];
-  } 
-
-}; 
 
 
 //! Coefficient file header
@@ -234,49 +186,51 @@ main(int ac, char **av)
   double rmax;
 
   // Parse command line
+  //
+  cxxopts::Options options(prog, 
+			   "Separate a psp structure and make a kinematic Fourier coefficients series in Bessel functions");
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("verbose,v",       "verbose output")
-    ("finegrain",       "fine-grained progress report")
-    ("beg,i",	        po::value<int>(&ibeg)->default_value(0),
-     "initial snapshot index")
-    ("end,e",	        po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()),
-     "final snapshot index")
-    ("mmax,M",	        po::value<int>(&mmax)->default_value(4),
-     "maximum Fourier component in bin")
-    ("rmax,R",	        po::value<double>(&rmax)->default_value(0.04),
-     "maximum radius")
-    ("nmax,n",	        po::value<int>(&nmax)->default_value(8),
-     "maximum Bessel order")
-    ("name,c",	        po::value<std::string>(&cname)->default_value("comp"),
-     "component name")
-    ("dir,d",           po::value<std::string>(&new_dir)->default_value("./"),
-     "rewrite directory location for SPL files")
-    ("work,w",          po::value<std::string>(&work_dir)->default_value("."),
-     "working directory for output file")
-    ("type,t",          po::value<std::string>(&tname)->default_value("OUT"),
-     "PSP output type (OUT or SPL)")
-    ("runtag,T",        po::value<std::string>(&runtag)->default_value("run0"),
-     "Runtag id")
-    ("suffix,s",        po::value<std::string>(&suffix)->default_value("ring_coefs"),
-     "Output file suffix")
+
+  options.add_options()
+   ("h,help", "produce help message")
+   ("v,verbose", "verbose output")
+   ("finegrain", "fine-grained progress report")
+   ("i,beg", "initial snapshot index",
+     cxxopts::value<int>(ibeg)->default_value("0"))
+   ("e,end", "final snapshot index",
+     cxxopts::value<int>(iend)->default_value(std::to_string(std::numeric_limits<int>::max())))
+   ("M,mmax", "maximum Fourier component in bin",
+     cxxopts::value<int>(mmax)->default_value("4"))
+   ("R,rmax", "maximum radius",
+     cxxopts::value<double>(rmax)->default_value("0.04"))
+   ("n,nmax", "maximum Bessel order",
+     cxxopts::value<int>(nmax)->default_value("8"))
+   ("c,name", "component name",
+     cxxopts::value<std::string>(cname)->default_value("comp"))
+   ("d,dir", "rewrite directory location for SPL files",
+     cxxopts::value<std::string>(new_dir)->default_value("./"))
+   ("w,work", "working directory for output file",
+     cxxopts::value<std::string>(work_dir)->default_value("."))
+   ("t,type", "PSP output type (OUT or SPL)",
+     cxxopts::value<std::string>(tname)->default_value("OUT"))
+   ("T,runtag", "Runtag id",
+     cxxopts::value<std::string>(runtag)->default_value("run0"))
+   ("s,suffix", "Output file suffix",
+     cxxopts::value<std::string>(suffix)->default_value("ring_coefs"))
     ;
 
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
     if (myid==0) {
-      std::cout << desc << std::endl;
+      std::cout << options.help() << std::endl;
       std::cout << "Example: " << std::endl;
       std::cout << "\t" << av[0]
 		<< " --runtag=run001" << std::endl;
@@ -325,9 +279,9 @@ main(int ac, char **av)
     exit(-1);
   }
 
-  std::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (myid==0 and not verbose and not finegrain) {
-    progress = std::make_shared<boost::progress_display>(iend - ibeg + 1);
+    progress = std::make_shared<progress::progress_display>(iend - ibeg + 1);
   }
 
   for (int n=ibeg; n<=iend; n++) {
@@ -388,7 +342,7 @@ main(int ac, char **av)
 
       if (myid==0 and finegrain) {
 	std::cout << "Using filename: " << file << std::endl;
-	progress = std::make_shared<boost::progress_display>(stanza->comp.nbod/numprocs);
+	progress = std::make_shared<progress::progress_display>(stanza->comp.nbod/numprocs);
       }
 
       for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {

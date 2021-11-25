@@ -53,7 +53,7 @@ constexpr double msun      = 1.9891e33;
 #include <tuple>
 #include <map>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 /** Store and retrieve periodic table info.  This can be extended to
     include additional data fields, etc.  Would be nice to add atomic
@@ -118,7 +118,7 @@ class PeriodicTable
 {
 private:
 
-  typedef boost::shared_ptr<AtomicElement> AEptr;
+  typedef std::shared_ptr<AtomicElement> AEptr;
 
   //! The atomic data
   std::map<unsigned,    AEptr> dataZ;

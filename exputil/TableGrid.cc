@@ -36,7 +36,7 @@ void TableGrid::Add(const std::vector<double>& data, const std::string& name)
 {
   // Set array size
   //
-  auto D = boost::make_shared<dtype>(boost::extents[nx][ny][nz]);
+  auto D = std::make_shared<dtype>(nx, ny, nz);
 
   // Insert grid data
   //

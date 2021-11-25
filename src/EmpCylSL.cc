@@ -6,13 +6,8 @@
 #include <limits>
 #include <string>
 
-
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/make_unique.hpp>
-#include <boost/multi_array.hpp>
-
 #include <Progress.H>		// Progress bar
+#include <TableGrid.H>		// For three-dimensional array
 
 #include <interp.H>
 #include <Timer.H>
@@ -238,8 +233,8 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   dfac   = ffac/ascale;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
-					RMIN, RMAX*0.99, false, 1, 1.0);
+  ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+				      RMIN, RMAX*0.99, false, 1, 1.0);
 
   coefs_made = vector<short>(multistep+1, false);
   eof_made = false;
@@ -497,7 +492,7 @@ SphModTblPtr EmpCylSL::make_sl()
     out.close();
   }
 
-  return boost::make_shared<SphericalModelTable>
+  return std::make_shared<SphericalModelTable>
     (number, r.data(), d.data(), m.data(), p.data());
 }
 
@@ -606,7 +601,7 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
 
       // Make and read char buffer
       //
-      auto buf = boost::make_unique<char[]>(ssize+1);
+      auto buf = std::make_unique<char[]>(ssize+1);
       in.read(buf.get(), ssize);
       buf[ssize] = 0;		// Null terminate
 
@@ -699,7 +694,7 @@ int EmpCylSL::read_eof_file(const string& eof_file)
   dfac = ffac/ASCALE;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+  ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					RMIN, RMAX*0.99, false, 1, 1.0);
 
   setup_eof();
@@ -921,7 +916,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
       // Make and read char buffer
       //
-      auto buf = boost::make_unique<char[]>(ssize+1);
+      auto buf = std::make_unique<char[]>(ssize+1);
       in.read(buf.get(), ssize);
       buf[ssize] = 0;		// Null terminate
 
@@ -1206,7 +1201,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
   // Check for existence of ortho and create if necessary
   //
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+    ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					  RMIN, RMAX*0.99, false, 1, 1.0);
 
 
@@ -1374,7 +1369,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
   // check for ortho
   //
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>(make_sl(),
+    ortho = std::make_shared<SLGridSph>(make_sl(),
 					  LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
 					  false, 1, 1.0);
 
@@ -1604,10 +1599,10 @@ void EmpCylSL::setup_accumulation(int mlevel)
     howmany .resize(multistep+1, 0);
 
     for (unsigned M=0; M<=multistep; M++) {
-      cosL[M] = boost::make_shared<VectorD2>(nthrds);
-      cosN[M] = boost::make_shared<VectorD2>(nthrds);
-      sinL[M] = boost::make_shared<VectorD2>(nthrds);
-      sinN[M] = boost::make_shared<VectorD2>(nthrds);
+      cosL[M] = std::make_shared<VectorD2>(nthrds);
+      cosN[M] = std::make_shared<VectorD2>(nthrds);
+      sinL[M] = std::make_shared<VectorD2>(nthrds);
+      sinN[M] = std::make_shared<VectorD2>(nthrds);
       
       for (int nth=0; nth<nthrds; nth++) {
 	cosL(M)[nth].resize(MMAX+1);
@@ -2042,7 +2037,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   // Create spherical orthogonal basis if necessary
   //
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
+    ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					  RMIN, RMAX*0.99, false, 1, 1.0);
   // Initialize fixed variables and storage
   //
@@ -2058,10 +2053,10 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   omp_set_num_threads(nthrds);	// OpenMP set up
 #endif
 
-  boost::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
   if (VFLAG & 16 && myid==0) {
     std::cout << std::endl << "Quadrature loop progress" << std::endl;
-    progress = boost::make_shared<boost::progress_display>(numr);
+    progress = std::make_shared<progress::progress_display>(numr);
   }
 
   int cntr = 0;			// Loop counter for spreading load to nodes
@@ -2339,7 +2334,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 			      int id, int mlevel)
 {
   if (not ortho)
-    ortho = boost::make_shared<SLGridSph>
+    ortho = std::make_shared<SLGridSph>
       (make_sl(), LMAX, NMAX, NUMR, RMIN, RMAX*0.99, false, 1, 1.0);
   if (eof_made) {
     if (VFLAG & 2)
@@ -6335,44 +6330,42 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   out << setw(20) << left << "time"    << " : " << time    << endl;
   out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
 
-				// Read table
-
+  // Read table
+  //
   int nfield = 3;
   if (DENS) nfield += 1;
   
-  typedef boost::multi_array<double, 3> array_type;
-  typedef array_type::index index;
-  array_type mat(boost::extents[nfield][numx+1][numy+1]);
-
-  for (index m=0; m<=mmax; m++) {
+  Dynamic3dArray<double> mat(nfield, numx+1, numy+1);
+  
+  for (int m=0; m<=mmax; m++) {
     
-    for (index v=0; v<norder; v++) {
+    for (int v=0; v<norder; v++) {
 
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++) {
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++) {
 	  in.read((char *)&mat[0][ix][iy], sizeof(double));
 	}
       
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++)
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[1][ix][iy], sizeof(double));
       
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++)
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[2][ix][iy], sizeof(double));
       
       if (DENS) {
-	for (index ix=0; ix<=numx; ix++)
-	  for (index iy=0; iy<=numy; iy++)
+	for (int ix=0; ix<=numx; ix++)
+	  for (int iy=0; iy<=numy; iy++)
 	    in.read((char *)&mat[3][ix][iy], sizeof(double));
 	
       }
       
-      for (index ix=0; ix<numx; ix++) {
-	for (index iy=0; iy<numy; iy++) {
+      for (int ix=0; ix<numx; ix++) {
+	for (int iy=0; iy<numy; iy++) {
 	  out << left << setw(4) << m << setw(4) << v 
 	      << setw(4) << ix << setw(4) << iy;
-	  for (index n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
+	  for (int n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
 	  out << endl;
 	}
 	
@@ -6383,33 +6376,33 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
 
   }
 
-  for (index m=1; m<=mmax; m++) {
+  for (int m=1; m<=mmax; m++) {
     
-    for (index v=0; v<norder; v++) {
+    for (int v=0; v<norder; v++) {
       
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++)
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[0][ix][iy], sizeof(double));
       
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++)
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[1][ix][iy], sizeof(double));
       
-      for (index ix=0; ix<=numx; ix++)
-	for (index iy=0; iy<=numy; iy++)
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[2][ix][iy], sizeof(double));
       
       if (DENS) {
-	for (index ix=0; ix<=numx; ix++)
-	  for (index iy=0; iy<=numy; iy++)
+	for (int ix=0; ix<=numx; ix++)
+	  for (int iy=0; iy<=numy; iy++)
 	    in.read((char *)&mat[3][ix][iy], sizeof(double));
       }
 
-      for (index ix=0; ix<numx; ix++) {
-	for (index iy=0; iy<numy; iy++) {
+      for (int ix=0; ix<numx; ix++) {
+	for (int iy=0; iy<numy; iy++) {
 	  out << left << setw(4) << m << setw(4) << v 
 	      << setw(4) << ix << setw(4) << iy;
-	  for (index n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
+	  for (int n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
 	  out << endl;
 	}
       }
@@ -6453,13 +6446,13 @@ void EmpCylSL::dump_images_basis_pca(const string& runtag,
 
   Eigen::VectorXd PP(1, NORDER), DD(1, NORDER), RF(1, NORDER), ZF(1, NORDER);
   
-  boost::shared_ptr<ThreeDGrid> grid;
+  std::shared_ptr<ThreeDGrid> grid;
 
 #ifdef HAVE_VTK
-  grid = boost::make_shared<VtkGrid>
+  grid = std::make_shared<VtkGrid>
     (OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
 #else
-  grid = boost::make_shared<TableGrid>
+  grid = std::make_shared<TableGrid>
     (OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
 #endif
   

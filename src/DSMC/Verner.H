@@ -29,7 +29,7 @@ public:
     void sync(int myid=0);
   };
   
-  using vrPtr = boost::shared_ptr<VernerRec>;
+  using vrPtr = std::shared_ptr<VernerRec>;
   using vrVec = std::vector<vrPtr>;
 
   std::map<lQ, vrVec> data;

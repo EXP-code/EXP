@@ -1,19 +1,15 @@
 #ifndef _DiskHalo_H
 #define _DiskHalo_H
 
-#include <math.h>
-#include <stdlib.h>
-#include <string>
-
+#include <stdexcept>
 #include <iostream>
 #include <iomanip>
-#include <memory>
-
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
+#include <string>
+#include <random>
+#include <cmath>
 
 #include <exponential.H>
+#include <massmodel.H>
 
 #include <gaussQ.H>
 #include <localmpi.H>
@@ -23,51 +19,142 @@
 #include "EmpCylSL.H"
 #include "SParticle.H"
 
+class DiskHaloException : public std::runtime_error
+{
+public:
+
+  DiskHaloException(const string message, 
+		    const string sourcefilename, const int sourcelinenumber) 
+    : runtime_error(message) 
+  {
+    cerr << "Thrown from source file <"  << message << "> at line number <"
+	 << sourcelinenumber << endl;
+  }
+};
+
 class DiskHalo
 {
  private:
   std::shared_ptr<AddDisk> newmod;
-  std::shared_ptr<SphericalModelTable> halo, halo2;
+  std::shared_ptr<SphericalModelTable> halo, halo2, halo3;
+  std::shared_ptr<SphericalModelMulti> multi;
+
   std::shared_ptr<ExponentialDisk> disk;
-  double scaleheight, hmass, dmass;
+  double scalelength, scaleheight, dmass;
   double center_pos[3], center_vel[3];
 
-  std::shared_ptr<SphericalSL> expandh;
-  std::shared_ptr<EmpCylSL>    expandd;
+  SphericalSLptr expandh;
+  EmpCylSLptr    expandd;
 
   std::vector<Eigen::MatrixXd> disktableP, disktableN;
-  Eigen::MatrixXd epitable;
-  double dP, dR, dZ, epiRmin;
+  Eigen::MatrixXd epitable, dv2table, asytable;
+  double dP, dR, dZ;
 
   Eigen::MatrixXd halotable;
   double dr, dc;
 
-  std::shared_ptr<LegeQuad> lwz;
-
-  boost::mt19937 gen;
-  boost::random::uniform_real_distribution<> rndU;
-  boost::random::normal_distribution<> rndN;
+  std::mt19937 gen;
+  std::uniform_real_distribution<> rndU;
+  std::normal_distribution<> rndN;
 
   bool DF;
-  bool com_cov;
+  bool MULTI;
+  bool com;
+  bool cov;
 
   double disk_density(double R, double z);
-  void write_record(ofstream &out, SParticle &p);
-  void write_record(ofstream &out, Particle &p)
+  double disk_surface_density(double R);
+  void write_record(ostream &out, SParticle &p);
+  void write_record(ostream &out, Particle &p)
   {
     SParticle P(p);
     write_record(out, P);
   }
+  void table_halo_disp();
 
- public:
+  // For frequency computation
+  //
+				// Number of mass and number bins, log spaced
+  static const unsigned nh = 50;
+				// Minimum number on grid before computing
+  static const unsigned mh = 5;
+				// Boundaries and delta
+  double hDmin, hDmax, dRh;
+  vector<double>   nhD;		// Mass in bins
+  vector<double>   nhM;		// Cumulative mass in bins
+  vector<unsigned> nhN;		// Number in bins
+  int nzero;			// Computed minimum mesh point
+  int nzepi;			// Computed minimum epi value
+
+  // Use Spline integration rather than Trapezoidal rule
+  //
+  static const int use_spline = 0;
+
+  class CMap
+  {
+  public:
+    virtual double x_to_r(double x) = 0;
+    virtual double r_to_x(double r) = 0;
+  };
+
+  class CLin : public CMap
+  {
+  public:
+
+    virtual double x_to_r(double x) { return x; }
+    virtual double r_to_x(double r) { return r; }
+  };
+
+  class CLog : public CMap
+  {
+  public:
+
+    virtual double x_to_r(double x) { return exp(x); }
+    virtual double r_to_x(double r) { return log(r); }
+  };
+
+  class CRat : public CMap
+  {
+  public:
+    double scale;
+
+  public:
+
+    CRat(double scale)  : scale(scale)   {}
+    CRat(const CRat& p) : scale(p.scale) {}
+
+    virtual double x_to_r(double x) { return scale*(x + 1.0)/(x - 1.0); }
+    virtual double r_to_x(double r) { return (r + scale)/(r - scale);   }
+  };
+
+  std::shared_ptr<CMap> cmap;
+  double Xmin, Xmax;
+  std::string mtype;
+
+  std::shared_ptr<CMap> make_cmap(std::string type, double scale)
+  {
+    std::for_each(type.begin(), type.end(), [](char & c){ c = ::tolower(c); });
+
+    std::shared_ptr<CMap> cmap;
+
+    if (type.find("linear") == 0)   cmap = std::make_shared<CLin>();
+    else if (type.find("log") == 0) cmap = std::make_shared<CLog>();
+    else if (type.find("rat") == 0) cmap = std::make_shared<CRat>(scale);
+    else                            cmap = std::make_shared<CLog>();
+
+    return cmap;
+  }
+
+public:
+
+  enum DiskGenType { Jeans, Asymmetric, Epicyclic };
+  static std::map<std::string, DiskGenType> getDiskGenType;
+
   static int NDP;		// Number of knots in disk table phi grid
 				// Default: 16
 
   static int NDZ;		// Number of knots in disk table z grid
 				// Default: 200
-
-  static int NDZF;		// Number of subdivisions for each table
-				// entry in Jeans equations evaluation
 
   static int NDR;		// Number of knots in disk table R grid
 				// Default: 40
@@ -86,34 +173,87 @@ class DiskHalo
 
   static double RDMAX;		// Largest radius in disk grid & model
 
+  static double COMPRESSION;	// Extra effective mass due to disk
+				// Default: 1.0
+
   static double SHFACTOR;	// Minimum vertical integration size
 				// in units of scale height
 
-  static double DMFACTOR;	// Increase/decrease the deprojected disk
-				// mass by this factor. Default: 1.0
+  static double TOLE;		// Energy offset for particle selection
+				// Default: 0.003
 
   static double Q;		// Toomre Q
 
   static double R_DF;		// Change over points for DF and Jeans
   static double DR_DF;
 
-  static int LOGSCALE;		// Log DF in SphericalModelTable
-
   static unsigned NBUF;		// Number of particles in MPI buffer
 				// default: 8192
 
+  static bool LOGR;		// Radial grid for Eddington inversion
+
+  static bool CHEBY;		// Use Cheybshev fit for epicylic derivatives
+
+  static int  NCHEB;		// Order for Cheybshev fit
+
+  static bool ALLOW;            // Turn off negative mass requeueing in
+				// multimass model
+
   static int SEED;		// Initial seed
 
-  //! Constructor
-  DiskHalo(std::shared_ptr<SphericalSL> expandh, std::shared_ptr<EmpCylSL> expandd,
-	   double dz0, double dh, double dMh, double dMd, std::string& filename,
-	   int DF=0, int DIVERGE=0, double DIVERGE_RFAC=1.0);
+
+  static int ITMAX;		// Maximum number of DF iterations
+
+  static bool use_mono;	        // Use monopole approximation for
+				// computing total d(phi)/dr
+
+  static double RA;		// Anisotropy radius (default: 1e20)
+
+  static int NUMDF;		// Number of DF grid points (default: 1200)
+
+  static int RNUM;		// Number of model grid points for added
+				// component (default: 1000)
+
+  static unsigned VFLAG;	// Verbose debugging flags
+				//
+				// Bit		Action
+				// ---		------
+				//  1		Informational
+				//  2		Model diagnostics
+				//  4		Table diagnostics
+				//  8           Velocity diagnostics
+
+				// ID string for debugging output
+  static string RUNTAG;		// Default: "debug"
+
+  //! Dummy Constructor
+  DiskHalo();
+
+  //! Constructor: equal mass
+  DiskHalo(SphericalSLptr expandh, EmpCylSLptr expandd,
+	   double H, double A, double DMass, std::string maptype,
+	   string& filename, int DF=0, int DIVERGE=0, double DIVERGE_RFAC=1.0,
+	   DiskGenType type=Asymmetric);
+
+  //! Constructor: multi mass
+  DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
+	   double H, double A, double DMass, std::string maptype,
+	   string& filename1, int DIVERGE,  double DIVERGE_RFAC,
+	   string& filename2, int DIVERGE2, double DIVERGE_RFAC2,
+	   DiskGenType type=Asymmetric);
+
+  //! Copy constructor
+  DiskHalo(const DiskHalo &);
 
   //! Destructor
   ~DiskHalo();
 
+  void set_halo(vector<Particle>& phalo, int nhalo, int npart);
   void set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart);
   void set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart);
+
+  void set_halo_table_single(vector<Particle>& phalo);
+  void set_halo_table_multi (vector<Particle>& phalo);
 
   void set_pos_origin(double& x, double& y, double& z) 
     { 
@@ -150,11 +290,13 @@ class DiskHalo
 
   void table_disk(vector<Particle>& part);
 
-  double get_dispdz(double xp,double yp,double zp);
+  double vz_disp2(double xp,double yp,double zp);
 
-  double vr_disp(double xp, double yp,double zp);
+  double vr_disp2(double xp, double yp,double zp);
 
-  double vphi(double xp, double yp, double zp);
+  double a_drift(double xp, double yp,double zp);
+
+  double vp_disp2(double xp, double yp, double zp);
 
   double v_circ(double xp, double yp, double zp);
 
@@ -166,14 +308,21 @@ class DiskHalo
 
   void set_vel_halo(vector<Particle>& part);
 
-  void write_file(ofstream &fou_halo, ofstream &fou_disk,
-		  vector<Particle>& hpart, vector<Particle>& dpart);
+  void write_file(ostream &fou, vector<Particle>& part);
 
   void virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart);
 
   void virial_ratio(const char *, const char *);
 
-  void zero_com_cov(bool val) { com_cov = val; }
+  void zero_com(bool val) { com = val; }
+
+  void zero_cov(bool val) { cov = val; }
+
+  void profile(ostream &rotfile, vector<Particle>& dpart,
+	       double rmin, double rmax, int numr);
+
+private:
+  DiskGenType type;
 
 };
 

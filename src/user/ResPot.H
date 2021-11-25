@@ -36,8 +36,8 @@ public:
 private:
   int L, M, L1, L2;
 
-  AxiSymModel *halo_model;
-  SphericalOrbit *orb;
+  AxiSymModPtr halo_model;
+  std::shared_ptr<SphericalOrbit> orb;
   
   class RW {
   public:
@@ -139,7 +139,8 @@ public:
   static std::complex<double> I;
   
   //! Constructor
-  ResPot(AxiSymModel *mod, Perturbation *pert, int l, int m, int l1, int l2);
+  ResPot(AxiSymModPtr mod, std::shared_ptr<Perturbation> pert,
+	 int l, int m, int l1, int l2);
 
   //! Destructor
   ~ResPot();

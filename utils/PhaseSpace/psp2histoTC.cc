@@ -13,23 +13,20 @@ using namespace std;
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <memory>
 #include <vector>
 #include <string>
 #include <list>
 #include <map>
 
 #include <yaml-cpp/yaml.h>	// YAML support
+#include <cxxopts.H>		// Command-line parsing
 
 #include <Species.H>
 
 #include <StringTok.H>
 #include <header.H>
 #include <PSP.H>
-
-#include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
-
-namespace po = boost::program_options;
 
 bool readSpeciesFileOld(std::string file,
 			std::map<speciesKey, int>& SpList,
@@ -168,52 +165,48 @@ main(int ac, char **av)
   int numb, comp, ibeg, iend;
 
   // Parse command line
+  //
+  cxxopts::Options options(prog, "Separate a psp structure and make a 1-d histogram.  Trace species version.");
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("verbose,v",       "verbose output")
-    ("OUT",             "assume that PSP files are in original format")
-    ("SPL",             "assume that PSP files are in split format")
-    ("Lunit,L",		po::value<double>(&Lunit)->default_value(3.086e18),
-     "System length in physical units (cgs)")
-    ("Tunit,T",		po::value<double>(&Tunit)->default_value(3.15569e10),
-     "System time in physical units (cgs)")
-    ("Emin,e",		po::value<double>(&Emin)->default_value(1.0),
-     "Minimum energy in eV")
-    ("Emax,E",		po::value<double>(&Emax)->default_value(200.0),
-     "Maximum energy in eV")
-    ("Temp,K",		po::value<double>(&Temp)->default_value(3.0e4),
-     "Temperature in kelvins")
-    ("bins,b",	        po::value<int>(&numb)->default_value(40),
-     "number of bins")
-    ("species,s",	po::value<std::string>(&spfile)->default_value("species.yml"),
-     "species definition file")
-    ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
-     "component name")
-    ("runtag,r",	po::value<std::string>(&runtag)->default_value("run"),
-     "runtag for using a range of PSP files")
-    ("beg",		po::value<int>(&ibeg)->default_value(100),
-     "initial value for PSP file sequence")
-    ("end",		po::value<int>(&iend)->default_value(200),
-     "final value for PSP file sequence")
-    ("meanMass",
-     "use mean-mass algorithm for electron energy computation")
-    ("logE",
-     "use log scaling for energy range")
-    ("flat",
-     "use E^{3/2} scaling for energy range")
-    ("files,f",         po::value< std::vector<std::string> >()->multitoken(), 
-     "input files")
+  options.add_options()
+   ("h,help", "produce help message")
+   ("v,verbose", "verbose output")
+   ("OUT", "assume that PSP files are in original format")
+   ("SPL", "assume that PSP files are in split format")
+   ("L,Lunit", "System length in physical units (cgs)",
+     cxxopts::value<double>(Lunit)->default_value("3.086e18"))
+   ("T,Tunit", "System time in physical units (cgs)",
+     cxxopts::value<double>(Tunit)->default_value("3.15569e10"))
+   ("e,Emin", "Minimum energy in eV",
+     cxxopts::value<double>(Emin)->default_value("1.0"))
+   ("E,Emax", "Maximum energy in eV",
+     cxxopts::value<double>(Emax)->default_value("200.0"))
+   ("K,Temp", "Temperature in kelvins",
+     cxxopts::value<double>(Temp)->default_value("3.0e4"))
+   ("b,bins", "number of bins",
+     cxxopts::value<int>(numb)->default_value("40"))
+   ("s,species", "species definition file",
+     cxxopts::value<std::string>(spfile)->default_value("species.yml"))
+   ("c,name", "component name",
+     cxxopts::value<std::string>(cname)->default_value("gas"))
+   ("r,runtag", "runtag for using a range of PSP files",
+     cxxopts::value<std::string>(runtag)->default_value("run"))
+   ("beg", "initial value for PSP file sequence",
+     cxxopts::value<int>(ibeg)->default_value("100"))
+   ("end", "final value for PSP file sequence",
+     cxxopts::value<int>(iend)->default_value("200"))
+   ("meanMass", "use mean-mass algorithm for electron energy computation")
+   ("logE", "use log scaling for energy range")
+   ("flat", "use E^{3/2} scaling for energy range")
+   ("f,files", "input files",
+     cxxopts::value< std::vector<std::string> >())
     ;
 
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
@@ -233,7 +226,7 @@ main(int ac, char **av)
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
 	      << " -E 300 -n 100 -f OUT.run.00001" << std::endl;
@@ -337,7 +330,7 @@ main(int ac, char **av)
 
   for (auto file : files ) {
 
-    ifstream *in = new ifstream(file.c_str());
+    auto in = std::make_shared<std::ifstream>(file.c_str());
     if (!*in) {
       cerr << "Error opening file <" << file << "> for input\n";
       exit(-1);
@@ -358,14 +351,13 @@ main(int ac, char **av)
       
       psp->PrintSummary(cerr);
     
-      cerr << std::endl << "Best fit dump to <" << time << "> has time <" 
-	   << psp->CurrentTime() << ">" << std::endl;
+      std::cerr << std::endl << "Best fit dump to <" << time << "> has time <" 
+		<< psp->CurrentTime() << ">" << std::endl;
     }
 
 				// Reopen file for data input
 				// --------------------------
-    delete in;
-    in = new ifstream(file);
+    in = std::make_shared<std::ifstream>(file);
     
   
     vector<double> pos(3), vel(3);

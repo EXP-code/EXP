@@ -17,15 +17,14 @@ externalShock::externalShock(const YAML::Node& conf) : ExternalForce(conf)
 
   initialize();
 
-  model = new SphericalModelTable(INFILE);
-  t = new SphericalOrbit(model, E, K);
+  model = std::make_shared<SphericalModelTable>(INFILE);
+  t = std::make_shared<SphericalOrbit>(model, E, K);
 }
 
 
 externalShock::~externalShock()
 {
-  delete t;
-  delete model;
+  // None
 }
 
 void externalShock::initialize()

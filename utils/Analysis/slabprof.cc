@@ -36,19 +36,13 @@
 #include <cmath>
 #include <string>
 
-				// Boost stuff
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
-namespace po = boost::program_options;
-
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
 
 				// EXP classes
 #include <ParticleReader.H>
+#include <cxxopts.H>
 
 //=============================================================================
 // Global variables
@@ -125,62 +119,57 @@ main(int argc, char **argv)
   // Parse command line or input parameter file
   // ==================================================
   
-  po::options_description desc("Compute 1-dimensional projection of shocktube runs\nAllowed options");
-  desc.add_options()
-    ("help,h",
-     "Print this help message")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("compname",            po::value<std::string>(&cname)->default_value("slab"),
-     "train on Component (default=slab)")
-    ("TEMP",                po::value<int>(&TEMP)->default_value(0),
-     "temperature (default=0)")
-    ("DENS",                po::value<int>(&DENS)->default_value(1),
-     "density (default=1)")
-    ("KNUD",                po::value<int>(&KNUD)->default_value(4),
-     "Knudsen (default=4)")
-    ("STRL",                po::value<int>(&STRL)->default_value(5),
-     "Straoul (default=5)")
-    ("Rmin",                po::value<double>(&Rmin)->default_value(0.0),
-     "minimum position")
-    ("Rmax",                po::value<double>(&Rmax)->default_value(1.0),
-     "maximum position")
-    ("Nbins",               po::value<int>(&Nbins)->default_value(100),
-     "number of bins")
-    ("AXIS",                po::value<int>(&AXIS)->default_value(2),
-     "which axis")
-    ("OUTFILE",             po::value<string>(&outfile)->default_value("slab.prof"),
-     "output filename")
-    ("RUNTAG",              po::value<string>(&runtag)->default_value("run"),
-     "run tag")
-    ("MININDX",             po::value<int>(&IMIN)->default_value(0),
-     "Minimum PSP index")
-    ("MAXINDX",             po::value<int>(&IMAX)->default_value(100),
-     "Maximum PSP index")
+  cxxopts::Options options(argv[0], "Compute 1-dimensional projection of shocktube runs\n");
+
+  options.add_options()
+    ("h,help", "Print this help message")
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("compname", "train on Component (default=slab)",
+     cxxopts::value<std::string>(cname)->default_value("slab"))
+    ("TEMP", "temperature (default=0)",
+     cxxopts::value<int>(TEMP)->default_value("0"))
+    ("DENS", "density (default=1)",
+     cxxopts::value<int>(DENS)->default_value("1"))
+    ("KNUD", "Knudsen (default=4)",
+     cxxopts::value<int>(KNUD)->default_value("4"))
+    ("STRL", "Straoul (default=5)",
+     cxxopts::value<int>(STRL)->default_value("5"))
+    ("Rmin", "minimum position",
+     cxxopts::value<double>(Rmin)->default_value("0.0"))
+    ("Rmax", "maximum position",
+     cxxopts::value<double>(Rmax)->default_value("1.0"))
+    ("Nbins", "number of bins",
+     cxxopts::value<int>(Nbins)->default_value("100"))
+    ("AXIS", "which axis",
+     cxxopts::value<int>(AXIS)->default_value("2"))
+    ("OUTFILE", "output filename",
+     cxxopts::value<string>(outfile)->default_value("slab.prof"))
+    ("RUNTAG", "run tag",
+     cxxopts::value<string>(runtag)->default_value("run"))
+    ("MININDX", "Minimum PSP index",
+     cxxopts::value<int>(IMIN)->default_value("0"))
+    ("MAXINDX", "Maximum PSP index",
+     cxxopts::value<int>(IMAX)->default_value("100"))
     ;
   
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
-
 
   // ==================================================
   // Print help message and exit
   // ==================================================
 
   if (vm.count("help")) {
-    std::cout << std::endl << desc << std::endl;
+    std::cout << std::endl << options.help() << std::endl;
     return 0;
   }
 
@@ -200,9 +189,9 @@ main(int argc, char **argv)
 
   for (int i=IMIN; i<=IMAX; i++) {
 
-    auto file = ParticleReader::fileNameCreator(fileType, i, "", runtag);
+    auto file = ParticleReader::fileNameCreator(fileType, i, myid, "", runtag);
     
-    PRptr reader = ParticleReader::createReader(fileType, file, true);
+    PRptr reader = ParticleReader::createReader(fileType, file, myid, true);
     reader->SelectType(cname);
 
     double time = reader->CurrentTime();

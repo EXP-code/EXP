@@ -12,19 +12,13 @@
 #include <vector>
 
 #include <DiskEval.H>
+#include <cxxopts.H>
 
 #include <fenv.h>
-
-// Boost stuff
-//
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
 
 // Globals for exp libraries
 //
 #include <global.H>
-
-namespace po = boost::program_options;
 
 int 
 main(int ac, char **av)
@@ -46,42 +40,50 @@ main(int ac, char **av)
   double       zout;
   string       dmodel;
   
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("logr,L",                                                                          "Use log grid for DiskEval")
-    ("dmodel",          po::value<std::string>(&dmodel)->default_value("exponential"),  "Target model type (MN or exponential)")
-    ("nint",            po::value<int>(&nint)->default_value(40),                       "Number of Gauss-Legendre knots for theta integration")
-    ("numr",            po::value<int>(&numr)->default_value(1000),                     "Size of radial grid")
-    ("lmax",            po::value<int>(&lmax)->default_value(32),                       "Number of harmonics for Spherical SL for halo/spheroid")
-    ("rmin",            po::value<double>(&rmin)->default_value(1.0e-4),                 "Minimum radius for grid")
-    ("rmax",            po::value<double>(&rmax)->default_value(1.0),                    "Maximum radius for grid")
-    ("A",               po::value<double>(&A)->default_value(0.01),                      "Radial scale length for disk basis construction")
-    ("H",               po::value<double>(&H)->default_value(0.001),                     "Vertical scale length for disk basis construction")
-    ("r",               po::value<double>(&rinn)->default_value(0.0001),                 "Minimum cylindrical radius for test output")
-    ("R",               po::value<double>(&rout)->default_value(0.3),                    "Maximum cylindrical radius for test output")
-    ("Z",               po::value<double>(&zout)->default_value(0.1),                    "Maximum height for testoutput") 
-    ("N",               po::value<int>(&nout)->default_value(60),                        "Number of grid points for test plane");
-       
-  po::variables_map vm;
-  
-  // Parse command line for control and critical parameters
-  //
+  cxxopts::Options options(av[0], "Check DiskEval implementation");
+
+  options.add_options()
+   ("h,help", "Print this help message")
+   ("L,logr", "Use log grid for DiskEval")
+   ("dmodel", "Target model type (MN or exponential)",
+     cxxopts::value<std::string>(dmodel)->default_value("exponential"))
+   ("nint", "Number of Gauss-Legendre knots for theta integration",
+     cxxopts::value<int>(nint)->default_value("40"))
+   ("numr", "Size of radial grid",
+     cxxopts::value<int>(numr)->default_value("1000"))
+   ("lmax", "Number of harmonics for Spherical SL for halo/spheroid",
+     cxxopts::value<int>(lmax)->default_value("32"))
+   ("rmin", "Minimum radius for grid",
+     cxxopts::value<double>(rmin)->default_value("1.0e-4"))
+   ("rmax", "Maximum radius for grid",
+     cxxopts::value<double>(rmax)->default_value("1.0"))
+   ("A", "Radial scale length for disk basis construction",
+     cxxopts::value<double>(A)->default_value("0.01"))
+   ("H", "Vertical scale length for disk basis construction",
+     cxxopts::value<double>(H)->default_value("0.001"))
+   ("r", "Minimum cylindrical radius for test output",
+     cxxopts::value<double>(rinn)->default_value("0.0001"))
+   ("R", "Maximum cylindrical radius for test output",
+     cxxopts::value<double>(rout)->default_value("0.3"))
+   ("Z", "Maximum height for testoutput",
+     cxxopts::value<double>(zout)->default_value("0.1"))
+   ("N", "Number of grid points for test plane",
+     cxxopts::value<int>(nout)->default_value("60"))
+    ;
+
+  cxxopts::ParseResult vm;
+
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error on command line: "
-	      << e.what() << std::endl;
-    return -1;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
   }
-  
+
   // Print help message and exit
   //
   if (vm.count("help")) {
-    const char *mesg = "Test DiskEval implementation";
-    std::cout << mesg << std::endl
-	      << desc << std::endl << std::endl;
+    std::cout << options.help() << std::endl << std::endl;
     return 1;
   }
 
@@ -98,9 +100,9 @@ main(int ac, char **av)
   EmpCylSL::AxiDiskPtr model;
       
   if (dmodel.compare("MN")==0) // Miyamoto-Nagai
-    model = boost::make_shared<MNdisk>(A, H);
+    model = std::make_shared<MNdisk>(A, H);
   else			// Default to exponential
-    model = boost::make_shared<Exponential>(A, H);
+    model = std::make_shared<Exponential>(A, H);
       
   DiskEval test(model, rmin, rmax, A, lmax, numr, nint, true);
 

@@ -15,18 +15,12 @@
 
 #include <fenv.h>
 
-// Boost stuff
-//
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-
 #include <Progress.H>		// Progress bar
+#include <cxxopts.H>		// Command line parsing
 
 // Globals for exp libraries
 //
 #include <global.H>
-
-namespace po = boost::program_options;
 
 int 
 main(int ac, char **av)
@@ -53,46 +47,61 @@ main(int ac, char **av)
   string       fdata;
   string       outfile;
   
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("logr,L",                                                                          "Use log grid for DiskEval")
-    ("dmodel",          po::value<std::string>(&dmodel)->default_value("exponential"),  "Target model type (Ferrers, MN or exponential)")
-    ("force",           po::value<std::string>(&fdata)->default_value("force.data"),  "Force data from N-body evluation")
-    ("out",             po::value<std::string>(&outfile)->default_value("testforce.dat"),  "Output force test grid data")
-    ("dmass",           po::value<double>(&dmass)->default_value(0.025),  "Total disk mass")
-    ("nint",            po::value<int>(&nint)->default_value(40),                       "Number of Gauss-Legendre knots for theta integration")
-    ("numr",            po::value<int>(&numr)->default_value(1000),                     "Size of radial grid")
-    ("nump",            po::value<int>(&nump)->default_value(1), "Size of azimuthal grid")
-    ("lmax",            po::value<int>(&lmax)->default_value(32),                       "Number of harmonics for Spherical SL for halo/spheroid")
-    ("mmax",            po::value<int>(&mmax)->default_value(0), "Maximum m order")
-    ("rmin",            po::value<double>(&rmin)->default_value(1.0e-4),                 "Minimum radius for grid")
-    ("rmax",            po::value<double>(&rmax)->default_value(1.0),                    "Maximum radius for grid")
-    ("A",               po::value<double>(&A)->default_value(0.01),                      "Radial scale length for disk basis construction")
-    ("H",               po::value<double>(&H)->default_value(0.001),                     "Vertical scale length for disk basis construction")
-    ("r",               po::value<double>(&rinn)->default_value(0.0001),                 "Minimum cylindrical radius for test output")
-    ("R",               po::value<double>(&rout)->default_value(0.3),                    "Maximum cylindrical radius for test output")
-    ("Z",               po::value<double>(&zout)->default_value(0.1),                    "Maximum height for testoutput");
-       
-  po::variables_map vm;
+  std::ostringstream sout;
+  sout << "Use DiskEval to compute force errors from a mass, position, acceleration grid." << std::endl << "Evaluated at specific input locations." << std::endl;
+
+  cxxopts::Options options(av[0], sout.str());
+
+  options.add_options()
+    ("h,help", "Print this help message")
+    ("L,logr", "Use log grid for DiskEval")
+    ("dmodel", "Target model type (Ferrers, MN, or exponential)",
+     cxxopts::value<std::string>(dmodel)->default_value("exponential"))
+    ("force", "Force data from N-body evluation",
+     cxxopts::value<std::string>(fdata)->default_value("force.data"))
+    ("out", "Output force test grid data",
+     cxxopts::value<std::string>(outfile)->default_value("testforce.dat"))
+    ("dmass", "Total disk mass",
+     cxxopts::value<double>(dmass)->default_value("0.025"))
+    ("nint", "Number of Gauss-Legendre knots for theta integration",
+     cxxopts::value<int>(nint)->default_value("40"))
+    ("numr", "Size of radial grid",
+     cxxopts::value<int>(numr)->default_value("1000"))
+    ("nump", "Size of azimuthal grid",
+     cxxopts::value<int>(nump)->default_value("1"))
+    ("lmax", "Number of harmonics for Spherical SL for halo/spheroid",
+     cxxopts::value<int>(lmax)->default_value("32"))
+    ("mmax", "Maximum m order",
+     cxxopts::value<int>(mmax)->default_value("0"))
+    ("rmin", "Minimum radius for grid",
+     cxxopts::value<double>(rmin)->default_value("1.0e-4"))
+    ("rmax", "Maximum radius for grid",
+     cxxopts::value<double>(rmax)->default_value("1.0"))
+    ("A", "Radial scale length for disk basis construction",
+     cxxopts::value<double>(A)->default_value("0.01"))
+    ("H", "Vertical scale length for disk basis construction",
+     cxxopts::value<double>(H)->default_value("0.001"))
+    ("r", "Minimum cylindrical radius for test output",
+     cxxopts::value<double>(rinn)->default_value("0.0001"))
+    ("R", "Maximum cylindrical radius for test output",
+     cxxopts::value<double>(rout)->default_value("0.3"))
+    ("Z", "Maximum height for testoutput",
+     cxxopts::value<double>(zout)->default_value("0.1"))
+    ;
   
-  // Parse command line for control and critical parameters
-  //
+  cxxopts::ParseResult vm;
+
   try {
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error on command line: "
-	      << e.what() << std::endl;
-    return -1;
+    vm = options.parse(ac, av);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
+    return 2;
   }
-  
+
   // Print help message and exit
   //
   if (vm.count("help")) {
-    const char *mesg = "Force errors using DiskEval, evaluated at specific input locations.";
-    std::cout << mesg << std::endl
-	      << desc << std::endl << std::endl;
+    std::cout << options.help() << std::endl << std::endl;
     return 1;
   }
 
@@ -110,19 +119,19 @@ main(int ac, char **av)
 
   if (dmodel.compare("FEED")==0) {// Ferrers + Evacuated Exponential Disk. most options are hardwired here relative to the disc scale length currently
     std::cout << "Using model FEED" << endl;
-    model = boost::make_shared<FEED>(1.4*A,(0.4/1.4)*A, (0.2/1.4)*A, A, H, 0.2);
+    model = std::make_shared<FEED>(1.4*A,(0.4/1.4)*A, (0.2/1.4)*A, A, H, 0.2);
   } else if (dmodel.compare("Ferrers")==0) {// Ferrers
     std::cout << "Using model Ferrers" << endl;
-    model = boost::make_shared<Ferrers>(A, H, A/10.);
+    model = std::make_shared<Ferrers>(A, H, A/10.);
   } else if (dmodel.compare("MN")==0) {// Miyamoto-Nagai
     std::cout << "Using Miyamoto-Nagai disk model" << endl;
-    model = boost::make_shared<MNdisk>(A, H);
+    model = std::make_shared<MNdisk>(A, H);
   } else if (dmodel.compare("DoubleExponential")==0) {// Double Exponential. Most options are hardwired right now.
     std::cout << "Using Double Exponential disk model" << endl;
-    model = boost::make_shared<DoubleExponential>(A, H, A, H/3, 0.5);
+    model = std::make_shared<DoubleExponential>(A, H, A, H/3, 0.5);
   } else {			// Default to exponential
     std::cout << "Using standard exponential model" << endl;
-    model = boost::make_shared<Exponential>(A, H);
+    model = std::make_shared<Exponential>(A, H);
   }
 
   DiskEval test(model, rmin, rmax, A, lmax, numr, nint, true, mmax, nump);
@@ -146,7 +155,7 @@ main(int ac, char **av)
 
   
   
-  boost::progress_display progress(nbods);
+  progress::progress_display progress(nbods);
 
   std::ofstream out(outfile);
 

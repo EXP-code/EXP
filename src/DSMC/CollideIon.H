@@ -6,10 +6,6 @@
 #include <tuple>
 #include <array>
 
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
-
-#include <boost/circular_buffer.hpp>
 #include <boost/assign.hpp>
 #include <boost/bimap.hpp>
 
@@ -24,6 +20,7 @@
 #include "StatsMPI.H"
 #include "BN.H"
 #include "Species.H"
+#include <circular_buffer.H>
 
 // For debugging xc species: set XC_DEEP
 //
@@ -250,7 +247,7 @@ public:
   }
 };
 
-typedef boost::shared_ptr<CollisionTypeDiag> collTDPtr;
+typedef std::shared_ptr<CollisionTypeDiag> collTDPtr;
 typedef std::map<speciesKey, collTDPtr> sKeyCollTD;
 
 class CollideIon;
@@ -578,6 +575,10 @@ private:
 
   //@}
 
+  //! Trace maximum first pass interaction mass ('hardwired' but could
+  //! be a variable in the future)
+  const int traceZ = 3;
+
   //! This defines the various types of interactions used to tag
   //! non-zero cross sections and subsequent interaction processing
   enum InterTypes { 
@@ -618,17 +619,6 @@ private:
   //! Default electron-electron interaction type
   static NTC::T elecElec;
 
-  //@{
-  //! Variables for Trace accumulation algorithm
-  enum class AccumType {ion_ion, ion_electron};
-  typedef std::tuple<double, double> accumTypeData;
-  typedef std::map<AccumType, accumTypeData> accumTypeMap;
-  std::vector<accumTypeMap> accumData;
-
-  typedef std::tuple<Particle*, Particle*, double> PairXC;
-  std::vector< std::vector<PairXC> > accumIIxc, accumIExc;
-  //@}
-
   //! Mnemonic for the type of algorithm selected by the user
   enum AlgorithmType { Direct, Weight, Trace, Hybrid };
   const char* AlgorithmLabels[4] = {"Direct", "Weight", "Trace", "Hybrid"};
@@ -638,8 +628,10 @@ private:
   const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
   std::vector<double> elecV, ionV;
   const size_t bufCap = 16384;
-  std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD, crsD, selD;
-  std::vector< std::vector< boost::circular_buffer<double> > > tauD;
+  typedef circular_buffer<double> circBuf;
+  typedef std::shared_ptr<circBuf> circBufPtr;
+  std::vector< circBufPtr > velER, keER, keIR, momD, crsD, selD;
+  std::vector< std::vector< circBufPtr > > tauD;
   ahistoDPtr elecT, elecH, ionsT, ionET, ionH, lossH, keEH, keIH, momH, crsH, Ecoll, tauH[4], selH;
   std::map<unsigned short, ahistoDPtr> elecZH, ionZH;
   unsigned Ovr_s, Acc_s, Tot_s, CntE, Num_s;
@@ -656,13 +648,13 @@ private:
   static bool elecDist;
   static bool rcmbDist;
   static bool rcmbDlog;
-  std::vector< boost::circular_buffer<double> > elecEV;
-  std::vector< boost::circular_buffer<double> > elecRC;
-  std::vector< boost::circular_buffer<double> > elecEVmin;
-  std::vector< boost::circular_buffer<double> > elecEVavg;
-  std::vector< boost::circular_buffer<double> > elecEVmax;
-  std::vector< boost::circular_buffer<double> > elecEVsub;
-  std::vector< boost::circular_buffer<double> > plasmaP;
+  std::vector<circBufPtr> elecEV;
+  std::vector<circBufPtr> elecRC;
+  std::vector<circBufPtr> elecEVmin;
+  std::vector<circBufPtr> elecEVavg;
+  std::vector<circBufPtr> elecEVmax;
+  std::vector<circBufPtr> elecEVsub;
+  std::vector<circBufPtr> plasmaP;
   ahistoDPtr elecEVH, elecEVHmin, elecEVHavg, elecEVHmax;
   ahistoDPtr elecEVHsub, elecRCH, elecRCN, logLH;
 
@@ -893,7 +885,7 @@ private:
     double operator()(unsigned short C, double T);
   };
 
-  std::map<unsigned short, boost::shared_ptr<RecombRatio>> recombRatio;
+  std::map<unsigned short, std::shared_ptr<RecombRatio>> recombRatio;
   //@}
 
 public:
@@ -926,10 +918,6 @@ public:
      Compare maximum delE per COM KE per interaction, if FALSE
   */
   static bool   TSESUM;
-
-  //! Use the mean-mass algorithm for explicit energy conservation for
-  //! the Trace algorithm
-  static bool mean_mass;
 
   //! Multiplicative factor for choosing cooling time step (default: 0.05)
   static double TSCOOL;
@@ -1000,7 +988,12 @@ protected:
   //! pairs
   std::vector<NTC::InteractD> csections;
 
-  boost::shared_ptr<collDiag> collD;
+  //! List of cross sections for mean-mass trace algorithm
+  std::vector<std::map<NTC::T, std::vector<std::tuple<double, int, int, double>>>> cseccache;
+  std::vector<std::map<NTC::T, std::vector<double>>> cseccum;
+
+
+  std::shared_ptr<collDiag> collD;
 
   //! Set of the elements (atomic number) for direct multi-species
   //! implementation
@@ -1144,7 +1137,9 @@ protected:
 		      Particle* const p1, Particle* const p2, 
 		      double *crm, const NTC::T& type);
 
-  double crossSectionTrace(int id, pCell* const c, 
+  using CrsRet = std::tuple<double, double>;
+
+  CrsRet crossSectionTrace(int id, pCell* const c, 
 			   Particle* const p1, Particle* const p2, 
 			   double crm, const NTC::T& type);
 
@@ -1170,7 +1165,7 @@ protected:
 		      double *crm, const NTC::T& itype);
 
   //! Coulombic scattering angle lookup
-  boost::shared_ptr<coulombSelect> coulombSel;
+  std::shared_ptr<coulombSelect> coulombSel;
 
   class Fspc
   {
@@ -1230,6 +1225,7 @@ protected:
     double         W2, w2;
     pType          P;
     double         thresh;
+    bool           swap_enable;
     bool           swap;
     bool           wght;
     speciesKey     k1, k2;
@@ -1322,7 +1318,7 @@ protected:
       return crossSectionWeight(id, c, p1, p2, crm, itype);
 
     if (aType == Trace)
-      return crossSectionTrace (id, c, p1, p2, crm, itype);
+      return std::get<0>(crossSectionTrace (id, c, p1, p2, crm, itype));
 
     if (aType == Hybrid)
       return crossSectionHybrid(id, c, p1, p2, crm, itype);
@@ -1375,21 +1371,28 @@ protected:
   void list_sizes_proc(ostream*);
   //@}
   
-  virtual NTC::InteractD generateSelectionDirect(pCell* const c, double crm, sKeyDmap* const Fn,
-						  double tau, double& meanLambda, double& meanCollP, 
-						  double& totalNsel, int id);
+  virtual NTC::InteractD generateSelectionDirect
+  (pCell* const c, double crm, sKeyDmap* const Fn,
+   double tau, double& meanLambda, double& meanCollP, 
+   double& totalNsel, int id);
 
-  virtual NTC::InteractD generateSelectionWeight(pCell* const c, double crm, sKeyDmap* const Fn,
-						  double tau, double& meanLambda, double& meanCollP, 
-						  double& totalNsel, int id);
+  virtual NTC::InteractD generateSelectionWeight
+  (pCell* const c, double crm, sKeyDmap* const Fn,
+   double tau, double& meanLambda, double& meanCollP, 
+   double& totalNsel, int id);
 
-  virtual NTC::InteractD generateSelectionTrace(pCell* const c, double crm, sKeyDmap* const Fn, 
-						 double tau, double& meanLambda, double& meanCollP, 
-						 double& totalNsel, int id);
+  virtual NTC::InteractD generateSelectionTrace
+  (pCell* const c, double crm, sKeyDmap* const Fn, 
+   double tau, double& meanLambda, double& meanCollP, 
+   double& totalNsel, int id);
 
-  virtual NTC::InteractD generateSelectionHybrid(pCell* const c, double crm, sKeyDmap* const Fn, 
-						  double tau, double& meanLambda, double& meanCollP, 
-						  double& totalNsel, int id);
+  virtual void generateTraceEnergyLoss
+  (pCell* const c, sKeyDmap* const Fn, double tau, int id);
+
+  virtual NTC::InteractD generateSelectionHybrid
+  (pCell* const c, double crm, sKeyDmap* const Fn, 
+   double tau, double& meanLambda, double& meanCollP, 
+   double& totalNsel, int id);
 
   //@{
   //! Trace species maps for diagnostics
@@ -1461,7 +1464,6 @@ protected:
 
   const std::string tpaths[4] = {"./test.0", "./test.1", 
 				 "./test.2", "./test.3"};
-  boost::filesystem::path getcwd;
   std::string hostname;
   unsigned long itp;
   std::map<unsigned long, std::tuple<double, double> > data[2];
@@ -1578,20 +1580,17 @@ protected:
   //! Compute the interaction for the trace method
   void scatterTrace
   (PordPtr pp, KE_& KE, double W,
-   std::vector<double>* V1, std::vector<double>* V2, int id);
+   std::vector<double>& V1, std::vector<double>& V2, int id);
 
   //! For photoionization ion-electron recoil
   void scatterPhotoTrace(Particle* p, lQ Q, double Pr, double dE);
 
-  //! Reset TraceAccum accumulation counters for energy change and weights
-  void accumReset(int id) {
-    accumData[id].clear();
-    accumIIxc[id].clear();
-    accumIExc[id].clear();
-  }
-
   //! Compute the interaction for the TraceAccum method
   void accumTraceScatter(pCell* const c, int id);
+
+  //! Spread inactive energy loss to entire cell for elements with Z >
+  //! traceZ
+  void spreadTraceEnergy(pCell* const c, int id);
 
   //! For deep debugging
   void KEcheck(PordPtr pp, double& KE_initl_check,
@@ -1634,6 +1633,9 @@ protected:
 
   double radRecombCrossFudgeFactor(double cellTemp, speciesKey recomb_ion);
   //@}
+
+  //! Select an interaction pair
+  virtual std::pair<int, int> pairSelect(int id, NTC::T T, int nbods);
 
 public:
 

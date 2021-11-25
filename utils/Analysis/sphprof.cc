@@ -39,13 +39,6 @@
 #include <memory>
 
 using namespace std;
-				// Boost stuff
-
-#include <boost/program_options.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/filesystem.hpp>
-
-namespace po = boost::program_options;
 
                                 // System libs
 #include <sys/time.h>
@@ -60,6 +53,7 @@ namespace po = boost::program_options;
 #include <DataGrid.H>
 #include <localmpi.H>
 #include <foarray.H>
+#include <cxxopts.H>
 
 // Globals
 
@@ -440,60 +434,58 @@ main(int argc, char **argv)
   sout << std::string(60, '-') << std::endl
        << "Compute disk potential, force and density profiles from" << std::endl
        << "PSP phase-space output files" << std::endl
-       << std::string(60, '-') << std::endl << std::endl
-       << "Allowed options";
+       << std::string(60, '-') << std::endl;
   
-  po::options_description desc(sout.str());
-  desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("NICE",                po::value<int>(&NICE)->default_value(0),
-     "system priority")
-    ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
-     "minimum radius for output")
-    ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
-     "maximum radius for output")
-    ("TIME",                po::value<double>(&TIME)->default_value(0.0),
-     "Desired time slice")
-    ("LMAX",                po::value<int>(&LMAX)->default_value(4),
-     "Maximum harmonic order for spherical expansion")
-    ("NMAX",                po::value<int>(&NMAX)->default_value(12),
-     "Maximum radial order for spherical expansion")
-    ("MMAX",                po::value<int>(&MMAX)->default_value(4),
-     "Maximum harmonic order")
-    ("L1",                  po::value<int>(&L1)->default_value(0),
-     "minimum l harmonic")
-    ("L2",                  po::value<int>(&L2)->default_value(100),
-     "maximum l harmonic")
-    ("OUTR",                po::value<int>(&OUTR)->default_value(40),
-     "Number of radial points for output")
-    ("PROBE",               po::value<bool>(&PROBE)->default_value(true),
-     "Make traces along axes")
-    ("SURFACE",             po::value<bool>(&SURFACE)->default_value(true),
-     "Make equitorial and vertical slices")
-    ("VOLUME",              po::value<bool>(&VOLUME)->default_value(false),
-     "Make volume for VTK")
-    ("ALL",                 po::value<bool>(&ALL)->default_value(false),
-     "Compute output for every time slice")
-    ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("sphprof"),
-     "Filename prefix")
-    ("runtag",              po::value<string>(&runtag)->default_value("run0"),
-     "Run tag id")
-    ("dir,d",               po::value<std::string>(&dir),
-     "directory for SPL files")
-    ("MODFILE",             po::value<string>(&MODFILE)->default_value("SLGridSph.model"),
-     "Halo model file")
-    ("beg",                 po::value<int>(&ibeg)->default_value(0),
-     "initial frame in sequence")
-    ("end",                 po::value<int>(&iend)->default_value(10000),
-     "final frame in sequence")
-    ("COMP",                po::value<std::string>(&cname)->default_value("stars"),
-     "Compute wake for this component name")
+  cxxopts::Options options(argv[0], sout.str());
+  
+  options.add_options()
+    ("h,help", "Print this help message")
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("NICE", "system priority",
+     cxxopts::value<int>(NICE)->default_value("0"))
+    ("RMIN", "minimum radius for output",
+     cxxopts::value<double>(RMIN)->default_value("0.0"))
+    ("RMAX", "maximum radius for output",
+     cxxopts::value<double>(RMAX)->default_value("0.1"))
+    ("TIME", "Desired time slice",
+     cxxopts::value<double>(TIME)->default_value("0.0"))
+    ("LMAX", "Maximum harmonic order for spherical expansion",
+     cxxopts::value<int>(LMAX)->default_value("4"))
+    ("NMAX", "Maximum radial order for spherical expansion",
+     cxxopts::value<int>(NMAX)->default_value("12"))
+    ("MMAX", "Maximum harmonic order",
+     cxxopts::value<int>(MMAX)->default_value("4"))
+    ("L1", "minimum l harmonic",
+     cxxopts::value<int>(L1)->default_value("0"))
+    ("L2", "maximum l harmonic",
+     cxxopts::value<int>(L2)->default_value("100"))
+    ("OUTR", "Number of radial points for output",
+     cxxopts::value<int>(OUTR)->default_value("40"))
+    ("PROBE", "Make traces along axes",
+     cxxopts::value<bool>(PROBE)->default_value("true"))
+    ("SURFACE", "Make equitorial and vertical slices",
+     cxxopts::value<bool>(SURFACE)->default_value("true"))
+    ("VOLUME", "Make volume for VTK",
+     cxxopts::value<bool>(VOLUME)->default_value("false"))
+    ("ALL", "Compute output for every time slice",
+     cxxopts::value<bool>(ALL)->default_value("false"))
+    ("OUTFILE", "Filename prefix",
+     cxxopts::value<string>(OUTFILE)->default_value("sphprof"))
+    ("runtag", "Run tag id",
+     cxxopts::value<string>(runtag)->default_value("run0"))
+    ("d,dir", "directory for SPL files",
+     cxxopts::value<std::string>(dir))
+    ("MODFILE", "Halo model file",
+     cxxopts::value<string>(MODFILE)->default_value("SLGridSph.model"))
+    ("beg", "initial frame in sequence",
+     cxxopts::value<int>(ibeg)->default_value("0"))
+    ("end", "final frame in sequence",
+     cxxopts::value<int>(iend)->default_value("10000"))
+    ("COMP", "Compute wake for this component name",
+     cxxopts::value<std::string>(cname)->default_value("stars"))
     ;
   
   
@@ -503,22 +495,24 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
+
 
   // ==================================================
   // Print help message and exit
   // ==================================================
 
   if (vm.count("help")) {
-    std::cout << std::endl << desc << std::endl;
+    std::cout << std::endl << options.help() << std::endl;
+    MPI_Finalize();
     return 0;
   }
 
@@ -558,7 +552,7 @@ main(int argc, char **argv)
   // Make SL expansion
   // ==================================================
 
-  auto halo = boost::make_shared<SphericalModelTable>(MODFILE);
+  auto halo = std::make_shared<SphericalModelTable>(MODFILE);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
   SphereSL ortho(halo, LMAX, NMAX);
@@ -569,7 +563,8 @@ main(int argc, char **argv)
 
   for (int n=ibeg; n<=iend; n++) {
 
-    auto file0 = ParticleReader::fileNameCreator(fileType, n, dir, runtag);
+    auto file0 = ParticleReader::fileNameCreator
+      (fileType, n, myid, dir, runtag);
 
     int iok = 1;
     if (myid==0) {
@@ -587,7 +582,7 @@ main(int argc, char **argv)
     // ==================================================
     // Open frame list
     // ==================================================
-    PRptr reader = ParticleReader::createReader(fileType, file0, true);
+    PRptr reader = ParticleReader::createReader(fileType, file0, myid, true);
     
     double tnow = reader->CurrentTime();
 

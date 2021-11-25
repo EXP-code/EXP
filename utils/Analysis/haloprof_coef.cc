@@ -33,21 +33,11 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <memory>
 #include <sstream>
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <cmath>
-
-				// BOOST stuff
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp> 
-
-namespace po = boost::program_options;
-namespace pt = boost::property_tree;
-
 
                                 // System libs
 #include <sys/time.h>
@@ -60,7 +50,9 @@ namespace pt = boost::property_tree;
 #include <interp.H>
 #include <SphereSL.H>
 
+#include <writePVD.H>
 #include <localmpi.H>
+#include <cxxopts.H>
 #include <foarray.H>
 
 #include <DataGrid.H>
@@ -303,55 +295,6 @@ void write_output(SphereSL& ortho, int indx, double time,
 
 }
 
-
-void writePVD(const std::string& filename,
-	      const std::vector<double>& times,
-	      const std::vector<std::string>& files)
-{
-  // Sanity check
-  //
-  if (times.size() != files.size()) {
-    std::cerr << "Mismatch in file and time arrays" << std::endl;
-    exit(-3);
-  }
-
-  // Make file collection elements
-  //
-  pt::ptree ptC;
-
-  for (size_t i=0; i<times.size(); i++) {
-    boost::property_tree::ptree x;
-    x.put("<xmlattr>.timestep", times[i]);
-    x.put("<xmlattr>.part", 0);
-    x.put("<xmlattr>.file", files[i]);
-
-    ptC.add_child("DataSet", x);
-  }
-
-  // Add VTKFile attributes
-  //
-  pt::ptree ptP;
-  
-  ptP.put("<xmlattr>.type", "Collection");
-  ptP.put("<xmlattr>.version", "0.1");
-  ptP.put("<xmlattr>.byte_order", "LittleEndian");
-  ptP.put("<xmlattr>.compressor", "vtkZLibDataCompressor");
-  ptP.add_child("Collection", ptC);
-  
-  // Make the top-level property tree
-  //
-  pt::ptree PT;
-
-  PT.add_child("VTKFile", ptP);
-
-  // Write the property tree to the XML file.
-  //
-  pt::xml_parser::write_xml(filename.c_str(), PT, std::locale(), pt::xml_writer_make_settings<std::string>(' ', 4));
-
-  std::cout << "Wrote PVD file <" << filename.c_str() << "> "
-	    << " with " << times.size() << " data sets." << std::endl;
-}
-
 std::vector<SphCoefsPtr>
 spherical_read(const std::string& file, unsigned stride)
 {
@@ -373,6 +316,13 @@ spherical_read(const std::string& file, unsigned stride)
 int
 main(int argc, char **argv)
 {
+  // ==================================================
+  // MPI preliminaries
+  // ==================================================
+
+  local_init_mpi(argc, argv);
+  
+
   //--------------------------------------------------
   // Command-line parsing
   //--------------------------------------------------
@@ -386,67 +336,53 @@ main(int argc, char **argv)
   std::string modelfile, coeffile;
   int stride, ibeg, iend;
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",
-     "produce this help message")
-    ("verbose,v",
-     "verbose output")
-    ("mask,b",
-     "blank empty cells")
-    ("noCommand,X",
-     "do not save command line")
-    ("RMAX,R",
-     po::value<double>(&RMAX)->default_value(0.1),
-     "maximum radius for output")
-    ("outr",
-     po::value<int>(&OUTR)->default_value(40), 
-     "number of radial points for output")
-    ("surface",
-     po::value<bool>(&SURFACE)->default_value(true),
-     "make surface equitorial slices")
-    ("vslice",
-     po::value<bool>(&VSLICE)->default_value(false),
-     "make surface vertical slices")
-    ("volume",
-     po::value<bool>(&VOLUME)->default_value(false),
-     "make volume for VTK rendering")
-    ("outid,o",
-     po::value<std::string>(&outid)->default_value("halocoef"),
-     "Analysis id name")
-    ("coeffile,c",
-     po::value<std::string>(&coeffile)->default_value("coef.file"),
-     "coefficient file name")
-    ("modfile,m",
-     po::value<std::string>(&modelfile)->default_value("SLGridSph.model"),
-     "SLGrid model filename")
-    ("runtag,r",
-     po::value<std::string>(&runtag)->default_value("run1"),
-     "runtag for phase space files")
-    ("stride,s",
-     po::value<int>(&stride)->default_value(1), 
-     "stride for time output")
-    ("beg",
-     po::value<int>(&ibeg)->default_value(0), 
-     "initial coefficient frame")
-    ("end",
-     po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()), 
-     "final coefficient frame")
+  cxxopts::Options options(argv[0], overview);
+
+  options.add_options()
+    ("h,help", "produce this help message")
+    ("v,verbose", "verbose output")
+    ("b,mask", "blank empty cells")
+    ("X,noCommand", "do not save command line")
+    ("R,RMAX", "maximum radius for output",
+     cxxopts::value<double>(RMAX)->default_value("0.1"))
+    ("outr", "number of radial points for output",
+     cxxopts::value<int>(OUTR)->default_value("40"))
+    ("surface", "make surface equitorial slices",
+     cxxopts::value<bool>(SURFACE)->default_value("true"))
+    ("vslice", "make surface vertical slices",
+     cxxopts::value<bool>(VSLICE)->default_value("false"))
+    ("volume", "make volume for VTK rendering",
+     cxxopts::value<bool>(VOLUME)->default_value("false"))
+    ("o,outid", "Analysis id name",
+     cxxopts::value<std::string>(outid)->default_value("halocoef"))
+    ("c,coeffile", "coefficient file name",
+     cxxopts::value<std::string>(coeffile)->default_value("coef.file"))
+    ("m,modfile", "SLGrid model filename",
+     cxxopts::value<std::string>(modelfile)->default_value("SLGridSph.model"))
+    ("r,runtag", "runtag for phase space files",
+     cxxopts::value<std::string>(runtag)->default_value("run1"))
+    ("s,stride", "stride for time output",
+     cxxopts::value<int>(stride)->default_value("1"))
+    ("beg", "initial coefficient frame",
+     cxxopts::value<int>(ibeg)->default_value("0"))
+    ("end", "final coefficient frame",
+     cxxopts::value<int>(iend)->default_value(std::to_string(std::numeric_limits<int>::max())))
     ;
   
-  po::variables_map vm;
+  
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << overview << std::endl;
-    std::cout << desc     << std::endl;
+    if (myid==0) std::cout << options.help() << std::endl;
+    MPI_Finalize();
     return 1;
   }
  
@@ -470,12 +406,6 @@ main(int argc, char **argv)
 #ifdef DEBUG
   sleep(20);
 #endif  
-  
-  // ==================================================
-  // MPI preliminaries
-  // ==================================================
-
-  local_init_mpi(argc, argv);
   
   // ==================================================
   // All processes will now compute the basis functions
@@ -503,7 +433,7 @@ main(int argc, char **argv)
   int lmax     = data[0]->header.Lmax;
   int nmax     = data[0]->header.nmax;
 
-  auto halo = boost::make_shared<SphericalModelTable>(modelfile);
+  auto halo = std::make_shared<SphericalModelTable>(modelfile);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
 

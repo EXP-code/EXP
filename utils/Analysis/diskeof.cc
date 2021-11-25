@@ -34,17 +34,11 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <memory>
 #include <cmath>
 #include <string>
 
-				// BOOST stuff
-#include <boost/shared_ptr.hpp>
-#include <boost/make_unique.hpp>
-#include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp> 
-
-#include <config.h>
+#include <config.h>		// CMake generated config
 
 #ifdef HAVE_LIBPNGPP
 #include <ColorGradient.H>	// For PNG images
@@ -55,9 +49,7 @@
 #include <Eigen/Eigen>		// Eigen 3
 
 #include <DataGrid.H>		// For VTK or ASCII grid output
-
-namespace po = boost::program_options;
-namespace pt = boost::property_tree;
+#include <cxxopts.H>		// Command-line parser
 
                                 // System libs
 #include <sys/time.h>
@@ -178,95 +170,82 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmin, int nord,
 int
 main(int argc, char **argv)
 {
+  // ==================================================
+  // MPI preliminaries
+  // ==================================================
+  local_init_mpi(argc, argv);
+  
+
+  // ==================================================
+  // Parameter parsing
+  // ==================================================
   int lmax=64, mmax, Nmin, Nmax, nmax, norder, numx, numy, cmapr=1, cmapz=1;
   double rcylmin, rcylmax, rscale, vscale, RMAX;
-  std::string CACHEFILE, COEFFILE, cname, prefix, fileType, filePrefix;
+  std::string CACHEFILE, COEFFILE, cname, prefix, fileType, filePrefix, dir;
   int beg, end, stride, mbeg, mend, OUTR;
 
-  //
-  // Parse Command line
-  //
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",
-     "produce this help message")
-    ("verbose,v",
-     "verbose output")
-    ("PNG",
-     "PNG matrix output")
-    ("gray",
-     "use gray map for PNG matrix output")
-    ("5col",
-     "use five color heat map for PNG matrix output")
-    ("filetype,F",
-     po::value<std::string>(&fileType)->default_value("PSPout"),
-     "input file type")
-    ("prefix,P",
-     po::value<std::string>(&filePrefix)->default_value("OUT"),
-     "prefix for phase-space files")
-    ("rmax,r",
-     po::value<double>(&RMAX)->default_value(0.03),
-     "maximum output radius")
-    ("nout,n",
-     po::value<int>(&OUTR)->default_value(50),
-     "number of points on a side for grid output")
-    ("mbeg",
-     po::value<int>(&mbeg)->default_value(2),
-     "minimum azimuthal order for grid; output off if m<0")
-    ("mend",
-     po::value<int>(&mend)->default_value(2),
-     "maximum azimuthal order for grid")
-    ("beg",
-     po::value<int>(&beg)->default_value(0),
-     "initial PSP index")
-    ("end",
-     po::value<int>(&end)->default_value(99999),
-     "final PSP index")
-    ("stride",
-     po::value<int>(&stride)->default_value(1),
-     "PSP index stride")
-    ("nmin",
-     po::value<int>(&Nmin)->default_value(0),
-     "minimum order in EOF")
-    ("nmax",
-     po::value<int>(&Nmax)->default_value(std::numeric_limits<int>::max()),
-     "maximum order in EOF")
-    ("outdir",
-     po::value<std::string>(&outdir)->default_value("."),
-     "Output directory path")
-    ("cachefile",
-     po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
-     "cachefile name")
-    ("coeffile",
-     po::value<std::string>(&COEFFILE),
-     "coefficient output file name")
-    ("cname",
-     po::value<std::string>(&cname)->default_value("star"),
-     "component name")
-    ("runtag",
-     po::value<std::string>(&runtag)->default_value("run1"),
-     "runtag for phase space files")
-    ("prefix",
-     po::value<std::string>(&prefix)->default_value("even"),
-     "output prefix for distinguishing parameters")
+  cxxopts::Options options(argv[0],
+			   "Create EOF from a sequence of PSP files.\nCompute per component grid generation for insight.\n");
+
+  options.add_options()
+   ("h,help", "produce this help message")
+   ("v,verbose", "verbose output")
+   ("PNG", "PNG matrix output")
+   ("gray", "use gray map for PNG matrix output")
+   ("5col", "use five color heat map for PNG matrix output")
+   ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+   ("P,prefix", "prefix for phase-space files",
+     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+   ("r,rmax", "maximum output radius",
+     cxxopts::value<double>(RMAX)->default_value("0.03"))
+   ("n,nout", "number of points on a side for grid output",
+     cxxopts::value<int>(OUTR)->default_value("50"))
+   ("mbeg", "minimum azimuthal order for grid; output off if m<0",
+     cxxopts::value<int>(mbeg)->default_value("2"))
+   ("mend", "maximum azimuthal order for grid",
+     cxxopts::value<int>(mend)->default_value("2"))
+   ("beg", "initial PSP index",
+     cxxopts::value<int>(beg)->default_value("0"))
+   ("end", "final PSP index",
+     cxxopts::value<int>(end)->default_value("99999"))
+   ("stride", "PSP index stride",
+     cxxopts::value<int>(stride)->default_value("1"))
+   ("nmin", "minimum order in EOF",
+     cxxopts::value<int>(Nmin)->default_value("0"))
+   ("nmax", "maximum order in EOF",
+     cxxopts::value<int>(Nmax)->default_value(std::to_string(std::numeric_limits<int>::max())))
+   ("outdir", "Output directory path",
+     cxxopts::value<std::string>(outdir)->default_value("."))
+   ("cachefile", "cachefile name",
+     cxxopts::value<std::string>(CACHEFILE)->default_value(".eof.cache.file"))
+   ("coeffile", "coefficient output file name",
+     cxxopts::value<std::string>(COEFFILE))
+   ("cname", "component name",
+     cxxopts::value<std::string>(cname)->default_value("star"))
+   ("runtag", "runtag for phase space files",
+     cxxopts::value<std::string>(runtag)->default_value("run1"))
+   ("prefix", "output prefix for distinguishing parameters",
+     cxxopts::value<std::string>(prefix)->default_value("even"))
     ;
   
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << std::string(60, '-') << std::endl;
-    std::cout << overview << std::endl;
-    std::cout << std::string(60, '-') << std::endl << std::endl;
-    std::cout << desc     << std::endl;
-    return 1;
+    if (myid==0) {
+      std::cout << std::string(60, '-') << std::endl;
+      std::cout << options.help() << std::endl;
+      std::cout << std::string(60, '-') << std::endl << std::endl;
+    }
+    MPI_Finalize();
+    return 0;
   }
  
   bool PNG = false;
@@ -277,12 +256,6 @@ main(int argc, char **argv)
 #endif  
 
   bool DENS = false;
-  
-  // ==================================================
-  // MPI preliminaries
-  // ==================================================
-
-  local_init_mpi(argc, argv);
   
   // ==================================================
   // Read basis cache
@@ -315,7 +288,7 @@ main(int argc, char **argv)
       
       // Make and read char buffer
       //
-      auto buf = boost::make_unique<char[]>(ssize+1);
+      auto buf = std::make_unique<char[]>(ssize+1);
       in.read(buf.get(), ssize);
       buf[ssize] = 0;		// Null terminate
       
@@ -427,7 +400,8 @@ main(int argc, char **argv)
     // ==================================================
 
     int iok = 1;
-    auto file1 = ParticleReader::fileNameCreator(fileType, indx, "", runtag);
+    auto file1 = ParticleReader::fileNameCreator
+      (fileType, indx, myid, dir, runtag);
 
     if (myid==0) {
       std::ifstream in1(file1);	// Now, try to open a new one . . . 
@@ -444,7 +418,7 @@ main(int argc, char **argv)
     // Open frame list
     // ==================================================
     
-    PRptr reader = ParticleReader::createReader(fileType, file1, true);
+    PRptr reader = ParticleReader::createReader(fileType, file1, myid, true);
 
     reader->SelectType(cname);
 

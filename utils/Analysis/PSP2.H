@@ -11,7 +11,7 @@
 #include <cmath>
 #include <list>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include <StringTok.H>
 #include <header.H>
@@ -94,8 +94,8 @@ private:
   unsigned s;
 
 public:
-  boost::shared_ptr< PParticle<float>  > f;
-  boost::shared_ptr< PParticle<double> > d;
+  std::shared_ptr< PParticle<float>  > f;
+  std::shared_ptr< PParticle<double> > d;
 
   SParticle() : s(0) {}
 
@@ -203,9 +203,9 @@ public:
 
     s = rsize;
     if (s == sizeof(float))
-      f = boost::shared_ptr< PParticle<float>  >( new PParticle<float>() );
+      f = std::shared_ptr< PParticle<float>  >( new PParticle<float>() );
     else 
-      d = boost::shared_ptr< PParticle<double> >( new PParticle<double>() );
+      d = std::shared_ptr< PParticle<double> >( new PParticle<double>() );
   }
 
   void read(std::istream& in, unsigned rsize, int pcount, 

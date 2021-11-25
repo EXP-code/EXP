@@ -1,46 +1,21 @@
-#include <math.h>
-#include <getopt.h>
 
 #include <iostream>
 #include <fstream>
 #include <iomanip>
 #include <string>
 #include <vector>
-
-#include <boost/random/mersenne_twister.hpp>
+#include <random>
+#include <cmath>
 
 using namespace std;
 
 #include <Timer.H>
 #include <HeatCool.H>
+#include <cxxopts.H>
 
 string outdir = "";
 string runtag = "test";
-boost::mt19937 random_gen;
-
-//===========================================================================
-
-void usage(char *prog)
-{
-  static unsigned f1=20, f2=12, f3=40;
-
-  cout << "Usage:" << endl << endl
-       << prog << " [options]" << endl << endl
-       << setiosflags(ios::left)
-       << setw(f1) << "Option" << setw(f2) << "Argument" << setw(10) << " " 
-       << setw(f3) << "Description" << endl
-       << endl
-       << setw(f1) << "-1 or --Nmin" << setw(f2) << "0.000001" << setw(10) << " " 
-       << setw(f3) << "Minimum number density (H/cc)" << endl
-       << setw(f1) << "-c or --cache" << setw(f2) << ".HeatCool" << setw(10) << " " 
-       << setw(f3) << "HeatCool cache filename" << endl
-       << setw(f1) << "-f or --file" << setw(f2) << "hctest.dat" << setw(10) << " " 
-       << setw(f3) << "Output data" << endl
-       << resetiosflags(ios::left)
-       << endl;
-
-  exit(0);
-}
+std::mt19937 random_gen;
 
 int main(int argc, char** argv)
 {
@@ -49,108 +24,46 @@ int main(int argc, char** argv)
   string filename = "hctest.dat";
   string cachefile = ".HeatCool";
 
-  int c;
-  while (1) {
-    int this_option_optind = optind ? optind : 1;
-    int option_index = 0;
-    static struct option long_options[] = {
-      {"Nmin", 1, 0, 0},
-      {"Nmax", 1, 0, 0},
-      {"Tmin", 1, 0, 0},
-      {"Tmax", 1, 0, 0},
-      {"Nnum", 1, 0, 0},
-      {"Tnum", 1, 0, 0},
-      {"nnum", 1, 0, 0},
-      {"tnum", 1, 0, 0},
-      {"cache", 1, 0, 0},
-      {"file", 1, 0, 0},
-      {0, 0, 0, 0}
-    };
+  cxxopts::Options options("hctest", "Heating and cooling test");
 
-    c = getopt_long (argc, argv, "1:2:3:4:N:T:n:t:c:f:h",
-		     long_options, &option_index);
+  options.add_options()
+    ("h,help", "print this help message")
+    ("1,Nmin", "minimum number density (H/cc)",
+     cxxopts::value<double>(Nmin)->default_value("1.0e-08"))
+    ("2,Nmax", "maximum number density (H/cc)",
+     cxxopts::value<double>(Nmax)->default_value("1.0e10"))
+    ("3,Tmin", "minimum temperature",
+     cxxopts::value<double>(Tmin)->default_value("1.0e+02"))
+    ("4,Tmax", "maximum temperature",
+     cxxopts::value<double>(Tmax)->default_value("1.0e+07"))
+    ("f,filename", "output filename",
+     cxxopts::value<std::string>(filename)->default_value("hctest.dat"))
+    ("c,cachefile", "cache file",
+     cxxopts::value<std::string>(cachefile)->default_value(".HeatCool"))
+    ("Nnum", "number of density points",
+     cxxopts::value<unsigned int>(Nnum)->default_value("100"))
+    ("Tnum", "number of temperature points",
+     cxxopts::value<unsigned int>(Tnum)->default_value("100"))
+    ("nnum", "number of density points for grid evaluation",
+     cxxopts::value<unsigned int>(nnum)->default_value("40"))
+    ("Tnum", "number of temperature points grid evaluation",
+     cxxopts::value<unsigned int>(tnum)->default_value("40"))
+    ;
 
-    if (c == -1) break;
+  
 
-    switch (c) {
-    case 0:
-      {
-	string optname(long_options[option_index].name);
+  cxxopts::ParseResult vm;
 
-	if (!optname.compare("Nmin")) {
-	  Nmin = atof(optarg);
-	} else if (!optname.compare("Nmax")) {
-	  Nmax = atoi(optarg);
-	} else if (!optname.compare("Tmin")) {
-	  Tmin = atoi(optarg);
-	} else if (!optname.compare("Tmax")) {
-	  Tmax = atoi(optarg);
-	} else if (!optname.compare("Nnum")) {
-	  Nnum = atoi(optarg);
-	} else if (!optname.compare("Tnum")) {
-	  Tnum = atoi(optarg);
-	} else if (!optname.compare("nnum")) {
-	  nnum = atoi(optarg);
-	} else if (!optname.compare("tnum")) {
-	  tnum = atoi(optarg);
-	} else if (!optname.compare("cache")) {
-	  cachefile = optarg;
-	} else if (!optname.compare("file")) {
-	  filename = optarg;
-	} else {
-	  cout << "Option " << long_options[option_index].name;
-	  if (optarg) cout << " with arg " << optarg;
-	  cout << " is not defined " << endl;
-	  exit(0);
-	}
-      }
-      break;
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
+  }
 
-    case '1':
-      Nmin = atof(optarg);
-      break;
-
-    case '2':
-      Nmax = atof(optarg);
-      break;
-
-    case '3':
-      Tmin = atof(optarg);
-      break;
-
-    case '4':
-      Tmax = atof(optarg);
-      break;
-
-    case 'N':
-      Nnum = atoi(optarg);
-      break;
-
-    case 'T':
-      Tnum = atoi(optarg);
-      break;
-
-    case 'n':
-      nnum = atoi(optarg);
-      break;
-
-    case 't':
-      tnum = atoi(optarg);
-      break;
-
-    case 'f':
-      filename = optarg;
-      break;
-
-    case 'c':
-      cachefile = optarg;
-      break;
-
-    case 'h':
-    default:
-      usage(argv[0]);
-    }
-
+  if (vm.count("help")) {
+    std::cout << options.help() << std::endl;
+    exit(-1);
   }
 
   //=====================

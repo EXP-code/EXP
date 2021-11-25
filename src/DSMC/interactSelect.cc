@@ -2,29 +2,20 @@
 #include "interactSelect.H"
 
 using namespace std;
-using namespace boost;
 
 void InteractSelect::setSeed() 
 {
-  // generator.seed(static_cast<unsigned int>(time(0)));
-  
-  srand(unsigned(time(NULL)));
-  // ^
-  // |
-  // + ---- is most probably not a good idea to use the built-in generator
-  //
+  generator.seed(static_cast<unsigned int>(time(0)));
 }
 
 InteractSelect::InteractSelect() 
 {
   setSeed();
-  // uni_dist = dist_ptr(new dist_type(0, 1));
-  // uni = gen_ptr(new gen_type(generator, *uni_dist));
 }
 
 
 std::pair<double, double> InteractSelect::selectCEInteract
-(const boost::shared_ptr<Ion> a, const Ion::collType& cumCross) 
+(const std::shared_ptr<Ion> a, const Ion::collType& cumCross) 
 {
 				// Location in the cumulative distribution
 				//
@@ -41,7 +32,7 @@ std::pair<double, double> InteractSelect::selectCEInteract
 }
 
 
-double InteractSelect::DIInterLoss(const boost::shared_ptr<Ion> a) 
+double InteractSelect::DIInterLoss(const std::shared_ptr<Ion> a) 
 {
   const unsigned short Z1 = a->getZ(); 
   const unsigned short C1 = a->getC();
@@ -59,7 +50,7 @@ double InteractSelect::DIInterLoss(const boost::shared_ptr<Ion> a)
 }
 
 double InteractSelect::selectRRInteract
-(const boost::shared_ptr<Ion> a, const std::vector<double>& cumCross, double Ee) 
+(const std::shared_ptr<Ion> a, const std::vector<double>& cumCross, double Ee) 
 {
   std::vector<double> normed;
   std::vector<double> kgrid_log;

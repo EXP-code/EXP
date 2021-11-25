@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <cstdlib>
 #include <string>
+#include <memory>
 #include <Eigen/Eigen>
 
 
@@ -75,6 +76,7 @@ public:
 
 };
 
+typedef std::shared_ptr<AxiSymBiorth> AxiSymBioPtr;
 
 				// This method tends to be about 3x faster
 				// than the direct calls
@@ -83,7 +85,7 @@ class BiorthGrid : public AxiSymBiorth
 {
 private:
   
-  AxiSymBiorth* t;
+  AxiSymBioPtr t;
 
   double rmin;			// Range limits
   double rmax;
@@ -107,7 +109,7 @@ private:
 
 public:
 
-  BiorthGrid(AxiSymBiorth& T,
+  BiorthGrid(AxiSymBioPtr T,
 	     double RMIN=0.0, double RMAX=20, 
 	     int NMAX=10, int LMAX=10, int RNUM=400);
 	     
@@ -237,7 +239,7 @@ private:
   int nmax;
   int lmax;
 
-  Eigen::VectorXd *a;
+  std::vector<Eigen::VectorXd> a;
   Eigen::MatrixXd t_f, t_y, t_g;
   Eigen::VectorXd t_dr;
   int t_n;
@@ -289,4 +291,6 @@ Eigen::VectorXd scalar_prod(ScalarType type, double rmin, double rmax,
 
 static std::string BiorthFcts3dName[] = {"BSSphere", "CBSphere", "HQSphere", "SphereSL"};
 		   
+typedef std::shared_ptr<AxiSymBiorth> AxiSymBioPtr;
+
 #endif

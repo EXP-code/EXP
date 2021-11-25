@@ -1,8 +1,7 @@
-#include <math.h>
 #include "expand.H"
 #include <localmpi.H>
 
-#include <SatelliteOrbit.h>
+#include <SatelliteOrbit.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 #include <ResPot.H>
@@ -13,6 +12,8 @@
 #include <CircularOrbit.H>
 
 #include <sstream>
+#include <memory>
+#include <cmath>
 
 #include <pthread.h>  
 #ifdef DEBUG
@@ -106,7 +107,7 @@ UserResPotN::UserResPotN(const YAML::Node& conf) : ExternalForce(conf)
     c0 = NULL;
 
 				// Set up for resonance potential
-  SphericalModelTable *hm = new SphericalModelTable(model_file);
+  auto hm = std::make_shared<SphericalModelTable>(model_file);
   halo_model = hm;
 
 				// Perturbation
@@ -115,11 +116,11 @@ UserResPotN::UserResPotN(const YAML::Node& conf) : ExternalForce(conf)
   if (usebar) {
     BarForcing::L0 = L0;
     BarForcing::M0 = M0;
-    BarForcing *bar;
+    std::shared_ptr<BarForcing> bar;
     if (MFRAC>0.0)
-      bar = new BarForcing(NMAX, MFRAC*MASS, LENGTH, COROT);
+      bar = std::make_shared<BarForcing>(NMAX, MFRAC*MASS, LENGTH, COROT);
     else
-      bar = new BarForcing(NMAX, MASS, LENGTH, COROT);
+      bar = std::make_shared<BarForcing>(NMAX, MASS, LENGTH, COROT);
 
     bar->set_model(halo_model);
     bar->compute_quad_parameters(A21, A32);
@@ -128,7 +129,7 @@ UserResPotN::UserResPotN(const YAML::Node& conf) : ExternalForce(conf)
 
     pert = bar;
   } else {
-    CircularOrbit *orb = new CircularOrbit(NMAX, L0, M0, MASS, LENGTH);
+    auto orb = std::make_shared<CircularOrbit>(NMAX, L0, M0, MASS, LENGTH);
 
     if(omega <= 0.0)
       omega = omega0 = sqrt(MASS/(LENGTH*LENGTH*LENGTH));
@@ -150,7 +151,7 @@ UserResPotN::UserResPotN(const YAML::Node& conf) : ExternalForce(conf)
   ResPot::DELTA_B = DELB;
 				// Instantiate one for each resonance
   for (int i=0; i<numRes; i++) {
-    respot.push_back(new ResPot(halo_model, pert, L0, M0, L1[i], L2[i]));
+    respot.push_back(std::make_shared<ResPot>(halo_model, pert, L0, M0, L1[i], L2[i]));
   }
 				// Construct debug file names
   for (int i=0; i<numRes; i++) {
@@ -162,11 +163,11 @@ UserResPotN::UserResPotN(const YAML::Node& conf) : ExternalForce(conf)
 
   // Initialize two-body diffusion
   if (pmass>0.0) {
-    diffuse = new TwoBodyDiffuse (pmass);
+    diffuse = std::make_shared<TwoBodyDiffuse>(pmass);
     if (debug) {
-      ostringstream file;
+      std::ostringstream file;
       file << outdir << "diffusion_grid." << runtag << "." << myid;
-      ofstream out(file.str().c_str());
+      std::ofstream out(file.str().c_str());
       if (out) diffuse->dump_grid(&out);
     }
   }
@@ -217,10 +218,7 @@ UserResPotN::UserResPotN(const YAML::Node& conf) : ExternalForce(conf)
 
 UserResPotN::~UserResPotN()
 {
-  for (int i=0; i<numRes; i++) delete respot[i];
-  delete halo_model;
-  delete pert;
-  delete diffuse;
+  // Nothing
 }
 
 void UserResPotN::userinfo()

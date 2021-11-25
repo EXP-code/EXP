@@ -1,11 +1,9 @@
 using namespace std;
 
-#include <boost/filesystem.hpp>
-
-namespace fs = boost::filesystem;
-
-#include <cstdio>
+#include <filesystem>
 #include <sstream>
+#include <cstdio>
+
 #include "expand.H"
 
 #include <OutLog.H>
@@ -197,12 +195,12 @@ void OutLog::Run(int n, int mstep, bool last)
 	string backupfile = filename + ".bak";
 
 	try {
-	  fs::rename(filename, backupfile);
-	} catch (const boost::filesystem::filesystem_error& e) {
+	  std::filesystem::rename(filename, backupfile);
+	} catch (const std::filesystem::filesystem_error& e) {
 	  std::ostringstream message;
 	  message << "OutLog::Run(): error creating backup file <" 
 		  << backupfile << "> from <" << filename 
-		  << ">, BOOST message: " << e.code().message();
+		  << ">, message: " << e.code().message();
 	  bomb(message.str());
 	}
 
@@ -227,27 +225,38 @@ void OutLog::Run(int n, int mstep, bool last)
 	}
 
 	const int cbufsiz = 16384;
-	char *cbuffer = new char [cbufsiz];
+	std::shared_ptr<char> cbuffer;
+
+	// Use this as of C++17
+	// info = std::make_shared<char[]>(ninfochar+1);
+	
+	// C++14 workaround:
+	cbuffer = std::shared_ptr<char>(new char[cbufsiz],
+					std::default_delete<char[]>());
+
+	// Null fill the buffer
+	std::fill(cbuffer.get(), cbuffer.get()+cbufsiz, 0);
+
 	double ttim;
 
-				// Dump header
+				// Get the header
 	while (in) {
-	  in.getline(cbuffer, cbufsiz);
+	  in.getline(cbuffer.get(), cbufsiz);
 	  if (!in) break;
-	  string line(cbuffer);
-	  out << cbuffer << "\n";
+	  std::string line(cbuffer.get());
+	  out << cbuffer.get() << "\n";
 	  if (line.find_first_of("Time") != string::npos) break;
 	}
 	
 	while (in) {
-	  in.getline(cbuffer, cbufsiz);
+	  in.getline(cbuffer.get(), cbufsiz);
 	  if (!in) break;
-	  string line(cbuffer);
+	  string line(cbuffer.get());
 	  
 	  StringTok<string> toks(line);
 	  ttim  = atof(toks(" ").c_str());
 	  if (tnow < ttim) break;
-	  out << cbuffer << "\n";
+	  out << cbuffer.get() << "\n";
 	}
 	
 	try {

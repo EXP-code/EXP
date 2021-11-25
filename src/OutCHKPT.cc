@@ -5,6 +5,8 @@
 #include <sstream>
 #include <chrono>
 
+#include <unistd.h>		// For unlink
+
 #include "expand.H"
 #include <global.H>
 

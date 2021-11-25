@@ -2,7 +2,7 @@
 #define _VtkPCA_H
 
 #include <sstream>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <Eigen/Eigen>
 
 //
@@ -74,6 +74,6 @@ public:
   void Write(const std::string& name);
 };
 
-typedef boost::shared_ptr<VtkPCA> VtkPCAptr;
+typedef std::shared_ptr<VtkPCA> VtkPCAptr;
 
 #endif

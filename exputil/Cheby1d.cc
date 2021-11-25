@@ -166,7 +166,7 @@ void Cheby1d::new_data(std::vector<double>& X, std::vector<double>& Y, int N)
     c[j]=fac*sum;
   }
 
-  chder(c, c1);
+  chder(c,  c1);
   chder(c1, c2);
 
   defined = true;
@@ -202,6 +202,32 @@ double Cheby1d::chebev(double x, std::vector<double>& cin)
   }
 
   return y*d-dd+0.5*cin[0];
+}
+
+double Cheby1d::chebint(double x)
+{
+  if ((x-a)*(x-b) > 0.0) bomb("Cheby1d::integral", "x out of range", 0);
+
+  double y = (2.0*x-a-b)/(b-a);
+
+  // Evaluate by recursion
+  //
+  std::vector<double> t(n+1);
+  t[0] = 1.0;
+  t[1] = y;
+  for (int j=2; j<n+1; j++) t[j] = 2.0*t[j-1] - t[j-2];
+
+  // Integral term by term
+  //
+				// First two terms
+  double ret = c[0]*(y + 1.0) + c[1]*0.5*(y*y - 1.0);
+  double tm1 = -1.0;		// End-point eval
+  for (int j=2; j<n; j++) {	// Remaining terms
+    ret += (t[j+1] - tm1)/(j + 1) - (t[j-1] - tm1)/(j-1);
+    tm1 *= -1.0;		// Update end-point eval
+  }  
+
+  return 0.5*(b - a)*ret;	// The answer . . . 
 }
 
 void Cheby1d::bomb(const char *a, ...)

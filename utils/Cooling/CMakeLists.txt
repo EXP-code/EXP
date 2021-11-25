@@ -6,7 +6,7 @@ if(ENABLE_DSMC)
   add_executable(hctest hctest.cc)
   
   target_link_libraries(hctest OpenMP::OpenMP_CXX MPI::MPI_CXX
-    Boost::program_options yaml-cpp exputil testdsmc ${VTK_LIBRARIES})
+    yaml-cpp exputil testdsmc ${VTK_LIBRARIES})
 
   if(HAVE_CUDA)
     list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
@@ -19,8 +19,7 @@ if(ENABLE_DSMC)
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
     ${CMAKE_BINARY_DIR} ${DEP_INC}
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/..
-    ${VTK_INCLUDE}
-    )
+    ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
 endif()
 

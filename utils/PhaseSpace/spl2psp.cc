@@ -23,10 +23,7 @@ using namespace std;
 #include <Particle.H>
 
 #include <yaml-cpp/yaml.h>
-#include <boost/program_options.hpp>
-#include <boost/random/mersenne_twister.hpp>
-
-namespace po = boost::program_options;
+#include <cxxopts.H>
 
 int
 main(int argc, char **argv)
@@ -37,39 +34,38 @@ main(int argc, char **argv)
   int seq, bseq=0, fseq=10000;
 
   // Parse command line
+  //
+  cxxopts::Options options(prog, "Put together a PSP file from per-node components\n");
 
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("help,h",		"produce help message")
-    ("verbose,v",       "verbose output")
-    ("checkpoint,c",    "reassemble a checkpoint PSP file")
-    ("wd,d",	        po::value<std::string>(&inoutdir)->default_value("."),
-     "working directory for input and output files")
-    ("runtag,r",	po::value<std::string>(&runtag)->default_value("run0"),
-     "EXP runtag name")
-    ("prefix,p",	po::value<std::string>(&prefix)->default_value("OUT"),
-     "leading name of PSP output files")
-    ("seq,s",		po::value<int>(&seq)->default_value(0),
-     "SPL sequence counter")
-    ("first,1",		po::value<int>(&bseq),
-     "initial index in SPL sequence")
-    ("last,2",		po::value<int>(&fseq),
-     "final index in SPL sequence")
+  options.add_options()
+   ("h,help", "produce help message")
+   ("v,verbose", "verbose output")
+   ("c,checkpoint", "reassemble a checkpoint PSP file")
+   ("d,wd", "working directory for input and output files",
+     cxxopts::value<std::string>(inoutdir)->default_value("."))
+   ("r,runtag", "EXP runtag name",
+     cxxopts::value<std::string>(runtag)->default_value("run0"))
+   ("p,prefix", "leading name of PSP output files",
+     cxxopts::value<std::string>(prefix)->default_value("OUT"))
+   ("s,seq", "SPL sequence counter",
+     cxxopts::value<int>(seq)->default_value("0"))
+   ("1,first", "initial index in SPL sequence",
+     cxxopts::value<int>(bseq))
+   ("2,last", "final index in SPL sequence",
+     cxxopts::value<int>(fseq))
     ;
 
-
-  po::variables_map vm;
+  cxxopts::ParseResult vm;
 
   try {
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-  } catch (po::error& e) {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << options.help() << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << argv[0]
 	      << "-d outdir -r run -s 0" << std::endl;

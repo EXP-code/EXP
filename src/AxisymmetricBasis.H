@@ -51,7 +51,7 @@ protected:
   //! Maximum radial basis index
   int nmax;
 
-  //! Use principal component boostrap analysis of variance to select
+  //! Use principal component bootstrap analysis of variance to select
   //! coefficients
   bool pcavar;
 
@@ -87,8 +87,8 @@ protected:
      efficiency.
   */
   //@{
-  typedef boost::shared_ptr<Eigen::VectorXd> VectorP;
-  typedef boost::shared_ptr<Eigen::MatrixXd> MatrixP;
+  typedef std::shared_ptr<Eigen::VectorXd> VectorP;
+  typedef std::shared_ptr<Eigen::MatrixXd> MatrixP;
 
   std::vector<VectorP> expcoef, expcoef1;
 

@@ -1,8 +1,7 @@
 #ifndef _SphericalBasis_H
 #define _SphericalBasis_H
 
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/normal_distribution.hpp>
+#include <random>
 
 #include <AxisymmetricBasis.H>
 #include <SphericalCoefs.H>
@@ -48,7 +47,7 @@ protected:
 
   //@{
   //! Matrices per thread for obtaining expansion coefficients
-  typedef boost::shared_ptr<Eigen::VectorXd> VectorXdP;
+  typedef std::shared_ptr<Eigen::VectorXd> VectorXdP;
   std::vector<std::vector<VectorXdP>> expcoef0;
   //@}
 
@@ -240,8 +239,8 @@ protected:
   //@{
   //! Pseudorandom generation
   unsigned int seedN;
-  boost::mt19937 rgen;
-  boost::random::normal_distribution<> nrand;
+  std::mt19937 rgen;
+  std::normal_distribution<> nrand;
   //@}
 
   //! Subsample fraction of particles

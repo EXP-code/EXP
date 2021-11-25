@@ -2,9 +2,7 @@
 #define _ScatterMFP_H
 
 #include <utility>
-
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
+#include <random>
 
 #include <ExternalForce.H>
 
@@ -29,8 +27,8 @@ private:
 
   //@{
   //! Pseudorandom generation
-  boost::random::uniform_real_distribution<> unif;
-  boost::random::normal_distribution<>       norm;
+  std::uniform_real_distribution<> unif;
+  std::normal_distribution<>       norm;
   //@}
 
   int cntacc;

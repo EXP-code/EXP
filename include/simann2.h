@@ -1,34 +1,20 @@
-// This may look like C code, but it is really -*- C++ -*-
-
-// simanneal.hpp	A general purpose Simulated Annealing Class
-//	This version allows vector data
-
-// rcsid: @(#)simann.hpp	1.3 15:55:36 3/30/93   EFC
+// A general purpose Simulated Annealing Class
+// This version allows vector data
 
 #ifndef SIM_ANNEAL_HPP_
 #define SIM_ANNEAL_HPP_ 1.3
 
-#ifdef __GNUG__
-#pragma interface
-#endif
-
-using namespace std;
-
+#include <functional>
 #include <string>
-
-#include <boost/random/uniform_real_distribution.hpp>
-
-#include <Func1d.H>
-
-#ifndef PI
-#define PI		3.1415626536
-#endif
+#include <random>
 
 class SimAnneal
 {
  private:
 
-  Func1d *func;			// 
+  typedef std::function<double(std::vector<double>&)> Func1d;
+
+  Func1d func;                  // 
   int dimension;		// 
   int ddwell;			// 
   double rrange;		// 
@@ -42,35 +28,37 @@ class SimAnneal
   int fsave;			// 
 
   int err;
-  double *x, *xnew, *xbest;
+  std::vector<double> x, xnew, xbest;
   double y, dy, ybest;
 
 				// Random number distributions
-  boost::random::uniform_real_distribution<> number_range, number_01;
+  std::uniform_real_distribution<> number_range, number_01;
 
   int equilibrate(const double t, const int n);
-  string fname;
+  std::string fname;
   void log_state(int);
 
  public:
 
-  SimAnneal() :	 func(NULL), dimension(1), ddwell(20), rrange(PI/2.0), 
+  SimAnneal() :	 func(NULL), dimension(1), ddwell(20), rrange(M_PI/2.0), 
     t0(0.0), K(1.0), rho(0.5), dt(0.1), tscale(0.1), maxit(400), c_jump(100.0),
     fsave(0) {
-    boost::random::uniform_real_distribution<>::param_type params1(-rrange, rrange);
-    boost::random::uniform_real_distribution<>::param_type params2(0.0, 1.0);
+
+    std::uniform_real_distribution<>::param_type params1(-rrange, rrange);
+    std::uniform_real_distribution<>::param_type params2(0.0, 1.0);
+
     number_range.param(params1);
     number_01.param(params2);
   }
 
-  SimAnneal(Func1d* f, const int d = 1);
+  SimAnneal(Func1d f, const int d = 1);
 
   ~SimAnneal() 
   { 
-    delete [] x; delete [] xnew; delete [] xbest; 
+    // NONE
   }
   
-  int set_up(Func1d* f, const int d = 1, const uint32_t seed=10);
+  int set_up(Func1d f, const int d = 1, const uint32_t seed=10);
   
   const int operator!() const { return err; }
   
@@ -98,16 +86,16 @@ class SimAnneal
     { 
       if ( r > 0.0 ) 
 	{ rrange = r;
-	  boost::random::uniform_real_distribution<>::param_type params1(-rrange, rrange);
+	  std::uniform_real_distribution<>::param_type params1(-rrange, rrange);
 	  number_range.param(params1);}
       return rrange; 
     }
-  void initial(double* xinit);
-  void current(double* xcur);
-  void optimum(double* xopt);
+  void initial(std::vector<double>& xinit) { x = xinit;    }
+  void current(std::vector<double>& xcur)  { xcur = x;     }
+  void optimum(std::vector<double>& xopt)  { xopt = xbest; }
   void save_states(const char *name) {
     fsave = 1;
-    fname = string(name);
+    fname = std::string(name);
   }
 };
 

@@ -3,7 +3,8 @@
 
 #include <vector>
 #include <sstream>
-#include <boost/shared_ptr.hpp>
+#include <memory>
+#include <limits>
 
 //
 // VTK stuff
@@ -54,7 +55,7 @@ public:
   void Write(const std::string& name);
 };
 
-typedef boost::shared_ptr<VtkGrid> VtkGridPtr;
+typedef std::shared_ptr<VtkGrid> VtkGridPtr;
 
 #endif
 
