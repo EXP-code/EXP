@@ -787,13 +787,13 @@ main(int argc, char **argv)
 	  if (myid==n) {
 	    MPI_Bcast(&sz0, 1, MPI_INT, n, MPI_COMM_WORLD);
 	    dd.resize(sz0*4);
-	    for (int i=0; i<sz; i++) {
+	    for (int i=0; i<sz0; i++) {
 	      dd[i*4+0] = points[i].get(0);
 	      dd[i*4+1] = points[i].get(1);
 	      dd[i*4+2] = points[i].get(2);
 	      dd[i*4+3] = points[i].mass();
 	    }
-	    MPI_Bcast(dd.data(), sz*4, MPI_DOUBLE, n, MPI_COMM_WORLD);
+	    MPI_Bcast(dd.data(), sz0*4, MPI_DOUBLE, n, MPI_COMM_WORLD);
 	  } else {
 	    int sz;
 	    MPI_Bcast(&sz, 1, MPI_INT, n, MPI_COMM_WORLD);
