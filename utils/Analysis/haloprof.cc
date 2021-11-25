@@ -54,6 +54,7 @@ using namespace std;
 #include <foarray.H>
 #include <cxxopts.H>
 #include <global.H>
+#include <KDtree.H>
   
 // Globals
 //
@@ -503,10 +504,10 @@ main(int argc, char **argv)
 #endif  
   
   double snr, rscale, Hexp;
-  int NICE, LMAX, NMAX, NPART;
+  int NICE, LMAX, NMAX, NPART, Ndens;
   int beg, end, stride;
   std::string MODFILE, INDEX, dir("."), cname, coefs, fileType, filePrefix;
-  bool COM = false;
+  bool COM = false, KD = false;
 
 
   // ==================================================
@@ -529,6 +530,9 @@ main(int argc, char **argv)
     ("xz", "print x-z slice for surface fields")
     ("yz", "print y-z slice for surface fields")
     ("COM", "compute the center of mass")
+    ("KD",  "use density-weight center of mass")
+    ("K,Ndens", "KD density estimate count (use 0 for expansion estimate)",
+     cxxopts::value<int>(Ndens)->default_value("32"))
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("P,prefix", "prefix for phase-space files",
@@ -661,6 +665,13 @@ main(int argc, char **argv)
     COM = true;
   }
 
+  if (vm.count("KD")) {
+    if (myid==0) std::cout << "Will use the density-weight COM center for each snapshot"
+			   << std::endl;
+    COM = true;
+    KD  = true;
+  }
+
   // ==================================================
   // Nice process
   // ==================================================
@@ -754,17 +765,75 @@ main(int argc, char **argv)
     double mastot = 0.0;
 
     if (COM) {
-      for (auto &i : particles) {
-	for (int k=0; k<3; k++) com[k] += i.mass * i.pos[k];
-	mastot += i.mass;
+
+      // Density weight COM
+      //
+      if (KD) {
+	typedef point <double, 3> point3;
+	typedef kdtree<double, 3> tree3;
+
+	std::vector<point3> points;
+
+	double KDmass = 0.0;
+	for (auto p : particles) {
+	  KDmass += p.mass;
+	  points.push_back(point3({p.pos[0], p.pos[1], p.pos[2]}, p.mass));
+	}
+	
+	std::vector<double> dd;
+	int sz;
+
+	for (int n=0; n<numprocs; n++) {
+	  if (myid==n) {
+	    sz = points.size();
+	    MPI_Bcast(&sz, 1, MPI_INT, n, MPI_COMM_WORLD);
+	    dd.resize(sz*4);
+	    for (int i=0; i<sz; i++) {
+	      dd[i*4+0] = points[i].get(0);
+	      dd[i*4+1] = points[i].get(1);
+	      dd[i*4+2] = points[i].get(2);
+	      dd[i*4+3] = points[i].mass();
+	    }
+	    MPI_Bcast(dd.data(), sz*4, MPI_DOUBLE, n, MPI_COMM_WORLD);
+	  } else {
+	    MPI_Bcast(&sz, 1, MPI_INT, n, MPI_COMM_WORLD);
+	    dd.resize(sz*4);
+	    MPI_Bcast(dd.data(), sz*4, MPI_DOUBLE, n, MPI_COMM_WORLD);
+	    for (int i=0; i<sz; i++) {
+	      points.push_back(point3({dd[i*4+0], dd[i*4+1], dd[i*4+2]}, dd[i*4+3]));
+	      KDmass += dd[i*4+3];
+	    }
+	  }
+	}
+	
+	tree3 tree(points.begin(), points.end());
+    
+	int nbods = particles.size();
+	for (int i=0; i<nbods; i++) {
+	  auto ret = tree.nearestN(points[i], Ndens);
+	  double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
+	  double density = 0.0;
+	  if (volume>0.0 and KDmass>0.0)
+	    density = std::get<1>(ret)/volume/KDmass;
+	  for (int k=0; k<3; k++) com[k] += density * points[i].get(k);
+	  mastot += density;
+	}
       }
+      // Pure COM version
+      else {
+	for (auto &i : particles) {
+	  for (int k=0; k<3; k++) com[k] += i.mass * i.pos[k];
+	  mastot += i.mass;
+	}
+      }
+      
       MPI_Allreduce(MPI_IN_PLACE, com.data(), 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       MPI_Allreduce(MPI_IN_PLACE, &mastot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       if (mastot>0.0) {
 	for (int k=0; k<3; k++) com[k] /= mastot;
       }
       if (myid==0) {
-	std::cout << "COM: [";
+	std::cout << std::endl << "Computed COM: [";
 	for (int k=0; k<3; k++) std::cout << std::setw(16) << com[k];
 	std::cout << "]" << std::endl;
       }
@@ -772,7 +841,9 @@ main(int argc, char **argv)
 
     ortho.reset_coefs();
     for (auto &i : particles) {
-      ortho.accumulate(i.pos[0]-com[0], i.pos[1]-com[1], i.pos[2]-com[2], i.mass);
+      ortho.accumulate(i.pos[0]-com[0],
+		       i.pos[1]-com[1],
+		       i.pos[2]-com[2], i.mass);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
