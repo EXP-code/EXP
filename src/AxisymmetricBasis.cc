@@ -131,7 +131,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
 
     if (pcaeof) {
       tvar.resize(Ldim);
-      for (auto & v : tvar) v = boost::make_shared<Eigen::MatrixXd>(nmax, nmax);
+      for (auto & v : tvar) v = std::make_shared<Eigen::MatrixXd>(nmax, nmax);
 
       if (myid==0) cout << "AxisymmetricBasis: using PCA EOF" << endl;
     }
