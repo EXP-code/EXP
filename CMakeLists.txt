@@ -94,11 +94,8 @@ endif()
 if(ENABLE_CUDA_SINGLE)
   add_compile_definitions(O_SINGLE=1)
 endif()
-if(TIRPC_FOUND)
-  set(HAVE_XDR TRUE)
-endif()
-if(HAVE_RPC_TYPES)
-  set(HAVE_XDR TRUE)
+if(TIRPC_FOUND OR HAVE_RPC_TYPES)
+  set(HAVE_XDR TRUE CACHE BOOL "We have an XDR implementation")
 endif()
 
 # For setting the default size of the Cuda real attribute array
