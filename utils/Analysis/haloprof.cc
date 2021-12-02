@@ -659,7 +659,7 @@ main(int argc, char **argv)
     }
   }
 
-  if (vm.count("COM")) {
+  if (vm.count("COM") and not vm.count("KD")) {
     if (myid==0) std::cout << "Will use the COM center for each snapshot"
 			   << std::endl;
     COM = true;
@@ -781,21 +781,21 @@ main(int argc, char **argv)
 	}
 	
 	std::vector<double> dd;
-	int sz;
+	int sz0 = points.size();
 
 	for (int n=0; n<numprocs; n++) {
 	  if (myid==n) {
-	    sz = points.size();
-	    MPI_Bcast(&sz, 1, MPI_INT, n, MPI_COMM_WORLD);
-	    dd.resize(sz*4);
-	    for (int i=0; i<sz; i++) {
+	    MPI_Bcast(&sz0, 1, MPI_INT, n, MPI_COMM_WORLD);
+	    dd.resize(sz0*4);
+	    for (int i=0; i<sz0; i++) {
 	      dd[i*4+0] = points[i].get(0);
 	      dd[i*4+1] = points[i].get(1);
 	      dd[i*4+2] = points[i].get(2);
 	      dd[i*4+3] = points[i].mass();
 	    }
-	    MPI_Bcast(dd.data(), sz*4, MPI_DOUBLE, n, MPI_COMM_WORLD);
+	    MPI_Bcast(dd.data(), sz0*4, MPI_DOUBLE, n, MPI_COMM_WORLD);
 	  } else {
+	    int sz;
 	    MPI_Bcast(&sz, 1, MPI_INT, n, MPI_COMM_WORLD);
 	    dd.resize(sz*4);
 	    MPI_Bcast(dd.data(), sz*4, MPI_DOUBLE, n, MPI_COMM_WORLD);
