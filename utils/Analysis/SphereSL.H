@@ -5,7 +5,7 @@
 
 #include <SLGridMP2.H>
 #include <localmpi.H>
-#include <eigen3/Eigen/Eigen>
+#include <Eigen/Eigen>
 
 /**
    Uses SLGridSph basis to evaluate expansion coeffients and provide
