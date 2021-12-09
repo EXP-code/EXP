@@ -61,7 +61,7 @@ main(int argc, char **argv)
   double DIVERGE_RFAC, DIVERGE_RFAC2, NN, MM, RA, RMODMIN, RMOD, EPS;
   double X0, Y0, Z0, U0, V0, W0, TOLE;
   double Emin0, Emax0, Kmin0, Kmax0, RBAR, MBAR, BRATIO, CRATIO, SMOOTH;
-  bool LOGR, PSP, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR;
+  bool LOGR, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR;
   std::string INFILE, MMFILE, OUTFILE, OUTPS, config;
   
 #ifdef DEBUG
@@ -661,9 +661,8 @@ main(int argc, char **argv)
   ps0[6] = W0;
   
   if (myid==0) {
-    if (PSP) out << std::setw(8) << N
-		 << std::setw(6) << NI << std::setw( 6) << ND  << std::endl;
-    else     out << std::setw(8) << N  << std::setw(15) << 0.0 << std::endl;
+    out << std::setw(12) << N
+	<< std::setw( 6) << NI << std::setw( 6) << ND  << std::endl;
   }
   
   // Diagnostic variables
@@ -720,15 +719,13 @@ main(int argc, char **argv)
       out << std::setw(20) << mass * ps[0];
       for (int i=1; i<=6; i++) out << std::setw(20) << ps[i]+ps0[i];
     
-      if (PSP) {
-	if (NI) {
-	  for (int n=0; n<NI; n++) out << std::setw(10) << 0;
-	}
-	if (ND) {
-	  for (int n=0; n<ND; n++) out << std::setw(20) << 0.0;
-	}
+      if (NI) {
+	for (int n=0; n<NI; n++) out << std::setw(10) << 0;
       }
-    
+      if (ND) {
+	for (int n=0; n<ND; n++) out << std::setw(20) << 0.0;
+      }
+      
       out << std::endl;
     }
     
@@ -745,13 +742,11 @@ main(int argc, char **argv)
       out << std::setw(20) << ps[0];
       for (int i=1; i<=6; i++) out << std::setw(20) << ps[i]+ps0[i];
     
-      if (PSP) {
-	if (NI) {
-	  for (int n=0; n<NI; n++) out << std::setw(10) << 0;
-	}
-	if (ND) {
-	  for (int n=0; n<ND; n++) out << std::setw(20) << 0.0;
-	}
+      if (NI) {
+	for (int n=0; n<NI; n++) out << std::setw(10) << 0;
+      }
+      if (ND) {
+	for (int n=0; n<ND; n++) out << std::setw(20) << 0.0;
       }
       
       out << std::endl;
