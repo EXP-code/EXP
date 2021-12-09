@@ -78,20 +78,27 @@ main(int argc, char **argv)
   
   // Option parsing
   //
-
   cxxopts::Options options("gensph", "Generate single-mass or multi-mass spherical ICs");
   
   options.add_options()
     ("h,help", "Print this help message")
-    ("c,conf", "Write template options file with current and all default values",
+    ("t,template", "Write template options file with current and all default values",
      cxxopts::value<string>(config))
-    ("f,input", "Parameter configuration file",
+    ("c,config", "Parameter configuration file",
      cxxopts::value<string>(config))
+    ("i,INFILE", "Mass model file",
+     cxxopts::value<string>(INFILE)->default_value("mass.table"))
+    ("n,MMFILE", "Number model file",
+     cxxopts::value<string>(MMFILE))
+    ("o,PSFILE", "Phase-space output file",
+     cxxopts::value<string>(OUTPS)->default_value("new.bods"))
+    ("p,prefix", "Diagnostic output file prefix",
+     cxxopts::value<string>(OUTFILE)->default_value("gensph"))
     ("zeropos", "Set the origin at the center of mass")
     ("zerovel", "Set the total momentum of the realization to zero")
     ("HMODEL", "Halo type (0=file)",
      cxxopts::value<int>(HMODEL)->default_value("0"))
-    ("N", "Number of bodies",
+    ("N,bodies", "Number of bodies",
      cxxopts::value<int>(N)->default_value("1000000"))
     ("NUMDF", "Number of points in energy grid for Eddington inversion",
      cxxopts::value<int>(NUMDF)->default_value("10000"))
@@ -151,6 +158,8 @@ main(int argc, char **argv)
      cxxopts::value<double>(W0)->default_value("0.0"))
     ("TOLE", "Point generation fractional energy offset for Eddington grid",
      cxxopts::value<double>(TOLE)->default_value("1.0e-4"))
+    ("ELIMIT", "Limit particle selection with energy and kappa bounds",
+     cxxopts::value<bool>(ELIMIT)->default_value("false"))
     ("Emin0", "Minimum energy (if ELIMIT=true)",
      cxxopts::value<double>(Emin0)->default_value("-3.0"))
     ("Emax0", "Maximum energy (if ELIMIT=true)",
@@ -167,6 +176,9 @@ main(int argc, char **argv)
      cxxopts::value<double>(BRATIO)->default_value("0.2"))
     ("CRATIO", "axis ratio c/b",
      cxxopts::value<double>(CRATIO)->default_value("0.05"))
+    ("g,gridpot", "compute the number-density potential by gridded quadrature")
+    ("d,diagout", "print model computation diagnostics for multimass and bar")
+    ("b,bar",     "add an ellipsoidal bar model")
     ;
   
   auto vm = options.parse(argc, argv);
@@ -225,6 +237,15 @@ main(int argc, char **argv)
     }
   }
   
+  GRIDPOT = false;
+  if (vm.count("GRIDPOT")) GRIDPOT = true;
+
+  MODELS = false;
+  if (vm.count("diagout")) MODELS = true;
+
+  EBAR = false;
+  if (vm.count("bar"))     EBAR = true;
+
   // Prepare output streams and create new files
   //
   std::ostringstream sout;
