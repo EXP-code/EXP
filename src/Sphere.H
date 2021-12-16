@@ -88,7 +88,6 @@ private:
 
 				// Parameters
   double rsphSL;
-  double rmin;
   double rs;
   double tnext, dtime;
   int    numr;
@@ -109,7 +108,6 @@ public:
       @param m allows the spherical basis to be used for multiple center expansions 
       
       Input line parameters include:
-      @param rmin is the minimum radius in Sturm-Liouville solution grid
       @param rs is the radius for coordinate scaling
       @param numr is the number of radial grid points
       @param cmap set to true for scaling coordinates from the semi-infinite to finite segment

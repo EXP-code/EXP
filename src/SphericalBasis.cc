@@ -63,7 +63,7 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
     if (conf["rmin"]) 
       rmin = conf["rmin"].as<double>();
     else
-      rmax = 0.0;
+      rmin = 0.0;
 
     if (conf["rmax"]) 
       rmax = conf["rmax"].as<double>();

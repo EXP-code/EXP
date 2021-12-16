@@ -420,9 +420,9 @@ main(int ac, char **av)
   double       ToomreQ;
   double       Temp;
   double       Tmin;
-  double       gen_ecut;
-  bool         const_height;
-  bool         images;
+  //double       gen_ecut; // unused?
+  bool         const_height=true;
+  bool         images=false;
   bool         multi;
   bool         SVD;
   int          SEED;
@@ -430,9 +430,9 @@ main(int ac, char **av)
   bool         DENS;
   bool         basis;
   bool         zero;
-  bool         report;
-  bool         ignore;
-  bool         evolved;
+  bool         report=false;
+  bool         ignore=true;
+  bool         evolved=false;
   int          nhalo;
   int          ndisk;
   int          ngas;
@@ -441,7 +441,7 @@ main(int ac, char **av)
   string       dbods;
   string       gbods;
   string       suffix;
-  string       centerfile;
+  string       centerfile="";
   string       halofile1;
   string       halofile2;
   string       cachefile;
@@ -450,7 +450,7 @@ main(int ac, char **av)
   string       dtype;
   string       dmodel;
   string       mtype;
-  string       ctype;
+  string       ctype="";
   
   const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
 
@@ -463,9 +463,101 @@ main(int ac, char **av)
     ("f,input", "Parameter configuration file",
      cxxopts::value<string>(config))
     ("deproject", "The EmpCylSL deprojection from specified disk model (EXP or MN)",
-     cxxopts::value<string>(dmodel))
+     cxxopts::value<string>(dmodel)->default_value("EXP"))
+    ("hbods", "The output bodyfile for the halo",
+     cxxopts::value<string>(hbods)->default_value("halo.bods"))
+    ("gbods", "The output bodyfile for the gas disc",
+     cxxopts::value<string>(gbods)->default_value("gas.bods"))
+    ("dbods", "The output bodyfile for the stellar disc",
+     cxxopts::value<string>(dbods)->default_value("disk.bods"))
+    ("cachefile", "The cache file for the cylindrical basis",
+     cxxopts::value<string>(cachefile)->default_value(".eof.cache.file"))
+    ("LMAX", "",
+     cxxopts::value<int>(LMAX)->default_value("6"))
+    ("NMAX", "",
+     cxxopts::value<int>(NMAX)->default_value("20"))
+    ("LMAX2", "",
+     cxxopts::value<int>(LMAX2)->default_value("48"))
+    ("NMAX2", "",
+     cxxopts::value<int>(NMAX2)->default_value("48"))
+    ("MMAX", "",
+     cxxopts::value<int>(MMAX)->default_value("6"))
+    ("NUMX", "",
+     cxxopts::value<int>(NUMX)->default_value("256"))
+    ("NUMY", "",
+     cxxopts::value<int>(NUMY)->default_value("128"))
+    ("nhalo", "Number of halo particles",
+     cxxopts::value<int>(nhalo)->default_value("100000"))
+    ("ndisk", "Number of disk particles",
+     cxxopts::value<int>(ndisk)->default_value("100000"))
+    ("ngas", "Number of gas disc particles",
+     cxxopts::value<int>(ngas)->default_value("0"))
+    ("ngparam", "Number of gas parameters",
+     cxxopts::value<int>(ngparam)->default_value("0"))
+    ("dtype", "",
+     cxxopts::value<string>(dtype)->default_value("exponential"))
+    ("NOUT", "",
+     cxxopts::value<int>(NOUT)->default_value("18"))
+    ("NODD", "",
+     cxxopts::value<int>(NODD)->default_value("6"))
+    ("NORDER", "",
+     cxxopts::value<int>(NORDER)->default_value("1000"))
+    ("NORDER1", "",
+     cxxopts::value<int>(NORDER1)->default_value("10000"))
+    ("NUMDF", "",
+     cxxopts::value<int>(NUMDF)->default_value("1000"))
+    ("VFLAG", "",
+     cxxopts::value<int>(VFLAG)->default_value("31"))
+    ("DFLAG", "",
+     cxxopts::value<int>(DFLAG)->default_value("31"))
+    ("expcond", "",
+     cxxopts::value<bool>(expcond)->default_value("true"))
+    ("multi", "Turn on multimass halo generation",
+     cxxopts::value<bool>(multi)->default_value("false"))
+    ("halofile1", "Halo spherical model table",
+     cxxopts::value<string>(halofile1)->default_value("SLGridSph.model"))
+    ("halofile2", "Number density profile for multimass halo generation",
+     cxxopts::value<string>(halofile2)->default_value("SLGridSph.fake"))
+    ("gentype", "",
+     cxxopts::value<string>(gentype)->default_value("Asymmetric"))
+    ("LOGR", "",
+     cxxopts::value<bool>(LOGR)->default_value("true"))
+    ("CHEBY", "",
+     cxxopts::value<bool>(CHEBY)->default_value("true"))
+    ("DENS", "",
+     cxxopts::value<bool>(DENS)->default_value("true"))
+    ("basis", "",
+     cxxopts::value<bool>(basis)->default_value("false"))
+    ("zero", "",
+     cxxopts::value<bool>(zero)->default_value("true"))
+    ("NCHEB", "",
+     cxxopts::value<int>(NCHEB)->default_value("12"))
+    ("TCHEB", "",
+     cxxopts::value<int>(TCHEB)->default_value("12"))
+    ("NDR", "",
+     cxxopts::value<int>(NDR)->default_value("800"))
+    ("NDZ", "",
+     cxxopts::value<int>(NDZ)->default_value("800"))
+    ("NHR", "",
+     cxxopts::value<int>(NHR)->default_value("800"))
+    ("NHT", "",
+     cxxopts::value<int>(NHT)->default_value("800"))
+    ("NDP", "",
+     cxxopts::value<int>(NDP)->default_value("800"))
     ("NUMR", "Size of radial grid for Spherical SL",
      cxxopts::value<int>(NUMR)->default_value("2000"))
+    ("SHFAC", "",
+     cxxopts::value<double>(SHFAC)->default_value("16"))
+    ("disk_mass", "",
+     cxxopts::value<double>(disk_mass)->default_value("0.05"))
+    ("gas_mass", "",
+     cxxopts::value<double>(gas_mass)->default_value("0.0"))
+    ("scale_length", "",
+     cxxopts::value<double>(scale_length)->default_value("0.01"))
+    ("scale_height", "",
+     cxxopts::value<double>(scale_height)->default_value("0.001"))
+    ("ToomreQ", "",
+     cxxopts::value<double>(ToomreQ)->default_value("1."))
     ("RMIN", "Minimum halo radius",
      cxxopts::value<double>(RMIN)->default_value("0.005"))
     ("RCYLMIN", "Minimum disk radius",
@@ -518,6 +610,8 @@ main(int ac, char **av)
      cxxopts::value<int>(TNUM)->default_value("80"))
     ("CMAPR", "Radial coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
      cxxopts::value<int>(CMAPR)->default_value("1"))
+    ("CMAPZ", "Verticall coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
+     cxxopts::value<int>(CMAPZ)->default_value("1"))
     ;
   
   cxxopts::ParseResult vm;
@@ -1724,4 +1818,3 @@ main(int ac, char **av)
 
   return 0;
 }
-
