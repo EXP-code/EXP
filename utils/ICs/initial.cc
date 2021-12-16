@@ -423,16 +423,16 @@ main(int ac, char **av)
   //double       gen_ecut; // unused?
   bool         const_height=true;
   bool         images=false;
-  bool         multi;
+  bool         multi=false;
   bool         SVD;
   int          SEED;
   int          itmax;
   bool         DENS;
   bool         basis;
   bool         zero;
-  bool         report=false;
-  bool         ignore=true;
-  bool         evolved=false;
+  bool         report;
+  bool         ignore;
+  bool         evolved;
   int          nhalo;
   int          ndisk;
   int          ngas;
@@ -450,7 +450,7 @@ main(int ac, char **av)
   string       dtype;
   string       dmodel;
   string       mtype;
-  string       ctype="";
+  string       ctype;
   
   const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
 
@@ -472,6 +472,8 @@ main(int ac, char **av)
      cxxopts::value<string>(dbods)->default_value("disk.bods"))
     ("cachefile", "The cache file for the cylindrical basis",
      cxxopts::value<string>(cachefile)->default_value(".eof.cache.file"))
+    ("ctype", "DiskHalo radial coordinate scaling type (one of: Linear, Log,Rat)",
+     cxxopts::value<string>(ctype)->default_value("Log"))
     ("LMAX", "",
      cxxopts::value<int>(LMAX)->default_value("6"))
     ("NMAX", "",
@@ -486,6 +488,14 @@ main(int ac, char **av)
      cxxopts::value<int>(NUMX)->default_value("256"))
     ("NUMY", "",
      cxxopts::value<int>(NUMY)->default_value("128"))
+    ("DIVERGE", "",
+     cxxopts::value<int>(DIVERGE)->default_value("0"))
+    ("DIVERGE_RFAC", "",
+     cxxopts::value<double>(DIVERGE_RFAC)->default_value("1.0"))
+    ("DIVERGE2", "",
+     cxxopts::value<int>(DIVERGE2)->default_value("0"))
+    ("DIVERGE_RFAC2", "",
+     cxxopts::value<double>(DIVERGE_RFAC2)->default_value("1.0"))
     ("nhalo", "Number of halo particles",
      cxxopts::value<int>(nhalo)->default_value("100000"))
     ("ndisk", "Number of disk particles",
@@ -512,6 +522,12 @@ main(int ac, char **av)
      cxxopts::value<int>(DFLAG)->default_value("31"))
     ("expcond", "",
      cxxopts::value<bool>(expcond)->default_value("true"))
+    ("report", "",
+     cxxopts::value<bool>(report)->default_value("false"))
+    ("ignore", "",
+     cxxopts::value<bool>(ignore)->default_value("true"))
+    ("evolved", "",
+     cxxopts::value<bool>(evolved)->default_value("false"))
     ("multi", "Turn on multimass halo generation",
      cxxopts::value<bool>(multi)->default_value("false"))
     ("halofile1", "Halo spherical model table",
@@ -523,7 +539,7 @@ main(int ac, char **av)
     ("LOGR", "",
      cxxopts::value<bool>(LOGR)->default_value("true"))
     ("CHEBY", "",
-     cxxopts::value<bool>(CHEBY)->default_value("true"))
+     cxxopts::value<bool>(CHEBY)->default_value("false"))
     ("DENS", "",
      cxxopts::value<bool>(DENS)->default_value("true"))
     ("basis", "",
@@ -536,6 +552,8 @@ main(int ac, char **av)
      cxxopts::value<int>(TCHEB)->default_value("12"))
     ("NDR", "",
      cxxopts::value<int>(NDR)->default_value("800"))
+    ("SEED", "Random number seed for realization",
+     cxxopts::value<int>(SEED)->default_value("11"))
     ("NDZ", "",
      cxxopts::value<int>(NDZ)->default_value("800"))
     ("NHR", "",
@@ -605,7 +623,7 @@ main(int ac, char **av)
     ("RNUM", "Number of radial knots for EmpCylSL basis construction quadrature",
      cxxopts::value<int>(RNUM)->default_value("200"))
     ("PNUM", "Number of azimthal knots for EmpCylSL basis construction quadrature",
-     cxxopts::value<int>(PNUM)->default_value("80"))
+     cxxopts::value<int>(PNUM)->default_value("1"))
     ("TNUM", "Number of cos(theta) knots for EmpCylSL basis construction quadrature",
      cxxopts::value<int>(TNUM)->default_value("80"))
     ("CMAPR", "Radial coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
