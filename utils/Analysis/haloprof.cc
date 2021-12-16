@@ -60,7 +60,7 @@ using namespace std;
 //
 std::string OUTFILE;
 double RMIN, RMAX;
-int OUTR, LMAX, NMAX, MMAX, L1, L2, N1, N2;
+int OUTR, LMAX, NMAX, L1, L2, N1, N2;
 bool VOLUME, SURFACE, PROBE;
 
 // Center offset
@@ -524,60 +524,37 @@ main(int argc, char **argv)
   
   options.add_options()
     ("h,help", "Print this help message")
+    ("expert", "Print the help message showing 'expert' parameters")
     ("v,verbose", "Verbose and diagnostic output for covariance computation")
     ("CONLY", "make coefficient file only")
     ("xy", "print x-y slice for surface fields (default)")
     ("xz", "print x-z slice for surface fields")
     ("yz", "print y-z slice for surface fields")
-    ("COM", "compute the center of mass")
-    ("KD",  "use density-weight center of mass")
     ("K,Ndens", "KD density estimate count (use 0 for expansion estimate)",
      cxxopts::value<int>(Ndens)->default_value("32"))
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("P,prefix", "prefix for phase-space files",
      cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
-    ("NICE", "system priority",
-     cxxopts::value<int>(NICE)->default_value("0"))
-    ("RMIN", "minimum radius for output",
+    ("r,RMIN", "minimum radius for output",
      cxxopts::value<double>(RMIN)->default_value("0.0"))
-    ("RMAX", "maximum radius for output",
+    ("R,RMAX", "maximum radius for output",
      cxxopts::value<double>(RMAX)->default_value("0.1"))
-    ("RSCALE", "coordinate mapping scale factor",
+    ("a,RSCALE", "coordinate mapping scale factor",
      cxxopts::value<double>(rscale)->default_value("0.067"))
-    ("LMAX", "Maximum harmonic order for spherical expansion",
+    ("L,LMAX", "Maximum harmonic order for spherical expansion",
      cxxopts::value<int>(LMAX)->default_value("4"))
-    ("NMAX", "Maximum radial order for spherical expansion",
+    ("N,NMAX", "Maximum radial order for spherical expansion",
      cxxopts::value<int>(NMAX)->default_value("12"))
-    ("MMAX", "Maximum harmonic order",
-     cxxopts::value<int>(MMAX)->default_value("4"))
-    ("L1", "minimum l harmonic",
-     cxxopts::value<int>(L1)->default_value("0"))
-    ("L2", "maximum l harmonic",
-     cxxopts::value<int>(L2)->default_value("1000"))
-    ("N1", "minimum radial order",
-     cxxopts::value<int>(N1)->default_value("0"))
-    ("N2", "maximum radial order",
-     cxxopts::value<int>(N2)->default_value("1000"))
-    ("NPART", "Jackknife partition number for testing (0 means off, use standard eval)",
-     cxxopts::value<int>(NPART)->default_value("0"))
-    ("Hexp", "default Hall smoothing exponent",
-     cxxopts::value<double>(Hexp)->default_value("1.0"))
     ("OUTR", "Number of radial points for output",
      cxxopts::value<int>(OUTR)->default_value("40"))
-    ("PROBE", "Make traces along axes",
-     cxxopts::value<bool>(PROBE)->default_value("false"))
-    ("SURFACE", "Make equitorial and vertical slices",
-     cxxopts::value<bool>(SURFACE)->default_value("true"))
-    ("VOLUME", "Make volume grid",
-     cxxopts::value<bool>(VOLUME)->default_value("false"))
     ("OUTFILE", "Filename prefix",
      cxxopts::value<string>(OUTFILE)->default_value("haloprof"))
-    ("r,runtag", "Runtag name for phase-space files",
+    ("t,runtag", "Runtag name for phase-space files",
      cxxopts::value<string>(runtag)->default_value("run1"))
     ("outdir", "Output directory path",
      cxxopts::value<string>(outdir)->default_value("."))
-    ("MODFILE", "Halo model file",
+    ("f,MODFILE", "Halo model file",
      cxxopts::value<string>(MODFILE)->default_value("SLGridSph.model"))
     ("beg", "initial PSP index",
      cxxopts::value<int>(beg)->default_value("0"))
@@ -591,14 +568,40 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(dir))
     ("c,coefs", "file of computed coefficients or to be computed (with CONLY)",
      cxxopts::value<std::string>(coefs))
-    ("S,snr", "if not negative: do a SNR cut on the PCA basis",
-     cxxopts::value<double>(snr)->default_value("-1.0"))
-    ("C,center", "Accumulation center",
+    ("C,center", "Accumulation center (vector)",
      cxxopts::value<std::vector<double> >(c0))
-    ("diff", "render the difference between the trimmed and untrimmed basis")
     ;
   
   
+  options.add_options("expert")
+    ("COM", "compute the center of mass and use as the expansion center")
+    ("KD",  "use density-weighted center of mass as the expansion center")
+    ("L1", "minimum l harmonic",
+     cxxopts::value<int>(L1)->default_value("0"))
+    ("L2", "maximum l harmonic",
+     cxxopts::value<int>(L2)->default_value("1000"))
+    ("N1", "minimum radial order",
+     cxxopts::value<int>(N1)->default_value("0"))
+    ("N2", "maximum radial order",
+     cxxopts::value<int>(N2)->default_value("1000"))
+    ("PROBE", "Make traces along axes",
+     cxxopts::value<bool>(PROBE)->default_value("false"))
+    ("SURFACE", "Make equatorial and vertical slices",
+     cxxopts::value<bool>(SURFACE)->default_value("true"))
+    ("VOLUME", "Make volume grid",
+     cxxopts::value<bool>(VOLUME)->default_value("false"))
+    ("diff", "render the difference between the trimmed and untrimmed basis")
+    ("NPART", "Jackknife partition number for testing (0 means off, use standard eval)",
+     cxxopts::value<int>(NPART)->default_value("0"))
+    ("Hexp", "default Hall smoothing exponent",
+     cxxopts::value<double>(Hexp)->default_value("1.0"))
+    ("S,snr", "if not negative: do a SNR cut on the PCA basis",
+     cxxopts::value<double>(snr)->default_value("-1.0"))
+    ("NICE", "system priority",
+     cxxopts::value<int>(NICE)->default_value("0"))
+    ;
+
+
   // ==================================================
   // MPI preliminaries
   // ==================================================
@@ -620,7 +623,12 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    std::cout << std::endl << options.help() << std::endl;
+    std::cout << std::endl << options.help({""}) << std::endl;
+    return 0;
+  }
+
+  if (!vm.count("help") and vm.count("expert")) {
+    std::cout << std::endl << options.help({"", "expert"}) << std::endl;
     return 0;
   }
 
