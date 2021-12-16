@@ -623,12 +623,16 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    std::cout << std::endl << options.help({""}) << std::endl;
+    if (myid==0)
+      std::cout << std::endl << options.help({""}) << std::endl;
+    MPI_Finalize();
     return 0;
   }
 
   if (!vm.count("help") and vm.count("expert")) {
-    std::cout << std::endl << options.help({"", "expert"}) << std::endl;
+    if (myid==0)
+      std::cout << std::endl << options.help({"", "expert"}) << std::endl;
+    MPI_Finalize();
     return 0;
   }
 
