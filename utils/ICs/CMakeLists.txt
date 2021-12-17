@@ -1,7 +1,7 @@
 
 set(bin_PROGRAMS shrinkics gensph gendisk gsphere pstmod empinfo empdump
   eofbasis makeIon phIon phConv eofcomp testcoefs testcoefs2 testdeval
-  forcetest hdf52accel forcetest2)
+  forcetest hdf52accel forcetest2 cylcache)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp EXP
   exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
@@ -61,6 +61,8 @@ add_executable(testdeval test_deval.cc DiskEval.cc)
 add_executable(forcetest force_test.cc DiskEval.cc)
 
 add_executable(forcetest2 force_test2.cc DiskEval.cc)
+
+add_executable(cylcache cylcache.cc)
 
 add_executable(hdf52accel hdf52accel.cc)
 
