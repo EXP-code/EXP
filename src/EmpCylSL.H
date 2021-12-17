@@ -371,9 +371,6 @@ public:
   //! TRUE if density is computed (default: false)
   static bool DENS;
 
-  //! TRUE for SVD computation of symmetric eigenproblem (default: false)
-  static bool USESVD;
-
   //! TRUE if signal-to-noise methods are on (default: false)
   static bool PCAVAR;
 

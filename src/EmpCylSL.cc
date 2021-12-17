@@ -54,7 +54,6 @@ bool     EmpCylSL::PCAVAR          = false;
 bool     EmpCylSL::PCAVTK          = false;
 bool     EmpCylSL::PCAEOF          = false;
 bool     EmpCylSL::PCADRY          = true;
-bool     EmpCylSL::USESVD          = false;
 bool     EmpCylSL::logarithmic     = false;
 bool     EmpCylSL::enforce_limits  = false;
 int      EmpCylSL::CMAPR           = 1;
@@ -344,7 +343,6 @@ void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
   densRg = Linear1d(rl, rho);
   massRg = Linear1d(rl, mass);
   mtype  = Deproject;
-
 }
 
 
