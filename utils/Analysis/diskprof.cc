@@ -29,11 +29,12 @@
  ***************************************************************************/
 
 				// C++/STL headers
-#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
 #include <memory>
 #include <cmath>
 #include <string>
@@ -54,7 +55,7 @@
 #include <foarray.H>
 #include <DataGrid.H>
 #include <writePVD.H>
-#include <cxxopts.H>
+#include <EXPini.H>
 
 #ifdef DEBUG
 #ifndef _REDUCED
@@ -828,7 +829,7 @@ main(int argc, char **argv)
   int initc, partc, beg, end, stride, init, cmapr, cmapz;
   double rcylmin, rcylmax, rscale, vscale, snr, Hexp=4.0;
   bool DENS, PCA, PVD, verbose = false, mask = false, ignore, logl;
-  std::string CACHEFILE, COEFFILE, cname, dir("."), fileType, filePrefix;
+  std::string CACHEFILE, COEFFILE, cname, dir("."), fileType, filePrefix, config;
 
   // ==================================================
   // MPI preliminaries
@@ -844,16 +845,19 @@ main(int argc, char **argv)
 
   options.add_options()
     ("h,help", "produce this help message")
+    ("e,expert", "Print the help message showing 'expert' parameters")
     ("v,verbose", "verbose output")
     ("b,mask", "blank empty cells")
+    ("T,template", "Write template options file with current and all default values",
+     cxxopts::value<string>(config))
+    ("f,input", "Input parameter config file",
+     cxxopts::value<string>(config))
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("P,prefix", "prefix for phase-space files",
      cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
     ("r,runtag", "Runtag name for phase-space files",
      cxxopts::value<string>(runtag)->default_value("run1"))
-    ("nice", "number of bins in x direction",
-     cxxopts::value<int>(nice)->default_value("0"))
     ("R,RMAX", "maximum radius for output",
      cxxopts::value<double>(RMAX)->default_value("0.1"))
     ("Z,ZMAX", "maximum height for output",
@@ -878,14 +882,6 @@ main(int argc, char **argv)
      cxxopts::value<int>(mmax)->default_value("4"))
     ("norder", "maximum radial order for each harmonic subspace",
      cxxopts::value<int>(norder)->default_value("4"))
-    ("M1", "minimum azimuthal order",
-     cxxopts::value<int>(m1)->default_value("0"))
-    ("M2", "maximum azimuthal order",
-     cxxopts::value<int>(m2)->default_value("1000"))
-    ("N1", "minimum radial order",
-     cxxopts::value<int>(n1)->default_value("0"))
-    ("N2", "maximum radial order",
-     cxxopts::value<int>(n2)->default_value("1000"))
     ("outr", "number of radial points for output",
      cxxopts::value<int>(OUTR)->default_value("40"))
     ("outz", "number of vertical points for output",
@@ -902,17 +898,11 @@ main(int argc, char **argv)
      cxxopts::value<bool>(AXIHGT)->default_value("false"))
     ("height", "compute height profiles",
      cxxopts::value<bool>(VHEIGHT)->default_value("false"))
-    ("pca", "perform the PCA analysis for the disk",
-     cxxopts::value<bool>(PCA)->default_value("false"))
-    ("S,snr", "if not negative: do a SNR cut on the PCA basis",
-     cxxopts::value<double>(snr)->default_value("-1.0"))
     ("C,center", "Accumulation center",
      cxxopts::value<std::vector<double> >(c0))
     ("diff", "render the difference between the trimmed and untrimmed basis")
     ("density", "compute density",
      cxxopts::value<bool>(DENS)->default_value("true"))
-    ("pvd", "Compute PVD file for ParaView",
-     cxxopts::value<bool>(PVD)->default_value("false"))
     ("compname", "train on Component (default=stars)",
      cxxopts::value<std::string>(cname)->default_value("stars"))
     ("init", "fiducial index",
@@ -927,14 +917,33 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(outdir)->default_value("."))
     ("outfile", "Filename prefix",
      cxxopts::value<std::string>(outid)->default_value("diskprof2"))
-    ("cachefile", "cachefile name",
-     cxxopts::value<std::string>(CACHEFILE)->default_value(".eof.cache.file"))
     ("coeffile", "coefficient output file name",
      cxxopts::value<std::string>(COEFFILE))
     ("cmapr", "Radial coordinate mapping type for cylindrical grid (0=none,, 1=sech, 2=power in z",
      cxxopts::value<int>(cmapr)->default_value("1"))
     ;
   
+  options.add_options("expert")
+    ("M1", "minimum azimuthal order",
+     cxxopts::value<int>(m1)->default_value("0"))
+    ("M2", "maximum azimuthal order",
+     cxxopts::value<int>(m2)->default_value("1000"))
+    ("N1", "minimum radial order",
+     cxxopts::value<int>(n1)->default_value("0"))
+    ("N2", "maximum radial order",
+     cxxopts::value<int>(n2)->default_value("1000"))
+    ("nice", "number of bins in x direction",
+     cxxopts::value<int>(nice)->default_value("0"))
+    ("pvd", "Compute PVD file for ParaView",
+     cxxopts::value<bool>(PVD)->default_value("false"))
+    ("pca", "perform the PCA analysis for the disk",
+     cxxopts::value<bool>(PCA)->default_value("false"))
+    ("S,snr", "if not negative: do a SNR cut on the PCA basis",
+     cxxopts::value<double>(snr)->default_value("-1.0"))
+    ("cachefile", "cachefile name",
+     cxxopts::value<std::string>(CACHEFILE)->default_value(".eof.cache.file"))
+    ;
+
   cxxopts::ParseResult vm;
 
   try {
@@ -945,14 +954,68 @@ main(int argc, char **argv)
     exit(-1);
   }
 
+  // Write YAML template config file and exit
+  //
+  if (vm.count("template")) {
+    // Do not overwrite existing config file
+    //
+    if (std::filesystem::exists(config)) {
+      if (myid == 0)
+	std::cerr << argv[0] << ": config file <" << config
+		  << "> exists, will not overwrite" << std::endl;
+      MPI_Finalize();
+      return 0;
+    }
+
+    // Write template file
+    //
+    if (myid==0) {
+      if (vm.count("expert"))
+	SaveConfig(vm, options, config, {"", "expert"});
+      else
+	SaveConfig(vm, options, config);
+    }
+
+    MPI_Finalize();
+    return 0;
+  }
+
+  // Print help message and exit
+  //
+  if (vm.count("expert")) {
+    if (myid==0) {
+      std::cout << std::string(60, '-') << std::endl;
+      std::cout << options.help({"", "expert"}) << std::endl;
+      std::cout << std::string(60, '-') << std::endl << std::endl;
+    }
+    MPI_Finalize();
+    return 0;
+  }
+
   if (vm.count("help")) {
-    std::cout << std::string(60, '-') << std::endl;
-    std::cout << options.help() << std::endl;
-    std::cout << std::string(60, '-') << std::endl << std::endl;
-    return 1;
+    if (myid==0) {
+      std::cout << std::string(60, '-') << std::endl;
+      std::cout << options.help() << std::endl;
+      std::cout << std::string(60, '-') << std::endl << std::endl;
+    }
+    MPI_Finalize();
+    return 0;
   }
  
-  if (vm.count("verbose")) verbose = true;
+   // Read parameters fron the YAML config file
+  //
+  if (vm.count("input")) {
+    try {
+      vm = LoadConfig(options, config);
+    } catch (cxxopts::OptionException& e) {
+      if (myid==0) std::cout << "Option error in configuration file: "
+			     << e.what() << std::endl;
+      MPI_Finalize();
+      return 0;
+    }
+  }
+
+ if (vm.count("verbose")) verbose = true;
 
   if (vm.count("mask")) mask = true;
 

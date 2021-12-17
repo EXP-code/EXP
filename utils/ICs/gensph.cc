@@ -218,7 +218,7 @@ main(int argc, char **argv)
 
     // Write YAML template file
     //
-    if (myid==0) SaveConfig(vm, config);
+    if (myid==0) SaveConfig(vm, options, config);
 
     MPI_Finalize();
     return 0;

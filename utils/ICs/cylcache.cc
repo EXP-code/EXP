@@ -332,7 +332,7 @@ main(int ac, char **av)
 
   options.add_options()
     ("h,help", "Print this help message")
-    ("c,conf", "Write template options file with current and all default values",
+    ("T,template", "Write template options file with current and all default values",
      cxxopts::value<string>(config))
     ("f,input", "Parameter configuration file",
      cxxopts::value<string>(config))
@@ -420,26 +420,9 @@ main(int ac, char **av)
     exit(-1);
   }
   
-  // Print help message and exit
-  //
-  if (vm.count("help")) {
-    if (myid == 0) {
-      std::cout << options.help() << std::endl << std::endl
-		<< "Examples: " << std::endl
-		<< "\t" << "Use parameters read from a config file in INI style"  << std::endl
-		<< "\t" << av[0] << " --input=gendisk.config"  << std::endl << std::endl
-		<< "\t" << "Generate a template config file in INI style from current defaults"  << std::endl
-		<< "\t" << av[0] << " --conf=template.config" << std::endl << std::endl
-		<< "\t" << "Override a single parameter in a config file from the command line"  << std::endl
-		<< "\t" << av[0] << "--LMAX=8 --conf=template.config" << std::endl << std::endl;
-    }
-    MPI_Finalize();
-    return 0;
-  }
-
   // Write YAML template config file and exit
   //
-  if (vm.count("conf")) {
+  if (vm.count("template")) {
     // Do not overwrite existing config file
     //
     if (std::filesystem::exists(config)) {
@@ -454,8 +437,26 @@ main(int ac, char **av)
 
     // Write template file
     //
-    if (myid==0) SaveConfig(vm, config);
+    if (myid==0) SaveConfig(vm, options, config);
 
+    MPI_Finalize();
+    return 0;
+  }
+
+
+  // Print help message and exit
+  //
+  if (vm.count("help")) {
+    if (myid == 0) {
+      std::cout << options.help() << std::endl << std::endl
+		<< "Examples: " << std::endl
+		<< "\t" << "Use parameters read from a config file in INI style"  << std::endl
+		<< "\t" << av[0] << " --input=gendisk.config"  << std::endl << std::endl
+		<< "\t" << "Generate a template config file in INI style from current defaults"  << std::endl
+		<< "\t" << av[0] << " --conf=template.config" << std::endl << std::endl
+		<< "\t" << "Override a single parameter in a config file from the command line"  << std::endl
+		<< "\t" << av[0] << "--LMAX=8 --conf=template.config" << std::endl << std::endl;
+    }
     MPI_Finalize();
     return 0;
   }

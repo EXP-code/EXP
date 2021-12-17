@@ -12,16 +12,45 @@
 
 //! Saves the current command-line cxxopts database in YAML format for
 //! user configuration
-void SaveConfig(const cxxopts::ParseResult& vm,
-		const std::string& config)
+void SaveConfig(const cxxopts::ParseResult& vm,  // Parsed options
+		const cxxopts::Options& options, // Default options
+		const std::string& config,       // Save file
+		// Option groups to save, default by default
+		const std::vector<std::string> groups={""},
+		// Parameters to exclude
+		const std::vector<std::string> exclude={"template", "expert"})
 {    
   YAML::Emitter out;
 
   out << YAML::BeginMap;
   YAML::Node node;
-  for (const auto &kv: vm) {
-    out << YAML::Key   << kv.key();
-    out << YAML::Value << kv.value();
+
+  for (const auto kv: vm) {
+
+    // Iterate through option groups
+    for (auto g : options.groups()) {
+
+      // Look for group in include list
+      auto it = std::find(groups.begin(), groups.end(), g);
+
+      // Found it: look for key in option list for this group
+      if (it != groups.end()) {
+	
+	for (auto m : options.group_help(g).options) {
+	  if (m.l == kv.key()) {
+	    // Is this key in the excluded list?
+	    auto jt = std::find(exclude.begin(), exclude.end(), kv.key());
+
+	    // Not excluded: write to template file
+	    if (jt == exclude.end()) {
+	      out << YAML::Key   << kv.key();
+	      out << YAML::Value << kv.value();
+	      out << YAML::Comment(m.desc);
+	    }
+	  }
+	}
+      }
+    }
   }
   out << YAML::EndMap;
   

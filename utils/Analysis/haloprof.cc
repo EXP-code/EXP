@@ -29,8 +29,9 @@
  ***************************************************************************/
 
 				// C++/STL headers
-#include <cstdlib>
+#include <filesystem>
 #include <iostream>
+#include <cstdlib>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
@@ -52,7 +53,7 @@ using namespace std;
 #include <DataGrid.H>
 #include <localmpi.H>
 #include <foarray.H>
-#include <cxxopts.H>
+#include <EXPini.H>
 #include <global.H>
 #include <KDtree.H>
   
@@ -506,7 +507,8 @@ main(int argc, char **argv)
   double snr, rscale, Hexp;
   int NICE, LMAX, NMAX, NPART, Ndens;
   int beg, end, stride;
-  std::string MODFILE, INDEX, dir("."), cname, coefs, fileType, filePrefix;
+  std::string MODFILE, INDEX, dir("."), cname, coefs;
+  std::string  fileType, filePrefix, config;
   bool COM = false, KD = false;
 
 
@@ -524,12 +526,16 @@ main(int argc, char **argv)
   
   options.add_options()
     ("h,help", "Print this help message")
-    ("expert", "Print the help message showing 'expert' parameters")
+    ("e,expert", "Print the help message showing 'expert' parameters")
     ("v,verbose", "Verbose and diagnostic output for covariance computation")
     ("CONLY", "make coefficient file only")
     ("xy", "print x-y slice for surface fields (default)")
     ("xz", "print x-z slice for surface fields")
     ("yz", "print y-z slice for surface fields")
+    ("T,template", "Write template options file with current and all default values",
+     cxxopts::value<string>(config))
+    ("f,input", "Input parameter config file",
+     cxxopts::value<string>(config))
     ("K,Ndens", "KD density estimate count (use 0 for expansion estimate)",
      cxxopts::value<int>(Ndens)->default_value("32"))
     ("F,filetype", "input file type",
@@ -554,7 +560,7 @@ main(int argc, char **argv)
      cxxopts::value<string>(runtag)->default_value("run1"))
     ("outdir", "Output directory path",
      cxxopts::value<string>(outdir)->default_value("."))
-    ("f,MODFILE", "Halo model file",
+    ("MODFILE", "Halo model file",
      cxxopts::value<string>(MODFILE)->default_value("SLGridSph.model"))
     ("beg", "initial PSP index",
      cxxopts::value<int>(beg)->default_value("0"))
@@ -571,7 +577,6 @@ main(int argc, char **argv)
     ("C,center", "Accumulation center (vector)",
      cxxopts::value<std::vector<double> >(c0))
     ;
-  
   
   options.add_options("expert")
     ("COM", "compute the center of mass and use as the expansion center")
@@ -618,9 +623,41 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  // ==================================================
+
+  // Write YAML template config file and exit
+  //
+  if (vm.count("template")) {
+    // Do not overwrite existing config file
+    //
+    if (std::filesystem::exists(config)) {
+      if (myid == 0)
+	std::cerr << argv[0] << ": config file <" << config
+		  << "> exists, will not overwrite" << std::endl;
+      MPI_Finalize();
+      return 0;
+    }
+
+    // Write template file
+    //
+    if (myid==0) {
+      if (vm.count("expert"))
+	SaveConfig(vm, options, config, {"", "expert"});
+      else
+	SaveConfig(vm, options, config);
+    }
+
+    MPI_Finalize();
+    return 0;
+  }
+
   // Print help message and exit
-  // ==================================================
+  //
+  if (vm.count("expert")) {
+    if (myid==0)
+      std::cout << std::endl << options.help({"", "expert"}) << std::endl;
+    MPI_Finalize();
+    return 0;
+  }
 
   if (vm.count("help")) {
     if (myid==0)
@@ -629,13 +666,19 @@ main(int argc, char **argv)
     return 0;
   }
 
-  if (!vm.count("help") and vm.count("expert")) {
-    if (myid==0)
-      std::cout << std::endl << options.help({"", "expert"}) << std::endl;
-    MPI_Finalize();
-    return 0;
+  // Read parameters fron the YAML config file
+  //
+  if (vm.count("input")) {
+    try {
+      vm = LoadConfig(options, config);
+    } catch (cxxopts::OptionException& e) {
+      if (myid==0) std::cout << "Option error in configuration file: "
+			     << e.what() << std::endl;
+      MPI_Finalize();
+      return 0;
+    }
   }
-
+  
   bool rendering = true;
   if (vm.count("coefs") and vm.count("CONLY")) {
     rendering = false;
