@@ -627,23 +627,13 @@ main(int argc, char **argv)
   // Write YAML template config file and exit
   //
   if (vm.count("template")) {
-    // Do not overwrite existing config file
-    //
-    if (std::filesystem::exists(config)) {
-      if (myid == 0)
-	std::cerr << argv[0] << ": config file <" << config
-		  << "> exists, will not overwrite" << std::endl;
-      MPI_Finalize();
-      return 0;
-    }
-
     // Write template file
     //
     if (myid==0) {
       if (vm.count("expert"))
-	SaveConfig(vm, options, config, {"", "expert"});
+	SaveConfig(vm, options, "template.yaml", {"", "expert"});
       else
-	SaveConfig(vm, options, config);
+	SaveConfig(vm, options, "template.yaml");
     }
 
     MPI_Finalize();
@@ -653,15 +643,13 @@ main(int argc, char **argv)
   // Print help message and exit
   //
   if (vm.count("expert")) {
-    if (myid==0)
-      std::cout << std::endl << options.help({"", "expert"}) << std::endl;
+    if (myid==0) std::cout << std::endl << options.help({"", "expert"}) << std::endl;
     MPI_Finalize();
     return 0;
   }
 
   if (vm.count("help")) {
-    if (myid==0)
-      std::cout << std::endl << options.help({""}) << std::endl;
+    if (myid==0) std::cout << std::endl << options.help({""}) << std::endl;
     MPI_Finalize();
     return 0;
   }

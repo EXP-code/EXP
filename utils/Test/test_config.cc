@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 
   options.add_options()
     ("h,help", "This help message")
-    ("expert", "Print out the expert options, too")
+    ("e,expert", "Print out the expert options, too")
     ("v,verbose", "Print verbose debugging output")
     ("t,template", "Make a YAML template config file")
     ("c,config", "Config file", cxxopts::value<std::string>(config)->default_value("config.yaml"))
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
   }
 
   if (vm.count("help")) {
-    std::cout << options.help() << std::endl;
+    std::cout << options.help({""}) << std::endl;
     return 1;
   }
 

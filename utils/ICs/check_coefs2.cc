@@ -345,9 +345,8 @@ main(int ac, char **av)
   cxxopts::Options options("testcoefs2", "Check coefficient expansion for cylindrical basis and compare to a high-order multipole expansion for force and potential");
 
   options.add_options()
-    ("help,h", "Print this help message")
-    ("conf,c", "Write template options file with current and all default values",
-     cxxopts::value<string>(config))
+    ("h,help", "Print this help message")
+    ("T,template", "Write template options file with current and all default values")
     ("f,input", "Parameter configuration file",
      cxxopts::value<string>(config))
     ("condition", "Condition EmpCylSL deprojection from specified disk model (EXP or MN)",
@@ -407,22 +406,13 @@ main(int ac, char **av)
 
   // Write YAML template config file and exit
   //
-  if (vm.count("conf")) {
-    // Do not overwrite existing config file
-    //
-    if (std::filesystem::exists(config)) {
-      if (myid == 0)
-	std::cerr << av[0] << ": config file <" << config
-		  << "> exists, will not overwrite" << std::endl;
-      MPI_Finalize();
-      return 0;
-    }
+  if (vm.count("template")) {
 
     NOUT = std::min<int>(NOUT, NORDER);
 
     // Write template file
     //
-    if (myid==0) SaveConfig(vm, options, config);
+    if (myid==0) SaveConfig(vm, options, "template.yaml");
 
     MPI_Finalize();
     return 0;

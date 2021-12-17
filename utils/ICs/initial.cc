@@ -458,8 +458,7 @@ main(int ac, char **av)
 
   options.add_options()
     ("h,help", "Print this help message")
-    ("T,template", "Write template options file with current and all default values",
-     cxxopts::value<string>(config))
+    ("T,template", "Write template options file with current and all default values")
     ("f,input", "Parameter configuration file",
      cxxopts::value<string>(config))
     ("deproject", "The EmpCylSL deprojection from specified disk model (EXP or MN)",
@@ -645,21 +644,11 @@ main(int ac, char **av)
   // Write YAML template config file and exit
   //
   if (vm.count("template")) {
-    // Do not overwrite existing config file
-    //
-    if (std::filesystem::exists(config)) {
-      if (myid == 0)
-	std::cerr << av[0] << ": config file <" << config
-		  << "> exists, will not overwrite" << std::endl;
-      MPI_Finalize();
-      return 0;
-    }
-
     NOUT = std::min<int>(NOUT, NORDER);
 
     // Write template file
     //
-    if (myid==0) SaveConfig(vm, options, config);
+    if (myid==0) SaveConfig(vm, options, "template.yaml");
 
     MPI_Finalize();
     return 0;

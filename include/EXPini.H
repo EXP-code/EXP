@@ -25,6 +25,8 @@ void SaveConfig(const cxxopts::ParseResult& vm,  // Parsed options
   out << YAML::BeginMap;
   YAML::Node node;
 
+  auto sep = std::string(20, '-');
+
   for (const auto kv: vm) {
 
     // Iterate through option groups
@@ -41,7 +43,7 @@ void SaveConfig(const cxxopts::ParseResult& vm,  // Parsed options
 	    // Is this key in the excluded list?
 	    auto jt = std::find(exclude.begin(), exclude.end(), kv.key());
 
-	    // Not excluded: write to template file
+	    // Not excluded: write to template file with desc as comments
 	    if (jt == exclude.end()) {
 	      out << YAML::Key   << kv.key();
 	      out << YAML::Value << kv.value();

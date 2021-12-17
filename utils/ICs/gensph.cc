@@ -82,8 +82,7 @@ main(int argc, char **argv)
   
   options.add_options()
     ("h,help", "Print this help message")
-    ("t,template", "Write template options file with current and all default values",
-     cxxopts::value<string>(config))
+    ("T,template", "Write template options file with current and all default values")
     ("c,config", "Parameter configuration file",
      cxxopts::value<string>(config))
     ("i,INFILE", "Mass model file",
@@ -205,20 +204,10 @@ main(int argc, char **argv)
   
   // Write template config file in INI style and exit
   //
-  if (vm.count("conf")) {
-    // Do not overwrite existing config file
-    //
-    if (std::filesystem::exists(config)) {
-      if (myid == 0)
-	std::cerr << argv[0] << ": config file <" << config
-		  << "> exists, will not overwrite" << std::endl;
-      MPI_Finalize();
-      return 0;
-    }
-
+  if (vm.count("template")) {
     // Write YAML template file
     //
-    if (myid==0) SaveConfig(vm, options, config);
+    if (myid==0) SaveConfig(vm, options, "template.yaml");
 
     MPI_Finalize();
     return 0;
