@@ -13,7 +13,7 @@
 int main(int argc, char** argv)
 {
   bool use_mpi, use_logr;
-  double scale, rmin, rmax, rs, dfac;
+  double rmin, rmax, rs, dfac;
   int numr, cmap, diverge, Lmax, nmax;
   string filename, cachefile;
 
@@ -31,8 +31,6 @@ int main(int argc, char** argv)
      cxxopts::value<bool>(use_logr)->default_value("false"))
    ("cmap", "coordinates in SphereSL: use mapped (1) or linear(0) coordinates",
      cxxopts::value<int>(cmap)->default_value("0"))
-   ("scale", "scaling from real coordinates to table",
-     cxxopts::value<double>(scale)->default_value("1.0"))
    ("Lmax", "maximum number of angular harmonics in the expansion",
      cxxopts::value<int>(Lmax)->default_value("2"))
    ("nmax", "maximum number of radial harmonics in the expansion",
