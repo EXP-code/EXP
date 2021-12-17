@@ -587,7 +587,6 @@ main(int ac, char **av)
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
-  EmpCylSL::USESVD      = SVD;
   EmpCylSL::CACHEFILE   = cachefile;
 
 				// For DiskDens

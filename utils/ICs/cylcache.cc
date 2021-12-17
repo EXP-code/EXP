@@ -1,10 +1,7 @@
 /*
-  Generates a cylindrical basis
-
-
-
+  Generates a cylindrical basis cache file
 */
-                                // C++/STL headers
+
 #include <filesystem>
 #include <iostream>
 #include <iomanip>
@@ -287,7 +284,6 @@ main(int ac, char **av)
 
   double       RCYLMIN;
   double       RCYLMAX;
-  double       DMFAC;
   double       RFACTOR;
   int          RNUM;
   int          PNUM;
@@ -307,24 +303,14 @@ main(int ac, char **av)
   int          NOUT;
   int          NORDER;
   int          NODD;
-  bool         SELECT;
   double       PPower;
-  double       Hratio;
-  bool         const_height=true;
-  bool         images=false;
-  bool         SVD;
-  int          itmax;
   bool         DENS;
-  bool         basis;
-  bool         report;
-  bool         ignore;
-  string       suffix;
-  string       cachefile;
-  string       config;
-  string       dtype;
-  string       dmodel;
-  string       mtype;
-  string       ctype;
+  std::string  cachefile;
+  std::string  config;
+  std::string  dtype;
+  std::string  dmodel;
+  std::string  mtype;
+  std::string  ctype;
   
   const std::string mesg("Generates an EmpCylSL cache\n");
 
@@ -339,41 +325,37 @@ main(int ac, char **av)
      cxxopts::value<string>(dmodel)->default_value("EXP"))
     ("cachefile", "The cache file for the cylindrical basis",
      cxxopts::value<string>(cachefile)->default_value(".eof.cache.file"))
-    ("ctype", "DiskHalo radial coordinate scaling type (one of: Linear, Log,Rat)",
+    ("ctype", "DiskHalo radial coordinate scaling type (one of: Linear, Log, Rat)",
      cxxopts::value<string>(ctype)->default_value("Log"))
-    ("LMAX2", "",
+    ("LMAX2", "Maximum angular order for spherical basis in adaptive construction of the cylindrical basis",
      cxxopts::value<int>(LMAX2)->default_value("48"))
-    ("NMAX2", "",
+    ("NMAX2", "Maximum radial order for the spherical basis in adapative construction of the cylindrical basis",
      cxxopts::value<int>(NMAX2)->default_value("48"))
-    ("MMAX", "",
+    ("MMAX", "Maximum azimuthal order for the cylindrical basis",
      cxxopts::value<int>(MMAX)->default_value("6"))
-    ("NUMX", "",
+    ("NUMX", "Size of the (mapped) cylindrical radial grid",
      cxxopts::value<int>(NUMX)->default_value("256"))
-    ("NUMY", "",
+    ("NUMY", "Size of the (mapped) cylindrical vertical grid",
      cxxopts::value<int>(NUMY)->default_value("128"))
-    ("dtype", "",
+    ("dtype", "Spherical model type for adpative basis creation",
      cxxopts::value<string>(dtype)->default_value("exponential"))
-    ("NOUT", "",
+    ("NOUT", "Maximum radial order for diagnostic basis dump",
      cxxopts::value<int>(NOUT)->default_value("18"))
-    ("NODD", "",
+    ("NODD", "Number of vertically odd basis functions per harmonic order",
      cxxopts::value<int>(NODD)->default_value("6"))
-    ("NORDER", "",
+    ("NORDER", "Total number of basis functions per harmonic order",
      cxxopts::value<int>(NORDER)->default_value("32"))
-    ("VFLAG", "",
+    ("VFLAG", "Diagnostic flag for EmpCylSL",
      cxxopts::value<int>(VFLAG)->default_value("31"))
-    ("expcond", "",
+    ("expcond", "Use analytic target density rather than particle distribution",
      cxxopts::value<bool>(expcond)->default_value("true"))
-    ("report", "",
-     cxxopts::value<bool>(report)->default_value("false"))
-    ("LOGR", "",
+    ("LOGR", "Logarithmic scaling for model table in EmpCylSL",
      cxxopts::value<bool>(LOGR)->default_value("true"))
-    ("DENS", "",
+    ("DENS", "Compute and cache basis density field",
      cxxopts::value<bool>(DENS)->default_value("true"))
-    ("basis", "",
-     cxxopts::value<bool>(basis)->default_value("false"))
-    ("RCYLMIN", "Minimum disk radius",
+    ("RCYLMIN", "Minimum disk radius for EmpCylSL",
      cxxopts::value<double>(RCYLMIN)->default_value("0.001"))
-    ("RCYLMAX", "Maximum disk radius",
+    ("RCYLMAX", "Maximum disk radius for EmpCylSL",
      cxxopts::value<double>(RCYLMAX)->default_value("20.0"))
     ("ASCALE", "Radial scale length for disk basis construction",
      cxxopts::value<double>(ASCALE)->default_value("1.0"))
@@ -387,14 +369,14 @@ main(int ac, char **av)
      cxxopts::value<double>(HRATIO)->default_value("1.0"))
     ("NUMR", "Size of radial grid",
      cxxopts::value<int>(NUMR)->default_value("2000"))
+    ("PPOW", "Power-law index for power-law disk profile",
+     cxxopts::value<double>(PPower)->default_value("4.0"))
     ("DWEIGHT", "Ratio of second disk relative to the first disk for disk basis construction with double-exponential",
      cxxopts::value<double>(DWEIGHT)->default_value("1.0"))
     ("RTRUNC", "Maximum disk radius for erf truncation of EOF conditioning density",
      cxxopts::value<double>(RTRUNC)->default_value("0.1"))
     ("RWIDTH", "Width for erf truncation for EOF conditioning density (ignored if zero)",
      cxxopts::value<double>(RWIDTH)->default_value("0.0"))
-    ("DMFAC", "Disk mass scaling factor for spherical deprojection model",
-     cxxopts::value<double>(DMFAC)->default_value("1.0"))
     ("RFACTOR", "Disk radial scaling factor for spherical deprojection model",
      cxxopts::value<double>(RFACTOR)->default_value("1.0"))
     ("RNUM", "Number of radial knots for EmpCylSL basis construction quadrature",
@@ -405,7 +387,7 @@ main(int ac, char **av)
      cxxopts::value<int>(TNUM)->default_value("80"))
     ("CMAPR", "Radial coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
      cxxopts::value<int>(CMAPR)->default_value("1"))
-    ("CMAPZ", "Verticall coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
+    ("CMAPZ", "Vertical coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
      cxxopts::value<int>(CMAPZ)->default_value("1"))
     ;
   
@@ -470,15 +452,15 @@ main(int ac, char **av)
   }
 
 
+  // Convert mtype string to lower case
+  //
+  std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
   // Set EmpCylSL mtype.  This is the spherical function used to
   // generate the EOF basis.  If "deproject" is set, this will be
   // overriden in EmpCylSL.
   //
-
-				// Convert mtype string to lower case
-  std::transform(mtype.begin(), mtype.end(), mtype.begin(),
-		 [](unsigned char c){ return std::tolower(c); });
-
   EmpCylSL::mtype = EmpCylSL::Exponential;
   if (vm.count("mtype")) {
     if (mtype.compare("exponential")==0)
@@ -500,13 +482,15 @@ main(int ac, char **av)
     }
   }
 
-  // Set DiskType.  This is the functional form for the disk used to
-  // condition the basis.
+  // Convert dtype string to lower case
   //
-				// Convert dtype string to lower case
   std::transform(dtype.begin(), dtype.end(), dtype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
+
+  // Set DiskType.  This is the functional form for the disk used to
+  // condition the basis.
+  //
   try {				// Check for map entry, will through if the 
     DTYPE = dtlookup.at(dtype);	// key is not in the map.
 
@@ -565,15 +549,10 @@ main(int ac, char **av)
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
-  EmpCylSL::USESVD      = SVD;
-  EmpCylSL::PCAVAR      = SELECT;
   EmpCylSL::CACHEFILE   = cachefile;
-
-  if (basis) EmpCylSL::DENS = true;
 
                                 // Create expansion only if needed . . .
   std::shared_ptr<EmpCylSL> expandd;
-  bool save_eof = false;
 
   expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
 
@@ -592,54 +571,46 @@ main(int ac, char **av)
 #endif
 
 
-    // Use these user models to deproject for the EOF spherical basis
-    //
-    if (vm.count("deproject")) {
-      // The scale in EmpCylSL is assumed to be 1 so we compute the
-      // height relative to the length
-      //
-      double H = HSCALE/ASCALE;
+   // Use these user models to deproject for the EOF spherical basis
+   //
+   if (vm.count("deproject")) {
+     // The scale in EmpCylSL is assumed to be 1 so we compute the
+     // height relative to the length
+     //
+     double H = HSCALE/ASCALE;
 
-      // The model instance (you can add others in DiskModels.H).
-      // It's MN or Exponential if not MN.
-      //
-      EmpCylSL::AxiDiskPtr model;
+     // The model instance (you can add others in DiskModels.H).
+     // It's MN or Exponential if not MN.
+     //
+     EmpCylSL::AxiDiskPtr model;
 
-      if (dmodel.compare("MN")==0) // Miyamoto-Nagai
-	model = std::make_shared<MNdisk>(1.0, H);
-      else			// Default to exponential
-	model = std::make_shared<Exponential>(1.0, H);
+     if (dmodel.compare("MN")==0) // Miyamoto-Nagai
+       model = std::make_shared<MNdisk>(1.0, H);
+     else			// Default to exponential
+       model = std::make_shared<Exponential>(1.0, H);
 
-      if (RWIDTH>0.0) {
-	model = std::make_shared<Truncated>(RTRUNC/ASCALE,
-					      RWIDTH/ASCALE,
-					      model);
-	if (myid==0)
-	  std::cout << "Made truncated model with R=" << RTRUNC/ASCALE
-		    << " and W=" << RWIDTH/ASCALE << std::endl;
-      }
+     if (RWIDTH>0.0) {
+       model = std::make_shared<Truncated>(RTRUNC/ASCALE,
+					   RWIDTH/ASCALE,
+					   model);
+       if (myid==0)
+	 std::cout << "Made truncated model with R=" << RTRUNC/ASCALE
+		   << " and W=" << RWIDTH/ASCALE << std::endl;
+     }
+     
+     expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
+   }
+    
+   // Regenerate EOF from analytic density
+   //
+   expandd->generate_eof(RNUM, PNUM, TNUM, dcond);
 
-      expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
-    }
-
-    // Regenerate EOF from analytic density
-    //
-    if (expcond and not save_eof) {
-      expandd->generate_eof(RNUM, PNUM, TNUM, dcond);
-      save_eof = true;
-    }
-
-    // Basis orthgonality check
-    //
-    if (vm.count("ortho")) {
-      std::ofstream out(runtag + ".ortho_check");
-      expandd->ortho_check(out);
-    }
-
-
-
-  //===========================Diagnostics=====================================
-
+   // Basis orthgonality check
+   //
+   if (vm.count("ortho")) {
+     std::ofstream out(runtag + ".ortho_check");
+     expandd->ortho_check(out);
+   }
 
   //===========================================================================
   // Shutdown MPI

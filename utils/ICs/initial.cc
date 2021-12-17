@@ -541,8 +541,6 @@ main(int ac, char **av)
      cxxopts::value<bool>(CHEBY)->default_value("false"))
     ("DENS", "",
      cxxopts::value<bool>(DENS)->default_value("true"))
-    ("basis", "",
-     cxxopts::value<bool>(basis)->default_value("false"))
     ("zero", "",
      cxxopts::value<bool>(zero)->default_value("true"))
     ("NCHEB", "",
@@ -891,11 +889,8 @@ main(int ac, char **av)
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
-  EmpCylSL::USESVD      = SVD;
   EmpCylSL::PCAVAR      = SELECT;
   EmpCylSL::CACHEFILE   = cachefile;
-
-  if (basis) EmpCylSL::DENS = true;
 
                                 // Create expansion only if needed . . .
   std::shared_ptr<EmpCylSL> expandd;
