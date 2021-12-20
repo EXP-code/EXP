@@ -519,13 +519,19 @@ public:
   //! Set limit to mmax for testing
   void set_mlim(int mlim) {MLIM = mlim;}
 
+  //! Get limit to mmax for testing
+  int get_mmin() { return MMIN; }
+
+  //! Get limit to mmax for testing
+  int get_mlim() { return MLIM; }
+
   //! Parameter access: get norder
   int get_order(void) {return NORDER;}
 
   //! Compute non-dimensional vertical coordinate from Z
   double z_to_y(double z);
 
-  //! Compute Z from non-dimensional vertical coordinate
+  //! Compute Z from non-dbimensional vertical coordinate
   double y_to_z(double y);
 
   //! For measure transformation

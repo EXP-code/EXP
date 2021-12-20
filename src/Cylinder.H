@@ -336,6 +336,34 @@ public:
 				double *tpotr, double *tpotz, 
 				double *tpotp);
 
+  //! Return the value for the fields in cylindrical coordinates with limits
+  void 
+  determine_fields_at_point_cyl(double r, double z, double phi,
+				double *tdens0, double *tpotl0, 
+				double *tdens, double *tpotl, 
+				double *tpotr, double *tpotz, 
+				double *tpotp, int mmin, int mlim)
+  {
+    int MMIN=-1, MLIM=-1;
+    // Set new values and cache current values
+    if (mmin>=0) {
+      MMIN = ortho->get_mmin();
+      ortho->set_mmin(mmin);
+    }
+    if (mlim>=0) {
+      MLIM = ortho->get_mlim();
+      ortho->set_mlim(mlim);
+    }
+
+    determine_fields_at_point_cyl(r, z, phi,
+				  tdens0, tpotl0, tdens, tpotl, 
+				  tpotr, tpotz, tpotp);
+
+    // Reset limits to original values
+    if (MMIN>=0) ortho->set_mmin(MMIN);
+    if (MLIM>=0) ortho->set_mlim(MLIM);
+  }
+
   //! Return the value for the fields in Cartesian coordinates
   void 
   determine_fields_at_point(double x, double y, double z,
