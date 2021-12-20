@@ -419,9 +419,15 @@ void print_default(void)
 
 void YAML_parse_args(int argc, char** argv)
 {
+  // Program name (should be 'exp')
+  //
   char *prog = argv[0];
-  string curparm("config.yml");	// Default config file if none specified
 
+  // Default config file if none specified using -f or as a trailing option
+  //
+  string curparm("config.yml");
+
+  // Get our MPI id
   int myid;
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   
@@ -429,7 +435,12 @@ void YAML_parse_args(int argc, char** argv)
 
   if (myid==0) {
 
-    cxxopts::Options options("exp", "Basis-function EXPansion code\n");
+    cxxopts::Options options(prog, "Basis-function EXPansion code\n");
+
+    // Allow unmatched options so that we can get the trailing config
+    // file name, if specified
+    //
+    options.allow_unrecognised_options();
 
     options.add_options()
       ("h,help", "this help message")
@@ -457,6 +468,7 @@ void YAML_parse_args(int argc, char** argv)
     }
     
     if (vm.count("git")) {
+      exp_version();
       done = 1;
     }
     
@@ -472,11 +484,37 @@ void YAML_parse_args(int argc, char** argv)
       exit(EXIT_SUCCESS);
     }
 
+    // If config file is not specified, use first trailing, unmatched
+    // argument as config file
+    //
+    bool trailing = false;
+    if (vm.count("file")==0) {
+      auto trail = vm.unmatched();
+      if (trail.size()) {
+	curparm = trail[0];
+	trailing = true;
+      }
+    }
+
+    // Now attempt to read the YAML config file
+    //
     std::ifstream in(curparm);
     if (!in) {
-      char mbuf[512];
-      cerr << "MAIN: can not open parameter file <" << parmfile << ">\n";
-      cerr << "MAIN: pwd is <" << getcwd(mbuf, 512) << ">\n";
+      // Failure to open YAML file for reading
+      //
+      if (myid==0) {
+	std::cerr << argv[0] << ": can not open parameter file <" << curparm
+		  << ">" << std::endl;
+
+	if (trailing)		// Additional info for user debugging...
+	  std::cerr << argv[0]
+		    << ": the parameter file name was inferred from the first "
+		    << "unmatched command-line argument" << std::endl;
+
+	char mbuf[512];
+	std::cerr << argv[0] << ": pwd is <" << getcwd(mbuf, 512) << ">"
+		  << std::endl;
+      }
       done = 1;
     }
     
