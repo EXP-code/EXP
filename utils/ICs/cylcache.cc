@@ -319,7 +319,7 @@ main(int ac, char **av)
   options.add_options()
     ("h,help", "Print this help message")
     ("T,template", "Write template options file with current and all default values")
-    ("f,input", "Parameter configuration file",
+    ("c,config", "Parameter configuration file",
      cxxopts::value<string>(config))
     ("deproject", "The EmpCylSL deprojection from specified disk model (EXP or MN)",
      cxxopts::value<string>(dmodel)->default_value("EXP"))
