@@ -215,7 +215,7 @@ main(int argc, char **argv)
 
   // Read parameters fron the YAML config file
   //
-  if (vm.count("input")) {
+  if (vm.count("config")) {
     try {
       vm = LoadConfig(options, config);
     } catch (cxxopts::OptionException& e) {
