@@ -18,7 +18,7 @@ void SaveConfig(const cxxopts::ParseResult& vm,  // Parsed options
 		// Option groups to save, default by default
 		const std::vector<std::string> groups={""},
 		// Parameters to exclude
-		const std::vector<std::string> exclude={"template", "expert"})
+		const std::vector<std::string> exclude={"help", "template", "expert", "config"})
 {    
   YAML::Emitter out;
 
