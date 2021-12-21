@@ -61,7 +61,7 @@ main(int argc, char **argv)
   double DIVERGE_RFAC, DIVERGE_RFAC2, NN, MM, RA, RMODMIN, RMOD, EPS;
   double X0, Y0, Z0, U0, V0, W0, TOLE;
   double Emin0, Emax0, Kmin0, Kmax0, RBAR, MBAR, BRATIO, CRATIO, SMOOTH;
-  bool LOGR, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR;
+  bool LOGR, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR, zeropos, zerovel;
   std::string INFILE, MMFILE, OUTFILE, OUTPS, config;
   
 #ifdef DEBUG
@@ -93,8 +93,10 @@ main(int argc, char **argv)
      cxxopts::value<string>(OUTPS)->default_value("new.bods"))
     ("p,prefix", "Diagnostic output file prefix",
      cxxopts::value<string>(OUTFILE)->default_value("gensph"))
-    ("zeropos", "Set the origin at the center of mass")
-    ("zerovel", "Set the total momentum of the realization to zero")
+    ("zeropos", "Set the origin at the center of mass",
+     cxxopts::value<bool>(zeropos)->default_value("false"))
+    ("zerovel", "Set the total momentum of the realization to zero",
+     cxxopts::value<bool>(zerovel)->default_value("true"))
     ("HMODEL", "Halo type (0=file)",
      cxxopts::value<int>(HMODEL)->default_value("0"))
     ("N,bodies", "Number of bodies",
@@ -175,9 +177,12 @@ main(int argc, char **argv)
      cxxopts::value<double>(BRATIO)->default_value("0.2"))
     ("CRATIO", "axis ratio c/b",
      cxxopts::value<double>(CRATIO)->default_value("0.05"))
-    ("g,gridpot", "compute the number-density potential by gridded quadrature")
-    ("d,diagout", "print model computation diagnostics for multimass and bar")
-    ("b,bar",     "add an ellipsoidal bar model")
+    ("g,gridpot", "compute the number-density potential by gridded quadrature",
+     cxxopts::value<bool>(GRIDPOT)->default_value("false"))
+    ("d,diagout", "print model computation diagnostics for multimass and bar",
+     cxxopts::value<bool>(MODELS)->default_value("false"))
+    ("b,bar",     "add an ellipsoidal bar model",
+     cxxopts::value<bool>(EBAR)->default_value("false"))
     ;
   
   auto vm = options.parse(argc, argv);
@@ -207,16 +212,7 @@ main(int argc, char **argv)
   if (vm.count("template")) {
     // Write YAML template file
     //
-    // Parameter groups to send to template ---------------+
-    //                                                     |
-    //                                                     v
-    if (myid==0) SaveConfig(vm, options, "template.yaml", {""},
-			    {"help", "template", "config", "zeropos",
-			     "zerovel", "gridpot", "diagout", "bar"});
-    //                       ^
-    //                       |
-    // Suppress these from --+
-    // template
+    if (myid==0) SaveConfig(vm, options, "template.yaml");
 
     MPI_Finalize();
     return 0;
@@ -235,15 +231,6 @@ main(int argc, char **argv)
     }
   }
   
-  GRIDPOT = false;
-  if (vm.count("GRIDPOT")) GRIDPOT = true;
-
-  MODELS = false;
-  if (vm.count("diagout")) MODELS = true;
-
-  EBAR = false;
-  if (vm.count("bar"))     EBAR = true;
-
   // Prepare output streams and create new files
   //
   std::ostringstream sout;
@@ -681,10 +668,6 @@ main(int argc, char **argv)
   
   std::vector<Eigen::VectorXd> PS;
   Eigen::VectorXd zz = Eigen::VectorXd::Zero(7);
-
-  bool zeropos = false, zerovel = false;
-  if (vm.count("zeropos")) zeropos = true;
-  if (vm.count("zerovel")) zerovel = true;
 
   for (int n=beg; n<end; n++) {
     
