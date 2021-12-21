@@ -207,7 +207,16 @@ main(int argc, char **argv)
   if (vm.count("template")) {
     // Write YAML template file
     //
-    if (myid==0) SaveConfig(vm, options, "template.yaml");
+    // Parameter groups to send to template ---------------+
+    //                                                     |
+    //                                                     v
+    if (myid==0) SaveConfig(vm, options, "template.yaml", {""},
+			    {"help", "template", "config", "zeropos",
+			     "zerovel", "gridpot", "diagout", "bar"});
+    //                       ^
+    //                       |
+    // Suppress these from --+
+    // template
 
     MPI_Finalize();
     return 0;
@@ -272,6 +281,7 @@ main(int argc, char **argv)
   if (HMODEL>=0) {
     
     // Halo model
+    //
     switch (HMODEL) {
     case file:
       SphericalModelTable::even = 0;
