@@ -422,7 +422,7 @@ void YAML_parse_args(int argc, char** argv)
   // Program name (should be 'exp')
   //
   char *prog = argv[0];
-
+  
   // Default config file if none specified using -f or as a trailing option
   //
   string curparm("config.yml");
@@ -444,9 +444,9 @@ void YAML_parse_args(int argc, char** argv)
 
     options.add_options()
       ("h,help", "this help message")
-      ("f,file", "the input parameter file",
+      ("f,file", "the input YAML configuration file",
        cxxopts::value<std::string>(curparm)->default_value("config.yml"))
-      ("d,display", "display a default parameter file")
+      ("t,template", "provide a template YAML configuration file")
       ("v,git", "display verbose GIT version info")
       ;
     
@@ -455,28 +455,32 @@ void YAML_parse_args(int argc, char** argv)
     try {
       vm = options.parse(argc, argv);
     } catch (cxxopts::OptionException& e) {
-      if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+      std::cout << "Option error: " << e.what() << std::endl;
       MPI_Finalize();
       exit(-1);
     }
 
     if (vm.count("help")) {
       std::cout << options.help() << std::endl
-		<< "See EXP/doc/html/index.html for extensive documentation"
+		<< "* The YAML config may be appended to the command line without flags" << std::endl
+		<< "* See EXP/doc/html/index.html for extensive documentation" << std::endl
 		<< std::endl << std::endl;
       done = 1;
     }
     
     if (vm.count("git")) {
-      exp_version();
+      // Version is printed automatically, so we only need to exit
       done = 1;
     }
     
     if (vm.count("display")) {
+      // Print a template config file with default parameter values
       print_default();
       done = 1;
     }
 
+    // Termination check #1
+    //
     MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     if (done) {
@@ -508,7 +512,7 @@ void YAML_parse_args(int argc, char** argv)
 
 	if (trailing)		// Additional info for user debugging...
 	  std::cerr << argv[0]
-		    << ": the parameter file name was inferred from the first "
+		    << ": the YAML config file name was the first "
 		    << "unmatched command-line argument" << std::endl;
 
 	char mbuf[512];
@@ -518,6 +522,8 @@ void YAML_parse_args(int argc, char** argv)
       done = 1;
     }
     
+    // Termination check #2
+    //
     MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
     
     if (done) {
@@ -534,8 +540,13 @@ void YAML_parse_args(int argc, char** argv)
       done = 1;
     }
 
+    // Termination check #3
+    //
     MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+    // The current YAML structure will now be serialized and broadcast
+    // to all processes
+    //
     std::ostringstream serial;
     serial << parse << std::endl;
 
@@ -545,37 +556,33 @@ void YAML_parse_args(int argc, char** argv)
     
   } else {
     
-    MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    // 3 termination checks
+    //
+    for (int i=0; i<3; i++) {
+      MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    if (done) {
-      MPI_Finalize();
-      exit(EXIT_SUCCESS);
+      if (done) {
+	MPI_Finalize();
+	exit(EXIT_SUCCESS);
+      }
     }
 
-    MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    if (done) {
-      MPI_Finalize();
-      exit(EXIT_SUCCESS);
-    }
-
-    MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    if (done) {
-      MPI_Finalize();
-      exit(EXIT_SUCCESS);
-    }
-
+    // Receive the YAML serialized length
+    //
     int line_size;
     MPI_Bcast(&line_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
     
     std::string config;
     config.resize(line_size);
 
+    // Receive the YAML serialized string
+    //
     MPI_Bcast(const_cast<char*>(config.data()), line_size, MPI_CHAR, 0, MPI_COMM_WORLD);
     
     std::istringstream sin(config);
     
+    // Load the YAML structure
+    //
     parse = YAML::Load(sin);
   }
 
