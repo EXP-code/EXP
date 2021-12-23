@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
@@ -580,7 +581,7 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
 {
   std::ifstream in(eof_file.c_str());
   if (!in) {
-    std::cerr << "EmpCylSL::cache_grid: error opening file named <" 
+    std::cerr << "EmpCylSL::read_eof_header: error opening file named <" 
 	      << eof_file << ">" << std::endl;
     return 0;
   }
@@ -761,10 +762,30 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
   if (cachefile.size()==0) cachefile = CACHEFILE;
 
   if (readwrite) {
+    
+    if (std::filesystem::exists(cachefile)) {
+      std::cerr << "EmpCylSL::cache_grid: cache file <"
+		<< cachefile << "> exists" << std::endl;
+      try {
+	std::filesystem::rename(cachefile, cachefile + ".bak");
+      }
+      catch(std::filesystem::filesystem_error const& ex) {
+        std::cout << "EmpCylSL::cache_grid write error: "
+		  << "what():  " << ex.what()  << std::endl
+		  << "path1(): " << ex.path1() << std::endl
+		  << "path2(): " << ex.path2() << std::endl;
+	MPI_Abort(MPI_COMM_WORLD, 12);
+	return 0;
+      }
 
-    std::ofstream out(cachefile.c_str());
+      std::cout << "EmpCylSL::cache_grid: existing file backed up to <"
+		<< cachefile + ".bak>" << std::endl;
+    }
+
+    std::ofstream out(cachefile);
     if (!out) {
-      std::cerr << "EmpCylSL::cache_grid: error writing file" << std::endl;
+      std::cerr << "EmpCylSL::cache_grid: error opening file for writing"
+		<< std::endl;
       return 0;
     }
 
