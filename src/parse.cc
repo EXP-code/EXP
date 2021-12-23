@@ -407,10 +407,25 @@ void write_parm(void)
       << "..." << std::endl;
 }
 
+void add_others()
+{
+  // Blank nodes at this point (could add some example values...)
+  //
+  YAML::Node comp, outp, extr, intr;
+
+  // Add other main map elements
+  //
+  parse["Components"]  = comp;
+  parse["Output"]      = outp;
+  parse["External"]    = extr;
+  parse["Interaction"] = intr;
+
+}
 
 void print_default(void)
 {
   update_parm();
+  add_others();
   
   std::cout << "# EXP [" << VERSION << "]" << std::endl
 	    << parse << std::endl;
@@ -446,6 +461,8 @@ void YAML_parse_args(int argc, char** argv)
       ("h,help", "this help message")
       ("f,file", "the input YAML configuration file",
        cxxopts::value<std::string>(curparm)->default_value("config.yml"))
+      ("c,config", "the input YAML configuration file",
+       cxxopts::value<std::string>(curparm)->default_value("config.yml"))
       ("t,template", "provide a template YAML configuration file")
       ("v,git", "display verbose GIT version info")
       ;
@@ -473,7 +490,7 @@ void YAML_parse_args(int argc, char** argv)
       done = 1;
     }
     
-    if (vm.count("display")) {
+    if (vm.count("template")) {
       // Print a template config file with default parameter values
       print_default();
       done = 1;
