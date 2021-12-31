@@ -56,8 +56,8 @@
 int
 main(int argc, char **argv)
 {
-  int HMODEL, N, NUMDF, NUMR, NUMJ, NUME, NUMG, NREPORT, SEED, ITMAX, NUMMODEL, RNUM;
-  int  DIVERGE, DIVERGE2, LINEAR, NUMINT, NI, ND;
+  int HMODEL, N, NUMDF, NUMR, NUMJ, NUME, NUMG, NREPORT, SEED, ITMAX;
+  int  NUMMODEL, RNUM, DIVERGE, DIVERGE2, LINEAR, NUMINT, NI, ND;
   double DIVERGE_RFAC, DIVERGE_RFAC2, NN, MM, RA, RMODMIN, RMOD, EPS;
   double X0, Y0, Z0, U0, V0, W0, TOLE;
   double Emin0, Emax0, Kmin0, Kmax0, RBAR, MBAR, BRATIO, CRATIO, SMOOTH;
@@ -101,6 +101,10 @@ main(int argc, char **argv)
      cxxopts::value<int>(HMODEL)->default_value("0"))
     ("N,bodies", "Number of bodies",
      cxxopts::value<int>(N)->default_value("1000000"))
+    ("NI", "Number of integer attributesfor PSP file",
+     cxxopts::value<int>(NI)->default_value("0"))
+    ("ND", "Number of double attributes for PSP file",
+     cxxopts::value<int>(ND)->default_value("0"))
     ("NUMDF", "Number of points in energy grid for Eddington inversion",
      cxxopts::value<int>(NUMDF)->default_value("10000"))
     ("NUMR", "Number of points in radial grid for halo model",
@@ -177,6 +181,8 @@ main(int argc, char **argv)
      cxxopts::value<double>(BRATIO)->default_value("0.2"))
     ("CRATIO", "axis ratio c/b",
      cxxopts::value<double>(CRATIO)->default_value("0.05"))
+    ("SMOOTH", "Edge smoothing for bar density profile",
+     cxxopts::value<double>(SMOOTH)->default_value("0.0"))
     ("g,gridpot", "compute the number-density potential by gridded quadrature",
      cxxopts::value<bool>(GRIDPOT)->default_value("false"))
     ("d,diagout", "print model computation diagnostics for multimass and bar",
@@ -231,6 +237,9 @@ main(int argc, char **argv)
     }
   }
   
+  if (vm.count("VERBOSE")) VERBOSE = true;
+  else                     VERBOSE = false;
+
   // Prepare output streams and create new files
   //
   std::ostringstream sout;
