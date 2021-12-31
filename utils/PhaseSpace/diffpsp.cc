@@ -695,14 +695,20 @@ main(int argc, char **argv)
 	  ik = max<int>(ik, 0);
 	  ik = min<int>(ik, NUMK-1);
 	  
+	  double L1 = 0.0, L2 = 0.0;
+	  for (int k=0; k<3; k++) {
+	    L1 += angmom1[k]*angmom1[k];
+	    L2 += angmom2[k]*angmom2[k];
+	  }
+	  L1 = sqrt(L1);
+	  L2 = sqrt(L2);
+
 	  histoC(ie, ik) += 1;
 	  histoM(ie, ik) += pp->mass();
 	  histoE(ie, ik) += pp->mass()*(E1 - E2);
-	  histoJ(ie, ik) += pp->mass()*(angmom2[2] - angmom1[2]);
+	  histoJ(ie, ik) += pp->mass()*(L1 - L2);
 	  histoI(ie, ik) += pp->mass()*(I2 - I1);
-	  histoT(ie, ik) += pp->mass()*sqrt(angmom1[0]*angmom1[0] + 
-					    angmom1[1]*angmom1[1] + 
-					    angmom1[2]*angmom1[2]);
+	  histoT(ie, ik) += pp->mass()*L1;
 	
 	  if (LZDIST and myid==0) {
 	    if (KK>KMIN && KK<KMAX && EE>EMIN && EE<EMAX)
@@ -728,9 +734,7 @@ main(int argc, char **argv)
 	  histLr[ir] += pp->mass()*(angmom2[2] - angmom1[2])*2.0/
 	    sqrt(angmom1[2]*angmom1[2] + angmom2[2]*angmom2[2]);
 	  histoN[ir] += pp->mass();
-	  histoS[ir] += pp->mass()*sqrt(angmom1[0]*angmom1[0] + 
-					angmom1[1]*angmom1[1] + 
-					   angmom1[2]*angmom1[2]);
+	  histoS[ir] += pp->mass()*L1;
 	}
 
       }
