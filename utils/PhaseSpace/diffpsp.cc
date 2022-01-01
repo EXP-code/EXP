@@ -2,7 +2,8 @@
  *  Description:
  *  -----------
  *
- *  Use PSP class to compute phase space distribution difference
+ *  Use ParticleReader class to compute phase space distribution
+ *  difference
  *
  *
  *  Call sequence:
@@ -133,7 +134,7 @@ main(int argc, char **argv)
     ("h,help", "This help message")
     ("2,kappa2", "Bin kappa^2 instead of kappa")
     ("rmaxf", "Do not extend orbit evaluation beyond the model radius")
-    ("F,filetype", "input file type",
+    ("F,filetype", "input file type (one of: PSPout, PSPspl, GadgetNative, GadgetHDF5)",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("TIME1", "Target time for fiducial phase space",
      cxxopts::value<double>(TIME1)->default_value("0.0"))
@@ -169,8 +170,6 @@ main(int argc, char **argv)
      cxxopts::value<int>(NUMK)->default_value("20"))
     ("DIVERGE", "Flag for cusp extrapolation (non-zero means ON)",
      cxxopts::value<int>(DIVERGE)->default_value("0"))
-    ("COMP", "Flag for computing model from phase space itself",
-     cxxopts::value<string>(COMP)->default_value("dark"))
     ("nthrds", "Desired number of OpenMP threads",
      cxxopts::value<int>(nthrds)->default_value("1"))
     ("WHICHPS", "Which phase-space file to use (1=first, 2=second)",
