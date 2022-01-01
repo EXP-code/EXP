@@ -1,5 +1,7 @@
+#include <stdexcept>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 #include <cmath>
 
 #include <numerical.H>
@@ -15,8 +17,11 @@ double zbrent(func_1d func, double x1, double x2, double tol)
   double fa=(*func)(a),fb=(*func)(b),fc,p,q,r,s,tol1,xm;
   
   if (fb*fa > 0.0) {
-    std::cerr << "Root must be bracketed in ZBRENT" << std::endl;
-    exit(-1);
+    std::ostringstream str;
+    str << "Root must be bracketed in ZBRENT:"
+	<< "  f(" << a << ")=" << fa
+	<< ", f(" << b << ")=" << fb;
+    throw std::runtime_error(str.str());
   }
   
   fc=fb;
@@ -72,9 +77,7 @@ double zbrent(func_1d func, double x1, double x2, double tol)
     fb=(*func)(b);
   }
 
-  std::cerr << "Maximum number of iterations exceeded in ZBRENT" << std::endl;
-  
-  return 0.0;
+  return b;
 }
 
 #undef ITMAX

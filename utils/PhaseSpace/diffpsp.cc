@@ -130,6 +130,7 @@ main(int argc, char **argv)
   options.add_options()
     ("h,help", "This help message")
     ("2,kappa2", "Bin kappa^2 instead of kappa")
+    ("rmaxf", "Do not extend orbit evaluation beyond the model radius")
     ("TIME1", "Target time for fiducial phase space",
      cxxopts::value<double>(TIME1)->default_value("0.0"))
     ("TIME2", "Target time for evolved phase space",
@@ -188,7 +189,7 @@ main(int argc, char **argv)
      cxxopts::value<bool>(LZDIST)->default_value("false"))
     ("LOGMOD", "Use log(r) scaling for mass model",
      cxxopts::value<bool>(LOGMOD)->default_value("false"))
-    ("meshgrid", "Print dimensions for Pythn meshgrid-like arrays",
+    ("meshgrid", "Print dimensions for Python meshgrid-like arrays",
      cxxopts::value<bool>(meshgrid)->default_value("true"))
     ("DIVERGE_RFAC", "Cusp index for extrapolation",
      cxxopts::value<double>(DIVERGE_RFAC)->default_value("1.0"))
@@ -418,6 +419,10 @@ main(int argc, char **argv)
 
     hmodel = std::make_shared<SphericalModelTable>(MODELFILE, DIVERGE, DIVERGE_RFAC);
 
+    if (vm.count("rmaxf")) {
+      SphericalOrbit::RMAXF = 1.0;
+      std::cout << "RMAXF=" << SphericalOrbit::RMAXF << std::endl;
+    }
   }
   else if (stanza = psp->GetNamed(COMP)) {
 
@@ -519,8 +524,8 @@ main(int argc, char **argv)
   // Do difference
   //============================================================
 
-  int numK0=0, numK1=0;
-  const double KTOL = 1.0e-3;
+  int numK0=0, numK1=0, reject=0, N=0;
+  const double KTOL = 1.0e-2;
   double KOVER  = 0.0;
   double KUNDER = 1.0;
 
@@ -534,7 +539,7 @@ main(int argc, char **argv)
 
     std::map<int, SPS> ph;
 
-    int N = 0;
+    N = 0;
     for (auto pp=psp1->GetParticle(); pp!=0; pp=psp1->NextParticle()) {
       if (N++ % numprocs == myid) {
 	for (int k=0; k<3; k++) {
@@ -609,134 +614,138 @@ main(int argc, char **argv)
 	    dj += (angmom1[k] - angmom2[k])*(angmom1[k] - angmom2[k]);
 	  }
 	  
-	  orb.new_orbit(E1, 0.5);
-	  double K1 = sqrt(jj)/orb.Jmax();
-	  if (kappa2) K1 *= K1;
-	  if (K1>1.0-KTOL) {
-	    numK1++;
-	    KOVER = std::max<double>(KOVER,  K1);
-	    K1 = 1.0 - KTOL;
-	  }
-	  if (K1<KTOL) {
-	    numK0++;
-	    KUNDER = min<double>(KUNDER, K1);
-	    K1 = KTOL;
-	  }
-
-	  if (kappa2)
-	    orb.new_orbit(E1, sqrt(K1));
-	  else
-	    orb.new_orbit(E1, K1);
-
-	  double I1 = orb.get_action(1);
-
-	  orb.new_orbit(E2, 0.5);
-	  double K2 = sqrt(jj)/orb.Jmax();
-	  if (kappa2) K2 *= K2;
-	  if (K2>1.0) {
-	    numK1++;
-	    KOVER  = max<double>(KOVER, K2);
-	    K2 = 1.0 - KTOL;
-	  }
-	  if (K2<0.0) {
-	    numK0++;
-	    KUNDER = min<double>(KUNDER, K2);
-	    K2 = KTOL;
-	  }
-
-	  if (kappa2)
-	    orb.new_orbit(E2, sqrt(K2));
-	  else
-	    orb.new_orbit(E2, K2);
-	  double I2 = orb.get_action(1);
+	  try {
+	    orb.new_orbit(E1, 0.5);
+	    double K1 = sqrt(jj)/orb.Jmax();
+	    if (kappa2) K1 *= K1;
+	    if (K1>1.0-KTOL) {
+	      numK1++;
+	      KOVER = std::max<double>(KOVER,  K1);
+	      K1 = 1.0 - KTOL;
+	    }
+	    if (K1<KTOL) {
+	      numK0++;
+	      KUNDER = min<double>(KUNDER, K1);
+	      K1 = KTOL;
+	    }
+	    
+	    if (kappa2)
+	      orb.new_orbit(E1, sqrt(K1));
+	    else
+	      orb.new_orbit(E1, K1);
+	    
+	    double I1 = orb.get_action(1);
+	    
+	    orb.new_orbit(E2, 0.5);
+	    double K2 = sqrt(jj)/orb.Jmax();
+	    if (kappa2) K2 *= K2;
+	    if (K2>1.0) {
+	      numK1++;
+	      KOVER  = max<double>(KOVER, K2);
+	      K2 = 1.0 - KTOL;
+	    }
+	    if (K2<0.0) {
+	      numK0++;
+	      KUNDER = min<double>(KUNDER, K2);
+	      K2 = KTOL;
+	    }
+	    
+	    if (kappa2)
+	      orb.new_orbit(E2, sqrt(K2));
+	    else
+	      orb.new_orbit(E2, K2);
+	    double I2 = orb.get_action(1);
 	  
-	  if (myid==0) {
-	    if (WHICHEK & 1) {
-	      if (K1>1.0 || K1<0.0)
-		out[8] << setw(15) << E1 << setw(15) << K1
-		       << setw(15) << E2 << setw(15) << sqrt(jj)
-		       << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
-		       << setw(5) << 1 << endl;
+	    if (myid==0) {
+	      if (WHICHEK & 1) {
+		if (K1>1.0 || K1<0.0)
+		  out[8] << setw(15) << E1 << setw(15) << K1
+			 << setw(15) << E2 << setw(15) << sqrt(jj)
+			 << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
+			 << setw(5) << 1 << endl;
+	      }
+	      
+	      if (WHICHEK & 2) {
+		if (K2>1.0 || K2<0.0)
+		  out[8] << setw(15) << E2 << setw(15) << K2
+			 << setw(15) << E1 << setw(15) << sqrt(jj)
+			 << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
+			 << setw(5) << 2 << endl;
+	      }
+	    }
+	    
+	    double EE, KK;
+	    if (WHICHEK == 1) {
+	      EE = E1;
+	      KK = K1;
+	    }
+	    else if (WHICHEK == 2) {
+	      EE = E2;
+	      KK = K2;
+	    }
+	    else {
+	      EE = 0.5*(E1 + E2);
+	      KK = 0.5*(K1 + K2);
+	    }
+	    
+	    tout << KK << endl;
+	  
+	    KK = min<double>(KK, 1.0);
+	    KK = max<double>(KK, 0.0);
+	    
+	    int ie = (int)floor( (EE - Emin) / dE );
+	    ie = max<int>(ie, 0);
+	    ie = min<int>(ie, NUME-1);
+	    
+	    int ik = (int)floor( KK / dK );
+	    ik = max<int>(ik, 0);
+	    ik = min<int>(ik, NUMK-1);
+	    
+	    double L1 = 0.0, L2 = 0.0;
+	    for (int k=0; k<3; k++) {
+	      L1 += angmom1[k]*angmom1[k];
+	      L2 += angmom2[k]*angmom2[k];
+	    }
+	    L1 = sqrt(L1);
+	    L2 = sqrt(L2);
+	    
+	    histoC(ie, ik) += 1;
+	    histoM(ie, ik) += pp->mass();
+	    histoE(ie, ik) += pp->mass()*(E1 - E2);
+	    histoJ(ie, ik) += pp->mass()*(L1 - L2);
+	    histoI(ie, ik) += pp->mass()*(I2 - I1);
+	    histoT(ie, ik) += pp->mass()*L1;
+	    
+	    if (LZDIST and myid==0) {
+	      if (KK>KMIN && KK<KMAX && EE>EMIN && EE<EMAX)
+		dout << setw(15) << EE
+		     << setw(15) << KK
+		     << setw(15) << angmom1[2]
+		     << setw(15) << angmom2[2]
+		     << setw(15) << angmom2[2] - angmom1[2]
+		     << endl;
 	    }
 
-	    if (WHICHEK & 2) {
-	      if (K2>1.0 || K2<0.0)
-		out[8] << setw(15) << E2 << setw(15) << K2
-		       << setw(15) << E1 << setw(15) << sqrt(jj)
-		       << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
-		       << setw(5) << 2 << endl;
-	    }
+	    int ir;
+	    if (LOGR) 
+	      ir = (int)floor( (log(sqrt(rr1)) - rhmin) / dR );
+	    else
+	      ir = (int)floor( (sqrt(rr1) - rhmin) / dR );
+	    ir = max<int>(ir, 0);
+	    ir = min<int>(ir, NUMR-1);
+	    
+	    histoP[ir] += pp->mass()*(E1 - E2);
+	    histoL[ir] += pp->mass()*(angmom2[2] - angmom1[2]);
+	    histPr[ir] += pp->mass()*(E1 - E2)*2.0/sqrt(E1*E1 + E2*E2);
+	    histLr[ir] += pp->mass()*(angmom2[2] - angmom1[2])*2.0/
+	      sqrt(angmom1[2]*angmom1[2] + angmom2[2]*angmom2[2]);
+	    histoN[ir] += pp->mass();
+	    histoS[ir] += pp->mass()*L1;
 	  }
-	  
-	  double EE, KK;
-	  if (WHICHEK == 1) {
-	    EE = E1;
-	    KK = K1;
+	  catch (const std::runtime_error& error) {
+	    reject++;
 	  }
-	  else if (WHICHEK == 2) {
-	    EE = E2;
-	    KK = K2;
-	  }
-	  else {
-	    EE = 0.5*(E1 + E2);
-	    KK = 0.5*(K1 + K2);
-	  }
-	  
-	  tout << KK << endl;
-	  
-	  KK = min<double>(KK, 1.0);
-	  KK = max<double>(KK, 0.0);
-	  
-	  int ie = (int)floor( (EE - Emin) / dE );
-	  ie = max<int>(ie, 0);
-	  ie = min<int>(ie, NUME-1);
-	  
-	  int ik = (int)floor( KK / dK );
-	  ik = max<int>(ik, 0);
-	  ik = min<int>(ik, NUMK-1);
-	  
-	  double L1 = 0.0, L2 = 0.0;
-	  for (int k=0; k<3; k++) {
-	    L1 += angmom1[k]*angmom1[k];
-	    L2 += angmom2[k]*angmom2[k];
-	  }
-	  L1 = sqrt(L1);
-	  L2 = sqrt(L2);
-
-	  histoC(ie, ik) += 1;
-	  histoM(ie, ik) += pp->mass();
-	  histoE(ie, ik) += pp->mass()*(E1 - E2);
-	  histoJ(ie, ik) += pp->mass()*(L1 - L2);
-	  histoI(ie, ik) += pp->mass()*(I2 - I1);
-	  histoT(ie, ik) += pp->mass()*L1;
-	
-	  if (LZDIST and myid==0) {
-	    if (KK>KMIN && KK<KMAX && EE>EMIN && EE<EMAX)
-	      dout << setw(15) << EE
-		   << setw(15) << KK
-		   << setw(15) << angmom1[2]
-		   << setw(15) << angmom2[2]
-		   << setw(15) << angmom2[2] - angmom1[2]
-		   << endl;
-	  }
-
-	  int ir;
-	  if (LOGR) 
-	    ir = (int)floor( (log(sqrt(rr1)) - rhmin) / dR );
-	  else
-	    ir = (int)floor( (sqrt(rr1) - rhmin) / dR );
-	  ir = max<int>(ir, 0);
-	  ir = min<int>(ir, NUMR-1);
-	  
-	  histoP[ir] += pp->mass()*(E1 - E2);
-	  histoL[ir] += pp->mass()*(angmom2[2] - angmom1[2]);
-	  histPr[ir] += pp->mass()*(E1 - E2)*2.0/sqrt(E1*E1 + E2*E2);
-	  histLr[ir] += pp->mass()*(angmom2[2] - angmom1[2])*2.0/
-	    sqrt(angmom1[2]*angmom1[2] + angmom2[2]*angmom2[2]);
-	  histoN[ir] += pp->mass();
-	  histoS[ir] += pp->mass()*L1;
 	}
-
       }
 
       if (myid==0 and NREPORT) {
@@ -751,6 +760,7 @@ main(int argc, char **argv)
   // Send to root
   //
   if (myid) {
+    MPI_Reduce(&reject,       0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoC.data(), 0, histoC.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoM.data(), 0, histoM.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoE.data(), 0, histoE.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -767,6 +777,7 @@ main(int argc, char **argv)
   // Receive at root
   //
   else {
+    MPI_Reduce(MPI_IN_PLACE, &reject, 1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoC.data(), histoC.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoM.data(), histoM.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoE.data(), histoE.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -782,6 +793,8 @@ main(int argc, char **argv)
 
     std::cout << std::endl;
 
+    if (reject) std::cout << "SphericalOrbit failures in " << reject
+			  << "/" << N << " states" << std::endl << std::endl;
 
     Eigen::VectorXd Eavg  = Eigen::VectorXd::Zero(NUME);
     Eigen::VectorXd Emass = Eigen::VectorXd::Zero(NUME);

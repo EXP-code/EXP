@@ -57,14 +57,18 @@ void SphericalOrbit::compute_freq(void)
   }
   else {		  // Circular radius outside mass distribution
     r_circ = -0.5*model->get_mass(model->get_max_radius())/EE;
-    cerr << "SphericalOrbit::compute_freq warning: Circular radius outside mass distribution" << endl;
+    if (r_circ < model->get_min_radius()) {
+      r_circ = model->get_min_radius();
+    }
+    std::cerr << "SphericalOrbit::compute_freq warning:"
+	      << " Circular radius outside mass distribution" << std::endl;
   }
 
   dudr = model->get_dpot(r_circ);
-  jmax = sqrt(r_circ*r_circ*r_circ*dudr);
-  JJ = jmax*kappa;
+  if (dudr>0.0) jmax = sqrt(r_circ*r_circ*r_circ*dudr);
+  else          jmax = 0.0;
 
-  //  r_apo = zbrent(denom,r_circ,model->get_max_radius(),tol);
+  JJ = jmax*kappa;
 
   xmin = r_circ;
   xmax = model->get_max_radius();
