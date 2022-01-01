@@ -423,7 +423,7 @@ main(int argc, char **argv)
 #endif  
   
   int NICE, LMAX, NMAX, ibeg, iend;
-  std::string MODFILE, runtag, cname, dir("./"), fileType, filePrefix;
+  std::string MODFILE, runtag, cname, dir("./"), fileType;
   bool ALL;
 
   // ==================================================
@@ -442,8 +442,6 @@ main(int argc, char **argv)
     ("h,help", "Print this help message")
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-    ("P,prefix", "prefix for phase-space files",
-     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
     ("NICE", "system priority",
      cxxopts::value<int>(NICE)->default_value("0"))
     ("RMIN", "minimum radius for output",
