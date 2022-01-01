@@ -38,12 +38,13 @@
 
 #include <Eigen/Eigen>
 
-#include <localmpi.H>
-#include <PSP.H>
+#include <ParticleReader.H>
 #include <massmodel.H>
 #include <MakeModel.H>
+#include <localmpi.H>
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 #include <interp.H>
-#include <cxxopts.H>
 
 void p_rec(std::ofstream& out, double E, double K, double V)
 {
@@ -103,6 +104,7 @@ main(int argc, char **argv)
   std::string  MODELFILE;
   std::string  ORIENTFILE;
   std::string  OUTFILE;
+  std::string  fileType;
 
   const char* desc = 
     "=======================================================\n"		\
@@ -131,6 +133,8 @@ main(int argc, char **argv)
     ("h,help", "This help message")
     ("2,kappa2", "Bin kappa^2 instead of kappa")
     ("rmaxf", "Do not extend orbit evaluation beyond the model radius")
+    ("F,filetype", "input file type",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("TIME1", "Target time for fiducial phase space",
      cxxopts::value<double>(TIME1)->default_value("0.0"))
     ("TIME2", "Target time for evolved phase space",
@@ -201,10 +205,12 @@ main(int argc, char **argv)
      cxxopts::value<string>(CURDIR)->default_value(""))
     ("MODELFILE", "Model file for phase-space orbital values",
      cxxopts::value<string>(MODELFILE)->default_value("SLGridSph.model"))
+    ("COMP", "Compute wake for this component name",
+     cxxopts::value<std::string>(COMP)->default_value("stars"))
     ("ORIENTFILE", "EXP generated orient file for center selection (ignored if null)",
-     cxxopts::value<string>(ORIENTFILE)->default_value(""))
+     cxxopts::value<std::string>(ORIENTFILE)->default_value(""))
     ("OUTFILE", "Prefix for output files",
-     cxxopts::value<string>(OUTFILE)->default_value("diffpsP"))
+     cxxopts::value<std::string>(OUTFILE)->default_value("diffpsP"))
     ;
 
   cxxopts::ParseResult vm;
@@ -321,30 +327,53 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  PSPptr psp1 = PSP::getPSP(INFILE1, CURDIR, true);
+  PRptr psp1, psp2;
+  double initl_time, final_time;
 
-  if (myid==0) {
-    std::cout << "File 1: " << INFILE1 << std::endl;
-    std::cout << "Found dump at time: " << psp1->CurrentTime() << std::endl;
-    psp1->PrintSummary(std::cout);
+  try {
+    psp1 = ParticleReader::createReader(fileType, INFILE1, myid, true);
+  
+    initl_time = psp1->CurrentTime();
 
-    std::cout << "File 2: " << INFILE2 << endl;
-    if (!std::ifstream(INFILE2)) {
-      std::cerr << "Error opening <" << INFILE2 << ">" << std::endl;
-      exit(-1);
+    psp1->SelectType(COMP);
+
+    if (myid==0) {
+      std::cout << "File 1: " << INFILE1 << std::endl;
+      std::cout << "Found dump at time: " << initl_time << std::endl;
     }
   }
-
-  PSPptr psp2 = PSP::getPSP(INFILE2, CURDIR, true);
-  
-  double final_time = psp2->CurrentTime();
-
-  if (myid==0) {
-    std::cout << "Found dump at time: " << final_time << std::endl;
-    psp2->PrintSummary(cout);
+  catch (const std::runtime_error& error) {
+    if (myid==0)
+      std::cerr << "diffpsp: error opening snapshot in file <" << INFILE1 << ">"
+		<< std::endl
+		<< "diffpsp: " << error.what()
+		<< std::endl;
+    MPI_Finalize();
+    exit(-1);
   }
 
+  try {
+    psp2 = ParticleReader::createReader(fileType, INFILE2, myid, true);
   
+    final_time = psp2->CurrentTime();
+
+    psp2->SelectType(COMP);
+
+    if (myid==0) {
+      std::cout << "File 2: " << INFILE2 << endl;
+      std::cout << "Found dump at time: " << final_time << std::endl;
+    }
+  }
+  catch (const std::runtime_error& error) {
+    if (myid==0)
+      std::cerr << "diffpsp: error opening snapshot in file <" << INFILE2 << ">"
+		<< std::endl
+		<< "diffpsp: " << error.what()
+		<< std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+    
   // ===================================================================
   // Use orient file?
   // ===================================================================
@@ -397,7 +426,7 @@ main(int argc, char **argv)
   std::shared_ptr<MakeModel> cmodel;
   PSPstanza *stanza, *stanza1, *stanza2;
 
-  PSPptr psp;
+  PRptr psp;
 
   if (WHICHPS==0) {
     // Okay, just checking
@@ -424,22 +453,22 @@ main(int argc, char **argv)
       std::cout << "RMAXF=" << SphericalOrbit::RMAXF << std::endl;
     }
   }
-  else if (stanza = psp->GetNamed(COMP)) {
+  else {
 
     cmodel = std::make_shared<MakeModel>(RNUM, RMIN, RMAX, LOGMOD);
 
     int N = 0;
 
-    for (auto part=psp->begin(); part!=psp->end(); part++) {
+    for (auto part=psp->firstParticle(); part!=0; part=psp->nextParticle()) {
 
       if (N++ % numprocs == myid) {
 
 	double r = 0.0; 
 	for (int k=0; k<3; k++)
-	  r += (part->pos(k) - p1[k])*(part->pos(k) - p1[k]);
+	  r += (part->pos[k] - p1[k])*(part->pos[k] - p1[k]);
 	r = sqrt(r);
 	
-	cmodel->AddPoint(r, part->mass());
+	cmodel->AddPoint(r, part->mass);
       }
 
       if (myid==0 and NREPORT) {
@@ -455,13 +484,6 @@ main(int argc, char **argv)
       string outfile = OUTFILE + ".file";
       cmodel->WriteModel(outfile);
     }
-  } else {
-    if (myid==0) {
-      std::cerr << "Could not find component <" << COMP << "> in PSP"
-		<< std::endl;
-    }
-    MPI_Finalize();
-    exit(-1);
   }
 
   SphericalOrbit orb(hmodel);
@@ -534,229 +556,226 @@ main(int argc, char **argv)
     double pos[3], vel[3];
   } tps;
 
-  if ( (stanza1 = psp1->GetNamed(COMP)) and
-       (stanza2 = psp2->GetNamed(COMP)) ) {
 
-    std::map<int, SPS> ph;
+  std::map<int, SPS> ph;
 
-    N = 0;
-    for (auto pp=psp1->GetParticle(); pp!=0; pp=psp1->NextParticle()) {
-      if (N++ % numprocs == myid) {
-	for (int k=0; k<3; k++) {
-	  tps.pos[k] = pp->pos(k);
-	  tps.vel[k] = pp->vel(k);
-	}
-	ph[pp->indx()] = tps;
+  N = 0;
+  for (auto pp=psp1->firstParticle(); pp!=0; pp=psp1->nextParticle()) {
+    if (N++ % numprocs == myid) {
+      for (int k=0; k<3; k++) {
+	tps.pos[k] = pp->pos[k];
+	tps.vel[k] = pp->vel[k];
       }
-    }
-
-    N = 0;
-    for (auto pp=psp2->GetParticle(); pp!=0; pp=psp2->NextParticle()) {
-
-      auto ip = ph.find(pp->indx());
-
-      if (ip != ph.end()) {
-	
-	double angmom1[3], angmom2[3];
-	double p10[3], p20[3], v10[3], v20[3];
-
-	if (TAG>=0 && stanza1->comp.niatr>TAG) {
-	  if (pp->iatr(TAG)>0) continue;
-	}
-	
-	for (int k=0; k<3; k++) p10[k] = ip->second.pos[k] - p1[k];
-	for (int k=0; k<3; k++) p20[k] = pp->pos(k) - p2[k];
-	for (int k=0; k<3; k++) v10[k] = ip->second.vel[k];
-	for (int k=0; k<3; k++) v20[k] = pp->vel(k);
-	
-	double rr1=0, vv1=0, rr2=0, vv2=0;
-	for (int k=0; k<3; k++) {
-	  rr1 += p10[k]*p10[k];
-	  vv1 += v10[k]*v10[k];
-	  rr2 += p20[k]*p20[k];
-	  vv2 += v20[k]*v20[k];
-	}
-	
-	if (rr1 <= RMAX*RMAX && rr1 >= RMIN*RMIN) {
-	  
-	  double E1 = 0.5*vv1 + hmodel->get_pot(sqrt(rr1));
-	  E1 = max<double>(E1, Emin);
-	  E1 = min<double>(E1, Emax);
-	  
-	  double E2 = 0.5*vv2 + hmodel->get_pot(sqrt(rr2));
-	  E2 = max<double>(E2, Emin);
-	  E2 = min<double>(E2, Emax);
-	  
-	  angmom1[0] = p10[1]*v10[2] - p10[2]*v10[1];
-	  angmom1[1] = p10[2]*v10[0] - p10[0]*v10[2];
-	  angmom1[2] = p10[0]*v10[1] - p10[1]*v10[0];
-	  
-	  double cosb = angmom1[2]/sqrt(angmom1[0]*angmom1[0] +
-					angmom1[1]*angmom1[1] +
-					angmom1[2]*angmom1[2] );
-	  
-	  if (POSNEG>0 && angmom1[2]<0.0 || POSNEG<0 && angmom1[2]>0.0) continue;
-	  if (cosb<BMIN || cosb>BMAX) continue;
-
-	  angmom2[0] = p20[1]*v20[2] - p20[2]*p20[1];
-	  angmom2[1] = p20[2]*v20[0] - p20[0]*p20[2];
-	  angmom2[2] = p20[0]*v20[1] - p20[1]*p20[0];
-	  
-	  double jj = 0.0, dj = 0.0;
-	  for (int k=0; k<3; k++) {
-	    if (WHICHEK==1)
-	      jj += angmom1[k]*angmom1[k];
-	    else if (WHICHEK==2)
-	      jj += angmom2[k]*angmom2[k];
-	    else
-	      jj += 0.5*(angmom1[k]*angmom1[k] + angmom2[k]*angmom2[k]);
-	    
-	    dj += (angmom1[k] - angmom2[k])*(angmom1[k] - angmom2[k]);
-	  }
-	  
-	  try {
-	    orb.new_orbit(E1, 0.5);
-	    double K1 = sqrt(jj)/orb.Jmax();
-	    if (kappa2) K1 *= K1;
-	    if (K1>1.0-KTOL) {
-	      numK1++;
-	      KOVER = std::max<double>(KOVER,  K1);
-	      K1 = 1.0 - KTOL;
-	    }
-	    if (K1<KTOL) {
-	      numK0++;
-	      KUNDER = min<double>(KUNDER, K1);
-	      K1 = KTOL;
-	    }
-	    
-	    if (kappa2)
-	      orb.new_orbit(E1, sqrt(K1));
-	    else
-	      orb.new_orbit(E1, K1);
-	    
-	    double I1 = orb.get_action(1);
-	    
-	    orb.new_orbit(E2, 0.5);
-	    double K2 = sqrt(jj)/orb.Jmax();
-	    if (kappa2) K2 *= K2;
-	    if (K2>1.0) {
-	      numK1++;
-	      KOVER  = max<double>(KOVER, K2);
-	      K2 = 1.0 - KTOL;
-	    }
-	    if (K2<0.0) {
-	      numK0++;
-	      KUNDER = min<double>(KUNDER, K2);
-	      K2 = KTOL;
-	    }
-	    
-	    if (kappa2)
-	      orb.new_orbit(E2, sqrt(K2));
-	    else
-	      orb.new_orbit(E2, K2);
-	    double I2 = orb.get_action(1);
-	  
-	    if (myid==0) {
-	      if (WHICHEK & 1) {
-		if (K1>1.0 || K1<0.0)
-		  out[8] << setw(15) << E1 << setw(15) << K1
-			 << setw(15) << E2 << setw(15) << sqrt(jj)
-			 << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
-			 << setw(5) << 1 << endl;
-	      }
-	      
-	      if (WHICHEK & 2) {
-		if (K2>1.0 || K2<0.0)
-		  out[8] << setw(15) << E2 << setw(15) << K2
-			 << setw(15) << E1 << setw(15) << sqrt(jj)
-			 << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
-			 << setw(5) << 2 << endl;
-	      }
-	    }
-	    
-	    double EE, KK;
-	    if (WHICHEK == 1) {
-	      EE = E1;
-	      KK = K1;
-	    }
-	    else if (WHICHEK == 2) {
-	      EE = E2;
-	      KK = K2;
-	    }
-	    else {
-	      EE = 0.5*(E1 + E2);
-	      KK = 0.5*(K1 + K2);
-	    }
-	    
-	    tout << KK << endl;
-	  
-	    KK = min<double>(KK, 1.0);
-	    KK = max<double>(KK, 0.0);
-	    
-	    int ie = (int)floor( (EE - Emin) / dE );
-	    ie = max<int>(ie, 0);
-	    ie = min<int>(ie, NUME-1);
-	    
-	    int ik = (int)floor( KK / dK );
-	    ik = max<int>(ik, 0);
-	    ik = min<int>(ik, NUMK-1);
-	    
-	    double L1 = 0.0, L2 = 0.0;
-	    for (int k=0; k<3; k++) {
-	      L1 += angmom1[k]*angmom1[k];
-	      L2 += angmom2[k]*angmom2[k];
-	    }
-	    L1 = sqrt(L1);
-	    L2 = sqrt(L2);
-	    
-	    histoC(ie, ik) += 1;
-	    histoM(ie, ik) += pp->mass();
-	    histoE(ie, ik) += pp->mass()*(E1 - E2);
-	    histoJ(ie, ik) += pp->mass()*(L1 - L2);
-	    histoI(ie, ik) += pp->mass()*(I2 - I1);
-	    histoT(ie, ik) += pp->mass()*L1;
-	    
-	    if (LZDIST and myid==0) {
-	      if (KK>KMIN && KK<KMAX && EE>EMIN && EE<EMAX)
-		dout << setw(15) << EE
-		     << setw(15) << KK
-		     << setw(15) << angmom1[2]
-		     << setw(15) << angmom2[2]
-		     << setw(15) << angmom2[2] - angmom1[2]
-		     << endl;
-	    }
-
-	    int ir;
-	    if (LOGR) 
-	      ir = (int)floor( (log(sqrt(rr1)) - rhmin) / dR );
-	    else
-	      ir = (int)floor( (sqrt(rr1) - rhmin) / dR );
-	    ir = max<int>(ir, 0);
-	    ir = min<int>(ir, NUMR-1);
-	    
-	    histoP[ir] += pp->mass()*(E1 - E2);
-	    histoL[ir] += pp->mass()*(angmom2[2] - angmom1[2]);
-	    histPr[ir] += pp->mass()*(E1 - E2)*2.0/sqrt(E1*E1 + E2*E2);
-	    histLr[ir] += pp->mass()*(angmom2[2] - angmom1[2])*2.0/
-	      sqrt(angmom1[2]*angmom1[2] + angmom2[2]*angmom2[2]);
-	    histoN[ir] += pp->mass();
-	    histoS[ir] += pp->mass()*L1;
-	  }
-	  catch (const std::runtime_error& error) {
-	    reject++;
-	  }
-	}
-      }
-
-      if (myid==0 and NREPORT) {
-	if (!((N+1)%NREPORT)) cout << "\rProcessed: " 
-				   << setw(10) << N+1 << flush;
-	N++;
-      }
+      ph[pp->indx] = tps;
     }
   }
 
-
+  N = 0;
+  for (auto pp=psp2->firstParticle(); pp!=0; pp=psp2->nextParticle()) {
+    
+    auto ip = ph.find(pp->indx);
+    
+    if (ip != ph.end()) {
+      
+      double angmom1[3], angmom2[3];
+      double p10[3], p20[3], v10[3], v20[3];
+      
+      if (TAG>=0 && stanza1->comp.niatr>TAG) {
+	if (pp->iattrib[TAG]>0) continue;
+      }
+      
+      for (int k=0; k<3; k++) p10[k] = ip->second.pos[k] - p1[k];
+      for (int k=0; k<3; k++) p20[k] = pp->pos[k] - p2[k];
+      for (int k=0; k<3; k++) v10[k] = ip->second.vel[k];
+      for (int k=0; k<3; k++) v20[k] = pp->vel[k];
+      
+      double rr1=0, vv1=0, rr2=0, vv2=0;
+      for (int k=0; k<3; k++) {
+	rr1 += p10[k]*p10[k];
+	vv1 += v10[k]*v10[k];
+	rr2 += p20[k]*p20[k];
+	vv2 += v20[k]*v20[k];
+      }
+      
+      if (rr1 <= RMAX*RMAX && rr1 >= RMIN*RMIN) {
+	
+	double E1 = 0.5*vv1 + hmodel->get_pot(sqrt(rr1));
+	E1 = max<double>(E1, Emin);
+	E1 = min<double>(E1, Emax);
+	
+	double E2 = 0.5*vv2 + hmodel->get_pot(sqrt(rr2));
+	E2 = max<double>(E2, Emin);
+	E2 = min<double>(E2, Emax);
+	
+	angmom1[0] = p10[1]*v10[2] - p10[2]*v10[1];
+	angmom1[1] = p10[2]*v10[0] - p10[0]*v10[2];
+	angmom1[2] = p10[0]*v10[1] - p10[1]*v10[0];
+	
+	double cosb = angmom1[2]/sqrt(angmom1[0]*angmom1[0] +
+				      angmom1[1]*angmom1[1] +
+				      angmom1[2]*angmom1[2] );
+	
+	if (POSNEG>0 && angmom1[2]<0.0 || POSNEG<0 && angmom1[2]>0.0) continue;
+	if (cosb<BMIN || cosb>BMAX) continue;
+	
+	angmom2[0] = p20[1]*v20[2] - p20[2]*p20[1];
+	angmom2[1] = p20[2]*v20[0] - p20[0]*p20[2];
+	angmom2[2] = p20[0]*v20[1] - p20[1]*p20[0];
+	
+	double jj = 0.0, dj = 0.0;
+	for (int k=0; k<3; k++) {
+	  if (WHICHEK==1)
+	    jj += angmom1[k]*angmom1[k];
+	  else if (WHICHEK==2)
+	    jj += angmom2[k]*angmom2[k];
+	  else
+	    jj += 0.5*(angmom1[k]*angmom1[k] + angmom2[k]*angmom2[k]);
+	  
+	  dj += (angmom1[k] - angmom2[k])*(angmom1[k] - angmom2[k]);
+	}
+	
+	try {
+	  orb.new_orbit(E1, 0.5);
+	  double K1 = sqrt(jj)/orb.Jmax();
+	  if (kappa2) K1 *= K1;
+	  if (K1>1.0-KTOL) {
+	    numK1++;
+	    KOVER = std::max<double>(KOVER,  K1);
+	    K1 = 1.0 - KTOL;
+	  }
+	  if (K1<KTOL) {
+	    numK0++;
+	    KUNDER = min<double>(KUNDER, K1);
+	    K1 = KTOL;
+	  }
+	  
+	  if (kappa2)
+	    orb.new_orbit(E1, sqrt(K1));
+	  else
+	    orb.new_orbit(E1, K1);
+	  
+	  double I1 = orb.get_action(1);
+	  
+	  orb.new_orbit(E2, 0.5);
+	  double K2 = sqrt(jj)/orb.Jmax();
+	  if (kappa2) K2 *= K2;
+	  if (K2>1.0) {
+	    numK1++;
+	    KOVER  = max<double>(KOVER, K2);
+	    K2 = 1.0 - KTOL;
+	  }
+	  if (K2<0.0) {
+	    numK0++;
+	    KUNDER = min<double>(KUNDER, K2);
+	    K2 = KTOL;
+	  }
+	  
+	  if (kappa2)
+	    orb.new_orbit(E2, sqrt(K2));
+	  else
+	    orb.new_orbit(E2, K2);
+	  double I2 = orb.get_action(1);
+	  
+	  if (myid==0) {
+	    if (WHICHEK & 1) {
+	      if (K1>1.0 || K1<0.0)
+		out[8] << setw(15) << E1 << setw(15) << K1
+		       << setw(15) << E2 << setw(15) << sqrt(jj)
+		       << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
+		       << setw(5) << 1 << endl;
+	    }
+	    
+	    if (WHICHEK & 2) {
+	      if (K2>1.0 || K2<0.0)
+		out[8] << setw(15) << E2 << setw(15) << K2
+		       << setw(15) << E1 << setw(15) << sqrt(jj)
+		       << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
+		       << setw(5) << 2 << endl;
+	    }
+	  }
+	  
+	  double EE, KK;
+	  if (WHICHEK == 1) {
+	    EE = E1;
+	    KK = K1;
+	  }
+	  else if (WHICHEK == 2) {
+	    EE = E2;
+	    KK = K2;
+	  }
+	  else {
+	    EE = 0.5*(E1 + E2);
+	    KK = 0.5*(K1 + K2);
+	  }
+	  
+	  tout << KK << endl;
+	  
+	  KK = min<double>(KK, 1.0);
+	  KK = max<double>(KK, 0.0);
+	  
+	  int ie = (int)floor( (EE - Emin) / dE );
+	  ie = max<int>(ie, 0);
+	  ie = min<int>(ie, NUME-1);
+	  
+	  int ik = (int)floor( KK / dK );
+	  ik = max<int>(ik, 0);
+	  ik = min<int>(ik, NUMK-1);
+	  
+	  double L1 = 0.0, L2 = 0.0;
+	  for (int k=0; k<3; k++) {
+	    L1 += angmom1[k]*angmom1[k];
+	    L2 += angmom2[k]*angmom2[k];
+	  }
+	  L1 = sqrt(L1);
+	  L2 = sqrt(L2);
+	  
+	  histoC(ie, ik) += 1;
+	  histoM(ie, ik) += pp->mass;
+	  histoE(ie, ik) += pp->mass*(E1 - E2);
+	  histoJ(ie, ik) += pp->mass*(L1 - L2);
+	  histoI(ie, ik) += pp->mass*(I2 - I1);
+	  histoT(ie, ik) += pp->mass*L1;
+	  
+	  if (LZDIST and myid==0) {
+	    if (KK>KMIN && KK<KMAX && EE>EMIN && EE<EMAX)
+	      dout << setw(15) << EE
+		   << setw(15) << KK
+		   << setw(15) << angmom1[2]
+		   << setw(15) << angmom2[2]
+		   << setw(15) << angmom2[2] - angmom1[2]
+		   << endl;
+	  }
+	  
+	  int ir;
+	  if (LOGR) 
+	    ir = (int)floor( (log(sqrt(rr1)) - rhmin) / dR );
+	  else
+	    ir = (int)floor( (sqrt(rr1) - rhmin) / dR );
+	  ir = max<int>(ir, 0);
+	  ir = min<int>(ir, NUMR-1);
+	  
+	  histoP[ir] += pp->mass*(E1 - E2);
+	  histoL[ir] += pp->mass*(angmom2[2] - angmom1[2]);
+	  histPr[ir] += pp->mass*(E1 - E2)*2.0/sqrt(E1*E1 + E2*E2);
+	  histLr[ir] += pp->mass*(angmom2[2] - angmom1[2])*2.0/
+	    sqrt(angmom1[2]*angmom1[2] + angmom2[2]*angmom2[2]);
+	  histoN[ir] += pp->mass;
+	  histoS[ir] += pp->mass*L1;
+	}
+	catch (const std::runtime_error& error) {
+	  reject++;
+	}
+      }
+    }
+    
+    if (myid==0 and NREPORT) {
+      if (!((N+1)%NREPORT)) cout << "\rProcessed: " 
+				 << setw(10) << N+1 << flush;
+      N++;
+    }
+  }
+  
+  
   // Send to root
   //
   if (myid) {
@@ -790,15 +809,15 @@ main(int argc, char **argv)
     MPI_Reduce(MPI_IN_PLACE, histLr.data(), histLr.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoS.data(), histoS.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoN.data(), histoN.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
+    
     std::cout << std::endl;
-
+    
     if (reject) std::cout << "SphericalOrbit failures in " << reject
 			  << "/" << N << " states" << std::endl << std::endl;
-
+    
     Eigen::VectorXd Eavg  = Eigen::VectorXd::Zero(NUME);
     Eigen::VectorXd Emass = Eigen::VectorXd::Zero(NUME);
-
+    
     for (int i=0; i<NUME; i++) {
       
       for (int j=0; j<NUMK; j++) {
@@ -810,7 +829,7 @@ main(int argc, char **argv)
     }
     
     double mfac = dE*dK;
-
+    
     if (meshgrid)
       for (int k=0; k<6; k++) out[k] << std::setw(8) << NUME
 				     << std::setw(8) << NUMK
@@ -864,7 +883,7 @@ main(int argc, char **argv)
 	  cumL[i] += cumL[i-1];
 	  cumM[i] += cumM[i-1];
 	}
-
+	
 	for (int i=0; i<NUME; i++)
 	  outc << setw(18) << final_time
 	       << setw(18) << Emin+(0.5+i)*dE
@@ -879,13 +898,13 @@ main(int argc, char **argv)
     
     const int nrlabs = 7, fieldsz=18;
     const char *rlabels[] = {
-      "Radius",
-      "Delta E",
-      "Delta Lz",
-      "(Delta E)/<E>",
-      "(Delta L)/<L>",
-      "<M>",
-      "<J>"
+			     "Radius",
+			     "Delta E",
+			     "Delta Lz",
+			     "(Delta E)/<E>",
+			     "(Delta L)/<L>",
+			     "<M>",
+			     "<J>"
     };
     
     for (int j=0; j<nrlabs; j++) {
@@ -914,7 +933,7 @@ main(int argc, char **argv)
     out[7] << endl << setfill(' ');
     
     for (int i=0; i<NUMR; i++) {
-
+      
       double rr = rhmin + dR*(0.5+i);
       if (LOGR) rr = exp(rr);
       
@@ -932,8 +951,8 @@ main(int argc, char **argv)
 	 << "  Under=" << numK0 << "  Min=" << KUNDER << endl
 	 << "   Over=" << numK1 << "  Max=" << KOVER  << endl;
   }
-
+  
   MPI_Finalize();
-    
+  
   return 0;
 }
