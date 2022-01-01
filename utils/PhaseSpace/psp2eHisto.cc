@@ -24,7 +24,8 @@ using namespace std;
 
 #include <StringTok.H>
 #include <writePVD.H>
-#include <cxxopts.H>
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 #include <header.H>
 #include <PSP.H>
 

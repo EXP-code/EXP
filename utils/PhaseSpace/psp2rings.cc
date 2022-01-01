@@ -23,6 +23,7 @@
 
 #include <Progress.H>
 #include <cxxopts.H>
+#include <libvars.H>		// EXP library globals
 
 
 //! Coefficient file header

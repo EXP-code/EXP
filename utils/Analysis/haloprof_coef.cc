@@ -53,22 +53,21 @@
 #include <writePVD.H>
 #include <localmpi.H>
 #include <cxxopts.H>
+#include <libvars.H>
 #include <foarray.H>
 
 #include <DataGrid.H>
 
 const std::string overview = "Compute disk potential, force and density profiles from\nEXP coefficient files\n";
 
-				// Globals
+				// New globals
 static  string outid;
-static  string runtag;
 static  double RMAX;
 static  int    OUTR;
   
 static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
-
 
 void write_output(SphereSL& ortho, int indx, double time,
 		  std::string& file1, std::string& file2, std::string& file3)

@@ -22,6 +22,7 @@ using namespace std;
 
 #include <StringTok.H>
 #include <cxxopts.H>
+#include <libvars.H>
 #include <header.H>
 #include <PSP.H>
 

@@ -20,6 +20,7 @@ using namespace std;
 #include <list>
 
 #include <StringTok.H>
+#include <libvars.H>		// EXP library globals
 #include <header.H>
 #include <PSP.H>
 

@@ -98,6 +98,7 @@
 #include <interp.H>
 #include <EmpCylSL.H>
 #include <DiskModels.H>
+#include <libvars.H>		// Library globals
 #include <cxxopts.H>		// Command-line parsing
 #include <EXPini.H>		// Ini-style config
 

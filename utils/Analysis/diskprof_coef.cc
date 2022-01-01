@@ -48,6 +48,7 @@
 				// MDW classes
 #include <numerical.H>
 #include <cxxopts.H>
+#include <libvars.H>
 #include <EmpCylSL.H>
 #include "Particle.h"
 #include <interp.H>
@@ -72,7 +73,6 @@ static  int    OUTZ;
 static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
-
 
 void write_output(EmpCylSL& ortho, int indx, double time,
 		  std::string& file1, std::string& file2, std::string& file3)

@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include <getopt.h>		// For long options
+#include <libvars.H>		// EXP library globals
 
 #include <global.H>		// EXP globals
 #include <localmpi.H>		// MPI globals
@@ -46,9 +47,6 @@ void usage(char *prog)
 
   exit(0);
 }
-
-string outdir, runtag;
-std::mt19937 random_gen;
 
 int 
 main(int argc, char** argv)

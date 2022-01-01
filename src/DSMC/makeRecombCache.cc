@@ -16,7 +16,8 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-#include <cxxopts.H>
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 #include "Ion.H"
 
 #include <mpi.h>
@@ -46,16 +47,6 @@ void writeScript()
     }
   }
 }
-
-
-// Global variables (not all used but needed for EXP libraries)
-
-int numprocs, myid;
-std::string outdir(".");
-std::string runtag("run");
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-std::mt19937 random_gen;
 
 int main (int ac, char **av)
 {

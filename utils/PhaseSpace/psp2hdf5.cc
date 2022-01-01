@@ -5,7 +5,8 @@
 
 #include <PSP.H>
 #include <H5Cpp.h>
-#include <cxxopts.H>
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 
 /**
    Create a Gadget2 HDF5 file from PSP.  This should be easy to

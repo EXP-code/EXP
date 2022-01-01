@@ -18,12 +18,8 @@
 #include <StringTok.H>
 #include <header.H>
 #include <PSP.H>
-#include <cxxopts.H>
-
-//-------------
-// Help message
-//-------------
-
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 
 
 int

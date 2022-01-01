@@ -18,11 +18,8 @@ using namespace std;
 #include <random>
 
 #include <header.H>
-#include <cxxopts.H>
-				// Globals for exputil library
-				// Unused here
-std::string outdir, runtag;
-std::mt19937 random_gen;
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 
 int
 main(int argc, char **argv)

@@ -11,18 +11,13 @@
 #include <tuple>
 
 #include <cxxopts.H>
+#include <libvars.H>
+
 #include "atomic_constants.H"
 #include "Ion.H"
 #include "Elastic.H"
 
 #include <mpi.h>
-
-int numprocs, myid;
-std::string outdir(".");
-std::string runtag("run");
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-std::mt19937 random_gen;
 
 int main (int ac, char **av)
 {

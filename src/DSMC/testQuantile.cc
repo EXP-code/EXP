@@ -9,15 +9,10 @@
 #include <boost/math/distributions/weibull.hpp>
 #include <boost/math/distributions/normal.hpp>
 
-#include <cxxopts.H>
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 #include "Quantile.H"
  
-// Unused globals needed in libexputil
-//
-int myid;
-std::mt19937 random_gen;
-std::string outdir, runtag;
-
 using namespace NTC;
 
 int main(int ac, char** av)

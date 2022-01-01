@@ -23,7 +23,8 @@ using namespace std;
 #include <header.H>
 #include <PSP.H>
 #include <InitContainer.H>
-#include <cxxopts.H>
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 
 int
 main(int ac, char **av)

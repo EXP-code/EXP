@@ -56,21 +56,19 @@
 
 #include <DataGrid.H>
 #include <cxxopts.H>
-
+#include <libvars.H>
 				// Program info string
 
 const std::string overview = "\nCompute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
   
 				// Globals
 static  string outid;
-static  string runtag;
 static  double RMAX;
 static  int    OUTR;
   
 static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
-
 
 void write_output(SphereSL& ortho, int indx, int icnt, double time,
 		  std::string& file1, std::string& file2, std::string& file3)

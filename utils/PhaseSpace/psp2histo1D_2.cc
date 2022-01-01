@@ -18,9 +18,10 @@ using namespace std;
 #include <list>
 #include <map>
 
-#include <cxxopts.H>
-#include <header.H>
-#include <PSP.H>
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
+#include <header.H>		// PSP headers
+#include <PSP.H>		// PSP class
 
 int
 main(int ac, char **av)

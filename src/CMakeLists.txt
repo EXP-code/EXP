@@ -2,24 +2,23 @@
 set(CUDA_SRC)
 if (ENABLE_CUDA)
   list(APPEND CUDA_SRC 
-    cudaParticle.cu cudaSphericalBasis.cu cudaCylinder.cu
-    cudaEmpCylSL.cu cudaComponent.cu NVTX.cc cudaHOT.cu
-    cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu cudaOrient.cu)
+    cudaSphericalBasis.cu cudaCylinder.cu cudaEmpCylSL.cu
+    cudaComponent.cu NVTX.cc cudaHOT.cu cudaIncpos.cu cudaIncvel.cu
+    cudaMultistep.cu cudaOrient.cu)
 endif()
 
 set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   CBrockDisk.cc Cube.cc Cylinder.cc EmpCylSL.cc ExternalCollection.cc
-  ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc
-  ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc
-  SphericalCoefs.cc CylindricalCoefs.cc TwoCenter.cc EJcom.cc
-  global.cc begin.cc ddplgndr.cc Direct.cc Shells.cc NoForce.cc end.cc
-  OutputContainer.cc OutPS.cc OutPSQ.cc OutPSN.cc OutPSP.cc
-  OutCHKPT.cc OutCHKPTQ.cc Output.cc header.cc externalShock.cc
-  generateRelaxation.cc HaloBulge.cc incpos.cc incvel.cc
-  ComponentContainer.cc OutAscii.cc OutMulti.cc OutRelaxation.cc
-  OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc multistep.cc parse.cc
-  Slab.cc SlabSL.cc step.cc sbessj.cc sbessz.cc tidalField.cc ultra.cc
-  ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
+  ExternalForce.cc Hernquist.cc Orient.cc PotAccel.cc ScatterMFP.cc
+  SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc SphericalCoefs.cc
+  CylindricalCoefs.cc TwoCenter.cc EJcom.cc global.cc begin.cc
+  ddplgndr.cc Direct.cc Shells.cc NoForce.cc end.cc OutputContainer.cc
+  OutPS.cc OutPSQ.cc OutPSN.cc OutPSP.cc OutCHKPT.cc OutCHKPTQ.cc
+  Output.cc externalShock.cc generateRelaxation.cc HaloBulge.cc
+  incpos.cc incvel.cc ComponentContainer.cc OutAscii.cc OutMulti.cc
+  OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc
+  multistep.cc parse.cc Slab.cc SlabSL.cc step.cc sbessj.cc sbessz.cc
+  tidalField.cc ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
   ParticleFerry.cc pCell.cc chkSlurm.c chkTimer.cc pHOT.cc
   GravKernel.cc ${CUDA_SRC})
 

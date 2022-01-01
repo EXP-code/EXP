@@ -17,9 +17,11 @@ using namespace std;
 #include <string>
 #include <list>
 
+#include <yaml-cpp/yaml.h>	// YAML library support
+
 #include <Species.H>
-#include <yaml-cpp/yaml.h>
 #include <cxxopts.H>
+#include <libvars.H>		// EXP library globals
 
 #include <header.H>
 #include <PSP.H>

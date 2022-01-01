@@ -26,25 +26,24 @@ set(BIORTH_SRC biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc
 set(GAUSS_SRC gaussQ.cc GaussCore.c Hermite.c Jacobi.c Laguerre.c)
 set(QPDISTF_SRC QPDistF.cc qld.c)
 set(SLEDGE_SRC sledge.f)
-set(CUDA_SRC cudaSLGridMP2.cu)
+set(PARTICLE_SRC Particle.cc ParticleReader.cc header.cc)
+set(CUDA_SRC cudaParticle.cu cudaSLGridMP2.cu)
 
 set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
   ${RANDOM_SRC} ${UTIL_SRC} ${SPECFUNC_SRC}
   ${PHASE_SRC}  ${SYMP_SRC} ${INTERP_SRC} ${MASSMODEL_SRC}
   ${ORBIT_SRC} ${BIORTH_SRC} ${POLY_SRC} ${GAUSS_SRC}
   ${QPDISTF_SRC} ${BESSEL_SRC} ${OPTIMIZATION_SRC}
-  ${SLEDGE_SRC} ${CUDA_SRC})
+  ${SLEDGE_SRC} ${PARTICLE_SRC} ${CUDA_SRC})
 
 
-set(common_INCLUDE_DIRS
-  $<INSTALL_INTERFACE:include>
+set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
-  ${CMAKE_BINARY_DIR} ${DEP_INC}
-  ${EIGEN3_INCLUDE_DIR})
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/> ${CMAKE_BINARY_DIR}
+  ${DEP_INC} ${EIGEN3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS})
 
-set(common_LINKLIBS
-  ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX)
+set(common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
+  ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})

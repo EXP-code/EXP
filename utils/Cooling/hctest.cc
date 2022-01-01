@@ -11,11 +11,8 @@ using namespace std;
 
 #include <Timer.H>
 #include <HeatCool.H>
-#include <cxxopts.H>
-
-string outdir = "";
-string runtag = "test";
-std::mt19937 random_gen;
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP global variables
 
 int main(int argc, char** argv)
 {

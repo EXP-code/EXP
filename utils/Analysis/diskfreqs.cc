@@ -54,6 +54,7 @@
 #include <localmpi.H>
 #include <foarray.H>
 #include <cxxopts.H>
+#include <libvars.H>
 
 const std::string overview = "Compute azimuthal and vertical disk frequencies from coefficients";
 

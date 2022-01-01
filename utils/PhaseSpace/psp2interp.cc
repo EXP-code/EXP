@@ -16,8 +16,9 @@ using namespace std;
 #include <string>
 #include <list>
 
-#include <Progress.H>
-#include <cxxopts.H>
+#include <Progress.H>		// The old boost progress bar
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 
 #include <StringTok.H>
 #include <FileUtils.H>
@@ -28,7 +29,7 @@ using namespace std;
 //
 // MPI variables
 //
-int numprocs, myid, proc_namelen;
+int numprocs, proc_namelen;
 char processor_name[MPI_MAX_PROCESSOR_NAME];
 
 int

@@ -13,6 +13,7 @@
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <gaussQ.H>		// Gauss-Legendre quadrature
 #include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 
 
 //===========================================================================

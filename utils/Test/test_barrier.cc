@@ -46,9 +46,7 @@
 
 #include <BarrierWrapper.H>
 #include <cxxopts.H>
-
-std::mt19937 random_gen;
-std::string outdir, runtag;
+#include <libvars.H>
 
 using namespace std;
 

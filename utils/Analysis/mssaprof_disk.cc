@@ -52,7 +52,8 @@
 
 #include <writePVD.H>
 #include <localmpi.H>
-#include <cxxopts.H>
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP global variables
 #include <foarray.H>
 
 #include <DataGrid.H>
@@ -69,7 +70,6 @@ static  int    OUTZ;
 static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
-
 
 void write_output(EmpCylSL& ortho, int indx, int icnt, double time,
 		  std::string& file1, std::string& file2, std::string& file3)

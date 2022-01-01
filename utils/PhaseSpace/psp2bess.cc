@@ -25,14 +25,15 @@
 
 #include <Bess.H>
 #include <Progress.H>
-#include <cxxopts.H>
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 
 #include <mpi.h>
 
 //
 // MPI variables
 //
-int numprocs, myid, proc_namelen;
+int numprocs, proc_namelen;
 char processor_name[MPI_MAX_PROCESSOR_NAME];
 
 

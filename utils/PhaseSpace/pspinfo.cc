@@ -15,7 +15,8 @@
 #include <string>
 #include <memory>
 
-#include <cxxopts.H>
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 #include <PSP.H>
 
 

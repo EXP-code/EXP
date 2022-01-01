@@ -1,4 +1,9 @@
-// Library variables
+// EXP global library variables for standalone routines
+//
+#ifndef _LIBVARS_H
+#define _LIBVARS_H
+
+#include <random>
 
 char threading_on = 0;
 pthread_mutex_t mem_lock;
@@ -11,3 +16,5 @@ int mstep = 1;
 int Mstep = 1;
 int myid = 0;
 std::mt19937 random_gen;
+
+#endif

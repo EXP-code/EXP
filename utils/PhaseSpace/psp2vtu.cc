@@ -20,7 +20,8 @@ using namespace std;
 #include <Species.H>
 
 #include <StringTok.H>
-#include <cxxopts.H>
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 #include <header.H>
 #include <writePVD.H>
 #include <PSP.H>

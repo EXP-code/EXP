@@ -1,8 +1,8 @@
 
 set(bin_PROGRAMS readSL testBarrier testConfig)
 
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
-  EXP ${VTK_LIBRARIES})
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX exputil EXP
+  yaml-cpp ${VTK_LIBRARIES})
 
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>
@@ -23,5 +23,6 @@ add_executable(testConfig     test_config.cc)
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})
   target_include_directories(${program} PUBLIC ${common_INCLUDE})
+  # Don't install these tests
   # install(TARGETS ${program} DESTINATION bin)
 endforeach()

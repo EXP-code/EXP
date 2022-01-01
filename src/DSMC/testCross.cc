@@ -14,8 +14,8 @@
 #include "atomic_constants.H"
 #include "Ion.H"
 #include "Elastic.H"
-#include <cxxopts.H>
-
+#include <cxxopts.H>		// Option parsing
+#include <libvars.H>		// EXP library globals
 
 #include <mpi.h>
 
@@ -32,13 +32,6 @@ struct TupleCompare
     return F<typename std::tuple_element<M, T>::type>()(std::get<M>(t1), std::get<M>(t2));
   }
 };
-
-int numprocs, myid;
-std::string outdir(".");
-std::string runtag("run");
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-std::mt19937 random_gen;
 
 int main (int ac, char **av)
 {
