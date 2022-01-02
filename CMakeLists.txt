@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(
   EXP
-  VERSION 7.6992
+  VERSION 7.6993
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
@@ -218,11 +218,3 @@ set(CMAKE_CXX_FLAGS_UBSAN
   "-fsanitize=undefined"
   CACHE STRING "Flags used by the C++ compiler during UndefinedBehaviourSanitizer builds."
   FORCE)
-
-# Remove config.h to allow multiple build types (e.g. with and without
-# CUDA support)
-add_custom_command(
-  OUTPUT dummy
-  COMMAND rm config.h
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  )
