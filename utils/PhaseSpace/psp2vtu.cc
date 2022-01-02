@@ -55,7 +55,7 @@ int
 main(int ac, char **av)
 {
   char *prog = av[0];
-  int ibeg, iend, istride, Ndens;
+  int ibeg, iend, istride, Ndens, iskip;
   double time, Emin, Emax, dE, Xmin, Xmax, dX, Lunit, Tunit;
   bool verbose = false, logE = false, PVD = false;
   std::string cname, rtag;
@@ -81,6 +81,8 @@ main(int ac, char **av)
      cxxopts::value<int>(iend)->default_value("1000000"))
    ("s,stride", "sequence counter stride",
      cxxopts::value<int>(istride)->default_value("1"))
+   ("S,skip", "particle number stride to reduce particle counts for rendering",
+     cxxopts::value<int>(iskip)->default_value("1"))
    ("N,Ndens", "KD density estimate count",
      cxxopts::value<int>(Ndens)->default_value("0"))
     ;
@@ -118,7 +120,10 @@ main(int ac, char **av)
   for (int n=ibeg; n<=iend; n+=istride) {
 
     std::ostringstream file;
-    file << "OUT." << rtag << "." << std::setfill('0') << std::setw(5) << n;
+    if (vm.count("OUT")) 
+      file << "OUT." << rtag << "." << std::setfill('0') << std::setw(5) << n;
+    else
+      file << "SPL." << rtag << "." << std::setfill('0') << std::setw(5) << n;
     
     std::ifstream in(file.str());
     if (!in) {
@@ -220,43 +225,55 @@ main(int ac, char **av)
 	  points.push_back({part->pos(0), part->pos(1), part->pos(2)});
 	  mass.push_back(part->mass());
 	}
-	  
+	
 	tree3 tree(points.begin(), points.end());
 
 	for (int k=0; k<points.size(); k++) {
-	  auto ret = tree.nearestN(points[k], Ndens);
+	  // Stride the density computation
+	  if (k % iskip == 0) {
+	    auto ret = tree.nearestN(points[k], Ndens);
 
-	  double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
-	  if (volume>0.0)
-	    dens->InsertNextValue(std::get<1>(ret)/volume);
-	  else
-	    dens->InsertNextValue(1.0e-18);
+	    double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
+	    if (volume>0.0)
+	      dens->InsertNextValue(std::get<1>(ret)/volume);
+	    else
+	      dens->InsertNextValue(1.0e-18);
+	  }
 	}
       }
 
+      int NP = 0;
       for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
-
-	float m = part->mass();
-	mas->InsertNextValue(m);
-
-	float x = part->pos(0);
-	float y = part->pos(1);
-	float z = part->pos(2);
-
-	pos->InsertNextPoint(x, y, z);
-
-	float u = part->vel(0);
-	float v = part->vel(1);
-	float w = part->vel(2);
 	
-	vel->InsertNextTuple3(u, v, w);
-      }	
+	// Stride the particle insertion to match the density evaluation
+	if (NP++ % iskip == 0) {
+
+	  float m = part->mass();
+	  mas->InsertNextValue(m);
+	  
+	  float x = part->pos(0);
+	  float y = part->pos(1);
+	  float z = part->pos(2);
+	  
+	  pos->InsertNextPoint(x, y, z);
+
+	  float u = part->vel(0);
+	  float v = part->vel(1);
+	  float w = part->vel(2);
+	  
+	  vel->InsertNextTuple3(u, v, w);
+	}
+
+      }
 
       // Create topology of point cloud. This is necessary!
       //
+      int cnt = 0;
       for (int i=0; i<stanza->comp.nbod; i++) {
-	vtkIdType c = i;
-	conn->InsertNextCell(1, &c);
+	if (i % iskip==0) {
+	  vtkIdType c = cnt++;
+	  conn->InsertNextCell(1, &c);
+	}
       }
     
       // Add the point locations
