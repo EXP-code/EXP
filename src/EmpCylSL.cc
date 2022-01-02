@@ -17,24 +17,10 @@
 
 #include <Eigen/Eigenvalues>
 
-#ifndef STANDALONE
 #include "expand.H"
 #include "global.H"
 #ifdef HAVE_VTK
 #include <VtkPCA.H>
-#endif
-#else  
-#include <yaml-cpp/yaml.h>	// YAML support
-#include "EXPException.H"
-
-				// Constants from expand.H & global.H
-extern int nthrds;
-extern double tnow;
-extern unsigned multistep;
-extern int VERBOSE;
-
-#include "config.h"
-
 #endif
 
 #ifdef HAVE_OMP_H
@@ -4024,7 +4010,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
     
     static unsigned ocount = 0, eofcount = 0;
 
-#if defined HAVE_VTK and !defined STANDALONE
+#if defined HAVE_VTK
     VtkPCAptr vtkpca;
 
     if (PCAVAR and PCAVTK and myid==0) {
@@ -4255,12 +4241,10 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 
 	  // VTK basis
 	  //
-#ifndef STANDALONE
 	  for (int nn=0; nn<rank3; nn++) {
 	    dump_images_basis_eof(runtag, 0.1, 0.01, 100, 40, mm, nn, eofcount,
 				  evecVar.col(nn));
 	  }
-#endif
 	}
       }
 
@@ -4307,7 +4291,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	  maxSNR = std::max<double>(maxSNR, 1.0/b);
 	}
 
-#if defined HAVE_VTK and !defined STANDALONE
+#if defined HAVE_VTK
 	if (vtkpca) vtkpca->Add((*pb)[mm]->meanJK,
 				(*pb)[mm]->ratio, snrval,
 				(*pb)[mm]->evalJK,
@@ -4356,7 +4340,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
       }
     }
 
-#if defined HAVE_VTK and !defined STANDALONE
+#if defined HAVE_VTK
     if (vtkpca) {
       std::ostringstream sout;
       sout << hallfile << "_" << std::setfill('0') << std::setw(5) << ocount++;
@@ -4381,9 +4365,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
       }
     }
 
-#ifndef STANDALONE
     eofcount++;
-#endif
   }
     
   if (VFLAG & 4)
@@ -5197,11 +5179,6 @@ void EmpCylSL::get_coefs(int m1,
 }
 
 
-#ifdef STANDALONE
-#include <coef.H>
-static CylCoefHeader coefheadercyl;
-#endif
-
 void EmpCylSL::dump_coefs_binary(ostream& out, double time)
 {
   if (NewCoefs) {
@@ -5981,7 +5958,6 @@ void EmpCylSL::sinecosine_R(int mmax, double phi,
 
 void EmpCylSL::multistep_update_begin()
 {
-#ifndef STANDALONE
 				// Clear the update matricies
   for (int nth=0; nth<nthrds; nth++) {
     for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
@@ -5991,14 +5967,10 @@ void EmpCylSL::multistep_update_begin()
       differS1[nth][M].setZero();
     }
   }
-
-#endif // STANDALONE
 }
 
 void EmpCylSL::multistep_update_finish()
 {
-#ifndef STANDALONE
-
   unsigned offset0, offset1;
   unsigned sz = (multistep - mfirst[mstep]+1)*(MMAX+1)*rank3;
   for (unsigned j=0; j<sz; j++) 
@@ -6103,8 +6075,6 @@ void EmpCylSL::multistep_update_finish()
     }
 
   }
-
-#endif // STANDALONE
 }
 
 void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi, double mass, int id)
@@ -6142,7 +6112,6 @@ void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi
 
 void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 {
-#ifndef STANDALONE
 				// Clean coefficient matrix
 				// 
   for (int mm=0; mm<=MMAX; mm++) {
@@ -6241,7 +6210,6 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   }
 
   coefs_made = vector<short>(multistep+1, true);
-#endif
 }
 
 

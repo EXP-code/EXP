@@ -20,16 +20,12 @@
 #include <coef.H>
 #include <global.H>
 
-#ifndef STANDALONE
 #include "expand.H"
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
-
-#endif
-
 
 /** Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as
     force method
@@ -910,7 +906,6 @@ public:
   //! Check orthogonality for basis (debugging)
   void ortho_check(std::ostream& out);
 
-#ifndef STANDALONE
 #if HAVE_LIBCUDA==1
   cudaMappingConstants getCudaMappingConstants();
 
@@ -1004,7 +999,6 @@ public:
     return massT1[0][T];
   }
 
-#endif
 #endif
 
 private:
