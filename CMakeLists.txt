@@ -218,3 +218,11 @@ set(CMAKE_CXX_FLAGS_UBSAN
   "-fsanitize=undefined"
   CACHE STRING "Flags used by the C++ compiler during UndefinedBehaviourSanitizer builds."
   FORCE)
+
+# Remove config.h to allow multiple build types (e.g. with and without
+# CUDA support)
+add_custom_command(
+  OUTPUT dummy
+  COMMAND rm config.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
