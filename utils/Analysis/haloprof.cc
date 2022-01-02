@@ -134,7 +134,8 @@ public:
 };
 
 
-void add_particles(PRptr reader, const std::string comp, vector<Particle>& p, Histogram& h)
+void add_particles(PR::PRptr reader, const std::string comp,
+		   std::vector<Particle>& p, Histogram& h)
 {
   // Request particle type
   //
@@ -758,7 +759,7 @@ main(int argc, char **argv)
 
     int iok = 1;
 
-    auto file1 = ParticleReader::fileNameCreator
+    auto file1 = PR::ParticleReader::fileNameCreator
       (fileType, indx, myid, dir, runtag, filePrefix);
 
     if (verbose and myid==0) {
@@ -779,10 +780,10 @@ main(int argc, char **argv)
     // Open phase-space file
     // ==================================================
     //
-    PRptr reader;
+    PR::PRptr reader;
 
     try {
-      reader = ParticleReader::createReader(fileType, file1, myid, verbose);
+      reader = PR::ParticleReader::createReader(fileType, file1, myid, verbose);
     }
     catch (std::runtime_error &error) {
       std::cerr << error.what() << std::endl;

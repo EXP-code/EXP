@@ -213,7 +213,7 @@ main(int argc, char **argv)
 
     if (n % numprocs == myid) {
 
-      PRptr reader = ParticleReader::createReader
+      PR::PRptr reader = PR::ParticleReader::createReader
 	(fileType, files[n], myid, true);
 
       times[n] = reader->CurrentTime();

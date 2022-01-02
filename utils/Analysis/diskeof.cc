@@ -400,7 +400,7 @@ main(int argc, char **argv)
     // ==================================================
 
     int iok = 1;
-    auto file1 = ParticleReader::fileNameCreator
+    auto file1 = PR::ParticleReader::fileNameCreator
       (fileType, indx, myid, dir, runtag);
 
     if (myid==0) {
@@ -418,7 +418,8 @@ main(int argc, char **argv)
     // Open frame list
     // ==================================================
     
-    PRptr reader = ParticleReader::createReader(fileType, file1, myid, true);
+    PR::PRptr reader = PR::ParticleReader::createReader
+      (fileType, file1, myid, true);
 
     reader->SelectType(cname);
 

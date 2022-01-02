@@ -164,7 +164,7 @@ int main(int argc, char **argv)
 				// Root nodes looks for existence of files
   if (myid==0) {
     for (int i=IBEG; i<=IEND; i++) {
-      auto lab = ParticleReader::fileNameCreator
+      auto lab = PR::ParticleReader::fileNameCreator
 	(fileType, i, myid, dir, runtag, filePrefix);
       std::ifstream in(lab);
       if (in) files.push_back(lab);
@@ -217,7 +217,8 @@ int main(int argc, char **argv)
 
   for (int n=0; n<nfiles; n++) {
 
-    PRptr reader = ParticleReader::createReader(fileType, files[n], myid, true);
+    PR::PRptr reader = PR::ParticleReader::createReader
+      (fileType, files[n], myid, true);
 
     times[n] = reader->CurrentTime();
 

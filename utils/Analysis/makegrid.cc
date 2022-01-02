@@ -243,13 +243,14 @@ int main(int argc, char**argv)
 
 				// Parse the PSP file
 				// ------------------
-  PRptr reader = ParticleReader::createReader(fileType, infile, myid, true);
+  PR::PRptr reader = PR::ParticleReader::createReader
+    (fileType, infile, myid, true);
 
 				// Now write a summary
 				// -------------------
   if (verbose and myid==0 and fileType.find("PSP") != string::npos) {
 
-    dynamic_cast<PSP*>(reader.get())->PrintSummary(std::cerr);
+    dynamic_cast<PR::PSP*>(reader.get())->PrintSummary(std::cerr);
     
     std::cerr << std::endl << "Best fit dump to <" << time << "> has time <" 
 	      << reader->CurrentTime() << ">" << std::endl;

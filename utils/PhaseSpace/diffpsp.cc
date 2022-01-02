@@ -326,11 +326,11 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  PRptr psp1, psp2;
+  PR::PRptr psp1, psp2;
   double initl_time, final_time;
 
   try {
-    psp1 = ParticleReader::createReader(fileType, INFILE1, myid, true);
+    psp1 = PR::ParticleReader::createReader(fileType, INFILE1, myid, true);
   
     initl_time = psp1->CurrentTime();
 
@@ -352,7 +352,7 @@ main(int argc, char **argv)
   }
 
   try {
-    psp2 = ParticleReader::createReader(fileType, INFILE2, myid, true);
+    psp2 = PR::ParticleReader::createReader(fileType, INFILE2, myid, true);
   
     final_time = psp2->CurrentTime();
 
@@ -423,9 +423,9 @@ main(int argc, char **argv)
 
   std::shared_ptr<SphericalModelTable> hmodel;
   std::shared_ptr<MakeModel> cmodel;
-  PSPstanza *stanza, *stanza1, *stanza2;
+  PR::PSPstanza *stanza, *stanza1, *stanza2;
 
-  PRptr psp;
+  PR::PRptr psp;
 
   if (WHICHPS==0) {
     // Okay, just checking

@@ -58,7 +58,8 @@ double      Rmin;
 double      Rmax;
 std::string cname;
 
-void add_particles(PRptr reader, vector< vector<double> >& ret, int& nhist)
+void add_particles(PR::PRptr reader, std::vector< std::vector<double> >& ret,
+		   int& nhist)
 {
   
   nhist = 4;
@@ -189,14 +190,16 @@ main(int argc, char **argv)
 
   for (int i=IMIN; i<=IMAX; i++) {
 
-    auto file = ParticleReader::fileNameCreator(fileType, i, myid, "", runtag);
+    auto file = PR::ParticleReader::fileNameCreator
+      (fileType, i, myid, "", runtag);
     
-    PRptr reader = ParticleReader::createReader(fileType, file, myid, true);
+    PR::PRptr reader = PR::ParticleReader::createReader
+      (fileType, file, myid, true);
     reader->SelectType(cname);
 
     double time = reader->CurrentTime();
 
-    vector< vector<double> > ret;
+    std::vector< std::vector<double> > ret;
     int nhist;
     double dz = (Rmax-Rmin)/Nbins;
 

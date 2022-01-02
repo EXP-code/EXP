@@ -62,7 +62,7 @@ double RMIN, RMAX, TIME;
 int OUTR, NICE, LMAX, NMAX, MMAX, PARTFLAG, L1, L2;
 bool ALL, VOLUME, SURFACE, PROBE;
 
-void add_particles(PRptr reader, std::string& name, vector<Particle>& p)
+void add_particles(PR::PRptr reader, std::string& name, std::vector<Particle>& p)
 {
   reader->SelectType(name);
 
@@ -561,7 +561,7 @@ main(int argc, char **argv)
 
   for (int n=ibeg; n<=iend; n++) {
 
-    auto file0 = ParticleReader::fileNameCreator
+    auto file0 = PR::ParticleReader::fileNameCreator
       (fileType, n, myid, dir, runtag);
 
     int iok = 1;
@@ -580,7 +580,8 @@ main(int argc, char **argv)
     // ==================================================
     // Open frame list
     // ==================================================
-    PRptr reader = ParticleReader::createReader(fileType, file0, myid, true);
+    PR::PRptr reader = PR::ParticleReader::createReader
+      (fileType, file0, myid, true);
     
     double tnow = reader->CurrentTime();
 

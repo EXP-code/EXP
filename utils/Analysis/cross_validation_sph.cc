@@ -308,10 +308,11 @@ main(int argc, char **argv)
     int iok = 1;
     std::ostringstream s0, s1;
 
-    auto file1 = ParticleReader::fileNameCreator
+    auto file1 = PR::ParticleReader::fileNameCreator
       (fileType, ipsp, myid, dir, runtag);
     
-    PRptr reader = ParticleReader::createReader(fileType, file1, true);
+    PR::PRptr reader = PR::ParticleReader::createReader
+      (fileType, file1, true);
 
     double tnow = reader->CurrentTime();
     if (myid==0) std::cout << "Beginning partition [time=" << tnow

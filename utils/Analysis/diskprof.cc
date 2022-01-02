@@ -182,7 +182,8 @@ public:
   }
 };
 
-void add_particles(PRptr reader, const std::string name, vector<Particle>& p, Histogram& h)
+void add_particles(PR::PRptr reader, const std::string name,
+		   std::vector<Particle>& p, Histogram& h)
 {
   // Request particle type
   //
@@ -1044,7 +1045,7 @@ main(int argc, char **argv)
 
   int iok = 1;
 
-  auto file0 = ParticleReader::fileNameCreator
+  auto file0 = PR::ParticleReader::fileNameCreator
     (fileType, init, myid, dir, runtag, filePrefix);
 
   if (myid==0) {
@@ -1180,7 +1181,7 @@ main(int argc, char **argv)
 
   Histogram histo(OUTR, OUTZ, RMAX, ZMAX);
   std::vector<Particle> particles;
-  PRptr reader;
+  PR::PRptr reader;
 
   std::vector<double> times;
   std::vector<std::string> outfiles;
@@ -1205,7 +1206,7 @@ main(int argc, char **argv)
   if (ortho.read_cache()==0) {
     
     try {
-      reader = ParticleReader::createReader(fileType, file0, myid, true);
+      reader = PR::ParticleReader::createReader(fileType, file0, myid, true);
     }
     catch (std::runtime_error &error) {
       std::cerr << error.what() << std::endl;
@@ -1289,7 +1290,7 @@ main(int argc, char **argv)
 
     iok = 1;
 
-    file1 = ParticleReader::fileNameCreator
+    file1 = PR::ParticleReader::fileNameCreator
       (fileType, indx, myid, dir, runtag, filePrefix);
 
     if (myid==0) {
@@ -1308,7 +1309,7 @@ main(int argc, char **argv)
     // ==================================================
     
     try {
-      reader = ParticleReader::createReader(fileType, file1, myid, true);
+      reader = PR::ParticleReader::createReader(fileType, file1, myid, true);
     }
     catch (std::runtime_error &error) {
       std::cerr << error.what() << std::endl;
