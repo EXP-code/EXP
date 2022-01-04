@@ -440,7 +440,7 @@ void YAML_parse_args(int argc, char** argv)
   
   // Default config file if none specified using -f or as a trailing option
   //
-  string curparm("config.yml");
+  std::string curparm("config.yml");
 
   // Get our MPI id
   int myid;
@@ -460,9 +460,9 @@ void YAML_parse_args(int argc, char** argv)
     options.add_options()
       ("h,help", "this help message")
       ("f,file", "the input YAML configuration file",
-       cxxopts::value<std::string>(curparm)->default_value("config.yml"))
+       cxxopts::value<std::string>(curparm))
       ("c,config", "the input YAML configuration file",
-       cxxopts::value<std::string>(curparm)->default_value("config.yml"))
+       cxxopts::value<std::string>(curparm))
       ("t,template", "provide a template YAML configuration file")
       ("v,git", "display verbose GIT version info")
       ;
@@ -509,7 +509,7 @@ void YAML_parse_args(int argc, char** argv)
     // argument as config file
     //
     bool trailing = false;
-    if (vm.count("file")==0) {
+    if (vm.count("file")==0 and vm.count("config")==0) {
       auto trail = vm.unmatched();
       if (trail.size()) {
 	curparm = trail[0];
