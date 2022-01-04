@@ -54,10 +54,9 @@ void p_rec(std::ofstream& out, double E, double K, double V)
       << std::setw(15) << V << std::endl;
 }
 
-				// Global variables
 
-double p1[3] = {0.0, 0.0, 0.0};
-double p2[3] = {0.0, 0.0, 0.0};
+double p1[3] = {0.0, 0.0, 0.0};	// Phase space #1 center
+double p2[3] = {0.0, 0.0, 0.0};	// Phase space #2 center
 
 int
 main(int argc, char **argv)
