@@ -191,7 +191,7 @@ main(int argc, char **argv)
      cxxopts::value<bool>(EBAR)->default_value("false"))
     ;
   
-  auto vm = options.parse(argc, argv);
+  cxxopts::ParseResult vm;
   
   try {
     vm = options.parse(argc, argv);
