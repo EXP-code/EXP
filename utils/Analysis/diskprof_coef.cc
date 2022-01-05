@@ -431,7 +431,7 @@ main(int argc, char **argv)
   // *****Using MPI****
   // ==================================================
 
-  int mmax, numx, numy, nmax, norder, cmapr=1, cmapz=1, tmp;
+  int mmax, numx, numy, nmax, norder, cmapr=1, cmapz=1, tmp, nodd=-1;
   bool dens=false;
   double rmin, rmax, ascl, hscl;
 
@@ -487,6 +487,8 @@ main(int argc, char **argv)
     nmax    = node["nmax"  ].as<int>();
     norder  = node["norder"].as<int>();
     dens    = node["dens"  ].as<bool>();
+    if (node["nodd"])
+      nodd  = node["nodd"  ].as<int>();
     if (node["cmap"])
       cmapr = node["cmap"  ].as<int>();
     else 
@@ -524,11 +526,10 @@ main(int argc, char **argv)
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = true;
   EmpCylSL::DENS        = dens;
-  EmpCylSL::CACHEFILE   = CACHEFILE;
 
 				// Create expansion
 				//
-  EmpCylSL ortho(nmax, lmax, mmax, norder, ascl, hscl);
+  EmpCylSL ortho(nmax, lmax, mmax, norder, ascl, hscl, nodd, CACHEFILE);
     
   std::vector<double> T;
 

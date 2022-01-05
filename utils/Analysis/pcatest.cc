@@ -66,7 +66,7 @@ int
 main(int argc, char **argv)
 {
   double RMAX, ZMAX;
-  int    OUTR, OUTZ, lmax, mmax, nmax, norder, numx, numy;
+  int    OUTR, OUTZ, lmax, mmax, nmax, norder, numx, numy, nodd;
   std::string CACHEFILE, OUTTAG;
   double rcylmin, rcylmax, rscale, vscale;
   bool   DENS, LOGSC;
@@ -100,6 +100,8 @@ main(int argc, char **argv)
      cxxopts::value<int>(mmax)->default_value("4"))
     ("norder", "maximum radial order for each harmonic subspace",
      cxxopts::value<int>(norder)->default_value("4"))
+    ("nodd", "Number of odd basis functions each harmonic subspace",
+     cxxopts::value<int>(nodd)->default_value("-1"))
     ("NUMX", "number of radial table entries",
      cxxopts::value<int>(numx)->default_value("128"))
     ("NUMY", "number of vertical table entries",
@@ -154,11 +156,10 @@ main(int argc, char **argv)
   EmpCylSL::logarithmic = true;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::NOUT        = norder;
-  EmpCylSL::CACHEFILE   = CACHEFILE;
 
 				// Create expansion
 				//
-  EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale);
+  EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale, nodd, CACHEFILE);
     
   // ==================================================
   // Initialize and/or create basis

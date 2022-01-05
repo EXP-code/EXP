@@ -179,7 +179,7 @@ main(int argc, char **argv)
   // ==================================================
   // Parameter parsing
   // ==================================================
-  int lmax=64, mmax, Nmin, Nmax, nmax, norder, numx, numy, cmapr=1, cmapz=1;
+  int lmax=64, mmax, Nmin, Nmax, nmax, norder, numx, numy, cmapr=1, cmapz=1, nodd=-1;
   double rcylmin, rcylmax, rscale, vscale, RMAX;
   std::string CACHEFILE, COEFFILE, cname, prefix, fileType, filePrefix, dir;
   int beg, end, stride, mbeg, mend, OUTR;
@@ -313,6 +313,8 @@ main(int argc, char **argv)
       nmax    = node["nmax"  ].as<int>();
       norder  = node["norder"].as<int>();
       DENS    = node["dens"  ].as<bool>();
+      if (node["nodd"])
+	nodd  = node["nodd"  ].as<int>();
       if (node["cmap"])
 	cmapr = node["cmap"  ].as<int>();
       else
@@ -355,11 +357,10 @@ main(int argc, char **argv)
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = logl;
   EmpCylSL::DENS        = DENS;
-  EmpCylSL::CACHEFILE   = CACHEFILE;
 
   // Create expansion instance
   //
-  EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale);
+  EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale, nodd, CACHEFILE);
     
   // ==================================================
   // Initialize and/or create basis

@@ -46,14 +46,14 @@ private:
   void init_table(void);
   void compute_table(TableCyl* table, int M, int K);
   void compute_table_slave(void);
-  int read_cached_table(void);
+  int  read_cached_table(void);
   void write_cached_table(void);
 
 
 				// Local MPI stuff
   void mpi_setup(void);
   void mpi_unpack_table(void);
-  int mpi_pack_table(TableCyl* table, int m, int k);
+  int  mpi_pack_table(TableCyl* table, int m, int k);
 
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
@@ -160,8 +160,8 @@ private:
 				// Local MPI stuff
   void mpi_setup(void);
   void mpi_unpack_table(void);
-  int mpi_pack_table(TableSph* table, int l);
-  int read_cached_table(void);
+  int  mpi_pack_table(TableSph* table, int l);
+  int  read_cached_table(void);
   void write_cached_table(void);
 
   int mpi_myid, mpi_numprocs;
@@ -173,28 +173,39 @@ private:
   bool cache;
   bool tbdbg;
 
+  //! Default model file name
+  const std::string default_model = "SLGridSph.model";
+
+  //! Default cache file name
+  const std::string default_cache = ".slgrid_sph_cache";
+
+  //! Model file name
+  std::string model_file_name;
+
+  //! Cache file name
+  std::string sph_cache_name;
+
 public:
 
   //! Flag for MPI enabled (default: 0=off)
   static int mpi;
-
-  //! Model file name
-  static string model_file_name;
-
-  //! Cache file name
-  static string sph_cache_name;
 
 				// Constructors
 
   //! Constructor with model table
   SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 	    int lmax, int nmax, int numr, double rmin, double rmax,
-	    bool cache, int Cmap, double Scale, bool Verbose=false);
+	    bool cache, int Cmap, double Scale,
+	    std::string cachename="",
+	    bool Verbose=false);
 
   //! Constructor (uses file *model_file_name* for file)
-  SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
+  SLGridSph(std::string modelname,
+	    int lmax, int nmax, int numr, double rmin, double rmax,
 	    bool cache, int Cmap, double Scale, 
-	    int DIVERGE, double DFAC, bool Verbose=false);
+	    int DIVERGE, double DFAC,
+	    std::string cachename="",
+	    bool Verbose=false);
 
   //! Destructor
   virtual ~SLGridSph();
@@ -203,18 +214,23 @@ public:
 
   //! Eigenvalue for index and harmonic order l
   double eigenvalue(int l, int n) {return table[l].ev[n];}
+
   //! Map radial coordinate to nondimensional coordinate
   double r_to_xi(double r);
+
   //! Map nondimensional coordinate to radial coordinate
   double xi_to_r(double x);
+
   //! Jacobian of nondimensional coordinate mapping
   double d_xi_to_r(double x);
 
   
   //! Get potential for dimensionless coord with harmonic order l and radial orer n
   double get_pot(double x, int l, int n, int which=1);
+
   //! Get density for dimensionless coord with harmonic order l and radial orer n  
   double get_dens(double x, int l, int n, int which=1);
+
   //! Get force for dimensionless coord with harmonic order l and radial orer n
   double get_force(double x, int l, int n, int which=1);
 

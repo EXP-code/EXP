@@ -1,4 +1,4 @@
-/*
+ /*
   Check orthgonality for cylindrical basis
 */
                                 // C++/STL headers
@@ -38,6 +38,7 @@
 #include <DiskEval.H>
 #include <norminv.H>
 #include <cxxopts.H>
+#include <EXPini.H>
 
 #define M_SQRT1_3 (0.5773502691896257645091487)
 
@@ -342,12 +343,33 @@ main(int ac, char **av)
 
   options.add_options()
     ("h,help", "Print this help message")
+    ("T,template", "Write template options file with current and all default values")
+    ("c,config", "Parameter configuration file",
+     cxxopts::value<string>(config))
     ("condition", "Condition EmpCylSL deprojection from specified disk model (EXP or MN)",
      cxxopts::value<string>(dmodel))
+    ("LMAX", "Maximum harmonic order",
+     cxxopts::value<int>(LMAX)->default_value("4"))
+    ("NMAX", "Maximum radial order",
+     cxxopts::value<int>(NMAX)->default_value("8"))
+    ("MMAX", "Maximum azimuthal order",
+     cxxopts::value<int>(MMAX)->default_value("y"))
+    ("NUMX", "Size of the (mapped) cylindrical radial grid",
+     cxxopts::value<int>(NUMX)->default_value("256"))
+    ("NUMY", "Size of the (mapped) cylindrical vertical grid",
+     cxxopts::value<int>(NUMY)->default_value("128"))
+    ("NOUT", "Maximum radial order for diagnostic basis dump",
+     cxxopts::value<int>(NOUT)->default_value("18")) 
     ("NINT", "Number of Gauss-Legendre knots",
      cxxopts::value<int>(NINT)->default_value("100"))
     ("NUMR", "Size of radial grid for Spherical SL",
      cxxopts::value<int>(NUMR)->default_value("2000"))
+    ("NODD", "Number of vertically odd basis functions per harmonic order",
+     cxxopts::value<int>(NODD)->default_value("6"))
+    ("NORDER", "Total number of basis functions per harmonic order",
+     cxxopts::value<int>(NORDER)->default_value("32"))
+    ("NFRC", "Number of force evaluations in radius",
+     cxxopts::value<int>(NFRC)->default_value("32"))
     ("RCYLMIN", "Minimum disk radius",
      cxxopts::value<double>(RCYLMIN)->default_value("0.001"))
     ("RCYLMAX", "Maximum disk radius",
@@ -370,10 +392,37 @@ main(int ac, char **av)
      cxxopts::value<int>(PNUM)->default_value("80"))
     ("TNUM", "Number of cos(theta) knots for EmpCylSL basis construction quadrature",
      cxxopts::value<int>(TNUM)->default_value("80"))
-    ("CMAPR", "Radial coordinate mapping type for cylindrical grid (0=none, 1=ractional function",
+    ("VFLAG", "Verbose reporting flags for EmpCylSL",
+     cxxopts::value<int>(VFLAG)->default_value("0"))
+    ("expcond", "EOF conditioning from analytic density profile",
+     cxxopts::value<bool>(expcond)->default_value("true"))
+    ("DENS", "Compute density basis functions",
+     cxxopts::value<bool>(DENS)->default_value("true"))
+    ("ignore", "Ignore parameters in cachefile and recompute basis",
+     cxxopts::value<bool>(ignore)->default_value("false"))
+    ("orthotst", "Compute orthgonality of basis functions",
+     cxxopts::value<bool>(orthotst)->default_value("false"))
+    ("LOGR", "Logarithmc mapping for radial profile in EmpCylSL",
+     cxxopts::value<bool>(LOGR)->default_value("false"))
+    ("LOGR2", "Logarithmc mapping for radial profile in coefficient evaluation",
+     cxxopts::value<bool>(LOGR2)->default_value("false"))
+    ("CMAPR", "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational function)",
      cxxopts::value<int>(CMAPR)->default_value("1"))
-    ;
-        
+    ("CMAPZ", "Vertical coordinate mapping type for cylindrical grid (0=none, 1=rational function)",
+     cxxopts::value<int>(CMAPZ)->default_value("1"))
+    ("scale_height", "Scale height for analytic disk density",
+     cxxopts::value<double>(scale_height)->default_value("0.01"))
+    ("scale_length", "Scale length for analytic disk density",
+     cxxopts::value<double>(scale_length)->default_value("0.002"))
+    ("PPOW", "Power-law exponent for analytic power law model",
+     cxxopts::value<double>(ppower)->default_value("3.0"))
+    ("cachefile", "Cache file for EmpCylSL grid",
+     cxxopts::value<std::string>(cachefile)->default_value(".eof.cache.file"))
+    ("disktype", "Desired disktype for analytic computation of basis (constant, gaussian, mn, exponential)",
+     cxxopts::value<std::string>(disktype)->default_value("exponential"))
+    ("mtype", "Desired deprojection sphericla models (Exponential, Gaussian, Plummer)",
+     cxxopts::value<std::string>(mtype)->default_value("Exponential"))
+     ;
   
   // Parse command line for control and critical parameters
   //
@@ -391,12 +440,39 @@ main(int ac, char **av)
   //
   if (vm.count("help")) {
     if (myid == 0) {
-      std::cout << options.help() << std::endl;
+      std::cout << options.help() << std::endl << std::endl;
     }
     MPI_Finalize();
     return 1;
   }
-  
+
+  // Write YAML template config file and exit
+  //
+  if (vm.count("template")) {
+
+    NOUT = std::min<int>(NOUT, NORDER);
+
+    // Write template file
+    //
+    if (myid==0) SaveConfig(vm, options, "template.yaml");
+
+    MPI_Finalize();
+    return 0;
+  }
+
+  // Read parameters fron the YAML config file
+  //
+  if (vm.count("input")) {
+    try {
+      vm = LoadConfig(options, config);
+    } catch (cxxopts::OptionException& e) {
+      if (myid==0) std::cout << "Option error in configuration file: "
+			     << e.what() << std::endl;
+      MPI_Finalize();
+      return 0;
+    }
+  }
+
   // Set EmpCylSL mtype
   //
   EmpCylSL::mtype = EmpCylSL::Exponential;
@@ -587,7 +663,6 @@ main(int ac, char **av)
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
-  EmpCylSL::CACHEFILE   = cachefile;
 
 				// For DiskDens
   AA = ASCALE;
@@ -597,7 +672,7 @@ main(int ac, char **av)
   bool save_eof = false;
 
   std::shared_ptr<EmpCylSL> expandd =
-    std::make_shared<EmpCylSL>(NMAX, LMAX, MMAX, NORDER, ASCALE, HSCALE);
+    std::make_shared<EmpCylSL>(NMAX, LMAX, MMAX, NORDER, ASCALE, HSCALE, NODD, cachefile);
 
   // Try to read existing cache to get EOF
   //

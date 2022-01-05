@@ -97,31 +97,27 @@ main(int argc, char **argv)
   EmpCylSL::DENS        = true;
   EmpCylSL::VFLAG       = 26;
 
-  EmpCylSL::CACHEFILE = eof1;
-
-  EmpCylSL test1(nmax, lmax, mmax, norder, acyl, hcyl, nodd);
+  EmpCylSL test1(nmax, lmax, mmax, norder, acyl, hcyl, nodd, eof1);
 
   bool cache_ok = test1.read_cache();
 
   if (!cache_ok) {
     if (myid==0) {		// Diagnostic output . . .
       std::cerr << "Can not read explicitly specified EOF file <"
-		<< EmpCylSL::CACHEFILE << ">" << std::endl;
+		<< eof1 << ">" << std::endl;
     }
     MPI_Finalize();
     exit(-1);
   }
 
-  EmpCylSL::CACHEFILE = eof2;
-
-  EmpCylSL test2(nmax, lmax, mmax, norder, acyl, hcyl);
+  EmpCylSL test2(nmax, lmax, mmax, norder, acyl, hcyl, nodd, eof2);
 
   cache_ok = test2.read_cache();
 
   if (!cache_ok) {
     if (myid==0) {		// Diagnostic output . . .
       std::cerr << "Can not read explicitly specified EOF file <"
-		<< EmpCylSL::CACHEFILE << ">" << std::endl;
+		<< eof2 << ">" << std::endl;
     }
     MPI_Finalize();
     exit(-1);

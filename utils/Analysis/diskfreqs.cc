@@ -61,7 +61,7 @@ const std::string overview = "Compute azimuthal and vertical disk frequencies fr
 int
 main(int argc, char **argv)
 {
-  int numx, numy, lmax=36, mmax, nmax, norder, cmapr, cmapz, numr;
+  int numx, numy, lmax=36, mmax, nmax, norder, cmapr, cmapz, numr, nodd=-1;
   double rcylmin, rcylmax, rscale, vscale, RMAX, Tmin, Tmax, dT, H, eps;
   bool DENS, verbose = false, mask = false, ignore, logl;
   std::string CACHEFILE, COEFFILE, COEFFILE2, MODEL, OUTFILE, fileType, filePrefix;
@@ -202,6 +202,8 @@ main(int argc, char **argv)
       nmax    = node["nmax"  ].as<int>();
       norder  = node["norder"].as<int>();
       DENS    = node["dens"  ].as<bool>();
+      if (node["nodd"])
+	nodd  = node["nodd"  ].as<int>();
       if (node["cmap"])
 	cmapr = node["cmap"  ].as<int>();
       else
@@ -242,11 +244,10 @@ main(int argc, char **argv)
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = logl;
   EmpCylSL::DENS        = DENS;
-  EmpCylSL::CACHEFILE   = CACHEFILE;
 
 				// Create expansion
 				//
-  EmpCylSL ortho_disk(nmax, lmax, mmax, norder, rscale, vscale);
+  EmpCylSL ortho_disk(nmax, lmax, mmax, norder, rscale, vscale, nodd, CACHEFILE);
     
   // ==================================================
   // Initialize disk create basis

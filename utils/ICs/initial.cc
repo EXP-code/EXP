@@ -865,7 +865,6 @@ main(int ac, char **av)
   
   // SLGridSph::diverge = DIVERGE;
   // SLGridSph::divergexp = DIVERGE_RFAC;
-  SLGridSph::model_file_name = halofile1;
   
   SphericalSL::RMIN = RMIN;
   SphericalSL::RMAX = RSPHSL;
@@ -873,7 +872,7 @@ main(int ac, char **av)
   // Create expansion only if needed . . .
   std::shared_ptr<SphericalSL> expandh;
   if (nhalo) {
-    expandh = std::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCMAP, SCSPH);
+    expandh = std::make_shared<SphericalSL>(halofile1, nthrds, LMAX, NMAX, SCMAP, SCSPH);
   }
 
   //===========================Cylindrical expansion===========================
@@ -891,7 +890,6 @@ main(int ac, char **av)
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::PCAVAR      = SELECT;
-  EmpCylSL::CACHEFILE   = cachefile;
 
                                 // Create expansion only if needed . . .
   std::shared_ptr<EmpCylSL> expandd;
@@ -899,7 +897,8 @@ main(int ac, char **av)
 
   if (ndisk) {
 
-    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
+    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD,
+					 cachefile);
 
 #ifdef DEBUG
    std::cout << "Process " << myid << ": "

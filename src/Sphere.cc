@@ -37,14 +37,15 @@ Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m
 				// Enable MPI code for more than one node
   if (numprocs>1) SLGridSph::mpi = 1;
 
-  SLGridSph::model_file_name = homedir + model_file;
-  SLGridSph::sph_cache_name  = outdir  + cache_file + "." + runtag;
+  std::string modelname = homedir + model_file;
+  std::string cachename = outdir  + cache_file + "." + runtag;
 
-  id += ", model=" + SLGridSph::model_file_name;
+  id += ", model=" + modelname;
 
 				// Generate Sturm-Liouville grid
-  ortho = std::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, true,
-					cmap, rs, diverge, dfac);
+  ortho = std::make_shared<SLGridSph>(modelname,
+				      Lmax, nmax, numr, rmin, rmax, true,
+				      cmap, rs, diverge, dfac, cachename);
 
 				// Get the min and max expansion radii
   rmin  = ortho->getRmin();
@@ -275,7 +276,8 @@ void Sphere::make_model_bin()
 
   // Regenerate Sturm-Liouville grid
   //
-  ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0);
+  std::string cachename = outdir  + cache_file + "." + runtag;
+  ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0, cachename);
 
   // Update time trigger
   //
@@ -414,7 +416,8 @@ void Sphere::make_model_plummer()
 
   // Regenerate Sturm-Liouville grid
   //
-  ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numr, Rmin, Rmax, false, 1, 1.0);
+  std::string cachename = outdir  + cache_file + "." + runtag;
+  ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numr, Rmin, Rmax, false, 1, 1.0, cachename);
 
   // Update time trigger
   //

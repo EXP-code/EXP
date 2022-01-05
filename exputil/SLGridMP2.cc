@@ -1527,9 +1527,6 @@ void SLGridCyl::mpi_unpack_table(void)
 
 int SLGridSph::mpi = 0;		// initially off
 
-string SLGridSph::sph_cache_name = ".slgrid_sph_cache";
-string SLGridSph::model_file_name = "SLGridSph.model";
-
 extern "C" {
   int sledge_(logical* job, doublereal* cons, logical* endfin, 
 	      integer* invec, doublereal* tol, logical* type, 
@@ -1572,11 +1569,19 @@ void SLGridSph::bomb(string oops)
 
 				// Constructors
 
-SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
+SLGridSph::SLGridSph(std::string modelname,
+		     int LMAX, int NMAX, int NUMR,
 		     double RMIN, double RMAX, 
 		     bool CACHE, int CMAP, double SCALE,
-		     int DIVERGE, double DFAC, bool VERBOSE)
+		     int DIVERGE, double DFAC,
+		     std::string cachename, bool VERBOSE)
 {
+  if (modelname.size()) model_file_name = modelname;
+  else                  model_file_name = default_model;
+  
+  if (cachename.size()) sph_cache_name  = cachename;
+  else                  sph_cache_name  = default_cache;
+  
   mpi_buf  = 0;
   model    = SphModTblPtr(new SphericalModelTable(model_file_name, DIVERGE, DFAC));
   tbdbg = VERBOSE;
@@ -1586,7 +1591,8 @@ SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
 
 SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 		     int LMAX, int NMAX, int NUMR, double RMIN, double RMAX, 
-		     bool CACHE, int CMAP, double SCALE, bool VERBOSE)
+		     bool CACHE, int CMAP, double SCALE,
+		     std::string cachename, bool VERBOSE)
 {
   mpi_buf  = 0;
   model    = mod;
@@ -1817,7 +1823,7 @@ int SLGridSph::read_cached_table(void)
 {
   if (!cache) return 0;
 
-  ifstream in(sph_cache_name.c_str());
+  std::ifstream in(sph_cache_name);
   if (!in) return 0;
 
   int LMAX, NMAX, NUMR, CMAP;
@@ -1875,7 +1881,7 @@ int SLGridSph::read_cached_table(void)
 
 void SLGridSph::write_cached_table(void)
 {
-  ofstream out(sph_cache_name.c_str());
+  std::ofstream out(sph_cache_name);
   if (!out) {
     std::cerr << "SLGridSph: error writing <" << sph_cache_name << ">" << std::endl;
     return;

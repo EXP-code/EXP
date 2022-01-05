@@ -59,13 +59,15 @@ SphericalSL::SphericalSL(void)
   compute = 0;
 }
 
-SphericalSL::SphericalSL(int Nth, int lmax, int nmax, int cmap, double rs)
+SphericalSL::SphericalSL( std::string modelfile, int Nth, int lmax, int nmax, int cmap, double rs)
+
 {
-  reset(Nth, lmax, nmax, cmap, rs);
+  reset(modelfile, Nth, lmax, nmax, cmap, rs);
   compute = 0;
 }
 
-void SphericalSL::reset(int Nth, int lmax, int nmax, int CMAP, double SCALE)
+void SphericalSL::reset(std::string modelfile, int Nth, int lmax, int nmax, int CMAP, double SCALE)
+			
 {
   nthrds = Nth;
   NMAX   = nmax;
@@ -147,7 +149,7 @@ void SphericalSL::reset(int Nth, int lmax, int nmax, int CMAP, double SCALE)
 				// Generate Sturm-Liouville grid
   SLGridSph::mpi = 1;		// Turn on MPI
   ortho = std::make_shared<SLGridSph>
-    (LMAX, NMAX, NUMR, RMIN, RMAX, true, CMAP, SCALE, 0, 1.0);
+    (modelfile, LMAX, NMAX, NUMR, RMIN, RMAX, true, CMAP, SCALE, 0, 1.0);
 
 }
 

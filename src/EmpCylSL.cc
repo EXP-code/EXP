@@ -56,7 +56,6 @@ double   EmpCylSL::RMIN            = 0.001;
 double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
 double   EmpCylSL::PPOW            = 4.0;
-string   EmpCylSL::CACHEFILE       = ".eof.cache.file";
 bool     EmpCylSL::NewCache        = true;
 bool     EmpCylSL::NewCoefs        = true;
  
@@ -90,7 +89,8 @@ EmpCylSL::EmpCylSL(void)
   Nodd       = 0;
   minSNR     = std::numeric_limits<double>::max();
   maxSNR     = 0.0;
-  
+  cachefile  = default_cache;
+
   if (DENS)
     MPItable = 4;
   else
@@ -110,8 +110,13 @@ EmpCylSL::~EmpCylSL(void)
 
 
 EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord, 
-		   double ascale, double hscale, int nodd)
+		   double ascale, double hscale, int nodd,
+		   std::string cachename)
 {
+  // Use default name?
+  if (cachename.size()) cachefile = cachename;
+  else                  cachefile = default_cache;
+
   // Sanity check
   if (lmax <= mmax) {
     if (myid==0) {
@@ -180,9 +185,13 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 
 
 void EmpCylSL::reset(int numr, int lmax, int mmax, int nord, 
-		     double ascale, double hscale, int nodd)
+		     double ascale, double hscale, int nodd,
+		     std::string cachename)
 {
-  // Sanity check
+  // Reset cache file name
+  if (cachename.size()) cachefile = cachename;
+
+  // Option sanity check
   if (lmax <= mmax) {
     if (myid==0) {
       std::cout << "EmpCylSL: lmax must be greater than mmax for consistency"
@@ -742,10 +751,11 @@ std::string compare_out(std::string str, U one, U two)
   return sout.str();
 }
 
-int EmpCylSL::cache_grid(int readwrite, string cachefile)
+int EmpCylSL::cache_grid(int readwrite, string cachename)
 {
 
-  if (cachefile.size()==0) cachefile = CACHEFILE;
+  // Option to reset cache file name
+  if (cachename.size()) cachefile = cachename;
 
   if (readwrite) {
     

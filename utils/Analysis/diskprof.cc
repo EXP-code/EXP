@@ -826,7 +826,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 int
 main(int argc, char **argv)
 {
-  int nice, numx, numy, lmax, mmax, nmax, norder, m1, m2, n1, n2;
+  int nice, numx, numy, lmax, mmax, nmax, norder, m1, m2, n1, n2, nodd=-1;
   int initc, partc, beg, end, stride, init, cmapr, cmapz;
   double rcylmin, rcylmax, rscale, vscale, snr, Hexp=4.0;
   bool DENS, PCA, PVD, verbose = false, mask = false, ignore, logl;
@@ -1123,6 +1123,8 @@ main(int argc, char **argv)
 	nmax    = node["nmax"  ].as<int>();
 	norder  = node["norder"].as<int>();
 	DENS    = node["dens"  ].as<bool>();
+	if (node["nodd"])
+	  nodd  = node["nodd"  ].as<int>();
 	if (node["cmap"])
 	  cmapr = node["cmap"  ].as<int>();
 	else
@@ -1168,11 +1170,10 @@ main(int argc, char **argv)
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = logl;
   EmpCylSL::DENS        = DENS;
-  EmpCylSL::CACHEFILE   = CACHEFILE;
 
 				// Create expansion
 				//
-  EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale);
+  EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale, nodd, CACHEFILE);
 
 				// Range limits for evaluation
 				//

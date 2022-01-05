@@ -221,6 +221,11 @@ private:
   void setup_eof_grid(void);
   void parityCheck(const std::string& prefix);
 
+  //! The default cache file name
+  const std::string default_cache = ".eof.cache.file";
+
+  //! The cache file name
+  std::string cachefile;
 				// 1=write, 0=read
 				// return: 0=failure
   int    cache_grid(int, string file="");		
@@ -427,9 +432,6 @@ public:
   //! Power exponent for EOF conditioning density function
   static double PPOW;
 
-  //! Name of cache file
-  static string CACHEFILE;
-
   //! Use YAML header in cache file
   static bool NewCache;
 
@@ -479,14 +481,16 @@ public:
       
    */
   EmpCylSL(int numr, int lmax, int mmax, int nord,
-	   double ascale, double hscale, int Nodd=-1);
+	   double ascale, double hscale, int Nodd=-1,
+	   std::string cachename="");
 
   //! Destructor
   ~EmpCylSL(void);
 
   //! Reconstruct basis with new parameters
   void reset(int numr, int lmax, int mmax, int nord,
-	     double ascale, double hscale, int Nodd=-1);
+	     double ascale, double hscale, int Nodd=-1,
+	     std::string cachename="");
 
   //! Read EOF basis header from saved file
   int read_eof_header(const string& eof_file);

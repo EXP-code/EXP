@@ -549,12 +549,11 @@ main(int ac, char **av)
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
-  EmpCylSL::CACHEFILE   = cachefile;
 
                                 // Create expansion only if needed . . .
   std::shared_ptr<EmpCylSL> expandd;
 
-  expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
+  expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD, cachefile);
 
 #ifdef DEBUG
    std::cout << "Process " << myid << ": "

@@ -93,21 +93,16 @@ int main(int argc, char** argv)
   } else {
     SLGridSph::mpi = 0;		// Turn off MPI
   }
-
-				// Set model file
-  SLGridSph::model_file_name = filename;
-  SLGridSph::sph_cache_name = cachefile;
-
 				// Generate Sturm-Liouville grid
-  auto ortho = std::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, 
-					     true, cmap, rs, 0, 1.0, true);
-  //                                         ^               ^       ^
-  //                                         |               |       |
-  // Use cache file--------------------------+               |       |
-  //                                                         |       |
-  // Model extrapoltion--------------------------------------+       |
-  //                                                                 |
-  // Turn on diagnostic output in SL creation------------------------+
+  auto ortho = std::make_shared<SLGridSph>(filename, Lmax, nmax, numr, rmin, rmax, 
+					   true, cmap, rs, 0, 1.0, cachefile, true);
+  //                                       ^               ^                  ^
+  //                                       |               |                  |
+  // Use cache file------------------------+               |                  |
+  //                                                       |                  |
+  // Model extrapoltion------------------------------------+                  |
+  //                                                                          |
+  // Turn on diagnostic output in SL creation---------------------------------+
 
 				// Slaves exit
   if (use_mpi && myid>0) {

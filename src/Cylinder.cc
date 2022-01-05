@@ -145,22 +145,26 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   EmpCylSL::CMAPR       = cmapR;
   EmpCylSL::CMAPZ       = cmapZ;
   EmpCylSL::logarithmic = logarithmic;
-  EmpCylSL::CACHEFILE   = outdir + ".eof.cache." + runtag;
   EmpCylSL::VFLAG       = vflag;
+
+  // Default cache file name
+  //
+  std::string cachename = outdir + ".eof.cache." + runtag;
 
   // EOF default file name override.  Default uses runtag suffix as
   // above.  Override file must exist if explicitly specified.
   //
-  if (eof_file.size()) EmpCylSL::CACHEFILE = eof_file;
+  if (eof_file.size()) cachename = eof_file;
 
   // For debugging; no use by force algorithm
   //
   if (density) EmpCylSL::DENS = true;
 
+
   // Make the empirical orthogonal basis instance
   //
   ortho = std::make_shared<EmpCylSL>
-    (nmax, lmax, mmax, ncylorder, acyl, hcyl, ncylodd);
+    (nmax, lmax, mmax, ncylorder, acyl, hcyl, ncylodd, cachename);
   
   // Set azimuthal harmonic order restriction?
   //
@@ -205,7 +209,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
       if (!cache_ok) {
 	if (myid==0) {		// Diagnostic output . . .
 	  std::cerr << "Cylinder: can not read explicitly specified EOF file <"
-		    << EmpCylSL::CACHEFILE << ">" << std::endl;
+		    << cachename << ">" << std::endl;
 	  if (eof_over) {
 	    std::cerr << "Cylinder: override specified . . ." << std::endl;
 	  } else {
@@ -232,7 +236,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
       //
       if (!cache_ok and myid==0)
 	std::cerr << "Cylinder: can not read EOF file <"
-		  << EmpCylSL::CACHEFILE << ">" << std::endl
+		  << cachename << ">" << std::endl
 		  << "Cylinder: will attempt to generate EOF file, "
 		  << "this will take some time (e.g. hours) . . ."
 		  << std::endl;

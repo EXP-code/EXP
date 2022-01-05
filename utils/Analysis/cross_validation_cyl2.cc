@@ -315,7 +315,7 @@ main(int argc, char **argv)
   // *****Using MPI****
   // ==================================================
 
-  int mmax, numx, numy, norder, cmapr, cmapz;
+  int mmax, numx, numy, norder, cmapr, cmapz, nodd=-1;
   double rcylmin, rcylmax, vscale;
   bool DENS;
 
@@ -375,6 +375,8 @@ main(int argc, char **argv)
 	NMAX    = node["nmax"  ].as<int>();
 	norder  = node["norder"].as<int>();
 	DENS    = node["dens"  ].as<bool>();
+	if (node["nodd"])
+	  nodd  = node["nodd"  ].as<int>();
 	if (node["cmap"])
 	  cmapr = node["cmap"  ].as<int>();
 	else
@@ -418,13 +420,12 @@ main(int argc, char **argv)
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = logl;
   EmpCylSL::DENS        = DENS;
-  EmpCylSL::CACHEFILE   = CACHEFILE;
   EmpCylSL::PCAVAR      = true;
   EmpCylSL::PCADRY      = true;
 
 				// Create expansion
 				//
-  EmpCylSL ortho(NMAX, LMAX, mmax, norder, rscale, vscale);
+  EmpCylSL ortho(NMAX, LMAX, mmax, norder, rscale, vscale, nodd, CACHEFILE);
     
 				// Set smoothing type to Truncate or
 				// Hall (default)
