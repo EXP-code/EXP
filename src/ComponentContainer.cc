@@ -4,6 +4,7 @@
 
 #include <expand.H>
 
+#include <algorithm>
 #include <vector>
 #include <memory>
 
@@ -227,6 +228,74 @@ void ComponentContainer::initialize(void)
     }
     cout << "\n";
   }
+
+  // Look for missing interactions
+  //
+  if (myid==0) {
+
+    // Keep a list
+    std::vector<std::pair<std::string, std::string>> missing;
+
+    // Loop through all components
+    //
+    for (auto c1 : components) {
+      
+      // For each component, search for an interaction list
+      //
+      auto it1 = std::find_if(interaction.begin(), interaction.end(),
+			      [c1](const Interaction* arg) { return arg->c == c1; });
+
+      // Now check for all components pairs but c1, of course
+      //
+      for (auto c2 : components) {
+	if (c1 == c2) continue;
+	bool not_found = true;
+	if (it1 != interaction.end()) {
+	  auto beg = (*it1)->l.begin();
+	  auto end = (*it1)->l.end();
+	  // Look for c2 in interaction list
+	  if (std::find(beg, end, c2) != end) not_found = false;
+	}
+	if (not_found) missing.push_back({c1->name, c2->name});
+      }
+    }
+
+    // We now have a list of all missing components; print warnings if
+    // we've found any
+    //
+    if (missing.size()) {
+      cout << "\nThe following interactions are MISSING:\n";
+      cout << setiosflags(ios::left)
+	   << setw(30) << setfill('-') << "-"
+	   << "-----------" 
+	   << resetiosflags(ios::left)
+	   << setw(30) << setfill('-') << "-"
+	   << "\n" << setfill(' ');
+      
+      for (auto p : missing)
+	cout << setiosflags(ios::left)
+	     << setw(30) << p.first
+	     << "acts on" 
+	     << resetiosflags(ios::left)
+	     << setw(30) << p.second
+	     << "\n";
+
+      cout << setiosflags(ios::left)
+	   << setw(30) << setfill('-') << "-"
+	   << "-----------" 
+	   << resetiosflags(ios::left)
+	   << setw(30) << setfill('-') << "-"
+	   << "\nDouble check that this is what you want . . .\n"
+	   << setiosflags(ios::left)
+	   << setw(30) << setfill('-') << "-"
+	   << "-----------" 
+	   << resetiosflags(ios::left)
+	   << setw(30) << setfill('-') << "-"
+	   << "\n" << setfill(' ');
+    }
+    // END: warnings
+  }
+  // END: missing interation check
 
 #if HAVE_LIBCUDA==1
   // Move all particles to cuda devices
