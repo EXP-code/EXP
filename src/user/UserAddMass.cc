@@ -836,7 +836,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
 	    for (auto c : comp_vec) {
 
-	      reinterpret_cast<Basis*>(c->force)->determine_fields_at_point_cyl
+	      dynamic_cast<Basis*>(c->force)->determine_fields_at_point_cyl
 		(rr, z, phi, &tdens0, &dpotl0, &tdens, &tpotl,
 		 &tpotr, &tpotz, &tpotp);
 	      
