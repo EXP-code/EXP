@@ -61,6 +61,10 @@ double p2[3] = {0.0, 0.0, 0.0};	// Phase space #2 center
 int
 main(int argc, char **argv)
 {
+  // Kappa offset
+  //
+  const double KTOL = 1.0e-2;
+
   // MPI initialization
   //
   local_init_mpi(argc, argv);
@@ -133,6 +137,7 @@ main(int argc, char **argv)
     ("h,help", "This help message")
     ("2,kappa2", "Bin kappa^2 instead of kappa")
     ("rmaxf", "Do not extend orbit evaluation beyond the model radius")
+    ("relJ", "Compute the relative binned angular momentum")
     ("F,filetype", "input file type (one of: PSPout, PSPspl, GadgetNative, GadgetHDF5)",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("TIME1", "Target time for fiducial phase space",
@@ -489,8 +494,8 @@ main(int argc, char **argv)
   double Emin = max<double>(hmodel->get_pot(hmodel->get_min_radius()), EMIN);
   double Emax = min<double>(hmodel->get_pot(hmodel->get_max_radius()), EMAX);
   double delE = Emax - Emin;
-  double dK = 1.0  / (NUMK-1);
-  double dE = delE / (NUME-1);
+  double dK = (1.0 - KTOL)  / NUMK;
+  double dE = delE / NUME;
 
   //=======================
   // Open distribution file
@@ -545,7 +550,6 @@ main(int argc, char **argv)
   //============================================================
 
   int numK0=0, numK1=0, reject=0, N=0;
-  const double KTOL = 1.0e-2;
   double KOVER  = 0.0;
   double KUNDER = 1.0;
 
@@ -657,12 +661,12 @@ main(int argc, char **argv)
 	  orb.new_orbit(E2, 0.5);
 	  double K2 = sqrt(jj)/orb.Jmax();
 	  if (kappa2) K2 *= K2;
-	  if (K2>1.0) {
+	  if (K2>1.0-KTOL) {
 	    numK1++;
 	    KOVER  = max<double>(KOVER, K2);
 	    K2 = 1.0 - KTOL;
 	  }
-	  if (K2<0.0) {
+	  if (K2<KTOL) {
 	    numK0++;
 	    KUNDER = min<double>(KUNDER, K2);
 	    K2 = KTOL;
@@ -672,6 +676,7 @@ main(int argc, char **argv)
 	    orb.new_orbit(E2, sqrt(K2));
 	  else
 	    orb.new_orbit(E2, K2);
+
 	  double I2 = orb.get_action(1);
 	  
 	  if (myid==0) {
@@ -832,10 +837,17 @@ main(int argc, char **argv)
       for (int k=0; k<6; k++) out[k] << std::setw(8) << NUME
 				     << std::setw(8) << NUMK
 				     << std::endl;
+    bool relJ = false;
+    if (vm.count("relJ")) relJ = true;
+
     for (int j=0; j<NUMK; j++) {
-      double KK = 0.5*dK + dK*j;
+      double KK = KTOL + 0.5*dK + dK*j;
       for (int i=0; i<NUME; i++) {
 	double EE = Emin + 0.5*dE + dE*i;
+	if (relJ) {
+	  orb.new_orbit(EE, KK);
+	  histoJ(i, j) /= orb.Jmax();
+	}
 	if (histoC(i, j)>MINBIN && histoM(i, j)>0.0) {
 	  if (SPECIFIC) {
 	    p_rec(out[0], EE, KK, histoM(i, j));
