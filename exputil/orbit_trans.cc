@@ -90,19 +90,23 @@ void SphericalOrbit::compute_freq(void)
     }
   }
   if (r_circ < model->get_max_radius()) {
-    try {
-      r_apo = zbrent(denom, xmin, RMAXF*xmax, tol);
-    }
-    catch (const char *error) {
-      cerr << "SphericalOrbit::compute_freq @ r_apo[2]: model=" 
-	   << model->ModelID        << endl
-	   << " energy=" << energy  << endl
-	   << " pot(max)=" << model->get_pot(xmax) << endl
-	   << " kappa="  << kappa   << endl
-	   << " xmin="   << xmin    << endl
-	   << " xmax="   << xmax*RMAXF << endl
-	   << " rc check=" << energy - model->get_pot(r_circ) - jmax*jmax/(2.0*r_circ*r_circ) << endl;
-      throw error;
+    if (denom(xmin)*denom(RMAXF*xmax) < 0.0) {
+      try {
+	r_apo = zbrent(denom, xmin, RMAXF*xmax, tol);
+      }
+      catch (const char *error) {
+	cerr << "SphericalOrbit::compute_freq @ r_apo[2]: model=" 
+	     << model->ModelID        << endl
+	     << " energy=" << energy  << endl
+	     << " pot(max)=" << model->get_pot(xmax) << endl
+	     << " kappa="  << kappa   << endl
+	     << " xmin="   << xmin    << endl
+	     << " xmax="   << xmax*RMAXF << endl
+	     << " rc check=" << energy - model->get_pot(r_circ) - jmax*jmax/(2.0*r_circ*r_circ) << endl;
+	throw error;
+      }
+    } else {
+      r_apo = r_circ;
     }
   }
   else {	 		// Circular radius outside mass distribution

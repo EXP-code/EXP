@@ -151,7 +151,7 @@ void SphericalOrbit::new_orbit(double Energy, double Kappa, double Beta)
 
   if (Kappa < 0.0 || Kappa > 1.0) {
     ostringstream ost;
-    ost << "illegal value of Kappa: " << Kappa;
+    ost << "[new_orbit] illegal value of Kappa: " << Kappa;
     bomb(ost.str().c_str());
   }
 
@@ -159,7 +159,7 @@ void SphericalOrbit::new_orbit(double Energy, double Kappa, double Beta)
 //      Energy > model->get_pot(model->get_max_radius())) {
   if (guard && Energy < model->get_pot(model->get_min_radius())) {
     ostringstream ost;
-    ost << "illegal value of Energy: " << Energy;
+    ost << "[new orbit] illegal value of Energy: " << Energy;
     ost << "  Emin[r=" << model->get_min_radius() << "] = " 
 	<< model->get_pot(model->get_min_radius());
     bomb(ost.str().c_str());
