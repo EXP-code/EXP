@@ -309,7 +309,7 @@ typedef std::vector<std::map<double, std::map<LM, CoefElem>>> CoefData;
 
 std::set<LM> LMset;
 
-std::tuple<int, int, CoefData >
+std::tuple<int, int, CoefData>
 get_coefficients(const std::string& coefs)
 {
   int lmax=0, nmax;
@@ -384,7 +384,7 @@ get_coefficients(const std::string& coefs)
 #if __GNUC__ > 6
   return {lmax, nmax, ret};
 #else
-  std::tuple<int, int, CoefData > rdat;
+  std::tuple<int, int, CoefData> rdat;
   std::get<0>(rdat) = lmax;
   std::get<1>(rdat) = nmax;
   std::get<2>(rdat) = ret;
@@ -419,32 +419,32 @@ main(int argc, char **argv)
   cxxopts::Options options(argv[0], overview);
 
   options.add_options()
-   ("h,help", "produce this help message")
-   ("v,verbose", "verbose output")
-   ("b,mask", "blank empty cells")
-   ("X,noCommand", "do not save command line")
-   ("p,PC", "make rendering for each PC")
-   ("a,All", "make rendering for all PCs",
+    ("h,help", "produce this help message")
+    ("v,verbose", "verbose output")
+    ("b,mask", "blank empty cells")
+    ("X,noCommand", "do not save command line")
+    ("p,PC", "make rendering for each group or PC")
+    ("a,All", "make rendering for all PCs",
      cxxopts::value<bool>(All)->default_value("true"))
-   ("R,RMAX", "maximum radius for output",
+    ("R,RMAX", "maximum radius for output",
      cxxopts::value<double>(RMAX)->default_value("0.1"))
-   ("outr", "number of radial points for output",
+    ("outr", "number of radial points for output",
      cxxopts::value<int>(OUTR)->default_value("40"))
-   ("surface", "make surface equitorial slices",
+    ("surface", "make surface equitorial slices",
      cxxopts::value<bool>(SURFACE)->default_value("true"))
-   ("vslice", "make surface vertical slices",
+    ("vslice", "make surface vertical slices",
      cxxopts::value<bool>(VSLICE)->default_value("false"))
-   ("volume", "make volume for VTK rendering",
+    ("volume", "make volume for VTK rendering",
      cxxopts::value<bool>(VOLUME)->default_value("false"))
-   ("o,outid", "Analysis id name",
+    ("o,outid", "Analysis id name",
      cxxopts::value<std::string>(outid)->default_value("mssaprof_halo"))
-   ("coeffile", "coefficient file name from exp_mssa",
+    ("coeffile", "coefficient file name from exp_mssa",
      cxxopts::value<std::string>(coeffile)->default_value("coef.file"))
-   ("modfile", "SL model filename",
+    ("modfile", "SL model filename",
      cxxopts::value<std::string>(modelfile)->default_value("SLGridSph.model"))
-   ("r,runtag", "runtag for phase space files",
+    ("r,runtag", "runtag for phase space files",
      cxxopts::value<std::string>(runtag)->default_value("run1"))
-   ("s,stride", "stride for time output",
+    ("s,stride", "stride for time output",
      cxxopts::value<int>(stride)->default_value("1"))
     ;
   
@@ -466,9 +466,9 @@ main(int argc, char **argv)
  
   if (vm.count("verbose")) verbose = true;
 
-  if (vm.count("mask")) mask = true;
+  if (vm.count("mask"))    mask = true;
 
-  if (vm.count("PC")) PCs = true;
+  if (vm.count("PC"))      PCs = true;
 
   if (vm.count("noCommand")==0 and myid==0) {
     std::string cmdFile = "mssaprof." + outid + ".cmd_line";
