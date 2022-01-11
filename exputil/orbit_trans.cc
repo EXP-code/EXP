@@ -45,14 +45,16 @@ void SphericalOrbit::compute_freq(void)
     try {
       r_circ = zbrent(Ecirc, xmin, xmax, tol);
     }
-    catch (const char *error) {
-      cerr << "SphericalOrbit::compute_freq @ r_circ: model=" 
+    catch (const std::exception& error) {
+      std::ostringstream mesg;
+      mesg << "SphericalOrbit::compute_freq: " << error.what() << std::endl
+	   << "SphericalOrbit::compute_freq @ r_circ: model=" 
 	   << model->ModelID         << endl
 	   << " energy="   << energy << endl
 	   << " kappa="    << kappa  << endl
 	   << " xmin="     << xmin   << endl
 	   << " xmax="     << xmax   << endl;
-      throw error;
+      throw std::runtime_error(mesg.str());
     }
   }
   else {		  // Circular radius outside mass distribution
@@ -60,8 +62,8 @@ void SphericalOrbit::compute_freq(void)
     if (r_circ < model->get_min_radius()) {
       r_circ = model->get_min_radius();
     }
-    std::cerr << "SphericalOrbit::compute_freq warning:"
-	      << " Circular radius outside mass distribution" << std::endl;
+    std::string message("SphericalOrbit::compute_freq warning: Circular radius outside mass distribution");
+    throw std::runtime_error(message);
   }
 
   dudr = model->get_dpot(r_circ);
@@ -79,14 +81,16 @@ void SphericalOrbit::compute_freq(void)
     try {
       r_apo = zbrent(denom, xmin, xmax, tol);
     }
-    catch (const char *error) {
-      cerr << "SphericalOrbit::compute_freq @ r_apo[1]: model=" 
+    catch (const std::exception& error) {
+      std::ostringstream mesg;
+      mesg << "SphericalOrbit::compute_freq: " << error.what() << std::endl
+	   << "SphericalOrbit::compute_freq @ r_apo[1]: model=" 
 	   << model->ModelID        << endl
 	   << " energy=" << energy  << endl
 	   << " kappa="  << kappa   << endl
 	   << " xmin="  << xmin     << endl
 	   << " xmax="  << xmax     << endl;
-      throw error;
+      throw std::runtime_error(mesg.str());
     }
   }
   if (r_circ < model->get_max_radius()) {
@@ -94,8 +98,10 @@ void SphericalOrbit::compute_freq(void)
       try {
 	r_apo = zbrent(denom, xmin, RMAXF*xmax, tol);
       }
-      catch (const char *error) {
-	cerr << "SphericalOrbit::compute_freq @ r_apo[2]: model=" 
+      catch (const std::exception& error) {
+	std::ostringstream mesg;
+	mesg << "SphericalOrbit::compute_freq: " << error.what() << std::endl
+	     << "SphericalOrbit::compute_freq @ r_apo[2]: model=" 
 	     << model->ModelID        << endl
 	     << " energy=" << energy  << endl
 	     << " pot(max)=" << model->get_pot(xmax) << endl
@@ -103,7 +109,7 @@ void SphericalOrbit::compute_freq(void)
 	     << " xmin="   << xmin    << endl
 	     << " xmax="   << xmax*RMAXF << endl
 	     << " rc check=" << energy - model->get_pot(r_circ) - jmax*jmax/(2.0*r_circ*r_circ) << endl;
-	throw error;
+	throw std::runtime_error(mesg.str());
       }
     } else {
       r_apo = r_circ;
@@ -138,13 +144,15 @@ void SphericalOrbit::compute_freq(void)
     try {
       r_peri = zbrent(denom, ZFRAC*model->get_min_radius(), r_circ, tol);
     }
-    catch (const char *error) {
-      cerr << "SphericalOrbit::compute_freq @ r_peri: model=" << model->ModelID
+    catch (const std::exception& error) {
+      std::ostringstream mesg;
+      mesg << "SphericalOrbit::compute_freq: " << error.what() << std::endl
+	   << "SphericalOrbit::compute_freq @ r_peri: model=" << model->ModelID
 	   << " energy=" << energy
 	   << " kappa="  << kappa
 	   << " xmin="  << ZFRAC*model->get_min_radius()
 	   << " xmax="  << r_circ << endl;
-      throw error;
+      throw std::runtime_error(mesg.str());
     }
   }
 

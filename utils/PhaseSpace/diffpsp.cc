@@ -250,13 +250,16 @@ main(int argc, char **argv)
   //
 
   Eigen::MatrixXd histoC, histoM, histoE, histoJ, histoI, histoT;
+  Eigen::MatrixXd histo1, histo2;
 
-  histoC = Eigen::MatrixXd::Zero(NUME, NUME);
-  histoM = Eigen::MatrixXd::Zero(NUME, NUME);
-  histoE = Eigen::MatrixXd::Zero(NUME, NUME);
-  histoJ = Eigen::MatrixXd::Zero(NUME, NUME);
-  histoI = Eigen::MatrixXd::Zero(NUME, NUME);
-  histoT = Eigen::MatrixXd::Zero(NUME, NUME);
+  histoC = Eigen::MatrixXd::Zero(NUME, NUMK);
+  histoM = Eigen::MatrixXd::Zero(NUME, NUMK);
+  histoE = Eigen::MatrixXd::Zero(NUME, NUMK);
+  histoJ = Eigen::MatrixXd::Zero(NUME, NUMK);
+  histoI = Eigen::MatrixXd::Zero(NUME, NUMK);
+  histoT = Eigen::MatrixXd::Zero(NUME, NUMK);
+  histo1 = Eigen::MatrixXd::Zero(NUME, NUMK);
+  histo2 = Eigen::MatrixXd::Zero(NUME, NUMK);
 
   Eigen::VectorXd histoP, histoL, histPr, histLr, histoS, histoN;
 
@@ -293,8 +296,9 @@ main(int argc, char **argv)
     ".DI", 			// Rad. act. per bin (E, K)	#4
     ".DKJ", 			// Delta J(E, K)/J_avg(E)	#5
     ".Dm", 			// Mean mass per bin (E, K)	#6
-    ".DR", 			// Run mass, J, Delta J (R)	#7
-    ".chk"			// Orbital element check	#8
+    ".DF", 			// Delta DF (E, K)              #7
+    ".DR", 			// Run mass, J, Delta J (R)	#8
+    ".chk"			// Orbital element check	#9
   };
   std::vector<string> filename(nfiles);
   for (int i=0; i<nfiles; i++) filename[i] = OUTFILE + suffix[i];
@@ -624,7 +628,7 @@ main(int argc, char **argv)
 	angmom2[1] = p20[2]*v20[0] - p20[0]*p20[2];
 	angmom2[2] = p20[0]*v20[1] - p20[1]*p20[0];
 	
-	double jj = 0.0, dj = 0.0;
+	double jj = 0.0, dj = 0.0, j1 = 0.0, j2 = 0.0;
 	for (int k=0; k<3; k++) {
 	  if (WHICHEK==1)
 	    jj += angmom1[k]*angmom1[k];
@@ -633,12 +637,14 @@ main(int argc, char **argv)
 	  else
 	    jj += 0.5*(angmom1[k]*angmom1[k] + angmom2[k]*angmom2[k]);
 	  
+	  j1 += angmom1[k]*angmom1[k];
+	  j2 += angmom2[k]*angmom2[k];
 	  dj += (angmom1[k] - angmom2[k])*(angmom1[k] - angmom2[k]);
 	}
 	
 	try {
 	  orb.new_orbit(E1, 0.5);
-	  double K1 = sqrt(jj)/orb.Jmax();
+	  double K1 = sqrt(j1)/orb.Jmax();
 	  if (kappa2) K1 *= K1;
 	  if (K1>1.0-KTOL) {
 	    numK1++;
@@ -659,7 +665,7 @@ main(int argc, char **argv)
 	  double I1 = orb.get_action(1);
 	  
 	  orb.new_orbit(E2, 0.5);
-	  double K2 = sqrt(jj)/orb.Jmax();
+	  double K2 = sqrt(j2)/orb.Jmax();
 	  if (kappa2) K2 *= K2;
 	  if (K2>1.0-KTOL) {
 	    numK1++;
@@ -682,16 +688,16 @@ main(int argc, char **argv)
 	  if (myid==0) {
 	    if (WHICHEK & 1) {
 	      if (K1>1.0 || K1<0.0)
-		out[8] << setw(15) << E1 << setw(15) << K1
-		       << setw(15) << E2 << setw(15) << sqrt(jj)
+		out[9] << setw(15) << E1 << setw(15) << K1
+		       << setw(15) << E2 << setw(15) << sqrt(j1)
 		       << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
 		       << setw(5) << 1 << endl;
 	    }
 	    
 	    if (WHICHEK & 2) {
 	      if (K2>1.0 || K2<0.0)
-		out[8] << setw(15) << E2 << setw(15) << K2
-		       << setw(15) << E1 << setw(15) << sqrt(jj)
+		out[9] << setw(15) << E2 << setw(15) << K2
+		       << setw(15) << E1 << setw(15) << sqrt(j2)
 		       << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
 		       << setw(5) << 2 << endl;
 	    }
@@ -716,6 +722,22 @@ main(int argc, char **argv)
 	  KK = min<double>(KK, 1.0);
 	  KK = max<double>(KK, 0.0);
 	  
+	  int ie1 = (int)floor( (E1 - Emin) / dE );
+	  ie1 = max<int>(ie1, 0);
+	  ie1 = min<int>(ie1, NUME-1);
+	  
+	  int ik1 = (int)floor( K1 / dK );
+	  ik1 = max<int>(ik1, 0);
+	  ik1 = min<int>(ik1, NUMK-1);
+
+	  int ie2 = (int)floor( (E2 - Emin) / dE );
+	  ie2 = max<int>(ie2, 0);
+	  ie2 = min<int>(ie2, NUME-1);
+	  
+	  int ik2 = (int)floor( K2 / dK );
+	  ik2 = max<int>(ik2, 0);
+	  ik2 = min<int>(ik2, NUMK-1);
+
 	  int ie = (int)floor( (EE - Emin) / dE );
 	  ie = max<int>(ie, 0);
 	  ie = min<int>(ie, NUME-1);
@@ -739,6 +761,9 @@ main(int argc, char **argv)
 	  histoI(ie, ik) += pp->mass*(I2 - I1);
 	  histoT(ie, ik) += pp->mass*L1;
 	  
+	  histo1(ie1, ik1) += pp->mass;
+	  histo2(ie2, ik2) += pp->mass;
+
 	  if (LZDIST and myid==0) {
 	    if (KK>KMIN && KK<KMAX && EE>EMIN && EE<EMAX)
 	      dout << setw(15) << EE
@@ -785,6 +810,8 @@ main(int argc, char **argv)
     MPI_Reduce(&reject,       0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoC.data(), 0, histoC.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoM.data(), 0, histoM.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(histo1.data(), 0, histo1.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(histo2.data(), 0, histo2.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoE.data(), 0, histoE.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoJ.data(), 0, histoJ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoI.data(), 0, histoI.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -802,6 +829,8 @@ main(int argc, char **argv)
     MPI_Reduce(MPI_IN_PLACE, &reject, 1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoC.data(), histoC.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoM.data(), histoM.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, histo1.data(), histo1.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, histo2.data(), histo2.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoE.data(), histoE.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoJ.data(), histoJ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoI.data(), histoI.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -820,12 +849,17 @@ main(int argc, char **argv)
     
     Eigen::VectorXd Eavg  = Eigen::VectorXd::Zero(NUME);
     Eigen::VectorXd Emass = Eigen::VectorXd::Zero(NUME);
+
+				// Delta DF
+    Eigen::MatrixXd histoF = histo2 - histo1;
+    double totMass = 0.0;
     
     for (int i=0; i<NUME; i++) {
       
       for (int j=0; j<NUMK; j++) {
 	Eavg[i]  += histoT(i, j);
 	Emass[i] += histoM(i, j);
+	totMass  += histoM(i, j);
       }
       if (Emass[i] > 0.0) Eavg[i] /= Emass[i];
       else                Eavg[i]  = 0.0;
@@ -834,7 +868,7 @@ main(int argc, char **argv)
     double mfac = dE*dK;
     
     if (meshgrid)
-      for (int k=0; k<6; k++) out[k] << std::setw(8) << NUME
+      for (int k=0; k<8; k++) out[k] << std::setw(8) << NUME
 				     << std::setw(8) << NUMK
 				     << std::endl;
     bool relJ = false;
@@ -874,8 +908,13 @@ main(int argc, char **argv)
 	} else {
 	  for (int k=0; k<7; k++) p_rec(out[k], EE, KK, 0.0);
 	}
+
+	if (totMass>0.0)
+	  p_rec(out[7], EE, KK, histoF(i, j)/totMass);
+	else
+	  p_rec(out[7], EE, KK, 0.0);
       }
-      if (not meshgrid) for (int k=0; k<7; k++) out[k] << endl;
+      if (not meshgrid) for (int k=0; k<8; k++) out[k] << endl;
     }
     
     if (CUMULATE) {
@@ -918,36 +957,36 @@ main(int argc, char **argv)
     };
     
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[7] << "#";
-      else      out[7] << "+";
-      out[7] << setw(fieldsz-1) << left << setfill('-') << '-';
+      if (j==0) out[8] << "#";
+      else      out[8] << "+";
+      out[8] << setw(fieldsz-1) << left << setfill('-') << '-';
     }
-    out[7] << endl << setfill(' ');
+    out[8] << endl << setfill(' ');
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[7] << "# ";
-      else      out[7] << "+ ";
-      out[7] << setw(fieldsz-2) << left << rlabels[j];
+      if (j==0) out[8] << "# ";
+      else      out[8] << "+ ";
+      out[8] << setw(fieldsz-2) << left << rlabels[j];
     }
-    out[7] << endl;
+    out[8] << endl;
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[7] << "# ";
-      else      out[7] << "+ ";
-      out[7] << setw(fieldsz-2) << left << j+1;
+      if (j==0) out[8] << "# ";
+      else      out[8] << "+ ";
+      out[8] << setw(fieldsz-2) << left << j+1;
     }
-    out[7] << endl;
+    out[8] << endl;
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[7] << "#";
-      else      out[7] << "+";
-      out[7] << setw(fieldsz-1) << left << setfill('-') << '-';
+      if (j==0) out[8] << "#";
+      else      out[8] << "+";
+      out[8] << setw(fieldsz-1) << left << setfill('-') << '-';
     }
-    out[7] << endl << setfill(' ');
+    out[8] << endl << setfill(' ');
     
     for (int i=0; i<NUMR; i++) {
       
       double rr = rhmin + dR*(0.5+i);
       if (LOGR) rr = exp(rr);
       
-      out[7] << setw(fieldsz) << rr 
+      out[8] << setw(fieldsz) << rr 
 	     << setw(fieldsz) << histoP[i]
 	     << setw(fieldsz) << histoL[i]
 	     << setw(fieldsz) << histPr[i]
