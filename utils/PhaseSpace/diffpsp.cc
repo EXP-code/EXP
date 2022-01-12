@@ -138,6 +138,7 @@ main(int argc, char **argv)
     ("2,kappa2", "Bin kappa^2 instead of kappa")
     ("rmaxf", "Do not extend orbit evaluation beyond the model radius")
     ("relJ", "Compute the relative binned angular momentum")
+    ("jaco", "Compute phase-space Jacobian for DF computation")
     ("F,filetype", "input file type (one of: PSPout, PSPspl, GadgetNative, GadgetHDF5)",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("TIME1", "Target time for fiducial phase space",
@@ -245,10 +246,11 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  //
+  bool jaco = false;
+  if (vm.count("jaco")) jaco = true;
+
   // Allocate histograms
   //
-
   Eigen::MatrixXd histoC, histoM, histoE, histoJ, histoI, histoT;
   Eigen::MatrixXd histo1, histo2;
 
@@ -624,9 +626,9 @@ main(int argc, char **argv)
 	if (POSNEG>0 && angmom1[2]<0.0 || POSNEG<0 && angmom1[2]>0.0) continue;
 	if (cosb<BMIN || cosb>BMAX) continue;
 	
-	angmom2[0] = p20[1]*v20[2] - p20[2]*p20[1];
-	angmom2[1] = p20[2]*v20[0] - p20[0]*p20[2];
-	angmom2[2] = p20[0]*v20[1] - p20[1]*p20[0];
+	angmom2[0] = p20[1]*v20[2] - p20[2]*v20[1];
+	angmom2[1] = p20[2]*v20[0] - p20[0]*v20[2];
+	angmom2[2] = p20[0]*v20[1] - p20[1]*v20[0];
 	
 	double jj = 0.0, dj = 0.0, j1 = 0.0, j2 = 0.0;
 	for (int k=0; k<3; k++) {
@@ -909,8 +911,11 @@ main(int argc, char **argv)
 	  for (int k=0; k<7; k++) p_rec(out[k], EE, KK, 0.0);
 	}
 
-	if (totMass>0.0)
-	  p_rec(out[7], EE, KK, histoF(i, j)/totMass);
+	if (totMass>0.0) {
+	  double jfac = 1.0;
+	  if (jaco) jfac = orb.Jmax()*orb.Jmax()*KK/orb.get_freq(1);
+	  p_rec(out[7], EE, KK, histoF(i, j)/totMass/jfac);
+	}
 	else
 	  p_rec(out[7], EE, KK, 0.0);
       }
