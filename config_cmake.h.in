@@ -7,6 +7,9 @@
 /* Similarly */
 #define HAVE_HASH
 
+/* Defined if you have FFTW */
+#cmakedefine HAVE_FFTW @FFTW_FOUND@
+
 /* Defined if you have HDF5 support */
 #cmakedefine HAVE_HDF5 @HDF5_FOUND@
 

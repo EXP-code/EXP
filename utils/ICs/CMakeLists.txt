@@ -25,7 +25,8 @@ add_executable(shrinkics shrinkics.cc)
 
 add_executable(gensph gensph.cc SphericalSL.cc EllipForce.cc
   legendre.cc SParticle.cc ddplgndr.cc sinecosine.cc)
-target_link_libraries(gensph fftw3)
+target_link_libraries(gensph ${FFTW_DOUBLE_LIB})
+target_include_directories(gensph PUBLIC ${FFTW_INCLUDE_DIRS})
 
 add_executable(gendisk initial.cc DiskHalo.cc SphericalSL.cc
   legendre.cc SParticle.cc ddplgndr.cc sinecosine.cc AddDisk.cc)

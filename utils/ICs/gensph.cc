@@ -34,8 +34,6 @@
 #include <string>
 #include <memory>
 
-#include <fftw3.h>
-
 // EXP classes
 //
 #include <global.H>
@@ -50,6 +48,12 @@
 #include <fpetrap.h>
 #include <cxxopts.H>
 #include <EXPini.H>
+
+#include <config.h>
+
+#ifdef HAVE_FFTW
+#include <fftw3.h>
+#endif
 
 // Global variables
 
@@ -339,6 +343,7 @@ main(int argc, char **argv)
     auto ellip = std::make_shared<EllipForce>
       (RBAR, RBAR*BRATIO, RBAR*BRATIO*CRATIO, MBAR, NUMINT, 200);
     
+#ifdef HAVE_FFTW
     if (SMOOTH>0.0) {
       
       double a[NUMR], b[NUMR], c[NUMR];
@@ -432,6 +437,9 @@ main(int argc, char **argv)
     } else {
       for (int i=0; i<RNUM; i++) MS[i] = ellip->getMass(r2[i]);
     }
+#else
+    for (int i=0; i<RNUM; i++) MS[i] = ellip->getMass(r2[i]);
+#endif
     
     //
     // Make new model including dark halo and bar
