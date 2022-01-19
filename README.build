@@ -40,6 +40,12 @@ cd build
 # BUILD_DOCS=ON and Doxygen is found, you'll get the html docs
 # installed in shared/EXP
 
+# CMake will do its best to find your FFTW pacakge by default.  If
+# that fails, and if you need or want FFTW and your FFTW is installed
+# in an unusual location, you can define that location using
+# -DFFTW_BASE=/path/to/fftw/base/location.  Or you can provide the
+# location in the FFTWDIR environment variable.
+
 # With cuda.  NB: different version of CMake seem to treat Cuda
 # architecture specification differently.  The current implementation
 # uses an archetecture list set within the top-level
