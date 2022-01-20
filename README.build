@@ -43,7 +43,7 @@ cd build
 # CMake will do its best to find your FFTW pacakge by default.  If
 # that fails, and if you need or want FFTW and your FFTW is installed
 # in an unusual location, you can define that location using
-# -DFFTW_BASE=/path/to/fftw/base/location.  Or you can provide the
+# -DFFTW_ROOT=/path/to/fftw/location.  Or you can provide the
 # location in the FFTWDIR environment variable.
 
 # With cuda.  NB: different version of CMake seem to treat Cuda

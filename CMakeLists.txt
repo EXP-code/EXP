@@ -47,6 +47,8 @@ if(ENABLE_CUDA)
   cuda_select_nvcc_arch_flags(ARCH_FLAGS 5.2 6.0 6.1 7.0 7.2 7.5)
   list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
   message("CUDA arch flags are: ${ARCH_FLAGS}")
+  set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -w")
+  set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "${CMAKE_CUDA_FLAGS_RELWITHDEBINFO} -w")
 endif()
 find_package(PNG)
 
