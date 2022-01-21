@@ -21,8 +21,10 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   # using Visual Studio C++
 endif()
 
+# Required compiler features
 add_compile_options(-D_REENTRANT)
 
+# Build options
 option(ENABLE_CUDA "Enable CUDA" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
@@ -31,7 +33,7 @@ option(ENABLE_USER_ALL "Enable all user modules" FALSE)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
 
-# required compiler features
+# Package support
 find_package(MPI REQUIRED)
 find_package(Boost COMPONENTS serialization)
 find_package(OpenMP)
@@ -47,9 +49,11 @@ if(ENABLE_CUDA)
   cuda_select_nvcc_arch_flags(ARCH_FLAGS 5.2 6.0 6.1 7.0 7.2 7.5)
   list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
   message("CUDA arch flags are: ${ARCH_FLAGS}")
-  set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -w")
-  set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "${CMAKE_CUDA_FLAGS_RELWITHDEBINFO} -w")
+  list(APPEND CUDA_NVCC_FLAGS_RELEASE "-w")
+  list(APPEND CUDA_NVCC_FLAGS_MINSIZEREL "-w")
+  list(APPEND CUDA_NVCC_FLAGS_RELWITHDEBINFO "-w")
 endif()
+
 find_package(PNG)
 
 # Check for Sun rpc support
@@ -105,7 +109,8 @@ if(TIRPC_FOUND OR HAVE_RPC_TYPES)
 endif()
 
 # For setting the default size of the Cuda real attribute array
-set(CUDA_EXP_DATTRIB "0" CACHE STRING "Number of real particle attributes for Cuda particle structure")
+set(CUDA_EXP_DATTRIB "0" CACHE STRING
+  "Number of real particle attributes for Cuda particle structure")
 add_compile_definitions(DATTRIB_CUDA=${CUDA_EXP_DATTRIB})
 
 # Get the current working branch
