@@ -47,11 +47,15 @@ if(ENABLE_CUDA)
   enable_language(CUDA)
   find_cuda_helper_libs(nvToolsExt)
   cuda_select_nvcc_arch_flags(ARCH_FLAGS 5.2 6.0 6.1 7.0 7.2 7.5)
-  list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
+  # list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
+  set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${ARCH_FLAGS}" CACHE STRING "Global compile flags for nvcc")
   message("CUDA arch flags are: ${ARCH_FLAGS}")
-  list(APPEND CUDA_NVCC_FLAGS_RELEASE "-w")
-  list(APPEND CUDA_NVCC_FLAGS_MINSIZEREL "-w")
-  list(APPEND CUDA_NVCC_FLAGS_RELWITHDEBINFO "-w")
+  set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -w"
+    CACHE STRING "Global cuda flags for Release build" FORCE)
+  set(CMAKE_CUDA_FLAGS_MINSIZEREL "-O3 -w"
+    CACHE STRING "Global cuda flags for MinSizeRel build" FORCE)
+  set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O2 -g -w"
+    CACHE STRING "Global cuda flags for RelWithDebInfo build" FORCE)
 endif()
 
 find_package(PNG)
