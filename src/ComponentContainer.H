@@ -30,7 +30,7 @@ public:
   //! Fiducial component with whom force interactions are desired
   Component* c;
   //! List of components whose particles will feel the force from *c
-  list<Component*> l;
+  std::list<Component*> l;
 };
 
 //! A container for all phase-space components
@@ -93,19 +93,19 @@ public:
   int ncomp;
 
   //! List of components
-  list<Component*> components;
+  std::list<Component*> components;
 
 #ifdef HAVE_LIBCUDA
   //! Cuda particle fetch map; keep track of device particles that
   //! have been copied to host to prevent cudaMemcpy duplication
-  map<Component*, bool> fetched;
+  std::map<Component*, bool> fetched;
 #endif
 
   //! List of interactions
-  list<Interaction*> interaction;
+  std::list<std::shared_ptr<Interaction>> interaction;
 
   //! Processor rates
-  vector<double> rates;
+  std::vector<double> rates;
 
   //! Constructor
   ComponentContainer();

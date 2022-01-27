@@ -159,45 +159,96 @@ void ComponentContainer::initialize(void)
 
   }
 
+  // Sum up all bodies
+  //
+  ntot = 0;
+  for (auto c : components) ntot += c->NewTotal();
+
 				// Initialize interactions between components
   std::string value;
-  ntot = 0;
   
-  for (auto c : components) {
-				// Use this loop, BTW, to sum up all bodies
-    ntot += c->NewTotal();
+  if (all_couples) {
     
-				// A new interaction list for THIS component
-    Interaction *curr = new Interaction;
-    curr->c = c;
-				// Loop through looking for pairs, it's n^2
-				// but there will not be that many . . .
-    YAML::Node inters = parse["Interaction"];
+    // Erase all elements, just in case
+    interaction.clear();
 
-    for (YAML::const_iterator it=inters.begin(); it!=inters.end(); ++it) {
-
-      std::string name1 = it->first.as<std::string>();
-      std::string name2 = it->second.as<std::string>();
-      
-				// Are we talking about THIS component?
-      if (c->name.compare(name1) == 0) {
+    // Add all possible interactions to interaction list
+    //
+    for (auto c1 : components) {
 	
-	for (auto c1 : components) {
-				// If the second in the pair matches, use it
-	  if (c1->name.compare(name2) == 0) {
-	    curr->l.push_back(c1);
+      // Create a new interaction list for THIS component
+      auto curr = std::make_shared<Interaction>();
+      curr->c = c1;
+      
+      // Populate it will ALL components
+      for (auto c2 : components) {
+	if (c1 != c2) curr->l.push_back(c2);
+      }
+
+      interaction.push_back(curr);
+    }
+
+    // Loop through specified pairs (if any) and remove listed ones
+    //
+    if (parse["Interaction"]) {
+
+      for (auto jt = interaction.begin(); jt != interaction.end(); jt++) {
+	  
+	auto I = *jt;		// A synactic convenience
+
+	YAML::Node inters = parse["Interaction"];
+	
+	for (YAML::const_iterator it=inters.begin(); it!=inters.end(); ++it) {
+	  
+	  std::string name1 = it->first.as<std::string>();
+	  std::string name2 = it->second.as<std::string>();
+	  
+	  // Are we talking about THIS component?
+	  if (I->c->name.compare(name1) == 0) {
+	    for (auto kt=I->l.begin(); kt!=I->l.end(); kt++) {
+	      if ((*kt)->name.compare(name2) == 0) kt = I->l.erase(kt);
+	    }
 	  }
 	}
 	
+	// Are there any interactions left? If not, erase the entry
+	if (I->l.empty()) jt = interaction.erase(jt);
       }
     }
 
-    if (!curr->l.empty()) 
-      interaction.push_back(curr);
-    else
-      delete curr;
+  } else {
 
+    for (auto c : components) {
+				// Check for interaction list
+      if (parse["Interaction"]) {
+
+				// A new interaction list for THIS component
+	auto curr = std::make_shared<Interaction>();
+	curr->c = c;
+				// Loop through looking for pairs, it's n^2
+				// but there will not be that many . . .
+	YAML::Node inters = parse["Interaction"];
+
+	for (YAML::const_iterator it=inters.begin(); it!=inters.end(); ++it) {
+	
+	  std::string name1 = it->first.as<std::string>();
+	  std::string name2 = it->second.as<std::string>();
+      
+				// Are we talking about THIS component?
+	  if (c->name.compare(name1) == 0) {
+	
+	    for (auto c1 : components) {
+				// If the second in the pair matches, use it
+	      if (c1->name.compare(name2) == 0) curr->l.push_back(c1);
+	    }
+	  }
+	}
+      
+	if (!curr->l.empty()) interaction.push_back(curr);
+      }
+    }
   }
+    
 
   if (myid==0 && !interaction.empty()) {
     cout << "\nUsing the following component interation list:\n";
@@ -243,7 +294,7 @@ void ComponentContainer::initialize(void)
       // For each component, search for an interaction list
       //
       auto it1 = std::find_if(interaction.begin(), interaction.end(),
-			      [c1](const Interaction* arg) { return arg->c == c1; });
+			      [c1](const std::shared_ptr<Interaction> arg) { return arg->c == c1; });
 
       // Now check for all components pairs but c1, of course
       //
@@ -316,14 +367,6 @@ ComponentContainer::~ComponentContainer(void)
 	 << " deleting component <" << p1->name << ">" << endl;
 #endif
     delete p1;
-  }
-
-  for (auto p2 : interaction) {
-#ifdef DEBUG
-    cout << "Process " << myid 
-	 << " deleting interaction <" << p2->c->name << ">" << endl;
-#endif
-    delete p2;
   }
 
   delete [] gcom1;

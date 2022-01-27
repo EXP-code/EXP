@@ -78,11 +78,9 @@ External:
 
 
 # ------------------------------------------------------------------------
-# List of interations as name1 : name2 map entries
+# Excluded list of interations as name1 : name2 map entries
 # This can be empty (or missing)
 # ------------------------------------------------------------------------
 Interaction:
-  dark halo : star disk
-  star disk : dark halo
   
 ...

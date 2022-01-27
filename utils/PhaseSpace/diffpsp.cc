@@ -880,13 +880,15 @@ main(int argc, char **argv)
       double KK = KTOL + 0.5*dK + dK*j;
       for (int i=0; i<NUME; i++) {
 	double EE = Emin + 0.5*dE + dE*i;
-	if (relJ) {
-	  orb.new_orbit(EE, KK);
-	  histoJ(i, j) /= orb.Jmax();
-	}
+
+	orb.new_orbit(EE, KK);
+	if (relJ) histoJ(i, j) /= orb.Jmax();
+
 	if (histoC(i, j)>MINBIN && histoM(i, j)>0.0) {
+	  double jfac = 1.0;
+	  if (jaco) jfac = orb.Jmax()*orb.Jmax()*KK/orb.get_freq(1);
 	  if (SPECIFIC) {
-	    p_rec(out[0], EE, KK, histoM(i, j));
+	    p_rec(out[0], EE, KK, histoM(i, j)/jfac);
 	    p_rec(out[1], EE, KK, histoE(i, j)/histoM(i, j));
 	    p_rec(out[2], EE, KK, histoJ(i, j)/histoM(i, j));
 	    p_rec(out[3], EE, KK, histoT(i, j)/histoM(i, j));
@@ -896,7 +898,7 @@ main(int argc, char **argv)
 	    else
 	      p_rec(out[5], EE, KK, 0);
 	  } else {
-	    p_rec(out[0], EE, KK, histoM(i, j)/mfac);
+	    p_rec(out[0], EE, KK, histoM(i, j)/jfac/mfac);
 	    p_rec(out[1], EE, KK, histoE(i, j)/mfac);
 	    p_rec(out[2], EE, KK, histoJ(i, j)/mfac);
 	    p_rec(out[3], EE, KK, histoT(i, j)/mfac);

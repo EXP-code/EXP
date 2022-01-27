@@ -145,6 +145,7 @@ bool fpe_trace     = false;
 bool fpe_wait      = false;
 
 bool ignore_info   = false;
+bool all_couples   = true;
 
 int  rlimit_val    = 0;
 bool use_cuda      = false;
