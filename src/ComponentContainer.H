@@ -29,8 +29,12 @@ class Interaction
 public:
   //! Fiducial component with whom force interactions are desired
   Component* c;
+
   //! List of components whose particles will feel the force from *c
   std::list<Component*> l;
+
+  //! Constructor
+  Interaction(Component *c) : c(c) {}
 };
 
 //! A container for all phase-space components

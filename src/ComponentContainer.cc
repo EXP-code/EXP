@@ -170,6 +170,7 @@ void ComponentContainer::initialize(void)
   if (all_couples) {
     
     // Erase all elements, just in case
+    //
     interaction.clear();
 
     // Add all possible interactions to interaction list
@@ -177,14 +178,14 @@ void ComponentContainer::initialize(void)
     for (auto c1 : components) {
 	
       // Create a new interaction list for THIS component
-      auto curr = std::make_shared<Interaction>();
-      curr->c = c1;
+      auto curr = std::make_shared<Interaction>(c1);
       
       // Populate it will ALL components
       for (auto c2 : components) {
 	if (c1 != c2) curr->l.push_back(c2);
       }
 
+      // Add to the interaction list
       interaction.push_back(curr);
     }
 
@@ -223,8 +224,8 @@ void ComponentContainer::initialize(void)
       if (parse["Interaction"]) {
 
 				// A new interaction list for THIS component
-	auto curr = std::make_shared<Interaction>();
-	curr->c = c;
+	auto curr = std::make_shared<Interaction>(c);
+
 				// Loop through looking for pairs, it's n^2
 				// but there will not be that many . . .
 	YAML::Node inters = parse["Interaction"];
