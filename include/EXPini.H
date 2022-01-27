@@ -75,7 +75,7 @@ cxxopts::ParseResult LoadConfig(cxxopts::Options& options,
   int count = conf.size()*2+1, cnt = 1;
   char* data[count];
 
-  data[0] = new char [10];
+  data[0] = new char [11];
   strcpy(data[0], "LoadConfig"); // Emulate the caller name
   
   for (auto it=conf.begin(); it!=conf.end(); it++, cnt+=2) {
