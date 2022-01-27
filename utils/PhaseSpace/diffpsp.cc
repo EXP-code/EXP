@@ -290,7 +290,7 @@ main(int argc, char **argv)
   // Open output file
   //
     
-  const int nfiles = 9;
+  const int nfiles = 11;
   const char *suffix[] = {
     ".DM", 			// Mass per bin (E, K)		#0
     ".DE", 			// Delta E(E, K)		#1
@@ -300,8 +300,9 @@ main(int argc, char **argv)
     ".DKJ", 			// Delta J(E, K)/J_avg(E)	#5
     ".Dm", 			// Mean mass per bin (E, K)	#6
     ".DF", 			// Delta DF (E, K)              #7
-    ".DR", 			// Run mass, J, Delta J (R)	#8
-    ".chk"			// Orbital element check	#9
+    ".Df", 			// Delta DF/F (E, K)            #8
+    ".DR", 			// Run mass, J, Delta J (R)	#9
+    ".chk"			// Orbital element check	#10
   };
   std::vector<string> filename(nfiles);
   for (int i=0; i<nfiles; i++) filename[i] = OUTFILE + suffix[i];
@@ -691,18 +692,18 @@ main(int argc, char **argv)
 	  if (myid==0) {
 	    if (WHICHEK & 1) {
 	      if (K1>1.0 || K1<0.0)
-		out[9] << setw(15) << E1 << setw(15) << K1
-		       << setw(15) << E2 << setw(15) << sqrt(j1)
-		       << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
-		       << setw(5) << 1 << endl;
+		out[10] << setw(15) << E1 << setw(15) << K1
+			<< setw(15) << E2 << setw(15) << sqrt(j1)
+			<< setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
+			<< setw(5) << 1 << endl;
 	    }
 	    
 	    if (WHICHEK & 2) {
 	      if (K2>1.0 || K2<0.0)
-		out[9] << setw(15) << E2 << setw(15) << K2
-		       << setw(15) << E1 << setw(15) << sqrt(j2)
-		       << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
-		       << setw(5) << 2 << endl;
+		out[10] << setw(15) << E2 << setw(15) << K2
+			<< setw(15) << E1 << setw(15) << sqrt(j2)
+			<< setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
+			<< setw(5) << 2 << endl;
 	    }
 	  }
 	  
@@ -854,7 +855,18 @@ main(int argc, char **argv)
     Eigen::VectorXd Emass = Eigen::VectorXd::Zero(NUME);
 
 				// Delta DF
-    Eigen::MatrixXd histoF = histo2 - histo1;
+    Eigen::MatrixXd histoF  = histo2 - histo1;
+    Eigen::MatrixXd histoDF = histoF;
+    
+				// Relative Delta DF
+    for (size_t j=0; j<histoF.cols(); j++) { // Footron order...
+      for (size_t i=0; i<histoF.rows(); i++) {
+	if (histo1(i, j)>0.0) histoDF(i, j) = histoF(i, j)/histo1(i, j);
+	else                  histoDF(i, j) = 0.0;
+      }
+    }
+	
+
     double totMass = 0.0;
     
     for (int i=0; i<NUME; i++) {
@@ -871,7 +883,7 @@ main(int argc, char **argv)
     double mfac = dE*dK;
     
     if (meshgrid)
-      for (int k=0; k<8; k++) out[k] << std::setw(8) << NUME
+      for (int k=0; k<9; k++) out[k] << std::setw(8) << NUME
 				     << std::setw(8) << NUMK
 				     << std::endl;
     bool relJ = false;
@@ -919,10 +931,13 @@ main(int argc, char **argv)
 	  if (jaco) jfac = orb.Jmax()*orb.Jmax()*KK/orb.get_freq(1);
 	  p_rec(out[7], EE, KK, histoF(i, j)/totMass/jfac);
 	}
-	else
+	else {
 	  p_rec(out[7], EE, KK, 0.0);
+	}
+
+	p_rec(out[8], EE, KK, histoDF(i, j));
       }
-      if (not meshgrid) for (int k=0; k<8; k++) out[k] << endl;
+      if (not meshgrid) for (int k=0; k<9; k++) out[k] << endl;
     }
     
     if (CUMULATE) {
@@ -965,36 +980,36 @@ main(int argc, char **argv)
     };
     
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[8] << "#";
-      else      out[8] << "+";
-      out[8] << setw(fieldsz-1) << left << setfill('-') << '-';
+      if (j==0) out[9] << "#";
+      else      out[9] << "+";
+      out[9] << setw(fieldsz-1) << left << setfill('-') << '-';
     }
-    out[8] << endl << setfill(' ');
+    out[9] << endl << setfill(' ');
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[8] << "# ";
-      else      out[8] << "+ ";
-      out[8] << setw(fieldsz-2) << left << rlabels[j];
+      if (j==0) out[9] << "# ";
+      else      out[9] << "+ ";
+      out[9] << setw(fieldsz-2) << left << rlabels[j];
     }
-    out[8] << endl;
+    out[9] << endl;
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[8] << "# ";
-      else      out[8] << "+ ";
-      out[8] << setw(fieldsz-2) << left << j+1;
+      if (j==0) out[9] << "# ";
+      else      out[9] << "+ ";
+      out[9] << setw(fieldsz-2) << left << j+1;
     }
-    out[8] << endl;
+    out[9] << endl;
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[8] << "#";
-      else      out[8] << "+";
-      out[8] << setw(fieldsz-1) << left << setfill('-') << '-';
+      if (j==0) out[9] << "#";
+      else      out[9] << "+";
+      out[9] << setw(fieldsz-1) << left << setfill('-') << '-';
     }
-    out[8] << endl << setfill(' ');
+    out[9] << endl << setfill(' ');
     
     for (int i=0; i<NUMR; i++) {
       
       double rr = rhmin + dR*(0.5+i);
       if (LOGR) rr = exp(rr);
       
-      out[8] << setw(fieldsz) << rr 
+      out[9] << setw(fieldsz) << rr 
 	     << setw(fieldsz) << histoP[i]
 	     << setw(fieldsz) << histoL[i]
 	     << setw(fieldsz) << histPr[i]
