@@ -123,6 +123,7 @@ main(int argc, char **argv)
     "   OUTFILE.DJ       Ang mom per bin (E, K)         [2d]\n"		\
     "   OUTFILE.DKJ      Delta J(E, K)/J_avg(E)         [2d]\n"		\
     "   OUTFILE.Dm       Mean mass per bin (E, K)       [2d]\n"		\
+    "   OUTFILE.DF       Distribution function (E, K)   [2d]\n"		\
     "   OUTFILE.DR       Run mass, J, Delta J (R)       [1d]\n"		\
     "   OUTFILE.chk      Orbital element check              \n"		\
     "=======================================================\n"
