@@ -193,7 +193,8 @@ void ComponentContainer::initialize(void)
     //
     if (parse["Interaction"]) {
 
-      for (auto jt = interaction.begin(); jt != interaction.end(); jt++) {
+      auto jt = interaction.begin();
+      while (jt != interaction.end()) {
 	  
 	auto I = *jt;		// A synactic convenience
 
@@ -204,16 +205,19 @@ void ComponentContainer::initialize(void)
 	  std::string name1 = it->first.as<std::string>();
 	  std::string name2 = it->second.as<std::string>();
 	  
-	  // Are we talking about THIS component?
+	  // Are we talking about the current interaction list?
 	  if (I->c->name.compare(name1) == 0) {
-	    for (auto kt=I->l.begin(); kt!=I->l.end(); kt++) {
+	    auto kt=I->l.begin();
+	    while (kt!=I->l.end()) {
 	      if ((*kt)->name.compare(name2) == 0) kt = I->l.erase(kt);
+	      else kt++;
 	    }
 	  }
 	}
 	
 	// Are there any interactions left? If not, erase the entry
 	if (I->l.empty()) jt = interaction.erase(jt);
+	else              jt++;
       }
     }
 
