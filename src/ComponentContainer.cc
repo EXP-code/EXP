@@ -207,8 +207,8 @@ void ComponentContainer::initialize(void)
 	  
 	  // Are we talking about the current interaction list?
 	  if (I->c->name.compare(name1) == 0) {
-	    auto kt=I->l.begin();
-	    while (kt!=I->l.end()) {
+	    auto kt = I->l.begin();
+	    while (kt != I->l.end()) {
 	      if ((*kt)->name.compare(name2) == 0) kt = I->l.erase(kt);
 	      else kt++;
 	    }
