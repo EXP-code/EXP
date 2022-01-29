@@ -20,7 +20,7 @@ Global:
   nreport    : 1
   infile     : OUT.run0.chkpt
   VERBOSE    : 0
-  cuda       : false
+  cuda       : off
 
 # ------------------------------------------------------------------------
 # This is a sequence of components.  The parameters for the force are
@@ -78,11 +78,9 @@ External:
 
 
 # ------------------------------------------------------------------------
-# List of interations as name1 : name2 map entries
+# Excluded list of interations as name1 : name2 map entries
 # This can be empty (or missing)
 # ------------------------------------------------------------------------
 Interaction:
-  dark halo : star disk
-  star disk : dark halo
   
 ...

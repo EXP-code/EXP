@@ -213,6 +213,12 @@ extern vector<pthread_t> posvel_thrd;
 //! parameters instead
 extern bool ignore_info;
 
+//! Toggle interactions "on" or "off" by default.  If interactions are
+//! "on" (the default), interactions listed in the 'Interaction' list
+//! be turned "off".  Alternatively, if interactions are "off",
+//! interactions listed in the 'Interaction' list be turned "on".
+extern bool all_couples;
+
 /**
    Phase space dump on next step
 

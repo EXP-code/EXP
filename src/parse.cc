@@ -220,13 +220,14 @@ void initialize(void)
       if (*homedir.rbegin() != '/') homedir += '/';
     }
 
-    if (_G["ldlibdir"])	        ldlibdir = _G["ldlibdir"].as<std::string>();
-    if (_G["infile"])		infile   = _G["infile"].as<std::string>();
-    if (_G["parmfile"])	        parmfile = _G["parmfile"].as<std::string>();
-    if (_G["ratefile"])	        ratefile = _G["ratefile"].as<std::string>();
-    if (_G["runtag"])		runtag   = _G["runtag"].as<std::string>();
-    if (_G["restart_cmd"])      restart_cmd = _G["restart_cmd"].as<std::string>();
-    if (_G["ignore_info"])      ignore_info = _G["ignore_info"].as<bool>();
+    if (_G["ldlibdir"])	        ldlibdir     = _G["ldlibdir"].as<std::string>();
+    if (_G["infile"])		infile       = _G["infile"].as<std::string>();
+    if (_G["parmfile"])	        parmfile     = _G["parmfile"].as<std::string>();
+    if (_G["ratefile"])	        ratefile     = _G["ratefile"].as<std::string>();
+    if (_G["runtag"])		runtag       = _G["runtag"].as<std::string>();
+    if (_G["restart_cmd"])      restart_cmd  = _G["restart_cmd"].as<std::string>();
+    if (_G["ignore_info"])      ignore_info  = _G["ignore_info"].as<bool>();
+    if (_G["allcouples"])       all_couples  = _G["allcouples"].as<bool>();
     
     bool ok = true;
 

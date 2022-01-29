@@ -3,8 +3,13 @@
  *  -----------
  *
  *  Use ParticleReader class to compute phase space distribution
- *  difference
+ *  difference.  
  *
+ *  This version reads phase space from mulitple simulations instances
+ *  into a summed paired-difference analysis for improving overall
+ *  statistical accuracy.
+ *
+ *  Orient files are not included (yet) but could easily be added.
  *
  *  Call sequence:
  *  -------------
@@ -24,7 +29,7 @@
  *  By:
  *  --
  *
- *  MDW 11/20/91, updated 10/22/21
+ *  MDW 1/28/22
  *
  ***************************************************************************/
 
@@ -41,7 +46,6 @@
 
 #include <ParticleReader.H>
 #include <massmodel.H>
-#include <MakeModel.H>
 #include <localmpi.H>
 #include <cxxopts.H>		// Option parsing
 #include <libvars.H>		// EXP library globals
@@ -89,7 +93,6 @@ main(int argc, char **argv)
   int          NUMK;
   int          DIVERGE;
   int          nthrds;
-  int          WHICHPS;
   int          WHICHEK;
   int          RNUM;
   int          POSNEG;
@@ -102,18 +105,18 @@ main(int argc, char **argv)
   bool         meshgrid;
   double       DIVERGE_RFAC;
   std::string  COMP;
-  std::string  INFILE1;
-  std::string  INFILE2;
   std::string  CURDIR;
   std::string  MODELFILE;
-  std::string  ORIENTFILE;
   std::string  OUTFILE;
   std::string  fileType;
+
+  std::vector<std::string> INFILE1, INFILE2;
 
   const char* desc = 
     "=======================================================\n"		\
     "Compute phase-space distributions (DF), phase-space DF \n"         \
-    "differences and action changes in phase space          \n"		\
+    "differences and action changes in phase space for      \n"		\
+    "one or more realizations                               \n"		\
     "=======================================================\n"		\
     "   Output file key:\n"						\
     "   ----------------\n"						\
@@ -179,8 +182,6 @@ main(int argc, char **argv)
      cxxopts::value<int>(DIVERGE)->default_value("0"))
     ("nthrds", "Desired number of OpenMP threads",
      cxxopts::value<int>(nthrds)->default_value("1"))
-    ("WHICHPS", "Which phase-space file to use (1=first, 2=second)",
-     cxxopts::value<int>(WHICHPS)->default_value("0"))
     ("WHICHEK", "Choose the form of angular momentum indexing phase-space (1=first, 2=second, 3=RMS",
      cxxopts::value<int>(WHICHEK)->default_value("1"))
     ("RNUM", "Size of radial grid for model",
@@ -204,17 +205,15 @@ main(int argc, char **argv)
     ("DIVERGE_RFAC", "Cusp index for extrapolation",
      cxxopts::value<double>(DIVERGE_RFAC)->default_value("1.0"))
     ("INFILE1", "Fiducial phase-space file",
-     cxxopts::value<string>(INFILE1)->default_value("test.bin"))
+     cxxopts::value<std::vector<std::string>>(INFILE1))
     ("INFILE2", "Evolved phase-space file",
-     cxxopts::value<string>(INFILE2)->default_value("test.bin"))
+     cxxopts::value<std::vector<std::string>>(INFILE2))
     ("CURDIR", "Alternative directory",
      cxxopts::value<string>(CURDIR)->default_value(""))
     ("MODELFILE", "Model file for phase-space orbital values",
      cxxopts::value<string>(MODELFILE)->default_value("SLGridSph.model"))
     ("COMP", "Compute wake for this component name",
      cxxopts::value<std::string>(COMP)->default_value("stars"))
-    ("ORIENTFILE", "EXP generated orient file for center selection (ignored if null)",
-     cxxopts::value<std::string>(ORIENTFILE)->default_value(""))
     ("OUTFILE", "Prefix for output files",
      cxxopts::value<std::string>(OUTFILE)->default_value("diffpsP"))
     ;
@@ -234,19 +233,19 @@ main(int argc, char **argv)
     return 0;
   }
 
+  if (INFILE1.size() != INFILE2.size()) {
+    if (myid==0)
+      std::cerr << "Input file vectors must have paired entries"
+		<< std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
   bool kappa2 = false;
   if (vm.count("kappa2")) kappa2 = true;
 
   std::ofstream tout;
   if (myid==0) tout.open("tmp.ktest");
-
-  if (WHICHEK < 1 or WHICHEK > 3) {
-    if (myid==0)
-      std::cerr << "Invalid value for WHICHEK (" << WHICHEK
-		<< "): must be 1, 2, or 3\n";
-    MPI_Finalize();
-    exit(-1);
-  }
 
   bool jaco = false;
   if (vm.count("jaco")) jaco = true;
@@ -330,172 +329,19 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  // ===================================================================
-  // Open PSP files
-  // ===================================================================
-
-  if (!std::ifstream(INFILE1)) {
-    std::cerr << "Error opening <" << INFILE1 << ">" << std::endl;
-    exit(-1);
-  }
-
-  PR::PRptr psp1, psp2;
-  double initl_time, final_time;
-
-  try {
-    psp1 = PR::ParticleReader::createReader(fileType, INFILE1, myid, true);
-  
-    initl_time = psp1->CurrentTime();
-
-    psp1->SelectType(COMP);
-
-    if (myid==0) {
-      std::cout << "File 1: " << INFILE1 << std::endl;
-      std::cout << "Found dump at time: " << initl_time << std::endl;
-    }
-  }
-  catch (const std::runtime_error& error) {
-    if (myid==0)
-      std::cerr << "diffpsp: error opening snapshot in file <" << INFILE1 << ">"
-		<< std::endl
-		<< "diffpsp: " << error.what()
-		<< std::endl;
-    MPI_Finalize();
-    exit(-1);
-  }
-
-  try {
-    psp2 = PR::ParticleReader::createReader(fileType, INFILE2, myid, true);
-  
-    final_time = psp2->CurrentTime();
-
-    psp2->SelectType(COMP);
-
-    if (myid==0) {
-      std::cout << "File 2: " << INFILE2 << endl;
-      std::cout << "Found dump at time: " << final_time << std::endl;
-    }
-  }
-  catch (const std::runtime_error& error) {
-    if (myid==0)
-      std::cerr << "diffpsp: error opening snapshot in file <" << INFILE2 << ">"
-		<< std::endl
-		<< "diffpsp: " << error.what()
-		<< std::endl;
-    MPI_Finalize();
-    exit(-1);
-  }
-    
-  // ===================================================================
-  // Use orient file?
-  // ===================================================================
-  
-  bool orient = false;
-  vector<double> or_time, or_c[3];
-
-  if (ORIENTFILE.length()) {
-
-    orient = true;
-
-    ifstream in(ORIENTFILE.c_str());
-    if (!in) {
-      if (myid==0)
-	std::cerr << "Couldn't open desired orient file: " << ORIENTFILE
-		  << std::endl;
-      MPI_Finalize();
-      exit(-1);
-    }
-
-    double val;
-    static int buf_size = 1024;
-    char buf[buf_size];
-
-    while (!in.eof()) {
-      in.getline(buf, buf_size);
-      if (in.eof()) break;
-
-      istringstream ins(buf);
-      ins >> val;
-      or_time.push_back(val);
-      for (int k=0; k<5; k++) ins >> val;
-      for (int k=0; k<3; k++) {
-	ins >> val;
-	or_c[k].push_back(val);
-      }
-      for (int k=0; k<3; k++) {
-	ins >> val;
-	*(or_c[k].end()-1) += val;
-      }
-    }
-  }
-  
-
   //============================================================
   // Build model
   //============================================================
 
-  std::shared_ptr<SphericalModelTable> hmodel;
-  std::shared_ptr<MakeModel> cmodel;
   PR::PSPstanza *stanza, *stanza1, *stanza2;
 
   PR::PRptr psp;
 
-  if (WHICHPS==0) {
-    // Okay, just checking
-  }
-  else if (WHICHPS==1) {
-    psp = psp1;
-    std::cout << "Computing model from File #1" << std::endl;
-  }
-  else if (WHICHPS==2) {
-    psp = psp2;
-    std::cout << "Computing model from File #2" << std::endl;
-  }
-  else {
-    std::cerr << "Must specify 0, 1 or 2" << std::endl;
-    exit(-1);
-  }
+  auto hmodel = std::make_shared<SphericalModelTable>(MODELFILE, DIVERGE, DIVERGE_RFAC);
 
-  if (WHICHPS==0) {
-
-    hmodel = std::make_shared<SphericalModelTable>(MODELFILE, DIVERGE, DIVERGE_RFAC);
-
-    if (vm.count("rmaxf")) {
-      SphericalOrbit::RMAXF = 1.0;
-      std::cout << "RMAXF=" << SphericalOrbit::RMAXF << std::endl;
-    }
-  }
-  else {
-
-    cmodel = std::make_shared<MakeModel>(RNUM, RMIN, RMAX, LOGMOD);
-
-    int N = 0;
-
-    for (auto part=psp->firstParticle(); part!=0; part=psp->nextParticle()) {
-
-      if (N++ % numprocs == myid) {
-
-	double r = 0.0; 
-	for (int k=0; k<3; k++)
-	  r += (part->pos[k] - p1[k])*(part->pos[k] - p1[k]);
-	r = sqrt(r);
-	
-	cmodel->AddPoint(r, part->mass);
-      }
-
-      if (myid==0 and NREPORT) {
-	if (!((N+1)%NREPORT)) std::cout << "\rProcessed: " 
-					<< std::setw(10) << N+1 << std::flush;
-      }
-    }
-
-    
-    hmodel = cmodel->Compute();
-
-    if (myid==0) {
-      string outfile = OUTFILE + ".file";
-      cmodel->WriteModel(outfile);
-    }
+  if (vm.count("rmaxf")) {
+    SphericalOrbit::RMAXF = 1.0;
+    std::cout << "RMAXF=" << SphericalOrbit::RMAXF << std::endl;
   }
 
   SphericalOrbit orb(hmodel);
@@ -510,7 +356,7 @@ main(int argc, char **argv)
   // Open distribution file
   //=======================
 
-  ofstream dout;
+  std::ofstream dout;
   if (LZDIST and myid==0) {
     string DSTFILE = OUTFILE + ".dist";
     dout.open(DSTFILE.c_str());
@@ -520,291 +366,319 @@ main(int argc, char **argv)
     }
   }
 
-  //================================
-  // Set center of density/potential
-  //================================
 
-  if (orient) {
-    
-    if (psp1->CurrentTime() < or_time.front())
-      for (int k=0; k<3; k++) p1[k] = or_c[k].front();
-    else if (psp1->CurrentTime() > or_time.back())
-      for (int k=0; k<3; k++) p1[k] = or_c[k].back();
-    else
-      for (int k=0; k<3; k++) p1[k] = odd2(psp1->CurrentTime(), or_time, or_c[k]);
-
-    if (psp2->CurrentTime() < or_time.front())
-      for (int k=0; k<3; k++) p2[k] = or_c[k].front();
-    else if (psp2->CurrentTime() > or_time.back())
-      for (int k=0; k<3; k++) p2[k] = or_c[k].back();
-    else
-      for (int k=0; k<3; k++) p2[k] = odd2(psp2->CurrentTime(), or_time, or_c[k]);
-    
-    if (myid==0) {
-      cout << setfill('-') << left << setw(70) << "--- Orient center estimates "
-	   << endl << setfill(' ') << right;
-      cout << "Center at T=" << setw(10) << fixed << psp1->CurrentTime() << ": ";
-      for (int k=0; k<3; k++) cout << setw(10) << p1[k];
-      cout << endl;
-      
-      cout << "Center at T=" << setw(10) << fixed << psp2->CurrentTime() << ": ";
-      for (int k=0; k<3; k++) cout << setw(10) << p2[k];
-      cout << endl;
-      cout << setfill('-') << setw(70) << '-' << endl << setfill(' ');
-    }
-  }
-
-  //============================================================
-  // Do difference
-  //============================================================
-
+  // Diagnostic values
+  //
   int numK0=0, numK1=0, reject=0, N=0;
   double KOVER  = 0.0;
   double KUNDER = 1.0;
 
-  struct SPS
-  {
-    double pos[3], vel[3];
-  } tps;
+  // Times for the PSP snaps
+  //
+  double initl_time, final_time;
 
 
-  std::map<int, SPS> ph;
+  // Iterate through file list
+  //
+  for (size_t n=0; n<INFILE1.size(); n++) {
 
-  N = 0;
-  for (auto pp=psp1->firstParticle(); pp!=0; pp=psp1->nextParticle()) {
-    if (N++ % numprocs == myid) {
-      for (int k=0; k<3; k++) {
-	tps.pos[k] = pp->pos[k];
-	tps.vel[k] = pp->vel[k];
+    PR::PRptr psp1, psp2;
+
+    try {
+      psp1 = PR::ParticleReader::createReader(fileType, INFILE1[n], myid, true);
+  
+      initl_time = psp1->CurrentTime();
+
+      psp1->SelectType(COMP);
+
+      if (myid==0) {
+	std::cout << "File 1: " << INFILE1[0] << std::endl;
+	std::cout << "Found dump at time: " << initl_time << std::endl;
       }
-      ph[pp->indx] = tps;
     }
-  }
+    catch (const std::runtime_error& error) {
+      if (myid==0)
+	std::cerr << "diffpsp: error opening snapshot in file <"
+		  << INFILE1[n] << ">" << std::endl
+		<< "diffpsp: " << error.what()
+		<< std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+    
+    try {
+      psp2 = PR::ParticleReader::createReader(fileType, INFILE2[n], myid, true);
+  
+      final_time = psp2->CurrentTime();
 
-  N = 0;
-  for (auto pp=psp2->firstParticle(); pp!=0; pp=psp2->nextParticle()) {
-    
-    auto ip = ph.find(pp->indx);
-    
-    if (ip != ph.end()) {
-      
-      double angmom1[3], angmom2[3];
-      double p10[3], p20[3], v10[3], v20[3];
-      
-      if (TAG>=0 && stanza1->comp.niatr>TAG) {
-	if (pp->iattrib[TAG]>0) continue;
+      psp2->SelectType(COMP);
+
+      if (myid==0) {
+	std::cout << "File 2: " << INFILE2[n] << endl;
+      std::cout << "Found dump at time: " << final_time << std::endl;
       }
-      
-      for (int k=0; k<3; k++) p10[k] = ip->second.pos[k] - p1[k];
-      for (int k=0; k<3; k++) p20[k] = pp->pos[k] - p2[k];
-      for (int k=0; k<3; k++) v10[k] = ip->second.vel[k];
-      for (int k=0; k<3; k++) v20[k] = pp->vel[k];
-      
-      double rr1=0, vv1=0, rr2=0, vv2=0;
-      for (int k=0; k<3; k++) {
-	rr1 += p10[k]*p10[k];
-	vv1 += v10[k]*v10[k];
-	rr2 += p20[k]*p20[k];
-	vv2 += v20[k]*v20[k];
-      }
-      
-      if (rr1 <= RMAX*RMAX && rr1 >= RMIN*RMIN) {
-	
-	double E1 = 0.5*vv1 + hmodel->get_pot(sqrt(rr1));
-	E1 = max<double>(E1, Emin);
-	E1 = min<double>(E1, Emax);
-	
-	double E2 = 0.5*vv2 + hmodel->get_pot(sqrt(rr2));
-	E2 = max<double>(E2, Emin);
-	E2 = min<double>(E2, Emax);
-	
-	angmom1[0] = p10[1]*v10[2] - p10[2]*v10[1];
-	angmom1[1] = p10[2]*v10[0] - p10[0]*v10[2];
-	angmom1[2] = p10[0]*v10[1] - p10[1]*v10[0];
-	
-	double cosb = angmom1[2]/sqrt(angmom1[0]*angmom1[0] +
-				      angmom1[1]*angmom1[1] +
-				      angmom1[2]*angmom1[2] );
-	
-	if (POSNEG>0 && angmom1[2]<0.0 || POSNEG<0 && angmom1[2]>0.0) continue;
-	if (cosb<BMIN || cosb>BMAX) continue;
-	
-	angmom2[0] = p20[1]*v20[2] - p20[2]*v20[1];
-	angmom2[1] = p20[2]*v20[0] - p20[0]*v20[2];
-	angmom2[2] = p20[0]*v20[1] - p20[1]*v20[0];
-	
-	double jj = 0.0, dj = 0.0, j1 = 0.0, j2 = 0.0;
+    }
+    catch (const std::runtime_error& error) {
+      if (myid==0)
+      std::cerr << "diffpsp: error opening snapshot in file <"
+		<< INFILE2[n] << ">"<< std::endl
+		<< "diffpsp: " << error.what()
+		<< std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+    
+    //============================================================
+    // Do difference
+    //============================================================
+    
+    struct SPS
+    {
+      double pos[3], vel[3];
+    } tps;
+    
+
+    std::map<int, SPS> ph;
+
+    N = 0;
+    for (auto pp=psp1->firstParticle(); pp!=0; pp=psp1->nextParticle()) {
+      if (N++ % numprocs == myid) {
 	for (int k=0; k<3; k++) {
-	  if (WHICHEK==1)
-	    jj += angmom1[k]*angmom1[k];
-	  else if (WHICHEK==2)
-	    jj += angmom2[k]*angmom2[k];
-	  else
-	    jj += 0.5*(angmom1[k]*angmom1[k] + angmom2[k]*angmom2[k]);
-	  
-	  j1 += angmom1[k]*angmom1[k];
-	  j2 += angmom2[k]*angmom2[k];
-	  dj += (angmom1[k] - angmom2[k])*(angmom1[k] - angmom2[k]);
+	  tps.pos[k] = pp->pos[k];
+	  tps.vel[k] = pp->vel[k];
 	}
-	
-	try {
-	  orb.new_orbit(E1, 0.5);
-	  double K1 = sqrt(j1)/orb.Jmax();
-	  if (kappa2) K1 *= K1;
-	  if (K1>1.0-KTOL) {
-	    numK1++;
-	    KOVER = std::max<double>(KOVER,  K1);
-	    K1 = 1.0 - KTOL;
-	  }
-	  if (K1<KTOL) {
-	    numK0++;
-	    KUNDER = min<double>(KUNDER, K1);
-	    K1 = KTOL;
-	  }
-	  
-	  if (kappa2)
-	    orb.new_orbit(E1, sqrt(K1));
-	  else
-	    orb.new_orbit(E1, K1);
-	  
-	  double I1 = orb.get_action(1);
-	  
-	  orb.new_orbit(E2, 0.5);
-	  double K2 = sqrt(j2)/orb.Jmax();
-	  if (kappa2) K2 *= K2;
-	  if (K2>1.0-KTOL) {
-	    numK1++;
-	    KOVER  = max<double>(KOVER, K2);
-	    K2 = 1.0 - KTOL;
-	  }
-	  if (K2<KTOL) {
-	    numK0++;
-	    KUNDER = min<double>(KUNDER, K2);
-	    K2 = KTOL;
-	  }
-	  
-	  if (kappa2)
-	    orb.new_orbit(E2, sqrt(K2));
-	  else
-	    orb.new_orbit(E2, K2);
+	ph[pp->indx] = tps;
+      }
+    }
 
-	  double I2 = orb.get_action(1);
+    N = 0;
+    for (auto pp=psp2->firstParticle(); pp!=0; pp=psp2->nextParticle()) {
+    
+      auto ip = ph.find(pp->indx);
+    
+      if (ip != ph.end()) {
+      
+	double angmom1[3], angmom2[3];
+	double p10[3], p20[3], v10[3], v20[3];
+      
+	if (TAG>=0 && stanza1->comp.niatr>TAG) {
+	  if (pp->iattrib[TAG]>0) continue;
+	}
+      
+	for (int k=0; k<3; k++) p10[k] = ip->second.pos[k] - p1[k];
+	for (int k=0; k<3; k++) p20[k] = pp->pos[k] - p2[k];
+	for (int k=0; k<3; k++) v10[k] = ip->second.vel[k];
+	for (int k=0; k<3; k++) v20[k] = pp->vel[k];
+      
+	double rr1=0, vv1=0, rr2=0, vv2=0;
+	for (int k=0; k<3; k++) {
+	  rr1 += p10[k]*p10[k];
+	  vv1 += v10[k]*v10[k];
+	  rr2 += p20[k]*p20[k];
+	  vv2 += v20[k]*v20[k];
+	}
+      
+	if (rr1 <= RMAX*RMAX && rr1 >= RMIN*RMIN) {
+	
+	  double E1 = 0.5*vv1 + hmodel->get_pot(sqrt(rr1));
+	  E1 = max<double>(E1, Emin);
+	  E1 = min<double>(E1, Emax);
 	  
-	  if (myid==0) {
-	    if (WHICHEK & 1) {
-	      if (K1>1.0 || K1<0.0)
-		out[10] << setw(15) << E1 << setw(15) << K1
-			<< setw(15) << E2 << setw(15) << sqrt(j1)
-			<< setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
-			<< setw(5) << 1 << endl;
+	  double E2 = 0.5*vv2 + hmodel->get_pot(sqrt(rr2));
+	  E2 = max<double>(E2, Emin);
+	  E2 = min<double>(E2, Emax);
+	  
+	  angmom1[0] = p10[1]*v10[2] - p10[2]*v10[1];
+	  angmom1[1] = p10[2]*v10[0] - p10[0]*v10[2];
+	  angmom1[2] = p10[0]*v10[1] - p10[1]*v10[0];
+	
+	  double cosb = angmom1[2]/sqrt(angmom1[0]*angmom1[0] +
+					angmom1[1]*angmom1[1] +
+					angmom1[2]*angmom1[2] );
+	
+	  if (POSNEG>0 && angmom1[2]<0.0 || POSNEG<0 && angmom1[2]>0.0)
+	    continue;
+
+	  if (cosb<BMIN || cosb>BMAX)
+	    continue;
+	
+	  angmom2[0] = p20[1]*v20[2] - p20[2]*v20[1];
+	  angmom2[1] = p20[2]*v20[0] - p20[0]*v20[2];
+	  angmom2[2] = p20[0]*v20[1] - p20[1]*v20[0];
+	  
+	  double jj = 0.0, dj = 0.0, j1 = 0.0, j2 = 0.0;
+	  for (int k=0; k<3; k++) {
+	    if (WHICHEK==1)
+	      jj += angmom1[k]*angmom1[k];
+	    else if (WHICHEK==2)
+	      jj += angmom2[k]*angmom2[k];
+	    else
+	      jj += 0.5*(angmom1[k]*angmom1[k] + angmom2[k]*angmom2[k]);
+	  
+	    j1 += angmom1[k]*angmom1[k];
+	    j2 += angmom2[k]*angmom2[k];
+	    dj += (angmom1[k] - angmom2[k])*(angmom1[k] - angmom2[k]);
+	  }
+	
+	  try {
+	    orb.new_orbit(E1, 0.5);
+	    double K1 = sqrt(j1)/orb.Jmax();
+	    if (kappa2) K1 *= K1;
+	    if (K1>1.0-KTOL) {
+	      numK1++;
+	      KOVER = std::max<double>(KOVER,  K1);
+	      K1 = 1.0 - KTOL;
+	    }
+	    if (K1<KTOL) {
+	      numK0++;
+	      KUNDER = min<double>(KUNDER, K1);
+	      K1 = KTOL;
 	    }
 	    
-	    if (WHICHEK & 2) {
-	      if (K2>1.0 || K2<0.0)
-		out[10] << setw(15) << E2 << setw(15) << K2
-			<< setw(15) << E1 << setw(15) << sqrt(j2)
-			<< setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
-			<< setw(5) << 2 << endl;
+	    if (kappa2)
+	      orb.new_orbit(E1, sqrt(K1));
+	    else
+	      orb.new_orbit(E1, K1);
+	  
+	    double I1 = orb.get_action(1);
+	  
+	    orb.new_orbit(E2, 0.5);
+	    double K2 = sqrt(j2)/orb.Jmax();
+	    if (kappa2) K2 *= K2;
+	    if (K2>1.0-KTOL) {
+	      numK1++;
+	      KOVER  = max<double>(KOVER, K2);
+	      K2 = 1.0 - KTOL;
 	    }
-	  }
+	    if (K2<KTOL) {
+	      numK0++;
+	      KUNDER = min<double>(KUNDER, K2);
+	      K2 = KTOL;
+	    }
 	  
-	  double EE, KK;
-	  if (WHICHEK == 1) {
-	    EE = E1;
-	    KK = K1;
-	  }
-	  else if (WHICHEK == 2) {
-	    EE = E2;
-	    KK = K2;
-	  }
-	  else {
-	    EE = 0.5*(E1 + E2);
-	    KK = 0.5*(K1 + K2);
-	  }
-	  
-	  tout << KK << endl;
-	  
-	  KK = min<double>(KK, 1.0);
-	  KK = max<double>(KK, 0.0);
-	  
-	  int ie1 = (int)floor( (E1 - Emin) / dE );
-	  ie1 = max<int>(ie1, 0);
-	  ie1 = min<int>(ie1, NUME-1);
-	  
-	  int ik1 = (int)floor( K1 / dK );
-	  ik1 = max<int>(ik1, 0);
-	  ik1 = min<int>(ik1, NUMK-1);
+	    if (kappa2)
+	      orb.new_orbit(E2, sqrt(K2));
+	    else
+	      orb.new_orbit(E2, K2);
 
-	  int ie2 = (int)floor( (E2 - Emin) / dE );
-	  ie2 = max<int>(ie2, 0);
-	  ie2 = min<int>(ie2, NUME-1);
+	    double I2 = orb.get_action(1);
 	  
-	  int ik2 = (int)floor( K2 / dK );
-	  ik2 = max<int>(ik2, 0);
-	  ik2 = min<int>(ik2, NUMK-1);
+	    if (myid==0) {
+	      if (WHICHEK & 1) {
+		if (K1>1.0 || K1<0.0)
+		  out[10] << setw(15) << E1 << setw(15) << K1
+			  << setw(15) << E2 << setw(15) << sqrt(j1)
+			  << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
+			  << setw(5) << 1 << endl;
+	      }
+	    
+	      if (WHICHEK & 2) {
+		if (K2>1.0 || K2<0.0)
+		  out[10] << setw(15) << E2 << setw(15) << K2
+			  << setw(15) << E1 << setw(15) << sqrt(j2)
+			  << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
+			  << setw(5) << 2 << endl;
+	      }
+	    }
+	  
+	    double EE, KK;
+	    if (WHICHEK == 1) {
+	      EE = E1;
+	      KK = K1;
+	    }
+	    else if (WHICHEK == 2) {
+	      EE = E2;
+	      KK = K2;
+	    }
+	    else {
+	      EE = 0.5*(E1 + E2);
+	      KK = 0.5*(K1 + K2);
+	    }
+	    
+	    tout << KK << endl;
+	    
+	    KK = min<double>(KK, 1.0);
+	    KK = max<double>(KK, 0.0);
+	  
+	    int ie1 = (int)floor( (E1 - Emin) / dE );
+	    ie1 = max<int>(ie1, 0);
+	    ie1 = min<int>(ie1, NUME-1);
+	    
+	    int ik1 = (int)floor( K1 / dK );
+	    ik1 = max<int>(ik1, 0);
+	    ik1 = min<int>(ik1, NUMK-1);
 
-	  int ie = (int)floor( (EE - Emin) / dE );
-	  ie = max<int>(ie, 0);
-	  ie = min<int>(ie, NUME-1);
+	    int ie2 = (int)floor( (E2 - Emin) / dE );
+	    ie2 = max<int>(ie2, 0);
+	    ie2 = min<int>(ie2, NUME-1);
 	  
-	  int ik = (int)floor( KK / dK );
-	  ik = max<int>(ik, 0);
-	  ik = min<int>(ik, NUMK-1);
-	  
-	  double L1 = 0.0, L2 = 0.0;
-	  for (int k=0; k<3; k++) {
-	    L1 += angmom1[k]*angmom1[k];
-	    L2 += angmom2[k]*angmom2[k];
-	  }
-	  L1 = sqrt(L1);
-	  L2 = sqrt(L2);
-	  
-	  histoC(ie, ik) += 1;
-	  histoM(ie, ik) += pp->mass;
-	  histoE(ie, ik) += pp->mass*(E1 - E2);
-	  histoJ(ie, ik) += pp->mass*(L1 - L2);
-	  histoI(ie, ik) += pp->mass*(I2 - I1);
-	  histoT(ie, ik) += pp->mass*L1;
-	  
-	  histo1(ie1, ik1) += pp->mass;
-	  histo2(ie2, ik2) += pp->mass;
+	    int ik2 = (int)floor( K2 / dK );
+	    ik2 = max<int>(ik2, 0);
+	    ik2 = min<int>(ik2, NUMK-1);
 
-	  if (LZDIST and myid==0) {
-	    if (KK>KMIN && KK<KMAX && EE>EMIN && EE<EMAX)
-	      dout << setw(15) << EE
-		   << setw(15) << KK
-		   << setw(15) << angmom1[2]
-		   << setw(15) << angmom2[2]
-		   << setw(15) << angmom2[2] - angmom1[2]
-		   << endl;
+	    int ie = (int)floor( (EE - Emin) / dE );
+	    ie = max<int>(ie, 0);
+	    ie = min<int>(ie, NUME-1);
+	    
+	    int ik = (int)floor( KK / dK );
+	    ik = max<int>(ik, 0);
+	    ik = min<int>(ik, NUMK-1);
+	    
+	    double L1 = 0.0, L2 = 0.0;
+	    for (int k=0; k<3; k++) {
+	      L1 += angmom1[k]*angmom1[k];
+	      L2 += angmom2[k]*angmom2[k];
+	    }
+	    L1 = sqrt(L1);
+	    L2 = sqrt(L2);
+	  
+	    histoC(ie, ik) += 1;
+	    histoM(ie, ik) += pp->mass;
+	    histoE(ie, ik) += pp->mass*(E1 - E2);
+	    histoJ(ie, ik) += pp->mass*(L1 - L2);
+	    histoI(ie, ik) += pp->mass*(I2 - I1);
+	    histoT(ie, ik) += pp->mass*L1;
+	    
+	    histo1(ie1, ik1) += pp->mass;
+	    histo2(ie2, ik2) += pp->mass;
+	    
+	    if (LZDIST and myid==0) {
+	      if (KK>KMIN && KK<KMAX && EE>EMIN && EE<EMAX)
+		dout << setw(15) << EE
+		     << setw(15) << KK
+		     << setw(15) << angmom1[2]
+		     << setw(15) << angmom2[2]
+		     << setw(15) << angmom2[2] - angmom1[2]
+		     << endl;
+	    }
+	  
+	    int ir;
+	    if (LOGR) 
+	      ir = (int)floor( (log(sqrt(rr1)) - rhmin) / dR );
+	    else
+	      ir = (int)floor( (sqrt(rr1) - rhmin) / dR );
+	    ir = max<int>(ir, 0);
+	    ir = min<int>(ir, NUMR-1);
+	  
+	    histoP[ir] += pp->mass*(E1 - E2);
+	    histoL[ir] += pp->mass*(angmom2[2] - angmom1[2]);
+	    histPr[ir] += pp->mass*(E1 - E2)*2.0/sqrt(E1*E1 + E2*E2);
+	    histLr[ir] += pp->mass*(angmom2[2] - angmom1[2])*2.0/
+	      sqrt(angmom1[2]*angmom1[2] + angmom2[2]*angmom2[2]);
+	    histoN[ir] += pp->mass;
+	    histoS[ir] += pp->mass*L1;
 	  }
-	  
-	  int ir;
-	  if (LOGR) 
-	    ir = (int)floor( (log(sqrt(rr1)) - rhmin) / dR );
-	  else
-	    ir = (int)floor( (sqrt(rr1) - rhmin) / dR );
-	  ir = max<int>(ir, 0);
-	  ir = min<int>(ir, NUMR-1);
-	  
-	  histoP[ir] += pp->mass*(E1 - E2);
-	  histoL[ir] += pp->mass*(angmom2[2] - angmom1[2]);
-	  histPr[ir] += pp->mass*(E1 - E2)*2.0/sqrt(E1*E1 + E2*E2);
-	  histLr[ir] += pp->mass*(angmom2[2] - angmom1[2])*2.0/
-	    sqrt(angmom1[2]*angmom1[2] + angmom2[2]*angmom2[2]);
-	  histoN[ir] += pp->mass;
-	  histoS[ir] += pp->mass*L1;
-	}
-	catch (const std::runtime_error& error) {
-	  reject++;
+	  catch (const std::runtime_error& error) {
+	    reject++;
+	  }
 	}
       }
-    }
-    
-    if (myid==0 and NREPORT) {
-      if (!((N+1)%NREPORT)) cout << "\rProcessed: " 
-				 << setw(10) << numprocs*(N+1) << flush;
-      N++;
+      
+      if (myid==0 and NREPORT) {
+	if (!((N+1)%NREPORT)) cout << "\rProcessed: " 
+				   << setw(10) << N+1 << flush;
+	N++;
+      }
     }
   }
   
