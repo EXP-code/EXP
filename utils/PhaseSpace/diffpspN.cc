@@ -114,7 +114,9 @@ main(int argc, char **argv)
 
   const char* desc = 
     "=======================================================\n"		\
-    "Compute resonance loci for a given peturbing frequency \n"		\
+    "Compute phase-space distributions (DF), phase-space DF \n"         \
+    "differences and action changes in phase space for      \n"		\
+    "one or more realizations                               \n"		\
     "=======================================================\n"		\
     "   Output file key:\n"						\
     "   ----------------\n"						\
