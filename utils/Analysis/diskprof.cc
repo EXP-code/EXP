@@ -993,7 +993,7 @@ main(int argc, char **argv)
     return 0;
   }
  
-   // Read parameters fron the YAML config file
+  // Read parameters fron the YAML config file
   //
   if (vm.count("input")) {
     try {
