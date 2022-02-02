@@ -112,19 +112,40 @@ public:
   SphericalOrbit(const SphericalOrbit &);
   SphericalOrbit &operator=(const SphericalOrbit &);
 
-				// Required functions
+  //@{
+  //! Required functions for accessing phase-space parameters
 
-  double get_action(const int i) {
-    if (i>dof) bomb("actions not defined!");
+  /** Return the action where:
+      index 0 is radial action, I_r
+      index 1 is angular action, J
+      index 2 should be J_z/J, current set to zero
+  */
+  double get_action(const int i)
+  {
+    if (i>dof)           bomb("actions not defined!");
+    if (i<0 or i>2)      bomb("action index must be [0,1,2]");
     if (!action_defined) compute_action();
-    return action[i]; }
+  
+  return action[i];
+  }
 
-  double get_freq(const int i) {
-    if (i>dof) bomb("frequencies not defined!");
+  /** Return the orbital frequency where:
+      index 0 is radial frequency, I_r
+      index 1 is angular frequency, J
+      index 2 is frequency of line of nodes (zero for a spherical system)
+  */
+  double get_freq(const int i)
+  {
+    if (i>dof)         bomb("frequencies not defined!");
+    if (i<0 or i>2)    bomb("frequency index must be [0,1,2]");
     if (!freq_defined) compute_freq();
-    return freq[i]; }
+    
+    return freq[i];
+  }
 
-  /*
+  /** Get angle dependent quantities for the orbit where the
+     index signifies:
+
      i     val
      -     ---
      1      w1
@@ -134,19 +155,20 @@ public:
      5      f
      6      r
      7      phi
-   */
-
+  */
   double get_angle(const int i, const double time);
+  //@}
 
-				// Specific functions
-
+  //! Set the energy and kappa for the orbit
   void new_orbit(double Energy, double kappa, double beta = 0.0);
 
+  //! Set the biorthogonal ffunction type
   void set_biorth(std::shared_ptr<AxiSymBiorth> type,
 		  int ll, int max, int recur = 0) 
     { nmax = max; l = ll; biorth = type; RECUR = recur; 
     biorth_defined = false; }
 
+  //! Set the numerical parameters for angle transform computation
   void set_numerical_params(int RECS=64, int NMAX=40, int NBSCT=3)
     { recs=RECS; nmax=NMAX; nbsct=NBSCT;}
 
@@ -154,53 +176,68 @@ public:
   double pot_trans(int l1, int l2, int n );
   void   pot_trans(int l1, int l2, Eigen::VectorXd& t);
 
-				// Access to underlying grid for pot_trans
-  struct ANGLE_GRID * get_angle_grid(void) { 
+  //! Access to underlying grid for pot_trans
+  struct ANGLE_GRID * get_angle_grid(void)
+  { 
     if (!freq_defined) compute_freq();
     if (!angle_defined) compute_angles();
-    return &angle_grid; }
+    return &angle_grid;
+  }
   
-				// Safe access
+  //@{
+  //! Safe access to internal quantities
 
+  //! The value of the orbital energy
   double Energy(void) { return energy; }
 
+  //! The value of the orbital angular momentum
   double AngMom(void)
   { 
     if (freq_defined == false) compute_freq();
     return jmax*kappa;
   }
 
+  //! The value of the current J_{max}(E)
   double Jmax(void)
   {
     if (freq_defined == false) compute_freq();
     return jmax;
   }
 
+  //! The value of the current J/J_{max}(E)
   double Kappa(void) { return kappa; }
 
+  //! The specified altitude of the orbital plane
   double Beta(void)  { return beta; }
   
+  //! Radius of the pericenter of this orbit
   double peri(void)
   { 
     if (freq_defined == false) compute_freq();
     return r_peri;
   }
 
+  //! Radius of the apocenter of this orbit
   double apo(void)
   {
     if (freq_defined == false) compute_freq();
     return r_apo;
   }
 
+  //! Radius of the circular orbit with energy E
   double circ(void)
   {
     if (freq_defined == false) compute_freq();
     return r_circ;
   }
 
+  //! Get the underlying axisymmetric model object
   AxiSymModel& modl(void) { return *model; }
 
+  //! Get the underlying biorthogonal function object
   AxiSymBiorth& orth(void) { return *biorth; }
+
+  //@}
 
 };
 
