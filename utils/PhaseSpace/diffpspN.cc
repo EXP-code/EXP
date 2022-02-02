@@ -392,7 +392,8 @@ main(int argc, char **argv)
       psp1->SelectType(COMP);
 
       if (myid==0) {
-	std::cout << "File 1: " << INFILE1[0] << std::endl;
+	std::cout << std::endl << std::string(40, '-') << std::endl;
+	std::cout << "File 1: " << INFILE1[n] << std::endl;
 	std::cout << "Found dump at time: " << initl_time << std::endl;
       }
     }
@@ -540,7 +541,7 @@ main(int argc, char **argv)
 	    else
 	      orb.new_orbit(E1, K1);
 	  
-	    double I1 = orb.get_action(1);
+	    double I1 = orb.get_action(0);
 	  
 	    orb.new_orbit(E2, 0.5);
 	    double K2 = sqrt(j2)/orb.Jmax();
@@ -561,7 +562,7 @@ main(int argc, char **argv)
 	    else
 	      orb.new_orbit(E2, K2);
 
-	    double I2 = orb.get_action(1);
+	    double I2 = orb.get_action(0);
 	  
 	    if (myid==0) {
 	      if (WHICHEK & 1) {
@@ -676,10 +677,13 @@ main(int argc, char **argv)
       
       if (myid==0 and NREPORT) {
 	if (!((N+1)%NREPORT)) cout << "\rProcessed: " 
-				   << setw(10) << N+1 << flush;
+				   << setw(10) << (N+1)*numprocs << flush;
 	N++;
       }
     }
+
+    if (myid==0 and NREPORT)
+      std::cout << std::endl << std::string(40, '-') << std::endl;
   }
   
   
