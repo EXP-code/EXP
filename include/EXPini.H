@@ -1,6 +1,7 @@
 #ifndef _EXPini_H
 #define _EXPini_H
 
+#include <typeinfo>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -10,8 +11,11 @@
 #include <yaml-cpp/yaml.h>	// YAML support
 #include <cxxopts.H>		// Option parser
 
-//! Saves the current command-line cxxopts database in YAML format for
-//! user configuration
+/** Saves the current command-line cxxopts database in YAML format for
+    user configuration.  For ease, the current convention is that all
+    vector-values options will be stored as strings, and converted by
+    the calling program to the correct value internally.
+*/
 void SaveConfig(const cxxopts::ParseResult& vm,  // Parsed options
 		const cxxopts::Options& options, // Default options
 		const std::string& config,       // Save file
@@ -45,8 +49,18 @@ void SaveConfig(const cxxopts::ParseResult& vm,  // Parsed options
 
 	    // Not excluded: write to template file with desc as comments
 	    if (jt == exclude.end()) {
-	      out << YAML::Key   << kv.key();
-	      out << YAML::Value << kv.value();
+	      // Write the key and then check the value
+	      out << YAML::Key << kv.key();
+	      // Are we a vector?
+	      if (typeid(kv.value()) == typeid(std::vector<std::string>)) {
+		out << YAML::BeginSeq;
+		out << kv.value();
+		out << YAML::EndSeq;
+	      }
+	      // We are a scalar
+	      else {
+		out << YAML::Value << kv.value();
+	      }
 	      out << YAML::Comment(m.desc);
 	    }
 	  }
@@ -81,8 +95,20 @@ cxxopts::ParseResult LoadConfig(cxxopts::Options& options,
   for (auto it=conf.begin(); it!=conf.end(); it++, cnt+=2) {
     std::ostringstream s1, s2;
     s1 << "--" << it->first.as<std::string>();
-    s2 << it->second.as<std::string>();
     
+    // Are we vector valued?
+    if (it->second.IsSequence()) {
+      std::ostringstream sout;
+      for (auto jt=it->second.begin(); jt!=it->second.end(); jt++) {
+	if (jt != it->second.begin()) s2 << ','; // Add the comma
+	s2 << jt->as<std::string>();		 // Add the element
+      }
+    }
+    // We are scalar valued
+    else {
+      s2 << it->second.as<std::string>();
+    }
+
     data[cnt+0] = new char [s1.str().size()+1];
     data[cnt+1] = new char [s2.str().size()+1];
     
