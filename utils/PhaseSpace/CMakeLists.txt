@@ -52,11 +52,8 @@ add_executable(psp2bess psp2bess.cc PSP.cc Bess.cc)
 add_executable(psp2lagu psp2lagu.cc PSP.cc)
 add_executable(psp2interp psp2interp.cc PSP.cc)
 add_executable(diffpsp diffpsp.cc MakeModel.cc PSP.cc)
-<<<<<<< HEAD
 add_executable(pspmono pspmono.cc MakeModel.cc PSP.cc)
-=======
 add_executable(diffpspN diffpspN.cc PSP.cc)
->>>>>>> 072382a202e07c939650dceb4d40fa7739c5a462
 add_executable(psp2hdf5 psp2hdf5.cc PSP.cc)
 
 if(HAVE_VTK)
