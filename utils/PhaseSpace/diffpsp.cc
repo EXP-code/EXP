@@ -112,7 +112,8 @@ main(int argc, char **argv)
 
   const char* desc = 
     "=======================================================\n"		\
-    "Compute resonance loci for a given peturbing frequency \n"		\
+    "Compute phase-space distributions (DF), phase-space DF \n"         \
+    "differences and action changes in phase space          \n"		\
     "=======================================================\n"		\
     "   Output file key:\n"						\
     "   ----------------\n"						\
@@ -802,7 +803,7 @@ main(int argc, char **argv)
     
     if (myid==0 and NREPORT) {
       if (!((N+1)%NREPORT)) cout << "\rProcessed: " 
-				 << setw(10) << N+1 << flush;
+				 << setw(10) << numprocs*(N+1) << flush;
       N++;
     }
   }
