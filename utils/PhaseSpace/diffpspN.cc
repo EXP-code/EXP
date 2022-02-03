@@ -11,6 +11,8 @@
  *
  *  Orient files are not included (yet) but could easily be added.
  *
+ *  Computes surfaces in (E, K) or (I_1, I_2)
+ *
  *  Call sequence:
  *  -------------
  *
@@ -47,7 +49,7 @@
 #include <ParticleReader.H>
 #include <massmodel.H>
 #include <localmpi.H>
-#include <cxxopts.H>		// Option parsing
+#include <EXPini.H>		// Enhanced option parsing
 #include <libvars.H>		// EXP library globals
 #include <interp.H>
 
@@ -67,6 +69,7 @@ main(int argc, char **argv)
 {
   // Kappa offset
   //
+  const double ITOL = 1.0e-2;
   const double KTOL = 1.0e-2;
 
   // MPI initialization
@@ -75,8 +78,6 @@ main(int argc, char **argv)
 
   // Parameter assignment
   //
-  double       TIME1;
-  double       TIME2;
   double       RMIN;
   double       RMAX;
   double       BMIN;
@@ -89,8 +90,8 @@ main(int argc, char **argv)
   int          NSKIP;
   int          NREPORT;
   int          NUMR;
-  int          NUME;
-  int          NUMK;
+  int          NUM1;
+  int          NUM2;
   int          DIVERGE;
   int          nthrds;
   int          WHICHEK;
@@ -109,6 +110,7 @@ main(int argc, char **argv)
   std::string  MODELFILE;
   std::string  OUTFILE;
   std::string  fileType;
+  std::string  config;
 
   std::vector<std::string> INFILE1, INFILE2;
 
@@ -120,14 +122,14 @@ main(int argc, char **argv)
     "=======================================================\n"		\
     "   Output file key:\n"						\
     "   ----------------\n"						\
-    "   OUTFILE.DM       Mass per bin (E, K)            [2d]\n"		\
-    "   OUTFILE.DE       Delta E(E, K)                  [2d]\n"		\
-    "   OUTFILE.DK       Delta H(E, K) (tangen action)  [2d]\n"		\
-    "   OUTFILE.DI       Delta I(E, K) (radial action)  [2d]\n"		\
-    "   OUTFILE.DJ       Ang mom per bin (E, K)         [2d]\n"		\
-    "   OUTFILE.DKJ      Delta J(E, K)/J_avg(E)         [2d]\n"		\
-    "   OUTFILE.Dm       Mean mass per bin (E, K)       [2d]\n"		\
-    "   OUTFILE.DF       Distribution function (E, K)   [2d]\n"		\
+    "   OUTFILE.DM       Mass per bin                   [2d]\n"		\
+    "   OUTFILE.DE       Delta E                        [2d]\n"		\
+    "   OUTFILE.DK       Delta L (tangen action)        [2d]\n"		\
+    "   OUTFILE.DI       Delta I (radial action)        [2d]\n"		\
+    "   OUTFILE.DJ       Ang mom per bin                [2d]\n"		\
+    "   OUTFILE.DKJ      Delta J/J_avg(E)               [2d]\n"		\
+    "   OUTFILE.Dm       Mean mass per bin              [2d]\n"		\
+    "   OUTFILE.DF       Distribution function          [2d]\n"		\
     "   OUTFILE.DR       Run mass, J, Delta J (R)       [1d]\n"		\
     "   OUTFILE.chk      Orbital element check              \n"		\
     "=======================================================\n"
@@ -140,16 +142,12 @@ main(int argc, char **argv)
 
   options.add_options()
     ("h,help", "This help message")
-    ("2,kappa2", "Bin kappa^2 instead of kappa")
     ("rmaxf", "Do not extend orbit evaluation beyond the model radius")
     ("relJ", "Compute the relative binned angular momentum")
     ("jaco", "Compute phase-space Jacobian for DF computation")
+    ("actions", "Print output in action space rather than E-kappa space.  The default is Energy-Kappa.")
     ("F,filetype", "input file type (one of: PSPout, PSPspl, GadgetNative, GadgetHDF5)",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-    ("TIME1", "Target time for fiducial phase space",
-     cxxopts::value<double>(TIME1)->default_value("0.0"))
-    ("TIME2", "Target time for evolved phase space",
-     cxxopts::value<double>(TIME2)->default_value("10.0"))
     ("RMIN", "Minimum model radius",
      cxxopts::value<double>(RMIN)->default_value("0.0"))
     ("RMAX", "Maximum model radius",
@@ -174,10 +172,10 @@ main(int argc, char **argv)
      cxxopts::value<int>(NREPORT)->default_value("0"))
     ("NUMR", "Number of radius bins",
      cxxopts::value<int>(NUMR)->default_value("100"))
-    ("NUME", "Number of energy bins",
-     cxxopts::value<int>(NUME)->default_value("60"))
-    ("NUMK", "Number of kappa bins",
-     cxxopts::value<int>(NUMK)->default_value("20"))
+    ("NUM1", "Number of radial action bins",
+     cxxopts::value<int>(NUM1)->default_value("60"))
+    ("NUM2", "Number of angular action bins",
+     cxxopts::value<int>(NUM2)->default_value("60"))
     ("DIVERGE", "Flag for cusp extrapolation (non-zero means ON)",
      cxxopts::value<int>(DIVERGE)->default_value("0"))
     ("nthrds", "Desired number of OpenMP threads",
@@ -216,6 +214,10 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(COMP)->default_value("stars"))
     ("OUTFILE", "Prefix for output files",
      cxxopts::value<std::string>(OUTFILE)->default_value("diffpsP"))
+    ("f,input", "Input parameter config file",
+     cxxopts::value<std::string>(config))
+    ("T,template", "Write template options file with current and all default values",
+     cxxopts::value<std::string>(config))
     ;
 
   cxxopts::ParseResult vm;
@@ -227,10 +229,34 @@ main(int argc, char **argv)
     exit(-1);
   }
 
+  // Write YAML template config file and exit
+  //
+  if (vm.count("template")) {
+    // Write template file
+    //
+    if (myid==0) SaveConfig(vm, options, "template.yaml");
+    //
+    MPI_Finalize();
+    return 0;
+  }
+
   if (vm.count("help")) {
     if (myid==0) std::cout << options.help() << std::endl;
     MPI_Finalize();
     return 0;
+  }
+
+  // Read parameters fron the YAML config file
+  //
+  if (vm.count("input")) {
+    try {
+      vm = LoadConfig(options, config);
+    } catch (cxxopts::OptionException& e) {
+      if (myid==0) std::cout << "Option error in configuration file: "
+			     << e.what() << std::endl;
+      MPI_Finalize();
+      return 0;
+    }
   }
 
   if (INFILE1.size() != INFILE2.size()) {
@@ -241,28 +267,28 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  bool kappa2 = false;
-  if (vm.count("kappa2")) kappa2 = true;
-
   std::ofstream tout;
   if (myid==0) tout.open("tmp.ktest");
 
   bool jaco = false;
   if (vm.count("jaco")) jaco = true;
 
+  bool actions = false;
+  if (vm.count("actions")) actions = true;
+
   // Allocate histograms
   //
   Eigen::MatrixXd histoC, histoM, histoE, histoJ, histoI, histoT;
   Eigen::MatrixXd histo1, histo2;
 
-  histoC = Eigen::MatrixXd::Zero(NUME, NUMK);
-  histoM = Eigen::MatrixXd::Zero(NUME, NUMK);
-  histoE = Eigen::MatrixXd::Zero(NUME, NUMK);
-  histoJ = Eigen::MatrixXd::Zero(NUME, NUMK);
-  histoI = Eigen::MatrixXd::Zero(NUME, NUMK);
-  histoT = Eigen::MatrixXd::Zero(NUME, NUMK);
-  histo1 = Eigen::MatrixXd::Zero(NUME, NUMK);
-  histo2 = Eigen::MatrixXd::Zero(NUME, NUMK);
+  histoC = Eigen::MatrixXd::Zero(NUM1, NUM2);
+  histoM = Eigen::MatrixXd::Zero(NUM1, NUM2);
+  histoE = Eigen::MatrixXd::Zero(NUM1, NUM2);
+  histoJ = Eigen::MatrixXd::Zero(NUM1, NUM2);
+  histoI = Eigen::MatrixXd::Zero(NUM1, NUM2);
+  histoT = Eigen::MatrixXd::Zero(NUM1, NUM2);
+  histo1 = Eigen::MatrixXd::Zero(NUM1, NUM2);
+  histo2 = Eigen::MatrixXd::Zero(NUM1, NUM2);
 
   Eigen::VectorXd histoP, histoL, histPr, histLr, histoS, histoN;
 
@@ -346,11 +372,38 @@ main(int argc, char **argv)
 
   SphericalOrbit orb(hmodel);
 
-  double Emin = max<double>(hmodel->get_pot(hmodel->get_min_radius()), EMIN);
-  double Emax = min<double>(hmodel->get_pot(hmodel->get_max_radius()), EMAX);
-  double delE = Emax - Emin;
-  double dK = (1.0 - KTOL)  / NUMK;
-  double dE = delE / NUME;
+  double Emin = std::max<double>(hmodel->get_pot(hmodel->get_min_radius()), EMIN);
+  double Emax = std::min<double>(hmodel->get_pot(hmodel->get_max_radius()), EMAX);
+
+  double I1min, I1max, I2min, I2max;
+
+  if (actions) {
+    Emin *= 1.0 - KTOL;
+    Emax *= 1.0 + KTOL;
+
+    orb.new_orbit(Emin, 1.0-KTOL);
+    I1min = orb.get_action(0);
+
+    orb.new_orbit(Emin, KTOL);
+    I2min = orb.get_action(1);
+
+    orb.new_orbit(Emax, KTOL);
+    I1max = orb.get_action(0);
+
+    orb.new_orbit(Emax, 1.0 - KTOL);
+    I2max = orb.get_action(1);
+
+  } else {
+    I1min = Emin;
+    I1max = Emax;
+    I2min = KTOL;
+    I2max = 1.0 - KTOL;
+  }
+
+  double d1 = (I1max - I1min) / NUM1;
+  double d2 = (I2max - I2min) / NUM2;
+  double I1, I2;
+
 
   //=======================
   // Open distribution file
@@ -443,6 +496,7 @@ main(int argc, char **argv)
 
     N = 0;
     for (auto pp=psp1->firstParticle(); pp!=0; pp=psp1->nextParticle()) {
+      
       if (N++ % numprocs == myid) {
 	for (int k=0; k<3; k++) {
 	  tps.pos[k] = pp->pos[k];
@@ -465,7 +519,7 @@ main(int argc, char **argv)
 	if (TAG>=0 && stanza1->comp.niatr>TAG) {
 	  if (pp->iattrib[TAG]>0) continue;
 	}
-      
+	
 	for (int k=0; k<3; k++) p10[k] = ip->second.pos[k] - p1[k];
 	for (int k=0; k<3; k++) p20[k] = pp->pos[k] - p2[k];
 	for (int k=0; k<3; k++) v10[k] = ip->second.vel[k];
@@ -524,7 +578,6 @@ main(int argc, char **argv)
 	  try {
 	    orb.new_orbit(E1, 0.5);
 	    double K1 = sqrt(j1)/orb.Jmax();
-	    if (kappa2) K1 *= K1;
 	    if (K1>1.0-KTOL) {
 	      numK1++;
 	      KOVER = std::max<double>(KOVER,  K1);
@@ -536,16 +589,12 @@ main(int argc, char **argv)
 	      K1 = KTOL;
 	    }
 	    
-	    if (kappa2)
-	      orb.new_orbit(E1, sqrt(K1));
-	    else
-	      orb.new_orbit(E1, K1);
+	    orb.new_orbit(E1, K1);
 	  
-	    double I1 = orb.get_action(0);
+	    I1 = orb.get_action(0);
 	  
 	    orb.new_orbit(E2, 0.5);
 	    double K2 = sqrt(j2)/orb.Jmax();
-	    if (kappa2) K2 *= K2;
 	    if (K2>1.0-KTOL) {
 	      numK1++;
 	      KOVER  = max<double>(KOVER, K2);
@@ -557,12 +606,9 @@ main(int argc, char **argv)
 	      K2 = KTOL;
 	    }
 	  
-	    if (kappa2)
-	      orb.new_orbit(E2, sqrt(K2));
-	    else
-	      orb.new_orbit(E2, K2);
+	    orb.new_orbit(E2, K2);
 
-	    double I2 = orb.get_action(0);
+	    double I2 = orb.get_action(1);
 	  
 	    if (myid==0) {
 	      if (WHICHEK & 1) {
@@ -598,32 +644,121 @@ main(int argc, char **argv)
 	    
 	    tout << KK << endl;
 	    
-	    KK = min<double>(KK, 1.0);
-	    KK = max<double>(KK, 0.0);
+	    KK = std::min<double>(KK, 1.0-KTOL);
+	    KK = std::max<double>(KK, KTOL);
 	  
-	    int ie1 = (int)floor( (E1 - Emin) / dE );
-	    ie1 = max<int>(ie1, 0);
-	    ie1 = min<int>(ie1, NUME-1);
-	    
-	    int ik1 = (int)floor( K1 / dK );
-	    ik1 = max<int>(ik1, 0);
-	    ik1 = min<int>(ik1, NUMK-1);
+	    double I1_1, I2_1, I1_2, I2_2;
+	    int i1, i2, i11, i12, i21, i22;
 
-	    int ie2 = (int)floor( (E2 - Emin) / dE );
-	    ie2 = max<int>(ie2, 0);
-	    ie2 = min<int>(ie2, NUME-1);
+	    if (actions) {
+
+	      // Get the actions
+	      orb.new_orbit(EE, KK);
+
+	      I1 = orb.get_action(0);
+	      I2 = orb.get_action(1);
+
+	      I1 = std::max<double>(I1, I1min);
+	      I1 = std::min<double>(I1, I1max);
 	  
-	    int ik2 = (int)floor( K2 / dK );
-	    ik2 = max<int>(ik2, 0);
-	    ik2 = min<int>(ik2, NUMK-1);
+	      I2 = std::max<double>(I2, I2min);
+	      I2 = std::min<double>(I2, I2max);
+	      
+	      if (WHICHEK == 1) {
+		I1_1 = I1;
+		I2_1 = I2;
+		orb.new_orbit(E2, K2);
+		I1_2 = orb.get_action(0);
+		I2_2 = orb.get_action(1);
+	      } else if (WHICHEK == 2) {
+		I1_2 = I1;
+		I2_2 = I2;
+		orb.new_orbit(E1, K1);
+		I1_1 = orb.get_action(0);
+		I2_1 = orb.get_action(1);
+	      } else {
+		orb.new_orbit(E1, K1);
+		I1_1 = orb.get_action(0);
+		I2_1 = orb.get_action(1);
+		orb.new_orbit(E2, K2);
+		I1_2 = orb.get_action(0);
+		I2_2 = orb.get_action(1);
+	      }
 
-	    int ie = (int)floor( (EE - Emin) / dE );
-	    ie = max<int>(ie, 0);
-	    ie = min<int>(ie, NUME-1);
+	      i1 = (int)floor( (I1 - I1min) / d1 );
+	      i1 = std::max<int>(i1, 0);
+	      i1 = std::min<int>(i1, NUM1-1);
 	    
-	    int ik = (int)floor( KK / dK );
-	    ik = max<int>(ik, 0);
-	    ik = min<int>(ik, NUMK-1);
+	      i2 = (int)floor( (I2 - I2min) / d2 );
+	      i2 = std::max<int>(i2, 0);
+	      i2 = std::min<int>(i2, NUM2-1);
+	    
+	      if (WHICHEK == 1) {
+		i11 = i1;
+		i21 = i2;
+
+		i12 = (int)floor( (I1_2 - I1min) / d1 );
+		i12 = std::max<int>(i12, 0);
+		i12 = std::min<int>(i12, NUM1-1);
+		
+		i22 = (int)floor( (I2_2 - I2min) / d2 );
+		i22 = std::max<int>(i22, 0);
+		i22 = std::min<int>(i22, NUM2-1);
+	      } else if (WHICHEK == 2) {
+		i12 = i1;
+		i22 = i2;
+
+		i11 = (int)floor( (I1_1 - I1min) / d1 );
+		i11 = std::max<int>(i11, 0);
+		i11 = std::min<int>(i11, NUM1-1);
+		
+		i21 = (int)floor( (I2_1 - I2min) / d2 );
+		i21 = std::max<int>(i21, 0);
+		i21 = std::min<int>(i21, NUM2-1);
+	      } else {
+		i11 = (int)floor( (I1_1 - I1min) / d1 );
+		i11 = std::max<int>(i11, 0);
+		i11 = std::min<int>(i11, NUM1-1);
+	    
+		i21 = (int)floor( (I2_1 - I2min) / d2 );
+		i21 = std::max<int>(i21, 0);
+		i21 = std::min<int>(i21, NUM2-1);
+		
+		i12 = (int)floor( (I1_2 - I1min) / d1 );
+		i12 = std::max<int>(i12, 0);
+		i12 = std::min<int>(i12, NUM1-1);
+	    
+		i22 = (int)floor( (I2_2 - I2min) / d2 );
+		i22 = std::max<int>(i22, 0);
+		i22 = std::min<int>(i22, NUM2-1);
+	      }
+	      
+	    } else {
+
+	      i11 = (int)floor( (E1 - Emin) / d1 );
+	      i11 = std::max<int>(i11, 0);
+	      i11 = std::min<int>(i11, NUM1-1);
+	    
+	      i21 = (int)floor( K1 / d2 );
+	      i21 = std::max<int>(i21, 0);
+	      i21 = std::min<int>(i21, NUM2-1);
+
+	      i12 = (int)floor( (E2 - Emin) / d1 );
+	      i12 = std::max<int>(i12, 0);
+	      i12 = std::min<int>(i12, NUM1-1);
+	  
+	      i22 = (int)floor( K2 / d2 );
+	      i22 = max<int>(i22, 0);
+	      i22 = min<int>(i22, NUM2-1);
+
+	      i1 = (int)floor( (EE - Emin) / d1 );
+	      i1 = max<int>(i1, 0);
+	      i1 = min<int>(i1, NUM1-1);
+	    
+	      i2 = (int)floor( KK / d2 );
+	      i2 = max<int>(i2, 0);
+	      i2 = min<int>(i2, NUM2-1);
+	    }
 	    
 	    double L1 = 0.0, L2 = 0.0;
 	    for (int k=0; k<3; k++) {
@@ -633,15 +768,15 @@ main(int argc, char **argv)
 	    L1 = sqrt(L1);
 	    L2 = sqrt(L2);
 	  
-	    histoC(ie, ik) += 1;
-	    histoM(ie, ik) += pp->mass;
-	    histoE(ie, ik) += pp->mass*(E1 - E2);
-	    histoJ(ie, ik) += pp->mass*(L1 - L2);
-	    histoI(ie, ik) += pp->mass*(I2 - I1);
-	    histoT(ie, ik) += pp->mass*L1;
+	    histoC(i1, i2) += 1;
+	    histoM(i1, i2) += pp->mass;
+	    histoE(i1, i2) += pp->mass*(E1 - E2);
+	    histoJ(i1, i2) += pp->mass*(L1 - L2);
+	    histoI(i1, i2) += pp->mass*(I2 - I1);
+	    histoT(i1, i2) += pp->mass*L1;
 	    
-	    histo1(ie1, ik1) += pp->mass;
-	    histo2(ie2, ik2) += pp->mass;
+	    histo1(i11, i21) += pp->mass;
+	    histo2(i12, i22) += pp->mass;
 	    
 	    if (LZDIST and myid==0) {
 	      if (KK>KMIN && KK<KMAX && EE>EMIN && EE<EMAX)
@@ -730,14 +865,16 @@ main(int argc, char **argv)
     if (reject) std::cout << "SphericalOrbit failures in " << reject
 			  << "/" << N << " states" << std::endl << std::endl;
     
-    Eigen::VectorXd Eavg  = Eigen::VectorXd::Zero(NUME);
-    Eigen::VectorXd Emass = Eigen::VectorXd::Zero(NUME);
+    Eigen::VectorXd I1avg  = Eigen::VectorXd::Zero(NUM1);
+    Eigen::VectorXd I2avg  = Eigen::VectorXd::Zero(NUM2);
+    Eigen::VectorXd I1mass = Eigen::VectorXd::Zero(NUM1);
+    Eigen::VectorXd I2mass = Eigen::VectorXd::Zero(NUM2);
 
-				// Delta DF
+    // Delta DF
     Eigen::MatrixXd histoF  = histo2 - histo1;
     Eigen::MatrixXd histoDF = histoF;
     
-				// Relative Delta DF
+    // Relative Delta DF
     for (size_t j=0; j<histoF.cols(); j++) { // Footron order...
       for (size_t i=0; i<histoF.rows(); i++) {
 	if (histo1(i, j)>0.0) histoDF(i, j) = histoF(i, j)/histo1(i, j);
@@ -745,76 +882,89 @@ main(int argc, char **argv)
       }
     }
 	
-
     double totMass = 0.0;
     
-    for (int i=0; i<NUME; i++) {
-      
-      for (int j=0; j<NUMK; j++) {
-	Eavg[i]  += histoT(i, j);
-	Emass[i] += histoM(i, j);
-	totMass  += histoM(i, j);
+    for (int i=0; i<NUM1; i++) {
+      for (int j=0; j<NUM2; j++) {
+	I1avg[i]  += histoT(i, j);
+	I1mass[i] += histoM(i, j);
+	totMass   += histoM(i, j);
       }
-      if (Emass[i] > 0.0) Eavg[i] /= Emass[i];
-      else                Eavg[i]  = 0.0;
+      if (I1mass[i] > 0.0) I1avg[i] /= I1mass[i];
+      else                 I1avg[i]  = 0.0;
     }
     
-    double mfac = dE*dK;
+    for (int j=0; j<NUM2; j++) {
+      for (int i=0; i<NUM1; i++) {
+	I2avg[j]  += histoT(i, j);
+	I2mass[j] += histoM(i, j);
+      }
+      if (I2mass[j] > 0.0) I2avg[j] /= I2mass[j];
+      else                 I2avg[j]  = 0.0;
+    }
+    
+    double mfac = d1*d2;
     
     if (meshgrid)
-      for (int k=0; k<9; k++) out[k] << std::setw(8) << NUME
-				     << std::setw(8) << NUMK
+      for (int k=0; k<9; k++) out[k] << std::setw(8) << NUM1
+				     << std::setw(8) << NUM2
 				     << std::endl;
     bool relJ = false;
     if (vm.count("relJ")) relJ = true;
 
-    for (int j=0; j<NUMK; j++) {
-      double KK = KTOL + 0.5*dK + dK*j;
-      for (int i=0; i<NUME; i++) {
-	double EE = Emin + 0.5*dE + dE*i;
+    for (int j=0; j<NUM2; j++) {
+      I2 = I2min + d2*(0.5+j);
 
-	orb.new_orbit(EE, KK);
-	if (relJ) histoJ(i, j) /= orb.Jmax();
+      for (int i=0; i<NUM1; i++) {
+	I1 = I1min + d1*(0.5+i);
+
+	if (not actions) orb.new_orbit(I1, I2);
+	if (not actions and relJ) histoJ(i, j) /= orb.Jmax();
 
 	if (histoC(i, j)>MINBIN && histoM(i, j)>0.0) {
 	  double jfac = 1.0;
-	  if (jaco) jfac = orb.Jmax()*orb.Jmax()*KK/orb.get_freq(1);
+	  if (not actions and jaco)
+	    jfac = orb.Jmax()*orb.Jmax()*I2/orb.get_freq(1);
 	  if (SPECIFIC) {
-	    p_rec(out[0], EE, KK, histoM(i, j)/jfac);
-	    p_rec(out[1], EE, KK, histoE(i, j)/histoM(i, j));
-	    p_rec(out[2], EE, KK, histoJ(i, j)/histoM(i, j));
-	    p_rec(out[3], EE, KK, histoT(i, j)/histoM(i, j));
-	    p_rec(out[4], EE, KK, histoI(i, j)/histoM(i, j));
-	    if (Eavg[i]>0.0)
-	      p_rec(out[5], EE, KK, histoJ(i, j)/histoM(i, j)/Eavg[i]);
+	    p_rec(out[0], I1, I2, histoM(i, j)/jfac);
+	    p_rec(out[1], I1, I2, histoE(i, j)/histoM(i, j));
+	    p_rec(out[2], I1, I2, histoJ(i, j)/histoM(i, j));
+	    p_rec(out[3], I1, I2, histoT(i, j)/histoM(i, j));
+	    p_rec(out[4], I1, I2, histoI(i, j)/histoM(i, j));
+	    if (I1avg[i]>0.0)
+	      p_rec(out[5], I1, I2, histoJ(i, j)/histoM(i, j)/I1avg[i]);
 	    else
-	      p_rec(out[5], EE, KK, 0);
+	      p_rec(out[5], I1, I2, 0);
 	  } else {
-	    p_rec(out[0], EE, KK, histoM(i, j)/jfac/mfac);
-	    p_rec(out[1], EE, KK, histoE(i, j)/mfac);
-	    p_rec(out[2], EE, KK, histoJ(i, j)/mfac);
-	    p_rec(out[3], EE, KK, histoT(i, j)/mfac);
-	    p_rec(out[4], EE, KK, histoI(i, j)/histoM(i, j));
-	    if (Eavg[i]>0.0)
-	      p_rec(out[5], EE, KK, histoJ(i, j)/Eavg[i]/mfac);
+	    p_rec(out[0], I1, I2, histoM(i, j)/mfac);
+	    p_rec(out[1], I1, I2, histoE(i, j)/mfac);
+	    p_rec(out[2], I1, I2, histoJ(i, j)/mfac);
+	    p_rec(out[3], I1, I2, histoT(i, j)/mfac);
+	    p_rec(out[4], I1, I2, histoI(i, j)/histoM(i, j));
+	    if (I1avg[i]>0.0)
+	      p_rec(out[5], I1, I2, histoJ(i, j)/I1avg[i]/mfac);
 	    else
-	      p_rec(out[5], EE, KK, 0.0);
+	      p_rec(out[5], I1, I2, 0.0);
 	  }
-	  p_rec(out[6], EE, KK, histoM(i, j)/histoC(i, j));
+	  p_rec(out[6], I1, I2, histoM(i, j)/histoC(i, j));
 	} else {
-	  for (int k=0; k<7; k++) p_rec(out[k], EE, KK, 0.0);
+	  for (int k=0; k<7; k++) p_rec(out[k], I1, I2, 0.0);
 	}
 
+	double jfac = 1.0;
+	if (jaco) {
+	  if (actions) jfac = 1.0/I2;
+	  else         jfac = orb.get_freq(1)/(orb.Jmax()*orb.Jmax()*I2);
+	}
+	  
 	if (totMass>0.0) {
-	  double jfac = 1.0;
-	  if (jaco) jfac = orb.Jmax()*orb.Jmax()*KK/orb.get_freq(1);
-	  p_rec(out[7], EE, KK, histoF(i, j)/totMass/jfac);
+	  p_rec(out[7], I1, I2, histoF(i, j)*jfac/totMass);
 	}
 	else {
-	  p_rec(out[7], EE, KK, 0.0);
+	  p_rec(out[7], I1, I2, 0.0);
 	}
 
-	p_rec(out[8], EE, KK, histoDF(i, j));
+	p_rec(out[8], I1, I2, histoDF(i, j));
       }
       if (not meshgrid) for (int k=0; k<9; k++) out[k] << endl;
     }
@@ -823,21 +973,21 @@ main(int argc, char **argv)
       string CUMFILE = OUTFILE + ".cum";
       ofstream outc(CUMFILE.c_str(), ios_base::out | ios_base::app);
       if (outc) {
-	Eigen::VectorXd delL = Eigen::VectorXd::Zero(NUME);
-	Eigen::VectorXd cumL = Eavg;
-	Eigen::VectorXd cumM = Emass;
-	for (int i=0; i<NUME; i++) {
-	  cumL[i] *= Emass[i];
-	  for (int j=0; j<NUMK; j++) delL[i] += histoJ(i, j);
+	Eigen::VectorXd delL = Eigen::VectorXd::Zero(NUM1);
+	Eigen::VectorXd cumL = I1avg;
+	Eigen::VectorXd cumM = I1mass;
+	for (int i=0; i<NUM1; i++) {
+	  cumL[i] *= I1mass[i];
+	  for (int j=0; j<NUM2; j++) delL[i] += histoJ(i, j);
 	}
-	for (int i=1; i<NUME; i++) {
+	for (int i=1; i<NUM1; i++) {
 	  cumL[i] += cumL[i-1];
 	  cumM[i] += cumM[i-1];
 	}
 	
-	for (int i=0; i<NUME; i++)
+	for (int i=0; i<NUM1; i++)
 	  outc << setw(18) << final_time
-	       << setw(18) << Emin+(0.5+i)*dE
+	       << setw(18) << I1min+(0.5+i)*d1
 	       << setw(18) << delL[i]
 	       << setw(18) << ( cumM[i]>0.0 ? delL[i]/cumM[i] : 0.0 )
 	       << setw(18) << ( cumL[i]>0.0 ? delL[i]/cumL[i] : 0.0 )
