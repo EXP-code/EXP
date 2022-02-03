@@ -108,3 +108,21 @@ ccmake ..
 
 make install
 
+# A note on multiple builds
+# -------------------------
+
+# CMake workflow is designed to permit multiple build types
+# (e.g. Debug, Release) in separate directories with the same source.
+# However, EXP generates a 'config.h' based on the available
+# packages. For example, if you want to generate a build hierarchy
+# like this:
+#
+# build/
+# build/debug
+# build/release
+#
+# with the different build types alone, the multiple build strategy
+# will work perfectly.  However, if Cuda is enabled in one build and
+# not the other, you will need to manually delete the top-level
+# config.h when changing build directories.  This will trigger a full
+# recompile.
