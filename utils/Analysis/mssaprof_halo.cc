@@ -55,7 +55,7 @@
 #include <foarray.H>
 
 #include <DataGrid.H>
-#include <cxxopts.H>
+#include <EXPini.H>
 #include <libvars.H>
 				// Program info string
 
@@ -413,7 +413,7 @@ main(int argc, char **argv)
   }
 
   bool DENS, verbose = false, mask = false, All, PCs = false;
-  std::string modelfile, coeffile;
+  std::string modelfile, coeffile, config;
   int stride;
 
   cxxopts::Options options(argv[0], overview);
@@ -446,6 +446,10 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(runtag)->default_value("run1"))
     ("s,stride", "stride for time output",
      cxxopts::value<int>(stride)->default_value("1"))
+    ("T,template", "Write template options file with current and all default values",
+     cxxopts::value<string>(config))
+    ("f,input", "Input parameter config file",
+     cxxopts::value<string>(config))
     ;
   
   cxxopts::ParseResult vm;
@@ -458,12 +462,35 @@ main(int argc, char **argv)
     exit(-1);
   }
 
+  // Write YAML template config file and exit
+  //
+  if (vm.count("template")) {
+    // Write template file
+    //
+    if (myid==0) SaveConfig(vm, options, "template.yaml");
+    MPI_Finalize();
+    return 0;
+  }
+
   if (vm.count("help")) {
     if (myid==0) std::cout << options.help() << std::endl;
     MPI_Finalize();
     return 0;
   }
  
+  // Read parameters fron the YAML config file
+  //
+  if (vm.count("input")) {
+    try {
+      vm = LoadConfig(options, config);
+    } catch (cxxopts::OptionException& e) {
+      if (myid==0) std::cout << "Option error in configuration file: "
+			     << e.what() << std::endl;
+      MPI_Finalize();
+      return 0;
+    }
+  }
+  
   if (vm.count("verbose")) verbose = true;
 
   if (vm.count("mask"))    mask = true;
