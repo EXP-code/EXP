@@ -217,8 +217,7 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(OUTFILE)->default_value("diffpsP"))
     ("f,input", "Input parameter config file",
      cxxopts::value<std::string>(config))
-    ("T,template", "Write template options file with current and all default values",
-     cxxopts::value<std::string>(config))
+    ("T,template", "Write template options file with current and all default values")
     ;
 
   cxxopts::ParseResult vm;
