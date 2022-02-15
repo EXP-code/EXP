@@ -40,7 +40,7 @@
 
 #include <config.h>		// CMake generated config
 
-#ifdef HAVE_LIBPNGPP
+#ifdef HAVE_LIBPNG
 #include <ColorGradient.H>	// For PNG images
 #endif
 
@@ -530,7 +530,7 @@ main(int argc, char **argv)
     U.push_back(u);
 
 
-#ifdef HAVE_LIBPNGPP
+#ifdef HAVE_LIBPNG
     if (PNG and myid==0) {
 
       const int minSize = 600;

@@ -57,3 +57,6 @@ target_include_directories(exputil PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(exputil PUBLIC ${common_LINKLIBS})
 
 install(TARGETS exputil DESTINATION lib)
+
+message(STATUS "HDF5 include dirs: ${HDF5_INCLUDE_DIRS}")
+message(STATUS "exputils include dirs: ${common_INCLUDE_DIRS}")
