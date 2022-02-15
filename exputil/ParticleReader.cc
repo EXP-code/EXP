@@ -6,6 +6,7 @@
 #include <yaml-cpp/yaml.h>	// YAML support
 
 #include <mpi.h>		// MPI support
+
 #include <H5Cpp.h>		// HDF5 C++ support
 
 #include <ParticleReader.H>
