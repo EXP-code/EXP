@@ -17,7 +17,7 @@
 #cmakedefine HAVE_LIBCUDA 1
 
 /* Defined if you have the have the png++ wrapper */
-#cmakedefine HAVE_LIBPNGPP @LIBPNGPP_FOUND@
+#cmakedefine HAVE_LIBPNG @PNG_FOUND@
 
 /* Define to 1 if you have the `slurm' library (-lslurm). */
 #cmakedefine HAVE_LIBSLURM @LIBSLURM_FOUND@

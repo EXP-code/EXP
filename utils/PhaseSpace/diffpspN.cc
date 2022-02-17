@@ -38,6 +38,7 @@
 #include <cmath>
 #include <cstdlib>
 
+#include <filesystem>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -216,8 +217,7 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(OUTFILE)->default_value("diffpsP"))
     ("f,input", "Input parameter config file",
      cxxopts::value<std::string>(config))
-    ("T,template", "Write template options file with current and all default values",
-     cxxopts::value<std::string>(config))
+    ("T,template", "Write template options file with current and all default values")
     ;
 
   cxxopts::ParseResult vm;
@@ -259,6 +259,8 @@ main(int argc, char **argv)
     }
   }
 
+  // Check for that size of file lists match
+  //
   if (INFILE1.size() != INFILE2.size()) {
     if (myid==0)
       std::cerr << "Input file vectors must have paired entries"
@@ -267,8 +269,32 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  std::ofstream tout;
-  if (myid==0) tout.open("tmp.ktest");
+  // Check for existence of files in INFILE1 and INFILE2 lists
+  //
+  unsigned bad = 0;
+  for (auto file : INFILE1) {
+    if (not std::filesystem::exists(std::filesystem::path(file))) bad++;
+  }
+
+  if (bad) {
+    if (myid==0)
+      std::cerr << "Could not open " << bad
+		<< " file(s) in INFILE1 list" << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
+  for (auto file : INFILE2) {
+    if (not std::filesystem::exists(std::filesystem::path(file))) bad++;
+  }
+
+  if (bad) {
+    if (myid==0)
+      std::cerr << "Could not open " << bad
+		<< " file(s) in INFILE2 list" << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
   bool jaco = false;
   if (vm.count("jaco")) jaco = true;
@@ -641,8 +667,6 @@ main(int argc, char **argv)
 	      EE = 0.5*(E1 + E2);
 	      KK = 0.5*(K1 + K2);
 	    }
-	    
-	    tout << KK << endl;
 	    
 	    KK = std::min<double>(KK, 1.0-KTOL);
 	    KK = std::max<double>(KK, KTOL);

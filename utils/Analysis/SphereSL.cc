@@ -10,7 +10,7 @@
 #include <config.h>
 #include <SphereSL.H>
 
-#ifdef HAVE_LIBPNGPP
+#ifdef HAVE_LIBPNG
 #include <ColorGradient.H>	// For PNG images
 #endif
 
@@ -486,7 +486,7 @@ Eigen::MatrixXd SphereSL::get_trimmed(double snr, double mass, bool Hall)
 
 
 
-#ifdef HAVE_LIBPNGPP
+#ifdef HAVE_LIBPNG
   if (NEV) {
 
     const int minSize = 600;
