@@ -24,6 +24,13 @@ endif()
 # Required compiler features
 add_compile_options(-D_REENTRANT)
 
+# Check that we are a git repository
+if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
+  message("We are a git repository, continuing . . .")
+else()
+  message(SEND_ERROR "You need to 'git clone ${CMAKE_PROJECT_HOMEPAGE_URL}'.  Please don't use the zip download.")
+endif()
+
 # Build options
 option(ENABLE_CUDA "Enable CUDA" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
