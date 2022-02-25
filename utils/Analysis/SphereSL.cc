@@ -627,7 +627,7 @@ void SphereSL::dens_pot_eval(double r, double costh, double phi,
 
   sl->get_dens(dend, r/rscl);
   sl->get_pot (potd, r/rscl);
-
+  
   legendre_R(lmax, costh, legs, dlegs);
 
   dens0 = fac1 * expcoef.row(0).dot(dend.row(0));
@@ -649,8 +649,8 @@ void SphereSL::dens_pot_eval(double r, double costh, double phi,
 	  sumD += expcoef(loffset+moffset, n) * dend(l, n);
 	  sumP += expcoef(loffset+moffset, n) * potd(l, n);
 	}
-	dens += fac1*legs(l, m)* sumD;
-	potl += fac1*legs(l, m)* sumP;
+	dens += fac1 * legs(l, m)* sumD;
+	potl += fac1 * legs(l, m)* sumP;
 
 	moffset++;
       }
@@ -666,8 +666,8 @@ void SphereSL::dens_pot_eval(double r, double costh, double phi,
 	  sumP1 += expcoef(loffset+moffset+1, n) * potd(l, n);
 	}
 
-	dens += fac1*legs(l, m)*( sumD0*cosm + sumD1*sinm );
-	potl += fac1*legs(l, m)*( sumP0*cosm + sumP1*sinm );
+	dens += fac1 * legs(l, m)*( sumD0*cosm + sumD1*sinm );
+	potl += fac1 * legs(l, m)*( sumP0*cosm + sumP1*sinm );
 
 	moffset +=2;
       }
@@ -718,9 +718,9 @@ void SphereSL::pot_force_eval(double r, double costh, double phi,
 	  sumD += expcoef(loffset+moffset, n) * dpot(l, n);
 	}
 
-	potl += fac1*legs(l, m) * sumP;
-	potr += fac1*legs(l, m) * sumD;
-	pott += fac1*dlegs(l, m)* sumP;
+	potl += fac1 * legs (l, m) * sumP;
+	potr += fac1 * legs (l, m) * sumD;
+	pott += fac1 * dlegs(l, m) * sumP;
 
 	moffset++;
       }
@@ -736,10 +736,10 @@ void SphereSL::pot_force_eval(double r, double costh, double phi,
 	  sumP1 += expcoef(loffset+moffset+1, n) * dpot(l, n);
 	}
 
-	potl += fac1*legs(l, m) * ( sumD0*cosm + sumD1*sinm );
-	potr += fac1*legs(l, m) * ( sumP0*cosm + sumP1*sinm );
-	pott += fac1*dlegs(l, m)* ( sumD0*cosm + sumD1*sinm );
-	potp += fac1*legs(l, m) * m * ( -sumP0*sinm + sumP1*cosm );
+	potl += fac1 * legs (l, m) * ( sumD0*cosm + sumD1*sinm );
+	potr += fac1 * legs (l, m) * ( sumP0*cosm + sumP1*sinm );
+	pott += fac1 * dlegs(l, m) * ( sumD0*cosm + sumD1*sinm );
+	potp += fac1 * legs (l, m) * (-sumP0*sinm + sumP1*cosm ) * m;
 
 	moffset +=2;
       }
@@ -797,9 +797,9 @@ void SphereSL::all_eval(double r, double costh, double phi,
 	  sumD += expcoef(loffset+moffset, n) * dpot(l, n);
 	}
 
-	den1 += fac1*legs(1, m) * sumR;
-	pot1 += fac1*legs(l, m) * sumP;
-	potr += fac1*legs(l, m) * sumD;
+	den1 += fac1*legs (l, m) * sumR;
+	pot1 += fac1*legs (l, m) * sumP;
+	potr += fac1*legs (l, m) * sumD;
 	pott += fac1*dlegs(l, m)* sumP;
 
 	moffset++;
@@ -819,11 +819,11 @@ void SphereSL::all_eval(double r, double costh, double phi,
 	  sumD1 += expcoef(loffset+moffset+1, n) * dpot(l, n);
 	}
 
-	den1 += fac1*legs(l, m)*  ( sumR0*cosm + sumR1*sinm );
-	pot1 += fac1*legs(l, m)*  ( sumP0*cosm + sumP1*sinm );
-	potr += fac1*legs(l, m)*  ( sumD0*cosm + sumD1*sinm );
-	pott += fac1*dlegs(l, m)* ( sumP0*cosm + sumP1*sinm );
-	potp += fac1*legs(l, m) * m * ( -sumP0*sinm + sumP1*cosm );
+	den1 += fac1 * legs (l, m) *  ( sumR0*cosm + sumR1*sinm );
+	pot1 += fac1 * legs (l, m) *  ( sumP0*cosm + sumP1*sinm );
+	potr += fac1 * legs (l, m) *  ( sumD0*cosm + sumD1*sinm );
+	pott += fac1 * dlegs(l, m) *  ( sumP0*cosm + sumP1*sinm );
+	potp += fac1 * legs (l, m) *  (-sumP0*sinm + sumP1*cosm ) * m;
 	
 	moffset +=2;
       }
