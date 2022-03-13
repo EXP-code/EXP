@@ -30,6 +30,9 @@ extern void exp_version();
 // Handlers defined in exputil/stack.cc
 //===========================================
 
+extern void print_trace(std::ostream& out,
+			const char *file, int line);
+
 extern void mpi_print_trace(const string& routine, const string& msg,
 			    const char *file, int line);
 
@@ -666,15 +669,37 @@ main(int argc, char** argv)
       }
 
     }
-
+    
   }
   catch (EXPException& e) {
 
     std::cerr << "Process " << myid << ": uncaught EXP exception" << std::endl
 	      << e.getErrorMessage() << std::endl;
+    if (VERBOSE) print_trace(std::cerr, 0, 0);
     sleep(5);
     std::cerr << std::flush;
-				// Try to force all process to exit!
+
+    // Try to force all process to exit!
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
+  catch (std::runtime_error& e) {
+    std::cerr << "Process " << myid << ": uncaught std exception" << std::endl
+	      << e.what() << std::endl;
+    if (VERBOSE) print_trace(std::cerr, 0, 0);
+    sleep(5);
+    std::cerr << std::flush;
+
+    // Try to force all process to exit!
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
+  catch (std::string& msg) {
+    std::cerr << "Process " << myid << ": uncaught str exception" << std::endl
+	      << msg << std::endl;
+    sleep(5);
+    if (VERBOSE) print_trace(std::cerr, 0, 0);
+    std::cerr << std::flush;
+
+    // Try to force all process to exit!
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
 
