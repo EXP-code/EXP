@@ -86,6 +86,7 @@ main(int argc, char **argv)
   
   options.add_options()
     ("h,help", "Print this help message")
+    ("v,verbose", "Print additional diagnostic information")
     ("T,template", "Write template options file with current and all default values")
     ("c,config", "Parameter configuration file",
      cxxopts::value<string>(config))
@@ -241,7 +242,7 @@ main(int argc, char **argv)
     }
   }
   
-  if (vm.count("VERBOSE")) VERBOSE = true;
+  if (vm.count("verbose")) VERBOSE = true;
   else                     VERBOSE = false;
 
   // Prepare output streams and create new files
