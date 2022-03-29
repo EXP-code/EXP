@@ -486,7 +486,7 @@ void SLGridCyl::write_cached_table(void)
     }
   }
 
-  std::cerr << "SLGridCyl::write_cached_table: done!!" << std::endl;
+  std::cout << "---- SLGridCyl::write_cached_table: done!!" << std::endl;
   return ;
 }
 
@@ -1909,7 +1909,7 @@ void SLGridSph::write_cached_table(void)
 	out.write((char *)&table[l].ef(j, i), sizeof(double));
   }
 
-  std::cerr << "SLGridSph::write_cached_table: done!!" << std::endl;
+  std::cout << "---- SLGridSph::write_cached_table: done!!" << std::endl;
   return ;
 }
 
@@ -3073,7 +3073,7 @@ void SLGridSlab::write_cached_table(void)
     }
   }
 
-  std::cerr << "SLGridSlab::write_cached_table: done!!" << std::endl;
+  std::cout << "---- SLGridSlab::write_cached_table: done!!" << std::endl;
   return ;
 }
 
