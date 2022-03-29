@@ -826,7 +826,7 @@ void Component::initialize(void)
     initialize_com_system();
 
     if (myid==0) {
-      cout << " Component <" <<  name 
+      cout << "---- Component <" <<  name 
 	   << ">: center of mass system is *ON*, rtrunc=" << rtrunc;
       if (consp) cout << ", conserving com momentum [iattr #=" << tidal << "]";
       cout << ", computed COM system:";
@@ -1002,7 +1002,7 @@ void Component::initialize(void)
     
     if (myid==0) {
       if (EJ & Orient::CENTER) {
-	cout << "Component <" << name << ">: EJ center finding is *ON*";
+	cout << "---- Component <" << name << ">: EJ center finding is *ON*";
 	cout << " with damping=" << EJdamp;
 	if (EJkinE)   cout << ", using particle kinetic energy";
 	if (EJext)    cout << ", using external potential";
@@ -1010,7 +1010,7 @@ void Component::initialize(void)
 	cout << endl;
       }
       if (EJ & Orient::AXIS) {
-	cout << "Component <" << name << ">: AXIS orientation is *ON*";
+	cout << "---- Component <" << name << ">: AXIS orientation is *ON*";
 	if (EJdryrun) cout << ", dryrun";
 	cout << endl;
       }
@@ -1042,7 +1042,7 @@ void Component::initialize(void)
   }
 
   if (myid == 0) {		// Center status
-    cout << "Component <" << name;
+    cout << "---- Component <" << name;
     if (restart)
       cout << ">: current center on restart: x, y, z: " 
 	   << center[0] << ", " 
@@ -1060,7 +1060,7 @@ void Component::initialize(void)
 	   << 0.0 << std::endl;
     }
 
-    cout << "Component <" << name << ">: ";
+    cout << "---- Component <" << name << ">: ";
 
     if (nlevel<0)
       cout << "no multistep level reporting";
@@ -1088,14 +1088,14 @@ void Component::initialize_cuda()
     //
     if (cudaDevice>=0) {
 
-      std::cout << "Component <" << name << ">: "
+      std::cout << "---- Component <" << name << ">: "
 		<< "on CUDA device on Rank [" << myid
 		<< "] on [" << processor_name << "]"
 		<< std::endl;
 
       cuda_initialize();
     } else {
-      std::cout << "Component <" << name << ">: "
+      std::cout << "---- Component <" << name << ">: "
 		<< "could not find an initialized CUDA device on Rank ["
 		<< myid	<< "] on [" << processor_name << "] . . . "
 		  << "this will cause a failure" << std::endl;
@@ -1492,7 +1492,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
     unsigned icount;
     for (int n=1; n<numprocs; n++) {
 
-      cout << "Component [" << name << "]: loading node <" << n << ">\n";
+      cout << "---- Component [" << name << "]: loading node <" << n << ">\n";
 
       pf->ShipParticles(n, 0, nbodies_table[n]);
 
@@ -1833,7 +1833,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
     unsigned icount;
     for (int n=1; n<numprocs; n++) {
 
-      cout << "Component [" << name << "]: loading node <" << n << ">\n";
+      cout << "---- Component [" << name << "]: loading node <" << n << ">\n";
 
       pf->ShipParticles(n, 0, nbodies_table[n]);
 

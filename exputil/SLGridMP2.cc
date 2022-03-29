@@ -402,7 +402,7 @@ int SLGridCyl::read_cached_table(void)
   double RMIN, RMAX, L, AA, SCL;
 
   if (myid==0)
-    std::cout << "SLGridCyl::read_cached_table: trying to read cached table . . ."
+    std::cout << "---- SLGridCyl::read_cached_table: trying to read cached table . . ."
 	      << std::endl;
 
   in.read((char *)&MMAX, sizeof(int));		if(!in || MMAX!=mmax) return 0;
@@ -447,7 +447,7 @@ int SLGridCyl::read_cached_table(void)
   }
 
   if (myid==0)
-    cerr << "SLGridCyl::read_cached_table: Success!!" << endl;
+    cerr << "---- SLGridCyl::read_cached_table: Success!!" << endl;
   return 1;
 }
 
@@ -1830,7 +1830,7 @@ int SLGridSph::read_cached_table(void)
   double RMIN, RMAX, SCL;
 
   if (myid==0) 
-    std::cerr << "SLGridSph::read_cached_table: trying to read cached table . . ."
+    std::cerr << "---- SLGridSph::read_cached_table: trying to read cached table . . ."
 	      << std::endl;
 
   in.read((char *)&LMAX, sizeof(int));		if(!in || LMAX!=lmax) return 0;
@@ -1873,7 +1873,7 @@ int SLGridSph::read_cached_table(void)
   }
 
   if (myid==0)
-    std::cerr << "SLGridSph::read_cached_table: Success!!" << std::endl;
+    std::cerr << "---- SLGridSph::read_cached_table: Success!!" << std::endl;
 
   return 1;
 }
@@ -2978,7 +2978,7 @@ int SLGridSlab::read_cached_table(void)
   double ZMAX, HH, LL, zbeg, zend;
 
   if (myid==0)
-    std::cerr << "SLGridSlab::read_cached_table: trying to read cached table . . ."
+    std::cerr << "---- SLGridSlab::read_cached_table: trying to read cached table . . ."
 	      << std::endl;
 
   in.read((char *)&NUMK, sizeof(int));		if(!in || NUMK!=numk) return 0;
@@ -3035,7 +3035,7 @@ int SLGridSlab::read_cached_table(void)
   }
 
   if (myid==0)
-    std::cerr << "SLGridSlab::read_cached_table: Success!!" << std::endl;
+    std::cerr << "---- SLGridSlab::read_cached_table: Success!!" << std::endl;
 
   return 1;
 }

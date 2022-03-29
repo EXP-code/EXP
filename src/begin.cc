@@ -184,7 +184,7 @@ void initialize_cuda()
 	cuda_safe_call_mpi(cudaSetDevice(cudaGlobalDevice), __FILE__, __LINE__,
 			   myid, "cudaSetDevice failure");
 
-	std::cout << "Process <" << pid << ">: "
+	std::cout << "---- Process <" << pid << ">: "
 		  << "setting CUDA device on Rank [" << myid
 		  << "] on [" << processor_name << "] to ["
 		  << cudaGlobalDevice << "/" << deviceCount << "]"
@@ -192,7 +192,7 @@ void initialize_cuda()
 
       } else {
 	
-	std::cout << "Component <" << pid << ">: "
+	std::cout << "---- Component <" << pid << ">: "
 		  << "could not set CUDA device on Rank [" << myid
 		  << "] on [" << processor_name << "] . . . "
 		  << "this will cause a failure" << std::endl;
