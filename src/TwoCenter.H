@@ -94,9 +94,10 @@ public:
   vector<double> outer;
 
   /** Constructor
+      \param c0 is the instantiating caller (a Component)
       \param line passes any parameters (rsphSL, rmin and numr) 
   */
-  TwoCenter(const YAML::Node& conf);
+  TwoCenter(Component* c0, const YAML::Node& conf);
 
   //! Destructor
   ~TwoCenter();

@@ -4,7 +4,7 @@
 
 #include <EJcom.H>
 
-EJcom::EJcom(const YAML::Node& conf) : TwoCenter(conf)
+EJcom::EJcom(Component* c0, const YAML::Node& conf) : TwoCenter(c0, conf)
 {
   id = "EJcom";
 

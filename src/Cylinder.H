@@ -320,6 +320,7 @@ public:
   //@}
 
   //! Constructor
+  //! \param c0 is the instantiating caller (a Component)
   //! \param conf contains the parameters passed to the method
   //! \param m is the MixtureBasis for a multicenter expansion
   //! 
@@ -358,7 +359,7 @@ public:
   //! \param cmapR selects the radial coordinate mapping (default: 2, power mapping)
   //! \param cmapZ selects the vertical coordinate mapping (default: 1, sinh mapping)
   //!
-  Cylinder(const YAML::Node& conf, MixtureBasis *m=0);
+  Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m=0);
 
   //! Destructor
   virtual ~Cylinder();

@@ -53,7 +53,8 @@ double dcond(double R, double z, double phi, int M)
 }
 
 
-Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
+Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
+  Basis(c0, conf)
 {
 #if HAVE_LIBCUDA==1
   if (m) {

@@ -1,7 +1,7 @@
 #include "expand.H"
 #include <CBrock.H>
 
-CBrock::CBrock(const YAML::Node& conf, MixtureBasis *m) : SphericalBasis(conf, m)
+CBrock::CBrock(Component* c0, const YAML::Node& conf, MixtureBasis *m) : SphericalBasis(c0, conf, m)
 {
   id = "Clutton-Brock sphere";
 

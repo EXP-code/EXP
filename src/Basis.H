@@ -12,7 +12,7 @@ protected:
 public:
 
   //! Constructor
-  Basis(const YAML::Node& conf);
+  Basis(Component* c0, const YAML::Node& conf);
 
   //! All derived classes must provide a method to compute the force
   virtual void determine_acceleration_and_potential(void) = 0;

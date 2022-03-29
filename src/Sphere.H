@@ -104,6 +104,7 @@ private:
 public:
 				// Global parameters
   /** Constructor
+      @param c0 is the instantiating caller (Component)
       @param conf passes any parameters to basis instance (rsphSL, rmin and numr
       @param m allows the spherical basis to be used for multiple center expansions 
       
@@ -117,7 +118,7 @@ public:
       @param cachename is the name for the SL grid cache file
       @param dtime is the interval between basis recomputations (<=0 for never)
   */
-  Sphere(const YAML::Node& conf, MixtureBasis* m=0);
+  Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m=0);
 
   //! Destructor
   virtual ~Sphere();

@@ -1,6 +1,6 @@
 #include <Shells.H>
 
-Shells::Shells(const YAML::Node& conf) : PotAccel(conf)
+Shells::Shells(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   nsample         = -1;
   nselect         = -1;

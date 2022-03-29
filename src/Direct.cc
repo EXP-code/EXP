@@ -7,7 +7,7 @@ static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 static const int MSGTAG=103;
 
-Direct::Direct(const YAML::Node& conf) : PotAccel(conf)
+Direct::Direct(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   // Standard softening
   //

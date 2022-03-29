@@ -9,7 +9,8 @@
 #include <interp.H>
 
 
-Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m)
+Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
+  SphericalBasis(c0, conf, m)
 {
   id = "Sphere SL";
 				// Defaults

@@ -30,9 +30,10 @@ private:
 public:
 
   //! Constructor
+  /*! \param c0 is the instantiating component */
   /*! \param line is the parameter string */
   /*! \param m is the MixtureBasis for a multicenter expansion */
-  CBrock(const YAML::Node& conf, MixtureBasis* m=0);
+  CBrock(Component* c0, const YAML::Node& conf, MixtureBasis* m=0);
 
 };
 

@@ -300,7 +300,7 @@ public:
   static bool NewCoefs;
 
   //! Constructor (<code>line</code> contains the paramter list)
-  SphericalBasis(const YAML::Node& conf, MixtureBasis *m=0);
+  SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m=0);
 
   //! Copy constructor
   SphericalBasis(const SphericalBasis& p);

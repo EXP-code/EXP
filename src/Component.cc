@@ -748,43 +748,43 @@ void Component::configure(void)
   // Instantiate the force ("reflection" by hand)
   //
   if ( !id.compare("bessel") ) {
-    force = new Bessel(fconf);
+    force = new Bessel(this, fconf);
   }
   else if ( !id.compare("c_brock") ) {
-    force = new CBrock(fconf);
+    force = new CBrock(this, fconf);
   }
   else if ( !id.compare("c_brock_disk") ) {
-    force = new CBrockDisk(fconf);
+    force = new CBrockDisk(this, fconf);
   }
   else if ( !id.compare("hernq") ) {
-    force = new Hernquist(fconf);
+    force = new Hernquist(this, fconf);
   }
   else if ( !id.compare("sphereSL") ) {
-    force = new Sphere(fconf);
+    force = new Sphere(this, fconf);
   }
   else if ( !id.compare("EJcom") ) {
-    force = new EJcom(fconf);
+    force = new EJcom(this, fconf);
   }
   else if ( !id.compare("cube") ) {
-    force = new Cube(fconf);
+    force = new Cube(this, fconf);
   }
   else if ( !id.compare("slab") ) {
-    force = new Slab(fconf);
+    force = new Slab(this, fconf);
   }
   else if ( !id.compare("slabSL") ) {
-    force = new SlabSL(fconf);
+    force = new SlabSL(this, fconf);
   }
   else if ( !id.compare("cylinder") ) {
-    force = new Cylinder(fconf);
+    force = new Cylinder(this, fconf);
   }
   else if ( !id.compare("direct") ) {
-    force = new Direct(fconf);
+    force = new Direct(this, fconf);
   }
   else if ( !id.compare("shells") ) {
-    force = new Shells(fconf);
+    force = new Shells(this, fconf);
   }
   else if ( !id.compare("noforce") ) {
-    force = new NoForce(fconf);
+    force = new NoForce(this, fconf);
   }
   else {
     string msg("I don't know about the force: ");
@@ -793,8 +793,6 @@ void Component::configure(void)
   }
 
   dim = force->dof;
-
-  force->RegisterComponent(this);
 }
 
 

@@ -9,7 +9,7 @@
 #include <MixtureBasis.H>
 #include <CBrockDisk.H>
 
-CBrockDisk::CBrockDisk(const YAML::Node& conf, MixtureBasis* m) :  AxisymmetricBasis(conf)
+CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :  AxisymmetricBasis(c0, conf)
 {
   id              = "Clutton-Brock two-dimensional disk";
 

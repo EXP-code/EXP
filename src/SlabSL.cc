@@ -6,7 +6,7 @@
 
 #include <SlabSL.H>
 
-SlabSL::SlabSL(const YAML::Node& conf) : PotAccel(conf)
+SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Slab (Sturm-Liouville)";
   NGRID = 100;

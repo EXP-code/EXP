@@ -75,9 +75,10 @@ private:
 public:
 
   //! Constructor
+  //! \param c0 is the instantiating caller (Component)
   //! \param line is the parameter string
   //! \param m is the MixtureBasis for a multicenter expansion
-  CBrockDisk(const YAML::Node& conf, MixtureBasis* m=0);
+  CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m=0);
 
   //! Destructor
   virtual ~CBrockDisk(void);
