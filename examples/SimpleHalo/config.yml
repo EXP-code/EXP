@@ -67,7 +67,9 @@ External:
 
 # ------------------------------------------------------------------------
 # List of interations as name1 : name2 map entries
-# This can be empty (or missing)
+# This can be empty (or missing).  By default, all components will
+# interact unless interactions are listed below.  This behavior can
+# be inverted using the 'allcouples: false' flag in the 'Global' map
 # ------------------------------------------------------------------------
 Interaction:
 
