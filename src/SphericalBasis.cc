@@ -139,9 +139,16 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
 
       if (conf["coefCompute"]) play_cnew = conf["coefCompute"].as<bool>();
 
-    }
+      if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
 
-    if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
+      std::cout << "---- Playback is ON for Component " << component->name
+		<< " using Force " << component->id << std::endl;
+      if (coefMaster)
+	std::cout << "---- Playback will use MPI master" << std::endl;
+
+      if (play_cnew)
+	std::cout << "---- Coefficients will be computed from particles on playback" << std::endl;
+    }
 
   }
   catch (YAML::Exception & error) {
@@ -195,7 +202,6 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
     
   expcoef .resize((Lmax+1)*(Lmax+1));
   expcoef1.resize((Lmax+1)*(Lmax+1));
-  if (play_back)  expcoefP.resize((Lmax+1)*(Lmax+1));
   
   for (auto & v : expcoef ) v = std::make_shared<Eigen::VectorXd>(nmax);
   for (auto & v : expcoef1) v = std::make_shared<Eigen::VectorXd>(nmax);
@@ -536,9 +542,11 @@ void SphericalBasis::determine_coefficients_playback(void)
   if (tnow <= lastPlayTime) return;
   lastPlayTime = tnow;
 
-  // Set coefficient matrix size
-  expcoefP.resize((Lmax+1)*(Lmax+1));
-  for (auto & v : expcoefP) v = std::make_shared<Eigen::VectorXd>(nmax);
+  // Set coefficient matrix size (only do it once)
+  if (expcoefP.size()==0) {
+    expcoefP.resize((Lmax+1)*(Lmax+1));
+    for (auto & v : expcoefP) v = std::make_shared<Eigen::VectorXd>(nmax);
+  }
 
   if (coefMaster) {
 

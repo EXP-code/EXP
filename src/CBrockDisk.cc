@@ -126,9 +126,16 @@ void CBrockDisk::initialize(void)
 
       if (conf["coefCompute"]) play_cnew = conf["coefCompute"].as<bool>();
 
+      if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
+
+      std::cout << "---- Playback is ON for Component " << component->name
+		<< " using Force " << component->id << std::endl;
+      if (coefMaster)
+	std::cout << "---- Playback will use MPI master" << std::endl;
+      if (play_cnew)
+	std::cout << "---- Coefficients will be computed from particles on playback" << std::endl;
     }
 
-    if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in CBrockDisk: "

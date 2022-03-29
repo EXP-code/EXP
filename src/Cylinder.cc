@@ -433,9 +433,18 @@ void Cylinder::initialize()
       if (play_cnew) P1 = getDataPtr();
 
       play_back = true;
-    }
 
-    if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
+      if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
+
+      std::cout << "---- Playback is ON for Component " << component->name
+		<< " using Force " << component->id << std::endl;
+
+      if (coefMaster)
+	std::cout << "---- Playback will use MPI master" << std::endl;
+
+      if (play_cnew)
+	std::cout << "---- Coefficients will be computed from particles on playback" << std::endl;
+    }
 
   }
   catch (YAML::Exception & error) {
