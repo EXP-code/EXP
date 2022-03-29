@@ -147,7 +147,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 	std::cout << "---- Playback will use MPI master" << std::endl;
 
       if (play_cnew)
-	std::cout << "---- Coefficients will be computed from particles on playback" << std::endl;
+	std::cout << "---- New coefficients will be computed from particles on playback" << std::endl;
     }
 
   }
