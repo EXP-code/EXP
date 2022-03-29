@@ -72,6 +72,9 @@ protected:
   //! Coefficient play back flag (true cached coefficients in use)
   bool play_back;
 
+  //! Compute new coefficients during play back (false by default)
+  bool play_cnew;
+
   //! Current level for multistepping
   unsigned mlevel;
 
@@ -203,8 +206,8 @@ public:
   //! Get current length scale
   virtual double getScale() { return scale; }
 
-  //! Check whether play back is active
-  bool PlayBack() { return play_back; }
+  //! Check whether coeffcients are not available
+  bool NoCoefs() { return play_back and !play_cnew; }
 
   //! For timing the fraction spent in threaded force methods
   //@{

@@ -63,9 +63,9 @@ void OutCoef::initialize()
 
 void OutCoef::Run(int n, int mstep, bool last)
 {
-  // No coefficient output if 'playback'
+  // Coefficients are not available for output (pure playback mode)
   //
-  if (tcomp->force->PlayBack())        return;
+  if (tcomp->force->NoCoefs())         return;
 
   // No coefficient output defined for this force
   //

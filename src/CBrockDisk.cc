@@ -26,8 +26,8 @@ CBrockDisk::CBrockDisk(const YAML::Node& conf, MixtureBasis* m) :  AxisymmetricB
 
   initialize();
 
-  expcoef .resize(2*(Lmax+1), nmax);
-  expcoef1.resize(2*(Lmax+1), nmax);
+  expcoef  = std::make_shared<Eigen::MatrixXd>(2*(Lmax+1), nmax);
+  expcoef1 = std::make_shared<Eigen::MatrixXd>(2*(Lmax+1), nmax);
 
   expcoef0.resize(nthrds);
   for (auto & v : expcoef0) v.resize((Lmax+1)*(Lmax+1), nmax);
@@ -87,6 +87,48 @@ void CBrockDisk::initialize(void)
     if (conf["Lmax"])            Lmax   = conf["Lmax"].as<int>();
     if (conf["nmax"])            nmax   = conf["nmax"].as<int>();
     if (conf["self_consistent"]) self_consistent = conf["self_consistent"].as<bool>();
+    if (conf["playback"]) {
+      std::string file = conf["playback"].as<std::string>();
+				// Check the file exists
+      {
+	std::ifstream test(file);
+	if (not test) {
+	  std::cerr << "CBrockDisk: process " << myid << " cannot open <"
+		    << file << "> for reading" << std::endl;
+	  MPI_Finalize();
+	  exit(-1);
+	}
+      }
+
+      playback = std::make_shared<TwoDCoefs>(file);
+
+      if (playback->nmax != nmax) {
+	if (myid==0) {
+	  std::cerr << "CBrockDisk: nmax for playback [" << playback->nmax
+		    << "] does not match specification [" << nmax << "]"
+		    << std::endl;
+	}
+	MPI_Finalize();
+	exit(-1);
+      }
+      
+      if (playback->Lmax != Lmax) {
+	if (myid==0) {
+	  std::cerr << "CBrockDisk: Lmax for playback [" << playback->Lmax
+		    << "] does not match specification [" << Lmax << "]"
+		    << std::endl;
+	}
+	MPI_Finalize();
+	exit(-1);
+      }
+
+      play_back = true;
+
+      if (conf["coefPlayBack"]) play_cnew = conf["coefPlayBack"].as<bool>();
+
+    }
+
+    if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in CBrockDisk: "
@@ -144,6 +186,32 @@ void CBrockDisk::get_acceleration_and_potential(Component* curComp)
 
 void CBrockDisk::determine_coefficients(void)
 {
+  if (play_back) {
+    determine_coefficients_playback();
+    if (play_cnew) determine_coefficients_particles();
+  } else {
+    determine_coefficients_particles();
+  }
+}
+
+void CBrockDisk::determine_coefficients_playback(void)
+{
+  // Do we need new coefficients?
+  if (tnow <= lastPlayTime) return;
+  lastPlayTime = tnow;
+
+  if (coefMaster) {
+
+    if (myid==0) expcoefP = playback->interpolate(tnow);
+
+    MPI_Bcast(expcoefP->data(), expcoefP->size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  } else {
+    expcoefP = playback->interpolate(tnow);
+  }
+}
+
+void CBrockDisk::determine_coefficients_particles(void)
+{
   int compute;
 
   if (!self_consistent && !initializing) return;
@@ -151,8 +219,9 @@ void CBrockDisk::determine_coefficients(void)
   if (pcavar) compute = !(this_step%npca);
 
 				// Clean
-  expcoef .setZero();
-  expcoef1.setZero();
+  std::fill(expcoef ->data(), expcoef ->data() + expcoef ->size(), 0.0);
+  std::fill(expcoef1->data(), expcoef1->data() + expcoef1->size(), 0.0);
+
   for (auto & v : expcoef0) v.setZero();
   if (pcavar && compute) {
     for (auto & v : cc1) v.setZero();
@@ -167,15 +236,15 @@ void CBrockDisk::determine_coefficients(void)
     use1 += use[i];
     for (int l=0; l<=Lmax*(Lmax+2); l++)
       for (int n=0; n<nmax; n++)
-	expcoef1(l, n) += expcoef0[i](l, n);
+	(*expcoef1)(l, n) += expcoef0[i](l, n);
   }
 
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   used = use0;
 
   if (!pcavar) {
-    MPI_Allreduce ( expcoef1.data(), expcoef.data(),
-		    expcoef.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce ( expcoef1->data(), expcoef->data(),
+		    expcoef->size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   }
 
   if (pcavar) {
@@ -283,7 +352,11 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
 
 void CBrockDisk::determine_acceleration_and_potential(void)
 {
+  if (play_back) std::swap(expcoefP, expcoef);
+
   exp_thread_fork(false);
+
+  if (play_back) std::swap(expcoef, expcoefP);
 }
 
 void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
@@ -338,7 +411,7 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
 
     sinecosine_R(Lmax, phi, cosm[id], sinm[id]);
     get_dpotl(Lmax, nmax, rs, potd[id], dpot[id]);
-    get_pot_coefs_safe(0, expcoef.row(0), p, dp, potd[id], dpot[id]);
+    get_pot_coefs_safe(0, expcoef->row(0), p, dp, potd[id], dpot[id]);
 
     potl = p;
     potr = dp;
@@ -347,8 +420,8 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
     
     for (int l=1; l<=Lmax; l++) {
 
-      get_pot_coefs_safe(l, expcoef.row(2*l - 1), pc, dpc, potd[id], dpot[id]);
-      get_pot_coefs_safe(l, expcoef.row(2*l    ), ps, dps, potd[id], dpot[id]);
+      get_pot_coefs_safe(l, expcoef->row(2*l - 1), pc, dpc, potd[id], dpot[id]);
+      get_pot_coefs_safe(l, expcoef->row(2*l    ), ps, dps, potd[id], dpot[id]);
       potl += pc*cosm[id][l] + ps*sinm[id][l];
       potr += dpc*cosm[id][l] + dps*sinm[id][l];
       potp += (-pc*sinm[id][l] + ps*cosm[id][l])*l;
@@ -444,9 +517,9 @@ void CBrockDisk::determine_fields_at_point_polar
   get_dens(Lmax, nmax, rs, dend);
   get_dpotl(Lmax, nmax, rs, potd[0], dpot[0]);
 
-  get_dens_coefs(0, expcoef.row(0), dens);
+  get_dens_coefs(0, expcoef->row(0), dens);
 
-  get_pot_coefs(0, expcoef.row(0), p, dp);
+  get_pot_coefs(0, expcoef->row(0), p, dp);
 
   potl = p;
   potr = dp;
@@ -459,12 +532,12 @@ void CBrockDisk::determine_fields_at_point_polar
     
   for (l=1; l<=Lmax; l++) {
     
-    get_dens_coefs(l,expcoef.row(2*l - 1), pc);
-    get_dens_coefs(l,expcoef.row(2*l    ), ps);
+    get_dens_coefs(l,expcoef->row(2*l - 1), pc);
+    get_dens_coefs(l,expcoef->row(2*l    ), ps);
     dens += pc*cosm[0][l] + ps*sinm[0][l];
     
-    get_pot_coefs(l,expcoef.row(2*l - 1), pc, dpc);
-    get_pot_coefs(l,expcoef.row(2*l    ), ps, dps);
+    get_pot_coefs(l,expcoef->row(2*l - 1), pc, dpc);
+    get_pot_coefs(l,expcoef->row(2*l    ), ps, dps);
     potl += pc*cosm[0][l] + ps*sinm[0][l];
     potr += dpc*cosm[0][l] + dps*sinm[0][l];
     potp += (-pc*sinm[0][l] + ps*cosm[0][l])*l;
@@ -687,23 +760,40 @@ double CBrockDisk::norm(int n, int m)
 
 void CBrockDisk::dump_coefs(ostream& out)
 {
-  ostringstream sout;
-  sout << id;
-
-  char buf[64];
-  for (unsigned i=0; i<64; i++) {
-    if (i<sout.str().length()) 
-      buf[i] = sout.str().c_str()[i];
-    else 
-      buf[i] = '\0';
-  }
+  // This is a node of simple {key: value} pairs.  More general
+  // content can be added as needed.
+  //
+  YAML::Node node;
   
-  out.write((char *)&buf, 64*sizeof(char));
+  node["id"    ] = id;
+  node["time"  ] = tnow;
+  node["scale" ] = scale;
+  node["rmax"  ] = rmax;
+  node["nmax"  ] = nmax;
+  node["lmax"  ] = Lmax;
 
-  out.write((char *)&tnow, sizeof(double));
-  out.write((char *)&scale, sizeof(double));
-  out.write((char *)&nmax, sizeof(int));
-  out.write((char *)&Lmax, sizeof(int));
-  out.write((char *)expcoef.data(), expcoef.size()*sizeof(double));
+  // Serialize the node
+  //
+  YAML::Emitter y; y << node;
+  
+  // Get the size of the string
+  //
+  unsigned int hsize = strlen(y.c_str());
+  
+  // Write magic #
+  //
+  out.write(reinterpret_cast<const char *>(&cmagic),   sizeof(unsigned int));
+  
+  // Write YAML string size
+  //
+  out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+  
+  // Write YAML string
+  //
+  out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+
+  // Write coefficient matrix
+  //
+  out.write((char *)expcoef->data(), expcoef->size()*sizeof(double));
 }
 

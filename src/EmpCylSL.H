@@ -677,10 +677,10 @@ public:
 		 const std::vector<double>& cos1,
 		 const std::vector<double>& sin1, bool zero=true);
 
-  //! Set coefficients from Vectors
+  //! Get coefficients from Vectors
   void get_coefs(int mm, Eigen::VectorXd& cos1, Eigen::VectorXd& sin1);
 
-  //! Set coefficients from std::vectors
+  //! Get coefficients from std::vectors
   void get_coefs(int mm,
 		 std::vector<double>& cos1,
 		 std::vector<double>& sin1);

@@ -138,6 +138,10 @@ private:
 
   void determine_coefficients();
 
+  void determine_coefficients_playback();
+
+  void determine_coefficients_particles();
+
   void determine_coefficients_eof();
 
   void determine_acceleration_and_potential();
@@ -265,6 +269,48 @@ protected:
 
   //! Last playback coefficient evaluation time
   double lastPlayTime;
+
+  //! Save data pointers
+  CylindricalCoefs::DataPtr P, P1;
+
+  //! Assign storage for coefficients
+  CylindricalCoefs::DataPtr getDataPtr()
+  {
+    CylindricalCoefs::DataPtr ret = std::make_shared<CylindricalCoefs::Dpair>();
+    std::get<0>(*ret).resize(mmax+1);
+    std::get<1>(*ret).resize(mmax+1);
+
+    for (auto & v : std::get<0>(*ret)) {
+      v.resize(nmax);
+      std::fill(v.begin(), v.end(), 0.0);
+    }
+
+    for (auto & v : std::get<1>(*ret)) {
+      v.resize(nmax);
+      std::fill(v.begin(), v.end(), 0.0);
+    }
+    
+    return ret;
+  }
+
+  //! Store coefficients from EmpCylSL
+  void getCoefs(CylindricalCoefs::DataPtr C)
+  {
+    for (int m=0; m<=mmax; m++) {
+      ortho->get_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m]);
+    }
+  }
+
+  //! Installed stored coefficients in EmpCylSL
+  void setCoefs(CylindricalCoefs::DataPtr C)
+  {
+    for (int m=0; m<=mmax; m++) {
+      bool zero = false;
+      if (m==0) zero = true;
+      ortho->set_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m], zero);
+    }
+  }
+
 
 public:
 

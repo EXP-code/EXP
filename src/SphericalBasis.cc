@@ -136,6 +136,9 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
       }
 
       play_back = true;
+
+      if (conf["coefPlayBack"]) play_cnew = conf["coefPlayBack"].as<bool>();
+
     }
 
     if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
@@ -192,6 +195,7 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
     
   expcoef .resize((Lmax+1)*(Lmax+1));
   expcoef1.resize((Lmax+1)*(Lmax+1));
+  if (play_back)  expcoefP.resize((Lmax+1)*(Lmax+1));
   
   for (auto & v : expcoef ) v = std::make_shared<Eigen::VectorXd>(nmax);
   for (auto & v : expcoef1) v = std::make_shared<Eigen::VectorXd>(nmax);
@@ -518,39 +522,47 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 void SphericalBasis::determine_coefficients(void)
 {
-  // Playback basis coefficients
-  //
   if (play_back) {
-				// Do we need new coefficients?
-    if (tnow <= lastPlayTime) return;
-    lastPlayTime = tnow;
+    determine_coefficients_playback();
+    if (play_cnew) determine_coefficients_particles();
+  } else {
+    determine_coefficients_particles();
+  }
+}
 
-				// Set coefficient matrix size
-    expcoef.resize((Lmax+1)*(Lmax+1));
-    for (auto & v : expcoef) v = std::make_shared<Eigen::VectorXd>(1, nmax);
+void SphericalBasis::determine_coefficients_playback(void)
+{
+  // Do we need new coefficients?
+  if (tnow <= lastPlayTime) return;
+  lastPlayTime = tnow;
 
-    if (coefMaster) {
+  // Set coefficient matrix size
+  expcoefP.resize((Lmax+1)*(Lmax+1));
+  for (auto & v : expcoefP) v = std::make_shared<Eigen::VectorXd>(nmax);
 
-      if (myid==0) {
-	auto ret = playback->interpolate(tnow);
-	for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-	  for (int n=0; n<nmax; n++) (*expcoef[l])[n] = (*ret)[l][n];
-	  MPI_Bcast((*expcoef[l]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	}
-      } else {
-	for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-	  MPI_Bcast((*expcoef[l]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	}
-      }
-    } else {
+  if (coefMaster) {
+
+    if (myid==0) {
       auto ret = playback->interpolate(tnow);
       for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-	for (int n=0; n<nmax; n++) (*expcoef[l])[n] = (*ret)[l][n];
+	for (int n=0; n<nmax; n++) (*expcoefP[l])[n] = (*ret)[l][n];
+	MPI_Bcast((*expcoefP[l]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      }
+    } else {
+      for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
+	MPI_Bcast((*expcoefP[l]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       }
     }
-    return;
+  } else {
+    auto ret = playback->interpolate(tnow);
+    for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
+      for (int n=0; n<nmax; n++) (*expcoefP[l])[n] = (*ret)[l][n];
+    }
   }
+}
 
+void SphericalBasis::determine_coefficients_particles(void)
+{
   nvTracerPtr tPtr;
   if (cuda_prof)
     tPtr = std::make_shared<nvTracer>("SphericalBasis::determine_coefficients");
@@ -854,7 +866,7 @@ void SphericalBasis::determine_coefficients(void)
 
 void SphericalBasis::multistep_reset()
 {
-  if (play_back) return;
+  if (play_back and !play_cnew) return;
 
   used   = 0;
   resetT = tnow;
@@ -863,7 +875,7 @@ void SphericalBasis::multistep_reset()
 
 void SphericalBasis::multistep_update_begin()
 {
-  if (play_back) return;
+  if (play_back and !play_cnew) return;
 				// Clear the update matricies
   for (int n=0; n<nthrds; n++) {
     for (int M=mfirst[mstep]; M<=multistep; M++) {
@@ -879,7 +891,7 @@ void SphericalBasis::multistep_update_begin()
 
 void SphericalBasis::multistep_update_finish()
 {
-  if (play_back) return;
+  if (play_back and !play_cnew) return;
 
 				// Combine the update matricies
 				// from all nodes
@@ -954,7 +966,7 @@ void SphericalBasis::multistep_update_finish()
 
 void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int id)
 {
-  if (play_back)    return;
+  if (play_back and !play_cnew) return;
   if (c->freeze(i)) return;
 
   double mass = c->Mass(i) * component->Adiabatic();
@@ -1023,7 +1035,7 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 
 void SphericalBasis::compute_multistep_coefficients()
 {
-  if (play_back) return;
+  if (play_back and !play_cnew) return;
 
 #ifdef TMP_DEBUG
   Eigen::MatrixXd tmpcoef = expcoef;
@@ -1378,6 +1390,10 @@ void SphericalBasis::determine_acceleration_and_potential(void)
   cout << "Process " << myid << ": in determine_acceleration_and_potential\n";
 #endif
 
+  if (play_back) {
+    swap_coefs(expcoefP, expcoef);
+  }
+
   if (use_external == false) {
 
     if (multistep && (self_consistent || initializing)) {
@@ -1441,6 +1457,11 @@ void SphericalBasis::determine_acceleration_and_potential(void)
       cout << " zero bodies!" << endl;
   }
 #endif
+
+  if (play_back) {
+    swap_coefs(expcoef, expcoefP);
+  }
+
 
   print_timings("SphericalBasis: acceleration timings");
 

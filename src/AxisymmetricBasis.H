@@ -90,7 +90,22 @@ protected:
   typedef std::shared_ptr<Eigen::VectorXd> VectorP;
   typedef std::shared_ptr<Eigen::MatrixXd> MatrixP;
 
-  std::vector<VectorP> expcoef, expcoef1;
+  std::vector<VectorP> expcoef, expcoef1, expcoefP;
+
+  //! Swap coefficients
+  void swap_coefs(std::vector<VectorP>& from, std::vector<VectorP>& to)
+  {
+    if (from.size() != to.size()) {
+      std::ostringstream sout;
+      sout << "swap_coefs: size(from)=" << from.size() << " != "
+	   << "size(to)=" << to.size();
+      throw std::runtime_error(sout.str());
+    }
+
+    std::vector<VectorP> tmp(from);
+    from = to;
+    to   = tmp;
+  }
 
   //@{
   //! Interpolation arrays

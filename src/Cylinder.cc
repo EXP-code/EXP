@@ -426,6 +426,12 @@ void Cylinder::initialize()
 	exit(-1);
       }
 
+      P = getDataPtr();
+
+      if (conf["coefPlayBack"]) play_cnew = conf["coefPlayBack"].as<bool>();
+
+      if (play_cnew) P1 = getDataPtr();
+
       play_back = true;
     }
 
@@ -697,57 +703,43 @@ void * Cylinder::determine_coefficients_thread(void * arg)
   return (NULL);
 }
 
-
 void Cylinder::determine_coefficients(void)
 {
-  // Playback basis coefficients
-  //
   if (play_back) {
-    compute_grid_mass();	// Only performed once to start
+    determine_coefficients_playback();
+    if (play_cnew) determine_coefficients_particles();
+  } else {
+    determine_coefficients_particles();
+  }
+}
 
-				// Do we need new coefficients?
-    if (tnow <= lastPlayTime) return;
-    lastPlayTime = tnow;
+void Cylinder::determine_coefficients_playback(void)
+{
+  compute_grid_mass();	// Only performed once to start
 
-    if (coefMaster) {
+  // Do we need new coefficients?
+  if (tnow <= lastPlayTime) return;
+  lastPlayTime = tnow;
 
-      if (myid==0) {
-	auto C = playback->interpolate(tnow);
-
-	for (int m=0; m<=mmax; m++) {
-	  MPI_Bcast(std::get<0>(*C)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  MPI_Bcast(std::get<1>(*C)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-	  bool zero = false;
-	  if (m==0) zero = true;
-	  ortho->set_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m], zero);
-	}
-      } else {
-	std::vector<double> cosm(nmax), sinm(nmax);
-	
-	for (int m=0; m<=mmax; m++) {
-	  MPI_Bcast(cosm.data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  MPI_Bcast(sinm.data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-	  bool zero = false;
-	  if (m==0) zero = true;
-	  ortho->set_coefs(m, cosm, sinm, zero);
-	}
-      }
-
-    } else {
-      auto C = playback->interpolate(tnow);
-
-      for (int m=0; m<=mmax; m++) {
-	bool zero = false;
-	if (m==0) zero = true;
-	ortho->set_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m], zero);
-      }
+  if (coefMaster) {
+    
+    if (myid==0) {
+      P = playback->interpolate(tnow);
     }
-
-    return;
+    
+    for (int m=0; m<=mmax; m++) {
+      MPI_Bcast(std::get<0>(*P)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(std::get<1>(*P)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+    
+  } else {
+    P = playback->interpolate(tnow);
   }
 
+}
+
+void Cylinder::determine_coefficients_particles(void)
+{
   nvTracerPtr tPtr;
   if (cuda_prof)
     tPtr = std::make_shared<nvTracer>("Cylinder::determine_coefficients");
@@ -1236,6 +1228,11 @@ void Cylinder::determine_acceleration_and_potential(void)
 
   static char routine[] = "determine_acceleration_and_potential_Cyl";
   
+  if (play_back) {
+    if (play_cnew) getCoefs(P1);
+    setCoefs(P);
+  }
+
   if (use_external == false) {
 
     if (multistep && (self_consistent || initializing)) {
@@ -1301,6 +1298,11 @@ void Cylinder::determine_acceleration_and_potential(void)
        << kmin << ", " << kmax << "]"
        << " #=" << cC->Particles().size() << endl;
 #endif
+
+  if (play_back) {
+    getCoefs(P);
+    if (play_cnew) setCoefs(P1);
+  }
 
   print_timings("Cylinder: acceleration timings");
 

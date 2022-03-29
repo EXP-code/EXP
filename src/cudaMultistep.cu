@@ -336,7 +336,7 @@ void cuda_compute_levels()
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
     cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
     
-    if (not c->force->PlayBack()) c->force->multistep_update_cuda();
+    if (not c->force->NoCoefs()) c->force->multistep_update_cuda();
 
 #ifdef VERBOSE_TIMING
     finish = std::chrono::high_resolution_clock::now();

@@ -101,6 +101,12 @@ protected:
   //! Thread method for coefficient accumulation
   virtual void * determine_coefficients_thread(void * arg);
 
+  //! Compute the coefficients from particles
+  virtual void determine_coefficients_particles(void);
+
+  //! Compute the coefficients from an table
+  virtual void determine_coefficients_playback(void);
+
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda(bool compute_pca);

@@ -1,12 +1,16 @@
 #ifndef _CBrockDisk_H
 #define _CBrockDisk_H
 
+#include <memory>
 #include <vector>
+
 #include <AxisymmetricBasis.H>
+#include <TwoDCoefs.H>
 
 class MixtureBasis;
 
-//! This routine computes the potential, acceleration and density using the Clutton-Brock flat disk expansion
+//! This routine computes the potential, acceleration and density
+//! using the Clutton-Brock flat disk expansion
 class CBrockDisk : public AxisymmetricBasis
 {
 
@@ -16,11 +20,11 @@ private:
   pthread_mutex_t used_lock, cos_coef_lock, sin_coef_lock;
   double *cylmass0;
 
-  Eigen::MatrixXd expcoef, expcoef1;
-  vector<Eigen::MatrixXd> expcoef0, cc, cc1;
+  std::shared_ptr<Eigen::MatrixXd> expcoef, expcoef1, expcoefP;
+  std::vector<Eigen::MatrixXd> expcoef0, cc, cc1;
   Eigen::MatrixXd normM, dend, work;
-  vector<Eigen::MatrixXd> potd, dpot;
-  vector<Eigen::VectorXd> u, du, cosm, sinm;
+  std::vector<Eigen::MatrixXd> potd, dpot;
+  std::vector<Eigen::VectorXd> u, du, cosm, sinm;
 
   int use1, use0;
 
@@ -39,6 +43,8 @@ private:
 
 				// These can be hidden from the interface
   void determine_coefficients();
+  void determine_coefficients_playback();
+  void determine_coefficients_particles();
   void determine_acceleration_and_potential();
 
   void * determine_coefficients_thread(void * arg);
@@ -48,6 +54,23 @@ private:
   double rmax, scale;
   int Lmax, nmax;
   bool self_consistent;
+
+  //! Coefficient magic number
+  const unsigned int cmagic = 0xc0a57a4;
+
+  //! Playback object
+  std::shared_ptr<TwoDCoefs> playback;
+
+  /** Master node ships coefficients to hosts.  True (default) implies
+      that only the master node caches the coefficients for playback
+      to save core memory.  This is set in the config input using the
+      'coefMaster: bool' parameter. Once I am sure that there are no
+      algorithmic issues, I will remove this as an option.
+  */
+  bool coefMaster;
+
+  //! Last playback coefficient evaluation time
+  double lastPlayTime;
 
 public:
 

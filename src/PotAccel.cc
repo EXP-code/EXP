@@ -174,6 +174,7 @@ PotAccel::PotAccel(const YAML::Node& CONF) : conf(CONF)
   use_external = false;
   coef_dump    = false;
   play_back    = false;
+  play_cnew    = false;
   compute      = false;
   dof          = 3;
   mlevel       = 0;
