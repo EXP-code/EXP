@@ -128,12 +128,14 @@ void CBrockDisk::initialize(void)
 
       if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
 
-      std::cout << "---- Playback is ON for Component " << component->name
-		<< " using Force " << component->id << std::endl;
-      if (coefMaster)
-	std::cout << "---- Playback will use MPI master" << std::endl;
-      if (play_cnew)
-	std::cout << "---- New coefficients will be computed from particles on playback" << std::endl;
+      if (myid==0) {
+	std::cout << "---- Playback is ON for Component " << component->name
+		  << " using Force " << component->id << std::endl;
+	if (coefMaster)
+	  std::cout << "---- Playback will use MPI master" << std::endl;
+	if (play_cnew)
+	  std::cout << "---- New coefficients will be computed from particles on playback" << std::endl;
+      }
     }
 
   }
