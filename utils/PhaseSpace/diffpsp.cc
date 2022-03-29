@@ -225,6 +225,7 @@ main(int argc, char **argv)
     vm = options.parse(argc, argv);
   } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 

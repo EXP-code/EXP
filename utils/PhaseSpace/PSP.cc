@@ -31,9 +31,16 @@ PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose, "")
   // -------------
   try {
     in.open(infile);
-  } catch (...) {
+  }
+  catch(const std::runtime_error& err) {
     std::ostringstream sout;
-    sout << "Could not open PSP file <" << infile << ">";
+    sout << "Could not open PSP file <" << infile << ">"
+	 << " Error is: " << err.what();
+    throw std::runtime_error(sout.str());
+  }
+  catch (...) {
+    std::ostringstream sout;
+    sout << "Could not open PSP file <" << infile << "> Unknown error";
     throw std::runtime_error(sout.str());
   }
 
@@ -43,9 +50,17 @@ PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose, "")
   // --------------------------------
   try {
     in.read((char *)&header, sizeof(MasterHeader));
-  } catch (...) {
+  }
+  catch (const std::runtime_error& err) {
     std::ostringstream sout;
-    sout << "Could not read master header for <" << infile << ">";
+    sout << "Could not open master header for <" << infile << ">"
+	 << " Error is: " << err.what();
+    throw std::runtime_error(sout.str());
+  }
+  catch (...) {
+    std::ostringstream sout;
+    sout << "Could not read master header for <" << infile << ">"
+	 << " Unknown error";
     throw std::runtime_error(sout.str());
   }
     
@@ -62,7 +77,14 @@ PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose, "")
       if ( (ret & nmask) == magic ) {
 	rsize = ret & mmask;
       }
-    } catch (...) {
+    }
+    catch (const std::runtime_error& err) {
+      std::ostringstream sout;
+      sout << "Error reading magic for <" << infile << ">"
+	   << " Error is: " << err.what();
+      throw std::runtime_error(sout.str());
+    }
+    catch (...) {
       std::ostringstream sout;
       sout << "Error reading magic for <" << infile << ">";
       throw std::runtime_error(sout.str());
@@ -204,9 +226,17 @@ PSPspl::PSPspl(const std::string& master, const std::string dir, bool verbose) :
   // -------------
   try {
     in.open(new_dir+master);
-  } catch (...) {
+  }
+  catch (const std::runtime_error& err) {
     std::ostringstream sout;
-    sout << "Could not open the master SPL file <" << new_dir + master << ">";
+    sout << "Could not open the master SPL file <" << new_dir + master << ">"
+	 << " Error is: " << err.what();
+    throw std::runtime_error(sout.str());
+  }
+  catch (...) {
+    std::ostringstream sout;
+    sout << "Could not open the master SPL file <" << new_dir + master << ">"
+	 << " Unknown error";
     throw std::runtime_error(sout.str());
   }
 
