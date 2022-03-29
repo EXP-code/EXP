@@ -137,7 +137,7 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
 
       play_back = true;
 
-      if (conf["coefPlayBack"]) play_cnew = conf["coefPlayBack"].as<bool>();
+      if (conf["coefCompute"]) play_cnew = conf["coefCompute"].as<bool>();
 
     }
 
@@ -866,7 +866,7 @@ void SphericalBasis::determine_coefficients_particles(void)
 
 void SphericalBasis::multistep_reset()
 {
-  if (play_back and !play_cnew) return;
+  if (play_back and not play_cnew) return;
 
   used   = 0;
   resetT = tnow;
@@ -875,7 +875,7 @@ void SphericalBasis::multistep_reset()
 
 void SphericalBasis::multistep_update_begin()
 {
-  if (play_back and !play_cnew) return;
+  if (play_back and not play_cnew) return;
 				// Clear the update matricies
   for (int n=0; n<nthrds; n++) {
     for (int M=mfirst[mstep]; M<=multistep; M++) {
@@ -891,7 +891,7 @@ void SphericalBasis::multistep_update_begin()
 
 void SphericalBasis::multistep_update_finish()
 {
-  if (play_back and !play_cnew) return;
+  if (play_back and not play_cnew) return;
 
 				// Combine the update matricies
 				// from all nodes
@@ -966,7 +966,7 @@ void SphericalBasis::multistep_update_finish()
 
 void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int id)
 {
-  if (play_back and !play_cnew) return;
+  if (play_back and not play_cnew) return;
   if (c->freeze(i)) return;
 
   double mass = c->Mass(i) * component->Adiabatic();
@@ -1035,7 +1035,7 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 
 void SphericalBasis::compute_multistep_coefficients()
 {
-  if (play_back and !play_cnew) return;
+  if (play_back and not play_cnew) return;
 
 #ifdef TMP_DEBUG
   Eigen::MatrixXd tmpcoef = expcoef;

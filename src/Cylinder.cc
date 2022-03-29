@@ -428,7 +428,7 @@ void Cylinder::initialize()
 
       P = getDataPtr();
 
-      if (conf["coefPlayBack"]) play_cnew = conf["coefPlayBack"].as<bool>();
+      if (conf["coefCompute"]) play_cnew = conf["coefCompute"].as<bool>();
 
       if (play_cnew) P1 = getDataPtr();
 

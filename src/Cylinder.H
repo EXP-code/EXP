@@ -156,7 +156,7 @@ private:
   */
   void compute_multistep_coefficients() 
   {
-    if (play_back) return;
+    if (play_back and not play_cnew) return;
     
     nvTracerPtr tPtr;
     if (cuda_prof)
@@ -424,12 +424,12 @@ public:
   */
   //@{
   virtual void multistep_update_begin() { 
-    if (play_back) return;
+    if (play_back and not play_cnew) return;
     if (self_consistent) ortho->multistep_update_begin();
   }
   virtual void multistep_update(int cur, int next, Component* c, int i, int id);
   virtual void multistep_update_finish() { 
-    if (play_back) return;
+    if (play_back and not play_cnew) return;
     if (self_consistent) ortho->multistep_update_finish();
   }
   //@}

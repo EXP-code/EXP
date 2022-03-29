@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(
   EXP
-  VERSION 7.6996
+  VERSION 7.701
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
@@ -26,8 +26,9 @@ add_compile_options(-D_REENTRANT)
 
 # Check that we are a git repository
 if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
-  message("We are a git repository, continuing . . .")
+  message(STATUS "Checking that we are a git repository - good")
 else()
+  message(STATUS "Checking that we are a git repository - NO")
   message(SEND_ERROR "You need to 'git clone ${CMAKE_PROJECT_HOMEPAGE_URL}'.  Please don't use the zip download.")
 endif()
 

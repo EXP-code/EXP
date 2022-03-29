@@ -124,7 +124,7 @@ void CBrockDisk::initialize(void)
 
       play_back = true;
 
-      if (conf["coefPlayBack"]) play_cnew = conf["coefPlayBack"].as<bool>();
+      if (conf["coefCompute"]) play_cnew = conf["coefCompute"].as<bool>();
 
     }
 
