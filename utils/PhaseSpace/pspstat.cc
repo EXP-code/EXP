@@ -4,11 +4,6 @@
   MDWeinberg 06/10/02, 11/24/19
 */
 
-using namespace std;
-
-#include <unistd.h>
-#include <stdlib.h>
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -19,74 +14,61 @@ using namespace std;
 #include <limits>
 #include <list>
 
+#include <Eigen/Eigen>
+
 #include <StringTok.H>
 #include <libvars.H>		// EXP library globals
+#include <cxxopts.H>		// Option parsing
 #include <header.H>
 #include <PSP.H>
-
-//-------------
-// Help message
-//-------------
-
-void Usage(char* prog) {
-  cerr << prog << ": [-t time -v -h] filename\n\n";
-  cerr << "    -d dir          replacement SPL file directory\n";
-  cerr << "    -h              print this help message\n";
-  cerr << "    -v              verbose output\n\n";
-  exit(0);
-}
-
 
 int
 main(int argc, char **argv)
 {
   char *prog = argv[0];
-  double time=1e20;
   bool verbose = false;
-  std::string new_dir("./");
+  std::string new_dir;
 
   // Parse command line
 
-  while (1) {
+  cxxopts::Options options("ascii2psp", "Construct a PSP file from ascii input files");
 
-    int c = getopt(argc, argv, "o:d:vh");
+  std::vector<std::string> pos_names = {"file"};
 
-    if (c == -1) break;
+  options.parse_positional(pos_names.begin(), pos_names.end());
 
-    switch (c) {
+  options.add_options()
+    ("h,help", "print this help message")
+    ("v,verbose", "print verbose output messages")
+    ("d,dir", "directory containing PSP files",
+     cxxopts::value<std::string>(new_dir)->default_value("./"))
+    ("f,file", "PSP file",
+     cxxopts::value<std::string>(pos_names[0]))
+    ;
 
-    case 'v':
-      verbose = true;
-      break;
+  cxxopts::ParseResult vm;
 
-    case 'd':
-      new_dir.erase();
-      new_dir = string(optarg);
-      break;
-
-    case '?':
-    case 'h':
-    default:
-      Usage(prog);
-    }
-
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
   }
+
+  if (vm.count("help")) {
+    std::cout << options.help() << std::endl;
+    exit(-1);
+  }
+
+  if (vm.count("verbose")) {
+    verbose = true;
+  }
+
+
 
   std::ifstream in;
-  std::string filename;
-
-  if (optind < argc) {
-
-    filename = std::string(argv[optind]);
-
-    if (verbose) cerr << "Using filename: " << filename << endl;
-
-  } else {
-
-    Usage(argv[0]);
-
-  }
-
+  std::string filename = vm["file"].as<std::string>();
+  
 				// Parse the PSP file
 				// ------------------
   PSPptr psp;
@@ -108,9 +90,10 @@ main(int argc, char **argv)
 				// Setup stats for all components
 				// ------------------------------
 
-  double com[3] = {0.0, 0.0, 0.0};
-  double cov[3] = {0.0, 0.0, 0.0};
-  double ang[3] = {0.0, 0.0, 0.0};
+  Eigen::Vector3d com = Eigen::Vector3d::Zero();
+  Eigen::Vector3d cov = Eigen::Vector3d::Zero();
+  Eigen::Vector3d ang = Eigen::Vector3d::Zero();
+
   double KE     = 0.0;
   double PE     = 0.0;
   double mass   = 0.0;
@@ -126,15 +109,22 @@ main(int argc, char **argv)
 				// Setup stats for each component
 				// -----------------------------
 
-    double com1[3] = {0.0, 0.0, 0.0};
-    double cov1[3] = {0.0, 0.0, 0.0};
-    double ang1[3] = {0.0, 0.0, 0.0};
-    double pmn1[3] = { std::numeric_limits<double>::max(),
-		       std::numeric_limits<double>::max(),
-		       std::numeric_limits<double>::max()};
-    double pmx1[3] = {-std::numeric_limits<double>::max(),
-		      -std::numeric_limits<double>::max(),
-		      -std::numeric_limits<double>::max()};
+    Eigen::Matrix3d moments2 = Eigen::Matrix3d::Zero();
+    Eigen::Vector3d com1     = Eigen::Vector3d::Zero();
+    Eigen::Vector3d cov1     = Eigen::Vector3d::Zero();
+    Eigen::Vector3d ang1     = Eigen::Vector3d::Zero();
+    Eigen::Vector3d pmn1, pmx1;
+
+    // Set to maximum
+    pmn1 << std::numeric_limits<double>::max(),
+      std::numeric_limits<double>::max(),
+      std::numeric_limits<double>::max();
+
+    // Set to minimum
+    pmx1 << -std::numeric_limits<double>::max(),
+      -std::numeric_limits<double>::max(),
+      -std::numeric_limits<double>::max();
+
     double KE1     = 0.0;
     double PE1     = 0.0;
     double mass1   = 0.0;
@@ -178,25 +168,49 @@ main(int argc, char **argv)
 	pmn1[i] = std::min<double>(pmn1[i], part->pos(i));
 	pmx1[i] = std::max<double>(pmx1[i], part->pos(i));
       }
+
+      for (int i=0; i<3; i++) {
+	for (int j=0; j<3; j++) {
+	  moments2(i, j) += ms*part->pos(i)*part->pos(j);
+	}
+      }
+
     }
     
-    cout  << "     MIN:\t\t";
-    for (int i=0; i<3; i++) cout << setw(15) << pmn1[i];
-    cout << endl;
-    cout  << "     MAX:\t\t";
-    for (int i=0; i<3; i++) cout << setw(15) << pmx1[i];
-    cout << endl;
-    cout  << "     COM:\t\t";
-    for (int i=0; i<3; i++) cout << setw(15) << com1[i]/mass1;
-    cout << endl;
-    cout  << "     COV:\t\t";
-    for (int i=0; i<3; i++) cout << setw(15) << cov1[i]/mass1;
-    cout << endl;
-    cout  << "     Ang mom:\t\t";
-    for (int i=0; i<3; i++) cout << setw(15) << ang1[i];
-    cout << endl;
-    cout  << "     Stats:\t\tKE=" << KE1 << " PE=" << PE1 << " -2T/W=" << -2.0*KE1/PE1
-	  << " Mass=" << mass1 << endl;
+    if (mass1>0.0) {
+
+      cout  << "     MIN:\t\t";
+      for (int i=0; i<3; i++) cout << setw(15) << pmn1[i];
+      cout << endl;
+      cout  << "     MAX:\t\t";
+      for (int i=0; i<3; i++) cout << setw(15) << pmx1[i];
+      cout << endl;
+      cout  << "     COM:\t\t";
+      for (int i=0; i<3; i++) cout << setw(15) << com1[i]/mass1;
+      cout << endl;
+      cout  << "     COV:\t\t";
+      for (int i=0; i<3; i++) cout << setw(15) << cov1[i]/mass1;
+      cout << endl;
+      cout  << "     Ang mom:\t\t";
+      for (int i=0; i<3; i++) cout << setw(15) << ang1[i];
+      cout << endl;
+      cout  << "     Stats:\t\tKE=" << KE1 << " PE=" << PE1 << " -2T/W=" << -2.0*KE1/PE1
+	    << " Mass=" << mass1 << endl;
+
+      moments2 /= mass1;
+      
+      for (int i=0; i<3; i++) {
+	for (int j=0; j<3; j++) {
+	  moments2(i, j) += -com1[i]*com1[j]/(mass1*mass1);
+	}
+      }
+
+      cout << "2nd moment matrix:" << endl << moments2 << endl;
+      Eigen::JacobiSVD<Eigen::Matrix3d> svd(moments2, Eigen::ComputeThinU | Eigen::ComputeThinV);
+      cout << "Singular values:" << endl << svd.singularValues() << endl;
+      cout << "Left vectors:" << endl << svd.matrixU() << endl;
+      cout << "Right vectors:" << endl << svd.matrixV() << endl;
+    }
 
     mass += mass1;
     for (int i=0; i<3; i++) com[i] += com1[i];
@@ -204,9 +218,6 @@ main(int argc, char **argv)
     for (int i=0; i<3; i++) ang[i] += ang1[i];
     KE += KE1;
     PE += PE1;
-    
-
-
   }
   
   cout << endl << "Total:" << endl
@@ -226,4 +237,3 @@ main(int argc, char **argv)
   
   return 0;
 }
-  
