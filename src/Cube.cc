@@ -5,7 +5,7 @@
 
 #include <Cube.H>
 
-Cube::Cube(const YAML::Node& conf) : PotAccel(conf)
+Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Cube";
 

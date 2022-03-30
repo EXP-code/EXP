@@ -20,8 +20,8 @@ static pthread_mutex_t io_lock;
 
 bool SphericalBasis::NewCoefs = true;
 
-SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) : 
-  AxisymmetricBasis(conf)
+SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) : 
+  AxisymmetricBasis(c0, conf)
 {
 #if HAVE_LIBCUDA==1
   if (m) {
@@ -141,13 +141,15 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
 
       if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
 
-      std::cout << "---- Playback is ON for Component " << component->name
-		<< " using Force " << component->id << std::endl;
-      if (coefMaster)
-	std::cout << "---- Playback will use MPI master" << std::endl;
+      if (myid==0) {
+	std::cout << "---- Playback is ON for Component " << component->name
+		  << " using Force " << component->id << std::endl;
+	if (coefMaster)
+	  std::cout << "---- Playback will use MPI master" << std::endl;
 
-      if (play_cnew)
-	std::cout << "---- Coefficients will be computed from particles on playback" << std::endl;
+	if (play_cnew)
+	  std::cout << "---- New coefficients will be computed from particles on playback" << std::endl;
+      }
     }
 
   }

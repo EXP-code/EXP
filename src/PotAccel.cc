@@ -165,10 +165,10 @@ void PotAccel::kill_mutex(pthread_mutex_t *m, const char * caller,
   }
 }
 
-PotAccel::PotAccel(const YAML::Node& CONF) : conf(CONF)
+PotAccel::PotAccel(Component* c0, const YAML::Node& CONF) : conf(CONF)
 {
   used         = 0;
-  component    = NULL;
+  component    = c0;
   cC           = NULL;
   geometry     = other;
   use_external = false;

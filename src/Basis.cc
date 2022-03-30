@@ -6,7 +6,7 @@
 //
 constexpr double MINEPS = 20.0*std::numeric_limits<double>::min();
 
-Basis::Basis(const YAML::Node& conf) : PotAccel(conf)
+Basis::Basis(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   use_external = false;
 }

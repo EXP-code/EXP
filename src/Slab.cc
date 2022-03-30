@@ -10,7 +10,7 @@
 
 static const double KEPS=1.0e-6;
 
-Slab::Slab(const YAML::Node& conf) : PotAccel(conf)
+Slab::Slab(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Slab (trigonometric)";
   nminx = nminy = 0;

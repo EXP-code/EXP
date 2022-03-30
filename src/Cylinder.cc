@@ -53,7 +53,8 @@ double dcond(double R, double z, double phi, int M)
 }
 
 
-Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
+Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
+  Basis(c0, conf)
 {
 #if HAVE_LIBCUDA==1
   if (m) {
@@ -436,14 +437,16 @@ void Cylinder::initialize()
 
       if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
 
-      std::cout << "---- Playback is ON for Component " << component->name
-		<< " using Force " << component->id << std::endl;
+      if (myid==0) {
+	std::cout << "---- Playback is ON for Component " << component->name
+		  << " using Force " << component->id << std::endl;
 
-      if (coefMaster)
-	std::cout << "---- Playback will use MPI master" << std::endl;
+	if (coefMaster)
+	  std::cout << "---- Playback will use MPI master" << std::endl;
 
-      if (play_cnew)
-	std::cout << "---- Coefficients will be computed from particles on playback" << std::endl;
+	if (play_cnew)
+	  std::cout << "---- New coefficients will be computed from particles on playback" << std::endl;
+      }
     }
 
   }

@@ -8,7 +8,7 @@
 #include <VtkPCA.H>
 #endif
 
-AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf) 
+AxisymmetricBasis:: AxisymmetricBasis(Component* c0, const YAML::Node& conf) : Basis(c0, conf) 
 {
   Lmax      = 4;
   nmax      = 10;

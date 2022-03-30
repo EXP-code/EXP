@@ -93,8 +93,9 @@ private:
 public:
 
   //! The constructor
-  /** \param conf passes in any explicit parameters */
-  Direct(const YAML::Node& conf);
+  //! \param c0 is the instantiating caller (a Component)
+  //! \param conf passes in any explicit parameters
+  Direct(Component* c0, const YAML::Node& conf);
 
   //! The constructor
   virtual ~Direct();

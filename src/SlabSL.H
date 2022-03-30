@@ -67,7 +67,7 @@ public:
   string id;
 
   //! Constructor
-  SlabSL(const YAML::Node& conf);
+  SlabSL(Component* c0, const YAML::Node& conf);
 
   //! Destructor
   virtual ~SlabSL();

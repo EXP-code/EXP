@@ -748,43 +748,43 @@ void Component::configure(void)
   // Instantiate the force ("reflection" by hand)
   //
   if ( !id.compare("bessel") ) {
-    force = new Bessel(fconf);
+    force = new Bessel(this, fconf);
   }
   else if ( !id.compare("c_brock") ) {
-    force = new CBrock(fconf);
+    force = new CBrock(this, fconf);
   }
   else if ( !id.compare("c_brock_disk") ) {
-    force = new CBrockDisk(fconf);
+    force = new CBrockDisk(this, fconf);
   }
   else if ( !id.compare("hernq") ) {
-    force = new Hernquist(fconf);
+    force = new Hernquist(this, fconf);
   }
   else if ( !id.compare("sphereSL") ) {
-    force = new Sphere(fconf);
+    force = new Sphere(this, fconf);
   }
   else if ( !id.compare("EJcom") ) {
-    force = new EJcom(fconf);
+    force = new EJcom(this, fconf);
   }
   else if ( !id.compare("cube") ) {
-    force = new Cube(fconf);
+    force = new Cube(this, fconf);
   }
   else if ( !id.compare("slab") ) {
-    force = new Slab(fconf);
+    force = new Slab(this, fconf);
   }
   else if ( !id.compare("slabSL") ) {
-    force = new SlabSL(fconf);
+    force = new SlabSL(this, fconf);
   }
   else if ( !id.compare("cylinder") ) {
-    force = new Cylinder(fconf);
+    force = new Cylinder(this, fconf);
   }
   else if ( !id.compare("direct") ) {
-    force = new Direct(fconf);
+    force = new Direct(this, fconf);
   }
   else if ( !id.compare("shells") ) {
-    force = new Shells(fconf);
+    force = new Shells(this, fconf);
   }
   else if ( !id.compare("noforce") ) {
-    force = new NoForce(fconf);
+    force = new NoForce(this, fconf);
   }
   else {
     string msg("I don't know about the force: ");
@@ -793,8 +793,6 @@ void Component::configure(void)
   }
 
   dim = force->dof;
-
-  force->RegisterComponent(this);
 }
 
 
@@ -828,7 +826,7 @@ void Component::initialize(void)
     initialize_com_system();
 
     if (myid==0) {
-      cout << " Component <" <<  name 
+      cout << "---- Component <" <<  name 
 	   << ">: center of mass system is *ON*, rtrunc=" << rtrunc;
       if (consp) cout << ", conserving com momentum [iattr #=" << tidal << "]";
       cout << ", computed COM system:";
@@ -1004,7 +1002,7 @@ void Component::initialize(void)
     
     if (myid==0) {
       if (EJ & Orient::CENTER) {
-	cout << "Component <" << name << ">: EJ center finding is *ON*";
+	cout << "---- Component <" << name << ">: EJ center finding is *ON*";
 	cout << " with damping=" << EJdamp;
 	if (EJkinE)   cout << ", using particle kinetic energy";
 	if (EJext)    cout << ", using external potential";
@@ -1012,7 +1010,7 @@ void Component::initialize(void)
 	cout << endl;
       }
       if (EJ & Orient::AXIS) {
-	cout << "Component <" << name << ">: AXIS orientation is *ON*";
+	cout << "---- Component <" << name << ">: AXIS orientation is *ON*";
 	if (EJdryrun) cout << ", dryrun";
 	cout << endl;
       }
@@ -1044,7 +1042,7 @@ void Component::initialize(void)
   }
 
   if (myid == 0) {		// Center status
-    cout << "Component <" << name;
+    cout << "---- Component <" << name;
     if (restart)
       cout << ">: current center on restart: x, y, z: " 
 	   << center[0] << ", " 
@@ -1062,7 +1060,7 @@ void Component::initialize(void)
 	   << 0.0 << std::endl;
     }
 
-    cout << "Component <" << name << ">: ";
+    cout << "---- Component <" << name << ">: ";
 
     if (nlevel<0)
       cout << "no multistep level reporting";
@@ -1090,14 +1088,14 @@ void Component::initialize_cuda()
     //
     if (cudaDevice>=0) {
 
-      std::cout << "Component <" << name << ">: "
+      std::cout << "---- Component <" << name << ">: "
 		<< "on CUDA device on Rank [" << myid
 		<< "] on [" << processor_name << "]"
 		<< std::endl;
 
       cuda_initialize();
     } else {
-      std::cout << "Component <" << name << ">: "
+      std::cout << "---- Component <" << name << ">: "
 		<< "could not find an initialized CUDA device on Rank ["
 		<< myid	<< "] on [" << processor_name << "] . . . "
 		  << "this will cause a failure" << std::endl;
@@ -1494,7 +1492,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
     unsigned icount;
     for (int n=1; n<numprocs; n++) {
 
-      cout << "Component [" << name << "]: loading node <" << n << ">\n";
+      cout << "---- Component [" << name << "]: loading node <" << n << ">\n";
 
       pf->ShipParticles(n, 0, nbodies_table[n]);
 
@@ -1835,7 +1833,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
     unsigned icount;
     for (int n=1; n<numprocs; n++) {
 
-      cout << "Component [" << name << "]: loading node <" << n << ">\n";
+      cout << "---- Component [" << name << "]: loading node <" << n << ">\n";
 
       pf->ShipParticles(n, 0, nbodies_table[n]);
 

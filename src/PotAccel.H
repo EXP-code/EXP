@@ -111,9 +111,10 @@ public:
   int dof;
 
   //! Constructor
-  /*! \param line is parsed and info is made available to derived 
-    classes on  request */
-  PotAccel(const YAML::Node& conf);
+  //! \param c0 is the instantiating caller (a Component)
+  //! \param line is parsed and info is made available to derived
+  //! classes on request
+  PotAccel(Component* c0, const YAML::Node& conf);
 
   //! Destructor
   virtual ~PotAccel();

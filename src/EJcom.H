@@ -41,9 +41,10 @@ private:
 public:
 				// Global parameters
   /** Constructor
+      \param c0 is the instantiating caller (a Component)
       \param line passes any parameters (rsphSL, rmin and numr) 
   */
-  EJcom(const YAML::Node& conf);
+  EJcom(Component* c0, const YAML::Node& conf);
 
   //! Mixture function for the two expansions
   double mixture(double* p);

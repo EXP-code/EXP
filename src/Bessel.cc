@@ -5,7 +5,7 @@
 
 int Bessel::RNUM = 1000;
 
-Bessel::Bessel(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m)
+Bessel::Bessel(Component* c0, const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(c0, conf, m)
 {
   id = "BesselForce";
   initialize();

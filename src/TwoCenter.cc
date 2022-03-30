@@ -6,7 +6,7 @@
 #include <TwoCenter.H>
 #include <MixtureBasis.H>
 
-TwoCenter::TwoCenter(const YAML::Node& conf) : PotAccel(conf)
+TwoCenter::TwoCenter(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   nhisto = 0;
   inner  = vector<double>(3, 0);
@@ -39,37 +39,34 @@ TwoCenter::TwoCenter(const YAML::Node& conf) : PotAccel(conf)
   // Instantiate the force ("reflection" by hand)
   //
   if ( !basis.compare("bessel") ) {
-    exp_in  = new Bessel(conf, mix_in );
-    exp_out = new Bessel(conf, mix_out);
+    exp_in  = new Bessel(c0, conf, mix_in );
+    exp_out = new Bessel(c0, conf, mix_out);
   }
   else if ( !basis.compare("c_brock") ) {
-    exp_in  = new CBrock(conf, mix_in );
-    exp_out = new CBrock(conf, mix_out);
+    exp_in  = new CBrock(c0, conf, mix_in );
+    exp_out = new CBrock(c0, conf, mix_out);
   }
   else if ( !basis.compare("c_brock_disk") ) {
-    exp_in  = new CBrockDisk(conf, mix_in );
-    exp_out = new CBrockDisk(conf, mix_out);
+    exp_in  = new CBrockDisk(c0, conf, mix_in );
+    exp_out = new CBrockDisk(c0, conf, mix_out);
   }
   else if ( !basis.compare("hernq") ) {
-    exp_in  = new Hernquist(conf, mix_in );
-    exp_out = new Hernquist(conf, mix_out);
+    exp_in  = new Hernquist(c0, conf, mix_in );
+    exp_out = new Hernquist(c0, conf, mix_out);
   }
   else if ( !basis.compare("sphereSL") ) {
-    exp_in  = new Sphere(conf, mix_in );
-    exp_out = new Sphere(conf, mix_out);
+    exp_in  = new Sphere(c0, conf, mix_in );
+    exp_out = new Sphere(c0, conf, mix_out);
   }
   else if ( !basis.compare("cylinder") ) {
-    exp_in  = new Cylinder(conf, mix_in );
-    exp_out = new Cylinder(conf, mix_out);
+    exp_in  = new Cylinder(c0, conf, mix_in );
+    exp_out = new Cylinder(c0, conf, mix_out);
   }
   else {
     ostringstream msg;
     msg << "The basis <" << id << "> cannot be used as a multicenter component";
     throw GenericError(msg.str(), __FILE__, __LINE__);
   }
-
-  exp_in ->RegisterComponent(component);
-  exp_out->RegisterComponent(component);
 
   dof = exp_in->dof;
 }

@@ -172,16 +172,16 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	
       }
 
-      cout << "  ** Orient: current log=" << logfile << "  backup=" << backupfile << endl;
+      cout << "  -- Orient: current log=" << logfile << "  backup=" << backupfile << endl;
 
-      cout << "  ** Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
+      cout << "  -- Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
 
-      cout << "  ** Orient: axis master (cache size=" << sumsA.size() << "): " 
+      cout << "  -- Orient: axis master (cache size=" << sumsA.size() << "): " 
 	   << axis[0] << ", "
 	   << axis[1] << ", "
 	   << axis[2] << endl;
       
-      cout << "  ** Orient: center master (cache size=" << sumsC.size() << "): " 
+      cout << "  -- Orient: center master (cache size=" << sumsC.size() << "): " 
 	   << center[0] << ", "
 	   << center[1] << ", "
 	   << center[2] << endl;

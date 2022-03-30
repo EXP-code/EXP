@@ -27,8 +27,9 @@ private:
 public:
 
   //! The constructor
-  /*! \param conf is ignored here */
-  NoForce(const YAML::Node& conf);
+  //! \param c0 is the instantiating caller (a Component)
+  //! \param conf is ignored here 
+  NoForce(Component* c0, const YAML::Node& conf);
 
   //! The constructor
   virtual ~NoForce();

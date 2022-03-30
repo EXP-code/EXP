@@ -167,7 +167,7 @@ public:
   };
 
   //! Constructor
-  AxisymmetricBasis(const YAML::Node& line);
+  AxisymmetricBasis(Component* c0, const YAML::Node& line);
 
   //! Destructor
   virtual ~AxisymmetricBasis();

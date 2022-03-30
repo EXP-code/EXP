@@ -39,7 +39,7 @@ public:
   string id;
 
   //! Constructor
-  Cube(const YAML::Node& conf);
+  Cube(Component* c0, const YAML::Node& conf);
 
   //! Destructor
   virtual ~Cube();
