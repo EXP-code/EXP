@@ -205,11 +205,10 @@ main(int argc, char **argv)
 	}
       }
 
-      cout << "2nd moment matrix:" << endl << moments2 << endl;
+      cout << endl << "2nd moment matrix:" << endl << moments2 << endl << endl;
       Eigen::JacobiSVD<Eigen::Matrix3d> svd(moments2, Eigen::ComputeThinU | Eigen::ComputeThinV);
-      cout << "Singular values:" << endl << svd.singularValues() << endl;
-      cout << "Left vectors:" << endl << svd.matrixU() << endl;
-      cout << "Right vectors:" << endl << svd.matrixV() << endl;
+      cout << "Principal values:" << endl << svd.singularValues() << endl << endl;
+      cout << "Rotation matrix:" << endl << svd.matrixU() << endl << endl;
     }
 
     mass += mass1;
