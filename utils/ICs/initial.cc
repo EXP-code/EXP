@@ -421,10 +421,9 @@ main(int ac, char **av)
   double       ToomreQ;
   double       Temp;
   double       Tmin;
-  //double       gen_ecut; // unused?
-  bool         const_height=true;
-  bool         images=false;
-  bool         multi=false;
+  bool         const_height;
+  bool         images;
+  bool         multi;
   bool         SVD;
   int          SEED;
   int          itmax;
@@ -521,11 +520,11 @@ main(int ac, char **av)
     ("DFLAG", "",
      cxxopts::value<int>(DFLAG)->default_value("31"))
     ("expcond", "",
-     cxxopts::value<bool>(expcond)->default_value("true"))
+     cxxopts::value<bool>(expcond)->default_value("false"))
     ("report", "",
      cxxopts::value<bool>(report)->default_value("false"))
     ("ignore", "",
-     cxxopts::value<bool>(ignore)->default_value("true"))
+     cxxopts::value<bool>(ignore)->default_value("false"))
     ("evolved", "",
      cxxopts::value<bool>(evolved)->default_value("false"))
     ("multi", "Turn on multimass halo generation",
@@ -541,9 +540,13 @@ main(int ac, char **av)
     ("CHEBY", "(boolean) Use Chebyshev smoothing for disc velocities",
      cxxopts::value<bool>(CHEBY)->default_value("false"))
     ("DENS", "(boolean) Output density cylindrical basis tables",
-     cxxopts::value<bool>(DENS)->default_value("true"))
+     cxxopts::value<bool>(DENS)->default_value("false"))
     ("zero", "(boolean) Zero center of mass and velocity",
      cxxopts::value<bool>(zero)->default_value("true"))
+    ("images", "(boolean) Dump disk basis images",
+     cxxopts::value<bool>(images)->default_value("false"))
+    ("constheight", "(boolean) Use constant scaleheight for disk",
+     cxxopts::value<bool>(const_height)->default_value("true"))
     ("NCHEB", "",
      cxxopts::value<int>(NCHEB)->default_value("12"))
     ("TCHEB", "",
@@ -748,6 +751,32 @@ main(int ac, char **av)
     MPI_Finalize();
     return 0;
   }
+
+  /*
+  // check boolean parameters
+  if (myid==0) {
+    std::cout << "multi="    << multi
+              << " LMAX2="   << LMAX2
+              << " ASCALE="  << ASCALE
+              << " ignore="  << ignore
+              << " expcond=" << expcond
+              << " report="  << report
+              << std::endl;
+
+    if (multi) std::cout << "MULTI!" << std::endl;
+    multi = vm["multi"].as<bool>();
+    std::cout << multi << std::endl;
+
+    if (ignore) std::cout << "IGNORE!" << std::endl;
+    ignore = vm["ignore"].as<bool>();
+    std::cout << ignore << std::endl;
+
+    if (report) std::cout << "REPORT!" << std::endl;
+    report = vm["report"].as<bool>();
+    std::cout << report << std::endl;
+
+
+  }*/
 
   //====================
   // Cheb order for
