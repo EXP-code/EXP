@@ -511,7 +511,7 @@ main(int ac, char **av)
     ("NODD", "",
      cxxopts::value<int>(NODD)->default_value("6"))
     ("NORDER", "",
-     cxxopts::value<int>(NORDER)->default_value("1000"))
+     cxxopts::value<int>(NORDER)->default_value("18"))
     ("NORDER1", "",
      cxxopts::value<int>(NORDER1)->default_value("10000"))
     ("NUMDF", "",
@@ -538,11 +538,11 @@ main(int ac, char **av)
      cxxopts::value<string>(gentype)->default_value("Asymmetric"))
     ("LOGR", "",
      cxxopts::value<bool>(LOGR)->default_value("true"))
-    ("CHEBY", "",
+    ("CHEBY", "(boolean) Use Chebyshev smoothing for disc velocities",
      cxxopts::value<bool>(CHEBY)->default_value("false"))
-    ("DENS", "",
+    ("DENS", "(boolean) Output density cylindrical basis tables",
      cxxopts::value<bool>(DENS)->default_value("true"))
-    ("zero", "",
+    ("zero", "(boolean) Zero center of mass and velocity",
      cxxopts::value<bool>(zero)->default_value("true"))
     ("NCHEB", "",
      cxxopts::value<int>(NCHEB)->default_value("12"))
@@ -564,21 +564,21 @@ main(int ac, char **av)
      cxxopts::value<int>(NUMR)->default_value("2000"))
     ("SHFAC", "",
      cxxopts::value<double>(SHFAC)->default_value("16"))
-    ("disk_mass", "",
+    ("disk_mass", "Mass of the stellar disk",
      cxxopts::value<double>(disk_mass)->default_value("0.05"))
-    ("gas_mass", "",
+    ("gas_mass", "Mass of the gas disk",
      cxxopts::value<double>(gas_mass)->default_value("0.0"))
-    ("scale_length", "",
+    ("scale_length", "Scale length for the realized disk",
      cxxopts::value<double>(scale_length)->default_value("0.01"))
-    ("scale_height", "",
+    ("scale_height", "Scale height for the realized disk",
      cxxopts::value<double>(scale_height)->default_value("0.001"))
-    ("ToomreQ", "",
-     cxxopts::value<double>(ToomreQ)->default_value("1."))
+    ("ToomreQ", "Toomre Q parameter for the disk",
+     cxxopts::value<double>(ToomreQ)->default_value("1.4"))
     ("RMIN", "Minimum halo radius",
      cxxopts::value<double>(RMIN)->default_value("0.005"))
     ("RCYLMIN", "Minimum disk radius",
      cxxopts::value<double>(RCYLMIN)->default_value("0.001"))
-    ("RCYLMAX", "Maximum disk radius",
+    ("RCYLMAX", "Maximum disk radius, in units of ASCALE",
      cxxopts::value<double>(RCYLMAX)->default_value("20.0"))
     ("SCMAP", "Turn on Spherical SL coordinate mapping (1, 2, 0=off)",
      cxxopts::value<int>(SCMAP)->default_value("1"))
@@ -660,11 +660,11 @@ main(int ac, char **av)
       std::cout << options.help() << std::endl << std::endl
 		<< "Examples: " << std::endl
 		<< "\t" << "Use parameters read from a config file in INI style"  << std::endl
-		<< "\t" << av[0] << " --input=gendisk.config"  << std::endl << std::endl
+		<< "\t" << av[0] << " --config=gendisk.config"  << std::endl << std::endl
 		<< "\t" << "Generate a template config file in INI style from current defaults"  << std::endl
-		<< "\t" << av[0] << " --conf=template.config" << std::endl << std::endl
+		<< "\t" << av[0] << " --template=template.config" << std::endl << std::endl
 		<< "\t" << "Override a single parameter in a config file from the command line"  << std::endl
-		<< "\t" << av[0] << "--LMAX=8 --conf=template.config" << std::endl << std::endl;
+		<< "\t" << av[0] << "--LMAX=8 --config=template.config" << std::endl << std::endl;
     }
     MPI_Finalize();
     return 0;
@@ -672,7 +672,7 @@ main(int ac, char **av)
 
   // Read parameters fron the YAML config file
   //
-  if (vm.count("input")) {
+  if (vm.count("config")) {
     try {
       vm = LoadConfig(options, config);
     } catch (cxxopts::OptionException& e) {
