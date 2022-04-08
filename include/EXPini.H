@@ -1,6 +1,7 @@
 #ifndef _EXPini_H
 #define _EXPini_H
 
+#include <algorithm>
 #include <typeinfo>
 #include <iostream>
 #include <iomanip>
@@ -92,7 +93,7 @@ cxxopts::ParseResult LoadConfig(cxxopts::Options& options,
   data[0] = new char [11];
   strcpy(data[0], "LoadConfig"); // Emulate the caller name
   
-  for (auto it=conf.begin(); it!=conf.end(); it++, cnt+=2) {
+  for (auto it=conf.begin(); it!=conf.end(); it++) {
     std::ostringstream s1, s2;
     s1 << "--" << it->first.as<std::string>();
     
@@ -109,16 +110,27 @@ cxxopts::ParseResult LoadConfig(cxxopts::Options& options,
       s2 << it->second.as<std::string>();
     }
 
-    data[cnt+0] = new char [s1.str().size()+1];
-    data[cnt+1] = new char [s2.str().size()+1];
+    // Check key for a yaml boolean type and exclude false values to
+    // comply with cxxopts policy
+    //
+    std::string val = s2.str();
+    std::transform(val.begin(), val.end(), val.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+
+    if (val.find("false") and val.find("off") and val.find("no")) {
+      data[cnt+0] = new char [s1.str().size()+1];
+      data[cnt+1] = new char [s2.str().size()+1];
     
-    strcpy(data[cnt+0], s1.str().c_str());
-    strcpy(data[cnt+1], s2.str().c_str());
+      strcpy(data[cnt+0], s1.str().c_str());
+      strcpy(data[cnt+1], s2.str().c_str());
+
+      cnt += 2;
+    }
   }
+  
+  auto vm = options.parse(cnt, &data[0]);
 
-  auto vm = options.parse(count, &data[0]);
-
-  for (auto & v : data) delete [] v;
+  for (int i=0; i<cnt; i++) delete [] data[i];
 
   return vm;
 }
