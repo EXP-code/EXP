@@ -355,102 +355,23 @@ main(int ac, char **av)
   // Begin opt parsing
   //====================
 
-  int          LMAX;
-  int          NMAX;
-  int          NUMR;
-  int          SCMAP;
-  int          NUMDF;
-  double       RMIN;
-  double       RCYLMIN;
-  double       RCYLMAX;
-  double       SCSPH;
-  double       RSPHSL;
-  double       DMFAC;
-  double       RFACTOR;
-  double       X0;
-  double       Y0;
-  double       Z0;
-  double       U0;
-  double       V0;
-  double       W0;
-  int          RNUM;
-  int          PNUM;
-  int          TNUM;
-  int          VFLAG;
-  int          DFLAG;
-  bool         expcond;
-  bool         LOGR;
-  bool         CHEBY;
-  int          CMAPR;
-  int          CMAPZ;
-  int          NCHEB;
-  int          TCHEB;
-  int          CMTYPE;
-  int          NDR;
-  int          NDZ;
-  int          NHR;
-  int          NHT;
-  int          NDP;
-  double       SHFAC;
-  int          NMAX2;
-  int          LMAX2;
-  int          MMAX;
-  int          NUMX;
-  int          NUMY;
-  int          NOUT;
-  int          NORDER;
-  int          NORDER1;
-  int          NODD;
-  bool         SELECT;
-  bool         DUMPCOEF;
-  int          DIVERGE;
-  double       DIVERGE_RFAC;
-  int          DIVERGE2;
-  double       DIVERGE_RFAC2;
-  int          DF;
-  double       PPower;
-  double       R_DF;
-  double       DR_DF;
-  double       Hratio;
-  double       scale_height;
-  double       scale_length;
-  double       scale_lenfkN;
-  double       disk_mass;
-  double       gas_mass;
-  double       gscal_length;
-  double       ToomreQ;
-  double       Temp;
-  double       Tmin;
-  bool         const_height;
-  bool         images;
-  bool         multi;
-  bool         SVD;
-  int          SEED;
-  int          itmax;
-  bool         DENS;
-  bool         basis;
-  bool         zero;
-  bool         report;
-  bool         ignore;
-  bool         evolved;
-  int          nhalo;
-  int          ndisk;
-  int          ngas;
-  int          ngparam;
-  string       hbods;
-  string       dbods;
-  string       gbods;
-  string       suffix;
-  string       centerfile="";
-  string       halofile1;
-  string       halofile2;
-  string       cachefile;
-  string       config;
-  string       gentype;
-  string       dtype;
-  string       dmodel;
-  string       mtype;
-  string       ctype;
+  int          LMAX, NMAX, NUMR, SCMAP, NUMDF;
+  double       RMIN, RCYLMIN, RCYLMAX, SCSPH, RSPHSL, DMFAC, RFACTOR, SHFAC;
+  double       X0, Y0, Z0, U0, V0, W0;
+  int          RNUM, PNUM, TNUM, VFLAG, DFLAG;
+  bool         expcond, LOGR, CHEBY, SELECT, DUMPCOEF;
+  int          CMAPR, CMAPZ, NCHEB, TCHEB, CMTYPE, NDR, NDZ, NHR, NHT, NDP;
+  int          NMAX2, LMAX2, MMAX, NUMX, NUMY, NOUT, NORDER, NORDER1, NODD, DF;
+  int          DIVERGE, DIVERGE2, SEED, itmax;
+  double       DIVERGE_RFAC, DIVERGE_RFAC2;
+  double       PPower, R_DF, DR_DF;
+  double       Hratio, scale_height, scale_length, scale_lenfkN;
+  double       disk_mass, gas_mass, gscal_length, ToomreQ, Temp, Tmin;
+  bool         const_height, images, multi, SVD, DENS, basis, zeropos, zerovel;
+  bool         report, ignore, evolved;
+  int          nhalo, ndisk, ngas, ngparam;
+  std::string  hbods, dbods, gbods, suffix, centerfile, halofile1, halofile2;
+  std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
   
   const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
 
@@ -495,6 +416,12 @@ main(int ac, char **av)
      cxxopts::value<int>(DIVERGE2)->default_value("0"))
     ("DIVERGE_RFAC2", "",
      cxxopts::value<double>(DIVERGE_RFAC2)->default_value("1.0"))
+    ("DF", "Use change-over from Jeans to Eddington",
+     cxxopts::value<int>(DF)->default_value("1"))
+    ("R_DF", "Change-over radius from Jeans to Eddington",
+     cxxopts::value<double>(R_DF)->default_value("1.0"))
+    ("DR_DF", "Width of change-over from Jeans to Eddington",
+     cxxopts::value<double>(DR_DF)->default_value("1.0"))
     ("nhalo", "Number of halo particles",
      cxxopts::value<int>(nhalo)->default_value("100000"))
     ("ndisk", "Number of disk particles",
@@ -541,12 +468,16 @@ main(int ac, char **av)
      cxxopts::value<bool>(CHEBY)->default_value("false"))
     ("DENS", "(boolean) Output density cylindrical basis tables",
      cxxopts::value<bool>(DENS)->default_value("false"))
-    ("zero", "(boolean) Zero center of mass and velocity",
-     cxxopts::value<bool>(zero)->default_value("true"))
+    ("zeropos", "(boolean) Zero center of mass",
+     cxxopts::value<bool>(zeropos)->default_value("true"))
+    ("zerovel", "(boolean) Zero center of velocity",
+     cxxopts::value<bool>(zerovel)->default_value("true"))
     ("images", "(boolean) Dump disk basis images",
      cxxopts::value<bool>(images)->default_value("false"))
     ("constheight", "(boolean) Use constant scaleheight for disk",
      cxxopts::value<bool>(const_height)->default_value("true"))
+    ("DUMPCOEF", "(boolean) dump coefficients",
+     cxxopts::value<bool>(DUMPCOEF)->default_value("false"))
     ("NCHEB", "",
      cxxopts::value<int>(NCHEB)->default_value("12"))
     ("TCHEB", "",
@@ -629,8 +560,20 @@ main(int ac, char **av)
      cxxopts::value<int>(TNUM)->default_value("80"))
     ("CMAPR", "Radial coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
      cxxopts::value<int>(CMAPR)->default_value("1"))
-    ("CMAPZ", "Verticall coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
+    ("CMAPZ", "Vertical coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
      cxxopts::value<int>(CMAPZ)->default_value("1"))
+    ("Temp", "Gas temperature in Kelvin ",
+     cxxopts::value<double>(Temp)->default_value("2000.0"))
+    ("Tmin", "Gas temperature floor in Kelvin ",
+     cxxopts::value<double>(Tmin)->default_value("500.0"))
+    ("centerfile", "File containing phase-space center",
+     cxxopts::value<std::string>(centerfile))
+    ("runtag", "Prefix for output files",
+     cxxopts::value<std::string>(runtag)->default_value("gendisk"))
+    ("suffix", "Suffix for output files",
+     cxxopts::value<std::string>(suffix)->default_value("diag"))
+    ("threads", "Number of threads to run",
+     cxxopts::value<int>(nthrds)->default_value("1"))
     ;
   
   cxxopts::ParseResult vm;
@@ -662,12 +605,10 @@ main(int ac, char **av)
     if (myid == 0) {
       std::cout << options.help() << std::endl << std::endl
 		<< "Examples: " << std::endl
-		<< "\t" << "Use parameters read from a config file in INI style"  << std::endl
+		<< "\t" << "Use parameters read from a YAML config file"  << std::endl
 		<< "\t" << av[0] << " --config=gendisk.config"  << std::endl << std::endl
-		<< "\t" << "Generate a template config file in INI style from current defaults"  << std::endl
-		<< "\t" << av[0] << " --template=template.config" << std::endl << std::endl
-		<< "\t" << "Override a single parameter in a config file from the command line"  << std::endl
-		<< "\t" << av[0] << "--LMAX=8 --config=template.config" << std::endl << std::endl;
+		<< "\t" << "Generate a template YAML config file from current defaults"  << std::endl
+		<< "\t" << av[0] << " --template=template.yaml" << std::endl << std::endl;
     }
     MPI_Finalize();
     return 0;
@@ -1070,8 +1011,8 @@ main(int ac, char **av)
 
                                 // Make zero center of mass and
                                 // center of velocity
-  diskhalo->zero_com(zero);
-  diskhalo->zero_cov(zero);
+  diskhalo->zero_com(zeropos);
+  diskhalo->zero_cov(zerovel);
   
   //===========================================================================
 
