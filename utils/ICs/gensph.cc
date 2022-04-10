@@ -286,7 +286,7 @@ main(int argc, char **argv)
     switch (HMODEL) {
     case file:
       SphericalModelTable::even = 0;
-      SphericalModelTable::linear   = LINEAR;
+      SphericalModelTable::linear = LINEAR;
       htmodel = std::make_shared<SphericalModelTable>(INFILE, DIVERGE, DIVERGE_RFAC);
       
       htmodel->setup_df(NUMDF, RA);
@@ -510,7 +510,7 @@ main(int argc, char **argv)
   if (vm.count("MMFILE")) {
     
     SphericalModelTable::even = 0;
-    SphericalModelTable::linear   = LINEAR;
+    SphericalModelTable::linear = LINEAR;
     
     // Generate "fake" profile
     //
