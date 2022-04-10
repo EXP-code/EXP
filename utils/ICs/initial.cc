@@ -641,15 +641,18 @@ main(int ac, char **av)
     SphericalModelTable::linear = 1;
   }
 
-  // Set EmpCylSL mtype.  This is the spherical function used to
-  // generate the EOF basis.  If "deproject" is set, this will be
-  // overriden in EmpCylSL.
-  //
-
 				// Convert mtype string to lower case
   std::transform(mtype.begin(), mtype.end(), mtype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
+				// Convert gentype string to lower case
+  std::transform(gentype.begin(), gentype.end(), gentype.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  // Set EmpCylSL mtype.  This is the spherical function used to
+  // generate the EOF basis.  If "deproject" is set, this will be
+  // overriden in EmpCylSL.
+  //
   EmpCylSL::mtype = EmpCylSL::Exponential;
   if (vm.count("mtype")) {
     if (mtype.compare("exponential")==0)
