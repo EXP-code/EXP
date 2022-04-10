@@ -574,6 +574,8 @@ main(int ac, char **av)
      cxxopts::value<std::string>(suffix)->default_value("diag"))
     ("threads", "Number of threads to run",
      cxxopts::value<int>(nthrds)->default_value("1"))
+    ("allow", "Allow multimass algorithm to generature negative masses for testing")
+    ("nomono", "Allow non-monotonic mass interpolation")
     ;
   
   cxxopts::ParseResult vm;
