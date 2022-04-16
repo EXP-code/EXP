@@ -576,8 +576,6 @@ main(int ac, char **av)
      cxxopts::value<int>(nthrds)->default_value("1"))
     ("allow", "Allow multimass algorithm to generature negative masses for testing")
     ("nomono", "Allow non-monotonic mass interpolation")
-     ;
-
     ;
   
   cxxopts::ParseResult vm;
