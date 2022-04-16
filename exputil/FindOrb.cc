@@ -10,9 +10,8 @@
 #include <orbit.H>
 #include <massmodel.H>
 
-#include <simann2.h>
-
-#include "FindOrb.H"
+#include <SimAnn.H>
+#include <FindOrb.H>
 
 
 void FindOrb::mapvars(std::vector<double>& x, double& ee, double& kk)
@@ -67,19 +66,14 @@ double FindOrb::operator()(std::vector<double>& ek)
 
 OrbValues FindOrb::Anneal()
 {
-  
   std::vector<double> x(2);
 				// Guesses
   x[0] = 0.5*(Emax-Emin);
   x[1] = 0.5*(Kmax-Kmin);
 
-  SimAnneal sa (*this, 2);
-
-  if ( !sa )
-    {
-      cerr << "problem initializing SimAnneal object\n";
-      exit(1);
-    }
+  // SimAnn takes a std::function object as its first argument
+  //
+  SimAnn sa (*this, 2);
 
   sa.initial(x);          // set initial condition
   sa.learning_rate(RATE);
@@ -94,10 +88,10 @@ OrbValues FindOrb::Anneal()
     t0 = T0;
   }
 
-  sa.temperature( t0 );
+  sa.temperature(t0);
         
-  double t = sa.anneal( MAXIT );
-  sa.optimum( x );
+  double t = sa.anneal(MAXIT);
+  x = sa.optimum();
 
   double ee, kk;
   mapvars(x, ee, kk);

@@ -5,7 +5,7 @@
 
 #include <biorth.H>
 #include <biorth_wake.H>
-#include <simann2.h>
+#include <SimAnn.H>
 
 double factrl(int n);
 double plgndr(int l, int m, double x);
@@ -162,16 +162,12 @@ void BiorthWake::get_transform(double& phi, double& theta, double& psi,
 
   auto F = [this](std::vector<double>& p) {return this->energy(p);};
 
-  SimAnneal sa(F, ndim);
-
-  if ( !sa ) {
-    cerr << "problem initializing SimAnneal object\n";
-    exit(1);
-  }
+  SimAnn sa(F, ndim);
 
   sa.melt();
+  sa.initial(param);
   sa.anneal(iter);
-  sa.optimum(param);
+  param = sa.optimum();
   modulo_param(param);
 
 

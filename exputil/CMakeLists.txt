@@ -10,7 +10,7 @@ set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkGrid.cc)
 endif()
-set(OPTIMIZATION_SRC simann2.cc)
+set(OPTIMIZATION_SRC SimAnn.cc)
 set(POLY_SRC zroots.cc laguer.cc poly.cc cpoly.cc horner.cc syndiv.cc)
 set(PHASE_SRC phase.cc ensemble.cc io_ensemble.cc move_ensemble.cc
   diag_ensemble.cc map.cc pc.cc models.cc prolate.cc perfect.cc
