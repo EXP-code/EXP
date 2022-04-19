@@ -227,6 +227,9 @@ protected:
   //! Flag use of even m harmonics only
   bool EVEN_M;
 
+  //! Use axisymmetric term s
+  bool M0_only;
+
   //! Flag adding noise to coefficients (for testing diffusion)
   bool NOISE;  
 
