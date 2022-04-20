@@ -54,8 +54,12 @@ void ComponentContainer::initialize(void)
     string resfile = outdir + infile;
     ifstream in(resfile.c_str());
     if (in) {
-      cerr << "---- ComponentContainer successfully opened <"
-	   << resfile << ">, assuming a restart" << endl;
+      if (ignore_info)
+	cerr << "---- ComponentContainer successfully opened <"
+	     << resfile << ">, assuming a new run using a previous phase space as initial conditions" << endl;
+      else
+	cerr << "---- ComponentContainer successfully opened <"
+	     << resfile << ">, assuming a restart" << endl;
       ir = 1;
     } else {
       cerr << "---- ComponentContainer could not open <"
@@ -94,12 +98,20 @@ void ComponentContainer::initialize(void)
 	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 
-      cout << "Recovering from: "
-	   << "  Tnow="  << master.time
-	   << "  Ntot="  << master.ntot
-	   << "  Ncomp=" << master.ncomp << endl;
+      if (ignore_info) {
+	cout << "Found: "
+	     << "  Ntot="  << master.ntot
+	     << "  Ncomp=" << master.ncomp << endl;
 
-      tnow  = master.time;
+      } else {
+	cout << "Recovering from: "
+	     << "  Tnow="  << master.time
+	     << "  Ntot="  << master.ntot
+	     << "  Ncomp=" << master.ncomp << endl;
+
+	tnow  = master.time;
+      }
+      
       ntot  = master.ntot;
       ncomp = master.ncomp;
     }
