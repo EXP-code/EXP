@@ -226,7 +226,7 @@ void initialize(void)
     if (_G["ratefile"])	        ratefile     = _G["ratefile"].as<std::string>();
     if (_G["runtag"])		runtag       = _G["runtag"].as<std::string>();
     if (_G["restart_cmd"])      restart_cmd  = _G["restart_cmd"].as<std::string>();
-    if (_G["ignore_info"])      ignore_info  = _G["ignore_info"].as<bool>();
+    if (_G["restart_as_new"])   ignore_info  = _G["restart_as_new"].as<bool>();
     if (_G["allcouples"])       all_couples  = _G["allcouples"].as<bool>();
     
     bool ok = true;
