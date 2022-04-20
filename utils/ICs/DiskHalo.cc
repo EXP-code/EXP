@@ -714,6 +714,10 @@ set_halo_table_single(vector<Particle>& phalo)
   if (myid==0) std::cout << "  min(r)=" << radmin 
 			 << "  max(r)=" << radmax;
 
+  // Make dispersion vector
+  //
+  table_halo_disp();
+
   MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
   for (unsigned i=0; i<=nh; i++) {
