@@ -134,19 +134,34 @@ main(int argc, char **argv)
 	<< setw(10) << stanza->comp.ndatr 
 	<< endl;
 
+    const int bunchcnt = 16384;
+    int cnt = 0;
+    std::ostringstream sout;
+
     for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
       if (not input and stanza->index_size)
-	out << std::setw(18) << part->indx();
-      out << std::setw(18) << part->mass();
-      for (int i=0; i<3; i++) out << std::setw(18) << part->pos(i);
-      for (int i=0; i<3; i++) out << std::setw(18) << part->vel(i);
-      if (not input) out << std::setw(18) << part->phi();
-      for (int i=0; i<part->niatr(); i++) out << std::setw(12) << part->iatr(i);
-      for (int i=0; i<part->ndatr(); i++) out << std::setw(18) << part->datr(i);
+	sout << std::setw(18) << part->indx();
 
-      out << std::endl;		// End the record
+      sout << std::setw(18) << part->mass();
+      for (int i=0; i<3; i++) sout << std::setw(18) << part->pos(i);
+      for (int i=0; i<3; i++) sout << std::setw(18) << part->vel(i);
+      if (not input) sout << std::setw(18) << part->phi();
+      for (int i=0; i<part->niatr(); i++)
+	sout << std::setw(12) << part->iatr(i);
+      for (int i=0; i<part->ndatr(); i++)
+	sout << std::setw(18) << part->datr(i);
+
+      sout << std::endl;	// End the record
+
+      if (++cnt==bunchcnt) {	// Write and reset the buffer
+	out << sout.str();
+	sout.str("");
+	cnt = 0;
+      }
     }
+				// Clear the buffer
+    if (sout.str().size()>0) out << sout.str();
     
   }
   
