@@ -74,7 +74,7 @@ class DiskHalo
     SParticle P(p);
     write_record(out, P);
   }
-  void flush_record(ostream &out);
+  void flush_buffer(ostream &out);
   void table_halo_disp();
 
   // For frequency computation

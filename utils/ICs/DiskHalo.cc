@@ -163,6 +163,8 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   nhD = vector<double>  (nh+1, 0.0); // Mass per bin
   nhM = vector<double>  (nh+1, 0.0); // Cumulative mass
 
+  // For buffered ascii writes
+  //
   bufcnt = 0;
 }
 
@@ -290,6 +292,8 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   nhD   = vector<double>  (nh+1, 0.0); // Mass per bin
   nhM   = vector<double>  (nh+1, 0.0); // Cumulative mass
 
+  // For buffered ascii writes
+  //
   bufcnt = 0;
 }
 
@@ -2488,15 +2492,17 @@ void DiskHalo::write_record(ostream &out, SParticle &p)
   
   bufout << std::endl;
 
-  if (++bufcnt==bunchcnt) {
+  if (++bufcnt==bunchcnt) {	// Write the buffer
     out << bufout.str();
-    bufout.str("");
+    bufout.str("");		// Clear the buffer
     bufcnt = 0;
   }
 }
 
-void DiskHalo::flush_record(ostream &out)
+void DiskHalo::flush_buffer(ostream &out)
 {
+  // Write remaining characters in the buffer and clear
+  //
   if (bufout.str().size()>0) out << bufout.str();
   bufout.str("");
   bufcnt = 0;
@@ -2558,7 +2564,7 @@ void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
 	ccnt += icur;
       }
       
-      flush_record(fou);
+      flush_buffer(fou);
 
       if (VFLAG & 1)
 	std::cout << "Wrote " << ccnt << " particles from Node " << n << std::endl;
