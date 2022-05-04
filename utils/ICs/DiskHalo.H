@@ -62,6 +62,10 @@ class DiskHalo
   bool com;
   bool cov;
 
+  const int bunchcnt = 16384;
+  int bufcnt;
+  std::ostringstream bufout;
+
   double disk_density(double R, double z);
   double disk_surface_density(double R);
   void write_record(ostream &out, SParticle &p);
@@ -70,6 +74,7 @@ class DiskHalo
     SParticle P(p);
     write_record(out, P);
   }
+  void flush_record(ostream &out);
   void table_halo_disp();
 
   // For frequency computation

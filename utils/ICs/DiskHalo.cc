@@ -81,6 +81,7 @@ DiskHalo()
   DF         = false;
   MULTI      = false;
   type       = Jeans;
+  bufcnt     = 0;
 }
 
 DiskHalo::
@@ -161,6 +162,8 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   nhN = vector<unsigned>(nh+1, 0  ); // Counts per bin
   nhD = vector<double>  (nh+1, 0.0); // Mass per bin
   nhM = vector<double>  (nh+1, 0.0); // Cumulative mass
+
+  bufcnt = 0;
 }
 
 DiskHalo::
@@ -286,6 +289,8 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   nhN   = vector<unsigned>(nh+1, 0  ); // Counts per bin
   nhD   = vector<double>  (nh+1, 0.0); // Mass per bin
   nhM   = vector<double>  (nh+1, 0.0); // Cumulative mass
+
+  bufcnt = 0;
 }
 
 
@@ -338,6 +343,8 @@ DiskHalo::DiskHalo(const DiskHalo &p)
   cmap  = p.cmap;
   Xmin  = p.Xmin;
   Xmax  = p.Xmax;
+
+  bufcnt = 0;
 }
 
 
@@ -2471,15 +2478,28 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
 
 void DiskHalo::write_record(ostream &out, SParticle &p)
 {
-  out << " " << std::setw(16) << setprecision(8) << p.mass;
+  bufout << " " << std::setw(16) << setprecision(8) << p.mass;
   
   for (int k=0; k<3; k++)
-    out << std::setw(24) << setprecision(15) << p.pos[k] + center_pos[k];
+    bufout << std::setw(24) << setprecision(15) << p.pos[k] + center_pos[k];
   
   for (int k=0; k<3; k++)
-    out << std::setw(24) << setprecision(15) << p.vel[k] + center_vel[k];
+    bufout << std::setw(24) << setprecision(15) << p.vel[k] + center_vel[k];
   
-  out << std::endl;
+  bufout << std::endl;
+
+  if (++bufcnt==bunchcnt) {
+    out << bufout.str();
+    bufout.str("");
+    bufcnt = 0;
+  }
+}
+
+void DiskHalo::flush_record(ostream &out)
+{
+  if (bufout.str().size()>0) out << bufout.str();
+  bufout.str("");
+  bufcnt = 0;
 }
 
 void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
@@ -2538,6 +2558,8 @@ void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
 	ccnt += icur;
       }
       
+      flush_record(fou);
+
       if (VFLAG & 1)
 	std::cout << "Wrote " << ccnt << " particles from Node " << n << std::endl;
 
