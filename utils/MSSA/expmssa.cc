@@ -145,7 +145,7 @@ main(int argc, char **argv)
   // Parameters
   //--------------------------------------------------
   std::string prefix, grpfile, config, spec;
-  int numW, ndim, nmin, nmax, npc;
+  int numW, nmin, nmax, npc;
   int stride, skip, kmeans;
   std::vector<int> MM;
   double evtol, tmin, tmax;
@@ -1002,7 +1002,8 @@ main(int argc, char **argv)
 	}
       }
 
-      std::ostringstream sout; sout << prefix + "_" << u.first << ".png";
+      std::ostringstream sout; sout << prefix + ".wcorr" + "_"
+				    << u.first << ".png";
       image.write(sout.str());
     }
 
@@ -1029,7 +1030,7 @@ main(int argc, char **argv)
 	}
       }
 
-      std::ostringstream sout; sout << prefix + "_allchan.png";
+      std::ostringstream sout; sout << prefix + ".wcorr_allchan.png";
       image.write(sout.str());
     }
 
