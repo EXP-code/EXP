@@ -2202,7 +2202,7 @@ void Component::write_binary_particles(ostream* out, bool real4)
   if (buffered) {
     ParticleBuffer buf(rsize, indexing, particles.begin()->second.get());
     for (auto p : particles)
-      p.second->writeBinaryBuffered(rsize, indexing, out, buf);
+      p.second->writeBinaryBuffered(rsize, indexing, out, &buf);
     buf.writeBuffer(out, true);	// Complete the write
   }
   // Unbuffered, direct writes
@@ -2255,8 +2255,9 @@ void Component::write_binary_particles
     for (size_t b=0; b<particles.bucket_count(); b++) {
       auto tid = omp_get_thread_num();
       for (auto p=particles.begin(b); p!=particles.end(b); p++) {
-	p->second->writeBinaryBuffered(rsize, indexing, out[tid].get(), *buf[tid]);
-	NN[tid]++;		// Tally number of particles per stream
+	p->second->writeBinaryBuffered(rsize, indexing, 
+				       out[tid].get(), buf[tid].get());
+	NN[tid]++;	       // Tally number of particles per stream
       }
     }
 

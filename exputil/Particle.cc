@@ -187,35 +187,35 @@ void ParticleBuffer::writeBuffer(std::ostream *out, bool finish)
 
 
 void Particle::writeBinaryBuffered
-(unsigned rsize, bool indexing, std::ostream *out, ParticleBuffer& buf) const
+(unsigned rsize, bool indexing, std::ostream *out, ParticleBuffer* buf) const
 {
   // Write buffer if necessary and reset
-  buf.writeBuffer(out);
+  buf->writeBuffer(out);
 
   // Working variable for floats
   float tf;
 
   // Cache index if desired
   if (indexing)
-    buf.Loc = (char *)std::memcpy(buf.Loc, &indx, sizeof(unsigned long)) + sizeof(unsigned long);
+    buf->Loc = (char *)std::memcpy(buf->Loc, &indx, sizeof(unsigned long)) + sizeof(unsigned long);
 
   // Mass
   if (rsize == sizeof(float)) {
     tf = static_cast<float>(mass);
-    buf.Loc = (char *)std::memcpy(buf.Loc, &tf, sizeof(float)) + sizeof(float);
+    buf->Loc = (char *)std::memcpy(buf->Loc, &tf, sizeof(float)) + sizeof(float);
   }
   else
-    buf.Loc = (char *)std::memcpy(buf.Loc, &mass, sizeof(double)) + sizeof(double);
+    buf->Loc = (char *)std::memcpy(buf->Loc, &mass, sizeof(double)) + sizeof(double);
   
   // Position
   for (int i=0; i<3; i++) {
     double pv = pos[i];
     if (rsize == sizeof(float)) {
       tf = static_cast<float>(pv);
-      buf.Loc = (char *)std::memcpy(buf.Loc, &tf, sizeof(float)) + sizeof(float);
+      buf->Loc = (char *)std::memcpy(buf->Loc, &tf, sizeof(float)) + sizeof(float);
     }
     else
-      buf.Loc = (char *)std::memcpy(buf.Loc, &pv, sizeof(double)) + sizeof(double);
+      buf->Loc = (char *)std::memcpy(buf->Loc, &pv, sizeof(double)) + sizeof(double);
   }
   
   // Velocity
@@ -223,32 +223,32 @@ void Particle::writeBinaryBuffered
     double pv = vel[i];
     if (rsize == sizeof(float)) {
       tf = static_cast<float>(pv);
-      buf.Loc = (char *)std::memcpy(buf.Loc, &tf, sizeof(float)) + sizeof(float);
+      buf->Loc = (char *)std::memcpy(buf->Loc, &tf, sizeof(float)) + sizeof(float);
     }
     else
-      buf.Loc = (char *)std::memcpy(buf.Loc, &pv, sizeof(double)) + sizeof(double);
+      buf->Loc = (char *)std::memcpy(buf->Loc, &pv, sizeof(double)) + sizeof(double);
   }
 
   // Potential
   double pot0 = pot + potext;
   if (rsize == sizeof(float)) {
     tf = static_cast<float>(pot0);
-    buf.Loc = (char *)std::memcpy(buf.Loc, &tf, sizeof(float)) + sizeof(float);
+    buf->Loc = (char *)std::memcpy(buf->Loc, &tf, sizeof(float)) + sizeof(float);
   }
   else
-    buf.Loc = (char *)std::memcpy(buf.Loc, &pot0, sizeof(double)) + sizeof(double);
+    buf->Loc = (char *)std::memcpy(buf->Loc, &pot0, sizeof(double)) + sizeof(double);
 
   // Integer attribute vector
   if (iattrib.size())
-    buf.Loc = (char *)std::memcpy(buf.Loc, &iattrib[0], iattrib.size()*sizeof(int)) + iattrib.size()*sizeof(int);
+    buf->Loc = (char *)std::memcpy(buf->Loc, &iattrib[0], iattrib.size()*sizeof(int)) + iattrib.size()*sizeof(int);
   
   // Real attribute vector
   if (dattrib.size())
     if (rsize == sizeof(float))
-      buf.Loc = (char *)std::memcpy(buf.Loc, &dattrib[0], dattrib.size()*sizeof(float)) +
+      buf->Loc = (char *)std::memcpy(buf->Loc, &dattrib[0], dattrib.size()*sizeof(float)) +
 	dattrib.size()*sizeof(float);
     else
-      buf.Loc = (char *)std::memcpy(buf.Loc, &dattrib[0], dattrib.size()*sizeof(double)) +
+      buf->Loc = (char *)std::memcpy(buf->Loc, &dattrib[0], dattrib.size()*sizeof(double)) +
 	dattrib.size()*sizeof(double);
 
   buf++;			// Increment buffer counter
