@@ -152,6 +152,51 @@ namespace CoefDB {
 		     const std::string& runtag);
   };
 
+  class TableDB : public CoefDB
+  {
+  protected:
+
+    //! Cache of original data
+    std::map<double, std::vector<double>> data;
+
+    //! Read coefficients from EXP file
+    void read(const std::string& file, unsigned stride=1,
+	      double tmin=-std::numeric_limits<double>::max(),
+	      double tmax= std::numeric_limits<double>::max());
+      
+    int nfields, ntimes;
+
+  public:
+    
+    TableDB(const std::string& name, YAML::Node& node, unsigned index, unsigned stride=1,
+	    double tmin=-std::numeric_limits<double>::max(),
+	    double tmax= std::numeric_limits<double>::max());
+  
+    //! Bineary write reconstruction
+    void write(int ncomp, const TrendType& type, bool useMean,
+	       double totPow, double totVar,
+	       std::map<Key, double>& mean,
+	       std::map<Key, double>& var,
+	       std::map<Key, Eigen::MatrixXd>& RC,
+	       const std::vector<std::set<int>>& groups,
+	       const std::vector<double>& times,
+	       const std::string& runtag)
+    {
+      // Do nothing
+    }
+
+    //! Write reconstructions in ascii
+    void write_ascii(int ncomp, const TrendType& type, bool useMean,
+		     double totPow, double totVar,
+		     std::map<Key, double>& mean,
+		     std::map<Key, double>& var,
+		     std::map<Key, Eigen::MatrixXd>& RC,
+		     const std::vector<std::set<int>>& groups,
+		     const std::vector<double>& times,
+		     const std::string& runtag);
+  };
+
+
   /**
      A uniform interface to a group of CoefDB instances
 

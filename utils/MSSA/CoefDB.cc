@@ -402,6 +402,92 @@ namespace CoefDB {
     }
   }
 
+  //! Constructor
+  TableDB::TableDB(const std::string& name, YAML::Node& node, unsigned index,
+		   unsigned stride, double tmin, double tmax) :
+    CoefDB(name, node, index)
+  {
+    std::string file;
+    
+    if (node["filename"]) {
+      file = node["filename"].as<std::string>();
+    } else {
+      std::cout << "TableDB: no data table filename found" << std::endl;
+      exit(-4);
+    }
+
+    read(file, stride, tmin, tmax);
+  }
+
+
+  template<typename T>
+  void pop_front(std::vector<T>& vec)
+  {
+    assert(!vec.empty());
+    vec.erase(vec.begin());
+  }
+
+  void TableDB::read(const std::string& file, unsigned stride,
+		     double tmin, double tmax)
+  {
+    std::map<std::string, int> ret;
+    std::ifstream in(file);
+    
+    // Check for good opened file
+    if (!in) {
+      std::cerr << "TableDB: could not open data table file <"
+		<< file << ">" << std::endl;
+    exit(-2);
+    }
+
+    unsigned counter = 0;
+
+    while (in.good()) {
+      std::string line;
+      std::getline(in, line);
+
+      // Good line?
+      //
+      if (in.good()) {
+	std::istringstream sin(line);
+	std::vector<double> row;
+	try {
+	  double val;
+	  while (1) { sin >> val; row.push_back(val); }
+	}
+	catch (std::istream::failure e) {
+	  if (row.size()==0) {
+	    std::cerr << "Empty row?" << std::endl;
+	    break;
+	  }
+	}
+
+	double now  = row[0];
+	if (now >= tmin and now <= tmax) {
+	  if (counter++ % stride == 0) {
+	    pop_front(row);
+	    data[now] = row;
+	  }
+	}
+      }
+    }
+
+    ntimes  = data.size();
+    nfields = data.begin()->second.size();
+
+    for (auto v : data) {
+      times.push_back(v.second[0]);
+    }
+
+    for (unsigned f=0; f<nfields; f++) {
+      std::vector<double> D(ntimes);
+      for (int n=0; n<ntimes; n++) D[n] = data[D[n]][f];
+      coefs[{f}] = D;
+    }
+
+  }
+
+
   CoefContainer::CoefContainer(const std::string& spec)
   {
     YAML::Node top = YAML::LoadFile(spec);
@@ -441,8 +527,10 @@ namespace CoefDB {
 	  comps.push_back(std::make_shared<SphDB>(name, node, comps.size(), stride, tmin, tmax));
 	} else if (ctype.find("cylinder")==0) {
 	  comps.push_back(std::make_shared<CylDB>(name, node, comps.size(), stride, tmin, tmax));
+	} else if (ctype.find("table")==0) {
+	  comps.push_back(std::make_shared<TableDB>(name, node, comps.size(), stride, tmin, tmax));
 	} else {
-	  std::cout << "Unknown geometry.  You must specify 'cylinder' or 'sphere'." << std::endl;
+	  std::cout << "Unknown geometry.  You must specify 'cylinder', 'sphere', or 'table'." << std::endl;
 	  exit(-1);
 	}
       }
@@ -724,6 +812,89 @@ namespace CoefDB {
       } // LM pairs
 
     } // ncomp loop
+
+  } // coefs
+
+  void TableDB::write_ascii(int ncomp, const TrendType& type, bool useMean,
+			    double totPow, double totVar,
+			    std::map<Key, double>& mean,
+			    std::map<Key, double>& var,
+			    std::map<Key, Eigen::MatrixXd>& RC,
+			    const std::vector<std::set<int>>& groups,
+			    const std::vector<double>& times,
+			    const std::string& runtag)
+  {
+    std::string filename = runtag + "." + name + ".data";
+    std::ofstream out(filename);
+
+    std::set<unsigned> Fset;
+    for (auto k : keys) Fset.insert(k[0]);
+
+    if (out) {
+
+      for (int i=0; i<times.size(); i++) {
+	out << std::setw(15) << std::setprecision(6) << times[i] << std::endl;
+	
+	for (auto F : Fset) {
+
+	  for (unsigned n=0; n<nfields; n++) {
+	    Key k = {F, index};
+	    auto rc = RC.find(k);
+	    if (rc == RC.end())
+	      out << std::setw(15) << std::setprecision(6) << 0.0;
+	    else {
+	      double acc = 0.0;
+	      for (int j=0; j<ncomp; j++) acc += RC[k](i, j);
+	      out << std::setw(15) << std::setprecision(6)
+		  << acc*var[k] + mean[k];
+	    }
+	  }
+	  out << std::endl;
+	}
+	// END: F loop
+      }
+      // END: time loop
+
+    } else {
+      std::cout << "Could not open <" << filename << ">" << std::endl;
+      exit(-1);
+    }
+
+    for (int j=0; j<groups.size(); j++) {
+
+      std::ostringstream filename;
+      filename << runtag << "." << name << "_" << j << ".data";
+      std::ofstream out(filename.str());
+
+      if (out) {
+	for (int i=0; i<times.size(); i++) {
+	  for (auto F : Fset) {
+
+	    out << std::setw(15) << std::setprecision(6) << times[i] << std::endl;
+	    out << std::setw(15) << F << std::setw(15) << nfields << std::endl;
+
+	    for (unsigned n=0; n<nfields; n++) {
+	      Key k = {static_cast<unsigned>(F), index};
+	      auto rc = RC.find(k);
+	      if (rc == RC.end())
+		out << std::setw(15) << std::setprecision(6) << 0.0;
+	      else {
+		double val = 0.0;
+		for (auto v : groups[j]) val += RC[k](i, v);
+		out << std::setw(15) << std::setprecision(6)
+		    << val*var[k] + mean[k];
+	      }
+	    }
+	    out << std::endl;
+	  }
+	}
+	out.close();
+      } else {
+	std::cout << "Could not open <" << filename.str() << ">" << std::endl;
+	exit(-1);
+      } // file open failure
+
+    } // numW loop
 
   } // coefs
 
