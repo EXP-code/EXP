@@ -13,7 +13,7 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc SphericalCoefs.cc
   CylindricalCoefs.cc TwoDCoefs.cc TwoCenter.cc EJcom.cc global.cc
   begin.cc ddplgndr.cc Direct.cc Shells.cc NoForce.cc end.cc
-  OutputContainer.cc OutPS.cc OutPSQ.cc OutPSN.cc OutPSP.cc
+  OutputContainer.cc OutPS.cc OutPSQ.cc OutPSN.cc OutPSP.cc OutPSR.cc
   OutCHKPT.cc OutCHKPTQ.cc Output.cc externalShock.cc
   generateRelaxation.cc HaloBulge.cc incpos.cc incvel.cc
   ComponentContainer.cc OutAscii.cc OutMulti.cc OutRelaxation.cc

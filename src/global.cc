@@ -119,7 +119,7 @@ YAML::Node          parse;
 map<string, maker_t *, less<string> > factory;
 map<string, maker_t *, less<string> >::iterator fitr;
 
-string lastPS, lastPSQ;
+std::string lastPS, lastPSQ, lastPSR;
 CheckpointTimer chktimer;
 string restart_cmd;
 

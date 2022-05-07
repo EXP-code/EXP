@@ -176,9 +176,59 @@ void ComponentContainer::initialize(void)
   ntot = 0;
   for (auto c : components) ntot += c->NewTotal();
 
-				// Initialize interactions between components
-  std::string value;
-  
+  // Initialize interactions between components
+  //
+  // First, check that all listed interactions speficy a known component
+  // based on a suggestion from Jason Hunt
+  //
+  if (parse["Interaction"]) {
+    
+    YAML::Node inters = parse["Interaction"];
+	
+    bool interOkay = true;
+
+    for (YAML::const_iterator it=inters.begin(); it!=inters.end(); ++it) {
+	  
+      std::string name1 = it->first.as<std::string>();
+      std::string name2 = it->second.as<std::string>();
+
+      // Check component list for interaction pair names
+      bool found1 = false, found2 = false;
+      for (auto c : components) {
+	if (not found1 and c->name.find(name1)==0) found1 = true;
+	if (not found2 and c->name.find(name2)==0) found2 = true;
+      }
+
+      // Name 1?
+      if (not found1) {
+	if (myid==0)
+	  std::cout << "ComponentContainer: component <" << name1 << "> "
+		    << "found in interaction list but is not a component name"
+		    << std::endl;
+	interOkay = false;
+      }
+
+      // Name 2?
+      if (not found2) {
+	if (myid==0)
+	  std::cout << "ComponentContainer: component <" << name2 << "> "
+		    << "found in interaction list but is not a component name"
+		    << std::endl;
+	interOkay = false;
+      }
+    }
+
+    if (not interOkay) {
+      MPI_Finalize();
+      exit(-11);
+    }
+  }
+
+
+  // The default toggle, all_couples=true, assigns all possible
+  // interaction paris and removes those listed in the "Interaction"
+  // list
+  //
   if (all_couples) {
     
     // Erase all elements, just in case
@@ -233,7 +283,12 @@ void ComponentContainer::initialize(void)
       }
     }
 
-  } else {
+  }
+  // Otherwise, only include couples listed in the Interaction list
+  // which is the old behavior and can be invoked using "allcouples:
+  // false" in the YAML global.
+  //
+  else {
 
     for (auto c : components) {
 				// Check for interaction list

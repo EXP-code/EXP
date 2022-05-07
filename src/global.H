@@ -305,7 +305,7 @@ extern YAML::Node parse;
 extern double runtime;
 
 //! Last PS file name
-extern string lastPS, lastPSQ;
+extern string lastPS, lastPSQ, lastPSR;
 
 //! Checkpoint timer
 extern CheckpointTimer chktimer;

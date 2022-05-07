@@ -2124,7 +2124,7 @@ void Component::write_binary(ostream* out, bool real4)
     
 }
 
-void Component::write_binary_header(ostream* out, bool real4, const std::string prefix)
+void Component::write_binary_header(ostream* out, bool real4, const std::string prefix, int nth)
 {
   ComponentHeader header;
 
@@ -2167,8 +2167,10 @@ void Component::write_binary_header(ostream* out, bool real4, const std::string 
     else       rsize = sizeof(double);
     unsigned long cmagic = magic + rsize;
 
-    out->write((const char*)&cmagic,   sizeof(unsigned long));
-    out->write((const char*)&numprocs, sizeof(int));
+    int nfiles = numprocs*nth;
+
+    out->write((const char*)&cmagic,  sizeof(unsigned long));
+    out->write((const char*)&nfiles,  sizeof(int));
 
     if (!header.write(out)) {
       std::string msg("Component::write_binary: Error writing particle header");
@@ -2178,7 +2180,7 @@ void Component::write_binary_header(ostream* out, bool real4, const std::string 
     const size_t PBUF_SIZ = 1024;
     char buf [PBUF_SIZ];
 
-    for (int n=0; n<numprocs; n++) {
+    for (int n=0; n<nfiles; n++) {
       std::ostringstream sout;
       sout << prefix << "-" << n << '\0';
       sout.str().copy(buf, sout.str().size());
@@ -2206,6 +2208,84 @@ void Component::write_binary_particles(ostream* out, bool real4)
   // Unbuffered, direct writes
   else {
     for (auto p : particles) p.second->writeBinary(rsize, indexing, out);
+  }
+}
+
+void Component::write_binary_particles
+(std::vector<std::shared_ptr<std::ofstream>>& out, bool real4)
+{
+  // Set number of OpenMP threads equal to number of streams.  It's up
+  // the user to make that cores are available.
+  //
+  size_t nthrds = out.size();
+  omp_set_num_threads(nthrds);
+
+  // Divide the particles between the streams
+  //
+  std::vector<unsigned> NN(nthrds, 0);
+
+  // Move to write position
+  //
+#pragma omp parallel for
+  for (size_t n=0; n<nthrds; n++) {
+    out[n]->seekp(sizeof(unsigned int));
+  }
+
+  // Assign data size
+  //
+  if (real4) rsize = sizeof(float);
+  else       rsize = sizeof(double);
+
+  // Use buffered writes
+  //
+  if (buffered) {
+
+    // Make a buffer for each stream
+    //
+    std::vector<std::shared_ptr<ParticleBuffer>> buf(nthrds);
+#pragma omp parallel for
+    for (size_t n=0; n<nthrds; n++) {
+      buf[n] = std::make_shared<ParticleBuffer>
+	(rsize, indexing, particles.begin()->second.get());
+    }
+
+    // Write the particles in parallel
+    //
+#pragma omp parallel for
+    for (size_t b=0; b<particles.bucket_count(); b++) {
+      auto tid = omp_get_thread_num();
+      for (auto p=particles.begin(b); p!=particles.end(b); p++) {
+	p->second->writeBinaryBuffered(rsize, indexing, out[tid].get(), *buf[tid]);
+	NN[tid]++;		// Tally number of particles per stream
+      }
+    }
+
+    // Flush the buffer
+    //
+#pragma omp parallel for
+    for (size_t n=0; n<nthrds; n++) {
+      buf[n]->writeBuffer(out[n].get(), true);
+    }
+  }
+  // Unbuffered, direct writes
+  //
+  else {
+#pragma omp parallel for
+    for (size_t b=0; b<particles.bucket_count(); b++) {
+      auto tid = omp_get_thread_num();
+      for (auto p=particles.begin(b); p!=particles.end(b); p++) {
+	p->second->writeBinary(rsize, indexing, out[tid].get());
+	NN[tid]++;		// Tally number of particles per stream
+      }
+    }
+  }
+
+  // Write the particle counts into each file blob
+  //
+#pragma omp parallel for
+  for (size_t n=0; n<nthrds; n++) {
+    out[n]->seekp(0);
+    out[n]->write((const char *)&NN[n], sizeof(unsigned int));
   }
 }
 
