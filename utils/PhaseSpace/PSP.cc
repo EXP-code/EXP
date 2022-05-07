@@ -524,6 +524,10 @@ void PSPspl::openNextBlob()
 
   // Advance filename iterator
   fit++;
+
+  // Check for empty blob
+  if (N==0) openNextBlob();
+
 }
 
 SParticle* PSPspl::NextParticle()
