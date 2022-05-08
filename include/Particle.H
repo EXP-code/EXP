@@ -98,7 +98,7 @@ public:
   void writeAscii(bool indexing, bool accel, std::ostream* out);
 
   //! Write a particle in binary format (PSP)
-  void writeBinaryBuffered(unsigned rsize, bool indexing, std::ostream *out, ParticleBuffer* buf) const;
+  void writeBinaryBuffered(unsigned rsize, bool indexing, std::ostream *out, ParticleBuffer& buf) const;
 
   //! Write a particle in binary format (PSP)
   void writeBinary(unsigned rsize, bool indexing, std::ostream *out) const;

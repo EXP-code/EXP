@@ -2190,7 +2190,7 @@ void Component::write_binary_header(ostream* out, bool real4, const std::string 
 
 }
 
-void Component::write_binary_particles(ostream* out, bool real4)
+void Component::write_binary_particles(std::ostream* out, bool real4)
 {
   unsigned int N = particles.size();
   out->write((const char*)&N, sizeof(unsigned int));
@@ -2199,13 +2199,15 @@ void Component::write_binary_particles(ostream* out, bool real4)
   else       rsize = sizeof(double);
 
   // Use buffered writes
+  //
   if (buffered) {
     ParticleBuffer buf(rsize, indexing, particles.begin()->second.get());
     for (auto p : particles)
-      p.second->writeBinaryBuffered(rsize, indexing, out, &buf);
+      p.second->writeBinaryBuffered(rsize, indexing, out, buf);
     buf.writeBuffer(out, true);	// Complete the write
   }
   // Unbuffered, direct writes
+  //
   else {
     for (auto p : particles) p.second->writeBinary(rsize, indexing, out);
   }
@@ -2215,7 +2217,7 @@ void Component::write_binary_particles
 (std::vector<std::shared_ptr<std::ofstream>>& out, bool real4)
 {
   // Set number of OpenMP threads equal to number of streams.  It's up
-  // the user to make that cores are available.
+  // to the user to make that cores are available.
   //
   size_t nthrds = out.size();
   omp_set_num_threads(nthrds);
@@ -2228,7 +2230,8 @@ void Component::write_binary_particles
   //
 #pragma omp parallel for
   for (size_t n=0; n<nthrds; n++) {
-    out[n]->seekp(sizeof(unsigned int));
+    out[n]->seekp(sizeof(unsigned int)); // Skip size of particle
+					 // number
   }
 
   // Assign data size
@@ -2236,7 +2239,7 @@ void Component::write_binary_particles
   if (real4) rsize = sizeof(float);
   else       rsize = sizeof(double);
 
-  // Use buffered writes
+  // Use buffered writes (default)
   //
   if (buffered) {
 
@@ -2256,8 +2259,9 @@ void Component::write_binary_particles
       auto tid = omp_get_thread_num();
       for (auto p=particles.begin(b); p!=particles.end(b); p++) {
 	p->second->writeBinaryBuffered(rsize, indexing, 
-				       out[tid].get(), buf[tid].get());
-	NN[tid]++;	       // Tally number of particles per stream
+				       out[tid].get(), *buf[tid]);
+	// Tally number of particles per stream
+	NN[tid]++;
       }
     }
 
@@ -2276,7 +2280,8 @@ void Component::write_binary_particles
       auto tid = omp_get_thread_num();
       for (auto p=particles.begin(b); p!=particles.end(b); p++) {
 	p->second->writeBinary(rsize, indexing, out[tid].get());
-	NN[tid]++;		// Tally number of particles per stream
+	// Tally number of particles per stream
+	NN[tid]++;
       }
     }
   }
@@ -2285,7 +2290,7 @@ void Component::write_binary_particles
   //
 #pragma omp parallel for
   for (size_t n=0; n<nthrds; n++) {
-    out[n]->seekp(0);
+    out[n]->seekp(0);		// Position at beginning
     out[n]->write((const char *)&NN[n], sizeof(unsigned int));
   }
 }
