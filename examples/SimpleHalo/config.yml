@@ -19,7 +19,6 @@ Global:
   dynFracV   : 0.01
   dynFracA   : 0.03
   dynFracV   : 0.05
-  nreport    : 1
   infile     : OUT.run0.chkpt
   VERBOSE    : 0
   cuda       : off

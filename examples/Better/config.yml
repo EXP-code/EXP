@@ -17,7 +17,6 @@ Global:
   multistep  : 8
   dynFracA   : 0.004
   dynFracV   : 0.02
-  nreport    : 1
   infile     : OUT.run0.chkpt
   VERBOSE    : 0
   cuda       : off
