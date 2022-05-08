@@ -1341,8 +1341,19 @@ void ComponentContainer::report_numbers(void)
   for (int num=0; num<numprocs; num++) {
 
     if (myid==num) {
-      string fout = outdir + runtag + ".number";
-      ofstream out(fout.c_str(), ios::out | ios::app);
+      std::string fout = outdir + runtag + ".number";
+      std::ofstream out;
+
+      // Make a bigger output buffer
+      //
+      const int bufsize = 16384;
+      char mybuffer [bufsize];
+      out.rdbuf()->pubsetbuf(mybuffer, bufsize);
+
+      // Open the file
+      //
+      out.open(fout.c_str(), ios::out | ios::app);
+
       if (out) {
 	if (myid==0) {
 	  out << "# Step: " << this_step << " Time: " << tnow << endl 

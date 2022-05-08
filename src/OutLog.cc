@@ -107,10 +107,20 @@ void OutLog::initialize()
 
 void OutLog::Run(int n, int mstep, bool last)
 {
+  // Define the stream
   std::ofstream out;
+
+  // Field width
   const int cwid = 20;
 
+  // Make a bigger output buffer
+  //
+  const int bufsize = 16384;
+  char mybuffer [bufsize];
+  out.rdbuf()->pubsetbuf(mybuffer, bufsize);
+  
   if (myid==0) {
+
 				// Open output stream for writing
     out.open(filename, ios::out | ios::app);
 

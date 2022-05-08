@@ -83,7 +83,16 @@ void OutCoef::Run(int n, int mstep, bool last)
 
   // Open output file
   //
-  ofstream out;
+  std::ofstream out;
+
+  // Make a bigger output buffer
+  //
+  const int bufsize = 16384;
+  char mybuffer [bufsize];
+  out.rdbuf()->pubsetbuf(mybuffer, bufsize);
+
+  // Now open the file
+  //
   if (myid==0) {
     out.open(filename.c_str(), ios::out | ios::app);
     if (!out) {
