@@ -178,7 +178,7 @@ main(int argc, char **argv)
     ("o,output",     "output file prefix",
      cxxopts::value<std::string>(prefix)->default_value("exp_mssa"))
     ("W,numW",       "window size",
-     cxxopts::value<int>(numW)->default_value("10"))
+     cxxopts::value<int>(numW))
     ("tmin",         "minimum simulation snapshot time for processing",
      cxxopts::value<double>(tmin)->default_value("-1.0e42"))
     ("tmax",         "maximum simulation snapshot time for processing",
@@ -413,6 +413,8 @@ main(int argc, char **argv)
   out.close();
 
   int nkeys = mean.size();
+
+  if (vm.count("numW")==0) numW = numT/2;
 
   int numK = numT - numW + 1;
   if (zeropad) numK = numT;
