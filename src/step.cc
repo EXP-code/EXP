@@ -25,8 +25,8 @@
 
 #include <NVTX.H>
 
-static Timer timer_coef, timer_drift, timer_vel, timer_out;
-static Timer timer_pot , timer_adj  , timer_tot, timer_bal;
+static Timer timer_coef, timer_drift, timer_vel, timer_out, timer_lev;
+static Timer timer_pot , timer_adj  , timer_tot, timer_bal, timer_rpt;
 
 static unsigned tskip = 1;
 
@@ -224,9 +224,9 @@ void do_step(int n)
       if (step_timing) timer_adj.stop();
       
       // Print the level lists
-      if (step_timing) timer_out.start();
+      if (step_timing) timer_lev.start();
       if (mdrft==Mstep) comp->print_level_lists(tnow);
-      if (step_timing) timer_out.stop();
+      if (step_timing) timer_lev.stop();
     }
     // END: mstep loop
 
@@ -324,9 +324,9 @@ void do_step(int n)
 
 				// Summarize processor particle load
 
-  if (step_timing) timer_out.start();
+  if (step_timing) timer_rpt.start();
   comp->report_numbers();
-  if (step_timing) timer_out.stop();
+  if (step_timing) timer_rpt.stop();
 
 				// Load balance
   if (cuda_prof) {
@@ -356,6 +356,8 @@ void do_step(int n)
 		<< sForm("Force",    timer_pot.getTime(),   totalT)
 		<< sForm("Coefs",    timer_coef.getTime(),  totalT)
 		<< sForm("Output",   timer_out.getTime(),   totalT)
+		<< sForm("Levels",   timer_lev.getTime(),   totalT)
+		<< sForm("Report",   timer_rpt.getTime(),   totalT)
 		<< sForm("Balance",  timer_bal.getTime(),   totalT);
       if (multistep)
 	std::cout << sForm("Adjust", timer_adj.getTime(),   totalT);
@@ -416,6 +418,8 @@ void do_step(int n)
     timer_pot  .reset();
     timer_adj  .reset();
     timer_out  .reset();
+    timer_lev  .reset();
+    timer_rpt  .reset();
     timer_bal  .reset();
     timer_tot  .reset();
     if (use_cuda) comp->timer_cuda.reset();
