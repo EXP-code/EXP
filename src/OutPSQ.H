@@ -22,6 +22,8 @@
     @param nint is the number of steps between dumps
     @param nbeg is suffix of the first phase space %dump
     @param timer set to true turns on wall-clock timer for PS output
+    @param threads number of threads for binary writes
+
 */
 class OutPSQ : public Output
 {
@@ -30,7 +32,7 @@ private:
 
   std::string filename;
   bool real4, timer;
-  int nbeg;
+  int nbeg, threads;
   void initialize(void);
 
 public:
@@ -46,6 +48,7 @@ public:
     \param last should be true on final step to force phase space %dump
     indepentently of whether or not the frequency criterion is met
     \param timer set to true turns on wall-clock timer for PS output
+    \param threads is the thread count for binary writes
   */
   void Run(int nstep, int mstep, bool last);
 

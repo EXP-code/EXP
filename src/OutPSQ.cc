@@ -56,6 +56,11 @@ void OutPSQ::initialize()
       timer = Output::conf["timer"].as<bool>();
     else
       timer = false;
+
+    if (Output::conf["threads"])
+      threads = Output::conf["threads"].as<int>();
+    else
+      threads = 0;
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in OutPSQ: "
@@ -187,7 +192,9 @@ void OutPSQ::Run(int n, int mstep, bool last)
 		<< "> . . . quitting" << std::endl;
       nOK = 1;
     } else {
-      c->write_binary_particles(&pout, real4);
+      if (threads)
+	c->write_binary_particles(&pout, real4);
+	c->write_binary_particles(&pout, real4);
       if (pout.fail()) {
 	std::cout << "OutPSQ: error writing binary particles to <"
 		  << blobfile << std::endl;

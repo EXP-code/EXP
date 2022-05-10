@@ -2295,6 +2295,55 @@ void Component::write_binary_particles
   }
 }
 
+void Component::write_binary_particles
+(std::ostream* out, int nthreads, bool real4)
+{
+  // Set number of OpenMP threads.  It's up
+  // to the user to make that cores are available.
+  //
+  omp_set_num_threads(nthreads);
+
+  // Assign data size
+  //
+  if (real4) rsize = sizeof(float);
+  else       rsize = sizeof(double);
+
+  // Get the number of threads
+  //
+  size_t N = particles.size();
+
+  // Make a buffer
+  //
+  ParticleBuffer buf(rsize, indexing, particles.begin()->second.get());
+
+  // Compute the bunch size
+  //
+  size_t Nbunch = N/buf.maxBufCount;
+
+  if (Nbunch*buf.maxBufCount < N) Nbunch++; // Incomplete bunch?
+
+
+  // Make a list of pointers; need a random access container for
+  // the multithreading positioning
+  //
+  std::vector<PartPtr> pts;
+  for (auto p: particles) pts.push_back(p.second);
+
+  for (size_t n=0; n<Nbunch; n++) {
+    size_t pSize = std::min<size_t>(Nbunch*(n+1), N);
+#pragma omp parallel
+    {
+      auto tid = omp_get_thread_num();
+      for (size_t i=Nbunch*n+tid; i<pSize; i += nthreads ) {
+	pts[i]->writeBinaryThreaded(rsize, indexing, buf, i);
+      }
+    }
+
+    buf.setLocation(pSize);
+    buf.writeBuffer(out, true);
+  }
+}
+
 
 // Helper class that manages two buffers that can be swapped to
 // support non-blocking MPI-IO writes
