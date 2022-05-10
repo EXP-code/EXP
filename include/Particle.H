@@ -125,7 +125,7 @@ class ParticleBuffer
 public:
 
   //! Buffer maximum particle count
-  const unsigned maxBufCount = 32768;
+  const unsigned maxBufCount = 1048576; // 1MB
 
 protected:
 

@@ -193,7 +193,8 @@ void OutPSQ::Run(int n, int mstep, bool last)
       nOK = 1;
     } else {
       if (threads)
-	c->write_binary_particles(&pout, real4);
+	c->write_binary_particles(&pout, threads, real4);
+      else
 	c->write_binary_particles(&pout, real4);
       if (pout.fail()) {
 	std::cout << "OutPSQ: error writing binary particles to <"
