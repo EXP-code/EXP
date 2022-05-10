@@ -100,6 +100,10 @@ public:
   //! Write a particle in binary format (PSP)
   void writeBinaryBuffered(unsigned rsize, bool indexing, std::ostream *out, ParticleBuffer& buf) const;
 
+  //! Write a particle in binary format (PSP), threaded version
+  void writeBinaryThreaded
+  (unsigned rsize, bool indexing, ParticleBuffer& buf, int count) const;
+
   //! Write a particle in binary format (PSP)
   void writeBinary(unsigned rsize, bool indexing, std::ostream *out) const;
 
@@ -118,18 +122,24 @@ public:
 //! Helper class for writing a buffer of particles
 class ParticleBuffer
 {
+public:
+
+  //! Buffer maximum particle count
+  const unsigned maxBufCount = 32768;
+
 protected:
+
   //! Write buffer
   std::vector<char> charBuffer;
+
+  //! Particle size
+  unsigned parSize;
 
   //! Buffer size
   unsigned bufSize;
 
   //! Buffer particle count
   unsigned bufCount;
-
-  //! Buffer maximum particle count
-  const unsigned maxBufCount = 32768;
 
 public:
 
@@ -144,6 +154,15 @@ public:
 
   //! Increment the particle counter
   void operator++(int) { bufCount++; }
+
+  //! Raw access to particle buffer
+  char* operator()() { return charBuffer.data(); }
+
+  //! Set location to the nth particle
+  void setLocation(int n) { Loc = charBuffer.data() + parSize*n; }
+
+  //! Get memory per particle
+  unsigned pMemSize() { return parSize; }
 
 };
 

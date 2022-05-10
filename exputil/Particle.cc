@@ -151,18 +151,20 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
 ParticleBuffer::ParticleBuffer(unsigned rsize, bool indexing, const Particle* p)
 {
   // Compute size of buffer and allocate space
-  bufSize = 0;
+  parSize = 0;
   
-  if (indexing) bufSize += sizeof(unsigned long);
+  if (indexing) parSize += sizeof(unsigned long);
 
   unsigned fsize = sizeof(double);
   if (rsize == sizeof(float)) fsize = sizeof(float);
 
-  bufSize += fsize*8;		// mass + pos[3] + vel[3] + pot
-  bufSize += p->iattrib.size() * sizeof(int);
-  bufSize += p->dattrib.size() * fsize;
+  parSize += fsize*8;		// mass + pos[3] + vel[3] + pot
+  parSize += p->iattrib.size() * sizeof(int);
+  parSize += p->dattrib.size() * fsize;
 
-  bufSize *= maxBufCount;
+				// Total buffer size for maxBufCount
+				// particles
+  bufSize  = parSize * maxBufCount;
 
 				// Allocate character buffer
   charBuffer.resize(bufSize);
@@ -252,6 +254,72 @@ void Particle::writeBinaryBuffered
 	dattrib.size()*sizeof(double);
 
   buf++;			// Increment buffer counter
+}
+
+void Particle::writeBinaryThreaded
+(unsigned rsize, bool indexing, ParticleBuffer& buf, int count) const
+{
+  char* pos = buf() + count*buf.pMemSize();
+
+  // Working variable for floats
+  float tf;
+
+  // Cache index if desired
+  if (indexing)
+    pos = (char *)std::memcpy(pos, &indx, sizeof(unsigned long)) + sizeof(unsigned long);
+
+  // Mass
+  if (rsize == sizeof(float)) {
+    tf = static_cast<float>(mass);
+    pos = (char *)std::memcpy(pos, &tf, sizeof(float)) + sizeof(float);
+  }
+  else
+    pos = (char *)std::memcpy(pos, &mass, sizeof(double)) + sizeof(double);
+  
+  // Position
+  for (int i=0; i<3; i++) {
+    double pv = pos[i];
+    if (rsize == sizeof(float)) {
+      tf = static_cast<float>(pv);
+      pos = (char *)std::memcpy(pos, &tf, sizeof(float)) + sizeof(float);
+    }
+    else
+      pos = (char *)std::memcpy(pos, &pv, sizeof(double)) + sizeof(double);
+  }
+  
+  // Velocity
+  for (int i=0; i<3; i++) {
+    double pv = vel[i];
+    if (rsize == sizeof(float)) {
+      tf = static_cast<float>(pv);
+      pos = (char *)std::memcpy(pos, &tf, sizeof(float)) + sizeof(float);
+    }
+    else
+      pos = (char *)std::memcpy(pos, &pv, sizeof(double)) + sizeof(double);
+  }
+
+  // Potential
+  double pot0 = pot + potext;
+  if (rsize == sizeof(float)) {
+    tf = static_cast<float>(pot0);
+    pos = (char *)std::memcpy(pos, &tf, sizeof(float)) + sizeof(float);
+  }
+  else
+    pos = (char *)std::memcpy(pos, &pot0, sizeof(double)) + sizeof(double);
+
+  // Integer attribute vector
+  if (iattrib.size())
+    pos = (char *)std::memcpy(pos, &iattrib[0], iattrib.size()*sizeof(int)) + iattrib.size()*sizeof(int);
+  
+  // Real attribute vector
+  if (dattrib.size())
+    if (rsize == sizeof(float))
+      pos = (char *)std::memcpy(pos, &dattrib[0], dattrib.size()*sizeof(float)) +
+	dattrib.size()*sizeof(float);
+    else
+      pos = (char *)std::memcpy(pos, &dattrib[0], dattrib.size()*sizeof(double)) +
+	dattrib.size()*sizeof(double);
+
 }
 
 
