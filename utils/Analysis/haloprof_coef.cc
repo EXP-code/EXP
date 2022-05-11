@@ -55,6 +55,7 @@
 #include <cxxopts.H>
 #include <libvars.H>
 #include <foarray.H>
+#include <libvars.H>
 
 #include <DataGrid.H>
 

@@ -7,9 +7,11 @@ Trapsum.cc Splsum.cc)
 set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc
   stack.cc localmpi.cc TableGrid.cc writePVD.cc)
+
 if(HAVE_VTK)
-  list(APPEND UTIL_SRC VtkGrid.cc)
+  list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)
 endif()
+
 set(OPTIMIZATION_SRC SimAnn.cc)
 set(POLY_SRC zroots.cc laguer.cc poly.cc cpoly.cc horner.cc syndiv.cc)
 set(PHASE_SRC phase.cc ensemble.cc io_ensemble.cc move_ensemble.cc
@@ -22,7 +24,7 @@ set(MASSMODEL_SRC massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc reali
 set(ORBIT_SRC orbit.cc orbit_trans.cc FindOrb.cc)
 set(BIORTH_SRC biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc
   sbessz.cc ultra.cc jnsph.cc bessz.cc sphereSL.cc biorth1d.cc
-  biorth_wake_orientation.cc SLGridMP2.cc scalarprod.cc)
+  biorth_wake_orientation.cc SLGridMP2.cc scalarprod.cc EmpCylSL.cc)
 set(GAUSS_SRC gaussQ.cc GaussCore.c Hermite.c Jacobi.c Laguerre.c)
 set(QPDISTF_SRC QPDistF.cc qld.c)
 set(SLEDGE_SRC sledge.f)

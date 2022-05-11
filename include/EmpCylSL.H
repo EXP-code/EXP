@@ -18,9 +18,6 @@
 #include <Particle.H>
 #include <SLGridMP2.H>
 #include <coef.H>
-#include <global.H>
-
-#include "expand.H"
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
@@ -45,9 +42,12 @@ public:
   using MatrixM      = std::vector<Eigen::MatrixXd>;
   using ContribArray = std::vector<Eigen::VectorXd>;
 
-private:
+protected:
 
   struct CylCoefHeader coefheadercyl;
+
+  int multistep;
+  int nthrds;
 
   int NMAX;
   int LMAX;
@@ -58,17 +58,17 @@ private:
   int NKEEP;
 
   unsigned nbodstot;
-  string hallfile;
+  std::string hallfile, runtag;
 
   double YMIN, YMAX;
   double dX, dY;
   int M;
-  vector<double> cylmass1;
+  std::vector<double> cylmass1;
   bool cylmass_made;
   double cylmass;
   double minSNR, maxSNR;
 
-  vector<double> r, d, m, p;
+  std::vector<double> r, d, m, p;
 
   double ASCALE;
   double HSCALE;
@@ -458,11 +458,13 @@ public:
 
 
   //! Constructor (reset must called later)
-  EmpCylSL(void);
+  EmpCylSL(int multistep=0, int nthrds=1);
 
   /** Constructor with parameters
 
       \par Parameters:
+
+      @param multistep is the number of coefficient levels for n-body
 
       @param numr is the spherical radial order of the input basis
 
@@ -482,15 +484,15 @@ public:
    */
   EmpCylSL(int numr, int lmax, int mmax, int nord,
 	   double ascale, double hscale, int Nodd=-1,
-	   std::string cachename="");
+	   std::string cachename="", int multistep=0, int threads=1);
 
   //! Destructor
   ~EmpCylSL(void);
 
   //! Reconstruct basis with new parameters
   void reset(int numr, int lmax, int mmax, int nord,
-	     double ascale, double hscale, int Nodd=-1,
-	     std::string cachename="");
+	     double ascale, double hscale, int Nodd,
+	     std::string cachename="", int multistep=0, int threads=1);
 
   //! Read EOF basis header from saved file
   int read_eof_header(const string& eof_file);
@@ -606,6 +608,12 @@ public:
   //! Initialize PCA work space
   void init_pca();
 
+  //! For updating levels
+  //@{
+  vector< vector<Eigen::MatrixXd> > differS1, differC1;
+  vector<double> workC1, workC, workS1, workS;
+  //@}
+
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
 
@@ -646,27 +654,6 @@ public:
       a complete set of coefficients for force evaluation at an
       intermediate time step
   */
-  void compute_multistep_coefficients(unsigned mlevel);
-
-  //! For updating levels
-  //@{
-  vector< vector<Eigen::MatrixXd> > differS1, differC1;
-  vector<double> workC1, workC, workS1, workS;
-  //@}
-
-  /** Update the multi time step coefficient table when moving particle 
-      <code>i</code> from level <code>cur</code> to level 
-      <code>next</code>
-  */
-  //@{
-  virtual void multistep_update_begin();
-  virtual void multistep_update(int from, int to, double r, double z, double phi, double mass, int id);
-  virtual void multistep_update_finish();
-  virtual void multistep_reset();
-  //@}
-
-  //! Print debug info
-  void multistep_debug();
 
   //! Set coefficients from Vectors
   void set_coefs(int mm, const Eigen::VectorXd& cos1, const Eigen::VectorXd& sin1,

@@ -36,7 +36,7 @@
 
 // EXP classes
 //
-#include <global.H>
+#include <libvars.H>
 #include <numerical.H>
 #include <massmodel.H>
 #include <model3d.H>

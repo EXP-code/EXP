@@ -43,9 +43,9 @@ typedef std::shared_ptr<std::uniform_real_distribution<> > uniform_ptr;
 typedef std::shared_ptr<std::normal_distribution<> > normal_ptr;
 
 //
-// EXP support
+// EXP library support
 //
-#include <global.H>
+#include <libvars.H>
 
 #ifdef DEBUG
 #include <fenv.h>

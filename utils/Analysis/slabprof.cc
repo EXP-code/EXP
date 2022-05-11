@@ -43,6 +43,7 @@
 				// EXP classes
 #include <ParticleReader.H>
 #include <cxxopts.H>
+#include <libvars.H>
 
 //=============================================================================
 // Global variables

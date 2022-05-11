@@ -185,9 +185,9 @@ DiskType     dtype;
 double       AA, HH;
 double       ASHIFT;
 
-// EXP support
+// EXP library support
 //
-#include <global.H>
+#include <libvars.H>
 #include <Particle.H>
 
 double DiskDens(double R, double z, double phi)

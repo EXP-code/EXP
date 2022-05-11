@@ -50,12 +50,12 @@
 #include <ParticleReader.H>
 #include <interp.H>
 #include <EmpCylSL.H>
-#include <global.H>
 #include <localmpi.H>
 #include <foarray.H>
 #include <DataGrid.H>
 #include <writePVD.H>
 #include <EXPini.H>
+#include <libvars.H>
 
 #ifdef DEBUG
 #ifndef _REDUCED

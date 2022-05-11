@@ -5,7 +5,7 @@ set(bin_PROGRAMS diskcoef halocoef diskcoef diskprof haloprof slabprof
   pspxvalD2 pspKLH pspKLD diskeof yaml_diff kdtest)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG yaml-cpp
-  exputil EXP ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+  exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})

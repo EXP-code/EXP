@@ -22,7 +22,7 @@
 
 // EXP classes
 //
-#include <global.H>
+#include <libvars.H>
 #include <numerical.H>
 #include <gaussQ.H>
 #include <isothermal.H>

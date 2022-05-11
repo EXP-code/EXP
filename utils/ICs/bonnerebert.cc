@@ -41,9 +41,9 @@
 
 using namespace std;
 
-// EXP support
+// EXP library support
 //
-#include <global.H>
+#include <libvars.H>
 
 #include <sys/types.h>
 #include <getopt.h>

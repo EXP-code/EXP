@@ -28,9 +28,9 @@
 #endif
 
 
-// EXP support
+// EXP library support
 //
-#include <global.H>
+#include <libvars.H>
 #include <localmpi.H>
 
 /*

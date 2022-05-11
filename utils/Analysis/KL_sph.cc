@@ -54,11 +54,11 @@
 #include <interp.H>
 #include <massmodel.H>
 #include <SphereSL.H>
+#include <KDtree.H>
 #include <foarray.H>
 #include <cxxopts.H>		// Command-line parsing
-#include <KDtree.H>
-
-#include <global.H>
+				// Library support
+#include <libvars.H>
 #include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support

@@ -1,8 +1,8 @@
 
 set(bin_PROGRAMS readSL testBarrier testConfig)
 
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX exputil EXP
-  yaml-cpp ${VTK_LIBRARIES})
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX exputil yaml-cpp
+  ${VTK_LIBRARIES})
 
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>
