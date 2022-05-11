@@ -34,6 +34,7 @@ if (!(x)) { throw (std::runtime_error("Eigen assert error")); }
 #include "RedSVD.H"
 #include "config.h"
 #include "YamlConfig.H"
+#include "libvars.H"
 
 Eigen::MatrixXd wCorr(Eigen::MatrixXd & R)
 {

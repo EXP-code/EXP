@@ -7,7 +7,6 @@
 #include <cmath>
 
 #include <getopt.h>		// For long options
-#include <libvars.H>		// EXP library globals
 
 #include <libvars.H>		// EXP globals
 #include <localmpi.H>		// MPI globals

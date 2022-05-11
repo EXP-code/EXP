@@ -4,7 +4,7 @@ set(bin_PROGRAMS shrinkics gensph gendisk gsphere pstmod empinfo empdump
   forcetest hdf52accel forcetest2 cylcache modelfit)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
-  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+  expgbl ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
@@ -38,7 +38,7 @@ add_executable(empinfo empinfo.cc)
 add_executable(empdump empdump.cc)
 add_executable(eofbasis eof_basis.cc)
 add_executable(eofcomp eof_compare.cc)
-add_executable(makeIon makeIonIC.cc
+add_executable(makeIon makeIonIC.cc libvars.cc
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/DSMC/atomic_constants.cc>)
 add_executable(phIon ph_ion.cc)
 add_executable(phConv ph_conv.cc)

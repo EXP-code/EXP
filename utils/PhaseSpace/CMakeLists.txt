@@ -14,7 +14,7 @@ if(HAVE_XDR)
 endif()
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
-  ${VTK_LIBRARIES} ${HDF5_LIBRARIES})
+  expgbl ${VTK_LIBRARIES} ${HDF5_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})

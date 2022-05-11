@@ -100,7 +100,6 @@
 #include <libvars.H>		// Library globals
 #include <cxxopts.H>		// Command-line parsing
 #include <EXPini.H>		// Ini-style config
-#include <libvars.H>
 
 #include <norminv.H>
 

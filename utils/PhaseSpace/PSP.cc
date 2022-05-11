@@ -3,6 +3,7 @@
 #include <Sutils.H>		      // For trim-copy
 
 #include <PSP.H>
+#include <libvars.H>		// Library support
 
 bool badstatus(std::istream& in)
 {

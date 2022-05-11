@@ -39,6 +39,8 @@ set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
   ${SLEDGE_SRC} ${PARTICLE_SRC} ${CUDA_SRC})
 
 
+set(EXPGBL_SRC libvars.cc)
+
 set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/> ${CMAKE_BINARY_DIR}
@@ -53,12 +55,23 @@ if(CUDA_FOUND)
 endif()
 
 # shared lib
+
 add_library(exputil ${exputil_SOURCES})
 set_target_properties(exputil PROPERTIES OUTPUT_NAME exputil)
 target_include_directories(exputil PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(exputil PUBLIC ${common_LINKLIBS})
 
 install(TARGETS exputil DESTINATION lib)
+
+# global lib
+
+add_library(expgbl ${EXPGBL_SRC})
+set_target_properties(expgbl PROPERTIES OUTPUT_NAME support)
+target_include_directories(expgbl PUBLIC ${common_INCLUDE_DIRS})
+target_link_libraries(expgbl PUBLIC ${common_LINK_LIBS})
+install(TARGETS expgbl DESTINATION lib)
+
+# HDF5 info
 
 message(STATUS "HDF5 include dirs: ${HDF5_INCLUDE_DIRS}")
 message(STATUS "exputils include dirs: ${common_INCLUDE_DIRS}")

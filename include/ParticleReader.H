@@ -431,6 +431,30 @@ namespace PR
     
   };
   
+  /**
+     Class to access a Tipsy file
+  */
+  class Tipsy : public ParticleReader
+  {
+  private:
+    std::streampos pos;
+    
+  public:
+    
+    //! Constructor
+    Tipsy(const std::string& file, bool verbose=false);
+    
+    //! Destructor
+    virtual ~Tipsy() {}
+    
+    //@{
+    //! Particle access
+    virtual const Particle* firstParticle ();
+    virtual const Particle* nextParticle();
+    //@}
+  };
+  
+
   typedef std::shared_ptr<ParticleReader> PRptr;
 }
   

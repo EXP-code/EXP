@@ -5,16 +5,16 @@
 
 #include <random>
 
-char threading_on = 0;
-pthread_mutex_t mem_lock;
-std::string outdir, runtag;
-int nthrds = 1;
-int this_step = 0;
-unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
-int myid = 0;
-std::mt19937 random_gen;
+extern char threading_on;
+extern pthread_mutex_t mem_lock;
+extern std::string outdir, runtag;
+extern int nthrds;
+extern int this_step;
+extern unsigned multistep;
+extern unsigned maxlev;
+extern int mstep;
+extern int Mstep;
+extern int myid;
+extern std::mt19937 random_gen;
 
-#endif
+#endif	// END _LIBVARS_H
