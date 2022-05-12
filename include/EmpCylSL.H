@@ -608,12 +608,6 @@ public:
   //! Initialize PCA work space
   void init_pca();
 
-  //! For updating levels
-  //@{
-  vector< vector<Eigen::MatrixXd> > differS1, differC1;
-  vector<double> workC1, workC, workS1, workS;
-  //@}
-
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
 
