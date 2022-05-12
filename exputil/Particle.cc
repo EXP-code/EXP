@@ -5,10 +5,13 @@
 #include <cstring>
 
 // Needed from EXP/src . . .
-extern unsigned multistep;
-typedef std::pair<unsigned short, unsigned short>  speciesKey;
+typedef std::pair<unsigned short, unsigned short> speciesKey;
 
 #include <Particle.H>
+
+// N-body globals
+#include <libvars.H>
+using namespace __EXP__;
 
 float Particle::effort_default = 1.0e-12;
 const speciesKey Particle::defaultKey {-1, -1};

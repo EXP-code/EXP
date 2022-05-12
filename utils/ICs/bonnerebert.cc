@@ -45,6 +45,8 @@ using namespace std;
 //
 #include <libvars.H>
 
+using namespace __EXP__;	// Reference to n-body globals
+
 #include <sys/types.h>
 #include <getopt.h>
 

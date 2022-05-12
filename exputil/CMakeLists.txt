@@ -6,7 +6,7 @@ set(QUAD_SRC qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc
 Trapsum.cc Splsum.cc)
 set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc
-  stack.cc localmpi.cc TableGrid.cc writePVD.cc)
+  stack.cc localmpi.cc TableGrid.cc writePVD.cc libvars.cc)
 
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)
@@ -38,9 +38,6 @@ set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
   ${QPDISTF_SRC} ${BESSEL_SRC} ${OPTIMIZATION_SRC}
   ${SLEDGE_SRC} ${PARTICLE_SRC} ${CUDA_SRC})
 
-
-set(EXPGBL_SRC libvars.cc)
-
 set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/> ${CMAKE_BINARY_DIR}
@@ -62,14 +59,6 @@ target_include_directories(exputil PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(exputil PUBLIC ${common_LINKLIBS})
 
 install(TARGETS exputil DESTINATION lib)
-
-# global lib
-
-add_library(expgbl ${EXPGBL_SRC})
-set_target_properties(expgbl PROPERTIES OUTPUT_NAME support)
-target_include_directories(expgbl PUBLIC ${common_INCLUDE_DIRS})
-target_link_libraries(expgbl PUBLIC ${common_LINK_LIBS})
-install(TARGETS expgbl DESTINATION lib)
 
 # HDF5 info
 

@@ -58,8 +58,10 @@
 #include <foarray.H>
 #include <cxxopts.H>		// Command-line parsing
 				// Library support
-#include <libvars.H>
 #include <localmpi.H>
+#include <libvars.H>
+
+using namespace __EXP__;	// Reference to n-body globals
 
 #include <yaml-cpp/yaml.h>	// YAML support
 

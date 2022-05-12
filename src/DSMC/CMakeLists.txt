@@ -6,7 +6,7 @@ set(DSMC_SRC TreeDSMC.cc Collide.cc CollideLTE.cc HeatCool.cc
 
 set(TESTDSMC_SRC Ion.cc interactSelect.cc Elastic.cc HeatCool.cc
   TopBase.cc Quantile.cc QuantileBag.cc phfit2.f atomic_constants.cc
-  Badnell.cc spline.cc cudaIon.cu libvars.cc)
+  Badnell.cc spline.cc cudaIon.cu)
 
 set(common_INCLUDE_DIRS
   $<INSTALL_INTERFACE:include>
@@ -50,7 +50,7 @@ endif()
 
 foreach(program ${bin_PROGRAMS})
   add_executable(${program} ${program}.cc)
-  target_link_libraries(${program} testdsmc ${common_LINK_LIBS} expgbl)
+  target_link_libraries(${program} testdsmc ${common_LINK_LIBS})
   target_include_directories(${program} PUBLIC ${common_INCLUDE_DIRS})
   install(TARGETS ${program} DESTINATION bin)
 endforeach()

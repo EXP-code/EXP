@@ -43,6 +43,9 @@
 static SphericalOrbit orb;
 #endif
 
+#include <libvars.H>
+using namespace __EXP__;
+
 // Multimass Monte-Carlo rejection type.  Fixed-radius is the
 // probabilistically correct choice to recover the number density
 // profile but will be slow for very steep number densities.  If in
@@ -65,8 +68,6 @@ int      AxiSymModel::gen_itmax = 20000;
 
 const bool verbose = true;
 const double ftol = 0.01;
-
-extern std::mt19937 random_gen;
 
 Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 {

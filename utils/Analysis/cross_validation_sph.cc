@@ -57,6 +57,7 @@
 #include <localmpi.H>
 #include <cxxopts.H>
 #include <libvars.H>
+using namespace __EXP__;
 
 // Globals
 //

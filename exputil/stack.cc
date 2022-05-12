@@ -19,11 +19,8 @@
 #include <cstdlib>
 #include <stdexcept>
 
-//! Directory for output
-extern std::string outdir;
-
-//! Used for labeling report files
-extern std::string runtag;
+#include <libvars.H>
+using namespace __EXP__;
 
 //! Traceback type
 bool gdb_trace     = true;

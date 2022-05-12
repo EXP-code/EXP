@@ -47,15 +47,8 @@ public:
    */
   CylEXP(int numr, int lmax, int mmax, int nord,
 	 double ascale, double hscale, int Nodd=-1,
-	 std::string cachename="") : EmpCylSL()
-  {
-    // Capture the EXP globals for multistep parameters and threading
-    EmpCylSL::reset(numr, lmax, mmax, nord,
-		    ascale, hscale, Nodd, cachename, multistep, nthrds);
-    // Set the runtag from the EXP global
-    this->runtag = runtag;
-  }
-
+	 std::string cachename="") :
+    EmpCylSL(numr, lmax, mmax, nord, ascale, hscale, Nodd, cachename) {}
 
   /** Extrapolate and sum coefficents per multistep level to get
       a complete set of coefficients for force evaluation at an

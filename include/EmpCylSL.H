@@ -24,6 +24,9 @@
 #include <cudaMappingConstants.cuH>
 #endif
 
+#include <libvars.H>
+using namespace __EXP__;
+
 /** Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as
     force method
     
@@ -46,9 +49,6 @@ protected:
 
   struct CylCoefHeader coefheadercyl;
 
-  int multistep;
-  int nthrds;
-
   int NMAX;
   int LMAX;
   int MMAX;
@@ -58,7 +58,7 @@ protected:
   int NKEEP;
 
   unsigned nbodstot;
-  std::string hallfile, runtag;
+  std::string hallfile;
 
   double YMIN, YMAX;
   double dX, dY;
@@ -458,7 +458,7 @@ public:
 
 
   //! Constructor (reset must called later)
-  EmpCylSL(int multistep=0, int nthrds=1);
+  EmpCylSL();
 
   /** Constructor with parameters
 
@@ -484,7 +484,7 @@ public:
    */
   EmpCylSL(int numr, int lmax, int mmax, int nord,
 	   double ascale, double hscale, int Nodd=-1,
-	   std::string cachename="", int multistep=0, int threads=1);
+	   std::string cachename="");
 
   //! Destructor
   ~EmpCylSL(void);
@@ -492,7 +492,7 @@ public:
   //! Reconstruct basis with new parameters
   void reset(int numr, int lmax, int mmax, int nord,
 	     double ascale, double hscale, int Nodd,
-	     std::string cachename="", int multistep=0, int threads=1);
+	     std::string cachename="");
 
   //! Read EOF basis header from saved file
   int read_eof_header(const string& eof_file);
@@ -759,6 +759,7 @@ public:
     init_pca();
 
     if (myid==0) {
+
       if (PCAVAR) {
 
 	const string types[] =

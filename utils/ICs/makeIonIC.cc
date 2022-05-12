@@ -35,17 +35,20 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-//
 // Random types
 //
 typedef std::shared_ptr<std::mt19937> gen_ptr;
 typedef std::shared_ptr<std::uniform_real_distribution<> > uniform_ptr;
 typedef std::shared_ptr<std::normal_distribution<> > normal_ptr;
 
-//
 // EXP library support
 //
+#include <localmpi.H>
 #include <libvars.H>
+
+// Reference to n-body globals
+//
+using namespace __EXP__;	
 
 #ifdef DEBUG
 #include <fenv.h>

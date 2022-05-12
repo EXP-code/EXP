@@ -58,20 +58,21 @@ namespace PR {
     
     return header.time;
   }
-  
+
   std::vector<std::string> GadgetNative::GetTypes()
   {
     std::vector<std::string> ret;
-    // attempt to open file
+
+    // Attempt to open file
     //
     std::ifstream file(_file, std::ios::binary | std::ios::in);
     if (!file.is_open())
       {
-	std::cerr << "Error opening file: " << _file << std::endl;
-	int flag;
-	MPI_Initialized(&flag);
-	if (flag)	MPI_Finalize();
-	exit(1);
+       std::cerr << "Error opening file: " << _file << std::endl;
+       int flag;
+       MPI_Initialized(&flag);
+       if (flag)       MPI_Finalize();
+       exit(1);
       }
     
     // read in file data
@@ -91,7 +92,8 @@ namespace PR {
     
     return ret;
   }
-  
+   
+
   void GadgetNative::read_and_load()
   {
     // attempt to open file
@@ -1257,7 +1259,7 @@ namespace PR {
   
   
   std::vector<std::string> ParticleReader::readerTypes
-  {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5"};
+  {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "Tipsy"};
   
   
   std::string ParticleReader::fileNameCreator
@@ -1311,6 +1313,17 @@ namespace PR {
       return ret.str();
     }
     
+    if (myType.find("Tipsy") == 0) {
+      if (prefix.size()==0) ret << "snapshot_";
+      else                  ret << prefix << "_";
+      
+      ret << std::setw(3) << std::setfill('0') << number;
+      if (suffix.size()==0) ret << ".tipsy";
+      else                  ret << "." << suffix;
+      
+      return ret.str();
+    }
+    
     if (myType.find("custom")) {
       if (prefix.size()) ret << prefix;
       if (suffix.size()) ret << "." << suffix;
@@ -1345,6 +1358,8 @@ namespace PR {
       return std::make_shared<GadgetNative>(file, verbose);
     else if (reader.find("GadgetHDF5") == 0)
       return std::make_shared<GadgetHDF5>(file, verbose);
+    else if (reader.find("Tipsy") == 0)
+      return std::make_shared<Tipsy>(file, verbose);
     else {
       if (myid==0) {
 	std::cout << "ParticleReader: I don't know about reader <" << reader
@@ -1355,6 +1370,101 @@ namespace PR {
       }
       exit(1);
     }
+  }
+
+  std::vector<std::string> Tipsy::Ptypes
+  {"Gas", "Dark", "Star"};
+  
+  std::unordered_map<std::string, int> Tipsy::findP
+  { {"Gas", 0}, {"Dark", 1}, {"Star", 2} };
+  
+  
+  Tipsy::Tipsy(const std::string& file, bool verbose)
+  {
+    ps = std::make_shared<TipsyXDR::TipsyFile>(file);
+    
+    if (ps->gas_particles.size() ) curTypes.push_back("Gas" );
+    if (ps->dark_particles.size()) curTypes.push_back("Dark");
+    if (ps->star_particles.size()) curTypes.push_back("Star");
+  }
+  
+  void Tipsy::SelectType(const std::string& name)
+  {
+    if (std::find(curTypes.begin(), curTypes.end(), name) == curTypes.end()) {
+      std::cout << "Tipsy error: no particle type <" << name << ">"
+		<< std::endl;
+    } else {
+      curName = name;
+    }
+  }
+
+  void Tipsy::packParticle()
+  {
+    if (curName=="Gas") {
+      P.mass  = ps->gas_particles[pcount].mass;
+      P.level = 0;
+      for (int k=0; k<3; k++) {
+	P.pos[k] = ps->gas_particles[pcount].pos[k];
+	P.vel[k] = ps->gas_particles[pcount].vel[k];
+      }
+      pcount++;
+      return;
+    }
+      
+    if (curName=="Dark") {
+      P.mass  = ps->dark_particles[pcount].mass;
+      P.level = 0;
+      for (int k=0; k<3; k++) {
+	P.pos[k] = ps->dark_particles[pcount].pos[k];
+	P.vel[k] = ps->dark_particles[pcount].vel[k];
+      }
+      pcount++;
+      return;
+    }
+      
+    if (curName=="Star") {
+      P.mass  = ps->star_particles[pcount].mass;
+      P.level = 0;
+      for (int k=0; k<3; k++) {
+	P.pos[k] = ps->star_particles[pcount].pos[k];
+	P.vel[k] = ps->star_particles[pcount].vel[k];
+      }
+      pcount++;
+      return;
+    }
+    
+    std::cerr << "Tipsy: logic error" << std::endl;
+    exit(-1);
+  }
+  
+  unsigned long Tipsy::CurrentNumber()
+  {
+    if (curName=="Gas") {
+      return ps->gas_particles.size();
+    } else if (curName=="Dark") {
+      return ps->dark_particles.size();
+    } else if (curName=="Star") {
+      return ps->star_particles.size();
+    } else {
+      return 0;
+    }
+  }
+  
+  const Particle* Tipsy::firstParticle()
+  {
+    pcount = 0;
+    packParticle();
+    return &P;
+  }
+    
+  const Particle* Tipsy::nextParticle()
+  {
+    if (curName=="Gas"  and pcount==ps->gas_particles.size() ) return NULL;
+    if (curName=="Dark" and pcount==ps->dark_particles.size()) return NULL;
+    if (curName=="Star" and pcount==ps->star_particles.size()) return NULL;
+
+    packParticle();
+    return &P;
   }
 
 }

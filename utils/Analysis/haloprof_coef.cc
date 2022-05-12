@@ -57,6 +57,8 @@
 #include <foarray.H>
 #include <libvars.H>
 
+using namespace __EXP__;
+
 #include <DataGrid.H>
 
 const std::string overview = "Compute disk potential, force and density profiles from\nEXP coefficient files\n";

@@ -57,6 +57,8 @@ using namespace std;
 #include <EXPini.H>
 #include <KDtree.H>
 #include <libvars.H>
+
+using namespace __EXP__;
   
 // Globals
 //

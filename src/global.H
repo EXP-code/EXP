@@ -17,6 +17,8 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <localmpi.H>
+
 using namespace std;
 
 /*! \file global.H
@@ -43,9 +45,6 @@ extern bool fpe_wait;
 
 //! Maximum number of steps to execute
 extern int nsteps;
-
-//! Number of threads per process (e.g. one per processor)
-extern int nthrds;
 
 //! Number of gpu devices per node
 extern int ngpus;
@@ -86,17 +85,8 @@ extern string parmfile;
 //! Initial processor rate file
 extern string ratefile;
 
-//! Directory for output
-extern string outdir;
-
-//! Used for labeling report files
-extern string runtag;
-
 //! Toggle phase space advance (e.g. for use with externally supplied mapping).  On by default.
 extern bool eqmotion;
-
-//! Multistep levels (default: 0 means no multistepping)
-extern unsigned multistep;
 
 //! Constrain level changes per step (default: 0 means no constraint)
 extern unsigned shiftlevl;
@@ -147,9 +137,6 @@ extern bool step_timing;
 //! Times for each phase-space time slice (for Leap-Frog)
 extern double tnow;
 
-//! Current step number
-extern int this_step;
-
 //! Last phase space dump step
 extern int psdump;
 
@@ -165,14 +152,8 @@ extern double *gcov;
 //! Resets total center of velocity to zero if true
 extern bool global_cov;
 
-//! Maximum number of multistep steps
-extern int Mstep;
-
 //! True when initializing before first time step
 extern bool initializing;
-
-//! Current point in multistepping for velocity step
-extern int mstep;
 
 //! Current point in multistepping for drift step
 extern int mdrft;
@@ -245,16 +226,6 @@ extern unsigned char quit_signal;
 //! Used to flag separate behavior on inintialization (unused)
 extern int is_init;
 
-#ifndef _localmpi_H
-//! Maintains number of processes, slaves, MPI id, etc.
-//@{
-extern int numprocs, slaves, myid, proc_namelen;
-//@}
-
-//! MPI returned processor name
-extern char processor_name[];
-#endif
-
 //! Internally defined slave communicator
 extern MPI_Comm MPI_COMM_SLAVE;
 
@@ -272,13 +243,6 @@ extern struct CylCoefHeader  coefheadercyl;
 extern struct SphCoefHeader  coefheadersph;
 //@}
 
-//! @name Theading variables
-//@{
-//! signal that threading is in use
-extern char threading_on;
-//! mutex for memory
-extern pthread_mutex_t mem_lock;
-//@}
 
 // Particle components
 
@@ -353,7 +317,10 @@ extern bool use_cuda;
 //! Mersenne random number generator provided by Boost.Random.  This
 //! could be changed to another if needed.
 extern unsigned int   random_seed;
-extern std::mt19937   random_gen;
+
+//! exputils globals
+#include <libvars.H>
+using namespace __EXP__;
 
 //! For toggling CUDA profiling
 extern bool cuda_prof;

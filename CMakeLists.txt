@@ -163,6 +163,12 @@ if (ENABLE_NBODY)
 endif()
 add_subdirectory(utils)
 
+# try to find pybind11 and build wrapper python module
+find_package(Python3 COMPONENTS Interpreter Development)
+message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
+
+add_subdirectory(extern/pybind11)
+
 # Force installation of the yaml-cpp libraries
 install(TARGETS yaml-cpp DESTINATION lib)
 

@@ -4,7 +4,7 @@ set(bin_PROGRAMS shrinkics gensph gendisk gsphere pstmod empinfo empdump
   forcetest hdf52accel forcetest2 cylcache modelfit)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
-  expgbl ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})

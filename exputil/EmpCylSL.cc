@@ -34,6 +34,9 @@
 #include <EmpCylSL.H>
 #include <DataGrid.H>
 
+#include <libvars.H>
+using namespace __EXP__;	// For reference to n-body globals
+
 #undef  TINY
 #define TINY 1.0e-16
 
@@ -73,10 +76,8 @@ std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs =
   };
 
 
-EmpCylSL::EmpCylSL(int multi, int threads)
+EmpCylSL::EmpCylSL()
 {
-  multistep  = multi;
-  nthrds     = threads;
   NORDER     = 0;
   coefs_made = std::vector<short>(multistep+1, false);
   eof_made   = false;
@@ -116,7 +117,7 @@ EmpCylSL::~EmpCylSL(void)
 
 EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord, 
 		   double ascale, double hscale, int nodd,
-		   std::string cachename, int multi, int threads)
+		   std::string cachename)
 {
   // Use default name?
   if (cachename.size()) cachefile = cachename;
@@ -133,9 +134,6 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
     }
     lmax = mmax + 1;
   }
-
-  multistep = multi;
-  nthrds    = threads;
 
   NMAX      = nmax;
   MMAX      = mmax;
@@ -196,7 +194,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 
 void EmpCylSL::reset(int numr, int lmax, int mmax, int nord, 
 		     double ascale, double hscale, int nodd,
-		     std::string cachename, int multi, int threads)
+		     std::string cachename)
 {
   // Reset cache file name
   if (cachename.size()) cachefile = cachename;
@@ -212,9 +210,6 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
     }
     lmax = mmax + 1;
   }
-
-  multistep = multi;
-  nthrds    = threads;
 
   NMAX     = numr;
   MMAX     = mmax;

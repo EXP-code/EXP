@@ -1,3 +1,7 @@
 [submodule "extern/yaml-cpp"]
 	path = extern/yaml-cpp
 	url = https://github.com/jbeder/yaml-cpp
+[submodule "extern/pybind11"]
+	path = extern/pybind11
+	url = https://github.com/pybind/pybind11.git
+	branch = stable
