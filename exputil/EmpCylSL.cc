@@ -1641,17 +1641,6 @@ void EmpCylSL::setup_accumulation(int mlevel)
       cerr << "Slave " << setw(4) << myid 
 	   << ": tables allocated, MMAX=" << MMAX << endl;
 
-    differC1.resize(nthrds);
-    differS1.resize(nthrds);
-    for (auto & v : differC1) v.resize(multistep+1);
-    for (auto & v : differS1) v.resize(multistep+1);
-    
-    unsigned sz = (multistep+1)*(MMAX+1)*NORDER;
-    workC1.resize(sz);
-    workC .resize(sz);
-    workS1.resize(sz);
-    workS .resize(sz);
-    
     cylmass_made = false;
 
     for (unsigned M=0; M<=multistep; M++) {

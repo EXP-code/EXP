@@ -48,7 +48,19 @@ public:
   CylEXP(int numr, int lmax, int mmax, int nord,
 	 double ascale, double hscale, int Nodd=-1,
 	 std::string cachename="") :
-    EmpCylSL(numr, lmax, mmax, nord, ascale, hscale, Nodd, cachename) {}
+    EmpCylSL(numr, lmax, mmax, nord, ascale, hscale, Nodd, cachename)
+  {
+    differC1.resize(nthrds);
+    differS1.resize(nthrds);
+    for (auto & v : differC1) v.resize(multistep+1);
+    for (auto & v : differS1) v.resize(multistep+1);
+
+    unsigned sz = (multistep+1)*(MMAX+1)*NORDER;
+    workC1.resize(sz);
+    workC .resize(sz);
+    workS1.resize(sz);
+    workS .resize(sz);
+  }
 
   /** Extrapolate and sum coefficents per multistep level to get
       a complete set of coefficients for force evaluation at an
