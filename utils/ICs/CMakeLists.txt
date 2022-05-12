@@ -38,7 +38,7 @@ add_executable(empinfo empinfo.cc)
 add_executable(empdump empdump.cc)
 add_executable(eofbasis eof_basis.cc)
 add_executable(eofcomp eof_compare.cc)
-add_executable(makeIon makeIonIC.cc libvars.cc
+add_executable(makeIon makeIonIC.cc
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/DSMC/atomic_constants.cc>)
 add_executable(phIon ph_ion.cc)
 add_executable(phConv ph_conv.cc)
