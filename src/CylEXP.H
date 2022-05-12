@@ -50,6 +50,7 @@ public:
 	 std::string cachename="") :
     EmpCylSL(numr, lmax, mmax, nord, ascale, hscale, Nodd, cachename)
   {
+    // Initialize storage for the multistep arrays
     differC1.resize(nthrds);
     differS1.resize(nthrds);
     for (auto & v : differC1) v.resize(multistep+1);
