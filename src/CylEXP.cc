@@ -18,8 +18,6 @@ void CylEXP::multistep_update_begin()
 				// Clear the update matricies
   for (int nth=0; nth<nthrds; nth++) {
     for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
-      differC1[nth][M].resize(MMAX+1, rank3);
-      differS1[nth][M].resize(MMAX+1, rank3);
       differC1[nth][M].setZero();
       differS1[nth][M].setZero();
     }

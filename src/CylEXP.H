@@ -55,6 +55,15 @@ public:
     for (auto & v : differC1) v.resize(multistep+1);
     for (auto & v : differS1) v.resize(multistep+1);
 
+    for (int nth=0; nth<nthrds; nth++) {
+      for (unsigned M=0; M<=multistep; M++) {
+	differC1[nth][M].resize(MMAX+1, rank3);
+	differS1[nth][M].resize(MMAX+1, rank3);
+	differC1[nth][M].setZero();
+	differS1[nth][M].setZero();
+      }
+    }
+    
     unsigned sz = (multistep+1)*(MMAX+1)*NORDER;
     workC1.resize(sz);
     workC .resize(sz);
