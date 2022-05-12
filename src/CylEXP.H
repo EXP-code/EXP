@@ -58,14 +58,14 @@ public:
 
     for (int nth=0; nth<nthrds; nth++) {
       for (unsigned M=0; M<=multistep; M++) {
-	differC1[nth][M].resize(MMAX+1, NORDER);
-	differS1[nth][M].resize(MMAX+1, NORDER);
+	differC1[nth][M].resize(mmax+1, nord);
+	differS1[nth][M].resize(mmax+1, nord);
 	differC1[nth][M].setZero();
 	differS1[nth][M].setZero();
       }
     }
     
-    unsigned sz = (multistep+1)*(MMAX+1)*NORDER;
+    unsigned sz = (multistep+1)*(mmax+1)*nord;
     workC1.resize(sz);
     workC .resize(sz);
     workS1.resize(sz);
