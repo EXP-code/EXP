@@ -95,7 +95,6 @@ EmpCylSL::EmpCylSL()
   minSNR     = std::numeric_limits<double>::max();
   maxSNR     = 0.0;
   cachefile  = default_cache;
-  runtag     = "empcylsl";
 
   if (DENS)
     MPItable = 4;
@@ -187,8 +186,6 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   hallfile     = "";
   minSNR       = std::numeric_limits<double>::max();
   maxSNR       = 0.0;
-
-  runtag       = "empcylsl";
 }
 
 
