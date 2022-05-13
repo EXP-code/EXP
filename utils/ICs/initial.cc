@@ -87,7 +87,6 @@
 
 // EXP classes
 //
-#include <global.H>
 #include <numerical.H>
 #include <gaussQ.H>
 #include <isothermal.H>

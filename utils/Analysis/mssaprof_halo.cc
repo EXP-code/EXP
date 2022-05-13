@@ -57,6 +57,8 @@
 #include <DataGrid.H>
 #include <EXPini.H>
 #include <libvars.H>
+using namespace __EXP__;	// Reference exputils globals
+
 				// Program info string
 
 const std::string overview = "\nCompute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";

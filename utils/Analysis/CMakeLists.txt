@@ -1,11 +1,10 @@
-
 set(bin_PROGRAMS diskcoef halocoef diskcoef diskprof haloprof slabprof
   psphisto gas2d makegrid pspbox eofpeek diskfreqs mssaprofD mssaprofH
   pcatest readcoefsD readcoefsH sphprof pspxvalH pspxvalH2 pspxvalD
   pspxvalD2 pspKLH pspKLD diskeof yaml_diff kdtest)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG yaml-cpp
-  exputil EXP ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+  exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
@@ -19,7 +18,7 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC} ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/.. ${HDF5_INCLUDE_DIRS})
+  ${CMAKE_CURRENT_SOURCE_DIR}/.. ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
 
 add_executable(diskcoef    diskprof_coef.cc Coefs.cc)
 add_executable(halocoef    haloprof_coef.cc Coefs.cc SphereSL.cc)
@@ -30,7 +29,7 @@ add_executable(psphisto    psphisto.cc)
 add_executable(gas2d       gas2dcyl.cc)
 add_executable(makegrid    makegrid.cc)
 add_executable(pspbox      pspbox.cc)
-add_executable(eofpeek     eofpeek.cc)                                 
+add_executable(eofpeek     eofpeek.cc)
 add_executable(diskfreqs   diskfreqs.cc Coefs.cc SphereSL.cc)
 add_executable(mssaprofD   mssaprof_disk.cc)
 add_executable(mssaprofH   mssaprof_halo.cc SphereSL.cc)

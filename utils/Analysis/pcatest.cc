@@ -42,7 +42,7 @@
 #include <sys/resource.h>
 
 				// EXP classes
-#include <global.H>
+#include <libvars.H>
 #include <numerical.H>
 #include <interp.H>
 #include <EmpCylSL.H>

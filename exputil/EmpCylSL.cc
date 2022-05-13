@@ -7,18 +7,20 @@
 #include <limits>
 #include <string>
 
+#include <yaml-cpp/yaml.h>
+
 #include <Progress.H>		// Progress bar
 #include <TableGrid.H>		// For three-dimensional array
 
 #include <interp.H>
 #include <Timer.H>
 #include <thread>
-#include "exp_thread.h"
+#include <exp_thread.h>
+#include <EXPException.H>
 
 #include <Eigen/Eigenvalues>
 
-#include "expand.H"
-#include "global.H"
+#include <config.h>
 #ifdef HAVE_VTK
 #include <VtkPCA.H>
 #endif
@@ -31,6 +33,9 @@
 #include <gaussQ.H>
 #include <EmpCylSL.H>
 #include <DataGrid.H>
+
+#include <libvars.H>
+using namespace __EXP__;	// For reference to n-body globals
 
 #undef  TINY
 #define TINY 1.0e-16
@@ -71,10 +76,10 @@ std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs =
   };
 
 
-EmpCylSL::EmpCylSL(void)
+EmpCylSL::EmpCylSL()
 {
   NORDER     = 0;
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
   eof_made   = false;
   defSampT   = 1;
   sampT      = 1;
@@ -98,7 +103,7 @@ EmpCylSL::EmpCylSL(void)
 
   cylmass = 0.0;
   cylmass_made = false;
-  cylmass1 = vector<double>(nthrds);
+  cylmass1 = std::vector<double>(nthrds);
 
   hallfile = "";
 }
@@ -129,17 +134,17 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
     lmax = mmax + 1;
   }
 
-  NMAX     = nmax;
-  MMAX     = mmax;
-  LMAX     = lmax;
-  NORDER   = nord;
-  MMIN     = 0;
-  MLIM     = std::numeric_limits<int>::max();
-  NMIN     = 0;
-  NLIM     = std::numeric_limits<int>::max();
-  EvenOdd  = false;
-  Neven    = 0;
-  Nodd     = 0;
+  NMAX      = nmax;
+  MMAX      = mmax;
+  LMAX      = lmax;
+  NORDER    = nord;
+  MMIN      = 0;
+  MLIM      = std::numeric_limits<int>::max();
+  NMIN      = 0;
+  NLIM      = std::numeric_limits<int>::max();
+  EvenOdd   = false;
+  Neven     = 0;
+  Nodd      = 0;
 
 
   ASCALE   = ascale;
@@ -167,7 +172,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   else
     MPItable = 3;
 
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
   eof_made   = false;
 
   sampT        = 1;
@@ -175,7 +180,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   tk_type      = None;
 
   cylmass      = 0.0;
-  cylmass1     = vector<double>(nthrds);
+  cylmass1     = std::vector<double>(nthrds);
   cylmass_made = false;
 
   hallfile     = "";
@@ -231,7 +236,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 				      RMIN, RMAX*0.99, false, 1, 1.0);
 
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
   eof_made = false;
 
   if (DENS)
@@ -427,8 +432,8 @@ SphModTblPtr EmpCylSL::make_sl()
   m.resize(number);
   p.resize(number);
 
-  vector<double> mm(number);
-  vector<double> pw(number);
+  std::vector<double> mm(number);
+  std::vector<double> pw(number);
 
 				// ------------------------------------------
 				// Debug sanity check
@@ -707,7 +712,7 @@ int EmpCylSL::read_eof_file(const string& eof_file)
 
 
   eof_made = true;
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
 
   return 1;
 }
@@ -730,7 +735,7 @@ int EmpCylSL::read_cache(void)
 
 
   eof_made = true;
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
 
   return 1;
 }
@@ -807,7 +812,6 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
       node["ascl"  ] = ASCALE;
       node["hscl"  ] = HSCALE;
       node["cmass" ] = cylmass;
-      node["time"  ] = tnow;
 
       // Serialize the node
       //
@@ -835,6 +839,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
       //
       const int one  = 1;
       const int zero = 0;
+      double time    = 0.0;
 
       out.write((const char *)&MMAX,    sizeof(int));
       out.write((const char *)&NUMX,    sizeof(int));
@@ -849,7 +854,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
       out.write((const char *)&ASCALE,  sizeof(double));
       out.write((const char *)&HSCALE,  sizeof(double));
       out.write((const char *)&cylmass, sizeof(double));
-      out.write((const char *)&tnow,    sizeof(double));
+      out.write((const char *)&time,    sizeof(double));
     }
 
     // Write table
@@ -1633,24 +1638,6 @@ void EmpCylSL::setup_accumulation(int mlevel)
       cerr << "Slave " << setw(4) << myid 
 	   << ": tables allocated, MMAX=" << MMAX << endl;
 
-    differC1.resize(nthrds);
-    differS1.resize(nthrds);
-    for (auto & v : differC1) v.resize(multistep+1);
-    for (auto & v : differS1) v.resize(multistep+1);
-    
-    for (int nth=0; nth<nthrds; nth++) {
-      for (unsigned M=0; M<=multistep; M++) {
-	differC1[nth][M].resize(MMAX+1, NORDER);
-	differS1[nth][M].resize(MMAX+1, NORDER);
-      }
-    }
-
-    unsigned sz = (multistep+1)*(MMAX+1)*NORDER;
-    workC1.resize(sz);
-    workC .resize(sz);
-    workS1.resize(sz);
-    workS .resize(sz);
-    
     cylmass_made = false;
 
     for (unsigned M=0; M<=multistep; M++) {
@@ -2347,7 +2334,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   // We still need to make the coefficients
   //
 
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
 
 }
 
@@ -3409,7 +3396,7 @@ void EmpCylSL::make_eof(void)
   if (myid==0) cache_grid(1);
   
   eof_made      = true;
-  coefs_made    = vector<short>(multistep+1, false);
+  coefs_made    = std::vector<short>(multistep+1, false);
 
   if (VFLAG & 2) {
     MPI_Barrier(MPI_COMM_WORLD);
@@ -3419,7 +3406,7 @@ void EmpCylSL::make_eof(void)
 }
 
 
-void EmpCylSL::accumulate_eof(vector<Particle>& part, bool verbose)
+void EmpCylSL::accumulate_eof(std::vector<Particle>& part, bool verbose)
 {
 
   double r, phi, z, mass;
@@ -3446,7 +3433,7 @@ void EmpCylSL::accumulate_eof(vector<Particle>& part, bool verbose)
 }
   
 
-void EmpCylSL::accumulate_eof_thread(vector<Particle>& part, bool verbose)
+void EmpCylSL::accumulate_eof_thread(std::vector<Particle>& part, bool verbose)
 {
   setup_eof();
 
@@ -3495,7 +3482,7 @@ void EmpCylSL::accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool
 }
   
 
-void EmpCylSL::accumulate(vector<Particle>& part, int mlevel,
+void EmpCylSL::accumulate(std::vector<Particle>& part, int mlevel,
 			  bool verbose, bool compute)
 {
    double r, phi, z, mass;
@@ -3523,7 +3510,7 @@ void EmpCylSL::accumulate(vector<Particle>& part, int mlevel,
 }
   
 
-void EmpCylSL::accumulate_thread(vector<Particle>& part, int mlevel, bool verbose)
+void EmpCylSL::accumulate_thread(std::vector<Particle>& part, int mlevel, bool verbose)
 {
   setup_accumulation();
 
@@ -3841,10 +3828,6 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
   }
 }
 
-void EmpCylSL::multistep_reset()
-{
-}
-
 void EmpCylSL::reset_mass(void)
 { 
   cylmass=0.0; 
@@ -4077,7 +4060,6 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
       hout.open(ofile.str(), ios::out | ios::app);
       if (hout.good()) {
 	hout << "#" << endl << std::right
-	     << "# Time = " << tnow << endl
 	     << "#" << endl
 	     << setw( 4) << "m" << setw(4) << "n"
 	     << setw(fwid) << "coef";
@@ -4103,7 +4085,6 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
       mout.open(mfile.str(), ios::out | ios::app);
       if (mout.good()) {
 	mout << "#" << endl << std::right
-	     << "# Time = " << tnow << endl
 	     << "#" << endl << setprecision(4);
       } else {
 	cerr << "Could not open <" << mfile.str() << "> for appending output" 
@@ -5204,7 +5185,7 @@ void EmpCylSL::dump_coefs_binary(ostream& out, double time)
     //
     YAML::Node node;
 
-    node["time"  ] = tnow;
+    node["time"  ] = time;
     node["mmax"  ] = MMAX;
     node["nmax"  ] = rank3;
 
@@ -5973,6 +5954,7 @@ void EmpCylSL::sinecosine_R(int mmax, double phi,
 }
 
 
+<<<<<<< HEAD:src/EmpCylSL.cc
 void EmpCylSL::multistep_update_begin()
 {
 				// Clear the update matricies
@@ -6280,6 +6262,8 @@ void EmpCylSL::multistep_debug()
   }
 }
 
+=======
+>>>>>>> refactor:exputil/EmpCylSL.cc
 
 void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
 {

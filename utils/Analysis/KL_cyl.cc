@@ -59,7 +59,7 @@
 #include <Progress.H>
 #include <cxxopts.H>
 
-#include <global.H>
+#include <libvars.H>
 #include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support

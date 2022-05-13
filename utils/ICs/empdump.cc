@@ -5,8 +5,8 @@
 #include <string>
 #include <random>
 
-                                // EXP support
-#include <global.H>
+                                // EXP library support
+#include <libvars.H>
 #include <EmpCylSL.H>
 #include <localmpi.H>
 

@@ -52,10 +52,10 @@
 #include <foarray.H>
 #include <KDtree.H>
 
-#include <global.H>
 #include <localmpi.H>
 #include <Progress.H>
 #include <cxxopts.H>
+#include <libvars.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 

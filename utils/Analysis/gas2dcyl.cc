@@ -53,6 +53,7 @@ using namespace std;
 #include <localmpi.H>
 #include <cxxopts.H>
 #include <foarray.H>
+#include <libvars.H>
   
 int
 main(int argc, char **argv)

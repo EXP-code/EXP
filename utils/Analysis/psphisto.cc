@@ -51,6 +51,7 @@
 #include <localmpi.H>
 #include <foarray.H>
 #include <cxxopts.H>
+#include <libvars.H>
 
 enum ProjectionType {Cylindrical=1, Spherical=2};
   

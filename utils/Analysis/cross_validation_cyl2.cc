@@ -60,8 +60,8 @@
 #include <massmodel.H>
 #include <EmpCylSL.H>
 #include <foarray.H>
-
-#include <global.H>
+				// Support
+#include <libvars.H>
 #include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support

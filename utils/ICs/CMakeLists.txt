@@ -3,8 +3,8 @@ set(bin_PROGRAMS shrinkics gensph gendisk gsphere pstmod empinfo empdump
   eofbasis makeIon phIon phConv eofcomp testcoefs testcoefs2 testdeval
   forcetest hdf52accel forcetest2 cylcache modelfit)
 
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp EXP
-  exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
+  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
@@ -15,6 +15,7 @@ set(common_INCLUDE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/DSMC/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/utils/SL/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}

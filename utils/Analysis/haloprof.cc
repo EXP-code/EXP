@@ -51,11 +51,14 @@ using namespace std;
 #include <massmodel.H>
 #include <SphereSL.H>
 #include <DataGrid.H>
+				// Library support
 #include <localmpi.H>
 #include <foarray.H>
 #include <EXPini.H>
-#include <global.H>
 #include <KDtree.H>
+#include <libvars.H>
+
+using namespace __EXP__;
   
 // Globals
 //

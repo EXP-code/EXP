@@ -61,9 +61,9 @@
 #include <interp.H>
 #include <EmpCylSL.H>
 
-#include <global.H>
 #include <localmpi.H>
 #include <foarray.H>
+#include <libvars.H>
 
 #ifdef DEBUG
 #ifndef _REDUCED

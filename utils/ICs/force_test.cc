@@ -20,7 +20,7 @@
 
 // Globals for exp libraries
 //
-#include <global.H>
+#include <libvars.H>
 
 int 
 main(int ac, char **av)

@@ -56,7 +56,8 @@ using namespace std;
 #include <massmodel.H>
 #include <SphereSL.H>
 #include <foarray.H>
-
+				// Library support
+#include <libvars.H>
 #include <localmpi.H>
 #include <cxxopts.H>
 

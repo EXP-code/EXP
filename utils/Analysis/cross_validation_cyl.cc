@@ -57,7 +57,7 @@
 #include <EmpCylSL.H>
 #include <foarray.H>
 
-#include <global.H>
+#include <libvars.H>
 #include <cxxopts.H>
 #include <localmpi.H>
 

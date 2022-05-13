@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(
   EXP
-  VERSION 7.702
+  VERSION 7.704
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
@@ -33,6 +33,7 @@ else()
 endif()
 
 # Build options
+option(ENABLE_NBODY "Enable EXP n-body" ON)
 option(ENABLE_CUDA "Enable CUDA" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
@@ -157,8 +158,16 @@ configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h.in ${CMAKE_SOURCE_DIR}/config.
 
 add_subdirectory(extern/yaml-cpp)
 add_subdirectory(exputil)
-add_subdirectory(src)
+if (ENABLE_NBODY)
+  add_subdirectory(src)
+endif()
 add_subdirectory(utils)
+
+# try to find pybind11 and build wrapper python module
+find_package(Python3 COMPONENTS Interpreter Development)
+message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
+
+add_subdirectory(extern/pybind11)
 
 # Force installation of the yaml-cpp libraries
 install(TARGETS yaml-cpp DESTINATION lib)
