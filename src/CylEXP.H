@@ -19,6 +19,9 @@
  */
 class CylEXP : public EmpCylSL
 {
+  //! Allow access to differ arrays for multistepping
+  friend class Cylinder;
+
 protected:
 
   //! For updating levels
