@@ -54,9 +54,10 @@
 #include <SphereSL.H>
 #include <foarray.H>
 
-#include <global.H>
 #include <localmpi.H>
 #include <cxxopts.H>
+#include <libvars.H>
+using namespace __EXP__;
 
 // Globals
 //
@@ -81,7 +82,7 @@ main(int argc, char **argv)
   double RMIN, RMAX, rscale, minSNR0, Hexp;
   int NICE, LMAX, NMAX, NSNR, NPART;
   int beg, end, stride, init, knots, num;
-  std::string modelf, dir("./"), cname, prefix, fileType, filePrefix;
+  std::string modelf, dir("./"), cname, prefix, fileType, filePrefix, runtag;
 
   // ==================================================
   // Parse command line or input parameter file

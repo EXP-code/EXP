@@ -1,5 +1,5 @@
 #include <cmath>
-#include "expand.H"
+#include <Eigen/Dense>
   
 void sinecosine_R(int mmax, double phi, Eigen::VectorXd& c, Eigen::VectorXd& s)
 {

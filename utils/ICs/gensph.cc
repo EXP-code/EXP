@@ -36,7 +36,8 @@
 
 // EXP classes
 //
-#include <global.H>
+#include <libvars.H>
+#include <localmpi.H>
 #include <numerical.H>
 #include <massmodel.H>
 #include <model3d.H>
@@ -48,6 +49,10 @@
 #include <fpetrap.h>
 #include <cxxopts.H>
 #include <EXPini.H>
+
+// Reference to n-body globals
+//
+using namespace __EXP__;
 
 #include <config.h>
 

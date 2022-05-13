@@ -8,7 +8,7 @@
 #include <cxxopts.H>
 
                                 // EXP support
-#include <global.H>
+#include <libvars.H>
 #include <EmpCylSL.H>
 #include <localmpi.H>
 

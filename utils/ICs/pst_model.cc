@@ -20,7 +20,10 @@
 #include <massmodel.H>
 #include <interp.H>
 #include <ZBrent.H>
-#include "localmpi.H"
+#include <localmpi.H>
+#include <libvars.H>
+
+using namespace __EXP__;	// Reference to n-body globals
 
                                 // For debugging
 #ifdef DEBUG
@@ -28,9 +31,9 @@
 #endif
 
 
-// EXP support
+// EXP library support
 //
-#include <global.H>
+#include <libvars.H>
 #include <localmpi.H>
 
 /*

@@ -6,7 +6,7 @@
 
 #include "expand.H"
 #include <gaussQ.H>
-#include <EmpCylSL.H>
+#include <CylEXP.H>
 #include <Cylinder.H>
 #include <MixtureBasis.H>
 #include <Timer.H>
@@ -164,7 +164,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
   // Make the empirical orthogonal basis instance
   //
-  ortho = std::make_shared<EmpCylSL>
+  ortho = std::make_shared<CylEXP>
     (nmax, lmax, mmax, ncylorder, acyl, hcyl, ncylodd, cachename);
   
   // Set azimuthal harmonic order restriction?

@@ -13,7 +13,6 @@
 
 int nsteps = 500;		// Number of steps to execute
 int nscale = 20;		// Number of steps between rescaling
-int nthrds = 1;			// Number of POSIX threads (minimum: 1)
 int ngpus  = 0;	                // Number of GPUs per node (0 means use all available)
 int nbalance = 0;		// Steps between load balancing
 int nreport = 0;		// Steps between particle reporting
@@ -37,42 +36,42 @@ bool initializing = false;	// Used by force methods to do "private things"
 double runtime = 72.0;		// Total alloted runtime
 
 				// Files
-string homedir = "./";
-string infile = "restart.in";
+string homedir  = "./";
+string infile   = "restart.in";
 string parmfile = "config";
 string ratefile = "processor.rates";
-string outdir = "./";
-string runtag = "newrun";
 string ldlibdir = ".";
 
-double tnow;			// Per step variables
-int this_step;
-int psdump = -1;
+double tnow     = 0.0;		// Per step variables
+int psdump      = -1;
+int this_step   = 0;
 				// Global center of mass
 double mtot;
 double *gcom = new double [3];
 double *gcov = new double [3];
 bool global_cov = false;
 bool eqmotion = true;
-unsigned char stop_signal = 0;
-unsigned char dump_signal = 0;
-unsigned char quit_signal = 0;
+unsigned char stop_signal  = 0;
+unsigned char dump_signal  = 0;
+unsigned char quit_signal  = 0;
 				// Multistep variables
-unsigned multistep = 0;
-unsigned shiftlevl = 0;
-int centerlevl = -1;
-bool DTold = false;
-double dynfracS = 1.00;
-double dynfracD = 1.0e32;
-double dynfracV = 0.01;
-double dynfracA = 0.03;
-double dynfracP = 0.05;
-int Mstep = 0;
-int mstep = 0;
-int mdrft = 0;
-vector<int> mfirst, mintvl, stepL, stepN;
-vector< vector<bool> > mactive;
-vector< vector<int> > dstepL, dstepN;
+unsigned        shiftlevl  = 0;
+unsigned        maxlev     = 100;
+int             mdrft      = 0;
+int             mstep      = 0;
+int             Mstep      = 1;
+int             centerlevl = -1;
+				// Timestep control
+bool            DTold      = false;
+double          dynfracS   = 1.00;
+double          dynfracD   = 1.0e32;
+double          dynfracV   = 0.01;
+double          dynfracA   = 0.03;
+double          dynfracP   = 0.05;
+
+std::vector<int> mfirst, mintvl, stepL, stepN;
+std::vector< vector<bool> > mactive;
+std::vector< vector<int> > dstepL, dstepN;
 
 #if HAVE_LIBCUDA==1
 int cudaGlobalDevice;
@@ -93,7 +92,7 @@ vector<pthread_t> posvel_thrd;
 
 				// MPI variables
 int is_init=1;
-int numprocs, slaves, myid, proc_namelen;
+int numprocs, slaves, proc_namelen;
 char processor_name[MPI_MAX_PROCESSOR_NAME];
 
 MPI_Comm MPI_COMM_SLAVE;
@@ -104,9 +103,6 @@ std::map<std::string, std::vector<int> > nameMap;
 				// List of sibling ranks
 std::vector<int> siblingList;
 
-
-char threading_on = 0;
-pthread_mutex_t mem_lock;
 
 CylCoefHeader  coefheadercyl;
 SphCoefHeader  coefheadersph;
@@ -124,7 +120,6 @@ CheckpointTimer chktimer;
 string restart_cmd;
 
 unsigned int random_seed = 11;
-std::mt19937 random_gen;
 
 MPI_Datatype MPI_EXP_KEYTYPE;
 

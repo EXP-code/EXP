@@ -5,7 +5,7 @@
 
 #include <Orient.H>
 #include <Basis.H>
-#include <EmpCylSL.H>
+#include <CylEXP.H>
 #include <CylindricalCoefs.H>
 
 #include "config.h"
@@ -113,7 +113,7 @@ private:
   double ashift;
   unsigned int vflag;
 
-  std::shared_ptr<EmpCylSL> ortho;
+  std::shared_ptr<CylEXP> ortho;
   int eof, ncompcyl;
   double cylmass, resetT;
 

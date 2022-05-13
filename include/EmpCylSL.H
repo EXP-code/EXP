@@ -18,14 +18,14 @@
 #include <Particle.H>
 #include <SLGridMP2.H>
 #include <coef.H>
-#include <global.H>
-
-#include "expand.H"
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
+
+#include <libvars.H>
+using namespace __EXP__;
 
 /** Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as
     force method
@@ -45,7 +45,7 @@ public:
   using MatrixM      = std::vector<Eigen::MatrixXd>;
   using ContribArray = std::vector<Eigen::VectorXd>;
 
-private:
+protected:
 
   struct CylCoefHeader coefheadercyl;
 
@@ -58,17 +58,17 @@ private:
   int NKEEP;
 
   unsigned nbodstot;
-  string hallfile;
+  std::string hallfile;
 
   double YMIN, YMAX;
   double dX, dY;
   int M;
-  vector<double> cylmass1;
+  std::vector<double> cylmass1;
   bool cylmass_made;
   double cylmass;
   double minSNR, maxSNR;
 
-  vector<double> r, d, m, p;
+  std::vector<double> r, d, m, p;
 
   double ASCALE;
   double HSCALE;
@@ -458,11 +458,13 @@ public:
 
 
   //! Constructor (reset must called later)
-  EmpCylSL(void);
+  EmpCylSL();
 
   /** Constructor with parameters
 
       \par Parameters:
+
+      @param multistep is the number of coefficient levels for n-body
 
       @param numr is the spherical radial order of the input basis
 
@@ -489,7 +491,7 @@ public:
 
   //! Reconstruct basis with new parameters
   void reset(int numr, int lmax, int mmax, int nord,
-	     double ascale, double hscale, int Nodd=-1,
+	     double ascale, double hscale, int Nodd,
 	     std::string cachename="");
 
   //! Read EOF basis header from saved file
@@ -646,27 +648,6 @@ public:
       a complete set of coefficients for force evaluation at an
       intermediate time step
   */
-  void compute_multistep_coefficients(unsigned mlevel);
-
-  //! For updating levels
-  //@{
-  vector< vector<Eigen::MatrixXd> > differS1, differC1;
-  vector<double> workC1, workC, workS1, workS;
-  //@}
-
-  /** Update the multi time step coefficient table when moving particle 
-      <code>i</code> from level <code>cur</code> to level 
-      <code>next</code>
-  */
-  //@{
-  virtual void multistep_update_begin();
-  virtual void multistep_update(int from, int to, double r, double z, double phi, double mass, int id);
-  virtual void multistep_update_finish();
-  virtual void multistep_reset();
-  //@}
-
-  //! Print debug info
-  void multistep_debug();
 
   //! Set coefficients from Vectors
   void set_coefs(int mm, const Eigen::VectorXd& cos1, const Eigen::VectorXd& sin1,
@@ -772,6 +753,7 @@ public:
     init_pca();
 
     if (myid==0) {
+
       if (PCAVAR) {
 
 	const string types[] =

@@ -11,9 +11,9 @@
 #include <getopt.h>
 #include <pthread.h>
 
-// EXP support
+// EXP library support
 //
-#include <global.H>
+#include <libvars.H>
 
 using namespace std;
 

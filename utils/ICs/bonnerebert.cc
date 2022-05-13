@@ -41,9 +41,11 @@
 
 using namespace std;
 
-// EXP support
+// EXP library support
 //
-#include <global.H>
+#include <libvars.H>
+
+using namespace __EXP__;	// Reference to n-body globals
 
 #include <sys/types.h>
 #include <getopt.h>

@@ -6,6 +6,7 @@
 #include <limits>
 
 #include "config.h"
+#include <libvars.H>
 
 #ifdef HAVE_VTK
 

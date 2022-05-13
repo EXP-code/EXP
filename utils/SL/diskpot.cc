@@ -7,9 +7,8 @@
 #include <cmath>
 
 #include <getopt.h>		// For long options
-#include <libvars.H>		// EXP library globals
 
-#include <global.H>		// EXP globals
+#include <libvars.H>		// EXP globals
 #include <localmpi.H>		// MPI globals
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <CylindricalDisk.H>	// The axisymmetric potential solver

@@ -38,8 +38,6 @@
 #include <string>
 #include <memory>
 
-using namespace std;
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -54,10 +52,11 @@ using namespace std;
 #include <localmpi.H>
 #include <foarray.H>
 #include <cxxopts.H>
+#include <libvars.H>
 
 // Globals
 
-string OUTFILE;
+std::string OUTFILE;
 double RMIN, RMAX, TIME;
 int OUTR, NICE, LMAX, NMAX, MMAX, PARTFLAG, L1, L2;
 bool ALL, VOLUME, SURFACE, PROBE;
@@ -95,11 +94,11 @@ void write_output(SphereSL& ortho, int icnt, double time)
   // Setup for output files
   // ==================================================
   
-  ostringstream sstr;
+  std::ostringstream sstr;
   sstr << "." << icnt;
 
   nout = 8;
-  string suffix[8] = {"p0", "p", "fr", "ft", "fp", "d0", "d", "dd"};
+  std::string suffix[8] = {"p0", "p", "fr", "ft", "fp", "d0", "d", "dd"};
 
   if (VOLUME) {
       
@@ -114,7 +113,7 @@ void write_output(SphereSL& ortho, int icnt, double time)
     double x, y, z, r, phi, costh;
     double p0, p1, d0, d1, pl, fr, ft, fp;
     
-    vector<double> indat(nout*OUTR*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR*OUTR);
+    std::vector<double> indat(nout*OUTR*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR*OUTR);
     
     for (int k=0; k<OUTR; k++) {
       
@@ -191,7 +190,7 @@ void write_output(SphereSL& ortho, int icnt, double time)
     double x, y, z=0.0, r, phi, costh;
     double p0, p1, d0, d1, fr, ft, fp;
     
-    vector<double> indat(nout*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR);
+    std::vector<double> indat(nout*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR);
     
     for (int l=0; l<OUTR; l++) {
       
@@ -230,9 +229,9 @@ void write_output(SphereSL& ortho, int icnt, double time)
     
     if (myid==0) {
       
-      string name = OUTFILE + ".surf";
+      std::string name = OUTFILE + ".surf";
 
-      ofstream out(name.c_str());
+      std::ofstream out(name.c_str());
 
       if (out) {
 
@@ -315,7 +314,7 @@ void write_output(SphereSL& ortho, int icnt, double time)
     double p0, p1, d0, d1, fr, ft, fp;
     int indx;
     
-    vector<double> indat(3*nout*OUTR, 0.0), otdat(3*nout*OUTR);
+    std::vector<double> indat(3*nout*OUTR, 0.0), otdat(3*nout*OUTR);
     
     for (int l=0; l<OUTR; l++) {
       
@@ -385,7 +384,7 @@ void write_output(SphereSL& ortho, int icnt, double time)
     
     if (myid==0) {
       
-      vector<string> names(nout);
+      std::vector<std::string> names(nout);
       for (int i=0; i<nout; i++) {
 	names[i] = OUTFILE + "." + suffix[i] + ".cut";
 	if (ALL) names[i] += sstr.str();

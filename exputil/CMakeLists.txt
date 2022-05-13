@@ -6,10 +6,12 @@ set(QUAD_SRC qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc
 Trapsum.cc Splsum.cc)
 set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc
-  stack.cc localmpi.cc TableGrid.cc writePVD.cc)
+  stack.cc localmpi.cc TableGrid.cc writePVD.cc libvars.cc)
+
 if(HAVE_VTK)
-  list(APPEND UTIL_SRC VtkGrid.cc)
+  list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)
 endif()
+
 set(OPTIMIZATION_SRC SimAnn.cc)
 set(POLY_SRC zroots.cc laguer.cc poly.cc cpoly.cc horner.cc syndiv.cc)
 set(PHASE_SRC phase.cc ensemble.cc io_ensemble.cc move_ensemble.cc
@@ -22,7 +24,7 @@ set(MASSMODEL_SRC massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc reali
 set(ORBIT_SRC orbit.cc orbit_trans.cc FindOrb.cc)
 set(BIORTH_SRC biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc
   sbessz.cc ultra.cc jnsph.cc bessz.cc sphereSL.cc biorth1d.cc
-  biorth_wake_orientation.cc SLGridMP2.cc scalarprod.cc)
+  biorth_wake_orientation.cc SLGridMP2.cc scalarprod.cc EmpCylSL.cc)
 set(GAUSS_SRC gaussQ.cc GaussCore.c Hermite.c Jacobi.c Laguerre.c)
 set(QPDISTF_SRC QPDistF.cc qld.c)
 set(SLEDGE_SRC sledge.f)
@@ -35,7 +37,6 @@ set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
   ${ORBIT_SRC} ${BIORTH_SRC} ${POLY_SRC} ${GAUSS_SRC}
   ${QPDISTF_SRC} ${BESSEL_SRC} ${OPTIMIZATION_SRC}
   ${SLEDGE_SRC} ${PARTICLE_SRC} ${CUDA_SRC})
-
 
 set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
@@ -51,12 +52,15 @@ if(CUDA_FOUND)
 endif()
 
 # shared lib
+
 add_library(exputil ${exputil_SOURCES})
 set_target_properties(exputil PROPERTIES OUTPUT_NAME exputil)
 target_include_directories(exputil PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(exputil PUBLIC ${common_LINKLIBS})
 
 install(TARGETS exputil DESTINATION lib)
+
+# HDF5 info
 
 message(STATUS "HDF5 include dirs: ${HDF5_INCLUDE_DIRS}")
 message(STATUS "exputils include dirs: ${common_INCLUDE_DIRS}")

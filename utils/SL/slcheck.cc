@@ -4,7 +4,7 @@
 #include <string>
 #include <cmath>
 
-#include <global.H>
+#include <libvars.H>
 #include <localmpi.H>
 #include <SLGridMP2.H>
 #include <gaussQ.H>

@@ -7,18 +7,20 @@
 #include <limits>
 #include <string>
 
+#include <yaml-cpp/yaml.h>
+
 #include <Progress.H>		// Progress bar
 #include <TableGrid.H>		// For three-dimensional array
 
 #include <interp.H>
 #include <Timer.H>
 #include <thread>
-#include "exp_thread.h"
+#include <exp_thread.h>
+#include <EXPException.H>
 
 #include <Eigen/Eigenvalues>
 
-#include "expand.H"
-#include "global.H"
+#include <config.h>
 #ifdef HAVE_VTK
 #include <VtkPCA.H>
 #endif
@@ -31,6 +33,9 @@
 #include <gaussQ.H>
 #include <EmpCylSL.H>
 #include <DataGrid.H>
+
+#include <libvars.H>
+using namespace __EXP__;	// For reference to n-body globals
 
 #undef  TINY
 #define TINY 1.0e-16
@@ -71,10 +76,10 @@ std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs =
   };
 
 
-EmpCylSL::EmpCylSL(void)
+EmpCylSL::EmpCylSL()
 {
   NORDER     = 0;
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
   eof_made   = false;
   defSampT   = 1;
   sampT      = 1;
@@ -98,7 +103,7 @@ EmpCylSL::EmpCylSL(void)
 
   cylmass = 0.0;
   cylmass_made = false;
-  cylmass1 = vector<double>(nthrds);
+  cylmass1 = std::vector<double>(nthrds);
 
   hallfile = "";
 }
@@ -129,17 +134,17 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
     lmax = mmax + 1;
   }
 
-  NMAX     = nmax;
-  MMAX     = mmax;
-  LMAX     = lmax;
-  NORDER   = nord;
-  MMIN     = 0;
-  MLIM     = std::numeric_limits<int>::max();
-  NMIN     = 0;
-  NLIM     = std::numeric_limits<int>::max();
-  EvenOdd  = false;
-  Neven    = 0;
-  Nodd     = 0;
+  NMAX      = nmax;
+  MMAX      = mmax;
+  LMAX      = lmax;
+  NORDER    = nord;
+  MMIN      = 0;
+  MLIM      = std::numeric_limits<int>::max();
+  NMIN      = 0;
+  NLIM      = std::numeric_limits<int>::max();
+  EvenOdd   = false;
+  Neven     = 0;
+  Nodd      = 0;
 
 
   ASCALE   = ascale;
@@ -167,7 +172,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   else
     MPItable = 3;
 
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
   eof_made   = false;
 
   sampT        = 1;
@@ -175,7 +180,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   tk_type      = None;
 
   cylmass      = 0.0;
-  cylmass1     = vector<double>(nthrds);
+  cylmass1     = std::vector<double>(nthrds);
   cylmass_made = false;
 
   hallfile     = "";
@@ -231,7 +236,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 				      RMIN, RMAX*0.99, false, 1, 1.0);
 
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
   eof_made = false;
 
   if (DENS)
@@ -427,8 +432,8 @@ SphModTblPtr EmpCylSL::make_sl()
   m.resize(number);
   p.resize(number);
 
-  vector<double> mm(number);
-  vector<double> pw(number);
+  std::vector<double> mm(number);
+  std::vector<double> pw(number);
 
 				// ------------------------------------------
 				// Debug sanity check
@@ -707,7 +712,7 @@ int EmpCylSL::read_eof_file(const string& eof_file)
 
 
   eof_made = true;
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
 
   return 1;
 }
@@ -730,7 +735,7 @@ int EmpCylSL::read_cache(void)
 
 
   eof_made = true;
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
 
   return 1;
 }
@@ -807,7 +812,6 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
       node["ascl"  ] = ASCALE;
       node["hscl"  ] = HSCALE;
       node["cmass" ] = cylmass;
-      node["time"  ] = tnow;
 
       // Serialize the node
       //
@@ -835,6 +839,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
       //
       const int one  = 1;
       const int zero = 0;
+      double time    = 0.0;
 
       out.write((const char *)&MMAX,    sizeof(int));
       out.write((const char *)&NUMX,    sizeof(int));
@@ -849,7 +854,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
       out.write((const char *)&ASCALE,  sizeof(double));
       out.write((const char *)&HSCALE,  sizeof(double));
       out.write((const char *)&cylmass, sizeof(double));
-      out.write((const char *)&tnow,    sizeof(double));
+      out.write((const char *)&time,    sizeof(double));
     }
 
     // Write table
@@ -1633,24 +1638,6 @@ void EmpCylSL::setup_accumulation(int mlevel)
       cerr << "Slave " << setw(4) << myid 
 	   << ": tables allocated, MMAX=" << MMAX << endl;
 
-    differC1.resize(nthrds);
-    differS1.resize(nthrds);
-    for (auto & v : differC1) v.resize(multistep+1);
-    for (auto & v : differS1) v.resize(multistep+1);
-    
-    for (int nth=0; nth<nthrds; nth++) {
-      for (unsigned M=0; M<=multistep; M++) {
-	differC1[nth][M].resize(MMAX+1, NORDER);
-	differS1[nth][M].resize(MMAX+1, NORDER);
-      }
-    }
-
-    unsigned sz = (multistep+1)*(MMAX+1)*NORDER;
-    workC1.resize(sz);
-    workC .resize(sz);
-    workS1.resize(sz);
-    workS .resize(sz);
-    
     cylmass_made = false;
 
     for (unsigned M=0; M<=multistep; M++) {
@@ -1675,6 +1662,15 @@ void EmpCylSL::setup_accumulation(int mlevel)
       if (m>0) accum_sin[m].resize(NORDER);
     }
     
+    for (unsigned M=0; M<=multistep; M++) {
+      for (int nth=0; nth<nthrds; nth++) {
+	for (int m=0; m<=MMAX; m++) {
+	  cosN(M)[nth][m].setZero();
+	  if (m>0) sinN(M)[nth][m].setZero();
+	}
+      }
+    }
+
     if (PCAVAR and sampT>0) {
       for (int nth=0; nth<nthrds; nth++) {
 	for (unsigned T=0; T<sampT; T++) {
@@ -2347,7 +2343,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   // We still need to make the coefficients
   //
 
-  coefs_made = vector<short>(multistep+1, false);
+  coefs_made = std::vector<short>(multistep+1, false);
 
 }
 
@@ -3409,7 +3405,7 @@ void EmpCylSL::make_eof(void)
   if (myid==0) cache_grid(1);
   
   eof_made      = true;
-  coefs_made    = vector<short>(multistep+1, false);
+  coefs_made    = std::vector<short>(multistep+1, false);
 
   if (VFLAG & 2) {
     MPI_Barrier(MPI_COMM_WORLD);
@@ -3419,7 +3415,7 @@ void EmpCylSL::make_eof(void)
 }
 
 
-void EmpCylSL::accumulate_eof(vector<Particle>& part, bool verbose)
+void EmpCylSL::accumulate_eof(std::vector<Particle>& part, bool verbose)
 {
 
   double r, phi, z, mass;
@@ -3446,7 +3442,7 @@ void EmpCylSL::accumulate_eof(vector<Particle>& part, bool verbose)
 }
   
 
-void EmpCylSL::accumulate_eof_thread(vector<Particle>& part, bool verbose)
+void EmpCylSL::accumulate_eof_thread(std::vector<Particle>& part, bool verbose)
 {
   setup_eof();
 
@@ -3495,7 +3491,7 @@ void EmpCylSL::accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool
 }
   
 
-void EmpCylSL::accumulate(vector<Particle>& part, int mlevel,
+void EmpCylSL::accumulate(std::vector<Particle>& part, int mlevel,
 			  bool verbose, bool compute)
 {
    double r, phi, z, mass;
@@ -3523,7 +3519,7 @@ void EmpCylSL::accumulate(vector<Particle>& part, int mlevel,
 }
   
 
-void EmpCylSL::accumulate_thread(vector<Particle>& part, int mlevel, bool verbose)
+void EmpCylSL::accumulate_thread(std::vector<Particle>& part, int mlevel, bool verbose)
 {
   setup_accumulation();
 
@@ -3841,10 +3837,6 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
   }
 }
 
-void EmpCylSL::multistep_reset()
-{
-}
-
 void EmpCylSL::reset_mass(void)
 { 
   cylmass=0.0; 
@@ -4077,7 +4069,6 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
       hout.open(ofile.str(), ios::out | ios::app);
       if (hout.good()) {
 	hout << "#" << endl << std::right
-	     << "# Time = " << tnow << endl
 	     << "#" << endl
 	     << setw( 4) << "m" << setw(4) << "n"
 	     << setw(fwid) << "coef";
@@ -4103,7 +4094,6 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
       mout.open(mfile.str(), ios::out | ios::app);
       if (mout.good()) {
 	mout << "#" << endl << std::right
-	     << "# Time = " << tnow << endl
 	     << "#" << endl << setprecision(4);
       } else {
 	cerr << "Could not open <" << mfile.str() << "> for appending output" 
@@ -5204,7 +5194,7 @@ void EmpCylSL::dump_coefs_binary(ostream& out, double time)
     //
     YAML::Node node;
 
-    node["time"  ] = tnow;
+    node["time"  ] = time;
     node["mmax"  ] = MMAX;
     node["nmax"  ] = rank3;
 
@@ -5972,313 +5962,6 @@ void EmpCylSL::sinecosine_R(int mmax, double phi,
   }
 }
 
-
-void EmpCylSL::multistep_update_begin()
-{
-				// Clear the update matricies
-  for (int nth=0; nth<nthrds; nth++) {
-    for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
-      differC1[nth][M].setZero();
-      differS1[nth][M].setZero();
-    }
-  }
-}
-
-void EmpCylSL::multistep_update_finish()
-{
-  unsigned offset0, offset1;
-  unsigned sz = (multistep - mfirst[mstep]+1)*(MMAX+1)*rank3;
-  for (unsigned j=0; j<sz; j++) 
-    workC1[j] = workC[j] = workS1[j] = workS[j] = 0.0;
-
-				// Combine the update matricies
-  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
-
-    offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
-
-    for (int mm=0; mm<=MMAX; mm++) {
-      
-      offset1 = mm*rank3;
-
-      for (int k=0; k<rank3; k++) 
-	workC1[offset0+offset1+k] = differC1[0][M](mm, k);
-      for (int nth=1; nth<nthrds; nth++)
-	for (int k=0; k<rank3; k++) 
-	  workC1[offset0+offset1+k] += differC1[nth][M](mm, k);
-
-      if (mm) {
-	for (int k=0; k<rank3; k++) 
-	  workS1[offset0+offset1+k] = differS1[0][M](mm, k);
-	for (int nth=1; nth<nthrds; nth++)
-	  for (int k=0; k<rank3; k++) 
-	    workS1[offset0+offset1+k] += differS1[nth][M](mm, k);
-
-      }
-    }
-  }
-
-  MPI_Allreduce (&workC1[0], &workC[0], sz,
-		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-  MPI_Allreduce (&workS1[0], &workS[0], sz, 
-		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-  //  +--- Deep debugging
-  //  |
-  //  v
-  if (false and myid==0) {
-    std::ofstream out("test_differ.cyl", ios::app);
-    if (out) {
-      out << std::string(13+16*rank3, '-') << std::endl;
-      out << "# T=" << tnow << " mstep=" << mstep << std::endl;
-      for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
-	offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
-	for (int mm=0; mm<=MMAX; mm++) {
-	  offset1 = mm*rank3;
-	  out << std::setw(5) << M << " C " << std::setw(5) << mm;
-	  for (int nn=0; nn<rank3; nn++) 
-	    out << std::setw(16) << workC[offset0+offset1+nn];
-	  out << std::endl;
-	  if (mm) {
-	    out << std::setw(5) << M << " S " << std::setw(5) << mm;
-	    for (int nn=0; nn<rank3; nn++) 
-	      out << std::setw(16) << workS[offset0+offset1+nn];
-	    out << std::endl;
-	  }
-	  break;
-	}
-      }
-      out << std::string(13+16*rank3, '-') << std::endl;
-      for (int mm=0; mm<=MMAX; mm++) {
-	offset1 = mm*rank3;
-	out << std::setw(5) << " *** " << " C " << std::setw(5) << mm;
-	for (int nn=0; nn<rank3; nn++) 
-	  out << std::setw(16) << accum_cos[mm][nn];
-	out << std::endl;
-	if (mm) {
-	  out << std::setw(5) << " *** " << " S " << std::setw(5) << mm;
-	  for (int nn=0; nn<rank3; nn++) 
-	    out << std::setw(16) << accum_sin[mm][nn];
-	  out << std::endl;
-	}
-	break;
-      }
-      out << std::string(13+16*rank3, '-') << std::endl;
-      out << std::string(13+16*rank3, '-') << std::endl;
-    } else {
-      std::cout << "Error opening test file <test_differ.sph> at T=" << tnow
-		<< std::endl;
-    }
-  }
-
-
-  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
-
-    offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
-
-    for (int mm=0; mm<=MMAX; mm++) {
-      
-      offset1 = mm*rank3;
-
-      for (int nn=0; nn<rank3; nn++) 
-	accum_cos[mm][nn] += workC[offset0+offset1+nn];
-
-      if (mm) {
-	for (int nn=0; nn<rank3; nn++) 
-	  accum_sin[mm][nn] += workS[offset0+offset1+nn];
-      }
-    }
-
-  }
-}
-
-void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi, double mass, int id)
-{
-  double rr = sqrt(r*r+z*z);
-  if (rr/ASCALE>Rtable) return;
-
-  double msin, mcos;
-
-  double norm = -4.0*M_PI;
-  
-  get_pot(vc[id], vs[id], r, z);
-
-  for (int mm=0; mm<=MMAX; mm++) {
-
-    mcos = cos(phi*mm);
-    msin = sin(phi*mm);
-
-    for (int nn=0; nn<rank3; nn++) {
-      double hold = norm * mass * mcos * vc[id](mm, nn);
-      differC1[id][from](mm, nn) -= hold;
-      differC1[id][to  ](mm, nn) += hold;
-
-      if (mm>0) {
-	hold = norm * mass * msin * vs[id](mm, nn);
-	differS1[id][from](mm, nn) -= hold;
-	differS1[id][to  ](mm, nn) += hold;
-      }
-    }
-  }
-
-}
-
-
-
-void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
-{
-				// Clean coefficient matrix
-				// 
-  for (int mm=0; mm<=MMAX; mm++) {
-    for (int nn=0; nn<rank3; nn++) {
-      accum_cos[mm][nn] = 0.0;
-      if (mm) accum_sin[mm][nn] = 0.0;
-    }
-  }
-  
-				// Interpolate to get coefficients above the
-				// current active level
-  for (unsigned M=0; M<mfirst[mdrft]; M++) {
-
-    double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
-    double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
-
-    double b = numer/denom;	// Interpolation weights
-    double a = 1.0 - b;
-
-    //  +--- Deep debugging
-    //  |
-    //  v
-    if (false and myid==0) {
-      std::cout << std::left << std::fixed
-		<< "CYL INTERP M=" << std::setw(2) << M
-		<< " mstep=" << std::setw(3) << mstep
-		<< " mdrft=" << std::setw(3) << mdrft
-		<< " a=" << std::setw(16) << a
-		<< " b=" << std::setw(16) << b
-		<< std::endl << std::right;
-    }
-
-    for (int mm=0; mm<=MMAX; mm++) {
-      for (int nn=0; nn<rank3; nn++) {
-	accum_cos[mm][nn] += a*cosL(M)[0][mm][nn] + b*cosN(M)[0][mm][nn];
-	if (mm)
-	  accum_sin[mm][nn] += a*sinL(M)[0][mm][nn] + b*sinN(M)[0][mm][nn];
-      }
-    }
-
-    if (false and myid==0) {
-      std::cout << "CYL interpolate:"
-		<< " M="     << std::setw( 4) << M
-		<< " mstep=" << std::setw( 4) << mstep 
-		<< " mdrft=" << std::setw( 4) << mdrft 
-		<< " minS="  << std::setw( 4) << dstepL[M][mdrft]
-		<< " maxS="  << std::setw( 4) << dstepN[M][mdrft]
-		<< " a="     << std::setw(14) << a 
-		<< " b="     << std::setw(14) << b 
-		<< " L00="   << std::setw(14) << cosL(M)[0][0][0]
-		<< " N00="   << std::setw(14) << cosN(M)[0][0][0]
-		<< " c00="   << std::setw(14) << accum_cos[0][0]
-		<< std::endl;
-    }
-
-    // Sanity debug check
-    if (a<0.0 && a>1.0) {
-      cout << "Process " << myid << ": interpolation error in multistep [a]" << endl;
-    }
-    if (b<0.0 && b>1.0) {
-      cout << "Process " << myid << ": interpolation error in multistep [b]" << endl;
-    }
-  }
-				// Add coefficients at or above this level
-				// 
-  for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
-
-    //  +--- Deep debugging
-    //  |
-    //  v
-    if (false and myid==0) {
-      std::cout << std::left << std::fixed
-		<< "CYL FULVAL M=" << std::setw(2) << M
-		<< " mstep=" << std::setw(3) << mstep
-		<< " mdrft=" << std::setw(3) << mdrft
-		<< std::endl << std::right;
-    }
-
-    for (int mm=0; mm<=MMAX; mm++) {
-      for (int nn=0; nn<rank3; nn++) {
-	accum_cos[mm][nn] += cosN(M)[0][mm][nn];
-	if (mm)
-	  accum_sin[mm][nn] += sinN(M)[0][mm][nn];
-      }
-    }
-  }
-
-  if (false and myid==0) {
-    std::cout << "CYL interpolated value:"
-	      << " mlev="  << std::setw( 4) << mlevel
-	      << " mstep=" << std::setw( 4) << mstep
-	      << " mdrft=" << std::setw( 4) << mdrft
-	      << " T="     << std::setw( 4) << tnow
-	      << " c00="   << std::setw(14) << accum_cos[0][0]
-	      << std::endl;
-  }
-
-  coefs_made = vector<short>(multistep+1, true);
-}
-
-
-void EmpCylSL::multistep_debug()
-{
-  for (int n=0; n<numprocs; n++) {
-    if (n==myid) {
-      cout << "Process " << myid << endl
-	   << "   accum_cos[0][0]="
-	   << accum_cos[0][0] << endl
-	   << "   accum_sin[1][0]="
-	   << accum_sin[1][0] << endl;
-
-      cout.setf(ios::scientific);
-      int c = cout.precision(2);
-      for (unsigned M=0; M<=multistep; M++) {
-	cout << "   M=" << M << ": #part=" << howmany[M] << endl;
-
-	cout << "   M=" << M << ", m=0, C_N: ";
-	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << cosN(M)[0][0][j];
-	cout << endl;
-
-	cout << "   M=" << M << ", m=0, C_L: ";
-	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << cosL(M)[0][0][j];
-	cout << endl;
-
-	cout << "   M=" << M << ", m=1, C_N: ";
-	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << cosN(M)[0][1][j];
-	cout << endl;
-
-	cout << "   M=" << M << ", m=1, C_L: ";
-	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << cosL(M)[0][1][j];
-	cout << endl;
-
-	cout << "   M=" << M << ", m=1, S_N: ";
-	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << sinN(M)[0][1][j];
-	cout << endl;
-
-	cout << "   M=" << M << ", m=1, S_L: ";
-	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << sinL(M)[0][1][j];
-	cout << endl;
-
-	cout.precision(c);
-      }
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
-}
 
 
 void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)

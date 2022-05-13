@@ -22,6 +22,9 @@
 #include "Species.H"
 #include <circular_buffer.H>
 
+#include <libvars.H>
+using namespace __EXP__;	// Reference exputils globals
+
 // For debugging xc species: set XC_DEEP
 //
 

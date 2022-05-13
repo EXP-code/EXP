@@ -49,10 +49,11 @@ using namespace std;
 #include <interp.H>
 #include <massmodel.H>
 #include <SphereSL.H>
-
+				// Support headers
 #include <localmpi.H>
 #include <cxxopts.H>
 #include <foarray.H>
+#include <libvars.H>
 
 
 enum ProjectionType {Cylindrical=1, Spherical=2};

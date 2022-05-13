@@ -19,6 +19,7 @@
 #include <header.H>
 #include <Particle.H>
 #include <gadget.H>
+#include <tipsy.H>
 
 
 namespace PR
@@ -398,8 +399,8 @@ namespace PR
     
     //@{
     //! Particle access
-    virtual const Particle* firstParticle ();
-    virtual const Particle* nextParticle();
+    virtual const Particle* firstParticle();
+    virtual const Particle* nextParticle ();
     //@}
   };
   
@@ -431,6 +432,63 @@ namespace PR
     
   };
   
+  /**
+     Class to access a Tipsy file
+  */
+  class Tipsy : public ParticleReader
+  {
+  private:
+    //! Pointer to Tipsy particle structures
+    std::shared_ptr<TipsyXDR::TipsyFile> ps;
+
+    //! Temporary for packing array
+    Particle P;
+    
+    //! Current types
+    std::vector<std::string> curTypes;
+    
+    //! Current name
+    std::string curName;
+    
+
+  protected:
+
+    static std::vector<std::string> Ptypes;
+    static std::unordered_map<std::string, int> findP;
+    int ptype;
+
+    unsigned pcount;
+
+    void packParticle();
+
+  public:
+    
+    //! Constructor
+    Tipsy(const std::string& file, bool verbose=false);
+    
+    //! Destructor
+    virtual ~Tipsy() {}
+    
+    //! Return list of particle types
+    virtual std::vector<std::string> GetTypes() { return curTypes; }
+
+    //! Select a particular particle type and reset the iterator
+    virtual void SelectType(const std::string& type);
+
+    //! Number of particles in the chosen type
+    virtual unsigned long CurrentNumber();
+    
+    //! Get current time
+    virtual double CurrentTime() { return ps->header.time; }
+    
+    //@{
+    //! Particle access
+    virtual const Particle* firstParticle ();
+    virtual const Particle* nextParticle();
+    //@}
+  };
+  
+
   typedef std::shared_ptr<ParticleReader> PRptr;
 }
   
