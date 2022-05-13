@@ -36,36 +36,42 @@ bool initializing = false;	// Used by force methods to do "private things"
 double runtime = 72.0;		// Total alloted runtime
 
 				// Files
-string homedir = "./";
-string infile = "restart.in";
+string homedir  = "./";
+string infile   = "restart.in";
 string parmfile = "config";
 string ratefile = "processor.rates";
 string ldlibdir = ".";
 
-double tnow;			// Per step variables
-int psdump = -1;
+double tnow     = 0.0;		// Per step variables
+int psdump      = -1;
+int this_step   = 0;
 				// Global center of mass
 double mtot;
 double *gcom = new double [3];
 double *gcov = new double [3];
 bool global_cov = false;
 bool eqmotion = true;
-unsigned char stop_signal = 0;
-unsigned char dump_signal = 0;
-unsigned char quit_signal = 0;
+unsigned char stop_signal  = 0;
+unsigned char dump_signal  = 0;
+unsigned char quit_signal  = 0;
 				// Multistep variables
-unsigned shiftlevl = 0;
-int mdrft = 0;
-int centerlevl = -1;
-bool DTold = false;
-double dynfracS = 1.00;
-double dynfracD = 1.0e32;
-double dynfracV = 0.01;
-double dynfracA = 0.03;
-double dynfracP = 0.05;
-vector<int> mfirst, mintvl, stepL, stepN;
-vector< vector<bool> > mactive;
-vector< vector<int> > dstepL, dstepN;
+unsigned        shiftlevl  = 0;
+unsigned        maxlev     = 100;
+int             mdrft      = 0;
+int             mstep      = 0;
+int             Mstep      = 1;
+int             centerlevl = -1;
+				// Timestep control
+bool            DTold      = false;
+double          dynfracS   = 1.00;
+double          dynfracD   = 1.0e32;
+double          dynfracV   = 0.01;
+double          dynfracA   = 0.03;
+double          dynfracP   = 0.05;
+
+std::vector<int> mfirst, mintvl, stepL, stepN;
+std::vector< vector<bool> > mactive;
+std::vector< vector<int> > dstepL, dstepN;
 
 #if HAVE_LIBCUDA==1
 int cudaGlobalDevice;

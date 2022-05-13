@@ -1662,6 +1662,15 @@ void EmpCylSL::setup_accumulation(int mlevel)
       if (m>0) accum_sin[m].resize(NORDER);
     }
     
+    for (unsigned M=0; M<=multistep; M++) {
+      for (int nth=0; nth<nthrds; nth++) {
+	for (int m=0; m<=MMAX; m++) {
+	  cosN(M)[nth][m].setZero();
+	  if (m>0) sinN(M)[nth][m].setZero();
+	}
+      }
+    }
+
     if (PCAVAR and sampT>0) {
       for (int nth=0; nth<nthrds; nth++) {
 	for (unsigned T=0; T<sampT; T++) {
