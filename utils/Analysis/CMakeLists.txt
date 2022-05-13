@@ -53,3 +53,7 @@ foreach(program ${bin_PROGRAMS})
   target_include_directories(${program} PUBLIC ${common_INCLUDE})
   install(TARGETS ${program} DESTINATION bin)
 endforeach()
+
+pybind11_add_module(simpleSL simpleSL.cc SphereSL.cc)
+target_link_libraries(simpleSL PRIVATE ${common_LINKLIB})
+target_include_directories(simpleSL PRIVATE ${common_INCLUDE})
