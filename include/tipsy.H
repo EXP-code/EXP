@@ -98,27 +98,32 @@ namespace TipsyXDR
 	std::cerr << "TipsyFile: could not read a valid header" << std::endl;
 	exit(-1);
       }
-    
+
+      return header.nbodies;
+    }
+
+    int xdr_read()
+    {
       int N=0;
-    
+      
       if (header.nsph != 0)  {
 	gas_particles.resize(header.nsph);
 	xdr_gas();
+	N++;
       }
-      N++;
     
       if (header.ndark != 0) {
 	dark_particles.resize(header.ndark);
 	xdr_dark();
+	N++;
       }
-      N++;
 
       if (header.nstar != 0) {
 	star_particles.resize(header.nstar);
 	xdr_star();
+	N++;
       }
-      N++;
-      
+	
       return N;
     }
 
@@ -153,21 +158,24 @@ namespace TipsyXDR
 
   public:
 
-    TipsyFile(const std::string filename) {
+    TipsyFile(const std::string filename)
+    {
       // Attempt to read tipsy file
       int ret = xdr_init(filename);
       if (ret==0) {
-	std::cerr << "TipsyFile: no components found??" << std::endl;
+	std::cerr << "TipsyFile: no bodies found??" << std::endl;
 	exit(-1);
       }
     }
+
+    int readParticles() { return xdr_read(); }
 
     ~TipsyFile()
     {
       xdr_destroy(&xdrs);
       fclose(input);
     }
-
+    
   };
 
 };
