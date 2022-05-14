@@ -294,7 +294,7 @@ protected:
   //@}
 
   //! Binary read flag
- bool binary;
+  bool binary;
 
   //! COM log file
   string comfile;
@@ -313,6 +313,12 @@ protected:
 
   //! Level occupation output
   int nlevel;
+
+  //! Use center from this component
+  Component *c0;
+
+  //! Name of the centering component
+  std::string ctr_name;
 
   //! Write binary component phase-space structure using MPI (blocking)
   void write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4 = false);

@@ -142,6 +142,7 @@ Component::Component(YAML::Node& CONF)
 
   com_system  = false;
   com_log     = false;
+  c0          = NULL;		// Default component pointer
 
 #if HAVE_LIBCUDA==1
   bunchSize   = 100000;
@@ -194,6 +195,26 @@ Component::Component(YAML::Node& CONF)
   if (CONF["parameters"]) CONF["parameters"] = cconf;
 
   configure();
+  
+  // Search for centering component 
+  //
+  if (ctr_name.size()>0) {
+				// Look for the fiducial component
+    bool found = false;
+    for (auto c : comp->components) {
+      if ( !ctr_name.compare(c->name) ) {
+	c0 = c;
+	found = true;
+	break;
+      }
+    }
+    
+    if (!found) {
+      cerr << "Component [" << myid << "]: can't find desired component <"
+	   << ctr_name << ">" << endl;
+      MPI_Abort(MPI_COMM_WORLD, 38);
+    }
+  }
 
   initialize_cuda();
 
@@ -711,6 +732,7 @@ void Component::configure(void)
     if (cconf["keypos"  ])     keyPos  = cconf["keypos"  ].as<int>();
     if (cconf["pbufsiz" ])    pBufSiz  = cconf["pbufsiz" ].as<int>();
     if (cconf["blocking"])   blocking  = cconf["blocking"].as<bool>();
+    if (cconf["ctr_name"])   ctr_name  = cconf["ctr_name"].as<std::string>();
 #if HAVE_LIBCUDA==1
     if (cconf["bunch"   ])  bunchSize  = cconf["bunch"   ].as<int>();
 #endif
@@ -729,6 +751,9 @@ void Component::configure(void)
       twid = cconf["twid"].as<double>();
       adiabatic = true;
     }
+
+
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters for Component <"
@@ -2986,9 +3011,12 @@ void Component::fix_positions_cpu(unsigned mlevel)
     for (int k=0; k<dim; k++) cov0[k] = cov[k];
   }
 
-  if (com_system) {	   // Use local center of accel for com update
+  // Use local center of accel for com update
+  if (com_system) {
     for (int k=0; k<dim; k++) acc0[k]  = coa[k];
-  } else {			// No mass, no acceleration?
+  }
+  // No mass, no acceleration?
+  else {
     for (int k=0; k<dim; k++) acc0[k]  = 0.0;
   }
 
@@ -3004,6 +3032,11 @@ void Component::fix_positions_cpu(unsigned mlevel)
       cout << "Orient: center failure, T=" << tnow 
 	   << ", adjustment skipped" << endl;
     }
+  }
+
+  // Alternative center
+  if (c0) {
+    for (int i=0; i<3; i++) center[i] += c0->center[i];
   }
 
 }
