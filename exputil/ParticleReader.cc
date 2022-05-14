@@ -1395,6 +1395,9 @@ namespace PR {
 		<< std::endl;
     } else {
       curName = name;
+      if (curName == "Gas" ) ps->xdr_gas();
+      if (curName == "Dark") ps->xdr_dark();
+      if (curName == "Star") ps->xdr_star();
     }
   }
 

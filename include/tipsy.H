@@ -4,7 +4,11 @@
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 
-#include <ParticleReader.H>
+// Forward declare PR::Tipsy so it can friend TipsyFile
+//
+namespace PR {
+  class Tipsy;
+};
 
 namespace TipsyXDR
 {
@@ -79,6 +83,45 @@ namespace TipsyXDR
       return 1;
     }
     
+    int xdr_init(const std::string& filename)
+    {
+      input = fopen(filename.c_str(), "r");
+      if (fopen==NULL) {
+	std::cerr << "TipsyFile: error opening file <" << filename << ">"
+		  << std::endl;
+	exit(-1);
+      }
+	
+      xdrstdio_create(&xdrs, input, XDR_DECODE);
+      
+      if (xdr_header() != 1) {
+	std::cerr << "TipsyFile: could not read a valid header" << std::endl;
+	exit(-1);
+      }
+    
+      int N=0;
+    
+      if (header.nsph != 0)  {
+	gas_particles.resize(header.nsph);
+	xdr_gas();
+      }
+      N++;
+    
+      if (header.ndark != 0) {
+	dark_particles.resize(header.ndark);
+	xdr_dark();
+      }
+      N++;
+
+      if (header.nstar != 0) {
+	star_particles.resize(header.nstar);
+	xdr_star();
+      }
+      N++;
+      
+      return N;
+    }
+
     void xdr_gas()
     {
       if (sizeof(Real) == sizeof(float)) {
@@ -106,40 +149,12 @@ namespace TipsyXDR
       }
     }  
     
-    int xdr_init(const std::string& filename)
-    {
-      input = fopen(filename.c_str(), "r");
-      if (fopen==NULL) {
-	std::cerr << "TipsyFile: error opening file <" << filename << ">"
-		  << std::endl;
-	exit(-1);
-      }
-	
-      xdrstdio_create(&xdrs, input, XDR_DECODE);
-      
-      if (xdr_header() != 1) {
-	std::cerr << "TipsyFile: could not read a valid header" << std::endl;
-	exit(-1);
-      }
-    
-      int N=0;
-    
-      if (header.nsph != 0)  gas_particles.resize(header.nsph);
-      N++;
-    
-      if (header.ndark != 0) dark_particles.resize(header.ndark);
-      N++;
-
-      if (header.nstar != 0) star_particles.resize(header.nstar);
-      N++;
-      
-      return N;
-    }
-
+    friend class PR::Tipsy;
 
   public:
 
     TipsyFile(const std::string filename) {
+      // Attempt to read tipsy file
       int ret = xdr_init(filename);
       if (ret==0) {
 	std::cerr << "TipsyFile: no components found??" << std::endl;
