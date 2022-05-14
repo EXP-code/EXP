@@ -966,14 +966,18 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
       ascl    = node["ascl"  ].as<double>();
       hscl    = node["hscl"  ].as<double>();
       cylmass = node["cmass" ].as<double>();
-      time    = node["time"  ].as<double>();
+      
+      if (node["time"]) 	// Backwards compatibility; 'time' is optional
+	time    = node["time"  ].as<double>();
+      else
+	time    = 0.0;
 
-      if (node["cmap"]) 	// Backwards compatibility
+      if (node["cmap"]) 	// Backwards compatibility; parameter change
 	cmapr   = node["cmap" ].as<int>();
       else
 	cmapr   = node["cmapr"].as<int>();
 
-      if (node["cmapz"])	// Backwards compatibility
+      if (node["cmapz"])	// Backwards compatibility; parameter change
 	cmapz = node["cmapz"].as<int>();
       else
 	cmapz = CMAPZ;

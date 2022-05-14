@@ -91,7 +91,6 @@ namespace PR
     std::string _file;
     double mass[6];
     
-    
     static std::vector<std::string> Ptypes;
     static std::unordered_map<std::string, int> findP;
     int ptype;
@@ -109,7 +108,8 @@ namespace PR
       auto it = findP.find(type);
       if (it != findP.end()) ptype = it->second;
       else {
-	std::cerr << "GadgetNative error: no particle type <" << type << ">" << std::endl;
+	std::cerr << "GadgetNative error: no particle type <" << type
+		  << ">" << std::endl;
 	std::cerr << "Valid GadgetNative types are:";
 	for (auto s : Ptypes) std::cerr << " " << s;
 	std::cerr << std::endl;
@@ -438,6 +438,12 @@ namespace PR
   class Tipsy : public ParticleReader
   {
   private:
+    //! List of files
+    std::vector<std::string> files;
+
+    //! Current file
+    std::vector<std::string>::iterator curfile;
+
     //! Pointer to Tipsy particle structures
     std::shared_ptr<TipsyXDR::TipsyFile> ps;
 
@@ -450,6 +456,8 @@ namespace PR
     //! Current name
     std::string curName;
     
+    //! Totals
+    unsigned long Ngas, Ndark, Nstar;
 
   protected:
 
@@ -459,12 +467,17 @@ namespace PR
 
     unsigned pcount;
 
+    void getNumbers();
     void packParticle();
+    bool nextFile();
 
   public:
     
-    //! Constructor
+    //! Single-file constructor
     Tipsy(const std::string& file, bool verbose=false);
+    
+    //! Constructor
+    Tipsy(const std::vector<std::string>& file, bool verbose=false);
     
     //! Destructor
     virtual ~Tipsy() {}

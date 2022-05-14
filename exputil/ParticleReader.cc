@@ -242,8 +242,9 @@ namespace PR {
   {
     if (pcount < particles.size()) {
       return &particles[pcount++];
-    } else
+    } else {
       return 0;
+    }
   }
   
   
@@ -1379,13 +1380,63 @@ namespace PR {
   { {"Gas", 0}, {"Dark", 1}, {"Star", 2} };
   
   
+  void Tipsy::getNumbers()
+  {
+    Ngas = Ndark = Nstar = 0;
+    std::set<std::string> types;
+
+    for (auto file : files) {
+
+      ps = std::make_shared<TipsyXDR::TipsyFile>(*curfile);
+
+      if (ps->gas_particles.size() ) {
+	types.insert("Gas");
+	Ngas = ps->gas_particles.size();
+      }
+
+      if (ps->dark_particles.size()) {
+	types.insert("Dark");
+	Ndark = ps->dark_particles.size();
+      }
+
+      if (ps->star_particles.size()) {
+	types.insert("Star");
+	Nstar = ps->star_particles.size();
+      }
+
+    }
+
+    curTypes.clear();
+    for (auto s : types) curTypes.push_back(s);
+  }
+
+  bool Tipsy::nextFile()
+  {
+    if (curfile==files.end()) false;
+    ps = std::make_shared<TipsyXDR::TipsyFile>(*curfile);
+    ps->readParticles();
+    curfile++;
+    return true;
+  }
+
   Tipsy::Tipsy(const std::string& file, bool verbose)
   {
-    ps = std::make_shared<TipsyXDR::TipsyFile>(file);
-    
-    if (ps->gas_particles.size() ) curTypes.push_back("Gas" );
-    if (ps->dark_particles.size()) curTypes.push_back("Dark");
-    if (ps->star_particles.size()) curTypes.push_back("Star");
+    files.push_back(file);
+    getNumbers();
+    curfile = files.begin();
+    if (not nextFile()) {
+      std::cerr << "Tipsy: no files found" << std::endl;
+    }
+  }
+  
+  Tipsy::Tipsy(const std::vector<std::string>& filelist, bool verbose)
+  {
+    files = filelist;
+    getNumbers();
+    curfile = files.begin();
+    if (not nextFile()) {
+      std::cerr << "Tipsy: no files found" << std::endl;
+    }
   }
   
   void Tipsy::SelectType(const std::string& name)
@@ -1395,6 +1446,9 @@ namespace PR {
 		<< std::endl;
     } else {
       curName = name;
+      if (curName == "Gas" ) ps->xdr_gas();
+      if (curName == "Dark") ps->xdr_dark();
+      if (curName == "Star") ps->xdr_star();
     }
   }
 
@@ -1459,9 +1513,20 @@ namespace PR {
     
   const Particle* Tipsy::nextParticle()
   {
-    if (curName=="Gas"  and pcount==ps->gas_particles.size() ) return NULL;
-    if (curName=="Dark" and pcount==ps->dark_particles.size()) return NULL;
-    if (curName=="Star" and pcount==ps->star_particles.size()) return NULL;
+    if (curName=="Gas"  and pcount==ps->gas_particles.size()) {
+      if (nextFile()) return firstParticle();
+      else return NULL;
+    }
+    
+    if (curName=="Dark" and pcount==ps->dark_particles.size()) {
+      if (nextFile()) return firstParticle();
+      else return NULL;
+    }
+
+    if (curName=="Star" and pcount==ps->star_particles.size()) {
+      if (nextFile()) return firstParticle();
+      else return NULL;
+    }
 
     packParticle();
     return &P;

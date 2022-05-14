@@ -732,6 +732,11 @@ void Component::fix_positions_cuda(unsigned mlevel)
     }
   }
 
+  // Alternative center
+  if (c0) {
+    for (int i=0; i<3; i++) center[i] += c0->center[i];
+  }
+
   (*barrier)("Container::fix_positions_cuda: FINISH", __FILE__, __LINE__);
 }
 
