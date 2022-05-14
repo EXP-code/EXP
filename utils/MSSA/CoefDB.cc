@@ -191,7 +191,7 @@ namespace CoefDB {
 	  for (auto M : MM) {
 	    for (unsigned n=0; n<NMAX; n++) {
 	      unsigned mm = static_cast<unsigned>(M);
-	      Key c = {mm, n, 0}, s = {mm, n, 1};
+	      Key c = {mm, n, 0, index}, s = {mm, n, 1, index};
 	      auto rc = RC.find(c);
 	      auto rs = RC.find(s);
 	      double valC = 0.0, valS = 0.0;
