@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(
   EXP
-  VERSION 7.704
+  VERSION 7.705
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
@@ -151,12 +151,16 @@ execute_process(
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
+include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+
 
 message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
 
 configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h.in ${CMAKE_SOURCE_DIR}/config.h)
 
 add_subdirectory(extern/yaml-cpp)
+add_subdirectory(extern/pybind11)
+
 add_subdirectory(exputil)
 if (ENABLE_NBODY)
   add_subdirectory(src)
@@ -167,7 +171,6 @@ add_subdirectory(utils)
 find_package(Python3 COMPONENTS Interpreter Development)
 message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
 
-add_subdirectory(extern/pybind11)
 
 # Force installation of the yaml-cpp libraries
 install(TARGETS yaml-cpp DESTINATION lib)

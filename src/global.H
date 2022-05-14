@@ -155,8 +155,20 @@ extern bool global_cov;
 //! True when initializing before first time step
 extern bool initializing;
 
+//! Current Nbody step id
+extern int this_step;
+
 //! Current point in multistepping for drift step
 extern int mdrft;
+
+//! Multistep sublevel info used for nbody
+extern unsigned maxlev;
+
+//! Current point in multistepping for velocity step
+extern int mstep;
+
+//! Maximum number of multistep steps
+extern int Mstep;
 
 //! Multistep time step spacing
 extern vector<int> mintvl;

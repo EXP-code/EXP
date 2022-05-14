@@ -9,6 +9,35 @@
 
 #include <CylEXP.H>
 
+CylEXP::CylEXP(int numr, int lmax, int mmax, int nord,
+	       double ascale, double hscale, int Nodd,
+	       std::string cachename) :
+  EmpCylSL(numr, lmax, mmax, nord, ascale, hscale, Nodd, cachename)
+{
+  // Initialize storage for the multistep arrays
+  //
+  differC1.resize(nthrds);
+  differS1.resize(nthrds);
+
+  for (auto & v : differC1) v.resize(multistep+1);
+  for (auto & v : differS1) v.resize(multistep+1);
+  
+  for (int nth=0; nth<nthrds; nth++) {
+    for (unsigned M=0; M<=multistep; M++) {
+      differC1[nth][M].resize(mmax+1, nord);
+      differS1[nth][M].resize(mmax+1, nord);
+      differC1[nth][M].setZero();
+      differS1[nth][M].setZero();
+    }
+  }
+    
+  unsigned sz = (multistep+1)*(mmax+1)*nord;
+  workC1.resize(sz);
+  workC .resize(sz);
+  workS1.resize(sz);
+  workS .resize(sz);
+}
+
 void CylEXP::multistep_reset()
 {
 }
