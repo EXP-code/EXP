@@ -97,7 +97,7 @@ CenterFile::CenterFile(const YAML::Node& conf)
   // Some chatty output
   //
   if (myid==0) {
-    std::cout << "CenterFile: opened and read file <" << name << "> "
+    std::cout << "---- CenterFile: opened and read file <" << name << "> "
 	      << "and read " << type << " center columns between times "
 	      << "[" << time.front() << ", " << time.back() << "]"
 	      << std::endl;
