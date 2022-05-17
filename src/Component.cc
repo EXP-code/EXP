@@ -752,7 +752,10 @@ void Component::configure(void)
       adiabatic = true;
     }
 
-
+    // Check for center file
+    if (cconf["centerfile"]) {
+      CF = std::make_shared<CenterFile>(cconf["centerfile"]);
+    }
 
   }
   catch (YAML::Exception & error) {
@@ -3036,7 +3039,10 @@ void Component::fix_positions_cpu(unsigned mlevel)
 
   // Alternative center
   if (c0) {
-    for (int i=0; i<3; i++) center[i] += c0->center[i];
+    for (int i=0; i<3; i++) center[i] = c0->center[i];
+  } else if (CF) {
+    auto cen = (*CF)(tnow);
+    for (int i=0; i<3; i++) center[i] = cen[i];
   }
 
 }

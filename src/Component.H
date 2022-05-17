@@ -12,6 +12,7 @@
 #include <header.H>
 #include <localmpi.H>
 #include <ParticleFerry.H>
+#include <CenterFile.H>
 #include <PotAccel.H>
 #include <Circular.H>
 #include <Timer.H>
@@ -319,6 +320,9 @@ protected:
 
   //! Name of the centering component
   std::string ctr_name;
+
+  //! Center file playback
+  std::shared_ptr<CenterFile> CF;
 
   //! Write binary component phase-space structure using MPI (blocking)
   void write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4 = false);
