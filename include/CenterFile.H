@@ -14,6 +14,8 @@
    file: file name of orient-style center info
    type: EJ or COM
 
+   This implementation will exit for _safety_ if it is called beyond
+   its range.
  */
 class CenterFile
 {

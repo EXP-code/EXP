@@ -4,9 +4,11 @@
 #include <CenterFile.H>
 #include <localmpi.H>
 
+// CenterFile contructor
+//
 CenterFile::CenterFile(const YAML::Node& conf)
 {
-  std::string name;
+  std::string name, type;
 
   try {
     name = conf["file"].as<std::string>();
@@ -25,8 +27,6 @@ CenterFile::CenterFile(const YAML::Node& conf)
     exit(-1);
   }
 
-  std::string type;
-
   try {
     type = conf["type"].as<std::string>();
   }
@@ -43,10 +43,13 @@ CenterFile::CenterFile(const YAML::Node& conf)
     exit(-2);
   }
   
+  // Convert type to upper case
+  //
   std::for_each(type.begin(), type.end(), [](char & c){ c = std::toupper(c); });
 
+  // Select start column for center values
+  //
   int start = 0;
-
   if      (type.find("EJ" ) == 0) { start = 16; }
   else if (type.find("COM") == 0) { start = 19; }
   else {
@@ -59,6 +62,8 @@ CenterFile::CenterFile(const YAML::Node& conf)
     exit(-3);
   }
 
+  // Open input file
+  //
   std::ifstream in(name);
 
   // Check for open file
@@ -67,19 +72,22 @@ CenterFile::CenterFile(const YAML::Node& conf)
 
     std::string line;
 
-    // Get a row as a string
+    // Get a line as a string
     //
     while (std::getline(in, line)) {
       // Put line into a stringstream
       //
       std::istringstream iss(line); 
 
-      // Collect the vector of fields
+      // Collect the fields into a vector
+      //
       std::vector<double> fields;
 
       double x;
       while(iss >> x) fields.push_back(x);
 
+      // Assign the time and center data
+      //
       if (fields.size() >= start+3) {
 	time.push_back(fields[0]);
 	data.push_back({fields[start-1], fields[start], fields[start+1]});
@@ -104,6 +112,8 @@ CenterFile::CenterFile(const YAML::Node& conf)
   }
 }
 
+// CenterFile interpolator
+//
 std::array<double, 3> CenterFile::operator()(double T)
 {
   // Prints error message and quits if out of bounds
@@ -134,6 +144,8 @@ std::array<double, 3> CenterFile::operator()(double T)
   double a = (hi - T)/(hi - lo);
   double b = (T - lo)/(hi - lo);
 
+  // Perform the interpolation
+  //
   std::array<double, 3> ret;
   for (int k=0; k<3; k++) ret[k] = a * data[i-1][k] + b * data[i][k];
 
