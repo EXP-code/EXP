@@ -6,6 +6,7 @@
 
 #include "expand.H"
 #include <global.H>
+#include <OutputContainer.H>
 
 #include <AxisymmetricBasis.H>
 #include <OutPSR.H>
@@ -58,9 +59,9 @@ void OutPSR::initialize()
       timer = false;
 
     if (Output::conf["threads"])
-      nth = Output::conf["threads"].as<int>();
+      threads = Output::conf["threads"].as<int>();
     else
-      nth = 1;
+      threads = 0;
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in OutPSR: "
@@ -107,10 +108,39 @@ void OutPSR::initialize()
 }
 
 
+void OutPSR::write_thread(void)
+{
+  int count = 0;
+
+  for (auto c : comp->components) {
+				// Write component header
+    std::ostringstream cname;
+    cname << fname << "_" << count++ << "-" << myid;
+    
+				// Open particle file and write
+    std::string blobfile = outdir + cname.str();
+    std::ofstream pout(blobfile);
+
+    if (pout.fail()) {
+      std::cerr << "[" << myid << "] OutPSR: can't open file <" << cname.str() 
+		<< "> . . . quitting" << std::endl;
+    } else {
+
+      c->write_binary_particles(&pout, real4);
+      
+      if (pout.fail()) {
+	std::cout << "OutPSR: error writing binary particles to <"
+		  << blobfile << std::endl;
+      }
+    }
+  }
+}
+
 void OutPSR::Run(int n, int mstep, bool last)
 {
   if (!dump_signal and !last) {
-    if (n % nint            ) return;
+    if (n % nint  
+          ) return;
     if (restart  && n==0    ) return;
     if (mstep % nintsub !=0 ) return;
   }
@@ -119,13 +149,15 @@ void OutPSR::Run(int n, int mstep, bool last)
   if (timer) beg = std::chrono::high_resolution_clock::now();
   
   std::ofstream out;
-  std::ostringstream fname;
+  std::ostringstream sfname;
 
   // Output name prefix
-  fname << filename << "." << setw(5) << setfill('0') << nbeg++;
+  sfname << filename << "." << setw(5) << setfill('0') << nbeg++;
+
+  fname = sfname.str();
 
   // Master file name
-  std::string master = outdir + fname.str();
+  std::string master = outdir + fname;
 
   psdump = n;
 
@@ -141,7 +173,7 @@ void OutPSR::Run(int n, int mstep, bool last)
       nOK = 1;
     }
 				// Used by OutCHKPT to not duplicate a dump
-    if (not real4) lastPSR = fname.str();
+    if (not real4) lastPSR = fname;
 				// Open file and write master header
     if (nOK==0) {
       struct MasterHeader header;
@@ -159,93 +191,20 @@ void OutPSR::Run(int n, int mstep, bool last)
     exit(33);
   }
 
-  int count = 0;
-  for (auto c : comp->components) {
-
 #ifdef HAVE_LIBCUDA
+  for (auto c : comp->components) {
     if (use_cuda) {
       if (c->force->cudaAware() and not comp->fetched[c]) {
 	comp->fetched[c] = true;
 	c->CudaToParticles();
       }
     }
+  }
 #endif
-				// Check for open failures
-    nOK = 0;
+  
+  auto thrd = std::make_shared<std::thread>(&OutPSR::write_thread, this);
 
-				// Write component header
-    std::ostringstream cname;
-    cname << fname.str() << "_" << count++;
-    
-    if (myid==0) {
-      c->write_binary_header(&out, real4, cname.str(), nth);
-    }
-
-				// Stream and file name for each
-				// thread
-    std::vector<std::shared_ptr<std::ofstream>> tstreams(nth);
-    std::vector<std::string > blobname(nth);
-				// Create the streams
-    for (int n=0; n<nth; n++) {
-      std::ostringstream sname;
-      sname << outdir << cname.str() << "-" << myid*nth + n;
-				// Open particle file and write
-      blobname[n] = sname.str();
-      tstreams[n] = std::make_shared<std::ofstream>(sname.str());
-
-      if (tstreams[n]->fail()) { // Check for good stream
-	std::cerr << "[" << myid << ", " << n << "] OutPSR: can't open file <" << blobname[n]
-		  << "> . . . quitting" << std::endl;
-	nOK = 1;
-      }
-    }
-    
-				// Write particles into the streams
-    if (nOK==0) {
-      c->write_binary_particles(tstreams, real4);
-
-      for (int n=0; n<nth; n++) {
-	if (tstreams[n]->fail()) {
-	  std::cout << "OutPSR: error writing binary particles to <" << blobname[n]
-		    << std::endl;
-	  nOK = 1;
-	}
-
-	try {
-	  tstreams[n]->close();
-	}
-	catch (const ofstream::failure& e) {
-	  std::cout << "OutPSR: exception closing file <" << blobname[n]
-		    << ": " << e.what() << std::endl;
-	  nOK = 1;
-	}
-      }
-    }
-    
-				// Check for errors in all file opening
-    int sumOK;
-    MPI_Allreduce(&nOK, &sumOK, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-    if (sumOK) {
-      MPI_Finalize();
-      exit(39);
-    }
-  }
-
-  if (myid==0) {
-    if (out.fail()) {
-      std::cout << "OutPSR: error writing component to master <" << master
-		<< std::endl;
-    }
-
-    try {
-      out.close();
-    }
-    catch (const ofstream::failure& e) {
-      std::cout << "OutPSR: exception closing file <" << master
-		<< ": " << e.what() << std::endl;
-    }
-  }
+  output->cproc.push_back(thrd);
 
   chktimer.mark();
 

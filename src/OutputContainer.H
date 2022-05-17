@@ -1,7 +1,9 @@
 #ifndef _OutputContainer_H
 #define _OutputContainer_H
 
+#include <thread>
 #include <list>
+
 #include <Output.H>
 
 //! Container class to hold the output chain of container methods 
@@ -13,8 +15,12 @@ private:
   double last;
 
 public:
+
+  //! A list of concurrent threads for asychronous processing
+  std::list<std::shared_ptr<std::thread>> cproc;
+
   //! List of output methods currently active
-  list<Output*> out;
+  std::list<Output*> out;
 
   //! Constructor
   OutputContainer();

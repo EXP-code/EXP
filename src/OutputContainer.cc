@@ -139,6 +139,12 @@ void OutputContainer::Run(int nstep, int mstep, bool final)
   }
 #endif
 
+  // Wait check that all previous threads are finished
+  //
+  for (auto v : cproc) v->join();
+  
+  cproc.clear();		// Delete the threads
+
   // Loop through all instances
   //
   for (auto it : out) it->Run(nstep, mstep, final);

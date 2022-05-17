@@ -14,32 +14,28 @@
     The component pieces are indexed from 0 onward.
 
     Sending the root process a SIGHUP will cause the first of OutPS,
-    OutPSP, OutPSN, OutPSQ, OutPSR, OutCHKPT, or OutCHKPTQ in the
-    Output list to execute.  This may not always be possible to signal
-    for batch scheduled jobs.
-
-    This class is variant of the OutPSQ class.  This uses OpenMP to
-    gang multiple write threads per process.  Whether this increases
-    the full bandwidth depends on the details of the file system.
-    Testing at Simons suggests that this routine can improve
-    throughput for for GPU runs for a small number of processes per
-    node but not for many proesses per node.
+    OutPSP, OutPSN, OutPSR, OutCHKPT, or OutCHKPTQ in the Output list
+    to execute.  This may not always be possible to signal for batch
+    scheduled jobs.
 
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
     @param nbeg is suffix of the first phase space %dump
     @param timer set to true turns on wall-clock timer for PS output
-    @param threads are the number of writing threads
+    @param threads number of threads for binary writes
+
 */
 class OutPSR : public Output
 {
 
 private:
 
-  std::string filename;
+  std::string filename, fname;
   bool real4, timer;
-  int nbeg, nth;
+  int nbeg, threads;
   void initialize(void);
+
+  void write_thread(void);
 
 public:
 
@@ -54,7 +50,7 @@ public:
     \param last should be true on final step to force phase space %dump
     indepentently of whether or not the frequency criterion is met
     \param timer set to true turns on wall-clock timer for PS output
-    \param threads are the number of writing threads
+    \param threads is the thread count for binary writes
   */
   void Run(int nstep, int mstep, bool last);
 
