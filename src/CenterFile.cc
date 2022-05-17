@@ -93,10 +93,21 @@ CenterFile::CenterFile(const YAML::Node& conf)
     MPI_Finalize();
     exit(-4);
   }
+
+  // Some chatty output
+  //
+  if (myid==0) {
+    std::cout << "CenterFile: opened and read file <" << name << "> "
+	      << "and read " << type << " center columns between times "
+	      << "[" << time.front() << ", " << time.back() << "]"
+	      << std::endl;
+  }
 }
 
 std::array<double, 3> CenterFile::operator()(double T)
 {
+  // Prints error message and quits if out of bounds
+  //
   if (T < time.front() or T > time.back()) {
     if (myid==0)
       std::cout << "CenterFile range error: T="
@@ -106,14 +117,16 @@ std::array<double, 3> CenterFile::operator()(double T)
     exit(-5);
   }
   
+  // Check limiting cases
+  //
   if (T==time.front()) return data.front();
   if (T==time.back() ) return data.back();
 
-  // Binary search for location
+  // Otherwise: binary search for location
   //
   size_t i = lower_bound(time.begin(), time.end(), T) - time.begin();
 
-  // Linear interpolation
+  // Set up for linear interpolation
   //
   double lo = time[i-1];
   double hi = time[i];
