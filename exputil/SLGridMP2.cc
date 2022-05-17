@@ -1598,6 +1598,9 @@ SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
   model    = mod;
   tbdbg     = VERBOSE;
 
+  if (cachename.size()) sph_cache_name  = cachename;
+  else                  sph_cache_name  = default_cache;
+
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
 }
 
