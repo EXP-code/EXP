@@ -121,7 +121,7 @@ main(int argc, char **argv)
   
   double RMIN, rscale, minSNR0, Hexp;
   int NICE, LMAX, NMAX, NSNR, indx, nbunch, Ndens;
-  std::string CACHEFILE, dir("./"), cname, prefix, fileType, filePrefix;
+  std::string CACHEFILE, cname, prefix, fileType, psfile;
   bool ignore;
 
   // ==================================================
@@ -142,10 +142,10 @@ main(int argc, char **argv)
     ("debug", "Debug max values")
     ("LOG", "log scaling for SNR")
     ("Hall", "use Hall smoothing for SNR trim")
+    ("psfile", "Phase space files for processing",
+     cxxopts::value<std::string>(psfile))
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-    ("P,prefix", "prefix for phase-space files",
-     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
     ("K,Ndens", "KD density estimate count (use 0 for expansion estimate)",
      cxxopts::value<int>(Ndens)->default_value("32"))
     ("NICE", "system priority",
@@ -164,12 +164,8 @@ main(int argc, char **argv)
      cxxopts::value<string>(runtag)->default_value("run1"))
     ("outdir", "Output directory path",
      cxxopts::value<string>(outdir)->default_value("."))
-    ("indx", "PSP index",
-     cxxopts::value<int>(indx)->default_value("0"))
     ("nbunch", "Desired bunch size (default: sqrt(nbod) if value is < 0)",
      cxxopts::value<int>(nbunch)->default_value("-1"))
-    ("dir,d", "directory for SPL files",
-     cxxopts::value<std::string>(dir))
     ("ignore", "rebuild EOF grid if input parameters do not match the cachefile",
      cxxopts::value<bool>(ignore)->default_value("false"))
     ("cachefile", "cachefile name",
@@ -373,26 +369,6 @@ main(int argc, char **argv)
 #endif	      
 
   // ==================================================
-  // PSP input stream
-  // ==================================================
-
-  int iok = 1;
-  auto file1 = PR::ParticleReader::fileNameCreator
-    (fileType, indx, myid, dir, runtag);
-
-  std::ifstream in(file);
-  if (!in) {
-    if (myid==0) 
-      std::cerr << "Error opening <" << file << ">" << endl;
-    iok = 0;
-  }
-  
-  if (iok==0) {
-    MPI_Finalize();
-    exit(-1);
-  }
-
-  // ==================================================
   // Open output file
   // ==================================================
 
@@ -420,7 +396,7 @@ main(int argc, char **argv)
   // ==================================================
 
   PR::PRptr reader = PR::ParticleReader::createReader
-    (fileType, file1, myid, true);
+    (fileType, {psfile}, myid, true);
 
   double tnow = reader->CurrentTime();
   if (myid==0) std::cout << "Beginning partition [time=" << tnow

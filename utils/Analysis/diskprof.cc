@@ -57,6 +57,8 @@
 #include <EXPini.H>
 #include <libvars.H>
 
+#include <SnapBatch.H>		// Parse input file list into batches
+
 #ifdef DEBUG
 #ifndef _REDUCED
 #pragma message "NOT using reduced particle structure"
@@ -827,10 +829,11 @@ int
 main(int argc, char **argv)
 {
   int nice, numx, numy, lmax, mmax, nmax, norder, m1, m2, n1, n2, nodd=-1;
-  int initc, partc, beg, end, stride, init, cmapr, cmapz;
+  int initc, partc, init, cmapr, cmapz;
   double rcylmin, rcylmax, rscale, vscale, snr, Hexp=4.0;
   bool DENS, PCA, PVD, verbose = false, mask = false, ignore, logl;
   std::string CACHEFILE, COEFFILE, cname, dir("."), fileType, filePrefix, config;
+  std::string psfiles, delim;
 
   // ==================================================
   // MPI preliminaries
@@ -908,12 +911,10 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(cname)->default_value("stars"))
     ("init", "fiducial index",
      cxxopts::value<int>(init)->default_value("0"))
-    ("beg", "initial index",
-     cxxopts::value<int>(beg)->default_value("0"))
-    ("end", "final index",
-     cxxopts::value<int>(end)->default_value("99999"))
-    ("stride", "index stride",
-     cxxopts::value<int>(stride)->default_value("1"))
+    ("psfile", "List of phase space files for processing",
+     cxxopts::value<std::string>(psfiles))
+    ("delimiter", "Phase-space file list delimiter for node index",
+     cxxopts::value<std::string>(delim))
     ("outdir", "Output directory path",
      cxxopts::value<std::string>(outdir)->default_value("."))
     ("outfile", "Filename prefix",
@@ -1039,28 +1040,6 @@ main(int argc, char **argv)
     }
   }
 
-  // ==================================================
-  // Phase-space input stream
-  // ==================================================
-
-  int iok = 1;
-
-  auto file0 = PR::ParticleReader::fileNameCreator
-    (fileType, init, myid, dir, runtag, filePrefix);
-
-  if (myid==0) {
-    std::ifstream in(file0);
-    if (!in) {
-      cerr << "Error opening <" << file0 << ">" << endl;
-      iok = 0;
-    }
-  }
-    
-  MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  if (iok==0) {
-    MPI_Finalize();
-    exit(-1);
-  }
     
   // ==================================================
   // All processes will now compute the basis functions
@@ -1200,6 +1179,9 @@ main(int argc, char **argv)
     ortho.setup_accumulation();
   }
 
+
+  auto files = PR::ParticleReader::parseFileList(psfiles, delim);
+  
   // ==================================================
   // Initialize and/or create basis
   // ==================================================
@@ -1207,7 +1189,7 @@ main(int argc, char **argv)
   if (ortho.read_cache()==0) {
     
     try {
-      reader = PR::ParticleReader::createReader(fileType, file0, myid, true);
+      reader = PR::ParticleReader::createReader(fileType, files[0], myid, true);
     }
     catch (std::runtime_error &error) {
       std::cerr << error.what() << std::endl;
@@ -1281,36 +1263,17 @@ main(int argc, char **argv)
     }
   }
 
-  std::string file1;
 
-  for (int indx=beg; indx<=end; indx+=stride) {
+  unsigned indx = 0;
 
-    // ==================================================
-    // Phase-space reader input stream
-    // ==================================================
+  for (auto batch : files) {
 
-    iok = 1;
-
-    file1 = PR::ParticleReader::fileNameCreator
-      (fileType, indx, myid, dir, runtag, filePrefix);
-
-    if (myid==0) {
-      std::ifstream in(file1);
-      if (!in) {
-	cerr << "Error opening <" << file1 << ">" << endl;
-	iok = 0;
-      }
-    }
-    
-    MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if (iok==0) break;
-    
     // ==================================================
     // Open frame list
     // ==================================================
     
     try {
-      reader = PR::ParticleReader::createReader(fileType, file1, myid, true);
+      reader = PR::ParticleReader::createReader(fileType, batch, myid, true);
     }
     catch (std::runtime_error &error) {
       std::cerr << error.what() << std::endl;
@@ -1402,6 +1365,8 @@ main(int argc, char **argv)
     
     //------------------------------------------------------------ 
     
+    indx++;
+
   } // Dump loop
 
 #ifdef HAVE_VTK

@@ -70,7 +70,7 @@ main(int argc, char **argv)
   
   double RMIN, rscale, minSNR0, Hexp, ROUT, ZOUT;
   int NICE, LMAX, NMAX, NSNR, indx, nbunch, Ndens, NOUT, NPHI;
-  std::string cachefile, dir("./"), cname, prefix, fileType, filePrefix;
+  std::string cachefile, dir("./"), cname, prefix, fileType, psfile;
   bool ignore;
 
   // ==================================================
@@ -87,10 +87,6 @@ main(int argc, char **argv)
 
   options.add_options()
     ("h,help", "Print this help message")
-    ("F,filetype", "input file type",
-     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-    ("P,type", "prefix for phase-space files",
-     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
     ("K,Ndens", "KD density estimate count (use 0 for expansion estimate)",
      cxxopts::value<int>(Ndens)->default_value("32"))
     ("NICE", "system priority",
@@ -109,10 +105,8 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(runtag)->default_value("run1"))
     ("outdir", "Output directory path",
      cxxopts::value<std::string>(outdir)->default_value("."))
-    ("indx", "PSP index",
-     cxxopts::value<int>(indx)->default_value("0"))
-    ("d,dir", "directory for SPL files",
-     cxxopts::value<std::string>(dir))
+    ("psfile", "phase-space file name name",
+     cxxopts::value<std::string>(psfile))
     ("cachefile", "cachefile name",
      cxxopts::value<std::string>(cachefile)->default_value(".eof.cache.file"))
     ("cname","component name",
@@ -297,25 +291,6 @@ main(int argc, char **argv)
 #endif	      
 
   // ==================================================
-  // PSP input stream
-  // ==================================================
-
-  int iok = 1;
-
-  auto file1 = PR::ParticleReader::fileNameCreator
-    (fileType, indx, myid, dir, runtag);
-
-  std::ifstream in(file1);
-  if (!in) {
-    std::cerr << "Error opening <" << file1 << ">" << endl;
-    iok = 0;
-  }
-  
-  if (iok==0) {
-    exit(-1);
-  }
-
-  // ==================================================
   // Open output file
   // ==================================================
 
@@ -329,6 +304,8 @@ main(int argc, char **argv)
   // ==================================================
   // Open PSP file
   // ==================================================
+
+  std::vector<std::string> file1 = {psfile};
 
   PR::PRptr reader = PR::ParticleReader::createReader
     (fileType, file1, myid, true);

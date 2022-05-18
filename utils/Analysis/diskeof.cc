@@ -181,51 +181,47 @@ main(int argc, char **argv)
   // ==================================================
   int lmax=64, mmax, Nmin, Nmax, nmax, norder, numx, numy, cmapr=1, cmapz=1, nodd=-1;
   double rcylmin, rcylmax, rscale, vscale, RMAX;
-  std::string CACHEFILE, COEFFILE, cname, prefix, fileType, filePrefix, dir;
+  std::string CACHEFILE, COEFFILE, cname, prefix, fileType, psfile, delim;
   int beg, end, stride, mbeg, mend, OUTR;
 
   cxxopts::Options options(argv[0],
 			   "Create EOF from a sequence of PSP files.\nCompute per component grid generation for insight.\n");
 
   options.add_options()
-   ("h,help", "produce this help message")
-   ("v,verbose", "verbose output")
-   ("PNG", "PNG matrix output")
-   ("gray", "use gray map for PNG matrix output")
-   ("5col", "use five color heat map for PNG matrix output")
-   ("F,filetype", "input file type",
-     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-   ("P,prefix", "prefix for phase-space files",
-     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
-   ("r,rmax", "maximum output radius",
+    ("h,help", "produce this help message")
+    ("v,verbose", "verbose output")
+    ("PNG", "PNG matrix output")
+    ("gray", "use gray map for PNG matrix output")
+    ("5col", "use five color heat map for PNG matrix output")
+    ("F,filetype", "input file type",
+    cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("psfile", "List of phase space files for processing",
+     cxxopts::value<std::string>(psfile))
+    ("delimiter", "Phase-space file list delimiter for node index",
+     cxxopts::value<std::string>(delim))
+    ("r,rmax", "maximum output radius",
      cxxopts::value<double>(RMAX)->default_value("0.03"))
-   ("n,nout", "number of points on a side for grid output",
+    ("n,nout", "number of points on a side for grid output",
      cxxopts::value<int>(OUTR)->default_value("50"))
-   ("mbeg", "minimum azimuthal order for grid; output off if m<0",
+    ("mbeg", "minimum azimuthal order for grid; output off if m<0",
      cxxopts::value<int>(mbeg)->default_value("2"))
-   ("mend", "maximum azimuthal order for grid",
+    ("mend", "maximum azimuthal order for grid",
      cxxopts::value<int>(mend)->default_value("2"))
-   ("beg", "initial PSP index",
-     cxxopts::value<int>(beg)->default_value("0"))
-   ("end", "final PSP index",
-     cxxopts::value<int>(end)->default_value("99999"))
-   ("stride", "PSP index stride",
-     cxxopts::value<int>(stride)->default_value("1"))
-   ("nmin", "minimum order in EOF",
+    ("nmin", "minimum order in EOF",
      cxxopts::value<int>(Nmin)->default_value("0"))
-   ("nmax", "maximum order in EOF",
+    ("nmax", "maximum order in EOF",
      cxxopts::value<int>(Nmax)->default_value(std::to_string(std::numeric_limits<int>::max())))
-   ("outdir", "Output directory path",
+    ("outdir", "Output directory path",
      cxxopts::value<std::string>(outdir)->default_value("."))
-   ("cachefile", "cachefile name",
+    ("cachefile", "cachefile name",
      cxxopts::value<std::string>(CACHEFILE)->default_value(".eof.cache.file"))
-   ("coeffile", "coefficient output file name",
+    ("coeffile", "coefficient output file name",
      cxxopts::value<std::string>(COEFFILE))
-   ("cname", "component name",
+    ("cname", "component name",
      cxxopts::value<std::string>(cname)->default_value("star"))
-   ("runtag", "runtag for phase space files",
+    ("runtag", "runtag for phase space files",
      cxxopts::value<std::string>(runtag)->default_value("run1"))
-   ("prefix", "output prefix for distinguishing parameters",
+    ("prefix", "output prefix for distinguishing parameters",
      cxxopts::value<std::string>(prefix)->default_value("even"))
     ;
   
@@ -394,33 +390,16 @@ main(int argc, char **argv)
   std::vector<double>    times;
   std::vector<int>       indices;
 
-  for (int indx=beg; indx<=end; indx+=stride) {
+  unsigned indx = 0;
 
-    // ==================================================
-    // PSP input stream
-    // ==================================================
-
-    int iok = 1;
-    auto file1 = PR::ParticleReader::fileNameCreator
-      (fileType, indx, myid, dir, runtag);
-
-    if (myid==0) {
-      std::ifstream in1(file1);	// Now, try to open a new one . . . 
-      if (!in1) {
-	cerr << "Error opening <" << file1 << ">" << endl;
-	iok = 0;
-      }
-    }
-    
-    MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if (iok==0) break;
+  for (auto batch : PR::ParticleReader::parseFileList(psfile, delim)) {
     
     // ==================================================
     // Open frame list
     // ==================================================
     
     PR::PRptr reader = PR::ParticleReader::createReader
-      (fileType, file1, myid, true);
+      (fileType, batch, myid, true);
 
     reader->SelectType(cname);
 
@@ -489,6 +468,8 @@ main(int argc, char **argv)
     coefsS.push_back(coefS);
 
     if (myid==0) std::cout << "done" << std::endl;
+
+    indx++;
 
   } // PSP loop
 

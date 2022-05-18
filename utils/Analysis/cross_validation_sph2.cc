@@ -84,7 +84,7 @@ main(int argc, char **argv)
   double RMIN, RMAX, rscale, minSNR0, Hexp;
   int NICE, LMAX, NMAX, NSNR, NPART;
   int beg, end, stride, init, knots, num;
-  std::string modelf, dir("./"), cname, prefix, fileType, filePrefix, runtag;
+  std::string modelf, cname, prefix, fileType, psfiles, delim;
 
   // ==================================================
   // Parse command line or input parameter file
@@ -106,8 +106,6 @@ main(int argc, char **argv)
     ("Hall", "use Hall smoothing for SNR trim")
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-    ("P,prefix", "prefix for phase-space files",
-     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
     ("NICE", "system priority",
      cxxopts::value<int>(NICE)->default_value("0"))
     ("RMIN", "minimum radius for Q table",
@@ -130,8 +128,6 @@ main(int argc, char **argv)
      cxxopts::value<double>(Hexp)->default_value("1.0"))
     ("prefix", "Filename prefix",
      cxxopts::value<std::string>(prefix)->default_value("crossval"))
-    ("runtag", "Phase space file",
-     cxxopts::value<string>(runtag)->default_value("run1"))
     ("modelfile", "Halo model file",
      cxxopts::value<string>(modelf)->default_value("SLGridSph.model"))
     ("init", "fiducial PSP index",
@@ -148,8 +144,10 @@ main(int argc, char **argv)
      cxxopts::value<int>(knots)->default_value("40"))
     ("compname", "train on Component (default=stars)",
      cxxopts::value<std::string>(cname)->default_value("stars"))
-    ("d,dir", "directory for SPL files",
-     cxxopts::value<std::string>(dir))
+    ("psfile", "List of phase space files for processing",
+     cxxopts::value<std::string>(psfiles))
+    ("delimiter", "Phase-space file list delimiter for node index",
+     cxxopts::value<std::string>(delim))
     ;
 
   
@@ -265,36 +263,20 @@ main(int argc, char **argv)
   // Phase space output loop
   // ==================================================
 
-  std::string file;
+  unsigned ibatch = 0;
 
-  for (int ipsp=beg; ipsp<=end; ipsp+=stride) {
-
-    // ==================================================
-    // PSP input stream
-    // ==================================================
-
-    int iok = 1;
-    auto file1 = PR::ParticleReader::fileNameCreator
-      (fileType, ipsp, myid, dir, runtag);
-
-    std::ifstream in(file1);
-    if (!in) {
-      std::cerr << "Error opening <" << file << ">" << endl;
-      iok = 0;
-    }
-    
-    if (iok==0) break;
+  for (auto batch : PR::ParticleReader::parseFileList(psfiles, delim)) {
 
     // ==================================================
     // Open PSP file
     // ==================================================
 
     PR::PRptr reader = PR::ParticleReader::createReader
-      (fileType, file1, true);
+      (fileType, batch, true);
 
     double tnow = reader->CurrentTime();
     if (myid==0) std::cout << "Beginning partition [time=" << tnow
-			   << ", index=" << ipsp << "] . . . "  << flush;
+			   << ", index=" << ibatch << "] . . . "  << flush;
     
     reader->SelectType(cname);
 
@@ -410,7 +392,7 @@ main(int argc, char **argv)
 	
 	if (myid==0) {
 	  
-	  out << std::setw( 5) << ipsp
+	  out << std::setw( 5) << ibatch
 	      << std::setw( 5) << ncut;
 	  
 	  double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) * pi42;
@@ -535,7 +517,7 @@ main(int argc, char **argv)
 	
 	if (myid==0) {
 	  
-	  out << std::setw( 5) << ipsp
+	  out << std::setw( 5) << ibatch
 	      << std::setw(18) << snr;
 	  
 	  double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) * pi42;
@@ -560,6 +542,8 @@ main(int argc, char **argv)
     // Blank line between stanzas
     //
     if (myid==0) out << std::endl;
+
+    ibatch++;
   }
   // END: dump loop
 

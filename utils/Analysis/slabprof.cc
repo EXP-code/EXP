@@ -114,8 +114,8 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  int IMIN, IMAX;
   std::string fileType, filePrefix, outfile, runtag;
+  std::string psfiles, delim;
 
   // ==================================================
   // Parse command line or input parameter file
@@ -151,10 +151,10 @@ main(int argc, char **argv)
      cxxopts::value<string>(outfile)->default_value("slab.prof"))
     ("RUNTAG", "run tag",
      cxxopts::value<string>(runtag)->default_value("run"))
-    ("MININDX", "Minimum PSP index",
-     cxxopts::value<int>(IMIN)->default_value("0"))
-    ("MAXINDX", "Maximum PSP index",
-     cxxopts::value<int>(IMAX)->default_value("100"))
+    ("psfile", "List of phase space files for processing",
+     cxxopts::value<std::string>(psfiles))
+    ("delimiter", "Phase-space file list delimiter for node index",
+     cxxopts::value<std::string>(delim))
     ;
   
   cxxopts::ParseResult vm;
@@ -189,13 +189,13 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  for (int i=IMIN; i<=IMAX; i++) {
+  auto files = PR::ParticleReader::parseFileList(psfiles, delim);
 
-    auto file = PR::ParticleReader::fileNameCreator
-      (fileType, i, myid, "", runtag);
-    
+  for (auto batch : files) {
+
     PR::PRptr reader = PR::ParticleReader::createReader
-      (fileType, file, myid, true);
+      (fileType, batch, myid, true);
+
     reader->SelectType(cname);
 
     double time = reader->CurrentTime();

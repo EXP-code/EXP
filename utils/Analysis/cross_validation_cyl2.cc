@@ -146,10 +146,9 @@ main(int argc, char **argv)
 #endif  
   
   double RMIN, RMAX, rscale, minSNR0, Hexp;
-  int NICE, LMAX, NMAX, NSNR, NPART, NINTR, NINTT, MLIM;
-  int beg, end, stride, init, numr;
-  std::string CACHEFILE, modelf, dir("./"), cname;
-  std::string prefix, table_cache, fileType, filePrefix;
+  int NICE, LMAX, NMAX, NSNR, NPART, NINTR, NINTT, MLIM, init, numr;
+  std::string CACHEFILE, modelf, cname;
+  std::string prefix, table_cache, fileType, psfiles, delim;
   bool ignore;
 
   // ==================================================
@@ -172,8 +171,10 @@ main(int argc, char **argv)
     ("Hall", "use Hall smoothing for SNR trim")
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-    ("P,prefix", "prefix for phase-space files",
-     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("psfile", "List of phase space files for processing",
+     cxxopts::value<std::string>(psfiles))
+    ("delimiter", "Phase-space file list delimiter for node index",
+     cxxopts::value<std::string>(delim))
     ("NICE", "system priority",
      cxxopts::value<int>(NICE)->default_value("0"))
     ("RMIN", "minimum radius for output",
@@ -204,14 +205,6 @@ main(int argc, char **argv)
      cxxopts::value<string>(outdir)->default_value("."))
     ("modelfile", "Halo model file",
      cxxopts::value<string>(modelf)->default_value("SLGridSph.model"))
-    ("init", "fiducial PSP index",
-     cxxopts::value<int>(init)->default_value("0"))
-    ("beg", "initial PSP index",
-     cxxopts::value<int>(beg)->default_value("0"))
-    ("end", "final PSP index",
-     cxxopts::value<int>(end)->default_value("99999"))
-    ("stride", "PSP index stride",
-     cxxopts::value<int>(stride)->default_value("1"))
     ("numr", "Number of entries in R table",
      cxxopts::value<int>(numr)->default_value("256"))
     ("Rknots", "Number of Legendre integration knots for radial integral",
@@ -220,8 +213,6 @@ main(int argc, char **argv)
      cxxopts::value<int>(NINTT)->default_value("400"))
     ("compname", "train on Component (default=stars)",
      cxxopts::value<std::string>(cname)->default_value("stars"))
-    ("d,dir", "directory for SPL files",
-     cxxopts::value<std::string>(dir))
     ("ignore", "rebuild EOF grid if input parameters do not match the cachefile",
      cxxopts::value<bool>(ignore)->default_value("false"))
     ("cachefile", "cachefile name",
@@ -288,28 +279,6 @@ main(int argc, char **argv)
     exit(-2);
   }
 
-  // ==================================================
-  // PSP input stream
-  // ==================================================
-
-  int iok = 1;
-  auto file0 = PR::ParticleReader::fileNameCreator
-    (fileType, init, myid, dir, runtag);
-
-  if (myid==0) {
-    std::ofstream in0(file0);
-    if (!in0) {
-      cerr << "Error opening <" << file0 << ">" << endl;
-      iok = 0;
-    }
-  }
-    
-  MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  if (iok==0) {
-    MPI_Finalize();
-    exit(-1);
-  }
-    
   // ==================================================
   // All processes will now compute the basis functions
   // *****Using MPI****
@@ -839,7 +808,10 @@ main(int argc, char **argv)
   MPI_Barrier(MPI_COMM_WORLD);
 #endif	      
 
-  for (int ipsp=beg; ipsp<=end; ipsp+=stride) {
+
+  unsigned ibatch = 0;
+
+  for (auto batch : PR::ParticleReader::parseFileList(psfiles, delim)) {
 
     // ==================================================
     // Debug: largest table values
@@ -849,33 +821,15 @@ main(int argc, char **argv)
     largestElem Esmax(10);
 
     // ==================================================
-    // PSP input stream
-    // ==================================================
-
-    int iok = 1;
-    auto file1 = PR::ParticleReader::fileNameCreator
-      (fileType, ipsp, myid, dir, runtag);
-
-    if (myid==0) {
-      std::ifstream in(file1);
-      if (!in) {
-	std::cerr << "Error opening <" << file1 << ">" << endl;
-	iok = 0;
-      }
-    }
-    
-    if (iok==0) break;
-
-    // ==================================================
     // Open PSP file
     // ==================================================
     //
     PR::PRptr reader = PR::ParticleReader::createReader
-      (fileType, file1, myid, true);
+      (fileType, batch, myid, true);
 
     double tnow = reader->CurrentTime();
     if (myid==0) std::cout << "Beginning partition [time=" << tnow
-			   << ", index=" << ipsp << "] . . . "  << flush;
+			   << ", index=" << ibatch << "] . . . "  << flush;
     
     reader->SelectType(cname);
 
@@ -1194,7 +1148,7 @@ main(int argc, char **argv)
 
 	constexpr double pi4 = 4.0*M_PI;
 
-	out << std::setw( 5) << ipsp
+	out << std::setw( 5) << ibatch
 	    << std::setw(18) << snr;
 	
 	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / pi4;

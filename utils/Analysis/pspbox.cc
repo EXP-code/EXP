@@ -68,7 +68,9 @@ int main(int argc, char **argv)
   double RMIN, RMAX, ZMIN, ZMAX;
   int RBINS, ZBINS, IBEG, IEND, PBEG, PEND, ISKIP;
   std::string OUTFILE, INFILE, RUNTAG, COMP, PROJ;
-  std::string fileType, filePrefix, runtag, dir;
+  std::string fileType, filePrefix;
+  std::string psfiles, delim;
+
   bool GNUPLOT;
 
   // ==================================================
@@ -81,10 +83,8 @@ int main(int argc, char **argv)
     ("h,help", "Print this help message")
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-    ("P,prefix", "prefix for phase-space files",
-     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
-    ("D,dir", "directory for phase-space files",
-     cxxopts::value<std::string>(dir)->default_value("."))
+    ("psfiles", "Phase-space file list",
+     cxxopts::value<std::string>(psfiles))
     ("RMIN", "minimum radius for output",
      cxxopts::value<double>(RMIN)->default_value("0.0"))
     ("RMAX", "maximum radius for output",
@@ -97,12 +97,6 @@ int main(int argc, char **argv)
      cxxopts::value<int>(RBINS)->default_value("50"))
     ("ZBINS", "number of vertical bins",
      cxxopts::value<int>(ZBINS)->default_value("50"))
-    ("IBEG", "first PSP index",
-     cxxopts::value<int>(IBEG)->default_value("0"))
-    ("IEND", "last PSP index",
-     cxxopts::value<int>(IEND)->default_value("100"))
-    ("ISKIP", "skip PSP interval",
-     cxxopts::value<int>(ISKIP)->default_value("1"))
     ("PBEG", "first particle index",
      cxxopts::value<int>(PBEG)->default_value("0"))
     ("PEND", "last particle index",
@@ -161,43 +155,9 @@ int main(int argc, char **argv)
   // Do round robin grid assignment of nodes
   // ==================================================
 
-  std::vector<string> files;
-				// Root nodes looks for existence of files
-  if (myid==0) {
-    for (int i=IBEG; i<=IEND; i++) {
-      auto lab = PR::ParticleReader::fileNameCreator
-	(fileType, i, myid, dir, runtag, filePrefix);
-      std::ifstream in(lab);
-      if (in) files.push_back(lab);
-      else break;
-      std::cout << "." << i << flush;
-    }
-    std::cout << endl;
-  }
-
+  auto files = PR::ParticleReader::parseFileList(psfiles, delim);
+  
   unsigned nfiles = files.size();
-  MPI_Bcast(&nfiles, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-
-  if (nfiles==0) {
-    if (myid==0) std::cout << "No files found!" << std::endl;
-    MPI_Finalize();
-    exit(-1);
-  }
-
-  for (unsigned n=0; n<nfiles; n++) {
-    unsigned sz;
-    if (myid==0) sz = files[n].size();
-    MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-    if (myid==0) {
-      char *c = const_cast<char*>(files[n].c_str());
-      MPI_Bcast(c, sz+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-    } else {
-      char l[sz+1];
-      MPI_Bcast(&l[0], sz+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-      files.push_back(l);
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
 
   vector<double>   times0  (nfiles);
   vector<unsigned> inside0 (nfiles, 0), outside0 (nfiles, 0);
@@ -216,10 +176,12 @@ int main(int argc, char **argv)
   double ZCENTER = 0.5*(ZMAX + ZMIN);
   double ZWIDTH  = ZMAX - ZMIN;
 
-  for (int n=0; n<nfiles; n++) {
+  unsigned n = 0;
+
+  for (auto batch : files) {
 
     PR::PRptr reader = PR::ParticleReader::createReader
-      (fileType, files[n], myid, true);
+      (fileType, batch, myid, true);
 
     times[n] = reader->CurrentTime();
 
@@ -295,6 +257,8 @@ int main(int argc, char **argv)
       p = reader->nextParticle();
       icnt++;
     }
+
+    n++;
   }
   
   MPI_Reduce(&times[0], &times0[0], nfiles,

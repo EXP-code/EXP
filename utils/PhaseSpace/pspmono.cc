@@ -138,7 +138,7 @@ main(int argc, char **argv)
     double time;
 
     try {
-      psp = PR::ParticleReader::createReader(fileType, INFILE[n], myid, true);
+      psp = PR::ParticleReader::createReader(fileType, {INFILE[n]}, myid, true);
   
       time = psp->CurrentTime();
 

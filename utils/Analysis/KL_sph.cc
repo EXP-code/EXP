@@ -112,7 +112,7 @@ main(int argc, char **argv)
   
   double RMIN, rscale, minSNR0, Hexp;
   int NICE, LMAX, NMAX, NSNR, indx, nbunch, Ndens;
-  std::string modelf, dir("./"), cname, prefix, fileType, filePrefix;
+  std::string modelf, dir("./"), cname, fileType, psfile, prefix;
   bool ignore;
 
   // ==================================================
@@ -130,22 +130,22 @@ main(int argc, char **argv)
     ("h,help", "Print this help message")
     ("v,verbose", "Verbose and diagnostic output for covariance computation")
     ("t,truncate", "Use Truncate method for SNR trimming rather than the default Hall")
-    (",debug", "Debug max values")
+    ("d,debug", "Debug max values")
     ("LOG", "log scaling for SNR")
     ("Hall", "use Hall smoothing for SNR trim")
     ("K,Ndens", "KD density estimate count (use 0 for expansion estimate)",
      cxxopts::value<int>(Ndens)->default_value("32"))
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-    ("P,prefix", "prefix for phase-space files",
-     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
+    ("psfile", "Phase-space file",
+     cxxopts::value<std::string>(psfile))
     ("NICE", "system priority",
      cxxopts::value<int>(NICE)->default_value("0"))
     ("LMAX", "Maximum harmonic order for spherical expansion",
      cxxopts::value<int>(LMAX)->default_value("8"))
     ("NMAX", "Maximum harmonic order for spherical expansion",
      cxxopts::value<int>(NMAX)->default_value("18"))
-    (" N,NSNR", "Number of SNR evaluations",
+    ("N,NSNR", "Number of SNR evaluations",
      cxxopts::value<int>(NSNR)->default_value("20"))
     ("minSNR", "minimum SNR value for loop output",
      cxxopts::value<double>(minSNR0))
@@ -163,8 +163,6 @@ main(int argc, char **argv)
      cxxopts::value<int>(indx)->default_value("0"))
     ("nbunch", "Desired bunch size (default: sqrt(nbod) if value is < 0)",
      cxxopts::value<int>(nbunch)->default_value("-1"))
-    ("d,dir", "directory for SPL files",
-     cxxopts::value<std::string>(dir))
     ("modelfile", "halo model file name",
      cxxopts::value<std::string>(modelf)->default_value("SLGridSph.model"))
     ("cname", "component name",
@@ -219,29 +217,6 @@ main(int argc, char **argv)
 
   
   // ==================================================
-  // PSP input stream
-  // ==================================================
-
-  int iok = 1;
-  auto file1 = PR::ParticleReader::fileNameCreator
-    (fileType, indx, myid, dir, runtag);
-
-  if (myid==0) {
-    std::ifstream in(file1);
-    if (!in) {
-      std::cerr << "Error opening <" << file1 << ">" << endl;
-      iok = 0;
-    }
-  }
-
-  MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  
-  if (iok==0) {
-    MPI_Finalize();
-    exit(-1);
-  }
-
-  // ==================================================
   // Open output file
   // ==================================================
 
@@ -269,7 +244,7 @@ main(int argc, char **argv)
   // ==================================================
 
   PR::PRptr reader = PR::ParticleReader::createReader
-    (fileType, file1, myid, true);
+    (fileType, {psfile}, myid, true);
   
   double tnow = reader->CurrentTime();
   if (myid==0) std::cout << "Beginning partition [time=" << tnow

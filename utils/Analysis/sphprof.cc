@@ -421,8 +421,8 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  int NICE, LMAX, NMAX, ibeg, iend;
-  std::string MODFILE, runtag, cname, dir("./"), fileType;
+  int NICE, LMAX, NMAX;
+  std::string MODFILE, psfiles, delim, cname, fileType;
   bool ALL;
 
   // ==================================================
@@ -471,16 +471,12 @@ main(int argc, char **argv)
      cxxopts::value<bool>(ALL)->default_value("false"))
     ("OUTFILE", "Filename prefix",
      cxxopts::value<string>(OUTFILE)->default_value("sphprof"))
-    ("runtag", "Run tag id",
-     cxxopts::value<string>(runtag)->default_value("run0"))
-    ("d,dir", "directory for SPL files",
-     cxxopts::value<std::string>(dir))
+    ("psfile", "List of phase space files for processing",
+     cxxopts::value<std::string>(psfiles))
+    ("delimiter", "Phase-space file list delimiter for node index",
+     cxxopts::value<std::string>(delim))
     ("MODFILE", "Halo model file",
      cxxopts::value<string>(MODFILE)->default_value("SLGridSph.model"))
-    ("beg", "initial frame in sequence",
-     cxxopts::value<int>(ibeg)->default_value("0"))
-    ("end", "final frame in sequence",
-     cxxopts::value<int>(iend)->default_value("10000"))
     ("COMP", "Compute wake for this component name",
      cxxopts::value<std::string>(cname)->default_value("stars"))
     ;
@@ -514,7 +510,7 @@ main(int argc, char **argv)
   }
 
   if (vm.count("noCommand")==0) {
-    std::string cmdFile = runtag + "." + OUTFILE + ".cmd_line";
+    std::string cmdFile = "sphprof." + OUTFILE + ".cmd_line";
     std::ofstream cmd(cmdFile);
     if (!cmd) {
       std::cerr << "diskprof4: error opening <" << cmdFile
@@ -530,13 +526,6 @@ main(int argc, char **argv)
     
     cmd.close();
   }
-
-  // ==================================================
-  // Check directory for trailing '/'
-  // ==================================================
-  //
-  if (dir.back() != '/') dir += '/';
-
 
   // ==================================================
   // Nice process
@@ -558,29 +547,15 @@ main(int argc, char **argv)
   // Begin sequence
   // ==================================================
 
-  for (int n=ibeg; n<=iend; n++) {
+  unsigned n = 0;
 
-    auto file0 = PR::ParticleReader::fileNameCreator
-      (fileType, n, myid, dir, runtag);
+  for (auto batch : PR::ParticleReader::parseFileList(psfiles, delim)) {
 
-    int iok = 1;
-    if (myid==0) {
-      std::ifstream in(file0);
-      if (!in) {
-	cerr << "Error opening <" << file0 << ">" << endl;
-	iok = 0;
-      }
-    }
-    
-    MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if (iok==0) break;
-
-  
     // ==================================================
     // Open frame list
     // ==================================================
     PR::PRptr reader = PR::ParticleReader::createReader
-      (fileType, file0, myid, true);
+      (fileType, batch, myid, true);
     
     double tnow = reader->CurrentTime();
 
@@ -617,6 +592,8 @@ main(int argc, char **argv)
     write_output(ortho, n, tnow);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
+
+    n++;
   }
 
   MPI_Finalize();

@@ -510,9 +510,9 @@ main(int argc, char **argv)
   
   double snr, rscale, Hexp;
   int NICE, LMAX, NMAX, NPART, Ndens;
-  int beg, end, stride;
-  std::string MODFILE, INDEX, dir("."), cname, coefs;
-  std::string  fileType, filePrefix, config;
+  std::string MODFILE, INDEX, cname, coefs;
+  std::string  fileType, config, psfiles, delim;
+
   bool COM = false, KD = false;
 
 
@@ -544,8 +544,6 @@ main(int argc, char **argv)
      cxxopts::value<int>(Ndens)->default_value("32"))
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
-    ("P,prefix", "prefix for phase-space files",
-     cxxopts::value<std::string>(filePrefix)->default_value("OUT"))
     ("r,RMIN", "minimum radius for output",
      cxxopts::value<double>(RMIN)->default_value("0.0"))
     ("R,RMAX", "maximum radius for output",
@@ -566,16 +564,12 @@ main(int argc, char **argv)
      cxxopts::value<string>(outdir)->default_value("."))
     ("MODFILE", "Halo model file",
      cxxopts::value<string>(MODFILE)->default_value("SLGridSph.model"))
-    ("beg", "initial PSP index",
-     cxxopts::value<int>(beg)->default_value("0"))
-    ("end", "final PSP index",
-     cxxopts::value<int>(end)->default_value("99999"))
-    ("stride", "PSP index stride",
-     cxxopts::value<int>(stride)->default_value("1"))
     ("compname", "train on Component (default=stars)",
      cxxopts::value<std::string>(cname)->default_value("dark"))
-    ("d,dir", "directory for phase-space files",
-     cxxopts::value<std::string>(dir))
+    ("psfile", "List of phase space files for processing",
+     cxxopts::value<std::string>(psfiles))
+    ("delimiter", "Phase-space file list delimiter for node index",
+     cxxopts::value<std::string>(delim))
     ("c,coefs", "file of computed coefficients or to be computed (with CONLY)",
      cxxopts::value<std::string>(coefs))
     ("C,center", "Accumulation center (vector)",
@@ -754,30 +748,9 @@ main(int argc, char **argv)
     }
   }
 
-  for (int indx=beg; indx<=end; indx+=stride) {
+  unsigned indx = 0;
 
-    // ==================================================
-    // Phase-space input stream
-    // ==================================================
-
-    int iok = 1;
-
-    auto file1 = PR::ParticleReader::fileNameCreator
-      (fileType, indx, myid, dir, runtag, filePrefix);
-
-    if (verbose and myid==0) {
-      std::cout << "Will try to open <" << file1 << ">" << std::endl;
-    }
-    {
-      std::ifstream in(file1);
-      if (!in) {
-	cerr << "Error opening <" << file1 << ">" << endl;
-	iok = 0;
-      }
-    }
-    
-    MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if (iok==0) break;
+  for (auto batch : PR::ParticleReader::parseFileList(psfiles, delim)) {
 
     // ==================================================
     // Open phase-space file
@@ -786,7 +759,7 @@ main(int argc, char **argv)
     PR::PRptr reader;
 
     try {
-      reader = PR::ParticleReader::createReader(fileType, file1, myid, verbose);
+      reader = PR::ParticleReader::createReader(fileType, batch, myid, verbose);
     }
     catch (std::runtime_error &error) {
       std::cerr << error.what() << std::endl;
@@ -953,6 +926,8 @@ main(int argc, char **argv)
     MPI_Barrier(MPI_COMM_WORLD);
 
     //------------------------------------------------------------ 
+
+    indx++;
 
   } // Dump loop
 

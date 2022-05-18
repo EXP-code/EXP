@@ -344,7 +344,7 @@ main(int argc, char **argv)
   double initl_time, final_time;
 
   try {
-    psp1 = PR::ParticleReader::createReader(fileType, INFILE1, myid, true);
+    psp1 = PR::ParticleReader::createReader(fileType, {INFILE1}, myid, true);
   
     initl_time = psp1->CurrentTime();
 
@@ -366,7 +366,7 @@ main(int argc, char **argv)
   }
 
   try {
-    psp2 = PR::ParticleReader::createReader(fileType, INFILE2, myid, true);
+    psp2 = PR::ParticleReader::createReader(fileType, {INFILE2}, myid, true);
   
     final_time = psp2->CurrentTime();
 
