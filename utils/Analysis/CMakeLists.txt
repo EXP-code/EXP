@@ -1,3 +1,5 @@
+find_package (Python3 COMPONENTS Interpreter Development)
+
 set(bin_PROGRAMS diskcoef halocoef diskcoef diskprof haloprof slabprof
   psphisto gas2d makegrid pspbox eofpeek diskfreqs mssaprofD mssaprofH
   pcatest readcoefsD readcoefsH sphprof pspxvalH pspxvalH2 pspxvalD
@@ -60,5 +62,5 @@ target_include_directories(simpleSL PRIVATE ${common_INCLUDE})
 
 install(TARGETS simpleSL
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}"
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}"
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
