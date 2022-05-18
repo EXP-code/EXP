@@ -85,7 +85,7 @@ namespace PR
     
     double time;
     std::vector<Particle> particles;
-    bool particles_read, _verbose;
+    bool _verbose;
     std::vector<std::string> _files;
 
     double mass[6];
@@ -122,7 +122,9 @@ namespace PR
 	for (auto s : Ptypes) std::cerr << " " << s;
 	std::cerr << std::endl;
       }
-      particles_read = false;
+
+      curfile = _files.begin();	// Set to first file and open
+      nextFile();
     }
     
     //! Number of particles in the chosen type
@@ -150,7 +152,7 @@ namespace PR
     
     double time;
     std::vector<Particle> particles;
-    bool particles_read, _verbose;
+    bool _verbose;
     std::vector<std::string> _files;
 
     double mass[6];
@@ -187,7 +189,9 @@ namespace PR
 	for (auto s : Ptypes) std::cerr << " " << s;
 	std::cerr << std::endl;
       }
-      particles_read = false;
+
+      curfile = _files.begin();	// Set to first file and open
+      nextFile();
     }
     
     //! Number of particles in the chosen type

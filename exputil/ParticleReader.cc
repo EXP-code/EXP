@@ -29,16 +29,17 @@ namespace PR {
   
   GadgetNative::GadgetNative(const std::vector<std::string>& files, bool verbose)
   {
-    _files   = files;
+    _files   = files;		// Copy file list (bunch)
     _verbose = verbose;
     
     ptype = 1;			// Default is halo particles
-    particles_read = false;
 
-    getNumbers();
-    curfile = _files.begin();
+    getNumbers();		// Get the number of particles in all
+				// files
 
-    if (not nextFile()) {
+    curfile = _files.begin();	// Set file to first one
+
+    if (not nextFile()) {	// Try opening
       std::cerr << "GadgetNative: no files found" << std::endl;
     }
   }
@@ -287,7 +288,6 @@ namespace PR {
     _verbose = verbose;
     
     ptype = 1;			// Default is halo particles
-    particles_read = false;
 
     getNumbers();
     curfile = _files.begin();
@@ -1473,6 +1473,9 @@ namespace PR {
       if (curName == "Dark") ps->xdr_dark();
       if (curName == "Star") ps->xdr_star();
     }
+
+    curfile = files.begin();	// Set to first file and open
+    nextFile();
   }
 
   void Tipsy::packParticle()
