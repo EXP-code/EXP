@@ -136,12 +136,12 @@ void OutputContainer::Run(int nstep, int mstep, bool final)
   //
   if (use_cuda) {
     for (auto c : comp->components) comp->fetched[c] = false;
+
+    // Wait check that all previous threads are finished
+    //
+    for (auto v : cproc) v->join();
   }
 #endif
-
-  // Wait check that all previous threads are finished
-  //
-  for (auto v : cproc) v->join();
   
   cproc.clear();		// Delete the threads
 
@@ -166,4 +166,12 @@ void OutputContainer::Run(int nstep, int mstep, bool final)
   // Mark: step ran at this time
   //
   last = tnow;
+
+
+  // Wait check that all previous threads are finished
+  //
+  if (not use_cuda) {
+    for (auto v : cproc) v->join();
+  }
+
 }
