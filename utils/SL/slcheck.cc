@@ -4,6 +4,8 @@
 #include <string>
 #include <cmath>
 
+#include <Eigen/Eigen>
+
 #include <libvars.H>
 #include <localmpi.H>
 #include <SLGridMP2.H>
@@ -113,34 +115,35 @@ int main(int argc, char** argv)
     bool done=false;
     int iwhich;
 
-    cout << "Task:" << endl;
-    cout << "1: Print out density, potential pairs" << endl;
-    cout << "2: Check orthogonality" << endl;
-    cout << "3: Quit" << endl;
-    cout << "?? ";
-    cin >> iwhich;
+    std::cout << "Task:" << std::endl;
+    std::cout << "1: Print out density, potential pairs" << std::endl;
+    std::cout << "2: Check orthogonality" << std::endl;
+    std::cout << "3: Orthogonality matrix" << std::endl;
+    std::cout << "4: Quit" << std::endl;
+    std::cout << "?? ";
+    std::cin >> iwhich;
 
     switch(iwhich) {
     case 1:
       {
 	std::string filename;
-	cout << "Filename? ";
-	cin >> filename;
+	std::cout << "Filename? ";
+	std::cin >> filename;
 	std::ofstream out (filename.c_str());
 	if (!out) {
-	  cout << "Can't open <" << filename << "> for output" << endl;
+	  std::cout << "Can't open <" << filename << "> for output" << std::endl;
 	  break;
 	}
 
-	cout << "Number of points? ";
+	std::cout << "Number of points? ";
 	int num;
-	cin >> num;
+	std::cin >> num;
 
-	cout << "L, Nmin, Nmax? ";
+	std::cout << "L, Nmin, Nmax? ";
 	int L, Nmin, Nmax;
-	cin >> L;
-	cin >> Nmin;
-	cin >> Nmax;
+	std::cin >> L;
+	std::cin >> Nmin;
+	std::cin >> Nmax;
 
 	Nmin = std::max<int>(Nmin, 0);
 	Nmax = std::min<int>(Nmax, nmax);
@@ -223,7 +226,7 @@ int main(int argc, char** argv)
 	    out << setw(15) << ortho->get_pot  (x, L, n, 0)
 		<< setw(15) << ortho->get_force(x, L, n, 0)
 		<< setw(15) << ortho->get_dens (x, L, n, 0);
-	  out << endl;
+	  out << std::endl;
 	}
       }
 
@@ -231,13 +234,13 @@ int main(int argc, char** argv)
 
     case 2:
       {
-	cout << "Number of knots? ";
+	std::cout << "Number of knots? ";
 	int num;
 	cin >> num;
 
 	LegeQuad lw(num);
 
-	cout << "L, N1, N2? ";
+	std::cout << "L, N1, N2? ";
 	int L, N1, N2;
 	cin >> L;
 	cin >> N1;
@@ -258,9 +261,53 @@ int main(int argc, char** argv)
 
 	}
 
-	cout << "<" << N1 << "|" << N2 << "> = " << ans << endl;
+	std::cout << "<" << N1 << "|" << N2 << "> = " << ans << std::endl;
       }
 
+      break;
+
+    case 3:
+      {
+	std::cout << "Number of knots? ";
+	int num;
+	cin >> num;
+
+	LegeQuad lw(num);
+
+	std::cout << "L? ";
+	int L;
+	std::cin >> L;
+
+	double ximin = ortho->r_to_xi(rmin);
+	double ximax = ortho->r_to_xi(rmax);
+
+	Eigen::MatrixXd orthochk(nmax, nmax);
+
+	for (int n1=0; n1<nmax; n1++) {
+
+	  for (int n2=n1; n2<nmax; n2++) {
+	    
+	    double x, r, ans=0.0;
+	    for (int i=0; i<num; i++) {
+	  
+	      x = ximin + (ximax - ximin)*lw.knot(i);
+	      r = ortho->xi_to_r(x);
+	      
+	      ans += r*r*ortho->get_pot(x, L, n1, 0)*
+		ortho->get_dens(x, L, n2, 0) /
+		ortho->d_xi_to_r(x) * (ximax - ximin)*lw.weight(i);
+	      
+	    }
+	    
+	    orthochk(n1, n2) = orthochk(n2, n1) = ans;
+	  }
+	}
+
+	std::cout << std::string(60, '-') << std::endl;
+	std::cout << orthochk << std::endl;
+	std::cout << std::string(60, '-') << std::endl;
+
+      }
       break;
 
     default:
