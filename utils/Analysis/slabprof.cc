@@ -149,8 +149,6 @@ main(int argc, char **argv)
      cxxopts::value<int>(AXIS)->default_value("2"))
     ("OUTFILE", "output filename",
      cxxopts::value<string>(outfile)->default_value("slab.prof"))
-    ("RUNTAG", "run tag",
-     cxxopts::value<string>(runtag)->default_value("run"))
     ("psfile", "List of phase space files for processing",
      cxxopts::value<std::string>(psfiles))
     ("delimiter", "Phase-space file list delimiter for node index",
@@ -189,9 +187,8 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  auto files = PR::ParticleReader::parseFileList(psfiles, delim);
-
-  for (auto batch : files) {
+  
+  for (auto batch : PR::ParticleReader::parseFileList(psfiles, delim)) {
 
     PR::PRptr reader = PR::ParticleReader::createReader
       (fileType, batch, myid, true);
@@ -207,20 +204,20 @@ main(int argc, char **argv)
     add_particles(reader, ret, nhist);
       
     for (int n=0; n<Nbins; n++) {
-      out << setw(15) << time
-	  << setw(15) << Rmin + dz*(0.5+n);
+      out << std::setw(15) << time
+	  << std::setw(15) << Rmin + dz*(0.5+n);
       if (ret[n].size()) {
-	out << setw(15) << ret[n][0]/dz;
-	for (int j=1; j<nhist; j++) out << setw(15) << ret[n][j]/ret[n][0];
+	out << std::setw(15) << ret[n][0]/dz;
+	for (int j=1; j<nhist; j++) out << std::setw(15) << ret[n][j]/ret[n][0];
       }
       else
-	for (int j=0; j<nhist; j++) out << setw(15) << 0.0;
+	for (int j=0; j<nhist; j++) out << std::setw(15) << 0.0;
       
-      out << endl;
+      out << std::endl;
     }
-    out << endl;
+    out << std::endl;
 	
-    cout << " done" << endl;
+    std::cout << " done" << std::endl;
   }
 
   return 0;

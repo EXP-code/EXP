@@ -43,7 +43,6 @@
 
 				// MDW classes
 #include <numerical.H>
-#include <ParticleReader.H>
 #include <interp.H>
 #include <EmpCylSL.H>
 #include <SphereSL.H>
