@@ -122,6 +122,13 @@ public:
   //! Retrieve coefficients
   std::vector<Eigen::MatrixXd> retrieve_covar(void) { return covar; }
 
+  //! Retrieve potential 
+  Eigen::MatrixXd get_pot(double x) { sl->get_pot(potd,x); return potd;}
+  //sl->get_dens (dend, r/rscl);
+  //sl->get_pot  (potd, r/rscl);
+  //sl->get_force(dpot, r/rscl);
+
+
   //! Accumulate new coefficients
   void accumulate(double x, double y, double z, double mass);
   
