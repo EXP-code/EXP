@@ -57,8 +57,6 @@
 #include <EXPini.H>
 #include <libvars.H>
 
-#include <SnapBatch.H>		// Parse input file list into batches
-
 #ifdef DEBUG
 #ifndef _REDUCED
 #pragma message "NOT using reduced particle structure"
