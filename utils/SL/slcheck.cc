@@ -40,9 +40,9 @@ int main(int argc, char** argv)
    ("numr", "radial knots for the SL grid",
      cxxopts::value<int>(numr)->default_value("1000"))
    ("rmin", "minimum radius for the SL grid",
-     cxxopts::value<double>(rmin)->default_value("0.0001"))
+     cxxopts::value<double>(rmin)->default_value("-1.0"))
    ("rmax", "maximum radius for the SL grid",
-     cxxopts::value<double>(rmax)->default_value("1.95"))
+     cxxopts::value<double>(rmax)->default_value("-1.0"))
    ("rs", "cmap scale factor",
      cxxopts::value<double>(rs)->default_value("0.067"))
    ("diverge", "cusp divergence for spherical model",
@@ -92,6 +92,13 @@ int main(int argc, char** argv)
   } else {
     SLGridSph::mpi = 0;		// Turn off MPI
   }
+
+				// Get default model bounds unless
+				// specificed on the command line
+  SphericalModelTable model(filename);
+
+  if (rmin<0.0) rmin = model.get_min_radius();
+  if (rmax<0.0) rmax = model.get_max_radius();
 
 				// Generate Sturm-Liouville grid
   auto ortho = std::make_shared<SLGridSph>(filename, Lmax, nmax, numr, rmin, rmax, 
