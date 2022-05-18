@@ -68,15 +68,13 @@ namespace PR
     //! Get the next particle
     virtual const Particle* nextParticle() = 0;
     
-    //! Filename creator
-    static std::string fileNameCreator
-    (const std::string& myType, int number, int myid,
-     const std::string& dir, const std::string& runtag,
-     const std::string& prefix="", const std::string& suffix="");
-    
+    //! Order file list into batches at single times
+    static std::vector<std::vector<std::string>>
+    parseFileList(const std::string& file, const std::string& delimit);
+
     //! Create a shared pointer to derived instance of the desired type and return it
     static std::shared_ptr<ParticleReader>
-    createReader(const std::string& type, const std::string& file, int myid,
+    createReader(const std::string& type, const std::vector<std::string>& file, int myid,
 		 bool verbose=false);
   };
   
@@ -88,7 +86,7 @@ namespace PR
     double time;
     std::vector<Particle> particles;
     bool particles_read, _verbose;
-    std::string _file;
+    std::vector<std::string> _file;
     double mass[6];
     
     static std::vector<std::string> Ptypes;
@@ -101,7 +99,7 @@ namespace PR
   public:
     
     //! Constructor
-    GadgetNative(const std::string& file, bool verbose=false);
+    GadgetNative(const std::vector<std::string>& file, bool verbose=false);
     
     //! Select a particular particle type and reset the iterator
     void SelectType(const std::string& type) {
@@ -143,7 +141,7 @@ namespace PR
     double time;
     std::vector<Particle> particles;
     bool particles_read, _verbose;
-    std::string _file;
+    std::vector<std::string> _file;
     double mass[6];
     int npart[6];
     
@@ -158,7 +156,7 @@ namespace PR
   public:
     
     //! Constructor
-    GadgetHDF5(const std::string& file, bool verbose=false);
+    GadgetHDF5(const std::vector<std::string>& file, bool verbose=false);
     
     //! Select a particular particle type and reset the iterator
     void SelectType(const std::string& type) {
@@ -392,7 +390,7 @@ namespace PR
   public:
     
     //! Constructor
-    PSPout(const std::string& file, bool verbose=false);
+    PSPout(const std::vector<std::string>& file, bool verbose=false);
     
     //! Destructor
     virtual ~PSPout() {}
@@ -419,7 +417,7 @@ namespace PR
     
   public:
     //! Constuctors
-    PSPspl(const std::string& file, bool verbose=false);
+    PSPspl(const std::vector<std::string>& file, bool verbose=false);
     
     //! Destructor
     virtual ~PSPspl() {}

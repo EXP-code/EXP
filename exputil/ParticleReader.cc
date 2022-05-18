@@ -1,7 +1,12 @@
+#include <algorithm>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <numeric>
+#include <string>
+#include <vector>
+
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -22,7 +27,7 @@ namespace PR {
   { {"Gas", 0}, {"Halo", 1}, {"Disk", 2}, {"Bulge", 3}, {"Stars", 4}, {"Bndry", 5}};
   
   
-  GadgetNative::GadgetNative(const std::string& file, bool verbose)
+  GadgetNative::GadgetNative(const std::vector<std::string>& file, bool verbose)
   {
     _file    = file;
     _verbose = verbose;
@@ -35,20 +40,20 @@ namespace PR {
   {
     // attempt to open file
     //
-    std::ifstream file(_file, std::ios::binary | std::ios::in);
+    std::ifstream file(_file[0], std::ios::binary | std::ios::in);
     if (!file.is_open())
       {
-	std::cerr << "Error opening file: " << _file << std::endl;
+	std::cerr << "Error opening file: " << _file[0] << std::endl;
 	int flag;
 	MPI_Initialized(&flag);
-	if (flag)	MPI_Finalize();
+	if (flag) MPI_Finalize();
 	exit(1);
       }
     
     // read in file data
     //
     if (myid==0 and _verbose)
-      std::cout << "GadgetNative: reading " << _file << " header...";
+      std::cout << "GadgetNative: reading " << _file[0] << " header...";
     
     file.seekg(sizeof(int), std::ios::cur); // block count
     
@@ -65,20 +70,20 @@ namespace PR {
 
     // Attempt to open file
     //
-    std::ifstream file(_file, std::ios::binary | std::ios::in);
+    std::ifstream file(_file[0], std::ios::binary | std::ios::in);
     if (!file.is_open())
       {
-       std::cerr << "Error opening file: " << _file << std::endl;
+       std::cerr << "Error opening file: " << _file[0] << std::endl;
        int flag;
        MPI_Initialized(&flag);
-       if (flag)       MPI_Finalize();
+       if (flag) MPI_Finalize();
        exit(1);
       }
     
     // read in file data
     //
     if (myid==0 and _verbose)
-      std::cout << "GadgetNative: reading " << _file << " header...";
+      std::cout << "GadgetNative: reading " << _file[0] << " header...";
     
     file.seekg(sizeof(int), std::ios::cur); // block count
     
@@ -98,15 +103,15 @@ namespace PR {
   {
     // attempt to open file
     //
-    std::ifstream file(_file, std::ios::binary | std::ios::in);
+    std::ifstream file(_file[0], std::ios::binary | std::ios::in);
     if (!file.is_open()) {
       std::ostringstream ost;
-      ost << "Error opening file: " << _file;
+      ost << "Error opening file: " << _file[0];
       throw std::runtime_error(ost.str());
     }
     
     if (myid==0 and _verbose)
-      std::cout << "GadgetNative: opened <" << _file << ">" << std::endl;
+      std::cout << "GadgetNative: opened <" << _file[0] << ">" << std::endl;
     
     // read in file data
     //
@@ -255,7 +260,7 @@ namespace PR {
   { {"Gas", 0}, {"Halo", 1}, {"Disk", 2}, {"Bulge", 3}, {"Stars", 4}, {"Bndry", 5}};
   
   
-  GadgetHDF5::GadgetHDF5(const std::string& file, bool verbose)
+  GadgetHDF5::GadgetHDF5(const std::vector<std::string>& file, bool verbose)
   {
     _file    = file;
     _verbose = verbose;
@@ -273,7 +278,7 @@ namespace PR {
       // handle the errors appropriately
       H5::Exception::dontPrint();
       
-      const H5std_string FILE_NAME (_file);
+      const H5std_string FILE_NAME (_file[0]);
       const H5std_string GROUP_NAME_what ("/Header");
       
       H5::H5File    file( FILE_NAME, H5F_ACC_RDONLY );
@@ -321,7 +326,7 @@ namespace PR {
       // handle the errors appropriately
       H5::Exception::dontPrint();
       
-      const H5std_string FILE_NAME (_file);
+      const H5std_string FILE_NAME (_file[0]);
       const H5std_string GROUP_NAME_what ("/Header");
       
       H5::H5File    file( FILE_NAME, H5F_ACC_RDONLY );
@@ -389,7 +394,7 @@ namespace PR {
       // handle the errors appropriately
       H5::Exception::dontPrint();
       
-      const H5std_string FILE_NAME (_file);
+      const H5std_string FILE_NAME (_file[0]);
       const H5std_string GROUP_NAME_what ("/Header");
       
       H5::H5File    file( FILE_NAME, H5F_ACC_RDONLY );
@@ -568,7 +573,7 @@ namespace PR {
     catch(H5::FileIException error)
       {
 	std::ostringstream ost;
-	ost << "Error opening HDF5 file: " << _file;
+	ost << "Error opening HDF5 file: " << _file[0];
 	throw std::runtime_error(ost.str());
       }
     
@@ -623,16 +628,16 @@ namespace PR {
   }
   
   
-  PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose)
+  PSPout::PSPout(const std::vector<std::string>& infile, bool verbose) : PSP(verbose)
   {
     
     // Open the file
     // -------------
     try {
-      in.open(infile);
+      in.open(infile[0]);
     } catch (...) {
       std::ostringstream sout;
-      sout << "Could not open PSP file <" << infile << ">";
+      sout << "Could not open PSP file <" << infile[0] << ">";
       throw std::runtime_error(sout.str());
     }
     
@@ -644,7 +649,7 @@ namespace PR {
       in.read((char *)&header, sizeof(MasterHeader));
     } catch (...) {
       std::ostringstream sout;
-      sout << "Could not read master header for <" << infile << ">";
+      sout << "Could not read master header for <" << infile[0] << ">";
       throw std::runtime_error(sout.str());
     }
     
@@ -663,7 +668,7 @@ namespace PR {
 	}
       } catch (...) {
 	std::ostringstream sout;
-	sout << "Error reading magic for <" << infile << ">";
+	sout << "Error reading magic for <" << infile[0] << ">";
 	throw std::runtime_error(sout.str());
       }
       
@@ -671,7 +676,7 @@ namespace PR {
 	stanza.comp.read(&in);
       } catch (...) {
 	std::ostringstream sout;
-	sout << "Error reading component header for <" << infile << ">";
+	sout << "Error reading component header for <" << infile[0] << ">";
 	throw std::runtime_error(sout.str());
       }
       
@@ -782,7 +787,7 @@ namespace PR {
       } 
       catch(...) {
 	std::cout << "IO error: can't find next header for time="
-		  << header.time << " . . . quit reading <" << infile << ">";
+		  << header.time << " . . . quit reading <" << infile[0] << ">";
 	break;
       }
       
@@ -797,22 +802,22 @@ namespace PR {
   }
   
   
-  PSPspl::PSPspl(const std::string& master, bool verbose) : PSP(verbose)
+  PSPspl::PSPspl(const std::vector<std::string>& master, bool verbose) : PSP(verbose)
   {
     
     // Open the file
     // -------------
     try {
-      in.open(master);
+      in.open(master[0]);
     } catch (...) {
       std::ostringstream sout;
-      sout << "Could not open the master SPL file <" << master << ">";
+      sout << "Could not open the master SPL file <" << master[0] << ">";
       throw std::runtime_error(sout.str());
     }
     
     if (!in.good()) {
       std::ostringstream sout;
-      sout << "Error opening master SPL file <" << master << ">";
+      sout << "Error opening master SPL file <" << master[0] << ">";
       throw std::runtime_error(sout.str());
     }
     
@@ -822,7 +827,7 @@ namespace PR {
       in.read((char *)&header, sizeof(MasterHeader));
     } catch (...) {
       std::ostringstream sout;
-      sout << "Could not read master header for <" << master << ">";
+      sout << "Could not read master header for <" << master[0] << ">";
       throw std::runtime_error(sout.str());
     }
     
@@ -839,7 +844,7 @@ namespace PR {
       } catch (...) {
 	std::ostringstream sout;
 	sout << "Error reading magic info for Comp #" << i << " from <"
-	     << master << ">";
+	     << master[0] << ">";
 	throw std::runtime_error(sout.str());
       }
       
@@ -853,7 +858,7 @@ namespace PR {
       } catch (...) {
 	std::ostringstream sout;
 	sout << "Error reading component header Comp #" << i << " from <"
-	     << master << ">";
+	     << master[0] << ">";
 	throw std::runtime_error(sout.str());
       }
       
@@ -868,7 +873,7 @@ namespace PR {
       catch (YAML::Exception & error) {
 	std::ostringstream sout;
 	sout << "Error parsing component config in Comp #" << i
-	     << " from <" << master << ">";
+	     << " from <" << master[0] << ">";
 	throw std::runtime_error(sout.str());
       }
       
@@ -1263,92 +1268,64 @@ namespace PR {
   {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "Tipsy"};
   
   
-  std::string ParticleReader::fileNameCreator
-  (const std::string& myType, int number, int myid,
-   const std::string& dir,
-   const std::string& runtag,
-   const std::string& prefix,
-   const std::string& suffix)
+  std::vector<std::vector<std::string>>
+  ParticleReader::parseFileList
+  (const std::string& file, const std::string& delimit)
   {
-    std::ostringstream ret;
-    ret << dir << "/";
-    
-    if (myType.find("PSPout") == 0) {
-      if (prefix.size()==0) ret << "OUT";
-      else                  ret << prefix;
+    std::vector<std::vector<std::string>> batches;
+
+    std::ifstream in(file);
+    if (in) {
+      std::vector<std::string> files;
       
-      ret << "." << runtag << "."
-	  << std::setw(5) << std::setfill('0') << number;
+      std::string name;
+      while(in >> name) files.push_back(name);
       
-      return ret.str();
+      std::sort(files.begin(), files.end());
+      
+      std::vector<std::string> batch;
+      std::string templ;
+      
+      for (auto f : files) {
+	std::size_t found = f.find_last_of(delimit);
+
+	// No delimiter?
+	if (found == std::string::npos) {
+	  batch.push_back(f);
+	  batches.push_back(batch);
+	  batch.clear();
+	}
+	// Found a delimiter
+	else {
+	  auto trimmed = f.substr(0, found);
+
+	  if (batch.size()==0) {
+	    templ = trimmed;
+	    batch.push_back(f);
+	  }
+	  else if (trimmed == templ) {
+	    batch.push_back(f);
+	  }
+	  else {		// Mismatch: new batch
+	    if (batch.size()) {
+	      batches.push_back(batch);
+	      batch.clear();
+	    }
+	    templ = trimmed;
+	    batch.push_back(f);
+	  }
+	}
+      }
+    } else {
+      std::cerr << "Error opening file <" << file << ">" << std::endl;
     }
-    
-    if (myType.find("PSPspl") == 0) {
-      if (prefix.size()==0) ret << "SPL.";
-      else                  ret << prefix;
-      
-      ret << "." << runtag << "."
-	  << std::setw(5) << std::setfill('0') << number;
-      
-      return ret.str();
-    }
-    
-    if (myType.find("GadgetNative") == 0) {
-      if (prefix.size()==0) ret << "snapshot_";
-      else                  ret << prefix << "_";
-      
-      ret << std::setw(3) << std::setfill('0') << number;
-      if (suffix.size()>0)  ret << "." << suffix;
-      
-      return ret.str();
-    }
-    
-    if (myType.find("GadgetHDF5") == 0) {
-      if (prefix.size()==0) ret << "snapshot_";
-      else                  ret << prefix << "_";
-      
-      ret << std::setw(3) << std::setfill('0') << number;
-      if (suffix.size()==0) ret << ".hdf5";
-      else                  ret << "." << suffix;
-      
-      return ret.str();
-    }
-    
-    if (myType.find("Tipsy") == 0) {
-      if (prefix.size()==0) ret << "snapshot_";
-      else                  ret << prefix << "_";
-      
-      ret << std::setw(3) << std::setfill('0') << number;
-      if (suffix.size()==0) ret << ".tipsy";
-      else                  ret << "." << suffix;
-      
-      return ret.str();
-    }
-    
-    if (myType.find("custom")) {
-      if (prefix.size()) ret << prefix;
-      if (suffix.size()) ret << "." << suffix;
-      
-      return ret.str();
-    }
-    
-    if (myid==0) {
-      std::cout << "ParticleReader: unknown file format <" << myType << ">"
-		<< std::endl
-		<< "Available readers are:";
-      for (auto s : readerTypes) std::cout << " " << s;
-      std::cout << " custom" << std::endl;
-    }
-    
-    exit(1);
-    
-    return ret.str();
+
+    return batches;
   }
-  
-  
+
   std::shared_ptr<ParticleReader>
   ParticleReader::createReader(const std::string& reader,
-			       const std::string& file,
+			       const std::vector<std::string>& file,
 			       int myid, bool verbose)
   {
     if (reader.find("PSPout") == 0)
