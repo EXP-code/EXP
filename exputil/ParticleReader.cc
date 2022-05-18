@@ -27,23 +27,30 @@ namespace PR {
   { {"Gas", 0}, {"Halo", 1}, {"Disk", 2}, {"Bulge", 3}, {"Stars", 4}, {"Bndry", 5}};
   
   
-  GadgetNative::GadgetNative(const std::vector<std::string>& file, bool verbose)
+  GadgetNative::GadgetNative(const std::vector<std::string>& files, bool verbose)
   {
-    _file    = file;
+    _files   = files;
     _verbose = verbose;
     
     ptype = 1;			// Default is halo particles
     particles_read = false;
+
+    getNumbers();
+    curfile = _files.begin();
+
+    if (not nextFile()) {
+      std::cerr << "GadgetNative: no files found" << std::endl;
+    }
   }
   
   double GadgetNative::CurrentTime()
   {
     // attempt to open file
     //
-    std::ifstream file(_file[0], std::ios::binary | std::ios::in);
+    std::ifstream file(*curfile, std::ios::binary | std::ios::in);
     if (!file.is_open())
       {
-	std::cerr << "Error opening file: " << _file[0] << std::endl;
+	std::cerr << "Error opening file: " << *curfile << std::endl;
 	int flag;
 	MPI_Initialized(&flag);
 	if (flag) MPI_Finalize();
@@ -53,7 +60,7 @@ namespace PR {
     // read in file data
     //
     if (myid==0 and _verbose)
-      std::cout << "GadgetNative: reading " << _file[0] << " header...";
+      std::cout << "GadgetNative: reading " << *curfile << " header...";
     
     file.seekg(sizeof(int), std::ios::cur); // block count
     
@@ -64,54 +71,68 @@ namespace PR {
     return header.time;
   }
 
-  std::vector<std::string> GadgetNative::GetTypes()
+  void GadgetNative::getNumbers()
   {
-    std::vector<std::string> ret;
+    std::set<std::string> pfound;
+    std::fill(nptot, nptot+6, 0);
 
-    // Attempt to open file
-    //
-    std::ifstream file(_file[0], std::ios::binary | std::ios::in);
-    if (!file.is_open())
+    for (auto f : _files) {
+
+      // Attempt to open file
+      //
+      std::ifstream file(f, std::ios::binary | std::ios::in);
+      if (!file.is_open())
       {
-       std::cerr << "Error opening file: " << _file[0] << std::endl;
-       int flag;
-       MPI_Initialized(&flag);
-       if (flag) MPI_Finalize();
-       exit(1);
+	std::cerr << "Error opening file: " << f << std::endl;
+	int flag;
+	MPI_Initialized(&flag);
+	if (flag) MPI_Finalize();
+	exit(1);
       }
+      
+      // read in file data
+      //
+      if (myid==0 and _verbose)
+	std::cout << "GadgetNative: reading " << f << " header...";
     
-    // read in file data
-    //
-    if (myid==0 and _verbose)
-      std::cout << "GadgetNative: reading " << _file[0] << " header...";
+      file.seekg(sizeof(int), std::ios::cur); // block count
     
-    file.seekg(sizeof(int), std::ios::cur); // block count
+      file.read((char*)&header, sizeof(gadget_header)); 
     
-    file.read((char*)&header, sizeof(gadget_header)); 
-    
-    if (myid==0 and _verbose) std::cout << "done" << std::endl;
-    
-    for (int n=0; n<6; n++) {
-      if (header.npart[n] > 0) ret.push_back(Ptypes[n]);
+      if (myid==0 and _verbose) std::cout << "done" << std::endl;
+      
+      for (int n=0; n<6; n++) {
+	nptot[n] += npart[n];
+	if (header.npart[n] > 0) pfound.insert(Ptypes[n]);
+      }
     }
     
-    return ret;
+    Pfound.clear();
+    for (auto p : pfound) Pfound.push_back(p);
   }
    
+
+  bool GadgetNative::nextFile()
+  {
+    if (curfile==_files.end()) false;
+    read_and_load();
+    curfile++;
+    return true;
+  }
 
   void GadgetNative::read_and_load()
   {
     // attempt to open file
     //
-    std::ifstream file(_file[0], std::ios::binary | std::ios::in);
+    std::ifstream file(*curfile, std::ios::binary | std::ios::in);
     if (!file.is_open()) {
       std::ostringstream ost;
-      ost << "Error opening file: " << _file[0];
+      ost << "Error opening file: " << *curfile;
       throw std::runtime_error(ost.str());
     }
     
     if (myid==0 and _verbose)
-      std::cout << "GadgetNative: opened <" << _file[0] << ">" << std::endl;
+      std::cout << "GadgetNative: opened <" << *curfile << ">" << std::endl;
     
     // read in file data
     //
@@ -237,7 +258,6 @@ namespace PR {
   
   const Particle* GadgetNative::firstParticle()
   {
-    if (not particles_read) read_and_load();
     pcount = 0;
     
     return &particles[pcount++];
@@ -248,6 +268,7 @@ namespace PR {
     if (pcount < particles.size()) {
       return &particles[pcount++];
     } else {
+      if (nextFile()) return firstParticle();
       return 0;
     }
   }
@@ -260,15 +281,23 @@ namespace PR {
   { {"Gas", 0}, {"Halo", 1}, {"Disk", 2}, {"Bulge", 3}, {"Stars", 4}, {"Bndry", 5}};
   
   
-  GadgetHDF5::GadgetHDF5(const std::vector<std::string>& file, bool verbose)
+  GadgetHDF5::GadgetHDF5(const std::vector<std::string>& files, bool verbose)
   {
-    _file    = file;
+    _files   = files;
     _verbose = verbose;
     
     ptype = 1;			// Default is halo particles
     particles_read = false;
+
+    getNumbers();
+    curfile = _files.begin();
+
+    if (not nextFile()) {
+      std::cerr << "GadgetNative: no files found" << std::endl;
+    }
   }
-  
+
+
   double GadgetHDF5::CurrentTime()
   {
     // Try to catch and HDF5 and parsing errors
@@ -278,7 +307,7 @@ namespace PR {
       // handle the errors appropriately
       H5::Exception::dontPrint();
       
-      const H5std_string FILE_NAME (_file[0]);
+      const H5std_string FILE_NAME (*curfile);
       const H5std_string GROUP_NAME_what ("/Header");
       
       H5::H5File    file( FILE_NAME, H5F_ACC_RDONLY );
@@ -316,75 +345,91 @@ namespace PR {
     return time;
   }
   
-  std::vector<std::string> GadgetHDF5::GetTypes()
+  void GadgetHDF5::getNumbers()
   {
-    std::vector<std::string> ret;
-    // Try to catch and HDF5 and parsing errors
-    //
-    try {
-      // Turn off the auto-printing when failure occurs so that we can
-      // handle the errors appropriately
-      H5::Exception::dontPrint();
-      
-      const H5std_string FILE_NAME (_file[0]);
-      const H5std_string GROUP_NAME_what ("/Header");
-      
-      H5::H5File    file( FILE_NAME, H5F_ACC_RDONLY );
-      H5::Group     what(file.openGroup( GROUP_NAME_what ));
-      
-      // Get time
-      {
-	H5::Attribute attr(what.openAttribute("Time"));
-	H5::DataType  type(attr.getDataType());
+    std::set<std::string> pfound;
+    std::fill(nptot, nptot+6, 0);
+
+    for (auto file : _files) {
+
+      // Try to catch and HDF5 and parsing errors
+      //
+      try {
+	// Turn off the auto-printing when failure occurs so that we can
+	// handle the errors appropriately
+	H5::Exception::dontPrint();
 	
-	attr.read(type, &time);
-      }
+	const H5std_string FILE_NAME (file);
+	const H5std_string GROUP_NAME_what ("/Header");
       
-      // Get Mass table
-      {
-	H5::Attribute attr(what.openAttribute("MassTable"));
-	H5::DataType  type(attr.getDataType());
+	H5::H5File    file( FILE_NAME, H5F_ACC_RDONLY );
+	H5::Group     what(file.openGroup( GROUP_NAME_what ));
+      
+	// Get time
+	{
+	  H5::Attribute attr(what.openAttribute("Time"));
+	  H5::DataType  type(attr.getDataType());
 	
-	attr.read(type, mass);
-      }
-      
-      // Get particle counts
-      {
-	H5::Attribute attr(what.openAttribute("NumPart_ThisFile"));
-	H5::DataType  type(attr.getDataType());
+	  attr.read(type, &time);
+	}
 	
-	attr.read(type, npart);
+	// Get Mass table
+	{
+	  H5::Attribute attr(what.openAttribute("MassTable"));
+	  H5::DataType  type(attr.getDataType());
+	  
+	  attr.read(type, mass);
+	}
+	
+	// Get particle counts
+	{
+	  H5::Attribute attr(what.openAttribute("NumPart_ThisFile"));
+	  H5::DataType  type(attr.getDataType());
+	
+	  attr.read(type, npart);
+	}
+	
+	for (int n=0; n<6; n++) {
+	  nptot[n] += npart[n];
+	  if (npart[n] > 0) pfound.insert(Ptypes[n]);
+	}
+	
       }
+      // end of try block
       
-      for (int n=0; n<6; n++) {
-	if (npart[n] > 0) ret.push_back(Ptypes[n]);
-      }
+      // catch failure caused by the H5File operations
+      catch(H5::FileIException error)
+	{
+	  error.printErrorStack();
+	}
       
-      return ret;
+      // catch failure caused by the DataSet operations
+      catch(H5::DataSetIException error)
+	{
+	  error.printErrorStack();
+	}
+      
+      // catch failure caused by the DataSpace operations
+      catch(H5::DataSpaceIException error)
+	{
+	  error.printErrorStack();
+	}
     }
-    // end of try block
-    
-    // catch failure caused by the H5File operations
-    catch(H5::FileIException error)
-      {
-	error.printErrorStack();
-      }
-    
-    // catch failure caused by the DataSet operations
-    catch(H5::DataSetIException error)
-      {
-	error.printErrorStack();
-      }
-    
-    // catch failure caused by the DataSpace operations
-    catch(H5::DataSpaceIException error)
-      {
-	error.printErrorStack();
-      }
-    
-    return ret;
+      
+    Pfound.clear();
+    for (auto p : pfound) Pfound.push_back(p);
   }
-  
+
+
+  bool GadgetHDF5::nextFile()
+  {
+    if (curfile==_files.end()) false;
+    read_and_load();
+    curfile++;
+    return true;
+  }
+
+
   void GadgetHDF5::read_and_load()
   {
     // Try to catch and HDF5 and parsing errors
@@ -394,7 +439,7 @@ namespace PR {
       // handle the errors appropriately
       H5::Exception::dontPrint();
       
-      const H5std_string FILE_NAME (_file[0]);
+      const H5std_string FILE_NAME (*curfile);
       const H5std_string GROUP_NAME_what ("/Header");
       
       H5::H5File    file( FILE_NAME, H5F_ACC_RDONLY );
@@ -573,7 +618,7 @@ namespace PR {
     catch(H5::FileIException error)
       {
 	std::ostringstream ost;
-	ost << "Error opening HDF5 file: " << _file[0];
+	ost << "Error opening HDF5 file: " << *curfile;
 	throw std::runtime_error(ost.str());
       }
     
@@ -592,7 +637,6 @@ namespace PR {
   
   const Particle* GadgetHDF5::firstParticle()
   {
-    if (not particles_read) read_and_load();
     pcount = 0;
     
     return & particles[pcount++];
@@ -602,8 +646,10 @@ namespace PR {
   {
     if (pcount < particles.size()) {
       return & particles[pcount++];
-    } else
-      return 0;
+    } else {
+      if (nextFile()) return firstParticle();
+      else return 0;
+    }
   }
   
   
@@ -1368,17 +1414,17 @@ namespace PR {
 
       if (ps->gas_particles.size() ) {
 	types.insert("Gas");
-	Ngas = ps->gas_particles.size();
+	Ngas += ps->gas_particles.size();
       }
 
       if (ps->dark_particles.size()) {
 	types.insert("Dark");
-	Ndark = ps->dark_particles.size();
+	Ndark += ps->dark_particles.size();
       }
 
       if (ps->star_particles.size()) {
 	types.insert("Star");
-	Nstar = ps->star_particles.size();
+	Nstar += ps->star_particles.size();
       }
 
     }

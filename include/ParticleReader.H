@@ -86,16 +86,26 @@ namespace PR
     double time;
     std::vector<Particle> particles;
     bool particles_read, _verbose;
-    std::vector<std::string> _file;
+    std::vector<std::string> _files;
+
     double mass[6];
-    
+    int npart[6], nptot[6];
+
+    //! Current file
+    std::vector<std::string>::iterator curfile;
+
     static std::vector<std::string> Ptypes;
     static std::unordered_map<std::string, int> findP;
+    std::vector<std::string> Pfound;
     int ptype;
     
     unsigned pcount;
     void read_and_load();
     
+    void getNumbers();
+    void packParticle();
+    bool nextFile();
+
   public:
     
     //! Constructor
@@ -119,7 +129,7 @@ namespace PR
     unsigned long CurrentNumber() { return totalCount; }
     
     //! Return list of particle types
-    std::vector<std::string> GetTypes();
+    std::vector<std::string> GetTypes() { return Pfound; }
     
     //! Get current time
     double CurrentTime();
@@ -141,18 +151,27 @@ namespace PR
     double time;
     std::vector<Particle> particles;
     bool particles_read, _verbose;
-    std::vector<std::string> _file;
+    std::vector<std::string> _files;
+
     double mass[6];
-    int npart[6];
+    int npart[6], nptot[6];
     
     
+    //! Current file
+    std::vector<std::string>::iterator curfile;
+
     static std::vector<std::string> Ptypes;
     static std::unordered_map<std::string, int> findP;
+    std::vector<std::string> Pfound;
     int ptype;
     
     unsigned pcount;
     void read_and_load();
     
+    void getNumbers();
+    void packParticle();
+    bool nextFile();
+
   public:
     
     //! Constructor
@@ -175,7 +194,7 @@ namespace PR
     unsigned long CurrentNumber() { return totalCount; }
     
     //! Return list of particle types
-    std::vector<std::string> GetTypes();
+    std::vector<std::string> GetTypes() { return Pfound; }
     
     //! Get current time
     double CurrentTime();
