@@ -292,7 +292,7 @@ int main(int argc, char** argv)
 
 	for (int n1=0; n1<nmax; n1++) {
 
-	  for (int n2=n1; n2<nmax; n2++) {
+	  for (int n2=0; n2<nmax; n2++) {
 	    
 	    double x, r, ans=0.0;
 	    for (int i=0; i<num; i++) {
@@ -306,7 +306,7 @@ int main(int argc, char** argv)
 	      
 	    }
 	    
-	    orthochk(n1, n2) = orthochk(n2, n1) = ans;
+	    orthochk(n1, n2) = ans;
 	  }
 	}
 
