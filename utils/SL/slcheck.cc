@@ -32,7 +32,7 @@ int main(int argc, char** argv)
    ("logr", "logarithmic spacing for orthogonality check",
      cxxopts::value<bool>(use_logr)->default_value("false"))
    ("cmap", "coordinates in SphereSL: use mapped (1) or linear(0) coordinates",
-     cxxopts::value<int>(cmap)->default_value("0"))
+     cxxopts::value<int>(cmap)->default_value("1"))
    ("Lmax", "maximum number of angular harmonics in the expansion",
      cxxopts::value<int>(Lmax)->default_value("2"))
    ("nmax", "maximum number of radial harmonics in the expansion",
