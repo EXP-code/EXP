@@ -43,34 +43,7 @@ namespace PR {
       std::cerr << "GadgetNative: no files found" << std::endl;
     }
   }
-  
-  double GadgetNative::CurrentTime()
-  {
-    // attempt to open file
-    //
-    std::ifstream file(*curfile, std::ios::binary | std::ios::in);
-    if (!file.is_open())
-      {
-	std::cerr << "Error opening file: " << *curfile << std::endl;
-	int flag;
-	MPI_Initialized(&flag);
-	if (flag) MPI_Finalize();
-	exit(1);
-      }
-    
-    // read in file data
-    //
-    if (myid==0 and _verbose)
-      std::cout << "GadgetNative: reading " << *curfile << " header...";
-    
-    file.seekg(sizeof(int), std::ios::cur); // block count
-    
-    file.read((char*)&header, sizeof(gadget_header)); 
-    
-    if (myid==0 and _verbose) std::cout << "done" << std::endl;
-    
-    return header.time;
-  }
+
 
   void GadgetNative::getNumbers()
   {
@@ -115,7 +88,7 @@ namespace PR {
 
   bool GadgetNative::nextFile()
   {
-    if (curfile==_files.end()) false;
+    if (curfile==_files.end()) return false;
     read_and_load();
     curfile++;
     return true;
@@ -297,54 +270,6 @@ namespace PR {
     }
   }
 
-
-  double GadgetHDF5::CurrentTime()
-  {
-    // Try to catch and HDF5 and parsing errors
-    //
-    try {
-      // Turn off the auto-printing when failure occurs so that we can
-      // handle the errors appropriately
-      H5::Exception::dontPrint();
-      
-      const H5std_string FILE_NAME (*curfile);
-      const H5std_string GROUP_NAME_what ("/Header");
-      
-      H5::H5File    file( FILE_NAME, H5F_ACC_RDONLY );
-      H5::Group     what(file.openGroup( GROUP_NAME_what ));
-      
-      // Get time
-      {
-	H5::Attribute attr(what.openAttribute("Time"));
-	H5::DataType  type(attr.getDataType());
-	
-	attr.read(type, &time);
-	return time;
-      }
-    }
-    // end of try block
-    
-    // catch failure caused by the H5File operations
-    catch(H5::FileIException error)
-      {
-	error.printErrorStack();
-      }
-    
-    // catch failure caused by the DataSet operations
-    catch(H5::DataSetIException error)
-      {
-	error.printErrorStack();
-      }
-    
-    // catch failure caused by the DataSpace operations
-    catch(H5::DataSpaceIException error)
-      {
-	error.printErrorStack();
-      }
-    
-    return time;
-  }
-  
   void GadgetHDF5::getNumbers()
   {
     std::set<std::string> pfound;
@@ -423,7 +348,7 @@ namespace PR {
 
   bool GadgetHDF5::nextFile()
   {
-    if (curfile==_files.end()) false;
+    if (curfile==_files.end()) return false;
     read_and_load();
     curfile++;
     return true;
@@ -469,7 +394,7 @@ namespace PR {
 	attr.read(type, npart);
       }
       
-      if (npart[ptype]>0.0) {
+      if (npart[ptype]>0) {
 	std::ostringstream sout;
 	sout << "PartType" << ptype;
 	
@@ -539,37 +464,43 @@ namespace PR {
 	}
 	
 	dataspace.close();
-	dataset.close();
 	
 	// Try to get Masses.  This will override the assignment from
-	// the headerif the data exists.
+	// the header if the data exists.
 	//
-	dataset = grp.openDataSet("Masses");
+	try {
+	  dataset = grp.openDataSet("Masses");
 	
-	if (myid==0 and _verbose)
-	  std::cout << "GadgetHDF5: mass storage size="
-		    << dataset.getStorageSize() << std::endl;
-	
-	if (dataset.getStorageSize()) {
+	  if (myid==0 and _verbose)
+	    std::cout << "GadgetHDF5: mass storage size="
+		      << dataset.getStorageSize() << std::endl;
 	  
-	  dataspace = dataset.getSpace();
+	  if (dataset.getStorageSize()) {
+	    
+	    dataspace = dataset.getSpace();
+	    
+	    int rank = dataspace.getSimpleExtentNdims();
+	    
+	    hsize_t dims[rank];
+	    
+	    int ndims = dataspace.getSimpleExtentDims(dims, NULL);
+	    
+	    H5::DataSpace mspace(rank, dims);
+	    
+	    std::vector<float> masses(dims[0]);
+	    dataset.read(&masses[0], H5::PredType::NATIVE_FLOAT, mspace, dataspace );
 	  
-	  int rank = dataspace.getSimpleExtentNdims();
-	  
-	  hsize_t dims[rank];
-	  
-	  int ndims = dataspace.getSimpleExtentDims(dims, NULL);
-	  
-	  H5::DataSpace mspace(rank, dims);
-	  
-	  std::vector<float> masses(dims[0]);
-	  dataset.read(&masses[0], H5::PredType::NATIVE_FLOAT, mspace, dataspace );
-	  
-	  auto it = particles.begin();
-	  for (int n=0; n<dims[0]; n++) {
-	    if (n % numprocs == myid) (it++)->mass = masses[n];
+	    auto it = particles.begin();
+	    for (int n=0; n<dims[0]; n++) {
+	      if (n % numprocs == myid) (it++)->mass = masses[n];
+	    }
 	  }
 	}
+	catch(H5::GroupIException error)
+	  {
+	    error.printErrorStack();
+	  }
+
 	
 	dataspace.close();
 	dataset.close();
@@ -1435,7 +1366,7 @@ namespace PR {
 
   bool Tipsy::nextFile()
   {
-    if (curfile==files.end()) false;
+    if (curfile==files.end()) return false;
     ps = std::make_shared<TipsyXDR::TipsyFile>(*curfile);
     ps->readParticles();
     curfile++;

@@ -134,13 +134,13 @@ namespace PR
     std::vector<std::string> GetTypes() { return Pfound; }
     
     //! Get current time
-    double CurrentTime();
+    double CurrentTime() { return time; }
     
     //! Reset to beginning of particles for this component
-    const Particle* firstParticle();
+    virtual const Particle* firstParticle();
     
     //! Get the next particle
-    const Particle* nextParticle();
+    virtual const Particle* nextParticle();
     
   };
   
@@ -180,7 +180,7 @@ namespace PR
     GadgetHDF5(const std::vector<std::string>& file, bool verbose=false);
     
     //! Select a particular particle type and reset the iterator
-    void SelectType(const std::string& type) {
+    virtual void SelectType(const std::string& type) {
       auto it = findP.find(type);
       if (it != findP.end()) ptype = it->second;
       else {
@@ -195,19 +195,19 @@ namespace PR
     }
     
     //! Number of particles in the chosen type
-    unsigned long CurrentNumber() { return totalCount; }
+    virtual unsigned long CurrentNumber() { return totalCount; }
     
     //! Return list of particle types
-    std::vector<std::string> GetTypes() { return Pfound; }
+    virtual std::vector<std::string> GetTypes() { return Pfound; }
     
     //! Get current time
-    double CurrentTime();
+    virtual double CurrentTime() { return time; }
     
     //! Reset to beginning of particles for this component
-    const Particle* firstParticle();
+    virtual const Particle* firstParticle();
     
     //! Get the next particle
-    const Particle* nextParticle();
+    virtual const Particle* nextParticle();
     
   };
   

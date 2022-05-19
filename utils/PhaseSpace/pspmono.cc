@@ -139,10 +139,10 @@ main(int argc, char **argv)
 
     try {
       psp = PR::ParticleReader::createReader(fileType, {INFILE[n]}, myid, true);
-  
-      time = psp->CurrentTime();
 
       psp->SelectType(COMP);
+
+      time = psp->CurrentTime();
 
       if (myid==0) {
 	std::cout << "File: " << INFILE[n] << std::endl;
