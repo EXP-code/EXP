@@ -50,6 +50,7 @@ find_package(FFTW)
 find_package(VTK)
 find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
 find_package(SLURM)
+find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
 if(ENABLE_CUDA)
   find_package(CUDA REQUIRED)
@@ -68,12 +69,6 @@ if(ENABLE_CUDA)
 endif()
 
 find_package(PNG)
-
-# Check for Sun rpc support
-include(CheckIncludeFile)
-include(FindPkgConfig)
-pkg_check_modules(TIRPC libtirpc)
-check_include_file("rpc/types.h" HAVE_RPC_TYPES)
 
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
@@ -119,6 +114,11 @@ if(ENABLE_CUDA_SINGLE)
 endif()
 if(TIRPC_FOUND OR HAVE_RPC_TYPES)
   set(HAVE_XDR TRUE CACHE BOOL "We have an XDR implementation")
+endif()
+
+if(NOT TIRPC_FOUND)
+  include(CheckIncludeFile)
+  check_include_file("rpc/types.h" HAVE_RPC_TYPES)
 endif()
 
 # For setting the default size of the Cuda real attribute array
