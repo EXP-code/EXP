@@ -61,7 +61,7 @@ if(HAVE_VTK)
   add_executable(psp2vtu psp2vtu.cc PSP.cc)
 endif()
 
-if(HAVE_XDR OR HAVE_TIRPC)
+if(HAVE_XDR)
   add_executable(tipstd2psp tipstd2psp.cc PSP.cc tipsyxdr.c)
 endif()
 
@@ -71,8 +71,9 @@ foreach(program ${bin_PROGRAMS})
   install(TARGETS ${program} DESTINATION bin)
 endforeach()
 
+# Reset tipstd2psp targets for TIRPC
 if(HAVE_TIRPC)
-  target_link_libraries(tipstd2psp ${TIRPC_LIBRARIES})
-  include_directories(tipstd2psp ${TIRPC_INCLUDE_DIRS})
+  target_link_libraries(tipstd2psp ${common_LINKLIB} ${TIRPC_LDFLAGS})
+  target_include_directories(tipstd2psp PUBLIC ${common_INCLUDE} ${TIRPC_INCLUDE_DIR})
 endif()
 

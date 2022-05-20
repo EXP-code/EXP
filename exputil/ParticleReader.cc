@@ -1314,7 +1314,19 @@ namespace PR {
     else if (reader.find("GadgetHDF5") == 0)
       return std::make_shared<GadgetHDF5>(file, verbose);
     else if (reader.find("Tipsy") == 0)
+#ifdef HAVE_XDR
       return std::make_shared<Tipsy>(file, verbose);
+#else
+    {
+      if (myid==0) {
+	std::cout << "ParticleReader: your build does not have RPC " 
+		  << "support so Tipsy reading is not available." << std::endl
+		  << "Try installing the libtirpc package for your "
+		  << "distribution or from Sourceforge directly." << std::endl;
+      }
+      exit(1);
+    }
+#endif
     else {
       if (myid==0) {
 	std::cout << "ParticleReader: I don't know about reader <" << reader

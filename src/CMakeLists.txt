@@ -50,6 +50,10 @@ if(SLURM_FOUND)
   list(APPEND common_LINKLIB ${SLURM_LIBRARY})
 endif()
 
+if(TIRPC_FOUND)
+  list(APPEND common_LINKLIB ${TIRPC_LIBRARY})
+endif()
+
 add_library(EXP ${exp_SOURCES})
 set_target_properties(EXP PROPERTIES OUTPUT_NAME EXP)
 target_include_directories(EXP PUBLIC ${common_INCLUDE_DIRS})

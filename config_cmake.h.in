@@ -22,6 +22,9 @@
 /* Define to 1 if you have the `slurm' library (-lslurm). */
 #cmakedefine HAVE_LIBSLURM @LIBSLURM_FOUND@
 
+/* Defined if you have 'xdr' support */
+#cmakedefine HAVE_XDR @HAVE_XDR@
+
 /* Define if you have the <omp.h> header file. */
 #cmakedefine HAVE_OMP_H
 

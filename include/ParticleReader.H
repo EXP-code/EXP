@@ -15,12 +15,16 @@
 
 #include <mpi.h>
 
+#include <config.h>
+
 #include <StringTok.H>
 #include <header.H>
 #include <Particle.H>
 #include <gadget.H>
-#include <tipsy.H>
 
+#ifdef HAVE_XDR
+#include <tipsy.H>
+#endif
 
 namespace PR
 {
@@ -453,6 +457,7 @@ namespace PR
     
   };
   
+#ifdef HAVE_XDR
   /**
      Class to access a Tipsy file
   */
@@ -521,7 +526,7 @@ namespace PR
     virtual const Particle* nextParticle();
     //@}
   };
-  
+#endif  
 
   typedef std::shared_ptr<ParticleReader> PRptr;
 }

@@ -4,17 +4,17 @@
 # Find the native TIRPC includes and library.
 #
 # Result Variables
-# ^^^^^^^^^^^^^^^^
+# ----------------
 #
 # This module will set the following variables in your project:
 #
-# ``TIRPC_INCLUDE_DIRS``
+# 'TIRPC_INCLUDE_DIRS'
 #   where to find rpc.h, etc.
-# ``TIRPC_LIBRARIES``
+# 'TIRPC_LIBRARIES'
 #   the libraries to link against to use TIRPC.
-# ``TIRPC_VERSION``
+# 'TIRPC_VERSION'
 #   the version of TIRPC found.
-# ``TIRPC_FOUND``
+# 'TIRPC_FOUND'
 #   true if the TIRPC headers and libraries were found.
 #
 
@@ -60,9 +60,9 @@ find_package_handle_standard_args(TIRPC
   )
 
 if(TIRPC_FOUND)
-  set(TIRPC_LIBRARIES "${SLURM_LIBRARY}")
-  set(TIRPC_INCLUDE_DIRS "${SLURM_INCLUDE_DIR}")
-  set(TIRPC_DEFINITIONS "${PC_SLURM_CFLAGS_OTHER}")
+  set(TIRPC_LIBRARIES "${TIRPC_LIBRARY}")
+  set(TIRPC_INCLUDE_DIRS "${TIRPC_INCLUDE_DIR}")
+  set(TIRPC_DEFINITIONS "${PC_TIRPC_CFLAGS_OTHER}")
 
   add_library(TIRPC::TIRPC UNKNOWN IMPORTED)
   set_target_properties(TIRPC::TIRPC
