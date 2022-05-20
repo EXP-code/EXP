@@ -19,7 +19,7 @@
 #
 
 find_package(PkgConfig)
-pkg_check_modules(PC_TIRPC TIRPC)
+pkg_check_modules(PC_TIRPC QUIET TIRPC)
 
 find_path(
   TIRPC_INCLUDE_DIR
