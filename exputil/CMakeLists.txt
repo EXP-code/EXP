@@ -67,4 +67,3 @@ install(TARGETS exputil DESTINATION lib)
 # HDF5 info
 
 message(STATUS "HDF5 include dirs: ${HDF5_INCLUDE_DIRS}")
-message(STATUS "exputils include dirs: ${common_INCLUDE_DIRS}")

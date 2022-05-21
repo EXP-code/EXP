@@ -124,10 +124,10 @@ if(TIRPC_FOUND)
 endif()
 if(TIRPC_FOUND OR HAVE_RPC_TYPES)
   set(HAVE_XDR TRUE CACHE BOOL "We have an XDR implementation")
+  message(STATUS "We have an XDR implementation; Tipsy standard files will be supported")
 endif()
 if(NOT HAVE_XDR)
-  message(STATUS "Could NOT find RPC support
-; you will not be able to read Tipsy files")
+  message(STATUS "Could NOT find RPC support; you will not be able to read Tipsy files")
 endif()
 
 # For setting the default size of the Cuda real attribute array

@@ -8,6 +8,10 @@ if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
 endif()
 
+if(TIRPC_FOUND)
+  list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
+endif()
+
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/DSMC/>
