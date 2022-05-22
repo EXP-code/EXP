@@ -22,9 +22,7 @@
 #include <Particle.H>
 #include <gadget.H>
 
-#ifdef HAVE_XDR
 #include <tipsy.H>
-#endif
 
 namespace PR
 {
@@ -457,12 +455,16 @@ namespace PR
     
   };
   
-#ifdef HAVE_XDR
   /**
      Class to access a Tipsy file
   */
   class Tipsy : public ParticleReader
   {
+
+  public:
+
+    enum class TipsyType { native, xdr, bonsai };
+
   private:
     //! List of files
     std::vector<std::string> files;
@@ -471,7 +473,7 @@ namespace PR
     std::vector<std::string>::iterator curfile;
 
     //! Pointer to Tipsy particle structures
-    std::shared_ptr<TipsyXDR::TipsyFile> ps;
+    std::shared_ptr<TipsyReader::TipsyFile> ps;
 
     //! Temporary for packing array
     Particle P;
@@ -484,6 +486,9 @@ namespace PR
     
     //! Totals
     unsigned long Ngas, Ndark, Nstar;
+
+    //! Tipsy file type
+    TipsyType ttype;
 
   protected:
 
@@ -500,10 +505,14 @@ namespace PR
   public:
     
     //! Single-file constructor
-    Tipsy(const std::string& file, bool verbose=false);
+    Tipsy(const std::string& file,
+	  TipsyType type=TipsyType::native,
+	  bool verbose=false);
     
     //! Constructor
-    Tipsy(const std::vector<std::string>& file, bool verbose=false);
+    Tipsy(const std::vector<std::string>& file,
+	  TipsyType type=TipsyType::native,
+	  bool verbose=false);
     
     //! Destructor
     virtual ~Tipsy() {}
@@ -526,7 +535,6 @@ namespace PR
     virtual const Particle* nextParticle();
     //@}
   };
-#endif  
 
   typedef std::shared_ptr<ParticleReader> PRptr;
 }

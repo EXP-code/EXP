@@ -1242,7 +1242,7 @@ namespace PR {
   
   
   std::vector<std::string> ParticleReader::readerTypes
-  {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "Tipsy"};
+  {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "TipsyNative", "TipsyXDR", "Bonsai"};
   
   
   std::vector<std::vector<std::string>>
@@ -1313,20 +1313,25 @@ namespace PR {
       return std::make_shared<GadgetNative>(file, verbose);
     else if (reader.find("GadgetHDF5") == 0)
       return std::make_shared<GadgetHDF5>(file, verbose);
-    else if (reader.find("Tipsy") == 0)
+    else if (reader.find("TipsyNative") == 0)
+      return std::make_shared<Tipsy>(file, Tipsy::TipsyType::native, verbose);
+    else if (reader.find("TipsyXDR") == 0)
 #ifdef HAVE_XDR
-      return std::make_shared<Tipsy>(file, verbose);
+      return std::make_shared<Tipsy>(file, Tipsy::TipsyType::xdr, verbose);
 #else
     {
       if (myid==0) {
-	std::cout << "ParticleReader: your build does not have RPC " 
-		  << "support so Tipsy reading is not available." << std::endl
+	std::cout << "ParticleReader: your build does not have RPC/XDR " 
+		  << "support so Tipsy standard reading is not available." << std::endl
 		  << "Try installing the libtirpc package for your "
-		  << "distribution or from Sourceforge directly." << std::endl;
+		  << "distribution or from Sourceforge directly or "
+		  << "use Tipsy native format." << std::endl;
       }
       exit(1);
     }
 #endif
+    else if (reader.find("Bonsai") == 0)
+      return std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai, verbose);
     else {
       if (myid==0) {
 	std::cout << "ParticleReader: I don't know about reader <" << reader
@@ -1353,7 +1358,15 @@ namespace PR {
 
     for (auto file : files) {
 
-      ps = std::make_shared<TipsyXDR::TipsyFile>(*curfile);
+      // Make a tipsy native reader
+      if (ttype == TipsyType::native)
+	ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, false);
+      // Native tipsy with ID conversion
+      else if (ttype == TipsyType::bonsai)
+	ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, true);
+      // Make a tipsy xdr reader
+      else
+	ps = std::make_shared<TipsyReader::TipsyXDR>(*curfile);
 
       if (ps->gas_particles.size() ) {
 	types.insert("Gas");
@@ -1379,14 +1392,21 @@ namespace PR {
   bool Tipsy::nextFile()
   {
     if (curfile==files.end()) return false;
-    ps = std::make_shared<TipsyXDR::TipsyFile>(*curfile);
+    
+    if (ttype == TipsyType::native)
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
+    else
+      ps = std::make_shared<TipsyReader::TipsyXDR>(*curfile);
+
     ps->readParticles();
     curfile++;
     return true;
   }
 
-  Tipsy::Tipsy(const std::string& file, bool verbose)
+  Tipsy::Tipsy(const std::string& file, TipsyType Type,
+	       bool verbose)
   {
+    ttype = Type;
     files.push_back(file);
     getNumbers();
     curfile = files.begin();
@@ -1395,8 +1415,10 @@ namespace PR {
     }
   }
   
-  Tipsy::Tipsy(const std::vector<std::string>& filelist, bool verbose)
+  Tipsy::Tipsy(const std::vector<std::string>& filelist, TipsyType Type,
+	       bool verbose)
   {
+    ttype = Type;
     files = filelist;
     getNumbers();
     curfile = files.begin();
@@ -1412,9 +1434,7 @@ namespace PR {
 		<< std::endl;
     } else {
       curName = name;
-      if (curName == "Gas" ) ps->xdr_gas();
-      if (curName == "Dark") ps->xdr_dark();
-      if (curName == "Star") ps->xdr_star();
+      ps->readParticles();
     }
 
     curfile = files.begin();	// Set to first file and open
@@ -1430,6 +1450,7 @@ namespace PR {
 	P.pos[k] = ps->gas_particles[pcount].pos[k];
 	P.vel[k] = ps->gas_particles[pcount].vel[k];
       }
+      if (ttype == TipsyType::bonsai) P.indx = ps->gas_particles[pcount].ID();
       pcount++;
       return;
     }
@@ -1441,6 +1462,7 @@ namespace PR {
 	P.pos[k] = ps->dark_particles[pcount].pos[k];
 	P.vel[k] = ps->dark_particles[pcount].vel[k];
       }
+      if (ttype == TipsyType::bonsai) P.indx = ps->dark_particles[pcount].ID();
       pcount++;
       return;
     }
@@ -1452,6 +1474,7 @@ namespace PR {
 	P.pos[k] = ps->star_particles[pcount].pos[k];
 	P.vel[k] = ps->star_particles[pcount].vel[k];
       }
+      if (ttype == TipsyType::bonsai) P.indx = ps->star_particles[pcount].ID();
       pcount++;
       return;
     }
