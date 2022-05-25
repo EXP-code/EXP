@@ -1322,7 +1322,8 @@ namespace PR {
     {
       if (myid==0) {
 	std::cout << "ParticleReader: your build does not have RPC/XDR " 
-		  << "support so Tipsy standard reading is not available." << std::endl
+		  << "support so Tipsy standard reading is not available."
+		  << std::endl
 		  << "Try installing the libtirpc package for your "
 		  << "distribution or from Sourceforge directly or "
 		  << "use Tipsy native format." << std::endl;
@@ -1330,6 +1331,7 @@ namespace PR {
       exit(1);
     }
 #endif
+
     else if (reader.find("Bonsai") == 0)
       return std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai, verbose);
     else {
@@ -1365,8 +1367,13 @@ namespace PR {
       else if (ttype == TipsyType::bonsai)
 	ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, true);
       // Make a tipsy xdr reader
-      else
+      else {
+#ifdef HAVE_XDR
 	ps = std::make_shared<TipsyReader::TipsyXDR>(*curfile);
+#else
+	ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, false);
+#endif
+      }
 
       if (ps->gas_particles.size() ) {
 	types.insert("Gas");
@@ -1394,9 +1401,16 @@ namespace PR {
     if (curfile==files.end()) return false;
     
     if (ttype == TipsyType::native)
-      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
-    else
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, false);
+    else if (ttype == TipsyType::bonsai)
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, true);
+    else {
+#ifdef HAVE_XDR
       ps = std::make_shared<TipsyReader::TipsyXDR>(*curfile);
+#else
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile), false;
+#endif
+    }
 
     ps->readParticles();
     curfile++;

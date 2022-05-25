@@ -1,9 +1,6 @@
 #ifndef _tipsy_H
 #define _tipsy_H
 
-#include <rpc/types.h>
-#include <rpc/xdr.h>
-
 // Forward declare PR::Tipsy so it can friend TipsyFile
 //
 namespace PR {
@@ -17,15 +14,16 @@ namespace TipsyReader
   using Real = float;
 
   struct gas_particle {
-    Real mass;
+    Real mass   ;
     Real pos[MAXDIM];
     Real vel[MAXDIM];
-    Real rho;
-    Real temp;
+    Real rho    ;
+    Real temp   ;
     Real hsmooth;
-    Real metals;
-    Real phi;
+    Real metals ;
+    Real phi    ;
   public:
+    //! Convert phi to index
     int ID() const {
       union id {Real v; int i;} u;
       u.v = phi; return u.i;
@@ -33,12 +31,13 @@ namespace TipsyReader
   } ;
 
   struct dark_particle {
-    Real mass;
+    Real mass   ;
     Real pos[MAXDIM];
     Real vel[MAXDIM];
-    Real eps;
-    Real phi;
+    Real eps    ;
+    Real phi    ;
   public:
+    //! Convert phi to index
     int ID() const {
       union id {Real v; int i;} u;
       u.v = phi; return u.i;
@@ -46,27 +45,29 @@ namespace TipsyReader
   } ;
 
   struct star_particle {
-    Real mass;
+    Real mass   ;
     Real pos[MAXDIM];
     Real vel[MAXDIM];
     Real metals ;
     Real tform  ;
-    Real eps ;
-    Real phi ;
+    Real eps    ;
+    Real phi    ;
   public:
+    //! Convert phi to index
     int ID() const {
       union id {Real v; int i;} u;
       u.v = phi; return u.i;
     }
   } ;
   
-  struct dump {
+  struct Header
+  {
     double time ;
     int nbodies ;
-    int ndim  ;
-    int nsph  ;
-    int ndark ;
-    int nstar ;
+    int ndim    ;
+    int nsph    ;
+    int ndark   ;
+    int nstar   ;
     int version ;
   } ;
   
@@ -84,12 +85,17 @@ namespace TipsyReader
     std::vector<gas_particle>  gas_particles;
     std::vector<dark_particle> dark_particles;
     std::vector<star_particle> star_particles;
-    dump header;
+    Header header;
 
     virtual int readParticles() = 0;
 
     virtual ~TipsyFile() {}
   };
+
+#ifdef HAVE_XDR
+
+#include <rpc/types.h>
+#include <rpc/xdr.h>
 
   class TipsyXDR : public TipsyFile
   {
@@ -205,6 +211,8 @@ namespace TipsyReader
     }
     
   };
+#endif
+
 
   class TipsyNative : public TipsyFile
   {
