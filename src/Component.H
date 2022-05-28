@@ -318,6 +318,9 @@ protected:
   //! Use center from this component
   Component *c0;
 
+  //! Locagte centering component
+  void find_ctr_component();
+
   //! Name of the centering component
   std::string ctr_name;
 
