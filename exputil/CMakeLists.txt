@@ -54,6 +54,7 @@ if(CUDA_FOUND)
 endif()
 
 if(TIRPC_FOUND)
+  list(APPEND common_INCLUDE_DIRS ${TIRPC_INCLUDE_DIRS})
   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
 endif()
 

@@ -142,7 +142,8 @@ Component::Component(YAML::Node& CONF)
 
   com_system  = false;
   com_log     = false;
-  c0          = NULL;		// Default component pointer
+  c0          = NULL;		// Component for centering (null by
+				// default)
 
 #if HAVE_LIBCUDA==1
   bunchSize   = 100000;
@@ -196,10 +197,29 @@ Component::Component(YAML::Node& CONF)
 
   configure();
   
+  find_ctr_component();
+
+  initialize_cuda();
+
+  read_bodies_and_distribute_ascii();
+
+  reset_level_lists();
+
+  modified = 0;
+}
+
+void Component::find_ctr_component()
+{
+  // Unregister component
+  //
+  c0 = 0;
+
   // Search for centering component 
   //
   if (ctr_name.size()>0) {
-				// Look for the fiducial component
+
+    // Look for the fiducial component
+    //
     bool found = false;
     for (auto c : comp->components) {
       if ( !ctr_name.compare(c->name) ) {
@@ -215,15 +235,8 @@ Component::Component(YAML::Node& CONF)
       MPI_Abort(MPI_COMM_WORLD, 38);
     }
   }
-
-  initialize_cuda();
-
-  read_bodies_and_distribute_ascii();
-
-  reset_level_lists();
-
-  modified = 0;
 }
+
 
 void Component::set_default_values()
 {
@@ -636,7 +649,8 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   com_system  = false;
   com_log     = false;
   com_restart = 0;
-
+  c0          = NULL;		// Component for centering (null by
+				// default)
 #if HAVE_LIBCUDA==1
   bunchSize   = 100000;
 #endif
@@ -669,6 +683,8 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   blocking    = false;
 
   configure();
+
+  find_ctr_component();
 
   initialize_cuda();
 
