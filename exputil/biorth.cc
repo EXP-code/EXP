@@ -354,7 +354,6 @@ double HQSphere::r_to_rb(double r)
 
 
 Eigen::VectorXd sbessjz(int, int);
-double jn_sph(int, double);
 
 BSSphere::BSSphere(double RMAX, int NMAX, int LMAX) : AxiSymBiorth(3) {
   
@@ -386,8 +385,8 @@ double BSSphere::potl(int n, int l, double r)
   if (l > lmax) bomb("potl: l too large");
   if (n > nmax) bomb("potl: n too large");
 
-  return M_SQRT2/fabs(a[l][n]*jn_sph(l,a[l][n])) * pow(rmax,-0.5) *
-    jn_sph(l, a[l][n]*r/rmax);
+  return M_SQRT2/fabs(a[l][n]*std::sph_bessel(l, a[l][n])) * pow(rmax,-0.5) *
+    std::sph_bessel(l, a[l][n]*r/rmax);
 }
 
 
@@ -405,11 +404,11 @@ void BSSphere::setup_potl_table(void)
 
     int i;
     for (i=0; i<=t_n; i++) 
-      t_y(l, i) = jn_sph(l, t_dr[l]*i);
+      t_y(l, i) = std::sph_bessel(l, t_dr[l]*i);
 
     for (i=1; i<=nmax; i++) {
-      t_f(l, i) = M_SQRT2/fabs(a[l][i]*jn_sph(l,a[l][i])) * pow(rmax,-0.5);
-      t_g(l, i) = M_SQRT2*fabs(a[l][i]/jn_sph(l,a[l][i])) * pow(rmax,-2.5);
+      t_f(l, i) = M_SQRT2/fabs(a[l][i]*std::sph_bessel(l, a[l][i])) * pow(rmax,-0.5);
+      t_g(l, i) = M_SQRT2*fabs(a[l][i]/std::sph_bessel(l, a[l][i])) * pow(rmax,-2.5);
     }
   }
 
@@ -444,8 +443,8 @@ double BSSphere::dens(int n, int l, double r)
   if (l > lmax) bomb("dens: l too large");
   if (n > nmax) bomb("dens: n too large");
 
-  return a[l][n]*M_SQRT2/fabs(jn_sph(l,a[l][n])) * pow(rmax,-2.5) * 
-    jn_sph(l, a[l][n]*r/rmax);
+  return a[l][n]*M_SQRT2/fabs(std::sph_bessel(l,a[l][n])) * pow(rmax,-2.5) * 
+    std::sph_bessel(l, a[l][n]*r/rmax);
 
 }
 

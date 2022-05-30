@@ -1,5 +1,7 @@
 #include "expand.H"
 
+#include <cmath>
+
 #include <interp.H>
 #include <Bessel.H>
 
@@ -17,29 +19,7 @@ Bessel::Bessel(Component* c0, const YAML::Node& conf, MixtureBasis* m) : Spheric
   setup();
 }
 
-
-Bessel::~Bessel(void)
-{
-  delete p;
-}
-
-void Bessel::initialize()
-{
-}
-
-/*
-double Bessel::norm(int l, int n)
-{
-  return 1.0;
-}
-
-double Bessel::knl(int l, int n)
-{
-  return 1.0;
-}
-*/
-				/* Get potential functions by from table */
-
+// Get potential functions by from table
 void Bessel::get_dpotl(int lmax, int nmax, double r, 
 		       Eigen::MatrixXd& p, Eigen::MatrixXd& dp, int tid)
 {
@@ -155,8 +135,8 @@ double Bessel::dens(double r, int n)
     throw GenericError("Routine dens() called with n out of bounds", __FILE__, __LINE__);
 
   alpha = p->a[n];
-  return alpha*M_SQRT2/fabs(sbessj(p->l,alpha)) * pow(rmax,-2.5) *
-    sbessj(p->l,alpha*r/rmax);
+  return alpha*M_SQRT2/fabs(std::sph_bessel(p->l, alpha)) * pow(rmax,-2.5) *
+    std::sph_bessel(p->l, alpha*r/rmax);
 }
 
 double Bessel::potl(double r, int n)
@@ -167,8 +147,8 @@ double Bessel::potl(double r, int n)
     throw GenericError("Routine potl() called with n out of bounds", __FILE__, __LINE__);
 
   alpha = p->a[n];
-  return M_SQRT2/fabs(alpha*sbessj(p->l,alpha)) * pow(rmax,-0.5) *
-    sbessj(p->l,alpha*r/rmax);
+  return M_SQRT2/fabs(alpha*std::sph_bessel(p->l,alpha)) * pow(rmax,-0.5) *
+    std::sph_bessel(p->l,alpha*r/rmax);
 }
 
 void Bessel::make_grid(double rmin, double rmax, int lmax, int nmax)
@@ -189,7 +169,7 @@ void Bessel::make_grid(double rmin, double rmax, int lmax, int nmax)
     dens_grid[l].rw .resize(nmax, RNUM);
     dens_grid[l].rw2.resize(nmax, RNUM);
 
-    p = new Roots(l, nmax);
+    p = std::make_shared<Roots>(l, nmax);
 
     for (int n=0; n<nmax; n++) {
       r = 0.0;
@@ -212,8 +192,6 @@ void Bessel::make_grid(double rmin, double rmax, int lmax, int nmax)
 	dens_grid[l].rw2.row(n) = Y;
       }
     }
-
-    delete p;
 
     potl_grid[l].nmax = nmax;
     dens_grid[l].nmax = nmax;

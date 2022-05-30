@@ -4,12 +4,13 @@
 #include <assert.h>
 #include <SphericalBasis.H>
 
-double *sbessjz(int n, int m);
-double sbessj(int n, double x);
+Eigen::VectorXd sbessjz(int n, int m);
 
 class MixtureBasis;
 
-/** Computes the potential, acceleration and density using eigenfunctions of the Spherical Laplacian: spherical Bessel functions
+/** Computes the potential, acceleration and density using
+    eigenfunctions of the Spherical Laplacian: spherical Bessel
+    functions
 */
 class Bessel : public SphericalBasis
 {
@@ -26,15 +27,14 @@ private:
   void get_potl_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, Eigen::MatrixXd& d,int tid);
   double get_dens(double r, int l, double *coef);
 
-  void initialize();
-  //  double norm(int, int);
-  //  double knl(int, int);
+  void initialize() {}
 
   bool firstime_coef;
   bool firstime_accel;
 
   //! Grid to hold tabulated basis
-  class RGrid {
+  class RGrid
+  {
   public:
     Eigen::MatrixXd rw;
     Eigen::MatrixXd rw2;
@@ -46,21 +46,23 @@ private:
   double r_grid_del;
 
   //! Cache roots for spherical Bessel functions
-  class Roots {
+  class Roots
+  {
   public:
 
     int l;
     int n;
-    double *a;
+
+    Eigen::VectorXd a;
 
     Roots(int L, int nmax) : l(L), n(nmax) {
-      a = sbessjz(l-1,n);
+      a = sbessjz(l-1, n);
     }
 
-    ~Roots() { delete [] (a+1);}
+    ~Roots() {}
   };
 
-  Roots *p;
+  std::shared_ptr<Roots> p;
 
   double dens(double r, int n);
   double potl(double r, int n);
@@ -76,7 +78,7 @@ public:
   Bessel(Component* c0, const YAML::Node& conf, MixtureBasis* m=0);
 
   //! Destructor
-  virtual ~Bessel();
+  virtual ~Bessel() {}
 };
 
 #endif // Bessel.H

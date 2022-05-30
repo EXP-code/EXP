@@ -22,9 +22,11 @@ set(INTERP_SRC Spline.cc SplintE.cc Vodd2.cc Vlocate.cc levsurf.cc Interp1d.cc C
 set(MASSMODEL_SRC massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc realize_model.cc GenPoly.cc
   toomre.cc exponential.cc)
 set(ORBIT_SRC orbit.cc orbit_trans.cc FindOrb.cc)
+
 set(BIORTH_SRC biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc
-  sbessz.cc ultra.cc jnsph.cc bessz.cc sphereSL.cc biorth1d.cc
+  sbessz.cc ultra.cc bessz.cc sphereSL.cc biorth1d.cc
   biorth_wake_orientation.cc SLGridMP2.cc scalarprod.cc EmpCylSL.cc)
+
 set(GAUSS_SRC gaussQ.cc GaussCore.c Hermite.c Jacobi.c Laguerre.c)
 set(QPDISTF_SRC QPDistF.cc qld.c)
 set(SLEDGE_SRC sledge.f)
