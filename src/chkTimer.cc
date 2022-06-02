@@ -37,46 +37,39 @@ void  CheckpointTimer::mark()
 {
   if (runtime<0.0) return;
 
-  //
-  // DEBUG
-  //
   if (firstime && myid==0) {
 
     // Get and store the current time
+    //
     initial = time(0);
 
-    
-#ifdef HAVE_LIBSLURM
     // Look for job manager
     double runtime0;
 
     try {
       runtime0 = time_remaining();
     } 
-    catch (string& msg) {
-      cout << "CheckpointTimer: problem finding job manager, " << msg << endl;
-      cout << "CheckpointTimer: continuing using default runtime=" 
-	   << runtime << endl;
+    catch (std::string& msg) {
+      std::cout << "CheckpointTimer: no job manager found, "
+		<< msg << std::endl;
+      std::cout << "CheckpointTimer: continuing using default runtime=" 
+		<< runtime << std::endl;
 
       runtime0 = runtime;
     }
-#else
-    // Use user or program set runtime
-    double runtime0 = runtime;
-#endif
 
     // Compute the final time based on input variable
     final   = initial + static_cast<time_t>(floor(runtime0*3600 + 0.5));
 
-    string s_initial = ctime(&initial);
-    string s_final   = ctime(&final);
-    cout << "----------------------------------------------------"
-	 << "------------------" << endl
-	 << "CheckpointTimer():" << endl
-	 << "    current time="  << s_initial
-	 << "      final time="  << s_final
-	 << "----------------------------------------------------"
-	 << "------------------" << endl;
+    std::string s_initial = ctime(&initial);
+    std::string s_final   = ctime(&final);
+    std::cout << "----------------------------------------------------"
+	      << "------------------" << std::endl
+	      << "CheckpointTimer():" << std::endl
+	      << "    current time="  << s_initial
+	      << "      final time="  << s_final
+	      << "----------------------------------------------------"
+	      << "------------------" << std::endl;
     firstime = false;
   }
   //
@@ -87,7 +80,7 @@ void  CheckpointTimer::mark()
   current = time(0);
 }
 
-ostream& operator<<(ostream& out, Time const& T)
+std::ostream& operator<<(std::ostream& out, Time const& T)
 {
   time_t hr  = T.t/3600;
   time_t min = (T.t - 3600*hr)/60;
@@ -157,7 +150,7 @@ bool CheckpointTimer::done()
   return flg ? true : false;
 }
 
-string CheckpointTimer::exec(string& cmd) 
+std::string CheckpointTimer::exec(std::string& cmd) 
 {
   FILE* pipe = popen(cmd.c_str(), "r");
   if (!pipe) return "ERROR";
@@ -186,117 +179,29 @@ double CheckpointTimer::time_remaining()
 
 #ifdef HAVE_LIBSLURM
 
-  string env_slurm("SLURM_JOB_ID");
+  std::string env_slurm("SLURM_JOB_ID");
   if (getenv(env_slurm.c_str()) == 0)
-    throw string("No environment variable: SLURM_JOB_ID");
+    throw std::string("No environment variable: SLURM_JOB_ID");
   
   std::cout << "----------------------------------------------------"
-	    << "------------------" << endl
-	    << "CheckpointTimer():" << endl
-	    << "    SLURM detected" << endl
+	    << "------------------" << std::endl
+	    << "CheckpointTimer():" << std::endl
+	    << "    SLURM detected" << std::endl
 	    << "----------------------------------------------------"
-	    << "------------------" << endl;
-
-  string job = getenv(env_slurm.c_str());
-  long   rem = rem_time(atoi(job.c_str()));
+	    << "------------------" << std::endl;
+  
+  std::string job = getenv(env_slurm.c_str());
+  long        rem = rem_time(atoi(job.c_str()));
 
   if (rem<0)
-    throw string("Error obtaining job id from slurm");
+    throw std::string("Error obtaining job id from Slurm");
 
   ret = static_cast<double>(rem)/3600.0;
 
   return ret;
 
 #else
-
-  string env_pbs("PBS_JOBID");
-
-  if (getenv(env_pbs.c_str()) == 0)
-    throw string("No environment variable: PBS_JOBID");
-
-  std::cout << "----------------------------------------------------"
-	    << "------------------" << endl
-	    << "CheckpointTimer():" << endl
-	    << "    PBS detected"   << endl
-	    << "----------------------------------------------------"
-	    << "------------------" << endl;
-
-  string job = getenv(env_pbs.c_str());
-
-  string command = "showstart " + job;
-  string result = exec(command);
-
-  istringstream sin(result);
-  char line[128];
-  string tag("Earliest completion in ");
-  bool found = false;
-
-  while (sin) {
-    sin.getline(line, 128);
-    string sline(line);
-    
-    if (sline.find(tag) != string::npos) {
-
-      found = true;
-
-      string chop = sline.substr(sline.find(tag)+tag.length());
-      chop = chop.substr(0, chop.find("on"));
-      chop = chop.substr(chop.find_first_not_of(" "));
-      chop = chop.substr(0, chop.find(" "));
-
-#ifdef DEBUG
-      cout << "String: " << chop << endl;
-#endif
-
-      vector<string> items;
-      int days=0, hours=0, mins=0, secs=0;
-      
-      while (chop.size()) {
-	if (chop.find(":") != string::npos) {
-	  items.push_back(chop.substr(0, chop.find(":")));
-	} else {
-	  items.push_back(chop);
-	  break;
-	}
-	chop = chop.substr(chop.find(":")+1);
-      }
-
-#ifdef DEBUG
-      for (unsigned n=0; n<items.size(); n++)
-	cout << setw(3) << n << " <" << items[n] << ">" << endl;
-#endif
-
-      if (items.size()) {
-	secs = atoi(items.back().c_str());
-	items.pop_back();
-      }
-
-      if (items.size()) {
-	mins = atoi(items.back().c_str());
-	items.pop_back();
-      }
-
-      if (items.size()) {
-	hours = atoi(items.back().c_str());
-	items.pop_back();
-      }
-
-      if (items.size()) {
-	days = atoi(items.back().c_str());
-	items.pop_back();
-      }
-
-      ret = static_cast<double>(((days*24 + hours)*60 + mins)*60 + secs) / 3600.0;
-
-      break;
-    }
-
-  }
-
-  if (!found) 
-    throw string("PBS command failure, no PBS?? ") +
-      "[" + command + "]==>[" + result + "]";
-
+  throw std::string("Slurm not detected, sorry");
 #endif
 
   return ret;
