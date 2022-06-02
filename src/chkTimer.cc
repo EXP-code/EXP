@@ -201,7 +201,7 @@ double CheckpointTimer::time_remaining()
   return ret;
 
 #else
-  throw std::string("Slurm not detected, sorry");
+  throw std::string("I only have Slurm support; set an executime time limit using the 'runtime' option");
 #endif
 
   return ret;
