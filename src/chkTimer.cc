@@ -46,7 +46,7 @@ void  CheckpointTimer::mark()
     initial = time(0);
 
     
-
+#ifdef HAVE_LIBSLURM
     // Look for job manager
     double runtime0;
 
@@ -60,6 +60,10 @@ void  CheckpointTimer::mark()
 
       runtime0 = runtime;
     }
+#else
+    // Use user or program set runtime
+    double runtime0 = runtime;
+#endif
 
     // Compute the final time based on input variable
     final   = initial + static_cast<time_t>(floor(runtime0*3600 + 0.5));
