@@ -123,10 +123,13 @@ int main(int argc, char** argv)
       return 0;
     }
   } else {
+    files = vm.unmatched();
+    if (files.size() != 2) {
       std::cout << std::endl
 		<< "You must provide exactly 2 file names!"
 		<< std::endl << std::endl << options.help() << std::endl;
       return 0;
+    }
   }
   
   std::ifstream InFile1, InFile2;
