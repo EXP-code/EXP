@@ -1729,6 +1729,8 @@ main (int ac, char **av)
      cxxopts::value<int>(ni)->default_value("2"))
     ("d,num-double", "base number of double attributes",
      cxxopts::value<int>(nd)->default_value("6"))
+    ("N,number", "number of particles",
+     cxxopts::value<int>(npart)->default_value("10000"))
     ("c,config", "element config file",
      cxxopts::value<std::string>(config)->default_value("makeIon.config"))
     ("o,output", "output prefix",
@@ -2012,7 +2014,7 @@ main (int ac, char **av)
   //
   std::vector<double> Mass;
   
-  vector<Particle> particles(npart);
+  std::vector<Particle> particles(npart);
   
   // Initialize the phase space vector
   //

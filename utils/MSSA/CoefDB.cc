@@ -21,6 +21,15 @@ namespace CoefDB {
       std::cout << "CoefDB: no keys found" << std::endl;
       exit(-3);
     }
+    if (node["bkeys"]) {
+      YAML::Node knode = node["bkeys"];
+      for (YAML::const_iterator kt=knode.begin(); kt!=knode.end(); kt++) {
+	bkeys.push_back(kt->as<std::vector<unsigned>>());
+      }
+    } else {
+      std::cout << "CoefDB: no background keys found for <" << name
+		<< ">" << std::endl;
+    }
   }
 
   //! Constructor
@@ -172,7 +181,8 @@ namespace CoefDB {
       int ngrp = groups.size();
 
       std::set<int> Mset;
-      for (auto k : keys) Mset.insert(k[0]);
+      for (auto k : keys)  Mset.insert(k[0]);
+      for (auto k : bkeys) Mset.insert(k[0]);
 
       std::vector<int> MM;
       for (auto s : Mset) MM.push_back(s);
@@ -185,16 +195,32 @@ namespace CoefDB {
       out.write((const char *)&ngrp,       sizeof(int));
       out.write((const char *)&MM[0],      sizeof(int)*numM);
       out.write((const char *)&times[0],   sizeof(double)*numT);
-
+      
       for (auto v : groups) {
 	for (unsigned i=0; i<numT; i++) {
 	  for (auto M : MM) {
 	    for (unsigned n=0; n<NMAX; n++) {
 	      unsigned mm = static_cast<unsigned>(M);
+
+	      double valC = 0.0, valS = 0.0;
+
+	      // Look for background coefficients
+	      //
+	      Key C = {mm, n, 0}, S = {mm, n, 1};
+
+	      if (std::find(bkeys.begin(), bkeys.end(), C) != bkeys.end())
+		valC = coefs[C][i];
+
+	      if (std::find(bkeys.begin(), bkeys.end(), S) != bkeys.end())
+		valS = coefs[S][i];
+
+	      // Look for reconstructed values
+	      //
 	      Key c = {mm, n, 0, index}, s = {mm, n, 1, index};
+
 	      auto rc = RC.find(c);
 	      auto rs = RC.find(s);
-	      double valC = 0.0, valS = 0.0;
+
 	      for (auto u : v) {
 		if (u < ncomp) {
 		  if (rc != RC.end()) {
@@ -205,6 +231,7 @@ namespace CoefDB {
 		  }
 		}
 	      }
+	      
 	      out.write((const char *)&valC, sizeof(double));
 	      out.write((const char *)&valS, sizeof(double));
 	    }
@@ -230,7 +257,8 @@ namespace CoefDB {
     std::ofstream out (fname.str());
 
     std::set<std::pair<int, int>> LMset;
-    for (auto k : keys) LMset.insert({k[0], k[1]});
+    for (auto k : keys)  LMset.insert({k[0], k[1]});
+    for (auto k : bkeys) LMset.insert({k[0], k[1]});
 
     if (out) {
 
@@ -263,10 +291,24 @@ namespace CoefDB {
 	    unsigned MM = lm.second;
 	    
 	    for (unsigned n=0; n<nmax; n++) {
+	      double valC = 0.0, valS = 0.0;
+
+	      // Look for background coefficients
+	      //
+	      Key C = {LL, MM, n, 0}, S = {LL, MM, n, 1};
+
+	      if (std::find(bkeys.begin(), bkeys.end(), C) != bkeys.end())
+		valC = coefs[C][i];
+
+	      if (std::find(bkeys.begin(), bkeys.end(), S) != bkeys.end())
+		valS = coefs[S][i];
+
+	      // Look for reconstructed values
+	      //
 	      Key c = {LL, MM, n, 0, index}, s = {LL, MM, n, 1, index};
 	      auto rc = RC.find(c);
 	      auto rs = RC.find(s);
-	      double valC = 0.0, valS = 0.0;
+
 	      if (rc != RC.end()) {
 		for (auto u : v) {
 		  if (u >-1 and u < ncomp) valC += RC[c](i, u);

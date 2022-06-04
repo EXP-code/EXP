@@ -1,6 +1,7 @@
 #ifndef _SphericalBasis_H
 #define _SphericalBasis_H
 
+#include <memory>
 #include <random>
 
 #include <AxisymmetricBasis.H>

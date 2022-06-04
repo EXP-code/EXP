@@ -18,10 +18,9 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   generateRelaxation.cc HaloBulge.cc incpos.cc incvel.cc
   ComponentContainer.cc OutAscii.cc OutMulti.cc OutRelaxation.cc
   OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc multistep.cc parse.cc
-  Slab.cc SlabSL.cc step.cc sbessj.cc sbessz.cc tidalField.cc ultra.cc
-  ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc ParticleFerry.cc
-  pCell.cc chkSlurm.c chkTimer.cc pHOT.cc GravKernel.cc ${CUDA_SRC}
-  CenterFile.cc)
+  Slab.cc SlabSL.cc step.cc tidalField.cc ultra.cc ultrasphere.cc
+  MPL.cc OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc chkSlurm.c
+  chkTimer.cc pHOT.cc GravKernel.cc ${CUDA_SRC} CenterFile.cc)
 
 set(common_INCLUDE_DIRS 
   $<INSTALL_INTERFACE:include>

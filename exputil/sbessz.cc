@@ -16,11 +16,10 @@
 #define TOL 1.0e-7
 
 static int NN;
-double jn_sph(int, double);
 
 static double zbess(double z)
 {
-  return jn_sph(NN,z);
+  return std::sph_bessel(NN, z);
 }
 
 Eigen::VectorXd sbessjz(int n, int m)
@@ -32,14 +31,14 @@ Eigen::VectorXd sbessjz(int n, int m)
 
   NN = n;
   dz = M_PI/STEPS;
-  for (int i=0, zl=z=0.5+fabs((double)n), fl=jn_sph(n,z); i<m; i++) {
+  for (int i=0, zl=z=0.5+fabs((double)n), fl=std::sph_bessel(n,z); i<m; i++) {
     z += dz;
-    f = jn_sph(n, z);
+    f = std::sph_bessel(n, z);
     while (f*fl>0) {
       zl = z;
       fl = f;
       z += dz;
-      f = jn_sph(n,z);
+      f = std::sph_bessel(n,z);
     }
     a[i] = zbrent(zbess, zl, z, TOL);
     zl = z;

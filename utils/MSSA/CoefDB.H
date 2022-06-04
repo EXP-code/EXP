@@ -28,6 +28,9 @@ namespace CoefDB {
     //! List of desired keys
     std::vector<Key> keys;
 
+    //! List of keys for background
+    std::vector<Key> bkeys;
+
   public:
     //! Harmonics
     using LMKey = std::tuple<unsigned, unsigned>;
