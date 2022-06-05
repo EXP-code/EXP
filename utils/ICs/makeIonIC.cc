@@ -1721,8 +1721,14 @@ main (int ac, char **av)
      cxxopts::value<double>(Temp)->default_value("-1.0"))
     ("Telec", "temperature for electrons, if Telec>0",
      cxxopts::value<double>(Telec)->default_value("-1.0"))
-    ("L,length", "length in system units",
+    ("L,length", "box scale in system length units",
      cxxopts::value<double>(L)->default_value("1.0"))
+    ("l,Lunit", "length in system units",
+     cxxopts::value<double>(Lunit)->default_value("1.0"))
+    ("t,Tunit", "time unit in years",
+     cxxopts::value<double>(Tunit)->default_value("1.0e3"))
+    ("m,Munit", "Mass unit in solar masses",
+     cxxopts::value<double>(Munit)->default_value("1.0"))
     ("R,ratio", "slab length ratio (1 is cube)",
      cxxopts::value<double>(R)->default_value("1.0"))
     ("i,num-int", "number of integer attributes",
@@ -1731,6 +1737,8 @@ main (int ac, char **av)
      cxxopts::value<int>(nd)->default_value("6"))
     ("N,number", "number of particles",
      cxxopts::value<int>(npart)->default_value("10000"))
+    ("E,Ecut", "truncation of electron tail in kT",
+     cxxopts::value<double>(Ecut)->default_value("1.0e20"))
     ("c,config", "element config file",
      cxxopts::value<std::string>(config)->default_value("makeIon.config"))
     ("o,output", "output prefix",
