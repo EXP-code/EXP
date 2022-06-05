@@ -726,4 +726,4 @@ public:
   }
 };
 
-proxyebars p;
+static proxyebars p;

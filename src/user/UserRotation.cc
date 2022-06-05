@@ -172,4 +172,4 @@ public:
   }
 };
 
-proxyrotate p;
+static proxyrotate p;

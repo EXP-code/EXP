@@ -240,4 +240,4 @@ public:
   }
 };
 
-proxytrigger p;
+static proxytrigger p;

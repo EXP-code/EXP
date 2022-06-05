@@ -561,4 +561,4 @@ public:
   }
 };
 
-proxytidalrad p;
+static proxytidalrad p;

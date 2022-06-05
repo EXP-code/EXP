@@ -360,4 +360,4 @@ public:
   }
 };
 
-proxydiffrot p;
+static proxydiffrot p;

@@ -282,4 +282,4 @@ public:
   }
 };
 
-proxytorque p;
+static proxytorque p;

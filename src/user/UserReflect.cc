@@ -246,4 +246,4 @@ public:
   }
 };
 
-proxyrefl p;
+static proxyrefl p;

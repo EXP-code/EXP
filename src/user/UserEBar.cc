@@ -810,4 +810,4 @@ public:
   }
 };
 
-proxyebar p;
+static proxyebar p;

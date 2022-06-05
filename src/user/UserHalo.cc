@@ -225,4 +225,4 @@ public:
   }
 };
 
-proxyhalo p;
+static proxyhalo p;

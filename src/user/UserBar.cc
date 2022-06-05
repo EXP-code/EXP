@@ -474,4 +474,4 @@ public:
   }
 };
 
-proxybar p;
+static proxybar p;

@@ -720,4 +720,4 @@ public:
   }
 };
 
-proxydiffuse p;
+static proxydiffuse p;

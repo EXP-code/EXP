@@ -399,4 +399,4 @@ public:
   }
 };
 
-proxydisk p;
+static proxydisk p;

@@ -182,4 +182,4 @@ public:
   }
 };
 
-proxymndisk p;
+static proxymndisk p;

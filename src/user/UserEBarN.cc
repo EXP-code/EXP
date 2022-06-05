@@ -997,4 +997,4 @@ public:
   }
 };
 
-proxyebarn p;
+static proxyebarn p;

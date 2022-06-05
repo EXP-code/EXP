@@ -154,4 +154,4 @@ public:
   }
 };
 
-proxymassevo p;
+static proxymassevo p;

@@ -149,4 +149,4 @@ public:
   }
 };
 
-proxyatmos p;
+static proxyatmos p;

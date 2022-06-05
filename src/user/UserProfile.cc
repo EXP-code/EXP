@@ -359,4 +359,4 @@ public:
   }
 };
 
-proxyprof p;
+static proxyprof p;

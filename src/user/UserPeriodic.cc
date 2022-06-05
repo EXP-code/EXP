@@ -399,4 +399,4 @@ public:
   }
 };
 
-proxypbc p;
+static proxypbc p;

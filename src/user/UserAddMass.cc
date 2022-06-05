@@ -1038,4 +1038,4 @@ public:
   }
 };
 
-proxyaddmass p;
+static proxyaddmass p;

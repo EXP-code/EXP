@@ -171,4 +171,4 @@ public:
   }
 };
 
-proxyslabhalo p;
+static proxyslabhalo p;

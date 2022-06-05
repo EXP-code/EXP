@@ -116,4 +116,4 @@ public:
   }
 };
 
-proxylogpot p;
+static proxylogpot p;

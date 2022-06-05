@@ -89,13 +89,7 @@ int cudaGlobalDevice;
 
 vector<thrd_pass_posvel> posvel_data;
 vector<pthread_t> posvel_thrd;
-
-				// MPI variables
 int is_init=1;
-int numprocs, slaves, proc_namelen;
-char processor_name[MPI_MAX_PROCESSOR_NAME];
-
-MPI_Comm MPI_COMM_SLAVE;
 
 				// List of host names and ranks
 std::map<std::string, std::vector<int> > nameMap;

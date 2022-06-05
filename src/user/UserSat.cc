@@ -351,4 +351,4 @@ public:
   }
 };
 
-proxysat p;
+static proxysat p;

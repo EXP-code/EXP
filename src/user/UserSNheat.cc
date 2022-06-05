@@ -419,4 +419,4 @@ public:
   }
 };
 
-proxysnheat p;
+static proxysnheat p;

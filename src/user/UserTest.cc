@@ -63,4 +63,4 @@ public:
   }
 };
 
-proxytest p;
+static proxytest p;

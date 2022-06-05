@@ -697,4 +697,4 @@ public:
   }
 };
 
-proxyebarp p;
+static proxyebarp p;

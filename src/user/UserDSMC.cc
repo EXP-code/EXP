@@ -660,4 +660,4 @@ public:
   }
 };
 
-proxysticky p;
+static proxysticky p;

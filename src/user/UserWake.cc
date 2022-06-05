@@ -381,4 +381,4 @@ public:
   }
 };
 
-proxywake p;
+static proxywake p;

@@ -1124,4 +1124,4 @@ public:
   }
 };
 
-proxysatwake p;
+static proxysatwake p;

@@ -93,4 +93,4 @@ public:
   }
 };
 
-proxytestcuda p;
+static proxytestcuda p;
