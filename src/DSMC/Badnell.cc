@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -6,7 +7,6 @@
 #include <mpi.h>
 
 #include <Badnell.H>
-#include <scandir.H>
 
 std::string BadnellData::datapath = "./";
 bool        BadnellData::reweight = false;
@@ -40,11 +40,14 @@ void BadnellData::initialize(atomicData* ad)
   //
   const std::string user("nrb"), year("20");
 
-  // Look for atomic data path
+  // Set default datapath
+  //
+  std::filesystem::path dpath{datapath};
+
+  // Look for atomic data path in environment
   //
   if (const char* env_p = std::getenv("ATOMIC_DATA_PATH")) {
-    datapath = env_p;
-    datapath += "/";
+    dpath = std::filesystem::path( env_p );
   }
   
   // Loop through ion list and read data
@@ -61,24 +64,29 @@ void BadnellData::initialize(atomicData* ad)
 			    name.find(m2.str()) != std::string::npos );
 		  };
 
+    // Will contain matched file(s)
     std::vector<std::string> names;
 
     try {
-      names = scandirpp::get_names(datapath + "RR", filter);
-    }
-    catch (scandirpp::ScandirException& error) {
-      std::cout << "Scandir error: " << error.what() << std::endl;
-      if (names.size()) {
-	std::cout << "[RR] file not found: "
-		  << datapath + "RR/" + names[0] << std::endl;
-      } else {
-	std::cout << "No [RR] files found: "
-		  << datapath + "RR/"<< std::endl;
+      for (auto const& dir_entry : std::filesystem::directory_iterator{dpath / "RR"}) {
+	std::string name = dir_entry.path().string();
+	if (filter(name)) names.push_back(name);
       }
+    }
+    catch(std::filesystem::filesystem_error const& ex) {
+      std::cout
+	<< "Directory scan error for RR..."
+	<< "what():  " << ex.what() << '\n'
+	<< "path1(): " << ex.path1() << '\n'
+	<< "path2(): " << ex.path2() << '\n'
+	<< "code().value():    " << ex.code().value() << '\n'
+	<< "code().message():  " << ex.code().message() << '\n'
+	<< "code().category(): " << ex.code().category().name() << '\n';
+      
       MPI_Finalize();
       exit(32);
     }
-
+    
     if (names.size() != 1) {
       std::cout << "Unexpected RR matches: " << names.size() << std::endl;
       for (auto s : names) std::cout << s << " ";
@@ -87,7 +95,7 @@ void BadnellData::initialize(atomicData* ad)
       exit(33);
     }
 
-    std::ifstream in(datapath + "RR/" + names[0]);
+    std::ifstream in{dpath / names[0]};
     
     std::string line;
     std::getline(in, line);
@@ -125,15 +133,27 @@ void BadnellData::initialize(atomicData* ad)
     
     // Now read DR
     //
+
+    names.clear();
     try {
-      names = scandirpp::get_names(datapath + "DR", filter);
+      for (auto const& dir_entry : std::filesystem::directory_iterator{dpath / "DR"}) {
+	std::string name = dir_entry.path().string();
+	if (filter(name)) names.push_back(name);
+      }
+
     }
-    catch (scandirpp::ScandirException& error) {
-      std::cout << "Scandir error: " << error.what() << std::endl;
-      std::cout << "[DR] file not found: "
-		<< datapath + "DR/" + names[0] << std::endl;
+    catch(std::filesystem::filesystem_error const& ex) {
+      std::cout
+	<< "Directory scan error for DR..."
+	<< "what():  " << ex.what() << '\n'
+	<< "path1(): " << ex.path1() << '\n'
+	<< "path2(): " << ex.path2() << '\n'
+	<< "code().value():    " << ex.code().value() << '\n'
+	<< "code().message():  " << ex.code().message() << '\n'
+	<< "code().category(): " << ex.code().category().name() << '\n';
+      
       MPI_Finalize();
-      exit(32);
+      exit(34);
     }
 
     if (names.size()) {
@@ -143,11 +163,10 @@ void BadnellData::initialize(atomicData* ad)
 	for (auto s : names) std::cout << s << " ";
 	std::cout << std::endl;
 	MPI_Finalize();
-	exit(34);
+	exit(35);
       }
 
-      in.close();
-      in.open(datapath + "DR/" + names[0]);
+      in = std::ifstream{dpath / "DR" / names[0]};
       
       std::getline(in, line);
     
