@@ -78,24 +78,32 @@ bool CylCoefs::read(std::istream& in, bool verbose)
   cos_c.resize(mmax+1);
   sin_c.resize(mmax+1);
   
-  for (int mm=0; mm<=mmax; mm++) {
+  try {
+    for (int mm=0; mm<=mmax; mm++) {
 
-    cos_c[mm].resize(nmax);
-    in.read((char *)&cos_c[mm][0], sizeof(double)*nmax);
+      cos_c[mm].resize(nmax);
+      in.read((char *)&cos_c[mm][0], sizeof(double)*nmax);
 
-    if (mm) {
-      sin_c[mm].resize(nmax);
-      in.read((char *)&sin_c[mm][0], sizeof(double)*nmax);
+      if (mm) {
+	sin_c[mm].resize(nmax);
+	in.read((char *)&sin_c[mm][0], sizeof(double)*nmax);
+      }
+    }
+    
+    if (verbose) {
+      if (in)
+	std::cerr << "Coefficients successfully read at T=" << time << std::endl;
+      else
+	std::cerr << "Coefficient read FAILED at T=" << time << std::endl;
     }
   }
-
-  if (verbose) {
-    if (in)
-      std::cerr << "Coefficients successfully read at T=" << time << std::endl;
-    else
-      std::cerr << "Coefficient read FAILED at T=" << time << std::endl;
+  catch (std::istream::failure e) {
+    if (not in.eof())
+      std::cerr << "Error reading data at T="
+		<< time << ": " << e.what() << std::endl;
+    return false;
   }
-
+  
   return true;
 }
 
