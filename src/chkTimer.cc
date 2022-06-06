@@ -201,7 +201,7 @@ double CheckpointTimer::time_remaining()
   return ret;
 
 #else
-  throw std::string("I only have Slurm support; set an executime time limit using the 'runtime' option");
+  throw std::string("use option 'runtime' for a limit");
 #endif
 
   return ret;
