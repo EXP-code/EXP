@@ -63,9 +63,10 @@ using namespace __EXP__;
 // Globals
 //
 std::string OUTFILE;
-double RMIN, RMAX;
+double RMIN, RMAX, srate = 1.0;
 int OUTR, LMAX, NMAX, L1, L2, N1, N2;
-bool VOLUME, SURFACE, PROBE;
+bool VOLUME, SURFACE, PROBE, subsample = false;
+std::uniform_real_distribution<> dis(0.0, 1.0);
 
 // Center offset
 //
@@ -150,16 +151,24 @@ void add_particles(PR::PRptr reader, const std::string comp,
     
   while (part) {
 
+    // Subsample rejection?
+    //
+    if (subsample and dis(random_gen) > srate) continue;
+
+
     // Copy the Particle
     //
     p.push_back(Particle(*part));
     
     // Add to histogram
     //
-    if (part) h.Add(part->pos[0] - c0[0],
-		    part->pos[1] - c0[1],
-		    part->pos[2] - c0[2],
-		    part->mass);
+    if (part) {
+      if (subsample) p.back().mass /= srate;
+      h.Add(part->pos[0] - c0[0],
+	    part->pos[1] - c0[1],
+	    part->pos[2] - c0[2],
+	    part->mass/srate);
+    }
 
     // Iterate
     //
@@ -600,6 +609,8 @@ main(int argc, char **argv)
      cxxopts::value<double>(Hexp)->default_value("1.0"))
     ("S,snr", "if not negative: do a SNR cut on the PCA basis",
      cxxopts::value<double>(snr)->default_value("-1.0"))
+    ("s,sample", "subsample particle distribution for significance checking",
+     cxxopts::value<double>(srate))
     ("NICE", "system priority",
      cxxopts::value<int>(NICE)->default_value("0"))
     ;
@@ -613,6 +624,8 @@ main(int argc, char **argv)
   
   cxxopts::ParseResult vm;
 
+  // Parse the command line
+  //
   try {
     vm = options.parse(argc, argv);
   } catch (cxxopts::OptionException& e) {
@@ -711,6 +724,15 @@ main(int argc, char **argv)
 			   << std::endl;
     COM = true;
     KD  = true;
+  }
+
+  // Check random number generator
+  //
+  if (vm.count("sample")) {
+    subsample = true;
+    srate = std::min<double>(srate, 1.0);
+    auto seed = chrono::high_resolution_clock::now().time_since_epoch().count() + 11*myid;
+    random_gen = std::mt19937(seed);
   }
 
   // ==================================================
