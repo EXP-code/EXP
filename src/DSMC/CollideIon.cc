@@ -14833,12 +14833,14 @@ NTC::InteractD CollideIon::generateSelectionTrace
   //
   double totSelcM = 0.0;
 
+  cseccum[id].clear();
+
   for (auto v : bySpc) {
     
     // Make cumulative cross section for particle pair selection
     //
     double Pscale = mmas * rateF * crs_units;
-    cseccum[id][v.first].clear();
+
     for (auto u : cseccache[id][v.first])
       cseccum[id][v.first].push_back(std::get<0>(u) * Pscale);
     for (int i=1; i<cseccum[id][v.first].size(); i++)
@@ -14912,9 +14914,10 @@ NTC::InteractD CollideIon::generateSelectionTrace
   // Copy to fresh interact map for testing
   //
   for (auto & v : cseccum[id]) selcM[v.first] = v.second.back();
-  
+
   return selcM;
 }
+
 
 void CollideIon::generateTraceEnergyLoss
 (pCell* const c, sKeyDmap* const Fn, double tau, int id)
@@ -15016,21 +15019,31 @@ std::pair<int, int> CollideIon::pairSelect(int id, NTC::T T, int nbods)
 {
   if (aType == Trace) {
 
-    pthread_mutex_lock(&tlock);
-    double ran = unit(random_gen);
-    pthread_mutex_unlock(&tlock);
+    // Only one choice . . . 
+    if (cseccum[id][T].size()==1) {
+      return { std::get<1>(cseccache[id][T][0]) ,
+	       std::get<2>(cseccache[id][T][0]) };
+    }
+    // Select one
+    else {			
+      pthread_mutex_lock(&tlock);
+      double ran = unit(random_gen);
+      pthread_mutex_unlock(&tlock);
 
-    auto it = std::lower_bound(cseccum[id][T].begin(), cseccum[id][T].end(),
-			       ran * cseccum[id][T].back());	       
+      auto it = std::lower_bound(cseccum[id][T].begin(), cseccum[id][T].end(),
+				 ran * cseccum[id][T].back());	       
     
-    int cc = std::distance(cseccum[id][T].begin(), it);
-				// Sanity check
-    cc = std::min<int>(cc, cseccum[id][T].size() - 1);
-    
-    return { std::get<1>(cseccache[id][T][cc]) ,
-	     std::get<2>(cseccache[id][T][cc]) };
-  } else
+      int cc = std::distance(cseccum[id][T].begin(), it);
+
+      // Sanity check
+      cc = std::max<int>(std::min<int>(cc, cseccum[id][T].size() - 1), 0);
+      
+      return { std::get<1>(cseccache[id][T][cc]) ,
+	       std::get<2>(cseccache[id][T][cc]) };
+    }
+  } else {
     return Collide::pairSelect(id, T, nbods);
+  }
 }
 
 void CollideIon::gatherSpecies()
