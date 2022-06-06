@@ -153,21 +153,21 @@ void add_particles(PR::PRptr reader, const std::string comp,
 
     // Subsample rejection?
     //
-    if (subsample and dis(random_gen) > srate) continue;
+    if (not subsample or dis(random_gen) > srate) {
 
-
-    // Copy the Particle
-    //
-    p.push_back(Particle(*part));
+      // Copy the Particle
+      //
+      p.push_back(Particle(*part));
     
-    // Add to histogram
-    //
-    if (part) {
-      if (subsample) p.back().mass /= srate;
-      h.Add(part->pos[0] - c0[0],
-	    part->pos[1] - c0[1],
-	    part->pos[2] - c0[2],
-	    part->mass/srate);
+      // Add to histogram
+      //
+      if (part) {
+	if (subsample) p.back().mass /= srate;
+	h.Add(part->pos[0] - c0[0],
+	      part->pos[1] - c0[1],
+	      part->pos[2] - c0[2],
+	      part->mass/srate);
+      }
     }
 
     // Iterate
