@@ -1,7 +1,6 @@
 #ifndef _NTC_H
 #define _NTC_H
 
-#include <filesystem>
 #include <algorithm>
 #include <iostream>
 #include <sstream>
@@ -480,7 +479,6 @@ namespace NTC
   
   typedef std::map<key_type, NTCitem> NTCdata;
   
-  
   //! Provide a nice interface for the NTCdata std::map
   class NTCdb
   {
@@ -558,89 +556,10 @@ namespace NTC
     }
     
     //! Save contents to a file
-    void save_myself(const std::string& filename)
-    {
-      namespace fs = std::filesystem;
-      
-      // Synchronize
-      sync();
-      
-      // Only the root process makes an archive
-      if (myid==0) {
-	std::ofstream ofs;
-	bool exist = fs::exists(filename);
-	std::string tfile(".tmp." + filename);
-	
-	if (exist) {
-	  ofs.open(tfile.c_str());
-	} else {
-	  ofs.open(filename.c_str());
-	}
-
-#ifdef BINARY_ARCHIVE
-	boost::archive::binary_oarchive oa(ofs);
-#else
-	boost::archive::xml_oarchive oa(ofs);
-#endif
-	oa << BOOST_SERIALIZATION_NVP(pdata);
-	oa << BOOST_SERIALIZATION_NVP(curr_time);
-	oa << BOOST_SERIALIZATION_NVP(next_time);
-	oa << BOOST_SERIALIZATION_NVP(debug_count);
-
-	if (exist) {
-	  fs::rename(tfile, filename);
-	}
-
-	if (chatty and NTCitem::live()) {
-	  std::cout << std::endl << std::string(70, '-') << std::endl
-		    << "-- Took NTC checkpoint at time <" << curr_time << ">" << std::endl
-		    << "-- Next NTC checkpoint at time <" << next_time << ">" << std::endl
-		    << std::string(70, '-') << std::endl;
-	}
-      }
-      
-      // Clean up node-aggregated db
-      pdata.clear();
-
-      // Debugging
-      if (myid==0 and NTCitem::live()) {
-	std::cout << std::string(40, '-') << std::endl
-		  << "--- QuantileBag instances: " << QuantileBag::live()
-		  << std::endl
-		  << "--- NTCitem instances:  " << NTCitem::live()
-		  << std::endl
-		  << std::string(40, '-') << std::endl;
-      }
-      dump();
-    }
+    void save_myself(const std::string& filename);
     
     //! Restore contents from a file
-    void restore_myself(const std::string& filename)
-    {
-      // open the archive; all processes
-      std::ifstream ifs(filename.c_str());
-#ifdef BINARY_ARCHIVE
-      boost::archive::binary_iarchive ia(ifs);
-#else
-      boost::archive::xml_iarchive ia(ifs);
-#endif
-      // restore the data from the archive
-      ia >> BOOST_SERIALIZATION_NVP(data);
-      ia >> BOOST_SERIALIZATION_NVP(curr_time);
-      ia >> BOOST_SERIALIZATION_NVP(next_time);
-      ia >> BOOST_SERIALIZATION_NVP(debug_count);
-
-      if (myid==0 and chatty) {
-	std::cout << std::endl << std::string(70, '-') << std::endl
-		  << "-- Restoring NTC checkpoint from time <" << curr_time << ">" << std::endl
-		  << "-- Current simulation time is <" << tnow << ">" << std::endl
-		  << "-- Next NTC checkpoint scheduled for <" << next_time << ">" << std::endl
-		  << std::string(70, '-') << std::endl;
-      }
-
-      // For debugging . . . 
-      dump();
-    }
+    void restore_myself(const std::string& filename);
     
     //! Invoked for debugging data values before/after serialization
     void dump();
@@ -657,29 +576,7 @@ namespace NTC
     static unsigned maxAge;
 
     //! Constructor
-    NTCdb()
-    {
-      namespace fs = std::filesystem;
-
-      // Attempt to restore from save set
-      try {
-	std::string filename = ".ntcdb." + runtag;
-	if ( fs::exists(filename) ) {
-	  restore_myself(filename);
-	}
-      }
-      catch (fs::filesystem_error & error) {
-	if (myid==0) {
-	  std::cout << "Failure to open archive <.ntcdb." << runtag
-		    << "> with error: " << error.what() << std::endl
-		    << "We will make a new archive.  Continuing . . . "
-		    << std::endl;
-	}
-      }	
-      //
-      curr_time = tnow;
-      next_time = curr_time + dtime*(static_cast<double>(intvl)-eps);
-    }
+    NTCdb();
     
     //! Return NTCitem instance for cell key k
     NTCitem& operator[](const key_type& k);

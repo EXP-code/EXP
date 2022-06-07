@@ -50,7 +50,7 @@ void  CheckpointTimer::mark()
       runtime0 = time_remaining();
     } 
     catch (std::string& msg) {
-      std::cout << "CheckpointTimer: no job manager found, "
+      std::cout << "CheckpointTimer: no job manager, "
 		<< msg << std::endl;
       std::cout << "CheckpointTimer: continuing using default runtime=" 
 		<< runtime << std::endl;
@@ -201,7 +201,7 @@ double CheckpointTimer::time_remaining()
   return ret;
 
 #else
-  throw std::string("use option 'runtime' for a limit");
+  throw std::string("set 'runtime' for a limit");
 #endif
 
   return ret;
