@@ -29,7 +29,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.46 [08/31/21 cuda kinetic]"
+#define VERSION_ID "0.49 [06/02/22 cuda kinetic RC]"
 
 using namespace std;
 using namespace NTC;
