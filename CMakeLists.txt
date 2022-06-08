@@ -52,6 +52,8 @@ find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
 find_package(SLURM)
 find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
+find_package(PNG)
+
 if(ENABLE_CUDA)
   find_package(CUDA REQUIRED)
   enable_language(CUDA)
@@ -68,13 +70,7 @@ if(ENABLE_CUDA)
     CACHE STRING "Global cuda flags for RelWithDebInfo build" FORCE)
 endif()
 
-find_package(PNG)
-
-find_package(BLAS REQUIRED)
-find_package(LAPACK REQUIRED)
-set(DEP_LIB ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
-
-# For PNG and rapidxml
+# For git submodules
 include_directories(${PROJECT_SOURCE_DIR}/extern)
 
 if(OpenMP_FOUND)
