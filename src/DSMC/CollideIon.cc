@@ -18019,7 +18019,7 @@ void CollideIon::printSpeciesTrace()
   double Ti = 0.0, Te = 0.0;
   if (tM[1]>0.0) {
     Ti = Tfac*tM[0]/tM[1];
-    Te = Tfac*tM[2]/tM[1];
+    Te = Tfac*tM[2]/tM[3];
   }
 
   // Open for append
