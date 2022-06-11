@@ -4127,9 +4127,9 @@ CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 #ifdef XC_DEEP12
       if (Z1==1)
-	std::cout << "H TEST: xnn=" crs1 << " v=" << cr << std::endl;
+	std::cout << "H TEST: xnn=" << crs1 << " v=" << cr << std::endl;
       if (Z1==2)
-	std::cout << "He TEST: xnn=" crs1 << " v=" << cr << std::endl;
+	std::cout << "He TEST: xnn=" << crs1 << " v=" << cr << std::endl;
 #endif
 
       if (DEBUG_CRS) trap_crs(crs1, neut_prot);
