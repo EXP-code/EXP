@@ -617,7 +617,8 @@ private:
   };    
 
   //! For debugging
-  void trap_crs(double& cross, const InterTypes type, double extra=0.0);
+  void trap_crs(double& cross, const InterTypes type,
+		double extra1=0.0, double extra2=0.0);
 
   //! Default electron-electron interaction type
   static NTC::T elecElec;
@@ -992,7 +993,7 @@ protected:
   std::vector<NTC::InteractD> csections;
 
   //! List of cross sections for mean-mass trace algorithm
-  std::vector<std::map<NTC::T, std::vector<std::tuple<double, int, int, double>>>> cseccache;
+  std::vector<std::map<NTC::T, std::vector<std::tuple<double, int, int, double, double>>>> cseccache;
   std::vector<std::map<NTC::T, std::vector<double>>> cseccum;
 
 
@@ -1140,7 +1141,7 @@ protected:
 		      Particle* const p1, Particle* const p2, 
 		      double *crm, const NTC::T& type);
 
-  using CrsRet = std::tuple<double, double>;
+  using CrsRet = std::tuple<double, double, double>;
 
   CrsRet crossSectionTrace(int id, pCell* const c, 
 			   Particle* const p1, Particle* const p2, 

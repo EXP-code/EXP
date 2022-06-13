@@ -1147,6 +1147,10 @@ void computeFreeFree
   //
   constexpr double hbc = 197.327;
 
+  // Energy grid is in log10
+  //
+  E = log10(E);
+
   // Enforce minimum and maximum energies
   //
   if (E<ionEminGrid) E = ionEminGrid;
@@ -2440,10 +2444,10 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
   sVel1 = sqrt(sVel1) * cuVunit / vel;
   sVel2 = sqrt(sVel2) * cuVunit / vel;
 	
-  cuFP_t  m1  = Mu1 * amu * Eta1;
-  cuFP_t  m2  = Mu2 * amu * Eta2;
-  cuFP_t me1  = cuda_atomic_weights[0] * amu;
-  cuFP_t me2  = cuda_atomic_weights[0] * amu;
+  cuFP_t  m1  = Mu1 * amu;
+  cuFP_t  m2  = Mu2 * amu;
+  cuFP_t me1  = cuda_atomic_weights[0] * amu * Eta1;
+  cuFP_t me2  = cuda_atomic_weights[0] * amu * Eta2;
 
   cuFP_t mu0  = m1 * m2  / (m1 + m2);
   cuFP_t mu1  = m1 * me2 / (m1 + me2);
@@ -2451,11 +2455,11 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
   
   // Available COM energy
 
-  cuFP_t kEi  = 0.5  * mu0 * vel * vel / eV;
-  cuFP_t kEe1 = 0.5  * mu1 * eVel2*eVel2 * vel*vel / eV;
-  cuFP_t kEe2 = 0.5  * mu2 * eVel1*eVel1 * vel*vel / eV;
-  cuFP_t kE1s = 0.5  * mu1 * sVel1*sVel1 * vel*vel / eV;
-  cuFP_t kE2s = 0.5  * mu2 * sVel2*sVel2 * vel*vel / eV;
+  cuFP_t kEi  = 0.5 * mu0 * vel * vel / eV;
+  cuFP_t kEe1 = 0.5 * mu1 * eVel2*eVel2 * vel*vel / eV;
+  cuFP_t kEe2 = 0.5 * mu2 * eVel1*eVel1 * vel*vel / eV;
+  cuFP_t kE1s = 0.5 * mu1 * sVel1*sVel1 * vel*vel / eV;
+  cuFP_t kE2s = 0.5 * mu2 * sVel2*sVel2 * vel*vel / eV;
 	
   // Assign energy info for return
   //
@@ -4172,7 +4176,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 				 dArray<cuFP_t>         F1,
 				 dArray<cuFP_t>         F2,
 				 dArray<int>            prs,
-				 dArray<float>          cum
+				 dArray<float>          cum,
+				 const int              myid
 				 )
 {
   const int Nsp   = elems._s;
@@ -4257,6 +4262,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #endif
       int count = 0;
 
+#ifdef XC_DEEP16
+      double meanke[2] = {0.0, 0.0};
+      int    mcnt  [2] = {0,   0  };
+#endif
+
       // Pair-wise cross-section loop
       //
       for (int i=0; i<nbods; i++) {
@@ -4264,7 +4274,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	for (int j=i+1; j<nbods; j++) {
 	
 	  setupCrossSection(in, elems, cid, n0+i, n0+j, state, &EI);
-
+	  
 	  cudaParticle* p1 = &in._v[n0+i];
 	  cudaParticle* p2 = &in._v[n0+j];
 
@@ -4321,6 +4331,19 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      printf("col_excite [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e ph=%e\n",
 		     cid, i, j, nbods, val, EI.kEe1, EI.kEe2, ph);
 	    }
+
+#ifdef XC_DEEP16
+	    if (T==6) {
+	      if (J2.sp==cuElectron) meanke[0] += EI.kEe1;
+	      else                   meanke[0] += EI.kEe2;
+	      mcnt[0] += 1;
+	    }
+	    if (T==7) {
+	      if (J2.sp==cuElectron) meanke[1] += EI.kEe1;
+	      else                   meanke[1] += EI.kEe2;
+	      mcnt[1] += 1;
+	    }
+#endif
 	  }
 
 	  if (count >= PLIST_LEN) break;
@@ -4340,6 +4363,18 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      prs._v[fN+count] = conv_.I2;
 	      cum._v[fN+count] = xc * Prob2;
 	      count++;
+#ifdef XC_DEEP16
+	      if (T==6) {
+		if (J2.sp==cuElectron) meanke[0] += EI.kEe1;
+		else                   meanke[0] += EI.kEe2;
+		mcnt[0] += 1;
+	      }
+	      if (T==7) {
+		if (J2.sp==cuElectron) meanke[1] += EI.kEe1;
+		else                   meanke[1] += EI.kEe2;
+		mcnt[1] += 1;
+	      }
+#endif
 	      if (false and T==6) {
 		cuFP_t val = xc/EI.vel;
 		printf("free_free [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e ph=%e\n",
@@ -4394,9 +4429,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     
       nSel._v[cid] += nsel;
 
-      if (false and T==6) printf("free-free [%d]: npairs=%d nsel=%e Z=%d\n", cid, npairs, nsel, J1.sp.first);
+#ifdef XC_DEEP16
+      if (T==6 and myid==0 and nsel>0.0)
+	printf("free-free [%d]: nbods=%d npairs=%d N=%d nsel=%e Z=%d C=%d V=%e\n", cid, nbods, npairs, count, nsel, J1.sp.first, J1.sp.second, meanke[0]/(0.01+mcnt[0]));
 
-      if (false and T==7) printf("col_excite [%d]: npairs=%d nsel=%e Z=%d\n", cid, npairs, nsel, J1.sp.first);
+      if (T==7 and myid==0 and nsel>0.0)
+	printf("col_excite [%d]: nbods=%d npairs=%d N=%d nsel=%e Z=%d C=%d V=%e\n", cid, nbods, npairs, count, nsel, J1.sp.first, J1.sp.second, meanke[1]/(0.01+mcnt[1]));
+#endif
 
 #ifdef XC_DEEP12
       printf("NPAIR=%8d NSEL=%13.6e T=%d\n", npairs, nsel, T);
@@ -5551,7 +5590,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(cuElems),  
      toKernel(d_tauC),   toKernel(d_Init),
      toKernel(d_F1),     toKernel(d_F2),
-     toKernel(d_pairs),  toKernel(d_xccum)
+     toKernel(d_pairs),  toKernel(d_xccum),
+     myid
      );
   
 #ifdef CELL_ECHK
