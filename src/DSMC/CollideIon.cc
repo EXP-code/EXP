@@ -2908,7 +2908,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
     auto cumCross = ad.IonList[Q1]->collExciteCross(kEe1[id], id);
     CE1[id] = IS.selectCEInteract(ad.IonList[Q1], cumCross);
 
-    double crs = eVel2 * ne2 * CE1[id].first;
+    double crs = eVel2 * ne2 * cumCross.back().first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -2976,7 +2976,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
     auto cumCross = ad.IonList[Q2]->collExciteCross(kEe2[id], id);
     CE2[id] = IS.selectCEInteract(ad.IonList[Q2], cumCross);
 
-    double crs = eVel1 * ne1 * CE2[id].first;
+    double crs = eVel1 * ne1 * cumCross.back().first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -3247,7 +3247,7 @@ double CollideIon::crossSectionWeight
     auto cumCross = ad.IonList[Q1]->collExciteCross(kEe1[id], id);
     CE1[id] = IS.selectCEInteract(ad.IonList[Q1], cumCross);
 
-    double crs = eVel2 * ne2 * CE1[id].first;
+    double crs = eVel2 * ne2 * cumCross.back().first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -3313,7 +3313,7 @@ double CollideIon::crossSectionWeight
     auto cumCross = ad.IonList[Q2]->collExciteCross(kEe2[id], id);
     CE2[id] = IS.selectCEInteract(ad.IonList[Q2], cumCross);
 
-    double crs = eVel1 * ne1 * CE2[id].first;
+    double crs = eVel1 * ne1 * cumCross.back().first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -3686,7 +3686,7 @@ double CollideIon::crossSectionHybrid
       auto cumCross = ad.IonList[Q1]->collExciteCross(ke, id);
       CE1[id] = IS.selectCEInteract(ad.IonList[Q1], cumCross);
       
-      crs  = eVel2 * C2 * CE1[id].first * cfac;
+      crs  = eVel2 * C2 * cumCross.back().first * cfac;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite, eVel2, cfac);
     }
@@ -3699,7 +3699,7 @@ double CollideIon::crossSectionHybrid
       auto cumCross = ad.IonList[Q2]->collExciteCross(ke, id);
       CE2[id] = IS.selectCEInteract(ad.IonList[Q2], cumCross);
       
-      crs  = eVel1 * C1 * CE2[id].first * cfac;
+      crs  = eVel1 * C1 * cumCross.back().first * cfac;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite, eVel1, cfac);
     }
@@ -4328,7 +4328,7 @@ CollideIon::crossSectionTrace(int id, pCell* const c,
       auto cumCross = ad.IonList[Q1]->collExciteCross(ke, id);
       CE1[id] = IS.selectCEInteract(ad.IonList[Q1], cumCross);
 
-      double crs = eVelP2[id] * CE1[id].first;
+      double crs = eVelP2[id] * cumCross.back().first;
       ph = CE1[id].second;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite, eVelP2[id]);
@@ -4358,7 +4358,7 @@ CollideIon::crossSectionTrace(int id, pCell* const c,
       auto cumCross = ad.IonList[Q2]->collExciteCross(ke, id);
       CE2[id] = IS.selectCEInteract(ad.IonList[Q2], cumCross);
 
-      double crs = eVelP1[id] * CE2[id].first;
+      double crs = eVelP1[id] * cumCross.back().first;
       ph = CE2[id].second;
 
       if (DEBUG_CRS) trap_crs(crs, colexcite, eVelP1[id]);
