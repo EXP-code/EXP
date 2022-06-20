@@ -46,10 +46,10 @@ target_link_libraries(testdsmc PUBLIC ${common_LINKLIB})
 install(TARGETS testdsmc DESTINATION lib)
 
 set(bin_PROGRAMS testCross testIonRecomb genIonRecomb testQuantile
-  testExciteRate testRatio makeRecombCache)
+  testExciteRate testRatio makeRecombCache testFreeFree)
 
 if(ENABLE_CUDA)
-  list(APPEND bin_PROGRAMS testCrossCuda)
+  list(APPEND bin_PROGRAMS testCrossCuda testFreeFreeCuda)
 endif()
 
 foreach(program ${bin_PROGRAMS})

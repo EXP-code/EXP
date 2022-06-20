@@ -1,5 +1,7 @@
 // -*- C++ -*-
 
+#define TestDefEnergy
+
 #include <algorithm>
 #include <numeric>
 
@@ -724,10 +726,17 @@ void atomicData::cuda_initialize_textures()
 	  temp[j] = I->freeFreeGrid[i][j]/h_buffer0[i];
 	}
 
+	// Get index of lower bound
+	//
+	auto ilb = std::distance(I->freeFreeGrid[i].begin(),
+				 std::lower_bound(I->freeFreeGrid[i].begin(),
+						  I->freeFreeGrid[i].end(),
+						  I->freeFreeGrid[i].back()));
+
 	// End points
 	//
 	h_buffer1[i                              ] = I->kgrid[0];
-	h_buffer1[i + (CHCUMK-1)*I->NfreeFreeGrid] = I->kgrid[tsize-1];
+	h_buffer1[i + (CHCUMK-1)*I->NfreeFreeGrid] = I->kgrid[ilb];
 
 	// Remap to even grid
 	//
@@ -1177,6 +1186,9 @@ void computeFreeFree
   int lb    = rn/dC;
   cuFP_t k[4];
 
+  if (lb>=CHCUMK) printf("crazy: lb=%d/%d\n", lb, CHCUMK);
+
+
   // Interpolate the cross section array
   //
 #if cuREAL == 4
@@ -1201,6 +1213,10 @@ void computeFreeFree
   // Assign the photon energy
   //
   ph = pow(10, K) * hbc;
+
+  if (ph>1000.0) printf("crazy: E=%e K=%e [%e, %e] {%e %e %e %e}\n",
+			E, K, a, b,
+			k[0], k[1], k[2], k[3]);
 
   // Use the integrated cross section from the differential grid
   //
@@ -2714,9 +2730,14 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       if (crs>0.0) {
 	*delph = ph;
 	      
+	if (ph>10.0)
+	  printf("free-free: E=%e rn=%e xf=%e cv=%e ph=%e\n",
+		 ke, rn, crs, crs*Einfo->vel, ph);
+
 #ifdef XC_DEEP1
 	printf("xsc: xf=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
+
 #ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e dE=%e\n",
 	       Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, ff, ph);
@@ -2741,9 +2762,15 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	    
       if (crs>0.0) {
 	*delph = ph;
+
+	if (ph>10.0)
+	  printf("free-free: E=%e rn=%e xf=%e cv=%e ph=%e\n",
+		 ke, rn, crs, crs*Einfo->vel, ph);
+
 #ifdef XC_DEEP1
 	printf("xsc: xf=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
+
 #ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e dE=%e\n",
 	       Einfo->kEe2, Z1, C2, Einfo->eVel1, Einfo->Eta1, ff, ph);
@@ -3271,13 +3298,57 @@ void cudaCoulombVector(cuFP_t *rel, cuFP_t Tau, curandState *state)
   for (int i=0; i<3; i++) rel[i] = rel[i]*cosx - h[i]*sinx;
 }
 
+#ifdef TestDefEnergy
+
 __device__
 void cudaDeferredEnergy
 (
  cuFP_t E,
  cuFP_t m1,   cuFP_t m2,
  cuFP_t a,    cuFP_t b,
- cuFP_t *E1,  cuFP_t *E2
+ cuFP_t *E1,  cuFP_t *E2,
+ cudaParticle *p1,
+ cudaParticle *p2
+)
+{
+#ifdef XC_DEEP14
+  printf("deferE=%e\n", E);
+#endif
+
+  if (cuCons>=0) {
+
+    if (cuEcon<0) {
+
+      p1->datr[cuCons] += 0.5*E;
+      p2->datr[cuCons] += 0.5*E;
+
+    } else {
+
+      if (m1 < 1.0) {
+	p1->datr[cuEcon] += a*E/(a + b);
+	p2->datr[cuCons] += b*E/(a + b);
+      } else {
+	p1->datr[cuCons] += a*E/(a + b);
+	p2->datr[cuEcon] += b*E/(a + b);
+      }
+	
+    }
+
+  }
+
+}
+
+#else
+
+__device__
+void cudaDeferredEnergy
+(
+ cuFP_t E,
+ cuFP_t m1,   cuFP_t m2,
+ cuFP_t a,    cuFP_t b,
+ cuFP_t *E1,  cuFP_t *E2,
+ cudaParticle *p1,
+ cudaParticle *p2
 )
 {
 #ifdef XC_DEEP14
@@ -3306,13 +3377,16 @@ void cudaDeferredEnergy
   }
 }
 
+#endif
+
 __device__
 void cudaScatterTrace
-(cuFP_t m1,     cuFP_t m2,
+(cuFP_t m1,   cuFP_t m2,
  cuFP_t eta1, cuFP_t eta2,
  cuFP_t W1,   cuFP_t W2,
  cuFP_t *E1,  cuFP_t *E2,
- cuFP_t *v1,  cuFP_t *v2, cuFP_t delE,  
+ cuFP_t *v1,  cuFP_t *v2, cuFP_t delE,
+ cudaParticle *p1, cudaParticle *p2,
  curandState *state
  )
 {
@@ -3349,10 +3423,10 @@ void cudaScatterTrace
     for (size_t k=0; k<3; k++) {
       vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
       vrel[k] = v1[k] - v2[k];
-      vi += vrel[k] * vrel[k];
+      vi     += vrel[k] * vrel[k];
     }
 				// Energy in COM
-    cuFP_t kE = 0.5*W2*mu*vi;
+    cuFP_t kE   = 0.5*W2*mu*vi;
 				// Energy reduced by loss
     cuFP_t totE = kE - delE;
 
@@ -3368,7 +3442,8 @@ void cudaScatterTrace
       if (totE < 0.0) {
 	// Add to energy bucket for these particles
 	//
-	cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2);
+	cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2, p1, p2);
+
 #ifdef XC_DEEP3
 	fixE = -totE;
 	printf("deferE[1]=%e kE=%e dE=%e\n", totE, kE, delE);
@@ -3384,7 +3459,8 @@ void cudaScatterTrace
       if (delE>0.0) {
 	// Defer all energy loss
 	//
-	cudaDeferredEnergy(delE, m1, m2, W1, W2, E1, E2);
+	cudaDeferredEnergy(delE, m1, m2, W1, W2, E1, E2, p1, p2);
+
 #ifdef XC_DEEP3
 	fixE = delE;
 	printf("deferE[0]=%e\n", delE);
@@ -3431,7 +3507,7 @@ void cudaScatterTrace
       if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/v1i2;
       
       cuFP_t csign = 1.0;
-      if (qT<0.0) csign = -1.0;
+      if (qT < 0.0) csign = -1.0;
 
       vrat = 
 	( -qT + csign*sqrt(qT*qT + cq*(q*b1f2/v1i2 + 1.0)) )/cq;
@@ -3478,15 +3554,16 @@ void cudaScatterTrace
 __device__
 void cudaScatterTraceExplicit
 (cuFP_t m1,     cuFP_t m2,
- cuFP_t eta1, cuFP_t eta2,
- cuFP_t W1,   cuFP_t W2,
- cuFP_t *E1,  cuFP_t *E2,
- cuFP_t *v1,  cuFP_t *v2, cuFP_t delE,  
+ cuFP_t eta1,   cuFP_t eta2,
+ cuFP_t W1,     cuFP_t W2,
+ cuFP_t *E1,    cuFP_t *E2,
+ cuFP_t *v1,    cuFP_t *v2,   cuFP_t delE,
+ cudaParticle *p1, cudaParticle *p2,
  curandState *state
  )
 {
-  cuFP_t M1 = W1*m1;
-  cuFP_t M2 = W2*m2;
+  cuFP_t M1 = W1 * m1;
+  cuFP_t M2 = W2 * m2;
 
 #ifdef XC_DEEP3
   // KE debug check
@@ -3495,8 +3572,8 @@ void cudaScatterTraceExplicit
   {
     cuFP_t k1 = 0.0, k2 = 0.0;
     for (int k=0; k<3; k++) {
-      k1 += v1[k]*v1[k];
-      k2 += v2[k]*v2[k];
+      k1 += v1[k] * v1[k];
+      k2 += v2[k] * v2[k];
     }
     KEi = 0.5*M1*k1 + 0.5*M2*k2;
   }
@@ -3537,7 +3614,8 @@ void cudaScatterTraceExplicit
     if (totE < 0.0) {
       // Add to energy bucket for these particles
       //
-      cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2);
+      cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2, p1, p2);
+
 #ifdef XC_DEEP3
       fixE = -totE;
       printf("deferE[1]=%e kE=%e dE=%e\n", totE, kE, delE);
@@ -3553,7 +3631,8 @@ void cudaScatterTraceExplicit
     if (delE>0.0) {
       // Defer all energy loss
       //
-      cudaDeferredEnergy(delE, m1, m2, W1, W2, E1, E2);
+      cudaDeferredEnergy(delE, m1, m2, W1, W2, E1, E2, p1, p2);
+
 #ifdef XC_DEEP3
       fixE = delE;
       printf("deferE[0]=%e\n", delE);
@@ -4577,13 +4656,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	if (J2.sp == cuElectron and
 	    J1.sp != cuElectron) {
 	  Prob = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z1];
-	  N0  *= p1->mass;
+	  N0  *= w1;
 	  type = AccumType::ion_electron;
 	}
 	else if (J1.sp == cuElectron and
 		 J2.sp != cuElectron) {
 	  Prob = p1->datr[J2.I+cuSp0] / cuda_atomic_weights[Z2];
-	  N0  *= p1->mass;
+	  N0  *= w1;
 	  type = AccumType::ion_electron;
 	  printf("CRAZY pair: you should never see this\n");
 	}
@@ -4977,10 +5056,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	} // END: recomb
 	
-
-#ifdef XC_DEEP6
-	printf("ctest: E=%e\n", EE);
-#endif
 	// Cumulate ionization and recombation energy adjustment
 	//
 	IEadjust += (elecAdj[1] - elecAdj[0]) * N0;
@@ -5087,6 +5162,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	// Upscale to super particle and convert energy change to
 	// system units
 	//
+#ifdef XC_DEEP5
+	if (dE != 0.0)
+	  printf("ctest: dE=%e, %e  N0=%e\n", dE, N0*cuEV/cuEunit, N0);
+#endif
 	dE *= N0*cuEV/cuEunit;
 
 	if (cuNoCool) dE = 0.0;
@@ -5115,6 +5194,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  for (int k=0; k<3; k++) v2[k] = p2->datr[cuElec+k];
 	}
 
+#ifdef XC_DEEP5
 	if (T==7) {
 	  cuFP_t k1 = 0.0, k2 = 0.0;
 	  for (int k=0; k<3; k++) {
@@ -5125,6 +5205,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	  printf("col_excite [%d]: dE=%e KE=%e\n", cid, dE, tKE);
 	}
+#endif
 
 	// Add deferred energy
 	//
@@ -5145,7 +5226,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	if (J1.sp.first < cuTrcZ) {
 	  cudaScatterTraceExplicit
 	    (m1, m2, EI.Eta1, EI.Eta2, W1, W2,
-	     &E1[0], &E2[0], &v1[0], &v2[0], dE, state);
+	     &E1[0], &E2[0], &v1[0], &v2[0], dE, p1, p2, state);
 	  // Copy scattered velocities back to particle
 	  //
 	  for (int k=0; k<3; k++) {
@@ -5154,13 +5235,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    else                            p2->datr[cuElec+k] = v2[k];
 	  }
 	} else {
-	  cudaDeferredEnergy(dE, m1, m2, W1, W2, E1, E2);
-	}	
+	  cudaDeferredEnergy(dE, m1, m2, W1, W2, E1, E2, p1, p2);
+	}
       }
       // END: pair loop
     }
     // END: interaction loop
     
+#ifndef TestDefEnergy
+
     // Spread out interaction deferred energy loss to all particles
     //
     for (size_t i=0; i<nbods; i++) {
@@ -5173,24 +5256,40 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  p->datr[cuCons] += (E1[1] + E2[1])/nbods;
       }
     }
+#endif
 
     // Spread deferred over the entire cell (test algorithm)
     //
     if (cuSpreadDef) {
       cuFP_t totCons = 0.0, totEcon = 0.0;
+      int nCons = 0, nEcon = 0;
       for (size_t i=0; i<nbods; i++) {
 	cudaParticle* p = &in._v[n0+i];
-	if (cuCons>=0) totCons += p->datr[cuCons];
-	if (cuEcon>=0) totEcon += p->datr[cuEcon];
+	if (cuCons>=0) {
+	  if (p->datr[cuCons]!=0.0) {
+	    totCons += p->datr[cuCons];
+	    nCons   += 1;
+	  }
+	}
+	if (cuEcon>=0) {
+	  if (p->datr[cuEcon]!=0.0) {
+	    totEcon += p->datr[cuEcon];
+	    nEcon   += 1;
+	  }
+	}
       }
 
 #ifdef XC_DEEP5
+      cuFP_t totKE = 0.0;
+      if (totCons>0.0 or totEcon>0.0)
+	totKE = cellEnergy(cid, in, cellI, cellN, elems);
+
       if (totCons>0.0) {
-	printf("DEFERRED [%d] [cuCons]=%e [%d]\n", cid, totCons/nbods, nbods);
+	printf("DEFERRED [%d] [cuCons]=%e [%d/%d] KE=%e\n", cid, totCons/nbods, nCons, nbods, totKE);
       }
 
       if (totEcon>0.0) {
-	printf("DEFERRED [%d] [cuEcon]=%e [%d]\n", cid, totEcon/nbods, nbods);
+	printf("DEFERRED [%d] [cuEcon]=%e [%d/%d] KE=%e\n", cid, totEcon/nbods, nEcon, nbods, totKE);
       }
 #endif
 

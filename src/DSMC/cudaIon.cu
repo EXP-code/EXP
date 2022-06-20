@@ -58,17 +58,6 @@ resampleArray(const std::vector<cuFP_t>& x, const std::vector<cuFP_t>& y,
       auto a = (*ub - xx)/(*ub - *lb);
       auto b = (xx - *lb)/(*ub - *lb);
       yy = a*y[lb - x.begin()] + b*y[ub - x.begin()];
-      /*
-      std::cout << " a=" << std::setw(16) << a
-		<< " b=" << std::setw(16) << b
-		<< " E=" << std::setw(16) << xx
-		<< " y=" << std::setw(16) << yy
-		<< " l=" << std::setw(16) << y[lb - x.begin()]
-		<< " h=" << std::setw(16) << y[ub - x.begin()]
-		<< " min=" << std::setw(16) << x[0]
-		<< " max=" << std::setw(16) << x[0] + dx*numH
-		<< std::endl;
-      */
     }
     Y[i] = yy;
   }
@@ -724,10 +713,16 @@ void atomicData::cuda_initialize_textures()
 	  temp[j] = I->freeFreeGrid[i][j]/h_buffer0[i];
 	}
 
+	// Get index of lower bound
+	//
+	auto ilb = std::distance(I->freeFreeGrid[i].begin(),
+				 std::lower_bound(I->freeFreeGrid[i].begin(),
+						  I->freeFreeGrid[i].end(),
+						  I->freeFreeGrid[i].back()));
 	// End points
 	//
 	h_buffer1[i                              ] = I->kgrid[0];
-	h_buffer1[i + (CHCUMK-1)*I->NfreeFreeGrid] = I->kgrid[tsize-1];
+	h_buffer1[i + (CHCUMK-1)*I->NfreeFreeGrid] = I->kgrid[ilb];
 
 	// Remap to even grid
 	//
@@ -771,6 +766,15 @@ void atomicData::cuda_initialize_textures()
 	  }
 
 	  h_buffer1[i + j*I->NfreeFreeGrid] = kk;
+
+	  /*
+	  double Ei = I->EminGrid + I->DeltaEGrid*i - log10(I->hbc);
+	  std::cout << "TEST: j=" << j << ": distance="
+		    << std::distance(temp.begin(), lb) << "/" << temp.size()
+		    << " k=" << kk << "/" << Ei << ", "
+		    << h_buffer1[i + (CHCUMK-1)*I->NfreeFreeGrid]
+		    << std::endl;
+	  */
 
 	} // END: cumululative array loop
 
@@ -1232,21 +1236,6 @@ void computeFreeFree
       A*int2_as_double(tex1D<int2>(elem.ff_0, indx  )) +
       B*int2_as_double(tex1D<int2>(elem.ff_0, indx+1)) ;
 #endif
-
-    /*
-#if cuREAL == 4
-    cuFP_t t1 = tex1D<float>(elem.ff_0, indx  ));
-    cuFP_t t2 = tex1D<float>(elem.ff_0, indx+1));
-#else
-    cuFP_t t1 = int2_as_double(tex1D<int2>(elem.ff_0, indx  ));
-    cuFP_t t2 = int2_as_double(tex1D<int2>(elem.ff_0, indx+1));
-#endif
-
-    printf("free-free test: E=%e A=%e B=%e %d/%d Z=%d C=%d\n", E, t1, t2, indx, ionEgridNumber, elem.Z, elem.C);
-    */
-
-      // printf("free-free test: E=%e xc=%e ph=%e %d/%d Z=%d C=%d\n", E, xc, ph, indx, ionEgridNumber, elem.Z, elem.C);
-
   }
 }
 
@@ -1557,10 +1546,7 @@ void atomicData::testCross(int Nenergy)
     thrust::device_vector<cuFP_t> eCI_d(Nenergy), xCI_d(Nenergy);
     thrust::device_vector<cuFP_t> xRC_d(Nenergy), xEE_d(Nenergy);
 
-    unsigned int gridSize  = Nenergy/BLOCK_SIZE;
-    if (Nenergy > gridSize*BLOCK_SIZE) gridSize++;
-
-    cuda.start();
+    unsigned int gridSize  = 1;
 
     testElasticE<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(xEE_d),
 					   toKernel(xsc_H), toKernel(xsc_He),
@@ -1760,6 +1746,64 @@ void atomicData::testCross(int Nenergy)
 	    << separator << std::endl;
 }
 
+
+void atomicData::testFreeFreeGen(unsigned short ZZ, unsigned short CC,
+				 double E, int num,
+				 std::vector<double>& xc,
+				 std::vector<double>& ph)
+{
+  int Z = static_cast<int>(ZZ), C = static_cast<int>(CC);
+
+  thrust::host_vector<cuFP_t> energy_h(num), randsl_h(num);
+
+  for (int i=0; i<num; i++) {
+    energy_h[i] = E;
+    randsl_h[i] = static_cast<cuFP_t>(rand())/RAND_MAX;
+  }
+
+  thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
+
+  // Loop over ions
+  //
+  size_t k = 0;
+
+  for (auto v : IonList) {
+    
+    IonPtr I = v.second;
+    cuIonElement& E = cuIonElem[k];
+
+    if (E.Z == Z and E.C == C) {
+
+      thrust::device_vector<cuFP_t> energy_d = energy_h;
+      thrust::device_vector<cuFP_t> randsl_d = randsl_h;
+      thrust::device_vector<cuFP_t> eFF_d(num), xFF_d(num);
+
+      unsigned int gridSize  = num/BLOCK_SIZE;
+      if (num > gridSize*BLOCK_SIZE) gridSize++;
+      
+      if (E.C>1) {
+	testFreeFree<<<gridSize, BLOCK_SIZE>>>
+	  (toKernel(energy_d), toKernel(randsl_d),
+	   toKernel(eFF_d), toKernel(xFF_d),
+	   cuIonElem[k]);
+	
+	thrust::host_vector<cuFP_t> xFF_h = xFF_d;
+	thrust::host_vector<cuFP_t> eFF_h = eFF_d;
+
+	xc.resize(num);
+	ph.resize(num);
+	thrust::copy(xFF_h.begin(), xFF_h.end(), xc.begin());
+	thrust::copy(eFF_h.begin(), eFF_h.end(), ph.begin());
+	
+	return;
+      }
+    }
+      
+    k++;
+  } // END: Ion list
+
+  return;
+}
 
 void atomicData::testCrossCompare(int Nenergy, double Emin, double Emax,
 				  bool eVout, std::string scaling)
