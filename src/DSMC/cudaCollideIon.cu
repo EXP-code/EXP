@@ -2730,10 +2730,6 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       if (crs>0.0) {
 	*delph = ph;
 	      
-	if (ph>10.0)
-	  printf("free-free: E=%e rn=%e xf=%e cv=%e ph=%e\n",
-		 ke, rn, crs, crs*Einfo->vel, ph);
-
 #ifdef XC_DEEP1
 	printf("xsc: xf=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
@@ -2762,10 +2758,6 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	    
       if (crs>0.0) {
 	*delph = ph;
-
-	if (ph>10.0)
-	  printf("free-free: E=%e rn=%e xf=%e cv=%e ph=%e\n",
-		 ke, rn, crs, crs*Einfo->vel, ph);
 
 #ifdef XC_DEEP1
 	printf("xsc: xf=%e cv=%e\n", crs, crs*Einfo->vel);
