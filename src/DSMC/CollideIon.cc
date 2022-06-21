@@ -22,6 +22,9 @@
 #include "Species.H"
 #include "InitContainer.H"
 
+#include "TempFile.H"		// Generate temporary file names using
+				// std::filesystem and std::random
+
 // Constant static data
 //
 #include "correction_factors.cxx"
@@ -16687,12 +16690,19 @@ void CollideIon::electronGather()
 
 	unsigned short Z = 0;
 	double mi        = 0.0;
+	double me        = atomic_weights[0] * amu;
 
 	if (aType==Trace) { // Compute molecular weight for Trace-type
 	  mi = 0.0;	    // particle
-	  for (auto s : SpList)
-	    mi += p->dattrib[s.second] / atomic_weights[s.first.first];
-	  mi = amu/mi;
+	  double eta = 0.0;
+	  for (auto s : SpList) {
+	    double frc = p->dattrib[s.second] / atomic_weights[s.first.first];
+	    mi  += frc;
+	    eta += frc * (s.first.second - 1);
+	  }
+	  eta /= mi;
+	  mi   = amu/mi;
+	  me  *= eta;
 	} else {		// For all other types besides Trace
 	  Z  = KeyConvert(p->iattrib[use_key]).getKey().first;
 	  mi = atomic_weights[Z] * amu;
@@ -20505,7 +20515,7 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, atomicData& ad,
   if (reject) {
     // Get recombination rates from ChiantiPy
     //
-    const char *inFile = std::tmpnam(0);
+    auto inFile = temp_file("dsmc", 16);
     
     // Check for existence of script and write file if needed
     //
@@ -20553,7 +20563,7 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, atomicData& ad,
     // Close and remove temporary file
     //
     in.close();
-    remove(inFile);
+    std::filesystem::remove(inFile);
 
     // Log ranges for temperature/ratio grid
     //
