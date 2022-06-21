@@ -5,8 +5,19 @@
 #include <iostream>
 #include <random>
 
-//! Generate a unique file name with a given prefix and random length
-std::filesystem::path temp_file(const std::string& prefix, std::size_t length)
+//! Generate a unique file name with a given prefix and 'length'
+//! random characters.  The routine will check for existence and
+//! attempt 'max_try' times to make unique name.  Otherwise, it throws
+//! an exception reporting the last attempted file name.  We use
+//! std::filesystem to obtain the path for temporary files.  The value
+//! of max_try=1000 by default.
+//!
+//! Examples:
+//!
+//! auto path = temp_file("my_prog");      // Uses the default length=16
+//! auto path = temp_file("my_prog", 8);   // User specfied length=8
+//!
+std::filesystem::path temp_file(const std::string& prefix, std::size_t length=16)
 {
   // Allowed characters
   //
