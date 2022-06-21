@@ -14,7 +14,8 @@ std::filesystem::path temp_file(const std::string& prefix, std::size_t length)
 
   // Make a random number generator
   //
-  std::random_device random_device;
+  std::random_device random_device; // This should be seeded by
+				    // /dev/urandom in linux
   std::mt19937 generator(random_device());
   std::uniform_int_distribution<> dist(0, alphanum.size() - 1);
 
@@ -26,13 +27,10 @@ std::filesystem::path temp_file(const std::string& prefix, std::size_t length)
   std::filesystem::path path;
 
   do {
-    std::string rs;
-    for (std::size_t i = 0; i < length; ++i) {
-      rs += alphanum[dist(generator)];
-    }
+    std::string rs = prefix + "_";
+    for (std::size_t i = 0; i < length; ++i) rs += alphanum[dist(generator)];
 
-    std::string fname = prefix + "_" + rs;
-    path = std::filesystem::temp_directory_path() / fname;
+    path = std::filesystem::temp_directory_path() / rs;
     try_num++;
   } while (std::filesystem::exists(path) or try_num>max_try);
 
@@ -40,7 +38,7 @@ std::filesystem::path temp_file(const std::string& prefix, std::size_t length)
   //
   if (try_num>max_try) {
     std::ostringstream sout;
-    sout << "TempFile: could not find unique temporary file after "
+    sout << "EXP::TempFile: could not find unique temporary file after "
 	 << max_try << " attempts. Last try was: " << path;
     throw std::runtime_error(sout.str());
   }
