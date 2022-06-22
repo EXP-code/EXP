@@ -1186,9 +1186,6 @@ void computeFreeFree
   int lb    = rn/dC;
   cuFP_t k[4];
 
-  if (lb>=CHCUMK) printf("crazy: lb=%d/%d\n", lb, CHCUMK);
-
-
   // Interpolate the cross section array
   //
 #if cuREAL == 4
@@ -1214,13 +1211,8 @@ void computeFreeFree
   //
   ph = pow(10, K) * hbc;
 
-  if (ph>1000.0) printf("crazy: E=%e K=%e [%e, %e] {%e %e %e %e}\n",
-			E, K, a, b,
-			k[0], k[1], k[2], k[3]);
-
   // Use the integrated cross section from the differential grid
   //
-
   xc = 
 #if cuREAL == 4
     A*tex1D<float>(elem->ff_0, indx  ) +
