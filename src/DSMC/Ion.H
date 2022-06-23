@@ -391,6 +391,12 @@ public:
   void testCrossCompare(int Nenergy, double Emin, double Emax,
 			bool eVout, std::string scaling);
 
+  //! Test the free-free photon generation implementation
+  void testFreeFreeGen(unsigned short ZZ, unsigned short CC,
+		       double E, int num,
+		       std::vector<double>& xc,
+		       std::vector<double>& ph);
+
 #endif
   
 };

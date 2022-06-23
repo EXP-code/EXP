@@ -22,6 +22,9 @@
 #include "Species.H"
 #include "InitContainer.H"
 
+#include "TempFile.H"		// Generate temporary file names using
+				// std::filesystem and std::random
+
 // Constant static data
 //
 #include "correction_factors.cxx"
@@ -10801,6 +10804,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   }
 #endif
 
+#ifdef XC_DEEP5
+  if (dE != 0.0)
+    std::cout << "ctest: dE=" << dE << ", " << dE*N0*eV/TreeDSMC::Eunit
+	      << "  N0=" << N0 << std::endl;
+#endif
+
   // Convert energy loss from eV to system units
   //
   double PE  = dE * N0 * eV / TreeDSMC::Eunit;
@@ -12485,13 +12494,13 @@ void CollideIon::deferredEnergyTrace(PordPtr pp, const double E, int id)
 
       if (pp->m1 < 1.0) {
 	if (E_split) a *= pp->eta1/molP1[id]; else a = 0;
-	pp->E1[1] += a*E/(a + b);
-	pp->E2[0] += b*E/(a + b);
+	pp->E1[1]  += a*E/(a + b);
+	pp->E2[0]  += b*E/(a + b);
       }
       else if (pp->m2 < 1.0) {
 	if (E_split) b *= pp->eta2/molP2[id]; else b = 0;
-	pp->E1[0] += a*E/(a + b);
-	pp->E2[1] += b*E/(a + b);
+	pp->E1[0]  += a*E/(a + b);
+	pp->E2[1]  += b*E/(a + b);
       }
       else {
 	pp->E1[0]  += a*E/(a + b);
@@ -13178,7 +13187,21 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       if (use_cons>=0) totCons += p->dattrib[use_cons];
       if (elc_cons)    totEcon += p->dattrib[use_elec+3];
     }
+
     int nbods = cell->bods.size();
+
+#ifdef XC_DEEP5
+      if (totCons>0.0) {
+	std::cout << "DEFERRED [" << cell << "] [Cons]=" << totCons/nbods
+		  << " [" << nbods << "]" << std::endl;
+      }
+
+      if (totEcon>0.0) {
+	std::cout << "DEFERRED [" << cell << "] [Econ]=" << totEcon/nbods
+		  << " [" << nbods << "]" << std::endl;
+      }
+#endif
+
     for (auto b : cell->bods) {
       Particle *p = tree->Body(b);
       if (use_cons>=0) p->dattrib[use_cons  ] = totCons/nbods;
@@ -16667,12 +16690,19 @@ void CollideIon::electronGather()
 
 	unsigned short Z = 0;
 	double mi        = 0.0;
+	double me        = atomic_weights[0] * amu;
 
 	if (aType==Trace) { // Compute molecular weight for Trace-type
 	  mi = 0.0;	    // particle
-	  for (auto s : SpList)
-	    mi += p->dattrib[s.second] / atomic_weights[s.first.first];
-	  mi = amu/mi;
+	  double eta = 0.0;
+	  for (auto s : SpList) {
+	    double frc = p->dattrib[s.second] / atomic_weights[s.first.first];
+	    mi  += frc;
+	    eta += frc * (s.first.second - 1);
+	  }
+	  eta /= mi;
+	  mi   = amu/mi;
+	  me  *= eta;
 	} else {		// For all other types besides Trace
 	  Z  = KeyConvert(p->iattrib[use_key]).getKey().first;
 	  mi = atomic_weights[Z] * amu;
@@ -20485,7 +20515,7 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, atomicData& ad,
   if (reject) {
     // Get recombination rates from ChiantiPy
     //
-    const char *inFile = std::tmpnam(0);
+    auto inFile = temp_file("dsmc", 16);
     
     // Check for existence of script and write file if needed
     //
@@ -20533,7 +20563,7 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, atomicData& ad,
     // Close and remove temporary file
     //
     in.close();
-    remove(inFile);
+    std::filesystem::remove(inFile);
 
     // Log ranges for temperature/ratio grid
     //
