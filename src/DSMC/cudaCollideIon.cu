@@ -544,7 +544,7 @@ void CollideIon::cudaElasticInit()
   // Compares the cross-section evaluation between CPU and GPU
   //
   if (myid==0) {
-    const int Nenergy = 1000;
+    const int Nenergy = 1000000;
     ch.testCross(Nenergy, cuElems, xsc_H, xsc_He);
   }
   MPI_Barrier(MPI_COMM_WORLD);
@@ -635,7 +635,7 @@ cuFP_t cudaElasticInterp(cuFP_t E, dArray<cuFP_t> xsc, int Z,
     }
   }
 
-  if (logV) val = pow(10.0, val);
+  if (logV) val = exp10(val);
   
   return b_cross * val;
 }
@@ -1184,10 +1184,10 @@ void computeFreeFree
   double rn = rr;
   double dC = 1.0/(CHCUMK-1);
   int lb    = rn/dC;
-  cuFP_t k[4];
 
   // Interpolate the cross section array
   //
+  cuFP_t k[4];
 #if cuREAL == 4
   k[0]  = tex3D<float>(elem->ff_d, indx,   lb  , 0);
   k[1]  = tex3D<float>(elem->ff_d, indx+1, lb  , 0);
@@ -1209,7 +1209,7 @@ void computeFreeFree
 
   // Assign the photon energy
   //
-  ph = pow(10, K) * hbc;
+  ph = exp10(K) * hbc;
 
   // Use the integrated cross section from the differential grid
   //
@@ -1534,7 +1534,7 @@ void atomicData::testCross(int Nenergy,
     //
     double dE = (I->EmaxGrid - I->EminGrid)/(Nenergy-1) * 0.999;
     for (int i=0; i<Nenergy; i++) {
-      energy_h[i] = I->EminGrid + dE*i;
+      energy_h[i] = exp10(I->EminGrid + dE*i);
       randsl_h[i] = static_cast<cuFP_t>(rand())/RAND_MAX;
     }
 
@@ -1603,14 +1603,13 @@ void atomicData::testCross(int Nenergy,
       if (E.C==1) retEE = elastic(E.Z, energy_h[i]);
       if (retEE>0.0) {
 	xEE_0[i] = (xEE_h[i] - retEE)/retEE;
-	/*
-	std::cout << std::setw(16) << energy_h[i]
-		  << std::setw(16) << xEE_h[i]/b_cross
-		  << std::setw(16) << retEE/b_cross
-		  << std::setw(4)  << E.Z
-		  << std::setw(4)  << E.C
-		  << std::endl;
-	*/
+	if (debug)
+	  std::cout << std::setw(16) << energy_h[i]
+		    << std::setw(16) << xEE_h[i]/b_cross
+		    << std::setw(16) << retEE/b_cross
+		    << std::setw(4)  << E.Z
+		    << std::setw(4)  << E.C
+		    << std::endl;
       }
 
 				// Free-free
