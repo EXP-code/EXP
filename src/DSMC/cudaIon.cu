@@ -1198,10 +1198,10 @@ void computeFreeFree
     double rn = rr;
     double dC = 1.0/(CHCUMK-1);
     int lb    = rn/dC;
-    cuFP_t k[4];
 
     // Interpolate the cross section array
     //
+    cuFP_t k[4];
 #if cuREAL == 4
     k[0]  = tex3D<float>(elem.ff_d, indx,   lb  , 0);
     k[1]  = tex3D<float>(elem.ff_d, indx+1, lb  , 0);
@@ -1496,6 +1496,8 @@ void atomicData::testCross(int Nenergy,
 			   thrust::device_vector<cuFP_t>& x1,
 			   thrust::device_vector<cuFP_t>& x2) {}
 
+// This is the standlone version
+//
 void atomicData::testCross(int Nenergy)
 {
   // Bohr cross section (pi*a_0^2) in nm
@@ -1747,7 +1749,7 @@ void atomicData::testCross(int Nenergy)
 }
 
 
-void atomicData::testFreeFreeGen(unsigned short ZZ, unsigned short CC,
+Void atomicData::testFreeFreeGen(unsigned short ZZ, unsigned short CC,
 				 double E, int num,
 				 std::vector<double>& xc,
 				 std::vector<double>& ph)
