@@ -48,7 +48,7 @@ int main (int ac, char **av)
     cmd_line += " ";
   }
 
-  int num;
+  int num, nhisto;
   double energy;
   unsigned short Z, C;
 
@@ -60,6 +60,8 @@ int main (int ac, char **av)
     ("KandM", "Use original Koch & Motz cross section")
     ("N,Num", "number of evaluations",
      cxxopts::value<int>(num)->default_value("200"))
+    ("n,Nhisto", "number of histogram bins",
+     cxxopts::value<int>(nhisto)->default_value("20"))
     ("Z,ZZ", "atomic number",
      cxxopts::value<unsigned short>(Z)->default_value("1"))
     ("C,CC", "ionic charge",
@@ -135,7 +137,7 @@ int main (int ac, char **av)
   if (myid==0) {
     std::ofstream out(prefix + ".histo");
     if (out) {
-      AsciiHisto spect(ph, 20, 0.01, true);
+      AsciiHisto spect(ph, nhisto, 0.01, true);
       spect(out);
     } else {
       std::cerr << "testFreeFree: error opening <" << prefix + ".histo" << ">"

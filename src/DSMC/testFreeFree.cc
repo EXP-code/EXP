@@ -51,7 +51,7 @@ int main (int ac, char **av)
   unsigned short Z, C;
   double energy, logL = 10.0, kdel;
   std::string RRtype;
-  int num;
+  int num, nhisto;
 
   cxxopts::Options options(av[0], "Free-free photo test routine");
 
@@ -68,6 +68,8 @@ int main (int ac, char **av)
      cxxopts::value<double>(energy)->default_value("1.0"))
     ("N,Num", "number of evaluations",
      cxxopts::value<int>(num)->default_value("200"))
+    ("n,Nhisto", "number of histogram bins",
+     cxxopts::value<int>(nhisto)->default_value("20"))
     ("k,kdel", "default logarithmic spacing for k grid",
      cxxopts::value<double>(kdel)->default_value("0.25"))
     ;
@@ -185,7 +187,7 @@ int main (int ac, char **av)
   if (myid==0) {
     std::ofstream out(prefix + ".histo");
     if (out) {
-      AsciiHisto spect(ph, 20, 0.01, true);
+      AsciiHisto spect(ph, nhisto, 0.01, true);
       spect(out);
     } else {
       std::cerr << "testFreeFree: error opening <" << prefix + ".histo" << ">"

@@ -2111,21 +2111,21 @@ void TreeDSMC::TempHisto()
       if (td0[i]>0.0) vd0[i] /= td0[i];
     }
     
-    cout << "----------------" << endl
-	 << "Temperature dist" << endl
-	 << "Time=" << tnow    << endl
-	 << "----------------" << endl
-	 << setw(10) << "<1000" 
-	 << setw(10) << setprecision(2) << td0[0]/totalM0
-	 << setw(10) << setprecision(2) << vd0[0] << endl;
+    std::cout << "----------------" << std::endl
+	      << "Temperature dist" << std::endl
+	      << "Time=" << tnow    << std::endl
+	      << "----------------" << std::endl
+	      << std::setw(10) << "<1000" 
+	      << std::setw(10) << std::setprecision(2) << td0[0]/totalM0
+	      << std::setw(10) << std::setprecision(2) << vd0[0] << std::endl;
     for (int i=0; i<numT; i++) 
-      cout << setw(10) << setprecision(2) 
-	   << pow(10.0, TlogMin + (TlogMax-TlogMin)/numT*(0.5+i))
-	   << setw(10) << setprecision(2) << td0[i+1]/totalM0
-	   << setw(10) << setprecision(2) << vd0[i+1] << endl;
-    cout << setw(10) << ">1e8" << setw(10) 
-	 << setprecision(2) << td0[numT+1]/totalM0
-	 << setw(10) << setprecision(2) << vd0[numT+1] << endl;
+      std::cout << std::setw(10) << std::setprecision(2) 
+		<< exp10(TlogMin + (TlogMax-TlogMin)/numT*(0.5+i))
+		<< std::setw(10) << std::setprecision(2) << td0[i+1]/totalM0
+		<< std::setw(10) << std::setprecision(2) << vd0[i+1] << std::endl;
+    std::cout << std::setw(10) << ">1e8" << std::setw(10) 
+	      << std::setprecision(2) << td0[numT+1]/totalM0
+	      << std::setw(10) << std::setprecision(2) << vd0[numT+1] << std::endl;
   }
 }
 

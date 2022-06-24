@@ -62,16 +62,16 @@ int main (int ac, char **av)
   cxxopts::Options options(av[0], "Cross-section test routine for cuda");
 
   options.add_options()
-    ("h,help", "produce help message")
-    ("vanHoof", "Use Gaunt factor from van Hoof et al.")
-    ("KandM", "Use original Koch & Motz cross section")
-    ("eV", "print results in eV")
+    ("h,help",    "produce help message")
+    ("vanHoof",   "Use Gaunt factor from van Hoof et al.")
+    ("KandM",     "Use original Koch & Motz cross section")
+    ("eV",        "print results in eV")
     ("c,compare", "for comparison with CPU version")
-    ("N,Num", "number of evaluations",
+    ("N,Num",     "number of evaluations",
      cxxopts::value<int>(num)->default_value("200"))
-    ("e,Emin", "minimum energy (Rydbergs)",
+    ("e,Emin",    "minimum energy (Rydbergs)",
      cxxopts::value<double>(emin)->default_value("0.001"))
-    ("E,Emax", "maximum energy (Rydbergs)",
+    ("E,Emax",    "maximum energy (Rydbergs)",
      cxxopts::value<double>(emax)->default_value("100.0"))
     ("S,scaling", "cross-section scaling (born, mbarn, (null))",
      cxxopts::value<std::string>(scaling))

@@ -59,7 +59,7 @@ double InteractSelect::selectRRInteract
   int N = a->kffsteps;
   for (int i = 0; i < a->kffsteps; i++) {
     if (cumCross[a->kffsteps-1] > 0.0) {
-      if (Ee > hbc*pow(10, a->kgrid[i])) {
+      if (Ee > hbc*exp10(a->kgrid[i])) {
 	normed.push_back(cumCross[i]/cumCross[a->kffsteps-1]);
 	kgrid_log.push_back(a->kgrid[i]);
       } else {
@@ -83,7 +83,7 @@ double InteractSelect::selectRRInteract
   
   double rn = static_cast<double>(rand())/static_cast<double>(RAND_MAX);
   double k = interp(rn);
-  k = pow(10.0, k);
+  k = exp10(k);
   double E = k*hbc;
   
   return E;
