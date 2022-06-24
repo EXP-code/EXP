@@ -1435,14 +1435,20 @@ __device__
 void computeRadRecomb
 (cuFP_t E, cuFP_t& xc, const cuIonElement elem)
 {
+  // Energy grid is in log10
+  //
+  E = log10(E);
+
+  // Grid test
+  //
   if (E < ionEminGrid or E > ionEmaxGrid or elem.C==1) {
 
     xc = 0.0;
 
-  } else {
-
-    // Interpolate the values
-    //
+  } 
+  // Interpolate the values
+  //
+  else {
     int indx = std::floor( (E - ionEminGrid)/ionDeltaEGrid );
 
     // Sanity check
@@ -1511,6 +1517,8 @@ void atomicData::testCross(int Nenergy)
   std::string separator(10+(14+3)*8, '-');
   std::cout << separator << std::endl
 	    << " Cross-section comparison for " << Nenergy << " samples"
+	    << std::endl
+	    << " Fractional GPU errors relative to CPU"
 	    << std::endl << separator << std::endl;
 
   // Loop over ions and tabulate statistics
@@ -1546,7 +1554,8 @@ void atomicData::testCross(int Nenergy)
     thrust::device_vector<cuFP_t> eCI_d(Nenergy), xCI_d(Nenergy);
     thrust::device_vector<cuFP_t> xRC_d(Nenergy), xEE_d(Nenergy);
 
-    unsigned int gridSize  = 1;
+    unsigned int gridSize  = Nenergy/BLOCK_SIZE;
+    if (Nenergy > gridSize*BLOCK_SIZE) gridSize++;
 
     testElasticE<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(xEE_d),
 					   toKernel(xsc_H), toKernel(xsc_He),
@@ -1580,23 +1589,25 @@ void atomicData::testCross(int Nenergy)
     
     cuda.stop();
     
-    std::vector<double> xEE_0(Nenergy, 0);
-    std::vector<double> eFF_0(Nenergy, 0), xFF_0(Nenergy, 0);
-    std::vector<double> eCE_0(Nenergy, 0), xCE_0(Nenergy, 0);
-    std::vector<double> eCI_0(Nenergy, 0), xCI_0(Nenergy, 0), xRC_0(Nenergy, 0);
-    
+    std::vector<double> xEE_0;
+    std::vector<double> xFF_0, eFF_0, eFF_1;
+    std::vector<double> eCE_0, xCE_0;
+    std::vector<double> eCI_0, xCI_0, xRC_0;
+
     serial.start();
     
     const bool debug = false;
 
     Elastic elastic;
 
+    int cnt = 0;
+
     for (int i=0; i<Nenergy; i++) {
 				// Neutral-electron
       auto retEE = 0.0;
       if (E.C==1) retEE = elastic(E.Z, energy_h[i]);
       if (retEE>0.0) {
-	xEE_0[i] = (xEE_h[i] - retEE)/retEE;
+	xEE_0.push_back((xEE_h[i] - retEE)/retEE);
 	if (debug) 
 	  std::cout << std::setw(12) << "N-e"
 		    << std::setw(16) << energy_h[i]
@@ -1609,10 +1620,12 @@ void atomicData::testCross(int Nenergy)
 
 				// Free-free
       auto retFF = I->freeFreeCrossTest(energy_h[i], randsl_h[i], 0);
-      if (retFF.first>0.0)
-	xFF_0[i]   = (xFF_h[i] - retFF.first )/retFF.first;
-      if (retFF.second>0.0)
-	eFF_0[i]   = (eFF_h[i] - retFF.second)/retFF.second;
+      if (retFF.first>0.0 and xFF_h[i]>0.0)
+	xFF_0.push_back((xFF_h[i] - retFF.first )/retFF.first);
+      if (eFF_h[i]>0.0 and retFF.second>0.0) {
+	eFF_0.push_back(eFF_h[i]);
+	eFF_1.push_back(retFF.second);
+      }
 
       if (debug and retFF.first>0.0)
 	std::cout << std::setw(12) << "Free free"
@@ -1626,7 +1639,7 @@ void atomicData::testCross(int Nenergy)
 				// Collisional excitation
       auto retCE = I->collExciteCross(energy_h[i], 0).back();
       if (retCE.first>0.0) {
-	xCE_0[i]   = (xCE_h[i] - retCE.first )/retCE.first;
+	xCE_0.push_back((xCE_h[i] - retCE.first )/retCE.first);
 	if (debug)
 	  std::cout << std::setw(12) << "Excite"
 		    << std::setw( 4) << E.Z
@@ -1637,10 +1650,9 @@ void atomicData::testCross(int Nenergy)
 		    << std::endl;
       }
 				// Collisional ionization
-
       auto retCI = I->directIonCross(energy_h[i], 0);
       if (retCI>0.0) {
-	xCI_0[i]   = (xCI_h[i] - retCI)/retCI;
+	xCI_0.push_back((xCI_h[i] - retCI)/retCI);
 	if (debug)
 	  std::cout << std::setw(12) << "Ionize"
 		    << std::setw( 4) << E.Z
@@ -1652,10 +1664,9 @@ void atomicData::testCross(int Nenergy)
       }
 
 				// Radiative recombination
-
       auto retRC = I->radRecombCross(energy_h[i], 0).back();
       if (retRC>0.0) {
-	xRC_0[i]   = (xRC_h[i] - retRC)/retRC;
+	xRC_0.push_back((xRC_h[i] - retRC)/retRC);
 	if (debug)
 	  std::cout << std::setw(12) << "Rad recomb"
 		    << std::setw( 4) << E.Z
@@ -1673,6 +1684,7 @@ void atomicData::testCross(int Nenergy)
     std::sort(xEE_0.begin(), xEE_0.end());
     std::sort(xFF_0.begin(), xFF_0.end());
     std::sort(eFF_0.begin(), eFF_0.end());
+    std::sort(eFF_1.begin(), eFF_1.end());
     std::sort(xCE_0.begin(), xCE_0.end());
     std::sort(eCE_0.begin(), eCE_0.end());
     std::sort(xCI_0.begin(), xCI_0.end());
@@ -1704,24 +1716,29 @@ void atomicData::testCross(int Nenergy)
 	      << " + " << std::setw(14) << '-'
 	      << std::endl << std::setfill(' ');
 
+    auto Q = [](double v, std::vector<double>& V) {
+	       if (V.size()==0) return 0.0;
+	       int k = std::min<int>(std::floor(v*V.size()+0.5), V.size()-1);
+	       return V[k];
+	     };
+
     for (auto v : quantiles) {
-      int indx = std::min<int>(std::floor(v*Nenergy+0.5), Nenergy-1);
       double FF_xc = 0.0, FF_ph = 0.0, CE_xc = 0.0, CE_ph = 0.0;
       double CI_ph = 0.0, CI_xc = 0.0, RC_xc = 0.0, EE_xc = 0.0;
       
-      EE_xc = xEE_0[indx];
+      EE_xc = Q(v, xEE_0);
 
       if (E.C>1) {
-	FF_xc = xFF_0[indx];
-	FF_ph = eFF_0[indx];
-	RC_xc = xRC_0[indx];
+	FF_xc = Q(v, xFF_0);
+	FF_ph = (Q(v, eFF_0) - Q(v, eFF_1))/Q(v, eFF_1);
+	RC_xc = Q(v, xRC_0);
       }
 
       if (E.C<=E.Z) {
-	CE_xc = xCE_0[indx];
-	CE_ph = eCE_0[indx];
-	CI_xc = xCI_0[indx];
-	CI_ph = eCI_0[indx];
+	CE_xc = Q(v, xCE_0);
+	CE_ph = Q(v, eCE_0);
+	CI_xc = Q(v, xCI_0);
+	CI_ph = Q(v, eCI_0);
       }
 
       std::cout << std::setw(10) << v
