@@ -58,21 +58,21 @@ int main (int ac, char **av)
   cxxopts::Options options(av[0], "Test radiative cross section computation");
 
   options.add_options()
-    ("h,help", "produce help message")
-    ("eV", "print results in eV")
-    ("vanHoof", "Use Gaunt factor from van Hoof et al.")
-    ("KandM", "Use original Koch & Motz cross section")
-    ("Z,ZZ", "atomic number",
+    ("h,help",   "produce help message")
+    ("eV",       "print results in eV")
+    ("vanHoof",  "Use Gaunt factor from van Hoof et al.")
+    ("KandM",    "Use original Koch & Motz cross section")
+    ("Z,ZZ",     "atomic number",
      cxxopts::value<unsigned short>(Z)->default_value("2"))
-    ("C,CC", "ionic charge",
+    ("C,CC",     "ionic charge",
      cxxopts::value<unsigned short>(C)->default_value("3"))
-    ("e,Emin", "minimum energy (Rydbergs)",
+    ("e,Emin",   "minimum energy (Rydbergs)",
      cxxopts::value<double>(emin)->default_value("0.001"))
-    ("E,Emax", "maximum energy (Rydbergs)",
+    ("E,Emax",   "maximum energy (Rydbergs)",
      cxxopts::value<double>(emax)->default_value("100.0"))
-    ("N,Num", "number of evaluations",
+    ("N,Num",    "number of evaluations",
      cxxopts::value<int>(num)->default_value("200"))
-    ("k,kdel", "default logarithmic spacing for k grid",
+    ("k,kdel",   "default logarithmic spacing for k grid",
      cxxopts::value<double>(kdel)->default_value("0.25"))
     ("R,RRtype", "cross-section type",
      cxxopts::value<std::string>(RRtype)->default_value("Badnell"))
