@@ -1766,7 +1766,7 @@ void atomicData::testCross(int Nenergy)
 }
 
 
-Void atomicData::testFreeFreeGen(unsigned short ZZ, unsigned short CC,
+void atomicData::testFreeFreeGen(unsigned short ZZ, unsigned short CC,
 				 double E, int num,
 				 std::vector<double>& xc,
 				 std::vector<double>& ph)
