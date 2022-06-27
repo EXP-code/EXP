@@ -560,8 +560,8 @@ protected:
   //@{
   //! Free-free cross section implementations
   std::pair<double, double> freeFreeCrossSingle    (double E, int id);
-  std::pair<double, double> freeFreeCrossSingleOld (double E, int id);
-  std::pair<double, double> freeFreeCrossSingleNew (double E, int id);
+  std::pair<double, double> freeFreeCrossSingleVH  (double E, int id);
+  std::pair<double, double> freeFreeCrossSingleKM  (double E, int id);
   std::pair<double, double> freeFreeCrossEvGrid    (double E, int id);
   std::pair<double, double> freeFreeCrossEvGridTest(double E, double rn, int id);
   void                      freeFreeMakeEvGrid(int id);

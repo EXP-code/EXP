@@ -1578,9 +1578,9 @@ void Ion::directIonMakeGrid(int id)
 std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
 {
   if (use_VAN_HOOF)
-    return Ion::freeFreeCrossSingleNew(Ei, id);
+    return Ion::freeFreeCrossSingleVH(Ei, id);
   else
-    return Ion::freeFreeCrossSingleOld(Ei, id);
+    return Ion::freeFreeCrossSingleKM(Ei, id);
 }
 
 
@@ -1590,7 +1590,7 @@ std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
 
     Using the parametrization by Greene (1959)
  */
-std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id) 
+std::pair<double, double> Ion::freeFreeCrossSingleKM(double Ei, int id) 
 {
   // No free-free with a neutral
   //
@@ -1710,7 +1710,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id)
     
     with the low-energy Elwert factor.
  */
-std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id) 
+std::pair<double, double> Ion::freeFreeCrossSingleVH(double Ei, int id) 
 {
   // No free-free with a neutral
   //
@@ -2067,8 +2067,7 @@ void Ion::freeFreeMakeEvGrid(int id)
 	  //
 	  // dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
 	  //
-	  constexpr double nfac = 32.0/(3.0*sqrt(3.0)) * afs*afs*afs * M_PI*a0*a0;
-
+	  constexpr double nfac = 16.0/(3.0*sqrt(3.0)) * afs*afs*afs * M_PI*a0*a0;
 	  double sig = nfac * eta_f*eta_f * corr * gff;
 
 	  cum = cum + sig * dk;
