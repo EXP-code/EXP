@@ -103,7 +103,7 @@ main(int argc, char **argv)
 
   std::ofstream out(OUTFILE);
   if (!out) {
-    std::cerr << "part2ascii: error opening output file <"
+    std::cerr << "snap2ascii: error opening output file <"
 	      << OUTFILE << ">" << std::endl;
     exit(-1);
   }
@@ -121,10 +121,10 @@ main(int argc, char **argv)
     std::cout << "Found dump at time: " << time << std::endl;
   }
   catch (const std::runtime_error& error) {
-    std::cerr << "part2ascii: error opening snapshot in files ";
+    std::cerr << "snap2ascii: error opening snapshot in files ";
     for (auto s : INFILE) std::cerr << s << " ";
     std::cerr << std::endl
-	      << "part2ascii: " << error.what() << std::endl;
+	      << "snap2ascii: " << error.what() << std::endl;
     exit(-1);
   }
   
@@ -147,6 +147,7 @@ main(int argc, char **argv)
 				      << std::setw(10) << N+1 << std::flush;
     }
   }
+  std::cout << std::endl;
 
   return 0;
 }
