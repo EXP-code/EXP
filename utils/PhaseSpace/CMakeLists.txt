@@ -3,7 +3,7 @@ set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp psp2histo
   psp2histo1d psp2histo1D2 psp2histoE psp2histoH pspreal pspstatS
   psp2range psp2histoT psp2histoTC pspstatT spl2psp ascii2psp2
   psp2rings psp2bess psp2lagu psp2interp diffpsp diffpspN psp2hdf5
-  pspmono)
+  pspmono snap2ascii)
 		
 if(HAVE_VTK)
   list(APPEND bin_PROGRAMS psp2eHisto psp2vtu)
@@ -39,6 +39,7 @@ add_executable(pspstat pspstat.cc PSP.cc)
 add_executable(pspstatS pspstatS.cc PSP.cc)
 add_executable(pspstatT pspstatT.cc PSP.cc)
 add_executable(psp2ascii psp2ascii.cc PSP.cc)
+add_executable(snap2ascii snap2ascii.cc)
 add_executable(ascii2psp ascii2psp.cc PSP.cc)
 add_executable(ascii2psp2 ascii2psp2.cc PSP.cc)
 add_executable(pspreal pspreal.cc PSP.cc)
