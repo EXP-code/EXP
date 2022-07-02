@@ -182,13 +182,6 @@ main(int argc, char **argv)
     for (int k=0; k<3; k++) out << std::setw(18) << part->vel[k]*vscale - vel0[k];
     out << std::endl;
     
-    for (int k=0; k<3; k++) {
-      pos0[k] += part->pos[k]*lscale * part->mass*mscale;
-      vel0[k] += part->vel[k]*vscale * part->mass*mscale;
-    }
-    mas0 +=part->mass*mscale;
-
-
     if (NREPORT) {
       if (!((N+1)%NREPORT)) std::cout << "\rProcessed: " 
 				      << std::setw(10) << N+1 << std::flush;
