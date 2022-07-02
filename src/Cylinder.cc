@@ -298,29 +298,29 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   }
 #else
   if (myid==0) {
-    cout << endl << "Cylinder parameters: "
-	 << " nmax="        << nmax
-	 << " lmax="        << lmax
-	 << " mmax="        << mmax
-	 << " mlim="        << mlim
-	 << " ncylorder="   << ncylorder
-	 << " ncylodd="     << ncylodd
-	 << " rcylmin="     << rcylmin
-	 << " rcylmax="     << rcylmax
-	 << " acyl="        << acyl
-	 << " hcyl="        << hcyl
-	 << " expcond="     << expcond
-	 << " pcavar="      << pcavar
-	 << " pcaeof="      << pcaeof
-	 << " nvtk="        << nvtk
-	 << " npca="        << npca
-	 << " npca0="       << npca0
-	 << " pcadiag="     << pcadiag
-	 << " eof_file="    << eof_file
-	 << " override="    << std::boolalpha << eof_over
-	 << " logarithmic=" << logarithmic
-	 << " vflag="       << vflag
-	 << endl << endl;
+    std::cout << "---- Cylinder parameters: "
+	      << " nmax="        << nmax
+	      << " lmax="        << lmax
+	      << " mmax="        << mmax
+	      << " mlim="        << mlim
+	      << " ncylorder="   << ncylorder
+	      << " ncylodd="     << ncylodd
+	      << " rcylmin="     << rcylmin
+	      << " rcylmax="     << rcylmax
+	      << " acyl="        << acyl
+	      << " hcyl="        << hcyl
+	      << " expcond="     << expcond
+	      << " pcavar="      << pcavar
+	      << " pcaeof="      << pcaeof
+	      << " nvtk="        << nvtk
+	      << " npca="        << npca
+	      << " npca0="       << npca0
+	      << " pcadiag="     << pcadiag
+	      << " eof_file="    << eof_file
+	      << " override="    << std::boolalpha << eof_over
+	      << " logarithmic=" << logarithmic
+	      << " vflag="       << vflag
+	      << std::endl;
   }
 #endif
       
