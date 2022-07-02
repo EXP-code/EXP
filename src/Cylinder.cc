@@ -1099,11 +1099,14 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 
       unsigned indx = cC->levlist[lev][q];
 
+      // Deep debug
+      /*
       if (indx<1 || indx>cC->CurTotal()) {
 	cout << "Process " << myid << " id=" << id 
 	     << ": index error in Cylinder q=" << q
 	     << " indx=" << indx << endl;
       }
+      */
 
       if (mix) {
 
