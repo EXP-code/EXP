@@ -108,13 +108,21 @@ namespace PR {
     if (myid==0 and _verbose)
       std::cout << "GadgetNative: opened <" << *curfile << ">" << std::endl;
     
+    int blk1, blk2;
+
     // read in file data
     //
-    file.seekg(sizeof(int), std::ios::cur); // block count
+    file.read((char*)&blk1, sizeof(int)); // block count
     
     file.read((char*)&header, sizeof(gadget_header)); 
     
-    file.seekg(sizeof(int), std::ios::cur); // block count
+    file.read((char*)&blk2, sizeof(int)); // block count
+
+    if (blk1 != blk2) {
+      std::cout << "GadgetNative header read: "
+		<< "blk1=" << blk1 << " != blk2=" << blk2
+		<< std::endl;
+    }
     
     // Total number of particles in this stanza.  Note: this needs to be
     // generalized for reading multiple Gadget native files per snap
@@ -127,7 +135,7 @@ namespace PR {
     
     // Read positions
     //
-    file.seekg(sizeof(int), std::ios::cur); // block count
+    file.read((char*)&blk1, sizeof(int)); // block count
     
     float temp[3];		// Pos/vel temporary
     
@@ -149,8 +157,14 @@ namespace PR {
       }
     }
     
-    file.seekg(sizeof(int), std::ios::cur); // block count
-    file.seekg(sizeof(int), std::ios::cur); // block count
+    file.read((char*)&blk2, sizeof(int)); // block count
+    if (blk1 != blk2) {
+      std::cout << "GadgetNative position block read: "
+		<< "blk1=" << blk1 << " != blk2=" << blk2
+		<< std::endl;
+    }
+
+    file.read((char*)&blk1, sizeof(int)); // block count
     
     // Read velocities
     //
@@ -173,8 +187,14 @@ namespace PR {
       
     }
     
-    file.seekg(sizeof(int), std::ios::cur); // block count
-    file.seekg(sizeof(int), std::ios::cur); // block count
+    file.read((char*)&blk2, sizeof(int)); // block count
+    if (blk1 != blk2) {
+      std::cout << "GadgetNative velocity block read: "
+		<< "blk1=" << blk1 << " != blk2=" << blk2
+		<< std::endl;
+    }
+
+    file.read((char*)&blk1, sizeof(int));
     
     // Read particle ID
     //
@@ -195,11 +215,23 @@ namespace PR {
       }
     }
     
-    file.seekg(sizeof(int), std::ios::cur); // block count
-    
+    file.read((char*)&blk2, sizeof(int)); // block count
+    if (blk1 != blk2) {
+      std::cout << "GadgetNative id block read: "
+		<< "blk1=" << blk1 << " != blk2=" << blk2
+		<< std::endl;
+    }
+
     // Do we need to read mass stanza?
-    bool with_mass = std::accumulate(header.mass, header.mass+6, 0.0)>0.0;
-    if (with_mass) file.seekg(sizeof(int), std::ios::cur); // block count
+    bool with_mass = false;
+    for (int k=0; k<6; k++) {
+      if (header.npart[k]>0 and header.mass[k] ==0) with_mass = true;
+    }
+
+    if (with_mass) {
+      // file.seekg(sizeof(int), std::ios::cur); // block count
+      file.read((char*)&blk1, sizeof(int));
+    }
     
     for (int k=0; k<6; k++) {
       if ( k == ptype) {
@@ -222,7 +254,14 @@ namespace PR {
       }
     }
     
-    if (with_mass) file.seekg(sizeof(int), std::ios::cur); // block count
+    if (with_mass) {
+      file.read((char*)&blk2, sizeof(int)); // block count
+      if (blk1 != blk2) {
+	std::cout << "GadgetNative id block read: "
+		  << "blk1=" << blk1 << " != blk2=" << blk2
+		  << std::endl;
+      }
+    }
     
     // Add other fields, as necessary. Acceleration?
     
