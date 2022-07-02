@@ -732,7 +732,7 @@ int EmpCylSL::read_cache(void)
   send_eof_grid();
 
   if (myid==0) 
-    std::cout << "--- EmpCylSL::read_cache: table forwarded to all processes"
+    std::cout << "---- EmpCylSL::read_cache: table forwarded to all processes"
 	      << std::endl;
 
 
