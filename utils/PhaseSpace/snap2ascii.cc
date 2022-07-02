@@ -52,6 +52,9 @@ main(int argc, char **argv)
   std::string  OUTFILE;
   std::string  fileType;
   double       mscale, lscale, vscale;
+  bool         use_index  = false;
+  bool         center_pos = false;
+  bool         center_vel = false;
 
   std::vector<std::string>  INFILE;
   
@@ -64,6 +67,9 @@ main(int argc, char **argv)
 
   options.add_options()
     ("h,help", "This help message")
+    ("index",  "Retain native particle index")
+    ("com",    "Compute and recenter using the center of mass")
+    ("cov",    "Compute and recenter using the center of velocity")
     ("F,filetype", "input file type (one of: PSPout, PSPspl, GadgetNative, GadgetHDF5)",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("n,NREPORT", "Interval for reporting processing progress",
@@ -81,7 +87,7 @@ main(int argc, char **argv)
     ("l,lscale", "Length scale factor",
      cxxopts::value<double>(lscale)->default_value("1.0"))
     ("v,vscale", "Velocity scale factor",
-     cxxopts::value<double>(lscale)->default_value("1.0"))
+     cxxopts::value<double>(vscale)->default_value("1.0"))
     ;
 
   cxxopts::ParseResult vm;
@@ -97,6 +103,10 @@ main(int argc, char **argv)
     if (myid==0) std::cout << options.help() << std::endl;
     return 0;
   }
+
+  if (vm.count("index")) use_index  = true;
+  if (vm.count("com"  )) center_pos = true;
+  if (vm.count("cov"  )) center_vel = true;
 
   PR::PRptr snap;
   double time;
@@ -133,21 +143,59 @@ main(int argc, char **argv)
       << std::setw(10) << 0
       << std::endl;
 
+  std::vector<double> pos0 = {0.0, 0.0, 0.0};
+  std::vector<double> vel0 = {0.0, 0.0, 0.0};
+  double              mas0 = 0.0;
+
+  // Compute the center of mass and velocity
+  //
+  if (center_pos or center_vel) {
+
+    for (auto part=snap->firstParticle(); part!=0; part=snap->nextParticle()) {
+      for (int k=0; k<3; k++) {
+	if (center_pos) pos0[k] += part->pos[k]*lscale * part->mass*mscale;
+	if (center_vel) vel0[k] += part->vel[k]*vscale * part->mass*mscale;
+      }
+      mas0 +=part->mass*mscale;
+    }
+  
+    if (mas0>0.0) {
+      for (int k=0; k<3; k++) pos0[k] /= mas0;
+      for (int k=0; k<3; k++) vel0[k] /= mas0;
+      std::cout << "Center of mass:"
+		<< " [" << std::setw(16) << pos0[0]
+		<< ", " << std::setw(16) << pos0[1]
+		<< ", " << std::setw(16) << pos0[2] << "]" << std::endl;
+      std::cout << "Center of vel: "
+		<< " [" << std::setw(16) << vel0[0]
+		<< ", " << std::setw(16) << vel0[1]
+		<< ", " << std::setw(16) << vel0[2] << "]" << std::endl;
+    }
+  }
+    
   int N=0;
 
   for (auto part=snap->firstParticle(); part!=0; part=snap->nextParticle(), N++) {
-    out << std::setw(18) << part->indx
-	<< std::setw(18) << part->mass*mscale;
-    for (int k=0; k<3; k++) out << std::setw(18) << part->pos[k]*lscale;
-    for (int k=0; k<3; k++) out << std::setw(18) << part->vel[k]*vscale;
+    if (use_index) out << std::setw(18) << part->indx;
+    out << std::setw(18) << part->mass*mscale;
+    for (int k=0; k<3; k++) out << std::setw(18) << part->pos[k]*lscale - pos0[k];
+    for (int k=0; k<3; k++) out << std::setw(18) << part->vel[k]*vscale - vel0[k];
     out << std::endl;
     
+    for (int k=0; k<3; k++) {
+      pos0[k] += part->pos[k]*lscale * part->mass*mscale;
+      vel0[k] += part->vel[k]*vscale * part->mass*mscale;
+    }
+    mas0 +=part->mass*mscale;
+
+
     if (NREPORT) {
       if (!((N+1)%NREPORT)) std::cout << "\rProcessed: " 
 				      << std::setw(10) << N+1 << std::flush;
     }
   }
   std::cout << std::endl;
+
 
   return 0;
 }
