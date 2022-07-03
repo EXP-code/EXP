@@ -1,6 +1,6 @@
 
 set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp psp2histo
-  psp2histo1d psp2histo1D2 psp2histoE psp2histoH pspreal pspstatS
+  psp2histo1d snap2histo1d psp2histoE psp2histoH pspreal pspstatS
   psp2range psp2histoT psp2histoTC pspstatT spl2psp ascii2psp2
   psp2rings psp2bess psp2lagu psp2interp diffpsp diffpspN psp2hdf5
   pspmono snap2ascii)
@@ -44,7 +44,7 @@ add_executable(ascii2psp ascii2psp.cc PSP.cc)
 add_executable(ascii2psp2 ascii2psp2.cc PSP.cc)
 add_executable(pspreal pspreal.cc PSP.cc)
 add_executable(psp2histo psp2histo.cc PSP.cc)
-add_executable(psp2histo1D2 psp2histo1D_2.cc PSP.cc)
+add_executable(snap2histo1d snap2histo1d.cc)
 add_executable(psp2histo1d psp2histo1d.cc PSP.cc)
 add_executable(psp2histoE psp2histoE.cc PSP.cc)
 add_executable(psp2histoH psp2histoH.cc PSP.cc)
