@@ -708,7 +708,8 @@ int EmpCylSL::read_eof_file(const string& eof_file)
   send_eof_grid();
 
   if (myid==0) 
-    cerr << "EmpCylSL::read_cache: table forwarded to all processes" << endl;
+    std::cout << "---- EmpCylSL::read_cache: table forwarded to all processes"
+	      << std::endl;
 
 
   eof_made = true;
@@ -731,7 +732,8 @@ int EmpCylSL::read_cache(void)
   send_eof_grid();
 
   if (myid==0) 
-    cerr << "EmpCylSL::read_cache: table forwarded to all processes" << endl;
+    std::cout << "---- EmpCylSL::read_cache: table forwarded to all processes"
+	      << std::endl;
 
 
   eof_made = true;
@@ -1108,7 +1110,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
     YMAX = z_to_y( Rtable*ASCALE);
     dY = (YMAX - YMIN)/NUMY;
     
-    cerr << "EmpCylSL::cache_grid: file read successfully" << endl;
+    std::cout << "---- EmpCylSL::cache_grid: file read successfully"
+	      << std::endl;
   }
 
   return 1;

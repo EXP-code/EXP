@@ -123,6 +123,7 @@ namespace PR
 	std::cerr << "Valid GadgetNative types are:";
 	for (auto s : Ptypes) std::cerr << " " << s;
 	std::cerr << std::endl;
+	throw std::runtime_error("GadgetNative: non-existent particle type");
       }
 
       curfile = _files.begin();	// Set to first file and open
@@ -190,6 +191,7 @@ namespace PR
 	std::cerr << "Valid GadgetHDF5 types are:";
 	for (auto s : Ptypes) std::cerr << " " << s;
 	std::cerr << std::endl;
+	throw std::runtime_error("GadgetHDF5: non-existent particle type");
       }
 
       curfile = _files.begin();	// Set to first file and open

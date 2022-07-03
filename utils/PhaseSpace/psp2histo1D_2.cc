@@ -33,6 +33,8 @@ main(int ac, char **av)
   bool snorm   = false;
   bool use_sph = false;
   bool use_cyl = false;
+  bool use_ctr = false;
+  bool use_cov = false;
   std::string cname, new_dir;
   int axis, numb, comp;
   double pmin, pmax;
@@ -46,9 +48,11 @@ main(int ac, char **av)
     ("r,radial", "use spherical radius")
     ("R,cylindrical", "cylindrical radius")
     ("A,areal", "areal average")
-    ("V,vnorm", "compute density for radial bins")
+    ("D,vnorm", "compute density for radial bins")
     ("S,snorm", "compute surface density for cylindrical bins")
     ("v,verbose", "verbose output")
+    ("C,com", "compute position center from most bound particles")
+    ("V,cov", "compute velocity center from most bound particles")
     ("p,pmin", "minimum position along axis",
      cxxopts::value<double>(pmin)->default_value("-100.0"))
     ("P,pmax", "maximum position along axis",
@@ -105,6 +109,14 @@ main(int ac, char **av)
   if (vm.count("verbose")) {
     verbose = true;
   }
+
+  if (vm.count("com")) {
+    use_ctr = true;
+  }
+
+  if (vm.count("cov")) {
+    use_cov = true;
+  }
 				// Axis sanity check 
 				// ------------------
   if (axis<1) axis = 1;
@@ -156,26 +168,53 @@ main(int ac, char **av)
     
       if (stanza->name != cname) continue;
 
+      std::vector<double> com = {0, 0, 0}, cov = {0, 0, 0};
+      if (use_ctr) {
+	std::map<double, std::array<double, 7>> posn;
+	for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
+	  posn[part->phi()] = {part->pos(0), part->pos(1), part->pos(2),
+			       part->vel(0), part->vel(1), part->vel(2),
+			       part->mass()};
+	}
+	double total = 0.0;
+	auto p = posn.begin();
+	for (int i=0; i<floor(posn.size()*0.05); i++, p++) {
+	  for (int k=0; k<3; k++) {
+	    com[k] += p->second[6] * p->second[k];
+	    if (use_cov) cov[k] += p->second[6] * p->second[3+k];
+	  }
+	  total += p->second[6];
+	}
+	if (total>0.0) {
+	  for (int k=0; k<3; k++) {
+	    com[k] /= total;
+	    cov[k] /= total;
+	  }
+	}
+	std::cout << "COM is: "	<< com[0] << ", " << com[1] << ", "<< com[2] << std::endl;
+	std::cout << "COV is: "	<< cov[0] << ", " << cov[1] << ", "<< cov[2] << std::endl;
+      }
+      
       for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
 	double val = 0.0;
 	if (use_sph) {
 	  for (int k=0; k<3; k++) {
-	    val += part->pos(k) * part->pos(k);
+	    val += (part->pos(k) - com[k]) * (part->pos(k) - com[k]);
 	  }
 	  val = sqrt(val);
 	  iv = static_cast<int>( floor( (val - pmin)/dp ) );
 	}
 	else if (use_cyl) {
 	  for (int k=0; k<2; k++) {
-	    val += part->pos(k) * part->pos(k);
+	    val += (part->pos(k) - com[k]) * (part->pos(k) - com[k]);
 	  }
 	  val = sqrt(val);
 	  iv = static_cast<int>( floor( (val - pmin)/dp ) );
 	}
 	else {
-	  val = part->pos(axis-1);
-	  iv = static_cast<int>( floor( (part->pos(axis-1) - pmin)/dp ) );
+	  val = part->pos(axis-1) - com[axis-1];
+	  iv = static_cast<int>( floor( (part->pos(axis-1) - com[axis-1] - pmin)/dp ) );
 	}
 
 	if (iv < 0 || iv >= numb) continue;
@@ -185,9 +224,9 @@ main(int ac, char **av)
 	if (comp == 0)
 	  value[iv] += part->mass();
 	else if (comp <= 3)
-	  value[iv] += part->pos(comp-1);
+	  value[iv] += part->pos(comp-1) - com[comp-1];
 	else if (comp <= 6)
-	  value[iv] += part->vel(comp-4);
+	  value[iv] += part->vel(comp-4) - cov[comp-4];
 	else if (comp == 7)
 	  value[iv] += part->phi();
 	else if (part->niatr() && comp <= 7 + part->niatr())
