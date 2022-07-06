@@ -1,7 +1,7 @@
 /*
-  Separate a psp structure and make a 1-d histogram
+  Make a 1-d histogram from snapshots
 
-  MDWeinberg 11/24/19
+  MDWeinberg 11/24/19, 07/01/22
 */
 
 using namespace std;
@@ -21,7 +21,7 @@ using namespace std;
 #include <cxxopts.H>		// Option parsing
 #include <libvars.H>		// EXP library globals
 #include <header.H>		// PSP headers
-#include <PSP.H>		// PSP class
+#include <ParticleReader.H>	// Read snaps
 
 int
 main(int ac, char **av)
@@ -35,13 +35,13 @@ main(int ac, char **av)
   bool use_cyl = false;
   bool use_ctr = false;
   bool use_cov = false;
-  std::string cname, new_dir;
+  std::string fileType, cname, new_dir;
   int axis, numb, comp;
   double pmin, pmax;
 
   // Parse command line
   //
-  cxxopts::Options options(prog, "Separate a psp structure and make a 1-d histogram\n");
+  cxxopts::Options options(prog, "Make a 1-d histogram from a list of phase-space snaps\n");
 
   options.add_options()
     ("h,help", "produce help message")
@@ -53,6 +53,8 @@ main(int ac, char **av)
     ("v,verbose", "verbose output")
     ("C,com", "compute position center from most bound particles")
     ("V,cov", "compute velocity center from most bound particles")
+    ("F,filetype", "input file type (one of: PSPout, PSPspl, GadgetNative, GadgetHDF5)",
+     cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("p,pmin", "minimum position along axis",
      cxxopts::value<double>(pmin)->default_value("-100.0"))
     ("P,pmax", "maximum position along axis",
@@ -67,7 +69,7 @@ main(int ac, char **av)
      cxxopts::value<int>(axis)->default_value("3"))
     ("f,files", "input files",
      cxxopts::value< std::vector<std::string> >())
-    ("d,dir", "rewrite directory location for SPL files",
+     ("d,dir", "rewrite directory location for snap files",
      cxxopts::value<std::string>(new_dir)->default_value("./"))
     ;
 
@@ -120,9 +122,9 @@ main(int ac, char **av)
 				// Axis sanity check 
 				// ------------------
   if (axis<1) axis = 1;
-  if (axis>3) axis = 3;
+     if (axis>3) axis = 3;
 
-  std::vector<std::string> files = vm["files"].as< std::vector<std::string> >();
+     std::vector<std::string> files = vm["files"].as< std::vector<std::string> >();
 
   bool first = true;
   
@@ -130,111 +132,117 @@ main(int ac, char **av)
 
     if (verbose) cerr << "Using filename: " << file << endl;
 
-				// Parse the PSP file
-				// ------------------
-    PSPptr psp;
-    if (file.find("SPL") != std::string::npos)
-      psp = std::make_shared<PSPspl>(file, new_dir);
-    else
-      psp = std::make_shared<PSPout>(file);
+				// Parse the snapshot file
+				// -----------------------
+    PR::PRptr snap;
+    double time;
 
+    try {
+      snap = PR::ParticleReader::createReader(fileType, {file}, myid, true);
 
+      snap->SelectType(cname);
+
+      time = snap->CurrentTime();
+
+      if (myid==0) {
+	std::cout << "File: " << file << std::endl;
+	std::cout << "Found dump at time: " << time << std::endl;
+      }
+    }
+    catch (const std::runtime_error& error) {
+      if (myid==0)
+	std::cerr << "snap2histo1d: error opening snapshot in file <"
+		  << file << ">" << std::endl
+		  << "snap2histo1d: " << error.what() << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
 				// Now write a summary
 				// -------------------
     if (verbose) {
       
-      psp->PrintSummary(cerr);
+      snap->PrintSummary(cerr);
     
-      std::cerr << "\nPSP file <" << file << "> has time <" 
-	   << psp->CurrentTime() << ">\n";
+      std::cerr << "\nSNAP file <" << file << "> has time <" 
+	   << snap->CurrentTime() << ">\n";
     }
 
-				// Dump ascii for each component
-				// -----------------------------
-  
     double rtmp, mass, dp=(pmax - pmin)/numb;
-    vector<double> pos(3), vel(3);
+    std::vector<double> pos(3), vel(3);
     int itmp, icnt, iv;
-
 				// Make the array
 				// --------------
 
     vector<float> value(numb, 0), bmass(numb, 0);
 
-    PSPstanza *stanza;
-    SParticle* part;
-
-    for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
-    
-      if (stanza->name != cname) continue;
-
-      std::vector<double> com = {0, 0, 0}, cov = {0, 0, 0};
-      if (use_ctr) {
-	std::map<double, std::array<double, 7>> posn;
-	for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
-	  posn[part->phi()] = {part->pos(0), part->pos(1), part->pos(2),
-			       part->vel(0), part->vel(1), part->vel(2),
-			       part->mass()};
-	}
-	double total = 0.0;
-	auto p = posn.begin();
-	for (int i=0; i<floor(posn.size()*0.05); i++, p++) {
-	  for (int k=0; k<3; k++) {
-	    com[k] += p->second[6] * p->second[k];
-	    if (use_cov) cov[k] += p->second[6] * p->second[3+k];
-	  }
-	  total += p->second[6];
-	}
-	if (total>0.0) {
-	  for (int k=0; k<3; k++) {
-	    com[k] /= total;
-	    cov[k] /= total;
-	  }
-	}
-	std::cout << "COM is: "	<< com[0] << ", " << com[1] << ", "<< com[2] << std::endl;
-	std::cout << "COV is: "	<< cov[0] << ", " << cov[1] << ", "<< cov[2] << std::endl;
+    std::vector<double> com = {0, 0, 0}, cov = {0, 0, 0};
+    if (use_ctr) {
+      std::map<double, std::array<double, 7>> posn;
+      for (auto part=snap->firstParticle(); part!=0; part=snap->nextParticle()) {
+	posn[part->pot] = {part->pos[0], part->pos[1], part->pos[2],
+	  part->vel[0], part->vel[1], part->vel[2],
+	  part->mass};
       }
+	  
+      double total = 0.0;
+      auto p = posn.begin();
+      for (int i=0; i<floor(posn.size()*0.05); i++, p++) {
+	for (int k=0; k<3; k++) {
+	  com[k] += p->second[6] * p->second[k];
+	  if (use_cov) cov[k] += p->second[6] * p->second[3+k];
+	}
+	total += p->second[6];
+      }
+      if (total>0.0) {
+	for (int k=0; k<3; k++) {
+	  com[k] /= total;
+	  cov[k] /= total;
+	}
+      }
+      std::cout << "COM is: "	<< com[0] << ", " << com[1] << ", "<< com[2] << std::endl;
+      std::cout << "COV is: "	<< cov[0] << ", " << cov[1] << ", "<< cov[2] << std::endl;
+    }
+
+    for (auto part=snap->firstParticle(); part!=0; part=snap->nextParticle()) {
       
-      for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
-
-	double val = 0.0;
-	if (use_sph) {
-	  for (int k=0; k<3; k++) {
-	    val += (part->pos(k) - com[k]) * (part->pos(k) - com[k]);
-	  }
-	  val = sqrt(val);
-	  iv = static_cast<int>( floor( (val - pmin)/dp ) );
+      double val = 0.0;
+      if (use_sph) {
+	for (int k=0; k<3; k++) {
+	  double dif = part->pos[k] - com[k];
+	  val += dif*dif;
 	}
-	else if (use_cyl) {
-	  for (int k=0; k<2; k++) {
-	    val += (part->pos(k) - com[k]) * (part->pos(k) - com[k]);
-	  }
-	  val = sqrt(val);
-	  iv = static_cast<int>( floor( (val - pmin)/dp ) );
-	}
-	else {
-	  val = part->pos(axis-1) - com[axis-1];
-	  iv = static_cast<int>( floor( (part->pos(axis-1) - com[axis-1] - pmin)/dp ) );
-	}
-
-	if (iv < 0 || iv >= numb) continue;
-
-	bmass[iv] += 1.0;
-
-	if (comp == 0)
-	  value[iv] += part->mass();
-	else if (comp <= 3)
-	  value[iv] += part->pos(comp-1) - com[comp-1];
-	else if (comp <= 6)
-	  value[iv] += part->vel(comp-4) - cov[comp-4];
-	else if (comp == 7)
-	  value[iv] += part->phi();
-	else if (part->niatr() && comp <= 7 + part->niatr())
-	  value[iv] += part->iatr(comp-8);
-	else if (part->ndatr())
-	  value[iv] += part->datr(comp-8-part->niatr());
+	val = sqrt(val);
+	iv = static_cast<int>( floor( (val - pmin)/dp ) );
       }
-    
+      else if (use_cyl) {
+	for (int k=0; k<2; k++) {
+	  double dif = part->pos[k] - com[k];
+	  val += dif*dif;
+	}
+	val = sqrt(val);
+	iv = static_cast<int>( floor( (val - pmin)/dp ) );
+      }
+      else {
+	val = part->pos[axis-1] - com[axis-1];
+	iv = static_cast<int>( floor( (part->pos[axis-1] - com[axis-1] - pmin)/dp ) );
+      }
+
+      if (iv < 0 || iv >= numb) continue;
+
+      bmass[iv] += 1.0;
+
+      if (comp == 0)
+	value[iv] += part->mass;
+      else if (comp <= 3)
+	value[iv] += part->pos[comp-1] - com[comp-1];
+      else if (comp <= 6)
+	value[iv] += part->vel[comp-4] - cov[comp-4];
+      else if (comp == 7)
+	value[iv] += part->pot;
+      else if (part->iattrib.size() && comp <= 7 + part->iattrib.size())
+	value[iv] += part->iattrib[comp-8];
+      else if (part->dattrib.size())
+	value[iv] += part->dattrib[comp-8-part->dattrib.size()];
     }
     
     //
@@ -249,7 +257,7 @@ main(int ac, char **av)
 		<< setw(fw) << "Value"
 		<< setw(fw) << "Mass"
 		<< std::endl;
-
+      
       std::cout << setw(fw) << std::string(sw, '-')
 		<< setw(fw) << std::string(sw, '-')
 		<< setw(fw) << std::string(sw, '-')
@@ -257,7 +265,7 @@ main(int ac, char **av)
 
       first = false;
     }
-
+    
     for (int i=0; i<numb; i++) {
       p  = pmin + dp*(0.5+i);
       f  = 0.0;
@@ -275,13 +283,14 @@ main(int ac, char **av)
       } else {
 	if (bmass[i] > 0.0) f = value[i]/bmass[i];
       }
-      cout << setw(fw) << p
-	   << setw(fw) << f
-	   << setw(fw) << m
-	   << endl;
+      std::cout << setw(fw) << p
+		<< setw(fw) << f
+		<< setw(fw) << m
+		<< std::endl;
     }
-    cout << endl;
+    std::cout << std::endl;
   }
-
+  // END: file loop
+  
   return 0;
 }

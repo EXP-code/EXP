@@ -70,6 +70,9 @@ namespace PR
     //! Get the next particle
     virtual const Particle* nextParticle() = 0;
     
+    //! Print summary phase-space info
+    virtual void PrintSummary(std::ostream &out, bool stats=false, bool timeonly=false) = 0;
+
     //! Order file list into batches at single times
     static std::vector<std::vector<std::string>>
     parseFileList(const std::string& file, const std::string& delimit);
@@ -139,6 +142,10 @@ namespace PR
     //! Get current time
     double CurrentTime() { return time; }
     
+    //! Print summary
+    virtual void PrintSummary(std::ostream &out, bool stats=false, bool timeonly=false)
+    { std::cout << "Summary not yet implemented for GadgetNative" << std::endl; }
+
     //! Reset to beginning of particles for this component
     virtual const Particle* firstParticle();
     
@@ -207,6 +214,10 @@ namespace PR
     //! Get current time
     virtual double CurrentTime() { return time; }
     
+    //! Print summary
+    virtual void PrintSummary(std::ostream &out, bool stats=false, bool timeonly=false)
+    { std::cout << "Summary not yet implemented for GadgetHDF5" << std::endl; }
+
     //! Reset to beginning of particles for this component
     virtual const Particle* firstParticle();
     
@@ -359,10 +370,10 @@ namespace PR
     virtual ~PSP() { if (in.is_open()) in.close(); }
     
     //! Get snapshot time
-    double CurrentTime()    {return header.time;}
+    double CurrentTime() { return header.time; }
     
     //! Print summary phase-space info
-    void   PrintSummary     (ostream &out, bool stats=false, bool timeonly=false);
+    void PrintSummary(ostream &out, bool stats=false, bool timeonly=false);
     
     //! Set stanza to name
     virtual PSPstanza *GetNamed(const std::string& name)
@@ -531,6 +542,10 @@ namespace PR
     //! Get current time
     virtual double CurrentTime() { return ps->header.time; }
     
+    //! Print summary
+    virtual void PrintSummary(std::ostream &out, bool stats=false, bool timeonly=false)
+    { std::cout << "Summary not yet implemented for Tipsy" << std::endl; }
+
     //@{
     //! Particle access
     virtual const Particle* firstParticle ();

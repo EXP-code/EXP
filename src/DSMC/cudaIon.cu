@@ -767,15 +767,6 @@ void atomicData::cuda_initialize_textures()
 
 	  h_buffer1[i + j*I->NfreeFreeGrid] = kk;
 
-	  /*
-	  double Ei = I->EminGrid + I->DeltaEGrid*i - log10(I->hbc);
-	  std::cout << "TEST: j=" << j << ": distance="
-		    << std::distance(temp.begin(), lb) << "/" << temp.size()
-		    << " k=" << kk << "/" << Ei << ", "
-		    << h_buffer1[i + (CHCUMK-1)*I->NfreeFreeGrid]
-		    << std::endl;
-	  */
-
 	} // END: cumululative array loop
 
       } // END: energy loop
