@@ -67,11 +67,9 @@ int main(int argc, char **argv)
   
   double RMIN, RMAX, ZMIN, ZMAX;
   int RBINS, ZBINS, IBEG, IEND, PBEG, PEND, ISKIP;
-  std::string OUTFILE, INFILE, RUNTAG, COMP, PROJ;
+  std::string OUTFILE, INFILE, COMP, PROJ;
   std::string fileType, filePrefix;
   std::string psfiles, delim;
-
-  bool GNUPLOT;
 
   // ==================================================
   // Parse command line or input parameter file
@@ -81,6 +79,7 @@ int main(int argc, char **argv)
 
   options.add_options()
     ("h,help", "Print this help message")
+    ("v,verbose", "Print verbose processing info")
     ("F,filetype", "input file type",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("psfiles", "Phase-space file list",
@@ -103,16 +102,10 @@ int main(int argc, char **argv)
      cxxopts::value<int>(PEND)->default_value("-1"))
     ("OUTFILE", "filename prefix",
      cxxopts::value<string>(OUTFILE)->default_value("gashisto"))
-    ("INFILE", "phase space file",
-     cxxopts::value<string>(INFILE)->default_value("OUT"))
-    ("RUNTAG", "file containing desired indices for PSP output",
-     cxxopts::value<string>(RUNTAG)->default_value("run"))
     ("COMP", "component name",
      cxxopts::value<string>(COMP)->default_value("dark"))
     ("PROJ", "Projection (cylindrical or spherical)",
      cxxopts::value<string>(PROJ)->default_value("cylindrical"))
-    ("GNUPLOT", "Write gnuplot type output",
-     cxxopts::value<bool>(GNUPLOT)->default_value("false"))
     ;
 
   // ==================================================
@@ -141,6 +134,10 @@ int main(int argc, char **argv)
     MPI_Finalize();
     return 0;
   }
+
+  bool verbose = false;
+  if (vm.count("verbose")) verbose = true;
+
 
   // ==================================================
   // Get projection
@@ -184,6 +181,9 @@ int main(int argc, char **argv)
       (fileType, batch, myid, true);
 
     times[n] = reader->CurrentTime();
+
+    if (verbose and myid==0)
+      std::cout << "Reading batch with T=" << times[n] << std::endl;
 
     // Find the component
     reader->SelectType(COMP);
@@ -257,6 +257,9 @@ int main(int argc, char **argv)
       p = reader->nextParticle();
       icnt++;
     }
+    if (verbose and myid==0)
+      std::cout << "Processed " << icnt << " particles from batch " << n
+		<< std::endl;
 
     n++;
   }
@@ -285,12 +288,12 @@ int main(int argc, char **argv)
   }
 
   if (myid==0) {
-    string outf = RUNTAG + ".inout.counts";
+    string outf = OUTFILE + ".inout.counts";
     ofstream out(outf.c_str());
     
     out << left << setw(18) << "# Time"
-	<< setw(18) << "| count in"
-	<< setw(18) << "| count out"
+	<< setw(12) << "| count in"
+	<< setw(12) << "| count out"
 	<< setw(18) << "| mass in"
 	<< setw(18) << "| mass out"
 	<< setw(18) << "| x angmom in"
@@ -306,8 +309,8 @@ int main(int argc, char **argv)
 	<< setw(18) << "| y angmom/M out"
 	<< setw(18) << "| z angmom/M out"
 	<< endl << setw(18) << "# 1"
-	<< setw(18) << "| 2"
-	<< setw(18) << "| 3"
+	<< setw(12) << "| 2"
+	<< setw(12) << "| 3"
 	<< setw(18) << "| 4"
 	<< setw(18) << "| 5"
 	<< setw(18) << "| 6"
@@ -326,8 +329,8 @@ int main(int argc, char **argv)
     
     for (int n=0; n<nfiles; n++) {
       out << setw(18) << times0   [n] 
-	  << setw(10) << inside0  [n]
-	  << setw(10) << outside0 [n]
+	  << setw(12) << inside0  [n]
+	  << setw(12) << outside0 [n]
 	  << setw(18) << minside0 [n]
 	  << setw(18) << moutside0[n];
       for (int k=0; k<3; k++)

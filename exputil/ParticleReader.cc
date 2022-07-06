@@ -75,6 +75,8 @@ namespace PR {
     
       if (myid==0 and _verbose) std::cout << "done" << std::endl;
       
+      time = header.time;
+
       for (int n=0; n<6; n++) {
 	nptot[n] += npart[n];
 	if (header.npart[n] > 0) pfound.insert(Ptypes[n]);
@@ -124,6 +126,8 @@ namespace PR {
 		<< std::endl;
     }
     
+    time = header.time;
+
     // Total number of particles in this stanza.  Note: this needs to be
     // generalized for reading multiple Gadget native files per snap
     //
