@@ -5290,13 +5290,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     // Mean relative velocity of interaction pairs
     rvel._v[cid] /= totCount;
       
-    // n*sigma
+    // n*total cross section = n*sigma*npairs
     double tSel = totCross * 1.0e-14/(cuLunit*cuLunit) * mean_mass/vol * cuMunit/amu;
 
-    // MFP = 1/(n*<cross section>)
+    // MFP = npairs/(n*<total cross section>)
     lmda._v[cid] = 0.5*nbods*(nbods-1) / tSel;
 
-    // n*sigma*cr*tau
+    // number of collisions = n*sigma*npairs*cr*tau
     tSel *= rvel._v[cid] * tau;
     
 #ifdef XC_DEEP17
@@ -5796,7 +5796,6 @@ void * CollideIon::collide_thread_cuda(void * arg)
 	      << std::endl;
 #endif
 
-  
   if (MFPDIAG) {
 
     // Get diagnostic data from device
@@ -5811,7 +5810,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
     // Accumulate per cell diagnostic quantities
     //
-    for (unsigned j=0; j<cellist[id].size(); j++ ) {
+    for (unsigned j=0; j<N; j++ ) {
 
       double volc = h_volC[j];
       double tau  = h_tauC[j];

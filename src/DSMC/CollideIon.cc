@@ -14854,8 +14854,8 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   // Compute collision rates in system units
   //
-  double crossM = (*Fn)[key] * mmas/volc * crossRat ; // n*sigma*v
-  double collPM = crossM * tau;			      // n*sigma*v*t = P_coll
+  double crossM = (*Fn)[key] * mmas/volc * crossRat ; // n*sigma*npairs*v
+  double collPM = crossM * tau;			      // n*sigma*npairs*v*t
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
   //

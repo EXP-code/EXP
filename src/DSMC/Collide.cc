@@ -1882,6 +1882,10 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
   
   MPI_Status s;
   
+  // Temporary storage
+  //
+  std::vector<double> tmb, tmt, tmp;
+
   if (myid==0) {
     unsigned nmt, nmb, num;
     
@@ -1889,17 +1893,18 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     // root node's counters
     
     std::vector<Precord> phsI(tphase), mfpI(tmfpst);
-    std::vector<double>  ratI(tsrat), denI(tdens), volI(tvolc);
-    std::vector<double>  temI(ttemp), selI(tseln), kerI(kerat);
-    std::vector<double>  delI(tdelt), derI(derat);
-    
+    std::vector<double>  ratI(tsrat),  denI(tdens),  volI(tvolc);
+    std::vector<double>  temI(ttemp),  selI(tseln),  kerI(kerat);
+    std::vector<double>  delI(tdelt),  derI(derat);
     
     for (int n=1; n<numprocs; n++) {
       MPI_Recv(&nmt, 1, MPI_UNSIGNED, n, 37, MPI_COMM_WORLD, &s);
       MPI_Recv(&nmb, 1, MPI_UNSIGNED, n, 38, MPI_COMM_WORLD, &s);
       MPI_Recv(&num, 1, MPI_UNSIGNED, n, 39, MPI_COMM_WORLD, &s);
       
-      vector<double> tmb(nmb), tmt(nmt), tmp(num);
+      tmb.resize(nmb);
+      tmt.resize(nmt);
+      tmp.resize(num);
       
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 40, MPI_COMM_WORLD, &s);
       ratI.insert(ratI.end(), tmp.begin(), tmp.end());
@@ -1910,11 +1915,11 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 42, MPI_COMM_WORLD, &s);
       volI.insert(volI.end(), tmp.begin(), tmp.end());
       
-      MPI_Recv(&tmp[0], nmt, MPI_DOUBLE, n, 43, MPI_COMM_WORLD, &s);
-      temI.insert(temI.end(), tmp.begin(), tmp.end());
+      MPI_Recv(&tmt[0], nmt, MPI_DOUBLE, n, 43, MPI_COMM_WORLD, &s);
+      temI.insert(temI.end(), tmt.begin(), tmt.end());
       
-      MPI_Recv(&tmp[0], nmt, MPI_DOUBLE, n, 44, MPI_COMM_WORLD, &s);
-      delI.insert(delI.end(), tmp.begin(), tmp.end());
+      MPI_Recv(&tmt[0], nmt, MPI_DOUBLE, n, 44, MPI_COMM_WORLD, &s);
+      delI.insert(delI.end(), tmt.begin(), tmt.end());
       
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 45, MPI_COMM_WORLD, &s);
       selI.insert(selI.end(), tmp.begin(), tmp.end());
@@ -1935,8 +1940,8 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	tmp2[k].second .resize(Nphase, 0);
       }
       for (unsigned l=0; l<Nphase; l++) {
-	MPI_Recv(&tmp[0], nmt, MPI_DOUBLE, n, 49+l, MPI_COMM_WORLD, &s);
-	for (unsigned k=0; k<nmt; k++) tmp2[k].second[l] = tmp[k];
+	MPI_Recv(&tmt[0], nmt, MPI_DOUBLE, n, 49+l, MPI_COMM_WORLD, &s);
+	for (unsigned k=0; k<nmt; k++) tmp2[k].second[l] = tmt[k];
       }
       phsI.insert(phsI.end(), tmp2.begin(), tmp2.end());
       
@@ -1944,12 +1949,20 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       for (unsigned k=0; k<num; k++) {
 	// Load mfp
 	tmp3[k].first = tmp[k];
+	if (std::isnan(tmp[k])) {
+	  std::cerr << "NAN ERROR at k=" << k << std::endl;
+	}
 	// Initialize record
 	tmp3[k].second .resize(Nmfp, 0);
       }
       for (unsigned l=0; l<Nmfp; l++) {
 	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 50+Nphase+l, MPI_COMM_WORLD, &s);
-	for (unsigned k=0; k<num; k++) tmp3[k].second[l] = tmp[k];
+	for (unsigned k=0; k<num; k++) {
+	  tmp3[k].second[l] = tmp[k];
+	  if (std::isnan(tmp[k])) {
+	    std::cerr << "NAN ERROR at k=" << k << " l=" << l << std::endl;
+	  }
+	}
       }
       mfpI.insert(mfpI.end(), tmp3.begin(), tmp3.end());
     }
@@ -2072,6 +2085,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     MPI_Send(&nmt, 1, MPI_UNSIGNED, 0, 37, MPI_COMM_WORLD);
     MPI_Send(&nmb, 1, MPI_UNSIGNED, 0, 38, MPI_COMM_WORLD);
     MPI_Send(&num, 1, MPI_UNSIGNED, 0, 39, MPI_COMM_WORLD);
+
     MPI_Send(&tsrat[0],  num, MPI_DOUBLE, 0, 40, MPI_COMM_WORLD);
     MPI_Send(&tdens[0],  num, MPI_DOUBLE, 0, 41, MPI_COMM_WORLD);
     MPI_Send(&tvolc[0],  num, MPI_DOUBLE, 0, 42, MPI_COMM_WORLD);
@@ -2081,7 +2095,8 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     MPI_Send(&kerat[0],  nmb, MPI_DOUBLE, 0, 46, MPI_COMM_WORLD);
     MPI_Send(&derat[0],  nmb, MPI_DOUBLE, 0, 47, MPI_COMM_WORLD);
     
-    vector<double> tmt(nmt), tmp(num);
+    tmt.resize(nmt);
+    tmp.resize(num);
     
     for (unsigned k=0; k<nmt; k++) tmt[k] = tphase[k].first;
     MPI_Send(&tmt[0], nmt, MPI_DOUBLE, 0, 48, MPI_COMM_WORLD);
