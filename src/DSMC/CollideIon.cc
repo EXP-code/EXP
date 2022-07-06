@@ -4112,7 +4112,7 @@ CollideIon::crossSectionTrace(int id, pCell* const c,
     // Geometric cross sections based on
     // atomic radius
     double rad = geometric(Z1) + geometric(Z2);
-    double crs = M_PI*rad*rad * cr * TreeDSMC::Vunit;
+    double crs = M_PI*rad*rad * cr;
 	
     // Double counting
     if (Z1 == Z2) crs *= 0.5;
@@ -4144,8 +4144,7 @@ CollideIon::crossSectionTrace(int id, pCell* const c,
 
     if (P1==0 and K2==proton and etaP2[id]>0.0) {
 
-      crs1 = elastic(Z1, kEi[id], Elastic::proton) * crossfac * cscl_[Z1] *
-	cr * TreeDSMC::Vunit;
+      crs1 = elastic(Z1, kEi[id], Elastic::proton) * crossfac * cscl_[Z1] * cr;
 	
 #ifdef XC_DEEP12
       if (Z1==1)
@@ -14831,7 +14830,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
   // Mass density in the cell
   //
   double volc = c->Volume();
-  double mmas = c->Mass() / volc / num;
+  double mmas = c->Mass() / num;
 
   // Cross section selection
   //
@@ -14855,8 +14854,8 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   // Compute collision rates in system units
   //
-  double crossM = (*Fn)[key] * mmas * crossRat;
-  double collPM = crossM * tau;
+  double crossM = (*Fn)[key] * mmas/volc * crossRat ; // n*sigma*v
+  double collPM = crossM * tau;			      // n*sigma*v*t = P_coll
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
   //
@@ -14864,7 +14863,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   // For Collide diagnostics
   //
-  meanLambda = 1.0/crossM;
+  meanLambda = crm*num*(num-1)*0.5/crossM;
   meanCollP  = collPM;
 
   // Rate factor
@@ -14885,7 +14884,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
     
     // Make cumulative cross section for particle pair selection
     //
-    double Pscale = mmas * rateF * crs_units;
+    double Pscale = mmas/volc * rateF * crs_units;
 
     for (auto u : cseccache[id][v.first])
       cseccum[id][v.first].push_back(std::get<0>(u) * Pscale);
@@ -14944,14 +14943,25 @@ NTC::InteractD CollideIon::generateSelectionTrace
 		<< std::setw( 6) << p2.first
 		<< std::setw( 6) << p2.second
 		<< std::setw( 6) << v.second.size()
-		<< std::setw(14) << v.second.back()
+		<< std::setw(14) << std::scientific << v.second.back()
 		<< std::setw(14) << mvels[v.first].first/(mvels[v.first].second+0.01)
-		<< std::endl;
+		<< std::endl << std::fixed;
     }
     std::cout << std::string(78, '-') << std::endl;
   }
 #endif
 
+#ifdef XC_DEEP17
+  std::cout << std::scientific << std::right << setprecision(4)
+	    << std::setw(12) << 0.5*num*(num-1)/(totSelcM/(crm*tau))
+	    << std::setw(12) << pow(volc, 0.3333333)
+	    << std::setw(12) << crm
+	    << std::setw(12) << totSelcM/(mmas/volc*rateF*crs_units*crm)
+	    << std::setw(12) << totSelcM
+	    << std::setw(12) << (*Fn)[key]
+	    << std::setw(12) << num*(num-1)/2
+	    << std::endl << std::fixed;
+#endif
 
   colCf[id] = 1.0;
 

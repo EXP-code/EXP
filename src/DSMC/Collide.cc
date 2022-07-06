@@ -1271,7 +1271,7 @@ void * Collide::collide_thread(void * arg)
     
     if (TSDIAG) {		// Diagnose time step in this cell
       double vmass;
-      vector<double> V1, V2;
+      std::vector<double> V1, V2;
       c->Vel(vmass, V1, V2);
       double scale = c->Scale();
       double taudiag = 1.0e40;
@@ -1888,10 +1888,10 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     // Temporaries so we don't touch the
     // root node's counters
     
-    vector<Precord> phsI(tphase), mfpI(tmfpst);
-    vector<double>  ratI(tsrat), denI(tdens), volI(tvolc);
-    vector<double>  temI(ttemp), selI(tseln), kerI(kerat);
-    vector<double>  delI(tdelt), derI(derat);
+    std::vector<Precord> phsI(tphase), mfpI(tmfpst);
+    std::vector<double>  ratI(tsrat), denI(tdens), volI(tvolc);
+    std::vector<double>  temI(ttemp), selI(tseln), kerI(kerat);
+    std::vector<double>  delI(tdelt), derI(derat);
     
     
     for (int n=1; n<numprocs; n++) {
@@ -1925,7 +1925,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       MPI_Recv(&tmb[0], nmb, MPI_DOUBLE, n, 47, MPI_COMM_WORLD, &s);
       derI.insert(derI.end(), tmb.begin(), tmb.end());
       
-      vector<Precord> tmp2(nmt), tmp3(num), phsI(tphase);
+      std::vector<Precord> tmp2(nmt), tmp3(num), phsI(tphase);
       
       MPI_Recv(&tmt[0], nmt, MPI_DOUBLE, n, 48, MPI_COMM_WORLD, &s);
       for (unsigned k=0; k<nmt; k++) {

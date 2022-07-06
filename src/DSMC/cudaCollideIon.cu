@@ -4252,6 +4252,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 				 dArray<cuFP_t>         F2,
 				 dArray<int>            prs,
 				 dArray<float>          cum,
+				 dArray<float>          lmda,
+				 dArray<float>          pmas,
+				 dArray<float>          rvel,
+				 dArray<float>          posx,
+				 dArray<float>          posy,
+				 dArray<float>          posz,
+				 dArray<int>            acpt,
 				 const int              myid
 				 )
 {
@@ -4289,6 +4296,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     // For selection diagnostics
     //
     nSel._v[cid] = 0.0;
+    pmas._v[cid] = 0.0;
+    rvel._v[cid] = 0.0;
+    posx._v[cid] = 0.0;
+    posy._v[cid] = 0.0;
+    posz._v[cid] = 0.0;
+    lmda._v[cid] = 0.0;
+    acpt._v[cid] = 0;
 
     // For species state indexing
     //
@@ -4308,7 +4322,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       int   I2;
       short SS[2];
     } conv_;
-
+    
 
     cuFP_t E1[2] = {0.0, 0.0}, E2[2] = {0.0, 0.0};
 
@@ -4323,6 +4337,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     AccumType type = AccumType::ion_ion;
 
     double IEadjust = 0.0;
+
+    // For per-cell interation diagnostics
+    //
+    double totCross = 0.0;
+    int    totCount = 0;
 
     // Interaction-type loop
     //
@@ -4346,11 +4365,19 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       //
       for (int i=0; i<nbods; i++) {
       
+	cudaParticle* p1 = &in._v[n0+i];
+
+	// Output diagnostics
+	//
+	pmas._v[cid] += p1->mass;
+	posx._v[cid] += p1->mass * p1->pos[0];
+	posy._v[cid] += p1->mass * p1->pos[1];
+	posz._v[cid] += p1->mass * p1->pos[2];
+
 	for (int j=i+1; j<nbods; j++) {
 	
 	  setupCrossSection(in, elems, cid, n0+i, n0+j, state, &EI);
 	  
-	  cudaParticle* p1 = &in._v[n0+i];
 	  cudaParticle* p2 = &in._v[n0+j];
 
 	  cuFP_t ph, xc, Prob1, Prob2;
@@ -4396,6 +4423,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    prs._v[fN+count] = conv_.I2;
 	    cum._v[fN+count] = xc * Prob1;
 	    count++;
+
+	    totCross     += xc * Prob1/EI.vel;
+	    rvel._v[cid] += EI.vel;
+	    totCount++;
+
 	    if (false and T==6) {
 	      cuFP_t val = xc/EI.vel;
 	      printf("free_free [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e ph=%e\n",
@@ -4438,6 +4470,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      prs._v[fN+count] = conv_.I2;
 	      cum._v[fN+count] = xc * Prob2;
 	      count++;
+
+	      totCross     += xc * Prob2/EI.vel;
+	      rvel._v[cid] += EI.vel;
+	      totCount++;
+
 #ifdef XC_DEEP16
 	      if (T==6) {
 		if (J2.sp==cuElectron) meanke[0] += EI.kEe1;
@@ -4505,6 +4542,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       nSel._v[cid] += nsel;
 
 #ifdef XC_DEEP16
+      if (T==1 and myid==0 and nsel>0.0)
+	printf("neutral-neutral [%d]: nbods=%d npairs=%d N=%d nsel=%e Z=%d C=%d V=%e\n", cid, nbods, npairs, count, nsel, J1.sp.first, J1.sp.second, meanke[0]/(0.01+mcnt[0]));
+
+      if (T==2 and myid==0 and nsel>0.0)
+	printf("neutral-electron [%d]: nbods=%d npairs=%d N=%d nsel=%e Z=%d C=%d V=%e\n", cid, nbods, npairs, count, nsel, J1.sp.first, J1.sp.second, meanke[0]/(0.01+mcnt[0]));
+
+      if (T==3 and myid==0 and nsel>0.0)
+	printf("neutral-proton [%d]: nbods=%d npairs=%d N=%d nsel=%e Z=%d C=%d V=%e\n", cid, nbods, npairs, count, nsel, J1.sp.first, J1.sp.second, meanke[0]/(0.01+mcnt[0]));
+
       if (T==6 and myid==0 and nsel>0.0)
 	printf("free-free [%d]: nbods=%d npairs=%d N=%d nsel=%e Z=%d C=%d V=%e\n", cid, nbods, npairs, count, nsel, J1.sp.first, J1.sp.second, meanke[0]/(0.01+mcnt[0]));
 
@@ -4609,7 +4655,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	if (curXC <= 0.0) continue;
 
-	
+	acpt._v[cid]++;
+
 	cudaParticle* p1 = &in._v[n1];
 	cudaParticle* p2 = &in._v[n2];
       
@@ -5238,6 +5285,24 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     }
     // END: interaction loop
     
+    // For diagnostic output
+    //
+    // Mean relative velocity of interaction pairs
+    rvel._v[cid] /= totCount;
+      
+    // n*sigma
+    double tSel = totCross * 1.0e-14/(cuLunit*cuLunit) * mean_mass/vol * cuMunit/amu;
+
+    // MFP = 1/(n*<cross section>)
+    lmda._v[cid] = 0.5*nbods*(nbods-1) / tSel;
+
+    // n*sigma*cr*tau
+    tSel *= rvel._v[cid] * tau;
+    
+#ifdef XC_DEEP17
+    printf("%10.3e %10.3e %10.3e %10.3e %10.3e %10.3e %8d\n", lmda._v[cid], pow(vol, 0.333333), rvel._v[cid], totCross, tSel, mean_mass*cuMunit/amu, nbods*(nbods-1)/2);
+#endif
+
 #ifndef TestDefEnergy
 
     // Spread out interaction deferred energy loss to all particles
@@ -5665,6 +5730,12 @@ void * CollideIon::collide_thread_cuda(void * arg)
   thrust::device_vector<float>      d_xccum(N*PLIST_LEN);
   thrust::device_vector<cuFP_t>     d_deltE(N);
 
+  // Diagnostic data to be returned to host
+  //
+  thrust::device_vector<float> d_pmas(N), d_rvel(N), d_lamb(N);
+  thrust::device_vector<float> d_posx(N), d_posy(N), d_posz(N);
+  thrust::device_vector<int>   d_acpt(N);
+
 #ifdef XC_DEEPT
   std::cout << "**TIME=" << tnow << std::endl;
 #endif
@@ -5686,6 +5757,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(d_tauC),   toKernel(d_Init),
      toKernel(d_F1),     toKernel(d_F2),
      toKernel(d_pairs),  toKernel(d_xccum),
+     toKernel(d_lamb),   toKernel(d_pmas),   toKernel(d_rvel),
+     toKernel(d_posx),   toKernel(d_posy),   toKernel(d_posz),   toKernel(d_acpt),
      myid
      );
   
@@ -5723,6 +5796,53 @@ void * CollideIon::collide_thread_cuda(void * arg)
 	      << std::endl;
 #endif
 
+  
+  if (MFPDIAG) {
+
+    // Get diagnostic data from device
+    //
+    thrust::host_vector<float> h_pmas = d_pmas;
+    thrust::host_vector<float> h_rvel = d_rvel;
+    thrust::host_vector<float> h_posx = d_posx;
+    thrust::host_vector<float> h_posy = d_posy;
+    thrust::host_vector<float> h_posz = d_posz;
+    thrust::host_vector<float> h_lamb = d_lamb;
+    thrust::host_vector<int>   h_acpt = d_acpt;
+
+    // Accumulate per cell diagnostic quantities
+    //
+    for (unsigned j=0; j<cellist[id].size(); j++ ) {
+
+      double volc = h_volC[j];
+      double tau  = h_tauC[j];
+      double dens = h_pmas[j]/volc;
+
+      double posx = h_posx[j]/h_pmas[j];
+      double posy = h_posy[j]/h_pmas[j];
+      double posz = h_posz[j]/h_pmas[j];
+
+      // Diagnostics
+      //
+      tsratT[id].push_back(h_rvel[j]*tau/pow(volc,0.33333333));
+      tdensT[id].push_back(dens);
+      tvolcT[id].push_back(volc);
+      
+      // MFP/side = MFP/vol^(1/3)
+      
+      prec[id].first     = h_lamb[j]/pow(volc, 0.33333333);
+      prec[id].second[0] = sqrt(posx*posx + posy*posy);
+      prec[id].second[1] = posz;
+      prec[id].second[2] = sqrt(posx*posx+posy*posy*+posz*posz);
+      prec[id].second[3] = dens;
+      prec[id].second[4] = volc;
+    
+      tmfpstT[id].push_back(prec[id]);
+
+      // Number of collisions per cell
+
+      tselnT[id].push_back(static_cast<double>(h_acpt[j])/cellN[j]);
+    }
+  }
 
 #ifdef XC_DEEP9
   {
