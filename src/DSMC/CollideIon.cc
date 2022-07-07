@@ -15331,19 +15331,15 @@ void CollideIon::gatherSpecies()
       for (auto b : cell->bods) {
 	Particle *p = c0->Tree()->Body(b);
 	double countE = 0.0;	// Number of electrons
-	double eta    = 1.0;	// Electrons per ion
 	  
 	// Compute effective number of electrons
 	//
 	if (aType==Trace) {
-	  eta = 0.0;
 	  for (auto s : SpList) {
 	    unsigned short Z = s.first.first;
 	    unsigned short P = s.first.second - 1;
-	    eta    += p->dattrib[s.second] / atomic_weights[Z];
 	    countE += p->dattrib[s.second] / atomic_weights[Z] * P;
 	  }
-	  eta = countE/eta;
 	  countE *= p->mass;
 	} else {
 	  KeyConvert k(p->iattrib[use_key]);
@@ -15359,7 +15355,7 @@ void CollideIon::gatherSpecies()
 
 	for (unsigned k=0; k<3; k++) {
 	  double ve = p->dattrib[use_elec+k];
-	  KEe += 0.5 * countE * atomic_weights[0] * eta * ve*ve;
+	  KEe += 0.5 * countE * atomic_weights[0] * ve*ve;
 	}
 
 	numbE += countE;
@@ -16365,7 +16361,7 @@ void CollideIon::printSpeciesColl()
       double Ti = 0.0, Te = 0.0;
       if (tM[1]>0.0) {
 	Ti = Tfac*tM[0]/tM[1];
-	Te = Tfac*tM[2]/tM[1];
+	Te = Tfac*tM[2]/tM[3];
       }
 
       // Print the header
