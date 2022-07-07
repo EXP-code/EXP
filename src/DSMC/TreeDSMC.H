@@ -193,23 +193,23 @@ class TreeDSMC : public ExternalForce
 
 private:
   
-  int ncell, Ncell;
-  int cnum, wght;
-  int nsteps, msteps, remap;
-  unsigned madj, seed;
-  int use_key, use_temp, use_dens, use_delt, use_exes, use_Kn;
-  int use_St, use_vol, use_Eint, tspow;
-  double hsdiam;
-  double crossfac;
-  double collfrac;
-  double boxsize;
-  double boffset;
-  double epsm;
-  double coolfrac;
-  double enhance;
-  double ntcfac;
-  string ctype;
-  string rrtype;
+  int         ncell, Ncell;
+  int         cnum, wght;
+  int         nsteps, msteps, remap;
+  unsigned    madj, seed;
+  int         use_key, use_temp, use_dens, use_delt, use_exes, use_Kn;
+  int         use_St, use_vol, use_Eint, tspow;
+  double      hsdiam;
+  double      crossfac;
+  double      collfrac;
+  double      boxsize;
+  double      boffset;
+  double      epsm;
+  double      coolfrac;
+  double      enhance;
+  double      ntcfac;
+  std::string ctype;
+  std::string rrtype;
 
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
   bool cba, cbadiag, dryrun, nocool, ntc, esol;
@@ -224,7 +224,7 @@ private:
   unsigned ageout;
 
 				// For MFP and time step statistics
-  vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;
+  std::vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;
 
   unsigned stepnum;
   double   curtime;
@@ -232,7 +232,7 @@ private:
   Collide *collide;
   double ElostTotCollide, ElostTotEPSM;
 
-  string comp_name, spec_map;
+  std::string comp_name, spec_map;
   Component *c0;
 
   void determine_acceleration_and_potential(void);
