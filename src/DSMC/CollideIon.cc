@@ -14852,20 +14852,6 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   crTotl[id]++;
 
-  // Compute collision rates in system units
-  //
-  double crossM = (*Fn)[key] * mmas/volc * crossRat ; // n*sigma*npairs*v
-  double collPM = crossM * tau;			      // n*sigma*npairs*v*t
-
-  // Cache time step for estimating "over" cooling timestep is use_delt>=0
-  //
-  spTau[id]  = tau;
-
-  // For Collide diagnostics
-  //
-  meanLambda = crm*num*(num-1)*0.5/crossM;
-  meanCollP  = collPM;
-
   // Rate factor
   //
   double rateF = (*Fn)[key] * tau;
@@ -14915,6 +14901,15 @@ NTC::InteractD CollideIon::generateSelectionTrace
 	      << std::endl;
 #endif
   }
+
+  // Cache time step for estimating "over" cooling timestep is use_delt>=0
+  //
+  spTau[id]  = tau;
+
+  // For Collide diagnostics
+  //
+  meanLambda = crm*tau*num*(num-1)*0.5/totSelcM;
+  meanCollP  = totSelcM;
 
 #ifdef XC_DEEP16
   if (myid==0) {
@@ -15331,15 +15326,19 @@ void CollideIon::gatherSpecies()
       for (auto b : cell->bods) {
 	Particle *p = c0->Tree()->Body(b);
 	double countE = 0.0;	// Number of electrons
+	double eta    = 1.0;	// Electrons per ion
 	  
 	// Compute effective number of electrons
 	//
 	if (aType==Trace) {
+	  eta = 0.0;
 	  for (auto s : SpList) {
 	    unsigned short Z = s.first.first;
 	    unsigned short P = s.first.second - 1;
+	    eta    += p->dattrib[s.second] / atomic_weights[Z];
 	    countE += p->dattrib[s.second] / atomic_weights[Z] * P;
 	  }
+	  eta = countE/eta;
 	  countE *= p->mass;
 	} else {
 	  KeyConvert k(p->iattrib[use_key]);
@@ -15355,7 +15354,7 @@ void CollideIon::gatherSpecies()
 
 	for (unsigned k=0; k<3; k++) {
 	  double ve = p->dattrib[use_elec+k];
-	  KEe += 0.5 * countE * atomic_weights[0] * ve*ve;
+	  KEe += 0.5 * countE * atomic_weights[0] * ve*ve * eta;
 	}
 
 	numbE += countE;
@@ -18047,8 +18046,9 @@ void CollideIon::printSpeciesTrace()
 	     << std::setw(18) << std::right << "Temp_e"
 	     << std::setw(18) << std::right << "KE_e"
 	     << std::setw(18) << std::right << "Tot_E"
-	     << std::setw(18) << std::right << "ConsE";
-	nhead = 6;
+	     << std::setw(18) << std::right << "ConsE"
+	     << std::setw(18) << std::right << "Eta";
+	nhead = 7;
       } else {
 	dout << "# "
 	     << std::setw(18) << std::right << "Time  "
@@ -18103,7 +18103,8 @@ void CollideIon::printSpeciesTrace()
     dout << std::setw(18) << std::right << Te
 	 << std::setw(18) << std::right << tM[2]
 	 << std::setw(18) << std::right << tM[0] + tM[2] - consE - consG
-	 << std::setw(18) << consE + consG;
+	 << std::setw(18) << consE + consG
+	 << std::setw(18) << tM[3]/tM[1];
   for (spDItr it=specM.begin(); it != specM.end(); it++)
     dout << std::setw(18) << std::right << it->second;
   dout << std::endl;
