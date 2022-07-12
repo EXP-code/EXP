@@ -11,6 +11,7 @@
 #include <ctime>
 #include <tuple>
 #include <map>
+#include <set>
 
 #include <errno.h>
 #include <sys/stat.h>
@@ -2430,7 +2431,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    tke    = std::get<2>(crsret);
 
 	    if (crsvel > 0.0) {
-	      // Only need to check ion
+	      // Only need to check neutral
 	      if (Z1 < traceZ) {
 		cseccache[id][T].push_back({crsvel, j, i, ph, tke});
 		csections[id][Tord(T)][crsvel];
@@ -12847,11 +12848,6 @@ double CollideIon::electronEnergy(pCell* const cell, int dbg)
 void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 			       double kedsp, double tau, int id)
 {
-  if (aType == Trace) {		// Apply deferred energy from inactive
-				// trace species
-    generateTraceEnergyLoss(cell, Fn, tau, id);
-  }
-
   if (mlev==0) {		// Add electronic potential energy
     collD->addCellPotl(cell, id);
   }
@@ -14792,11 +14788,12 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   // Collect the cross sections by interaction type and species
   //
-  std::map<NTC::T, double> bySpc;
+  std::set<NTC::T> bySpc;
 
   for (auto v : csections[id].v) {
-    NTC::T T = v.first;
-    if (std::get<1>(T).first < traceZ) bySpc[T] += v.second();
+    NTC::T T = v.first;		// Only accumulate *active* species; those
+				// with Z < traceZ
+    if (std::get<1>(T).first < traceZ) bySpc.insert(T);
   }
 
   crTotl[id]++;
@@ -14811,20 +14808,20 @@ NTC::InteractD CollideIon::generateSelectionTrace
   std::map<NTC::T, std::pair<double, int>> mvels;
 #endif
 
-  for (auto v : bySpc) {
+  for (auto T : bySpc) {
     
-    for (auto u : cseccache[id][v.first])
-      cseccum[id][v.first].push_back(std::get<0>(u) * Pscale);
+    for (auto u : cseccache[id][T])
+      cseccum[id][T].push_back(std::get<0>(u) * Pscale);
 
-    for (int i=1; i<cseccum[id][v.first].size(); i++)
-      cseccum[id][v.first][i] += cseccum[id][v.first][i-1];
+    for (int i=1; i<cseccum[id][T].size(); i++)
+      cseccum[id][T][i] += cseccum[id][T][i-1];
 
-    double totSel = cseccum[id][v.first].back();
+    double totSel = cseccum[id][T].back();
 
 #ifdef XC_DEEP16
-    for (auto u : cseccache[id][v.first]) {
-      mvels[v.first].first  += std::get<4>(u);
-      mvels[v.first].second += 1;
+    for (auto u : cseccache[id][T]) {
+      mvels[T].first  += std::get<4>(u);
+      mvels[T].second += 1;
     }    
 #endif
 
@@ -14835,7 +14832,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
     totSelcM += totSel;
 
 #ifdef XC_DEEP5
-    auto TT = std::get<0>(v.first);
+    auto TT = std::get<0>(T);
     std::cout << "ctest: " << std::setw(12) << interLabels[TT]
 	      << " totSel=" << totSel
 	      << " Vel=" << crm
@@ -14926,7 +14923,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
     if (NoDelC & 0x4 and interFlag % 100 == free_free) continue;
     if (NoDelC & 0x8 and interFlag % 100 == colexcite) continue;
     
-    // Select only non-scattering trace species
+    // Select only inactive trace species
     //
     if ( (i2 == NTC::electron and i1.first >= traceZ) or
 	 (i1 == NTC::electron and i2.first >= traceZ) ) {
@@ -14939,17 +14936,11 @@ NTC::InteractD CollideIon::generateSelectionTrace
 	double ph     = std::get<3>(t) * eV / TreeDSMC::Eunit;
 	double ke     = std::get<4>(t);
 
-	Particle *p1 = tree->Body(c->bods[n1]);
-	Particle *p2 = tree->Body(c->bods[n2]);
+	Particle *p1  = tree->Body(c->bods[n1]);
+	Particle *p2  = tree->Body(c->bods[n2]);
     
-	double P;
-	if (i1 != NTC::electron)
-	  P = p1->dattrib[SpList[i1]] / atomic_weights[i1.first];
-	else
-	  P = p2->dattrib[SpList[i2]] / atomic_weights[i2.first];
-
-	double NN = crsvel * Pscale;
-	double dE = ph * NN;
+	double NN     = crsvel * Pscale;
+	double dE     = ph * NN;
 
 	auto F = std::make_shared<Fspc>(this, p1, p2);
 
@@ -14965,7 +14956,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
 	  F->update();
 	}
 
-	// Deferred energy for Z>=traceZ
+	// Deferred energy for inactive species, Z>=traceZ
 	//
 	if (use_cons >= 0) {
 	  if (use_elec<0 or not elc_cons) {
@@ -14993,102 +14984,6 @@ NTC::InteractD CollideIon::generateSelectionTrace
   // END: cross section list
 
   return selcM;
-}
-
-
-void CollideIon::generateTraceEnergyLoss
-(pCell* const c, sKeyDmap* const Fn, double tau, int id)
-{
-  speciesKey key(Particle::defaultKey);
-
-  // Convert from NTCdb to system units
-  //
-  const double crs_units = 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
-
-  // Number of bodies in this cell
-  //
-  unsigned num = static_cast<unsigned>(c->bods.size());
-  
-  // Mass density in the cell
-  //
-  double volc = c->Volume();
-
-  // Mean mass per perticle
-  //
-  double mmas = c->Mass() / volc / num;
-
-  // Rate factor
-  //
-  double rateF = (*Fn)[key] * mmas * tau / volc;
-
-  // Compute total energ loss for non-interacting trace elements
-  //
-  double Energy = 0.0;
-
-  for (auto v : cseccache[id]) {
-    NTC::T T = v.first;
-
-    if (std::get<1>(T).first >= traceZ) {
-      double Sum = 0.0;
-      for (auto w : v.second) Sum += std::get<0>(w) * std::get<3>(w);
-      double Np = rateF * Sum * crs_units * eV/TreeDSMC::Eunit;
-      Energy += Np;
-      // Deep debug
-      if (false)
-	std::cout << "Cell " << std::setw(8) << std::hex << c
-		  << std::setw(4)  << std::dec << cseccache[id].size()
-		  << std::setw(14) << interLabels[std::get<0>(T)]
-		  << " E=" << std::setw(16) << Np*TreeDSMC::Eunit/eV
-		  << std::endl;
-    }
-  }
-
-  // Spread energy into the entire cell
-  //
-  Energy /= num;
-
-  for (auto b : c->bods) {
-    Particle *p = tree->Body(b);
-
-    double Eta=0.0, Sum=0.0;
-    for (auto s : SpList) {
-      double wgt = p->dattrib[s.second] / atomic_weights[s.first.first];
-      Eta += wgt * (s.first.second - 1);
-      Sum += wgt;
-    }
-    Eta /= Sum;
-
-    double KEi = 0.0, KEe = 0.0;
-    for (size_t k =0; k<3; k++) {
-      KEi += p->vel[k] * p->vel[k];
-      if (use_elec>=0) {
-	KEe += p->dattrib[use_elec+k] * p->dattrib[use_elec+k];
-      }
-    }
-
-    KEi *= 0.5*p->mass;
-    KEe *= 0.5*p->mass * Eta * atomic_weights[0];
-
-    double A = KEi / (KEi + KEe);
-    double B = KEe / (KEi + KEe);
-
-    if (use_cons>=0) {
-      if (use_elec>=0 and elc_cons) {
-	p->dattrib[use_cons] += Energy * A;
-	p->dattrib[use_cons] += Energy * B;
-      } else {
-	p->dattrib[use_cons] += Energy;
-      }
-    } else {
-      double facI = sqrt(std::max<double>(1.0 - A*Energy/KEi, 0.0)), facE = 0.0;
-      if (KEe>0.0) facE = sqrt(std::max<double>(1.0 - B*Energy/KEe, 0.0));
-      for (size_t k =0; k<3; k++) {
-	p->vel[k] *= facI;
-	if (use_elec>=0) p->dattrib[use_elec+k] *= facE;
-      }
-    }
-  }
-
 }
 
 // Select an interaction pair

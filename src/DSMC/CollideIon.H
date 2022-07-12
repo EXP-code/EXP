@@ -1398,9 +1398,6 @@ protected:
    double tau, double& meanLambda, double& meanCollP, 
    double& totalNsel, int id);
 
-  virtual void generateTraceEnergyLoss
-  (pCell* const c, sKeyDmap* const Fn, double tau, int id);
-
   virtual NTC::InteractD generateSelectionHybrid
   (pCell* const c, double crm, sKeyDmap* const Fn, 
    double tau, double& meanLambda, double& meanCollP, 
