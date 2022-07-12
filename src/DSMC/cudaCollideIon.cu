@@ -4279,6 +4279,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
   cuEnergyInfo EI;
   // cuFP_t Mue = cuda_atomic_weights[0];
   
+
+  // Interaction count prefactor
+  //
+  cuFP_t crsfac = cuMunit/amu * 1e-14 / (cuLunit*cuLunit);
+
   // Cell loop with grid stride
   //
   for (int cid = blockIdx.x * blockDim.x + threadIdx.x; cid < cellI._s; cid += blockDim.x * gridDim.x) {
@@ -4343,6 +4348,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     double totCross = 0.0;
     int    totCount = 0;
 
+    cuFP_t Pscale = mean_mass * crsfac * tau / vol;
+
     // Interaction-type loop
     //
     for (int k=0; k<numxc; k++) {
@@ -4376,6 +4383,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	for (int j=i+1; j<nbods; j++) {
 	
+	  double dEsum = 0.0;
+
 	  setupCrossSection(in, elems, cid, n0+i, n0+j, state, &EI);
 	  
 	  cudaParticle* p2 = &in._v[n0+j];
@@ -4384,11 +4393,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	  auto Z = J1.sp.first;
 
+	  int pos = J1.I + cuSp0;
+
 	  // Ion--Electron
 	  if (J2.sp == cuElectron and J1.sp != cuElectron) {
 	    // One power of eta for electron partner probability
-	    Prob1  = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z] * EI.Eta2;
-	    Prob2  = p2->datr[J1.I+cuSp0] / cuda_atomic_weights[Z] * EI.Eta1;
+	    Prob1  = p1->datr[pos] / cuda_atomic_weights[Z] * EI.Eta2;
+	    Prob2  = p2->datr[pos] / cuda_atomic_weights[Z] * EI.Eta1;
 
 	    // Correct ballistic velocity for mass scaling
 	    Prob1 *= sqrt(EI.Eta2);
@@ -4396,8 +4407,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  }
 	  // Ion--Ion
 	  else if (J1.sp != cuElectron and J2.sp != cuElectron) {
-	    Prob1 = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z];
-	    Prob2 = p2->datr[J1.I+cuSp0] / cuda_atomic_weights[Z];
+	    Prob1 = p1->datr[pos] / cuda_atomic_weights[Z];
+	    Prob2 = p2->datr[pos] / cuda_atomic_weights[Z];
 	  }
 	  // Sanity checks: neither of these next two should happen
 	  else if (J1.sp == cuElectron and J2.sp != cuElectron) {
@@ -4417,16 +4428,49 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    (in, elems, &ph, xsc_H, xsc_He, xsc_pH, xsc_pHe,
 	     cid, n0+i, n0+j, T, &J1, &J2, state, &EI) * EI.vel;
 
-	  if (xc>0.0) {
-	    conv_.SS[0] = i;
-	    conv_.SS[1] = j;
-	    prs._v[fN+count] = conv_.I2;
-	    cum._v[fN+count] = xc * Prob1;
-	    count++;
+	  if (xc>0.0 and p1->datr[pos]>0.0) {
 
-	    totCross     += xc * Prob1/EI.vel;
-	    rvel._v[cid] += EI.vel;
-	    totCount++;
+	    if (Z<cuTrcZ) {
+	      conv_.SS[0] = i;
+	      conv_.SS[1] = j;
+	      prs._v[fN+count] = conv_.I2;
+	      cum._v[fN+count] = xc * Prob1;
+	      count++;
+
+	      totCross     += xc * Prob1/EI.vel;
+	      rvel._v[cid] += EI.vel;
+	      totCount++;
+
+	    } else {
+
+	      double NN = Prob1 * xc * Pscale;
+	      dEsum += ph * cuEV/cuEunit * NN;
+	      
+	      if (T == col_ionize) {
+		// printf("Ionize [1] Z=%d: P=%e N=%e\n", Z, p1->datr[pos], NN);
+		if (NN < p1->datr[pos]) {
+		  p1->datr[pos  ] -= NN;
+		  p1->datr[pos+1] += NN;
+		} else {
+		  NN = p1->datr[pos];
+		  p1->datr[pos  ]  = 0.0;
+		  p1->datr[pos+1] += NN;
+		}
+	      }
+
+	      if (T == recombine) {
+		// printf("Recombine [1] Z=%d: P=%e N=%e\n", Z, p1->datr[pos], NN);
+		if (NN < p1->datr[pos]) {
+		  p1->datr[pos  ] -= NN;
+		  p1->datr[pos-1] += NN;
+		} else {
+		  NN = p1->datr[pos];
+		  p1->datr[pos  ]  = 0.0;
+		  p1->datr[pos-1] -= NN;
+		}
+	      }
+	      
+	    }
 
 	    if (false and T==6) {
 	      cuFP_t val = xc/EI.vel;
@@ -4464,16 +4508,48 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      (in, elems, &ph, xsc_H, xsc_He, xsc_pH, xsc_pHe,
 	       cid, n0+j, n0+i, T, &J1, &J2, state, &EI) * EI.vel;
 
-	    if (xc>0.0) {
-	      conv_.SS[0] = j;
-	      conv_.SS[1] = i;
-	      prs._v[fN+count] = conv_.I2;
-	      cum._v[fN+count] = xc * Prob2;
-	      count++;
+	    if (xc>0.0 and p2->datr[pos]>0.0) {
 
-	      totCross     += xc * Prob2/EI.vel;
-	      rvel._v[cid] += EI.vel;
-	      totCount++;
+	      if (Z<cuTrcZ) {
+		conv_.SS[0] = j;
+		conv_.SS[1] = i;
+		prs._v[fN+count] = conv_.I2;
+		cum._v[fN+count] = xc * Prob2;
+		count++;
+
+		totCross     += xc * Prob2/EI.vel;
+		rvel._v[cid] += EI.vel;
+		totCount++;
+
+	      } else {
+
+		cuFP_t NN = Prob2 * xc * Pscale;
+		dEsum += ph * cuEV/cuEunit * NN;
+
+		if (T == col_ionize) {
+		  // printf("Ionize [2] Z=%d: P=%e N=%e\n", Z, p2->datr[pos], NN);
+		  if (NN < p2->datr[pos]) {
+		    p2->datr[pos  ] -= NN;crsfac;
+		    p2->datr[pos+1] += NN;
+		  } else {
+		    NN = p2->datr[pos];
+		    p2->datr[pos  ]  = 0.0;
+		    p2->datr[pos+1] += NN;
+		  }
+		}
+
+		if (T == recombine) {
+		  // printf("Recombine [2] Z=%d: P=%e N=%e\n", Z, p2->datr[pos], NN);
+		  if (NN < p2->datr[pos]) {
+		    p2->datr[pos  ] -= NN;
+		    p2->datr[pos-1] += NN;
+		  } else {
+		    NN = p2->datr[pos];
+		    p2->datr[pos  ]  = 0.0;
+		    p2->datr[pos-1] += NN;
+		  }
+		}
+	      }
 
 #ifdef XC_DEEP16
 	      if (T==6) {
@@ -4497,6 +4573,23 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		printf("col_excite [%d]: pair [%d, %d]/%d xc=%e e1=%e e2=%e ph=%e\n",
 		       cid, j, i, nbods, val, EI.kEe1, EI.kEe2, ph);
 	      }
+	    }
+	  }
+
+	  // Spread deferred energy
+	  //
+	  if (dEsum>0.0 and cuCons>=0) {
+	    if (cuEcon>=0) {
+	      if (J2.sp==cuElectron) {
+		p2->datr[cuEcon] += dEsum * EI.Eta2/(1.0 + EI.Eta2);
+		p1->datr[cuCons] += dEsum /(1.0 + EI.Eta2);
+	      } else {
+		p1->datr[cuEcon] += dEsum * EI.Eta1/(1.0 + EI.Eta1);
+		p2->datr[cuCons] += dEsum /(1.0 + EI.Eta1);
+	      }
+	    } else {
+	      p1->datr[cuCons] += dEsum * 0.5;
+	      p2->datr[cuCons] += dEsum * 0.5;
 	    }
 	  }
 	
@@ -4819,7 +4912,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      printf("Crazy ionize I1=%d\n", J1.I);
 	    }
 #endif
-	    int pos = fP + J1.I;
+	    int pos = J1.I + fP;
 	      
 	    if (WW < F1._v[pos]) {
 	      F1._v[pos  ] -= WW;
@@ -4887,7 +4980,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      printf("Crazy ionize I2=%d\n", J2.I);
 	    }
 #endif
-	    int pos = fP + J2.I;
+	    int pos = J2.I + fP;
 	      
 	    if (WW < F2._v[pos]) {
 	      F2._v[pos  ] -= WW;

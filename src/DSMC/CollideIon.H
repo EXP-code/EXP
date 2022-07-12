@@ -1202,6 +1202,9 @@ protected:
     }
 
     //! Update ionization state fractions
+    //! flag=0x1 updates particle 1
+    //! flag=0x2 updates particle 2
+    //! flag=0x3 updates both particles
     void update(unsigned flag=0x3);
 
     //! Check normalization of ionization state vector (for debugging)
@@ -1310,6 +1313,11 @@ protected:
   };
 
   typedef std::shared_ptr<Pord> PordPtr;
+
+  std::vector<double> ion_rr_excess;
+
+  double changeStateTrace(int interFlag, int ion, int pos, double WW,
+			  std::shared_ptr<CollideIon::Fspc> F);
 
   virtual double crossSection(int id,  pCell* const c,
 			      Particle* const p1, Particle* const p2, 
