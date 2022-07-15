@@ -265,7 +265,7 @@ private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
   std::vector<double> Esum, Elos, Klos, Elec, Edsp, Efrc, Emas, Epot, clrE, misE, dfrE, updE, Encl;
-  double Esum_s, Elos_s, Klos_s, Efrc_s, Emas_s, Elec_s, Edsp_s, Etot_c, Ktot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s, dfrE_s, updE_s, Encl_s;
+  double Esum_s, Elos_s, Klos_s, Efrc_s, Emas_s, Elec_s, Edsp_s, Etot_c, Ktot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s, dfrE_s, updE_s, Encl_s, maxI_s, maxE_s;
   std::vector<unsigned> Ncol, Nmis;
   unsigned Ncol_s, Nmis_s;
 
@@ -1397,9 +1397,6 @@ protected:
   (pCell* const c, double crm, sKeyDmap* const Fn, 
    double tau, double& meanLambda, double& meanCollP, 
    double& totalNsel, int id);
-
-  virtual void generateTraceEnergyLoss
-  (pCell* const c, sKeyDmap* const Fn, double tau, int id);
 
   virtual NTC::InteractD generateSelectionHybrid
   (pCell* const c, double crm, sKeyDmap* const Fn, 
