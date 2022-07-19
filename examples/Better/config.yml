@@ -8,7 +8,6 @@
 # ------------------------------------------------------------------------
 Global:
   outdir     : /home/someuser/dir
-  nbodmax    : 1000000
   nthrds     : 1
   dtime      : 0.002
   ldlibdir   : /home/someuser/lib/user
