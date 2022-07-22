@@ -3,7 +3,7 @@ set(bin_PROGRAMS pspinfo pspstat psp2ascii ascii2psp psp2histo
   psp2histo1d snap2histo1d psp2histoE psp2histoH pspreal pspstatS
   psp2range psp2histoT psp2histoTC pspstatT spl2psp ascii2psp2
   psp2rings psp2bess psp2lagu psp2interp diffpsp diffpspN psp2hdf5
-  pspmono snap2ascii)
+  pspmono snap2ascii psporbv)
 		
 if(HAVE_VTK)
   list(APPEND bin_PROGRAMS psp2eHisto psp2vtu)
@@ -60,6 +60,8 @@ add_executable(diffpsp diffpsp.cc MakeModel.cc PSP.cc)
 add_executable(pspmono pspmono.cc MakeModel.cc PSP.cc)
 add_executable(diffpspN diffpspN.cc PSP.cc)
 add_executable(psp2hdf5 psp2hdf5.cc PSP.cc)
+add_executable(psporbv psporbv.cc PSP.cc)
+
 
 if(HAVE_VTK)
   add_executable(psp2eHisto psp2eHisto.cc PSP.cc)
