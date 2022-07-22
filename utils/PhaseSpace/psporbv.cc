@@ -1,5 +1,5 @@
 /*
-  Look for radial mode
+  Make a distribution of orbital parameters using a spherical model
 
   This is an example of using PSP classes to look for a particular
   feature based on a background model
@@ -37,6 +37,7 @@ main(int argc, char **argv)
   std::string cname("comp"), new_dir("./"), modfile("SLGridSph.model");
   std::string psfile, outfile;
   double rmin = 0.0, rmax = 1.0, maxkap = 0.5, KTOL, frac, vcut;
+  int Nrad;
 
   // MPI initialization
   //
@@ -48,6 +49,7 @@ main(int argc, char **argv)
 
   options.add_options()
     ("h,help", "print this help message")
+    ("v,verbose", "verbose output")
     ("r,rmin", "minimum apocentric radius",
      cxxopts::value<double>(rmin)->default_value("0.0"))
     ("R,rmax", "maximum apocentric radius",
@@ -70,7 +72,8 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(outfile)->default_value("orbits.dat"))
     ("m,model", "SphericalModel file",
      cxxopts::value<std::string>(modfile)->default_value("SLGridSph.mod"))
-    ("v,verbose", "verbose output")
+    ("N,histo", "number of radial bins for w1 histogram",
+     cxxopts::value<int>(Nrad)->default_value("0"))
     ;
 
   cxxopts::ParseResult vm;
@@ -132,6 +135,8 @@ main(int argc, char **argv)
   const int wid = 18;
 
   if (out) {
+    // Column labels
+    //
     std::vector<std::string> labels =
       { "radius", "energy", "kappa", "I_r", "I_p",
 	"L_x", "L_y", "L_z", "Omega_1", "Omega_2", "r/r_apo", "r/r_peri",
@@ -139,28 +144,45 @@ main(int argc, char **argv)
 
     // Separating header
     //
-    auto sep = [wid, labels, out](int v) {
+    auto sep = [wid, labels, &out](int v) {
+		 // Iterate through columns
+		 //
 		 for (int i=0; i<labels.size(); i++) {
 		   std::ostringstream sout;
 		   if (i==0) out << "#"; else out << "+";
+		   // Separator
 		   if (v==0) sout << std::setw(wid-1) << std::setfill('-') << '-';
+		   // Labels
 		   if (v==1) sout << std::setw(wid-2) << std::right << labels[i] << ' ';
-		   if (v==2) { std::ostringstream sout2; sout2 << "[" << i+1 << "] ";
+		   // Column index
+		   if (v==2) {
+		     std::ostringstream sout2;
+		     sout2 << "[" << i+1 << "] ";
 		     sout << std::setw(wid-1) << std::right << sout2.str();
 		   }
-		   out << sout.str();
+		   out << sout.str(); // Print the column
 		 }
-		 out << std::endl;
+		 out << std::endl; // End the line
 	       };
     
-    out << sep(0) << sep(1) << sep(2) << sep(0);
+    // Print the entire file header
+    sep(0); sep(1); sep(2); sep(0);
   } else {
     std::cerr << "Error opening <" << sout.str() << std::endl;
+    exit(-1);
   }
 
   unsigned good = 0, all = 0;
 
   std::shared_ptr<progress::progress_display> progress;
+
+  std::vector<double> w1_histo, mm_histo;
+  double dr = 0.0;
+  if (Nrad) {
+    w1_histo.resize(Nrad, 0.0);
+    mm_histo.resize(Nrad, 0.0);
+    dr = (rmax - rmin)/Nrad;
+  }
 
   for (auto stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
     
@@ -212,11 +234,19 @@ main(int argc, char **argv)
 		sin(theta)*sin(phi)*part->vel(1) +
 		cos(theta)*part->vel(2) ;
 	      
+	      double w1   = orb.get_w1(r, vrad);
 	      double vtan = sqrt(v2 - vrad*vrad);
 	      double omg0 = orb.get_freq(0);
 	      double omg1 = orb.get_freq(1);
-	      double w1   = orb.get_angle(r);
 	      
+	      if (Nrad) {
+		int indx = floor((r - rmin)/dr);
+		if (indx >= 0 and indx<Nrad and not std::isnan(w1)) {
+		  w1_histo[indx] += part->mass() * w1;
+		  mm_histo[indx] += part->mass();
+		}
+	      }
+
 	      if (fabs(vrad/vtan) < vcut) {
 
 		out << std::setw(wid) << r
@@ -254,8 +284,27 @@ main(int argc, char **argv)
   if (myid==0) {
     MPI_Reduce(MPI_IN_PLACE, &good, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     std::cout << "Found: " << good << "/" << all << std::endl;
+    if (Nrad) {
+      MPI_Reduce(MPI_IN_PLACE, w1_histo.data(), Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, mm_histo.data(), Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
   } else {
     MPI_Reduce(&good, 0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (Nrad) {
+      MPI_Reduce(w1_histo.data(), 0, Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(mm_histo.data(), 0, Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
+  }
+
+  if (myid==0 and Nrad) {
+    std::cout << std::endl << "w1 histogram" << std::endl;
+    for (int i=0; i<Nrad; i++) {
+      if (mm_histo[i]>0.0) {
+	std::cout << std::setw(10) << i
+		  << std::setw(18) << w1_histo[i]/mm_histo[i]
+		  << std::setw(18) << mm_histo[i] << std::endl;
+      }
+    }
   }
 
   MPI_Finalize();
