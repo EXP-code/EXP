@@ -129,6 +129,9 @@ public:
   return action[i];
   }
 
+  //! Get angle for a given radius
+  double get_angle(double r, double vr);
+
   /** Return the orbital frequency where:
       index 0 is radial frequency, I_r
       index 1 is angular frequency, J
