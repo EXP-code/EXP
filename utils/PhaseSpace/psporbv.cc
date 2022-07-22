@@ -2,7 +2,8 @@
   Make a distribution of orbital parameters using a spherical model
 
   This is an example of using PSP classes to look for a particular
-  feature based on a background model
+  feature based in a background model.  Written to look at the l=1
+  mode but should be broadly useful.
 
   MDWeinberg 01/08/2022
 */
@@ -125,6 +126,9 @@ main(int argc, char **argv)
   
   double Emin = model->get_pot(model->get_min_radius());
   double Emax = model->get_pot(model->get_max_radius());
+
+  rmin = std::max<double>(rmin, model->get_min_radius());
+  rmax = std::min<double>(rmax, model->get_max_radius());
 
 				// Dump ascii for each component
 				// -----------------------------
