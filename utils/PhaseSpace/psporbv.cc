@@ -36,7 +36,7 @@ main(int argc, char **argv)
   char *prog = argv[0];
   bool verbose = false;
   std::string cname("comp"), new_dir("./"), modfile("SLGridSph.model");
-  std::string psfile, outfile;
+  std::string psfile, suffix;
   double rmin = 0.0, rmax = 1.0, maxkap = 0.5, KTOL, frac, vcut;
   int Nrad;
 
@@ -51,6 +51,8 @@ main(int argc, char **argv)
   options.add_options()
     ("h,help", "print this help message")
     ("v,verbose", "verbose output")
+    ("1,onesign", "use radial angles in the [0, pi] branch only")
+    ("l,log", "use logarithmic bins for histogram")
     ("r,rmin", "minimum apocentric radius",
      cxxopts::value<double>(rmin)->default_value("0.0"))
     ("R,rmax", "maximum apocentric radius",
@@ -69,8 +71,8 @@ main(int argc, char **argv)
      cxxopts::value<std::string>()->default_value("./"))
     ("f,PSP", "input PSP file",
      cxxopts::value<std::string>(psfile)->default_value("out.psp"))
-    ("o,outfile", "output data file",
-     cxxopts::value<std::string>(outfile)->default_value("orbits.dat"))
+    ("s,suffix", "output data file suffix",
+     cxxopts::value<std::string>(suffix)->default_value("run"))
     ("m,model", "SphericalModel file",
      cxxopts::value<std::string>(modfile)->default_value("SLGridSph.mod"))
     ("N,histo", "number of radial bins for w1 histogram",
@@ -133,7 +135,7 @@ main(int argc, char **argv)
 				// Dump ascii for each component
 				// -----------------------------
   std::ostringstream sout;
-  sout << outfile << "." << myid;
+  sout << "orbv." << suffix << "." << myid;
 
   std::ofstream out(sout.str());
   const int wid = 18;
@@ -180,12 +182,30 @@ main(int argc, char **argv)
 
   std::shared_ptr<progress::progress_display> progress;
 
-  std::vector<double> w1_histo, mm_histo;
+  // Structures to hold the mean (bins) and variance (squared value)
+  std::vector<std::vector<double>> w1_histo(2), pp_histo(2);
+  std::vector<std::vector<double>> ee_histo(2), kk_histo(2);
+
+  // One need the accumulated bins
+  std::vector<double> mm_histo;
+
+  // Bin width
   double dr = 0.0;
+
+  // Make the bin structures
   if (Nrad) {
-    w1_histo.resize(Nrad, 0.0);
+    for (auto i : {0, 1}) {
+      w1_histo[i].resize(Nrad, 0.0);
+      pp_histo[i].resize(Nrad, 0.0);
+      ee_histo[i].resize(Nrad, 0.0);
+      kk_histo[i].resize(Nrad, 0.0);
+    }
     mm_histo.resize(Nrad, 0.0);
-    dr = (rmax - rmin)/Nrad;
+
+    if (vm.count("log"))
+      dr = (log(rmax) - log(rmin))/Nrad;
+    else
+      dr = (rmax - rmin)/Nrad;
   }
 
   for (auto stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
@@ -243,11 +263,27 @@ main(int argc, char **argv)
 	      double omg0 = orb.get_freq(0);
 	      double omg1 = orb.get_freq(1);
 	      
+	      if (vm.count("onesign") and vrad<0.0)
+		w1 = 2.0*M_PI - w1;
+
 	      if (Nrad) {
-		int indx = floor((r - rmin)/dr);
-		if (indx >= 0 and indx<Nrad and not std::isnan(w1)) {
-		  w1_histo[indx] += part->mass() * w1;
-		  mm_histo[indx] += part->mass();
+		if (std::isfinite(w1)) {
+		  int indx;
+		  if (vm.count("log"))
+		    indx = floor((log(r) - log(rmin))/dr);
+		  else
+		    indx = floor((r - rmin)/dr);
+		  if (indx >= 0 and indx<Nrad) {
+		    w1_histo[0][indx] += part->mass() * w1;
+		    w1_histo[1][indx] += part->mass() * w1*w1;
+		    pp_histo[0][indx] += part->mass() * phi;
+		    pp_histo[1][indx] += part->mass() * phi*phi;
+		    ee_histo[0][indx] += part->mass() * E;
+		    ee_histo[1][indx] += part->mass() * E*E;
+		    kk_histo[0][indx] += part->mass() * kappa;
+		    kk_histo[1][indx] += part->mass() * kappa*kappa;
+		    mm_histo   [indx] += part->mass();
+		  }
 		}
 	      }
 
@@ -289,25 +325,64 @@ main(int argc, char **argv)
     MPI_Reduce(MPI_IN_PLACE, &good, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     std::cout << "Found: " << good << "/" << all << std::endl;
     if (Nrad) {
-      MPI_Reduce(MPI_IN_PLACE, w1_histo.data(), Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      for (auto i : {0, 1}) {
+	MPI_Reduce(MPI_IN_PLACE, w1_histo[i].data(), Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(MPI_IN_PLACE, pp_histo[i].data(), Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(MPI_IN_PLACE, ee_histo[i].data(), Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(MPI_IN_PLACE, kk_histo[i].data(), Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      }
       MPI_Reduce(MPI_IN_PLACE, mm_histo.data(), Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     }
   } else {
     MPI_Reduce(&good, 0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     if (Nrad) {
-      MPI_Reduce(w1_histo.data(), 0, Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      for (auto i : {0, 1}) {
+      MPI_Reduce(w1_histo[i].data(), 0, Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(pp_histo[i].data(), 0, Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(ee_histo[i].data(), 0, Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(kk_histo[i].data(), 0, Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      }
       MPI_Reduce(mm_histo.data(), 0, Nrad, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     }
   }
 
   if (myid==0 and Nrad) {
-    std::cout << std::endl << "w1 histogram" << std::endl;
+    std::ostringstream sout;
+    sout << "histo." << suffix;
+    std::ofstream out(sout.str());
     for (int i=0; i<Nrad; i++) {
+      double w1 = 0.0, pp = 0.0, ee = 0.0, kk = 0.0, r;
+      double s_w1 = 0.0, s_pp = 0.0, s_ee = 0.0, s_kk = 0.0;
+      if (vm.count("log"))
+	r = rmin*exp(dr*(0.5+i));
+      else
+	r = rmin + dr*(0.5+i);
+
       if (mm_histo[i]>0.0) {
-	std::cout << std::setw(10) << i
-		  << std::setw(18) << w1_histo[i]/mm_histo[i]
-		  << std::setw(18) << mm_histo[i] << std::endl;
+	w1   = w1_histo[0][i]/mm_histo[i];
+	s_w1 = sqrt(fabs(w1_histo[1][i]/mm_histo[i] - w1*w1));
+
+	pp   = pp_histo[0][i]/mm_histo[i];
+	s_pp = sqrt(fabs(pp_histo[1][i]/mm_histo[i] - pp*pp));
+
+	ee   = ee_histo[0][i]/mm_histo[i];
+	s_ee = sqrt(fabs(ee_histo[1][i]/mm_histo[i] - ee*ee));
+
+	kk   = kk_histo[0][i]/mm_histo[i];
+	s_kk = sqrt(fabs(kk_histo[1][i]/mm_histo[i] - kk*kk));
       }
+
+      out << std::setw(10) << i
+	  << std::setw(18) << r
+	  << std::setw(18) << w1
+	  << std::setw(18) << s_w1
+	  << std::setw(18) << pp
+	  << std::setw(18) << s_pp
+	  << std::setw(18) << ee
+	  << std::setw(18) << s_ee
+	  << std::setw(18) << kk
+	  << std::setw(18) << s_kk
+	  << std::setw(18) << mm_histo[i] << std::endl;
     }
   }
 
