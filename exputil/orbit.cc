@@ -285,8 +285,8 @@ double SphericalOrbit::get_w1(double r, double vr)
   if (r<r_peri or r>r_apo) return std::numeric_limits<double>::infinity();
 
   // End points as special cases
-  if (r==r_peri) return 0.0;
-  if (r==r_apo ) return M_PI;
+  if (r<r_peri) return 0.0;
+  if (r>r_apo ) return M_PI;
 
   // Interpolate for the angle for peri-to-apo branch
   double ang = odd2(r,
