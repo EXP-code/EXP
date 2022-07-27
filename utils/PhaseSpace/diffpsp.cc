@@ -77,6 +77,14 @@ main(int argc, char **argv)
   //
   local_init_mpi(argc, argv);
 
+  // Command-line parsing
+  //
+  std::string cmd_line;
+  for (int i=0; i<argc; i++) {
+    cmd_line += argv[i];
+    cmd_line += " ";
+  }
+
   // Parameter assignment
   //
   double       RMIN;
@@ -127,8 +135,9 @@ main(int argc, char **argv)
     "   OUTFILE.DN       Counts per bin                 [2d]\n"		\
     "   OUTFILE.DM       Mass per bin                   [2d]\n"		\
     "   OUTFILE.DE       Delta E                        [2d]\n"		\
-    "   OUTFILE.DK       Delta L (tangen action)        [2d]\n"		\
-    "   OUTFILE.DI       Delta I (radial action)        [2d]\n"		\
+    "   OUTFILE.DK       Delta L (ang mom mag)          [2d]\n"		\
+    "   OUTFILE.DIp      Delta J (phi action)           [2d]\n"         \
+    "   OUTFILE.DIr      Delta I (radial action)        [2d]\n"		\
     "   OUTFILE.DJ       Ang mom per bin                [2d]\n"		\
     "   OUTFILE.DKJ      Delta J/J_avg(E)               [2d]\n"		\
     "   OUTFILE.Dm       Mean mass per bin              [2d]\n"		\
@@ -145,6 +154,7 @@ main(int argc, char **argv)
 
   options.add_options()
     ("h,help", "This help message")
+    ("X,noCommand", "do not save command line")
     ("rmaxf", "Do not extend orbit evaluation beyond the model radius")
     ("relJ", "Compute the relative binned angular momentum")
     ("jaco", "Compute phase-space Jacobian for DF computation")
@@ -264,6 +274,17 @@ main(int argc, char **argv)
     }
   }
 
+  if (myid==0 and vm.count("noCommand")==0) {
+    std::string cmdFile = "diffpsp." + OUTFILE + ".cmd_line";
+    std::ofstream cmd(cmdFile.c_str());
+    if (!cmd) {
+      std::cerr << "mssaprof: error opening <" << cmdFile
+		<< "> for writing" << std::endl;
+    } else {
+      cmd << cmd_line << std::endl;
+    }
+  }
+
   // Check for that size of file lists match
   //
   if (INFILE1.size() != INFILE2.size()) {
@@ -309,7 +330,7 @@ main(int argc, char **argv)
 
   // Allocate histograms
   //
-  Eigen::MatrixXd histoC, histoM, histoE, histoJ, histoI, histoT;
+  Eigen::MatrixXd histoC, histoM, histoE, histoJ, histoR, histoI, histoT;
   Eigen::MatrixXd histo1, histo2;
 
   histoC = Eigen::MatrixXd::Zero(NUM1, NUM2);
@@ -317,6 +338,7 @@ main(int argc, char **argv)
   histoE = Eigen::MatrixXd::Zero(NUM1, NUM2);
   histoJ = Eigen::MatrixXd::Zero(NUM1, NUM2);
   histoI = Eigen::MatrixXd::Zero(NUM1, NUM2);
+  histoR = Eigen::MatrixXd::Zero(NUM1, NUM2);
   histoT = Eigen::MatrixXd::Zero(NUM1, NUM2);
   histo1 = Eigen::MatrixXd::Zero(NUM1, NUM2);
   histo2 = Eigen::MatrixXd::Zero(NUM1, NUM2);
@@ -347,20 +369,21 @@ main(int argc, char **argv)
   // Open output file
   //
     
-  const int nfiles = 12;
+  const int nfiles = 13;
   const char *suffix[] = {
     ".DM", 			// Mass per bin (E, K)		#0
     ".DE", 			// Delta E(E, K)		#1
     ".DK", 			// Delta J(E, K)		#2
     ".DJ", 			// Ang mom per bin (E, K)	#3
-    ".DI", 			// Rad. act. per bin (E, K)	#4
-    ".DKJ", 			// Delta J(E, K)/J_avg(E)	#5
-    ".Dm", 			// Mean mass per bin (E, K)	#6
-    ".DF", 			// Delta DF (E, K)              #7
-    ".Df", 			// Delta DF/F (E, K)            #8
-    ".DN", 			// Counts per (E, K) bin        #9
-    ".DR", 			// Run mass, J, Delta J (R)	#10
-    ".chk"			// Orbital element check	#11
+    ".DIr", 			// Rad. act. per bin (E, K)	#4
+    ".DIp", 			// Phi. act. per bin (E, K)	#5
+    ".DKJ", 			// Delta J(E, K)/J_avg(E)	#6
+    ".Dm", 			// Mean mass per bin (E, K)	#7
+    ".DF", 			// Delta DF (E, K)              #8
+    ".Df", 			// Delta DF/F (E, K)            #9
+    ".DN", 			// Counts per (E, K) bin        #10
+    ".DR", 			// Run mass, J, Delta J (R)	#11
+    ".chk"			// Orbital element check	#12
   };
   std::vector<string> filename(nfiles);
   for (int i=0; i<nfiles; i++) filename[i] = OUTFILE + suffix[i];
@@ -457,7 +480,7 @@ main(int argc, char **argv)
 
   double d1 = (I1max - I1min) / NUM1;
   double d2 = (I2max - I2min) / NUM2;
-  double I1, I2;
+  double Ir1, Ip1, Ir2, Ip2, I1, I2;
 
   double d3 = d2;
   bool Kpow = false;
@@ -484,7 +507,7 @@ main(int argc, char **argv)
 
   // Diagnostic values
   //
-  int numK0=0, numK1=0, reject=0, N=0, total=0;
+  int numK0=0, numK1=0, reject=0, N=0, total=0, rover=0, pmiss=0;
   double KOVER  = 0.0;
   double KUNDER = 1.0;
 
@@ -556,7 +579,6 @@ main(int argc, char **argv)
 
     std::map<int, SPS> ph;
 
-    N = 0;
     for (auto pp=psp1->firstParticle(); pp!=0; pp=psp1->nextParticle()) {
       for (int k=0; k<3; k++) {
 	tps.pos[k] = pp->pos[k];
@@ -650,7 +672,8 @@ main(int argc, char **argv)
 	    
 	    orb.new_orbit(E1, K1);
 	  
-	    I1 = orb.get_action(0);
+	    Ir1 = orb.get_action(0);
+	    Ip1 = orb.get_action(1);
 	  
 	    orb.new_orbit(E2, 0.5);
 	    double K2 = sqrt(j2)/orb.Jmax();
@@ -667,12 +690,13 @@ main(int argc, char **argv)
 	  
 	    orb.new_orbit(E2, K2);
 
-	    double I2 = orb.get_action(1);
+	    double Ir2 = orb.get_action(0);
+	    double Ip2 = orb.get_action(1);
 	  
 	    if (myid==0) {
 	      if (WHICHEK & 1) {
 		if (K1>1.0 || K1<0.0)
-		  out[11] << setw(15) << E1 << setw(15) << K1
+		  out[12] << setw(15) << E1 << setw(15) << K1
 			  << setw(15) << E2 << setw(15) << sqrt(j1)
 			  << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
 			  << setw(5) << 1 << endl;
@@ -680,7 +704,7 @@ main(int argc, char **argv)
 	    
 	      if (WHICHEK & 2) {
 		if (K2>1.0 || K2<0.0)
-		  out[11] << setw(15) << E2 << setw(15) << K2
+		  out[12] << setw(15) << E2 << setw(15) << K2
 			  << setw(15) << E1 << setw(15) << sqrt(j2)
 			  << setw(15) << sqrt(rr1) << setw(15) << sqrt(rr2)
 			  << setw(5) << 2 << endl;
@@ -843,7 +867,8 @@ main(int argc, char **argv)
 	    histoM(i1, i2) += pp->mass;
 	    histoE(i1, i2) += pp->mass*(E1 - E2);
 	    histoJ(i1, i2) += pp->mass*(L1 - L2);
-	    histoI(i1, i2) += pp->mass*(I2 - I1);
+	    histoR(i1, i2) += pp->mass*(Ir2 - Ir1);
+	    histoI(i1, i2) += pp->mass*(Ip2 - Ip1);
 	    histoT(i1, i2) += pp->mass*L1;
 	    
 	    histo1(i11, i21) += pp->mass;
@@ -880,8 +905,8 @@ main(int argc, char **argv)
 	  catch (const std::runtime_error& error) {
 	    reject++;
 	  }
-	}
-      }
+	} else rover++;
+      } else pmiss++;
       
       if (myid==0 and NREPORT) {
 	if (!((N+1)%NREPORT))
@@ -900,6 +925,8 @@ main(int argc, char **argv)
   //
   if (myid) {
     MPI_Reduce(&total,        0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&rover,        0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&pmiss,        0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&reject,       0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoC.data(), 0, histoC.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoM.data(), 0, histoM.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -907,6 +934,7 @@ main(int argc, char **argv)
     MPI_Reduce(histo2.data(), 0, histo2.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoE.data(), 0, histoE.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoJ.data(), 0, histoJ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(histoR.data(), 0, histoR.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoI.data(), 0, histoI.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoT.data(), 0, histoT.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoP.data(), 0, histoP.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -920,6 +948,8 @@ main(int argc, char **argv)
   //
   else {
     MPI_Reduce(MPI_IN_PLACE, &total,  1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, &rover,  1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, &pmiss,  1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, &reject, 1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoC.data(), histoC.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoM.data(), histoM.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -927,6 +957,7 @@ main(int argc, char **argv)
     MPI_Reduce(MPI_IN_PLACE, histo2.data(), histo2.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoE.data(), histoE.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoJ.data(), histoJ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, histoR.data(), histoR.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoI.data(), histoI.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoT.data(), histoT.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoP.data(), histoP.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -938,8 +969,11 @@ main(int argc, char **argv)
     
     std::cout << std::endl;
     
-    std::cout << "Total number of particles processed: " << total
-	      << std::endl << std::endl;
+    std::cout << "Total number of particles processed: " << total << std::endl
+	      << "Out of radial bounds: " << rover << std::endl
+	      << "Cache miss: " << pmiss << std::endl
+	      << std::endl;
+
     if (reject) std::cout << "SphericalOrbit failures in " << reject
 			  << "/" << N << " states" << std::endl << std::endl;
     
@@ -1012,25 +1046,27 @@ main(int argc, char **argv)
 	    p_rec(out[1], I1, I2, histoE(i, j)/histoM(i, j));
 	    p_rec(out[2], I1, I2, histoJ(i, j)/histoM(i, j));
 	    p_rec(out[3], I1, I2, histoT(i, j)/histoM(i, j));
-	    p_rec(out[4], I1, I2, histoI(i, j)/histoM(i, j));
+	    p_rec(out[4], I1, I2, histoR(i, j)/histoM(i, j));
+	    p_rec(out[5], I1, I2, histoI(i, j)/histoM(i, j));
 	    if (I1avg[i]>0.0)
-	      p_rec(out[5], I1, I2, histoJ(i, j)/histoM(i, j)/I1avg[i]);
+	      p_rec(out[6], I1, I2, histoJ(i, j)/histoM(i, j)/I1avg[i]);
 	    else
-	      p_rec(out[5], I1, I2, 0);
+	      p_rec(out[6], I1, I2, 0);
 	  } else {
 	    p_rec(out[0], I1, I2, histoM(i, j)/mfac);
 	    p_rec(out[1], I1, I2, histoE(i, j)/mfac);
 	    p_rec(out[2], I1, I2, histoJ(i, j)/mfac);
 	    p_rec(out[3], I1, I2, histoT(i, j)/mfac);
-	    p_rec(out[4], I1, I2, histoI(i, j)/histoM(i, j));
+	    p_rec(out[4], I1, I2, histoR(i, j)/histoM(i, j));
+	    p_rec(out[6], I1, I2, histoI(i, j)/histoM(i, j));
 	    if (I1avg[i]>0.0)
-	      p_rec(out[5], I1, I2, histoJ(i, j)/I1avg[i]/mfac);
+	      p_rec(out[6], I1, I2, histoJ(i, j)/I1avg[i]/mfac);
 	    else
-	      p_rec(out[5], I1, I2, 0.0);
+	      p_rec(out[6], I1, I2, 0.0);
 	  }
-	  p_rec(out[6], I1, I2, histoM(i, j)/histoC(i, j));
+	  p_rec(out[7], I1, I2, histoM(i, j)/histoC(i, j));
 	} else {
-	  for (int k=0; k<7; k++) p_rec(out[k], I1, I2, 0.0);
+	  for (int k=0; k<8; k++) p_rec(out[k], I1, I2, 0.0);
 	}
 
 	double jfac = 1.0;
@@ -1040,16 +1076,16 @@ main(int argc, char **argv)
 	}
 	  
 	if (totMass>0.0) {
-	  p_rec(out[7], I1, I2, histoF(i, j)*jfac/totMass);
+	  p_rec(out[8], I1, I2, histoF(i, j)*jfac/totMass);
 	}
 	else {
-	  p_rec(out[7], I1, I2, 0.0);
+	  p_rec(out[8], I1, I2, 0.0);
 	}
 
-	p_rec(out[8], I1, I2, histoDF(i, j));
-	p_rec(out[9], I1, I2, histoC (i, j));
+	p_rec(out[9], I1, I2, histoDF(i, j));
+	p_rec(out[10], I1, I2, histoC (i, j));
       }
-      if (not meshgrid) for (int k=0; k<10; k++) out[k] << endl;
+      if (not meshgrid) for (int k=0; k<11; k++) out[k] << endl;
     }
     
     if (CUMULATE) {
@@ -1094,34 +1130,34 @@ main(int argc, char **argv)
     for (int j=0; j<nrlabs; j++) {
       if (j==0) out[11] << "#";
       else      out[11] << "+";
-      out[10] << setw(fieldsz-1) << left << setfill('-') << '-';
+      out[11] << setw(fieldsz-1) << left << setfill('-') << '-';
     }
-    out[10] << endl << setfill(' ');
+    out[11] << endl << setfill(' ');
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[10] << "# ";
-      else      out[10] << "+ ";
-      out[10] << setw(fieldsz-2) << left << rlabels[j];
+      if (j==0) out[11] << "# ";
+      else      out[11] << "+ ";
+      out[11] << setw(fieldsz-2) << left << rlabels[j];
     }
-    out[9] << endl;
+    out[11] << endl;
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[10] << "# ";
-      else      out[10] << "+ ";
-      out[10] << setw(fieldsz-2) << left << j+1;
+      if (j==0) out[11] << "# ";
+      else      out[11] << "+ ";
+      out[11] << setw(fieldsz-2) << left << j+1;
     }
-    out[10] << endl;
+    out[11] << endl;
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[10] << "#";
-      else      out[10] << "+";
-      out[10] << setw(fieldsz-1) << left << setfill('-') << '-';
+      if (j==0) out[11] << "#";
+      else      out[11] << "+";
+      out[11] << setw(fieldsz-1) << left << setfill('-') << '-';
     }
-    out[10] << endl << setfill(' ');
+    out[11] << endl << setfill(' ');
     
     for (int i=0; i<NUMR; i++) {
       
       double rr = rhmin + dR*(0.5+i);
       if (LOGR) rr = exp(rr);
       
-      out[10] << setw(fieldsz) << rr 
+      out[11] << setw(fieldsz) << rr 
 	      << setw(fieldsz) << histoP[i]
 	      << setw(fieldsz) << histoL[i]
 	      << setw(fieldsz) << histPr[i]
