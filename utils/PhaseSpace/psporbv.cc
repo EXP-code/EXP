@@ -44,6 +44,14 @@ main(int argc, char **argv)
   //
   local_init_mpi(argc, argv);
 
+  // Command-line caching
+  //
+  std::string cmd_line;
+  for (int i=0; i<argc; i++) {
+    cmd_line += argv[i];
+    cmd_line += " ";
+  }
+
   // Parse command line
   //
   cxxopts::Options options(argv[0], "Compute orbits that satisfy particular constraints in orbital phase and (Energy, Kappa)\n");
@@ -51,6 +59,7 @@ main(int argc, char **argv)
   options.add_options()
     ("h,help", "print this help message")
     ("v,verbose", "verbose output")
+    ("X,noCommand", "do not save command line")
     ("1,onesign", "use radial angles in the [0, pi] branch only")
     ("l,log", "use logarithmic bins for histogram")
     ("r,rmin", "minimum apocentric radius",
@@ -99,6 +108,17 @@ main(int argc, char **argv)
 
   if (verbose) {
     if (myid==0) std::cerr << "Using filename: " << psfile << std::endl;
+  }
+
+  if (myid==0 and vm.count("noCommand")==0) {
+    std::string cmdFile = "diffpsp." + suffix + ".cmd_line";
+    std::ofstream cmd(cmdFile.c_str());
+    if (!cmd) {
+      std::cerr << "mssaprof: error opening <" << cmdFile
+		<< "> for writing" << std::endl;
+    } else {
+      cmd << cmd_line << std::endl;
+    }
   }
 
 				// Parse the PSP file
