@@ -147,9 +147,9 @@ main(int argc, char **argv)
   //--------------------------------------------------
   std::string prefix, grpfile, config, spec;
   int numW, nmin, nmax, npc;
-  int stride, skip, kmeans;
+  int stride, skip;
   std::vector<int> MM;
-  double evtol, tmin, tmax;
+  double evtol;
 
   //--------------------------------------------------
   // Command-line parsing
@@ -174,16 +174,11 @@ main(int argc, char **argv)
      cxxopts::value<double>(evtol)->default_value("0.01"))
     ("G,group",      "do a full reconstruction for visualization with given group file",
      cxxopts::value<std::string>(grpfile)->default_value("group.list"))
-    ("kmeans",       "use k-means analysis for experimental grouping using the w-correlation",
-     cxxopts::value<int>(kmeans)->default_value("0"))
+    ("kmeans",       "use k-means analysis for experimental grouping using the w-correlation")
     ("o,output",     "output file prefix",
      cxxopts::value<std::string>(prefix)->default_value("exp_mssa"))
     ("W,numW",       "window size",
      cxxopts::value<int>(numW))
-    ("tmin",         "minimum simulation snapshot time for processing",
-     cxxopts::value<double>(tmin)->default_value("-1.0e42"))
-    ("tmax",         "maximum simulation snapshot time for processing",
-     cxxopts::value<double>(tmax)->default_value(" 1.0e42"))
     ("c,config",      "Input parameter config file",
      cxxopts::value<std::string>(config))
     ("F,spec",       "Component specification config file",
@@ -896,7 +891,133 @@ main(int argc, char **argv)
 
   if (not quiet) {
     std::cout << "----------------------------------------" << std::endl;
-    std::cout << "---- Periodogram"                         << std::endl;
+    std::cout << "---- Coefficient periodogram"             << std::endl;
+    std::cout << "----------------------------------------" << std::endl;
+  }
+
+  {
+    int nfreq = numT/2;
+    if (numT % 2 == 0) nfreq++;
+
+    Eigen::MatrixXd pw(numW, nfreq);
+    Eigen::VectorXd p0(nfreq), in(numT), F, P;
+    Eigen::VectorXd pt = Eigen::VectorXd::Zero(nfreq);
+
+    for (auto u : mean) {
+
+      for (int i=0; i<numT; i++) {
+	in(i) = 0.0;
+	for (int j=0; j<ncomp; j++) in(i) += RC[u.first](i, j);
+      }
+      TransformFFT fft(coefs.times[1] - coefs.times[0], in);
+      fft.Power(F, p0);
+
+      for (int j=0; j<ncomp; j++) {
+	for (int i=0; i<numT; i++) in(i) = RC[u.first](i, j);
+
+	TransformFFT fft(coefs.times[1] - coefs.times[0], in);
+	fft.Power(F, P);
+	for (int k=0; k<nfreq; k++) {
+	  pt(k)   += P(k);
+	  pw(j, k) = P(k);
+	}
+      }
+
+      std::ostringstream filename;
+      filename << prefix << ".power_" << u.first;
+      out.open(filename.str());
+      if (out) {
+	out << "# " << u.first << std::endl;
+	out << "# " << std::setw(13) << "Freq"
+	    << std::setw(15) << "Period"
+	    << std::setw(15) << "Summed"
+	    << std::setw(15) << "Full";
+	for (int j=0; j<nfreq; j++) {
+	  std::ostringstream sout; sout << "PC " << j;
+	  out << std::setw(15) << sout.str();
+	}
+	out << "# " << std::setw(13) << "[1]"
+	    << std::setw(15) << "[2]"
+	    << std::setw(15) << "[3]"
+	    << std::setw(15) << "[4]";
+	for (int j=0; j<nfreq; j++) {
+	  std::ostringstream sout; sout << '[' << j+5 << ']';
+	  out << std::setw(15) << sout.str();
+	}
+	out << std::endl;
+
+	for (int j=0; j<nfreq; j++) {
+	  out << std::setw(15) << std::setprecision(6) << F(j)
+	      << std::setw(15) << std::setprecision(6) << 2.0*M_PI/F(j)
+	      << std::setw(15) << std::setprecision(6) << pt(j)
+	      << std::setw(15) << std::setprecision(6) << p0(j);
+	  for (int k=0; k<numW; k++)
+	    out << std::setw(15) << std::setprecision(6) << pw(k, j);
+	  out << std::endl;
+	}
+	out.close();
+      } else {
+	std::cout << "Could not open <" << filename.str() << ">" << std::endl;
+	exit(-1);
+      }
+    }
+  }
+
+  if (not quiet) {
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "---- Principal component periodogram"     << std::endl;
+    std::cout << "----------------------------------------" << std::endl;
+  }
+
+  {
+    int nfreq = numK/2;
+    if (numK % 2 == 0) nfreq++;
+
+    Eigen::MatrixXd pw(npc, nfreq);
+    Eigen::VectorXd pp(nfreq), in(numK), F;
+    
+    for (int j=0; j<npc; j++) {
+      for (int i=0; i<numK; i++) in(i) = PC(i, j);
+      TransformFFT fft(coefs.times[1] - coefs.times[0], in);
+      fft.Power(F, pp);
+      for (int i=0; i<nfreq; i++) pw(j, i) = pp[i];
+    }
+
+    std::ostringstream filename;
+    filename << prefix << ".pc_power";
+    out.open(filename.str());
+    if (out) {
+      out << "# " << std::setw(13) << "Freq"
+	  << std::setw(15) << "Period";
+      for (int j=0; j<npc; j++) {
+	std::ostringstream sout; sout << "PC " << j;
+	out << std::setw(15) << sout.str();
+      }
+      out << "# " << std::setw(13) << "[1]"
+	  << std::setw(15) << "[2]";
+      for (int j=0; j<npc; j++) {
+	std::ostringstream sout; sout << '[' << j+3 << ']';
+	out << std::setw(15) << sout.str();
+      }
+      out << std::endl;
+
+      for (int j=0; j<nfreq; j++) {
+	out << std::setw(15) << std::setprecision(6) << F(j)
+	    << std::setw(15) << std::setprecision(6) << 2.0*M_PI/F(j);
+	for (int k=0; k<npc; k++)
+	  out << std::setw(15) << std::setprecision(6) << pw(k, j);
+	out << std::endl;
+      }
+      out.close();
+    } else {
+      std::cout << "Could not open <" << filename.str() << ">" << std::endl;
+      exit(-1);
+    }
+  }
+
+  if (not quiet) {
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "---- Coefficient periodogram"             << std::endl;
     std::cout << "----------------------------------------" << std::endl;
   }
 
@@ -1059,10 +1180,10 @@ main(int argc, char **argv)
       for (auto u : mean) {
 	// Pack point array
 	//
-	std::vector<KMeans::Ptr> data(numW);
+	std::vector<KMeans::Ptr> data;
 	for (int j=0; j<ncomp; j++) {
-	  data[j] = std::make_shared<KMeans::Point>(numT);
-	  for (int i=0; i<numT; i++) data[j]->x[i] = RC[u.first](i, j);
+	  data.push_back(std::make_shared<KMeans::Point>(numT));
+	  for (int i=0; i<numT; i++) data.back()->x[i] = RC[u.first](i, j);
 	}
 
 	// Initialize k-means routine
@@ -1085,7 +1206,7 @@ main(int argc, char **argv)
 
 	for (int j=0; j<numW; j++) {
 	  out << std::setw(6) << j
-	      << std::setw(6) << std::get<1>(results[j])
+	      << std::setw(9) << std::get<1>(results[j])
 	      << std::endl;
 	}
 
@@ -1097,7 +1218,7 @@ main(int argc, char **argv)
 
 	for (int j=0; j<numW; j++) {
 	  std::cout << std::setw(6) << j
-		    << std::setw(6) << std::get<1>(results[j])
+		    << std::setw(9) << std::get<1>(results[j])
 		    << std::endl;
 	}
       }
@@ -1106,13 +1227,13 @@ main(int argc, char **argv)
 
 	// Pack point array
 	//
-	std::vector<KMeans::Ptr> data(numW);
+	std::vector<KMeans::Ptr> data;
 	int sz = mean.size();
 	for (int j=0; j<ncomp; j++) {
-	  data[j] = std::make_shared<KMeans::Point>(numT*sz);
+	  data.push_back(std::make_shared<KMeans::Point>(numT*sz));
 	  int c = 0;
 	  for (auto u : mean) {
-	    for (int i=0; i<numT; i++) data[j]->x[c++] = RC[u.first](i, j);
+	    for (int i=0; i<numT; i++) data.back()->x[c++] = RC[u.first](i, j);
 	  }
 	}
 
@@ -1135,9 +1256,9 @@ main(int argc, char **argv)
 	    << " *** total"         << std::endl
 	    << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<numW; j++) {
+	for (int j=0; j<results.size(); j++) {
 	  out << std::setw(6) << j
-	      << std::setw(6) << std::get<1>(results[j])
+	      << std::setw(9) << std::get<1>(results[j])
 	      << std::endl;
 	}
 
@@ -1147,9 +1268,9 @@ main(int argc, char **argv)
 		  << " *** total"         << std::endl
 		  << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<numW; j++) {
+	for (int j=0; j<results.size(); j++) {
 	  std::cout << std::setw(6) << j
-		    << std::setw(6) << std::get<1>(results[j])
+		    << std::setw(9) << std::get<1>(results[j])
 		    << std::endl;
 	}
 
