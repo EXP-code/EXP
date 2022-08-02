@@ -77,7 +77,7 @@ main(int argc, char **argv)
   //
   local_init_mpi(argc, argv);
 
-  // Command-line parsing
+  // Command-line caching
   //
   std::string cmd_line;
   for (int i=0; i<argc; i++) {
@@ -397,7 +397,7 @@ main(int argc, char **argv)
       out[i].open(filename[i].c_str());
 
       if (!out[i]) {
-	cerr << "Error opening <" << filename[i] << ">" << std::endl;
+	std::cerr << "Error opening <" << filename[i] << ">" << std::endl;
 	good = false;
       }
     }
@@ -413,8 +413,6 @@ main(int argc, char **argv)
   //============================================================
   // Build model
   //============================================================
-
-  PR::PSPstanza *stanza, *stanza1, *stanza2;
 
   PR::PRptr psp;
 
@@ -576,15 +574,92 @@ main(int argc, char **argv)
       double pos[3], vel[3];
     } tps;
     
-
     std::map<int, SPS> ph;
 
-    for (auto pp=psp1->firstParticle(); pp!=0; pp=psp1->nextParticle()) {
-      for (int k=0; k<3; k++) {
-	tps.pos[k] = pp->pos[k];
-	tps.vel[k] = pp->vel[k];
+    int N;
+
+    {
+      std::vector<double> pos0, vel0, pos1, vel1;
+      std::vector<int> ind0, ind1;
+
+      if (myid==0 and NREPORT) {
+	std::cout << "Initial map creation" << std::endl;
       }
-      ph[pp->indx] = tps;
+
+
+      N = 0;
+      for (auto pp=psp1->firstParticle(); pp!=0; pp=psp1->nextParticle()) {
+	for (int k=0; k<3; k++) {
+	  // Add particles to map
+	  tps.pos[k] = pp->pos[k];
+	  tps.vel[k] = pp->vel[k];
+	  // Pack particles for MPI
+	  if (numprocs>1) {
+	    pos0.push_back(pp->pos[k]);
+	    vel0.push_back(pp->vel[k]);
+	  }
+	}
+	ph[pp->indx] = tps;
+	if (numprocs>1) ind0.push_back(pp->indx);
+
+	if (myid==0 and NREPORT) {
+	  if (!((N+1)%NREPORT))
+	    std::cout << "\rProcessed: " 
+		      << std::setw(10) << (N+1)*numprocs << std::flush;
+	  N++;
+	}
+      }
+
+      if (myid==0 and NREPORT) {
+	std::cout << "\nParticle map exchange..." << std::endl;
+      }
+
+      // Exchange particles with other processes
+      //
+      if (numprocs>1) {
+	for (int n=0; n<numprocs; n++) {
+	  if (n==myid) {
+	    N = ind0.size();
+	    MPI_Bcast(&N, 1, MPI_INT, n, MPI_COMM_WORLD);
+	    MPI_Bcast(ind0.data(),   N, MPI_INT,    n, MPI_COMM_WORLD);
+	    MPI_Bcast(pos0.data(), 3*N, MPI_DOUBLE, n, MPI_COMM_WORLD);
+	    MPI_Bcast(vel0.data(), 3*N, MPI_DOUBLE, n, MPI_COMM_WORLD);
+	  } else {
+	    MPI_Bcast(&N, 1, MPI_INT, n, MPI_COMM_WORLD);
+	    ind1.resize(N);
+	    pos1.resize(3*N);
+	    vel1.resize(3*N);
+	    MPI_Bcast(ind1.data(),   N, MPI_INT,    n, MPI_COMM_WORLD);
+	    MPI_Bcast(pos1.data(), 3*N, MPI_DOUBLE, n, MPI_COMM_WORLD);
+	    MPI_Bcast(vel1.data(), 3*N, MPI_DOUBLE, n, MPI_COMM_WORLD);
+
+	    // Load the map
+	    for (int i=0; i<N; i++) {
+	      for (int k=0; k<3; k++) {
+		tps.pos[k] = pos1[i*3+k];
+		tps.vel[k] = vel1[i*3+k];
+	      }
+	      ph[ind1[i]] = tps;
+	    }
+	  }
+
+	  if (myid==0 and NREPORT) {
+	    std::cout << "\rNode " << std::setw(4) << n
+		      << ": " << N << std::flush;
+	  }
+
+	}
+	// END: process loop
+
+	if (myid==0 and NREPORT and numprocs>1) std::cout << std::endl;
+      }
+      // END: MPI exchange
+    }
+
+    // Begin particle difference loop
+    //
+    if (myid==0 and NREPORT) {
+      std::cout << "\nParticle differencing..." << std::endl;
     }
 
     N = 0;
@@ -597,7 +672,7 @@ main(int argc, char **argv)
 	double angmom1[3], angmom2[3];
 	double p10[3], p20[3], v10[3], v20[3];
       
-	if (TAG>=0 && stanza1->comp.niatr>TAG) {
+	if (TAG>=0 && pp->iattrib.size()>TAG) {
 	  if (pp->iattrib[TAG]>0) continue;
 	}
 	
@@ -906,6 +981,7 @@ main(int argc, char **argv)
 	    reject++;
 	  }
 	} else rover++;
+
       } else pmiss++;
       
       if (myid==0 and NREPORT) {
@@ -914,11 +990,14 @@ main(int argc, char **argv)
 		    << std::setw(10) << (N+1)*numprocs << std::flush;
 	N++;
       }
+
     }
+    // END: particle loop
 
     if (myid==0 and NREPORT)
       std::cout << std::endl << std::string(40, '-') << std::endl;
   }
+  // END: file loop
   
   
   // Send to root
