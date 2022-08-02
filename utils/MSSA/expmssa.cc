@@ -147,7 +147,7 @@ main(int argc, char **argv)
   //--------------------------------------------------
   std::string prefix, grpfile, config, spec;
   int numW, nmin, nmax, npc;
-  int stride, skip;
+  int stride, skip, clusters;
   std::vector<int> MM;
   double evtol;
 
@@ -174,7 +174,8 @@ main(int argc, char **argv)
      cxxopts::value<double>(evtol)->default_value("0.01"))
     ("G,group",      "do a full reconstruction for visualization with given group file",
      cxxopts::value<std::string>(grpfile)->default_value("group.list"))
-    ("kmeans",       "use k-means analysis for experimental grouping using the w-correlation")
+    ("kmeans",       "use k-means analysis for experimental grouping using the w-correlation",
+     cxxopts::value<int>(clusters)->default_value("0"))
     ("o,output",     "output file prefix",
      cxxopts::value<std::string>(prefix)->default_value("exp_mssa"))
     ("W,numW",       "window size",
@@ -1192,7 +1193,7 @@ main(int argc, char **argv)
 
 	// Run 100 iterations
 	//
-	kMeans.iterate(dist, 100, kmeans, 2, false);
+	kMeans.iterate(dist, 100, clusters, 2, false);
 
 	// Retrieve cluster associations
 	//
@@ -1244,7 +1245,7 @@ main(int argc, char **argv)
 	// Run 100 iterations
 	//
 	KMeans::WcorrDistMulti dist2(numT, numW, sz);
-	kMeans.iterate(dist2, 100, kmeans, 2, false);
+	kMeans.iterate(dist2, 100, clusters, 2, false);
 
 	// Retrieve cluster associations
 	//
