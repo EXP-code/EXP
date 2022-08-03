@@ -315,18 +315,26 @@ main(int argc, char **argv)
     }
   }
 
-  std::cout << "Using coefficient keys (M, n, cs):";
-  for (auto v : mean) std::cout << " " << v.first;
-  std::cout << std::endl;
+  // Print channel info
+  //
+  std::cout << std::string(60, '-') << std::endl
+	    << "Using coefficient keys (l, m, n, c/s)_k or (M, n, c/s)_k"
+	    << std::endl
+	    << "for spherical (l, m) and cylindrical (M) bases."
+	    << std::endl
+	    << "c/s denotes cosine/sine and component index is k."
+	    << std::endl
+	    << std::string(60, '-') << std::endl
+	    << std::setw(18) << std::right << "Key"
+	    << std::setw(18) << std::right << "Mean values"
+	    << std::endl << std::string(60, '-') << std::endl;
 
-  if (true) {
-    std::cout << std::string(60, '-') << std::endl
-	      << "Mean values" << std::endl;
-    for (auto v : mean) std::cout << std::setw(18) << v.first
-				  << std::setw(18) << v.second
-				  << std::endl;
-    std::cout << std::string(60, '-') << std::endl;
-  }
+  // Print key, mean pairs
+  //
+  for (auto v : mean) std::cout << std::setw(18) << v.first
+				<< std::setw(18) << v.second
+				<< std::endl;
+  std::cout << std::string(60, '-') << std::endl;
 
   // Normalize and detrend
   //
