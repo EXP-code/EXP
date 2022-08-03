@@ -134,7 +134,7 @@ std::ostream& operator<< (std::ostream& out, const std::vector<unsigned>& t)
   std::ostringstream sout;
   sout << '(';
   for (int i=0; i<t.size()-2; i++) sout << t[i] << ',';
-  sout << lab[t[t.size()-2]] << ") [" << t.back() << "]";
+  sout << lab[t[t.size()-2]] << ")_" << t.back();
   out << sout.str();
   return out;
 }
@@ -897,8 +897,9 @@ main(int argc, char **argv)
   }
 
   {
-    int nfreq = numT/2;
-    if (numT % 2 == 0) nfreq++;
+    double DT = coefs.times[1] - coefs.times[0];
+
+    int nfreq = numT/2+1;
 
     Eigen::MatrixXd pw(numW, nfreq);
     Eigen::VectorXd p0(nfreq), in(numT), F, P;
@@ -910,13 +911,13 @@ main(int argc, char **argv)
 	in(i) = 0.0;
 	for (int j=0; j<ncomp; j++) in(i) += RC[u.first](i, j);
       }
-      TransformFFT fft(coefs.times[1] - coefs.times[0], in);
+      TransformFFT fft(DT, in);
       fft.Power(F, p0);
 
       for (int j=0; j<ncomp; j++) {
 	for (int i=0; i<numT; i++) in(i) = RC[u.first](i, j);
 
-	TransformFFT fft(coefs.times[1] - coefs.times[0], in);
+	TransformFFT fft(DT, in);
 	fft.Power(F, P);
 	for (int k=0; k<nfreq; k++) {
 	  pt(k)   += P(k);
@@ -971,30 +972,35 @@ main(int argc, char **argv)
   }
 
   {
-    int nfreq = numK/2;
-    if (numK % 2 == 0) nfreq++;
+    double DT = coefs.times[1] - coefs.times[0];
 
-    Eigen::MatrixXd pw(npc, nfreq);
-    Eigen::VectorXd pp(nfreq), in(numK), F;
+    int nfreq = numK/2 + 1;
+
+    Eigen::MatrixXd pw(nfreq, npc);
+    Eigen::VectorXd in(numK), F, P;
     
+    pw.setZero();
+
     for (int j=0; j<npc; j++) {
       for (int i=0; i<numK; i++) in(i) = PC(i, j);
-      TransformFFT fft(coefs.times[1] - coefs.times[0], in);
-      fft.Power(F, pp);
-      for (int i=0; i<nfreq; i++) pw(j, i) = pp[i];
+      TransformFFT fft(DT, in);
+      fft.Power(F, P);
+      for (int i=0; i<nfreq; i++) pw(i, j) = P(i);
     }
 
     std::ostringstream filename;
     filename << prefix << ".pc_power";
     out.open(filename.str());
     if (out) {
-      out << "# " << std::setw(13) << "Freq"
+      out << "# "
+	  << std::setw(13) << "Freq"
 	  << std::setw(15) << "Period";
       for (int j=0; j<npc; j++) {
 	std::ostringstream sout; sout << "PC " << j;
 	out << std::setw(15) << sout.str();
       }
-      out << "# " << std::setw(13) << "[1]"
+      out << "# "
+	  << std::setw(13) << "[1]"
 	  << std::setw(15) << "[2]";
       for (int j=0; j<npc; j++) {
 	std::ostringstream sout; sout << '[' << j+3 << ']';
@@ -1006,7 +1012,7 @@ main(int argc, char **argv)
 	out << std::setw(15) << std::setprecision(6) << F(j)
 	    << std::setw(15) << std::setprecision(6) << 2.0*M_PI/F(j);
 	for (int k=0; k<npc; k++)
-	  out << std::setw(15) << std::setprecision(6) << pw(k, j);
+	  out << std::setw(15) << std::setprecision(6) << pw(j, k);
 	out << std::endl;
       }
       out.close();
@@ -1023,8 +1029,9 @@ main(int argc, char **argv)
   }
 
   {
-    int nfreq = numT/2;
-    if (numT % 2 == 0) nfreq++;
+    double DT = coefs.times[1] - coefs.times[0];
+
+    int nfreq = numT/2 + 1;
 
     Eigen::MatrixXd pw(numW, nfreq);
     Eigen::VectorXd p0(nfreq), in(numT), F, P;
@@ -1036,13 +1043,13 @@ main(int argc, char **argv)
 	in(i) = 0.0;
 	for (int j=0; j<ncomp; j++) in(i) += RC[u.first](i, j);
       }
-      TransformFFT fft(coefs.times[1] - coefs.times[0], in);
+      TransformFFT fft(DT, in);
       fft.Power(F, p0);
 
       for (int j=0; j<ncomp; j++) {
 	for (int i=0; i<numT; i++) in(i) = RC[u.first](i, j);
 
-	TransformFFT fft(coefs.times[1] - coefs.times[0], in);
+	TransformFFT fft(DT, in);
 	fft.Power(F, P);
 	for (int k=0; k<nfreq; k++) {
 	  pt(k)   += P(k);
@@ -1205,9 +1212,9 @@ main(int argc, char **argv)
 	    << " *** n=" << u.first << std::endl
 	    << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<numW; j++) {
-	  out << std::setw(6) << j
-	      << std::setw(9) << std::get<1>(results[j])
+	for (int j=0; j<results.size(); j++) {
+	  out << std::setw(6)  << j
+	      << std::setw(12) << std::get<1>(results[j])
 	      << std::endl;
 	}
 
@@ -1217,9 +1224,9 @@ main(int argc, char **argv)
 		  << " *** n=" << u.first << std::endl
 		  << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<numW; j++) {
-	  std::cout << std::setw(6) << j
-		    << std::setw(9) << std::get<1>(results[j])
+	for (int j=0; j<results.size(); j++) {
+	  std::cout << std::setw(6)  << j
+		    << std::setw(12) << std::get<1>(results[j])
 		    << std::endl;
 	}
       }
