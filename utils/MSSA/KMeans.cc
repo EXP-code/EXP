@@ -10,9 +10,6 @@ void KMeans::kMeansClustering::iterate(KMeans::KMeansDistance& distance,
   //
   cen.clear();
 
-  make_sane();			// Remove null points from classes
-				// vector
-
   if (s>0) {			// Seed centers by stride
     for (int i=0; i<classes.size(); i+=s) {
       if (cen.size()>=k) break;

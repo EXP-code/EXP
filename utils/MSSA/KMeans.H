@@ -144,32 +144,13 @@ namespace KMeans
     //! The last Euclidean difference between centroids
     double total;
 
-    //! Remove null points
-    void make_sane()
-    {
-      int count = 0;
-      auto it = classes.begin();
-      while (it != classes.end()) {
-	if (not *it) {
-	  it = classes.erase(it);
-	  count++;
-	} else {
-	  it++;
-	}
-      }
-      // For debugging . . . 
-      if (count) std::cout << "make_sane: removed " << count << std::endl;
-    }
-      
   public:
 
     //! Constructor
     kMeansClustering(std::vector<Ptr>& points)
     {
       ndim = points[0]->ndim;
-      for (auto p : points) {
-	if (p) classes.push_back(p);
-      }
+      for (auto p : points) classes.push_back(p);
     }
 
 
@@ -190,9 +171,8 @@ namespace KMeans
     std::vector< std::tuple<std::vector<double>, int> > get_results()
     {
       std::vector< std::tuple<std::vector<double>, int> > ret;
-      make_sane();
       for (auto p : classes) {
-	if (p) ret.push_back({p->x, p->cid});
+	ret.push_back({p->x, p->cid});
       }
       return ret;
     }
