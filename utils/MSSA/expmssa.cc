@@ -419,7 +419,7 @@ main(int argc, char **argv)
 
   int nkeys = mean.size();
 
-  if (vm.count("numW")==0) numW = numT/2;
+  if (vm.count("numW")==0 or numW<=0) numW = numT/2;
 
   int numK = numT - numW + 1;
   if (zeropad) numK = numT;
