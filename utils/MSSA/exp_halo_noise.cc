@@ -1,6 +1,6 @@
 //
 // M-SSA for EXP spherical coefficients
-// Filter version
+// Noise filter version
 //
 
 #include <iostream>
@@ -172,12 +172,13 @@ main(int argc, char **argv)
      cxxopts::value<double>(tmax))
     ("T,Tmax",       "Maximum time in series",
      cxxopts::value<double>(tmax))
-    ("Jacobi",       "Use the standard accurate but slow Jacobi method for SVD computation")
-    ("BDCSVD",       "Use the bidiagonal divide and conquer method rather than Jacobi")
-    ("Traj",         "Use RedSVD to decompose the trajectory matrix")
+    ("Jacobi",     "Use the standard accurate but slow Jacobi method for SVD computation")
+    ("BDCSVD",     "Use the bidiagonal divide and conquer method rather than Jacobi")
+    ("Traj",       "Use RedSVD to decompose the trajectory matrix")
     ("v,version",    "show version")
     ("X,noCommand",  "do not save command line")
     ("E,ev",         "exit after computing eigenvalues")
+    ("z,zero",       "zero unfiltered coefficients")
     ("channels",     "print principle components by channels")
     ("totVar",       "use total variance for normalization")
     ("totPow",       "use total power for normalization")
@@ -266,8 +267,11 @@ main(int argc, char **argv)
 
       // Clone coefficient stanzas and zero coefficients
       //
-      cur[n].clone(it.second); cur[n].zero();
-      dff[n].clone(it.second); dff[n].zero();
+      cur[n].clone(it.second);
+      if (vm.count("zero")) cur[n].zero();
+
+      dff[n].clone(it.second);
+      if (vm.count("zero")) dff[n].zero();
       
       n++;
     }
