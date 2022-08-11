@@ -142,12 +142,13 @@ main(int argc, char **argv)
      cxxopts::value<double>(tmin))
     ("T,Tmax",       "Maximum time in series",
      cxxopts::value<double>(tmax))
-    ("Jacobi",       "Use the standard accurate but slow Jacobi method for SVD computation")
-    ("BDCSVD",       "Use the bidiagonal divide and conquer method rather than Jacobi")
+    ("Jacobi",     "Use the standard accurate but slow Jacobi method for SVD computation")
+    ("BDCSVD",     "Use the bidiagonal divide and conquer method rather than Jacobi")
     ("Traj",         "Use RedSVD to decompose the trajectory matrix")
     ("v,version",    "show version")
     ("X,noCommand",  "do not save command line")
     ("E,ev",         "exit after computing eigenvalues")
+    ("z,zero",       "zero unfiltered coefficients")
     ("channels",     "print principle components by channels")
     ("totVar",       "use total variance for normalization")
     ("totPow",       "use total power for normalization")
@@ -236,8 +237,11 @@ main(int argc, char **argv)
 
       // Clone coefficient stanzas and zero coefficients
       //
-      cur[n].clone(it.second); cur[n].zero();
-      dff[n].clone(it.second); dff[n].zero();
+      cur[n].clone(it.second);
+      if (vm.count("zero")) cur[n].zero();
+
+      dff[n].clone(it.second);
+      if (vm.count("zero")) dff[n].zero();
       
       n++;
     }
@@ -264,7 +268,7 @@ main(int argc, char **argv)
   // M value loop
   //
   for (auto M : Mvec) {
-
+    
     std::map<Key, std::vector<double> > data;
     std::map<Key, double> mean, var;
 
@@ -405,9 +409,6 @@ main(int argc, char **argv)
       cov /= Scale;
     }
 
-    std::cout << "Eigen is using " << Eigen::nbThreads()
-	      << " threads" << std::endl;
-
     // Store the solution
     // ------------------
     Eigen::VectorXd S;
@@ -500,184 +501,189 @@ main(int argc, char **argv)
 
     // Save the eigenvalues to a file
     //
-    std::string filename = prefix + ".ev";
-    std::ofstream out(filename);
+    std::ostringstream filename;
+    filename << prefix << "." << M << ".ev";
+    std::ofstream out(filename.str());
     if (out) {
       cum = 0.0;
       for (int j=0; j<S.size(); j++) {
-	out << std::setw( 5) << j
+	out << std::setw( 5) << M
+	    << std::setw( 5) << j
 	    << std::setw(18) << S(j)
 	    << std::setw(18) << (cum += S(j))/tot
 	    << std::endl;
       }
       out.close();
     } else {
-      std::cout << "Could not open <" << filename << ">" << std::endl;
+      std::cout << "Could not open <" << filename.str() << ">" << std::endl;
       exit(-1);
     }
     
-    if (vm.count("ev")) return 0;
+    if (vm.count("ev")==0) {
 
-    // Principal components
-    //
-    Eigen::MatrixXd PC = Y * U;
-
-    int ncomp = std::min<int>({numW, npc, maxI, static_cast<int>(PC.cols())});
-
-    // Reconstructed time series
-    //
-    std::map<Key, Eigen::MatrixXd> RC;
-    for (auto u : mean) RC[u.first].resize(numT, ncomp);
-
-    // Embedded time series matrix
-    //
-    Eigen::MatrixXd  Z(numT, numW);
-
-    // Split eigenvectors into channel sequences
-    //
-    std::map<Key, Eigen::MatrixXd> rho;
-
-    int n = 0;
-    for (auto u : mean) {
-      rho[u.first].resize(numW, npc);
-      rho[u.first].fill(0.0);
-      for (int i=0; i<numW; i++) {
-	for (int j=0; j<ncomp; j++)
-	  rho[u.first](i, j) = U(numW*n + i, j);
-      }
-      n++;
-    }
-
-    for (auto u : mean) {
-
-      for (int w=0; w<ncomp; w++) {
-
-	Z.fill(0.0);
-
-	// Build reverse embedded time series.
-	//
-	for (int j=0; j<numW; j++) {
-	  for (int i=0; i<numT; i++)
-	    if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
-	}
-
-	// Choose limits and weight
-	//
-	for (int i=0; i<numT; i++) {
-	  double W;
-	  int L, U;
-	  
-	  if (i<numW) {		// Lower
-	    W = 1.0/(1.0 + i);
-	    L = 0;
-	    U = i + 1;
-	  } else if (i<numT-numW) { // Middle
-	    W = 1.0/numW;
-	    L = 0;
-	    U = numW;
-	  } else {		// Upper
-	    W = 1.0/(numT - i);
-	    L = i - numT + numW;
-	    U = numW;
-	  }
-
-	  RC[u.first](i, w) = 0.0;
-	  for (int j=L; j<U; j++)
-	    RC[u.first](i, w) += Z(i, j) * rho[u.first](j, w) * W;
-	}
-      }
-    }
-
-    std::map<double, CylCoefsPtr>::iterator it = rawc.begin();
-      
-    double disp;
-    if (useTotVar) disp = totVar;
-    if (useTotPow) disp = totPow;
-      
-    for (int i=0; i<numT; i++) {
-
-      auto cf = it->second;
-
-      // Write reconstruction to coefficient stanzas
+      // Principal components
       //
+      Eigen::MatrixXd PC = Y * U;
+
+      int ncomp = std::min<int>({numW, npc, maxI, static_cast<int>(PC.cols())});
+
+      // Reconstructed time series
+      //
+      std::map<Key, Eigen::MatrixXd> RC;
+      for (auto u : mean) RC[u.first].resize(numT, ncomp);
+      
+      // Embedded time series matrix
+      //
+      Eigen::MatrixXd  Z(numT, numW);
+      
+      // Split eigenvectors into channel sequences
+      //
+      std::map<Key, Eigen::MatrixXd> rho;
+      
+      int n = 0;
+      for (auto u : mean) {
+	rho[u.first].resize(numW, npc);
+	rho[u.first].fill(0.0);
+	for (int i=0; i<numW; i++) {
+	  for (int j=0; j<ncomp; j++)
+	    rho[u.first](i, j) = U(numW*n + i, j);
+	}
+	n++;
+      }
+      
       for (auto u : mean) {
 	
-	if (not useTotVar and not useTotPow) disp = var[u.first];
-
-	double acc = 0.0;
-	for (int j=0; j<ncomp; j++) acc += RC[u.first](i, j);
-
-	int m = std::get<0>(u.first), n = std::get<1>(u.first);
-
-	if (std::get<2>(u.first) == 0) {
-	  double val = acc*disp + u.second;
-	  cur[i].cos_c[m][n] = val;
-	  dff[i].cos_c[m][n] = val - cf->cos_c[m][n];
-	}
-	else {
-	  double val = acc*disp + u.second;
-	  cur[i].sin_c[m][n] = val;
-	  dff[i].sin_c[m][n] = val - cf->sin_c[m][n];
+	for (int w=0; w<ncomp; w++) {
+	  
+	  Z.fill(0.0);
+	  
+	  // Build reverse embedded time series.
+	  //
+	  for (int j=0; j<numW; j++) {
+	    for (int i=0; i<numT; i++)
+	      if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
+	  }
+	  
+	  // Choose limits and weight
+	  //
+	  for (int i=0; i<numT; i++) {
+	    double W;
+	    int L, U;
+	    
+	    if (i<numW) {	// Lower
+	      W = 1.0/(1.0 + i);
+	      L = 0;
+	      U = i + 1;
+	    } else if (i<numT-numW) { // Middle
+	      W = 1.0/numW;
+	      L = 0;
+	      U = numW;
+	    } else {		// Upper
+	      W = 1.0/(numT - i);
+	      L = i - numT + numW;
+	      U = numW;
+	    }
+	    
+	    RC[u.first](i, w) = 0.0;
+	    for (int j=L; j<U; j++)
+	      RC[u.first](i, w) += Z(i, j) * rho[u.first](j, w) * W;
+	  }
 	}
       }
-      // END: key loop
+
+      std::map<double, CylCoefsPtr>::iterator it = rawc.begin();
       
-      it++;
-    }
-    // END: time loop
-
-
-    // This is for debugging
-    //
-    if (true) {
-      std::ostringstream filename;
-      filename << prefix << "." << M << ".recon_ascii";
-      std::ofstream out(filename.str());
-      if (out) {
-	const int wid = 16;
-
-	out << "# " << std::right << std::setw(wid-1) << "Time ";
-	for (auto u : mean) {
-	  std::ostringstream sout; sout << u.first << "(r)";
-	  out << std::right << std::setw(wid-1) << sout.str() << " ";
-	  sout.str(""); sout << u.first << "(d)";
-	  out << std::right << std::setw(wid-1) << sout.str() << " ";
-	}
-	  
-	out << std::endl;
+      double disp;
+      if (useTotVar) disp = totVar;
+      if (useTotPow) disp = totPow;
       
-	out << "# " << std::right << std::setw(wid-1) << "[1] ";
-	int i=2;
-	for (auto u : mean) {
-	  std::ostringstream sout; sout << "[" << i++ << "]";
-	  out << std::right << std::setw(wid-1) << sout.str() << " ";
-	  sout.str(""); sout << "[" << i++ << "]";
-	  out << std::right << std::setw(wid-1) << sout.str() << " ";
-	}
-	out << std::endl;
+      for (int i=0; i<numT; i++) {
 	
-	double disp = 0.0;
-	if (useTotVar) disp = totVar;
-	if (useTotPow) disp = totPow;
+	auto cf = it->second;
+	
+	// Write reconstruction to coefficient stanzas
+	//
+	for (auto u : mean) {
+	  
+	  if (not useTotVar and not useTotPow) disp = var[u.first];
+	  
+	  double acc = 0.0;
+	  for (int j=0; j<ncomp; j++) acc += RC[u.first](i, j);
 
-	for (int i=0; i<numT; i++) {
-	  out << std::right << std::setw(wid) << std::setprecision(6) << times[i];
+	  int m = std::get<0>(u.first), n = std::get<1>(u.first);
+
+	  if (std::get<2>(u.first) == 0) {
+	    double val = acc*disp + u.second;
+	    cur[i].cos_c[m][n] = val;
+	    dff[i].cos_c[m][n] = val - cf->cos_c[m][n];
+	  }
+	  else {
+	    double val = acc*disp + u.second;
+	    cur[i].sin_c[m][n] = val;
+	    dff[i].sin_c[m][n] = val - cf->sin_c[m][n];
+	  }
+	}
+	// END: key loop
+	
+	it++;
+      }
+      // END: time loop
+
+
+      // This is for debugging
+      //
+      if (true) {
+	std::ostringstream filename;
+	filename << prefix << "." << M << ".recon_ascii";
+	std::ofstream out(filename.str());
+	if (out) {
+	  const int wid = 16;
+	  
+	  out << "# " << std::right << std::setw(wid-1) << "Time ";
 	  for (auto u : mean) {
-	    if (not useTotVar and not useTotPow) disp = var[u.first];
-	    
-	    double acc = 0.0;
-	    for (int j=0; j<ncomp; j++) acc += RC[u.first](i, j);
-	    out << std::right << std::setw(wid) << std::setprecision(6) << acc*disp + u.second;
-	    out << std::right << std::setw(wid) << std::setprecision(6) << data[u.first][i]*disp + u.second;
+	    std::ostringstream sout; sout << u.first << "(r)";
+	    out << std::right << std::setw(wid-1) << sout.str() << " ";
+	    sout.str(""); sout << u.first << "(d)";
+	    out << std::right << std::setw(wid-1) << sout.str() << " ";
+	  }
+	  
+	  out << std::endl;
+      
+	  out << "# " << std::right << std::setw(wid-1) << "[1] ";
+	  int i=2;
+	  for (auto u : mean) {
+	    std::ostringstream sout; sout << "[" << i++ << "]";
+	    out << std::right << std::setw(wid-1) << sout.str() << " ";
+	    sout.str(""); sout << "[" << i++ << "]";
+	    out << std::right << std::setw(wid-1) << sout.str() << " ";
 	  }
 	  out << std::endl;
+	
+	  double disp = 0.0;
+	  if (useTotVar) disp = totVar;
+	  if (useTotPow) disp = totPow;
+	  
+	  for (int i=0; i<numT; i++) {
+	    out << std::right << std::setw(wid) << std::setprecision(6) << times[i];
+	    for (auto u : mean) {
+	      if (not useTotVar and not useTotPow) disp = var[u.first];
+	      
+	      double acc = 0.0;
+	      for (int j=0; j<ncomp; j++) acc += RC[u.first](i, j);
+	      out << std::right << std::setw(wid) << std::setprecision(6) << acc*disp + u.second;
+	      out << std::right << std::setw(wid) << std::setprecision(6) << data[u.first][i]*disp + u.second;
+	    }
+	    out << std::endl;
+	  }
+	  out.close();
+	} else {
+	  std::cout << "Could not open <" << filename.str() << ">" << std::endl;
+	  exit(-1);
 	}
-	out.close();
-      } else {
-	std::cout << "Could not open <" << filename.str() << ">" << std::endl;
-	exit(-1);
       }
+      // END: debug
     }
+    // END: not ev only
   }
   // END: M loop
 
