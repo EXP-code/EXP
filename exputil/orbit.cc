@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <limits>
 #include <cmath>
 
 #include <massmodel.H>
@@ -179,7 +180,7 @@ void SphericalOrbit::new_orbit(double Energy, double Kappa, double Beta)
 double SphericalOrbit::get_angle(const int i, const double time)
 {
   
-  if (!freq_defined) compute_freq();
+  if (!freq_defined ) compute_freq();
   if (!angle_defined) compute_angles();
 
   /*
@@ -272,3 +273,28 @@ double SphericalOrbit::get_angle(const int i, const double time)
   return ans;
 }
 
+// Get radial angle for a given radius in the range [0, 2*pi]
+//
+double SphericalOrbit::get_w1(double r, double vr)
+{
+  
+  if (!freq_defined)  compute_freq();
+  if (!angle_defined) compute_angles();
+
+  // Check bounds
+  if (r<r_peri or r>r_apo) return std::numeric_limits<double>::infinity();
+
+  // End points as special cases
+  if (r<r_peri) return 0.0;
+  if (r>r_apo ) return M_PI;
+
+  // Interpolate for the angle for peri-to-apo branch
+  double ang = odd2(r,
+		    Eigen::VectorXd(angle_grid.r. row(0)),
+		    Eigen::VectorXd(angle_grid.w1.row(0)) );
+
+  // Use apo-to-peri branch?
+  if (vr<0.0) ang = 2.0*M_PI - ang;
+
+  return ang;
+}

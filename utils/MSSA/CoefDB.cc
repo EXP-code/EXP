@@ -28,7 +28,7 @@ namespace CoefDB {
       }
     } else {
       std::cout << "CoefDB: no background keys found for <" << name
-		<< ">" << std::endl;
+		<< "> . . . okay" << std::endl;
     }
   }
 
