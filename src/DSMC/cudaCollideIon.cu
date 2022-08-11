@@ -4529,7 +4529,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		if (T == col_ionize) {
 		  // printf("Ionize [2] Z=%d: P=%e N=%e\n", Z, p2->datr[pos], NN);
 		  if (NN < p2->datr[pos]) {
-		    p2->datr[pos  ] -= NN;crsfac;
+		    p2->datr[pos  ] -= NN;
 		    p2->datr[pos+1] += NN;
 		  } else {
 		    NN = p2->datr[pos];
@@ -5689,11 +5689,11 @@ void * CollideIon::collide_thread_cuda(void * arg)
       ilist.push_back({neut_elec, def1, electronDef, 0.0});
 
     // Atom must be charged for FREE-FREE 
-    if (k.second>1 and !(NoDelC & 0x8))
+    if (k.second>1 and !(NoDelC & 0x4))
       ilist.push_back({free_free, def1, electronDef, 0.0});
 
     // Atom must have at least one electron for COLLISIONAL EXCITATION
-    if (k.second <= k.first and !(NoDelC & 0x4))
+    if (k.second <= k.first and !(NoDelC & 0x8))
       ilist.push_back({col_excite, def1, electronDef, 0.0});
 
     // Atom must have at least one electron for IONIZATION

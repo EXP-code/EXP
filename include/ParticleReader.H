@@ -399,6 +399,7 @@ namespace PR
     {
       if (GetNamed(name)) return;
       std::cout << "PSP error: no particle type <" << name << ">" << std::endl;
+      throw std::runtime_error("PSP error: non-existent particle type");
     }
     
     //! Number of particles in current type

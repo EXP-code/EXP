@@ -1489,6 +1489,7 @@ namespace PR {
     if (std::find(curTypes.begin(), curTypes.end(), name) == curTypes.end()) {
       std::cout << "Tipsy error: no particle type <" << name << ">"
 		<< std::endl;
+      throw std::runtime_error("Tipsy: non-existent particle type");
     } else {
       curName = name;
       ps->readParticles();
