@@ -202,17 +202,18 @@ namespace CoefDB {
 	    for (unsigned n=0; n<NMAX; n++) {
 	      unsigned mm = static_cast<unsigned>(M);
 
-	      double valC = 0.0, valS = 0.0;
+	      double valC = 0.0, valS = 0.0; // Detrended features
+	      double bckC = 0.0, bckS = 0.0; // Undetrended background
 
 	      // Look for background coefficients
 	      //
 	      Key C = {mm, n, 0}, S = {mm, n, 1};
 
 	      if (std::find(bkeys.begin(), bkeys.end(), C) != bkeys.end())
-		valC = coefs[C][i];
+		bckC = coefs[C][i];
 
 	      if (std::find(bkeys.begin(), bkeys.end(), S) != bkeys.end())
-		valS = coefs[S][i];
+		bckS = coefs[S][i];
 
 	      // Look for reconstructed values
 	      //
@@ -232,6 +233,9 @@ namespace CoefDB {
 		}
 	      }
 	      
+	      valC += bckC;	// Add background
+	      valS += bckS;
+
 	      out.write((const char *)&valC, sizeof(double));
 	      out.write((const char *)&valS, sizeof(double));
 	    }
@@ -291,17 +295,18 @@ namespace CoefDB {
 	    unsigned MM = lm.second;
 	    
 	    for (unsigned n=0; n<nmax; n++) {
-	      double valC = 0.0, valS = 0.0;
+	      double valC = 0.0, valS = 0.0; // Detrended features
+	      double bckC = 0.0, bckS = 0.0; // Undetrended background
 
 	      // Look for background coefficients
 	      //
 	      Key C = {LL, MM, n, 0}, S = {LL, MM, n, 1};
 
 	      if (std::find(bkeys.begin(), bkeys.end(), C) != bkeys.end())
-		valC = coefs[C][i];
+		bckC = coefs[C][i];
 
 	      if (std::find(bkeys.begin(), bkeys.end(), S) != bkeys.end())
-		valS = coefs[S][i];
+		bckS = coefs[S][i];
 
 	      // Look for reconstructed values
 	      //
@@ -337,6 +342,9 @@ namespace CoefDB {
 		valS = valS*var[s] + mean[s];
 	      }
 	      
+	      valC += bckC;	// Add background
+	      valS += bckS;
+
 	      out.write((const char *)&valC, sizeof(double));
 	      out.write((const char *)&valS, sizeof(double));
 	    }

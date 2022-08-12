@@ -265,6 +265,10 @@ main(int argc, char **argv)
     totPow = std::sqrt(totPow/numT + std::numeric_limits<double>::min());
   }
 
+  // Cache M=0 value
+  //
+  double totS0 = 0.0;
+
   // M value loop
   //
   for (auto M : Mvec) {
@@ -328,7 +332,7 @@ main(int argc, char **argv)
       for (auto & u : mean) {
 	Key k = u.first;
 	for (auto & v : data[k]) {
-	  v -= mean[k];
+	  if (useMean) v -= mean[k];
 	  if (totPow>0.0) v /= totPow;
 	}
       }
@@ -469,6 +473,8 @@ main(int argc, char **argv)
     double tot = 0.0;
     for (int j=0; j<S.size(); j++) tot += S(j);
     std::cout << "Total=" << tot << std::endl;
+
+    if (M==0) totS0 = tot;
     
     double cum = 0.0;
     int maxI = S.size();
@@ -481,7 +487,7 @@ main(int argc, char **argv)
       // Set maxI?
       if (maxI==S.size()) {
 	if (vm.count("totPow") and vm.count("select")) {
-	  if (S(j) < evtol*totPow) maxI = j;
+	  if (S(j) < evtol*totS0) maxI = j;
 	} else {
 	  if (1.0 - cum/tot < evtol) maxI = j;
 	}
@@ -606,21 +612,23 @@ main(int argc, char **argv)
 	for (auto u : mean) {
 	  
 	  if (not useTotVar and not useTotPow) disp = var[u.first];
-	  
+
 	  double acc = 0.0;
 	  for (int j=0; j<ncomp; j++) acc += RC[u.first](i, j);
 
 	  int m = std::get<0>(u.first), n = std::get<1>(u.first);
 
 	  if (std::get<2>(u.first) == 0) {
-	    double val = acc*disp + u.second;
-	    cur[i].cos_c[m][n] = val;
-	    dff[i].cos_c[m][n] = val - cf->cos_c[m][n];
+	    double val = acc*disp;	  // Restore variance
+	    if (useMean) val += u.second; // Restore mean
+	    cur[i].cos_c[m][n] = val;	  // Reconstructed
+	    dff[i].cos_c[m][n] = val - cf->cos_c[m][n]; // Difference from orig
 	  }
 	  else {
-	    double val = acc*disp + u.second;
-	    cur[i].sin_c[m][n] = val;
-	    dff[i].sin_c[m][n] = val - cf->sin_c[m][n];
+	    double val = acc*disp;        // Restore variance
+	    if (useMean) val += u.second; // Restore mean
+	    cur[i].sin_c[m][n] = val;	  // Reconstructed
+	    dff[i].sin_c[m][n] = val - cf->sin_c[m][n]; // Difference from orig
 	  }
 	}
 	// END: key loop
@@ -667,11 +675,13 @@ main(int argc, char **argv)
 	    out << std::right << std::setw(wid) << std::setprecision(6) << times[i];
 	    for (auto u : mean) {
 	      if (not useTotVar and not useTotPow) disp = var[u.first];
+	      double off = 0.0;
+	      if (useTotVar and useMean) off = u.second;
 	      
 	      double acc = 0.0;
 	      for (int j=0; j<ncomp; j++) acc += RC[u.first](i, j);
-	      out << std::right << std::setw(wid) << std::setprecision(6) << acc*disp + u.second;
-	      out << std::right << std::setw(wid) << std::setprecision(6) << data[u.first][i]*disp + u.second;
+	      out << std::right << std::setw(wid) << std::setprecision(6) << acc*disp + off;
+	      out << std::right << std::setw(wid) << std::setprecision(6) << data[u.first][i]*disp + off;
 	    }
 	    out << std::endl;
 	  }
