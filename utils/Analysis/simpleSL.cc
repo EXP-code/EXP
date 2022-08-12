@@ -24,7 +24,7 @@ mpirun haloprof  --LMAX=4 --NMAX=16 --MODFILE=/disk01/mpetersen/Disk080/SLGridSp
 
 ***************************************************************************/
 
-  // C++/STL headers
+// C++/STL headers
 #include <filesystem>
 #include <iostream>
 #include <cstdlib>
@@ -36,11 +36,11 @@ mpirun haloprof  --LMAX=4 --NMAX=16 --MODFILE=/disk01/mpetersen/Disk080/SLGridSp
 
 using namespace std;
 
-  // System libs
+// System libs
 #include <sys/time.h>
 #include <sys/resource.h>
 
-  // MDW classes
+// MDW classes
 #include <numerical.H>
 #include <ParticleReader.H>
 #include <interp.H>
@@ -93,24 +93,23 @@ std::vector<Eigen::MatrixXd> slfunctions(string MODFILE,int LMAX=4,int NMAX=10, 
   std::vector<Eigen::MatrixXd> slfunctions;
   MatrixXd tab;
 
-  slfunctions.resize((LMAX+1)*(LMAX+1));
-  for (int l=0;l<((LMAX+1)*(LMAX+1));l++) slfunctions[l].resize(NMAX,numr);
+  slfunctions.resize(LMAX+1);
+  for (int l=0; l<=LMAX; l++) slfunctions[l].resize(NMAX, numr);
 
   double xval;
-  for (int ix=0;ix<numr;ix++) {
+  for (int ix=0; ix<numr; ix++) {
 
-    xval = pow(10,logxmin+ix*dx);
+    xval = pow(10.0, logxmin + ix*dx);
     tab = ortho.get_pot(xval);
 
-    for (int l=0;l<((LMAX+1)*(LMAX+1));l++) {
-      for (int n=0;n<NMAX;n++){
-        slfunctions[l](n,ix) = tab(l,n);
+    for (int l=0; l<=LMAX; l++) {
+      for (int n=0; n<NMAX;n++){
+        slfunctions[l](n,ix) = tab(l, n);
       }
     }
   }
 
   return slfunctions;
-
 }
 
 
@@ -137,7 +136,7 @@ coefsl(std::vector<double> mass,
   ortho.reset_coefs();
 
   // loop through particles
-  for (int i=0;i<nparticles;i++) {
+  for (int i=0; i<nparticles; i++) {
      ortho.accumulate(xpos[i],ypos[i],zpos[i],mass[i]);
   }
 
