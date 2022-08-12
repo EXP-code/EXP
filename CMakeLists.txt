@@ -155,7 +155,7 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
+include_directories(${PROJECT_SO_URCE_DIR}/extern/yaml-cpp/include)
 include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
 
 
@@ -166,11 +166,19 @@ configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h.in ${CMAKE_SOURCE_DIR}/config.
 add_subdirectory(extern/yaml-cpp)
 add_subdirectory(extern/pybind11)
 
+set(HIGHFIVE_BUILD_EXAMPLES OFF CACHE BOOL "Do not build the examples")
+set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "Do not build the documentation")
+set(H5_USE_EIGEN TRUE "Eigen3 support in HighFive")
+
+add_subdirectory(extern/HighFive)
+
+
 add_subdirectory(exputil)
 if (ENABLE_NBODY)
   add_subdirectory(src)
 endif()
 add_subdirectory(utils)
+add_subdirectory(coefs)
 
 # try to find pybind11 and build wrapper python module
 find_package(Python3 COMPONENTS Interpreter Development)
