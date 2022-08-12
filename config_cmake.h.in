@@ -28,10 +28,10 @@
 /* Define if you have the <omp.h> header file. */
 #cmakedefine HAVE_OMP_H
 
-/* define if VTK is available */
+/* Define if VTK is available */
 #cmakedefine HAVE_VTK
 
-/* define if HighFive is available */
+/* Define if HighFive is available */
 #cmakedefine H5_USE_EIGEN @H5_USE_EIGEN@
 
 /* Define to the full name and version of this package. */
