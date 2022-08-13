@@ -1,51 +1,64 @@
-/*
- *  Copyright (c), 2017, Adrien Devresse
- *  Copyright (c), 2022, Blue Brain Project
- *
- *  Distributed under the Boost Software License, Version 1.0.
- *    (See accompanying file LICENSE_1_0.txt or copy at
- *          http://www.boost.org/LICENSE_1_0.txt)
- *
- */
-
 #include <iostream>
+#include <sstream>
 #include <complex>
 
 #include "config.h"
 
 
 #include <Eigen/Dense>
+
 #include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
 
-using namespace HighFive;
+const std::string FILE_NAME("test_coefs.h5");
 
-const std::string FILE_NAME("eigen_matrix_example.h5");
-const std::string DATASET_NAME("dset");
-const int nrows = 10;
-const int ncols = 3;
+const int nmax = 10;
 
 // Test: create a 2D dataset 10x3 of complex value with eigen matrix
 // and write it to a file
 int main(void)
 {
   try {
-    Eigen::MatrixXcd matrix(nrows, ncols);
-
-    for (int i = 0; i < nrows; ++i) {
-      for (int j = 0; j < ncols; ++j) {
-	matrix(i, j) = std::complex<double>(j + i * 100, j - i*10);
-      }
-    }
-
     // Create a new hdf5 file
     //
-    File file(FILE_NAME, File::ReadWrite | File::Create | File::Truncate);
+    HighFive::File file(FILE_NAME,
+			HighFive::File::ReadWrite |
+			HighFive::File::Create |
+			HighFive::File::Truncate);
 
-    // Create the data set
-    //
-    file.createDataSet(DATASET_NAME, matrix);
+    // we create a new group
+    HighFive::Group group = file.createGroup("Coefs");
+
+    double time = 3.14159;
     
-  } catch (Exception& err) {
+    HighFive::Attribute a = group.createAttribute<double>
+      ("Time", HighFive::DataSpace::From(time));
+
+    a.write(time);
+
+    for (int j=0; j<5; j++) {
+
+      Eigen::VectorXcd vector(nmax);
+
+      for (int i=0; i<nmax; i++) {
+	vector(i) = std::complex<double>(j + i * 100);
+      }
+
+      // Create the data set
+      //
+      std::ostringstream sout; sout << "DS" << j;
+      HighFive::DataSet dataset = group.createDataSet(sout.str(), vector);
+      
+      std::vector<int> key = {1, 0, j};
+      
+      HighFive::Attribute v = dataset.createAttribute<int>
+	("Index", HighFive::DataSpace::From(key));
+      v.write(key);
+    }
+
+  } catch (HighFive::Exception& err) {
     std::cerr << err.what() << std::endl;
   }
   
