@@ -1032,7 +1032,7 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 
 	  for (int n=0; n<nmax; n++) {
 	    val1 = potd[id](l, n)*fac1*mass*fac0/normM(l, n);
-	    val2 = potd[id](l, n)*fac1*mass*fac0/normM(l, n);
+	    val2 = potd[id](l, n)*fac2*mass*fac0/normM(l, n);
 
 	    differ1[id][from](loffset+moffset  , n) -= val1;
 	    differ1[id][from](loffset+moffset+1, n) -= val2;
