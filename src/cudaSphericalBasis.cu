@@ -506,9 +506,9 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 
 #ifdef OFF_GRID_ALERT
       if (a0<0.0 or a0>1.0)
-	printf("forceKernel: off grid [0]: x=%f\n", xi);
+	printf("forceKernel: off grid [0]: x=%f r=%f rs=%f a=%f b=%f\n", xi, r, rs, a0, b0);
       if (a1<0.0 or a1>1.0)
-	printf("forceKernel: off grid [1]: x=%f\n", xi);
+	printf("forceKernel: off grid [1]: x=%f r=%f rs=%f a=%f b=%f\n", xi, r, rs, a1, b1);
 #endif
       
       // Do the interpolation for the prefactor potential
