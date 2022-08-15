@@ -63,7 +63,9 @@ main(int argc, char **argv)
   std::string  fileType;
 
   std::vector<std::string>  INFILE, ORIENTFILE;
-  
+
+  std::vector<double> p0;
+
   const char* desc = 
     "=======================================================\n"		\
     "Compute spherical mass model from input files          \n"		\
@@ -93,6 +95,8 @@ main(int argc, char **argv)
      cxxopts::value<std::vector<std::string>>(ORIENTFILE))
     ("OUTFILE", "Output model file",
      cxxopts::value<std::string>(OUTFILE)->default_value("model.file"))
+    ("CENTER", "Phase-space center",
+     cxxopts::value<std::vector<double>>(p0))
     ;
 
   cxxopts::ParseResult vm;
@@ -110,6 +114,16 @@ main(int argc, char **argv)
     return 0;
   }
 
+  if (vm.count("CENTER")) {
+    if (myid==0) {
+      std::cout << "Using center:";
+      for (auto v : p0) std::cout << " " << v;
+      std::cout << std::endl;
+    }
+  } else {
+    p0 = {0.0, 0.0, 0.0};
+  }
+
   bool LOGR;
   if (RMIN>1.0e-08) {
     LOGR = true;
@@ -120,11 +134,6 @@ main(int argc, char **argv)
   // Create the output model
   //
   auto cmodel = std::make_shared<MakeModel>(RNUM, RMIN, RMAX, LOGR);
-
-  // Phase space center
-  //
-  double p0[3] = {0.0, 0.0, 0.0};
-
 
   // Per file weight
   //
