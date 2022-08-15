@@ -410,10 +410,10 @@ void do_step(int n)
       if (myid==0) {
 	std::cout << std::endl;
 	std::cout << std::setw(4) << std::left << "T" << ": ";
-	for (int m=0; m<=multistep; m++)
-	  std::cout << std::setw(10) << levtot[m];
-	std::cout << std::endl;
-	std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl
+	for (int m=0; m<=multistep; m++) std::cout << std::setw(10) << levtot[m];
+	std::cout << " [" << std::accumulate(levtot.begin(), levtot.end(), 0)
+		  << "]" << std::endl
+		  << std::setw(70) << std::setfill('-') << '-' << std::endl
 		  << std::setfill(' ');
       }
     }
