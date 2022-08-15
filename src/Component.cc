@@ -426,11 +426,12 @@ void Component::reset_level_lists()
 	       << setw(12) << "first" << setw(12) << "last" 
 	       << setw(12) << "count" << endl;
 	for (unsigned j=0; j<=multistep; j++) {
+	  auto minmax = std::minmax_element(levlist[j].begin(), levlist[j].end(), std::less<int>());
 	  cout << left << setw(4) << myid << setw(4) << j;
 	  if (levlist[j].size())
 	    cout << left
-		 << setw(12) << levlist[j].front()
-		 << setw(12) << levlist[j].back() 
+		 << setw(12) << *minmax.first
+		 << setw(12) << *minmax.second
 		 << setw(12) << levlist[j].size()
 		 << endl;
 	  else
