@@ -178,8 +178,8 @@ Component::Component(YAML::Node& CONF)
 
   set_default_values();
 
-  mdt_ctr = vector< vector<unsigned> > (multistep+1);
-  for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
+  mdt_ctr = std::vector< std::vector<unsigned> > (multistep+1);
+  for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = std::vector<unsigned>(mdtDim, 0);
 
   angmom_lev  = vector<double>(3*(multistep+1), 0);
   com_lev     = vector<double>(3*(multistep+1), 0);
@@ -352,7 +352,7 @@ void Component::reset_level_lists()
 
     td[0].id = 0;
     td[0].c  = this;
-    td[0].newlist  = vector< vector<int> >(multistep+1);
+    td[0].newlist  = std::vector< std::vector<int> >(multistep+1);
 
     reset_level_lists_thrd(&td[0]);
 
@@ -368,7 +368,7 @@ void Component::reset_level_lists()
     
       td[i].id = i;
       td[i].c  = this;
-      td[i].newlist  = vector< vector<int> >(multistep+1);
+      td[i].newlist  = std::vector< std::vector<int> >(multistep+1);
       
       errcode =  pthread_create(&t[i], 0, reset_level_lists_thrd, &td[i]);
 
@@ -404,7 +404,7 @@ void Component::reset_level_lists()
   }
 				// Particle list per level.
 				// Begin with empty lists . . .
-  levlist = vector< vector<int> > (multistep+1);
+  levlist = std::vector< std::vector<int> > (multistep+1);
   for (int i=0; i<nthrds; i++) {
     for (unsigned n=0; n<=multistep; n++) {
       levlist[n].insert(levlist[n].end(),
@@ -692,14 +692,14 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   if (SPL) read_bodies_and_distribute_binary_spl(in);
   else     read_bodies_and_distribute_binary_out(in);
 
-  mdt_ctr = vector< vector<unsigned> > (multistep+1);
-  for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
+  mdt_ctr = std::vector< std::vector<unsigned> > (multistep+1);
+  for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = std::vector<unsigned>(mdtDim, 0);
 
-  angmom_lev  = vector<double>(3*(multistep+1), 0);
-  com_lev     = vector<double>(3*(multistep+1), 0);
-  cov_lev     = vector<double>(3*(multistep+1), 0);
-  coa_lev     = vector<double>(3*(multistep+1), 0);
-  com_mas     = vector<double>(multistep+1, 0);
+  angmom_lev  = std::vector<double>(3*(multistep+1), 0);
+  com_lev     = std::vector<double>(3*(multistep+1), 0);
+  cov_lev     = std::vector<double>(3*(multistep+1), 0);
+  coa_lev     = std::vector<double>(3*(multistep+1), 0);
+  com_mas     = std::vector<double>(   multistep+1,  0);
 
   reset_level_lists();
 

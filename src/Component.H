@@ -1014,6 +1014,9 @@ public:
   //! Print out the level lists to stdout for diagnostic purposes
   void print_level_lists_cuda(double T);
 
+  //! Get the level lists from cuda particles for diagnostic purposes
+  std::vector<int> get_level_lists_cuda();
+
   //@}
 #endif
 
