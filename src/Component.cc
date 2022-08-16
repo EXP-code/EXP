@@ -175,7 +175,7 @@ Component::Component(YAML::Node& CONF)
   pBufSiz     = 100000;		// Default number particles in MPI-IO buffer
   blocking    = false;		// Default for MPI_File_write blocking
   buffered    = true;		// Use buffered writes for POSIX binary
-  noswitch    = false;		// Allow multistep switching at master step only
+  noswitch    = true;		// Allow multistep switching at master step only
 
   set_default_values();
 

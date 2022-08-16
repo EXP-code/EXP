@@ -7,7 +7,7 @@
 #include <MixtureBasis.H>
 
 // #define TMP_DEBUG
-#define MULTI_DEBUG
+// #define MULTI_DEBUG
 
 //@{
 //! These are for testing exclusively (should be set false for production)
