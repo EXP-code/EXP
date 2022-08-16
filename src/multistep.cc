@@ -152,7 +152,7 @@ void * adjust_multistep_level_thread(void *ptr)
       dtA = dynfracP * sqrt(ptot/(atot+eps));
     }
 
-    map<double, int> dseq;
+    std::map<double, int> dseq;
 
     if (DTold) {
       dseq[dtv] = 0;
@@ -173,6 +173,12 @@ void * adjust_multistep_level_thread(void *ptr)
     // Smallest time step
     //
     dt = std::max<double>(eps, dseq.begin()->first);
+
+    // Enforce minimum step per level
+    if (c->NoSwitch()) {
+      if (p->dtreq <= 0.0) p->dtreq = dt;
+      else p->dtreq = std::min<double>(p->dtreq, dt);
+    }
 
     // Time step wants to be LARGER than the maximum
     if (dt>dtime) {
@@ -218,7 +224,7 @@ void * adjust_multistep_level_thread(void *ptr)
     // Sanity check
     //
     if (level != plev) {
-      cerr << "Process " << myid << " id=" << id 
+      cerr << "ERROR [" << myid << "] id=" << id 
 	   << ": n=" << n << " level=" << level 
 	   << " tlevel=" << plev
 	   << " plevel=" << p->level << endl;
@@ -226,14 +232,22 @@ void * adjust_multistep_level_thread(void *ptr)
 
     // Update coefficients
     //
-    if (nlev != level) {
+    bool firstCall = this_step==0 and mdrft==0;
+    bool restrict  = not c->NoSwitch() or mdrft==Mstep or firstCall;
+    //                            ^            ^              ^
+    //                            |            |              |
+    // allow intrastep switching--+            |              |
+    // otherwise: relevel at end of step-------+              |
+    // or on the very first call to initialize levels---------+
+
+    if (restrict and nlev != level) {
       std::chrono::high_resolution_clock::time_point start1, finish1;
       start1 = std::chrono::high_resolution_clock::now();
       c->force->multistep_update(plev, nlev, c, n, id);
       finish1 = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double, std::micro> duration = finish1 - start1;
       adjtm2[id] += duration.count();
-      p->level = lev;
+      p->level = nlev;
       numsw[id]++;
     }
     numtt[id]++;
@@ -280,6 +294,7 @@ void adjust_multistep_level(bool all)
 
 #if HAVE_LIBCUDA==1
   if (use_cuda) {
+
     cuda_compute_levels();
 
 #ifdef VERBOSE_TIMING

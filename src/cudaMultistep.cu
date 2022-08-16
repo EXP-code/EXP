@@ -75,9 +75,24 @@ void testConstantsMultistep()
 }
 
 __global__ void
+timestepSetKernel(dArray<cudaParticle> P, int stride, int mstep, int mdrft)
+{
+  const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
+  const cuFP_t eps = 1.0e-20;
+
+  for (int n=0; n<stride; n++) {
+    int npart = tid*stride + n;
+    if (npart < P._s) P._v[npart].dtreq = 1.0/eps;
+  }
+  // END: stride loop
+
+}
+
+__global__ void
 timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	       cuFP_t cx, cuFP_t cy, cuFP_t cz,
-	       int minactlev, int dim, int stride, PII lohi)
+	       int minactlev, int dim, int stride, PII lohi,
+	       int mdrft, bool switching)
 {
   const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
   const cuFP_t eps = 1.0e-20;
@@ -151,14 +166,8 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	dtv = cuDynfracV * sqrt(vtot/(atot+eps));
 	dta = cuDynfracA * ptot/(fabs(dtr)+eps);
 	dtA = cuDynfracP * sqrt(ptot/(atot+eps));
-
-	// Only use this for deep sanity check
-	/*
-	if (i<5) {
-	  printf("i=%d dtr=%e vtot=%e atot=%e ptot=%e dts=%e dtd=%e dtv=%e dta=%e dtA=%e DynV=%e DynA=%e\n", i, dtr, vtot, atot, ptot, dts, dtd, dtv, dta, dtA, cuDynfracV, cuDynfracA);
-	}
-	*/
       }
+
       
       // Smallest time step
       //
@@ -169,39 +178,43 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       if (dt > dtA) dt = dtA;
       if (dt < eps) dt = eps;
       
-      // Time step wants to be LARGER than the maximum
-      //
-      p.lev[1] = 0;
-      if (dt<cuDtime)
-	p.lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
-    
-      // Time step wants to be SMALLER than the maximum
-      //
-      if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
-      
-      // Limit new level to minimum active level
-      //
-      if (p.lev[1]<minactlev)   p.lev[1] = minactlev;
-
-      // Only use this for deep sanity check
-      /*
-      if (i<5) {
-	printf("i=%d dtd=%e dtv=%e dta=%e dtA=%e o=%d n=%d\n", i, dtd, dtv, dta, dtA, p.lev[0], p.lev[1]);
+      if (p.dtreq<=0) {
+	p.dtreq = dt;
+      } else {
+	if (dt > p.dtreq) dt = p.dtreq;
+	else              p.dtreq = dt;
       }
-      */
 
-      // Enforce n-level shifts at a time
-      //
-      if (cuShiftlev) {
-	if (p.lev[1] > p.lev[0]) {
-	  if (p.lev[1] - p.lev[0] > cuShiftlev)
-	    p.lev[1] = p.lev[0] + cuShiftlev;
-	} else if (p.lev[0] > p.lev[1]) {
-	  if (p.lev[0] - p.lev[1] > cuShiftlev)
-	    p.lev[1] = p.lev[0] - cuShiftlev;
+      if (switching or minactlev==0) {
+
+	// Time step wants to be LARGER than the maximum
+	//
+	p.lev[1] = 0;
+	if (dt<cuDtime)
+	  p.lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
+    
+	// Time step wants to be SMALLER than the maximum
+	//
+	if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
+      
+	// Limit new level to minimum active level
+	//
+	if (p.lev[1]<minactlev)   p.lev[1] = minactlev;
+	
+	// Enforce n-level shifts at a time
+	//
+	if (cuShiftlev) {
+	  if (p.lev[1] > p.lev[0]) {
+	    if (p.lev[1] - p.lev[0] > cuShiftlev)
+	      p.lev[1] = p.lev[0] + cuShiftlev;
+	  } else if (p.lev[0] > p.lev[1]) {
+	    if (p.lev[0] - p.lev[1] > cuShiftlev)
+	      p.lev[1] = p.lev[0] - cuShiftlev;
+	  }
 	}
       }
-
+      // Active level = 0
+	
     } // Particle index block
     
   } // END: stride loop
@@ -280,6 +293,22 @@ void cuda_compute_levels()
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
     cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
+    // Set maximum time step
+    if (multistep and c->NoSwitch() and mdrft==1) {
+
+      // Compute grid
+      //
+      unsigned int N         = c->cuStream->cuda_particles.size();
+      unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+      unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    
+      if (N>0) {
+	if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+	timestepSetKernel<<<gridSize, BLOCK_SIZE>>>
+	  (toKernel(c->cuStream->cuda_particles), stride, mstep, mdrft);
+      }
+    }
 
     PII lohi = {0, c->cuStream->cuda_particles.size()};
     if (multistep) lohi = c->CudaGetLevelRange(mfirst[mdrft], multistep);
@@ -309,14 +338,25 @@ void cuda_compute_levels()
 
       if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
-      // Do the work
+      // Get the current expansion center
       //
       auto ctr = c->getCenter(Component::Local | Component::Centered);
       
+      // Allow intrastep level switches
+      //
+      bool switching = true;
+
+      // Allowing switching on first call to set levels
+      //
+      bool firstCall = this_step==0 and mstep==0;
+      if (c->NoSwitch() and not firstCall) switching = false;
+
+      // Do the work
+      //
       timestepKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles),
-	 toKernel(c->cuStream->indx1),
-	 ctr[0], ctr[1], ctr[2], mfirst[mdrft], c->dim, stride, lohi);
+	 toKernel(c->cuStream->indx1), ctr[0], ctr[1], ctr[2],
+	 mfirst[mdrft], c->dim, stride, lohi, mdrft, switching);
     }
   }
 
