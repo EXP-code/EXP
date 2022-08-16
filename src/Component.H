@@ -348,6 +348,9 @@ protected:
   //! Particle number update is needed
   unsigned modified;
 
+  //! No multistep switching
+  bool noswitch;
+
 public:
 
   //! Describe the phase space coordinates
@@ -432,10 +435,10 @@ public:
       This will be a sorted list for each level.  We use a vector rather
       than (e.g.) a set for the random insertion
   */
-  vector< vector<int> > levlist;
+  std::vector< vector<int> > levlist;
 
   //! Multstep dt type counter
-  vector< vector<unsigned> > mdt_ctr;
+  std::vector< vector<unsigned> > mdt_ctr;
 
   //! Points to associated force instance
   PotAccel *force;
@@ -898,7 +901,10 @@ public:
   void HOTdelete();
 
   //! Check for indexing
-  bool Indexing() { return indexing; }
+  inline bool Indexing() { return indexing; }
+
+  //! Check for multistep restriction (this is still a test option)
+  inline bool NoSwitch() { return noswitch; }
 
 #if HAVE_LIBCUDA==1
   //@{

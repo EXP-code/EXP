@@ -175,6 +175,7 @@ Component::Component(YAML::Node& CONF)
   pBufSiz     = 100000;		// Default number particles in MPI-IO buffer
   blocking    = false;		// Default for MPI_File_write blocking
   buffered    = true;		// Use buffered writes for POSIX binary
+  noswitch    = false;		// Allow multistep switching at master step only
 
   set_default_values();
 
@@ -280,6 +281,7 @@ void Component::set_default_values()
   if (!cconf["pBufSiz"])         cconf["pBufSiz"]     = pBufSiz;
   if (!cconf["blocking"])        cconf["blocking"]    = blocking;
   if (!cconf["buffered"])        cconf["buffered"]    = buffered;
+  if (!cconf["noswitch"])        cconf["noswitch"]    = noswitch;
 }
 
 
@@ -413,39 +415,48 @@ void Component::reset_level_lists()
     }
   }
   
-  if (VERBOSE>10) {
+  if (VERBOSE>10 and particles.size()) {
 				// Level creation check
     for (int n=0; n<numprocs; n++) {
+
       if (n==myid) {
-	if (myid==0) 
-	  cout << endl
-	       << "----------------------------------------------" << endl
-	       << "Level creation in Component <" << name << ">:" << endl 
-	       << "----------------------------------------------" << endl
-	       << setw(4) << left << "ID" << setw(4) << "lev"
-	       << setw(12) << "first" << setw(12) << "last" 
-	       << setw(12) << "count" << endl;
+
+	if (myid==0) { 
+	  std::cout << std::endl << std::string(56, '-') << std::endl
+		    << "Level creation in Component <" << name << ">: " << tnow
+		    << std::endl << std::string(56, '-') << std::endl
+		    << std::setw(4) << std::left << "ID" << setw(4) << "lev"
+		    << std::setw(12) << "first" << std::setw(12) << "last" 
+		    << std::setw(12) << "count" << std::setw(12) << "total"
+		    << std::endl;
+	}
+	std::cout << std::string(56, '-') << std::endl;
+
+	int sum = 0;
 	for (unsigned j=0; j<=multistep; j++) {
 	  auto minmax = std::minmax_element(levlist[j].begin(), levlist[j].end(), std::less<int>());
-	  cout << left << setw(4) << myid << setw(4) << j;
+	  std::cout << std::left << std::setw(4) << myid << std::setw(4) << j;
 	  if (levlist[j].size())
-	    cout << left
-		 << setw(12) << *minmax.first
-		 << setw(12) << *minmax.second
-		 << setw(12) << levlist[j].size()
-		 << endl;
+	    std::cout << std::left
+		      << std::setw(12) << *minmax.first
+		      << std::setw(12) << *minmax.second
+		      << std::setw(12) << levlist[j].size()
+		      << std::setw(12) << (sum += levlist[j].size())
+		      << std::endl;
 	  else
-	    cout << left
-		 << setw(12) << (int)(-1)
-		 << setw(12) << (int)(-1) 
-		 << setw(12) << levlist[j].size()
-		 << endl;
+	    std::cout << std::left
+		      << std::setw(12) << (int)(-1)
+		      << std::setw(12) << (int)(-1) 
+		      << std::setw(12) << levlist[j].size()
+		      << std::setw(12) << sum
+		      << std::endl;
 	}
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << endl;
+
+    if (myid==0) std::cout << std::endl;
   }
 
 }
@@ -753,6 +764,7 @@ void Component::configure(void)
 #if HAVE_LIBCUDA==1
     if (cconf["bunch"   ])  bunchSize  = cconf["bunch"   ].as<int>();
 #endif
+    if (cconf["noswitch"])   noswitch  = cconf["noswitch"].as<bool>();
     
     if (cconf["ton"]) {
       ton = cconf["ton"].as<double>();
@@ -1087,32 +1099,37 @@ void Component::initialize(void)
   }
 
   if (myid == 0) {		// Center status
-    cout << "---- Component <" << name;
+    std::cout << "---- Component <" << name;
     if (restart)
-      cout << ">: current center on restart: x, y, z: " 
-	   << center[0] << ", " 
-	   << center[1] << ", " 
-	   << center[2] << std::endl;
+      std::cout << ">: current center on restart: x, y, z: " 
+		<< center[0] << ", " 
+		<< center[1] << ", " 
+		<< center[2] << std::endl;
     else if (not com_system) {
-      cout << ">: user specified initial center: x, y, z: " 
-	   << EJx0 << ", " 
-	   << EJy0 << ", " 
-	   << EJz0 << std::endl;
+      std::cout << ">: user specified initial center: x, y, z: " 
+		<< EJx0 << ", " 
+		<< EJy0 << ", " 
+		<< EJz0 << std::endl;
     } else {
-      cout << ">: default center relative to com: x, y, z: " 
-	   << 0.0 << ", " 
-	   << 0.0 << ", " 
-	   << 0.0 << std::endl;
+      std::cout << ">: default center relative to com: x, y, z: " 
+		<< 0.0 << ", " 
+		<< 0.0 << ", " 
+		<< 0.0 << std::endl;
     }
 
     cout << "---- Component <" << name << ">: ";
 
     if (nlevel<0)
-      cout << "no multistep level reporting";
+      std::cout << "no multistep level reporting";
     else
-      cout << "multistep level reporting every " << nlevel << " steps";
+      std::cout << "multistep level reporting every " << nlevel << " steps";
+    std::cout << std::endl;
 
-    cout << endl << endl;
+    if (multistep)
+      std::cout << "---- Component <" << name << ">: "
+		<< "multistep noswitching is "
+		<< std::boolalpha << NoSwitch() << std::endl;
+    std::cout << std::endl;
   }
   
 }
