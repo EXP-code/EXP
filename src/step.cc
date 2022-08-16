@@ -374,12 +374,16 @@ void do_step(int n)
     // DEBUG
     //
     if (VERBOSE>4) {
-      
-      vector<int> levpop(multistep+1, 0), levtot(multistep+1, 0);
+      std::vector<int> levpop(multistep+1, 0), levtot(multistep+1, 0);
       for (auto c : comp->components) {
-	for (int n=0; n<=multistep; n++) levpop[n] += c->levlist[n].size();
+	if (use_cuda) {
+	  std::vector<int> clev = c->get_level_lists_cuda();
+	  for (int n=0; n<=multistep; n++) levpop[n] += clev[n];
+	} else {
+	  for (int n=0; n<=multistep; n++) levpop[n] += c->levlist[n].size();
+	}
       }
-
+      
       MPI_Reduce(&levpop[0], &levtot[0], multistep+1, MPI_INT, MPI_SUM, 0,
 		 MPI_COMM_WORLD);
 
@@ -389,22 +393,27 @@ void do_step(int n)
 		  << std::setw(70) << left << "--- Level info" << std::endl
 		  << std::setw(70) << std::setfill('-') << '-' << std::endl 
 		  << std::setfill(' ') << right;
-      }
-      for (int n=0; n<numprocs; n++) {
-	if (myid==n) {
-	  std::cout << std::setw(4) << myid << ": ";
-	  for (int m=0; m<=multistep; m++) std::cout << std::setw(8) << levpop[m];
+	std::cout << std::setw(4) << std::left << myid << ": ";
+	for (int m=0; m<=multistep; m++) std::cout << std::setw(10) << levpop[m];
+	std::cout << std::endl;
+	for (int n=1; n<numprocs; n++) {
+	  MPI_Recv(levpop.data(), levpop.size(), MPI_INT, n, 191,
+		   MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  std::cout << std::setw(4) << std::left << n << ": ";
+	  for (int m=0; m<=multistep; m++) std::cout << std::setw(10) << levpop[m];
 	  std::cout << std::endl;
 	}
-	MPI_Barrier(MPI_COMM_WORLD);
+      } else {
+	MPI_Send(levpop.data(), levpop.size(), MPI_INT, 0, 191, MPI_COMM_WORLD);
       }
 
       if (myid==0) {
 	std::cout << std::endl;
-	std::cout << std::setw(4) << "T" << ": ";
-	for (int m=0; m<=multistep; m++) std::cout << std::setw(8) << levtot[m];
-	std::cout << std::endl;
-	std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl
+	std::cout << std::setw(4) << std::left << "T" << ": ";
+	for (int m=0; m<=multistep; m++) std::cout << std::setw(10) << levtot[m];
+	std::cout << " [" << std::accumulate(levtot.begin(), levtot.end(), 0)
+		  << "]" << std::endl
+		  << std::setw(70) << std::setfill('-') << '-' << std::endl
 		  << std::setfill(' ');
       }
     }
