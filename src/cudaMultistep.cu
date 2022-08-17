@@ -77,12 +77,11 @@ void testConstantsMultistep()
 __global__ void
 timestepSetKernel(dArray<cudaParticle> P, int stride, int mstep, int mdrft)
 {
-  const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
-  const cuFP_t eps = 1.0e-20;
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
   for (int n=0; n<stride; n++) {
     int npart = tid*stride + n;
-    if (npart < P._s) P._v[npart].dtreq = 1.0/eps;
+    if (npart < P._s) P._v[npart].dtreq = 0.0;
   }
   // END: stride loop
 
