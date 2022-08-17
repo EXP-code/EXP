@@ -351,6 +351,9 @@ protected:
   //! No multistep switching
   bool noswitch;
 
+  //! Select level from criteria over last time step
+  bool dtreset;
+
 public:
 
   //! Describe the phase space coordinates
@@ -905,6 +908,9 @@ public:
 
   //! Check for multistep restriction (this is still a test option)
   inline bool NoSwitch() { return noswitch; }
+
+  //! Compute level from minimum requested time step from last master step
+  inline bool DTreset()  { return dtreset;  }
 
 #if HAVE_LIBCUDA==1
   //@{

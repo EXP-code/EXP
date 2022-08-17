@@ -176,6 +176,7 @@ void * adjust_multistep_level_thread(void *ptr)
 
     // Enforce minimum step per level
     if (c->NoSwitch()) {
+      if (c->DTreset() and mdrft==1) p->dtreq = 0.0;
       if (p->dtreq <= 0.0) p->dtreq = dt;
       else p->dtreq = std::min<double>(p->dtreq, dt);
     }

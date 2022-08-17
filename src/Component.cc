@@ -176,6 +176,7 @@ Component::Component(YAML::Node& CONF)
   blocking    = false;		// Default for MPI_File_write blocking
   buffered    = true;		// Use buffered writes for POSIX binary
   noswitch    = true;		// Allow multistep switching at master step only
+  dtreset     = true;		// Select time step from criteria over last step
 
   set_default_values();
 
@@ -282,6 +283,7 @@ void Component::set_default_values()
   if (!cconf["blocking"])        cconf["blocking"]    = blocking;
   if (!cconf["buffered"])        cconf["buffered"]    = buffered;
   if (!cconf["noswitch"])        cconf["noswitch"]    = noswitch;
+  if (!cconf["dtreset"])         cconf["dtreset"]     = dtreset;
 }
 
 
@@ -693,6 +695,9 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 
   pBufSiz     = 100000;
   blocking    = false;
+  buffered    = true;		// Use buffered writes for POSIX binary
+  noswitch    = true;		// Allow multistep switching at master step only
+  dtreset     = true;		// Select level from criteria over last step
 
   configure();
 
@@ -765,6 +770,7 @@ void Component::configure(void)
     if (cconf["bunch"   ])  bunchSize  = cconf["bunch"   ].as<int>();
 #endif
     if (cconf["noswitch"])   noswitch  = cconf["noswitch"].as<bool>();
+    if (cconf["dtreset"])     dtreset  = cconf["dtreset"].as<bool>();
     
     if (cconf["ton"]) {
       ton = cconf["ton"].as<double>();
@@ -1128,7 +1134,10 @@ void Component::initialize(void)
     if (multistep)
       std::cout << "---- Component <" << name << ">: "
 		<< "multistep noswitching is "
-		<< std::boolalpha << NoSwitch() << std::endl;
+		<< std::boolalpha << NoSwitch()
+		<< " and last step criteria is "
+		<< std::boolalpha << DTreset()
+		<< std::endl;
     std::cout << std::endl;
   }
   

@@ -294,7 +294,8 @@ void cuda_compute_levels()
     cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
     // Set maximum time step
-    if (multistep and c->NoSwitch() and mdrft==1) {
+    //
+    if (multistep and c->NoSwitch() and c->DTreset() and mdrft==1) {
 
       // Compute grid
       //
