@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <complex>
 
@@ -25,36 +26,43 @@ int main(void)
     //
     HighFive::File file(FILE_NAME,
 			HighFive::File::ReadWrite |
-			HighFive::File::Create |
-			HighFive::File::Truncate);
+			HighFive::File::Create);
 
-    // we create a new group
-    HighFive::Group group = file.createGroup("Coefs");
-
-    double time = 3.14159;
+    double time = 3.1417;
     
-    HighFive::Attribute a = group.createAttribute<double>
-      ("Time", HighFive::DataSpace::From(time));
+    // we create a new group
+    std::ostringstream stim; stim << std::setprecision(8) << time;
+    HighFive::Group group = file.createGroup(stim.str());
 
-    a.write(time);
+    HighFive::Attribute t = group.createAttribute<double>("Time", HighFive::DataSpace::From(time));
+
+    t.write(time);
+
+    std::string config = "This is a string describing the configuration "
+      "that generated the data";
+
+    HighFive::Attribute c = group.createAttribute<std::string>("config", HighFive::DataSpace::From(config));
+
+    c.write(config);
 
     for (int j=0; j<5; j++) {
 
       Eigen::VectorXcd vector(nmax);
 
       for (int i=0; i<nmax; i++) {
-	vector(i) = std::complex<double>(j + i * 100);
+	vector(i) = std::complex<double>(j + i * 100, 3.14158*i);
       }
 
       // Create the data set
       //
-      std::ostringstream sout; sout << "DS" << j;
+      std::ostringstream sout; sout << j;
       HighFive::DataSet dataset = group.createDataSet(sout.str(), vector);
       
-      std::vector<int> key = {1, 0, j};
+      std::vector<int> key = {1, j};
       
       HighFive::Attribute v = dataset.createAttribute<int>
 	("Index", HighFive::DataSpace::From(key));
+      
       v.write(key);
     }
 
