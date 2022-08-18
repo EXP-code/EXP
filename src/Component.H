@@ -348,6 +348,12 @@ protected:
   //! Particle number update is needed
   unsigned modified;
 
+  //! No multistep switching
+  bool noswitch;
+
+  //! Select level from criteria over last time step
+  bool dtreset;
+
 public:
 
   //! Describe the phase space coordinates
@@ -432,10 +438,10 @@ public:
       This will be a sorted list for each level.  We use a vector rather
       than (e.g.) a set for the random insertion
   */
-  vector< vector<int> > levlist;
+  std::vector< vector<int> > levlist;
 
   //! Multstep dt type counter
-  vector< vector<unsigned> > mdt_ctr;
+  std::vector< vector<unsigned> > mdt_ctr;
 
   //! Points to associated force instance
   PotAccel *force;
@@ -898,7 +904,13 @@ public:
   void HOTdelete();
 
   //! Check for indexing
-  bool Indexing() { return indexing; }
+  inline bool Indexing() { return indexing; }
+
+  //! Check for multistep restriction (this is still a test option)
+  inline bool NoSwitch() { return noswitch; }
+
+  //! Compute level from minimum requested time step from last master step
+  inline bool DTreset()  { return dtreset;  }
 
 #if HAVE_LIBCUDA==1
   //@{
@@ -1013,6 +1025,9 @@ public:
 
   //! Print out the level lists to stdout for diagnostic purposes
   void print_level_lists_cuda(double T);
+
+  //! Get the level lists from cuda particles for diagnostic purposes
+  std::vector<int> get_level_lists_cuda();
 
   //@}
 #endif

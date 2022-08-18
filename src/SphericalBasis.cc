@@ -7,6 +7,7 @@
 #include <MixtureBasis.H>
 
 // #define TMP_DEBUG
+// #define MULTI_DEBUG
 
 //@{
 //! These are for testing exclusively (should be set false for production)
@@ -935,39 +936,43 @@ void SphericalBasis::multistep_update_finish()
   //  +--- Deep debugging
   //  |
   //  v
-  if (false and myid==0) {
-    std::ofstream out("test_differ.sph", ios::app);
+  if (true and myid==0) {
+    std::string filename = runtag + ".differ_sph_" + component->name;
+    std::ofstream out(filename, ios::app);
+    std::set<int> L = {0, 1, 2};
     if (out) {
       out << std::string(10+16*nmax, '-') << std::endl;
       out << "# T=" << tnow << " mstep=" << mstep << std::endl;
       for (int M=mfirst[mstep]; M<=multistep; M++) {
 	offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
 	for (int l=0; l<=Lmax*(Lmax+2); l++) {
+	  if (L.find(l)==L.end()) continue;
 	  offset1 = l*nmax;
 	  out << std::setw(5) << M << std::setw(5) << l;
 	  for (int ir=0; ir<nmax; ir++)
 	    out << std::setw(16) << unpack[offset0+offset1+ir];
 	  out << std::endl;
-	  break;
 	}
       }
       out << std::string(10+16*nmax, '-') << std::endl;
       for (int l=0; l<=Lmax*(Lmax+2); l++) {
+	if (L.find(l)==L.end()) continue;
 	out << std::setw(5) << " *** " << std::setw(5) << l;
 	for (int ir=0; ir<nmax; ir++)
 	  out << std::setw(16) << (*expcoef[l])[ir];
 	out << std::endl;
-	break;
       }
       out << std::string(10+16*nmax, '-') << std::endl;
       out << std::string(10+16*nmax, '-') << std::endl;
     } else {
-      std::cout << "Error opening test file <test_differ.sph> at T=" << tnow
+      std::cout << "Error opening test file <" << filename << "> at T=" << tnow
 		<< std::endl;
     }
   }
-				// Update the local coefficients
-				//
+  // END: deep debug
+
+  // Update the local coefficients
+  //
   for (int M=mfirst[mstep]; M<=multistep; M++) {
     offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
@@ -1032,7 +1037,7 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 
 	  for (int n=0; n<nmax; n++) {
 	    val1 = potd[id](l, n)*fac1*mass*fac0/normM(l, n);
-	    val2 = potd[id](l, n)*fac1*mass*fac0/normM(l, n);
+	    val2 = potd[id](l, n)*fac2*mass*fac0/normM(l, n);
 
 	    differ1[id][from](loffset+moffset  , n) -= val1;
 	    differ1[id][from](loffset+moffset+1, n) -= val2;
@@ -1053,17 +1058,24 @@ void SphericalBasis::compute_multistep_coefficients()
   if (play_back and not play_cnew) return;
 
 #ifdef TMP_DEBUG
-  Eigen::MatrixXd tmpcoef = expcoef;
+  Eigen::MatrixXd tmpcoef((Lmax+1)*(Lmax+1), nmax);
+  for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
+    for (int j=0; j<nmax; j++) tmpcoef(l, j) = (*expcoef[l])[j];
+  }
 #endif
 
 				// Clean coefficient matrix
 				// 
   for (int l=0; l<(Lmax+1)*(Lmax+1); l++) expcoef[l]->setZero();
 
+				// For debugging only
+				//
+  double saveF = 0.0, saveG = 0.0;
+    
 				// Interpolate to get coefficients above
 				// 
   for (int M=0; M<mfirst[mdrft]; M++) {
-
+    
     double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
     double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
 
@@ -1071,8 +1083,10 @@ void SphericalBasis::compute_multistep_coefficients()
     double a = 1.0 - b;
 
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
-      for (int n=0; n<nmax; n++) 
+      for (int n=0; n<nmax; n++) {
 	(*expcoef[l])[n] += a*(*expcoefL[M][l])[n] + b*(*expcoefN[M][l])[n];
+	if (l==0 and n==1) saveF += a*(*expcoefL[M][l])[n] + b*(*expcoefN[M][l])[n];
+      }
     }
     
     //  +--- Deep debugging
@@ -1083,6 +1097,7 @@ void SphericalBasis::compute_multistep_coefficients()
 		<< "SPH INTERP M=" << std::setw(2) << M
 		<< " mstep=" << std::setw(3) << mstep
 		<< " mdrft=" << std::setw(3) << mdrft
+		<< " T=" << std::setw(16) << tnow
 		<< " a=" << std::setw(16) << a
 		<< " b=" << std::setw(16) << b
 		<< " L=" << std::setw(16) << (*expcoefL[M][0])[1]
@@ -1094,16 +1109,17 @@ void SphericalBasis::compute_multistep_coefficients()
 
     if (false and myid==0) {
       std::cout << "SPH interpolate:"
-		<< " M="     << std::setw( 4) << M
-		<< " mstep=" << std::setw( 4) << mstep 
-		<< " mstep=" << std::setw( 4) << mdrft
-		<< " minS="  << std::setw( 4) << dstepL[M][mdrft]
-		<< " maxS="  << std::setw( 4) << dstepN[M][mdrft]
-		<< " a="     << std::setw(14) << a 
-		<< " b="     << std::setw(14) << b 
-		<< " L01="   << std::setw(14) << (*expcoefL[M][0])[1]
-		<< " N01="   << std::setw(14) << (*expcoefN[M][0])[1]
-		<< " c01="   << std::setw(14) << (*expcoef[0])[1]
+		<< " M="     << std::setw( 3) << M
+		<< " mstep=" << std::setw( 3) << mstep 
+		<< " mstep=" << std::setw( 3) << mdrft
+		<< " minS="  << std::setw( 3) << dstepL[M][mdrft]
+		<< " maxS="  << std::setw( 3) << dstepN[M][mdrft]
+		<< " T="     << std::setw(12) << tnow
+		<< " a="     << std::setw(12) << a 
+		<< " b="     << std::setw(12) << b 
+		<< " L01="   << std::setw(12) << (*expcoefL[M][0])[1]
+		<< " N01="   << std::setw(12) << (*expcoefN[M][0])[1]
+		<< " c01="   << std::setw(12) << (*expcoef[0])[1]
 		<< std::endl;
     }
 
@@ -1134,8 +1150,10 @@ void SphericalBasis::compute_multistep_coefficients()
     }
 
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
-      for (int n=0; n<nmax; n++) 
+      for (int n=0; n<nmax; n++) {
 	(*expcoef[l])[n] += (*expcoefN[M][l])[n];
+	if (l==0 and n==1)saveG += (*expcoefN[M][l])[n];
+      }
     }
   }
 
@@ -1155,22 +1173,25 @@ void SphericalBasis::compute_multistep_coefficients()
 	      << " mlev="  << std::setw( 4) << mlevel
 	      << " mstep=" << std::setw( 4) << mstep
 	      << " mdrft=" << std::setw( 4) << mdrft
-	      << " T="     << std::setw( 4) << tnow
+	      << " T="     << std::setw( 8) << tnow
 	      << " c01="   << std::setw(14) << (*expcoef[0])[1]
+	      << " u01="   << std::setw(14) << saveF
+	      << " v01="   << std::setw(14) << saveG
 	      << std::endl;
   }
 
 #ifdef TMP_DEBUG
   if (myid==0) {
 
+    static bool first = true;
     double maxval=0.0, maxdif=0.0, maxreldif=0.0, val;
     int irmax=1, lmax=0, irmaxdif=1, lmaxdif=0, irmaxrel=1, lmaxrel=0;
     for (int ir=0; ir<nmax; ir++) {
       for (int l=0; l<=Lmax*(Lmax+2); l++) {
-	val = expcoef[l][ir] - tmpcoef[l][ir];
+	val = (*expcoef[l])[ir] - tmpcoef(l, ir);
 
-	if (fabs(expcoef[l][ir]) > maxval) {
-	  maxval = expcoef[l][ir];
+	if (fabs((*expcoef[l])[ir]) > maxval) {
+	  maxval = (*expcoef[l])[ir];
 	  irmax = ir;
 	  lmax = l;
 	}
@@ -1180,31 +1201,101 @@ void SphericalBasis::compute_multistep_coefficients()
 	  lmaxdif = l;
 	}
 
-	if (fabs(val/expcoef[l][ir]) > maxreldif) {
-	  maxreldif = val/expcoef[l][ir];
+	if (fabs(val/(*expcoef[l])[ir]) > maxreldif) {
+	  maxreldif = val/(*expcoef[l])[ir];
 	  irmaxrel = ir;
 	  lmaxrel = l;
 	}
       }
     }
 
-    ofstream out("coefs.diag", ios::app);
-    out << setw(15) << tnow
-	<< setw(10) << mstep
-	<< setw(10) << mdrft
-	<< setw(18) << maxval
-	<< setw(8)  << lmax
-	<< setw(8)  << irmax
-	<< setw(18) << maxdif
-	<< setw(8)  << lmaxdif
-	<< setw(8)  << irmaxdif
-	<< setw(18) << maxreldif
-	<< setw(8)  << lmaxrel
-	<< setw(8)  << irmaxrel
-	<< endl;
+    std::ofstream out(runtag+".coefs.diag", std::ios::app);
+    if (first) {
+      out << std::left << std::setw(15) << "# Time"
+	  << std::left << std::setw(10) << "| mstep"
+	  << std::left << std::setw(10) << "| mdrft"
+	  << std::left << std::setw(18) << "| max(val)"
+	  << std::left << std::setw(8)  << "| l"
+	  << std::left << std::setw(8)  << "| n"
+	  << std::left << std::setw(18) << "| max(dif)"
+	  << std::left << std::setw(8)  << "| l"
+	  << std::left << std::setw(8)  << "| n"
+	  << std::left << std::setw(18) << "| max(reldif)"
+	  << std::left << std::setw(8)  << "| l"
+	  << std::left << std::setw(8)  << "| n"
+	  << std::endl;
+      first = false;
+    }
+    out << std::left << std::setw(15) << tnow
+	<< std::left << std::setw(10) << mstep
+	<< std::left << std::setw(10) << mdrft
+	<< std::left << std::setw(18) << maxval
+	<< std::left << std::setw(8)  << lmax
+	<< std::left << std::setw(8)  << irmax
+	<< std::left << std::setw(18) << maxdif
+	<< std::left << std::setw(8)  << lmaxdif
+	<< std::left << std::setw(8)  << irmaxdif
+	<< std::left << std::setw(18) << maxreldif
+	<< std::left << std::setw(8)  << lmaxrel
+	<< std::left << std::setw(8)  << irmaxrel
+	<< std::endl;
   }
 #endif
 
+#ifdef MULTI_DEBUG
+  if (myid==0) {
+
+    std::set<int> L = {0, 1};
+    std::set<int> N = {0, 1};
+
+    static bool first = true;
+
+    std::ofstream out(runtag+".multi_diag", std::ios::app);
+
+    if (first) {
+      out << "#" << std::setw(9) << std::right << "Time "
+	  << std::setw(4) << "l" << std::setw(4) << "n";
+      for (int M=0; M<=multistep; M++)  out << std::setw(14) << M << " ";
+      out << std::setw(14) << "Sum" << std::endl;
+      first = false;
+    }
+
+    for (int l : L) {
+
+      for (int n : N) {
+
+	out << std::setw(10) << std::fixed << tnow
+	    << std::setw(4) << l << std::setw(4) << n;
+
+	double sum = 0.0, val;
+	for (int M=0; M<mfirst[mdrft]; M++) {
+      
+	  double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
+	  double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
+
+	  double b = numer/denom;	// Interpolation weights
+	  double a = 1.0 - b;
+      
+	  val = a*(*expcoefL[M][l])[n] + b*(*expcoefN[M][l])[n];
+	  sum += val;
+	  out << std::setw(14) << val;
+	}
+	
+	for (int M=mfirst[mdrft]; M<=multistep; M++) {
+	  val = (*expcoefN[M][l])[n];
+	  sum += val;
+	  out << std::setw(14) << val;
+	}
+
+	out << std::setw(14) << sum << std::endl; // Next line
+
+      }
+      // END: N loop
+    }
+    // END: L loop
+  }
+  // END: MULTI_DEBUG
+#endif
 }
 
 void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
@@ -1237,17 +1328,17 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
     nend = nbodies*(id+1)/nthrds;
 
 #ifdef DEBUG
-  pthread_mutex_lock(&io_lock);
-  cout << "Process " << myid << ": in thread"
-       << " id=" << id 
-       << " level=" << lev
-       << " nbeg=" << nbeg << " nend=" << nend << endl;
-  pthread_mutex_unlock(&io_lock);
+    pthread_mutex_lock(&io_lock);
+    std::cout << "Process " << myid << ": in thread"
+	      << " id=" << id 
+	      << " level=" << lev
+	      << " nbeg=" << nbeg << " nend=" << nend << std::endl;
+    pthread_mutex_unlock(&io_lock);
 #endif
 
-  for (int i=nbeg; i<nend; i++) {
+    for (int i=nbeg; i<nend; i++) {
 
-    indx = cC->levlist[lev][i];
+      indx = cC->levlist[lev][i];
 
       if (cC->freeze(indx)) continue;
 

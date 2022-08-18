@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(
   EXP
-  VERSION 7.705
+  VERSION 7.706
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 

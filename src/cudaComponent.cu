@@ -747,14 +747,8 @@ void Component::fix_positions_cuda(unsigned mlevel)
 void Component::print_level_lists_cuda(double T)
 {
 				// Retrieve counts per level
-  std::vector<int> cntr(multistep+1);
-  for (int m=0; m<=multistep; m++) {
-    cntr[m] = thrust::transform_reduce(cuStream->cuda_particles.begin(),
-				       cuStream->cuda_particles.end(),
-				       testCountLevel(m),
-				       0, thrust::plus<int>());
-  }
-
+  std::vector<int> cntr = get_level_lists_cuda();
+  
   if (myid==0) {
 				// Sum reduce to root
     MPI_Reduce(MPI_IN_PLACE, &cntr[0], multistep+1, MPI_INT, MPI_SUM,
@@ -805,6 +799,21 @@ void Component::print_level_lists_cuda(double T)
   }
 
 }
+
+std::vector<int> Component::get_level_lists_cuda()
+{
+				// Retrieve counts per level
+  std::vector<int> cntr(multistep+1);
+  for (int m=0; m<=multistep; m++) {
+    cntr[m] = thrust::transform_reduce(cuStream->cuda_particles.begin(),
+				       cuStream->cuda_particles.end(),
+				       testCountLevel(m),
+				       0, thrust::plus<int>());
+  }
+
+  return cntr;
+}
+
 
 // No cuda code here but only used after CudaToParticles() call for
 // testing
