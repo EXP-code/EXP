@@ -376,12 +376,16 @@ void do_step(int n)
     if (VERBOSE>4) {
       std::vector<int> levpop(multistep+1, 0), levtot(multistep+1, 0);
       for (auto c : comp->components) {
+#if HAVE_LIBCUDA==1
 	if (use_cuda) {
 	  std::vector<int> clev = c->get_level_lists_cuda();
 	  for (int n=0; n<=multistep; n++) levpop[n] += clev[n];
 	} else {
 	  for (int n=0; n<=multistep; n++) levpop[n] += c->levlist[n].size();
 	}
+#else
+	for (int n=0; n<=multistep; n++) levpop[n] += c->levlist[n].size();
+#endif
       }
       
       MPI_Reduce(&levpop[0], &levtot[0], multistep+1, MPI_INT, MPI_SUM, 0,
