@@ -91,7 +91,7 @@ __global__ void
 timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	       cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	       int minactlev, int dim, int stride, PII lohi,
-	       int mdrft, bool switching)
+	       bool switching, bool shift)
 {
   const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
   const cuFP_t eps = 1.0e-20;
@@ -202,7 +202,7 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	
 	// Enforce n-level shifts at a time
 	//
-	if (cuShiftlev) {
+	if (cuShiftlev and shift) {
 	  if (p.lev[1] > p.lev[0]) {
 	    if (p.lev[1] - p.lev[0] > cuShiftlev)
 	      p.lev[1] = p.lev[0] + cuShiftlev;
@@ -348,15 +348,15 @@ void cuda_compute_levels()
 
       // Allowing switching on first call to set levels
       //
-      bool firstCall = this_step==0 and mstep==0;
-      if (c->NoSwitch() and not firstCall) switching = false;
+      bool notFirstCall = this_step!=0 or mstep!=0;
+      if (c->NoSwitch() and notFirstCall) switching = false;
 
       // Do the work
       //
       timestepKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles),
 	 toKernel(c->cuStream->indx1), ctr[0], ctr[1], ctr[2],
-	 mfirst[mdrft], c->dim, stride, lohi, mdrft, switching);
+	 mfirst[mdrft], c->dim, stride, lohi, switching, notFirstCall);
     }
   }
 
