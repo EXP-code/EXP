@@ -4,12 +4,12 @@ EXP H5 coefficient utilities
 
 This describes an extensible HDF5 format for EXP coefficients and
 provides a few utility classes to manipulate them.  So far these are
-only for testing the design.  At this point, I have only implemented
-spherical and cylindrical coefficients (e.g.) produced by the Sphere
-and Cylinder.  Any new or current basis types could be easily added.
+only for testing the design.  I have only implemented spherical and
+cylindrical coefficients (e.g.) produced by the Sphere and Cylinder.
+Any new or current basis types could be easily added.
 
-The main elements of the design are coefficient objects and a factory
-pattern to create them.
+The main elements of the software design are coefficient objects and a
+factory pattern to create them.
 
 The base class 'Coefs' is the main coefficient object.   It implements
 the following tasks:
@@ -49,17 +49,21 @@ The HDF5 file has the following structure:
 	 is not yet implemented on the EXP side.
        + Attribute 'type': the coefficient type (currently 'Sphere' or
          'Cylinder')
-       + Attribute 'forceID': the EXP string id for the force type
-       + Parameters attributes that describe the dimensionality of the basis,
-         e.g. for the spherical basis, these are lmax, nmax, scale
-       + Dataset 'count': this is a single integer that records the number of
-         snapshots in the coefficient file.  This can be updated if/when the
-	 HDF5 file is extended (e.g. by a running EXP simulation)
-       + Group 'snapshots': all of the coefficient frames.  Each frame has a
-         Time attribute (double) and a coefficient matrix (Eigen::MatrixXcd)
+       + Attribute 'forceID': the EXP string identifier for the force type.
+       + Parameters attributes that describe the dimensionality of the basis.
+         Any number of these are allowed and should fully describe the
+	 parameters necessary to specify the basis.  For the spherical basis,
+	 these are lmax, nmax, scale and are illustrated in the schema
+	 provided at the end of this README.
+       + Dataset 'count': this is a single unsigned integer that records the
+         number of snapshots in the coefficient file.  This should be updated
+	 if/when the HDF5 file is extended (e.g. by a running EXP simulation)
+       + Group 'snapshots': contains all of the coefficient frames.  Each
+         frame has a 'Time' attribute (double type) and a coefficient matrix
+	 (Eigen::MatrixXcd type)
 
-And example of the hierarchical structure of the HDF5 file for a
-spherical basis is:
+An example schema for the hierarchical structure of the HDF5 file, 'file.h5'
+say, for a spherical basis is:
 
 HDF5 "file.h5" {
 FILE_CONTENTS {
