@@ -1,16 +1,20 @@
 #ifndef _H5COEFS_H
-#define _H5COEFS5_H
+#define _H5COEFS_H
 
+// Needed by member functions for writing parameters and stanzas
 #include <highfive/H5File.hpp>
 
+// The EXP native coefficient classes
 #include <Coefs.H>
 
+// The wrapper class
 class CoefClient;
 
 /** 
     Abstract class for any time of coefficient database
 
-    Can read and write EXP native and EXP H5 coefficient formats
+    Can read and write EXP native and EXP H5 coefficient formats.  Provides
+    access to coefficients by time.  
  */
 class Coefs
 {
@@ -19,7 +23,7 @@ class Coefs
 protected:
 
   //! Blank instance
-  Eigen::MatrixXcd blank;
+  Eigen::MatrixXcd mat;
 
   //! Coefficient type id
   std::string coefType;
@@ -45,14 +49,16 @@ protected:
   //! Round time key
   inline double roundTime(double time)
   {
-    unsigned T = floor(time*1.0e8);
-    return 1.0e-08*T;
+    const double p10 = 1.0e-08;	// 8 signficant figures in coefficient map
+    unsigned T = floor(time/p10);
+    return p10*T;
   }
 
 public:
 
   //! Constructor
-  Coefs(std::string coefType, bool verbose) : coefType(coefType), verbose(verbose) {}
+  Coefs(std::string coefType, bool verbose) :
+    coefType(coefType), verbose(verbose) {}
 
   //! Get coefficient matrix at given time
   virtual Eigen::MatrixXcd& operator()(double time) = 0;
@@ -166,7 +172,12 @@ public:
 
 };
 
-/** Factory, wrapper class for Coef */
+/** 
+    Factory and wrapper class for Coef
+
+    Provides the API of Coef while hiding the details of the instance.
+    The type of coefficient is deduced from the coefficient file.
+ */
 class CoefClient
 {
 private:
@@ -177,15 +188,18 @@ private:
 public:
 
   //! Constructor
+  //! @param file can be either a native or HDF5 coefficient file
   CoefClient(const std::string& file);
 
-  //! Write to H5
+  //! Write a new HDF5 coefficient file
   void WriteH5Coefs(const std::string& file)  { coefs->WriteH5Coefs(file);  }
 
-  //! Extend H5file
+  //! Extend a current HDF5 coefficient file with additional stanzas
+  //! from the native file This is currently only a test for the
+  //! 'extend' concept and probably needs modification for production.
   void ExtendH5Coefs(const std::string& file) { coefs->ExtendH5Coefs(file); }
 
-  //! Instance
+  //! Get the underlying Coefs instance
   Coefs* get() { return coefs.get(); }
 
   //! Get list of times
@@ -197,7 +211,6 @@ public:
 
   //! Get coefficient matrix at given time
   Eigen::MatrixXcd& operator()(double time) { return (*coefs)(time); }
-
 
 };
 

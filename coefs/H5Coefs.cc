@@ -80,35 +80,32 @@ Eigen::MatrixXcd& SphH5::operator()(double time)
   auto it = coefs.find(roundTime(time));
   if (it == coefs.end()) {
 
-    blank.resize(0, 0);
+    mat.resize(0, 0);
 
   } else {
 
     auto C = it->second;
 
     int lmax = C->header.Lmax, nmax= C->header.nmax;
-    blank.resize((lmax+1)*(lmax+2)/2, nmax);
+    mat.resize((lmax+1)*(lmax+2)/2, nmax);
 
     for (int l=0, I=0, L=0; l<=C->header.Lmax; l++) {
-
       for (int m=0; m<=l; m++) {
-      
 	if (m) {
 	  for (int n=0; n<C->header.nmax; n++)
-	    blank(L, n) = {C->coefs(I, n), C->coefs(I+1, n)};
+	    mat(L, n) = {C->coefs(I, n), C->coefs(I+1, n)};
 	  I += 2;
 	} else {
 	  for (int n=0; n<C->header.nmax; n++)
-	    blank(L, n) = {C->coefs(I, n), 0.0};
+	    mat(L, n) = {C->coefs(I, n), 0.0};
 	  I += 1;
 	}
 	L += 1;
-	
       }
     }
   }
 
-  return blank;
+  return mat;
 }
 
 void SphH5::readNativeCoefs(const std::string& file)
@@ -339,28 +336,26 @@ Eigen::MatrixXcd& CylH5::operator()(double time)
 
   if (it == coefs.end()) {
 
-    blank.resize(0, 0);
+    mat.resize(0, 0);
 
   } else {
     
     auto C = it->second;
-    blank.resize(C->mmax+1, C->nmax);
+    mat.resize(C->mmax+1, C->nmax);
 
     for (int m=0; m<=C->mmax; m++) {
-
       if (m) {
 	for (int n=0; n<C->nmax; n++)
-	  blank(m, n) = {C->cos_c[m][n], C->sin_c[m][n]};
+	  mat(m, n) = {C->cos_c[m][n], C->sin_c[m][n]};
       } else {
 	for (int n=0; n<C->nmax; n++)
-	  blank(m, n) = {C->cos_c[m][n], 0.0};
+	  mat(m, n) = {C->cos_c[m][n], 0.0};
       }
-
     }
 
   }
 
-  return blank;
+  return mat;
 }
 
 void CylH5::readNativeCoefs(const std::string& file)
