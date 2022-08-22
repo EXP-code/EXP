@@ -31,7 +31,7 @@ the main members of the coefficient object (hence the name
 cylindrical coefficients) is chosen based on the coefficient type
 found in the EXP native or HDF5 file.
 
-Currently, there are two example and test utilities:
+Currently, there are three example and test utilities:
    * 'nativetoh5': this utility reads a native EXP coefficient file and
      produces an an HDF5 file.  The extensibility can be tested with the
      '-e/--extend' option which appends the stanzas in the native file to the
@@ -41,6 +41,10 @@ Currently, there are two example and test utilities:
      file produced by nativetoh5 and compares every value to verify that their
      identity. This routine checks the attributes with the native header
      values as well as the values of the coefficients themselves.
+   * 'viewcoefs': reads an EXP coefficient file, native of HDF5, displays
+     the available snapshot times, and prints the coefficient matrix at
+     user selected times.  This is a check of the coefficient access operator.
+
 
 The HDF5 file has the following structure:
    * The top-level group has the following attributes and data:

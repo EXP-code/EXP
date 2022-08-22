@@ -71,8 +71,44 @@ SphH5::SphH5(HighFive::File& file, bool verbose) : Coefs("Sphere", verbose)
       }
     }
 
-    coefs[Time] = coef;
+    coefs[roundTime(Time)] = coef;
   }
+}
+
+Eigen::MatrixXcd& SphH5::operator()(double time)
+{
+  auto it = coefs.find(roundTime(time));
+  if (it == coefs.end()) {
+
+    blank.resize(0, 0);
+
+  } else {
+
+    auto C = it->second;
+
+    int lmax = C->header.Lmax, nmax= C->header.nmax;
+    blank.resize((lmax+1)*(lmax+2)/2, nmax);
+
+    for (int l=0, I=0, L=0; l<=C->header.Lmax; l++) {
+
+      for (int m=0; m<=l; m++) {
+      
+	if (m) {
+	  for (int n=0; n<C->header.nmax; n++)
+	    blank(L, n) = {C->coefs(I, n), C->coefs(I+1, n)};
+	  I += 2;
+	} else {
+	  for (int n=0; n<C->header.nmax; n++)
+	    blank(L, n) = {C->coefs(I, n), 0.0};
+	  I += 1;
+	}
+	L += 1;
+	
+      }
+    }
+  }
+
+  return blank;
 }
 
 void SphH5::readNativeCoefs(const std::string& file)
@@ -88,7 +124,7 @@ void SphH5::readNativeCoefs(const std::string& file)
       SphCoefsPtr c = std::make_shared<SphCoefs>();
       if (not c->read(in, verbose)) break;
       
-      coefs[c->header.tnow] = c;
+      coefs[roundTime(c->header.tnow)] = c;
     }
     catch(std::runtime_error& error) {
       std::cout << "SphH5 ERROR (runtime): " << error.what() << std::endl;
@@ -293,8 +329,38 @@ CylH5::CylH5(HighFive::File& file, bool verbose) : Coefs("Cylinder", verbose)
       }
     }
     
-    coefs[Time] = coef;
+    coefs[roundTime(Time)] = coef;
   }
+}
+
+Eigen::MatrixXcd& CylH5::operator()(double time)
+{
+  auto it = coefs.find(roundTime(time));
+
+  if (it == coefs.end()) {
+
+    blank.resize(0, 0);
+
+  } else {
+    
+    auto C = it->second;
+    blank.resize(C->mmax+1, C->nmax);
+
+    for (int m=0; m<=C->mmax; m++) {
+
+      if (m) {
+	for (int n=0; n<C->nmax; n++)
+	  blank(m, n) = {C->cos_c[m][n], C->sin_c[m][n]};
+      } else {
+	for (int n=0; n<C->nmax; n++)
+	  blank(m, n) = {C->cos_c[m][n], 0.0};
+      }
+
+    }
+
+  }
+
+  return blank;
 }
 
 void CylH5::readNativeCoefs(const std::string& file)
@@ -309,7 +375,7 @@ void CylH5::readNativeCoefs(const std::string& file)
     CylCoefsPtr c = std::make_shared<CylCoefs>();
     if (not c->read(in, verbose)) break;
 
-    coefs[c->time] = c;
+    coefs[roundTime(c->time)] = c;
   }
 }
   
@@ -401,7 +467,12 @@ CoefClient::CoefClient(const std::string& file)
   // First attempt to read the file as H5
   //
   try {
-    HighFive::SilenceHDF5 quiet; // Silence the HDF5 error stack
+    // Silence the HDF5 error stack
+    //
+    HighFive::SilenceHDF5 quiet;
+
+    // Try opening the file as HDF5
+    //
     HighFive::File h5file(file, HighFive::File::ReadOnly);
     
     // Get the coefficient file type

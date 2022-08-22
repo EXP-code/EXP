@@ -1,4 +1,4 @@
-set(bin_PROGRAMS nativetoh5 h5compare)
+set(bin_PROGRAMS nativetoh5 h5compare viewcoefs)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG yaml-cpp
   exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
@@ -24,6 +24,7 @@ endif()
 
 add_executable(nativetoh5 coefstoh5.cc H5Coefs.cc)
 add_executable(h5compare  h5compare.cc H5Coefs.cc)
+add_executable(viewcoefs  viewcoefs.cc H5Coefs.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})

@@ -15,7 +15,7 @@ int main(int argc, char **argv)
   //
   // Parse Command line
   //
-  const std::string overview = "Convert native coefficient file to new HDF5 format";
+  const std::string overview = "View coeffcients from a particular time to test the API";
 
   cxxopts::Options options(argv[0], overview);
 
@@ -47,10 +47,32 @@ int main(int argc, char **argv)
 
   CoefClient coefs(infile);
 
-  if (vm.count("extend"))
-    coefs.ExtendH5Coefs(prefix);
-  else
-    coefs.WriteH5Coefs(prefix);
+  // Print the available times
+  //
+  unsigned cnt = 0;
+  for (auto v : coefs.Times()) {
+    std::cout << std::setw(16) << v;
+    cnt++;
+    if (cnt % 5 == 0) std::cout << std::endl;
+  }
+  if (cnt % 5) std::cout << std::endl;
+
+  // Loop and print coefficients
+  //
+  while (1) {
+    std::cout << "Time? ";
+
+    double time;
+    std::cin  >> time;
+
+    auto mat = coefs(time);
+    if (mat.rows()) {
+      std::cout << std::endl << mat << std::endl << std::endl;
+    } else {
+      break;
+    }
+
+  }
 
   return(0);
 }
