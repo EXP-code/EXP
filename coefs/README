@@ -3,21 +3,31 @@ EXP H5 coefficient utilties
 ---------------------------
 
 This describes an extensible HDF5 format for EXP coefficients and
-utility classes to manipulate them.  At this point, spherical and
-cylindrical coefficients (e.g.) produced by the Sphere and Cylinder
-are support.  Any new or current basis types could be similarly
-supported.
+provides a few utility classes to manipulate them.  So far these are
+only for testing the design.  At this point, spherical and cylindrical
+coefficients (e.g.) produced by the Sphere and Cylinder are support.
+Any new or current basis types could be similarly supported.
 
-The base class 'Coefs' is a coefficient object.   It implements the
-following main tasks:
+The main elements of the design are coefficient objects and a factory
+pattern to create them.
+
+The base class 'Coefs' is the main coefficient object.   It implements
+the following tasks:
    * to read the native EXP binary format into an internal database
    * to read the HDF5 EXP format into an internal database
    * to allow clients access to the internal database
    * to allow the HDF5 format to be written and extended
 
+At this point, the internal database is a std::map (i.e. a dictionary)
+of EXP native coefficient structures.  In the end, I propose making
+these mirror the same coefficient object structure as these test
+classes. TBD.
+
 The design provides a client class 'CoefClient' which implements a
 factory pattern for reading and writing coefficient objects of any
-allowed type.  The 'derived' object type (e.g. either spherical or
+allowed type.  This factory class also provides wrapper functions for
+the mai members of the coefficient object (hence the name
+'CoefClient').  The 'derived' object type (e.g. either spherical or
 cylindrical coefficients) is chosen based on the coefficient type
 found in the EXP native or HDF5 file.
 
