@@ -22,7 +22,7 @@ int main(int argc, char **argv)
   options.add_options()
     ("h,help", "produce this help message")
     ("v, verbose", "verbose output")
-    ("e, extend", "extend coefficient fileb")
+    ("e, extend", "extend coefficient file rather than write a new file")
     ("i,infile", "input coefficient file",
      cxxopts::value<std::string>(infile)->default_value("coef.dat"))
     ("p,prefix", "prefix for h5 coefficient file",
