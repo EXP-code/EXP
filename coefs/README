@@ -1,0 +1,77 @@
+---------------------------
+EXP H5 coefficient utilties
+---------------------------
+
+This describes an extensible HDF5 format for EXP coefficients and
+utility classes to manipulate them.  At this point, spherical and
+cylindrical coefficients (e.g.) produced by the Sphere and Cylinder
+are support.  Any new or current basis types could be similarly
+supported.
+
+The base class 'Coefs' is a coefficient object.   It implements the
+following main tasks:
+   * to read the native EXP binary format into an internal database
+   * to read the HDF5 EXP format into an internal database
+   * to allow clients access to the internal database
+   * to allow the HDF5 format to be written and extended
+
+The design provides a client class 'CoefClient' which implements a
+factory pattern for reading and writing coefficient objects of any
+allowed type.  The 'derived' object type (e.g. either spherical or
+cylindrical coefficients) is chosen based on the coefficient type
+found in the EXP native or HDF5 file.
+
+Currently, there are two example and test utilities:
+   * 'nativetoh5': this utility reads a native EXP coefficient file and
+     produces an an HDF5 file
+   * 'h5compare': this reads a native EXP coefficient file and HDF5 coefficient
+     file produced by nativetoh5 and compares every value to verify that their
+     identity
+
+The HDF5 file has the following structure:
+   * The top-level group has the following attributes and data:
+       + Attribute 'config': this will contain the YAML parameters needed
+         to instantiate the EXP basis that generated the coefficients.  This
+	 is not yetimplemented on the EXP side.
+       + Attribute 'type': the coefficient type (currently 'Sphere' or
+         'Cylinder')
+       + Attribue 'forceID': the EXP string id for the force type
+       + Parameters attributes that describe the dimensionality of the basis,
+         e.g. for the spherical basis, these are lmax, nmax, scale
+       + Dataset 'count': this is a single integer that records the number of
+         snapshots in the coefficient file.  This can be updated if/when the
+	 HDF5 file is extended (e.g. by a running EXP simulation)
+       + Group 'snapshots': all of the coefficient frames.  Each frame has a
+         Time attribute (double) and a coefficient matrix (Eigen::MatrixXcd)
+
+And example of the hierarchical structure of the HDF5 file for a
+spherical basis is:
+
+HDF5 "file.h5" {
+FILE_CONTENTS {
+ group      /
+ attribute  /config
+ attribute  /forceID
+ attribute  /lmax
+ attribute  /nmax
+ attribute  /scale
+ attribute  /type
+ dataset    /count
+ group      /snapshots
+ group      /snapshots/00000000
+ attribute  /snapshots/00000000/Time
+ dataset    /snapshots/00000000/coefficients
+ group      /snapshots/00000001
+ attribute  /snapshots/00000001/Time
+ dataset    /snapshots/00000001/coefficients
+ group      /snapshots/00000002
+ attribute  /snapshots/00000002/Time
+ dataset    /snapshots/00000002/coefficients
+ .
+ .
+ .
+ group      /snapshots/000count
+ attribute  /snapshots/000count/Time
+ dataset    /snapshots/000count/coefficients
+ }
+}
