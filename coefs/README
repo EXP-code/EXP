@@ -1,12 +1,12 @@
----------------------------
-EXP H5 coefficient utilties
----------------------------
+----------------------------
+EXP H5 coefficient utilities
+----------------------------
 
 This describes an extensible HDF5 format for EXP coefficients and
 provides a few utility classes to manipulate them.  So far these are
-only for testing the design.  At this point, spherical and cylindrical
-coefficients (e.g.) produced by the Sphere and Cylinder are support.
-Any new or current basis types could be similarly supported.
+only for testing the design.  At this point, I have only implemented
+spherical and cylindrical coefficients (e.g.) produced by the Sphere
+and Cylinder.  Any new or current basis types could be easily added.
 
 The main elements of the design are coefficient objects and a factory
 pattern to create them.
@@ -26,26 +26,30 @@ classes. TBD.
 The design provides a client class 'CoefClient' which implements a
 factory pattern for reading and writing coefficient objects of any
 allowed type.  This factory class also provides wrapper functions for
-the mai members of the coefficient object (hence the name
+the main members of the coefficient object (hence the name
 'CoefClient').  The 'derived' object type (e.g. either spherical or
 cylindrical coefficients) is chosen based on the coefficient type
 found in the EXP native or HDF5 file.
 
 Currently, there are two example and test utilities:
    * 'nativetoh5': this utility reads a native EXP coefficient file and
-     produces an an HDF5 file
+     produces an an HDF5 file.  The extensibility can be tested with the
+     '-e/--extend' option which appends the stanzas in the native file to the
+     an existing HDF5 file.  This is only for testing and has no clear
+     practical value at this point.
    * 'h5compare': this reads a native EXP coefficient file and HDF5 coefficient
      file produced by nativetoh5 and compares every value to verify that their
-     identity
+     identity. This routine checks the attributes with the native header
+     values as well as the values of the coefficients themselves.
 
 The HDF5 file has the following structure:
    * The top-level group has the following attributes and data:
        + Attribute 'config': this will contain the YAML parameters needed
          to instantiate the EXP basis that generated the coefficients.  This
-	 is not yetimplemented on the EXP side.
+	 is not yet implemented on the EXP side.
        + Attribute 'type': the coefficient type (currently 'Sphere' or
          'Cylinder')
-       + Attribue 'forceID': the EXP string id for the force type
+       + Attribute 'forceID': the EXP string id for the force type
        + Parameters attributes that describe the dimensionality of the basis,
          e.g. for the spherical basis, these are lmax, nmax, scale
        + Dataset 'count': this is a single integer that records the number of
