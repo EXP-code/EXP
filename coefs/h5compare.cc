@@ -50,7 +50,7 @@ int main(int argc, char **argv)
   // Is data identical?
   //
   if (coefs0.CompareStanzas(coefs1))
-    std::cout << "Success" << std::endl;
+    std::cout << "SUCCESS" << std::endl;
   else
     std::cout << "FAILURE" << std::endl;
 

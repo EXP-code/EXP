@@ -22,12 +22,12 @@ SphH5::SphH5(HighFive::File& file, bool verbose) : Coefs("Sphere", verbose)
   int lmax, nmax;
   double scale;
 
-  file.getAttribute("lmax").read(lmax);
-  file.getAttribute("nmax").read(nmax);
-  file.getAttribute("scale").read(scale);
-  file.getAttribute("config").read(config);
-  file.getDataSet("count").read(count);
-  file.getDataSet("forceID").read(forceID);
+  file.getAttribute("lmax"   ).read(lmax   );
+  file.getAttribute("nmax"   ).read(nmax   );
+  file.getAttribute("scale"  ).read(scale  );
+  file.getAttribute("config" ).read(config );
+  file.getDataSet  ("count"  ).read(count  );
+  file.getAttribute("forceID").read(forceID);
 
   // Open the snapshot group
   //
@@ -110,21 +110,10 @@ void SphH5::WriteH5Params(HighFive::File& file)
 
   std::string forceID(coefs.begin()->second->header.id);
 
-  HighFive::Attribute LMAX =
-    file.createAttribute<int>("lmax", HighFive::DataSpace::From(lmax));
-  LMAX.write(lmax);
-    
-  HighFive::Attribute NMAX =
-    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax));
-  NMAX.write(nmax);
-
-  HighFive::Attribute SCALE =
-    file.createAttribute<double>("scale", HighFive::DataSpace::From(scale));
-  SCALE.write(scale);
-
-  HighFive::Attribute ID =
-    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID));
-  ID.write(forceID);
+  file.createAttribute<int>("lmax", HighFive::DataSpace::From(lmax)).write(lmax);
+  file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+  file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
+  file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
 }
 
 unsigned SphH5::WriteH5Times(HighFive::Group& snaps, unsigned count)
@@ -141,9 +130,7 @@ unsigned SphH5::WriteH5Times(HighFive::Group& snaps, unsigned count)
 
     // Add a time attribute
     //
-    HighFive::Attribute t = stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->header.tnow));
-
-    t.write(C->header.tnow);
+    stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->header.tnow)).write(C->header.tnow);
 
     // Index counters
     //
@@ -332,15 +319,8 @@ void CylH5::WriteH5Params(HighFive::File& file)
   int mmax = coefs.begin()->second->mmax;
   int nmax = coefs.begin()->second->nmax;
 
-  HighFive::Attribute MMAX =
-    file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax));
-
-  MMAX.write(mmax);
-    
-  HighFive::Attribute NMAX =
-    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax));
-
-  NMAX.write(nmax);
+  file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
+  file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
 }
 
 unsigned CylH5::WriteH5Times(HighFive::Group& snaps, unsigned count)
@@ -352,8 +332,7 @@ unsigned CylH5::WriteH5Times(HighFive::Group& snaps, unsigned count)
     stim << std::setw(8) << std::setfill('0') << std::right << count++;
     HighFive::Group stanza = snaps.createGroup(stim.str());
 
-    HighFive::Attribute t = stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time));
-    t.write(C->time);
+    stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time)).write(C->time);
 
     Eigen::MatrixXcd out(C->mmax+1, C->nmax);
 
@@ -422,6 +401,7 @@ CoefClient::CoefClient(const std::string& file)
   // First attempt to read the file as H5
   //
   try {
+    HighFive::SilenceHDF5 quiet; // Silence the HDF5 error stack
     HighFive::File h5file(file, HighFive::File::ReadOnly);
     
     // Get the coefficient file type
@@ -447,7 +427,8 @@ CoefClient::CoefClient(const std::string& file)
     return;
 
   } catch (HighFive::Exception& err) {
-    std::cerr << err.what() << std::endl;
+    std::cerr << "**** Error opening H5 file, will try other types ****" << std::endl;
+    // std::cerr << err.what() << std::endl;
   }
 
   // Open file and read magic number
@@ -533,16 +514,12 @@ void Coefs::WriteH5Coefs(const std::string& prefix)
 
     // We write the coefficient file type
     //
-    HighFive::Attribute type = file.createAttribute<std::string>("type", HighFive::DataSpace::From(coefType));
-
-    type.write(coefType);
+    file.createAttribute<std::string>("type", HighFive::DataSpace::From(coefType)).write(coefType);
     
     // Stash the basis configuration (this is not yet implemented in EXP)
     //
     std::string config(getYAML());
-    HighFive::Attribute yaml = file.createAttribute<std::string>("config", HighFive::DataSpace::From(config));
-
-    yaml.write(config);
+    file.createAttribute<std::string>("config", HighFive::DataSpace::From(config)).write(config);
 
     // Write the specific parameters
     //
