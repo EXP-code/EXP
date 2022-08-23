@@ -4,7 +4,16 @@ bool BasicBasis::mpi = false;
 
 BasicBasis::BasicBasis(const YAML::Node& CONF)
 {
+  // Copy the YAML config
+  //
   node = CONF;
+
+
+  // Check whether MPI is initialized
+  //
+  int flag;
+  MPI_Initialized(&flag);
+  if (flag) mpi = true;
 
   // Parameters for force
   //
@@ -23,9 +32,9 @@ BasicBasis::BasicBasis(const YAML::Node& CONF)
 			   << node                 << std::endl
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(234);
+    throw std::runtime_error("BasicBasis: error parsing YAML");
   }
+
 }
 
 SphericalSL::SphericalSL(const YAML::Node& CONF) : BasicBasis(CONF)
@@ -33,7 +42,6 @@ SphericalSL::SphericalSL(const YAML::Node& CONF) : BasicBasis(CONF)
   // Assign some defaults
   //
   cmap       = 1;
-  mpi        = false;
   lmax       = 6;
   nmax       = 18;
   model_file = "SLGridSph.model";
@@ -64,11 +72,6 @@ SphericalSL::SphericalSL(const YAML::Node& CONF) : BasicBasis(CONF)
     else
       numr = 800;
 
-    if (conf["mpi"])
-      mpi = conf["mpi"].as<bool>();
-    else
-      mpi = false;
-
     N1 = 0;
     N2 = std::numeric_limits<int>::max();
     NO_L0 = NO_L1 = EVEN_L = EVEN_M = M0_only = false;
@@ -89,8 +92,7 @@ SphericalSL::SphericalSL(const YAML::Node& CONF) : BasicBasis(CONF)
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(235);
+    throw std::runtime_error("SphericalSL: error parsing YAML");
   }
 
   SLGridSph::mpi = mpi ? 1 : 0;
@@ -544,8 +546,7 @@ CylindricalSL::CylindricalSL(const YAML::Node& CONF) : BasicBasis(CONF)
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(236);
+    throw std::runtime_error("CylindricalSL: error parsing YAML");
   }
 
   // Enforce sane values for EOF integration
@@ -639,20 +640,25 @@ BasisFactory::BasisFactory(const YAML::Node& conf)
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(233);
+    throw std::runtime_error("BasisFactory: error parsing YAML");
   }
 
-  if ( !name.compare("sphereSL") ) {
-    basis = std::make_shared<SphericalSL>(conf);
+  try {
+    if ( !name.compare("sphereSL") ) {
+      basis = std::make_shared<SphericalSL>(conf);
+    }
+    else if ( !name.compare("cylinder") ) {
+      basis = std::make_shared<CylindricalSL>(conf);
+    }
+    else {
+      std::string msg("I don't know about the basis named: ");
+      msg += name;
+      throw std::runtime_error(msg);
+    }
   }
-  else if ( !name.compare("cylinder") ) {
-    basis = std::make_shared<CylindricalSL>(conf);
-  }
-  else {
-    std::string msg("I don't know about the basis named: ");
-    msg += name;
-    throw std::runtime_error(msg);
+  catch (std::exception& e) {
+    std::cout << "Error in BasisFactory constructor: " << e.what() << std::endl;
+    throw;			// Rethrow the exception?
   }
 
 }
