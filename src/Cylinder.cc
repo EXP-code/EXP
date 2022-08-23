@@ -1350,7 +1350,7 @@ void Cylinder::determine_fields_at_point
  double *tdens, double *tpotl, 
  double *tpotX, double *tpotY, double *tpotZ)
 {
-  double R   = sqrt(x*x + y*y + z*z);
+  double R   = sqrt(x*x + y*y);
   double phi = atan2(y, x);
   double cph = cos(phi), sph = sin(phi);
 
