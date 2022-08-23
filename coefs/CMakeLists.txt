@@ -24,7 +24,8 @@ endif()
 
 # shared library
 
-set(expcoef_SOURCES BasisFactory.cc H5Coefs.cc)
+set(expcoef_SOURCES BasisFactory.cc CoefFactory.cc CoefsE.cc
+  FieldGenerator.cc)
 add_library(expcoef ${expcoef_SOURCES})
 set_target_properties(expcoef PROPERTIES OUTPUT_NAME expcoef)
 target_include_directories(expcoef PUBLIC ${common_INCLUDE})

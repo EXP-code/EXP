@@ -5,7 +5,7 @@
 
 #include <cxxopts.H>
 #include <libvars.H>
-#include <H5Coefs.H>
+#include <CoefFactory.H>
 
 int main(int argc, char **argv)
 {

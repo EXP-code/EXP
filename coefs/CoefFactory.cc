@@ -13,7 +13,7 @@
 #include <highfive/H5DataSpace.hpp>
 #include <highfive/H5Attribute.hpp>
 
-#include <H5Coefs.H>
+#include <CoefFactory.H>
 
 SphH5::SphH5(HighFive::File& file, bool verbose) : Coefs("Sphere", verbose)
 {

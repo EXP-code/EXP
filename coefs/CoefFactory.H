@@ -1,8 +1,11 @@
-#ifndef _H5COEFS_H
-#define _H5COEFS_H
+#ifndef _COEF_FACTORY_H
+#define _COEF_FACTORY_H
 
 // Needed by member functions for writing parameters and stanzas
 #include <highfive/H5File.hpp>
+
+#include <Eigen/Eigen>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 // The EXP native coefficient classes
 #include <Coefs.H>
