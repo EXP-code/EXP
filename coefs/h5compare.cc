@@ -44,8 +44,8 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  CoefClient coefs0(infile);
-  CoefClient coefs1(prefix + ".h5");
+  CoefFactory coefs0(infile);
+  CoefFactory coefs1(prefix + ".h5");
 
   // Is data identical?
   //

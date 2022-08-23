@@ -23,12 +23,12 @@ of EXP native coefficient structures.  In the end, I propose making
 these mirror the same coefficient object structure as these test
 classes. TBD.
 
-The design provides a client class 'CoefClient' which implements a
-factory pattern for reading and writing coefficient objects of any
-allowed type.  This factory class also provides wrapper functions for
-the main members of the coefficient object (hence the name
-'CoefClient').  The 'derived' object type (e.g. either spherical or
-cylindrical coefficients) is chosen based on the coefficient type
+The design provides a factory, wrapper class 'CoefFactory' which
+implements a factory pattern for reading and writing coefficient
+objects of any allowed type.  This factory class also provides wrapper
+functions for the main members of the coefficient object (hence the
+name 'CoefFactory').  The 'derived' object type (e.g. either spherical
+or cylindrical coefficients) is chosen based on the coefficient type
 found in the EXP native or HDF5 file.
 
 Currently, there are three example and test utilities:

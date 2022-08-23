@@ -1,18 +1,20 @@
-#ifndef _BasisClient_H
-#define _BasisClient_H
+#ifndef _BasisFactory_H
+#define _BasisFactory_H
 
-#include <SLGridMP2.H>
-#include <localmpi.H>
 #include <Eigen/Eigen>
 #include <yaml-cpp/yaml.h>
+
+#include <SLGridMP2.H>
+#include <EmpCylSL.H>
+#include <localmpi.H>
 
 //! Defines a basis-based potential and acceleration class
 class BasicBasis
 {
 protected:
 
-  //! Contains parameter database
-  const YAML::Node& conf;
+  //! Contains contructor and BFE parameter database
+  YAML::Node node, conf;
 
   /** @name Utility functions */
   // @{
@@ -31,10 +33,23 @@ protected:
   //! Total mass on grid
   double totalMass;
 
+  void all_eval(double r, double costh, double phi,
+		double& den0, double& den1,
+		double& pot0, double& pot1,
+		double& potr, double& pott, double& potp);
+
+  //! Name of the derived class
+  std::string name;
+
 public:
+
+  //! Using MPI
+  static bool mpi;
 
   //! Constructor
   BasicBasis(const YAML::Node& conf);
+
+  virtual ~BasicBasis(void) {}
 
   //! Get potential, density and forces at a point
   virtual void getFields
@@ -65,8 +80,13 @@ class SphericalSL : public BasicBasis
 private:
 
   std::shared_ptr<SLGridSph> sl;
-  int lmax, nmax;
+  std::shared_ptr<SphericalModelTable> mod;
+
+  std::string model_file;
+  int lmax, nmax, cmap, numr;
   double rmin, rmax;
+
+  bool NO_L0, NO_L1, EVEN_L, EVEN_M, M0_only;
 
   Eigen::MatrixXd potd, dpot, dpt2, dend;
   Eigen::MatrixXd legs, dlegs, d2legs;
@@ -75,9 +95,8 @@ private:
   Eigen::MatrixXd factorial;
   Eigen::MatrixXd expcoef;
   double rscl;
+  int N1, N2;
   int used;
-
-  bool compute_covar;
 
   using matT = std::vector<Eigen::MatrixXd>;
   using vecT = std::vector<Eigen::VectorXd>;
@@ -94,29 +113,23 @@ private:
 
   Eigen::VectorXd work;
 
+  //! Evaluate basis in spherical coordinates
+  void all_eval(double r, double costh, double phi,
+		double& den0, double& den1,
+		double& pot0, double& pot1,
+		double& potr, double& pott, double& potp);
+
   //! For coefficient writing
   typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
   EigenColMajor;
 
 public:
 
-  //! Number of eigenfunctions for each subspace for PNG figure
-  static int NEV;
-
-  //! Number of radial points in table (default: 800)
-  static int NUMR;
-
-  //! Use MPI?  (default: false)
-  static bool mpi;
-
-  //! Hall exponent (default: 1)
-  static double HEXP;
-
   //! Constructor
   SphericalSL(const YAML::Node& conf);
   
   //! Destructor
-  ~SphericalSL(void);
+  virtual ~SphericalSL(void) {}
   
   //! Prescaling factor
   void set_scale(const double scl) { rscl = scl; }
@@ -154,8 +167,12 @@ class CylindricalSL : public BasicBasis
 private:
 
   std::shared_ptr<EmpCylSL> sl;
-  int lmax, nmax;
-  double rmin, rmax;
+  int lmax, mmax, nmax, mlim;
+  int ncylorder, ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
+  int rnum, pnum, tnum, ashift;
+  double rmin, rmax, rcylmin, rcylmax;
+  double acyl, hcyl, hexp;
+  bool expcond, logarithmic, density, EVEN_M;
 
   Eigen::MatrixXd potd, dpot, dpt2, dend;
   Eigen::MatrixXd legs, dlegs, d2legs;
@@ -166,29 +183,13 @@ private:
   double rscl;
   int used;
 
-  bool compute_covar;
+  bool eof_over, try_cache;
+  std::string eof_file;
 
   using matT = std::vector<Eigen::MatrixXd>;
   using vecT = std::vector<Eigen::VectorXd>;
 
-  matT covar;
-  vecT mean;
-  vecT svar;
-  matT uvec;
-  double totalMass;
-
-  std::vector<vecT> meanB;
-  std::vector<double> massB;
-  int npart, curbin;
-
-  double minSNR, maxSNR;
-
   Eigen::VectorXd work;
-
-  void bomb(char *s);
-
-  //! Coefficient magic number
-  const unsigned int cmagic = 0xc0a57a2;
 
   //! For coefficient writing
   typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
@@ -196,23 +197,11 @@ private:
 
 public:
 
-  //! Number of eigenfunctions for each subspace for PNG figure
-  static int NEV;
-
-  //! Number of radial points in table (default: 800)
-  static int NUMR;
-
-  //! Use MPI?  (default: false)
-  static bool mpi;
-
-  //! Hall exponent (default: 1)
-  static double HEXP;
-
   //! Constructor
   CylindricalSL(const YAML::Node& conf);
   
   //! Destructor
-  ~CylindricalSL(void);
+  virtual ~CylindricalSL(void) {}
   
   //! Prescaling factor
   void set_scale(const double scl) { rscl = scl; }
@@ -241,16 +230,19 @@ public:
 };
 
 //! A factory class for bases
-class BasisClient
+class BasisFactory
 {
 protected:
   //! The wrapped base class instance
   std::shared_ptr<BasicBasis> basis;
 
+  //! The derived class name
+  std::string name;
+
 public:
 
   //! Factory constructor
-  BasisClient(const YAML::Node& conf);
+  BasisFactory(const YAML::Node& conf);
 
   //! Get potential, density and forces at a point
   void getFields
@@ -266,7 +258,7 @@ public:
   //! Accumulate new coefficients
   void accumulate(double x, double y, double z, double mass)
   {
-    coefs->accumulate(x, y, z, mass);
+    basis->accumulate(x, y, z, mass);
   }
 
   //! Get mass on grid
@@ -274,6 +266,6 @@ public:
 
 };
 
-#endif // _BasisClient_H
+#endif // _BasisFactory_H
 
 

@@ -457,7 +457,7 @@ void CylH5::dump(int mmin, int mmax, int nmin, int nmax)
 
 }
 
-CoefClient::CoefClient(const std::string& file)
+CoefFactory::CoefFactory(const std::string& file)
 {
   // First attempt to read the file as H5
   //
@@ -482,7 +482,7 @@ CoefClient::CoefClient(const std::string& file)
       } else if (Type.compare("Cylinder")==0) {
 	coefs = std::make_shared<CylH5>(h5file);
       } else {
-	throw std::runtime_error("CoefClient: unknown H5 coefficient file type");
+	throw std::runtime_error("CoefFactory: unknown H5 coefficient file type");
       }
     } catch (HighFive::Exception& err) {
       std::cerr << "**** Error reading H5 file ****" << std::endl;
@@ -516,7 +516,7 @@ CoefClient::CoefClient(const std::string& file)
   } else if (tmagic==cyl_magic) {
     coefs = std::make_shared<CylH5>();
   } else {
-    throw std::runtime_error("CoefClient: unknown native coefficient file type");
+    throw std::runtime_error("CoefFactory: unknown native coefficient file type");
   }
 
   coefs->readNativeCoefs(file);

@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  CoefClient coefs(infile);
+  CoefFactory coefs(infile);
 
   // Print the available times
   //

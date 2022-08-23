@@ -8,7 +8,7 @@
 #include <Coefs.H>
 
 // The wrapper class
-class CoefClient;
+class CoefFactory;
 
 /** 
     Abstract class for any time of coefficient database
@@ -18,7 +18,7 @@ class CoefClient;
  */
 class Coefs
 {
-  friend class CoefClient;
+  friend class CoefFactory;
 
 protected:
 
@@ -178,7 +178,7 @@ public:
     Provides the API of Coef while hiding the details of the instance.
     The type of coefficient is deduced from the coefficient file.
  */
-class CoefClient
+class CoefFactory
 {
 private:
   
@@ -189,7 +189,7 @@ public:
 
   //! Constructor
   //! @param file can be either a native or HDF5 coefficient file
-  CoefClient(const std::string& file);
+  CoefFactory(const std::string& file);
 
   //! Write a new HDF5 coefficient file
   void WriteH5Coefs(const std::string& file)  { coefs->WriteH5Coefs(file);  }
@@ -206,7 +206,7 @@ public:
   std::vector<double> Times() { return coefs->Times(); }
 
   //! Compare two coefficient collections (this is for testing only)
-  bool CompareStanzas(CoefClient& check)
+  bool CompareStanzas(CoefFactory& check)
   { return coefs->CompareStanzas(check.get()); }
 
   //! Get coefficient matrix at given time

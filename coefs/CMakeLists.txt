@@ -22,12 +22,26 @@ if(TIRPC_FOUND)
   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
 endif()
 
-add_executable(nativetoh5 coefstoh5.cc H5Coefs.cc)
-add_executable(h5compare  h5compare.cc H5Coefs.cc)
-add_executable(viewcoefs  viewcoefs.cc H5Coefs.cc)
+# shared library
+
+set(expcoef_SOURCES BasisFactory.cc H5Coefs.cc)
+add_library(expcoef ${expcoef_SOURCES})
+set_target_properties(expcoef PROPERTIES OUTPUT_NAME expcoef)
+target_include_directories(expcoef PUBLIC ${common_INCLUDE})
+target_link_libraries(expcoef PUBLIC ${common_LINKLIBS})
+
+install(TARGETS expcoef DESTINATION lib)
+
+# Test routines
+
+add_executable(nativetoh5 coefstoh5.cc)
+add_executable(h5compare  h5compare.cc)
+add_executable(viewcoefs  viewcoefs.cc)
 
 foreach(program ${bin_PROGRAMS})
-  target_link_libraries(${program} ${common_LINKLIB})
+  target_link_libraries(${program} expcoef exputil ${common_LINKLIB})
   target_include_directories(${program} PUBLIC ${common_INCLUDE})
   install(TARGETS ${program} DESTINATION bin)
 endforeach()
+
+
