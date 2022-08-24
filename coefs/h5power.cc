@@ -44,10 +44,10 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  CoefFactory coefs(infile);
+  auto coefs = Coefs::factory(infile);
 
-  auto power = coefs.Power();
-  auto times = coefs.Times();
+  auto power = coefs->Power();
+  auto times = coefs->Times();
 
   std::ofstream out(prefix + ".dat");
   if (out) {

@@ -45,12 +45,12 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  CoefFactory coefs(infile);
+  auto coefs = Coefs::factory(infile);
 
   if (vm.count("extend"))
-    coefs.ExtendH5Coefs(prefix);
+    coefs->ExtendH5Coefs(prefix);
   else
-    coefs.WriteH5Coefs(prefix);
+    coefs->WriteH5Coefs(prefix);
 
   return(0);
 }

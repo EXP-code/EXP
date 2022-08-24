@@ -628,8 +628,11 @@ void CylindricalSL::make_coefs(void)
 }
 
 
-BasisFactory::BasisFactory(const YAML::Node& conf)
+std::shared_ptr<BasicBasis> BasicBasis::factory(const YAML::Node& conf)
 {
+  std::shared_ptr<BasicBasis> basis;
+  std::string name;
+  
   // Load parameters from YAML configuration node
   try {
     name = conf["id"].as<std::string>();
@@ -661,4 +664,5 @@ BasisFactory::BasisFactory(const YAML::Node& conf)
     throw;			// Rethrow the exception?
   }
 
+  return basis;
 }

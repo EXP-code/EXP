@@ -177,11 +177,11 @@ void SphCoefs::dump(int lmin, int lmax, int nmin, int nmax)
 }
 
 
-bool SphCoefs::CompareStanzas(Coefs* check)
+bool SphCoefs::CompareStanzas(CoefPtr check)
 {
   bool ret = true;
 
-  auto other = dynamic_cast<SphCoefs*>(check);
+  auto other = dynamic_cast<SphCoefs*>(check.get());
 
   // Check that every time in this one is in the other
   for (auto v : coefs) {
@@ -223,7 +223,7 @@ bool SphCoefs::CompareStanzas(Coefs* check)
   return ret;
 }
 
-Eigen::MatrixXd& SphCoefs::getPower()
+Eigen::MatrixXd& SphCoefs::Power()
 {
   if (coefs.size()) {
 
@@ -381,7 +381,7 @@ void CylCoefs::dump(int mmin, int mmax, int nmin, int nmax)
 
 }
 
-Eigen::MatrixXd& CylCoefs::getPower()
+Eigen::MatrixXd& CylCoefs::Power()
 {
   if (coefs.size()) {
 
@@ -405,8 +405,10 @@ Eigen::MatrixXd& CylCoefs::getPower()
   return power;
 }
 
-CoefFactory::CoefFactory(const std::string& file)
+std::shared_ptr<Coefs> Coefs::factory(const std::string& file)
 {
+  std::shared_ptr<Coefs> coefs;
+
   // First attempt to read the file as H5
   //
   try {
@@ -438,7 +440,7 @@ CoefFactory::CoefFactory(const std::string& file)
       exit(-1);
     }
     
-    return;
+    return coefs;
 
   } catch (HighFive::Exception& err) {
     std::cerr << "**** Error opening H5 file, will try other types ****" << std::endl;
@@ -469,14 +471,15 @@ CoefFactory::CoefFactory(const std::string& file)
 
   coefs->readNativeCoefs(file);
 
+  return coefs;
 }
 
 
-bool CylCoefs::CompareStanzas(Coefs* check)
+bool CylCoefs::CompareStanzas(std::shared_ptr<Coefs> check)
 {
   bool ret = true;
 
-  auto other = dynamic_cast<CylCoefs*>(check);
+  auto other = dynamic_cast<CylCoefs*>(check.get());
 
   // Check that every time in this one is in the other
   for (auto v : coefs) {

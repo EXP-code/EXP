@@ -44,12 +44,12 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  CoefFactory coefs0(infile);
-  CoefFactory coefs1(prefix + ".h5");
+  auto coefs0 = Coefs::factory(infile);
+  auto coefs1 = Coefs::factory(prefix + ".h5");
 
   // Is data identical?
   //
-  if (coefs0.CompareStanzas(coefs1))
+  if (coefs0->CompareStanzas(coefs1))
     std::cout << "SUCCESS" << std::endl;
   else
     std::cout << "FAILURE" << std::endl;

@@ -10,18 +10,15 @@
 // The EXP native coefficient classes
 #include <CoefsE.H>
 
-// The wrapper class
-class CoefFactory;
-
 /** 
     Abstract class for any time of coefficient database
 
-    Can read and write EXP native and EXP H5 coefficient formats.  Provides
-    access to coefficients by time.  
+    Can read and write EXP native and EXP H5 coefficient formats.
+    Provides access to coefficients by time. Provides a factory member
+    that returns derived class instances.
  */
 class Coefs
 {
-  friend class CoefFactory;
 
 protected:
 
@@ -48,9 +45,6 @@ protected:
 
   //! Write coefficient data in H5
   virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count) = 0;
-
-  //! Compare two collections of stanzas (this is for testing only)
-  virtual bool CompareStanzas(Coefs* check) = 0;
 
   //! Round time key
   inline double roundTime(double time)
@@ -84,8 +78,14 @@ public:
   /** Get power for the coefficient DB as a function of harmonic
       index.  Time as rows, harmonics as columns.  This could be
       refined for partial summations. */
-  virtual Eigen::MatrixXd& getPower() = 0;
+  virtual Eigen::MatrixXd& Power() = 0;
 
+  //! The coefficient factory.  Creates a shared pointer to derived
+  //! instance of the desired type and returns it.
+  static std::shared_ptr<Coefs> factory(const std::string& file);
+
+  //! Compare two collections of stanzas (this is for testing only)
+  virtual bool CompareStanzas(std::shared_ptr<Coefs> check) = 0;
 };
 
 /** Derived class for spherical coefficients */
@@ -108,13 +108,10 @@ protected:
   //! Write coefficient data in H5
   virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
 
-  //! Compare two collections of stanzas (this is for testing only)
-  virtual bool CompareStanzas(Coefs* check);
-
   /** Get power for the coefficient DB as a function of harmonic
       index.  Time as rows, harmonics as columns.  This could be
       refined for partial summations. */
-  virtual Eigen::MatrixXd& getPower();
+  virtual Eigen::MatrixXd& Power();
 
 
 public:
@@ -139,6 +136,8 @@ public:
     return ret;
   }
 
+  //! Compare two collections of stanzas (this is for testing only)
+  virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
 };
 
 /** Derived class for cylindrical coefficients */
@@ -162,9 +161,6 @@ protected:
   //! Write coefficient data in H5
   virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
 
-  //! Compare two collections of stanzas (this is for testing only)
-  virtual bool CompareStanzas(Coefs* check);
-  
 public:
 
   //! Constructor
@@ -190,53 +186,12 @@ public:
   /** Get power for the coefficient DB as a function of harmonic
       index.  Time as rows, harmonics as columns.  This could be
       refined for partial summations. */
-  virtual Eigen::MatrixXd& getPower();
+  virtual Eigen::MatrixXd& Power();
 
+  //! Compare two collections of stanzas (this is for testing only)
+  virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
 };
 
-/** 
-    Factory and wrapper class for Coef
-
-    Provides the API of Coef while hiding the details of the instance.
-    The type of coefficient is deduced from the coefficient file.
- */
-class CoefFactory
-{
-private:
-  
-  //! Factory instance
-  std::shared_ptr<Coefs> coefs;
-
-public:
-
-  //! Constructor
-  //! @param file can be either a native or HDF5 coefficient file
-  CoefFactory(const std::string& file);
-
-  //! Write a new HDF5 coefficient file
-  void WriteH5Coefs(const std::string& file)  { coefs->WriteH5Coefs(file);  }
-
-  //! Extend a current HDF5 coefficient file with additional stanzas
-  //! from the native file This is currently only a test for the
-  //! 'extend' concept and probably needs modification for production.
-  void ExtendH5Coefs(const std::string& file) { coefs->ExtendH5Coefs(file); }
-
-  //! Get the underlying Coefs instance
-  Coefs* get() { return coefs.get(); }
-
-  //! Get list of times
-  std::vector<double> Times() { return coefs->Times(); }
-
-  //! Get total power as a function of harmonic index (type specific)
-  Eigen::MatrixXd& Power() { return coefs->getPower(); }
-
-  //! Compare two coefficient collections (this is for testing only)
-  bool CompareStanzas(CoefFactory& check)
-  { return coefs->CompareStanzas(check.get()); }
-
-  //! Get coefficient matrix at given time
-  Eigen::MatrixXcd& operator()(double time) { return (*coefs)(time); }
-
-};
+using CoefPtr = std::shared_ptr<Coefs>;
 
 #endif

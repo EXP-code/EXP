@@ -16,7 +16,7 @@ private:
   std::vector<int>    grid;
 
   //! Sanity check time vector with coefficient DB
-  void check_times(CoefFactory& coefs);
+  void check_times(CoefPtr coefs);
 
 public:
 
@@ -28,17 +28,17 @@ public:
   //@{
   //! Get a field slice
   std::map<double, std::map<std::string, Eigen::MatrixXd>>
-  slices(BasisFactory& basis, CoefFactory& coefs);
+  slices(BasisPtr basis, CoefPtr coefs);
 
-  void vtk_slices(BasisFactory& basis, CoefFactory& coefs);
+  void vtk_slices(BasisPtr basis, CoefPtr coefs);
   //@}
 
   //@{
   //! Get a field volume
   std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>>
-  volumes(BasisFactory& basis, CoefFactory& coefs);
+  volumes(BasisPtr basis, CoefPtr coefs);
 
-  void vtk_volumes(BasisFactory& basis, CoefFactory& coefs);
+  void vtk_volumes(BasisPtr basis, CoefPtr coefs);
   //@}
 
 };

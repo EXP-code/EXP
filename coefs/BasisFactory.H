@@ -68,6 +68,11 @@ public:
 
   //! Make coefficients after accumulation
   virtual void make_coefs(void) = 0;
+
+  //! The coefficient factory.  Creates a shared pointer to derived
+  //! instance of the desired type and returns it.
+  static std::shared_ptr<BasicBasis> factory(const YAML::Node& conf);
+
 };
 
 /**
@@ -229,42 +234,7 @@ public:
   int getNmax() { return nmax; }
 };
 
-//! A factory class for bases
-class BasisFactory
-{
-protected:
-  //! The wrapped base class instance
-  std::shared_ptr<BasicBasis> basis;
-
-  //! The derived class name
-  std::string name;
-
-public:
-
-  //! Factory constructor
-  BasisFactory(const YAML::Node& conf);
-
-  //! Get potential, density and forces at a point
-  void getFields
-  (double x, double y, double z,
-   double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
-   double& tpotx, double& tpoty, double& tpotz)
-  {
-    basis->getFields(x, y, z,
-		     tdens0, tpotl0, tdens, tpotl,
-		     tpotx, tpoty, tpotz);
-  }
-
-  //! Accumulate new coefficients
-  void accumulate(double x, double y, double z, double mass)
-  {
-    basis->accumulate(x, y, z, mass);
-  }
-
-  //! Get mass on grid
-  double getMass(void) { return basis->getMass(); }
-
-};
+using BasisPtr = std::shared_ptr<BasicBasis>;
 
 #endif // _BasisFactory_H
 

@@ -45,12 +45,12 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  CoefFactory coefs(infile);
+  auto coefs = Coefs::factory(infile);
 
   // Print the available times
   //
   unsigned cnt = 0;
-  for (auto v : coefs.Times()) {
+  for (auto v : coefs->Times()) {
     std::cout << std::setw(16) << v;
     cnt++;
     if (cnt % 5 == 0) std::cout << std::endl;
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
     double time;
     std::cin  >> time;
 
-    auto mat = coefs(time);
+    auto mat = (*coefs)(time);
     if (mat.rows()) {
       std::cout << std::endl << mat << std::endl << std::endl;
     } else {

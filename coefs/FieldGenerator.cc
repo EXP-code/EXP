@@ -14,9 +14,9 @@ FieldGenerator::FieldGenerator(const std::vector<double> &time,
   // Nothing so far
 }
 
-void FieldGenerator::check_times(CoefFactory& coefs)
+void FieldGenerator::check_times(CoefPtr coefs)
 {
-  std::vector<double> ctimes = coefs.Times();
+  std::vector<double> ctimes = coefs->Times();
   std::sort(ctimes.begin(), ctimes.end());
 
   for (auto t : time) {
@@ -30,25 +30,25 @@ void FieldGenerator::check_times(CoefFactory& coefs)
 }
 
 std::map<double, std::map<std::string, Eigen::MatrixXd>>
-FieldGenerator::slices(BasisFactory& basis, CoefFactory& coefs)
+FieldGenerator::slices(BasisPtr basis, CoefPtr coefs)
 {
   std::map<double, std::map<std::string, Eigen::MatrixXd>> ret;
   return ret;
 }
 
-void FieldGenerator::vtk_slices(BasisFactory& basis, CoefFactory& coefs)
+void FieldGenerator::vtk_slices(BasisPtr basis, CoefPtr coefs)
 {
 }
 
 
 std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>>
-FieldGenerator::volumes(BasisFactory& basis, CoefFactory& coefs)
+FieldGenerator::volumes(BasisPtr basis, CoefPtr coefs)
 {
   std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>> ret;
   return ret;
 }
 
-void FieldGenerator::vtk_volumes(BasisFactory& basis, CoefFactory& coefs)
+void FieldGenerator::vtk_volumes(BasisPtr basis, CoefPtr coefs)
 {
 }
 
