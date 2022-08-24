@@ -17,19 +17,27 @@ the following tasks:
    * to read the HDF5 EXP format into an internal database
    * to allow clients access to the internal database
    * to allow the HDF5 format to be written and extended
+   * to allow variants (e.g. spherical and cylindrical) to be constructed
+     by a factor member
+   * maintains a container (implemented as a map/dictionary) of coefficients
+     sets using the base class 'CoefStruct' indexed by time.  'CoefStruct' is 
+     an improved version of the coefficient types in include/Coefs.H.  In the
+     end, I propose using these new coefficient classes in EXP natively.
 
-At this point, the internal database is a std::map (i.e. a dictionary)
-of EXP native coefficient structures.  In the end, I propose making
-these mirror the same coefficient object structure as these test
-classes. TBD.
+The base class 'Basis' is the main basis interface.  As with 'Coefs',
+it contains a factory member that will generate a basis instance of
+any known type from a YAML config.  'Basis' can also generate 'CoefStruct'
+that may be added to a 'Coefs' container.
 
-The design provides a factory, wrapper class 'CoefFactory' which
-implements a factory pattern for reading and writing coefficient
-objects of any allowed type.  This factory class also provides wrapper
-functions for the main members of the coefficient object (hence the
-name 'CoefFactory').  The 'derived' object type (e.g. either spherical
-or cylindrical coefficients) is chosen based on the coefficient type
-found in the EXP native or HDF5 file.
+The class 'FieldGenerator' takes a 'Basis' and 'Coefs' instance and
+makes surface of volume grids for rendering.
+
+The design provides a factory as a staic member in the base classes
+'Basis' and 'Coefs' to contruct the appropriate derived instance given
+the configuration or coefficient type.  For a coefficient example, the
+'derived' object type (e.g. either spherical or cylindrical
+coefficients) is chosen based on the coefficient type found in the EXP
+native or HDF5 file.
 
 Currently, there are some example and test utilities:
    * 'nativetoh5': this utility reads a native EXP coefficient file and

@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  auto coefs = Coefs::factory(infile);
+  auto coefs = Coefs::Coefs::factory(infile);
 
   // Print the available times
   //

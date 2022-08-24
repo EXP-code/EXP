@@ -7,40 +7,48 @@
 #include <BasisFactory.H>
 #include <CoefFactory.H>
 
-class FieldGenerator
+namespace Field
 {
+  
+  class FieldGenerator
+  {
+    
+  private:
+    
+    std::vector<double> time, pmin, pmax;
+    std::vector<int>    grid;
+    
+    //! Sanity check time vector with coefficient DB
+    void check_times(Coefs::CoefsPtr coefs);
+    
+  public:
+    
+    //! Constructor
+    FieldGenerator(const std::vector<double> &time,
+		   const std::vector<double> &pmin,
+		   const std::vector<double> &pmax,
+		   const std::vector<int>    &grid);
+    //@{
+    //! Get a field slice
+    std::map<double, std::map<std::string, Eigen::MatrixXd>>
+    slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs);
+    
+    void vtk_slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs);
+    //@}
+    
+    //@{
+    //! Get a field volume
+    std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>>
+    volumes(Basis::BasisPtr basis, Coefs::CoefsPtr coefs);
+    
+    void vtk_volumes(Basis::BasisPtr basis, Coefs::CoefsPtr coefs);
+    //@}
+    
+  };
 
-private:
-
-  std::vector<double> time, pmin, pmax;
-  std::vector<int>    grid;
-
-  //! Sanity check time vector with coefficient DB
-  void check_times(CoefPtr coefs);
-
-public:
-
-  //! Constructor
-  FieldGenerator(const std::vector<double> &time,
-		 const std::vector<double> &pmin,
-		 const std::vector<double> &pmax,
-		 const std::vector<int>    &grid);
-  //@{
-  //! Get a field slice
-  std::map<double, std::map<std::string, Eigen::MatrixXd>>
-  slices(BasisPtr basis, CoefPtr coefs);
-
-  void vtk_slices(BasisPtr basis, CoefPtr coefs);
-  //@}
-
-  //@{
-  //! Get a field volume
-  std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>>
-  volumes(BasisPtr basis, CoefPtr coefs);
-
-  void vtk_volumes(BasisPtr basis, CoefPtr coefs);
-  //@}
-
-};
-
+}
+// END namespace Field
+  
 #endif
+
+  

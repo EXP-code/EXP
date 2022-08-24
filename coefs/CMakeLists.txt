@@ -20,12 +20,13 @@ if(SLURM_FOUND)
 endif()
 
 if(TIRPC_FOUND)
+  list(APPEND common_INCLUDE ${TIRPC_INCLUDE_DIRS})
   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
 endif()
 
 # shared library
 
-set(expcoef_SOURCES BasisFactory.cc CoefFactory.cc CoefsE.cc
+set(expcoef_SOURCES BasisFactory.cc CoefFactory.cc CoefStruct.cc
   FieldGenerator.cc)
 add_library(expcoef ${expcoef_SOURCES})
 set_target_properties(expcoef PROPERTIES OUTPUT_NAME expcoef)

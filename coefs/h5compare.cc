@@ -44,8 +44,8 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  auto coefs0 = Coefs::factory(infile);
-  auto coefs1 = Coefs::factory(prefix + ".h5");
+  auto coefs0 = Coefs::Coefs::factory(infile);
+  auto coefs1 = Coefs::Coefs::factory(prefix + ".h5");
 
   // Is data identical?
   //

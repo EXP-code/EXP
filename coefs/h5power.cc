@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  auto coefs = Coefs::factory(infile);
+  auto coefs = Coefs::Coefs::factory(infile);
 
   auto power = coefs->Power();
   auto times = coefs->Times();
