@@ -67,7 +67,8 @@ bool CylCoefsE::read(std::istream& in, bool verbose)
       time = header.time;
       nmax = header.nmax;
       mmax = header.mmax;
-      
+      id   = "Cylinder";
+
       if (verbose)
 	std::cerr << "Old header: T=" << time << " nmax=" << nmax
 		  << " mmax=" << mmax << std::endl;
@@ -164,25 +165,25 @@ bool SphCoefsE::read(std::istream& in, bool exp_type)
       nmax  = node["nmax"  ].as<int>();
       time  = node["time"  ].as<double>();
       scale = node["scale" ].as<double>();
+      id    = node["id"    ].as<std::string>();
       
       // Look for norm flag
       //
       if (node["normed"]) normed = node["normed"].as<bool>();
 
       coefs.resize((lmax+1)*(lmax+2)/2, nmax);
-      double work1, work2;
 
       for (int ir=0; ir<nmax; ir++) {
 	for (int l=0, L=0; l<=lmax; l++) {
-	  for (int m=0; m<=l; m++) {
+	  for (int m=0; m<=l; m++, L++) {
+	    double re, im=0.0;
 	    if (m==0) {
-	      in.read((char *)&work1, sizeof(double));
-	      work2 = 0.0;
+	      in.read((char *)&re, sizeof(double));
 	    } else {
-	      in.read((char *)&work1, sizeof(double));
-	      in.read((char *)&work2, sizeof(double));
+	      in.read((char *)&re, sizeof(double));
+	      in.read((char *)&im, sizeof(double));
 	    }
-	    coefs(L++, ir) = {work1, work2};
+	    coefs(L, ir) = {re, im};
 	  }
 	}
       }

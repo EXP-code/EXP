@@ -15,7 +15,7 @@
 
 #include <CoefFactory.H>
 
-SphH5::SphH5(HighFive::File& file, bool verbose) : Coefs("Sphere", verbose)
+SphCoefs::SphCoefs(HighFive::File& file, bool verbose) : Coefs("Sphere", verbose)
 {
   std::string config, forceID;
   unsigned count;
@@ -48,34 +48,19 @@ SphH5::SphH5(HighFive::File& file, bool verbose) : Coefs("Sphere", verbose)
 
     // Pack the data into the coefficient variable
     //
-    auto coef = std::make_shared<SphCoefs>();
+    auto coef = std::make_shared<SphCoefsE>();
 
-    coef->header.Lmax  = lmax;
-    coef->header.nmax  = nmax;
-    coef->header.tnow  = Time;
-    coef->header.scale = scale;
-    std::strncpy(coef->header.id, forceID.c_str(), 64);
-
-    // Store the data
-    //
-    coef->coefs.resize((lmax+1)*(lmax+1), nmax);
-
-    for (int l=0, L=0, I=0; l<=lmax; l++) {
-      for (int m=0; m<=l; m++, L++) {
-	for (int n=0; n<nmax; n++) {
-	  coef->coefs(I, n) = in(L, n).real();
-	  if (m) coef->coefs(I+1, n) = in(L, n).imag();
-	}
-	if (m==0) I += 1;
-	else      I += 2;
-      }
-    }
+    coef->lmax  = lmax;
+    coef->nmax  = nmax;
+    coef->time  = Time;
+    coef->scale = scale;
+    coef->coefs = in;
 
     coefs[roundTime(Time)] = coef;
   }
 }
 
-Eigen::MatrixXcd& SphH5::operator()(double time)
+Eigen::MatrixXcd& SphCoefs::operator()(double time)
 {
   auto it = coefs.find(roundTime(time));
   if (it == coefs.end()) {
@@ -84,64 +69,47 @@ Eigen::MatrixXcd& SphH5::operator()(double time)
 
   } else {
 
-    auto C = it->second;
+    mat = it->second->coefs;
 
-    int lmax = C->header.Lmax, nmax= C->header.nmax;
-    mat.resize((lmax+1)*(lmax+2)/2, nmax);
-
-    for (int l=0, I=0, L=0; l<=C->header.Lmax; l++) {
-      for (int m=0; m<=l; m++) {
-	if (m) {
-	  for (int n=0; n<C->header.nmax; n++)
-	    mat(L, n) = {C->coefs(I, n), C->coefs(I+1, n)};
-	  I += 2;
-	} else {
-	  for (int n=0; n<C->header.nmax; n++)
-	    mat(L, n) = {C->coefs(I, n), 0.0};
-	  I += 1;
-	}
-	L += 1;
-      }
-    }
   }
 
   return mat;
 }
 
-void SphH5::readNativeCoefs(const std::string& file)
+void SphCoefs::readNativeCoefs(const std::string& file)
 {
   std::ifstream in(file);
 
   if (not in) {
-    throw std::runtime_error("SphH5 ERROR (runtime) opening file <" + file + ">");
+    throw std::runtime_error("SphCoefs ERROR (runtime) opening file <" + file + ">");
   }
 
   while (in) {
     try {
-      SphCoefsPtr c = std::make_shared<SphCoefs>();
+      SphCoefsEPtr c = std::make_shared<SphCoefsE>();
       if (not c->read(in, verbose)) break;
       
-      coefs[roundTime(c->header.tnow)] = c;
+      coefs[roundTime(c->time)] = c;
     }
     catch(std::runtime_error& error) {
-      std::cout << "SphH5 ERROR (runtime): " << error.what() << std::endl;
+      std::cout << "SphCoefs ERROR (runtime): " << error.what() << std::endl;
       break;
     }
     catch(std::logic_error& error) {
-      std::cout << "SphH5 ERROR (logic): " << error.what() << std::endl;
+      std::cout << "SphCoefs ERROR (logic): " << error.what() << std::endl;
       break;
     }
   }
 }
   
 
-void SphH5::WriteH5Params(HighFive::File& file)
+void SphCoefs::WriteH5Params(HighFive::File& file)
 {
-  int lmax     = coefs.begin()->second->header.Lmax;
-  int nmax     = coefs.begin()->second->header.nmax;
-  double scale = coefs.begin()->second->header.scale;
+  int lmax     = coefs.begin()->second->lmax;
+  int nmax     = coefs.begin()->second->nmax;
+  double scale = coefs.begin()->second->scale;
 
-  std::string forceID(coefs.begin()->second->header.id);
+  std::string forceID(coefs.begin()->second->id);
 
   file.createAttribute<int>("lmax", HighFive::DataSpace::From(lmax)).write(lmax);
   file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
@@ -149,7 +117,7 @@ void SphH5::WriteH5Params(HighFive::File& file)
   file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
 }
 
-unsigned SphH5::WriteH5Times(HighFive::Group& snaps, unsigned count)
+unsigned SphCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
 {
   for (auto c : coefs) {
     auto C = c.second;
@@ -163,7 +131,7 @@ unsigned SphH5::WriteH5Times(HighFive::Group& snaps, unsigned count)
 
     // Add a time attribute
     //
-    stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->header.tnow)).write(C->header.tnow);
+    stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time)).write(C->time);
 
     // Index counters
     //
@@ -171,37 +139,15 @@ unsigned SphH5::WriteH5Times(HighFive::Group& snaps, unsigned count)
     
     // Pack the data into an Eigen matrix
     //
-    int lmax = C->header.Lmax, nmax= C->header.nmax;
-    Eigen::MatrixXcd out((lmax+1)*(lmax+2)/2, nmax);
-
-    // Store the data
-    //
-    for (int l=0; l<=C->header.Lmax; l++) {
-
-      for (int m=0; m<=l; m++) {
-
-	if (m) {
-	  for (int n=0; n<C->header.nmax; n++)
-	    out(L, n) = {C->coefs(I, n), C->coefs(I+1, n)};
-	  I += 2;
-	} else {
-	  for (int n=0; n<C->header.nmax; n++)
-	    out(L, n) = {C->coefs(I, n), 0.0};
-	  I += 1;
-	}
-	L += 1;
-
-      }
-    }
-
-    HighFive::DataSet dataset = stanza.createDataSet("coefficients", out);
+    int lmax = C->lmax, nmax= C->nmax;
+    HighFive::DataSet dataset = stanza.createDataSet("coefficients", C->coefs);
   }
 
   return count;
 }
 
 
-std::string SphH5::getYAML()
+std::string SphCoefs::getYAML()
 {
   std::string ret;
   if (coefs.size()) ret = coefs.begin()->second->buf.get();
@@ -210,27 +156,19 @@ std::string SphH5::getYAML()
   return ret;
 }
 
-void SphH5::dump(int lmin, int lmax, int nmin, int nmax)
+void SphCoefs::dump(int lmin, int lmax, int nmin, int nmax)
 {
   for (auto c : coefs) {
     unsigned I = 0;
     if (lmin>0) I += lmin*lmin;
 
-    for (int ll=lmin; ll<=std::min<int>(lmax, c.second->header.Lmax); ll++) {
+    for (int ll=lmin; ll<=std::min<int>(lmax, c.second->lmax); ll++) {
       for (int mm=0; mm<=ll; mm++) {
-	int S = mm==0 ? 1 : 2;
-	for (int s=0; s<S; s++) {
-	  std::cout << std::setw(18) << c.first << std::setw(5) << ll << std::setw(5) << mm << std::setw(5) << s;
-	  for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->header.nmax); nn++) 
-	    std::cout << std::setw(18) << c.second->coefs(I+s, nn);
-	  std::cout << std::endl;
-	  if (mm==0) break;
-	}
-	// Cosine/sine
-	
-	if (mm==0) I += 1;
-	else       I += 2;
-	
+	std::cout << std::setw(18) << c.first << std::setw(5) << ll << std::setw(5) << mm << std::setw(5);
+	for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->nmax); nn++) 
+	  std::cout << std::setw(18) << c.second->coefs(I, nn);
+	std::cout << std::endl;
+
       } // M loop
       
     } // L loop
@@ -239,11 +177,11 @@ void SphH5::dump(int lmin, int lmax, int nmin, int nmax)
 }
 
 
-bool SphH5::CompareStanzas(Coefs* check)
+bool SphCoefs::CompareStanzas(Coefs* check)
 {
   bool ret = true;
 
-  auto other = dynamic_cast<SphH5*>(check);
+  auto other = dynamic_cast<SphCoefs*>(check);
 
   // Check that every time in this one is in the other
   for (auto v : coefs) {
@@ -258,27 +196,59 @@ bool SphH5::CompareStanzas(Coefs* check)
 	      << std::endl;
     for (auto v : coefs) {
       auto it = other->coefs.find(v.first);
-      if (v.second->header.Lmax != it->second->header.Lmax) ret = false;
-      if (v.second->header.nmax != it->second->header.nmax) ret = false;
-      if (v.second->header.tnow != it->second->header.tnow) ret = false;
+      if (v.second->lmax != it->second->lmax) ret = false;
+      if (v.second->nmax != it->second->nmax) ret = false;
+      if (v.second->time != it->second->time) ret = false;
     }
   }
 
   if (ret) {
-    std::cout << "Parameters are the same, now checking coefficients time"
+    std::cout << "Parameters are the same, now checking coefficients"
 	      << std::endl;
     for (auto v : coefs) {
       auto it = other->coefs.find(v.first);
-      for (int i=0; i<v.second->coefs.rows(); i++) 
-	for (int j=0; j<v.second->coefs.cols(); j++) 
-	  if (v.second->coefs(i, j) != it->second->coefs(i, j)) ret = false;
+      for (int i=0; i<v.second->coefs.rows(); i++) {
+	for (int j=0; j<v.second->coefs.cols(); j++) {
+	  if (v.second->coefs(i, j) != it->second->coefs(i, j)) {
+	    std::cout << "Coefficient (" << i << ", " << j << ")  "
+		      << v.second->coefs(i, j) << " != "
+		      << it->second->coefs(i, j) << std::endl;
+	    ret = false;
+	  }
+	}
+      }
     }
   }
 
   return ret;
 }
 
-CylH5::CylH5(HighFive::File& file, bool verbose) : Coefs("Cylinder", verbose)
+Eigen::MatrixXd& SphCoefs::getPower()
+{
+  if (coefs.size()) {
+
+    int lmax = coefs.begin()->second->lmax;
+    power.resize(coefs.size(), lmax+1);
+    power.setZero();
+
+    int T=0;
+    for (auto v : coefs) {
+      for (int l=0, L=0; l<=lmax; l++) {
+	for (int m=0; m<=l; m++, L++) {
+	  auto rad = v.second->coefs.row(L);
+	  power(T, l) += (rad.conjugate() * rad.transpose()).real()(0,0);
+	}
+      }
+      T++;
+    }
+  } else {
+    power.resize(0, 0);
+  }
+      
+  return power;
+}
+
+CylCoefs::CylCoefs(HighFive::File& file, bool verbose) : Coefs("Cylinder", verbose)
 {
   int mmax, nmax;
   unsigned count;
@@ -308,29 +278,18 @@ CylH5::CylH5(HighFive::File& file, bool verbose) : Coefs("Cylinder", verbose)
 
     // Pack the data into the coefficient variable
     //
-    auto coef = std::make_shared<CylCoefs>();
+    auto coef = std::make_shared<CylCoefsE>();
 
     coef->mmax  = mmax;
     coef->nmax  = nmax;
     coef->time  = Time;
-
-    coef->cos_c.resize(mmax+1);
-    coef->sin_c.resize(mmax+1);
-    for (auto & v : coef->cos_c) v.resize(nmax);
-    for (auto & v : coef->sin_c) v.resize(nmax);
-
-    for (int m=0; m<=mmax; m++) {
-      for (int n=0; n<nmax; n++) {
-	coef->cos_c[m][n] = in(m, n).real();
-	coef->sin_c[m][n] = in(m, n).imag();
-      }
-    }
+    coef->coefs = in;
     
     coefs[roundTime(Time)] = coef;
   }
 }
 
-Eigen::MatrixXcd& CylH5::operator()(double time)
+Eigen::MatrixXcd& CylCoefs::operator()(double time)
 {
   auto it = coefs.find(roundTime(time));
 
@@ -340,34 +299,23 @@ Eigen::MatrixXcd& CylH5::operator()(double time)
 
   } else {
     
-    auto C = it->second;
-    mat.resize(C->mmax+1, C->nmax);
-
-    for (int m=0; m<=C->mmax; m++) {
-      if (m) {
-	for (int n=0; n<C->nmax; n++)
-	  mat(m, n) = {C->cos_c[m][n], C->sin_c[m][n]};
-      } else {
-	for (int n=0; n<C->nmax; n++)
-	  mat(m, n) = {C->cos_c[m][n], 0.0};
-      }
-    }
+    mat = it->second->coefs;
 
   }
 
   return mat;
 }
 
-void CylH5::readNativeCoefs(const std::string& file)
+void CylCoefs::readNativeCoefs(const std::string& file)
 {
   std::ifstream in(file);
 
   if (not in) {
-    throw std::runtime_error("CylH5 ERROR (runtime) opening file <" + file + ">");
+    throw std::runtime_error("CylCoefs ERROR (runtime) opening file <" + file + ">");
   }
 
   while (in) {
-    CylCoefsPtr c = std::make_shared<CylCoefs>();
+    CylCoefsEPtr c = std::make_shared<CylCoefsE>();
     if (not c->read(in, verbose)) break;
 
     coefs[roundTime(c->time)] = c;
@@ -375,7 +323,7 @@ void CylH5::readNativeCoefs(const std::string& file)
 }
   
 
-void CylH5::WriteH5Params(HighFive::File& file)
+void CylCoefs::WriteH5Params(HighFive::File& file)
 {
   int mmax = coefs.begin()->second->mmax;
   int nmax = coefs.begin()->second->nmax;
@@ -384,7 +332,7 @@ void CylH5::WriteH5Params(HighFive::File& file)
   file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
 }
 
-unsigned CylH5::WriteH5Times(HighFive::Group& snaps, unsigned count)
+unsigned CylCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
 {
   for (auto c : coefs) {
     auto C = c.second;
@@ -395,28 +343,14 @@ unsigned CylH5::WriteH5Times(HighFive::Group& snaps, unsigned count)
 
     stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time)).write(C->time);
 
-    Eigen::MatrixXcd out(C->mmax+1, C->nmax);
-
-    for (int m=0; m<=C->mmax; m++) {
-
-      if (m) {
-	for (int n=0; n<C->nmax; n++)
-	  out(m, n) = {C->cos_c[m][n], C->sin_c[m][n]};
-      } else {
-	for (int n=0; n<C->nmax; n++)
-	  out(m, n) = {C->cos_c[m][n], 0.0};
-      }
-
-    }
-
-    HighFive::DataSet dataset = stanza.createDataSet("coefficients", out);
+    HighFive::DataSet dataset = stanza.createDataSet("coefficients", C->coefs);
   }
 
   return count;
 }
 
 
-std::string CylH5::getYAML()
+std::string CylCoefs::getYAML()
 {
   std::string ret;
   if (coefs.size()) ret = coefs.begin()->second->buf.get();
@@ -425,29 +359,19 @@ std::string CylH5::getYAML()
   return ret;
 }
 
-void CylH5::dump(int mmin, int mmax, int nmin, int nmax)
+void CylCoefs::dump(int mmin, int mmax, int nmin, int nmax)
 {
 
   for (auto c : coefs) {
     for (int mm=mmin; mm<=std::min<int>(mmax, c.second->mmax); mm++) {
       std::cout << std::setw(18) << c.first << std::setw(5) << mm;
       for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->nmax); nn++) {
-	if (mm==0) {
-	  if (angle)
-	    std::cout << std::setw(18) << 0.0;
-	  else
-	    std::cout << std::setw(18) << fabs(c.second->cos_c[mm][nn]);
-	} else {
-	  if (angle) {
-	    double arg = atan2(c.second->sin_c[mm][nn], c.second->cos_c[mm][nn]);
-	    std::cout << std::setw(18) << arg;
-	  } else {
-	    double amp =
-	      c.second->cos_c[mm][nn] * c.second->cos_c[mm][nn] +
-	      c.second->sin_c[mm][nn] * c.second->sin_c[mm][nn] ;
-	    std::cout << std::setw(18) << sqrt(amp);
-	  }
-	}
+	if (angle)
+	  std::cout << std::setw(18) << abs(c.second->coefs(mm, nn))
+		    << std::setw(18) << arg(c.second->coefs(mm, nn));
+	else
+	  std::cout << std::setw(18) << c.second->coefs(mm, nn).real()
+		    << std::setw(18) << c.second->coefs(mm, nn).imag();
       }
       std::cout << std::endl;
     }
@@ -455,6 +379,30 @@ void CylH5::dump(int mmin, int mmax, int nmin, int nmax)
   }
   // T loop
 
+}
+
+Eigen::MatrixXd& CylCoefs::getPower()
+{
+  if (coefs.size()) {
+
+    int mmax = coefs.begin()->second->mmax;
+
+    power.resize(coefs.size(), mmax+1);
+    power.setZero();
+
+    int T=0;
+    for (auto v : coefs) {
+      for (int m=0; m<=mmax; m++) {
+	auto rad = v.second->coefs.row(m);
+	power(T, m) += (rad.conjugate() * rad.transpose()).real()(0, 0);
+      }
+      T++;
+    }
+  } else {
+    power.resize(0, 0);
+  }
+      
+  return power;
 }
 
 CoefFactory::CoefFactory(const std::string& file)
@@ -478,9 +426,9 @@ CoefFactory::CoefFactory(const std::string& file)
     
     try {
       if (Type.compare("Sphere")==0) {
-	coefs = std::make_shared<SphH5>(h5file);
+	coefs = std::make_shared<SphCoefs>(h5file);
       } else if (Type.compare("Cylinder")==0) {
-	coefs = std::make_shared<CylH5>(h5file);
+	coefs = std::make_shared<CylCoefs>(h5file);
       } else {
 	throw std::runtime_error("CoefFactory: unknown H5 coefficient file type");
       }
@@ -512,9 +460,9 @@ CoefFactory::CoefFactory(const std::string& file)
   in.close();
   
   if (tmagic==sph_magic) {
-    coefs = std::make_shared<SphH5>();
+    coefs = std::make_shared<SphCoefs>();
   } else if (tmagic==cyl_magic) {
-    coefs = std::make_shared<CylH5>();
+    coefs = std::make_shared<CylCoefs>();
   } else {
     throw std::runtime_error("CoefFactory: unknown native coefficient file type");
   }
@@ -524,11 +472,11 @@ CoefFactory::CoefFactory(const std::string& file)
 }
 
 
-bool CylH5::CompareStanzas(Coefs* check)
+bool CylCoefs::CompareStanzas(Coefs* check)
 {
   bool ret = true;
 
-  auto other = dynamic_cast<CylH5*>(check);
+  auto other = dynamic_cast<CylCoefs*>(check);
 
   // Check that every time in this one is in the other
   for (auto v : coefs) {
@@ -555,12 +503,10 @@ bool CylH5::CompareStanzas(Coefs* check)
     for (auto v : coefs) {
       auto it = other->coefs.find(v.first);
       for (int m=0; m<v.second->mmax; m++) {
-	for (int n=0; n<v.second->nmax; n++) 
-	  if (v.second->cos_c[m][n] != it->second->cos_c[m][n]) ret = false;
-
-	if (m) {
-	  for (int n=0; n<v.second->nmax; n++) 
-	    if (v.second->sin_c[m][n] != it->second->sin_c[m][n]) ret = false;
+	for (int n=0; n<v.second->nmax; n++) { 
+	  if (v.second->coefs(m, n) != it->second->coefs(m, n)) {
+	    ret = false;
+	  }
 	}
       }
     }

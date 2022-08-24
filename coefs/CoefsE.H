@@ -7,7 +7,13 @@
 //! This is a general struct for any dimensionality
 struct CoefsE
 {
+  //! For YAML config
   std::shared_ptr<char[]> buf;
+
+  //! Name of the force
+  std::string id;
+
+  //! Time stamp
   double time;
 
   typedef

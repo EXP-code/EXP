@@ -1,4 +1,4 @@
-set(bin_PROGRAMS nativetoh5 h5compare viewcoefs)
+set(bin_PROGRAMS nativetoh5 h5compare viewcoefs h5power)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG yaml-cpp
   exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
@@ -11,6 +11,7 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
   ${HighFive_SOURCE_DIR}/include ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
 
 if(CUDA_FOUND)
+  list(APPEND common_INCLUDE ${CUDA_TOOLKIT_INCLUDE})
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
 endif()
 
@@ -38,6 +39,7 @@ install(TARGETS expcoef DESTINATION lib)
 add_executable(nativetoh5 coefstoh5.cc)
 add_executable(h5compare  h5compare.cc)
 add_executable(viewcoefs  viewcoefs.cc)
+add_executable(h5power    h5power.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} expcoef exputil ${common_LINKLIB})

@@ -8,7 +8,7 @@
 #include <unsupported/Eigen/CXX11/Tensor>
 
 // The EXP native coefficient classes
-#include <Coefs.H>
+#include <CoefsE.H>
 
 // The wrapper class
 class CoefFactory;
@@ -27,6 +27,9 @@ protected:
 
   //! Blank instance
   Eigen::MatrixXcd mat;
+
+  //! Working array for power
+  Eigen::MatrixXd power;
 
   //! Coefficient type id
   std::string coefType;
@@ -78,13 +81,18 @@ public:
   //! Add to an H5 coefficient file
   virtual void ExtendH5Coefs(const std::string& prefix);
 
+  /** Get power for the coefficient DB as a function of harmonic
+      index.  Time as rows, harmonics as columns.  This could be
+      refined for partial summations. */
+  virtual Eigen::MatrixXd& getPower() = 0;
+
 };
 
 /** Derived class for spherical coefficients */
-class SphH5 : public Coefs
+class SphCoefs : public Coefs
 {
 private:
-  std::map<double, SphCoefsPtr> coefs;
+  std::map<double, SphCoefsEPtr> coefs;
 
 protected:
 
@@ -103,13 +111,19 @@ protected:
   //! Compare two collections of stanzas (this is for testing only)
   virtual bool CompareStanzas(Coefs* check);
 
+  /** Get power for the coefficient DB as a function of harmonic
+      index.  Time as rows, harmonics as columns.  This could be
+      refined for partial summations. */
+  virtual Eigen::MatrixXd& getPower();
+
+
 public:
 
   //! Constructor
-  SphH5(bool verbose=false) : Coefs("Sphere", verbose) {}
+  SphCoefs(bool verbose=false) : Coefs("Sphere", verbose) {}
 
   //! H5 constructor
-  SphH5(HighFive::File& file, bool verbose=false);
+  SphCoefs(HighFive::File& file, bool verbose=false);
 
   //! Get coefficient matrix at given time
   virtual Eigen::MatrixXcd& operator()(double time);
@@ -128,10 +142,10 @@ public:
 };
 
 /** Derived class for cylindrical coefficients */
-class CylH5 : public Coefs
+class CylCoefs : public Coefs
 {
 private:
-  std::map<double, CylCoefsPtr> coefs;
+  std::map<double, CylCoefsEPtr> coefs;
   bool angle;
 
 protected:
@@ -154,10 +168,10 @@ protected:
 public:
 
   //! Constructor
-  CylH5(bool verbose=false) : Coefs("Cylinder", verbose), angle(false) {}
+  CylCoefs(bool verbose=false) : Coefs("Cylinder", verbose), angle(false) {}
 
   //! H5 constructor
-  CylH5(HighFive::File& file, bool verbose=false);
+  CylCoefs(HighFive::File& file, bool verbose=false);
 
   //! Get coefficient matrix at given time
   virtual Eigen::MatrixXcd& operator()(double time);
@@ -172,6 +186,11 @@ public:
     for (auto t : coefs) ret.push_back(t.first);
     return ret;
   }
+
+  /** Get power for the coefficient DB as a function of harmonic
+      index.  Time as rows, harmonics as columns.  This could be
+      refined for partial summations. */
+  virtual Eigen::MatrixXd& getPower();
 
 };
 
@@ -207,6 +226,9 @@ public:
 
   //! Get list of times
   std::vector<double> Times() { return coefs->Times(); }
+
+  //! Get total power as a function of harmonic index (type specific)
+  Eigen::MatrixXd& Power() { return coefs->getPower(); }
 
   //! Compare two coefficient collections (this is for testing only)
   bool CompareStanzas(CoefFactory& check)
