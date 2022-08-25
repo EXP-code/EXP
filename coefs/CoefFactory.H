@@ -85,20 +85,29 @@ namespace Coefs
 	refined for partial summations. */
     virtual Eigen::MatrixXd& Power() = 0;
     
-    //@{
-    //! The coefficient factory members
+    /** The coefficient factory members
 
-    //! Creates a shared pointer to derived instance of the desired
-    //! type and returns it.  This uses a coefficient file to
-    //! construct the coefficient database
+	Creates a shared pointer to derived instance of the desired
+	type and returns it.  This uses a coefficient file to
+	construct the coefficient database
+    */
     static std::shared_ptr<Coefs> factory(const std::string& file);
     
-    //! Creates a coefficient container based on one initial set of
-    //! coefficients.  Then use add add() member to add additional
-    //! coefficient sets.  This factory would be used with
-    //! Basis::Basis to derive coefficients from snapshots.
-    static std::shared_ptr<Coefs> factory(CoefStrPtr coef);
-    //@}
+    /** Joint factory and update member
+
+	If Coefs pointer is null:
+	* Creates a coefficient container based on the initial set of
+	  coefficients and adds them to the internal container
+
+	If Coefs pointer is not null:
+	* Use add() member to add new coefficients to the exising
+	  container
+
+	This factory would be used with
+	Basis::Basis to derive coefficients from snapshots.
+    */
+    static std::shared_ptr<Coefs>
+    addcoef(std::shared_ptr<Coefs> coefs, CoefStrPtr coef);
     
     //! Add a coefficient structure to the container
     virtual void add(CoefStrPtr coef) = 0;
@@ -142,10 +151,7 @@ namespace Coefs
     SphCoefs(HighFive::File& file, bool verbose=false);
     
     //! Add a coefficient structure to the container
-    virtual void add(CoefStrPtr coef)
-    {
-      coefs[coef->time] = std::dynamic_pointer_cast<SphStruct>(coef);
-    }
+    virtual void add(CoefStrPtr coef);
 
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time);
@@ -199,10 +205,7 @@ namespace Coefs
     CylCoefs(HighFive::File& file, bool verbose=false);
     
     //! Add a coefficient structure to the container
-    virtual void add(CoefStrPtr coef)
-    {
-      coefs[coef->time] = std::dynamic_pointer_cast<CylStruct>(coef);
-    }
+    virtual void add(CoefStrPtr coef);
 
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time);
@@ -234,6 +237,7 @@ namespace Coefs
   
   using CoefsPtr = std::shared_ptr<Coefs>;
 }
+// END namespace Coefs
   
 #endif
   

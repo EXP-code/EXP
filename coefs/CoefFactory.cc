@@ -154,9 +154,10 @@ namespace Coefs
   std::string SphCoefs::getYAML()
   {
     std::string ret;
-    if (coefs.size()) ret = coefs.begin()->second->buf.get();
-    std::cout << "YAML test: " << ret << std::endl;
-    
+    if (coefs.size()) {
+      if (coefs.begin()->second->buf.get())
+	ret = std::string(coefs.begin()->second->buf.get());
+    }
     return ret;
   }
   
@@ -252,6 +253,11 @@ namespace Coefs
     return power;
   }
   
+  void SphCoefs::add(CoefStrPtr coef)
+  {
+    coefs[coef->time] = std::dynamic_pointer_cast<SphStruct>(coef);
+  }
+
   CylCoefs::CylCoefs(HighFive::File& file, bool verbose) :
     Coefs("Cylinder", verbose)
   {
@@ -358,9 +364,11 @@ namespace Coefs
   std::string CylCoefs::getYAML()
   {
     std::string ret;
-    if (coefs.size()) ret = coefs.begin()->second->buf.get();
-    std::cout << "YAML test: " << ret << std::endl;
-    
+    if (coefs.size()) {
+      if (coefs.begin()->second->buf.get())
+	ret = std::string(coefs.begin()->second->buf.get());
+    }
+
     return ret;
   }
   
@@ -480,15 +488,18 @@ namespace Coefs
   }
   
   
-  std::shared_ptr<Coefs> Coefs::factory(CoefStrPtr coef)
+  std::shared_ptr<Coefs> Coefs::addcoef
+  (std::shared_ptr<Coefs> coefs, CoefStrPtr coef)
   {
-    std::shared_ptr<Coefs> ret;
-    if (dynamic_cast<SphStruct*>(coef.get())) {
-      ret = std::make_shared<SphCoefs>();
-    } else if (dynamic_cast<CylStruct*>(coef.get())) {
-      ret = std::make_shared<CylCoefs>();
-    } else {
-      throw std::runtime_error("CoefFactory: cannot deduce coefficient file type");
+    std::shared_ptr<Coefs> ret = coefs;
+    if (not coefs) {
+      if (dynamic_cast<SphStruct*>(coef.get())) {
+	ret = std::make_shared<SphCoefs>();
+      } else if (dynamic_cast<CylStruct*>(coef.get())) {
+	ret = std::make_shared<CylCoefs>();
+      } else {
+	throw std::runtime_error("CoefFactory: cannot deduce coefficient file type");
+      }
     }
 
     ret->add(coef);
@@ -613,5 +624,11 @@ namespace Coefs
     
   }
   
+  void CylCoefs::add(CoefStrPtr coef)
+  {
+    coefs[coef->time] = std::dynamic_pointer_cast<CylStruct>(coef);
+  }
+
+
 }
 // END namespace Coefs
