@@ -33,22 +33,38 @@ namespace Field
 		   const std::vector<double> &pmin,
 		   const std::vector<double> &pmax,
 		   const std::vector<int>    &grid);
-    //@{
-    //! Get a field slice
+
+    /** Get a field slices as a map in time and type
+
+	For example:
+	.
+	.
+	// Generate the fields for all coefficients in 'coefs'
+	auto db = slices(basis, coefs);
+
+	// Get an image at Time=3.14 for density ("d")
+	Eigen::MatrixXf surface = db["3.14"]["d"];
+    */
     std::map<double, std::map<std::string, Eigen::MatrixXf>>
     slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs);
     
-    void vtk_slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
+    //! Write field slices to files.  This will be VTK your build is
+    //! compiled with VTK and ascii tables otherwise.
+    void file_slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
 		    const std::string prefix, const std::string outdir=".");
-    //@}
+
+    /** Get a field volumes as a map in time and type.
     
-    //@{
-    //! Get a field volume
+	Usage as for slices but returns an Eigen::Tensor rather than an 
+	Eigen::MatrixXf.
+    */
     std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>>
     volumes(Basis::BasisPtr basis, Coefs::CoefsPtr coefs);
     
-    void vtk_volumes(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
-		     const std::string prefix, const std::string outdir=".");
+    //! Write field slices to files.  This will be VTK your build is
+    //! compiled with VTK and ascii tables otherwise.
+    void file_volumes(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
+		      const std::string prefix, const std::string outdir=".");
     //@}
     
   };

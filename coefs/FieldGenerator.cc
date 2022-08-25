@@ -48,29 +48,26 @@ namespace Field
     auto times = coefs->Times();
 
     // Find the first two non-zero indices
-    int i1=-1, i2=-1;
+    int i1=-1, i2=-1, i3=-1;
     std::vector<double> pos, del;
-    std::vector<int> iax(3);
     for (size_t i=0; i<grid.size(); i++) {
       pos.push_back(pmin[i]);
       if (grid[i]>0) {
 	if (i1<0) {
 	  i1 = i;
 	  del.push_back((pmax[i1] - pmin[i1])/grid[i1]);
-	  iax[0] = i;
 	}
-	if (i2<0) {
+	else if (i2<0) {
 	  i2 = i;
 	  del.push_back((pmax[i2] - pmin[i2])/grid[i2]);
-	  iax[1] = i;
 	}
       } else {
 	del.push_back(0.0);
-	iax[2] = i;
+	i3 = i;
       }
     } 
 
-    if (i1<0 or i2<0)
+    if (i1<0 or i2<0 or i3<0)
       throw std::runtime_error("FieldGenerator::slices: bad grid specification");
 
     for (auto T : times) {
@@ -82,9 +79,6 @@ namespace Field
 	frame[label].resize(grid[i1]+1, grid[i2]+1);
       }	
 
-      double v;
-      float f;
-    
       double r, phi, costh;
       double p0, p1, d0, d1, fr, ft, fp;
       
@@ -101,9 +95,9 @@ namespace Field
 	
 	  if ((ncnt++)%numprocs == myid) {
 	  
-	    double x = pos[iax[0]];
-	    double y = pos[iax[1]];
-	    double z = pos[iax[2]];
+	    double x = pos[i1];
+	    double y = pos[i2];
+	    double z = pos[i3];
 
 	    r = sqrt(x*x + y*y + z*z) + 1.0e-18;
 	    costh = z/r;
@@ -146,8 +140,8 @@ namespace Field
     return ret;
   }
   
-  void FieldGenerator::vtk_slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
-				  const std::string prefix, const std::string outdir)
+  void FieldGenerator::file_slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
+				   const std::string prefix, const std::string outdir)
   {
     auto db = slices(basis, coefs);
 
@@ -158,7 +152,7 @@ namespace Field
       for (size_t i=0; i<grid.size(); i++) {
 	if (grid[i]>0) {
 	  if (i1<0) i1 = i;
-	  if (i2<0) i2 = i;
+	  else if (i2<0) i2 = i;
 	} else i3 = i;
       }
 
@@ -166,8 +160,8 @@ namespace Field
 
       for (auto & frame : db) {
 
-	DataGrid vtk(grid[i1], grid[i2], 1,
-		     pmin[i1], pmax[i1], pmin[i2], pmax[i2], 0, 0);
+	DataGrid datagrid(grid[i1], grid[i2], 1,
+			  pmin[i1], pmax[i1], pmin[i2], pmax[i2], 0, 0);
 
 	std::vector<double> tmp(grid[i1]*grid[i2]);
 
@@ -179,12 +173,12 @@ namespace Field
 	    }
 	  }
 
-	  vtk.Add(tmp, v.first);
+	  datagrid.Add(tmp, v.first);
 	}
 
 	std::ostringstream sout;
 	sout << outdir << "/" << prefix << "_surface_" << icnt;
-	vtk.Write(sout.str());
+	datagrid.Write(sout.str());
 	icnt++;
       }
     }
@@ -275,8 +269,8 @@ namespace Field
     return ret;
   }
   
-  void FieldGenerator::vtk_volumes(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
-				   const std::string prefix, const std::string outdir)
+  void FieldGenerator::file_volumes(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
+				    const std::string prefix, const std::string outdir)
   {
     auto db = volumes(basis, coefs);
 
@@ -286,12 +280,12 @@ namespace Field
 
       for (auto & frame : db) {
 
-	DataGrid vtk(grid[0], grid[1], grid[2], pmin[0], pmax[0], pmin[1], pmax[1], pmin[2], pmax[2]);
+	DataGrid datagrid(grid[0], grid[1], grid[2], pmin[0], pmax[0], pmin[1], pmax[1], pmin[2], pmax[2]);
 
 	std::vector<double> tmp(grid[0]*grid[1]*grid[2]);
 
 	for (auto & v : frame.second) {
-
+	  
 	  for (int i=0; i<grid[0]; i++) {
 	    for (int j=0; j<grid[1]; j++) {
 	      for (int k=0; k<grid[2]; k++) {
@@ -300,12 +294,12 @@ namespace Field
 	    }
 	  }
 
-	  vtk.Add(tmp, v.first);
+	  datagrid.Add(tmp, v.first);
 	}
 
 	std::ostringstream sout;
 	sout << outdir << "/" << prefix << "_volume_" << icnt;
-	vtk.Write(sout.str());
+	datagrid.Write(sout.str());
 	icnt++;
       }
     }
