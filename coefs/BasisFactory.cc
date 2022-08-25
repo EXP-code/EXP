@@ -48,7 +48,7 @@ namespace Basis
     
     try {
       if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
-      if (conf["lmax"])      lmax       = conf["lmax"].as<int>();
+      if (conf["Lmax"])      lmax       = conf["Lmax"].as<int>();
       if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
       if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
       
@@ -135,17 +135,18 @@ namespace Basis
     cf->time   = time;
     cf->normed = true;
 
-    cf->coefs((lmax+1)*(lmax+2)/2, nmax);
-    for (int l=0, L=0; l<=lmax; l++) {
+    cf->coefs.resize((lmax+1)*(lmax+2)/2, nmax);
+    for (int l=0, L0=0, L1=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<nmax; n++) {
 	  if (m==0)
-	    cf->coefs(l, n) = {expcoef(L, n), 0.0};
+	    cf->coefs(L0, n) = {expcoef(L1, n), 0.0};
 	  else
-	    cf->coefs(l, n) = {expcoef(L, n), expcoef(L+1, n)};
+	    cf->coefs(L0, n) = {expcoef(L1, n), expcoef(L1+1, n)};
 	}
-	if (m==0) L += 1;
-	else      L += 2;
+	L0 += 1;
+	if (m==0) L1 += 1;
+	else      L1 += 2;
       }
     }
   }
@@ -696,7 +697,7 @@ namespace Basis
 
     Eigen::VectorXd cos1(nmax), sin1(nmax);
 
-    cf->coefs(mmax+1, nmax);
+    cf->coefs.resize(mmax+1, nmax);
 
     for (int m=0; m<=mmax; m++) {
       sl->get_coefs(m, cos1, sin1);
@@ -741,10 +742,10 @@ namespace Basis
     }
     
     try {
-      if ( !name.compare("sphereSL") ) {
+      if ( !name.compare("SphereSL") ) {
 	basis = std::make_shared<SphericalSL>(conf);
       }
-      else if ( !name.compare("cylinder") ) {
+      else if ( !name.compare("Cylinder") ) {
 	basis = std::make_shared<CylindricalSL>(conf);
       }
       else {
@@ -766,9 +767,9 @@ namespace Basis
   {
     Coefs::CoefStrPtr coef;
 
-    if (name.compare("Sphere") == 0)
+    if (name.compare("SphereSL") == 0)
       coef = std::make_shared<Coefs::SphStruct>();
-    else if (name.compare("Cylinder") == 0)
+    else if (name.compare("CylinderSL") == 0)
       coef = std::make_shared<Coefs::CylStruct>();
     else {
       std::ostringstream sout;
