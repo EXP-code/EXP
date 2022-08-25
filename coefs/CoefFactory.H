@@ -4,8 +4,8 @@
 // Needed by member functions for writing parameters and stanzas
 #include <highfive/H5File.hpp>
 
-#include <Eigen/Eigen>
-#include <unsupported/Eigen/CXX11/Tensor>
+#include <Eigen/Eigen>	      // Store coefficient matrices and 2d grids
+#include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids?
 
 // The EXP native coefficient classes
 #include <CoefStruct.H>
@@ -13,7 +13,7 @@
 namespace Coefs
 { 
   /** 
-      Abstract class for any time of coefficient database
+      Abstract class for any type of coefficient database
       
       Can read and write EXP native and EXP H5 coefficient formats.
       Provides access to coefficients by time. Provides a factory member
@@ -39,16 +39,16 @@ namespace Coefs
     //! Read the coefficients
     virtual void readNativeCoefs(const std::string& file) = 0;
     
-    //! Get the YAML config
+    //! Get the YAML config for the basis (to be implemented by EXP)
     virtual std::string getYAML() = 0;
     
-    //! Write parameter attributes
+    //! Write parameter attributes (needed for derived classes)
     virtual void WriteH5Params(HighFive::File& file) = 0;
     
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count) = 0;
     
-    //! Round time key
+    //! Round time key to emulated fixed-point arithmetic
     inline double roundTime(double time)
     {
       const double p10 = 1.0e-08;	// 8 signficant figures in coefficient map
@@ -65,7 +65,10 @@ namespace Coefs
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time) = 0;
     
-    //! Dump to ascii list
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time) = 0;
+
+    //! Dump to ascii list (for testing only)
     virtual void dump(int mmin, int mmax, int nmin, int nmax) = 0;
     
     //! Get list of coefficient times
@@ -147,7 +150,11 @@ namespace Coefs
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time);
     
-    //! Dump to ascii list
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[time]; }
+
+    //! Dump to ascii list for testing
     virtual void dump(int lmin, int lmax, int nmin, int nmax);
     
     //! Get list of coefficient times
@@ -200,7 +207,12 @@ namespace Coefs
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time);
     
-    //! Dump to ascii list
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[time]; }
+
+
+    //! Dump to ascii list for testing
     virtual void dump(int mmin, int mmax, int nmin, int nmax);
     
     //! Get list of coefficient times

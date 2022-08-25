@@ -3,8 +3,6 @@
 namespace Basis
 {
   
-  bool Basis::mpi = false;
-  
   Basis::Basis(const YAML::Node& CONF)
   {
     // Copy the YAML config
@@ -145,6 +143,26 @@ namespace Basis
 	    cf->coefs(l, n) = {expcoef(L, n), 0.0};
 	  else
 	    cf->coefs(l, n) = {expcoef(L, n), expcoef(L+1, n)};
+	}
+	if (m==0) L += 1;
+	else      L += 2;
+      }
+    }
+  }
+
+  void SphericalSL::set_coefs(Coefs::CoefStrPtr coef)
+  {
+    Coefs::SphStruct* cf = dynamic_cast<Coefs::SphStruct*>(coef.get());
+
+    for (int l=0, L=0; l<=lmax; l++) {
+      for (int m=0; m<=l; m++) {
+	for (int n=0; n<nmax; n++) {
+	  if (m==0)
+	    expcoef(L, n) = cf->coefs(l, n).real();
+	  else {
+	    expcoef(L,   n) = cf->coefs(l, n).real();
+	    expcoef(L+1, n) = cf->coefs(l, n).imag();
+	  }
 	}
 	if (m==0) L += 1;
 	else      L += 2;
@@ -637,6 +655,25 @@ namespace Basis
     tpoty = tpotR*sph + tpotP*cph ;
   }
   
+  void CylindricalSL::all_eval
+  (double x, double y, double z,
+   double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
+   double& tpotr, double& tpott, double& tpotp)
+  {
+    double R   = sqrt(x*x + y*y);
+    double r   = sqrt(x*x + y*y + z*z);
+    double phi = atan2(y, x);
+    
+    double tpotR, tpotz;
+    
+    sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
+    
+    tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
+    
+    tpotr = tpotR*R/r + tpotz*z/R ;
+    tpott = tpotR*z/r - tpotz*R/r ;
+  }
+  
   void CylindricalSL::accumulate(double x, double y, double z, double mass)
   {
     double R   = sqrt(x*x + y*y);
@@ -667,6 +704,15 @@ namespace Basis
       for (int n=0; n<nmax; n++) {
 	cf->coefs(m, n) = {cos1(n), sin1(n)};
       }
+    }
+  }
+
+  void CylindricalSL::set_coefs(Coefs::CoefStrPtr coef)
+  {
+    Coefs::CylStruct* cf = dynamic_cast<Coefs::CylStruct*>(coef.get());
+
+    for (int m=0; m<=mmax; m++) {
+      sl->set_coefs(m, cf->coefs.row(m).real(), cf->coefs.row(m).imag());
     }
   }
 

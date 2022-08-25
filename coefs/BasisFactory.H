@@ -10,12 +10,24 @@
 #include <EmpCylSL.H>
 #include <localmpi.H>
 
+namespace Field
+{
+  class FieldGenerator;
+}
+
 namespace Basis
 {
-  
-  //! Defines a basis-based potential and acceleration class
+  /** 
+      Abstract class for any type of basis for evaluating density,
+      potential and acceleration.
+      
+      Provides a factory member that returns derived class instances.
+  */
+  //! Defines a basis-based 
   class Basis
   {
+    friend class Field::FieldGenerator;
+
   protected:
     
     //! Contains contructor and BFE parameter database
@@ -38,10 +50,11 @@ namespace Basis
     //! Total mass on grid
     double totalMass;
     
-    void all_eval(double r, double costh, double phi,
-		  double& den0, double& den1,
-		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp);
+    //! Evaluate fields in spherical coordinates
+    virtual void all_eval(double r, double costh, double phi,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potr, double& pott, double& potp) = 0;
     
     //! Name of the derived class
     std::string name;
@@ -49,10 +62,13 @@ namespace Basis
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(Coefs::CoefStrPtr coefs, double time) = 0;
 
-  public:
-    
+    //! Set coefficients
+    virtual void set_coefs(Coefs::CoefStrPtr coefs) = 0;
+
     //! Using MPI
-    static bool mpi;
+    bool mpi;
+
+  public:
     
     //! Constructor
     Basis(const YAML::Node& conf);
@@ -117,23 +133,16 @@ namespace Basis
     using matT = std::vector<Eigen::MatrixXd>;
     using vecT = std::vector<Eigen::VectorXd>;
     
-    matT covar;
-    vecT mean;
-    vecT svar;
-    matT uvec;
     double totalMass;
-    
-    std::vector<vecT> meanB;
-    std::vector<double> massB;
-    int npart, curbin;
+    int npart;
     
     Eigen::VectorXd work;
     
     //! Evaluate basis in spherical coordinates
-    void all_eval(double r, double costh, double phi,
-		  double& den0, double& den1,
-		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp);
+    virtual void all_eval(double r, double costh, double phi,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potr, double& pott, double& potp);
     
     //! For coefficient writing
     typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
@@ -143,6 +152,9 @@ namespace Basis
 
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(Coefs::CoefStrPtr coefs, double time);
+
+    //! Set coefficients
+    virtual void set_coefs(Coefs::CoefStrPtr coefs);
 
   public:
     
@@ -212,6 +224,12 @@ namespace Basis
     
     Eigen::VectorXd work;
     
+    //! Evaluate basis in spherical coordinates
+    virtual void all_eval(double r, double costh, double phi,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potr, double& pott, double& potp);
+
     //! For coefficient writing
     typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
     EigenColMajor;
@@ -220,6 +238,9 @@ namespace Basis
 
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(Coefs::CoefStrPtr coefs, double time);
+
+    //! Set coefficients
+    virtual void set_coefs(Coefs::CoefStrPtr coefs);
 
   public:
     
