@@ -79,8 +79,8 @@ namespace PR
 
     //! Create a shared pointer to derived instance of the desired type and return it
     static std::shared_ptr<ParticleReader>
-    createReader(const std::string& type, const std::vector<std::string>& file, int myid,
-		 bool verbose=false);
+    createReader(const std::string& type, const std::vector<std::string>& file,
+		 int myid=0, bool verbose=false);
   };
   
   class GadgetNative : public ParticleReader
