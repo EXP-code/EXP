@@ -37,7 +37,23 @@ The design provides a factory as a staic member in the base classes
 the configuration or coefficient type.  For a coefficient example, the
 'derived' object type (e.g. either spherical or cylindrical
 coefficients) is chosen based on the coefficient type found in the EXP
-native or HDF5 file.
+native or HDF5 file.   The YAML config needs to have an "id" field that
+identifies the basis type and a parameter list as in EXP.  This can be
+created on the fly using a YAML emitter or loaded from a file.  See
+"makecoefs.cc" for the file version.  Here is a simple example of a
+YAML config for a spherical basis:
+
+---
+id: SphereSL
+parameters :
+  numr: 2000
+  rmin: 0.0001
+  rmax: 1.95
+  Lmax: 4
+  nmax: 10
+  rs: 0.0667
+  modelname: SLGridSph.model
+...
 
 Currently, there are some example and test utilities:
    * 'nativetoh5': this utility reads a native EXP coefficient file and
@@ -55,6 +71,8 @@ Currently, there are some example and test utilities:
    * 'h5compare': reads an EXP coefficient file, native or HDF5, and computes
      the harmonic power per top-level index (e.g. m-order for cylindrical and
      l-order for spherical).
+   * 'makecoefs': reads a list of phase-space files and a basis configuration
+      and constructs an HDF5 coefficient file.
 
 
 The HDF5 file has the following structure:
