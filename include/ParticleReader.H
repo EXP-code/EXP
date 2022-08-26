@@ -414,8 +414,12 @@ namespace PR
     //! Write a new PSP file
     void writePSP(std::ostream& out,  bool real4);
     
+    //@{
+    //! Particle access
+    virtual const Particle* firstParticle() = 0;
+    virtual const Particle* nextParticle() = 0;
+    //@}
   };
-  
   
   
   /**
@@ -463,7 +467,7 @@ namespace PR
     
     //@{
     //! Particle access
-    virtual const Particle* firstParticle ();
+    virtual const Particle* firstParticle();
     virtual const Particle* nextParticle();
     //@}
     
