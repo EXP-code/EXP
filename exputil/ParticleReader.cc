@@ -1292,52 +1292,61 @@ namespace PR {
   ParticleReader::parseFileList
   (const std::string& file, const std::string& delimit)
   {
-    std::vector<std::vector<std::string>> batches;
-
+    std::vector<std::string> files;
+      
     std::ifstream in(file);
     if (in) {
-      std::vector<std::string> files;
-      
       std::string name;
       while(in >> name) files.push_back(name);
-      
-      std::sort(files.begin(), files.end());
-      
-      std::vector<std::string> batch;
-      std::string templ;
-      
-      for (auto f : files) {
-	std::size_t found = f.find_last_of(delimit);
-
-	// No delimiter?
-	if (found == std::string::npos) {
-	  batch.push_back(f);
-	  batches.push_back(batch);
-	  batch.clear();
-	}
-	// Found a delimiter
-	else {
-	  auto trimmed = f.substr(0, found);
-
-	  if (batch.size()==0) {
-	    templ = trimmed;
-	    batch.push_back(f);
-	  }
-	  else if (trimmed == templ) {
-	    batch.push_back(f);
-	  }
-	  else {		// Mismatch: new batch
-	    if (batch.size()) {
-	      batches.push_back(batch);
-	      batch.clear();
-	    }
-	    templ = trimmed;
-	    batch.push_back(f);
-	  }
-	}
-      }
     } else {
       std::cerr << "Error opening file <" << file << ">" << std::endl;
+    }
+
+    return parseStringList(files, delimit);
+  }
+      
+  std::vector<std::vector<std::string>>
+  ParticleReader::parseStringList
+  (const std::vector<std::string>& infiles, const std::string& delimit)
+  {
+    std::vector<std::vector<std::string>> batches;
+
+    // Make a copy, preserving the order of the original list
+    auto files = infiles;
+    std::sort(files.begin(), files.end());
+      
+    std::vector<std::string> batch;
+    std::string templ;
+      
+    for (auto f : files) {
+      std::size_t found = f.find_last_of(delimit);
+
+      // No delimiter?
+      if (found == std::string::npos) {
+	batch.push_back(f);
+	batches.push_back(batch);
+	batch.clear();
+      }
+      // Found a delimiter
+      else {
+	auto trimmed = f.substr(0, found);
+	
+	if (batch.size()==0) {
+	  templ = trimmed;
+	  batch.push_back(f);
+	}
+	else if (trimmed == templ) {
+	  batch.push_back(f);
+	}
+	else {		// Mismatch: new batch
+	  if (batch.size()) {
+	    batches.push_back(batch);
+	    batch.clear();
+	  }
+	  templ = trimmed;
+	  batch.push_back(f);
+	}
+      }
     }
 
     return batches;

@@ -1,3 +1,5 @@
+find_package (Python3 COMPONENTS Interpreter Development)
+
 set(bin_PROGRAMS nativetoh5 h5compare viewcoefs h5power makecoefs)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG yaml-cpp
@@ -49,4 +51,12 @@ foreach(program ${bin_PROGRAMS})
   install(TARGETS ${program} DESTINATION bin)
 endforeach()
 
+pybind11_add_module(pyEXP PyWrappers.cc CoefWrappers.cc
+  BasisWrappers.cc FieldWrappers.cc ParticleReaderWrappers.cc)
+target_link_libraries(pyEXP PUBLIC expcoef exputil ${common_LINKLIB})
+target_include_directories(pyEXP PUBLIC ${common_INCLUDE})
 
+install(TARGETS pyEXP
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR/site-packages}"
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR/site-packages}")

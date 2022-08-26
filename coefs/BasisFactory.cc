@@ -8,12 +8,38 @@ namespace Basis
     // Copy the YAML config
     //
     node = CONF;
-    
+
+    // Complete the initialization
+    //
+    initialize();
+  }
+
+  Basis::Basis(const std::string& confstr)
+  {
+    try {
+      // Read the YAML from a string
+      //
+      node = YAML::Load(confstr);
+    }
+    catch (const std::runtime_error& error) {
+      std::cout << "Basis constructor: found a problem in the YAML config"
+		<< std::endl;
+      throw;
+    }
+
+    // Complete the initialization
+    //
+    initialize();
+  }
+
+  void Basis::initialize()
+  {
     // Check whether MPI is initialized
     //
     int flag;
     MPI_Initialized(&flag);
-    if (flag) mpi = true;
+    if (flag) use_mpi = true;
+    else      use_mpi = false;
     
     // Parameters for force
     //
@@ -39,6 +65,17 @@ namespace Basis
   
   SphericalSL::SphericalSL(const YAML::Node& CONF) : Basis(CONF)
   {
+    initialize();
+  }
+
+  SphericalSL::SphericalSL(const std::string& confstr) : Basis(confstr)
+  {
+    initialize();
+  }
+
+  void SphericalSL::initialize()
+  {
+
     // Assign some defaults
     //
     cmap       = 1;
@@ -95,7 +132,7 @@ namespace Basis
       throw std::runtime_error("SphericalSL: error parsing YAML");
     }
     
-    SLGridSph::mpi = mpi ? 1 : 0;
+    SLGridSph::mpi = use_mpi ? 1 : 0;
     
     mod = std::make_shared<SphericalModelTable>(model_file);
     
@@ -255,7 +292,7 @@ namespace Basis
   
   void SphericalSL::make_coefs()
   {
-    if (mpi) {
+    if (use_mpi) {
       
       MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
 		    MPI_SUM, MPI_COMM_WORLD);
@@ -522,6 +559,16 @@ namespace Basis
   
   CylindricalSL::CylindricalSL(const YAML::Node& CONF) : Basis(CONF)
   {
+    initialize();
+  }
+
+  CylindricalSL::CylindricalSL(const std::string& confstr) : Basis(confstr)
+  {
+    initialize();
+  }
+
+  void CylindricalSL::initialize()
+  {
     // Assign some defaults
     //
     rcylmin     = 0.001;
@@ -723,7 +770,33 @@ namespace Basis
   }
   
   
+  std::shared_ptr<Basis> Basis::factory_string(const std::string& conf)
+  {
+    YAML::Node node;
+    
+    try {
+      // Read the YAML from a string
+      //
+      node = YAML::Load(conf);
+    }
+    catch (const std::runtime_error& error) {
+      std::cout << "Basis constructor: found a problem in the YAML config"
+		<< std::endl;
+      throw;
+    }
+
+    // Complete the initialization
+    //
+    return factory_initialize(node);
+  }
+
   std::shared_ptr<Basis> Basis::factory(const YAML::Node& conf)
+  {
+    return factory_initialize(conf);
+  }
+
+
+  std::shared_ptr<Basis> Basis::factory_initialize(const YAML::Node& conf)
   {
     std::shared_ptr<Basis> basis;
     std::string name;

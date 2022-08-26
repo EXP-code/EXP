@@ -28,6 +28,14 @@ namespace Basis
   {
     friend class Field::FieldGenerator;
 
+  private:
+
+    //! Helper for constructor
+    void initialize();
+
+    //! Helper for factory
+    static std::shared_ptr<Basis> factory_initialize(const YAML::Node& node);
+
   protected:
     
     //! Contains contructor and BFE parameter database
@@ -66,12 +74,15 @@ namespace Basis
     virtual void set_coefs(Coefs::CoefStrPtr coefs) = 0;
 
     //! Using MPI
-    bool mpi;
+    bool use_mpi;
 
   public:
     
-    //! Constructor
+    //! Constructor from YAML node
     Basis(const YAML::Node& conf);
+    
+    //! Constructor from YAML string
+    Basis(const std::string& confstr);
     
     virtual ~Basis(void) {}
     
@@ -96,9 +107,12 @@ namespace Basis
     //! Make coefficients after accumulation
     virtual void make_coefs(void) = 0;
     
+    //@{
     //! The coefficient factory.  Creates a shared pointer to derived
     //! instance of the desired type and returns it.
-    static std::shared_ptr<Basis> factory(const YAML::Node& conf);
+    static std::shared_ptr<Basis> factory(const YAML::Node&  conf);
+    static std::shared_ptr<Basis> factory_string(const std::string& conf);
+    //@}
     
   };
   
@@ -111,6 +125,9 @@ namespace Basis
     
   private:
     
+    //! Helper for constructor
+    void initialize();
+
     std::shared_ptr<SLGridSph> sl;
     std::shared_ptr<SphericalModelTable> mod;
     
@@ -138,18 +155,18 @@ namespace Basis
     
     Eigen::VectorXd work;
     
-    //! Evaluate basis in spherical coordinates
-    virtual void all_eval(double r, double costh, double phi,
-			  double& den0, double& den1,
-			  double& pot0, double& pot1,
-			  double& potr, double& pott, double& potp);
-    
     //! For coefficient writing
     typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
     EigenColMajor;
     
   protected:
 
+    //! Evaluate basis in spherical coordinates
+    virtual void all_eval(double r, double costh, double phi,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potr, double& pott, double& potp);
+    
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(Coefs::CoefStrPtr coefs, double time);
 
@@ -158,8 +175,11 @@ namespace Basis
 
   public:
     
-    //! Constructor
+    //! Constructor from YAML node
     SphericalSL(const YAML::Node& conf);
+    
+    //! Constructor from YAML string
+    SphericalSL(const std::string& confstr);
     
     //! Destructor
     virtual ~SphericalSL(void) {}
@@ -199,6 +219,9 @@ namespace Basis
     
   private:
     
+    //! Help for constructor
+    void initialize();
+
     std::shared_ptr<EmpCylSL> sl;
     int lmax, mmax, nmax, mlim;
     int ncylorder, ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
@@ -224,17 +247,17 @@ namespace Basis
     
     Eigen::VectorXd work;
     
-    //! Evaluate basis in spherical coordinates
-    virtual void all_eval(double r, double costh, double phi,
-			  double& den0, double& den1,
-			  double& pot0, double& pot1,
-			  double& potr, double& pott, double& potp);
-
     //! For coefficient writing
     typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
     EigenColMajor;
     
   protected:
+
+    //! Evaluate basis in spherical coordinates
+    virtual void all_eval(double r, double costh, double phi,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potr, double& pott, double& potp);
 
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(Coefs::CoefStrPtr coefs, double time);
@@ -244,8 +267,11 @@ namespace Basis
 
   public:
     
-    //! Constructor
+    //! Constructor from YAML node
     CylindricalSL(const YAML::Node& conf);
+    
+    //! Constructor from YAML string
+    CylindricalSL(const std::string& confstr);
     
     //! Destructor
     virtual ~CylindricalSL(void) {}

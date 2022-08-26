@@ -73,9 +73,13 @@ namespace PR
     //! Print summary phase-space info
     virtual void PrintSummary(std::ostream &out, bool stats=false, bool timeonly=false) = 0;
 
-    //! Order file list into batches at single times
+    //! Order file list into batches at single times from file
     static std::vector<std::vector<std::string>>
     parseFileList(const std::string& file, const std::string& delimit);
+
+    //! Order file list into batches at single times from vector of strings
+    static std::vector<std::vector<std::string>>
+    parseStringList(const std::vector<std::string>& file, const std::string& delimit);
 
     //! Create a shared pointer to derived instance of the desired type and return it
     static std::shared_ptr<ParticleReader>

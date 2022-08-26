@@ -136,12 +136,6 @@ namespace Coefs
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
-    /** Get power for the coefficient DB as a function of harmonic
-	index.  Time as rows, harmonics as columns.  This could be
-	refined for partial summations. */
-    virtual Eigen::MatrixXd& Power();
-    
-    
   public:
     
     //! Constructor
@@ -171,6 +165,12 @@ namespace Coefs
       return ret;
     }
     
+    /** Get power for the coefficient DB as a function of harmonic
+	index.  Time as rows, harmonics as columns.  This could be
+	refined for partial summations. */
+    virtual Eigen::MatrixXd& Power();
+    
+
     //! Compare two collections of stanzas (this is for testing only)
     virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
   };
