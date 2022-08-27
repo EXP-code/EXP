@@ -68,8 +68,4 @@ for v in surfaces:
         print("{:8.4f}  {}".format(v, u))
 
 print("\nHere is the first one:")
-for v in surfaces:
-    for u in surfaces[v]:
-        print(surfaces[v][u])
-        break
-    break
+surfaces[0.005]['p']
