@@ -170,10 +170,10 @@ void BasisFactoryClasses(py::module &m) {
     .def("make_coefs",         &Basis::Basis::make_coefs)
     .def("factory",            &Basis::Basis::factory_string);
 
-  py::class_<Basis::SphericalSL, PySphericalSL>(m, "SphericalSL")
+  py::class_<Basis::SphericalSL, PySphericalSL, Basis::Basis>(m, "SphericalSL")
     .def(py::init<const std::string&>());
 
-  py::class_<Basis::CylindricalSL, PyCylindricalSL>(m, "CylindricalSL")
+  py::class_<Basis::CylindricalSL, PyCylindricalSL, Basis::Basis>(m, "CylindricalSL")
     .def(py::init<const std::string&>());
 }
 
