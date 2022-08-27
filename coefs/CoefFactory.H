@@ -93,6 +93,9 @@ namespace Coefs
     */
     static std::shared_ptr<Coefs> factory(const std::string& file);
     
+    //! Make Coefs instance if it doesn't yet exist
+    static std::shared_ptr<Coefs> makecoefs(CoefStrPtr coef);
+
     /** Joint factory and update member
 
 	If Coefs pointer is null:

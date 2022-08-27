@@ -48,3 +48,19 @@ for group in batches:
 print('\nCompleted the file group list\n')
 
 print('The coefficient time list is', coefs.Times())
+
+# Now try some slices
+#
+
+times = coefs.Times()[0:3]
+pmin  = [-1.0, -1.0, 0.0]
+pmax  = [ 1.0,  1.0, 0.0]
+grid  = [  40,   40,   0]
+
+fields = pyEXP.field.FieldGenerator(times, pmin, pmax, grid)
+
+surfaces = fields.slices(basis, coefs)
+
+for v in surfaces:
+    print(v)
+    
