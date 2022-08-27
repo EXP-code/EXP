@@ -11,20 +11,25 @@ extern void ParticleReaderClasses(py::module &m);
 
 PYBIND11_MODULE(pyEXP, m)
 {
-  m.doc() = "A collection of EXP tools for processing and analysing simulation data using BFE techniques";
+  m.doc() = "A collection of EXP tools for processing and analysing simulation data using BFE techniques (hello)";
 
-  auto mcoefs = m.def_submodule("coefs");
-  auto mbasis = m.def_submodule("basis");
-  auto mfield = m.def_submodule("field");
-  auto mpread = m.def_submodule("pread");
+  auto mcoefs = m.def_submodule("coefs",
+				"Classes for reading, passing and manipulating "
+				"coefficient sets");
 
-  mcoefs.doc() = "Coefficient containers and manipulators for all EXP geometries (spherical, cylindrical, cubic, etc.)";
+  auto mbasis = m.def_submodule("basis",
+				"Create and apply specific biorthogonal bases "
+				"to generate coefficients from particle data "
+				"and evaluate potential, density, and force "
+				"fields");
 
-  mbasis.doc() = "Create and apply specific biorthogonal bases to generate coefficients from particle data and evaluate potential, density, and force fields";
+  auto mfield = m.def_submodule("field",
+				"Create two- and three-dimension rectangular "
+				"grids of fields for visualization");
 
-  mfield.doc() = "Create two- and three-dimension rectangular grids of fields for visualization";
-
-  mpread.doc() = "Read particle snapshots of various types.  Currently EXP, Gadget, and Tipsy types are supported.";
+  auto mpread = m.def_submodule("pread", "Read particle snapshots of various "
+				"types.  Currently EXP, Gadget, and Tipsy "
+				"types are supported.");
 
   CoefFactoryClasses(mcoefs);
   BasisFactoryClasses(mbasis);

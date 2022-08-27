@@ -201,7 +201,7 @@ void CoefFactoryClasses(py::module &m) {
 
   };
 
-  py::class_<Coefs::Coefs, PyCoefs>(m, "Coefs")
+  py::class_<Coefs::Coefs, std::shared_ptr<Coefs::Coefs>, PyCoefs>(m, "Coefs")
     .def(py::init<std::string, bool>())
     .def("operator()", &Coefs::Coefs::operator())
     .def("getCoefStruct", &Coefs::Coefs::getCoefStruct)
@@ -211,7 +211,7 @@ void CoefFactoryClasses(py::module &m) {
     .def("Power", &Coefs::Coefs::Power)
     .def("CompareStanzas", &Coefs::Coefs::CompareStanzas);
 
-  py::class_<Coefs::SphCoefs, PySphCoefs>(m, "SphCoefs")
+  py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs>(m, "SphCoefs")
     .def(py::init<bool>())
     .def("operator()", &Coefs::SphCoefs::operator())
     .def("getCoefStruct", &Coefs::SphCoefs::getCoefStruct)
@@ -221,7 +221,7 @@ void CoefFactoryClasses(py::module &m) {
     .def("Power", &Coefs::SphCoefs::Power)
     .def("CompareStanzas", &Coefs::SphCoefs::CompareStanzas);
 
-  py::class_<Coefs::CylCoefs, PyCylCoefs>(m, "CylCoefs")
+  py::class_<Coefs::CylCoefs, std::shared_ptr<Coefs::CylCoefs>, PyCylCoefs>(m, "CylCoefs")
     .def(py::init<bool>())
     .def("operator()", &Coefs::CylCoefs::operator())
     .def("getCoefStruct", &Coefs::CylCoefs::getCoefStruct)

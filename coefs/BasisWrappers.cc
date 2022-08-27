@@ -160,7 +160,7 @@ void BasisFactoryClasses(py::module &m) {
   };
 
 
-  py::class_<Basis::Basis, PyBasis>(m, "Basis")
+  py::class_<Basis::Basis, std::shared_ptr<Basis::Basis>, PyBasis>(m, "Basis")
     .def(py::init<const std::string&>())
     .def("createCoefficients", &Basis::Basis::createCoefficients)
     .def("getFields",          &Basis::Basis::getFields)
@@ -170,10 +170,10 @@ void BasisFactoryClasses(py::module &m) {
     .def("make_coefs",         &Basis::Basis::make_coefs)
     .def("factory",            &Basis::Basis::factory_string);
 
-  py::class_<Basis::SphericalSL, PySphericalSL>(m, "SphericalSL")
+  py::class_<Basis::SphericalSL, std::shared_ptr<Basis::SphericalSL>, PySphericalSL>(m, "SphericalSL")
     .def(py::init<const std::string&>());
 
-  py::class_<Basis::CylindricalSL, PyCylindricalSL>(m, "CylindricalSL")
+  py::class_<Basis::CylindricalSL, std::shared_ptr<Basis::CylindricalSL>, PyCylindricalSL>(m, "CylindricalSL")
     .def(py::init<const std::string&>());
 }
 
