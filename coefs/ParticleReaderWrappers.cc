@@ -230,45 +230,82 @@ void ParticleReaderClasses(py::module &m) {
   };
 
 
-  py::class_<Particle>(m, "Particle")
-    .def(py::init<>());
+  py::class_<Particle> P(m, "Particle");
 
-  py::class_<ParticleReader, PyParticleReader>(m, "ParticleReader")
-    .def(py::init<>())
-    .def("SelectType",      &ParticleReader::SelectType)
-    .def("CurrentNumber",   &ParticleReader::CurrentNumber)
-    .def("GetTypes",        &ParticleReader::GetTypes)
-    .def("CurrentTime",     &ParticleReader::CurrentTime)
-    .def("PrintSummary",    &ParticleReader::PrintSummary)
-    .def("parseFileList",   &ParticleReader::parseFileList)
-    .def("parseStringList", &ParticleReader::parseStringList)
-    .def("createReader",    &ParticleReader::createReader);
+  P.def(py::init<>(), "The internal particle type");
 
-  py::class_<GadgetHDF5, PyGadgetHDF5, ParticleReader>(m, "GadgetHDF5")
-    .def(py::init<const std::vector<std::string>&, bool>());
+  py::class_<ParticleReader, std::shared_ptr<ParticleReader>, PyParticleReader>
+    pr(m, "ParticleReader");
 
-  py::class_<GadgetNative, PyGadgetNative, ParticleReader>(m, "GadgetNative")
-    .def(py::init<const std::vector<std::string>&, bool>());
+  pr.def(py::init<>(), "The base class for particle reading");
 
-  py::class_<PSP, PyPSP, ParticleReader>(m, "PSP")
-    .def(py::init<bool>())
+  pr.def("SelectType",      &ParticleReader::SelectType,
+	 "Select the particle type to read.  "
+	 "Use GetTypes() to see the available types.");
+
+  pr.def("CurrentNumber",   &ParticleReader::CurrentNumber,
+	 "Return the current number of particles in the snapshot "
+	 "for the selected type");
+  
+  pr.def("GetTypes",        &ParticleReader::GetTypes,
+	 "View the available particle types");
+  
+  pr.def("CurrentTime",     &ParticleReader::CurrentTime,
+	 "Return the time for the current snapshot");
+  
+  pr.def("PrintSummary",    &ParticleReader::PrintSummary,
+	 "Print a summary of list of extents, center of mass, and "
+	 "other global quantities for this snapshopt.  This requires "
+	 "a read pass and may be time consuming");
+  
+  pr.def_static("parseFileList", &ParticleReader::parseFileList,
+		py::doc("Read snapshot file names from a file and format into "
+			"bunches for the reader using the provided delimiter "
+			"string to separate the snapshot name from the "
+			"processor index"),
+		py::arg("file"), py::arg("delimiter")="");
+  
+  pr.def_static("parseStringList", &ParticleReader::parseStringList,
+		py::doc("Format a list of snapshot file names into bunches "
+			"for the reader"),
+		py::arg("filelist"), py::arg("delimiter")="");
+
+  pr.def_static("createReader", &ParticleReader::createReader,
+	 py::doc("Create a particle reader from the provided type "
+		 "string bunch list constructed by praseFileList or "
+		 "parseStringList"),
+	 py::arg("type"), py::arg("bunch"),
+	 py::arg("myid")=0, py::arg("verbose")=false);
+
+
+  py::class_<GadgetHDF5, std::shared_ptr<GadgetHDF5>, PyGadgetHDF5, ParticleReader>(m, "GadgetHDF5")
+    .def(py::init<const std::vector<std::string>&, bool>(),
+	 "Read Gadget HDF5 format snapshots");
+
+  py::class_<GadgetNative, std::shared_ptr<GadgetNative>, PyGadgetNative, ParticleReader>(m, "GadgetNative")
+    .def(py::init<const std::vector<std::string>&, bool>(), "Read Gadget native format snapshots");
+
+  py::class_<PSP, std::shared_ptr<PSP>, PyPSP, ParticleReader>(m, "PSP")
+    .def(py::init<bool>(), "Base class for PSP reader")
     .def("SelectType",      &PSP::SelectType)
     .def("PrintSummary",    &PSP::PrintSummary);
 
-  py::class_<PSPout, PyPSPout, PSP>(m, "PSPout")
-    .def(py::init<const std::vector<std::string>&, bool>())
+  py::class_<PSPout, std::shared_ptr<PSPout>, PyPSPout, PSP>(m, "PSPout")
+    .def(py::init<const std::vector<std::string>&, bool>(),
+	 "Reader for monolitic PSP format (single file written by root process)")
     .def("CurrentNumber",   &PSPout::CurrentNumber)
     .def("GetTypes",        &PSPout::GetTypes)
     .def("CurrentTime",     &PSPout::CurrentTime);
+	 
 
-
-  py::class_<PSPspl, PyPSPspl, PSP>(m, "PSPspl")
-    .def(py::init<const std::vector<std::string>&, bool>())
+  py::class_<PSPspl, std::shared_ptr<PSPspl>, PyPSPspl, PSP>(m, "PSPspl")
+    .def(py::init<const std::vector<std::string>&, bool>(),
+	 "Reader for split PSP files (multiple files written by each process)")
     .def("CurrentNumber",   &PSPspl::CurrentNumber)
     .def("GetTypes",        &PSPspl::GetTypes)
     .def("CurrentTime",     &PSPspl::CurrentTime);
-
-  py::class_<Tipsy, PyTipsy, ParticleReader> tipsy(m, "Tipsy");
+	 
+py::class_<Tipsy, std::shared_ptr<Tipsy>, PyTipsy, ParticleReader> tipsy(m, "Tipsy");
   
   py::enum_<Tipsy::TipsyType>(tipsy, "TipsyType")
     .value("native", Tipsy::TipsyType::native)

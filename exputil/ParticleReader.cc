@@ -1357,19 +1357,21 @@ namespace PR {
 			       const std::vector<std::string>& file,
 			       int myid, bool verbose)
   {
+    std::shared_ptr<ParticleReader> ret;
+    
     if (reader.find("PSPout") == 0)
-      return std::make_shared<PSPout>(file, verbose);
+      ret = std::make_shared<PSPout>(file, verbose);
     else if (reader.find("PSPspl") == 0)
-      return std::make_shared<PSPspl>(file, verbose);
+      ret = std::make_shared<PSPspl>(file, verbose);
     else if (reader.find("GadgetNative") == 0)
-      return std::make_shared<GadgetNative>(file, verbose);
+      ret = std::make_shared<GadgetNative>(file, verbose);
     else if (reader.find("GadgetHDF5") == 0)
-      return std::make_shared<GadgetHDF5>(file, verbose);
+      ret = std::make_shared<GadgetHDF5>(file, verbose);
     else if (reader.find("TipsyNative") == 0)
-      return std::make_shared<Tipsy>(file, Tipsy::TipsyType::native, verbose);
+      ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::native, verbose);
     else if (reader.find("TipsyXDR") == 0)
 #ifdef HAVE_XDR
-      return std::make_shared<Tipsy>(file, Tipsy::TipsyType::xdr, verbose);
+      ret= std::make_shared<Tipsy>(file, Tipsy::TipsyType::xdr, verbose);
 #else
     {
       if (myid==0) {
@@ -1385,7 +1387,7 @@ namespace PR {
 #endif
 
     else if (reader.find("Bonsai") == 0)
-      return std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai, verbose);
+      ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai, verbose);
     else {
       if (myid==0) {
 	std::cout << "ParticleReader: I don't know about reader <" << reader
@@ -1396,6 +1398,8 @@ namespace PR {
       }
       exit(1);
     }
+
+    return ret;
   }
 
   std::vector<std::string> Tipsy::Ptypes
