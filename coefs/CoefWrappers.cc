@@ -234,7 +234,7 @@ void CoefFactoryClasses(py::module &m) {
     .def("CompareStanzas", &Coefs::Coefs::CompareStanzas)
     .def_static("makecoefs", &Coefs::Coefs::makecoefs);
 
-  py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs>(m, "SphCoefs")
+  py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs, Coefs::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
     .def(py::init<bool>())
     .def("operator()",     &Coefs::SphCoefs::operator())
     .def("add",            &Coefs::SphCoefs::add)
@@ -245,7 +245,7 @@ void CoefFactoryClasses(py::module &m) {
     .def("Power",          &Coefs::SphCoefs::Power)
     .def("CompareStanzas", &Coefs::SphCoefs::CompareStanzas);
 
-  py::class_<Coefs::CylCoefs, std::shared_ptr<Coefs::CylCoefs>, PyCylCoefs>(m, "CylCoefs")
+  py::class_<Coefs::CylCoefs, std::shared_ptr<Coefs::CylCoefs>, PyCylCoefs, Coefs::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
     .def(py::init<bool>())
     .def("operator()",     &Coefs::CylCoefs::operator())
     .def("add",            &Coefs::CylCoefs::add)

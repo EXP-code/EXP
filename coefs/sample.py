@@ -61,6 +61,15 @@ fields = pyEXP.field.FieldGenerator(times, pmin, pmax, grid)
 
 surfaces = fields.slices(basis, coefs)
 
+print("We now have the following [time field] pairs")
 for v in surfaces:
-    print(v)
-    
+    print('-'*40)
+    for u in surfaces[v]:
+        print("{:8.4f}  {}".format(v, u))
+
+print("\nHere is the first one:")
+for v in surfaces:
+    for u in surfaces[v]:
+        print(surfaces[v][u])
+        break
+    break
