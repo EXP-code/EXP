@@ -162,18 +162,24 @@ void BasisFactoryClasses(py::module &m) {
 
   py::class_<Basis::Basis, std::shared_ptr<Basis::Basis>, PyBasis>(m, "Basis")
     .def(py::init<const std::string&>())
-    .def("createCoefficients", &Basis::Basis::createCoefficients)
-    .def("getFields",          &Basis::Basis::getFields)
-    .def("accumulate",         &Basis::Basis::accumulate)
-    .def("getMass",            &Basis::Basis::getMass)
-    .def("reset_coefs",        &Basis::Basis::reset_coefs)
-    .def("make_coefs",         &Basis::Basis::make_coefs)
-    .def("factory",            &Basis::Basis::factory_string);
+    .def("createCoefficients", &Basis::Basis::createCoefficients,
+	 "Generate the coefficients from the supplied ParticleReader")
+    .def("getFields",          &Basis::Basis::getFields,
+	 "Return the field values for a cartesian position")
+    .def("accumulate",         &Basis::Basis::accumulate,
+	 "Add the contribution of a single particle to the coefficients")
+    .def("getMass",            &Basis::Basis::getMass,
+	 "Return the total mass of particles contributing the the current coefficient set")
+    .def("reset_coefs",        &Basis::Basis::reset_coefs,
+	 "Reset the coefficients to begin a generating a new set")
+    .def("make_coefs",         &Basis::Basis::make_coefs,
+	 "Create the coefficients after particle accumuluation is complete")
+    .def("factory",            &Basis::Basis::factory_string,
+	 "Generate a basis from a YAML configuration supplied as a string");
 
     py::class_<Basis::SphericalSL, std::shared_ptr<Basis::SphericalSL>, PySphericalSL, Basis::Basis>(m, "SphericalSL")
-    .def(py::init<const std::string&>());
+      .def(py::init<const std::string&>(), "Create a spherical Sturm-Liouville basis");
 
   py::class_<Basis::CylindricalSL, std::shared_ptr<Basis::CylindricalSL>, PyCylindricalSL, Basis::Basis>(m, "CylindricalSL")
-    .def(py::init<const std::string&>());
+    .def(py::init<const std::string&>(), "Create a cylindrical EOF basis");
 }
-

@@ -223,37 +223,28 @@ void CoefFactoryClasses(py::module &m) {
     .def(py::init<>(), "Cylindrical coefficient data structure object");
 
   py::class_<Coefs::Coefs, std::shared_ptr<Coefs::Coefs>, PyCoefs>(m, "Coefs")
-    .def(py::init<std::string, bool>())
-    .def("operator()",     &Coefs::Coefs::operator())
-    .def("add",            &Coefs::Coefs::add)
-    .def("getCoefStruct",  &Coefs::Coefs::getCoefStruct)
-    .def("Times",          &Coefs::Coefs::Times)
-    .def("WriteH5Coefs",   &Coefs::Coefs::WriteH5Coefs)
-    .def("ExtendH5Coefs",  &Coefs::Coefs::ExtendH5Coefs)
-    .def("Power",          &Coefs::Coefs::Power)
-    .def("CompareStanzas", &Coefs::Coefs::CompareStanzas)
-    .def_static("makecoefs", &Coefs::Coefs::makecoefs);
+    .def(py::init<std::string, bool>(), "Base coefficient container class")
+    .def("operator()",     &Coefs::Coefs::operator(),
+	 "Return the coefficient matrix for the desired time")
+    .def("add",            &Coefs::Coefs::add,
+	 "Add a coefficient structure to the coefficient container")
+    .def("getCoefStruct",  &Coefs::Coefs::getCoefStruct,
+	 "Return the coefficient structure for the desired time")
+    .def("Times",          &Coefs::Coefs::Times,
+	 "Return a list of times for coefficient sets current in the container")
+    .def("WriteH5Coefs",   &Coefs::Coefs::WriteH5Coefs,
+	 "Write the coefficients into an EXP HDF5 coefficieint file")
+    .def("ExtendH5Coefs",  &Coefs::Coefs::ExtendH5Coefs,
+	 "Extend an existing EXP HDF5 coefficient file with the coefficient in the container")
+    .def("Power",          &Coefs::Coefs::Power,
+	 "Return a ndarray table of the full power for the top-level harmonic index as function of time")
+    .def_static("makecoefs", &Coefs::Coefs::makecoefs,
+		"Create a new coefficient instance compatible with the supplied coefficient structure");
 
   py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs, Coefs::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
-    .def(py::init<bool>())
-    .def("operator()",     &Coefs::SphCoefs::operator())
-    .def("add",            &Coefs::SphCoefs::add)
-    .def("getCoefStruct",  &Coefs::SphCoefs::getCoefStruct)
-    .def("Times",          &Coefs::SphCoefs::Times)
-    .def("WriteH5Coefs",   &Coefs::SphCoefs::WriteH5Coefs)
-    .def("ExtendH5Coefs",  &Coefs::SphCoefs::ExtendH5Coefs)
-    .def("Power",          &Coefs::SphCoefs::Power)
-    .def("CompareStanzas", &Coefs::SphCoefs::CompareStanzas);
+    .def(py::init<bool>());
 
   py::class_<Coefs::CylCoefs, std::shared_ptr<Coefs::CylCoefs>, PyCylCoefs, Coefs::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
-    .def(py::init<bool>())
-    .def("operator()",     &Coefs::CylCoefs::operator())
-    .def("add",            &Coefs::CylCoefs::add)
-    .def("getCoefStruct",  &Coefs::CylCoefs::getCoefStruct)
-    .def("Times",          &Coefs::CylCoefs::Times)
-    .def("WriteH5Coefs",   &Coefs::CylCoefs::WriteH5Coefs)
-    .def("ExtendH5Coefs",  &Coefs::CylCoefs::ExtendH5Coefs)
-    .def("Power",          &Coefs::CylCoefs::Power)
-    .def("CompareStanzas", &Coefs::CylCoefs::CompareStanzas);
+    .def(py::init<bool>());
 }
 

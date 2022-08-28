@@ -10,7 +10,17 @@ namespace py = pybind11;
 template <typename T>
 py::array_t<T> make_ndarray(Eigen::Tensor<T, 3>& mat)
 {
+  // Get the tensor dimenions
   auto dims = mat.dimensions();
+
+  // Check rank
+  if (dims.size() != 3) {
+    std::ostringstream sout;
+    sout << "make_ndarray: tensor rank must be 3, found " << dims.size();
+    throw std::runtime_error(sout.str());
+  }
+  
+  // Make the memory mapping
   return py::array_t<T>
     (
      // shape
