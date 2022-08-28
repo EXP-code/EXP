@@ -487,20 +487,26 @@ namespace Coefs
     return coefs;
   }
   
+  std::shared_ptr<Coefs> Coefs::makecoefs(CoefStrPtr coef)
+  {
+    std::shared_ptr<Coefs> ret;
+    if (dynamic_cast<SphStruct*>(coef.get())) {
+      ret = std::make_shared<SphCoefs>();
+    } else if (dynamic_cast<CylStruct*>(coef.get())) {
+      ret = std::make_shared<CylCoefs>();
+    } else {
+      throw std::runtime_error("CoefFactory: cannot deduce coefficient file type");
+    }
+
+    return ret;
+  }
   
+
   std::shared_ptr<Coefs> Coefs::addcoef
   (std::shared_ptr<Coefs> coefs, CoefStrPtr coef)
   {
     std::shared_ptr<Coefs> ret = coefs;
-    if (not coefs) {
-      if (dynamic_cast<SphStruct*>(coef.get())) {
-	ret = std::make_shared<SphCoefs>();
-      } else if (dynamic_cast<CylStruct*>(coef.get())) {
-	ret = std::make_shared<CylCoefs>();
-      } else {
-	throw std::runtime_error("CoefFactory: cannot deduce coefficient file type");
-      }
-    }
+    if (not coefs) ret = makecoefs(coef);
 
     ret->add(coef);
     
