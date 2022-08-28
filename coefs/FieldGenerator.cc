@@ -20,6 +20,7 @@ namespace Field
     int flag;
     MPI_Initialized(&flag);
     if (flag) mpi = true;
+    else      mpi = false;
   }
   
   void FieldGenerator::check_times(Coefs::CoefsPtr coefs)
