@@ -2,7 +2,7 @@ import os
 import yaml
 import pyEXP
 
-os.chdir('/home/weinberg/Nbody/Better')
+os.chdir('/data/Nbody/Better')
 
 yaml_config = ""
 with open('basis.yaml') as f:
@@ -74,4 +74,32 @@ for v in surfaces:
         print('----', u)
         print('-'*40)
         print(surfaces[v][u])
+    break
+
+
+# Now try some volumes
+#
+
+times = coefs.Times()[0:3]
+pmin  = [-1.0, -1.0, -1.0]
+pmax  = [ 1.0,  1.0,  1.0]
+grid  = [   8,    8,    8]
+
+vfields = pyEXP.field.FieldGenerator(times, pmin, pmax, grid)
+
+volumes = vfields.volumes(basis, coefs)
+
+print("We now have the following [time field] pairs")
+for v in surfaces:
+    print('-'*40)
+    for u in volumes[v]:
+        print("{:8.4f}  {}".format(v, u))
+
+print("\nHere is the first one:")
+for v in volumes:
+    for u in volumes[v]:
+        print('-'*40)
+        print('----', u, '| shape=', volumes[v][u].shape)
+        print('-'*40)
+        print(volumes[v][u])
     break
