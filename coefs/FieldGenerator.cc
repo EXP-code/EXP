@@ -115,8 +115,9 @@ namespace Field
 	    frame["fp"](i, j) = -fp;
 	    frame["d0"](i, j) = d0;
 	    frame["d1"](i, j) = d1;
+	    frame["d" ](i, j) = d0 + d1;
 	    
-	    if (d0>0.0)
+	    if (d0!=0.0)
 	      frame["dd" ](i, j) = d1/d0;
 	    else
 	      frame["dd" ](i, j) = 0.0;
@@ -243,8 +244,9 @@ namespace Field
 	      frame["fp"](i, j, k) = -fp;
 	      frame["d0"](i, j, k) = d0;
 	      frame["d1"](i, j, k) = d1;
+	      frame["d" ](i, j, k) = d0 + d1;
 	    
-	      if (d0>0.0)
+	      if (d0!=0.0)
 		frame["dd" ](i, j, k) = d1/d0;
 	      else
 		frame["dd" ](i, j, k) = 0.0;
