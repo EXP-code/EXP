@@ -51,9 +51,6 @@ void FieldGeneratorClasses(py::module &m) {
   f.def("file_slices", &Field::FieldGenerator::file_slices,
 	"Write 2d field grids to files using the supplied string prefix");
 
-  // There is not a straightforward way of capturing '*this'.  I am
-  // not sure that this will work as intended.  Need to look at the
-  // signature on the Python side
   f.def("volumes", [](FieldGenerator& A,
 		      Basis::BasisPtr basis, Coefs::CoefsPtr coefs)
   {
@@ -73,4 +70,3 @@ void FieldGeneratorClasses(py::module &m) {
   f.def("file_volumes", &Field::FieldGenerator::file_volumes,
 	"Write 3d field grids to files using the supplied string prefix");
 }
-
