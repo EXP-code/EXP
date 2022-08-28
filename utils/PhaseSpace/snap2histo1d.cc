@@ -179,9 +179,9 @@ main(int ac, char **av)
     if (use_ctr) {
       std::map<double, std::array<double, 7>> posn;
       for (auto part=snap->firstParticle(); part!=0; part=snap->nextParticle()) {
-	posn[part->pot] = {part->pos[0], part->pos[1], part->pos[2],
+	posn[part->pot] = {{part->pos[0], part->pos[1], part->pos[2],
 	  part->vel[0], part->vel[1], part->vel[2],
-	  part->mass};
+	  part->mass}};
       }
 	  
       double total = 0.0;

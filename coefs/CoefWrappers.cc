@@ -12,6 +12,18 @@ void CoefFactoryClasses(py::module &m) {
 
   using namespace Coefs;
 
+  class PyCoefStruct : public CoefStruct
+  {
+  public:
+    
+    // Inherit the constructors
+    using CoefStruct::CoefStruct;
+
+    bool read(std::istream& in, bool exp_type) override {
+      PYBIND11_OVERRIDE_PURE(bool, CoefStruct, read, in, exp_type);
+    }
+  };
+
   class PyCoefs : public Coefs
   {
   protected:
@@ -201,34 +213,43 @@ void CoefFactoryClasses(py::module &m) {
 
   };
 
+  py::class_<Coefs::CoefStruct, std::shared_ptr<Coefs::CoefStruct>, PyCoefStruct>(m, "CoefStruct")
+    .def(py::init<>(), "Base class coefficient data structure object");
+
+  py::class_<Coefs::SphStruct, std::shared_ptr<Coefs::SphStruct>, CoefStruct>(m, "SphStruct")
+    .def(py::init<>(), "Spherical coefficient data structure object");
+
+  py::class_<Coefs::CylStruct, std::shared_ptr<Coefs::CylStruct>, CoefStruct>(m, "CylStruct")
+    .def(py::init<>(), "Cylindrical coefficient data structure object");
+
   py::class_<Coefs::Coefs, std::shared_ptr<Coefs::Coefs>, PyCoefs>(m, "Coefs")
     .def(py::init<std::string, bool>())
-    .def("operator()", &Coefs::Coefs::operator())
-    .def("getCoefStruct", &Coefs::Coefs::getCoefStruct)
-    .def("Times", &Coefs::Coefs::Times)
-    .def("WriteH5Coefs", &Coefs::Coefs::WriteH5Coefs)
-    .def("ExtendH5Coefs", &Coefs::Coefs::ExtendH5Coefs)
-    .def("Power", &Coefs::Coefs::Power)
+    .def("operator()",     &Coefs::Coefs::operator())
+    .def("getCoefStruct",  &Coefs::Coefs::getCoefStruct)
+    .def("Times",          &Coefs::Coefs::Times)
+    .def("WriteH5Coefs",   &Coefs::Coefs::WriteH5Coefs)
+    .def("ExtendH5Coefs",  &Coefs::Coefs::ExtendH5Coefs)
+    .def("Power",          &Coefs::Coefs::Power)
     .def("CompareStanzas", &Coefs::Coefs::CompareStanzas);
 
   py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs>(m, "SphCoefs")
     .def(py::init<bool>())
-    .def("operator()", &Coefs::SphCoefs::operator())
-    .def("getCoefStruct", &Coefs::SphCoefs::getCoefStruct)
-    .def("Times", &Coefs::SphCoefs::Times)
-    .def("WriteH5Coefs", &Coefs::SphCoefs::WriteH5Coefs)
-    .def("ExtendH5Coefs", &Coefs::SphCoefs::ExtendH5Coefs)
-    .def("Power", &Coefs::SphCoefs::Power)
+    .def("operator()",     &Coefs::SphCoefs::operator())
+    .def("getCoefStruct",  &Coefs::SphCoefs::getCoefStruct)
+    .def("Times",          &Coefs::SphCoefs::Times)
+    .def("WriteH5Coefs",   &Coefs::SphCoefs::WriteH5Coefs)
+    .def("ExtendH5Coefs",  &Coefs::SphCoefs::ExtendH5Coefs)
+    .def("Power",          &Coefs::SphCoefs::Power)
     .def("CompareStanzas", &Coefs::SphCoefs::CompareStanzas);
 
   py::class_<Coefs::CylCoefs, std::shared_ptr<Coefs::CylCoefs>, PyCylCoefs>(m, "CylCoefs")
     .def(py::init<bool>())
-    .def("operator()", &Coefs::CylCoefs::operator())
-    .def("getCoefStruct", &Coefs::CylCoefs::getCoefStruct)
-    .def("Times", &Coefs::CylCoefs::Times)
-    .def("WriteH5Coefs", &Coefs::CylCoefs::WriteH5Coefs)
-    .def("ExtendH5Coefs", &Coefs::CylCoefs::ExtendH5Coefs)
-    .def("Power", &Coefs::CylCoefs::Power)
+    .def("operator()",     &Coefs::CylCoefs::operator())
+    .def("getCoefStruct",  &Coefs::CylCoefs::getCoefStruct)
+    .def("Times",          &Coefs::CylCoefs::Times)
+    .def("WriteH5Coefs",   &Coefs::CylCoefs::WriteH5Coefs)
+    .def("ExtendH5Coefs",  &Coefs::CylCoefs::ExtendH5Coefs)
+    .def("Power",          &Coefs::CylCoefs::Power)
     .def("CompareStanzas", &Coefs::CylCoefs::CompareStanzas);
 }
 

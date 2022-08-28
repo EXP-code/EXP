@@ -155,7 +155,7 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-include_directories(${PROJECT_SO_URCE_DIR}/extern/yaml-cpp/include)
+include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
 include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
 
 
