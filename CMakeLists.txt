@@ -70,6 +70,9 @@ if(ENABLE_CUDA)
     CACHE STRING "Global cuda flags for RelWithDebInfo build" FORCE)
 endif()
 
+# For mpi
+include_directories(${MPI_C_HEADER_DIR})
+
 # For git submodules
 include_directories(${PROJECT_SOURCE_DIR}/extern)
 
