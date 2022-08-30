@@ -70,6 +70,9 @@ if(ENABLE_CUDA)
     CACHE STRING "Global cuda flags for RelWithDebInfo build" FORCE)
 endif()
 
+# For mpi
+include_directories(${MPI_C_HEADER_DIR})
+
 # For git submodules
 include_directories(${PROJECT_SOURCE_DIR}/extern)
 
@@ -168,6 +171,7 @@ add_subdirectory(extern/pybind11)
 
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "Do not build the examples")
 set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "Do not build the documentation")
+set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "Do not use Boost in HighFIve")
 set(H5_USE_EIGEN TRUE CACHE BOOL "Eigen3 support in HighFive")
 
 add_subdirectory(extern/HighFive)
