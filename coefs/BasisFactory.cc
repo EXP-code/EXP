@@ -319,7 +319,7 @@ namespace Basis
     double tpotr, tpott, tpotp;
     
     all_eval(r, theta, phi,
-	     tdens0, tpotl0, tdens, tpotl, tpotr, tpott, tpotp);
+	     tdens0, tdens, tpotl0, tpotl, tpotr, tpott, tpotp);
     
     tpotx = tpotr*sth*cph + tpott*cth*cph - tpotp*sph;
     tpoty = tpotr*sth*sph + tpott*cth*sph + tpotp*cph;
@@ -384,7 +384,7 @@ namespace Basis
 	  den1 += fac1*legs (l, m) * sumR;
 	  pot1 += fac1*legs (l, m) * sumP;
 	  potr += fac1*legs (l, m) * sumD;
-	  pott += fac1*dlegs(l, m)* sumP;
+	  pott += fac1*dlegs(l, m) * sumP;
 	  
 	  moffset++;
 	}
