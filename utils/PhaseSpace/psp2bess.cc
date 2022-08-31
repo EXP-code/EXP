@@ -5,8 +5,8 @@
   MDWeinberg 05/20/20
 */
 
+#include <functional>
 #include <cstdlib>
-
 #include <iostream>
 #include <fstream>
 #include <sstream>

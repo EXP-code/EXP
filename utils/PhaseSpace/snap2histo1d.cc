@@ -6,12 +6,12 @@
 
 using namespace std;
 
-#include <cstdlib>
-
+#include <functional>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <cstdlib>
 #include <vector>
 #include <random>
 #include <string>
