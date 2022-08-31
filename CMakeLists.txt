@@ -164,8 +164,6 @@ include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
 
 message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
 
-configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h.in ${CMAKE_SOURCE_DIR}/config.h)
-
 add_subdirectory(extern/yaml-cpp)
 add_subdirectory(extern/pybind11)
 
@@ -269,3 +267,7 @@ set(CMAKE_CXX_FLAGS_UBSAN
   "-fsanitize=undefined"
   CACHE STRING "Flags used by the C++ compiler during UndefinedBehaviourSanitizer builds."
   FORCE)
+
+# Make the config.h file
+configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h.in ${CMAKE_SOURCE_DIR}/config.h)
+
