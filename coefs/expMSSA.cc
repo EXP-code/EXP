@@ -39,7 +39,7 @@
 
 namespace MSSA {
   
-  Eigen::MatrixXd expMSSA::wCorrKey(const std::vector<unsigned>& key)
+  Eigen::MatrixXd expMSSA::wCorrKey(const Key& key)
   {
     auto R     = RC[key];
     
@@ -132,7 +132,7 @@ namespace MSSA {
   }
   
   
-  //! Helper ostream manipulator
+  // Helper ostream manipulator
   std::ostream& operator<< (std::ostream& out, const std::vector<unsigned>& t)
   {
     const char lab[] = {'c', 's'};
@@ -145,6 +145,7 @@ namespace MSSA {
   }
   
   
+  // Do the SVD
   void expMSSA::mssa_analysis()
   {
     nkeys = mean.size();
@@ -154,7 +155,7 @@ namespace MSSA {
     numK = numT - numW + 1;
     if (zeropad) numK = numT;
     
-    Eigen::MatrixXd Y(numK, numW*nkeys);
+    Y.resize(numK, numW*nkeys);
     Y.fill(0.0);
     
     // Build embedded time series.  Augmented vectors are the rows.
@@ -186,7 +187,7 @@ namespace MSSA {
       rank  = std::min<int>(cov.cols(), npc);
       Scale = cov.norm();
     }
-    
+
     if (Scale<=0.0) {
       std::cout << "Frobenius norm of trajectory or covariance matrix is <= 0!" << std::endl;
       exit(-1);
@@ -202,11 +203,6 @@ namespace MSSA {
       out << cov;
       out.close();
     }
-    
-    // Store the solution
-    // ------------------
-    Eigen::VectorXd S;
-    Eigen::MatrixXd U;
     
     // Use one of the built-in Eigen3 algorithms
     //
@@ -336,7 +332,7 @@ namespace MSSA {
       
       for (int i=0; i<numK; i++) {
 	std::cout << std::setw(15) << std::setprecision(6) << coefDB.times[i];
-	for (int j=0; j<numW*nkeys; j++)
+	for (int j=0; j<PC.cols(); j++)
 	  std::cout << std::setw(15) << std::setprecision(6) << PC(i, j);
 	std::cout << std::endl;
       }
@@ -348,7 +344,7 @@ namespace MSSA {
       if (out) {
 	for (int i=0; i<numK; i++) {
 	  out << std::setw(5) << coefDB.times[i];
-	  for (int j=0; j<npc; j++)
+	  for (int j=0; j<PC.cols(); j++)
 	    out << std::setw(15) << PC(i, j);
 	  out << std::endl;
 	}
@@ -1016,7 +1012,7 @@ namespace MSSA {
   }
   
   
-  std::map<std::string, Coefs::CoefsPtr> expMSSA::getReconstructed()
+  std::map<std::string, Coefs::CoefsPtr> expMSSA::getReconstructed(bool zero)
   {
     if (dfiles) {
 
@@ -1115,7 +1111,7 @@ namespace MSSA {
     // Copy the original map for return
     //
     auto newdata = data;
-
+    
     for (int i=0; i<numT; i++) {
       for (auto u : mean) {
 	double disp = totVar;
@@ -1130,11 +1126,18 @@ namespace MSSA {
     }
     
     
-    std::map<std::string, Coefs::CoefsPtr> newMap;
+    // Use CoefDB to recover names and use newdata to replace data
+    //
+    coefDB.beginUpdate(zero);
+    for (auto v : newdata) {
+      std::cout << "Updating for: " << v.first << std::endl;
+      coefDB.setData(v.first, v.second);
+    }
     
-    return newMap;
+    // Return updated namestr-coefficient map
+    //
+    return coefDB.endUpdate();
   }
-  
   
   void expMSSA::assignParameters(const std::string flags)
   {
@@ -1208,9 +1211,6 @@ namespace MSSA {
     // Now open and parse the coefficient files
     //
     coefDB = CoefContainer(config, flags);
-    
-    std::map<Key, std::vector<double> > data;
-    std::map<Key, double> mean, var;
     
     numT = coefDB.times.size();
     
@@ -1335,7 +1335,7 @@ namespace MSSA {
       out.close();
     }
   }
-  // END expMSSA::expMSSA
+  // END expMSSA constructor
 
 }
 // END namespace MSSA

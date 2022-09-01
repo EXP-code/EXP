@@ -185,7 +185,9 @@ namespace MSSA
     };
     
   }
+  // END namespace KMeans
 }
+// END namespace MSSA
   
 #endif
   

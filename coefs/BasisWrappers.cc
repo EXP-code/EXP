@@ -8,7 +8,11 @@ namespace py = pybind11;
 
 void BasisFactoryClasses(py::module &m) {
 
-  m.doc() = "BasisFactory class bindings";
+  m.doc() = "BasisFactory class bindings. This module provides a factory\n"
+    "class that will create biorthogonal bases from input configura-\n"
+    "tion files.  These basis can then be used to compute coeffi-\n"
+    "cients, provide field quantities such as forces and, together\n"
+    "with the FieldGenerator, surfaces and fields for visualization.";
 
   using namespace Basis;
 
@@ -161,7 +165,9 @@ void BasisFactoryClasses(py::module &m) {
 
 
   py::class_<Basis::Basis, std::shared_ptr<Basis::Basis>, PyBasis>(m, "Basis")
-    .def(py::init<const std::string&>())
+    .def(py::init<const std::string&>(),
+	 "Initialize a biorthogonal basis from the configuration in the "
+	 "provided YAML configuration", py::arg("YAMLstring"))
     .def("createCoefficients", &Basis::Basis::createCoefficients,
 	 "Generate the coefficients from the supplied ParticleReader")
     .def("getFields",          &Basis::Basis::getFields,

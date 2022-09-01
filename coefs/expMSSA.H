@@ -17,8 +17,8 @@ namespace MSSA
     
     //@{
     //! Repacked stream data
-    std::map<MSSA::Key, std::vector<double> > data;
-    std::map<MSSA::Key, double> mean, var;
+    std::map<Key, std::vector<double> > data;
+    std::map<Key, double> mean, var;
     //@}
 
     //! Coefficient container
@@ -33,7 +33,7 @@ namespace MSSA
     bool computed, reconstructed;
 
     //! The reconstructed coefficients for each PC
-    std::map<MSSA::Key, Eigen::MatrixXd> RC;
+    std::map<Key, Eigen::MatrixXd> RC;
 
     //! The left singular vectors (PC)
     Eigen::MatrixXd PC;
@@ -110,7 +110,7 @@ namespace MSSA
 	cylindrical bases.
     */
     expMSSA(const mssaConfig& spec, int window, int maxEV,
-	    const std::string flags="");
+	 const std::string flags="");
 
     //! Destructor
     virtual ~expMSSA() {}
@@ -147,7 +147,7 @@ namespace MSSA
 	eigenvalue and PC ordering
 	@param type is the reconstruction style
     */
-    std::map<std::string, Coefs::CoefsPtr> getReconstructed();
+    std::map<std::string, Coefs::CoefsPtr> getReconstructed(bool zero);
 
     //@{
     /** Compute w-correlation matrix for a single trajectory matrix
@@ -155,9 +155,8 @@ namespace MSSA
 	@param name is the nmemonic name (see constructor)
 	@param index is one of the specified keys (see constructor)
     */
-    Eigen::MatrixXd wCorrKey(const std::vector<unsigned>& key);
-    Eigen::MatrixXd wCorr(const std::string& name,
-			  const std::vector<unsigned>& ckey)
+    Eigen::MatrixXd wCorrKey(const Key& key);
+    Eigen::MatrixXd wCorr(const std::string& name, const Key& ckey)
     {
       auto key = ckey;
       key.push_back(coefDB.index(name));
@@ -183,5 +182,6 @@ namespace MSSA
 
 
 }
+// END namespace MSSA
 
 #endif

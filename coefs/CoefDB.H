@@ -99,8 +99,8 @@ namespace MSSA
     //! Update working copyof coefficients
     void update(bool zero);
 
-    //! Update working copyof coefficients
-    void endUpdate();
+    //! Update and return working copy of coefficients
+    Coefs::CoefsPtr endUpdate();
   };
 
   /**
@@ -205,6 +205,20 @@ components:
     {
       unsigned c = key.back();
       key.pop_back();
+      if (comps[c]->data.find(key) == comps[c]->data.end()) {
+	std::cout << "Keys in comp[" << c << "] :";
+	for (auto v : comps[c]->data) {
+	  std::cout << " (";
+	  for (auto l : v.first) std::cout << l << "|";
+	  std::cout << ")";
+	}
+	std::cout << std::endl;
+	std::cout << "Desired key: ";
+	std::cout << " (";
+	for (auto l : key) std::cout << l << "|";
+	std::cout << ")" << std::endl;
+	throw std::runtime_error("CoefDB::getData: desired key is not data");
+      }
       return comps[c]->data[key];
     }
 
@@ -226,13 +240,17 @@ components:
     {
       unsigned c = key.back();
       key.pop_back();
-      comps[c]->data[key] = data;
+      comps[c]->data1[key] = data;
     }
 
-    //! Update the working data to the working coefficients
-    void endUpdate()
+    //! Update the working data to the working coefficients and return a map
+    std::map<std::string, Coefs::CoefsPtr> endUpdate()
     {
-      for (auto & v : comps) v->endUpdate();
+      std::map<std::string, Coefs::CoefsPtr> ret;
+      for (auto & v : comps) {
+	ret[v->name] = v->endUpdate();
+      }
+      return ret;
     }
 
     //! Get index with associated name
@@ -246,6 +264,7 @@ components:
   };
 
 }
+// END namespace MSSA
 
 #endif
 

@@ -24,7 +24,7 @@ namespace MSSA
   }
 
   // Copy to workset coefficient set
-  void CoefDB::endUpdate()
+  Coefs::CoefsPtr CoefDB::endUpdate()
   {
     // Make a new Coefs instance
     //
@@ -47,8 +47,7 @@ namespace MSSA
       throw std::runtime_error("CoefDB::pack_channels(): can not reflect coefficient type");
     }
 
-    // Now update the new coefficient from the data
-    //
+    return coefs1;
   }
   
   
@@ -96,6 +95,29 @@ namespace MSSA
 	}
       }
     }
+
+    // Promote desired keys into c/s pairs
+    //
+    auto keys0 = keys;
+    keys.clear();
+    for (auto v : keys0) {
+      auto c = v, s = v;
+      c.push_back(0);
+      s.push_back(1);
+      keys.push_back(c);
+      if (v[0]) keys.push_back(s);
+    }
+
+    keys0 = bkeys;
+    bkeys.clear();
+    for (auto v : keys0) {
+      auto c = v, s = v;
+      c.push_back(0);
+      s.push_back(1);
+      bkeys.push_back(c);
+      if (v[0]) keys.push_back(s);
+    }
+
   }
 
   void CoefDB::unpack_cylinder()
@@ -111,8 +133,8 @@ namespace MSSA
 	for (unsigned n=0; n<nmax; n++) {
 	  Key key0 = {m, n, 0}, key1 = {m, n, 1};
 	  
-	  if (m==0) cf->coefs(m, n) = {data[key0][i], 0.0};
-	  else cf->coefs(m, n) = {data[key0][i], data[key1][i]};
+	  if (m==0) cf->coefs(m, n) = {data1[key0][i], 0.0};
+	  else cf->coefs(m, n) = {data1[key0][i], data1[key1][i]};
 	}
       }
     }
@@ -154,6 +176,28 @@ namespace MSSA
 	}
       }
     }
+
+    // Promote desired keys into c/s pairs
+    //
+    auto keys0 = keys;
+    keys.clear();
+    for (auto v : keys0) {
+      auto c = v, s = v;
+      c.push_back(0);
+      s.push_back(1);
+      keys.push_back(c);
+      if (v[1]) keys.push_back(s);
+    }
+
+    keys0 = bkeys;
+    bkeys.clear();
+    for (auto v : keys0) {
+      auto c = v, s = v;
+      c.push_back(0);
+      s.push_back(1);
+      bkeys.push_back(c);
+      if (v[1]) keys.push_back(s);
+    }
   }
 
   void CoefDB::unpack_sphere()
@@ -170,8 +214,8 @@ namespace MSSA
 	  for (unsigned n=0; n<nmax; n++) {
 	    Key key0 = {l, m, n, 0}, key1 = {l, m, n, 1};
 	  
-	    if (m==0) cf->coefs(L, n) = {data[key0][i], 0.0          };
-	    else      cf->coefs(L, n) = {data[key0][i], data[key1][i]};
+	    if (m==0) cf->coefs(L, n) = {data1[key0][i], 0.0          };
+	    else      cf->coefs(L, n) = {data1[key0][i], data1[key1][i]};
 	  }
 	  // END n loop
 	}
@@ -219,7 +263,7 @@ namespace MSSA
 
       for (unsigned c=0; c<cols; c++) {
 	Key key = {c};
-	cf->coefs(0, c) = data[key][i];
+	cf->coefs(0, c) = data1[key][i];
       }
       // End field loop
     }
@@ -334,7 +378,8 @@ namespace MSSA
 
   CoefContainer::CoefContainer(const mssaConfig& config, const std::string spec)
   {
-    YAML::Node top = YAML::LoadFile(spec);
+    YAML::Node top;
+    if (spec.size()) top = YAML::Load(spec);
 
     // Defaults
     tmin   = -std::numeric_limits<double>::max();
@@ -348,12 +393,14 @@ namespace MSSA
     if (top["stride"]) stride = top["stride"].as<int>();
     if (top["runtag"]) runtag = top["runtag"].as<std::string>();
 
+    int index = 0;
     for (auto v : config) {
       comps.push_back(std::make_shared<CoefDB>(v.first, 
 					       std::get<0>(v.second),
 					       std::get<1>(v.second),
 					       std::get<2>(v.second),
-					       stride, tmin, tmax));
+					       index, stride, tmin, tmax));
+      index++;			// Update index
     }
 
     // Check times (all should be the same)

@@ -34,7 +34,9 @@ py::array_t<T> make_ndarray(Eigen::Tensor<T, 3>& mat)
 
 void FieldGeneratorClasses(py::module &m) {
 
-  m.doc() = "FieldGenerator class bindings";
+  m.doc() = "FieldGenerator class bindings.  This class computes surfaces\n"
+    "and volumes for visualizing the physical quantities implied\nby your"
+    "coefficients.";
 
   using namespace Field;
 
@@ -42,14 +44,19 @@ void FieldGeneratorClasses(py::module &m) {
     f(m, "FieldGenerator");
 
   f.def(py::init<const std::vector<double>, const std::vector<double>,
-	const std::vector<double>, const std::vector<int>>());
+	const std::vector<double>, const std::vector<int>>(),
+	"Create fields for given times and lower and upper bounds and "
+	"grid sizes", py::arg("times"), py::arg("lower"), py::arg("upper"),
+	py::arg("gridsize"));
 
   f.def("slices", &Field::FieldGenerator::slices,
 	"Return a dictionary of grids (2d numpy arrays) indexed by "
-	"time and field type");
+	"time and field type", py::arg("basis"), py::arg("coefs"));
   
   f.def("file_slices", &Field::FieldGenerator::file_slices,
-	"Write 2d field grids to files using the supplied string prefix");
+	"Write 2d field grids to files using the supplied string prefix",
+	py::arg("basis"), py::arg("coefs"), py::arg("filename"),
+	py::arg("dir")="");
 
   f.def("volumes", [](FieldGenerator& A,
 		      Basis::BasisPtr basis, Coefs::CoefsPtr coefs)

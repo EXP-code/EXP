@@ -7,7 +7,9 @@ namespace py = pybind11;
 
 void ParticleReaderClasses(py::module &m) {
 
-  m.doc() = "ParticleReader class bindings";
+  m.doc() = "ParticleReader class bindings. This class reads and converts\n"
+    "your phase-space snapshots to iterable objects for generating\nderived"
+    "quantities, such as coefficients.";
 
   using namespace PR;
 

@@ -8,7 +8,9 @@ namespace py = pybind11;
 
 void CoefFactoryClasses(py::module &m) {
 
-  m.doc() = "CoefFactory class bindings";
+  m.doc() = "CoefFactory class bindings. This class stores, writes, and\n"
+    "provides and interface to coefficients and table data for use\nby the "
+    "other pyEXP classes.";
 
   using namespace Coefs;
 
@@ -223,23 +225,31 @@ void CoefFactoryClasses(py::module &m) {
     .def(py::init<>(), "Cylindrical coefficient data structure object");
 
   py::class_<Coefs::Coefs, std::shared_ptr<Coefs::Coefs>, PyCoefs>(m, "Coefs")
-    .def(py::init<std::string, bool>(), "Base coefficient container class")
+    .def(py::init<std::string, bool>(), "Base coefficient container class",
+	 py::arg("name"), py::arg("verbose"))
     .def("operator()",     &Coefs::Coefs::operator(),
-	 "Return the coefficient matrix for the desired time")
+	 "Return the coefficient matrix for the desired time",
+	 py::arg("time"))
     .def("add",            &Coefs::Coefs::add,
-	 "Add a coefficient structure to the coefficient container")
+	 "Add a coefficient structure to the coefficient container",
+	 py::arg("coef"))
     .def("getCoefStruct",  &Coefs::Coefs::getCoefStruct,
-	 "Return the coefficient structure for the desired time")
+	 "Return the coefficient structure for the desired time",
+	 py::arg("time"))
     .def("Times",          &Coefs::Coefs::Times,
 	 "Return a list of times for coefficient sets current in the container")
     .def("WriteH5Coefs",   &Coefs::Coefs::WriteH5Coefs,
-	 "Write the coefficients into an EXP HDF5 coefficieint file")
+	 "Write the coefficients into an EXP HDF5 coefficieint file with the "
+	 "given prefix name", py::arg("filename"))
     .def("ExtendH5Coefs",  &Coefs::Coefs::ExtendH5Coefs,
-	 "Extend an existing EXP HDF5 coefficient file with the coefficient in the container")
+	 "Extend an existing EXP HDF5 coefficient file with given prefix "
+	 "name using the coefficient in the container", py::arg("filename"))
     .def("Power",          &Coefs::Coefs::Power,
-	 "Return a ndarray table of the full power for the top-level harmonic index as function of time")
+	 "Return a ndarray table of the full power for the top-level harmonic "
+	 "index as function of time")
     .def_static("makecoefs", &Coefs::Coefs::makecoefs,
-		"Create a new coefficient instance compatible with the supplied coefficient structure");
+		"Create a new coefficient instance compatible with the "
+		"supplied coefficient structure", py::arg("coef"));
 
   py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs, Coefs::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
     .def(py::init<bool>());
