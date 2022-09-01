@@ -80,6 +80,56 @@ namespace Coefs
     return mat;
   }
   
+  
+  std::vector<Key> SphCoefs::makeKeys(Key k)
+  {
+    std::vector<Key> ret;
+    if (coefs.size()==0) return ret;
+
+    int lmax = coefs.begin()->second->lmax;
+    int nmax = coefs.begin()->second->nmax;
+
+    // Sanity
+    if (k.size()) {
+      k[0] = std::max<unsigned>(k[0], 0);
+      k[0] = std::min<unsigned>(k[0], lmax);
+    }
+
+    if (k.size()>1) {
+      k[1] = std::max<unsigned>(k[1], 0);
+      k[1] = std::min<unsigned>(k[1], k[0]);
+    }
+
+    // Three options
+    // 1. return all nkeys for a fixed l, m
+    // 2. return all m, n for a fixed l
+    // 3. return all keys
+
+    // Option 3
+    if (k.size()==0) {
+      for (unsigned l=0; l<=lmax; l++)
+	for (unsigned m=0; m<=l; m++) 
+	  for (unsigned n=0; n<nmax; n++) ret.push_back({l, m, n});
+    }
+    // Option 2
+    else if (k.size()==1) {
+      for (unsigned m=0; m<=k[0]; m++) 
+	for (unsigned n=0; n<nmax; n++) ret.push_back({k[0], m, n});
+    }
+    // Option 1
+    else if (k.size()==2) {
+      for (unsigned n=0; n<nmax; n++) ret.push_back({k[0], k[1], n});
+    }
+    // Bad sub key?
+    else {
+      throw std::runtime_error
+	("SphCoefs::makeKeys: the subkey must have rank 0, 1 or 2");
+    }
+
+    return ret;
+  }
+
+
   void SphCoefs::readNativeCoefs(const std::string& file)
   {
     std::ifstream in(file);
@@ -317,6 +367,42 @@ namespace Coefs
     return mat;
   }
   
+  
+  std::vector<Key> CylCoefs::makeKeys(Key k)
+  {
+    std::vector<Key> ret;
+    if (coefs.size()==0) return ret;
+
+    int mmax = coefs.begin()->second->mmax;
+    int nmax = coefs.begin()->second->nmax;
+
+    // Sanity check
+    if (k.size()==1) {
+      k[0] = std::max<unsigned>(k[0], 0);
+      k[0] = std::min<unsigned>(k[0], mmax);
+    }
+
+    // Two options:
+    // 1. return all keys with a fixed m
+    // 2. return all keys
+    //
+    if (k.size()==0) {
+      for (unsigned m=0; m<=mmax; m++)
+	for (unsigned n=0; n<nmax; n++) ret.push_back({m, n});
+
+    }
+    else if (k.size()==1) {
+      for (unsigned n=0; n<nmax; n++) ret.push_back({k[0], n});
+    }
+    // Bad sub key?
+    else {
+      throw std::runtime_error
+	("SphCoefs::makeKeys: the subkey must have rank 1");
+    }
+
+    return ret;
+  }
+
   void CylCoefs::readNativeCoefs(const std::string& file)
   {
     std::ifstream in(file);

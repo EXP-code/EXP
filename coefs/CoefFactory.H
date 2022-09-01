@@ -12,6 +12,9 @@
 
 namespace Coefs
 { 
+  //! An index key
+  using Key = std::vector<unsigned>;
+  
   /** 
       Abstract class for any type of coefficient database
       
@@ -93,6 +96,9 @@ namespace Coefs
 	refined for partial summations. */
     virtual Eigen::MatrixXd& Power() = 0;
     
+    //! Make keys for the remaining indices in a subspace
+    virtual std::vector<Key> makeKeys(Key k) = 0;
+
     /** The coefficient factory members
 
 	Creates a shared pointer to derived instance of the desired
@@ -184,6 +190,8 @@ namespace Coefs
 	refined for partial summations. */
     virtual Eigen::MatrixXd& Power();
     
+    //! Make keys for the remaining indices in a subspace
+    virtual std::vector<Key> makeKeys(Key k);
 
     //! Compare two collections of stanzas (this is for testing only)
     virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
@@ -254,6 +262,9 @@ namespace Coefs
 	refined for partial summations. */
     virtual Eigen::MatrixXd& Power();
     
+    //! Make keys for the remaining indices in a subspace
+    virtual std::vector<Key> makeKeys(Key k);
+
     //! Compare two collections of stanzas (this is for testing only)
     virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
   };
@@ -325,8 +336,15 @@ namespace Coefs
     /** Get power for the coefficient DB as a function of harmonic
 	index.  Time as rows, harmonics as columns.  This could be
 	refined for partial summations. */
-    virtual Eigen::MatrixXd& Power() { power.resize(0, 0); return power; }
-    
+    virtual Eigen::MatrixXd& Power()
+    {
+      power.resize(0, 0);
+      return power;
+    }
+
+    //! Make keys for the remaining indices in a subspace
+    virtual std::vector<Key> makeKeys(Key k)
+    { return std::vector<Key>(); }
 
     //! Compare two collections of stanzas (this is for testing only)
     virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
