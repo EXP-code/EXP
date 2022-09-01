@@ -87,6 +87,9 @@ void CoefFactoryClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(void, Coefs, add, coef);
     }
 
+    std::vector<Key> makeKeys(Key k) override {
+      PYBIND11_OVERRIDE_PURE(std::vector<Key>, Coefs, makeKeys k);
+    }
   };
 
   class PySphCoefs : public SphCoefs
@@ -150,6 +153,9 @@ void CoefFactoryClasses(py::module &m) {
       PYBIND11_OVERRIDE(void, SphCoefs,	add, coef);
     }
 
+    std::vector<Key> makeKeys(Key k) override {
+      PYBIND11_OVERRIDE(std::vector<Key>, SphCoefs, makeKeys k);
+    }
   };
 
   class PyCylCoefs : public CylCoefs
@@ -213,6 +219,9 @@ void CoefFactoryClasses(py::module &m) {
       PYBIND11_OVERRIDE(void, CylCoefs,	add, coef);
     }
 
+    std::vector<Key> makeKeys(Key k) override {
+      PYBIND11_OVERRIDE(std::vector<Key>, CylCoefs, makeKeys k);
+    }
   };
 
   py::class_<Coefs::CoefStruct, std::shared_ptr<Coefs::CoefStruct>, PyCoefStruct>(m, "CoefStruct")
@@ -247,14 +256,17 @@ void CoefFactoryClasses(py::module &m) {
     .def("Power",          &Coefs::Coefs::Power,
 	 "Return a ndarray table of the full power for the top-level harmonic "
 	 "index as function of time")
+    .def("makeKeys",       &Coefs::Coefs::makeKeys,
+	 "Return a vector/list of keys for an entire subspace of "
+	 "subdimensional rank", py::arg("subkey")
     .def_static("makecoefs", &Coefs::Coefs::makecoefs,
 		"Create a new coefficient instance compatible with the "
 		"supplied coefficient structure", py::arg("coef"));
 
   py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs, Coefs::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
-    .def(py::init<bool>());
+	 .def(py::init<bool>(), py::arg("verbose"));
 
   py::class_<Coefs::CylCoefs, std::shared_ptr<Coefs::CylCoefs>, PyCylCoefs, Coefs::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
-    .def(py::init<bool>());
+	 .def(py::init<bool>(), py::arg("verbose"));
 }
 
