@@ -39,7 +39,7 @@
 
 namespace MSSA {
   
-  Eigen::MatrixXd expMSSA::wCorr(const std::vector<unsigned>& key)
+  Eigen::MatrixXd expMSSA::wCorrKey(const std::vector<unsigned>& key)
   {
     auto R     = RC[key];
     
@@ -504,6 +504,7 @@ namespace MSSA {
       return;
     }
 
+#ifdef HAVE_LIBPNGPP
     if (not quiet) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- Elemental fractions"                 << std::endl;
@@ -660,6 +661,10 @@ namespace MSSA {
       std::cout << "Could not open <" << filename << ">" << std::endl;
       exit(-1);
     }
+#else
+    std::cout << "PNG is not available, so I can't make contribution images"
+	      << std::endl;
+#endif
     
   }
   
@@ -811,7 +816,7 @@ namespace MSSA {
   
   void expMSSA::wcorrPNG()
   {
-    
+#ifdef HAVE_LIBPNGPP
     if (not quiet) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- w-correlation"                       << std::endl;
@@ -829,7 +834,7 @@ namespace MSSA {
       if (params["distance"]) use_dist = true;
       
       for (auto u : mean) {
-	Eigen::MatrixXd wc = wCorr(u.first);
+	Eigen::MatrixXd wc = wCorrKey(u.first);
 	
 	png::image< png::rgb_pixel > image(nDim*ndup, nDim*ndup);
 	ColorGradient color;
@@ -882,6 +887,10 @@ namespace MSSA {
       }
       
     }
+#else
+    std::cout << "PNG is not available so I can't make w-correlation images"
+	      << std::endl;
+#endif
   }
   
   void expMSSA::kmeans()

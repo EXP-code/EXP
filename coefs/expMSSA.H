@@ -1,6 +1,7 @@
 #ifndef EXP_MSSA_H
 #define EXP_MSSA_H
 
+#include <yaml-cpp/yaml.h>
 #include "CoefDB.H"
 
 namespace MSSA
@@ -154,13 +155,13 @@ namespace MSSA
 	@param name is the nmemonic name (see constructor)
 	@param index is one of the specified keys (see constructor)
     */
-    Eigen::MatrixXd wCorr(const std::vector<unsigned>& key);
+    Eigen::MatrixXd wCorrKey(const std::vector<unsigned>& key);
     Eigen::MatrixXd wCorr(const std::string& name,
 			  const std::vector<unsigned>& ckey)
     {
       auto key = ckey;
       key.push_back(coefDB.index(name));
-      return wCorr(key);
+      return wCorrKey(key);
     }
     //@}
 

@@ -240,7 +240,7 @@ components:
     {
       auto it = namemap.find(name);
       if (it == namemap.end()) return -1;
-      else *it;
+      else                     return it->second;
     }
 
   };

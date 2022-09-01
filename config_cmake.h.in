@@ -11,25 +11,25 @@
 #cmakedefine HAVE_FFTW @FFTW_FOUND@
 
 /* Defined if you have HDF5 support */
-#cmakedefine HAVE_HDF5 @HDF5_FOUND@
+#cmakedefine HAVE_HDF5 @HAVE_HDF5@
 
 /* Define to 1 if you have the `cuda' library. */
 #cmakedefine HAVE_LIBCUDA 1
 
 /* Defined if you have the have the png++ wrapper */
-#cmakedefine HAVE_LIBPNG @PNG_FOUND@
+#cmakedefine HAVE_LIBPNGPP @HAVE_LIBPNGPP@
 
 /* Define to 1 if you have the `slurm' library (-lslurm). */
-#cmakedefine HAVE_LIBSLURM @LIBSLURM_FOUND@
+#cmakedefine HAVE_LIBSLURM @HAVE_LIBSLURM@
 
 /* Defined if you have 'xdr' support */
 #cmakedefine HAVE_XDR @HAVE_XDR@
 
 /* Define if you have the <omp.h> header file. */
-#cmakedefine HAVE_OMP_H
+#cmakedefine HAVE_OMP_H @HAVE_OMP_H@
 
 /* Define if VTK is available */
-#cmakedefine HAVE_VTK
+#cmakedefine HAVE_VTK @HAVE_VTK@
 
 /* Define if HighFive is available */
 #cmakedefine H5_USE_EIGEN @H5_USE_EIGEN@

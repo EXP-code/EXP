@@ -737,6 +737,7 @@ main(int argc, char **argv)
     }
   }
 
+#ifdef HAVE_LIBPNGPP
   if (vm.count("histo")) {
 
     if (not quiet) {
@@ -897,6 +898,7 @@ main(int argc, char **argv)
     }
 
   }
+#endif
 
   if (not quiet) {
     std::cout << "----------------------------------------" << std::endl;
@@ -1105,6 +1107,7 @@ main(int argc, char **argv)
     }
   }
 
+#ifdef HAVE_LIBPNGPP
   if (not quiet) {
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "---- w-correlation"                       << std::endl;
@@ -1175,7 +1178,7 @@ main(int argc, char **argv)
     }
 
   }
-
+#endif
 
   if (vm.count("kmeans")) {
 

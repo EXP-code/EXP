@@ -52,7 +52,7 @@ foreach(program ${bin_PROGRAMS})
 endforeach()
 
 pybind11_add_module(pyEXP PyWrappers.cc CoefWrappers.cc
-  BasisWrappers.cc FieldWrappers.cc ParticleReaderWrappers.cc)
+  BasisWrappers.cc FieldWrappers.cc ParticleReaderWrappers.cc MSSAWrappers.cc)
 target_link_libraries(pyEXP PUBLIC expcoef exputil ${common_LINKLIB})
 target_include_directories(pyEXP PUBLIC ${common_INCLUDE})
 
