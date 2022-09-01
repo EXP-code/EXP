@@ -249,7 +249,7 @@ namespace MSSA {
       for (int i=0; i<S.size(); i++) S(i) = S(i)*S(i)/numK;
     }
     
-    if (not quiet) {
+    if (chatty) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- Eigenvalues"                         << std::endl;
       std::cout << "----------------------------------------" << std::endl;
@@ -257,11 +257,11 @@ namespace MSSA {
     
     double tot = 0.0;
     for (int j=0; j<S.size(); j++) tot += S(j);
-    if (not quiet) std::cout << "Total=" << tot << std::endl;
+    if (chatty) std::cout << "Total=" << tot << std::endl;
     
     double cum = 0.0;
     for (int j=0; j<S.size(); j++) {
-      if (not quiet) std::cout << std::setw( 5) << j
+      if (chatty) std::cout << std::setw( 5) << j
 			       << std::setw(18) << S(j)
 			       << std::setw(18) << (cum += S(j))/tot
 			       << std::endl;
@@ -289,7 +289,7 @@ namespace MSSA {
 	
     npc = std::min<int>(npc, numW*nkeys);
 	
-    if (not quiet) {
+    if (chatty) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- Eigenvectors"                        << std::endl;
       std::cout << "----------------------------------------" << std::endl;
@@ -325,7 +325,7 @@ namespace MSSA {
     //
     PC = Y * U;
 	
-    if (not quiet) {
+    if (chatty) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- Principal components"                << std::endl;
       std::cout << "----------------------------------------" << std::endl;
@@ -394,7 +394,7 @@ namespace MSSA {
       n++;
     }
     
-    if (not quiet) {
+    if (chatty) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- Reconstruction"                      << std::endl;
       std::cout << "----------------------------------------" << std::endl;
@@ -413,7 +413,7 @@ namespace MSSA {
 	    if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
 	}
 	
-	if (not quiet and params["reverse"]) {
+	if (chatty and params["reverse"]) {
 	  std::cout << "----------------------------------------" << std::endl;
 	  std::cout << "---- Z for " << u.first << " w=" << w     << std::endl;
 	  std::cout << "----------------------------------------" << std::endl;
@@ -448,7 +448,7 @@ namespace MSSA {
       }
     }
     
-    if (not quiet) {
+    if (chatty) {
       for (int i=0; i<numT; i++) {
 	std::cout << std::setw(15) << std::setprecision(6) << coefDB.times[i];
 	for (auto u : mean) {
@@ -501,7 +501,7 @@ namespace MSSA {
     }
 
 #ifdef HAVE_LIBPNGPP
-    if (not quiet) {
+    if (chatty) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- Elemental fractions"                 << std::endl;
       std::cout << "----------------------------------------" << std::endl;
@@ -668,7 +668,7 @@ namespace MSSA {
   Eigen::MatrixXd expMSSA::pcDFT(Eigen::VectorXd& F, Eigen::VectorXd& P)
   {
     
-    if (not quiet) {
+    if (chatty) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- Principal component periodogram"     << std::endl;
       std::cout << "----------------------------------------" << std::endl;
@@ -731,7 +731,7 @@ namespace MSSA {
   
   Eigen::MatrixXd expMSSA::channelDFT(Eigen::VectorXd& F, Eigen::VectorXd& P)
   {
-    if (not quiet) {
+    if (chatty) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- Coefficient periodogram"             << std::endl;
       std::cout << "----------------------------------------" << std::endl;
@@ -813,7 +813,7 @@ namespace MSSA {
   void expMSSA::wcorrPNG()
   {
 #ifdef HAVE_LIBPNGPP
-    if (not quiet) {
+    if (chatty) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- w-correlation"                       << std::endl;
       std::cout << "----------------------------------------" << std::endl;
@@ -852,6 +852,9 @@ namespace MSSA {
 	
 	std::ostringstream sout; sout << prefix + ".wcorr" + "_"
 				      << u.first << ".png";
+
+	std::cout << "Attempting to write: " << sout.str() << std::endl;
+
 	image.write(sout.str());
       }
       
@@ -879,6 +882,9 @@ namespace MSSA {
 	}
 	
 	std::ostringstream sout; sout << prefix + ".wcorr_allchan.png";
+
+	std::cout << "Attempting to write: " << sout.str() << std::endl;
+
 	image.write(sout.str());
       }
       
@@ -891,7 +897,7 @@ namespace MSSA {
   
   void expMSSA::kmeans()
   {
-    if (not quiet) {
+    if (chatty) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- K-means group analysis"              << std::endl;
       std::cout << "---- numT=" << numT << " numW=" << numW   << std::endl;
@@ -1004,6 +1010,11 @@ namespace MSSA {
 	
       }
       
+      if (out) {
+	std::cout << "Successfully wrote: <" << filename << ">" << std::endl;
+      } else {
+	std::cout << "Bad output stream for <" << filename << ">" << std::endl;
+      }
       out.close();
       
     } else {
@@ -1149,6 +1160,8 @@ namespace MSSA {
       //
       params = YAML::Load(flags);
       
+      std::cout << "Parameters" << std::endl << params << std::endl;
+
       // Compute flags
       //
       computed      = false;
@@ -1156,7 +1169,7 @@ namespace MSSA {
       
       // Top level parameter flags
       //
-      quiet    = bool(params["quiet"]);
+      chatty   = bool(params["chatty"]);
       verbose  = bool(params["verbose"]);
       flip     = bool(params["flip"]);
       zeropad  = bool(params["zeropad"]);
@@ -1191,6 +1204,11 @@ namespace MSSA {
   expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC)
   {
     
+    // Parse the YAML string if it exists
+    //
+    if (flags.size()) assignParameters(flags);
+
+
     // Detrending style (totVar and totPow are only useful, so far, for
     // noise computation)
     //
@@ -1204,7 +1222,7 @@ namespace MSSA {
     
     // Eigen OpenMP reporting
     //
-    if (not params["quiet"])
+    if (params["chatty"])
       std::cout << "Eigen is using " << Eigen::nbThreads()
 		<< " threads" << std::endl;
     
@@ -1268,7 +1286,7 @@ namespace MSSA {
       //
       totPow = std::sqrt(totPow/numT + std::numeric_limits<double>::min());
       
-      if (not quiet) std::cout << "<total Power>=" << totPow << std::endl;
+      if (chatty) std::cout << "<total Power>=" << totPow << std::endl;
       
       for (auto & u : mean) {
 	Key k = u.first;

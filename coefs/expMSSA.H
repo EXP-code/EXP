@@ -50,7 +50,7 @@ namespace MSSA
     //! Parameters
     //@{
     std::string prefix, grpfile, config, spec;
-    bool quiet, flip, verbose, zeropad, dfiles;
+    bool chatty, flip, verbose, zeropad, dfiles;
     int numW, nmin, nmax, npc;
     int stride, skip, clusters;
     std::vector<int> MM;
@@ -175,9 +175,6 @@ namespace MSSA
 
     //! Kmean analysis of the trajectories by PC
     void kmeans();
-
-    //! Detrend channels
-    void channelReconstruct();
   };
 
 
