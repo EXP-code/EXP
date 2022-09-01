@@ -61,6 +61,14 @@ namespace Coefs
     //! Constructor
     Coefs(std::string coefType, bool verbose) :
       coefType(coefType), verbose(verbose) {}
+
+    //! Copy constructor
+    Coefs(Coefs& p)
+    {
+      mat      = p.mat;
+      power    = p.power;
+      coefType = p.coefType;
+    }
     
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time) = 0;
@@ -122,11 +130,11 @@ namespace Coefs
   /** Derived class for spherical coefficients */
   class SphCoefs : public Coefs
   {
-  private:
-    std::map<double, SphStrPtr> coefs;
-    
   protected:
     
+    //! The coefficient DB
+    std::map<double, SphStrPtr> coefs;
+
     //! Read the coefficients
     virtual void readNativeCoefs(const std::string& file);
     
@@ -144,6 +152,9 @@ namespace Coefs
     //! Constructor
     SphCoefs(bool verbose=false) : Coefs("Sphere", verbose) {}
     
+    //! Copy constructor
+    SphCoefs(SphCoefs& p) : Coefs(p) { coefs = p.coefs; }
+
     //! H5 constructor
     SphCoefs(HighFive::File& file, bool verbose=false);
     
@@ -181,11 +192,13 @@ namespace Coefs
   /** Derived class for cylindrical coefficients */
   class CylCoefs : public Coefs
   {
-  private:
-    std::map<double, CylStrPtr> coefs;
-    bool angle;
-    
   protected:
+    
+    //! The coefficient DB
+    std::map<double, CylStrPtr> coefs;
+
+    //! Print module/angle (for diagnostic output)
+    bool angle;
     
     //! Read the coefficients
     virtual void readNativeCoefs(const std::string& file);
@@ -207,6 +220,13 @@ namespace Coefs
     //! H5 constructor
     CylCoefs(HighFive::File& file, bool verbose=false);
     
+    //! Copy constructor
+    CylCoefs(CylCoefs& p) : Coefs(p)
+    {
+      coefs = p.coefs;
+      angle = p.angle;
+    }
+
     //! Add a coefficient structure to the container
     virtual void add(CoefStrPtr coef);
 
@@ -238,6 +258,81 @@ namespace Coefs
     virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
   };
   
+
+  /** Derived class for a table of data */
+  class TableCoefs : public Coefs
+  {
+  protected:
+    
+    //! The table DB
+    std::map<double, TblStrPtr> coefs;
+
+    //! An alternate packing
+    std::vector<std::vector<double>> data;
+
+    //! The time column
+    std::vector<double> times;
+    
+    //! Read the coefficients
+    virtual void readNativeCoefs(const std::string& file);
+    
+    //! Get the YAML config
+    virtual std::string getYAML();
+    
+    //! Write parameter attributes
+    virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Write coefficient data in H5
+    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
+    
+  public:
+    
+    //! Constructor from vectors
+    TableCoefs(const std::vector<double>& time,
+	       const std::vector<std::vector<double>>& data,
+	       bool verbose=false);
+
+    //! Constructor from file
+    TableCoefs(std::string& file, bool verbose=false);
+    
+    //! H5 constructor
+    TableCoefs(HighFive::File& file, bool verbose=false);
+    
+    //! Copy constructor
+    TableCoefs(TableCoefs& p) : Coefs(p)
+    {
+      coefs = p.coefs;
+      data  = p.data;
+      times = p.times;
+    }
+
+    //! Add a coefficient structure to the container
+    virtual void add(CoefStrPtr coef);
+
+    //! Get coefficient matrix at given time
+    virtual Eigen::MatrixXcd& operator()(double time);
+    
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[time]; }
+
+    //! Dump to ascii list for testing
+    virtual void dump(int lmin, int lmax, int nmin, int nmax) {}
+    
+    //! Get list of coefficient times
+    virtual std::vector<double> Times() { return times; }
+    
+    /** Get power for the coefficient DB as a function of harmonic
+	index.  Time as rows, harmonics as columns.  This could be
+	refined for partial summations. */
+    virtual Eigen::MatrixXd& Power() { power.resize(0, 0); return power; }
+    
+
+    //! Compare two collections of stanzas (this is for testing only)
+    virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+  };
+  
+
   using CoefsPtr = std::shared_ptr<Coefs>;
 }
 // END namespace Coefs

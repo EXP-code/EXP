@@ -29,7 +29,7 @@ endif()
 # shared library
 
 set(expcoef_SOURCES BasisFactory.cc CoefFactory.cc CoefStruct.cc
-  FieldGenerator.cc)
+  FieldGenerator.cc expMSSA.cc CoefDB.cc KMeans.cc)
 add_library(expcoef ${expcoef_SOURCES})
 set_target_properties(expcoef PROPERTIES OUTPUT_NAME expcoef)
 target_include_directories(expcoef PUBLIC ${common_INCLUDE})

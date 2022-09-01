@@ -12,6 +12,18 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
   ${CMAKE_CURRENT_SOURCE_DIR}/.. ${EIGEN3_INCLUDE_DIR} ${FFTW_INCLUDE_DIRS}
   ${HDF5_INCLUDE_DIRS})
 
+if(CUDA_FOUND)
+  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+endif()
+
+if(SLURM_FOUND)
+  list(APPEND common_LINKLIB ${SLURM_LIBRARY})
+endif()
+
+if(TIRPC_FOUND)
+  list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
+endif()
+
 add_executable(exp_haloN     exp_haloN.cc Coefs.cc)
 add_executable(disk_noise    exp_disk_noise.cc Coefs.cc)
 add_executable(halo_noise    exp_halo_noise.cc Coefs.cc)

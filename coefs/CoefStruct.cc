@@ -229,5 +229,39 @@ namespace Coefs
     return true;
   }
 
+  bool TblStruct::read(std::istream& in, bool exp_type)
+  {
+    std::vector<double> row;
+    std::string line;
+
+    if (std::getline(in, line)) {
+
+      std::istringstream sin(line);
+
+      // Read first value as time
+      //
+      sin >> time;
+
+      // If okay, read the rest of the line as columns
+      //
+      double val;
+      while (1) {
+	sin >> val;
+	if (sin) row.push_back(val);
+	else     break;
+      }
+
+      // Number of cols
+      cols = row.size();
+      
+      coefs.resize(1, cols);
+      for (int i=0; i<cols; i++) coefs(0, i) = row[i];
+
+      return true;
+    } else {
+      return false;
+    }
+  }
+
 }
 // END namespace Coefs

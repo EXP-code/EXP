@@ -1,5 +1,5 @@
-#ifndef _COEFSE_H
-#define _COEFSE_H
+#ifndef _COEF_STRUCT_H
+#define _COEF_STRUCT_H
 
 #include <memory>
 #include <Eigen/Eigen>
@@ -29,7 +29,7 @@ namespace Coefs
     virtual bool read(std::istream& in, bool exp_type) = 0;
   };
   
-  //! Specialization of CoefsE for spheres
+  //! Specialization of CoefStruct for spheres
   class SphStruct : public CoefStruct
   {
   public:
@@ -46,7 +46,7 @@ namespace Coefs
     bool read(std::istream& in, bool exp_type);
   };
   
-  //! Specialization of CoefsE for cylinders
+  //! Specialization of CoefStruct for cylinders
   class CylStruct : public CoefStruct
   {
   public:
@@ -57,9 +57,22 @@ namespace Coefs
     bool read(std::istream& in, bool exp_type);
   };
   
+  //! Specialization of CoefStruct for a data table
+  class TblStruct : public CoefStruct
+  {
+  public:
+    //! Number of columns
+    int cols;
+    
+    //! No need to read
+    bool read(std::istream& in, bool exp_type);
+  };
+  
   typedef std::shared_ptr<CoefStruct> CoefStrPtr;
   typedef std::shared_ptr<SphStruct>  SphStrPtr;
   typedef std::shared_ptr<CylStruct>  CylStrPtr;
+  typedef std::shared_ptr<TblStruct>  TblStrPtr;
+
 }  
 // END namespace Coefs
 
