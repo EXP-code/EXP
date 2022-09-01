@@ -83,4 +83,16 @@ void MSSAtoolkitClasses(py::module &m) {
   f.def("wCorrAll", &expMSSA::wCorrAll,
 	"Get the w-correlation matrix for all channels in the reconstruction");
 
+  f.def("wcorrPNG", &expMSSA::wcorrPNG,
+	"Create wcorrlation matricies and output PNG image representations");
+
+  f.def("kmeans", &expMSSA::kmeans,
+	"Perform a k-means analysis on the reconstructed trajectory matrices "
+	"to provide grouping insight.  The file name will be derived from the "
+	"'output' parameter");
+
+  f.def("contrib", &expMSSA::contributions,
+	"Computes the relative contribution of each PC to the coefficient "
+	"series and the breakdown of the coefficient series to each PC. "
+	"The results are rendered as PNG images");
 }
