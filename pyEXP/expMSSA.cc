@@ -175,17 +175,18 @@ namespace MSSA {
     double Scale;
     int rank;
     
-    if (params["Traj"]) {
+    if (params["Cov"]) {
+      cov   = Y.transpose() * Y/numK;
+      rank  = std::min<int>(cov.cols(), npc);
+      Scale = cov.norm();
+    }
+    else {
       rank = std::min<int>({static_cast<int>(Y.cols()), static_cast<int>(Y.rows()), npc});
       Scale = Y.norm();
       if (Scale<=0.0) {
 	std::cout << "Frobenius norm of trajectory matrix is <= 0!" << std::endl;
 	exit(-1);
       }
-    } else {
-      cov   = Y.transpose() * Y/numK;
-      rank  = std::min<int>(cov.cols(), npc);
-      Scale = cov.norm();
     }
 
     if (Scale<=0.0) {
@@ -197,7 +198,7 @@ namespace MSSA {
     
     // Only write covariance matrix on request
     //
-    if (params["Traj"] and params["writeCov"]) {
+    if (params["Cov"] and params["writeCov"]) {
       std::string filename = prefix + ".cov";
       std::ofstream out(filename);
       out << cov;
@@ -208,36 +209,49 @@ namespace MSSA {
     //
     if (params["Jacobi"]) {
       // -->Using Jacobi
-      Eigen::JacobiSVD<Eigen::MatrixXd>
-	svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
-      
-      S = svd.singularValues();	// Get solution
-      U = svd.matrixU();
+      if (params["Cov"]) {
+	Eigen::JacobiSVD<Eigen::MatrixXd>
+	  svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	S = svd.singularValues();	// Get solution
+	U = svd.matrixU();
+      } else {
+	auto YY = Y/Scale;
+
+	Eigen::JacobiSVD<Eigen::MatrixXd>
+	  svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	S = svd.singularValues();	// Get solution
+	U = svd.matrixU();
+      }
     } else if (params["BDCSVD"]) {
       // -->Using BDC
-      Eigen::BDCSVD<Eigen::MatrixXd>
-	svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
-      
-      S = svd.singularValues();	// Get solution
-      U = svd.matrixU();
-    } else if (params["Traj"]) {
-      // -->Use Random approximation algorithm from Halko, Martinsson,
-      //    and Tropp to compute the SVD of the grand trajectory matrix
-      auto YY = Y/Scale;
-      
-      RedSVD::RedSVD<Eigen::MatrixXd> svd(YY, rank);
-      
-      S = svd.singularValues();	// Get solution
-      U = svd.matrixV();
+      if (params["Cov"]) {
+	Eigen::BDCSVD<Eigen::MatrixXd>
+	  svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	S = svd.singularValues();	// Get solution
+	U = svd.matrixU();
+      } else {
+	auto YY = Y/Scale;
+
+	Eigen::BDCSVD<Eigen::MatrixXd>
+	  svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	S = svd.singularValues();	// Get solution
+	U = svd.matrixU();
+      }
     } else {
       // -->Use Random approximation algorithm from Halko, Martinsson,
       //    and Tropp
-      RedSVD::RedSVD<Eigen::MatrixXd> svd(cov, rank);
+      if (params["Cov"]) {
+	RedSVD::RedSVD<Eigen::MatrixXd> svd(cov, rank);
+	S = svd.singularValues();	// Get solution
+	U = svd.matrixU();
+      } else {
+	auto YY = Y/Scale;
       
-      S = svd.singularValues();	// Get solution
-      U = svd.matrixU();
+	RedSVD::RedSVD<Eigen::MatrixXd> svd(YY, rank);
+	S = svd.singularValues();	// Get solution
+	U = svd.matrixV();
+      }
     }
-    
     
     std::cout << "shape U = " << U.rows() << " x "
 	      << U.cols() << std::endl;
@@ -245,7 +259,7 @@ namespace MSSA {
     // Rescale the SVD factorization by the Frobenius norm
     //
     S *= Scale;
-    if (params["Traj"]) {
+    if (not params["Cov"]) {
       for (int i=0; i<S.size(); i++) S(i) = S(i)*S(i)/numK;
     }
     

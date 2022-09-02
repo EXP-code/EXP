@@ -73,6 +73,11 @@ namespace Field
 
     for (auto T : times) {
 
+      if (not coefs->getCoefStruct(T)) {
+	std::cout << "Could not find time=" << T << ", continuing" << std::endl;
+	continue;
+      }
+
       basis->set_coefs(coefs->getCoefStruct(T));
 
       std::map<std::string, Eigen::MatrixXf> frame;
@@ -107,15 +112,15 @@ namespace Field
 	    basis->all_eval(r, costh, phi,
 			    d0, d1, p0, p1, fr, ft, fp);
 
-	    frame["p0"](i, j) = p0;
-	    frame["p1"](i, j) = p1;
-	    frame["p" ](i, j) = p0 + p1;
+	    frame["p0"](i, j) =  p0;
+	    frame["p1"](i, j) =  p1;
+	    frame["p" ](i, j) =  p0 + p1;
 	    frame["fr"](i, j) = -fr;
 	    frame["ft"](i, j) = -ft;
 	    frame["fp"](i, j) = -fp;
-	    frame["d0"](i, j) = d0;
-	    frame["d1"](i, j) = d1;
-	    frame["d" ](i, j) = d0 + d1;
+	    frame["d0"](i, j) =  d0;
+	    frame["d1"](i, j) =  d1;
+	    frame["d" ](i, j) =  d0 + d1;
 	    
 	    if (d0!=0.0)
 	      frame["dd" ](i, j) = d1/d0;
@@ -236,15 +241,15 @@ namespace Field
 
 	      basis->all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
 
-	      frame["p0"](i, j, k) = p0;
-	      frame["p1"](i, j, k) = p1;
-	      frame["p" ](i, j, k) = p0 + p1;
+	      frame["p0"](i, j, k) =  p0;
+	      frame["p1"](i, j, k) =  p1;
+	      frame["p" ](i, j, k) =  p0 + p1;
 	      frame["fr"](i, j, k) = -fr;
 	      frame["ft"](i, j, k) = -ft;
 	      frame["fp"](i, j, k) = -fp;
-	      frame["d0"](i, j, k) = d0;
-	      frame["d1"](i, j, k) = d1;
-	      frame["d" ](i, j, k) = d0 + d1;
+	      frame["d0"](i, j, k) =  d0;
+	      frame["d1"](i, j, k) =  d1;
+	      frame["d" ](i, j, k) =  d0 + d1;
 	    
 	      if (d0!=0.0)
 		frame["dd" ](i, j, k) = d1/d0;

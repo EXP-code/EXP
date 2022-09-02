@@ -314,7 +314,7 @@ namespace Basis
     double cph   = cos(phi),   sph = sin(phi);
     double tpotr, tpott, tpotp;
     
-    all_eval(r, theta, phi,
+    all_eval(r, cth, phi,
 	     tdens0, tdens, tpotl0, tpotl, tpotr, tpott, tpotp);
     
     tpotx = tpotr*sth*cph + tpott*cth*cph - tpotp*sph;
@@ -678,6 +678,10 @@ namespace Basis
     if (mlim>=0)  sl->set_mlim(mlim);
     if (EVEN_M)   sl->setEven(EVEN_M);
     
+    // Set up the coefficient and basis function storage
+    //
+    sl->setup_eof();
+    sl->setup_accumulation();
   }
   
   void CylindricalSL::getFields
@@ -699,14 +703,15 @@ namespace Basis
     tpoty = tpotR*sph + tpotP*cph ;
   }
   
+  // Evaluate in on spherical coordinates (should this be Cartesian)
   void CylindricalSL::all_eval
-  (double x, double y, double z,
+  (double r, double cth, double phi,
    double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
    double& tpotr, double& tpott, double& tpotp)
   {
-    double R   = sqrt(x*x + y*y);
-    double r   = sqrt(x*x + y*y + z*z);
-    double phi = atan2(y, x);
+    double sth = sqrt(1.0 - cth*cth);
+    double R   = r*sth;
+    double z   = r*cth;
     
     double tpotR, tpotz;
     
@@ -755,8 +760,8 @@ namespace Basis
   {
     Coefs::CylStruct* cf = dynamic_cast<Coefs::CylStruct*>(coef.get());
 
-    for (int m=0; m<=mmax; m++) {
-      sl->set_coefs(m, cf->coefs.row(m).real(), cf->coefs.row(m).imag());
+    for (int m=0; m<=mmax; m++) { // Set to zero on m=0 call only--------+
+      sl->set_coefs(m, cf->coefs.row(m).real(), cf->coefs.row(m).imag(), m==0);
     }
   }
 
@@ -820,6 +825,7 @@ namespace Basis
       else {
 	std::string msg("I don't know about the basis named: ");
 	msg += name;
+	msg += ". Known types are currently 'SphereSL' and 'Cylinder'";
 	throw std::runtime_error(msg);
       }
     }

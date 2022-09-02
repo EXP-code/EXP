@@ -57,9 +57,9 @@ namespace Coefs
     //! Round time key to emulated fixed-point arithmetic
     inline double roundTime(double time)
     {
-      const double p10 = 1.0e-08;	// 8 signficant figures in coefficient map
-      unsigned T = floor(time/p10);
-      return p10*T;
+      const unsigned decimal_places = 8;
+      constexpr double multiplier = std::pow(10.0, decimal_places);
+      return std::floor(time * multiplier + 0.5) / multiplier;
     }
     
   public:

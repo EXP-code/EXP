@@ -1,7 +1,9 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.15) # This is the oldest version I've
+				     # tested by newer versions are
+				     # preferred esp. for Cuda support
 project(
   EXP
-  VERSION 7.706
+  VERSION 7.710
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
@@ -34,6 +36,7 @@ endif()
 
 # Build options
 option(ENABLE_NBODY "Enable EXP n-body" ON)
+option(ENABLE_PYEXP "Enable the Python bindings" ON)
 option(ENABLE_CUDA "Enable CUDA" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
@@ -179,7 +182,9 @@ if (ENABLE_NBODY)
   add_subdirectory(src)
 endif()
 add_subdirectory(utils)
-add_subdirectory(coefs)
+if (ENABLE_PYEXP)
+  add_subdirectory(pyEXP)
+endif()
 
 # try to find pybind11 and build wrapper python module
 find_package(Python3 COMPONENTS Interpreter Development)

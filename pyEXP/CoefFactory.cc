@@ -427,7 +427,6 @@ namespace Coefs
     }
   }
   
-  
   void CylCoefs::WriteH5Params(HighFive::File& file)
   {
     int mmax = coefs.begin()->second->mmax;
