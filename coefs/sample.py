@@ -2,9 +2,13 @@ import os
 import yaml
 import pyEXP
 
+# I have the Better run here; obviously another use will want to
+# change this a directory containing some snapshots of their own
+#
 os.chdir('/home/weinberg/Nbody/Better')
 
 # Get the basis config
+#
 yaml_config = ""
 with open('basis.yaml') as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -35,12 +39,18 @@ print(bconfig)
 print('-'*60)
 
 # Construct the basis instance
+#
 basis   = pyEXP.basis.Basis.factory(yaml_config)
 
-# Construct the particle reader
+# Construct batches of files the particle reader.  One could use the
+# parseStringList to create batches from a vector/list of files.  NB:
+# a std::vector in C++ becomes a Python.list and vice versa
+#
 batches = pyEXP.read.ParticleReader.parseFileList('file.list', '')
 
-# This will contain the coefficient container
+# This will contain the coefficient container, need to start will a
+# null instance to trigger construction
+#
 coefs   = None
 
 for group in batches:
@@ -66,7 +76,9 @@ for group in batches:
     print("Created coef")
 
     # We need this stupid idiom here because None is not mapping to a
-    # null pointer.  There is probably a way to fix this.
+    # null pointer.  There is probably a way to do this.  Suggestions
+    # anyone?
+    #
     if coefs is None:
         coefs = pyEXP.coefs.Coefs.makecoefs(coef)
     else:
@@ -79,7 +91,7 @@ print('\nCompleted the file group list\n')
 
 print('The coefficient time list is', coefs.Times())
 
-# Now try some slices
+# Now try some slices for rendering
 #
 
 times = coefs.Times()[0:3]
@@ -106,9 +118,14 @@ for v in surfaces:
         print(surfaces[v][u])
     break
 
-# Okay, now try expMSSA
+# These could be make into images and so forth
 
-# Make some parameter flags as YAML
+# Okay, now try expMSSA
+#
+# Make some parameter flags as YAML.  The defaults should work fine
+# for most people.  'chatty' turns on std::out diagnostics and
+# 'output' is the prefix for written files.
+#
 flags ="""
 ---
 chatty: true
@@ -126,35 +143,42 @@ config = {"dark halo": (coefs, [[1, 0, 0], [1, 0, 1], [1, 0, 2]], [])}
 ssa = pyEXP.mssa.expMSSA(config, 5, 3, flags)
 
 ev = ssa.eigenvalues()
-print("Eigenvalues:", ev)
+print("The eigenvalues are:\n", ev)
 
 pc = ssa.getPC();
-print("PC:", pc)
+print("The PC vectors are:\n", pc)
 
 # Okay, now try a reconstruction
+#
 ssa.reconstruct([0, 1])
 
 newdata = ssa.getReconstructed(False)
 print(type(newdata))
 print(newdata)
 
-# Try the kmeans
+# Try the kmeans analysis (not sure this is working yet)
+#
 ssa.kmeans()
 
 # Test the PNG output
+#
 ssa.wcorrPNG()
 
 # Make a subkey sequence
+#
 keylst = coefs.makeKeys([1])
 print("Keys=", keylst)
 
 # Try saving coefficients to an HDF5 file
+#
 coefs.WriteH5Coefs('testC')
 
 # Now try reading it in
+#
 coefs2 = pyEXP.coefs.Coefs.factory('testC.h5')
 print("Type is", coefs2.getCoefType())
 
 # Now compare with the original
+#
 coefs2.CompareStanzas(coefs)
 
