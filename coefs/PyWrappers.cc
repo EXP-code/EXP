@@ -12,7 +12,7 @@ extern void ParticleReaderClasses(py::module &m);
 
 PYBIND11_MODULE(pyEXP, m)
 {
-  m.doc() = "A collection of EXP tools for processing and analysing simulation data using BFE techniques (hello)";
+  m.doc() = "A collection of EXP tools for processing and analysing simulation\ndata using BFE techniques.  Run 'help' on the submodules below for\nmore detailed information...";
 
   auto mod_coefs = m.def_submodule("coefs",
 				   "Classes for reading, passing and "
