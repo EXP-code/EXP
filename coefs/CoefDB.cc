@@ -38,9 +38,9 @@ namespace MSSA
       coefs1 = std::make_shared<Coefs::CylCoefs>(*p);
       unpack_cylinder();
     }
-    else if (dynamic_cast<Coefs::TableCoefs*>(coefs.get())) {
-      auto p = dynamic_cast<Coefs::TableCoefs*>(coefs.get());
-      coefs1 = std::make_shared<Coefs::TableCoefs>(*p);
+    else if (dynamic_cast<Coefs::TableData*>(coefs.get())) {
+      auto p = dynamic_cast<Coefs::TableData*>(coefs.get());
+      coefs1 = std::make_shared<Coefs::TableData>(*p);
       unpack_table();
     }
     else {
@@ -58,7 +58,7 @@ namespace MSSA
       pack_sphere();
     else if (dynamic_cast<Coefs::CylCoefs*>(coefs.get()))
       pack_cylinder();
-    else if (dynamic_cast<Coefs::TableCoefs*>(coefs.get()))
+    else if (dynamic_cast<Coefs::TableData*>(coefs.get()))
       pack_table();
     else {
       throw std::runtime_error("CoefDB::pack_channels(): can not reflect coefficient type");
@@ -228,7 +228,7 @@ namespace MSSA
   
   void CoefDB::pack_table()
   {
-    auto cur = dynamic_cast<Coefs::TableCoefs*>(coefs.get());
+    auto cur = dynamic_cast<Coefs::TableData*>(coefs.get());
 
     times = cur->Times();
 

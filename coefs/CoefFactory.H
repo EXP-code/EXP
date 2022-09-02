@@ -131,6 +131,9 @@ namespace Coefs
     
     //! Compare two collections of stanzas (this is for testing only)
     virtual bool CompareStanzas(std::shared_ptr<Coefs> check) = 0;
+
+    //! Get coefficient type
+    std::string getCoefType() { return coefType; }
   };
   
   /** Derived class for spherical coefficients */
@@ -271,7 +274,7 @@ namespace Coefs
   
 
   /** Derived class for a table of data */
-  class TableCoefs : public Coefs
+  class TableData : public Coefs
   {
   protected:
     
@@ -298,19 +301,22 @@ namespace Coefs
     
   public:
     
+    //! Constructor
+    TableData(bool verbose=false) : Coefs("Table", verbose) {}
+
     //! Constructor from vectors
-    TableCoefs(const std::vector<double>& time,
-	       const std::vector<std::vector<double>>& data,
-	       bool verbose=false);
+    TableData(const std::vector<double>& time,
+	      const std::vector<std::vector<double>>& data,
+	      bool verbose=false);
 
     //! Constructor from file
-    TableCoefs(std::string& file, bool verbose=false);
+    TableData(std::string& file, bool verbose=false);
     
     //! H5 constructor
-    TableCoefs(HighFive::File& file, bool verbose=false);
+    TableData(HighFive::File& file, bool verbose=false);
     
     //! Copy constructor
-    TableCoefs(TableCoefs& p) : Coefs(p)
+    TableData(TableData& p) : Coefs(p)
     {
       coefs = p.coefs;
       data  = p.data;

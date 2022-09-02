@@ -240,12 +240,18 @@ namespace Coefs
     
     // Check that every time in this one is in the other
     for (auto v : coefs) {
-      if (other->coefs.find(v.first) == other->coefs.end()) {
+      if (other->coefs.find(roundTime(v.first)) == other->coefs.end()) {
 	std::cout << "Can't find Time=" << v.first << std::endl;
 	ret = false;
       }
     }
     
+    if (not ret) {
+      std::cout << "Times in other coeffcients are:";
+      for (auto v : other->Times()) std::cout << " " << v;
+      std::cout << std::endl;
+    }
+
     if (ret) {
       std::cout << "Times are the same, now checking parameters at each time"
 		<< std::endl;
@@ -305,7 +311,7 @@ namespace Coefs
   
   void SphCoefs::add(CoefStrPtr coef)
   {
-    coefs[coef->time] = std::dynamic_pointer_cast<SphStruct>(coef);
+    coefs[roundTime(coef->time)] = std::dynamic_pointer_cast<SphStruct>(coef);
   }
 
   CylCoefs::CylCoefs(HighFive::File& file, bool verbose) :
@@ -504,9 +510,9 @@ namespace Coefs
     return power;
   }
   
-  TableCoefs::TableCoefs(const std::vector<double>& times,
-			 const std::vector<std::vector<double>>& data,
-			 bool verbose) :
+  TableData::TableData(const std::vector<double>& times,
+		       const std::vector<std::vector<double>>& data,
+		       bool verbose) :
     times(times), data(data), Coefs("Table", verbose)
   {
     for (int i=0; i<times.size(); i++) {
@@ -518,13 +524,13 @@ namespace Coefs
     }
   }
 
-  TableCoefs::TableCoefs(std::string& file, bool verbose) :
+  TableData::TableData(std::string& file, bool verbose) :
     Coefs("Table", verbose)
   {
     std::ifstream in(file);
     
     if (not in) {
-      throw std::runtime_error("TableCoefs ERROR (runtime) opening file <" + file + ">");
+      throw std::runtime_error("TableData ERROR (runtime) opening file <" + file + ">");
     }
     
     while (in) {
@@ -538,7 +544,7 @@ namespace Coefs
   }
     
 
-  TableCoefs::TableCoefs(HighFive::File& file, bool verbose) :
+  TableData::TableData(HighFive::File& file, bool verbose) :
     Coefs("Table", verbose)
   {
     int cols;
@@ -568,7 +574,7 @@ namespace Coefs
     }
   }
   
-  Eigen::MatrixXcd& TableCoefs::operator()(double time)
+  Eigen::MatrixXcd& TableData::operator()(double time)
   {
     auto it = coefs.find(roundTime(time));
     
@@ -585,12 +591,12 @@ namespace Coefs
     return mat;
   }
   
-  void TableCoefs::readNativeCoefs(const std::string& file)
+  void TableData::readNativeCoefs(const std::string& file)
   {
     std::ifstream in(file);
     
     if (not in) {
-      throw std::runtime_error("CylCoefs ERROR (runtime) opening file <" + file + ">");
+      throw std::runtime_error("TableData ERROR (runtime) opening file <" + file + ">");
     }
     
     while (in) {
@@ -602,14 +608,14 @@ namespace Coefs
   }
   
   
-  void TableCoefs::WriteH5Params(HighFive::File& file)
+  void TableData::WriteH5Params(HighFive::File& file)
   {
     int cols = coefs.begin()->second->cols;
     
     file.createAttribute<int>("cols", HighFive::DataSpace::From(cols)).write(cols);
   }
   
-  unsigned TableCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
+  unsigned TableData::WriteH5Times(HighFive::Group& snaps, unsigned count)
   {
     snaps.createDataSet("times", times);
     snaps.createDataSet("datatable", data);
@@ -620,7 +626,7 @@ namespace Coefs
   }
   
   
-  std::string TableCoefs::getYAML()
+  std::string TableData::getYAML()
   {
     std::string ret;
     if (coefs.size()) {
@@ -631,15 +637,15 @@ namespace Coefs
     return ret;
   }
 
-  bool TableCoefs::CompareStanzas(std::shared_ptr<Coefs> check)
+  bool TableData::CompareStanzas(std::shared_ptr<Coefs> check)
   {
     bool ret = true;
     
-    auto other = dynamic_cast<TableCoefs*>(check.get());
+    auto other = dynamic_cast<TableData*>(check.get());
     
     // Check that every time in this one is in the other
     for (auto v : coefs) {
-      if (other->coefs.find(v.first) == other->coefs.end()) {
+      if (other->coefs.find(roundTime(v.first)) == other->coefs.end()) {
 	std::cout << "Can't find Time=" << v.first << std::endl;
 	ret = false;
       }
@@ -697,6 +703,8 @@ namespace Coefs
 	  coefs = std::make_shared<SphCoefs>(h5file);
 	} else if (Type.compare("Cylinder")==0) {
 	  coefs = std::make_shared<CylCoefs>(h5file);
+	} else if (Type.compare("Table")==0) {
+	  coefs = std::make_shared<TableData>(h5file);
 	} else {
 	  throw std::runtime_error("CoefFactory: unknown H5 coefficient file type");
 	}
@@ -732,7 +740,7 @@ namespace Coefs
     } else if (tmagic==cyl_magic) {
       coefs = std::make_shared<CylCoefs>();
     } else {
-      throw std::runtime_error("CoefFactory: unknown native coefficient file type");
+      coefs = std::make_shared<TableData>();
     }
     
     coefs->readNativeCoefs(file);
@@ -885,12 +893,12 @@ namespace Coefs
   
   void CylCoefs::add(CoefStrPtr coef)
   {
-    coefs[coef->time] = std::dynamic_pointer_cast<CylStruct>(coef);
+    coefs[roundTime(coef->time)] = std::dynamic_pointer_cast<CylStruct>(coef);
   }
 
-  void TableCoefs::add(CoefStrPtr coef)
+  void TableData::add(CoefStrPtr coef)
   {
-    coefs[coef->time] = std::dynamic_pointer_cast<TblStruct>(coef);
+    coefs[roundTime(coef->time)] = std::dynamic_pointer_cast<TblStruct>(coef);
   }
 
 
