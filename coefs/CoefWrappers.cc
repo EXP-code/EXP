@@ -34,7 +34,7 @@ void CoefFactoryClasses(py::module &m) {
     }
     
     std::string getYAML() override {
-      PYBIND11_OVERRIDE_PURE(std::string, Coefs, getYaml,);
+      PYBIND11_OVERRIDE_PURE(std::string, Coefs, getYAML,);
     }
     
     void WriteH5Params(HighFive::File& file) override {
@@ -88,7 +88,7 @@ void CoefFactoryClasses(py::module &m) {
     }
 
     std::vector<Key> makeKeys(Key k) override {
-      PYBIND11_OVERRIDE_PURE(std::vector<Key>, Coefs, makeKeys k);
+      PYBIND11_OVERRIDE_PURE(std::vector<Key>, Coefs, makeKeys, k);
     }
   };
 
@@ -154,7 +154,7 @@ void CoefFactoryClasses(py::module &m) {
     }
 
     std::vector<Key> makeKeys(Key k) override {
-      PYBIND11_OVERRIDE(std::vector<Key>, SphCoefs, makeKeys k);
+      PYBIND11_OVERRIDE(std::vector<Key>, SphCoefs, makeKeys, k);
     }
   };
 
@@ -220,7 +220,73 @@ void CoefFactoryClasses(py::module &m) {
     }
 
     std::vector<Key> makeKeys(Key k) override {
-      PYBIND11_OVERRIDE(std::vector<Key>, CylCoefs, makeKeys k);
+      PYBIND11_OVERRIDE(std::vector<Key>, CylCoefs, makeKeys, k);
+    }
+  };
+
+  class PyTableData : public TableData
+  {
+  protected:
+    void readNativeCoefs(const std::string& file) override {
+      PYBIND11_OVERRIDE(void, TableData, readNativeCoefs, file);
+    }
+    
+    std::string getYAML() override {
+      PYBIND11_OVERRIDE(std::string, TableData, getYAML,);
+    }
+    
+    void WriteH5Params(HighFive::File& file) override {
+      PYBIND11_OVERRIDE(void, TableData, WriteH5Params, file);
+    }
+
+    unsigned WriteH5Times(HighFive::Group& group, unsigned count) override {
+      PYBIND11_OVERRIDE(unsigned, TableData, WriteH5Times, group, count);
+    }
+
+  public:
+    // Inherit the constructors
+    using TableData::TableData;
+
+    Eigen::MatrixXcd& operator()(double time) override {
+      PYBIND11_OVERRIDE(Eigen::MatrixXcd&, TableData, operator(), time);
+    }
+
+    std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
+      PYBIND11_OVERRIDE(std::shared_ptr<CoefStruct>, TableData, getCoefStruct,
+			time);
+    }
+
+    void dump(int mmin, int mmax, int nmin, int nmax) override {
+      PYBIND11_OVERRIDE(void, TableData, dump,
+			mmin, mmax, nmin, nmax);
+    }
+
+    std::vector<double> Times() override {
+      PYBIND11_OVERRIDE(std::vector<double>, TableData, Times,);
+    }
+
+    void WriteH5Coefs(const std::string& prefix) override {
+      PYBIND11_OVERRIDE(void, TableData, WriteH5Coefs, prefix);
+    }
+
+    void ExtendH5Coefs(const std::string& prefix) override {
+      PYBIND11_OVERRIDE(void, TableData, ExtendH5Coefs, prefix);
+    }
+
+    Eigen::MatrixXd& Power() override {
+      PYBIND11_OVERRIDE(Eigen::MatrixXd&, TableData, Power,);
+    }
+
+    bool CompareStanzas(std::shared_ptr<Coefs> check) override {
+      PYBIND11_OVERRIDE(bool, TableData, CompareStanzas, check);
+    }
+
+    void add(CoefStrPtr coef) override {
+      PYBIND11_OVERRIDE(void, TableData, add, coef);
+    }
+
+    std::vector<Key> makeKeys(Key k) override {
+      PYBIND11_OVERRIDE(std::vector<Key>, TableData, makeKeys, k);
     }
   };
 
@@ -258,15 +324,26 @@ void CoefFactoryClasses(py::module &m) {
 	 "index as function of time")
     .def("makeKeys",       &Coefs::Coefs::makeKeys,
 	 "Return a vector/list of keys for an entire subspace of "
-	 "subdimensional rank", py::arg("subkey")
+	 "subdimensional rank", py::arg("subkey"))
+    .def("getCoefType",    &Coefs::Coefs::getCoefType,
+	 "Return the coefficient type id string")
+    .def("CompareStanzas", &Coefs::Coefs::CompareStanzas,
+	 "Check that the data in one Coefs set is identical to "
+	 "that in another")
+    .def_static("factory", &Coefs::Coefs::factory,
+		"Deduce the type and read coefficients from a native or HDF5 file",
+		py::arg("file"))
     .def_static("makecoefs", &Coefs::Coefs::makecoefs,
 		"Create a new coefficient instance compatible with the "
 		"supplied coefficient structure", py::arg("coef"));
 
   py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs, Coefs::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
-	 .def(py::init<bool>(), py::arg("verbose"));
+    .def(py::init<bool>());
 
   py::class_<Coefs::CylCoefs, std::shared_ptr<Coefs::CylCoefs>, PyCylCoefs, Coefs::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
-	 .def(py::init<bool>(), py::arg("verbose"));
+    .def(py::init<bool>());
+
+  py::class_<Coefs::TableData, std::shared_ptr<Coefs::TableData>, PyTableData, Coefs::Coefs>(m, "TableData", "Container for simple data tables with multiple columns")
+    .def(py::init<bool>());
 }
 
