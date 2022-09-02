@@ -52,8 +52,7 @@ namespace MSSA
     std::string prefix, grpfile, config, spec;
     bool chatty, flip, verbose, zeropad, dfiles;
     int numW, nmin, nmax, npc;
-    int stride, skip, clusters;
-    std::vector<int> MM;
+    int stride, skip;
     std::vector<std::vector<int>> groups;
     double evtol;
     //@}
@@ -173,8 +172,8 @@ namespace MSSA
     //! Create wcorrlation matricies and output PNG
     void wcorrPNG();
 
-    //! Kmean analysis of the trajectories by PC
-    void kmeans();
+    //! Kmean analysis of the trajectories by PC with fixed cluster size
+    void kmeans(int clusters);
   };
 
 

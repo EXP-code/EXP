@@ -140,7 +140,6 @@ namespace Basis
     Eigen::MatrixXd potd, dpot, dpt2, dend;
     Eigen::MatrixXd legs, dlegs, d2legs;
     
-    bool coefs_defined;
     Eigen::MatrixXd factorial;
     Eigen::MatrixXd expcoef;
     double rscl;

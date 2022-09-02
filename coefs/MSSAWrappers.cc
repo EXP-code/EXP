@@ -78,7 +78,8 @@ void MSSAtoolkitClasses(py::module &m) {
 	"that may be used in basis classes", py::arg("zero") = false);
 
   f.def("wCorr", &expMSSA::wCorr,
-	"Get the w-correlation matrix for the selected component and channel key");
+	"Get the w-correlation matrix for the selected component and channel "
+	"key");
 
   f.def("wCorrAll", &expMSSA::wCorrAll,
 	"Get the w-correlation matrix for all channels in the reconstruction");
@@ -89,7 +90,7 @@ void MSSAtoolkitClasses(py::module &m) {
   f.def("kmeans", &expMSSA::kmeans,
 	"Perform a k-means analysis on the reconstructed trajectory matrices "
 	"to provide grouping insight.  The file name will be derived from the "
-	"'output' parameter");
+	"'output' parameter", py::arg("clusters")=4);
 
   f.def("contrib", &expMSSA::contributions,
 	"Computes the relative contribution of each PC to the coefficient "

@@ -2,12 +2,12 @@
 #define _KMEANS_H
 
 #include <algorithm>
-#include <tuple>
 #include <iostream>
 #include <iomanip>
 #include <vector>
 #include <limits>
 #include <memory>
+#include <tuple>
 
 /*
   This is a simple implementation of Lloyd's k-means algorithm with a

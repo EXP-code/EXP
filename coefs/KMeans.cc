@@ -19,7 +19,7 @@ namespace MSSA
 	cen.push_back(classes.at(i)->x);
       }
       k = cen.size();
-    } else {		// obtain a seed from the system clock:
+    } else {		       // obtain a seed from the system clock
       unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
       std::mt19937 gen(seed);
       // Seed centers randomly

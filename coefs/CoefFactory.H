@@ -36,6 +36,9 @@ namespace Coefs
     //! Coefficient type id
     std::string coefType;
     
+    //! Coefficient name (mnemonic)
+    std::string name;
+
     //! Verbose debugging output
     bool verbose;
     
@@ -71,6 +74,7 @@ namespace Coefs
       mat      = p.mat;
       power    = p.power;
       coefType = p.coefType;
+      name     = p.name;
     }
     
     //! Get coefficient matrix at given time
@@ -108,7 +112,7 @@ namespace Coefs
     static std::shared_ptr<Coefs> factory(const std::string& file);
     
     //! Make Coefs instance if it doesn't yet exist
-    static std::shared_ptr<Coefs> makecoefs(CoefStrPtr coef);
+    static std::shared_ptr<Coefs> makecoefs(CoefStrPtr coef, std::string name="");
 
     /** Joint factory and update member
 
@@ -134,6 +138,13 @@ namespace Coefs
 
     //! Get coefficient type
     std::string getCoefType() { return coefType; }
+
+    //! Get mnemonic name
+    std::string getName() { return name; }
+
+    //! Set mnemonic name
+    void setName(const std::string& newname) { name = newname; }
+
   };
   
   /** Derived class for spherical coefficients */
@@ -226,7 +237,8 @@ namespace Coefs
   public:
     
     //! Constructor
-    CylCoefs(bool verbose=false) : Coefs("Cylinder", verbose), angle(false) {}
+    CylCoefs(bool verbose=false) :
+      Coefs("Cylinder", verbose), angle(false) {}
     
     //! H5 constructor
     CylCoefs(HighFive::File& file, bool verbose=false);

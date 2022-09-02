@@ -853,7 +853,8 @@ namespace MSSA {
 	std::ostringstream sout; sout << prefix + ".wcorr" + "_"
 				      << u.first << ".png";
 
-	std::cout << "Attempting to write: " << sout.str() << std::endl;
+	if (verbose)
+	  std::cout << "Attempting to write: " << sout.str() << std::endl;
 
 	image.write(sout.str());
       }
@@ -895,8 +896,13 @@ namespace MSSA {
 #endif
   }
   
-  void expMSSA::kmeans()
+  void expMSSA::kmeans(int clusters)
   {
+    if (clusters==0) {
+      std::cout << "expMSSA::kmeans: you need clusters>0" << std::endl;
+      return;
+    }
+
     if (chatty) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- K-means group analysis"              << std::endl;
@@ -946,14 +952,16 @@ namespace MSSA {
 	
 	// Write to stdout
 	//
-	std::cout << std::string(60, '-') << std::endl
-		  << " *** n=" << u.first << std::endl
-		  << std::string(60, '-') << std::endl;
+	if (chatty) {
+	  std::cout << std::string(60, '-') << std::endl
+		    << " *** n=" << u.first << std::endl
+		    << std::string(60, '-') << std::endl;
 	
-	for (int j=0; j<results.size(); j++) {
-	  std::cout << std::setw(6)  << j
-		    << std::setw(12) << std::get<1>(results[j])
-		    << std::endl;
+	  for (int j=0; j<results.size(); j++) {
+	    std::cout << std::setw(6)  << j
+		      << std::setw(12) << std::get<1>(results[j])
+		      << std::endl;
+	  }
 	}
       }
       
@@ -998,20 +1006,23 @@ namespace MSSA {
 	
 	// Write to stdout
 	//
-	std::cout << std::string(60, '-') << std::endl
-		  << " *** total"         << std::endl
-		  << std::string(60, '-') << std::endl;
+	if (chatty) {
+	  std::cout << std::string(60, '-') << std::endl
+		    << " *** total"         << std::endl
+		    << std::string(60, '-') << std::endl;
 	
-	for (int j=0; j<results.size(); j++) {
-	  std::cout << std::setw(6) << j
-		    << std::setw(9) << std::get<1>(results[j])
-		    << std::endl;
+	  for (int j=0; j<results.size(); j++) {
+	    std::cout << std::setw(6) << j
+		      << std::setw(9) << std::get<1>(results[j])
+		      << std::endl;
+	  }
 	}
 	
       }
       
       if (out) {
-	std::cout << "Successfully wrote: <" << filename << ">" << std::endl;
+	if (chatty)
+	  std::cout << "Successfully wrote: <" << filename << ">" << std::endl;
       } else {
 	std::cout << "Bad output stream for <" << filename << ">" << std::endl;
       }
@@ -1141,7 +1152,7 @@ namespace MSSA {
     //
     coefDB.beginUpdate(zero);
     for (auto v : newdata) {
-      std::cout << "Updating for: " << v.first << std::endl;
+      if (verbose) std::cout << "Updating for: " << v.first << std::endl;
       coefDB.setData(v.first, v.second);
     }
     
@@ -1169,10 +1180,10 @@ namespace MSSA {
       
       // Top level parameter flags
       //
-      chatty   = bool(params["chatty"]);
-      verbose  = bool(params["verbose"]);
-      flip     = bool(params["flip"]);
-      zeropad  = bool(params["zeropad"]);
+      chatty   = bool(params["chatty"    ]);
+      verbose  = bool(params["verbose"   ]);
+      flip     = bool(params["flip"      ]);
+      zeropad  = bool(params["zeropad"   ]);
       dfiles   = bool(params["writeFiles"]);
       
       if (params["skip"]   ) skip     = params["skip"].as<int>();
@@ -1185,9 +1196,6 @@ namespace MSSA {
       else                   evtol    = 0.01;
       
       if (params["groups"] ) groups   = params["group"].as<std::vector<std::vector<int>>>();
-      
-      if (params["kmeans"] ) clusters = params["kmeans"].as<int>();
-      else                   clusters = 0;
       
       if (params["output"] ) prefix   = params["output"].as<std::string>();
       else                   prefix   = "exp_mssa";

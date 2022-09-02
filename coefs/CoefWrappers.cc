@@ -300,8 +300,9 @@ void CoefFactoryClasses(py::module &m) {
     .def(py::init<>(), "Cylindrical coefficient data structure object");
 
   py::class_<Coefs::Coefs, std::shared_ptr<Coefs::Coefs>, PyCoefs>(m, "Coefs")
-    .def(py::init<std::string, bool>(), "Base coefficient container class",
-	 py::arg("name"), py::arg("verbose"))
+    .def(py::init<std::string, bool>(),
+	 "Base coefficient container class",
+	 py::arg("type"), py::arg("verbose"))
     .def("operator()",     &Coefs::Coefs::operator(),
 	 "Return the coefficient matrix for the desired time",
 	 py::arg("time"))
@@ -327,6 +328,10 @@ void CoefFactoryClasses(py::module &m) {
 	 "subdimensional rank", py::arg("subkey"))
     .def("getCoefType",    &Coefs::Coefs::getCoefType,
 	 "Return the coefficient type id string")
+    .def("getName",        &Coefs::Coefs::getName,
+	 "Return the coefficient set nmenonic name")
+    .def("setName",        &Coefs::Coefs::setName,
+	 "Set or rename the coefficient set nmenonic name", py::arg("newname"))
     .def("CompareStanzas", &Coefs::Coefs::CompareStanzas,
 	 "Check that the data in one Coefs set is identical to "
 	 "that in another")
@@ -335,7 +340,8 @@ void CoefFactoryClasses(py::module &m) {
 		py::arg("file"))
     .def_static("makecoefs", &Coefs::Coefs::makecoefs,
 		"Create a new coefficient instance compatible with the "
-		"supplied coefficient structure", py::arg("coef"));
+		"supplied coefficient structure",
+		py::arg("coef"), py::arg("name")="");
 
   py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs, Coefs::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
     .def(py::init<bool>());

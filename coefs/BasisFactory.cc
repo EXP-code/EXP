@@ -143,7 +143,6 @@ namespace Basis
     sl = std::make_shared<SLGridSph>
       (mod, lmax, nmax, numr, rmin, rmax, true, cmap, rscl);
     
-    coefs_defined = false;
     rscl = 1.0;
     
     potd.resize(lmax+1, nmax);
@@ -154,11 +153,29 @@ namespace Basis
     legs  .resize(lmax+1, lmax+1);
     dlegs .resize(lmax+1, lmax+1);
     d2legs.resize(lmax+1, lmax+1);
+
+    expcoef.resize((lmax+1)*(lmax+1), nmax);
+    expcoef.setZero();
+      
+    work.resize(nmax);
+      
+    factorial.resize(lmax+1, lmax+1);
+      
+    for (int l=0; l<=lmax; l++) {
+      for (int m=0; m<=l; m++) {
+	factorial(l, m) = sqrt( (0.5*l+0.25)/M_PI * 
+				exp(lgamma(1.0+l-m) - lgamma(1.0+l+m)) );
+	if (m != 0) factorial(l, m) *= M_SQRT2;
+      }
+    }
+
+    used = 0;
   }
   
   void SphericalSL::reset_coefs(void)
   {
     if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
+    used = 0;
   }
   
   
@@ -192,6 +209,7 @@ namespace Basis
   {
     Coefs::SphStruct* cf = dynamic_cast<Coefs::SphStruct*>(coef.get());
 
+    // Assign internal coefficient table (doubles) from the complex struct
     for (int l=0, L=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<nmax; n++) {
@@ -213,28 +231,6 @@ namespace Basis
     double fac, fac1, fac2, fac4;
     double norm = -4.0*M_PI;
     const double dsmall = 1.0e-20;
-    
-    if (!coefs_defined) {
-      
-      coefs_defined = true;
-      
-      expcoef.resize((lmax+1)*(lmax+1), nmax);
-      expcoef.setZero();
-      
-      work.resize(nmax);
-      
-      factorial.resize(lmax+1, lmax+1);
-      
-      for (int l=0; l<=lmax; l++) {
-	for (int m=0; m<=l; m++) {
-	  factorial(l, m) = sqrt( (0.5*l+0.25)/M_PI * 
-				  exp(lgamma(1.0+l-m) - lgamma(1.0+l+m)) );
-	  if (m != 0) factorial(l, m) *= M_SQRT2;
-	}
-      }
-      
-      used = 0;
-    }
     
     //======================
     // Compute coefficients 

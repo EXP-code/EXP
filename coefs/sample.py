@@ -78,9 +78,10 @@ for group in batches:
     # We need this stupid idiom here because None is not mapping to a
     # null pointer.  There is probably a way to do this.  Suggestions
     # anyone?
-    #
-    if coefs is None:
-        coefs = pyEXP.coefs.Coefs.makecoefs(coef)
+    #                          This is optional---+
+    #                                             |
+    if coefs is None:           #                 v
+        coefs = pyEXP.coefs.Coefs.makecoefs(coef, compname)
     else:
         coefs.add(coef)
 

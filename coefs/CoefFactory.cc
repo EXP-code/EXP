@@ -26,6 +26,7 @@ namespace Coefs
     int lmax, nmax;
     double scale;
     
+    file.getAttribute("name"   ).read(name   );
     file.getAttribute("lmax"   ).read(lmax   );
     file.getAttribute("nmax"   ).read(nmax   );
     file.getAttribute("scale"  ).read(scale  );
@@ -321,10 +322,11 @@ namespace Coefs
     unsigned count;
     std::string config;
     
-    file.getAttribute("mmax").read(mmax);
-    file.getAttribute("nmax").read(nmax);
-    file.getAttribute("config").read(config);
-    file.getDataSet("count").read(count);
+    file.getAttribute("name"   ).read(name  );
+    file.getAttribute("mmax"   ).read(mmax  );
+    file.getAttribute("nmax"   ).read(nmax  );
+    file.getAttribute("config" ).read(config);
+    file.getDataSet  ("count"  ).read(count );
     
     // Open the snapshot group
     //
@@ -551,6 +553,7 @@ namespace Coefs
     unsigned count;
     std::string config;
     
+    file.getAttribute("name"  ).read(name);
     file.getAttribute("cols"  ).read(cols);
     file.getAttribute("config").read(config);
     file.getDataSet  ("count" ).read(count);
@@ -748,16 +751,20 @@ namespace Coefs
     return coefs;
   }
   
-  std::shared_ptr<Coefs> Coefs::makecoefs(CoefStrPtr coef)
+  std::shared_ptr<Coefs> Coefs::makecoefs(CoefStrPtr coef, std::string name)
   {
     std::shared_ptr<Coefs> ret;
     if (dynamic_cast<SphStruct*>(coef.get())) {
       ret = std::make_shared<SphCoefs>();
     } else if (dynamic_cast<CylStruct*>(coef.get())) {
       ret = std::make_shared<CylCoefs>();
+    } else if (dynamic_cast<TblStruct*>(coef.get())) {
+      ret = std::make_shared<TableData>();
     } else {
       throw std::runtime_error("CoefFactory: cannot deduce coefficient file type");
     }
+
+    ret->setName(name);
 
     return ret;
   }
@@ -829,6 +836,10 @@ namespace Coefs
       // We write the coefficient file type
       //
       file.createAttribute<std::string>("type", HighFive::DataSpace::From(coefType)).write(coefType);
+      
+      // We write the coefficient mnemonic
+      //
+      file.createAttribute<std::string>("name", HighFive::DataSpace::From(name)).write(name);
       
       // Stash the basis configuration (this is not yet implemented in EXP)
       //
