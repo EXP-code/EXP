@@ -2,15 +2,45 @@ import os
 import yaml
 import pyEXP
 
-os.chdir('/data/Nbody/Better')
+os.chdir('/home/weinberg/Nbody/Better')
 
+# Get the basis config
 yaml_config = ""
 with open('basis.yaml') as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
     yaml_config = yaml.dump(config)
 
+# Alternatively, you could construct this on the fly, e.g.
+bconfig = """
+---
+id: SphereSL
+parameters :
+  numr: 2000
+  rmin: 0.0001
+  rmax: 1.95
+  Lmax: 4
+  nmax: 10
+  rs: 0.0667
+  modelname: SLGridSph.model
+...
+"""
+print('-'*60)
+print('Read from file')
+print('-'*60)
+print(yaml_config)
+print('-'*60)
+print('Constructed from string')
+print('-'*60)
+print(bconfig)
+print('-'*60)
+
+# Construct the basis instance
 basis   = pyEXP.basis.Basis.factory(yaml_config)
-batches = pyEXP.pread.ParticleReader.parseFileList('file.list', '')
+
+# Construct the particle reader
+batches = pyEXP.read.ParticleReader.parseFileList('file.list', '')
+
+# This will contain the coefficient container
 coefs   = None
 
 for group in batches:
@@ -20,7 +50,7 @@ for group in batches:
     # Make the reader for the desired type.  One could probably try to
     # do this by inspection but that's another project.
     #
-    reader = pyEXP.pread.ParticleReader.createReader('PSPout', group, 0, False);
+    reader = pyEXP.read.ParticleReader.createReader('PSPout', group, 0, False);
 
     # Print the type list
     #
@@ -76,30 +106,55 @@ for v in surfaces:
         print(surfaces[v][u])
     break
 
+# Okay, now try expMSSA
 
-# Now try some volumes
+# Make some parameter flags as YAML
+flags ="""
+---
+chatty: true
+output: mytest
+...
+"""
+
+config = {"dark halo": (coefs, [[1, 0, 0], [1, 0, 1], [1, 0, 2]], [])}
+#          ^            ^      ^                                  ^
+# tag -----+            |      |                                  |
+# coefficient set-------+      |                                  |
+# list of indices for MSSA-----+                                  |
+# list of backround indices for reconstruction--------------------+
 #
+ssa = pyEXP.mssa.expMSSA(config, 5, 3, flags)
 
-times = coefs.Times()[0:3]
-pmin  = [-1.0, -1.0, -1.0]
-pmax  = [ 1.0,  1.0,  1.0]
-grid  = [   8,    8,    8]
+ev = ssa.eigenvalues()
+print("Eigenvalues:", ev)
 
-vfields = pyEXP.field.FieldGenerator(times, pmin, pmax, grid)
+pc = ssa.getPC();
+print("PC:", pc)
 
-volumes = vfields.volumes(basis, coefs)
+# Okay, now try a reconstruction
+ssa.reconstruct([0, 1])
 
-print("We now have the following [time field] pairs")
-for v in surfaces:
-    print('-'*40)
-    for u in volumes[v]:
-        print("{:8.4f}  {}".format(v, u))
+newdata = ssa.getReconstructed(False)
+print(type(newdata))
+print(newdata)
 
-print("\nHere is the first one:")
-for v in volumes:
-    for u in volumes[v]:
-        print('-'*40)
-        print('----', u, '| shape=', volumes[v][u].shape)
-        print('-'*40)
-        print(volumes[v][u])
-    break
+# Try the kmeans
+ssa.kmeans()
+
+# Test the PNG output
+ssa.wcorrPNG()
+
+# Make a subkey sequence
+keylst = coefs.makeKeys([1])
+print("Keys=", keylst)
+
+# Try saving coefficients to an HDF5 file
+coefs.WriteH5Coefs('testC')
+
+# Now try reading it in
+coefs2 = pyEXP.coefs.Coefs.factory('testC.h5')
+print("Type is", coefs2.getCoefType())
+
+# Now compare with the original
+coefs2.CompareStanzas(coefs)
+
