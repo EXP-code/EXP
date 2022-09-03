@@ -17,14 +17,14 @@ namespace Field
     
   private:
     
-    std::vector<double> time, pmin, pmax;
+    std::vector<double> times, pmin, pmax;
     std::vector<int>    grid;
     
     //! Sanity check time vector with coefficient DB
     void check_times(Coefs::CoefsPtr coefs);
     
     //! Using MPI
-    bool mpi;
+    bool use_mpi;
 
   public:
     

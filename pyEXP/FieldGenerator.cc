@@ -13,14 +13,22 @@ namespace Field
 				 const std::vector<double> &pmax,
 				 const std::vector<int>    &grid
 				 ) :
-    time(time), pmin(pmin), pmax(pmax), grid(grid)
+    times(time), pmin(pmin), pmax(pmax), grid(grid)
   {
     // Check whether MPI is initialized
     //
     int flag;
     MPI_Initialized(&flag);
-    if (flag) mpi = true;
-    else      mpi = false;
+    if (flag) use_mpi = true;
+    else      use_mpi = false;
+
+    // Fall back sanity (works for me but this needs to be fixed
+    // generally)
+    //
+    if (not use_mpi) {
+      int argc = 0; char **argv = 0;
+      MPI_Init(&argc, &argv);
+    }
   }
   
   void FieldGenerator::check_times(Coefs::CoefsPtr coefs)
@@ -28,7 +36,7 @@ namespace Field
     std::vector<double> ctimes = coefs->Times();
     std::sort(ctimes.begin(), ctimes.end());
     
-    for (auto t : time) {
+    for (auto t : times) {
       if (std::find(ctimes.begin(), ctimes.end(), t) == ctimes.end()) {
 	std::ostringstream sout;
 	sout << "FieldGenerator: requested time <" << t << "> "
@@ -45,8 +53,6 @@ namespace Field
 
     std::vector<std::string> labels =
       {"p0", "p1", "p", "fr", "ft", "fp", "d0", "d1", "d", "dd"};
-
-    auto times = coefs->Times();
 
     // Find the first two non-zero indices
     int i1=-1, i2=-1, i3=-1;
@@ -112,15 +118,15 @@ namespace Field
 	    basis->all_eval(r, costh, phi,
 			    d0, d1, p0, p1, fr, ft, fp);
 
-	    frame["p0"](i, j) =  p0;
-	    frame["p1"](i, j) =  p1;
-	    frame["p" ](i, j) =  p0 + p1;
-	    frame["fr"](i, j) = -fr;
-	    frame["ft"](i, j) = -ft;
-	    frame["fp"](i, j) = -fp;
-	    frame["d0"](i, j) =  d0;
-	    frame["d1"](i, j) =  d1;
-	    frame["d" ](i, j) =  d0 + d1;
+	    frame["p0"](i, j) = p0;
+	    frame["p1"](i, j) = p1;
+	    frame["p" ](i, j) = p0 + p1;
+	    frame["fr"](i, j) = fr;
+	    frame["ft"](i, j) = ft;
+	    frame["fp"](i, j) = fp;
+	    frame["d0"](i, j) = d0;
+	    frame["d1"](i, j) = d1;
+	    frame["d" ](i, j) = d0 + d1;
 	    
 	    if (d0!=0.0)
 	      frame["dd" ](i, j) = d1/d0;
@@ -130,7 +136,7 @@ namespace Field
 	}
       }
     
-      if (mpi) {
+      if (use_mpi) {
 	for (auto & f : frame) {
 	  if (myid==0) 
 	    MPI_Reduce(MPI_IN_PLACE, f.second.data(), f.second.size(),
@@ -241,15 +247,15 @@ namespace Field
 
 	      basis->all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
 
-	      frame["p0"](i, j, k) =  p0;
-	      frame["p1"](i, j, k) =  p1;
-	      frame["p" ](i, j, k) =  p0 + p1;
-	      frame["fr"](i, j, k) = -fr;
-	      frame["ft"](i, j, k) = -ft;
-	      frame["fp"](i, j, k) = -fp;
-	      frame["d0"](i, j, k) =  d0;
-	      frame["d1"](i, j, k) =  d1;
-	      frame["d" ](i, j, k) =  d0 + d1;
+	      frame["p0"](i, j, k) = p0;
+	      frame["p1"](i, j, k) = p1;
+	      frame["p" ](i, j, k) = p0 + p1;
+	      frame["fr"](i, j, k) = fr;
+	      frame["ft"](i, j, k) = ft;
+	      frame["fp"](i, j, k) = fp;
+	      frame["d0"](i, j, k) = d0;
+	      frame["d1"](i, j, k) = d1;
+	      frame["d" ](i, j, k) = d0 + d1;
 	    
 	      if (d0!=0.0)
 		frame["dd" ](i, j, k) = d1/d0;
@@ -260,7 +266,7 @@ namespace Field
 	}
       }
     
-      if (mpi) {
+      if (use_mpi) {
 	for (auto & f : frame) {
 	  if (myid==0) 
 	    MPI_Reduce(MPI_IN_PLACE, f.second.data(), f.second.size(),
