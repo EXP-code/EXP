@@ -6,8 +6,7 @@ set(QUAD_SRC qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc
 Trapsum.cc Splsum.cc)
 set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc
-  stack.cc localmpi.cc TableGrid.cc writePVD.cc libvars.cc
-  TransformFFT.cc)
+  stack.cc localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc)
 
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)
@@ -44,7 +43,8 @@ set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
 set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/> ${CMAKE_BINARY_DIR}
-  ${DEP_INC} ${EIGEN3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS})
+  ${DEP_INC} ${EIGEN3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS}
+  ${FFTW_INCLUDE_DIRS})
 
 set(common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
   yaml-cpp ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
