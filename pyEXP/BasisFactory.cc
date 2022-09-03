@@ -41,6 +41,14 @@ namespace Basis
     if (flag) use_mpi = true;
     else      use_mpi = false;
     
+    // Fall back sanity (works for me but this needs to be fixed
+    // generally)
+    //
+    if (not use_mpi) {
+      int argc = 0; char **argv = 0;
+      MPI_Init(&argc, &argv);
+    }
+
     // Parameters for force
     //
     try {
@@ -678,10 +686,9 @@ namespace Basis
     if (mlim>=0)  sl->set_mlim(mlim);
     if (EVEN_M)   sl->setEven(EVEN_M);
     
-    // Set up the coefficient and basis function storage
+    // Set up the coefficient storage and read basis
     //
-    sl->setup_eof();
-    sl->setup_accumulation();
+    sl->read_cache();
   }
   
   void CylindricalSL::getFields
