@@ -26,8 +26,8 @@ if(TIRPC_FOUND)
   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
 endif()
 
-# shared library
-
+# Make the expcoef shared library
+#
 set(expcoef_SOURCES BasisFactory.cc CoefFactory.cc CoefStruct.cc
   FieldGenerator.cc expMSSA.cc CoefDB.cc KMeans.cc)
 add_library(expcoef ${expcoef_SOURCES})
@@ -37,8 +37,8 @@ target_link_libraries(expcoef PUBLIC ${common_LINKLIBS})
 
 install(TARGETS expcoef DESTINATION lib)
 
-# Test routines
-
+# Configure and build the test routines
+#
 add_executable(nativetoh5 coefstoh5.cc)
 add_executable(h5compare  h5compare.cc)
 add_executable(viewcoefs  viewcoefs.cc)
@@ -51,12 +51,15 @@ foreach(program ${bin_PROGRAMS})
   install(TARGETS ${program} DESTINATION bin)
 endforeach()
 
+# Build and configure the installation of the Python bindings
+#
 pybind11_add_module(pyEXP PyWrappers.cc CoefWrappers.cc
   BasisWrappers.cc FieldWrappers.cc ParticleReaderWrappers.cc MSSAWrappers.cc)
 target_link_libraries(pyEXP PUBLIC expcoef exputil ${common_LINKLIB})
 target_include_directories(pyEXP PUBLIC ${common_INCLUDE})
 
 install(TARGETS pyEXP
-  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages"
-  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages")
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages"
+  ARCHIVE DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages")
+
