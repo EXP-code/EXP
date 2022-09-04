@@ -25,6 +25,8 @@
    if (!(x)) { throw (std::runtime_error("Eigen assert error")); }
 */
 
+#include <omp.h>
+
 #include <TransformFFT.H>
 #include <ColorGradient.H>
 #include <KMeans.H>
@@ -148,6 +150,12 @@ namespace MSSA {
   // Do the SVD
   void expMSSA::mssa_analysis()
   {
+#pragma omp parallel
+    {
+      std::cout << "The current number of OMP threads is "
+		<< omp_get_num_threads() << std::endl;
+    }
+
     nkeys = mean.size();
     
     if (params["numW"] or numW<=0) numW = numT/2;
@@ -414,54 +422,62 @@ namespace MSSA {
       std::cout << "----------------------------------------" << std::endl;
     }
     
-    for (auto u : mean) {
-      
-      for (int w=0; w<ncomp; w++) {
+
+#pragma omp parallel
+    {
+      // Parallelize the map iteration by wrapping it in a standard loop.
+      // Ungainly for sure.
+      //
+      int thread_count = omp_get_num_threads();
+      int thread_num   = omp_get_thread_num();
+      size_t map_size  = mean.size();
+
+      auto u = mean.begin();
+      std::advance(u, thread_num);
+
+      for (int q=thread_num; q<map_size; q+=thread_count) {
+
+	for (int w=0; w<ncomp; w++) {
 	
-	Z.fill(0.0);
+	  Z.fill(0.0);
 	
-	// Build reverse embedded time series.
-	//
-	for (int j=0; j<numW; j++) {
-	  for (int i=0; i<numT; i++)
-	    if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
-	}
-	
-	if (chatty and params["reverse"]) {
-	  std::cout << "----------------------------------------" << std::endl;
-	  std::cout << "---- Z for " << u.first << " w=" << w     << std::endl;
-	  std::cout << "----------------------------------------" << std::endl;
-	  
-	  std::cout << Z << std::endl << std::endl;
-	}
-	
-	// Choose limits and weight
-	//
-	for (int i=0; i<numT; i++) {
-	  double W;
-	  int L, U;
-	  
-	  if (i<numW) {		// Lower
-	    W = 1.0/(1.0 + i);
-	    L = 0;
-	    U = i + 1;
-	  } else if (i<numT-numW) { // Middle
-	    W = 1.0/numW;
-	    L = 0;
-	    U = numW;
-	  } else {		// Upper
-	    W = 1.0/(numT - i);
-	    L = i - numT + numW;
-	    U = numW;
+	  // Build reverse embedded time series.
+	  //
+	  for (int j=0; j<numW; j++) {
+	    for (int i=0; i<numT; i++)
+	      if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
 	  }
 	  
-	  RC[u.first](i, w) = 0.0;
-	  for (int j=L; j<U; j++)
-	    RC[u.first](i, w) += Z(i, j) * rho[u.first](j, w) * W;
+	  // Choose limits and weight
+	  //
+	  for (int i=0; i<numT; i++) {
+	    double W;
+	    int L, U;
+	    
+	    if (i<numW) {		// Lower
+	      W = 1.0/(1.0 + i);
+	      L = 0;
+	      U = i + 1;
+	    } else if (i<numT-numW) { // Middle
+	      W = 1.0/numW;
+	      L = 0;
+	      U = numW;
+	    } else {		// Upper
+	      W = 1.0/(numT - i);
+	      L = i - numT + numW;
+	      U = numW;
+	    }
+	    
+	    RC[u->first](i, w) = 0.0;
+	    for (int j=L; j<U; j++)
+	      RC[u->first](i, w) += Z(i, j) * rho[u->first](j, w) * W;
+	  }
 	}
+
+	if( q+thread_count < map_size ) std::advance(u, thread_count);
       }
     }
-    
+
     if (chatty) {
       for (int i=0; i<numT; i++) {
 	std::cout << std::setw(15) << std::setprecision(6) << coefDB.times[i];
@@ -1209,7 +1225,7 @@ namespace MSSA {
       if (params["evtol"]  ) evtol    = params["evtol"].as<double>();
       else                   evtol    = 0.01;
       
-      if (params["groups"] ) groups   = params["group"].as<std::vector<std::vector<int>>>();
+      if (params["groups"] ) groups   = params["groups"].as<std::vector<std::vector<int>>>();
       
       if (params["output"] ) prefix   = params["output"].as<std::string>();
       else                   prefix   = "exp_mssa";
@@ -1244,7 +1260,7 @@ namespace MSSA {
     
     // Eigen OpenMP reporting
     //
-    if (params["chatty"])
+    // if (params["chatty"])
       std::cout << "Eigen is using " << Eigen::nbThreads()
 		<< " threads" << std::endl;
     
