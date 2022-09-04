@@ -49,12 +49,17 @@ namespace Field
   std::map<double, std::map<std::string, Eigen::MatrixXf>>
   FieldGenerator::slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs)
   {
+    // Check
+    //
+    check_times(coefs);
+
     std::map<double, std::map<std::string, Eigen::MatrixXf>> ret;
 
     std::vector<std::string> labels =
       {"p0", "p1", "p", "fr", "ft", "fp", "d0", "d1", "d", "dd"};
 
     // Find the first two non-zero indices
+    //
     int i1=-1, i2=-1, i3=-1;
     std::vector<double> pos, del;
     for (size_t i=0; i<grid.size(); i++) {
@@ -62,11 +67,11 @@ namespace Field
       if (grid[i]>0) {
 	if (i1<0) {
 	  i1 = i;
-	  del.push_back((pmax[i1] - pmin[i1])/grid[i1]);
+	  del.push_back((pmax[i1] - pmin[i1])/std::max<int>(grid[i1]-1, 1));
 	}
 	else if (i2<0) {
 	  i2 = i;
-	  del.push_back((pmax[i2] - pmin[i2])/grid[i2]);
+	  del.push_back((pmax[i2] - pmin[i2])/std::max<int>(grid[i2]-1, 1));
 	}
       } else {
 	del.push_back(0.0);
@@ -88,7 +93,7 @@ namespace Field
 
       std::map<std::string, Eigen::MatrixXf> frame;
       for (auto label : labels) {
-	frame[label].resize(grid[i1]+1, grid[i2]+1);
+	frame[label].resize(grid[i1], grid[i2]);
       }	
 
       double r, phi, costh;
@@ -221,9 +226,9 @@ namespace Field
       double p0, p1, d0, d1, fr, ft, fp;
       
       std::vector<double> del =
-	{ (pmax[0] - pmin[0])/grid[0],
-	  (pmax[1] - pmin[1])/grid[1],
-	  (pmax[2] - pmin[2])/grid[2] };
+	{ (pmax[0] - pmin[0])/std::max<int>(grid[0]-1, 1),
+	  (pmax[1] - pmin[1])/std::max<int>(grid[1]-1, 1),
+	  (pmax[2] - pmin[2])/std::max<int>(grid[2]-1, 1) };
 
       int ncnt = 0;
 
