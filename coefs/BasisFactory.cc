@@ -813,7 +813,7 @@ namespace Basis
     // Allocate storage
     std::vector<std::vector<Eigen::MatrixXd>> ret(mmax+1);
     for (auto & v : ret) {
-      ret.resize(nmax);
+      v.resize(ncylorder);
       for (auto & u : v) u.resize(numR, numZ);
     }
     
@@ -826,7 +826,7 @@ namespace Basis
 
     // Now, evaluate the grid
     for (int m=0; m<=mmax; m++) {
-      for (int n=0; n<nmax; n++) {
+      for (int n=0; n<ncylorder; n++) {
 	for (int i=0; i<numR; i++) {
 	  double R = xmin + delR*i;
 	  for (int j=0; j<numZ; j++) {

@@ -24,7 +24,14 @@ This directory contains a number of sample Python scripts as follows:
   file and also demonstrates visualizing the fields from the dominant
   PCs produced by MSSA.
 
+* sample_basis.py--Plots a few basis functions from the spherical and
+  cylindrical bases from the Better example.
+
 Some implementation notes:
+
+* pyEXP returns row-major matrices while numpy uses col-major matrices
+  (for Matilab compatbility?).  So you may need
+  np.ndarray.transpose().   See examples.
 
 * Many of the algorithms use OpenMP.  OpenMP functions should
   work without intervention.  Although the user may want to set a

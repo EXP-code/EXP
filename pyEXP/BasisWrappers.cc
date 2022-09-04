@@ -186,16 +186,16 @@ void BasisFactoryClasses(py::module &m) {
 
     py::class_<Basis::SphericalSL, std::shared_ptr<Basis::SphericalSL>, PySphericalSL, Basis::Basis>(m, "SphericalSL")
       .def(py::init<const std::string&>(), "Create a spherical Sturm-Liouville basis")
-      .def("GetBasis", &Basis::SphericalSL,
+      .def("getBasis", &Basis::SphericalSL::getBasis,
 	   "Evaluate the basis functions on a logarithmically spaced grid for"
 	   "inspection",
 	   py::arg("logxmin")=-3.0,
 	   py::arg("logxmax")=0.5,
-	   py::arg("numr")=2000);
+	   py::arg("numr")=400);
 
   py::class_<Basis::CylindricalSL, std::shared_ptr<Basis::CylindricalSL>, PyCylindricalSL, Basis::Basis>(m, "CylindricalSL")
     .def(py::init<const std::string&>(), "Create a cylindrical EOF basis")
-    .def("GetBasis", &Basis::CylindricalSL,
+    .def("getBasis", &Basis::CylindricalSL::getBasis,
 	 "Evaluate the basis functions on a linearly spaced 2d-grid for"
 	 "inspection",
 	 py::arg("xmin")=0.0,
