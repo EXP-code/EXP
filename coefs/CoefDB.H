@@ -7,7 +7,7 @@
 #include <set>
 
 #include <Eigen/Dense>
-#include <CoefFactory.H>
+#include <CoefContainer.H>
 
 namespace MSSA
 {

@@ -5,7 +5,7 @@
 namespace py = pybind11;
 
 extern void MSSAtoolkitClasses   (py::module &m);
-extern void CoefFactoryClasses   (py::module &m);
+extern void CoefContainerClasses (py::module &m);
 extern void BasisFactoryClasses  (py::module &m);
 extern void FieldGeneratorClasses(py::module &m);
 extern void ParticleReaderClasses(py::module &m);
@@ -36,7 +36,7 @@ PYBIND11_MODULE(pyEXP, m)
 				  "Spectrum Analysis (MSSA) to the coefficients "
 				  "computed using the 'basis' classes");
   
-  CoefFactoryClasses(mod_coefs);
+  CoefContainerClasses(mod_coefs);
   BasisFactoryClasses(mod_basis);
   FieldGeneratorClasses(mod_field);
   ParticleReaderClasses(mod_read);

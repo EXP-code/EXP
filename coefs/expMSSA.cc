@@ -150,12 +150,12 @@ namespace MSSA {
   // Do the SVD
   void expMSSA::mssa_analysis()
   {
-#pragma omp parallel
-    {
+    // if (chatty) {
+#pragma omp parallel num_threads(8)
       std::cout << "The current number of OMP threads is "
 		<< omp_get_num_threads() << std::endl;
-    }
-
+      // }
+    
     nkeys = mean.size();
     
     if (params["numW"] or numW<=0) numW = numT/2;

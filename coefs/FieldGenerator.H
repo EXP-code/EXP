@@ -5,7 +5,7 @@
 #include <map>
 
 #include <BasisFactory.H>
-#include <CoefFactory.H>
+#include <CoefContainer.H>
 
 namespace Field
 {

@@ -1,7 +1,8 @@
 #include "expand.H"
 
-#include <chrono>
+#include <filesystem>
 #include <sstream>
+#include <chrono>
 
 #include <SphericalBasis.H>
 #include <MixtureBasis.H>
@@ -1722,6 +1723,57 @@ void SphericalBasis::dump_coefs(ostream& out)
     }
   }
 
+}
+
+// Dump coefficients to an HDF5 file
+
+void SphericalBasis::dump_coefs_h5(const std::string& file)
+{
+  // Add the current coefficients
+  auto cur = std::make_shared<Coefs::SphStruct>();
+
+  cur->lmax   = Lmax;
+  cur->nmax   = nmax;
+  cur->scale  = scale;
+  cur->normed = true;
+
+  cur->coefs.resize((Lmax+1)*(Lmax+2)/2, nmax);
+
+  for (int ir=0; ir<nmax; ir++) {
+    for (int l=0, L=0, offset=0; l<=Lmax; l++) {
+      for (int m=0; m<=l; m++, L++) {
+	double re, im=0.0;
+	if (m==0) {
+	  cur->coefs(L, ir) = {(*expcoef[offset])[ir], 0.0};
+	  offset += 1;
+	} else {
+	  cur->coefs(L, ir) = {(*expcoef[offset])[ir], (*expcoef[offset+1])[ir]};
+	  offset += 2;
+	}
+      }
+    }
+  }
+
+  // Check if file exists
+  //
+  if (std::filesystem::exists(file + ".h5")) {
+    sphCoefs.add(cur);
+    sphCoefs.ExtendH5Coefs(file + ".h5");
+  }
+  // Otherwise, extend the existing HDF5 file
+  //
+  else {
+    // Copy the YAML config.  We only need this on the first call
+    std::ostringstream sout; sout << conf;
+    size_t hsize = sout.str().size() + 1;
+    cur->buf = std::shared_ptr<char[]>(new char [hsize]);
+    sout.str().copy(cur->buf.get(), hsize);
+
+    // Add the new coefficients and write
+    sphCoefs.clear();
+    sphCoefs.add(cur);
+    sphCoefs.WriteH5Coefs(file + ".h5");
+  }
 }
 
 

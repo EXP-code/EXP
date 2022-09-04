@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -1405,6 +1406,51 @@ void Cylinder::determine_fields_at_point_cyl(double r, double z, double phi,
 void Cylinder::dump_coefs(ostream& out)
 {
   ortho->dump_coefs_binary(out, tnow);
+}
+
+// Dump coefficients to an HDF5 file
+
+void Cylinder::dump_coefs_h5(const std::string& file)
+{
+  // Add the current coefficients
+  auto cur = std::make_shared<Coefs::CylStruct>();
+
+  cur->mmax = mmax;
+  cur->nmax = nmax;
+
+  cur->coefs.resize(mmax+1, nmax);
+
+  Eigen::VectorXd cos1(nmax), sin1(nmax);
+  
+  for (int m=0; m<=mmax; m++) {
+
+    ortho->get_coefs(m, cos1, sin1);
+
+    for (int ir=0; ir<nmax; ir++) {
+      if (m==0) {
+	cur->coefs(m, ir) = {cos1(ir), 0.0};
+      } else {
+	cur->coefs(m, ir) = {cos1(ir), sin1(ir)};
+      }
+    }
+  }
+
+  // Check if file exists
+  if (std::filesystem::exists(file + ".h5")) {
+    cylCoefs.add(cur);
+    cylCoefs.ExtendH5Coefs(file + ".h5");
+  } else {
+    // Copy the YAML config.  We only need this on the first call
+    std::ostringstream sout; sout << conf;
+    size_t hsize = sout.str().size() + 1;
+    cur->buf = std::shared_ptr<char[]>(new char [hsize]);
+    sout.str().copy(cur->buf.get(), hsize);
+
+    // Add the new coefficients and write
+    cylCoefs.clear();
+    cylCoefs.add(cur);
+    cylCoefs.WriteH5Coefs(file + ".h5");
+  }
 }
 
 				// Density debug

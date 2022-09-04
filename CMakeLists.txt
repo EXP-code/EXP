@@ -179,6 +179,7 @@ set(H5_USE_EIGEN TRUE CACHE BOOL "Eigen3 support in HighFive")
 add_subdirectory(extern/HighFive)
 
 add_subdirectory(exputil)
+add_subdirectory(coefs)
 if (ENABLE_NBODY)
   add_subdirectory(src)
 endif()

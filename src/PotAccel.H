@@ -172,6 +172,7 @@ public:
 
   //! Dump current coefficients
   virtual void dump_coefs(ostream &out) {};
+  virtual void dump_coefs_h5(const std::string &file) {};
 
   /** Update the multi time step force algorithm when moving particle 
       <code>i</code> from level <code>cur</code> to level 

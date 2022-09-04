@@ -2,13 +2,13 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include <CoefFactory.H>
+#include <CoefContainer.H>
 
 namespace py = pybind11;
 
-void CoefFactoryClasses(py::module &m) {
+void CoefContainerClasses(py::module &m) {
 
-  m.doc() = "CoefFactory class bindings. This class stores, writes, and\n"
+  m.doc() = "CoefContainer class bindings. This class stores, writes, and\n"
     "provides and interface to coefficients and table data for use\nby the "
     "other pyEXP classes.";
 
@@ -83,6 +83,10 @@ void CoefFactoryClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(bool, Coefs, CompareStanzas, check);
     }
 
+    void clear() override {
+      PYBIND11_OVERRIDE_PURE(void, Coefs, clear,);
+    }
+
     void add(CoefStrPtr coef) override {
       PYBIND11_OVERRIDE_PURE(void, Coefs, add, coef);
     }
@@ -147,6 +151,10 @@ void CoefFactoryClasses(py::module &m) {
 
     bool CompareStanzas(std::shared_ptr<Coefs> check) override {
       PYBIND11_OVERRIDE(bool, SphCoefs, CompareStanzas, check);
+    }
+
+    void clear() override {
+      PYBIND11_OVERRIDE(void, SphCoefs,	clear,);
     }
 
     void add(CoefStrPtr coef) override {
@@ -215,6 +223,10 @@ void CoefFactoryClasses(py::module &m) {
       PYBIND11_OVERRIDE(bool, CylCoefs, CompareStanzas,	check);
     }
 
+    void clear() override {
+      PYBIND11_OVERRIDE(void, CylCoefs, clear,);
+    }
+
     void add(CoefStrPtr coef) override {
       PYBIND11_OVERRIDE(void, CylCoefs,	add, coef);
     }
@@ -279,6 +291,10 @@ void CoefFactoryClasses(py::module &m) {
 
     bool CompareStanzas(std::shared_ptr<Coefs> check) override {
       PYBIND11_OVERRIDE(bool, TableData, CompareStanzas, check);
+    }
+
+    void clear() override {
+      PYBIND11_OVERRIDE(void, TableData, clear,);
     }
 
     void add(CoefStrPtr coef) override {

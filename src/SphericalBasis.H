@@ -15,6 +15,7 @@
 #endif
 #include <NVTX.H>
 
+#include <CoefContainer.H>
 
 class MixtureBasis;
 
@@ -298,6 +299,9 @@ protected:
   //! Last playback coefficient evaluation time
   double lastPlayTime;
 
+  //! Coefficient container instance for writing HDF5
+  Coefs::SphCoefs sphCoefs;
+
 public:
 
   //! Use YAML header in coefficient file
@@ -425,6 +429,8 @@ public:
   //! Dump current coefficients
   void dump_coefs(ostream &);
 
+  //! Dump current coefficients into named HDF5 file
+  void dump_coefs_h5(const std::string& file);
 };
 
 #endif

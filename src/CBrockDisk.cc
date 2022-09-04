@@ -1,9 +1,10 @@
 #include "expand.H"
 
-#include <string>
-#include <vector>
+#include <filesystem>
 #include <iostream>
 #include <sstream>
+#include <vector>
+#include <string>
 
 #include <Particle.H>
 #include <MixtureBasis.H>
@@ -804,5 +805,41 @@ void CBrockDisk::dump_coefs(ostream& out)
   // Write coefficient matrix
   //
   out.write((char *)expcoef->data(), expcoef->size()*sizeof(double));
+}
+
+void CBrockDisk::dump_coefs_h5(const std::string& file)
+{
+  // Add the current coefficients
+  auto cur = std::make_shared<Coefs::CylStruct>();
+
+  cur->mmax   = Lmax;
+  cur->nmax   = nmax;
+
+  cur->coefs.resize(Lmax+1, nmax);
+
+  Eigen::VectorXd cos1(nmax), sin1(nmax);
+  
+  for (int m=0; m<=Lmax; m++) {
+    for (int ir=0; ir<nmax; ir++) {
+      cur->coefs(m, ir) = {(*expcoef)(2*m, ir), (*expcoef)(2*m+1, ir)};
+    }
+  }
+
+  // Check if file exists
+  if (std::filesystem::exists(file + ".h5")) {
+    cylCoefs.add(cur);
+    cylCoefs.ExtendH5Coefs(file + ".h5");
+  } else {
+    // Copy the YAML config.  We only need this on the first call
+    std::ostringstream sout; sout << conf;
+    size_t hsize = sout.str().size() + 1;
+    cur->buf = std::shared_ptr<char[]>(new char [hsize]);
+    sout.str().copy(cur->buf.get(), hsize);
+
+    // Add the new coefficients and write
+    cylCoefs.clear();
+    cylCoefs.add(cur);
+    cylCoefs.WriteH5Coefs(file + ".h5");
+  }
 }
 

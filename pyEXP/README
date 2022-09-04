@@ -1,128 +1,51 @@
-----------------------------
-EXP H5 coefficient utilities
-----------------------------
+------------------------------
+pyEXP: Python bindings for EXP
+------------------------------
 
-This describes an extensible HDF5 format for EXP coefficients and
-provides a few utility classes to manipulate them.  So far these are
-only for testing the design.  I have only implemented spherical and
-cylindrical coefficients (e.g.) produced by the Sphere and Cylinder.
-Any new or current basis types could be easily added.
+These bindings provide the 'standalone' EXP classes defined in the
+coefs directory as Python classes.  See the README in EXP/coefs for a
+detailed description of the classes.
 
-The main elements of the software design are coefficient objects and a
-factory pattern to create them.
+This directory contains a number of sample Python scripts as follows:
 
-The base class 'Coefs' is the main coefficient object.   It implements
-the following tasks:
-   * to read the native EXP binary format into an internal database
-   * to read the HDF5 EXP format into an internal database
-   * to allow clients access to the internal database
-   * to allow the HDF5 format to be written and extended
-   * to allow variants (e.g. spherical and cylindrical) to be constructed
-     by a factor member
-   * maintains a container (implemented as a map/dictionary) of coefficients
-     sets using the base class 'CoefStruct' indexed by time.  'CoefStruct' is 
-     an improved version of the coefficient types in include/Coefs.H.  In the
-     end, I propose using these new coefficient classes in EXP natively.
+* sample.py--This script reads particle snapshots and computes
+  coefficient files for the Better EXP example run.  The coefficients
+  are then saved HDF5 format.  We then construct the basis for the
+  dark halo using the Better parameter.  I demonstrate using
+  FieldGenerator to construct some surface maps of potential and force
+  fields.  Finally, we try some brief MSSA computations.
 
-The base class 'Basis' is the main basis interface.  As with 'Coefs',
-it contains a factory member that will generate a basis instance of
-any known type from a YAML config.  'Basis' can also generate 'CoefStruct'
-that may be added to a 'Coefs' container.
+* sample_part2.py--Rereads the previously saved coefficient file and
+  does some more analysis, emulating a typical workflow.  In this
+  case, I demonstrate Pyploting some of the surfaces fields and MSSA
+  eigenvalues and PCs.
 
-The class 'FieldGenerator' takes a 'Basis' and 'Coefs' instance and
-makes surface of volume grids for rendering.
+* sample_better_example.py--This one begins with an EXP coefficient
+  file and also demonstrates visualizing the fields from the dominant
+  PCs produced by MSSA.
 
-The design provides a factory as a staic member in the base classes
-'Basis' and 'Coefs' to contruct the appropriate derived instance given
-the configuration or coefficient type.  For a coefficient example, the
-'derived' object type (e.g. either spherical or cylindrical
-coefficients) is chosen based on the coefficient type found in the EXP
-native or HDF5 file.   The YAML config needs to have an "id" field that
-identifies the basis type and a parameter list as in EXP.  This can be
-created on the fly using a YAML emitter or loaded from a file.  See
-"makecoefs.cc" for the file version.  Here is a simple example of a
-YAML config for a spherical basis:
+Some implementation notes:
 
----
-id: SphereSL
-parameters :
-  numr: 2000
-  rmin: 0.0001
-  rmax: 1.95
-  Lmax: 4
-  nmax: 10
-  rs: 0.0667
-  modelname: SLGridSph.model
-...
+* Many of the algorithms use OpenMP.  OpenMP functions should
+  work without intervention.  Although the user may want to set a
+  default OMP_NUM_THREADS environment variable appropriate for their
+  machine.
 
-Currently, there are some example and test utilities:
-   * 'nativetoh5': this utility reads a native EXP coefficient file and
-     produces an an HDF5 file.  The extensibility can be tested with the
-     '-e/--extend' option which appends the stanzas in the native file to the
-     an existing HDF5 file.  This is only for testing and has no clear
-     practical value at this point.
-   * 'h5compare': this reads a native EXP coefficient file and HDF5 coefficient
-     file produced by nativetoh5 and compares every value to verify that their
-     identity. This routine checks the attributes with the native header
-     values as well as the values of the coefficients themselves.
-   * 'viewcoefs': reads an EXP coefficient file, native or HDF5, displays
-     the available snapshot times, and prints the coefficient matrix at
-     user selected times.  This is a check of the coefficient access operator.
-   * 'h5compare': reads an EXP coefficient file, native or HDF5, and computes
-     the harmonic power per top-level index (e.g. m-order for cylindrical and
-     l-order for spherical).
-   * 'makecoefs': reads a list of phase-space files and a basis configuration
-      and constructs an HDF5 coefficient file.
+* Many of the algorithms were written using MPI.  Launching an MPI run
+  from Python or Jupyter is possible but will take a bit of
+  customization and setup.  I have not yet explored this in an any
+  detail.  The MPI-aware member functions will fall back to scalar
+  computation by initializing MPI with 1 node.
 
+* The pyEXP shared object library, callable from Python, will be
+  copied to the user's target install directory using the path:
+  lib/pythonX.Y/site-packages where X.Y is your default Python
+  version.  In Ubuntu, the default PYTHONPATH includes
+  ~/.local/lib/pythonX.Y/site-packages.  So setting your target
+  install directory to be /home/user/.local would make sense.
+  However, you can choose any target install directory you wish and
+  add that to your own PYTHONPATH as you see fit.  You will also need
+  to make sure that your LD_LIBRARY_PATH contains the target install
+  lib directory or the loader will not be able to find the EXP objects.
+  This will result in messages about unresolved symbols.
 
-The HDF5 file has the following structure:
-   * The top-level group has the following attributes and data:
-       + Attribute 'config': this will contain the YAML parameters needed
-         to instantiate the EXP basis that generated the coefficients.  This
-	 is not yet implemented on the EXP side.
-       + Attribute 'type': the coefficient type (currently 'Sphere' or
-         'Cylinder')
-       + Attribute 'forceID': the EXP string identifier for the force type.
-       + Parameters attributes that describe the dimensionality of the basis.
-         Any number of these are allowed and should fully describe the
-	 parameters necessary to specify the basis.  For the spherical basis,
-	 these are lmax, nmax, scale and are illustrated in the schema
-	 provided at the end of this README.
-       + Dataset 'count': this is a single unsigned integer that records the
-         number of snapshots in the coefficient file.  This should be updated
-	 if/when the HDF5 file is extended (e.g. by a running EXP simulation)
-       + Group 'snapshots': contains all of the coefficient frames.  Each
-         frame has a 'Time' attribute (double type) and a coefficient matrix
-	 (Eigen::MatrixXcd type)
-
-An example schema for the hierarchical structure of the HDF5 file, 'file.h5'
-say, for a spherical basis is:
-
-HDF5 "file.h5" {
-FILE_CONTENTS {
- group      /
- attribute  /config
- attribute  /forceID
- attribute  /lmax
- attribute  /nmax
- attribute  /scale
- attribute  /type
- dataset    /count
- group      /snapshots
- group      /snapshots/00000000
- attribute  /snapshots/00000000/Time
- dataset    /snapshots/00000000/coefficients
- group      /snapshots/00000001
- attribute  /snapshots/00000001/Time
- dataset    /snapshots/00000001/coefficients
- group      /snapshots/00000002
- attribute  /snapshots/00000002/Time
- dataset    /snapshots/00000002/coefficients
- .
- .
- .
- group      /snapshots/000count
- attribute  /snapshots/000count/Time
- dataset    /snapshots/000count/coefficients
- }
-}

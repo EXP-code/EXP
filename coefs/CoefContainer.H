@@ -57,8 +57,8 @@ namespace Coefs
     //! Round time key to emulated fixed-point arithmetic
     inline double roundTime(double time)
     {
-      const unsigned decimal_places = 8;
-      constexpr double multiplier = std::pow(10.0, decimal_places);
+      // Eight decimal places should be enough here...
+      const double multiplier = 1.0e+08;  // std::pow(10.0, 8);
       return std::floor(time * multiplier + 0.5) / multiplier;
     }
     
@@ -130,6 +130,9 @@ namespace Coefs
     static std::shared_ptr<Coefs>
     addcoef(std::shared_ptr<Coefs> coefs, CoefStrPtr coef);
     
+    //! Clear coefficient container
+    virtual void clear() = 0;
+
     //! Add a coefficient structure to the container
     virtual void add(CoefStrPtr coef) = 0;
     
@@ -178,6 +181,9 @@ namespace Coefs
     //! H5 constructor
     SphCoefs(HighFive::File& file, bool verbose=false);
     
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
+
     //! Add a coefficient structure to the container
     virtual void add(CoefStrPtr coef);
 
@@ -249,6 +255,9 @@ namespace Coefs
       coefs = p.coefs;
       angle = p.angle;
     }
+
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
 
     //! Add a coefficient structure to the container
     virtual void add(CoefStrPtr coef);
@@ -334,6 +343,9 @@ namespace Coefs
       data  = p.data;
       times = p.times;
     }
+
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
 
     //! Add a coefficient structure to the container
     virtual void add(CoefStrPtr coef);

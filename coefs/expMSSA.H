@@ -49,11 +49,11 @@ namespace MSSA
 
     //! Parameters
     //@{
-    std::string prefix, grpfile, config, spec;
     bool chatty, flip, verbose, zeropad, dfiles;
+    std::vector<std::vector<int>> groups;
+    std::string prefix, config, spec;
     int numW, nmin, nmax, npc;
     int stride, skip;
-    std::vector<std::vector<int>> groups;
     double evtol;
     //@}
 
@@ -119,6 +119,13 @@ namespace MSSA
     {
       if (not computed) mssa_analysis();
       return S;
+    }
+
+    //! Right singular vectors
+    Eigen::MatrixXd getU()
+    {
+      if (not computed) mssa_analysis();
+      return U;
     }
 
     //! Return the PC vectors

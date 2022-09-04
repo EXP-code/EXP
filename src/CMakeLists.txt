@@ -25,6 +25,7 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
 set(common_INCLUDE_DIRS 
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/pyEXP/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/DSMC/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
@@ -37,7 +38,7 @@ if (ENABLE_DSMC)
   list(APPEND DSMC_LIBS expdsmc)
 endif()
 
-set(common_LINKLIB ${DSMC_LIBS} exputil OpenMP::OpenMP_CXX
+set(common_LINKLIB ${DSMC_LIBS} exputil expcoef OpenMP::OpenMP_CXX
   MPI::MPI_CXX yaml-cpp ${VTK_LIBRARIES})
 
 if(CUDA_FOUND)

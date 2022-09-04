@@ -13,7 +13,7 @@
 #include <highfive/H5DataSpace.hpp>
 #include <highfive/H5Attribute.hpp>
 
-#include <CoefFactory.H>
+#include <CoefContainer.H>
 
 namespace Coefs
 {
@@ -708,7 +708,7 @@ namespace Coefs
 	} else if (Type.compare("Table")==0) {
 	  coefs = std::make_shared<TableData>(h5file);
 	} else {
-	  throw std::runtime_error("CoefFactory: unknown H5 coefficient file type");
+	  throw std::runtime_error("CoefContainer: unknown H5 coefficient file type");
 	}
       } catch (HighFive::Exception& err) {
 	std::cerr << "**** Error reading H5 file ****" << std::endl;
@@ -760,7 +760,7 @@ namespace Coefs
     } else if (dynamic_cast<TblStruct*>(coef.get())) {
       ret = std::make_shared<TableData>();
     } else {
-      throw std::runtime_error("CoefFactory: cannot deduce coefficient file type");
+      throw std::runtime_error("CoefContainer: cannot deduce coefficient file type");
     }
 
     ret->setName(name);

@@ -5,7 +5,7 @@
 
 #include <cxxopts.H>
 #include <libvars.H>
-#include <CoefFactory.H>
+#include <CoefContainer.H>
 
 int main(int argc, char **argv)
 {
@@ -15,17 +15,17 @@ int main(int argc, char **argv)
   //
   // Parse Command line
   //
-  const std::string overview = "Compare native coefficient file to new HDF5 format";
+  const std::string overview = "Generate an ascii table for total harmonic power from the new HDF5 format";
 
   cxxopts::Options options(argv[0], overview);
 
   options.add_options()
     ("h,help", "produce this help message")
     ("v, verbose", "verbose output")
-    ("i,infile", "native input coefficient file",
+    ("i,infile", "coefficient file",
      cxxopts::value<std::string>(infile)->default_value("coef.dat"))
-    ("p,prefix", "prefix for h5 coefficient file",
-     cxxopts::value<std::string>(prefix)->default_value("new"))
+    ("p,prefix", "prefix for the output data file",
+     cxxopts::value<std::string>(prefix)->default_value("power"))
      ;
   
   cxxopts::ParseResult vm;
@@ -44,16 +44,20 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  auto coefs0 = Coefs::Coefs::factory(infile);
-  auto coefs1 = Coefs::Coefs::factory(prefix + ".h5");
+  auto coefs = Coefs::Coefs::factory(infile);
 
-  // Is data identical?
-  //
-  if (coefs0->CompareStanzas(coefs1))
-    std::cout << "SUCCESS" << std::endl;
-  else
-    std::cout << "FAILURE" << std::endl;
+  auto power = coefs->Power();
+  auto times = coefs->Times();
 
+  std::ofstream out(prefix + ".dat");
+  if (out) {
+    for (int t=0; t<times.size(); t++) {
+      out << std::setw(18) << times[t];
+      for (int c=0; c<power.cols(); c++)
+	out << std::setw(18) << power(t, c);
+      out << std::endl;
+    }
+  }
 
   return(0);
 }

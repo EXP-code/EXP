@@ -57,6 +57,10 @@ void MSSAtoolkitClasses(py::module &m) {
   f.def("eigenvalues", &expMSSA::eigenvalues,
 	"Return the vector of eigenvalues from the MSSA analysis");
   
+  f.def("getU", &expMSSA::getU,
+	"Return the right-singular) vectors from the MSSA analysis "
+	"which describe the contribution of each channel to each PC");
+
   f.def("getPC", &expMSSA::getPC,
 	"Return the principle component (left-singular) vectors from the MSSA "
 	"analysis which describe the key temporal variation");

@@ -16,6 +16,8 @@
 #endif
 #include <NVTX.H>
 
+#include <CoefContainer.H>
+
 class MixtureBasis;
 
 /** This routine computes the potential, acceleration and density 
@@ -312,6 +314,10 @@ protected:
   }
 
 
+  //! Coefficient container instance for writing HDF5
+  Coefs::CylCoefs cylCoefs;
+
+
 public:
 
   //! Mutexes for multithreading
@@ -440,6 +446,9 @@ public:
 
   //! Save coefficients to file (need type marker to id dump, component id?)
   void dump_coefs(ostream& out);
+
+  //! Save coefficients to named HDF5 file
+  void dump_coefs_h5(const std::string& file);
 
   //! Sanity check on grid: dumps SM-style images of initial field
   void dump_mzero(const string& name, int step);

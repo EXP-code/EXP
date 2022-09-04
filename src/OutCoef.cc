@@ -11,6 +11,7 @@ OutCoef::OutCoef(const YAML::Node& conf) : Output(conf)
   nint = 10;
   nintsub = std::numeric_limits<int>::max();
   filename = outdir + "outcoef." + runtag;
+  native = false;
   tcomp = NULL;
 
   initialize();
@@ -36,6 +37,7 @@ void OutCoef::initialize()
   try {
     if (conf["filename"])     filename = conf["filename"].as<std::string>();
     if (conf["nint"])         nint     = conf["nint"].as<int>();
+    if (conf["native"])       native   = conf["native"].as<bool>();
     if (conf["nintsub"]) {
       nintsub  = conf["nintsub"].as<int>();
       if (nintsub <= 0) nintsub = 1;
@@ -100,7 +102,10 @@ void OutCoef::Run(int n, int mstep, bool last)
     }
   }
   
-  tcomp->force->dump_coefs(out);
+  if (native)
+    tcomp->force->dump_coefs(out);
+  else
+    tcomp->force->dump_coefs_h5(filename);
 
   out.close();
 }
