@@ -185,8 +185,23 @@ void BasisFactoryClasses(py::module &m) {
 	 "Generate a basis from a YAML configuration supplied as a string");
 
     py::class_<Basis::SphericalSL, std::shared_ptr<Basis::SphericalSL>, PySphericalSL, Basis::Basis>(m, "SphericalSL")
-      .def(py::init<const std::string&>(), "Create a spherical Sturm-Liouville basis");
+      .def(py::init<const std::string&>(), "Create a spherical Sturm-Liouville basis")
+      .def("GetBasis", &Basis::SphericalSL,
+	   "Evaluate the basis functions on a logarithmically spaced grid for"
+	   "inspection",
+	   py::arg("logxmin")=-3.0,
+	   py::arg("logxmax")=0.5,
+	   py::arg("numr")=2000);
 
   py::class_<Basis::CylindricalSL, std::shared_ptr<Basis::CylindricalSL>, PyCylindricalSL, Basis::Basis>(m, "CylindricalSL")
-    .def(py::init<const std::string&>(), "Create a cylindrical EOF basis");
+    .def(py::init<const std::string&>(), "Create a cylindrical EOF basis")
+    .def("GetBasis", &Basis::CylindricalSL,
+	 "Evaluate the basis functions on a linearly spaced 2d-grid for"
+	 "inspection",
+	 py::arg("xmin")=0.0,
+	 py::arg("xmax")=1.0,
+	 py::arg("numr")=40,
+	 py::arg("zmin")=-0.1,
+	 py::arg("zmax")=0.1,
+	 py::arg("numz")=40 );
 }

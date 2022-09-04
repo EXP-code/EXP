@@ -84,24 +84,31 @@ public:
 
   //! Return eigenvalue for given order
   double eigenvalue(int m, int k, int n) {return table[m][k].ev[n];}
+
   //! Dimensional to dimensionless coordinate mapping
   double r_to_xi(double r);
+
   //! Dimensionless to dimensional coordinate mapping
   double xi_to_r(double x);
+
   //! Jacobian of dimensionless mapping
   double d_xi_to_r(double x);
 
   //! Get potential basis value
   double get_pot(double x, int m, int n, int k, int which=1);
+
   //! Get density basis value
   double get_dens(double x, int m, int n, int k, int which=1);
+
   //! Get force basis value
   double get_force(double x, int m, int n, int k, int which=1);
 
   //! Fill vector with desired potential basis 
   void get_pot(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
+
   //! Fill vector with desired density basis 
   void get_dens(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
+
   //! Fill vector with desired force basis 
   void get_force(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
 
@@ -114,11 +121,13 @@ public:
 
   //! Fill Matrix with desired potential basis 
   void get_dens(Eigen::MatrixXd& tab, double x, int m, int which=1);
+
   //! Fill Matrix with desired potential basis 
   void get_force(Eigen::MatrixXd& tab, double x, int m, int which=1);
 
   //! Fill Matricies with desired potential basis 
   void get_pot(Eigen::MatrixXd* tab, double x, int mMin, int mMax, int which=1);
+
   //! Fill Matricies with desired density basis 
   void get_dens(Eigen::MatrixXd* tab, double x, int mMin, int mMax, int which=1);
   //! Fill Matricies with desired force basis 

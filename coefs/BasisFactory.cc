@@ -431,6 +431,34 @@ namespace Basis
   }
   
   
+  std::vector<std::vector<Eigen::VectorXd>> SphericalSL::getBasis
+  (double logxmin, double logxmax, int numgrid)
+  {
+    // Assing return storage
+    std::vector<std::vector<Eigen::VectorXd>> ret(lmax+1);
+    for (auto & v : ret) {
+      v.resize(nmax);
+      for (auto & u : v) u.resize(numgrid);
+    }
+
+    // Radial grid spacing
+    double dx = (logxmax - logxmin)/numgrid;
+
+    // Basis storage
+    Eigen::MatrixXd tab;
+
+    for (int i=0; i<numgrid; i++) {
+      sl->get_pot(tab, pow(10.0, logxmin + dx*i));
+      for (int l=0; l<=lmax; l++) {
+	for (int n=0; n<nmax;n++){
+	  ret[l][n](i) = tab(l, n);
+	}
+      }
+    }
+    
+    return ret;
+  }
+
 #define MINEPS 1.0e-10
   
   void Basis::legendre_R(int lmax, double x, Eigen::MatrixXd& p)
@@ -561,6 +589,7 @@ namespace Basis
     
   }
   
+
   CylindricalSL::CylindricalSL(const YAML::Node& CONF) : Basis(CONF)
   {
     initialize();
@@ -778,6 +807,40 @@ namespace Basis
   }
   
   
+  std::vector<std::vector<Eigen::MatrixXd>> CylindricalSL::getBasis
+  (double xmin, double xmax, int numR, double zmin, double zmax, int numZ)
+  {
+    // Allocate storage
+    std::vector<std::vector<Eigen::MatrixXd>> ret(mmax+1);
+    for (auto & v : ret) {
+      ret.resize(nmax);
+      for (auto & u : v) u.resize(numR, numZ);
+    }
+    
+    // Grid spacing
+    double delR = (xmax - xmin)/std::max<int>(numR-1, 1);
+    double delZ = (zmax - zmin)/std::max<int>(numZ-1, 1);
+
+    // Return values
+    double p, d, fr, fz, fp;
+
+    // Now, evaluate the grid
+    for (int m=0; m<=mmax; m++) {
+      for (int n=0; n<nmax; n++) {
+	for (int i=0; i<numR; i++) {
+	  double R = xmin + delR*i;
+	  for (int j=0; j<numZ; j++) {
+	    double Z = zmin + delZ*j;
+	    sl->get_all(m, n, R, Z, 0.0, p, d, fr, fz, fp);
+	    ret[m][n](i,j) = p;
+	  }
+	}
+      }
+    }
+
+    return ret;
+  }
+
   std::shared_ptr<Basis> Basis::factory_string(const std::string& conf)
   {
     YAML::Node node;

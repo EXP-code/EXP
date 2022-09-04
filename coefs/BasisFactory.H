@@ -114,6 +114,7 @@ namespace Basis
     static std::shared_ptr<Basis> factory_string(const std::string& conf);
     //@}
     
+
   };
   
   /**
@@ -207,6 +208,12 @@ namespace Basis
     
     //! Return current maximum order in radial expansion
     int getNmax() { return nmax; }
+
+    //! Return a vector of a vector of 1d basis-function grids for
+    //! SphericalSL, logarithmically spaced between [logxmin, logxmax]
+    //! (base 10).
+    std::vector<std::vector<Eigen::VectorXd>> getBasis
+    (double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
   };
   
   /**
@@ -299,6 +306,12 @@ namespace Basis
     
     //! Return current maximum order in radial expansion
     int getNmax() { return nmax; }
+
+    //! Return a vector of vector of basis functions for Cylindrical,
+    //! linearly spaced between [xmin, xmax] and [zmin, zmax]
+    std::vector<std::vector<Eigen::MatrixXd>> getBasis
+    (double xmin=0.0, double xmax=1.0, int numr=40,
+     double zmin=-0.1, double zmax=0.1, int numz=40);
   };
   
   using BasisPtr = std::shared_ptr<Basis>;
