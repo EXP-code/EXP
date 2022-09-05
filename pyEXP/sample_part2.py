@@ -23,7 +23,7 @@ basis = pyEXP.basis.Basis.factory(yaml_config)
 
 # Reread the coefs from the file
 #
-coefs = pyEXP.coefs.Coefs.factory('testC.h5')
+coefs = pyEXP.coefs.Coefs.factory('test_better.h5')
 
 print("Got coefs for name=", coefs.getName())
 

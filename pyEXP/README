@@ -8,7 +8,7 @@ detailed description of the classes.
 
 This directory contains a number of sample Python scripts as follows:
 
-* sample.py--This script reads particle snapshots and computes
+* sample_part1.py--This script reads particle snapshots and computes
   coefficient files for the Better EXP example run.  The coefficients
   are then saved HDF5 format.  We then construct the basis for the
   dark halo using the Better parameter.  I demonstrate using
