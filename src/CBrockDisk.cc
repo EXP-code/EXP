@@ -13,6 +13,7 @@
 CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :  AxisymmetricBasis(c0, conf)
 {
   id              = "Clutton-Brock two-dimensional disk";
+  geometry        = cylinder;
 
   dof             = 2;		// Two degrees of freedom
   mix             = m;
@@ -812,6 +813,9 @@ void CBrockDisk::dump_coefs_h5(const std::string& file)
   // Add the current coefficients
   auto cur = std::make_shared<Coefs::CylStruct>();
 
+  cur->time   = tnow;
+  cur->geom   = geoname[geometry];
+  cur->id     = id;
   cur->mmax   = Lmax;
   cur->nmax   = nmax;
 
@@ -827,19 +831,23 @@ void CBrockDisk::dump_coefs_h5(const std::string& file)
 
   // Check if file exists
   if (std::filesystem::exists(file + ".h5")) {
+    cylCoefs.clear();
     cylCoefs.add(cur);
-    cylCoefs.ExtendH5Coefs(file + ".h5");
+    cylCoefs.ExtendH5Coefs(file);
   } else {
-    // Copy the YAML config.  We only need this on the first call
+    // Copy the YAML config.  We only need this on the first call.
     std::ostringstream sout; sout << conf;
     size_t hsize = sout.str().size() + 1;
     cur->buf = std::shared_ptr<char[]>(new char [hsize]);
-    sout.str().copy(cur->buf.get(), hsize);
+    sout.str().copy(cur->buf.get(), hsize); // Copy to CoefStruct buffer
 
-    // Add the new coefficients and write
+    // Add the name attribute.  We only need this on the first call.
+    cylCoefs.setName(component->name);
+
+    // Add the new coefficients and write the new HDF5
     cylCoefs.clear();
     cylCoefs.add(cur);
-    cylCoefs.WriteH5Coefs(file + ".h5");
+    cylCoefs.WriteH5Coefs(file);
   }
 }
 

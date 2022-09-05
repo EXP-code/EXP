@@ -1732,6 +1732,10 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
   // Add the current coefficients
   auto cur = std::make_shared<Coefs::SphStruct>();
 
+  cur->time   = tnow;
+  cur->geom   = geoname[geometry];
+  cur->id     = id;
+  cur->time   = tnow;
   cur->lmax   = Lmax;
   cur->nmax   = nmax;
   cur->scale  = scale;
@@ -1757,22 +1761,26 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
   // Check if file exists
   //
   if (std::filesystem::exists(file + ".h5")) {
+    sphCoefs.clear();
     sphCoefs.add(cur);
-    sphCoefs.ExtendH5Coefs(file + ".h5");
+    sphCoefs.ExtendH5Coefs(file);
   }
   // Otherwise, extend the existing HDF5 file
   //
   else {
-    // Copy the YAML config.  We only need this on the first call
+    // Copy the YAML config.  We only need this on the first call.
     std::ostringstream sout; sout << conf;
     size_t hsize = sout.str().size() + 1;
     cur->buf = std::shared_ptr<char[]>(new char [hsize]);
-    sout.str().copy(cur->buf.get(), hsize);
+    sout.str().copy(cur->buf.get(), hsize); // Copy to CoefStruct buffer
 
-    // Add the new coefficients and write
+    // Add the name attribute.  We only need this on the first call.
+    sphCoefs.setName(component->name);
+
+    // And the new coefficients and write the new HDF5
     sphCoefs.clear();
     sphCoefs.add(cur);
-    sphCoefs.WriteH5Coefs(file + ".h5");
+    sphCoefs.WriteH5Coefs(file);
   }
 }
 
