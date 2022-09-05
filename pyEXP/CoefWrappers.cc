@@ -342,8 +342,8 @@ void CoefContainerClasses(py::module &m) {
     .def("makeKeys",       &Coefs::Coefs::makeKeys,
 	 "Return a vector/list of keys for an entire subspace of "
 	 "subdimensional rank", py::arg("subkey"))
-    .def("getCoefType",    &Coefs::Coefs::getCoefType,
-	 "Return the coefficient type id string")
+    .def("getGeometry",    &Coefs::Coefs::getGeometry,
+	 "Return the coefficient geometry string")
     .def("getName",        &Coefs::Coefs::getName,
 	 "Return the coefficient set nmenonic name")
     .def("setName",        &Coefs::Coefs::setName,

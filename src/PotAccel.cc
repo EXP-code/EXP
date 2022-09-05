@@ -26,7 +26,8 @@ std::map<PotAccel::Geometry, std::string> PotAccel::geoname =
     {PotAccel::cylinder, "cylinder"},
     {PotAccel::cube,     "cube"    },
     {PotAccel::slab,     "slab"    },
-    {PotAccel::other,    "cylinder"}
+    {PotAccel::table,    "table"   },
+    {PotAccel::other,    "other"   }
   };
 
 void PotAccel::exp_thread_fork(bool coef)

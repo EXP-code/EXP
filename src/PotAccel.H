@@ -102,7 +102,7 @@ public:
   string id;
 
   //! Possible geometries
-  enum Geometry {sphere, cylinder, cube, slab, other};
+  enum Geometry {sphere, cylinder, cube, slab, table, other};
 
   //! Map from enum to string
   static std::map<Geometry, std::string> geoname;

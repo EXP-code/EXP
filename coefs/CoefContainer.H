@@ -33,8 +33,8 @@ namespace Coefs
     //! Working array for power
     Eigen::MatrixXd power;
     
-    //! Coefficient type id
-    std::string coefType;
+    //! Coefficient geometry
+    std::string geometry;
     
     //! Coefficient name (mnemonic)
     std::string name;
@@ -65,15 +65,15 @@ namespace Coefs
   public:
     
     //! Constructor
-    Coefs(std::string coefType, bool verbose) :
-      coefType(coefType), verbose(verbose) {}
+    Coefs(std::string geometry, bool verbose) :
+      geometry(geometry), verbose(verbose) {}
 
     //! Copy constructor
     Coefs(Coefs& p)
     {
       mat      = p.mat;
       power    = p.power;
-      coefType = p.coefType;
+      geometry = p.geometry;
       name     = p.name;
     }
     
@@ -140,7 +140,7 @@ namespace Coefs
     virtual bool CompareStanzas(std::shared_ptr<Coefs> check) = 0;
 
     //! Get coefficient type
-    std::string getCoefType() { return coefType; }
+    std::string getGeometry() { return geometry; }
 
     //! Get mnemonic name
     std::string getName() { return name; }

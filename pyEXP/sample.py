@@ -177,7 +177,7 @@ coefs.WriteH5Coefs('testC')
 # Now try reading it in
 #
 coefs2 = pyEXP.coefs.Coefs.factory('testC.h5')
-print("Type is", coefs2.getCoefType())
+print("Type is", coefs2.getGeometry())
 
 # Now compare with the original
 #

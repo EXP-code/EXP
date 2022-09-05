@@ -19,7 +19,7 @@ namespace Coefs
 {
   
   SphCoefs::SphCoefs(HighFive::File& file, bool verbose) :
-    Coefs("Sphere", verbose)
+    Coefs("sphere", verbose)
   {
     std::string config, geometry, forceID;
     unsigned count;
@@ -321,7 +321,7 @@ namespace Coefs
   }
 
   CylCoefs::CylCoefs(HighFive::File& file, bool verbose) :
-    Coefs("Cylinder", verbose)
+    Coefs("cylinder", verbose)
   {
     int mmax, nmax;
     unsigned count;
@@ -525,7 +525,7 @@ namespace Coefs
   TableData::TableData(const std::vector<double>& times,
 		       const std::vector<std::vector<double>>& data,
 		       bool verbose) :
-    times(times), data(data), Coefs("Table", verbose)
+    times(times), data(data), Coefs("table", verbose)
   {
     for (int i=0; i<times.size(); i++) {
       TblStrPtr c = std::make_shared<TblStruct>();
@@ -537,7 +537,7 @@ namespace Coefs
   }
 
   TableData::TableData(std::string& file, bool verbose) :
-    Coefs("Table", verbose)
+    Coefs("table", verbose)
   {
     std::ifstream in(file);
     
@@ -557,7 +557,7 @@ namespace Coefs
     
 
   TableData::TableData(HighFive::File& file, bool verbose) :
-    Coefs("Table", verbose)
+    Coefs("table", verbose)
   {
     int cols;
     unsigned count;
@@ -710,16 +710,16 @@ namespace Coefs
       
       // Get the coefficient file type
       //
-      std::string Type;
-      HighFive::Attribute type = h5file.getAttribute("type");
-      type.read(Type);
+      std::string geometry;
+      HighFive::Attribute geom = h5file.getAttribute("geometry");
+      geom.read(geometry);
       
       try {
-	if (Type.compare("Sphere")==0) {
+	if (geometry.compare("sphere")==0) {
 	  coefs = std::make_shared<SphCoefs>(h5file);
-	} else if (Type.compare("Cylinder")==0) {
+	} else if (geometry.compare("cylinder")==0) {
 	  coefs = std::make_shared<CylCoefs>(h5file);
-	} else if (Type.compare("Table")==0) {
+	} else if (geometry.compare("table")==0) {
 	  coefs = std::make_shared<TableData>(h5file);
 	} else {
 	  throw std::runtime_error("CoefContainer: unknown H5 coefficient file type");
@@ -848,7 +848,7 @@ namespace Coefs
       
       // We write the coefficient file type
       //
-      file.createAttribute<std::string>("type", HighFive::DataSpace::From(coefType)).write(coefType);
+      file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
       
       // We write the coefficient mnemonic
       //
