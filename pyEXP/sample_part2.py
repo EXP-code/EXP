@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 # generate a coefficient set.  This script points at that directory
 # and does some additional analysis and plotting
 #
-os.chdir('/data/Nbody/Better')
+os.chdir('/home/weinberg/Nbody/Better')
 
 # Get the basis config
 #
@@ -48,13 +48,13 @@ for v in surfaces:
 
 # Print the potential image at the final time (I think there is a
 # fencepost issue in this grid, no matter).
-x = np.linspace(pmin[0], pmax[0], grid[0]+1)
-y = np.linspace(pmin[1], pmax[1], grid[1]+1)
+x = np.linspace(pmin[0], pmax[0], grid[0])
+y = np.linspace(pmin[1], pmax[1], grid[1])
 xv, yv = np.meshgrid(x, y)
 
-cont1 = plt.contour(xv, yv, surfaces[final]['p'], colors='k')
+cont1 = plt.contour(xv, yv, surfaces[final]['p'].transpose(), colors='k')
 plt.clabel(cont1, fontsize=9, inline=True)
-cont2 = plt.contourf(xv, yv, surfaces[final]['p'])
+cont2 = plt.contourf(xv, yv, surfaces[final]['p'].transpose())
 plt.colorbar(cont2)
 plt.xlabel('x')
 plt.ylabel('y')
