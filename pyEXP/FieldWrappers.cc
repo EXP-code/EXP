@@ -36,7 +36,16 @@ void FieldGeneratorClasses(py::module &m) {
 
   m.doc() = "FieldGenerator class bindings.  This class computes surfaces\n"
     "and volumes for visualizing the physical quantities implied\nby your"
-    "coefficients.";
+    "coefficients.\n\n"
+    "The generator is constructed by passing a vector of desired times\n"
+    "that must be in the coefficient object and list of lower bounds,\n"
+    "a list of upper bounds, and a list of knots per dimension.  These\n"
+    "lists all have rank 3 for (x, y, z).  For a two-dimensional surface,\n"
+    "one of the knot array values must be zero.  The member functions\n"
+    "slices and volumes, called with the basis and coefficient objects,\n"
+    "return a numpy.ndarray containing the field evaluations.  See\n",
+    "help(pyEXP.basis) and help(pyEXP.coefs) for info on the basis\n"
+    "and coefficient objects.\n\n";
 
   using namespace Field;
 

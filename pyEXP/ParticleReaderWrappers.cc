@@ -9,7 +9,27 @@ void ParticleReaderClasses(py::module &m) {
 
   m.doc() = "ParticleReader class bindings. This class reads and converts\n"
     "your phase-space snapshots to iterable objects for generating\nderived"
-    "quantities, such as coefficients.";
+    "quantities, such as coefficients.\n\n"
+    "The available particle readers are:\n"
+    "  1. PSPout         The monolithic EXP phase-space snapshot format\n"
+    "  2. PSPspl         Like PSPout, but split into multiple file chunks\n"
+    "  3. GadgetNative   The original Gadget native format\n"
+    "  4  GadgetHDF5     The newer HDF5 Gadget format\n"
+    "  5. TipsyNative    The original Tipsy format\n"
+    "  6. TipsyXDR       The original XDR Tipsy format\n"
+    "  7. Bonsai         This is the Bonsai varient of Tipsy files\n\n"
+    "We have helper function, getReaders, to get a list to help you\n"
+    "remember.  Try: pyEXP.read.ParticleReader.getReaders()\n\n"
+    "Once the ParticleReader instance is created, you can select\n"
+    "the type of particle you want to read; each reader has different\n"
+    "mnemonics for these, as you know.  You can get the list of types\n"
+    "using the GetTypes() member and select the desired type with the\n"
+    "SelectType() member.  You can also get the current time and number\n"
+    "of particles for the selected type using the CurrentTime() and\n"
+    "CurrentNumber() members, respectively.  The main function of of\n"
+    "this ParticleReader object in pyEXP is creating the coefficient\n"
+    "expansion using Basis.createCoefficients.  See help(pyEXP.basis)\n\n";
+			    
 
   using namespace PR;
 
@@ -279,6 +299,15 @@ void ParticleReaderClasses(py::module &m) {
 	 py::arg("type"), py::arg("bunch"),
 	 py::arg("myid")=0, py::arg("verbose")=false);
 
+  pr.def_static("getReaders", []()
+  {
+    const std::vector<std::string> formats = {
+      "PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "TipsyNative",
+      "TipsyXDR", "Bonsai"};
+
+    return formats;
+    },
+    py::doc("Returns the list of phase-space snapshot format types as a Python list"));
 
   py::class_<GadgetHDF5, std::shared_ptr<GadgetHDF5>, PyGadgetHDF5, ParticleReader>(m, "GadgetHDF5")
     .def(py::init<const std::vector<std::string>&, bool>(),

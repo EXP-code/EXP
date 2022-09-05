@@ -12,7 +12,18 @@ void BasisFactoryClasses(py::module &m) {
     "class that will create biorthogonal bases from input configura-\n"
     "tion files.  These basis can then be used to compute coeffi-\n"
     "cients, provide field quantities such as forces and, together\n"
-    "with the FieldGenerator, surfaces and fields for visualization.";
+    "with the FieldGenerator, surfaces and fields for visualization.\n\n"
+    "Two bases are currently implemented: SphericalSL, the Sturm-\n"
+    "Liouiville spherical basis and the CylindiricalSL basis, which is\n"
+    "created by computing empirical orthogonal functions over a densely\n"
+    "sampled SphericalSL basis.  Each of these bases take a YAML\n"
+    "configuration file as input.   See the EXP documentation and\n"
+    "examples for more detail.\n\n"
+    "The primary functions of these basis are:\n"
+    "  1. To compute BFE coefficients from phase-space snapshots\n"
+    "     using the ParticleReader class.  See help(pyEXP.read).\n"
+    "  2. To evaluate the fields from the basis and a coefficient\n"
+    "     object.  See help(pyEXP.coefs) and help(pyEXP.field).\n\n";
 
   using namespace Basis;
 

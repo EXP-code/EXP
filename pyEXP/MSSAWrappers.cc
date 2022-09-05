@@ -36,10 +36,49 @@ void MSSAtoolkitClasses(py::module &m) {
 
   m.doc() = "Multivariate Singular Spectrum Analysis (MSSA) class bindings\n"
     "The expMSSA class analyzes and separates the temporal patterns\n"
-    "in your coefficients and auxilliary data.  It can return coeffi\n"
+    "in your coefficients and auxiliary data.  It can return coeffi\n"
     "cients sets for one or more individual patterns that may be\n"
-    "used with the FieldGenerator for visualiation.";
-
+    "used with the FieldGenerator for visualization\n\n"
+    "expMSSA has a number of internal configuration parameters, listed\n"
+    "below. Most people will not need them, but they do exist should\n"
+    "you really want to dig in.\n\n"
+    "Configuration parameters\n"
+    "------------------------\n"
+    "expMSSA can be configured with a YAML database of parameters.\n"
+    "They are all optional but a few of these will be useful. They\n"
+    "are all YAML key-value pairs.  The following are simple boolean\n"
+    "toggles.  That is there presence turns on the feature independent\n"
+    "of the value.  They are:\n\n"
+    "  chatty: true          Prints eigenvalues, PC, etc. to stdout\n"
+    "  flip: true            Exchanges the x-y axes in PNG plots\n"
+    "  writeFiles: true      Writes most of the 'chatty' output to files\n\n"
+    "  writeCov: true        Write the covariance matrix to a file\n"
+    "  Jacobi: true          Use the Jacobi SVD rather than the Random\n"
+    "                        approximation algorithm from Halko, Martinsson,\n"
+    "                        and Tropp (RedSVD). This is quite accurate but\n" 
+    "                        _very_ slow\n"
+    "  BDCSVD: true          Use the Binary Divide and Conquer SVD rather\n"
+    "                        rather than RedSVD; this is faster and more\n"
+    "                        accurate than the default RedSVD but slower\n"
+    "  Traj: true            Perform the SVD of the trajectory matrix\n"
+    "                        rather than the more computationally SVD\n"
+    "                        of the trajectory matrix.  Do not use this\n"
+    "                        with the default RedSVD algorithm.  Use either\n"
+    "                        either Jacobi or BDCSVD for accuracy.\n"
+    "  distance: true        Compute w-correlation matrix PNG images using\n"
+    "                        w-distance rather than correlation\n"
+    "  allchan: true         Perform k-mean clustering analysis using all\n"
+    "                        channels simultaneously\n"
+    "The following parameters take values, defaults are given in ()\n\n"
+    "  skip: int(1)          Ignore first int number of times in the series\n"
+    "  stride: int(1)        Shorten time series by keeping every int value\n"
+    "  evtol: double(0.01)   Truncate by the given cumulative p-value\n"
+    "  output: str(exp_mssa) Prefix name for output files\n\n"
+    "The output value is only used if 'writeFiles' is specified, too.\n"
+    "You may group using reconstruct(list) by passing a list of component\n"
+    "indices in eigenvalue/PC index order. The default, an empty argument,\n"
+    "is no grouping; that is, reconstruct for all eigenvalues.\n\n";
+  
   using namespace MSSA;
 
   py::class_<MSSA::expMSSA, std::shared_ptr<MSSA::expMSSA>> f(m, "expMSSA");
@@ -75,7 +114,7 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("reconstruct", &expMSSA::reconstruct,
 	"Reconstruct the data channels with the provided list of eigenvalue "
-	"indices", py::arg("evlist"));
+	"indices (a group).", py::arg("evlist")=std::vector<int>());
 
   f.def("getReconstructed", &expMSSA::getReconstructed,
 	"Return the reconstucted time series in the orginal coefficient form "
