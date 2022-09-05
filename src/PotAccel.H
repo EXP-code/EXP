@@ -104,6 +104,9 @@ public:
   //! Possible geometries
   enum Geometry {sphere, cylinder, cube, slab, other};
 
+  //! Map from enum to string
+  static std::map<Geometry, std::string> geoname;
+
   //! sphere, cylinder, cube, slab, other
   Geometry geometry;
 

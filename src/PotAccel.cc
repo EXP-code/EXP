@@ -20,6 +20,15 @@ call_any_threads_thread_call(void *atp)
                    
 pthread_mutex_t PotAccel::cc_lock;
 
+// Map from enum to string
+std::map<PotAccel::Geometry, std::string> PotAccel::geoname =
+  { {PotAccel::sphere,   "sphere"  },
+    {PotAccel::cylinder, "cylinder"},
+    {PotAccel::cube,     "cube"    },
+    {PotAccel::slab,     "slab"    },
+    {PotAccel::other,    "cylinder"}
+  };
+
 void PotAccel::exp_thread_fork(bool coef)
 {
   //
