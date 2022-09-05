@@ -53,6 +53,10 @@ namespace Coefs
 	time = node["time"].as<double>();
 	nmax = node["nmax"].as<int>();
 	mmax = node["mmax"].as<int>();
+
+	if (node["geom"]) geom = node["geom"].as<std::string>();
+	else              geom = "cylinder";
+	if (node["id"  ]) id   = node["id"  ].as<std::string>();
 	
 	if (verbose)
 	  std::cerr << "New header: T=" << time << " nmax=" << nmax
@@ -70,6 +74,7 @@ namespace Coefs
 	time = header.time;
 	nmax = header.nmax;
 	mmax = header.mmax;
+	geom = "cylinder";
 	id   = "Cylinder";
 	
 	if (verbose)
@@ -168,7 +173,12 @@ namespace Coefs
 	nmax  = node["nmax"  ].as<int>();
 	time  = node["time"  ].as<double>();
 	scale = node["scale" ].as<double>();
-	id    = node["id"    ].as<std::string>();
+
+	// Optional parameters
+	//
+	if (node["geom"]) geom  = node["geom"  ].as<std::string>();
+	else              geom  = "sphere";
+	if (node["id"  ]) id    = node["id"    ].as<std::string>();
 	
 	// Look for norm flag
 	//

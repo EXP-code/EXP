@@ -14,6 +14,9 @@ namespace Coefs
     //! For YAML config
     std::shared_ptr<char[]> buf;
     
+    //! Geometry
+    std::string geom;
+    
     //! Name of the force
     std::string id;
     
