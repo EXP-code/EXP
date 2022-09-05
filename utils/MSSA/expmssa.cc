@@ -199,6 +199,7 @@ main(int argc, char **argv)
     ("e,ev",         "exit after computing eigenvalues")
     ("triples",      "print all triples for reconstruction")
     ("f,flip",       "png origin in lower left rather than upper left")
+    ("Traj",         "use SVD of trajectory matrix rather than covariance matrix")
     ("totVar",       "use total variance for normalization")
     ("totPow",       "use total power for normalization")
     ("writeCov",     "write the covariance matrix (may be large and time consuing)")
@@ -723,7 +724,7 @@ main(int argc, char **argv)
       double disp = totVar;
       if (type == CoefDB::TrendType::totPow) disp = totPow;
       if (disp==0.0) disp = var[u.first];
-
+      
       for (int i=0; i<numT; i++) {
 	out << std::setw(15) << std::setprecision(6) << coefs.times[i];
 	for (int w=0; w<ncomp; w++)
