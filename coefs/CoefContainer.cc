@@ -21,18 +21,19 @@ namespace Coefs
   SphCoefs::SphCoefs(HighFive::File& file, bool verbose) :
     Coefs("Sphere", verbose)
   {
-    std::string config, forceID;
+    std::string config, geometry, forceID;
     unsigned count;
     int lmax, nmax;
     double scale;
     
-    file.getAttribute("name"   ).read(name   );
-    file.getAttribute("lmax"   ).read(lmax   );
-    file.getAttribute("nmax"   ).read(nmax   );
-    file.getAttribute("scale"  ).read(scale  );
-    file.getAttribute("config" ).read(config );
-    file.getDataSet  ("count"  ).read(count  );
-    file.getAttribute("forceID").read(forceID);
+    file.getAttribute("name"    ).read(name    );
+    file.getAttribute("lmax"    ).read(lmax    );
+    file.getAttribute("nmax"    ).read(nmax    );
+    file.getAttribute("scale"   ).read(scale   );
+    file.getAttribute("config"  ).read(config  );
+    file.getDataSet  ("count"   ).read(count   );
+    file.getAttribute("geometry").read(forceID );
+    file.getAttribute("forceID" ).read(geometry);
     
     // Open the snapshot group
     //
@@ -60,6 +61,8 @@ namespace Coefs
       coef->time  = Time;
       coef->scale = scale;
       coef->coefs = in;
+      coef->geom  = geometry;
+      coef->id    = forceID;
       
       coefs[roundTime(Time)] = coef;
     }
@@ -164,11 +167,13 @@ namespace Coefs
     int nmax     = coefs.begin()->second->nmax;
     double scale = coefs.begin()->second->scale;
     
+    std::string geometry = "sphere";
     std::string forceID(coefs.begin()->second->id);
     
     file.createAttribute<int>("lmax", HighFive::DataSpace::From(lmax)).write(lmax);
     file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
     file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
+    file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
   }
   
@@ -432,8 +437,14 @@ namespace Coefs
     int mmax = coefs.begin()->second->mmax;
     int nmax = coefs.begin()->second->nmax;
     
+    std::string geometry = "cylinder";
+    std::string forceID(coefs.begin()->second->id);
+    
+
     file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
     file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
+    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
   }
   
   unsigned CylCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
@@ -614,7 +625,10 @@ namespace Coefs
   {
     int cols = coefs.begin()->second->cols;
     
+    std::string geometry = "other";
+
     file.createAttribute<int>("cols", HighFive::DataSpace::From(cols)).write(cols);
+    file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
   }
   
   unsigned TableData::WriteH5Times(HighFive::Group& snaps, unsigned count)
