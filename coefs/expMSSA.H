@@ -50,7 +50,6 @@ namespace MSSA
     //! Parameters
     //@{
     bool chatty, flip, verbose, zeropad, dfiles;
-    std::vector<std::vector<int>> groups;
     std::string prefix, config, spec;
     int numW, nmin, nmax, npc;
     int stride, skip;
@@ -141,17 +140,21 @@ namespace MSSA
     //! Return the power spectrum of the channel vectors
     Eigen::MatrixXd channelDFT(Eigen::VectorXd& F, Eigen::VectorXd& P);
 
-    /** Reconstruction for desired eigenvalues
+    /** Reconstruction for desired eigenvalues 
+
 	@param evlist is a vector of indices correponding to the
-	eigenvalue and PC ordering
+	eigenvalue and PC ordering (i.e. a group).  All eigenvalues
+	will be used for an empty list.
     */
     void reconstruct(const std::vector<int>& evlist);
 
-    /** Reconstruction for desired eigenvalues
+    /** Get the reconstructed coefficients in an updated Coefs stuctures
 
-	@param evlist is a vector of indices correponding to the
-	eigenvalue and PC ordering
-	@param type is the reconstruction style
+	The values are returned as map/dictionary with the mnemonic
+	name as the key.
+
+	@param zero controls whether the unused channels are set to (zero=true)
+	or the original data is updated with the used channels (zero=false)
     */
     std::map<std::string, Coefs::CoefsPtr> getReconstructed(bool zero);
 

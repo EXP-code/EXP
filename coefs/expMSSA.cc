@@ -156,7 +156,7 @@ namespace MSSA {
     
     // Make sure parameters are sane
     //
-    if (params["numW"] or numW<=0) numW = numT/2;
+    if (numW<=0) numW = numT/2;
     if (numW > numT/2) numW = numT/2;
 
     numK = numT - numW + 1;
@@ -182,20 +182,28 @@ namespace MSSA {
     double Scale;
     int rank;
     
-    if (params["Cov"]) {
-      cov   = Y.transpose() * Y/numK;
-      rank  = std::min<int>(cov.cols(), npc);
-      Scale = cov.norm();
-    }
-    else {
-      rank = std::min<int>({static_cast<int>(Y.cols()), static_cast<int>(Y.rows()), npc});
+    // Covariance is the default
+    //
+    if (params["Traj"]) {
+
+      // Deduce the maximum rank of the trajectory matrix Y
+      //
+      rank = std::min<int>(
+			   {static_cast<int>(Y.cols()),
+			    static_cast<int>(Y.rows()), npc}
+			   );
       Scale = Y.norm();
+      
       if (Scale<=0.0) {
 	std::cout << "Frobenius norm of trajectory matrix is <= 0!" << std::endl;
 	exit(-1);
       }
+    } else {
+      cov   = Y.transpose() * Y/numK;
+      rank  = std::min<int>(cov.cols(), npc);
+      Scale = cov.norm();
     }
-
+    
     if (Scale<=0.0) {
       std::cout << "Frobenius norm of trajectory or covariance matrix is <= 0!" << std::endl;
       exit(-1);
@@ -205,7 +213,7 @@ namespace MSSA {
     
     // Only write covariance matrix on request
     //
-    if (params["Cov"] and params["writeCov"]) {
+    if (not params["Traj"] and params["writeCov"]) {
       std::string filename = prefix + ".cov";
       std::ofstream out(filename);
       out << cov;
@@ -216,48 +224,48 @@ namespace MSSA {
     //
     if (params["Jacobi"]) {
       // -->Using Jacobi
-      if (params["Cov"]) {
-	Eigen::JacobiSVD<Eigen::MatrixXd>
-	  svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	S = svd.singularValues();	// Get solution
-	U = svd.matrixU();
-      } else {
+      if (params["Traj"]) {	// Trajectory matrix
 	auto YY = Y/Scale;
-
 	Eigen::JacobiSVD<Eigen::MatrixXd>
 	  svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	S = svd.singularValues();	// Get solution
+	S = svd.singularValues();
+	U = svd.matrixV();
+      }
+      else {			// Covariance matrix
+	Eigen::JacobiSVD<Eigen::MatrixXd>
+	  svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	S = svd.singularValues();
 	U = svd.matrixU();
       }
     } else if (params["BDCSVD"]) {
       // -->Using BDC
-      if (params["Cov"]) {
-	Eigen::BDCSVD<Eigen::MatrixXd>
-	  svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	S = svd.singularValues();	// Get solution
-	U = svd.matrixU();
-      } else {
+      if (params["Traj"]) {	// Trajectory matrix
 	auto YY = Y/Scale;
-
 	Eigen::BDCSVD<Eigen::MatrixXd>
 	  svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	S = svd.singularValues();	// Get solution
+	S = svd.singularValues();
+	U = svd.matrixV();
+      }
+      else {			// Covariance matrix
+	Eigen::BDCSVD<Eigen::MatrixXd>
+	  svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	S = svd.singularValues();
 	U = svd.matrixU();
       }
     } else {
       // -->Use Random approximation algorithm from Halko, Martinsson,
       //    and Tropp
-      if (params["Cov"]) {
-	RedSVD::RedSVD<Eigen::MatrixXd> svd(cov, rank);
-	S = svd.singularValues();	// Get solution
-	U = svd.matrixU();
-      } else {
+      if (params["Traj"]) {	// Trajectory matrix
 	auto YY = Y/Scale;
-      
 	RedSVD::RedSVD<Eigen::MatrixXd> svd(YY, rank);
-	S = svd.singularValues();	// Get solution
+	S = svd.singularValues();
 	U = svd.matrixV();
       }
+      else {			// Covariance matrix
+	RedSVD::RedSVD<Eigen::MatrixXd> svd(cov, rank);
+	S = svd.singularValues();
+	U = svd.matrixU();
+      } 
     }
     
     std::cout << "shape U = " << U.rows() << " x "
@@ -266,7 +274,7 @@ namespace MSSA {
     // Rescale the SVD factorization by the Frobenius norm
     //
     S *= Scale;
-    if (not params["Cov"]) {
+    if (params["Traj"]) {
       for (int i=0; i<S.size(); i++) S(i) = S(i)*S(i)/numK;
     }
     
@@ -389,8 +397,12 @@ namespace MSSA {
     // Make a bool vector
     //
     std::vector<bool> I(ncomp, false);
-    for (auto v : evlist) if (v<ncomp) I[v] = true;
+    if (evlist.size()) {
+      for (auto v : evlist) if (v<ncomp) I[v] = true;
+    } else I = std::vector<bool>(ncomp, true);
 
+    // Deduce the rank
+    //
     int rank  = std::min<int>({static_cast<int>(Y.cols()), static_cast<int>(Y.rows()), npc});
     
     
@@ -477,6 +489,48 @@ namespace MSSA {
       }
     }
 
+    /*
+    for (auto u : mean) {
+
+      for (int w=0; w<ncomp; w++) {
+	
+	Z.fill(0.0);
+	
+	// Build reverse embedded time series.
+	//
+	for (int j=0; j<numW; j++) {
+	  for (int i=0; i<numT; i++)
+	    if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
+	}
+	  
+	// Choose limits and weight
+	//
+	for (int i=0; i<numT; i++) {
+	  double W;
+	  int L, U;
+	    
+	  if (i<numW) {		// Lower
+	    W = 1.0/(1.0 + i);
+	    L = 0;
+	    U = i + 1;
+	  } else if (i<numT-numW) { // Middle
+	    W = 1.0/numW;
+	    L = 0;
+	    U = numW;
+	  } else {		// Upper
+	    W = 1.0/(numT - i);
+	    L = i - numT + numW;
+	    U = numW;
+	  }
+	  
+	  RC[u.first](i, w) = 0.0;
+	  for (int j=L; j<U; j++)
+	    RC[u.first](i, w) += Z(i, j) * rho[u.first](j, w) * W;
+	}
+      }
+    }
+    */
+
     if (chatty) {
       for (int i=0; i<numT; i++) {
 	std::cout << std::setw(15) << std::setprecision(6) << coefDB.times[i];
@@ -506,7 +560,8 @@ namespace MSSA {
 	    out << std::setw(15) << std::setprecision(6) << coefDB.times[i];
 	    for (int w=0; w<ncomp; w++)
 	      out << std::setw(15) << std::setprecision(6)
-		  << RC[u.first](i, w)*disp + u.second;
+		// << RC[u.first](i, w)*disp + u.second;
+		  << RC[u.first](i, w);
 	    out << std::endl;
 	  }
 	} else {
@@ -1224,8 +1279,6 @@ namespace MSSA {
       if (params["evtol"]  ) evtol    = params["evtol"].as<double>();
       else                   evtol    = 0.01;
       
-      if (params["groups"] ) groups   = params["groups"].as<std::vector<std::vector<int>>>();
-      
       if (params["output"] ) prefix   = params["output"].as<std::string>();
       else                   prefix   = "exp_mssa";
       
@@ -1259,7 +1312,7 @@ namespace MSSA {
     
     // Eigen OpenMP reporting
     //
-    // if (params["chatty"])
+    // if (chatty)
       std::cout << "Eigen is using " << Eigen::nbThreads()
 		<< " threads" << std::endl;
     
@@ -1285,24 +1338,26 @@ namespace MSSA {
     
     // Print channel info
     //
-    std::cout << std::string(60, '-') << std::endl
-	      << "Using coefficient keys (l, m, n, c/s)_k or (M, n, c/s)_k"
-	      << std::endl
-	      << "for spherical (l, m) and cylindrical (M) bases."
-	      << std::endl
-	      << "c/s denotes cosine/sine and component index is k."
-	      << std::endl
-	      << std::string(60, '-') << std::endl
-	      << std::setw(18) << std::right << "Key"
-	      << std::setw(18) << std::right << "Mean values"
-	      << std::endl << std::string(60, '-') << std::endl;
-    
-    // Print key, mean pairs
-    //
-    for (auto v : mean) std::cout << std::setw(18) << v.first
-				  << std::setw(18) << v.second
-				  << std::endl;
-    std::cout << std::string(60, '-') << std::endl;
+    if (chatty) {
+      std::cout << std::string(60, '-') << std::endl
+		<< "Using coefficient keys (l, m, n, c/s)_k or (M, n, c/s)_k"
+		<< std::endl
+		<< "for spherical (l, m) and cylindrical (M) bases."
+		<< std::endl
+		<< "c/s denotes cosine/sine and component index is k."
+		<< std::endl
+		<< std::string(60, '-') << std::endl
+		<< std::setw(18) << std::right << "Key"
+		<< std::setw(18) << std::right << "Mean values"
+		<< std::endl << std::string(60, '-') << std::endl;
+      
+      // Print key, mean pairs
+      //
+      for (auto v : mean) std::cout << std::setw(18) << v.first
+				    << std::setw(18) << v.second
+				    << std::endl;
+      std::cout << std::string(60, '-') << std::endl;
+    }
     
     // Normalize and detrend
     //
