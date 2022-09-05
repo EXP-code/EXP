@@ -81,7 +81,12 @@ print("Keys=", keylst)
 
 config = {"dark halo": (coefs, keylst, [])}
 
-ssa = pyEXP.mssa.expMSSA(config, 40, 10, flags)
+window = int(len(coefs.Times())/2)
+npc = 10
+
+print("Window=", window, "PC number=", npc)
+
+ssa = pyEXP.mssa.expMSSA(config, window, npc, flags)
 
 ev = ssa.eigenvalues()
 
@@ -107,7 +112,7 @@ plt.show()
 
 # Okay, now try a reconstruction
 #
-ssa.reconstruct([0, 1])
+ssa.reconstruct()
 
 newdata = ssa.getReconstructed(False)
 print('newdata is a', type(newdata))
