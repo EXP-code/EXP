@@ -32,8 +32,8 @@ namespace Coefs
     file.getAttribute("scale"   ).read(scale   );
     file.getAttribute("config"  ).read(config  );
     file.getDataSet  ("count"   ).read(count   );
-    file.getAttribute("geometry").read(forceID );
-    file.getAttribute("forceID" ).read(geometry);
+    file.getAttribute("geometry").read(geometry);
+    file.getAttribute("forceID" ).read(forceID );
     
     // Open the snapshot group
     //
@@ -167,13 +167,11 @@ namespace Coefs
     int nmax     = coefs.begin()->second->nmax;
     double scale = coefs.begin()->second->scale;
     
-    std::string geometry = "sphere";
     std::string forceID(coefs.begin()->second->id);
     
     file.createAttribute<int>("lmax", HighFive::DataSpace::From(lmax)).write(lmax);
     file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
     file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
-    file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
   }
   
@@ -437,13 +435,11 @@ namespace Coefs
     int mmax = coefs.begin()->second->mmax;
     int nmax = coefs.begin()->second->nmax;
     
-    std::string geometry = "cylinder";
     std::string forceID(coefs.begin()->second->id);
     
 
     file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
     file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
-    file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
   }
   
@@ -625,10 +621,9 @@ namespace Coefs
   {
     int cols = coefs.begin()->second->cols;
     
-    std::string geometry = "other";
+    std::string geometry = "table";
 
     file.createAttribute<int>("cols", HighFive::DataSpace::From(cols)).write(cols);
-    file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
   }
   
   unsigned TableData::WriteH5Times(HighFive::Group& snaps, unsigned count)
@@ -846,7 +841,7 @@ namespace Coefs
 			  HighFive::File::ReadWrite |
 			  HighFive::File::Create);
       
-      // We write the coefficient file type
+      // We write the coefficient file geometry
       //
       file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
       
