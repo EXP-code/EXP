@@ -717,7 +717,7 @@ namespace Coefs
 	} else if (geometry.compare("table")==0) {
 	  coefs = std::make_shared<TableData>(h5file);
 	} else {
-	  throw std::runtime_error("CoefContainer: unknown H5 coefficient file type");
+	  throw std::runtime_error("CoefContainer: unknown H5 coefficient file geometry");
 	}
       } catch (HighFive::Exception& err) {
 	std::cerr << "**** Error reading H5 file ****" << std::endl;
@@ -729,10 +729,10 @@ namespace Coefs
       
     } catch (HighFive::Exception& err) {
       std::cerr << "**** Error opening H5 file, will try other types ****" << std::endl;
-      // std::cerr << err.what() << std::endl;
     }
     
     // Open file and read magic number
+    //
     std::ifstream in(file);
     
     in.exceptions ( std::istream::failbit | std::istream::badbit );
@@ -796,6 +796,7 @@ namespace Coefs
     auto other = dynamic_cast<CylCoefs*>(check.get());
     
     // Check that every time in this one is in the other
+    //
     for (auto v : coefs) {
       if (other->coefs.find(v.first) == other->coefs.end()) {
 	std::cout << "Can't find Time=" << v.first << std::endl;

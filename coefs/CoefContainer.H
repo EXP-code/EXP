@@ -173,7 +173,7 @@ namespace Coefs
   public:
     
     //! Constructor
-    SphCoefs(bool verbose=false) : Coefs("Sphere", verbose) {}
+    SphCoefs(bool verbose=false) : Coefs("sphere", verbose) {}
     
     //! Copy constructor
     SphCoefs(SphCoefs& p) : Coefs(p) { coefs = p.coefs; }
@@ -244,7 +244,7 @@ namespace Coefs
     
     //! Constructor
     CylCoefs(bool verbose=false) :
-      Coefs("Cylinder", verbose), angle(false) {}
+      Coefs("cylinder", verbose), angle(false) {}
     
     //! H5 constructor
     CylCoefs(HighFive::File& file, bool verbose=false);
@@ -323,7 +323,7 @@ namespace Coefs
   public:
     
     //! Constructor
-    TableData(bool verbose=false) : Coefs("Table", verbose) {}
+    TableData(bool verbose=false) : Coefs("table", verbose) {}
 
     //! Constructor from vectors
     TableData(const std::vector<double>& time,
