@@ -52,7 +52,6 @@ namespace MSSA
     bool chatty, flip, verbose, zeropad, dfiles;
     std::string prefix, config, spec;
     int numW, nmin, nmax, npc;
-    int stride, skip;
     double evtol;
     //@}
 

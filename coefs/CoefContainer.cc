@@ -18,7 +18,8 @@
 namespace Coefs
 {
   
-  SphCoefs::SphCoefs(HighFive::File& file, bool verbose) :
+  SphCoefs::SphCoefs(HighFive::File& file, int stride,
+		     double Tmin, double Tmax, bool verbose) :
     Coefs("sphere", verbose)
   {
     std::string config, geometry, forceID;
@@ -39,7 +40,7 @@ namespace Coefs
     //
     auto snaps = file.getGroup("snapshots");
     
-    for (unsigned n=0; n<count; n++) {
+    for (unsigned n=0; n<count; n+=stride) {
       
       std::ostringstream sout;
       sout << std::setw(8) << std::setfill('0') << std::right << n;
@@ -49,6 +50,8 @@ namespace Coefs
       double Time;
       stanza.getAttribute("Time").read(Time);
       
+      if (Time < Tmin or Time > Tmax) continue;
+
       Eigen::MatrixXcd in((lmax+1)*(lmax+2)/2, nmax);
       stanza.getDataSet("coefficients").read(in);
       
@@ -134,7 +137,8 @@ namespace Coefs
   }
 
 
-  void SphCoefs::readNativeCoefs(const std::string& file)
+  void SphCoefs::readNativeCoefs(const std::string& file, int stride,
+				 double tmin, double tmax)
   {
     std::ifstream in(file);
     
@@ -142,11 +146,15 @@ namespace Coefs
       throw std::runtime_error("SphCoefs ERROR (runtime) opening file <" + file + ">");
     }
     
+    int count = 0;
     while (in) {
       try {
 	SphStrPtr c = std::make_shared<SphStruct>();
 	if (not c->read(in, verbose)) break;
-	
+
+	if (count++ % stride) continue;
+	if (c->time < tmin or c->time > tmax) continue;
+
 	coefs[roundTime(c->time)] = c;
       }
       catch(std::runtime_error& error) {
@@ -318,7 +326,8 @@ namespace Coefs
     coefs[roundTime(coef->time)] = std::dynamic_pointer_cast<SphStruct>(coef);
   }
 
-  CylCoefs::CylCoefs(HighFive::File& file, bool verbose) :
+  CylCoefs::CylCoefs(HighFive::File& file, int stride,
+		     double Tmin, double Tmax, bool verbose) :
     Coefs("cylinder", verbose)
   {
     int mmax, nmax;
@@ -335,7 +344,7 @@ namespace Coefs
     //
     auto snaps = file.getGroup("snapshots");
     
-    for (unsigned n=0; n<count; n++) {
+    for (unsigned n=0; n<count; n+=stride) {
       
       std::ostringstream sout;
       sout << std::setw(8) << std::setfill('0') << std::right << n;
@@ -345,6 +354,8 @@ namespace Coefs
       double Time;
       stanza.getAttribute("Time").read(Time);
       
+      if (Time < Tmin or Time > Tmax) continue;
+
       Eigen::MatrixXcd in(mmax+1, nmax);
       stanza.getDataSet("coefficients").read(in);
       
@@ -414,7 +425,8 @@ namespace Coefs
     return ret;
   }
 
-  void CylCoefs::readNativeCoefs(const std::string& file)
+  void CylCoefs::readNativeCoefs(const std::string& file, int stride,
+				 double tmin, double tmax)
   {
     std::ifstream in(file);
     
@@ -422,10 +434,14 @@ namespace Coefs
       throw std::runtime_error("CylCoefs ERROR (runtime) opening file <" + file + ">");
     }
     
+    int count = 0;
     while (in) {
       CylStrPtr c = std::make_shared<CylStruct>();
       if (not c->read(in, verbose)) break;
       
+      if (count++ % stride) continue;
+      if (c->time < tmin or c->time > tmax) continue;
+
       coefs[roundTime(c->time)] = c;
     }
   }
@@ -552,7 +568,8 @@ namespace Coefs
   }
     
 
-  TableData::TableData(HighFive::File& file, bool verbose) :
+  TableData::TableData(HighFive::File& file, int stride,
+		       double Tmin, double Tmax, bool verbose) :
     Coefs("table", verbose)
   {
     int cols;
@@ -569,8 +586,10 @@ namespace Coefs
     snaps.getDataSet("times").read(times);
     snaps.getDataSet("datatable").read(data);
       
-    for (unsigned n=0; n<count; n++) {
+    for (unsigned n=0; n<count; n+=stride) {
       
+      if (times[n] < Tmin or times[n] > Tmax) continue;
+
       // Pack the data into the coefficient variable
       //
       auto coef = std::make_shared<TblStruct>();
@@ -600,7 +619,8 @@ namespace Coefs
     return mat;
   }
   
-  void TableData::readNativeCoefs(const std::string& file)
+  void TableData::readNativeCoefs(const std::string& file, int stride,
+				  double tmin, double tmax)
   {
     std::ifstream in(file);
     
@@ -608,10 +628,14 @@ namespace Coefs
       throw std::runtime_error("TableData ERROR (runtime) opening file <" + file + ">");
     }
     
+    int count = 0;
     while (in) {
       TblStrPtr c = std::make_shared<TblStruct>();
       if (not c->read(in, verbose)) break;
       
+      if (count++ % stride) continue;
+      if (c->time < tmin or c->time > tmax) continue;
+
       coefs[roundTime(c->time)] = c;
     }
   }
@@ -688,7 +712,8 @@ namespace Coefs
   }
   
 
-  std::shared_ptr<Coefs> Coefs::factory(const std::string& file)
+  std::shared_ptr<Coefs> Coefs::factory
+  (const std::string& file, int stride, double tmin, double tmax)
   {
     std::shared_ptr<Coefs> coefs;
     
@@ -711,11 +736,11 @@ namespace Coefs
       
       try {
 	if (geometry.compare("sphere")==0) {
-	  coefs = std::make_shared<SphCoefs>(h5file);
+	  coefs = std::make_shared<SphCoefs>(h5file, stride, tmin, tmax);
 	} else if (geometry.compare("cylinder")==0) {
-	  coefs = std::make_shared<CylCoefs>(h5file);
+	  coefs = std::make_shared<CylCoefs>(h5file, stride, tmin, tmax);
 	} else if (geometry.compare("table")==0) {
-	  coefs = std::make_shared<TableData>(h5file);
+	  coefs = std::make_shared<TableData>(h5file, stride, tmin, tmax);
 	} else {
 	  throw std::runtime_error("CoefContainer: unknown H5 coefficient file geometry");
 	}
@@ -754,7 +779,7 @@ namespace Coefs
       coefs = std::make_shared<TableData>();
     }
     
-    coefs->readNativeCoefs(file);
+    coefs->readNativeCoefs(file, stride, tmin, tmax);
     
     return coefs;
   }

@@ -1270,12 +1270,6 @@ namespace MSSA {
       zeropad  = bool(params["zeropad"   ]);
       dfiles   = bool(params["writeFiles"]);
       
-      if (params["skip"]   ) skip     = params["skip"].as<int>();
-      else                   skip     = 1;
-      
-      if (params["stride"] ) stride   = params["stride"].as<int>();
-      else                   stride   = 1;
-      
       if (params["evtol"]  ) evtol    = params["evtol"].as<double>();
       else                   evtol    = 0.01;
       

@@ -47,8 +47,8 @@ void CoefContainerClasses(py::module &m) {
   class PyCoefs : public Coefs
   {
   protected:
-    void readNativeCoefs(const std::string& file) override {
-      PYBIND11_OVERRIDE_PURE(void, Coefs, readNativeCoefs, file);
+    void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
+      PYBIND11_OVERRIDE_PURE(void, Coefs, readNativeCoefs, file, stride, tmin, tmax);
     }
     
     std::string getYAML() override {
@@ -117,8 +117,8 @@ void CoefContainerClasses(py::module &m) {
   class PySphCoefs : public SphCoefs
   {
   protected:
-    void readNativeCoefs(const std::string& file) override {
-      PYBIND11_OVERRIDE(void, SphCoefs, readNativeCoefs, file);
+    void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
+      PYBIND11_OVERRIDE(void, SphCoefs, readNativeCoefs, file, stride, tmin, tmax);
     }
     
     std::string getYAML() override {
@@ -187,8 +187,8 @@ void CoefContainerClasses(py::module &m) {
   class PyCylCoefs : public CylCoefs
   {
   protected:
-    void readNativeCoefs(const std::string& file) override {
-      PYBIND11_OVERRIDE(void, CylCoefs,	readNativeCoefs, file);
+    void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
+      PYBIND11_OVERRIDE(void, CylCoefs,	readNativeCoefs, file, stride, tmin, tmax);
     }
     
     std::string getYAML() override {
@@ -257,8 +257,8 @@ void CoefContainerClasses(py::module &m) {
   class PyTableData : public TableData
   {
   protected:
-    void readNativeCoefs(const std::string& file) override {
-      PYBIND11_OVERRIDE(void, TableData, readNativeCoefs, file);
+    void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
+      PYBIND11_OVERRIDE(void, TableData, readNativeCoefs, file, stride, tmin, tmax);
     }
     
     std::string getYAML() override {
@@ -371,7 +371,9 @@ void CoefContainerClasses(py::module &m) {
 	 "that in another")
     .def_static("factory", &Coefs::Coefs::factory,
 		"Deduce the type and read coefficients from a native or HDF5 file",
-		py::arg("file"))
+		py::arg("file"), py::arg("stride")=1,
+		py::arg("tmin")=-std::numeric_limits<double>::max(),
+		py::arg("tmax")= std::numeric_limits<double>::max())
     .def_static("makecoefs", &Coefs::Coefs::makecoefs,
 		"Create a new coefficient instance compatible with the "
 		"supplied coefficient structure",

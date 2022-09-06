@@ -77,8 +77,6 @@ void MSSAtoolkitClasses(py::module &m) {
     "                        w-distance rather than correlation\n"
     "  flip: true            Exchanges the x-y axes in PNG plots\n\n"
     "The following parameters take values, defaults are given in ()\n\n"
-    "  skip: int(1)          Ignore first int number of times in the series\n"
-    "  stride: int(1)        Shorten time series by keeping every int value\n"
     "  evtol: double(0.01)   Truncate by the given cumulative p-value\n"
     "  output: str(exp_mssa) Prefix name for output files\n\n"
     "The 'output' value is only used if 'writeFiles' is specified, too.\n"

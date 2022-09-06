@@ -43,7 +43,8 @@ namespace Coefs
     bool verbose;
     
     //! Read the coefficients
-    virtual void readNativeCoefs(const std::string& file) = 0;
+    virtual void readNativeCoefs(const std::string& file,
+				 int stride, double tmin, double tmax) = 0;
     
     //! Get the YAML config for the basis (to be implemented by EXP)
     virtual std::string getYAML() = 0;
@@ -109,7 +110,10 @@ namespace Coefs
 	type and returns it.  This uses a coefficient file to
 	construct the coefficient database
     */
-    static std::shared_ptr<Coefs> factory(const std::string& file);
+    static std::shared_ptr<Coefs> factory
+    (const std::string& file, int stride=0,
+     double tmin=-std::numeric_limits<double>::max(),
+     double tmax= std::numeric_limits<double>::max() );
     
     //! Make Coefs instance if it doesn't yet exist
     static std::shared_ptr<Coefs> makecoefs(CoefStrPtr coef, std::string name="");
@@ -159,7 +163,8 @@ namespace Coefs
     std::map<double, SphStrPtr> coefs;
 
     //! Read the coefficients
-    virtual void readNativeCoefs(const std::string& file);
+    virtual void readNativeCoefs(const std::string& file,
+				 int stride, double tmin, double tmax);
     
     //! Get the YAML config
     virtual std::string getYAML();
@@ -179,7 +184,10 @@ namespace Coefs
     SphCoefs(SphCoefs& p) : Coefs(p) { coefs = p.coefs; }
 
     //! H5 constructor
-    SphCoefs(HighFive::File& file, bool verbose=false);
+    SphCoefs(HighFive::File& file, int stride=0,
+	     double tmin=-std::numeric_limits<double>::max(),
+	     double tmax= std::numeric_limits<double>::max(),
+	     bool verbose=false);
     
     //! Clear coefficient container
     virtual void clear() { coefs.clear(); }
@@ -229,7 +237,9 @@ namespace Coefs
     bool angle;
     
     //! Read the coefficients
-    virtual void readNativeCoefs(const std::string& file);
+    virtual void readNativeCoefs(const std::string& file,
+				 int stride, double tmin, double tmax);
+
     
     //! Get the YAML config
     virtual std::string getYAML();
@@ -247,7 +257,10 @@ namespace Coefs
       Coefs("cylinder", verbose), angle(false) {}
     
     //! H5 constructor
-    CylCoefs(HighFive::File& file, bool verbose=false);
+    CylCoefs(HighFive::File& file, int stride=0,
+	     double tmin=-std::numeric_limits<double>::max(),
+	     double tmax= std::numeric_limits<double>::max(),
+	     bool verbose=false);
     
     //! Copy constructor
     CylCoefs(CylCoefs& p) : Coefs(p)
@@ -309,7 +322,8 @@ namespace Coefs
     std::vector<double> times;
     
     //! Read the coefficients
-    virtual void readNativeCoefs(const std::string& file);
+    virtual void readNativeCoefs(const std::string& file,
+				 int stride, double tmin, double tmax);
     
     //! Get the YAML config
     virtual std::string getYAML();
@@ -334,7 +348,10 @@ namespace Coefs
     TableData(std::string& file, bool verbose=false);
     
     //! H5 constructor
-    TableData(HighFive::File& file, bool verbose=false);
+    TableData(HighFive::File& file, int stride=0,
+	     double tmin=-std::numeric_limits<double>::max(),
+	     double tmax= std::numeric_limits<double>::max(),
+	     bool verbose=false);
     
     //! Copy constructor
     TableData(TableData& p) : Coefs(p)
