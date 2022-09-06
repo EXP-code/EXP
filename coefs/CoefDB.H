@@ -261,6 +261,14 @@ components:
       else                     return it->second;
     }
 
+    //! Get available names in this DB
+    std::vector<std::string> getNames()
+    {
+      std::vector<std::string> ret;
+      for (auto v : namemap) ret.push_back(v.first);
+      return ret;
+    }
+
   };
 
 }

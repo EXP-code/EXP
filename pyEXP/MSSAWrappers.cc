@@ -149,7 +149,11 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("wCorr", &expMSSA::wCorr,
 	"Get the w-correlation matrix for the selected component and channel "
-	"key");
+	"key", py::arg("name"), py::arg("key"));
+
+  f.def("wCorrKey", &expMSSA::wCorrKey,
+	"Get the w-correlation matrix for the selected component and channel "
+	"key extended by the component index", py::arg("key"));
 
   f.def("wCorrAll", &expMSSA::wCorrAll,
 	"Get the w-correlation matrix for all channels in the reconstruction");
@@ -159,8 +163,12 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("kmeans", &expMSSA::kmeans,
 	"Perform a k-means analysis on the reconstructed trajectory matrices "
-	"to provide grouping insight.  The file name will be derived from the "
-	"'output' parameter", py::arg("clusters")=4);
+	"to provide grouping insight.  This will write to the standard output "
+	"by default.  Set toFile=True to write ot a file.  The file name will "
+	"be derived from the 'output' parameter",
+	py::arg("clusters")=4,
+	py::arg("toTerm")=true,
+	py::arg("toFile")=false);
 
   f.def("contrib", &expMSSA::contributions,
 	"Computes the relative contribution of each PC to the coefficient "

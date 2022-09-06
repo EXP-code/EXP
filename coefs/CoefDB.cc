@@ -395,6 +395,7 @@ namespace MSSA
 
     int index = 0;
     for (auto v : config) {
+      namemap[v.first] = index;
       comps.push_back(std::make_shared<CoefDB>(v.first, 
 					       std::get<0>(v.second),
 					       std::get<1>(v.second),

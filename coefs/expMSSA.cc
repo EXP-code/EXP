@@ -45,6 +45,10 @@ namespace MSSA {
   
   Eigen::MatrixXd expMSSA::wCorrKey(const Key& key)
   {
+    if (RC.find(key)==RC.end()) {
+      throw std::runtime_error("expMSSA::wCorrKey: no such key");
+    }
+
     auto R     = RC[key];
     
     int numT   = R.rows();
@@ -983,50 +987,58 @@ namespace MSSA {
 #endif
   }
   
-  void expMSSA::kmeans(int clusters)
+  void expMSSA::kmeans(int clusters, bool toTerm, bool toFile)
   {
     if (clusters==0) {
       std::cout << "expMSSA::kmeans: you need clusters>0" << std::endl;
       return;
     }
 
-    if (chatty) {
+    if (toTerm) {
       std::cout << "----------------------------------------" << std::endl;
       std::cout << "---- K-means group analysis"              << std::endl;
       std::cout << "---- numT=" << numT << " numW=" << numW   << std::endl;
       std::cout << "----------------------------------------" << std::endl;
     }
     
-    std::string filename = prefix + ".kmeans";
-    std::ofstream out(filename);
-    if (out) {
-      // W-correlation-based distance functor
-      //
-      KMeans::WcorrDistance dist(numT, numW);
+    std::ofstream out;
+    std::string filename;
+
+    if (toFile) {
+      filename = prefix + ".kmeans";
+      out.open(filename);
+      if (not out)
+	std::cerr << "Error opening file <" << filename << ">" << std::endl;
+    }
+
+    // W-correlation-based distance functor
+    //
+    KMeans::WcorrDistance dist(numT, numW);
       
-      for (auto u : mean) {
-	// Pack point array
-	//
-	std::vector<KMeans::Ptr> data;
-	for (int j=0; j<ncomp; j++) {
-	  data.push_back(std::make_shared<KMeans::Point>(numT));
-	  for (int i=0; i<numT; i++) data.back()->x[i] = RC[u.first](i, j);
-	}
-	
-	// Initialize k-means routine
-	//
-	KMeans::kMeansClustering kMeans(data);
-	
-	// Run 100 iterations
-	//
-	kMeans.iterate(dist, 100, clusters, 2, false);
-	
-	// Retrieve cluster associations
-	//
-	auto results = kMeans.get_results();
-	
-	// Write to file
-	//
+    for (auto u : mean) {
+      // Pack point array
+      //
+      std::vector<KMeans::Ptr> data;
+      for (int j=0; j<ncomp; j++) {
+	data.push_back(std::make_shared<KMeans::Point>(numT));
+	for (int i=0; i<numT; i++) data.back()->x[i] = RC[u.first](i, j);
+      }
+      
+      // Initialize k-means routine
+      //
+      KMeans::kMeansClustering kMeans(data);
+      
+      // Run 100 iterations
+      //
+      kMeans.iterate(dist, 100, clusters, 2, false);
+      
+      // Retrieve cluster associations
+      //
+      auto results = kMeans.get_results();
+      
+      // Write to file
+      //
+      if (out) {
 	out << std::string(60, '-') << std::endl
 	    << " *** n=" << u.first << std::endl
 	    << std::string(60, '-') << std::endl;
@@ -1036,51 +1048,53 @@ namespace MSSA {
 	      << std::setw(12) << std::get<1>(results[j])
 	      << std::endl;
 	}
+      }
 	
-	// Write to stdout
-	//
-	if (chatty) {
-	  std::cout << std::string(60, '-') << std::endl
-		    << " *** n=" << u.first << std::endl
-		    << std::string(60, '-') << std::endl;
+      // Write to stdout
+      //
+      if (toTerm) {
+	std::cout << std::string(60, '-') << std::endl
+		  << " *** n=" << u.first << std::endl
+		  << std::string(60, '-') << std::endl;
 	
-	  for (int j=0; j<results.size(); j++) {
-	    std::cout << std::setw(6)  << j
-		      << std::setw(12) << std::get<1>(results[j])
-		      << std::endl;
-	  }
+	for (int j=0; j<results.size(); j++) {
+	  std::cout << std::setw(6)  << j
+		    << std::setw(12) << std::get<1>(results[j])
+		    << std::endl;
 	}
       }
+    }
       
-      if (params["allchan"]) {
+    if (params["allchan"]) {
 	
-	// Pack point array
-	//
-	std::vector<KMeans::Ptr> data;
-	int sz = mean.size();
-	for (int j=0; j<ncomp; j++) {
-	  data.push_back(std::make_shared<KMeans::Point>(numT*sz));
-	  int c = 0;
-	  for (auto u : mean) {
-	    for (int i=0; i<numT; i++) data.back()->x[c++] = RC[u.first](i, j);
-	  }
+      // Pack point array
+      //
+      std::vector<KMeans::Ptr> data;
+      int sz = mean.size();
+      for (int j=0; j<ncomp; j++) {
+	data.push_back(std::make_shared<KMeans::Point>(numT*sz));
+	int c = 0;
+	for (auto u : mean) {
+	  for (int i=0; i<numT; i++) data.back()->x[c++] = RC[u.first](i, j);
 	}
+      }
 	
-	// Initialize k-means routine
-	//
-	KMeans::kMeansClustering kMeans(data);
+      // Initialize k-means routine
+      //
+      KMeans::kMeansClustering kMeans(data);
 	
-	// Run 100 iterations
-	//
-	KMeans::WcorrDistMulti dist2(numT, numW, sz);
-	kMeans.iterate(dist2, 100, clusters, 2, false);
+      // Run 100 iterations
+      //
+      KMeans::WcorrDistMulti dist2(numT, numW, sz);
+      kMeans.iterate(dist2, 100, clusters, 2, false);
 	
-	// Retrieve cluster associations
-	//
-	auto results = kMeans.get_results();
-	
-	// Write to file
-	//
+      // Retrieve cluster associations
+      //
+      auto results = kMeans.get_results();
+      
+      // Write to file
+      //
+      if (out) {
 	out << std::string(60, '-') << std::endl
 	    << " *** total"         << std::endl
 	    << std::string(60, '-') << std::endl;
@@ -1090,34 +1104,33 @@ namespace MSSA {
 	      << std::setw(9) << std::get<1>(results[j])
 	      << std::endl;
 	}
+      }	
+
+      // Write to stdout
+      //
+      if (toTerm) {
+	std::cout << std::string(60, '-') << std::endl
+		  << " *** total"         << std::endl
+		  << std::string(60, '-') << std::endl;
 	
-	// Write to stdout
-	//
-	if (chatty) {
-	  std::cout << std::string(60, '-') << std::endl
-		    << " *** total"         << std::endl
-		    << std::string(60, '-') << std::endl;
-	
-	  for (int j=0; j<results.size(); j++) {
-	    std::cout << std::setw(6) << j
-		      << std::setw(9) << std::get<1>(results[j])
-		      << std::endl;
-	  }
+	for (int j=0; j<results.size(); j++) {
+	  std::cout << std::setw(6) << j
+		    << std::setw(9) << std::get<1>(results[j])
+		    << std::endl;
 	}
-	
       }
       
-      if (out) {
-	if (chatty)
-	  std::cout << "Successfully wrote: <" << filename << ">" << std::endl;
-      } else {
-	std::cout << "Bad output stream for <" << filename << ">" << std::endl;
-      }
-      out.close();
-      
-    } else {
-      std::cerr << "Error opening file <" << filename << ">" << std::endl;
     }
+      
+    if (out) {
+      if (chatty)
+	std::cout << "Successfully wrote: <" << filename << ">" << std::endl;
+    } else {
+      if (toFile)
+	std::cout << "Bad output stream for <" << filename << ">" << std::endl;
+    }
+    out.close();
+    
   }
   
   

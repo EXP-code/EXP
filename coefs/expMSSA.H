@@ -167,6 +167,13 @@ namespace MSSA
     Eigen::MatrixXd wCorr(const std::string& name, const Key& ckey)
     {
       auto key = ckey;
+      if (coefDB.index(name)<0) {
+	std::cout << "No such name <" << name << ">" << std::endl
+		  << "Available names are:";
+	for (auto v : coefDB.getNames()) std::cout << " " << v;
+	std::cout << std::endl;
+	throw std::runtime_error("expMSSA::wCorr: invalid component name");
+      }
       key.push_back(coefDB.index(name));
       return wCorrKey(key);
     }
@@ -181,8 +188,13 @@ namespace MSSA
     //! Create wcorrlation matricies and output PNG
     void wcorrPNG();
 
-    //! Kmean analysis of the trajectories by PC with fixed cluster size
-    void kmeans(int clusters);
+    /**
+       Kmean analysis of the trajectories by PC with fixed cluster size
+       
+       @param toTerm write to stdout if true
+       @param toFile write to file if true
+    */
+    void kmeans(int clusters, bool toTerm=true, bool toFile=false);
   };
 
 
