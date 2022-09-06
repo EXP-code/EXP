@@ -1,0 +1,11 @@
+TODO
+====
+
+-- Exercise this interface like crazy to find all of the bugs and make a hit
+   list of enhancements
+
+-- Add additional workflow examples to the examples directory.  I have
+   not yet made any Jupyter notebook examples, but it might make sense
+   to convert the *.py examples to notebook form.
+   
+   
