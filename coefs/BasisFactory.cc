@@ -886,16 +886,16 @@ namespace Basis
     }
     
     try {
-      if ( !name.compare("SphereSL") ) {
+      if ( !name.compare("sphereSL") ) {
 	basis = std::make_shared<SphericalSL>(conf);
       }
-      else if ( !name.compare("Cylinder") ) {
+      else if ( !name.compare("cylinder") ) {
 	basis = std::make_shared<CylindricalSL>(conf);
       }
       else {
 	std::string msg("I don't know about the basis named: ");
 	msg += name;
-	msg += ". Known types are currently 'SphereSL' and 'Cylinder'";
+	msg += ". Known types are currently 'sphereSL' and 'cylinder'";
 	throw std::runtime_error(msg);
       }
     }
@@ -912,9 +912,9 @@ namespace Basis
   {
     Coefs::CoefStrPtr coef;
 
-    if (name.compare("SphereSL") == 0)
+    if (name.compare("sphereSL") == 0)
       coef = std::make_shared<Coefs::SphStruct>();
-    else if (name.compare("CylinderSL") == 0)
+    else if (name.compare("cylinder") == 0)
       coef = std::make_shared<Coefs::CylStruct>();
     else {
       std::ostringstream sout;

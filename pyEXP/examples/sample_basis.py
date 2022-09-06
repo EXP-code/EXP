@@ -10,7 +10,7 @@ os.chdir('/home/weinberg/Nbody/Better')
 # Make the halo basis config
 halo_config="""
 ---
-id: SphereSL
+id: sphereSL
 parameters :
   numr: 2000
   rmin: 0.0001
@@ -26,7 +26,7 @@ parameters :
 #
 disk_config = """
 ---
-id: Cylinder
+id: cylinder
 parameters:
   acyl: 0.01
   hcyl: 0.001

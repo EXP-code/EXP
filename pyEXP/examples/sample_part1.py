@@ -17,7 +17,7 @@ with open('basis.yaml') as f:
 # Alternatively, you could construct this on the fly, e.g.
 bconfig = """
 ---
-id: SphereSL
+id: sphereSL
 parameters :
   numr: 2000
   rmin: 0.0001
