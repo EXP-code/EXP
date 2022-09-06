@@ -5,7 +5,9 @@ TODO
    list of enhancements
 
 -- Add additional workflow examples to the examples directory.  I have
-   not yet made any Jupyter notebook examples, but it might make sense
-   to convert the *.py examples to notebook form.
-   
+   converted one of the Python scripts to a Notebook but it might make
+   sense to convert the all of *.py examples to notebook form.  Or
+   provide both.
+
+-- We can remove simpleSL from utils/Analysis at some point.
    
