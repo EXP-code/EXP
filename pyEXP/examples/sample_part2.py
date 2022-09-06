@@ -63,16 +63,6 @@ plt.show()
 
 # Okay, now try expMSSA
 #
-# Make some parameter flags as YAML.  The defaults should work fine
-# for most people.  'chatty' turns on std::out diagnostics and
-# 'output' is the prefix for written files.
-#
-flags ="""
----
-# chatty: on
-output: mytest
-...
-"""
 
 # Make a subkey sequence
 #
@@ -86,7 +76,7 @@ npc = 10
 
 print("Window={} PC number={}".format(window, npc))
 
-ssa = pyEXP.mssa.expMSSA(config, window, npc, flags)
+ssa = pyEXP.mssa.expMSSA(config, window, npc)
 
 ev = ssa.eigenvalues()
 

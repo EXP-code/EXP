@@ -1287,11 +1287,9 @@ namespace MSSA {
   
   expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC)
   {
-    
-    // Parse the YAML string if it exists
+    // Parse the YAML string
     //
-    if (flags.size()) assignParameters(flags);
-
+    assignParameters(flags);
 
     // Detrending style (totVar and totPow are only useful, so far, for
     // noise computation)
