@@ -162,7 +162,6 @@ namespace MSSA {
     if (numW > numT/2) numW = numT/2;
 
     numK = numT - numW + 1;
-    if (zeropad) numK = numT;
     
     Y.resize(numK, numW*nkeys);
     Y.fill(0.0);
@@ -290,21 +289,23 @@ namespace MSSA {
     for (int j=0; j<S.size(); j++) tot += S(j);
     if (chatty) std::cout << "Total=" << tot << std::endl;
     
-    double cum = 0.0;
-    for (int j=0; j<S.size(); j++) {
-      if (chatty) std::cout << std::setw( 5) << j
-			       << std::setw(18) << S(j)
-			       << std::setw(18) << (cum += S(j))/tot
-			       << std::endl;
-      if (1.0 - cum/tot < evtol) break;
+    if (chatty) {
+      double cum = 0.0;
+      for (int j=0; j<S.size(); j++) {
+	std::cout << std::setw( 5) << j
+		  << std::setw(18) << S(j)
+		  << std::setw(18) << (cum += S(j))/tot
+		  << std::endl;
+	if (1.0 - cum/tot < evtol) break;
+      }
     }
-    
+      
     if (dfiles) {
 	
       std::string filename = prefix + ".ev";
       std::ofstream out(filename);
       if (out) {
-	cum = 0.0;
+	double cum = 0.0;
 	for (int j=0; j<S.size(); j++) {
 	  out << std::setw( 5) << j
 	      << std::setw(18) << S(j)
@@ -1267,7 +1268,6 @@ namespace MSSA {
       chatty   = bool(params["chatty"    ]);
       verbose  = bool(params["verbose"   ]);
       flip     = bool(params["flip"      ]);
-      zeropad  = bool(params["zeropad"   ]);
       dfiles   = bool(params["writeFiles"]);
       
       if (params["evtol"]  ) evtol    = params["evtol"].as<double>();
