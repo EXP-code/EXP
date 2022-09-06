@@ -28,8 +28,8 @@ print('The coefficient time list is', coefs.Times())
 
 # Try saving coefficients to an HDF5 file
 #
-# coefs.WriteH5Coefs('test_disk')
-# print('Saved coefficients as "test_disk.h5"')
+coefs.WriteH5Coefs('test_disk')
+print('Saved coefficients as "test_disk.h5"')
 
 # Now try some slices for rendering
 #
@@ -102,7 +102,6 @@ flags ="""
 ---
 # chatty: on
 output: mytest2
-groups: [[0, 1], [2, 3]]
 ...
 """
 
@@ -117,8 +116,13 @@ print("Custom keys=", keylst)
 
 config = {"star disk": (coefs, keylst, [])}
 
+window = int(len(coefs.Times())/2)
+npc = 20
+
+print("Window={} PC number={}".format(window, npc))
+
 startTime = time.time()
-ssa = pyEXP.mssa.expMSSA(config, int(len(coefs.Times())/2), 20, flags)
+ssa = pyEXP.mssa.expMSSA(config, window, npc, flags)
 
 ev = ssa.eigenvalues()
 print('Computed eigenvalues in {:6.2f} seconds'.format(time.time() - startTime))

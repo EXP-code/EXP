@@ -7,9 +7,10 @@ namespace py = pybind11;
 
 void ParticleReaderClasses(py::module &m) {
 
-  m.doc() = "ParticleReader class bindings. This class reads and converts\n"
-    "your phase-space snapshots to iterable objects for generating\nderived"
-    "quantities, such as coefficients.\n\n"
+  m.doc() = "ParticleReader class bindings. This collection of classes\n"
+    "reads and converts your phase-space snapshots to iterable objects\n"
+    "for generating basis coefficients.  The particle fields themselves\n"
+    "are not available in Python for inspection currently.\n\n"
     "The available particle readers are:\n"
     "  1. PSPout         The monolithic EXP phase-space snapshot format\n"
     "  2. PSPspl         Like PSPout, but split into multiple file chunks\n"
@@ -18,7 +19,7 @@ void ParticleReaderClasses(py::module &m) {
     "  5. TipsyNative    The original Tipsy format\n"
     "  6. TipsyXDR       The original XDR Tipsy format\n"
     "  7. Bonsai         This is the Bonsai varient of Tipsy files\n\n"
-    "We have helper function, getReaders, to get a list to help you\n"
+    "We have a helper function, getReaders, to get a list to help you\n"
     "remember.  Try: pyEXP.read.ParticleReader.getReaders()\n\n"
     "Once the ParticleReader instance is created, you can select\n"
     "the type of particle you want to read; each reader has different\n"

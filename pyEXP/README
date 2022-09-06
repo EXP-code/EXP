@@ -8,12 +8,14 @@ detailed description of the classes.
 
 This directory contains a number of sample Python scripts as follows:
 
-* sample_part1.py--This script reads particle snapshots and computes
+* sample_part1.py--This script construct the basis for the dark halo
+  using the Better parameter, reads particle snapshots and computes
   coefficient files for the Better EXP example run.  The coefficients
-  are then saved HDF5 format.  We then construct the basis for the
-  dark halo using the Better parameter.  I demonstrate using
-  FieldGenerator to construct some surface maps of potential and force
-  fields.  Finally, we try some brief MSSA computations.
+  are then saved HDF5 format.  I demonstrate using FieldGenerator to
+  construct some surface maps of potential and force fields.  Finally,
+  we try some brief MSSA computations.  But the main goal of this
+  script is computing the coefficients and storing them in a HDF5
+  file.
 
 * sample_part2.py--Rereads the previously saved coefficient file and
   does some more analysis, emulating a typical workflow.  In this

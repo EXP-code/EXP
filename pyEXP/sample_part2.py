@@ -84,7 +84,7 @@ config = {"dark halo": (coefs, keylst, [])}
 window = int(len(coefs.Times())/2)
 npc = 10
 
-print("Window=", window, "PC number=", npc)
+print("Window={} PC number={}".format(window, npc))
 
 ssa = pyEXP.mssa.expMSSA(config, window, npc, flags)
 

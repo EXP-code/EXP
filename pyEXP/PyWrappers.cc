@@ -29,10 +29,10 @@ PYBIND11_MODULE(pyEXP, m)
 				   "grids of fields for visualization");
 
   auto mod_read = m.def_submodule("read", "Read particle snapshots of various "
-				  "types.  Currently EXP, Gadget, and Tipsy "
-				  "types are supported.");
+				  "types.  Currently EXP, Gadget, Tipsy, and "
+				  "Bonzai types are supported.");
 
-  auto mod_mssa = m.def_submodule("mssa",  "Tools to apply Multivariate Singular "
+  auto mod_mssa = m.def_submodule("mssa", "Tools to apply Multivariate Singular "
 				  "Spectrum Analysis (MSSA) to the coefficients "
 				  "computed using the 'basis' classes");
   

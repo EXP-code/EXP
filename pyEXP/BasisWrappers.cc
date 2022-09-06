@@ -17,13 +17,13 @@ void BasisFactoryClasses(py::module &m) {
     "Liouiville spherical basis and the CylindiricalSL basis, which is\n"
     "created by computing empirical orthogonal functions over a densely\n"
     "sampled SphericalSL basis.  Each of these bases take a YAML\n"
-    "configuration file as input.   See the EXP documentation and\n"
-    "examples for more detail.\n\n"
-    "The primary functions of these basis are:\n"
+    "configuration file as input. These are the same parameter lists used\n"
+    "by EXP. See the EXP documentation and examples for more detail.\n\n"
+    "The primary functions of these basis classes are:\n"
     "  1. To compute BFE coefficients from phase-space snapshots\n"
-    "     using the ParticleReader class.  See help(pyEXP.read).\n"
+    "     using the ParticleReader class. See help(pyEXP.read).\n"
     "  2. To evaluate the fields from the basis and a coefficient\n"
-    "     object.  See help(pyEXP.coefs) and help(pyEXP.field).\n\n";
+    "     object. See help(pyEXP.coefs) and help(pyEXP.field).\n\n";
 
   using namespace Basis;
 

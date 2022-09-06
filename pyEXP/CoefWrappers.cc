@@ -8,23 +8,27 @@ namespace py = pybind11;
 
 void CoefContainerClasses(py::module &m) {
 
-  m.doc() = "CoefContainer class bindings. This class stores, writes, and\n"
-    "provides and interface to coefficients and table data for use\n"
+  m.doc() = "CoefContainer class bindings. These classes store, write,\n"
+    "and provide an interface to coefficients and table data for use\n"
     "by the other pyEXP classes.\n\n"
     "The base class, 'Coefs', provides a factory reader that will\n"
     "create one of the derived coefficient classes, SphCoef, CylCoef,\n"
     "or TblCoef, deducing the type from the input file.  The input\n"
     "files may be EXP native or HDF5 cofficient files.  The Basis\n"
     "factory, Basis::createCoefficients, will create set of coef-\n"
-    "ficients from phase-space snapshots.  See Basis\n\n"
-    "Once created, one may get a list of times, get the total gravi-\n"
-    "tation power, and write a new HDF5 file.  Their main use is\n"
-    "as a container object for MSSA (using expMSSA) and field\n"
-    "visualization using the FieldGenerator class.  See\n"
-    "help(pyEXP.mssa) and help(pyEXP.field) for more details.\n\n"
-    "NB: the time list, returned with the Times() member function\n"
-    "is truncated to 8 signficant figures so that it may be used\n"
-    "as a dictionary key\n\n";
+    "ficients from phase-space snapshots.  See help(pyEXP.basis).\n"
+    "Files which are not recognized as EXP coefficient files are\n"
+    "assumed to be data files and are parsed by the TblCoefs class.\n"
+    "The first column in data tables is interpreted as time and each\n"
+    "successive column is interpreted as a new data field.\n\n"
+    "Once created, you may get a list of times, get the total gravi-\n"
+    "tation power from biothogonal basis coefficients, and write a new\n"
+    "HDF5 file.  Their main use is as a container object for MSSA (using\n"
+    "expMSSA) and field visualization using the FieldGenerator class.\n"
+    "See help(pyEXP.mssa) and help(pyEXP.field) for more details.\n\n"
+    "NB: the values in the time list, returned with the Times() member\n"
+    "function are truncated to 8 signficant figures so that it may be\n"
+    "used as dictionary keys\n\n";
 
   using namespace Coefs;
 

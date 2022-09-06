@@ -4,7 +4,9 @@
 // Updated to use fixed-rank approximation for the SVD to save time
 // and space.  Uses the approximate SVD randomized algorithm from
 // Halko, Martinsson, and Tropp by default.  Use BDCSVD or Jacobi
-// flags for the standard methods.
+// flags for the standard methods.  Using the randomized method
+// together with trajectory matrix rather than covariance matrix
+// analysis may lead to large errors in eigenvectors.
 //
 
 #include <stdexcept>
@@ -1255,8 +1257,6 @@ namespace MSSA {
       //
       params = YAML::Load(flags);
       
-      std::cout << "Parameters" << std::endl << params << std::endl;
-
       // Compute flags
       //
       computed      = false;

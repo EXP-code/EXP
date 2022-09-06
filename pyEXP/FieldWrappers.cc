@@ -43,9 +43,11 @@ void FieldGeneratorClasses(py::module &m) {
     "lists all have rank 3 for (x, y, z).  For a two-dimensional surface,\n"
     "one of the knot array values must be zero.  The member functions\n"
     "slices and volumes, called with the basis and coefficient objects,\n"
-    "return a numpy.ndarray containing the field evaluations.  See\n",
-    "help(pyEXP.basis) and help(pyEXP.coefs) for info on the basis\n"
-    "and coefficient objects.\n\n";
+    "return a numpy.ndarray containing the field evaluations.  Each of\n"
+    "these functions returns a dictionary of times to a dictionary of\n"
+    "field names to numpy.ndarrays at each time.  There are also members\n"
+    "which will write these generate fields to files. See help(pyEXP.basis)\n"
+    "and help(pyEXP.coefs) for info on the basis and coefficient objects.\n\n";
 
   using namespace Field;
 

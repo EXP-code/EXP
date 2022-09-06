@@ -129,7 +129,7 @@ for v in surfaces:
 #
 flags ="""
 ---
-chatty: true
+# chatty: true
 output: mytest
 ...
 """
@@ -151,7 +151,7 @@ print("The PC vectors are:\n", pc)
 
 # Okay, now try a reconstruction
 #
-ssa.reconstruct([0, 1])
+ssa.reconstruct()
 
 newdata = ssa.getReconstructed(False)
 print(type(newdata))
