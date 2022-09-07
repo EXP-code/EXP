@@ -149,11 +149,13 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("wCorr", &expMSSA::wCorr,
 	"Get the w-correlation matrix for the selected component and channel "
-	"key", py::arg("name"), py::arg("key"));
+	"key.  Returns the combined cosine+sine correlation for complex types",
+	py::arg("name"), py::arg("key"));
 
   f.def("wCorrKey", &expMSSA::wCorrKey,
 	"Get the w-correlation matrix for the selected component and channel "
-	"key extended by the component index", py::arg("key"));
+	"key extended by the cosine/sine index if the channel is complex and "
+	"the component index", py::arg("key"));
 
   f.def("wCorrAll", &expMSSA::wCorrAll,
 	"Get the w-correlation matrix for all channels in the reconstruction");
