@@ -145,7 +145,9 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("getReconstructed", &expMSSA::getReconstructed,
 	"Return the reconstucted time series in the orginal coefficient form "
-	"that may be used in basis classes", py::arg("zero") = false);
+	"that may be used in basis classes.  Note: the reconstructed data "
+	"will overwrite the memory of the original coefficient data.",
+	py::arg("zero") = false);
 
   f.def("wCorr", &expMSSA::wCorr,
 	"Get the w-correlation matrix for the selected component and channel "
