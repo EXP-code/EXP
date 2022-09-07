@@ -256,7 +256,7 @@ components:
       return ret;
     }
 
-    //! Are keys complex?  Used to reflect the index type.
+    //! Are keys complex?  Used by clients to reflect the index type.
     bool isComplex(const std::string& name)
     {
       auto it = namemap.find(name);
@@ -268,7 +268,7 @@ components:
       return comps[it->second]->complexKey;
     }
 
-    //! Get index with associated name
+    //! Get index with associated name.  Returns -1 if name is not found.
     int index(const std::string name)
     {
       auto it = namemap.find(name);
