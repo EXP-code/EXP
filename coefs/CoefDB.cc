@@ -70,6 +70,7 @@ namespace MSSA
     auto cur = dynamic_cast<Coefs::CylCoefs*>(coefs.get());
 
     times = cur->Times();
+    complexKey = true;
 
     auto cf = dynamic_cast<Coefs::CylStruct*>( cur->getCoefStruct(times[0]).get() );
 
@@ -146,6 +147,7 @@ namespace MSSA
     auto cur = dynamic_cast<Coefs::SphCoefs*>(coefs.get());
 
     times = cur->Times();
+    complexKey = true;
 
     auto cf = dynamic_cast<Coefs::SphStruct*>( cur->getCoefStruct(times[0]).get() );
 
@@ -231,6 +233,7 @@ namespace MSSA
     auto cur = dynamic_cast<Coefs::TableData*>(coefs.get());
 
     times = cur->Times();
+    complexKey = false;
 
     auto cf = dynamic_cast<Coefs::TblStruct*>( cur->getCoefStruct(times[0]).get() );
 

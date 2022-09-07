@@ -42,6 +42,9 @@ namespace MSSA
     //! List of keys for background
     std::vector<Key> bkeys;
 
+    //! Complex keys
+    bool complexKey;
+
     //! Coefficients
     Coefs::CoefsPtr coefs, coefs1;
 
@@ -251,6 +254,18 @@ components:
 	ret[v->name] = v->endUpdate();
       }
       return ret;
+    }
+
+    //! Are keys complex?  Used to reflect the index type.
+    bool isComplex(const std::string& name)
+    {
+      auto it = namemap.find(name);
+      if (it == namemap.end()) {
+	throw std::runtime_error
+	  ("CoefDB::isComplex: cannot find component with given name");
+      }
+
+      return comps[it->second]->complexKey;
     }
 
     //! Get index with associated name

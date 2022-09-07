@@ -164,19 +164,7 @@ namespace MSSA
 	@param index is one of the specified keys (see constructor)
     */
     Eigen::MatrixXd wCorrKey(const Key& key);
-    Eigen::MatrixXd wCorr(const std::string& name, const Key& ckey)
-    {
-      auto key = ckey;
-      if (coefDB.index(name)<0) {
-	std::cout << "No such name <" << name << ">" << std::endl
-		  << "Available names are:";
-	for (auto v : coefDB.getNames()) std::cout << " " << v;
-	std::cout << std::endl;
-	throw std::runtime_error("expMSSA::wCorr: invalid component name");
-      }
-      key.push_back(coefDB.index(name));
-      return wCorrKey(key);
-    }
+    Eigen::MatrixXd wCorr(const std::string& name, const Key& ckey);
     //@}
 
     //! Compute w-correlation matrix for all channels

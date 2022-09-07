@@ -139,7 +139,41 @@ namespace MSSA {
     return ret;
   }
   
-  
+  Eigen::MatrixXd expMSSA::wCorr(const std::string& name, const Key& key)
+  {
+    int indx = coefDB.index(name);
+    if (indx<0) {
+      std::cout << "No such name <" << name << ">" << std::endl
+		<< "Available names are:";
+      for (auto v : coefDB.getNames()) std::cout << " " << v;
+      std::cout << std::endl;
+      throw std::runtime_error("expMSSA::wCorr: invalid component name");
+    }
+
+    if (coefDB.isComplex(name)) {
+      auto ekey = key;
+      int pos = ekey.size();
+
+      ekey.push_back(0);
+      ekey.push_back(indx);
+
+      auto mat = wCorrKey(ekey);
+
+      ekey[pos] = 1;
+      if (RC.find(ekey)!=RC.end()) {
+	mat += wCorrKey(ekey);
+	mat *= 0.5;
+      }
+      return mat;
+    }
+    else {
+      auto ekey = key;
+      ekey.push_back(indx);
+      return wCorrKey(ekey);
+    }
+
+  }
+
   // Helper ostream manipulator
   std::ostream& operator<< (std::ostream& out, const std::vector<unsigned>& t)
   {
