@@ -37,6 +37,8 @@ namespace PR {
     getNumbers();		// Get the number of particles in all
 				// files
 
+    totalCount = 0;		// Initialization of particles read
+
     curfile = _files.begin();	// Set file to first one
 
     if (not nextFile()) {	// Try opening
@@ -305,6 +307,8 @@ namespace PR {
     
     ptype = 1;			// Default is halo particles
 
+    totalCount = 0;		// Initialization of particles read
+
     getNumbers();
     curfile = _files.begin();
 
@@ -441,6 +445,8 @@ namespace PR {
 	std::ostringstream sout;
 	sout << "PartType" << ptype;
 	
+	totalCount = npart[ptype];
+
 	std::string grpnam = "/" + sout.str();
 	H5::Group grp(file.openGroup(grpnam));
 	H5::DataSet dataset = grp.openDataSet("Coordinates");
@@ -650,7 +656,6 @@ namespace PR {
   
   PSPout::PSPout(const std::vector<std::string>& infile, bool verbose) : PSP(verbose)
   {
-    
     // Open the file
     // -------------
     try {
@@ -824,7 +829,6 @@ namespace PR {
   
   PSPspl::PSPspl(const std::vector<std::string>& master, bool verbose) : PSP(verbose)
   {
-    
     // Open the file
     // -------------
     try {
@@ -1016,7 +1020,7 @@ namespace PR {
   {
     spos = stanzas.begin();
     cur  = &(*spos);
-    if (spos != stanzas.end()) 
+    if (spos != stanzas.end())
       return cur;
     else 
       return 0;
