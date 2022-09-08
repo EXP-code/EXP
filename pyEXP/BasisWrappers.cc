@@ -8,13 +8,14 @@ namespace py = pybind11;
 
 void BasisFactoryClasses(py::module &m) {
 
-  m.doc() = "BasisFactory class bindings. This module provides a factory\n"
-    "class that will create biorthogonal bases from input configura-\n"
-    "tion files.  These basis can then be used to compute coeffi-\n"
-    "cients, provide field quantities such as forces and, together\n"
-    "with the FieldGenerator, surfaces and fields for visualization.\n\n"
+  m.doc() = "BasisFactory class bindings\n\n"
+    "This module provides a factory class that will create biorthogonal\n"
+    "bases from input YAML configuration files.  Each basis can then be\n"
+    "used to compute coefficients, provide field quantities such as\n"
+    "forces and, together with the FieldGenerator, surfaces and fields for\n"
+    "visualization.\n\n"
     "Two bases are currently implemented: SphericalSL, the Sturm-\n"
-    "Liouiville spherical basis and the CylindiricalSL basis, which is\n"
+    "Liouiville spherical basis and the Cylindrical basis, which is\n"
     "created by computing empirical orthogonal functions over a densely\n"
     "sampled SphericalSL basis.  Each of these bases take a YAML\n"
     "configuration file as input. These are the same parameter lists used\n"
@@ -124,7 +125,7 @@ void BasisFactoryClasses(py::module &m) {
 
   };
 
-  class PyCylindricalSL : public CylindricalSL
+  class PyCylindrical : public Cylindrical
   {
   protected:
 
@@ -132,28 +133,28 @@ void BasisFactoryClasses(py::module &m) {
 		  double& den0, double& den1,
 		  double& pot0, double& pot1,
 		  double& potr, double&pott, double& potp)override {
-      PYBIND11_OVERRIDE(void, CylindricalSL, all_eval,
+      PYBIND11_OVERRIDE(void, Cylindrical, all_eval,
 			r, costh, phi, den0, den1, pot0, pot1,
 			potr, pott, potp);
     }
     
     void load_coefs(Coefs::CoefStrPtr coefs, double time) override {
-      PYBIND11_OVERRIDE(void, CylindricalSL, load_coefs, coefs, time);
+      PYBIND11_OVERRIDE(void, Cylindrical, load_coefs, coefs, time);
     }
     
     void set_coefs(Coefs::CoefStrPtr coefs) override {
-      PYBIND11_OVERRIDE(void, CylindricalSL, set_coefs, coefs);
+      PYBIND11_OVERRIDE(void, Cylindrical, set_coefs, coefs);
     }
 
   public:
 
     // Inherit the constructors
-    using CylindricalSL::CylindricalSL;
+    using Cylindrical::Cylindrical;
 
     void getFields(double x, double y, double z,
 		   double& tdens0, double& tpotl0, double& tdens, double& tpotl,
 		   double& tpotx, double& tpoty, double& tpotz) override {
-      PYBIND11_OVERRIDE(void, CylindricalSL, getFields,
+      PYBIND11_OVERRIDE(void, Cylindrical, getFields,
 			x, y, z,
 			tdens0, tpotl0, tdens, tpotl,
 			tpotx, tpoty, tpotz
@@ -161,15 +162,15 @@ void BasisFactoryClasses(py::module &m) {
     }
 
     void accumulate(double x, double y, double z, double mass) override {
-      PYBIND11_OVERRIDE(void, CylindricalSL, accumulate, x, y, z, mass);
+      PYBIND11_OVERRIDE(void, Cylindrical, accumulate, x, y, z, mass);
     }
 
     void reset_coefs(void) override {
-      PYBIND11_OVERRIDE(void, CylindricalSL, reset_coefs,);
+      PYBIND11_OVERRIDE(void, Cylindrical, reset_coefs,);
     }
 
     void make_coefs(void) override {
-      PYBIND11_OVERRIDE(void, CylindricalSL, make_coefs,);
+      PYBIND11_OVERRIDE(void, Cylindrical, make_coefs,);
     }
 
   };
@@ -204,9 +205,9 @@ void BasisFactoryClasses(py::module &m) {
 	   py::arg("logxmax")=0.5,
 	   py::arg("numr")=400);
 
-  py::class_<Basis::CylindricalSL, std::shared_ptr<Basis::CylindricalSL>, PyCylindricalSL, Basis::Basis>(m, "CylindricalSL")
+  py::class_<Basis::Cylindrical, std::shared_ptr<Basis::Cylindrical>, PyCylindrical, Basis::Basis>(m, "Cylindrical")
     .def(py::init<const std::string&>(), "Create a cylindrical EOF basis")
-    .def("getBasis", &Basis::CylindricalSL::getBasis,
+    .def("getBasis", &Basis::Cylindrical::getBasis,
 	 "Evaluate the basis functions on a linearly spaced 2d-grid for"
 	 "inspection",
 	 py::arg("xmin")=0.0,

@@ -1282,17 +1282,26 @@ namespace MSSA {
     }
     
     
+    // Make a deep copy of the CoefContainer with new shared pointer
+    // instances for return.  This will allow for multiple copies with
+    // different reconstructed.  Let std::shared_ptr take care of
+    // garbage colleciton.
+    //
+    auto newDB = coefDB.deepcopy();
+
     // Use CoefDB to recover names and use newdata to replace data
     //
-    coefDB.beginUpdate(zero);
+    newDB->beginUpdate(zero);
     for (auto v : newdata) {
       if (verbose) std::cout << "Updating for: " << v.first << std::endl;
-      coefDB.setData(v.first, v.second);
+      newDB->setData(v.first, v.second);
     }
     
-    // Return updated namestr-coefficient map
+    // Return updated namestr-coefficient map.  The newDB instance of
+    // CoefContainer will be reaped by the underlying objects returned
+    // in the map will persist.
     //
-    return coefDB.endUpdate();
+    return newDB->endUpdate();
   }
   
   void expMSSA::assignParameters(const std::string flags)

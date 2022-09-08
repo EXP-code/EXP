@@ -29,7 +29,12 @@ namespace Coefs
     
     EigenColMajor coefs;
     
+    //! Read data from a stream
     virtual bool read(std::istream& in, bool exp_type) = 0;
+
+    //! Copy base-class fields
+    void copyfields(std::shared_ptr<CoefStruct> p);
+
   };
   
   //! Specialization of CoefStruct for spheres
@@ -47,6 +52,10 @@ namespace Coefs
     
     //! Read native EXP coefficients
     bool read(std::istream& in, bool exp_type);
+
+    //! Copy all of data contents to a new instance
+    std::shared_ptr<SphStruct> deepcopy();
+
   };
   
   //! Specialization of CoefStruct for cylinders
@@ -58,6 +67,9 @@ namespace Coefs
     
     //! Read native EXP coefficients
     bool read(std::istream& in, bool exp_type);
+
+    //! Copy all of data contents to a new instance
+    std::shared_ptr<CylStruct> deepcopy();
   };
   
   //! Specialization of CoefStruct for a data table
@@ -69,6 +81,9 @@ namespace Coefs
     
     //! No need to read
     bool read(std::istream& in, bool exp_type);
+
+    //! Copy all of data contents to a new instance
+    std::shared_ptr<TblStruct> deepcopy();
   };
   
   typedef std::shared_ptr<CoefStruct> CoefStrPtr;

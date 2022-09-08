@@ -590,17 +590,17 @@ namespace Basis
   }
   
 
-  CylindricalSL::CylindricalSL(const YAML::Node& CONF) : Basis(CONF)
+  Cylindrical::Cylindrical(const YAML::Node& CONF) : Basis(CONF)
   {
     initialize();
   }
 
-  CylindricalSL::CylindricalSL(const std::string& confstr) : Basis(confstr)
+  Cylindrical::Cylindrical(const std::string& confstr) : Basis(confstr)
   {
     initialize();
   }
 
-  void CylindricalSL::initialize()
+  void Cylindrical::initialize()
   {
     // Assign some defaults
     //
@@ -672,7 +672,7 @@ namespace Basis
 			     << conf                 << std::endl
 			     << std::string(60, '-') << std::endl;
       
-      throw std::runtime_error("CylindricalSL: error parsing YAML");
+      throw std::runtime_error("Cylindrical: error parsing YAML");
     }
     
     // Enforce sane values for EOF integration
@@ -720,7 +720,7 @@ namespace Basis
     sl->read_cache();
   }
   
-  void CylindricalSL::getFields
+  void Cylindrical::getFields
   (double x, double y, double z,
    double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
    double& tpotx, double& tpoty, double& tpotz)
@@ -740,7 +740,7 @@ namespace Basis
   }
   
   // Evaluate in on spherical coordinates (should this be Cartesian)
-  void CylindricalSL::all_eval
+  void Cylindrical::all_eval
   (double r, double cth, double phi,
    double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
    double& tpotr, double& tpott, double& tpotp)
@@ -759,19 +759,19 @@ namespace Basis
     tpott = tpotR*z/r - tpotz*R/r ;
   }
   
-  void CylindricalSL::accumulate(double x, double y, double z, double mass)
+  void Cylindrical::accumulate(double x, double y, double z, double mass)
   {
     double R   = sqrt(x*x + y*y);
     double phi = atan2(y, x);
     sl->accumulate(R, z, phi, mass, 0, 0);
   }
   
-  void CylindricalSL::reset_coefs(void)
+  void Cylindrical::reset_coefs(void)
   {
     sl->setup_accumulation();
   }
   
-  void CylindricalSL::load_coefs(Coefs::CoefStrPtr coef, double time)
+  void Cylindrical::load_coefs(Coefs::CoefStrPtr coef, double time)
   {
     Coefs::CylStruct* cf = dynamic_cast<Coefs::CylStruct*>(coef.get());
 
@@ -792,7 +792,7 @@ namespace Basis
     }
   }
 
-  void CylindricalSL::set_coefs(Coefs::CoefStrPtr coef)
+  void Cylindrical::set_coefs(Coefs::CoefStrPtr coef)
   {
     Coefs::CylStruct* cf = dynamic_cast<Coefs::CylStruct*>(coef.get());
 
@@ -801,13 +801,13 @@ namespace Basis
     }
   }
 
-  void CylindricalSL::make_coefs(void)
+  void Cylindrical::make_coefs(void)
   {
     sl->make_coefficients();
   }
   
   
-  std::vector<std::vector<Eigen::MatrixXd>> CylindricalSL::getBasis
+  std::vector<std::vector<Eigen::MatrixXd>> Cylindrical::getBasis
   (double xmin, double xmax, int numR, double zmin, double zmax, int numZ)
   {
     // Allocate storage
@@ -890,7 +890,7 @@ namespace Basis
 	basis = std::make_shared<SphericalSL>(conf);
       }
       else if ( !name.compare("cylinder") ) {
-	basis = std::make_shared<CylindricalSL>(conf);
+	basis = std::make_shared<Cylindrical>(conf);
       }
       else {
 	std::string msg("I don't know about the basis named: ");

@@ -63,6 +63,9 @@ namespace Coefs
       return std::floor(time * multiplier + 0.5) / multiplier;
     }
     
+    //! Copy all of the base-class data
+    void copyfields(std::shared_ptr<Coefs> p);
+
   public:
     
     //! Constructor
@@ -152,6 +155,10 @@ namespace Coefs
     //! Set mnemonic name
     void setName(const std::string& newname) { name = newname; }
 
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    virtual std::shared_ptr<Coefs> deepcopy() = 0;
+
   };
   
   /** Derived class for spherical coefficients */
@@ -223,6 +230,11 @@ namespace Coefs
 
     //! Compare two collections of stanzas (this is for testing only)
     virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    virtual std::shared_ptr<Coefs> deepcopy();
+
   };
   
   /** Derived class for cylindrical coefficients */
@@ -304,6 +316,11 @@ namespace Coefs
 
     //! Compare two collections of stanzas (this is for testing only)
     virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    virtual std::shared_ptr<Coefs> deepcopy();
+
   };
   
 
@@ -395,6 +412,11 @@ namespace Coefs
 
     //! Compare two collections of stanzas (this is for testing only)
     virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects.  This will recursively call the deepcopy() functions
+    //! or all dependent objects
+    virtual std::shared_ptr<Coefs> deepcopy();
   };
   
 

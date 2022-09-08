@@ -220,7 +220,7 @@ namespace Basis
      Uses EmpCylSL basis to evaluate expansion coeffients and provide
      potential and density basis fields
   */
-  class CylindricalSL : public Basis
+  class Cylindrical : public Basis
   {
     
   private:
@@ -274,13 +274,13 @@ namespace Basis
   public:
     
     //! Constructor from YAML node
-    CylindricalSL(const YAML::Node& conf);
+    Cylindrical(const YAML::Node& conf);
     
     //! Constructor from YAML string
-    CylindricalSL(const std::string& confstr);
+    Cylindrical(const std::string& confstr);
     
     //! Destructor
-    virtual ~CylindricalSL(void) {}
+    virtual ~Cylindrical(void) {}
     
     //! Prescaling factor
     void set_scale(const double scl) { rscl = scl; }

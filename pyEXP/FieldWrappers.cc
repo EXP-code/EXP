@@ -34,9 +34,11 @@ py::array_t<T> make_ndarray(Eigen::Tensor<T, 3>& mat)
 
 void FieldGeneratorClasses(py::module &m) {
 
-  m.doc() = "FieldGenerator class bindings.  This class computes surfaces\n"
-    "and volumes for visualizing the physical quantities implied\nby your"
-    "coefficients.\n\n"
+  m.doc() = "FieldGenerator class bindings\n\n"
+    "FieldGenerator\n"
+    "==============\n"
+    "This class computes surfaces and volumes for visualizing the physical\n"
+    "quantities implied by your basis and associated coefficients.\n\n"
     "The generator is constructed by passing a vector of desired times\n"
     "that must be in the coefficient object and list of lower bounds,\n"
     "a list of upper bounds, and a list of knots per dimension.  These\n"

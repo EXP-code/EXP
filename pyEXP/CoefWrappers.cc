@@ -8,9 +8,9 @@ namespace py = pybind11;
 
 void CoefContainerClasses(py::module &m) {
 
-  m.doc() = "CoefContainer class bindings. These classes store, write,\n"
-    "and provide an interface to coefficients and table data for use\n"
-    "by the other pyEXP classes.\n\n"
+  m.doc() = "CoefContainer class bindings\n\n"
+    "These classes store, write, and provide an interface to coefficients\n"
+    "and table data for use by the other pyEXP classes.\n\n"
     "The base class, 'Coefs', provides a factory reader that will\n"
     "create one of the derived coefficient classes, SphCoef, CylCoef,\n"
     "or TblCoef, deducing the type from the input file.  The input\n"
@@ -112,6 +112,10 @@ void CoefContainerClasses(py::module &m) {
     std::vector<Key> makeKeys(Key k) override {
       PYBIND11_OVERRIDE_PURE(std::vector<Key>, Coefs, makeKeys, k);
     }
+
+    std::shared_ptr<Coefs> deepcopy() override {
+      PYBIND11_OVERRIDE_PURE(std::shared_ptr<Coefs>, Coefs, deepcopy,);
+    }
   };
 
   class PySphCoefs : public SphCoefs
@@ -182,6 +186,11 @@ void CoefContainerClasses(py::module &m) {
     std::vector<Key> makeKeys(Key k) override {
       PYBIND11_OVERRIDE(std::vector<Key>, SphCoefs, makeKeys, k);
     }
+
+    std::shared_ptr<Coefs> deepcopy() override {
+      PYBIND11_OVERRIDE(std::shared_ptr<Coefs>, SphCoefs, deepcopy,);
+    }
+
   };
 
   class PyCylCoefs : public CylCoefs
@@ -251,6 +260,10 @@ void CoefContainerClasses(py::module &m) {
 
     std::vector<Key> makeKeys(Key k) override {
       PYBIND11_OVERRIDE(std::vector<Key>, CylCoefs, makeKeys, k);
+    }
+
+    std::shared_ptr<Coefs> deepcopy() override {
+      PYBIND11_OVERRIDE(std::shared_ptr<Coefs>, CylCoefs, deepcopy,);
     }
   };
 
@@ -322,6 +335,11 @@ void CoefContainerClasses(py::module &m) {
     std::vector<Key> makeKeys(Key k) override {
       PYBIND11_OVERRIDE(std::vector<Key>, TableData, makeKeys, k);
     }
+
+    std::shared_ptr<Coefs> deepcopy() override {
+      PYBIND11_OVERRIDE(std::shared_ptr<Coefs>, TableData, deepcopy,);
+    }
+
   };
 
   py::class_<Coefs::CoefStruct, std::shared_ptr<Coefs::CoefStruct>, PyCoefStruct>(m, "CoefStruct")

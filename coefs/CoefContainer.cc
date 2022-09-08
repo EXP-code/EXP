@@ -18,6 +18,15 @@
 namespace Coefs
 {
   
+  void Coefs::copyfields(std::shared_ptr<Coefs> p)
+  {
+    p->mat      = mat;
+    p->power    = power;
+    p->geometry = geometry;
+    p->name     = name;
+    p->verbose  = verbose;
+  }
+
   SphCoefs::SphCoefs(HighFive::File& file, int stride,
 		     double Tmin, double Tmax, bool verbose) :
     Coefs("sphere", verbose)
@@ -71,6 +80,48 @@ namespace Coefs
     }
   }
   
+  std::shared_ptr<Coefs> SphCoefs::deepcopy()
+  {
+    auto ret = std::make_shared<SphCoefs>();
+
+    // Copy the base-class fields
+    copyfields(ret);
+
+    // Copy the local structures
+    for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
+
+    return ret;
+  }
+
+  std::shared_ptr<Coefs> CylCoefs::deepcopy()
+  {
+    auto ret = std::make_shared<CylCoefs>();
+
+    // Copy the base-class fields
+    copyfields(ret);
+
+    // Copy the local structures
+    for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
+    ret->angle = angle;
+
+    return ret;
+  }
+
+  std::shared_ptr<Coefs> TableData::deepcopy()
+  {
+    auto ret = std::make_shared<TableData>();
+
+    // Copy the base-class fields
+    copyfields(ret);
+
+    // Copy the local structures
+    for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
+    ret->data  = data;
+    ret->times = times;
+
+    return ret;
+  }
+
   Eigen::MatrixXcd& SphCoefs::operator()(double time)
   {
     auto it = coefs.find(roundTime(time));

@@ -7,10 +7,11 @@ namespace py = pybind11;
 
 void ParticleReaderClasses(py::module &m) {
 
-  m.doc() = "ParticleReader class bindings. This collection of classes\n"
-    "reads and converts your phase-space snapshots to iterable objects\n"
-    "for generating basis coefficients.  The particle fields themselves\n"
-    "are not available in Python for inspection currently.\n\n"
+  m.doc() = "ParticleReader class bindings\n\n"
+    "This collection of classes reads and converts your phase-space\n"
+    "snapshots to iterable objects for generating basis coefficients.\n"
+    "The particle fields themselves are not available in Python for\n"
+    "inspection currently.\n\n"
     "The available particle readers are:\n"
     "  1. PSPout         The monolithic EXP phase-space snapshot format\n"
     "  2. PSPspl         Like PSPout, but split into multiple file chunks\n"

@@ -11,6 +11,57 @@
 namespace Coefs
 {
   
+  void CoefStruct::copyfields(std::shared_ptr<CoefStruct> ret)
+  {
+    if (buf) {
+      size_t buflen = std::strlen(buf.get());
+      ret->buf = std::shared_ptr<char[]>(new char [buflen+1]);
+      std::strncpy(ret->buf.get(), buf.get(), buflen+1);
+    }
+
+    ret->geom  = geom;
+    ret->id    = id;
+    ret->time  = time;
+    ret->coefs = coefs;
+  }
+
+  std::shared_ptr<CylStruct> CylStruct::deepcopy()
+  {
+    auto ret = std::make_shared<CylStruct>();
+
+    copyfields(ret);
+
+    ret->mmax  = mmax;
+    ret->nmax  = nmax;
+
+    return ret;
+  }
+
+  std::shared_ptr<SphStruct> SphStruct::deepcopy()
+  {
+    auto ret = std::make_shared<SphStruct>();
+
+    copyfields(ret);
+
+    ret->lmax   = lmax;
+    ret->nmax   = nmax;
+    ret->scale  = scale;
+    ret->normed = normed;
+
+    return ret;
+  }
+
+  std::shared_ptr<TblStruct> TblStruct::deepcopy()
+  {
+    auto ret = std::make_shared<TblStruct>();
+
+    copyfields(ret);
+
+    ret->cols = cols;
+
+    return ret;
+  }
+
   bool CylStruct::read(std::istream& in, bool verbose)
   {
     // iostream exception handling

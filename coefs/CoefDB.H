@@ -91,6 +91,9 @@ namespace MSSA
     //! Times for each slice
     std::vector<double> times;
     
+    //! Null constructor
+    CoefDB() {}
+
     //! Constructor
     CoefDB(const std::string& name, Coefs::CoefsPtr coefs,
 	   const std::vector<Key>& keys, const std::vector<Key>& bkeys, 
@@ -104,6 +107,11 @@ namespace MSSA
 
     //! Update and return working copy of coefficients
     Coefs::CoefsPtr endUpdate();
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    std::shared_ptr<CoefDB> deepcopy();
+
   };
 
   /**
@@ -199,6 +207,10 @@ components:
     
     //! Copy constructor
     CoefContainer(const CoefContainer& p);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    std::shared_ptr<CoefContainer> deepcopy();
 
     //! Get the pooled key list
     const std::vector<Key>& getKeys() { return keylist; }

@@ -23,6 +23,28 @@ namespace MSSA
     pack_channels();
   }
 
+  // Deep copy
+  std::shared_ptr<CoefDB> CoefDB::deepcopy()
+  {
+    auto ret = std::make_shared<CoefDB>();
+
+    ret->name       = name;
+    ret->index      = index;
+    ret->keys       = keys;
+    ret->bkeys      = bkeys;
+    ret->complexKey = complexKey;
+
+    // Don't try to copy a null instance
+    if (coefs)  ret->coefs  = coefs-> deepcopy();
+    if (coefs1) ret->coefs1 = coefs1->deepcopy();
+
+    ret->data       = data;
+    ret->data1      = data1;
+    ret->times      = times;
+
+    return ret;
+  }
+
   // Copy to workset coefficient set
   Coefs::CoefsPtr CoefDB::endUpdate()
   {
@@ -287,6 +309,24 @@ namespace MSSA
     tmax    = p.tmax;
     times   = p.times;
     runtag  = p.runtag;
+  }
+
+  std::shared_ptr<CoefContainer> CoefContainer::deepcopy()
+  {
+    auto ret = std::make_shared<CoefContainer>();
+
+    for (auto v : comps) ret->comps.push_back(v->deepcopy());
+
+    ret->keylist = keylist;
+    ret->namemap = namemap;
+
+    ret->tmin    = tmin;
+    ret->tmax    = tmax;
+    ret->stride  = stride;
+    ret->times   = times;
+    ret->runtag  = runtag;
+
+    return ret;
   }
 
   /*
