@@ -30,7 +30,11 @@
 #include <omp.h>
 
 #include <TransformFFT.H>
+
+#ifdef HAVE_LIBPNGPP
 #include <ColorGradient.H>
+#endif
+
 #include <KMeans.H>
 
 #include "CoefDB.H"
@@ -39,6 +43,7 @@
 #include "config.h"
 #include "YamlConfig.H"
 #include "libvars.H"
+
 #include "expMSSA.H"
 
 namespace MSSA {
