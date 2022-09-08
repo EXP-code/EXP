@@ -53,7 +53,10 @@ CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   potd.resize(nthrds);
   dpot.resize(nthrds);
 
-  for (auto & v : potd) v.resize(Lmax+1, nmax);
+  for (auto & v : potd) {
+    v.resize(Lmax+2, nmax);
+    v.setZero();		// Is this right? Does the algorithm depend on
+  }				// a padded array?
   for (auto & v : dpot) v.resize(Lmax+1, nmax);
 
 				// Work vectors
@@ -245,7 +248,7 @@ void CBrockDisk::determine_coefficients_particles(void)
 
   for (int i=0; i<nthrds; i++) {
     use1 += use[i];
-    for (int l=0; l<=Lmax*(Lmax+2); l++)
+    for (int l=0; l< 2*(Lmax+1); l++)
       for (int n=0; n<nmax; n++)
 	(*expcoef1)(l, n) += expcoef0[i](l, n);
   }
@@ -275,21 +278,20 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
   double pos[3], xx, yy, zz, r, r2, phi, rs, fac1, fac2, mass;
 
   int nbodies = cC->Number();
-  int id = *((int*)arg);
-  int nbeg = nbodies*id/nthrds;
-  int nend = nbodies*(id+1)/nthrds;
-  double adb = component->Adiabatic();
-
-  PartMapItr it=cC->Particles().begin();
-  unsigned long j;
+  int id      = *((int*)arg);
+  int nbeg    = nbodies*id/nthrds;
+  int nend    = nbodies*(id+1)/nthrds;
+  double adb  = component->Adiabatic();
 
   vector<double> ctr(3, 0.0);
   if (mix) mix->getCenter(ctr);
 
-  for (int i=0; i<nbeg; i++) it++;
+  PartMapItr it = cC->Particles().begin();
+  std::advance(it, nbeg);
+
   for (int i=nbeg; i<nend; i++) {
 
-    j = (it++)->first;
+    unsigned long j = (it++)->first;
 
     if (component->freeze(j)) // frozen particles do not respond
       continue;
@@ -384,31 +386,31 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  PartMapItr it=cC->Particles().begin();
-  unsigned long j;
 
   vector<double> ctr(3, 0.0);
   if (mix) mix->getCenter(ctr);
 
-  for (int i=0; i<nbeg; i++) it++;
+  PartMapItr it=cC->Particles().begin();
+  std::advance(it, nbeg);
+
   for (int i=nbeg; i<nend; i++) {
 
-    j = it->first;
+    unsigned long j = it->first;
 
     if (mix) {
       if (use_external) {
-	cC->Pos(pos, i, Component::Inertial);
+	cC->Pos(pos, j, Component::Inertial);
 	component->ConvertPos(pos, Component::Local);
       } else
-	cC->Pos(pos, i, Component::Local);
+	cC->Pos(pos, j, Component::Local);
 
       mfactor = mix->Mixture(pos);
     } else {
       if (use_external) {
-	cC->Pos(pos, i, Component::Inertial);
+	cC->Pos(pos, j, Component::Inertial);
 	component->ConvertPos(pos, Component::Local | Component::Centered);
       } else
-	cC->Pos(pos, i, Component::Local | Component::Centered);
+	cC->Pos(pos, j, Component::Local | Component::Centered);
     }	
     
     xx = pos[0] - ctr[0];
@@ -621,7 +623,7 @@ void CBrockDisk::get_dpotl(int lmax, int nmax, double r,
   double fac1 = (r2 - 1.0)*fac;
   double cur, curl1, curl2, cur0 = sqrt(fac), rcum = 1.0;
 
-  for (int l=0; l<=lmax+1; l++) {
+  for (int l=0; l<=lmax; l++) {
     cur = cur0;
 
     p(l, 0) = cur*rcum;
@@ -662,7 +664,7 @@ void CBrockDisk::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p)
   double fac1 = (r2 - 1.0)*fac;
   double cur, curl1, curl2, cur0 = sqrt(fac), rcum = 1.0;
 
-  for (int l=0; l<=lmax+1; l++) {
+  for (int l=0; l<=lmax; l++) {
     cur = cur0;
 
     work(l, 0)  = cur;
@@ -692,7 +694,7 @@ void CBrockDisk::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& d)
   double cur, curl1, curl2, cur0 = sqrt(fac);
   double rcum = 0.5/M_PI;
   
-  for (int l=0; l<=lmax+1; l++) {
+  for (int l=0; l<=lmax; l++) {
     cur = cur0;
 
     work(l, 1) = cur;
@@ -728,7 +730,7 @@ void CBrockDisk::get_potl_dens(int lmax, int nmax, double r,
   double cur, curl1, curl2, cur0 = sqrt(fac);
   double  rcump = 1.0, rcumd = 0.5/M_PI;
 
-  for (int l=0; l<=lmax+1; l++) {
+  for (int l=0; l<=lmax; l++) {
     cur = cur0;
 
     work(l, 0) = cur;
