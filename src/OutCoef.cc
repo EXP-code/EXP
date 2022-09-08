@@ -87,25 +87,25 @@ void OutCoef::Run(int n, int mstep, bool last)
   //
   std::ofstream out;
 
-  // Make a bigger output buffer
-  //
-  const int bufsize = 16384;
-  char mybuffer [bufsize];
-  out.rdbuf()->pubsetbuf(mybuffer, bufsize);
-
-  // Now open the file
+  // Now open the file on the root node only
   //
   if (myid==0) {
     out.open(filename.c_str(), ios::out | ios::app);
     if (!out) {
       cout << "OutCoef: can't open file <" << filename << ">\n";
     }
-  }
   
-  if (native)
-    tcomp->force->dump_coefs(out);
-  else
-    tcomp->force->dump_coefs_h5(filename);
+    // Make a bigger output buffer
+    //
+    const int bufsize = 16384;
+    char mybuffer [bufsize];
+    out.rdbuf()->pubsetbuf(mybuffer, bufsize);
+
+    if (native)
+      tcomp->force->dump_coefs(out);
+    else
+      tcomp->force->dump_coefs_h5(filename);
+  }
 
   out.close();
 }
