@@ -105,9 +105,9 @@ void OutPSP::initialize()
 void OutPSP::Run(int n, int mstep, bool last)
 {
   if (!dump_signal and !last) {
-    if (n % nint            ) return;
-    if (restart  && n==0    ) return;
-    if (mstep % nintsub !=0 ) return;
+    if (n % nint) return;
+    if (restart && n==0) return;
+    if (multistep>1 && mstep % nintsub !=0 ) return;
   }
 
   std::chrono::high_resolution_clock::time_point beg, end;

@@ -80,8 +80,8 @@ void OutCHKPT::initialize()
 void OutCHKPT::Run(int n, int mstep, bool last)
 {
   if (!dump_signal and !last) {
-    if (n % nint           ) return;
-    if (mstep % nintsub !=0) return;
+    if (n % nint) return;
+    if (multistep>1 and mstep % nintsub !=0) return;
   }
 
   if (VERBOSE>5 && myid==0) {

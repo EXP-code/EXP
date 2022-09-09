@@ -172,7 +172,7 @@ void OutCalbr::Run(int ns, int mstep, bool last)
   if (ns==0) set_energies();
 
   if (ns % nint != 0 && !last) return;
-  if (mstep % nintsub !=0) return;
+  if (multistep>1 and mstep % nintsub !=0) return;
 
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {		// Get particles from device

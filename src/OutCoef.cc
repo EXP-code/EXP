@@ -75,12 +75,11 @@ void OutCoef::Run(int n, int mstep, bool last)
 
   // Skip this master step
   //
-  if (n % nint != 0 && !last)          return;
+  if (n % nint != 0 && !last) return;
 
   // Skip this sub step
   //
-  if (multistep>1 and mstep % nintsub != 0)
-                                       return;
+  if (multistep>1 and mstep % nintsub != 0) return;
 
   if (myid==0) {
 

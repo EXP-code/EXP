@@ -55,7 +55,7 @@ void OutMulti::Run(int n, int mstep, bool last)
 {
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
-  if (mstep % nintsub !=0 && !dump_signal) return;
+  if (multistep>1 && mstep % nintsub !=0 && !dump_signal) return;
 
 
   ofstream *out;

@@ -109,7 +109,7 @@ void OutDiag::Run(int n, int mstep, bool last)
 {
   if (myid) return;
   if (n % nint && !last) return;
-  if (mstep % nintsub !=0) return;
+  if (multistep>1 and mstep % nintsub !=0) return;
 
 
   double r, dr, dens, dens0;

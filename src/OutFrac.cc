@@ -174,7 +174,7 @@ void OutFrac::initialize()
 void OutFrac::Run(int n, int mstep, bool last)
 {
   if (n % nint != 0 && !last) return;
-  if (mstep % nintsub !=0) return;
+  if (multistep>1 and mstep % nintsub !=0) return;
 
   MPI_Status status;
 

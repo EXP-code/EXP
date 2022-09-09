@@ -100,7 +100,7 @@ void OutAscii::initialize()
 void OutAscii::Run(int n, int mstep, bool last)
 {
   if (n % nint && !last) return;
-  if (mstep % nintsub !=0) return;
+  if (multistep>1 and mstep % nintsub !=0) return;
   if (!c0) return;
 
 #ifdef HAVE_LIBCUDA
