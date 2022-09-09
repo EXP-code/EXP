@@ -355,7 +355,7 @@ void CoefContainerClasses(py::module &m) {
     .def(py::init<std::string, bool>(),
 	 "Base coefficient container class",
 	 py::arg("type"), py::arg("verbose"))
-    .def("operator()",     &Coefs::Coefs::operator(),
+    .def("__call__",       &Coefs::Coefs::operator(),
 	 "Return the coefficient matrix for the desired time",
 	 py::arg("time"))
     .def("add",            &Coefs::Coefs::add,
