@@ -28,11 +28,11 @@ CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 
   initialize();
 
-  expcoef  = std::make_shared<Eigen::MatrixXd>(2*(Lmax+1), nmax);
-  expcoef1 = std::make_shared<Eigen::MatrixXd>(2*(Lmax+1), nmax);
+  expcoef  = std::make_shared<Eigen::MatrixXd>(2*Lmax+1, nmax);
+  expcoef1 = std::make_shared<Eigen::MatrixXd>(2*Lmax+1, nmax);
 
   expcoef0.resize(nthrds);
-  for (auto & v : expcoef0) v.resize((Lmax+1)*(Lmax+1), nmax);
+  for (auto & v : expcoef0) v.resize(2*Lmax+1, nmax);
   
   if (pcavar) {
     cc.resize((Lmax+1)*(Lmax+1));
@@ -252,7 +252,7 @@ void CBrockDisk::determine_coefficients_particles(void)
 
   for (int i=0; i<nthrds; i++) {
     use1 += use[i];
-    for (int l=0; l< 2*(Lmax+1); l++)
+    for (int l=0; l<2*Lmax+1; l++)
       for (int n=0; n<nmax; n++)
 	(*expcoef1)(l, n) += expcoef0[i](l, n);
   }
@@ -378,20 +378,16 @@ void CBrockDisk::determine_acceleration_and_potential(void)
 
 void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
 {
-  int l;
-  double r,rs,fac,phi,dp;
-  double potr,potl,pott,potp,p,pc,dpc,ps,dps;
-
+  double p, dp;
   double pos[3];
-  double xx, yy, zz, mfactor = 1.0;
+  double mfactor = 1.0;
 
   int nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-
-  vector<double> ctr(3, 0.0);
+  std::vector<double> ctr(3, 0.0);
   if (mix) mix->getCenter(ctr);
 
   PartMapItr it=cC->Particles().begin();
@@ -417,34 +413,37 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
 	cC->Pos(pos, j, Component::Local | Component::Centered);
     }	
     
-    xx = pos[0] - ctr[0];
-    yy = pos[1] - ctr[1];
-    zz = pos[2] - ctr[2];
+    double xx  = pos[0] - ctr[0];
+    double yy  = pos[1] - ctr[1];
+    double zz  = pos[2] - ctr[2];
 
-    r = sqrt(xx*xx + yy*yy) + DSMALL;
+    double r   = sqrt(xx*xx + yy*yy) + DSMALL;
 
-    rs = r/scale;
-    phi = atan2(yy,xx);
+    double rs  = r/scale;
+    double phi = atan2(yy,xx);
 
     sinecosine_R(Lmax, phi, cosm[id], sinm[id]);
     get_dpotl(Lmax, nmax, rs, potd[id], dpot[id]);
     get_pot_coefs_safe(0, expcoef->row(0), p, dp, potd[id], dpot[id]);
 
-    potl = p;
-    potr = dp;
-    pott = potp = 0.0;
+    double potl = p;
+    double potr = dp;
+    double pott = 0.0, potp = 0.0;
+
 				// l loop
-    
     for (int l=1; l<=Lmax; l++) {
+
+      double pc, dpc, ps, dps;
 
       get_pot_coefs_safe(l, expcoef->row(2*l - 1), pc, dpc, potd[id], dpot[id]);
       get_pot_coefs_safe(l, expcoef->row(2*l    ), ps, dps, potd[id], dpot[id]);
-      potl += pc*cosm[id][l] + ps*sinm[id][l];
-      potr += dpc*cosm[id][l] + dps*sinm[id][l];
+
+      potl += pc*cosm[id][l]   + ps*sinm[id][l];
+      potr += dpc*cosm[id][l]  + dps*sinm[id][l];
       potp += (-pc*sinm[id][l] + ps*cosm[id][l])*l;
     }
 
-    fac = xx*xx + yy*yy;
+    double fac = xx*xx + yy*yy;
     
     potr *= mfactor/(scale*scale);
     potl *= mfactor/scale;
@@ -523,7 +522,7 @@ void CBrockDisk::determine_fields_at_point_polar
  double *tdens, double *tpotl, double *tpotr, double *tpotp
  )
 {
-  double p, dp, pc, dpc, ps, dps, dens;
+  double p, dp, dens;
 
   double rs = r/scale;
 
@@ -547,6 +546,8 @@ void CBrockDisk::determine_fields_at_point_polar
     
   for (int l=1; l<=Lmax; l++) {
     
+    double pc, ps, dpc, dps;
+
     get_dens_coefs(l,expcoef->row(2*l - 1), pc);
     get_dens_coefs(l,expcoef->row(2*l    ), ps);
     dens += pc*cosm[0][l] + ps*sinm[0][l];
@@ -638,7 +639,7 @@ void CBrockDisk::get_dpotl(int lmax, int nmax, double r,
     for (int nn=0; nn<nmax-1; nn++) {
       double curl2 = curl1;
       curl1 = cur;
-      cur = (2.0 + (double)(2*l-1)/(nn+1))*fac1*curl1 - 
+      cur = (2.0 + (double)(2*l-1)/(nn+1))*fac1*curl1 -
 	(1.0 + (double)(2*l-1)/(nn+1))*curl2;
       p(l, nn+1) = cur*rcum;
     }
@@ -672,10 +673,7 @@ void CBrockDisk::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p)
   double fac1 = (r2 - 1.0)*fac;
   double cur0 = sqrt(fac), rcum = 1.0;
 
-  // Needed for dPhi/dr recurstion
-  // ------------------+
-  //                   v
-  for (int l=0; l<=lmax+1; l++) {
+  for (int l=0; l<=lmax; l++) {
     double cur = cur0;
 
     work(l, 0)  = cur;
@@ -735,20 +733,20 @@ void CBrockDisk::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& d)
 void CBrockDisk::get_potl_dens(int lmax, int nmax, double r, 
 			       Eigen::MatrixXd& p, Eigen::MatrixXd& d)
 {
-  double r2 = r*r;
-  double fac = 1.0/(1.0 + r2);
+  double r2   = r*r;
+  double fac  = 1.0/(1.0 + r2);
   double fac1 = (r2 - 1.0)*fac;
-  double cur, curl1, curl2, cur0 = sqrt(fac);
-  double  rcump = 1.0, rcumd = 0.5/M_PI;
+  double cur0 = sqrt(fac);
+  double rcump = 1.0, rcumd = 0.5/M_PI;
 
   for (int l=0; l<=lmax; l++) {
-    cur = cur0;
+    double cur = cur0;
 
     work(l, 0) = cur;
-    curl1 = 0.0;
+    double curl1 = 0.0;
 
     for (int nn=0; nn<nmax-1; nn++) {
-      curl2 = curl1;
+      double curl2 = curl1;
       curl1 = cur;
       cur = (2.0 + (double)(2*l-1)/(nn+1))*fac1*curl1 - 
 	(1.0 + (double)(2*l-1)/(nn+1))*curl2;
@@ -838,7 +836,8 @@ void CBrockDisk::dump_coefs_h5(const std::string& file)
   
   for (int m=0; m<=Lmax; m++) {
     for (int ir=0; ir<nmax; ir++) {
-      cur->coefs(m, ir) = {(*expcoef)(2*m, ir), (*expcoef)(2*m+1, ir)};
+      if (m==0) cur->coefs(m, ir) = {(*expcoef)(2*m, ir), 0.0};
+      else cur->coefs(m, ir) = {(*expcoef)(2*m-1, ir), (*expcoef)(2*m, ir)};
     }
   }
 
