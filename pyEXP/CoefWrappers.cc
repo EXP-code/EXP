@@ -1,10 +1,13 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/complex.h>
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
 #include <CoefContainer.H>
 
 namespace py = pybind11;
+
+#include "TensorToArray.H"
 
 void CoefContainerClasses(py::module &m) {
 
@@ -398,12 +401,31 @@ void CoefContainerClasses(py::module &m) {
 		py::arg("coef"), py::arg("name")="");
 
   py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs, Coefs::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
-    .def(py::init<bool>());
+    .def(py::init<bool>())
+    .def("getAllCoefs",
+	 [](Coefs::SphCoefs& A)
+	 {
+	   auto M = A.getAllCoefs(); // Need a copy here
+	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
+	   return ret;
+	 },
+	 "Return a 3d ndarray index by spherical index, radial index and time index.  The spherical "
+	 "index serializes all pairs of (l, m). The index for (l, m) is: l*(l+1)/2 + m");
 
   py::class_<Coefs::CylCoefs, std::shared_ptr<Coefs::CylCoefs>, PyCylCoefs, Coefs::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
-    .def(py::init<bool>());
+    .def(py::init<bool>())
+    .def("getAllCoefs",
+	 [](Coefs::CylCoefs& A)
+	 {
+	   auto M = A.getAllCoefs(); // Need a copy here
+	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
+	   return ret;
+	 },
+	 "Return a 3d ndarray index by azimuthal index, radial index and time index");
 
   py::class_<Coefs::TableData, std::shared_ptr<Coefs::TableData>, PyTableData, Coefs::Coefs>(m, "TableData", "Container for simple data tables with multiple columns")
-    .def(py::init<bool>());
+    .def(py::init<bool>())
+    .def("getAllCoefs",    &Coefs::TableData::getAllCoefs,
+	 "Return a 2d ndarray index by column and time");
 }
 

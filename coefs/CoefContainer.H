@@ -220,6 +220,9 @@ namespace Coefs
       return ret;
     }
     
+    //! Get all coefficients indexed in l, m, n, time
+    Eigen::Tensor<std::complex<double>, 3> getAllCoefs();
+
     /** Get power for the coefficient DB as a function of harmonic
 	index.  Time as rows, harmonics as columns.  This could be
 	refined for partial summations. */
@@ -306,6 +309,9 @@ namespace Coefs
       return ret;
     }
     
+    //! Get all coefficients indexed in m, n, time
+    Eigen::Tensor<std::complex<double>, 3> getAllCoefs();
+
     /** Get power for the coefficient DB as a function of harmonic
 	index.  Time as rows, harmonics as columns.  This could be
 	refined for partial summations. */
@@ -397,6 +403,9 @@ namespace Coefs
     //! Get list of coefficient times
     virtual std::vector<double> Times() { return times; }
     
+    //! Get all coefficients indexed in column, time
+    Eigen::MatrixXd getAllCoefs();
+
     /** Get power for the coefficient DB as a function of harmonic
 	index.  Time as rows, harmonics as columns.  This could be
 	refined for partial summations. */

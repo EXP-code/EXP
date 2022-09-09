@@ -139,6 +139,32 @@ namespace Coefs
   }
   
   
+  Eigen::Tensor<std::complex<double>, 3> SphCoefs::getAllCoefs()
+  {
+    Eigen::Tensor<std::complex<double>, 3> ret;
+
+    auto times = Times();
+
+    int lmax = coefs.begin()->second->lmax;
+    int nmax = coefs.begin()->second->nmax;
+    int ntim = times.size();
+
+    // Resize the tensor
+    ret.resize({(lmax+1)*(lmax+2)/2, nmax, ntim});
+
+    for (int t=0; t<ntim; t++) {
+      auto cof = coefs[times[t]];
+      for (int l=0; l<(lmax+2)*(lmax+1)/2; l++) {
+	for (int n=0; n<nmax; n++) {
+	  ret(l, n, t) = cof->coefs(l, n);
+	}
+      }
+    }
+
+    return ret;
+  }
+
+
   std::vector<Key> SphCoefs::makeKeys(Key k)
   {
     std::vector<Key> ret;
@@ -441,6 +467,31 @@ namespace Coefs
   }
   
   
+  Eigen::Tensor<std::complex<double>, 3> CylCoefs::getAllCoefs()
+  {
+    Eigen::Tensor<std::complex<double>, 3> ret;
+
+    auto times = Times();
+
+    int mmax = coefs.begin()->second->mmax;
+    int nmax = coefs.begin()->second->nmax;
+    int ntim = times.size();
+
+    // Resize the tensor
+    ret.resize({mmax+1, nmax, ntim});
+    
+    for (int t=0; t<ntim; t++) {
+      auto cof = coefs[times[t]];
+      for (int m=0; m<mmax+1; m++) {
+	for (int n=0; n<nmax; n++) {
+	  ret(m, n, t) = cof->coefs(m, n);
+	}
+      }
+    }
+
+    return ret;
+  }
+
   std::vector<Key> CylCoefs::makeKeys(Key k)
   {
     std::vector<Key> ret;
@@ -762,6 +813,28 @@ namespace Coefs
     return ret;
   }
   
+
+  Eigen::MatrixXd TableData::getAllCoefs()
+  {
+    Eigen::MatrixXd ret;
+
+    auto times = Times();
+
+    int cols = coefs.begin()->second->cols;
+    int ntim = times.size();
+
+    ret.resize(cols, ntim);
+    
+    for (int t=0; t<ntim; t++) {
+      auto cof = coefs[times[t]];
+      for (int c=0; c<cols; c++) {
+	ret(c, t) = cof->coefs(0, c).real();
+      }
+    }
+
+    return ret;
+  }
+
 
   std::shared_ptr<Coefs> Coefs::factory
   (const std::string& file, int stride, double tmin, double tmax)
