@@ -53,13 +53,17 @@ CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   potd.resize(nthrds);
   dpot.resize(nthrds);
 
-  for (auto & v : potd) {
-    v.resize(Lmax+2, nmax);
-    v.setZero();		// Is this right? Does the algorithm depend on
-  }				// a padded array?
+  // Needed for dpot recursion--------+
+  //                                  |
+  //                                  v
+  for (auto & v : potd) v.resize(Lmax+2, nmax);
   for (auto & v : dpot) v.resize(Lmax+1, nmax);
+  //                                  ^
+  //                                  |
+  // Otherwise, we only need m<=Lmax--+
 
-				// Work vectors
+  // Work vectors
+  //
   u .resize(nthrds);
   du.resize(nthrds);
 
@@ -519,31 +523,29 @@ void CBrockDisk::determine_fields_at_point_polar
  double *tdens, double *tpotl, double *tpotr, double *tpotp
  )
 {
-  int l;
-  double rs,dp;
-  double potr,potl,potp,p,pc,dpc,ps,dps,dens;
+  double p, dp, pc, dpc, ps, dps, dens;
 
-  rs = r/scale;
+  double rs = r/scale;
 
   sinecosine_R(Lmax, phi, cosm[0], sinm[0]);
 
-  get_dens(Lmax, nmax, rs, dend);
+  get_dens (Lmax, nmax, rs, dend);
   get_dpotl(Lmax, nmax, rs, potd[0], dpot[0]);
 
   get_dens_coefs(0, expcoef->row(0), dens);
 
   get_pot_coefs(0, expcoef->row(0), p, dp);
 
-  potl = p;
-  potr = dp;
-  potp = 0.0;
+  double potl = p;
+  double potr = dp;
+  double potp = 0.0;
   
   *tdens0 = dens;
   *tpotl0 = potl;
       
   // l loop
     
-  for (l=1; l<=Lmax; l++) {
+  for (int l=1; l<=Lmax; l++) {
     
     get_dens_coefs(l,expcoef->row(2*l - 1), pc);
     get_dens_coefs(l,expcoef->row(2*l    ), ps);
@@ -618,19 +620,23 @@ void CBrockDisk::get_dens_coefs
 void CBrockDisk::get_dpotl(int lmax, int nmax, double r,
 			   Eigen::MatrixXd& p, Eigen::MatrixXd& dp)
 {
-  double r2 = r*r;
-  double fac = 1.0/(1.0 + r2);
+  double r2   = r*r;
+  double fac  = 1.0/(1.0 + r2);
   double fac1 = (r2 - 1.0)*fac;
-  double cur, curl1, curl2, cur0 = sqrt(fac), rcum = 1.0;
+  double cur0 = sqrt(fac), rcum = 1.0;
 
-  for (int l=0; l<=lmax; l++) {
-    cur = cur0;
+  // Phi recursion relation
+  //
+  // Need up to lmax+1 for dPhi/dr recursion
+  //
+  for (int l=0; l<=lmax+1; l++) {
+    double cur = cur0;
 
     p(l, 0) = cur*rcum;
-    curl1 = 0.0;
+    double curl1 = 0.0;
 
     for (int nn=0; nn<nmax-1; nn++) {
-      curl2 = curl1;
+      double curl2 = curl1;
       curl1 = cur;
       cur = (2.0 + (double)(2*l-1)/(nn+1))*fac1*curl1 - 
 	(1.0 + (double)(2*l-1)/(nn+1))*curl2;
@@ -641,6 +647,8 @@ void CBrockDisk::get_dpotl(int lmax, int nmax, double r,
   }
 
 
+  // dPhi/dR recursion
+  //
   for (int l=0; l<=lmax; l++) {
 
     dp(l, 0) = p(l, 0)*l/r - p(l+1, 0);
@@ -659,20 +667,23 @@ void CBrockDisk::get_dpotl(int lmax, int nmax, double r,
 
 void CBrockDisk::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p)
 {
-  double r2 = r*r;
-  double fac = 1.0/(1.0 + r2);
+  double r2   = r*r;
+  double fac  = 1.0/(1.0 + r2);
   double fac1 = (r2 - 1.0)*fac;
-  double cur, curl1, curl2, cur0 = sqrt(fac), rcum = 1.0;
+  double cur0 = sqrt(fac), rcum = 1.0;
 
-  for (int l=0; l<=lmax; l++) {
-    cur = cur0;
+  // Needed for dPhi/dr recurstion
+  // ------------------+
+  //                   v
+  for (int l=0; l<=lmax+1; l++) {
+    double cur = cur0;
 
     work(l, 0)  = cur;
     p(l, 0) = cur*rcum;
-    curl1 = 0.0;
+    double curl1 = 0.0;
 
     for (int nn=0; nn<nmax-1; nn++) {
-      curl2 = curl1;
+      double curl2 = curl1;
       curl1 = cur;
       cur = (2.0 + (double)(2*l-1)/(nn+1))*fac1*curl1 - 
 	(1.0 + (double)(2*l-1)/(nn+1))*curl2;
