@@ -79,33 +79,35 @@ void OutCoef::Run(int n, int mstep, bool last)
 
   // Skip this sub step
   //
-  if (mstep % nintsub !=0)             return;
+  if (multistep>1 and mstep % nintsub != 0)
+                                       return;
 
-  MPI_Status status;
-
-  // Open output file
-  //
-  std::ofstream out;
-
-  // Now open the file on the root node only
-  //
   if (myid==0) {
-    out.open(filename.c_str(), ios::out | ios::app);
-    if (!out) {
-      cout << "OutCoef: can't open file <" << filename << ">\n";
-    }
-  
-    // Make a bigger output buffer
-    //
-    const int bufsize = 16384;
-    char mybuffer [bufsize];
-    out.rdbuf()->pubsetbuf(mybuffer, bufsize);
 
-    if (native)
+    if (native) {
+
+      // Open output file
+      //
+      std::ofstream out;
+
+      // Now open the file on the root node only
+      //
+      out.open(filename.c_str(), ios::out | ios::app);
+      if (!out) {
+	cout << "OutCoef: can't open file <" << filename << ">\n";
+      }
+      
+      // Make a bigger output buffer
+      //
+      const int bufsize = 16384;
+      char mybuffer [bufsize];
+      out.rdbuf()->pubsetbuf(mybuffer, bufsize);
+      
       tcomp->force->dump_coefs(out);
-    else
+
+    } else {
       tcomp->force->dump_coefs_h5(filename);
+    }
   }
 
-  out.close();
 }
