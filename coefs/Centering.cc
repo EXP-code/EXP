@@ -1,24 +1,46 @@
-				// C++/STL headers
-#include <filesystem>
 #include <iostream>
-#include <cstdlib>
 #include <iomanip>
-#include <fstream>
-#include <sstream>
-#include <cmath>
-#include <string>
+
+#include <algorithm>
+#include <numeric>
+#include <random>
 
 #include <ParticleReader.H>
 #include <localmpi.H>
 #include <KDtree.H>
 
+//! Make a permutation.  Share will MPI nodes if MPI is active.
+struct permutation
+{
+  permutation(unsigned n) : perm(n), g(std::random_device{}())
+  {
+    if (myid==0) std::iota(perm.begin(), perm.end(), unsigned(0));
+  }
+
+  void shuffle() {
+    if (myid==0) std::shuffle(perm.begin(), perm.end(), g);
+    if (numprocs>1)
+      MPI_Bcast(perm.data(), perm.size(), MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+  }
+
+  //! The permutation operator
+  size_t operator[](size_t n) const { return perm[n]; }
+
+private:
+  std::vector<size_t> perm;
+  std::mt19937 g;
+};
+
+
 namespace Utility
 {
-  std::vector<double> getDensityCenter(PR::PRptr reader, int Ndens)
+  std::vector<double> getDensityCenter(PR::PRptr reader, int Ndens,
+				       int stride)
   {
-    bool use_mpi;
     int flag;
     MPI_Initialized(&flag);
+
+    bool use_mpi;
     if (flag) use_mpi = true;
     else      use_mpi = false;
     
@@ -77,8 +99,18 @@ namespace Utility
   
     int nbods = points.size();
 
-    for (int i=0; i<nbods; i++) {
-      if (i % numprocs == myid) {
+    std::shared_ptr<permutation> sigma;
+
+    if (stride>1) {
+      nbods /= stride;
+      sigma = std::make_shared<permutation>(nbods);
+      sigma->shuffle();
+    }
+
+    for (int j=0; j<nbods; j++) {
+      if (j % numprocs == myid) {
+	int i = j;
+	if (sigma) i = (*sigma)[j];
 	auto ret = tree.nearestN(points[i], Ndens);
 	double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
 	double density = 0.0;

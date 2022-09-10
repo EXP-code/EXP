@@ -5,7 +5,7 @@
 
 namespace Utility
 {
-  std::vector<double> getDensityCenter(PR::PRptr reader, int Ndens);
+  std::vector<double> getDensityCenter(PR::PRptr reader, int Ndens=32, int stride=1);
   std::vector<double> getCenterOfMass (PR::PRptr reader);
 }
 
