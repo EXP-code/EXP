@@ -181,8 +181,9 @@ void BasisFactoryClasses(py::module &m) {
 	 "Initialize a biorthogonal basis from the configuration in the "
 	 "provided YAML configuration", py::arg("YAMLstring"))
     .def("createCoefficients", &Basis::Basis::createCoefficients,
-	 "Generate the coefficients from the supplied ParticleReader",
-	 py::arg("reader"))
+	 "Generate the coefficients from the supplied ParticleReader and "
+	 "the optional expansion center location",
+	 py::arg("reader"), py::arg("center") = std::vector<double>(3, 0.0))
     .def("getFields",          &Basis::Basis::getFields,
 	 "Return the field values for a cartesian position")
     .def("accumulate",         &Basis::Basis::accumulate,
