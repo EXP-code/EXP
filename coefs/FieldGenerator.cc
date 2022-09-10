@@ -4,6 +4,7 @@
 
 #include <FieldGenerator.H>
 #include <DataGrid.H>
+#include <localmpi.H>
 
 namespace Field
 {

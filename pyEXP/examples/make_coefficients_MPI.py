@@ -65,7 +65,7 @@ parameters  :
     #
     file_list = []
     # for i in range(0, 1593): file_list.append('snapshot_{:04d}.hdf5'.format(i))
-    for i in range(0, 300): file_list.append('snapshot_{:04d}.hdf5'.format(i))
+    for i in range(0, 600): file_list.append('snapshot_{:04d}.hdf5'.format(i))
 
     # Construct batches of files the particle reader.  One could use the
     # parseStringList to create batches from a vector/list of files.  NB:
@@ -77,6 +77,8 @@ parameters  :
     # null instance to trigger construction
     #
     coefs = None
+
+    centers = []
 
     for group in batches:
         okay = True
@@ -104,8 +106,21 @@ parameters  :
         reader.SelectType(compname)
         if my_rank==0: print('Selected', compname)
 
+        # This computes an expansion center from a mean density
+        # weighted position.  You could compute and cache the center
+        # array . . . or supply it in a different way
+        #
         startTime = time.time()
-        coef = halo_basis.createCoefficients(reader)
+        center = pyEXP.util.getDensityCenter(reader, 16, 10)
+        if my_rank==0:
+            print('Created center in', time.time() - startTime, 'seconds')
+            print('Center is:', center)
+            centers.append(center)
+
+        # Now compute the coefficients using this center
+        #
+        startTime = time.time()
+        coef = halo_basis.createCoefficients(reader, center)
         if my_rank==0:
             print('Created createCoefficients at Time', reader.CurrentTime(), 'for', reader.CurrentNumber(), 'particles in', time.time() - startTime, 'seconds')
 
@@ -132,5 +147,14 @@ parameters  :
         # will be appended. You only want the root process to write
         # the file.
         #
-        coefs.WriteH5Coefs('RunG_halo') 
+        coefs.WriteH5Coefs('RunG_halo_test') 
         
+        # Save the center positions
+        #
+        with open('new.centers', 'a') as f:
+            times = coefs.Times()
+            for i in range(len(times)):
+                line = '{:13.6e} {:13.6e} {:13.6e} {:13.6e}'.format
+                (times[i], centers[i][0], centers[i][1], centers[i][2])
+                f.write(line)
+                
