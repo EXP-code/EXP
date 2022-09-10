@@ -11,6 +11,10 @@ from os.path import exists
 # snapshots you have and could be run on a cluster
 #
 
+# There is a companion Jupyter Notebook called 'test_read_gadget.ipynb'
+# that reads in the coefficients made by this script to check that
+# they seem sane.
+
 # Usage:
 #
 # Run command is: "mpirun -np N python3 make_coefficients_MPI.py"
@@ -125,7 +129,8 @@ parameters  :
         print('Save the coefficients to a HDF5 file')
 
         # You can call the file something convenient.  The suffix 'h5'
-        # will be appended.
+        # will be appended. You only want the root process to write
+        # the file.
         #
         coefs.WriteH5Coefs('RunG_halo') 
         

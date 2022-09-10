@@ -1,11 +1,15 @@
 TODO
 ====
 
--- Exercise this interface like crazy to find all of the bugs and make a hit
-   list of enhancements.
+-- Exercise this interface like crazy to find all of the bugs and make
+   a hit list of enhancements.  In particular, are there missing
+   member functions in the pyEXP interface needed for critical tasks?
 
 -- Add additional workflow examples to the examples directory.  The
    existing ones need more work.
+
+-- Continue to check MPI.  At this point, parallel computation of the
+   coefficients appears to be working.
 
 -- We can remove simpleSL from utils/Analysis at some point.
    
