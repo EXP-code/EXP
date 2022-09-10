@@ -9,6 +9,7 @@ extern void CoefContainerClasses (py::module &m);
 extern void BasisFactoryClasses  (py::module &m);
 extern void FieldGeneratorClasses(py::module &m);
 extern void ParticleReaderClasses(py::module &m);
+extern void UtilityClasses       (py::module &m);
 
 PYBIND11_MODULE(pyEXP, m)
 {
@@ -25,7 +26,7 @@ PYBIND11_MODULE(pyEXP, m)
     "We recommend beginning with the example Python scripts and IPython\n"
     "notebooks and adapting them to your own needs. You can explore\n"
     "the available classes and member functions using the usual Python\n"
-    "``help'' function.  The classes are organized into five submodules\n"
+    "``help'' function.  The classes are organized into six submodules\n"
     "that are described briefly below.  Run 'help(pyEXP.xxxx) for each\n"
     "of the submodules below for more detailed usage info...\n\n"
     "The available submodules\n"
@@ -45,7 +46,11 @@ PYBIND11_MODULE(pyEXP, m)
     "     for visualization\n"
     "mssa\n"
     "     Tools to apply Multivariate Singular Spectrum Analysis (MSSA)\n"
-    "     to the coefficients computed using the 'basis' classes\n\n"
+    "     to the coefficients computed using the 'basis' classes\n"
+    "util\n"
+    "     Miscellaneous tools that support the others.  Currently this\n"
+    "     include centering algorithms.  While EXP has native methods for\n"
+    "     doing this, others will need to supply an estimated center\n\n"
     "Example workflow\n"
     "----------------\n"
     "To provide some context, suppose you want to read some snapshots,\n"
@@ -101,10 +106,15 @@ PYBIND11_MODULE(pyEXP, m)
 				  "Spectrum Analysis (MSSA) to the coefficients "
 				  "computed using the 'basis' classes");
   
+  auto mod_util = m.def_submodule("util", "Miscellaneous tools that support the "
+				  "others.  Currently these contain several "
+				  "centering algorithms.");
+
   CoefContainerClasses(mod_coefs);
   BasisFactoryClasses(mod_basis);
   FieldGeneratorClasses(mod_field);
   ParticleReaderClasses(mod_read);
   MSSAtoolkitClasses(mod_mssa);
+  UtilityClasses(mod_util);
 }
 
