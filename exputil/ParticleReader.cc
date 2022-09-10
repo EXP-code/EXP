@@ -478,10 +478,11 @@ namespace PR {
 	  std::cout << "GadgetHDF5: coordinate storage size="
 		    << dataset.getStorageSize() << std::endl;
 	
-	// Set the particle vector
+	// Clear and load the particle vector
 	//
-	Particle P;
-	
+	particles.clear();
+
+	Particle P;		// Working particle will be copied
 	for (int n=0; n<dims[0]; n++) {
 	  if (n % numprocs ==  myid) {
 	    P.mass  = mass[ptype];
