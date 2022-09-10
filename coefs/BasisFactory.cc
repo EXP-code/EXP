@@ -44,7 +44,10 @@ namespace Basis
     // Fall back sanity (works for me but this needs to be fixed
     // generally)
     //
-    if (not use_mpi) {
+    if (use_mpi) {
+      MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+      MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    } else {
       int argc = 0; char **argv = 0;
       MPI_Init(&argc, &argv);
     }
@@ -908,7 +911,8 @@ namespace Basis
   }
 
   // Generate coeffients from a particle reader
-  Coefs::CoefStrPtr Basis::createCoefficients(PR::PRptr reader)
+  Coefs::CoefStrPtr Basis::createCoefficients
+  (PR::PRptr reader, std::vector<double> ctr)
   {
     Coefs::CoefStrPtr coef;
 
@@ -925,7 +929,7 @@ namespace Basis
       
     reset_coefs();
     for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
-      accumulate(p->pos[0], p->pos[1], p->pos[2], p->mass);
+      accumulate(p->pos[0]-ctr[0], p->pos[1]-ctr[1], p->pos[2]-ctr[2], p->mass);
     }
     make_coefs();
     load_coefs(coef, reader->CurrentTime());

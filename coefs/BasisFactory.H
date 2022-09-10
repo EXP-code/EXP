@@ -86,8 +86,10 @@ namespace Basis
     
     virtual ~Basis(void) {}
     
-    //! Generate coeffients from a particle reader
-    Coefs::CoefStrPtr createCoefficients(PR::PRptr reader);
+    //! Generate coeffients from a particle reader and optional center
+    //! location for the expansion
+    Coefs::CoefStrPtr createCoefficients
+    (PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
     
     //! Get potential, density and forces at a point
     virtual void getFields
