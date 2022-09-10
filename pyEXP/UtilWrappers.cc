@@ -11,16 +11,15 @@ void UtilityClasses(py::module &m) {
   using namespace Utility;
 
   m.doc() = "Utility class bindings\n\n"
-    "This module provides classes that are useful in support of expansion\n"
-    "tasks that do not naturally fit into the main categories.  The list\n"
-    "uiltiies are:\n"
+    "This module provides routines for BFE tasks that do not naturally fit\n"
+    "into the main categories.  The current list of utilities is:\n"
     "  1. Compute the center of the particle distribution from its center\n"
-    "     of mass.  Very fast.\n"
-    "  2. Compute the density weighted center of the particle distribution\n"
-    "     from KD density estimator at each particle position. Very slow.\n"
-    "     While EXP has native methods for doing this, the KD estimator is\n"
-    "     an alternative for snapshots without native or prior expansion\n"
-    "     centers. The COM is much faster but can be very biased.\n\n";
+    "     of mass.  Very fast but easily biased.\n"
+    "  2. Compute the mean density weighted center of the particle distribu-\n"
+    "     tion from KD density estimator at each particle position. Very is\n"
+    "     very slow.  The EXP n-body code does this automatically.  The\n"
+    "     density weighted center is an alternative for snapshots without\n"
+    "     center estimates.\n\n";
 
   using namespace Utility;
 
