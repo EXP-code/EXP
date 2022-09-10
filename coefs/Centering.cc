@@ -9,7 +9,12 @@
 #include <localmpi.H>
 #include <KDtree.H>
 
-//! Make a permutation.  Share will MPI nodes if MPI is active.
+/** Make a permutation index.  Share will MPI nodes if MPI is active.
+
+    This will initialze the Mersenne Twister from the random device.
+    This initialization is not cryptographically sound, I know, but
+    that doesn't matter here.
+*/
 struct permutation
 {
   permutation(unsigned n) : perm(n), g(std::random_device{}())
@@ -101,21 +106,30 @@ namespace Utility
 
     std::shared_ptr<permutation> sigma;
 
+    // Generate the permutation.  We need this because the phase space
+    // may have order imposed by various domain decomposition schemes
+    // (e.g.).
+    //
     if (stride>1) {
       nbods /= stride;
       sigma = std::make_shared<permutation>(nbods);
       sigma->shuffle();
     }
 
+    // Run through the bodies or subsampled bodies
+    //
     for (int j=0; j<nbods; j++) {
       if (j % numprocs == myid) {
 	int i = j;
-	if (sigma) i = (*sigma)[j];
+	if (sigma) i = (*sigma)[j]; // The permutation if required
+
 	auto ret = tree.nearestN(points[i], Ndens);
+
 	double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
 	double density = 0.0;
 	if (volume>0.0 and KDmass>0.0)
 	  density = std::get<1>(ret)/volume/KDmass;
+
 	for (int k=0; k<3; k++) ctr[k] += density * points[i].get(k);
 	dentot += density;
       }
@@ -131,6 +145,7 @@ namespace Utility
     return ctr;
   }
 
+  //! Brute force center of mass computation
   std::vector<double> getCenterOfMass(PR::PRptr reader)
   {
     std::vector<double> ctr(3, 0.0);
