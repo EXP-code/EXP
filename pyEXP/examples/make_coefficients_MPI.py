@@ -29,7 +29,7 @@ if __name__ == "__main__":
     h5file  = 'RunG_halo_test'
     ctrfile = 'new.centers'
     beg_seq = 0
-    end_seq = 300
+    end_seq = 100
     nskip   = 20
 
     # Get basic information about the MPI communicator
@@ -149,8 +149,7 @@ parameters  :
         #                                             |
         if coefs is None:           #                 v
             coefs = pyEXP.coefs.Coefs.makecoefs(coef, compname)
-        else:
-            coefs.add(coef)
+        coefs.add(coef)
 
         if my_rank==0:
             print('Added coef to container')
@@ -159,23 +158,24 @@ parameters  :
     if my_rank==0:
         print('\nCompleted the file group list\n')
         print('The coefficient time list is', coefs.Times())
-        print('Save the coefficients to a HDF5 file')
 
         # You can call the file something convenient.  The suffix 'h5'
         # will be appended. You only want the root process to write
         # the file.
         #
         if exists(h5file + '.h5'):
-            coefs.ExtendH5Coefs(h5file) # Update HDF5
+            coefs.ExtendH5Coefs(h5file) # Update an existing HDF5
+            print('Saved the coefficients to an existing HDF5 file')
         else:
-            coefs.WriteH5Coefs(h5file) # New HDF5
+            coefs.WriteH5Coefs(h5file) # Create a new HDF5
+            print('Saved the coefficients to a new HDF5 file')
 
         # Save the center positions
         #
         with open(ctrfile, 'a') as f:
             times = coefs.Times()
             for i in range(len(times)):
-                line = '{:13.6e} {:13.6e} {:13.6e} {:13.6e}'.format
-                (times[i], centers[i][0], centers[i][1], centers[i][2])
+                line = '{:13.6e} {:13.6e} {:13.6e} {:13.6e}'.format(times[i], centers[i][0], centers[i][1], centers[i][2])
+                print(type(line), "line=", line)
                 f.write(line)
                 
