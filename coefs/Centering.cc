@@ -1,6 +1,3 @@
-#include <iostream>
-#include <iomanip>
-
 #include <ParticleReader.H>
 #include <permutation.H>
 #include <localmpi.H>
@@ -13,8 +10,8 @@ namespace Utility
     int use_mpi;
     MPI_Initialized(&use_mpi);
 
-    // Fall back sanity (works for me but this needs to be fixed
-    // generally)
+    // Fall back sanity for MPI. Appears to allow MPI calls without
+    // 'mpirun' but may be an accident.
     //
     if (use_mpi) {
       MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
