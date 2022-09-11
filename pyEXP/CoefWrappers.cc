@@ -14,6 +14,17 @@ void CoefContainerClasses(py::module &m) {
   m.doc() = "CoefContainer class bindings\n\n"
     "These classes store, write, and provide an interface to coefficients\n"
     "and table data for use by the other pyEXP classes.\n\n"
+    "CoefStruct\n"
+    "----------\n"
+    "The CoefStruct class is low-level structure that stores the data\n"
+    "and metadata specific to each geometry. These are spherical\n"
+    "(SphStruct), cylindrical (CylStruct), and table data (TblStruct).\n"
+    "Instances of these represent individual times points. These\n"
+    "are created, maintained, and interfaced by the Coefs class.\n"
+    "Access to the underlying data is provided to Python in case\n"
+    "you need to change or rewrite the data for some reason.\n\n"
+    "Coefs\n"
+    "-----\n"
     "The base class, 'Coefs', provides a factory reader that will\n"
     "create one of the derived coefficient classes, SphCoef, CylCoef,\n"
     "or TblCoef, deducing the type from the input file.  The input\n"
@@ -346,13 +357,20 @@ void CoefContainerClasses(py::module &m) {
   };
 
   py::class_<Coefs::CoefStruct, std::shared_ptr<Coefs::CoefStruct>, PyCoefStruct>(m, "CoefStruct")
-    .def(py::init<>(), "Base class coefficient data structure object");
+    .def(py::init<>(), "Base class coefficient data structure object")
+    .def_readonly("time",     &CoefStruct::time,  "The data's time")
+    .def_readonly("geometry", &CoefStruct::geom,  "The geometry type")
+    .def_readwrite("data",    &CoefStruct::coefs, "Read-write access to the underlying data store");
+  
 
   py::class_<Coefs::SphStruct, std::shared_ptr<Coefs::SphStruct>, CoefStruct>(m, "SphStruct")
     .def(py::init<>(), "Spherical coefficient data structure object");
 
   py::class_<Coefs::CylStruct, std::shared_ptr<Coefs::CylStruct>, CoefStruct>(m, "CylStruct")
     .def(py::init<>(), "Cylindrical coefficient data structure object");
+
+  py::class_<Coefs::TblStruct, std::shared_ptr<Coefs::TblStruct>, CoefStruct>(m, "TblStruct")
+    .def(py::init<>(), "Multicolumn table data structure object");
 
   py::class_<Coefs::Coefs, std::shared_ptr<Coefs::Coefs>, PyCoefs>(m, "Coefs")
     .def(py::init<std::string, bool>(),
