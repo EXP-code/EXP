@@ -8,16 +8,11 @@
 
 namespace Utility
 {
-  std::vector<double> getDensityCenter(PR::PRptr reader, int Ndens,
-				       int stride)
+  std::vector<double> getDensityCenter(PR::PRptr reader, int stride, int Ndens)
   {
-    int flag;
-    MPI_Initialized(&flag);
+    int use_mpi;
+    MPI_Initialized(&use_mpi);
 
-    bool use_mpi;
-    if (flag) use_mpi = true;
-    else      use_mpi = false;
-    
     // Fall back sanity (works for me but this needs to be fixed
     // generally)
     //
@@ -75,21 +70,21 @@ namespace Utility
 
     std::shared_ptr<permutation> sigma;
 
-    // Generate the permutation.  We need this because the phase space
-    // may have order imposed by various domain decomposition schemes
-    // (e.g.).
+    // Generate the permutation if the stride is greater than 1.  We
+    // need this because the phase space from some codes may have
+    // order imposed by their domain decomposition schemes.
     //
     if (stride>1) {
-      nbods /= stride;
       sigma = std::make_shared<permutation>(nbods);
       sigma->shuffle();
+      nbods /= stride;		// Compute the new subsample size
     }
 
     // Run through the bodies or subsampled bodies
     //
     for (int j=0; j<nbods; j++) {
       if (j % numprocs == myid) {
-	int i = j;
+	int i = j;		    // Default to no permutation
 	if (sigma) i = (*sigma)[j]; // The permutation if required
 
 	auto ret = tree.nearestN(points[i], Ndens);

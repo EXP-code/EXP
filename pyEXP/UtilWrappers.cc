@@ -27,12 +27,13 @@ void UtilityClasses(py::module &m) {
   using namespace Utility;
 
   m.def("getDensityCenter", &getDensityCenter,
-	"Compute the center of the particle component using the density "
-	"weighted position using KD NN estimator.  Ndens is the number "
-	"of particles per sample ball (32 is a good choice; 16 is okay if "
-	"you are trying to shave off runtime. A stride >1 will generate a "
-	"subsample of every nth particle over a random permutation",
-	py::arg("reader"), py::arg("Ndens")=32, py::arg("stride")=1);
+	"Compute the center of the particle component using the density\n"
+	"weighted position using KD NN estimator.  A stride >1 will\n"
+	"generate a subsample of every nth particle over a random\n"
+	"permutation. Ndens is the number of particles per sample ball\n"
+	"(32 is a good compromise between accuracy and runtime; 16 is\n"
+	"okay if you are trying to shave off runtime.",
+	py::arg("reader"), py::arg("stride")=1, py::arg("Ndens")=32);
 
   m.def("getCenterOfMass", &getCenterOfMass,
 	"Compute the center of mass for the particle component",

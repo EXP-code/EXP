@@ -5,21 +5,24 @@
 #include <numeric>
 #include <random>
 
+
+
 /** Make a permutation index.  Share will MPI nodes if MPI is active.
 
     Should fall back politely to single processor use.
-
-    This will initialze the Mersenne Twister from the random device.
-    This initialization is not cryptographically sound, I know, but
-    that doesn't matter here.
 */
-struct permutation
+class permutation
 {
-  permutation(unsigned n) : perm(n), g(std::random_device{}())
+public:
+
+  // Initialize and generate the identity permutation
+  permutation(unsigned n, bool full=false) : perm(n), g(std::random_device{}())
   {
-    if (myid==0) std::iota(perm.begin(), perm.end(), unsigned(0));
+    if (full) seed19937();	// Hard-core mt19937 initialization
+    std::iota(perm.begin(), perm.end(), unsigned(0));
   }
 
+  // Create and share the random permutation
   void shuffle() {
     if (myid==0) std::shuffle(perm.begin(), perm.end(), g);
     if (numprocs>1)
@@ -32,6 +35,25 @@ struct permutation
 private:
   std::vector<size_t> perm;
   std::mt19937 g;
+
+  // Seed the Mersenne Twister from the random device
+  void seed19937()
+  {
+    // A hardware random # generator, hopefully
+    std::random_device rdev;
+
+    // Generate an array that fills the state
+    std::seed_seq::result_type data[std::mt19937::state_size];
+
+    // Generate random number for the full state
+    std::generate_n(data, std::mt19937::state_size, std::ref(rdev));
+    
+    // Fill the sequence
+    std::seed_seq prng_seed (data, data + std::mt19937::state_size);
+
+    // Finally, seed the mt19937
+    g.seed(prng_seed);
+  }
 };
 
 #endif

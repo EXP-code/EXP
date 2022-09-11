@@ -24,6 +24,14 @@ from os.path import exists
 
 if __name__ == "__main__":
 
+    # Parameters
+    #
+    h5file  = 'RunG_halo_test'
+    ctrfile = 'new.centers'
+    beg_seq = 0
+    end_seq = 300
+    nskip   = 20
+
     # Get basic information about the MPI communicator
     #
     world_comm = MPI.COMM_WORLD
@@ -61,11 +69,12 @@ parameters  :
     #
     halo_basis = pyEXP.basis.Basis.factory(halo_config)
 
-    # Make the file list.  Here, I'm making the first 300 snaps.
+    # Make the file list for the snapshot sequence assumed have the
+    # format: snapshot_XXXX.hdf5.  Change as necessary.
     #
     file_list = []
-    # for i in range(0, 1593): file_list.append('snapshot_{:04d}.hdf5'.format(i))
-    for i in range(0, 600): file_list.append('snapshot_{:04d}.hdf5'.format(i))
+    for i in range(beg_seq, end_seq):
+        file_list.append('snapshot_{:04d}.hdf5'.format(i))
 
     # Construct batches of files the particle reader.  One could use the
     # parseStringList to create batches from a vector/list of files.  NB:
@@ -104,16 +113,22 @@ parameters  :
 
         compname = 'Halo'
         reader.SelectType(compname)
-        if my_rank==0: print('Selected', compname)
+        if my_rank==0: print('We selected:', compname)
 
         # This computes an expansion center from a mean density
         # weighted position.  You could compute and cache the center
         # array . . . or supply it in a different way
         #
         startTime = time.time()
-        center = pyEXP.util.getDensityCenter(reader, 16, 10)
+        center = pyEXP.util.getDensityCenter(reader, nskip)
+        #                                            ^
+        #                                            |
+        # Choose every nskip particle for sample ----+
+        # This is 10^6 samples for these snaps and nskip=20
+        #
         if my_rank==0:
-            print('Created center in', time.time() - startTime, 'seconds')
+            print('Created center in {:4.2f} seconds'.
+                  format(time.time() - startTime))
             print('Center is:', center)
             centers.append(center)
 
@@ -122,7 +137,10 @@ parameters  :
         startTime = time.time()
         coef = halo_basis.createCoefficients(reader, center)
         if my_rank==0:
-            print('Created createCoefficients at Time', reader.CurrentTime(), 'for', reader.CurrentNumber(), 'particles in', time.time() - startTime, 'seconds')
+            print('Created createCoefficients at Time {:5.3f} for {} particles '
+                  'in {:4.2f} seconds'.
+                  format(reader.CurrentTime(), reader.CurrentNumber(),
+                         time.time() - startTime))
 
         # We need this stupid idiom here because None is not mapping to a
         # null pointer.  There is probably a way to do this.  Suggestions
@@ -147,11 +165,14 @@ parameters  :
         # will be appended. You only want the root process to write
         # the file.
         #
-        coefs.WriteH5Coefs('RunG_halo_test') 
-        
+        if exists(h5file + '.h5'):
+            coefs.ExtendH5Coefs(h5file) # Update HDF5
+        else:
+            coefs.WriteH5Coefs(h5file) # New HDF5
+
         # Save the center positions
         #
-        with open('new.centers', 'a') as f:
+        with open(ctrfile, 'a') as f:
             times = coefs.Times()
             for i in range(len(times)):
                 line = '{:13.6e} {:13.6e} {:13.6e} {:13.6e}'.format
