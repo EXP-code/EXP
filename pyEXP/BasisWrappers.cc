@@ -178,10 +178,10 @@ void BasisFactoryClasses(py::module &m) {
 
   py::class_<Basis::Basis, std::shared_ptr<Basis::Basis>, PyBasis>(m, "Basis")
     .def(py::init<const std::string&>(),
-	 "Initialize a biorthogonal basis from the configuration in the "
+	 "Initialize a biorthogonal basis from the configuration in the\n"
 	 "provided YAML configuration", py::arg("YAMLstring"))
     .def("createCoefficients", &Basis::Basis::createCoefficients,
-	 "Generate the coefficients from the supplied ParticleReader and "
+	 "Generate the coefficients from the supplied ParticleReader and\n"
 	 "the optional expansion center location",
 	 py::arg("reader"), py::arg("center") = std::vector<double>(3, 0.0))
     .def("getFields",
@@ -194,12 +194,15 @@ void BasisFactoryClasses(py::module &m) {
 	   return ret;
 	 },
 	 "Return the density, potential, and forces for a cartesian position.\n"
-	 "Field order is: dens0, potl0, dens, potl, fx, fy, fz",
+	 "Field order is: dens0, potl0, dens, potl, fx, fy, fz. Dens0 and\n"
+	 "potl0 are the fields evaluated for l=0 or m=0 and dens and potl\n"
+	 "are evaluated for l>0 or m>0\n",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
     .def("accumulate",         &Basis::Basis::accumulate,
 	 "Add the contribution of a single particle to the coefficients")
     .def("getMass",            &Basis::Basis::getMass,
-	 "Return the total mass of particles contributing the the current coefficient set")
+	 "Return the total mass of particles contributing the the current\n"
+	 "coefficient set")
     .def("reset_coefs",        &Basis::Basis::reset_coefs,
 	 "Reset the coefficients to begin a generating a new set")
     .def("make_coefs",         &Basis::Basis::make_coefs,
