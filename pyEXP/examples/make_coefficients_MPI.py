@@ -29,7 +29,7 @@ if __name__ == "__main__":
     h5file  = 'RunG_halo_test'
     ctrfile = 'new.centers'
     beg_seq = 0
-    end_seq = 100
+    end_seq = 400
     nskip   = 20
 
     # Get basic information about the MPI communicator
@@ -175,7 +175,6 @@ parameters  :
         with open(ctrfile, 'a') as f:
             times = coefs.Times()
             for i in range(len(times)):
-                line = '{:13.6e} {:13.6e} {:13.6e} {:13.6e}'.format(times[i], centers[i][0], centers[i][1], centers[i][2])
-                print(type(line), "line=", line)
+                line = '{:13.6e} {:13.6e} {:13.6e} {:13.6e}\n'.format(times[i], centers[i][0], centers[i][1], centers[i][2])
                 f.write(line)
                 
