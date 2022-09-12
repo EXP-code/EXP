@@ -415,7 +415,8 @@ void CoefContainerClasses(py::module &m) {
 		py::arg("tmax")= std::numeric_limits<double>::max())
     .def_static("makecoefs", &Coefs::Coefs::makecoefs,
 		"Create a new coefficient instance compatible with the "
-		"supplied coefficient structure",
+		"supplied coefficient structure. You still need to call "
+		"add() to add the coefficient structure to the container",
 		py::arg("coef"), py::arg("name")="");
 
   py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs, Coefs::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
