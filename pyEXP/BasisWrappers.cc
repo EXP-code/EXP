@@ -34,7 +34,7 @@ void BasisFactoryClasses(py::module &m) {
     void all_eval(double r, double costh, double phi,
 		  double& den0, double& den1,
 		  double& pot0, double& pot1,
-		  double& potr, double&pott, double& potp)override {
+		  double& potr, double& pott, double& potp)override {
       PYBIND11_OVERRIDE_PURE(void, Basis, all_eval,
 			     r, costh, phi, den0, den1, pot0, pot1,
 			     potr, pott, potp);
@@ -132,7 +132,7 @@ void BasisFactoryClasses(py::module &m) {
     void all_eval(double r, double costh, double phi,
 		  double& den0, double& den1,
 		  double& pot0, double& pot1,
-		  double& potr, double&pott, double& potp)override {
+		  double& potr, double& pott, double& potp)override {
       PYBIND11_OVERRIDE(void, Cylindrical, all_eval,
 			r, costh, phi, den0, den1, pot0, pot1,
 			potr, pott, potp);
@@ -184,8 +184,18 @@ void BasisFactoryClasses(py::module &m) {
 	 "Generate the coefficients from the supplied ParticleReader and "
 	 "the optional expansion center location",
 	 py::arg("reader"), py::arg("center") = std::vector<double>(3, 0.0))
-    .def("getFields",          &Basis::Basis::getFields,
-	 "Return the field values for a cartesian position")
+    .def("getFields",
+	 [](Basis::Basis& A, double x, double y, double z)
+	 {
+	   std::vector<double> ret(7);
+	   A.getFields(x, y, z,
+		       ret[0], ret[1], ret[2], ret[3],
+		       ret[4], ret[5], ret[6]);
+	   return ret;
+	 },
+	 "Return the density, potential, and forces for a cartesian position.\n"
+	 "Field order is: dens0, potl0, dens, potl, fx, fy, fz",
+	 py::arg("x"), py::arg("y"), py::arg("z"))
     .def("accumulate",         &Basis::Basis::accumulate,
 	 "Add the contribution of a single particle to the coefficients")
     .def("getMass",            &Basis::Basis::getMass,
@@ -194,6 +204,8 @@ void BasisFactoryClasses(py::module &m) {
 	 "Reset the coefficients to begin a generating a new set")
     .def("make_coefs",         &Basis::Basis::make_coefs,
 	 "Create the coefficients after particle accumuluation is complete")
+    .def("set_coefs",          &Basis::Basis::set_coefs,
+	 "Install a new set of coefficients from a CoefStruct")
     .def("factory",            &Basis::Basis::factory_string,
 	 "Generate a basis from a YAML configuration supplied as a string");
 

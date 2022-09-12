@@ -28,8 +28,8 @@ if __name__ == "__main__":
     #
     h5file  = 'RunG_halo_test'
     ctrfile = 'new.centers'
-    beg_seq = 0
-    end_seq = 400
+    beg_seq = 500
+    end_seq = 600
     nskip   = 20
 
     # Get basic information about the MPI communicator
@@ -149,6 +149,9 @@ parameters  :
         #                                             |
         if coefs is None:           #                 v
             coefs = pyEXP.coefs.Coefs.makecoefs(coef, compname)
+
+        # Add the coefficients to the container
+        #
         coefs.add(coef)
 
         if my_rank==0:

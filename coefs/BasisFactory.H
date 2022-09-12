@@ -70,9 +70,6 @@ namespace Basis
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(Coefs::CoefStrPtr coefs, double time) = 0;
 
-    //! Set coefficients
-    virtual void set_coefs(Coefs::CoefStrPtr coefs) = 0;
-
     //! Using MPI
     bool use_mpi;
 
@@ -109,6 +106,9 @@ namespace Basis
     //! Make coefficients after accumulation
     virtual void make_coefs(void) = 0;
     
+    //! Provide a set of coefficients using a CoefStruct
+    virtual void set_coefs(Coefs::CoefStrPtr coefs) = 0;
+
     //@{
     //! The coefficient factory.  Creates a shared pointer to derived
     //! instance of the desired type and returns it.

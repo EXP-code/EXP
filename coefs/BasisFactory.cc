@@ -221,6 +221,7 @@ namespace Basis
     Coefs::SphStruct* cf = dynamic_cast<Coefs::SphStruct*>(coef.get());
 
     // Assign internal coefficient table (doubles) from the complex struct
+    //
     for (int l=0, L=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<nmax; n++) {
@@ -424,13 +425,16 @@ namespace Basis
     double densfac = 1.0/(rscl*rscl*rscl) * 0.25/M_PI;
     double potlfac = 1.0/rscl;
     
-    den0  *= densfac;
-    den1  *= densfac;
-    pot0  *= potlfac;
-    pot1  *= potlfac;
-    potr  *= potlfac/rscl;
-    pott  *= potlfac*sinth;
-    potp  *= potlfac;
+    den0  *=  densfac;
+    den1  *=  densfac;
+    pot0  *=  potlfac;
+    pot1  *=  potlfac;
+    potr  *= -potlfac/rscl;
+    pott  *= -potlfac*sinth;
+    potp  *= -potlfac;
+    //       ^
+    //       |
+    //       +--- Return force not potential gradient
   }
   
   
