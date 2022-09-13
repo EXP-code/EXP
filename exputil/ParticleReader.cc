@@ -15,6 +15,7 @@
 #include <H5Cpp.h>		// HDF5 C++ support
 
 #include <ParticleReader.H>
+#include <P2Quantile.H>
 #include <gadget.H>
 #include <Sutils.H>		// For string trimming
 
@@ -1599,6 +1600,83 @@ namespace PR {
     packParticle();
     return &P;
   }
+
+  // A generic all particle type version
+  // -----------------------------------
+  // Print stats for the currently selected component
+  //
+  void ParticleReader::PrintSummary(ostream &out, bool stats, bool timeonly)
+  {
+    out << "Time=" << CurrentTime() << std::endl;
+    
+    if (!timeonly) {
+      out << "   Number of particles : " << CurrentNumber() << std::endl;
+
+
+      // Initialize lists
+      //
+      std::vector<P2Quantile> pos_med(3), vel_med(3);
+      std::vector<double> pos_avg(3, 0.0);
+      std::vector<double> vel_avg(3, 0.0);
+      std::vector<double> pos_min(3,  std::numeric_limits<double>::max());
+      std::vector<double> vel_min(3,  std::numeric_limits<double>::max());
+      std::vector<double> pos_max(3, -std::numeric_limits<double>::max());
+      std::vector<double> vel_max(3, -std::numeric_limits<double>::max());
+
+      const double pct = 0.003;
+      double mtot = 0.0;
+      std::vector<double> p(3), v(3);
+
+      // Run through particles
+      //
+      for (auto P=firstParticle(); P!=0; P=nextParticle()) {
+	mtot += P->mass;
+	for (unsigned k=0; k<3; k++) {
+	  pos_avg[k] += P->mass * P->pos[k];
+	  pos_med[k].addValue(P->pos[k]);
+	  vel_avg[k] += P->mass * P->vel[k];
+	  vel_med[k].addValue(P->vel[k]);
+	  pos_min[k] = std::min<double>(pos_min[k], P->pos[k]);
+	  pos_max[k] = std::max<double>(pos_max[k], P->pos[k]);
+	  
+	  vel_min[k] = std::min<double>(vel_min[k], P->vel[k]);
+	  vel_max[k] = std::max<double>(vel_max[k], P->vel[k]);
+	}
+      }
+
+      out << std::endl << std::setw(20) << "*** Position" 
+	  << std::setw(15) << "X" << std::setw(15) << "Y" << std::setw(15) << "Z"
+	  << std::endl
+	  << std::setw(20) << "Min :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_min[k];
+      out << std::endl
+	  << std::setw(20) << "Med :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_med[k].getQuantile();
+      out << std::endl
+	  << std::setw(20) << "Avg :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_avg[k]/mtot;
+      out << std::endl
+	  << std::setw(20) << "Max :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_max[k];
+      out << std::endl
+	  << std::endl << std::setw(20) << "*** Velocity"
+	  << std::setw(15) << "U" << std::setw(15) << "V" << std::setw(15) << "W"
+	  << std::endl
+	  << std::setw(20) << "Min :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_min[k];
+      out << std::endl
+	  << std::setw(20) << "Med :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_med[k].getQuantile();
+      out << std::endl
+	  << std::setw(20) << "Med :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_avg[k]/mtot;
+      out << std::endl
+	  << std::setw(20) << "Max :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_max[k];
+      out << std::endl;
+    }
+  }
+  // END generic base-class PrintSummary()
 
 }
 // END: PR namespace

@@ -104,11 +104,6 @@ void ParticleReaderClasses(py::module &m) {
       PYBIND11_OVERRIDE(const Particle*, GadgetHDF5, nextParticle,);
     }
 
-    void PrintSummary(std::ostream& out, bool stats, bool timeonly) override {
-      PYBIND11_OVERRIDE(void, GadgetHDF5, PrintSummary,
-			out, stats, timeonly);
-    }
-    
   };
 
   class PyGadgetNative : public GadgetNative
@@ -142,11 +137,6 @@ void ParticleReaderClasses(py::module &m) {
       PYBIND11_OVERRIDE(const Particle*, GadgetNative, nextParticle,);
     }
 
-    void PrintSummary(std::ostream& out, bool stats, bool timeonly) override {
-      PYBIND11_OVERRIDE(void, GadgetNative, PrintSummary,
-			out, stats, timeonly);
-    }
-    
   };
 
   class PyPSP : public PSP
@@ -246,11 +236,6 @@ void ParticleReaderClasses(py::module &m) {
       PYBIND11_OVERRIDE(const Particle*, Tipsy,	nextParticle,);
     }
 
-    void PrintSummary(std::ostream& out, bool stats, bool timeonly) override {
-      PYBIND11_OVERRIDE(void, Tipsy, PrintSummary,
-			out, stats, timeonly);
-    }
-    
   };
 
 
@@ -277,10 +262,13 @@ void ParticleReaderClasses(py::module &m) {
   pr.def("CurrentTime",     &ParticleReader::CurrentTime,
 	 "Return the time for the current snapshot");
   
-  pr.def("PrintSummary",    &ParticleReader::PrintSummary,
+  pr.def("PrintSummary",
+	 [](ParticleReader& A, bool stats, bool timeonly)
+	 { A.PrintSummary(std::cout, stats, timeonly); },
 	 "Print a summary of list of extents, center of mass, and "
 	 "other global quantities for this snapshopt.  This requires "
-	 "a read pass and may be time consuming");
+	 "a read pass and may be time consuming",
+	 py::arg("stats")=true, py::arg("timeonly")=false);
   
   pr.def_static("parseFileList", &ParticleReader::parseFileList,
 		py::doc("Read snapshot file names from a file and format into "
@@ -321,7 +309,14 @@ void ParticleReaderClasses(py::module &m) {
   py::class_<PSP, std::shared_ptr<PSP>, PyPSP, ParticleReader>(m, "PSP")
     .def(py::init<bool>(), "Base class for PSP reader")
     .def("SelectType",      &PSP::SelectType)
-    .def("PrintSummary",    &PSP::PrintSummary);
+    .def("PrintSummary",
+	 [](PSP& A, bool stats, bool timeonly)
+	 { A.PrintSummary(std::cout, stats, timeonly); },
+	 "Print a summary of list of extents, center of mass, and "
+	 "other global quantities for this snapshopt.  This requires "
+	 "a read pass and may be time consuming",
+	 py::arg("stats")=true, py::arg("timeonly")=false);
+
 
   py::class_<PSPout, std::shared_ptr<PSPout>, PyPSPout, PSP>(m, "PSPout")
     .def(py::init<const std::vector<std::string>&, bool>(),
@@ -338,7 +333,7 @@ void ParticleReaderClasses(py::module &m) {
     .def("GetTypes",        &PSPspl::GetTypes)
     .def("CurrentTime",     &PSPspl::CurrentTime);
 	 
-py::class_<Tipsy, std::shared_ptr<Tipsy>, PyTipsy, ParticleReader> tipsy(m, "Tipsy");
+  py::class_<Tipsy, std::shared_ptr<Tipsy>, PyTipsy, ParticleReader> tipsy(m, "Tipsy");
   
   py::enum_<Tipsy::TipsyType>(tipsy, "TipsyType")
     .value("native", Tipsy::TipsyType::native)
@@ -351,8 +346,7 @@ py::class_<Tipsy, std::shared_ptr<Tipsy>, PyTipsy, ParticleReader> tipsy(m, "Tip
     .def("SelectType",      &Tipsy::SelectType)
     .def("CurrentNumber",   &Tipsy::CurrentNumber)
     .def("GetTypes",        &Tipsy::GetTypes)
-    .def("CurrentTime",     &Tipsy::CurrentTime)
-    .def("PrintSummary",    &Tipsy::PrintSummary);
+    .def("CurrentTime",     &Tipsy::CurrentTime);
 
 }
 
