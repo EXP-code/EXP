@@ -183,6 +183,12 @@ namespace MSSA
        @param toFile write to file if true
     */
     void kmeans(int clusters, bool toTerm=true, bool toFile=false);
+
+    //! Save current MSSA state to an HDF5 file with the given prefix
+    void saveState(const std::string& prefix);
+
+    //! Restore current MSSA state to an HDF5 file with the given prefix
+    void restoreState(const std::string& prefix);
   };
 
 

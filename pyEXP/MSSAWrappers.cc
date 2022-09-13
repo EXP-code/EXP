@@ -130,7 +130,17 @@ void MSSAtoolkitClasses(py::module &m) {
     "often need to be used iteratively.  First, to learn about the primary\n"
     "signals in your data and catagorize the PCs into groups.  Second, a\n"
     "new analysis that provides separation of your main distinct signals\n"
-    "into individual reconstructions\n\n";
+    "into individual reconstructions\n\n"
+    "Save/Restore\n"
+    "------------\n"
+    "MSSA analyses can be computationally intensive so we include a way\n"
+    "to serialize the state to an HDF5 file.  The saveState(prefix) member\n"
+    "takes a prefix file parameter and creates the file <prefix>_mssa.h5.\n"
+    "You may restore the state by recreating your expMSSA instance with\n"
+    "the identical input data and keys and then using restoreState(prefix)\n"
+    "to read the MSSA analysis from the HDF5 file.  The restore step will\n"
+    "check that your data has the same dimension, same parameters, and key\n"
+    "list so it should be pretty hard to fool, but not impossible.\n\n";
   
   using namespace MSSA;
 
@@ -150,19 +160,19 @@ void MSSAtoolkitClasses(py::module &m) {
 	"Return the vector of eigenvalues from the MSSA analysis");
   
   f.def("getU", &expMSSA::getU,
-	"Return the right-singular) vectors from the MSSA analysis "
+	"Return the right-singular) vectors from the MSSA analysis\n"
 	"which describe the contribution of each channel to each PC");
 
   f.def("getPC", &expMSSA::getPC,
-	"Return the principle component (left-singular) vectors from the MSSA "
+	"Return the principle component (left-singular) vectors from the MSSA\n"
 	"analysis which describe the key temporal variation");
 
   f.def("pcDFT", &expMSSA::pcDFT,
-	"Return the DFT of the principal component vectors for quantifying "
+	"Return the DFT of the principal component vectors for quantifying\n"
 	"temporal power distribution", py::arg("freq"), py::arg("period"));
 
   f.def("channelDFT", &expMSSA::channelDFT,
-	"Return the DFT of the selected data channels for comparison with "
+	"Return the DFT of the selected data channels for comparison with\n"
 	"the PC power",	py::arg("freq"), py::arg("period"));
 
   f.def("reconstruct", &expMSSA::reconstruct,
@@ -170,19 +180,19 @@ void MSSAtoolkitClasses(py::module &m) {
 	"indices (a group).", py::arg("evlist")=std::vector<int>());
 
   f.def("getReconstructed", &expMSSA::getReconstructed,
-	"Return the reconstucted time series in the orginal coefficient form "
-	"that may be used in basis classes.  Note: the reconstructed data "
+	"Return the reconstucted time series in the orginal coefficient form\n"
+	"that may be used in basis classes.  Note: the reconstructed data\n"
 	"will overwrite the memory of the original coefficient data.",
 	py::arg("zero") = false);
 
   f.def("wCorr", &expMSSA::wCorr,
-	"Get the w-correlation matrix for the selected component and channel "
+	"Get the w-correlation matrix for the selected component and channel\n"
 	"key.  Returns the combined cosine+sine correlation for complex types",
 	py::arg("name"), py::arg("key"));
 
   f.def("wCorrKey", &expMSSA::wCorrKey,
-	"Get the w-correlation matrix for the selected component and channel "
-	"key extended by the cosine/sine index if the channel is complex and "
+	"Get the w-correlation matrix for the selected component and channel\n"
+	"key extended by the cosine/sine index if the channel is complex and\n"
 	"the component index", py::arg("key"));
 
   f.def("wCorrAll", &expMSSA::wCorrAll,
@@ -192,9 +202,9 @@ void MSSAtoolkitClasses(py::module &m) {
 	"Create wcorrlation matricies and output PNG image representations");
 
   f.def("kmeans", &expMSSA::kmeans,
-	"Perform a k-means analysis on the reconstructed trajectory matrices "
-	"to provide grouping insight.  This will write to the standard output "
-	"by default.  Set toFile=True to write ot a file.  The file name will "
+	"Perform a k-means analysis on the reconstructed trajectory matrices\n"
+	"to provide grouping insight.  This will write to the standard output\n"
+	"by default.  Set toFile=True to write ot a file.  The file name will\n"
 	"be derived from the 'output' parameter",
 	py::arg("clusters")=4,
 	py::arg("toTerm")=true,
@@ -204,4 +214,20 @@ void MSSAtoolkitClasses(py::module &m) {
 	"Computes the relative contribution of each PC to the coefficient "
 	"series and the breakdown of the coefficient series to each PC. "
 	"The results are rendered as PNG images");
+
+  f.def("saveState", &expMSSA::saveState,
+	"Save current MSSA state to an HDF5 file with the given prefix",
+	py::arg("prefix"));
+
+  f.def("restoreState", &expMSSA::restoreState,
+	"Restore current MSSA state from an HDF5 file with the given prefix.\n"
+	"To use this, the expMSSA instance must be constructed with the same\n"
+	"data and parameters as the save stated.  The restoreState routine will\n"
+	"check for the same data dimension and trend state but can not sure\n"
+	"complete consistency.\n",
+	py::arg("prefix"));
+
+    //! Restore current MSSA state to an HDF5 file with the given prefix
+    void restoreState(const std::string& prefix);
+
 }

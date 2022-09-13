@@ -19,7 +19,14 @@
 #include <cmath>
 #include <map>
 
+#include "config.h"
+
 #include <Eigen/Dense>
+
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
 
 /* For debugging
    #undef eigen_assert
@@ -606,8 +613,7 @@ namespace MSSA {
 	    out << std::setw(15) << std::setprecision(6) << coefDB.times[i];
 	    for (int w=0; w<ncomp; w++)
 	      out << std::setw(15) << std::setprecision(6)
-		// << RC[u.first](i, w)*disp + u.second;
-		  << RC[u.first](i, w);
+		  << RC[u.first](i, w)*disp + u.second;
 	    out << std::endl;
 	  }
 	} else {
@@ -1346,6 +1352,196 @@ namespace MSSA {
   }
   
   
+  // Save current MSSA state to an HDF5 file with the given prefix
+  void expMSSA::saveState(const std::string& prefix)
+  {
+    if (not computed) return;	// No point in saving anything
+
+    try {
+      // Create a new hdf5 file
+      //
+      HighFive::File file(prefix + "_mssa.h5",
+			  HighFive::File::ReadWrite |
+			  HighFive::File::Create);
+      
+      // Write the time dimension
+      //
+      file.createAttribute<int>("numT", HighFive::DataSpace::From(numT)).write(numT);
+      
+      // Write the number of channels
+      //
+      file.createAttribute<int>("nKeys", HighFive::DataSpace::From(nkeys)).write(nkeys);
+      
+      // Write the window size
+      //
+      file.createAttribute<int>("numW", HighFive::DataSpace::From(numW)).write(numW);
+      
+      // Write the number of PCs
+      //
+      file.createAttribute<int>("numPC", HighFive::DataSpace::From(npc)).write(npc);
+      
+      // Save trend state
+      //
+      int trend = static_cast<std::underlying_type<TrendType>::type>(type);
+      file.createAttribute<bool>("trendType", HighFive::DataSpace::From(trend)).write(trend);
+
+      // Save the key list
+      //
+      std::vector<Key> keylist;
+      for (auto k : mean) keylist.push_back(k.first);
+      file.createDataSet("keylist", keylist);
+      
+      // Save mssa_analysis state
+      //
+      HighFive::Group analysis = file.createGroup("mssa_analysis");
+
+      analysis.createDataSet("Y",  Y );
+      analysis.createDataSet("S",  S );
+      analysis.createDataSet("U",  U );
+      analysis.createDataSet("PC", PC);
+      
+      // Save reconstruction
+      //
+      if (reconstructed) {
+	HighFive::Group recon = file.createGroup("reconstruction");
+
+	recon.createAttribute<int>   ("ncomp",  HighFive::DataSpace::From(ncomp) ).write(ncomp);
+	recon.createAttribute<double>("totVar", HighFive::DataSpace::From(totVar)).write(totVar);
+	recon.createAttribute<double>("totPow", HighFive::DataSpace::From(totVar)).write(totPow);
+
+	for (int n=0; n<keylist.size(); n++) {
+	  std::ostringstream scnt;
+	  scnt << "RC_" << n;
+	  recon.createDataSet(scnt.str(), RC[keylist[n]]);
+	}
+      }
+      
+    } catch (HighFive::Exception& err) {
+      std::cerr << err.what() << std::endl;
+    }
+  }
+
+  // Restore current MSSA state to an HDF5 file with the given prefix
+  void expMSSA::restoreState(const std::string& prefix)
+  {
+    try {
+      // Silence the HDF5 error stack
+      //
+      HighFive::SilenceHDF5 quiet;
+      
+      // Try opening the file as HDF5
+      //
+      HighFive::File h5file(prefix + "_mssa.h5", HighFive::File::ReadOnly);
+      
+      // Read and check parameters
+      //
+      int nTime, nKeys, numW1, numPC, trend;
+
+      h5file.getAttribute("numT" ).read(nTime);
+      h5file.getAttribute("nKeys").read(nKeys);
+      h5file.getAttribute("numW" ).read(numW1);
+      h5file.getAttribute("numPC").read(numPC);
+      h5file.getAttribute("trendType").read(trend);
+      
+      // Number of channels
+      //
+      nkeys = mean.size();
+
+      // Test recovered parameters
+      //
+      if (nTime != numT) {
+	std::ostringstream sout;
+	sout << "expMSSA::restoreState: saved state has numT="
+	     << nTime << " but expMSSA expects numT=" << numT
+	     << ".  Can't restore mssa state!";
+	throw std::runtime_error(sout.str());
+      }
+      
+      if (nKeys != nkeys) {
+	std::ostringstream sout;
+	sout << "expMSSA::restoreState: saved state has nkeys="
+	     << nKeys << " but expMSSA expects nkeys=" << nkeys
+	     << ".  Can't restore mssa state!";
+	throw std::runtime_error(sout.str());
+      }
+      
+      if (numW != numW1) {
+	std::ostringstream sout;
+	sout << "expMSSA::restoreState: saved state has numW="
+	     << numW1 << " but expMSSA expects nkeys=" << numW
+	     << ".  Can't restore mssa state!";
+	throw std::runtime_error(sout.str());
+      }
+      
+      if (numPC != npc) {
+	std::ostringstream sout;
+	sout << "expMSSA::restoreState: saved state has npc="
+	     << numPC << " but expMSSA expects nkeys=" << npc
+	     << ".  Can't restore mssa state!";
+	throw std::runtime_error(sout.str());
+      }
+
+      if (trend != static_cast<std::underlying_type<TrendType>::type>(type)) {
+	std::ostringstream sout;
+	sout << "expMSSA::restoreState: saved state has trend="
+	     << trend << " but expMSSA expects trend="
+	     << static_cast<std::underlying_type<TrendType>::type>(type)
+	     << ".  Can't restore mssa state!";
+	throw std::runtime_error(sout.str());
+      }
+
+      std::vector<Key> keylist;
+      h5file.getDataSet("keylist").read(keylist);
+
+      // Check key list
+      //
+      bool bad = false;
+      for (int n=0; n<keylist.size(); n++) {
+	auto it = mean.find(keylist[n]);
+	if (it == mean.end()) bad = true;
+	else if (it->first.size() != keylist[n].size()) bad = true;
+	else {
+	  for (int i=0; i<keylist[n].size(); i++) {
+	    if (keylist[n][i] != it->first[i]) bad = true;
+	  }
+	}
+      }
+
+      if (bad)
+	throw std::runtime_error("expMSSA::restoreState: keylist mismatch.  Can't restore mssa state!");
+
+      auto analysis = h5file.getGroup("mssa_analysis");
+
+      analysis.getDataSet("Y" ).read(Y );
+      analysis.getDataSet("S" ).read(S );
+      analysis.getDataSet("U" ).read(U );
+      analysis.getDataSet("PC").read(PC);
+
+      computed = true;
+
+      if (h5file.exist("reconstruction")) {
+	auto recon = h5file.getGroup("reconstruction");
+	
+	recon.getAttribute("ncomp" ).read(ncomp);
+	recon.getAttribute("totVar").read(totVar);
+	recon.getAttribute("totPow").read(totPow);
+
+	for (int n=0; n<keylist.size(); n++) {
+	  std::ostringstream scnt;
+	  scnt << "RC_" << n;
+	  recon.getDataSet(scnt.str()).read(RC[keylist[n]]);
+	}
+
+	reconstructed = true;
+      }
+
+    } catch (HighFive::Exception& err) {
+      std::cerr << "**** Error opening or reading H5 file ****" << std::endl;
+      std::cerr << "**** " << err.what() << " ****" << std::endl;
+    }
+
+  }
+
   expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC)
   {
     // Parse the YAML string
