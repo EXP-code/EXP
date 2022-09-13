@@ -27,8 +27,12 @@ namespace Coefs
     Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
     EigenColMajor;
     
+    //! Coefficient data
     EigenColMajor coefs;
     
+    //! Center data
+    std::vector<double> ctr;
+
     //! Read data from a stream
     virtual bool read(std::istream& in, bool exp_type) = 0;
 

@@ -59,6 +59,13 @@ namespace Coefs
       double Time;
       stanza.getAttribute("Time").read(Time);
       
+      // Check for center data
+      //
+      std::vector<double> ctr;
+      if (stanza.hasAttribute("Center")) {
+	stanza.getAttribute("Center").read(ctr);
+      }
+
       if (Time < Tmin or Time > Tmax) continue;
 
       Eigen::MatrixXcd in((lmax+1)*(lmax+2)/2, nmax);
@@ -68,6 +75,8 @@ namespace Coefs
       //
       auto coef = std::make_shared<SphStruct>();
       
+      if (ctr.size()) coef->ctr = ctr;
+
       coef->lmax  = lmax;
       coef->nmax  = nmax;
       coef->time  = Time;
@@ -276,6 +285,11 @@ namespace Coefs
       //
       stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time)).write(C->time);
       
+      // Add a center attribute
+      //
+      if (C->ctr.size()>0)
+	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+      
       // Index counters
       //
       unsigned I = 0, L = 0;
@@ -431,6 +445,13 @@ namespace Coefs
       double Time;
       stanza.getAttribute("Time").read(Time);
       
+      // Check for center data
+      //
+      std::vector<double> ctr;
+      if (stanza.hasAttribute("Center")) {
+	stanza.getAttribute("Center").read(ctr);
+      }
+
       if (Time < Tmin or Time > Tmax) continue;
 
       Eigen::MatrixXcd in(mmax+1, nmax);
@@ -440,6 +461,8 @@ namespace Coefs
       //
       auto coef = std::make_shared<CylStruct>();
       
+      if (ctr.size()) coef->ctr = ctr;
+
       coef->mmax  = mmax;
       coef->nmax  = nmax;
       coef->time  = Time;

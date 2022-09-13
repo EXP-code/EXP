@@ -931,6 +931,17 @@ namespace Basis
       throw std::runtime_error(sout.str());
     }
       
+    // Is center non-zero?
+    //
+    bool addCenter = false;
+    for (auto v : ctr) {
+      if (v != 0.0) addCenter = true;
+    }
+
+    // Add the expansion center metadata
+    //
+    if (addCenter) coef->ctr = ctr;
+
     reset_coefs();
     for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
       accumulate(p->pos[0]-ctr[0], p->pos[1]-ctr[1], p->pos[2]-ctr[2], p->mass);

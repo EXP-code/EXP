@@ -28,8 +28,8 @@ if __name__ == "__main__":
     #
     h5file  = 'RunG_halo_test'
     ctrfile = 'new.centers'
-    beg_seq = 500
-    end_seq = 600
+    beg_seq = 0
+    end_seq = 1000
     nskip   = 20
 
     # Get basic information about the MPI communicator
@@ -87,6 +87,12 @@ parameters  :
     #
     coefs = None
 
+    # One could replace the above with a read of an existent HDF5
+    # coeffficient file and update various stanzas.  For this reason,
+    # I am keeping a separate center time and center position list
+    # below . . .
+
+    centime = []
     centers = []
 
     for group in batches:
@@ -130,6 +136,7 @@ parameters  :
             print('Created center in {:4.2f} seconds'.
                   format(time.time() - startTime))
             print('Center is:', center)
+            centime.append(reader.CurrentTime())
             centers.append(center)
 
         # Now compute the coefficients using this center
@@ -176,8 +183,7 @@ parameters  :
         # Save the center positions
         #
         with open(ctrfile, 'a') as f:
-            times = coefs.Times()
-            for i in range(len(times)):
-                line = '{:13.6e} {:13.6e} {:13.6e} {:13.6e}\n'.format(times[i], centers[i][0], centers[i][1], centers[i][2])
+            for i in range(len(centime)):
+                line = '{:13.6e} {:13.6e} {:13.6e} {:13.6e}\n'.format(centime[i], centers[i][0], centers[i][1], centers[i][2])
                 f.write(line)
                 
