@@ -81,7 +81,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ncylr           = 2000;
 
   acyl            = 1.0;
-  nmax            = 20;
+  nmax            = 24;
   lmax            = 36;
   mmax            = 4;
   mlim            = -1;
@@ -1419,17 +1419,17 @@ void Cylinder::dump_coefs_h5(const std::string& file)
   cur->geom = geoname[geometry];
   cur->id   = id;
   cur->mmax = mmax;
-  cur->nmax = nmax;
+  cur->nmax = ncylorder;
 
-  cur->coefs.resize(mmax+1, nmax);
+  cur->coefs.resize(mmax+1, ncylorder);
 
-  Eigen::VectorXd cos1(nmax), sin1(nmax);
+  Eigen::VectorXd cos1(ncylorder), sin1(ncylorder);
   
   for (int m=0; m<=mmax; m++) {
 
     ortho->get_coefs(m, cos1, sin1);
 
-    for (int ir=0; ir<nmax; ir++) {
+    for (int ir=0; ir<ncylorder; ir++) {
       if (m==0) {
 	cur->coefs(m, ir) = {cos1(ir), 0.0};
       } else {
@@ -1438,7 +1438,12 @@ void Cylinder::dump_coefs_h5(const std::string& file)
     }
   }
 
+  // Add center
+  //
+  cur->ctr = component->getCenter(Component::Local | Component::Centered);
+
   // Check if file exists
+  //
   if (std::filesystem::exists(file + ".h5")) {
     cylCoefs.clear();
     cylCoefs.add(cur);

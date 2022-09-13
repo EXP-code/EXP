@@ -593,8 +593,17 @@ namespace Coefs
       stim << std::setw(8) << std::setfill('0') << std::right << count++;
       HighFive::Group stanza = snaps.createGroup(stim.str());
       
+      // Add time attribute
+      //
       stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time)).write(C->time);
       
+      // Add center attribute
+      //
+      if (C->ctr.size()>0)
+	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+
+      // Add coefficient data
+      //
       HighFive::DataSet dataset = stanza.createDataSet("coefficients", C->coefs);
     }
     

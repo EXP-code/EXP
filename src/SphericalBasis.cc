@@ -1758,6 +1758,10 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
     }
   }
 
+  // Add center
+  //
+  cur->ctr = component->getCenter(Component::Local | Component::Centered);
+
   // Check if file exists
   //
   if (std::filesystem::exists(file + ".h5")) {
