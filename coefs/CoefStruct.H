@@ -54,6 +54,9 @@ namespace Coefs
     //! Is basis unit normed?
     bool normed;
     
+    //! Constructor
+    SphStruct() { geom = "sphere"; }
+
     //! Read native EXP coefficients
     bool read(std::istream& in, bool exp_type);
 
@@ -69,6 +72,9 @@ namespace Coefs
     //! Angular and radial dimension
     int mmax, nmax;
     
+    //! Constructor
+    CylStruct() { geom = "cylinder"; }
+
     //! Read native EXP coefficients
     bool read(std::istream& in, bool exp_type);
 
@@ -83,6 +89,9 @@ namespace Coefs
     //! Number of columns
     int cols;
     
+    //! Constructor
+    TblStruct() { geom = "table"; }
+
     //! No need to read
     bool read(std::istream& in, bool exp_type);
 

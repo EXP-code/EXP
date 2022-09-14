@@ -17,6 +17,8 @@ namespace Field
 
 namespace Basis
 {
+    using RowMatrixXd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+
   /** 
       Abstract class for any type of basis for evaluating density,
       potential and acceleration.
@@ -85,8 +87,14 @@ namespace Basis
     
     //! Generate coeffients from a particle reader and optional center
     //! location for the expansion
-    Coefs::CoefStrPtr createCoefficients
+    Coefs::CoefStrPtr createFromReader
     (PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
+    
+    //! Generate coeffients from an array and optional center location
+    //! for the expansion
+    Coefs::CoefStrPtr createFromArray
+    (RowMatrixXd& p, double time=0.0,
+     std::vector<double> center={0.0, 0.0, 0.0});
     
     //! Get potential, density and forces at a point
     virtual void getFields

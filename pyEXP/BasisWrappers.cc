@@ -180,10 +180,22 @@ void BasisFactoryClasses(py::module &m) {
     .def(py::init<const std::string&>(),
 	 "Initialize a biorthogonal basis from the configuration in the\n"
 	 "provided YAML configuration", py::arg("YAMLstring"))
-    .def("createCoefficients", &Basis::Basis::createCoefficients,
+    .def("createFromReader", &Basis::Basis::createFromReader,
 	 "Generate the coefficients from the supplied ParticleReader and\n"
-	 "the optional expansion center location",
-	 py::arg("reader"), py::arg("center") = std::vector<double>(3, 0.0))
+	 "an optional expansion center location",
+	 py::arg("reader"), 
+	 py::arg("center") = std::vector<double>(3, 0.0))
+    .def("createFromArray",
+	 [](Basis::Basis& A, RowMatrixXd& data, double time,
+	    std::vector<double> center)
+	 {
+	   return A.createFromArray(data, time, center);
+	 },
+	 "Generate the coefficients from an array with rows with the values\n"
+	 "(mass, x, y, z, u, v, w), time, and an optional expansion center\n"
+	 "location",
+	 py::arg("data"), py::arg("time"),
+	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("getFields",
 	 [](Basis::Basis& A, double x, double y, double z)
 	 {

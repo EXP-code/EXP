@@ -915,7 +915,7 @@ namespace Basis
   }
 
   // Generate coeffients from a particle reader
-  Coefs::CoefStrPtr Basis::createCoefficients
+  Coefs::CoefStrPtr Basis::createFromReader
   (PR::PRptr reader, std::vector<double> ctr)
   {
     Coefs::CoefStrPtr coef;
@@ -948,6 +948,43 @@ namespace Basis
     }
     make_coefs();
     load_coefs(coef, reader->CurrentTime());
+    return coef;
+  }
+
+  // Generate coefficients from a phase-space table
+  Coefs::CoefStrPtr Basis::createFromArray
+  (RowMatrixXd& p, double time, std::vector<double> ctr)
+  {
+    Coefs::CoefStrPtr coef;
+
+    if (name.compare("sphereSL") == 0)
+      coef = std::make_shared<Coefs::SphStruct>();
+    else if (name.compare("cylinder") == 0)
+      coef = std::make_shared<Coefs::CylStruct>();
+    else {
+      std::ostringstream sout;
+      sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
+	   << std::endl;
+      throw std::runtime_error(sout.str());
+    }
+      
+    // Is center non-zero?
+    //
+    bool addCenter = false;
+    for (auto v : ctr) {
+      if (v != 0.0) addCenter = true;
+    }
+
+    // Add the expansion center metadata
+    //
+    if (addCenter) coef->ctr = ctr;
+
+    reset_coefs();
+    for (int n=0; n<p.rows(); n++) {
+      accumulate(p(n, 1)-ctr[0], p(n, 2)-ctr[1], p(n, 3)-ctr[2], p(n, 0));
+    }
+    make_coefs();
+    load_coefs(coef, time);
     return coef;
   }
 

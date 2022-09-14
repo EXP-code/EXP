@@ -95,7 +95,7 @@ int main(int argc, char **argv)
       
       // Make the coefficients from this reader
       //
-      auto coef = basis->createCoefficients(reader);
+      auto coef = basis->createFromReader(reader);
       
       // Add the coefficients to the container (makes the instance if
       // necessary)

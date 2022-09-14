@@ -142,9 +142,9 @@ parameters  :
         # Now compute the coefficients using this center
         #
         startTime = time.time()
-        coef = halo_basis.createCoefficients(reader, center)
+        coef = halo_basis.createFromReader(reader, center)
         if my_rank==0:
-            print('Created createCoefficients at Time {:5.3f} for {} particles '
+            print('Created coefficients at Time {:5.3f} for {} particles '
                   'in {:4.2f} seconds'.
                   format(reader.CurrentTime(), reader.CurrentNumber(),
                          time.time() - startTime))

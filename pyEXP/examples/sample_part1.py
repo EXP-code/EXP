@@ -70,9 +70,9 @@ for group in batches:
     reader.SelectType(compname)
     print('Selected', compname)
 
-    print('Call createCoefficients at Time', reader.CurrentTime(), 'for', reader.CurrentNumber(), 'particles')
+    print('Call createFromReader at Time', reader.CurrentTime(), 'for', reader.CurrentNumber(), 'particles')
 
-    coef = basis.createCoefficients(reader)
+    coef = basis.createFromReader(reader)
     print("Created coef")
 
     # We need this stupid idiom here because None is not mapping to a
