@@ -9,6 +9,7 @@
 // analysis may lead to large errors in eigenvectors.
 //
 
+#include <filesystem>
 #include <stdexcept>
 #include <iostream>
 #include <iomanip>
@@ -313,9 +314,15 @@ namespace MSSA {
 	U = svd.matrixV();
       }
       else {			// Covariance matrix
-	RedSVD::RedSVD<Eigen::MatrixXd> svd(cov, rank);
-	S = svd.singularValues();
-	U = svd.matrixU();
+	if (params["RedSym"]) {
+	  RedSVD::RedSymEigen<Eigen::MatrixXd> eigen(cov, rank);
+	  S = eigen.eigenvalues().reverse();
+	  U = eigen.eigenvectors().rowwise().reverse();
+	} else {
+	  RedSVD::RedSVD<Eigen::MatrixXd> svd(cov, rank);
+	  S = svd.singularValues();
+	  U = svd.matrixU();
+	}
       } 
     }
     
@@ -329,26 +336,8 @@ namespace MSSA {
       for (int i=0; i<S.size(); i++) S(i) = S(i)*S(i)/numK;
     }
     
-    if (chatty) {
-      std::cout << "----------------------------------------" << std::endl;
-      std::cout << "---- Eigenvalues"                         << std::endl;
-      std::cout << "----------------------------------------" << std::endl;
-    }
-    
     double tot = 0.0;
     for (int j=0; j<S.size(); j++) tot += S(j);
-    if (chatty) std::cout << "Total=" << tot << std::endl;
-    
-    if (chatty) {
-      double cum = 0.0;
-      for (int j=0; j<S.size(); j++) {
-	std::cout << std::setw( 5) << j
-		  << std::setw(18) << S(j)
-		  << std::setw(18) << (cum += S(j))/tot
-		  << std::endl;
-	if (1.0 - cum/tot < evtol) break;
-      }
-    }
       
     if (dfiles) {
 	
@@ -370,18 +359,6 @@ namespace MSSA {
     }
 	
     npc = std::min<int>(npc, numW*nkeys);
-	
-    if (chatty) {
-      std::cout << "----------------------------------------" << std::endl;
-      std::cout << "---- Eigenvectors"                        << std::endl;
-      std::cout << "----------------------------------------" << std::endl;
-      for (int j=0; j<std::min<int>(numW*nkeys, rank); j++) {
-	std::cout << std::setw(5) << j;
-	for (int i=0; i<numW*nkeys; i++)
-	  std::cout << std::setw(15) << std::setprecision(6) << U(i, j);
-	std::cout << std::endl;
-      }
-    }
 	
     if (dfiles) {
 
@@ -406,19 +383,6 @@ namespace MSSA {
     // Compute the PCs by projecting the data
     //
     PC = Y * U;
-	
-    if (chatty) {
-      std::cout << "----------------------------------------" << std::endl;
-      std::cout << "---- Principal components"                << std::endl;
-      std::cout << "----------------------------------------" << std::endl;
-      
-      for (int i=0; i<numK; i++) {
-	std::cout << std::setw(15) << std::setprecision(6) << coefDB.times[i];
-	for (int j=0; j<PC.cols(); j++)
-	  std::cout << std::setw(15) << std::setprecision(6) << PC(i, j);
-	std::cout << std::endl;
-      }
-    }
 	
     if (dfiles) {
       std::string filename = prefix + ".pc";
@@ -480,13 +444,6 @@ namespace MSSA {
       n++;
     }
     
-    if (chatty) {
-      std::cout << "----------------------------------------" << std::endl;
-      std::cout << "---- Reconstruction"                      << std::endl;
-      std::cout << "----------------------------------------" << std::endl;
-    }
-    
-
 #pragma omp parallel
     {
       // Parallelize the map iteration by wrapping it in a standard loop.
@@ -584,19 +541,6 @@ namespace MSSA {
     }
     */
 
-    if (chatty) {
-      for (int i=0; i<numT; i++) {
-	std::cout << std::setw(15) << std::setprecision(6) << coefDB.times[i];
-	for (auto u : mean) {
-	  double acc = 0.0;
-	  for (int j=0; j<ncomp; j++) acc += RC[u.first](i, j);
-	  std::cout << std::setw(15) << std::setprecision(6) << acc;
-	}
-	std::cout << std::endl;
-      }
-    }
-    
-    
     if (dfiles) {
       for (auto u : mean) {
 	std::ostringstream sout;
@@ -637,11 +581,6 @@ namespace MSSA {
     }
 
 #ifdef HAVE_LIBPNGPP
-    if (chatty) {
-      std::cout << "----------------------------------------" << std::endl;
-      std::cout << "---- Elemental fractions"                 << std::endl;
-      std::cout << "----------------------------------------" << std::endl;
-    }
     
     std::string filename = prefix + ".f_contrib";
     std::ofstream out(filename);
@@ -803,13 +742,6 @@ namespace MSSA {
   
   Eigen::MatrixXd expMSSA::pcDFT(Eigen::VectorXd& F, Eigen::VectorXd& P)
   {
-    
-    if (chatty) {
-      std::cout << "----------------------------------------" << std::endl;
-      std::cout << "---- Principal component periodogram"     << std::endl;
-      std::cout << "----------------------------------------" << std::endl;
-    }
-    
     Eigen::MatrixXd pw;
     {
       double DT = coefDB.times[1] - coefDB.times[0];
@@ -867,12 +799,6 @@ namespace MSSA {
   
   Eigen::MatrixXd expMSSA::channelDFT(Eigen::VectorXd& F, Eigen::VectorXd& P)
   {
-    if (chatty) {
-      std::cout << "----------------------------------------" << std::endl;
-      std::cout << "---- Coefficient periodogram"             << std::endl;
-      std::cout << "----------------------------------------" << std::endl;
-    }
-    
     Eigen::MatrixXd pw;
     {
       double DT = coefDB.times[1] - coefDB.times[0];
@@ -949,12 +875,6 @@ namespace MSSA {
   void expMSSA::wcorrPNG()
   {
 #ifdef HAVE_LIBPNGPP
-    if (chatty) {
-      std::cout << "----------------------------------------" << std::endl;
-      std::cout << "---- w-correlation"                       << std::endl;
-      std::cout << "----------------------------------------" << std::endl;
-    }
-    
     {
       const int minSize = 400;
       int ndup = 1;
@@ -1167,10 +1087,7 @@ namespace MSSA {
       
     }
       
-    if (out) {
-      if (chatty)
-	std::cout << "Successfully wrote: <" << filename << ">" << std::endl;
-    } else {
+    if (!out) {
       if (toFile)
 	std::cout << "Bad output stream for <" << filename << ">" << std::endl;
     }
@@ -1332,7 +1249,6 @@ namespace MSSA {
       
       // Top level parameter flags
       //
-      chatty   = bool(params["chatty"    ]);
       verbose  = bool(params["verbose"   ]);
       flip     = bool(params["flip"      ]);
       dfiles   = bool(params["writeFiles"]);
@@ -1356,6 +1272,14 @@ namespace MSSA {
   void expMSSA::saveState(const std::string& prefix)
   {
     if (not computed) return;	// No point in saving anything
+
+    if (std::filesystem::exists(prefix + "_mssa.h5")) {
+      std::ostringstream sout;
+      sout << "expMSSA::saveState: the file <" <<  prefix + "_mssa.h5"
+	   << "> already exists.\nPlease delete this file or choose a "
+	   << "different file name";
+      throw std::runtime_error(sout.str());
+    }
 
     try {
       // Create a new hdf5 file
@@ -1453,7 +1377,7 @@ namespace MSSA {
 	std::ostringstream sout;
 	sout << "expMSSA::restoreState: saved state has numT="
 	     << nTime << " but expMSSA expects numT=" << numT
-	     << ".  Can't restore mssa state!";
+	     << ".\nCan't restore mssa state!";
 	throw std::runtime_error(sout.str());
       }
       
@@ -1461,23 +1385,23 @@ namespace MSSA {
 	std::ostringstream sout;
 	sout << "expMSSA::restoreState: saved state has nkeys="
 	     << nKeys << " but expMSSA expects nkeys=" << nkeys
-	     << ".  Can't restore mssa state!";
+	     << ".\nCan't restore mssa state!";
 	throw std::runtime_error(sout.str());
       }
       
       if (numW != numW1) {
 	std::ostringstream sout;
 	sout << "expMSSA::restoreState: saved state has numW="
-	     << numW1 << " but expMSSA expects nkeys=" << numW
-	     << ".  Can't restore mssa state!";
+	     << numW1 << " but expMSSA expects numW=" << numW
+	     << ".\nCan't restore mssa state!";
 	throw std::runtime_error(sout.str());
       }
       
       if (numPC != npc) {
 	std::ostringstream sout;
 	sout << "expMSSA::restoreState: saved state has npc="
-	     << numPC << " but expMSSA expects nkeys=" << npc
-	     << ".  Can't restore mssa state!";
+	     << numPC << " but expMSSA expects npc=" << npc
+	     << ".\nCan't restore mssa state!";
 	throw std::runtime_error(sout.str());
       }
 
@@ -1486,7 +1410,7 @@ namespace MSSA {
 	sout << "expMSSA::restoreState: saved state has trend="
 	     << trend << " but expMSSA expects trend="
 	     << static_cast<std::underlying_type<TrendType>::type>(type)
-	     << ".  Can't restore mssa state!";
+	     << ".\nCan't restore mssa state!";
 	throw std::runtime_error(sout.str());
       }
 
@@ -1508,7 +1432,7 @@ namespace MSSA {
       }
 
       if (bad)
-	throw std::runtime_error("expMSSA::restoreState: keylist mismatch.  Can't restore mssa state!");
+	throw std::runtime_error("expMSSA::restoreState: keylist mismatch.\nCan't restore mssa state!");
 
       auto analysis = h5file.getGroup("mssa_analysis");
 
@@ -1561,9 +1485,8 @@ namespace MSSA {
     
     // Eigen OpenMP reporting
     //
-    // if (chatty)
-      std::cout << "Eigen is using " << Eigen::nbThreads()
-		<< " threads" << std::endl;
+    std::cout << "Eigen is using " << Eigen::nbThreads()
+	      << " threads" << std::endl;
     
     // Now open and parse the coefficient files
     //
@@ -1585,29 +1508,6 @@ namespace MSSA {
       }
     }
     
-    // Print channel info
-    //
-    if (chatty) {
-      std::cout << std::string(60, '-') << std::endl
-		<< "Using coefficient keys (l, m, n, c/s)_k or (M, n, c/s)_k"
-		<< std::endl
-		<< "for spherical (l, m) and cylindrical (M) bases."
-		<< std::endl
-		<< "c/s denotes cosine/sine and component index is k."
-		<< std::endl
-		<< std::string(60, '-') << std::endl
-		<< std::setw(18) << std::right << "Key"
-		<< std::setw(18) << std::right << "Mean values"
-		<< std::endl << std::string(60, '-') << std::endl;
-      
-      // Print key, mean pairs
-      //
-      for (auto v : mean) std::cout << std::setw(18) << v.first
-				    << std::setw(18) << v.second
-				    << std::endl;
-      std::cout << std::string(60, '-') << std::endl;
-    }
-    
     // Normalize and detrend
     //
     totVar = totPow = 0.0;
@@ -1626,8 +1526,6 @@ namespace MSSA {
       // Average total power per time slice
       //
       totPow = std::sqrt(totPow/numT + std::numeric_limits<double>::min());
-      
-      if (chatty) std::cout << "<total Power>=" << totPow << std::endl;
       
       for (auto & u : mean) {
 	Key k = u.first;

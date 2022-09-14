@@ -119,6 +119,15 @@ namespace MSSA
       return S;
     }
 
+    //! Cumulative sum of the eigenvalues
+    Eigen::VectorXd cumulative()
+    {
+      if (not computed) mssa_analysis();
+      auto C = S;
+      for (int i=1; i<C.size(); i++) C(i) += C(i-1);
+      return C;
+    }
+
     //! Right singular vectors
     Eigen::MatrixXd getU()
     {

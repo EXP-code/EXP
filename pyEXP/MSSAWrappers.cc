@@ -71,20 +71,15 @@ void MSSAtoolkitClasses(py::module &m) {
     "I wrote this is a convenient way to have control over some\n"
     "tuning parameters or experimental features without having to\n"
     "change the API.  They are all optional but a few of these will\n"
-    "be useful.  The most useful might be 'chatty' for verbose std\n"
-    "output, 'writeFiles' which turns on writing chatty MSSA results\n"
-    "to files and 'output' to specify the output-file prefix. They\n"
-    "are all YAML key-value pairs.  The first group below are simple\n"
-    "boolean toggles.  That is there presence turns on the feature\n"
-    "independent of the value.  The Python scripts samples show how\n"
-    "to construct these simple YAML configurations on the fly. A\n"
-    "Simple example is also given below.  The boolean parameters\n"
-    "are listed below in order of my guess of their usefulness to\n"
+    "be useful.  The most useful might be 'writeFiles' which turns on\n"
+    "writing chatty MSSA results to files and 'output' to specify the\n"
+    "output-file prefix. They are all YAML key-value pairs.  The first\n"
+    "group below are simple boolean toggles.  That is there presence\n"
+    "turns on the feature independent of the value.  The Python scripts\n"
+    "samples show how to construct these simple YAML configurations on\n"
+    "the fly. A simple example is also given below.  The boolean para-\n"
+    "meters are listed below in order of my guess of their usefulness to\n"
     "most people:\n\n"
-    "  chatty: true          Prints eigenvalues, PC, etc. to stdout.\n"
-    "                        This one is useful if you want to see a nice\n"
-    "                        formatted output of eigenvalues, PCs, k-means\n"
-    "                        output, etc, rather than formating your own.\n"
     "  writeFiles: true      Writes most of the 'chatty' output to files\n"
     "  writeCov: true        Write the covariance matrix to a file\n"
     "  Jacobi: true          Use the Jacobi SVD rather than the Random\n"
@@ -99,6 +94,8 @@ void MSSAtoolkitClasses(py::module &m) {
     "                        of the trajectory matrix.  Do not use this\n"
     "                        with the default RedSVD algorithm.  Use either\n"
     "                        either Jacobi or BDCSVD for accuracy.\n"
+    "  RedSym: true          Use the randomized symmetric eigenvalue solver\n"
+    "                        RedSym rather rather than RedSVD\n"
     "  allchan: true         Perform k-mean clustering analysis using all\n"
     "                        channels simultaneously\n"
     "  distance: true        Compute w-correlation matrix PNG images using\n"
@@ -158,6 +155,10 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("eigenvalues", &expMSSA::eigenvalues,
 	"Return the vector of eigenvalues from the MSSA analysis");
+  
+  f.def("cumulative", &expMSSA::cumulative,
+	"Return a cumulatively summed vector of eigenvalues from the\n"
+	"MSSA analysis");
   
   f.def("getU", &expMSSA::getU,
 	"Return the right-singular) vectors from the MSSA analysis\n"
