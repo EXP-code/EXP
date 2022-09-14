@@ -7,7 +7,11 @@ namespace PR {
   class Tipsy;
 };
 
-// #define TIPSY_32BIT_PAD
+// Uncommenting the define below is an old fix for compilers that
+// promoted the 28 byte Tipsy header to 32 bytes to put it on a word
+// boundary.  I don't this that this is an issue in modern compilers.
+//
+// #define TIPSY_32BYTE_PAD
 
 namespace TipsyReader
 {
@@ -83,7 +87,7 @@ namespace TipsyReader
     int nsph    ;
     int ndark   ;
     int nstar   ;
-#ifdef TIPSY_32BIT_PAD
+#ifdef TIPSY_32BYTE_PAD
     int version ;
 #endif
   } ;
@@ -129,7 +133,7 @@ namespace TipsyReader
       if (xdr_int(&xdrs, &header.nsph)    != TRUE) return 0;
       if (xdr_int(&xdrs, &header.ndark)   != TRUE) return 0;
       if (xdr_int(&xdrs, &header.nstar)   != TRUE) return 0;
-#ifdef TIPSY_32BIT_PAD
+#ifdef TIPSY_32BYTE_PAD
       if (xdr_int(&xdrs, &header.version) != TRUE) return 0;
 #endif
       return 1;
