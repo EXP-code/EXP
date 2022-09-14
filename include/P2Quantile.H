@@ -3,6 +3,14 @@
 
 #include <array>
 
+/**
+   Implementation of the quantile estimator from:
+
+   Jain, Raj, and Imrich Chlamtac. “The P² algorithm for dynamic
+   calculation of quantiles and histograms without storing
+   observations.” Communications of the ACM 28, no. 10 (1985):
+   1076-1085.
+ */
 class P2Quantile
 {
 private:
@@ -28,10 +36,9 @@ private:
   double Parabolic(int i, double d)
     {
       return q[i] + d / (n[i + 1] - n[i - 1]) *
-	(
-	 (n[i] - n[i - 1] + d) * (q[i + 1] - q[i]) / (n[i + 1] - n[i]) +
-	 (n[i + 1] - n[i] - d) * (q[i] - q[i - 1]) / (n[i] - n[i - 1])
-	 );
+	( (n[i] - n[i - 1] + d) * (q[i + 1] - q[i]) / (n[i + 1] - n[i]) +
+	  (n[i + 1] - n[i] - d) * (q[i] - q[i - 1]) / (n[i] - n[i - 1])
+	  );
     }
 
   double Linear(int i, int d)
@@ -77,7 +84,7 @@ public:
       return;
     }
 
-    int k;
+    int k = 0;
     if (x < q[0]) { q[0] = x; k = 0; }
     else if (x < q[1]) k = 0;
     else if (x < q[2]) k = 1;

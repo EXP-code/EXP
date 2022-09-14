@@ -1420,38 +1420,40 @@ namespace PR {
     Ngas = Ndark = Nstar = 0;
     std::set<std::string> types;
 
+    unsigned fcnt = 0;
     for (auto file : files) {
 
       // Make a tipsy native reader
       if (ttype == TipsyType::native)
-	ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, false);
+	ps = std::make_shared<TipsyReader::TipsyNative>(file);
       // Native tipsy with ID conversion
       else if (ttype == TipsyType::bonsai)
-	ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, true);
+	ps = std::make_shared<TipsyReader::TipsyNative>(file);
       // Make a tipsy xdr reader
       else {
 #ifdef HAVE_XDR
-	ps = std::make_shared<TipsyReader::TipsyXDR>(*curfile);
+	ps = std::make_shared<TipsyReader::TipsyXDR>(file);
 #else
-	ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, false);
+	ps = std::make_shared<TipsyReader::TipsyNative>(file);
 #endif
       }
 
-      if (ps->gas_particles.size() ) {
+      if (ps->header.nsph ) {
 	types.insert("Gas");
-	Ngas += ps->gas_particles.size();
+	Ngas += ps->header.nsph;
       }
 
-      if (ps->dark_particles.size()) {
+      if (ps->header.ndark) {
 	types.insert("Dark");
-	Ndark += ps->dark_particles.size();
+	Ndark += ps->header.ndark;
       }
 
-      if (ps->star_particles.size()) {
+      if (ps->header.nstar) {
 	types.insert("Star");
-	Nstar += ps->star_particles.size();
+	Nstar += ps->header.nstar;
       }
 
+      fcnt++;
     }
 
     curTypes.clear();
@@ -1463,18 +1465,19 @@ namespace PR {
     if (curfile==files.end()) return false;
     
     if (ttype == TipsyType::native)
-      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, false);
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
     else if (ttype == TipsyType::bonsai)
-      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, true);
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
     else {
 #ifdef HAVE_XDR
       ps = std::make_shared<TipsyReader::TipsyXDR>(*curfile);
 #else
-      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile), false;
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
 #endif
     }
 
     ps->readParticles();
+
     curfile++;
     return true;
   }
@@ -1511,7 +1514,6 @@ namespace PR {
       throw std::runtime_error("Tipsy: non-existent particle type");
     } else {
       curName = name;
-      ps->readParticles();
     }
 
     curfile = files.begin();	// Set to first file and open
@@ -1556,18 +1558,17 @@ namespace PR {
       return;
     }
     
-    std::cerr << "Tipsy: logic error" << std::endl;
-    exit(-1);
+    throw std::runtime_error("Tipsy error: particle type must be one of Gas, Dark, Star. You selected [" + curName + "]");
   }
   
   unsigned long Tipsy::CurrentNumber()
   {
     if (curName=="Gas") {
-      return ps->gas_particles.size();
+      return Ngas;
     } else if (curName=="Dark") {
-      return ps->dark_particles.size();
+      return Ndark;
     } else if (curName=="Star") {
-      return ps->star_particles.size();
+      return Nstar;
     } else {
       return 0;
     }
@@ -1607,17 +1608,16 @@ namespace PR {
   //
   void ParticleReader::PrintSummary(ostream &out, bool stats, bool timeonly)
   {
-    out << "Time=" << CurrentTime() << std::endl;
     
+    out << "   Time                : " << CurrentTime() << std::endl;
     if (!timeonly) {
       out << "   Number of particles : " << CurrentNumber() << std::endl;
-
 
       // Initialize lists
       //
       std::vector<P2Quantile> pos_med(3), vel_med(3);
-      std::vector<double> pos_avg(3, 0.0);
-      std::vector<double> vel_avg(3, 0.0);
+      std::vector<double> pos_avg(3, 0.0), pos_var(3, 0.0);
+      std::vector<double> vel_avg(3, 0.0), vel_var(3, 0.0);
       std::vector<double> pos_min(3,  std::numeric_limits<double>::max());
       std::vector<double> vel_min(3,  std::numeric_limits<double>::max());
       std::vector<double> pos_max(3, -std::numeric_limits<double>::max());
@@ -1633,8 +1633,10 @@ namespace PR {
 	mtot += P->mass;
 	for (unsigned k=0; k<3; k++) {
 	  pos_avg[k] += P->mass * P->pos[k];
+	  pos_var[k] += P->mass * P->pos[k]*P->pos[k];
 	  pos_med[k].addValue(P->pos[k]);
 	  vel_avg[k] += P->mass * P->vel[k];
+	  vel_var[k] += P->mass * P->vel[k]*P->vel[k];
 	  vel_med[k].addValue(P->vel[k]);
 	  pos_min[k] = std::min<double>(pos_min[k], P->pos[k]);
 	  pos_max[k] = std::max<double>(pos_max[k], P->pos[k]);
@@ -1643,6 +1645,11 @@ namespace PR {
 	  vel_max[k] = std::max<double>(vel_max[k], P->vel[k]);
 	}
       }
+
+      for (auto & v : pos_avg) v /= mtot;
+      for (auto & v : pos_var) v /= mtot;
+      for (auto & v : vel_avg) v /= mtot;
+      for (auto & v : vel_var) v /= mtot;
 
       out << std::endl << std::setw(20) << "*** Position" 
 	  << std::setw(15) << "X" << std::setw(15) << "Y" << std::setw(15) << "Z"
@@ -1654,7 +1661,12 @@ namespace PR {
       for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_med[k].getQuantile();
       out << std::endl
 	  << std::setw(20) << "Avg :: ";
-      for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_avg[k]/mtot;
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_avg[k];
+      out << std::endl
+	  << std::setw(20) << "Std :: ";
+      for (unsigned k=0; k<3; k++)
+	out << std::setw(15)
+	    << sqrt(fabs(pos_var[k] - pos_avg[k]*pos_avg[k]));
       out << std::endl
 	  << std::setw(20) << "Max :: ";
       for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_max[k];
@@ -1668,8 +1680,13 @@ namespace PR {
 	  << std::setw(20) << "Med :: ";
       for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_med[k].getQuantile();
       out << std::endl
-	  << std::setw(20) << "Med :: ";
-      for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_avg[k]/mtot;
+	  << std::setw(20) << "Avg :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_avg[k];
+      out << std::endl
+	  << std::setw(20) << "Std :: ";
+      for (unsigned k=0; k<3; k++)
+	out << std::setw(15)
+	    << sqrt(fabs(vel_var[k] - vel_avg[k]*vel_avg[k]));
       out << std::endl
 	  << std::setw(20) << "Max :: ";
       for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_max[k];

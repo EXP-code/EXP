@@ -7,13 +7,19 @@ namespace PR {
   class Tipsy;
 };
 
+// #define TIPSY_32BIT_PAD
+
 namespace TipsyReader
 {
+
   const int MAXDIM = 3;
 
   using Real = float;
 
-  struct gas_particle {
+  struct gas_particle
+  {
+    //@{
+    //! Particle data
     Real mass   ;
     Real pos[MAXDIM];
     Real vel[MAXDIM];
@@ -22,7 +28,8 @@ namespace TipsyReader
     Real hsmooth;
     Real metals ;
     Real phi    ;
-  public:
+    //@}
+
     //! Convert phi to index
     int ID() const {
       union id {Real v; int i;} u;
@@ -30,13 +37,17 @@ namespace TipsyReader
     }
   } ;
 
-  struct dark_particle {
+  struct dark_particle
+  {
+    //@{
+    //! Particle data
     Real mass   ;
     Real pos[MAXDIM];
     Real vel[MAXDIM];
     Real eps    ;
     Real phi    ;
-  public:
+    //@}
+    
     //! Convert phi to index
     int ID() const {
       union id {Real v; int i;} u;
@@ -44,7 +55,10 @@ namespace TipsyReader
     }
   } ;
 
-  struct star_particle {
+  struct star_particle
+  {
+    //@{
+    //! Particle data
     Real mass   ;
     Real pos[MAXDIM];
     Real vel[MAXDIM];
@@ -52,7 +66,8 @@ namespace TipsyReader
     Real tform  ;
     Real eps    ;
     Real phi    ;
-  public:
+    //@}
+
     //! Convert phi to index
     int ID() const {
       union id {Real v; int i;} u;
@@ -68,7 +83,9 @@ namespace TipsyReader
     int nsph    ;
     int ndark   ;
     int nstar   ;
+#ifdef TIPSY_32BIT_PAD
     int version ;
+#endif
   } ;
   
   class TipsyFile
@@ -112,8 +129,9 @@ namespace TipsyReader
       if (xdr_int(&xdrs, &header.nsph)    != TRUE) return 0;
       if (xdr_int(&xdrs, &header.ndark)   != TRUE) return 0;
       if (xdr_int(&xdrs, &header.nstar)   != TRUE) return 0;
+#ifdef TIPSY_32BIT_PAD
       if (xdr_int(&xdrs, &header.version) != TRUE) return 0;
-      
+#endif
       return 1;
     }
     
@@ -121,16 +139,15 @@ namespace TipsyReader
     {
       input = fopen(filename.c_str(), "r");
       if (fopen==NULL) {
-	std::cerr << "TipsyFile: error opening file <" << filename << ">"
-		  << std::endl;
-	exit(-1);
+	std::ostringstream sout;
+	sout << "TipsyFile: error opening file <" << filename << ">";
+	throw std::runtime_error(sout.str());
       }
 	
       xdrstdio_create(&xdrs, input, XDR_DECODE);
       
       if (xdr_header() != 1) {
-	std::cerr << "TipsyFile: could not read a valid header" << std::endl;
-	exit(-1);
+	throw std::runtime_error("TipsyFile: could not read a valid header");
       }
 
       return header.nbodies;
@@ -197,8 +214,7 @@ namespace TipsyReader
       // Attempt to read tipsy file
       int ret = xdr_init(filename);
       if (ret==0) {
-	std::cerr << "TipsyFile: no bodies found??" << std::endl;
-	exit(-1);
+	throw std::runtime_error("TipsyFile: no bodies found??");
       }
     }
 
@@ -221,9 +237,6 @@ namespace TipsyReader
     //! The input file stream
     std::ifstream input;
 
-    //! Convert phi to IDs
-    bool convert;
-
     //! Read the header
     int native_header()
     {
@@ -231,7 +244,7 @@ namespace TipsyReader
 	input.read((char *)&header, sizeof(header));
       } catch (std::exception& e) {
 	std::cerr << "TipsyFile native_header error: " << e.what() << std::endl;
-	return 0;
+	throw;
       }
       return 1;
     }
@@ -244,12 +257,11 @@ namespace TipsyReader
       } catch (std::exception& e) {
 	std::cerr << "TipsyFile native error opening file <" << filename << ">, "
 		  << e.what() << std::endl;
-	exit(-1);
+	throw;
       }
 	
       if (native_header() != 1) {
-	std::cerr << "TipsyFile native: could not read a valid header" << std::endl;
-	exit(-1);
+	throw std::runtime_error("TipsyFile native: could not read a valid header");
       }
 
       return header.nbodies;
@@ -284,12 +296,12 @@ namespace TipsyReader
     {
       try {
 	input.read((char *) &gas_particles[0],
-		   header.nsph*(sizeof(gas_particle)/sizeof(Real)));
+		   header.nsph*sizeof(gas_particle));
       }
       catch (std::exception& e) {
 	std::cerr << "TipsyFile native error reading sph particles: "
 		  << e.what() << std::endl;
-	exit(-1);
+	throw;
       }
     }
     
@@ -297,12 +309,12 @@ namespace TipsyReader
     {
       try {
 	input.read((char *) &dark_particles[0],
-		   header.ndark*(sizeof(dark_particle)/sizeof(Real)));
+		   header.ndark*sizeof(dark_particle));
       }
       catch (std::exception& e) {
 	std::cerr << "TipsyFile native error reading dark particles: "
 		  << e.what() << std::endl;
-	exit(-1);
+	throw;
       }
     }  
   
@@ -310,12 +322,12 @@ namespace TipsyReader
     {
       try {
 	input.read((char *) &star_particles[0],
-		   header.nstar*(sizeof(star_particle)/sizeof(Real)));
+		   header.nstar*sizeof(star_particle));
       }
       catch (std::exception& e) {
 	std::cerr << "TipsyFile native error reading star particles: "
 		  << e.what() << std::endl;
-	exit(-1);
+	throw;
       }
     }  
     
@@ -323,15 +335,12 @@ namespace TipsyReader
 
   public:
 
-    TipsyNative(const std::string filename, bool ids=false)
+    TipsyNative(const std::string filename)
     {
-      convert = ids;
-
       // Attempt to read tipsy file
       int ret = native_init(filename);
       if (ret==0) {
-	std::cerr << "TipsyFile: no bodies found??" << std::endl;
-	exit(-1);
+	throw std::runtime_error("TipsyFile: no bodies found??");
       }
     }
 
