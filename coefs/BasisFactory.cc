@@ -953,7 +953,7 @@ namespace Basis
 
   // Generate coefficients from a phase-space table
   Coefs::CoefStrPtr Basis::createFromArray
-  (RowMatrixXd& p, double time, std::vector<double> ctr)
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
   {
     Coefs::CoefStrPtr coef;
 
@@ -981,7 +981,7 @@ namespace Basis
 
     reset_coefs();
     for (int n=0; n<p.rows(); n++) {
-      accumulate(p(n, 1)-ctr[0], p(n, 2)-ctr[1], p(n, 3)-ctr[2], p(n, 0));
+      accumulate(p(n, 0)-ctr[0], p(n, 1)-ctr[1], p(n, 2)-ctr[2], m(n));
     }
     make_coefs();
     load_coefs(coef, time);

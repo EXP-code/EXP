@@ -32,7 +32,7 @@ data = np.loadtxt('comp.dark halo', skiprows=1, usecols=(1, 2, 3, 4))
 
 # Call the basis to generate coefficients
 #
-coef = basis.createFromArray(data, time=3.0)
+coef = basis.createFromArray(data[:,0], data[:,1:3], time=3.0)
 
 # Print the data for a check
 #

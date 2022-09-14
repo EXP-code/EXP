@@ -93,7 +93,7 @@ namespace Basis
     //! Generate coeffients from an array and optional center location
     //! for the expansion
     Coefs::CoefStrPtr createFromArray
-    (RowMatrixXd& p, double time=0.0,
+    (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
      std::vector<double> center={0.0, 0.0, 0.0});
     
     //! Get potential, density and forces at a point
