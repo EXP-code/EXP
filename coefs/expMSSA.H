@@ -198,6 +198,12 @@ namespace MSSA
 
     //! Restore current MSSA state to an HDF5 file with the given prefix
     void restoreState(const std::string& prefix);
+
+    //! Return total variance value used for normalizing coefficient series
+    double getTotVar() { return totVar; }
+
+    //! Return total power value used for normalizing coefficient series
+    double getTotPow() { return totPow; }
   };
 
 

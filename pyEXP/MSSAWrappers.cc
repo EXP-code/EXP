@@ -228,7 +228,10 @@ void MSSAtoolkitClasses(py::module &m) {
 	"complete consistency.\n",
 	py::arg("prefix"));
 
-    //! Restore current MSSA state to an HDF5 file with the given prefix
-    void restoreState(const std::string& prefix);
+  f.def("getTotVar", &expMSSA::getTotVar,
+	"Variance value used for normalizing coefficient series");
+
+  f.def("getTotPow", &expMSSA::getTotPow,
+	"Power value used for normalizing coefficient series");
 
 }
