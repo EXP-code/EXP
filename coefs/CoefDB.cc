@@ -36,10 +36,8 @@ namespace MSSA
 
     // Don't try to copy a null instance
     if (coefs)  ret->coefs  = coefs-> deepcopy();
-    if (coefs1) ret->coefs1 = coefs1->deepcopy();
 
     ret->data       = data;
-    ret->data1      = data1;
     ret->times      = times;
 
     return ret;
@@ -156,8 +154,8 @@ namespace MSSA
 	for (unsigned n=0; n<nmax; n++) {
 	  Key key0 = {m, n, 0}, key1 = {m, n, 1};
 	  
-	  if (m==0) cf->coefs(m, n) = {data1[key0][i], 0.0};
-	  else cf->coefs(m, n) = {data1[key0][i], data1[key1][i]};
+	  if (m==0) cf->coefs(m, n) = {data[key0][i], 0.0};
+	  else cf->coefs(m, n) = {data[key0][i], data[key1][i]};
 	}
       }
     }
@@ -238,8 +236,8 @@ namespace MSSA
 	  for (unsigned n=0; n<nmax; n++) {
 	    Key key0 = {l, m, n, 0}, key1 = {l, m, n, 1};
 	  
-	    if (m==0) cf->coefs(L, n) = {data1[key0][i], 0.0          };
-	    else      cf->coefs(L, n) = {data1[key0][i], data1[key1][i]};
+	    if (m==0) cf->coefs(L, n) = {data[key0][i], 0.0          };
+	    else      cf->coefs(L, n) = {data[key0][i], data[key1][i]};
 	  }
 	  // END n loop
 	}
@@ -288,7 +286,7 @@ namespace MSSA
 
       for (unsigned c=0; c<cols; c++) {
 	Key key = {c};
-	cf->coefs(0, c) = data1[key][i];
+	cf->coefs(0, c) = data[key][i];
       }
       // End field loop
     }

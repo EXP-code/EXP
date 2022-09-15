@@ -130,6 +130,10 @@ void CoefContainerClasses(py::module &m) {
     std::shared_ptr<Coefs> deepcopy() override {
       PYBIND11_OVERRIDE_PURE(std::shared_ptr<Coefs>, Coefs, deepcopy,);
     }
+
+    void zerodata() override {
+      PYBIND11_OVERRIDE_PURE(void, Coefs, zerodata,);
+    }
   };
 
   class PySphCoefs : public SphCoefs
@@ -203,6 +207,10 @@ void CoefContainerClasses(py::module &m) {
 
     std::shared_ptr<Coefs> deepcopy() override {
       PYBIND11_OVERRIDE(std::shared_ptr<Coefs>, SphCoefs, deepcopy,);
+    }
+
+    void zerodata() override {
+      PYBIND11_OVERRIDE(void, SphCoefs, zerodata,);
     }
 
   };
@@ -279,6 +287,11 @@ void CoefContainerClasses(py::module &m) {
     std::shared_ptr<Coefs> deepcopy() override {
       PYBIND11_OVERRIDE(std::shared_ptr<Coefs>, CylCoefs, deepcopy,);
     }
+
+    void zerodata() override {
+      PYBIND11_OVERRIDE(void, CylCoefs, zerodata,);
+    }
+
   };
 
   class PyTableData : public TableData
@@ -354,6 +367,10 @@ void CoefContainerClasses(py::module &m) {
       PYBIND11_OVERRIDE(std::shared_ptr<Coefs>, TableData, deepcopy,);
     }
 
+    void zerodata() override {
+      PYBIND11_OVERRIDE(void, TableData, zerodata,);
+    }
+
   };
 
   py::class_<Coefs::CoefStruct, std::shared_ptr<Coefs::CoefStruct>, PyCoefStruct>(m, "CoefStruct")
@@ -405,6 +422,10 @@ void CoefContainerClasses(py::module &m) {
 	 "Return the coefficient set nmenonic name")
     .def("setName",        &Coefs::Coefs::setName,
 	 "Set or rename the coefficient set nmenonic name", py::arg("newname"))
+    .def("deepcopy",       &Coefs::Coefs::deepcopy,
+	 "Return a byte-by-byte copy of the original data")
+    .def("zerodata",       &Coefs::Coefs::zerodata,
+	 "Zero all of the coefficient data, keeping sizes and metadata intact")
     .def("CompareStanzas", &Coefs::Coefs::CompareStanzas,
 	 "Check that the data in one Coefs set is identical to "
 	 "that in another")

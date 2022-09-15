@@ -85,9 +85,6 @@ namespace MSSA
     //! Database itself
     std::map<Key, std::vector<double>> data;
 
-    //! Database update
-    std::map<Key, std::vector<double>> data1;
-    
     //! Times for each slice
     std::vector<double> times;
     
@@ -100,10 +97,6 @@ namespace MSSA
 	   unsigned index, unsigned stride=1,
 	   double tmin=-std::numeric_limits<double>::max(),
 	   double tmax= std::numeric_limits<double>::max());
-
-
-    //! Update working copyof coefficients
-    void update(bool zero);
 
     //! Update and return working copy of coefficients
     Coefs::CoefsPtr endUpdate();
@@ -237,25 +230,12 @@ components:
       return comps[c]->data[key];
     }
 
-    //! Copy original data coefficients to working version
-    void beginUpdate(bool zero)
-    {
-      for (auto & v : comps) {
-	v->data1 = v->data;
-	if (zero) {
-	  for (auto & u : v->data1) {
-	    std::fill(u.second.begin(), u.second.end(), 0.0);
-	  }
-	}
-      }
-    }
-
     //! Update data in a particular stream
     void setData(std::vector<unsigned> key, const std::vector<double>& data)
     {
       unsigned c = key.back();
       key.pop_back();
-      comps[c]->data1[key] = data;
+      comps[c]->data[key] = data;
     }
 
     //! Update the working data to the working coefficients and return a map
@@ -297,6 +277,7 @@ components:
     }
 
   };
+  // END CoefContainer
 
 }
 // END namespace MSSA

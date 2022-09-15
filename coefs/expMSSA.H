@@ -24,6 +24,9 @@ namespace MSSA
     //! Coefficient container
     CoefContainer coefDB;
 
+    //! Working updated copy of DB
+    std::shared_ptr<CoefContainer> newDB;
+
     //! Parameter database
     YAML::Node params;
 
@@ -159,12 +162,16 @@ namespace MSSA
     /** Get the reconstructed coefficients in an updated Coefs stuctures
 
 	The values are returned as map/dictionary with the mnemonic
-	name as the key.
-
-	@param zero controls whether the unused channels are set to (zero=true)
-	or the original data is updated with the used channels (zero=false)
+	name as the key.  You may call resetReconstructed() to get a
+	fresh copy of the data.
     */
-    std::map<std::string, Coefs::CoefsPtr> getReconstructed(bool zero);
+    std::map<std::string, Coefs::CoefsPtr> getReconstructed();
+
+    /** Reset the working Coefs structure to the original data copy
+
+	This does the same work as getReconstructed() but in update mode
+    */
+    void resetReconstructed(bool zero);
 
     //@{
     /** Compute w-correlation matrix for a single trajectory matrix
@@ -204,6 +211,10 @@ namespace MSSA
 
     //! Return total power value used for normalizing coefficient series
     double getTotPow() { return totPow; }
+
+    //! Zero reconstruction for all keys
+    std::map<std::string, Coefs::CoefsPtr> zeroReconstructed();
+
   };
 
 

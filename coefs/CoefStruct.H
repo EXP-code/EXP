@@ -39,6 +39,8 @@ namespace Coefs
     //! Copy base-class fields
     void copyfields(std::shared_ptr<CoefStruct> p);
 
+    //! Zero the existing data
+    void zerodata() { coefs.setZero(); }
   };
   
   //! Specialization of CoefStruct for spheres

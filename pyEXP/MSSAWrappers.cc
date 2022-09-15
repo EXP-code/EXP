@@ -51,17 +51,19 @@ void MSSAtoolkitClasses(py::module &m) {
     "  1. A call to 'reconstruction(list)' with a list of eigenvalue\n"
     "     indices reconstruct the data series and saves those series\n"
     "     to working vectors\n"
-    "  2. 'getReconstructed()' returns a dictionary of name strings that\n"
+    "  2 'getReconstructed()' returns a dictionary of name strings that\n"
     "     point to coefficient objects (Coefs). These may be used for\n"
     "     diagnostics (e.g. visualizing fields).  These new sets are\n"
-    "     are deep copies of the original Coefs data updated by from\n"
+    "     are shallow copies of the original Coefs data updated by from\n"
     "     the working vectors produced by the last call to the function\n"
-    "     'reconstruction(list)'\n"
-    "The memory from many such copies will persist until all references\n"
-    "to the Coefs objects are gone.  To prevent excessive memory use,\n"
-    "make sure that unused Coefs sets are deleted.  One strategy is to\n"
-    "reuse previous variable names by assigning them to some new datum.\n"
-    "This will free unused memory as a by product\n\n"
+    "     'reconstruction(list)'.\n"
+    "This strategy prevents your stack from growing large by efficiently\n"
+    "reusing previously allocated storage. If you want to save a copy of\n"
+    "the original coefficients, use the 'deepcopy()' member for Coefs\n"
+    "before the reconstruction.  The original 'factory' call and each\n"
+    "call to 'deepcopy()' will make a new set that will be freed when\n"
+    "the reference to the coefficient instance disappears.  This allows\n"
+    "some explicit control over your memory use.\n\n"
     "expMSSA has a number of internal configuration parameters, listed\n"
     "below. Most people will not need them, but they do exist should\n"
     "you really want to dig in.\n\n"
@@ -183,8 +185,7 @@ void MSSAtoolkitClasses(py::module &m) {
   f.def("getReconstructed", &expMSSA::getReconstructed,
 	"Return the reconstucted time series in the orginal coefficient form\n"
 	"that may be used in basis classes.  Note: the reconstructed data\n"
-	"will overwrite the memory of the original coefficient data.",
-	py::arg("zero") = false);
+	"will overwrite the memory of the original coefficient data.");
 
   f.def("wCorr", &expMSSA::wCorr,
 	"Get the w-correlation matrix for the selected component and channel\n"
@@ -233,5 +234,10 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("getTotPow", &expMSSA::getTotPow,
 	"Power value used for normalizing coefficient series");
+
+  f.def("zeroReconstructed", &expMSSA::zeroReconstructed,
+	"Zero reconstruction for all keys. Designed for removing\n"
+	"the influence of coefficients deemed to be null and\n"
+	"rewriting for playback");
 
 }

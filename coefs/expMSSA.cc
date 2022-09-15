@@ -416,8 +416,10 @@ namespace MSSA {
     std::vector<bool> I(ncomp, false);
     if (evlist.size()) {
       for (auto v : evlist) if (v<ncomp) I[v] = true;
-    } else I = std::vector<bool>(ncomp, true);
-
+    } else {
+      I = std::vector<bool>(ncomp, true);
+    }
+    
     // Deduce the rank
     //
     int rank  = std::min<int>({static_cast<int>(Y.cols()), static_cast<int>(Y.rows()), npc});
@@ -568,6 +570,23 @@ namespace MSSA {
     }
 
     reconstructed = true;
+  }
+  
+  std::map<std::string, Coefs::CoefsPtr> expMSSA::zeroReconstructed()
+  {
+    // Copy the original map for return
+    //
+    auto newdata = data;
+    
+    for (auto & v : newdata)
+      std::fill(v.second.begin(), v.second.end(), 0.0);
+
+    for (auto v : newdata) {
+      if (verbose) std::cout << "Updating for: " << v.first << std::endl;
+      coefDB.setData(v.first, v.second);
+    }
+    
+    return coefDB.endUpdate();
   }
   
   
@@ -1095,8 +1114,7 @@ namespace MSSA {
     
   }
   
-  
-  std::map<std::string, Coefs::CoefsPtr> expMSSA::getReconstructed(bool zero)
+  std::map<std::string, Coefs::CoefsPtr> expMSSA::getReconstructed()
   {
     if (dfiles) {
 
@@ -1209,27 +1227,20 @@ namespace MSSA {
       }
     }
     
-    
-    // Make a deep copy of the CoefContainer with new shared pointer
-    // instances for return.  This will allow for multiple copies with
-    // different reconstructed.  Let std::shared_ptr take care of
-    // garbage colleciton.
+    // Copy the database
     //
-    auto newDB = coefDB.deepcopy();
+    // newDB = coefDB.deepcopy();
 
-    // Use CoefDB to recover names and use newdata to replace data
-    //
-    newDB->beginUpdate(zero);
     for (auto v : newdata) {
       if (verbose) std::cout << "Updating for: " << v.first << std::endl;
-      newDB->setData(v.first, v.second);
+      coefDB.setData(v.first, v.second);
     }
     
     // Return updated namestr-coefficient map.  The newDB instance of
     // CoefContainer will be reaped by the underlying objects returned
     // in the map will persist.
     //
-    return newDB->endUpdate();
+    return coefDB.endUpdate();
   }
   
   void expMSSA::assignParameters(const std::string flags)
@@ -1441,6 +1452,8 @@ namespace MSSA {
       analysis.getDataSet("U" ).read(U );
       analysis.getDataSet("PC").read(PC);
 
+      numK = numT - numW + 1;	// Recompute numK, needed for
+				// reconstruction
       computed = true;
 
       if (h5file.exist("reconstruction")) {

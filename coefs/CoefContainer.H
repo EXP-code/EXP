@@ -159,6 +159,8 @@ namespace Coefs
     //! objects
     virtual std::shared_ptr<Coefs> deepcopy() = 0;
 
+    //! Zero the existing data
+    virtual void zerodata() = 0;
   };
   
   /** Derived class for spherical coefficients */
@@ -188,7 +190,11 @@ namespace Coefs
     SphCoefs(bool verbose=false) : Coefs("sphere", verbose) {}
     
     //! Copy constructor
-    SphCoefs(SphCoefs& p) : Coefs(p) { coefs = p.coefs; }
+    SphCoefs(SphCoefs& p) : Coefs(p)
+    {
+      coefs = p.coefs;
+      // for (auto v : p.coefs) coefs[v.first] = v.second->deepcopy();
+    }
 
     //! H5 constructor
     SphCoefs(HighFive::File& file, int stride=0,
@@ -238,6 +244,11 @@ namespace Coefs
     //! objects
     virtual std::shared_ptr<Coefs> deepcopy();
 
+    //! Zero the existing data
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+    }
+
   };
   
   /** Derived class for cylindrical coefficients */
@@ -281,6 +292,7 @@ namespace Coefs
     CylCoefs(CylCoefs& p) : Coefs(p)
     {
       coefs = p.coefs;
+      // for (auto v : p.coefs) coefs[v.first] = v.second->deepcopy();
       angle = p.angle;
     }
 
@@ -327,6 +339,9 @@ namespace Coefs
     //! objects
     virtual std::shared_ptr<Coefs> deepcopy();
 
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+    }
   };
   
 
@@ -380,6 +395,7 @@ namespace Coefs
     TableData(TableData& p) : Coefs(p)
     {
       coefs = p.coefs;
+      // for (auto v : coefs) coefs[v.first] = v.second->deepcopy();
       data  = p.data;
       times = p.times;
     }
@@ -426,6 +442,12 @@ namespace Coefs
     //! objects.  This will recursively call the deepcopy() functions
     //! or all dependent objects
     virtual std::shared_ptr<Coefs> deepcopy();
+
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+      for (auto & v : data) std::fill(v.begin(), v.end(), 0.0);
+    }
+
   };
   
 
