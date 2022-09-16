@@ -52,7 +52,7 @@ namespace MSSA
 
     //! Parameters
     //@{
-    bool chatty, flip, verbose, zeropad, dfiles;
+    bool chatty, flip, verbose, zeropad;
     std::string prefix, config, spec;
     int numW, nmin, nmax, npc;
     double evtol;

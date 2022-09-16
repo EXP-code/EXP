@@ -339,67 +339,11 @@ namespace MSSA {
     double tot = 0.0;
     for (int j=0; j<S.size(); j++) tot += S(j);
       
-    if (dfiles) {
-	
-      std::string filename = prefix + ".ev";
-      std::ofstream out(filename);
-      if (out) {
-	double cum = 0.0;
-	for (int j=0; j<S.size(); j++) {
-	  out << std::setw( 5) << j
-	      << std::setw(18) << S(j)
-	      << std::setw(18) << (cum += S(j))/tot
-	      << std::endl;
-	}
-	out.close();
-      } else {
-	std::cout << "Could not open <" << filename << ">" << std::endl;
-	exit(-1);
-      }
-    }
-	
     npc = std::min<int>(npc, numW*nkeys);
-	
-    if (dfiles) {
-
-      // The eigenvectors {E} are composed of nkeys consecutive segments of
-      // of length numW
-      //
-      std::string filename = prefix + ".evec";
-      std::ofstream out(filename);
-      if (out) {
-	for (int j=0; j<std::min<int>(numW*nkeys, rank); j++) {
-	  out << std::setw(5) << j;
-	  for (int i=0; i<numW*nkeys; i++) out << std::setw(15) << U(i, j);
-	  out << std::endl;
-	}
-	out.close();
-      } else {
-	std::cout << "Could not open <" << filename << ">" << std::endl;
-	exit(-1);
-      }
-    }
 	
     // Compute the PCs by projecting the data
     //
     PC = Y * U;
-	
-    if (dfiles) {
-      std::string filename = prefix + ".pc";
-      std::ofstream out(filename);
-      if (out) {
-	for (int i=0; i<numK; i++) {
-	  out << std::setw(5) << coefDB.times[i];
-	  for (int j=0; j<PC.cols(); j++)
-	    out << std::setw(15) << PC(i, j);
-	  out << std::endl;
-	}
-	out.close();
-      } else {
-	std::cout << "Could not open <" << filename << ">" << std::endl;
-	exit(-1);
-      }
-    }
 	
     computed = true;
     reconstructed = false;
@@ -542,32 +486,6 @@ namespace MSSA {
       }
     }
     */
-
-    if (dfiles) {
-      for (auto u : mean) {
-	std::ostringstream sout;
-	sout << prefix;
-	for (auto v : u.first) sout << "_" << v;
-	sout << ".elem";
-	std::ofstream out(sout.str());
-	if (out) {
-	  double disp = totVar;
-	  if (type == TrendType::totPow) disp = totPow;
-	  if (disp==0.0) disp = var[u.first];
-	  
-	  for (int i=0; i<numT; i++) {
-	    out << std::setw(15) << std::setprecision(6) << coefDB.times[i];
-	    for (int w=0; w<ncomp; w++)
-	      out << std::setw(15) << std::setprecision(6)
-		  << RC[u.first](i, w)*disp + u.second;
-	    out << std::endl;
-	  }
-	} else {
-	  std::cout << "Could not open <" << sout.str() << ">" << std::endl;
-	  exit(-1);
-	}
-      }
-    }
 
     reconstructed = true;
   }
@@ -1116,100 +1034,6 @@ namespace MSSA {
   
   std::map<std::string, Coefs::CoefsPtr> expMSSA::getReconstructed()
   {
-    if (dfiles) {
-
-      std::string filename = prefix + ".recon";
-      std::ofstream out(filename);
-    
-      if (out) {
-	for (int i=0; i<numT; i++) {
-	  out << std::setw(15) << std::setprecision(6) << coefDB.times[i];
-	  for (auto u : mean) {
-	    double disp = totVar;
-	    if (type == TrendType::totPow) disp = totPow;
-	    if (disp==0.0) disp = var[u.first];
-	    
-	    double acc = 0.0;
-	    for (int j=0; j<ncomp; j++) acc += RC[u.first](i, j);
-	    out << std::setw(15) << std::setprecision(6) << acc*disp + u.second;
-	  }
-	  out << std::endl;
-	}
-	out.close();
-      } else {
-	std::cout << "Could not open <" << filename << ">" << std::endl;
-	exit(-1);
-      }
-      
-    
-      filename = prefix + ".recon_diff";
-      out.open(filename);
-      if (out) {
-	for (int i=0; i<numT; i++) {
-	  out << std::setw(15) << std::setprecision(6) << coefDB.times[i];
-	  for (auto k : mean) {
-	    double disp = totVar;
-	    if (type == TrendType::totPow) disp = totPow;
-	    if (disp==0.0) disp = var[k.first];
-	    
-	    double acc = 0.0;
-	    for (int j=0; j<ncomp; j++) acc += RC[k.first](i, j);
-	    out << std::setw(15) << std::setprecision(6) << acc*disp + k.second
-		<< std::setw(15) << std::setprecision(6) << data[k.first][i]*disp + k.second;
-	  }
-	  out << std::endl;
-	}
-	out.close();
-      } else {
-	std::cout << "Could not open <" << filename << ">" << std::endl;
-	exit(-1);
-      }
-    
-      if (params["triples"]) {
-      
-	const char lab[] = {'c', 's'};
-      
-	for (auto u : mean) {
-	  std::ostringstream fname1, fname2, suffix;
-	  auto k = u.first;
-	  suffix << "key";
-	  for (auto q : k) suffix << "_" << q;
-	  fname1 << prefix << ".recon."       << suffix.str();
-	  fname2 << prefix << ".recon_accum." << suffix.str();
-	  std::ofstream out1 (fname1.str());
-	  std::ofstream out2 (fname2.str());
-	  if (out1 and out2) {
-	    double disp = totVar;
-	    if (type == TrendType::totPow) disp = totPow;
-	    if (disp==0.0) disp = var[k];
-	  
-	    out1 << "# " << u.first << std::endl;
-	    out2 << "# " << u.first << std::endl;
-	    for (int i=0; i<numT; i++) {
-	      out1 << std::setw(15) << std::setprecision(6) << coefDB.times[i];
-	      out2 << std::setw(15) << std::setprecision(6) << coefDB.times[i];
-	      double accum = 0.0;
-	      for (int j=0; j<ncomp; j++) {
-		out1 << std::setw(15) << std::setprecision(6)
-		     << RC[k](i, j)*disp + u.second;
-		out2 << std::setw(15) << std::setprecision(6)
-		     << (accum += (RC[k](i, j)*disp + u.second));
-	      }
-	      out1 << std::endl;
-	      out2 << std::endl;
-	    }
-	    out1.close();
-	    out2.close();
-	  } else {
-	    std::cout << "Could not open <" << fname1.str() << ">"
-		      << " or <" << fname2.str() << ">" << std::endl;
-	    exit(-1);
-	  }
-	}
-      }
-    }
-    // END dfiles block
-    
     // Copy the original map for return
     //
     auto newdata = data;
@@ -1262,7 +1086,6 @@ namespace MSSA {
       //
       verbose  = bool(params["verbose"   ]);
       flip     = bool(params["flip"      ]);
-      dfiles   = bool(params["writeFiles"]);
       
       if (params["evtol"]  ) evtol    = params["evtol"].as<double>();
       else                   evtol    = 0.01;
@@ -1498,8 +1321,12 @@ namespace MSSA {
     
     // Eigen OpenMP reporting
     //
-    std::cout << "Eigen is using " << Eigen::nbThreads()
-	      << " threads" << std::endl;
+    static bool firstTime = true;
+    if (firstTime) {
+      std::cout << "Eigen is using " << Eigen::nbThreads()
+		<< " threads" << std::endl;
+      firstTime = false;
+    }
     
     // Now open and parse the coefficient files
     //
@@ -1591,18 +1418,6 @@ namespace MSSA {
 	  if (var[k]>0.0) v /= var[k];
 	}
       }
-    }
-    
-    if (dfiles) {
-      std::string filename(prefix + ".data");
-      std::ofstream out(filename);
-      
-      for (int i=0; i<numT; i++) {
-	out << std::setw(6) << coefDB.times[i];
-	for (auto u : mean) out << std::setw(18) << data[u.first][i];
-	out << std::endl;
-      }
-      out.close();
     }
   }
   // END expMSSA constructor
