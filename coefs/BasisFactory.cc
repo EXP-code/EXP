@@ -749,7 +749,7 @@ namespace Basis
   // Evaluate in on spherical coordinates (should this be Cartesian)
   void Cylindrical::all_eval
   (double r, double cth, double phi,
-   double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
+   double& tdens0, double& tdens, double& tpotl0, double& tpotl, 
    double& tpotr, double& tpott, double& tpotp)
   {
     double sth = sqrt(1.0 - cth*cth);
@@ -761,7 +761,8 @@ namespace Basis
     sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
     
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
-    
+    tdens -= tdens0;
+
     tpotr = tpotR*R/r + tpotz*z/R ;
     tpott = tpotR*z/r - tpotz*R/r ;
   }
