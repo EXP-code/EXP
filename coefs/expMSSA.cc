@@ -1051,18 +1051,14 @@ namespace MSSA {
       }
     }
     
-    // Copy the database
+    // Copy to the working data
     //
-    // newDB = coefDB.deepcopy();
-
     for (auto v : newdata) {
       if (verbose) std::cout << "Updating for: " << v.first << std::endl;
       coefDB.setData(v.first, v.second);
     }
-    
-    // Return updated namestr-coefficient map.  The newDB instance of
-    // CoefContainer will be reaped by the underlying objects returned
-    // in the map will persist.
+
+    // Copies working data back to the coefficient structures
     //
     return coefDB.endUpdate();
   }

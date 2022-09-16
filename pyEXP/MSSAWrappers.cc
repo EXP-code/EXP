@@ -53,10 +53,12 @@ void MSSAtoolkitClasses(py::module &m) {
     "     to working vectors\n"
     "  2 'getReconstructed()' returns a dictionary of name strings that\n"
     "     point to coefficient objects (Coefs). These may be used for\n"
-    "     diagnostics (e.g. visualizing fields).  These new sets are\n"
-    "     are shallow copies of the original Coefs data updated by from\n"
-    "     the working vectors produced by the last call to the function\n"
-    "     'reconstruction(list)'.\n"
+    "     diagnostics (e.g. visualizing fields).  The 'reconstruction()'\n"
+    "     call updates the internal working channel data. These\n"
+    "     updates are copied back to the coefficient DB at the end of"
+    "     'getReconstructed()' call.  This way, once could update the\n"
+    "     channels incrementally and the updated copy is available to\n"
+    "     Python as the originally passed reference.\n"
     "This strategy prevents your stack from growing large by efficiently\n"
     "reusing previously allocated storage. If you want to save a copy of\n"
     "the original coefficients, use the 'deepcopy()' member for Coefs\n"
@@ -136,7 +138,14 @@ void MSSAtoolkitClasses(py::module &m) {
     "the identical input data and keys and then using restoreState(prefix)\n"
     "to read the MSSA analysis from the HDF5 file.  The restore step will\n"
     "check that your data has the same dimension, same parameters, and key\n"
-    "list so it should be pretty hard to fool, but not impossible.\n\n";
+    "list so it should be pretty hard to fool, but not impossible.\n\n"
+    "Computational note\n"
+    "------------------\n"
+    "Some of the linear algebra operations and the MSSA reconstruction\n"
+    "can parallelize itself using OpenMP threads.  If your compilter has\n"
+    "OpenMP, please enable it (i.e. -fopenmp when compiling in GNU or\n"
+    "and set the appropriate environment (e.g. 'export OMP_NUM_THREADS=X'\n"
+    "for Bash)\n\n";
   
   using namespace MSSA;
 

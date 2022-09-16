@@ -46,7 +46,7 @@ namespace MSSA
     bool complexKey;
 
     //! Coefficients
-    Coefs::CoefsPtr coefs, coefs1;
+    Coefs::CoefsPtr coefs;
 
     //! Packing routines
     //@{
