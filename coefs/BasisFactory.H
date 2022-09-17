@@ -5,7 +5,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <ParticleReader.H>
-#include <CoefContainer.H>
+#include <Coefficients.H>
 #include <SLGridMP2.H>
 #include <EmpCylSL.H>
 #include <localmpi.H>

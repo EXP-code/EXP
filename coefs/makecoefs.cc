@@ -7,7 +7,7 @@
 #include <cxxopts.H>
 #include <libvars.H>
 
-#include <CoefContainer.H>
+#include <Coefficients.H>
 #include <BasisFactory.H>
 #include <FieldGenerator.H>
 #include <ParticleReader.H>

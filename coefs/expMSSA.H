@@ -2,7 +2,7 @@
 #define EXP_MSSA_H
 
 #include <yaml-cpp/yaml.h>
-#include "CoefDB.H"
+#include "CoefContainer.H"
 
 namespace MSSA
 {

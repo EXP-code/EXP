@@ -39,7 +39,7 @@
 
 #include <KMeans.H>
 
-#include "CoefDB.H"
+#include "expMSSA.H"
 
 #include "RedSVD.H"
 #include "config.h"

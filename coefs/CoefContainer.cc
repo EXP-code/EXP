@@ -1,1107 +1,496 @@
+#include <algorithm>
 #include <iostream>
-#include <fstream>
-#include <sstream>
 #include <iomanip>
-#include <complex>
+#include <fstream>
+#include <cctype>
 
-#include "config.h"
+#include <yaml-cpp/yaml.h>
 
-#include <Eigen/Dense>
+#include "CoefContainer.H"
 
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
-
-#include <CoefContainer.H>
-
-namespace Coefs
+namespace MSSA
 {
-  
-  void Coefs::copyfields(std::shared_ptr<Coefs> p)
+  // Constructor from lists
+  CoefDB::CoefDB(const std::string& name, Coefs::CoefsPtr coefs,
+		 const std::vector<Key>& keys0, const std::vector<Key>& bkeys0, 
+		 unsigned index, unsigned stride, double tmin, double tmax)
+    :
+    name(name), coefs(coefs), keys0(keys0), bkeys0(bkeys0), index(index),
+    stride(stride), tmin(tmin), tmax(tmax)
   {
-    p->mat      = mat;
-    p->power    = power;
-    p->geometry = geometry;
-    p->name     = name;
-    p->verbose  = verbose;
+    pack_channels();
   }
 
-  SphCoefs::SphCoefs(HighFive::File& file, int stride,
-		     double Tmin, double Tmax, bool verbose) :
-    Coefs("sphere", verbose)
+  // Deep copy
+  std::shared_ptr<CoefDB> CoefDB::deepcopy()
   {
-    std::string config, geometry, forceID;
-    unsigned count;
-    int lmax, nmax;
-    double scale;
-    
-    file.getAttribute("name"    ).read(name    );
-    file.getAttribute("lmax"    ).read(lmax    );
-    file.getAttribute("nmax"    ).read(nmax    );
-    file.getAttribute("scale"   ).read(scale   );
-    file.getAttribute("config"  ).read(config  );
-    file.getDataSet  ("count"   ).read(count   );
-    file.getAttribute("geometry").read(geometry);
-    file.getAttribute("forceID" ).read(forceID );
-    
-    // Open the snapshot group
+    auto ret = std::make_shared<CoefDB>();
+
+    ret->name       = name;
+    ret->index      = index;
+    ret->keys       = keys;
+    ret->bkeys      = bkeys;
+    ret->complexKey = complexKey;
+
+    // Don't try to copy a null instance
+    if (coefs)  ret->coefs  = coefs-> deepcopy();
+
+    ret->data       = data;
+    ret->times      = times;
+
+    return ret;
+  }
+
+  // Copy to workset coefficient set
+  Coefs::CoefsPtr CoefDB::endUpdate()
+  {
+    // Make a new Coefs instance
     //
-    auto snaps = file.getGroup("snapshots");
-    
-    for (unsigned n=0; n<count; n+=stride) {
-      
-      std::ostringstream sout;
-      sout << std::setw(8) << std::setfill('0') << std::right << n;
-      
-      auto stanza = snaps.getGroup(sout.str());
-      
-      double Time;
-      stanza.getAttribute("Time").read(Time);
-      
-      // Check for center data
-      //
-      std::vector<double> ctr;
-      if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
-      }
-
-      if (Time < Tmin or Time > Tmax) continue;
-
-      Eigen::MatrixXcd in((lmax+1)*(lmax+2)/2, nmax);
-      stanza.getDataSet("coefficients").read(in);
-      
-      // Pack the data into the coefficient variable
-      //
-      auto coef = std::make_shared<SphStruct>();
-      
-      if (ctr.size()) coef->ctr = ctr;
-
-      coef->lmax  = lmax;
-      coef->nmax  = nmax;
-      coef->time  = Time;
-      coef->scale = scale;
-      coef->coefs = in;
-      coef->geom  = geometry;
-      coef->id    = forceID;
-      
-      coefs[roundTime(Time)] = coef;
+    if (dynamic_cast<Coefs::SphCoefs*>(coefs.get())) {
+      unpack_sphere();
     }
-  }
-  
-  std::shared_ptr<Coefs> SphCoefs::deepcopy()
-  {
-    auto ret = std::make_shared<SphCoefs>();
-
-    // Copy the base-class fields
-    copyfields(ret);
-
-    // Copy the local structures
-    for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
-
-    return ret;
-  }
-
-  std::shared_ptr<Coefs> CylCoefs::deepcopy()
-  {
-    auto ret = std::make_shared<CylCoefs>();
-
-    // Copy the base-class fields
-    copyfields(ret);
-
-    // Copy the local structures
-    for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
-    ret->angle = angle;
-
-    return ret;
-  }
-
-  std::shared_ptr<Coefs> TableData::deepcopy()
-  {
-    auto ret = std::make_shared<TableData>();
-
-    // Copy the base-class fields
-    copyfields(ret);
-
-    // Copy the local structures
-    for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
-    ret->data  = data;
-    ret->times = times;
-
-    return ret;
-  }
-
-  Eigen::MatrixXcd& SphCoefs::operator()(double time)
-  {
-    auto it = coefs.find(roundTime(time));
-    if (it == coefs.end()) {
-      
-      mat.resize(0, 0);
-      
-    } else {
-      
-      mat = it->second->coefs;
-      
+    else if (dynamic_cast<Coefs::CylCoefs*>(coefs.get())) {
+      unpack_cylinder();
     }
-    
-    return mat;
-  }
-  
-  
-  Eigen::Tensor<std::complex<double>, 3> SphCoefs::getAllCoefs()
-  {
-    Eigen::Tensor<std::complex<double>, 3> ret;
-
-    auto times = Times();
-
-    int lmax = coefs.begin()->second->lmax;
-    int nmax = coefs.begin()->second->nmax;
-    int ntim = times.size();
-
-    // Resize the tensor
-    ret.resize({(lmax+1)*(lmax+2)/2, nmax, ntim});
-
-    for (int t=0; t<ntim; t++) {
-      auto cof = coefs[times[t]];
-      for (int l=0; l<(lmax+2)*(lmax+1)/2; l++) {
-	for (int n=0; n<nmax; n++) {
-	  ret(l, n, t) = cof->coefs(l, n);
-	}
-      }
+    else if (dynamic_cast<Coefs::TableData*>(coefs.get())) {
+      unpack_table();
     }
-
-    return ret;
-  }
-
-
-  std::vector<Key> SphCoefs::makeKeys(Key k)
-  {
-    std::vector<Key> ret;
-    if (coefs.size()==0) return ret;
-
-    int lmax = coefs.begin()->second->lmax;
-    int nmax = coefs.begin()->second->nmax;
-
-    // Sanity
-    if (k.size()) {
-      k[0] = std::max<unsigned>(k[0], 0);
-      k[0] = std::min<unsigned>(k[0], lmax);
-    }
-
-    if (k.size()>1) {
-      k[1] = std::max<unsigned>(k[1], 0);
-      k[1] = std::min<unsigned>(k[1], k[0]);
-    }
-
-    // Three options
-    // 1. return all nkeys for a fixed l, m
-    // 2. return all m, n for a fixed l
-    // 3. return all keys
-
-    // Option 3
-    if (k.size()==0) {
-      for (unsigned l=0; l<=lmax; l++)
-	for (unsigned m=0; m<=l; m++) 
-	  for (unsigned n=0; n<nmax; n++) ret.push_back({l, m, n});
-    }
-    // Option 2
-    else if (k.size()==1) {
-      for (unsigned m=0; m<=k[0]; m++) 
-	for (unsigned n=0; n<nmax; n++) ret.push_back({k[0], m, n});
-    }
-    // Option 1
-    else if (k.size()==2) {
-      for (unsigned n=0; n<nmax; n++) ret.push_back({k[0], k[1], n});
-    }
-    // Bad sub key?
     else {
-      throw std::runtime_error
-	("SphCoefs::makeKeys: the subkey must have rank 0, 1 or 2");
+      throw std::runtime_error("CoefDB::pack_channels(): can not reflect coefficient type");
     }
 
-    return ret;
-  }
-
-
-  void SphCoefs::readNativeCoefs(const std::string& file, int stride,
-				 double tmin, double tmax)
-  {
-    std::ifstream in(file);
-    
-    if (not in) {
-      throw std::runtime_error("SphCoefs ERROR (runtime) opening file <" + file + ">");
-    }
-    
-    int count = 0;
-    while (in) {
-      try {
-	SphStrPtr c = std::make_shared<SphStruct>();
-	if (not c->read(in, verbose)) break;
-
-	if (count++ % stride) continue;
-	if (c->time < tmin or c->time > tmax) continue;
-
-	coefs[roundTime(c->time)] = c;
-      }
-      catch(std::runtime_error& error) {
-	std::cout << "SphCoefs ERROR (runtime): " << error.what() << std::endl;
-	break;
-      }
-      catch(std::logic_error& error) {
-	std::cout << "SphCoefs ERROR (logic): " << error.what() << std::endl;
-	break;
-      }
-    }
-  }
-  
-  
-  void SphCoefs::WriteH5Params(HighFive::File& file)
-  {
-    int lmax     = coefs.begin()->second->lmax;
-    int nmax     = coefs.begin()->second->nmax;
-    double scale = coefs.begin()->second->scale;
-    
-    std::string forceID(coefs.begin()->second->id);
-    
-    file.createAttribute<int>("lmax", HighFive::DataSpace::From(lmax)).write(lmax);
-    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
-    file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
-    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
-  }
-  
-  unsigned SphCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
-  {
-    for (auto c : coefs) {
-      auto C = c.second;
-      
-      std::ostringstream stim;
-      stim << std::setw(8) << std::setfill('0') << std::right << count++;
-      
-      // Make a new group for this time
-      //
-      HighFive::Group stanza = snaps.createGroup(stim.str());
-      
-      // Add a time attribute
-      //
-      stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time)).write(C->time);
-      
-      // Add a center attribute
-      //
-      if (C->ctr.size()>0)
-	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
-      
-      // Index counters
-      //
-      unsigned I = 0, L = 0;
-      
-      // Pack the data into an Eigen matrix
-      //
-      int lmax = C->lmax, nmax= C->nmax;
-      HighFive::DataSet dataset = stanza.createDataSet("coefficients", C->coefs);
-    }
-    
-    return count;
-  }
-  
-  
-  std::string SphCoefs::getYAML()
-  {
-    std::string ret;
-    if (coefs.size()) {
-      if (coefs.begin()->second->buf.get())
-	ret = std::string(coefs.begin()->second->buf.get());
-    }
-    return ret;
-  }
-  
-  void SphCoefs::dump(int lmin, int lmax, int nmin, int nmax)
-  {
-    for (auto c : coefs) {
-      unsigned I = 0;
-      if (lmin>0) I += lmin*lmin;
-      
-      for (int ll=lmin; ll<=std::min<int>(lmax, c.second->lmax); ll++) {
-	for (int mm=0; mm<=ll; mm++) {
-	  std::cout << std::setw(18) << c.first << std::setw(5) << ll << std::setw(5) << mm << std::setw(5);
-	  for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->nmax); nn++) 
-	    std::cout << std::setw(18) << c.second->coefs(I, nn);
-	  std::cout << std::endl;
-	  
-	} // M loop
-	
-      } // L loop
-      
-    } // T loop
-  }
-  
-  
-  bool SphCoefs::CompareStanzas(CoefsPtr check)
-  {
-    bool ret = true;
-    
-    auto other = dynamic_cast<SphCoefs*>(check.get());
-    
-    // Check that every time in this one is in the other
-    for (auto v : coefs) {
-      if (other->coefs.find(roundTime(v.first)) == other->coefs.end()) {
-	std::cout << "Can't find Time=" << v.first << std::endl;
-	ret = false;
-      }
-    }
-    
-    if (not ret) {
-      std::cout << "Times in other coeffcients are:";
-      for (auto v : other->Times()) std::cout << " " << v;
-      std::cout << std::endl;
-    }
-
-    if (ret) {
-      std::cout << "Times are the same, now checking parameters at each time"
-		<< std::endl;
-      for (auto v : coefs) {
-	auto it = other->coefs.find(v.first);
-	if (v.second->lmax != it->second->lmax) ret = false;
-	if (v.second->nmax != it->second->nmax) ret = false;
-	if (v.second->time != it->second->time) ret = false;
-      }
-    }
-    
-    if (ret) {
-      std::cout << "Parameters are the same, now checking coefficients"
-		<< std::endl;
-      for (auto v : coefs) {
-	auto it = other->coefs.find(v.first);
-	for (int i=0; i<v.second->coefs.rows(); i++) {
-	  for (int j=0; j<v.second->coefs.cols(); j++) {
-	    if (v.second->coefs(i, j) != it->second->coefs(i, j)) {
-	      std::cout << "Coefficient (" << i << ", " << j << ")  "
-			<< v.second->coefs(i, j) << " != "
-			<< it->second->coefs(i, j) << std::endl;
-	      ret = false;
-	    }
-	  }
-	}
-      }
-    }
-    
-    return ret;
-  }
-  
-  Eigen::MatrixXd& SphCoefs::Power()
-  {
-    if (coefs.size()) {
-      
-      int lmax = coefs.begin()->second->lmax;
-      power.resize(coefs.size(), lmax+1);
-      power.setZero();
-      
-      int T=0;
-      for (auto v : coefs) {
-	for (int l=0, L=0; l<=lmax; l++) {
-	  for (int m=0; m<=l; m++, L++) {
-	    auto rad = v.second->coefs.row(L);
-	    power(T, l) += (rad.conjugate() * rad.transpose()).real()(0,0);
-	  }
-	}
-	T++;
-      }
-    } else {
-      power.resize(0, 0);
-    }
-    
-    return power;
-  }
-  
-  void SphCoefs::add(CoefStrPtr coef)
-  {
-    coefs[roundTime(coef->time)] = std::dynamic_pointer_cast<SphStruct>(coef);
-  }
-
-  CylCoefs::CylCoefs(HighFive::File& file, int stride,
-		     double Tmin, double Tmax, bool verbose) :
-    Coefs("cylinder", verbose)
-  {
-    int mmax, nmax;
-    unsigned count;
-    std::string config;
-    
-    file.getAttribute("name"   ).read(name  );
-    file.getAttribute("mmax"   ).read(mmax  );
-    file.getAttribute("nmax"   ).read(nmax  );
-    file.getAttribute("config" ).read(config);
-    file.getDataSet  ("count"  ).read(count );
-    
-    // Open the snapshot group
-    //
-    auto snaps = file.getGroup("snapshots");
-    
-    for (unsigned n=0; n<count; n+=stride) {
-      
-      std::ostringstream sout;
-      sout << std::setw(8) << std::setfill('0') << std::right << n;
-      
-      auto stanza = snaps.getGroup(sout.str());
-      
-      double Time;
-      stanza.getAttribute("Time").read(Time);
-      
-      // Check for center data
-      //
-      std::vector<double> ctr;
-      if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
-      }
-
-      if (Time < Tmin or Time > Tmax) continue;
-
-      Eigen::MatrixXcd in(mmax+1, nmax);
-      stanza.getDataSet("coefficients").read(in);
-      
-      // Pack the data into the coefficient variable
-      //
-      auto coef = std::make_shared<CylStruct>();
-      
-      if (ctr.size()) coef->ctr = ctr;
-
-      coef->mmax  = mmax;
-      coef->nmax  = nmax;
-      coef->time  = Time;
-      coef->coefs = in;
-      
-      coefs[roundTime(Time)] = coef;
-    }
-  }
-  
-  Eigen::MatrixXcd& CylCoefs::operator()(double time)
-  {
-    auto it = coefs.find(roundTime(time));
-    
-    if (it == coefs.end()) {
-      
-      mat.resize(0, 0);
-      
-    } else {
-      
-      mat = it->second->coefs;
-      
-    }
-    
-    return mat;
-  }
-  
-  
-  Eigen::Tensor<std::complex<double>, 3> CylCoefs::getAllCoefs()
-  {
-    Eigen::Tensor<std::complex<double>, 3> ret;
-
-    auto times = Times();
-
-    int mmax = coefs.begin()->second->mmax;
-    int nmax = coefs.begin()->second->nmax;
-    int ntim = times.size();
-
-    // Resize the tensor
-    ret.resize({mmax+1, nmax, ntim});
-    
-    for (int t=0; t<ntim; t++) {
-      auto cof = coefs[times[t]];
-      for (int m=0; m<mmax+1; m++) {
-	for (int n=0; n<nmax; n++) {
-	  ret(m, n, t) = cof->coefs(m, n);
-	}
-      }
-    }
-
-    return ret;
-  }
-
-  std::vector<Key> CylCoefs::makeKeys(Key k)
-  {
-    std::vector<Key> ret;
-    if (coefs.size()==0) return ret;
-
-    int mmax = coefs.begin()->second->mmax;
-    int nmax = coefs.begin()->second->nmax;
-
-    // Sanity check
-    if (k.size()==1) {
-      k[0] = std::max<unsigned>(k[0], 0);
-      k[0] = std::min<unsigned>(k[0], mmax);
-    }
-
-    // Two options:
-    // 1. return all keys with a fixed m
-    // 2. return all keys
-    //
-    if (k.size()==0) {
-      for (unsigned m=0; m<=mmax; m++)
-	for (unsigned n=0; n<nmax; n++) ret.push_back({m, n});
-
-    }
-    else if (k.size()==1) {
-      for (unsigned n=0; n<nmax; n++) ret.push_back({k[0], n});
-    }
-    // Bad sub key?
-    else {
-      throw std::runtime_error
-	("SphCoefs::makeKeys: the subkey must have rank 1");
-    }
-
-    return ret;
-  }
-
-  void CylCoefs::readNativeCoefs(const std::string& file, int stride,
-				 double tmin, double tmax)
-  {
-    std::ifstream in(file);
-    
-    if (not in) {
-      throw std::runtime_error("CylCoefs ERROR (runtime) opening file <" + file + ">");
-    }
-    
-    int count = 0;
-    while (in) {
-      CylStrPtr c = std::make_shared<CylStruct>();
-      if (not c->read(in, verbose)) break;
-      
-      if (count++ % stride) continue;
-      if (c->time < tmin or c->time > tmax) continue;
-
-      coefs[roundTime(c->time)] = c;
-    }
-  }
-  
-  void CylCoefs::WriteH5Params(HighFive::File& file)
-  {
-    int mmax = coefs.begin()->second->mmax;
-    int nmax = coefs.begin()->second->nmax;
-    
-    std::string forceID(coefs.begin()->second->id);
-    
-
-    file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
-    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
-    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
-  }
-  
-  unsigned CylCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
-  {
-    for (auto c : coefs) {
-      auto C = c.second;
-      
-      std::ostringstream stim;
-      stim << std::setw(8) << std::setfill('0') << std::right << count++;
-      HighFive::Group stanza = snaps.createGroup(stim.str());
-      
-      // Add time attribute
-      //
-      stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time)).write(C->time);
-      
-      // Add center attribute
-      //
-      if (C->ctr.size()>0)
-	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
-
-      // Add coefficient data
-      //
-      HighFive::DataSet dataset = stanza.createDataSet("coefficients", C->coefs);
-    }
-    
-    return count;
-  }
-  
-  
-  std::string CylCoefs::getYAML()
-  {
-    std::string ret;
-    if (coefs.size()) {
-      if (coefs.begin()->second->buf.get())
-	ret = std::string(coefs.begin()->second->buf.get());
-    }
-
-    return ret;
-  }
-  
-  void CylCoefs::dump(int mmin, int mmax, int nmin, int nmax)
-  {
-    
-    for (auto c : coefs) {
-      for (int mm=mmin; mm<=std::min<int>(mmax, c.second->mmax); mm++) {
-	std::cout << std::setw(18) << c.first << std::setw(5) << mm;
-	for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->nmax); nn++) {
-	  if (angle)
-	    std::cout << std::setw(18) << abs(c.second->coefs(mm, nn))
-		      << std::setw(18) << arg(c.second->coefs(mm, nn));
-	  else
-	    std::cout << std::setw(18) << c.second->coefs(mm, nn).real()
-		      << std::setw(18) << c.second->coefs(mm, nn).imag();
-	}
-	std::cout << std::endl;
-      }
-      // M loop
-    }
-    // T loop
-    
-  }
-  
-  Eigen::MatrixXd& CylCoefs::Power()
-  {
-    if (coefs.size()) {
-      
-      int mmax = coefs.begin()->second->mmax;
-      
-      power.resize(coefs.size(), mmax+1);
-      power.setZero();
-      
-      int T=0;
-      for (auto v : coefs) {
-	for (int m=0; m<=mmax; m++) {
-	  auto rad = v.second->coefs.row(m);
-	  power(T, m) += (rad.conjugate() * rad.transpose()).real()(0, 0);
-	}
-	T++;
-      }
-    } else {
-      power.resize(0, 0);
-    }
-    
-    return power;
-  }
-  
-  TableData::TableData(const std::vector<double>& times,
-		       const std::vector<std::vector<double>>& data,
-		       bool verbose) :
-    times(times), data(data), Coefs("table", verbose)
-  {
-    for (int i=0; i<times.size(); i++) {
-      TblStrPtr c = std::make_shared<TblStruct>();
-      c->cols = data[i].size();
-      c->coefs.resize(1, c->cols);
-      for (int j=0; j<c->cols; j++) c->coefs(0, j) = data[i][j];
-      coefs[roundTime(c->time)] = c;
-    }
-  }
-
-  TableData::TableData(std::string& file, bool verbose) :
-    Coefs("table", verbose)
-  {
-    std::ifstream in(file);
-    
-    if (not in) {
-      throw std::runtime_error("TableData ERROR (runtime) opening file <" + file + ">");
-    }
-    
-    while (in) {
-      TblStrPtr c = std::make_shared<TblStruct>();
-      if (not c->read(in, verbose)) break;
-      
-      coefs[roundTime(c->time)] = c;
-    }
-
-    for (auto c : coefs) times.push_back(c.first);
-  }
-    
-
-  TableData::TableData(HighFive::File& file, int stride,
-		       double Tmin, double Tmax, bool verbose) :
-    Coefs("table", verbose)
-  {
-    int cols;
-    unsigned count;
-    std::string config;
-    
-    file.getAttribute("name"  ).read(name);
-    file.getAttribute("cols"  ).read(cols);
-    file.getAttribute("config").read(config);
-    file.getDataSet  ("count" ).read(count);
-
-    auto snaps = file.getGroup("snapshots");
-    
-    snaps.getDataSet("times").read(times);
-    snaps.getDataSet("datatable").read(data);
-      
-    for (unsigned n=0; n<count; n+=stride) {
-      
-      if (times[n] < Tmin or times[n] > Tmax) continue;
-
-      // Pack the data into the coefficient variable
-      //
-      auto coef = std::make_shared<TblStruct>();
-      coef->cols  = cols;
-      coef->time  = times[n];
-      coef->coefs.resize(1, cols);
-      for (int i=0; i<cols; i++) coef->coefs(0, i) = data[n][i];
-
-      coefs[roundTime(times[n])] = coef;
-    }
-  }
-  
-  Eigen::MatrixXcd& TableData::operator()(double time)
-  {
-    auto it = coefs.find(roundTime(time));
-    
-    if (it == coefs.end()) {
-      
-      mat.resize(0, 0);
-      
-    } else {
-      
-      mat = it->second->coefs;
-      
-    }
-    
-    return mat;
-  }
-  
-  void TableData::readNativeCoefs(const std::string& file, int stride,
-				  double tmin, double tmax)
-  {
-    std::ifstream in(file);
-    
-    if (not in) {
-      throw std::runtime_error("TableData ERROR (runtime) opening file <" + file + ">");
-    }
-    
-    int count = 0;
-    while (in) {
-      TblStrPtr c = std::make_shared<TblStruct>();
-      if (not c->read(in, verbose)) break;
-      
-      if (count++ % stride) continue;
-      if (c->time < tmin or c->time > tmax) continue;
-
-      coefs[roundTime(c->time)] = c;
-    }
-  }
-  
-  
-  void TableData::WriteH5Params(HighFive::File& file)
-  {
-    int cols = coefs.begin()->second->cols;
-    
-    std::string geometry = "table";
-
-    file.createAttribute<int>("cols", HighFive::DataSpace::From(cols)).write(cols);
-  }
-  
-  unsigned TableData::WriteH5Times(HighFive::Group& snaps, unsigned count)
-  {
-    snaps.createDataSet("times", times);
-    snaps.createDataSet("datatable", data);
-    
-    count = times.size();
-
-    return count;
-  }
-  
-  
-  std::string TableData::getYAML()
-  {
-    std::string ret;
-    if (coefs.size()) {
-      if (coefs.begin()->second->buf.get())
-	ret = std::string(coefs.begin()->second->buf.get());
-    }
-
-    return ret;
-  }
-
-  bool TableData::CompareStanzas(std::shared_ptr<Coefs> check)
-  {
-    bool ret = true;
-    
-    auto other = dynamic_cast<TableData*>(check.get());
-    
-    // Check that every time in this one is in the other
-    for (auto v : coefs) {
-      if (other->coefs.find(roundTime(v.first)) == other->coefs.end()) {
-	std::cout << "Can't find Time=" << v.first << std::endl;
-	ret = false;
-      }
-    }
-    
-    if (ret) {
-      std::cout << "Times are the same, now checking parameters at each time"
-		<< std::endl;
-      for (auto v : coefs) {
-	auto it = other->coefs.find(v.first);
-	if (v.second->cols != it->second->cols) ret = false;
-      }
-    }
-    
-    if (ret) {
-      std::cout << "Parameters are the same, now checking coefficients time"
-		<< std::endl;
-      for (auto v : coefs) {
-	auto it = other->coefs.find(v.first);
-	for (int m=0; m<v.second->cols; m++) {
-	  if (v.second->coefs(m) != it->second->coefs(m)) {
-	    ret = false;
-	  }
-	}
-      }
-    }
-    
-    return ret;
-  }
-  
-
-  Eigen::MatrixXd TableData::getAllCoefs()
-  {
-    Eigen::MatrixXd ret;
-
-    auto times = Times();
-
-    int cols = coefs.begin()->second->cols;
-    int ntim = times.size();
-
-    ret.resize(cols, ntim);
-    
-    for (int t=0; t<ntim; t++) {
-      auto cof = coefs[times[t]];
-      for (int c=0; c<cols; c++) {
-	ret(c, t) = cof->coefs(0, c).real();
-      }
-    }
-
-    return ret;
-  }
-
-
-  std::shared_ptr<Coefs> Coefs::factory
-  (const std::string& file, int stride, double tmin, double tmax)
-  {
-    std::shared_ptr<Coefs> coefs;
-    
-    // First attempt to read the file as H5
-    //
-    try {
-      // Silence the HDF5 error stack
-      //
-      HighFive::SilenceHDF5 quiet;
-      
-      // Try opening the file as HDF5
-      //
-      HighFive::File h5file(file, HighFive::File::ReadOnly);
-      
-      // Get the coefficient file type
-      //
-      std::string geometry;
-      HighFive::Attribute geom = h5file.getAttribute("geometry");
-      geom.read(geometry);
-      
-      try {
-	if (geometry.compare("sphere")==0) {
-	  coefs = std::make_shared<SphCoefs>(h5file, stride, tmin, tmax);
-	} else if (geometry.compare("cylinder")==0) {
-	  coefs = std::make_shared<CylCoefs>(h5file, stride, tmin, tmax);
-	} else if (geometry.compare("table")==0) {
-	  coefs = std::make_shared<TableData>(h5file, stride, tmin, tmax);
-	} else {
-	  throw std::runtime_error("CoefContainer: unknown H5 coefficient file geometry");
-	}
-      } catch (HighFive::Exception& err) {
-	std::cerr << "**** Error reading H5 file ****" << std::endl;
-	std::cerr << err.what() << std::endl;
-	exit(-1);
-      }
-      
-      return coefs;
-      
-    } catch (HighFive::Exception& err) {
-      std::cerr << "**** Error opening H5 file, will try other types ****" << std::endl;
-    }
-    
-    // Open file and read magic number
-    //
-    std::ifstream in(file);
-    
-    in.exceptions ( std::istream::failbit | std::istream::badbit );
-    
-    // Attempt to read coefficient magic number
-    //
-    const unsigned int sph_magic = 0xc0a57a2;
-    const unsigned int cyl_magic = 0xc0a57a3;
-    unsigned int tmagic;
-    
-    in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
-    in.close();
-    
-    if (tmagic==sph_magic) {
-      coefs = std::make_shared<SphCoefs>();
-    } else if (tmagic==cyl_magic) {
-      coefs = std::make_shared<CylCoefs>();
-    } else {
-      coefs = std::make_shared<TableData>();
-    }
-    
-    coefs->readNativeCoefs(file, stride, tmin, tmax);
-    
     return coefs;
   }
   
-  std::shared_ptr<Coefs> Coefs::makecoefs(CoefStrPtr coef, std::string name)
+  
+
+  void CoefDB::pack_channels()
   {
-    std::shared_ptr<Coefs> ret;
-    if (dynamic_cast<SphStruct*>(coef.get())) {
-      ret = std::make_shared<SphCoefs>();
-    } else if (dynamic_cast<CylStruct*>(coef.get())) {
-      ret = std::make_shared<CylCoefs>();
-    } else if (dynamic_cast<TblStruct*>(coef.get())) {
-      ret = std::make_shared<TableData>();
-    } else {
-      throw std::runtime_error("CoefContainer: cannot deduce coefficient file type");
+    if (dynamic_cast<Coefs::SphCoefs*>(coefs.get()))
+      pack_sphere();
+    else if (dynamic_cast<Coefs::CylCoefs*>(coefs.get()))
+      pack_cylinder();
+    else if (dynamic_cast<Coefs::TableData*>(coefs.get()))
+      pack_table();
+    else {
+      throw std::runtime_error("CoefDB::pack_channels(): can not reflect coefficient type");
     }
-
-    ret->setName(name);
-
-    return ret;
   }
-  
 
-  std::shared_ptr<Coefs> Coefs::addcoef
-  (std::shared_ptr<Coefs> coefs, CoefStrPtr coef)
+  void CoefDB::pack_cylinder()
   {
-    std::shared_ptr<Coefs> ret = coefs;
-    if (not coefs) ret = makecoefs(coef);
+    auto cur = dynamic_cast<Coefs::CylCoefs*>(coefs.get());
 
-    ret->add(coef);
+    times = cur->Times();
+    complexKey = true;
+
+    auto cf = dynamic_cast<Coefs::CylStruct*>( cur->getCoefStruct(times[0]).get() );
+
+    int mmax = cf->mmax;
+    int nmax = cf->nmax;
+    int ntimes = times.size();
     
-    return ret;
-  }
-  
-  bool CylCoefs::CompareStanzas(std::shared_ptr<Coefs> check)
-  {
-    bool ret = true;
-    
-    auto other = dynamic_cast<CylCoefs*>(check.get());
-    
-    // Check that every time in this one is in the other
+    // Promote desired keys into c/s pairs
     //
-    for (auto v : coefs) {
-      if (other->coefs.find(v.first) == other->coefs.end()) {
-	std::cout << "Can't find Time=" << v.first << std::endl;
-	ret = false;
+    keys.clear();
+    for (auto v : keys0) {
+      // Sanity check
+      if (v[0]>=0 and v[0]<=mmax and
+	  v[1]>=0 and v[1]<=nmax ) {
+	auto c = v, s = v;
+	c.push_back(0);
+	s.push_back(1);
+	keys.push_back(c);
+	if (v[0]) keys.push_back(s);
       }
     }
-    
-    if (ret) {
-      std::cout << "Times are the same, now checking parameters at each time"
-		<< std::endl;
-      for (auto v : coefs) {
-	auto it = other->coefs.find(v.first);
-	if (v.second->mmax != it->second->mmax) ret = false;
-	if (v.second->nmax != it->second->nmax) ret = false;
-	if (v.second->time != it->second->time) ret = false;
+
+    bkeys.clear();
+    for (auto v : keys0) {
+      // Sanity check
+      if (v[0]>=0 and v[0]<=mmax and
+	  v[1]>=0 and v[1]<=nmax ) {
+	auto c = v, s = v;
+	c.push_back(0);
+	s.push_back(1);
+	bkeys.push_back(c);
+	if (v[0]) keys.push_back(s);
       }
     }
+
+    // Only pack the keys in the list
+    //
+    for (auto k : keys) {
+      data[k].resize(ntimes);
+    }
+
+    for (auto k : bkeys) {
+      data[k].resize(ntimes);
+    }
+
+    for (int t=0; t<ntimes; t++) {
+      cf = dynamic_cast<Coefs::CylStruct*>( cur->getCoefStruct(times[t]).get() );
+      for (auto k : keys) {
+	if (k[2]==0)
+	  data[k][t] = cf->coefs(k[0], k[1]).real();
+	else
+	  data[k][t] = cf->coefs(k[0], k[1]).imag();
+      }
+
+      for (auto k : bkeys) {
+	if (k[2]==0)
+	  data[k][t] = cf->coefs(k[0], k[1]).real();
+	else
+	  data[k][t] = cf->coefs(k[0], k[1]).imag();
+      }
+    }
+  }
+
+  void CoefDB::unpack_cylinder()
+  {
+    for (int i=0; i<times.size(); i++) {
+      auto cf = dynamic_cast<Coefs::CylStruct*>( coefs->getCoefStruct(times[i]).get() );
+      
+      for (auto k : keys0) {
+	auto c = k, s = k;
+	c.push_back(0); s.push_back(1);
+
+	int m = k[0], n = k[1];
+
+	if (m==0) cf->coefs(m, n) = {data[c][i], 0.0};
+	else      cf->coefs(m, n) = {data[c][i], data[s][i]};
+      }
+      // END key loop
+    }
+    // END time loop
+  }
+
+  void CoefDB::pack_sphere()
+  {
+    auto cur = dynamic_cast<Coefs::SphCoefs*>(coefs.get());
+
+    times = cur->Times();
+    complexKey = true;
+
+    auto cf = dynamic_cast<Coefs::SphStruct*>( cur->getCoefStruct(times[0]).get() );
+
+    int lmax   = cf->lmax;
+    int nmax   = cf->nmax;
+    int ntimes = times.size();
     
-    if (ret) {
-      std::cout << "Parameters are the same, now checking coefficients time"
-		<< std::endl;
-      for (auto v : coefs) {
-	auto it = other->coefs.find(v.first);
-	for (int m=0; m<v.second->mmax; m++) {
-	  for (int n=0; n<v.second->nmax; n++) { 
-	    if (v.second->coefs(m, n) != it->second->coefs(m, n)) {
-	      ret = false;
-	    }
-	  }
+    // Make extended key list
+    //
+    keys.clear();
+    for (auto k : keys0) {
+      if (k[0] <= lmax and k[0] >= 0 and // Sanity check
+	  k[1] <= k[0] and k[1] >= 0 and
+	  k[2] <= nmax and k[2] >= 0 ) {
+	
+	auto v = k;
+	v.push_back(0);
+	keys.push_back(v);
+	data[v].resize(ntimes);
+
+	if (k[1]>0) {
+	  v[3] = 1;
+	  keys.push_back(v);
+	  data[v].resize(ntimes);
 	}
       }
     }
+
+    bkeys.clear();
+    for (auto k : bkeys0) {
+      if (k[0] <= lmax and k[0] >= 0 and // Sanity check
+	  k[1] <= k[0] and k[1] >= 0 and
+	  k[2] <= nmax and k[2] >= 0 ) {
+	
+	auto v = k;
+	v.push_back(0);
+	keys.push_back(v);
+	data[v].resize(ntimes);
+
+	if (k[1]>0) {
+	  v[3] = 1;
+	  keys.push_back(v);
+	  data[v].resize(ntimes);
+	}
+      }
+    }
+
+    auto I = [](const Key& k) { return k[0]*(k[0]+1)/2 + k[1]; };
+
+    for (int t=0; t<ntimes; t++) {
+      cf = dynamic_cast<Coefs::SphStruct*>( cur->getCoefStruct(times[t]).get() );
+      for (auto k : keys)  {
+	auto c = cf->coefs(I(k), k[2]);
+	data[k][t] = c.real();
+	if (k[3]) data[k][t] = c.imag();
+      }
+
+      for (auto k : bkeys)  {
+	auto c = cf->coefs(I(k), k[2]);
+	data[k][t] = c.real();
+	if (k[3]) data[k][t] = c.imag();
+      }
+    }
+  }
+
+  void CoefDB::unpack_sphere()
+  {
+    auto I = [](const Key& k) { return k[0]*(k[0]+1)/2 + k[1]; };
+
+    for (int i=0; i<times.size(); i++) {
+
+      auto cf = dynamic_cast<Coefs::SphStruct*>( coefs->getCoefStruct(times[i]).get() );
+      
+      for (auto k : keys0) {
+	auto c = k, s = k;
+	c.push_back(0);
+	s.push_back(1);
+
+	int m = k[0], n = k[1];
+
+	if (m==0) cf->coefs(I(k), n) = {data[c][i], 0.0       };
+	else      cf->coefs(I(k), n) = {data[c][i], data[s][i]};
+      }
+      // END key loop
+    }
+    // END time loop
+  }
+  
+  void CoefDB::pack_table()
+  {
+    auto cur = dynamic_cast<Coefs::TableData*>(coefs.get());
+
+    times = cur->Times();
+    complexKey = false;
+
+    auto cf = dynamic_cast<Coefs::TblStruct*>( cur->getCoefStruct(times[0]).get() );
+
+    int cols    = cf->cols;
+    int ntimes  = times.size();
     
+    for (unsigned c=0; c<cols; c++) {
+      Key key = {c};
+      data[key].resize(ntimes);
+    }
+
+    for (int t=0; t<ntimes; t++) {
+      for (unsigned c=0; c<cols; c++) {
+	Key key = {c};
+
+	cf = dynamic_cast<Coefs::TblStruct*>( cur->getCoefStruct(times[t]).get() );
+
+	data[key][t] = cf->coefs(0, c).real();
+      }
+    }
+  }
+
+  void CoefDB::unpack_table()
+  {
+    for (int i=0; i<times.size(); i++) {
+
+      auto cf = dynamic_cast<Coefs::TblStruct*>( coefs->getCoefStruct(times[i]).get() );
+
+      int cols = cf->cols;
+
+      for (unsigned c=0; c<cols; c++) {
+	Key key = {c};
+	cf->coefs(0, c) = data[key][i];
+      }
+      // End field loop
+    }
+    // END time loop
+
+  }
+
+
+  CoefContainer::CoefContainer(const CoefContainer& p)
+  {
+    // Protected data
+    comps   = p.comps;
+    keylist = p.keylist;
+    namemap = p.namemap;
+
+    // Public data
+    tmin    = p.tmin;
+    tmax    = p.tmax;
+    times   = p.times;
+    runtag  = p.runtag;
+  }
+
+  std::shared_ptr<CoefContainer> CoefContainer::deepcopy()
+  {
+    auto ret = std::make_shared<CoefContainer>();
+
+    for (auto v : comps) ret->comps.push_back(v->deepcopy());
+
+    ret->keylist = keylist;
+    ret->namemap = namemap;
+
+    ret->tmin    = tmin;
+    ret->tmax    = tmax;
+    ret->stride  = stride;
+    ret->times   = times;
+    ret->runtag  = runtag;
+
     return ret;
   }
-  
-  void Coefs::WriteH5Coefs(const std::string& prefix)
-  {
-    try {
-      // Create a new hdf5 file
-      //
-      HighFive::File file(prefix + ".h5",
-			  HighFive::File::ReadWrite |
-			  HighFive::File::Create);
-      
-      // We write the coefficient file geometry
-      //
-      file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
-      
-      // We write the coefficient mnemonic
-      //
-      file.createAttribute<std::string>("name", HighFive::DataSpace::From(name)).write(name);
-      
-      // Stash the basis configuration (this is not yet implemented in EXP)
-      //
-      std::string config(getYAML());
-      file.createAttribute<std::string>("config", HighFive::DataSpace::From(config)).write(config);
-      
-      // Write the specific parameters
-      //
-      WriteH5Params(file);
-      
-      // Group count variable
-      //
-      unsigned count = 0;
-      HighFive::DataSet dataset = file.createDataSet("count", count);
-      
-      // Create a new group for coefficient snapshots
-      //
-      HighFive::Group group = file.createGroup("snapshots");
-      
-      // Write the coefficients
-      //
-      count = WriteH5Times(group, count);
-      
-      // Update the count
-      //
-      dataset.write(count);
-      
-    } catch (HighFive::Exception& err) {
-      std::cerr << err.what() << std::endl;
-    }
-    
-  }
-  
-  void Coefs::ExtendH5Coefs(const std::string& prefix)
-  {
-    try {
-      // Create a new hdf5 file
-      //
-      HighFive::File file(prefix + ".h5",	HighFive::File::ReadWrite);
-      
-      // Get the dataset
-      HighFive::DataSet dataset = file.getDataSet("count");
-      
-      unsigned count;
-      dataset.read(count);
-      
-      HighFive::Group group = file.getGroup("snapshots");
-      
-      // Write the coefficients
-      //
-      count = WriteH5Times(group, count);
-      
-      // Update the count
-      //
-      dataset.write(count);
-      
-    } catch (HighFive::Exception& err) {
-      std::cerr << err.what() << std::endl;
-    }
-    
-  }
-  
-  void CylCoefs::add(CoefStrPtr coef)
-  {
-    coefs[roundTime(coef->time)] = std::dynamic_pointer_cast<CylStruct>(coef);
-  }
 
-  void TableData::add(CoefStrPtr coef)
+  /*
+  CoefContainer::CoefContainer(const std::string spec)
   {
-    coefs[roundTime(coef->time)] = std::dynamic_pointer_cast<TblStruct>(coef);
-  }
+    YAML::Node top = YAML::LoadFile(spec);
 
+    // Defaults
+    tmin   = -std::numeric_limits<double>::max();
+    tmax   =  std::numeric_limits<double>::max();
+    runtag = "mssa";
+    stride = 1;
+
+    // Overrides
+    if (top["tmin"])   tmin   = top["tmin"].as<double>();
+    if (top["tmax"])   tmax   = top["tmax"].as<double>();
+    if (top["stride"]) stride = top["stride"].as<int>();
+    if (top["runtag"]) runtag = top["runtag"].as<std::string>();
+
+    if (top["components"]) {
+
+      YAML::Node node = top["components"];
+
+      for (YAML::const_iterator it=node.begin(); it!=node.end(); it++) {
+	std::string name = it->first.as<std::string>();
+	YAML::Node node = it->second;
+	std::string ctype("sphere");
+	if (node["geometry"]) {
+	  ctype = node["geometry"].as<std::string>();
+	  std:: transform(ctype.begin(), ctype.end(), ctype.begin(),
+			  [](unsigned char c){ return std::tolower(c);});
+	} else {
+	  std::cout << "Geometry not specified.  You must specify 'cylinder' or 'sphere'." << std::endl;
+	  exit(-1);
+	}
+
+	// Create the instances
+	//
+	if (ctype.find("sphere")==0) {
+	  namemap[name] = comps.size();
+	  comps.push_back(std::make_shared<SphDB>(name, node, comps.size(), stride, tmin, tmax));
+	} else if (ctype.find("cylinder")==0) {
+	  namemap[name] = comps.size();
+	  comps.push_back(std::make_shared<CylDB>(name, node, comps.size(), stride, tmin, tmax));
+	} else if (ctype.find("table")==0) {
+	  namemap[name] = comps.size();
+	  comps.push_back(std::make_shared<TableDB>(name, node, comps.size(), stride, tmin, tmax));
+	} else {
+	  std::cout << "Unknown geometry.  You must specify 'cylinder', 'sphere', or 'table'." << std::endl;
+	  exit(-1);
+	}
+      }
+    } else {
+      std::cout << "CoefContainer: no components specified" << std::endl;
+      exit(-1);
+    }
+
+    // Check times (all should be the same)
+    //
+				// First check lengths
+    size_t tsize = comps[0]->times.size();
+    for (size_t n=1; n<comps.size(); n++) {
+      if (tsize != comps[n]->times.size()) {
+	std::cout << "CoefContainer: times lengths do not agree!" << std::endl;
+	exit(-4);
+      }
+				// Now check time values
+      for (size_t t=0; t<tsize; t++) {
+	if (fabs(comps[0]->times[t] - comps[n]->times[t]) > 1.0e-8) {
+	  std::cout << "CoefContainer: times disagree for indices 0 and "
+		    << n << std::endl;
+	  exit(-5);
+	}
+      }
+    }
+
+    // Waste a little space for convenience
+    //
+    times = comps[0]->times;
+
+    // Make key list
+    //
+    for (size_t n=0; n<comps.size(); n++) {
+      for (size_t k=0; k<comps[n]->keys.size(); k++) {
+	std::vector<unsigned> keyp = comps[n]->keys[k];
+	keyp.push_back(comps[n]->index);
+	keylist.push_back(keyp);
+      }
+    }
+  }
+  */
+
+  CoefContainer::CoefContainer(const mssaConfig& config, const std::string spec)
+  {
+    YAML::Node top;
+    if (spec.size()) top = YAML::Load(spec);
+
+    // Defaults
+    tmin   = -std::numeric_limits<double>::max();
+    tmax   =  std::numeric_limits<double>::max();
+    runtag = "mssa";
+    stride = 1;
+
+    // Overrides
+    if (top["tmin"])   tmin   = top["tmin"].as<double>();
+    if (top["tmax"])   tmax   = top["tmax"].as<double>();
+    if (top["stride"]) stride = top["stride"].as<int>();
+    if (top["runtag"]) runtag = top["runtag"].as<std::string>();
+
+    int index = 0;
+    for (auto v : config) {
+      namemap[v.first] = index;
+      comps.push_back(std::make_shared<CoefDB>(v.first, 
+					       std::get<0>(v.second),
+					       std::get<1>(v.second),
+					       std::get<2>(v.second),
+					       index, stride, tmin, tmax));
+      index++;			// Update index
+    }
+
+    // Check times (all should be the same)
+    //
+				// First check lengths
+    size_t tsize = comps[0]->times.size();
+    for (size_t n=1; n<comps.size(); n++) {
+      if (tsize != comps[n]->times.size()) {
+	std::cout << "CoefContainer: times lengths do not agree!" << std::endl;
+	exit(-4);
+      }
+				// Now check time values
+      for (size_t t=0; t<tsize; t++) {
+	if (fabs(comps[0]->times[t] - comps[n]->times[t]) > 1.0e-8) {
+	  std::cout << "CoefContainer: times disagree for indices 0 and "
+		    << n << std::endl;
+	  exit(-5);
+	}
+      }
+    }
+
+    // Waste a little space for convenience
+    //
+    times = comps[0]->times;
+
+    // Make key list
+    //
+    for (size_t n=0; n<comps.size(); n++) {
+      for (size_t k=0; k<comps[n]->keys.size(); k++) {
+	std::vector<unsigned> keyp = comps[n]->keys[k];
+	keyp.push_back(comps[n]->index);
+	keylist.push_back(keyp);
+      }
+    }
+  }
+  // END CoefContainer constructor
 
 }
-// END namespace Coefs
+// END namespace MSSA
+

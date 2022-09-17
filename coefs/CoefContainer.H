@@ -1,459 +1,286 @@
-#ifndef _COEF_FACTORY_H
-#define _COEF_FACTORY_H
+#ifndef _CoefContainer_H
+#define _CoefContainer_H
 
-// Needed by member functions for writing parameters and stanzas
-#include <highfive/H5File.hpp>
+#include <memory>
+#include <tuple>
+#include <map>
+#include <set>
 
-#include <Eigen/Eigen>	      // Store coefficient matrices and 2d grids
-#include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids?
+#include <Eigen/Dense>
+#include <Coefficients.H>
 
-// The EXP native coefficient classes
-#include <CoefStruct.H>
+namespace MSSA
+{
+  //! Coefficient and keys
+  using CoefElements = std::map<std::string, std::vector<std::vector<int>>>;
 
-namespace Coefs
-{ 
   //! An index key
   using Key = std::vector<unsigned>;
   
-  /** 
-      Abstract class for any type of coefficient database
-      
-      Can read and write EXP native and EXP H5 coefficient formats.
-      Provides access to coefficients by time. Provides a factory member
-      that returns derived class instances.
-  */
-  class Coefs
+  //! Coefficient and channel config map/dictionary
+  using mssaConfig =
+    std::map<std::string, std::tuple<Coefs::CoefsPtr, std::vector<Key>, std::vector<Key>>>;
+
+  //! Detrending style
+  enum class TrendType {perChannel, totVar, totPow};
+
+  //! Base class for per component coefficients
+  class CoefDB
   {
-    
+    friend class CoefContainer;
+
   protected:
-    
-    //! Blank instance
-    Eigen::MatrixXcd mat;
-    
-    //! Working array for power
-    Eigen::MatrixXd power;
-    
-    //! Coefficient geometry
-    std::string geometry;
-    
-    //! Coefficient name (mnemonic)
+    //! Name of component
     std::string name;
 
-    //! Verbose debugging output
-    bool verbose;
-    
-    //! Read the coefficients
-    virtual void readNativeCoefs(const std::string& file,
-				 int stride, double tmin, double tmax) = 0;
-    
-    //! Get the YAML config for the basis (to be implemented by EXP)
-    virtual std::string getYAML() = 0;
-    
-    //! Write parameter attributes (needed for derived classes)
-    virtual void WriteH5Params(HighFive::File& file) = 0;
-    
-    //! Write coefficient data in H5
-    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count) = 0;
-    
-    //! Round time key to emulated fixed-point arithmetic
-    inline double roundTime(double time)
-    {
-      // Eight decimal places should be enough here...
-      const double multiplier = 1.0e+08;  // std::pow(10.0, 8);
-      return std::floor(time * multiplier + 0.5) / multiplier;
-    }
-    
-    //! Copy all of the base-class data
-    void copyfields(std::shared_ptr<Coefs> p);
+    //! Index of component
+    unsigned index;
+
+    //! List of desired keys
+    std::vector<Key> keys, keys0;
+
+    //! List of keys for background
+    std::vector<Key> bkeys, bkeys0;
+
+    //! Complex keys
+    bool complexKey;
+
+    //! Coefficients
+    Coefs::CoefsPtr coefs;
+
+    //! Packing routines
+    //@{
+    //! Reflect type
+    void pack_channels();
+
+    //@{
+    //! Spherical coefficients
+    void pack_sphere();
+    void unpack_sphere();
+
+    //@{
+    //! Cylindrical coefficients
+    void pack_cylinder();
+    void unpack_cylinder();
+    //@}
+
+    //@{
+    //! Table coefficients
+    void pack_table();
+    void unpack_table();
+    //@}
+    //@}
+
+    //@{
+    //! Not sure we need this since data stream assembly will happen
+    //! upstream
+    int stride;
+    double tmin, tmax;
+    //@}
 
   public:
-    
-    //! Constructor
-    Coefs(std::string geometry, bool verbose) :
-      geometry(geometry), verbose(verbose) {}
+    //! Harmonics
+    using LMKey = std::tuple<unsigned, unsigned>;
 
-    //! Copy constructor
-    Coefs(Coefs& p)
-    {
-      mat      = p.mat;
-      power    = p.power;
-      geometry = p.geometry;
-      name     = p.name;
-    }
-    
-    //! Get coefficient matrix at given time
-    virtual Eigen::MatrixXcd& operator()(double time) = 0;
-    
-    //! Get coefficient structure at a given time
-    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time) = 0;
+    //! Database itself
+    std::map<Key, std::vector<double>> data;
 
-    //! Dump to ascii list (for testing only)
-    virtual void dump(int mmin, int mmax, int nmin, int nmax) = 0;
-    
-    //! Get list of coefficient times
-    virtual std::vector<double> Times() = 0;
-    
-    //! Write H5 coefficient file
-    virtual void WriteH5Coefs(const std::string& prefix);
-    
-    //! Add to an H5 coefficient file
-    virtual void ExtendH5Coefs(const std::string& prefix);
-    
-    /** Get power for the coefficient DB as a function of harmonic
-	index.  Time as rows, harmonics as columns.  This could be
-	refined for partial summations. */
-    virtual Eigen::MatrixXd& Power() = 0;
-    
-    //! Make keys for the remaining indices in a subspace
-    virtual std::vector<Key> makeKeys(Key k) = 0;
-
-    /** The coefficient factory members
-
-	Creates a shared pointer to derived instance of the desired
-	type and returns it.  This uses a coefficient file to
-	construct the coefficient database
-    */
-    static std::shared_ptr<Coefs> factory
-    (const std::string& file, int stride=0,
-     double tmin=-std::numeric_limits<double>::max(),
-     double tmax= std::numeric_limits<double>::max() );
-    
-    //! Make Coefs instance if it doesn't yet exist
-    static std::shared_ptr<Coefs> makecoefs(CoefStrPtr coef, std::string name="");
-
-    /** Joint factory and update member
-
-	If Coefs pointer is null:
-	* Creates a coefficient container based on the initial set of
-	  coefficients and adds them to the internal container
-
-	If Coefs pointer is not null:
-	* Use add() member to add new coefficients to the exising
-	  container
-
-	This factory would be used with
-	Basis::Basis to derive coefficients from snapshots.
-    */
-    static std::shared_ptr<Coefs>
-    addcoef(std::shared_ptr<Coefs> coefs, CoefStrPtr coef);
-    
-    //! Clear coefficient container
-    virtual void clear() = 0;
-
-    //! Add a coefficient structure to the container
-    virtual void add(CoefStrPtr coef) = 0;
-    
-    //! Compare two collections of stanzas (this is for testing only)
-    virtual bool CompareStanzas(std::shared_ptr<Coefs> check) = 0;
-
-    //! Get coefficient type
-    std::string getGeometry() { return geometry; }
-
-    //! Get mnemonic name
-    std::string getName() { return name; }
-
-    //! Set mnemonic name
-    void setName(const std::string& newname) { name = newname; }
-
-    //! Copy all of the data; make new instances of shared pointer
-    //! objects
-    virtual std::shared_ptr<Coefs> deepcopy() = 0;
-
-    //! Zero the existing data
-    virtual void zerodata() = 0;
-  };
-  
-  /** Derived class for spherical coefficients */
-  class SphCoefs : public Coefs
-  {
-  protected:
-    
-    //! The coefficient DB
-    std::map<double, SphStrPtr> coefs;
-
-    //! Read the coefficients
-    virtual void readNativeCoefs(const std::string& file,
-				 int stride, double tmin, double tmax);
-    
-    //! Get the YAML config
-    virtual std::string getYAML();
-    
-    //! Write parameter attributes
-    virtual void WriteH5Params(HighFive::File& file);
-    
-    //! Write coefficient data in H5
-    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
-    
-  public:
-    
-    //! Constructor
-    SphCoefs(bool verbose=false) : Coefs("sphere", verbose) {}
-    
-    //! Copy constructor
-    SphCoefs(SphCoefs& p) : Coefs(p)
-    {
-      coefs = p.coefs;
-      // for (auto v : p.coefs) coefs[v.first] = v.second->deepcopy();
-    }
-
-    //! H5 constructor
-    SphCoefs(HighFive::File& file, int stride=0,
-	     double tmin=-std::numeric_limits<double>::max(),
-	     double tmax= std::numeric_limits<double>::max(),
-	     bool verbose=false);
-    
-    //! Clear coefficient container
-    virtual void clear() { coefs.clear(); }
-
-    //! Add a coefficient structure to the container
-    virtual void add(CoefStrPtr coef);
-
-    //! Get coefficient matrix at given time
-    virtual Eigen::MatrixXcd& operator()(double time);
-    
-    //! Get coefficient structure at a given time
-    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
-
-    //! Dump to ascii list for testing
-    virtual void dump(int lmin, int lmax, int nmin, int nmax);
-    
-    //! Get list of coefficient times
-    virtual std::vector<double> Times()
-    {
-      std::vector<double> ret;
-      for (auto t : coefs) ret.push_back(t.first);
-      return ret;
-    }
-    
-    //! Get all coefficients indexed in l, m, n, time
-    Eigen::Tensor<std::complex<double>, 3> getAllCoefs();
-
-    /** Get power for the coefficient DB as a function of harmonic
-	index.  Time as rows, harmonics as columns.  This could be
-	refined for partial summations. */
-    virtual Eigen::MatrixXd& Power();
-    
-    //! Make keys for the remaining indices in a subspace
-    virtual std::vector<Key> makeKeys(Key k);
-
-    //! Compare two collections of stanzas (this is for testing only)
-    virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
-
-    //! Copy all of the data; make new instances of shared pointer
-    //! objects
-    virtual std::shared_ptr<Coefs> deepcopy();
-
-    //! Zero the existing data
-    virtual void zerodata() {
-      for (auto v : coefs) v.second->zerodata();
-    }
-
-  };
-  
-  /** Derived class for cylindrical coefficients */
-  class CylCoefs : public Coefs
-  {
-  protected:
-    
-    //! The coefficient DB
-    std::map<double, CylStrPtr> coefs;
-
-    //! Print module/angle (for diagnostic output)
-    bool angle;
-    
-    //! Read the coefficients
-    virtual void readNativeCoefs(const std::string& file,
-				 int stride, double tmin, double tmax);
-
-    
-    //! Get the YAML config
-    virtual std::string getYAML();
-    
-    //! Write parameter attributes
-    virtual void WriteH5Params(HighFive::File& file);
-    
-    //! Write coefficient data in H5
-    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
-    
-  public:
-    
-    //! Constructor
-    CylCoefs(bool verbose=false) :
-      Coefs("cylinder", verbose), angle(false) {}
-    
-    //! H5 constructor
-    CylCoefs(HighFive::File& file, int stride=0,
-	     double tmin=-std::numeric_limits<double>::max(),
-	     double tmax= std::numeric_limits<double>::max(),
-	     bool verbose=false);
-    
-    //! Copy constructor
-    CylCoefs(CylCoefs& p) : Coefs(p)
-    {
-      coefs = p.coefs;
-      // for (auto v : p.coefs) coefs[v.first] = v.second->deepcopy();
-      angle = p.angle;
-    }
-
-    //! Clear coefficient container
-    virtual void clear() { coefs.clear(); }
-
-    //! Add a coefficient structure to the container
-    virtual void add(CoefStrPtr coef);
-
-    //! Get coefficient matrix at given time
-    virtual Eigen::MatrixXcd& operator()(double time);
-    
-    //! Get coefficient structure at a given time
-    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
-
-
-    //! Dump to ascii list for testing
-    virtual void dump(int mmin, int mmax, int nmin, int nmax);
-    
-    //! Get list of coefficient times
-    virtual std::vector<double> Times()
-    {
-      std::vector<double> ret;
-      for (auto t : coefs) ret.push_back(t.first);
-      return ret;
-    }
-    
-    //! Get all coefficients indexed in m, n, time
-    Eigen::Tensor<std::complex<double>, 3> getAllCoefs();
-
-    /** Get power for the coefficient DB as a function of harmonic
-	index.  Time as rows, harmonics as columns.  This could be
-	refined for partial summations. */
-    virtual Eigen::MatrixXd& Power();
-    
-    //! Make keys for the remaining indices in a subspace
-    virtual std::vector<Key> makeKeys(Key k);
-
-    //! Compare two collections of stanzas (this is for testing only)
-    virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
-
-    //! Copy all of the data; make new instances of shared pointer
-    //! objects
-    virtual std::shared_ptr<Coefs> deepcopy();
-
-    virtual void zerodata() {
-      for (auto v : coefs) v.second->zerodata();
-    }
-  };
-  
-
-  /** Derived class for a table of data */
-  class TableData : public Coefs
-  {
-  protected:
-    
-    //! The table DB
-    std::map<double, TblStrPtr> coefs;
-
-    //! An alternate packing
-    std::vector<std::vector<double>> data;
-
-    //! The time column
+    //! Times for each slice
     std::vector<double> times;
     
-    //! Read the coefficients
-    virtual void readNativeCoefs(const std::string& file,
-				 int stride, double tmin, double tmax);
-    
-    //! Get the YAML config
-    virtual std::string getYAML();
-    
-    //! Write parameter attributes
-    virtual void WriteH5Params(HighFive::File& file);
-    
-    //! Write coefficient data in H5
-    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
-    
-  public:
-    
+    //! Null constructor
+    CoefDB() {}
+
     //! Constructor
-    TableData(bool verbose=false) : Coefs("table", verbose) {}
+    CoefDB(const std::string& name, Coefs::CoefsPtr coefs,
+	   const std::vector<Key>& keys, const std::vector<Key>& bkeys, 
+	   unsigned index, unsigned stride=1,
+	   double tmin=-std::numeric_limits<double>::max(),
+	   double tmax= std::numeric_limits<double>::max());
 
-    //! Constructor from vectors
-    TableData(const std::vector<double>& time,
-	      const std::vector<std::vector<double>>& data,
-	      bool verbose=false);
-
-    //! Constructor from file
-    TableData(std::string& file, bool verbose=false);
-    
-    //! H5 constructor
-    TableData(HighFive::File& file, int stride=0,
-	     double tmin=-std::numeric_limits<double>::max(),
-	     double tmax= std::numeric_limits<double>::max(),
-	     bool verbose=false);
-    
-    //! Copy constructor
-    TableData(TableData& p) : Coefs(p)
-    {
-      coefs = p.coefs;
-      // for (auto v : coefs) coefs[v.first] = v.second->deepcopy();
-      data  = p.data;
-      times = p.times;
-    }
-
-    //! Clear coefficient container
-    virtual void clear() { coefs.clear(); }
-
-    //! Add a coefficient structure to the container
-    virtual void add(CoefStrPtr coef);
-
-    //! Get coefficient matrix at given time
-    virtual Eigen::MatrixXcd& operator()(double time);
-    
-    //! Get coefficient structure at a given time
-    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
-
-    //! Dump to ascii list for testing
-    virtual void dump(int lmin, int lmax, int nmin, int nmax) {}
-    
-    //! Get list of coefficient times
-    virtual std::vector<double> Times() { return times; }
-    
-    //! Get all coefficients indexed in column, time
-    Eigen::MatrixXd getAllCoefs();
-
-    /** Get power for the coefficient DB as a function of harmonic
-	index.  Time as rows, harmonics as columns.  This could be
-	refined for partial summations. */
-    virtual Eigen::MatrixXd& Power()
-    {
-      power.resize(0, 0);
-      return power;
-    }
-
-    //! Make keys for the remaining indices in a subspace
-    virtual std::vector<Key> makeKeys(Key k)
-    { return std::vector<Key>(); }
-
-    //! Compare two collections of stanzas (this is for testing only)
-    virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+    //! Update and return working copy of coefficients
+    Coefs::CoefsPtr endUpdate();
 
     //! Copy all of the data; make new instances of shared pointer
-    //! objects.  This will recursively call the deepcopy() functions
-    //! or all dependent objects
-    virtual std::shared_ptr<Coefs> deepcopy();
+    //! objects
+    std::shared_ptr<CoefDB> deepcopy();
 
-    virtual void zerodata() {
-      for (auto v : coefs) v.second->zerodata();
-      for (auto & v : data) std::fill(v.begin(), v.end(), 0.0);
+  };
+
+  /**
+     A uniform interface to a group of CoefDB instances
+
+     The container reads a YAML configuration file and creates a
+     container of coefficient files, one for each stanza in the
+     'components' sequence in the YAML file.  There are 4 global
+     parameters as well:
+
+     @tmin:   the minimum time to include in the time series
+     @tmax:   the maximum time to include in the time series
+     @stride: the number of intermediate coefficient bunches to skip
+     @runtag: an internal tag for prefixing output files
+
+     An example YAML file might look something like this:
+
+---
+tmin: 0.0
+tmax: 2.0
+runtag: run1
+components:
+  disk:
+    filename: outcoef.star.run1
+    geometry: cylinder
+    keys:
+      - [0, 16, 0]
+      - [0, 17, 0]
+      - [0, 18, 0]
+      - [0, 19, 0]
+  halo:
+    filename: outcoef.dark.run1
+    geometry: sphere
+    keys:
+      - [1, 0, 4, 0]
+      - [1, 0, 5, 0]
+      - [1, 0, 6, 0]
+      - [1, 0, 7, 0]
+...
+
+     This reads in two coefficient files, outcoef.star.run1 and
+     outcoef.halo.run1, respectively.  The first is a cylindrical disk
+     and the second is a spherical halo.  The coefficient type is
+     specified by the 'geometry' tag.
+
+     The 'keys' describe the coefficient channels from each set to be
+     included in the MSSA analysis.  
+
+     In the cylindrical case, the key index sequence is: azimuthal
+     harmonic (in this case: m=0), the radial orders (in this case:
+     n=16,17,18,19), and the cosine (0) or sine (1) coefficients.  In
+     this case, only cosines.
+
+     In the spherical case, the key index sequence is: the spherical
+     harmonic pair l and m (in this case: l=1, m=0), the radial orders
+     (in this case: n=4,5,6,7), and the cosine (0) or sine (1)
+     coefficients.  In this case, only cosines.
+   */
+
+  class CoefContainer
+  {
+  protected:
+    using CoefDBptr = std::shared_ptr<CoefDB>;
+
+    std::vector<Key> keylist;
+    std::vector<CoefDBptr> comps;
+    std::map<std::string, int> namemap;
+
+  public:
+    
+    //@{
+    //! Time limits (-inf, inf, by default)
+    double tmin, tmax;
+    //@}
+
+    //! Time slice stride (1 by default)
+    unsigned stride;
+
+    //! Time array
+    std::vector<double> times;
+
+    //! Run tag for output
+    std::string runtag;
+
+    //! Null constructor
+    CoefContainer() {}
+
+    //! Instantiate all components DBs from YAML spec
+    CoefContainer(const std::string spec);
+    
+    //! Instantiate all components DBs from structure
+    CoefContainer(const mssaConfig& config, const std::string spec="");
+    
+    //! Copy constructor
+    CoefContainer(const CoefContainer& p);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    std::shared_ptr<CoefContainer> deepcopy();
+
+    //! Get the pooled key list
+    const std::vector<Key>& getKeys() { return keylist; }
+
+    //! Return a particular data stream
+    const std::vector<double>& getData(std::vector<unsigned> key)
+    {
+      unsigned c = key.back();
+      key.pop_back();
+      if (comps[c]->data.find(key) == comps[c]->data.end()) {
+	std::cout << "Keys in comp[" << c << "] :";
+	for (auto v : comps[c]->data) {
+	  std::cout << " (";
+	  for (auto l : v.first) std::cout << l << "|";
+	  std::cout << ")";
+	}
+	std::cout << std::endl;
+	std::cout << "Desired key: ";
+	std::cout << " (";
+	for (auto l : key) std::cout << l << "|";
+	std::cout << ")" << std::endl;
+	throw std::runtime_error("CoefDB::getData: desired key is not data");
+      }
+      return comps[c]->data[key];
+    }
+
+    //! Update data in a particular stream
+    void setData(std::vector<unsigned> key, const std::vector<double>& data)
+    {
+      unsigned c = key.back();
+      key.pop_back();
+      comps[c]->data[key] = data;
+    }
+
+    //! Update the working data to the working coefficients and return a map
+    std::map<std::string, Coefs::CoefsPtr> endUpdate()
+    {
+      std::map<std::string, Coefs::CoefsPtr> ret;
+      for (auto & v : comps) {
+	ret[v->name] = v->endUpdate();
+      }
+      return ret;
+    }
+
+    //! Are keys complex?  Used by clients to reflect the index type.
+    bool isComplex(const std::string& name)
+    {
+      auto it = namemap.find(name);
+      if (it == namemap.end()) {
+	throw std::runtime_error
+	  ("CoefDB::isComplex: cannot find component with given name");
+      }
+
+      return comps[it->second]->complexKey;
+    }
+
+    //! Get index with associated name.  Returns -1 if name is not found.
+    int index(const std::string name)
+    {
+      auto it = namemap.find(name);
+      if (it == namemap.end()) return -1;
+      else                     return it->second;
+    }
+
+    //! Get available names in this DB
+    std::vector<std::string> getNames()
+    {
+      std::vector<std::string> ret;
+      for (auto v : namemap) ret.push_back(v.first);
+      return ret;
     }
 
   };
-  
+  // END CoefContainer
 
-  using CoefsPtr = std::shared_ptr<Coefs>;
 }
-// END namespace Coefs
-  
+// END namespace MSSA
+
 #endif
-  
+

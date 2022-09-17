@@ -5,7 +5,7 @@
 
 #include <cxxopts.H>
 #include <libvars.H>
-#include <CoefContainer.H>
+#include <Coefficients.H>
 
 int main(int argc, char **argv)
 {
