@@ -5,7 +5,7 @@
 namespace py = pybind11;
 
 extern void MSSAtoolkitClasses   (py::module &m);
-extern void CoefContainerClasses (py::module &m);
+extern void CoefficientClasses   (py::module &m);
 extern void BasisFactoryClasses  (py::module &m);
 extern void FieldGeneratorClasses(py::module &m);
 extern void ParticleReaderClasses(py::module &m);
@@ -110,7 +110,7 @@ PYBIND11_MODULE(pyEXP, m)
 				  "others.  Currently these contain several "
 				  "centering algorithms.");
 
-  CoefContainerClasses(mod_coefs);
+  CoefficientClasses(mod_coefs);
   BasisFactoryClasses(mod_basis);
   FieldGeneratorClasses(mod_field);
   ParticleReaderClasses(mod_read);

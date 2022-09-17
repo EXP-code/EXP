@@ -9,9 +9,9 @@ namespace py = pybind11;
 
 #include "TensorToArray.H"
 
-void CoefContainerClasses(py::module &m) {
+void CoefficientClasses(py::module &m) {
 
-  m.doc() = "CoefContainer class bindings\n\n"
+  m.doc() = "Coefficient class bindings\n\n"
     "These classes store, write, and provide an interface to coefficients\n"
     "and table data for use by the other pyEXP classes.\n\n"
     "CoefStruct\n"
@@ -42,7 +42,19 @@ void CoefContainerClasses(py::module &m) {
     "See help(pyEXP.mssa) and help(pyEXP.field) for more details.\n\n"
     "NB: the values in the time list, returned with the Times() member\n"
     "function are truncated to 8 signficant figures so that it may be\n"
-    "used as dictionary keys\n\n";
+    "used as dictionary keys\n\n"
+    "Object lifetime\n"
+    "---------------\n"
+    "As in native Python, the memory for created objects persists until\n"
+    "it is no longer referenced.  For example, replacing the variable with\n"
+    "a new set of coefficients will allow the memory to be deallocated if\n"
+    "no other class instance holds a reference. Because coefficient sets\n"
+    "can be large, the creation of a Coefs instance by the 'factory' will\n"
+    "be passed to any other class that needs it.  The MSSA class, expMSSA,\n"
+    "will hold a reference to the the Coefs object passed on creation, and\n"
+    "it update the values of the coefficients on reconstruction, without\n"
+    "copying. If you want to keep the initial set without change, we have\n"
+    "provided a 'deepcopy()' member that provides a byte-by-byte copy.\n\n";
 
   using namespace Coefs;
 

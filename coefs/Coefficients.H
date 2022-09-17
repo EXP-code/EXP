@@ -193,7 +193,6 @@ namespace Coefs
     SphCoefs(SphCoefs& p) : Coefs(p)
     {
       coefs = p.coefs;
-      // for (auto v : p.coefs) coefs[v.first] = v.second->deepcopy();
     }
 
     //! H5 constructor
@@ -292,7 +291,6 @@ namespace Coefs
     CylCoefs(CylCoefs& p) : Coefs(p)
     {
       coefs = p.coefs;
-      // for (auto v : p.coefs) coefs[v.first] = v.second->deepcopy();
       angle = p.angle;
     }
 
@@ -395,7 +393,6 @@ namespace Coefs
     TableData(TableData& p) : Coefs(p)
     {
       coefs = p.coefs;
-      // for (auto v : coefs) coefs[v.first] = v.second->deepcopy();
       data  = p.data;
       times = p.times;
     }

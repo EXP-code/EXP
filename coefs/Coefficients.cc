@@ -20,6 +20,7 @@ namespace Coefs
   
   void Coefs::copyfields(std::shared_ptr<Coefs> p)
   {
+    // These variables will copy data, not pointers
     p->mat      = mat;
     p->power    = power;
     p->geometry = geometry;
@@ -96,7 +97,8 @@ namespace Coefs
     // Copy the base-class fields
     copyfields(ret);
 
-    // Copy the local structures
+    // Copy the local structures from the map to the struct pointers
+    // by copyfing fields, not the pointer
     for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
 
     return ret;
@@ -109,7 +111,8 @@ namespace Coefs
     // Copy the base-class fields
     copyfields(ret);
 
-    // Copy the local structures
+    // Copy the local structures from the map to the struct pointers
+    // by copyfing fields, not the pointer
     for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
     ret->angle = angle;
 
@@ -123,7 +126,8 @@ namespace Coefs
     // Copy the base-class fields
     copyfields(ret);
 
-    // Copy the local structures
+    // Copy the local structures from the map to the struct pointers
+    // by copyfing fields, not the pointer
     for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
     ret->data  = data;
     ret->times = times;
