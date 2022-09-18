@@ -393,7 +393,7 @@ namespace MSSA {
 #pragma omp parallel
     {
       // Parallelize the map iteration by wrapping it in a standard loop.
-      // Ungainly for sure.
+      // Ungainly for sure but it works.
       //
       int thread_count = omp_get_num_threads();
       int thread_num   = omp_get_thread_num();
@@ -441,7 +441,7 @@ namespace MSSA {
 	  }
 	}
 
-	if( q+thread_count < map_size ) std::advance(u, thread_count);
+	if (q+thread_count < map_size) std::advance(u, thread_count);
       }
     }
 
