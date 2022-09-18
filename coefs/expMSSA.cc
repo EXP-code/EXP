@@ -1027,7 +1027,8 @@ namespace MSSA {
 	double acc = 0.0;
 	for (int j=0; j<ncomp; j++) acc += RC[u.first](i, j);
 	
-	newdata[u.first][i] = acc*disp + u.second;
+	newdata[u.first][i] = acc*disp;
+	if (useMean) newdata[u.first][i] += u.second;
       }
     }
     
