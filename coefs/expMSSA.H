@@ -145,6 +145,13 @@ namespace MSSA
       return PC;
     }
 
+    //! Return the number of PC vectors
+    int numPC()
+    {
+      if (not computed) mssa_analysis();
+      return PC.cols();
+    }
+
     //! Return the power spectrum of the PC vectors
     Eigen::MatrixXd pcDFT(Eigen::VectorXd& F, Eigen::VectorXd& P);
 
@@ -154,8 +161,10 @@ namespace MSSA
     /** Reconstruction for desired eigenvalues 
 
 	@param evlist is a vector of indices correponding to the
-	eigenvalue and PC ordering (i.e. a group).  All eigenvalues
-	will be used for an empty list.
+	eigenvalue and PC ordering (i.e. a group). An empty list
+	implies no PCs will be used for the reconstruction. That is,
+	you will get the mean values or zero values for the 'totVar'
+	and the 'totPow' options.
     */
     void reconstruct(const std::vector<int>& evlist);
 
@@ -211,9 +220,6 @@ namespace MSSA
 
     //! Return total power value used for normalizing coefficient series
     double getTotPow() { return totPow; }
-
-    //! Zero reconstruction for all keys
-    std::map<std::string, Coefs::CoefsPtr> zeroReconstructed();
 
   };
 

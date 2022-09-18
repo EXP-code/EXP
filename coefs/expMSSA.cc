@@ -360,8 +360,6 @@ namespace MSSA {
     std::vector<bool> I(ncomp, false);
     if (evlist.size()) {
       for (auto v : evlist) if (v<ncomp) I[v] = true;
-    } else {
-      I = std::vector<bool>(ncomp, true);
     }
     
     // Deduce the rank
@@ -489,24 +487,6 @@ namespace MSSA {
 
     reconstructed = true;
   }
-  
-  std::map<std::string, Coefs::CoefsPtr> expMSSA::zeroReconstructed()
-  {
-    // Copy the original map for return
-    //
-    auto newdata = data;
-    
-    for (auto & v : newdata)
-      std::fill(v.second.begin(), v.second.end(), 0.0);
-
-    for (auto v : newdata) {
-      if (verbose) std::cout << "Updating for: " << v.first << std::endl;
-      coefDB.setData(v.first, v.second);
-    }
-    
-    return coefDB.endUpdate();
-  }
-  
   
   void expMSSA::contributions()
   {

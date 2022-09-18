@@ -125,12 +125,12 @@ void MSSAtoolkitClasses(py::module &m) {
     "the k-means analyses and similarities of the PC frequency spectra are\n"
     "are ways of diagnosing groups of related components. You may group\n"
     "using 'reconstruct(list)', where 'list' is a Python list of component\n"
-    "indices in eigenvalue-PC index order. The default, an empty argument,\n"
-    "is no grouping; that is, reconstruct for all eigenvalues.  MSSA will\n"
-    "often need to be used iteratively.  First, to learn about the primary\n"
-    "signals in your data and catagorize the PCs into groups.  Second, a\n"
-    "new analysis that provides separation of your main distinct signals\n"
-    "into individual reconstructions\n\n"
+    "indices in eigenvalue-PC index order. An empty argument implies no\n"
+    "that the will be no PCs in the reconstruction, only the mean values.\n"
+    "The two expMSSA steps will often need to be used iteratively.  First,\n"
+    "to learn about the primary signals in your data and catagorize the PCs\n"
+    "into groups.  Second, a new analysis that provides separation of your\n"
+    "main distinct signals into individual reconstructions.\n\n"
     "Save/Restore\n"
     "------------\n"
     "MSSA analyses can be computationally intensive so we include a way\n"
@@ -194,7 +194,7 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("reconstruct", &expMSSA::reconstruct,
 	"Reconstruct the data channels with the provided list of eigenvalue "
-	"indices (a group).", py::arg("evlist")=std::vector<int>());
+	"indices (a group).", py::arg("evlist"));
 
   f.def("getReconstructed", &expMSSA::getReconstructed,
 	"Return the reconstucted time series in the orginal coefficient form\n"
@@ -248,10 +248,5 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("getTotPow", &expMSSA::getTotPow,
 	"Power value used for normalizing coefficient series");
-
-  f.def("zeroReconstructed", &expMSSA::zeroReconstructed,
-	"Zero reconstruction for all keys. Designed for removing\n"
-	"the influence of coefficients deemed to be null and\n"
-	"rewriting for playback");
 
 }
