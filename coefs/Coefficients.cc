@@ -905,7 +905,7 @@ namespace Coefs
 	  throw std::runtime_error("CoefContainer: unknown H5 coefficient file geometry");
 	}
       } catch (HighFive::Exception& err) {
-	std::cerr << "**** Error reading H5 file ****" << std::endl;
+	std::cerr << "**** Error reading HDF5 file ****" << std::endl;
 	std::cerr << err.what() << std::endl;
 	exit(-1);
       }
@@ -913,7 +913,7 @@ namespace Coefs
       return coefs;
       
     } catch (HighFive::Exception& err) {
-      std::cerr << "**** Error opening H5 file, will try other types ****" << std::endl;
+      std::cerr << "**** Error opening HDF5 file, will try other types ****" << std::endl;
     }
     
     // Open file and read magic number

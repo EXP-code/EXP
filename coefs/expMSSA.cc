@@ -351,6 +351,8 @@ namespace MSSA {
     
   void expMSSA::reconstruct(const std::vector<int>& evlist)
   {
+    const bool useOpenMP = true;
+
     // Reconstructed time series
     //
     ncomp = std::min<int>({numW, npc, static_cast<int>(PC.cols())});
@@ -358,7 +360,10 @@ namespace MSSA {
     // Make a bool vector
     //
     std::vector<bool> I(ncomp, false);
-    if (evlist.size()) {
+
+    auto lsz = evlist.size();
+    
+    if (lsz) {
       for (auto v : evlist) if (v<ncomp) I[v] = true;
     }
     
@@ -367,123 +372,131 @@ namespace MSSA {
     int rank  = std::min<int>({static_cast<int>(Y.cols()), static_cast<int>(Y.rows()), npc});
     
     
-    for (auto u : mean) RC[u.first].resize(numT, ncomp);
-    
-    // Embedded time series matrix
-    //
-    Eigen::MatrixXd  Z(numT, numW);
-    
-    // Split eigenvectors into channel sequences
-    //
-    std::map<Key, Eigen::MatrixXd> rho;
-    
-    int n = 0;
     for (auto u : mean) {
-      rho[u.first].resize(numW, rank);
-      rho[u.first].fill(0.0);
-      for (int i=0; i<numW; i++) {
-	for (int j=0; j<ncomp; j++)
-	  if (I[j]) rho[u.first](i, j) = U(numW*n + i, j);
-      }
-      n++;
+      RC[u.first].resize(numT, ncomp);
+      RC[u.first].setZero();
     }
     
-#pragma omp parallel
-    {
-      // Parallelize the map iteration by wrapping it in a standard loop.
-      // Ungainly for sure but it works.
+    if (lsz) {
+
+      // Embedded time series matrix
       //
-      int thread_count = omp_get_num_threads();
-      int thread_num   = omp_get_thread_num();
-      size_t map_size  = mean.size();
-
-      auto u = mean.begin();
-      std::advance(u, thread_num);
-
-      for (int q=thread_num; q<map_size; q+=thread_count) {
-
-	for (int w=0; w<ncomp; w++) {
+      Eigen::MatrixXd Z(numT, numW);
+    
+      // Split eigenvectors into channel sequences
+      //
+      std::map<Key, Eigen::MatrixXd> rho;
+    
+      int n = 0;
+      for (auto u : mean) {
+	rho[u.first].resize(numW, rank);
+	rho[u.first].fill(0.0);
+	for (int i=0; i<numW; i++) {
+	  for (int j=0; j<ncomp; j++)
+	    if (I[j]) rho[u.first](i, j) = U(numW*n + i, j);
+	}
+	n++;
+      }
+      
+#pragma omp parallel
+      if (useOpenMP) {
+	// Parallelize the map iteration by wrapping it in a standard loop.
+	// Ungainly for sure but it works.
+	//
+	int thread_count = omp_get_num_threads();
+	int thread_num   = omp_get_thread_num();
+	size_t map_size  = mean.size();
 	
-	  Z.fill(0.0);
+	auto u = mean.begin();
+	std::advance(u, thread_num);
 	
-	  // Build reverse embedded time series.
-	  //
-	  for (int j=0; j<numW; j++) {
-	    for (int i=0; i<numT; i++)
-	      if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
-	  }
+	for (int q=thread_num; q<map_size; q+=thread_count) {
 	  
-	  // Choose limits and weight
-	  //
-	  for (int i=0; i<numT; i++) {
-	    double W;
-	    int L, U;
+	  for (int w=0; w<ncomp; w++) {
 	    
-	    if (i<numW) {		// Lower
-	      W = 1.0/(1.0 + i);
-	      L = 0;
-	      U = i + 1;
-	    } else if (i<numT-numW) { // Middle
-	      W = 1.0/numW;
-	      L = 0;
-	      U = numW;
-	    } else {		// Upper
-	      W = 1.0/(numT - i);
-	      L = i - numT + numW;
-	      U = numW;
+	    Z.fill(0.0);
+	    
+	    // Build reverse embedded time series.
+	    //
+	    for (int j=0; j<numW; j++) {
+	      for (int i=0; i<numT; i++)
+		if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
 	    }
 	    
-	    RC[u->first](i, w) = 0.0;
-	    for (int j=L; j<U; j++)
-	      RC[u->first](i, w) += Z(i, j) * rho[u->first](j, w) * W;
-	  }
-	}
-
-	if (q+thread_count < map_size) std::advance(u, thread_count);
-      }
-    }
-
-    /*
-    for (auto u : mean) {
-
-      for (int w=0; w<ncomp; w++) {
-	
-	Z.fill(0.0);
-	
-	// Build reverse embedded time series.
-	//
-	for (int j=0; j<numW; j++) {
-	  for (int i=0; i<numT; i++)
-	    if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
-	}
-	  
-	// Choose limits and weight
-	//
-	for (int i=0; i<numT; i++) {
-	  double W;
-	  int L, U;
+	    // Choose limits and weight
+	    //
+	    for (int i=0; i<numT; i++) {
+	      double W;
+	      int L, U;
 	    
-	  if (i<numW) {		// Lower
-	    W = 1.0/(1.0 + i);
-	    L = 0;
-	    U = i + 1;
-	  } else if (i<numT-numW) { // Middle
-	    W = 1.0/numW;
-	    L = 0;
-	    U = numW;
-	  } else {		// Upper
-	    W = 1.0/(numT - i);
-	    L = i - numT + numW;
-	    U = numW;
+	      if (i<numW) {		// Lower
+		W = 1.0/(1.0 + i);
+		L = 0;
+		U = i + 1;
+	      } else if (i<numT-numW) { // Middle
+		W = 1.0/numW;
+		L = 0;
+		U = numW;
+	      } else {		// Upper
+		W = 1.0/(numT - i);
+		L = i - numT + numW;
+		U = numW;
+	      }
+	      
+	      RC[u->first](i, w) = 0.0;
+	      for (int j=L; j<U; j++)
+		RC[u->first](i, w) += Z(i, j) * rho[u->first](j, w) * W;
+	    }
 	  }
 	  
-	  RC[u.first](i, w) = 0.0;
-	  for (int j=L; j<U; j++)
-	    RC[u.first](i, w) += Z(i, j) * rho[u.first](j, w) * W;
+	  if (q+thread_count < map_size) std::advance(u, thread_count);
+	}
+      }
+      // The original serial implementation
+      //
+      else {
+	
+	for (auto u : mean) {
+
+	  for (int w=0; w<ncomp; w++) {
+	
+	    Z.fill(0.0);
+	
+	    // Build reverse embedded time series.
+	    //
+	    for (int j=0; j<numW; j++) {
+	      for (int i=0; i<numT; i++)
+		if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
+	    }
+	    
+	    // Choose limits and weight
+	    //
+	    for (int i=0; i<numT; i++) {
+	      double W;
+	      int L, U;
+	      
+	      if (i<numW) {		// Lower
+		W = 1.0/(1.0 + i);
+		L = 0;
+		U = i + 1;
+	      } else if (i<numT-numW) { // Middle
+		W = 1.0/numW;
+		L = 0;
+		U = numW;
+	      } else {		// Upper
+		W = 1.0/(numT - i);
+		L = i - numT + numW;
+		U = numW;
+	      }
+	      
+	      RC[u.first](i, w) = 0.0;
+	      for (int j=L; j<U; j++)
+		RC[u.first](i, w) += Z(i, j) * rho[u.first](j, w) * W;
+	    }
+	  }
 	}
       }
     }
-    */
 
     reconstructed = true;
   }
