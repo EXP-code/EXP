@@ -249,7 +249,7 @@ namespace MSSA
 	c.push_back(0);
 	s.push_back(1);
 
-	int m = k[0], n = k[1];
+	int m = k[1], n = k[2];
 
 	if (m==0) cf->coefs(I(k), n) = {data[c][i], 0.0       };
 	else      cf->coefs(I(k), n) = {data[c][i], data[s][i]};
