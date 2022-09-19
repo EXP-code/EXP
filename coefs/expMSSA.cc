@@ -367,11 +367,6 @@ namespace MSSA {
       for (auto v : evlist) if (v<ncomp) I[v] = true;
     }
     
-    // Deduce the rank
-    //
-    int rank  = std::min<int>({static_cast<int>(Y.cols()), static_cast<int>(Y.rows()), npc});
-    
-    
     for (auto u : mean) {
       RC[u.first].resize(numT, ncomp);
       RC[u.first].setZero();
@@ -389,7 +384,7 @@ namespace MSSA {
     
       int n = 0;
       for (auto u : mean) {
-	rho[u.first].resize(numW, rank);
+	rho[u.first].resize(numW, ncomp);
 	rho[u.first].fill(0.0);
 	for (int i=0; i<numW; i++) {
 	  for (int j=0; j<ncomp; j++)
@@ -475,7 +470,7 @@ namespace MSSA {
 	      double W;
 	      int L, U;
 	      
-	      if (i<numW) {		// Lower
+	      if (i<numW) {	// Lower
 		W = 1.0/(1.0 + i);
 		L = 0;
 		U = i + 1;
@@ -1313,7 +1308,7 @@ namespace MSSA {
     //
     static bool firstTime = true;
     if (firstTime) {
-      std::cout << "Eigen is using " << Eigen::nbThreads()
+      std::cout << "**** Eigen is using " << Eigen::nbThreads()
 		<< " threads" << std::endl;
       firstTime = false;
     }
