@@ -1,6 +1,8 @@
 #ifndef _COEFFICIENTS_H
 #define _COEFFICIENTS_H
 
+#include <tuple>
+
 // Needed by member functions for writing parameters and stanzas
 #include <highfive/H5File.hpp>
 
@@ -42,6 +44,9 @@ namespace Coefs
     //! Verbose debugging output
     bool verbose;
     
+    //! Time vector
+    std::vector<double> times;
+
     //! Read the coefficients
     virtual void readNativeCoefs(const std::string& file,
 				 int stride, double tmin, double tmax) = 0;
@@ -79,10 +84,14 @@ namespace Coefs
       power    = p.power;
       geometry = p.geometry;
       name     = p.name;
+      times    = p.times;
     }
     
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time) = 0;
+    
+    //! Interpolate coefficient matrix at given time
+    virtual std::tuple<Eigen::MatrixXcd&, bool> interpolate(double time);
     
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time) = 0;
@@ -91,7 +100,7 @@ namespace Coefs
     virtual void dump(int mmin, int mmax, int nmin, int nmax) = 0;
     
     //! Get list of coefficient times
-    virtual std::vector<double> Times() = 0;
+    virtual std::vector<double> Times() { return times; }
     
     //! Write H5 coefficient file
     virtual void WriteH5Coefs(const std::string& prefix);
@@ -161,6 +170,13 @@ namespace Coefs
 
     //! Zero the existing data
     virtual void zerodata() = 0;
+
+    class CoefsError : public std::runtime_error
+    {
+    public:
+      CoefsError(const std::string& message) : std::runtime_error(message) {}
+    };
+
   };
   
   /** Derived class for spherical coefficients */
@@ -168,6 +184,9 @@ namespace Coefs
   {
   protected:
     
+    //! Parameters
+    int Lmax, Nmax;
+
     //! The coefficient DB
     std::map<double, SphStrPtr> coefs;
 
@@ -220,9 +239,9 @@ namespace Coefs
     //! Get list of coefficient times
     virtual std::vector<double> Times()
     {
-      std::vector<double> ret;
-      for (auto t : coefs) ret.push_back(t.first);
-      return ret;
+      times.clear();
+      for (auto t : coefs) times.push_back(t.first);
+      return times;
     }
     
     //! Get all coefficients indexed in l, m, n, time
@@ -248,6 +267,12 @@ namespace Coefs
       for (auto v : coefs) v.second->zerodata();
     }
 
+    //! Get lmax
+    double lmax() const { return Lmax; }
+
+    //! Get lmax
+    double nmax() const { return Nmax; }
+
   };
   
   /** Derived class for cylindrical coefficients */
@@ -255,6 +280,9 @@ namespace Coefs
   {
   protected:
     
+    //! Parameters
+    int Mmax, Nmax;
+
     //! The coefficient DB
     std::map<double, CylStrPtr> coefs;
 
@@ -314,9 +342,9 @@ namespace Coefs
     //! Get list of coefficient times
     virtual std::vector<double> Times()
     {
-      std::vector<double> ret;
-      for (auto t : coefs) ret.push_back(t.first);
-      return ret;
+      times.clear();
+      for (auto t : coefs) times.push_back(t.first);
+      return times;
     }
     
     //! Get all coefficients indexed in m, n, time
@@ -340,6 +368,12 @@ namespace Coefs
     virtual void zerodata() {
       for (auto v : coefs) v.second->zerodata();
     }
+
+    //! Get mmax
+    double mmax() const { return Mmax; }
+
+    //! Get lmax
+    double nmax() const { return Nmax; }
   };
   
 
@@ -354,9 +388,6 @@ namespace Coefs
     //! An alternate packing
     std::vector<std::vector<double>> data;
 
-    //! The time column
-    std::vector<double> times;
-    
     //! Read the coefficients
     virtual void readNativeCoefs(const std::string& file,
 				 int stride, double tmin, double tmax);

@@ -406,11 +406,15 @@ void Cylinder::initialize()
 	}
       }
 
-      playback = std::make_shared<CylindricalCoefs>(file);
+      playback = std::dynamic_pointer_cast<Coefs::CylCoefs>(Coefs::Coefs::factory(file));
 
-      if (playback->nmax != ncylorder) {
+      if (not playback) {
+	throw std::runtime_error("Cylinder: failure in downcasting");
+      }
+      
+      if (playback->nmax() != ncylorder) {
 	if (myid==0) {
-	  std::cerr << "Cylinder: norder for playback [" << playback->nmax
+	  std::cerr << "Cylinder: norder for playback [" << playback->nmax()
 		    << "] does not match specification [" << ncylorder << "]"
 		    << std::endl;
 	}
@@ -418,9 +422,9 @@ void Cylinder::initialize()
 	exit(-1);
       }
 
-      if (playback->mmax != mmax) {
+      if (playback->mmax() != mmax) {
 	if (myid==0) {
-	  std::cerr << "Cylinder: mmax for playback [" << playback->mmax
+	  std::cerr << "Cylinder: mmax for playback [" << playback->mmax()
 		    << "] does not match specification [" << mmax << "]"
 		    << std::endl;
 	}
@@ -428,11 +432,11 @@ void Cylinder::initialize()
 	exit(-1);
       }
 
-      P = getDataPtr();
+      P.resize(mmax+1, nmax);
 
       if (conf["coefCompute"]) play_cnew = conf["coefCompute"].as<bool>();
 
-      if (play_cnew) P1 = getDataPtr();
+      if (play_cnew) P1.resize(mmax+1, nmax);
 
       play_back = true;
 
@@ -737,16 +741,29 @@ void Cylinder::determine_coefficients_playback(void)
   if (coefMaster) {
     
     if (myid==0) {
-      P = playback->interpolate(tnow);
-    }
-    
-    for (int m=0; m<=mmax; m++) {
-      MPI_Bcast(std::get<0>(*P)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(std::get<1>(*P)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      auto ret = playback->interpolate(tnow);
+
+      P = std::get<0>(ret);
+      if (not std::get<1>(ret)) stop_signal = 1;
+
+      int nrows = P.rows(), ncols = P.cols();
+      MPI_Bcast(&nrows, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&ncols, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(P.data(), P.size(), MPI_CXX_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
+
+    } else {
+      int nrows, ncols;
+      MPI_Bcast(&nrows, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&ncols, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      P.resize(nrows, ncols);
+      MPI_Bcast(P.data(), P.size(), MPI_CXX_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
     }
     
   } else {
-    P = playback->interpolate(tnow);
+    auto ret = playback->interpolate(tnow);
+
+    P = std::get<0>(ret);
+    if (not std::get<1>(ret)) stop_signal = 1;
   }
 
 }

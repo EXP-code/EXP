@@ -117,11 +117,17 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 	}
       }
 
-      playback = std::make_shared<SphericalCoefs>(file);
+      // This creates the Coefs instance
+      playback = std::dynamic_pointer_cast<Coefs::SphCoefs>(Coefs::Coefs::factory(file));
 
-      if (playback->nmax != nmax) {
+      // Check to make sure that has been created
+      if (not playback) {
+	throw std::runtime_error("SphericalBasis: failure in downcasting");
+      }
+
+      if (playback->nmax() != nmax) {
 	if (myid==0) {
-	  std::cerr << "SphericalBasis: nmax for playback [" << playback->nmax
+	  std::cerr << "SphericalBasis: nmax for playback [" << playback->nmax()
 		    << "] does not match specification [" << nmax << "]"
 		    << std::endl;
 	}
@@ -129,9 +135,9 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 	exit(-1);
       }
 
-      if (playback->lmax != Lmax) {
+      if (playback->lmax() != Lmax) {
 	if (myid==0) {
-	  std::cerr << "SphericalBasis: Lmax for playback [" << playback->lmax
+	  std::cerr << "SphericalBasis: Lmax for playback [" << playback->lmax()
 		    << "] does not match specification [" << Lmax << "]"
 		    << std::endl;
 	}
@@ -561,19 +567,51 @@ void SphericalBasis::determine_coefficients_playback(void)
 
     if (myid==0) {
       auto ret = playback->interpolate(tnow);
-      for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-	for (int n=0; n<nmax; n++) (*expcoefP[l])[n] = (*ret)[l][n];
-	MPI_Bcast((*expcoefP[l]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+      auto mat = std::get<0>(ret);
+      if (not std::get<1>(ret)) stop_signal = 1;
+
+      for (int l=0, L=0; l<=Lmax; l++) {
+	for (int m=0; m<=l; m++) {
+	  for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(l, n).real();
+	  MPI_Bcast((*expcoefP[L]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  L++;
+	  if (m) {
+	    for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(l, n).imag();
+	    MPI_Bcast((*expcoefP[L]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	    L++;
+	  }
+	}
       }
     } else {
-      for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-	MPI_Bcast((*expcoefP[l]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      for (int l=0, L=0; l<=Lmax; l++) {
+	for (int m=0; m<=l; m++) {
+	  MPI_Bcast((*expcoefP[L]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  L++;
+	  if (m) {
+	    MPI_Bcast((*expcoefP[L]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	    L++;
+	  }
+	}
       }
     }
+    
   } else {
+
     auto ret = playback->interpolate(tnow);
-    for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-      for (int n=0; n<nmax; n++) (*expcoefP[l])[n] = (*ret)[l][n];
+
+    auto mat = std::get<0>(ret);
+    if (not std::get<1>(ret)) stop_signal = 1;
+
+    for (int l=0, L=0; l<=Lmax; l++) {
+      for (int m=0; m<=l; m++) {
+	for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(l, n).real();
+	L++;
+	if (m) {
+	  for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(l, n).imag();
+	  L++;
+	}
+      }
     }
   }
 }

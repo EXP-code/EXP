@@ -6,7 +6,7 @@
 #include <Orient.H>
 #include <Basis.H>
 #include <CylEXP.H>
-#include <CylindricalCoefs.H>
+#include <Coefficients.H>
 
 #include "config.h"
 
@@ -259,7 +259,7 @@ protected:
   /** Coefficient playback instance.  Using shared_ptr to avoid
       constructing a simple pointer or null instance
   */
-  std::shared_ptr<CylindricalCoefs> playback;
+  std::shared_ptr<Coefs::CylCoefs> playback;
 
   /** Master node ships coefficients to hosts.  True (default) implies
       that only the master node caches the coefficients for playback
@@ -273,43 +273,26 @@ protected:
   double lastPlayTime;
 
   //! Save data pointers
-  CylindricalCoefs::DataPtr P, P1;
-
-  //! Assign storage for coefficients
-  CylindricalCoefs::DataPtr getDataPtr()
-  {
-    CylindricalCoefs::DataPtr ret = std::make_shared<CylindricalCoefs::Dpair>();
-    std::get<0>(*ret).resize(mmax+1);
-    std::get<1>(*ret).resize(mmax+1);
-
-    for (auto & v : std::get<0>(*ret)) {
-      v.resize(nmax);
-      std::fill(v.begin(), v.end(), 0.0);
-    }
-
-    for (auto & v : std::get<1>(*ret)) {
-      v.resize(nmax);
-      std::fill(v.begin(), v.end(), 0.0);
-    }
-    
-    return ret;
-  }
+  Eigen::MatrixXcd P, P1;
 
   //! Store coefficients from EmpCylSL
-  void getCoefs(CylindricalCoefs::DataPtr C)
+  void getCoefs(Eigen::MatrixXcd& C)
   {
+    Eigen::VectorXd cosV(C.cols()), sinV(C.cols());
     for (int m=0; m<=mmax; m++) {
-      ortho->get_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m]);
+      ortho->get_coefs(m, cosV, sinV);
+      C.row(m).real() = cosV;
+      C.row(m).imag() = sinV;
     }
   }
 
   //! Installed stored coefficients in EmpCylSL
-  void setCoefs(CylindricalCoefs::DataPtr C)
+  void setCoefs(Eigen::MatrixXcd& C)
   {
     for (int m=0; m<=mmax; m++) {
       bool zero = false;
       if (m==0) zero = true;
-      ortho->set_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m], zero);
+      ortho->set_coefs(m, C.row(m).real(), C.row(m).imag(), zero);
     }
   }
 

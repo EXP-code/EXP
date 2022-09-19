@@ -97,6 +97,11 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(Eigen::MatrixXcd&, Coefs, operator(), time);
     }
 
+    using ValueError = std::tuple<Eigen::MatrixXcd&, bool>;
+    ValueError interpolate(double time) override {
+      PYBIND11_OVERRIDE(ValueError, Coefs, interpolate, time);
+    }
+
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
       PYBIND11_OVERRIDE_PURE(std::shared_ptr<CoefStruct>, Coefs, getCoefStruct,
 			     time);

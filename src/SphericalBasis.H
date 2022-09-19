@@ -5,7 +5,7 @@
 #include <random>
 
 #include <AxisymmetricBasis.H>
-#include <SphericalCoefs.H>
+#include <Coefficients.H>
 
 #include "config.h"
 
@@ -286,7 +286,7 @@ protected:
   /** Coefficient playback instance.  Using shared_ptr to avoid
       constructing a simple pointer or null instance
   */
-  std::shared_ptr<SphericalCoefs> playback;
+  std::shared_ptr<Coefs::SphCoefs> playback;
 
   /** Master node ships coefficients to hosts.  True (default) implies
       that only the master node caches the coefficients for playback

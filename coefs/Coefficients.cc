@@ -26,20 +26,57 @@ namespace Coefs
     p->geometry = geometry;
     p->name     = name;
     p->verbose  = verbose;
+    p->times    = times;
   }
 
+  std::tuple<Eigen::MatrixXcd&, bool> Coefs::interpolate(double time)
+  {
+    bool onGrid = true;
+
+    if (time < times.front() or time > times.back()) {
+      std::cerr << "Coefs::interpolate: time=" << time
+	   << " is offgrid [" << times.front()
+		<< ", " << times.back() << "]" << std::endl;
+      onGrid = false;
+    }
+
+    auto it = std::lower_bound(times.begin(), times.end(), time);
+    auto lo = it, hi = it;
+
+    if (hi == times.end()) {
+      hi = times.end() - 1;
+      lo = hi - 1;
+    } else hi++;
+    
+    double A = (*hi - time)/(*hi - *lo);
+    double B = (time - *lo)/(*hi - *lo);
+    
+    int iA = std::distance(times.begin(), lo);
+    int iB = std::distance(times.begin(), hi);
+
+    auto cA = getCoefStruct(times[iA]);
+    auto cB = getCoefStruct(times[iB]);
+
+    mat.resize(cA->coefs.rows(), cA->coefs.cols());
+
+    for (int ch=0; ch<mat.rows(); ch++) {
+      for (int n=0; n<mat.cols(); n++) mat(ch, n) = A*(cA->coefs)(ch, n) + B*(cB->coefs)(ch, n);
+    }
+
+    return {mat, onGrid};
+  }
+  
   SphCoefs::SphCoefs(HighFive::File& file, int stride,
 		     double Tmin, double Tmax, bool verbose) :
     Coefs("sphere", verbose)
   {
     std::string config, geometry, forceID;
     unsigned count;
-    int lmax, nmax;
     double scale;
     
     file.getAttribute("name"    ).read(name    );
-    file.getAttribute("lmax"    ).read(lmax    );
-    file.getAttribute("nmax"    ).read(nmax    );
+    file.getAttribute("lmax"    ).read(Lmax    );
+    file.getAttribute("nmax"    ).read(Nmax    );
     file.getAttribute("scale"   ).read(scale   );
     file.getAttribute("config"  ).read(config  );
     file.getDataSet  ("count"   ).read(count   );
@@ -69,7 +106,7 @@ namespace Coefs
 
       if (Time < Tmin or Time > Tmax) continue;
 
-      Eigen::MatrixXcd in((lmax+1)*(lmax+2)/2, nmax);
+      Eigen::MatrixXcd in((Lmax+1)*(Lmax+2)/2, Nmax);
       stanza.getDataSet("coefficients").read(in);
       
       // Pack the data into the coefficient variable
@@ -78,8 +115,8 @@ namespace Coefs
       
       if (ctr.size()) coef->ctr = ctr;
 
-      coef->lmax  = lmax;
-      coef->nmax  = nmax;
+      coef->lmax  = Lmax;
+      coef->nmax  = Nmax;
       coef->time  = Time;
       coef->scale = scale;
       coef->coefs = in;
@@ -88,6 +125,9 @@ namespace Coefs
       
       coefs[roundTime(Time)] = coef;
     }
+
+    times.clear();
+    for (auto t : coefs) times.push_back(t.first);
   }
   
   std::shared_ptr<Coefs> SphCoefs::deepcopy()
@@ -151,24 +191,20 @@ namespace Coefs
     return mat;
   }
   
-  
   Eigen::Tensor<std::complex<double>, 3> SphCoefs::getAllCoefs()
   {
     Eigen::Tensor<std::complex<double>, 3> ret;
 
     auto times = Times();
-
-    int lmax = coefs.begin()->second->lmax;
-    int nmax = coefs.begin()->second->nmax;
     int ntim = times.size();
 
     // Resize the tensor
-    ret.resize({(lmax+1)*(lmax+2)/2, nmax, ntim});
+    ret.resize({(Lmax+1)*(Lmax+2)/2, Nmax, ntim});
 
     for (int t=0; t<ntim; t++) {
       auto cof = coefs[times[t]];
-      for (int l=0; l<(lmax+2)*(lmax+1)/2; l++) {
-	for (int n=0; n<nmax; n++) {
+      for (int l=0; l<(Lmax+2)*(Lmax+1)/2; l++) {
+	for (int n=0; n<Nmax; n++) {
 	  ret(l, n, t) = cof->coefs(l, n);
 	}
       }
@@ -183,13 +219,10 @@ namespace Coefs
     std::vector<Key> ret;
     if (coefs.size()==0) return ret;
 
-    int lmax = coefs.begin()->second->lmax;
-    int nmax = coefs.begin()->second->nmax;
-
     // Sanity
     if (k.size()) {
       k[0] = std::max<unsigned>(k[0], 0);
-      k[0] = std::min<unsigned>(k[0], lmax);
+      k[0] = std::min<unsigned>(k[0], Lmax);
     }
 
     if (k.size()>1) {
@@ -204,18 +237,18 @@ namespace Coefs
 
     // Option 3
     if (k.size()==0) {
-      for (unsigned l=0; l<=lmax; l++)
+      for (unsigned l=0; l<=Lmax; l++)
 	for (unsigned m=0; m<=l; m++) 
-	  for (unsigned n=0; n<nmax; n++) ret.push_back({l, m, n});
+	  for (unsigned n=0; n<Nmax; n++) ret.push_back({l, m, n});
     }
     // Option 2
     else if (k.size()==1) {
       for (unsigned m=0; m<=k[0]; m++) 
-	for (unsigned n=0; n<nmax; n++) ret.push_back({k[0], m, n});
+	for (unsigned n=0; n<Nmax; n++) ret.push_back({k[0], m, n});
     }
     // Option 1
     else if (k.size()==2) {
-      for (unsigned n=0; n<nmax; n++) ret.push_back({k[0], k[1], n});
+      for (unsigned n=0; n<Nmax; n++) ret.push_back({k[0], k[1], n});
     }
     // Bad sub key?
     else {
@@ -256,19 +289,22 @@ namespace Coefs
 	break;
       }
     }
+
+    if (coefs.size()) {
+      Lmax = coefs.begin()->second->lmax;
+      Nmax = coefs.begin()->second->nmax;
+    }
   }
   
   
   void SphCoefs::WriteH5Params(HighFive::File& file)
   {
-    int lmax     = coefs.begin()->second->lmax;
-    int nmax     = coefs.begin()->second->nmax;
     double scale = coefs.begin()->second->scale;
     
     std::string forceID(coefs.begin()->second->id);
     
-    file.createAttribute<int>("lmax", HighFive::DataSpace::From(lmax)).write(lmax);
-    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<int>("lmax", HighFive::DataSpace::From(Lmax)).write(Lmax);
+    file.createAttribute<int>("nmax", HighFive::DataSpace::From(Nmax)).write(Nmax);
     file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
   }
@@ -324,10 +360,10 @@ namespace Coefs
       unsigned I = 0;
       if (lmin>0) I += lmin*lmin;
       
-      for (int ll=lmin; ll<=std::min<int>(lmax, c.second->lmax); ll++) {
+      for (int ll=lmin; ll<=std::min<int>(lmax, Lmax); ll++) {
 	for (int mm=0; mm<=ll; mm++) {
 	  std::cout << std::setw(18) << c.first << std::setw(5) << ll << std::setw(5) << mm << std::setw(5);
-	  for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->nmax); nn++) 
+	  for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, Nmax); nn++) 
 	    std::cout << std::setw(18) << c.second->coefs(I, nn);
 	  std::cout << std::endl;
 	  
@@ -425,13 +461,12 @@ namespace Coefs
 		     double Tmin, double Tmax, bool verbose) :
     Coefs("cylinder", verbose)
   {
-    int mmax, nmax;
     unsigned count;
     std::string config;
     
     file.getAttribute("name"   ).read(name  );
-    file.getAttribute("mmax"   ).read(mmax  );
-    file.getAttribute("nmax"   ).read(nmax  );
+    file.getAttribute("mmax"   ).read(Mmax  );
+    file.getAttribute("nmax"   ).read(Nmax  );
     file.getAttribute("config" ).read(config);
     file.getDataSet  ("count"  ).read(count );
     
@@ -458,7 +493,7 @@ namespace Coefs
 
       if (Time < Tmin or Time > Tmax) continue;
 
-      Eigen::MatrixXcd in(mmax+1, nmax);
+      Eigen::MatrixXcd in(Mmax+1, Nmax);
       stanza.getDataSet("coefficients").read(in);
       
       // Pack the data into the coefficient variable
@@ -467,8 +502,8 @@ namespace Coefs
       
       if (ctr.size()) coef->ctr = ctr;
 
-      coef->mmax  = mmax;
-      coef->nmax  = nmax;
+      coef->mmax  = Mmax;
+      coef->nmax  = Nmax;
       coef->time  = Time;
       coef->coefs = in;
       
@@ -500,17 +535,15 @@ namespace Coefs
 
     auto times = Times();
 
-    int mmax = coefs.begin()->second->mmax;
-    int nmax = coefs.begin()->second->nmax;
     int ntim = times.size();
 
     // Resize the tensor
-    ret.resize({mmax+1, nmax, ntim});
+    ret.resize({Mmax+1, Nmax, ntim});
     
     for (int t=0; t<ntim; t++) {
       auto cof = coefs[times[t]];
-      for (int m=0; m<mmax+1; m++) {
-	for (int n=0; n<nmax; n++) {
+      for (int m=0; m<Mmax+1; m++) {
+	for (int n=0; n<Nmax; n++) {
 	  ret(m, n, t) = cof->coefs(m, n);
 	}
       }
@@ -524,13 +557,10 @@ namespace Coefs
     std::vector<Key> ret;
     if (coefs.size()==0) return ret;
 
-    int mmax = coefs.begin()->second->mmax;
-    int nmax = coefs.begin()->second->nmax;
-
     // Sanity check
     if (k.size()==1) {
       k[0] = std::max<unsigned>(k[0], 0);
-      k[0] = std::min<unsigned>(k[0], mmax);
+      k[0] = std::min<unsigned>(k[0], Mmax);
     }
 
     // Two options:
@@ -538,12 +568,12 @@ namespace Coefs
     // 2. return all keys
     //
     if (k.size()==0) {
-      for (unsigned m=0; m<=mmax; m++)
-	for (unsigned n=0; n<nmax; n++) ret.push_back({m, n});
+      for (unsigned m=0; m<=Mmax; m++)
+	for (unsigned n=0; n<Nmax; n++) ret.push_back({m, n});
 
     }
     else if (k.size()==1) {
-      for (unsigned n=0; n<nmax; n++) ret.push_back({k[0], n});
+      for (unsigned n=0; n<Nmax; n++) ret.push_back({k[0], n});
     }
     // Bad sub key?
     else {
@@ -573,18 +603,19 @@ namespace Coefs
 
       coefs[roundTime(c->time)] = c;
     }
+
+    if (coefs.size()) {
+      Mmax = coefs.begin()->second->mmax;
+      Nmax = coefs.begin()->second->nmax;
+    }
   }
   
   void CylCoefs::WriteH5Params(HighFive::File& file)
   {
-    int mmax = coefs.begin()->second->mmax;
-    int nmax = coefs.begin()->second->nmax;
-    
     std::string forceID(coefs.begin()->second->id);
-    
 
-    file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
-    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<int>("mmax", HighFive::DataSpace::From(Mmax)).write(Mmax);
+    file.createAttribute<int>("nmax", HighFive::DataSpace::From(Nmax)).write(Nmax);
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
   }
   
@@ -672,11 +703,12 @@ namespace Coefs
     return power;
   }
   
-  TableData::TableData(const std::vector<double>& times,
+  TableData::TableData(const std::vector<double>& Times,
 		       const std::vector<std::vector<double>>& data,
 		       bool verbose) :
-    times(times), data(data), Coefs("table", verbose)
+    data(data), Coefs("table", verbose)
   {
+    times = Times;
     for (int i=0; i<times.size(); i++) {
       TblStrPtr c = std::make_shared<TblStruct>();
       c->cols = data[i].size();
