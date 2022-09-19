@@ -106,7 +106,7 @@ namespace MSSA
     }
 
     bkeys.clear();
-    for (auto v : keys0) {
+    for (auto v : bkeys0) {
       // Sanity check
       if (v[0]>=0 and v[0]<=mmax and
 	  v[1]>=0 and v[1]<=nmax ) {
@@ -114,7 +114,7 @@ namespace MSSA
 	c.push_back(0);
 	s.push_back(1);
 	bkeys.push_back(c);
-	if (v[0]) keys.push_back(s);
+	if (v[0]) bkeys.push_back(s);
       }
     }
 

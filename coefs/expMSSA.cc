@@ -351,7 +351,12 @@ namespace MSSA {
     
   void expMSSA::reconstruct(const std::vector<int>& evlist)
   {
-    const bool useOpenMP = true;
+    // Use the OpenMP implementation
+    const bool useOpenMP  = true;
+
+    // Some speed up by reordering memory access at the expense of
+    // some memory
+    const bool useReverse = true;
 
     // Reconstructed time series
     //
@@ -376,7 +381,8 @@ namespace MSSA {
 
       // Embedded time series matrix
       //
-      Eigen::MatrixXd Z(numT, numW);
+      Eigen::MatrixXd Z;
+      if (useReverse) Z.resize(numT, numW);
     
       // Split eigenvectors into channel sequences
       //
@@ -409,13 +415,14 @@ namespace MSSA {
 	  
 	  for (int w=0; w<ncomp; w++) {
 	    
-	    Z.fill(0.0);
-	    
 	    // Build reverse embedded time series.
 	    //
-	    for (int j=0; j<numW; j++) {
-	      for (int i=0; i<numT; i++)
-		if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
+	    if (useReverse) {
+	      Z.fill(0.0);
+	      for (int j=0; j<numW; j++) {
+		for (int i=0; i<numT; i++)
+		  if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
+	      }
 	    }
 	    
 	    // Choose limits and weight
@@ -439,8 +446,12 @@ namespace MSSA {
 	      }
 	      
 	      RC[u->first](i, w) = 0.0;
-	      for (int j=L; j<U; j++)
-		RC[u->first](i, w) += Z(i, j) * rho[u->first](j, w) * W;
+	      for (int j=L; j<U; j++) {
+		if (useReverse)
+		  RC[u->first](i, w) += Z(i, j) * rho[u->first](j, w) * W;
+		else
+		  RC[u->first](i, w) += PC(i - j, w) * rho[u->first](j, w) * W;
+	      }
 	    }
 	  }
 	  
@@ -455,13 +466,14 @@ namespace MSSA {
 
 	  for (int w=0; w<ncomp; w++) {
 	
-	    Z.fill(0.0);
-	
 	    // Build reverse embedded time series.
 	    //
-	    for (int j=0; j<numW; j++) {
-	      for (int i=0; i<numT; i++)
-		if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
+	    if (useReverse) {
+	      Z.fill(0.0);
+	      for (int j=0; j<numW; j++) {
+		for (int i=0; i<numT; i++)
+		  if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
+	      }
 	    }
 	    
 	    // Choose limits and weight
@@ -485,8 +497,12 @@ namespace MSSA {
 	      }
 	      
 	      RC[u.first](i, w) = 0.0;
-	      for (int j=L; j<U; j++)
-		RC[u.first](i, w) += Z(i, j) * rho[u.first](j, w) * W;
+	      for (int j=L; j<U; j++) {
+		if (useReverse)
+		  RC[u.first](i, w) += Z(i, j) * rho[u.first](j, w) * W;
+		else
+		  RC[u.first](i, w) += PC(i - j, w) * rho[u.first](j, w) * W;
+	      }
 	    }
 	  }
 	}

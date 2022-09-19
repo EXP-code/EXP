@@ -221,6 +221,14 @@ namespace MSSA
     //! Return total power value used for normalizing coefficient series
     double getTotPow() { return totPow; }
 
+    //! Debug access to RC
+    Eigen::MatrixXd getRC(const Key& key) {
+      auto it = RC.find(key);
+      if (it == RC.end())
+	throw std::runtime_error("expMSSA:getRC: key not found");
+      return it->second;
+    }
+
   };
 
 
