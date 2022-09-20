@@ -412,6 +412,9 @@ void Cylinder::initialize()
 	throw std::runtime_error("Cylinder: failure in downcasting");
       }
       
+      // Set tolerance to 2 master time steps
+      playback->setDeltaT(dtime*2);
+
       if (playback->nmax() != ncylorder) {
 	if (myid==0) {
 	  std::cerr << "Cylinder: norder for playback [" << playback->nmax()

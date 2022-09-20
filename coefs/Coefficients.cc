@@ -34,16 +34,16 @@ namespace Coefs
   {
     bool onGrid = true;
 
-    if (time < times.front() or time > times.back()) {
+    if (time < times.front()-deltaT or time > times.back()+deltaT) {
       
-      const  int slop  = 9;	// Allow 'slop' off grid attempts
-      static int tries = 0;	// before triggering an off grid stop
+      const  int max_oab = 8;	// Allow 'slop' off grid attempts
+      static int cnt_oab = 0;	// before triggering an off grid stop
 
       std::cerr << "Coefs::interpolate: time=" << time
 	   << " is offgrid [" << times.front()
-		<< ", " << times.back() << "] #" << ++tries << std::endl;
+		<< ", " << times.back() << "] #" << ++cnt_oab << std::endl;
       
-      if (tries > slop) onGrid = false;
+      if (cnt_oab > max_oab) onGrid = false;
     }
 
     auto it = std::lower_bound(times.begin(), times.end(), time);
@@ -63,11 +63,12 @@ namespace Coefs
     auto cA = getCoefStruct(times[iA]);
     auto cB = getCoefStruct(times[iB]);
 
-    mat.resize(cA->coefs.rows(), cA->coefs.cols());
+    int rows = cA->coefs.rows(), cols = cA->coefs.cols();
+    mat.resize(rows, cols);
 
-    for (int ch=0; ch<mat.rows(); ch++) {
-      for (int n=0; n<mat.cols(); n++)
-	mat(ch, n) = A*(cA->coefs)(ch, n) + B*(cB->coefs)(ch, n);
+    for (int c=0; c<rows; c++) {
+      for (int n=0; n<cols; n++)
+	mat(c, n) = A*(cA->coefs)(c, n) + B*(cB->coefs)(c, n);
     }
 
     return {mat, onGrid};
@@ -978,7 +979,9 @@ namespace Coefs
       
     } catch (HighFive::Exception& err) {
       if (myid==0)
-	std::cerr << "**** Error opening HDF5 file, will try other types ****" << std::endl;
+	std::cerr << "---- Coefs::factory: "
+		  << "error opening as HDF5, trying EXP native and ascii table"
+		  << std::endl;
     }
     
     // Open file and read magic number

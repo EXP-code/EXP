@@ -71,11 +71,14 @@ namespace Coefs
     //! Copy all of the base-class data
     void copyfields(std::shared_ptr<Coefs> p);
 
+    //! Time offset for interpolation
+    double deltaT;
+
   public:
     
     //! Constructor
     Coefs(std::string geometry, bool verbose) :
-      geometry(geometry), verbose(verbose) {}
+      geometry(geometry), verbose(verbose), deltaT(0.01) {}
 
     //! Copy constructor
     Coefs(Coefs& p)
@@ -85,6 +88,7 @@ namespace Coefs
       geometry = p.geometry;
       name     = p.name;
       times    = p.times;
+      deltaT   = p.deltaT;
     }
     
     //! Get coefficient matrix at given time
@@ -170,6 +174,9 @@ namespace Coefs
 
     //! Zero the existing data
     virtual void zerodata() = 0;
+
+    //! Set maximum grid interpolation offset
+    void setDeltaT(double dT) { deltaT = dT; }
 
     class CoefsError : public std::runtime_error
     {

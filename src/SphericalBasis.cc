@@ -125,6 +125,9 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 	throw std::runtime_error("SphericalBasis: failure in downcasting");
       }
 
+      // Set tolerance to 2 master time steps
+      playback->setDeltaT(dtime*2);
+
       if (playback->nmax() != nmax) {
 	if (myid==0) {
 	  std::cerr << "SphericalBasis: nmax for playback [" << playback->nmax()
@@ -568,19 +571,28 @@ void SphericalBasis::determine_coefficients_playback(void)
     if (myid==0) {
       auto ret = playback->interpolate(tnow);
 
+      // Get the matrix
       auto mat = std::get<0>(ret);
+
+      // Get the error signal
       if (not std::get<1>(ret)) stop_signal = 1;
 
-      for (int l=0, L=0; l<=Lmax; l++) {
+      //            +--------- Counter in real array (cosine and sine arrays
+      //            |          are interleaved)
+      //            |    +---- Counter in complex array (cosing and sine
+      //            |    |     components are the real and imag parts)
+      //            v    v
+      for (int l=0, L=0, M=0; l<=Lmax; l++) {
 	for (int m=0; m<=l; m++) {
-	  for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(l, n).real();
+	  for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(M, n).real();
 	  MPI_Bcast((*expcoefP[L]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  L++;
+	  L++;			// Next real array
 	  if (m) {
-	    for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(l, n).imag();
+	    for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(M, n).imag();
 	    MPI_Bcast((*expcoefP[L]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	    L++;
+	    L++;		// Next real array
 	  }
+	  M++;			// Next complex array
 	}
       }
     } else {
@@ -600,17 +612,21 @@ void SphericalBasis::determine_coefficients_playback(void)
 
     auto ret = playback->interpolate(tnow);
 
+    // Get the matrix
     auto mat = std::get<0>(ret);
+
+    // Get the error signal
     if (not std::get<1>(ret)) stop_signal = 1;
 
-    for (int l=0, L=0; l<=Lmax; l++) {
+    for (int l=0, L=0, M=0; l<=Lmax; l++) {
       for (int m=0; m<=l; m++) {
-	for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(l, n).real();
+	for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(M, n).real();
 	L++;
 	if (m) {
-	  for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(l, n).imag();
+	  for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(M, n).imag();
 	  L++;
 	}
+	M++;
       }
     }
   }
@@ -698,7 +714,6 @@ void SphericalBasis::determine_coefficients_particles(void)
   cout << "Process " << myid << ": in <determine_coefficients>" << endl;
 #endif
 
-  //
   // Swap interpolation arrays
   //
   auto p = expcoefL[mlevel];
@@ -706,7 +721,6 @@ void SphericalBasis::determine_coefficients_particles(void)
   expcoefL[mlevel] = expcoefN[mlevel];
   expcoefN[mlevel] = p;
   
-  //
   // Clean arrays for current level
   //
   for (auto & v : expcoefN[mlevel]) v->setZero();
@@ -770,7 +784,6 @@ void SphericalBasis::determine_coefficients_particles(void)
   cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
 #endif
 
-  //
   // Sum up the results from each thread
   //
   for (int i=0; i<nthrds; i++) use1 += use[i];
