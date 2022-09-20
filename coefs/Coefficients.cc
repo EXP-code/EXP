@@ -466,7 +466,10 @@ namespace Coefs
   
   void SphCoefs::add(CoefStrPtr coef)
   {
-    coefs[roundTime(coef->time)] = std::dynamic_pointer_cast<SphStruct>(coef);
+    auto p = std::dynamic_pointer_cast<SphStruct>(coef);
+    Lmax = p->lmax;
+    Nmax = p->nmax;
+    coefs[roundTime(coef->time)] = p;
   }
 
   CylCoefs::CylCoefs(HighFive::File& file, int stride,
@@ -1167,7 +1170,10 @@ namespace Coefs
   
   void CylCoefs::add(CoefStrPtr coef)
   {
-    coefs[roundTime(coef->time)] = std::dynamic_pointer_cast<CylStruct>(coef);
+    auto p = std::dynamic_pointer_cast<CylStruct>(coef);
+    Mmax = p->mmax;
+    Nmax = p->nmax;
+    coefs[roundTime(coef->time)] = p;
   }
 
   void TableData::add(CoefStrPtr coef)
