@@ -34,10 +34,15 @@ namespace Coefs
     bool onGrid = true;
 
     if (time < times.front() or time > times.back()) {
+      
+      const  int slop  = 8;	// Allow 'slop' off grid attempts
+      static int tries = 0;	// before triggering an off grid stop
+
       std::cerr << "Coefs::interpolate: time=" << time
 	   << " is offgrid [" << times.front()
-		<< ", " << times.back() << "]" << std::endl;
-      onGrid = false;
+		<< ", " << times.back() << "] #" << ++tries << std::endl;
+      
+      if (tries > slop) onGrid = false;
     }
 
     auto it = std::lower_bound(times.begin(), times.end(), time);
@@ -60,7 +65,8 @@ namespace Coefs
     mat.resize(cA->coefs.rows(), cA->coefs.cols());
 
     for (int ch=0; ch<mat.rows(); ch++) {
-      for (int n=0; n<mat.cols(); n++) mat(ch, n) = A*(cA->coefs)(ch, n) + B*(cB->coefs)(ch, n);
+      for (int n=0; n<mat.cols(); n++)
+	mat(ch, n) = A*(cA->coefs)(ch, n) + B*(cB->coefs)(ch, n);
     }
 
     return {mat, onGrid};
@@ -294,6 +300,9 @@ namespace Coefs
       Lmax = coefs.begin()->second->lmax;
       Nmax = coefs.begin()->second->nmax;
     }
+
+    times.clear();
+    for (auto t : coefs) times.push_back(t.first);
   }
   
   
@@ -509,6 +518,9 @@ namespace Coefs
       
       coefs[roundTime(Time)] = coef;
     }
+
+    times.clear();
+    for (auto t : coefs) times.push_back(t.first);
   }
   
   Eigen::MatrixXcd& CylCoefs::operator()(double time)
@@ -608,6 +620,9 @@ namespace Coefs
       Mmax = coefs.begin()->second->mmax;
       Nmax = coefs.begin()->second->nmax;
     }
+
+    times.clear();
+    for (auto t : coefs) times.push_back(t.first);
   }
   
   void CylCoefs::WriteH5Params(HighFive::File& file)
