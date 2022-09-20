@@ -174,6 +174,7 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
       cout << "  -- Orient: current log=" << logfile << "  backup=" << backupfile << endl;
 
+      if (restart)
       cout << "  -- Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
 
       cout << "  -- Orient: axis master (cache size=" << sumsA.size() << "): " 
