@@ -1,3 +1,4 @@
+#include <iterator>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -49,8 +50,8 @@ namespace Coefs
     auto it = std::lower_bound(times.begin(), times.end(), time);
     auto lo = it, hi = it;
 
-    if (hi == times.end()) {
-      hi = times.end() - 1;
+    if (hi == std::prev(times.end()) or hi == times.end()) {
+      hi = std::prev(times.end());
       lo = hi - 1;
     } else hi++;
     
