@@ -720,7 +720,7 @@ int EmpCylSL::read_eof_file(const string& eof_file)
 
 int EmpCylSL::read_cache(void)
 {
-  setup_table();
+  setup_eof();
   setup_accumulation();
 
 				// Master tries to read table
