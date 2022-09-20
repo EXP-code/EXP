@@ -298,7 +298,7 @@ void SphericalBasis::setup(void)
   for (int l=0; l<=Lmax; l++) {	// with current binding from derived class
     for (int n=0; n<nmax; n++) {
       normM (l, n) = norm(n, l);
-      krnl  (l, n) = knl(n, l);
+      krnl  (l, n) = knl (n, l);
       sqnorm(l, n) = sqrt(normM(l, n));
     }
   }
