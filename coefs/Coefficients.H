@@ -123,7 +123,7 @@ namespace Coefs
 	construct the coefficient database
     */
     static std::shared_ptr<Coefs> factory
-    (const std::string& file, int stride=0,
+    (const std::string& file, int stride=1,
      double tmin=-std::numeric_limits<double>::max(),
      double tmax= std::numeric_limits<double>::max() );
     
