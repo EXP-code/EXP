@@ -583,26 +583,21 @@ void SphericalBasis::determine_coefficients_playback(void)
       //            |    |     components are the real and imag parts)
       //            v    v
       for (int l=0, L=0, M=0; l<=Lmax; l++) {
-	for (int m=0; m<=l; m++) {
-	  for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(M, n).real();
-	  MPI_Bcast((*expcoefP[L]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  L++;			// Next real array
+	for (int m=0; m<=l; m++, M++) {
+	  *expcoefP[L] = mat.row(M).real();
+	  MPI_Bcast((*expcoefP[L++]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  if (m) {
-	    for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(M, n).imag();
-	    MPI_Bcast((*expcoefP[L]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	    L++;		// Next real array
+	    *expcoefP[L] = mat.row(M).imag();
+	    MPI_Bcast((*expcoefP[L++]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  }
-	  M++;			// Next complex array
 	}
       }
     } else {
       for (int l=0, L=0; l<=Lmax; l++) {
 	for (int m=0; m<=l; m++) {
-	  MPI_Bcast((*expcoefP[L]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  L++;
+	  MPI_Bcast((*expcoefP[L++]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  if (m) {
-	    MPI_Bcast((*expcoefP[L]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	    L++;
+	    MPI_Bcast((*expcoefP[L++]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  }
 	}
       }
@@ -619,14 +614,11 @@ void SphericalBasis::determine_coefficients_playback(void)
     if (not std::get<1>(ret)) stop_signal = 1;
 
     for (int l=0, L=0, M=0; l<=Lmax; l++) {
-      for (int m=0; m<=l; m++) {
-	for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(M, n).real();
-	L++;
+      for (int m=0; m<=l; m++, M++) {
+	*expcoefP[L++] = mat.row(M).real();
 	if (m) {
-	  for (int n=0; n<nmax; n++) (*expcoefP[L])[n] = mat(M, n).imag();
-	  L++;
+	  *expcoefP[L++] = mat.row(M).imag();
 	}
-	M++;
       }
     }
   }
