@@ -720,7 +720,7 @@ int EmpCylSL::read_eof_file(const string& eof_file)
 
 int EmpCylSL::read_cache(void)
 {
-  setup_eof();
+  setup_table();
   setup_accumulation();
 
 				// Master tries to read table
@@ -1863,6 +1863,14 @@ void EmpCylSL::setup_table()
       if (DENS) densS[m][v].resize(NUMX+1, NUMY+1);
     }
   }
+
+  vc.resize(nthrds);
+  vs.resize(nthrds);
+  for (int i=0; i<nthrds; i++) {
+    vc[i].resize(max<int>(1,MMAX)+1, rank3);
+    vs[i].resize(max<int>(1,MMAX)+1, rank3);
+  }
+
 }
 
 void EmpCylSL::setup_eof()
@@ -1909,13 +1917,6 @@ void EmpCylSL::setup_eof()
 	SC[nth].resize(MMAX+1);
 	SS[nth].resize(MMAX+1);
       }
-    }
-
-    vc.resize(nthrds);
-    vs.resize(nthrds);
-    for (int i=0; i<nthrds; i++) {
-      vc[i].resize(max<int>(1,MMAX)+1, rank3);
-      vs[i].resize(max<int>(1,MMAX)+1, rank3);
     }
 
     potd.resize(LMAX+1, NMAX);
