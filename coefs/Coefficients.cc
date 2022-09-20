@@ -5,6 +5,7 @@
 #include <complex>
 
 #include "config.h"
+#include <localmpi.H>
 
 #include <Eigen/Dense>
 
@@ -35,7 +36,7 @@ namespace Coefs
 
     if (time < times.front() or time > times.back()) {
       
-      const  int slop  = 8;	// Allow 'slop' off grid attempts
+      const  int slop  = 9;	// Allow 'slop' off grid attempts
       static int tries = 0;	// before triggering an off grid stop
 
       std::cerr << "Coefs::interpolate: time=" << time
@@ -922,6 +923,22 @@ namespace Coefs
   std::shared_ptr<Coefs> Coefs::factory
   (const std::string& file, int stride, double tmin, double tmax)
   {
+    // Check whether MPI is initialized
+    //
+    int flag;
+    MPI_Initialized(&flag);
+
+    // Fall back sanity (works for me but this needs to be fixed
+    // generally)
+    //
+    if (flag) {
+      MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+      MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    } else {
+      int argc = 0; char **argv = 0;
+      MPI_Init(&argc, &argv);
+    }
+
     std::shared_ptr<Coefs> coefs;
     
     // First attempt to read the file as H5
@@ -960,7 +977,8 @@ namespace Coefs
       return coefs;
       
     } catch (HighFive::Exception& err) {
-      std::cerr << "**** Error opening HDF5 file, will try other types ****" << std::endl;
+      if (myid==0)
+	std::cerr << "**** Error opening HDF5 file, will try other types ****" << std::endl;
     }
     
     // Open file and read magic number
