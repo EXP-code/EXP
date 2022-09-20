@@ -720,7 +720,7 @@ int EmpCylSL::read_eof_file(const string& eof_file)
 
 int EmpCylSL::read_cache(void)
 {
-  setup_eof();
+  setup_table();
   setup_accumulation();
 
 				// Master tries to read table
@@ -1044,7 +1044,6 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 
 	return 0;
       }
-    
 
 				// Read table
 
@@ -1806,64 +1805,71 @@ void EmpCylSL::init_pca()
   }
 }
 
+void EmpCylSL::setup_table()
+{
+  // Create storage for EOF tables
+  //
+  rank2   = NMAX*(LMAX+1);
+  rank3   = NORDER;
+    
+  Rtable  = M_SQRT1_2 * RMAX;
+  XMIN    = r_to_xi(RMIN*ASCALE);
+  XMAX    = r_to_xi(Rtable*ASCALE);
+  dX      = (XMAX - XMIN)/NUMX;
+
+  YMIN    = z_to_y(-Rtable*ASCALE);
+  YMAX    = z_to_y( Rtable*ASCALE);
+  dY      = (YMAX - YMIN)/NUMY;
+
+  potC    .resize(MMAX+1);
+  rforceC .resize(MMAX+1);
+  zforceC .resize(MMAX+1);
+  
+  potS    .resize(MMAX+1);
+  rforceS .resize(MMAX+1);
+  zforceS .resize(MMAX+1);
+  
+  if (DENS) {
+    densC .resize(MMAX+1);
+    densS .resize(MMAX+1);
+  }
+
+  for (int m=0; m<=MMAX; m++) {
+
+    potC[m]   .resize(rank3);
+    rforceC[m].resize(rank3);
+    zforceC[m].resize(rank3);
+    if (DENS) densC[m].resize(rank3);
+    
+    for (int v=0; v<rank3; v++) {
+      potC   [m][v].resize(NUMX+1, NUMY+1);
+      rforceC[m][v].resize(NUMX+1, NUMY+1);
+      zforceC[m][v].resize(NUMX+1, NUMY+1);
+      if (DENS) densC[m][v].resize(NUMX+1, NUMY+1);
+    }
+  }
+  
+  for (int m=1; m<=MMAX; m++) {
+    
+    potS[m]   .resize(rank3);
+    rforceS[m].resize(rank3);
+    zforceS[m].resize(rank3);
+    if (DENS) densS[m].resize(rank3);
+    
+    for (int v=0; v<rank3; v++) {
+      potS   [m][v].resize(NUMX+1, NUMY+1);
+      rforceS[m][v].resize(NUMX+1, NUMY+1);
+      zforceS[m][v].resize(NUMX+1, NUMY+1);
+      if (DENS) densS[m][v].resize(NUMX+1, NUMY+1);
+    }
+  }
+}
+
 void EmpCylSL::setup_eof()
 {
   if (SC.size()==0 and SCe.size()==0) {
 
-    rank2   = NMAX*(LMAX+1);
-    rank3   = NORDER;
-    
-    Rtable  = M_SQRT1_2 * RMAX;
-    XMIN    = r_to_xi(RMIN*ASCALE);
-    XMAX    = r_to_xi(Rtable*ASCALE);
-    dX      = (XMAX - XMIN)/NUMX;
-
-    YMIN    = z_to_y(-Rtable*ASCALE);
-    YMAX    = z_to_y( Rtable*ASCALE);
-    dY      = (YMAX - YMIN)/NUMY;
-
-    potC   .resize(MMAX+1);
-    rforceC.resize(MMAX+1);
-    zforceC.resize(MMAX+1);
-    if (DENS) densC.resize(MMAX+1);
-
-    potS   .resize(MMAX+1);
-    rforceS.resize(MMAX+1);
-    zforceS.resize(MMAX+1);
-    if (DENS) densS.resize(MMAX+1);
-
-    for (int m=0; m<=MMAX; m++) {
-
-      potC[m]   .resize(rank3);
-      rforceC[m].resize(rank3);
-      zforceC[m].resize(rank3);
-      if (DENS) densC[m].resize(rank3);
-
-      for (int v=0; v<rank3; v++) {
-	potC   [m][v].resize(NUMX+1, NUMY+1);
-	rforceC[m][v].resize(NUMX+1, NUMY+1);
-	zforceC[m][v].resize(NUMX+1, NUMY+1);
-	if (DENS) densC[m][v].resize(NUMX+1, NUMY+1);
-      }
-
-    }
-
-
-    for (int m=1; m<=MMAX; m++) {
-
-      potS[m]   .resize(rank3);
-      rforceS[m].resize(rank3);
-      zforceS[m].resize(rank3);
-      if (DENS) densS[m].resize(rank3);
-
-      for (int v=0; v<rank3; v++) {
-	potS   [m][v].resize(NUMX+1, NUMY+1);
-	rforceS[m][v].resize(NUMX+1, NUMY+1);
-	zforceS[m][v].resize(NUMX+1, NUMY+1);
-	if (DENS) densS[m][v].resize(NUMX+1, NUMY+1);
-      }
-
-    }
+    setup_table();
 
     tpot   .resize(NORDER);
     trforce.resize(NORDER);

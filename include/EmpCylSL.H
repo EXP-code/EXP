@@ -570,6 +570,9 @@ public:
   void setSampT(int N) { defSampT = N; }
 
   //! For EOF
+  void setup_table(void);
+
+  //! For EOF computation
   void setup_eof(void);
 
   //! Clear mass counter
