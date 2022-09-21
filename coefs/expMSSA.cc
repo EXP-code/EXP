@@ -356,7 +356,7 @@ namespace MSSA {
 
     // Some speed up by reordering memory access at the expense of
     // some memory
-    const bool useReverse = true;
+    const bool useReverse = false;
 
     // Reconstructed time series
     //
@@ -415,16 +415,6 @@ namespace MSSA {
 	  
 	  for (int w=0; w<ncomp; w++) {
 	    
-	    // Build reverse embedded time series.
-	    //
-	    if (useReverse) {
-	      Z.fill(0.0);
-	      for (int j=0; j<numW; j++) {
-		for (int i=0; i<numT; i++)
-		  if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
-	      }
-	    }
-	    
 	    // Choose limits and weight
 	    //
 	    for (int i=0; i<numT; i++) {
@@ -447,10 +437,7 @@ namespace MSSA {
 	      
 	      RC[u->first](i, w) = 0.0;
 	      for (int j=L; j<U; j++) {
-		if (useReverse)
-		  RC[u->first](i, w) += Z(i, j) * rho[u->first](j, w) * W;
-		else
-		  RC[u->first](i, w) += PC(i - j, w) * rho[u->first](j, w) * W;
+		RC[u->first](i, w) += PC(i - j, w) * rho[u->first](j, w) * W;
 	      }
 	    }
 	  }
@@ -1420,6 +1407,8 @@ namespace MSSA {
 	}
       }
     }
+    computed      = false;
+    reconstructed = false;
   }
   // END expMSSA constructor
 
