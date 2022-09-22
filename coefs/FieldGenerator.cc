@@ -118,9 +118,9 @@ namespace Field
 	
 	  if ((ncnt++)%numprocs == myid) {
 	  
-	    double x = pos[i1];
-	    double y = pos[i2];
-	    double z = pos[i3];
+	    double x = pos[0];
+	    double y = pos[1];
+	    double z = pos[2];
 
 	    r = sqrt(x*x + y*y + z*z) + 1.0e-18;
 	    costh = z/r;
