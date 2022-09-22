@@ -258,6 +258,11 @@ void MSSAtoolkitClasses(py::module &m) {
 	"Power value used for normalizing coefficient series");
 
   f.def("getRC", &expMSSA::getRC,
-	"Access to detrended reconstructed channel series");
+	"Access to detrended reconstructed channel series by "
+	"internal key");
+
+  f.def("getRCkeys", &expMSSA::getRCkeys,
+	"Provides a list of internal keys for accessing the "
+	"detrended channel series using getRC()");
 
 }

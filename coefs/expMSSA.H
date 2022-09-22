@@ -221,12 +221,21 @@ namespace MSSA
     //! Return total power value used for normalizing coefficient series
     double getTotPow() { return totPow; }
 
-    //! Debug access to RC
+    //! Provide access to the detrended reconstruction
     Eigen::MatrixXd getRC(const Key& key) {
       auto it = RC.find(key);
       if (it == RC.end())
 	throw std::runtime_error("expMSSA:getRC: key not found");
       return it->second;
+    }
+
+    //! Provides a list of keys for accessing the detrended
+    //! reconstruction using getRC()
+    std::vector<Key> getRCkeys()
+    {
+      std::vector<Key> ret;
+      for (auto v : RC) ret.push_back(v.first);
+      return ret;
     }
 
   };
