@@ -115,7 +115,6 @@ namespace Field
 
 	  pos[i2] = pmin[i2] + del[i2]*j;
 
-	
 	  if ((ncnt++)%numprocs == myid) {
 	  
 	    double x = pos[0];

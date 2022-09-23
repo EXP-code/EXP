@@ -310,6 +310,11 @@ namespace Coefs
 
     times.clear();
     for (auto t : coefs) times.push_back(t.first);
+
+    if (myid==0)
+      std::cerr << "---- Coefs::factory: "
+		<< "read EXP native and created SphCoefs"
+		<< std::endl;
   }
   
   
@@ -633,6 +638,11 @@ namespace Coefs
 
     times.clear();
     for (auto t : coefs) times.push_back(t.first);
+
+    if (myid==0)
+      std::cerr << "---- Coefs::factory: "
+		<< "read EXP native and created CylCoefs"
+		<< std::endl;
   }
   
   void CylCoefs::WriteH5Params(HighFive::File& file)
@@ -833,6 +843,10 @@ namespace Coefs
 
       coefs[roundTime(c->time)] = c;
     }
+    if (myid==0)
+      std::cerr << "---- Coefs::factory: "
+		<< "read ascii and created TableData"
+		<< std::endl;
   }
   
   
