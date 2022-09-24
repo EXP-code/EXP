@@ -141,8 +141,8 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(void, Coefs, ExtendH5Coefs, prefix);
     }
 
-    Eigen::MatrixXd& Power() override {
-      PYBIND11_OVERRIDE_PURE(Eigen::MatrixXd&, Coefs, Power,);
+    Eigen::MatrixXd& Power(int min, int max) override {
+      PYBIND11_OVERRIDE_PURE(Eigen::MatrixXd&, Coefs, Power, min, max);
     }
 
     bool CompareStanzas(std::shared_ptr<Coefs> check) override {
@@ -219,8 +219,8 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(void, SphCoefs, ExtendH5Coefs, prefix);
     }
 
-    Eigen::MatrixXd& Power() override {
-      PYBIND11_OVERRIDE(Eigen::MatrixXd&, SphCoefs, Power,);
+    Eigen::MatrixXd& Power(int min, int max) override {
+      PYBIND11_OVERRIDE(Eigen::MatrixXd&, SphCoefs, Power, min, max);
     }
 
     bool CompareStanzas(std::shared_ptr<Coefs> check) override {
@@ -298,8 +298,8 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(void, CylCoefs, ExtendH5Coefs, prefix);
     }
 
-    Eigen::MatrixXd& Power() override {
-      PYBIND11_OVERRIDE(Eigen::MatrixXd&, CylCoefs, Power,);
+    Eigen::MatrixXd& Power(int min, int max) override {
+      PYBIND11_OVERRIDE(Eigen::MatrixXd&, CylCoefs, Power, min, max);
     }
 
     bool CompareStanzas(std::shared_ptr<Coefs> check) override {
@@ -377,8 +377,8 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(void, TableData, ExtendH5Coefs, prefix);
     }
 
-    Eigen::MatrixXd& Power() override {
-      PYBIND11_OVERRIDE(Eigen::MatrixXd&, TableData, Power,);
+    Eigen::MatrixXd& Power(int min, int max) override {
+      PYBIND11_OVERRIDE(Eigen::MatrixXd&, TableData, Power, min, max);
     }
 
     bool CompareStanzas(std::shared_ptr<Coefs> check) override {
@@ -446,7 +446,8 @@ void CoefficientClasses(py::module &m) {
 	 "name using the coefficient in the container", py::arg("filename"))
     .def("Power",          &Coefs::Coefs::Power,
 	 "Return a ndarray table of the full power for the top-level harmonic "
-	 "index as function of time")
+	 "index as function of time",
+	 py::arg("min")=0, py::arg("max")=std::numeric_limits<int>::max())
     .def("makeKeys",       &Coefs::Coefs::makeKeys,
 	 "Return a vector/list of keys for an entire subspace of "
 	 "subdimensional rank", py::arg("subkey"))

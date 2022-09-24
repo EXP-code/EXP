@@ -448,11 +448,12 @@ namespace Coefs
     return ret;
   }
   
-  Eigen::MatrixXd& SphCoefs::Power()
+  Eigen::MatrixXd& SphCoefs::Power(int min, int max)
   {
     if (coefs.size()) {
       
       int lmax = coefs.begin()->second->lmax;
+      int nmax = coefs.begin()->second->nmax;
       power.resize(coefs.size(), lmax+1);
       power.setZero();
       
@@ -461,7 +462,10 @@ namespace Coefs
 	for (int l=0, L=0; l<=lmax; l++) {
 	  for (int m=0; m<=l; m++, L++) {
 	    auto rad = v.second->coefs.row(L);
-	    power(T, l) += (rad.conjugate() * rad.transpose()).real()(0,0);
+	    for (int n=std::max<int>(0, min); n<std::min<int>(nmax, max); n++) {
+	      double val = std::abs(rad(n));
+	      power(T, l) += val * val;
+	    }
 	  }
 	}
 	T++;
@@ -714,11 +718,12 @@ namespace Coefs
     
   }
   
-  Eigen::MatrixXd& CylCoefs::Power()
+  Eigen::MatrixXd& CylCoefs::Power(int min, int max)
   {
     if (coefs.size()) {
       
       int mmax = coefs.begin()->second->mmax;
+      int nmax = coefs.begin()->second->nmax;
       
       power.resize(coefs.size(), mmax+1);
       power.setZero();
@@ -727,7 +732,10 @@ namespace Coefs
       for (auto v : coefs) {
 	for (int m=0; m<=mmax; m++) {
 	  auto rad = v.second->coefs.row(m);
-	  power(T, m) += (rad.conjugate() * rad.transpose()).real()(0, 0);
+	  for (int n=std::max<int>(0, min); n<std::min<int>(nmax, max); n++) {
+	    double val = std::abs(rad(n));
+	    power(T, m) += val * val;
+	  }
 	}
 	T++;
       }

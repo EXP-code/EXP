@@ -113,9 +113,13 @@ namespace Coefs
     virtual void ExtendH5Coefs(const std::string& prefix);
     
     /** Get power for the coefficient DB as a function of harmonic
-	index.  Time as rows, harmonics as columns.  This could be
-	refined for partial summations. */
-    virtual Eigen::MatrixXd& Power() = 0;
+	index.  Time as rows, harmonics as columns.
+
+	@param min is the minimum radial order
+	@param max is the maximum radial order
+    */
+    virtual Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max()) = 0;
     
     //! Make keys for the remaining indices in a subspace
     virtual std::vector<Key> makeKeys(Key k) = 0;
@@ -255,9 +259,13 @@ namespace Coefs
     Eigen::Tensor<std::complex<double>, 3> getAllCoefs();
 
     /** Get power for the coefficient DB as a function of harmonic
-	index.  Time as rows, harmonics as columns.  This could be
-	refined for partial summations. */
-    virtual Eigen::MatrixXd& Power();
+	index.  Time as rows, harmonics as columns.
+
+	@param min is the minimum radial order
+	@param max is the maximum radial order
+    */
+    virtual Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max());
     
     //! Make keys for the remaining indices in a subspace
     virtual std::vector<Key> makeKeys(Key k);
@@ -358,10 +366,14 @@ namespace Coefs
     Eigen::Tensor<std::complex<double>, 3> getAllCoefs();
 
     /** Get power for the coefficient DB as a function of harmonic
-	index.  Time as rows, harmonics as columns.  This could be
-	refined for partial summations. */
-    virtual Eigen::MatrixXd& Power();
-    
+	index.  Time as rows, harmonics as columns.
+
+	@param min is the minimum radial order
+	@param max is the maximum radial order
+    */
+    virtual Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max());
+
     //! Make keys for the remaining indices in a subspace
     virtual std::vector<Key> makeKeys(Key k);
 
@@ -457,10 +469,10 @@ namespace Coefs
     //! Get all coefficients indexed in column, time
     Eigen::MatrixXd getAllCoefs();
 
-    /** Get power for the coefficient DB as a function of harmonic
-	index.  Time as rows, harmonics as columns.  This could be
-	refined for partial summations. */
-    virtual Eigen::MatrixXd& Power()
+    /** Get power for the series.  Not implemented meaningfully
+	for table data. */
+    virtual Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max())
     {
       power.resize(0, 0);
       return power;
