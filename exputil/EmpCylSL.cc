@@ -581,7 +581,7 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
 {
   std::ifstream in(eof_file.c_str());
   if (!in) {
-    std::cerr << "EmpCylSL::read_eof_header: error opening file named <" 
+    std::cerr << "---- EmpCylSL::read_eof_header: error opening file named <" 
 	      << eof_file << ">" << std::endl;
     return 0;
   }
@@ -767,13 +767,13 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
   if (readwrite) {
     
     if (std::filesystem::exists(cachefile)) {
-      std::cerr << "EmpCylSL::cache_grid: cache file <"
+      std::cerr << "---- EmpCylSL::cache_grid: cache file <"
 		<< cachefile << "> exists" << std::endl;
       try {
 	std::filesystem::rename(cachefile, cachefile + ".bak");
       }
       catch(std::filesystem::filesystem_error const& ex) {
-        std::cout << "EmpCylSL::cache_grid write error: "
+        std::cout << "---- EmpCylSL::cache_grid write error: "
 		  << "what():  " << ex.what()  << std::endl
 		  << "path1(): " << ex.path1() << std::endl
 		  << "path2(): " << ex.path2() << std::endl;
@@ -781,13 +781,13 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 	return 0;
       }
 
-      std::cout << "EmpCylSL::cache_grid: existing file backed up to <"
+      std::cout << "---- EmpCylSL::cache_grid: existing file backed up to <"
 		<< cachefile + ".bak>" << std::endl;
     }
 
     std::ofstream out(cachefile);
     if (!out) {
-      std::cerr << "EmpCylSL::cache_grid: error opening file for writing"
+      std::cerr << "---- EmpCylSL::cache_grid: error opening file for writing"
 		<< std::endl;
       return 0;
     }
@@ -916,7 +916,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 
     std::ifstream in(cachefile.c_str());
     if (!in) {
-      cerr << "EmpCylSL::cache_grid: error opening file" << endl;
+      cerr << "---- EmpCylSL::cache_grid: error opening file" << endl;
       return 0;
     }
 
@@ -5981,13 +5981,13 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
 {
   ifstream in(eof_file.c_str());
   if (!in) {
-    cerr << "EmpCylSL::cache_grid: error opening input file" << endl;
+    cerr << "---- EmpCylSL::cache_grid: error opening input file" << endl;
     return;
   }
 
   ofstream out(output.c_str());
   if (!in) {
-    cerr << "EmpCylSL::cache_grid: error opening outputfile" << endl;
+    cerr << "---- EmpCylSL::cache_grid: error opening outputfile" << endl;
     return;
   }
 
