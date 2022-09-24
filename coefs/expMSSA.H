@@ -176,12 +176,6 @@ namespace MSSA
     */
     std::map<std::string, Coefs::CoefsPtr> getReconstructed();
 
-    /** Reset the working Coefs structure to the original data copy
-
-	This does the same work as getReconstructed() but in update mode
-    */
-    void resetReconstructed(bool zero);
-
     //@{
     /** Compute w-correlation matrix for a single trajectory matrix
 
