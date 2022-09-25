@@ -82,8 +82,8 @@ void CoefficientClasses(py::module &m) {
     // Inherit the constructors
     using CoefStruct::CoefStruct;
 
-    bool read(std::istream& in, bool exp_type) override {
-      PYBIND11_OVERRIDE_PURE(bool, CoefStruct, read, in, exp_type);
+    bool read(std::istream& in, bool exp_type, bool verbose) override {
+      PYBIND11_OVERRIDE_PURE(bool, CoefStruct, read, in, exp_type, verbose);
     }
   };
 

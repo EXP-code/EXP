@@ -34,7 +34,8 @@ namespace Coefs
     std::vector<double> ctr;
 
     //! Read data from a stream
-    virtual bool read(std::istream& in, bool exp_type) = 0;
+    virtual bool read(std::istream& in, bool exp_type,
+		      bool verbose=false) = 0;
 
     //! Copy base-class fields
     void copyfields(std::shared_ptr<CoefStruct> p);
@@ -60,7 +61,7 @@ namespace Coefs
     SphStruct() { geom = "sphere"; }
 
     //! Read native EXP coefficients
-    bool read(std::istream& in, bool exp_type);
+    bool read(std::istream& in, bool exp_type, bool verbose=false);
 
     //! Copy all of data contents to a new instance
     std::shared_ptr<SphStruct> deepcopy();
@@ -78,7 +79,7 @@ namespace Coefs
     CylStruct() { geom = "cylinder"; }
 
     //! Read native EXP coefficients
-    bool read(std::istream& in, bool exp_type);
+    bool read(std::istream& in, bool exp_type, bool verbose=false);
 
     //! Copy all of data contents to a new instance
     std::shared_ptr<CylStruct> deepcopy();
@@ -95,7 +96,7 @@ namespace Coefs
     TblStruct() { geom = "table"; }
 
     //! No need to read
-    bool read(std::istream& in, bool exp_type);
+    bool read(std::istream& in, bool exp_type, bool verbose=false);
 
     //! Copy all of data contents to a new instance
     std::shared_ptr<TblStruct> deepcopy();

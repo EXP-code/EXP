@@ -219,6 +219,16 @@ namespace Coefs
     //! Constructor
     SphCoefs(bool verbose=false) : Coefs("sphere", verbose) {}
     
+    //! Native file constructor
+    SphCoefs(const std::string& file, int stride=1,
+	     double tmin=-std::numeric_limits<double>::max(),
+	     double tmax= std::numeric_limits<double>::max(),
+	     bool verbose=false) :
+      Coefs("sphere", verbose)
+    {
+      readNativeCoefs(file, stride, tmin, tmax);
+    }
+
     //! Copy constructor
     SphCoefs(SphCoefs& p) : Coefs(p)
     {
@@ -324,8 +334,18 @@ namespace Coefs
     CylCoefs(bool verbose=false) :
       Coefs("cylinder", verbose), angle(false) {}
     
+    //! Native file constructor
+    CylCoefs(const std::string& file, int stride=1,
+	     double tmin=-std::numeric_limits<double>::max(),
+	     double tmax= std::numeric_limits<double>::max(),
+	     bool verbose=false) :
+      Coefs("cylinder", verbose), angle(false)
+    {
+      readNativeCoefs(file, stride, tmin, tmax);
+    }
+    
     //! H5 constructor
-    CylCoefs(HighFive::File& file, int stride=0,
+    CylCoefs(HighFive::File& file, int stride=1,
 	     double tmin=-std::numeric_limits<double>::max(),
 	     double tmax= std::numeric_limits<double>::max(),
 	     bool verbose=false);
@@ -434,7 +454,7 @@ namespace Coefs
     TableData(std::string& file, bool verbose=false);
     
     //! H5 constructor
-    TableData(HighFive::File& file, int stride=0,
+    TableData(HighFive::File& file, int stride=1,
 	     double tmin=-std::numeric_limits<double>::max(),
 	     double tmax= std::numeric_limits<double>::max(),
 	     bool verbose=false);

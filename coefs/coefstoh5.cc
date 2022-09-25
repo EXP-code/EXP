@@ -22,6 +22,8 @@ int main(int argc, char **argv)
   options.add_options()
     ("h,help", "produce this help message")
     ("v, verbose", "verbose output")
+    ("c, cylinder", "assume that coefficients are cylindrical type (for old style)")
+    ("s, sphere", "assume that coefficients are spherical type (for old style)")
     ("e, extend", "extend coefficient file rather than write a new file")
     ("i,infile", "input coefficient file",
      cxxopts::value<std::string>(infile)->default_value("coef.dat"))
@@ -45,8 +47,22 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  auto coefs = Coefs::Coefs::factory(infile);
+  std::shared_ptr<Coefs::Coefs> coefs;
 
+  // These first two are only needed for converting old-style
+  // coefficients (pre-magic-number format).  Otherwise, the last
+  // form, the factory member, should deduce the type without
+  // specification.
+  //
+  if (vm.count("cylinder"))	
+    coefs = std::make_shared<Coefs::CylCoefs>(infile);
+  else if (vm.count("sphere"))
+    coefs = std::make_shared<Coefs::SphCoefs>(infile);
+  else
+    coefs = Coefs::Coefs::factory(infile);
+
+  // Do the writing
+  //
   if (vm.count("extend"))
     coefs->ExtendH5Coefs(prefix);
   else

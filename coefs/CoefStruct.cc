@@ -62,7 +62,7 @@ namespace Coefs
     return ret;
   }
 
-  bool CylStruct::read(std::istream& in, bool verbose)
+  bool CylStruct::read(std::istream& in, bool exp_type, bool verbose)
   {
     // iostream exception handling
     //
@@ -171,7 +171,7 @@ namespace Coefs
     return true;
   }
   
-  bool SphStruct::read(std::istream& in, bool exp_type)
+  bool SphStruct::read(std::istream& in, bool exp_type, bool verbose)
   {
     in.exceptions ( std::istream::failbit | std::istream::badbit );
     
@@ -234,26 +234,41 @@ namespace Coefs
 	// Look for norm flag
 	//
 	if (node["normed"]) normed = node["normed"].as<bool>();
+
+      } else {
 	
-	coefs.resize((lmax+1)*(lmax+2)/2, nmax);
+	// Rewind file
+	//
+	in.clear();
+	in.seekg(curpos);
 	
-	for (int ir=0; ir<nmax; ir++) {
-	  for (int l=0, L=0; l<=lmax; l++) {
-	    for (int m=0; m<=l; m++, L++) {
-	      double re, im=0.0;
-	      if (m==0) {
-		in.read((char *)&re, sizeof(double));
-	      } else {
-		in.read((char *)&re, sizeof(double));
-		in.read((char *)&im, sizeof(double));
-	      }
-	      coefs(L, ir) = {re, im};
+	SphCoefHeader header;
+	in.read((char *)&header, sizeof(SphCoefHeader));
+	
+	time   = header.tnow;
+	nmax   = header.nmax;
+	lmax   = header.Lmax;
+	geom   = "sphere";
+	id     = std::string(header.id);
+	normed = false;
+      }
+	
+      coefs.resize((lmax+1)*(lmax+2)/2, nmax);
+	
+      for (int ir=0; ir<nmax; ir++) {
+	for (int l=0, L=0; l<=lmax; l++) {
+	  for (int m=0; m<=l; m++, L++) {
+	    double re, im=0.0;
+	    if (m==0) {
+	      in.read((char *)&re, sizeof(double));
+	    } else {
+	      in.read((char *)&re, sizeof(double));
+	      in.read((char *)&im, sizeof(double));
 	    }
+	    coefs(L, ir) = {re, im};
 	  }
 	}
-      } else {
-	throw std::runtime_error("no Spherical coeffcient file signature");
-      }
+      } 
     } catch (std::istream::failure e) {
       if (not in.eof())
 	std::cerr << "Exception reading coefficient file: "
@@ -290,7 +305,7 @@ namespace Coefs
     return true;
   }
 
-  bool TblStruct::read(std::istream& in, bool exp_type)
+  bool TblStruct::read(std::istream& in, bool exp_type, bool verbose)
   {
     std::vector<double> row;
     std::string line;
