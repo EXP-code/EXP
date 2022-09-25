@@ -211,16 +211,18 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("wCorr", &expMSSA::wCorr,
 	"Get the w-correlation matrix for the selected component and channel\n"
-	"key.  Returns the combined cosine+sine correlation for complex types",
+	"key.  Returns the combined cosine+sine correlation for complex types\n"
+	"for viewing (e.g.) with 'imshow'",
 	py::arg("name"), py::arg("key"));
 
   f.def("wCorrKey", &expMSSA::wCorrKey,
 	"Get the w-correlation matrix for the selected component and channel\n"
 	"key extended by the cosine/sine index if the channel is complex and\n"
-	"the component index", py::arg("key"));
+	"the component index. Try plotting using 'imshow'.\n", py::arg("key"));
 
   f.def("wCorrAll", &expMSSA::wCorrAll,
-	"Get the w-correlation matrix for all channels in the reconstruction");
+	"Get the w-correlation matrix for all channels in the reconstruction.\n"
+	"These can be nicely plotted using 'imshow'.");
 
   f.def("wcorrPNG", &expMSSA::wcorrPNG,
 	"Create wcorrlation matricies and output PNG image representations");
@@ -229,15 +231,16 @@ void MSSAtoolkitClasses(py::module &m) {
 	"Perform a k-means analysis on the reconstructed trajectory matrices\n"
 	"to provide grouping insight.  This will write to the standard output\n"
 	"by default.  Set toFile=True to write ot a file.  The file name will\n"
-	"be derived from the 'output' parameter",
+	"be derived from the 'output' parameter.",
 	py::arg("clusters")=4,
 	py::arg("toTerm")=true,
 	py::arg("toFile")=false);
 
   f.def("contrib", &expMSSA::contributions,
-	"Computes the relative contribution of each PC to the coefficient "
-	"series and the breakdown of the coefficient series to each PC. "
-	"The results are rendered as PNG images");
+	"Computes the relative contribution of each PC to the coefficient\n"
+	"series and the breakdown of the coefficient series to each PC.\n"
+	"The views normed on columns and rows are returned as a tuple\n"
+	"of 2d arrays. These are intended to be plotted using 'imshow'.");
 
   f.def("saveState", &expMSSA::saveState,
 	"Save current MSSA state to an HDF5 file with the given prefix",
@@ -248,7 +251,7 @@ void MSSAtoolkitClasses(py::module &m) {
 	"To use this, the expMSSA instance must be constructed with the same\n"
 	"data and parameters as the save stated.  The restoreState routine will\n"
 	"check for the same data dimension and trend state but can not sure\n"
-	"complete consistency.\n",
+	"complete consistency.",
 	py::arg("prefix"));
 
   f.def("getTotVar", &expMSSA::getTotVar,

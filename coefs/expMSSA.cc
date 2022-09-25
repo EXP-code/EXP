@@ -200,7 +200,8 @@ namespace MSSA {
   }
   
   
-  // Do the SVD
+  // Do the SVD, populate singular value vectors
+  //
   void expMSSA::mssa_analysis()
   {
     // Number of channels
@@ -499,7 +500,78 @@ namespace MSSA {
     reconstructed = true;
   }
   
-  void expMSSA::contributions()
+  // This computes an image of the contributions
+  //
+  std::tuple<Eigen::MatrixXd, Eigen::MatrixXd> expMSSA::contributions()
+  {
+    Eigen::MatrixXd retF, retG;
+
+    if (not computed) {
+      std::cout << "expMSSA::contributions: "
+		<< "call eigenvalues() or getPC() before contributions()"
+		<< std::endl;
+      return std::tuple<Eigen::MatrixXd, Eigen::MatrixXd>(retF, retG);
+    }
+
+    retF.resize(npc, mean.size());
+    retG.resize(npc, mean.size());
+      
+    int nk = 0;
+    retF.setZero();
+    for (auto u : mean) {
+      auto key = u.first;
+      for (int j=0; j<npc; j++) {
+	for (int i=0; i<numT; i++) {
+	  retF(j, nk) += RC[u.first](i, j)*RC[u.first](i, j);
+	}
+      }
+      nk++;
+    }
+      
+    retG = retF;
+
+    // This is norm for each series over the entire reconstruction
+    // (that is, fixed coefficient channel, summed over all PCs)
+
+    Eigen::VectorXd norm(nk);
+    norm.setZero();
+    
+    for (int n=0; n<nk; n++) {
+      for (int j=0; j<npc; j++) {
+	norm[n] += retF(j, n);
+      }
+    }
+
+    for (int n=0; n<nk; n++) {
+      for (int j=0; j<npc; j++) {
+	retF(j, n) /= norm[n];
+	retF(j, n)  = sqrt(retF(j, n));
+      }
+    }
+    
+    norm.resize(npc);
+    norm.setZero();
+
+    for (int n=0; n<nk; n++) {
+      for (int j=0; j<npc; j++) {
+	norm[j] += retG(j, n);
+      }
+    }
+      
+    for (int n=0; n<norm.size(); n++) {
+      for (int j=0; j<npc; j++) {
+	retG(j, n) /= norm[j];
+	retG(j, n)  = sqrt(retG(j, n));
+      }
+    }
+    
+    
+    return std::tuple<Eigen::MatrixXd, Eigen::MatrixXd>(retF, retG);
+  }
+  
+  // This computes an image of the contributions
+  //
+  void expMSSA::contributionsPNG()
   {
     if (not computed) {
       std::cout << "expMSSA::contributions: "
@@ -510,6 +582,10 @@ namespace MSSA {
 
 #ifdef HAVE_LIBPNGPP
     
+    auto ret  = contributions();
+    auto retF = std::get<0>(ret);
+    auto retG = std::get<1>(ret);
+
     std::string filename = prefix + ".f_contrib";
     std::ofstream out(filename);
     
@@ -543,41 +619,18 @@ namespace MSSA {
       }
       out << std::endl;
       
-      // For each series, compute ||a^k_j||
-      //
-      std::map<Key, double> norm;
-      
-      for (auto u : mean) {
-	auto key = u.first;
-	values[key].resize(npc, 0.0);
-	
-	for (int j=0; j<npc; j++) {
-	  for (int i=0; i<numT; i++) {
-	    values[key][j] += RC[u.first](i, j)*RC[u.first](i, j);
-	  }
-	}
-      }
-      
-      // This is norm for each series over the entire reconstruction
-      // (that is, fixed coefficient channel, summed over all PCs)
-      for (auto u : mean) {
-	auto key = u.first;
-	norm[key] = 0.0;
-	for (int j=0; j<npc; j++) {
-	  norm[key] += values[key][j];
-	}
-      }
-      
+      int n = 0;
       double maxVal = 0.0;
       for (auto u : mean) {
 	auto key = u.first;
 	for (auto q : key) out << std::setw(4) << q;
 	
 	for (int j=0; j<npc; j++) {
-	  out << std::setw(18) << sqrt(values[key][j]/norm[key]);
-	  maxVal = std::max<double>(maxVal, values[key][j]/norm[key]);
+	  out << std::setw(18) << sqrt(retF(n, j));
+	  maxVal = std::max<double>(maxVal, retF(n, j));
 	}
 	out << std::endl;
+	n++;
       }
       out.close();
       
@@ -585,7 +638,7 @@ namespace MSSA {
       for (auto u : mean) {
 	auto key = u.first;
 	for (int j=0; j<npc; j++) {
-	  png::rgb_pixel cval = color(sqrt(values[key][j]/norm[key]/maxVal));
+	  png::rgb_pixel cval = color(sqrt(retF(i, j)/maxVal));
 	  for (size_t yy = i*ndupY; yy < (i+1)*ndupY; yy++) {
 	    for (size_t xx = j*ndupX; xx < (j+1)*ndupX; xx++) {
 	      image1[yy][xx] = cval;
@@ -618,33 +671,24 @@ namespace MSSA {
       
       std::vector<double> norm(npc, 0.0);
       
-      // Now, norm is sum over series for each PC
-      //
-      for (auto u : mean) {
-	auto key = u.first;
-	for (int j=0; j<npc; j++) {
-	  norm[j] += values[key][j];
-	}
-      }
-      
       double maxVal = 0.0;
       for (int j=0; j<npc; j++) {
 	out << std::setw(8) << j;
-	int i=0;
+	int i = 0;
 	for (auto u : mean) {
 	  auto key = u.first;
-	  out << std::setw(18) << sqrt(values[key][j]/norm[j]);
-	  maxVal = std::max<double>(maxVal, values[key][j]/norm[j]);
+	  out << std::setw(18) << sqrt(retG(i, j));
+	  maxVal = std::max<double>(maxVal, retG(i, j));
 	}
 	out << std::endl;
       }
       out.close();
       
       for (int j=0; j<npc; j++) {
-	int i=0;
+	int i = 0;
 	for (auto u : mean) {
 	  auto key = u.first;
-	  png::rgb_pixel cval = color(sqrt(values[key][j]/norm[j]/maxVal));
+	  png::rgb_pixel cval = color(sqrt(retG(i, j)/maxVal));
 	  for (size_t yy = i*ndupY; yy < (i+1)*ndupY; yy++) {
 	    for (size_t xx = j*ndupX; xx < (j+1)*ndupX; xx++) {
 	      image2[yy][xx] = cval;
@@ -668,6 +712,8 @@ namespace MSSA {
   }
   
   
+  // Return the DFT of the PCs
+  //
   Eigen::MatrixXd expMSSA::pcDFT(Eigen::VectorXd& F, Eigen::VectorXd& P)
   {
     Eigen::MatrixXd pw;
@@ -725,6 +771,8 @@ namespace MSSA {
     return pw;
   }
   
+  // Return the DFT of the individual data channels
+  //
   Eigen::MatrixXd expMSSA::channelDFT(Eigen::VectorXd& F, Eigen::VectorXd& P)
   {
     Eigen::MatrixXd pw;
@@ -813,7 +861,7 @@ namespace MSSA {
       bool use_dist = false;
       if (params["distance"]) use_dist = true;
       
-      for (auto u : mean) {
+      for (auto u : RC) {
 	Eigen::MatrixXd wc = wCorrKey(u.first);
 	
 	png::image< png::rgb_pixel > image(nDim*ndup, nDim*ndup);

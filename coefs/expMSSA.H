@@ -190,7 +190,11 @@ namespace MSSA
     Eigen::MatrixXd wCorrAll();
 
     //! Compute the diagnostic computation of contributions per channel
-    void contributions();
+    std::tuple<Eigen::MatrixXd, Eigen::MatrixXd> contributions();
+
+    //! Compute the diagnostic computation of contributions per
+    //! channel and make image
+    void contributionsPNG();
 
     //! Create wcorrlation matricies and output PNG
     void wcorrPNG();
