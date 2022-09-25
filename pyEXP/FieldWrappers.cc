@@ -24,7 +24,7 @@ void FieldGeneratorClasses(py::module &m) {
     "return a numpy.ndarray containing the field evaluations.  Each of\n"
     "these functions returns a dictionary of times to a dictionary of\n"
     "field names to numpy.ndarrays at each time.  There are also members\n"
-    "which will write these generate fields to files. See help(pyEXP.basis)\n"
+    "which will write these generated fields to files. See help(pyEXP.basis)\n"
     "and help(pyEXP.coefs) for info on the basis and coefficient objects.\n\n";
 
   using namespace Field;
