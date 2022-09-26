@@ -276,5 +276,5 @@ set(CMAKE_CXX_FLAGS_UBSAN
   FORCE)
 
 # Make the config.h file
-configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h.in ${CMAKE_SOURCE_DIR}/config.h)
+configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_SOURCE_DIR}/config.h)
 
