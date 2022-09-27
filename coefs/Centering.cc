@@ -5,7 +5,8 @@
 
 namespace Utility
 {
-  std::vector<double> getDensityCenter(PR::PRptr reader, int stride, int Ndens)
+  std::vector<double> getDensityCenter(PR::PRptr reader, int stride,
+				       int Nsort, int Ndens)
   {
     int use_mpi;
     MPI_Initialized(&use_mpi);
@@ -77,6 +78,10 @@ namespace Utility
       nbods /= stride;		// Compute the new subsample size
     }
 
+    // Density stack for Nsort>0
+    //
+    std::multimap<double, int> stack;
+
     // Run through the bodies or subsampled bodies
     //
     for (int j=0; j<nbods; j++) {
@@ -88,16 +93,57 @@ namespace Utility
 
 	double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
 	double density = 0.0;
-	if (volume>0.0 and KDmass>0.0)
+	if (volume>0.0 and KDmass>0.0) {
 	  density = std::get<1>(ret)/volume/KDmass;
-
-	for (int k=0; k<3; k++) ctr[k] += density * points[i].get(k);
-	dentot += density;
+	  if (Nsort>0) {
+	    stack.insert({density, i});
+	    if (stack.size()>Nsort) stack.erase(stack.begin());
+	  } else {
+	    for (int k=0; k<3; k++) ctr[k] += density * points[i].get(k);
+	    dentot += density;
+	  }
+	}
       }
     }
-    
-    MPI_Allreduce(MPI_IN_PLACE, ctr.data(), 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, &dentot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    if (Nsort>0) {
+      auto combo = stack;
+
+      for (int n=0; n<numprocs; n++) {
+	if (myid==n) {
+	  int sz = stack.size();
+	  std::vector<double> dens;
+	  std::vector<int>    indx;
+	  for (auto v : stack) {
+	    dens.push_back(v.first);
+	    indx.push_back(v.second);
+	  }
+	  MPI_Bcast(&sz, 1, MPI_INT, n, MPI_COMM_WORLD);
+	  MPI_Bcast(dens.data(), sz, MPI_DOUBLE, n, MPI_COMM_WORLD);
+	  MPI_Bcast(indx.data(), sz, MPI_INT,    n, MPI_COMM_WORLD);
+	} else {
+	  int sz;
+	  MPI_Bcast(&sz, 1, MPI_INT, n, MPI_COMM_WORLD);
+	  std::vector<double> dens(sz);
+	  std::vector<int>    indx(sz);
+	  MPI_Bcast(dens.data(), sz, MPI_DOUBLE, n, MPI_COMM_WORLD);
+	  MPI_Bcast(indx.data(), sz, MPI_INT,    n, MPI_COMM_WORLD);
+	  for (int i=0; i<sz; i++) combo.insert({dens[i], indx[i]});
+	}
+      }
+
+      int count = 0;
+      for (auto it=combo.rbegin(); it!=combo.rend(); it++) {
+	if (count > Nsort) break;
+	for (int k=0; k<3; k++)
+	  ctr[k] += it->first * points[it->second].get(k);
+	dentot += it->first;
+      }
+      
+    } else {
+      MPI_Allreduce(MPI_IN_PLACE, ctr.data(), 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, &dentot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    }
 
     if (dentot>0.0) {
       for (int k=0; k<3; k++) ctr[k] /= dentot;
