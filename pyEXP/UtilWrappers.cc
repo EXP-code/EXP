@@ -33,7 +33,7 @@ void UtilityClasses(py::module &m) {
     "     totalMass = 0.0\n"
     "     centerOfMass = [0.0, 0.0, 0.0]\n"
     "     def myFunctor(m, pos, vel, index):\n"
-    "        global totalMass, centerOfMass
+    "        global totalMass, centerOfMass\n"
     "        totalMass += m\n"
     "        for i in range(3): centerOfMass[i] += m*pos[i]\n\n"
     "     pyEXP.util.particleIterator(reader, myFunctor)\n"
