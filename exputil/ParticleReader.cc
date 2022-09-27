@@ -1395,14 +1395,16 @@ namespace PR {
     else if (reader.find("Bonsai") == 0)
       ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai, verbose);
     else {
-      if (myid==0) {
-	std::cout << "ParticleReader: I don't know about reader <" << reader
-		  << ">" << std::endl
-		  << "Available readers are:";
-	for (auto s : readerTypes) std::cout << " " << s;
-	std::cout << std::endl;
-      }
-      exit(1);
+      std::ostringstream sout;
+      sout << "ParticleReader: I don't know about reader <" << reader
+	   << ">" << std::endl
+	   << "Available readers are:";
+      for (auto s : readerTypes) sout << " " << s;
+      sout << std::endl;
+
+      if (myid==0) std::cout << sout.str();
+
+      throw std::runtime_error(sout.str());
     }
 
     return ret;
