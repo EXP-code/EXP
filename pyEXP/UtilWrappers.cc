@@ -32,8 +32,10 @@ void UtilityClasses(py::module &m) {
 	"generate a subsample of every nth particle over a random\n"
 	"permutation. Ndens is the number of particles per sample ball\n"
 	"(32 is a good compromise between accuracy and runtime; 16 is\n"
-	"okay if you are trying to shave off runtime.",
-	py::arg("reader"), py::arg("stride")=1, py::arg("Ndens")=32);
+	"okay if you are trying to shave off runtime. Nsort>0 keeps\n"
+	"the particles of the Nsort densest samples.",
+	py::arg("reader"), py::arg("stride")=1,
+	py::arg("Nsort")=0, py::arg("Ndens")=32);
 
   m.def("getCenterOfMass", &getCenterOfMass,
 	"Compute the center of mass for the particle component",

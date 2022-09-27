@@ -1,6 +1,7 @@
 #ifndef _BasisFactory_H
 #define _BasisFactory_H
 
+#include <functional>
 #include <Eigen/Eigen>
 #include <yaml-cpp/yaml.h>
 
@@ -18,6 +19,16 @@ namespace Field
 namespace Basis
 {
     using RowMatrixXd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+
+    //! Callback function signature for selection particles to
+    //! accumulate
+    using Callback =
+      std::function<bool(
+			 double,	       // mass
+			 std::vector<double>&, // position
+			 std::vector<double>&, // velocity
+			 uint64_t	       // index
+			 )>;
 
   /** 
       Abstract class for any type of basis for evaluating density,
@@ -37,6 +48,9 @@ namespace Basis
 
     //! Helper for factory
     static std::shared_ptr<Basis> factory_initialize(const YAML::Node& node);
+
+    //! The callback particle selector
+    Callback ftor;
 
   protected:
     
@@ -124,7 +138,11 @@ namespace Basis
     static std::shared_ptr<Basis> factory_string(const std::string& conf);
     //@}
     
+    //! Set the particle selector callback
+    void setSelector(const Callback& f) { ftor = f; }
 
+    //! Clear the particle selector callback
+    void clrSelector() { ftor = nullptr; }
   };
   
   /**

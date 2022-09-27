@@ -943,9 +943,25 @@ namespace Basis
     //
     if (addCenter) coef->ctr = ctr;
 
+    std::vector<double> pp(3), vv(3);
+
     reset_coefs();
     for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
-      accumulate(p->pos[0]-ctr[0], p->pos[1]-ctr[1], p->pos[2]-ctr[2], p->mass);
+
+      bool use = false;
+      
+      if (ftor) {
+	pp.assign(p->pos, p->pos+3);
+	vv.assign(p->vel, p->vel+3);
+	use = ftor(p->mass, pp, vv, p->indx);
+      } else {
+	use = true;
+      }
+
+      if (use) accumulate(p->pos[0]-ctr[0],
+			  p->pos[1]-ctr[1],
+			  p->pos[2]-ctr[2],
+			  p->mass);
     }
     make_coefs();
     load_coefs(coef, reader->CurrentTime());
@@ -981,8 +997,19 @@ namespace Basis
     if (addCenter) coef->ctr = ctr;
 
     reset_coefs();
+    std::vector<double> p1(3), v1(3, 0);
+    unsigned long indx = 0;
+
     for (int n=0; n<p.rows(); n++) {
-      accumulate(p(n, 0)-ctr[0], p(n, 1)-ctr[1], p(n, 2)-ctr[2], m(n));
+      bool use = true;
+      if (ftor) {
+	for (int k=0; k<3; k++) p1[k] = p(n, k);
+	use = ftor(m(n), p1, v1, indx);
+      } else {
+	use = true;
+      }
+
+      if (use) accumulate(p(n, 0)-ctr[0], p(n, 1)-ctr[1], p(n, 2)-ctr[2], m(n));
     }
     make_coefs();
     load_coefs(coef, time);

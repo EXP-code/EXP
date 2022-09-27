@@ -1,4 +1,7 @@
+#include <functional>
+
 #include <pybind11/pybind11.h>
+#include <pybind11/functional.h>
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
@@ -24,7 +27,25 @@ void BasisFactoryClasses(py::module &m) {
     "  1. To compute BFE coefficients from phase-space snapshots\n"
     "     using the ParticleReader class. See help(pyEXP.read).\n"
     "  2. To evaluate the fields from the basis and a coefficient\n"
-    "     object. See help(pyEXP.coefs) and help(pyEXP.field).\n\n";
+    "     object. See help(pyEXP.coefs) and help(pyEXP.field).\n\n"
+    "Coefficient creation\n"
+    "--------------------\n"
+    "The Basis class creates coefficients from phase space with two\n"
+    "methods: 'createFromReader()' and 'createFromArray()'.  The first\n"
+    "uses a ParticleReader, see help(pyEXP.read), and the second uses\n"
+    "arrays of mass and 3d position vectors.  Both methods take an\n"
+    "optional center vector (default: 0, 0, 0).  You may also register\n"
+    "and an optional boolean functor used to select which particles to\n"
+    "using the 'setSelector(functor)' member.  An example functor\n"
+    "would be defined in Python as follows:\n"
+    "   def myFunctor(m, pos, vel, index):\n"
+    "      ret = False  # Default return value\n"
+    "      # some caculation with scalar mass, pos array, vel array and\n"
+    "      # integer index that sets ret to True if desired . . . \n"
+    "      return ret\n"
+    "If you are using 'createFromArray()', you will only have access to\n"
+    "the mass and position vector.   You may clear and turn off the\n"
+    "selector using the 'clrSelector()' member.\n\n";
 
   using namespace Basis;
 
@@ -197,6 +218,12 @@ void BasisFactoryClasses(py::module &m) {
 	 "position is an array with n rows and 3 columns (x, y, z)",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0))
+    .def("setSelector", &Basis::Basis::setSelector,
+	 "Register a Python particle selection functor. This boolean\n"
+	 "function will be in effect until cleared with the 'clrSelector'\n"
+	 "member function")
+    .def("clrSelector", &Basis::Basis::clrSelector,
+	 "Clear the previously registered particle selection functor")
     .def("getFields",
 	 [](Basis::Basis& A, double x, double y, double z)
 	 {
