@@ -1,14 +1,14 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/functional.h>
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
 namespace py = pybind11;
 
 #include <Centering.H>
+#include <ParticleIterator.H>
 
 void UtilityClasses(py::module &m) {
-
-  using namespace Utility;
 
   m.doc() = "Utility class bindings\n\n"
     "This module provides routines for BFE tasks that do not naturally fit\n"
@@ -22,7 +22,22 @@ void UtilityClasses(py::module &m) {
     "     Note on centers: the EXP n-body code does this automatically.  The\n"
     "     density weighted center is an alternative for snapshots without\n"
     "     center estimates.  Only use COM if know your simulation remains\n"
-    "     close to bisymmetric.\n\n";
+    "     close to bisymmetric.\n\n"
+    "  3. Apply a user-defined Python function to all particles in a phase-\n"
+    "     space reader.  This may be used to do calculations using all or a\n"
+    "     user-determined subset of snapshot particles.  The functor has no\n"
+    "     return type; it is up to the user to put accumulated values in\n"
+    "     the scope.  The functor needs the arguments of mass, position\n"
+    "     vector, velocity vector, and index.  For example, this would\n"
+    "     compute the center of mass:\n"
+    "     totalMass = 0.0\n"
+    "     centerOfMass = [0.0, 0.0, 0.0]\n"
+    "     def myFunctor(m, pos, vel, index):\n"
+    "        global totalMass, centerOfMass
+    "        totalMass += m\n"
+    "        for i in range(3): centerOfMass[i] += m*pos[i]\n\n"
+    "     pyEXP.util.particleIterator(reader, myFunctor)\n"
+    "     for i in range(3): centerOfMass[i] /= totalMass\n\n";
 
   using namespace Utility;
 
@@ -40,4 +55,8 @@ void UtilityClasses(py::module &m) {
   m.def("getCenterOfMass", &getCenterOfMass,
 	"Compute the center of mass for the particle component",
 	py::arg("reader"));
+
+  m.def("particleIterator", &particleIterator,
+	"Apply a user-defined functor to every particle in phase space",
+	py::arg("reader"), py::arg("functor"));
 }
