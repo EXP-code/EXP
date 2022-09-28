@@ -1359,7 +1359,7 @@ namespace MSSA {
     //
     static bool firstTime = true;
     if (firstTime) {
-      std::cout << "**** Eigen is using " << Eigen::nbThreads()
+      std::cout << "---- Eigen is using " << Eigen::nbThreads()
 		<< " threads" << std::endl;
       firstTime = false;
     }

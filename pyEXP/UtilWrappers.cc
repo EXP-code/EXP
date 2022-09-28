@@ -28,16 +28,30 @@ void UtilityClasses(py::module &m) {
     "     user-determined subset of snapshot particles.  The functor has no\n"
     "     return type; it is up to the user to put accumulated values in\n"
     "     the scope.  The functor needs the arguments of mass, position\n"
-    "     vector, velocity vector, and index.  For example, this would\n"
-    "     compute the center of mass:\n"
+    "     vector, velocity vector, and index.  For example, the following\n"
+    "     Python code computes the center of mass:\n"
+    "     #---------------------------------------------------------------\n"
+    "     # Variables in the scope of myFunctor\n"
+    "     #\n"
     "     totalMass = 0.0\n"
     "     centerOfMass = [0.0, 0.0, 0.0]\n"
+    "     #\n"
+    "     # Definition of the functor\n"
+    "     #\n"
     "     def myFunctor(m, pos, vel, index):\n"
     "        global totalMass, centerOfMass\n"
     "        totalMass += m\n"
     "        for i in range(3): centerOfMass[i] += m*pos[i]\n\n"
+    "     #\n"
+    "     # Now iterate through the particles provided by a reader instance\n"
+    "     #\n"
     "     pyEXP.util.particleIterator(reader, myFunctor)\n"
-    "     for i in range(3): centerOfMass[i] /= totalMass\n\n";
+    "     #\n"
+    "     # Print the COM\n"
+    "     #\n"
+    "     for i in range(3): centerOfMass[i] /= totalMass\n"
+    "     #\n"
+    "     #---------------------------------------------------------------\n\n";
 
   using namespace Utility;
 
