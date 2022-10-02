@@ -446,7 +446,8 @@ void CoefficientClasses(py::module &m) {
 	 "Return the coefficient matrix for the desired time",
 	 py::arg("time"))
     .def("setMatrix",      &Coefs::Coefs::setMatrix,
-	 "Rewrite the coefficient matrix at the time provided",
+	 "Rewrite the coefficient matrix at the time provided. For those\n"
+	 "tracking memory use, these will be copied,not passed by reference.",
 	 py::arg("time"), py::arg("mat"))
     .def("add",            &Coefs::Coefs::add,
 	 "Add a coefficient structure to the coefficient container",
