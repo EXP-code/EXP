@@ -113,6 +113,10 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(Eigen::MatrixXcd&, Coefs, operator(), time);
     }
 
+    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
+      PYBIND11_OVERRIDE_PURE(void, Coefs, setMatrix, time, mat);
+    }
+
     using ValueError = std::tuple<Eigen::MatrixXcd&, bool>;
     ValueError interpolate(double time) override {
       PYBIND11_OVERRIDE(ValueError, Coefs, interpolate, time);
@@ -196,6 +200,10 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::MatrixXcd&, SphCoefs, operator(), time);
     }
 
+    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
+      PYBIND11_OVERRIDE(void, SphCoefs, setMatrix, time, mat);
+    }
+
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
       PYBIND11_OVERRIDE(std::shared_ptr<CoefStruct>, SphCoefs, getCoefStruct,
 			time);
@@ -273,6 +281,10 @@ void CoefficientClasses(py::module &m) {
 
     Eigen::MatrixXcd& operator()(double time) override {
       PYBIND11_OVERRIDE(Eigen::MatrixXcd&, CylCoefs, operator(), time);
+    }
+
+    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
+      PYBIND11_OVERRIDE(void, CylCoefs, setMatrix, time, mat);
     }
 
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
@@ -354,6 +366,10 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::MatrixXcd&, TableData, operator(), time);
     }
 
+    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
+      PYBIND11_OVERRIDE(void, TableData, setMatrix, time, mat);
+    }
+
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
       PYBIND11_OVERRIDE(std::shared_ptr<CoefStruct>, TableData, getCoefStruct,
 			time);
@@ -429,6 +445,9 @@ void CoefficientClasses(py::module &m) {
     .def("__call__",       &Coefs::Coefs::operator(),
 	 "Return the coefficient matrix for the desired time",
 	 py::arg("time"))
+    .def("setMatrix",      &Coefs::Coefs::setMatrix,
+	 "Rewrite the coefficient matrix at the time provided",
+	 py::arg("time"), py::arg("mat"))
     .def("add",            &Coefs::Coefs::add,
 	 "Add a coefficient structure to the coefficient container",
 	 py::arg("coef"))

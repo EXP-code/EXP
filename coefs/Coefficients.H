@@ -94,6 +94,9 @@ namespace Coefs
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time) = 0;
     
+    //! Set coefficient matrix at given time to the provided matrix
+    virtual void setMatrix(double time, const Eigen::MatrixXcd& mat) = 0;
+
     //! Interpolate coefficient matrix at given time
     virtual std::tuple<Eigen::MatrixXcd&, bool> interpolate(double time);
     
@@ -250,6 +253,9 @@ namespace Coefs
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time);
     
+    //! Set coefficient matrix at given time
+    virtual void setMatrix(double time, const Eigen::MatrixXcd& mat);
+
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
     { return coefs[time]; }
@@ -366,6 +372,9 @@ namespace Coefs
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time);
     
+    //! Set coefficient matrix at given time
+    virtual void setMatrix(double time, const Eigen::MatrixXcd& mat);
+    
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
     { return coefs[time]; }
@@ -476,6 +485,11 @@ namespace Coefs
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time);
     
+    /** Set coefficient matrix at given time.  This is for pybind11,
+	since the operator() will not allow lvalue assignment, it
+	seems. */
+    virtual void setMatrix(double time, const Eigen::MatrixXcd& mat);
+
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
     { return coefs[time]; }
