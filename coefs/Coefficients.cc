@@ -191,14 +191,11 @@ namespace Coefs
   Eigen::MatrixXcd& SphCoefs::operator()(double time)
   {
     auto it = coefs.find(roundTime(time));
+
     if (it == coefs.end()) {
-      
       mat.resize(0, 0);
-      
     } else {
-      
       mat = it->second->coefs;
-      
     }
     
     return mat;
@@ -207,16 +204,13 @@ namespace Coefs
   void SphCoefs::setMatrix(double time, const Eigen::MatrixXcd& mat)
   {
     auto it = coefs.find(roundTime(time));
-    if (it == coefs.end()) {
 
+    if (it == coefs.end()) {
       std::ostringstream str;
       str << "SphCoefs::setMatrix: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
-
     } else {
-      
       it->second->coefs = mat;
-      
     }
   }
   
@@ -579,16 +573,13 @@ namespace Coefs
   void CylCoefs::setMatrix(double time, const Eigen::MatrixXcd& mat)
   {
     auto it = coefs.find(roundTime(time));
+
     if (it == coefs.end()) {
-      
       std::ostringstream str;
       str << "CylCoefs::setMatrix: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
-
     } else {
-      
       it->second->coefs = mat;
-      
     }
   }
 
@@ -867,16 +858,13 @@ namespace Coefs
   void TableData::setMatrix(double time, const Eigen::MatrixXcd& mat)
   {
     auto it = coefs.find(roundTime(time));
+
     if (it == coefs.end()) {
-      
       std::ostringstream str;
       str << "TableData::setMatrix: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
-
     } else {
-      
       it->second->coefs = mat;
-      
     }
   }
 

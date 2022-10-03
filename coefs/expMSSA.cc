@@ -506,10 +506,18 @@ namespace MSSA {
   {
     Eigen::MatrixXd retF, retG;
 
-    if (not computed) {
-      std::cout << "expMSSA::contributions: "
-		<< "call eigenvalues() or getPC() before contributions()"
-		<< std::endl;
+    if (not reconstructed) {
+
+      if (not computed)
+	std::cout << "expMSSA::contributions: "
+		  << "call eigenvalues() or getPC() followed by "
+		  << "reconstruct() before contributions()"
+		  << std::endl;
+      else
+	std::cout << "expMSSA::contributions: "
+		  << "call reconstruct() before contributions()"
+		  << std::endl;
+      
       return std::tuple<Eigen::MatrixXd, Eigen::MatrixXd>(retF, retG);
     }
 
