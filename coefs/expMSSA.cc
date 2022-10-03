@@ -552,7 +552,7 @@ namespace MSSA {
 
     for (int n=0; n<nk; n++) {
       for (int j=0; j<npc; j++) {
-	retF(j, n) /= norm[n];
+	if (norm[n]>0.0) retF(j, n) /= norm[n];
 	retF(j, n)  = sqrt(retF(j, n));
       }
     }
@@ -568,7 +568,7 @@ namespace MSSA {
       
     for (int n=0; n<norm.size(); n++) {
       for (int j=0; j<npc; j++) {
-	retG(j, n) /= norm[j];
+	if (norm[n]>0.0) retG(j, n) /= norm[j];
 	retG(j, n)  = sqrt(retG(j, n));
       }
     }
@@ -1341,7 +1341,7 @@ namespace MSSA {
 
     } catch (HighFive::Exception& err) {
       std::cerr << "**** Error opening or reading H5 file ****" << std::endl;
-      std::cerr << "**** " << err.what() << " ****" << std::endl;
+      throw;
     }
 
   }
