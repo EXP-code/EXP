@@ -632,7 +632,7 @@ namespace Coefs
     // Bad sub key?
     else {
       throw std::runtime_error
-	("SphCoefs::makeKeys: the subkey must have rank 1");
+	("CylCoefs::makeKeys: the subkey must have rank 1");
     }
 
     return ret;
