@@ -762,6 +762,7 @@ namespace Basis
     
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
     tdens -= tdens0;
+    tpotl -= tpotl0;
 
     tpotr = tpotR*R/r + tpotz*z/R ;
     tpott = tpotR*z/r - tpotz*R/r ;
