@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iterator>
 #include <iostream>
 #include <fstream>
@@ -1033,7 +1034,7 @@ namespace Coefs
 	} else if (geometry.compare("table")==0) {
 	  coefs = std::make_shared<TableData>(h5file, stride, tmin, tmax);
 	} else {
-	  throw std::runtime_error("CoefContainer: unknown H5 coefficient file geometry");
+	  throw std::runtime_error("Coefs::factory: unknown H5 coefficient file geometry");
 	}
       } catch (HighFive::Exception& err) {
 	std::cerr << "**** Error reading HDF5 file ****" << std::endl;
@@ -1050,6 +1051,13 @@ namespace Coefs
 		  << std::endl;
     }
     
+    // Check if file exists
+    //
+    if (not std::filesystem::exists(file)) {
+      throw std::runtime_error("Coefs::factory: file <" + file
+			       + "> does not exist");
+    }
+
     // Open file and read magic number
     //
     std::ifstream in(file);
@@ -1088,7 +1096,7 @@ namespace Coefs
     } else if (dynamic_cast<TblStruct*>(coef.get())) {
       ret = std::make_shared<TableData>();
     } else {
-      throw std::runtime_error("CoefContainer: cannot deduce coefficient file type");
+      throw std::runtime_error("Coefs::makecoefs: cannot deduce coefficient file type");
     }
 
     ret->setName(name);
