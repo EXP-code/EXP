@@ -48,6 +48,11 @@ namespace Field
     std::map<double, std::map<std::string, Eigen::MatrixXf>>
     slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs);
     
+    //! Compute surface histogram from particles
+    std::map<std::string, Eigen::MatrixXf>
+    histogram(PR::PRptr reader, double length, int bins,
+	      std::vector<double> center={0.0, 0.0, 0.0});
+
     //! Write field slices to files.  This will be VTK your build is
     //! compiled with VTK and ascii tables otherwise.
     void file_slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
