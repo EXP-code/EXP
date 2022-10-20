@@ -521,14 +521,14 @@ namespace MSSA {
       return std::tuple<Eigen::MatrixXd, Eigen::MatrixXd>(retF, retG);
     }
 
-    retF.resize(npc, mean.size());
-    retG.resize(npc, mean.size());
+    retF.resize(ncomp, mean.size());
+    retG.resize(ncomp, mean.size());
       
     int nk = 0;
     retF.setZero();
     for (auto u : mean) {
       auto key = u.first;
-      for (int j=0; j<npc; j++) {
+      for (int j=0; j<ncomp; j++) {
 	for (int i=0; i<numT; i++) {
 	  retF(j, nk) += RC[u.first](i, j)*RC[u.first](i, j);
 	}
@@ -545,31 +545,31 @@ namespace MSSA {
     norm.setZero();
     
     for (int n=0; n<nk; n++) {
-      for (int j=0; j<npc; j++) {
+      for (int j=0; j<ncomp; j++) {
 	norm[n] += retF(j, n);
       }
     }
 
     for (int n=0; n<nk; n++) {
-      for (int j=0; j<npc; j++) {
+      for (int j=0; j<ncomp; j++) {
 	if (norm[n]>0.0) retF(j, n) /= norm[n];
-	retF(j, n)  = sqrt(retF(j, n));
+	retF(j, n) = sqrt(retF(j, n));
       }
     }
     
-    norm.resize(npc);
+    norm.resize(ncomp);
     norm.setZero();
 
     for (int n=0; n<nk; n++) {
-      for (int j=0; j<npc; j++) {
+      for (int j=0; j<ncomp; j++) {
 	norm[j] += retG(j, n);
       }
     }
       
-    for (int n=0; n<norm.size(); n++) {
-      for (int j=0; j<npc; j++) {
-	if (norm[n]>0.0) retG(j, n) /= norm[j];
-	retG(j, n)  = sqrt(retG(j, n));
+    for (int n=0; n<nk; n++) {
+      for (int j=0; j<ncomp; j++) {
+	if (norm[j]>0.0) retG(j, n) /= norm[j];
+	retG(j, n) = sqrt(retG(j, n));
       }
     }
     
