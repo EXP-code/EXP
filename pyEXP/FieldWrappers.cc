@@ -44,7 +44,7 @@ void FieldGeneratorClasses(py::module &m) {
   
   f.def("histo", &Field::FieldGenerator::histogram,
 	"Return a density histogram (2d numpy arrays)",
-	py::arg("reader"), py::arg("length"), py::arg("bins"),
+	py::arg("reader"),
 	py::arg("center") = std::vector<double>(3, 0.0));
 
   f.def("file_slices", &Field::FieldGenerator::file_slices,

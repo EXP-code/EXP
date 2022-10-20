@@ -50,8 +50,7 @@ namespace Field
     
     //! Compute surface histogram from particles
     std::map<std::string, Eigen::MatrixXf>
-    histogram(PR::PRptr reader, double length, int bins,
-	      std::vector<double> center={0.0, 0.0, 0.0});
+    histogram(PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
 
     //! Write field slices to files.  This will be VTK your build is
     //! compiled with VTK and ascii tables otherwise.

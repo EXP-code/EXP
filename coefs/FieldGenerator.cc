@@ -330,68 +330,71 @@ namespace Field
   }
   
   std::map<std::string, Eigen::MatrixXf>
-  FieldGenerator::histogram(PR::PRptr reader, double length, int bins,
-			    std::vector<double> ctr)
+  FieldGenerator::histogram(PR::PRptr reader, std::vector<double> ctr)
   {
 
     std::map<std::string, Eigen::MatrixXf> ret;
+    std::map<std::string, double> fac;
 
-    ret["xy"] = Eigen::MatrixXf::Zero(bins, bins);
-    ret["xz"] = Eigen::MatrixXf::Zero(bins, bins);
-    ret["yz"] = Eigen::MatrixXf::Zero(bins, bins);
-
-    double del = 2.0*length/bins;
-
-    std::vector<double> pp(3), pmin(3), pmax(3);
-
+    std::vector<double> del(3, 0.0);
     for (int k=0; k<3; k++) {
-      pmin[k] = ctr[k] - length;
-      pmax[k] = ctr[k] + length;
+      if (grid[k]>0) del[k] = (pmax[k] - pmin[k])/grid[k];
     }
 
+    if (grid[0]>0 and grid[1]>0) {
+      ret["xy"] = Eigen::MatrixXf::Zero(grid[0], grid[1]);
+      fac["xy"] = 1.0/(grid[0]*grid[1]);
+    }
+
+    if (grid[0]>0 and grid[2]>0) {
+      ret["xz"] = Eigen::MatrixXf::Zero(grid[0], grid[2]);
+      fac["xz"] = 1.0/(grid[0]*grid[2]);
+    }
+
+    if (grid[1]>0 and grid[2]>0) {
+      ret["yz"] = Eigen::MatrixXf::Zero(grid[1], grid[2]);
+      fac["yz"] = 1.0/(grid[1]*grid[2]);
+    }
+    
+    std::vector<double> pp(3);
     std::vector<bool> bb(3);
 
     for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
 
       for (int k=0; k<3; k++) {
 	pp[k] = p->pos[k] - ctr[k];
-	bb[k] = pp[k] >= pmin[k] and pp[k] < pmax[k];
+	bb[k] = pp[k] >= pmin[k] and pp[k] < pmax[k] and del[k] > 0.0;
       }
 
       // x-y
       if (bb[0] and bb[1]) {
-	int indx1 = floor( (pp[0] - pmin[0])/del );
-	int indx2 = floor( (pp[1] - pmin[1])/del );
+	int indx1 = floor( (pp[0] - pmin[0])/del[0] );
+	int indx2 = floor( (pp[1] - pmin[1])/del[1] );
 
-	if (indx1>=0 and indx1<bins and
-	    indx2>=0 and indx2<bins ) ret["xy"](indx1, indx2) += p->mass;
+	if (indx1>=0 and indx1<grid[0] and indx2>=0 and indx2<grid[1])
+	  ret["xy"](indx1, indx2) += p->mass * fac["xy"];
       }
 
       // x-z
       if (bb[0] and bb[2]) {
-	int indx1 = floor( (pp[0] - pmin[0])/del );
-	int indx2 = floor( (pp[2] - pmin[2])/del );
+	int indx1 = floor( (pp[0] - pmin[0])/del[0] );
+	int indx2 = floor( (pp[2] - pmin[2])/del[2] );
 
-	if (indx1>=0 and indx1<bins and
-	    indx2>=0 and indx2<bins ) ret["xz"](indx1, indx2) += p->mass;
+	if (indx1>=0 and indx1<grid[0] and indx2>=0 and indx2<grid[2] )
+	  ret["xz"](indx1, indx2) += p->mass * fac["xz"];
       }
 
       // y-z
       if (bb[1] and bb[2]) {
-	int indx1 = floor( (pp[1] - pmin[1])/del );
-	int indx2 = floor( (pp[2] - pmin[2])/del );
+	int indx1 = floor( (pp[1] - pmin[1])/del[1] );
+	int indx2 = floor( (pp[2] - pmin[2])/del[2] );
 
-	if (indx1>=0 and indx1<bins and
-	    indx2>=0 and indx2<bins ) ret["yz"](indx1, indx2) += p->mass;
+	if (indx1>=0 and indx1<grid[1] and indx2>=0 and indx2<grid[2] )
+	  ret["yz"](indx1, indx2) += p->mass * fac["yz"];
       }
-
       
     }
 
-    ret["xy"] /= del*del;
-    ret["xz"] /= del*del;
-    ret["yz"] /= del*del;
-    
     return ret;
   }
 
