@@ -2,6 +2,7 @@
 #define _ParticleIterator_H_
 
 #include <ParticleReader.H>
+#include <functional>
 
 namespace Utility
 {
