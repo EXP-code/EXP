@@ -395,10 +395,19 @@ namespace Field
       
     }
 
+    if (use_mpi) {
+      for (auto & v : ret) {
+	if (myid==0) 
+	  MPI_Reduce(MPI_IN_PLACE, v.second.data(), v.second.size(),
+		     MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+	else
+	  MPI_Reduce(v.second.data(), NULL, v.second.size(),
+		     MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+      }
+    }
+
     return ret;
   }
 
 }
 // END namespace Field
-
-  
