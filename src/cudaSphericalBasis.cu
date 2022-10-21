@@ -25,7 +25,7 @@ __device__ __constant__
 int    sphNumr, sphCmap;
 
 __device__ __constant__
-bool   sphAcov;
+bool   sphAcov, sphNO_L0, sphNO_L1, sphEVEN_L, sphEVEN_M, sphM0only;
 
 __host__ __device__
 int Ilm(int l, int m)
@@ -221,6 +221,16 @@ void SphericalBasis::initialize_mapping_constants()
 
   cuda_safe_call(cudaMemcpyToSymbol(sphAcov,   &subsamp,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphAcov");
+  cuda_safe_call(cudaMemcpyToSymbol(sphNO_L0,  &NO_L0,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying sphNO_L0");
+  cuda_safe_call(cudaMemcpyToSymbol(sphNO_L1,  &NO_L1,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying sphNO_L1");
+  cuda_safe_call(cudaMemcpyToSymbol(sphEVEN_L, &EVEN_L,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying sphEVEN_L");
+  cuda_safe_call(cudaMemcpyToSymbol(sphEVEN_M, &EVEN_M,   sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying sphEVEN_M");
+  cuda_safe_call(cudaMemcpyToSymbol(sphM0only, &M0_only,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying sphM0only");
 }
 
 
@@ -546,6 +556,10 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
       //
       for (int l=0; l<=Lmax; l++) {
 
+	if (sphNO_L0  and l==0        ) continue;
+	if (sphNO_L1  and l==1        ) continue;
+	if (sphEVEN_L and (l/2)*2 != l) continue;
+
 	cuFP_t fac1 = (2.0*l + 1.0)/(4.0*M_PI);
 
 	cuFP_t ccos = 1.0;	// For recursion
@@ -555,6 +569,9 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	//
 	for (int m=0; m<=l; m++) {
 	  
+	  if (sphEVEN_M and (m/2)*2 != m) continue;
+	  if (sphM0only and m != 0      ) continue;
+
 	  int pindx = Ilm(l, m);
 
 	  cuFP_t Plm1 = plm1[pindx];
