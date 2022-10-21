@@ -291,6 +291,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	   << " pcadiag="     << pcadiag
 	   << " eof_file="    << eof_file
 	   << " override="    << std::boolalpha << eof_over
+	   << " selfgrav="    << std::boolalpha << self_consistent
 	   << " logarithmic=" << logarithmic
 	   << " vflag="       << vflag
 	   << endl << endl;
@@ -319,6 +320,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << " pcadiag="     << pcadiag
 	      << " eof_file="    << eof_file
 	      << " override="    << std::boolalpha << eof_over
+	      << " selfgrav="    << std::boolalpha << self_consistent
 	      << " logarithmic=" << logarithmic
 	      << " vflag="       << vflag
 	      << std::endl;
