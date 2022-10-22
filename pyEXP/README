@@ -29,6 +29,14 @@ This directory contains a number of sample Python scripts as follows:
 * sample_basis.py--Plots a few basis functions from the spherical and
   cylindrical bases from the Better example.
 
+* make_histo.py/make_histo_MPI.py--Uses a particle reader to compute a
+  two-dimensional histogram image for x-y, x-z, and y-z projections.
+  Creates a Python pickle db of the images for all times represented
+  in the reader snapshot collection.
+
+* read_histo.py--Reads the Python pickle db for the histograms and
+  make images uing imshow
+
 Some implementation notes:
 
 * pyEXP returns row-major matrices while numpy uses col-major matrices
