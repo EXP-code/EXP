@@ -25,7 +25,7 @@ from os.path import exists
 #
 def fixTime(time):
     fixedD = 100000.0;
-    return int(fixedD*time)/fixedD
+    return int(fixedD*time+0.5)/fixedD
 
 if __name__ == "__main__":
 
