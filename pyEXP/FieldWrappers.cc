@@ -42,14 +42,14 @@ void FieldGeneratorClasses(py::module &m) {
 	"Return a dictionary of grids (2d numpy arrays) indexed by "
 	"time and field type", py::arg("basis"), py::arg("coefs"));
   
-  f.def("histo", &Field::FieldGenerator::histogram,
+  f.def("histo2d", &Field::FieldGenerator::histogram2d,
 	"Return a density histogram (2d numpy arrays)",
 	py::arg("reader"),
 	py::arg("center") = std::vector<double>(3, 0.0));
 
   f.def("histo1d", &Field::FieldGenerator::histogram1d,
-	"Return a radial density histogram for a chosen projection "
-	"string: 'xy', 'xz', 'yz', 'r'",
+	"Return a radial density histogram (array) for a chosen projection "
+	"indicated by a string: \"xy\", \"xz\", \"yz\", \"r\"",
 	py::arg("reader"), py::arg("rmax"), py::arg("nbins"),
 	py::arg("projection"),
 	py::arg("center") = std::vector<double>(3, 0.0));

@@ -330,7 +330,7 @@ namespace Field
   }
   
   std::map<std::string, Eigen::MatrixXf>
-  FieldGenerator::histogram(PR::PRptr reader, std::vector<double> ctr)
+  FieldGenerator::histogram2d(PR::PRptr reader, std::vector<double> ctr)
   {
 
     std::map<std::string, Eigen::MatrixXf> ret;
@@ -415,8 +415,8 @@ namespace Field
 			      std::string proj, std::vector<double> ctr)
   {
     const double pi = 3.14159265358979323846;
-    Eigen::VectorXf ret;
-    double del = rmax/(nbins-1);
+    Eigen::VectorXf ret = Eigen::VectorXf::Zero(nbins);
+    double del = rmax/nbins;
 
     enum class Projection {xy, xz, yz, r} type;
     if      (proj == "xy") type = Projection::xy;
@@ -426,15 +426,15 @@ namespace Field
     else {
       std::ostringstream sout;
       sout << "FieldGenerator::histogram1d: error parsing projection <" << proj
-	   << ">.  Must be one of 'xy', 'xz', 'yz, 'r'.";
+	   << ">.  Must be one of \"xy\", \"xz\", \"yz, \"r\".";
       std::runtime_error(sout.str());
     }
 
     std::vector<double> fac(nbins);
     for (int i=0; i<nbins; i++) {
-      if (type == Projection::r)
+      if (type == Projection::r) // Spherical shells
 	fac[i] = 1.0 / (4.0*pi/3.0*(3*i*(i+1) + 1));
-      else
+      else			 // Cylindrical shells
 	fac[i] = 1.0 / (pi*(2*i + 1));
     }
     
@@ -442,14 +442,13 @@ namespace Field
       double rad = 0.0;
       for (int k=0; k<3; k++) {
 	double pp = p->pos[k] - ctr[k];
-
-	if (type == Projection::xy and (k==0 or k==1))
+	if (type == Projection::xy and (k==0 or k==1)) // Cylindrical radius
 	  rad += pp*pp;
-	else if (type == Projection::xz and (k==0 and k==2))
+	else if (type == Projection::xz and (k==0 or k==2))
 	  rad += pp*pp;
-	else if (type == Projection::yz and (k==1 and k==2))
+	else if (type == Projection::yz and (k==1 or k==2))
 	  rad += pp*pp;
-	else
+	else			// Spherical radius
 	  rad += pp*pp;
       }
       rad = sqrt(rad);

@@ -50,7 +50,7 @@ namespace Field
     
     //! Compute surface histogram from particles
     std::map<std::string, Eigen::MatrixXf>
-    histogram(PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
+    histogram2d(PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
 
     //! Compute histogram from particles
     Eigen::VectorXf
