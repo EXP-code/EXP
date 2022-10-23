@@ -430,6 +430,8 @@ namespace Field
       std::runtime_error(sout.str());
     }
 
+    // Inverse area or volume for density norm
+    //
     std::vector<double> fac(nbins);
     for (int i=0; i<nbins; i++) {
       if (type == Projection::r) // Spherical shells
@@ -438,6 +440,8 @@ namespace Field
 	fac[i] = 1.0 / (pi*(2*i + 1));
     }
     
+    // Make the histogram
+    //
     for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
       double rad = 0.0;
       for (int k=0; k<3; k++) {
@@ -457,6 +461,8 @@ namespace Field
       if (indx>=0 and indx<nbins) ret[indx] += p->mass * fac[indx];
     }
 
+    // Accumulate between MPI nodes; return value to root node
+    //
     if (use_mpi) {
       if (myid==0) 
 	MPI_Reduce(MPI_IN_PLACE, ret.data(), ret.size(),
