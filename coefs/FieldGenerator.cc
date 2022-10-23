@@ -408,6 +408,68 @@ namespace Field
 
     return ret;
   }
+  // END histogram
+
+  Eigen::VectorXf
+  FieldGenerator::histogram1d(PR::PRptr reader, double rmax, int nbins,
+			      std::string proj, std::vector<double> ctr)
+  {
+    const double pi = 3.14159265358979323846;
+    Eigen::VectorXf ret;
+    double del = rmax/(nbins-1);
+
+    enum class Projection {xy, xz, yz, r} type;
+    if      (proj == "xy") type = Projection::xy;
+    else if (proj == "xz") type = Projection::xz;
+    else if (proj == "yz") type = Projection::yz;
+    else if (proj == "r" ) type = Projection::r;
+    else {
+      std::ostringstream sout;
+      sout << "FieldGenerator::histogram1d: error parsing projection <" << proj
+	   << ">.  Must be one of 'xy', 'xz', 'yz, 'r'.";
+      std::runtime_error(sout.str());
+    }
+
+    std::vector<double> fac(nbins);
+    for (int i=0; i<nbins; i++) {
+      if (type == Projection::r)
+	fac[i] = 1.0 / (4.0*pi/3.0*(3*i*(i+1) + 1));
+      else
+	fac[i] = 1.0 / (pi*(2*i + 1));
+    }
+    
+    for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
+      double rad = 0.0;
+      for (int k=0; k<3; k++) {
+	double pp = p->pos[k] - ctr[k];
+
+	if (type == Projection::xy and (k==0 or k==1))
+	  rad += pp*pp;
+	else if (type == Projection::xz and (k==0 and k==2))
+	  rad += pp*pp;
+	else if (type == Projection::yz and (k==1 and k==2))
+	  rad += pp*pp;
+	else
+	  rad += pp*pp;
+      }
+      rad = sqrt(rad);
+
+      int indx = floor(rad/del);
+      if (indx>=0 and indx<nbins) ret[indx] += p->mass * fac[indx];
+    }
+
+    if (use_mpi) {
+      if (myid==0) 
+	MPI_Reduce(MPI_IN_PLACE, ret.data(), ret.size(),
+		   MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+      else
+	MPI_Reduce(ret.data(), NULL, ret.size(),
+		   MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
+
+    return ret;
+  }
+  // END histogram1d
 
 }
 // END namespace Field

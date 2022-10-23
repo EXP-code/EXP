@@ -47,6 +47,13 @@ void FieldGeneratorClasses(py::module &m) {
 	py::arg("reader"),
 	py::arg("center") = std::vector<double>(3, 0.0));
 
+  f.def("histo1d", &Field::FieldGenerator::histogram1d,
+	"Return a radial density histogram for a chosen projection "
+	"string: 'xy', 'xz', 'yz', 'r'",
+	py::arg("reader"), py::arg("rmax"), py::arg("nbins"),
+	py::arg("projection"),
+	py::arg("center") = std::vector<double>(3, 0.0));
+
   f.def("file_slices", &Field::FieldGenerator::file_slices,
 	"Write 2d field grids to files using the supplied string prefix",
 	py::arg("basis"), py::arg("coefs"), py::arg("filename"),

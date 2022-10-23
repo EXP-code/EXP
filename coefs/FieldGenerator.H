@@ -52,6 +52,11 @@ namespace Field
     std::map<std::string, Eigen::MatrixXf>
     histogram(PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
 
+    //! Compute histogram from particles
+    Eigen::VectorXf
+    histogram1d(PR::PRptr reader, double rmax, int nbins, std::string proj,
+		std::vector<double> center={0.0, 0.0, 0.0});
+
     //! Write field slices to files.  This will be VTK your build is
     //! compiled with VTK and ascii tables otherwise.
     void file_slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
