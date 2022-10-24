@@ -888,6 +888,10 @@ namespace Coefs
 
       coefs[roundTime(c->time)] = c;
     }
+
+    times.clear();
+    for (auto t : coefs) times.push_back(t.first);
+
     if (myid==0)
       std::cerr << "---- Coefs::factory: "
 		<< "read ascii and created TableData"
