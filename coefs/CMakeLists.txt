@@ -1,4 +1,4 @@
-set(bin_PROGRAMS nativetoh5 h5compare viewcoefs h5power makecoefs)
+set(bin_PROGRAMS nativetoh5 h5compare viewcoefs h5power makecoefs testread)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG yaml-cpp
   exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
@@ -43,6 +43,7 @@ add_executable(h5compare  h5compare.cc)
 add_executable(viewcoefs  viewcoefs.cc)
 add_executable(h5power    h5power.cc)
 add_executable(makecoefs  makecoefs.cc)
+add_executable(testread   testread.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} expcoef exputil ${common_LINKLIB})

@@ -415,9 +415,10 @@ namespace Field
 			      std::string proj, std::vector<double> ctr)
   {
     const double pi = 3.14159265358979323846;
+
     Eigen::VectorXf ret = Eigen::VectorXf::Zero(nbins);
     double del = rmax/nbins;
-
+    
     enum class Projection {xy, xz, yz, r} type;
     if      (proj == "xy") type = Projection::xy;
     else if (proj == "xz") type = Projection::xz;
@@ -430,37 +431,26 @@ namespace Field
       std::runtime_error(sout.str());
     }
 
-    // Inverse area or volume for density norm
-    //
-    std::vector<double> fac(nbins);
-    for (int i=0; i<nbins; i++) {
-      if (type == Projection::r) // Spherical shells
-	fac[i] = 1.0 / (4.0*pi/3.0*(3*i*(i+1) + 1));
-      else			 // Cylindrical shells
-	fac[i] = 1.0 / (pi*(2*i + 1));
-    }
-    
     // Make the histogram
     //
     for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
       double rad = 0.0;
       for (int k=0; k<3; k++) {
 	double pp = p->pos[k] - ctr[k];
-	if (type == Projection::xy and (k==0 or k==1)) // Cylindrical radius
-	  rad += pp*pp;
+	if      (type == Projection::xy and (k==0 or k==1))
+	  rad += pp*pp;		// Cylindrical radius x^2 + y^2	
 	else if (type == Projection::xz and (k==0 or k==2))
-	  rad += pp*pp;
+	  rad += pp*pp;		// Cylindrical radius x^2 + z^2	
 	else if (type == Projection::yz and (k==1 or k==2))
-	  rad += pp*pp;
-	else			// Spherical radius
-	  rad += pp*pp;
+	  rad += pp*pp;		// Cylindrical radius y^2 + z^2	
+	else if (type == Projection::r)
+	  rad += pp*pp;		// Spherical radius
       }
-      rad = sqrt(rad);
 
-      int indx = floor(rad/del);
-      if (indx>=0 and indx<nbins) ret[indx] += p->mass * fac[indx];
+      int indx = floor(sqrt(rad)/del);
+      if (indx>=0 and indx<nbins) ret[indx] += p->mass;
     }
-
+    
     // Accumulate between MPI nodes; return value to root node
     //
     if (use_mpi) {
@@ -472,6 +462,15 @@ namespace Field
 		   MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
     }
 
+    // Inverse area or volume for density norm
+    //
+    for (int i=0; i<nbins; i++) {
+      if (type == Projection::r) // Spherical shells
+	ret[i] /= 4.0*pi/3.0*del*del*del*(3*i*(i+1) + 1);
+      else			 // Cylindrical shells
+	ret[i] /= pi*del*del*(2*i + 1);
+    }
+    
     return ret;
   }
   // END histogram1d
