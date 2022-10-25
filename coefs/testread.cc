@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <fstream>
 #include <memory>
+#include <array>
 
 #include <cxxopts.H>
 #include <libvars.H>
