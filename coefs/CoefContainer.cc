@@ -281,7 +281,7 @@ namespace MSSA
 	Key key = {c};
 
 	cf = dynamic_cast<Coefs::TblStruct*>( cur->getCoefStruct(times[t]).get() );
-
+	keys.push_back(key);
 	data[key][t] = cf->coefs(0, c).real();
       }
     }
