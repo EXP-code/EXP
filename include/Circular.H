@@ -5,14 +5,23 @@
 
 template <typename T, typename Container = std::vector<T>,
 	  typename Iterator = typename Container::iterator>
-class RingIterator :
-  public std::iterator <std::bidirectional_iterator_tag, T, ptrdiff_t>
+class RingIterator
 {
   Container& data;
   
   Iterator   cursor;
   Iterator   begin;
   Iterator   end;
+
+public:
+  //@{
+  //! Add typedefs for std::iterator_traits
+  using iterator_category = std::bidirectional_iterator_tag;
+  using value_type        = T;
+  using difference_type   = std::ptrdiff_t;
+  using pointer           = T*;
+  using reference         = T&;
+  //@}
 
 public:
   
@@ -102,12 +111,22 @@ public:
 };
 
 template <typename T, typename Iterator>
-class CyclicIterator :
-  public std::iterator <std::bidirectional_iterator_tag, T, ptrdiff_t>
+class CyclicIterator
 {
   Iterator   cursor;
   Iterator   begin;
   Iterator   end;
+
+public:
+  
+  //@{
+  //! Add typedefs for std::iterator_traits
+  using iterator_category = std::bidirectional_iterator_tag;
+  using value_type        = T;
+  using difference_type   = std::ptrdiff_t;
+  using pointer           = T*;
+  using reference         = T&;
+  //@}
 
 public:
 
