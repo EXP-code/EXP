@@ -746,37 +746,39 @@ namespace MSSA {
 	for (int i=0; i<nfreq; i++) pw(i, j) = P(i);
       }
       
-      std::ostringstream filename;
-      filename << prefix << ".pc_power";
-      std::ofstream out(filename.str());
-      if (out) {
-	out << "# "
-	    << std::setw(13) << "Freq"
-	    << std::setw(15) << "Period";
-	for (int j=0; j<npc; j++) {
-	  std::ostringstream sout; sout << "PC " << j;
-	  out << std::setw(15) << sout.str();
-	}
-	out << "# "
-	    << std::setw(13) << "[1]"
-	    << std::setw(15) << "[2]";
-	for (int j=0; j<npc; j++) {
-	  std::ostringstream sout; sout << '[' << j+3 << ']';
-	  out << std::setw(15) << sout.str();
-	}
-	out << std::endl;
-	
-	for (int j=0; j<nfreq; j++) {
-	  out << std::setw(15) << std::setprecision(6) << F(j)
-	      << std::setw(15) << std::setprecision(6) << 2.0*M_PI/F(j);
-	  for (int k=0; k<npc; k++)
-	    out << std::setw(15) << std::setprecision(6) << pw(j, k);
+      if (powerf) {
+	std::ostringstream filename;
+	filename << prefix << ".pc_power";
+	std::ofstream out(filename.str());
+	if (out) {
+	  out << "# "
+	      << std::setw(13) << "Freq"
+	      << std::setw(15) << "Period";
+	  for (int j=0; j<npc; j++) {
+	    std::ostringstream sout; sout << "PC " << j;
+	    out << std::setw(15) << sout.str();
+	  }
+	  out << "# "
+	      << std::setw(13) << "[1]"
+	      << std::setw(15) << "[2]";
+	  for (int j=0; j<npc; j++) {
+	    std::ostringstream sout; sout << '[' << j+3 << ']';
+	    out << std::setw(15) << sout.str();
+	  }
 	  out << std::endl;
+	  
+	  for (int j=0; j<nfreq; j++) {
+	    out << std::setw(15) << std::setprecision(6) << F(j)
+		<< std::setw(15) << std::setprecision(6) << 2.0*M_PI/F(j);
+	    for (int k=0; k<npc; k++)
+	      out << std::setw(15) << std::setprecision(6) << pw(j, k);
+	    out << std::endl;
+	  }
+	  out.close();
+	} else {
+	  std::cout << "Could not open <" << filename.str() << ">" << std::endl;
+	  exit(-1);
 	}
-	out.close();
-      } else {
-	std::cout << "Could not open <" << filename.str() << ">" << std::endl;
-	exit(-1);
       }
     }
     
@@ -814,7 +816,7 @@ namespace MSSA {
 
 	for (int k=0; k<nfreq; k++) {
 	  if (nch==0) fw(k) = F(k); // Only need to do this once
-	  pw(k, nch) = P(k);	    // Get the data for each channel
+	  pw(k, nch) = p0(k);	    // Get the data for each channel
 	}
 
 	// Augment the channel counter
@@ -829,45 +831,85 @@ namespace MSSA {
 	  for (int k=0; k<nfreq; k++) pt(k, j) = P(k);
 	}
 	
-	std::ostringstream filename;
-	filename << prefix << ".power_" << u.first;
-	std::ofstream out(filename.str());
-	if (out) {
-	  out << "# " << u.first << std::endl;
-	  out << "# " << std::setw(13) << "Freq"
-	      << std::setw(15) << "Period"
-	      << std::setw(15) << "Summed"
-	      << std::setw(15) << "Full";
-	  for (int j=0; j<ncomp; j++) {
-	    std::ostringstream sout; sout << "PC " << j;
-	    out << std::setw(15) << sout.str();
-	  }
-	  out << "# " << std::setw(13) << "[1]"
-	      << std::setw(15) << "[2]"
-	      << std::setw(15) << "[3]";
-	  for (int j=0; j<ncomp; j++) {
-	    std::ostringstream sout; sout << '[' << j+4 << ']';
-	    out << std::setw(15) << sout.str();
-	  }
-	  out << std::endl;
-	  
-	  for (int j=0; j<nfreq; j++) {
-	    out << std::setw(15) << std::setprecision(6) << F(j)
-		<< std::setw(15) << std::setprecision(6) << 2.0*M_PI/F(j)
-		<< std::setw(15) << std::setprecision(6) << p0(j);
-	    for (int k=0; k<ncomp; k++)
-	      out << std::setw(15) << std::setprecision(6) << pt(j, k);
+	if (powerf) {
+	  std::ostringstream filename;
+	  filename << prefix << ".power_" << u.first;
+	  std::ofstream out(filename.str());
+	  if (out) {
+	    out << "# " << u.first << std::endl;
+	    out << "# " << std::setw(13) << "Freq"
+		<< std::setw(15) << "Period"
+		<< std::setw(15) << "Summed"
+		<< std::setw(15) << "Full";
+	    for (int j=0; j<ncomp; j++) {
+	      std::ostringstream sout; sout << "PC " << j;
+	      out << std::setw(15) << sout.str();
+	    }
+	    out << "# " << std::setw(13) << "[1]"
+		<< std::setw(15) << "[2]"
+		<< std::setw(15) << "[3]";
+	    for (int j=0; j<ncomp; j++) {
+	      std::ostringstream sout; sout << '[' << j+4 << ']';
+	      out << std::setw(15) << sout.str();
+	    }
 	    out << std::endl;
+	  
+	    for (int j=0; j<nfreq; j++) {
+	      out << std::setw(15) << std::setprecision(6) << F(j)
+		  << std::setw(15) << std::setprecision(6) << 2.0*M_PI/F(j)
+		  << std::setw(15) << std::setprecision(6) << p0(j);
+	      for (int k=0; k<ncomp; k++)
+		out << std::setw(15) << std::setprecision(6) << pt(j, k);
+	      out << std::endl;
+	    }
+	    out.close();
+	  } else {
+	    std::cout << "Could not open <" << filename.str() << ">" << std::endl;
+	    exit(-1);
 	  }
-	  out.close();
-	} else {
-	  std::cout << "Could not open <" << filename.str() << ">" << std::endl;
-	  exit(-1);
 	}
       }
     }
     
     return {fw, pw};
+  }
+  
+  // Return the DFT for a single channel for each PC
+  //
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
+  expMSSA::singleDFT(const Key& key)
+  {
+    Eigen::VectorXd F, P, fw;
+    Eigen::MatrixXd pt;
+    {
+      double DT = coefDB.times[1] - coefDB.times[0];
+      
+      int nfreq = numT/2 + 1;
+
+      fw.resize(nfreq);
+      pt(nfreq, ncomp);
+
+      Eigen::VectorXd p0(nfreq), in(numT);
+      
+      auto u = mean.find(key);
+      if (u == mean.end())
+	throw std::runtime_error("expMSSA::singleDFT: requested key not found");
+      
+      for (int i=0; i<numT; i++) {
+	in(i) = 0.0;
+	for (int j=0; j<ncomp; j++) in(i) += RC[u->first](i, j);
+      }
+
+      for (int j=0; j<ncomp; j++) {
+	for (int i=0; i<numT; i++) in(i) = RC[u->first](i, j);
+	  
+	TransformFFT fft(DT, in);
+	fft.Power(F, P);
+	for (int k=0; k<nfreq; k++) pt(k, j) = P(k);
+      }
+    }
+    
+    return {fw, pt};
   }
   
   void expMSSA::wcorrPNG()
@@ -1144,6 +1186,7 @@ namespace MSSA {
       //
       verbose  = bool(params["verbose"   ]);
       flip     = bool(params["flip"      ]);
+      powerf   = bool(params["power"     ]);
       
       if (params["evtol"]  ) evtol    = params["evtol"].as<double>();
       else                   evtol    = 0.01;

@@ -197,8 +197,12 @@ void MSSAtoolkitClasses(py::module &m) {
 	"temporal power distribution");
 
   f.def("channelDFT", &expMSSA::channelDFT,
-	"Return the DFT of the selected data channels for comparison with\n"
-	"the PC power");
+	"Returns the frequency and the DFT of the selected data channels for\n"
+	"comparison with the PC power");
+
+  f.def("singleDFT", &expMSSA::singleDFT,
+	"Returns the frequency, the DFT of the selected data channel\n"
+	"with partial power for each PC", py::arg("key"));
 
   f.def("reconstruct", &expMSSA::reconstruct,
 	"Reconstruct the data channels with the provided list of eigenvalue "

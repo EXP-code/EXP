@@ -52,7 +52,7 @@ namespace MSSA
 
     //! Parameters
     //@{
-    bool chatty, flip, verbose, zeropad;
+    bool flip, verbose, powerf;
     std::string prefix, config, spec;
     int numW, nmin, nmax, npc;
     double evtol;
@@ -163,11 +163,20 @@ namespace MSSA
     std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
     pcDFT();
 
-    /** Return the frequency and power spectrum of the channel vectors
+    /** Return the frequency and power spectrum of the channel vectors for
+	the reconstruction
+	
 	See @pcDFT for intended C++ call signature and return.
     */
     std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
     channelDFT();
+
+    /** Return the frequency and power spectrum by PC for the selected channel
+	
+	See @pcDFT for intended C++ call signature and return.
+    */
+    std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
+    singleDFT(const Key& key);
 
     /** Reconstruction for desired eigenvalues 
 
