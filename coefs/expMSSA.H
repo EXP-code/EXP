@@ -152,7 +152,14 @@ namespace MSSA
       return PC.cols();
     }
 
-    //! Return the frequency and power spectrum of the PC vectors
+    /**  Return the frequency and power spectrum of the PC vectors
+	 In C++, one might use this as follows:
+	 //
+	 Eigen::VectorXd F;
+	 Eigen::MatrixXd P;
+	 std::tie(F, P) = pcDFT();
+	 // Do something with F and P
+    */
     std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
     pcDFT();
 
