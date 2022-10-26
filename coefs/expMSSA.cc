@@ -807,13 +807,20 @@ namespace MSSA {
       int nch = 0;
       for (auto u : mean) {
 	
+	// Compute the summed data stream
+	//
 	for (int i=0; i<numT; i++) {
 	  in(i) = 0.0;
 	  for (int j=0; j<ncomp; j++) in(i) += RC[u.first](i, j);
 	}
+
+	// Compute the DFT for the summed data stream
+	//
 	TransformFFT fft(DT, in);
 	fft.Power(F, p0);
 
+	// Pack the results for return
+	//
 	for (int k=0; k<nfreq; k++) {
 	  if (nch==0) fw(k) = F(k); // Only need to do this once
 	  pw(k, nch) = p0(k);	    // Get the data for each channel
@@ -823,15 +830,18 @@ namespace MSSA {
 	//
 	nch++;
 	
-	for (int j=0; j<ncomp; j++) {
-	  for (int i=0; i<numT; i++) in(i) = RC[u.first](i, j);
-	  
-	  TransformFFT fft(DT, in);
-	  fft.Power(F, P);
-	  for (int k=0; k<nfreq; k++) pt(k, j) = P(k);
-	}
-	
 	if (powerf) {
+
+	  // Only need to do the partial DFTs if files are requested
+	  //
+	  for (int j=0; j<ncomp; j++) {
+	    for (int i=0; i<numT; i++) in(i) = RC[u.first](i, j);
+	  
+	    TransformFFT fft(DT, in);
+	    fft.Power(F, P);
+	    for (int k=0; k<nfreq; k++) pt(k, j) = P(k);
+	  }
+	
 	  std::ostringstream filename;
 	  filename << prefix << ".power_" << u.first;
 	  std::ofstream out(filename.str());
@@ -887,25 +897,34 @@ namespace MSSA {
       int nfreq = numT/2 + 1;
 
       fw.resize(nfreq);
-      pt(nfreq, ncomp);
+      pt.resize(nfreq, ncomp);
 
-      Eigen::VectorXd p0(nfreq), in(numT);
+      Eigen::VectorXd in(numT);
       
       auto u = mean.find(key);
+
+      // Make sure that we have the requested key
+      //
       if (u == mean.end())
 	throw std::runtime_error("expMSSA::singleDFT: requested key not found");
       
-      for (int i=0; i<numT; i++) {
-	in(i) = 0.0;
-	for (int j=0; j<ncomp; j++) in(i) += RC[u->first](i, j);
-      }
-
       for (int j=0; j<ncomp; j++) {
+
+	// Pack the data for each PC
+	//
 	for (int i=0; i<numT; i++) in(i) = RC[u->first](i, j);
 	  
+	// Perform the DFT
+	//
 	TransformFFT fft(DT, in);
 	fft.Power(F, P);
-	for (int k=0; k<nfreq; k++) pt(k, j) = P(k);
+
+	// Pack the results for return
+	//
+	for (int k=0; k<nfreq; k++) {
+	  if (j==0) fw(k) = F(k);
+	  pt(k, j) = P(k);
+	}
       }
     }
     
