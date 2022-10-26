@@ -152,11 +152,13 @@ namespace MSSA
       return PC.cols();
     }
 
-    //! Return the power spectrum of the PC vectors
-    Eigen::MatrixXd pcDFT(Eigen::VectorXd& F, Eigen::VectorXd& P);
+    //! Return the frequency and power spectrum of the PC vectors
+    std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
+    pcDFT();
 
-    //! Return the power spectrum of the channel vectors
-    Eigen::MatrixXd channelDFT(Eigen::VectorXd& F, Eigen::VectorXd& P);
+    //! Return the frequency and power spectrum of the channel vectors
+    std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
+    channelDFT();
 
     /** Reconstruction for desired eigenvalues 
 

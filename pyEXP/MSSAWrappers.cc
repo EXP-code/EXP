@@ -194,11 +194,11 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("pcDFT", &expMSSA::pcDFT,
 	"Return the DFT of the principal component vectors for quantifying\n"
-	"temporal power distribution", py::arg("freq"), py::arg("period"));
+	"temporal power distribution");
 
   f.def("channelDFT", &expMSSA::channelDFT,
 	"Return the DFT of the selected data channels for comparison with\n"
-	"the PC power",	py::arg("freq"), py::arg("period"));
+	"the PC power");
 
   f.def("reconstruct", &expMSSA::reconstruct,
 	"Reconstruct the data channels with the provided list of eigenvalue "
@@ -262,7 +262,7 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("getRC", &expMSSA::getRC,
 	"Access to detrended reconstructed channel series by "
-	"internal key");
+	"internal key", py::arg("key"));
 
   f.def("getRCkeys", &expMSSA::getRCkeys,
 	"Provides a list of internal keys for accessing the "

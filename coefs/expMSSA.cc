@@ -187,7 +187,7 @@ namespace MSSA {
 
   }
 
-  // Helper ostream manipulator
+  // Helper ostream manipulator for debug coefficient key info
   std::ostream& operator<< (std::ostream& out, const std::vector<unsigned>& t)
   {
     const char lab[] = {'c', 's'};
@@ -722,14 +722,17 @@ namespace MSSA {
   
   // Return the DFT of the PCs
   //
-  Eigen::MatrixXd expMSSA::pcDFT(Eigen::VectorXd& F, Eigen::VectorXd& P)
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
+  expMSSA::pcDFT()
   {
+    Eigen::VectorXd F, P, fw;
     Eigen::MatrixXd pw;
     {
       double DT = coefDB.times[1] - coefDB.times[0];
       
-      int nfreq = numT/2 + 1;
+      int nfreq = numK/2 + 1;
 
+      fw.resize(nfreq);
       pw.resize(nfreq, npc);
       Eigen::VectorXd in(numK);
       
@@ -739,6 +742,7 @@ namespace MSSA {
 	for (int i=0; i<numK; i++) in(i) = PC(i, j);
 	TransformFFT fft(DT, in);
 	fft.Power(F, P);
+	if (j==0) for (int i=0; i<nfreq; i++) fw(i) = F(i);
 	for (int i=0; i<nfreq; i++) pw(i, j) = P(i);
       }
       
@@ -776,23 +780,29 @@ namespace MSSA {
       }
     }
     
-    return pw;
+    return {fw, pw};
   }
   
-  // Return the DFT of the individual data channels
+  // Return the DFT of the individual reconstructed data channels
   //
-  Eigen::MatrixXd expMSSA::channelDFT(Eigen::VectorXd& F, Eigen::VectorXd& P)
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
+  expMSSA::channelDFT()
   {
+    Eigen::VectorXd F, P, fw;
     Eigen::MatrixXd pw;
     {
       double DT = coefDB.times[1] - coefDB.times[0];
       
       int nfreq = numT/2 + 1;
-      
-      pw.resize(numW, nfreq);
+      int nchan = mean.size();
+
+      fw.resize(nfreq);
+      pw.resize(nfreq, nchan);
+
       Eigen::VectorXd p0(nfreq), in(numT);
-      Eigen::VectorXd pt = Eigen::VectorXd::Zero(nfreq);
+      Eigen::MatrixXd pt(nfreq, ncomp);
       
+      int nch = 0;
       for (auto u : mean) {
 	
 	for (int i=0; i<numT; i++) {
@@ -801,16 +811,22 @@ namespace MSSA {
 	}
 	TransformFFT fft(DT, in);
 	fft.Power(F, p0);
+
+	for (int k=0; k<nfreq; k++) {
+	  if (nch==0) fw(k) = F(k); // Only need to do this once
+	  pw(k, nch) = P(k);	    // Get the data for each channel
+	}
+
+	// Augment the channel counter
+	//
+	nch++;
 	
 	for (int j=0; j<ncomp; j++) {
 	  for (int i=0; i<numT; i++) in(i) = RC[u.first](i, j);
 	  
 	  TransformFFT fft(DT, in);
 	  fft.Power(F, P);
-	  for (int k=0; k<nfreq; k++) {
-	    pt(k)   += P(k);
-	    pw(j, k) = P(k);
-	  }
+	  for (int k=0; k<nfreq; k++) pt(k, j) = P(k);
 	}
 	
 	std::ostringstream filename;
@@ -822,16 +838,15 @@ namespace MSSA {
 	      << std::setw(15) << "Period"
 	      << std::setw(15) << "Summed"
 	      << std::setw(15) << "Full";
-	  for (int j=0; j<nfreq; j++) {
+	  for (int j=0; j<ncomp; j++) {
 	    std::ostringstream sout; sout << "PC " << j;
 	    out << std::setw(15) << sout.str();
 	  }
 	  out << "# " << std::setw(13) << "[1]"
 	      << std::setw(15) << "[2]"
-	      << std::setw(15) << "[3]"
-	      << std::setw(15) << "[4]";
-	  for (int j=0; j<nfreq; j++) {
-	    std::ostringstream sout; sout << '[' << j+5 << ']';
+	      << std::setw(15) << "[3]";
+	  for (int j=0; j<ncomp; j++) {
+	    std::ostringstream sout; sout << '[' << j+4 << ']';
 	    out << std::setw(15) << sout.str();
 	  }
 	  out << std::endl;
@@ -839,10 +854,9 @@ namespace MSSA {
 	  for (int j=0; j<nfreq; j++) {
 	    out << std::setw(15) << std::setprecision(6) << F(j)
 		<< std::setw(15) << std::setprecision(6) << 2.0*M_PI/F(j)
-		<< std::setw(15) << std::setprecision(6) << pt(j)
 		<< std::setw(15) << std::setprecision(6) << p0(j);
-	    for (int k=0; k<numW; k++)
-	      out << std::setw(15) << std::setprecision(6) << pw(k, j);
+	    for (int k=0; k<ncomp; k++)
+	      out << std::setw(15) << std::setprecision(6) << pt(j, k);
 	    out << std::endl;
 	  }
 	  out.close();
@@ -853,7 +867,7 @@ namespace MSSA {
       }
     }
     
-    return pw;
+    return {fw, pw};
   }
   
   void expMSSA::wcorrPNG()
