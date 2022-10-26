@@ -200,7 +200,14 @@ namespace MSSA
     //! Compute w-correlation matrix for all channels
     Eigen::MatrixXd wCorrAll();
 
-    //! Compute the diagnostic computation of contributions per channel
+    /** Compute the diagnostic computation of contributions per channel
+	In C++, consider using std::tie to get the unpacked values, e.g.:
+	 //
+	 Eigen::VectorXd F;
+	 Eigen::MatrixXd G;
+	 std::tie(F, G) = contributions();
+	 // Do something with matrices F and G
+    */
     std::tuple<Eigen::MatrixXd, Eigen::MatrixXd> contributions();
 
     //! Compute the diagnostic computation of contributions per
