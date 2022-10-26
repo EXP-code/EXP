@@ -163,7 +163,9 @@ namespace MSSA
     std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
     pcDFT();
 
-    //! Return the frequency and power spectrum of the channel vectors
+    /** Return the frequency and power spectrum of the channel vectors
+	See @pcDFT for intended C++ call signature and return.
+    */
     std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
     channelDFT();
 
