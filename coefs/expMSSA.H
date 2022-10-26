@@ -154,11 +154,13 @@ namespace MSSA
 
     /**  Return the frequency and power spectrum of the PC vectors
 	 In C++, one might use this as follows:
-	 //
+	 //------------------------------------------------------------
 	 Eigen::VectorXd F;
 	 Eigen::MatrixXd P;
 	 std::tie(F, P) = pcDFT();
-	 // Do something with F and P
+	 // Do something with F and P.  
+	 //------------------------------------------------------------
+	 This example is the C++ equivalent of the Python: (F, P) = pcDFT()
     */
     std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
     pcDFT();
