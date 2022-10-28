@@ -980,7 +980,7 @@ void SphericalBasis::multistep_update_finish()
   //  +--- Deep debugging
   //  |
   //  v
-  if (true and myid==0) {
+  if (false and myid==0) {
     std::string filename = runtag + ".differ_sph_" + component->name;
     std::ofstream out(filename, ios::app);
     std::set<int> L = {0, 1, 2};
