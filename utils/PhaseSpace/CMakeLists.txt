@@ -20,7 +20,7 @@ if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
 endif()
 
-if(TIRPC_FOUND)
+if(ENABLE_XDR AND TIRPC_FOUND)
   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
 endif()
 
@@ -78,7 +78,7 @@ foreach(program ${bin_PROGRAMS})
 endforeach()
 
 # Reset tipstd2psp targets for TIRPC
-if(HAVE_TIRPC)
+if(ENABLE_XDR AND HAVE_TIRPC)
   target_link_libraries(tipstd2psp ${common_LINKLIB} ${TIRPC_LDFLAGS})
   target_include_directories(tipstd2psp PUBLIC ${common_INCLUDE} ${TIRPC_INCLUDE_DIR})
 endif()
