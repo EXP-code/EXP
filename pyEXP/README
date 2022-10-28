@@ -6,7 +6,44 @@ These bindings provide the 'standalone' EXP classes defined in the
 coefs directory as Python classes.  See the README in EXP/coefs for a
 detailed description of the classes.
 
-This directory contains a number of sample Python scripts as follows:
+SOME IMPLEMENTATION NOTES
+
+* pyEXP returns row-major matrices while numpy uses col-major matrices
+  (for Matilab compatbility?).  So you may need
+  np.ndarray.transpose().   See examples.
+
+* Many of the algorithms use OpenMP.  OpenMP functions should
+  work without intervention.  Although the user may want to set a
+  default OMP_NUM_THREADS environment variable appropriate for their
+  machine.
+
+* Many of the algorithms were written using MPI.  Launching an MPI run
+  from Python or Jupyter is possible but will take a bit of
+  customization and setup.  I have not yet explored this in an any
+  detail.  The MPI-aware member functions will fall back to scalar
+  computation by initializing MPI with 1 node.
+
+* The pyEXP shared object library, callable from Python, will be
+  copied to the user's target install directory using the path:
+  lib/pythonX.Y/site-packages where X.Y is your default Python
+  version.  In Ubuntu, the default PYTHONPATH includes
+  ~/.local/lib/pythonX.Y/site-packages.  So setting your target
+  install directory to be /home/user/.local would make sense.
+  However, you can choose any target install directory you wish and
+  add that to your own PYTHONPATH as you see fit.  You will also need
+  to make sure that your LD_LIBRARY_PATH contains the target install
+  lib directory or the loader will not be able to find the EXP objects.
+  This will result in messages about unresolved symbols.
+
+PYTHON SCRIPT EXAMPLES
+----------------------
+
+This directory contains a number of sample Python scripts.  Note: you
+will need to change the working directory and adjust the named files
+to fit your needs.  A number of these cases start using the output
+from the EXP 'Better' example.
+
+Some brief descriptions of the included scripts follow...
 
 * sample_part1.py--This script construct the basis for the dark halo
   using the Better parameter, reads particle snapshots and computes
@@ -37,32 +74,26 @@ This directory contains a number of sample Python scripts as follows:
 * read_histo.py--Reads the Python pickle db for the histograms and
   make images uing imshow
 
-Some implementation notes:
+* grav_power.py--Plots the amplitude (square root of the gravitational
+  power) for each harmonic order (l orders for spherical and m orders
+  for cylindrical). This routine is meant to be callable rather than
+  importable.  This demonstrates a useful strategy for easily
+  repeating a commonly used pyEXP workflow on different data.
 
-* pyEXP returns row-major matrices while numpy uses col-major matrices
-  (for Matilab compatbility?).  So you may need
-  np.ndarray.transpose().   See examples.
+* table_to_coefs.py--An example of creating TableData.  Here, we create
+  a table from the phase space.  Not terribly useful scientifically as is
+  but this could be extended through reads of multiple snap shots to pack
+  phase space as a function of time, for example.
 
-* Many of the algorithms use OpenMP.  OpenMP functions should
-  work without intervention.  Although the user may want to set a
-  default OMP_NUM_THREADS environment variable appropriate for their
-  machine.
+NOTEBOOK EXAMPLES
+-----------------
 
-* Many of the algorithms were written using MPI.  Launching an MPI run
-  from Python or Jupyter is possible but will take a bit of
-  customization and setup.  I have not yet explored this in an any
-  detail.  The MPI-aware member functions will fall back to scalar
-  computation by initializing MPI with 1 node.
+Many of the Python scripts above have Jupyter notebook counterparts.
+In addition, the following notebooks some additional features:
 
-* The pyEXP shared object library, callable from Python, will be
-  copied to the user's target install directory using the path:
-  lib/pythonX.Y/site-packages where X.Y is your default Python
-  version.  In Ubuntu, the default PYTHONPATH includes
-  ~/.local/lib/pythonX.Y/site-packages.  So setting your target
-  install directory to be /home/user/.local would make sense.
-  However, you can choose any target install directory you wish and
-  add that to your own PYTHONPATH as you see fit.  You will also need
-  to make sure that your LD_LIBRARY_PATH contains the target install
-  lib directory or the loader will not be able to find the EXP objects.
-  This will result in messages about unresolved symbols.
+* plot_coefs.ipynb--A simple example of reading and plotting
+  coefficient data in time.
 
+* cosine_single_channel.ipynb/cosine_multichannel.ipynb--Make some
+  test data and analyze the newly created series with SSA and MSSA.
+  
