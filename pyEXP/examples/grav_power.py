@@ -33,7 +33,7 @@ def main() -> int:
             plt.semilogy(coefs.Times(), power[:,i], label='{}'.format(i))
         plt.legend()
         plt.xlabel('Time')
-        plt.ylabel(r'power=$[\sum_{n}|a_{mn}|^2]^{1/2}$')
+        plt.ylabel(r'[mean amplitude]=[grav energy]$^{1/2}=[\sum_{n}|a_{mn}|^2]^{1/2}$')
         plt.title("Coefficient file="+sys.argv[n])
         plt.show()
 
