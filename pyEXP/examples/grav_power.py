@@ -23,6 +23,7 @@ def main() -> int:
         return 1
 
     plt.rcParams['figure.figsize'] = [12, 9]
+    plt.rc('font', size=16)
 
     for n in range(1, len(sys.argv)):
         if not exists(sys.argv[n]): continue
