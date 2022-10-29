@@ -131,10 +131,10 @@ if(ENABLE_XDR)
     set(HAVE_XDR TRUE CACHE BOOL "We have an XDR implementation")
     message(STATUS "We have an XDR implementation; Tipsy standard files will be supported.")
   else()
-    message(STATUS "Could NOT find RPC support; you will not be able to read Tipsy standard files.  Tipsy native will still work.")
+    message(STATUS "Could NOT find RPC support; you will not be able to read Tipsy standard files.  Tipsy native (and Bonsai) will still work.")
   endif()
 else()
-  message(STATUS "RPC/XDR is disabled; you will not be able to read Tipsy standard files.  Tipsy native will still work.")
+  message(STATUS "RPC/XDR is disabled; you will not be able to read Tipsy standard files.  Tipsy native (and Bonsai) will still work.")
 endif()
 
 # For setting the default size of the Cuda real attribute array
