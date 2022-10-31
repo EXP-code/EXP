@@ -1584,7 +1584,9 @@ SLGridSph::SLGridSph(std::string modelname,
   
   mpi_buf  = 0;
   model    = SphModTblPtr(new SphericalModelTable(model_file_name, DIVERGE, DFAC));
-  tbdbg = VERBOSE;
+  tbdbg    = VERBOSE;
+  diverge  = DIVERGE;
+  dfac     = DFAC;
 
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
 }
@@ -1596,12 +1598,29 @@ SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 {
   mpi_buf  = 0;
   model    = mod;
-  tbdbg     = VERBOSE;
+  tbdbg    = VERBOSE;
+  diverge  = 0;
+  dfac     = 1;
 
   if (cachename.size()) sph_cache_name  = cachename;
   else                  sph_cache_name  = default_cache;
 
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
+}
+
+
+void SLGridSph::cacheInfo(const std::string& cachefile)
+{
+  auto node = getHeader(cachefile);
+
+  std::cout << std::string(60, '-') << std::endl
+	    << "Cache parameters for SLGridSph: " << cachefile << std::endl
+	    << std::string(60, '-') << std::endl;
+  for (YAML::const_iterator it=node.begin(); it!=node.end(); ++it) {
+    std::cout << std::left << std::setw(20) << it->first.as<std::string>()
+	      << ": " << it->second.as<std::string>() << std::endl;
+  }
+  std::cout << std::string(60, '-') << std::endl;
 }
 
 
@@ -1829,20 +1848,80 @@ int SLGridSph::read_cached_table(void)
   std::ifstream in(sph_cache_name);
   if (!in) return 0;
 
-  int LMAX, NMAX, NUMR, CMAP;
-  double RMIN, RMAX, SCL;
-
-  if (myid==0) 
+  if (myid==0) {
     std::cout << "---- SLGridSph::read_cached_table: trying to read cached table . . ."
 	      << std::endl;
+  }
 
-  in.read((char *)&LMAX, sizeof(int));		if(!in || LMAX!=lmax) return 0;
-  in.read((char *)&NMAX, sizeof(int));		if(!in || NMAX!=nmax) return 0;
-  in.read((char *)&NUMR, sizeof(int));		if(!in || NUMR!=numr) return 0;
-  in.read((char *)&CMAP, sizeof(int));		if(!in || CMAP!=cmap) return 0;
-  in.read((char *)&RMIN, sizeof(double));	if(!in || RMIN!=rmin) return 0;
-  in.read((char *)&RMAX, sizeof(double));	if(!in || RMAX!=rmax) return 0;
-  in.read((char *)&SCL, sizeof(double));	if(!in || SCL!=scale) return 0;
+  int LMAX, NMAX, NUMR, CMAP;
+  double RMIN, RMAX, SCL;
+    
+  // Attempt to read magic number
+  //
+  unsigned int tmagic;
+  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+  if (tmagic == hmagic) {
+
+    // YAML size
+    //
+    unsigned ssize;
+    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+    // Make and read char buffer
+    //
+    auto buf = std::make_unique<char[]>(ssize+1);
+    in.read(buf.get(), ssize);
+    buf[ssize] = 0;		// Null terminate
+    
+    YAML::Node node;
+    
+    try {
+      node = YAML::Load(buf.get());
+    }
+    catch (YAML::Exception& error) {
+      if (myid==0)
+	std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		  << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		  << "YAML error: " << error.what() << std::endl;
+      throw error;
+    }
+    
+    // Get parameters
+    //
+    LMAX     = node["lmax"   ].as<int>();
+    NMAX     = node["nmax"   ].as<int>();
+    NUMR     = node["numr"   ].as<int>();
+    CMAP     = node["cmap"   ].as<int>();
+    RMIN     = node["rmin"   ].as<double>();
+    RMAX     = node["rmax"   ].as<double>();
+    SCL      = node["scale"  ].as<double>();
+    diverge  = node["diverge"].as<int>();
+    dfac     = node["dfac"   ].as<double>();
+
+  } else {
+
+    // Rewind file
+    //
+    in.clear();
+    in.seekg(0);
+    
+    in.read((char *)&LMAX, sizeof(int));
+    in.read((char *)&NMAX, sizeof(int));
+    in.read((char *)&NUMR, sizeof(int));
+    in.read((char *)&CMAP, sizeof(int));
+    in.read((char *)&RMIN, sizeof(double));
+    in.read((char *)&RMAX, sizeof(double));
+    in.read((char *)&SCL, sizeof(double));
+  }
+
+  if(!in || LMAX!=lmax) return 0;
+  if(!in || NMAX!=nmax) return 0;
+  if(!in || NUMR!=numr) return 0;
+  if(!in || CMAP!=cmap) return 0;
+  if(!in || RMIN!=rmin) return 0;
+  if(!in || RMAX!=rmax) return 0;
+  if(!in || SCL!=scale) return 0;
 
   for (int l=0; l<=lmax; l++) {
 
@@ -1877,29 +1956,73 @@ int SLGridSph::read_cached_table(void)
 
   if (myid==0)
     std::cout << "---- SLGridSph::read_cached_table: Success!!" << std::endl;
-
+  
   return 1;
 }
 
 
 void SLGridSph::write_cached_table(void)
 {
+  const bool NewCache = true;
+
   std::ofstream out(sph_cache_name);
   if (!out) {
     std::cerr << "SLGridSph: error writing <" << sph_cache_name << ">" << std::endl;
     return;
+  } else {
+    std::cerr << "SLGridSph: opened <" << sph_cache_name << ">" << std::endl;
   }
 
-  int i, j;
+  if (NewCache) {
 
-  out.write((char *)&lmax,  sizeof(int));
-  out.write((char *)&nmax,  sizeof(int));
-  out.write((char *)&numr,  sizeof(int));
-  out.write((char *)&cmap,  sizeof(int));
-  out.write((char *)&rmin,  sizeof(double));
-  out.write((char *)&rmax,  sizeof(double));
-  out.write((char *)&scale, sizeof(double));
+    // This is a node of simple {key: value} pairs.  More general
+    // content can be added as needed.
+    YAML::Node node;
 
+    node["model"  ] = model_file_name;
+    node["lmax"   ] = lmax;
+    node["nmax"   ] = nmax;
+    node["numr"   ] = numr;
+    node["cmap"   ] = cmap;
+    node["rmin"   ] = rmin;
+    node["rmax"   ] = rmax;
+    node["scale"  ] = scale;
+    node["diverge"] = diverge;
+    node["dfac"   ] = dfac;
+    
+    // Serialize the node
+    //
+    YAML::Emitter y; y << node;
+
+    // Get the size of the string
+    //
+    unsigned int hsize = strlen(y.c_str());
+
+    // Write magic #
+    //
+    out.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
+
+    // Write YAML string size
+    //
+    out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+
+    // Write YAML string
+    //
+    out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+
+  } else {
+
+    int i, j;
+
+    out.write((char *)&lmax,  sizeof(int));
+    out.write((char *)&nmax,  sizeof(int));
+    out.write((char *)&numr,  sizeof(int));
+    out.write((char *)&cmap,  sizeof(int));
+    out.write((char *)&rmin,  sizeof(double));
+    out.write((char *)&rmax,  sizeof(double));
+    out.write((char *)&scale, sizeof(double));
+  }
+    
   for (int l=0; l<=lmax; l++) {
 
     out.write((char *)&table[l].l, sizeof(int));
@@ -2734,6 +2857,55 @@ void SLGridSph::mpi_unpack_table(void)
 		  MPI_DOUBLE, MPI_COMM_WORLD);
 }
 
+
+YAML::Node SLGridSph::getHeader(const std::string& cachefile)
+{
+  YAML::Node node;
+
+  std::ifstream in(cachefile);
+  if (!in) {
+    std::ostringstream sout;
+    sout << "SLGridSph::getHeader: could not open cache file <" << cachefile << ">";
+    std::runtime_error(sout.str());
+  }
+
+  // Attempt to read magic number
+  //
+  unsigned int tmagic;
+  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+  if (tmagic == hmagic) {
+
+    // YAML size
+    //
+    unsigned ssize;
+    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+    // Make and read char buffer
+    //
+    auto buf = std::make_unique<char[]>(ssize+1);
+    in.read(buf.get(), ssize);
+    buf[ssize] = 0;		// Null terminate
+    
+    try {
+      node = YAML::Load(buf.get());
+    }
+    catch (YAML::Exception& error) {
+      if (myid==0)
+	std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		  << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		  << "YAML error: " << error.what() << std::endl;
+      throw error;
+    }
+  } else {
+    std::ostringstream sout;
+    sout << "SLGridSph::getHeader: invalid cache file <" << cachefile << ">";
+    std::runtime_error(sout.str());
+  }
+
+  return node;
+}
+    
 
 //======================================================================
 //======================================================================

@@ -212,6 +212,12 @@ namespace Basis
     //! Destructor
     virtual ~SphericalSL(void) {}
     
+    //! Print the cache parameters
+    void cacheInfo(const std::string& cachefile)
+    {
+      if (sl) sl->cacheInfo(cachefile);
+    }
+
     //! Prescaling factor
     void set_scale(const double scl) { rscl = scl; }
     
@@ -310,6 +316,12 @@ namespace Basis
     //! Destructor
     virtual ~Cylindrical(void) {}
     
+    //! Print the cache parameters
+    void cacheInfo(const std::string& cachefile)
+    {
+      if (sl) sl->cacheInfo(cachefile);
+    }
+
     //! Prescaling factor
     void set_scale(const double scl) { rscl = scl; }
     

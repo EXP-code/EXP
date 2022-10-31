@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 
-file = open('imagePickle', 'rb')
+file = open(sys.argv[1], 'rb')
 db = pickle.load(file)
 file.close()
 
