@@ -1788,13 +1788,14 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
 
   for (int ir=0; ir<nmax; ir++) {
     for (int l=0, L=0, offset=0; l<=Lmax; l++) {
+      double fac1 = (2.0*l+1.0)/(4.0*M_PI);
       for (int m=0; m<=l; m++, L++) {
-	double re, im=0.0;
+	double fac2 = sqrt(fac1*factorial(l, m));
 	if (m==0) {
-	  cur->coefs(L, ir) = {(*expcoef[offset])[ir], 0.0};
+	  cur->coefs(L, ir) = {fac2*(*expcoef[offset])[ir], 0.0};
 	  offset += 1;
 	} else {
-	  cur->coefs(L, ir) = {(*expcoef[offset])[ir], (*expcoef[offset+1])[ir]};
+	  cur->coefs(L, ir) = {fac2*(*expcoef[offset])[ir], fac2*(*expcoef[offset+1])[ir]};
 	  offset += 2;
 	}
       }
