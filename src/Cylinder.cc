@@ -96,6 +96,7 @@ const std::set<std::string> valid_keys = {
   "cmap",
   "cmapr",
   "cmapz",
+  "vflag",
   "self_consistent",
   "playback",
   "coefCompute",
@@ -443,6 +444,7 @@ void Cylinder::initialize()
     if (conf["cmap"      ])      cmapR  = conf["cmap"      ].as<int>();
     if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
     if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
+    if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
     if (conf["self_consistent"])
       self_consistent = conf["self_consistent"].as<bool>();

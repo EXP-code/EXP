@@ -221,8 +221,9 @@ public:
 		  const std::string sourcefilename, int sourcelinenumber)
     : EXPException(sourcefilename, sourcelinenumber)
   {
-    exceptionname = classname + " unmatched " + type + " configuration keys";
+    exceptionname = classname + " unmatched " + type + " configuration keys <";
     for (auto s : keys) errormessage += " " + s;
+    errormessage += ">";
 
     msg_ = getErrorMessage();
   }
