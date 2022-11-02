@@ -44,6 +44,8 @@
 #include "RedSVD.H"
 #include "config.h"
 #include "YamlConfig.H"
+#include "YamlCheck.H"
+#include "EXPException.H"
 #include "libvars.H"
 
 #include "TransformFFT.H"
@@ -1186,6 +1188,15 @@ namespace MSSA {
     return coefDB.endUpdate();
   }
   
+  const std::set<std::string>
+  expMSSA::valid_keys = {
+    "verbose",
+    "flip",
+    "power",
+    "evtol",
+    "output"
+  };      
+
   void expMSSA::assignParameters(const std::string flags)
   {
     // Parse the parameters database
@@ -1196,6 +1207,12 @@ namespace MSSA {
       //
       params = YAML::Load(flags);
       
+      // Check for unmatched keys
+      //
+      auto unmatched = YamlCheck(params, valid_keys);
+      if (unmatched.size())
+	throw YamlConfigError("MSSA::expMSSA", "parameter", unmatched, __FILE__, __LINE__);
+
       // Compute flags
       //
       computed      = false;

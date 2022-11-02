@@ -3,6 +3,9 @@
 
 #include <memory>
 #include <random>
+#include <vector>
+#include <string>
+#include <set>
 
 #include <AxisymmetricBasis.H>
 #include <Coefficients.H>
@@ -301,6 +304,9 @@ protected:
 
   //! Coefficient container instance for writing HDF5
   Coefs::SphCoefs sphCoefs;
+
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
 
 public:
 

@@ -61,6 +61,9 @@ protected:
   //! Parse parameters and initialize on first call
   void initialize(void);
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   //! Id string

@@ -1,5 +1,8 @@
 #include <mpi.h>
 #include <SatFix.H>
+#include <YamlCheck.H>
+#include <EXPException.H>
+
 
 SatFix::SatFix(const YAML::Node& conf) : ExternalForce(conf)
 {
@@ -54,8 +57,23 @@ void SatFix::userinfo()
   print_divider();
 }
 
+const std::set<std::string>
+SatFix::valid_keys = {
+  "compname",
+  "verbose",
+  "debug"
+};
+
 void SatFix::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("SatFix", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["compname"])       comp_name          = conf["compname"].as<string>();
     if (conf["verbose"])        verbose            = conf["verbose"].as<bool>();

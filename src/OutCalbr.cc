@@ -7,6 +7,13 @@
 #include <Timer.H>
 #include <OutCalbr.H>
 
+const std::set<std::string> OutCalbr::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub",
+  "N",
+  "name"
+};
 
 OutCalbr::OutCalbr(const YAML::Node& conf) : Output(conf)
 {
@@ -136,6 +143,14 @@ void OutCalbr::set_energies()
 
 void OutCalbr::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("OrbCoef", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["filename"])      filename = conf["filename"].as<std::string>();
     if (conf["nint"])          nint     = conf["nint"].as<int>();

@@ -12,6 +12,7 @@
 
 #include <Particle.H>
 #include <StringTok.H>
+#include <YamlCheck.H>
 
 #include "config.h"
 

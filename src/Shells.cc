@@ -1,5 +1,11 @@
 #include <Shells.H>
 
+const std::set<std::string> Shells::valid_keys = {
+  "nsample",
+  "nselect",
+  "self_consistent"
+};
+
 Shells::Shells(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   nsample         = -1;
@@ -46,6 +52,14 @@ Shells::~Shells()
 
 void Shells::initialize(void)
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("Shells", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["nsample"])         nsample         = conf["nsample"].as<int>();
     if (conf["nselect"])         nselect         = conf["nselect"].as<int>();

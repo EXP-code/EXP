@@ -5,6 +5,16 @@
 
 #include <Cube.H>
 
+const std::set<std::string> Cube::valid_keys = {
+  "nminx",
+  "nminy",
+  "nminz",
+  "nmaxx",
+  "nmaxy",
+  "nmaxz"
+};
+
+
 Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Cube";
@@ -32,6 +42,14 @@ Cube::~Cube(void)
 
 void Cube::initialize(void)
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("Cube", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["nminx"]) nminx = conf["nminx"].as<int>();
     if (conf["nminy"]) nminy = conf["nminy"].as<int>();

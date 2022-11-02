@@ -5,8 +5,9 @@ set(ROOT_SRC rtbis.cc rtsafe.cc brent.cc zbrent.cc mnbrak.cc zbrak.cc zbrac.cc)
 set(QUAD_SRC qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc
 Trapsum.cc Splsum.cc)
 set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc
-  rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc
-  stack.cc localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc)
+  rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc stack.cc
+  localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc
+  YamlCheck.cc)
 
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)

@@ -4,6 +4,8 @@
 
 #include "expand.H"
 
+#include <YamlCheck.H>
+#include <EXPException.H>
 #include <UserAtmos.H>
 
 
@@ -63,8 +65,25 @@ void UserAtmos::userinfo()
   print_divider();
 }
 
+const std::set<std::string>
+UserAtmos::valid_keys = {
+  "gx",
+  "gy",
+  "gz",
+  "compname"
+};
+
 void UserAtmos::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserAddMass", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign parameters from YAML config
+  //
   try {
     if (conf["gx"])             g[0]               = conf["gx"].as<double>();
     if (conf["gy"])             g[1]               = conf["gy"].as<double>();

@@ -9,6 +9,13 @@
 #include <AxisymmetricBasis.H>
 #include <OutPS.H>
 
+const std::set<std::string> OutPS::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub",
+  "timer"
+};
+
 OutPS::OutPS(const YAML::Node& conf) : Output(conf)
 {
   initialize();
@@ -16,6 +23,14 @@ OutPS::OutPS(const YAML::Node& conf) : Output(conf)
 
 void OutPS::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("OutPS", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
 				// Get file name
     if (Output::conf["filename"]) {

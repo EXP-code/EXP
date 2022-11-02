@@ -22,7 +22,7 @@ def main() -> int:
         help(sys.argv[0] + ": you need at least one coefficient file on the command line")
         return 1
 
-    plt.rcParams['figure.figsize'] = [12, 9]
+    plt.rcParams['figure.figsize'] = [14, 9]
     plt.rc('font', size=16)
 
     for n in range(1, len(sys.argv)):

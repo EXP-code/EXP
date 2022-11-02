@@ -53,6 +53,12 @@ char OutLog::lab_component[][20] = {
   "# used"
 };
 
+const std::set<std::string> OutLog::valid_keys = {
+  "filename",
+  "freq",
+  "nint",
+  "nintsub"
+};
 
 
 OutLog::OutLog(const YAML::Node& conf) : Output(conf)
@@ -67,6 +73,14 @@ OutLog::OutLog(const YAML::Node& conf) : Output(conf)
 
 void OutLog::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("OutLog", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
 				// Get file name
     if (Output::conf["filename"])

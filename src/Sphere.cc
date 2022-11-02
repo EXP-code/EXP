@@ -8,6 +8,19 @@
 #include <plummer.H>
 #include <interp.H>
 
+const std::set<std::string> Sphere::valid_keys = {
+  "rs",
+  "numr",
+  "nums",
+  "cmap",
+  "diverge",
+  "dfac",
+  "modelname",
+  "cachename",
+  "dtime",
+  "logr",
+  "plummer"
+};
 
 Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   SphericalBasis(c0, conf, m)
@@ -76,6 +89,14 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 
 void Sphere::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("Sphere", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["rs"])        rs         = conf["rs"].as<double>();
     if (conf["numr"])      numr       = conf["numr"].as<int>();

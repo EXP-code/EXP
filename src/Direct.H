@@ -37,6 +37,9 @@
 
 #include <utility>
 #include <memory>
+#include <vector>
+#include <string>
+#include <set>
 
 #include <AxisymmetricBasis.H>
 #include <GravKernel.H>
@@ -89,6 +92,9 @@ private:
 
   //! Separations smaller than this are assumed to be zero (same particle)
   const double rtol = 1.0e-16;
+
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
 
 public:
 

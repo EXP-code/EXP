@@ -101,6 +101,9 @@ private:
   bool   plummer;
   bool   logr;
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 				// Global parameters
   /** Constructor

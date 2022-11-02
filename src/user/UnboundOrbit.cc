@@ -44,6 +44,8 @@
 #include <hernquist.H>
 #include <model3d.H>
 #include <interp.H>
+#include <YamlCheck.H>
+#include <EXPException.H>
 
 #include <UnboundOrbit.H>
 
@@ -54,6 +56,28 @@ using namespace std;
 
 Eigen::Matrix3d
 return_euler_slater(double PHI, double THETA, double PSI, int BODY);
+
+const std::set<std::string>
+UnboundOrbit::valid_keys = {
+  "MODEL",
+  "DIVERGE",
+  "DIVEXPON",
+  "RCORE",
+  "E",
+  "Rperi",
+  "Redge",
+  "deltaR",
+  "RMODMIN",
+  "RMODMAX",
+  "VROT",
+  "rmin",
+  "rmax",
+  "PHIP",
+  "THETA",
+  "PSI",
+  "INFILE",
+  "orbfile"
+};
 
 // ===================================================================
 // Constructor
@@ -81,6 +105,13 @@ UnboundOrbit::UnboundOrbit(const YAML::Node& conf)
   double  PSI            = 54.05;
   string  INFILE         = "SLGridSph.model";
   bool    orbfile        = true;
+
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UnboundOrbit", "parameter", unmatched,
+			  __FILE__, __LINE__);
 
   // Configured parameters
   //

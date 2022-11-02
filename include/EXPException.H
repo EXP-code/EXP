@@ -209,4 +209,21 @@ public:
   }
 };
 
+//! Configuration error
+class YamlConfigError : public EXPException
+{ 
+public:
+  //! Constructor
+  YamlConfigError(const std::string classname, const std::string type,
+		  const std::vector<std::string> keys,
+		  const std::string sourcefilename, int sourcelinenumber)
+    : EXPException(sourcefilename, sourcelinenumber)
+  {
+    exceptionname = classname + " unmatched " + type + " configuration keys";
+    for (auto s : keys) errormessage += " " + s;
+
+    msg_ = getErrorMessage();
+  }
+};
+
 #endif

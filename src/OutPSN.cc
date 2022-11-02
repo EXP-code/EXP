@@ -10,6 +10,15 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSN.H>
 
+const std::set<std::string> OutPSN::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub",
+  "nbeg",
+  "real4",
+  "timer",
+};
+
 OutPSN::OutPSN(const YAML::Node& conf) : Output(conf)
 {
   initialize();
@@ -17,6 +26,14 @@ OutPSN::OutPSN(const YAML::Node& conf) : Output(conf)
 
 void OutPSN::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("OutPSN", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
 				// Get file name
     if (Output::conf["filename"])

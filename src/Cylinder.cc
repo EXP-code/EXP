@@ -54,6 +54,54 @@ double dcond(double R, double z, double phi, int M)
 }
 
 
+const std::set<std::string> valid_keys = {
+  "tktype",
+  "rcylmin",
+  "rcylmax",
+  "acyl",
+  "hcyl",
+  "hexp",
+  "snr",
+  "evcut",
+  "nmax",
+  "lmax",
+  "mmax",
+  "mlim",
+  "ncylnx",
+  "ncylny",
+  "ncylr",
+  "ncylorder",
+  "ncylodd",
+  "ncylrecomp",
+  "npca",
+  "npca0",
+  "nvtk",
+  "eof_file",
+  "override",
+  "samplesz",
+  "rnum",
+  "pnum",
+  "tnum",
+  "ashift",
+  "expcond",
+  "logr",
+  "pcavar",
+  "pcaeof",
+  "pcavtk",
+  "pcadiag",
+  "subsamp",
+  "try_cache",
+  "density",
+  "EVEN_M",
+  "cmap",
+  "cmapr",
+  "cmapz",
+  "self_consistent",
+  "playback",
+  "coefCompute",
+  "coefMaster"
+};
+
 Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   Basis(c0, conf)
 {
@@ -345,6 +393,14 @@ Cylinder::~Cylinder()
 
 void Cylinder::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("Cylinder", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     // These first two should not be user settable . . . but need them for now
     //

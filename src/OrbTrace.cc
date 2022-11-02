@@ -8,6 +8,21 @@
 
 #include <OrbTrace.H>
 
+const std::set<std::string> OrbTrace::valid_keys = {
+  "filename",
+  "norb",
+  "nbeg",
+  "nskip",
+  "nint",
+  "nintsub",
+  "orbitlist",
+  "use_acc",
+  "use_pot",
+  "use_lev",
+  "local",
+  "name"
+};
+
 OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
 {
   nint    = 1;
@@ -196,7 +211,15 @@ OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
 
 void OrbTrace::initialize()
 {
-  try{ 
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("OrbTrace", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
+  try { 
     // Get file name
     if (conf["filename"])    filename  = conf["filename"].as<std::string>();
     if (conf["norb"])        norb      = conf["norb"].as<int>();

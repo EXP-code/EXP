@@ -6,6 +6,8 @@
 #include <localmpi.H>
 #include <gaussQ.H>
 
+#include <YamlCheck.H>
+#include <EXPException.H>
 #include <UserTidalRad.H>
 
 
@@ -239,8 +241,32 @@ void UserTidalRad::userinfo()
   print_divider();
 }
 
+const std::set<std::string>
+UserTidalRad::valid_keys = {
+  "compname",
+  "rtrunc",
+  "rfactor",
+  "rtorig",
+  "pctile",
+  "pcnbin",
+  "boxcar",
+  "dtTrunc",
+  "dtScale",
+  "diag",
+  "debug"
+};
+
 void UserTidalRad::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserTidalRad", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign parameters from YAML config
+  //
   try {
     if (conf["compname"]) comp_name = conf["compname"].as<std::string>();
     if (conf["rtrunc"])   rtrunc    = conf["rtrunc"].  as<double>();

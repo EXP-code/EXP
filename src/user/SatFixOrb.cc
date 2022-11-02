@@ -1,6 +1,17 @@
 #include <mpi.h>
 #include <cassert>
 #include <SatFixOrb.H>
+#include <YamlCheck.H>
+#include <EXPException.H>
+
+const std::set<std::string>
+SatFixOrb::valid_keys = {
+  "compname",
+  "config",
+  "toffset",
+  "verbose",
+  "debug"
+};
 
 SatFixOrb::SatFixOrb(const YAML::Node& conf) : ExternalForce(conf)
 {
@@ -79,6 +90,15 @@ void SatFixOrb::userinfo()
 
 void SatFixOrb::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("SatFixOrb", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["compname"])       comp_nam           = conf["compname"].as<string>();
     if (conf["config"])         config             = conf["config"].as<string>();

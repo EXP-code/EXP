@@ -23,6 +23,7 @@
 #include <NoForce.H>
 #include <Orient.H>
 #include <pHOT.H>
+#include <YamlCheck.H>
 
 #include "expand.H"
 
@@ -32,11 +33,79 @@ bool less_loadb(const loadb_datum& one, const loadb_datum& two)
   return (one.top < two.top);
 }
 
+const std::set<std::string> Component::valid_keys_top =
+  {
+    "name",
+    "parameters",
+    "bodyfile",
+    "force"
+  };
+
+const std::set<std::string> Component::valid_keys_parm =
+  {
+    "name",
+    "parameters",
+    "bodyfile",
+    "force",
+    "EJ",
+    "nEJkeep",
+    "nEJwant",
+    "EJkinE",
+    "EJext",
+    "EJdiag",
+    "EJdryrun",
+    "EJx0",
+    "EJy0",
+    "EJz0",
+    "EJu0",
+    "EJv0",
+    "EJw0",
+    "EJdT",
+    "EJlinear",
+    "EJdamp",
+    "binary",
+    "adiabatic",
+    "ton",
+    "toff",
+    "twid",
+    "rtrunc",
+    "rcom",
+    "consp",
+    "tidal",
+    "comlog",
+    "bunch",
+    "timers",
+    "com_system",
+    "com",
+    "indexing",
+    "aindex",
+    "umagic",
+    "nlevel",
+    "keyPos",
+    "pBufSiz",
+    "blocking",
+    "buffered",
+    "noswitch",
+    "dtreset"
+  };
+
+const std::set<std::string> Component::valid_keys_force =
+  {
+    "id",
+    "parameters"
+  };
+
+
 // Constructor
 Component::Component(YAML::Node& CONF)
 {
   // Make a copy
   conf = CONF;
+
+  // Check for unmatched keys
+  auto unmatched = YamlCheck(conf, valid_keys_top);
+  if (unmatched.size())
+    throw YamlConfigError("Component", "top-level", unmatched, __FILE__, __LINE__);
 
   try {
     name = conf["name"].as<std::string>();
@@ -91,6 +160,11 @@ Component::Component(YAML::Node& CONF)
     MPI_Finalize();
     exit(-3);
   }
+
+  // Check for unmatched keys
+  unmatched = YamlCheck(force, valid_keys_force);
+  if (unmatched.size())
+    throw YamlConfigError("Component", "force", unmatched, __FILE__, __LINE__);
 
   id = force["id"].as<std::string>();
 
@@ -726,6 +800,11 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 
 void Component::configure(void)
 {
+  // Check for unmatched keys
+  auto unmatched = YamlCheck(cconf, valid_keys_parm);
+  if (unmatched.size())
+    throw YamlConfigError("Component", "parameter", unmatched, __FILE__, __LINE__);
+
   // Load parameters from YAML configuration node
   try {
     if (cconf["com"     ])  com_system = cconf["com"     ].as<bool>();

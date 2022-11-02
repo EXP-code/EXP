@@ -3,6 +3,8 @@
 
 #include <memory>
 #include <vector>
+#include <string>
+#include <set>
 
 #include <AxisymmetricBasis.H>
 #include <CoefContainer.H>
@@ -75,6 +77,9 @@ private:
 
   //! Coefficient container instance for writing HDF5
   Coefs::CylCoefs cylCoefs;
+
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
 
 public:
 

@@ -14,6 +14,15 @@
 #include <OutCHKPTQ.H>
 
 
+const std::set<std::string> OutCHKPTQ::valid_keys = {
+  "mpio",
+  "filename",
+  "nint",
+  "nintsub",
+  "timer",
+};
+
+
 OutCHKPTQ::OutCHKPTQ(const YAML::Node& conf) : Output(conf)
 {
   initialize();
@@ -21,8 +30,15 @@ OutCHKPTQ::OutCHKPTQ(const YAML::Node& conf) : Output(conf)
 
 void OutCHKPTQ::initialize()
 {
-  try {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("OutCHKPTQ", "parameter", unmatched, __FILE__, __LINE__);
 
+  // Assign values from YAML
+  //
+  try {
     if (Output::conf["mpio"])
       mpio = Output::conf["mpio"].as<bool>();
     else

@@ -8,6 +8,17 @@
 #include <AxisymmetricBasis.H>
 #include <OutDiag.H>
 
+const std::set<std::string> OutDiag::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub",
+  "RMIN",
+  "RMAX",
+  "THETA",
+  "PHI",
+  "NUM"
+};
+
 OutDiag::OutDiag(const YAML::Node& conf) : Output(conf)
 {
   if (myid) return;
@@ -37,6 +48,14 @@ OutDiag::OutDiag(const YAML::Node& conf) : Output(conf)
 
 void OutDiag::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("OutDiag", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
 				// Get file name
     if (Output::conf["filename"])

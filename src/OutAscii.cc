@@ -11,6 +11,15 @@ using namespace std;
 #include <AxisymmetricBasis.H>
 #include <OutAscii.H>
 
+const std::set<std::string> OutAscii::valid_keys = {
+  "nint",
+  "nintsub",
+  "nbeg",
+  "name",
+  "accel",
+  "filename"
+};
+
 OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
 {
   nint = 100;
@@ -45,6 +54,14 @@ OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
 
 void OutAscii::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("OrbAscii", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (Output::conf["nint"])    nint     = Output::conf["nint"].as<int>();
 #ifdef ALLOW_NINTSUB

@@ -69,6 +69,9 @@ private:
   //! Counts steps at each level for timing output
   vector<unsigned> levcnt;
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   //! Performance timers (enabled with VERBOSE>3)

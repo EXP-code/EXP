@@ -1,3 +1,5 @@
+#include <YamlCheck.H>
+#include <EXPException.H>
 #include <BasisFactory.H>
 
 namespace Basis
@@ -74,6 +76,25 @@ namespace Basis
     
   }
   
+  const std::set<std::string>
+  SphericalSL::valid_keys = {
+    "cmap",
+    "Lmax",
+    "nmax",
+    "modelname",
+    "scale",
+    "rmin",
+    "rmax",
+    "numr",
+    "N1",
+    "N2",
+    "NO_L0",
+    "NO_L1",
+    "EVEN_L",
+    "EVEN_M",
+    "M0_ONLY"
+  };
+
   SphericalSL::SphericalSL(const YAML::Node& CONF) : Basis(CONF)
   {
     initialize();
@@ -94,6 +115,14 @@ namespace Basis
     nmax       = 18;
     model_file = "SLGridSph.model";
     
+    // Check for unmatched keys
+    //
+    auto unmatched = YamlCheck(conf, valid_keys);
+    if (unmatched.size())
+      throw YamlConfigError("Basis::Basis::SphericalSL", "parameter", unmatched, __FILE__, __LINE__);
+    
+    // Assign values from YAML
+    //
     try {
       if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
       if (conf["Lmax"])      lmax       = conf["Lmax"].as<int>();
@@ -596,6 +625,35 @@ namespace Basis
     
   }
   
+  const std::set<std::string>
+  Cylindrical::valid_keys = {
+    "rcylmin",
+    "rcylmax",
+    "acyl",
+    "hcyl",
+    "hexp",
+    "lmax",
+    "nmax",
+    "mmax",
+    "mlim",
+    "ncylnx",
+    "ncylny",
+    "ncylr",
+    "ncylorder",
+    "ncylodd",
+    "eof_file",
+    "override",
+    "rnum",
+    "pnum",
+    "tnum",
+    "ashift",
+    "logr",
+    "try_cache",
+    "density",
+    "EVEN_M",
+    "cmapr",
+    "cmapz"
+  };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) : Basis(CONF)
   {
@@ -637,6 +695,14 @@ namespace Basis
     cmapR       = 1;
     cmapZ       = 1;
     
+    // Check for unmatched keys
+    //
+    auto unmatched = YamlCheck(conf, valid_keys);
+    if (unmatched.size())
+      throw YamlConfigError("Basis::Basis::Cylindrical", "parameter", unmatched, __FILE__, __LINE__);
+    
+    // Assign values from YAML
+    //
     try {
       // These first two should not be user settable . . . but need them for now
       //

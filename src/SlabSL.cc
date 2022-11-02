@@ -6,6 +6,16 @@
 
 #include <SlabSL.H>
 
+const std::set<std::string> SlabSL::valid_keys = {
+  "nmaxx",
+  "nmaxy",
+  "nmaxz",
+  "nminx",
+  "nminy",
+  "hslab",
+  "zmax"
+};
+
 SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Slab (Sturm-Liouville)";
@@ -54,6 +64,14 @@ SlabSL::~SlabSL()
 
 void SlabSL::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("SlabSL", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["nmaxx"])          nmaxx       = conf["nmaxx"].as<int>();
     if (conf["nmaxy"])          nmaxy       = conf["nmaxy"].as<int>();

@@ -20,6 +20,9 @@ private:
   void parse_args(void);	// Set parameters from parmFile
   void set_parm(string& word, string& alu);
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   //! Constructor

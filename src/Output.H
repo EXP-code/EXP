@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <set>
+
 #include <StringTok.H>
 #include <Timer.H>
 

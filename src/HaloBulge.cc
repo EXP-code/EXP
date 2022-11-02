@@ -22,6 +22,21 @@ using namespace std;
 
 #include <HaloBulge.H>
 
+const std::set<std::string> HaloBulge::valid_keys = {
+  "HMODEL",
+  "INFILE",
+  "MHALO",
+  "RHALO",
+  "RMODMIN",
+  "RMOD",
+  "RBCORE",
+  "MBULGE",
+  "RBULGE",
+  "RBMODMIN",
+  "RBMOD"
+};
+
+
 HaloBulge::HaloBulge(const YAML::Node& conf) : ExternalForce(conf)
 {
 				// Defaults
@@ -107,6 +122,14 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
 
 void HaloBulge::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("HaloBulge", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["HMODEL"])     HMODEL   = conf["HMODEL"].as<int>();
     if (conf["INFILE"])     INFILE   = conf["INFILE"].as<std::string>();

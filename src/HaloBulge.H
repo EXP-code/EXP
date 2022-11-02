@@ -1,6 +1,10 @@
 #ifndef _HaloBulge_H
 #define _HaloBulge_H
 
+#include <string>
+#include <vector>
+#include <set>
+
 #include <ExternalForce.H>
 
 //! Compute halo + bulge external force
@@ -36,6 +40,9 @@ private:
   AxiSymModPtr model, bmodel;
 
   void * determine_acceleration_and_potential_thread(void * arg);
+
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
 
 public:
 

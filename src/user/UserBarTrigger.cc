@@ -4,8 +4,20 @@
 
 #include "expand.H"
 
+#include <YamlCheck.H>
+#include <EXPException.H>
 #include <UserBarTrigger.H>
 
+const std::set<std::string>
+UserBarTrigger::valid_keys = {
+  "impact",
+  "theta",
+  "smass",
+  "svel",
+  "stime",
+  "lmax",
+  "ctrname"
+};
 
 UserBarTrigger::UserBarTrigger(const YAML::Node& conf) : ExternalForce(conf)
 {
@@ -134,6 +146,15 @@ void UserBarTrigger::userinfo()
 
 void UserBarTrigger::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserBarTrigger", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign parameters from YAML config
+  //
   try {
     if (conf["impact"])   impact       = conf["impact"].as<double>();
     if (conf["theta"])    theta        = conf["theta"].as<double>();

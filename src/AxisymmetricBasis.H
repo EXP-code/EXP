@@ -181,6 +181,9 @@ public:
   //! Set tk_type from string
   TKType setTK(const std::string& tk);
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 private:
 
   int    Ldim, L0;

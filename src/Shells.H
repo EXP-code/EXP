@@ -2,6 +2,10 @@
 #ifndef _Shells_H
 #define _Shells_H
 
+#include <vector>
+#include <string>
+#include <set>
+
 #include "expand.H"
 #include "interp.H"
 
@@ -49,6 +53,9 @@ private:
 
   void * determine_coefficients_thread(void * arg);
   void * determine_acceleration_and_potential_thread(void * arg);
+
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
 
 public:
 

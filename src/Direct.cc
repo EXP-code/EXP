@@ -7,6 +7,19 @@ static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 static const int MSGTAG=103;
 
+const std::set<std::string> Direct::valid_keys = {
+  "soft_indx",
+  "soft",
+  "type",
+  "mn_model",
+  "a",
+  "b",
+  "pm_model",
+  "diverge",
+  "diverge_rfac",
+  "pmmodel_file"
+};
+
 Direct::Direct(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   // Standard softening
@@ -50,6 +63,14 @@ Direct::~Direct()
 
 void Direct::initialize(void)
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("Direct", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["soft_indx"]) {
       soft_indx = conf["soft_indx"].as<int>();

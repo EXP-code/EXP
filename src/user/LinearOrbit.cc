@@ -40,6 +40,8 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <YamlCheck.H>
+#include <EXPException.H>
 #include <orbit.H>
 #include <LinearOrbit.H>
 
@@ -51,9 +53,22 @@ using namespace std;
 Eigen::Matrix3d
 return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
+const std::set<std::string>
+LinearOrbit::valid_keys = {
+  "X0",
+  "Y0",
+  "Z0",
+  "Vsat",
+  "THETA",
+  "PSI",
+  "PHIP"
+};
+
+
 // ===================================================================
 // Constructor
 // ===================================================================
+
 
 LinearOrbit::LinearOrbit(const YAML::Node& conf)
 {
@@ -70,6 +85,15 @@ LinearOrbit::LinearOrbit(const YAML::Node& conf)
   double THETA = 0.0;
   double PSI   = 0.0;
 
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("LinearOrbit", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["X0"])      X0      = conf["X0"   ].as<double>();
     if (conf["Y0"])      Y0      = conf["Y0"   ].as<double>();

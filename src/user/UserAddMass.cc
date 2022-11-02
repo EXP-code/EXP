@@ -5,7 +5,8 @@
 
 #include "expand.H"
 #include <localmpi.H>
-
+#include <YamlCheck.H>
+#include <EXPException.H>
 #include <UserAddMass.H>
 
 // For parsing parameters: Algorithm type
@@ -54,6 +55,33 @@ double xnorm(const std::array<double, 3>& a)
 {
   return sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
 }
+
+const std::set<std::string>
+UserAddMass::valid_keys = {
+  "complist",
+  "compname",
+  "rmin",
+  "rmax",
+  "mass",
+  "numr",
+  "interp",
+  "planar",
+  "accel",
+  "logr",
+  "seed",
+  "number",
+  "tstart",
+  "scale",
+  "debug",
+  "maxtry",
+  "Rd",
+  "Zd",
+  "vdispersion",
+  "dt",
+  "vdispersion",
+  "algorithm",
+  "vdispFile"
+};
 
 UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
 {
@@ -343,6 +371,15 @@ void UserAddMass::userinfo()
 
 void UserAddMass::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserAddMass", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["complist"]) {     // Check for optional force components
       comp_list = conf["complist"].as<std::vector<std::string>>();

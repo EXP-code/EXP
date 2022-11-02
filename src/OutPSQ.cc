@@ -10,6 +10,16 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSQ.H>
 
+const std::set<std::string> OutPSQ::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub",
+  "nbeg",
+  "real4",
+  "timer",
+  "threads"
+};
+
 OutPSQ::OutPSQ(const YAML::Node& conf) : Output(conf)
 {
   initialize();
@@ -17,6 +27,14 @@ OutPSQ::OutPSQ(const YAML::Node& conf) : Output(conf)
 
 void OutPSQ::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("OutPSQ", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
 				// Get file name
     if (Output::conf["filename"])

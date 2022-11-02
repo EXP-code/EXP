@@ -3,6 +3,9 @@
 #include <filesystem>
 #include <sstream>
 #include <chrono>
+#include <string>
+#include <vector>
+#include <set>
 
 #include <SphericalBasis.H>
 #include <MixtureBasis.H>
@@ -21,6 +24,26 @@ static pthread_mutex_t io_lock;
 #endif
 
 bool SphericalBasis::NewCoefs = true;
+
+const std::set<std::string> SphericalBasis::valid_keys = {
+  "scale",
+  "rmin",
+  "rmax",
+  "self_consistent",
+  "NO_L0",
+  "NO_L1",
+  "EVEN_L",
+  "EVEN_M",
+  "M0_ONLY",
+  "NOISE",
+  "noiseN",
+  "noise_model_file",
+  "seedN",
+  "ssfrac",
+  "playback",
+  "coefCompute",
+  "coefMaster"
+};
 
 SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) : 
   AxisymmetricBasis(c0, conf)
@@ -57,6 +80,14 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
   cuda_aware       = true;
 #endif
 
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("SphericalBasis", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["scale"]) 
       scale = conf["scale"].as<double>();

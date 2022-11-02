@@ -10,6 +10,17 @@
 #include <MixtureBasis.H>
 #include <CBrockDisk.H>
 
+const std::set<std::string> CBrockDisk::valid_keys = {
+  "rmax",
+  "scale",
+  "Lmax",
+  "nmax",
+  "self_consistent",
+  "playback",
+  "coefCompute",
+  "coefMaster"
+};
+
 CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :  AxisymmetricBasis(c0, conf)
 {
   id              = "Clutton-Brock two-dimensional disk";
@@ -90,6 +101,11 @@ CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 
 void CBrockDisk::initialize(void)
 {
+  // Check for unmatched keys
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("CBrockDisk", "parameter", unmatched, __FILE__, __LINE__);
+
   try {
     if (conf["rmax"])            rmax   = conf["rmax"].as<double>();
     if (conf["scale"])           scale  = conf["scale"].as<double>();

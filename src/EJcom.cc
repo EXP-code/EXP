@@ -4,6 +4,12 @@
 
 #include <EJcom.H>
 
+const std::set<std::string>
+EJcom::valid_keys = {
+  "cfac",
+  "alpha"
+};
+
 EJcom::EJcom(Component* c0, const YAML::Node& conf) : TwoCenter(c0, conf)
 {
   id = "EJcom";
@@ -20,8 +26,14 @@ EJcom::EJcom(Component* c0, const YAML::Node& conf) : TwoCenter(c0, conf)
 
 void EJcom::initialize()
 {
-  string val;
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("TwoCenter", "parameter", unmatched, __FILE__, __LINE__);
 
+  // Assign values from YAML
+  //
   if (conf["cfac"])  cfac  = conf["cfac"].as<double>();
   if (conf["alpha"]) alpha = conf["alpha"].as<double>();
 }

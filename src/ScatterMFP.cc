@@ -16,6 +16,14 @@ bool less_rpair(const rpair& one, const rpair& two)
   return (one.first < two.first);
 }
 
+const std::set<std::string>
+ScatterMFP::valid_keys =  {
+  "tautab",
+  "tauscat",
+  "rmax",
+  "nscat",
+  "mfp_index"
+};
 
 ScatterMFP::ScatterMFP(const YAML::Node& conf) : ExternalForce(conf)
 {
@@ -74,6 +82,14 @@ ScatterMFP::~ScatterMFP()
 
 void ScatterMFP::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("ScatterMFP", "parameter", unmatched, __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["tautab"])         tautab        = conf["tautab"].as<int>();
     if (conf["tauscat"])        tauscat       = conf["tauscat"].as<double>();

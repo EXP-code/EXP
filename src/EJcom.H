@@ -38,6 +38,9 @@ private:
   //! Initialize the force
   void initialize();
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 				// Global parameters
   /** Constructor

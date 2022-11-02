@@ -26,6 +26,9 @@ private:
   void check_body(int);
   void print_body(int, string&);
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   //! Constructor

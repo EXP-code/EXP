@@ -8,6 +8,7 @@
 #include <ParticleReader.H>
 #include <Coefficients.H>
 #include <SLGridMP2.H>
+#include <YamlCheck.H>
 #include <EmpCylSL.H>
 #include <localmpi.H>
 
@@ -204,6 +205,9 @@ namespace Basis
     //! Set coefficients
     virtual void set_coefs(Coefs::CoefStrPtr coefs);
 
+    //! Valid keys for YAML configurations
+    static const std::set<std::string> valid_keys;
+
   public:
     
     //! Constructor from YAML node
@@ -307,6 +311,9 @@ namespace Basis
 
     //! Set coefficients
     virtual void set_coefs(Coefs::CoefStrPtr coefs);
+
+    //! Valid keys for YAML configurations
+    static const std::set<std::string> valid_keys;
 
   public:
     
