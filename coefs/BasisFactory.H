@@ -131,6 +131,9 @@ namespace Basis
     //! Provide a set of coefficients using a CoefStruct
     virtual void set_coefs(Coefs::CoefStrPtr coefs) = 0;
 
+    //! Print the cache parameters
+    virtual void cacheInfo(const std::string& cachefile) = 0;
+
     //@{
     //! The coefficient factory.  Creates a shared pointer to derived
     //! instance of the desired type and returns it.
