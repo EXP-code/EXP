@@ -101,11 +101,9 @@ CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 
 void CBrockDisk::initialize(void)
 {
-  // Check for unmatched keys
-  auto unmatched = YamlCheck(conf, valid_keys);
-  if (unmatched.size())
-    throw YamlConfigError("CBrockDisk", "parameter", unmatched, __FILE__, __LINE__);
-
+  // Remove matched keys
+  for (auto v : valid_keys) current_keys.erase(v);
+  
   try {
     if (conf["rmax"])            rmax   = conf["rmax"].as<double>();
     if (conf["scale"])           scale  = conf["scale"].as<double>();

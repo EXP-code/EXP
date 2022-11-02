@@ -1,6 +1,8 @@
 #ifndef EXPException_H
 #define EXPException_H
 
+#include <set>
+#include <vector>
 #include <string>
 #include <sstream>
 
@@ -215,7 +217,7 @@ class YamlConfigError : public EXPException
 public:
   //! Constructor
   YamlConfigError(const std::string classname, const std::string type,
-		  const std::vector<std::string> keys,
+		  const std::set<std::string> keys,
 		  const std::string sourcefilename, int sourcelinenumber)
     : EXPException(sourcefilename, sourcelinenumber)
   {

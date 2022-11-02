@@ -393,12 +393,9 @@ Cylinder::~Cylinder()
 
 void Cylinder::initialize()
 {
-  // Check for unmatched keys
-  //
-  auto unmatched = YamlCheck(conf, valid_keys);
-  if (unmatched.size())
-    throw YamlConfigError("Cylinder", "parameter", unmatched, __FILE__, __LINE__);
-
+  // Remove matched keys
+  for (auto v : valid_keys) current_keys.erase(v);
+  
   // Assign values from YAML
   //
   try {

@@ -90,6 +90,9 @@ protected:
   //! and CPU at significant expanse
   bool cuda_aware;
 
+  //! Current YAML keys to check configuration
+  std::set<std::string> current_keys;
+
 public:
 
   //! For timing data
@@ -228,6 +231,9 @@ public:
 
   //! Cuda aware
   bool cudaAware() { return cuda_aware; }
+
+  //! Get unaccounted keys
+  std::set<std::string> unmatched() { return current_keys; }
 
 };
 

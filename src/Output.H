@@ -62,6 +62,9 @@ protected:
 			   << std::endl;
   }
 
+  //! Current YAML keys to check configuration
+  std::set<std::string> current_keys;
+
 public:
 
   //! Id string
@@ -79,6 +82,8 @@ public:
   //! Error
   void bomb(const string& msg);
   
+  //! Return unmatched parameters
+  std::set<std::string> unmatched() { return current_keys; }
 };
 
 #endif

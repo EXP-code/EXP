@@ -42,12 +42,9 @@ OutCoef::OutCoef(const YAML::Node& conf) : Output(conf)
 
 void OutCoef::initialize()
 {
-  // Check for unmatched keys
-  //
-  auto unmatched = YamlCheck(conf, valid_keys);
-  if (unmatched.size())
-    throw YamlConfigError("OutCoef", "parameter", unmatched, __FILE__, __LINE__);
-
+  // Remove matched keys
+  for (auto v : valid_keys) current_keys.erase(v);
+  
   // Assign values from YAML
   //
   try {

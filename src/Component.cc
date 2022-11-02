@@ -75,14 +75,13 @@ const std::set<std::string> Component::valid_keys_parm =
     "comlog",
     "bunch",
     "timers",
-    "com_system",
     "com",
     "indexing",
     "aindex",
-    "umagic",
+    "magic",
     "nlevel",
-    "keyPos",
-    "pBufSiz",
+    "keypos",
+    "pbufsiz",
     "blocking",
     "buffered",
     "noswitch",
@@ -252,7 +251,7 @@ Component::Component(YAML::Node& CONF)
   noswitch    = true;		// Allow multistep switching at master step only
   dtreset     = true;		// Select time step from criteria over last step
 
-  set_default_values();
+  // set_default_values();
 
   mdt_ctr = std::vector< std::vector<unsigned> > (multistep+1);
   for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = std::vector<unsigned>(mdtDim, 0);
@@ -346,14 +345,13 @@ void Component::set_default_values()
   if (!cconf["bunch"])           cconf["bunch"]       = bunchSize;
 #endif
   if (!cconf["timers"])          cconf["timers"]      = timers;
-  if (!cconf["com_system"])      cconf["com_system"]  = com_system;
   if (!cconf["com"])             cconf["com"]         = com_system;
   if (!cconf["indexing"])        cconf["indexing"]    = indexing;
   if (!cconf["aindex"])          cconf["aindex"]      = aindex;
-  if (!cconf["umagic"])          cconf["umagic"]      = umagic;
+  if (!cconf["magic"])           cconf["magic"]       = umagic;
   if (!cconf["nlevel"])          cconf["nlevel"]      = nlevel;
-  if (!cconf["keyPos"])          cconf["keyPos"]      = keyPos;
-  if (!cconf["pBufSiz"])         cconf["pBufSiz"]     = pBufSiz;
+  if (!cconf["keypos"])          cconf["keypos"]      = keyPos;
+  if (!cconf["pbufsiz"])         cconf["pbufsiz"]     = pBufSiz;
   if (!cconf["blocking"])        cconf["blocking"]    = blocking;
   if (!cconf["buffered"])        cconf["buffered"]    = buffered;
   if (!cconf["noswitch"])        cconf["noswitch"]    = noswitch;
@@ -932,6 +930,12 @@ void Component::configure(void)
     string msg("I don't know about the force: ");
     msg += id;
     bomb(msg);
+  }
+
+  // Check YAML configuration for force
+  //
+  if (force->unmatched().size()) {
+    throw YamlConfigError("Component", id, force->unmatched(), __FILE__, __LINE__);
   }
 
   dim = force->dof;

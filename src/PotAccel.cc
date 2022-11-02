@@ -204,6 +204,12 @@ PotAccel::PotAccel(Component* c0, const YAML::Node& CONF) : conf(CONF)
   if (VERBOSE>5) {
     timer_list = vector<std::time_t>(2*nthrds);
   }
+
+  // Add keys
+  for (YAML::const_iterator it=conf.begin(); it!=conf.end(); ++it) {
+    current_keys.insert(it->first.as<std::string>());
+  }
+
 }
 
 PotAccel::~PotAccel(void)

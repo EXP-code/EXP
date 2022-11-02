@@ -1,7 +1,6 @@
 #ifndef _YAMLCHECK_H
 #define _YAMLCHECK_H
 
-#include <vector>
 #include <string>
 #include <set>
 
@@ -12,6 +11,6 @@
 
    Returns an std::vector of unmatched keys which is empty if all keys are matched
  */
-std::vector<std::string> YamlCheck(const YAML::Node& node, const std::set<std::string>& valid);
+std::set<std::string> YamlCheck(const YAML::Node& node, const std::set<std::string>& valid);
 
 #endif
