@@ -2,6 +2,25 @@
 
 int UserSat::instances = 0;
 
+const std::set<std::string>
+UserSat::valid_keys = {
+  "comname",
+  "config",
+  "core",
+  "mass",
+  "ton",
+  "toff",
+  "delta",
+  "toffset",
+  "orbit",
+  "shadow",
+  "verbose",
+  "r0",
+  "phase",
+  "omega",
+  "trajtype"
+};
+
 UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "UserSat";		// ID string
@@ -150,6 +169,15 @@ void UserSat::userinfo()
 
 void UserSat::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserSat", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["comname"]) {
       com_name = conf["comname"].as<std::string>();

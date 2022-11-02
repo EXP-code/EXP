@@ -134,8 +134,29 @@ void UserProfile::userinfo()
   print_divider();
 }
 
+const std::set<std::string>
+UserProfile::valid_keys = {
+  "filename",
+  "NUMR",
+  "RMIN",
+  "RMAX",
+  "DT",
+  "NTHETA",
+  "NPHI",
+  "LOGR"
+};
+
 void UserProfile::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserProfile", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign parameters from YAML config
+  //
   try {
 
     for (numComp=0; numComp<1000; numComp++) {

@@ -6,6 +6,14 @@
 
 #include <UserSlabHalo.H>
 
+const std::set<std::string>
+UserSlabHalo::valid_keys = {
+  "ctrname",
+  "h0",
+  "z0",
+  "rho0",
+  "v0"
+};
 
 UserSlabHalo::UserSlabHalo(const YAML::Node& conf) : ExternalForce(conf)
 {
@@ -75,6 +83,15 @@ void UserSlabHalo::userinfo()
 
 void UserSlabHalo::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserSlabHalo", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
     if (conf["h0"])             h0                 = conf["h0"].as<double>();

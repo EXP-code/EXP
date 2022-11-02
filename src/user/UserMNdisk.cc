@@ -5,6 +5,17 @@
 
 #include <UserMNdisk.H>
 
+const std::set<std::string>
+UserMNdisk::valid_keys = {
+  "ctrname",
+  "a",
+  "b",
+  "mass",
+  "Ton",
+  "Toff",
+  "DeltaT"
+};
+
 UserMNdisk::UserMNdisk(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "MiyamotoNagaiDiskPotential";
@@ -73,6 +84,15 @@ void UserMNdisk::userinfo()
 
 void UserMNdisk::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserMNdisk", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["ctrname"])   ctr_name    = conf["ctrname"].as<string>();
     if (conf["a"])         a           = conf["a"].as<double>();

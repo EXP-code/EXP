@@ -25,6 +25,22 @@ double UserSNheat::Tunit = sqrt(Lunit*Lunit*Lunit/(Munit*6.673e-08));
 double UserSNheat::Vunit = Lunit/Tunit;
 double UserSNheat::Eunit = Munit*Vunit*Vunit;
 
+const std::set<std::string>
+UserSNheat::valid_keys = {
+  "compname",    
+  "X",
+  "Y",
+  "Z",
+  "dT",
+  "dE",
+  "radius",
+  "delay",
+  "number",
+  "Lunit",
+  "Tunit",
+  "Munit"
+};
+
 UserSNheat::UserSNheat(const YAML::Node& conf) : ExternalForce(conf)
 {
 
@@ -210,6 +226,15 @@ void UserSNheat::userinfo()
 
 void UserSNheat::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserSNheat", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["compname"])       comp_name          = conf["compname"].as<string>();
     if (conf["verbose"])        verbose            = conf["verbose"].as<int>();

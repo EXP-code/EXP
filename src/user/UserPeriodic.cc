@@ -14,6 +14,23 @@ template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
+const std::set<std::string>
+UserPeriodic::valid_keys = {
+  "compname",
+  "sx",
+  "sy",
+  "sz",
+  "cx",
+  "cy",
+  "cz",
+  "dT",
+  "nbin",
+  "tcol",
+  "vunit",
+  "temp",
+  "btype"
+};
+
 UserPeriodic::UserPeriodic(const YAML::Node& conf) : ExternalForce(conf)
 {
   (*barrier)("Periodic: BEGIN construction", __FILE__, __LINE__);
@@ -128,6 +145,15 @@ void UserPeriodic::userinfo()
 
 void UserPeriodic::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserPeriodic", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["compname"])       comp_name          = conf["compname"].as<string>();
     

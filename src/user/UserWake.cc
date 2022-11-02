@@ -12,6 +12,21 @@
 
 using namespace std;
 
+const std::set<std::string>
+UserWake::valid_keys = {
+  "filename",
+  "NUMX",
+  "NUMY",
+  "XMIN",
+  "XMAX",
+  "YMIN",
+  "YMAX",
+  "PHI",
+  "THETA",
+  "PSI",
+  "NSTEP"
+};
+
 UserWake::UserWake(const YAML::Node& conf) : ExternalForce(conf)
 {
   first = true;
@@ -153,6 +168,15 @@ void UserWake::userinfo()
 
 void UserWake::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserWake", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     for (numComp=0; numComp<1000; numComp++) {
       ostringstream count;

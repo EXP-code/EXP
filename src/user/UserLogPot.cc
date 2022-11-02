@@ -5,6 +5,14 @@
 
 #include <UserLogPot.H>
 
+const std::set<std::string>
+UserLogPot::valid_keys = {
+  "R", 
+  "b",
+  "c",
+  "v2"
+};
+
 UserLogPot::UserLogPot(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "LogarithmicPotential";
@@ -33,6 +41,15 @@ void UserLogPot::userinfo()
 
 void UserLogPot::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserPeriodic", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["R"])      R     = conf["R"].as<double>();
     if (conf["b"])      b     = conf["b"].as<double>();

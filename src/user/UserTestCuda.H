@@ -16,6 +16,9 @@ private:
   void cuda_user_test(int myid, int id, double time, int count, int num);
 #endif
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   UserTestCuda(const YAML::Node& conf);

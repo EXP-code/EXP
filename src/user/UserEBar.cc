@@ -8,6 +8,87 @@
 static Timer timer_tot, timer_thrd;
 static bool timing = false;
 
+
+const std::set<std::string>
+UserEBar::valid_keys = {
+  "ctrname",
+  "angmname",
+  "tblname",
+  "length",
+  "bratio",
+  "cratio",
+  "amp",
+  "angmomfac",
+  "barmass",
+  "Ton",
+  "Toff",
+  "TmonoOn",
+  "TmonoOff",
+  "DeltaT",
+  "DeltaMonoT",
+  "DOmega",
+  "dtom",
+  "T0",
+  "Fcorot",
+  "omega",
+  "fixed",
+  "self",
+  "oscil",
+  "Ofreq",
+  "Oamp",
+  "alpha",
+  "x0",
+  "y0",
+  "z0",
+  "u0",
+  "v0",
+  "w0",
+  "monopole",
+  "follow",
+  "onoff",
+  "monofrac",
+  "quadfrac",
+  "filename",
+  "ctrname",
+  "angmname",
+  "tblname",
+  "length",
+  "bratio",
+  "cratio",
+  "amp",
+  "angmomfac",
+  "barmass",
+  "Ton",
+  "Toff",
+  "TmonoOn",
+  "TmonoOff",
+  "DeltaT",
+  "DeltaMonoT",
+  "DOmega",
+  "dtom",
+  "T0",
+  "Fcorot",
+  "omega",
+  "fixed",
+  "self",
+  "oscil",
+  "Ofreq",
+  "Oamp",
+  "alpha",
+  "x0",
+  "y0",
+  "z0",
+  "u0",
+  "v0",
+  "w0",
+  "monopole",
+  "follow",
+  "onoff",
+  "monofrac",
+  "quadfrac",
+  "filename"
+};
+
 UserEBar::UserEBar(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "RotatingBarWithMonopole";
@@ -242,6 +323,15 @@ void UserEBar::userinfo()
 
 void UserEBar::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserEbar", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
     if (conf["angmname"])       angm_name          = conf["angmname"].as<string>();

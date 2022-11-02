@@ -50,6 +50,9 @@ private:
 
   enum TrajType {circ, bound, unbound, linear} traj_type;
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
   
   //! For debugging . . .

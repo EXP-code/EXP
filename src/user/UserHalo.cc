@@ -6,6 +6,16 @@
 #include <massmodel.H>
 #include <UserHalo.H>
 
+const std::set<std::string>
+UserHalo::valid_keys = {
+  "model_file",
+  "q1",
+  "q2",
+  "q3",
+  "diverge",
+  "diverge_rfac",
+  "comp_name"
+};  
 
 UserHalo::UserHalo(const YAML::Node& conf) : ExternalForce(conf)
 {
@@ -77,6 +87,15 @@ void UserHalo::userinfo()
 
 void UserHalo::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserHalo", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["model_file"])     model_file         = conf["model_file"].as<string>();
     if (conf["q1"])             q1                 = conf["q1"].as<double>();

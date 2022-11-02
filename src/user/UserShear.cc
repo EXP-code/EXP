@@ -65,8 +65,25 @@ void UserShear::userinfo()
   print_divider();
 }
 
+const std::set<std::string>
+UserShear::valid_keys = {
+  "radius",
+  "velocity",
+  "offset",
+  "ctrname"
+};
+
 void UserShear::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserShear", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["radius"])    r0           = conf["radius"].as<double>();
     if (conf["velocity"])  s0           = conf["velocity"].as<double>();

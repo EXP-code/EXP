@@ -238,9 +238,73 @@ void UserSatWake::userinfo()
   print_divider();
 }
 
+const std::set<std::string>
+UserSatWake::valid_keys = {
+  "LMIN",
+  "LMAX",
+  "MMIN",
+  "MMAX",
+  "lmax",
+  "nmax",
+  "nfreqs",
+  "HALO_TRUNC",
+  "nptsE",
+  "nptsK",
+  "CAUCHY",
+  "RATINT",
+  "PTGRID",
+  "NRECS",
+  "DIVERGE",
+  "DIVEXPON",
+  "OLD",
+  "VERBOSE",
+  "HALO_TYPE",
+  "SITYPE",
+  "RMODMAX",
+  "DELTA",
+  "OMPI",
+  "NUMDF",
+  "RA",
+  "INCLINE",
+  "PSI",
+  "PHIP",
+  "NUMT",
+  "E",
+  "Rperi",
+  "Rsoft",
+  "Rfac",
+  "Mfac",
+  "rmin",
+  "rmax",
+  "scale",
+  "numr",
+  "nint",
+  "Tmax",
+  "delT",
+  "Toffset",
+  "MASS",
+  "logL",
+  "INFILE",
+  "CACHEDIR",
+  "ctrname",
+  "UseCache",
+  "XYMAX",
+  "NUMXY",
+  "RespChk",
+  "Circ"
+};
 
 void UserSatWake::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserSatWake", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["LMIN"])           LMIN               = conf["LMIN"].as<int>();
     if (conf["LMAX"])           LMAX               = conf["LMAX"].as<int>();
@@ -359,7 +423,6 @@ void UserSatWake::initialize_coefficients()
     if (rmax<0.0) 
       rmax = halo_model->get_max_radius() * 0.99;
 
-    SLGridSph::sph_cache_name = ".slgrid_sph_cache." + runtag;
     SphereSL::mpi = 1;
     u = std::make_shared<SphereSL>(LMAX, nmax, numr, rmin, rmax, scale, m);
     break;

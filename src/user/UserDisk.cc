@@ -9,6 +9,21 @@
 extern double bessj0(double);
 extern double bessj1(double);
 
+const std::set<std::string>
+UserDisk::valid_keys = {
+  "ctrname",
+  "a",
+  "mass",
+  "Ton",
+  "Toff",
+  "DeltaT",
+  "Nscale",
+  "Ngrid",
+  "Nint",
+  "debug",
+  "dfac"
+};
+
 UserDisk::UserDisk(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "ThinExponentialDiskPotential";
@@ -92,6 +107,15 @@ void UserDisk::userinfo()
 
 void UserDisk::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserDisk", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["ctrname"])   ctr_name    = conf["ctrname"].as<string>();
     if (conf["a"])         a           = conf["a"].as<double>();
