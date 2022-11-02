@@ -28,6 +28,10 @@ void BasisFactoryClasses(py::module &m) {
     "     using the ParticleReader class. See help(pyEXP.read).\n"
     "  2. To evaluate the fields from the basis and a coefficient\n"
     "     object. See help(pyEXP.coefs) and help(pyEXP.field).\n\n"
+    "Introspection\n"
+    "The two bases have a 'cacheInfo(str)' member that reports the\n"
+    "parameters used to create the cached basis.  This may be used\n"
+    "grab the parameters for creating a basis.\n\n"
     "Coefficient creation\n"
     "--------------------\n"
     "The Basis class creates coefficients from phase space with two\n"
@@ -254,6 +258,13 @@ void BasisFactoryClasses(py::module &m) {
 
     py::class_<Basis::SphericalSL, std::shared_ptr<Basis::SphericalSL>, PySphericalSL, Basis::Basis>(m, "SphericalSL")
       .def(py::init<const std::string&>(), "Create a spherical Sturm-Liouville basis")
+      .def("cacheInfo",
+	   [](Basis::SphericalSL& A, const std::string& file)
+	   {
+	     return A.cacheInfo(file);
+	   },
+	   "Report the parameters in a cache file",
+	   py::arg("cachefile"))
       .def("getBasis", &Basis::SphericalSL::getBasis,
 	   "Evaluate the basis functions on a logarithmically spaced grid for"
 	   "inspection",
@@ -263,6 +274,13 @@ void BasisFactoryClasses(py::module &m) {
 
   py::class_<Basis::Cylindrical, std::shared_ptr<Basis::Cylindrical>, PyCylindrical, Basis::Basis>(m, "Cylindrical")
     .def(py::init<const std::string&>(), "Create a cylindrical EOF basis")
+    .def("cacheInfo",
+	 [](Basis::Cylindrical& A, const std::string& file)
+	 {
+	   return A.cacheInfo(file);
+	 },
+	 "Report the parameters in a cache file",
+	 py::arg("cachefile"))
     .def("getBasis", &Basis::Cylindrical::getBasis,
 	 "Evaluate the basis functions on a linearly spaced 2d-grid for"
 	 "inspection",

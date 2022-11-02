@@ -137,6 +137,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     AxiSymModel::gen_rmin = RHMIN;
     newmod = std::make_shared<AddDisk>(halo, disk, dmass*COMPRESSION); 
     halo2 = newmod->get_model();
+    halo2->print_df("diskhalo.newmodel");
     halo2->setup_df(NUMDF, RA);
     if (myid==0 && VFLAG & 2) {
       char debugname[] = "df.debug";
@@ -222,6 +223,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 
   newmod = std::make_shared<AddDisk>(halo, disk, dmass*COMPRESSION); 
   halo2 = newmod->get_model();
+  halo2->print_df("diskhalo.newmodel");
   halo2->setup_df(NUMDF, RA);
   if (myid==0 && VFLAG & 2) {
     char debugname[] = "df.debug";

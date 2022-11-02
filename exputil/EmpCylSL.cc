@@ -113,7 +113,6 @@ EmpCylSL::~EmpCylSL(void)
   // Nothing . . . 
 }
 
-
 EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord, 
 		   double ascale, double hscale, int nodd,
 		   std::string cachename)
@@ -253,6 +252,20 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
 
   minSNR  = std::numeric_limits<double>::max();
   maxSNR  = 0.0;
+}
+
+void EmpCylSL::cacheInfo(const std::string& cachefile)
+{
+  auto node = getHeader(cachefile);
+
+  std::cout << std::string(60, '-') << std::endl
+	    << "Cache parameters for EmpCylSL: " << cachefile << std::endl
+	    << std::string(60, '-') << std::endl;
+  for (YAML::const_iterator it=node.begin(); it!=node.end(); ++it) {
+    std::cout << std::left << std::setw(20) << it->first.as<std::string>()
+	      << ": " << it->second.as<std::string>() << std::endl;
+  }
+  std::cout << std::string(60, '-') << std::endl;
 }
 
 void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
@@ -1115,6 +1128,55 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 
   return 1;
 }
+
+YAML::Node EmpCylSL::getHeader(const std::string& cachefile)
+{
+  YAML::Node node;
+
+  std::ifstream in(cachefile);
+  if (!in) {
+    std::ostringstream sout;
+    sout << "EmpCylSL::getHeader: could not open cache file <" << cachefile << ">";
+    std::runtime_error(sout.str());
+  }
+
+  // Attempt to read magic number
+  //
+  unsigned int tmagic;
+  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+  if (tmagic == hmagic) {
+
+    // YAML size
+    //
+    unsigned ssize;
+    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+    // Make and read char buffer
+    //
+    auto buf = std::make_unique<char[]>(ssize+1);
+    in.read(buf.get(), ssize);
+    buf[ssize] = 0;		// Null terminate
+    
+    try {
+      node = YAML::Load(buf.get());
+    }
+    catch (YAML::Exception& error) {
+      if (myid==0)
+	std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		  << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		  << "YAML error: " << error.what() << std::endl;
+      throw error;
+    }
+  } else {
+    std::ostringstream sout;
+    sout << "EmpCylSL::getHeader: invalid cache file <" << cachefile << ">";
+    std::runtime_error(sout.str());
+  }
+
+  return node;
+}
+    
 
 void EmpCylSL::receive_eof(int request_id, int MM)
 {
