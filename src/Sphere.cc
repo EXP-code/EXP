@@ -8,7 +8,8 @@
 #include <plummer.H>
 #include <interp.H>
 
-const std::set<std::string> Sphere::valid_keys = {
+const std::set<std::string>
+Sphere::valid_keys = {
   "rs",
   "numr",
   "nums",
@@ -90,6 +91,7 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 void Sphere::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

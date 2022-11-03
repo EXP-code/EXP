@@ -10,7 +10,8 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSQ.H>
 
-const std::set<std::string> OutPSQ::valid_keys = {
+const std::set<std::string>
+OutPSQ::valid_keys = {
   "filename",
   "nint",
   "nintsub",
@@ -28,6 +29,7 @@ OutPSQ::OutPSQ(const YAML::Node& conf) : Output(conf)
 void OutPSQ::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

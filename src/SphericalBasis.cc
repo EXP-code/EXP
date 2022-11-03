@@ -25,7 +25,8 @@ static pthread_mutex_t io_lock;
 
 bool SphericalBasis::NewCoefs = true;
 
-const std::set<std::string> SphericalBasis::valid_keys = {
+const std::set<std::string>
+SphericalBasis::valid_keys = {
   "scale",
   "rmin",
   "rmax",
@@ -81,6 +82,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 #endif
 
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
 
   // Assign values from YAML

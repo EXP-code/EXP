@@ -8,7 +8,8 @@
 
 #include <OrbTrace.H>
 
-const std::set<std::string> OrbTrace::valid_keys = {
+const std::set<std::string>
+OrbTrace::valid_keys = {
   "filename",
   "norb",
   "nbeg",
@@ -212,6 +213,7 @@ OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
 void OrbTrace::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

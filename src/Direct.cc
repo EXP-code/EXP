@@ -7,7 +7,8 @@ static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 static const int MSGTAG=103;
 
-const std::set<std::string> Direct::valid_keys = {
+const std::set<std::string>
+Direct::valid_keys = {
   "soft_indx",
   "soft",
   "type",
@@ -64,6 +65,7 @@ Direct::~Direct()
 void Direct::initialize(void)
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

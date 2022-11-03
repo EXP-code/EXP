@@ -6,7 +6,8 @@
 
 #include <SlabSL.H>
 
-const std::set<std::string> SlabSL::valid_keys = {
+const std::set<std::string>
+SlabSL::valid_keys = {
   "nmaxx",
   "nmaxy",
   "nmaxz",
@@ -65,6 +66,7 @@ SlabSL::~SlabSL()
 void SlabSL::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

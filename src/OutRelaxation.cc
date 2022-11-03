@@ -7,7 +7,8 @@
 #include <ComponentContainer.H>
 #include <OutRelaxation.H>
 
-const std::set<std::string> OutRelaxation::valid_keys = {
+const std::set<std::string>
+OutRelaxation::valid_keys = {
   "suffix",
   "epos"
 };
@@ -43,6 +44,7 @@ OutRelaxation::OutRelaxation(const YAML::Node& conf) : Output(conf)
 void OutRelaxation::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

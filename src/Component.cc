@@ -251,7 +251,7 @@ Component::Component(YAML::Node& CONF)
   noswitch    = true;		// Allow multistep switching at master step only
   dtreset     = true;		// Select time step from criteria over last step
 
-  // set_default_values();
+  set_default_values();
 
   mdt_ctr = std::vector< std::vector<unsigned> > (multistep+1);
   for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = std::vector<unsigned>(mdtDim, 0);

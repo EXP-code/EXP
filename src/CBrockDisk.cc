@@ -10,7 +10,8 @@
 #include <MixtureBasis.H>
 #include <CBrockDisk.H>
 
-const std::set<std::string> CBrockDisk::valid_keys = {
+const std::set<std::string>
+CBrockDisk::valid_keys = {
   "rmax",
   "scale",
   "Lmax",
@@ -102,6 +103,7 @@ CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 void CBrockDisk::initialize(void)
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   try {

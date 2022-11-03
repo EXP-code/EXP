@@ -6,7 +6,8 @@
 
 #include <OutCoef.H>
 
-const std::set<std::string> OutCoef::valid_keys = {
+const std::set<std::string>
+OutCoef::valid_keys = {
   "filename",
   "nint",
   "nintsub",
@@ -43,6 +44,7 @@ OutCoef::OutCoef(const YAML::Node& conf) : Output(conf)
 void OutCoef::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML
