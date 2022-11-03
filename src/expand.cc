@@ -702,7 +702,7 @@ main(int argc, char** argv)
     if (e.getDeadlock()) MPI_Abort(MPI_COMM_WORLD, e.getErrorcode());
     else MPI_Finalize();
 
-    exit(e.getErrorcode());
+    exit(0);
   }
   catch (std::runtime_error& e) {
     std::cerr << "Process " << myid << ": std exception" << std::endl
@@ -712,7 +712,7 @@ main(int argc, char** argv)
     std::cerr << std::flush;
 
     // Try to force all process to exit!
-    MPI_Abort(MPI_COMM_WORLD, -1);
+    MPI_Abort(MPI_COMM_WORLD, 0);
   }
   catch (std::string& msg) {
     std::cerr << "Process " << myid << ": str exception" << std::endl
@@ -722,7 +722,7 @@ main(int argc, char** argv)
     std::cerr << std::flush;
 
     // Try to force all process to exit!
-    MPI_Abort(MPI_COMM_WORLD, -1);
+    MPI_Abort(MPI_COMM_WORLD, 0);
   }
 
   //=============
