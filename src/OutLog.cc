@@ -224,7 +224,7 @@ void OutLog::Run(int n, int mstep, bool last)
 	  message << "OutLog::Run(): error creating backup file <" 
 		  << backupfile << "> from <" << filename 
 		  << ">, message: " << e.code().message();
-	  bomb(message.str());
+	  throw GenericError(message.str(), __FILE__, __LINE__, 1036, true);
 	}
 
 	// Open new output stream for writing
@@ -234,7 +234,7 @@ void OutLog::Run(int n, int mstep, bool last)
 	  std::ostringstream message;
 	  message << "OutLog: error opening new log file <" 
 		  << filename << "> for writing";
-	  bomb(message.str());
+	  throw GenericError(message.str(), __FILE__, __LINE__, 1036, true);
 	}
 	  
 	// Open old file for reading
@@ -244,7 +244,7 @@ void OutLog::Run(int n, int mstep, bool last)
 	  ostringstream message;
 	  message << "OutLog: error opening original log file <" 
 		  << backupfile << "> for reading";
-	  bomb(message.str());
+	  throw GenericError(message.str(), __FILE__, __LINE__, 1036, true);
 	}
 
 	const int cbufsiz = 16384;

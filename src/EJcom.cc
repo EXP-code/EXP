@@ -30,7 +30,7 @@ void EJcom::initialize()
   //
   auto unmatched = YamlCheck(conf, valid_keys);
   if (unmatched.size())
-    throw YamlConfigError("TwoCenter", "parameter", unmatched, __FILE__, __LINE__);
+    throw YamlConfigError("TwoCenter", "parameter", unmatched, __FILE__, __LINE__, 1020);
 
   // Assign values from YAML
   //

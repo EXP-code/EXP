@@ -230,9 +230,6 @@ private:
 				// load balancing
   int round_up(double dnumb);
 
-  //! Error
-  void bomb(const string& msg);
-
   // Particle buffer
   std::vector<PartPtr> pbuf;
 

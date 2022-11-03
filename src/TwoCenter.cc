@@ -72,7 +72,7 @@ TwoCenter::TwoCenter(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   else {
     ostringstream msg;
     msg << "The basis <" << id << "> cannot be used as a multicenter component";
-    throw GenericError(msg.str(), __FILE__, __LINE__);
+    throw GenericError(msg.str(), __FILE__, __LINE__, 1032, false);
   }
 
   dof = exp_in->dof;
@@ -85,7 +85,7 @@ void TwoCenter::initialize()
   //
   auto unmatched = YamlCheck(conf, valid_keys);
   if (unmatched.size())
-    throw YamlConfigError("TwoCenter", "parameter", unmatched, __FILE__, __LINE__);
+    throw YamlConfigError("TwoCenter", "parameter", unmatched, __FILE__, __LINE__, 1033, false);
 
   // Assign values from YAML
   //

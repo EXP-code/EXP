@@ -15,6 +15,7 @@
 #include <H5Cpp.h>		// HDF5 C++ support
 
 #include <ParticleReader.H>
+#include <EXPException.H>
 #include <P2Quantile.H>
 #include <gadget.H>
 #include <Sutils.H>		// For string trimming
@@ -107,7 +108,7 @@ namespace PR {
     if (!file.is_open()) {
       std::ostringstream ost;
       ost << "Error opening file: " << *curfile;
-      throw std::runtime_error(ost.str());
+      throw GenericError(ost.str(), __FILE__, __LINE__, 1041, true);
     }
     
     if (myid==0 and _verbose)
@@ -601,7 +602,7 @@ namespace PR {
       {
 	std::ostringstream ost;
 	ost << "Error opening HDF5 file: " << *curfile;
-	throw std::runtime_error(ost.str());
+	throw GenericError(ost.str(), __FILE__, __LINE__, 1041, true);
       }
     
     // catch failure caused by the DataSet operations
@@ -665,7 +666,7 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not open PSP file <" << infile[0] << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     pos = in.tellg();
@@ -677,7 +678,7 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not read master header for <" << infile[0] << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     for (int i=0; i<header.ncomp; i++) {
@@ -696,7 +697,7 @@ namespace PR {
       } catch (...) {
 	std::ostringstream sout;
 	sout << "Error reading magic for <" << infile[0] << ">";
-	throw std::runtime_error(sout.str());
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
       }
       
       try {
@@ -704,7 +705,7 @@ namespace PR {
       } catch (...) {
 	std::ostringstream sout;
 	sout << "Error reading component header for <" << infile[0] << ">";
-	throw std::runtime_error(sout.str());
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
       }
       
       stanza.pspos = in.tellg();
@@ -838,13 +839,13 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not open the master SPL file <" << master[0] << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     if (!in.good()) {
       std::ostringstream sout;
       sout << "Error opening master SPL file <" << master[0] << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     // Read the header, quit on failure
@@ -854,7 +855,7 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not read master header for <" << master[0] << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     for (int i=0; i<header.ncomp; i++) {
@@ -871,7 +872,7 @@ namespace PR {
 	std::ostringstream sout;
 	sout << "Error reading magic info for Comp #" << i << " from <"
 	     << master[0] << ">";
-	throw std::runtime_error(sout.str());
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
       }
       
       rsize = sizeof(double);
@@ -885,7 +886,7 @@ namespace PR {
 	std::ostringstream sout;
 	sout << "Error reading component header Comp #" << i << " from <"
 	     << master[0] << ">";
-	throw std::runtime_error(sout.str());
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
       }
       
       // Parse the info string
@@ -900,7 +901,7 @@ namespace PR {
 	std::ostringstream sout;
 	sout << "Error parsing component config in Comp #" << i
 	     << " from <" << master[0] << ">";
-	throw std::runtime_error(sout.str());
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
       }
       
       cconf  = conf["parameters"];
@@ -1119,13 +1120,13 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not open SPL blob <" << curfile << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     if (not in.good()) {
       std::ostringstream sout;
       sout << "Could not open SPL blob <" << curfile << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     try {
@@ -1133,7 +1134,7 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not get particle count from <" << curfile << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     fcount = 0;
@@ -1404,7 +1405,7 @@ namespace PR {
 
       if (myid==0) std::cout << sout.str();
 
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
 
     return ret;
@@ -1511,9 +1512,9 @@ namespace PR {
   void Tipsy::SelectType(const std::string& name)
   {
     if (std::find(curTypes.begin(), curTypes.end(), name) == curTypes.end()) {
-      std::cout << "Tipsy error: no particle type <" << name << ">"
-		<< std::endl;
-      throw std::runtime_error("Tipsy: non-existent particle type");
+      std::ostringstream sout;
+      sout << "Tipsy error: no particle type <" << name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     } else {
       curName = name;
     }
@@ -1560,8 +1561,11 @@ namespace PR {
       return;
     }
     
-    throw std::runtime_error("Tipsy error: particle type must be one of Gas, Dark, Star. You selected [" + curName + "]");
+    std::string msg = "Tipsy error: particle type must be one of "
+      "Gas, Dark, Star. You selected [" + curName + "]";
+    throw GenericError(msg, __FILE__, __LINE__, 1041, true);
   }
+
   
   unsigned long Tipsy::CurrentNumber()
   {

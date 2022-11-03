@@ -49,7 +49,7 @@ ScatterMFP::ScatterMFP(const YAML::Node& conf) : ExternalForce(conf)
   if (c==NULL) {
     std::ostringstream sout;
     sout << "ScatterMFP: can not find target component <" << comp_id << ">\n";
-    throw GenericError(sout.str(), __FILE__, __LINE__);
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1029, false);
   }
 
 				// Check for mfp in particle attribute list

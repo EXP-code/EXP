@@ -51,7 +51,8 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 {
 #if HAVE_LIBCUDA==1
   if (m) {
-    throw std::runtime_error("Error in SphericalBasis: MixtureBasis logic is not yet implemented in CUDA");
+    throw GenericError("Error in SphericalBasis: MixtureBasis logic is not yet "
+		       "implemented in CUDA", __FILE__, __LINE__, 1030, false);
   }
 
   // Initialize the circular storage container 
@@ -152,7 +153,8 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 
       // Check to make sure that has been created
       if (not playback) {
-	throw std::runtime_error("SphericalBasis: failure in downcasting");
+	throw GenericError("SphericalBasis: failure in downcasting",
+			   __FILE__, __LINE__, 1031, false);
       }
 
       // Set tolerance to 2 master time steps

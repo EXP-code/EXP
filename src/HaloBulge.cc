@@ -75,7 +75,7 @@ HaloBulge::HaloBulge(const YAML::Node& conf) : ExternalForce(conf)
     {
       std::ostringstream sout;
       sout << "No such HALO model type: " << (int)HMODEL << endl;
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1023, false);
     }
   }
 

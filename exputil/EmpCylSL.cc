@@ -623,11 +623,11 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
 	node = YAML::Load(buf.get());
       }
       catch (YAML::Exception& error) {
-	if (myid==0)
-	  std::cerr << "YAML: error parsing <" << buf.get() << "> "
-		    << "in " << __FILE__ << ":" << __LINE__ << std::endl
-		    << "YAML error: " << error.what() << std::endl;
-	throw error;
+	std::ostringstream sout;
+	sout << "YAML: error parsing <" << buf.get() << "> "
+	     << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	     << "YAML error: " << error.what() << std::endl;
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
       }
 
       // Get parameters
@@ -961,11 +961,11 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 	node = YAML::Load(buf.get());
       }
       catch (YAML::Exception& error) {
-	if (myid)
-	  std::cerr << "YAML: error parsing <" << buf.get() << "> "
-		    << "in " << __FILE__ << ":" << __LINE__ << std::endl
-		    << "YAML error: " << error.what() << std::endl;
-	throw error;
+	std::ostringstream sout;
+	sout << "YAML: error parsing <" << buf.get() << "> "
+	     << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	     << "YAML error: " << error.what() << std::endl;
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
       }
 
       // Get parameters
@@ -1162,16 +1162,16 @@ YAML::Node EmpCylSL::getHeader(const std::string& cachefile)
       node = YAML::Load(buf.get());
     }
     catch (YAML::Exception& error) {
-      if (myid==0)
-	std::cerr << "YAML: error parsing <" << buf.get() << "> "
-		  << "in " << __FILE__ << ":" << __LINE__ << std::endl
-		  << "YAML error: " << error.what() << std::endl;
-      throw error;
+      std::ostringstream sout;
+      sout << "YAML: error parsing <" << buf.get() << "> "
+	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	   << "YAML error: " << error.what() << std::endl;
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
     }
   } else {
     std::ostringstream sout;
     sout << "EmpCylSL::getHeader: invalid cache file <" << cachefile << ">";
-    std::runtime_error(sout.str());
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
   }
 
   return node;
@@ -3679,7 +3679,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
     ostringstream ostr;
     ostr << "EmpCylSL::accumulate: Process " << myid << ", Thread " << id 
 	 << ": calling setup_accumulation from accumulate, aborting" << endl;
-    throw GenericError(ostr.str(), __FILE__, __LINE__);
+    throw GenericError(ostr.str(), __FILE__, __LINE__, 1039, false);
   }
 
   double rr = sqrt(r*r+z*z);
@@ -5849,14 +5849,14 @@ double EmpCylSL::r_to_xi(double r)
     if (r<0.0) {
       ostringstream msg;
       msg << "radius=" << r << " < 0! [mapped]";
-      throw GenericError(msg.str(), __FILE__, __LINE__);
+      throw GenericError(msg.str(), __FILE__, __LINE__, 1040, true);
     }
     return (r/ASCALE - 1.0)/(r/ASCALE + 1.0);
   } else {
     if (r<0.0)  {
       ostringstream msg;
       msg << "radius=" << r << " < 0!";
-      throw GenericError(msg.str(), __FILE__, __LINE__);
+      throw GenericError(msg.str(), __FILE__, __LINE__, 1040, true);
     }
     return r;
   }
@@ -5865,8 +5865,8 @@ double EmpCylSL::r_to_xi(double r)
 double EmpCylSL::xi_to_r(double xi)
 {
   if (CMAPR>0) {
-    if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
-    if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
+    if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__, 1040, true);
+    if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__, 1040, true);
 
     return (1.0 + xi)/(1.0 - xi) * ASCALE;
   } else {
@@ -5878,8 +5878,8 @@ double EmpCylSL::xi_to_r(double xi)
 double EmpCylSL::d_xi_to_r(double xi)
 {
   if (CMAPR>0) {
-    if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
-    if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
+    if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__, 1040, true);
+    if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__, 1040, true);
 
     return 0.5*(1.0 - xi)*(1.0 - xi) / ASCALE;
   } else {
@@ -6535,8 +6535,8 @@ double EmpCylSL::y_to_z(double y)
   if (CMAPZ==1)
     return HSCALE*sinh(y);
   else if (CMAPZ==2) {
-    if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__);
-    if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__);
+    if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__, 1040, true);
+    if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__, 1040, true);
     return y * HSCALE/sqrt(1.0 - y*y);
   }
   else
@@ -6549,8 +6549,8 @@ double EmpCylSL::d_y_to_z(double y)
   if (CMAPZ==1)
     return HSCALE*cosh(y);
   else if (CMAPZ==2) {
-    if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__);
-    if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__);
+    if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__, 1040, true);
+    if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__, 1040, true);
     return HSCALE*pow(1.0-y*y, -1.5);
   } else
     return 1.0;

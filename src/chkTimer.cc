@@ -180,8 +180,11 @@ double CheckpointTimer::time_remaining()
 #ifdef HAVE_LIBSLURM
 
   std::string env_slurm("SLURM_JOB_ID");
-  if (getenv(env_slurm.c_str()) == 0)
-    throw std::string("No environment variable: SLURM_JOB_ID");
+  if (getenv(env_slurm.c_str()) == 0) {
+    std::ostringstream sout;
+    sout << "No environment variable: SLURM_JOB_ID. Node=" << myid;
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1003, true);
+  }
   
   std::cout << "----------------------------------------------------"
 	    << "------------------" << std::endl
@@ -193,15 +196,19 @@ double CheckpointTimer::time_remaining()
   std::string job = getenv(env_slurm.c_str());
   long        rem = rem_time(atoi(job.c_str()));
 
-  if (rem<0)
-    throw std::string("Error obtaining job id from Slurm");
+  if (rem<0) {
+    std::ostringstream sout;
+    sout << "Error obtaining job id from Slurm for node=" << myid;
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1003, true);
+  }
 
   ret = static_cast<double>(rem)/3600.0;
 
   return ret;
 
 #else
-  throw std::string("set 'runtime' for a limit");
+  throw GenericError("Set 'runtime' variable for a wall-clock limit",
+		     __FILE__, __LINE__, 1004, false);
 #endif
 
   return ret;

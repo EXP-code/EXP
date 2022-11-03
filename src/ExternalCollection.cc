@@ -105,7 +105,7 @@ void ExternalCollection::initialize()
 
 	  string msg("I don't know about the external force named: ");
 	  msg += name;
-	  throw GenericError(msg, __FILE__, __LINE__);
+	  throw GenericError(msg, __FILE__, __LINE__, 1021, false);
 	}
       }
       
@@ -233,7 +233,7 @@ void ExternalCollection::dynamicload(void)
 	    }
 	  }
 	  std::string emsg = "Error opening <" + name.str() + ">";
-	  throw GenericError(emsg.c_str(), __FILE__, __LINE__);
+	  throw GenericError(emsg.c_str(), __FILE__, __LINE__, 1022);
 	}
 	if (myid==0) {
 	  if (first) {

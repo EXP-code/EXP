@@ -611,15 +611,20 @@ main(int argc, char** argv)
     }
   }
 
+  
   //==============================================
-  // Read in points and initialize expansion grid 
+  // Begin exception handling
   //==============================================
-
-  (*barrier)("Expand: BEFORE begin_run", __FILE__, __LINE__);
-  begin_run();
-  (*barrier)("Expand: AFTER begin_run", __FILE__, __LINE__);
 
   try {
+
+    //==============================================
+    // Read in points and initialize expansion grid 
+    //==============================================
+    
+    (*barrier)("Expand: BEFORE begin_run", __FILE__, __LINE__);
+    begin_run();
+    (*barrier)("Expand: AFTER begin_run", __FILE__, __LINE__);
 
     //===========
     // MAIN LOOP 
@@ -673,19 +678,36 @@ main(int argc, char** argv)
   }
   catch (EXPException& e) {
 
-    std::cerr << "Process " << myid << ": uncaught EXP exception" << std::endl
-	      << e.getErrorMessage() << std::endl;
-    if (VERBOSE) print_trace(std::cerr, 0, 0);
-    sleep(5);
-    std::cerr << std::flush;
+    if (e.getDeadlock()) {
+      std::cerr << std::string(72, '-') << std::endl
+		<< "Process " << myid << ": EXP asynchronous exception"
+		<< std::string(72, '-') << std::endl
+		<< e.getErrorMessage()  << std::endl
+		<< std::string(72, '-') << std::endl;
+      if (VERBOSE>4) print_trace(std::cerr, 0, 0);
+      sleep(5);
+      std::cerr << std::flush;
+    } else if (myid==0) {
+      std::cerr << std::string(72, '-') << std::endl
+		<< "EXP synchronous exception" << std::endl
+		<< std::string(72, '-') << std::endl
+		<< e.getErrorMessage()  << std::endl
+		<< std::string(72, '-') << std::endl;
+     if (VERBOSE>4) print_trace(std::cerr, 0, 0);
+      sleep(5);
+      std::cerr << std::flush;
+    }
 
     // Try to force all process to exit!
-    MPI_Abort(MPI_COMM_WORLD, -1);
+    if (e.getDeadlock()) MPI_Abort(MPI_COMM_WORLD, e.getErrorcode());
+    else MPI_Finalize();
+
+    exit(e.getErrorcode());
   }
   catch (std::runtime_error& e) {
-    std::cerr << "Process " << myid << ": uncaught std exception" << std::endl
+    std::cerr << "Process " << myid << ": std exception" << std::endl
 	      << e.what() << std::endl;
-    if (VERBOSE) print_trace(std::cerr, 0, 0);
+    if (VERBOSE>4) print_trace(std::cerr, 0, 0);
     sleep(5);
     std::cerr << std::flush;
 
@@ -693,10 +715,10 @@ main(int argc, char** argv)
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
   catch (std::string& msg) {
-    std::cerr << "Process " << myid << ": uncaught str exception" << std::endl
+    std::cerr << "Process " << myid << ": str exception" << std::endl
 	      << msg << std::endl;
     sleep(5);
-    if (VERBOSE) print_trace(std::cerr, 0, 0);
+    if (VERBOSE>4) print_trace(std::cerr, 0, 0);
     std::cerr << std::flush;
 
     // Try to force all process to exit!

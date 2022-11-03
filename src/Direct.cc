@@ -132,7 +132,7 @@ void Direct::determine_acceleration_and_potential(void)
 				// Make sure softening is defined if needed
   if (!fixed_soft && component->ndattrib<soft_indx+1) {
     std::string msg("Direct: particle softening data missing");
-    throw GenericError(msg, __FILE__, __LINE__);
+    throw GenericError(msg, __FILE__, __LINE__, 1019, false);
   }
 				// Determine size of largest nbody list
   ninteract = component->Number();

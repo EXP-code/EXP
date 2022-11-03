@@ -109,7 +109,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 {
 #if HAVE_LIBCUDA==1
   if (m) {
-    throw std::runtime_error("Error in Cylinder: MixtureBasis logic is not yet implemented in CUDA");
+    throw GenericError("Error in Cylinder: MixtureBasis logic is not yet implemented in CUDA", __FILE__, __LINE__, 1016, false);
   }
 
   // Initialize the circular storage container 
@@ -468,20 +468,18 @@ void Cylinder::initialize()
       playback = std::dynamic_pointer_cast<Coefs::CylCoefs>(Coefs::Coefs::factory(file));
 
       if (not playback) {
-	throw std::runtime_error("Cylinder: failure in downcasting");
+	throw GenericError("Cylinder: failure in downcasting",
+			   __FILE__, __LINE__, 1017, false);
       }
       
       // Set tolerance to 2 master time steps
       playback->setDeltaT(dtime*2);
 
       if (playback->nmax() != ncylorder) {
-	if (myid==0) {
-	  std::cerr << "Cylinder: norder for playback [" << playback->nmax()
-		    << "] does not match specification [" << ncylorder << "]"
-		    << std::endl;
-	}
-	MPI_Finalize();
-	exit(-1);
+	std::ostringstream sout;
+	sout << "Cylinder: norder for playback [" << playback->nmax()
+	     << "] does not match specification [" << ncylorder << "]";
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1018, false);
       }
 
       if (playback->mmax() != mmax) {

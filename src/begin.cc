@@ -172,7 +172,7 @@ void initialize_cuda()
 	if (myid==v) myCount = curCount;
 	curCount++;
       }
-	
+      
       // Allow GPU to be used by multiple MPI processes
       //
       if (myCount < totalCount) cudaGlobalDevice = myCount % deviceCount;
@@ -202,7 +202,7 @@ void initialize_cuda()
     } else {
       std::ostringstream sout;
       sout << "[#" << myid << "] CUDA detected but deviceCount<=0!";
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1000, true);
     }
 
   }

@@ -79,9 +79,6 @@ public:
   //! Provided by derived class to generate some output
   virtual void Run(int nstep, int mstep, bool final) = 0;
 
-  //! Error
-  void bomb(const string& msg);
-  
   //! Return unmatched parameters
   std::set<std::string> unmatched() { return current_keys; }
 };

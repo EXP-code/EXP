@@ -104,7 +104,8 @@ Component::Component(YAML::Node& CONF)
   // Check for unmatched keys
   auto unmatched = YamlCheck(conf, valid_keys_top);
   if (unmatched.size())
-    throw YamlConfigError("Component", "top-level", unmatched, __FILE__, __LINE__);
+    throw YamlConfigError("Component", "top-level", unmatched,
+			  __FILE__, __LINE__, 1005);
 
   try {
     name = conf["name"].as<std::string>();
@@ -163,7 +164,8 @@ Component::Component(YAML::Node& CONF)
   // Check for unmatched keys
   unmatched = YamlCheck(force, valid_keys_force);
   if (unmatched.size())
-    throw YamlConfigError("Component", "force", unmatched, __FILE__, __LINE__);
+    throw YamlConfigError("Component", "force", unmatched,
+			  __FILE__, __LINE__, 1005);
 
   id = force["id"].as<std::string>();
 
@@ -420,7 +422,7 @@ void Component::reset_level_lists()
       std::ostringstream sout;
       sout << "Process " << myid
 	   << ": reset_level_lists: error allocating memory for thread";
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1006, true);
     }
   }
   
@@ -453,7 +455,7 @@ void Component::reset_level_lists()
 	sout << "Process " << myid
 	     << " reset_level_lists: cannot make thread " << i
 	     << ", errcode=" << errcode;;
-	throw GenericError(sout.str(), __FILE__, __LINE__);
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1007, true);
       }
 #ifdef DEBUG
       else {
@@ -471,7 +473,7 @@ void Component::reset_level_lists()
 	sout << "Process " << myid
 	     << " reset_level_lists: thread join " << i
 	     << " failed, errcode=" << errcode;
-	throw GenericError(sout.str(), __FILE__, __LINE__);
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1008, true);
       }
 #ifdef DEBUG    
       cout << "Process " << myid << ": multistep thread <" << i << "> thread exited\n";
@@ -801,7 +803,7 @@ void Component::configure(void)
   // Check for unmatched keys
   auto unmatched = YamlCheck(cconf, valid_keys_parm);
   if (unmatched.size())
-    throw YamlConfigError("Component", "parameter", unmatched, __FILE__, __LINE__);
+    throw YamlConfigError("Component", "parameter", unmatched, __FILE__, __LINE__, 1008);
 
   // Load parameters from YAML configuration node
   try {
@@ -927,15 +929,15 @@ void Component::configure(void)
     force = new NoForce(this, fconf);
   }
   else {
-    string msg("I don't know about the force: ");
+    std::string msg("I don't know about the force: ");
     msg += id;
-    bomb(msg);
+    throw GenericError(msg, __FILE__, __LINE__, 1013, false);
   }
 
   // Check YAML configuration for force
   //
   if (force->unmatched().size()) {
-    throw YamlConfigError("Component", id, force->unmatched(), __FILE__, __LINE__);
+    throw YamlConfigError("Component", id, force->unmatched(), __FILE__, __LINE__, 1005);
   }
 
   dim = force->dof;
@@ -1006,7 +1008,7 @@ void Component::initialize(void)
 	      ostringstream message;
 	      message << "Component: error making backup file <" 
 		      << backupfile << ">\n";
-	      bomb(message.str().c_str());
+	      throw GenericError(message.str(), __FILE__, __LINE__, 1014, true);
 	    }
 
 	    // Open new output stream for writing
@@ -1016,7 +1018,7 @@ void Component::initialize(void)
 	      ostringstream message;
 	      message << "Component: error opening new log file <" 
 		      << comfile << "> for writing\n";
-	      bomb(message.str().c_str());
+	      throw GenericError(message.str(), __FILE__, __LINE__, 1015, true);
 	    }
 	  
 	    const int cbufsiz = 16384;
@@ -1109,7 +1111,7 @@ void Component::initialize(void)
 	    ostringstream message;
 	    message << "Component: error opening new log file <" 
 		    << comfile << "> for writing\n";
-	    bomb(message.str().c_str());
+	    throw GenericError(message.str(), __FILE__, __LINE__, 1015, true);
 	  }
 	  
 	  out.setf(ios::left);
@@ -1279,13 +1281,6 @@ Component::~Component(void)
   delete tree;
 }
 
-void Component::bomb(const string& msg)
-{
-  std::ostringstream sout;
-  sout << "Component <" << name << ", " << id << ">: " << msg;
-  throw GenericError(sout.str(), __FILE__, __LINE__);
-}
-
 void Component::read_bodies_and_distribute_ascii(void)
 {
 				// Open file
@@ -1299,7 +1294,7 @@ void Component::read_bodies_and_distribute_ascii(void)
     if (fin.fail()) {
       std::ostringstream sout;
       sout << "Couldn't open " << pfile << " . . . quitting";
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1009, true);
     }
 
     fin.getline(line, nline);
@@ -1309,19 +1304,19 @@ void Component::read_bodies_and_distribute_ascii(void)
     if (!ins) {
       std::ostringstream sout;
       sout << "Error reading nbodies_tot . . . quitting";
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1009, true);
     }
     ins >> niattrib;
     if (!ins) {
       std::ostringstream sout;
       sout << "Error reading integer attribute # . . . quitting\n";
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1009, true);
     }
     ins >> ndattrib;
     if (!ins) {
       std::ostringstream sout;
       sout << "Error reading double attribute # . . . quitting";
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1009, true);
     }
   }
 				// Broadcast attributes for this
@@ -1470,14 +1465,14 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
       in->read((char*)&cmagic, sizeof(unsigned long));
       if ( (cmagic & nmask) != magic ) {
 	std::string msg("Error identifying new PSP.  Is this an old PSP?");
-	throw GenericError(msg, __FILE__, __LINE__);
+	throw GenericError(msg, __FILE__, __LINE__, 1010, true);
       }
       rsize = cmagic & mmask;
     }
 
     if (!header.read(in)) {
       std::string msg("Error reading component header");
-      throw GenericError(msg, __FILE__, __LINE__);
+      throw GenericError(msg, __FILE__, __LINE__, 1010, true);
     }
 
     nbodies_tot = header.nbod;
@@ -1728,14 +1723,14 @@ void Component::openNextBlob(std::ifstream& in,
   } catch (...) {
     std::ostringstream sout;
     sout << "Could not open SPL blob <" << curfile << ">";
-    throw std::runtime_error(sout.str());
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1010, true);
   }
 
 				// Double check file status
   if (not in.good()) {
     std::ostringstream sout;
     sout << "Could not open SPL blob <" << curfile << ">";
-    throw std::runtime_error(sout.str());
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1010, true);
   }
 
 				// Get particle count
@@ -1744,7 +1739,7 @@ void Component::openNextBlob(std::ifstream& in,
   } catch (...) {
     std::ostringstream sout;
     sout << "Could not get particle count from <" << curfile << ">";
-    throw std::runtime_error(sout.str());
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1010, true);
   }
 
   // Advance filename iterator
@@ -1778,20 +1773,20 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
     } catch (...) {
       std::ostringstream sout;
       sout << "Error reading magic info and file count from master";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1010, true);
     }
 
     if (umagic) {
       if ( (cmagic & nmask) != magic ) {
 	std::string msg("Error identifying new PSP.  Is this an old PSP?");
-	throw GenericError(msg, __FILE__, __LINE__);
+	throw GenericError(msg, __FILE__, __LINE__, 1010, true);
       }
       rsize = cmagic & mmask;
     }
 
     if (!header.read(in)) {
       std::string msg("Error reading component header");
-      throw GenericError(msg, __FILE__, __LINE__);
+      throw GenericError(msg, __FILE__, __LINE__, 1010, true);
     }
 
     nbodies_tot = header.nbod;
@@ -1845,10 +1840,11 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
       config = YAML::Load(sin);
     }
     catch (YAML::Exception& error) {
-      std::cerr << "YAML: error parsing <" << info.get() << "> "
-		<< "in " << __FILE__ << ":" << __LINE__ << std::endl
-		<< "YAML error: " << error.what() << std::endl;
-      throw error;
+      std::ostringstream sout;
+      sout << "YAML: error parsing <" << info.get() << "> "
+	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	   << "YAML error: " << error.what() << std::endl;
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1010);
     }
 
     try {
@@ -1857,15 +1853,15 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
       pfile = config["bodyfile"].as<std::string>();
     }
     catch (YAML::Exception & error) {
-      if (myid==0) std::cout << "Error parsing YAML in PSP file: "
-			     << error.what() << std::endl
-			     << std::string(60, '-') << std::endl
-			     << "Config node"        << std::endl
-			     << std::string(60, '-') << std::endl
-			     << config               << std::endl
-			     << std::string(60, '-') << std::endl;
-      MPI_Finalize();
-      exit(-13);
+      std::ostringstream sout;
+      sout << "Error parsing YAML in PSP file: "
+	   << error.what() << std::endl
+	   << std::string(60, '-') << std::endl
+	   << "Config node"        << std::endl
+	   << std::string(60, '-') << std::endl
+	   << config               << std::endl
+	   << std::string(60, '-') << std::endl;
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1010);
     }
 
     YAML::Node force;
@@ -1876,16 +1872,16 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
       fconf = force["parameters"];
     }
     catch (YAML::Exception & error) {
-      if (myid==0) std::cout << "Error parsing YAML force stanza in PSP file: "
-			     << error.what() << std::endl
-			     << std::string(60, '-') << std::endl
-			     << "Config node"        << std::endl
-			     << std::string(60, '-') << std::endl
-			     << config               << std::endl
-			     << std::string(60, '-') << std::endl;
+      std::ostringstream sout;
+      sout << "Error parsing YAML force stanza in PSP file: "
+	   << error.what() << std::endl
+	   << std::string(60, '-') << std::endl
+	   << "Config node"        << std::endl
+	   << std::string(60, '-') << std::endl
+	   << config               << std::endl
+	   << std::string(60, '-') << std::endl;
       
-      MPI_Finalize();
-      exit(-14);
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1010);
     }
 
     // Assign local conf
@@ -2254,7 +2250,7 @@ void Component::write_binary(ostream* out, bool real4)
 
     if (!header.write(out)) {
       std::string msg("Component::write_binary: Error writing particle header");
-      throw GenericError(msg, __FILE__, __LINE__);
+      throw GenericError(msg, __FILE__, __LINE__, 1011, true);
     }
   }
 
@@ -2328,7 +2324,7 @@ void Component::write_binary_header(ostream* out, bool real4, const std::string 
 
     if (!header.write(out)) {
       std::string msg("Component::write_binary: Error writing particle header");
-      throw GenericError(msg, __FILE__, __LINE__);
+      throw GenericError(msg, __FILE__, __LINE__, 1011, true);
     }
 
     const size_t PBUF_SIZ = 1024;
@@ -2586,7 +2582,7 @@ void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4
 
     if (!header.write_mpi(out, offset)) {
       std::string msg("Component::write_binary_mpi_b: Error writing particle header");
-      throw GenericError(msg, __FILE__, __LINE__);
+      throw GenericError(msg, __FILE__, __LINE__, 1011, true);
     }
 
   } else {
@@ -2691,7 +2687,7 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
 
     if (!header.write_mpi(out, offset)) {
       std::string msg("Component::write_binary_mpi_i: Error writing particle header");
-      throw GenericError(msg, __FILE__, __LINE__);
+      throw GenericError(msg, __FILE__, __LINE__, 1011, true);
     }
 
   } else {
@@ -3025,7 +3021,7 @@ void Component::fix_positions_cpu(unsigned mlevel)
 	sout << "Process " << myid
 	     << " Component::fix_positions: cannot make thread " << i
 	     << ", errcode=" << errcode;
-	throw GenericError(sout.str(), __FILE__, __LINE__);
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1012, true);
       }
     }
     
@@ -3038,7 +3034,7 @@ void Component::fix_positions_cpu(unsigned mlevel)
 	sout << "Process " << myid
 	     << " Component::fix_positions: thread join " << i
 	     << " failed, errcode=" << errcode;
-	throw GenericError(sout.str(), __FILE__, __LINE__);
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1012, true);
       }
 
       for (unsigned mm=mlevel; mm<=multistep; mm++) {
@@ -3315,7 +3311,7 @@ void Component::get_angmom(unsigned mlevel)
 	sout << "Process " << myid
 	     << " Component::get_angmom: cannot make thread " << i
 	     << ", errcode=" << errcode;
-	throw GenericError(sout.str(), __FILE__, __LINE__);
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1012, true);
       }
     }
     
@@ -3328,7 +3324,7 @@ void Component::get_angmom(unsigned mlevel)
 	sout << "Process " << myid
 	     << " Component::get_angmom: thread join " << i
 	     << " failed, errcode=" << errcode;
-	throw GenericError(sout.str(), __FILE__, __LINE__);
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1012, true);
       }
       for (unsigned mm=mlevel; mm<=multistep; mm++) {
 	for (unsigned k=0; k<3; k++) 

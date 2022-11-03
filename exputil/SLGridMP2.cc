@@ -20,6 +20,7 @@
 #include <iomanip>
 #include <vector>
 
+#include <EXPException.H>
 #include <SLGridMP2.H>
 #include <massmodel.H>
 
@@ -1880,11 +1881,11 @@ int SLGridSph::read_cached_table(void)
       node = YAML::Load(buf.get());
     }
     catch (YAML::Exception& error) {
-      if (myid==0)
-	std::cerr << "YAML: error parsing <" << buf.get() << "> "
-		  << "in " << __FILE__ << ":" << __LINE__ << std::endl
-		  << "YAML error: " << error.what() << std::endl;
-      throw error;
+      std::ostringstream sout;
+      sout << "YAML: error parsing <" << buf.get() << "> "
+	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	   << "YAML error: " << error.what() << std::endl;
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
     }
     
     // Get parameters
@@ -2891,16 +2892,17 @@ YAML::Node SLGridSph::getHeader(const std::string& cachefile)
       node = YAML::Load(buf.get());
     }
     catch (YAML::Exception& error) {
-      if (myid==0)
-	std::cerr << "YAML: error parsing <" << buf.get() << "> "
-		  << "in " << __FILE__ << ":" << __LINE__ << std::endl
-		  << "YAML error: " << error.what() << std::endl;
-      throw error;
+      std::ostringstream sout;
+      sout << "YAML: error parsing <" << buf.get() << "> "
+	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	   << "YAML error: " << error.what() << std::endl;
+      
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
     }
   } else {
     std::ostringstream sout;
     sout << "SLGridSph::getHeader: invalid cache file <" << cachefile << ">";
-    std::runtime_error(sout.str());
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
   }
 
   return node;

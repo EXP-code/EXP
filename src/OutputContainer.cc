@@ -105,14 +105,14 @@ void OutputContainer::initialize(void)
       else {
 	string msg("I don't know about the output type: ");
 	msg += name;
-	throw GenericError(msg, __FILE__, __LINE__);
+	throw GenericError(msg, __FILE__, __LINE__, 1025, false);
       }
       nout++;
 
       // Check YAML configuration
       auto unmatched = out.back()->unmatched();
       if (unmatched.size()) {
-	throw YamlConfigError("OutputContainer", name, unmatched, __FILE__, __LINE__);
+	throw YamlConfigError("OutputContainer", name, unmatched, __FILE__, __LINE__, 1026, false);
       }
 
     }

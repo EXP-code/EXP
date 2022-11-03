@@ -47,9 +47,8 @@ OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
   if (nintsub <= 0) nintsub = 1;
 
   if (!tcomp) {
-    if (myid==0) {
-      bomb("OrbTrace: no component to trace\n");
-    }
+    throw GenericError("OrbTrace: no component to trace", __FILE__, __LINE__,
+		       1035, false);
   }
 
   if (local)
@@ -64,9 +63,8 @@ OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
 				// Read in orbit list
     ifstream iorb(orbitlist.c_str());
     if (!iorb) {
-      if (myid==0) {
-	bomb("OrbTrace: provided orbitlist file cannot be opened\n");
-      }
+      throw GenericError("OrbTrace: provided orbitlist file cannot be opened",
+			 __FILE__, __LINE__, 1035, false);
     }
 
     int cntr;
@@ -112,7 +110,7 @@ OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
 	ostringstream message;
 	message << "OutTrace: error creating backup file <" 
 		<< backupfile << ">";
-	// bomb(message.str());
+	throw GenericError(message.str(), __FILE__, __LINE__, 1035, true);
       }
 	
       // Open new output stream for writing
@@ -121,7 +119,7 @@ OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
 	ostringstream message;
 	message << "OrbTrace: error opening new trace file <" 
 		<< filename << "> for writing";
-	bomb(message.str());
+	throw GenericError(message.str(), __FILE__, __LINE__, 1035, true);
       }
 	  
       // Open old file for reading
@@ -130,7 +128,7 @@ OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
 	ostringstream message;
 	message << "OrbTrace: error opening original trace file <" 
 		<< backupfile << "> for reading";
-	bomb(message.str());
+	throw GenericError(message.str(), __FILE__, __LINE__, 1035, true);
       }
 
       const int cbufsiz = 16384;
@@ -163,11 +161,11 @@ OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
 
     } else {
 				// Try to open the first time . . .
-      ofstream out(filename.c_str(), ios::out | ios::app);
+      std::ofstream out(filename.c_str(), ios::out | ios::app);
       if (!out) {
-	ostringstream outs;
+	std::ostringstream outs;
 	outs << "Process " << myid << ": can't open file <" << filename << ">\n";
-	bomb(outs.str());
+	throw GenericError(outs.str(), __FILE__, __LINE__, 1035, true);
       }
 
       int npos = 1;
