@@ -11,6 +11,7 @@ Output::Output(const YAML::Node& CONF) : conf(CONF)
 
 void Output::bomb(const string& msg)
 {
-  std::cerr << "Output [" << id << ": " << msg << endl;
-  MPI_Abort(MPI_COMM_WORLD, 499);
+  std::ostringstream sout;
+  sout << "Output [" << id << ": " << msg;
+  throw GenericError(sout.str(), __FILE__, __LINE__);
 }

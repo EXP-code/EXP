@@ -54,8 +54,9 @@ double dcond(double R, double z, double phi, int M)
 }
 
 
-const std::set<std::string> valid_keys = {
-  "tktype",
+const std::set<std::string>
+Cylinder::valid_keys = {
+  "tk_type",
   "rcylmin",
   "rcylmax",
   "acyl",
