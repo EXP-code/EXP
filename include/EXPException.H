@@ -223,7 +223,7 @@ public:
   {
     exceptionname = classname + " unmatched " + type + " configuration keys <";
     for (auto s : keys) errormessage += " " + s;
-    errormessage += ">";
+    errormessage += ">\n";
 
     msg_ = getErrorMessage();
   }
