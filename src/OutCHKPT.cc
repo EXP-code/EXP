@@ -13,7 +13,8 @@
 #include <AxisymmetricBasis.H>
 #include <OutCHKPT.H>
 
-const std::set<std::string> OutCHKPT::valid_keys = {
+const std::set<std::string>
+OutCHKPT::valid_keys = {
   "mpio",
   "filename",
   "nint",
@@ -30,6 +31,7 @@ OutCHKPT::OutCHKPT(const YAML::Node& conf) : Output(conf)
 void OutCHKPT::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

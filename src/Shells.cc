@@ -1,6 +1,7 @@
 #include <Shells.H>
 
-const std::set<std::string> Shells::valid_keys = {
+const std::set<std::string>
+Shells::valid_keys = {
   "nsample",
   "nselect",
   "self_consistent"
@@ -53,6 +54,7 @@ Shells::~Shells()
 void Shells::initialize(void)
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

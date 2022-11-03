@@ -7,7 +7,8 @@
 #include <Timer.H>
 #include <OutCalbr.H>
 
-const std::set<std::string> OutCalbr::valid_keys = {
+const std::set<std::string>
+OutCalbr::valid_keys = {
   "filename",
   "nint",
   "nintsub",
@@ -144,6 +145,7 @@ void OutCalbr::set_energies()
 void OutCalbr::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

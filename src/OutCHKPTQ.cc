@@ -14,7 +14,8 @@
 #include <OutCHKPTQ.H>
 
 
-const std::set<std::string> OutCHKPTQ::valid_keys = {
+const std::set<std::string>
+OutCHKPTQ::valid_keys = {
   "mpio",
   "filename",
   "nint",
@@ -31,6 +32,7 @@ OutCHKPTQ::OutCHKPTQ(const YAML::Node& conf) : Output(conf)
 void OutCHKPTQ::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

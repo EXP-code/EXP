@@ -53,7 +53,8 @@ char OutLog::lab_component[][20] = {
   "# used"
 };
 
-const std::set<std::string> OutLog::valid_keys = {
+const std::set<std::string>
+OutLog::valid_keys = {
   "filename",
   "freq",
   "nint",
@@ -74,6 +75,7 @@ OutLog::OutLog(const YAML::Node& conf) : Output(conf)
 void OutLog::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

@@ -10,7 +10,8 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSP.H>
 
-const std::set<std::string> OutPSP::valid_keys = {
+const std::set<std::string>
+OutPSP::valid_keys = {
   "filename",
   "nint",
   "nintsub",
@@ -29,6 +30,7 @@ OutPSP::OutPSP(const YAML::Node& conf) : Output(conf)
 void OutPSP::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

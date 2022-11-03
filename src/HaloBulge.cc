@@ -22,7 +22,8 @@ using namespace std;
 
 #include <HaloBulge.H>
 
-const std::set<std::string> HaloBulge::valid_keys = {
+const std::set<std::string>
+HaloBulge::valid_keys = {
   "HMODEL",
   "INFILE",
   "MHALO",
@@ -123,6 +124,7 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
 void HaloBulge::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

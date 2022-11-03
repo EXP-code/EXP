@@ -11,7 +11,8 @@ using namespace std;
 #include <AxisymmetricBasis.H>
 #include <OutAscii.H>
 
-const std::set<std::string> OutAscii::valid_keys = {
+const std::set<std::string>
+OutAscii::valid_keys = {
   "nint",
   "nintsub",
   "nbeg",
@@ -55,6 +56,7 @@ OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
 void OutAscii::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

@@ -8,7 +8,8 @@
 #include <AxisymmetricBasis.H>
 #include <OutDiag.H>
 
-const std::set<std::string> OutDiag::valid_keys = {
+const std::set<std::string>
+OutDiag::valid_keys = {
   "filename",
   "nint",
   "nintsub",
@@ -49,6 +50,7 @@ OutDiag::OutDiag(const YAML::Node& conf) : Output(conf)
 void OutDiag::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

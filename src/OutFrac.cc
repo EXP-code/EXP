@@ -12,7 +12,8 @@
 
 const double default_quant[] = {0.001, 0.003, 0.01, 0.03, 0.1, 0.2, 0.4, 0.5, 0.6, 0.8, 0.9, 0.97, 0.99, 0.993, 0.999};
 
-const std::set<std::string> OutFrac::valid_keys = {
+const std::set<std::string>
+OutFrac::valid_keys = {
   "filename",
   "nint",
   "nintsub",
@@ -140,6 +141,7 @@ OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
 void OutFrac::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

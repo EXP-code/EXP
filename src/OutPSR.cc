@@ -11,7 +11,8 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSR.H>
 
-const std::set<std::string> OutPSR::valid_keys = {
+const std::set<std::string>
+OutPSR::valid_keys = {
   "filename",
   "nint",
   "nintsub",
@@ -29,6 +30,7 @@ OutPSR::OutPSR(const YAML::Node& conf) : Output(conf)
 void OutPSR::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML

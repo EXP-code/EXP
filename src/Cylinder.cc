@@ -396,6 +396,7 @@ Cylinder::~Cylinder()
 void Cylinder::initialize()
 {
   // Remove matched keys
+  //
   for (auto v : valid_keys) current_keys.erase(v);
   
   // Assign values from YAML
