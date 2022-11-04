@@ -208,7 +208,7 @@ double CheckpointTimer::time_remaining()
   if (runtime<=0.0)
     std::cout << "---- Set 'runtime' variable >0 for a wall-clock limit"
 	      << std::endl;
-  ret = runtime;
+  ret = 8766.0;			// One year by default
 #endif
 
   return ret;
