@@ -7,10 +7,10 @@
 # These parameters control the simulation
 # ------------------------------------------------------------------------
 Global:
-  outdir     : /home/someuser/dir
+  outdir     : /home/weinberg/Projects/EXP/examples/Better
   nthrds     : 1
   dtime      : 0.002
-  ldlibdir   : /home/someuser/lib/user
+  ldlibdir   : /home/weinberg/.local/lib/user
   runtag     : run0
   nsteps     : 100
   multistep  : 8

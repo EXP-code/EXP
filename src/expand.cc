@@ -691,7 +691,7 @@ main(int argc, char** argv)
 		<< e.getErrorMessage()  << std::endl
 		<< std::string(72, '-') << std::endl;
 
-    if (VERBOSE>4 and (e.getDeadlock() or myid==0)) {
+    if (traceback and (e.getDeadlock() or myid==0)) {
       print_trace(std::cerr, 0, 0);
       sleep(5);
       std::cerr << std::flush;

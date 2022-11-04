@@ -6,6 +6,8 @@
 #include <string>
 #include <sstream>
 
+#include <libvars.H>
+
 /** Defines an error handler base class EXPException to handle exceptions
  */
 class EXPException : public std::exception
@@ -47,6 +49,7 @@ class EXPException : public std::exception
     //
     std::ostringstream wholemessage;
     wholemessage << exceptionname << ": " << errormessage;
+    if (__EXP__::sourceline)
     wholemessage << "Thrown from " << sourcefilename << ":" << sourcelinenumber;
 
     return wholemessage.str();

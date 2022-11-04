@@ -132,6 +132,7 @@ bool mpi_wait      = false;
 bool fpe_trap      = false;
 bool fpe_trace     = false;
 bool fpe_wait      = false;
+bool traceback     = false;
 
 bool ignore_info   = false;
 bool all_couples   = true;

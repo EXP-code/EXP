@@ -13,6 +13,10 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
+#include <set>
+
+#include <global_key_set.H>
 
 void exp_version()
 {
@@ -71,6 +75,15 @@ void initialize(void)
 
   if (_G) {
     
+    // Check for unmatched keys
+    //
+    auto unmatched = YamlCheck(_G, global_valid_keys);
+    if (unmatched.size())
+      throw YamlConfigError("EXP", "global", unmatched,
+			    __FILE__, __LINE__, 999);
+    //
+    // END check, BEGIN parsing
+
     if (_G["nsteps"])	     nsteps     = _G["nsteps"].as<int>();
     if (_G["nthrds"])	     nthrds     = std::max<int>(1, _G["nthrds"].as<int>());
     if (_G["ngpus"])	     ngpus      = _G["ngpus"].as<int>();
@@ -213,6 +226,12 @@ void initialize(void)
 		    << "----" << std::endl;
       }
     }
+
+    // Enable stack traceback on exception abort
+    if (_G["traceback"])        traceback    = _G["traceback"].as<bool>();
+
+    // Source/line output in exception info string
+    if (_G["sourceline"])       sourceline   = _G["sourceline"].as<bool>();
 
     if (_G["homedir"]) {
       homedir = _G["homedir"].as<std::string>();
