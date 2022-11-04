@@ -37,7 +37,7 @@ class CheckpointTimer
 {
 private:
 
-  time_t initial, final, last, current, last_diag;
+  time_t initial, final, last, current, last_diag, start_time;
   unsigned nsteps;
   double mean, var;
   bool firstime;

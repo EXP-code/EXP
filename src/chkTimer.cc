@@ -27,7 +27,7 @@ CheckpointTimer::CheckpointTimer()
 
   initial = final = 0;
   last = current = 0;
-  last_diag = time(0);
+  start_time = last_diag = time(0);
   mean = var = 0;
   nsteps = 0;
   firstime = true;
@@ -205,10 +205,8 @@ double CheckpointTimer::time_remaining()
   ret = static_cast<double>(rem)/3600.0;
 
 #else
-  if (runtime<=0.0)
-    std::cout << "---- Set 'runtime' variable >0 for a wall-clock limit"
-	      << std::endl;
-  ret = 8766.0;			// One year by default
+  // Specified runtime in hours minus time so far in hours
+  ret = runtime - (time(0) - start_time)/3600.0;
 #endif
 
   return ret;
