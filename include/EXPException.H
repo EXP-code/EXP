@@ -259,7 +259,7 @@ public:
       if (errormessage.size()>1) errormessage += " ";
       errormessage += s;
     }
-    errormessage += ">\n";
+    errormessage += ">";
 
     msg_ = getErrorMessage();
   }
