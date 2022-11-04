@@ -33,7 +33,9 @@ bool initializing = false;	// Used by force methods to do "private things"
 				// before the first step (e.g. run through
 				// coefficient evaluations even when
 				// self_consistent=false)
-double runtime = 72.0;		// Total alloted runtime
+
+				// Total alloted runtime: 0 means ignore
+double runtime = 0.0;
 
 				// Files
 string homedir  = "./";

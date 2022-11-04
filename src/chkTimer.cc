@@ -204,11 +204,11 @@ double CheckpointTimer::time_remaining()
 
   ret = static_cast<double>(rem)/3600.0;
 
-  return ret;
-
 #else
-  throw GenericError("Set 'runtime' variable for a wall-clock limit",
-		     __FILE__, __LINE__, 1004, false);
+  if (runtime<=0.0)
+    std::cout << "---- Set 'runtime' variable >0 for a wall-clock limit"
+	      << std::endl;
+  ret = runtime;
 #endif
 
   return ret;

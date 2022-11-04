@@ -217,13 +217,12 @@ void OrbTrace::initialize()
   // Assign values from YAML
   //
   try { 
-    // Get file name
     if (conf["filename"])    filename  = conf["filename"].as<std::string>();
     if (conf["norb"])        norb      = conf["norb"].as<int>();
     if (conf["nbeg"])        nbeg      = conf["nbeg"].as<int>();
     if (conf["nskip"])       nskip     = conf["nskip"].as<int>();
     if (conf["nint"])        nint      = conf["nint"].as<int>();
-    if (conf["nintsub"])     nintsub  =  conf["nintsub"].as<int>();
+    if (conf["nintsub"])     nintsub   = conf["nintsub"].as<int>();
     if (conf["orbitlist"])   orbitlist = conf["orbitlist"].as<std::string>();
     if (conf["use_acc"])     use_acc   = conf["use_acc"].as<bool>();
     if (conf["use_pot"])     use_pot   = conf["use_pot"].as<bool>();

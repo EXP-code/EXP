@@ -517,106 +517,110 @@ main(int argc, char** argv)
 
   if (myid==0) exp_version();
 
-  //============================
-  // Parse command line:        
-  // broadcast to all processes 
-  //============================
-
-  YAML_parse_args(argc, argv);
-
-  //============================
-  // Trap floating point errors
-  // by installing user handler
-  //============================
-
-  if (fpe_trap ) set_fpu_invalid_handler();
-  if (fpe_trace) set_fpu_trace_handler();
-  if (fpe_wait ) set_fpu_gdb_handler();
-
-  //========================
-  // Change to desired home 
-  // directory              
-  //========================
-
-  if (use_cwd) {
-				// Get Node 0 working directory 
-    if (myid == 0) auto ret = getcwd(hdbuffer, (size_t)hdbufsize);
-    MPI_Bcast(hdbuffer, hdbufsize, MPI_CHAR, 0, MPI_COMM_WORLD);
-
-    homedir.clear();
-    homedir = hdbuffer;
-    if (myid == 0) cout << "main: working directory is <" << homedir << ">\n";
-  }
-  
-  retdir = chdir(homedir.c_str());
-  if (retdir) {
-    cerr << "Process " << myid << ": could not change to home directory "
-	 << homedir << "\n";
-    retdir = 1;
-  }
-				// For exit if some nodes can't find 
-				// their home 
-  MPI_Allreduce(&retdir, &retdir0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  if (retdir0) {
-    MPI_Finalize();
-    exit(-1);
-  }
-
-  //=======
-  // DEBUG 
-  //=======
-#if 0
-  if (myid) {
-    getcwd(hdbuffer, (size_t)hdbufsize);
-    cout << "Process " << myid << ": homedir=" << hdbuffer << "\n";
-  }
-#endif
-
-  //==================
-  // Barrier debugging
-  //==================
-
-  barrier = new BarrierWrapper(MPI_COMM_WORLD, barrier_label);
-  if (barrier_check) barrier->on();
-  else               barrier->off();
-  if (barrier_light) barrier->setLightWeight();
-  else               barrier->setHeavyWeight();
-  if (barrier_quiet) BarrierWrapper::verbose       = false;
-  else               BarrierWrapper::verbose       = true;
-  if (barrier_extra) BarrierWrapper::extra_verbose = true;
-  else               BarrierWrapper::extra_verbose = false;
-  if (barrier_debug) BarrierWrapper::debugging     = true;
-  else               BarrierWrapper::debugging     = false;
-
-  //================
-  // Nice process ? 
-  //================
-
-  if (NICE>0) setpriority(PRIO_PROCESS, 0, NICE);
-
-
-  //===================
-  // Set memory limits
-  //===================
-
-  if (set_memlock_limits()) report_memlock_limits();
-
-  //==============================================
-  // Sleep loop for debugging
-  //==============================================
-
-  if (!main_wait or myid==0) {
-    while (debug_wait) {
-      sleep(5);
-    }
-  }
-
   
   //==============================================
   // Begin exception handling
   //==============================================
 
   try {
+
+    //============================
+    // Parse command line:        
+    // broadcast to all processes 
+    //============================
+
+    YAML_parse_args(argc, argv);
+
+    //============================
+    // Trap floating point errors
+    // by installing user handler
+    //============================
+
+    if (fpe_trap ) set_fpu_invalid_handler();
+    if (fpe_trace) set_fpu_trace_handler();
+    if (fpe_wait ) set_fpu_gdb_handler();
+
+    //========================
+    // Change to desired home 
+    // directory              
+    //========================
+    
+    if (use_cwd) {
+      // Get Node 0 working directory and broadcast to everyone
+      //
+      if (myid == 0) auto ret = getcwd(hdbuffer, (size_t)hdbufsize);
+      MPI_Bcast(hdbuffer, hdbufsize, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+      homedir.clear();
+      homedir = hdbuffer;
+      if (myid == 0)
+	std::cout << "main: working directory is <" << homedir << ">"
+		  << std::endl;
+    }
+  
+    retdir = chdir(homedir.c_str());
+    if (retdir) {
+      std::cerr << "Process " << myid << ": could not change to home directory "
+		<< homedir << std::endl;
+      retdir = 1;
+    }
+
+    // For exit if some nodes can't find their home
+    //
+    MPI_Allreduce(&retdir, &retdir0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    if (retdir0) {
+      MPI_Finalize();
+      exit(-1);
+    }
+
+    //=======
+    // DEBUG 
+    //=======
+#if 0
+    if (myid) {
+      getcwd(hdbuffer, (size_t)hdbufsize);
+      cout << "Process " << myid << ": homedir=" << hdbuffer << "\n";
+    }
+#endif
+
+    //==================
+    // Barrier debugging
+    //==================
+
+    barrier = new BarrierWrapper(MPI_COMM_WORLD, barrier_label);
+    if (barrier_check) barrier->on();
+    else               barrier->off();
+    if (barrier_light) barrier->setLightWeight();
+    else               barrier->setHeavyWeight();
+    if (barrier_quiet) BarrierWrapper::verbose       = false;
+    else               BarrierWrapper::verbose       = true;
+    if (barrier_extra) BarrierWrapper::extra_verbose = true;
+    else               BarrierWrapper::extra_verbose = false;
+    if (barrier_debug) BarrierWrapper::debugging     = true;
+    else               BarrierWrapper::debugging     = false;
+    
+    //================
+    // Nice process ? 
+    //================
+    
+    if (NICE>0) setpriority(PRIO_PROCESS, 0, NICE);
+
+
+    //===================
+    // Set memory limits
+    //===================
+    
+    if (set_memlock_limits()) report_memlock_limits();
+    
+    //==============================================
+    // Sleep loop for debugging
+    //==============================================
+    
+    if (!main_wait or myid==0) {
+      while (debug_wait) {
+	sleep(5);
+      }
+    }
 
     //==============================================
     // Read in points and initialize expansion grid 
