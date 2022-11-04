@@ -678,22 +678,21 @@ main(int argc, char** argv)
   }
   catch (EXPException& e) {
 
-    if (e.getDeadlock()) {
+    if (e.getDeadlock())
       std::cerr << std::string(72, '-') << std::endl
 		<< "Process " << myid << ": EXP asynchronous exception"
 		<< std::string(72, '-') << std::endl
 		<< e.getErrorMessage()  << std::endl
 		<< std::string(72, '-') << std::endl;
-      if (VERBOSE>4) print_trace(std::cerr, 0, 0);
-      sleep(5);
-      std::cerr << std::flush;
-    } else if (myid==0) {
+    else if (myid==0)
       std::cerr << std::string(72, '-') << std::endl
 		<< "EXP synchronous exception" << std::endl
 		<< std::string(72, '-') << std::endl
 		<< e.getErrorMessage()  << std::endl
 		<< std::string(72, '-') << std::endl;
-     if (VERBOSE>4) print_trace(std::cerr, 0, 0);
+
+    if (VERBOSE>4 and (e.getDeadlock() or myid==0)) {
+      print_trace(std::cerr, 0, 0);
       sleep(5);
       std::cerr << std::flush;
     }
