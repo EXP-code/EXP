@@ -23,7 +23,7 @@
 #include <EmpCylSL.H>
 #include <DiskModels.H>
 
-#include "config.h"
+#include <config_exp.h>
 
 double  plgndr(int l, int m, double x);
 double dplgndr(int l, int m, double x);

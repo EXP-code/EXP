@@ -51,7 +51,7 @@
 #ifndef _expand_H
 #define _expand_H
 
-#include <config.h>
+#include <config_exp.h>
 
 #define BSD_SOURCE
 

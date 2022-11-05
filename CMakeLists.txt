@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.15) # This is the oldest version I've
 				     # preferred esp. for Cuda support
 project(
   EXP
-  VERSION 7.713
+  VERSION 7.714
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
@@ -279,6 +279,6 @@ set(CMAKE_CXX_FLAGS_UBSAN
   CACHE STRING "Flags used by the C++ compiler during UndefinedBehaviourSanitizer builds."
   FORCE)
 
-# Make the config.h file
-configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_SOURCE_DIR}/config.h)
+# Make the config_exp.h file
+configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_SOURCE_DIR}/config_exp.h)
 

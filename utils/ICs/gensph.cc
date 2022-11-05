@@ -54,7 +54,7 @@
 //
 using namespace __EXP__;
 
-#include <config.h>
+#include <config_exp.h>
 
 #ifdef HAVE_FFTW
 #include <fftw3.h>

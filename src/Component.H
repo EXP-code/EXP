@@ -17,7 +17,7 @@
 #include <Circular.H>
 #include <Timer.H>
 
-#include "config.h"
+#include <config_exp.h>
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>  

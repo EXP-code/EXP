@@ -38,7 +38,7 @@
 #include <cmath>
 #include <string>
 
-#include <config.h>		// CMake generated config
+#include <config_exp.h>		// CMake generated config
 
 #ifdef HAVE_LIBPNGPP
 #include <ColorGradient.H>	// For PNG images

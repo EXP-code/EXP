@@ -11,7 +11,7 @@
 #include <expand.H>
 #include <chkTimer.H>
 
-#include <config.h>
+#include <config_exp.h>
 
 extern "C" {
   long rem_time(int);

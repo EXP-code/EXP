@@ -29,12 +29,12 @@ if (!(x)) { throw (std::runtime_error("Eigen assert error")); }
 #include <ColorGradient.H>
 #include <KMeans.H>
 
-#include "CoefDB.H"
+#include <CoefDB.H>
 
-#include "RedSVD.H"
-#include "config.h"
-#include "YamlConfig.H"
-#include "libvars.H"
+#include <RedSVD.H>
+#include <config_exp.h>
+#include <YamlConfig.H>
+#include <libvars.H>
 
 Eigen::MatrixXd wCorr(Eigen::MatrixXd & R)
 {

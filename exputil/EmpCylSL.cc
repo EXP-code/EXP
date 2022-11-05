@@ -20,7 +20,7 @@
 
 #include <Eigen/Eigenvalues>
 
-#include <config.h>
+#include <config_exp.h>
 #ifdef HAVE_VTK
 #include <VtkPCA.H>
 #endif

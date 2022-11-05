@@ -9,7 +9,7 @@
 #include <mpi.h>
 #include <localmpi.H>
 
-#include <config.h>
+#include <config_exp.h>
 
 #include <massmodel.H>
 #include <sltableMP2.H>

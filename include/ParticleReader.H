@@ -15,7 +15,7 @@
 
 #include <mpi.h>
 
-#include <config.h>
+#include <config_exp.h>
 
 #include <StringTok.H>
 #include <header.H>

@@ -1,5 +1,5 @@
 
-#include "config.h"
+#include <config_exp.h>
 
 #ifdef HAVE_OMP_H
 #include <omp.h>

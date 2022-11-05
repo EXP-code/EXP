@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <complex>
 
-#include "config.h"
+#include <config_exp.h>
 #include <localmpi.H>
 
 #include <Eigen/Dense>

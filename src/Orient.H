@@ -11,7 +11,7 @@
 #include <Eigen/Eigen>
 #include <Particle.H>
 
-#include <config.h>
+#include <config_exp.h>
 
 class Component;
 

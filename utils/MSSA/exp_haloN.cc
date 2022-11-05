@@ -31,8 +31,8 @@
 #include "Coefs.H"
 #include "RedSVD.H"
 
-#include "config.h"
-#include "YamlConfig.H"
+#include <config_exp.h>
+#include <YamlConfig.H>
 
 
 const double PI2() { return std::atan(1)*8; }

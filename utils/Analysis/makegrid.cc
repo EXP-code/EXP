@@ -5,7 +5,7 @@
 #include <cmath>
 #include <limits>
 
-#include "config.h"
+#include <config_exp.h>
 #include <libvars.H>
 
 #ifdef HAVE_VTK

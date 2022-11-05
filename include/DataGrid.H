@@ -5,7 +5,7 @@
 #include <sstream>
 #include <memory>
 
-#include <config.h>
+#include <config_exp.h>
 
 #include <TableGrid.H>
 #ifdef HAVE_VTK

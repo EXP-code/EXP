@@ -1,7 +1,7 @@
 #ifndef _pHOT_types_H
 #define _pHOT_types_H
 
-#include <config.h>
+#include <config_exp.h>
 
 #include <map>
 #include <set>
