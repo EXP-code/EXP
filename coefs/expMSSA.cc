@@ -1193,7 +1193,17 @@ namespace MSSA {
     "flip",
     "power",
     "evtol",
-    "output"
+    "output",
+    "Traj",
+    "writeCov",
+    "Jacobi",
+    "BDCSVD",
+    "RedSym",
+    "distance",
+    "allchan",
+    "totVar",
+    "totPow",
+    "noMean"
   };      
 
   void expMSSA::assignParameters(const std::string flags)
