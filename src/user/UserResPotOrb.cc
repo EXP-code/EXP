@@ -287,7 +287,7 @@ void UserResPotOrb::initialize()
     }
     
     if (L1.size() != L2.size() || numRes != (int)L1.size()) {
-      std::ostingstream sout;
+      std::ostringstream sout;
       sout << "UserResPotOrb: error parsing resonances, "
 	   << "  Size(L1)=" << L1.size() << "  Size(L2)=" << L2.size() 
 	   << "  numRes=" << numRes;
@@ -414,7 +414,7 @@ void UserResPotOrb::determine_acceleration_and_potential(void)
 
 	    if (tlast1 >= tnow) {
 	      if (firstline) {
-		std::ostingstream sout;
+		std::ostringstream sout;
 		sout << "UserResPotOrb: can't read log file, aborting" << endl;
 		sout << "UserResPotOrb: line=" << line;
 		throw GenericError(sout.str(), __FILE__, __LINE__, 123, false);

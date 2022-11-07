@@ -137,7 +137,7 @@ UserSatWake::UserSatWake(const YAML::Node& conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      std::ostingstream sout;
+      std::ostringstream sout;
       sout << "Process " << myid << ": can't find desired component <"
 	   << ctr_name << ">";
       throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);

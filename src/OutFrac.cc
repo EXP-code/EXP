@@ -73,7 +73,7 @@ OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
 	     << backfile << ">";
 	throw GenericError(sout.str(), __FILE__, __LINE__, 114, true);
       } else {
-	sout cout << "OutFrac::Run(): successfully renamed <"
+	std::cout << "OutFrac::Run(): successfully renamed <"
 		  << filename << "> to <" << backfile << ">" << std::endl;
       }
 
