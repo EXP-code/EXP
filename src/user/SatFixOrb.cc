@@ -35,9 +35,10 @@ SatFixOrb::SatFixOrb(const YAML::Node& conf) : ExternalForce(conf)
   }
 
   if (!found) {
-    cerr << "Process " << myid << ": SatFixOrb can't find desired component <"
-	 << comp_nam << ">" << endl;
-    MPI_Abort(MPI_COMM_WORLD, 35);
+    std::ostringstream sout;
+    sout << "Process " << myid << ": SatFixOrb can't find desired component <"
+	 << comp_nam << ">";
+    throw GenericError(sout.str(), __FILE__, __LINE__ 35, false);
   }
 
   unsigned total = c0->CurTotal();
@@ -45,10 +46,11 @@ SatFixOrb::SatFixOrb(const YAML::Node& conf) : ExternalForce(conf)
   // Find out who has particles, make sure that there are an even number
   //
   if (2*(total/2) != total) {
-    if (myid==0) cerr << "SatFixOrb: component <" << comp_nam 
-		      << "> has an odd number of particles!!! nbodies_tot=" 
-		      << total << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 36);
+    std::ostringstream sout;
+    sout << "SatFixOrb: component <" << comp_nam 
+	 << "> has an odd number of particles!!! nbodies_tot=" 
+	 << total;
+    throw GenericError(sout.str(), __FILE__, __LINE__ 36, false);
   }
 
   // Make sure that the particles are tagged
@@ -58,8 +60,8 @@ SatFixOrb::SatFixOrb(const YAML::Node& conf) : ExternalForce(conf)
   MPI_Allreduce(&in, &out, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
   if (out<1) {
-    if (myid==0) cerr << "SatFixOrb: bodies need an integer tag!" << endl;
-    MPI_Abort(MPI_COMM_WORLD, 37);
+    std::string msg = "SatFixOrb: bodies need an integer tag!";
+    throw GenericError(sout.str(), __FILE__, __LINE__ 37, false);
   }
 
   last = vector<unsigned int>(numprocs, 0);

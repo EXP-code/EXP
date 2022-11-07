@@ -27,8 +27,8 @@ UserProfile::UserProfile(const YAML::Node& conf) : ExternalForce(conf)
   initialize();
 
   if (numComp==0) {
-    if (myid==0) cerr << "You must specify component targets!" << endl;
-    MPI_Abort(MPI_COMM_WORLD, 120);
+    std::string msg = "You must specify component targets!";
+    throw GenericError(msg, __FILE__, __LINE__, 120, false);
   }
 
 				// Search for component by name
@@ -42,10 +42,10 @@ UserProfile::UserProfile(const YAML::Node& conf) : ExternalForce(conf)
 	  found = true;
 	  break;
 	} else {
-	  cerr << "Process " << myid << ": desired component <"
-	       << C[i] << "> is not a basis type!" << endl;
-
-	  MPI_Abort(MPI_COMM_WORLD, 121);
+	  std::ostringstream sout;
+	  sout << "Process " << myid << ": desired component <"
+	       << C[i] << "> is not a basis type!";
+	  throw GenericError(sout.str(), __FILE__, __LINE__, 121, false);
 	}
       }
     }
@@ -168,10 +168,11 @@ void UserProfile::initialize()
     }
     
     if (numComp != (int)C.size()) {
-      cerr << "UserProfile: error parsing component names, "
+      std::ostringstream sout;
+      sout << "UserProfile: error parsing component names, "
 	   << "  Size(C)=" << C.size()
-	   << "  numRes=" << numComp << endl;
-      MPI_Abort(MPI_COMM_WORLD, 122);
+	   << "  numRes=" << numComp;
+      throw GenericError(sout.str(), __FILE__, __LINE__, 122, false);
     }
     
     if (conf["filename"])       filename           = conf["filename"].as<string>();

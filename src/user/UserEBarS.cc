@@ -5,6 +5,39 @@
 #include <localmpi.H>
 #include <UserEBarS.H>
 
+const std::set<std::string>
+UserEBarS::valid_keys = {
+  "ctrname",
+  "tblname",
+  "length",
+  "bratio",
+  "cratio",
+  "amp",
+  "angmomfac",
+  "barmass",
+  "Ton",
+  "Toff",
+  "TmonoOn",
+  "TmonoOff",
+  "DeltaT",
+  "DeltaMonoT",
+  "DOmega",
+  "tom0",
+  "dtom",
+  "T0",
+  "Fcorot",
+  "omega",
+  "fixed",
+  "self",
+  "soft",
+  "monopole",
+  "follow",
+  "onoff",
+  "monofrac",
+  "quadfrac",
+  "filename"
+};
+
 UserEBarS::UserEBarS(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "RotatingBarWithMonopoleTorque";
@@ -61,9 +94,10 @@ UserEBarS::UserEBarS(const YAML::Node& conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << ctr_name << " for centering>" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": can't find desired component <"
+	   << ctr_name << " for centering>";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   }
@@ -75,9 +109,10 @@ UserEBarS::UserEBarS(const YAML::Node& conf) : ExternalForce(conf)
 				// Read in data
     ifstream in(string(outdir+table_name).c_str());
     if (!in) {
-      cerr << "Process " << myid << ": error opening quadrupole file <"
-	   << outdir + table_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": error opening quadrupole file <"
+	   << outdir + table_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
     
     string fline;
@@ -193,6 +228,15 @@ void UserEBarS::userinfo()
 
 void UserEBarS::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserEbar", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
     if (conf["tblname"])        table_name         = conf["tblname"].as<string>();
@@ -500,8 +544,9 @@ void UserEBarS::determine_acceleration_and_potential(void)
   }
 
   if (cid==comp->ncomp) {
-    cerr << "Process " << myid << ": failed to identify component!\n";
-    MPI_Abort(MPI_COMM_WORLD, 135);
+    std::ostringstream sout;
+    sout << "Process " << myid << ": failed to identify component!";
+    throw GenericError(sout.str(), __FILE__, __LINE__, 135, false);
   }
 
   okM++;

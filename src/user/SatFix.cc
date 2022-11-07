@@ -26,16 +26,18 @@ SatFix::SatFix(const YAML::Node& conf) : ExternalForce(conf)
 
   // Find out who has particles, make sure that there are an even number
   if (2*(total/2) != total) {
-    if (myid==0) cerr << "SatFix: component <" << comp_name 
-		      << "> has an odd number of particles!!! nbodies_tot=" 
-		      << total << "\n";
-    MPI_Abort(MPI_COMM_WORLD, 36);
+    std::ostringstream sout;
+    sout << "SatFix: component <" << comp_name 
+	 << "> has an odd number of particles!!! nbodies_tot=" 
+	 << total;
+    throw GenericError(sout.str(), __FILE__, __LINE__, 36, false);
   }
 
   if (!found) {
-    cerr << "Process " << myid << ": SatFix can't find desired component <"
-	 << comp_name << ">" << endl;
-    MPI_Abort(MPI_COMM_WORLD, 35);
+    std::ostringstream sout;
+    sout << "Process " << myid << ": SatFix can't find desired component <"
+	 << comp_name << ">";
+    throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
   }
 
   owner = std::vector<int>(total);

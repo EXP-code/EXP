@@ -11,6 +11,44 @@
 static Timer timer_tot, timer_thrd;
 static bool timing = false;
 
+const std::set<std::string>
+UserEBarN::valid_keys = {
+  "ctrname",
+  "angmname",
+  "length",
+  "bratio",
+  "cratio",
+  "amp",
+  "angmomfac",
+  "barmass",
+  "Ton",
+  "Toff",
+  "TmonoOn",
+  "TmonoOff",
+  "DeltaT",
+  "DeltaMonoT",
+  "DOmega",
+  "dtom",
+  "T0",
+  "Fcorot",
+  "omega",
+  "fixed",
+  "self",
+  "alpha",
+  "monopole",
+  "follow",
+  "onoff",
+  "monofrac",
+  "quadfrac",
+  "monoamp",
+  "filename",
+  "modelp",
+  "rmin",
+  "rmax",
+  "numt",
+  "bartype"
+};
+
 UserEBarN::UserEBarN(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "RotatingBarWithMonopole";
@@ -71,9 +109,10 @@ UserEBarN::UserEBarN(const YAML::Node& conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << ctr_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": can't find desired component <"
+	   << ctr_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   }
@@ -93,9 +132,10 @@ UserEBarN::UserEBarN(const YAML::Node& conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << angm_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": can't find desired component <"
+	   << ctr_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   }
@@ -196,6 +236,15 @@ void UserEBarN::userinfo()
 
 void UserEBarN::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserEbar", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
     if (conf["angmname"])       angm_name          = conf["angmname"].as<string>();
@@ -244,10 +293,10 @@ void UserEBarN::initialize()
 	bartype = expon;
 	break;
       default:
-	if (myid==0)
-	  std::cerr << "UnderEBarN: no such bar profile="
-		    << conf["bartype"].as<int>() << std::endl;
-	MPI_Abort(MPI_COMM_WORLD, 36);
+      std::ostringstream sout;
+      sout << "UnderEBarN: no such bar profile="
+	   << conf["bartype"].as<int>();
+      throw GenericError(sout.str(), __FILE__, __LINE__, 36, false);
       }
     }
   }
