@@ -13,6 +13,15 @@
 #include <AxisymmetricBasis.H>
 #include <OutCHKPT.H>
 
+const std::set<std::string>
+OutCHKPT::valid_keys = {
+  "mpio",
+  "filename",
+  "nint",
+  "nintsub",
+  "timer",
+  "nagg"
+};
 
 OutCHKPT::OutCHKPT(const YAML::Node& conf) : Output(conf)
 {
@@ -21,8 +30,13 @@ OutCHKPT::OutCHKPT(const YAML::Node& conf) : Output(conf)
 
 void OutCHKPT::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
-
     if (Output::conf["mpio"])
       mpio = Output::conf["mpio"].as<bool>();
     else
@@ -80,8 +94,8 @@ void OutCHKPT::initialize()
 void OutCHKPT::Run(int n, int mstep, bool last)
 {
   if (!dump_signal and !last) {
-    if (n % nint           ) return;
-    if (mstep % nintsub !=0) return;
+    if (n % nint) return;
+    if (multistep>1 and mstep % nintsub !=0) return;
   }
 
   if (VERBOSE>5 && myid==0) {

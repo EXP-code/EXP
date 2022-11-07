@@ -12,6 +12,15 @@
 
 const double default_quant[] = {0.001, 0.003, 0.01, 0.03, 0.1, 0.2, 0.4, 0.5, 0.6, 0.8, 0.9, 0.97, 0.99, 0.993, 0.999};
 
+const std::set<std::string>
+OutFrac::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub",
+  "name",
+  "frac"
+};
+
 OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
 {
   nint = 10;
@@ -50,35 +59,38 @@ OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
 				// Remove an old backup files
       if (unlink(backfile.c_str())) {
 	perror("OutFrac::Run()");
-	cout << "OutFrac::Run(): error unlinking old backup file <" 
-	     << backfile << ">" << endl;
+	std::cout << "OutFrac::Run(): error unlinking old backup file <" 
+		  << backfile << ">" << std::endl;
       } else {
-	cout << "OutFrac::Run(): successfully unlinked <"
-	     << backfile << ">" << endl;
+	std::cout << "OutFrac::Run(): successfully unlinked <"
+		  << backfile << ">" << std::endl;
       }
       if (rename(filename.c_str(), backfile.c_str())) {
 	perror("OutFrac::Run()");
-	cout << "OutFrac: error renaming the current file <"
+	std::ostringstream sout;
+	sout << "OutFrac: error renaming the current file <"
 	     << filename << "> to the backup file <" 
-	     << backfile << ">" << endl;
-	MPI_Abort(MPI_COMM_WORLD, 114);
+	     << backfile << ">";
+	throw GenericError(sout.str(), __FILE__, __LINE__, 114, true);
       } else {
-	cout << "OutFrac::Run(): successfully renamed <"
-	     << filename << "> to <" << backfile << ">" << endl;
+	std::cout << "OutFrac::Run(): successfully renamed <"
+		  << filename << "> to <" << backfile << ">" << std::endl;
       }
 
-      ifstream in(backfile.c_str());
+      std::ifstream in(backfile.c_str());
       if (!in) {
-	cout << "OutFrac: error opening backup file <" 
-	     << backfile << "> for input" << endl;
-	MPI_Abort(MPI_COMM_WORLD, 115);
+	std::ostringstream sout;
+	sout << "OutFrac: error opening backup file <" 
+	     << backfile << "> for input";
+	throw GenericError(sout.str(), __FILE__, __LINE__, 115, true);
       }
 
-      ofstream out(filename.c_str());
+      std::ofstream out(filename.c_str());
       if (!out) {
-	cout << "OutFrac: error opening new file <" 
-	     << filename << "> for output" << endl;
-	MPI_Abort(MPI_COMM_WORLD, 116);
+	std::ostringstream sout;
+	sout << "OutFrac: error opening new file <" 
+	     << filename << "> for output";
+	throw GenericError(sout.str(), __FILE__, __LINE__, 116, true);
       }
 
       const unsigned linesz = 4196;
@@ -131,6 +143,12 @@ OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
 
 void OutFrac::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
 				// Get file name
     if (Output::conf["filename"])
@@ -174,7 +192,7 @@ void OutFrac::initialize()
 void OutFrac::Run(int n, int mstep, bool last)
 {
   if (n % nint != 0 && !last) return;
-  if (mstep % nintsub !=0) return;
+  if (multistep>1 and mstep % nintsub !=0) return;
 
   MPI_Status status;
 

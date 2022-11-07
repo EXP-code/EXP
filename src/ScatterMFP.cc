@@ -16,6 +16,14 @@ bool less_rpair(const rpair& one, const rpair& two)
   return (one.first < two.first);
 }
 
+const std::set<std::string>
+ScatterMFP::valid_keys =  {
+  "tautab",
+  "tauscat",
+  "rmax",
+  "nscat",
+  "mfp_index"
+};
 
 ScatterMFP::ScatterMFP(const YAML::Node& conf) : ExternalForce(conf)
 {
@@ -41,7 +49,7 @@ ScatterMFP::ScatterMFP(const YAML::Node& conf) : ExternalForce(conf)
   if (c==NULL) {
     std::ostringstream sout;
     sout << "ScatterMFP: can not find target component <" << comp_id << ">\n";
-    throw GenericError(sout.str(), __FILE__, __LINE__);
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1029, false);
   }
 
 				// Check for mfp in particle attribute list
@@ -74,6 +82,12 @@ ScatterMFP::~ScatterMFP()
 
 void ScatterMFP::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
     if (conf["tautab"])         tautab        = conf["tautab"].as<int>();
     if (conf["tauscat"])        tauscat       = conf["tauscat"].as<double>();

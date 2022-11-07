@@ -32,6 +32,9 @@ private:
 
   void userinfo();
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   //! Constructor

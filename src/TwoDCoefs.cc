@@ -4,8 +4,9 @@
 #include <cstring>		 // For strncpy
 #include <memory>		 // Shared pointers
 
-#include "global.H"
-#include "TwoDCoefs.H"
+#include <EXPException.H>
+#include <TwoDCoefs.H>
+#include <global.H>
 
 bool TwoDCoefs::Coefs::read(std::istream& in)
 {
@@ -68,7 +69,7 @@ bool TwoDCoefs::Coefs::read(std::istream& in)
       sout << "TwoDCoefs: magic number mismatch.  Got <"
 	   << std::hex << tmagic << "> but expected <"
 	   << std::hex << cmagic << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1034, false);
     }
   }
   catch (std::istream::failure e) {

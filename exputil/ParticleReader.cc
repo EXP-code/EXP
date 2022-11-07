@@ -15,6 +15,8 @@
 #include <H5Cpp.h>		// HDF5 C++ support
 
 #include <ParticleReader.H>
+#include <EXPException.H>
+#include <P2Quantile.H>
 #include <gadget.H>
 #include <Sutils.H>		// For string trimming
 
@@ -36,6 +38,8 @@ namespace PR {
 
     getNumbers();		// Get the number of particles in all
 				// files
+
+    totalCount = 0;		// Initialization of particles read
 
     curfile = _files.begin();	// Set file to first one
 
@@ -104,7 +108,7 @@ namespace PR {
     if (!file.is_open()) {
       std::ostringstream ost;
       ost << "Error opening file: " << *curfile;
-      throw std::runtime_error(ost.str());
+      throw GenericError(ost.str(), __FILE__, __LINE__, 1041, true);
     }
     
     if (myid==0 and _verbose)
@@ -305,6 +309,8 @@ namespace PR {
     
     ptype = 1;			// Default is halo particles
 
+    totalCount = 0;		// Initialization of particles read
+
     getNumbers();
     curfile = _files.begin();
 
@@ -441,6 +447,8 @@ namespace PR {
 	std::ostringstream sout;
 	sout << "PartType" << ptype;
 	
+	totalCount = npart[ptype];
+
 	std::string grpnam = "/" + sout.str();
 	H5::Group grp(file.openGroup(grpnam));
 	H5::DataSet dataset = grp.openDataSet("Coordinates");
@@ -472,10 +480,11 @@ namespace PR {
 	  std::cout << "GadgetHDF5: coordinate storage size="
 		    << dataset.getStorageSize() << std::endl;
 	
-	// Set the particle vector
+	// Clear and load the particle vector
 	//
-	Particle P;
-	
+	particles.clear();
+
+	Particle P;		// Working particle will be copied
 	for (int n=0; n<dims[0]; n++) {
 	  if (n % numprocs ==  myid) {
 	    P.mass  = mass[ptype];
@@ -593,7 +602,7 @@ namespace PR {
       {
 	std::ostringstream ost;
 	ost << "Error opening HDF5 file: " << *curfile;
-	throw std::runtime_error(ost.str());
+	throw GenericError(ost.str(), __FILE__, __LINE__, 1041, true);
       }
     
     // catch failure caused by the DataSet operations
@@ -650,7 +659,6 @@ namespace PR {
   
   PSPout::PSPout(const std::vector<std::string>& infile, bool verbose) : PSP(verbose)
   {
-    
     // Open the file
     // -------------
     try {
@@ -658,7 +666,7 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not open PSP file <" << infile[0] << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     pos = in.tellg();
@@ -670,7 +678,7 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not read master header for <" << infile[0] << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     for (int i=0; i<header.ncomp; i++) {
@@ -689,7 +697,7 @@ namespace PR {
       } catch (...) {
 	std::ostringstream sout;
 	sout << "Error reading magic for <" << infile[0] << ">";
-	throw std::runtime_error(sout.str());
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
       }
       
       try {
@@ -697,7 +705,7 @@ namespace PR {
       } catch (...) {
 	std::ostringstream sout;
 	sout << "Error reading component header for <" << infile[0] << ">";
-	throw std::runtime_error(sout.str());
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
       }
       
       stanza.pspos = in.tellg();
@@ -824,7 +832,6 @@ namespace PR {
   
   PSPspl::PSPspl(const std::vector<std::string>& master, bool verbose) : PSP(verbose)
   {
-    
     // Open the file
     // -------------
     try {
@@ -832,13 +839,13 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not open the master SPL file <" << master[0] << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     if (!in.good()) {
       std::ostringstream sout;
       sout << "Error opening master SPL file <" << master[0] << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     // Read the header, quit on failure
@@ -848,7 +855,7 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not read master header for <" << master[0] << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     for (int i=0; i<header.ncomp; i++) {
@@ -865,7 +872,7 @@ namespace PR {
 	std::ostringstream sout;
 	sout << "Error reading magic info for Comp #" << i << " from <"
 	     << master[0] << ">";
-	throw std::runtime_error(sout.str());
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
       }
       
       rsize = sizeof(double);
@@ -879,7 +886,7 @@ namespace PR {
 	std::ostringstream sout;
 	sout << "Error reading component header Comp #" << i << " from <"
 	     << master[0] << ">";
-	throw std::runtime_error(sout.str());
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
       }
       
       // Parse the info string
@@ -894,7 +901,7 @@ namespace PR {
 	std::ostringstream sout;
 	sout << "Error parsing component config in Comp #" << i
 	     << " from <" << master[0] << ">";
-	throw std::runtime_error(sout.str());
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
       }
       
       cconf  = conf["parameters"];
@@ -1016,7 +1023,7 @@ namespace PR {
   {
     spos = stanzas.begin();
     cur  = &(*spos);
-    if (spos != stanzas.end()) 
+    if (spos != stanzas.end())
       return cur;
     else 
       return 0;
@@ -1113,13 +1120,13 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not open SPL blob <" << curfile << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     if (not in.good()) {
       std::ostringstream sout;
       sout << "Could not open SPL blob <" << curfile << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     try {
@@ -1127,7 +1134,7 @@ namespace PR {
     } catch (...) {
       std::ostringstream sout;
       sout << "Could not get particle count from <" << curfile << ">";
-      throw std::runtime_error(sout.str());
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
     
     fcount = 0;
@@ -1292,52 +1299,61 @@ namespace PR {
   ParticleReader::parseFileList
   (const std::string& file, const std::string& delimit)
   {
-    std::vector<std::vector<std::string>> batches;
-
+    std::vector<std::string> files;
+      
     std::ifstream in(file);
     if (in) {
-      std::vector<std::string> files;
-      
       std::string name;
       while(in >> name) files.push_back(name);
-      
-      std::sort(files.begin(), files.end());
-      
-      std::vector<std::string> batch;
-      std::string templ;
-      
-      for (auto f : files) {
-	std::size_t found = f.find_last_of(delimit);
-
-	// No delimiter?
-	if (found == std::string::npos) {
-	  batch.push_back(f);
-	  batches.push_back(batch);
-	  batch.clear();
-	}
-	// Found a delimiter
-	else {
-	  auto trimmed = f.substr(0, found);
-
-	  if (batch.size()==0) {
-	    templ = trimmed;
-	    batch.push_back(f);
-	  }
-	  else if (trimmed == templ) {
-	    batch.push_back(f);
-	  }
-	  else {		// Mismatch: new batch
-	    if (batch.size()) {
-	      batches.push_back(batch);
-	      batch.clear();
-	    }
-	    templ = trimmed;
-	    batch.push_back(f);
-	  }
-	}
-      }
     } else {
       std::cerr << "Error opening file <" << file << ">" << std::endl;
+    }
+
+    return parseStringList(files, delimit);
+  }
+      
+  std::vector<std::vector<std::string>>
+  ParticleReader::parseStringList
+  (const std::vector<std::string>& infiles, const std::string& delimit)
+  {
+    std::vector<std::vector<std::string>> batches;
+
+    // Make a copy, preserving the order of the original list
+    auto files = infiles;
+    std::sort(files.begin(), files.end());
+      
+    std::vector<std::string> batch;
+    std::string templ;
+      
+    for (auto f : files) {
+      std::size_t found = f.find_last_of(delimit);
+
+      // No delimiter?
+      if (found == std::string::npos) {
+	batch.push_back(f);
+	batches.push_back(batch);
+	batch.clear();
+      }
+      // Found a delimiter
+      else {
+	auto trimmed = f.substr(0, found);
+	
+	if (batch.size()==0) {
+	  templ = trimmed;
+	  batch.push_back(f);
+	}
+	else if (trimmed == templ) {
+	  batch.push_back(f);
+	}
+	else {		// Mismatch: new batch
+	  if (batch.size()) {
+	    batches.push_back(batch);
+	    batch.clear();
+	  }
+	  templ = trimmed;
+	  batch.push_back(f);
+	}
+      }
     }
 
     return batches;
@@ -1348,19 +1364,21 @@ namespace PR {
 			       const std::vector<std::string>& file,
 			       int myid, bool verbose)
   {
+    std::shared_ptr<ParticleReader> ret;
+    
     if (reader.find("PSPout") == 0)
-      return std::make_shared<PSPout>(file, verbose);
+      ret = std::make_shared<PSPout>(file, verbose);
     else if (reader.find("PSPspl") == 0)
-      return std::make_shared<PSPspl>(file, verbose);
+      ret = std::make_shared<PSPspl>(file, verbose);
     else if (reader.find("GadgetNative") == 0)
-      return std::make_shared<GadgetNative>(file, verbose);
+      ret = std::make_shared<GadgetNative>(file, verbose);
     else if (reader.find("GadgetHDF5") == 0)
-      return std::make_shared<GadgetHDF5>(file, verbose);
+      ret = std::make_shared<GadgetHDF5>(file, verbose);
     else if (reader.find("TipsyNative") == 0)
-      return std::make_shared<Tipsy>(file, Tipsy::TipsyType::native, verbose);
+      ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::native, verbose);
     else if (reader.find("TipsyXDR") == 0)
 #ifdef HAVE_XDR
-      return std::make_shared<Tipsy>(file, Tipsy::TipsyType::xdr, verbose);
+      ret= std::make_shared<Tipsy>(file, Tipsy::TipsyType::xdr, verbose);
 #else
     {
       if (myid==0) {
@@ -1376,17 +1394,21 @@ namespace PR {
 #endif
 
     else if (reader.find("Bonsai") == 0)
-      return std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai, verbose);
+      ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai, verbose);
     else {
-      if (myid==0) {
-	std::cout << "ParticleReader: I don't know about reader <" << reader
-		  << ">" << std::endl
-		  << "Available readers are:";
-	for (auto s : readerTypes) std::cout << " " << s;
-	std::cout << std::endl;
-      }
-      exit(1);
+      std::ostringstream sout;
+      sout << "ParticleReader: I don't know about reader <" << reader
+	   << ">" << std::endl
+	   << "Available readers are:";
+      for (auto s : readerTypes) sout << " " << s;
+      sout << std::endl;
+
+      if (myid==0) std::cout << sout.str();
+
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     }
+
+    return ret;
   }
 
   std::vector<std::string> Tipsy::Ptypes
@@ -1401,38 +1423,40 @@ namespace PR {
     Ngas = Ndark = Nstar = 0;
     std::set<std::string> types;
 
+    unsigned fcnt = 0;
     for (auto file : files) {
 
       // Make a tipsy native reader
       if (ttype == TipsyType::native)
-	ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, false);
+	ps = std::make_shared<TipsyReader::TipsyNative>(file);
       // Native tipsy with ID conversion
       else if (ttype == TipsyType::bonsai)
-	ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, true);
+	ps = std::make_shared<TipsyReader::TipsyNative>(file);
       // Make a tipsy xdr reader
       else {
 #ifdef HAVE_XDR
-	ps = std::make_shared<TipsyReader::TipsyXDR>(*curfile);
+	ps = std::make_shared<TipsyReader::TipsyXDR>(file);
 #else
-	ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, false);
+	ps = std::make_shared<TipsyReader::TipsyNative>(file);
 #endif
       }
 
-      if (ps->gas_particles.size() ) {
+      if (ps->header.nsph ) {
 	types.insert("Gas");
-	Ngas += ps->gas_particles.size();
+	Ngas += ps->header.nsph;
       }
 
-      if (ps->dark_particles.size()) {
+      if (ps->header.ndark) {
 	types.insert("Dark");
-	Ndark += ps->dark_particles.size();
+	Ndark += ps->header.ndark;
       }
 
-      if (ps->star_particles.size()) {
+      if (ps->header.nstar) {
 	types.insert("Star");
-	Nstar += ps->star_particles.size();
+	Nstar += ps->header.nstar;
       }
 
+      fcnt++;
     }
 
     curTypes.clear();
@@ -1444,18 +1468,19 @@ namespace PR {
     if (curfile==files.end()) return false;
     
     if (ttype == TipsyType::native)
-      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, false);
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
     else if (ttype == TipsyType::bonsai)
-      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile, true);
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
     else {
 #ifdef HAVE_XDR
       ps = std::make_shared<TipsyReader::TipsyXDR>(*curfile);
 #else
-      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile), false;
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
 #endif
     }
 
     ps->readParticles();
+
     curfile++;
     return true;
   }
@@ -1487,12 +1512,11 @@ namespace PR {
   void Tipsy::SelectType(const std::string& name)
   {
     if (std::find(curTypes.begin(), curTypes.end(), name) == curTypes.end()) {
-      std::cout << "Tipsy error: no particle type <" << name << ">"
-		<< std::endl;
-      throw std::runtime_error("Tipsy: non-existent particle type");
+      std::ostringstream sout;
+      sout << "Tipsy error: no particle type <" << name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1041, true);
     } else {
       curName = name;
-      ps->readParticles();
     }
 
     curfile = files.begin();	// Set to first file and open
@@ -1537,18 +1561,20 @@ namespace PR {
       return;
     }
     
-    std::cerr << "Tipsy: logic error" << std::endl;
-    exit(-1);
+    std::string msg = "Tipsy error: particle type must be one of "
+      "Gas, Dark, Star. You selected [" + curName + "]";
+    throw GenericError(msg, __FILE__, __LINE__, 1041, true);
   }
+
   
   unsigned long Tipsy::CurrentNumber()
   {
     if (curName=="Gas") {
-      return ps->gas_particles.size();
+      return Ngas;
     } else if (curName=="Dark") {
-      return ps->dark_particles.size();
+      return Ndark;
     } else if (curName=="Star") {
-      return ps->star_particles.size();
+      return Nstar;
     } else {
       return 0;
     }
@@ -1581,6 +1607,99 @@ namespace PR {
     packParticle();
     return &P;
   }
+
+  // A generic all particle type version
+  // -----------------------------------
+  // Print stats for the currently selected component
+  //
+  void ParticleReader::PrintSummary(ostream &out, bool stats, bool timeonly)
+  {
+    
+    out << "   Time                : " << CurrentTime() << std::endl;
+    if (!timeonly) {
+      out << "   Number of particles : " << CurrentNumber() << std::endl;
+
+      // Initialize lists
+      //
+      std::vector<P2Quantile> pos_med(3), vel_med(3);
+      std::vector<double> pos_avg(3, 0.0), pos_var(3, 0.0);
+      std::vector<double> vel_avg(3, 0.0), vel_var(3, 0.0);
+      std::vector<double> pos_min(3,  std::numeric_limits<double>::max());
+      std::vector<double> vel_min(3,  std::numeric_limits<double>::max());
+      std::vector<double> pos_max(3, -std::numeric_limits<double>::max());
+      std::vector<double> vel_max(3, -std::numeric_limits<double>::max());
+
+      const double pct = 0.003;
+      double mtot = 0.0;
+      std::vector<double> p(3), v(3);
+
+      // Run through particles
+      //
+      for (auto P=firstParticle(); P!=0; P=nextParticle()) {
+	mtot += P->mass;
+	for (unsigned k=0; k<3; k++) {
+	  pos_avg[k] += P->mass * P->pos[k];
+	  pos_var[k] += P->mass * P->pos[k]*P->pos[k];
+	  pos_med[k].addValue(P->pos[k]);
+	  vel_avg[k] += P->mass * P->vel[k];
+	  vel_var[k] += P->mass * P->vel[k]*P->vel[k];
+	  vel_med[k].addValue(P->vel[k]);
+	  pos_min[k] = std::min<double>(pos_min[k], P->pos[k]);
+	  pos_max[k] = std::max<double>(pos_max[k], P->pos[k]);
+	  
+	  vel_min[k] = std::min<double>(vel_min[k], P->vel[k]);
+	  vel_max[k] = std::max<double>(vel_max[k], P->vel[k]);
+	}
+      }
+
+      for (auto & v : pos_avg) v /= mtot;
+      for (auto & v : pos_var) v /= mtot;
+      for (auto & v : vel_avg) v /= mtot;
+      for (auto & v : vel_var) v /= mtot;
+
+      out << std::endl << std::setw(20) << "*** Position" 
+	  << std::setw(15) << "X" << std::setw(15) << "Y" << std::setw(15) << "Z"
+	  << std::endl
+	  << std::setw(20) << "Min :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_min[k];
+      out << std::endl
+	  << std::setw(20) << "Med :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_med[k].getQuantile();
+      out << std::endl
+	  << std::setw(20) << "Avg :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_avg[k];
+      out << std::endl
+	  << std::setw(20) << "Std :: ";
+      for (unsigned k=0; k<3; k++)
+	out << std::setw(15)
+	    << sqrt(fabs(pos_var[k] - pos_avg[k]*pos_avg[k]));
+      out << std::endl
+	  << std::setw(20) << "Max :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << pos_max[k];
+      out << std::endl
+	  << std::endl << std::setw(20) << "*** Velocity"
+	  << std::setw(15) << "U" << std::setw(15) << "V" << std::setw(15) << "W"
+	  << std::endl
+	  << std::setw(20) << "Min :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_min[k];
+      out << std::endl
+	  << std::setw(20) << "Med :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_med[k].getQuantile();
+      out << std::endl
+	  << std::setw(20) << "Avg :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_avg[k];
+      out << std::endl
+	  << std::setw(20) << "Std :: ";
+      for (unsigned k=0; k<3; k++)
+	out << std::setw(15)
+	    << sqrt(fabs(vel_var[k] - vel_avg[k]*vel_avg[k]));
+      out << std::endl
+	  << std::setw(20) << "Max :: ";
+      for (unsigned k=0; k<3; k++) out << std::setw(15) << vel_max[k];
+      out << std::endl;
+    }
+  }
+  // END generic base-class PrintSummary()
 
 }
 // END: PR namespace

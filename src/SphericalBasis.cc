@@ -1,7 +1,11 @@
 #include "expand.H"
 
-#include <chrono>
+#include <filesystem>
 #include <sstream>
+#include <chrono>
+#include <string>
+#include <vector>
+#include <set>
 
 #include <SphericalBasis.H>
 #include <MixtureBasis.H>
@@ -21,12 +25,34 @@ static pthread_mutex_t io_lock;
 
 bool SphericalBasis::NewCoefs = true;
 
+const std::set<std::string>
+SphericalBasis::valid_keys = {
+  "scale",
+  "rmin",
+  "rmax",
+  "self_consistent",
+  "NO_L0",
+  "NO_L1",
+  "EVEN_L",
+  "EVEN_M",
+  "M0_ONLY",
+  "NOISE",
+  "noiseN",
+  "noise_model_file",
+  "seedN",
+  "ssfrac",
+  "playback",
+  "coefCompute",
+  "coefMaster"
+};
+
 SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) : 
   AxisymmetricBasis(c0, conf)
 {
 #if HAVE_LIBCUDA==1
   if (m) {
-    throw std::runtime_error("Error in SphericalBasis: MixtureBasis logic is not yet implemented in CUDA");
+    throw GenericError("Error in SphericalBasis: MixtureBasis logic is not yet "
+		       "implemented in CUDA", __FILE__, __LINE__, 1030, false);
   }
 
   // Initialize the circular storage container 
@@ -56,6 +82,12 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
   cuda_aware       = true;
 #endif
 
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["scale"]) 
       scale = conf["scale"].as<double>();
@@ -116,11 +148,21 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 	}
       }
 
-      playback = std::make_shared<SphericalCoefs>(file);
+      // This creates the Coefs instance
+      playback = std::dynamic_pointer_cast<Coefs::SphCoefs>(Coefs::Coefs::factory(file));
 
-      if (playback->nmax != nmax) {
+      // Check to make sure that has been created
+      if (not playback) {
+	throw GenericError("SphericalBasis: failure in downcasting",
+			   __FILE__, __LINE__, 1031, false);
+      }
+
+      // Set tolerance to 2 master time steps
+      playback->setDeltaT(dtime*2);
+
+      if (playback->nmax() != nmax) {
 	if (myid==0) {
-	  std::cerr << "SphericalBasis: nmax for playback [" << playback->nmax
+	  std::cerr << "SphericalBasis: nmax for playback [" << playback->nmax()
 		    << "] does not match specification [" << nmax << "]"
 		    << std::endl;
 	}
@@ -128,9 +170,9 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 	exit(-1);
       }
 
-      if (playback->lmax != Lmax) {
+      if (playback->lmax() != Lmax) {
 	if (myid==0) {
-	  std::cerr << "SphericalBasis: Lmax for playback [" << playback->lmax
+	  std::cerr << "SphericalBasis: Lmax for playback [" << playback->lmax()
 		    << "] does not match specification [" << Lmax << "]"
 		    << std::endl;
 	}
@@ -288,7 +330,7 @@ void SphericalBasis::setup(void)
   for (int l=0; l<=Lmax; l++) {	// with current binding from derived class
     for (int n=0; n<nmax; n++) {
       normM (l, n) = norm(n, l);
-      krnl  (l, n) = knl(n, l);
+      krnl  (l, n) = knl (n, l);
       sqnorm(l, n) = sqrt(normM(l, n));
     }
   }
@@ -560,19 +602,56 @@ void SphericalBasis::determine_coefficients_playback(void)
 
     if (myid==0) {
       auto ret = playback->interpolate(tnow);
-      for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-	for (int n=0; n<nmax; n++) (*expcoefP[l])[n] = (*ret)[l][n];
-	MPI_Bcast((*expcoefP[l]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+      // Get the matrix
+      auto mat = std::get<0>(ret);
+
+      // Get the error signal
+      if (not std::get<1>(ret)) stop_signal = 1;
+
+      //            +--------- Counter in real array (cosine and sine arrays
+      //            |          are interleaved)
+      //            |    +---- Counter in complex array (cosing and sine
+      //            |    |     components are the real and imag parts)
+      //            v    v
+      for (int l=0, L=0, M=0; l<=Lmax; l++) {
+	for (int m=0; m<=l; m++, M++) {
+	  *expcoefP[L] = mat.row(M).real();
+	  MPI_Bcast((*expcoefP[L++]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  if (m) {
+	    *expcoefP[L] = mat.row(M).imag();
+	    MPI_Bcast((*expcoefP[L++]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  }
+	}
       }
     } else {
-      for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-	MPI_Bcast((*expcoefP[l]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      for (int l=0, L=0; l<=Lmax; l++) {
+	for (int m=0; m<=l; m++) {
+	  MPI_Bcast((*expcoefP[L++]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  if (m) {
+	    MPI_Bcast((*expcoefP[L++]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  }
+	}
       }
     }
+    
   } else {
+
     auto ret = playback->interpolate(tnow);
-    for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-      for (int n=0; n<nmax; n++) (*expcoefP[l])[n] = (*ret)[l][n];
+
+    // Get the matrix
+    auto mat = std::get<0>(ret);
+
+    // Get the error signal
+    if (not std::get<1>(ret)) stop_signal = 1;
+
+    for (int l=0, L=0, M=0; l<=Lmax; l++) {
+      for (int m=0; m<=l; m++, M++) {
+	*expcoefP[L++] = mat.row(M).real();
+	if (m) {
+	  *expcoefP[L++] = mat.row(M).imag();
+	}
+      }
     }
   }
 }
@@ -659,7 +738,6 @@ void SphericalBasis::determine_coefficients_particles(void)
   cout << "Process " << myid << ": in <determine_coefficients>" << endl;
 #endif
 
-  //
   // Swap interpolation arrays
   //
   auto p = expcoefL[mlevel];
@@ -667,7 +745,6 @@ void SphericalBasis::determine_coefficients_particles(void)
   expcoefL[mlevel] = expcoefN[mlevel];
   expcoefN[mlevel] = p;
   
-  //
   // Clean arrays for current level
   //
   for (auto & v : expcoefN[mlevel]) v->setZero();
@@ -731,7 +808,6 @@ void SphericalBasis::determine_coefficients_particles(void)
   cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
 #endif
 
-  //
   // Sum up the results from each thread
   //
   for (int i=0; i<nthrds; i++) use1 += use[i];
@@ -936,7 +1012,7 @@ void SphericalBasis::multistep_update_finish()
   //  +--- Deep debugging
   //  |
   //  v
-  if (true and myid==0) {
+  if (false and myid==0) {
     std::string filename = runtag + ".differ_sph_" + component->name;
     std::ofstream out(filename, ios::app);
     std::set<int> L = {0, 1, 2};
@@ -1722,6 +1798,70 @@ void SphericalBasis::dump_coefs(ostream& out)
     }
   }
 
+}
+
+// Dump coefficients to an HDF5 file
+
+void SphericalBasis::dump_coefs_h5(const std::string& file)
+{
+  // Add the current coefficients
+  auto cur = std::make_shared<Coefs::SphStruct>();
+
+  cur->time   = tnow;
+  cur->geom   = geoname[geometry];
+  cur->id     = id;
+  cur->time   = tnow;
+  cur->lmax   = Lmax;
+  cur->nmax   = nmax;
+  cur->scale  = scale;
+  cur->normed = true;
+
+  cur->coefs.resize((Lmax+1)*(Lmax+2)/2, nmax);
+
+  for (int ir=0; ir<nmax; ir++) {
+    for (int l=0, L=0, offset=0; l<=Lmax; l++) {
+      double fac1 = (2.0*l+1.0)/(4.0*M_PI);
+      for (int m=0; m<=l; m++, L++) {
+	double fac2 = sqrt(fac1*factorial(l, m));
+	if (m==0) {
+	  cur->coefs(L, ir) = {fac2*(*expcoef[offset])[ir], 0.0};
+	  offset += 1;
+	} else {
+	  cur->coefs(L, ir) = {fac2*(*expcoef[offset])[ir], fac2*(*expcoef[offset+1])[ir]};
+	  offset += 2;
+	}
+      }
+    }
+  }
+
+  // Add center
+  //
+  cur->ctr = component->getCenter(Component::Local | Component::Centered);
+
+  // Check if file exists
+  //
+  if (std::filesystem::exists(file + ".h5")) {
+    sphCoefs.clear();
+    sphCoefs.add(cur);
+    sphCoefs.ExtendH5Coefs(file);
+  }
+  // Otherwise, extend the existing HDF5 file
+  //
+  else {
+    // Copy the YAML config.  We only need this on the first call.
+    std::ostringstream sout; sout << conf;
+    size_t hsize = sout.str().size() + 1;
+    cur->buf = std::shared_ptr<char[]>(new char [hsize]);
+    sout.str().copy(cur->buf.get(), hsize); // Copy to CoefStruct buffer
+
+    // Add the name attribute.  We only need this on the first call.
+    sphCoefs.setName(component->name);
+
+    // And the new coefficients and write the new HDF5
+    sphCoefs.clear();
+    sphCoefs.add(cur);
+    sphCoefs.WriteH5Coefs(file);
+  }
 }
 
 

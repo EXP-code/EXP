@@ -43,6 +43,9 @@ extern bool gdb_trace;
 //! Install error handler for fpe wait
 extern bool fpe_wait;
 
+//! Enable traceback on exceptions
+extern bool traceback;
+
 //! Maximum number of steps to execute
 extern int nsteps;
 

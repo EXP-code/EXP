@@ -7,6 +7,14 @@
 #include <Timer.H>
 #include <OutCalbr.H>
 
+const std::set<std::string>
+OutCalbr::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub",
+  "N",
+  "name"
+};
 
 OutCalbr::OutCalbr(const YAML::Node& conf) : Output(conf)
 {
@@ -136,6 +144,12 @@ void OutCalbr::set_energies()
 
 void OutCalbr::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
     if (conf["filename"])      filename = conf["filename"].as<std::string>();
     if (conf["nint"])          nint     = conf["nint"].as<int>();
@@ -172,7 +186,7 @@ void OutCalbr::Run(int ns, int mstep, bool last)
   if (ns==0) set_energies();
 
   if (ns % nint != 0 && !last) return;
-  if (mstep % nintsub !=0) return;
+  if (multistep>1 and mstep % nintsub !=0) return;
 
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {		// Get particles from device

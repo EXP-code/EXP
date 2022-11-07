@@ -175,7 +175,7 @@ namespace CoefDB {
 	    double tmin=-std::numeric_limits<double>::max(),
 	    double tmax= std::numeric_limits<double>::max());
   
-    //! Bineary write reconstruction
+    //! Binary write reconstruction
     void write(int ncomp, const TrendType& type, bool useMean,
 	       double totPow, double totVar,
 	       std::map<Key, double>& mean,

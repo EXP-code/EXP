@@ -203,10 +203,10 @@ protected:
   Eigen::MatrixXd tabp, tabf, tabd;
 
   //! Basis magic number
-  const unsigned int hmagic = 0xc0a57a1;
+  inline static const unsigned int hmagic = 0xc0a57a1;
 
   //! Coefficient magic number
-  const unsigned int cmagic = 0xc0a57a3;
+  inline static const unsigned int cmagic = 0xc0a57a3;
 
   std::vector<short> coefs_made;
   bool eof_made;
@@ -235,6 +235,9 @@ protected:
   double densR(double R);
 
   Linear1d densRg, massRg;
+
+  //! Read the cache and return YAML db
+  static YAML::Node getHeader(const std::string& cachefile);
 
   //! Data for each harmonic subspace
   class PCAelement
@@ -570,6 +573,9 @@ public:
   void setSampT(int N) { defSampT = N; }
 
   //! For EOF
+  void setup_table(void);
+
+  //! For EOF computation
   void setup_eof(void);
 
   //! Clear mass counter
@@ -778,6 +784,9 @@ public:
       }
     }
   }
+
+  //! Read the cache and return the header parameters
+  static void cacheInfo(const std::string& cachefile);
 
   //@{
   //! Get potential grid interpolated entries

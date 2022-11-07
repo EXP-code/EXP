@@ -22,6 +22,22 @@ using namespace std;
 
 #include <HaloBulge.H>
 
+const std::set<std::string>
+HaloBulge::valid_keys = {
+  "HMODEL",
+  "INFILE",
+  "MHALO",
+  "RHALO",
+  "RMODMIN",
+  "RMOD",
+  "RBCORE",
+  "MBULGE",
+  "RBULGE",
+  "RBMODMIN",
+  "RBMOD"
+};
+
+
 HaloBulge::HaloBulge(const YAML::Node& conf) : ExternalForce(conf)
 {
 				// Defaults
@@ -59,7 +75,7 @@ HaloBulge::HaloBulge(const YAML::Node& conf) : ExternalForce(conf)
     {
       std::ostringstream sout;
       sout << "No such HALO model type: " << (int)HMODEL << endl;
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1023, false);
     }
   }
 
@@ -107,6 +123,12 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
 
 void HaloBulge::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
     if (conf["HMODEL"])     HMODEL   = conf["HMODEL"].as<int>();
     if (conf["INFILE"])     INFILE   = conf["INFILE"].as<std::string>();

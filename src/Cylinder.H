@@ -6,15 +6,17 @@
 #include <Orient.H>
 #include <Basis.H>
 #include <CylEXP.H>
-#include <CylindricalCoefs.H>
+#include <Coefficients.H>
 
-#include "config.h"
+#include <config_exp.h>
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
 #include <NVTX.H>
+
+#include <CoefContainer.H>
 
 class MixtureBasis;
 
@@ -257,7 +259,7 @@ protected:
   /** Coefficient playback instance.  Using shared_ptr to avoid
       constructing a simple pointer or null instance
   */
-  std::shared_ptr<CylindricalCoefs> playback;
+  std::shared_ptr<Coefs::CylCoefs> playback;
 
   /** Master node ships coefficients to hosts.  True (default) implies
       that only the master node caches the coefficients for playback
@@ -271,46 +273,34 @@ protected:
   double lastPlayTime;
 
   //! Save data pointers
-  CylindricalCoefs::DataPtr P, P1;
-
-  //! Assign storage for coefficients
-  CylindricalCoefs::DataPtr getDataPtr()
-  {
-    CylindricalCoefs::DataPtr ret = std::make_shared<CylindricalCoefs::Dpair>();
-    std::get<0>(*ret).resize(mmax+1);
-    std::get<1>(*ret).resize(mmax+1);
-
-    for (auto & v : std::get<0>(*ret)) {
-      v.resize(nmax);
-      std::fill(v.begin(), v.end(), 0.0);
-    }
-
-    for (auto & v : std::get<1>(*ret)) {
-      v.resize(nmax);
-      std::fill(v.begin(), v.end(), 0.0);
-    }
-    
-    return ret;
-  }
+  Eigen::MatrixXcd P, P1;
 
   //! Store coefficients from EmpCylSL
-  void getCoefs(CylindricalCoefs::DataPtr C)
+  void getCoefs(Eigen::MatrixXcd& C)
   {
+    Eigen::VectorXd cosV(C.cols()), sinV(C.cols());
     for (int m=0; m<=mmax; m++) {
-      ortho->get_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m]);
+      ortho->get_coefs(m, cosV, sinV);
+      C.row(m).real() = cosV;
+      C.row(m).imag() = sinV;
     }
   }
 
   //! Installed stored coefficients in EmpCylSL
-  void setCoefs(CylindricalCoefs::DataPtr C)
+  void setCoefs(Eigen::MatrixXcd& C)
   {
     for (int m=0; m<=mmax; m++) {
       bool zero = false;
       if (m==0) zero = true;
-      ortho->set_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m], zero);
+      ortho->set_coefs(m, C.row(m).real(), C.row(m).imag(), zero);
     }
   }
 
+  //! Coefficient container instance for writing HDF5
+  Coefs::CylCoefs cylCoefs;
+
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
 
 public:
 
@@ -440,6 +430,9 @@ public:
 
   //! Save coefficients to file (need type marker to id dump, component id?)
   void dump_coefs(ostream& out);
+
+  //! Save coefficients to named HDF5 file
+  void dump_coefs_h5(const std::string& file);
 
   //! Sanity check on grid: dumps SM-style images of initial field
   void dump_mzero(const string& name, int step);

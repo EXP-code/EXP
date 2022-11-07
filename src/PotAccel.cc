@@ -20,6 +20,16 @@ call_any_threads_thread_call(void *atp)
                    
 pthread_mutex_t PotAccel::cc_lock;
 
+// Map from enum to string
+std::map<PotAccel::Geometry, std::string> PotAccel::geoname =
+  { {PotAccel::sphere,   "sphere"  },
+    {PotAccel::cylinder, "cylinder"},
+    {PotAccel::cube,     "cube"    },
+    {PotAccel::slab,     "slab"    },
+    {PotAccel::table,    "table"   },
+    {PotAccel::other,    "other"   }
+  };
+
 void PotAccel::exp_thread_fork(bool coef)
 {
   //
@@ -48,13 +58,13 @@ void PotAccel::exp_thread_fork(bool coef)
     std::ostringstream sout;
     sout << "Process " << myid 
 	 << ": exp_thread_fork: error allocating memory for thread counters";
-    throw GenericError(sout.str(), __FILE__, __LINE__);
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1027, true);
   }
   if (!t) {
     std::ostringstream sout;
     sout << "Process " << myid
 	 << ": exp_thread_fork: error allocating memory for thread\n";
-    throw GenericError(sout.str(), __FILE__, __LINE__);
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1027, true);
   }
 
   //
@@ -90,7 +100,7 @@ void PotAccel::exp_thread_fork(bool coef)
       else sout << ", determine_acceleration";
       sout << " thread: cannot make thread " << i
 	   << ", errcode=" << errcode;
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1027, true);
     }
 #ifdef DEBUG
     else {
@@ -108,7 +118,7 @@ void PotAccel::exp_thread_fork(bool coef)
       else sout << ", determine_acceleration";
       sout << " thread: thread join " << i
 	   << " failed, errcode=" << errcode;
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1027, true);
     }
   }
   
@@ -147,7 +157,7 @@ void PotAccel::make_mutex(pthread_mutex_t *m, const char *caller,
     sout << "Process " << myid << ", "
 	 << caller << ": mutex init " 
 	 << name << " failed, errcode= " << errcode;
-    throw GenericError(sout.str(), __FILE__, __LINE__);
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1028, true);
   }
 }
 
@@ -161,7 +171,7 @@ void PotAccel::kill_mutex(pthread_mutex_t *m, const char * caller,
     sout << "Process " << myid << ", "
 	 << caller << ": mutex destroy " 
 	 << name << " failed, errcode= " << errcode;
-    throw GenericError(sout.str(), __FILE__, __LINE__);
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1028, true);
   }
 }
 
@@ -188,12 +198,18 @@ PotAccel::PotAccel(Component* c0, const YAML::Node& CONF) : conf(CONF)
     use.resize(nthrds);
   }
   catch (...) {
-    throw GenericError("problem allocating <use>", __FILE__, __LINE__);
+    throw GenericError("problem allocating <use>", __FILE__, __LINE__, 1027, true);
   }
 
   if (VERBOSE>5) {
     timer_list = vector<std::time_t>(2*nthrds);
   }
+
+  // Add keys
+  for (YAML::const_iterator it=conf.begin(); it!=conf.end(); ++it) {
+    current_keys.insert(it->first.as<std::string>());
+  }
+
 }
 
 PotAccel::~PotAccel(void)

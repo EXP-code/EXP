@@ -17,7 +17,7 @@
 #include <Circular.H>
 #include <Timer.H>
 
-#include "config.h"
+#include <config_exp.h>
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>  
@@ -230,9 +230,6 @@ private:
 				// load balancing
   int round_up(double dnumb);
 
-  //! Error
-  void bomb(const string& msg);
-
   // Particle buffer
   std::vector<PartPtr> pbuf;
 
@@ -353,6 +350,13 @@ protected:
 
   //! Select level from criteria over last time step
   bool dtreset;
+
+  //@{
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys_top;
+  static const std::set<std::string> valid_keys_parm;
+  static const std::set<std::string> valid_keys_force;
+  //@}
 
 public:
 

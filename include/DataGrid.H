@@ -5,7 +5,7 @@
 #include <sstream>
 #include <memory>
 
-#include <config.h>
+#include <config_exp.h>
 
 #include <TableGrid.H>
 #ifdef HAVE_VTK
@@ -36,14 +36,14 @@ public:
   {
 #ifdef HAVE_VTK
     ptr = std::make_shared<VtkGrid>(nx, ny, nz,
+				    xmin, xmax,
+				    ymin, ymax,
+				    zmin, zmax);
+#else    
+    ptr = std::make_shared<TableGrid>(nx, ny, nz,
 				      xmin, xmax,
 				      ymin, ymax,
 				      zmin, zmax);
-#else    
-    ptr = std::make_shared<TableGrid>(nx, ny, nz,
-					xmin, xmax,
-					ymin, ymax,
-					zmin, zmax);
 #endif
   }
     

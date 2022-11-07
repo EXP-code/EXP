@@ -9,10 +9,11 @@
 #include <mpi.h>
 #include <localmpi.H>
 
-#include <config.h>
+#include <config_exp.h>
 
 #include <massmodel.H>
 #include <sltableMP2.H>
+#include <yaml-cpp/yaml.h>
 
 #if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
@@ -84,24 +85,31 @@ public:
 
   //! Return eigenvalue for given order
   double eigenvalue(int m, int k, int n) {return table[m][k].ev[n];}
+
   //! Dimensional to dimensionless coordinate mapping
   double r_to_xi(double r);
+
   //! Dimensionless to dimensional coordinate mapping
   double xi_to_r(double x);
+
   //! Jacobian of dimensionless mapping
   double d_xi_to_r(double x);
 
   //! Get potential basis value
   double get_pot(double x, int m, int n, int k, int which=1);
+
   //! Get density basis value
   double get_dens(double x, int m, int n, int k, int which=1);
+
   //! Get force basis value
   double get_force(double x, int m, int n, int k, int which=1);
 
   //! Fill vector with desired potential basis 
   void get_pot(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
+
   //! Fill vector with desired density basis 
   void get_dens(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
+
   //! Fill vector with desired force basis 
   void get_force(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
 
@@ -114,11 +122,13 @@ public:
 
   //! Fill Matrix with desired potential basis 
   void get_dens(Eigen::MatrixXd& tab, double x, int m, int which=1);
+
   //! Fill Matrix with desired potential basis 
   void get_force(Eigen::MatrixXd& tab, double x, int m, int which=1);
 
   //! Fill Matricies with desired potential basis 
   void get_pot(Eigen::MatrixXd* tab, double x, int mMin, int mMax, int which=1);
+
   //! Fill Matricies with desired density basis 
   void get_dens(Eigen::MatrixXd* tab, double x, int mMin, int mMax, int which=1);
   //! Fill Matricies with desired force basis 
@@ -136,8 +146,8 @@ private:
   int lmax, nmax, numr;
   double rmin, rmax;
 
-  int cmap;
-  double scale;
+  int cmap, diverge;
+  double scale, dfac;
 
   double xmin, xmax, dxi;
 
@@ -185,6 +195,9 @@ private:
   //! Cache file name
   std::string sph_cache_name;
 
+  //! Basis magic number
+  inline static const unsigned int hmagic = 0xc0a56a1;
+
 public:
 
   //! Flag for MPI enabled (default: 0=off)
@@ -209,6 +222,9 @@ public:
 
   //! Destructor
   virtual ~SLGridSph();
+
+  //! Read the cache and report parameters
+  static YAML::Node getHeader(const std::string& cachefile);
 
 				// Members
 
@@ -241,6 +257,9 @@ public:
   /** Get density for dimensionless coord with harmonic order l and radial orer n
       Return all radial order values in Vector
   */
+
+  //! Read the cache and print the yaml db
+  static void cacheInfo(const std::string& cachefile);
 
 #if HAVE_LIBCUDA==1
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,
@@ -363,7 +382,9 @@ public:
   //! Destructor
   ~SLGridSlab();
 
-				// Members
+  
+  //@{
+  //! Members
 
   //! Get n^th eigenvalue for given wave number indices
   double eigenvalue(int kx, int ky, int n) {return table[kx][ky].ev[n];}
@@ -415,6 +436,7 @@ public:
   */
   void get_force(Eigen::MatrixXd& tab, double x, int which=1);
 
+  //@}
 };
 
 

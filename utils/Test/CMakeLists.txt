@@ -16,7 +16,7 @@ if(ENABLE_CUDA)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY} )
 endif()
 
-if(TIRPC_FOUND)
+if(ENABLE_XDR AND TIRPC_FOUND)
   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
 endif()
 

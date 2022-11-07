@@ -19,6 +19,9 @@ private:
   void initialize(void);
   void header(ostream& out);
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   //! Constructor

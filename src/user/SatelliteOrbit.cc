@@ -54,9 +54,38 @@
 #include <localmpi.H>
 #include <global.H>
 #include <SatelliteOrbit.H>
+
+#include <YamlCheck.H>
+#include <EXPException.H>
 				// External prototype for Euler matrix
 
 Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY);
+
+const std::set<std::string>
+SatelliteOrbit::valid_keys = {
+  "HALO_MODEL",
+  "PERI", 
+  "APO",       
+  "RSAT",
+  "INCLINE",
+  "PSI",    
+  "PHIP",
+  "VROT",
+  "RCORE",
+  "RMODMIN",
+  "RMODMAX",
+  "RA",    
+  "DIVERGE",
+  "MAXIT",    
+  "NUMDF",
+  "DIVRG_RFAC",
+  "MODFILE", 
+  "CIRCULAR",
+  "orbfile",   
+  "orbtmin",
+  "orbtmax",
+  "orbdelt",
+};
 
 // ===================================================================
 // Constructor
@@ -90,6 +119,13 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
   std::string
          MODFILE      = "halo.model";
 
+
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("SatelliteOrbit", "parameter", unmatched,
+			  __FILE__, __LINE__);
 
   // Get configured values
   //

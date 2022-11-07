@@ -139,9 +139,10 @@ UserResPotOrb::UserResPotOrb(const YAML::Node& conf) : ExternalForce(conf)
     ok = false;
 
   if (!ok) {
-    cerr << "Process " << myid << ": can't open or read from <"
-	 << data_file << ">" << endl;
-    MPI_Abort(MPI_COMM_WORLD, 124);
+    std::ostringstream sout;
+    sout << "Process " << myid << ": can't open or read from <"
+	 << data_file << ">";
+    throw GenericError(sout.str(), __FILE__, __LINE__, 124, false);
   }
 
 				// Set up for resonance potential
@@ -216,8 +217,9 @@ UserResPotOrb::UserResPotOrb(const YAML::Node& conf) : ExternalForce(conf)
       }
 
     } else {
-      cout << "UserResPotOrbOrb could not open <" << fileomega << ">\n";
-      MPI_Abort(MPI_COMM_WORLD, 103);
+      std::ostringstream sout;
+      sout << "UserResPotOrbOrb could not open <" << fileomega << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 103, false);
     }
     
   }
@@ -285,10 +287,11 @@ void UserResPotOrb::initialize()
     }
     
     if (L1.size() != L2.size() || numRes != (int)L1.size()) {
-      cerr << "UserResPotOrb: error parsing resonances, "
+      std::ostringstream sout;
+      sout << "UserResPotOrb: error parsing resonances, "
 	   << "  Size(L1)=" << L1.size() << "  Size(L2)=" << L2.size() 
-	   << "  numRes=" << numRes << endl;
-      MPI_Abort(MPI_COMM_WORLD, 119);
+	   << "  numRes=" << numRes;
+      throw GenericError(sout.str(), __FILE__, __LINE__, 119, false);
     }
     
     if (conf["Klim"])           Klim               = conf["Klim"].as<double>();
@@ -411,9 +414,10 @@ void UserResPotOrb::determine_acceleration_and_potential(void)
 
 	    if (tlast1 >= tnow) {
 	      if (firstline) {
-		cerr << "UserResPotOrb: can't read log file, aborting" << endl;
-		cerr << "UserResPotOrb: line=" << line << endl;
-		MPI_Abort(MPI_COMM_WORLD, 123);
+		std::ostringstream sout;
+		sout << "UserResPotOrb: can't read log file, aborting" << endl;
+		sout << "UserResPotOrb: line=" << line;
+		throw GenericError(sout.str(), __FILE__, __LINE__, 123, false);
 	      }
 	      break;
 	    }

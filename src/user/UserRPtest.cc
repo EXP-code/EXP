@@ -14,6 +14,24 @@
 #include <memory>
 #include <cmath>
 
+const std::set<std::string>
+UserRPtest::valid_keys = {
+  "L0",
+  "M0",
+  "L1",
+  "L2",
+  "rmin",
+  "rmax",
+  "scale",
+  "NUMX",
+  "NUME",
+  "RECS",
+  "with_ps",
+  "npart",
+  "model",
+  "ctrname",
+  "filename"
+};
 
 UserRPtest::UserRPtest(const YAML::Node& conf) : ExternalForce(conf)
 {
@@ -106,6 +124,15 @@ void UserRPtest::userinfo()
 
 void UserRPtest::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserRPtest", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["L0"])             L0                 = conf["L0"].as<int>();
     if (conf["M0"])             M0                 = conf["M0"].as<int>();
@@ -195,8 +222,8 @@ void UserRPtest::determine_acceleration_and_potential(void)
 
 	  if (tlast1 >= tnow) {
 	    if (firstline) {
-	      cerr << "UserRPtest: can't read log file, aborting" << endl;
-	      MPI_Abort(MPI_COMM_WORLD, 123);
+	      std::string msg = "UserRPtest: can't read log file, aborting";
+	      throw GenericError(msg, __FILE__, __LINE__, 123, false);
 	    }
 	    break;
 	  }

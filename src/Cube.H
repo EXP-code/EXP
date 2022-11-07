@@ -3,6 +3,9 @@
 
 #include <complex>
 #include <vector>
+#include <string>
+#include <set>
+
 #include <Eigen/Eigen>
 #include <PotAccel.H>
 
@@ -17,6 +20,9 @@ private:
   int imx, imy, imz, jmax, use1, use0;
   double  dfac;
   std::complex<double> kfac;
+
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
 
 protected:
 

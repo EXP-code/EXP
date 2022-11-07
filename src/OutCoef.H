@@ -10,16 +10,22 @@
     @param name of the component to dump
   
     @param nint is the frequency between file updates 
+
+    @param native set to true uses old-style native coefficient format
 */
 class OutCoef : public Output
 {
 
 private:
 
-  string filename;
+  std::string filename;
   Component *tcomp;
+  bool native;
 
   void initialize(void);
+
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
 
 public:
 

@@ -73,6 +73,9 @@ private:
   vector<double>  com0, cov0, angmG, angm0, pos0, vel0;
   vector<double>  comG, covG, comL, covL, posL, velL;
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   //! Number of global entries

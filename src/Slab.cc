@@ -10,6 +10,16 @@
 
 static const double KEPS=1.0e-6;
 
+const std::set<std::string>
+Slab::valid_keys = {
+  "nmaxx",
+  "nmaxy",
+  "nmaxz",
+  "nminx",
+  "nminy",
+  "zmax"
+};
+
 Slab::Slab(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Slab (trigonometric)";
@@ -56,6 +66,12 @@ Slab::~Slab()
 
 void Slab::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
     if (conf["nmaxx"])          nmaxx     = conf["nmaxx"].as<int>();
     if (conf["nmaxy"])          nmaxy     = conf["nmaxy"].as<int>();

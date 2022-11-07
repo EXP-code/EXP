@@ -207,8 +207,9 @@ UserResPotN::UserResPotN(const YAML::Node& conf) : ExternalForce(conf)
       omega = omega0 = Omega.front();
 
     } else {
-      cout << "UserResPotN could not open <" << fileomega << ">\n";
-      MPI_Abort(MPI_COMM_WORLD, 103);
+      std::ostringstream sout;
+      sout << "UserResPotN could not open <" << fileomega << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 103, false);
     }
     
   }
@@ -284,10 +285,11 @@ void UserResPotN::initialize()
     }
     
     if (L1.size() != L2.size() || numRes != (int)L1.size()) {
-      cerr << "UserResPotN: error parsing resonances, "
+      std::ostringstream sout;
+      sout << "UserResPotN: error parsing resonances, "
 	   << "  Size(L1)=" << L1.size() << "  Size(L2)=" << L2.size() 
-	   << "  numRes=" << numRes << endl;
-      MPI_Abort(MPI_COMM_WORLD, 119);
+	   << "  numRes=" << numRes;
+      throw GenericError(sout.str(), __FILE__, __LINE__, 119, false);
     }
     
     if (conf["Klim"])           Klim               = conf["Klim"].as<double>();
@@ -424,9 +426,10 @@ void UserResPotN::determine_acceleration_and_potential(void)
 
 	    if (tlast1 >= tnow) {
 	      if (firstline) {
-		cerr << "UserResPotN: can't read log file, aborting" << endl;
-		cerr << "UserResPotN: line=" << line << endl;
-		MPI_Abort(MPI_COMM_WORLD, 123);
+		std::ostringstream sout;
+		sout << "UserResPotN: can't read log file, aborting" << endl;
+		sout << "UserResPotN: line=" << line;
+		throw GenericError(sout.str(), __FILE__, __LINE__, 123, false);
 	      }
 	      break;
 	    }

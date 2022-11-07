@@ -10,6 +10,18 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSP.H>
 
+const std::set<std::string>
+OutPSP::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub",
+  "nbeg",
+  "real4",
+  "timer",
+  "nagg"
+};
+
+
 OutPSP::OutPSP(const YAML::Node& conf) : Output(conf)
 {
   initialize();
@@ -17,6 +29,12 @@ OutPSP::OutPSP(const YAML::Node& conf) : Output(conf)
 
 void OutPSP::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
 				// Get file name
     if (Output::conf["filename"])
@@ -105,9 +123,9 @@ void OutPSP::initialize()
 void OutPSP::Run(int n, int mstep, bool last)
 {
   if (!dump_signal and !last) {
-    if (n % nint            ) return;
-    if (restart  && n==0    ) return;
-    if (mstep % nintsub !=0 ) return;
+    if (n % nint) return;
+    if (restart && n==0) return;
+    if (multistep>1 && mstep % nintsub !=0 ) return;
   }
 
   std::chrono::high_resolution_clock::time_point beg, end;
@@ -145,9 +163,9 @@ void OutPSP::Run(int n, int mstep, bool last)
 		  info, &file);
 
   if (ret != MPI_SUCCESS) {
-    cerr << "OutPSP: can't open file <" << fname.str() << "> . . . quitting"
-	 << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 33);
+    std::ostringstream sout;
+    sout << "OutPSP: can't open file <" << fname.str() << "> . . . quitting";
+    throw GenericError(sout.str(), __FILE__, __LINE__, 33, false);
   }
 
   MPI_Info_free(&info);

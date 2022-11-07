@@ -1,10 +1,12 @@
-#include <math.h>
 #include <sstream>
+#include <set>
 
 #include "expand.H"
 #include <localmpi.H>
 #include <gaussQ.H>
 
+#include <YamlCheck.H>
+#include <EXPException.H>
 #include <UserBar.H>
 
 UserBar::UserBar(const YAML::Node &conf) : ExternalForce(conf)
@@ -42,9 +44,10 @@ UserBar::UserBar(const YAML::Node &conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << ctr_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": can't find desired component <"
+	   << ctr_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   }
@@ -63,9 +66,10 @@ UserBar::UserBar(const YAML::Node &conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << angm_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": can't find desired component <"
+	   << ctr_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   }
@@ -108,8 +112,34 @@ void UserBar::userinfo()
   print_divider();
 }
 
+const std::set<std::string>
+UserBar::valid_keys = {
+  "ctrname",
+  "angmname",
+  "length",
+  "bratio",
+  "cratio",
+  "amp",
+  "Ton",
+  "Toff",
+  "DeltaT",
+  "Fcorot",
+  "fixed",
+  "soft",
+  "filename"
+};
+
 void UserBar::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserBar", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign parameters from YAML config
+  //
   try {
     if (conf["ctrname"])  ctr_name  = conf["ctrname"].as<std::string>();
     if (conf["angmname"]) angm_name = conf["angmname"].as<std::string>();

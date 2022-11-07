@@ -10,6 +10,17 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSQ.H>
 
+const std::set<std::string>
+OutPSQ::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub",
+  "nbeg",
+  "real4",
+  "timer",
+  "threads"
+};
+
 OutPSQ::OutPSQ(const YAML::Node& conf) : Output(conf)
 {
   initialize();
@@ -17,6 +28,12 @@ OutPSQ::OutPSQ(const YAML::Node& conf) : Output(conf)
 
 void OutPSQ::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
 				// Get file name
     if (Output::conf["filename"])
@@ -110,9 +127,9 @@ void OutPSQ::initialize()
 void OutPSQ::Run(int n, int mstep, bool last)
 {
   if (!dump_signal and !last) {
-    if (n % nint            ) return;
-    if (restart  && n==0    ) return;
-    if (mstep % nintsub !=0 ) return;
+    if (n % nint) return;
+    if (restart && n==0) return;
+    if (multistep>1 && mstep % nintsub !=0) return;
   }
 
   std::chrono::high_resolution_clock::time_point beg, end;

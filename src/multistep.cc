@@ -348,7 +348,7 @@ void adjust_multistep_level(bool all)
     std::ostringstream sout;
     sout << "Process " << myid
 	 << ": adjust_multistep_level: error allocating thread structures";
-    throw GenericError(sout.str(), __FILE__, __LINE__);
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1024, true);
   }
 
   pthread_t* t  = new pthread_t [nthrds];
@@ -357,7 +357,7 @@ void adjust_multistep_level(bool all)
     std::ostringstream sout;
     sout << "Process " << myid
 	 << ": adjust_multistep_level: error allocating memory for thread";
-    throw GenericError(sout.str(), __FILE__, __LINE__);
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1024, true);
   }
   
 
@@ -418,7 +418,7 @@ void adjust_multistep_level(bool all)
 	    sout << "Process " << myid
 		 << " adjust_multistep_level: cannot make thread " << i
 		 << ", errcode=" << errcode;
-	    throw GenericError(sout.str(), __FILE__, __LINE__);
+	    throw GenericError(sout.str(), __FILE__, __LINE__, 1024, true);
 	  }
 #ifdef DEBUG
 	  else {
@@ -436,7 +436,7 @@ void adjust_multistep_level(bool all)
 	    sout << "Process " << myid
 		 << " adjust_multistep_level: thread join " << i
 		 << " failed, errcode=" << errcode;
-	    throw GenericError(sout.str(), __FILE__, __LINE__);
+	    throw GenericError(sout.str(), __FILE__, __LINE__, 1024, true);
 	  }
 #ifdef DEBUG    
 	  cout << "Process " << myid 

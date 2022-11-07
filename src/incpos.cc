@@ -115,7 +115,7 @@ void incr_position(double dt, int mlevel)
 	sout << "Process " << myid
 	     << " incr_position: cannot make thread " << i
 	     << ", errcode=" << errcode;;
-	throw GenericError(sout.str(), __FILE__, __LINE__);
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1024, true);
       }
 #ifdef DEBUG
       else {
@@ -134,7 +134,7 @@ void incr_position(double dt, int mlevel)
 	sout << "Process " << myid
 	     << " incr_position: thread join " << i
 	     << " failed, errcode=" << errcode;
-	throw GenericError(sout.str(), __FILE__, __LINE__);
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1024, true);
       }
 #ifdef DEBUG    
       cout << "Process " << myid << ": incr_position thread <" 

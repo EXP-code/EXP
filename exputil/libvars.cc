@@ -27,6 +27,9 @@ namespace __EXP__
 
   //! Random number generator instance
   std::mt19937     random_gen;
+
+  //! Source/line info exception strings
+  bool             sourceline       = false;
 };
 
 

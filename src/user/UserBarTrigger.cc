@@ -4,8 +4,20 @@
 
 #include "expand.H"
 
+#include <YamlCheck.H>
+#include <EXPException.H>
 #include <UserBarTrigger.H>
 
+const std::set<std::string>
+UserBarTrigger::valid_keys = {
+  "impact",
+  "theta",
+  "smass",
+  "svel",
+  "stime",
+  "lmax",
+  "ctrname"
+};
 
 UserBarTrigger::UserBarTrigger(const YAML::Node& conf) : ExternalForce(conf)
 {
@@ -39,9 +51,10 @@ UserBarTrigger::UserBarTrigger(const YAML::Node& conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << ctr_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": can't find desired component <"
+	   << ctr_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   }
@@ -134,6 +147,15 @@ void UserBarTrigger::userinfo()
 
 void UserBarTrigger::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserBarTrigger", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign parameters from YAML config
+  //
   try {
     if (conf["impact"])   impact       = conf["impact"].as<double>();
     if (conf["theta"])    theta        = conf["theta"].as<double>();

@@ -8,6 +8,20 @@
 #include <plummer.H>
 #include <interp.H>
 
+const std::set<std::string>
+Sphere::valid_keys = {
+  "rs",
+  "numr",
+  "nums",
+  "cmap",
+  "diverge",
+  "dfac",
+  "modelname",
+  "cachename",
+  "dtime",
+  "logr",
+  "plummer"
+};
 
 Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   SphericalBasis(c0, conf, m)
@@ -52,12 +66,36 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   rmin  = ortho->getRmin();
   rmax  = ortho->getRmax();
 
+  if (myid==0) {
+    std::cout << "---- Sphere parameters: "
+	      << " lmax="        << Lmax
+	      << " nmax="        << nmax
+	      << " cmap="        << cmap
+	      << " rmin="        << rmin
+	      << " rmax="        << rmax
+	      << " logr="        << std::boolalpha << logr
+	      << " NO_L0="       << std::boolalpha << NO_L0
+	      << " NO_L1="       << std::boolalpha << NO_L1
+	      << " EVEN_L="      << std::boolalpha << EVEN_L
+	      << " EVEN_M="      << std::boolalpha << EVEN_M
+	      << " M0_ONLY="     << std::boolalpha << M0_only
+	      << " selfgrav="    << std::boolalpha << self_consistent
+	      << std::endl;
+  }
+
+
   setup();
 }
 
 
 void Sphere::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
     if (conf["rs"])        rs         = conf["rs"].as<double>();
     if (conf["numr"])      numr       = conf["numr"].as<int>();

@@ -8,8 +8,34 @@
 #include <VtkPCA.H>
 #endif
 
+const std::set<std::string>
+AxisymmetricBasis::valid_keys =
+  {
+    "Lmax",
+    "nmax",
+    "dof",
+    "npca",
+    "npca0",
+    "pcavar",
+    "pcaeof",
+    "pcadiag",
+    "pcavtk",
+    "subsamp",
+    "hexp",
+    "snr",
+    "samplesz",
+    "vtkfreq",
+    "tksmooth",
+    "tkcum",
+    "tk_type"
+  };
+
 AxisymmetricBasis:: AxisymmetricBasis(Component* c0, const YAML::Node& conf) : Basis(c0, conf) 
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+
   Lmax      = 4;
   nmax      = 10;
   dof       = 3;

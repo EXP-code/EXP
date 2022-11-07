@@ -118,10 +118,20 @@ namespace cxxopts
 #pragma GCC diagnostic ignored "-Weffc++"
 // This will be ignored under other compilers like LLVM clang.
 #endif
-  class UnicodeStringIterator : public
-    std::iterator<std::forward_iterator_tag, int32_t>
+  class UnicodeStringIterator
   {
-    public:
+  public:
+  
+    //@{
+    //! Add typedefs for std::iterator_traits
+    using iterator_category = std::forward_iterator_tag;
+    using value_type        = int32_t;
+    using difference_type   = std::ptrdiff_t;
+    using pointer           = int32_t*;
+    using reference         = int32_t&;
+    //@}
+    
+  public:
 
     UnicodeStringIterator(const icu::UnicodeString* string, int32_t pos)
     : s(string)

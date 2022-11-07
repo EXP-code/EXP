@@ -16,7 +16,7 @@ if(SLURM_FOUND)
   list(APPEND common_LINKLIB ${SLURM_LIBRARY})
 endif()
 
-if(TIRPC_FOUND)
+if(ENABLE_XDR AND TIRPC_FOUND)
   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
 endif()
 
@@ -26,8 +26,8 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
   ${CMAKE_BINARY_DIR} ${DEP_INC} ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/.. ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
 
-add_executable(diskcoef    diskprof_coef.cc Coefs.cc)
-add_executable(halocoef    haloprof_coef.cc Coefs.cc SphereSL.cc)
+add_executable(diskcoef    diskprof_coef.cc)
+add_executable(halocoef    haloprof_coef.cc SphereSL.cc)
 add_executable(diskprof    diskprof.cc)	    
 add_executable(haloprof    haloprof.cc SphereSL.cc)
 add_executable(slabprof    slabprof.cc)
@@ -36,12 +36,12 @@ add_executable(gas2d       gas2dcyl.cc)
 add_executable(makegrid    makegrid.cc)
 add_executable(pspbox      pspbox.cc)
 add_executable(eofpeek     eofpeek.cc)
-add_executable(diskfreqs   diskfreqs.cc Coefs.cc SphereSL.cc)
+add_executable(diskfreqs   diskfreqs.cc SphereSL.cc)
 add_executable(mssaprofD   mssaprof_disk.cc)
 add_executable(mssaprofH   mssaprof_halo.cc SphereSL.cc)
 add_executable(pcatest     pcatest.cc)
-add_executable(readcoefsD  readcoefsD.cc  Coefs.cc)
-add_executable(readcoefsH  readcoefsH.cc Coefs.cc)
+add_executable(readcoefsD  readcoefsD.cc)
+add_executable(readcoefsH  readcoefsH.cc)
 add_executable(sphprof     sphprof.cc SphereSL.cc)
 add_executable(pspxvalH    cross_validation_sph.cc SphereSL.cc)
 add_executable(pspxvalH2   cross_validation_sph2.cc SphereSL.cc)
@@ -66,5 +66,5 @@ target_include_directories(simpleSL PRIVATE ${common_INCLUDE})
 
 install(TARGETS simpleSL
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR/site-packages}"
-  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR/site-packages}")
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages")

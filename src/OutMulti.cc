@@ -8,6 +8,13 @@
 #include <AxisymmetricBasis.H>
 #include <OutMulti.H>
 
+const std::set<std::string>
+OutMulti::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub"
+};
+
 OutMulti::OutMulti(const YAML::Node& conf) : Output(conf)
 {
   initialize();
@@ -15,6 +22,12 @@ OutMulti::OutMulti(const YAML::Node& conf) : Output(conf)
 
 void OutMulti::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
 				// Get file name
     if (Output::conf["filename"])
@@ -55,7 +68,7 @@ void OutMulti::Run(int n, int mstep, bool last)
 {
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
-  if (mstep % nintsub !=0 && !dump_signal) return;
+  if (multistep>1 && mstep % nintsub !=0 && !dump_signal) return;
 
 
   ofstream *out;

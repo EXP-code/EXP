@@ -1,7 +1,9 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.15) # This is the oldest version I've
+				     # tested by newer versions are
+				     # preferred esp. for Cuda support
 project(
   EXP
-  VERSION 7.706
+  VERSION 7.714
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
@@ -34,7 +36,9 @@ endif()
 
 # Build options
 option(ENABLE_NBODY "Enable EXP n-body" ON)
+option(ENABLE_PYEXP "Enable the Python bindings" ON)
 option(ENABLE_CUDA "Enable CUDA" FALSE)
+option(ENABLE_XDR "Enable RPC/XDR support for Tipsy standard" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
@@ -70,6 +74,9 @@ if(ENABLE_CUDA)
     CACHE STRING "Global cuda flags for RelWithDebInfo build" FORCE)
 endif()
 
+# For mpi
+include_directories(${MPI_C_HEADER_DIR})
+
 # For git submodules
 include_directories(${PROJECT_SOURCE_DIR}/extern)
 
@@ -78,6 +85,7 @@ if(OpenMP_FOUND)
 endif()
 if(SLURM_FOUND)
   set(HAVE_LIBSLURM TRUE)
+  add_compile_options(-fopenmp)
 endif()
 if(VTK_FOUND)
   set(HAVE_VTK TRUE)
@@ -118,12 +126,15 @@ if(TIRPC_FOUND)
   set(HAVE_TIRPC TRUE)
   include_directories(TIRPC_INCLUDE_DIRS)
 endif()
-if(TIRPC_FOUND OR HAVE_RPC_TYPES)
-  set(HAVE_XDR TRUE CACHE BOOL "We have an XDR implementation")
-  message(STATUS "We have an XDR implementation; Tipsy standard files will be supported.")
-endif()
-if(NOT HAVE_XDR)
-  message(STATUS "Could NOT find RPC support; you will not be able to read Tipsy standard files.  Tipsy native will still work.")
+if(ENABLE_XDR)
+  if(TIRPC_FOUND OR HAVE_RPC_TYPES)
+    set(HAVE_XDR TRUE CACHE BOOL "We have an XDR implementation")
+    message(STATUS "We have an XDR implementation; Tipsy standard files will be supported.")
+  else()
+    message(STATUS "Could NOT find RPC support; you will not be able to read Tipsy standard files.  Tipsy native (and Bonsai) will still work.")
+  endif()
+else()
+  message(STATUS "RPC/XDR is disabled; you will not be able to read Tipsy standard files.  Tipsy native (and Bonsai) will still work.")
 endif()
 
 # For setting the default size of the Cuda real attribute array
@@ -161,16 +172,25 @@ include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
 
 message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
 
-configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h.in ${CMAKE_SOURCE_DIR}/config.h)
-
 add_subdirectory(extern/yaml-cpp)
 add_subdirectory(extern/pybind11)
 
+set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "Do not build the examples")
+set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "Do not build the documentation")
+set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "Do not use Boost in HighFIve")
+set(H5_USE_EIGEN TRUE CACHE BOOL "Eigen3 support in HighFive")
+
+add_subdirectory(extern/HighFive)
+
 add_subdirectory(exputil)
+add_subdirectory(coefs)
 if (ENABLE_NBODY)
   add_subdirectory(src)
 endif()
 add_subdirectory(utils)
+if (ENABLE_PYEXP)
+  add_subdirectory(pyEXP)
+endif()
 
 # try to find pybind11 and build wrapper python module
 find_package(Python3 COMPONENTS Interpreter Development)
@@ -258,3 +278,7 @@ set(CMAKE_CXX_FLAGS_UBSAN
   "-fsanitize=undefined"
   CACHE STRING "Flags used by the C++ compiler during UndefinedBehaviourSanitizer builds."
   FORCE)
+
+# Make the config_exp.h file
+configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_SOURCE_DIR}/config_exp.h)
+

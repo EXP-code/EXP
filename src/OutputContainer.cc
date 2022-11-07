@@ -105,9 +105,16 @@ void OutputContainer::initialize(void)
       else {
 	string msg("I don't know about the output type: ");
 	msg += name;
-	throw GenericError(msg, __FILE__, __LINE__);
+	throw GenericError(msg, __FILE__, __LINE__, 1025, false);
       }
       nout++;
+
+      // Check YAML configuration
+      auto unmatched = out.back()->unmatched();
+      if (unmatched.size()) {
+	throw YamlConfigError("OutputContainer", name, unmatched, __FILE__, __LINE__, 1026, false);
+      }
+
     }
   } else {
     if (myid==0)
@@ -115,6 +122,7 @@ void OutputContainer::initialize(void)
 		<< "No output entries" << std::endl
 		<< std::string(72, '-') << std::endl;
   }
+
 }
 
   

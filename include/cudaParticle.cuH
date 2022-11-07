@@ -16,7 +16,7 @@
 #include <thrust/host_vector.h>
 #include <thrust/sort.h>
 
-#include <config.h>
+#include <config_exp.h>
 
 #include <cudaUtil.cuH>
 

@@ -27,6 +27,9 @@ private:
   double rh_to_r(double rh);
   double d_r_to_rh(double);
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   //! Constructor

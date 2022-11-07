@@ -1,7 +1,7 @@
 #ifndef _Ion_H
 #define _Ion_H
 
-#include "config.h"
+#include <config_exp.h>
 
 #include <string>
 #include <vector>

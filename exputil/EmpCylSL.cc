@@ -20,7 +20,7 @@
 
 #include <Eigen/Eigenvalues>
 
-#include <config.h>
+#include <config_exp.h>
 #ifdef HAVE_VTK
 #include <VtkPCA.H>
 #endif
@@ -112,7 +112,6 @@ EmpCylSL::~EmpCylSL(void)
 {
   // Nothing . . . 
 }
-
 
 EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord, 
 		   double ascale, double hscale, int nodd,
@@ -253,6 +252,20 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
 
   minSNR  = std::numeric_limits<double>::max();
   maxSNR  = 0.0;
+}
+
+void EmpCylSL::cacheInfo(const std::string& cachefile)
+{
+  auto node = getHeader(cachefile);
+
+  std::cout << std::string(60, '-') << std::endl
+	    << "Cache parameters for EmpCylSL: " << cachefile << std::endl
+	    << std::string(60, '-') << std::endl;
+  for (YAML::const_iterator it=node.begin(); it!=node.end(); ++it) {
+    std::cout << std::left << std::setw(20) << it->first.as<std::string>()
+	      << ": " << it->second.as<std::string>() << std::endl;
+  }
+  std::cout << std::string(60, '-') << std::endl;
 }
 
 void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
@@ -581,7 +594,7 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
 {
   std::ifstream in(eof_file.c_str());
   if (!in) {
-    std::cerr << "EmpCylSL::read_eof_header: error opening file named <" 
+    std::cerr << "---- EmpCylSL::read_eof_header: error opening file named <" 
 	      << eof_file << ">" << std::endl;
     return 0;
   }
@@ -610,11 +623,11 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
 	node = YAML::Load(buf.get());
       }
       catch (YAML::Exception& error) {
-	if (myid==0)
-	  std::cerr << "YAML: error parsing <" << buf.get() << "> "
-		    << "in " << __FILE__ << ":" << __LINE__ << std::endl
-		    << "YAML error: " << error.what() << std::endl;
-	throw error;
+	std::ostringstream sout;
+	sout << "YAML: error parsing <" << buf.get() << "> "
+	     << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	     << "YAML error: " << error.what() << std::endl;
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
       }
 
       // Get parameters
@@ -720,7 +733,7 @@ int EmpCylSL::read_eof_file(const string& eof_file)
 
 int EmpCylSL::read_cache(void)
 {
-  setup_eof();
+  setup_table();
   setup_accumulation();
 
 				// Master tries to read table
@@ -767,27 +780,27 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
   if (readwrite) {
     
     if (std::filesystem::exists(cachefile)) {
-      std::cerr << "EmpCylSL::cache_grid: cache file <"
+      std::cerr << "---- EmpCylSL::cache_grid: cache file <"
 		<< cachefile << "> exists" << std::endl;
       try {
 	std::filesystem::rename(cachefile, cachefile + ".bak");
       }
       catch(std::filesystem::filesystem_error const& ex) {
-        std::cout << "EmpCylSL::cache_grid write error: "
-		  << "what():  " << ex.what()  << std::endl
-		  << "path1(): " << ex.path1() << std::endl
-		  << "path2(): " << ex.path2() << std::endl;
-	MPI_Abort(MPI_COMM_WORLD, 12);
-	return 0;
+	std::ostringstream sout;
+        sout << "---- EmpCylSL::cache_grid write error: "
+	     << "what():  " << ex.what()  << std::endl
+	     << "path1(): " << ex.path1() << std::endl
+	     << "path2(): " << ex.path2() << std::endl;
+	throw GenericError(sout.str(), __FILE__, __LINE__, 12, true);
       }
 
-      std::cout << "EmpCylSL::cache_grid: existing file backed up to <"
+      std::cout << "---- EmpCylSL::cache_grid: existing file backed up to <"
 		<< cachefile + ".bak>" << std::endl;
     }
 
     std::ofstream out(cachefile);
     if (!out) {
-      std::cerr << "EmpCylSL::cache_grid: error opening file for writing"
+      std::cerr << "---- EmpCylSL::cache_grid: error opening file for writing"
 		<< std::endl;
       return 0;
     }
@@ -916,7 +929,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 
     std::ifstream in(cachefile.c_str());
     if (!in) {
-      cerr << "EmpCylSL::cache_grid: error opening file" << endl;
+      cerr << "---- EmpCylSL::cache_grid: error opening file" << endl;
       return 0;
     }
 
@@ -948,11 +961,11 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 	node = YAML::Load(buf.get());
       }
       catch (YAML::Exception& error) {
-	if (myid)
-	  std::cerr << "YAML: error parsing <" << buf.get() << "> "
-		    << "in " << __FILE__ << ":" << __LINE__ << std::endl
-		    << "YAML error: " << error.what() << std::endl;
-	throw error;
+	std::ostringstream sout;
+	sout << "YAML: error parsing <" << buf.get() << "> "
+	     << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	     << "YAML error: " << error.what() << std::endl;
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
       }
 
       // Get parameters
@@ -1044,7 +1057,6 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 
 	return 0;
       }
-    
 
 				// Read table
 
@@ -1116,6 +1128,55 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 
   return 1;
 }
+
+YAML::Node EmpCylSL::getHeader(const std::string& cachefile)
+{
+  YAML::Node node;
+
+  std::ifstream in(cachefile);
+  if (!in) {
+    std::ostringstream sout;
+    sout << "EmpCylSL::getHeader: could not open cache file <" << cachefile << ">";
+    std::runtime_error(sout.str());
+  }
+
+  // Attempt to read magic number
+  //
+  unsigned int tmagic;
+  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+  if (tmagic == hmagic) {
+
+    // YAML size
+    //
+    unsigned ssize;
+    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+    // Make and read char buffer
+    //
+    auto buf = std::make_unique<char[]>(ssize+1);
+    in.read(buf.get(), ssize);
+    buf[ssize] = 0;		// Null terminate
+    
+    try {
+      node = YAML::Load(buf.get());
+    }
+    catch (YAML::Exception& error) {
+      std::ostringstream sout;
+      sout << "YAML: error parsing <" << buf.get() << "> "
+	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	   << "YAML error: " << error.what() << std::endl;
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
+    }
+  } else {
+    std::ostringstream sout;
+    sout << "EmpCylSL::getHeader: invalid cache file <" << cachefile << ">";
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
+  }
+
+  return node;
+}
+    
 
 void EmpCylSL::receive_eof(int request_id, int MM)
 {
@@ -1806,64 +1867,79 @@ void EmpCylSL::init_pca()
   }
 }
 
+void EmpCylSL::setup_table()
+{
+  // Create storage for EOF tables
+  //
+  rank2   = NMAX*(LMAX+1);
+  rank3   = NORDER;
+    
+  Rtable  = M_SQRT1_2 * RMAX;
+  XMIN    = r_to_xi(RMIN*ASCALE);
+  XMAX    = r_to_xi(Rtable*ASCALE);
+  dX      = (XMAX - XMIN)/NUMX;
+
+  YMIN    = z_to_y(-Rtable*ASCALE);
+  YMAX    = z_to_y( Rtable*ASCALE);
+  dY      = (YMAX - YMIN)/NUMY;
+
+  potC    .resize(MMAX+1);
+  rforceC .resize(MMAX+1);
+  zforceC .resize(MMAX+1);
+  
+  potS    .resize(MMAX+1);
+  rforceS .resize(MMAX+1);
+  zforceS .resize(MMAX+1);
+  
+  if (DENS) {
+    densC .resize(MMAX+1);
+    densS .resize(MMAX+1);
+  }
+
+  for (int m=0; m<=MMAX; m++) {
+
+    potC[m]   .resize(rank3);
+    rforceC[m].resize(rank3);
+    zforceC[m].resize(rank3);
+    if (DENS) densC[m].resize(rank3);
+    
+    for (int v=0; v<rank3; v++) {
+      potC   [m][v].resize(NUMX+1, NUMY+1);
+      rforceC[m][v].resize(NUMX+1, NUMY+1);
+      zforceC[m][v].resize(NUMX+1, NUMY+1);
+      if (DENS) densC[m][v].resize(NUMX+1, NUMY+1);
+    }
+  }
+  
+  for (int m=1; m<=MMAX; m++) {
+    
+    potS[m]   .resize(rank3);
+    rforceS[m].resize(rank3);
+    zforceS[m].resize(rank3);
+    if (DENS) densS[m].resize(rank3);
+    
+    for (int v=0; v<rank3; v++) {
+      potS   [m][v].resize(NUMX+1, NUMY+1);
+      rforceS[m][v].resize(NUMX+1, NUMY+1);
+      zforceS[m][v].resize(NUMX+1, NUMY+1);
+      if (DENS) densS[m][v].resize(NUMX+1, NUMY+1);
+    }
+  }
+
+  vc.resize(nthrds);
+  vs.resize(nthrds);
+  for (int i=0; i<nthrds; i++) {
+    vc[i].resize(max<int>(1,MMAX)+1, rank3);
+    vs[i].resize(max<int>(1,MMAX)+1, rank3);
+  }
+
+}
+
 void EmpCylSL::setup_eof()
 {
   if (SC.size()==0 and SCe.size()==0) {
 
-    rank2   = NMAX*(LMAX+1);
-    rank3   = NORDER;
-    
-    Rtable  = M_SQRT1_2 * RMAX;
-    XMIN    = r_to_xi(RMIN*ASCALE);
-    XMAX    = r_to_xi(Rtable*ASCALE);
-    dX      = (XMAX - XMIN)/NUMX;
-
-    YMIN    = z_to_y(-Rtable*ASCALE);
-    YMAX    = z_to_y( Rtable*ASCALE);
-    dY      = (YMAX - YMIN)/NUMY;
-
-    potC   .resize(MMAX+1);
-    rforceC.resize(MMAX+1);
-    zforceC.resize(MMAX+1);
-    if (DENS) densC.resize(MMAX+1);
-
-    potS   .resize(MMAX+1);
-    rforceS.resize(MMAX+1);
-    zforceS.resize(MMAX+1);
-    if (DENS) densS.resize(MMAX+1);
-
-    for (int m=0; m<=MMAX; m++) {
-
-      potC[m]   .resize(rank3);
-      rforceC[m].resize(rank3);
-      zforceC[m].resize(rank3);
-      if (DENS) densC[m].resize(rank3);
-
-      for (int v=0; v<rank3; v++) {
-	potC   [m][v].resize(NUMX+1, NUMY+1);
-	rforceC[m][v].resize(NUMX+1, NUMY+1);
-	zforceC[m][v].resize(NUMX+1, NUMY+1);
-	if (DENS) densC[m][v].resize(NUMX+1, NUMY+1);
-      }
-
-    }
-
-
-    for (int m=1; m<=MMAX; m++) {
-
-      potS[m]   .resize(rank3);
-      rforceS[m].resize(rank3);
-      zforceS[m].resize(rank3);
-      if (DENS) densS[m].resize(rank3);
-
-      for (int v=0; v<rank3; v++) {
-	potS   [m][v].resize(NUMX+1, NUMY+1);
-	rforceS[m][v].resize(NUMX+1, NUMY+1);
-	zforceS[m][v].resize(NUMX+1, NUMY+1);
-	if (DENS) densS[m][v].resize(NUMX+1, NUMY+1);
-      }
-
-    }
+    setup_table();
 
     tpot   .resize(NORDER);
     trforce.resize(NORDER);
@@ -1903,13 +1979,6 @@ void EmpCylSL::setup_eof()
 	SC[nth].resize(MMAX+1);
 	SS[nth].resize(MMAX+1);
       }
-    }
-
-    vc.resize(nthrds);
-    vs.resize(nthrds);
-    for (int i=0; i<nthrds; i++) {
-      vc[i].resize(max<int>(1,MMAX)+1, rank3);
-      vs[i].resize(max<int>(1,MMAX)+1, rank3);
     }
 
     potd.resize(LMAX+1, NMAX);
@@ -3610,7 +3679,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
     ostringstream ostr;
     ostr << "EmpCylSL::accumulate: Process " << myid << ", Thread " << id 
 	 << ": calling setup_accumulation from accumulate, aborting" << endl;
-    throw GenericError(ostr.str(), __FILE__, __LINE__);
+    throw GenericError(ostr.str(), __FILE__, __LINE__, 1039, false);
   }
 
   double rr = sqrt(r*r+z*z);
@@ -5780,14 +5849,14 @@ double EmpCylSL::r_to_xi(double r)
     if (r<0.0) {
       ostringstream msg;
       msg << "radius=" << r << " < 0! [mapped]";
-      throw GenericError(msg.str(), __FILE__, __LINE__);
+      throw GenericError(msg.str(), __FILE__, __LINE__, 1040, true);
     }
     return (r/ASCALE - 1.0)/(r/ASCALE + 1.0);
   } else {
     if (r<0.0)  {
       ostringstream msg;
       msg << "radius=" << r << " < 0!";
-      throw GenericError(msg.str(), __FILE__, __LINE__);
+      throw GenericError(msg.str(), __FILE__, __LINE__, 1040, true);
     }
     return r;
   }
@@ -5796,8 +5865,8 @@ double EmpCylSL::r_to_xi(double r)
 double EmpCylSL::xi_to_r(double xi)
 {
   if (CMAPR>0) {
-    if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
-    if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
+    if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__, 1040, true);
+    if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__, 1040, true);
 
     return (1.0 + xi)/(1.0 - xi) * ASCALE;
   } else {
@@ -5809,8 +5878,8 @@ double EmpCylSL::xi_to_r(double xi)
 double EmpCylSL::d_xi_to_r(double xi)
 {
   if (CMAPR>0) {
-    if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
-    if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
+    if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__, 1040, true);
+    if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__, 1040, true);
 
     return 0.5*(1.0 - xi)*(1.0 - xi) / ASCALE;
   } else {
@@ -5974,13 +6043,13 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
 {
   ifstream in(eof_file.c_str());
   if (!in) {
-    cerr << "EmpCylSL::cache_grid: error opening input file" << endl;
+    cerr << "---- EmpCylSL::cache_grid: error opening input file" << endl;
     return;
   }
 
   ofstream out(output.c_str());
   if (!in) {
-    cerr << "EmpCylSL::cache_grid: error opening outputfile" << endl;
+    cerr << "---- EmpCylSL::cache_grid: error opening outputfile" << endl;
     return;
   }
 
@@ -6466,8 +6535,8 @@ double EmpCylSL::y_to_z(double y)
   if (CMAPZ==1)
     return HSCALE*sinh(y);
   else if (CMAPZ==2) {
-    if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__);
-    if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__);
+    if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__, 1040, true);
+    if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__, 1040, true);
     return y * HSCALE/sqrt(1.0 - y*y);
   }
   else
@@ -6480,8 +6549,8 @@ double EmpCylSL::d_y_to_z(double y)
   if (CMAPZ==1)
     return HSCALE*cosh(y);
   else if (CMAPZ==2) {
-    if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__);
-    if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__);
+    if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__, 1040, true);
+    if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__, 1040, true);
     return HSCALE*pow(1.0-y*y, -1.5);
   } else
     return 1.0;

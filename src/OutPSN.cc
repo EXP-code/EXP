@@ -10,6 +10,16 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSN.H>
 
+const std::set<std::string>
+OutPSN::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub",
+  "nbeg",
+  "real4",
+  "timer",
+};
+
 OutPSN::OutPSN(const YAML::Node& conf) : Output(conf)
 {
   initialize();
@@ -17,6 +27,12 @@ OutPSN::OutPSN(const YAML::Node& conf) : Output(conf)
 
 void OutPSN::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
 				// Get file name
     if (Output::conf["filename"])
@@ -95,9 +111,9 @@ void OutPSN::initialize()
 void OutPSN::Run(int n, int mstep, bool last)
 {
   if (!dump_signal and !last) {
-    if (n % nint            ) return;
-    if (restart  && n==0    ) return;
-    if (mstep % nintsub !=0 ) return;
+    if (n % nint) return;
+    if (restart && n==0) return;
+    if (multistep>1 && mstep % nintsub !=0) return;
   }
 
   std::chrono::high_resolution_clock::time_point beg, end;

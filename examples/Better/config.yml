@@ -7,15 +7,15 @@
 # These parameters control the simulation
 # ------------------------------------------------------------------------
 Global:
-  outdir     : /home/someuser/dir
+  outdir     : /home/weinberg/Projects/EXP/examples/Better
   nthrds     : 1
   dtime      : 0.002
-  ldlibdir   : /home/someuser/lib/user
+  ldlibdir   : /home/weinberg/.local/lib/user
   runtag     : run0
   nsteps     : 100
   multistep  : 8
-  dynFracA   : 0.004
-  dynFracV   : 0.02
+  dynfracA   : 0.004
+  dynfracV   : 0.02
   infile     : OUT.run0.chkpt
   VERBOSE    : 0
   cuda       : off
@@ -28,18 +28,20 @@ Global:
 # ------------------------------------------------------------------------
 Components:
   - name       : dark halo
-    parameters : {nlevel: 1, EJ: 2, EJdamp: 1.0, nEJkeep: 256, nEJwant: 1000, com_log: 1, EJdryrun: true, indexing: true}
+    parameters : {nlevel: 1, EJ: 2, EJdamp: 1.0, nEJkeep: 256, nEJwant: 1000, comlog: true, EJdryrun: true, indexing: true}
     bodyfile   : halo.bods
     force :
       id : sphereSL
-      parameters : {numr: 2000, rmin: 0.0001, rmax: 1.95, Lmax: 6, nmax: 20, rs: 0.0667, self_consistent: true, modelname: SLGridSph.model, pca: true, pcadiag: true, pcavtk: true, npca: 100, tk_type: Hall}
+      parameters : {numr: 2000, rmin: 0.0001, rmax: 1.95, Lmax: 6,
+      nmax: 20, rs: 0.0667, self_consistent: true, modelname:
+        SLGridSph.model, pcadiag: true, pcavtk: true, npca: 100, tk_type: Hall}
 
   - name       : star disk
     parameters : {nlevel: 1, EJdamp: 0.8, EJdryrun: true, EJ: 2, nEJkeep: 256, nEJwant: 500, EJkinE: false, EJext: false, EJdiag: false, EJdT: 1.0e-8, indexing: true}
     bodyfile   : disk.bods
     force :
       id : cylinder
-      parameters : {acyl: 0.01, hcyl: 0.001, lmax: 32, mmax: 6, nmax: 32, ncylorder: 8, ncylnx: 256, ncylny: 128, rnum: 200, pnum: 80, tnum: 80, ashift: 0.5, vflag: 0, logr: false, self_consistent: true, pca: true, npca: 100, pcadiag: true, pcavtk: true, tk_type: Hall}
+      parameters : {acyl: 0.01, hcyl: 0.001, lmax: 32, mmax: 6, nmax: 32, ncylorder: 8, ncylnx: 256, ncylny: 128, rnum: 200, pnum: 80, tnum: 80, ashift: 0.5, vflag: 0, logr: false, self_consistent: true, npca: 100, pcadiag: true, pcavtk: true, tk_type: Hall}
 #
 # The parameters could be expressed like this, equivalently:
 #

@@ -7,6 +7,20 @@ static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 static const int MSGTAG=103;
 
+const std::set<std::string>
+Direct::valid_keys = {
+  "soft_indx",
+  "soft",
+  "type",
+  "mn_model",
+  "a",
+  "b",
+  "pm_model",
+  "diverge",
+  "diverge_rfac",
+  "pmmodel_file"
+};
+
 Direct::Direct(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   // Standard softening
@@ -50,6 +64,12 @@ Direct::~Direct()
 
 void Direct::initialize(void)
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
     if (conf["soft_indx"]) {
       soft_indx = conf["soft_indx"].as<int>();
@@ -112,7 +132,7 @@ void Direct::determine_acceleration_and_potential(void)
 				// Make sure softening is defined if needed
   if (!fixed_soft && component->ndattrib<soft_indx+1) {
     std::string msg("Direct: particle softening data missing");
-    throw GenericError(msg, __FILE__, __LINE__);
+    throw GenericError(msg, __FILE__, __LINE__, 1019, false);
   }
 				// Determine size of largest nbody list
   ninteract = component->Number();

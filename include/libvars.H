@@ -32,6 +32,10 @@ namespace __EXP__
 
   //! Random generator instance
   extern std::mt19937 random_gen;
+
+  //! Control flag for source/line debug info
+  extern bool sourceline;
+
 };
 
 #endif	// END _LIBVARS_H

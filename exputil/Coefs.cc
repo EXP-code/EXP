@@ -32,9 +32,9 @@ bool CylCoefs::read(std::istream& in, bool verbose)
       unsigned ssize;
       in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
       
-      // Make and read char buffer
+      // Make and read char buffer for YAML config
       //
-      auto buf = std::make_unique<char[]>(ssize+1);
+      buf = std::shared_ptr<char[]>(new char [ssize+1]);
       in.read(buf.get(), ssize);
       buf[ssize] = 0;		// Null terminate
       
@@ -143,9 +143,9 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
     
       if (in.eof()) return false;
 
-      // Create buffer
+      // Make and read char buffer for YAML config
       //
-      auto buf = std::make_unique<char[]>(hsize+1);
+      buf = std::shared_ptr<char[]>(new char [hsize+1]);
 
       // Read YAML string
       //

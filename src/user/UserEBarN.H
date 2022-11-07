@@ -149,6 +149,9 @@ private:
 
   void userinfo();
   
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
   double rho0;
   std::shared_ptr<LegeQuad> gq, gt;
   double Density(vector<double> x);

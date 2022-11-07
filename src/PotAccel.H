@@ -12,8 +12,9 @@
 
 #include <Particle.H>
 #include <StringTok.H>
+#include <YamlCheck.H>
 
-#include "config.h"
+#include <config_exp.h>
 
 class Component;
 struct thrd_pass_PotAccel;
@@ -89,6 +90,9 @@ protected:
   //! and CPU at significant expanse
   bool cuda_aware;
 
+  //! Current YAML keys to check configuration
+  std::set<std::string> current_keys;
+
 public:
 
   //! For timing data
@@ -102,7 +106,10 @@ public:
   string id;
 
   //! Possible geometries
-  enum Geometry {sphere, cylinder, cube, slab, other};
+  enum Geometry {sphere, cylinder, cube, slab, table, other};
+
+  //! Map from enum to string
+  static std::map<Geometry, std::string> geoname;
 
   //! sphere, cylinder, cube, slab, other
   Geometry geometry;
@@ -172,6 +179,7 @@ public:
 
   //! Dump current coefficients
   virtual void dump_coefs(ostream &out) {};
+  virtual void dump_coefs_h5(const std::string &file) {};
 
   /** Update the multi time step force algorithm when moving particle 
       <code>i</code> from level <code>cur</code> to level 
@@ -223,6 +231,9 @@ public:
 
   //! Cuda aware
   bool cudaAware() { return cuda_aware; }
+
+  //! Get unaccounted keys
+  std::set<std::string> unmatched() { return current_keys; }
 
 };
 

@@ -69,6 +69,9 @@ private:
 
   void make_grid(double rmin, double rmax, int lmax, int nmax);
   
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
   
   //! Number of entries in fixed table (static variable)

@@ -29,12 +29,12 @@ if (!(x)) { throw (std::runtime_error("Eigen assert error")); }
 #include <ColorGradient.H>
 #include <KMeans.H>
 
-#include "CoefDB.H"
+#include <CoefDB.H>
 
-#include "RedSVD.H"
-#include "config.h"
-#include "YamlConfig.H"
-#include "libvars.H"
+#include <RedSVD.H>
+#include <config_exp.h>
+#include <YamlConfig.H>
+#include <libvars.H>
 
 Eigen::MatrixXd wCorr(Eigen::MatrixXd & R)
 {
@@ -199,6 +199,7 @@ main(int argc, char **argv)
     ("e,ev",         "exit after computing eigenvalues")
     ("triples",      "print all triples for reconstruction")
     ("f,flip",       "png origin in lower left rather than upper left")
+    ("Traj",         "use SVD of trajectory matrix rather than covariance matrix")
     ("totVar",       "use total variance for normalization")
     ("totPow",       "use total power for normalization")
     ("writeCov",     "write the covariance matrix (may be large and time consuing)")
@@ -723,7 +724,7 @@ main(int argc, char **argv)
       double disp = totVar;
       if (type == CoefDB::TrendType::totPow) disp = totPow;
       if (disp==0.0) disp = var[u.first];
-
+      
       for (int i=0; i<numT; i++) {
 	out << std::setw(15) << std::setprecision(6) << coefs.times[i];
 	for (int w=0; w<ncomp; w++)
@@ -737,6 +738,7 @@ main(int argc, char **argv)
     }
   }
 
+#ifdef HAVE_LIBPNGPP
   if (vm.count("histo")) {
 
     if (not quiet) {
@@ -897,6 +899,7 @@ main(int argc, char **argv)
     }
 
   }
+#endif
 
   if (not quiet) {
     std::cout << "----------------------------------------" << std::endl;
@@ -1105,6 +1108,7 @@ main(int argc, char **argv)
     }
   }
 
+#ifdef HAVE_LIBPNGPP
   if (not quiet) {
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "---- w-correlation"                       << std::endl;
@@ -1175,7 +1179,7 @@ main(int argc, char **argv)
     }
 
   }
-
+#endif
 
   if (vm.count("kmeans")) {
 

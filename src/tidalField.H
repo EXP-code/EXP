@@ -23,6 +23,9 @@ private:
 
   void * determine_acceleration_and_potential_thread(void * arg);
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   //! Constructor

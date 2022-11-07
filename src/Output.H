@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <set>
+
 #include <StringTok.H>
 #include <Timer.H>
 
@@ -60,6 +62,9 @@ protected:
 			   << std::endl;
   }
 
+  //! Current YAML keys to check configuration
+  std::set<std::string> current_keys;
+
 public:
 
   //! Id string
@@ -74,9 +79,8 @@ public:
   //! Provided by derived class to generate some output
   virtual void Run(int nstep, int mstep, bool final) = 0;
 
-  //! Error
-  void bomb(const string& msg);
-  
+  //! Return unmatched parameters
+  std::set<std::string> unmatched() { return current_keys; }
 };
 
 #endif

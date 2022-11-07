@@ -7,6 +7,11 @@
 
 int UserTestCuda::total = 0;
 
+const std::set<std::string>
+UserTestCuda::valid_keys = {
+  "maxcall"
+}
+
 UserTestCuda::UserTestCuda(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "TestCuda";
@@ -29,6 +34,15 @@ UserTestCuda::~UserTestCuda()
 
 void UserTestCuda::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserTestCuda", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["maxcall"])        maxcall            = conf["maxcall"].as<int>();
   }

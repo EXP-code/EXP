@@ -5,6 +5,32 @@
 #include <localmpi.H>
 #include <UserEBarP.H>
 
+const std::set<std::string>
+UserEBarP::valid_keys = {
+  "ctrname",
+  "angmname",
+  "tblname",
+  "length",
+  "bratio",
+  "cratio",
+  "amp",
+  "angmomfac",
+  "barmass",
+  "Ton",
+  "Toff",
+  "TmonoOn",
+  "TmonoOff",
+  "DeltaT",
+  "DeltaMonoT",
+  "soft",
+  "monopole",
+  "fileomega",
+  "onoff",
+  "monofrac",
+  "quadfrac",
+  "filename"
+};
+
 UserEBarP::UserEBarP(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "RotatingBarWithMonopoleOmegaFile";
@@ -55,9 +81,10 @@ UserEBarP::UserEBarP(const YAML::Node& conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << ctr_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": can't find desired component <"
+	   << ctr_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   }
@@ -77,9 +104,10 @@ UserEBarP::UserEBarP(const YAML::Node& conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << angm_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": can't find desired component <"
+	   << ctr_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   }
@@ -91,9 +119,10 @@ UserEBarP::UserEBarP(const YAML::Node& conf) : ExternalForce(conf)
 				// Read in data
     ifstream in(string(outdir+table_name).c_str());
     if (!in) {
-      cerr << "Process " << myid << ": error opening quadrupole file <"
-	   << outdir + table_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": error opening quadrupole file <"
+	   << outdir + table_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
     
     string fline;
@@ -159,8 +188,9 @@ UserEBarP::UserEBarP(const YAML::Node& conf) : ExternalForce(conf)
     }
     
   } else {
-    cout << "UserEBarP could not open <" << fileomega << ">\n";
-    MPI_Abort(MPI_COMM_WORLD, 103);
+    std::ostringstream sout;
+    sout << "UserEBarP could not open <" << fileomega << ">";
+    throw GenericError(sout.str(), __FILE__, __LINE__, 103, false);
   }
     
   // Debugging
@@ -240,6 +270,15 @@ void UserEBarP::userinfo()
 
 void UserEBarP::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserEbar", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
     if (conf["angmname"])       angm_name          = conf["angmname"].as<string>();

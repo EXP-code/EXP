@@ -1,5 +1,5 @@
 
-#include "config.h"
+#include <config_exp.h>
 
 #ifdef HAVE_OMP_H
 #include <omp.h>
@@ -147,8 +147,9 @@ struct pair_compare
 //
 void pHOT::bomb(const string& membername, const string& msg)
 {
-  cerr << "pHOT::" << membername << "(): " << msg << endl;
-  MPI_Abort(MPI_COMM_WORLD, 497);
+  std::ostringstream sout;
+  sout << "pHOT::" << membername << "(): " << msg << endl;
+  throw GenericError(sout.str(), __FILE__, __LINE__, 1037, true);
 }
 
 /*

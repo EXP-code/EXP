@@ -6,6 +6,13 @@
 #include <TwoCenter.H>
 #include <MixtureBasis.H>
 
+const std::set<std::string> TwoCenter::valid_keys = {
+  "nhisto",
+  "basis"
+
+};
+
+
 TwoCenter::TwoCenter(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   nhisto = 0;
@@ -65,7 +72,7 @@ TwoCenter::TwoCenter(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   else {
     ostringstream msg;
     msg << "The basis <" << id << "> cannot be used as a multicenter component";
-    throw GenericError(msg.str(), __FILE__, __LINE__);
+    throw GenericError(msg.str(), __FILE__, __LINE__, 1032, false);
   }
 
   dof = exp_in->dof;
@@ -74,6 +81,14 @@ TwoCenter::TwoCenter(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 
 void TwoCenter::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("TwoCenter", "parameter", unmatched, __FILE__, __LINE__, 1033, false);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["nhisto"])         nhisto     = conf["nhisto"].as<int>();
     if (conf["basis"])          basis      = conf["basis"].as<string>();

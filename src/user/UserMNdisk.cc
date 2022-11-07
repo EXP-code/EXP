@@ -5,6 +5,17 @@
 
 #include <UserMNdisk.H>
 
+const std::set<std::string>
+UserMNdisk::valid_keys = {
+  "ctrname",
+  "a",
+  "b",
+  "mass",
+  "Ton",
+  "Toff",
+  "DeltaT"
+};
+
 UserMNdisk::UserMNdisk(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "MiyamotoNagaiDiskPotential";
@@ -34,9 +45,9 @@ UserMNdisk::UserMNdisk(const YAML::Node& conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << ctr_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Can't find desired component <" << ctr_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   }
@@ -73,6 +84,15 @@ void UserMNdisk::userinfo()
 
 void UserMNdisk::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserMNdisk", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["ctrname"])   ctr_name    = conf["ctrname"].as<string>();
     if (conf["a"])         a           = conf["a"].as<double>();

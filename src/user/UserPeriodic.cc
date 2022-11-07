@@ -14,6 +14,23 @@ template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
+const std::set<std::string>
+UserPeriodic::valid_keys = {
+  "compname",
+  "sx",
+  "sy",
+  "sz",
+  "cx",
+  "cy",
+  "cz",
+  "dT",
+  "nbin",
+  "tcol",
+  "vunit",
+  "temp",
+  "btype"
+};
+
 UserPeriodic::UserPeriodic(const YAML::Node& conf) : ExternalForce(conf)
 {
   (*barrier)("Periodic: BEGIN construction", __FILE__, __LINE__);
@@ -47,9 +64,10 @@ UserPeriodic::UserPeriodic(const YAML::Node& conf) : ExternalForce(conf)
   }
 
   if (!found) {
-    cerr << "UserPeriodic: process " << myid 
-	 << " can't find fiducial component <" << comp_name << ">" << endl;
-    MPI_Abort(MPI_COMM_WORLD, 35);
+    std::ostringstream sout;
+    sout << "UserPeriodic: "
+	 << "can't find fiducial component <" << comp_name << ">";
+    throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
   }
   
   // 
@@ -128,6 +146,15 @@ void UserPeriodic::userinfo()
 
 void UserPeriodic::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserPeriodic", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["compname"])       comp_name          = conf["compname"].as<string>();
     
@@ -186,11 +213,10 @@ void UserPeriodic::initialize()
     
   // Check for thermal type
   if (thermal && c0->keyPos<0) {
-    if (myid==0) {
-      std::cerr << "UserPeriodic:: thermal wall specified but no gas species "
-		<< "attribute specified.  Aborting . . ." << std::endl;
-    }
-    MPI_Abort(MPI_COMM_WORLD, 36);
+    std::ostringstream sout;
+    sout << "UserPeriodic:: thermal wall specified but no gas species "
+	 << "attribute specified.  Aborting . . .";
+    throw GenericError(sout.str(), __FILE__, __LINE__, 36, false);
   }
 }
 

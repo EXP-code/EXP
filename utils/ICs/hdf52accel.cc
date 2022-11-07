@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 
-#include <config.h>
+#include <config_exp.h>
 #ifdef HAVE_HDF5
 #include <H5Cpp.h>
 #include <H5public.h>		// For version info

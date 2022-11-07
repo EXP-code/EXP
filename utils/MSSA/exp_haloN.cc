@@ -31,8 +31,8 @@
 #include "Coefs.H"
 #include "RedSVD.H"
 
-#include "config.h"
-#include "YamlConfig.H"
+#include <config_exp.h>
+#include <YamlConfig.H>
 
 
 const double PI2() { return std::atan(1)*8; }
@@ -996,6 +996,7 @@ main(int argc, char **argv)
   }
 
 
+#ifdef HAVE_LIBPNGPP
   if (vm.count("histo")) {
 
     if (not quiet) {
@@ -1204,6 +1205,7 @@ main(int argc, char **argv)
     }
 
   }
+#endif
 
   if (not quiet) {
     std::cout << "----------------------------------------" << std::endl;
@@ -1273,6 +1275,7 @@ main(int argc, char **argv)
     }
   }
 
+#ifdef HAVE_LIBPNGPP
   if (not quiet) {
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "---- w-correlation"                       << std::endl;
@@ -1313,6 +1316,7 @@ main(int argc, char **argv)
       image.write(sout.str());
     }
   }
+#endif
 
 
   filename = prefix + ".recon";

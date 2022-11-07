@@ -10,21 +10,22 @@ endif()
 set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   CBrockDisk.cc Cube.cc Cylinder.cc ExternalCollection.cc
   ExternalForce.cc Hernquist.cc Orient.cc PotAccel.cc ScatterMFP.cc
-  SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc SphericalCoefs.cc
-  CylindricalCoefs.cc TwoDCoefs.cc TwoCenter.cc EJcom.cc global.cc
-  begin.cc ddplgndr.cc Direct.cc Shells.cc NoForce.cc end.cc
-  OutputContainer.cc OutPS.cc OutPSQ.cc OutPSN.cc OutPSP.cc OutPSR.cc
-  OutCHKPT.cc OutCHKPTQ.cc Output.cc externalShock.cc CylEXP.cc
-  generateRelaxation.cc HaloBulge.cc incpos.cc incvel.cc
-  ComponentContainer.cc OutAscii.cc OutMulti.cc OutRelaxation.cc
-  OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc multistep.cc parse.cc
-  Slab.cc SlabSL.cc step.cc tidalField.cc ultra.cc ultrasphere.cc
-  MPL.cc OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc chkSlurm.c
-  chkTimer.cc pHOT.cc GravKernel.cc ${CUDA_SRC} CenterFile.cc)
+  SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc TwoDCoefs.cc
+  TwoCenter.cc EJcom.cc global.cc begin.cc ddplgndr.cc Direct.cc
+  Shells.cc NoForce.cc end.cc OutputContainer.cc OutPS.cc OutPSQ.cc
+  OutPSN.cc OutPSP.cc OutPSR.cc OutCHKPT.cc OutCHKPTQ.cc Output.cc
+  externalShock.cc CylEXP.cc generateRelaxation.cc HaloBulge.cc
+  incpos.cc incvel.cc ComponentContainer.cc OutAscii.cc OutMulti.cc
+  OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc
+  multistep.cc parse.cc Slab.cc SlabSL.cc step.cc tidalField.cc
+  ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
+  ParticleFerry.cc pCell.cc chkSlurm.c chkTimer.cc pHOT.cc
+  GravKernel.cc ${CUDA_SRC} CenterFile.cc)
 
 set(common_INCLUDE_DIRS 
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/pyEXP/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/DSMC/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
@@ -37,8 +38,8 @@ if (ENABLE_DSMC)
   list(APPEND DSMC_LIBS expdsmc)
 endif()
 
-set(common_LINKLIB ${DSMC_LIBS} exputil OpenMP::OpenMP_CXX
-  MPI::MPI_CXX yaml-cpp ${VTK_LIBRARIES})
+set(common_LINKLIB ${DSMC_LIBS} exputil expcoef OpenMP::OpenMP_CXX
+  MPI::MPI_CXX PNG::PNG yaml-cpp ${VTK_LIBRARIES})
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
@@ -49,7 +50,7 @@ if(SLURM_FOUND)
   list(APPEND common_LINKLIB ${SLURM_LIBRARY})
 endif()
 
-if(TIRPC_FOUND)
+if(ENABLE_XDR AND TIRPC_FOUND)
   list(APPEND common_LINKLIB ${TIRPC_LIBRARY})
 endif()
 

@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -53,12 +54,62 @@ double dcond(double R, double z, double phi, int M)
 }
 
 
+const std::set<std::string>
+Cylinder::valid_keys = {
+  "tk_type",
+  "rcylmin",
+  "rcylmax",
+  "acyl",
+  "hcyl",
+  "hexp",
+  "snr",
+  "evcut",
+  "nmax",
+  "lmax",
+  "mmax",
+  "mlim",
+  "ncylnx",
+  "ncylny",
+  "ncylr",
+  "ncylorder",
+  "ncylodd",
+  "ncylrecomp",
+  "npca",
+  "npca0",
+  "nvtk",
+  "eof_file",
+  "override",
+  "samplesz",
+  "rnum",
+  "pnum",
+  "tnum",
+  "ashift",
+  "expcond",
+  "logr",
+  "pcavar",
+  "pcaeof",
+  "pcavtk",
+  "pcadiag",
+  "subsamp",
+  "try_cache",
+  "density",
+  "EVEN_M",
+  "cmap",
+  "cmapr",
+  "cmapz",
+  "vflag",
+  "self_consistent",
+  "playback",
+  "coefCompute",
+  "coefMaster"
+};
+
 Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   Basis(c0, conf)
 {
 #if HAVE_LIBCUDA==1
   if (m) {
-    throw std::runtime_error("Error in Cylinder: MixtureBasis logic is not yet implemented in CUDA");
+    throw GenericError("Error in Cylinder: MixtureBasis logic is not yet implemented in CUDA", __FILE__, __LINE__, 1016, false);
   }
 
   // Initialize the circular storage container 
@@ -80,7 +131,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ncylr           = 2000;
 
   acyl            = 1.0;
-  nmax            = 20;
+  nmax            = 24;
   lmax            = 36;
   mmax            = 4;
   mlim            = -1;
@@ -290,6 +341,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	   << " pcadiag="     << pcadiag
 	   << " eof_file="    << eof_file
 	   << " override="    << std::boolalpha << eof_over
+	   << " selfgrav="    << std::boolalpha << self_consistent
 	   << " logarithmic=" << logarithmic
 	   << " vflag="       << vflag
 	   << endl << endl;
@@ -318,6 +370,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << " pcadiag="     << pcadiag
 	      << " eof_file="    << eof_file
 	      << " override="    << std::boolalpha << eof_over
+	      << " selfgrav="    << std::boolalpha << self_consistent
 	      << " logarithmic=" << logarithmic
 	      << " vflag="       << vflag
 	      << std::endl;
@@ -342,6 +395,12 @@ Cylinder::~Cylinder()
 
 void Cylinder::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
     // These first two should not be user settable . . . but need them for now
     //
@@ -387,6 +446,7 @@ void Cylinder::initialize()
     if (conf["cmap"      ])      cmapR  = conf["cmap"      ].as<int>();
     if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
     if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
+    if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
     if (conf["self_consistent"])
       self_consistent = conf["self_consistent"].as<bool>();
@@ -405,21 +465,26 @@ void Cylinder::initialize()
 	}
       }
 
-      playback = std::make_shared<CylindricalCoefs>(file);
+      playback = std::dynamic_pointer_cast<Coefs::CylCoefs>(Coefs::Coefs::factory(file));
 
-      if (playback->nmax != ncylorder) {
-	if (myid==0) {
-	  std::cerr << "Cylinder: norder for playback [" << playback->nmax
-		    << "] does not match specification [" << ncylorder << "]"
-		    << std::endl;
-	}
-	MPI_Finalize();
-	exit(-1);
+      if (not playback) {
+	throw GenericError("Cylinder: failure in downcasting",
+			   __FILE__, __LINE__, 1017, false);
+      }
+      
+      // Set tolerance to 2 master time steps
+      playback->setDeltaT(dtime*2);
+
+      if (playback->nmax() != ncylorder) {
+	std::ostringstream sout;
+	sout << "Cylinder: norder for playback [" << playback->nmax()
+	     << "] does not match specification [" << ncylorder << "]";
+	throw GenericError(sout.str(), __FILE__, __LINE__, 1018, false);
       }
 
-      if (playback->mmax != mmax) {
+      if (playback->mmax() != mmax) {
 	if (myid==0) {
-	  std::cerr << "Cylinder: mmax for playback [" << playback->mmax
+	  std::cerr << "Cylinder: mmax for playback [" << playback->mmax()
 		    << "] does not match specification [" << mmax << "]"
 		    << std::endl;
 	}
@@ -427,11 +492,11 @@ void Cylinder::initialize()
 	exit(-1);
       }
 
-      P = getDataPtr();
+      P.resize(mmax+1, nmax);
 
       if (conf["coefCompute"]) play_cnew = conf["coefCompute"].as<bool>();
 
-      if (play_cnew) P1 = getDataPtr();
+      if (play_cnew) P1.resize(mmax+1, nmax);
 
       play_back = true;
 
@@ -702,7 +767,8 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	    cout << endl
 		 << cC->orient->transformBody() << endl
 		 << cC->orient->currentAxis()   << endl;
-	    MPI_Abort(MPI_COMM_WORLD, -1);
+	    throw GenericError("Squared radius is NaN",
+			       __FILE__, __LINE__, -1, true);
 	  }
 	}
       }
@@ -736,16 +802,29 @@ void Cylinder::determine_coefficients_playback(void)
   if (coefMaster) {
     
     if (myid==0) {
-      P = playback->interpolate(tnow);
-    }
-    
-    for (int m=0; m<=mmax; m++) {
-      MPI_Bcast(std::get<0>(*P)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(std::get<1>(*P)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      auto ret = playback->interpolate(tnow);
+
+      P = std::get<0>(ret);
+      if (not std::get<1>(ret)) stop_signal = 1;
+
+      int nrows = P.rows(), ncols = P.cols();
+      MPI_Bcast(&nrows, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&ncols, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(P.data(), P.size(), MPI_CXX_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
+
+    } else {
+      int nrows, ncols;
+      MPI_Bcast(&nrows, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&ncols, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      P.resize(nrows, ncols);
+      MPI_Bcast(P.data(), P.size(), MPI_CXX_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
     }
     
   } else {
-    P = playback->interpolate(tnow);
+    auto ret = playback->interpolate(tnow);
+
+    P = std::get<0>(ret);
+    if (not std::get<1>(ret)) stop_signal = 1;
   }
 
 }
@@ -1350,7 +1429,7 @@ void Cylinder::determine_fields_at_point
  double *tdens, double *tpotl, 
  double *tpotX, double *tpotY, double *tpotZ)
 {
-  double R   = sqrt(x*x + y*y + z*z);
+  double R   = sqrt(x*x + y*y);
   double phi = atan2(y, x);
   double cph = cos(phi), sph = sin(phi);
 
@@ -1405,6 +1484,63 @@ void Cylinder::determine_fields_at_point_cyl(double r, double z, double phi,
 void Cylinder::dump_coefs(ostream& out)
 {
   ortho->dump_coefs_binary(out, tnow);
+}
+
+// Dump coefficients to an HDF5 file
+
+void Cylinder::dump_coefs_h5(const std::string& file)
+{
+  // Add the current coefficients
+  auto cur = std::make_shared<Coefs::CylStruct>();
+
+  cur->time = tnow;
+  cur->geom = geoname[geometry];
+  cur->id   = id;
+  cur->mmax = mmax;
+  cur->nmax = ncylorder;
+
+  cur->coefs.resize(mmax+1, ncylorder);
+
+  Eigen::VectorXd cos1(ncylorder), sin1(ncylorder);
+  
+  for (int m=0; m<=mmax; m++) {
+
+    ortho->get_coefs(m, cos1, sin1);
+
+    for (int ir=0; ir<ncylorder; ir++) {
+      if (m==0) {
+	cur->coefs(m, ir) = {cos1(ir), 0.0};
+      } else {
+	cur->coefs(m, ir) = {cos1(ir), sin1(ir)};
+      }
+    }
+  }
+
+  // Add center
+  //
+  cur->ctr = component->getCenter(Component::Local | Component::Centered);
+
+  // Check if file exists
+  //
+  if (std::filesystem::exists(file + ".h5")) {
+    cylCoefs.clear();
+    cylCoefs.add(cur);
+    cylCoefs.ExtendH5Coefs(file);
+  } else {
+    // Copy the YAML config.  We only need this on the first call.
+    std::ostringstream sout; sout << conf;
+    size_t hsize = sout.str().size() + 1;
+    cur->buf = std::shared_ptr<char[]>(new char [hsize]);
+    sout.str().copy(cur->buf.get(), hsize); // Copy to CoefStruct buffer
+
+    // Add the name attribute.  We only need this on the first call.
+    cylCoefs.setName(component->name);
+
+    // Add the new coefficients and write the new HDF5
+    cylCoefs.clear();
+    cylCoefs.add(cur);
+    cylCoefs.WriteH5Coefs(file);
+  }
 }
 
 				// Density debug

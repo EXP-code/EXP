@@ -5,8 +5,9 @@ set(ROOT_SRC rtbis.cc rtsafe.cc brent.cc zbrent.cc mnbrak.cc zbrak.cc zbrac.cc)
 set(QUAD_SRC qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc
 Trapsum.cc Splsum.cc)
 set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc
-  rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc
-  stack.cc localmpi.cc TableGrid.cc writePVD.cc libvars.cc)
+  rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc stack.cc
+  localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc
+  YamlCheck.cc)
 
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)
@@ -24,7 +25,7 @@ set(MASSMODEL_SRC massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc reali
 set(ORBIT_SRC orbit.cc orbit_trans.cc FindOrb.cc)
 
 set(BIORTH_SRC biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc
-  sbessz.cc ultra.cc bessz.cc sphereSL.cc biorth1d.cc
+  sbessz.cc ultra.cc bessz.cc sphereSL.cc biorth1d.cc Coefs.cc
   biorth_wake_orientation.cc SLGridMP2.cc scalarprod.cc EmpCylSL.cc)
 
 set(GAUSS_SRC gaussQ.cc GaussCore.c Hermite.c Jacobi.c Laguerre.c)
@@ -43,17 +44,19 @@ set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
 set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/> ${CMAKE_BINARY_DIR}
-  ${DEP_INC} ${EIGEN3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS})
+  ${DEP_INC} ${EIGEN3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS}
+  ${FFTW_INCLUDE_DIRS})
 
 set(common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
-  yaml-cpp ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+  yaml-cpp ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
+  ${FFTW_DOUBLE_LIB})
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES})
 endif()
 
-if(TIRPC_FOUND)
+if(ENABLE_XDR AND TIRPC_FOUND)
   list(APPEND common_INCLUDE_DIRS ${TIRPC_INCLUDE_DIRS})
   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
 endif()

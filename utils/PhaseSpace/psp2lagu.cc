@@ -5,6 +5,7 @@
   MDWeinberg 08/13/20
 */
 
+#include <functional>
 #include <iostream>
 #include <fstream>
 #include <sstream>

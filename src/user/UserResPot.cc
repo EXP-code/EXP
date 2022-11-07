@@ -183,8 +183,9 @@ UserResPot::UserResPot(const YAML::Node& conf) : ExternalForce(conf)
       }
 
     } else {
-      cout << "UserResPotN could not open <" << fileomega << ">\n";
-      MPI_Abort(MPI_COMM_WORLD, 103);
+      std::ostringstream sout;
+      sout << "UserResPot could not open <" << fileomega << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 102, false);
     }
     
   }
@@ -373,9 +374,10 @@ void UserResPot::determine_acceleration_and_potential(void)
 
 	    if (tlast1 >= tnow) {
 	      if (firstline) {
-		cerr << "UserResPotN: can't read log file, aborting" << endl;
-		cerr << "UserResPotN: line=" << line << endl;
-		MPI_Abort(MPI_COMM_WORLD, 123);
+		std::ostringstream sout;
+		sout << "UserResPot: can't read log file, aborting" << endl;
+		sout << "UserResPot: line=" << line;
+		throw GenericError(sout.str(), __FILE__, __LINE__, 123, false);
 	      }
 	      break;
 	    }

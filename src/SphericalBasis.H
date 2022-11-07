@@ -3,11 +3,14 @@
 
 #include <memory>
 #include <random>
+#include <vector>
+#include <string>
+#include <set>
 
 #include <AxisymmetricBasis.H>
-#include <SphericalCoefs.H>
+#include <Coefficients.H>
 
-#include "config.h"
+#include <config_exp.h>
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
@@ -15,6 +18,7 @@
 #endif
 #include <NVTX.H>
 
+#include <CoefContainer.H>
 
 class MixtureBasis;
 
@@ -285,7 +289,7 @@ protected:
   /** Coefficient playback instance.  Using shared_ptr to avoid
       constructing a simple pointer or null instance
   */
-  std::shared_ptr<SphericalCoefs> playback;
+  std::shared_ptr<Coefs::SphCoefs> playback;
 
   /** Master node ships coefficients to hosts.  True (default) implies
       that only the master node caches the coefficients for playback
@@ -297,6 +301,12 @@ protected:
 
   //! Last playback coefficient evaluation time
   double lastPlayTime;
+
+  //! Coefficient container instance for writing HDF5
+  Coefs::SphCoefs sphCoefs;
+
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
 
 public:
 
@@ -425,6 +435,8 @@ public:
   //! Dump current coefficients
   void dump_coefs(ostream &);
 
+  //! Dump current coefficients into named HDF5 file
+  void dump_coefs_h5(const std::string& file);
 };
 
 #endif

@@ -3,6 +3,12 @@
 
 #include <tidalField.H>
 
+const std::set<std::string>
+tidalField::valid_keys = {
+  "hills_omega",
+  "hills_p"
+};
+
 tidalField::tidalField(const YAML::Node& config) : ExternalForce(config)
 {
   hills_omega = 0.5;
@@ -13,6 +19,12 @@ tidalField::tidalField(const YAML::Node& config) : ExternalForce(config)
 
 void tidalField::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
     if (conf["hills_omega"])    hills_omega        = conf["hills_omega"].as<double>();
     if (conf["hills_p"])        hills_p            = conf["hills_p"].as<double>();

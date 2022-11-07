@@ -6,6 +6,8 @@
 #include <localmpi.H>
 #include <gaussQ.H>
 
+#include <YamlCheck.H>
+#include <EXPException.H>
 #include <UserTidalRad.H>
 
 
@@ -47,17 +49,15 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << comp_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": can't find desired component <"
+	   << comp_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   } else {
-    if (myid==0) {
-      std:: cerr << "UserTidalRad: desired component name must be specified"
-	<< std::endl;
-	   MPI_Abort(MPI_COMM_WORLD, 36);
-    }
+    std::string msg = "UserTidalRad: desired component name must be specified";
+    throw GenericError(msg, __FILE__, __LINE__, 36, false);
   }
 
   if (myid==0) {
@@ -239,8 +239,32 @@ void UserTidalRad::userinfo()
   print_divider();
 }
 
+const std::set<std::string>
+UserTidalRad::valid_keys = {
+  "compname",
+  "rtrunc",
+  "rfactor",
+  "rtorig",
+  "pctile",
+  "pcnbin",
+  "boxcar",
+  "dtTrunc",
+  "dtScale",
+  "diag",
+  "debug"
+};
+
 void UserTidalRad::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserTidalRad", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign parameters from YAML config
+  //
   try {
     if (conf["compname"]) comp_name = conf["compname"].as<std::string>();
     if (conf["rtrunc"])   rtrunc    = conf["rtrunc"].  as<double>();

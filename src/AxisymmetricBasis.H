@@ -154,6 +154,9 @@ protected:
   //! Partitioned variance computation
   bool subsamp;
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient

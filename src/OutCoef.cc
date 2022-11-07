@@ -6,11 +6,21 @@
 
 #include <OutCoef.H>
 
+const std::set<std::string>
+OutCoef::valid_keys = {
+  "filename",
+  "nint",
+  "nintsub",
+  "native",
+  "name"
+};
+
 OutCoef::OutCoef(const YAML::Node& conf) : Output(conf)
 {
   nint = 10;
   nintsub = std::numeric_limits<int>::max();
   filename = outdir + "outcoef." + runtag;
+  native = false;
   tcomp = NULL;
 
   initialize();
@@ -33,9 +43,16 @@ OutCoef::OutCoef(const YAML::Node& conf) : Output(conf)
 
 void OutCoef::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
     if (conf["filename"])     filename = conf["filename"].as<std::string>();
     if (conf["nint"])         nint     = conf["nint"].as<int>();
+    if (conf["native"])       native   = conf["native"].as<bool>();
     if (conf["nintsub"]) {
       nintsub  = conf["nintsub"].as<int>();
       if (nintsub <= 0) nintsub = 1;
@@ -73,34 +90,38 @@ void OutCoef::Run(int n, int mstep, bool last)
 
   // Skip this master step
   //
-  if (n % nint != 0 && !last)          return;
+  if (n % nint != 0 && !last) return;
 
   // Skip this sub step
   //
-  if (mstep % nintsub !=0)             return;
+  if (multistep>1 and mstep % nintsub != 0) return;
 
-  MPI_Status status;
-
-  // Open output file
-  //
-  std::ofstream out;
-
-  // Make a bigger output buffer
-  //
-  const int bufsize = 16384;
-  char mybuffer [bufsize];
-  out.rdbuf()->pubsetbuf(mybuffer, bufsize);
-
-  // Now open the file
-  //
   if (myid==0) {
-    out.open(filename.c_str(), ios::out | ios::app);
-    if (!out) {
-      cout << "OutCoef: can't open file <" << filename << ">\n";
+
+    if (native) {
+
+      // Open output file
+      //
+      std::ofstream out;
+
+      // Now open the file on the root node only
+      //
+      out.open(filename.c_str(), ios::out | ios::app);
+      if (!out) {
+	cout << "OutCoef: can't open file <" << filename << ">\n";
+      }
+      
+      // Make a bigger output buffer
+      //
+      const int bufsize = 16384;
+      char mybuffer [bufsize];
+      out.rdbuf()->pubsetbuf(mybuffer, bufsize);
+      
+      tcomp->force->dump_coefs(out);
+
+    } else {
+      tcomp->force->dump_coefs_h5(filename);
     }
   }
-  
-  tcomp->force->dump_coefs(out);
 
-  out.close();
 }

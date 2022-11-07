@@ -34,6 +34,9 @@ private:
   void set_energies(void);
   void initialize(void);
 
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   //! Constructor

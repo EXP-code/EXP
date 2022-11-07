@@ -1,7 +1,7 @@
 set(bin_PROGRAMS exp_haloN disk_noise halo_noise expmssa)
 
 set(common_LINKLIB
-  yaml-cpp PNG::PNG ${VTK_LIBRARIES} ${EIGEN3_LIBRARIES}
+  exputil yaml-cpp PNG::PNG ${VTK_LIBRARIES} ${EIGEN3_LIBRARIES}
   ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES} ${FFTW_DOUBLE_LIB})
 
 set(common_INCLUDE $<INSTALL_INTERFACE:include>
@@ -12,10 +12,22 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
   ${CMAKE_CURRENT_SOURCE_DIR}/.. ${EIGEN3_INCLUDE_DIR} ${FFTW_INCLUDE_DIRS}
   ${HDF5_INCLUDE_DIRS})
 
-add_executable(exp_haloN     exp_haloN.cc TransformFFT.cc Coefs.cc)
+if(CUDA_FOUND)
+  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+endif()
+
+if(SLURM_FOUND)
+  list(APPEND common_LINKLIB ${SLURM_LIBRARY})
+endif()
+
+if(ENABLE_XDR AND TIRPC_FOUND)
+  list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
+endif()
+
+add_executable(exp_haloN     exp_haloN.cc Coefs.cc)
 add_executable(disk_noise    exp_disk_noise.cc Coefs.cc)
 add_executable(halo_noise    exp_halo_noise.cc Coefs.cc)
-add_executable(expmssa       expmssa.cc TransformFFT.cc Coefs.cc CoefDB.cc KMeans.cc)
+add_executable(expmssa       expmssa.cc Coefs.cc CoefDB.cc KMeans.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB} OpenMP::OpenMP_CXX MPI::MPI_CXX)

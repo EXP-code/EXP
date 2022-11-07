@@ -3,8 +3,11 @@
 
 #include <memory>
 #include <vector>
+#include <string>
+#include <set>
 
 #include <AxisymmetricBasis.H>
+#include <CoefContainer.H>
 #include <TwoDCoefs.H>
 
 class MixtureBasis;
@@ -72,6 +75,12 @@ private:
   //! Last playback coefficient evaluation time
   double lastPlayTime;
 
+  //! Coefficient container instance for writing HDF5
+  Coefs::CylCoefs cylCoefs;
+
+  //! Valid keys for YAML configurations
+  static const std::set<std::string> valid_keys;
+
 public:
 
   //! Constructor
@@ -122,6 +131,8 @@ public:
   //! Save coefficients to file (need type marker to id dump, component id?)
   void dump_coefs(ostream& out);
 
+  //! Save coefficients to HDF5 file
+  void dump_coefs_h5(const std::string& file);
 };
 
 

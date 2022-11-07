@@ -15,7 +15,7 @@
 
 #include <mpi.h>
 
-#include <config.h>
+#include <config_exp.h>
 
 #include <StringTok.H>
 #include <header.H>
@@ -71,16 +71,20 @@ namespace PR
     virtual const Particle* nextParticle() = 0;
     
     //! Print summary phase-space info
-    virtual void PrintSummary(std::ostream &out, bool stats=false, bool timeonly=false) = 0;
+    virtual void PrintSummary(std::ostream &out, bool stats=false, bool timeonly=false);
 
-    //! Order file list into batches at single times
+    //! Order file list into batches at single times from file
     static std::vector<std::vector<std::string>>
     parseFileList(const std::string& file, const std::string& delimit);
 
+    //! Order file list into batches at single times from vector of strings
+    static std::vector<std::vector<std::string>>
+    parseStringList(const std::vector<std::string>& file, const std::string& delimit);
+
     //! Create a shared pointer to derived instance of the desired type and return it
     static std::shared_ptr<ParticleReader>
-    createReader(const std::string& type, const std::vector<std::string>& file, int myid,
-		 bool verbose=false);
+    createReader(const std::string& type, const std::vector<std::string>& file,
+		 int myid=0, bool verbose=false);
   };
   
   class GadgetNative : public ParticleReader
@@ -142,10 +146,6 @@ namespace PR
     //! Get current time
     double CurrentTime() { return time; }
     
-    //! Print summary
-    virtual void PrintSummary(std::ostream &out, bool stats=false, bool timeonly=false)
-    { std::cout << "Summary not yet implemented for GadgetNative" << std::endl; }
-
     //! Reset to beginning of particles for this component
     virtual const Particle* firstParticle();
     
@@ -214,10 +214,6 @@ namespace PR
     //! Get current time
     virtual double CurrentTime() { return time; }
     
-    //! Print summary
-    virtual void PrintSummary(std::ostream &out, bool stats=false, bool timeonly=false)
-    { std::cout << "Summary not yet implemented for GadgetHDF5" << std::endl; }
-
     //! Reset to beginning of particles for this component
     virtual const Particle* firstParticle();
     
@@ -414,8 +410,12 @@ namespace PR
     //! Write a new PSP file
     void writePSP(std::ostream& out,  bool real4);
     
+    //@{
+    //! Particle access
+    virtual const Particle* firstParticle() = 0;
+    virtual const Particle* nextParticle() = 0;
+    //@}
   };
-  
   
   
   /**
@@ -463,7 +463,7 @@ namespace PR
     
     //@{
     //! Particle access
-    virtual const Particle* firstParticle ();
+    virtual const Particle* firstParticle();
     virtual const Particle* nextParticle();
     //@}
     
@@ -543,10 +543,6 @@ namespace PR
     //! Get current time
     virtual double CurrentTime() { return ps->header.time; }
     
-    //! Print summary
-    virtual void PrintSummary(std::ostream &out, bool stats=false, bool timeonly=false)
-    { std::cout << "Summary not yet implemented for Tipsy" << std::endl; }
-
     //@{
     //! Particle access
     virtual const Particle* firstParticle ();

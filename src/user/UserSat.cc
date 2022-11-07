@@ -2,6 +2,25 @@
 
 int UserSat::instances = 0;
 
+const std::set<std::string>
+UserSat::valid_keys = {
+  "comname",
+  "config",
+  "core",
+  "mass",
+  "ton",
+  "toff",
+  "delta",
+  "toffset",
+  "orbit",
+  "shadow",
+  "verbose",
+  "r0",
+  "phase",
+  "omega",
+  "trajtype"
+};
+
 UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "UserSat";		// ID string
@@ -37,9 +56,10 @@ UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
     }
     
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << com_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": can't find desired component <"
+	   << com_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
   }
 
@@ -57,11 +77,9 @@ UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
     traj = std::make_shared<LinearOrbit>(config);
     break;
   default:
-    if (myid==0) {
-      cerr << "UserSat: no such trjectory type="
-	   << traj_type << endl;
-    }
-    MPI_Abort(MPI_COMM_WORLD, 36);
+    std::ostringstream sout;
+    sout << "UserSat: no such trjectory type=" << traj_type;
+    throw GenericError(sout.str(), __FILE__, __LINE__, 36, false);
   }
 
   if (orbit && myid==0) {
@@ -150,6 +168,15 @@ void UserSat::userinfo()
 
 void UserSat::initialize()
 {
+  // Check for unmatched keys
+  //
+  auto unmatched = YamlCheck(conf, valid_keys);
+  if (unmatched.size())
+    throw YamlConfigError("UserSat", "parameter", unmatched,
+			  __FILE__, __LINE__);
+
+  // Assign values from YAML
+  //
   try {
     if (conf["comname"]) {
       com_name = conf["comname"].as<std::string>();
@@ -187,11 +214,9 @@ void UserSat::initialize()
 	traj_type = linear;
 	break;
       default:
-	if (myid==0) {
-	  cerr << "UserSat: no such trjectory type="
-	       << val << endl;
-	}
-	MPI_Abort(MPI_COMM_WORLD, 36);
+	std::ostringstream sout;
+	sout << "UserSat: no such trjectory type=" << val;
+	throw GenericError(sout.str(), __FILE__, __LINE__, 36, false);
       }
     }
   }

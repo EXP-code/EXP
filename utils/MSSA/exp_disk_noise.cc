@@ -24,8 +24,8 @@
 
 #include "Coefs.H"
 #include "RedSVD.H"
-#include "config.h"
-#include "cxxopts.H"
+#include <config_exp.h>
+#include <cxxopts.H>
 
 typedef std::tuple<unsigned, unsigned, unsigned> Key;
 std::map<Key, std::vector<double>> coefs;

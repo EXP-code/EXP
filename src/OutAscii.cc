@@ -11,6 +11,16 @@ using namespace std;
 #include <AxisymmetricBasis.H>
 #include <OutAscii.H>
 
+const std::set<std::string>
+OutAscii::valid_keys = {
+  "nint",
+  "nintsub",
+  "nbeg",
+  "name",
+  "accel",
+  "filename"
+};
+
 OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
 {
   nint = 100;
@@ -45,6 +55,12 @@ OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
 
 void OutAscii::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
     if (Output::conf["nint"])    nint     = Output::conf["nint"].as<int>();
 #ifdef ALLOW_NINTSUB
@@ -100,7 +116,7 @@ void OutAscii::initialize()
 void OutAscii::Run(int n, int mstep, bool last)
 {
   if (n % nint && !last) return;
-  if (mstep % nintsub !=0) return;
+  if (multistep>1 and mstep % nintsub !=0) return;
   if (!c0) return;
 
 #ifdef HAVE_LIBCUDA

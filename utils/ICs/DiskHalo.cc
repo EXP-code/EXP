@@ -137,6 +137,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     AxiSymModel::gen_rmin = RHMIN;
     newmod = std::make_shared<AddDisk>(halo, disk, dmass*COMPRESSION); 
     halo2 = newmod->get_model();
+    halo2->print_model("diskhalo.newmodel");
     halo2->setup_df(NUMDF, RA);
     if (myid==0 && VFLAG & 2) {
       char debugname[] = "df.debug";
@@ -222,6 +223,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 
   newmod = std::make_shared<AddDisk>(halo, disk, dmass*COMPRESSION); 
   halo2 = newmod->get_model();
+  halo2->print_model("diskhalo.newmodel");
   halo2->setup_df(NUMDF, RA);
   if (myid==0 && VFLAG & 2) {
     char debugname[] = "df.debug";
@@ -725,9 +727,9 @@ set_halo_table_single(vector<Particle>& phalo)
   if (myid==0) std::cout << "  min(r)=" << radmin 
 			 << "  max(r)=" << radmax;
 
-  // Make dispersion vector
+  // Make dispersion table
   //
-  table_halo_disp();
+  table_halo(phalo);
 
   MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);

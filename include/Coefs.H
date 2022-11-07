@@ -6,10 +6,11 @@
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
-#include "../../src/coef.H"
+#include "src/coef.H"
 
 struct CylCoefs
 {
+  std::shared_ptr<char[]> buf;
   double time;
   int nmax, mmax;
   std::vector< std::vector<double> > cos_c, sin_c;
@@ -21,6 +22,7 @@ typedef std::shared_ptr<CylCoefs> CylCoefsPtr;
 
 struct SphCoefs
 {
+  std::shared_ptr<char[]> buf;
   SphCoefHeader header;
 
   typedef

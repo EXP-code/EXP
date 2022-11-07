@@ -53,6 +53,13 @@ char OutLog::lab_component[][20] = {
   "# used"
 };
 
+const std::set<std::string>
+OutLog::valid_keys = {
+  "filename",
+  "freq",
+  "nint",
+  "nintsub"
+};
 
 
 OutLog::OutLog(const YAML::Node& conf) : Output(conf)
@@ -67,6 +74,12 @@ OutLog::OutLog(const YAML::Node& conf) : Output(conf)
 
 void OutLog::initialize()
 {
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
   try {
 				// Get file name
     if (Output::conf["filename"])
@@ -211,7 +224,7 @@ void OutLog::Run(int n, int mstep, bool last)
 	  message << "OutLog::Run(): error creating backup file <" 
 		  << backupfile << "> from <" << filename 
 		  << ">, message: " << e.code().message();
-	  bomb(message.str());
+	  throw GenericError(message.str(), __FILE__, __LINE__, 1036, true);
 	}
 
 	// Open new output stream for writing
@@ -221,7 +234,7 @@ void OutLog::Run(int n, int mstep, bool last)
 	  std::ostringstream message;
 	  message << "OutLog: error opening new log file <" 
 		  << filename << "> for writing";
-	  bomb(message.str());
+	  throw GenericError(message.str(), __FILE__, __LINE__, 1036, true);
 	}
 	  
 	// Open old file for reading
@@ -231,7 +244,7 @@ void OutLog::Run(int n, int mstep, bool last)
 	  ostringstream message;
 	  message << "OutLog: error opening original log file <" 
 		  << backupfile << "> for reading";
-	  bomb(message.str());
+	  throw GenericError(message.str(), __FILE__, __LINE__, 1036, true);
 	}
 
 	const int cbufsiz = 16384;
@@ -376,7 +389,7 @@ void OutLog::Run(int n, int mstep, bool last)
   
 
   if (n % nint && !last) return;
-  if (mstep % nintsub !=0) return;
+  if (multistep>1 and mstep % nintsub !=0) return;
 
 
 				// Use MPI wall clock to time step
