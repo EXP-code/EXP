@@ -786,12 +786,12 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 	std::filesystem::rename(cachefile, cachefile + ".bak");
       }
       catch(std::filesystem::filesystem_error const& ex) {
-        std::cout << "---- EmpCylSL::cache_grid write error: "
-		  << "what():  " << ex.what()  << std::endl
-		  << "path1(): " << ex.path1() << std::endl
-		  << "path2(): " << ex.path2() << std::endl;
-	MPI_Abort(MPI_COMM_WORLD, 12);
-	return 0;
+	std::ostringstream sout;
+        sout << "---- EmpCylSL::cache_grid write error: "
+	     << "what():  " << ex.what()  << std::endl
+	     << "path1(): " << ex.path1() << std::endl
+	     << "path2(): " << ex.path2() << std::endl;
+	throw GenericError(sout.str(), __FILE__, __LINE__, 12, true);
       }
 
       std::cout << "---- EmpCylSL::cache_grid: existing file backed up to <"

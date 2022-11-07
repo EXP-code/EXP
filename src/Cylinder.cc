@@ -767,7 +767,8 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	    cout << endl
 		 << cC->orient->transformBody() << endl
 		 << cC->orient->currentAxis()   << endl;
-	    MPI_Abort(MPI_COMM_WORLD, -1);
+	    throw GenericError("Squared radius is NaN",
+			       __FILE__, __LINE__, -1, true);
 	  }
 	}
       }

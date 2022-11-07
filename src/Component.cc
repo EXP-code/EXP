@@ -307,9 +307,10 @@ void Component::find_ctr_component()
     }
     
     if (!found) {
-      cerr << "Component [" << myid << "]: can't find desired component <"
-	   << ctr_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 38);
+      std::ostringstream sout;
+      sout << "Component [" << myid << "]: can't find desired component <"
+	   << ctr_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 38, false);
     }
   }
 }

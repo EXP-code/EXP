@@ -90,26 +90,28 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 				// Backup old file
       string backupfile = logfile + ".bak";
       if (rename(logfile.c_str(), backupfile.c_str())) {
-	cerr << "Orient: error making backup file <" 
-	     << backupfile << ">\n";
-	MPI_Abort(MPI_COMM_WORLD, 42);
+	std::ostringstream sout;
+	sout << "Orient: error making backup file <" 
+	     << backupfile << ">";
+	throw GenericError(sout.str(), __FILE__, __LINE__, 42, true);
       }
 
 				// Open new output stream for writing
       ofstream out(logfile.c_str());
       if (!out) {
-	cerr << "Orient: error opening new log file <" 
+	std::ostringstream sout;
+	sout << "Orient: error opening new log file <" 
 	     << logfile << "> for writing\n";
-	MPI_Abort(MPI_COMM_WORLD, 43);
+	throw GenericError(sout.str(), __FILE__, __LINE__, 43, true);
       }
 	  
 				// Open old file for reading
       in.open(backupfile.c_str());
       if (!in) {
-	ostringstream message;
-	cerr << "Orient: error opening original log file <" 
-	     << backupfile << "> for reading\n";
-	MPI_Abort(MPI_COMM_WORLD, 44);
+	std::ostringstream sout;
+	sout << "Orient: error opening original log file <" 
+	     << backupfile << "> for reading";
+	throw GenericError(sout.str(), __FILE__, __LINE__, 44, true);
       }
 
 

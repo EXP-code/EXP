@@ -222,8 +222,8 @@ void UserRPtest::determine_acceleration_and_potential(void)
 
 	  if (tlast1 >= tnow) {
 	    if (firstline) {
-	      cerr << "UserRPtest: can't read log file, aborting" << endl;
-	      MPI_Abort(MPI_COMM_WORLD, 123);
+	      std::string msg = "UserRPtest: can't read log file, aborting";
+	      throw GenericError(msg, __FILE__, __LINE__, 123, false);
 	    }
 	    break;
 	  }

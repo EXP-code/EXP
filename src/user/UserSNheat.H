@@ -63,9 +63,10 @@ private:
   void threading_init() 
   {
     if (pthread_barrier_init(&barr, 0, nthrds)) {
-      cout << "UserSNheat: process " << myid 
-	   << " could not create a barrier" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 36);
+      std::ostringstream sout;
+      sout << "UserSNheat: process " << myid 
+	   << " could not create a barrier";
+      throw GenericError(sout.str(),  __FILE__, __LINE__, 36, true);
     }
   }
 
@@ -76,9 +77,10 @@ private:
   {
     int rc = pthread_barrier_wait(&barr);
     if(rc != 0 && rc != PTHREAD_BARRIER_SERIAL_THREAD) {
-      cerr << "UserSNheat: process " << myid << ", thread " << id
-	   << " can't find fiducial component <" << comp_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, err);
+      std::ostringstream sout;
+      sout << "UserSNheat: process " << myid << ", thread " << id
+	   << " can't find fiducial component <" << comp_name << ">";
+      throw GenericError(sout.str(),  __FILE__, __LINE__, err, true);
     }
   }
 

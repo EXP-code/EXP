@@ -59,35 +59,38 @@ OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
 				// Remove an old backup files
       if (unlink(backfile.c_str())) {
 	perror("OutFrac::Run()");
-	cout << "OutFrac::Run(): error unlinking old backup file <" 
-	     << backfile << ">" << endl;
+	std::cout << "OutFrac::Run(): error unlinking old backup file <" 
+		  << backfile << ">" << std::endl;
       } else {
-	cout << "OutFrac::Run(): successfully unlinked <"
-	     << backfile << ">" << endl;
+	std::cout << "OutFrac::Run(): successfully unlinked <"
+		  << backfile << ">" << std::endl;
       }
       if (rename(filename.c_str(), backfile.c_str())) {
 	perror("OutFrac::Run()");
-	cout << "OutFrac: error renaming the current file <"
+	std::ostringstream sout;
+	sout << "OutFrac: error renaming the current file <"
 	     << filename << "> to the backup file <" 
-	     << backfile << ">" << endl;
-	MPI_Abort(MPI_COMM_WORLD, 114);
+	     << backfile << ">";
+	throw GenericError(sout.str(), __FILE__, __LINE__, 114, true);
       } else {
-	cout << "OutFrac::Run(): successfully renamed <"
-	     << filename << "> to <" << backfile << ">" << endl;
+	sout cout << "OutFrac::Run(): successfully renamed <"
+		  << filename << "> to <" << backfile << ">" << std::endl;
       }
 
-      ifstream in(backfile.c_str());
+      std::ifstream in(backfile.c_str());
       if (!in) {
-	cout << "OutFrac: error opening backup file <" 
-	     << backfile << "> for input" << endl;
-	MPI_Abort(MPI_COMM_WORLD, 115);
+	std::ostringstream sout;
+	sout << "OutFrac: error opening backup file <" 
+	     << backfile << "> for input";
+	throw GenericError(sout.str(), __FILE__, __LINE__, 115, true);
       }
 
-      ofstream out(filename.c_str());
+      std::ofstream out(filename.c_str());
       if (!out) {
-	cout << "OutFrac: error opening new file <" 
-	     << filename << "> for output" << endl;
-	MPI_Abort(MPI_COMM_WORLD, 116);
+	std::ostringstream sout;
+	sout << "OutFrac: error opening new file <" 
+	     << filename << "> for output";
+	throw GenericError(sout.str(), __FILE__, __LINE__, 116, true);
       }
 
       const unsigned linesz = 4196;

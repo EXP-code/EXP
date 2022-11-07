@@ -163,9 +163,9 @@ void OutPSP::Run(int n, int mstep, bool last)
 		  info, &file);
 
   if (ret != MPI_SUCCESS) {
-    cerr << "OutPSP: can't open file <" << fname.str() << "> . . . quitting"
-	 << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 33);
+    std::ostringstream sout;
+    sout << "OutPSP: can't open file <" << fname.str() << "> . . . quitting";
+    throw GenericError(sout.str(), __FILE__, __LINE__, 33, false);
   }
 
   MPI_Info_free(&info);

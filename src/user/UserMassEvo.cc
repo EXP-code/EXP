@@ -34,17 +34,14 @@ UserMassEvo::UserMassEvo(const YAML::Node &conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << comp_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      std::ostringstream sout;
+      sout << "Can't find desired component <" << comp_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   } else {
-    if (myid==0) {
-      std:: cerr << "UserMassEvo: desired component name must be specified"
-	<< std::endl;
-	   MPI_Abort(MPI_COMM_WORLD, 36);
-    }
+    std::string msg = "UserMassEvo: desired component name must be specified";
+    throw GenericError(msg, __FILE__, __LINE__, 36, false);
   }
 
   userinfo();

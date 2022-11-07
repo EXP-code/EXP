@@ -45,10 +45,11 @@ UserSlabHalo::UserSlabHalo(const YAML::Node& conf) : ExternalForce(conf)
     }
 
     if (!found) {
-      cerr << "libslabhalo, process " << myid 
+      std::ostringstream sout;
+      sout << "libslabhalo, process " << myid 
 	   << ": can't find desired component <"
-	   << ctr_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+	   << ctr_name << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
     }
 
   }
