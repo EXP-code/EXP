@@ -4,7 +4,7 @@ import pyEXP
 import numpy as np
 import matplotlib.pyplot as plt
 
-os.chdir('/home/weinberg/Nbody/Better')
+os.chdir('/data/Nbody/Better')
 
 # Make the halo basis config
 config="""
@@ -16,7 +16,7 @@ parameters :
   rmax: 1.95
   Lmax: 4
   nmax: 10
-  rs: 0.0667
+  scale: 0.0667
   modelname: SLGridSph.model
 ...
 """
@@ -28,11 +28,18 @@ basis = pyEXP.basis.Basis.factory(config)
 # Open the file and read the array.  The file was generated using
 # psp2ascii.
 #
-data = np.loadtxt('comp.dark halo', skiprows=1, usecols=(1, 2, 3, 4))
+bodyfile = 'comp.dark halo'
+if not os.path.exists(bodyfile):
+    print("You need to use psp2ascii to make an ascii input file, e.g.\n"
+          "'psp2ascii -f OUT.run0.00010'")
+    exit(1)
+
+data = np.loadtxt(bodyfile, skiprows=1, usecols=(1, 2, 3, 4))
+print(data.shape)
 
 # Call the basis to generate coefficients
 #
-coef = basis.createFromArray(data[:,0], data[:,1:3], time=3.0)
+coef = basis.createFromArray(data[:,0], data[:,1:4], time=3.0)
 
 # Print the data for a check
 #
