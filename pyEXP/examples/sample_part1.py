@@ -19,12 +19,12 @@ bconfig = """
 ---
 id: sphereSL
 parameters :
-  numr: 2000
-  rmin: 0.0001
-  rmax: 1.95
-  Lmax: 4
-  nmax: 10
-  rs: 0.0667
+  numr:  2000
+  rmin:  0.0001
+  rmax:  1.95
+  Lmax:  4
+  nmax:  10
+  scale: 0.0667
   modelname: SLGridSph.model
 ...
 """

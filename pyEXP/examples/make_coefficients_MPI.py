@@ -61,7 +61,7 @@ parameters  :
   rmax      : 1.99
   Lmax      : 6
   nmax      : 18
-  rs        : 0.05
+  scale     : 0.05
   modelname : mw_halo.model
 """
 
