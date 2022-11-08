@@ -833,7 +833,7 @@ public:
 
   //! Set cross-section type for all instances. This is left in case
   //! alternative cross sections are useful in the future, but AFAICT,
-  //! Verner should be used for everything at this point.
+  //! Badnell or Verner should be used for everything at this point.
   static int setRRtype(const std::string& rr) 
   {
     if (rr_map.find(rr) == rr_map.end()) {
@@ -842,7 +842,7 @@ public:
     } else { 			// Set request
       rr_type = rr_map[rr];
       if (myid==0 and rr_type != Ion::verner and rr_type != Ion::badnell) {
-	std::cout << "WARNING: you probably really want the Verner or Badnell cross sections not " << rr_lab[rr_type] << std::endl;
+	std::cout << "WARNING: you probably really want the Badnell or Verner cross sections not " << rr_lab[rr_type] << std::endl;
       }
       return 0;			// Success
     }

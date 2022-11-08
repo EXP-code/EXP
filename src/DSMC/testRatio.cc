@@ -74,7 +74,7 @@ int main (int ac, char **av)
   options.add_options()
    ("h,help", "produce help message")
    ("l,long", "long output: print each rate and ratio")
-   ("Z,Z", "atomic number",
+   ("Z,elem", "atomic number",
      cxxopts::value<unsigned short>(Z)->default_value("2"))
    ("t,Tmin", "minimum temperature",
      cxxopts::value<double>(Tmin)->default_value("1000.0"))

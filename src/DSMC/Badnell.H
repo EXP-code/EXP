@@ -42,8 +42,11 @@ private:
   //! Ion mnemonics for file names
   std::map<int, std::string> ions;
 
-  //! Ions with file data in the RR and DR directories in the datpath
+  //! Ions with file data in the RR and DR directories in the datapath
   std::vector<lQ> ionQ;
+
+  //! Parse directory
+  std::tuple<std::map<int, std::string>, std::vector<lQ>> walkDirectory();
 
 public:
 
@@ -57,6 +60,9 @@ public:
   //! matter much for small bins.
   static bool reweight;
   
+  //! Coupling choice (default intermediate coupling, "ic")
+  static std::string coupling;
+
   //! Store the cross-section data table for each ion
   struct BadnellRec 
   {

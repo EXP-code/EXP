@@ -3,21 +3,128 @@
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
+#include <regex>
+#include <map>
+#include <set>
 
 #include <mpi.h>
 
+#include <atomic_constants.H>
 #include <Badnell.H>
 
 std::string BadnellData::datapath = "./";
+std::string BadnellData::coupling = "ic";
 bool        BadnellData::reweight = false;
 
 BadnellData::BadnellData()
 {
-  // Ion registry (just He so far)
-  //
-  ions = { {2, "he"} };		// map of mnemonics
-  ionQ = { {2, 2}, {2, 3} };	// vector of ions
+  std::tie(ions, ionQ) = walkDirectory();
 }
+
+std::tuple<std::map<int, std::string>, std::vector<BadnellData::lQ>>
+BadnellData::walkDirectory()
+{
+  // Periodic table
+  //
+  PeriodicTable table;
+
+  // Filter strings
+  //
+  const std::string user("nrb"), year("20");
+
+  // Set default datapath
+  //
+  std::filesystem::path dpath{datapath};
+
+  // Data list
+  //
+  std::set<std::pair<unsigned short, unsigned short>> ionq;
+  std::map<int, std::string> ions;
+
+  // Look for atomic data path in environment
+  //
+  if (const char* env_p = std::getenv("ATOMIC_DATA_PATH")) {
+    dpath = std::filesystem::path( env_p ) / "RR";
+
+    const std::regex txt_regex("[a-z]+");
+    const std::regex num_regex("[0-9]+");
+    std::smatch matches;
+    std::string element, charge, couple;
+
+    for (auto const& dir_entry : std::filesystem::recursive_directory_iterator{dpath}) {
+      std::string fname = dir_entry.path().string();
+      if (fname.find(user+year) != std::string::npos) {
+	// Break into data elements
+	int beg = fname.find('#') + 1;
+	int end = fname.find('_');
+
+	// Get sequence
+	std::string seq = fname.substr(beg, end - beg);
+
+	// Get the element
+	//
+	fname = fname.substr(end+1, std::string::npos);
+	if (std::regex_search(fname, matches, txt_regex))
+	  element = matches[0];
+	else {
+	  std::runtime_error("No element match in: " + fname);
+	}
+
+	// Get the charge
+	//
+	fname = fname.substr(element.size(), std::string::npos);
+	if (std::regex_search(fname, matches, num_regex))
+	  charge = matches[0];
+	else {
+	  std::runtime_error("No charge match in: " + fname);
+	}
+
+	// Get the couple
+	//
+	fname = fname.substr(charge.size(), std::string::npos);
+	if (std::regex_search(fname, matches, txt_regex))
+	  couple = matches[0];
+	else {
+	  std::runtime_error("No couple match in: " + fname);
+	}
+
+	// Ignore unwanted coupling
+	//
+	if (couple != coupling) continue;
+
+	std::string abbrev(element);
+	abbrev[0] = std::toupper(abbrev[0]);
+
+	auto ret = table[abbrev];
+
+	std::istringstream sin(charge);
+	unsigned short chg;
+	sin >> chg;
+
+	/*
+	std::cout << std::setw( 8) << seq
+		  << std::setw( 8) << element
+		  << std::setw(20) << std::get<0>(*ret)
+		  << std::setw( 8) << std::get<2>(*ret)
+		  << std::setw( 8) << chg
+		  << std::setw( 8) << couple
+		  << std::endl;
+	*/
+
+	ions[std::get<2>(*ret)] = element;
+	ionq.insert({std::get<2>(*ret), chg+1});
+      }
+    }
+  }
+  
+  std::vector<std::pair<unsigned short, unsigned short>> ionQ;
+  for (auto s : ionq) {
+    ionQ.push_back(s);
+  }
+
+  return {ions, ionQ};
+}
+
 
 void BadnellData::initialize(atomicData* ad)
 {
@@ -54,23 +161,32 @@ void BadnellData::initialize(atomicData* ad)
   //
   for (auto ZC : ionQ) {
 
-    // File filters
-    std::ostringstream m1, m2;
-    m1 << user << year;
-    m2 << ions[ZC.first] << ZC.second - 1;
+    // File regular expression
+    //
+    std::ostringstream rstr;
 
-    auto filter = [&m1, &m2](const std::string& name) {
-		    return (name.find(m1.str()) != std::string::npos &&
-			    name.find(m2.str()) != std::string::npos );
-		  };
+    // Path--+               Sequence-----+     +---Separator
+    //       |                            |     |
+    //       |               Separator--+ |     |           +--Core excitation
+    //       |                          | |     |           |  n->n' for
+    //       v                          v v     v           |  dielectronic
+    rstr << ".*[/]" << user << year << "#[a-z]+[_]" //      v         
+	 << ions[ZC.first] << ZC.second - 1 << coupling << "[0-9]*[.]dat";
+    //        ^               ^                ^                     ^
+    //        |               |                |                     |
+    // Ion name               Charge           Coupling     Suffix---+
+
+    std::regex species(rstr.str());
+    std::smatch matches;
 
     // Will contain matched file(s)
     std::vector<std::string> names;
 
     try {
-      for (auto const& dir_entry : std::filesystem::directory_iterator{dpath / "RR"}) {
+      for (auto const& dir_entry : std::filesystem::recursive_directory_iterator{dpath / "RR"}) {
 	std::string name = dir_entry.path().string();
-	if (filter(name)) names.push_back(name);
+	if (std::regex_search(name, matches, species))
+	  names.push_back(name);
       }
     }
     catch(std::filesystem::filesystem_error const& ex) {
@@ -104,7 +220,7 @@ void BadnellData::initialize(atomicData* ad)
     
     // Create a data record
     bdPtr d = std::make_shared<BadnellRec>();
-
+    
     bool looking = true;
     while (in) {
       if (looking) {
@@ -138,9 +254,10 @@ void BadnellData::initialize(atomicData* ad)
     try {
       for (auto const& dir_entry : std::filesystem::directory_iterator{dpath / "DR"}) {
 	std::string name = dir_entry.path().string();
-	if (filter(name)) names.push_back(name);
+	if (std::regex_search(name, matches, species)) {
+	  names.push_back(name);
+	}
       }
-
     }
     catch(std::filesystem::filesystem_error const& ex) {
       std::cout
