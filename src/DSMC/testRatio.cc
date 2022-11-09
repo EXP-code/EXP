@@ -72,28 +72,29 @@ int main (int ac, char **av)
   cxxopts::Options options(av[0], "Test radiative cross section ratios");
 
   options.add_options()
-   ("h,help", "produce help message")
-   ("l,long", "long output: print each rate and ratio")
-   ("Z,elem", "atomic number",
+    ("h,help", "produce help message")
+    ("l,long", "long output: print each rate and ratio")
+    ("Z,elem", "atomic number",
      cxxopts::value<unsigned short>(Z)->default_value("2"))
-   ("t,Tmin", "minimum temperature",
+    ("t,Tmin", "minimum temperature",
      cxxopts::value<double>(Tmin)->default_value("1000.0"))
-   ("T,Tmax", "maximum temperature",
+    ("T,Tmax", "maximum temperature",
      cxxopts::value<double>(Tmax)->default_value("10000000.0"))
-   ("e,Emin", "minimum energy in eV",
+    ("e,Emin", "minimum energy in eV",
      cxxopts::value<double>(Emin)->default_value("0.001"))
-   ("E,Emax", "maximum energy in eV",
+    ("E,Emax", "maximum energy in eV",
      cxxopts::value<double>(Emax)->default_value("1000.0"))
-   ("N,NumT", "number of temperature points",
+    ("N,NumT", "number of temperature points",
      cxxopts::value<int>(numT)->default_value("200"))
-   ("M,NumE", "number of incremental energy points",
+    ("M,NumE", "number of incremental energy points",
      cxxopts::value<int>(numE)->default_value("100"))
-   ("n,norder", "Laguerre order",
+    ("n,norder", "Laguerre order",
      cxxopts::value<int>(norder)->default_value("20"))
-   ("R,RRtype", "cross-section type",
+    ("R,RRtype", "cross-section type",
      cxxopts::value<std::string>(RRtype)->default_value("Badnell"))
-   ("g,grid", "use radiative recombination grid",
+    ("g,grid", "use radiative recombination grid",
      cxxopts::value<bool>(use_grid)->default_value("true"))
+    ("reweight", "use energy bin reweighting for dielectronic cross sections")
     ;
 
   cxxopts::ParseResult vm;
@@ -114,6 +115,8 @@ int main (int ac, char **av)
     MPI_Finalize();
     return 1;
   }
+
+  if (vm.count("reweight")) BadnellData::reweight = true;
 
   std::string prefix("testRatio");
   std::string cmdFile = prefix + ".cmd_line";
