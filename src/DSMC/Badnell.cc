@@ -179,7 +179,8 @@ void BadnellData::initialize(atomicData* ad)
     std::regex species(rstr.str());
     std::smatch matches;
 
-    // Will contain matched file(s)
+    // Will contain matched file(s).  Should only be one.
+    //
     std::vector<std::string> names;
 
     try {
@@ -225,18 +226,22 @@ void BadnellData::initialize(atomicData* ad)
     while (in) {
       if (looking) {
 	// Keep reading lines until we reach the totals
+	//
 	if (line.find("E(RYD)") != std::string::npos) {
 	  looking = false;
 	  std::getline(in, line); // Read header
 	}
       } else {
 	// We are done!
+	//
 	if (line[0] == 'C') break;
 	
 	// Read the line
+	//
 	std::istringstream ins(line);
 	
 	// Values (Energy in Rydbergs and Energy*Sigma in Mbarn*Rydberg)
+	//
 	ins >> E >> X;
 	d->E_rr.push_back(E*RydtoeV);
 	d->X_rr.push_back(X*RydtoeV);
@@ -291,17 +296,24 @@ void BadnellData::initialize(atomicData* ad)
       while (in) {
 	if (looking) {
 	  // Keep reading lines until we reach the totals
+	  //
 	  if (line.find("E(RYD)") != std::string::npos) {
 	    looking = false;
 	    std::getline(in, line); // Read header
 	  }
 	} else {
 	  // We are done!
+	  //
 	  if (line[0] == 'C') break;
 	  
 	  // Read the line
+	  //
 	  std::istringstream ins(line);
-	  
+
+	  // Default values
+	  //
+	  E = X = 0.0;
+
 	  // Values (Energy in Rydberg and energy averaged cross
 	  // section in Mbarn)
 	  ins >> E >> X;
