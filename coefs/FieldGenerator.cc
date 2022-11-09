@@ -30,11 +30,7 @@ namespace Field
     if (use_mpi) {
       MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
       MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-    } else {
-      int argc = 0; char **argv = 0;
-      MPI_Init(&argc, &argv);
     }
-
   }
   
   void FieldGenerator::check_times(Coefs::CoefsPtr coefs)

@@ -34,6 +34,7 @@ namespace PR
     
     static std::vector<std::string> readerTypes;
     int numprocs, myid;
+    bool use_mpi;
     
   public:
     
@@ -46,6 +47,7 @@ namespace PR
       if (flag) {
 	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
 	MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+	use_mpi = true;
       } else {
 	numprocs = 1;
 	myid     = 0;

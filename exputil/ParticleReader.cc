@@ -62,9 +62,7 @@ namespace PR {
       if (!file.is_open())
       {
 	std::cerr << "Error opening file: " << f << std::endl;
-	int flag;
-	MPI_Initialized(&flag);
-	if (flag) MPI_Finalize();
+	if (use_mpi) MPI_Finalize();
 	exit(1);
       }
       

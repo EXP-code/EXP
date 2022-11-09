@@ -995,22 +995,6 @@ namespace Coefs
   std::shared_ptr<Coefs> Coefs::factory
   (const std::string& file, int stride, double tmin, double tmax)
   {
-    // Check whether MPI is initialized
-    //
-    int flag;
-    MPI_Initialized(&flag);
-
-    // Fall back sanity (works for me but this needs to be fixed
-    // generally)
-    //
-    if (flag) {
-      MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-      MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-    } else {
-      int argc = 0; char **argv = 0;
-      MPI_Init(&argc, &argv);
-    }
-
     std::shared_ptr<Coefs> coefs;
     
     // First attempt to read the file as H5
