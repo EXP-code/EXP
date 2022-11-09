@@ -80,6 +80,11 @@ double Ion::nudel   = 0.05;
 double Ion::HandM_coef  = 1.5e-22;
 double Ion::HandM_expon = -0.5;
 
+
+// Emit more diagnostics
+//
+bool   Ion::verbose          = false;
+
 // Energy grids (in eV)
 //
 bool   Ion::useFreeFreeGrid  = true;
@@ -856,9 +861,11 @@ Ion::Ion(unsigned short Z, unsigned short C, atomicData* ad) : ad(ad), Z(Z), C(C
       readelvlc();
       readwgfa();
     } else {
-      std::cerr << "MasterName [" << MasterName << "] not in master list" 
-		<< std::endl;
-      std::cerr << "Attempting to read fblvl and diparams files";
+      if (verbose) {
+	std::cerr << "MasterName [" << MasterName << "] not in master list" 
+		  << std::endl;
+	std::cerr << "Attempting to read fblvl and diparams files";
+      }
 
       std::string MasterNameT = ZCtoName(Z, C);
 
@@ -880,10 +887,10 @@ Ion::Ion(unsigned short Z, unsigned short C, atomicData* ad) : ad(ad), Z(Z), C(C
 	
 	if (file.is_open()) {
 	  file.close();
-	  std::cerr << "...fblvl ok";
+	  if (verbose) std::cerr << "...fblvl ok";
 	  readfblvl();
 	} else {
-	  std::cerr << "...no fblvl";
+	  if (verbose) std::cerr << "...no fblvl";
 	}
       }
 
@@ -903,13 +910,13 @@ Ion::Ion(unsigned short Z, unsigned short C, atomicData* ad) : ad(ad), Z(Z), C(C
 	
 	if (file.is_open()) {
 	  file.close();
-	  std::cerr << "...diparams ok";
+	  if (verbose) std::cerr << "...diparams ok";
 	  readDi();
 	} else {
-	  std::cerr << "...no diparams";
+	  if (verbose) std::cerr << "...no diparams";
 	}
       }
-      cerr << std::endl;
+      if (verbose) cerr << std::endl;
     }
   }
   
@@ -2569,8 +2576,8 @@ std::vector<double> Ion::radRecombCrossBadnell(double E, int id)
   // Check for availibility of DR data
   //
   if (d->E_dr.size()) {
-    double Ebeg = d->E_dr[0];
-    double Eend = d->E_dr[d->E_dr.size()-2];
+    double Ebeg = d->E_dr.front();
+    double Eend = d->E_dr.back();
     if (E>=Ebeg and E<=Eend) {
       auto x1 = std::lower_bound(d->E_dr.begin(), d->E_dr.end(), E);
       auto x2 = x1;

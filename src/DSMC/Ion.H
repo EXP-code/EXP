@@ -472,6 +472,9 @@ protected:
 
 public:
 
+  //! Enable some more vebose diagnostics
+  static bool verbose;		// default: false
+
   //@{
   //! k-grid spacing in inverse nm (log base 10)
   static double kmin;		// default: -10.0
