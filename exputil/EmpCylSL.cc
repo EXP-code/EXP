@@ -96,11 +96,23 @@ EmpCylSL::EmpCylSL()
   maxSNR     = 0.0;
   cachefile  = default_cache;
 
+  // Check whether MPI is initialized.  Use flag to suppress MPI calls
+  // if MPI is not active.
+  //
+  int flag;
+  MPI_Initialized(&flag);
+  if (flag) use_mpi = true;
+  else      use_mpi = false;
+
+  // Choose table dimension
+  //
   if (DENS)
     MPItable = 4;
   else
     MPItable = 3;
 
+  // Initialize values
+  //
   cylmass = 0.0;
   cylmass_made = false;
   cylmass1 = std::vector<double>(nthrds);
@@ -162,15 +174,26 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
     Nodd     = nodd;
   }
 
+  // Check whether MPI is initialized
+  //
+  int flag;
+  MPI_Initialized(&flag);
+  if (flag) use_mpi = true;
+  else      use_mpi = false;
+
   // Enable MPI code for more than one node
   //
   if (numprocs>1) SLGridSph::mpi = 1;
 
+  // Choose table dimension
+  //
   if (DENS)
     MPItable = 4;
   else
     MPItable = 3;
 
+  // Initialize storage and values
+  //
   coefs_made = std::vector<short>(multistep+1, false);
   eof_made   = false;
 
@@ -238,11 +261,14 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   coefs_made = std::vector<short>(multistep+1, false);
   eof_made = false;
 
+  // Choose table dimension
+  //
   if (DENS)
     MPItable = 4;
   else
     MPItable = 3;
 
+  // Initialize data and storage
   sampT = 1;
   defSampT = 1;
 
@@ -738,8 +764,8 @@ int EmpCylSL::read_cache(void)
 
 				// Master tries to read table
   int retcode;
-  if (myid==0) retcode = cache_grid(0);
-  MPI_Bcast(&retcode, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (myid==0)  retcode = cache_grid(0);
+  if (use_mpi)  MPI_Bcast(&retcode, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (!retcode) return 0;
 				// Send table to slave processes
   send_eof_grid();
@@ -3570,7 +3596,7 @@ void EmpCylSL::accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool
 void EmpCylSL::accumulate(std::vector<Particle>& part, int mlevel,
 			  bool verbose, bool compute)
 {
-   double r, phi, z, mass;
+  double r, phi, z, mass;
 
   int ncnt=0;
   if (myid==0 && verbose) cout << endl;
@@ -3791,8 +3817,11 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       for (int nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = cosN(M)[0][mm][nn];
     
-    MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    if (use_mpi)
+      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    else
+      MPIout = MPIin;
 
     for (int mm=0; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
@@ -3806,11 +3835,14 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       for (int nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = sinN(M)[0][mm][nn];
     
-    MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    if (use_mpi)
+      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    else
+      MPIout = MPIin;
   
-
-    for (int mm=1; mm<=MMAX; mm++)
+  
+  for (int mm=1; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
 	if (multistep)
 	  sinN(M)[0][mm][nn] = MPIout[mm*rank3 + nn];
@@ -3854,10 +3886,15 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
     // Mass used to compute variance in each partition
     //
     if (PCAVAR) {
-      MPI_Allreduce ( &numbT1[0][0], &numbT[0], sampT,
-		      MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      if (use_mpi) {
+	MPI_Allreduce ( &numbT1[0][0], &numbT[0], sampT,
+			MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      } else {
+	numbT = numbT1[0];
+	massT = massT1[0];
+      }
     }
 
     // Test variance
@@ -3872,8 +3909,11 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	  for (int oo=0; oo<rank3; oo++)
 	    MPIinT[mm*rank3*rank3 + nn*rank3 + oo] = tvar[0][mm](nn, oo);
   
-      MPI_Allreduce ( MPIinT.data(), MPIotT.data(), rank3*rank3*(MMAX+1),
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      if (use_mpi)
+	MPI_Allreduce ( MPIinT.data(), MPIotT.data(), rank3*rank3*(MMAX+1),
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      else
+	MPIotT = MPIinT;
       
       for (int mm=0; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
@@ -3894,11 +3934,16 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	}
       }
 
-      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      if (use_mpi) {
+	MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-      MPI_Allreduce ( MPIin2.data(), MPIout2.data(), rank3*rank3*(MMAX+1),
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce ( MPIin2.data(), MPIout2.data(), rank3*rank3*(MMAX+1),
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      } else {
+	MPIout  = MPIin;
+	MPIout2 = MPIin2;
+      }
 
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
@@ -3923,8 +3968,13 @@ void EmpCylSL::reset_mass(void)
 void EmpCylSL::make_coefficients(bool compute)
 {
   if (!cylmass_made) {
-    MPI_Allreduce(&cylmass1[0], &cylmass, 1, MPI_DOUBLE, MPI_SUM, 
-		  MPI_COMM_WORLD);
+
+    if (use_mpi)
+      MPI_Allreduce(&cylmass1[0], &cylmass, 1, MPI_DOUBLE, MPI_SUM, 
+		    MPI_COMM_WORLD);
+    else
+      cylmass = cylmass1[0];
+    
     cylmass_made = true;
   }
   
@@ -3991,15 +4041,21 @@ void EmpCylSL::make_coefficients(bool compute)
     if (coefs_made[M]) continue;
 
 				// "howmany" is only used for debugging
-    MPI_Allreduce ( &howmany1[M][0], &howmany[M], 1, MPI_UNSIGNED,
-		    MPI_SUM, MPI_COMM_WORLD);
+    if (use_mpi)
+      MPI_Allreduce ( &howmany1[M][0], &howmany[M], 1, MPI_UNSIGNED,
+		      MPI_SUM, MPI_COMM_WORLD);
+    else
+      howmany[M] = howmany1[M][0];
 
     for (int mm=0; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = cosN(M)[0][mm][nn];
   
-    MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    if (use_mpi)
+      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    else
+      MPIout = MPIin;
 
     for (int mm=0; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
@@ -4022,11 +4078,16 @@ void EmpCylSL::make_coefficients(bool compute)
 	}
       }
 
-      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-      MPI_Allreduce ( MPIin2.data(), MPIout2.data(), rank3*rank3*(MMAX+1),
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      if (use_mpi) {
+	MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	
+	MPI_Allreduce ( MPIin2.data(), MPIout2.data(), rank3*rank3*(MMAX+1),
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      } else {
+	MPIout  = MPIin;
+	MPIout2 = MPIin2;
+      }
 
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
@@ -4050,9 +4111,11 @@ void EmpCylSL::make_coefficients(bool compute)
       for (int nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = sinN(M)[0][mm][nn];
   
-    MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  
+    if (use_mpi)
+      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    else
+      MPIout = MPIin;
 
     for (int mm=1; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
@@ -4066,11 +4129,17 @@ void EmpCylSL::make_coefficients(bool compute)
 				// Mass used to compute variance in
 				// each partition
 
-    MPI_Allreduce ( &numbT1[0][0], &numbT[0], sampT,
-		    MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+    if (use_mpi) {
+      MPI_Allreduce ( &numbT1[0][0], &numbT[0], sampT,
+		      MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
 
-    MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    } else {
+      numbT = numbT1[0];
+      massT = massT1[0];
+    }
+    
     
   } // END: 'compute' stanza
   

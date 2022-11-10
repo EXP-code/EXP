@@ -49,7 +49,7 @@ namespace Basis
     if (use_mpi) {
       MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
       MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-    } else
+    }
 
     // Parameters for force
     //

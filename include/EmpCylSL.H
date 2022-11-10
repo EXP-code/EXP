@@ -325,6 +325,9 @@ protected:
   //! Number of even and odd terms per subspace
   int Neven, Nodd;
 
+  //! MPI is active
+  bool use_mpi;
+
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient
