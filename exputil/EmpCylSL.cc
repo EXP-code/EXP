@@ -751,7 +751,7 @@ int EmpCylSL::read_eof_file(const string& eof_file)
 	      << std::endl;
 
 
-  eof_made = true;
+  eof_made   = true;
   coefs_made = std::vector<short>(multistep+1, false);
 
   return 1;
@@ -768,14 +768,14 @@ int EmpCylSL::read_cache(void)
   if (use_mpi)  MPI_Bcast(&retcode, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (!retcode) return 0;
 				// Send table to slave processes
-  send_eof_grid();
+  if (use_mpi)  send_eof_grid();
 
   if (myid==0) 
     std::cout << "---- EmpCylSL::read_cache: table forwarded to all processes"
 	      << std::endl;
 
 
-  eof_made = true;
+  eof_made   = true;
   coefs_made = std::vector<short>(multistep+1, false);
 
   return 1;
