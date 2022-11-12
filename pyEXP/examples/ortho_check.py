@@ -1,5 +1,7 @@
 import os
-import yaml
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import pyEXP
 
 # I'm using the EXP example Better run here; obviously another use
@@ -44,11 +46,15 @@ if ncol*nrow < Lmax: nrow += 1
 ax  = fig.subplots(nrow, ncol)
 
 l = 0
-for i in range(1, nrow+1):
-    for j in range(1, ncol+1):
+for i in range(0, nrow):
+    for j in range(0, ncol):
         if l<=Lmax:
-            ax[i, j].imshow(a, interpolation='nearest', cmap=cm.Greys_r)
+            print(ret[l].shape)
+            ax[i, j].imshow(ret[l], interpolation='nearest', cmap=cm.Greys_r)
             ax[i, j].set_aspect('equal')
+            ax[i, j].set_title('l={}'.format(l))
             l += 1
+        else:
+            fig.delaxes(ax[i, j])
 
 plt.show()

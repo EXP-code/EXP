@@ -488,11 +488,11 @@ namespace Basis
 	for (int n2=0; n2<nmax; n2++) {
 	    
 	  // The inner product
-	  double x, r, ans=0.0;
+	  double ans=0.0;
 	  for (int i=0; i<num; i++) {
 	  
-	    x = ximin + (ximax - ximin)*lw.knot(i);
-	    r = sl->xi_to_r(x);
+	    double x = ximin + (ximax - ximin)*lw.knot(i);
+	    double r = sl->xi_to_r(x);
 	      
 	    ans += r*r*sl->get_pot(x, L, n1, 0)*
 	      sl->get_dens(x, L, n2, 0) /
@@ -501,13 +501,13 @@ namespace Basis
 	  }
 	  // END: inner product
 	    
-	  ret[L](n1, n2) = ans;
+	  ret[L](n1, n2) = ans;	// Assign the matrix element
 	}
-	// END: dim 2
+	// END: dim 2 loop
       }
-      // END: dim 1
+      // END: dim 1 loop
     }
-    // END: harmonic order
+    // END: harmonic order loop
 
     return ret;
   }
