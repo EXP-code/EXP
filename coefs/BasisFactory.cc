@@ -481,31 +481,35 @@ namespace Basis
     // Do each harmonic order
     for (int L=0; L<=lmax; L++) {
 
-      // Compute the matrix elements: dimension 1
-      for (int n1=0; n1<nmax; n1++) {
+      // Unroll the loop for parallelization
+#pragma omp parallel for
+      for (int nn=0; nn<nmax*nmax; nn++) {
+	int n1 = nn/nmax;
+	int n2 = nn - n1*nmax;
 
-      // Compute the matrix elements: dimension 2
-	for (int n2=0; n2<nmax; n2++) {
-	    
-	  // The inner product
-	  double ans=0.0;
-	  for (int i=0; i<num; i++) {
+	// The inner product
+	double ans=0.0;
+	for (int i=0; i<num; i++) {
 	  
-	    double x = ximin + (ximax - ximin)*lw.knot(i);
-	    double r = sl->xi_to_r(x);
-	      
-	    ans += r*r*sl->get_pot(x, L, n1, 0)*
-	      sl->get_dens(x, L, n2, 0) /
-	      sl->d_xi_to_r(x) * (ximax - ximin)*lw.weight(i);
-	    
-	  }
-	  // END: inner product
-	    
-	  ret[L](n1, n2) = ans;	// Assign the matrix element
+	  double x = ximin + (ximax - ximin)*lw.knot(i);
+	  double r = sl->xi_to_r(x);
+	  
+	  ans += r*r*sl->get_pot(x, L, n1, 0)*
+	    sl->get_dens(x, L, n2, 0) /
+	    sl->d_xi_to_r(x) * (ximax - ximin)*lw.weight(i);
+	  
 	}
-	// END: dim 2 loop
+	// END: inner product
+	    
+	// Assign the matrix element
+	//
+	ret[L](n1, n2) = - ans;
+	//               ^
+	//               |
+	//               +--- Switch to normed scalar product rather
+	//                    that normed gravitational energy
       }
-      // END: dim 1 loop
+      // END: unrolled loop
     }
     // END: harmonic order loop
 
