@@ -481,7 +481,7 @@ namespace Basis
     // Do each harmonic order
     for (int L=0; L<=lmax; L++) {
 
-      // Unroll the loop for parallelization
+      // Unroll the loop for OpenMP parallelization
 #pragma omp parallel for
       for (int nn=0; nn<nmax*nmax; nn++) {
 	int n1 = nn/nmax;
