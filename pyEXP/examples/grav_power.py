@@ -26,7 +26,9 @@ def main() -> int:
     plt.rc('font', size=16)
 
     for n in range(1, len(sys.argv)):
-        if not exists(sys.argv[n]): continue
+        if not exists(sys.argv[n]):
+           print("File <{}> does not exist".format(sys.argv[n]))
+           continue
         coefs = pyEXP.coefs.Coefs.factory(sys.argv[n])
         power = coefs.Power()
         for i in range(0, power.shape[1]):

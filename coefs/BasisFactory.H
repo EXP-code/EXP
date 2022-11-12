@@ -255,6 +255,11 @@ namespace Basis
     //! (base 10).
     std::vector<std::vector<Eigen::VectorXd>> getBasis
     (double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
+
+    //! Compute the orthogonality of the basis by returning inner
+    //! produce matrices
+    std::vector<Eigen::MatrixXd> orthoCheck(int knots=40);
+
   };
   
   /**

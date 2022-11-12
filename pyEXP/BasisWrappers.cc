@@ -278,7 +278,15 @@ void BasisFactoryClasses(py::module &m) {
 	   "inspection",
 	   py::arg("logxmin")=-3.0,
 	   py::arg("logxmax")=0.5,
-	   py::arg("numr")=400);
+	   py::arg("numr")=400)
+      .def("orthoCheck", [](Basis::SphericalSL& A, int knots)
+	 {
+	   return A.orthoCheck(knots);
+	 },
+	"Check the fidelity of the Sturm-Liouville solutions by computing the"
+	"orthogonality matrices for each harmonic order. Returned as a list of"
+	"numpy.ndarrays from [0, ... , L]",
+	py::arg("knots")=40);
 
   py::class_<Basis::Cylindrical, std::shared_ptr<Basis::Cylindrical>, PyCylindrical, Basis::Basis>(m, "Cylindrical")
     .def(py::init<const std::string&>(), "Create a cylindrical EOF basis")

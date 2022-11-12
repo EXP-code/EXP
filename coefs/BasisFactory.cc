@@ -1,6 +1,7 @@
 #include <YamlCheck.H>
 #include <EXPException.H>
 #include <BasisFactory.H>
+#include <gaussQ.H>
 
 namespace Basis
 {
@@ -462,7 +463,55 @@ namespace Basis
     //       |
     //       +--- Return force not potential gradient
   }
-  
+
+
+  std::vector<Eigen::MatrixXd> SphericalSL::orthoCheck(int num)
+  {
+    // Gauss-Legendre knots and weights
+    LegeQuad lw(num);
+
+    // Get the scaled coordinate limits
+    double ximin = sl->r_to_xi(rmin);
+    double ximax = sl->r_to_xi(rmax);
+
+    // Initialize the return matrices
+    std::vector<Eigen::MatrixXd> ret(lmax+1);
+    for (auto & v : ret) v.resize(nmax, nmax);
+
+    // Do each harmonic order
+    for (int L=0; L<=lmax; L++) {
+
+      // Compute the matrix elements: dimension 1
+      for (int n1=0; n1<nmax; n1++) {
+
+      // Compute the matrix elements: dimension 2
+	for (int n2=0; n2<nmax; n2++) {
+	    
+	  // The inner product
+	  double x, r, ans=0.0;
+	  for (int i=0; i<num; i++) {
+	  
+	    x = ximin + (ximax - ximin)*lw.knot(i);
+	    r = sl->xi_to_r(x);
+	      
+	    ans += r*r*sl->get_pot(x, L, n1, 0)*
+	      sl->get_dens(x, L, n2, 0) /
+	      sl->d_xi_to_r(x) * (ximax - ximin)*lw.weight(i);
+	    
+	  }
+	  // END: inner product
+	    
+	  ret[L](n1, n2) = ans;
+	}
+	// END: dim 2
+      }
+      // END: dim 1
+    }
+    // END: harmonic order
+
+    return ret;
+  }
+
   
   std::vector<std::vector<Eigen::VectorXd>> SphericalSL::getBasis
   (double logxmin, double logxmax, int numgrid)
