@@ -6683,6 +6683,67 @@ void EmpCylSL::ortho_check(std::ostream& out)
   }
 }
 
+// Check orthogonality for basis
+//
+std::vector<Eigen::MatrixXd> EmpCylSL::orthoCheck()
+{
+  std::vector<Eigen::MatrixXd> ret;
+
+  if (DENS) {
+
+    ret.resize(MMAX+1);
+    for (auto & v : ret) v.resize(NORDER, NORDER);
+
+    for (int mm=0; mm<=MMAX; mm++) {
+
+      // Normalization:
+      //            +--- Gravitational energy kernel
+      //            |           +--- Aximuthal
+      //            |           |
+      //            v           v
+      double fac = -4.0*M_PI * (2.0*M_PI) * dX * dY;
+      if (mm) fac *= 0.5;
+
+      // Compute orthogonality matrix
+      //
+      for (int n1=0; n1<NORDER; n1++) {
+
+	for (int n2=0; n2<NORDER; n2++) {
+
+	  double sumC = 0.0, sumS = 0.0;
+
+	  for (int ix=0; ix<=NUMX; ix++) {
+	    double x = XMIN + dX*ix;
+	    double r = xi_to_r(x);
+
+	    for (int iy=0; iy<=NUMY; iy++) {
+
+	      double y = YMIN + dY*iy;
+
+	      sumC += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
+		potC[mm][n1](ix, iy) * densC[mm][n2](ix, iy);
+
+	      if (mm)
+		sumS += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
+		  potS[mm][n1](ix, iy) * densS[mm][n2](ix, iy);
+	    }
+	  }
+
+	  // Combine sines and cosines
+	  //
+	  ret[mm](n1, n2) = sqrt(0.5*(sumC*sumC + sumS*sumS));
+	}
+      }
+    }
+  } else {
+    std::cout << "EmpCylSL::orthoCheck: "
+	      << "can not check orthogonality without density computation"
+	      << std::endl;
+  }
+
+  return ret;
+}
+
 
 void EmpCylSL::getDensSC(int mm, int n, double R, double z,
 			 double& dC, double& dS)

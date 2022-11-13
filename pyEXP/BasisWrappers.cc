@@ -298,5 +298,12 @@ void BasisFactoryClasses(py::module &m) {
 	 py::arg("numr")=40,
 	 py::arg("zmin")=-0.1,
 	 py::arg("zmax")=0.1,
-	 py::arg("numz")=40 );
+	 py::arg("numz")=40 )
+      .def("orthoCheck", [](Basis::Cylindrical& A)
+	 {
+	   return A.orthoCheck();
+	 },
+	"Check the fidelity of the emperical orthogonal functions by computing "
+	"the orthogonality matrices for each harmonic order. Returned as a "
+	"list of numpy.ndarrays from [0, ... , M]");
 }

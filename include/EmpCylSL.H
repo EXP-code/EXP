@@ -904,6 +904,9 @@ public:
   //! Check orthogonality for basis (debugging)
   void ortho_check(std::ostream& out);
 
+  //! Check orthogonality for basis (pyEXP style)
+  std::vector<Eigen::MatrixXd> orthoCheck();
+
 #if HAVE_LIBCUDA==1
   cudaMappingConstants getCudaMappingConstants();
 

@@ -367,6 +367,13 @@ namespace Basis
     std::vector<std::vector<Eigen::MatrixXd>> getBasis
     (double xmin=0.0, double xmax=1.0, int numr=40,
      double zmin=-0.1, double zmax=0.1, int numz=40);
+
+    //! Compute the orthogonality of the basis by returning inner
+    //! produce matrices
+    std::vector<Eigen::MatrixXd> orthoCheck()
+    {
+      return sl->orthoCheck();
+    }
   };
   
   using BasisPtr = std::shared_ptr<Basis>;
