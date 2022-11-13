@@ -283,9 +283,9 @@ void BasisFactoryClasses(py::module &m) {
 	 {
 	   return A.orthoCheck(knots);
 	 },
-	"Check the fidelity of the Sturm-Liouville solutions by computing the"
-	"orthogonality matrices for each harmonic order. Returned as a list of"
-	"numpy.ndarrays from [0, ... , L]",
+	"Check the fidelity of the Sturm-Liouville solutions by computing the\n"
+	"orthogonality matrices for each harmonic order. Returned as a list\n"
+	"of numpy.ndarrays from [0, ... , L]",
 	py::arg("knots")=40);
 
   py::class_<Basis::Cylindrical, std::shared_ptr<Basis::Cylindrical>, PyCylindrical, Basis::Basis>(m, "Cylindrical")
@@ -303,7 +303,7 @@ void BasisFactoryClasses(py::module &m) {
 	 {
 	   return A.orthoCheck();
 	 },
-	"Check the fidelity of the emperical orthogonal functions by computing "
-	"the orthogonality matrices for each harmonic order. Returned as a "
+	"Check the fidelity of the empirical orthogonal functions by computing\n"
+	"the orthogonality matrices for each harmonic order. Returned as a\n"
 	"list of numpy.ndarrays from [0, ... , M]");
 }
