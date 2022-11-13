@@ -279,13 +279,17 @@ void BasisFactoryClasses(py::module &m) {
 	   py::arg("logxmin")=-3.0,
 	   py::arg("logxmax")=0.5,
 	   py::arg("numr")=400)
+      // The following member needs to be a lambda capture because
+      // orthoCheck is not in the base class and needs to have
+      // different parameters depending on the basis type.  Here the
+      // user can and will often need to specify a quadrature value.
       .def("orthoCheck", [](Basis::SphericalSL& A, int knots)
-	 {
-	   return A.orthoCheck(knots);
-	 },
+      {
+	return A.orthoCheck(knots);
+      },
 	"Check the fidelity of the Sturm-Liouville solutions by computing the\n"
 	"orthogonality matrices for each harmonic order. Returned as a list\n"
-	"of numpy.ndarrays from [0, ... , L]",
+	"of numpy.ndarrays from [0, ... , Lmax]",
 	py::arg("knots")=40);
 
   py::class_<Basis::Cylindrical, std::shared_ptr<Basis::Cylindrical>, PyCylindrical, Basis::Basis>(m, "Cylindrical")
@@ -299,11 +303,15 @@ void BasisFactoryClasses(py::module &m) {
 	 py::arg("zmin")=-0.1,
 	 py::arg("zmax")=0.1,
 	 py::arg("numz")=40 )
-      .def("orthoCheck", [](Basis::Cylindrical& A)
+    // The following member needs to be a lambda capture because
+    // orthoCheck is not in the base class and needs to have different
+    // parameters depending on the basis type.  Here, the quadrature
+    // is determined by the scale of the meridional grid.
+    .def("orthoCheck", [](Basis::Cylindrical& A)
 	 {
 	   return A.orthoCheck();
 	 },
 	"Check the fidelity of the empirical orthogonal functions by computing\n"
 	"the orthogonality matrices for each harmonic order. Returned as a\n"
-	"list of numpy.ndarrays from [0, ... , M]");
+	"list of numpy.ndarrays from [0, ... , Mmax]");
 }
