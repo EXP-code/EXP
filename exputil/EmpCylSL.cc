@@ -6706,38 +6706,41 @@ std::vector<Eigen::MatrixXd> EmpCylSL::orthoCheck()
 
       // Compute orthogonality matrix
       //
-      for (int n1=0; n1<NORDER; n1++) {
 
-	for (int n2=0; n2<NORDER; n2++) {
+      // Unroll loop for OpenMP
+#pragma omp parallel for
+      for (int nn=0; nn<NORDER*NORDER; nn++) {
+	int n1 = nn/NORDER;
+	int n2 = nn - n1*NORDER;
 
-	  double sumC = 0.0, sumS = 0.0;
+	double sumC = 0.0, sumS = 0.0;
 
-	  for (int ix=0; ix<=NUMX; ix++) {
-	    double x = XMIN + dX*ix;
-	    double r = xi_to_r(x);
+	for (int ix=0; ix<=NUMX; ix++) {
+	  double x = XMIN + dX*ix;
+	  double r = xi_to_r(x);
 
-	    for (int iy=0; iy<=NUMY; iy++) {
+	  for (int iy=0; iy<=NUMY; iy++) {
 
-	      double y = YMIN + dY*iy;
+	    double y = YMIN + dY*iy;
 
-	      sumC += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
-		potC[mm][n1](ix, iy) * densC[mm][n2](ix, iy);
-
-	      if (mm)
-		sumS += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
-		  potS[mm][n1](ix, iy) * densS[mm][n2](ix, iy);
-	    }
+	    sumC += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
+	      potC[mm][n1](ix, iy) * densC[mm][n2](ix, iy);
+	    
+	    if (mm)
+	      sumS += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
+		potS[mm][n1](ix, iy) * densS[mm][n2](ix, iy);
 	  }
-
-	  // Combine sines and cosines
-	  //
-	  ret[mm](n1, n2) = sqrt(0.5*(sumC*sumC + sumS*sumS));
 	}
+	
+	// Combine sines and cosines
+	//
+	ret[mm](n1, n2) = sqrt(0.5*(sumC*sumC + sumS*sumS));
       }
     }
   } else {
     std::cout << "EmpCylSL::orthoCheck: "
-	      << "can not check orthogonality without density computation"
+	      << "can not check orthogonality without density grid.\n"
+	      << "Rerun EOF grid computation with DENS=true..."
 	      << std::endl;
   }
 
