@@ -318,61 +318,63 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ortho->setup_accumulation();
 
   
+  std::string sep("----    ");
+
 #ifdef DEBUG
   for (int n=0; n<numprocs; n++) {
     if (myid==n) {
-      cout << endl << "Process " << myid << ": Cylinder parameters: "
-	   << " nmax="        << nmax
-	   << " lmax="        << lmax
-	   << " mmax="        << mmax
-	   << " mlim="        << mlim
-	   << " ncylorder="   << ncylorder
-	   << " ncylodd="     << ncylodd
-	   << " rcylmin="     << rcylmin
-	   << " rcylmax="     << rcylmax
-	   << " acyl="        << acyl
-	   << " hcyl="        << hcyl
-	   << " expcond="     << expcond
-	   << " pcavar="      << pcavar
-	   << " pcaeof="      << pcaeof
-	   << " nvtk="        << nvtk
-	   << " npca="        << npca
-	   << " npca0="       << npca0
-	   << " pcadiag="     << pcadiag
-	   << " eof_file="    << eof_file
-	   << " override="    << std::boolalpha << eof_over
-	   << " selfgrav="    << std::boolalpha << self_consistent
-	   << " logarithmic=" << logarithmic
-	   << " vflag="       << vflag
-	   << endl << endl;
+      std::cout << std::endl << "Process " << myid << ": Cylinder parameters: "
+		<< std::endl << sep << "nmax="        << nmax
+		<< std::endl << sep << "lmax="        << lmax
+		<< std::endl << sep << "mmax="        << mmax
+		<< std::endl << sep << "mlim="        << mlim
+		<< std::endl << sep << "ncylorder="   << ncylorder
+		<< std::endl << sep << "ncylodd="     << ncylodd
+		<< std::endl << sep << "rcylmin="     << rcylmin
+		<< std::endl << sep << "rcylmax="     << rcylmax
+		<< std::endl << sep << "acyl="        << acyl
+		<< std::endl << sep << "hcyl="        << hcyl
+		<< std::endl << sep << "expcond="     << expcond
+		<< std::endl << sep << "pcavar="      << pcavar
+		<< std::endl << sep << "pcaeof="      << pcaeof
+		<< std::endl << sep << "nvtk="        << nvtk
+		<< std::endl << sep << "npca="        << npca
+		<< std::endl << sep << "npca0="       << npca0
+		<< std::endl << sep << "pcadiag="     << pcadiag
+		<< std::endl << sep << "eof_file="    << eof_file
+		<< std::endl << sep << "override="    << std::boolalpha << eof_over
+		<< std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
+		<< std::endl << sep << "logarithmic=" << logarithmic
+		<< std::endl << sep << "vflag="       << vflag
+		<< std::endl << std::endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
 #else
   if (myid==0) {
     std::cout << "---- Cylinder parameters: "
-	      << " nmax="        << nmax
-	      << " lmax="        << lmax
-	      << " mmax="        << mmax
-	      << " mlim="        << mlim
-	      << " ncylorder="   << ncylorder
-	      << " ncylodd="     << ncylodd
-	      << " rcylmin="     << rcylmin
-	      << " rcylmax="     << rcylmax
-	      << " acyl="        << acyl
-	      << " hcyl="        << hcyl
-	      << " expcond="     << expcond
-	      << " pcavar="      << pcavar
-	      << " pcaeof="      << pcaeof
-	      << " nvtk="        << nvtk
-	      << " npca="        << npca
-	      << " npca0="       << npca0
-	      << " pcadiag="     << pcadiag
-	      << " eof_file="    << eof_file
-	      << " override="    << std::boolalpha << eof_over
-	      << " selfgrav="    << std::boolalpha << self_consistent
-	      << " logarithmic=" << logarithmic
-	      << " vflag="       << vflag
+	      << std::endl << sep << "nmax="        << nmax
+	      << std::endl << sep << "lmax="        << lmax
+	      << std::endl << sep << "mmax="        << mmax
+	      << std::endl << sep << "mlim="        << mlim
+	      << std::endl << sep << "ncylorder="   << ncylorder
+	      << std::endl << sep << "ncylodd="     << ncylodd
+	      << std::endl << sep << "rcylmin="     << rcylmin
+	      << std::endl << sep << "rcylmax="     << rcylmax
+	      << std::endl << sep << "acyl="        << acyl
+	      << std::endl << sep << "hcyl="        << hcyl
+	      << std::endl << sep << "expcond="     << expcond
+	      << std::endl << sep << "pcavar="      << pcavar
+	      << std::endl << sep << "pcaeof="      << pcaeof
+	      << std::endl << sep << "nvtk="        << nvtk
+	      << std::endl << sep << "npca="        << npca
+	      << std::endl << sep << "npca0="       << npca0
+	      << std::endl << sep << "pcadiag="     << pcadiag
+	      << std::endl << sep << "eof_file="    << eof_file
+	      << std::endl << sep << "override="    << std::boolalpha << eof_over
+	      << std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
+	      << std::endl << sep << "logarithmic=" << logarithmic
+	      << std::endl << sep << "vflag="       << vflag
 	      << std::endl;
   }
 #endif
