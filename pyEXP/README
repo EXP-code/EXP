@@ -85,6 +85,23 @@ Some brief descriptions of the included scripts follow...
   but this could be extended through reads of multiple snap shots to pack
   phase space as a function of time, for example.
 
+* orthoCheckDisk--Python program that reads a Cylindrical cache file
+  and checks the scalar product of the density and potential function
+  pairs for each harmonic index.  I have also provided a script
+  version: orthCheckDisk.py.
+
+* orthoCheckHalo--Reads a spherical model file, constructs the
+  Sturm-Liouville asis, and checks the scalar product of the density
+  and potential function pairs for each harmonic index.  I have also
+  provided a script version: orthCheckHalo.py.
+
+* viewSphBasis--Reads a spherical model file, constructs the
+  Sturm-Liouville asis, and prints the first 8 potential functions for
+  each order.
+
+* viewCylBasis--Reads a Cylindrical cache file and the potential
+  functions for each order.
+
 NOTEBOOK EXAMPLES
 -----------------
 

@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
 
 """
-Plot the orthgonality matrices from cylindrical basis cache file
+Plot the cylindrical basis functions
 """
 
 import os, sys, getopt
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from matplotlib import gridspec
 import pyEXP
 
 def help(phrase: str) -> None:
    """Print some usage info"""
    print(phrase)
 
+def plot_im(array=None, ind=0):
+    """A function to plot the image given a images matrix, type of the matrix: \
+    either original or fool, and the order of images in the matrix"""
+    img_reshaped = array[ind, :].reshape((28, 28))
+    imgplot = plt.imshow(img_reshaped)
+
 def main(prog, argv) -> int:
    """
-   Plot the orthgonality matrices from cylindrical basis cache file
+   Plot the cylindrical basis functions
    """
 
    cfile = ''
@@ -69,34 +76,45 @@ parameters:
    #
    basis = pyEXP.basis.Basis.factory(bconfig)
 
-   # Now compute the orthogonality matrices
-   #
-   ret   = basis.orthoCheck()
+   Norder = int(params['norder'])
 
    # Plot the matrices as images with a greyscale color map
    #
-   fig   = plt.figure()
    ncol  = 4                   # Rows with 4 columns
-   nrow  = int(Mmax/ncol)
+   nrow  = int(Norder/ncol)
     
-   if ncol*nrow <= Mmax: nrow += 1
-   ax = fig.subplots(nrow, ncol).flatten()
+   if ncol*nrow <= Norder: nrow += 1
 
-   M = 0                       # Harmonic index counter
+   Rmin = 0.0
+   Rmax = 0.1
+   Rnum = 100
+   Zmin = -0.03
+   Zmax =  0.03
+   Znum = 40
 
-   for i in range(0, nrow):
-      for j in range(0, ncol):
-         if M<=Mmax:
-            ax[i*ncol+j].imshow(ret[M], interpolation='nearest', cmap=cm.Greys_r)
-            ax[i*ncol+j].set_aspect('equal')
-            ax[i*ncol+j].set_title('M={}'.format(M))
-            M += 1
-         else:
-            # Remove unused frames
-            fig.delaxes(ax[i*ncol+j])
+   R = np.linspace(Rmin, Rmax, Rnum)
+   Z = np.linspace(Zmin, Zmax, Znum)
 
-   plt.tight_layout()
-   plt.show()
+   xv, yv = np.meshgrid(R, Z)
+
+   grid = basis.getBasis(Rmin, Rmax, Rnum, Zmin, Zmax, Znum)
+
+   for m in range(Mmax+1):
+      n = 0
+      fig = plt.figure(figsize=(15, 15)) 
+      gs = gridspec.GridSpec(nrow, ncol, width_ratios=[1, 1, 1, 1]) 
+
+      for row in range(nrow):
+         for col in range(ncol):
+            if n<Norder:
+               ax = plt.subplot(gs[n])
+               plt.axis('off')
+               cx = plt.contourf(xv, yv, grid[m][n].transpose())
+               n += 1
+
+      plt.annotate("m={}".format(m), (0.5, 0.95), xycoords='figure fraction')
+      plt.tight_layout()
+      plt.show()
 
 if __name__ == "__main__":
    main(sys.argv[0], sys.argv[1:])

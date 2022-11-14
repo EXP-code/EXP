@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Plot the orthgonality matrices using Sturm-Liouville
+Construct and view a spherical basis
 """
 
 import os, sys, getopt
@@ -12,7 +12,7 @@ import pyEXP
 
 def main(prog, argv):
    """
-   Plot the orthgonality matrices using Sturm-Liouville
+   Construct and view a spherical basis
    """
 
    model = 'SLgridSph.model'
@@ -90,27 +90,35 @@ parameters :
    # Construct the basis instance
    #
    basis = pyEXP.basis.Basis.factory(bconfig)
+   lrmin = np.log10(rmin)
+   lrmax = np.log10(rmax)
+   lrmax = 0.5
+   rnum  = 200
+   grid  = basis.getBasis(lrmin, lrmax, rnum)
 
-   # Now compute the orthogonality matrices
+   # Make a logarithmically space grid in radius
    #
-   ret   = basis.orthoCheck(knot)
+   r = np.linspace(lrmin, lrmax, rnum)
+   r = np.power(10.0, r)
 
    # Plot the matrices as images with a greyscale color map
    #
    fig   = plt.figure()
-   ncol  = 4                    # Rows with 4 columns
+   ncol  = 3                    # Rows with 3 columns
    nrow  = int(Lmax/ncol)
    
    if ncol*nrow <= Lmax: nrow += 1
-   ax = fig.subplots(nrow, ncol).flatten()
+   ax = fig.subplots(nrow, ncol, sharey=False, squeeze=True).flatten()
 
    l = 0                        # Harmonic index counter
-
    for i in range(0, nrow):
       for j in range(0, ncol):
          if l<=Lmax:
-            ax[i*ncol+j].imshow(ret[l], interpolation='nearest', cmap=cm.Greys_r)
-            ax[i*ncol+j].set_aspect('equal')
+            for n in range(min(8, Nmax)):
+               ax[i*ncol+j].semilogx(r, grid[l][n], '-')
+            ax[i*ncol+j].set_ylim(np.min(grid[l][n]), np.max(grid[l][n]))
+            ax[i*ncol+j].set_xlabel('r')
+            ax[i*ncol+j].set_ylabel('potential')
             ax[i*ncol+j].set_title('l={}'.format(l))
             l += 1
          else:
@@ -122,3 +130,4 @@ parameters :
 
 if __name__ == "__main__":
    main(sys.argv[0], sys.argv[1:])
+
