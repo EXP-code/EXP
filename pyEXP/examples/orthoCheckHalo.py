@@ -1,67 +1,32 @@
-#!/usr/bin/env python3
+# Using Sturm-Liouville
 
-"""
-Plot the orthgonality matrices using Sturm-Liouville
-"""
-
-import os, sys, getopt
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import pyEXP
 
-def help(phrase: str) -> None:
-   """Print some usage info"""
-   print(phrase)
+# I'm using the model from the EXP example Better run here.  For
+# others, you will want to change this a directory containing a
+# spherical model for the basis or put the file in the working
+# directory and omit the following line
+#
+os.chdir('/home/weinberg/Projects/EXP/examples/Better')
 
-def main(prog, argv):
-    """
-    Plot the orthgonality matrices using Sturm-Liouville
-    """
+# Some parameters
+#
+rmin = 0.0001                   # Minimum radius
+rmax = 1.99                     # Maximum radius
+Lmax = 6                        # Maximum harmonic order
+Nmax = 24                       # Maximum radial order
+knot = 200                      # Number of quadrature knots
 
-    model = 'SLgridSph.model'
-    dir   = ''
-    rmin  = 1.0e-4
-    rmax  = 2.0
-    Lmax  = 6
-    Nmax  = 18
-    knot  = 200
+# 200 knots should be enough for most cases.  Try a smaller value (e.g. 20) to
+# observe the effect on the orthogonality ...
 
-    phrase = prog + ': [-h] -f|--model=modelfile -r|--rmin arg -R|--rmax arg [-l|--lmax arg] [-n/--nmax arg] [-k|--knots arg]';
-
-    try:
-        opts, args = getopt.getopt(argv,"hf:r:R:L:N:",["model=","rmin=","rmax=","lmax=","nmax="])
-    except getopt.GetoptError:
-        help(phrase)
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            help(phrase)
-            sys.exit()
-        elif opt in ("-d", "--dir"):
-            dir = arg
-        elif opt in ("-f", "--model"):
-            model = arg
-        elif opt in ("-r", "--rmin"):
-            rmin = float(arg)
-        elif opt in ("-R", "--rmax"):
-            rmin = float(arg)
-        elif opt in ("-l", "--lmax"):
-            Lmax = int(arg)
-        elif opt in ("-n", "--nmax"):
-            Nmax = int(arg)
-        elif opt in ("-k", "--knot"):
-            knot = int(arg)
-
-
-    if len(dir): os.chdir(dir)
-
-    # 200 knots should be enough for most cases.  Try a smaller value
-    # (e.g. 20) to observe the effect on the orthogonality ...
-
-    # Construct the basis config for this model
-    #
-    bconfig = """
+# Construct the basis config for this model
+#
+bconfig = """
 ---
 id: sphereSL
 parameters :
@@ -71,42 +36,39 @@ parameters :
   Lmax:  {}
   nmax:  {}
   scale: 0.0667
-  modelname: {}
+  modelname: SLGridSph.model
 ...
-""".format(rmin, rmax, Lmax, Nmax, model)
+""".format(rmin, rmax, Lmax, Nmax)
 
-    # Construct the basis instance
-    #
-    basis = pyEXP.basis.Basis.factory(bconfig)
+# Construct the basis instance
+#
+basis = pyEXP.basis.Basis.factory(bconfig)
 
-    # Now compute the orthogonality matrices
-    #
-    ret   = basis.orthoCheck(knot)
+# Now compute the orthogonality matrices
+#
+ret   = basis.orthoCheck(knot)
 
-    # Plot the matrices as images with a greyscale color map
-    #
-    fig   = plt.figure()
-    ncol  = 4                   # Rows with 4 columns
-    nrow  = int(Lmax/ncol)
+# Plot the matrices as images with a greyscale color map
+#
+fig   = plt.figure()
+ncol  = 4                       # Rows with 4 columns
+nrow  = int(Lmax/ncol)
 
-    if ncol*nrow < Lmax: nrow += 1
-    ax = fig.subplots(nrow, ncol).flatten()
+if ncol*nrow < Lmax: nrow += 1
+ax = fig.subplots(nrow, ncol).flatten()
 
-    l = 0                       # Harmonic index counter
+l = 0                           # Harmonic index counter
 
-    for i in range(0, nrow):
-        for j in range(0, ncol):
-            if l<=Lmax:
-                ax[i*ncol+j].imshow(ret[l], interpolation='nearest', cmap=cm.Greys_r)
-                ax[i*ncol+j].set_aspect('equal')
-                ax[i*ncol+j].set_title('l={}'.format(l))
-                l += 1
-            else:
-                # Remove unused frames
-                fig.delaxes(ax[i*ncol+j])
+for i in range(0, nrow):
+    for j in range(0, ncol):
+        if l<=Lmax:
+            ax[i*ncol+j].imshow(ret[l], interpolation='nearest', cmap=cm.Greys_r)
+            ax[i*ncol+j].set_aspect('equal')
+            ax[i*ncol+j].set_title('l={}'.format(l))
+            l += 1
+        else:
+            # Remove unused frames
+            fig.delaxes(ax[i*ncol+j])
 
-    plt.tight_layout()
-    plt.show()
-
-if __name__ == "__main__":
-   main(sys.argv[0], sys.argv[1:])
+plt.tight_layout()
+plt.show()
