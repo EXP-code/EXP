@@ -1610,18 +1610,27 @@ SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 }
 
 
-void SLGridSph::cacheInfo(const std::string& cachefile)
+std::map<std::string, std::string>
+SLGridSph::cacheInfo(const std::string& cachefile, bool verbose)
 {
+  std::map<std::string, std::string> ret;
   auto node = getHeader(cachefile);
 
-  std::cout << std::string(60, '-') << std::endl
-	    << "Cache parameters for SLGridSph: " << cachefile << std::endl
-	    << std::string(60, '-') << std::endl;
+  if (verbose)
+    std::cout << std::string(60, '-') << std::endl
+	      << "Cache parameters for SLGridSph: " << cachefile << std::endl
+	      << std::string(60, '-') << std::endl;
+
   for (YAML::const_iterator it=node.begin(); it!=node.end(); ++it) {
-    std::cout << std::left << std::setw(20) << it->first.as<std::string>()
-	      << ": " << it->second.as<std::string>() << std::endl;
+    if (verbose)
+      std::cout << std::left << std::setw(20) << it->first.as<std::string>()
+		<< ": " << it->second.as<std::string>() << std::endl;
+    ret[it->first.as<std::string>()] = it->second.as<std::string>();
   }
-  std::cout << std::string(60, '-') << std::endl;
+  if (verbose)
+    std::cout << std::string(60, '-') << std::endl;
+
+  return ret;
 }
 
 

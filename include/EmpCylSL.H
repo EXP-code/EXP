@@ -788,8 +788,10 @@ public:
     }
   }
 
-  //! Read the cache and return the header parameters
-  static void cacheInfo(const std::string& cachefile);
+  //! Read and print the cache and return the header parameters as a
+  //! map/dictionary
+  static std::map<std::string, std::string>
+  cacheInfo(const std::string& cachefile, bool verbose=true);
 
   //@{
   //! Get potential grid interpolated entries

@@ -53,6 +53,10 @@ void BasisFactoryClasses(py::module &m) {
 
   using namespace Basis;
 
+  //! Need an alias to prevent the pybind11 macro from expanding the
+  //! STL signature
+  using DictMapStr = std::map<std::string, std::string>;
+
   class PyBasis : public Basis
   {
   protected:
@@ -97,10 +101,6 @@ void BasisFactoryClasses(py::module &m) {
 
     void make_coefs(void) override {
       PYBIND11_OVERRIDE_PURE(void, Basis, make_coefs,);
-    }
-
-    void cacheInfo(const std::string& cachefile) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, cacheInfo, cachefile);
     }
 
   };
@@ -152,10 +152,6 @@ void BasisFactoryClasses(py::module &m) {
       PYBIND11_OVERRIDE(void, SphericalSL, make_coefs,);
     }
 
-    void cacheInfo(const std::string& cachefile) override {
-      PYBIND11_OVERRIDE(void, SphericalSL, cacheInfo, cachefile);
-    }
-
   };
 
   class PyCylindrical : public Cylindrical
@@ -204,10 +200,6 @@ void BasisFactoryClasses(py::module &m) {
 
     void make_coefs(void) override {
       PYBIND11_OVERRIDE(void, Cylindrical, make_coefs,);
-    }
-
-    void cacheInfo(const std::string& cachefile) override {
-      PYBIND11_OVERRIDE(void, Cylindrical, cacheInfo, cachefile);
     }
 
   };
@@ -266,10 +258,7 @@ void BasisFactoryClasses(py::module &m) {
     .def("set_coefs",          &Basis::Basis::set_coefs,
 	 "Install a new set of coefficients from a CoefStruct")
     .def("factory",            &Basis::Basis::factory_string,
-	 "Generate a basis from a YAML configuration supplied as a string")
-    .def("cacheInfo",          &Basis::Basis::cacheInfo,
-	 "Report the parameters in a basis cache file",
-	 py::arg("cachefile"));
+	 "Generate a basis from a YAML configuration supplied as a string");
 
     py::class_<Basis::SphericalSL, std::shared_ptr<Basis::SphericalSL>, PySphericalSL, Basis::Basis>(m, "SphericalSL")
       .def(py::init<const std::string&>(), "Create a spherical Sturm-Liouville basis")
@@ -290,7 +279,13 @@ void BasisFactoryClasses(py::module &m) {
 	"Check the fidelity of the Sturm-Liouville solutions by computing the\n"
 	"orthogonality matrices for each harmonic order. Returned as a list\n"
 	"of numpy.ndarrays from [0, ... , Lmax]",
-	py::arg("knots")=40);
+	py::arg("knots")=40)
+      .def_static("cacheInfo", [](std::string cachefile)
+      {
+	return Basis::SphericalSL::cacheInfo(cachefile);
+      },
+	"Report the parameters in a basis cache file and return a dictionary",
+	py::arg("cachefile"));
 
   py::class_<Basis::Cylindrical, std::shared_ptr<Basis::Cylindrical>, PyCylindrical, Basis::Basis>(m, "Cylindrical")
     .def(py::init<const std::string&>(), "Create a cylindrical EOF basis")
@@ -313,5 +308,12 @@ void BasisFactoryClasses(py::module &m) {
 	 },
 	"Check the fidelity of the empirical orthogonal functions by computing\n"
 	"the orthogonality matrices for each harmonic order. Returned as a\n"
-	"list of numpy.ndarrays from [0, ... , Mmax]");
+	"list of numpy.ndarrays from [0, ... , Mmax]")
+    .def_static("cacheInfo", [](std::string cachefile)
+    {
+      return Basis::Cylindrical::cacheInfo(cachefile);
+    },
+      "Report the parameters in a basis cache file and return a dictionary",
+      py::arg("cachefile"));
+
 }

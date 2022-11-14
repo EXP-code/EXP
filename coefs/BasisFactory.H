@@ -132,9 +132,6 @@ namespace Basis
     //! Provide a set of coefficients using a CoefStruct
     virtual void set_coefs(Coefs::CoefStrPtr coefs) = 0;
 
-    //! Print the cache parameters
-    virtual void cacheInfo(const std::string& cachefile) = 0;
-
     //@{
     //! The coefficient factory.  Creates a shared pointer to derived
     //! instance of the desired type and returns it.
@@ -219,10 +216,11 @@ namespace Basis
     //! Destructor
     virtual ~SphericalSL(void) {}
     
-    //! Print the cache parameters
-    void cacheInfo(const std::string& cachefile)
+    //! Print and return the cache parameters
+    static std::map<std::string, std::string>
+    cacheInfo(const std::string& cachefile)
     {
-      if (sl) sl->cacheInfo(cachefile);
+      return SLGridSph::cacheInfo(cachefile);
     }
 
     //! Prescaling factor
@@ -331,10 +329,11 @@ namespace Basis
     //! Destructor
     virtual ~Cylindrical(void) {}
     
-    //! Print the cache parameters
-    void cacheInfo(const std::string& cachefile)
+    //! Print and return the cache parameters
+    static std::map<std::string, std::string>
+    cacheInfo(const std::string& cachefile)
     {
-      if (sl) sl->cacheInfo(cachefile);
+      return EmpCylSL::cacheInfo(cachefile);
     }
 
     //! Prescaling factor
