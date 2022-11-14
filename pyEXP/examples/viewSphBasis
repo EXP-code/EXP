@@ -22,11 +22,12 @@ def main(prog, argv):
    Lmax  = 6
    Nmax  = 18
    knot  = 200
+   show  = 8
    
-   phrase = prog + ': [-h] -f|--model=modelfile -r|--rmin arg -R|--rmax arg [-l|--lmax arg] [-n/--nmax arg] [-k|--knots arg]';
+   phrase = prog + ': [-h] -f|--model=modelfile -r|--rmin arg -R|--rmax arg [-l|--lmax arg] [-n|--nmax arg] [-s|--show arg] [-k|--knots arg]';
 
    try:
-      opts, args = getopt.getopt(argv,"hf:d:r:R:L:N:",["model=","dir=", "rmin=","rmax=","lmax=","nmax="])
+      opts, args = getopt.getopt(argv,"hf:d:r:R:L:n:s:",["model=","dir=", "rmin=","rmax=","lmax=","nmax=","show="])
    except getopt.GetoptError:
       print(phrase)
       sys.exit(2)
@@ -46,6 +47,8 @@ def main(prog, argv):
          Lmax = int(arg)
       elif opt in ("-n", "--nmax"):
          Nmax = int(arg)
+      elif opt in ("-s", "--show"):
+         show = int(arg)
       elif opt in ("-k", "--knot"):
          knot = int(arg)
 
@@ -103,7 +106,7 @@ parameters :
 
    # Plot the matrices as images with a greyscale color map
    #
-   fig   = plt.figure()
+   fig   = plt.figure(figsize=(15, 15)) 
    ncol  = 3                    # Rows with 3 columns
    nrow  = int(Lmax/ncol)
    
@@ -114,7 +117,7 @@ parameters :
    for i in range(0, nrow):
       for j in range(0, ncol):
          if l<=Lmax:
-            for n in range(min(8, Nmax)):
+            for n in range(min(show, Nmax)):
                ax[i*ncol+j].semilogx(r, grid[l][n], '-')
             ax[i*ncol+j].set_ylim(np.min(grid[l][n]), np.max(grid[l][n]))
             ax[i*ncol+j].set_xlabel('r')
