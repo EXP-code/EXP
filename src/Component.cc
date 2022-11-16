@@ -84,6 +84,7 @@ const std::set<std::string> Component::valid_keys_parm =
     "pbufsiz",
     "blocking",
     "buffered",
+    "ctr_name",
     "noswitch",
     "dtreset"
   };
