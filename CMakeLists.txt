@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.15) # This is the oldest version I've
 				     # preferred esp. for Cuda support
 project(
   EXP
-  VERSION 7.714
+  VERSION 7.715
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
@@ -39,6 +39,7 @@ option(ENABLE_NBODY "Enable EXP n-body" ON)
 option(ENABLE_PYEXP "Enable the Python bindings" ON)
 option(ENABLE_CUDA "Enable CUDA" FALSE)
 option(ENABLE_XDR "Enable RPC/XDR support for Tipsy standard" FALSE)
+option(ENABLE_VTK "Configure VTK if available" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
@@ -51,12 +52,15 @@ find_package(MPI REQUIRED)
 find_package(Boost COMPONENTS serialization)
 find_package(OpenMP)
 find_package(FFTW)
-find_package(VTK)
 find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
 find_package(SLURM)
 find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
 find_package(PNG)
+
+if(ENABLE_VTK)
+  find_package(VTK)
+endif()
 
 if(ENABLE_CUDA)
   find_package(CUDA REQUIRED)
