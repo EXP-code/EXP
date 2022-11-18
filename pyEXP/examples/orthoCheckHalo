@@ -23,10 +23,10 @@ def main(prog, argv):
    Nmax  = 18
    knot  = 200
    
-   phrase = prog + ': [-h] -f|--model=modelfile -r|--rmin arg -R|--rmax arg [-l|--lmax arg] [-n/--nmax arg] [-k|--knots arg]';
+   phrase = prog + ': [-h] -f|--model=modelfile -r|--rmin arg -R|--rmax arg [-l|--lmax arg] [-n|--nmax arg] [-k|--knot arg]';
 
    try:
-      opts, args = getopt.getopt(argv,"hf:d:r:R:L:N:",["model=","dir=", "rmin=","rmax=","lmax=","nmax="])
+      opts, args = getopt.getopt(argv,"hf:d:r:R:L:N:k:",["model=","dir=", "rmin=","rmax=","lmax=","nmax=","knot="])
    except getopt.GetoptError:
       print(phrase)
       sys.exit(2)
