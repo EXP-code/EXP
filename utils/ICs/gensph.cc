@@ -71,6 +71,7 @@ main(int argc, char **argv)
   double X0, Y0, Z0, U0, V0, W0, TOLE;
   double Emin0, Emax0, Kmin0, Kmax0, RBAR, MBAR, BRATIO, CRATIO, SMOOTH;
   bool LOGR, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR, zeropos, zerovel;
+  bool VTEST;
   std::string INFILE, MMFILE, OUTFILE, OUTPS, config;
   
 #ifdef DEBUG
@@ -175,6 +176,8 @@ main(int argc, char **argv)
      cxxopts::value<double>(TOLE)->default_value("1.0e-4"))
     ("ELIMIT", "Limit particle selection with energy and kappa bounds",
      cxxopts::value<bool>(ELIMIT)->default_value("false"))
+    ("VTEST", "Test gen_velocity() generation",
+     cxxopts::value<bool>(VTEST)->default_value("false"))
     ("Emin0", "Minimum energy (if ELIMIT=true)",
      cxxopts::value<double>(Emin0)->default_value("-3.0"))
     ("Emax0", "Maximum energy (if ELIMIT=true)",
@@ -697,6 +700,16 @@ main(int argc, char **argv)
     do {
       if (ELIMIT)
 	ps = rmodel->gen_point(Emin0, Emax0, Kmin0, Kmax0, ierr);
+      else if (VTEST) {
+	ps = rmodel->gen_point(ierr);
+	rmodel->gen_velocity(&ps[1], &ps[4], ierr);
+	if (ierr) {
+	  std::cout << "gen_velocity failed: "
+		    << ps[0] << " "
+		    << ps[1] << " "
+		    << ps[2] << "\n";
+	}
+      }
       else		
 	ps = rmodel->gen_point(ierr);
       if (ierr) count++;
