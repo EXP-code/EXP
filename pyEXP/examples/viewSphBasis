@@ -23,11 +23,12 @@ def main(prog, argv):
    Nmax  = 18
    knot  = 200
    show  = 8
+   nolog = False
    
-   phrase = prog + ': [-h] -f|--model=modelfile -r|--rmin arg -R|--rmax arg [-l|--lmax arg] [-n|--nmax arg] [-s|--show arg] [-k|--knots arg]';
+   phrase = prog + ': [-h] -f|--model=modelfile -r|--rmin arg -R|--rmax arg [-l|--lmax arg] [-n|--nmax arg] [-s|--show arg] [-k|--knots arg] [--linear]';
 
    try:
-      opts, args = getopt.getopt(argv,"hf:d:r:R:L:n:s:",["model=","dir=", "rmin=","rmax=","lmax=","nmax=","show="])
+      opts, args = getopt.getopt(argv,"hf:d:r:R:L:n:s:",["model=","dir=", "rmin=","rmax=","lmax=","nmax=","show=","linear"])
    except getopt.GetoptError:
       print(phrase)
       sys.exit(2)
@@ -51,6 +52,8 @@ def main(prog, argv):
          show = int(arg)
       elif opt in ("-k", "--knot"):
          knot = int(arg)
+      elif opt in ("--linear"):
+         nolog = True
 
    if len(dir): os.chdir(dir)
 
@@ -95,7 +98,6 @@ parameters :
    basis = pyEXP.basis.Basis.factory(bconfig)
    lrmin = np.log10(rmin)
    lrmax = np.log10(rmax)
-   lrmax = 0.5
    rnum  = 200
    grid  = basis.getBasis(lrmin, lrmax, rnum)
 
@@ -118,7 +120,10 @@ parameters :
       for j in range(0, ncol):
          if l<=Lmax:
             for n in range(min(show, Nmax)):
-               ax[i*ncol+j].semilogx(r, grid[l][n], '-')
+               if nolog:
+                  ax[i*ncol+j].plot(r, grid[l][n], '-')
+               else:
+                  ax[i*ncol+j].semilogx(r, grid[l][n], '-')
             ax[i*ncol+j].set_ylim(np.min(grid[l][n]), np.max(grid[l][n]))
             ax[i*ncol+j].set_xlabel('r')
             ax[i*ncol+j].set_ylabel('potential')
