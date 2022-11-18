@@ -307,7 +307,12 @@ void Component::find_ctr_component()
       }
     }
     
-    if (!found) {
+    if (found) {
+      if (myid==0)
+	std::cout << "---- Component <" <<  name 
+		  << ">: using center from component <" << ctr_name
+		  << ">" << std::endl;
+    } else {
       std::ostringstream sout;
       sout << "Component [" << myid << "]: can't find desired component <"
 	   << ctr_name << ">";
