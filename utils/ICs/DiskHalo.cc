@@ -2419,7 +2419,7 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
     return;
   }
   
-  int nok;
+  int nok, ncntE=0, ncntJ=0;
   double v2r, vr, r;
   double vel[3], vel1[3], massp, massp1;
   
@@ -2447,13 +2447,14 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
 		  << p.pos[0] << " "
 		  << p.pos[1] << " "
 		  << p.pos[2] << "\n";
-      }
+      } else ncntE++;
     }
 				// Use Jeans
     if (nok) {
       v2r = get_disp(p.pos[0], p.pos[1], p.pos[2]);
       vr = sqrt(max<double>(v2r, std::numeric_limits<double>::min()));
       for (int k=0; k<3; k++) p.vel[k] = vr*rndN(gen);
+      ncntJ++;
     }
     
     massp1 += p.mass;
@@ -2463,6 +2464,9 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
 
   MPI_Allreduce(&massp1, &massp, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(vel1, vel, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  MPI_Allreduce(MPI_IN_PLACE, &ncntE, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &ncntJ, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     
   if (massp>0.0) {
     for (int k=0; k<3; k++) vel[k] /= massp;
@@ -2480,6 +2484,9 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
     }
   }
   
+  if (myid==0)
+    std::cout << "Velocity calls: Eddington=" << ncntE
+	      << " Jeans=" << ncntJ << std::endl;
 }
 
 void DiskHalo::write_record(ostream &out, SParticle &p)
