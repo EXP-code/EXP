@@ -1909,6 +1909,11 @@ int SLGridSph::read_cached_table(void)
     diverge  = node["diverge"].as<int>();
     dfac     = node["dfac"   ].as<double>();
 
+    // Check model file name, being cautious...
+    //
+    std::string model = node["model"].as<std::string>();
+    if (model.compare(model_file_name)) return 0;
+
   } else {
 
     // Rewind file
