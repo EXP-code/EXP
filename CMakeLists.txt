@@ -83,14 +83,18 @@ include_directories(${MPI_C_HEADER_DIR})
 
 # For git submodules
 include_directories(${PROJECT_SOURCE_DIR}/extern)
-
+# Add OpenMP compile flags
 if(OpenMP_FOUND)
   set(HAVE_OMP_H TRUE)
+  OPTION (USE_OpenMP "Use OpenMP" ON)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
+# Slurm support
 if(SLURM_FOUND)
   set(HAVE_LIBSLURM TRUE)
-  add_compile_options(-fopenmp)
 endif()
+# Check for VTK
 if(VTK_FOUND)
   set(HAVE_VTK TRUE)
   if (VTK_VERSION VERSION_LESS "8.90.0")
