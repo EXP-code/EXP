@@ -311,6 +311,9 @@ namespace Coefs
   {
   protected:
     
+    //! Working array for power
+    Eigen::MatrixXd powerE, powerO;
+    
     //! Parameters
     int Mmax, Nmax;
 
@@ -402,6 +405,17 @@ namespace Coefs
     */
     virtual Eigen::MatrixXd& Power
     (int min=0, int max=std::numeric_limits<int>::max());
+
+    /** Get power for the coefficient DB as a function of harmonic
+	index, separating the vertically even and odd symmetric
+	coefficients.  Time as rows, harmonics as columns.
+
+	@param min is the minimum radial order
+	@param max is the maximum radial order
+	@param nodd is the index position of the first vertically odd coefficient
+    */
+    std::tuple<Eigen::MatrixXd&, Eigen::MatrixXd&> EvenOddPower
+    (int nodd=-1, int min=0, int max=std::numeric_limits<int>::max());
 
     //! Make keys for the remaining indices in a subspace
     virtual std::vector<Key> makeKeys(Key k);

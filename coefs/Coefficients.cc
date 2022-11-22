@@ -10,6 +10,7 @@
 #include <localmpi.H>
 
 #include <Eigen/Dense>
+#include <yaml-cpp/yaml.h>
 
 #include <highfive/H5File.hpp>
 #include <highfive/H5DataSet.hpp>
@@ -768,6 +769,71 @@ namespace Coefs
     }
     
     return power;
+  }
+  
+  std::tuple<Eigen::MatrixXd&, Eigen::MatrixXd&>
+  CylCoefs::EvenOddPower(int nodd, int min, int max)
+  {
+    if (coefs.size()) {
+      
+      if (nodd<0) {
+
+	YAML::Node node;
+
+	// Create the YAML DB
+	//
+	try {
+	  // Read the YAML from a string
+	  //
+	  node = YAML::Load(getYAML());
+	}
+	catch (const std::runtime_error& error) {
+	  std::cout << "CylCoefs::EvenOddPower: found a problem while loading "
+		    << "the YAML config" << std::endl;
+	  throw;
+	}
+
+	if (node["ncylodd"]) nodd = node["ncylodd"].as<int>();
+	else {
+	  std::cout << "CylCoefs::EvenOddPower: ncylodd is not in the YAML "
+		    << "config stanza.  Please specify this explicitly as "
+		    << "the first argument to EvenOddPower()" << std::endl;
+	  throw;
+	}
+      }
+
+      int mmax = coefs.begin()->second->mmax;
+      int nmax = coefs.begin()->second->nmax;
+      
+      powerE.resize(coefs.size(), mmax+1);
+      powerE.setZero();
+      
+      powerO.resize(coefs.size(), mmax+1);
+      powerO.setZero();
+      
+      int T=0;
+      for (auto v : coefs) {
+	for (int m=0; m<=mmax; m++) {
+	  auto rad = v.second->coefs.row(m);
+	  // Even
+	  for (int n=std::max<int>(0, min); n<std::min<int>(nmax-nodd, max); n++) {
+	    double val = std::abs(rad(n));
+	    powerE(T, m) += val * val;
+	  }
+	  // Odd
+	  for (int n=std::max<int>(nmax-nodd, min); n<std::min<int>(nmax, max); n++) {
+	    double val = std::abs(rad(n));
+	    powerO(T, m) += val * val;
+	  }
+	}
+	T++;
+      }
+    } else {
+      powerE.resize(0, 0);
+      powerO.resize(0, 0);
+    }
+    
+    return {powerE, powerO};
   }
   
   TableData::TableData(const std::vector<double>& Times,

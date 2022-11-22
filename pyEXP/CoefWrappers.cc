@@ -515,7 +515,19 @@ void CoefficientClasses(py::module &m) {
 	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
 	   return ret;
 	 },
-	 "Return a 3d ndarray index by azimuthal index, radial index and time index");
+	 "Return a 3d ndarray index by azimuthal index, radial index and time index")
+    .def("EvenOddPower",
+	 [](Coefs::CylCoefs& A, int nodd, int min, int max)
+	 {
+	   return A.EvenOddPower(nodd, min, max);
+	 },
+	 "Get cylindrical coefficient power separated into vertically even and odd\n"
+	 "contributions.  The default parameters will query the YAML config for the\n"
+	 "value of ncylodd but this can be provided as an argument if it is\n"
+	 "not explicit in your EXP::Cylinder configuration.",
+	 py::arg("nodd")=-1, py::arg("min")=0,
+	 py::arg("max") = std::numeric_limits<double>::max());
+
 
   py::class_<Coefs::TableData, std::shared_ptr<Coefs::TableData>, PyTableData, Coefs::Coefs>(m, "TableData", "Container for simple data tables with multiple columns")
     .def(py::init<bool>())
