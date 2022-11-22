@@ -249,18 +249,19 @@ namespace Basis
 
     // Assign internal coefficient table (doubles) from the complex struct
     //
-    for (int l=0, L=0; l<=lmax; l++) {
+    for (int l=0, L0=0, L1=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<nmax; n++) {
 	  if (m==0)
-	    expcoef(L, n) = cf->coefs(l, n).real();
+	    expcoef(L1,   n) = cf->coefs(L0, n).real();
 	  else {
-	    expcoef(L,   n) = cf->coefs(l, n).real();
-	    expcoef(L+1, n) = cf->coefs(l, n).imag();
+	    expcoef(L1,   n) = cf->coefs(L0, n).real();
+	    expcoef(L1+1, n) = cf->coefs(L0, n).imag();
 	  }
 	}
-	if (m==0) L += 1;
-	else      L += 2;
+	L0 += 1;
+	if (m==0) L1 += 1;
+	else      L1 += 2;
       }
     }
   }
