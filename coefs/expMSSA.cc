@@ -793,6 +793,22 @@ namespace MSSA {
   {
     Eigen::VectorXd F, P, fw;
     Eigen::MatrixXd pw;
+
+    if (not reconstructed) {
+
+      if (not computed)
+	std::cout << "expMSSA::channelDFT: "
+		  << "call eigenvalues() or getPC() followed by "
+		  << "reconstruct() before channelDFT()"
+		  << std::endl;
+      else
+	std::cout << "expMSSA::channelDFT: "
+		  << "call reconstruct() before channelDFT()"
+		  << std::endl;
+      
+      return {fw, pw};
+    }
+
     {
       double DT = coefDB.times[1] - coefDB.times[0];
       
