@@ -209,8 +209,8 @@ void SphericalModelTable::setup_df(int NUM, double RA)
 
     df.off = df.Q[0] * ( 1.0 + OFFSET );
     for (int i=0; i<df.num; i++) {
-      df.Q[i] = log(df.Q[i] - df.off);
-      df.ffQ[i] = log(-df.ffQ[i] + foffset);
+      df.Q[i] = log(fabs(df.Q[i] - df.off) + OFFSET*fabs(df.off));
+      df.ffQ[i] = log(fabs(-df.ffQ[i] + foffset) + OFFSET*fabs(foffset));
     }
     
     Spline(df.Q, df.ffQ, -1.0e30,-1.0e30, df.ffQ2);
