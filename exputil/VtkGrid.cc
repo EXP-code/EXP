@@ -85,7 +85,7 @@ void VtkGrid::Add(const std::vector<double>& data, const std::string& name)
 	  vtkIdType n = dataSet->FindPoint(x, y, z);
 
 	  if (n>=0) {
-	    float f = static_cast<float>(data[(i*ny+j)*nz + k]);
+	    float f = static_cast<float>(data[(k*ny+j)*nx + i]);
 	    T->InsertTuple(n, &f);
 	  } else {
 	    std::cout << "Could not find point at (" << x << ", " << y << ", "<< z << ")"
