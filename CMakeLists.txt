@@ -289,6 +289,9 @@ set(CMAKE_CXX_FLAGS_UBSAN
   CACHE STRING "Flags used by the C++ compiler during UndefinedBehaviourSanitizer builds."
   FORCE)
 
-# Make the config_exp.h file
-configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_SOURCE_DIR}/config_exp.h)
+# Make the config_exp.h file in the build directory, add the build dir
+# to the CMake include path.  This allows for multiple configurations
+# from the same source.
+configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_BINARY_DIR}/config_exp.h)
+include_directories(${PROJECT_BINARY_DIR})
 
