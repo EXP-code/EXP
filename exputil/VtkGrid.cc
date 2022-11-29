@@ -39,7 +39,7 @@ VtkGrid::VtkGrid(int nx, int ny, int nz,
     }
   }    
 
-  // Create a pointer to a VTK Unstructured Grid data set
+  // Create a pointer to a VTK Rectilinear Grid data set
   dataSet = vtkRectilinearGridP::New();
 
   dataSet->SetDimensions(nx, ny, nz);
@@ -64,7 +64,7 @@ void VtkGrid::Add(const std::vector<double>& data, const std::string& name)
 	vtkIdType n = dataSet->FindPoint(x, y, 0);
 
 	if (n>=0) {
-	  float f = static_cast<float>(data[i*ny + j]);
+	  float f = static_cast<float>(data[j*nx + i]);
 	  T->InsertTuple(n, &f);
 	} else {
 	  std::cout << "Could not find point at (" << x << ", " << y << ")"
@@ -85,7 +85,7 @@ void VtkGrid::Add(const std::vector<double>& data, const std::string& name)
 	  vtkIdType n = dataSet->FindPoint(x, y, z);
 
 	  if (n>=0) {
-	    float f = static_cast<float>(data[(k*ny+j)*nx + i]);
+	    float f = static_cast<float>(data[(k*ny + j)*nx + i]);
 	    T->InsertTuple(n, &f);
 	  } else {
 	    std::cout << "Could not find point at (" << x << ", " << y << ", "<< z << ")"
