@@ -13,9 +13,10 @@ void UtilityClasses(py::module &m) {
   m.doc() = "Utility class bindings\n\n"
     "This module provides routines for BFE tasks that do not naturally fit\n"
     "into the main categories.  The current list of utilities is:\n"
-    "  1. Compute the center of the particle distribution from its center\n"
+    "  1. Report the current EXP version, GIT branch and commit\n"
+    "  2. Compute the center of the particle distribution from its center\n"
     "     of mass.  Very fast but easily biased.\n"
-    "  2. Compute the mean density weighted center of the particle distribu-\n"
+    "  3. Compute the mean density weighted center of the particle distribu-\n"
     "     tion from KD density estimator at each particle position. Very is\n"
     "     very slow.  One can change the stride to decrease the sample size\n"
     "     to speed this up.\n\n"
@@ -23,7 +24,7 @@ void UtilityClasses(py::module &m) {
     "     density weighted center is an alternative for snapshots without\n"
     "     center estimates.  Only use COM if know your simulation remains\n"
     "     close to bisymmetric.\n\n"
-    "  3. Apply a user-defined Python function to all particles in a phase-\n"
+    "  4. Apply a user-defined Python function to all particles in a phase-\n"
     "     space reader.  This may be used to do calculations using all or a\n"
     "     user-determined subset of snapshot particles.  The functor has no\n"
     "     return type; it is up to the user to put accumulated values in\n"
@@ -73,4 +74,31 @@ void UtilityClasses(py::module &m) {
   m.def("particleIterator", &particleIterator,
 	"Apply a user-defined functor to every particle in phase space",
 	py::arg("reader"), py::arg("functor"));
+
+  m.def("getVersionInfo",
+	[]() {
+	  const int W = 80;		// Full linewidth
+	  std::ostringstream sout;	// Get a std::string from the string
+	  // literal
+	  sout << "%%%%% This is " << PACKAGE_STRING << " ";
+				// Print the info block
+	  std::cout << std::endl
+		    << std::setw(W) << std::setfill('%') << '%' << std::endl
+		    << std::left << setw(W) << sout.str() << std::endl
+		    << std::setw(W) << std::setfill('%') << '%' << std::endl
+		    << std::setfill(' ')
+		    << std::setw(20) << "%%%%% Repository URL" << " | "
+		    << std::setw(W-24) << PACKAGE_URL << '%' << std::endl
+		    << std::setw(20) << "%%%%% Current branch" << " | "
+		    << std::setw(W-24) << GIT_BRANCH << '%' << std::endl
+		    << std::setw(20) << "%%%%% Current commit" << " | "
+		    << std::setw(W-24) << GIT_COMMIT << '%' << std::endl
+		    << std::setw(20) << "%%%%% Compile time"   << " | "
+		    << std::setw(W-24) << COMPILE_TIME << '%' << std::endl
+		    << std::setfill('%')
+		    << std::setw(W) << '%' << std::setfill(' ') << std::endl
+		    << std::endl;
+	},
+	"Report on the version and git commit.  This is the same version\n"
+	"information reported by the EXP N-body code.");
 }

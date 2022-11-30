@@ -2,6 +2,8 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
+#include <config_exp.h>
+
 namespace py = pybind11;
 
 extern void MSSAtoolkitClasses   (py::module &m);
@@ -73,6 +75,13 @@ PYBIND11_MODULE(pyEXP, m)
     "invent some interesting ones\n\n"
     "The source code has some sample Python scripts and notebooks for a\n"
     "quick start (check the pyEXP directory).\n\n"
+    "Version information\n"
+    "-----------------------\n"
+    "Version:          "  PACKAGE_STRING "\n"
+    "Repository URL:   "  PACKAGE_URL "\n"
+    "GIT branch:       "  GIT_BRANCH "\n"
+    "GIT commit:       "  GIT_COMMIT "\n"
+    "Compile time:     "  COMPILE_TIME "\n\n"
     "History and provenance\n"
     "----------------------\n"
     "These EXP interface classes and the Python interface were written\n"
