@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15) # This is the oldest version I've
-				     # tested by newer versions are
+				     # tested but newer versions are
 				     # preferred esp. for Cuda support
 project(
   EXP
@@ -11,7 +11,7 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# compiler flags
+# Compiler flags.  Not all tested thoroughly...
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   # using Clang
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -26,7 +26,8 @@ endif()
 # Required compiler features
 add_compile_options(-D_REENTRANT)
 
-# Check that we are a git repository
+# Check and enforce that we are a git repository.  Necessary for
+# submodules to work correctly.
 if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
   message(STATUS "Checking that we are a git repository - good")
 else()
@@ -58,10 +59,12 @@ find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
 find_package(PNG)
 
+# Optional VTK support
 if(ENABLE_VTK)
   find_package(VTK)
 endif()
 
+# Optional Cuda support
 if(ENABLE_CUDA)
   find_package(CUDA REQUIRED)
   enable_language(CUDA)
@@ -179,12 +182,13 @@ execute_process(
 include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
 include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
 
-
+# Report to the user
 message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
 
 add_subdirectory(extern/yaml-cpp)
 add_subdirectory(extern/pybind11)
 
+# Set options for the HighFive git submodule in extern
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "Do not build the examples")
 set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "Do not build the documentation")
 set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "Do not use Boost in HighFIve")
@@ -192,6 +196,7 @@ set(H5_USE_EIGEN TRUE CACHE BOOL "Eigen3 support in HighFive")
 
 add_subdirectory(extern/HighFive)
 
+# Configure the remaining native subdirectories
 add_subdirectory(exputil)
 add_subdirectory(coefs)
 if (ENABLE_NBODY)
@@ -210,6 +215,7 @@ message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
 # Force installation of the yaml-cpp libraries
 install(TARGETS yaml-cpp DESTINATION lib)
 
+# Check for doxygen is the user wants web docs
 if (BUILD_DOCS)
   find_package(Doxygen REQUIRED)
 endif()
