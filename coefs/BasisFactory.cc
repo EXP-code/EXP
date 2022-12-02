@@ -1165,7 +1165,7 @@ namespace Basis
   //
   // I'm leaving the original version ad the default until the new
   // version is tested
-#if 0
+#if 1
   Coefs::CoefStrPtr Basis::createFromArray
   (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
   {
