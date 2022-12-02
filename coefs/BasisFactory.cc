@@ -1109,11 +1109,14 @@ namespace Basis
 
     // Add the expansion center metadata
     //
-    if (addCenter) {
-      coefret->ctr = ctr;
-      coefctr = ctr;
-    }
+    if (addCenter) coefret->ctr = ctr;
+    
+    // Register the center
+    //
+    coefctr = ctr;
 
+    // Clean up for accumulation
+    //
     reset_coefs();
     coefindx = 0;
   }
@@ -1121,7 +1124,9 @@ namespace Basis
   // Accumulate coefficient contributions from arrays
   void Basis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p)
   {
-    // Sanity check: is coefficient instance created?
+    // Sanity check: is coefficient instance created?  This is not
+    // foolproof.  It is really up the user to make sure that a call
+    // to initFromArray() comes first.
     //
     if (not coefret) {
       std::string msg =
@@ -1156,8 +1161,11 @@ namespace Basis
     return coefret;
   }
 
+  // Generate coefficients from a phase-space table
+  //
+  // I'm leaving the original version ad the default until the new
+  // version is tested
 #if 0
-  // Generate coefficients from a phase-space table (new version)
   Coefs::CoefStrPtr Basis::createFromArray
   (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
   {
@@ -1165,9 +1173,7 @@ namespace Basis
     addFromArray(m, p);
     return makeFromArray(time);
   }
-#endif
-
-  // Generate coefficients from a phase-space table
+#else
   Coefs::CoefStrPtr Basis::createFromArray
   (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
   {
@@ -1214,6 +1220,7 @@ namespace Basis
     load_coefs(coef, time);
     return coef;
   }
+#endif
 
 }
 // END namespace Basis
