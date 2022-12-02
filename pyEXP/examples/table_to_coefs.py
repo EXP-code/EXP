@@ -46,3 +46,13 @@ coef = basis.createFromArray(data[:,0], data[:,1:4], time=3.0)
 print("Time=", coef.time, " geometry=", coef.geometry)
 print("Shape=", coef.data.shape)
 print("Data=\n", coef.data)
+
+# Make an HDF5 file
+#
+coefs = pyEXP.coefs.Coefs.makecoefs(coef)
+coefs.add(coef)
+coefs.WriteH5Coefs("table_to_coefs");
+print("Wrote coefficients")
+
+#
+# DONE
