@@ -1087,6 +1087,87 @@ namespace Basis
   }
 
   // Generate coefficients from a phase-space table
+  void Basis::initFromArray(std::vector<double> ctr)
+  {
+    if (name.compare("sphereSL") == 0)
+      coefret = std::make_shared<Coefs::SphStruct>();
+    else if (name.compare("cylinder") == 0)
+      coefret = std::make_shared<Coefs::CylStruct>();
+    else {
+      std::ostringstream sout;
+      sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
+	   << std::endl;
+      throw std::runtime_error(sout.str());
+    }
+      
+    // Is center non-zero?
+    //
+    bool addCenter = false;
+    for (auto v : ctr) {
+      if (v != 0.0) addCenter = true;
+    }
+
+    // Add the expansion center metadata
+    //
+    if (addCenter) {
+      coefret->ctr = ctr;
+      coefctr = ctr;
+    }
+
+    reset_coefs();
+    coefindx = 0;
+  }
+
+  // Accumulate coefficient contributions from arrays
+  void Basis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p)
+  {
+    // Sanity check: is coefficient instance created?
+    //
+    if (not coefret) {
+      std::string msg =
+	"Basis::addFromArray: you must initialize coefficient accumulation "
+	"with a call to Basis::initFromArray()";
+      throw std::runtime_error(msg);
+    }
+
+    std::vector<double> p1(3), v1(3, 0);
+
+    for (int n=0; n<p.rows(); n++) {
+      bool use = true;
+      if (ftor) {
+	for (int k=0; k<3; k++) p1[k] = p(n, k);
+	use = ftor(m(n), p1, v1, coefindx);
+      } else {
+	use = true;
+      }
+      coefindx++;
+
+      if (use) accumulate(p(n, 0)-coefctr[0],
+			  p(n, 1)-coefctr[1],
+			  p(n, 2)-coefctr[2], m(n));
+    }
+  }
+
+  // Generate coefficients from the accumulated array values
+  Coefs::CoefStrPtr Basis::makeFromArray(double time)
+  {
+    make_coefs();
+    load_coefs(coefret, time);
+    return coefret;
+  }
+
+#if 0
+  // Generate coefficients from a phase-space table (new version)
+  Coefs::CoefStrPtr Basis::createFromArray
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
+  {
+    initFromArray(ctr);
+    addFromArray(m, p);
+    return makeFromArray(time);
+  }
+#endif
+
+  // Generate coefficients from a phase-space table
   Coefs::CoefStrPtr Basis::createFromArray
   (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
   {
@@ -1098,7 +1179,7 @@ namespace Basis
       coef = std::make_shared<Coefs::CylStruct>();
     else {
       std::ostringstream sout;
-      sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
+      sout << "Basis::createFromArray: basis <" << name << "> not recognized"
 	   << std::endl;
       throw std::runtime_error(sout.str());
     }

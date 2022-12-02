@@ -53,6 +53,15 @@ namespace Basis
     //! The callback particle selector
     Callback ftor;
 
+    //! Return instance for coefficients created from arrays
+    Coefs::CoefStrPtr coefret;
+
+    //! Center vector for coefficients created from arrays
+    std::vector<double> coefctr;
+
+    //! Current particle index
+    unsigned long coefindx;
+    
   protected:
     
     //! Contains contructor and BFE parameter database
@@ -110,6 +119,25 @@ namespace Basis
     Coefs::CoefStrPtr createFromArray
     (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
      std::vector<double> center={0.0, 0.0, 0.0});
+    
+    //! Generate coeffients from an array and optional center location
+    //! for the expansion using multiple particle partitions
+    //@{
+
+    //! Initialize accumulating coefficients from arrays with an optional
+    //! center vector.  This is called once to initialize the accumulation.
+    void initFromArray
+    (std::vector<double> center={0.0, 0.0, 0.0});
+    
+    //! Initialize accumulating coefficients from arrays.  This is
+    //! called once to initialize the accumulation.
+    void addFromArray
+    (Eigen::VectorXd& m, RowMatrixXd& p);
+    
+    //! Create and the coefficients from the array accumulation with the
+    //! provided time value
+    Coefs::CoefStrPtr makeFromArray(double time=0.0);
+    //@}
     
     //! Get potential, density and forces at a point
     virtual void getFields

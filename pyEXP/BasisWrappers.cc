@@ -62,7 +62,28 @@ void BasisFactoryClasses(py::module &m) {
     "      return ret\n"
     "If you are using 'createFromArray()', you will only have access to\n"
     "the mass and position vector.   You may clear and turn off the\n"
-    "selector using the 'clrSelector()' member.\n\n";
+    "selector using the 'clrSelector()' member.\n\n"
+    "Scalablility\n"
+    "------------\n"
+    "createFromArray() is a convenience method allows you to transform\n"
+    "coordinates and preprocess phase space using your own methods and\n"
+    "readers.  Inside this method are three member functions calls that\n"
+    "separately initialize, accumulate the coefficient contributions from\n"
+    "the provided vectors, and finally construct and return the new coeffi-\n"
+    "cient instance (Coefs).  For scalability, we provide access to each \n"
+    "of these three methods so that the phase space may be partitioned into\n"
+    "any number of smaller pieces.  These three members are: initFromArray(),\n"
+    "addFromArray(), makeFromArray().  The initFromArray() is called once to\n"
+    "begin the creation and the makeFromArray() method is called once to\n"
+    "build the final set of coefficients.  The addFromArray() may be called\n"
+    "any number of times in between.  For example, the addFromArray() call\n"
+    "can be inside of a loop that iterates over any partition of phase space\n"
+    "from your own pipeline.  The underlying computation is identical to\n"
+    "createFromArray().  However, access to the three underlying steps allows\n"
+    "you to scale your phase-space processing to snapshots of any size.\n"
+    "For reference, the createFromReader() method uses a producer-consumer\n"
+    "pattern internally to provide scalability.  These three methods allow\n"
+    "you to provide the same pattern in your own pipeline.\n\n";
 
   using namespace Basis;
 
@@ -239,6 +260,42 @@ void BasisFactoryClasses(py::module &m) {
 	 "position is an array with n rows and 3 columns (x, y, z)",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0))
+    .def("initFromArray",
+	 [](Basis::Basis& A, std::vector<double> center)
+	 {
+	   return A.initFromArray(center);
+	 },
+	 "This initializes coefficient computation from array vectors\n"
+	 "for an optionally provided center.  Phase-space data is then\n"
+	 "added with addFromArray() call.  addFromArray() may be called\n"
+	 "multiple times with any unique partition of phase space. The\n"
+	 "final generation is finished with a call to makeFromArray() with\n"
+	 "the snapshot time.  This final call returns the coefficient set.\n"
+	 "This sequence of calls is identical to createFromArray() for a\n"
+	 "single set of phase space arrays but allows for generation from\n"
+	 "very large phase-space sets that can not be stored in physical\n"
+	 "memory.",
+	 py::arg("center") = std::vector<double>(3, 0.0))
+    .def("addFromArray",
+	 [](Basis::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& pos)
+	 {
+	   return A.addFromArray(mass, pos);
+	 },
+	 "Accumulates information for coefficients from a mass and position\n"
+	 "array.  See introduction and documentation for initFromArray and\n"
+	 "for additional information",
+	 py::arg("mass"), py::arg("pos"))
+    .def("makeFromArray",
+	 [](Basis::Basis& A, double time)
+	 {
+	   return A.makeFromArray();
+	 },
+	 "This is the final call in the initFromArray(), addFromArray()...\n"
+	 "addFromArray()...makeFromArray() call sequence.  This returns the\n"
+	 "newly created coefficients. See introduction and documentation\n"
+	 "for initFromArray and for additional information",
+	 py::arg("time")
+	 )
     .def("setSelector", &Basis::Basis::setSelector,
 	 "Register a Python particle selection functor. This boolean\n"
 	 "function will be in effect until cleared with the 'clrSelector'\n"
