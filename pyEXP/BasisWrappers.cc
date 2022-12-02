@@ -288,7 +288,7 @@ void BasisFactoryClasses(py::module &m) {
     .def("makeFromArray",
 	 [](Basis::Basis& A, double time)
 	 {
-	   return A.makeFromArray();
+	   return A.makeFromArray(time);
 	 },
 	 "This is the final call in the initFromArray(), addFromArray()...\n"
 	 "addFromArray()...makeFromArray() call sequence.  This returns the\n"
