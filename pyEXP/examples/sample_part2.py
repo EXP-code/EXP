@@ -104,7 +104,7 @@ plt.show()
 #
 ssa.reconstruct()
 
-newdata = ssa.getReconstructed(False)
+newdata = ssa.getReconstructed()
 print('newdata is a', type(newdata))
 
 # Try the kmeans analysis (not sure this is working correctly yet,

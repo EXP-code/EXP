@@ -153,7 +153,12 @@ print("The PC vectors are:\n", pc)
 #
 ssa.reconstruct()
 
-newdata = ssa.getReconstructed(False)
+# Zero all data but reconstruction
+coefs.zerodata()
+
+# Get reconstructed coefficients
+newdata = ssa.getReconstructed()
+
 print(type(newdata))
 print(newdata)
 

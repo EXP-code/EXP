@@ -154,8 +154,9 @@ print('Calling reconstruction')
 ssa.reconstruct([0, 1])
 print('Reconstruction took {:6.2f} seconds'.format(time.time() - startTime))
 
-# newdata = ssa.getReconstructed(False) # <---replace with reconstructed
-newdata = ssa.getReconstructed(True) # <---zero all but reconstructed
+# Zero all but reconstructed
+coefs.zerodata()
+newdata = ssa.getReconstructed() 
 print('newdata is a', type(newdata))
 
 surfaces = fields.slices(basis, newdata['star disk'])
