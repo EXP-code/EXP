@@ -443,7 +443,11 @@ void CoefficientClasses(py::module &m) {
 	 "dimensions")
     .def_readonly("time",     &CoefStruct::time,  "The data's time")
     .def_readonly("geometry", &CoefStruct::geom,  "The geometry type")
-    .def_readwrite("data",    &CoefStruct::coefs, "Read-write access to the underlying data store");
+    .def_readwrite("data",    &CoefStruct::coefs,
+		   "Read-write access to the underlying data store. You must\n"
+		   "write the entire data array to change the values of the\n"
+		   "underlying data in the CoefStruct.  In other words, you\n"
+		   "can not write Python slices.");
   
 
   py::class_<Coefs::SphStruct, std::shared_ptr<Coefs::SphStruct>, CoefStruct>(m, "SphStruct")
