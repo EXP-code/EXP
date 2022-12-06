@@ -422,11 +422,11 @@ main(int ac, char **av)
       std::cout << options.help() << std::endl << std::endl
 		<< "Examples: " << std::endl
 		<< "\t" << "Use parameters read from a config file in INI style"  << std::endl
-		<< "\t" << av[0] << " --input=gendisk.config"  << std::endl << std::endl
-		<< "\t" << "Generate a template config file in INI style from current defaults"  << std::endl
-		<< "\t" << av[0] << " --conf=template.config" << std::endl << std::endl
+		<< "\t" << av[0] << " --config=gendisk.config"  << std::endl << std::endl
+		<< "\t" << "Generate a template YAML config file current defaults called <template.yaml>"  << std::endl
+		<< "\t" << av[0] << " --template" << std::endl << std::endl
 		<< "\t" << "Override a single parameter in a config file from the command line"  << std::endl
-		<< "\t" << av[0] << "--LMAX=8 --conf=template.config" << std::endl << std::endl;
+		<< "\t" << av[0] << "--LMAX=8 --config=my.config" << std::endl << std::endl;
     }
     MPI_Finalize();
     return 0;
@@ -434,7 +434,7 @@ main(int ac, char **av)
 
   // Read parameters fron the YAML config file
   //
-  if (vm.count("input")) {
+  if (vm.count("config")) {
     try {
       vm = LoadConfig(options, config);
     } catch (cxxopts::OptionException& e) {
