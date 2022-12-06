@@ -1173,6 +1173,20 @@ namespace MSSA {
   
   std::map<std::string, Coefs::CoefsPtr> expMSSA::getReconstructed()
   {
+    if (not reconstructed) {
+      std::ostringstream sout;
+      if (not computed)
+	sout << "expMSSA::getReconstructed(): "
+	     << "call eigenvalues() or getPC() followed by "
+	     << "reconstruct() before getReconstructed()";
+      else
+	sout << "expMSSA::getReconstructed(): "
+	     << "call reconstruct() before getReconstructed()";
+      
+      std::runtime_error(sout.str());
+    }
+
+
     // Copy the original map for return
     //
     auto newdata = data;
