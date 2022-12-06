@@ -399,8 +399,8 @@ public:
   int get_num_param(void) { return num_params; }
   double get_param(int i) { return params[i]; }
 
-  double get_min_radius(void) { return mass.x[0]; }
-  double get_max_radius(void) { return mass.x[mass.num-1]; }
+  double get_min_radius(void) override { return mass.x[0]; }
+  double get_max_radius(void) override { return mass.x[mass.num-1]; }
   int grid_size(void) { return num; }
   void print_model(char const *name);
   void print_model_eval(char const *name, int number);
@@ -415,10 +415,10 @@ public:
 
   //@{
   //! Evaluate the distribution function
-  double distf(double E, double L);
-  double dfde(double E, double L);
-  double dfdl(double E, double L);
-  double d2fde2(double E, double L);
+  double distf(double E, double L) override;
+  double dfde(double E, double L) override;
+  double dfdl(double E, double L) override;
+  double d2fde2(double E, double L) override;
   //@}
 };
 
@@ -467,23 +467,23 @@ public:
   
   //@{
   //! Additional member functions
-  double get_min_radius(void) { return real->get_min_radius(); }
-  double get_max_radius(void) { return real->get_max_radius(); }
+  double get_min_radius(void) override { return real->get_min_radius(); }
+  double get_max_radius(void) override { return real->get_max_radius(); }
   //@}
 
   //@{
   //! Evaluate distribution function and its partial derivatives
-  double distf(double E, double L)  { return real->distf(E, L);  }
-  double dfde (double E, double L)  { return real->dfde(E, L);   }
-  double dfdl (double E, double L)  { return real->dfdl(E, L);   }
-  double d2fde2(double E, double L) { return real->d2fde2(E, L); }
+  double distf(double E, double L) override { return real->distf(E, L);  }
+  double dfde (double E, double L) override { return real->dfde(E, L);   }
+  double dfdl (double E, double L) override { return real->dfdl(E, L);   }
+  double d2fde2(double E, double L) override { return real->d2fde2(E, L); }
   //@}
 
   //@{
   //! Overloaded to provide mass distribution from Real and Number distribution from Fake
-  Eigen::VectorXd gen_point(int& ierr);
-  Eigen::VectorXd gen_point(double r, int& ierr);
-  Eigen::VectorXd gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr);
+  Eigen::VectorXd gen_point(int& ierr) override;
+  Eigen::VectorXd gen_point(double r, int& ierr) override;
+  Eigen::VectorXd gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr) override;
   //@}
 
 

@@ -68,31 +68,31 @@ public:
   
   // Addiional member functions
 
-  double get_min_radius(void) 
+  double get_min_radius(void) override
   { 
     return max<double>(d->get_min_radius(), h->get_min_radius());
   }
-  double get_max_radius(void) 
+  double get_max_radius(void) override
   {
     return min<double>(d->get_max_radius(), h->get_max_radius());
   }
 
-  double distf(double E, double L) {
+  double distf(double E, double L) override {
     bomb("Dist fct not defined!");
     return 0.0;
   }
 
-  double dfde(double E, double L) {
+  double dfde(double E, double L) override {
     bomb("Dist fct not defined!");
     return 0.0;
   }
 
-  double dfdl(double E, double L) {
+  double dfdl(double E, double L) override {
     bomb("Dist fct not defined!");
     return 0.0;
   }
   
-  double d2fde2(double E, double L) {
+  double d2fde2(double E, double L) override {
     bomb("Dist fct not defined!");
     return 0.0;
   }
