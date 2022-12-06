@@ -90,7 +90,8 @@ namespace Basis
     "NO_L1",
     "EVEN_L",
     "EVEN_M",
-    "M0_ONLY"
+    "M0_ONLY",
+    "cachename"
   };
 
   SphericalSL::SphericalSL(const YAML::Node& CONF) : Basis(CONF)
@@ -119,6 +120,10 @@ namespace Basis
     if (unmatched.size())
       throw YamlConfigError("Basis::Basis::SphericalSL", "parameter", unmatched, __FILE__, __LINE__);
     
+    // Default cachename, empty by default
+    //
+    std::string cachename;
+
     // Assign values from YAML
     //
     try {
@@ -151,13 +156,14 @@ namespace Basis
       N2 = std::numeric_limits<int>::max();
       NO_L0 = NO_L1 = EVEN_L = EVEN_M = M0_only = false;
       
-      if (conf["N1"]   )   N1      = conf["N1"].as<bool>();
-      if (conf["N2"]   )   N2      = conf["N2"].as<bool>();
-      if (conf["NO_L0"])   NO_L0   = conf["NO_L0"].as<bool>();
-      if (conf["NO_L1"])   NO_L1   = conf["NO_L1"].as<bool>();
-      if (conf["EVEN_L"])  EVEN_L  = conf["EVEN_L"].as<bool>();
-      if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"].as<bool>();
-      if (conf["M0_ONLY"]) M0_only = conf["M0_ONLY"].as<bool>();
+      if (conf["N1"]   )     N1        = conf["N1"].as<bool>();
+      if (conf["N2"]   )     N2        = conf["N2"].as<bool>();
+      if (conf["NO_L0"])     NO_L0     = conf["NO_L0"].as<bool>();
+      if (conf["NO_L1"])     NO_L1     = conf["NO_L1"].as<bool>();
+      if (conf["EVEN_L"])    EVEN_L    = conf["EVEN_L"].as<bool>();
+      if (conf["EVEN_M"])    EVEN_M    = conf["EVEN_M"].as<bool>();
+      if (conf["M0_ONLY"])   M0_only   = conf["M0_ONLY"].as<bool>();
+      if (conf["cachename"]) cachename = conf["cachename"].as<std::string>();
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -179,7 +185,7 @@ namespace Basis
     rmax = mod->get_max_radius()*0.99;
     
     sl = std::make_shared<SLGridSph>
-      (mod, lmax, nmax, numr, rmin, rmax, true, cmap, rscl);
+      (mod, lmax, nmax, numr, rmin, rmax, true, cmap, rscl, cachename);
     
     rscl = 1.0;
     
