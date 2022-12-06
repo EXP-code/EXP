@@ -24,7 +24,13 @@ void CoefficientClasses(py::module &m) {
     "structures represent individual times points and are created,\n"
     "maintained, and interfaced by the Coefs class.  Access to the\n"
     "underlying data is provided to Python in case you need to change\n"
-    "or rewrite the data for some reason.\n\n"
+    "or rewrite the data for some reason.  We have also provided a\n"
+    "create() member so that you can instaniate and load a coefficient\n"
+    "structure using Python.  To do this, use the constructor to make\n"
+    "a blank instance, assign the dimensions and use create() to create\n"
+    "a data matrix of initially zero values.  The dimensions are \n",
+    "(lmax, nmax) for SphStruct, (mmax,nmax) for a CylStruct, and\n"
+    "(cols) for a TblStruct.\n\n"
     "Coefs\n"
     "-----\n"
     "The base class, 'Coefs', provides a factory reader that will\n"
@@ -86,6 +92,11 @@ void CoefficientClasses(py::module &m) {
     bool read(std::istream& in, bool exp_type, bool verbose) override {
       PYBIND11_OVERRIDE_PURE(bool, CoefStruct, read, in, exp_type, verbose);
     }
+
+    void create() override {
+      PYBIND11_OVERRIDE_PURE(void, CoefStruct, create,);
+    }
+
   };
 
   class PyCoefs : public Coefs
@@ -255,6 +266,7 @@ void CoefficientClasses(py::module &m) {
     void zerodata() override {
       PYBIND11_OVERRIDE(void, SphCoefs, zerodata,);
     }
+
 
   };
 
@@ -426,6 +438,9 @@ void CoefficientClasses(py::module &m) {
 
   py::class_<Coefs::CoefStruct, std::shared_ptr<Coefs::CoefStruct>, PyCoefStruct>(m, "CoefStruct")
     .def(py::init<>(), "Base class coefficient data structure object")
+    .def("create",            &CoefStruct::create, 
+	 "Initialize a coefficient zeroed structure from user supplied "
+	 "dimensions")
     .def_readonly("time",     &CoefStruct::time,  "The data's time")
     .def_readonly("geometry", &CoefStruct::geom,  "The geometry type")
     .def_readwrite("data",    &CoefStruct::coefs, "Read-write access to the underlying data store");

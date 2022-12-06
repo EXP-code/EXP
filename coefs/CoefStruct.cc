@@ -25,6 +25,30 @@ namespace Coefs
     ret->coefs = coefs;
   }
 
+  void CylStruct::create()
+  {
+    if (nmax>0)
+      coefs.resize(mmax+1, nmax);
+    else
+      throw std::runtime_error("CylStruct::create: nmax must be >0");
+  }
+
+  void SphStruct::create()
+  {
+    if (nmax>0)
+      coefs.resize((lmax+1)*(lmax+2)/2, nmax);
+    else
+      throw std::runtime_error("SphStruct::create: nmax must be >0");
+  }
+
+  void TblStruct::create()
+  {
+    if (cols>0)
+      coefs.resize(1, cols);
+    else
+      throw std::runtime_error("TblStruct::create: cols must be >0");
+  }
+
   std::shared_ptr<CylStruct> CylStruct::deepcopy()
   {
     auto ret = std::make_shared<CylStruct>();

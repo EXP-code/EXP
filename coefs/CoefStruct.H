@@ -37,6 +37,9 @@ namespace Coefs
     virtual bool read(std::istream& in, bool exp_type,
 		      bool verbose=false) = 0;
 
+    //! Create an empty data storage
+    virtual void create() = 0;
+
     //! Copy base-class fields
     void copyfields(std::shared_ptr<CoefStruct> p);
 
@@ -58,10 +61,14 @@ namespace Coefs
     bool normed;
     
     //! Constructor
-    SphStruct() { geom = "sphere"; }
+    SphStruct() : lmax(0), nmax(0), scale(1.0), normed(true)
+    { geom = "sphere"; }
 
     //! Read native EXP coefficients
     bool read(std::istream& in, bool exp_type, bool verbose=false);
+
+    //! Create an empty data storage
+    void create();
 
     //! Copy all of data contents to a new instance
     std::shared_ptr<SphStruct> deepcopy();
@@ -76,10 +83,14 @@ namespace Coefs
     int mmax, nmax;
     
     //! Constructor
-    CylStruct() { geom = "cylinder"; }
+    CylStruct() : mmax(0), nmax(0)
+    { geom = "cylinder"; }
 
     //! Read native EXP coefficients
     bool read(std::istream& in, bool exp_type, bool verbose=false);
+
+    //! Create an empty data storage
+    void create();
 
     //! Copy all of data contents to a new instance
     std::shared_ptr<CylStruct> deepcopy();
@@ -93,10 +104,13 @@ namespace Coefs
     int cols;
     
     //! Constructor
-    TblStruct() { geom = "table"; }
+    TblStruct() : cols(0) { geom = "table"; }
 
     //! No need to read
     bool read(std::istream& in, bool exp_type, bool verbose=false);
+
+    //! Create an empty data storage
+    void create();
 
     //! Copy all of data contents to a new instance
     std::shared_ptr<TblStruct> deepcopy();

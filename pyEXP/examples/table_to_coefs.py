@@ -54,5 +54,13 @@ coefs.add(coef)
 coefs.WriteH5Coefs("table_to_coefs");
 print("Wrote coefficients")
 
+print("Times are:")
+print(coefs.Times())
+print(coefs.getCoefStruct(3.0))
+
+time = 3.0
+print("Setting to T=", time)
+basis.set_coefs(coefs.getCoefStruct(time))
+
 #
 # DONE

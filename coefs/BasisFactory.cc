@@ -251,6 +251,9 @@ namespace Basis
 
   void SphericalSL::set_coefs(Coefs::CoefStrPtr coef)
   {
+    if (typeid(*coef) != typeid(Coefs::SphStruct))
+      throw std::runtime_error("SphericalSL::set_coefs: you must pass a Coefs::SphStruct");
+
     Coefs::SphStruct* cf = dynamic_cast<Coefs::SphStruct*>(coef.get());
 
     // Assign internal coefficient table (doubles) from the complex struct
@@ -926,6 +929,9 @@ namespace Basis
 
   void Cylindrical::set_coefs(Coefs::CoefStrPtr coef)
   {
+    if (typeid(*coef) != typeid(Coefs::CylStruct))
+      throw std::runtime_error("Cylindrical::set_coefs: you must pass a Coefs::CylStruct");
+
     Coefs::CylStruct* cf = dynamic_cast<Coefs::CylStruct*>(coef.get());
 
     for (int m=0; m<=mmax; m++) { // Set to zero on m=0 call only--------+
