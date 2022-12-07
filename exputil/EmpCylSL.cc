@@ -2156,8 +2156,7 @@ void EmpCylSL::setup_eof()
 // Create EOF from target density and spherical basis
 //
 void EmpCylSL::generate_eof(int numr, int nump, int numt, 
-			    double (*func)
-			    (double R, double z, double phi, int M) )
+			    std::function<double(double, double, double, int)> func)
 {
   Timer timer;
   if (VFLAG & 16) timer.start();
@@ -2237,7 +2236,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
 	  // Get the target density for this position and azimuthal index
 	  //
-	  double dens = (*func)(R, z, phi, m) * jfac;
+	  double dens = func(R, z, phi, m) * jfac;
 
 	  // *** ir loop
 	  //
