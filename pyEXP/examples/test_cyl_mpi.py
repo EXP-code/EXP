@@ -21,6 +21,7 @@ parameters   :
   mmax       : 10
   nmax       : 48
   ncylorder  : 32
+  ncylodd    : 6
   ncylnx     : 256
   ncylny     : 128
   ncylr      : 2000
@@ -33,6 +34,7 @@ parameters   :
   logr       : true
   density    : true
   expcond    : true
+  deproject  : true
   eof_file   : .eof.cache.file_new
   ignore     : true
   vflag      : 16
@@ -44,11 +46,18 @@ world_comm = MPI.COMM_WORLD
 world_size = world_comm.Get_size()
 my_rank    = world_comm.Get_rank()
 
-# Just for info and to convince yourself check that MPI is working
+# Just for info and to convince yourself check that MPI is working on
+# your system
 #
 pprint("============================================================================")
+pprint("Compute a Cylindrical basis on multiple nodes or on a laptop with MPI")
+pprint("============================================================================")
 
+world_comm.Barrier()
 print("World size is {} and my rank is {}".format(world_size, my_rank))
+
+world_comm.Barrier()
+pprint("============================================================================")
 
 # Begin calculation and start stopwatch
 #
@@ -58,8 +67,9 @@ t_start = MPI.Wtime()
 #
 disk_basis = pyEXP.basis.Basis.factory(disk_config)
 
-MPI.Barrier()
+world_comm.Barrier()
 
+pprint("============================================================================")
 pprint("Calculation finished")
 
 # Stop stopwatch

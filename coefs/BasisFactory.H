@@ -303,7 +303,7 @@ namespace Basis
     std::shared_ptr<EmpCylSL> sl;
     int lmax, mmax, nmax, mlim;
     int ncylorder, ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
-    int rnum, pnum, tnum, ashift;
+    int rnum, pnum, tnum;
     double rmin, rmax, rcylmin, rcylmax;
     double acyl, hcyl, hexp;
     bool expcond, logarithmic, density, EVEN_M;
@@ -317,7 +317,6 @@ namespace Basis
     double rscl;
     int used;
     
-    bool eof_over, try_cache;
     std::string eof_file;
     
     using matT = std::vector<Eigen::MatrixXd>;
@@ -329,6 +328,22 @@ namespace Basis
     typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
     EigenColMajor;
     
+
+    //@{
+    //! Basis construction parameters
+    double aratio, hratio, dweight, rwidth, ashift, rfactor, rtrunc, ppow;
+    bool Ignore, deproject;
+
+    //! DiskType support
+    //
+    enum DiskType { constant, gaussian, mn, exponential, doubleexpon };
+    DiskType DTYPE;
+    std::string mtype, dtype, dmodel;
+
+    static const std::map<std::string, DiskType> dtlookup;
+    double DiskDens(double R, double z, double phi);
+    double dcond(double R, double z, double phi, int M);
+
   protected:
 
     //! Evaluate basis in spherical coordinates

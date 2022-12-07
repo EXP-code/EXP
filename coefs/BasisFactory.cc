@@ -1,6 +1,7 @@
 #include <YamlCheck.H>
 #include <EXPException.H>
 #include <BasisFactory.H>
+#include <DiskModels.H>
 #include <gaussQ.H>
 
 namespace Basis
@@ -185,7 +186,8 @@ namespace Basis
     rmax = mod->get_max_radius()*0.99;
     
     sl = std::make_shared<SLGridSph>
-      (mod, lmax, nmax, numr, rmin, rmax, true, cmap, rscl, cachename);
+      (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rscl,
+       0, 1, cachename);
     
     rscl = 1.0;
     
@@ -685,6 +687,15 @@ namespace Basis
     
   }
   
+  // Disk target types for cylindrical basis construction
+  const std::map<std::string, Cylindrical::DiskType> Cylindrical::dtlookup =
+    { {"constant",    DiskType::constant},
+      {"gaussian",    DiskType::gaussian},
+      {"mn",          DiskType::mn},
+      {"exponential", DiskType::exponential},
+      {"doubleexpon", DiskType::doubleexpon}
+    };
+
   const std::set<std::string>
   Cylindrical::valid_keys = {
     "rcylmin",
@@ -708,11 +719,24 @@ namespace Basis
     "tnum",
     "ashift",
     "logr",
-    "try_cache",
     "density",
     "EVEN_M",
     "cmapr",
-    "cmapz"
+    "cmapz",
+    "ignore",
+    "expcond",
+    "deproject",
+    "aratio",
+    "hratio",
+    "dweight",
+    "rwidth",
+    "ashift",
+    "rfactor",
+    "rtrunc",
+    "rpow",
+    "mtype",
+    "dtype",
+    "vflag"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) : Basis(CONF)
@@ -724,6 +748,90 @@ namespace Basis
   {
     initialize();
   }
+
+
+  double Cylindrical::DiskDens(double R, double z, double phi)
+  {
+    double ans = 0.0;
+
+    switch (DTYPE) {
+
+    case DiskType::constant:
+      if (R < acyl && fabs(z) < hcyl)
+	ans = 1.0/(2.0*hcyl*M_PI*acyl*acyl);
+      break;
+      
+    case DiskType::gaussian:
+      if (fabs(z) < hcyl)
+	ans = 1.0/(2.0*hcyl*2.0*M_PI*acyl*acyl)*
+	  exp(-R*R/(2.0*acyl*acyl));
+      break;
+      
+    case DiskType::mn:
+      {
+	double Z2 = z*z + hcyl*hcyl;
+	double Z  = sqrt(Z2);
+	double Q2 = (acyl + Z)*(acyl + Z);
+	ans = 0.25*hcyl*hcyl/M_PI*(acyl*R*R + (acyl + 3.0*Z)*Q2)/( pow(R*R + Q2, 2.5) * Z*Z2 );
+      }
+      break;
+      
+    case DiskType::doubleexpon:
+      {
+	double a1 = acyl;
+	double a2 = acyl*aratio;
+	double h1 = hcyl;
+	double h2 = hcyl*hratio;
+	double w1 = 1.0/(1.0+dweight);
+	double w2 = dweight/(1.0+dweight);
+	
+	double f1 = cosh(z/h1);
+	double f2 = cosh(z/h2);
+	
+	ans =
+	  w1*exp(-R/a1)/(4.0*M_PI*a1*a1*h1*f1*f1) +
+	  w2*exp(-R/a2)/(4.0*M_PI*a2*a2*h2*f2*f2) ;
+      }
+      break;
+    case DiskType::exponential:
+    default:
+      {
+	double f = cosh(z/hcyl);
+	ans = exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f);
+      }
+      break;
+    }
+    
+    if (rwidth>0.0) ans *= erf((rtrunc-R)/rwidth);
+    
+    return ans;
+  }
+
+  double Cylindrical::dcond(double R, double z, double phi, int M)
+  {
+    //
+    // No shift for M==0
+    //
+    if (M==0) return DiskDens(R, z, phi);
+    
+    //
+    // Fold into [-PI/M, PI/M] for M>=1
+    //
+    double dmult = M_PI/M, phiS;
+    if (phi>M_PI)
+      phiS = phi + dmult*(int)((2.0*M_PI - phi)/dmult);
+    else
+      phiS = phi - dmult*(int)(phi/dmult);
+    
+    //
+    // Apply a shift along the x-axis
+    //
+    double x = R*cos(phiS) - ashift*acyl;
+    double y = R*sin(phiS);
+    
+    return DiskDens(sqrt(x*x + y*y), z, atan2(y, x));
+  }
+
 
   void Cylindrical::initialize()
   {
@@ -741,20 +849,53 @@ namespace Basis
     ncylny      = 128;
     ncylorder   = 18;
     ncylodd     = 9;
+    ncylr       = 200;
     eof_file    = ".eof_cache_file";
-    eof_over    = false;
+    Ignore      = false;
+    deproject   = false;
     
     rnum        = 100;
     pnum        = 1;
     tnum        = 40;
-    ashift      = 0.025;
+    ashift      = 0.0;
     logarithmic = false;
-    try_cache   = true;
     density     = true;
     EVEN_M      = false;
     cmapR       = 1;
     cmapZ       = 1;
+    mtype       = "exponential";
+    dtype       = "exponential";
+    vflag       = 0;
     
+    // Basis construction defaults
+    //
+    // The EmpCylSL deprojection from specified disk model (EXP or MN) -- change only if using MN
+    dmodel      = "EXP"; 
+
+    // Radial scale length ratio for disk basis construction with doubleexpon
+    aratio      = 1.0; 
+
+    // Vertical scale height ratio for disk basis construction with doubleexpon
+    hratio      = 1.0;              
+
+    // Ratio of second disk relative to the first disk for disk basis construction with double-exponential
+    dweight     = 1.0;              
+
+    // Width for erf truncation for EOF conditioning density (ignored if zero)
+    rwidth      = 0.0;             
+
+    // Fraction of scale length for shift in conditioning function
+    ashift      = 0.0;              
+
+    // Disk radial scaling factor for spherical deprojection model
+    rfactor     = 1.0;  
+
+    // Maximum disk radius for erf truncation of EOF conditioning density
+    rtrunc      = 0.1;           
+
+    // Power-law index for power-law disk profile
+    ppow        = 4.0;
+
     // Check for unmatched keys
     //
     auto unmatched = YamlCheck(conf, valid_keys);
@@ -782,19 +923,33 @@ namespace Basis
       if (conf["ncylorder" ])  ncylorder  = conf["ncylorder" ].as<int>();
       if (conf["ncylodd"   ])    ncylodd  = conf["ncylodd"   ].as<int>();
       if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
-      if (conf["override"  ])   eof_over  = conf["override"  ].as<bool>();
-      
       if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
       if (conf["pnum"      ])       pnum  = conf["pnum"      ].as<int>();
       if (conf["tnum"      ])       tnum  = conf["tnum"      ].as<int>();
+
       if (conf["ashift"    ])     ashift  = conf["ashift"    ].as<double>();
       if (conf["logr"      ]) logarithmic = conf["logr"      ].as<bool>();
-      if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
       if (conf["density"   ])    density  = conf["density"   ].as<bool>();
       if (conf["EVEN_M"    ])     EVEN_M  = conf["EVEN_M"    ].as<bool>();
       if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
       if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
-    } 
+      if (conf["ignore"    ])      Ignore = conf["ignore"    ].as<bool>();
+      if (conf["deproject" ])   deproject = conf["deproject" ].as<bool>();
+      if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<bool>();
+
+      if (conf["aratio"    ])      aratio = conf["aratio"    ].as<double>();
+      if (conf["hratio"    ])      aratio = conf["hratio"    ].as<double>();
+      if (conf["dweight"   ])      aratio = conf["dweight"   ].as<double>();
+      if (conf["rwidth"    ])      aratio = conf["rwidth"    ].as<double>();
+      if (conf["ashift"    ])      aratio = conf["ashift"    ].as<double>();
+      if (conf["rfactor"   ])     rfactor = conf["rfactor"   ].as<double>();
+      if (conf["rtrunc"    ])      rtrunc = conf["rtrunc"    ].as<double>();
+      if (conf["pow"       ])        ppow = conf["ppow"      ].as<double>();
+      if (conf["mtype"     ])       mtype = conf["mtype"     ].as<std::string>();
+      if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
+      if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
+
+    }
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing 'force' for Component <"
 			     << name << ">: "
@@ -824,6 +979,10 @@ namespace Basis
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
     
+    // For visualization
+    //
+    if (density) EmpCylSL::DENS = true;
+
     // Default cache file name
     //
     std::string cachename = outdir + ".eof.cache." + runtag;
@@ -832,25 +991,124 @@ namespace Basis
     // above.  Override file must exist if explicitly specified.
     //
     if (eof_file.size()) cachename = eof_file;
-    
-    // For debugging; no use by force algorithm
+
+    // Remake cylindrical basis
     //
-    if (density) EmpCylSL::DENS = true;
+    if (Ignore) {
+
+      // Convert mtype string to lower case
+      //
+      std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		     [](unsigned char c){ return std::tolower(c); });
+      
+      // Set EmpCylSL mtype.  This is the spherical function used to
+      // generate the EOF basis.  If "deproject" is set, this will be
+      // overriden in EmpCylSL.
+      //
+      EmpCylSL::mtype = EmpCylSL::Exponential;
+      if (mtype.compare("exponential")==0)
+	EmpCylSL::mtype = EmpCylSL::Exponential;
+      else if (mtype.compare("gaussian")==0)
+	EmpCylSL::mtype = EmpCylSL::Gaussian;
+      else if (mtype.compare("plummer")==0)
+	EmpCylSL::mtype = EmpCylSL::Plummer;
+      else if (mtype.compare("power")==0) {
+	EmpCylSL::mtype = EmpCylSL::Power;
+	EmpCylSL::PPOW  = ppow;
+      } else {
+	if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
+			       << mtype << ">, valid types are: "
+			       << "Exponential, Gaussian, Plummer, Power "
+			       << "(not case sensitive)" << std::endl;
+	if (use_mpi) MPI_Finalize();
+	return;
+      }
+
+      // Convert dtype string to lower case
+      //
+      std::transform(dtype.begin(), dtype.end(), dtype.begin(),
+		     [](unsigned char c){ return std::tolower(c); });
+
+      // Set DiskType.  This is the functional form for the disk used to
+      // condition the basis.
+      //
+      try {				// Check for map entry, will through if the 
+	DTYPE = dtlookup.at(dtype);	// key is not in the map.
+	
+	if (myid==0)		// Report DiskType
+	  std::cout << "DiskType is <" << dtype << ">" << std::endl;
+      }
+      catch (const std::out_of_range& err) {
+	if (myid==0) {
+	  std::cout << "DiskType error in configuraton file" << std::endl;
+	  std::cout << "Valid options are: ";
+	  for (auto v : dtlookup) std::cout << v.first << " ";
+	  std::cout << std::endl;
+	}
+	if (use_mpi) MPI_Finalize();
+	return;
+      }
+
+      std::shared_ptr<EmpCylSL> expandd =
+	std::make_shared<EmpCylSL>(nmax, lmax, mmax, ncylorder,
+				   acyl, hcyl, ncylodd, cachename);
+
+      // Use these user models to deproject for the EOF spherical basis
+      //
+      if (deproject) {
+	// The scale in EmpCylSL is assumed to be 1 so we compute the
+	// height relative to the length
+	//
+	double H = hcyl/acyl;
+
+	// The model instance (you can add others in DiskModels.H).
+	// It's MN or Exponential if not MN.
+	//
+	EmpCylSL::AxiDiskPtr model;
+	
+	if (dmodel.compare("MN")==0) // Miyamoto-Nagai
+	  model = std::make_shared<MNdisk>(1.0, H);
+	else			// Default to exponential
+	  model = std::make_shared<Exponential>(1.0, H);
+
+	if (rwidth>0.0) {
+	  model = std::make_shared<Truncated>(rtrunc/acyl,
+					      rwidth/acyl,
+					      model);
+	  if (myid==0)
+	    std::cout << "Made truncated model with R=" << rtrunc/acyl
+		      << " and W=" << rwidth/acyl << std::endl;
+	}
+     
+	expandd->create_deprojection(H, rfactor, rnum, ncylr, model);
+      }
     
+      // Regenerate EOF from analytic density
+      //
+      std::function<double(double, double, double, int)> 
+	f = [this](double R, double z, double phi, int M) -> double
+	{
+	  return this->dcond(R, z, phi, M);
+	};
+
+      expandd->generate_eof(rnum, pnum, tnum, f);
+      
+    } else {
+
+      // Make the empirical orthogonal basis instance
+      //
+      sl = std::make_shared<EmpCylSL>
+	(nmax, lmax, mmax, ncylorder, acyl, hcyl, ncylodd, cachename);
     
-    // Make the empirical orthogonal basis instance
-    //
-    sl = std::make_shared<EmpCylSL>
-      (nmax, lmax, mmax, ncylorder, acyl, hcyl, ncylodd, cachename);
-    
-    // Set azimuthal harmonic order restriction?
-    //
-    if (mlim>=0)  sl->set_mlim(mlim);
-    if (EVEN_M)   sl->setEven(EVEN_M);
-    
-    // Set up the coefficient storage and read basis
-    //
-    sl->read_cache();
+      // Set azimuthal harmonic order restriction?
+      //
+      if (mlim>=0)  sl->set_mlim(mlim);
+      if (EVEN_M)   sl->setEven(EVEN_M);
+      
+      // Set up the coefficient storage and read basis
+      //
+      sl->read_cache();
+    }
   }
   
   void Cylindrical::getFields
