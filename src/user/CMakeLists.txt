@@ -39,7 +39,7 @@ target_include_directories(expuser_common PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(expuser_common PUBLIC ${common_LINKLIBS})
 install(TARGETS expuser_common DESTINATION lib)
 
-if (USER_ALL)
+if(ENABLE_USER_ALL)
   add_library(expuser_swake ${swake_SRC})
   target_include_directories(expuser_swake PUBLIC ${common_INCLUDE_DIRS})
   target_link_libraries(expuser_swake PUBLIC ${common_LINKLIBS})
@@ -94,7 +94,7 @@ foreach(mlib ${USER_MODULES})
   install(TARGETS ${mlib} DESTINATION lib/user)
 endforeach()
 
-if (USER_ALL)
+if(ENABLE_USER_ALL)
   target_link_libraries(satwake PUBLIC expuser_common expuser_swake
     ${common_LINKLIBS})
 endif()
