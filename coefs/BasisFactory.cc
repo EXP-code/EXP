@@ -1416,18 +1416,21 @@ namespace Basis
     std::vector<double> p1(3), v1(3, 0);
 
     for (int n=0; n<p.rows(); n++) {
-      bool use = true;
-      if (ftor) {
-	for (int k=0; k<3; k++) p1[k] = p(n, k);
-	use = ftor(m(n), p1, v1, coefindx);
-      } else {
-	use = true;
-      }
-      coefindx++;
 
-      if (use) accumulate(p(n, 0)-coefctr[0],
-			  p(n, 1)-coefctr[1],
-			  p(n, 2)-coefctr[2], m(n));
+      if (n % numprocs==myid) {
+	bool use = true;
+	if (ftor) {
+	  for (int k=0; k<3; k++) p1[k] = p(n, k);
+	  use = ftor(m(n), p1, v1, coefindx);
+	} else {
+	  use = true;
+	}
+	coefindx++;
+	
+	if (use) accumulate(p(n, 0)-coefctr[0],
+			    p(n, 1)-coefctr[1],
+			    p(n, 2)-coefctr[2], m(n));
+      }
     }
   }
 
@@ -1499,6 +1502,67 @@ namespace Basis
     return coef;
   }
 #endif
+
+  //! Time-dependent potential-density model
+  using BasisCoef = std::tuple<std::shared_ptr<Basis>,
+			       std::shared_ptr<Coefs::Coefs>>;
+
+  //! Evaluate acceleration for one component, return acceleration
+  Eigen::MatrixXd&
+  OneAccel(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)
+  {
+    // Interpolate coefficients
+
+    // Install coefficients
+
+    // Get fields
+
+    return accel;
+  }
+
+  //! Take one leap frog step; this can/should be generalized to a
+  //! one-step class in the long run
+  std::tuple<double, Eigen::MatrixXd>
+  OneStep(double t, double h,
+	  Eigen::MatrixXd ps, Eigen::MatrixXd accel,
+	  std::vector<BasisCoef> bfe)
+  {
+    int rows = ps.rows();
+
+    // Drift 1/2
+    for (int n=0; n<rows; n++) {
+      for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
+    }
+
+    // Kick
+
+    // Drift 1/2
+
+    return std::tuple<double, Eigen::MatrixXd>(t+h, ps);
+  }
+
+  Eigen::Tensor<double, 4> IntegrateOrbits
+  (double tinit, double tfinal, double h,
+   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe)
+  {
+    Eigen::Tensor<double, 4> ret;
+    int rows = ps.rows();
+    int cols = ps.cols();
+
+    // ps should be a (n, 6) table of phase-space initial conditions
+    //
+    if (cols != 6) {
+      std::ostringstream sout;
+      sout << "IntegrateOrbits: phase space array should be n x 6 where n is "
+	   << "the number of particles.  You specified " << cols << " columns";
+      throw std::runtime_error(sout.str());
+    }
+
+    // Allocate the acceleration array
+    Eigen::MatrixXd accel(rows, 3);
+
+    return ret;
+  }
 
 }
 // END namespace Basis
