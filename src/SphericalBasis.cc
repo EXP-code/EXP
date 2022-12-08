@@ -149,7 +149,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
       }
 
       // This creates the Coefs instance
-      playback = std::dynamic_pointer_cast<Coefs::SphCoefs>(Coefs::Coefs::factory(file));
+      playback = std::dynamic_pointer_cast<CoefClasses::SphCoefs>(CoefClasses::Coefs::factory(file));
 
       // Check to make sure that has been created
       if (not playback) {
@@ -1805,7 +1805,7 @@ void SphericalBasis::dump_coefs(ostream& out)
 void SphericalBasis::dump_coefs_h5(const std::string& file)
 {
   // Add the current coefficients
-  auto cur = std::make_shared<Coefs::SphStruct>();
+  auto cur = std::make_shared<CoefClasses::SphStruct>();
 
   cur->time   = tnow;
   cur->geom   = geoname[geometry];

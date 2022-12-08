@@ -199,7 +199,7 @@ namespace MSSA
 	name as the key.  You may call resetReconstructed() to get a
 	fresh copy of the data.
     */
-    std::map<std::string, Coefs::CoefsPtr> getReconstructed();
+    std::map<std::string, CoefClasses::CoefsPtr> getReconstructed();
 
     //@{
     /** Compute w-correlation matrix for a single trajectory matrix

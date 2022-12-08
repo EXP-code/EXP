@@ -838,7 +838,7 @@ void CBrockDisk::dump_coefs(ostream& out)
 void CBrockDisk::dump_coefs_h5(const std::string& file)
 {
   // Add the current coefficients
-  auto cur = std::make_shared<Coefs::CylStruct>();
+  auto cur = std::make_shared<CoefClasses::CylStruct>();
 
   cur->time   = tnow;
   cur->geom   = geoname[geometry];

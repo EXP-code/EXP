@@ -17,7 +17,7 @@ namespace Field
   class FieldGenerator;
 }
 
-namespace Basis
+namespace BasisClasses
 {
     using RowMatrixXd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
@@ -54,7 +54,7 @@ namespace Basis
     Callback ftor;
 
     //! Return instance for coefficients created from arrays
-    Coefs::CoefStrPtr coefret;
+    CoefClasses::CoefStrPtr coefret;
 
     //! Center vector for coefficients created from arrays
     std::vector<double> coefctr;
@@ -94,7 +94,7 @@ namespace Basis
     std::string name;
     
     //! Load coefficients into the new CoefStruct
-    virtual void load_coefs(Coefs::CoefStrPtr coefs, double time) = 0;
+    virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time) = 0;
 
     //! Using MPI
     bool use_mpi;
@@ -111,12 +111,12 @@ namespace Basis
     
     //! Generate coeffients from a particle reader and optional center
     //! location for the expansion
-    Coefs::CoefStrPtr createFromReader
+    CoefClasses::CoefStrPtr createFromReader
     (PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
     
     //! Generate coeffients from an array and optional center location
     //! for the expansion
-    Coefs::CoefStrPtr createFromArray
+    CoefClasses::CoefStrPtr createFromArray
     (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
      std::vector<double> center={0.0, 0.0, 0.0});
     
@@ -136,7 +136,7 @@ namespace Basis
     
     //! Create and the coefficients from the array accumulation with the
     //! provided time value
-    Coefs::CoefStrPtr makeFromArray(double time=0.0);
+    CoefClasses::CoefStrPtr makeFromArray(double time=0.0);
     //@}
     
     //! Get potential, density and forces at a point
@@ -158,7 +158,7 @@ namespace Basis
     virtual void make_coefs(void) = 0;
     
     //! Provide a set of coefficients using a CoefStruct
-    virtual void set_coefs(Coefs::CoefStrPtr coefs) = 0;
+    virtual void set_coefs(CoefClasses::CoefStrPtr coefs) = 0;
 
     //@{
     //! The coefficient factory.  Creates a shared pointer to derived
@@ -225,10 +225,10 @@ namespace Basis
 			  double& potr, double& pott, double& potp);
     
     //! Load coefficients into the new CoefStruct
-    virtual void load_coefs(Coefs::CoefStrPtr coefs, double time);
+    virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
 
     //! Set coefficients
-    virtual void set_coefs(Coefs::CoefStrPtr coefs);
+    virtual void set_coefs(CoefClasses::CoefStrPtr coefs);
 
     //! Valid keys for YAML configurations
     static const std::set<std::string> valid_keys;
@@ -353,10 +353,10 @@ namespace Basis
 			  double& potr, double& pott, double& potp);
 
     //! Load coefficients into the new CoefStruct
-    virtual void load_coefs(Coefs::CoefStrPtr coefs, double time);
+    virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
 
     //! Set coefficients
-    virtual void set_coefs(Coefs::CoefStrPtr coefs);
+    virtual void set_coefs(CoefClasses::CoefStrPtr coefs);
 
     //! Valid keys for YAML configurations
     static const std::set<std::string> valid_keys;

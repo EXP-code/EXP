@@ -76,7 +76,7 @@ private:
   double lastPlayTime;
 
   //! Coefficient container instance for writing HDF5
-  Coefs::CylCoefs cylCoefs;
+  CoefClasses::CylCoefs cylCoefs;
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;

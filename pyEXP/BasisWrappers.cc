@@ -85,7 +85,7 @@ void BasisFactoryClasses(py::module &m) {
     "pattern internally to provide scalability.  These three methods allow\n"
     "you to provide the same pattern in your own pipeline.\n\n";
 
-  using namespace Basis;
+  using namespace BasisClasses;
 
   //! Need an alias to prevent the pybind11 macro from expanding the
   //! STL signature
@@ -103,17 +103,17 @@ void BasisFactoryClasses(py::module &m) {
 			     potr, pott, potp);
     }
     
-    void load_coefs(Coefs::CoefStrPtr coefs, double time) override {
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
       PYBIND11_OVERRIDE_PURE(void, Basis, load_coefs, coefs, time);
     }
     
-    void set_coefs(Coefs::CoefStrPtr coefs) override {
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override {
       PYBIND11_OVERRIDE_PURE(void, Basis, set_coefs, coefs);
     }
 
   public:
     // Inherit the constructors
-    using Basis::Basis;
+    using BasisClasses::Basis::Basis;
 
     void getFields(double x, double y, double z,
 		   double& tdens0, double& tpotl0, double& tdens, double& tpotl,
@@ -152,11 +152,11 @@ void BasisFactoryClasses(py::module &m) {
 			potr, pott, potp);
     }
     
-    void load_coefs(Coefs::CoefStrPtr coefs, double time) override {
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
       PYBIND11_OVERRIDE(void, SphericalSL, load_coefs, coefs, time);
     }
     
-    void set_coefs(Coefs::CoefStrPtr coefs) override {
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override {
       PYBIND11_OVERRIDE(void, SphericalSL, set_coefs, coefs);
     }
 
@@ -201,11 +201,11 @@ void BasisFactoryClasses(py::module &m) {
 			potr, pott, potp);
     }
     
-    void load_coefs(Coefs::CoefStrPtr coefs, double time) override {
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
       PYBIND11_OVERRIDE(void, Cylindrical, load_coefs, coefs, time);
     }
     
-    void set_coefs(Coefs::CoefStrPtr coefs) override {
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override {
       PYBIND11_OVERRIDE(void, Cylindrical, set_coefs, coefs);
     }
 
@@ -239,17 +239,17 @@ void BasisFactoryClasses(py::module &m) {
   };
 
 
-  py::class_<Basis::Basis, std::shared_ptr<Basis::Basis>, PyBasis>(m, "Basis")
+  py::class_<BasisClasses::Basis, std::shared_ptr<BasisClasses::Basis>, PyBasis>(m, "Basis")
     .def(py::init<const std::string&>(),
 	 "Initialize a biorthogonal basis from the configuration in the\n"
 	 "provided YAML configuration", py::arg("YAMLstring"))
-    .def("createFromReader", &Basis::Basis::createFromReader,
+    .def("createFromReader", &BasisClasses::Basis::createFromReader,
 	 "Generate the coefficients from the supplied ParticleReader and\n"
 	 "an optional expansion center location",
 	 py::arg("reader"), 
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("createFromArray",
-	 [](Basis::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
+	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
 	    double time, std::vector<double> center)
 	 {
 	   return A.createFromArray(mass, pos, time, center);
@@ -261,7 +261,7 @@ void BasisFactoryClasses(py::module &m) {
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("initFromArray",
-	 [](Basis::Basis& A, std::vector<double> center)
+	 [](BasisClasses::Basis& A, std::vector<double> center)
 	 {
 	   return A.initFromArray(center);
 	 },
@@ -277,7 +277,7 @@ void BasisFactoryClasses(py::module &m) {
 	 "memory.",
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("addFromArray",
-	 [](Basis::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& pos)
+	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& pos)
 	 {
 	   return A.addFromArray(mass, pos);
 	 },
@@ -286,7 +286,7 @@ void BasisFactoryClasses(py::module &m) {
 	 "for additional information",
 	 py::arg("mass"), py::arg("pos"))
     .def("makeFromArray",
-	 [](Basis::Basis& A, double time)
+	 [](BasisClasses::Basis& A, double time)
 	 {
 	   return A.makeFromArray(time);
 	 },
@@ -296,14 +296,14 @@ void BasisFactoryClasses(py::module &m) {
 	 "for initFromArray and for additional information",
 	 py::arg("time")
 	 )
-    .def("setSelector", &Basis::Basis::setSelector,
+    .def("setSelector", &BasisClasses::Basis::setSelector,
 	 "Register a Python particle selection functor. This boolean\n"
 	 "function will be in effect until cleared with the 'clrSelector'\n"
 	 "member function")
-    .def("clrSelector", &Basis::Basis::clrSelector,
+    .def("clrSelector", &BasisClasses::Basis::clrSelector,
 	 "Clear the previously registered particle selection functor")
     .def("getFields",
-	 [](Basis::Basis& A, double x, double y, double z)
+	 [](BasisClasses::Basis& A, double x, double y, double z)
 	 {
 	   std::vector<double> ret(7);
 	   A.getFields(x, y, z,
@@ -316,23 +316,23 @@ void BasisFactoryClasses(py::module &m) {
 	 "potl0 are the fields evaluated for l=0 or m=0 and dens and potl\n"
 	 "are evaluated for l>0 or m>0\n",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
-    .def("accumulate",         &Basis::Basis::accumulate,
+    .def("accumulate",         &BasisClasses::Basis::accumulate,
 	 "Add the contribution of a single particle to the coefficients")
-    .def("getMass",            &Basis::Basis::getMass,
+    .def("getMass",            &BasisClasses::Basis::getMass,
 	 "Return the total mass of particles contributing the the current\n"
 	 "coefficient set")
-    .def("reset_coefs",        &Basis::Basis::reset_coefs,
+    .def("reset_coefs",        &BasisClasses::Basis::reset_coefs,
 	 "Reset the coefficients to begin a generating a new set")
-    .def("make_coefs",         &Basis::Basis::make_coefs,
+    .def("make_coefs",         &BasisClasses::Basis::make_coefs,
 	 "Create the coefficients after particle accumuluation is complete")
-    .def("set_coefs",          &Basis::Basis::set_coefs,
+    .def("set_coefs",          &BasisClasses::Basis::set_coefs,
 	 "Install a new set of coefficients from a CoefStruct")
-    .def("factory",            &Basis::Basis::factory_string,
+    .def("factory",            &BasisClasses::Basis::factory_string,
 	 "Generate a basis from a YAML configuration supplied as a string");
 
-    py::class_<Basis::SphericalSL, std::shared_ptr<Basis::SphericalSL>, PySphericalSL, Basis::Basis>(m, "SphericalSL")
+    py::class_<BasisClasses::SphericalSL, std::shared_ptr<BasisClasses::SphericalSL>, PySphericalSL, BasisClasses::Basis>(m, "SphericalSL")
       .def(py::init<const std::string&>(), "Create a spherical Sturm-Liouville basis")
-      .def("getBasis", &Basis::SphericalSL::getBasis,
+      .def("getBasis", &BasisClasses::SphericalSL::getBasis,
 	   "Evaluate the basis functions on a logarithmically spaced grid for"
 	   "inspection",
 	   py::arg("logxmin")=-3.0,
@@ -342,7 +342,7 @@ void BasisFactoryClasses(py::module &m) {
       // orthoCheck is not in the base class and needs to have
       // different parameters depending on the basis type.  Here the
       // user can and will often need to specify a quadrature value.
-      .def("orthoCheck", [](Basis::SphericalSL& A, int knots)
+      .def("orthoCheck", [](BasisClasses::SphericalSL& A, int knots)
       {
 	return A.orthoCheck(knots);
       },
@@ -352,14 +352,14 @@ void BasisFactoryClasses(py::module &m) {
 	py::arg("knots")=40)
       .def_static("cacheInfo", [](std::string cachefile)
       {
-	return Basis::SphericalSL::cacheInfo(cachefile);
+	return BasisClasses::SphericalSL::cacheInfo(cachefile);
       },
 	"Report the parameters in a basis cache file and return a dictionary",
 	py::arg("cachefile"));
 
-  py::class_<Basis::Cylindrical, std::shared_ptr<Basis::Cylindrical>, PyCylindrical, Basis::Basis>(m, "Cylindrical")
+  py::class_<BasisClasses::Cylindrical, std::shared_ptr<BasisClasses::Cylindrical>, PyCylindrical, BasisClasses::Basis>(m, "Cylindrical")
     .def(py::init<const std::string&>(), "Create a cylindrical EOF basis")
-    .def("getBasis", &Basis::Cylindrical::getBasis,
+    .def("getBasis", &BasisClasses::Cylindrical::getBasis,
 	 "Evaluate the basis functions on a linearly spaced 2d-grid for"
 	 "inspection",
 	 py::arg("xmin")=0.0,
@@ -372,7 +372,7 @@ void BasisFactoryClasses(py::module &m) {
     // orthoCheck is not in the base class and needs to have different
     // parameters depending on the basis type.  Here, the quadrature
     // is determined by the scale of the meridional grid.
-    .def("orthoCheck", [](Basis::Cylindrical& A)
+    .def("orthoCheck", [](BasisClasses::Cylindrical& A)
 	 {
 	   return A.orthoCheck();
 	 },
@@ -381,7 +381,7 @@ void BasisFactoryClasses(py::module &m) {
 	"list of numpy.ndarrays from [0, ... , Mmax]")
     .def_static("cacheInfo", [](std::string cachefile)
     {
-      return Basis::Cylindrical::cacheInfo(cachefile);
+      return BasisClasses::Cylindrical::cacheInfo(cachefile);
     },
       "Report the parameters in a basis cache file and return a dictionary",
       py::arg("cachefile"));

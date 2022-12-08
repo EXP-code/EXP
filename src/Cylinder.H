@@ -259,7 +259,7 @@ protected:
   /** Coefficient playback instance.  Using shared_ptr to avoid
       constructing a simple pointer or null instance
   */
-  std::shared_ptr<Coefs::CylCoefs> playback;
+  std::shared_ptr<CoefClasses::CylCoefs> playback;
 
   /** Master node ships coefficients to hosts.  True (default) implies
       that only the master node caches the coefficients for playback
@@ -297,7 +297,7 @@ protected:
   }
 
   //! Coefficient container instance for writing HDF5
-  Coefs::CylCoefs cylCoefs;
+  CoefClasses::CylCoefs cylCoefs;
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;

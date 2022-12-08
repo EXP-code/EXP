@@ -80,7 +80,7 @@ void CoefficientClasses(py::module &m) {
     "copying. If you want to keep the initial set without change, we have\n"
     "provided a 'deepcopy()' member that provides a byte-by-byte copy.\n\n";
 
-  using namespace Coefs;
+  using namespace CoefClasses;
 
   class PyCoefStruct : public CoefStruct
   {
@@ -120,7 +120,7 @@ void CoefficientClasses(py::module &m) {
 
   public:
     // Inherit the constructors
-    using Coefs::Coefs;
+    using CoefClasses::Coefs::Coefs;
 
     Eigen::MatrixXcd& operator()(double time) override {
       PYBIND11_OVERRIDE_PURE(Eigen::MatrixXcd&, Coefs, operator(), time);
@@ -436,7 +436,7 @@ void CoefficientClasses(py::module &m) {
 
   };
 
-  py::class_<Coefs::CoefStruct, std::shared_ptr<Coefs::CoefStruct>, PyCoefStruct>(m, "CoefStruct")
+  py::class_<CoefClasses::CoefStruct, std::shared_ptr<CoefClasses::CoefStruct>, PyCoefStruct>(m, "CoefStruct")
     .def(py::init<>(), "Base class coefficient data structure object")
     .def("create",            &CoefStruct::create, 
 	 "Initialize a coefficient zeroed structure from user supplied "
@@ -450,75 +450,75 @@ void CoefficientClasses(py::module &m) {
 		   "can not write Python slices.");
   
 
-  py::class_<Coefs::SphStruct, std::shared_ptr<Coefs::SphStruct>, CoefStruct>(m, "SphStruct")
+  py::class_<CoefClasses::SphStruct, std::shared_ptr<CoefClasses::SphStruct>, CoefStruct>(m, "SphStruct")
     .def(py::init<>(), "Spherical coefficient data structure object");
 
-  py::class_<Coefs::CylStruct, std::shared_ptr<Coefs::CylStruct>, CoefStruct>(m, "CylStruct")
+  py::class_<CoefClasses::CylStruct, std::shared_ptr<CoefClasses::CylStruct>, CoefStruct>(m, "CylStruct")
     .def(py::init<>(), "Cylindrical coefficient data structure object");
 
-  py::class_<Coefs::TblStruct, std::shared_ptr<Coefs::TblStruct>, CoefStruct>(m, "TblStruct")
+  py::class_<CoefClasses::TblStruct, std::shared_ptr<CoefClasses::TblStruct>, CoefStruct>(m, "TblStruct")
     .def(py::init<>(), "Multicolumn table data structure object");
 
-  py::class_<Coefs::Coefs, std::shared_ptr<Coefs::Coefs>, PyCoefs>(m, "Coefs")
+  py::class_<CoefClasses::Coefs, std::shared_ptr<CoefClasses::Coefs>, PyCoefs>(m, "Coefs")
     .def(py::init<std::string, bool>(),
 	 "Base coefficient container class",
 	 py::arg("type"), py::arg("verbose"))
-    .def("__call__",       &Coefs::Coefs::operator(),
+    .def("__call__",       &CoefClasses::Coefs::operator(),
 	 "Return the coefficient matrix for the desired time",
 	 py::arg("time"))
-    .def("setMatrix",      &Coefs::Coefs::setMatrix,
+    .def("setMatrix",      &CoefClasses::Coefs::setMatrix,
 	 "Rewrite the coefficient matrix at the time provided. For those\n"
 	 "tracking memory use, these will be copied,not passed by reference.",
 	 py::arg("time"), py::arg("mat"))
-    .def("add",            &Coefs::Coefs::add,
+    .def("add",            &CoefClasses::Coefs::add,
 	 "Add a coefficient structure to the coefficient container",
 	 py::arg("coef"))
-    .def("getCoefStruct",  &Coefs::Coefs::getCoefStruct,
+    .def("getCoefStruct",  &CoefClasses::Coefs::getCoefStruct,
 	 "Return the coefficient structure for the desired time",
 	 py::arg("time"))
-    .def("Times",          &Coefs::Coefs::Times,
+    .def("Times",          &CoefClasses::Coefs::Times,
 	 "Return a list of times for coefficient sets current in the container")
-    .def("WriteH5Coefs",   &Coefs::Coefs::WriteH5Coefs,
+    .def("WriteH5Coefs",   &CoefClasses::Coefs::WriteH5Coefs,
 	 "Write the coefficients into an EXP HDF5 coefficieint file with the "
 	 "given prefix name", py::arg("filename"))
-    .def("ExtendH5Coefs",  &Coefs::Coefs::ExtendH5Coefs,
+    .def("ExtendH5Coefs",  &CoefClasses::Coefs::ExtendH5Coefs,
 	 "Extend an existing EXP HDF5 coefficient file with given prefix "
 	 "name using the coefficient in the container", py::arg("filename"))
-    .def("Power",          &Coefs::Coefs::Power,
+    .def("Power",          &CoefClasses::Coefs::Power,
 	 "Return a ndarray table of the full power for the top-level harmonic "
 	 "index as function of time",
 	 py::arg("min")=0, py::arg("max")=std::numeric_limits<int>::max())
-    .def("makeKeys",       &Coefs::Coefs::makeKeys,
+    .def("makeKeys",       &CoefClasses::Coefs::makeKeys,
 	 "Return a vector/list of keys for an entire subspace of "
 	 "subdimensional rank", py::arg("subkey"))
-    .def("getGeometry",    &Coefs::Coefs::getGeometry,
+    .def("getGeometry",    &CoefClasses::Coefs::getGeometry,
 	 "Return the coefficient geometry string")
-    .def("getName",        &Coefs::Coefs::getName,
+    .def("getName",        &CoefClasses::Coefs::getName,
 	 "Return the coefficient set nmenonic name")
-    .def("setName",        &Coefs::Coefs::setName,
+    .def("setName",        &CoefClasses::Coefs::setName,
 	 "Set or rename the coefficient set nmenonic name", py::arg("newname"))
-    .def("deepcopy",       &Coefs::Coefs::deepcopy,
+    .def("deepcopy",       &CoefClasses::Coefs::deepcopy,
 	 "Return a byte-by-byte copy of the original data")
-    .def("zerodata",       &Coefs::Coefs::zerodata,
+    .def("zerodata",       &CoefClasses::Coefs::zerodata,
 	 "Zero all of the coefficient data, keeping sizes and metadata intact")
-    .def("CompareStanzas", &Coefs::Coefs::CompareStanzas,
+    .def("CompareStanzas", &CoefClasses::Coefs::CompareStanzas,
 	 "Check that the data in one Coefs set is identical to "
 	 "that in another")
-    .def_static("factory", &Coefs::Coefs::factory,
+    .def_static("factory", &CoefClasses::Coefs::factory,
 		"Deduce the type and read coefficients from a native or HDF5 file",
 		py::arg("file"), py::arg("stride")=1,
 		py::arg("tmin")=-std::numeric_limits<double>::max(),
 		py::arg("tmax")= std::numeric_limits<double>::max())
-    .def_static("makecoefs", &Coefs::Coefs::makecoefs,
+    .def_static("makecoefs", &CoefClasses::Coefs::makecoefs,
 		"Create a new coefficient instance compatible with the "
 		"supplied coefficient structure. You still need to call "
 		"add() to add the coefficient structure to the container",
 		py::arg("coef"), py::arg("name")="");
 
-  py::class_<Coefs::SphCoefs, std::shared_ptr<Coefs::SphCoefs>, PySphCoefs, Coefs::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
+  py::class_<CoefClasses::SphCoefs, std::shared_ptr<CoefClasses::SphCoefs>, PySphCoefs, CoefClasses::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
     .def(py::init<bool>())
     .def("getAllCoefs",
-	 [](Coefs::SphCoefs& A)
+	 [](CoefClasses::SphCoefs& A)
 	 {
 	   auto M = A.getAllCoefs(); // Need a copy here
 	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
@@ -527,10 +527,10 @@ void CoefficientClasses(py::module &m) {
 	 "Return a 3d ndarray index by spherical index, radial index and time index.  The spherical "
 	 "index serializes all pairs of (l, m). The index for (l, m) is: l*(l+1)/2 + m");
 
-  py::class_<Coefs::CylCoefs, std::shared_ptr<Coefs::CylCoefs>, PyCylCoefs, Coefs::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
+  py::class_<CoefClasses::CylCoefs, std::shared_ptr<CoefClasses::CylCoefs>, PyCylCoefs, CoefClasses::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
     .def(py::init<bool>())
     .def("getAllCoefs",
-	 [](Coefs::CylCoefs& A)
+	 [](CoefClasses::CylCoefs& A)
 	 {
 	   auto M = A.getAllCoefs(); // Need a copy here
 	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
@@ -538,7 +538,7 @@ void CoefficientClasses(py::module &m) {
 	 },
 	 "Return a 3d ndarray index by azimuthal index, radial index and time index")
     .def("EvenOddPower",
-	 [](Coefs::CylCoefs& A, int nodd, int min, int max)
+	 [](CoefClasses::CylCoefs& A, int nodd, int min, int max)
 	 {
 	   return A.EvenOddPower(nodd, min, max);
 	 },
@@ -550,9 +550,9 @@ void CoefficientClasses(py::module &m) {
 	 py::arg("max") = std::numeric_limits<double>::max());
 
 
-  py::class_<Coefs::TableData, std::shared_ptr<Coefs::TableData>, PyTableData, Coefs::Coefs>(m, "TableData", "Container for simple data tables with multiple columns")
+  py::class_<CoefClasses::TableData, std::shared_ptr<CoefClasses::TableData>, PyTableData, CoefClasses::Coefs>(m, "TableData", "Container for simple data tables with multiple columns")
     .def(py::init<bool>())
-    .def("getAllCoefs",    &Coefs::TableData::getAllCoefs,
+    .def("getAllCoefs",    &CoefClasses::TableData::getAllCoefs,
 	 "Return a 2d ndarray index by column and time");
 }
 

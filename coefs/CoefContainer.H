@@ -19,7 +19,7 @@ namespace MSSA
   
   //! Coefficient and channel config map/dictionary
   using mssaConfig =
-    std::map<std::string, std::tuple<Coefs::CoefsPtr, std::vector<Key>, std::vector<Key>>>;
+    std::map<std::string, std::tuple<CoefClasses::CoefsPtr, std::vector<Key>, std::vector<Key>>>;
 
   //! Detrending style
   enum class TrendType {perChannel, totVar, totPow};
@@ -46,7 +46,7 @@ namespace MSSA
     bool complexKey;
 
     //! Coefficients
-    Coefs::CoefsPtr coefs;
+    CoefClasses::CoefsPtr coefs;
 
     //! Packing routines
     //@{
@@ -92,14 +92,14 @@ namespace MSSA
     CoefDB() {}
 
     //! Constructor
-    CoefDB(const std::string& name, Coefs::CoefsPtr coefs,
+    CoefDB(const std::string& name, CoefClasses::CoefsPtr coefs,
 	   const std::vector<Key>& keys, const std::vector<Key>& bkeys, 
 	   unsigned index, unsigned stride=1,
 	   double tmin=-std::numeric_limits<double>::max(),
 	   double tmax= std::numeric_limits<double>::max());
 
     //! Update and return working copy of coefficients
-    Coefs::CoefsPtr endUpdate();
+    CoefClasses::CoefsPtr endUpdate();
 
     //! Copy all of the data; make new instances of shared pointer
     //! objects
@@ -239,9 +239,9 @@ components:
     }
 
     //! Update the working data to the working coefficients and return a map
-    std::map<std::string, Coefs::CoefsPtr> endUpdate()
+    std::map<std::string, CoefClasses::CoefsPtr> endUpdate()
     {
-      std::map<std::string, Coefs::CoefsPtr> ret;
+      std::map<std::string, CoefClasses::CoefsPtr> ret;
       for (auto & v : comps) {
 	ret[v->name] = v->endUpdate();
       }

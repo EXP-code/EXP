@@ -4,7 +4,7 @@
 #include <memory>
 #include <Eigen/Eigen>
 
-namespace Coefs
+namespace CoefClasses
 {
   
   //! This is a general struct for any dimensionality
@@ -122,7 +122,7 @@ namespace Coefs
   typedef std::shared_ptr<TblStruct>  TblStrPtr;
 
 }  
-// END namespace Coefs
+// END namespace CoefClasses
 
 
 #endif

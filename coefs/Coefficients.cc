@@ -19,7 +19,7 @@
 
 #include <Coefficients.H>
 
-namespace Coefs
+namespace CoefClasses
 {
   
   void Coefs::copyfields(std::shared_ptr<Coefs> p)
@@ -1307,4 +1307,4 @@ namespace Coefs
 
 
 }
-// END namespace Coefs
+// END namespace CoefClasses

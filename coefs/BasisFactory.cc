@@ -4,7 +4,7 @@
 #include <DiskModels.H>
 #include <gaussQ.H>
 
-namespace Basis
+namespace BasisClasses
 {
   
   Basis::Basis(const YAML::Node& CONF)
@@ -233,9 +233,9 @@ namespace Basis
   }
   
   
-  void SphericalSL::load_coefs(Coefs::CoefStrPtr coef, double time)
+  void SphericalSL::load_coefs(CoefClasses::CoefStrPtr coef, double time)
   {
-    Coefs::SphStruct* cf = dynamic_cast<Coefs::SphStruct*>(coef.get());
+    CoefClasses::SphStruct* cf = dynamic_cast<CoefClasses::SphStruct*>(coef.get());
 
     cf->lmax   = lmax;
     cf->nmax   = nmax;
@@ -259,12 +259,12 @@ namespace Basis
     }
   }
 
-  void SphericalSL::set_coefs(Coefs::CoefStrPtr coef)
+  void SphericalSL::set_coefs(CoefClasses::CoefStrPtr coef)
   {
-    if (typeid(*coef) != typeid(Coefs::SphStruct))
-      throw std::runtime_error("SphericalSL::set_coefs: you must pass a Coefs::SphStruct");
+    if (typeid(*coef) != typeid(CoefClasses::SphStruct))
+      throw std::runtime_error("SphericalSL::set_coefs: you must pass a CoefClasses::SphStruct");
 
-    Coefs::SphStruct* cf = dynamic_cast<Coefs::SphStruct*>(coef.get());
+    CoefClasses::SphStruct* cf = dynamic_cast<CoefClasses::SphStruct*>(coef.get());
 
     // Assign internal coefficient table (doubles) from the complex struct
     //
@@ -1172,9 +1172,9 @@ namespace Basis
     sl->setup_accumulation();
   }
   
-  void Cylindrical::load_coefs(Coefs::CoefStrPtr coef, double time)
+  void Cylindrical::load_coefs(CoefClasses::CoefStrPtr coef, double time)
   {
-    Coefs::CylStruct* cf = dynamic_cast<Coefs::CylStruct*>(coef.get());
+    CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
 
     cf->mmax   = mmax;
     cf->nmax   = nmax;
@@ -1193,12 +1193,12 @@ namespace Basis
     }
   }
 
-  void Cylindrical::set_coefs(Coefs::CoefStrPtr coef)
+  void Cylindrical::set_coefs(CoefClasses::CoefStrPtr coef)
   {
-    if (typeid(*coef) != typeid(Coefs::CylStruct))
-      throw std::runtime_error("Cylindrical::set_coefs: you must pass a Coefs::CylStruct");
+    if (typeid(*coef) != typeid(CoefClasses::CylStruct))
+      throw std::runtime_error("Cylindrical::set_coefs: you must pass a CoefClasses::CylStruct");
 
-    Coefs::CylStruct* cf = dynamic_cast<Coefs::CylStruct*>(coef.get());
+    CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
 
     for (int m=0; m<=mmax; m++) { // Set to zero on m=0 call only--------+
       sl->set_coefs(m, cf->coefs.row(m).real(), cf->coefs.row(m).imag(), m==0);
@@ -1312,15 +1312,15 @@ namespace Basis
   }
 
   // Generate coeffients from a particle reader
-  Coefs::CoefStrPtr Basis::createFromReader
+  CoefClasses::CoefStrPtr Basis::createFromReader
   (PR::PRptr reader, std::vector<double> ctr)
   {
-    Coefs::CoefStrPtr coef;
+    CoefClasses::CoefStrPtr coef;
 
     if (name.compare("sphereSL") == 0)
-      coef = std::make_shared<Coefs::SphStruct>();
+      coef = std::make_shared<CoefClasses::SphStruct>();
     else if (name.compare("cylinder") == 0)
-      coef = std::make_shared<Coefs::CylStruct>();
+      coef = std::make_shared<CoefClasses::CylStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
@@ -1368,9 +1368,9 @@ namespace Basis
   void Basis::initFromArray(std::vector<double> ctr)
   {
     if (name.compare("sphereSL") == 0)
-      coefret = std::make_shared<Coefs::SphStruct>();
+      coefret = std::make_shared<CoefClasses::SphStruct>();
     else if (name.compare("cylinder") == 0)
-      coefret = std::make_shared<Coefs::CylStruct>();
+      coefret = std::make_shared<CoefClasses::CylStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
@@ -1435,7 +1435,7 @@ namespace Basis
   }
 
   // Generate coefficients from the accumulated array values
-  Coefs::CoefStrPtr Basis::makeFromArray(double time)
+  CoefClasses::CoefStrPtr Basis::makeFromArray(double time)
   {
     make_coefs();
     load_coefs(coefret, time);
@@ -1447,7 +1447,7 @@ namespace Basis
   // I'm leaving the original version ad the default until the new
   // version is tested
 #if 1
-  Coefs::CoefStrPtr Basis::createFromArray
+  CoefClasses::CoefStrPtr Basis::createFromArray
   (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
   {
     initFromArray(ctr);
@@ -1455,15 +1455,15 @@ namespace Basis
     return makeFromArray(time);
   }
 #else
-  Coefs::CoefStrPtr Basis::createFromArray
+  CoefClasses::CoefStrPtr Basis::createFromArray
   (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
   {
-    Coefs::CoefStrPtr coef;
+    CoefClasses::CoefStrPtr coef;
 
     if (name.compare("sphereSL") == 0)
-      coef = std::make_shared<Coefs::SphStruct>();
+      coef = std::make_shared<CoefClasses::SphStruct>();
     else if (name.compare("cylinder") == 0)
-      coef = std::make_shared<Coefs::CylStruct>();
+      coef = std::make_shared<CoefClasses::CylStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createFromArray: basis <" << name << "> not recognized"
@@ -1505,7 +1505,7 @@ namespace Basis
 
   //! Time-dependent potential-density model
   using BasisCoef = std::tuple<std::shared_ptr<Basis>,
-			       std::shared_ptr<Coefs::Coefs>>;
+			       std::shared_ptr<CoefClasses::Coefs>>;
 
   //! Evaluate acceleration for one component, return acceleration
   Eigen::MatrixXd&
@@ -1565,4 +1565,4 @@ namespace Basis
   }
 
 }
-// END namespace Basis
+// END namespace BasisClasses

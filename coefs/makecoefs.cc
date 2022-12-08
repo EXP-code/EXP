@@ -78,11 +78,11 @@ int main(int argc, char **argv)
     
     // Create the basis object
     //
-    auto basis = Basis::Basis::factory(yaml);
+    auto basis = BasisClasses::Basis::factory(yaml);
     
     // Will contain the coefficients
     //
-    Coefs::CoefsPtr coefs;
+    CoefClasses::CoefsPtr coefs;
     
     // Loop through list of snapshots
     //
@@ -100,7 +100,7 @@ int main(int argc, char **argv)
       // Add the coefficients to the container (makes the instance if
       // necessary)
       //
-      coefs = Coefs::Coefs::addcoef(coefs, coef); 
+      coefs = CoefClasses::Coefs::addcoef(coefs, coef); 
 
       // Some running commentary
       //

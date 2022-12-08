@@ -1171,7 +1171,7 @@ namespace MSSA {
     
   }
   
-  std::map<std::string, Coefs::CoefsPtr> expMSSA::getReconstructed()
+  std::map<std::string, CoefClasses::CoefsPtr> expMSSA::getReconstructed()
   {
     if (not reconstructed) {
       std::ostringstream sout;

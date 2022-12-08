@@ -8,7 +8,7 @@
 #include <coef.H>		// Old original header
 #include <CoefStruct.H>		// New coefficient structure
 
-namespace Coefs
+namespace CoefClasses
 {
   
   void CoefStruct::copyfields(std::shared_ptr<CoefStruct> ret)
@@ -364,4 +364,4 @@ namespace Coefs
   }
 
 }
-// END namespace Coefs
+// END namespace CoefClasses
