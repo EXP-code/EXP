@@ -1400,7 +1400,7 @@ namespace Basis
   }
 
   // Accumulate coefficient contributions from arrays
-  void Basis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p)
+  void Basis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin)
   {
     // Sanity check: is coefficient instance created?  This is not
     // foolproof.  It is really up the user to make sure that a call
@@ -1417,7 +1417,8 @@ namespace Basis
 
     for (int n=0; n<p.rows(); n++) {
 
-      if (n % numprocs==myid) {
+      if (n % numprocs==myid or not roundrobin) {
+
 	bool use = true;
 	if (ftor) {
 	  for (int k=0; k<3; k++) p1[k] = p(n, k);
@@ -1448,15 +1449,17 @@ namespace Basis
   // version is tested
 #if 1
   Coefs::CoefStrPtr Basis::createFromArray
-  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
+   bool roundrobin)
   {
     initFromArray(ctr);
-    addFromArray(m, p);
+    addFromArray(m, p, roundrobin);
     return makeFromArray(time);
   }
 #else
   Coefs::CoefStrPtr Basis::createFromArray
-  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
+   bool roundrobin)
   {
     Coefs::CoefStrPtr coef;
 
@@ -1487,15 +1490,19 @@ namespace Basis
     unsigned long indx = 0;
 
     for (int n=0; n<p.rows(); n++) {
-      bool use = true;
-      if (ftor) {
-	for (int k=0; k<3; k++) p1[k] = p(n, k);
-	use = ftor(m(n), p1, v1, indx);
-      } else {
-	use = true;
-      }
 
-      if (use) accumulate(p(n, 0)-ctr[0], p(n, 1)-ctr[1], p(n, 2)-ctr[2], m(n));
+      if (n % numprocs==myid or not roundrobin) {
+
+	bool use = true;
+	if (ftor) {
+	  for (int k=0; k<3; k++) p1[k] = p(n, k);
+	  use = ftor(m(n), p1, v1, indx);
+	} else {
+	  use = true;
+	}
+	
+	if (use) accumulate(p(n, 0)-ctr[0], p(n, 1)-ctr[1], p(n, 2)-ctr[2], m(n));
+      }
     }
     make_coefs();
     load_coefs(coef, time);
@@ -1511,11 +1518,63 @@ namespace Basis
   Eigen::MatrixXd&
   OneAccel(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)
   {
+    auto basis = std::get<0>(mod);
+    auto coefs = std::get<1>(mod);
+
     // Interpolate coefficients
+    //
+    auto times = coefs->Times();
+
+    if (t<times.front() or t>times.back()) {
+      std::ostringstream sout;
+      sout << "Basis::OneAccel: time t=" << t << " is out of bounds: ["
+	   << times.front() << ", " << times.back() << "]";
+      throw std::runtime_error(sout.str());
+    }
+    
+    auto it1 = std::lower_bound(times.begin(), times.end(), t);
+    auto it2 = it1 + 1;
+
+    if (it2 == times.end()) {
+      it2--;
+      it1 = it2 - 1;
+    }
+
+    double a = (*it2 - t)/(*it2 - *it1);
+    double b = (t - *it1)/(*it2 - *it1);
+
+    auto coefsA = coefs->getCoefStruct(*it1);
+    auto coefsB = coefs->getCoefStruct(*it2);
+
+    // Duplicate a coefficient instance
+    //
+    auto newcoef = coefsA->deepcopy();
+
+    // Now interpolate the matrix
+    //
+    newcoef->time = t;
+
+    for (int i=0; i<newcoef->coefs.size(); i++)
+      newcoef->coefs.data()[i] =
+	a * coefsA->coefs.data()[i] +
+	b * coefsB->coefs.data()[i];
 
     // Install coefficients
+    //
+    basis->set_coefs(newcoef);
 
     // Get fields
+    //
+    int cols = accel.cols();
+    double dum;
+    double vec[3];
+    for (int n=0; n<cols; n++) {
+      basis->getFields(ps(n, 0), ps(n, 1), ps(n, 2),
+		       dum, dum, dum, dum,
+		       vec[0], vec[1], vec[2]);
+	
+      for (int k=0; k<3; k++) accel(n, k) += vec[k];
+    }
 
     return accel;
   }
@@ -1524,7 +1583,7 @@ namespace Basis
   //! one-step class in the long run
   std::tuple<double, Eigen::MatrixXd>
   OneStep(double t, double h,
-	  Eigen::MatrixXd ps, Eigen::MatrixXd accel,
+	  Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,
 	  std::vector<BasisCoef> bfe)
   {
     int rows = ps.rows();
@@ -1535,17 +1594,28 @@ namespace Basis
     }
 
     // Kick
-
+    for (auto mod : bfe) {
+      accel = OneAccel(t, ps, accel, mod);
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) ps(n, k) += accel(n, k)*h;
+      }
+    }
+    
     // Drift 1/2
+    for (int n=0; n<rows; n++) {
+      for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
+    }
+
 
     return std::tuple<double, Eigen::MatrixXd>(t+h, ps);
   }
 
-  Eigen::Tensor<double, 4> IntegrateOrbits
+
+  std::tuple<Eigen::VectorXd, Eigen::Tensor<double, 3>>
+  IntegrateOrbits
   (double tinit, double tfinal, double h,
    Eigen::MatrixXd ps, std::vector<BasisCoef> bfe)
   {
-    Eigen::Tensor<double, 4> ret;
     int rows = ps.rows();
     int cols = ps.cols();
 
@@ -1559,9 +1629,32 @@ namespace Basis
     }
 
     // Allocate the acceleration array
+    //
     Eigen::MatrixXd accel(rows, 3);
 
-    return ret;
+    int numT = floor( (tfinal - tinit)/h );
+
+    // Return data
+    //
+    Eigen::Tensor<double, 3> ret(rows, 6, numT);
+
+    // Time array
+    //
+    Eigen::VectorXd times(numT);
+    
+    // Do the work
+    //
+    times(0) = tinit;
+    for (int n=0; n<rows; n++)
+      for (int k=0; k<6; k++) ret(n, k, 0) = ps(n, k);
+
+    for (int s=1; s<numT; s++) {
+      std::tie(times(s), ps) = OneStep(times(s-1), h, ps, accel, bfe);
+      for (int n=0; n<rows; n++)
+	for (int k=0; k<6; k++) ret(n, k, s) = ps(n, k);
+    }
+
+    return {times, ret};
   }
 
 }

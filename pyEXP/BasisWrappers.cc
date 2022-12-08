@@ -250,16 +250,20 @@ void BasisFactoryClasses(py::module &m) {
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("createFromArray",
 	 [](Basis::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
-	    double time, std::vector<double> center)
+	    double time, std::vector<double> center, bool rrobin)
 	 {
-	   return A.createFromArray(mass, pos, time, center);
+	   return A.createFromArray(mass, pos, time, center, rrobin);
 	 },
 	 "Generate the coefficients from a mass and position array, \n"
 	 "time, and an optional expansion center location. Mass is a\n"
 	 "simple vector containing the masses for the n particles and\n"
-	 "position is an array with n rows and 3 columns (x, y, z)",
+	 "position is an array with n rows and 3 columns (x, y, z). If\n"
+	 "used with MPI, the particles will be accumulated for each\n"
+	 "process round-robin style by default.  This may be disabled\n"
+	 "on the Python side by setting 'rrobin=false'.",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
-	 py::arg("center") = std::vector<double>(3, 0.0))
+	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("rrobin") = true)
     .def("initFromArray",
 	 [](Basis::Basis& A, std::vector<double> center)
 	 {
@@ -385,5 +389,12 @@ void BasisFactoryClasses(py::module &m) {
     },
       "Report the parameters in a basis cache file and return a dictionary",
       py::arg("cachefile"));
+
+
+  m.def("IntegrateOrbits", &Basis::IntegrateOrbits,
+	"Integrate a list of initial conditions from tinit to tfinaal with a\n"
+	"step size of h using the list of basis and coefficient  pairs.\n",
+	py::arg("tinit"), py::arg("tfinal"), py::arg("h"),
+	py::arg("ps"), py::arg("basiscoef"));
 
 }

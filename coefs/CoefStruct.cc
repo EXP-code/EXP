@@ -49,7 +49,7 @@ namespace Coefs
       throw std::runtime_error("TblStruct::create: cols must be >0");
   }
 
-  std::shared_ptr<CylStruct> CylStruct::deepcopy()
+  std::shared_ptr<CoefStruct> CylStruct::deepcopy()
   {
     auto ret = std::make_shared<CylStruct>();
 
@@ -61,7 +61,7 @@ namespace Coefs
     return ret;
   }
 
-  std::shared_ptr<SphStruct> SphStruct::deepcopy()
+  std::shared_ptr<CoefStruct> SphStruct::deepcopy()
   {
     auto ret = std::make_shared<SphStruct>();
 
@@ -75,7 +75,7 @@ namespace Coefs
     return ret;
   }
 
-  std::shared_ptr<TblStruct> TblStruct::deepcopy()
+  std::shared_ptr<CoefStruct> TblStruct::deepcopy()
   {
     auto ret = std::make_shared<TblStruct>();
 

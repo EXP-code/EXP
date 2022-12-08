@@ -97,6 +97,10 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(void, CoefStruct, create,);
     }
 
+    std::shared_ptr<CoefStruct> deepcopy() override {
+      PYBIND11_OVERRIDE_PURE(std::shared_ptr<CoefStruct>, CoefStruct, deepcopy,);
+    }
+
   };
 
   class PyCoefs : public Coefs

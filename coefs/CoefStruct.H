@@ -40,6 +40,9 @@ namespace Coefs
     //! Create an empty data storage
     virtual void create() = 0;
 
+    //! Make a complete copy into a new instance
+    virtual std::shared_ptr<CoefStruct> deepcopy() = 0;
+
     //! Copy base-class fields
     void copyfields(std::shared_ptr<CoefStruct> p);
 
@@ -71,7 +74,7 @@ namespace Coefs
     void create();
 
     //! Copy all of data contents to a new instance
-    std::shared_ptr<SphStruct> deepcopy();
+    std::shared_ptr<CoefStruct> deepcopy();
 
   };
   
@@ -93,7 +96,7 @@ namespace Coefs
     void create();
 
     //! Copy all of data contents to a new instance
-    std::shared_ptr<CylStruct> deepcopy();
+    std::shared_ptr<CoefStruct> deepcopy();
   };
   
   //! Specialization of CoefStruct for a data table
@@ -113,7 +116,7 @@ namespace Coefs
     void create();
 
     //! Copy all of data contents to a new instance
-    std::shared_ptr<TblStruct> deepcopy();
+    std::shared_ptr<CoefStruct> deepcopy();
   };
   
   typedef std::shared_ptr<CoefStruct> CoefStrPtr;
