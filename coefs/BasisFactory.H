@@ -118,7 +118,7 @@ namespace BasisClasses
     //! for the expansion
     CoefClasses::CoefStrPtr createFromArray
     (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
-     std::vector<double> center={0.0, 0.0, 0.0});
+     std::vector<double> center={0.0, 0.0, 0.0}, bool roundrobin=true);
     
     //! Generate coeffients from an array and optional center location
     //! for the expansion using multiple particle partitions
@@ -132,7 +132,7 @@ namespace BasisClasses
     //! Initialize accumulating coefficients from arrays.  This is
     //! called once to initialize the accumulation.
     void addFromArray
-    (Eigen::VectorXd& m, RowMatrixXd& p);
+    (Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin=true);
     
     //! Create and the coefficients from the array accumulation with the
     //! provided time value
@@ -418,6 +418,14 @@ namespace BasisClasses
     }
   };
   
+  //! Time-dependent potential-density model
+  using BasisCoef = std::tuple<std::shared_ptr<Basis>,
+			       std::shared_ptr<CoefClasses::Coefs>>;
+
+  std::tuple<Eigen::VectorXd, Eigen::Tensor<double, 3>>
+  IntegrateOrbits (double tinit, double tfinal, double h,
+		   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe);
+
   using BasisPtr = std::shared_ptr<Basis>;
 }
   
