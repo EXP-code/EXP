@@ -8,6 +8,8 @@
 #include <BasisFactory.H>
 
 namespace py = pybind11;
+// #include <pyTensor.H>
+#include <TensorToArray.H>
 
 void BasisFactoryClasses(py::module &m) {
 
@@ -391,7 +393,17 @@ void BasisFactoryClasses(py::module &m) {
       py::arg("cachefile"));
 
 
-  m.def("IntegrateOrbits", &IntegrateOrbits,
+  m.def("IntegrateOrbits", 
+	[](double tinit, double tfinal, double h, Eigen::MatrixXd ps,
+	   std::vector<BasisClasses::BasisCoef> coefs)
+	{
+	  Eigen::VectorXd T;
+	  Eigen::Tensor<float, 3> O;
+	  std::tie(T, O) = BasisClasses::IntegrateOrbits(tinit, tfinal,
+							 h, ps, coefs);
+	  py::array_t<float> ret = make_ndarray<float>(O);
+	  return std::tuple<Eigen::VectorXd, py::array_t<float>>(T, ret);
+	},
 	"Integrate a list of initial conditions from tinit to tfinaal with a\n"
 	"step size of h using the list of basis and coefficient  pairs.\n",
 	py::arg("tinit"), py::arg("tfinal"), py::arg("h"),

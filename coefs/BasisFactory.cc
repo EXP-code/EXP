@@ -428,7 +428,6 @@ namespace BasisClasses
 	
 	fac1 = factorial(l, m);
 	if (m==0) {
-	  
 	  double sumR=0.0, sumP=0.0, sumD=0.0;
 	  for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
 	    sumR += expcoef(loffset+moffset, n) * dend(l, n);
@@ -1611,7 +1610,7 @@ namespace BasisClasses
   }
 
 
-  std::tuple<Eigen::VectorXd, Eigen::Tensor<double, 3>>
+  std::tuple<Eigen::VectorXd, Eigen::Tensor<float, 3>>
   IntegrateOrbits
   (double tinit, double tfinal, double h,
    Eigen::MatrixXd ps, std::vector<BasisCoef> bfe)
@@ -1636,7 +1635,9 @@ namespace BasisClasses
 
     // Return data
     //
-    Eigen::Tensor<double, 3> ret(rows, 6, numT);
+    Eigen::Tensor<float, 3> ret;
+
+    ret.resize({rows, 6, numT});
 
     // Time array
     //
@@ -1650,6 +1651,7 @@ namespace BasisClasses
 
     for (int s=1; s<numT; s++) {
       std::tie(times(s), ps) = OneStep(times(s-1), h, ps, accel, bfe);
+      std::cout << "Time=" << times(s) << std::endl;
       for (int n=0; n<rows; n++)
 	for (int k=0; k<6; k++) ret(n, k, s) = ps(n, k);
     }

@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <Eigen/Eigen>
+#include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
 
 #include <ParticleReader.H>
@@ -422,7 +423,7 @@ namespace BasisClasses
   using BasisCoef = std::tuple<std::shared_ptr<Basis>,
 			       std::shared_ptr<CoefClasses::Coefs>>;
 
-  std::tuple<Eigen::VectorXd, Eigen::Tensor<double, 3>>
+  std::tuple<Eigen::VectorXd, Eigen::Tensor<float, 3>>
   IntegrateOrbits (double tinit, double tfinal, double h,
 		   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe);
 
