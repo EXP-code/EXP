@@ -366,7 +366,11 @@ namespace BasisClasses
    double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
    double& tpotx, double& tpoty, double& tpotz)
   {
-    double r = sqrt(x*x + y*y + z*z) + 1.0e-18;
+    const double DSMALL = 1.0e-16;
+    double r     = sqrt(x*x + y*y + z*z) + DSMALL;
+    double r2    = x*x + y*y + z*z + DSMALL;
+    double r3    = r2*r;
+    double fac   = x*x + y*y;
     double theta = acos(z/r);
     double phi   = atan2(y, x);
     double cth   = cos(theta), sth = sin(theta);
@@ -376,9 +380,15 @@ namespace BasisClasses
     all_eval(r, cth, phi,
 	     tdens0, tdens, tpotl0, tpotl, tpotr, tpott, tpotp);
     
-    tpotx = tpotr*sth*cph + tpott*cth*cph - tpotp*sph;
-    tpoty = tpotr*sth*sph + tpott*cth*sph + tpotp*cph;
-    tpotz = tpotr*cth     - tpott*sth;
+    tpotx = tpotr*x/r - tpott*x*z/r3;
+    tpoty = tpotr*y/r - tpott*y*z/r3;
+    tpotz = tpotr*z/r + tpott*fac/r3;
+      
+    if (fac > DSMALL) {
+      tpotx += -tpotp*y/fac;
+      tpoty +=  tpotp*x/fac;
+    }
+
   }
   
   void SphericalSL::all_eval(double r, double costh, double phi,
@@ -476,7 +486,7 @@ namespace BasisClasses
     pot0  *=  potlfac;
     pot1  *=  potlfac;
     potr  *= -potlfac/rscl;
-    pott  *= -potlfac*sinth;
+    pott  *= -potlfac;
     potp  *= -potlfac;
     //       ^
     //       |
@@ -1564,10 +1574,10 @@ namespace BasisClasses
 
     // Get fields
     //
-    int cols = accel.cols();
+    int rows = accel.rows();
     double dum;
     double vec[3];
-    for (int n=0; n<cols; n++) {
+    for (int n=0; n<rows; n++) {
       basis->getFields(ps(n, 0), ps(n, 1), ps(n, 2),
 		       dum, dum, dum, dum,
 		       vec[0], vec[1], vec[2]);
@@ -1593,11 +1603,12 @@ namespace BasisClasses
     }
 
     // Kick
+    accel.setZero();
     for (auto mod : bfe) {
       accel = OneAccel(t, ps, accel, mod);
-      for (int n=0; n<rows; n++) {
-	for (int k=0; k<3; k++) ps(n, k) += accel(n, k)*h;
-      }
+    }
+    for (int n=0; n<rows; n++) {
+      for (int k=0; k<3; k++) ps(n, 3+k) += accel(n, k)*h;
     }
     
     // Drift 1/2
@@ -1651,7 +1662,6 @@ namespace BasisClasses
 
     for (int s=1; s<numT; s++) {
       std::tie(times(s), ps) = OneStep(times(s-1), h, ps, accel, bfe);
-      std::cout << "Time=" << times(s) << std::endl;
       for (int n=0; n<rows; n++)
 	for (int k=0; k<6; k++) ret(n, k, s) = ps(n, k);
     }
