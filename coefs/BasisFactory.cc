@@ -1519,13 +1519,8 @@ namespace BasisClasses
   }
 #endif
 
-  //! Time-dependent potential-density model
-  using BasisCoef = std::tuple<std::shared_ptr<Basis>,
-			       std::shared_ptr<CoefClasses::Coefs>>;
-
-  //! Evaluate acceleration for one component, return acceleration
   Eigen::MatrixXd&
-  OneAccel(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)
+  AllTimeAccel::F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)
   {
     auto basis = std::get<0>(mod);
     auto coefs = std::get<1>(mod);
@@ -1588,12 +1583,83 @@ namespace BasisClasses
     return accel;
   }
 
+  SingleTimeAccel::SingleTimeAccel(double t, std::vector<BasisCoef> mod)
+  {
+    for (auto model : mod) {
+
+      auto basis = std::get<0>(model);
+      auto coefs = std::get<1>(model);
+
+      // Interpolate coefficients
+      //
+      auto times = coefs->Times();
+
+      if (t<times.front() or t>times.back()) {
+	std::ostringstream sout;
+	sout << "Basis::OneAccel: time t=" << t << " is out of bounds: ["
+	     << times.front() << ", " << times.back() << "]";
+	throw std::runtime_error(sout.str());
+      }
+      
+      auto it1 = std::lower_bound(times.begin(), times.end(), t);
+      auto it2 = it1 + 1;
+      
+      if (it2 == times.end()) {
+	it2--;
+	it1 = it2 - 1;
+      }
+      
+      double a = (*it2 - t)/(*it2 - *it1);
+      double b = (t - *it1)/(*it2 - *it1);
+      
+      auto coefsA = coefs->getCoefStruct(*it1);
+      auto coefsB = coefs->getCoefStruct(*it2);
+      
+      // Duplicate a coefficient instance
+      //
+      auto newcoef = coefsA->deepcopy();
+      
+      // Now interpolate the matrix
+      //
+      newcoef->time = t;
+
+      for (int i=0; i<newcoef->coefs.size(); i++)
+	newcoef->coefs.data()[i] =
+	  a * coefsA->coefs.data()[i] +
+	  b * coefsB->coefs.data()[i];
+
+      // Install coefficients
+      //
+      basis->set_coefs(newcoef);
+    }
+    // END: component model loop
+  }
+
+  Eigen::MatrixXd&
+  SingleTimeAccel::F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)
+  {
+    // Get fields
+    //
+    int rows = accel.rows();
+    double dum;
+    double vec[3];
+    for (int n=0; n<rows; n++) {
+      std::get<0>(mod)->getFields(ps(n, 0), ps(n, 1), ps(n, 2),
+		       dum, dum, dum, dum,
+		       vec[0], vec[1], vec[2]);
+	
+      for (int k=0; k<3; k++) accel(n, k) += vec[k];
+    }
+
+    return accel;
+  }
+
   //! Take one leap frog step; this can/should be generalized to a
   //! one-step class in the long run
   std::tuple<double, Eigen::MatrixXd>
   OneStep(double t, double h,
 	  Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,
-	  std::vector<BasisCoef> bfe)
+	  std::vector<BasisCoef> bfe, AccelFunctor F)
   {
     int rows = ps.rows();
 
@@ -1605,7 +1671,7 @@ namespace BasisClasses
     // Kick
     accel.setZero();
     for (auto mod : bfe) {
-      accel = OneAccel(t, ps, accel, mod);
+      accel = F(t, ps, accel, mod);
     }
     for (int n=0; n<rows; n++) {
       for (int k=0; k<3; k++) ps(n, 3+k) += accel(n, k)*h;
@@ -1624,7 +1690,7 @@ namespace BasisClasses
   std::tuple<Eigen::VectorXd, Eigen::Tensor<float, 3>>
   IntegrateOrbits
   (double tinit, double tfinal, double h,
-   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe)
+   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe, AccelFunctor F)
   {
     int rows = ps.rows();
     int cols = ps.cols();
@@ -1661,7 +1727,7 @@ namespace BasisClasses
       for (int k=0; k<6; k++) ret(n, k, 0) = ps(n, k);
 
     for (int s=1; s<numT; s++) {
-      std::tie(times(s), ps) = OneStep(times(s-1), h, ps, accel, bfe);
+      std::tie(times(s), ps) = OneStep(times(s-1), h, ps, accel, bfe, F);
       for (int n=0; n<rows; n++)
 	for (int k=0; k<6; k++) ret(n, k, s) = ps(n, k);
     }

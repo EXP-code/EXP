@@ -420,15 +420,58 @@ namespace BasisClasses
   };
   
   //! Time-dependent potential-density model
-  using BasisCoef = std::tuple<std::shared_ptr<Basis>,
-			       std::shared_ptr<CoefClasses::Coefs>>;
+  using BasisCoef = std::tuple<std::shared_ptr<Basis>, std::shared_ptr<CoefClasses::Coefs>>;
+
+  //! The function signature
+  using AccelFunctor =
+    std::function<Eigen::MatrixXd&(double, Eigen::MatrixXd&, Eigen::MatrixXd&, BasisCoef)>;
+  
+  //! Acceleration function class
+  class AccelFunc
+  {
+  public:
+    
+    AccelFunc() {}
+
+    virtual Eigen::MatrixXd&
+    F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,  BasisCoef mod) = 0;
+  };
+
+  //! Evaluate acceleration for one component, return acceleration
+  class AllTimeAccel : public AccelFunc
+  {
+  public:
+    
+    //! Constructor
+    AllTimeAccel() {}
+
+    //! Acceleration function
+    virtual Eigen::MatrixXd&
+    F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod);
+
+  };
+
+  //! Evaluate acceleration for one component, return acceleration
+  class SingleTimeAccel : public AccelFunc
+  {
+  public:
+    
+    //! Initialize and install coefficients for the given time
+    SingleTimeAccel(double time, std::vector<BasisCoef> mod);
+
+    virtual Eigen::MatrixXd&
+    F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod);
+
+  };
+
 
   std::tuple<Eigen::VectorXd, Eigen::Tensor<float, 3>>
   IntegrateOrbits (double tinit, double tfinal, double h,
-		   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe);
+		   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe, AccelFunctor F);
 
   using BasisPtr = std::shared_ptr<Basis>;
 }
+// END: namespace BasisClasses
   
 #endif // _BasisFactory_H
   

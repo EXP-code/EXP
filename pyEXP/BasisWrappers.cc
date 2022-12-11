@@ -241,6 +241,51 @@ void BasisFactoryClasses(py::module &m) {
   };
 
 
+  class PyAccelFunc : public AccelFunc
+  {
+  protected:
+
+  public:
+    // Inherit the constructors
+    using BasisClasses::AccelFunc::AccelFunc;
+
+    Eigen::MatrixXd& F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,
+		       BasisCoef mod) override {
+      PYBIND11_OVERRIDE_PURE(Eigen::MatrixXd&, AccelFunc, F, t, ps, accel, mod);
+    }
+  };
+
+
+  class PyAllTimeAccel : public AllTimeAccel
+  {
+  protected:
+
+  public:
+    // Inherit the constructors
+    using BasisClasses::AllTimeAccel::AllTimeAccel;
+
+    Eigen::MatrixXd& F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,
+		       BasisCoef mod) override {
+      PYBIND11_OVERRIDE(Eigen::MatrixXd&, AllTimeAccel, F, t, ps, accel, mod);
+    }
+  };
+
+
+  class PySingleTimeAccel : public SingleTimeAccel
+  {
+  protected:
+
+  public:
+    // Inherit the constructors
+    using BasisClasses::SingleTimeAccel::SingleTimeAccel;
+
+    Eigen::MatrixXd& F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,
+		       BasisCoef mod) override {
+      PYBIND11_OVERRIDE(Eigen::MatrixXd&, SingleTimeAccel, F, t, ps, accel, mod);
+    }
+  };
+
+
   py::class_<BasisClasses::Basis, std::shared_ptr<BasisClasses::Basis>, PyBasis>(m, "Basis")
     .def(py::init<const std::string&>(),
 	 "Initialize a biorthogonal basis from the configuration in the\n"
@@ -392,21 +437,38 @@ void BasisFactoryClasses(py::module &m) {
       "Report the parameters in a basis cache file and return a dictionary",
       py::arg("cachefile"));
 
+  py::class_<BasisClasses::AccelFunc, std::shared_ptr<BasisClasses::AccelFunc>, PyAccelFunc>(m, "AccelFunc")
+    .def("F", &BasisClasses::AccelFunc::F,
+	 py::arg("time"), py::arg("ps"), py::arg("accel"), py::arg("mod"));
 
+  py::class_<BasisClasses::AllTimeAccel, std::shared_ptr<BasisClasses::AllTimeAccel>, PyAllTimeAccel, BasisClasses::AccelFunc>(m, "AllTimeAccel")
+    .def(py::init<>(), "Create an acceleration function that interpolates coefficients from the Coefs database for every time")
+    .def("F", &BasisClasses::AllTimeAccel::F,
+	 py::arg("time"), py::arg("ps"), py::arg("accel"), py::arg("mod"));
+
+  py::class_<BasisClasses::SingleTimeAccel, std::shared_ptr<BasisClasses::SingleTimeAccel>, PySingleTimeAccel, BasisClasses::AccelFunc>(m, "SingleTimeAccel")
+    .def(py::init<double, std::vector<BasisClasses::BasisCoef>>(), "Create an acceleration function that uses coefficients for a single time")
+    .def("F", &BasisClasses::SingleTimeAccel::F,
+	 py::arg("time"), py::arg("ps"), py::arg("accel"), py::arg("mod"));
+  
   m.def("IntegrateOrbits", 
 	[](double tinit, double tfinal, double h, Eigen::MatrixXd ps,
-	   std::vector<BasisClasses::BasisCoef> coefs)
+	   std::vector<BasisClasses::BasisCoef> bfe, BasisClasses::AccelFunc& func)
 	{
 	  Eigen::VectorXd T;
 	  Eigen::Tensor<float, 3> O;
-	  std::tie(T, O) = BasisClasses::IntegrateOrbits(tinit, tfinal,
-							 h, ps, coefs);
+
+	  AccelFunctor F = [&func](double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)->Eigen::MatrixXd& { return func.F(t, ps, accel, mod);};
+
+	  std::tie(T, O) =
+	    BasisClasses::IntegrateOrbits(tinit, tfinal, h, ps, bfe, F);
+
 	  py::array_t<float> ret = make_ndarray<float>(O);
 	  return std::tuple<Eigen::VectorXd, py::array_t<float>>(T, ret);
 	},
 	"Integrate a list of initial conditions from tinit to tfinaal with a\n"
 	"step size of h using the list of basis and coefficient  pairs.\n",
 	py::arg("tinit"), py::arg("tfinal"), py::arg("h"),
-	py::arg("ps"), py::arg("basiscoef"));
+	py::arg("ps"), py::arg("basiscoef"), py::arg("func"));
 
 }
