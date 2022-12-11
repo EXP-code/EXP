@@ -429,12 +429,35 @@ namespace BasisClasses
   //! Acceleration function class
   class AccelFunc
   {
+  protected:
+
+    //! This evaluates the accelerations for all particles from the
+    //! current component.  This is always the same and implemented in
+    //! this base class.
+    Eigen::MatrixXd&
+    evalaccel(Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod);
+
   public:
     
     AccelFunc() {}
 
-    virtual Eigen::MatrixXd&
-    F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,  BasisCoef mod) = 0;
+    //! This evaluates the coefficients at time t.  This is the member
+    //! that is implemented in derived classes.  It is more naturally
+    //! a protected member in C++, but that makes deriving a class in
+    //! Python more difficult.
+    virtual void
+    evalcoefs(double t, BasisCoef mod) = 0;
+
+    //! This computes and return the acceleration array
+    Eigen::MatrixXd&
+    F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,  BasisCoef mod)
+    {
+      // Evaluate the coefficients for time t
+      evalcoefs(t, mod);
+
+      // Compute and return the accumulated acceleration
+      return evalaccel(ps, accel, mod);
+    }
   };
 
   //! Evaluate acceleration for one component, return acceleration
@@ -445,9 +468,8 @@ namespace BasisClasses
     //! Constructor
     AllTimeAccel() {}
 
-    //! Acceleration function
-    virtual Eigen::MatrixXd&
-    F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod);
+    //! Interpolate and install coefficients at time t
+    void evalcoefs(double t, BasisCoef mod);
 
   };
 
@@ -459,8 +481,8 @@ namespace BasisClasses
     //! Initialize and install coefficients for the given time
     SingleTimeAccel(double time, std::vector<BasisCoef> mod);
 
-    virtual Eigen::MatrixXd&
-    F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod);
+    //! No coefficient evaluation
+    void evalcoefs(double t, BasisCoef mod) {}
 
   };
 

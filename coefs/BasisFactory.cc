@@ -1519,8 +1519,38 @@ namespace BasisClasses
   }
 #endif
 
-  Eigen::MatrixXd&
-  AllTimeAccel::F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)
+  // This evaluation step is performed by all derived classes
+  Eigen::MatrixXd& AccelFunc::evalaccel
+  (Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)
+  {
+    // Get Model
+    //
+    auto basis = std::get<0>(mod);
+
+    // Get fields
+    //
+    int rows = accel.rows();
+    double dum;
+    double vec[3];
+    for (int n=0; n<rows; n++) {
+      basis->getFields(ps(n, 0), ps(n, 1), ps(n, 2),
+		       dum, dum, dum, dum,
+		       vec[0], vec[1], vec[2]);
+	
+      for (int k=0; k<3; k++) accel(n, k) += vec[k];
+    }
+
+    return accel;
+  }
+
+  // This is an example of a evalcoefs() derived class.  It is the
+  // responsibility of the derived-class implementer to provide a sane
+  // set of coefficients using Basis::set_coefs for each
+  // component. Although not needed here, the best way of identifying
+  // the component might be to use the getName() member of coefs,
+  // e.g. 'std::string name = std::get<mod>(1)->getName();'
+  void
+  AllTimeAccel::evalcoefs(double t, BasisCoef mod)
   {
     auto basis = std::get<0>(mod);
     auto coefs = std::get<1>(mod);
@@ -1566,21 +1596,6 @@ namespace BasisClasses
     // Install coefficients
     //
     basis->set_coefs(newcoef);
-
-    // Get fields
-    //
-    int rows = accel.rows();
-    double dum;
-    double vec[3];
-    for (int n=0; n<rows; n++) {
-      basis->getFields(ps(n, 0), ps(n, 1), ps(n, 2),
-		       dum, dum, dum, dum,
-		       vec[0], vec[1], vec[2]);
-	
-      for (int k=0; k<3; k++) accel(n, k) += vec[k];
-    }
-
-    return accel;
   }
 
   SingleTimeAccel::SingleTimeAccel(double t, std::vector<BasisCoef> mod)
@@ -1634,26 +1649,7 @@ namespace BasisClasses
     }
     // END: component model loop
   }
-
-  Eigen::MatrixXd&
-  SingleTimeAccel::F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)
-  {
-    // Get fields
-    //
-    int rows = accel.rows();
-    double dum;
-    double vec[3];
-    for (int n=0; n<rows; n++) {
-      std::get<0>(mod)->getFields(ps(n, 0), ps(n, 1), ps(n, 2),
-		       dum, dum, dum, dum,
-		       vec[0], vec[1], vec[2]);
-	
-      for (int k=0; k<3; k++) accel(n, k) += vec[k];
-    }
-
-    return accel;
-  }
-
+  
   //! Take one leap frog step; this can/should be generalized to a
   //! one-step class in the long run
   std::tuple<double, Eigen::MatrixXd>

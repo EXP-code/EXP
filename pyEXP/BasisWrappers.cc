@@ -86,6 +86,26 @@ void BasisFactoryClasses(py::module &m) {
     "For reference, the createFromReader() method uses a producer-consumer\n"
     "pattern internally to provide scalability.  These three methods allow\n"
     "you to provide the same pattern in your own pipeline.\n\n";
+    "Orbit integration\n"
+    "-----------------\n"
+    "The IntegrateOrbits routine uses a fixed time step leap frog integrator\n"
+    "to advance orbits from tinit to tfinal with time step h.  The initial\n"
+    "positions and velocities are supplied in an nx6 NumPy array.  Tuples\n"
+    "of the basis (a Basis instance) and coefficient database (a Coefs\n"
+    "instance) for each component is supplied to IntegrateOrbtis as a list.\n"
+    "Finally, the type of acceleration is an instance of the AccelFunc class.\n"
+    "The acceleration at each time step is computed by setting a coefficient\n"
+    "set in Basis and evaluating and accumulating the acceleration for each\n"
+    "phase-space point.  The coefficient are handled by implementing the\n"
+    "evalcoefs() method of AccelFunc. We supply two implemented derived\n"
+    "classes, AllTimeFunc and SingleTimeFunc.  The first interpolates on the\n"
+    "Coefs data base and installs the interpolated coefficients for the\n"
+    "current time in the basis instance.  The SingleTimeFunc interpolates on\n"
+    "the Coefs data base for a single fixed time and sets the interpolated\n"
+    "coefficients once at the beginning of the integration.  This implementes\n"
+    "a fixed potential model.  AccelFunc can be inherited by a native Python\n
+    "class and the evalcoefs() may be implemented in Python and passed to\n"
+    "IntegrateOrbits in the same way as a native C++ class.\n\n;
 
   using namespace BasisClasses;
 
@@ -245,46 +265,14 @@ void BasisFactoryClasses(py::module &m) {
   {
   protected:
 
+    void evalcoefs(double t, BasisCoef mod) override {
+      PYBIND11_OVERRIDE_PURE(void, AccelFunc, evalcoefs, t, mod);
+    }
+    
   public:
     // Inherit the constructors
-    using BasisClasses::AccelFunc::AccelFunc;
-
-    Eigen::MatrixXd& F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,
-		       BasisCoef mod) override {
-      PYBIND11_OVERRIDE_PURE(Eigen::MatrixXd&, AccelFunc, F, t, ps, accel, mod);
-    }
+      using BasisClasses::AccelFunc::AccelFunc;
   };
-
-
-  class PyAllTimeAccel : public AllTimeAccel
-  {
-  protected:
-
-  public:
-    // Inherit the constructors
-    using BasisClasses::AllTimeAccel::AllTimeAccel;
-
-    Eigen::MatrixXd& F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,
-		       BasisCoef mod) override {
-      PYBIND11_OVERRIDE(Eigen::MatrixXd&, AllTimeAccel, F, t, ps, accel, mod);
-    }
-  };
-
-
-  class PySingleTimeAccel : public SingleTimeAccel
-  {
-  protected:
-
-  public:
-    // Inherit the constructors
-    using BasisClasses::SingleTimeAccel::SingleTimeAccel;
-
-    Eigen::MatrixXd& F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,
-		       BasisCoef mod) override {
-      PYBIND11_OVERRIDE(Eigen::MatrixXd&, SingleTimeAccel, F, t, ps, accel, mod);
-    }
-  };
-
 
   py::class_<BasisClasses::Basis, std::shared_ptr<BasisClasses::Basis>, PyBasis>(m, "Basis")
     .def(py::init<const std::string&>(),
@@ -441,12 +429,12 @@ void BasisFactoryClasses(py::module &m) {
     .def("F", &BasisClasses::AccelFunc::F,
 	 py::arg("time"), py::arg("ps"), py::arg("accel"), py::arg("mod"));
 
-  py::class_<BasisClasses::AllTimeAccel, std::shared_ptr<BasisClasses::AllTimeAccel>, PyAllTimeAccel, BasisClasses::AccelFunc>(m, "AllTimeAccel")
+  py::class_<BasisClasses::AllTimeAccel, std::shared_ptr<BasisClasses::AllTimeAccel>, BasisClasses::AccelFunc>(m, "AllTimeAccel")
     .def(py::init<>(), "Create an acceleration function that interpolates coefficients from the Coefs database for every time")
     .def("F", &BasisClasses::AllTimeAccel::F,
 	 py::arg("time"), py::arg("ps"), py::arg("accel"), py::arg("mod"));
 
-  py::class_<BasisClasses::SingleTimeAccel, std::shared_ptr<BasisClasses::SingleTimeAccel>, PySingleTimeAccel, BasisClasses::AccelFunc>(m, "SingleTimeAccel")
+  py::class_<BasisClasses::SingleTimeAccel, std::shared_ptr<BasisClasses::SingleTimeAccel>, BasisClasses::AccelFunc>(m, "SingleTimeAccel")
     .def(py::init<double, std::vector<BasisClasses::BasisCoef>>(), "Create an acceleration function that uses coefficients for a single time")
     .def("F", &BasisClasses::SingleTimeAccel::F,
 	 py::arg("time"), py::arg("ps"), py::arg("accel"), py::arg("mod"));
