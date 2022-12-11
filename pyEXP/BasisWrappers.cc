@@ -425,6 +425,7 @@ void BasisFactoryClasses(py::module &m) {
       py::arg("cachefile"));
 
   py::class_<BasisClasses::AccelFunc, std::shared_ptr<BasisClasses::AccelFunc>, PyAccelFunc>(m, "AccelFunc")
+    .def(py::init<>(), "Create a AccelFunc instance")
     .def("F", &BasisClasses::AccelFunc::F,
 	 py::arg("time"), py::arg("ps"), py::arg("accel"), py::arg("mod"));
 

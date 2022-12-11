@@ -445,8 +445,10 @@ void CoefficientClasses(py::module &m) {
     .def("create",            &CoefStruct::create, 
 	 "Initialize a coefficient zeroed structure from user supplied "
 	 "dimensions")
-    .def_readonly("time",     &CoefStruct::time,  "The data's time")
+    .def("deepcopy",          &CoefStruct::deepcopy,
+	 "Make a new instance and copy all data into the new instance")
     .def_readonly("geometry", &CoefStruct::geom,  "The geometry type")
+    .def_readwrite("time",    &CoefStruct::time,  "The data's time")
     .def_readwrite("data",    &CoefStruct::coefs,
 		   "Read-write access to the underlying data store. You must\n"
 		   "write the entire data array to change the values of the\n"
