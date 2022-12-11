@@ -103,9 +103,9 @@ void BasisFactoryClasses(py::module &m) {
     "current time in the basis instance.  The SingleTimeFunc interpolates on\n"
     "the Coefs data base for a single fixed time and sets the interpolated\n"
     "coefficients once at the beginning of the integration.  This implementes\n"
-    "a fixed potential model.  AccelFunc can be inherited by a native Python\n
+    "a fixed potential model.  AccelFunc can be inherited by a native Python\n"
     "class and the evalcoefs() may be implemented in Python and passed to\n"
-    "IntegrateOrbits in the same way as a native C++ class.\n\n;
+    "IntegrateOrbits in the same way as a native C++ class.\n\n";
 
   using namespace BasisClasses;
 
@@ -263,15 +263,14 @@ void BasisFactoryClasses(py::module &m) {
 
   class PyAccelFunc : public AccelFunc
   {
-  protected:
+  public:
+    // Inherit the constructors
+    using BasisClasses::AccelFunc::AccelFunc;
 
+    // The coefficient evaluation member
     void evalcoefs(double t, BasisCoef mod) override {
       PYBIND11_OVERRIDE_PURE(void, AccelFunc, evalcoefs, t, mod);
     }
-    
-  public:
-    // Inherit the constructors
-      using BasisClasses::AccelFunc::AccelFunc;
   };
 
   py::class_<BasisClasses::Basis, std::shared_ptr<BasisClasses::Basis>, PyBasis>(m, "Basis")
