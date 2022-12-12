@@ -48,6 +48,10 @@ namespace CoefClasses
 
     //! Zero the existing data
     void zerodata() { coefs.setZero(); }
+
+    //! Coefficient data
+    Eigen::Ref<EigenColMajor> data() { return coefs; }
+
   };
   
   //! Specialization of CoefStruct for spheres

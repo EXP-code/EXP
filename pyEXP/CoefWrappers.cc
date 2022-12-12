@@ -449,11 +449,11 @@ void CoefficientClasses(py::module &m) {
 	 "Make a new instance and copy all data into the new instance")
     .def_readonly("geometry", &CoefStruct::geom,  "The geometry type")
     .def_readwrite("time",    &CoefStruct::time,  "The data's time")
-    .def_readwrite("data",    &CoefStruct::coefs,
-		   "Read-write access to the underlying data store. You must\n"
-		   "write the entire data array to change the values of the\n"
-		   "underlying data in the CoefStruct.  In other words, you\n"
-		   "can not write Python slices.");
+    .def("data",              &CoefStruct::data,
+	 "Read-write access to the underlying data store. The Eigen complex\n"
+	 "valued matrix is mapped to a numpy.ndarray of complex values.\n"
+	 "Changes to the data array will automatically mapped back to the\n"
+	 "C++ CoefStruct instance.");
   
 
   py::class_<CoefClasses::SphStruct, std::shared_ptr<CoefClasses::SphStruct>, CoefStruct>(m, "SphStruct")
