@@ -261,9 +261,30 @@ namespace BasisClasses
 
   void SphericalSL::set_coefs(CoefClasses::CoefStrPtr coef)
   {
+    // Sanity check on derived class type
+    //
     if (typeid(*coef) != typeid(CoefClasses::SphStruct))
       throw std::runtime_error("SphericalSL::set_coefs: you must pass a CoefClasses::SphStruct");
 
+    // Sanity check on dimensionality
+    //
+    {
+      int rows = coef->coefs.rows();
+      int cols = coef->coefs.cols();
+      int rexp = (lmax+1)*(lmax+2)/2;
+      if (rows != rexp or cols != nmax) {
+	std::ostringstream sout;
+	sout << "SphericalSL::set_coefs: the basis has (lmax, nmax)=("
+	     << lmax << ", " << nmax
+	     << ") and the dimensions must be (rows, cols)=("
+	     << rexp << ", " << nmax
+	     << "). The coef structure has (rows, cols)=("
+	     << rows << ", " << cols << ")";
+	  
+	throw std::runtime_error(sout.str());
+      }
+    }
+    
     CoefClasses::SphStruct* cf = dynamic_cast<CoefClasses::SphStruct*>(coef.get());
 
     // Assign internal coefficient table (doubles) from the complex struct
