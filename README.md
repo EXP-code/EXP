@@ -4,7 +4,7 @@
 
 | Files   | Description |
 | ---     | ---         |
-|README	  | This file |
+| README  | This file |
 | TODO	  | Wish list of features to add, things to fix, big and small |
 | include | Include file for all common classes |
 | src	  | Source for nbody code |
@@ -79,14 +79,4 @@ To provide some context, suppose you want to read some snapshots, make some coef
 This is only one example of many possible uses.  There are many
 variants to this work flow, of course, and I expect that you will
 invent some interesting ones.
-
-## Compile hints
-
-See README.build for a brief synposis.
-
-A few quick additional notes. By default, both the n-body code and the
-Python bindings, the pyEXP interface, will be compiled by default.
-For those of you that only want pyEXP, add `-DENABLE_NBODY=OFF` to
-your `cmake` invocation or toggle `ENABLE_NBODY` using `ccmake` or
-your favorite gui configurator.
 
