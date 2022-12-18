@@ -40,6 +40,17 @@ documentation is in `doc/html`.  You will need to enable the build
 using the `cmake` flag `-DBUILD_DOCS=ON`.  A permanent online presense
 is in the works.
 
+## Companion repositories
+
+We are developing two repositories of examples and tutorials:
+
+| Repo   | Description |
+| ---    | ---         |
+| EXP-examples | Each subdirectory contains a full set of body files and configurations to run EXP with with model galaxy |
+| pyEXP-examples | Tutorials and example workflows for a variety of envisioned use cases |
+
+Both of these are available from the origin as EXP.
+
 ## pyEXP
 
 Provides a collection of EXP tools for processing and analyzing
