@@ -449,7 +449,13 @@ void CoefficientClasses(py::module &m) {
 	 "Make a new instance and copy all data into the new instance")
     .def_readonly("geometry", &CoefStruct::geom,  "The geometry type")
     .def_readwrite("time",    &CoefStruct::time,  "The data's time")
-    .def("data",              &CoefStruct::data,
+    .def("getCoefs",          &CoefStruct::getCoefs,
+	 "Read-only access to the underlying data store. The Eigen complex\n"
+	 "valued matrix is mapped to a numpy.ndarray of complex values\n"
+	 "without copying.  Use this one generally.  If you need to change\n"
+	 "values in the C++ CoefStruct instance, then use setCoefs(), which\n"
+	 "provides read-write access.")
+    .def("setCoefs",          &CoefStruct::setCoefs,
 	 "Read-write access to the underlying data store. The Eigen complex\n"
 	 "valued matrix is mapped to a numpy.ndarray of complex values.\n"
 	 "Changes to the data array will automatically mapped back to the\n"

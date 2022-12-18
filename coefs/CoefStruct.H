@@ -49,8 +49,11 @@ namespace CoefClasses
     //! Zero the existing data
     void zerodata() { coefs.setZero(); }
 
-    //! Coefficient data
-    Eigen::Ref<EigenColMajor> data() { return coefs; }
+    //! Read-write access to coefficient data (no copy)
+    Eigen::Ref<EigenColMajor> setCoefs() { return coefs; }
+
+    //! Read-only access to coefficient data (no copy)
+    Eigen::Ref<const EigenColMajor> getCoefs() { return coefs; }
 
   };
   
