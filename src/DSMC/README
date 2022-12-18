@@ -1,0 +1,14 @@
+If you are using DSMC, download and install the CHIANTI database from https://www.chiantidatabase.org
+
+Add the path to where you install it by adding the following to your .bashrc file:
+
+export CHIANTI_DATA=/path_to_install_location/CHIANTI/dbase
+
+replacing the path_to_install_location as apropriate.
+
+Also set the LD_LIBRARY_PATH by adding the following to your .bashrc file:
+
+export LD_LIBRARY_PATH=${HOME}/lib:${LD_LIBRARY_PATH}
+
+Log out and then back in in order for this to take effect.
+
