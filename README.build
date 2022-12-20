@@ -46,7 +46,7 @@ cd build
 # -DFFTW_ROOT=/path/to/fftw/location.  Or you can provide the
 # location in the FFTWDIR environment variable.
 
-# With cuda.  NB: different version of CMake seem to treat Cuda
+# With cuda.  Different versions of CMake seem to treat Cuda
 # architecture specification differently.  The current implementation
 # uses an archetecture list set within the top-level
 # CMakeLists. Version >= 3.18 uses a command-line settable variable.
@@ -66,6 +66,11 @@ cd build
 # for X attributes.  This is 0 by default.
 
 cmake -DCMAKE_BUILD_TYPE=Release -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUDA=YES -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
+
+# Some installations provide an EIGEN_BASE environment variable that
+# locates the install directory what contains 'include' and 'share'.
+# Alternatively, replace EIGEN_BASE with that path or set EIGEN_BASE
+# manually.
 
 # Note on cuda: I have tried to include an SM capability list that
 # covers many commonly used architectures.  I have had a bit of
