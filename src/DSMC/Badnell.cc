@@ -305,56 +305,64 @@ void BadnellData::initialize(atomicData* ad)
   //
   for (auto ZC : ionQ) {
 
+    // Create a data record
+    //
+    bdPtr d = std::make_shared<BadnellRec>();
+
     // Begin with RR files
     //
     auto it = names.find(ZC);
 
-    if (it == names.end()) {
+    // Have a file
+    //
+    if (it != names.end()) {
+
+      std::ifstream in{dpath / it->second};
+    
+      std::string line;
+      std::getline(in, line);
+
+      double E, X;
+    
+      bool looking = true;
+      while (in) {
+	if (looking) {
+	  // Keep reading lines until we reach the totals
+	  //
+	  if (line.find("E(RYD)") != std::string::npos) {
+	    looking = false;
+	    std::getline(in, line); // Read header
+	  }
+	} else {
+	  // We are done!
+	  //
+	  if (line[0] == 'C') break;
+	  
+	  // Read the line
+	  //
+	  std::istringstream ins(line);
+	  
+	  // Values (Energy in Rydbergs and Energy*Sigma in Mbarn*Rydberg)
+	  //
+	  ins >> E >> X;
+	  d->E_rr.push_back(E*RydtoeV);
+	  d->X_rr.push_back(X*RydtoeV);
+	}
+	
+	// Read next line
+	std::getline(in, line);
+      }
+      // END: RR file read
+
+      //       +--- Verbose reporting on RR files found
+      //       |    (not for production mode)
+      //       v
+    } else  if (false) {
       std::ostringstream sout;
       sout << "Badnell::initialize: could not locate RR file for ion (Z, C) = ("
 	   << ZC.first << ", " << ZC.second << ")";
-      throw std::runtime_error(sout.str());
+      std::cout << sout.str() << std::endl;
     }
-
-    std::ifstream in{dpath / it->second};
-    
-    std::string line;
-    std::getline(in, line);
-
-    double E, X;
-    
-    // Create a data record
-    bdPtr d = std::make_shared<BadnellRec>();
-    
-    bool looking = true;
-    while (in) {
-      if (looking) {
-	// Keep reading lines until we reach the totals
-	//
-	if (line.find("E(RYD)") != std::string::npos) {
-	  looking = false;
-	  std::getline(in, line); // Read header
-	}
-      } else {
-	// We are done!
-	//
-	if (line[0] == 'C') break;
-	
-	// Read the line
-	//
-	std::istringstream ins(line);
-	
-	// Values (Energy in Rydbergs and Energy*Sigma in Mbarn*Rydberg)
-	//
-	ins >> E >> X;
-	d->E_rr.push_back(E*RydtoeV);
-	d->X_rr.push_back(X*RydtoeV);
-      }
-      
-      // Read next line
-      std::getline(in, line);
-    }
-    // END: RR file read
     
     // Now, on to DR files
     //
@@ -365,14 +373,16 @@ void BadnellData::initialize(atomicData* ad)
       for (auto v : it2->second) {
 
 	auto cr = v.first;
-	// TEST
+	// Test for uncertain parent-line files
 	if (cr.size()>2) continue;
 
-	in = std::ifstream{dpath / "DR" / v.second};
+	auto in = std::ifstream{dpath / "DR" / v.second};
 	
+	std::string line;
 	std::getline(in, line);
 	
-	looking = true;
+	double E, X;
+	bool looking = true;
 	while (in) {
 	  if (looking) {
 	    // Keep reading lines until we reach the totals
