@@ -100,9 +100,9 @@ double Nigel::operator()(unsigned short C, double T)
       size_t li = std::distance(v.X.begin(), lb);
       size_t ui = std::distance(v.X.begin(), ub);
 
-      double A = (*ub - T)/(*ub - *lb);
-      double B = (T - *lb)/(*ub - *lb);
-      ans += A*v.Y[li] + B*v.Y[ui];
+      double A = (log(*ub) - log(T))/(log(*ub) - log(*lb));
+      double B = (log(T) - log(*lb))/(log(*ub) - log(*lb));
+      ans += exp(A*log(v.Y[li]) + B*log(v.Y[ui]));
     }
   }
 
@@ -119,9 +119,9 @@ double Nigel::operator()(unsigned short C, double T)
 	size_t li = std::distance(v.X.begin(), lb);
 	size_t ui = std::distance(v.X.begin(), ub);
 	
-	double A = (*ub - T)/(*ub - *lb);
-	double B = (T - *lb)/(*ub - *lb);
-	ans += A*v.Y[li] + B*v.Y[ui];
+	double A = (log(*ub) - log(T))/(log(*ub) - log(*lb));
+	double B = (log(T) - log(*lb))/(log(*ub) - log(*lb));
+	ans += exp(A*log(v.Y[li]) + B*log(v.Y[ui]));
       }
     }
   }
