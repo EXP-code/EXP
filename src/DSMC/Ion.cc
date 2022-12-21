@@ -2575,25 +2575,26 @@ std::vector<double> Ion::radRecombCrossBadnell(double E, int id)
 
   // Check for availibility of DR data
   //
-  if (d->E_dr.size()) {
-    double Ebeg = d->E_dr.front();
-    double Eend = d->E_dr.back();
+  for (auto s : d->E_dr) {
+
+    double Ebeg = s.second.front();
+    double Eend = s.second.back();
     if (E>=Ebeg and E<=Eend) {
-      auto x1 = std::lower_bound(d->E_dr.begin(), d->E_dr.end(), E);
+      auto x1 = std::lower_bound(s.second.begin(), s.second.end(), E);
       auto x2 = x1;
-      if (x1 == d->E_dr.begin())
+      if (x1 == s.second.begin())
 	x2++;
       else
 	x1--;
 
-      int lo = std::distance(d->E_dr.begin(), x1);
-      int hi = std::distance(d->E_dr.begin(), x2);
+      int lo = std::distance(s.second.begin(), x1);
+      int hi = std::distance(s.second.begin(), x2);
 
       // Interpolate (sigma is tabled)
       //
-      double Elo = d->E_dr[lo];
-      double Ehi = d->E_dr[hi];
-      cross += ( d->X_dr[lo]*(Ehi - E) + d->X_dr[hi]*(E - Elo) ) / (Ehi - Elo);
+      double Elo = s.second[lo];
+      double Ehi = s.second[hi];
+      cross += ( d->X_dr[s.first][lo]*(Ehi - E) + d->X_dr[s.first][hi]*(E - Elo) ) / (Ehi - Elo);
     }
   }
 
@@ -3152,6 +3153,7 @@ void atomicData::readVerner()
 void atomicData::readBadnell() 
 {
   BadnellXC.initialize(this);
+  BadnellXC.report();
 }
 
 //
