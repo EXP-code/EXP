@@ -54,7 +54,7 @@ class Nigel
 protected:
 
   //! Read and create T vs rate tables for the desired Z value
-  void initialize(unsigned short Z);
+  void initialize(unsigned short Z, bool resonance);
 
   //! A simple table structure
   struct XY
@@ -72,9 +72,9 @@ protected:
 public:
 
   //! Constructor
-  Nigel(unsigned short Z)
+  Nigel(unsigned short Z, bool resonance=false)
   {
-    initialize(Z);
+    initialize(Z, resonance);
   }
 
   //! Interpolate
@@ -129,7 +129,7 @@ double Nigel::operator()(unsigned short C, double T)
   return ans;
 }
 
-void Nigel::initialize(unsigned short Z)
+void Nigel::initialize(unsigned short Z, bool resonance)
 {
   // Periodic table
   //
@@ -233,15 +233,25 @@ void Nigel::initialize(unsigned short Z)
   //       |                         | |     |
   //       v                         v v     v
   rdr1 << ".*[/]" << user << yr1 << "#[a-z]+[_]"
-       << "([a-z]+)([0-9]+)" << coupling << "([0-9]*)_t3.dat";
+       << "([a-z]+)([0-9]+)" << coupling << "([0-9]*)";
   rdr2 << ".*[/]" << user << yr2 << "#[a-z]+[_]"
-       << "([a-z]+)([0-9]+)" << coupling << "([0-9]*)_t3.dat";
-  //        ^       ^           ^             ^          ^
-  //        |       |           |             |          |
-  //        |       |           |             +----------|-- Core excitation
-  //        |       |           |                        |   n->n' for
-  // Ion name       Charge      Coupling        Suffix---+   dielectronic
-  // (Group 1)      (Group 2)                                (Group 3)
+       << "([a-z]+)([0-9]+)" << coupling << "([0-9]*)";
+  //        ^       ^           ^             ^
+  //        |       |           |             |
+  //        |       |           |             +--- Core excitation
+  //        |       |           |                  n->n' for
+  // Ion name       Charge      Coupling           dielectronic
+  // (Group 1)      (Group 2)                      (Group 3)
+
+  // Add suffix
+  //
+  if (resonance) {
+    rdr1 << ".dat";
+    rdr2 << ".dat";
+  } else {
+    rdr1 << "_t3.dat";
+    rdr2 << "_t3.dat";
+  }
 
   std::regex spc1(rdr1.str());
   std::regex spc2(rdr2.str());
@@ -459,6 +469,7 @@ int main (int ac, char **av)
   options.add_options()
     ("h,help", "produce help message")
     ("l,long", "long output: print each rate and ratio")
+    ("resonance", "Use Nigel's resonance averaged Maxwellian files")
     ("Z,elem", "atomic number",
      cxxopts::value<unsigned short>(Z)->default_value("2"))
     ("t,Tmin", "minimum temperature",
@@ -577,7 +588,10 @@ int main (int ac, char **av)
 
   PeriodicTable pt;
 
-  Nigel nigel(Z);
+  bool resonance = false;
+  if (vm.count("resonance")) resonance = true;
+
+  Nigel nigel(Z, resonance);
 
   atomicData ad;
 
