@@ -49,11 +49,29 @@ constexpr double year      = 365.242*24*3600;
 // Solar mass (g)
 constexpr double msun      = 1.9891e33;
 
+#include <algorithm>
 #include <iostream>
+#include <cctype>
+#include <string>
 #include <tuple>
 #include <map>
 
 #include <memory>
+
+//! Case insenstive comparison
+struct StrMapComparator
+{
+  bool operator()( const std::string& a, const std::string& b ) const 
+  {
+    return std::lexicographical_compare
+      (
+       a.begin(), a.end(),
+       b.begin(), b.end(),
+       [](auto ch1, auto ch2) {
+	 return std::tolower(ch1) < std::tolower(ch2);
+       });
+  }
+};
 
 /** Store and retrieve periodic table info.  This can be extended to
     include additional data fields, etc.  Would be nice to add atomic
@@ -122,7 +140,7 @@ private:
 
   //! The atomic data
   std::map<unsigned,    AEptr> dataZ;
-  std::map<std::string, AEptr> dataS;
+  std::map<std::string, AEptr, StrMapComparator> dataS;
 
   //! Add data to database (only used for initialization)
   void add(const std::string& n, const std::string& a, const unsigned z,
