@@ -490,13 +490,12 @@ void Ion::readfblvl()
 
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
-  if (nOK)  {
-    if (myid == 0) {
-      std::cerr << "Ion::readfblvl: problem reading CHIANTI files "
+  if (nOK)  {			// Lines do not exist for all
+				// ionization levels
+    if (myid == 0 and false) {
+      std::cerr << "Ion::readfblvl: missing CHIANTI files "
 		<< "for Z=" << Z << " C=" << C << std::endl;
     }
-    MPI_Finalize();
-    exit(44);
   } 
 
   unsigned number = fblvl.size();
