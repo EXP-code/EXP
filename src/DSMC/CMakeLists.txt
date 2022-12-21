@@ -46,7 +46,7 @@ target_link_libraries(testdsmc PUBLIC ${common_LINKLIB})
 install(TARGETS testdsmc DESTINATION lib)
 
 set(bin_PROGRAMS testCross testIonRecomb genIonRecomb testQuantile
-  testExciteRate testRatio makeRecombCache testFreeFree)
+  testExciteRate testRatio testNigel makeRecombCache testFreeFree)
 
 if(ENABLE_CUDA)
   list(APPEND bin_PROGRAMS testCrossCuda testFreeFreeCuda)
