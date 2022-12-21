@@ -318,54 +318,50 @@ void Nigel::initialize(unsigned short Z, bool resonance)
 
     lQ ZC{Z, C};
 
+    std::string line;
+    double T, R;
+    
     // Begin with RR files
     //
     auto it = names.find(ZC);
 
-    if (it == names.end()) {
-      std::ostringstream sout;
-      sout << "Badnell::initialize: could not locate RR file for ion (Z, C) = ("
-	   << ZC.first << ", " << ZC.second << ")";
-      throw std::runtime_error(sout.str());
-    }
+    if (it != names.end()) {
 
-    std::ifstream in{dpath / it->second};
+      std::ifstream in{dpath / it->second};
     
-    std::string line;
-    std::getline(in, line);
-
-    double T, R;
-    
-    bool looking = true;
-    while (in) {
-      if (looking) {
-	// Keep reading lines until we reach the totals
-	//
-	if (line.find("T(K)") != std::string::npos) {
-	  looking = false;
-	  std::getline(in, line); // Read header
-	}
-      } else {
-	// We are done!
-	//
-	if (line[0] == 'C') break;
-	
-	// Read the line
-	//
-	std::istringstream ins(line);
-	
-	// Values (Energy in Rydbergs and Energy*Sigma in Mbarn*Rydberg)
-	//
-	ins >> T >> R;
-	dataRR[C].X.push_back(T);
-	dataRR[C].Y.push_back(R);
-      }
-      
-      // Read next line
       std::getline(in, line);
+
+      bool looking = true;
+      while (in) {
+	if (looking) {
+	  // Keep reading lines until we reach the totals
+	  //
+	  if (line.find("T(K)") != std::string::npos) {
+	    looking = false;
+	    std::getline(in, line); // Read header
+	  }
+	} else {
+	  // We are done!
+	  //
+	  if (line[0] == 'C') break;
+	  
+	  // Read the line
+	  //
+	  std::istringstream ins(line);
+	  
+	  // Values (Energy in Rydbergs and Energy*Sigma in Mbarn*Rydberg)
+	  //
+	  ins >> T >> R;
+	  dataRR[C].X.push_back(T);
+	  dataRR[C].Y.push_back(R);
+	}
+	
+	// Read next line
+	std::getline(in, line);
+      }
+      // END: RR file read
     }
-    // END: RR file read
-    
+
     // Now, on to DR files
     //
     auto it2 = names2.find(ZC);
@@ -380,11 +376,11 @@ void Nigel::initialize(unsigned short Z, bool resonance)
 	// TEST
 	if (cr.size()>2) continue;
 
-	in = std::ifstream{dpath / "DR" / v.second};
+	auto in = std::ifstream{dpath / "DR" / v.second};
 	
 	std::getline(in, line);
 	
-	looking = true;
+	bool looking = true;
 	while (in) {
 	  if (looking) {
 	    // Keep reading lines until we reach the totals
@@ -573,7 +569,7 @@ int main (int ac, char **av)
 
   // Initialize CHIANTI
   //
-  std::set<unsigned short> ZList = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16};
+  std::set<unsigned short> ZList = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 19, 20};
 
   if (ZList.find(Z) == ZList.end()) {
     if (myid==0) {
