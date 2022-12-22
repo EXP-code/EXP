@@ -101,16 +101,6 @@ BadnellData::walkDirectory()
 	unsigned short chg;
 	sin >> chg;
 
-	/*
-	std::cout << std::setw( 8) << seq
-		  << std::setw( 8) << element
-		  << std::setw(20) << std::get<0>(*ret)
-		  << std::setw( 8) << std::get<2>(*ret)
-		  << std::setw( 8) << chg
-		  << std::setw( 8) << couple
-		  << std::endl;
-	*/
-
 	ions[std::get<2>(*ret)] = element;
 	ionq.insert({std::get<2>(*ret), chg+1});
       }

@@ -3152,7 +3152,11 @@ void atomicData::readVerner()
 void atomicData::readBadnell() 
 {
   BadnellXC.initialize(this);
-  BadnellXC.report();
+  if (false) BadnellXC.report();
+  //  ^
+  //  |
+  //  +--- Verbose report on cross section files per Z, C
+  //       (off for production)
 }
 
 //
