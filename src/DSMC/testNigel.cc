@@ -67,7 +67,7 @@ protected:
   std::map<unsigned short, std::vector<XY>> dataDR;
 
   const std::string datapath = "./";
-  const std::string coupling = "ic";
+  const std::string coupling = "[h]*ic";
 
 public:
 

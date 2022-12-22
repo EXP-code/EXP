@@ -13,7 +13,7 @@
 #include <Badnell.H>
 
 std::string BadnellData::datapath = "./";
-std::string BadnellData::coupling = "ic";
+std::string BadnellData::coupling = "[h]*ic";
 bool        BadnellData::reweight = false;
 
 BadnellData::BadnellData()
@@ -48,6 +48,7 @@ BadnellData::walkDirectory()
 
     const std::regex txt_regex("[a-z]+");
     const std::regex num_regex("[0-9]+");
+    const std::regex cpl_regex(coupling);
     std::smatch matches;
     std::string element, charge, couple;
 
@@ -90,7 +91,7 @@ BadnellData::walkDirectory()
 
 	// Ignore unwanted coupling
 	//
-	if (couple != coupling) continue;
+	if (not std::regex_search(couple, matches, cpl_regex)) continue;
 
 	std::string abbrev(element);
 	abbrev[0] = std::toupper(abbrev[0]);
@@ -159,7 +160,7 @@ void BadnellData::initialize(atomicData* ad)
   //       |                          | |     |
   //       v                          v v     v
   rstr << ".*[/]" << user << year << "#[a-z]+[_]"
-       << "([a-z]+)([0-9]+)" << coupling << "[0-9]*[.]dat";
+       << "([a-z]+)([0-9]+)" << coupling <<  "[0-9]*[.]dat";
   //        ^       ^           ^            ^        ^
   //        |       |           |            |        |
   //        |       |           |            +--------|----- Core excitation
