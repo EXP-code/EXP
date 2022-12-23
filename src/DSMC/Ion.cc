@@ -3051,9 +3051,14 @@ void atomicData::readIp()
   std::string fileName(val);
   fileName.append("/ip/chianti.ip");
   if (myid==0) std::cout << "Attempting to open <" << fileName
-			 << "> . . ." << std::endl;
+			 << "> . . . ";
 
   std::ifstream ipFile(fileName);
+  
+  if (myid==0) {
+    if (ipFile.is_open()) std::cout << "success!" << std::endl;
+    else                  std::cout << "FAILURE"  << std::endl;
+  }
   
   int count = 0;
   unsigned char Z, C;
