@@ -3593,7 +3593,7 @@ double VernerData::cross(const lQ& Q, double EeV)
 				// Gaunt factor
 	double scaledE = log(Eph/Eiz);
 	double gf = ad->radGF(scaledE, n, l);
-	std::cout << "sE=" << scaledE << "gf=" << gf << std::endl;
+
 				// Cross section x Gaunt factor
 	double cross = crossPh * gf * Milne;
 	
@@ -3877,7 +3877,7 @@ void KLGFdata::initialize(atomicData* ad)
 	      double V;
 	      sin >> V;
 	      pe[n].push_back(log(V));
-	      for (int l=1; l<=n; l++) {
+	      for (int l=0; l<n; l++) {
 		std::pair<int, int> key(n, l);
 		if (sin.good() or sin.eof()) {
 		  sin >> V;
