@@ -3781,6 +3781,8 @@ void KLGFdata::initialize(atomicData* ad)
       if (ver.is_open()) {
 	std::getline(ver, inLine);
 	version = parseVersionString(inLine);
+	if (myid==0) std::cout << "---- CHIANTI version: " << inLine
+			       << std::endl;
       } else {
 	std::cout << "Could not find CHIANTI version in <"
 		  << fileName
