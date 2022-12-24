@@ -1967,12 +1967,12 @@ void atomicData::GauntFF::initialize()
 
   if (myid == 0) {
     std::cout << std::string(60, '-') << std::endl
-	      << "**** Gaunt FF data check ****" << std::endl
+	      << "---- Gaunt FF data check" << std::endl
 	      << std::string(60, '-') << std::endl
-	      << "Rows: " << data.rows() << " cols: " << data.cols() << std::endl
-	      << "Min(E): " << eps_min << " Max(E): " << eps_min + step*(data.cols()-1) << std::endl
-	      << "Min(w): " << w_min << " Max(w): " << w_min + step*(data.rows()-1) << std::endl
-	      << "Step: " << step << std::endl
+	      << "---- Rows: " << data.rows() << " cols: " << data.cols() << std::endl
+	      << "---- Min(E): " << eps_min << " Max(E): " << eps_min + step*(data.cols()-1) << std::endl
+	      << "---- Min(w): " << w_min << " Max(w): " << w_min + step*(data.rows()-1) << std::endl
+	      << "---- Step: " << step << std::endl
 	      << std::string(60, '-') << std::endl;
   }
 }
@@ -3051,7 +3051,7 @@ void atomicData::readIp()
 
   std::string fileName(val);
   fileName.append("/ip/chianti.ip");
-  if (myid==0) std::cout << "Attempting to open <" << fileName
+  if (myid==0) std::cout << "---- Opening <" << fileName
 			 << "> . . . ";
 
   std::ifstream ipFile(fileName);
@@ -3399,9 +3399,10 @@ void VernerData::initialize(atomicData* ad)
     if ( (val = getenv("VERNER_DATA")) != 0x0) {
       extended = true;
     } else {
-      std::cout << "EXP could not find VERNER_DATA environment variable "
-		<< "for the extended Verner-Yakovlev table. We will use "
-		<< "the CHIANTI version.  This is NOT a problem . . .  "
+      std::cout << "---- EXP could not find VERNER_DATA environment variable "
+		<< "for the extended" << std::endl
+		<< "---- Verner-Yakovlev table. "
+		<< "Okay, we will use the CHIANTI short version."
 		<< std::endl;
     }
 
@@ -4004,6 +4005,29 @@ void KLGFdata::initialize(atomicData* ad)
     s->set_points(pe[v.first.first], v.second);
 				// Store in DB
     spl[v.first] = s;
+  }
+
+  if (myid == 0) {
+    std::cout << std::string(60, '-') << std::endl
+	      << "---- Gaunt KL BF data check" << std::endl
+	      << std::string(60, '-') << std::endl
+	      << "---- Stanzas: " << gfb.size() << std::endl
+	      << "---- Records [n, l, dim]: " << std::endl
+	      << "---- ";
+
+    int icnt = 0;
+    for (auto v : gfb) {
+      std::cout << "["  << v.first.first
+		<< ", " << v.first.second
+		<< ": " << v.second.size() << "] ";
+
+      if (++icnt % 5 == 0) {
+	std::cout << std::endl;
+	if (icnt < gfb.size()) std::cout << "---- ";
+      }
+    }
+    if (icnt % 5) std::cout << std::endl;
+    std::cout << std::string(60, '-') << std::endl;
   }
 
   // We can safely clear the gfb structure now . . .
