@@ -15,6 +15,7 @@
 #include <localmpi.H>
 #include <Sutils.H>
 
+#include <parseVersionString.H>
 #include "Ion.H"
 #include "interactSelect.H"
 
@@ -3295,15 +3296,6 @@ void wgfa_data::synchronize()
   MPI_Bcast(&avalue, 1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
 };
 
-void pe_data::synchronize()
-{
-  MPI_Bcast(&ngfb,   1, MPI_INT,      0, MPI_COMM_WORLD);
-  MPI_Bcast(&nphot,  1, MPI_INT,      0, MPI_COMM_WORLD);
-
-  sync_vector(pe);
-};
-
-
 void fblvl_data::synchronize()
 {
   MPI_Bcast(&lvl,    1, MPI_INT,      0, MPI_COMM_WORLD);
@@ -3318,14 +3310,6 @@ void fblvl_data::synchronize()
   MPI_Bcast(&mult,   1, MPI_INT,      0, MPI_COMM_WORLD);
   MPI_Bcast(&encm,   1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
   MPI_Bcast(&encmth, 1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
-};
-
-void klgfb_data::synchronize()
-{
-  MPI_Bcast(&n,      1, MPI_INT,      0, MPI_COMM_WORLD);
-  MPI_Bcast(&l,      1, MPI_INT,      0, MPI_COMM_WORLD);
-
-  sync_vector(factors);
 };
 
 void gffint_data::synchronize()
@@ -3765,8 +3749,6 @@ double VernerData::crossPhotoIon(vrPtr vdata, double Eph)
   return fy * 1.0e-4;
 }
 
-
-
 // Read CHIANTI files file containing the free-bound gaunt factors for
 // n=1-6 from Karzas and Latter, 1961, ApJSS, 6, 167, the photon
 // energy and the free-bound gaunt factors
@@ -3786,55 +3768,125 @@ void KLGFdata::initialize(atomicData* ad)
       nOK = 1;
     }
     
+    // Get the CHIANTI version by reading the version string
+    //
+    std::vector<int> version;	// Major, minor, ...
+    {
+      std::string fileName(val);
+      fileName.append("/VERSION");
+      
+      std::string inLine;
+      std::ifstream ver(fileName.c_str());
+      
+      if (ver.is_open()) {
+	std::getline(ver, inLine);
+	version = parseVersionString(inLine);
+      } else {
+	std::cout << "Could not find CHIANTI version in <"
+		  << fileName
+		  << "> . . . exiting" << std::endl;
+      }
+
+      nOK = 1;
+    }
+
     if (nOK == 0) {
       
       std::string fileName(val);
       
-      fileName.append("/continuum/klgfb.dat");
+      // CHIANTI version < 10; use old Karzas-Latter data format
+      if (version[0]<10) {
+
+	std::vector<double> pe0;
+	int ngfb, nume;
+
+	fileName.append("/continuum/klgfb.dat");
       
-      std::string inLine;
-      std::ifstream klgfFile(fileName.c_str());
+	std::string inLine;
+	std::ifstream klgfFile(fileName.c_str());
       
-      if (klgfFile.is_open()) {
+	if (klgfFile.is_open()) {
 	
-	std::getline(klgfFile, inLine);
-	{
-	  std::istringstream sin(inLine);
-	  sin >> ngfb;
-	  sin >> nume;
-	}
+	  std::getline(klgfFile, inLine);
+	  {
+	    std::istringstream sin(inLine);
+	    sin >> ngfb;
+	    sin >> nume;
+	  }
 
-	pe.resize(nume);
-
-	std::getline(klgfFile, inLine);
-	{
-	  std::istringstream sin(inLine);
-	  for (auto & v : pe) sin >> v;
-	}
-
-	
-	while (klgfFile.good()) {
+	  pe0.resize(nume);
 
 	  std::getline(klgfFile, inLine);
-	  std::istringstream sin(inLine);
+	  {
+	    std::istringstream sin(inLine);
+	    for (auto & v : pe0) sin >> v;
+	  }
+	
+	  while (klgfFile.good()) {
 
-	  int n, l;
-	  sin >> n;
-	  sin >> l;
-	  
-	  std::pair<int, int> key(n, l);
+	    std::getline(klgfFile, inLine);
+	    std::istringstream sin(inLine);
+	    
+	    int n, l;
+	    sin >> n;
+	    sin >> l;
 
-	  while (sin.good()) {
+	    if (pe.find(n) == pe.end()) pe[n] = pe0;
+	    
+	    std::pair<int, int> key(n, l);
+	    
+	    while (sin.good()) {
+	      double V;
+	      sin >> V;
+	      if (sin.good() or sin.eof())
+		gfb[key].push_back(V);
+	      else
+		break;
+	    }
+	  }
+	} else {
+	  nOK = 1;
+	}
+	klgfFile.close();
+      }
+      // CHIANTI version > 9; use revised data format
+      else {
+	
+	for (int n=1; n<=6; n++) {
+
+	  std::string fileName(val);
+	  std::ostringstream sout;
+	  sout << "/continuum/klgfb_" << n << ".dat";
+
+	  fileName.append(sout.str());
+      
+	  std::string inLine;
+	  std::ifstream klgfFile(fileName.c_str());
+      
+	  if (klgfFile.is_open()) {
+	
+	    std::getline(klgfFile, inLine);
+	    std::istringstream sin(inLine);
+
 	    double V;
 	    sin >> V;
-	    if (sin.good() or sin.eof())
-	      gfb[key].push_back(V);
-	    else
-	      break;
+	    pe[n].push_back(log(V));
+	    for (int l=1; l<=n; l++) {
+	      std::pair<int, int> key(n, l);
+	      if (sin.good() or sin.eof()) {
+		sin >> V;
+		gfb[key].push_back(log(V));
+	      } else break;
+	    }
 	  }
 	}
+	// END: excitation level loop 
+
+	// Reverse the vectors
+	for (auto & v : pe)  std::reverse(v.second.begin(), v.second.end());
+	for (auto & v : gfb) std::reverse(v.second.begin(), v.second.end());
       }
-      klgfFile.close();
+      // CHIANTI>9 block
     }
   }
   
@@ -3848,15 +3900,24 @@ void KLGFdata::initialize(atomicData* ad)
     exit(60);
   } 
 
+  // Share DB with all processes
+  //
   if (myid==0) {
     
+    // Synchronize energy vector
+    for (auto p : pe) {
+      int n = p.first, sz = p.second.size();
+      MPI_Bcast(&n,  1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&sz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(p.second.data(), sz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+    int n = -1;
+    MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Number of stanzas to send/receive
     int sz = gfb.size();
 
-    MPI_Bcast(&ngfb, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&nume, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&sz,   1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    MPI_Bcast(&pe[0], nume, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&sz, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     for (auto m : gfb) {
       int n   = m.first.first;
@@ -3872,15 +3933,27 @@ void KLGFdata::initialize(atomicData* ad)
     
   } else {
   
+    // Synchronize energy vector
+    {
+      int n;
+      MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      // First level; will return n<0 to finish
+      while (n>=0) {
+	int sz;
+	MPI_Bcast(&sz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	pe[n].resize(sz);
+	MPI_Bcast(pe[n].data(), sz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+				// Get next level
+	MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      }
+    }
+
     int sz, n, l, gsz;
 
-    MPI_Bcast(&ngfb, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&nume, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&sz,   1, MPI_INT, 0, MPI_COMM_WORLD);
+    // Get number of stanzas
+    MPI_Bcast(&sz, 1, MPI_INT, 0, MPI_COMM_WORLD);
       
-    pe.resize(nume);
-    MPI_Bcast(&pe[0], nume, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
+    // Get data for each stanza
     for (int i=0; i<sz; i++) {
 
       MPI_Bcast(&n,   1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -3897,9 +3970,12 @@ void KLGFdata::initialize(atomicData* ad)
   // Ok, now make and store the splines
   //
   for (auto v : gfb) {
-    tksplPtr s(new tk::spline);	 // New spline instance
-    s->set_points(pe, v.second); // Initialize
-    spl[v.first] = s;		 // Store
+				// New spline instance
+    tksplPtr s(new tk::spline);
+				// Initialize the spline
+    s->set_points(pe[v.first.first], v.second);
+				// Store in DB
+    spl[v.first] = s;
   }
 
   // We can safely clear the gfb structure now . . .
