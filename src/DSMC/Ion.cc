@@ -3785,9 +3785,8 @@ void KLGFdata::initialize(atomicData* ad)
 	std::cout << "Could not find CHIANTI version in <"
 		  << fileName
 		  << "> . . . exiting" << std::endl;
+	nOK = 1;
       }
-
-      nOK = 1;
     }
 
     if (nOK == 0) {
@@ -3825,6 +3824,8 @@ void KLGFdata::initialize(atomicData* ad)
 	  while (klgfFile.good()) {
 
 	    std::getline(klgfFile, inLine);
+	    if (inLine.size()==0) break; // Empty?
+
 	    std::istringstream sin(inLine);
 	    
 	    int n, l;
@@ -3865,19 +3866,32 @@ void KLGFdata::initialize(atomicData* ad)
       
 	  if (klgfFile.is_open()) {
 	
-	    std::getline(klgfFile, inLine);
-	    std::istringstream sin(inLine);
+	    while (klgfFile.good()) {
 
-	    double V;
-	    sin >> V;
-	    pe[n].push_back(log(V));
-	    for (int l=1; l<=n; l++) {
-	      std::pair<int, int> key(n, l);
-	      if (sin.good() or sin.eof()) {
-		sin >> V;
-		gfb[key].push_back(log(V));
-	      } else break;
+	      std::getline(klgfFile, inLine);
+	      if (inLine.size()==0) break; // Empty?
+
+	      std::istringstream sin(inLine);
+
+	      double V;
+	      sin >> V;
+	      pe[n].push_back(log(V));
+	      for (int l=1; l<=n; l++) {
+		std::pair<int, int> key(n, l);
+		if (sin.good() or sin.eof()) {
+		  sin >> V;
+		  gfb[key].push_back(log(V));
+		} else {
+		  std::cout << "KLGFdata::initialize: error parsing line in "
+			    << "<" << fileName << ">" << std::endl;
+		  nOK = 1;
+		}
+	      }
 	    }
+	  } else {
+	    std::cout << "KLGFdata::initialize: error opening "
+		      << "<" << fileName << ">" << std::endl;
+	    nOK = 1;
 	  }
 	}
 	// END: excitation level loop 
@@ -3885,6 +3899,18 @@ void KLGFdata::initialize(atomicData* ad)
 	// Reverse the vectors
 	for (auto & v : pe)  std::reverse(v.second.begin(), v.second.end());
 	for (auto & v : gfb) std::reverse(v.second.begin(), v.second.end());
+
+	// Size sanity check
+	for (auto v : gfb) {
+	  int sz1 = gfb[v.first].size();
+	  int sz0 = pe[v.first.first].size();
+	  if (sz0 != sz1) {
+	    std::cerr << "KLGFdata: size mismatch for n=" << v.first.first
+		      << "; pe size=" << sz0 << " and gf size=" << sz1
+		      << std::endl;
+	  }
+	}
+	
       }
       // CHIANTI>9 block
     }
