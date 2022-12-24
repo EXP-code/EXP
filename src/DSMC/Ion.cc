@@ -103,9 +103,6 @@ double Ion::DeltaEGrid       =  0.1;  // log_10 eV
 std::map<unsigned short, std::string> chElems {{1, "h"}, {2, "he"}, {3, "li"}, {4, "be"}, {5, "b"}, {6, "c"}, {7, "n"}, {8, "o"}, {9, "f"}, {10, "ne"}, {11, "na"}, {12, "mg"}, {13, "al"}, {14, "si"}, {15, "p"}, {16, "s"}, {17, "cl"}, {18, "ar"}, {19, "k"}, {20, "ca"}, {21, "sc"}, {22, "ti"}, {23, "v"}, {24, "cr"}, {25, "mn"}, {26, "fe"}, {27, "co"},	{28, "ni"}, {29, "cu"}, {30, "zn"} };
 
 
-
-
-//
 // Convert the master element name to a (Z, C) pair
 //
 void Ion::convertName() 
@@ -3596,6 +3593,7 @@ double VernerData::cross(const lQ& Q, double EeV)
 				// Gaunt factor
 	double scaledE = log(Eph/Eiz);
 	double gf = ad->radGF(scaledE, n, l);
+	std::cout << "sE=" << scaledE << "gf=" << gf << std::endl;
 				// Cross section x Gaunt factor
 	double cross = crossPh * gf * Milne;
 	
@@ -3899,11 +3897,14 @@ void KLGFdata::initialize(atomicData* ad)
 	}
 	// END: excitation level loop 
 
-	// Reverse the vectors
+	// Reverse the vectors.  pe must be monotonically increasing
+	// to use the tk::spline class.
+	//
 	for (auto & v : pe)  std::reverse(v.second.begin(), v.second.end());
 	for (auto & v : gfb) std::reverse(v.second.begin(), v.second.end());
 
 	// Size sanity check
+	//
 	for (auto v : gfb) {
 	  int sz1 = gfb[v.first].size();
 	  int sz0 = pe[v.first.first].size();
@@ -3999,12 +4000,19 @@ void KLGFdata::initialize(atomicData* ad)
   // Ok, now make and store the splines
   //
   for (auto v : gfb) {
-				// New spline instance
+    // New spline instance (shared_ptr)
+    //
     tksplPtr s(new tk::spline);
-				// Initialize the spline
+
+    // Initialize the spline. pe[n] abcissas must be monotonically
+    // increasing. This is enforced by tk::spline.
+    //
     s->set_points(pe[v.first.first], v.second);
-				// Store in DB
-    spl[v.first] = s;
+
+    // Store the spline in the spl map by shared_ptr.
+    //
+    spl[v.first] = s;	       
+
   }
 
   if (myid == 0) {
