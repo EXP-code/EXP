@@ -3396,11 +3396,12 @@ void VernerData::initialize(atomicData* ad)
     if ( (val = getenv("VERNER_DATA")) != 0x0) {
       extended = true;
     } else {
-      std::cout << "---- EXP could not find VERNER_DATA environment variable "
-		<< "for the extended" << std::endl
-		<< "---- Verner-Yakovlev table. "
-		<< "Okay, we will use the CHIANTI short version."
-		<< std::endl;
+      std::cout << "---- EXP/DSMC could not find VERNER_DATA environment variable pointing to" << std::endl
+		<< "---- the extended Verner-Yakovlev table.  We provide the extended table in" << std::endl
+		<< "---- the DSMC source directory.  If you are using the Badnell ADAS RR+DR" << std::endl
+		<< "---- recombination cross sections, the Verner-Yakovlev tables will be used" << std::endl
+		<< "---- for the photoionization cross sections only.  We  will use the shorter" << std::endl
+		<< "---- table from the CHIANTI installation, no worries." << std::endl;
     }
 
     // Use CHIANTI version of extended version is not found
