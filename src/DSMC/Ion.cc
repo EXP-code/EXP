@@ -3048,7 +3048,8 @@ void atomicData::readIp()
 
   std::string fileName(val);
   fileName.append("/ip/chianti.ip");
-  if (myid==0) std::cout << "---- Opening <" << fileName
+  if (myid==0) std::cout << "----" << std::endl
+			 << "---- Opening <" << fileName
 			 << "> . . . ";
 
   std::ifstream ipFile(fileName);
@@ -3396,7 +3397,8 @@ void VernerData::initialize(atomicData* ad)
     if ( (val = getenv("VERNER_DATA")) != 0x0) {
       extended = true;
     } else {
-      std::cout << "---- EXP/DSMC could not find VERNER_DATA environment variable pointing to" << std::endl
+      std::cout << "----" << std::endl
+		<< "---- EXP/DSMC could not find VERNER_DATA environment variable pointing to" << std::endl
 		<< "---- the extended Verner-Yakovlev table.  We provide the extended table in" << std::endl
 		<< "---- the DSMC source directory.  If you are using the Badnell ADAS RR+DR" << std::endl
 		<< "---- recombination cross sections, the Verner-Yakovlev tables will be used" << std::endl
@@ -3781,7 +3783,8 @@ void KLGFdata::initialize(atomicData* ad)
       if (ver.is_open()) {
 	std::getline(ver, inLine);
 	version = parseVersionString(inLine);
-	if (myid==0) std::cout << "---- CHIANTI version: " << inLine
+	if (myid==0) std::cout << "----" << std::endl
+			       << "---- CHIANTI version: " << inLine
 			       << std::endl;
       } else {
 	std::cout << "Could not find CHIANTI version in <"

@@ -33,7 +33,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.51 [12/12/22 recombination updates]"
+#define VERSION_ID "0.52 [12/24/22 ADAS RR+DR updates]"
 
 using namespace std;
 using namespace NTC;
