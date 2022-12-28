@@ -6,6 +6,29 @@
 
 namespace MSSA
 {
+  //! Key comparison with length ordering
+  struct mSSAkeyCompare
+  {
+    bool operator()(const std::vector<unsigned>& a,
+		  const std::vector<unsigned>& b) const
+    {
+				// Copy vectors
+      std::vector<unsigned> c(a), d(b);
+				// Get component indices
+      auto A = c.back(), B = d.back();
+
+      c.pop_back();		// Remove component indices
+      d.pop_back();
+
+      if (A < B)		// Order by component
+	return true;
+      else if (A == B)		// Order by intracomponent index
+	return std::less<std::vector<unsigned>>{}(c, d);
+      else			// Order by component
+	return false;
+    }
+  };
+
   /**
      Class for MSSA processing of EXP coefficients along with
      user-specified auxiliary channels
@@ -17,8 +40,8 @@ namespace MSSA
     
     //@{
     //! Repacked stream data
-    std::map<Key, std::vector<double> > data;
-    std::map<Key, double> mean, var;
+    std::map<Key, std::vector<double>, mSSAkeyCompare > data;
+    std::map<Key, double, mSSAkeyCompare> mean, var;
     //@}
 
     //! Coefficient container
@@ -36,7 +59,7 @@ namespace MSSA
     bool computed, reconstructed;
 
     //! The reconstructed coefficients for each PC
-    std::map<Key, Eigen::MatrixXd> RC;
+    std::map<Key, Eigen::MatrixXd, mSSAkeyCompare> RC;
 
     //! The left singular vectors (PC)
     Eigen::MatrixXd PC;
