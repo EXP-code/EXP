@@ -1323,6 +1323,19 @@ namespace MSSA {
       //
       std::vector<Key> keylist;
       for (auto k : mean) keylist.push_back(k.first);
+      
+      // Pad keylist entries for HDF5
+      //
+      size_t maxSZ = 0;
+      for (auto v : keylist) maxSZ = std::max<size_t>(maxSZ, v.size());
+      auto padVal = std::numeric_limits<unsigned>::max();
+      for (auto & v : keylist) {
+	if (v.size() < maxSZ) {
+	  for (auto k=v.size(); k<maxSZ; k++) v.push_back(padVal);
+	}
+      }
+      
+
       file.createDataSet("keylist", keylist);
       
       // TEST
@@ -1440,6 +1453,13 @@ namespace MSSA {
 
       std::vector<Key> keylist;
       h5file.getDataSet("keylist").read(keylist);
+
+      auto padVal = std::numeric_limits<unsigned>::max();
+      for (auto & v : keylist) {
+	std::vector<unsigned int>::iterator it;
+	while ((it = std::find(v.begin(), v.end(), padVal)) != v.end())
+	  v.erase(it);
+      }
 
       // Check key list
       //
