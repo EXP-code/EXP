@@ -247,4 +247,7 @@ void MSSAtoolkitClasses(py::module &m) {
 	"Provides a list of internal keys for accessing the "
 	"detrended channel series using getRC()");
 
+  f.def("getAllKeys", &expMSSA::getAllKeys,
+	"Provides a list of all internal channel keys (for reference)");
+
 }

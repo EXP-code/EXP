@@ -96,10 +96,11 @@ public:
   //! Return the number of dimensions (degrees of freedom)
   int dof() { return dim; }
 
-  //! Exception handling
+  //! Exception handling using std::exception
   void bomb(const char *s) {
-    cerr << "ERROR from " << ModelID << ": " << s << '\n';
-    exit(-1);
+    std::ostringstream sout;
+    sout << "MassModel error from " << ModelID << ": " << s;
+    throw std::runtime_error(sout.str());
   }
 
 };

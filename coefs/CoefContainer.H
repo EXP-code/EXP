@@ -24,6 +24,14 @@ namespace MSSA
   //! Detrending style
   enum class TrendType {perChannel, totVar, totPow};
 
+  //! Get enum names from a constant map (this is tedious; there is
+  //! probably an easier way)
+  const std::map<int, std::string> getTrendType
+    { {static_cast<std::underlying_type<TrendType>::type>(TrendType::perChannel), "per channel"   },
+      {static_cast<std::underlying_type<TrendType>::type>(TrendType::totVar),     "total variance"},
+      {static_cast<std::underlying_type<TrendType>::type>(TrendType::totPow),     "total power"   } };
+
+
   //! Base class for per component coefficients
   class CoefDB
   {
