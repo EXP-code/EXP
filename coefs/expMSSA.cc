@@ -1415,12 +1415,15 @@ namespace MSSA {
 	throw std::runtime_error(sout.str());
       }
 
-      if (trend != static_cast<std::underlying_type<TrendType>::type>(type)) {
+      int ttype = static_cast<std::underlying_type<TrendType>::type>(type);
+
+      if (trend != ttype) {
 	std::ostringstream sout;
 	sout << "expMSSA::restoreState: saved state has trend="
-	     << trend << " but expMSSA expects trend="
-	     << static_cast<std::underlying_type<TrendType>::type>(type)
-	     << ".\nCan't restore mssa state!";
+	     << getTrendType.at(trend) << " [" << trend
+	     << "] but expMSSA expects trend="
+	     << getTrendType.at(ttype) << " [" << ttype
+	     << "].\nCan't restore mssa state!";
 	throw std::runtime_error(sout.str());
       }
 
