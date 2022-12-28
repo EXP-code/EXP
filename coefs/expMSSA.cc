@@ -1327,7 +1327,8 @@ namespace MSSA {
       
       // TEST
       if (true) {
-	std::cout << "Output keylist:" << std::endl;
+	std::cout << "Output keylist [" << keylist.size() << ", "
+	          << nkeys << "]" << std::endl;
 	for (auto v : keylist) {
 	  std::cout << "[";
 	  for (auto u : v) std::cout << u << " ";
