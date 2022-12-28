@@ -1324,10 +1324,11 @@ namespace MSSA {
       std::vector<Key> keylist;
       for (auto k : mean) keylist.push_back(k.first);
       
-      // Pad keylist entries for HDF5
+      // Pad keylist entries to maximum key length for HighFive
       //
       size_t maxSZ = 0;
       for (auto v : keylist) maxSZ = std::max<size_t>(maxSZ, v.size());
+				// The padding value
       auto padVal = std::numeric_limits<unsigned>::max();
       for (auto & v : keylist) {
 	if (v.size() < maxSZ) {
@@ -1335,21 +1336,10 @@ namespace MSSA {
 	}
       }
       
-
+      // Finally, create the dataset
+      //
       file.createDataSet("keylist", keylist);
       
-      // TEST
-      if (true) {
-	std::cout << "Output keylist [" << keylist.size() << ", "
-	          << nkeys << "]" << std::endl;
-	for (auto v : keylist) {
-	  std::cout << "[";
-	  for (auto u : v) std::cout << u << " ";
-	  std::cout << "]" << std::endl;
-	}
-      }
-      // END TEST
-
       // Save mssa_analysis state
       //
       HighFive::Group analysis = file.createGroup("mssa_analysis");
@@ -1455,6 +1445,8 @@ namespace MSSA {
       std::vector<Key> keylist;
       h5file.getDataSet("keylist").read(keylist);
 
+      // Remove padded values from K5 store
+      //
       auto padVal = std::numeric_limits<unsigned>::max();
       for (auto & v : keylist) {
 	std::vector<unsigned int>::iterator it;
