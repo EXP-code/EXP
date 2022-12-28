@@ -268,6 +268,13 @@ namespace MSSA
       return ret;
     }
 
+    //! Provides a list of all channel keys
+    std::vector<Key> getAllKeys()
+    {
+      std::vector<Key> ret;
+      for (auto v : mean) ret.push_back(v.first);
+      return ret;
+    }
   };
 
 

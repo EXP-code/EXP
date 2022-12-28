@@ -1325,6 +1325,17 @@ namespace MSSA {
       for (auto k : mean) keylist.push_back(k.first);
       file.createDataSet("keylist", keylist);
       
+      // TEST
+      if (true) {
+	std::cout << "Output keylist:" << std::endl;
+	for (auto v : keylist) {
+	  std::cout << "[";
+	  for (auto u : v) std::cout << u << " ";
+	  std::cout << "]" << std::endl;
+	}
+      }
+      // END TEST
+
       // Save mssa_analysis state
       //
       HighFive::Group analysis = file.createGroup("mssa_analysis");
@@ -1444,8 +1455,24 @@ namespace MSSA {
 	}
       }
 
-      if (bad)
-	throw std::runtime_error("expMSSA::restoreState: keylist mismatch.\nCan't restore mssa state!");
+      if (bad) {
+	std::ostringstream sout;
+	sout << "expMSSA::restoreState: keylist mismatch." << std::endl
+	     << "Can't restore mssa state! Wanted keylist: ";
+	for (auto v : mean) {
+	  sout << "[";
+	  for (auto u : v.first) sout << u << ' ';
+	  sout << "] ";
+	}
+	sout << std::endl << "Found keylist: ";
+	for (auto v : keylist) {
+	  sout << "[";
+	  for (auto u : v) sout << u << ' ';
+	  sout << "] ";
+	}
+      
+	throw std::runtime_error(sout.str());
+      }
 
       auto analysis = h5file.getGroup("mssa_analysis");
 
