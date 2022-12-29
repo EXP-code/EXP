@@ -388,7 +388,7 @@ namespace MSSA {
     
       // Split eigenvectors into channel sequences
       //
-      std::map<Key, Eigen::MatrixXd> rho;
+      std::map<Key, Eigen::MatrixXd, mSSAkeyCompare> rho;
     
       int n = 0;
       for (auto u : mean) {
@@ -600,7 +600,7 @@ namespace MSSA {
     
     // Used in both computations
     //
-    std::map<Key, std::vector<double> > values;
+    std::map<Key, std::vector<double>, mSSAkeyCompare> values;
     
     //
     const int minSize = 600;
