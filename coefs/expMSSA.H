@@ -10,24 +10,25 @@ namespace MSSA
   struct mSSAkeyCompare
   {
     bool operator()(const std::vector<unsigned>& a,
-		  const std::vector<unsigned>& b) const
+		    const std::vector<unsigned>& b) const
     {
-				// Copy vectors
-      std::vector<unsigned> c(a), d(b);
 				// Get component indices
-      auto A = c.back(), B = d.back();
-
-      c.pop_back();		// Remove component indices
-      d.pop_back();
+      unsigned A = a.back(), B = b.back();
 
       if (A < B)		// Order by component
 	return true;
-      else if (A == B)		// Order by intracomponent index
-	return std::less<std::vector<unsigned>>{}(c, d);
-      else			// Order by component
-	return false;
+
+      if (A == B) {		// Order by index
+	size_t sz = a.size()-1;
+	for (size_t i=0; i<sz; i++) {
+	  if (a[i] < b[i]) return true;
+	  if (a[i] > b[i]) return false;
+	}
+      }
+      return false;
     }
   };
+
 
   /**
      Class for MSSA processing of EXP coefficients along with
