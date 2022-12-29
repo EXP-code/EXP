@@ -17,6 +17,29 @@ namespace MSSA
   //! An index key
   using Key = std::vector<unsigned>;
   
+  //! Key comparison with length ordering
+  struct mSSAkeyCompare
+  {
+    bool operator()(const std::vector<unsigned>& a,
+		    const std::vector<unsigned>& b) const
+    {
+				// Get component indices
+      unsigned A = a.back(), B = b.back();
+
+      if (A < B)		// Order by component
+	return true;
+
+      if (A == B) {		// Order by index
+	size_t sz = a.size()-1;
+	for (size_t i=0; i<sz; i++) {
+	  if (a[i] < b[i]) return true;
+	  if (a[i] > b[i]) return false;
+	}
+      }
+      return false;
+    }
+  };
+
   //! Coefficient and channel config map/dictionary
   using mssaConfig =
     std::map<std::string, std::tuple<CoefClasses::CoefsPtr, std::vector<Key>, std::vector<Key>>>;
@@ -91,7 +114,7 @@ namespace MSSA
     using LMKey = std::tuple<unsigned, unsigned>;
 
     //! Database itself
-    std::map<Key, std::vector<double>> data;
+    std::map<Key, std::vector<double>, mSSAkeyCompare> data;
 
     //! Times for each slice
     std::vector<double> times;
