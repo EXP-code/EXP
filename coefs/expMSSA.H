@@ -6,30 +6,6 @@
 
 namespace MSSA
 {
-  //! Key comparison with length ordering
-  struct mSSAkeyCompare
-  {
-    bool operator()(const std::vector<unsigned>& a,
-		    const std::vector<unsigned>& b) const
-    {
-				// Get component indices
-      unsigned A = a.back(), B = b.back();
-
-      if (A < B)		// Order by component
-	return true;
-
-      if (A == B) {		// Order by index
-	size_t sz = a.size()-1;
-	for (size_t i=0; i<sz; i++) {
-	  if (a[i] < b[i]) return true;
-	  if (a[i] > b[i]) return false;
-	}
-      }
-      return false;
-    }
-  };
-
-
   /**
      Class for MSSA processing of EXP coefficients along with
      user-specified auxiliary channels
