@@ -324,8 +324,10 @@ public:
 
   void zero_cov(bool val) { cov = val; }
 
-  void profile(ostream &rotfile, vector<Particle>& dpart,
+  void profile(std::ostream &rotfile, vector<Particle>& dpart,
 	       double rmin, double rmax, int numr);
+
+  void disk_model(const std::string &modfile);
 
 private:
   DiskGenType type;

@@ -276,6 +276,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     halo3->print_model("diskhalo_model.multi");
     halo3->print_model_eval("diskhalo_model_eval.multi", RNUM*5);
     halo3->print_df("diskhalo_df.multi");
+    disk_model("diskhalo_disk.model");
   }
     
   // Generate the multimass model
@@ -3047,3 +3048,55 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
   } 
 }
 
+void DiskHalo::disk_model(const std::string &modfile)
+{
+  std::vector<double> r2(RNUM);
+  std::vector<double> rr(RNUM);
+  std::vector<double> d2(RNUM);
+  std::vector<double> m2(RNUM);
+  std::vector<double> p2(RNUM);
+  std::vector<double> pp(RNUM);
+  std::vector<double> dd(RNUM);
+  std::vector<double> dm(RNUM);
+
+  double rmin = halo->get_min_radius();
+  double rmax = halo->get_max_radius();
+  double r, dr = (log(rmax) - log(rmin))/(RNUM-1);
+
+  if (not LOGR) dr = (rmax - rmin)/(RNUM-1);
+  
+  for (int i=0; i<RNUM; i++) {
+    if (LOGR) {
+      r2[i] = r = rmin*exp(dr*i);
+      rr[i] = log(rmin) + dr*i;
+    } else {
+      r2[i] = r = rmin + dr*i;
+      rr[i] = r;
+    }
+
+    dd[i] = deri_pot(r2[i], 0.0, 0.0, 1);
+    m2[i] = dd[i]*r2[i]*r2[i];
+  }
+  
+  auto spl = Spline1d(rr, dd);
+  for (int i=0; i<RNUM; i++) {
+    dm[i] = r2[i]*r2[i]*spl.deriv(rr[i]) - 2.0*m2[i]/r2[i];
+    d2[i] = dm[i]/(4.0*M_PI*r2[i]*r2[i]);
+  }
+
+  m2[0] = 0.0;
+  pp[0] = 0.0;
+  for (int i=1; i<RNUM; i++) {
+    m2[i] = m2[i-1] + 0.5*(dm[i] + dm[i-1])*(r2[i] - r2[i-1]);
+    pp[i] = pp[i-1] + 0.5*(dm[i]/r2[i] + dm[i-1]/r2[i-1])*(r2[i] - r2[i-1]);
+  }
+
+  for (int i=0; i<RNUM; i++) {
+    p2[i] = -m2[i]/r2[i] + pp[i] - pp.back();
+  }
+
+  SphericalModelTable mod 
+    (RNUM, r2.data(), d2.data(), m2.data(), p2.data());
+
+  mod.print_model(modfile.c_str());
+}
