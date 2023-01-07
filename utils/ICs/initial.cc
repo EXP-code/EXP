@@ -698,6 +698,11 @@ main(int ac, char **av)
     return 0;
   }
 
+  if (vm.count("diskmodel"))
+    diskmodel = true;
+  else
+    diskmodel = false;
+
   /*
   // check boolean parameters
   if (myid==0) {

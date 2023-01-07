@@ -408,7 +408,7 @@ double SphericalModelTable::get_dpot2(const double r)
   return ans;
 }
 
-void SphericalModelTable::print_df(char const *name)
+void SphericalModelTable::print_df(const std::string& name)
 {
   if (!dist_defined) bomb("distribution function not defined");
 
@@ -460,7 +460,7 @@ void SphericalModelTable::print_df(char const *name)
 }
 
 
-void SphericalModelTable::print_model(char const *name)
+void SphericalModelTable::print_model(const std::string& name)
 {
   ofstream out(name);
   if (!out) {
@@ -497,7 +497,7 @@ void SphericalModelTable::print_model(char const *name)
 
 }
 
-void SphericalModelTable::print_model_eval(char const *name, int number)
+void SphericalModelTable::print_model_eval(const std::string& name, int number)
 {
   ofstream out(name);
   if (!out) {

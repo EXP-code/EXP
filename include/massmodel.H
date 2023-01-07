@@ -403,14 +403,14 @@ public:
   double get_min_radius(void) override { return mass.x[0]; }
   double get_max_radius(void) override { return mass.x[mass.num-1]; }
   int grid_size(void) { return num; }
-  void print_model(char const *name);
-  void print_model_eval(char const *name, int number);
+  void print_model(const std::string& name);
+  void print_model_eval(const std::string& name, int number);
   //@}
 
   //@{
   //! Set up and get info about the phase-space distribution
   void setup_df(int NUM, double RA=1.0e20);
-  void print_df(char const *name);
+  void print_df(const std::string& name);
   double get_ra2(void) { return df.ra2; }
   //@}
 

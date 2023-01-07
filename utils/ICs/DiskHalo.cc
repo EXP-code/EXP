@@ -3060,9 +3060,12 @@ void DiskHalo::disk_model(const std::string &modfile)
 
   double rmin = halo->get_min_radius();
   double rmax = halo->get_max_radius();
-  double r, dr = (log(rmax) - log(rmin))/(RNUM-1);
+  double r, dr;
 
-  if (not LOGR) dr = (rmax - rmin)/(RNUM-1);
+  if (LOGR)
+    dr = (log(rmax) - log(rmin))/(RNUM-1);
+  else
+    dr = (rmax - rmin)/(RNUM-1);
   
   for (int i=0; i<RNUM; i++) {
     if (LOGR) {
@@ -3073,20 +3076,26 @@ void DiskHalo::disk_model(const std::string &modfile)
       rr[i] = r;
     }
 
-    dd[i] = deri_pot(r2[i], 0.0, 0.0, 1);
-    m2[i] = dd[i]*r2[i]*r2[i];
+    // dPhi/dR
+    dd[i] = deri_pot(r, 0.0, 0.0, 1);
+
+    // M(R) = R^2*dPhi/dR
+    m2[i] = dd[i]*r*r;
   }
   
-  auto spl = Spline1d(rr, dd);
+  auto spl = Spline1d(rr, m2);
   for (int i=0; i<RNUM; i++) {
-    dm[i] = r2[i]*r2[i]*r2[i]*spl.deriv(rr[i]) - 2.0*m2[i]/r2[i];
+    // dM(R)/dR or dM(R)/dlnR
+    dm[i] = spl.deriv(rr[i]);
+    if (LOGR) dm[i] /= r2[i];
+
+    // rho(R) = dM(R)/dR/(4*pi*R^2)
     d2[i] = dm[i]/(4.0*M_PI*r2[i]*r2[i]);
   }
 
-  m2[0] = 0.0;
+  // Monopole potential
   pp[0] = 0.0;
   for (int i=1; i<RNUM; i++) {
-    m2[i] = m2[i-1] + 0.5*(dm[i] + dm[i-1])*(r2[i] - r2[i-1]);
     pp[i] = pp[i-1] + 0.5*(dm[i]/r2[i] + dm[i-1]/r2[i-1])*(r2[i] - r2[i-1]);
   }
 
@@ -3094,8 +3103,18 @@ void DiskHalo::disk_model(const std::string &modfile)
     p2[i] = -m2[i]/r2[i] + pp[i] - pp.back();
   }
 
-  SphericalModelTable mod 
-    (RNUM, r2.data(), d2.data(), m2.data(), p2.data());
+  // Debug
+  if (true) {
+    for (int i=0; i<RNUM; i++) {
+      std::cout << "** "
+		<< std::setw(16) << r2[i]
+		<< std::setw(16) << deri_pot_disk(r2[i], 0, 0, 1)
+		<< std::setw(16) << deri_pot_halo(r2[i], 0, 0, 1)
+		<< std::setw(16) << halo->get_density(r2[i])
+		<< std::setw(16) << d2[i]
+		<< std::endl;
+    }
+  }
 
-  mod.print_model(modfile.c_str());
+  SphericalModelTable(r2, d2, m2, p2).print_model(modfile);
 }
