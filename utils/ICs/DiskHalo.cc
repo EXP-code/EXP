@@ -276,7 +276,6 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     halo3->print_model("diskhalo_model.multi");
     halo3->print_model_eval("diskhalo_model_eval.multi", RNUM*5);
     halo3->print_df("diskhalo_df.multi");
-    disk_model("diskhalo_disk.model");
   }
     
   // Generate the multimass model
@@ -3080,7 +3079,7 @@ void DiskHalo::disk_model(const std::string &modfile)
   
   auto spl = Spline1d(rr, dd);
   for (int i=0; i<RNUM; i++) {
-    dm[i] = r2[i]*r2[i]*spl.deriv(rr[i]) - 2.0*m2[i]/r2[i];
+    dm[i] = r2[i]*r2[i]*r2[i]*spl.deriv(rr[i]) - 2.0*m2[i]/r2[i];
     d2[i] = dm[i]/(4.0*M_PI*r2[i]*r2[i]);
   }
 
