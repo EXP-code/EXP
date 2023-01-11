@@ -188,6 +188,11 @@ void MSSAtoolkitClasses(py::module &m) {
 	"that may be used in basis classes.  Note: the reconstructed data\n"
 	"will overwrite the memory of the original coefficient data.");
 
+  f.def("background", &expMSSA::background,
+	"Copy the background data streams back to the working coefficient\n"
+	"database.  This can be used after a zerodata() call to include the\n"
+	"background in theh reconstruction");
+
   f.def("wCorr", &expMSSA::wCorr,
 	"Get the w-correlation matrix for the selected component and channel\n"
 	"key.  Returns the combined cosine+sine correlation for complex types\n"

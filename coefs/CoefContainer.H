@@ -88,11 +88,13 @@ namespace MSSA
     //! Spherical coefficients
     void pack_sphere();
     void unpack_sphere();
+    void restore_background_sphere();
 
     //@{
     //! Cylindrical coefficients
     void pack_cylinder();
     void unpack_cylinder();
+    void restore_background_cylinder();
     //@}
 
     //@{
@@ -135,6 +137,9 @@ namespace MSSA
     //! Copy all of the data; make new instances of shared pointer
     //! objects
     std::shared_ptr<CoefDB> deepcopy();
+
+    //! Copy data from backround back to the coefficient database
+    void background();
 
   };
 
@@ -267,6 +272,12 @@ components:
       unsigned c = key.back();
       key.pop_back();
       comps[c]->data[key] = data;
+    }
+
+    //! Copy data from backround back to the coefficient database
+    void background()
+    {
+      for (auto v : comps) v->background();
     }
 
     //! Update the working data to the working coefficients and return a map

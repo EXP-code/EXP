@@ -201,6 +201,10 @@ namespace MSSA
     */
     std::map<std::string, CoefClasses::CoefsPtr> getReconstructed();
 
+    //! Copy background coefficients to working coefficient database
+    //! (e.g. for use after a zerocopy())
+    void background() { coefDB.background(); }
+
     //@{
     /** Compute w-correlation matrix for a single trajectory matrix
 

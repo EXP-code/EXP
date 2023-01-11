@@ -62,7 +62,18 @@ namespace MSSA
     return coefs;
   }
   
-  
+  void CoefDB::background()
+  {
+    if (dynamic_cast<CoefClasses::SphCoefs*>(coefs.get()))
+      restore_background_sphere();
+    else if (dynamic_cast<CoefClasses::CylCoefs*>(coefs.get()))
+      restore_background_cylinder();
+    else if (dynamic_cast<CoefClasses::TableData*>(coefs.get()))
+      { } // Do nothing
+    else {
+      throw std::runtime_error("CoefDB::background(): can not reflect coefficient type");
+    }
+  }
 
   void CoefDB::pack_channels()
   {
@@ -449,6 +460,41 @@ namespace MSSA
     }
   }
   // END CoefContainer constructor
+
+
+  void CoefDB::restore_background_sphere()
+  {
+    auto cur = dynamic_cast<CoefClasses::SphCoefs*>(coefs.get());
+
+    auto I = [](const Key& k) { return k[0]*(k[0]+1)/2 + k[1]; };
+
+    for (int t=0; t<times.size(); t++) {
+      auto cf = cur->getCoefStruct(times[t]);
+
+      for (auto k : bkeys)  {
+	auto c = cf->coefs(I(k), k[2]);
+	data[k][t] = c.real();
+	if (k[3]) data[k][t] = c.imag();
+      }
+    }
+  }
+
+  void CoefDB::restore_background_cylinder()
+  {
+    auto cur = dynamic_cast<CoefClasses::CylCoefs*>(coefs.get());
+
+    for (int t=0; t<times.size(); t++) {
+      auto cf = cur->getCoefStruct(times[t]);
+      
+      for (auto k : bkeys) {
+	if (k[2]==0)
+	  data[k][t] = cf->coefs(k[0], k[1]).real();
+	else
+	  data[k][t] = cf->coefs(k[0], k[1]).imag();
+      }
+    }
+  }
+  // END CoefDB::background
 
 }
 // END namespace MSSA
