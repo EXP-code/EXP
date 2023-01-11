@@ -472,8 +472,8 @@ main(int argc, char **argv)
   } else {
     I1min = Emin;
     I1max = Emax;
-    I2min = KTOL;
-    I2max = 1.0 - KTOL;
+    I2min = std::max<double>(KTOL, KMIN);
+    I2max = std::min<double>(1.0 - KTOL, KMAX);
   }
 
   double d1 = (I1max - I1min) / NUM1;
@@ -1097,7 +1097,7 @@ main(int argc, char **argv)
     double mfac = d1*d2;
     
     if (meshgrid)
-      for (int k=0; k<10; k++) out[k] << std::setw(8) << NUM1
+      for (int k=0; k<11; k++) out[k] << std::setw(8) << NUM1
 				      << std::setw(8) << NUM2
 				      << std::endl;
     bool relJ = false;
