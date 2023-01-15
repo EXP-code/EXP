@@ -20,6 +20,30 @@
 #include <cudaMappingConstants.cuH>
 #endif
 
+//! Target density models for thin disks
+class CylModel
+{
+private:
+  std::string id;
+
+public:
+
+  //! Factory constructor
+  static std::shared_ptr<CylModel> createModel(const std::string type);
+
+  //! Return the potential
+  virtual double cylpot(double r) = 0;
+
+  //! Return the derivative of the potential
+  virtual double cyldpot(double r) = 0;
+
+  //! Return the surface density
+  virtual double cyldens(double r) = 0;
+
+  //! Get model ID
+  std::string ID() const { return id; }
+};
+
 //! Cylindrical SL grid class
 class SLGridCyl
 {
@@ -50,6 +74,8 @@ private:
   int  read_cached_table(void);
   void write_cached_table(void);
 
+  //! Basis magic number
+  inline static const unsigned int hmagic = 0xc0a56a2;
 
 				// Local MPI stuff
   void mpi_setup(void);
@@ -62,7 +88,10 @@ private:
 
   void bomb(string oops);
 
+  //! Use basis cache
   bool cache;		
+
+  //! For deep debugging
   bool tbdbg;
 
 public:
@@ -73,11 +102,11 @@ public:
   //! Exponential scale length, default: 1.0
   static double A;		
 
-
   //! Constructor
   SLGridCyl(int mmax, int nmax, int numr, int numk, double rmin, double rmax,
 	    double l, bool cache, int Cmap, double Scale,
-	    bool Verbose=false);
+	    const std::string type, bool Verbose=false);
+
   //! Destructor
   ~SLGridCyl();
 
@@ -180,7 +209,10 @@ private:
 
   void bomb(string oops);
 
+  //! Use basis cache
   bool cache;
+
+  //! For deep debugging
   bool tbdbg;
 
   //! Default model file name
@@ -349,12 +381,16 @@ private:
   int read_cached_table(void);
   void write_cached_table(void);
 
+  //! Basis magic number
+  inline static const unsigned int hmagic = 0xc0a56a3;
+
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
   char *mpi_buf;
 
   void bomb(string oops);
 
+  //! For deep debugging
   bool tbdbg;
 
 public:
