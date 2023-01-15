@@ -69,9 +69,9 @@ void local_init_mpi(int argc, char **argv)
       
       if (n) {
 	int m; MPI_Group_rank ( slave_group, &m );
-	std::cout << " | " << std::setw(10) << "SLAVE: " << m << std::endl;
+	std::cout << " | " << std::setw(10) << "WORKER " << m << std::endl;
       } else {
-	std::cout << " | " << std::setw(10) << "MASTER" << std::endl;
+	std::cout << " | " << std::setw(10) << "ROOT" << std::endl;
       }
     }
     MPI_Barrier(MPI_COMM_WORLD);

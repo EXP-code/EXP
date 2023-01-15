@@ -70,7 +70,7 @@ private:
 
   void init_table(void);
   void compute_table(TableCyl* table, int M, int K);
-  void compute_table_slave(void);
+  void compute_table_worker(void);
   int  read_cached_table(void);
   void write_cached_table(void);
 
@@ -193,7 +193,7 @@ private:
 
   void init_table(void);
   void compute_table(TableSph* table, int L);
-  void compute_table_slave(void);
+  void compute_table_worker(void);
 
 
 				// Local MPI stuff
@@ -371,7 +371,7 @@ private:
 
   void init_table(void);
   void compute_table(TableSlab* table, int kx, int ky);
-  void compute_table_slave(void);
+  void compute_table_worker(void);
 
 
 				// Local MPI stuff

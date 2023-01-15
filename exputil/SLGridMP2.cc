@@ -1,9 +1,12 @@
 // #define DEBUG_SLEDGE 1
 // #define DEBUG_NAN 1
-#define NOTIFY 1
-#define SLEDGE_VERBOSE 1
-#define USE_TABLE 1
 
+#define NOTIFY 1		// Tell user about *bad* SL solutions
+
+#define SLEDGE_VERBOSE 1	// Turn on verbose output for DEBUG_SLEDGE
+
+#define USE_TABLE 1		// Use all table values rather than analyic
+				// evaluations where possible
 #define XOFFSET (1.0e-8)
 
 #include <cstdlib>
@@ -177,8 +180,9 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
   cylm  = CylModel::createModel(type);
 
   kv.resize(NUMK+1);
-  dk = M_PI/L;
-  for (k=0; k<=NUMK; k++) kv[k] = dk*k;
+
+  auto getK = [L](int k) { return 2.0*M_PI/L*(0.5+k); };
+  for (k=0; k<=NUMK; k++) kv[k] = getK(k);
 
   table   = 0;
   mpi_buf = 0;
@@ -202,10 +206,10 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
     if (mpi_myid) {
 
-      compute_table_slave();
+      compute_table_worker();
 
       //
-      // <Receive completed table from master>
+      // <Receive completed table from root>
       //
 
       for (m=0; m<=mmax; m++) {
@@ -217,9 +221,9 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
       }
       
     }
-    else {			// BEGIN Master
+    else {			// BEGIN Root
 
-      int slave = 0;
+      int worker = 0;
       int request_id = 1;
 
       if (!read_cached_table()) {
@@ -229,20 +233,20 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
 	while (m<=mmax) {
 
-	  if (slave<mpi_numprocs-1 && m<=mmax) { // Send request to slave
-	    slave++;
+	  if (worker<mpi_numprocs-1 && m<=mmax) { // Send request to worker
+	    worker++;
       
 	    if (tbdbg)
-	      std::cout << "Master sending orders to Slave " << slave
-			<< ": (m,k)=(" << m << ", " << k << ")" << std::endl;
+	      std::cout << "Root sending orders to Worker " << worker
+			<< ": (m, k)=(" << m << ", " << k << ")" << std::endl;
 
-	    MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
-	    MPI_Send(&m, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
-	    MPI_Send(&k, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+	    MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
+	    MPI_Send(&m, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
+	    MPI_Send(&k, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
       
 	    if (tbdbg)
-	      std::cout << "Master gave orders to Slave " << slave
-			<< ": (m,k)=(" << m << ", " << ")" << std::endl;
+	      std::cout << "Root gave orders to Worker " << worker
+			<< ": (m, k)=(" << m << ", " << k << ")" << std::endl;
 
 				// Increment counters
 	    k++;
@@ -252,7 +256,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	    }
 	  }
 	  
-	  if (slave == mpi_numprocs-1 && m<=mmax) {
+	  if (worker == mpi_numprocs-1 && m<=mmax) {
 	    
 	    //
 	    // <Wait and receive>
@@ -276,8 +280,8 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	    MPI_Send(&k, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
       
 	    if (tbdbg)
-	      std::cout << "Master gave orders to Slave " << retid
-			<< ": (m,k)=(" << m << ", " << k << ")" << std::endl;
+	      std::cout << "Root gave orders to Worker " << retid
+			<< ": (m, k)=(" << m << ", " << k << ")" << std::endl;
 
 				// Increment counters
 	    k++;
@@ -289,10 +293,10 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	}
       
 	//
-	// <Wait for all slaves to return>
+	// <Wait for all workers to return>
 	//
   
-	while (slave) {
+	while (worker) {
 	
 	
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
@@ -300,7 +304,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
     
 	  mpi_unpack_table();      
 
-	  slave--;
+	  worker--;
 	}
 
 	if (cache) write_cached_table();
@@ -309,16 +313,16 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
 
       //
-      // <Tell slaves to continue>
+      // <Tell workers to continue>
       //
 
       request_id = -1;
-      for (slave=1; slave < mpi_numprocs; slave++)
-	MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+      for (worker=1; worker < mpi_numprocs; worker++)
+	MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
 
 
       //
-      // <Send table to slaves>
+      // <Send table to workers>
       //
 
       for (m=0; m<=mmax; m++) {
@@ -329,7 +333,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
       }
 
 
-    } // END Master
+    } // END Root
 
   }
   else {
@@ -473,7 +477,7 @@ int SLGridCyl::read_cached_table(void)
 
   if (AA!=A) {
     std::cout << "---- SLGridCyl::read_cached_table: found A=" << AA
-	      << " wanted " << l << std::endl;
+	      << " wanted " << A << std::endl;
     return 0;
   }
 
@@ -1326,7 +1330,7 @@ void SLGridCyl::init_table(void)
 }
 
 
-void SLGridCyl::compute_table_slave(void)
+void SLGridCyl::compute_table_worker(void)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
@@ -1346,7 +1350,7 @@ void SLGridCyl::compute_table_slave(void)
 #endif
 
   if (tbdbg)
-    std::cout << "Slave " << mpi_myid << " begins . . ." << std::endl;
+    std::cout << "Worker " << mpi_myid << " begins . . ." << std::endl;
 
   //
   // <Wait for orders>
@@ -1368,7 +1372,7 @@ void SLGridCyl::compute_table_slave(void)
 
 
     if (tbdbg)
-      std::cout << "Slave " << mpi_myid << ": ordered to compute (m, k)=("
+      std::cout << "Worker " << mpi_myid << ": ordered to compute (m, k)=("
 		<< M << ", " << K << ")" << std::endl;
 
     cons[0] = cons[1] = cons[2] = cons[3] = cons[4] = cons[5] = 0.0;
@@ -1436,24 +1440,24 @@ void SLGridCyl::compute_table_slave(void)
     
     if (tbdbg) {
     
-      if (type[0]) std::cout << "Slave " << myid 
+      if (type[0]) std::cout << "Worker " << myid 
 			     << ": Inner endpoint is regular" << std::endl;
-      if (type[1]) std::cout << "Slave " << myid 
+      if (type[1]) std::cout << "Worker " << myid 
 			     << ": Inner endpoint is limit circle" << std::endl;
-      if (type[2]) std::cout << "Slave " << myid 
+      if (type[2]) std::cout << "Worker " << myid 
 			     << ": Inner endpoint is nonoscillatory for all EV" << std::endl;
-      if (type[3]) std::cout << "Slave " << myid 
+      if (type[3]) std::cout << "Worker " << myid 
 			     << ": Inner endpoint is oscillatory for all EV" << std::endl;
-      if (type[4]) std::cout << "Slave " << myid 
+      if (type[4]) std::cout << "Worker " << myid 
 			     << ": Outer endpoint is regular" << std::endl;
-      if (type[5]) std::cout << "Slave " << myid 
+      if (type[5]) std::cout << "Worker " << myid 
 			     << ": Outer endpoint is limit circle" << std::endl;
-      if (type[6]) std::cout << "Slave " << myid 
+      if (type[6]) std::cout << "Worker " << myid 
 			     << ": Outer endpoint is nonoscillatory for all EV" << std::endl;
-      if (type[7]) std::cout << "Slave " << myid 
+      if (type[7]) std::cout << "Worker " << myid 
 			     << ": Outer endpoint is oscillatory for all EV" << std::endl;
       
-      std::cout << "Slave " << mpi_myid << ": computed (m, k)=("
+      std::cout << "Worker " << mpi_myid << ": computed (m, k)=("
 		<< M << ", " << K << ")" << std::endl;
 
       std::cout.precision(6);
@@ -1489,13 +1493,13 @@ void SLGridCyl::compute_table_slave(void)
     for (i=0; i<N; i++) {
       if (iflag[i] < 0) {
 	ok = false;
-	std::cerr << "***** Slave " << std::setw(3) << myid 
+	std::cerr << "***** Worker " << std::setw(3) << myid 
 		  << "  Level " << std::setw(3) << i << ": " << iflag[i] 
 		  << "  M=" << M << "  kv[" << K << "]=" << kv[K] << endl;
       }
     }
-    if (!ok) std::cerr << "***** Slave " << std::setw(3) << myid 
-		       << ": if error=-2, consider increasing zmax" << endl;
+    if (!ok) std::cerr << "***** Worker " << std::setw(3) << myid 
+		       << " If error=-2, consider increasing rmax" << endl;
 #endif
 
 				// Load table
@@ -1516,7 +1520,7 @@ void SLGridCyl::compute_table_slave(void)
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
     if (tbdbg) 
-      std::cout << "Slave " << mpi_myid << ": sent to master (m, k)=("
+      std::cout << "Worker " << mpi_myid << ": sent to root (m, k)=("
 		<< M << ", " << K << ")" << std::endl;
 
     delete [] iflag;
@@ -1762,10 +1766,10 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
     mpi_setup();
 
     if (mpi_myid) {
-      compute_table_slave();
+      compute_table_worker();
 
       //
-      // <Receive completed table from master>
+      // <Receive completed table from root>
       //
 
       for (l=0; l<=lmax; l++) {
@@ -1781,9 +1785,9 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
       }
       
     }
-    else {			// BEGIN Master
+    else {			// BEGIN Root
 
-      int slave = 0;
+      int worker = 0;
       int request_id = 1;
 
       if (!read_cached_table()) {
@@ -1793,26 +1797,26 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
 	while (l<=lmax) {
 
-	  if (slave<mpi_numprocs-1) { // Send request to slave
-	    slave++;
+	  if (worker<mpi_numprocs-1) { // Send request to worker
+	    worker++;
       
 
 	    if (tbdbg)
-	      std::cout << "Master sending orders to Slave " << slave 
+	      std::cout << "Root sending orders to Worker " << worker 
 			<< ": l=" << l << std::endl; 
 
-	    MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
-	    MPI_Send(&l, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+	    MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
+	    MPI_Send(&l, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
       
 	    if (tbdbg)
-	      std::cout << "Master gave orders to Slave " << slave 
+	      std::cout << "Root gave orders to Worker " << worker 
 			<< ": l=" << l << std::endl;
 
 				// Increment counters
 	    l++;
 	  }
 
-	  if (slave == mpi_numprocs-1 && l<=lmax) {
+	  if (worker == mpi_numprocs-1 && l<=lmax) {
 	  
 	    //
 	    // <Wait and receive>
@@ -1833,7 +1837,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	    MPI_Send(&l, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
       
 	    if (tbdbg) 
-	      std::cout << "Master g orders to Slave " << retid
+	      std::cout << "Root g orders to Worker " << retid
 			<< ": l=" << l << std::endl;
 
 				// Increment counters
@@ -1842,10 +1846,10 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	}
       
 	//
-	// <Wait for all slaves to return>
+	// <Wait for all workers to return>
 	//
   
-	while (slave) {
+	while (worker) {
 	
 	
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
@@ -1853,7 +1857,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
     
 	  mpi_unpack_table();      
 
-	  slave--;
+	  worker--;
 	}
 
 	if (cache) write_cached_table();
@@ -1862,31 +1866,31 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
 
       //
-      // <Tell slaves to continue>
+      // <Tell workers to continue>
       //
 
       request_id = -1;
-      for (slave=1; slave < mpi_numprocs; slave++)
-	MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+      for (worker=1; worker < mpi_numprocs; worker++)
+	MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
 
 
       //
-      // <Send table to slaves>
+      // <Send table to workers>
       //
 
       for (l=0; l<=lmax; l++) {
 	int position = mpi_pack_table(&table[l], l);
 
 	/*
-	for (slave=1; slave < mpi_numprocs; slave++)
-	  MPI_Send(mpi_buf, position, MPI_PACKED, slave, 11, MPI_COMM_WORLD);
+	for (worker=1; worker < mpi_numprocs; worker++)
+	  MPI_Send(mpi_buf, position, MPI_PACKED, worker, 11, MPI_COMM_WORLD);
 	*/
 
 	MPI_Bcast(mpi_buf, position, MPI_PACKED, 0, MPI_COMM_WORLD);
       }
 
 
-    } // END Master
+    } // END Root
 
   }
   else {
@@ -2754,7 +2758,7 @@ void SLGridSph::init_table(void)
 }
 
 
-void SLGridSph::compute_table_slave(void)
+void SLGridSph::compute_table_worker(void)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
@@ -2775,7 +2779,7 @@ void SLGridSph::compute_table_slave(void)
 #endif
 
 #ifdef DEBUG
-  std::cout << "Slave " << mpi_myid << " begins . . ." << std::endl;
+  std::cout << "Worker " << mpi_myid << " begins . . ." << std::endl;
 #endif
 
   //
@@ -2796,7 +2800,7 @@ void SLGridSph::compute_table_slave(void)
 
 
     if (tbdbg)
-      std::cout << "Slave " <<  mpi_myid << ": ordered to compute l = " << L << "" << std::endl;
+      std::cout << "Worker " <<  mpi_myid << ": ordered to compute l = " << L << "" << std::endl;
 
     cons[0] = cons[1] = cons[2] = cons[3] = cons[4] = cons[5] = 0.0;
     cons[6] = rmin;
@@ -2860,7 +2864,7 @@ void SLGridSph::compute_table_slave(void)
     //
     
     if (tbdbg) {
-      std::cout << "Slave " <<  mpi_myid << ": computed l = " << L << "" << std::endl;
+      std::cout << "Worker " <<  mpi_myid << ": computed l = " << L << "" << std::endl;
 
       std::cout.precision(6);
       std::cout.setf(ios::scientific);
@@ -2906,7 +2910,7 @@ void SLGridSph::compute_table_slave(void)
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
     if (tbdbg)
-      std::cout << "Slave " <<  mpi_myid << ": send to master l = " << L << "" << std::endl;
+      std::cout << "Worker " <<  mpi_myid << ": send to root l = " << L << "" << std::endl;
 
     delete [] iflag;
     delete [] invec;
@@ -3053,15 +3057,14 @@ YAML::Node SLGridSph::getHeader(const std::string& cachefile)
 //======================================================================
 
 
-int SLGridSlab::mpi = 0;	// initially off
-int SLGridSlab::cache = 1;	// initially yes
-double SLGridSlab::H = 0.1;	// Scale height
-double SLGridSlab::L = 1.0;	// Periodic box size
-double SLGridSlab::ZBEG = 0.0;	// Offset on from origin
-double SLGridSlab::ZEND = 0.0;	// Offset on potential zero
+int    SLGridSlab::mpi   = 0;	// initially off
+int    SLGridSlab::cache = 1;	// initially yes
+double SLGridSlab::H     = 0.1;	// Scale height
+double SLGridSlab::L     = 1.0;	// Periodic box size
+double SLGridSlab::ZBEG  = 0.0;	// Offset on from origin
+double SLGridSlab::ZEND  = 0.0;	// Offset on potential zero
 
 static double KKZ;
-
 				// Isothermal slab with
 				// G = M = 1
 static double poffset=0.0;
@@ -3126,10 +3129,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
     mpi_setup();
 
     if (mpi_myid) {
-      compute_table_slave();
+      compute_table_worker();
 
       //
-      // <Receive completed table from master>
+      // <Receive completed table from root>
       //
 
       for (kx=0; kx<=numk; kx++) {
@@ -3142,9 +3145,9 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
       }
       
     }
-    else {			// BEGIN Master
+    else {			// BEGIN Root
 
-      int slave = 0;
+      int worker = 0;
       int request_id = 1;
 
       if (!read_cached_table()) {
@@ -3154,19 +3157,19 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 
 	while (kx<=numk) {
 
-	  if (slave<mpi_numprocs-1) { // Send request to slave
-	    slave++;
+	  if (worker<mpi_numprocs-1) { // Send request to worker
+	    worker++;
       
 	    if (tbdbg)
-	      std::cout << "Master sending orders to Slave " << slave 
+	      std::cout << "Root sending orders to Worker " << worker 
 			<< ": Kx=" << kx << ", Ky=" << ky << std::endl;
 
-	    MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
-	    MPI_Send(&kx, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
-	    MPI_Send(&ky, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+	    MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
+	    MPI_Send(&kx, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
+	    MPI_Send(&ky, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
       
 	    if (tbdbg)
-	      std::cout << "Master gave orders to Slave " << slave 
+	      std::cout << "Root gave orders to Worker " << worker 
 			<< ": Kx=" << kx << ", Ky=" << ky << std::endl;
 
 				// Increment counters
@@ -3178,7 +3181,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 	    
 	  }
 
-	  if (slave == mpi_numprocs-1 && kx<=numk) {
+	  if (worker == mpi_numprocs-1 && kx<=numk) {
 	  
 	    //
 	    // <Wait and receive>
@@ -3200,7 +3203,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 	    MPI_Send(&ky, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
       
 	    if (tbdbg)
-	      std::cout << "Master gave orders to Slave " << retid 
+	      std::cout << "Root gave orders to Worker " << retid 
 			<< ": Kx=" << kx << ", Ky=" << ky << std::endl;
 
 				// Increment counters
@@ -3214,10 +3217,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 	}
       
 	//
-	// <Wait for all slaves to return>
+	// <Wait for all workers to return>
 	//
   
-	while (slave) {
+	while (worker) {
 	
 	
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
@@ -3225,7 +3228,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
     
 	  mpi_unpack_table();      
 
-	  slave--;
+	  worker--;
 	}
 
 	if (cache) write_cached_table();
@@ -3234,28 +3237,28 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 
 
       //
-      // <Tell slaves to continue>
+      // <Tell workers to continue>
       //
 
       request_id = -1;
-      for (slave=1; slave < mpi_numprocs; slave++)
-	MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+      for (worker=1; worker < mpi_numprocs; worker++)
+	MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
 
 
       //
-      // <Send table to slaves>
+      // <Send table to workers>
       //
 
       for (kx=0; kx<=numk; kx++) {
 	for (ky=0; ky<=kx; ky++) {
 	  int position = mpi_pack_table(&table[kx][ky], kx, ky);
-	  for (slave=1; slave < mpi_numprocs; slave++)
-	    MPI_Send(mpi_buf, position, MPI_PACKED, slave, 11, MPI_COMM_WORLD);
+	  for (worker=1; worker < mpi_numprocs; worker++)
+	    MPI_Send(mpi_buf, position, MPI_PACKED, worker, 11, MPI_COMM_WORLD);
 	}
       }
 
 
-    } // END Master
+    } // END Root
 
   }
   else {
@@ -4140,7 +4143,7 @@ void SLGridSlab::init_table(void)
 }
 
 
-void SLGridSlab::compute_table_slave(void)
+void SLGridSlab::compute_table_worker(void)
 {
 
   //  double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
@@ -4160,7 +4163,7 @@ void SLGridSlab::compute_table_slave(void)
 #endif
 
 #ifdef DEBUG
-  std::cout << "Slave " << mpi_myid << " begins . . ." << std::endl;
+  std::cout << "Worker " << mpi_myid << " begins . . ." << std::endl;
 #endif
 
   //
@@ -4183,7 +4186,7 @@ void SLGridSlab::compute_table_slave(void)
 	     MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
     if (tbdbg)
-      std::cout << "Slave " << mpi_myid << ": ordered to compute Kx, Ky = "
+      std::cout << "Worker " << mpi_myid << ": ordered to compute Kx, Ky = "
 		<< KX << ", " << KY << "" << std::endl;
 
     cons[0] = cons[1] = cons[2] = cons[3] = cons[4] = cons[5] = 0.0;
@@ -4213,7 +4216,7 @@ void SLGridSlab::compute_table_slave(void)
     cons[2] = -1.0/(f*f);
 
     if (tbdbg) {
-      std::cout << "Slave " << mpi_myid << ": Kx, Ky = " 
+      std::cout << "Worker " << mpi_myid << ": Kx, Ky = " 
 		<< KX << ", " << KY << " [Even inputs]" << std::endl;
       for (int n=0; n<8; n++)
 	std::cout << std::setw(5) << n << std::setw(15) << cons[n] << endl;
@@ -4263,7 +4266,7 @@ void SLGridSlab::compute_table_slave(void)
     //
     
     if (tbdbg) {
-      std::cout << "Slave " << mpi_myid << ": computed Kx, Ky = " 
+      std::cout << "Worker " << mpi_myid << ": computed Kx, Ky = " 
 		<< KX << ", " << KY << " [Even]" << std::endl;
 
       std::cout.precision(6);
@@ -4321,7 +4324,7 @@ void SLGridSlab::compute_table_slave(void)
     //
     if (tbdbg) {
 
-      std::cout << "Slave " << mpi_myid << ": computed Kx, Ky = " 
+      std::cout << "Worker " << mpi_myid << ": computed Kx, Ky = " 
 		<< KX << ", " << KY << " [Odd]" << std::endl;
 
       std::cout.precision(6);
@@ -4372,7 +4375,7 @@ void SLGridSlab::compute_table_slave(void)
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
     if (tbdbg)
-      std::cout << "Slave " << mpi_myid << ": sent to master Kx, Ky = "
+      std::cout << "Worker " << mpi_myid << ": sent to root Kx, Ky = "
 		<< KX << ", " <<  KY << std::endl;
 
     delete [] iflag;
@@ -4382,7 +4385,6 @@ void SLGridSlab::compute_table_slave(void)
     delete [] xef;
     delete [] ef;
     delete [] pdef;
-
   }
 
 }

@@ -13,22 +13,21 @@
 
 int main(int argc, char** argv)
 {
-  bool use_mpi, logr = false, ortho_check = false;
+  bool use_mpi, logr = false, ortho_check = false, dbg = false;
   double A, scale, rmin, rmax, L;
-  int numr, cmap, diverge, mmax, kmax, nmax, knots;
+  int numr, cmap, diverge, mmax, kmax, nmax, knots, num;
   std::string filename, cachefile, model;
 
   // MPI preliminaries 
   //
   {
-    // Use OpenMPI hak to detect MPI environment (not portable, but
-    // it's the best workaround I have).
+    // Use this hack to detect an OpenMPI environment (not portable,
+    // but it's the best workaround I have).
     //
     std::string found(getenv("OMPI_COMM_WORLD_SIZE"));
     if (found.size()) {
       local_init_mpi(argc, argv);
       use_mpi = true;
-      if (myid==0) std::cout << "Using MPI..." << std::endl;
     }
   }
 
@@ -40,13 +39,14 @@ int main(int argc, char** argv)
     ("h,help", "Print this help message")
     ("ortho", "Compute orthogonality matrix")
     ("logr", "Plot output grid with logarithmic spacing")
+    ("debug", "Print debugging output")
     ("cmap", "coordinates in SphereSL: use mapped (1) or linear(0) coordinates",
      cxxopts::value<int>(cmap)->default_value("0"))
     ("scale", "scaling from real coordinates to table",
      cxxopts::value<double>(scale)->default_value("1.0"))
-    ("A", "characteristic disk scale length",
+    ("A,length", "characteristic disk scale length",
      cxxopts::value<double>(A)->default_value("1.0"))
-    ("L", "pillbox size",
+    ("L,thick", "pillbox size",
      cxxopts::value<double>(L)->default_value("1.0"))
     ("mmax", "maximum number of angular harmonics in the expansion",
      cxxopts::value<int>(mmax)->default_value("4"))
@@ -56,10 +56,12 @@ int main(int argc, char** argv)
      cxxopts::value<int>(kmax)->default_value("10"))
     ("numr", "radial knots for the SL grid",
      cxxopts::value<int>(numr)->default_value("1000"))
-    ("rmin", "minimum radius for the SL grid",
+    ("r,rmin", "minimum radius for the SL grid",
      cxxopts::value<double>(rmin)->default_value("0.0001"))
-    ("rmax", "maximum radius for the SL grid",
+    ("R,rmax", "maximum radius for the SL grid",
      cxxopts::value<double>(rmax)->default_value("20.0"))
+    ("num", "number of output grid points",
+     cxxopts::value<int>(num)->default_value("1000"))
     ("knots", "Number of Legendre integration knots",
      cxxopts::value<int>(knots)->default_value("40"))
     ("cache", "cache file",
@@ -101,6 +103,10 @@ int main(int argc, char** argv)
   //
   if (vm.count("logr")) logr = true;
 
+  // Debugging output?
+  //
+  if (vm.count("debug")) dbg = true;
+
   if (use_mpi) {
     SLGridCyl::mpi = 1;		// Turn on MPI
   } else {
@@ -112,7 +118,7 @@ int main(int argc, char** argv)
   // Generate Sturm-Liouville grid
   //
   auto ortho = std::make_shared<SLGridCyl>(mmax, nmax, numr, kmax, rmin, rmax,
-					   L, true, cmap, scale, model, true);
+					   L, true, cmap, scale, model, dbg);
   //                                       ^  ^     ^     ^      ^      ^
   //                                       |  |     |     |      |      |
   // Slab height --------------------------+  |     |     |      |      |
@@ -141,10 +147,6 @@ int main(int argc, char** argv)
     exit(-1);
   }
 
-  std::cout << "Number of points? ";
-  int num;
-  std::cin >> num;
-
   cout << "M, N, K? ";
   int M, K, N;
   std::cin >> M;
@@ -155,7 +157,7 @@ int main(int argc, char** argv)
   M = std::min<int>(M, mmax);
 
   N = std::max<int>(N, 0);
-  N = std::min<int>(N, nmax);
+  N = std::min<int>(N, nmax-1);
 
   K = std::max<int>(K, 0);
   K = std::min<int>(K, kmax);
@@ -225,7 +227,7 @@ int main(int argc, char** argv)
 
   // Compute the inner product of the pairs
   //
-  if (ortho) {
+  if (ortho_check) {
 
     std::ofstream out("cyltest.ortho");
 
