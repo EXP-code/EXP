@@ -23,7 +23,8 @@
 //! Target density models for thin disks
 class CylModel
 {
-private:
+protected:
+  //! For cache identification
   std::string id;
 
 public:
@@ -32,13 +33,13 @@ public:
   static std::shared_ptr<CylModel> createModel(const std::string type);
 
   //! Return the potential
-  virtual double cylpot(double r) = 0;
+  virtual double pot(double r) = 0;
 
   //! Return the derivative of the potential
-  virtual double cyldpot(double r) = 0;
+  virtual double dpot(double r) = 0;
 
   //! Return the surface density
-  virtual double cyldens(double r) = 0;
+  virtual double dens(double r) = 0;
 
   //! Get model ID
   std::string ID() const { return id; }
@@ -351,6 +352,31 @@ public:
 };
 
 
+//! Target density models for slabs
+class SlabModel
+{
+protected:
+  //! For cache identification
+  std::string id;
+
+public:
+
+  //! Factory constructor
+  static std::shared_ptr<SlabModel> createModel(const std::string type);
+
+  //! Return the potential
+  virtual double pot(double z) = 0;
+
+  //! Return the derivative of the potential
+  virtual double dpot(double z) = 0;
+
+  //! Return the surface density
+  virtual double dens(double z) = 0;
+
+  //! Get model ID
+  std::string ID() const { return id; }
+};
+
 //! Slab (one-dimensional) SL grid class
 class SLGridSlab
 {
@@ -377,8 +403,8 @@ private:
 				// Local MPI stuff
   void mpi_setup(void);
   void mpi_unpack_table(void);
-  int mpi_pack_table(TableSlab* table, int kx, int ky);
-  int read_cached_table(void);
+  int  mpi_pack_table(TableSlab* table, int kx, int ky);
+  int  read_cached_table(void);
   void write_cached_table(void);
 
   //! Basis magic number
@@ -415,7 +441,8 @@ public:
 
 
   //! Constructor
-  SLGridSlab(int kmax, int nmax, int numz, double zmax, bool Verbose=false);
+  SLGridSlab(int kmax, int nmax, int numz, double zmax,
+	     const std::string type="isothermal", bool Verbose=false);
 
   //! Destructor
   ~SLGridSlab();

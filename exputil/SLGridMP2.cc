@@ -37,7 +37,10 @@ int SLGridCyl::mpi  = 0;	// initially off
 double SLGridCyl::A = 1.0;
 
 //! Target model for cylindrical SL
-std::shared_ptr<CylModel> cylm;
+std::shared_ptr<CylModel> cyl;
+
+//! Target model for slab SL
+std::shared_ptr<SlabModel> slab;
 
 extern "C" {
   int sledge_(logical* job, doublereal* cons, logical* endfin, 
@@ -54,17 +57,19 @@ class KuzminCyl : public CylModel
 {
 public:
   
-  double cylpot(double R) {
+  KuzminCyl() { id = "kuzmin"; }
+
+  double pot(double R) {
     double a2 = SLGridCyl::A * SLGridCyl::A;
     return -1.0/sqrt(R*R + a2);
   }
 
-  double cyldpot(double R) {
+  double dpot(double R) {
     double a2 = SLGridCyl::A * SLGridCyl::A;
     return R/pow(R*R + a2, 1.5);
   }
 
-  double cyldens(double R) {
+  double dens(double R) {
     double a2 = SLGridCyl::A * SLGridCyl::A;
     return 4.0*M_PI*SLGridCyl::A/pow(R*R + a2, 1.5)/(2.0*M_PI);
     //     ^
@@ -77,18 +82,20 @@ public:
 class MestelCyl : public CylModel
 {
 public:
+  
+  MestelCyl() { id = "mestel"; }
 
-  double cylpot(double R) {
+  double pot(double R) {
     return M_PI/(2.0*SLGridCyl::A)*log(0.5*R/SLGridCyl::A);
   }
 
-  double cyldpot(double R) {
+  double dpot(double R) {
     double a2 = SLGridCyl::A * SLGridCyl::A;
     double fac = sqrt(1.0 + R*R/a2);
     return M_PI/(2.0*SLGridCyl::A*R);
   }
 
-  double cyldens(double R) {
+  double dens(double R) {
     if (R>SLGridCyl::A)
       return 0.0;
     else
@@ -104,21 +111,23 @@ class ExponCyl : public CylModel
 
 public:
 
-  double cylpot(double r) {
+  ExponCyl() { id = "expon"; }
+
+  double pot(double r) {
     double y = 0.5 * r / SLGridCyl::A;
     return -2.0*M_PI*SLGridCyl::A*y*
       (std::cyl_bessel_i(0, y)*std::cyl_bessel_k(1, y) -
        std::cyl_bessel_i(1, y)*std::cyl_bessel_k(0, y));
   }
 
-  double cyldpot(double r) {
+  double dpot(double r) {
     double y = 0.5 * r / SLGridCyl::A;
    return 4.0*M_PI*SLGridCyl::A*y*y*
      (std::cyl_bessel_i(0, y)*std::cyl_bessel_k(0, y) -
       std::cyl_bessel_i(1, y)*std::cyl_bessel_k(1, y));
   }
 
-  double cyldens(double r) {
+  double dens(double r) {
     // This 4pi from Poisson's eqn
     //        |
     //        |       /-- This begins the true projected density profile
@@ -177,7 +186,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
   tbdbg = VERBOSE;
 
-  cylm  = CylModel::createModel(type);
+  cyl  = CylModel::createModel(type);
 
   kv.resize(NUMK+1);
 
@@ -481,9 +490,9 @@ int SLGridCyl::read_cached_table(void)
     return 0;
   }
 
-  if (MODEL!=cylm->ID()) {
+  if (MODEL!=cyl->ID()) {
     std::cout << "---- SLGridCyl::read_cached_table: found ID=" << MODEL
-	      << " wanted " << cylm->ID() << std::endl;
+	      << " wanted " << cyl->ID() << std::endl;
     return 0;
   }
 
@@ -545,7 +554,7 @@ void SLGridCyl::write_cached_table(void)
   node["scale"  ] = scale;
   node["L"      ] = l;
   node["A"      ] = A;
-  node["model"  ] = cylm->ID();
+  node["model"  ] = cyl->ID();
     
   // Serialize the node
   //
@@ -692,7 +701,7 @@ double SLGridCyl::get_pot(double x, int m, int n, int k, int which)
     sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
   return (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))/
-    sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
+    sqrt(fabs(table[m][k].ev[n])) * cyl->pot(xi_to_r(x));
 #endif
 }
 
@@ -721,7 +730,7 @@ double SLGridCyl::get_dens(double x, int m, int n, int k, int which)
     * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #else
   return (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1)) *
-    sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
+    sqrt(fabs(table[m][k].ev[n])) * cyl->dens(xi_to_r(x))
     * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
 
@@ -788,7 +797,7 @@ void SLGridCyl::get_pot(Eigen::MatrixXd& mat, double x, int m, int which)
 	sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
       mat(k, n) = (x1*table[m][k].ef(n, indx) + x2*table(m, k).ef(n, indx+1))/
-	sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
+	sqrt(fabs(table[m][k].ev[n])) * cyl->pot(xi_to_r(x));
 #endif
 #ifdef DEBUG_NAN
       if (std::isnan(mat(k, n)) || std::isinf(mat(k, n)) ) {
@@ -832,7 +841,7 @@ void SLGridCyl::get_dens(Eigen::MatrixXd& mat, double x, int m, int which)
       * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #else
       mat(k, n) = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))*
-	sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
+	sqrt(fabs(table[m][k].ev[n])) * cyl->dens(xi_to_r(x))
 	* table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
     }
@@ -910,7 +919,7 @@ void SLGridCyl::get_pot(Eigen::VectorXd& vec, double x, int m, int k, int which)
       sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
     vec[n] = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))/
-      sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
+      sqrt(fabs(table[m][k].ev[n])) * cyl->pot(xi_to_r(x));
 #endif
   }
 
@@ -947,7 +956,7 @@ void SLGridCyl::get_dens(Eigen::VectorXd& vec, double x, int m, int k, int which
       * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #else
     vec[n] = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))*
-      sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
+      sqrt(fabs(table[m][k].ev[n])) * cyl->dens(xi_to_r(x))
       * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
   }
@@ -1024,7 +1033,7 @@ void SLGridCyl::get_pot(Eigen::MatrixXd* mat, double x, int mMin, int mMax, int 
 #else
 	mat[m](k, n) = (x1*table[m][k].ef(n, indx) + 
 			x2*table[m][k].ef(n, indx+1))/
-	  sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
+	  sqrt(fabs(table[m][k].ev[n])) * cyl->pot(xi_to_r(x));
 #endif
 #ifdef DEBUG_NAN
 	if (std::isnan(mat[m](k, n)) || std::isinf(mat[m](k, n)) ) {
@@ -1086,7 +1095,7 @@ void SLGridCyl::get_dens(Eigen::MatrixXd* mat, double x, int mMin, int mMax, int
 #else
 	mat[m](k, n) = (x1*table[m][k].ef(n, indx) + 
 			x2*table[m][k].ef(n, indx+1))*
-	  sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
+	  sqrt(fabs(table[m][k].ev[n])) * cyl->dens(xi_to_r(x))
 	  * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
       }
@@ -1195,19 +1204,19 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   double f;
 
 				// Inner  BC
-  f = cylm->cylpot(cons[6]);
+  f = cyl->pot(cons[6]);
   if (M==0) {
-    cons[0] = cylm->cyldpot(cons[6])/f;
+    cons[0] = cyl->dpot(cons[6])/f;
     cons[2] = 1.0/(cons[6]*f*f);
   }
   else
     cons[0] = 1.0;
 
 				// Outer BC
-  f = cylm->cylpot(cons[7]);
-  // cons[4] = (1.0+M)/cons[7] + cyldpot(cons[7])/f;
+  f = cyl->pot(cons[7]);
+  // cons[4] = (1.0+M)/cons[7] + dpot(cons[7])/f;
 				// TEST
-  cons[4] = (1.0+M)/(cons[7]*cons[7]) + cylm->cyldpot(cons[7])/f/cons[7];
+  cons[4] = (1.0+M)/(cons[7]*cons[7]) + cyl->dpot(cons[7])/f/cons[7];
   cons[5] = 1.0/(cons[7]*f*f);
 
   
@@ -1323,8 +1332,8 @@ void SLGridCyl::init_table(void)
   for (int i=0; i<numr; i++) {
     xi[i] = xmin + dxi*i;
     r[i]  = xi_to_r(xi[i]);
-    p0[i] = cylm->cylpot(r[i]);
-    d0[i] = cylm->cyldens(r[i]);
+    p0[i] = cyl->pot(r[i]);
+    d0[i] = cyl->dens(r[i]);
   }
 
 }
@@ -1396,10 +1405,10 @@ void SLGridCyl::compute_table_worker(void)
     double *pdef  = new double [NUM*N];
     double f;
 
-    f = cylm->cylpot(cons[6]);
+    f = cyl->pot(cons[6]);
     cons[2] = -1.0/(cons[6]*f);
     cons[4] = M/cons[7];
-    f = cylm->cylpot(cons[7]);
+    f = cyl->pot(cons[7]);
     cons[5] = 1.0/(cons[7]*f*f);
 
     //
@@ -3065,24 +3074,113 @@ double SLGridSlab::ZBEG  = 0.0;	// Offset on from origin
 double SLGridSlab::ZEND  = 0.0;	// Offset on potential zero
 
 static double KKZ;
-				// Isothermal slab with
-				// G = M = 1
+
 static double poffset=0.0;
 
-double slabpot(double z)
+//! Isothermal slab with G = M = 1
+class IsothermalSlab : public SlabModel
 {
-  return 2.0*M_PI*SLGridSlab::H*log(cosh(z/SLGridSlab::H)) - poffset;
-}
 
-double slabdpot(double z)
-{
-  return 2.0*M_PI*tanh(z/SLGridSlab::H);
-}
+public:
 
-double slabdens(double z)
+  IsothermalSlab() { id = "iso"; }
+
+  double pot(double z)
+  {
+    return 2.0*M_PI*SLGridSlab::H*log(cosh(z/SLGridSlab::H)) - poffset;
+  }
+
+  double dpot(double z)
+  {
+    return 2.0*M_PI*tanh(z/SLGridSlab::H);
+  }
+
+  double dens(double z)
+  {
+    double tmp = 1.0/cosh(z/SLGridSlab::H);
+    return 4.0*M_PI * 0.5/SLGridSlab::H * tmp*tmp;
+  }
+};
+
+
+//! Constant density slab with G = M = 1
+class ConstantSlab : public SlabModel
 {
-  double tmp = 1.0/cosh(z/SLGridSlab::H);
-  return 4.0*M_PI * 0.5/SLGridSlab::H * tmp*tmp;
+
+public:
+
+  ConstantSlab()  { id = "const"; }
+
+  double pot(double z)
+  {
+    return z*z/(4.0*SLGridSlab::H);
+  }
+
+  double dpot(double z)
+  {
+    return z/(2.0*SLGridSlab::H);
+  }
+
+  double dens(double z)
+  {
+    return 4.0*M_PI / (2.0 * SLGridSlab::H);
+  }
+};
+
+//! Parabolic density slab with G = M = 1
+class ParabolicSlab : public SlabModel
+{
+
+public:
+
+  ParabolicSlab() { id = "para"; }
+
+  double pot(double z)
+  {
+    double z2 = z*z;
+    double h  = SLGridSlab::H;
+    double h2 = h*h;
+    return -z2*(z2 - 4.0*h*z + 6.0*h2)/(32.0*h2);
+  }
+
+  double dpot(double z)
+  {
+    double z2 = z*z;
+    double h  = SLGridSlab::H;
+    double h2 = h*h;
+    return -z*(z2 - 3.0*h*z + 3.0*h2)/(8.0*h2);
+  }
+
+  double dens(double z)
+  {
+    double h  = SLGridSlab::H;
+    double h2 = h*h;
+    double ff = 1.0 - z/h;
+    return 4.0*M_PI * 3.0*ff*ff/(8.0*h2);
+  }
+};
+
+
+std::shared_ptr<SlabModel> SlabModel::createModel(const std::string type)
+{
+  std::string data(type);
+  std::transform(data.begin(), data.end(), data.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  if (data.find("iso") != std::string::npos) {
+    return std::make_shared<IsothermalSlab>();
+  }
+
+  if (data.find("para") != std::string::npos) {
+    return std::make_shared<ParabolicSlab>();
+  }
+
+  if (data.find("constant") != std::string::npos) {
+    return std::make_shared<ConstantSlab>();
+  }
+
+  // Default
+  return std::make_shared<IsothermalSlab>();
 }
 
 
@@ -3095,7 +3193,8 @@ void SLGridSlab::bomb(string oops)
 
 				// Constructors
 
-SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
+SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
+		       const std::string type, bool VERBOSE)
 {
   int kx, ky;
 
@@ -3105,8 +3204,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 
   zmax = ZMAX;
 
+  slab  = SlabModel::createModel(type);
+
   poffset = 0.0;
-  poffset = slabpot((1.0+ZEND)*zmax);
+  poffset = slab->pot((1.0+ZEND)*zmax);
 
   tbdbg   = VERBOSE;
 
@@ -3283,17 +3384,18 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 }
 
 
-const string Slab_cache_name = ".slgrid_slab_cache";
+const string slab_cache_name = ".slgrid_slab_cache";
 
 int SLGridSlab::read_cached_table(void)
 {
   if (!cache) return 0;
 
-  std::ifstream in(Slab_cache_name);
+  std::ifstream in(slab_cache_name);
   if (!in) return 0;
 
   int NUMK, NMAX, NUMZ;
   double ZMAX, HH, LL, zbeg, zend;
+  std::string MODEL;
 
   if (myid==0)
     std::cout << "---- SLGridSlab::read_cached_table: trying to read cached table . . ."
@@ -3341,6 +3443,7 @@ int SLGridSlab::read_cached_table(void)
     LL       = node["L"      ].as<double>();
     zbeg     = node["ZBEG"   ].as<double>();
     zend     = node["ZBEG"   ].as<double>();
+    MODEL    = node["model"  ].as<std::string>();
 
   } else {
     std::cout << "---- SLGridSlab: bad magic number in cache file" << std::endl;
@@ -3385,17 +3488,22 @@ int SLGridSlab::read_cached_table(void)
   }
 
   if (zbeg!=ZBEG) {
-    std::cout << "SLGridSLAB::read_cached_table: found ZBEG=" << ZBEG
+    std::cout << "---- SLGridSlab::read_cached_table: found ZBEG=" << ZBEG
 	      << " wanted " << zbeg << std::endl;
     return 0;
   }
 
   if (zend!=ZEND) {
-    std::cout << "SLGridSLAB::read_cached_table: found ZEND=" << ZEND
+    std::cout << "---- SLGridSlab::read_cached_table: found ZEND=" << ZEND
 	      << " wanted " << zend << std::endl;
     return 0;
   }
 
+  if (MODEL!=slab->ID()) {
+    std::cout << "---- SLGridSlab::read_cached_table: found ID=" << MODEL
+	      << " wanted " << slab->ID() << std::endl;
+    return 0;
+  }
 
   for (int kx=0; kx<=numk; kx++) {
     for (int ky=0; ky<=kx; ky++) {
@@ -3406,7 +3514,7 @@ int SLGridSlab::read_cached_table(void)
 				// Double check
       if (table[kx][ky].kx != kx) {
 	if (myid==0)
-	  std::cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">"
+	  std::cerr << "SLGridSlab: error reading <" << slab_cache_name << ">"
 		    << std::endl
 		    << "SLGridSlab: kx: read value (" << table[kx][ky].kx 
 		    << ") != internal value (" << kx << ")" << std::endl;
@@ -3414,7 +3522,7 @@ int SLGridSlab::read_cached_table(void)
       }
       if (table[kx][ky].ky != ky) {
 	if (myid==0) 
-	  std::cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">"
+	  std::cerr << "SLGridSlab: error reading <" << slab_cache_name << ">"
 		    << std::endl
 		    << "SLGridSlab: ky: read value (" << table[kx][ky].ky 
 		    << ") != internal value (" << ky << ")" << std::endl;
@@ -3450,9 +3558,9 @@ int SLGridSlab::read_cached_table(void)
 
 void SLGridSlab::write_cached_table(void)
 {
-  std::ofstream out(Slab_cache_name);
+  std::ofstream out(slab_cache_name);
   if (!out) {
-    std::cerr << "SLGridSlab: error writing <" << Slab_cache_name << ">" << std::endl;
+    std::cerr << "SLGridSlab: error writing <" << slab_cache_name << ">" << std::endl;
     return;
   }
 
@@ -3468,7 +3576,7 @@ void SLGridSlab::write_cached_table(void)
   node["L"      ] = L;
   node["ZBEG"   ] = ZBEG;
   node["ZEND"   ] = ZEND;
-  node["model"  ] = cylm->ID();
+  node["model"  ] = slab->ID();
     
   // Serialize the node
   //
@@ -3607,7 +3715,7 @@ double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
     sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign;
 #else
   return (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
-    sqrt(table[kx][ky].ev[n]) * slabpot(xi_to_z(x)) * sign;
+    sqrt(table[kx][ky].ev[n]) * slab->pot(xi_to_z(x)) * sign;
 #endif
 }
 
@@ -3642,7 +3750,7 @@ double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
     sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign;
 #else
   return (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1)) *
-    sqrt(table[kx][ky].ev[n]) * slabdens(xi_to_z(x)) * sign;
+    sqrt(table[kx][ky].ev[n]) * slab->dens(xi_to_z(x)) * sign;
 #endif
 
 }
@@ -3716,7 +3824,7 @@ void SLGridSlab::get_pot(Eigen::MatrixXd& mat, double x, int which)
 	  sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign2;
 #else
 	mat(l, n) = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
-	  sqrt(table[kx][ky].ev[n]) * slabpot(xi_to_z(x)) * sign2;
+	  sqrt(table[kx][ky].ev[n]) * slab->pot(xi_to_z(x)) * sign2;
 #endif
 	sign2 *= sign;
       }
@@ -3756,7 +3864,7 @@ void SLGridSlab::get_dens(Eigen::MatrixXd& mat, double x, int which)
 	  sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign2;
 #else
 	mat(l, n) = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))*
-	  sqrt(table[kx][ky].ev[n]) * slabdens(xi_to_z(x)) * sign2;
+	  sqrt(table[kx][ky].ev[n]) * slab->dens(xi_to_z(x)) * sign2;
 #endif
 	sign2 *= sign;
       }
@@ -3840,7 +3948,7 @@ void SLGridSlab::get_pot(Eigen::VectorXd& vec, double x, int kx, int ky, int whi
       sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign2;
 #else
     vec[n] = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
-      sqrt(table[kx][ky].ev[n]) * slabpot(xi_to_z(x)) * sign2;
+      sqrt(table[kx][ky].ev[n]) * slab->pot(xi_to_z(x)) * sign2;
 #endif
     sign2 *= sign;
   }
@@ -3874,7 +3982,7 @@ void SLGridSlab::get_dens(Eigen::VectorXd& vec, double x, int kx, int ky, int wh
       sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign2;
 #else
     vec[n] = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))*
-      sqrt(table[kx][ky].ev[n]) * slabdens(xi_to_z(x)) * sign2;
+      sqrt(table[kx][ky].ev[n]) * slab->dens(xi_to_z(x)) * sign2;
 #endif
     sign2 *= sign;
   }
@@ -3957,13 +4065,13 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   KKZ = 2.0*M_PI/L * sqrt((double)(KX*KX + KY*KY));
 
 				// Even BC, inner has zero gradient
-  f = slabpot(cons[6]);
+  f = slab->pot(cons[6]);
   cons[2] = -1.0/(f*f);
 
 				// Outer
   if (KKZ>1.0e-4) {
-    f = slabpot(cons[7]);
-    df = slabdpot(cons[7]);
+    f = slab->pot(cons[7]);
+    df = slab->dpot(cons[7]);
     cons[4] = (df + KKZ*f)*f;
   }
   cons[5] = 1.0;
@@ -4098,11 +4206,11 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 
   N = nmax - N;
 
-  for (int i=0; i<N; i++) table->ev[i*2+2] = ev[i];
+  for (int i=0; i<N; i++) table->ev[i*2+1] = ev[i];
 
   for (int i=0; i<numz; i++) {
     for (int j=0; j<N; j++) 
-      table->ef(j*2+2, i) = ef[j*NUM+i];
+      table->ef(j*2+1, i) = ef[j*NUM+i];
   }
 
 				// Correct for symmetrizing
@@ -4136,8 +4244,8 @@ void SLGridSlab::init_table(void)
   for (int i=0; i<numz; i++) {
     xi[i] = xmin + dxi*i;
     z[i]  = xi_to_z(xi[i]);
-    p0[i] = slabpot(z[i]);
-    d0[i] = slabdens(z[i]);
+    p0[i] = slab->pot(z[i]);
+    d0[i] = slab->dens(z[i]);
   }
 
 }
@@ -4212,7 +4320,7 @@ void SLGridSlab::compute_table_worker(void)
     KKZ = 2.0*M_PI/L * sqrt((double)(KX*KX + KY*KY));
 
 				// Even BC, inner has zero gradient
-    f = slabpot(cons[6]);
+    f = slab->pot(cons[6]);
     cons[2] = -1.0/(f*f);
 
     if (tbdbg) {
@@ -4223,8 +4331,8 @@ void SLGridSlab::compute_table_worker(void)
     }
 				// Outer
     if (KKZ>1.0e-4) {
-      f = slabpot(cons[7]);
-      df = slabdpot(cons[7]);
+      f = slab->pot(cons[7]);
+      df = slab->dpot(cons[7]);
       cons[4] = (df + KKZ*f)*f;
     }
     cons[5] = 1.0;
@@ -4483,8 +4591,8 @@ extern "C" int coeff_(doublereal* x, doublereal* px, doublereal* qx,
 
   if (sl_dim==1) {		// 1-d slab
 
-    f = slabpot(*x);
-    rho = slabdens(*x);
+    f = slab->pot(*x);
+    rho = slab->dens(*x);
 
     *px = f*f;
     *qx = (KKZ*KKZ*f - rho)*f;
@@ -4492,11 +4600,11 @@ extern "C" int coeff_(doublereal* x, doublereal* px, doublereal* qx,
   }
   else if (sl_dim==2) {		// Cylindrical
 
-    f = cylm->cylpot(*x);
-    rho = cylm->cyldens(*x);
+    f = cyl->pot(*x);
+    rho = cyl->dens(*x);
 
     *px = (*x)*f*f;
-    *qx = (M2*f/(*x) + K2*f*(*x) - cylm->cyldens(*x)*(*x))*f;
+    *qx = (M2*f/(*x) + K2*f*(*x) - cyl->dens(*x)*(*x))*f;
     *rx = -rho*(*x)*f;
   }
   else {			// Spherical
