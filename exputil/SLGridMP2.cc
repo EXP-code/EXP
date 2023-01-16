@@ -190,7 +190,12 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
   kv.resize(NUMK+1);
 
-  auto getK = [L](int k) { return 2.0*M_PI/L*(0.5+k); };
+  // Zero density boundary condition
+  // auto getK = [L](int k) { return 2.0*M_PI/L*(0.5+k); };
+
+  // Original boundary condition
+  auto getK = [L](int k) { return 2.0*M_PI/L*k; };
+
   for (k=0; k<=NUMK; k++) kv[k] = getK(k);
 
   table   = 0;
@@ -3077,7 +3082,8 @@ static double KKZ;
 
 static double poffset=0.0;
 
-//! Isothermal slab with G = M = 1
+// Isothermal slab with G = M = 1
+//
 class IsothermalSlab : public SlabModel
 {
 
@@ -3113,7 +3119,7 @@ public:
 
   double pot(double z)
   {
-    return z*z/(4.0*SLGridSlab::H);
+    return z*z/(4.0*SLGridSlab::H) - poffset;
   }
 
   double dpot(double z)
@@ -3140,7 +3146,7 @@ public:
     double z2 = z*z;
     double h  = SLGridSlab::H;
     double h2 = h*h;
-    return -z2*(z2 - 4.0*h*z + 6.0*h2)/(32.0*h2);
+    return z2*(6.0*h2 - z2)/(16.0*h*h2) - poffset;
   }
 
   double dpot(double z)
@@ -3148,15 +3154,14 @@ public:
     double z2 = z*z;
     double h  = SLGridSlab::H;
     double h2 = h*h;
-    return -z*(z2 - 3.0*h*z + 3.0*h2)/(8.0*h2);
+    return z*(3.0*h2 - z2)/(4.0*h*h2);
   }
 
   double dens(double z)
   {
     double h  = SLGridSlab::H;
     double h2 = h*h;
-    double ff = 1.0 - z/h;
-    return 4.0*M_PI * 3.0*ff*ff/(8.0*h2);
+    return 4.0*M_PI * 3.0*(1.0 - z*z/h2)/(4.0*h);
   }
 };
 
@@ -3175,7 +3180,7 @@ std::shared_ptr<SlabModel> SlabModel::createModel(const std::string type)
     return std::make_shared<ParabolicSlab>();
   }
 
-  if (data.find("constant") != std::string::npos) {
+  if (data.find("const") != std::string::npos) {
     return std::make_shared<ConstantSlab>();
   }
 
@@ -3442,7 +3447,7 @@ int SLGridSlab::read_cached_table(void)
     HH       = node["H"      ].as<double>();
     LL       = node["L"      ].as<double>();
     zbeg     = node["ZBEG"   ].as<double>();
-    zend     = node["ZBEG"   ].as<double>();
+    zend     = node["ZEND"   ].as<double>();
     MODEL    = node["model"  ].as<std::string>();
 
   } else {
@@ -3689,7 +3694,7 @@ double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
 
 				// Flip sign for antisymmetric basis functions
   int sign=1;
-  if (x<0 && 2*(n/2)==n) sign=-1;
+  if (x<0 && 2*(n/2)!=n) sign=-1;
   x = fabs(x);
 
   if (which)
@@ -3725,7 +3730,7 @@ double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
   int hold;
 
   int sign=1;
-  if (x<0 && 2*(n/2)==n) sign=-1;
+  if (x<0 && 2*(n/2)!=n) sign=-1;
   x = fabs(x);
   
   if (which)
@@ -3760,7 +3765,7 @@ double SLGridSlab::get_force(double x, int kx, int ky, int n, int which)
   int hold;
 
   int sign=1;
-  if (x<0 && 2*(n/2)!=n) sign = -1;
+  if (x<0 && 2*(n/2)==n) sign = -1;
   x = fabs(x);
 
   if (which)
@@ -4033,7 +4038,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
+  double tol[6]  = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
   int VERBOSE=0;
   integer NUM, N;
   logical type[8] = {1, 0, 0, 0, 1, 0, 0, 0};
@@ -4591,7 +4596,7 @@ extern "C" int coeff_(doublereal* x, doublereal* px, doublereal* qx,
 
   if (sl_dim==1) {		// 1-d slab
 
-    f = slab->pot(*x);
+    f   = slab->pot(*x);
     rho = slab->dens(*x);
 
     *px = f*f;
@@ -4600,7 +4605,7 @@ extern "C" int coeff_(doublereal* x, doublereal* px, doublereal* qx,
   }
   else if (sl_dim==2) {		// Cylindrical
 
-    f = cyl->pot(*x);
+    f   = cyl->pot(*x);
     rho = cyl->dens(*x);
 
     *px = (*x)*f*f;
