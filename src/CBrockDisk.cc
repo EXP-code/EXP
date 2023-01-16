@@ -692,7 +692,6 @@ void CBrockDisk::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p)
   for (int l=0; l<=lmax; l++) {
     double cur = cur0;
 
-    work(l, 0)  = cur;
     p(l, 0) = cur*rcum;
     double curl1 = 0.0;
 
@@ -719,10 +718,10 @@ void CBrockDisk::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& d)
   double cur, curl1, curl2, cur0 = sqrt(fac);
   double rcum = 0.5/M_PI;
   
-  for (int l=0; l<=lmax; l++) {
+  for (int l=0; l<=lmax+1; l++) {
     cur = cur0;
 
-    work(l, 1) = cur;
+    work(l, 0) = cur;
     curl1 = 0.0;
 
     for (int nn=0; nn<nmax-1; nn++) {
@@ -737,9 +736,11 @@ void CBrockDisk::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& d)
 
   for (int l=0; l<=lmax; l++) {
     d(l, 0) = work(l+1, 0)*rcum;
-    d(l, 1) = work(l+1, 1)*rcum;
-    for (int nn=1; nn<nmax-1; nn++)
-      d(l, nn+1) = (work(l+1, nn+1) - work(l+1, nn-1))*rcum;
+    if (nmax>1) {
+      d(l, 1) = work(l+1, 1)*rcum;
+      for (int nn=1; nn<nmax-1; nn++)
+	d(l, nn+1) = (work(l+1, nn+1) - work(l+1, nn-1))*rcum;
+    }
 
     rcum *= r;
   }
@@ -775,9 +776,11 @@ void CBrockDisk::get_potl_dens(int lmax, int nmax, double r,
 
   for (int l=0; l<=lmax; l++) {
     d(l, 0) = work(l+1, 0)*rcumd;
-    d(l, 1) = work(l+1, 1)*rcumd;
-    for (int nn=1; nn<nmax-1; nn++)
-      d(l, nn+1) = (work(l+1, nn+1) - work(l+1, nn-1))*rcumd;
+    if (nmax>1) {
+      d(l, 1) = work(l+1, 1)*rcumd;
+      for (int nn=1; nn<nmax-1; nn++)
+	d(l, nn+1) = (work(l+1, nn+1) - work(l+1, nn-1))*rcumd;
+    }
 
     rcumd *= r;
   }

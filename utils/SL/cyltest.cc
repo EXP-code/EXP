@@ -11,24 +11,98 @@
 #include <gaussQ.H>
 #include <cxxopts.H>
 
+
+//! For comparing CB to 3d pillbox with Kuzmin disk and checking CB
+//! orthogonality [Potential]
+double CB_get_potl(int M, int N, double r)
+{
+  double r2   = r*r;
+  double fac  = 1.0/(1.0 + r2);
+  double fac1 = (r2 - 1.0)*fac;
+  double cur0 = sqrt(fac), rcum = 1.0;
+
+  Eigen::MatrixXd p(M+1, N+1);
+
+  for (int l=0; l<=M; l++) {
+    double cur = cur0;
+
+    p(l, 0) = cur*rcum;
+    double curl1 = 0.0;
+
+    for (int nn=0; nn<N; nn++) {
+      double curl2 = curl1;
+      curl1 = cur;
+      cur = (2.0 + (double)(2*l-1)/(nn+1))*fac1*curl1 - 
+	(1.0 + (double)(2*l-1)/(nn+1))*curl2;
+      p(l, nn+1) = cur*rcum;
+    }
+    cur0 *= fac*(2*(l+1) - 1);
+    rcum *= r;
+  }
+
+  return p(M, N);
+}
+
+
+//! For comparing CB to 3d pillbox with Kuzmin disk and checking CB
+//! orthogonality [Density]
+double CB_get_dens(int M, int N, double r)
+{
+  double r2 = r*r;
+  double fac = 1.0/(1.0 + r2);
+  double fac1 = (r2 - 1.0)*fac;
+  double cur, curl1, curl2, cur0 = sqrt(fac);
+  double rcum = 0.5/M_PI;
+  
+  Eigen::MatrixXd d(M+1, N+1), w(M+2, N+1);
+
+  for (int l=0; l<=M+1; l++) {
+    cur = cur0;
+
+    w(l, 0) = cur;
+    curl1 = 0.0;
+
+    for (int nn=0; nn<N; nn++) {
+      curl2 = curl1;
+      curl1 = cur;
+      cur = (2.0 + (double)(2*l-1)/(nn+1))*fac1*curl1 - 
+	(1.0 + (double)(2*l-1)/(nn+1))*curl2;
+      w(l, nn+1) = cur;
+    }
+    cur0 *= fac*(2*(l+1) - 1);
+  }
+
+  for (int l=0; l<=M; l++) {
+    d(l, 0) = w(l+1, 0)*rcum;
+    if (N>0) {
+      d(l, 1) = w(l+1, 1)*rcum;
+      for (int nn=1; nn<N; nn++)
+	d(l, nn+1) = (w(l+1, nn+1) - w(l+1, nn-1))*rcum;
+    }
+
+    rcum *= r;
+  }
+
+  return d(M, N);
+}
+
 int main(int argc, char** argv)
 {
-  bool use_mpi, logr = false, ortho_check = false, dbg = false;
+  bool use_mpi, logr = false, ortho_check = false, dbg = false, CB = false;
   double A, scale, rmin, rmax, L;
   int numr, cmap, diverge, mmax, kmax, nmax, knots, num;
   std::string filename, cachefile, model;
 
   // MPI preliminaries 
   //
-  {
-    // Use this hack to detect an OpenMPI environment (not portable,
-    // but it's the best workaround I have).
-    //
-    std::string found(getenv("OMPI_COMM_WORLD_SIZE"));
-    if (found.size()) {
-      local_init_mpi(argc, argv);
-      use_mpi = true;
-    }
+  // Use this hack to detect an OpenMPI environment (not portable, but
+  // it's the best workaround I have).
+  //
+  if (getenv("OMPI_COMM_WORLD_SIZE")) {
+    local_init_mpi(argc, argv);
+    use_mpi = true;
+  } else {
+    use_mpi = false;
   }
 
   // Parse command line
@@ -40,6 +114,7 @@ int main(int argc, char** argv)
     ("ortho", "Compute orthogonality matrix")
     ("logr", "Plot output grid with logarithmic spacing")
     ("debug", "Print debugging output")
+    ("CB", "Compare with Clutton-Brock set")
     ("cmap", "coordinates in SphereSL: use mapped (1) or linear(0) coordinates",
      cxxopts::value<int>(cmap)->default_value("0"))
     ("scale", "scaling from real coordinates to table",
@@ -115,6 +190,12 @@ int main(int argc, char** argv)
 
   SLGridCyl::A = A;		// Set default scale length
 
+  if (vm.count("CB")) {
+    CB = true;
+    SLGridCyl::A = 1;
+    model = "kuzmin";
+  }
+
   // Generate Sturm-Liouville grid
   //
   auto ortho = std::make_shared<SLGridCyl>(mmax, nmax, numr, kmax, rmin, rmax,
@@ -176,23 +257,35 @@ int main(int argc, char** argv)
   out << "# "
       << std::setw(13) << " x |"
       << std::setw(15) << " r |"
-      << std::setw(15) << " P |"
-      << std::setw(15) << " D |"
-      << std::endl;
+      << std::setw(15) << " P (SL) |"
+      << std::setw(15) << " D (SL) |";
+  if (CB)
+    out << "# "
+	<< std::setw(13) << " p (CB) |"
+	<< std::setw(15) << " d (CB) |";
+  out << std::endl;
 
   out << "# "
       << std::setw(13) << " [1] |"
       << std::setw(15) << " [2] |"
       << std::setw(15) << " [3] |"
-      << std::setw(15) << " [4] |"
-      << std::endl;
+      << std::setw(15) << " [4] |";
+  if (CB)
+    out << "# "
+	<< std::setw(15) << " [5] |"
+	<< std::setw(15) << " [6] |";
+  out << std::endl;
 
   out << "# "
       << std::setw(13) << std::setfill('-') << "+"
       << std::setw(15) << std::setfill('-') << "+"
       << std::setw(15) << std::setfill('-') << "+"
-      << std::setw(15) << std::setfill('-') << "+"
-      << std::endl << std::setfill(' ');
+      << std::setw(15) << std::setfill('-') << "+";
+  if (CB)
+    out << std::setw(15) << std::setfill('-') << "+"
+	<< std::setw(15) << std::setfill('-') << "+";
+  out << std::endl << std::setfill(' ');
+
   //
   // END: file header
 
@@ -221,8 +314,11 @@ int main(int argc, char** argv)
 	    
     out << std::setw(15) << x << std::setw(15) << r
 	<< std::setw(15) << ortho->get_pot (r, M, N, K)
-	<< std::setw(15) << ortho->get_dens(r, M, N, K)
-	<< std::endl;
+	<< std::setw(15) << ortho->get_dens(r, M, N, K);
+    if (CB)
+      out << std::setw(15) << CB_get_potl(M, N, r)
+	  << std::setw(15) << CB_get_dens(M, N, r);
+    out << std::endl;
   }
 
   // Compute the inner product of the pairs
@@ -233,7 +329,7 @@ int main(int argc, char** argv)
 
     LegeQuad lw(knots);
 
-    Eigen::MatrixXd orth(nmax, nmax);
+    Eigen::MatrixXd orth(nmax, nmax), orthCB(nmax, nmax);
     orth.setZero();
 
     for (int k=0; k<knots; k++) {
@@ -244,19 +340,25 @@ int main(int argc, char** argv)
       for (int j=0; j<nmax; j++) {
 	for (int l=0; l<nmax; l++) {
 	  orth(j, l) += fac *
-	    ortho->get_pot (rr, M, j, K) *
-	    ortho->get_dens(rr, M, l, K);
+	    ortho->get_pot (rr, M, j, K) * ortho->get_dens(rr, M, l, K);
+
 	  if (std::isnan(ortho->get_pot (rr, M, j, K))) {
 	    std::cout << "pot R=" << rr << std::endl;
 	  }
+
 	  if (std::isnan(ortho->get_dens (rr, M, l, K))) {
 	    std::cout << "dens R=" << rr << std::endl;
 	  }
+
+	  if (CB)
+	    orthCB(j, l) += fac * CB_get_potl(M, j, rr) * CB_get_dens(M, l, rr);
 	}
       }
     }
 
-    out << orth << std::endl;
+    out << "SL" << std::endl << orth << std::endl;
+    if (CB) out << std::endl << "CB" << std::endl
+		<< -orthCB*4.0*M_PI << std::endl;
   }
 
   if (use_mpi) MPI_Finalize();
