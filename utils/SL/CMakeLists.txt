@@ -27,7 +27,7 @@ add_executable(orthochk orthochk.cc)
 add_executable(diskpot diskpot.cc CylindricalDisk.cc SLSphere.cc)
 add_executable(qtest qtest.cc)
 add_executable(cyltest cyltest.cc)
-add_executable(eoftest EOF2d.cc)
+add_executable(eoftest EOF2d.cc EmpCyl2D.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})
