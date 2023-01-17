@@ -308,8 +308,13 @@ int main(int argc, char** argv)
 
   // Parse command line
   //
-  cxxopts::Options options(argv[0], "Check the consistency a spherical SL basis");
-
+  cxxopts::Options options(argv[0],
+			   "Computes an EOF two-dimensional disk basis from the Clutton-Brock basis for\n"
+			   "one of the Kuzmin, finite Mestel or Exponential disk targets.  [The Mestel\n"
+			   "disk will work very poorly because the Clutton-Brock basis has infinite\n"
+			   "support and looks nothing like the Mestel disk profile.] The new basis is\n"
+			   "written to a file and, optionally, the orthgonogality matrix and the trans-\n"
+			   "formation matrix to the new basis can be written to stdout.\n");
   options.add_options()
     ("h,help", "Print this help message")
     ("logr", "Plot output grid with logarithmic spacing")
@@ -318,7 +323,7 @@ int main(int argc, char** argv)
     ("trans", "Print the rotation matrix")
     ("scale", "scaling from real coordinates to table",
      cxxopts::value<double>(scale)->default_value("1.0"))
-    ("M,harmonic", "Aximuthal harmonic",
+    ("M,harmonic", "Aximuthal harmonic m=0,1,2,3,...",
      cxxopts::value<int>(M)->default_value("0"))
     ("A,length", "characteristic disk scale length",
      cxxopts::value<double>(A)->default_value("1.0"))
