@@ -43,7 +43,6 @@ double CB_get_potl(int M, int N, double r)
   return p(M, N);
 }
 
-
 //! For comparing CB to 3d pillbox with Kuzmin disk and checking CB
 //! orthogonality [Density]
 double CB_get_dens(int M, int N, double r)
@@ -84,6 +83,16 @@ double CB_get_dens(int M, int N, double r)
   }
 
   return d(M, N);
+}
+
+//! Normalization for CB inner product
+double CB_norm(int n, int m)
+{
+  double ans = 1.0;
+ 
+  for (int i=n+1; i<=n+2*m; i++) ans *= i;
+
+  return pow(0.5, 2*m+1)*ans;
 }
 
 int main(int argc, char** argv)
@@ -329,16 +338,26 @@ int main(int argc, char** argv)
 
     LegeQuad lw(knots);
 
-    Eigen::MatrixXd orth(nmax, nmax), orthCB(nmax, nmax);
+    Eigen::MatrixXd orth(nmax, nmax), orthCB;
+    Eigen::VectorXd normCB;
     orth.setZero();
 
+    if (CB) {
+      orthCB.resize(nmax, nmax);
+      orthCB.setZero();
+      normCB.resize(nmax);
+      for (int n=0; n<nmax; n++) normCB(n) = CB_norm(n, M);
+    }
+
     for (int k=0; k<knots; k++) {
-      double xx =  ximin + (ximax - ximin)*lw.knot(k);
-      double rr = ortho->xi_to_r(xx);
+      double xx  = ximin + (ximax - ximin)*lw.knot(k);
+      double rr  = ortho->xi_to_r(xx);
       double fac = lw.weight(k) * rr / ortho->d_xi_to_r(xx) * (ximax - ximin);
 
       for (int j=0; j<nmax; j++) {
+
 	for (int l=0; l<nmax; l++) {
+
 	  orth(j, l) += fac *
 	    ortho->get_pot (rr, M, j, K) * ortho->get_dens(rr, M, l, K);
 
@@ -351,14 +370,18 @@ int main(int argc, char** argv)
 	  }
 
 	  if (CB)
-	    orthCB(j, l) += fac * CB_get_potl(M, j, rr) * CB_get_dens(M, l, rr);
+	    orthCB(j, l) += fac * CB_get_potl(M, j, rr) *
+	      CB_get_dens(M, l, rr) / sqrt(normCB(j)*normCB(l));
 	}
       }
     }
 
-    out << "SL" << std::endl << orth << std::endl;
+    out << "SL" << std::endl << -orth << std::endl;
     if (CB) out << std::endl << "CB" << std::endl
-		<< -orthCB*4.0*M_PI << std::endl;
+		<< orthCB*2.0*M_PI << std::endl;
+    //                     ^
+    //                     |
+    // Angular norm -------+
   }
 
   if (use_mpi) MPI_Finalize();
