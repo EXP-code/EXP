@@ -191,10 +191,10 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
   kv.resize(NUMK+1);
 
   // Zero density boundary condition
-  // auto getK = [L](int k) { return 2.0*M_PI/L*(0.5+k); };
+  auto getK = [L](int k) { return 2.0*M_PI/L*(0.5+k); };
 
   // Original boundary condition
-  auto getK = [L](int k) { return 2.0*M_PI/L*k; };
+  // auto getK = [L](int k) { return 2.0*M_PI/L*k; };
 
   for (k=0; k<=NUMK; k++) kv[k] = getK(k);
 
