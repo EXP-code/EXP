@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include <Eigen/Eigen>
+#include <Eigen/Eigenvalues>
 #include <gaussQ.H>
 #include <cxxopts.H>
 
@@ -105,7 +106,7 @@ protected:
 public:
 
   static std::shared_ptr<ModelCyl>
-  ModelCyl::createModel(const std::string type);
+  createModel(const std::string type, double A);
 
   virtual double pot (double r) = 0;
   virtual double dpot(double r) = 0;
@@ -118,7 +119,7 @@ class ExponCyl : public ModelCyl
 
 public:
 
-  ExponCyl(double scl) : { A = scl; id = "expon"; }
+  ExponCyl(double scl) { A = scl; id = "expon"; }
 
   double pot(double r) {
     double y = 0.5 * r / A;
@@ -145,7 +146,7 @@ public:
 
 };
 
-class KuzminCyl : publi ModelCyl
+class KuzminCyl : public ModelCyl
 {
 public:
   
@@ -199,30 +200,33 @@ public:
 };
 
 
-std::shared_ptr<ModelCyl> ModelCyl::createModel(const std::string type)
+std::shared_ptr<ModelCyl>
+ModelCyl::createModel(const std::string type, double A)
 {
+  // Convert ID string to lower case
+  //
   std::string data(type);
   std::transform(data.begin(), data.end(), data.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
   if (data.find("kuzmin") != std::string::npos) {
     std::cout << "Making a Kuzmin disk" << std::endl;
-    return std::make_shared<KuzminCyl>();
+    return std::make_shared<KuzminCyl>(A);
   }
 
   if (data.find("mestel") != std::string::npos) {
     std::cout << "Making a finite Mestel disk" << std::endl;
-    return std::make_shared<MestelCyl>();
+    return std::make_shared<MestelCyl>(A);
   }
 
   if (data.find("expon") != std::string::npos) {
     std::cout << "Making an Exponential disk" << std::endl;
-    return std::make_shared<ExponCyl>();
+    return std::make_shared<ExponCyl>(A);
   }
 
-  // Default
+  // Default if nothing else matches
   std::cout << "[Default] making an Exponential disk" << std::endl;
-  return std::make_shared<ExponCyl>();
+  return std::make_shared<ExponCyl>(A);
 }
 
 
@@ -298,9 +302,9 @@ public:
 int main(int argc, char** argv)
 {
   bool logr = false, cmap = false, ortho = false, trans = false;
-  double A, scale, rmin, rmax;
   int numr, mmax, nmax, knots, num, M;
-  std::string filenamem, type;
+  double A, scale, rmin, rmax;
+  std::string filename, type;
 
   // Parse command line
   //
@@ -332,8 +336,10 @@ int main(int argc, char** argv)
      cxxopts::value<int>(num)->default_value("1000"))
     ("knots", "Number of Legendre integration knots",
      cxxopts::value<int>(knots)->default_value("40"))
-    ("type", "Target model type",
+    ("type", "Target model type (kuzmin, mestel, expon)",
      cxxopts::value<std::string>(type)->default_value("expon"))
+    ("o,filename", "Output filename",
+     cxxopts::value<std::string>(filename)->default_value("testeof.dat"))
     ;
 
   
@@ -374,10 +380,8 @@ int main(int argc, char** argv)
   if (vm.count("ortho")) ortho = true;
 
   Mapping  map(1.0, true);
-  auto     disk = ModelCyl::createModel(type);
+  auto     disk = ModelCyl::createModel(type, A);
 
-  std::cout << "Filename? ";
-  std::cin  >> filename;
   std::ofstream out(filename);
   if (!out) {
     std::cout << "Can't open <" << filename << "> for output" << endl;
@@ -402,22 +406,25 @@ int main(int argc, char** argv)
     for (int j=0; j<nmax; j++) {
       for (int l=0; l<nmax; l++) {
 	D(j, l) += fac * disk->dens(rr) *
-	  CB_get_potl(M, j, rr) * CB_get_potl(M, l, rr);
+	  CB_get_potl(M, j, rr) * CB_get_potl(M, l, rr)
+	  / sqrt(CB_norm(j, M)*CB_norm(l, M));
       }
     }
   }
 
   // Perform the SVD
   //
+  
   Eigen::BDCSVD<Eigen::MatrixXd>
     svd(D, Eigen::ComputeThinU | Eigen::ComputeThinV);
   auto S = svd.singularValues();
   auto U = svd.matrixU();
 
-  std::cout << "EV: " << std::endl << S << std::endl;
+  std::cout << std::endl << "Eigenvalues: " << std::endl << S << std::endl;
 
   if (trans) {
-    std::cout << "EF: " << std::endl << U.transform() << std::endl;
+    std::cout << std::endl << "Transformation matrix: " << std::endl
+	      << std::endl << U.transpose() << std::endl;
   }
 
   // Compute some basis functions
@@ -440,13 +447,13 @@ int main(int argc, char** argv)
       den(n) = CB_get_dens(M, n, r) / sqrt(CB_norm(n, M));
     }
 
-    auto pot2 = U.transpose() * pot;
-    auto den2 = U.transpose() * den;
+    pot = U.transpose() * pot;
+    den = U.transpose() * den;
 
     out << std::setw(16) << r;
     for (int n=0; n<nmax; n++) {
-      out << std::setw(16) << pot2(n)
-	  << std::setw(16) << den2(n);
+      out << std::setw(16) << pot(n)
+	  << std::setw(16) << den(n);
     }
     out << std::endl;
   }
@@ -466,17 +473,18 @@ int main(int argc, char** argv)
 	den(n) = CB_get_dens(M, n, rr) / sqrt(CB_norm(n, M));
       }
       
-      auto pot2 = U.transpose() * pot;
-      auto den2 = U.transpose() * den;
+      pot = U.transpose() * pot;
+      den = U.transpose() * den;
       
       for (int j=0; j<nmax; j++) {
 	for (int l=0; l<nmax; l++) {
-	  orth(j, l) += fac * pot2(j) * den2(l);
+	  orth(j, l) += fac * pot(j) * den(l);
 	}
       }
     }
     
-    std::cout << std::endl << orth*2.0*M_PI << std::endl;
+    std::cout << std::endl << "Orthogonality matrix of EOF basis:"
+	      << std::endl << std::endl << orth*2.0*M_PI << std::endl;
   }
 
   return 0;
