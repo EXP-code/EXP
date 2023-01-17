@@ -10,6 +10,20 @@
 #include <Eigen/Eigenvalues>
 #include <gaussQ.H>
 
+/**
+   A class that implements most of the members for an Exp force routine
+
+   With a bit of work, this could be wrapped into a Basis class.
+
+   Things necessary to do this:
+
+   1. Add MPI support.  This could be fairly minimal since the
+      overhead in this class if very low.  At the very least, only the
+      root should be allowed to write a cache file.
+
+   2. Add Cuda support.  This guts could be straightforward copied
+      from the 1-d SLGridSph array and interpolation support.
+ */
 class EmpCyl2D
 {
 protected:
