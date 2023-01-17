@@ -427,16 +427,23 @@ void EmpCyl2D::create_tables()
 void EmpCyl2D::writeBasis(int M, const std::string& filename)
 {
   std::ofstream out(filename);
+
   if (out) {
-    
     out << std::endl << "# EOF basis grid for M=" << M << ":" << std::endl;
 
     for (int i=0; i<numr; i++) {
       out << std::setw(16) << xgrid[i];
       for (int n=0; n<nmax; n++) {
+
 	out << std::setw(16) << potl_array[M](i, n)
 	    << std::setw(16) << dens_array[M](i, n)
 	    << std::setw(16) << dpot_array[M](i, n);
+
+	/*
+	out << std::setw(16) << get_potl(xgrid[i], M, n)
+	    << std::setw(16) << get_dens(xgrid[i], M, n)
+	    << std::setw(16) << get_dpot(xgrid[i], M, n);
+	*/
       }
       out << std::endl;
     }
@@ -697,4 +704,69 @@ void EmpCyl2D::write_cached_tables()
   std::cout << "---- EmpCyl2D::write_cached_table: cache written" << std::endl;
 
   return;
+}
+
+
+std::tuple<int, int, double, double> EmpCyl2D::linear_interp(double r)
+{
+  auto it = std::lower_bound(xgrid.begin(), xgrid.end(), r);
+
+  int lo, hi;
+
+  if (it == xgrid.begin()) {
+    lo = 0;
+    hi = 1;
+  } else if (it == xgrid.end()) {
+    hi = xgrid.size()-1;
+    lo = hi - 1;
+  } else {
+    hi = std::distance(xgrid.begin(), it);
+    lo = hi - 1;
+  }
+
+  double A = (xgrid[hi] - r)/(xgrid[hi] - xgrid[lo]);
+  double B = (r - xgrid[lo])/(xgrid[hi] - xgrid[lo]);
+
+  return {lo, hi, A, B};
+}
+
+void EmpCyl2D::checkMN(int& M, int& N, const std::string& member)
+{
+  if (M<0) M = 0;
+  if (N<0) N = 0;
+  if (M>mmax)  throw std::runtime_error("EmpCyl2D::"+member+": M too large");
+  if (N>=nmax) throw std::runtime_error("EmpCyl2D::"+member+": N too large");
+}
+
+double EmpCyl2D::get_potl(double r, int M, int N)
+{
+  checkMN(M, N, "get_potl");
+
+  int lo, hi;
+  double A, B;
+  std::tie(lo, hi, A, B) = linear_interp(r);
+
+  return A*potl_array[M](lo, N) + B*potl_array[M](hi, N);
+}
+
+double EmpCyl2D::get_dens(double r, int M, int N)
+{
+  checkMN(M, N, "get_dens");
+
+  int lo, hi;
+  double A, B;
+  std::tie(lo, hi, A, B) = linear_interp(r);
+
+  return A*dens_array[M](lo, N) + B*dens_array[M](hi, N);
+}
+
+double EmpCyl2D::get_dpot(double r, int M, int N)
+{
+  checkMN(M, N, "get_dpot");
+
+  int lo, hi;
+  double A, B;
+  std::tie(lo, hi, A, B) = linear_interp(r);
+
+  return A*dpot_array[M](lo, N) + B*dpot_array[M](hi, N);
 }
