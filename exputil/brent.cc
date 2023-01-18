@@ -10,7 +10,8 @@
 #define SHFT(a,b,c,d) (a)=(b);(b)=(c);(c)=(d);
 
 
-double brent(double ax,double bx,double cx, func_1d f, double tol, double& xmin)
+double brent(double ax,double bx,double cx, std::function<double(double)> f,
+	     double tol, double& xmin)
 {
   int iter;
   double a,b,d,etemp,fu,fv,fw,fx,p,q,r,tol1,tol2,u,v,w,x,xm;
@@ -19,7 +20,7 @@ double brent(double ax,double bx,double cx, func_1d f, double tol, double& xmin)
   a=((ax < cx) ? ax : cx);
   b=((ax > cx) ? ax : cx);
   x=w=v=bx;
-  fw=fv=fx=(*f)(x);
+  fw=fv=fx=f(x);
   for (iter=1;iter<=ITMAX;iter++) {
     xm=0.5*(a+b);
     tol2=2.0*(tol1=tol*fabs(x)+ZEPS);
@@ -48,7 +49,7 @@ double brent(double ax,double bx,double cx, func_1d f, double tol, double& xmin)
       d=CGOLD*(e=(x >= xm ? a-x : b-x));
     }
     u=(fabs(d) >= tol1 ? x+d : x+SIGN(tol1,d));
-    fu=(*f)(u);
+    fu=f(u);
     if (fu <= fx) {
       if (u >= x) a=x; else b=x;
       SHFT(v,w,x,u)

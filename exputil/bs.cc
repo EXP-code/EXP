@@ -96,7 +96,7 @@ void mmid(
   }
 
   double x=xs+h;
-  (*derivs)(x,yn,yout);
+  derivs(x,yn,yout);
 
   double h2=2.0*h;
   for (int n=2; n<=nstep; n++) {
@@ -107,7 +107,7 @@ void mmid(
     }
     x += h;
 
-    (*derivs)(x,yn,yout);
+    derivs(x,yn,yout);
   }
   for (int i=0; i<nvar;i++)
     yout[i]=0.5*(ym[i]+yn[i]+h*yout[i]);

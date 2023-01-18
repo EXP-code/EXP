@@ -3,7 +3,6 @@
 #include <cmath>
 #include <numerical.H>
 
-
 void integrate_ode(Eigen::VectorXd& x,
 		   double t0, double t1, double &dt, double eps,
 		   int n, ode_derivs derivs, ode_integrator integrator)

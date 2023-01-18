@@ -1,9 +1,8 @@
+#include <functional>
 #include <vector>
 
 class HeatCool
 {
-  typedef double(*func_1d)(double);
-  
   struct Rates 
   {
     double crate;
@@ -40,7 +39,8 @@ private:
   void xion(double t, double *x, double *x_1, double *x_2, double *x_3, double *p_ne);
   static double fac1(double);
   static double fac2(double);
-  static double romberg_o(func_1d func, double a, double b, double eps);
+  static double romberg_o(std::function<double(double)> func,
+			  double a, double b, double eps);
   static double spline_int(double* xa, double* ya, double* y2a, int n, double x);
   static void ionize();
 

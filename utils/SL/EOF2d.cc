@@ -14,7 +14,7 @@ int main(int argc, char** argv)
   bool logr = false, cmap = false, ortho = false;
   int numr, mmax, nmax, knots, M;
   double A, scale, rmin, rmax;
-  std::string filename, type;
+  std::string filename, type, biorth;
 
   // Parse command line
   //
@@ -51,6 +51,8 @@ int main(int argc, char** argv)
      cxxopts::value<int>(knots)->default_value("40"))
     ("type", "Target model type (kuzmin, mestel, expon)",
      cxxopts::value<std::string>(type)->default_value("expon"))
+    ("biorth", "Biorthogonal type (cb, bess)",
+     cxxopts::value<std::string>(biorth)->default_value("cb"))
     ("o,filename", "Output filename",
      cxxopts::value<std::string>(filename)->default_value("testeof"))
     ;
@@ -86,7 +88,8 @@ int main(int argc, char** argv)
 
   // Make the class instance
   //
-  EmpCyl2D emp(mmax, nmax, knots, numr, rmin, rmax, A, 1.0, true, logr, type);
+  EmpCyl2D emp(mmax, nmax, knots, numr, rmin, rmax, A, 1.0, cmap, logr,
+	       type, biorth);
 
   // Sanity check
   M = std::min<int>(M, mmax);

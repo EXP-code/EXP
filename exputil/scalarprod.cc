@@ -28,6 +28,7 @@
  ***************************************************************************/
 
 
+#include <functional>
 #include <cstdlib>
 #include <cmath>
 
@@ -38,7 +39,7 @@
 
 Eigen::VectorXd
 scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
-	    AxiSymBiorth& s, double (*func)(double, int, int), 
+	    AxiSymBiorth& s, std::function<double(double, int, int)> func, 
 	    int numc, int numg)
 {
 
@@ -62,19 +63,19 @@ scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
       case density:
 	if (s.get_dof()==2)
 	  coef[n] += del * qe.weight(i) * pow(r, (int)(s.get_dof()-1)) *
-	    s.potl(n, m, s.r_to_rb(r)) * (*func)(r, l, m);
+	    s.potl(n, m, s.r_to_rb(r)) * func(r, l, m);
 	else
 	  coef[n] += del * qe.weight(i) * pow(r, (int)(s.get_dof()-1)) *
-	    s.potl(n, l, s.r_to_rb(r)) * (*func)(r, l, m);
+	    s.potl(n, l, s.r_to_rb(r)) * func(r, l, m);
 	break;
 
       case potential:
 	if (s.get_dof()==2)
 	  coef[n] += del * qe.weight(i) * pow(r, (int)(s.get_dof()-1)) *
-	    s.dens(n, m, s.r_to_rb(r)) * (*func)(r, l, m);
+	    s.dens(n, m, s.r_to_rb(r)) * func(r, l, m);
 	else
 	  coef[n] += del * qe.weight(i) * pow(r, (int)(s.get_dof()-1)) *
-	    s.dens(n, l, s.r_to_rb(r)) * (*func)(r, l, m);
+	    s.dens(n, l, s.r_to_rb(r)) * func(r, l, m);
 	break;
 
       }

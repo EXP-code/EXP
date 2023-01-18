@@ -2,6 +2,7 @@
 // Chebyshev fitting and smoothing class
 //
 
+#include <functional>
 #include <cstdarg>
 #include <iostream>
 #include <string>
@@ -106,7 +107,8 @@ void Cheby1d::new_limits(double A, double B)
 }
     
 
-void Cheby1d::new_func(double (*func)(double), double A, double B, int N)
+void Cheby1d::new_func(std::function<double(double)> func,
+		       double A, double B, int N)
 {
   double y, sum, fac, bpa, bma;
 
@@ -123,7 +125,7 @@ void Cheby1d::new_func(double (*func)(double), double A, double B, int N)
   bpa = 0.5*(b + a);
   for (int k=0; k<n; k++) {
     y = bma*cos(M_PI*(k+0.5)/n) + bpa;
-    f[k] = (*func)(y);
+    f[k] = func(y);
   }
 
   fac=2.0/n;

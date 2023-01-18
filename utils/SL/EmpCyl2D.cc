@@ -13,9 +13,80 @@
 
 std::string EmpCyl2D::cache_name_2d = ".eof_cache_2d";
 
-// Clutton-Brock disk potential
+// Clutton-Brock two-dimensional disk
 //
-double EmpCyl2D::CB_get_potl(int M, int N, double r)
+class EmpCyl2D::CluttonBrock : public EmpCyl2D::Basis2d
+{
+public:
+  double potl(int M, int N, double r);
+  double dens(int M, int N, double r);
+  double dpot(int M, int N, double r);
+  double norm(int N, int M);
+};
+
+Eigen::VectorXd bessjz(int n, int m);
+
+// Clutton-Brock two-dimensional disk
+//
+class EmpCyl2D::Bessel : public EmpCyl2D::Basis2d
+{
+private:
+  std::vector<Eigen::VectorXd> roots, normv;
+  int mmax, nmax;
+  double L;
+
+  void test_ortho();
+
+public:
+  Bessel(int mmax, int nmax, double L);
+
+  double potl(int M, int N, double r);
+  double dens(int M, int N, double r);
+  double dpot(int M, int N, double r);
+  double norm(int N, int M);
+};
+
+EmpCyl2D::Bessel::Bessel(int mmax, int nmax, double L) :
+  mmax(mmax), nmax(nmax), L(L)
+{
+  roots.resize(mmax+1);
+  normv.resize(mmax+1);
+  for (int m=0; m<=mmax; m++) {
+    roots[m] = bessjz(m, nmax);
+    normv[m].resize(nmax);
+    for (int n=0; n<nmax; n++) {
+      double eval = std::cyl_bessel_j(m+1, roots[m][n]) * L;
+      normv[m][n] = eval*eval*0.5;
+    }
+  }
+
+  if (false) test_ortho();
+}
+
+void EmpCyl2D::Bessel::test_ortho()
+{
+  const int knots = 128;
+  LegeQuad lw(knots);
+  Eigen::MatrixXd orth(nmax, nmax);
+
+  std::cout << std::endl;
+  for (int m=0; m<=mmax; m++) {
+    orth.setZero();
+    for (int i=0; i<knots; i++) {
+      double r = L*lw.knot(i);
+      for (int j=0; j<nmax; j++) {
+	for (int l=0; l<nmax; l++) {
+	  orth(j, l) += lw.weight(i)*L * r *
+	    potl(m, j, r)*dens(m, l, r) / sqrt(norm(j, m)*norm(l, m));
+	}
+      }
+    }
+    std::cout << "# Bessel orthgonality for M=" << m << std::endl;
+    std::cout << -orth*2.0*M_PI << std::endl << std::endl;
+  }
+}
+
+double EmpCyl2D::CluttonBrock::potl(int M, int N, double r)
 {
   double r2   = r*r;
   double fac  = 1.0/(1.0 + r2);
@@ -46,7 +117,7 @@ double EmpCyl2D::CB_get_potl(int M, int N, double r)
 
 // Clutton-Brock disk density
 //
-double EmpCyl2D::CB_get_dens(int M, int N, double r)
+double EmpCyl2D::CluttonBrock::dens(int M, int N, double r)
 {
   double r2 = r*r;
   double fac = 1.0/(1.0 + r2);
@@ -88,7 +159,7 @@ double EmpCyl2D::CB_get_dens(int M, int N, double r)
 
 // Clutton-Brock disk force
 //
-double EmpCyl2D::CB_get_dpot(int M, int N, double r)
+double EmpCyl2D::CluttonBrock::dpot(int M, int N, double r)
 {
   double r2   = r*r;
   double fac  = 1.0/(1.0 + r2);
@@ -141,7 +212,7 @@ double EmpCyl2D::CB_get_dpot(int M, int N, double r)
 
 // Normalization for CB inner product
 //
-double EmpCyl2D::CB_norm(int n, int m)
+double EmpCyl2D::CluttonBrock::norm(int n, int m)
 {
   double ans = 1.0;
  
@@ -150,6 +221,59 @@ double EmpCyl2D::CB_norm(int n, int m)
   return pow(0.5, 2*m+1)*ans;
 }
 
+
+// Bessel disk potential
+double EmpCyl2D::Bessel::potl(int M, int N, double r)
+{
+  return -std::cyl_bessel_j(M, r*roots[M][N]/L);
+}
+
+// Bessel disk density
+//
+double EmpCyl2D::Bessel::dens(int M, int N, double r)
+{
+  return std::cyl_bessel_j(M, r*roots[M][N]/L)/(2.0*M_PI);
+}
+
+// Bessel disk force
+//
+double EmpCyl2D::Bessel::dpot(int M, int N, double r)
+{
+  double z = r*roots[M][N]/L;
+  return -(std::cyl_bessel_j(M, z)*M/z - std::cyl_bessel_j(M+1, z)) *
+    roots[M][N]/L;
+}
+
+// Normalization for Bessel inner product
+//
+double EmpCyl2D::Bessel::norm(int n, int m)
+{
+  return normv[m][n];
+}
+
+std::shared_ptr<EmpCyl2D::Basis2d>
+EmpCyl2D::Basis2d::createBasis(int mmax, int nmax, const std::string& type)
+{
+  // Convert ID string to lower case
+  //
+  std::string data(type);
+  std::transform(data.begin(), data.end(), data.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  if (data.find("cb") != std::string::npos) {
+    std::cout << "Making a Clutton-Brock basis" << std::endl;
+    return std::make_shared<CluttonBrock>();
+  }
+
+  if (data.find("bess") != std::string::npos) {
+    std::cout << "Making a finite Bessel basis" << std::endl;
+    return std::make_shared<Bessel>(mmax, nmax, 1.0);
+  }
+
+  // Default if nothing else matches
+  std::cout << "[Default] making an Clutton-Brock basis" << std::endl;
+  return std::make_shared<CluttonBrock>();
+}
 
 class EmpCyl2D::ExponCyl : public EmpCyl2D::ModelCyl
 {
@@ -208,6 +332,7 @@ public:
   }
 
 };
+
 
 class EmpCyl2D::MestelCyl : public EmpCyl2D::ModelCyl
 {
@@ -326,11 +451,14 @@ double EmpCyl2D::Mapping::d_xi_to_r(double xi)
 
 EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
 		   double rmin, double rmax, double A, double scale,
-		   bool cmap, bool logr, const std::string type) :
+		   bool cmap, bool logr,
+		   const std::string type, const std::string biorth) :
   mmax(mmax), nmax(nmax), knots(knots), numr(numr),
   rmin(rmin), rmax(rmax), A(A), scale(scale), cmap(cmap), logr(logr),
-  model(type)
+  model(type), biorth(biorth)
 {
+  basis = Basis2d::createBasis(mmax, nmax, biorth);
+
   if (not read_cached_tables()) create_tables();
 }
 
@@ -366,8 +494,8 @@ void EmpCyl2D::create_tables()
       for (int j=0; j<nmax; j++) {
 	for (int l=0; l<nmax; l++) {
 	  D(j, l) += fac * disk->dens(rr) *
-	    CB_get_potl(m, j, rr) * CB_get_potl(m, l, rr)
-	    / sqrt(CB_norm(j, m)*CB_norm(l, m));
+	    basis->potl(m, j, rr) * basis->potl(m, l, rr)
+	    / sqrt(basis->norm(j, m)*basis->norm(l, m));
 	}
       }
     }
@@ -404,9 +532,9 @@ void EmpCyl2D::create_tables()
       if (m==0) xgrid[i] = r;
 
       for (int n=0; n<nmax; n++) {
-	pot(n) = CB_get_potl(m, n, r) / sqrt(CB_norm(n, m));
-	den(n) = CB_get_dens(m, n, r) / sqrt(CB_norm(n, m));
-	dph(n) = CB_get_dpot(m, n, r) / sqrt(CB_norm(n, m));
+	pot(n) = basis->potl(m, n, r) / sqrt(basis->norm(n, m));
+	den(n) = basis->dens(m, n, r) / sqrt(basis->norm(n, m));
+	dph(n) = basis->dpot(m, n, r) / sqrt(basis->norm(n, m));
       }
       
       pot = U.transpose() * pot;
@@ -499,7 +627,7 @@ bool EmpCyl2D::read_cached_tables()
   int MMAX, NMAX, NUMR, KNOTS;
   double RMIN, RMAX, AA, SCL;
   bool LOGR, CMAP;
-  std::string MODEL;
+  std::string MODEL, BIORTH;
 
   std::cout << "---- EmpCyl2D::read_cached_table: trying to read cached table . . ."
 	    << std::endl;
@@ -548,6 +676,7 @@ bool EmpCyl2D::read_cached_tables()
     SCL      = node["scale"  ].as<double>();
     AA       = node["A"      ].as<double>();
     MODEL    = node["model"  ].as<std::string>();
+    BIORTH   = node["biorth" ].as<std::string>();
   } else {
     std::cout << "---- EmpCyl2D: bad magic number in cache file" << std::endl;
     return false;
@@ -614,11 +743,16 @@ bool EmpCyl2D::read_cached_tables()
   }
 
   if (MODEL!=model) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found ID=" << MODEL
+    std::cout << "---- EmpCyl2D::read_cached_table: found MODEL=" << MODEL
 	      << " wanted " << model << std::endl;
     return false;
   }
 
+  if (BIORTH!=biorth) {
+    std::cout << "---- EmpCyl2D::read_cached_table: found BIORTH=" << BIORTH
+	      << " wanted " << biorth << std::endl;
+    return false;
+  }
 
   potl_array.resize(mmax+1);
   dens_array.resize(mmax+1);
@@ -669,6 +803,7 @@ void EmpCyl2D::write_cached_tables()
   node["scale"  ] = scale;
   node["A"      ] = A;
   node["model"  ] = model;
+  node["biorth" ] = biorth;
     
   // Serialize the node
   //

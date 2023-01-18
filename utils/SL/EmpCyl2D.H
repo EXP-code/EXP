@@ -30,22 +30,33 @@ protected:
 
   double A, rmin, rmax, scale;
   int mmax, nmax, numr, knots;
-  std::string model;
+  std::string model, biorth;
   bool cmap, logr;
 
   std::vector<Eigen::MatrixXd> potl_array, dens_array, dpot_array;
   std::vector<Eigen::MatrixXd> rot_matrix;
   std::vector<double> xgrid;
 
-  //@{
-  //! The Clutton-Brock disk basis
-  double CB_get_potl(int M, int N, double r);
-  double CB_get_dens(int M, int N, double r);
-  double CB_get_dpot(int M, int N, double r);
-  double CB_norm    (int n, int m);
-  //@}
+  //! Two-d basis models
+  class Basis2d
+  {
+  public:
 
-  //! A 2-dimensional disk model for computing the EOF
+    static std::shared_ptr<Basis2d>
+    createBasis(int mmax, int nmax, const std::string& type);
+
+    virtual double potl(int M, int N, double r) = 0;
+    virtual double dens(int M, int N, double r) = 0;
+    virtual double dpot(int M, int N, double r) = 0;
+    virtual double norm(int N, int M) = 0;
+  };
+
+  class CluttonBrock;
+  class Bessel;
+
+  std::shared_ptr<Basis2d> basis;
+
+  //! A two-dimensional disk model for computing the EOF
   class ModelCyl
   {
   protected:
@@ -104,7 +115,8 @@ public:
   //! Constructor
   EmpCyl2D(int mmax, int nmax, int knots, int numr,
 	   double rmin, double rmax, double A, double scale,
-	   bool cmap, bool logr, const std::string type);
+	   bool cmap, bool logr, const std::string type,
+	   const std::string biorth);
   
   //! Linear interpolate on grid to get potential value
   double get_potl(double r, int M, int N);

@@ -10,11 +10,11 @@
 // #define EPS 3.0e-8
 #define EPS 1.0e-16
 
-double zbrent(func_1d func, double x1, double x2, double tol)
+double zbrent(std::function<double(double)> func, double x1, double x2, double tol)
 {
   int iter;
   double a=x1,b=x2,c,d,e,min1,min2;
-  double fa=(*func)(a),fb=(*func)(b),fc,p,q,r,s,tol1,xm;
+  double fa=func(a),fb=func(b),fc,p,q,r,s,tol1,xm;
   
   if (fb*fa > 0.0) {
     std::ostringstream str;
@@ -74,7 +74,7 @@ double zbrent(func_1d func, double x1, double x2, double tol)
       b += d;
     else
       b += (xm > 0.0 ? fabs(tol1) : -fabs(tol1));
-    fb=(*func)(b);
+    fb=func(b);
   }
 
   return b;

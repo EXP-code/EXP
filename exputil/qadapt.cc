@@ -1,60 +1,60 @@
 
 /*
-	QADAPT - a recursive adaptive quadrature program,
-		callable from C.
+        QADAPT - a recursive adaptive quadrature program,
+                callable from C.
 
-	Calling syntax:
+        Calling syntax:
 
-		qadapt(a, b, func, tolerance)
+                qadapt(a, b, func, tolerance)
 
-	Arguments: 
+        Arguments: 
 
-		double a  --- lower limit of integration
-		double b  --- upper limit of integration
-		double (*func)() --- pointer to function you want to 
-				integrate
-		double tolerance --- error tolerance
-
-
-	Returns: 
-		double 
+                double a  --- lower limit of integration
+                double b  --- upper limit of integration
+                func      --- the function you want to 
+                              integrate
+                double tolerance --- error tolerance
 
 
+        Returns: 
+                double 
 
 
 
 
-	QADAPT is an adaptive quadrature routine based upon the
-	midpoint rule. The heart of the algorithm is the 
-	function quadsplit(), which takes an interval and divides
-	it into three parts, and then uses the midpoint rule to estimate 
-	the integral over the whole interval and over each subinterval.
-	If these two estimates differ significantly, quadsplit() is called
-	for each subinterval in turn.
-
-	If the number of subdivisions becomes excessively large
-	(currently the maximum is about 25 -- a dynamic range of 10^12),
-	qadapt() will flash a warning signal and then return its
-	most recent guess at the integral.
-	If this occurs, first make sure the interval is supposed
-	to converge at all! If your integral is convergent
-	then you may be able to fix the trouble by either (1) relaxing
-	your error tolerance or (2) subdividing the interval ``by hand''
-	and calling qadapt() on each piece.
-
-	Remember that if your function has a particularly narrow spike
-	in an arbitrary place, qadapt() might not find it on the
-	first iterations and hence might think it has converged.
-	If you are faced with a function having spikes at places
-	unknown to you, be sure to call qadapt() on intervals small
-	enough to give it a chance to detect the spikes.
 
 
+        QADAPT is an adaptive quadrature routine based upon the
+        midpoint rule. The heart of the algorithm is the 
+        function quadsplit(), which takes an interval and divides
+        it into three parts, and then uses the midpoint rule to estimate 
+        the integral over the whole interval and over each subinterval.
+        If these two estimates differ significantly, quadsplit() is called
+        for each subinterval in turn.
 
-		Author:	Kevin Long 
-		Written: 2/25/91
-		Revised: 3/11/91
-		ANSI Version: 9/30/91
+        If the number of subdivisions becomes excessively large
+        (currently the maximum is about 25 -- a dynamic range of 10^12),
+        qadapt() will flash a warning signal and then return its
+        most recent guess at the integral.
+        If this occurs, first make sure the interval is supposed
+        to converge at all! If your integral is convergent
+        then you may be able to fix the trouble by either (1) relaxing
+        your error tolerance or (2) subdividing the interval ``by hand''
+        and calling qadapt() on each piece.
+
+        Remember that if your function has a particularly narrow spike
+        in an arbitrary place, qadapt() might not find it on the
+        first iterations and hence might think it has converged.
+        If you are faced with a function having spikes at places
+        unknown to you, be sure to call qadapt() on intervals small
+        enough to give it a chance to detect the spikes.
+
+
+
+                Author: Kevin Long 
+                Written: 2/25/91
+                Revised: 3/11/91
+                ANSI Version: 9/30/91
 
 */
 
@@ -115,15 +115,15 @@ static double qadapt_initial_width;
 	as necessary to achieve error<tol.
 */
 
-double quadsplit(double, double, func_1d, double, double);
+double quadsplit(double, double, std::function<double(double)>, double, double);
 
 
-double qadapt(double a, double b, func_1d func, double tol)
+double qadapt(double a, double b, std::function<double(double)> func, double tol)
 {
 	double fmid;
 
 	/* evaluate function at midpoint as first guess for integral */
-	fmid = (*func)((a+b)/2.0);
+	fmid = func((a+b)/2.0);
 
 	/* store initial width as global variable */
 	qadapt_initial_width = b-a;
@@ -135,7 +135,8 @@ double qadapt(double a, double b, func_1d func, double tol)
 
 
 
-double quadsplit(double a, double b, func_1d func, double fmid, double tol)
+double quadsplit(double a, double b, std::function<double(double)> func,
+		 double fmid, double tol)
 {
 	double flow, fhigh, fmean, delta;
 	double qlow, qmid, qhigh;
@@ -145,8 +146,8 @@ double quadsplit(double a, double b, func_1d func, double fmid, double tol)
 	No need to do the midpoint again, since it has been passed along
 	from the calling program */
 	
-	flow = (*func)(a + ONE_SIXTH*(b-a));
-	fhigh = (*func)(a + FIVE_SIXTHS*(b-a));
+	flow = func(a + ONE_SIXTH*(b-a));
+	fhigh = func(a + FIVE_SIXTHS*(b-a));
 	
 
 	/* compute average of low, mid, and high function evaluations */

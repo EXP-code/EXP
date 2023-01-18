@@ -375,7 +375,8 @@ double HeatCool::fac2(double t)
 }
 
 
-double HeatCool::romberg_o(func_1d func, double a, double b, double eps)
+double HeatCool::romberg_o(std::function<double(double)> func,
+			   double a, double b, double eps)
 {
   double tllnew;
   double tll;
@@ -383,7 +384,7 @@ double HeatCool::romberg_o(func_1d func, double a, double b, double eps)
   int n = 1;
   int nsamples = 1;
   
-  tlk[0] = tllnew = (b-a)*(*func)((b-a)/2.0);
+  tlk[0] = tllnew = (b-a)*func((b-a)/2.0);
   tll = 0.5*HUGE_VAL;
   
   while((fabs(tllnew-tll) > fabs(tllnew)*eps) && (n < MAXLEV)) {
@@ -399,8 +400,8 @@ double HeatCool::romberg_o(func_1d func, double a, double b, double eps)
     tlk[0] = tlk[0]/3.0;
     
     for(i = 0; i < nsamples/3; i++) {
-      tlk[0] += deltax*(*func)(a + (3*i + 0.5)*deltax);
-      tlk[0] += deltax*(*func)(a + (3*i + 2.5)*deltax);
+      tlk[0] += deltax*func(a + (3*i + 0.5)*deltax);
+      tlk[0] += deltax*func(a + (3*i + 2.5)*deltax);
     }
     
     // Romberg extrapolation.

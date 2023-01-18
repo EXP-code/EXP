@@ -1,6 +1,7 @@
 #ifndef _numerical_H
 #define _numerical_H
 
+#include <functional>
 #include <Eigen/Eigen>
 
 // some simple macros (some very old stuff, not yet replaced)
@@ -33,63 +34,63 @@ const double Pi = 3.141592653589793;
 
 double poly(double, int, double *);
 
-// typedefs for 1D functions used in quadrature, minimization, and roots
-
-typedef double (*func_1d)  (double);
-typedef double (*func_2d)  (double, double);
-typedef void   (*dfunc_1d) (double, double&, double&);
-
-
 // numerical quadrature
 //
 void   gauleg(double, double, Eigen::VectorXd&, Eigen::VectorXd&, int);
-double qadapt(double, double, func_1d, double);
-double qadapt2d(double, double, double, double, func_2d, double);
+double qadapt(double, double, std::function<double(double)>, double);
+double qadapt2d(double, double, double, double,
+		std::function<double(double, double)>, double);
 
 
 
 // root finding
 //
-double zbrent(func_1d, double, double, double);
+double zbrent(std::function<double(double)>, double, double, double);
 
-double rtbis(func_1d, double, double, double);
+double rtbis(std::function<double(double)>, double, double, double);
 
-double rtsafe(dfunc_1d, double, double, double);
+double rtsafe(std::function<void(double, double&, double&)>, double, double, double);
 
-int zbrac(func_1d, Eigen::VectorXd&, Eigen::VectorXd&);
+int zbrac(std::function<double(double)>, Eigen::VectorXd&, Eigen::VectorXd&);
 
 
 
 
 // 1D minimization
 //
-double brent(double, double, double, func_1d, double, double&);
-void mnbrak(Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&, 
-	Eigen::VectorXd&, func_1d);
+double brent(double, double, double, std::function<double(double)>,
+	     double, double&);
+void mnbrak(Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&,
+	    Eigen::VectorXd&, Eigen::VectorXd&, 
+	    Eigen::VectorXd&, std::function<double(double)>);
 
 
 
 // ODE solvers
 //
-// first, some typedefs for passing function pointers
+// first, some function wrapper typedefs
 //
-typedef void (*ode_derivs)(double, Eigen::VectorXd&, Eigen::VectorXd&);
+using ode_derivs =
+  std::function<void(double, Eigen::VectorXd&, Eigen::VectorXd&)>;
 
-typedef void (*ode_integrator)(Eigen::VectorXd&, Eigen::VectorXd&, int,
-			       double&, double, double, Eigen::VectorXd&,
-			       double&, double&, ode_derivs);
+using ode_integrator =
+  std::function<void(Eigen::VectorXd&, Eigen::VectorXd&, int,
+		     double&, double, double, Eigen::VectorXd&,
+		     double&, double&, ode_derivs)>;
 
-typedef void (*ode_rk)(Eigen::VectorXd&, Eigen::VectorXd&, int, double, double, 
-		       Eigen::VectorXd&, ode_derivs);
+using ode_rk =
+  std::function<void(Eigen::VectorXd&, Eigen::VectorXd&, int, double, double, 
+		     Eigen::VectorXd&, ode_derivs)>;
 
 
-typedef void (*symp_derivs)(double, Eigen::VectorXd&, Eigen::VectorXd&,
-			    Eigen::VectorXd&);
+using symp_derivs =
+  std::function<void(double, Eigen::VectorXd&, Eigen::VectorXd&,
+		     Eigen::VectorXd&)>;
 
-typedef void (*symp_integrator)(Eigen::VectorXd&, Eigen::VectorXd&,
-				Eigen::VectorXd&, Eigen::VectorXd&, 
-				double, double, symp_derivs);
-
+using symp_integrator =
+  std::function<void(Eigen::VectorXd&, Eigen::VectorXd&,
+		     Eigen::VectorXd&, Eigen::VectorXd&, 
+		     double, double, symp_derivs)>;
 
 // prototypes for ODE solvers
 //

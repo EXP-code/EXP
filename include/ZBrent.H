@@ -2,6 +2,7 @@
 
 using namespace std;
 
+#include <functional>
 #include <iostream>
 #include <iomanip>
 #include <vector>
@@ -15,7 +16,7 @@ enum ZBrentReturn {
 template <class T>
 class ZBrent 
 {
-  typedef double (*func_T)(double, T&);
+  using func_T = std::function<double(double, T&)>;
 
 public:
   static int ITMAX;
@@ -39,8 +40,8 @@ ZBrent<T>::find(func_T func, T& param, double x1, double x2, double tol,
 {
   double a=x1, b=x2, c=0.0, d=0.0, e=0.0, min1, min2;
   double fc, p, q, r, s, tol1, xm;
-  double fa=(*func)(a, param);
-  double fb=(*func)(b, param);
+  double fa=func(a, param);
+  double fb=func(b, param);
 
   if (fb*fa > 0.0) {
     if (a > b) {
@@ -50,8 +51,8 @@ ZBrent<T>::find(func_T func, T& param, double x1, double x2, double tol,
       a *= (1-epsilon);
       b *= (1+epsilon);
     }      
-    fa=(*func)(a, param);
-    fb=(*func)(b, param);
+    fa=func(a, param);
+    fb=func(b, param);
     if (fb*fa > 0.0) return Bracket;
   }
 
@@ -114,7 +115,7 @@ ZBrent<T>::find(func_T func, T& param, double x1, double x2, double tol,
     else
       b += (xm > 0.0 ? fabs(tol1) : -fabs(tol1));
 
-    fb = (*func)(b, param);
+    fb = func(b, param);
   }
 
   return Iteration;

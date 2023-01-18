@@ -1,6 +1,7 @@
 #define FRECS 16		// # of rectangles for frequency integrals
 #define TOLEPI 1.0e-3		// Cut over for epicylic theory
 
+#include <functional>
 #include <cstdlib>
 #include <sstream>
 #include <cmath>
@@ -511,7 +512,8 @@ void SphericalOrbit::compute_biorth(void)
 }
 
 
-double SphericalOrbit::pot_trans(int l1, int l2, double (*func)(double))
+double SphericalOrbit::pot_trans(int l1, int l2,
+				 std::function<double(double)> func)
 {
 
   if (Gkn.n == 0) {

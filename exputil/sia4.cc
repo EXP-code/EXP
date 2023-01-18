@@ -60,7 +60,7 @@ void sia4(Eigen::VectorXd &x,
     pl[i] = v[i];
   }
 
-  (*derivs)(t, ql, pl, f);
+  derivs(t, ql, pl, f);
 
   for (int j=0; j<4; j++) {
 
@@ -73,7 +73,7 @@ void sia4(Eigen::VectorXd &x,
     
     t += A[j]*h;
 
-    (*derivs)(t, qc, pc, f);
+    derivs(t, qc, pc, f);
     
     for (int i=0; i<3; i++) {
       ql[i] = qc[i];
