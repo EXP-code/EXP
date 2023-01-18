@@ -174,9 +174,9 @@ main(int argc, char **argv)
       cxxopts::value<double>(EMIN)->default_value("-1.0e20"))
     ("EMAX", "Maximum value in phase-space energy",
      cxxopts::value<double>(EMAX)->default_value("1.0e20"))
-    ("KMIN", "Minimum value in J/J_max}(E)",
+    ("KMIN", "Minimum value in J/J_max(E)",
      cxxopts::value<double>(KMIN)->default_value("0.0"))
-    ("KMAX", "Minimum value in J/J_max}(E)",
+    ("KMAX", "Minimum value in J/J_max(E)",
       cxxopts::value<double>(KMAX)->default_value("1.0"))
     ("NLIMIT", "Number of particles to compare (NLIMIT<0 means all)",
      cxxopts::value<int>(NLIMIT)->default_value("-1"))
