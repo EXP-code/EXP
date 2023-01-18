@@ -1,5 +1,5 @@
 
-set(bin_PROGRAMS readSL testBarrier testConfig)
+set(bin_PROGRAMS readSL testBarrier testConfig testBessz)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX exputil yaml-cpp
   ${VTK_LIBRARIES})
@@ -23,6 +23,7 @@ endif()
 add_executable(readSL         read_slsph.cc)
 add_executable(testBarrier    test_barrier.cc)
 add_executable(testConfig     test_config.cc)
+add_executable(testBessz      test_bessz.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})
