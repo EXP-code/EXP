@@ -144,6 +144,7 @@ main(int argc, char **argv)
     "   OUTFILE.DF       Distribution function          [2d]\n"		\
     "   OUTFILE.DR       Run mass, J, Delta J (R)       [1d]\n"		\
     "   OUTFILE.chk      Orbital element check              \n"		\
+    "   OUTFILE.df1      One dimensional DF info        [1d]\n"		\
     "=======================================================\n"
     " E=Energy, K=J/J_{max}(E)                              \n"
     "=======================================================\n";
@@ -352,6 +353,13 @@ main(int argc, char **argv)
   histoS = Eigen::VectorXd::Zero(NUMR);
   histoN = Eigen::VectorXd::Zero(NUMR);
 
+  // One-d histograms in energy or J depending on coordinates
+  //
+  Eigen::VectorXd histo1_1d, histo2_1d;
+
+  histo1_1d = Eigen::VectorXd::Zero(NUM1);
+  histo2_1d = Eigen::VectorXd::Zero(NUM1);
+
   double dR, rhmin, rhmax;
   bool LOGR;
   if (RMIN>1.0e-08) {
@@ -369,7 +377,7 @@ main(int argc, char **argv)
   // Open output file
   //
     
-  const int nfiles = 13;
+  const int nfiles = 14;
   const char *suffix[] = {
     ".DM", 			// Mass per bin (E, K)		#0
     ".DE", 			// Delta E(E, K)		#1
@@ -384,6 +392,7 @@ main(int argc, char **argv)
     ".DN", 			// Counts per (E, K) bin        #10
     ".DR", 			// Run mass, J, Delta J (R)	#11
     ".chk"			// Orbital element check	#12
+    ".df1"			// One dimensional DF info	#13
   };
   std::vector<string> filename(nfiles);
   for (int i=0; i<nfiles; i++) filename[i] = OUTFILE + suffix[i];
@@ -949,6 +958,14 @@ main(int argc, char **argv)
 	    histo1(i11, i21) += pp->mass;
 	    histo2(i12, i22) += pp->mass;
 	    
+	    if (actions) {
+	      histo1_1d(i21) += pp->mass;
+	      histo2_1d(i22) += pp->mass;
+	    } else {
+	      histo1_1d(i11) += pp->mass;
+	      histo2_1d(i12) += pp->mass;
+	    }
+	      
 	    if (LZDIST and myid==0) {
 	      if (KK>KMIN && KK<KMAX && EE>EMIN && EE<EMAX)
 		dout << setw(15) << EE
@@ -1022,6 +1039,8 @@ main(int argc, char **argv)
     MPI_Reduce(histLr.data(), 0, histLr.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoS.data(), 0, histoS.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoN.data(), 0, histoN.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(histo1_1d.data(), 0, histo1_1d.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(histo2_1d.data(), 0, histo2_1d.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   }
   // Receive at root
   //
@@ -1045,6 +1064,8 @@ main(int argc, char **argv)
     MPI_Reduce(MPI_IN_PLACE, histLr.data(), histLr.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoS.data(), histoS.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoN.data(), histoN.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, histo1_1d.data(), histo1_1d.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, histo2_1d.data(), histo2_1d.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
     std::cout << std::endl;
     
@@ -1064,6 +1085,8 @@ main(int argc, char **argv)
     // Delta DF
     Eigen::MatrixXd histoF  = histo2 - histo1;
     Eigen::MatrixXd histoDF = histoF;
+    Eigen::VectorXd histoF_1d  = histo2_1d - histo2_1d;
+    Eigen::VectorXd histoDF_1d = histoF_1d;
     
     // Relative Delta DF
     for (size_t j=0; j<histoF.cols(); j++) { // Footron order...
@@ -1073,6 +1096,11 @@ main(int argc, char **argv)
       }
     }
 	
+    for (size_t j=0; j<histoF_1d.size(); j++) { // 1d array
+      if (histo1_1d(j)>0.0) histoDF_1d(j) = histoF_1d(j)/histo1_1d(j);
+      else                  histoDF_1d(j) = 0.0;
+    }
+
     double totMass = 0.0;
     
     for (int i=0; i<NUM1; i++) {
@@ -1244,6 +1272,53 @@ main(int argc, char **argv)
 	      << setw(fieldsz) << histoN[i]
 	      << setw(fieldsz) << histoS[i]
 	      << endl;
+    }
+    
+    {
+      const int nrlabs = 3, fieldsz=18;
+
+      for (int j=0; j<nrlabs; j++) {
+	if (j==0) out[13] << "#";
+	else      out[13] << "+";
+	out[13] << setw(fieldsz-1) << left << setfill('-') << '-';
+      }
+
+      out[13] << endl << setfill(' ');
+	
+      std::vector<std::string> labels = {"E", "F1", "F2", "DF", "Df"};
+      if (actions) labels[0] = "I_2";
+
+      for (int j=0; j<nrlabs; j++) {
+	if (j==0) out[13] << "# ";
+	else      out[13] << "+ ";
+	out[13] << setw(fieldsz-2) << left << labels[j];
+      }
+
+      out[13] << endl;
+      for (int j=0; j<nrlabs; j++) {
+	if (j==0) out[13] << "# ";
+	else      out[13] << "+ ";
+	out[13] << setw(fieldsz-2) << left << j+1;
+      }
+      out[13] << endl;
+
+      for (int j=0; j<nrlabs; j++) {
+	if (j==0) out[13] << "#";
+	else      out[13] << "+";
+	out[13] << setw(fieldsz-1) << left << setfill('-') << '-';
+      }
+      out[13] << endl << setfill(' ');
+      
+      for (int j=0; j<histo1_1d.size(); j++) {
+	if (actions)  out[13] << setw(fieldsz) << left << I1min + d1*j;
+	else          out[13] << setw(fieldsz) << left << I2min + d2*j;
+	
+	out[13] << setw(fieldsz) << left << histo1_1d[j]
+		<< setw(fieldsz) << left << histo2_1d[j]
+		<< setw(fieldsz) << left << histoF_1d[j]
+		<< setw(fieldsz) << left << histoDF_1d[j]
+		<< std::endl;
+      }
     }
     
     std::cout << "K check:" << std::endl
