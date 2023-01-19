@@ -252,7 +252,8 @@ double EmpCyl2D::Bessel::norm(int n, int m)
 }
 
 std::shared_ptr<EmpCyl2D::Basis2d>
-EmpCyl2D::Basis2d::createBasis(int mmax, int nmax, const std::string& type)
+EmpCyl2D::Basis2d::createBasis(int mmax, int nmax, double rmax,
+			       const std::string& type)
 {
   // Convert ID string to lower case
   //
@@ -261,17 +262,17 @@ EmpCyl2D::Basis2d::createBasis(int mmax, int nmax, const std::string& type)
 		 [](unsigned char c){ return std::tolower(c); });
 
   if (data.find("cb") != std::string::npos) {
-    std::cout << "Making a Clutton-Brock basis" << std::endl;
+    std::cout << "---- EmpCyl2d::Basis2d: Making a Clutton-Brock basis" << std::endl;
     return std::make_shared<CluttonBrock>();
   }
 
   if (data.find("bess") != std::string::npos) {
-    std::cout << "Making a finite Bessel basis" << std::endl;
-    return std::make_shared<Bessel>(mmax, nmax, 1.0);
+    std::cout << "---- EmpCyl2d::Basis2d: Making a finite Bessel basis" << std::endl;
+    return std::make_shared<Bessel>(mmax, nmax, rmax);
   }
 
   // Default if nothing else matches
-  std::cout << "[Default] making an Clutton-Brock basis" << std::endl;
+  std::cout << "---- EmpCyl2d::Basis2d: Making an Clutton-Brock basis [Default]" << std::endl;
   return std::make_shared<CluttonBrock>();
 }
 
@@ -372,22 +373,22 @@ EmpCyl2D::ModelCyl::createModel(const std::string type, double A)
 		 [](unsigned char c){ return std::tolower(c); });
 
   if (data.find("kuzmin") != std::string::npos) {
-    std::cout << "Making a Kuzmin disk" << std::endl;
+    std::cout << "---- EmpCyl2D::ModelCyl: Making a Kuzmin disk" << std::endl;
     return std::make_shared<KuzminCyl>(A);
   }
 
   if (data.find("mestel") != std::string::npos) {
-    std::cout << "Making a finite Mestel disk" << std::endl;
+    std::cout << "---- EmpCyl2D::ModelCyl: Making a finite Mestel disk" << std::endl;
     return std::make_shared<MestelCyl>(A);
   }
 
   if (data.find("expon") != std::string::npos) {
-    std::cout << "Making an Exponential disk" << std::endl;
+    std::cout << "---- EmpCyl2D::ModelCyl: Making an Exponential disk" << std::endl;
     return std::make_shared<ExponCyl>(A);
   }
 
   // Default if nothing else matches
-  std::cout << "[Default] making an Exponential disk" << std::endl;
+  std::cout << "---- EmpCyl2D::ModelCyl: Making an Exponential disk [Default]" << std::endl;
   return std::make_shared<ExponCyl>(A);
 }
 
@@ -457,7 +458,7 @@ EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
   rmin(rmin), rmax(rmax), A(A), scale(scale), cmap(cmap), logr(logr),
   model(type), biorth(biorth)
 {
-  basis = Basis2d::createBasis(mmax, nmax, biorth);
+  basis = Basis2d::createBasis(mmax, nmax, rmax, biorth);
 
   if (not read_cached_tables()) create_tables();
 }
@@ -904,4 +905,61 @@ double EmpCyl2D::get_dpot(double r, int M, int N)
   std::tie(lo, hi, A, B) = linear_interp(r);
 
   return A*dpot_array[M](lo, N) + B*dpot_array[M](hi, N);
+}
+
+void EmpCyl2D::checkCoefs()
+{
+  Mapping  map(scale, cmap);
+  auto     disk = ModelCyl::createModel(model, A);
+  LegeQuad lw(knots);
+
+  Eigen::VectorXd coefs(nmax), coef0(nmax);
+  coefs.setZero();
+  coef0.setZero();
+  
+  double ximin = map.r_to_xi(rmin);
+  double ximax = map.r_to_xi(rmax);
+
+  for (int k=0; k<knots; k++) {
+    double xx  = ximin + (ximax - ximin)*lw.knot(k);
+    double rr  = map.xi_to_r(xx);
+    double fac = lw.weight(k) * rr / map.d_xi_to_r(xx) * (ximax - ximin);
+    
+      for (int j=0; j<nmax; j++) {
+	coefs(j) += fac * disk->dens(rr) * get_potl(rr, 0, j);
+	coef0(j) += fac * disk->dens(rr) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0));
+      }
+  }
+
+  std::cout << std::endl << "Coefficients" << std::endl;
+
+  for (int j=0; j<nmax; j++) {
+    std::cout << std::setw( 6) << j
+	      << std::setw(16) << coefs(j)
+	      << std::setw(16) << coef0(j)
+	      << std::endl;
+  }
+
+  std::cout << std::endl << "Reconstruction" << std::endl;
+
+  double dx = (ximax - ximin)/(numr - 1);
+
+  for (int k=0; k<numr; k++) {
+    double xx  = ximin + dx*k;
+    double rr  = map.xi_to_r(xx);
+    double yy = 0.0, zz = 0.0, uu = 0.0, vv = 0.0;
+    for (int j=0; j<nmax; j++) {
+      uu += coefs(j) * get_potl(rr, 0, j);
+      vv += coefs(j) * get_dens(rr, 0, j);
+      yy += coef0(j) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0));
+      zz += coef0(j) * basis->dens(0, j, rr) / sqrt(basis->norm(j, 0));
+    }
+
+    std::cout << std::setw(16) << rr
+	      << std::setw(16) << uu
+	      << std::setw(16) << vv
+	      << std::setw(16) << yy
+	      << std::setw(16) << zz
+	      << std::endl;
+  }
 }

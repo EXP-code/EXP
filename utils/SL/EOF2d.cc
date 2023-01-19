@@ -98,5 +98,7 @@ int main(int argc, char** argv)
   if (vm.count("trans")) emp.writeTrans(M, filename + ".trans");
   if (vm.count("ortho")) emp.orthoCheck(M, filename + ".ortho");
 
+  emp.checkCoefs();
+
   return 0;
 }

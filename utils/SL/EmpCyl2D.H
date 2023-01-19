@@ -43,7 +43,7 @@ protected:
   public:
 
     static std::shared_ptr<Basis2d>
-    createBasis(int mmax, int nmax, const std::string& type);
+    createBasis(int mmax, int nmax, double rmax, const std::string& type);
 
     virtual double potl(int M, int N, double r) = 0;
     virtual double dens(int M, int N, double r) = 0;
@@ -137,6 +137,10 @@ public:
   //! Write the inner-product matrix for the EOF basis for a
   //! particular azimuthal M value to a file
   void orthoCheck(int M, const std::string& file);
+
+  //! Check the coefficients of the EOF basis against the zeroth-order
+  //! model
+  void checkCoefs();
 };
 
 
