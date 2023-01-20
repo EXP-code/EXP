@@ -95,6 +95,7 @@ main(int argc, char **argv)
   double       EMAX;
   double       KMIN;
   double       KMAX;
+  double       I1min=-1, I1max=-1, I2min=-1, I2max=-1;
   int          NLIMIT;
   int          NSKIP;
   int          NREPORT;
@@ -143,8 +144,9 @@ main(int argc, char **argv)
     "   OUTFILE.Dm       Mean mass per bin              [2d]\n"		\
     "   OUTFILE.DF       Distribution function          [2d]\n"		\
     "   OUTFILE.DR       Run mass, J, Delta J (R)       [1d]\n"		\
+    "   OUTFILE.df1      One dimensional DF info (1)    [1d]\n"		\
+    "   OUTFILE.df2      One dimensional DF info (2)    [1d]\n"		\
     "   OUTFILE.chk      Orbital element check              \n"		\
-    "   OUTFILE.df1      One dimensional DF info        [1d]\n"		\
     "=======================================================\n"
     " E=Energy, K=J/J_{max}(E)                              \n"
     "=======================================================\n";
@@ -163,6 +165,14 @@ main(int argc, char **argv)
     ("actions", "Print output in action space rather than E-kappa space.  The default is Energy-Kappa.")
     ("F,filetype", "input file type (one of: PSPout, PSPspl, GadgetNative, GadgetHDF5)",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
+    ("I1min", "Minimum grid value for E (or I1 for actions)",
+     cxxopts::value<double>(I1min))
+    ("I1max", "Maximum grid value for E (or I1 for actions)",
+     cxxopts::value<double>(I1max))
+    ("I2min", "Minimum grid value for K (or I2 for actions)",
+     cxxopts::value<double>(I2min))
+    ("I2max", "Maximum grid value for K (or I2 for actions)",
+     cxxopts::value<double>(I2max))
     ("RMIN", "Minimum model radius",
      cxxopts::value<double>(RMIN)->default_value("0.0"))
     ("RMAX", "Maximum model radius",
@@ -355,10 +365,12 @@ main(int argc, char **argv)
 
   // One-d histograms in energy or J depending on coordinates
   //
-  Eigen::VectorXd histo1_1d, histo2_1d;
+  std::vector<Eigen::VectorXd> histo1_1d(2), histo2_1d(2);
 
-  histo1_1d = Eigen::VectorXd::Zero(NUM1);
-  histo2_1d = Eigen::VectorXd::Zero(NUM1);
+  histo1_1d[0] = Eigen::VectorXd::Zero(NUM1);
+  histo2_1d[0] = Eigen::VectorXd::Zero(NUM1);
+  histo1_1d[1] = Eigen::VectorXd::Zero(NUM2);
+  histo2_1d[1] = Eigen::VectorXd::Zero(NUM2);
 
   double dR, rhmin, rhmax;
   bool LOGR;
@@ -377,7 +389,7 @@ main(int argc, char **argv)
   // Open output file
   //
     
-  const int nfiles = 14;
+  const int nfiles = 15;
   const char *suffix[] = {
     ".DM", 			// Mass per bin (E, K)		#0
     ".DE", 			// Delta E(E, K)		#1
@@ -391,8 +403,9 @@ main(int argc, char **argv)
     ".Df", 			// Delta DF/F (E, K)            #9
     ".DN", 			// Counts per (E, K) bin        #10
     ".DR", 			// Run mass, J, Delta J (R)	#11
-    ".chk"			// Orbital element check	#12
-    ".df1"			// One dimensional DF info	#13
+    ".chk",			// Orbital element check	#12
+    ".df1",			// One dimensional DF info	#13
+    ".df2"			// One dimensional DF info	#14
   };
   std::vector<string> filename(nfiles);
   for (int i=0; i<nfiles; i++) filename[i] = OUTFILE + suffix[i];
@@ -460,29 +473,27 @@ main(int argc, char **argv)
     for (int i=0; i<=NUM1; i++) Ebins[i] = MASS.eval(Mmin+dM*i);
   }
 
-  double I1min, I1max, I2min, I2max;
-
   if (actions) {
     Emin *= 1.0 - KTOL;
     Emax *= 1.0 + KTOL;
 
     orb.new_orbit(Emin, 1.0-KTOL);
-    I1min = orb.get_action(0);
+    if (I1min<0) I1min = orb.get_action(0);
 
     orb.new_orbit(Emin, KTOL);
-    I2min = orb.get_action(1);
+    if (I2min<0) I2min = orb.get_action(1);
 
     orb.new_orbit(Emax, KTOL);
-    I1max = orb.get_action(0);
+    if (I1max<0) I1max = orb.get_action(0);
 
     orb.new_orbit(Emax, 1.0 - KTOL);
-    I2max = orb.get_action(1);
+    if (I2max<0) I2max = orb.get_action(1);
 
   } else {
-    I1min = Emin;
-    I1max = Emax;
-    I2min = std::max<double>(KTOL, KMIN);
-    I2max = std::min<double>(1.0 - KTOL, KMAX);
+    if (I1min<0) I1min = Emin;
+    if (I1max<0) I1max = Emax;
+    if (I2min<0) I2min = std::max<double>(KTOL, KMIN);
+    if (I2max<0) I2max = std::min<double>(1.0 - KTOL, KMAX);
   }
 
   double d1 = (I1max - I1min) / NUM1;
@@ -958,13 +969,10 @@ main(int argc, char **argv)
 	    histo1(i11, i21) += pp->mass;
 	    histo2(i12, i22) += pp->mass;
 	    
-	    if (actions) {
-	      histo1_1d(i21) += pp->mass;
-	      histo2_1d(i22) += pp->mass;
-	    } else {
-	      histo1_1d(i11) += pp->mass;
-	      histo2_1d(i12) += pp->mass;
-	    }
+	    histo1_1d[0](i11) += pp->mass;
+	    histo2_1d[0](i12) += pp->mass;
+	    histo1_1d[1](i21) += pp->mass;
+	    histo2_1d[1](i22) += pp->mass;
 	      
 	    if (LZDIST and myid==0) {
 	      if (KK>KMIN && KK<KMAX && EE>EMIN && EE<EMAX)
@@ -1039,8 +1047,10 @@ main(int argc, char **argv)
     MPI_Reduce(histLr.data(), 0, histLr.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoS.data(), 0, histoS.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoN.data(), 0, histoN.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(histo1_1d.data(), 0, histo1_1d.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(histo2_1d.data(), 0, histo2_1d.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(histo1_1d[0].data(), 0, histo1_1d[0].size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(histo2_1d[0].data(), 0, histo2_1d[0].size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(histo1_1d[1].data(), 0, histo1_1d[1].size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(histo2_1d[1].data(), 0, histo2_1d[1].size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   }
   // Receive at root
   //
@@ -1064,8 +1074,10 @@ main(int argc, char **argv)
     MPI_Reduce(MPI_IN_PLACE, histLr.data(), histLr.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoS.data(), histoS.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoN.data(), histoN.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(MPI_IN_PLACE, histo1_1d.data(), histo1_1d.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(MPI_IN_PLACE, histo2_1d.data(), histo2_1d.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, histo1_1d[0].data(), histo1_1d[0].size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, histo2_1d[0].data(), histo2_1d[0].size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, histo1_1d[1].data(), histo1_1d[1].size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, histo2_1d[1].data(), histo2_1d[1].size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
     std::cout << std::endl;
     
@@ -1085,8 +1097,10 @@ main(int argc, char **argv)
     // Delta DF
     Eigen::MatrixXd histoF  = histo2 - histo1;
     Eigen::MatrixXd histoDF = histoF;
-    Eigen::VectorXd histoF_1d  = histo2_1d - histo2_1d;
-    Eigen::VectorXd histoDF_1d = histoF_1d;
+
+    std::vector<Eigen::VectorXd> histoF_1d =
+      {histo2_1d[0] - histo1_1d[0], histo2_1d[1] - histo1_1d[1]};
+    std::vector<Eigen::VectorXd> histoDF_1d = histoF_1d;
     
     // Relative Delta DF
     for (size_t j=0; j<histoF.cols(); j++) { // Footron order...
@@ -1096,9 +1110,13 @@ main(int argc, char **argv)
       }
     }
 	
-    for (size_t j=0; j<histoF_1d.size(); j++) { // 1d array
-      if (histo1_1d(j)>0.0) histoDF_1d(j) = histoF_1d(j)/histo1_1d(j);
-      else                  histoDF_1d(j) = 0.0;
+    for (int i=0; i<2; i++) {
+      for (size_t j=0; j<histoF_1d[i].size(); j++) { // 1d array
+	if (histo1_1d[i](j)>0.0)
+	  histoDF_1d[i](j) = histoF_1d[i](j)/histo1_1d[i](j);
+	else
+	  histoDF_1d[i](j) = 0.0;
+      }
     }
 
     double totMass = 0.0;
@@ -1137,7 +1155,6 @@ main(int argc, char **argv)
 	I2 = pow(pow(I2min, KPOWER) + d3*(0.5+j), 1.0/KPOWER);
       else
 	I2 = I2min + d2*(0.5+j);
-
       for (int i=0; i<NUM1; i++) {
 	I1 = I1min + d1*(0.5+i);
 
@@ -1277,47 +1294,56 @@ main(int argc, char **argv)
     {
       const int nrlabs = 3, fieldsz=18;
 
-      for (int j=0; j<nrlabs; j++) {
-	if (j==0) out[13] << "#";
-	else      out[13] << "+";
-	out[13] << setw(fieldsz-1) << left << setfill('-') << '-';
+      std::vector<std::vector<std::string>>
+	labels = { {"E", "F1", "F2", "DF", "Df"}, 
+		   {"K", "F1", "F2", "DF", "Df"} };
+
+      if (actions) {
+	labels[0][0] = "I_1";
+	labels[1][0] = "I_2";
       }
 
-      out[13] << endl << setfill(' ');
+      for (int l=0; l<2; l++) {
+
+	for (int j=0; j<nrlabs; j++) {
+	  if (j==0) out[13+l] << "#";
+	  else      out[13+l] << "+";
+	  out[13+l] << setw(fieldsz-1) << left << setfill('-') << '-';
+	}
+
+	out[13+l] << endl << setfill(' ');
 	
-      std::vector<std::string> labels = {"E", "F1", "F2", "DF", "Df"};
-      if (actions) labels[0] = "I_2";
-
-      for (int j=0; j<nrlabs; j++) {
-	if (j==0) out[13] << "# ";
-	else      out[13] << "+ ";
-	out[13] << setw(fieldsz-2) << left << labels[j];
-      }
-
-      out[13] << endl;
-      for (int j=0; j<nrlabs; j++) {
-	if (j==0) out[13] << "# ";
-	else      out[13] << "+ ";
-	out[13] << setw(fieldsz-2) << left << j+1;
-      }
-      out[13] << endl;
-
-      for (int j=0; j<nrlabs; j++) {
-	if (j==0) out[13] << "#";
-	else      out[13] << "+";
-	out[13] << setw(fieldsz-1) << left << setfill('-') << '-';
-      }
-      out[13] << endl << setfill(' ');
-      
-      for (int j=0; j<histo1_1d.size(); j++) {
-	if (actions)  out[13] << setw(fieldsz) << left << I1min + d1*j;
-	else          out[13] << setw(fieldsz) << left << I2min + d2*j;
+	for (int j=0; j<nrlabs; j++) {
+	  if (j==0) out[13+l] << "# ";
+	  else      out[13+l] << "+ ";
+	  out[13+l] << setw(fieldsz-2) << left << labels[l][j];
+	}
 	
-	out[13] << setw(fieldsz) << left << histo1_1d[j]
-		<< setw(fieldsz) << left << histo2_1d[j]
-		<< setw(fieldsz) << left << histoF_1d[j]
-		<< setw(fieldsz) << left << histoDF_1d[j]
-		<< std::endl;
+	out[13+l] << endl;
+	for (int j=0; j<nrlabs; j++) {
+	  if (j==0) out[13+l] << "# ";
+	  else      out[13+l] << "+ ";
+	  out[13+l] << setw(fieldsz-2) << left << j+1;
+	}
+	out[13+l] << endl;
+
+	for (int j=0; j<nrlabs; j++) {
+	  if (j==0) out[13+l] << "#";
+	  else      out[13+l] << "+";
+	  out[13+l] << setw(fieldsz-1) << left << setfill('-') << '-';
+	}
+	out[13+l] << endl << setfill(' ');
+	
+	for (int j=0; j<histo1_1d[l].size(); j++) {
+	  if (actions)  out[13+l] << setw(fieldsz) << left << I1min + d1*j;
+	  else          out[13+l] << setw(fieldsz) << left << I2min + d2*j;
+	  
+	  out[13+l] << setw(fieldsz) << left << histo1_1d[l][j]
+		    << setw(fieldsz) << left << histo2_1d[l][j]
+		    << setw(fieldsz) << left << histoF_1d[l][j]
+		    << setw(fieldsz) << left << histoDF_1d[l][j]
+		    << std::endl;
+	}
       }
     }
     
