@@ -49,6 +49,7 @@ class DiskHalo
 
   std::vector<Eigen::MatrixXd> disktableP, disktableN;
   Eigen::MatrixXd epitable, dv2table, asytable;
+  std::vector<Eigen::VectorXd> jeansDisp;
   double dP, dR, dZ;
 
   Eigen::MatrixXd halotable;

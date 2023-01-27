@@ -1168,6 +1168,7 @@ table_disk(vector<Particle>& part)
   Eigen::VectorXd workR (NDR);
   Eigen::VectorXd workE (NDR);
   Eigen::VectorXd workE2(NDR);
+  Eigen::VectorXd workE3(NDR);
   Eigen::VectorXd workQ (NDR);
   Eigen::VectorXd workQ2(NDR);
   Eigen::VectorXd workQ3(NDR);
@@ -1295,10 +1296,16 @@ table_disk(vector<Particle>& part)
 	workE[j]    = std::max<double>(-fr + dpr, 1.0e-20);
 
       workV(1, j) = disk_surface_density(R);
+
+				// For cylindrical Jeans'
+      workE2[j]   = workE[j] * workV(1, j);
+
 				// Sigma(R)*dPhi/dr*R
       workV(2, j) = workV(1, j)*workE[j]*R;
+
 				// [1/r dPhi/dr]^{1/2} = Omega
       workQ[j]    = sqrt(workE[j]/R);
+
 				// r^2*[1/r dPhi/dr]^{1/2} = r^2 * Omega
       workQ2[j]   = workQ[j] * R*R;
 
@@ -1412,6 +1419,10 @@ table_disk(vector<Particle>& part)
 #endif
     }
 
+    				// Integrate for cylindrical Jeans
+    if (use_spline) Splsum (workR, workE2, workE3);
+    else            Trapsum(workR, workE2, workE3);
+
 				// Compute epicylic freqs
     for (int j=0; j<NDR; j++) {
 
@@ -1506,7 +1517,21 @@ table_disk(vector<Particle>& part)
   }
   if (myid==0) std::cout << "NZEPI=" << nzepi << "/" << NDR << std::endl;
 
-				// For debugging the solution
+  // Compute Jeans solution
+  //
+  jeansDisp.resize(2);
+  jeansDisp[0].resize(NDR);
+  jeansDisp[1].resize(NDR);
+  for (int j=0; j<NDR; j++) {
+    jeansDisp[0][j] = workR[j];
+    jeansDisp[1][j]  =
+      sqrt(fabs(
+		(workE3[j] - workE3[NDR-1]) / disk_surface_density(workR[j])
+		));
+  }
+
+  // For debugging the solution
+  //
   if (myid==0 && expandh && VFLAG & 4) {
     ostringstream sout;
     sout << "ep_test." << RUNTAG;
@@ -1545,6 +1570,9 @@ table_disk(vector<Particle>& part)
       vrq0 = 3.36*dmass*disk->get_density(r)*Q/epi(r, 0.0, 0.0);
       vrq1 = 3.36*dmass*disk->get_density(r)*Q/sqrt(epitable(0, j));
 
+      double sigmaJR = (odd2(r, workR, workE3, 0) - workE3[NDR-1])
+	/ disk_surface_density(R);
+
       out << setw(14) << r			// #1
 	  << setw(14) << epitable(0, j)		// #2
 	  << setw(14) << workE[j]		// #3
@@ -1569,6 +1597,7 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << lhs - rhs		// #22
 	  << setw(14) << odd2(log(r), nrD, nhM, 1) // #23  Enclosed mass
 	  << setw(14) << epi(r, 0.0, 0.0)	// #24  Epi routine
+	  << setw(14) << sigmaJR		// #25 Cylindrical Jeans
 	  << std::endl;
     }
 
@@ -1760,9 +1789,15 @@ double DiskHalo::vz_disp2(double xp,double yp, double zp)
 double DiskHalo::vr_disp2(double xp, double yp,double zp)
 {
   double r = sqrt(xp*xp + yp*yp);
-  if (r > 10.0*scalelength) return 0.0;
-  double sigmar = 3.36*disk_surface_density(r)*Q/epi(xp, yp, zp);
-  return sigmar*sigmar;
+
+  if (type == Jeans) {
+    if (r > jeansDisp[0][NDR-1]) return 0.0;
+    return odd2(r, jeansDisp[0], jeansDisp[1], 0);
+  } else {
+    if (r > 10.0*scalelength) return 0.0;
+    double sigmar = 3.36*disk_surface_density(r)*Q/epi(xp, yp, zp);
+    return sigmar*sigmar;
+  }
 }
 
 // Asymmetric drift equation: returns v_a*(v_a - 2*v_c)/sigma_rr^2
