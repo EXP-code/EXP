@@ -380,18 +380,19 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   double mtot = halo->get_mass(rmax);
 
   double pos[3], pos1[3], vel[3], vel1[3], massp, massp1;
+
 				// Diagnostics
   double radmin1=1e30, radmax1=0.0, radmin, radmax, r;
   vector<double>   DD(nh+1, 0.0), DD0(nh+1);
   vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
-  if (myid==0) std::cout << std::endl 
-			 << "     *****"
-			 << "  rmin=" << rmin
-			 << "  rmax=" << rmax
-			 << "  mmin=" << mmin
-			 << "  mtot=" << mtot
-			 << std::endl;
+  if (myid==0 and VFLAG & 1) std::cout << std::endl 
+				       << "     *****"
+				       << "  rmin=" << rmin
+				       << "  rmax=" << rmax
+				       << "  mmin=" << mmin
+				       << "  mtot=" << mtot
+				       << std::endl;
 
   for (int k=0; k<3; k++) {
     pos[k] = pos1[k] = 0.0;
@@ -597,11 +598,11 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   vector<double>   DD(nh+1, 0.0), DD0(nh+1);
   vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
-  if (myid==0 && VFLAG & 1) std::cout << "  rmin=" << rmin
-				      << "  rmax=" << rmax
-				      << "  mmin=" << mmin
-				      << "  mtot=" << mtot
-				      << std::endl;
+  if (myid==0 and VFLAG & 1) std::cout << "  rmin=" << rmin
+				       << "  rmax=" << rmax
+				       << "  mmin=" << mmin
+				       << "  mtot=" << mtot
+				       << std::endl;
 
   for (int k=0; k<3; k++) pos[k] = pos1[k] = 0.0;
   massp = massp1 = 0.0;
@@ -701,11 +702,11 @@ set_halo_table_single(vector<Particle>& phalo)
   vector<double>   DD(nh+1, 0.0), DD0(nh+1);
   vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
-  if (myid==0 && VFLAG & 1) std::cout << "  rmin=" << rmin
-				      << "  rmax=" << rmax
-				      << "  mmin=" << mmin
-				      << "  mtot=" << mtot;
-
+  if (myid==0 and VFLAG & 1) std::cout << "  rmin=" << rmin
+				       << "  rmax=" << rmax
+				       << "  mmin=" << mmin
+				       << "  mtot=" << mtot;
+  
   for (auto p : phalo) {
 
     double r = 0.0;
@@ -757,14 +758,14 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
   vector<double>   DD(nh+1, 0.0), DD0(nh+1);
   vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
-  if (myid==0) std::cout << std::endl
-			 << "     *****"
-			 << "  rmin=" << rmin
-			 << "  rmax=" << rmax
-			 << "  mmin=" << mmin
-			 << "  mtot=" << mtot
-			 << std::endl;
-
+  if (myid==0 and VFLAG & 1) std::cout << std::endl
+				       << "     *****"
+				       << "  rmin=" << rmin
+				       << "  rmax=" << rmax
+				       << "  mmin=" << mmin
+				       << "  mtot=" << mtot
+				       << std::endl;
+  
   for (int k=0; k<3; k++) pos[k] = pos1[k] = 0.0;
   massp = massp1 = 0.0;
 
@@ -2100,10 +2101,11 @@ set_vel_disk(vector<Particle>& part)
   MPI_Allreduce(&massp1, &massp, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(vel1,    vel,    3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  std::cout << "vel per node [" << myid << "] mass=" << massp1
-	    << " vx=" << vel1[0]/massp1
-	    << " vy=" << vel1[1]/massp1
-	    << " vz=" << vel1[2]/massp1 << std::endl;
+  if (VFLAG & 1)
+    std::cout << "vel per node [" << myid << "] mass=" << massp1
+	      << " vx=" << vel1[0]/massp1
+	      << " vy=" << vel1[1]/massp1
+	      << " vz=" << vel1[2]/massp1 << std::endl;
 
   if (massp>0.0) {
     for (int k=0; k<3; k++) vel[k] /= massp;
@@ -2139,7 +2141,8 @@ set_vel_disk(vector<Particle>& part)
 	      << " (u, v, w)=(" << vel[0] 
 	      << ", " << vel[1]
 	      << ", " << vel[2] << ")" << std::endl
-	      <<   "maxVZ=" << maxVZ << " (" << RVZ << ")"
+	      << "     *****"
+	      <<  " maxVZ=" << maxVZ << " (" << RVZ << ")"
 	      << ", maxVR=" << maxVR << " (" << RVR << ")"
 	      << ", maxVP=" << maxVP << " (" << RVP << ")"
 	      << std::endl;
@@ -2319,14 +2322,9 @@ table_halo(std::vector<Particle>& part)
   MPI_Allreduce(&maxr1, &maxr, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   maxr /= numprocs;		// Mean percentile target
 
-  std::cout << "[" << myid << "] rmax=" << maxr1 << std::endl;
-
-  if (myid==0) 
-    std::cout << "Merged rmax=" << maxr << std::endl;
-
   dr = (log(max<double>(RHMAX, maxr)) - log(RHMIN))/(NHR-1);
   
-  if (myid==0) {
+  if (myid==0 and VFLAG & 1) {
     std::cout << std::endl
 	      << "Table halo: RHMIN=" << RHMIN 
 	      << " RHMAX=" << RHMAX
