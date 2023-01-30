@@ -25,7 +25,9 @@ double DiskHalo::RHMIN       = 1.0e-4;
 double DiskHalo::RHMAX       = 50.0;
 double DiskHalo::RDMIN       = 1.0e-4;
 double DiskHalo::RDMAX       = 20.0;
-double DiskHalo::Q           = 1.2;
+double DiskHalo::Q           = 0.0;
+double DiskHalo::SIG0        = 0.1;
+double DiskHalo::XI          = 1.0;
 double DiskHalo::SHFACTOR    = 16.0;
 double DiskHalo::TOLE        = 0.003;
 double DiskHalo::COMPRESSION = 1.0;
@@ -516,7 +518,8 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   }
 }      
 
-void DiskHalo::set_halo_table_multi(vector<Particle>& phalo)
+void DiskHalo::
+set_halo_table_multi(vector<Particle>& phalo)
 {
   if (!MULTI) {
     string msg("DiskHalo::set_halo is only valid if MULTI is true");
@@ -541,7 +544,7 @@ void DiskHalo::set_halo_table_multi(vector<Particle>& phalo)
     for (int k=0; k<3; k++) r += p.pos[k]*p.pos[k];
     r = sqrt(r);
 
-    // Mass distribution in spherial shells
+    // Mass distribution in spherical shells
     if (r >= rmin) {
       unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
       if (indx>0 && indx<=nh) {
@@ -597,7 +600,8 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   if (myid==0 && VFLAG & 1) std::cout << "  rmin=" << rmin
 				      << "  rmax=" << rmax
 				      << "  mmin=" << mmin
-				      << "  mtot=" << mtot;
+				      << "  mtot=" << mtot
+				      << std::endl;
 
   for (int k=0; k<3; k++) pos[k] = pos1[k] = 0.0;
   massp = massp1 = 0.0;
@@ -726,10 +730,6 @@ set_halo_table_single(vector<Particle>& phalo)
   
   if (myid==0) std::cout << "  min(r)=" << radmin 
 			 << "  max(r)=" << radmax;
-
-  // Make dispersion table
-  //
-  table_halo(phalo);
 
   MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
@@ -1099,6 +1099,7 @@ epi(double xp, double yp, double zp)
   }
 }
 
+
 // For the disk, setting vz_disp according to the Jeans' equation
 // solution, B+T equation 4-29c, where here the potential is the 
 // composite basis representation of the total particle distribution. 
@@ -1167,8 +1168,6 @@ table_disk(vector<Particle>& part)
 
   Eigen::VectorXd workR (NDR);
   Eigen::VectorXd workE (NDR);
-  Eigen::VectorXd workE2(NDR);
-  Eigen::VectorXd workE3(NDR);
   Eigen::VectorXd workQ (NDR);
   Eigen::VectorXd workQ2(NDR);
   Eigen::VectorXd workQ3(NDR);
@@ -1297,9 +1296,6 @@ table_disk(vector<Particle>& part)
 
       workV(1, j) = disk_surface_density(R);
 
-				// For cylindrical Jeans'
-      workE2[j]   = workE[j] * workV(1, j);
-
 				// Sigma(R)*dPhi/dr*R
       workV(2, j) = workV(1, j)*workE[j]*R;
 
@@ -1419,10 +1415,6 @@ table_disk(vector<Particle>& part)
 #endif
     }
 
-    				// Integrate for cylindrical Jeans
-    if (use_spline) Splsum (workR, workE2, workE3);
-    else            Trapsum(workR, workE2, workE3);
-
 				// Compute epicylic freqs
     for (int j=0; j<NDR; j++) {
 
@@ -1517,17 +1509,19 @@ table_disk(vector<Particle>& part)
   }
   if (myid==0) std::cout << "NZEPI=" << nzepi << "/" << NDR << std::endl;
 
-  // Compute Jeans solution
+  // Compute velocity dispersion scaling based on circular velocity at
+  // a scale length
   //
-  jeansDisp.resize(2);
-  jeansDisp[0].resize(NDR);
-  jeansDisp[1].resize(NDR);
-  for (int j=0; j<NDR; j++) {
-    jeansDisp[0][j] = workR[j];
-    jeansDisp[1][j]  =
-      sqrt(fabs(
-		(workE3[j] - workE3[NDR-1]) / disk_surface_density(workR[j])
-		));
+  sigma0 = 1.0;
+  if (Q <= 0.0) {
+
+    if (SIG0 <= 0.0)
+      throw std::runtime_error("DiskHalo: radial dispersion must be positive.");
+
+    if (XI <= 0.0)
+      throw std::runtime_error("DiskHalo: dispersion axis ratio must be positive.");
+
+    sigma0 = SIG0*v_circ(scalelength, 0.0, 0.0);
   }
 
   // For debugging the solution
@@ -1570,9 +1564,6 @@ table_disk(vector<Particle>& part)
       vrq0 = 3.36*dmass*disk->get_density(r)*Q/epi(r, 0.0, 0.0);
       vrq1 = 3.36*dmass*disk->get_density(r)*Q/sqrt(epitable(0, j));
 
-      double sigmaJR = (odd2(r, workR, workE3, 0) - workE3[NDR-1])
-	/ disk_surface_density(R);
-
       out << setw(14) << r			// #1
 	  << setw(14) << epitable(0, j)		// #2
 	  << setw(14) << workE[j]		// #3
@@ -1597,7 +1588,6 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << lhs - rhs		// #22
 	  << setw(14) << odd2(log(r), nrD, nhM, 1) // #23  Enclosed mass
 	  << setw(14) << epi(r, 0.0, 0.0)	// #24  Epi routine
-	  << setw(14) << sigmaJR		// #25 Cylindrical Jeans
 	  << std::endl;
     }
 
@@ -1786,13 +1776,13 @@ double DiskHalo::vz_disp2(double xp,double yp, double zp)
 
 // Constant Toomre Q
 //
-double DiskHalo::vr_disp2(double xp, double yp,double zp)
+double DiskHalo::vr_disp2(double xp, double yp, double zp)
 {
   double r = sqrt(xp*xp + yp*yp);
 
-  if (type == Jeans) {
-    if (r > jeansDisp[0][NDR-1]) return 0.0;
-    return odd2(r, jeansDisp[0], jeansDisp[1], 0);
+  if (Q <= 0.0) {
+    double smth = 0.25*scaleheight;
+    return sigma0*sigma0*exp(-sqrt(r*r + smth*smth)/scalelength);
   } else {
     if (r > 10.0*scalelength) return 0.0;
     double sigmar = 3.36*disk_surface_density(r)*Q/epi(xp, yp, zp);
@@ -1930,7 +1920,11 @@ set_vel_disk(vector<Particle>& part)
 
     vvZ = vz_disp2(x, y, z);
     vvR = vr_disp2(x, y, z);
-    vvP = vp_disp2(x, y, z);
+
+    if (type == Jeans)
+      vvP = vvR/(XI*XI);
+    else
+      vvP = vp_disp2(x, y, z);
 				 // For safety; should only be a problem
 				 // on extrapolating the range
     vvZ = std::max<double>(vvZ, std::numeric_limits<double>::min());
@@ -1995,8 +1989,21 @@ set_vel_disk(vector<Particle>& part)
      
       vz   = rndN(gen)*sqrt(std::max<double>(vvZ, std::numeric_limits<double>::min()));
       vr   = rndN(gen)*sqrt(std::max<double>(vvR, std::numeric_limits<double>::min()));
-      vp   = rndN(gen)*sqrt(std::max<double>(vvP, std::numeric_limits<double>::min())) + va;
+      vp   = rndN(gen)*sqrt(std::max<double>(vvP, std::numeric_limits<double>::min()));
       
+      {
+	double omp   = vc/R;
+	double kappa = epi(x, y, z);
+	double vp2   = vc*vc +	// From radial cylindrical Jeans using
+				// epicyclic closure
+	  vvR * (1.0 - kappa*kappa/(4.0*omp*omp) - 2.0*R/scalelength);
+	if (vp2 >= 0.0) {
+	  vp += sqrt(vp2);
+	} else {
+	  num_oob++;
+	}
+      }
+
       if (out) 
 	out << std::setw(14) << R   << std::setw(14) << z   << std::setw(14) << vc
 	    << std::setw(14) << va  << std::setw(14) << ac  << std::setw(14) << epi(x, y, z)
@@ -2135,9 +2142,14 @@ set_vel_disk(vector<Particle>& part)
 	      <<   "maxVZ=" << maxVZ << " (" << RVZ << ")"
 	      << ", maxVR=" << maxVR << " (" << RVR << ")"
 	      << ", maxVP=" << maxVP << " (" << RVP << ")"
-	      << std::endl
-	      << "     *****"
-	      << " # adrift overrides=" << num_oob << std::endl;
+	      << std::endl;
+
+    if (type == Jeans)
+      std::cout << "     *****"
+		<< " # Jeans' overrides=" << num_oob << std::endl;
+    if (type == Asymmetric)
+      std::cout << "     *****"
+		<< " # adrift overrides=" << num_oob << std::endl;
   } else {
     MPI_Send(&maxVZ, 1, MPI_DOUBLE, 0, 224, MPI_COMM_WORLD);
     MPI_Send(&RVZ,   1, MPI_DOUBLE, 0, 225, MPI_COMM_WORLD);
@@ -2243,21 +2255,74 @@ void DiskHalo::table_halo_disp()
 }
 
 void DiskHalo::
-table_halo(vector<Particle>& part)
+table_halo(std::vector<Particle>& part)
 {
   if (halotable.cols() == NHR) return;
+
+  if (true) {
+    constexpr int ngrid {2000};
+    std::ofstream out("table_halo.test");
+    double rmin = halo->get_min_radius();
+    double rmax = halo->get_max_radius();
+    double dlog = (log(rmax) - log(rmin))/(ngrid - 1);
+    double theta = acos(0.0);
+    double dens, potl, dpr, dpt, dpp;
+      
+    for (int i=0; i<ngrid; i++) {
+      double r = rmin*exp(dlog*i);
+      expandh->determine_fields_at_point(r, theta, 0.0,
+					 &dens, &potl, &dpr, &dpt, &dpp);
+      out << std::setw(16) << r
+	  << std::setw(16) << dens
+	  << std::setw(16) << potl
+	  << std::setw(16) << dpr
+	  << std::setw(16) << dpt
+	  << std::setw(16) << dpt
+	  << std::setw(16) << dpp;
+      
+      expandh->determine_fields_at_point(r, 0.0, 0.0,
+					 &dens, &potl, &dpr, &dpt, &dpp);
+
+      out << std::setw(16) << dens
+	  << std::setw(16) << potl
+	  << std::setw(16) << dpr
+	  << std::setw(16) << dpt
+	  << std::setw(16) << dpt
+	  << std::setw(16) << dpp
+	  << std::endl;
+    }
+  }
   
   halotable.resize(NHT, NHR);
   
   dc = 2.0/(NHT-1);
   double r2, maxr = 0.0, maxr1 = 0.0;
+
+  const double rpct = 0.01;	// Percentile for average top radius
+  const int nret = std::floor(rpct*part.size());
+
+  std::vector<double> racc, rtop(nret);
   for (auto &p : part) {
     r2 = 0.0;
     for (int k=0; k<3; k++) r2 += p.pos[k]*p.pos[k];
-    maxr1 = max<double>(maxr1, sqrt(r2));
+    racc.push_back(sqrt(r2));
   }
   
-  MPI_Allreduce(&maxr1, &maxr, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  std::partial_sort_copy(
+			 std::begin(racc), std::end(racc),
+			 std::begin(rtop), std::end(rtop), 
+			 std::greater()
+			 );
+ 
+  maxr1 = rtop.front();
+
+  MPI_Allreduce(&maxr1, &maxr, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  maxr /= numprocs;		// Mean percentile target
+
+  std::cout << "[" << myid << "] rmax=" << maxr1 << std::endl;
+
+  if (myid==0) 
+    std::cout << "Merged rmax=" << maxr << std::endl;
 
   dr = (log(max<double>(RHMAX, maxr)) - log(RHMIN))/(NHR-1);
   
@@ -2269,6 +2334,8 @@ table_halo(vector<Particle>& part)
 	      << " dr=" << dr
 	      << std::endl;
   }
+
+  maxr = std::min<double>(maxr, halo->get_max_radius()*0.99);
 
   double x, y, z, theta, r, fr, fz, fp, pot, costh, sinth;
   double dens, potl, dpr, dpt, dpp, dpdr;
@@ -2311,6 +2378,14 @@ table_halo(vector<Particle>& part)
       
       work[j] = halo->get_density(r) * dpdr * r;
       
+      if (fabs(work[j]) > 1e20) {
+	std::cout << "rho="  << halo->get_density(r)
+		  << " dpr=" << dpr
+		  << " fz="  << fz
+		  << " fr="  << fr
+		  << " r="   << r << std::endl;
+      }
+
     }
     
     // Splsum(workR, work, workA);
@@ -2318,7 +2393,9 @@ table_halo(vector<Particle>& part)
     for (int j=0; j<NHR; j++) {
       halotable(i, j) = max<double>(workA[NHR-1] - workA[j], std::numeric_limits<double>::min());
       if (fabs(halotable(i, j))>1.0e8) {
-	std::cerr << "Oops, val=" << halotable(i, j) << std::endl;
+	std::cerr << "Oops, val=" << halotable(i, j)
+		  << " costh=" << costh << " r=" << r
+		  << std::endl;
       }
     }
   }

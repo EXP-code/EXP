@@ -1206,6 +1206,9 @@ main(int ac, char **av)
       }
     }
 
+    // Make dispersion table from particle distribution
+    //
+    if (evolved) diskhalo->table_halo(hparticles);
   }
   
   if (ndisk) {
