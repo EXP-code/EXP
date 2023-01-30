@@ -558,7 +558,7 @@ void EmpCylSL::send_eof_grid()
   auto blab = [](auto& s, auto& t, auto id, auto m, auto v) {};
 #endif
 
-  // Send to slaves
+  // Send to workers
   // 
   for (int m=0; m<=MMAX; m++) {
 
@@ -746,12 +746,12 @@ int EmpCylSL::read_eof_file(const string& eof_file)
   setup_eof();
   setup_accumulation();
 
-				// Master tries to read table
+				// Root tries to read table
   int retcode;
   if (myid==0) retcode = cache_grid(0, eof_file);
   MPI_Bcast(&retcode, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (!retcode) return 0;
-				// Send table to slave processes
+				// Send table to worker processes
   send_eof_grid();
 
   if (myid==0) 
@@ -770,12 +770,12 @@ int EmpCylSL::read_cache(void)
   setup_table();
   setup_accumulation();
 
-				// Master tries to read table
+				// Root tries to read table
   int retcode;
   if (myid==0)  retcode = cache_grid(0);
   if (use_mpi)  MPI_Bcast(&retcode, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (!retcode) return 0;
-				// Send table to slave processes
+				// Send table to worker processes
   if (use_mpi)  send_eof_grid();
 
   if (myid==0) 
@@ -1223,14 +1223,14 @@ void EmpCylSL::receive_eof(int request_id, int MM)
   int current_source = status.MPI_SOURCE;
 
   if (VFLAG & 16)
-    cerr << "Master beginning to receive from " << current_source 
+    cerr << "Root beginning to receive from " << current_source 
 	 << " . . . " << endl;
 
   MPI_Recv(&mm, 1, MPI_INT, current_source, MPI_ANY_TAG, 
 	   MPI_COMM_WORLD, &status);
 
   if (VFLAG & 16)
-    cerr << "Master receiving from " << current_source << ": type=" << type 
+    cerr << "Root receiving from " << current_source << ": type=" << type 
 	 << "   M=" << mm << endl;
 
 				// Receive rest of data
@@ -1254,7 +1254,7 @@ void EmpCylSL::receive_eof(int request_id, int MM)
   }
   
 
-				// Send slave new orders
+				// Send worker new orders
   if (request_id >=0) {
     MPI_Send(&request_id, 1, MPI_INT, current_source, 1, MPI_COMM_WORLD);
     MPI_Send(&MM, 1, MPI_INT, current_source, 2, MPI_COMM_WORLD);
@@ -1311,7 +1311,7 @@ void EmpCylSL::receive_eof(int request_id, int MM)
   }
   
   if (VFLAG & 16)
-    cerr << "Master finished receiving: type=" << type << "   M=" 
+    cerr << "Root finished receiving: type=" << type << "   M=" 
 	 << mm << endl;
 
   return;
@@ -1405,7 +1405,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     }
   }
 
-				// Send stuff back to master
+				// Send stuff back to root
       
   MPI_Send(&request_id, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
   MPI_Send(&m, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
@@ -1426,7 +1426,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	mpi_double_buf2[off + icnt++] = tpot[n](ix, iy);
     
     if (VFLAG & 16)
-      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " send Potential" << endl;
 
     MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
@@ -1441,7 +1441,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	mpi_double_buf2[off + icnt++] = trforce[n](ix, iy);
     
     if (VFLAG & 16)
-      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " sending R force" << endl;
 
     MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
@@ -1456,7 +1456,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	mpi_double_buf2[off + icnt++] = tzforce[n](ix, iy);
     
     if (VFLAG & 16)
-      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " sending Z force" << endl;
 
 
@@ -1473,7 +1473,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	  mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
     
       if (VFLAG & 16)
-	cerr << "Slave " << setw(4) << myid 
+	cerr << "Worker " << setw(4) << myid 
 	     << ": with request_id=" << request_id
 	     << ", M=" << m << " sending Density" << endl;
 
@@ -1623,7 +1623,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
     }
   }
   
-				// Send stuff back to master
+				// Send stuff back to root
       
   MPI_Send(&request_id, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
   MPI_Send(&m, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
@@ -1644,7 +1644,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	mpi_double_buf2[off + icnt++] = tpot[n](ix, iy);
     
     if (VFLAG & 16)
-      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " send Potential" << endl;
 
     MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
@@ -1659,7 +1659,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	mpi_double_buf2[off + icnt++] = trforce[n](ix, iy);
     
     if (VFLAG & 16)
-      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " sending R force" << endl;
 
     MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
@@ -1674,7 +1674,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	mpi_double_buf2[off + icnt++] = tzforce[n](ix, iy);
     
     if (VFLAG & 16)
-      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
 	   << ", M=" << m << " sending Z force" << endl;
 
 
@@ -1691,7 +1691,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	  mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
     
       if (VFLAG & 16)
-	cerr << "Slave " << setw(4) << myid 
+	cerr << "Worker " << setw(4) << myid 
 	     << ": with request_id=" << request_id
 	     << ", M=" << m << " sending Density" << endl;
 
@@ -1737,7 +1737,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
     }
 
     if (VFLAG & 16)
-      cerr << "Slave " << setw(4) << myid 
+      cerr << "Worker " << setw(4) << myid 
 	   << ": tables allocated, MMAX=" << MMAX << endl;
 
     cylmass_made = false;
@@ -2929,20 +2929,20 @@ void EmpCylSL::make_eof(void)
 
   if (myid==0) {
 
-    int slave = 0;
+    int worker = 0;
     int request_id = 1;		// Begin with cosine case
     int M;
 
     M = 0;			// Initial counters
     while (M<=MMAX) {
 	
-      // Send request to slave
-      if (slave<numprocs-1) {
+      // Send request to worker
+      if (worker<numprocs-1) {
 	  
-	slave++;
+	worker++;
 	  
-	MPI_Send(&request_id, 1, MPI_INT, slave, 1, MPI_COMM_WORLD);
-	MPI_Send(&M,  1, MPI_INT, slave, 2, MPI_COMM_WORLD);
+	MPI_Send(&request_id, 1, MPI_INT, worker, 1, MPI_COMM_WORLD);
+	MPI_Send(&M,  1, MPI_INT, worker, 2, MPI_COMM_WORLD);
 	  
 	// Increment counters
 	request_id++;
@@ -2952,15 +2952,15 @@ void EmpCylSL::make_eof(void)
 	}
 	
 	if (VFLAG & 16)
-	  cerr << "master in make_eof: done waiting on Slave " << slave 
+	  cerr << "root in make_eof: done waiting on Worker " << worker 
 	       << ", next M=" << M << endl;
       }
 	
 				// If M>MMAX before processor queue exhausted,
-				// exit loop and reap the slave data
+				// exit loop and reap the worker data
       if (M>MMAX) break;
 
-      if (slave == numprocs-1) {
+      if (worker == numprocs-1) {
 	  
 	//
 	// <Wait and receive and send new request>
@@ -2978,24 +2978,24 @@ void EmpCylSL::make_eof(void)
     }
     
     //
-    // <Wait for all slaves to return and flag to continue>
+    // <Wait for all workers to return and flag to continue>
     //
     if (VFLAG & 16)
-      cerr << "master in make_eof: now waiting for all slaves to finish" 
+      cerr << "root in make_eof: now waiting for all workers to finish" 
 	   << endl;
       
-				// Dispatch resting slaves
-    if (slave < numprocs-1) {
+				// Dispatch resting workers
+    if (worker < numprocs-1) {
       request_id = -1;		// request_id < 0 means continue
-      for (int s=numprocs-1; s>slave; s--) {
+      for (int s=numprocs-1; s>worker; s--) {
 	MPI_Send(&request_id, 1, MPI_INT, s, 1, MPI_COMM_WORLD);
       }
     }
 
-				// Get data from working slaves
-    while (slave) {
+				// Get data from working workers
+    while (worker) {
       receive_eof(-1,0);
-      slave--;
+      worker--;
     }
       
   } else {
@@ -3010,7 +3010,7 @@ void EmpCylSL::make_eof(void)
 				// Done!
       if (request_id<0) {
 	if (VFLAG & 16)
-	  cerr << "Slave " << setw(4) << myid 
+	  cerr << "Worker " << setw(4) << myid 
 	       << ": received DONE signal" << endl;
 	break;
       }
@@ -3019,7 +3019,7 @@ void EmpCylSL::make_eof(void)
 	       MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
 	
       if (VFLAG & 16)
-	cerr << "Slave " << setw(4) << myid << ": received orders type="
+	cerr << "Worker " << setw(4) << myid << ": received orders type="
 	     << request_id << "  M=" << M << endl;
 
       if (request_id) {
@@ -3459,7 +3459,7 @@ void EmpCylSL::make_eof(void)
       }
 
       if (VFLAG & 2)
-	cerr << "Slave " << setw(4) << myid 
+	cerr << "Worker " << setw(4) << myid 
 	     << ": with request_id=" << request_id
 	     << ", M=" << M << " calling compute_eof_grid" << endl;
 
@@ -3480,7 +3480,7 @@ void EmpCylSL::make_eof(void)
 	     << endl;
       }
       else if (VFLAG & 2)
-	cerr << "Slave " << setw(4) << myid 
+	cerr << "Worker " << setw(4) << myid 
 	     << ": with request_id=" << request_id
 	     << ", M=" << M << " COMPLETED compute_eof_grid" << endl;
     }

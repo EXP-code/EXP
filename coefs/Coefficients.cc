@@ -19,7 +19,7 @@
 
 #include <Coefficients.H>
 
-namespace Coefs
+namespace CoefClasses
 {
   
   void Coefs::copyfields(std::shared_ptr<Coefs> p)
@@ -150,7 +150,10 @@ namespace Coefs
 
     // Copy the local structures from the map to the struct pointers
     // by copyfing fields, not the pointer
-    for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
+    for (auto v : coefs)
+      ret->coefs[v.first] =
+	std::dynamic_pointer_cast<SphStruct>(v.second->deepcopy());
+
     ret->Lmax = Lmax;
     ret->Nmax = Nmax;
 
@@ -166,7 +169,10 @@ namespace Coefs
 
     // Copy the local structures from the map to the struct pointers
     // by copyfing fields, not the pointer
-    for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
+    for (auto v : coefs)
+      ret->coefs[v.first] =
+	std::dynamic_pointer_cast<CylStruct>(v.second->deepcopy());
+
     ret->Mmax  = Mmax;
     ret->Nmax  = Nmax;
     ret->angle = angle;
@@ -183,7 +189,10 @@ namespace Coefs
 
     // Copy the local structures from the map to the struct pointers
     // by copyfing fields, not the pointer
-    for (auto v : coefs) ret->coefs[v.first] = v.second->deepcopy();
+    for (auto v : coefs)
+      ret->coefs[v.first] =
+	std::dynamic_pointer_cast<TblStruct>(v.second->deepcopy());
+
     ret->data  = data;
     ret->times = times;
 
@@ -1307,4 +1316,4 @@ namespace Coefs
 
 
 }
-// END namespace Coefs
+// END namespace CoefClasses

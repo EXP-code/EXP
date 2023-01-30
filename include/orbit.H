@@ -175,7 +175,7 @@ public:
   void set_numerical_params(int RECS=64, int NMAX=40, int NBSCT=3)
     { recs=RECS; nmax=NMAX; nbsct=NBSCT;}
 
-  double pot_trans(int l1, int l2, double (*func)(double) );
+  double pot_trans(int l1, int l2, std::function<double(double)> func );
   double pot_trans(int l1, int l2, int n );
   void   pot_trans(int l1, int l2, Eigen::VectorXd& t);
 

@@ -5,32 +5,7 @@
 #include <expMSSA.H>
 
 namespace py = pybind11;
-
-//! Helper function that maps the Eigen::Tensor<T, 3> into an numpy.ndarray
-template <typename T>
-py::array_t<T> make_ndarray(Eigen::Tensor<T, 3>& mat)
-{
-  // Get the tensor dimenions
-  auto dims = mat.dimensions();
-
-  // Check rank
-  if (dims.size() != 3) {
-    std::ostringstream sout;
-    sout << "make_ndarray: tensor rank must be 3, found " << dims.size();
-    throw std::runtime_error(sout.str());
-  }
-  
-  // Make the memory mapping
-  return py::array_t<T>
-    (
-     // shape
-     {dims[0], dims[1], dims[2]},
-     // C-style contiguous strides for double
-     {sizeof(T), dims[0]*sizeof(T), dims[0]*dims[1]*sizeof(T)},
-     // the data pointer
-     mat.data()
-     );
-}
+#include <TensorToArray.H>
 
 void MSSAtoolkitClasses(py::module &m) {
 
@@ -213,6 +188,11 @@ void MSSAtoolkitClasses(py::module &m) {
 	"that may be used in basis classes.  Note: the reconstructed data\n"
 	"will overwrite the memory of the original coefficient data.");
 
+  f.def("background", &expMSSA::background,
+	"Copy the background data streams back to the working coefficient\n"
+	"database.  This can be used after a zerodata() call to include the\n"
+	"background in theh reconstruction");
+
   f.def("wCorr", &expMSSA::wCorr,
 	"Get the w-correlation matrix for the selected component and channel\n"
 	"key.  Returns the combined cosine+sine correlation for complex types\n"
@@ -271,5 +251,8 @@ void MSSAtoolkitClasses(py::module &m) {
   f.def("getRCkeys", &expMSSA::getRCkeys,
 	"Provides a list of internal keys for accessing the "
 	"detrended channel series using getRC()");
+
+  f.def("getAllKeys", &expMSSA::getAllKeys,
+	"Provides a list of all internal channel keys (for reference)");
 
 }

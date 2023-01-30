@@ -108,9 +108,7 @@ public:
 
 class pe_data : public chianti_data
 {
-  int ngfb;
-  int nphot;
-  std::vector< double > pe;
+  std::map<int, std::vector<double>> pe;
 
   void synchronize();
 };
@@ -128,17 +126,6 @@ public:
   int mult;
   double encm;
   double encmth;
-
-  void synchronize();
-};
-
-class klgfb_data : public chianti_data
-{
-public:
-
-  int n;
-  int l;
-  std::vector<double> factors;
 
   void synchronize();
 };

@@ -32,6 +32,9 @@ void usage(char *prog)
        << setw(15) << "-s or --SL" << setw(10) << "No" << setw(10) << " " 
        << setiosflags(ios::left)
        << setw(40) << "Use Sturm-Liouville basis" << endl
+       << setw(15) << "-T or --type" << setw(10) << "string" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Density target (isothermal, constant, parabolic)" << endl
        << resetiosflags(ios::left)
        << setw(15) << "-n " << setw(10) << "int" << setw(10) << " " 
        << setiosflags(ios::left)
@@ -71,6 +74,7 @@ main(int argc, char** argv)
   int IKX = 1;
   int IKY = 3;
   BioType1d Type = Trig;
+  std::string slabID = "iso";
 
   int c;
   while (1) {
@@ -83,7 +87,7 @@ main(int argc, char** argv)
       {0, 0, 0, 0}
     };
 
-    c = getopt_long (argc, argv, "mstx:y:k:n:z:H:h",
+    c = getopt_long (argc, argv, "msT:tx:y:k:n:z:H:h",
 		     long_options, &option_index);
 
     if (c == -1) break;
@@ -99,6 +103,8 @@ main(int argc, char** argv)
 	  Type = Trig;
 	} else if (!optname.compare("SL")) {
 	  Type = SL;
+	} else if (!optname.compare("type")) {
+	  slabID = optarg;
 	} else {
 	  cout << "Option " << long_options[option_index].name;
 	  if (optarg) cout << " with arg " << optarg;
@@ -114,6 +120,10 @@ main(int argc, char** argv)
 
     case 's':
       Type = SL;
+      break;
+
+    case 'T':
+      slabID = optarg;
       break;
 
     case 't':
@@ -180,7 +190,7 @@ main(int argc, char** argv)
       SLGridSlab::H = H;
       if (use_mpi) SLGridSlab::mpi = 1;
 
-      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, NUMZ, ZMAX);
+      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, NUMZ, ZMAX, slabID, true);
     }
     break;
 
@@ -336,16 +346,16 @@ main(int argc, char** argv)
 	
       case 3:
 	{
-	  cout << "Number of knots? ";
+	  std::cout << "Number of knots? ";
 	  int num;
-	  cin >> num;
+	  std::cin >> num;
 	  
 	  LegeQuad lw(num);
 	  
-	  cout << "N1, N2? ";
+	  std::cout << "N1, N2? ";
 	  int N1, N2;
-	  cin >> N1;
-	  cin >> N2;
+	  std::cin >> N1;
+	  std::cin >> N2;
 	  
 	  double ximin, ximax;
 	  switch (Type) {
@@ -383,7 +393,7 @@ main(int argc, char** argv)
 	      
 	      ans += orthoSL->get_pot(x, IKX, IKY, N1)*
 		orthoSL->get_dens(x, IKX, IKY, N2) /
-		orthoSL->d_xi_to_z(x) * (ximax - ximin)*lw.weight(i+1);
+		orthoSL->d_xi_to_z(x) * (ximax - ximin)*lw.weight(i);
 	      
 	      break;
 	    }

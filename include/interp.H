@@ -108,7 +108,7 @@ public:
 				// New member functions
 
   void new_limits(double A, double B);
-  void new_func(double (*func)(double), double A, double B, int N);
+  void new_func(std::function<double(double)> func, double A, double B, int N);
   void new_data(std::vector<double> &X, std::vector<double> &Y, int N);
 
   void eval(const double& x, double& val, double& deriv) {

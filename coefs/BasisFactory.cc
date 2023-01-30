@@ -4,7 +4,7 @@
 #include <DiskModels.H>
 #include <gaussQ.H>
 
-namespace Basis
+namespace BasisClasses
 {
   
   Basis::Basis(const YAML::Node& CONF)
@@ -77,14 +77,30 @@ namespace Basis
   
   const std::set<std::string>
   SphericalSL::valid_keys = {
+    "rs",
     "cmap",
     "Lmax",
+    "dof",
+    "npca",
+    "npca0",
+    "pcavar",
+    "pcadiag",
+    "pcavtk",
+    "subsamp",
+    "hexp",
+    "snr",
+    "samplesz",
+    "vtkfreq",
+    "tksmooth",
+    "tkcum",
+    "tk_type",
     "nmax",
     "modelname",
     "scale",
     "rmin",
     "rmax",
     "numr",
+    "nums",
     "N1",
     "N2",
     "NO_L0",
@@ -92,6 +108,20 @@ namespace Basis
     "EVEN_L",
     "EVEN_M",
     "M0_ONLY",
+    "NOISE",
+    "noiseN",
+    "noise_model_file",
+    "seedN",
+    "ssfrac",
+    "playback",
+    "coefCompute",
+    "coefMaster",
+    "diverge",
+    "dfac",
+    "dtime",
+    "logr",
+    "plummer",
+    "self_consistent",
     "cachename"
   };
 
@@ -177,8 +207,10 @@ namespace Basis
       throw std::runtime_error("SphericalSL: error parsing YAML");
     }
     
+    // Set MPI flag in SLGridSph from MPI_Initialized
     SLGridSph::mpi = use_mpi ? 1 : 0;
     
+    // Instantiate to get min/max radius from the model
     mod = std::make_shared<SphericalModelTable>(model_file);
     
     // Set rmin to a sane value if not specified
@@ -189,6 +221,7 @@ namespace Basis
     if (not conf["rmax"] or rmax > mod->get_max_radius()) 
       rmax = mod->get_max_radius()*0.99;
     
+    // Finally, make the Sturm-Lioville basis...
     sl = std::make_shared<SLGridSph>
       (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rscl,
        0, 1, cachename);
@@ -229,9 +262,9 @@ namespace Basis
   }
   
   
-  void SphericalSL::load_coefs(Coefs::CoefStrPtr coef, double time)
+  void SphericalSL::load_coefs(CoefClasses::CoefStrPtr coef, double time)
   {
-    Coefs::SphStruct* cf = dynamic_cast<Coefs::SphStruct*>(coef.get());
+    CoefClasses::SphStruct* cf = dynamic_cast<CoefClasses::SphStruct*>(coef.get());
 
     cf->lmax   = lmax;
     cf->nmax   = nmax;
@@ -255,12 +288,33 @@ namespace Basis
     }
   }
 
-  void SphericalSL::set_coefs(Coefs::CoefStrPtr coef)
+  void SphericalSL::set_coefs(CoefClasses::CoefStrPtr coef)
   {
-    if (typeid(*coef) != typeid(Coefs::SphStruct))
-      throw std::runtime_error("SphericalSL::set_coefs: you must pass a Coefs::SphStruct");
+    // Sanity check on derived class type
+    //
+    if (typeid(*coef) != typeid(CoefClasses::SphStruct))
+      throw std::runtime_error("SphericalSL::set_coefs: you must pass a CoefClasses::SphStruct");
 
-    Coefs::SphStruct* cf = dynamic_cast<Coefs::SphStruct*>(coef.get());
+    // Sanity check on dimensionality
+    //
+    {
+      int rows = coef->coefs.rows();
+      int cols = coef->coefs.cols();
+      int rexp = (lmax+1)*(lmax+2)/2;
+      if (rows != rexp or cols != nmax) {
+	std::ostringstream sout;
+	sout << "SphericalSL::set_coefs: the basis has (lmax, nmax)=("
+	     << lmax << ", " << nmax
+	     << ") and the dimensions must be (rows, cols)=("
+	     << rexp << ", " << nmax
+	     << "). The coef structure has (rows, cols)=("
+	     << rows << ", " << cols << ")";
+	  
+	throw std::runtime_error(sout.str());
+      }
+    }
+    
+    CoefClasses::SphStruct* cf = dynamic_cast<CoefClasses::SphStruct*>(coef.get());
 
     // Assign internal coefficient table (doubles) from the complex struct
     //
@@ -362,7 +416,11 @@ namespace Basis
    double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
    double& tpotx, double& tpoty, double& tpotz)
   {
-    double r = sqrt(x*x + y*y + z*z) + 1.0e-18;
+    const double DSMALL = 1.0e-16;
+    double r     = sqrt(x*x + y*y + z*z) + DSMALL;
+    double r2    = x*x + y*y + z*z + DSMALL;
+    double r3    = r2*r;
+    double fac   = x*x + y*y;
     double theta = acos(z/r);
     double phi   = atan2(y, x);
     double cth   = cos(theta), sth = sin(theta);
@@ -372,9 +430,15 @@ namespace Basis
     all_eval(r, cth, phi,
 	     tdens0, tdens, tpotl0, tpotl, tpotr, tpott, tpotp);
     
-    tpotx = tpotr*sth*cph + tpott*cth*cph - tpotp*sph;
-    tpoty = tpotr*sth*sph + tpott*cth*sph + tpotp*cph;
-    tpotz = tpotr*cth     - tpott*sth;
+    tpotx = tpotr*x/r - tpott*x*z/r3;
+    tpoty = tpotr*y/r - tpott*y*z/r3;
+    tpotz = tpotr*z/r + tpott*fac/r3;
+      
+    if (fac > DSMALL) {
+      tpotx += -tpotp*y/fac;
+      tpoty +=  tpotp*x/fac;
+    }
+
   }
   
   void SphericalSL::all_eval(double r, double costh, double phi,
@@ -424,7 +488,6 @@ namespace Basis
 	
 	fac1 = factorial(l, m);
 	if (m==0) {
-	  
 	  double sumR=0.0, sumP=0.0, sumD=0.0;
 	  for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
 	    sumR += expcoef(loffset+moffset, n) * dend(l, n);
@@ -473,7 +536,7 @@ namespace Basis
     pot0  *=  potlfac;
     pot1  *=  potlfac;
     potr  *= -potlfac/rscl;
-    pott  *= -potlfac*sinth;
+    pott  *= -potlfac;
     potp  *= -potlfac;
     //       ^
     //       |
@@ -702,13 +765,16 @@ namespace Basis
 
   const std::set<std::string>
   Cylindrical::valid_keys = {
+    "tk_type",
     "rcylmin",
     "rcylmax",
     "acyl",
     "hcyl",
     "hexp",
-    "lmax",
+    "snr",
+    "evcut",
     "nmax",
+    "lmax",
     "mmax",
     "mlim",
     "ncylnx",
@@ -716,31 +782,46 @@ namespace Basis
     "ncylr",
     "ncylorder",
     "ncylodd",
+    "ncylrecomp",
+    "npca",
+    "npca0",
+    "nvtk",
     "eof_file",
     "override",
+    "samplesz",
     "rnum",
     "pnum",
     "tnum",
     "ashift",
+    "expcond",
+    "ignore",
+    "deproject",
     "logr",
+    "pcavar",
+    "pcaeof",
+    "pcavtk",
+    "pcadiag",
+    "subsamp",
+    "try_cache",
     "density",
     "EVEN_M",
+    "cmap",
     "cmapr",
     "cmapz",
-    "ignore",
-    "expcond",
-    "deproject",
     "aratio",
     "hratio",
     "dweight",
     "rwidth",
-    "ashift",
     "rfactor",
     "rtrunc",
     "rpow",
     "mtype",
     "dtype",
-    "vflag"
+    "vflag",
+    "self_consistent",
+    "playback",
+    "coefCompute",
+    "coefMaster"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) : Basis(CONF)
@@ -1168,9 +1249,9 @@ namespace Basis
     sl->setup_accumulation();
   }
   
-  void Cylindrical::load_coefs(Coefs::CoefStrPtr coef, double time)
+  void Cylindrical::load_coefs(CoefClasses::CoefStrPtr coef, double time)
   {
-    Coefs::CylStruct* cf = dynamic_cast<Coefs::CylStruct*>(coef.get());
+    CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
 
     cf->mmax   = mmax;
     cf->nmax   = nmax;
@@ -1189,12 +1270,12 @@ namespace Basis
     }
   }
 
-  void Cylindrical::set_coefs(Coefs::CoefStrPtr coef)
+  void Cylindrical::set_coefs(CoefClasses::CoefStrPtr coef)
   {
-    if (typeid(*coef) != typeid(Coefs::CylStruct))
-      throw std::runtime_error("Cylindrical::set_coefs: you must pass a Coefs::CylStruct");
+    if (typeid(*coef) != typeid(CoefClasses::CylStruct))
+      throw std::runtime_error("Cylindrical::set_coefs: you must pass a CoefClasses::CylStruct");
 
-    Coefs::CylStruct* cf = dynamic_cast<Coefs::CylStruct*>(coef.get());
+    CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
 
     for (int m=0; m<=mmax; m++) { // Set to zero on m=0 call only--------+
       sl->set_coefs(m, cf->coefs.row(m).real(), cf->coefs.row(m).imag(), m==0);
@@ -1308,15 +1389,15 @@ namespace Basis
   }
 
   // Generate coeffients from a particle reader
-  Coefs::CoefStrPtr Basis::createFromReader
+  CoefClasses::CoefStrPtr Basis::createFromReader
   (PR::PRptr reader, std::vector<double> ctr)
   {
-    Coefs::CoefStrPtr coef;
+    CoefClasses::CoefStrPtr coef;
 
     if (name.compare("sphereSL") == 0)
-      coef = std::make_shared<Coefs::SphStruct>();
+      coef = std::make_shared<CoefClasses::SphStruct>();
     else if (name.compare("cylinder") == 0)
-      coef = std::make_shared<Coefs::CylStruct>();
+      coef = std::make_shared<CoefClasses::CylStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
@@ -1364,9 +1445,9 @@ namespace Basis
   void Basis::initFromArray(std::vector<double> ctr)
   {
     if (name.compare("sphereSL") == 0)
-      coefret = std::make_shared<Coefs::SphStruct>();
+      coefret = std::make_shared<CoefClasses::SphStruct>();
     else if (name.compare("cylinder") == 0)
-      coefret = std::make_shared<Coefs::CylStruct>();
+      coefret = std::make_shared<CoefClasses::CylStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
@@ -1396,7 +1477,7 @@ namespace Basis
   }
 
   // Accumulate coefficient contributions from arrays
-  void Basis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p)
+  void Basis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin)
   {
     // Sanity check: is coefficient instance created?  This is not
     // foolproof.  It is really up the user to make sure that a call
@@ -1412,23 +1493,27 @@ namespace Basis
     std::vector<double> p1(3), v1(3, 0);
 
     for (int n=0; n<p.rows(); n++) {
-      bool use = true;
-      if (ftor) {
-	for (int k=0; k<3; k++) p1[k] = p(n, k);
-	use = ftor(m(n), p1, v1, coefindx);
-      } else {
-	use = true;
-      }
-      coefindx++;
 
-      if (use) accumulate(p(n, 0)-coefctr[0],
-			  p(n, 1)-coefctr[1],
-			  p(n, 2)-coefctr[2], m(n));
+      if (n % numprocs==myid or not roundrobin) {
+
+	bool use = true;
+	if (ftor) {
+	  for (int k=0; k<3; k++) p1[k] = p(n, k);
+	  use = ftor(m(n), p1, v1, coefindx);
+	} else {
+	  use = true;
+	}
+	coefindx++;
+	
+	if (use) accumulate(p(n, 0)-coefctr[0],
+			    p(n, 1)-coefctr[1],
+			    p(n, 2)-coefctr[2], m(n));
+      }
     }
   }
 
   // Generate coefficients from the accumulated array values
-  Coefs::CoefStrPtr Basis::makeFromArray(double time)
+  CoefClasses::CoefStrPtr Basis::makeFromArray(double time)
   {
     make_coefs();
     load_coefs(coefret, time);
@@ -1440,23 +1525,25 @@ namespace Basis
   // I'm leaving the original version ad the default until the new
   // version is tested
 #if 1
-  Coefs::CoefStrPtr Basis::createFromArray
-  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
+  CoefClasses::CoefStrPtr Basis::createFromArray
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
+   bool roundrobin)
   {
     initFromArray(ctr);
-    addFromArray(m, p);
+    addFromArray(m, p, roundrobin);
     return makeFromArray(time);
   }
 #else
-  Coefs::CoefStrPtr Basis::createFromArray
-  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr)
+  CoefClasses::CoefStrPtr Basis::createFromArray
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
+   bool roundrobin)
   {
-    Coefs::CoefStrPtr coef;
+    CoefClasses::CoefStrPtr coef;
 
     if (name.compare("sphereSL") == 0)
-      coef = std::make_shared<Coefs::SphStruct>();
+      coef = std::make_shared<CoefClasses::SphStruct>();
     else if (name.compare("cylinder") == 0)
-      coef = std::make_shared<Coefs::CylStruct>();
+      coef = std::make_shared<CoefClasses::CylStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createFromArray: basis <" << name << "> not recognized"
@@ -1480,15 +1567,19 @@ namespace Basis
     unsigned long indx = 0;
 
     for (int n=0; n<p.rows(); n++) {
-      bool use = true;
-      if (ftor) {
-	for (int k=0; k<3; k++) p1[k] = p(n, k);
-	use = ftor(m(n), p1, v1, indx);
-      } else {
-	use = true;
-      }
 
-      if (use) accumulate(p(n, 0)-ctr[0], p(n, 1)-ctr[1], p(n, 2)-ctr[2], m(n));
+      if (n % numprocs==myid or not roundrobin) {
+
+	bool use = true;
+	if (ftor) {
+	  for (int k=0; k<3; k++) p1[k] = p(n, k);
+	  use = ftor(m(n), p1, v1, indx);
+	} else {
+	  use = true;
+	}
+	
+	if (use) accumulate(p(n, 0)-ctr[0], p(n, 1)-ctr[1], p(n, 2)-ctr[2], m(n));
+      }
     }
     make_coefs();
     load_coefs(coef, time);
@@ -1496,5 +1587,217 @@ namespace Basis
   }
 #endif
 
+  // This evaluation step is performed by all derived classes
+  Eigen::MatrixXd& AccelFunc::evalaccel
+  (Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)
+  {
+    // Get Model
+    //
+    auto basis = std::get<0>(mod);
+
+    // Get fields
+    //
+    int rows = accel.rows();
+    double dum;
+    double vec[3];
+    for (int n=0; n<rows; n++) {
+      basis->getFields(ps(n, 0), ps(n, 1), ps(n, 2),
+		       dum, dum, dum, dum,
+		       vec[0], vec[1], vec[2]);
+	
+      for (int k=0; k<3; k++) accel(n, k) += vec[k];
+    }
+
+    return accel;
+  }
+
+  // This is an example of a evalcoefs() derived class.  It is the
+  // responsibility of the derived-class implementer to provide a sane
+  // set of coefficients using Basis::set_coefs for each
+  // component. Although not needed here, the best way of identifying
+  // the component might be to use the getName() member of coefs,
+  // e.g. 'std::string name = std::get<mod>(1)->getName();'
+  void
+  AllTimeAccel::evalcoefs(double t, BasisCoef mod)
+  {
+    auto basis = std::get<0>(mod);
+    auto coefs = std::get<1>(mod);
+
+    // Interpolate coefficients
+    //
+    auto times = coefs->Times();
+
+    if (t<times.front() or t>times.back()) {
+      std::ostringstream sout;
+      sout << "Basis::OneAccel: time t=" << t << " is out of bounds: ["
+	   << times.front() << ", " << times.back() << "]";
+      throw std::runtime_error(sout.str());
+    }
+    
+    auto it1 = std::lower_bound(times.begin(), times.end(), t);
+    auto it2 = it1 + 1;
+
+    if (it2 == times.end()) {
+      it2--;
+      it1 = it2 - 1;
+    }
+
+    double a = (*it2 - t)/(*it2 - *it1);
+    double b = (t - *it1)/(*it2 - *it1);
+
+    auto coefsA = coefs->getCoefStruct(*it1);
+    auto coefsB = coefs->getCoefStruct(*it2);
+
+    // Duplicate a coefficient instance
+    //
+    auto newcoef = coefsA->deepcopy();
+
+    // Now interpolate the matrix
+    //
+    newcoef->time = t;
+
+    for (int i=0; i<newcoef->coefs.size(); i++)
+      newcoef->coefs.data()[i] =
+	a * coefsA->coefs.data()[i] +
+	b * coefsB->coefs.data()[i];
+
+    // Install coefficients
+    //
+    basis->set_coefs(newcoef);
+  }
+
+  SingleTimeAccel::SingleTimeAccel(double t, std::vector<BasisCoef> mod)
+  {
+    for (auto model : mod) {
+
+      auto basis = std::get<0>(model);
+      auto coefs = std::get<1>(model);
+
+      // Interpolate coefficients
+      //
+      auto times = coefs->Times();
+
+      if (t<times.front() or t>times.back()) {
+	std::ostringstream sout;
+	sout << "Basis::OneAccel: time t=" << t << " is out of bounds: ["
+	     << times.front() << ", " << times.back() << "]";
+	throw std::runtime_error(sout.str());
+      }
+      
+      auto it1 = std::lower_bound(times.begin(), times.end(), t);
+      auto it2 = it1 + 1;
+      
+      if (it2 == times.end()) {
+	it2--;
+	it1 = it2 - 1;
+      }
+      
+      double a = (*it2 - t)/(*it2 - *it1);
+      double b = (t - *it1)/(*it2 - *it1);
+      
+      auto coefsA = coefs->getCoefStruct(*it1);
+      auto coefsB = coefs->getCoefStruct(*it2);
+      
+      // Duplicate a coefficient instance
+      //
+      auto newcoef = coefsA->deepcopy();
+      
+      // Now interpolate the matrix
+      //
+      newcoef->time = t;
+
+      for (int i=0; i<newcoef->coefs.size(); i++)
+	newcoef->coefs.data()[i] =
+	  a * coefsA->coefs.data()[i] +
+	  b * coefsB->coefs.data()[i];
+
+      // Install coefficients
+      //
+      basis->set_coefs(newcoef);
+    }
+    // END: component model loop
+  }
+  
+  //! Take one leap frog step; this can/should be generalized to a
+  //! one-step class in the long run
+  std::tuple<double, Eigen::MatrixXd>
+  OneStep(double t, double h,
+	  Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,
+	  std::vector<BasisCoef> bfe, AccelFunctor F)
+  {
+    int rows = ps.rows();
+
+    // Drift 1/2
+    for (int n=0; n<rows; n++) {
+      for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
+    }
+
+    // Kick
+    accel.setZero();
+    for (auto mod : bfe) {
+      accel = F(t, ps, accel, mod);
+    }
+    for (int n=0; n<rows; n++) {
+      for (int k=0; k<3; k++) ps(n, 3+k) += accel(n, k)*h;
+    }
+    
+    // Drift 1/2
+    for (int n=0; n<rows; n++) {
+      for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
+    }
+
+
+    return std::tuple<double, Eigen::MatrixXd>(t+h, ps);
+  }
+
+
+  std::tuple<Eigen::VectorXd, Eigen::Tensor<float, 3>>
+  IntegrateOrbits
+  (double tinit, double tfinal, double h,
+   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe, AccelFunctor F)
+  {
+    int rows = ps.rows();
+    int cols = ps.cols();
+
+    // ps should be a (n, 6) table of phase-space initial conditions
+    //
+    if (cols != 6) {
+      std::ostringstream sout;
+      sout << "IntegrateOrbits: phase space array should be n x 6 where n is "
+	   << "the number of particles.  You specified " << cols << " columns";
+      throw std::runtime_error(sout.str());
+    }
+
+    // Allocate the acceleration array
+    //
+    Eigen::MatrixXd accel(rows, 3);
+
+    int numT = floor( (tfinal - tinit)/h );
+
+    // Return data
+    //
+    Eigen::Tensor<float, 3> ret;
+
+    ret.resize({rows, 6, numT});
+
+    // Time array
+    //
+    Eigen::VectorXd times(numT);
+    
+    // Do the work
+    //
+    times(0) = tinit;
+    for (int n=0; n<rows; n++)
+      for (int k=0; k<6; k++) ret(n, k, 0) = ps(n, k);
+
+    for (int s=1; s<numT; s++) {
+      std::tie(times(s), ps) = OneStep(times(s-1), h, ps, accel, bfe, F);
+      for (int n=0; n<rows; n++)
+	for (int k=0; k<6; k++) ret(n, k, s) = ps(n, k);
+    }
+
+    return {times, ret};
+  }
+
 }
-// END namespace Basis
+// END namespace BasisClasses

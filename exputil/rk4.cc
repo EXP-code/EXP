@@ -40,7 +40,7 @@ void rkqc(
 
     rk4(ysav,dysav,n,xsav,hh,ytemp,derivs);
     x = xsav + hh;
-    (*derivs)(x,ytemp,dydx);
+    derivs(x,ytemp,dydx);
     rk4(ytemp,dydx,n,x,hh,y,derivs);
     x = xsav + h;
     if (x == xsav) {
@@ -91,16 +91,16 @@ void rk4(Eigen::VectorXd& y,
   double h6=h/6.0;
   double xh=x+hh;
   for (int i=0;i<n;i++) yt[i]=y[i]+hh*dydx[i];
-  (*derivs)(xh,yt,dyt);
+  derivs(xh,yt,dyt);
 
   for (int i=0;i<n;i++) yt[i]=y[i]+hh*dyt[i];
-  (*derivs)(xh,yt,dym);
+  derivs(xh,yt,dym);
 
   for (int i=0;i<n;i++) {
     yt[i]=y[i]+h*dym[i];
     dym[i] += dyt[i];
   }
-  (*derivs)(x+h,yt,dyt);
+  derivs(x+h,yt,dyt);
 
   for (int i=0;i<n;i++)
     yout[i]=y[i]+h6*(dydx[i]+dyt[i]+2.0*dym[i]);

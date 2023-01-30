@@ -28,6 +28,7 @@
  *
  ***************************************************************************/
 
+#include <functional>
 #include <cstdlib>
 #include <iostream>
 #include <iomanip>
@@ -172,7 +173,7 @@ void PVQuad::get_orthopolies(void)
   }
 }
 
-Eigen::VectorXd& PVQuad::return_coefs(double (*func)(double))
+Eigen::VectorXd& PVQuad::return_coefs(std::function<double(double)> func)
 {
   coefs.resize(n+1);
 

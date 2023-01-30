@@ -15,6 +15,7 @@
 #include <localmpi.H>
 #include <Sutils.H>
 
+#include <parseVersionString.H>
 #include "Ion.H"
 #include "interactSelect.H"
 
@@ -102,9 +103,6 @@ double Ion::DeltaEGrid       =  0.1;  // log_10 eV
 std::map<unsigned short, std::string> chElems {{1, "h"}, {2, "he"}, {3, "li"}, {4, "be"}, {5, "b"}, {6, "c"}, {7, "n"}, {8, "o"}, {9, "f"}, {10, "ne"}, {11, "na"}, {12, "mg"}, {13, "al"}, {14, "si"}, {15, "p"}, {16, "s"}, {17, "cl"}, {18, "ar"}, {19, "k"}, {20, "ca"}, {21, "sc"}, {22, "ti"}, {23, "v"}, {24, "cr"}, {25, "mn"}, {26, "fe"}, {27, "co"},	{28, "ni"}, {29, "cu"}, {30, "zn"} };
 
 
-
-
-//
 // Convert the master element name to a (Z, C) pair
 //
 void Ion::convertName() 
@@ -490,13 +488,12 @@ void Ion::readfblvl()
 
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
-  if (nOK)  {
-    if (myid == 0) {
-      std::cerr << "Ion::readfblvl: problem reading CHIANTI files "
+  if (nOK)  {			// Lines do not exist for all
+				// ionization levels
+    if (myid == 0 and false) {
+      std::cerr << "Ion::readfblvl: missing CHIANTI files "
 		<< "for Z=" << Z << " C=" << C << std::endl;
     }
-    MPI_Finalize();
-    exit(44);
   } 
 
   unsigned number = fblvl.size();
@@ -1967,12 +1964,12 @@ void atomicData::GauntFF::initialize()
 
   if (myid == 0) {
     std::cout << std::string(60, '-') << std::endl
-	      << "**** Gaunt FF data check ****" << std::endl
+	      << "---- Gaunt FF data check" << std::endl
 	      << std::string(60, '-') << std::endl
-	      << "Rows: " << data.rows() << " cols: " << data.cols() << std::endl
-	      << "Min(E): " << eps_min << " Max(E): " << eps_min + step*(data.cols()-1) << std::endl
-	      << "Min(w): " << w_min << " Max(w): " << w_min + step*(data.rows()-1) << std::endl
-	      << "Step: " << step << std::endl
+	      << "---- Rows: " << data.rows() << " cols: " << data.cols() << std::endl
+	      << "---- Min(E): " << eps_min << " Max(E): " << eps_min + step*(data.cols()-1) << std::endl
+	      << "---- Min(w): " << w_min << " Max(w): " << w_min + step*(data.rows()-1) << std::endl
+	      << "---- Step: " << step << std::endl
 	      << std::string(60, '-') << std::endl;
   }
 }
@@ -2575,25 +2572,26 @@ std::vector<double> Ion::radRecombCrossBadnell(double E, int id)
 
   // Check for availibility of DR data
   //
-  if (d->E_dr.size()) {
-    double Ebeg = d->E_dr.front();
-    double Eend = d->E_dr.back();
+  for (auto s : d->E_dr) {
+
+    double Ebeg = s.second.front();
+    double Eend = s.second.back();
     if (E>=Ebeg and E<=Eend) {
-      auto x1 = std::lower_bound(d->E_dr.begin(), d->E_dr.end(), E);
+      auto x1 = std::lower_bound(s.second.begin(), s.second.end(), E);
       auto x2 = x1;
-      if (x1 == d->E_dr.begin())
+      if (x1 == s.second.begin())
 	x2++;
       else
 	x1--;
 
-      int lo = std::distance(d->E_dr.begin(), x1);
-      int hi = std::distance(d->E_dr.begin(), x2);
+      int lo = std::distance(s.second.begin(), x1);
+      int hi = std::distance(s.second.begin(), x2);
 
       // Interpolate (sigma is tabled)
       //
-      double Elo = d->E_dr[lo];
-      double Ehi = d->E_dr[hi];
-      cross += ( d->X_dr[lo]*(Ehi - E) + d->X_dr[hi]*(E - Elo) ) / (Ehi - Elo);
+      double Elo = s.second[lo];
+      double Ehi = s.second[hi];
+      cross += ( d->X_dr[s.first][lo]*(Ehi - E) + d->X_dr[s.first][hi]*(E - Elo) ) / (Ehi - Elo);
     }
   }
 
@@ -3050,10 +3048,16 @@ void atomicData::readIp()
 
   std::string fileName(val);
   fileName.append("/ip/chianti.ip");
-  if (myid==0) std::cout << "Attempting to open <" << fileName
-			 << "> . . ." << std::endl;
+  if (myid==0) std::cout << "----" << std::endl
+			 << "---- Opening <" << fileName
+			 << "> . . . ";
 
   std::ifstream ipFile(fileName);
+  
+  if (myid==0) {
+    if (ipFile.is_open()) std::cout << "success!" << std::endl;
+    else                  std::cout << "FAILURE"  << std::endl;
+  }
   
   int count = 0;
   unsigned char Z, C;
@@ -3152,6 +3156,11 @@ void atomicData::readVerner()
 void atomicData::readBadnell() 
 {
   BadnellXC.initialize(this);
+  if (false) BadnellXC.report();
+  //  ^
+  //  |
+  //  +--- Verbose report on cross section files per Z, C
+  //       (off for production)
 }
 
 //
@@ -3285,15 +3294,6 @@ void wgfa_data::synchronize()
   MPI_Bcast(&avalue, 1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
 };
 
-void pe_data::synchronize()
-{
-  MPI_Bcast(&ngfb,   1, MPI_INT,      0, MPI_COMM_WORLD);
-  MPI_Bcast(&nphot,  1, MPI_INT,      0, MPI_COMM_WORLD);
-
-  sync_vector(pe);
-};
-
-
 void fblvl_data::synchronize()
 {
   MPI_Bcast(&lvl,    1, MPI_INT,      0, MPI_COMM_WORLD);
@@ -3308,14 +3308,6 @@ void fblvl_data::synchronize()
   MPI_Bcast(&mult,   1, MPI_INT,      0, MPI_COMM_WORLD);
   MPI_Bcast(&encm,   1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
   MPI_Bcast(&encmth, 1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
-};
-
-void klgfb_data::synchronize()
-{
-  MPI_Bcast(&n,      1, MPI_INT,      0, MPI_COMM_WORLD);
-  MPI_Bcast(&l,      1, MPI_INT,      0, MPI_COMM_WORLD);
-
-  sync_vector(factors);
 };
 
 void gffint_data::synchronize()
@@ -3405,10 +3397,13 @@ void VernerData::initialize(atomicData* ad)
     if ( (val = getenv("VERNER_DATA")) != 0x0) {
       extended = true;
     } else {
-      std::cout << "EXP could not find VERNER_DATA environment variable "
-		<< "for the extended Verner-Yakovlev table. We will use "
-		<< "the CHIANTI version.  This is NOT a problem . . .  "
-		<< std::endl;
+      std::cout << "----" << std::endl
+		<< "---- EXP/DSMC could not find VERNER_DATA environment variable pointing to" << std::endl
+		<< "---- the extended Verner-Yakovlev table.  We provide the extended table in" << std::endl
+		<< "---- the DSMC source directory.  If you are using the Badnell ADAS RR+DR" << std::endl
+		<< "---- recombination cross sections, the Verner-Yakovlev tables will be used" << std::endl
+		<< "---- for the photoionization cross sections only.  We  will use the shorter" << std::endl
+		<< "---- table from the CHIANTI installation, no worries." << std::endl;
     }
 
     // Use CHIANTI version of extended version is not found
@@ -3601,6 +3596,7 @@ double VernerData::cross(const lQ& Q, double EeV)
 				// Gaunt factor
 	double scaledE = log(Eph/Eiz);
 	double gf = ad->radGF(scaledE, n, l);
+
 				// Cross section x Gaunt factor
 	double cross = crossPh * gf * Milne;
 	
@@ -3755,8 +3751,6 @@ double VernerData::crossPhotoIon(vrPtr vdata, double Eph)
   return fy * 1.0e-4;
 }
 
-
-
 // Read CHIANTI files file containing the free-bound gaunt factors for
 // n=1-6 from Karzas and Latter, 1961, ApJSS, 6, 167, the photon
 // energy and the free-bound gaunt factors
@@ -3776,55 +3770,157 @@ void KLGFdata::initialize(atomicData* ad)
       nOK = 1;
     }
     
+    // Get the CHIANTI version by reading the version string
+    //
+    std::vector<int> version;	// Major, minor, ...
+    {
+      std::string fileName(val);
+      fileName.append("/VERSION");
+      
+      std::string inLine;
+      std::ifstream ver(fileName.c_str());
+      
+      if (ver.is_open()) {
+	std::getline(ver, inLine);
+	version = parseVersionString(inLine);
+	if (myid==0) std::cout << "----" << std::endl
+			       << "---- CHIANTI version: " << inLine
+			       << std::endl;
+      } else {
+	std::cout << "Could not find CHIANTI version in <"
+		  << fileName
+		  << "> . . . exiting" << std::endl;
+	nOK = 1;
+      }
+    }
+
     if (nOK == 0) {
       
       std::string fileName(val);
       
-      fileName.append("/continuum/klgfb.dat");
+      // CHIANTI version < 10; use old Karzas-Latter data format
+      if (version[0]<10) {
+
+	std::vector<double> pe0;
+	int ngfb, nume;
+
+	fileName.append("/continuum/klgfb.dat");
       
-      std::string inLine;
-      std::ifstream klgfFile(fileName.c_str());
+	std::string inLine;
+	std::ifstream klgfFile(fileName.c_str());
       
-      if (klgfFile.is_open()) {
+	if (klgfFile.is_open()) {
 	
-	std::getline(klgfFile, inLine);
-	{
-	  std::istringstream sin(inLine);
-	  sin >> ngfb;
-	  sin >> nume;
-	}
+	  std::getline(klgfFile, inLine);
+	  {
+	    std::istringstream sin(inLine);
+	    sin >> ngfb;
+	    sin >> nume;
+	  }
 
-	pe.resize(nume);
-
-	std::getline(klgfFile, inLine);
-	{
-	  std::istringstream sin(inLine);
-	  for (auto & v : pe) sin >> v;
-	}
-
-	
-	while (klgfFile.good()) {
+	  pe0.resize(nume);
 
 	  std::getline(klgfFile, inLine);
-	  std::istringstream sin(inLine);
+	  {
+	    std::istringstream sin(inLine);
+	    for (auto & v : pe0) sin >> v;
+	  }
+	
+	  while (klgfFile.good()) {
 
-	  int n, l;
-	  sin >> n;
-	  sin >> l;
-	  
-	  std::pair<int, int> key(n, l);
+	    std::getline(klgfFile, inLine);
+	    if (inLine.size()==0) break; // Empty?
 
-	  while (sin.good()) {
-	    double V;
-	    sin >> V;
-	    if (sin.good() or sin.eof())
-	      gfb[key].push_back(V);
-	    else
-	      break;
+	    std::istringstream sin(inLine);
+	    
+	    int n, l;
+	    sin >> n;
+	    sin >> l;
+
+	    if (pe.find(n) == pe.end()) pe[n] = pe0;
+	    
+	    std::pair<int, int> key(n, l);
+	    
+	    while (sin.good()) {
+	      double V;
+	      sin >> V;
+	      if (sin.good() or sin.eof())
+		gfb[key].push_back(V);
+	      else
+		break;
+	    }
+	  }
+	} else {
+	  nOK = 1;
+	}
+	klgfFile.close();
+      }
+      // CHIANTI version > 9; use revised data format
+      else {
+	
+	for (int n=1; n<=6; n++) {
+
+	  std::string fileName(val);
+	  std::ostringstream sout;
+	  sout << "/continuum/klgfb_" << n << ".dat";
+
+	  fileName.append(sout.str());
+      
+	  std::string inLine;
+	  std::ifstream klgfFile(fileName.c_str());
+      
+	  if (klgfFile.is_open()) {
+	
+	    while (klgfFile.good()) {
+
+	      std::getline(klgfFile, inLine);
+	      if (inLine.size()==0) break; // Empty?
+
+	      std::istringstream sin(inLine);
+
+	      double V;
+	      sin >> V;
+	      pe[n].push_back(log(V));
+	      for (int l=0; l<n; l++) {
+		std::pair<int, int> key(n, l);
+		if (sin.good() or sin.eof()) {
+		  sin >> V;
+		  gfb[key].push_back(log(V));
+		} else {
+		  std::cout << "KLGFdata::initialize: error parsing line in "
+			    << "<" << fileName << ">" << std::endl;
+		  nOK = 1;
+		}
+	      }
+	    }
+	  } else {
+	    std::cout << "KLGFdata::initialize: error opening "
+		      << "<" << fileName << ">" << std::endl;
+	    nOK = 1;
 	  }
 	}
+	// END: excitation level loop 
+
+	// Reverse the vectors.  pe must be monotonically increasing
+	// to use the tk::spline class.
+	//
+	for (auto & v : pe)  std::reverse(v.second.begin(), v.second.end());
+	for (auto & v : gfb) std::reverse(v.second.begin(), v.second.end());
+
+	// Size sanity check
+	//
+	for (auto v : gfb) {
+	  int sz1 = gfb[v.first].size();
+	  int sz0 = pe[v.first.first].size();
+	  if (sz0 != sz1) {
+	    std::cerr << "KLGFdata: size mismatch for n=" << v.first.first
+		      << "; pe size=" << sz0 << " and gf size=" << sz1
+		      << std::endl;
+	  }
+	}
+	
       }
-      klgfFile.close();
+      // CHIANTI>9 block
     }
   }
   
@@ -3838,15 +3934,24 @@ void KLGFdata::initialize(atomicData* ad)
     exit(60);
   } 
 
+  // Share DB with all processes
+  //
   if (myid==0) {
     
+    // Synchronize energy vector
+    for (auto p : pe) {
+      int n = p.first, sz = p.second.size();
+      MPI_Bcast(&n,  1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&sz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(p.second.data(), sz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+    int n = -1;
+    MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Number of stanzas to send/receive
     int sz = gfb.size();
 
-    MPI_Bcast(&ngfb, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&nume, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&sz,   1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    MPI_Bcast(&pe[0], nume, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&sz, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     for (auto m : gfb) {
       int n   = m.first.first;
@@ -3862,15 +3967,27 @@ void KLGFdata::initialize(atomicData* ad)
     
   } else {
   
+    // Synchronize energy vector
+    {
+      int n;
+      MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      // First level; will return n<0 to finish
+      while (n>=0) {
+	int sz;
+	MPI_Bcast(&sz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	pe[n].resize(sz);
+	MPI_Bcast(pe[n].data(), sz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+				// Get next level
+	MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      }
+    }
+
     int sz, n, l, gsz;
 
-    MPI_Bcast(&ngfb, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&nume, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&sz,   1, MPI_INT, 0, MPI_COMM_WORLD);
+    // Get number of stanzas
+    MPI_Bcast(&sz, 1, MPI_INT, 0, MPI_COMM_WORLD);
       
-    pe.resize(nume);
-    MPI_Bcast(&pe[0], nume, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
+    // Get data for each stanza
     for (int i=0; i<sz; i++) {
 
       MPI_Bcast(&n,   1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -3887,9 +4004,42 @@ void KLGFdata::initialize(atomicData* ad)
   // Ok, now make and store the splines
   //
   for (auto v : gfb) {
-    tksplPtr s(new tk::spline);	 // New spline instance
-    s->set_points(pe, v.second); // Initialize
-    spl[v.first] = s;		 // Store
+    // New spline instance (shared_ptr)
+    //
+    tksplPtr s(new tk::spline);
+
+    // Initialize the spline. pe[n] abcissas must be monotonically
+    // increasing. This is enforced by tk::spline.
+    //
+    s->set_points(pe[v.first.first], v.second);
+
+    // Store the spline in the spl map by shared_ptr.
+    //
+    spl[v.first] = s;	       
+
+  }
+
+  if (myid == 0) {
+    std::cout << std::string(60, '-') << std::endl
+	      << "---- Gaunt KL BF data check" << std::endl
+	      << std::string(60, '-') << std::endl
+	      << "---- Stanzas: " << gfb.size() << std::endl
+	      << "---- Records [n, l, dim]: " << std::endl
+	      << "---- ";
+
+    int icnt = 0;
+    for (auto v : gfb) {
+      std::cout << "["  << v.first.first
+		<< ", " << v.first.second
+		<< ": " << v.second.size() << "] ";
+
+      if (++icnt % 5 == 0) {
+	std::cout << std::endl;
+	if (icnt < gfb.size()) std::cout << "---- ";
+      }
+    }
+    if (icnt % 5) std::cout << std::endl;
+    std::cout << std::string(60, '-') << std::endl;
   }
 
   // We can safely clear the gfb structure now . . .

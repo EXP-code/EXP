@@ -95,13 +95,13 @@ public:
   Eigen::VectorXd& ovec(int i) {return poly[i];}
 
 				// Coefficients for input function
-  Eigen::VectorXd& return_coefs(double (*func)(double));
+  Eigen::VectorXd& return_coefs(std::function<double(double)> func);
   Eigen::VectorXd& return_coefs(Eigen::VectorXd& input) {return get_coefs(input);}
 
 				// Cauchy Principal Value integral
 				// for given pole
 
-  double return_pv(double lambda, double (*func)(double)) {
+  double return_pv(double lambda, std::function<double(double)> func) {
     return_coefs(func); return get_integral(lambda);}
     
   double return_pv(double lambda, Eigen::VectorXd& input) {

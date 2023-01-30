@@ -285,7 +285,7 @@ public:
 #if __GNUC__ > 6
     return {best_.begin()->second->point_, wgt, std::sqrt(best_.rbegin()->first)};
 #else
-    std::tuple<point_type, point_type, double> ret;
+    std::tuple<point_type, double, double> ret;
     std::get<0>(ret) = best_.begin()->second->point_;
     std::get<1>(ret) = wgt;
     std::get<2>(ret) = std::sqrt(best_.rbegin()->first);

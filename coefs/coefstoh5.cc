@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  std::shared_ptr<Coefs::Coefs> coefs;
+  std::shared_ptr<CoefClasses::Coefs> coefs;
 
   // These first two are only needed for converting old-style
   // coefficients (pre-magic-number format).  Otherwise, the last
@@ -55,11 +55,11 @@ int main(int argc, char **argv)
   // specification.
   //
   if (vm.count("cylinder"))	
-    coefs = std::make_shared<Coefs::CylCoefs>(infile);
+    coefs = std::make_shared<CoefClasses::CylCoefs>(infile);
   else if (vm.count("sphere"))
-    coefs = std::make_shared<Coefs::SphCoefs>(infile);
+    coefs = std::make_shared<CoefClasses::SphCoefs>(infile);
   else
-    coefs = Coefs::Coefs::factory(infile);
+    coefs = CoefClasses::Coefs::factory(infile);
 
   // Do the writing
   //

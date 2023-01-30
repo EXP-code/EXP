@@ -24,16 +24,17 @@ static double zbess(double z)
 
 Eigen::VectorXd sbessjz(int n, int m)
 {
-  double z,dz,zl,f,fl;
-  int i;
-
   Eigen::VectorXd a(m);
 
-  NN = n;
-  dz = M_PI/STEPS;
-  for (int i=0, zl=z=0.5+fabs((double)n), fl=std::sph_bessel(n,z); i<m; i++) {
+  auto zfunc = [n](double z) { return std::cyl_bessel_j(n, z); };
+
+  double dz = M_PI/STEPS;
+  double z  = 0.5+fabs((double)n);
+  double zl = z, fl, f;
+  for (int i=0; i<m; i++) {
+    fl = std::sph_bessel(n,z);
     z += dz;
-    f = std::sph_bessel(n, z);
+    f  = std::sph_bessel(n, z);
     while (f*fl>0) {
       zl = z;
       fl = f;

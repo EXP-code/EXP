@@ -66,7 +66,11 @@ public:
   //! Store the cross-section data table for each ion
   struct BadnellRec 
   {
-    std::vector<double> E_rr, X_rr, E_dr, X_dr;
+    std::vector<double> E_rr, X_rr;
+    std::map<std::string, std::vector<double>> E_dr, X_dr;
+    //       ^            ^
+    //       |            +------- Energy, cross section
+    //       +--- Core excitation
 
     void sync(int myid=0);
   };
@@ -83,6 +87,9 @@ public:
 
   //! Calculates the summed RR and DR recombination cross section
   double cross(const lQ& Q, double EeV);
+
+  //! Initialization report (for debugging only)
+  void report();
 
 };
 

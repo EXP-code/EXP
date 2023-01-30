@@ -60,7 +60,7 @@ void FieldGeneratorClasses(py::module &m) {
 	py::arg("dir")=".");
 
   f.def("volumes", [](FieldGenerator& A,
-		      Basis::BasisPtr basis, Coefs::CoefsPtr coefs)
+		      BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs)
   {
     std::map<double, std::map<std::string, py::array_t<float>>> ret;
     auto vols = A.volumes(basis, coefs);

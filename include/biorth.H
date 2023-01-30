@@ -286,7 +286,8 @@ enum BiorthFcts3d {bessel, clutton_brock, hernquist, sturm};
 
 Eigen::VectorXd scalar_prod(ScalarType type, double rmin, double rmax,
 			    int l, int m,
-			    AxiSymBiorth& s, double (*func)(double, int, int), 
+			    AxiSymBiorth& s,
+			    std::function<double(double, int, int)> func,
 			    int nc, int ng);
 
 static std::string BiorthFcts3dName[] = {"BSSphere", "CBSphere", "HQSphere", "SphereSL"};

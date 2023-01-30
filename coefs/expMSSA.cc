@@ -388,7 +388,7 @@ namespace MSSA {
     
       // Split eigenvectors into channel sequences
       //
-      std::map<Key, Eigen::MatrixXd> rho;
+      std::map<Key, Eigen::MatrixXd, mSSAkeyCompare> rho;
     
       int n = 0;
       for (auto u : mean) {
@@ -600,7 +600,7 @@ namespace MSSA {
     
     // Used in both computations
     //
-    std::map<Key, std::vector<double> > values;
+    std::map<Key, std::vector<double>, mSSAkeyCompare> values;
     
     //
     const int minSize = 600;
@@ -1171,7 +1171,7 @@ namespace MSSA {
     
   }
   
-  std::map<std::string, Coefs::CoefsPtr> expMSSA::getReconstructed()
+  std::map<std::string, CoefClasses::CoefsPtr> expMSSA::getReconstructed()
   {
     if (not reconstructed) {
       std::ostringstream sout;
@@ -1323,6 +1323,21 @@ namespace MSSA {
       //
       std::vector<Key> keylist;
       for (auto k : mean) keylist.push_back(k.first);
+      
+      // Pad keylist entries to maximum key length for HighFive
+      //
+      size_t maxSZ = 0;
+      for (auto v : keylist) maxSZ = std::max<size_t>(maxSZ, v.size());
+				// The padding value
+      auto padVal = std::numeric_limits<unsigned>::max();
+      for (auto & v : keylist) {
+	if (v.size() < maxSZ) {
+	  for (auto k=v.size(); k<maxSZ; k++) v.push_back(padVal);
+	}
+      }
+      
+      // Finally, create the dataset
+      //
       file.createDataSet("keylist", keylist);
       
       // Save mssa_analysis state
@@ -1415,17 +1430,29 @@ namespace MSSA {
 	throw std::runtime_error(sout.str());
       }
 
-      if (trend != static_cast<std::underlying_type<TrendType>::type>(type)) {
+      int ttype = static_cast<std::underlying_type<TrendType>::type>(type);
+
+      if (trend != ttype) {
 	std::ostringstream sout;
 	sout << "expMSSA::restoreState: saved state has trend="
-	     << trend << " but expMSSA expects trend="
-	     << static_cast<std::underlying_type<TrendType>::type>(type)
-	     << ".\nCan't restore mssa state!";
+	     << getTrendType.at(trend) << " [" << trend
+	     << "] but expMSSA expects trend="
+	     << getTrendType.at(ttype) << " [" << ttype
+	     << "].\nCan't restore mssa state!";
 	throw std::runtime_error(sout.str());
       }
 
       std::vector<Key> keylist;
       h5file.getDataSet("keylist").read(keylist);
+
+      // Remove padded values from K5 store
+      //
+      auto padVal = std::numeric_limits<unsigned>::max();
+      for (auto & v : keylist) {
+	std::vector<unsigned int>::iterator it;
+	while ((it = std::find(v.begin(), v.end(), padVal)) != v.end())
+	  v.erase(it);
+      }
 
       // Check key list
       //
@@ -1441,8 +1468,24 @@ namespace MSSA {
 	}
       }
 
-      if (bad)
-	throw std::runtime_error("expMSSA::restoreState: keylist mismatch.\nCan't restore mssa state!");
+      if (bad) {
+	std::ostringstream sout;
+	sout << "expMSSA::restoreState: keylist mismatch." << std::endl
+	     << "Can't restore mssa state! Wanted keylist: ";
+	for (auto v : mean) {
+	  sout << "[";
+	  for (auto u : v.first) sout << u << ' ';
+	  sout << "] ";
+	}
+	sout << std::endl << "Found keylist: ";
+	for (auto v : keylist) {
+	  sout << "[";
+	  for (auto u : v) sout << u << ' ';
+	  sout << "] ";
+	}
+      
+	throw std::runtime_error(sout.str());
+      }
 
       auto analysis = h5file.getGroup("mssa_analysis");
 

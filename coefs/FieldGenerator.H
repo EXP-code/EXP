@@ -21,7 +21,7 @@ namespace Field
     std::vector<int>    grid;
     
     //! Sanity check time vector with coefficient DB
-    void check_times(Coefs::CoefsPtr coefs);
+    void check_times(CoefClasses::CoefsPtr coefs);
     
     //! Using MPI
     bool use_mpi;
@@ -46,7 +46,7 @@ namespace Field
 	Eigen::MatrixXf surface = db["3.14"]["d"];
     */
     std::map<double, std::map<std::string, Eigen::MatrixXf>>
-    slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs);
+    slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs);
     
     //! Compute surface histogram from particles
     std::map<std::string, Eigen::MatrixXf>
@@ -59,7 +59,7 @@ namespace Field
 
     //! Write field slices to files.  This will be VTK your build is
     //! compiled with VTK and ascii tables otherwise.
-    void file_slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
+    void file_slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
 		    const std::string prefix, const std::string outdir=".");
 
     /** Get a field volumes as a map in time and type.
@@ -68,11 +68,11 @@ namespace Field
 	Eigen::MatrixXf.
     */
     std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>>
-    volumes(Basis::BasisPtr basis, Coefs::CoefsPtr coefs);
+    volumes(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs);
     
     //! Write field slices to files.  This will be VTK your build is
     //! compiled with VTK and ascii tables otherwise.
-    void file_volumes(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
+    void file_volumes(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
 		      const std::string prefix, const std::string outdir=".");
     //@}
     

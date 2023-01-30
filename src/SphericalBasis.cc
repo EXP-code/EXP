@@ -149,7 +149,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
       }
 
       // This creates the Coefs instance
-      playback = std::dynamic_pointer_cast<Coefs::SphCoefs>(Coefs::Coefs::factory(file));
+      playback = std::dynamic_pointer_cast<CoefClasses::SphCoefs>(CoefClasses::Coefs::factory(file));
 
       // Check to make sure that has been created
       if (not playback) {
@@ -1805,7 +1805,7 @@ void SphericalBasis::dump_coefs(ostream& out)
 void SphericalBasis::dump_coefs_h5(const std::string& file)
 {
   // Add the current coefficients
-  auto cur = std::make_shared<Coefs::SphStruct>();
+  auto cur = std::make_shared<CoefClasses::SphStruct>();
 
   cur->time   = tnow;
   cur->geom   = geoname[geometry];
@@ -1871,7 +1871,12 @@ void SphericalBasis::determine_fields_at_point
  double *tdens,  double *tpotl, 
  double *tpotX,  double *tpotY, double *tpotZ)
 {
-  double r = sqrt(x*x + y*y + z*z) + 1.0e-18;
+  double R2 = x*x + y*y;
+  double R  = sqrt(R) + DSMALL;
+  double r  = sqrt(R2 + z*z) + DSMALL;
+  double r2 = R2 + z*z + DSMALL;
+  double r3 = r2*r;
+  
   double theta = acos(z/r);
   double phi   = atan2(y, x);
   double cth   = cos(theta), sth = sin(theta);
@@ -1883,9 +1888,14 @@ void SphericalBasis::determine_fields_at_point
 				tdens, tpotl, 
 				&tpotr,	&tpott, &tpotp);
 
-  *tpotX = tpotr*sth*cph + tpott*cth*cph - tpotp*sph;
-  *tpotY = tpotr*sth*sph + tpott*cth*sph + tpotp*cph;
-  *tpotZ = tpotr*cth     - tpott*sth;
+  *tpotX = tpotr*x/r - tpott*x*z/r3;
+  *tpotY = tpotr*y/r - tpott*y*z/r3;
+  *tpotZ = tpotr*z/r + tpott*R2/r3;
+      
+  if (R > DSMALL) {
+    *tpotX +=  tpotp*y/R;
+    *tpotY += -tpotp*x/R;
+  }
 }
 
 
@@ -1904,8 +1914,8 @@ void SphericalBasis::determine_fields_at_point_cyl
 				tdens, tpotl, 
 				&tpotr,	&tpott, tpotp);
 
-  *tpotR = tpotr*sin(theta) - tpott*cos(theta);
-  *tpotz = tpotr*cos(theta) + tpott*sin(theta);
+  *tpotR = tpotr*sin(theta) - tpott*cos(theta)/r;
+  *tpotz = tpotr*cos(theta) + tpott*sin(theta)/r;
 }
 
 void SphericalBasis::determine_fields_at_point_sph

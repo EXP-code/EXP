@@ -1,16 +1,12 @@
-// #define DEBUG 1
 // #define DEBUG_SLEDGE 1
 // #define DEBUG_NAN 1
-#define NOTIFY 1
-#define SLEDGE_VERBOSE 1
-#define USE_TABLE 1
 
-#define CYLFAC 1.01
-// #define EXPONCYL
-#define PLUMMERCYL
-// #define JAFFECYL
-// #define MESTELCYL
+#define NOTIFY 1		// Tell user about *bad* SL solutions
 
+#define SLEDGE_VERBOSE 1	// Turn on verbose output for DEBUG_SLEDGE
+
+#define USE_TABLE 1		// Use all table values rather than analyic
+				// evaluations where possible
 #define XOFFSET (1.0e-8)
 
 #include <cstdlib>
@@ -40,155 +36,138 @@ MPI_Status status;
 int SLGridCyl::mpi  = 0;	// initially off
 double SLGridCyl::A = 1.0;
 
+//! Target model for cylindrical SL
+std::shared_ptr<CylModel> cyl;
+
+//! Target model for slab SL
+std::shared_ptr<SlabModel> slab;
+
 extern "C" {
   int sledge_(logical* job, doublereal* cons, logical* endfin, 
 	      integer* invec, doublereal* tol, logical* type, 
 	      doublereal* ev, integer* numx, doublereal* xef, doublereal* ef, 
 	      doublereal* pdef, doublereal* t, doublereal* rho, 
 	      integer* iflag, doublereal* store);
-  double iv(double, double);
-  double kn(int, double);
-  double i0(double);
-  double i1(double);
-  double k0(double);
-  double k1(double);
 }
 
 
 // Unit density exponential disk with scale length A
 
-
-double cylpot(double r)
+class KuzminCyl : public CylModel
 {
-				// Jaffe-like cylinder
-#ifdef JAFFECYL
-  double r2 = r/SLGridCyl::A;
-  return log(1.0 + r2) - log(1.0 + CYLFAC*cylrfac);
-#endif
-				// Mestel-like cylinder
-#ifdef MESTELCYL
-  double a2 = SLGridCyl::A * SLGridCyl::A;
-  double r2 = r*r/a2;
-  return log(1.0 + sqrt(1.0 + r2)) - log(1.0 + sqrt(1.0 + CYLFAC*cylrfac));
-#endif
-
-				// Thin expontial
-#ifdef EXPONCYL
-  double y = 0.5 * r / SLGridCyl::A;
-  return -2.0*M_PI*SLGridCyl::A*y*(i0(y)*k1(y) - i1(y)*k0(y));
-#endif
-				// Plummer-like cylinder
-#ifdef PLUMMERCYL
-  double a2 = SLGridCyl::A*SLGridCyl::A;
-  double r2 = r*r/a2;
-
-  return -1.0/sqrt(1.0 + r2);
-#endif
-}
-
-double cyldpot(double r)
-{
-				// Jaffe-like cylinder
-#ifdef JAFFECYL
-  return 1.0/(SLGridCyl::A + r);
-#endif
-				// Mestel-like cylinder
-#ifdef MESTELCYL
-  double a2 = SLGridCyl::A * SLGridCyl::A;
-  double fac = sqrt(1.0 + r*r/a2);
-  return r/a2/(fac*(1.0 + fac));
-#endif
-
-				// Thin expontial
-#ifdef EXPONCYL
-  double y = 0.5 * r / SLGridCyl::A;
-  return 4.0*M_PI*SLGridCyl::A*y*y*(i0(y)*k0(y) - i1(y)*k1(y));
-#endif
-				// Plummer-like cylinder
-#ifdef PLUMMERCYL
-  double a2 = SLGridCyl::A*SLGridCyl::A;
-  double fac = sqrt(1.0 + r*r/a2);
-
-  return r/a2/(fac*fac*fac);
-#endif
-}
-
-double cyldens(double r)
-{
-				// Jaffe-like cylinder
-#ifdef JAFFECYL
-  double fac = r + SLGridCyl::A;
-  return SLGridCyl::A/( fac*fac*r );
-#endif
-
-				// Mestel-like cylinder
-#ifdef MESTELCYL
-  double a2 = SLGridCyl::A * SLGridCyl::A;
-  double r2 = r*r/a2;
-  double fac1 = sqrt(1.0 + r2);
-  double fac2 = 1.0 + fac1;
-
-  return 1.0/(fac1*fac2*a2) * (2.0 - r2/(fac1*fac2) - r2/(fac1*fac1));
-#endif
-
-  // This 4pi from Poisson's eqn
-  //        |
-  //        |       /-- This begins the true projected density profile
-  //        |       |
-  //        v       v
-#ifdef EXPONCYL
-  return 4.0*M_PI * exp(-r/SLGridCyl::A);
-#endif
-
-#ifdef PLUMMERCYL
-  /*
-  double a2 = SLGridCyl::A*SLGridCyl::A;
-  double r2 = r*r/a2;
-
-  return (2.0 - r2)/pow(1.0 + r2, 2.5)/a2;
-  */
-  return 4.0*M_PI * exp(-r/SLGridCyl::A);
-#endif
-}
-
-
-double cylpotsl(double r)
-{
-				// Jaffe cylinder
-#ifdef JAFFECYL
-  return cyldens(r);
-#endif
-				// Mestel cylinder
-#ifdef MESTELCYL
-  return cyldens(r);
-#endif
-				// Exponential
-#ifdef EXPONCYL
-  double y = 0.5 * r / SLGridCyl::A;
-  return M_PI*(2.0*SLGridCyl::A*i0(y)*k0(y) - r*i0(y)*k1(y) +
-	       r*i1(y)*k0(y))/(SLGridCyl::A*SLGridCyl::A);
-#endif
+public:
   
-				// Plummer-like
-#ifdef PLUMMERCYL
-  double a2 = SLGridCyl::A*SLGridCyl::A;
-  double r2 = r*r/a2;
+  KuzminCyl() { id = "kuzmin"; }
 
-  return (2.0 - r2)/pow(1.0 + r2, 2.5)/a2;
-#endif
-}
+  double pot(double R) {
+    double a2 = SLGridCyl::A * SLGridCyl::A;
+    return -1.0/sqrt(R*R + a2);
+  }
 
-void SLGridCyl::bomb(string oops)
+  double dpot(double R) {
+    double a2 = SLGridCyl::A * SLGridCyl::A;
+    return R/pow(R*R + a2, 1.5);
+  }
+
+  double dens(double R) {
+    double a2 = SLGridCyl::A * SLGridCyl::A;
+    return 4.0*M_PI*SLGridCyl::A/pow(R*R + a2, 1.5)/(2.0*M_PI);
+    //     ^
+    //     |
+    // This 4pi from Poisson's eqn
+  }
+
+};
+
+class MestelCyl : public CylModel
 {
-  std::cerr << "SLGridCyl: " << oops << endl; 
-  exit(-1);
+public:
+  
+  MestelCyl() { id = "mestel"; }
+
+  double pot(double R) {
+    return M_PI/(2.0*SLGridCyl::A)*log(0.5*R/SLGridCyl::A);
+  }
+
+  double dpot(double R) {
+    double a2 = SLGridCyl::A * SLGridCyl::A;
+    double fac = sqrt(1.0 + R*R/a2);
+    return M_PI/(2.0*SLGridCyl::A*R);
+  }
+
+  double dens(double R) {
+    if (R>SLGridCyl::A)
+      return 0.0;
+    else
+      return 4.0*M_PI/(2.0*M_PI*SLGridCyl::A*R)*acos(R/SLGridCyl::A);
+      //     ^
+      //     |
+      // This 4pi from Poisson's eqn
+  }
+};
+
+class ExponCyl : public CylModel  
+{
+
+public:
+
+  ExponCyl() { id = "expon"; }
+
+  double pot(double r) {
+    double y = 0.5 * r / SLGridCyl::A;
+    return -2.0*M_PI*SLGridCyl::A*y*
+      (std::cyl_bessel_i(0, y)*std::cyl_bessel_k(1, y) -
+       std::cyl_bessel_i(1, y)*std::cyl_bessel_k(0, y));
+  }
+
+  double dpot(double r) {
+    double y = 0.5 * r / SLGridCyl::A;
+   return 4.0*M_PI*SLGridCyl::A*y*y*
+     (std::cyl_bessel_i(0, y)*std::cyl_bessel_k(0, y) -
+      std::cyl_bessel_i(1, y)*std::cyl_bessel_k(1, y));
+  }
+
+  double dens(double r) {
+    // This 4pi from Poisson's eqn
+    //        |
+    //        |       /-- This begins the true projected density profile
+    //        |       |
+    //        v       v
+    return 4.0*M_PI * exp(-r/SLGridCyl::A);
+  }
+
+};
+
+std::shared_ptr<CylModel> CylModel::createModel(const std::string type)
+{
+  std::string data(type);
+  std::transform(data.begin(), data.end(), data.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  if (data.find("mestel") != std::string::npos) {
+    return std::make_shared<MestelCyl>();
+  }
+
+  if (data.find("expon") != std::string::npos) {
+    return std::make_shared<ExponCyl>();
+  }
+
+  // Default
+  return std::make_shared<ExponCyl>();
 }
 
+void SLGridCyl::bomb(std::string oops)
+{
+  std::ostringstream sout;
+  sout << "SLGridCyl error [#=" << myid << "]: " << oops;
+  throw std::runtime_error(sout.str());
+}
 				// Constructors
 
 SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK, 
 		     double RMIN, double RMAX, double L, 
-		     bool CACHE, int CMAP, double SCALE, bool VERBOSE)
+		     bool CACHE, int CMAP, double SCALE,
+		     const std::string type, bool VERBOSE)
 {
   int m, k;
 
@@ -207,17 +186,17 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
   tbdbg = VERBOSE;
 
-#ifdef JAFFECYL
-  cylrfac = RMAX/A;
-#endif
-#ifdef MESTELCYL
-  cylrfac = RMAX*RMAX/A*A;
-#endif
+  cyl  = CylModel::createModel(type);
 
   kv.resize(NUMK+1);
-  // dk = M_PI/L;
-  dk = 0.5*M_PI/L;
-  for (k=0; k<=NUMK; k++) kv[k] = dk*k;
+
+  // Zero density boundary condition
+  auto getK = [L](int k) { return 2.0*M_PI/L*(0.5+k); };
+
+  // Original boundary condition
+  // auto getK = [L](int k) { return 2.0*M_PI/L*k; };
+
+  for (k=0; k<=NUMK; k++) kv[k] = getK(k);
 
   table   = 0;
   mpi_buf = 0;
@@ -225,12 +204,12 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
   init_table();
 
 
-#ifdef DEBUG
-  if (mpi)
-    std::cout << "Process " << myid << ": MPI is on!"  << std::endl;
-  else
-    std::cout << "Process " << myid << ": MPI is off!" << std::endl;
-#endif
+  if (tbdbg) {
+    if (mpi)
+      std::cout << "Process " << myid << ": MPI is on!"  << std::endl;
+    else
+      std::cout << "Process " << myid << ": MPI is off!" << std::endl;
+  }
 
   if (mpi) {
 
@@ -241,10 +220,10 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
     if (mpi_myid) {
 
-      compute_table_slave();
+      compute_table_worker();
 
       //
-      // <Receive completed table from master>
+      // <Receive completed table from root>
       //
 
       for (m=0; m<=mmax; m++) {
@@ -256,9 +235,9 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
       }
       
     }
-    else {			// BEGIN Master
+    else {			// BEGIN Root
 
-      int slave = 0;
+      int worker = 0;
       int request_id = 1;
 
       if (!read_cached_table()) {
@@ -268,21 +247,20 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
 	while (m<=mmax) {
 
-	  if (slave<mpi_numprocs-1 && m<=mmax) { // Send request to slave
-	    slave++;
+	  if (worker<mpi_numprocs-1 && m<=mmax) { // Send request to worker
+	    worker++;
       
-#ifdef DEBUG    
-	    std::cout << "Master sending orders to Slave " << slave
-		      << ": (m,k)=(" << m << ", " << k << ")" << std::endl;
-#endif
-	    MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
-	    MPI_Send(&m, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
-	    MPI_Send(&k, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+	    if (tbdbg)
+	      std::cout << "Root sending orders to Worker " << worker
+			<< ": (m, k)=(" << m << ", " << k << ")" << std::endl;
+
+	    MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
+	    MPI_Send(&m, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
+	    MPI_Send(&k, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
       
-#ifdef DEBUG    
-	    std::cout << "Master gave orders to Slave " << slave
-		      << ": (m,k)=(" << m << ", " << ")" << std::endl;
-#endif
+	    if (tbdbg)
+	      std::cout << "Root gave orders to Worker " << worker
+			<< ": (m, k)=(" << m << ", " << k << ")" << std::endl;
 
 				// Increment counters
 	    k++;
@@ -292,7 +270,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	    }
 	  }
 	  
-	  if (slave == mpi_numprocs-1 && m<=mmax) {
+	  if (worker == mpi_numprocs-1 && m<=mmax) {
 	    
 	    //
 	    // <Wait and receive>
@@ -315,10 +293,10 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	    MPI_Send(&m, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
 	    MPI_Send(&k, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
       
-#ifdef DEBUG    
-	    std::cout << "Master gave orders to Slave " << retid
-		      << ": (m,k)=(" << m << ", " << k << ")" << std::endl;
-#endif
+	    if (tbdbg)
+	      std::cout << "Root gave orders to Worker " << retid
+			<< ": (m, k)=(" << m << ", " << k << ")" << std::endl;
+
 				// Increment counters
 	    k++;
 	    if (k>numk) {
@@ -329,10 +307,10 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	}
       
 	//
-	// <Wait for all slaves to return>
+	// <Wait for all workers to return>
 	//
   
-	while (slave) {
+	while (worker) {
 	
 	
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
@@ -340,7 +318,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
     
 	  mpi_unpack_table();      
 
-	  slave--;
+	  worker--;
 	}
 
 	if (cache) write_cached_table();
@@ -349,16 +327,16 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
 
       //
-      // <Tell slaves to continue>
+      // <Tell workers to continue>
       //
 
       request_id = -1;
-      for (slave=1; slave < mpi_numprocs; slave++)
-	MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+      for (worker=1; worker < mpi_numprocs; worker++)
+	MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
 
 
       //
-      // <Send table to slaves>
+      // <Send table to workers>
       //
 
       for (m=0; m<=mmax; m++) {
@@ -369,7 +347,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
       }
 
 
-    } // END Master
+    } // END Root
 
   }
   else {
@@ -396,26 +374,132 @@ int SLGridCyl::read_cached_table(void)
 {
   if (!cache) return 0;
 
-  ifstream in(cyl_cache_name.c_str());
+  std::ifstream in(cyl_cache_name);
   if (!in) return 0;
 
   int MMAX, NMAX, NUMR, NUMK, i, j, CMAP;
   double RMIN, RMAX, L, AA, SCL;
+  std::string MODEL;
 
   if (myid==0)
     std::cout << "---- SLGridCyl::read_cached_table: trying to read cached table . . ."
 	      << std::endl;
 
-  in.read((char *)&MMAX, sizeof(int));		if(!in || MMAX!=mmax) return 0;
-  in.read((char *)&NMAX, sizeof(int));		if(!in || NMAX!=nmax) return 0;
-  in.read((char *)&NUMR, sizeof(int));		if(!in || NUMR!=numr) return 0;
-  in.read((char *)&NUMK, sizeof(int));		if(!in || NUMK!=numk) return 0;
-  in.read((char *)&RMIN, sizeof(double));	if(!in || RMIN!=rmin) return 0;
-  in.read((char *)&RMAX, sizeof(double));	if(!in || RMAX!=rmax) return 0;
-  in.read((char *)&L, sizeof(double));		if(!in || L!=l) return 0;
-  in.read((char *)&AA, sizeof(double));		if(!in || AA!=A) return 0;
-  in.read((char *)&CMAP, sizeof(double));	if(!in || CMAP!=cmap) return 0;
-  in.read((char *)&SCL, sizeof(double));	if(!in || SCL!=scale) return 0;
+  // Attempt to read magic number
+  //
+  unsigned int tmagic;
+  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+  if (tmagic == hmagic) {
+
+    // YAML size
+    //
+    unsigned ssize;
+    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+    // Make and read char buffer
+    //
+    auto buf = std::make_unique<char[]>(ssize+1);
+    in.read(buf.get(), ssize);
+    buf[ssize] = 0;		// Null terminate
+    
+    YAML::Node node;
+    
+    try {
+      node = YAML::Load(buf.get());
+    }
+    catch (YAML::Exception& error) {
+      std::ostringstream sout;
+      sout << "YAML: error parsing <" << buf.get() << "> "
+	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	   << "YAML error: " << error.what() << std::endl;
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
+    }
+    
+    // Get parameters
+    //
+    MMAX     = node["mmax"   ].as<int>();
+    NMAX     = node["nmax"   ].as<int>();
+    NUMK     = node["numk"   ].as<int>();
+    NUMR     = node["numr"   ].as<int>();
+    CMAP     = node["cmap"   ].as<int>();
+    RMIN     = node["rmin"   ].as<double>();
+    RMAX     = node["rmax"   ].as<double>();
+    SCL      = node["scale"  ].as<double>();
+    L        = node["L"      ].as<double>();
+    AA       = node["A"      ].as<double>();
+    MODEL    = node["model"  ].as<std::string>();
+  } else {
+    std::cout << "---- SLGridCyl: bad magic number in cache file" << std::endl;
+    return 0;
+  }
+    
+
+  if (MMAX!=mmax) {
+    std::cout << "---- SLGridCyl::read_cached_table: found mmax=" << MMAX
+	      << " wanted " << mmax << std::endl;
+    return 0;
+  }
+
+  if (NMAX!=nmax) {
+    std::cout << "---- SLGridCyl::read_cached_table: found nmax=" << NMAX
+	      << " wanted " << nmax << std::endl;
+    return 0;
+  }
+
+  if (NUMK!=numk) {
+    std::cout << "---- SLGridCyl::read_cached_table: found numk=" << NUMK
+	      << " wanted " << numk << std::endl;
+    return 0;
+  }
+
+  if (NUMR!=numr) {
+    std::cout << "---- SLGridCyl::read_cached_table: found numr=" << NUMR
+	      << " wanted " << numr << std::endl;
+    return 0;
+  }
+
+  if (CMAP!=cmap) {
+    std::cout << "---- SLGridCyl::read_cached_table: found cmap=" << CMAP
+	      << " wanted " << cmap << std::endl;
+    return 0;
+  }
+
+  if (RMIN!=rmin) {
+    std::cout << "---- SLGridCyl::read_cached_table: found rmin=" << RMIN
+	      << " wanted " << rmin << std::endl;
+    return 0;
+  }
+
+  if (RMAX!=rmax) {
+    std::cout << "---- SLGridCyl::read_cached_table: found rmax=" << RMAX
+	      << " wanted " << rmax << std::endl;
+    return 0;
+  }
+
+  if (SCL!=scale) {
+    std::cout << "---- SLGridCyl::read_cached_table: found scale=" << SCL
+	      << " wanted " << scale << std::endl;
+    return 0;
+  }
+
+  if (L!=l) {
+    std::cout << "---- SLGridCyl::read_cached_table: found l=" << L
+	      << " wanted " << l << std::endl;
+    return 0;
+  }
+
+  if (AA!=A) {
+    std::cout << "---- SLGridCyl::read_cached_table: found A=" << AA
+	      << " wanted " << A << std::endl;
+    return 0;
+  }
+
+  if (MODEL!=cyl->ID()) {
+    std::cout << "---- SLGridCyl::read_cached_table: found ID=" << MODEL
+	      << " wanted " << cyl->ID() << std::endl;
+    return 0;
+  }
 
   for (int m=0; m<=mmax; m++) {
     for (int k=0; k<=numk; k++) {
@@ -425,13 +509,13 @@ int SLGridCyl::read_cached_table(void)
 
 				// Double check
       if (table[m][k].m != m) {
-	std::cerr << "SLGridCyl: error reading <" << cyl_cache_name << ">" << std::endl;
-	std::cerr << "SLGridCyl: m: read value (" << table[m][k].m << ") != internal value (" << m << ")" << std::endl;
+	std::cerr << "---- SLGridCyl: error reading <" << cyl_cache_name << ">" << std::endl;
+	std::cerr << "---- SLGridCyl: m: read value (" << table[m][k].m << ") != internal value (" << m << ")" << std::endl;
 	return 0;
       }
       if (table[m][k].k != k) {
-	std::cerr << "SLGridCyl: error reading <" << cyl_cache_name << ">" << std::endl;
-	std::cerr << "SLGridCyl: k: read value (" << table[m][k].k << ") != internal value (" << k << ")" << std::endl;
+	std::cerr << "---- SLGridCyl: error reading <" << cyl_cache_name << ">" << std::endl;
+	std::cerr << "---- SLGridCyl: k: read value (" << table[m][k].k << ") != internal value (" << k << ")" << std::endl;
 	return 0;
       }
 
@@ -442,7 +526,7 @@ int SLGridCyl::read_cached_table(void)
 	in.read((char *)&table[m][k].ev[j], sizeof(double));
 
       for (int j=0; j<nmax; j++)
-	for (i=0; i<numr; i++)
+	for (int i=0; i<numr; i++)
 	  in.read((char *)&table[m][k].ef(j, i), sizeof(double));
     }
   }
@@ -455,30 +539,57 @@ int SLGridCyl::read_cached_table(void)
 
 void SLGridCyl::write_cached_table(void)
 {
-  ofstream out(cyl_cache_name.c_str());
+  std::ofstream out(cyl_cache_name);
   if (!out) {
     std::cerr << "SLGridCyl: error writing <" << cyl_cache_name << ">" << std::endl;
     return;
   }
 
-  out.write((char *)&mmax,  sizeof(int));
-  out.write((char *)&nmax,  sizeof(int));
-  out.write((char *)&numr,  sizeof(int));
-  out.write((char *)&numk,  sizeof(int));
-  out.write((char *)&rmin,  sizeof(double));
-  out.write((char *)&rmax,  sizeof(double));
-  out.write((char *)&l,     sizeof(double));
-  out.write((char *)&A,     sizeof(double));
-  out.write((char *)&cmap,  sizeof(int));
-  out.write((char *)&scale, sizeof(double));
+  // This is a node of simple {key: value} pairs.  More general
+  // content can be added as needed.
+  YAML::Node node;
 
+  node["mmax"   ] = mmax;
+  node["nmax"   ] = nmax;
+  node["numk"   ] = numk;
+  node["numr"   ] = numr;
+  node["cmap"   ] = cmap;
+  node["rmin"   ] = rmin;
+  node["rmax"   ] = rmax;
+  node["scale"  ] = scale;
+  node["L"      ] = l;
+  node["A"      ] = A;
+  node["model"  ] = cyl->ID();
+    
+  // Serialize the node
+  //
+  YAML::Emitter y; y << node;
+  
+  // Get the size of the string
+  //
+  unsigned int hsize = strlen(y.c_str());
+  
+  // Write magic #
+  //
+  out.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
+
+  // Write YAML string size
+  //
+  out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+  
+  // Write YAML string
+  //
+  out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+
+  // Now, write the tables
+  //
   for (int m=0; m<=mmax; m++) {
     for (int k=0; k<=numk; k++) {
 
       out.write((char *)&table[m][k].m, sizeof(int));
       out.write((char *)&table[m][k].k, sizeof(int));
 
-      for (int j=1; j<nmax; j++)
+      for (int j=0; j<nmax; j++)
 	out.write((char *)&table[m][k].ev[j], sizeof(double));
 
       for (int j=0; j<nmax; j++)
@@ -580,12 +691,22 @@ double SLGridCyl::get_pot(double x, int m, int n, int k, int which)
   double x2 = (x - xi[indx])/dxi;
   
 
+  if (std::isnan(
+		 (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))/
+		 sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1])
+		 )
+      )
+    {
+      std::cout << "Ooops" << std::endl;
+    }
+
+
 #ifdef USE_TABLE
   return (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))/
     sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
   return (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))/
-    sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
+    sqrt(fabs(table[m][k].ev[n])) * cyl->pot(xi_to_r(x));
 #endif
 }
 
@@ -614,7 +735,7 @@ double SLGridCyl::get_dens(double x, int m, int n, int k, int which)
     * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #else
   return (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1)) *
-    sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
+    sqrt(fabs(table[m][k].ev[n])) * cyl->dens(xi_to_r(x))
     * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
 
@@ -681,7 +802,7 @@ void SLGridCyl::get_pot(Eigen::MatrixXd& mat, double x, int m, int which)
 	sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
       mat(k, n) = (x1*table[m][k].ef(n, indx) + x2*table(m, k).ef(n, indx+1))/
-	sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
+	sqrt(fabs(table[m][k].ev[n])) * cyl->pot(xi_to_r(x));
 #endif
 #ifdef DEBUG_NAN
       if (std::isnan(mat(k, n)) || std::isinf(mat(k, n)) ) {
@@ -725,7 +846,7 @@ void SLGridCyl::get_dens(Eigen::MatrixXd& mat, double x, int m, int which)
       * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #else
       mat(k, n) = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))*
-	sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
+	sqrt(fabs(table[m][k].ev[n])) * cyl->dens(xi_to_r(x))
 	* table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
     }
@@ -803,7 +924,7 @@ void SLGridCyl::get_pot(Eigen::VectorXd& vec, double x, int m, int k, int which)
       sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1]);
 #else
     vec[n] = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))/
-      sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
+      sqrt(fabs(table[m][k].ev[n])) * cyl->pot(xi_to_r(x));
 #endif
   }
 
@@ -840,7 +961,7 @@ void SLGridCyl::get_dens(Eigen::VectorXd& vec, double x, int m, int k, int which
       * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #else
     vec[n] = (x1*table[m][k].ef(n, indx) + x2*table[m][k].ef(n, indx+1))*
-      sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
+      sqrt(fabs(table[m][k].ev[n])) * cyl->dens(xi_to_r(x))
       * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
   }
@@ -917,7 +1038,7 @@ void SLGridCyl::get_pot(Eigen::MatrixXd* mat, double x, int mMin, int mMax, int 
 #else
 	mat[m](k, n) = (x1*table[m][k].ef(n, indx) + 
 			x2*table[m][k].ef(n, indx+1))/
-	  sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
+	  sqrt(fabs(table[m][k].ev[n])) * cyl->pot(xi_to_r(x));
 #endif
 #ifdef DEBUG_NAN
 	if (std::isnan(mat[m](k, n)) || std::isinf(mat[m](k, n)) ) {
@@ -979,7 +1100,7 @@ void SLGridCyl::get_dens(Eigen::MatrixXd* mat, double x, int mMin, int mMax, int
 #else
 	mat[m](k, n) = (x1*table[m][k].ef(n, indx) + 
 			x2*table[m][k].ef(n, indx+1))*
-	  sqrt(fabs(table[m][k].ev[n])) * cyldens(xi_to_r(x))
+	  sqrt(fabs(table[m][k].ev[n])) * cyl->dens(xi_to_r(x))
 	  * table[m][k].ev[n]/fabs(table[m][k].ev[n]);
 #endif
       }
@@ -1088,19 +1209,19 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   double f;
 
 				// Inner  BC
-  f = cylpot(cons[6]);
+  f = cyl->pot(cons[6]);
   if (M==0) {
-    cons[0] = cyldpot(cons[6])/f;
+    cons[0] = cyl->dpot(cons[6])/f;
     cons[2] = 1.0/(cons[6]*f*f);
   }
   else
     cons[0] = 1.0;
 
 				// Outer BC
-  f = cylpot(cons[7]);
-  // cons[4] = (1.0+M)/cons[7] + cyldpot(cons[7])/f;
+  f = cyl->pot(cons[7]);
+  // cons[4] = (1.0+M)/cons[7] + dpot(cons[7])/f;
 				// TEST
-  cons[4] = (1.0+M)/(cons[7]*cons[7]) + cyldpot(cons[7])/f/cons[7];
+  cons[4] = (1.0+M)/(cons[7]*cons[7]) + cyl->dpot(cons[7])/f/cons[7];
   cons[5] = 1.0/(cons[7]*f*f);
 
   
@@ -1216,14 +1337,14 @@ void SLGridCyl::init_table(void)
   for (int i=0; i<numr; i++) {
     xi[i] = xmin + dxi*i;
     r[i]  = xi_to_r(xi[i]);
-    p0[i] = cylpot(r[i]);
-    d0[i] = cyldens(r[i]);
+    p0[i] = cyl->pot(r[i]);
+    d0[i] = cyl->dens(r[i]);
   }
 
 }
 
 
-void SLGridCyl::compute_table_slave(void)
+void SLGridCyl::compute_table_worker(void)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
@@ -1242,9 +1363,8 @@ void SLGridCyl::compute_table_slave(void)
   if (myid==1) VERBOSE = SLEDGE_VERBOSE;
 #endif
 
-#ifdef DEBUG
-  std::cout << "Slave " << mpi_myid << " begins . . ." << std::endl;
-#endif
+  if (tbdbg)
+    std::cout << "Worker " << mpi_myid << " begins . . ." << std::endl;
 
   //
   // <Wait for orders>
@@ -1265,10 +1385,9 @@ void SLGridCyl::compute_table_slave(void)
 	     MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
 
-#ifdef DEBUG
-    std::cout << "Slave " << mpi_myid << ": ordered to compute (m, k)=("
-	      << M << ", " << K << ")" << std::endl;
-#endif
+    if (tbdbg)
+      std::cout << "Worker " << mpi_myid << ": ordered to compute (m, k)=("
+		<< M << ", " << K << ")" << std::endl;
 
     cons[0] = cons[1] = cons[2] = cons[3] = cons[4] = cons[5] = 0.0;
     cons[6] = rmin;
@@ -1291,10 +1410,10 @@ void SLGridCyl::compute_table_slave(void)
     double *pdef  = new double [NUM*N];
     double f;
 
-    f = cylpot(cons[6]);
+    f = cyl->pot(cons[6]);
     cons[2] = -1.0/(cons[6]*f);
     cons[4] = M/cons[7];
-    f = cylpot(cons[7]);
+    f = cyl->pot(cons[7]);
     cons[5] = 1.0/(cons[7]*f*f);
 
     //
@@ -1333,71 +1452,68 @@ void SLGridCyl::compute_table_slave(void)
     //     Print results:
     //
     
-#ifdef DEBUG
+    if (tbdbg) {
     
-    if (type[0]) std::cout << "Slave " << myid 
-			   << ": Inner endpoint is regular" << std::endl;
-    if (type[1]) std::cout << "Slave " << myid 
-			   << ": Inner endpoint is limit circle" << std::endl;
-    if (type[2]) std::cout << "Slave " << myid 
-			   << ": Inner endpoint is nonoscillatory for all EV" << std::endl;
-    if (type[3]) std::cout << "Slave " << myid 
-			   << ": Inner endpoint is oscillatory for all EV" << std::endl;
-    if (type[4]) std::cout << "Slave " << myid 
-			   << ": Outer endpoint is regular" << std::endl;
-    if (type[5]) std::cout << "Slave " << myid 
-			   << ": Outer endpoint is limit circle" << std::endl;
-    if (type[6]) std::cout << "Slave " << myid 
-			   << ": Outer endpoint is nonoscillatory for all EV" << std::endl;
-    if (type[7]) std::cout << "Slave " << myid 
-			   << ": Outer endpoint is oscillatory for all EV" << std::endl;
-		      
-    std::cout << "Slave " << mpi_myid << ": computed (m, k)=("
-	      << M << ", " << K << ")" << std::endl;
-
-    std::cout.precision(6);
-    std::cout.setf(ios::scientific);
-
-    for (i=0; i<N; i++) {
-      std::cout << std::setw(15) << invec[3+i] 
-		<< std::setw(15) << ev[i]
-		<< std::setw( 5) << iflag[i]
-		<< std::endl;
+      if (type[0]) std::cout << "Worker " << myid 
+			     << ": Inner endpoint is regular" << std::endl;
+      if (type[1]) std::cout << "Worker " << myid 
+			     << ": Inner endpoint is limit circle" << std::endl;
+      if (type[2]) std::cout << "Worker " << myid 
+			     << ": Inner endpoint is nonoscillatory for all EV" << std::endl;
+      if (type[3]) std::cout << "Worker " << myid 
+			     << ": Inner endpoint is oscillatory for all EV" << std::endl;
+      if (type[4]) std::cout << "Worker " << myid 
+			     << ": Outer endpoint is regular" << std::endl;
+      if (type[5]) std::cout << "Worker " << myid 
+			     << ": Outer endpoint is limit circle" << std::endl;
+      if (type[6]) std::cout << "Worker " << myid 
+			     << ": Outer endpoint is nonoscillatory for all EV" << std::endl;
+      if (type[7]) std::cout << "Worker " << myid 
+			     << ": Outer endpoint is oscillatory for all EV" << std::endl;
       
-      if (VERBOSE) {
+      std::cout << "Worker " << mpi_myid << ": computed (m, k)=("
+		<< M << ", " << K << ")" << std::endl;
 
-	if (iflag[i] > -10) {
-	  std::cout << std::setw(14) << "x"
-		    << std::setw(25) << "u(x)"
-		    << std::setw(25) << "(pu`)(x)"
-		    << std::endl;
-	  int k = NUM*i;
-	  for (j=0; j<NUM; j++) {
-	    std::cout << std::setw(25) << xef[j]
-		      << std::setw(25) << ef[j+k]
-		      << std::setw(25) << pdef[j+k]
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      
+      for (i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw( 5) << iflag[i]
+		  << std::endl;
+	
+	if (VERBOSE) {
+
+	  if (iflag[i] > -10) {
+	    std::cout << std::setw(14) << "x"
+		      << std::setw(25) << "u(x)"
+		      << std::setw(25) << "(pu`)(x)"
 		      << std::endl;
+	    int k = NUM*i;
+	    for (j=0; j<NUM; j++) {
+	      std::cout << std::setw(25) << xef[j]
+			<< std::setw(25) << ef[j+k]
+			<< std::setw(25) << pdef[j+k]
+			<< std::endl;
+	    }
 	  }
 	}
-	
       }
-
     }
   
-#endif
-
 #ifdef NOTIFY
     bool ok = true;
     for (i=0; i<N; i++) {
       if (iflag[i] < 0) {
 	ok = false;
-	std::cerr << "***** Slave " << std::setw(3) << myid 
+	std::cerr << "***** Worker " << std::setw(3) << myid 
 		  << "  Level " << std::setw(3) << i << ": " << iflag[i] 
 		  << "  M=" << M << "  kv[" << K << "]=" << kv[K] << endl;
       }
     }
-    if (!ok) std::cerr << "***** Slave " << std::setw(3) << myid 
-		       << ": if error=-2, consider increasing zmax" << endl;
+    if (!ok) std::cerr << "***** Worker " << std::setw(3) << myid 
+		       << " If error=-2, consider increasing rmax" << endl;
 #endif
 
 				// Load table
@@ -1417,10 +1533,9 @@ void SLGridCyl::compute_table_slave(void)
     int position = mpi_pack_table(&table, M, K);
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
-#ifdef DEBUG
-    std::cout << "Slave " << mpi_myid << ": sent to master (m, k)=("
-	      << M << ", " << K << ")" << std::endl;
-#endif
+    if (tbdbg) 
+      std::cout << "Worker " << mpi_myid << ": sent to root (m, k)=("
+		<< M << ", " << K << ")" << std::endl;
 
     delete [] iflag;
     delete [] invec;
@@ -1459,19 +1574,19 @@ void SLGridCyl::mpi_setup(void)
 
 int SLGridCyl::mpi_pack_table(struct TableCyl* table, int m, int k)
 {
-  int i, j, position = 0;
+  int position = 0;
 
   MPI_Pack( &m, 1, MPI_INT, mpi_buf, mpi_bufsz, 
 	    &position, MPI_COMM_WORLD);
   MPI_Pack( &k, 1, MPI_INT, mpi_buf, mpi_bufsz, 
 	    &position, MPI_COMM_WORLD);
 
-  for (j=1; j<=nmax; j++)
+  for (int j=0; j<nmax; j++)
     MPI_Pack( &table->ev[j], 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
 	      &position, MPI_COMM_WORLD);
 
-  for (j=1; j<=nmax; j++)
-    for (i=0; i<numr; i++)
+  for (int j=0; j<nmax; j++)
+    for (int i=0; i<numr; i++)
       MPI_Pack( &table->ef(j, i), 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
 		&position, MPI_COMM_WORLD);
 
@@ -1484,38 +1599,34 @@ void SLGridCyl::mpi_unpack_table(void)
   int length, position = 0;
   int m, k;
 
-#ifdef DEBUG
   int retid = status.MPI_SOURCE;
-#endif
 
-  /*
-  MPI_Get_count( &status, MPI_PACKED, &length);
-  */
+  // MPI_Get_count( &status, MPI_PACKED, &length);
+
   length = mpi_bufsz;
 
 
   MPI_Unpack( mpi_buf, length, &position, &m, 1, MPI_INT,
 	      MPI_COMM_WORLD);
+
   MPI_Unpack( mpi_buf, length, &position, &k, 1, MPI_INT,
 	      MPI_COMM_WORLD);
 
-#ifdef DEBUG    
-  std::cout << "Process " << mpi_myid << ": unpacking table entry from Process " 
-	    << retid << ": (m, k)=(" << m << ", " << k << ")" << std::endl;
-#endif
-
-
+  if (tbdbg)
+    std::cout << "Process " << mpi_myid << ": unpacking table entry from Process " 
+	      << retid << ": (m, k)=(" << m << ", " << k << ")" << std::endl;
+  
   table[m][k].m = m;
   table[m][k].k = k;
   table[m][k].ev.resize(nmax);
   table[m][k].ef.resize(nmax, numr);
 
 
-  for (int j=1; j<=nmax; j++)
+  for (int j=0; j<nmax; j++)
     MPI_Unpack( mpi_buf, length, &position, &table[m][k].ev[j], 1, MPI_DOUBLE,
 		MPI_COMM_WORLD);
 
-  for (int j=1; j<=nmax; j++)
+  for (int j=0; j<nmax; j++)
     for (int i=0; i<numr; i++)
       MPI_Unpack( mpi_buf, length, &position, &table[m][k].ef(j, i), 1, 
 		  MPI_DOUBLE, MPI_COMM_WORLD);
@@ -1534,8 +1645,6 @@ extern "C" {
 	      doublereal* ev, integer* numx, doublereal* xef, doublereal* ef, 
 	      doublereal* pdef, doublereal* t, doublereal* rho, 
 	      integer* iflag, doublereal* store);
-  double iv(double, double);
-  double kn(int, double);
 }
 
 
@@ -1564,8 +1673,9 @@ double sphdens(double r)
 
 void SLGridSph::bomb(string oops)
 {
-  std::cerr << "SLGridSph [#=" << myid << "]: " << oops << endl; 
-  exit(-1);
+  std::ostringstream sout;
+  sout << "SLGridSph error [#=" << myid << "]: " << oops;
+  throw std::runtime_error(sout.str());
 }
 
 				// Constructors
@@ -1654,12 +1764,12 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
   init_table();
 
 
-#ifdef DEBUG
-  if (mpi)
-    std::cout << "Process " << myid << ": MPI is on!"  << std::endl;
-  else
-    std::cout << "Process " << myid << ": MPI is off!" << std::endl;
-#endif
+  if (tbdbg) {
+    if (mpi)
+      std::cout << "Process " << myid << ": MPI is on!"  << std::endl;
+    else
+      std::cout << "Process " << myid << ": MPI is off!" << std::endl;
+  }
 
   table = 0;
 
@@ -1670,10 +1780,10 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
     mpi_setup();
 
     if (mpi_myid) {
-      compute_table_slave();
+      compute_table_worker();
 
       //
-      // <Receive completed table from master>
+      // <Receive completed table from root>
       //
 
       for (l=0; l<=lmax; l++) {
@@ -1689,9 +1799,9 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
       }
       
     }
-    else {			// BEGIN Master
+    else {			// BEGIN Root
 
-      int slave = 0;
+      int worker = 0;
       int request_id = 1;
 
       if (!read_cached_table()) {
@@ -1701,27 +1811,26 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
 	while (l<=lmax) {
 
-	  if (slave<mpi_numprocs-1) { // Send request to slave
-	    slave++;
+	  if (worker<mpi_numprocs-1) { // Send request to worker
+	    worker++;
       
-#ifdef DEBUG    
 
-	    std::cout << "Master sending orders to Slave " << slave 
-		      << ": l=" << l << std::endl; 
-#endif
-	    MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
-	    MPI_Send(&l, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+	    if (tbdbg)
+	      std::cout << "Root sending orders to Worker " << worker 
+			<< ": l=" << l << std::endl; 
+
+	    MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
+	    MPI_Send(&l, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
       
-#ifdef DEBUG    
-	    std::cout << "Master gave orders to Slave " << slave 
-		      << ": l=" << l << std::endl;
-#endif
+	    if (tbdbg)
+	      std::cout << "Root gave orders to Worker " << worker 
+			<< ": l=" << l << std::endl;
 
 				// Increment counters
 	    l++;
 	  }
 
-	  if (slave == mpi_numprocs-1 && l<=lmax) {
+	  if (worker == mpi_numprocs-1 && l<=lmax) {
 	  
 	    //
 	    // <Wait and receive>
@@ -1741,20 +1850,20 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	    MPI_Send(&request_id, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
 	    MPI_Send(&l, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
       
-#ifdef DEBUG    
-	    std::cout << "Master g orders to Slave " << retid
-		      << ": l=" << l << std::endl;
-#endif
+	    if (tbdbg) 
+	      std::cout << "Root g orders to Worker " << retid
+			<< ": l=" << l << std::endl;
+
 				// Increment counters
 	    l++;
 	  }
 	}
       
 	//
-	// <Wait for all slaves to return>
+	// <Wait for all workers to return>
 	//
   
-	while (slave) {
+	while (worker) {
 	
 	
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
@@ -1762,7 +1871,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
     
 	  mpi_unpack_table();      
 
-	  slave--;
+	  worker--;
 	}
 
 	if (cache) write_cached_table();
@@ -1771,31 +1880,31 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
 
       //
-      // <Tell slaves to continue>
+      // <Tell workers to continue>
       //
 
       request_id = -1;
-      for (slave=1; slave < mpi_numprocs; slave++)
-	MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+      for (worker=1; worker < mpi_numprocs; worker++)
+	MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
 
 
       //
-      // <Send table to slaves>
+      // <Send table to workers>
       //
 
       for (l=0; l<=lmax; l++) {
 	int position = mpi_pack_table(&table[l], l);
 
 	/*
-	for (slave=1; slave < mpi_numprocs; slave++)
-	  MPI_Send(mpi_buf, position, MPI_PACKED, slave, 11, MPI_COMM_WORLD);
+	for (worker=1; worker < mpi_numprocs; worker++)
+	  MPI_Send(mpi_buf, position, MPI_PACKED, worker, 11, MPI_COMM_WORLD);
 	*/
 
 	MPI_Bcast(mpi_buf, position, MPI_PACKED, 0, MPI_COMM_WORLD);
       }
 
 
-    } // END Master
+    } // END Root
 
   }
   else {
@@ -1813,9 +1922,8 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
     }
   }
 
-#ifdef DEBUG
-  std::cerr << "Process " << myid << ": exiting constructor" << std::endl;
-#endif
+  if (tbdbg)
+    std::cerr << "Process " << myid << ": exiting constructor" << std::endl;
 
 }
 
@@ -1916,7 +2024,7 @@ int SLGridSph::read_cached_table(void)
 
   } else {
 
-    // Rewind file
+    // Rewind file (backward compatibility)
     //
     in.clear();
     in.seekg(0);
@@ -1928,15 +2036,55 @@ int SLGridSph::read_cached_table(void)
     in.read((char *)&RMIN, sizeof(double));
     in.read((char *)&RMAX, sizeof(double));
     in.read((char *)&SCL, sizeof(double));
+
+    if (!in) {
+      std::cout << "---- SLGridSph::read_cached_table: error reading header info"
+		<< std::endl;
+      return 0;
+    }
   }
 
-  if(!in || LMAX!=lmax) return 0;
-  if(!in || NMAX!=nmax) return 0;
-  if(!in || NUMR!=numr) return 0;
-  if(!in || CMAP!=cmap) return 0;
-  if(!in || RMIN!=rmin) return 0;
-  if(!in || RMAX!=rmax) return 0;
-  if(!in || SCL!=scale) return 0;
+  if (LMAX!=lmax) {
+    std::cout << "---- SLGridSph::read_cached_table: found lmax=" << LMAX
+	      << " wanted " << lmax << std::endl;
+    return 0;
+  }
+
+  if (NMAX!=nmax) {
+    std::cout << "---- SLGridSph::read_cached_table: found nmax=" << NMAX
+	      << " wanted " << nmax << std::endl;
+    return 0;
+  }
+
+  if (NUMR!=numr) {
+    std::cout << "---- SLGridSph::read_cached_table: found numr=" << NUMR
+	      << " wanted " << numr << std::endl;
+    return 0;
+  }
+
+  if (CMAP!=cmap) {
+    std::cout << "---- SLGridSph::read_cached_table: found cmap=" << CMAP
+	      << " wanted " << cmap << std::endl;
+    return 0;
+  }
+
+  if (RMIN!=rmin) {
+    std::cout << "---- SLGridSph::read_cached_table: found rmin=" << RMIN
+	      << " wanted " << rmin << std::endl;
+    return 0;
+  }
+
+  if (RMAX!=rmax) {
+    std::cout << "---- SLGridSph::read_cached_table: found rmax=" << RMAX
+	      << " wanted " << rmax << std::endl;
+    return 0;
+  }
+
+  if (SCL!=scale) {
+    std::cout << "---- SLGridSph::read_cached_table: found scale=" << SCL
+	      << " wanted " << scale << std::endl;
+    return 0;
+  }
 
   for (int l=0; l<=lmax; l++) {
 
@@ -2624,7 +2772,7 @@ void SLGridSph::init_table(void)
 }
 
 
-void SLGridSph::compute_table_slave(void)
+void SLGridSph::compute_table_worker(void)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
@@ -2645,7 +2793,7 @@ void SLGridSph::compute_table_slave(void)
 #endif
 
 #ifdef DEBUG
-  std::cout << "Slave " << mpi_myid << " begins . . ." << std::endl;
+  std::cout << "Worker " << mpi_myid << " begins . . ." << std::endl;
 #endif
 
   //
@@ -2665,9 +2813,8 @@ void SLGridSph::compute_table_slave(void)
 	     MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
 
-#ifdef DEBUG
-    std::cout << "Slave " <<  mpi_myid << ": ordered to compute l = " << L << "" << std::endl;
-#endif
+    if (tbdbg)
+      std::cout << "Worker " <<  mpi_myid << ": ordered to compute l = " << L << "" << std::endl;
 
     cons[0] = cons[1] = cons[2] = cons[3] = cons[4] = cons[5] = 0.0;
     cons[6] = rmin;
@@ -2730,37 +2877,36 @@ void SLGridSph::compute_table_slave(void)
     //     Print results:
     //
     
-#ifdef DEBUG
-    std::cout << "Slave " <<  mpi_myid << ": computed l = " << L << "" << std::endl;
+    if (tbdbg) {
+      std::cout << "Worker " <<  mpi_myid << ": computed l = " << L << "" << std::endl;
 
-    std::cout.precision(6);
-    std::cout.setf(ios::scientific);
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
 
-    for (int i=0; i<N; i++) {
-      std::cout << std::setw(15) << invec[3+i] 
-		<< std::setw(15) << ev[i]
-		<< std::setw( 5) << iflag[i]
-		<< std::endl;
-  
-      if (VERBOSE) {
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw( 5) << iflag[i]
+		  << std::endl;
+	
+	if (VERBOSE) {
 
-	if (iflag[i] > -10) {
-	  std::cout << std::setw(14) << "x"
-		    << std::setw(25) << "u(x)"
-		    << std::setw(25) << "(pu`)(x)"
-		    << std::endl;
-	  int k = NUM*i;
-	  for (int j=0; j<NUM; j++) {
-	    std::cout << std::setw(25) << xef[j]
-		      << std::setw(25) << ef[j+k]
-		      << std::setw(25) << pdef[j+k]
+	  if (iflag[i] > -10) {
+	    std::cout << std::setw(14) << "x"
+		      << std::setw(25) << "u(x)"
+		      << std::setw(25) << "(pu`)(x)"
 		      << std::endl;
+	    int k = NUM*i;
+	    for (int j=0; j<NUM; j++) {
+	      std::cout << std::setw(25) << xef[j]
+			<< std::setw(25) << ef[j+k]
+			<< std::setw(25) << pdef[j+k]
+			<< std::endl;
+	    }
 	  }
 	}
       }
     }
-  
-#endif
 				// Load table
 
     table.ev.resize(N);
@@ -2777,9 +2923,8 @@ void SLGridSph::compute_table_slave(void)
     int position = mpi_pack_table(&table, L);
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
-#ifdef DEBUG
-    std::cout << "Slave " <<  mpi_myid << ": send to master l = " << L << "" << std::endl;
-#endif
+    if (tbdbg)
+      std::cout << "Worker " <<  mpi_myid << ": send to root l = " << L << "" << std::endl;
 
     delete [] iflag;
     delete [] invec;
@@ -2845,17 +2990,15 @@ void SLGridSph::mpi_unpack_table(void)
   */
   length = mpi_bufsz;
 
-#ifdef DEBUG
+  
   int retid = status.MPI_SOURCE;
-#endif
 
   MPI_Unpack( mpi_buf, length, &position, &l, 1, MPI_INT,
 	      MPI_COMM_WORLD);
 
-#ifdef DEBUG    
-  std::cout << "Process " <<  mpi_myid << ": unpacking table entry from Process " 
-	    << retid << "  l = " << l << "" << std::endl;
-#endif
+  if (tbdbg)
+    std::cout << "Process " <<  mpi_myid << ": unpacking table entry from Process " 
+	      << retid << "  l = " << l << "" << std::endl;
 
 
   table[l].l = l;
@@ -2928,45 +3071,135 @@ YAML::Node SLGridSph::getHeader(const std::string& cachefile)
 //======================================================================
 
 
-int SLGridSlab::mpi = 0;	// initially off
-int SLGridSlab::cache = 1;	// initially yes
-double SLGridSlab::H = 0.1;	// Scale height
-double SLGridSlab::L = 1.0;	// Periodic box size
-double SLGridSlab::ZBEG = 0.0;	// Offset on from origin
-double SLGridSlab::ZEND = 0.0;	// Offset on potential zero
+int    SLGridSlab::mpi   = 0;	// initially off
+int    SLGridSlab::cache = 1;	// initially yes
+double SLGridSlab::H     = 0.1;	// Scale height
+double SLGridSlab::L     = 1.0;	// Periodic box size
+double SLGridSlab::ZBEG  = 0.0;	// Offset on from origin
+double SLGridSlab::ZEND  = 0.0;	// Offset on potential zero
 
 static double KKZ;
 
-				// Isothermal slab with
-				// G = M = 1
 static double poffset=0.0;
 
-double slabpot(double z)
+// Isothermal slab with G = M = 1
+//
+class IsothermalSlab : public SlabModel
 {
-  return 2.0*M_PI*SLGridSlab::H*log(cosh(z/SLGridSlab::H)) - poffset;
-}
 
-double slabdpot(double z)
-{
-  return 2.0*M_PI*tanh(z/SLGridSlab::H);
-}
+public:
 
-double slabdens(double z)
+  IsothermalSlab() { id = "iso"; }
+
+  double pot(double z)
+  {
+    return 2.0*M_PI*SLGridSlab::H*log(cosh(z/SLGridSlab::H)) - poffset;
+  }
+
+  double dpot(double z)
+  {
+    return 2.0*M_PI*tanh(z/SLGridSlab::H);
+  }
+
+  double dens(double z)
+  {
+    double tmp = 1.0/cosh(z/SLGridSlab::H);
+    return 4.0*M_PI * 0.5/SLGridSlab::H * tmp*tmp;
+  }
+};
+
+
+//! Constant density slab with G = M = 1
+class ConstantSlab : public SlabModel
 {
-  double tmp = 1.0/cosh(z/SLGridSlab::H);
-  return 4.0*M_PI * 0.5/SLGridSlab::H * tmp*tmp;
+
+public:
+
+  ConstantSlab()  { id = "const"; }
+
+  double pot(double z)
+  {
+    return z*z/(4.0*SLGridSlab::H) - poffset;
+  }
+
+  double dpot(double z)
+  {
+    return z/(2.0*SLGridSlab::H);
+  }
+
+  double dens(double z)
+  {
+    return 4.0*M_PI / (2.0 * SLGridSlab::H);
+  }
+};
+
+//! Parabolic density slab with G = M = 1
+class ParabolicSlab : public SlabModel
+{
+
+public:
+
+  ParabolicSlab() { id = "para"; }
+
+  double pot(double z)
+  {
+    double z2 = z*z;
+    double h  = SLGridSlab::H;
+    double h2 = h*h;
+    return z2*(6.0*h2 - z2)/(16.0*h*h2) - poffset;
+  }
+
+  double dpot(double z)
+  {
+    double z2 = z*z;
+    double h  = SLGridSlab::H;
+    double h2 = h*h;
+    return z*(3.0*h2 - z2)/(4.0*h*h2);
+  }
+
+  double dens(double z)
+  {
+    double h  = SLGridSlab::H;
+    double h2 = h*h;
+    return 4.0*M_PI * 3.0*(1.0 - z*z/h2)/(4.0*h);
+  }
+};
+
+
+std::shared_ptr<SlabModel> SlabModel::createModel(const std::string type)
+{
+  std::string data(type);
+  std::transform(data.begin(), data.end(), data.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  if (data.find("iso") != std::string::npos) {
+    return std::make_shared<IsothermalSlab>();
+  }
+
+  if (data.find("para") != std::string::npos) {
+    return std::make_shared<ParabolicSlab>();
+  }
+
+  if (data.find("const") != std::string::npos) {
+    return std::make_shared<ConstantSlab>();
+  }
+
+  // Default
+  return std::make_shared<IsothermalSlab>();
 }
 
 
 void SLGridSlab::bomb(string oops)
 {
-  std::cerr << "SLGridSlab: " << oops << std::endl; 
-  exit(-1);
+  std::ostringstream sout;
+  sout << "SLGridSlab error [#=" << myid << "]: " << oops;
+  throw std::runtime_error(sout.str());
 }
 
 				// Constructors
 
-SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
+SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
+		       const std::string type, bool VERBOSE)
 {
   int kx, ky;
 
@@ -2976,20 +3209,22 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 
   zmax = ZMAX;
 
+  slab  = SlabModel::createModel(type);
+
   poffset = 0.0;
-  poffset = slabpot((1.0+ZEND)*zmax);
+  poffset = slab->pot((1.0+ZEND)*zmax);
 
   tbdbg   = VERBOSE;
 
   init_table();
 
 
-#ifdef DEBUG
-  if (mpi)
-    std::cout << "Process " << myid << ": MPI is on!"  << std::endl;
-  else
-    std::cout << "Process " << myid << ": MPI is off!" << std::endl;
-#endif
+  if (tbdbg) {
+    if (mpi)
+      std::cout << "Process " << myid << ": MPI is on!"  << std::endl;
+    else
+      std::cout << "Process " << myid << ": MPI is off!" << std::endl;
+  }
 
   table =  new TableSlab* [numk+1];
   for (kx=0; kx<=numk; kx++)
@@ -3000,10 +3235,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
     mpi_setup();
 
     if (mpi_myid) {
-      compute_table_slave();
+      compute_table_worker();
 
       //
-      // <Receive completed table from master>
+      // <Receive completed table from root>
       //
 
       for (kx=0; kx<=numk; kx++) {
@@ -3016,9 +3251,9 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
       }
       
     }
-    else {			// BEGIN Master
+    else {			// BEGIN Root
 
-      int slave = 0;
+      int worker = 0;
       int request_id = 1;
 
       if (!read_cached_table()) {
@@ -3028,21 +3263,20 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 
 	while (kx<=numk) {
 
-	  if (slave<mpi_numprocs-1) { // Send request to slave
-	    slave++;
+	  if (worker<mpi_numprocs-1) { // Send request to worker
+	    worker++;
       
-#ifdef DEBUG    
-	    std::cout << "Master sending orders to Slave " << slave 
-		      << ": Kx=" << kx << ", Ky=" << ky << std::endl;
-#endif
-	    MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
-	    MPI_Send(&kx, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
-	    MPI_Send(&ky, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+	    if (tbdbg)
+	      std::cout << "Root sending orders to Worker " << worker 
+			<< ": Kx=" << kx << ", Ky=" << ky << std::endl;
+
+	    MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
+	    MPI_Send(&kx, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
+	    MPI_Send(&ky, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
       
-#ifdef DEBUG    
-	    std::cout << "Master gave orders to Slave " << slave 
-		      << ": Kx=" << kx << ", Ky=" << ky << std::endl;
-#endif
+	    if (tbdbg)
+	      std::cout << "Root gave orders to Worker " << worker 
+			<< ": Kx=" << kx << ", Ky=" << ky << std::endl;
 
 				// Increment counters
 	    ky++;
@@ -3053,7 +3287,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 	    
 	  }
 
-	  if (slave == mpi_numprocs-1 && kx<=numk) {
+	  if (worker == mpi_numprocs-1 && kx<=numk) {
 	  
 	    //
 	    // <Wait and receive>
@@ -3074,10 +3308,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 	    MPI_Send(&kx, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
 	    MPI_Send(&ky, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
       
-#ifdef DEBUG    
-	    std::cout << "Master gave orders to Slave " << retid 
-		      << ": Kx=" << kx << ", Ky=" << ky << std::endl;
-#endif
+	    if (tbdbg)
+	      std::cout << "Root gave orders to Worker " << retid 
+			<< ": Kx=" << kx << ", Ky=" << ky << std::endl;
+
 				// Increment counters
 	    ky++;
 	    if (ky>kx) {
@@ -3089,10 +3323,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 	}
       
 	//
-	// <Wait for all slaves to return>
+	// <Wait for all workers to return>
 	//
   
-	while (slave) {
+	while (worker) {
 	
 	
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
@@ -3100,7 +3334,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
     
 	  mpi_unpack_table();      
 
-	  slave--;
+	  worker--;
 	}
 
 	if (cache) write_cached_table();
@@ -3109,28 +3343,28 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 
 
       //
-      // <Tell slaves to continue>
+      // <Tell workers to continue>
       //
 
       request_id = -1;
-      for (slave=1; slave < mpi_numprocs; slave++)
-	MPI_Send(&request_id, 1, MPI_INT, slave, 11, MPI_COMM_WORLD);
+      for (worker=1; worker < mpi_numprocs; worker++)
+	MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
 
 
       //
-      // <Send table to slaves>
+      // <Send table to workers>
       //
 
       for (kx=0; kx<=numk; kx++) {
 	for (ky=0; ky<=kx; ky++) {
 	  int position = mpi_pack_table(&table[kx][ky], kx, ky);
-	  for (slave=1; slave < mpi_numprocs; slave++)
-	    MPI_Send(mpi_buf, position, MPI_PACKED, slave, 11, MPI_COMM_WORLD);
+	  for (worker=1; worker < mpi_numprocs; worker++)
+	    MPI_Send(mpi_buf, position, MPI_PACKED, worker, 11, MPI_COMM_WORLD);
 	}
       }
 
 
-    } // END Master
+    } // END Root
 
   }
   else {
@@ -3150,36 +3384,131 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
     }
   }
 
-#ifdef DEBUG
-  std::cerr << "Process " << myid << ": exiting constructor" << std::endl;
-#endif
+  if (tbdbg)
+    std::cerr << "Process " << myid << ": exiting constructor" << std::endl;
 }
 
 
-const string Slab_cache_name = ".slgrid_slab_cache";
+const string slab_cache_name = ".slgrid_slab_cache";
 
 int SLGridSlab::read_cached_table(void)
 {
   if (!cache) return 0;
 
-  ifstream in(Slab_cache_name.c_str());
+  std::ifstream in(slab_cache_name);
   if (!in) return 0;
 
   int NUMK, NMAX, NUMZ;
   double ZMAX, HH, LL, zbeg, zend;
+  std::string MODEL;
 
   if (myid==0)
     std::cout << "---- SLGridSlab::read_cached_table: trying to read cached table . . ."
 	      << std::endl;
 
-  in.read((char *)&NUMK, sizeof(int));		if(!in || NUMK!=numk) return 0;
-  in.read((char *)&NMAX, sizeof(int));		if(!in || NMAX!=nmax) return 0;
-  in.read((char *)&NUMZ, sizeof(int));		if(!in || NUMZ!=numz) return 0;
-  in.read((char *)&ZMAX, sizeof(double));	if(!in || ZMAX!=zmax) return 0;
-  in.read((char *)&HH, sizeof(double));		if(!in || HH!=H)      return 0;
-  in.read((char *)&LL, sizeof(double));		if(!in || LL!=L)      return 0;
-  in.read((char *)&zbeg, sizeof(double));	if(!in || zbeg!=ZBEG) return 0;
-  in.read((char *)&zend, sizeof(double));	if(!in || zend!=ZEND) return 0;
+
+  // Attempt to read magic number
+  //
+  unsigned int tmagic;
+  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+  if (tmagic == hmagic) {
+
+    // YAML size
+    //
+    unsigned ssize;
+    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+    // Make and read char buffer
+    //
+    auto buf = std::make_unique<char[]>(ssize+1);
+    in.read(buf.get(), ssize);
+    buf[ssize] = 0;		// Null terminate
+    
+    YAML::Node node;
+    
+    try {
+      node = YAML::Load(buf.get());
+    }
+    catch (YAML::Exception& error) {
+      std::ostringstream sout;
+      sout << "YAML: error parsing <" << buf.get() << "> "
+	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	   << "YAML error: " << error.what() << std::endl;
+      throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
+    }
+    
+    // Get parameters
+    //
+    NUMK     = node["numk"   ].as<int>();
+    NMAX     = node["nmax"   ].as<int>();
+    NUMZ     = node["numz"   ].as<int>();
+    ZMAX     = node["zmax"   ].as<double>();
+    HH       = node["H"      ].as<double>();
+    LL       = node["L"      ].as<double>();
+    zbeg     = node["ZBEG"   ].as<double>();
+    zend     = node["ZEND"   ].as<double>();
+    MODEL    = node["model"  ].as<std::string>();
+
+  } else {
+    std::cout << "---- SLGridSlab: bad magic number in cache file" << std::endl;
+    return 0;
+  }
+    
+
+  if (NUMK!=numk) {
+    std::cout << "---- SLGridSlab::read_cached_table: found numk=" << NUMK
+	      << " wanted " << numk << std::endl;
+    return 0;
+  }
+
+  if (NMAX!=nmax) {
+    std::cout << "---- SLGridSlab::read_cached_table: found nmax=" << NMAX
+	      << " wanted " << nmax << std::endl;
+    return 0;
+  }
+
+  if (NUMZ!=numz) {
+    std::cout << "---- SLGridSlab::read_cached_table: found numz=" << NUMZ
+	      << " wanted " << numz << std::endl;
+    return 0;
+  }
+
+  if (ZMAX!=zmax) {
+    std::cout << "---- SLGridSlab::read_cached_table: found zmax=" << ZMAX
+	      << " wanted " << zmax << std::endl;
+    return 0;
+  }
+
+  if (HH!=H) {
+    std::cout << "---- SLGridSlab::read_cached_table: found H=" << HH
+	      << " wanted " << H << std::endl;
+    return 0;
+  }
+
+  if (LL!=L) {
+    std::cout << "---- SLGridSlab::read_cached_table: found L=" << LL
+	      << " wanted " << L << std::endl;
+    return 0;
+  }
+
+  if (zbeg!=ZBEG) {
+    std::cout << "---- SLGridSlab::read_cached_table: found ZBEG=" << ZBEG
+	      << " wanted " << zbeg << std::endl;
+    return 0;
+  }
+
+  if (zend!=ZEND) {
+    std::cout << "---- SLGridSlab::read_cached_table: found ZEND=" << ZEND
+	      << " wanted " << zend << std::endl;
+    return 0;
+  }
+
+  if (MODEL!=slab->ID()) {
+    std::cout << "---- SLGridSlab::read_cached_table: found ID=" << MODEL
+	      << " wanted " << slab->ID() << std::endl;
+    return 0;
+  }
 
   for (int kx=0; kx<=numk; kx++) {
     for (int ky=0; ky<=kx; ky++) {
@@ -3190,7 +3519,7 @@ int SLGridSlab::read_cached_table(void)
 				// Double check
       if (table[kx][ky].kx != kx) {
 	if (myid==0)
-	  std::cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">"
+	  std::cerr << "SLGridSlab: error reading <" << slab_cache_name << ">"
 		    << std::endl
 		    << "SLGridSlab: kx: read value (" << table[kx][ky].kx 
 		    << ") != internal value (" << kx << ")" << std::endl;
@@ -3198,7 +3527,7 @@ int SLGridSlab::read_cached_table(void)
       }
       if (table[kx][ky].ky != ky) {
 	if (myid==0) 
-	  std::cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">"
+	  std::cerr << "SLGridSlab: error reading <" << slab_cache_name << ">"
 		    << std::endl
 		    << "SLGridSlab: ky: read value (" << table[kx][ky].ky 
 		    << ") != internal value (" << ky << ")" << std::endl;
@@ -3234,20 +3563,46 @@ int SLGridSlab::read_cached_table(void)
 
 void SLGridSlab::write_cached_table(void)
 {
-  ofstream out(Slab_cache_name.c_str());
+  std::ofstream out(slab_cache_name);
   if (!out) {
-    std::cerr << "SLGridSlab: error writing <" << Slab_cache_name << ">" << std::endl;
+    std::cerr << "SLGridSlab: error writing <" << slab_cache_name << ">" << std::endl;
     return;
   }
 
-  out.write((char *)&numk, sizeof(int));
-  out.write((char *)&nmax, sizeof(int));
-  out.write((char *)&numz, sizeof(int));
-  out.write((char *)&zmax, sizeof(double));
-  out.write((char *)&H,    sizeof(double));
-  out.write((char *)&L,    sizeof(double));
-  out.write((char *)&ZBEG, sizeof(double));
-  out.write((char *)&ZEND, sizeof(double));
+  // This is a node of simple {key: value} pairs.  More general
+  // content can be added as needed.
+  YAML::Node node;
+
+  node["numk"   ] = numk;
+  node["nmax"   ] = nmax;
+  node["numz"   ] = numz;
+  node["zmax"   ] = zmax;
+  node["H"      ] = H;
+  node["L"      ] = L;
+  node["ZBEG"   ] = ZBEG;
+  node["ZEND"   ] = ZEND;
+  node["model"  ] = slab->ID();
+    
+  // Serialize the node
+  //
+  YAML::Emitter y; y << node;
+  
+  // Get the size of the string
+  //
+  unsigned int hsize = strlen(y.c_str());
+  
+  // Write magic #
+  //
+  out.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
+
+  // Write YAML string size
+  //
+  out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+  
+  // Write YAML string
+  //
+  out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+
 
   for (int kx=0; kx<=numk; kx++) {
     for (int ky=0; ky<=kx; ky++) {
@@ -3339,7 +3694,7 @@ double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
 
 				// Flip sign for antisymmetric basis functions
   int sign=1;
-  if (x<0 && 2*(n/2)==n) sign=-1;
+  if (x<0 && 2*(n/2)!=n) sign=-1;
   x = fabs(x);
 
   if (which)
@@ -3365,7 +3720,7 @@ double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
     sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign;
 #else
   return (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
-    sqrt(table[kx][ky].ev[n]) * slabpot(xi_to_z(x)) * sign;
+    sqrt(table[kx][ky].ev[n]) * slab->pot(xi_to_z(x)) * sign;
 #endif
 }
 
@@ -3375,7 +3730,7 @@ double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
   int hold;
 
   int sign=1;
-  if (x<0 && 2*(n/2)==n) sign=-1;
+  if (x<0 && 2*(n/2)!=n) sign=-1;
   x = fabs(x);
   
   if (which)
@@ -3400,7 +3755,7 @@ double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
     sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign;
 #else
   return (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1)) *
-    sqrt(table[kx][ky].ev[n]) * slabdens(xi_to_z(x)) * sign;
+    sqrt(table[kx][ky].ev[n]) * slab->dens(xi_to_z(x)) * sign;
 #endif
 
 }
@@ -3410,7 +3765,7 @@ double SLGridSlab::get_force(double x, int kx, int ky, int n, int which)
   int hold;
 
   int sign=1;
-  if (x<0 && 2*(n/2)!=n) sign = -1;
+  if (x<0 && 2*(n/2)==n) sign = -1;
   x = fabs(x);
 
   if (which)
@@ -3474,7 +3829,7 @@ void SLGridSlab::get_pot(Eigen::MatrixXd& mat, double x, int which)
 	  sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign2;
 #else
 	mat(l, n) = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
-	  sqrt(table[kx][ky].ev[n]) * slabpot(xi_to_z(x)) * sign2;
+	  sqrt(table[kx][ky].ev[n]) * slab->pot(xi_to_z(x)) * sign2;
 #endif
 	sign2 *= sign;
       }
@@ -3514,7 +3869,7 @@ void SLGridSlab::get_dens(Eigen::MatrixXd& mat, double x, int which)
 	  sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign2;
 #else
 	mat(l, n) = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))*
-	  sqrt(table[kx][ky].ev[n]) * slabdens(xi_to_z(x)) * sign2;
+	  sqrt(table[kx][ky].ev[n]) * slab->dens(xi_to_z(x)) * sign2;
 #endif
 	sign2 *= sign;
       }
@@ -3598,7 +3953,7 @@ void SLGridSlab::get_pot(Eigen::VectorXd& vec, double x, int kx, int ky, int whi
       sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign2;
 #else
     vec[n] = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
-      sqrt(table[kx][ky].ev[n]) * slabpot(xi_to_z(x)) * sign2;
+      sqrt(table[kx][ky].ev[n]) * slab->pot(xi_to_z(x)) * sign2;
 #endif
     sign2 *= sign;
   }
@@ -3632,7 +3987,7 @@ void SLGridSlab::get_dens(Eigen::VectorXd& vec, double x, int kx, int ky, int wh
       sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign2;
 #else
     vec[n] = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))*
-      sqrt(table[kx][ky].ev[n]) * slabdens(xi_to_z(x)) * sign2;
+      sqrt(table[kx][ky].ev[n]) * slab->dens(xi_to_z(x)) * sign2;
 #endif
     sign2 *= sign;
   }
@@ -3683,7 +4038,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
+  double tol[6]  = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
   int VERBOSE=0;
   integer NUM, N;
   logical type[8] = {1, 0, 0, 0, 1, 0, 0, 0};
@@ -3715,13 +4070,13 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   KKZ = 2.0*M_PI/L * sqrt((double)(KX*KX + KY*KY));
 
 				// Even BC, inner has zero gradient
-  f = slabpot(cons[6]);
+  f = slab->pot(cons[6]);
   cons[2] = -1.0/(f*f);
 
 				// Outer
   if (KKZ>1.0e-4) {
-    f = slabpot(cons[7]);
-    df = slabdpot(cons[7]);
+    f = slab->pot(cons[7]);
+    df = slab->dpot(cons[7]);
     cons[4] = (df + KKZ*f)*f;
   }
   cons[5] = 1.0;
@@ -3856,11 +4211,11 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 
   N = nmax - N;
 
-  for (int i=0; i<N; i++) table->ev[i*2+2] = ev[i];
+  for (int i=0; i<N; i++) table->ev[i*2+1] = ev[i];
 
   for (int i=0; i<numz; i++) {
     for (int j=0; j<N; j++) 
-      table->ef(j*2+2, i) = ef[j*NUM+i];
+      table->ef(j*2+1, i) = ef[j*NUM+i];
   }
 
 				// Correct for symmetrizing
@@ -3894,14 +4249,14 @@ void SLGridSlab::init_table(void)
   for (int i=0; i<numz; i++) {
     xi[i] = xmin + dxi*i;
     z[i]  = xi_to_z(xi[i]);
-    p0[i] = slabpot(z[i]);
-    d0[i] = slabdens(z[i]);
+    p0[i] = slab->pot(z[i]);
+    d0[i] = slab->dens(z[i]);
   }
 
 }
 
 
-void SLGridSlab::compute_table_slave(void)
+void SLGridSlab::compute_table_worker(void)
 {
 
   //  double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
@@ -3921,7 +4276,7 @@ void SLGridSlab::compute_table_slave(void)
 #endif
 
 #ifdef DEBUG
-  std::cout << "Slave " << mpi_myid << " begins . . ." << std::endl;
+  std::cout << "Worker " << mpi_myid << " begins . . ." << std::endl;
 #endif
 
   //
@@ -3943,11 +4298,9 @@ void SLGridSlab::compute_table_slave(void)
     MPI_Recv(&KY, 1, 
 	     MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
-
-#ifdef DEBUG
-    std::cout << "Slave " << mpi_myid << ": ordered to compute Kx, Ky = "
-	      << KX << ", " << KY << "" << std::endl;
-#endif
+    if (tbdbg)
+      std::cout << "Worker " << mpi_myid << ": ordered to compute Kx, Ky = "
+		<< KX << ", " << KY << "" << std::endl;
 
     cons[0] = cons[1] = cons[2] = cons[3] = cons[4] = cons[5] = 0.0;
     cons[6] =  ZBEG;
@@ -3972,20 +4325,19 @@ void SLGridSlab::compute_table_slave(void)
     KKZ = 2.0*M_PI/L * sqrt((double)(KX*KX + KY*KY));
 
 				// Even BC, inner has zero gradient
-    f = slabpot(cons[6]);
+    f = slab->pot(cons[6]);
     cons[2] = -1.0/(f*f);
 
-#ifdef DEBUG
-    std::cout << "Slave " << mpi_myid << ": Kx, Ky = " 
-	      << KX << ", " << KY << " [Even inputs]" << std::endl;
-    for (int n=0; n<8; n++)
-      std::cout << std::setw(5) << n << std::setw(15) << cons[n] << endl;
-#endif
-
+    if (tbdbg) {
+      std::cout << "Worker " << mpi_myid << ": Kx, Ky = " 
+		<< KX << ", " << KY << " [Even inputs]" << std::endl;
+      for (int n=0; n<8; n++)
+	std::cout << std::setw(5) << n << std::setw(15) << cons[n] << endl;
+    }
 				// Outer
     if (KKZ>1.0e-4) {
-      f = slabpot(cons[7]);
-      df = slabdpot(cons[7]);
+      f = slab->pot(cons[7]);
+      df = slab->dpot(cons[7]);
       cons[4] = (df + KKZ*f)*f;
     }
     cons[5] = 1.0;
@@ -4026,40 +4378,40 @@ void SLGridSlab::compute_table_slave(void)
     //     Print results:
     //
     
-#ifdef DEBUG
-    std::cout << "Slave " << mpi_myid << ": computed Kx, Ky = " 
-	      << KX << ", " << KY << " [Even]" << std::endl;
+    if (tbdbg) {
+      std::cout << "Worker " << mpi_myid << ": computed Kx, Ky = " 
+		<< KX << ", " << KY << " [Even]" << std::endl;
 
-    std::cout.precision(6);
-    std::cout.setf(ios::scientific);
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
 
-    for (int i=0; i<N; i++) {
-      std::cout << std::setw(15) << invec[3+i] 
-		<< std::setw(15) << ev[i]
-		<< std::setw( 5) << iflag[i]
-		<< std::endl;
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw( 5) << iflag[i]
+		  << std::endl;
   
-      if (VERBOSE) {
+	if (VERBOSE) {
 
-	if (iflag[i] > -10) {
-	  std::cout << std::setw(14) << "x"
-		    << std::setw(25) << "u(x)"
-		    << std::setw(25) << "(pu`)(x)"
-		    << std::endl;
-	  int k = NUM*i;
-	  for (int j=0; j<NUM; j++) {
-	    std::cout << std::setw(25) << xef[j]
-		      << std::setw(25) << ef[j+k]
-		      << std::setw(25) << pdef[j+k]
+	  if (iflag[i] > -10) {
+	    std::cout << std::setw(14) << "x"
+		      << std::setw(25) << "u(x)"
+		      << std::setw(25) << "(pu`)(x)"
 		      << std::endl;
+	    int k = NUM*i;
+	    for (int j=0; j<NUM; j++) {
+	      std::cout << std::setw(25) << xef[j]
+			<< std::setw(25) << ef[j+k]
+			<< std::setw(25) << pdef[j+k]
+			<< std::endl;
+	    }
 	  }
+	  
 	}
 	
       }
-
-    }
   
-#endif
+    }
 				// Load table
 
     table.ev.resize(nmax);
@@ -4080,46 +4432,44 @@ void SLGridSlab::compute_table_slave(void)
 
     sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	    t, rho, iflag, store);
-    //
+
     //     Print results:
     //
-    
-#ifdef DEBUG
-    std::cout << "Slave " << mpi_myid << ": computed Kx, Ky = " 
-	      << KX << ", " << KY << " [Odd]" << std::endl;
+    if (tbdbg) {
 
-    std::cout.precision(6);
-    std::cout.setf(ios::scientific);
+      std::cout << "Worker " << mpi_myid << ": computed Kx, Ky = " 
+		<< KX << ", " << KY << " [Odd]" << std::endl;
 
-    for (int i=0; i<N; i++) {
-      std::cout << std::setw(15) << invec[3+i] 
-		<< std::setw(15) << ev[i]
-		<< std::setw( 5) << iflag[i]
-		<< std::endl;
-  
-      if (VERBOSE) {
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
 
-	if (iflag[i] > -10) {
-	  std::cout << std::setw(14) << "x"
-		    << std::setw(25) << "u(x)"
-		    << std::setw(25) << "(pu`)(x)"
-		    << std::endl;
-	  int k = NUM*i;
-	  for (int j=0; j<NUM; j++) {
-	    std::cout << std::setw(25) << xef[j]
-		      << std::setw(25) << ef[j+k]
-		      << std::setw(25) << pdef[j+k]
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw( 5) << iflag[i]
+		  << std::endl;
+	
+	if (VERBOSE) {
+
+	  if (iflag[i] > -10) {
+	    std::cout << std::setw(14) << "x"
+		      << std::setw(25) << "u(x)"
+		      << std::setw(25) << "(pu`)(x)"
 		      << std::endl;
+	    int k = NUM*i;
+	    for (int j=0; j<NUM; j++) {
+	      std::cout << std::setw(25) << xef[j]
+			<< std::setw(25) << ef[j+k]
+			<< std::setw(25) << pdef[j+k]
+			<< std::endl;
+	    }
 	  }
 	}
-	
       }
-
     }
   
-#endif
-				// Load table
-
+    // Load table
+    //
     N = nmax - N;
 
     for (int i=0; i<N; i++) table.ev[i*2+2] = ev[i];
@@ -4137,10 +4487,9 @@ void SLGridSlab::compute_table_slave(void)
     int position = mpi_pack_table(&table, KX, KY);
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
-#ifdef DEBUG
-    std::cout << "Slave " << mpi_myid << ": sent to master Kx, Ky = "
-	      << KX << ", " <<  KY << std::endl;
-#endif
+    if (tbdbg)
+      std::cout << "Worker " << mpi_myid << ": sent to root Kx, Ky = "
+		<< KX << ", " <<  KY << std::endl;
 
     delete [] iflag;
     delete [] invec;
@@ -4149,7 +4498,6 @@ void SLGridSlab::compute_table_slave(void)
     delete [] xef;
     delete [] ef;
     delete [] pdef;
-
   }
 
 }
@@ -4205,10 +4553,7 @@ void SLGridSlab::mpi_unpack_table(void)
 {
   int length, position = 0;
   int kx, ky;
-
-#ifdef DEBUG
   int retid = status.MPI_SOURCE;
-#endif
 
   MPI_Get_count( &status, MPI_PACKED, &length);
 
@@ -4219,11 +4564,9 @@ void SLGridSlab::mpi_unpack_table(void)
   MPI_Unpack( mpi_buf, length, &position, &ky, 1, MPI_INT,
 	      MPI_COMM_WORLD);
 
-#ifdef DEBUG    
-  std::cout << "Process " << mpi_myid << ": unpacking table entry from Process "
-	    << retid << ": kx=" << kx << ", " << ky << "" << std::endl;
-#endif
-
+  if (tbdbg)
+    std::cout << "Process " << mpi_myid << ": unpacking table entry from Process "
+	      << retid << ": kx=" << kx << ", " << ky << "" << std::endl;
 
   table[kx][ky].kx = kx;
   table[kx][ky].ky = ky;
@@ -4253,8 +4596,8 @@ extern "C" int coeff_(doublereal* x, doublereal* px, doublereal* qx,
 
   if (sl_dim==1) {		// 1-d slab
 
-    f = slabpot(*x);
-    rho = slabdens(*x);
+    f   = slab->pot(*x);
+    rho = slab->dens(*x);
 
     *px = f*f;
     *qx = (KKZ*KKZ*f - rho)*f;
@@ -4262,16 +4605,16 @@ extern "C" int coeff_(doublereal* x, doublereal* px, doublereal* qx,
   }
   else if (sl_dim==2) {		// Cylindrical
 
-    f = cylpot(*x);
-    rho = cyldens(*x);
+    f   = cyl->pot(*x);
+    rho = cyl->dens(*x);
 
     *px = (*x)*f*f;
-    *qx = (M2*f/(*x) + K2*f*(*x) - cylpotsl(*x)*(*x))*f;
+    *qx = (M2*f/(*x) + K2*f*(*x) - cyl->dens(*x)*(*x))*f;
     *rx = -rho*(*x)*f;
   }
   else {			// Spherical
 
-    f = sphpot(*x);
+    f   = sphpot(*x);
     rho = sphdens(*x);
 
     *px = (*x)*(*x)*f*f;

@@ -17,12 +17,43 @@ namespace MSSA
   //! An index key
   using Key = std::vector<unsigned>;
   
+  //! Key comparison with length ordering
+  struct mSSAkeyCompare
+  {
+    bool operator()(const std::vector<unsigned>& a,
+		    const std::vector<unsigned>& b) const
+    {
+				// Get component indices
+      unsigned A = a.back(), B = b.back();
+
+      if (A < B)		// Order by component
+	return true;
+
+      if (A == B) {		// Order by index
+	size_t sz = a.size()-1;
+	for (size_t i=0; i<sz; i++) {
+	  if (a[i] < b[i]) return true;
+	  if (a[i] > b[i]) return false;
+	}
+      }
+      return false;
+    }
+  };
+
   //! Coefficient and channel config map/dictionary
   using mssaConfig =
-    std::map<std::string, std::tuple<Coefs::CoefsPtr, std::vector<Key>, std::vector<Key>>>;
+    std::map<std::string, std::tuple<CoefClasses::CoefsPtr, std::vector<Key>, std::vector<Key>>>;
 
   //! Detrending style
   enum class TrendType {perChannel, totVar, totPow};
+
+  //! Get enum names from a constant map (this is tedious; there is
+  //! probably an easier way)
+  const std::map<int, std::string> getTrendType
+    { {static_cast<std::underlying_type<TrendType>::type>(TrendType::perChannel), "per channel"   },
+      {static_cast<std::underlying_type<TrendType>::type>(TrendType::totVar),     "total variance"},
+      {static_cast<std::underlying_type<TrendType>::type>(TrendType::totPow),     "total power"   } };
+
 
   //! Base class for per component coefficients
   class CoefDB
@@ -46,7 +77,7 @@ namespace MSSA
     bool complexKey;
 
     //! Coefficients
-    Coefs::CoefsPtr coefs;
+    CoefClasses::CoefsPtr coefs;
 
     //! Packing routines
     //@{
@@ -57,11 +88,13 @@ namespace MSSA
     //! Spherical coefficients
     void pack_sphere();
     void unpack_sphere();
+    void restore_background_sphere();
 
     //@{
     //! Cylindrical coefficients
     void pack_cylinder();
     void unpack_cylinder();
+    void restore_background_cylinder();
     //@}
 
     //@{
@@ -83,7 +116,7 @@ namespace MSSA
     using LMKey = std::tuple<unsigned, unsigned>;
 
     //! Database itself
-    std::map<Key, std::vector<double>> data;
+    std::map<Key, std::vector<double>, mSSAkeyCompare> data;
 
     //! Times for each slice
     std::vector<double> times;
@@ -92,18 +125,21 @@ namespace MSSA
     CoefDB() {}
 
     //! Constructor
-    CoefDB(const std::string& name, Coefs::CoefsPtr coefs,
+    CoefDB(const std::string& name, CoefClasses::CoefsPtr coefs,
 	   const std::vector<Key>& keys, const std::vector<Key>& bkeys, 
 	   unsigned index, unsigned stride=1,
 	   double tmin=-std::numeric_limits<double>::max(),
 	   double tmax= std::numeric_limits<double>::max());
 
     //! Update and return working copy of coefficients
-    Coefs::CoefsPtr endUpdate();
+    CoefClasses::CoefsPtr endUpdate();
 
     //! Copy all of the data; make new instances of shared pointer
     //! objects
     std::shared_ptr<CoefDB> deepcopy();
+
+    //! Copy data from backround back to the coefficient database
+    void background();
 
   };
 
@@ -238,10 +274,16 @@ components:
       comps[c]->data[key] = data;
     }
 
-    //! Update the working data to the working coefficients and return a map
-    std::map<std::string, Coefs::CoefsPtr> endUpdate()
+    //! Copy data from backround back to the coefficient database
+    void background()
     {
-      std::map<std::string, Coefs::CoefsPtr> ret;
+      for (auto v : comps) v->background();
+    }
+
+    //! Update the working data to the working coefficients and return a map
+    std::map<std::string, CoefClasses::CoefsPtr> endUpdate()
+    {
+      std::map<std::string, CoefClasses::CoefsPtr> ret;
       for (auto & v : comps) {
 	ret[v->name] = v->endUpdate();
       }

@@ -26,7 +26,7 @@ class OrbResTable;
 class ResTable;
 class DiskHalo;
 
-class RespMat
+class RespMat : public std::enable_shared_from_this<RespMat>
 {
   friend class OrbitTable;
   friend class OrbResTable;
@@ -34,7 +34,6 @@ class RespMat
   friend class DiskHalo;
 
 protected:
-
 				// Parameters
   Eigen::MatrixXcd mr;
   Eigen::MatrixXcd mr2;
@@ -111,6 +110,11 @@ protected:
   static const int defaultPVALUE = 1;
 
   Timer timer;
+
+  std::shared_ptr<RespMat> getptr() {
+    return shared_from_this();
+  }
+
 
  public:
 

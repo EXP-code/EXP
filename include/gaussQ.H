@@ -76,9 +76,9 @@ public:
   double get_beta(void) { return beta; }
 
   int bomb(const char *s) {
-    std::cerr << "ERROR from " << FunctionID << ": " << s << std::endl;
-    exit(-1);
-    return 0;
+    std::ostringstream sout;
+    sout << "ERROR from " << FunctionID << ": " << s;
+    throw std::runtime_error(sout.str());
   }
 };
 

@@ -33,7 +33,7 @@ namespace Field
     }
   }
   
-  void FieldGenerator::check_times(Coefs::CoefsPtr coefs)
+  void FieldGenerator::check_times(CoefClasses::CoefsPtr coefs)
   {
     std::vector<double> ctimes = coefs->Times();
     std::sort(ctimes.begin(), ctimes.end());
@@ -49,7 +49,7 @@ namespace Field
   }
   
   std::map<double, std::map<std::string, Eigen::MatrixXf>>
-  FieldGenerator::slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs)
+  FieldGenerator::slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs)
   {
     // Check
     //
@@ -159,7 +159,7 @@ namespace Field
     return ret;
   }
   
-  void FieldGenerator::file_slices(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
+  void FieldGenerator::file_slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
 				   const std::string prefix, const std::string outdir)
   {
     auto db = slices(basis, coefs);
@@ -205,7 +205,7 @@ namespace Field
   
   
   std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>>
-  FieldGenerator::volumes(Basis::BasisPtr basis, Coefs::CoefsPtr coefs)
+  FieldGenerator::volumes(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs)
   {
     std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>> ret;
 
@@ -289,7 +289,7 @@ namespace Field
     return ret;
   }
   
-  void FieldGenerator::file_volumes(Basis::BasisPtr basis, Coefs::CoefsPtr coefs,
+  void FieldGenerator::file_volumes(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
 				    const std::string prefix, const std::string outdir)
   {
     auto db = volumes(basis, coefs);

@@ -43,7 +43,7 @@ string   outfile;
 				// Local function defs
 Eigen::VectorXd
 scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
-	    AxiSymBiorth& s, double (*func)(double, int, int), 
+	    AxiSymBiorth& s, std::function<double(double, int, int)> func, 
 	    int numc, int numg);
 
 double plgndr(int l, int m, double costh); 

@@ -131,7 +131,7 @@ public:
 };
 
 
-void Newton(double, double *, double *);
+void Newton(double, Eigen::VectorXd&, Eigen::VectorXd&);
 double v_circ(double);
 double vertical_kappa(double);
 double epicyclic_kappa(double);

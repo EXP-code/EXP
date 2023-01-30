@@ -17,8 +17,8 @@ namespace MSSA
     
     //@{
     //! Repacked stream data
-    std::map<Key, std::vector<double> > data;
-    std::map<Key, double> mean, var;
+    std::map<Key, std::vector<double>, mSSAkeyCompare > data;
+    std::map<Key, double, mSSAkeyCompare> mean, var;
     //@}
 
     //! Coefficient container
@@ -36,7 +36,7 @@ namespace MSSA
     bool computed, reconstructed;
 
     //! The reconstructed coefficients for each PC
-    std::map<Key, Eigen::MatrixXd> RC;
+    std::map<Key, Eigen::MatrixXd, mSSAkeyCompare> RC;
 
     //! The left singular vectors (PC)
     Eigen::MatrixXd PC;
@@ -199,7 +199,11 @@ namespace MSSA
 	name as the key.  You may call resetReconstructed() to get a
 	fresh copy of the data.
     */
-    std::map<std::string, Coefs::CoefsPtr> getReconstructed();
+    std::map<std::string, CoefClasses::CoefsPtr> getReconstructed();
+
+    //! Copy background coefficients to working coefficient database
+    //! (e.g. for use after a zerocopy())
+    void background() { coefDB.background(); }
 
     //@{
     /** Compute w-correlation matrix for a single trajectory matrix
@@ -268,6 +272,13 @@ namespace MSSA
       return ret;
     }
 
+    //! Provides a list of all channel keys
+    std::vector<Key> getAllKeys()
+    {
+      std::vector<Key> ret;
+      for (auto v : mean) ret.push_back(v.first);
+      return ret;
+    }
   };
 
 

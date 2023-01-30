@@ -33,7 +33,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.50 [07/12/22 cuda kinetic high Z]"
+#define VERSION_ID "0.52 [12/24/22 ADAS RR+DR updates]"
 
 using namespace std;
 using namespace NTC;
@@ -11953,7 +11953,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
   // Compute particle interactions weights
   //
-  std::array<double, 4> na, nab;
+  std::array<double, 4> na{0, 0, 0, 0}, nab{0, 0, 0, 0};
   
   for (auto p : cpair) {
     Particle* const p1 = tree->Body(c->bods[p.first]);
@@ -11972,7 +11972,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
     }
 				// The molecular weight
     Mu1 = 1.0/Mu1;
-    Mu2 = 1.0/Mu1;
+    Mu2 = 1.0/Mu2;
 
     // Proportional to number of true particles in each superparticle
     //
@@ -11988,7 +11988,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
     ww1     = PP[0]->frc1 * PP[0]->W1;
     ww2     = PP[0]->frc2 * PP[0]->W2;
     na[0]  += ww1;
-    if (std::max<double>(ww1,ww2)>0.0) 
+    if (std::max<double>(ww1,ww2)>0.0)
       nab[0] += ww1*ww2/std::max<double>(ww1,ww2);
 
     ww1     = PP[1]->frc1 * PP[1]->W1;
@@ -12008,6 +12008,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
     na[3]  += ww1;
     if (std::max<double>(ww1,ww2)>0.0)
       nab[3] += ww1*ww2/std::max<double>(ww1,ww2);
+
   }
 
   // Do all pairs

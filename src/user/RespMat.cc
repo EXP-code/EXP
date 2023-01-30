@@ -341,7 +341,7 @@ void RespMat::make_matrix(void)
   
   /* Initialize orbit list */
   
-  Orb = std::shared_ptr<OrbitTable>(this, RECS);
+  Orb = std::make_shared<OrbitTable>(getptr(), RECS);
   
   /* Set up grids to do angular momentum <kappa> integrals */
   
@@ -483,8 +483,8 @@ void RespMat::make_matrix_pv(void)
   double dk, kap2, expok, fac, tol1, tol2, tot_time, tot_time_d;
   std::complex<double> temp, temp2;
   
-  /* Set up global values */
-  
+  // Set up global values
+  //
   if (dof!=2 && dof!=3) {	// Sanity check
     cerr << "RespMat::make_matrix_pv: Wrong number of degrees of freedom (help!)" << endl;
     exit(-1);
@@ -529,28 +529,28 @@ void RespMat::make_matrix_pv(void)
     break;
   }
   
-  /* Set up for matrix element computation
-     define and clean array . . . */
-  
+  // Set up for matrix element computation
+  // define and clean array . . .
+  //
   mab.resize(nmax*nmax);
   for (auto & v : mab) {
     v.resize(num_K);
     v.setZero();
   }
   
-  /* Set up for array of orbits in <E> at fixed <kappa> */
-  
+  // Set up for array of orbits in <E> at fixed <kappa>
+  //
   Emodmin = model->get_pot(model->get_min_radius());
   Emodmax = model->get_pot(model->get_max_radius());
   
-  /* Initialize orbit list */
+  // Initialize orbit list
+  //
+  ORes = make_shared<OrbResTable>(getptr(), RECS);
   
-  ORes = make_shared<OrbResTable>(this, RECS);
-  
-  /* Set up grids to do angular momentum <kappa> integrals */
-  
+  // Set up grids to do angular momentum <kappa> integrals
+  //
   ikap = 1;
-  /* Read in old check point if it exists */
+  // Read in old check point if it exists
   if (CPREAD) get_chkpnt();
   for (; ikap<=num_K; ikap++) {
     if (SITYPE==jacoint)
@@ -685,10 +685,8 @@ void RespMat::make_matrix_pv(void)
     }
   }
 
-
-  delete ORes;
-
-				// Set computed flag
+  // Set computed flag
+  //
   matrix_computed = 1;
   matrix_computed_pv = 1;
 }
@@ -702,19 +700,17 @@ void RespMat::make_matrix_pv(void)
  *
  ****************************************************************************/
 
-/* Integrand for real (off-resonant) elements (kappa ang.mom. integral) */
-
-
-OrbitTable::OrbitTable(RespMat* pp, int recs)
+// Integrand for real (off-resonant) elements (kappa ang.mom. integral)
+//
+OrbitTable::OrbitTable(std::shared_ptr<RespMat> pp, int recs)
 {
   p = pp;			// Pointer to calling object
 
   orbits.resize(p->num_E);
-  if (!orbits) p->bomb("couldn't allocate orbits");
   for (int i=0; i<p->num_E; i++) {
     orbits[i] = SphericalOrbit(p->model);
     orbits[i].set_numerical_params(recs);
-    orbits[i].set_biorth(*(p->biorth), p->l, p->nmax, 1);
+    orbits[i].set_biorth(p->biorth, p->l, p->nmax, 1);
   }
 
   PotTrans.resize(p->num_E);
@@ -753,7 +749,7 @@ void OrbitTable::setup()
 }
 
 // For each E (and K), compute run of ortho functions for each component
-
+//
 void OrbitTable::setup_p_array(void)
 {
   double fac, facd;
@@ -774,7 +770,7 @@ void OrbitTable::setup_p_array(void)
     t0 = timer.getTime();
   }
 
-  for (int i=10 i<p->num_E; i++)
+  for (int i=0; i<p->num_E; i++)
     orbits[i].pot_trans(p->l1, p->l2, PotTrans[i]);
   if (p->VERBOSE) {
     p->time_in_biorth_gen += timer.getTime() - t0;
@@ -795,23 +791,22 @@ void OrbitTable::setup_p_array(void)
 				// Define a default
 double OrbResTable::derivative_step = 1.0e-3;
 
-OrbResTable::OrbResTable(RespMat* pp, int recs)
+OrbResTable::OrbResTable(std::shared_ptr<RespMat> pp, int recs)
 {
 
   p = pp;			// Pointer to calling object
 
   orbits.resize(p->num_E);
-  if (!orbits) p->bomb("couldn't allocate orbits");
 
   for (int i=0; i<p->num_E; i++) {
-    orbits[i] = SphericalOrbit(p->model);
-    orbits[i].set_numerical_params(recs);
-    orbits[i].set_biorth(*(p->biorth), p->l, p->nmax, 1);
+    orbits[i] = std::make_shared<SphericalOrbit>(p->model);
+    orbits[i]->set_numerical_params(recs);
+    orbits[i]->set_biorth(p->biorth, p->l, p->nmax, 1);
   }
 
   torbit = SphericalOrbit(p->model);
   torbit.set_numerical_params(recs);
-  torbit.set_biorth(*(p->biorth), p->l, p->nmax, 1);
+  torbit.set_biorth(p->biorth, p->l, p->nmax, 1);
     
   PotTrans .resize(p->num_E);
   PotTrans2.resize(p->num_E);
@@ -833,7 +828,6 @@ OrbResTable::OrbResTable(RespMat* pp, int recs)
 
 OrbResTable::~OrbResTable()
 {
-  delete [] orbits;
 }
 
 void OrbResTable::setup()
@@ -845,20 +839,20 @@ void OrbResTable::setup()
   for (i=1; i<=p->num_E; i++) {
     p->pp_x[i] = p->Emodmin + p->ESTEP + dE*(i-1);
     p->pp_x2[i] = p->Emodmin + p->ESTEP + dE*(i-1);
-    orbits[i].new_orbit(p->pp_x2[i], p->kappa);
+    orbits[i]->new_orbit(p->pp_x2[i], p->kappa);
     if (p->dof==2)
-      fac = orbits[i].Jmax()/orbits[i].get_freq(1);
+      fac = orbits[i]->Jmax()/orbits[i]->get_freq(1);
     else
-      fac = orbits[i].Jmax()*orbits[i].Jmax()/orbits[i].get_freq(1);
+      fac = orbits[i]->Jmax()*orbits[i]->Jmax()/orbits[i]->get_freq(1);
     dfqE[i] = fac *
-      (p->model)->dfde(orbits[i].Energy(), orbits[i].AngMom());
+      (p->model)->dfde(orbits[i]->Energy(), orbits[i]->AngMom());
     dfqL[i] = fac *
-      (p->model)->dfdl(orbits[i].Energy(), orbits[i].AngMom());
+      (p->model)->dfdl(orbits[i]->Energy(), orbits[i]->AngMom());
   }
 }
 
 // For each E (and K), compute run of ortho functions for each component
-
+//
 void OrbResTable::setup_E_array(void)
 {
   double Et, last, fac=0, facd, facdf, t0=0, dfdE, dfdL;
@@ -874,7 +868,7 @@ void OrbResTable::setup_E_array(void)
   for (int i=0; i<p->num_E; i++) {
     last = fac;
     fac = p->omp.real() + 
-      orbits[i].get_freq(1)*p->l1 + orbits[i].get_freq(2)*p->l2;
+      orbits[i]->get_freq(1)*p->l1 + orbits[i]->get_freq(2)*p->l2;
     EInt[i] = (dfqE[i]*(fac - p->omp.real()) + dfqL[i]*p->l2) * facd/fac;
       
     if (i==0) continue;
@@ -927,7 +921,7 @@ void OrbResTable::setup_E_array(void)
     t0 = timer.getTime();
   }
   for (int i=1; i<=p->num_E; i++)
-    orbits[i].pot_trans(p->l1, p->l2, PotTrans[i]);
+    orbits[i]->pot_trans(p->l1, p->l2, PotTrans[i]);
   if (p->VERBOSE) {
     p->time_in_biorth_gen += timer.getTime()  - t0;
   }
@@ -1613,7 +1607,7 @@ void RespMat::get_emax(void)
 /* Function to iteratively locate radius of circular orbit with energy EE */
 
 static double Emdl;
-static AxiSymModel *mdl;
+static std::shared_ptr<AxiSymModel> mdl;
 
 static double Eqcirc(double r)
 {

@@ -77,13 +77,16 @@ private:
 public:
   //! Enpoint offset for root finding (small)
   static double KSTOL;
+
   //! Root finding tolerance (small)
   static double KSZTOL;
   
   //! Constructor
   OneDTrig(void);
+
   //! Constructor
   OneDTrig(double kx);
+
   //! Constructor
   OneDTrig(double kx, double ZMAX);
 
@@ -92,8 +95,10 @@ public:
 
   //! Get potential value for basis
   double potl(const int n, const int tmp, const double z);
+
   //! Get density value for basis
   double dens(const int n, const int tmp, const double z);
+
   //! Get force value for basis
   double force(const int n, const int tmp, const double z);
 
@@ -101,32 +106,40 @@ public:
 				// (using recursion relation)
   //! Return potential basis in a vector
   void potl(const int n, const int tmp, const double z, Eigen::VectorXd& vec);
+
   //! Return density basis in a vector
   void dens(const int n, const int tmp, const double z, Eigen::VectorXd& vec);
+
   //! Return force basis in a vector
   void force(const int n, const int tmp, const double z, Eigen::VectorXd& vec);
 
   //! Non-dimensional to dimensional mapping
   double rb_to_r(double const x)    { return x; }
+
   //! Dimensional to non-dimensional mapping
   double r_to_rb(double const x)    { return x; }
+
   //! Jacobian for non-dimensional mapping
   double d_r_to_rb(double const x)  { return 1.0; }
 
   //! Minimum value in non-dimensional mapping
   double rb_min(void)               { return -zmax; }
+
   //! Maximum value in non-dimensional mapping
   double rb_max(void)               { return zmax; }
 
   //! Kernel value
   double krnl(int n, int k=0)         { return  1.0; }
+
   //! Norm value
   double norm(int n, int k=0)         { return  1.0; }
 
   //! Return potential field for given coefficient vector
   double get_potl(double r, int l, Eigen::VectorXd& coef);
+
   //! Return density field for given coefficient vector
   double get_dens(double r, int l, Eigen::VectorXd& coef);
+
   //! Return force field for given coefficient vector
   double get_force(double r, int l, Eigen::VectorXd& coef);
 

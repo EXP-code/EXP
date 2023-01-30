@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <Eigen/Eigen>
+#include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
 
 #include <ParticleReader.H>
@@ -17,7 +18,7 @@ namespace Field
   class FieldGenerator;
 }
 
-namespace Basis
+namespace BasisClasses
 {
     using RowMatrixXd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
@@ -54,7 +55,7 @@ namespace Basis
     Callback ftor;
 
     //! Return instance for coefficients created from arrays
-    Coefs::CoefStrPtr coefret;
+    CoefClasses::CoefStrPtr coefret;
 
     //! Center vector for coefficients created from arrays
     std::vector<double> coefctr;
@@ -94,7 +95,7 @@ namespace Basis
     std::string name;
     
     //! Load coefficients into the new CoefStruct
-    virtual void load_coefs(Coefs::CoefStrPtr coefs, double time) = 0;
+    virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time) = 0;
 
     //! Using MPI
     bool use_mpi;
@@ -111,14 +112,14 @@ namespace Basis
     
     //! Generate coeffients from a particle reader and optional center
     //! location for the expansion
-    Coefs::CoefStrPtr createFromReader
+    CoefClasses::CoefStrPtr createFromReader
     (PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
     
     //! Generate coeffients from an array and optional center location
     //! for the expansion
-    Coefs::CoefStrPtr createFromArray
+    CoefClasses::CoefStrPtr createFromArray
     (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
-     std::vector<double> center={0.0, 0.0, 0.0});
+     std::vector<double> center={0.0, 0.0, 0.0}, bool roundrobin=true);
     
     //! Generate coeffients from an array and optional center location
     //! for the expansion using multiple particle partitions
@@ -132,11 +133,11 @@ namespace Basis
     //! Initialize accumulating coefficients from arrays.  This is
     //! called once to initialize the accumulation.
     void addFromArray
-    (Eigen::VectorXd& m, RowMatrixXd& p);
+    (Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin=true);
     
     //! Create and the coefficients from the array accumulation with the
     //! provided time value
-    Coefs::CoefStrPtr makeFromArray(double time=0.0);
+    CoefClasses::CoefStrPtr makeFromArray(double time=0.0);
     //@}
     
     //! Get potential, density and forces at a point
@@ -158,7 +159,7 @@ namespace Basis
     virtual void make_coefs(void) = 0;
     
     //! Provide a set of coefficients using a CoefStruct
-    virtual void set_coefs(Coefs::CoefStrPtr coefs) = 0;
+    virtual void set_coefs(CoefClasses::CoefStrPtr coefs) = 0;
 
     //@{
     //! The coefficient factory.  Creates a shared pointer to derived
@@ -225,10 +226,10 @@ namespace Basis
 			  double& potr, double& pott, double& potp);
     
     //! Load coefficients into the new CoefStruct
-    virtual void load_coefs(Coefs::CoefStrPtr coefs, double time);
+    virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
 
     //! Set coefficients
-    virtual void set_coefs(Coefs::CoefStrPtr coefs);
+    virtual void set_coefs(CoefClasses::CoefStrPtr coefs);
 
     //! Valid keys for YAML configurations
     static const std::set<std::string> valid_keys;
@@ -353,10 +354,10 @@ namespace Basis
 			  double& potr, double& pott, double& potp);
 
     //! Load coefficients into the new CoefStruct
-    virtual void load_coefs(Coefs::CoefStrPtr coefs, double time);
+    virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
 
     //! Set coefficients
-    virtual void set_coefs(Coefs::CoefStrPtr coefs);
+    virtual void set_coefs(CoefClasses::CoefStrPtr coefs);
 
     //! Valid keys for YAML configurations
     static const std::set<std::string> valid_keys;
@@ -418,8 +419,81 @@ namespace Basis
     }
   };
   
+  //! Time-dependent potential-density model
+  using BasisCoef = std::tuple<std::shared_ptr<Basis>, std::shared_ptr<CoefClasses::Coefs>>;
+
+  //! The function signature
+  using AccelFunctor =
+    std::function<Eigen::MatrixXd&(double, Eigen::MatrixXd&, Eigen::MatrixXd&, BasisCoef)>;
+  
+  //! Acceleration function class
+  class AccelFunc
+  {
+  protected:
+
+    //! This evaluates the accelerations for all particles from the
+    //! current component.  This is always the same and implemented in
+    //! this base class.
+    Eigen::MatrixXd&
+    evalaccel(Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod);
+
+  public:
+    
+    AccelFunc() {}
+
+    //! This evaluates the coefficients at time t.  This is the member
+    //! that is implemented in derived classes.  It is more naturally
+    //! a protected member in C++, but that makes deriving a class in
+    //! Python more difficult.
+    virtual void
+    evalcoefs(double t, BasisCoef mod) = 0;
+
+    //! This computes and return the acceleration array
+    Eigen::MatrixXd&
+    F(double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel,  BasisCoef mod)
+    {
+      // Evaluate the coefficients for time t
+      evalcoefs(t, mod);
+
+      // Compute and return the accumulated acceleration
+      return evalaccel(ps, accel, mod);
+    }
+  };
+
+  //! Evaluate acceleration for one component, return acceleration
+  class AllTimeAccel : public AccelFunc
+  {
+  public:
+    
+    //! Constructor
+    AllTimeAccel() {}
+
+    //! Interpolate and install coefficients at time t
+    void evalcoefs(double t, BasisCoef mod);
+
+  };
+
+  //! Evaluate acceleration for one component, return acceleration
+  class SingleTimeAccel : public AccelFunc
+  {
+  public:
+    
+    //! Initialize and install coefficients for the given time
+    SingleTimeAccel(double time, std::vector<BasisCoef> mod);
+
+    //! No coefficient evaluation
+    void evalcoefs(double t, BasisCoef mod) {}
+
+  };
+
+
+  std::tuple<Eigen::VectorXd, Eigen::Tensor<float, 3>>
+  IntegrateOrbits (double tinit, double tfinal, double h,
+		   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe, AccelFunctor F);
+
   using BasisPtr = std::shared_ptr<Basis>;
 }
+// END: namespace BasisClasses
   
 #endif // _BasisFactory_H
   

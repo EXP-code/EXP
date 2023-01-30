@@ -4,7 +4,7 @@
 #include <memory>
 #include <Eigen/Eigen>
 
-namespace Coefs
+namespace CoefClasses
 {
   
   //! This is a general struct for any dimensionality
@@ -40,11 +40,21 @@ namespace Coefs
     //! Create an empty data storage
     virtual void create() = 0;
 
+    //! Make a complete copy into a new instance
+    virtual std::shared_ptr<CoefStruct> deepcopy() = 0;
+
     //! Copy base-class fields
     void copyfields(std::shared_ptr<CoefStruct> p);
 
     //! Zero the existing data
     void zerodata() { coefs.setZero(); }
+
+    //! Read-write access to coefficient data (no copy)
+    Eigen::Ref<EigenColMajor> setCoefs() { return coefs; }
+
+    //! Read-only access to coefficient data (no copy)
+    Eigen::Ref<const EigenColMajor> getCoefs() { return coefs; }
+
   };
   
   //! Specialization of CoefStruct for spheres
@@ -71,7 +81,7 @@ namespace Coefs
     void create();
 
     //! Copy all of data contents to a new instance
-    std::shared_ptr<SphStruct> deepcopy();
+    std::shared_ptr<CoefStruct> deepcopy();
 
   };
   
@@ -93,7 +103,7 @@ namespace Coefs
     void create();
 
     //! Copy all of data contents to a new instance
-    std::shared_ptr<CylStruct> deepcopy();
+    std::shared_ptr<CoefStruct> deepcopy();
   };
   
   //! Specialization of CoefStruct for a data table
@@ -113,7 +123,7 @@ namespace Coefs
     void create();
 
     //! Copy all of data contents to a new instance
-    std::shared_ptr<TblStruct> deepcopy();
+    std::shared_ptr<CoefStruct> deepcopy();
   };
   
   typedef std::shared_ptr<CoefStruct> CoefStrPtr;
@@ -122,7 +132,7 @@ namespace Coefs
   typedef std::shared_ptr<TblStruct>  TblStrPtr;
 
 }  
-// END namespace Coefs
+// END namespace CoefClasses
 
 
 #endif

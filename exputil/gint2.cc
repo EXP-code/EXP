@@ -61,6 +61,7 @@
  *
  ***************************************************************************/
 
+#include <functional>
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
@@ -82,7 +83,7 @@ using namespace std;
 static int N=0,M;             /* N=0 force comp. of knots on first call */
 static std::shared_ptr<LegeQuad> lq;
 
-double gint_0(double a, double b, double (*f) (double), int NGauss)
+double gint_0(double a, double b, std::function<double(double)> f, int NGauss)
 {
   // Get values weights and abcissas for Gauss-Legendre integration if
   // needed
@@ -110,15 +111,15 @@ double gint_0(double a, double b, double (*f) (double), int NGauss)
   double accum = 0.0;
 
   for (int i=0; i<M; i++) {
-    accum += lq->weight(i)*(*f)( bma*lq->knot(i)+bpa);
-    accum += lq->weight(i)*(*f)(-bma*lq->knot(i)+bpa);
+    accum += lq->weight(i)*f( bma*lq->knot(i)+bpa);
+    accum += lq->weight(i)*f(-bma*lq->knot(i)+bpa);
   }
 
   if (N+1-M == M)
-    accum += lq->weight(M-1)*(*f)( bma*lq->knot(M-1)+bpa);
+    accum += lq->weight(M-1)*f( bma*lq->knot(M-1)+bpa);
   else {
-    accum += lq->weight(M-1)*(*f)( bma*lq->knot(M-1)+bpa);
-    accum += lq->weight(M-1)*(*f)(-bma*lq->knot(M-1)+bpa);
+    accum += lq->weight(M-1)*f( bma*lq->knot(M-1)+bpa);
+    accum += lq->weight(M-1)*f(-bma*lq->knot(M-1)+bpa);
   }
     
 
@@ -126,7 +127,7 @@ double gint_0(double a, double b, double (*f) (double), int NGauss)
   return bma*accum;
 }
 
-double gint_2(double a, double b, double (*f) (double), int NGauss)
+double gint_2(double a, double b, std::function<double(double)> f, int NGauss)
 {
   // Get values weights and abcissas for Gauss-Legendre integration if
   // needed
@@ -151,7 +152,7 @@ double gint_2(double a, double b, double (*f) (double), int NGauss)
   double bma = b-a;
   double accum = 0.0;
   for (int i=0; i<M; i++)
-    accum += 2.0*lq->weight(i)*(*f)(a+bma*lq->knot(i)*lq->knot(i));
+    accum += 2.0*lq->weight(i)*f(a+bma*lq->knot(i)*lq->knot(i));
 
   // Done
   return sqrt(b-a)*accum;

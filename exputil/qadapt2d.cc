@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 
-static func_2d q2_fdum;
+static std::function<double(double, double)> q2_fdum;
 static double q2_ay, q2_by, q2_tol, q2_xdum;
 
 
@@ -14,8 +14,8 @@ with Gaussian quadrature.
 
 */
 
-double qadapt2d(double ax, double bx, double ay, double by, func_2d f, 
-	double tol)
+double qadapt2d(double ax, double bx, double ay, double by,
+		std::function<double(double, double)> f, double tol)
 {
 	double f1(double);
 
@@ -45,7 +45,7 @@ double f1(double x)
 double f2(double y)
 {
 	double f;
-	f = (*q2_fdum)(q2_xdum, y);
+	f = q2_fdum(q2_xdum, y);
 	return f;
 }
 	

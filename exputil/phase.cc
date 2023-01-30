@@ -209,7 +209,7 @@ Phase Phase::advance(double& dt)
     uscale[i] = fabs(u[i]) + fabs(dt*dudt[i]) + TINY;
   
   
-  /* scale for work done */
+  // scale for work done
   
   uscale[6] = fabs(u[6]) + fabs(dt*dudt[6]) + 1.0;
   

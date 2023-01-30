@@ -42,16 +42,18 @@
  *
  ***************************************************************************/
 
-#include <math.h>
+#include <functional>
 #include <string>
+#include <cmath>
+
 #include <massmodel.H>
 #include <interp.H>
 
 #define OFFSET 1.0e-3
 #define OFFTOL 1.2
 
-extern double gint_0(double a, double b, double (*f) (double), int NGauss);
-extern double gint_2(double a, double b, double (*f) (double), int NGauss);
+extern double gint_0(double a, double b, std::function<double(double)> f, int NGauss);
+extern double gint_2(double a, double b, std::function<double(double)> f, int NGauss);
 
 #define TSTEP 1.0e-8
 #define NGauss 96

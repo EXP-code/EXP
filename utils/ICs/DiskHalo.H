@@ -49,7 +49,7 @@ class DiskHalo
 
   std::vector<Eigen::MatrixXd> disktableP, disktableN;
   Eigen::MatrixXd epitable, dv2table, asytable;
-  double dP, dR, dZ;
+  double dP, dR, dZ, sigma0;
 
   Eigen::MatrixXd halotable;
   double dr, dc;
@@ -188,7 +188,15 @@ public:
   static double TOLE;		// Energy offset for particle selection
 				// Default: 0.003
 
-  static double Q;		// Toomre Q
+  static double Q;		// Toomre Q.  Default: 0.0 (use
+				// exponential)
+
+  static double XI;             // Ratio of radial to tangential
+				// velocity dispersion scale
+				// length. Default: 1.0
+
+  static double SIG0;           // Velocity dispersion fraction at a
+				// scale length. Default: 0.1
 
   static double R_DF;		// Change over points for DF and Jeans
   static double DR_DF;
@@ -324,8 +332,10 @@ public:
 
   void zero_cov(bool val) { cov = val; }
 
-  void profile(ostream &rotfile, vector<Particle>& dpart,
+  void profile(std::ostream &rotfile, vector<Particle>& dpart,
 	       double rmin, double rmax, int numr);
+
+  void disk_model(const std::string &modfile);
 
 private:
   DiskGenType type;

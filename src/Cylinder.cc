@@ -467,7 +467,7 @@ void Cylinder::initialize()
 	}
       }
 
-      playback = std::dynamic_pointer_cast<Coefs::CylCoefs>(Coefs::Coefs::factory(file));
+      playback = std::dynamic_pointer_cast<CoefClasses::CylCoefs>(CoefClasses::Coefs::factory(file));
 
       if (not playback) {
 	throw GenericError("Cylinder: failure in downcasting",
@@ -1493,7 +1493,7 @@ void Cylinder::dump_coefs(ostream& out)
 void Cylinder::dump_coefs_h5(const std::string& file)
 {
   // Add the current coefficients
-  auto cur = std::make_shared<Coefs::CylStruct>();
+  auto cur = std::make_shared<CoefClasses::CylStruct>();
 
   cur->time = tnow;
   cur->geom = geoname[geometry];

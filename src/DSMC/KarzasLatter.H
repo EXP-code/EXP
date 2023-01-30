@@ -19,14 +19,8 @@ private:
 
   atomicData *ad;
 
-  //! Number of levels
-  int ngfb;
-
-  //! Rank of energy vector
-  int nume;
-
   //! Energy vector
-  std::vector<double> pe;
+  std::map<int, std::vector<double>> pe;
 
   //! Spline pointer
   typedef std::shared_ptr<tk::spline> tksplPtr;

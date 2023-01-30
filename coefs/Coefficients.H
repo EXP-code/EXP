@@ -12,7 +12,7 @@
 // The EXP native coefficient classes
 #include <CoefStruct.H>
 
-namespace Coefs
+namespace CoefClasses
 { 
   //! An index key
   using Key = std::vector<unsigned>;
@@ -548,7 +548,7 @@ namespace Coefs
 
   using CoefsPtr = std::shared_ptr<Coefs>;
 }
-// END namespace Coefs
+// END namespace CoefClasses
   
 #endif
   
