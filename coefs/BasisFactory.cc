@@ -215,8 +215,7 @@ namespace BasisClasses
     
     // Set rmin to a sane value if not specified
     if (not conf["rmin"] or rmin < mod->get_min_radius()) 
-      rmin = max<double>(mod->get_min_radius()*2.0, 
-			 mod->get_max_radius()*1.0e-4);
+      rmin = mod->get_min_radius();
 
     // Set rmax to a sane value if not specified
     if (not conf["rmax"] or rmax > mod->get_max_radius()) 
