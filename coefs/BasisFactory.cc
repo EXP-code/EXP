@@ -181,9 +181,13 @@ namespace Basis
     
     mod = std::make_shared<SphericalModelTable>(model_file);
     
-    rmin = max<double>(mod->get_min_radius()*2.0, 
-		       mod->get_max_radius()*1.0e-4);
-    rmax = mod->get_max_radius()*0.99;
+    // Set rmin to a sane value if not specified
+    if (not conf["rmin"] or rmin < mod->get_min_radius()) 
+      rmin = mod->get_min_radius();
+
+    // Set rmax to a sane value if not specified
+    if (not conf["rmax"] or rmax > mod->get_max_radius()) 
+      rmax = mod->get_max_radius()*0.99;
     
     sl = std::make_shared<SLGridSph>
       (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rscl,
