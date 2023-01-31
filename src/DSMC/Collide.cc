@@ -13,6 +13,7 @@ using namespace std;
 #include "pHOT.H"
 #include "TreeDSMC.H"
 #include "Collide.H"
+#include "atomic_constants.H"
 
 #ifdef USE_GPTL
 #include <gptl.h>
@@ -123,14 +124,6 @@ unsigned Collide::collTnum = std::numeric_limits<unsigned>::max();
 //
 int Collide::TSPOW     = 4;
 
-// Proton mass (g)
-//
-const double mp        = 1.67262158e-24;
-
-// Boltzmann constant (cgs)
-//
-const double boltz     = 1.3810e-16;
-
 // Allow counter to stop job
 //
 bool Collide::numSanityStop     = false;
@@ -202,10 +195,11 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
   void *retval;
   
 #if HAVE_LIBCUDA==1
-  if (nthrds==1 or c0->cudaDevice>=0) {
+  if (nthrds==1 or c0->cudaDevice>=0)
 #else
-  if (nthrds==1) {
+  if (nthrds==1)
 #endif
+  {
     thrd_pass_Collide td;
     
     td.p        = this;
@@ -282,7 +276,7 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
 
     double cpu_duration =
       (std::clock() - startcputime) / (double)CLOCKS_PER_SEC;
-
+    
     std::chrono::duration<double> wctduration =
       (std::chrono::high_resolution_clock::now() - wcts);
 
@@ -309,28 +303,17 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
 double   Collide::EPSMratio = -1.0;
 unsigned Collide::EPSMmin   = 0;
 
-std::vector<double> Collide::atomic_weights;
+std::map<unsigned, double> Collide::atomic_weights;
 
 //! Weights in atomic mass units
 void Collide::atomic_weights_init()
 {
-  atomic_weights.resize(15, -1.0);
+  // Get Z, W map from PeriodicTable database
+  PeriodicTable PT;
+  atomic_weights = PT.getAtomicWeights();
 
-  atomic_weights[0]  = 0.000548579909; // Mass of electron
-  atomic_weights[1]  = 1.0079;	       // Hydrogen
-  atomic_weights[2]  = 4.0026;	       // Helium
-  atomic_weights[3]  = 6.941;	       // Lithum
-  atomic_weights[4]  = 9.0122;	       // Beryllium
-  atomic_weights[5]  = 10.811;	       // Boron
-  atomic_weights[6]  = 12.011;	       // Carbon
-  atomic_weights[7]  = 14.007;	       // Nitrogen
-  atomic_weights[8]  = 15.999;	       // Oxygen
-  atomic_weights[9]  = 18.998;	       // Florine
-  atomic_weights[10] = 20.180;	       // Neon
-  atomic_weights[11] = 22.990;	       // Sodium
-  atomic_weights[12] = 24.305;	       // Magnesium
-  atomic_weights[13] = 26.982;	       // Aluminium
-  atomic_weights[14] = 28.085;	       // Silicon
+  // Add the electron atomic weight
+  atomic_weights[0]  = 0.000548579909;
 }  
 
 Collide::Collide(ExternalForce *force, Component *comp,
