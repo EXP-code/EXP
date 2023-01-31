@@ -65,6 +65,8 @@
 
  Added double-exponential disk preconditioning 08/21 by MDW
 
+ Updated Jeans' closure options 01/23 by MDW
+
 */
                                 // C++/STL headers
 #include <filesystem>
@@ -1122,10 +1124,10 @@ main(int ac, char **av)
 				// Generate new halo body file
     if (nhalo) {		// ---------------------------
       if (multi) {
-	if (myid==0) std::cout << "Generating halo phase space . . . " << std::flush;
+	if (myid==0) std::cout << "Generating halo phase space . . . " << std::endl;
 	diskhalo->set_halo(hparticles, nhalo, n_particlesH);
       } else {
-	if (myid==0) std::cout << "Generating halo coordinates . . . " << std::flush;
+	if (myid==0) std::cout << "Generating halo coordinates . . . " << std::endl;
 	diskhalo->set_halo_coordinates(hparticles, nhalo, n_particlesH);
 	MPI_Barrier(MPI_COMM_WORLD);
       }
@@ -1135,7 +1137,7 @@ main(int ac, char **av)
   }
 
   if (ndisk) {
-    if (myid==0) std::cout << "Generating disk coordinates . . . " << std::flush;
+    if (myid==0) std::cout << "Generating disk coordinates . . . " << std::endl;
     diskhalo->set_disk_coordinates(dparticles, ndisk, n_particlesD);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) std::cout << "done" << std::endl;
@@ -1425,12 +1427,12 @@ main(int ac, char **av)
   //====================Make the phase space velocities========================
 
   if (!multi and !evolved) {
-    if (myid==0) std::cout << "Generating halo velocities . . . " << std::flush;
+    if (myid==0) std::cout << "Generating halo velocities . . . " << std::endl;
     diskhalo->set_vel_halo(hparticles);
     if (myid==0) std::cout << "done" << std::endl;
   }
   
-  if (myid==0) std::cout << "Generating disk velocities . . . " << std::flush;
+  if (myid==0) std::cout << "Generating disk velocities . . . " << std::endl;
   diskhalo->set_vel_disk(dparticles);
   if (myid==0) std::cout << "done" << std::endl;
   
