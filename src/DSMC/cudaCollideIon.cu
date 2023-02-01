@@ -1091,10 +1091,32 @@ void atomicData::cuda_initialize_textures()
     
   } // END: IonList
 
+
+  // Memory stats
+  //
+  if (true) {
+    
+    auto inMB = [](unsigned long bytes){ return bytes/(1024*1024); };
+
+    size_t free, total;
+    
+    std::cout << "---- Cross-section data memory check" << std::endl;
+
+    if (cudaMemGetInfo(&free, &total) == cudaError::cudaSuccess) {
+      const auto default_precision {std::cout.precision()};
+      std::cout << std::setprecision(4);
+      std::cout << "---- Free : " << free << " bytes (" << inMB(free) << ")"
+		<< std::endl;
+      std::cout << "---- " << 100.0*free/(double)total
+		<< "% free, " << 100.0*(total-free)/(double)total
+		<< "% used" << std::endl;
+      std::cout << std::setprecision(default_precision);
+    } else {
+      std::cout << "---- Error retrieving memory info" << std::endl;
+    }
+  }
+  // END memory debug
 }
-
-
-
 
 void atomicData::cuda_initialize_grid_constants()
 {
@@ -1814,7 +1836,7 @@ static std::string interLabels[] =
 //
 __constant__ int    cuSp0, cuCons, cuElec, cuEcon, cuTrcZ;
 
-const int maxAtomicNumber = 15;
+const int maxAtomicNumber = 27;
 __constant__ cuFP_t cuda_atomic_weights[maxAtomicNumber], cuFloorEV;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuEunit;
 __constant__ cuFP_t cuLogL, cuCrossfac, cuMinMass, cuEV;
@@ -2057,23 +2079,14 @@ void CollideIon::cuda_atomic_weights_init()
 {
   cudaElasticInit();
 
-  std::vector<cuFP_t> weights(maxAtomicNumber);
+  std::vector<cuFP_t> weights(maxAtomicNumber, -1.0);
 
+  PeriodicTable PT;
+  for (unsigned z=0; z<maxAtomicNumber; z++) {
+    auto ae = PT[z];
+    if (ae) weights[z] = ae->weight();
+  }
   weights[0]  = 0.000548579909; // Mass of electron
-  weights[1]  = 1.0079;	       // Hydrogen
-  weights[2]  = 4.0026;	       // Helium
-  weights[3]  = 6.941;	       // Lithum
-  weights[4]  = 9.0122;	       // Beryllium
-  weights[5]  = 10.811;	       // Boron
-  weights[6]  = 12.011;	       // Carbon
-  weights[7]  = 14.007;	       // Nitrogen
-  weights[8]  = 15.999;	       // Oxygen
-  weights[9]  = 18.998;	       // Florine
-  weights[10] = 20.180;	       // Neon
-  weights[11] = 22.990;	       // Sodium
-  weights[12] = 24.305;	       // Magnesium
-  weights[13] = 26.982;	       // Aluminium
-  weights[14] = 28.085;	       // Silicon
 
   cuda_safe_call(cudaMemcpyToSymbol(cuda_atomic_weights, &weights[0], sizeof(cuFP_t)*maxAtomicNumber), 
 		 __FILE__, __LINE__, "Error copying cuda_atomic_weights");
