@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.15) # This is the oldest version I've
 				     # preferred esp. for Cuda support
 project(
   EXP
-  VERSION "7.7.19.1"
+  VERSION "7.7.19"
   HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
   LANGUAGES C CXX Fortran)
 
