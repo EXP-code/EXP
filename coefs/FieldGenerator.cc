@@ -6,6 +6,12 @@
 #include <DataGrid.H>
 #include <localmpi.H>
 
+// Verbose output for checking stack usage
+#ifdef DEBUG
+#include <sys/time.h>
+#include <sys/resource.h>
+#endif
+
 namespace Field
 {
   
@@ -212,8 +218,6 @@ namespace Field
     std::vector<std::string> labels =
       {"p0", "p1", "p", "fr", "ft", "fp", "d0", "d1", "d", "dd"};
 
-    auto times = coefs->Times();
-
     for (auto T : times) {
 
       basis->set_coefs(coefs->getCoefStruct(T));
@@ -284,6 +288,14 @@ namespace Field
       }
 
       ret[T] = frame;
+
+#ifdef DEBUG
+      rusage usage;
+      int err = getrusage(RUSAGE_SELF, &usage);
+      std::cout << "volumes: T=" << std::setw(8) << std::fixed<< T
+		<< " Size=" << std::setw(8) << usage.ru_maxrss/1024/1024
+		<< std::endl;
+#endif
     }
 
     return ret;
@@ -315,6 +327,15 @@ namespace Field
 	  }
 
 	  datagrid.Add(tmp, v.first);
+#ifdef DEBUG
+	  rusage usage;
+	  int err = getrusage(RUSAGE_SELF, &usage);
+	  std::cout << "file_volume: T=" << std::setw(8) << std::fixed
+		    << v.first
+		    << " Size=" << std::setw(8)
+		    << usage.ru_maxrss/1024/1024
+		    << std::endl;
+#endif
 	}
 
 	std::ostringstream sout;
