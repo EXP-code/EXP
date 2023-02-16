@@ -57,14 +57,14 @@ namespace BasisClasses
     //! Return instance for coefficients created from arrays
     CoefClasses::CoefStrPtr coefret;
 
-    //! Center vector for coefficients created from arrays
-    std::vector<double> coefctr;
-
     //! Current particle index
     unsigned long coefindx;
     
   protected:
     
+    //! The expansion center
+    std::vector<double> coefctr;
+
     //! Contains contructor and BFE parameter database
     YAML::Node node, conf;
     
@@ -85,7 +85,7 @@ namespace BasisClasses
     //! Total mass on grid
     double totalMass;
     
-    //! Evaluate fields in spherical coordinates
+    //! Evaluate fields in spherical coordinates in centered coordinate system
     virtual void all_eval(double r, double costh, double phi,
 			  double& den0, double& den1,
 			  double& pot0, double& pot1,

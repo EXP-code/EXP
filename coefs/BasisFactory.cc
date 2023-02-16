@@ -73,6 +73,10 @@ namespace BasisClasses
       throw std::runtime_error("Basis: error parsing YAML");
     }
     
+    // Set coefficient center to zero by default
+    //
+    coefctr = {0.0, 0.0, 0.0};
+
   }
   
   const std::set<std::string>
@@ -333,6 +337,13 @@ namespace BasisClasses
 	else      L1 += 2;
       }
     }
+
+    // Assign center if need be
+    //
+    if (cf->ctr.size())
+      coefctr = cf->ctr;
+    else
+      coefctr = {0.0, 0.0, 0.0};
   }
 
   void SphericalSL::accumulate(double x, double y, double z, double mass)
@@ -427,6 +438,10 @@ namespace BasisClasses
     double cph   = cos(phi),   sph = sin(phi);
     double tpotr, tpott, tpotp;
     
+    x -= coefctr[0];
+    y -= coefctr[1];
+    z -= coefctr[2];
+
     all_eval(r, cth, phi,
 	     tdens0, tdens, tpotl0, tpotl, tpotr, tpott, tpotp);
     
@@ -1201,6 +1216,10 @@ namespace BasisClasses
    double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
    double& tpotx, double& tpoty, double& tpotz)
   {
+    x -= coefctr[0];
+    y -= coefctr[1];
+    z -= coefctr[2];
+
     double R   = sqrt(x*x + y*y);
     double phi = atan2(y, x);
     double cph = cos(phi), sph = sin(phi);
@@ -1280,6 +1299,13 @@ namespace BasisClasses
     for (int m=0; m<=mmax; m++) { // Set to zero on m=0 call only--------+
       sl->set_coefs(m, cf->coefs.row(m).real(), cf->coefs.row(m).imag(), m==0);
     }
+
+    // Assign center if need be
+    //
+    if (cf->ctr.size())
+      coefctr = cf->ctr;
+    else
+      coefctr = {0.0, 0.0, 0.0};
   }
 
   void Cylindrical::make_coefs(void)
@@ -1661,6 +1687,14 @@ namespace BasisClasses
 	a * coefsA->coefs.data()[i] +
 	b * coefsB->coefs.data()[i];
 
+    // Interpolate center
+    //
+    if (coefsA->ctr.size() and coefsB->ctr.size()) {
+      newcoef->ctr.resize(3);
+      for (int k=0; k<3; k++)
+	newcoef->ctr[k] = a * coefsA->ctr[k] + b * coefsB->ctr[k];
+    }
+
     // Install coefficients
     //
     basis->set_coefs(newcoef);
@@ -1710,6 +1744,14 @@ namespace BasisClasses
 	newcoef->coefs.data()[i] =
 	  a * coefsA->coefs.data()[i] +
 	  b * coefsB->coefs.data()[i];
+
+      // Interpolate center
+      //
+      if (coefsA->ctr.size() and coefsB->ctr.size()) {
+	newcoef->ctr.resize(3);
+	for (int k=0; k<3; k++)
+	  newcoef->ctr[k] = a * coefsA->ctr[k] + b * coefsB->ctr[k];
+      }
 
       // Install coefficients
       //
