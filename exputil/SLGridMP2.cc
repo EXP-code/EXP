@@ -19,6 +19,7 @@
 #include <EXPException.H>
 #include <SLGridMP2.H>
 #include <massmodel.H>
+#include <EXPmath.H>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -116,15 +117,15 @@ public:
   double pot(double r) {
     double y = 0.5 * r / SLGridCyl::A;
     return -2.0*M_PI*SLGridCyl::A*y*
-      (std::cyl_bessel_i(0, y)*std::cyl_bessel_k(1, y) -
-       std::cyl_bessel_i(1, y)*std::cyl_bessel_k(0, y));
+      (EXPmath::cyl_bessel_i(0, y)*EXPmath::cyl_bessel_k(1, y) -
+       EXPmath::cyl_bessel_i(1, y)*EXPmath::cyl_bessel_k(0, y));
   }
 
   double dpot(double r) {
     double y = 0.5 * r / SLGridCyl::A;
    return 4.0*M_PI*SLGridCyl::A*y*y*
-     (std::cyl_bessel_i(0, y)*std::cyl_bessel_k(0, y) -
-      std::cyl_bessel_i(1, y)*std::cyl_bessel_k(1, y));
+     (EXPmath::cyl_bessel_i(0, y)*EXPmath::cyl_bessel_k(0, y) -
+      EXPmath::cyl_bessel_i(1, y)*EXPmath::cyl_bessel_k(1, y));
   }
 
   double dens(double r) {

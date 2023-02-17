@@ -11,6 +11,7 @@
 
 #include <cmath>
 #include <numerical.H>
+#include <EXPmath.H>
 
 #define STEPS 6
 #define TOL 1.0e-7
@@ -19,7 +20,7 @@ static int NN;
 
 static double zbess(double z)
 {
-  return std::sph_bessel(NN, z);
+  return EXPmath::sph_bessel(NN, z);
 }
 
 Eigen::VectorXd sbessjz(int n, int m)
@@ -32,14 +33,14 @@ Eigen::VectorXd sbessjz(int n, int m)
   double z  = 0.5+fabs((double)n);
   double zl = z, fl, f;
   for (int i=0; i<m; i++) {
-    fl = std::sph_bessel(n,z);
+    fl = EXPmath::sph_bessel(n,z);
     z += dz;
-    f  = std::sph_bessel(n, z);
+    f  = EXPmath::sph_bessel(n, z);
     while (f*fl>0) {
       zl = z;
       fl = f;
       z += dz;
-      f = std::sph_bessel(n,z);
+      f = EXPmath::sph_bessel(n,z);
     }
     a[i] = zbrent(zbess, zl, z, TOL);
     zl = z;

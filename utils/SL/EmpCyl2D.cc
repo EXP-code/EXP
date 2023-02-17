@@ -10,6 +10,7 @@
 
 #include <EXPException.H>
 #include <EmpCyl2D.H>
+#include <EXPmath.H>
 
 std::string EmpCyl2D::cache_name_2d = ".eof_cache_2d";
 
@@ -55,7 +56,7 @@ EmpCyl2D::Bessel::Bessel(int mmax, int nmax, double L) :
     roots[m] = bessjz(m, nmax);
     normv[m].resize(nmax);
     for (int n=0; n<nmax; n++) {
-      double eval = std::cyl_bessel_j(m+1, roots[m][n]) * L;
+      double eval = EXPmath::cyl_bessel_j(m+1, roots[m][n]) * L;
       normv[m][n] = eval*eval*0.5;
     }
   }
@@ -225,14 +226,14 @@ double EmpCyl2D::CluttonBrock::norm(int n, int m)
 // Bessel disk potential
 double EmpCyl2D::Bessel::potl(int M, int N, double r)
 {
-  return -std::cyl_bessel_j(M, r*roots[M][N]/L);
+  return -EXPmath::cyl_bessel_j(M, r*roots[M][N]/L);
 }
 
 // Bessel disk density
 //
 double EmpCyl2D::Bessel::dens(int M, int N, double r)
 {
-  return std::cyl_bessel_j(M, r*roots[M][N]/L)/(2.0*M_PI);
+  return EXPmath::cyl_bessel_j(M, r*roots[M][N]/L)/(2.0*M_PI);
 }
 
 // Bessel disk force
@@ -240,7 +241,7 @@ double EmpCyl2D::Bessel::dens(int M, int N, double r)
 double EmpCyl2D::Bessel::dpot(int M, int N, double r)
 {
   double z = r*roots[M][N]/L;
-  return -(std::cyl_bessel_j(M, z)*M/z - std::cyl_bessel_j(M+1, z)) *
+  return -(EXPmath::cyl_bessel_j(M, z)*M/z - EXPmath::cyl_bessel_j(M+1, z)) *
     roots[M][N]/L;
 }
 
@@ -286,15 +287,15 @@ public:
   double pot(double r) {
     double y = 0.5 * r / A;
     return -2.0*M_PI*A*y*
-      (std::cyl_bessel_i(0, y)*std::cyl_bessel_k(1, y) -
-       std::cyl_bessel_i(1, y)*std::cyl_bessel_k(0, y));
+      (EXPmath::cyl_bessel_i(0, y)*EXPmath::cyl_bessel_k(1, y) -
+       EXPmath::cyl_bessel_i(1, y)*EXPmath::cyl_bessel_k(0, y));
   }
 
   double dpot(double r) {
     double y = 0.5 * r / A;
    return 4.0*M_PI*A*y*y*
-     (std::cyl_bessel_i(0, y)*std::cyl_bessel_k(0, y) -
-      std::cyl_bessel_i(1, y)*std::cyl_bessel_k(1, y));
+     (EXPmath::cyl_bessel_i(0, y)*EXPmath::cyl_bessel_k(0, y) -
+      EXPmath::cyl_bessel_i(1, y)*EXPmath::cyl_bessel_k(1, y));
   }
 
   double dens(double r) {

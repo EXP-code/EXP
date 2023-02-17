@@ -38,6 +38,7 @@
 #include <DiskEval.H>
 #include <norminv.H>
 #include <cxxopts.H>
+#include <EXPmath.H>
 #include <EXPini.H>
 
 #define M_SQRT1_3 (0.5773502691896257645091487)
@@ -910,10 +911,10 @@ main(int ac, char **av)
 
     } else {			// Default to exponential
       double y = r/(2.0*AA);
-      double i0 = std::cyl_bessel_i(0, y);
-      double k0 = std::cyl_bessel_k(0, y);
-      double i1 = std::cyl_bessel_i(1, y);
-      double k1 = std::cyl_bessel_k(1, y);
+      double i0 = EXPmath::cyl_bessel_i(0, y);
+      double k0 = EXPmath::cyl_bessel_k(0, y);
+      double i1 = EXPmath::cyl_bessel_i(1, y);
+      double k1 = EXPmath::cyl_bessel_k(1, y);
       P  = -0.5*mass*r/(AA*AA) * (i0*k1 - i1*k0);
       FR = -y/(AA*AA)*(i0*k0 - i1*k1);
 
