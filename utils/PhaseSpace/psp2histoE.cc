@@ -4,8 +4,6 @@
   MDWeinberg 08/26/11
 */
 
-using namespace std;
-
 #include <cstdlib>
 
 #include <algorithm>
@@ -17,6 +15,8 @@ using namespace std;
 #include <string>
 #include <list>
 #include <map>
+
+using namespace std;
 
 #include <Species.H>
 
@@ -153,8 +153,7 @@ main(int ac, char **av)
       
       psp->PrintSummary(cerr);
     
-      cerr << "\nBest fit dump to <" << time << "> has time <" 
-	   << psp->CurrentTime() << ">\n";
+      cerr << "\nPhase space has time <" << psp->CurrentTime() << ">\n";
     }
 
     vector<double> pos(3), vel(3);

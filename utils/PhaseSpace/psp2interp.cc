@@ -4,17 +4,16 @@
   MDWeinberg 07/11/20
 */
 
-using namespace std;
-
-#include <cstdlib>
-
 #include <iostream>
+#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <vector>
 #include <string>
 #include <list>
+
+using namespace std;
 
 #include <Progress.H>		// The old boost progress bar
 #include <cxxopts.H>		// Option parsing

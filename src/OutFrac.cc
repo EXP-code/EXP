@@ -98,7 +98,7 @@ OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
       double time;
 
       in.get(line, linesz);	// Copy over the header
-      while (line[0] = '#') {
+      while (line[0] == '#') {
 	out << line;
 	in.get(line, linesz);
       }

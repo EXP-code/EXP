@@ -15,6 +15,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <array>
 #include <cmath>
 #include <list>
 #include <map>
@@ -26,6 +27,7 @@
 #include <Progress.H>
 #include <cxxopts.H>		// Option parsing
 #include <libvars.H>		// EXP library globals
+#include <EXPmath.H>		// EXP math functions for clang
 
 #include <mpi.h>
 
@@ -64,14 +66,14 @@ public:
   double operator()(double& r, const unsigned& n)
   {
     if (n>=nmax) return 0.0;
-    return std::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
+    return EXPmath::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
   } 
 
   //! Evaluate the the orthogonal Laguerre polynomial
   double eval(double& r, unsigned& n)
   {
     if (n>=nmax) return 0.0;
-    return std::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
+    return EXPmath::assoc_laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
   } 
 
   //! Evaluate the the orthogonal Laguerre polynomial
@@ -83,7 +85,7 @@ public:
     //
     double x = 2.0*r/rscl;
     for (int n=0; n<nmax; n++) 
-      ret[n] = std::assoc_laguerre(n, 1, x);
+      ret[n] = EXPmath::assoc_laguerre(n, 1, x);
 
     // Normalization
     //

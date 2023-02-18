@@ -4,8 +4,6 @@
   MDWeinberg 06/10/02
 */
 
-using namespace std;
-
 #include <unistd.h>
 #include <stdlib.h>
 
@@ -17,6 +15,8 @@ using namespace std;
 #include <string>
 #include <tuple>
 #include <list>
+
+using namespace std;
 
 #include <Species.H>
 
@@ -138,7 +138,7 @@ main(int ac, char **av)
 
       psp->PrintSummary(std::cerr);
     
-      std::cerr << std::endl << "Best fit dump to <" << time << "> has time <" 
+      std::cerr << std::endl << "Phase space has time <" 
 		<< psp->CurrentTime() << ">" << std::endl;
     }
     

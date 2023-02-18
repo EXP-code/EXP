@@ -4,8 +4,6 @@
   MDWeinberg 05/15/04, 12/12/19
 */
 
-using namespace std;
-
 #include <cstdlib>
 #include <cstring>
 
@@ -16,6 +14,8 @@ using namespace std;
 #include <vector>
 #include <string>
 #include <random>
+
+using namespace std;
 
 #include <header.H>
 #include <cxxopts.H>		// Option parsing

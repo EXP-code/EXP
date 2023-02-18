@@ -4,8 +4,6 @@
   MDWeinberg 11/12/19
 */
 
-using namespace std;
-
 #include <unistd.h>
 #include <stdlib.h>
 
@@ -24,6 +22,8 @@ using namespace std;
 
 #include <yaml-cpp/yaml.h>
 #include <cxxopts.H>
+
+using namespace std;
 
 int
 main(int argc, char **argv)

@@ -4,8 +4,6 @@
   MDWeinberg 08/26/11, 11/24/19
 */
 
-using namespace std;
-
 #include <cstdlib>
 
 #include <iostream>
@@ -25,6 +23,8 @@ using namespace std;
 #include <InitContainer.H>
 #include <cxxopts.H>		// Option parsing
 #include <libvars.H>		// EXP library globals
+
+using namespace std;
 
 int
 main(int ac, char **av)

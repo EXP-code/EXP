@@ -1686,7 +1686,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
       
     int icount = 0;
     PartPtr part;
-    while (part=pf->RecvParticle()) {
+    while ((part=pf->RecvParticle())) {
       particles[part->indx] = part;
       icount++;
     }
@@ -2034,7 +2034,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
       
     int icount = 0;
     PartPtr part;
-    while (part=pf->RecvParticle()) {
+    while ((part=pf->RecvParticle())) {
       particles[part->indx] = part;
       icount++;
     }
@@ -3858,7 +3858,7 @@ void Component::redistributeByList(vector<int>& redist)
 	    }
 	  }
 	  if (myid==lastnode) {
-	    while (part=pf->RecvParticle())
+	    while ((part=pf->RecvParticle()))
 	      particles[part->indx] = part;
 	  }
 	  tlist.clear();

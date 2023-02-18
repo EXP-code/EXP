@@ -195,7 +195,7 @@ void TimeSeriesCoefs::coefs(int L, int M, int Nmax, int NINT,
     for (unsigned iv=0; iv<Freqs.size(); iv++) {
       double Time = Tmin;
       while (Time<Tmax) {
-	double dT = min<double>(2.0*M_PI/fabs(Freqs[iv]), Tmax-Time);
+	double dT = min<double>(2.0*M_PI/std::abs(Freqs[iv]), Tmax-Time);
 	for (int jt=0; jt<NINT; jt++) {
 	  double time = Time + dT*lq.knot(jt);
 	  rr = odd2(time, T, R);

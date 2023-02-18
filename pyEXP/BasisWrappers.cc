@@ -85,7 +85,7 @@ void BasisFactoryClasses(py::module &m) {
     "you to scale your phase-space processing to snapshots of any size.\n"
     "For reference, the createFromReader() method uses a producer-consumer\n"
     "pattern internally to provide scalability.  These three methods allow\n"
-    "you to provide the same pattern in your own pipeline.\n\n";
+    "you to provide the same pattern in your own pipeline.\n\n"
     "Orbit integration\n"
     "-----------------\n"
     "The IntegrateOrbits routine uses a fixed time step leap frog integrator\n"

@@ -1,5 +1,3 @@
-using namespace std;
-
 #include "expand.H"
 
 #include <stdlib.h>
@@ -21,6 +19,8 @@ using namespace std;
 #include <hernquist.H>
 
 #include <HaloBulge.H>
+
+using namespace std;
 
 const std::set<std::string>
 HaloBulge::valid_keys = {

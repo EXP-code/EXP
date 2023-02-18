@@ -248,13 +248,15 @@ void Particle::writeBinaryBuffered
     buf.Loc = (char *)std::memcpy(buf.Loc, &iattrib[0], iattrib.size()*sizeof(int)) + iattrib.size()*sizeof(int);
   
   // Real attribute vector
-  if (dattrib.size())
-    if (rsize == sizeof(float))
+  if (dattrib.size()) {
+    if (rsize == sizeof(float)) {
       buf.Loc = (char *)std::memcpy(buf.Loc, &dattrib[0], dattrib.size()*sizeof(float)) +
 	dattrib.size()*sizeof(float);
-    else
+    } else {
       buf.Loc = (char *)std::memcpy(buf.Loc, &dattrib[0], dattrib.size()*sizeof(double)) +
 	dattrib.size()*sizeof(double);
+    }
+  }
 
   buf++;			// Increment buffer counter
 }
@@ -315,13 +317,15 @@ void Particle::writeBinaryThreaded
     pos = (char *)std::memcpy(pos, &iattrib[0], iattrib.size()*sizeof(int)) + iattrib.size()*sizeof(int);
   
   // Real attribute vector
-  if (dattrib.size())
-    if (rsize == sizeof(float))
+  if (dattrib.size()) {
+    if (rsize == sizeof(float)) {
       pos = (char *)std::memcpy(pos, &dattrib[0], dattrib.size()*sizeof(float)) +
 	dattrib.size()*sizeof(float);
-    else
+    } else {
       pos = (char *)std::memcpy(pos, &dattrib[0], dattrib.size()*sizeof(double)) +
 	dattrib.size()*sizeof(double);
+    }
+  }
 
 }
 

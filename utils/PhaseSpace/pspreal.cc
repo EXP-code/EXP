@@ -114,7 +114,7 @@ main(int argc, char **argv)
 
     psp->PrintSummary(cerr);
     
-    std::cerr << "\nBest fit dump to <" << time << "> has time <" 
+    std::cerr << "\nPhase space has time <" 
 	      << psp->CurrentTime() << ">" << std::endl;
   }
 

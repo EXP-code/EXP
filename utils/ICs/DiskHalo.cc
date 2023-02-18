@@ -2938,7 +2938,7 @@ void DiskHalo::virial_ratio(const char *hfile, const char *dfile)
     for (int i=ibeg; i<iend; i++) {
 
       in[c].getline(linebuffer, linesize);
-      if (!in) break;
+      if (!in[c]) break;
     
       istringstream ins(linebuffer);
     

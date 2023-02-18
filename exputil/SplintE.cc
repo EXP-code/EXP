@@ -1,9 +1,9 @@
-using namespace std;
-
 #include <cmath>
 #include <iostream>
 #include <cstdlib>
 #include <Eigen/Eigen>
+
+using namespace std;
 
 void Splint1(const Eigen::VectorXd &xa,
 	     const Eigen::VectorXd &ya,

@@ -2,7 +2,7 @@
 /** Some FPE trapping stuff for debugging
  */
 
-#ifndef FPU_TRAP_H
+#ifndef FPE_TRAP_H
 #define FPE_TRAP_H
 
 #include <iostream>

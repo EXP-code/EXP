@@ -4,8 +4,6 @@
   MDWeinberg 01/20/16
 */
 
-using namespace std;
-
 #include <cstdlib>
 
 #include <algorithm>
@@ -18,6 +16,8 @@ using namespace std;
 #include <string>
 #include <list>
 #include <map>
+
+using namespace std;
 
 #include <yaml-cpp/yaml.h>	// YAML support
 #include <cxxopts.H>		// Command-line parsing
@@ -352,7 +352,7 @@ main(int ac, char **av)
       
       psp->PrintSummary(cerr);
     
-      std::cerr << std::endl << "Best fit dump to <" << time << "> has time <" 
+      std::cerr << std::endl << "Phase space has time <" 
 		<< psp->CurrentTime() << ">" << std::endl;
     }
 
