@@ -7,7 +7,7 @@ Trapsum.cc Splsum.cc)
 set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc stack.cc
   localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc
-  YamlCheck.cc parseVersionString.cc EXPmath.cc)
+  YamlCheck.cc parseVersionString.cc EXPmath.cc laguerre_polynomial.cpp)
 
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)
