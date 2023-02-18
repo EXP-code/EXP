@@ -75,7 +75,7 @@ void BiorthWake::orientation(int L, int M,
 
     auto conj = ylm.conjugate();
 
-    norm = sqrt(fabs(conj.dot(ylm))) + 1.0e-10;
+    norm = sqrt(std::abs(conj.dot(ylm))) + 1.0e-10;
 
     ylm /= norm;
 
@@ -239,7 +239,7 @@ void BiorthWake::amoeba(void)
 	} else if (amby[i] > amby[inhi])
 	  if (i != ihi) inhi = i;
       }
-      rtol = 2.0*fabs(amby[ihi]-amby[ilo])/(fabs(amby[ihi])+fabs(amby[ilo]));
+      rtol = 2.0*std::fabs(amby[ihi]-amby[ilo])/(std::fabs(amby[ihi])+std::fabs(amby[ilo]));
       if (rtol < tol) break;
       if (nfunk >= NMAX) break;
 

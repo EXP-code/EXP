@@ -27,7 +27,7 @@ Eigen::VectorXd sbessjz(int n, int m)
 {
   Eigen::VectorXd a(m);
 
-  auto zfunc = [n](double z) { return std::cyl_bessel_j(n, z); };
+  auto zfunc = [n](double z) { return EXPmath::cyl_bessel_j(n, z); };
 
   double dz = M_PI/STEPS;
   double z  = 0.5+fabs((double)n);
