@@ -3,8 +3,9 @@
 #include <cmath>
 
 #include "EXPmath.H"
+#include "laguerre_polynomial.hpp"
 
-namespace EXPmath
+namespace AltMath
 {
 
   double bessj1(double x)
@@ -337,7 +338,7 @@ namespace EXPmath
     int n = floor(nu);
     double nu1 = n;
     if (fabs(n - nu1) > 1.0e-16)
-      throw std::runtime_error("EXPmath: Bessel implementation is only valid for integer-order arguments");
+      throw std::runtime_error("AltMath: Bessel implementation is only valid for integer-order arguments");
     return n;
   }
 
@@ -373,4 +374,15 @@ namespace EXPmath
     return bessi(n, x);
   }
 
+  double assoc_laguerre(unsigned l, unsigned n, double x)
+  {
+    double xi[1], *yi, ret;
+
+    xi[0] = x;
+    yi = l_polynomial ((int)l, (int)n, xi);
+    ret = yi[0];
+    delete [] yi;
+    return yi[0];
+  }
+  
 }
