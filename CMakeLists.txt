@@ -12,14 +12,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Compiler flags.  Not all tested thoroughly...
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # using Clang
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   # using GCC
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
   # using intel
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qno-offload")
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   # using Visual Studio C++
 endif()
 
