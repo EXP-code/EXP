@@ -439,7 +439,11 @@ namespace BasisClasses
 
   public:
     
+    //! Constructor
     AccelFunc() {}
+
+    //! Destructor
+    virtual ~AccelFunc() {}
 
     //! This evaluates the coefficients at time t.  This is the member
     //! that is implemented in derived classes.  It is more naturally
