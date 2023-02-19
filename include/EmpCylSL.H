@@ -4,13 +4,13 @@
 #include <functional>
 #include <vector>
 #include <memory>
+#include <limits>
 
 #include <Eigen/Eigen>
 
 #include <gaussQ.H>
 #include <interp.H>
 #include <math.h>
-#include <values.h>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>

@@ -53,7 +53,7 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   mykey   = 1u;
   level   = 0;
   maxplev = 0;
-  time    = -DBL_MAX;		// -Infinity
+  time    = -std::numeric_limits<double>::max(); // -Infinity
 
 				// My body mask
   mask    = mykey << 3*(nbits - level);

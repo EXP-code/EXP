@@ -3029,7 +3029,7 @@ void * Collide::timestep_thread(void * arg)
     // Look for collCount in cell attributes
     //
     std::map<std::string, int>::iterator itc = c->iattrib.find("collCount");
-    double DTcoll = DBL_MAX;
+    double DTcoll = std::numeric_limits<double>::max();
     if (itc != c->iattrib.end()) {
 				// Timestep for this cell
     double tau = dtime / (1<<c->maxplev);

@@ -380,7 +380,7 @@ void UserBar::determine_acceleration_and_potential(void)
     else
       omega = lastomega;
     
-    if ( mlevel==0 and fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
+    if ( mlevel==0 and fabs(tnow-lasttime) > 2.0*std::numeric_limits<double>::min()) {
       posang += 0.5*(omega + lastomega)*dtime;
       lastomega = omega;
       lasttime = tnow;

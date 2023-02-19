@@ -520,7 +520,7 @@ void UserEBarP::determine_acceleration_and_potential(void)
 
     omega = get_omega(tnow);
 
-    if ( fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
+    if ( fabs(tnow-lasttime) > 2.0*std::numeric_limits<double>::min()) {
       posang += 0.5*(omega + lastomega)*(tnow - lasttime);
       lastomega = omega;
       lasttime = tnow;

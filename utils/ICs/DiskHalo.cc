@@ -3,8 +3,6 @@
 
 #undef ENFORCE_KAPPA		// Clamp kappa^2
 
-				// System
-#include <values.h>
 				// C++/STL
 #include <iostream>
 #include <fstream>
@@ -12,6 +10,7 @@
 #include <algorithm>
 #include <memory>
 #include <vector>
+#include <limits>
 				// EXP classes
 #include <interp.H>
 #include <numerical.H>

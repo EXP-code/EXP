@@ -1230,8 +1230,9 @@ void pHOT::dumpFrontier(std::ostream& out)
 	// The output line for this cell
 	std::ostringstream line;
 
-	std::vector<double> pmin(3, DBL_MAX), pmax(3, -DBL_MAX);
-	std::vector<double> mpos(3,0.0), vpos(3,0.0);
+	std::vector<double> pmin(3,  std::numeric_limits<double>::max());
+	std::vector<double> pmax(3, -std::numeric_limits<double>::max());
+	std::vector<double> mpos(3, 0.0), vpos(3, 0.0);
 	unsigned num = i.second->bods.size();
 	double  mass = 0.0;
 

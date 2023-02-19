@@ -1,7 +1,7 @@
 #ifndef _pHOT_H
 #define _pHOT_H
 
-#include <values.h>		// For MAXINT
+#include <limits>
 
 #include <localmpi.H>
 #include <Particle.H>
@@ -9,7 +9,6 @@
 #include <ParticleFerry.H>
 #include <pHOT_types.H>
 #include <pCell.H>
-
 #include <Timer.H>
 
 class CellDiag
@@ -19,7 +18,7 @@ public:
   double   navg, nvar, bavg, bvar;
 
   CellDiag(unsigned nt=0) : ntre(nt),  bcel(0),   btot(0),
-			    mind(MAXINT),         maxd(0),
+			    mind(std::numeric_limits<int>::max()), maxd(0),
 			    navg(0.0), nvar(0.0), bavg(0.0), bvar(0.0)
   {}
 };
