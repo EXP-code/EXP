@@ -48,7 +48,7 @@
 #include <PSP2.H>
 #include <interp.H>
 #include <massmodel.H>
-#include <SphereSL.H>
+#include <SphSL.H>
 #include <foarray.H>
 
 #include <global.H>

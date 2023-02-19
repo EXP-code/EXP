@@ -48,7 +48,7 @@
 #include "Particle.h"
 #include "Coefs.H"
 #include <interp.H>
-#include <SphereSL.H>
+#include <SphSL.H>
 
 #include <writePVD.H>
 #include <localmpi.H>
@@ -72,7 +72,7 @@ static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
 
-void write_output(SphereSL& ortho, int indx, double time,
+void write_output(SphSL& ortho, int indx, double time,
 		  std::string& file1, std::string& file2, std::string& file3)
 {
   unsigned ncnt = 0;
@@ -436,10 +436,10 @@ main(int argc, char **argv)
   int nmax     = data[0]->header.nmax;
 
   auto halo = std::make_shared<SphericalModelTable>(modelfile);
-  SphereSL::mpi = true;
-  SphereSL::NUMR = 4000;
+  SphSL::mpi = true;
+  SphSL::NUMR = 4000;
 
-  SphereSL ortho(halo, lmax, nmax);
+  SphSL ortho(halo, lmax, nmax);
   
   std::vector<std::string> outfiles1, outfiles2, outfiles3;
   std::vector<double> T;

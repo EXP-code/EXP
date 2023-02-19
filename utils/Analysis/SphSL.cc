@@ -8,19 +8,19 @@
 #include <yaml-cpp/yaml.h>
 
 #include <config_exp.h>
-#include <SphereSL.H>
+#include <SphSL.H>
 
 #ifdef HAVE_LIBPNGPP
 #include <ColorGradient.H>	// For PNG images
 #endif
 
-int    SphereSL::NUMR = 800;
-int    SphereSL::NEV  = 60;	// None by default
-bool   SphereSL::mpi  = false;	// Initially off
-double SphereSL::HEXP = 1.0;	// Hall exponent
+int    SphSL::NUMR = 800;
+int    SphSL::NEV  = 60;	// None by default
+bool   SphSL::mpi  = false;	// Initially off
+double SphSL::HEXP = 1.0;	// Hall exponent
 
 //! Constructor
-SphereSL::SphereSL(std::shared_ptr<SphericalModelTable> mod,
+SphSL::SphSL(std::shared_ptr<SphericalModelTable> mod,
 		   int LMAX, int NMAX, int CMAP, double Scale,
 		   bool COVAR, int NPART)
 {
@@ -52,18 +52,18 @@ SphereSL::SphereSL(std::shared_ptr<SphericalModelTable> mod,
   npart = NPART;
 }
 
-SphereSL::~SphereSL(void)
+SphSL::~SphSL(void)
 {
   // NADA
 }
 
-void SphereSL::bomb(char *s)
+void SphSL::bomb(char *s)
 {
-  cerr << "ERROR from SphereSL: " << s << '\n';
+  cerr << "ERROR from SphSL: " << s << '\n';
   exit(-1);
 }
 
-void SphereSL::reset_coefs(void)
+void SphSL::reset_coefs(void)
 {
   if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
   if (compute_covar) {
@@ -97,7 +97,7 @@ void SphereSL::reset_coefs(void)
 }
 
 
-void SphereSL::accumulate(double x, double y, double z, double mass)
+void SphSL::accumulate(double x, double y, double z, double mass)
 {
   double fac, fac1, fac2, fac4;
   double norm = -4.0*M_PI;
@@ -238,7 +238,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 
 }
 
-void SphereSL::make_coefs()
+void SphSL::make_coefs()
 {
   if (mpi) {
 
@@ -340,7 +340,7 @@ void SphereSL::make_coefs()
   }
 }
 
-void SphereSL::make_covar(bool verbose)
+void SphSL::make_covar(bool verbose)
 {
   if (compute_covar) {
 
@@ -403,7 +403,7 @@ void SphereSL::make_covar(bool verbose)
   }
 }
 
-Eigen::MatrixXd SphereSL::get_trimmed(double snr, double mass, bool Hall)
+Eigen::MatrixXd SphSL::get_trimmed(double snr, double mass, bool Hall)
 {
   constexpr double norm = 4.0*M_PI;
 
@@ -508,7 +508,7 @@ Eigen::MatrixXd SphereSL::get_trimmed(double snr, double mass, bool Hall)
       color.createGrayGradient();
 
       std::ostringstream sout;
-      sout << "SphereSL_EV." << L;
+      sout << "SphSL_EV." << L;
 
       double minV = std::numeric_limits<double>::max();
       double maxV = std::numeric_limits<double>::min();
@@ -562,7 +562,7 @@ Eigen::MatrixXd SphereSL::get_trimmed(double snr, double mass, bool Hall)
   return ret;
 }
 
-double SphereSL::get_power(double snr, double mass)
+double SphSL::get_power(double snr, double mass)
 {
   constexpr double norm = 4.0*M_PI;
 
@@ -616,7 +616,7 @@ double SphereSL::get_power(double snr, double mass)
 }
 
 
-void SphereSL::dens_pot_eval(double r, double costh, double phi,
+void SphSL::dens_pot_eval(double r, double costh, double phi,
 			     double& dens0, double& dens, 
 			     double& potl0, double& potl,
 			     int L1, int L2, int N1, int N2)
@@ -684,7 +684,7 @@ void SphereSL::dens_pot_eval(double r, double costh, double phi,
 }
 
 
-void SphereSL::pot_force_eval(double r, double costh, double phi,
+void SphSL::pot_force_eval(double r, double costh, double phi,
 			      double& potl,
 			      double& potr, double& pott, double& potp,
 			      int L1, int L2, int N1, int N2)
@@ -756,7 +756,7 @@ void SphereSL::pot_force_eval(double r, double costh, double phi,
 }
 
 
-void SphereSL::all_eval(double r, double costh, double phi,
+void SphSL::all_eval(double r, double costh, double phi,
 			double& den0, double& den1,
 			double& pot0, double& pot1,
 			double& potr, double& pott, double& potp,
@@ -845,7 +845,7 @@ void SphereSL::all_eval(double r, double costh, double phi,
 
 #define MINEPS 1.0e-10
 
-void SphereSL::legendre_R(int lmax, double x, Eigen::MatrixXd& p)
+void SphSL::legendre_R(int lmax, double x, Eigen::MatrixXd& p)
 {
   double fact, somx2, pll, pl1, pl2;
   
@@ -885,7 +885,7 @@ void SphereSL::legendre_R(int lmax, double x, Eigen::MatrixXd& p)
   
 }
 
-void SphereSL::legendre_R(int lmax, double x, Eigen::MatrixXd& p,
+void SphSL::legendre_R(int lmax, double x, Eigen::MatrixXd& p,
 			  Eigen::MatrixXd &dp)
 {
   double fact, somx2, pll, pl1, pl2;
@@ -925,7 +925,7 @@ void SphereSL::legendre_R(int lmax, double x, Eigen::MatrixXd& p,
   }
 }
 
-void SphereSL::legendre_R(int lmax, double x, Eigen::MatrixXd &p,
+void SphSL::legendre_R(int lmax, double x, Eigen::MatrixXd &p,
 			  Eigen::MatrixXd &dp, Eigen::MatrixXd& d2p)
 {
   double fact, somx2, pll, pl1, pl2;
@@ -974,7 +974,7 @@ void SphereSL::legendre_R(int lmax, double x, Eigen::MatrixXd &p,
 }
 
 
-void SphereSL::install_coefs(Eigen::MatrixXd& newcoef)
+void SphSL::install_coefs(Eigen::MatrixXd& newcoef)
 {
   if (!coefs_defined) {
 
@@ -1014,7 +1014,7 @@ void SphereSL::install_coefs(Eigen::MatrixXd& newcoef)
   if (newcoef.rows() != expcoef.rows() ||
       newcoef.cols() != expcoef.cols()  )
     {
-      std::cerr << "SphereSL: can not install coefficients, dimension mismatch\n";
+      std::cerr << "SphSL: can not install coefficients, dimension mismatch\n";
       return;
     }
 
@@ -1023,14 +1023,14 @@ void SphereSL::install_coefs(Eigen::MatrixXd& newcoef)
 }
 
 
-void SphereSL::dump_coefs(double time, ostream& out)
+void SphSL::dump_coefs(double time, ostream& out)
 {
   // This is a node of simple {key: value} pairs.  More general
   // content can be added as needed.
   //
   YAML::Node node;
 
-  node["id"    ] = "SphereSL";
+  node["id"    ] = "SphSL";
   node["time"  ] = time;
   node["scale" ] = rscl;
   node["nmax"  ] = nmax;

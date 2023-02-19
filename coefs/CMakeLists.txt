@@ -33,7 +33,7 @@ set(expcoef_SOURCES BasisFactory.cc CoefContainer.cc CoefStruct.cc
 add_library(expcoef ${expcoef_SOURCES})
 set_target_properties(expcoef PROPERTIES OUTPUT_NAME expcoef)
 target_include_directories(expcoef PUBLIC ${common_INCLUDE})
-target_link_libraries(expcoef PUBLIC ${common_LINKLIBS})
+target_link_libraries(expcoef PUBLIC ${common_LINKLIB})
 
 install(TARGETS expcoef DESTINATION lib)
 
