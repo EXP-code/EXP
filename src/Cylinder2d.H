@@ -54,18 +54,11 @@ class MixtureBasis;
     @param playback file reads a coefficient file and uses it to compute the basis function output for resimiulation
 
 */
-class Cylinder2d : public AxisymmetricBasis
+class Cylinder2d : public PolarBasis
 {
 private:
 
-  bool expcond, EVEN_M, subsamp;
-  int rnum, pnum, tnum;
-  double ashift;
-  unsigned int vflag;
-
-  std::shared_ptr<CylEXP> ortho;
-  int eof, ncompcyl;
-  double cylmass, resetT;
+  std::shared_ptr<EmpCyl2D> ortho;
 
   std::vector<Eigen::Vector3d> pos, frc;
 
@@ -76,11 +69,8 @@ private:
 
 				// Parameters
   double rcylmin, rcylmax, zmax, acyl;
-  int nmax, lmax, mmax, mlim;
-  int ncylnx, ncylny, ncylr;
+  int nmax, lmax, mmax, mlim, ncylr;
   double hcyl, hexp, snr, rem;
-  int ncylorder, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR;
-  string eof_file;
   bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
   bool try_cache, firstime, dump_basis, compute, firstime_coef;
 

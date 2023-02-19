@@ -1461,6 +1461,7 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 
       cC->AddAcc(indx, 0, -potr*xx/r);
       cC->AddAcc(indx, 1, -potr*yy/r);
+      cC->AddAcc(indx, 2, -potr*zz/r);
       if (fac > DSMALL) {
 	cC->AddAcc(indx, 0,  potp*yy/fac );
 	cC->AddAcc(indx, 1, -potp*xx/fac );

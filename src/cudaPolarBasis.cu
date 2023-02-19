@@ -543,9 +543,9 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	      pp_c  = pp_s = dp_c = dp_s = 0.0;
 	    }
 
-	    potl += 2.0 * ( pp_c*ccos + pp_s*ssin);
-	    potr += 2.0 * ( dp_c*ccos + dp_s*ssin);
-	    potp += 2.0 * (-pp_c*ssin + pp_s*ccos)*m;
+	    potl +=   pp_c*ccos + pp_s*ssin;
+	    potr +=   dp_c*ccos + dp_s*ssin;
+	    potp += -(pp_c*ssin + pp_s*ccos)*m;
 	  }
 
 	  // Trig recursion to squeeze avoid internal FP fct call
@@ -567,6 +567,7 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 
       p.acc[0] += -potr*xx/r;
       p.acc[1] += -potr*yy/r;
+      p.acc[2] += -potr*zz/r;
       if (RR > FSMALL) {
 	p.acc[0] +=  potp*yy/RR;
 	p.acc[1] += -potp*xx/RR;
@@ -753,7 +754,7 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
 
   // This will stay fixed for the entire run
   //
-  host_coefs.resize((Lmax+1)*(Lmax+1)*nmax);
+  host_coefs.resize((2*Mmax+1)*nmax);
 
   if (pcavar) {
     host_massT.resize(sampT);
@@ -842,7 +843,7 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
     
     // Resize storage as needed
     //
-    cuS.resize_coefs(nmax, Lmax, N, gridSize, stride,
+    cuS.resize_coefs(nmax, Mmax, N, gridSize, stride,
 		     sampT, pcavar, pcaeof, subsamp);
       
     // Shared memory size for the reduction
@@ -854,8 +855,8 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
     coordKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
       (toKernel(cr->cuda_particles), toKernel(cr->indx1),
        toKernel(cuS.m_d), toKernel(cuS.a_d), toKernel(cuS.p_d),
-       toKernel(cuS.plm1_d), toKernel(cuS.i_d),
-       Lmax, stride, cur, rmax);
+       toKernel(cuS.i_d),
+       Mmax, stride, cur, rmax);
     
     // Compute the coefficient contribution for each order
     //
@@ -873,187 +874,185 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
     }
     thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
 
-    for (int l=0; l<=Lmax; l++) {
-      for (int m=0; m<=l; m++) {
-	// Compute the contribution to the coefficients from each
-	// particle
-	//
-	coefKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
-	  (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
-	   toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d),
-	   toKernel(cuS.a_d), toKernel(cuS.p_d), toKernel(cuS.plm1_d),
-	   toKernel(cuS.i_d), stride, l, m, Lmax, nmax, cur, compute);
+    for (int m=0; m<=Mmax; l++) {
+      // Compute the contribution to the coefficients from each
+      // particle
+      //
+      coefKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
+	(toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
+	 toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d),
+	 toKernel(cuS.a_d), toKernel(cuS.p_d),
+	 toKernel(cuS.i_d), stride, m, Mmax, nmax, cur, compute);
 	
-	// Begin the reduction per grid block [perhaps this should use
-	// a stride?]
-	//
-	unsigned int gridSize1 = N/BLOCK_SIZE;
-	if (N > gridSize1*BLOCK_SIZE) gridSize1++;
+      // Begin the reduction per grid block [perhaps this should use
+      // a stride?]
+      //
+      unsigned int gridSize1 = N/BLOCK_SIZE;
+      if (N > gridSize1*BLOCK_SIZE) gridSize1++;
 
-	reduceSum<cuFP_t, BLOCK_SIZE>
-	  <<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
-	  (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
+      reduceSum<cuFP_t, BLOCK_SIZE>
+	<<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+	(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
       
-	// Finish the reduction for this order in parallel
-	//
-	thrust::counting_iterator<int> index_begin(0);
-	thrust::counting_iterator<int> index_end(gridSize1*osize);
+      // Finish the reduction for this order in parallel
+      //
+      thrust::counting_iterator<int> index_begin(0);
+      thrust::counting_iterator<int> index_end(gridSize1*osize);
 
-	thrust::reduce_by_key
-	  (
-	   thrust::cuda::par.on(cr->stream),
-	   thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
-	   thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-	   cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
-	   );
+      thrust::reduce_by_key
+	(
+	 thrust::cuda::par.on(cr->stream),
+	 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+	 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
+	 );
 
-	thrust::transform(thrust::cuda::par.on(cr->stream),
-			  cuS.dw_coef.begin(), cuS.dw_coef.end(),
-			  beg, beg, thrust::plus<cuFP_t>());
+      thrust::transform(thrust::cuda::par.on(cr->stream),
+			cuS.dw_coef.begin(), cuS.dw_coef.end(),
+			beg, beg, thrust::plus<cuFP_t>());
 	
-	thrust::advance(beg, osize);
+      thrust::advance(beg, osize);
 	
-	if (compute) {
+      if (compute) {
 	  
-	  if (pcavar) {
+	if (pcavar) {
 	    
-	    int sN = N/sampT;
-	    int nT = sampT;
+	  int sN = N/sampT;
+	  int nT = sampT;
 	    
-	    if (sN==0) {	// Fail-safe underrun
-	      sN = 1;
-	      nT = N;
+	  if (sN==0) {	// Fail-safe underrun
+	    sN = 1;
+	    nT = N;
 	    }
 	    
-	    for (int T=0; T<nT; T++) {
-	      int k = sN*T;	// Starting position
-	      int s = sN;
-	      if (T==sampT-1) s = N - k;
+	  for (int T=0; T<nT; T++) {
+	    int k = sN*T;	// Starting position
+	    int s = sN;
+	    if (T==sampT-1) s = N - k;
+	    
+	    // Mass accumulation
+	    //
+	    if (l==0 and m==0) {
+	      auto mbeg = cuS.u_d.begin();
+	      auto mend = mbeg;
+	      thrust::advance(mbeg, sN*T);
+	      if (T<sampT-1) thrust::advance(mend, sN*(T+1));
+	      else mend = cuS.u_d.end();
 	      
-	      // Mass accumulation
-	      //
-	      if (l==0 and m==0) {
-		auto mbeg = cuS.u_d.begin();
-		auto mend = mbeg;
-		thrust::advance(mbeg, sN*T);
-		if (T<sampT-1) thrust::advance(mend, sN*(T+1));
-		else mend = cuS.u_d.end();
-		
-		host_massT[T] += thrust::reduce(mbeg, mend);
-	      }
-
-	      // Begin the reduction per grid block
-	      //
-	      /* A reminder to consider implementing strides in reduceSum */
-	      /*
-		unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-		unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
-		
-		if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
+	      host_massT[T] += thrust::reduce(mbeg, mend);
+	    }
+	    
+	    // Begin the reduction per grid block
+	    //
+	    /* A reminder to consider implementing strides in reduceSum */
+	    /*
+	      unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+	      unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
+	      
+	      if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
 	      */
-		
-	      unsigned int gridSize1 = s/BLOCK_SIZE;
-	      if (s > gridSize1*BLOCK_SIZE) gridSize1++;
-
-	      // Sum reduce into gridsize1 blocks taking advantage of
-	      // GPU warp structure
+	    
+	    unsigned int gridSize1 = s/BLOCK_SIZE;
+	    if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+	    
+	    // Sum reduce into gridsize1 blocks taking advantage of
+	    // GPU warp structure
+	    //
+	    if (subsamp) {
+	      
+	      // Mean computation only
 	      //
-	      if (subsamp) {
+	      reduceSumS<cuFP_t, BLOCK_SIZE>
+		<<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+		(toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), psize, N, k, k+s);
 		
-		// Mean computation only
-		//
-		reduceSumS<cuFP_t, BLOCK_SIZE>
-		  <<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
-		  (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), psize, N, k, k+s);
-		
-		// Finish the reduction for this order in parallel
-		//
-		thrust::counting_iterator<int> index_begin(0);
-		thrust::counting_iterator<int> index_end(gridSize1*psize);
-
-		thrust::reduce_by_key
-		  (
-		   thrust::cuda::par.on(cr->stream),
-		   thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
-		   thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-		   cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
-		   );
+	      // Finish the reduction for this order in parallel
+	      //
+	      thrust::counting_iterator<int> index_begin(0);
+	      thrust::counting_iterator<int> index_end(gridSize1*psize);
+	      
+	      thrust::reduce_by_key
+		(
+		 thrust::cuda::par.on(cr->stream),
+		 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+		 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+		 cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
+		 );
 
 	      
-		thrust::transform(thrust::cuda::par.on(cr->stream),
-				  cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
-				  bm[T], bm[T], thrust::plus<cuFP_t>());
+	      thrust::transform(thrust::cuda::par.on(cr->stream),
+				cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
+				bm[T], bm[T], thrust::plus<cuFP_t>());
 	      
-		thrust::advance(bm[T], psize);
-
-	      } else {
+	      thrust::advance(bm[T], psize);
+	      
+	    } else {
+	      
+	      // Variance and mean computation
+	      //
+	      reduceSumS<cuFP_t, BLOCK_SIZE>
+		<<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+		(toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N, k, k+s);
+	      
+	      // Finish the reduction for this order in parallel
+	      //
+	      thrust::counting_iterator<int> indx2_begin(0);
+	      thrust::counting_iterator<int> indx2_end(gridSize1*vsize);
+	      
+	      thrust::reduce_by_key
+		(
+		 thrust::cuda::par.on(cr->stream),
+		 thrust::make_transform_iterator(indx2_begin, key_functor(gridSize1)),
+		 thrust::make_transform_iterator(indx2_end,   key_functor(gridSize1)),
+		 cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
+		 );
 		
-		// Variance and mean computation
-		//
-		reduceSumS<cuFP_t, BLOCK_SIZE>
-		  <<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
-		  (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N, k, k+s);
-		
-		// Finish the reduction for this order in parallel
-		//
-		thrust::counting_iterator<int> indx2_begin(0);
-		thrust::counting_iterator<int> indx2_end(gridSize1*vsize);
-		
-		thrust::reduce_by_key
-		  (
-		   thrust::cuda::par.on(cr->stream),
-		   thrust::make_transform_iterator(indx2_begin, key_functor(gridSize1)),
-		   thrust::make_transform_iterator(indx2_end,   key_functor(gridSize1)),
-		   cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
-		   );
-		
-		thrust::transform(thrust::cuda::par.on(cr->stream),
-				  cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
-				  bm[T], bm[T], thrust::plus<cuFP_t>());;
-		
-		thrust::advance(bm[T], vsize);
-	      }
+	      thrust::transform(thrust::cuda::par.on(cr->stream),
+				cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
+				bm[T], bm[T], thrust::plus<cuFP_t>());;
+	      
+	      thrust::advance(bm[T], vsize);
 	    }
 	  }
-	  // END: pcavar
-	    
-	  // Reduce EOF variance
+	}
+	// END: pcavar
+	  
+	// Reduce EOF variance
+	//
+	if (pcaeof) {
+	  
+	  reduceSum<cuFP_t, BLOCK_SIZE>
+	    <<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+	    (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N);
+	  
+	  // Finish the reduction for this order in parallel
 	  //
-	  if (pcaeof) {
+	  thrust::counting_iterator<int> index_begin(0);
+	  thrust::counting_iterator<int> index_end(gridSize1*vsize);
+	  
+	  thrust::reduce_by_key
+	    (
+	     thrust::cuda::par.on(cr->stream),
+	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+	     cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
+	     );
 	    
-	    reduceSum<cuFP_t, BLOCK_SIZE>
-	      <<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
-	      (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N);
-      
-	    // Finish the reduction for this order in parallel
-	    //
-	    thrust::counting_iterator<int> index_begin(0);
-	    thrust::counting_iterator<int> index_end(gridSize1*vsize);
+	  thrust::transform(thrust::cuda::par.on(cr->stream),
+			    cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
+			    begV, begV, thrust::plus<cuFP_t>());
+	  
+	  thrust::advance(begV, vsize);
+	  
+	  if (not pcavar and m==0) {
+	    auto mbeg = cuS.u_d.begin();
+	    auto mend = cuS.u_d.end();
+	    host_mass_tot += thrust::reduce(mbeg, mend);
+	  }
 	    
-	    thrust::reduce_by_key
-	      (
-	       thrust::cuda::par.on(cr->stream),
-	       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
-	       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-	       cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
-	       );
-	    
-	    thrust::transform(thrust::cuda::par.on(cr->stream),
-			      cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
-			      begV, begV, thrust::plus<cuFP_t>());
-	    
-	    thrust::advance(begV, vsize);
-
-	    if (not pcavar and l==0 and m==0) {
-	      auto mbeg = cuS.u_d.begin();
-	      auto mend = cuS.u_d.end();
-	      host_mass_tot += thrust::reduce(mbeg, mend);
-	    }
-	    
-	  } // END: pcaeof
-	} // END: compute
-      } // END: m-loop
-    } // END: l-loop
+	} // END: pcaeof
+      } // END: compute
+    } // END: m-loop
 
     // Compute number and total mass of particles used in coefficient
     // determination
@@ -1082,14 +1081,12 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
   //
   thrust::host_vector<cuFP_t> ret = cuS.df_coef;
   int offst = 0;
-  for (int l=0; l<=Lmax; l++) {
-    for (int m=0; m<=l; m++) {
-      for (size_t j=0; j<nmax; j++) {
-	host_coefs[Ilmn(l, m, 'c', j, nmax)] += ret[2*j+offst];
-	if (m>0) host_coefs[Ilmn(l, m, 's', j, nmax)] += ret[2*j+1+offst];
-      }
-      offst += nmax*2;
+  for (int m=0; m<=Mmax; m++) {
+    for (size_t j=0; j<nmax; j++) {
+      host_coefs[Imn(m, 'c', j, nmax)] += ret[2*j+offst];
+      if (m>0) host_coefs[Imn(m, 's', j, nmax)] += ret[2*j+1+offst];
     }
+    offst += nmax*2;
   }
   
   if (Ntotal == 0) {
@@ -1180,32 +1177,28 @@ void PolarBasis::determine_acceleration_cuda()
     forceKernel<<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
       (toKernel(cr->cuda_particles), toKernel(cr->indx1),
        toKernel(dev_coefs), toKernel(t_d),
-       toKernel(cuS.plm1_d), toKernel(cuS.plm2_d),
-       stride, Lmax, nmax, lohi, rmax, use_external);
+       toKernel(cuS.plm1_d),
+       stride, Mmax, nmax, lohi, rmax, use_external);
   }
 }
 
 void PolarBasis::HtoD_coefs(const std::vector<VectorP>& expcoef)
 {
-  host_coefs.resize((Lmax+1)*(Lmax+1)*nmax); // Should stay fixed, no reserve
+  host_coefs.resize((2*Mmax+1)*nmax); // Should stay fixed, no reserve
 
-  // l loop
+  // m loop
   //
-  for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-    // m loop
-    //
-    for (int m=0, moffset=0; m<=l; m++) {
+  for (int m=0, moffset=0; m<=Mmax; m++) {
 	
-      // n loop
-      //
-      for (int n=0; n<nmax; n++) {
-	host_coefs[Ilmn(l, m, 'c', n, nmax)] = (*expcoef[loffset+moffset])[n];
-	if (m>0) host_coefs[Ilmn(l, m, 's', n, nmax)] = (*expcoef[loffset+moffset+1])[n];
-      }
-
-      if (m>0) moffset += 2;
-      else     moffset += 1;
+    // n loop
+    //
+    for (int n=0; n<nmax; n++) {
+      host_coefs[Imn(m, 'c', n, nmax)] = (*expcoef[moffset])[n];
+      if (m>0) host_coefs[Imn(m, 's', n, nmax)] = (*expcoef[moffset+1])[n];
     }
+
+    if (m>0) moffset += 2;
+    else     moffset += 1;
   }
 
   dev_coefs = host_coefs;
@@ -1214,24 +1207,19 @@ void PolarBasis::HtoD_coefs(const std::vector<VectorP>& expcoef)
 
 void PolarBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 {
-  // l loop
+  // m loop
   //
-  for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-
-    // m loop
-    //
-    for (int m=0, moffset=0; m<=l; m++) {
+  for (int m=0, moffset=0; m<=Mmax; m++) {
 	
-      // n loop
-      //
-      for (int n=0; n<nmax; n++) {
-	(*expcoef0[0][loffset+moffset])[n] = host_coefs[Ilmn(l, m, 'c', n, nmax)];
-	if (m>0) (*expcoef0[0][loffset+moffset+1])[n] = host_coefs[Ilmn(l, m, 's', n, nmax)];
-      }
-
-      if (m>0) moffset += 2;
-      else     moffset += 1;
+    // n loop
+    //
+    for (int n=0; n<nmax; n++) {
+      (*expcoef0[0][moffset])[n] = host_coefs[Imn(m, 'c', n, nmax)];
+      if (m>0) (*expcoef0[0][moffset+1])[n] = host_coefs[Imn(m, 's', n, nmax)];
     }
+
+    if (m>0) moffset += 2;
+    else     moffset += 1;
   }
 
   if (compute) {
@@ -1259,67 +1247,57 @@ void PolarBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	  int offst = 0;
 	  int psize = nmax;
 	  
-	  // l loop
+	  // m loop
 	  //
-	  for (int l=0, loffset=0; l<=Lmax; loffset+=(l+1), l++) {
+	  for (int m=0; m<=Mmax; m++) {
 	    
-	    // m loop
+	    // n loop
 	    //
-	    for (int m=0; m<=l; m++) {
-	      
-	      // n loop
-	      //
-	      for (int n=0; n<nmax; n++) {
-		(*expcoefT1[T][loffset+m])[n] += retV[n + offst];
-	      }
-	      
-	      offst += psize;
+	    for (int n=0; n<nmax; n++) {
+	      (*expcoefT1[T][m])[n] += retV[n + offst];
 	    }
-	  }
-
-	} else {
-
-	  thrust::host_vector<cuFP_t> retM = cuS.T_covr[T];
-	
-	  int vffst = 0;
-	  int vsize = nmax*(nmax+3)/2;
-	  
-	  // l loop
-	  //
-	  for (int l=0, loffset=0; l<=Lmax; loffset+=(l+1), l++) {
-	    
-	    // m loop
-	    //
-	    for (int m=0; m<=l; m++) {
-
-	      // Variance assignment
-	      //
-	      int c = 0;	// Internal index 
-	      for (int n=0; n<nmax; n++) {
 	      
-		for (int o=n; o<nmax; o++) {
-		  // Diagonal and upper diagonal
-		  (*expcoefM1[T][loffset+m])(n, o) += retM[c + vffst];
+	    offst += psize;
+	  }
+	}
+
+      } else {
+
+	thrust::host_vector<cuFP_t> retM = cuS.T_covr[T];
+	
+	int vffst = 0;
+	int vsize = nmax*(nmax+3)/2;
+	  
+	// m loop
+	//
+	for (int m=0, offset=0; m<=Mmax; m++) {
+
+	  // Variance assignment
+	  //
+	  int c = 0;	// Internal index 
+	  for (int n=0; n<nmax; n++) {
+	    
+	    for (int o=n; o<nmax; o++) {
+	      // Diagonal and upper diagonal
+	      (*expcoefM1[T][offset+m])(n, o) += retM[c + vffst];
 
 		  // Below the diagonal
-		  if (o!=n) (*expcoefM1[T][loffset+m])(o, n) += retM[c + vffst];
-		  c++;
-		}
-	      }
-
-	      // Mean assignment
-	      //
-	      for (int n=0; n<nmax; n++) {
-		(*expcoefT1[T][loffset+m])[n] += retM[c + vffst];
-		c++;
-	      }
-	      
-	      if (c != nmax*(nmax+3)/2)
-		std::cout << "out of bounds: wrong c [h]" << std::endl;
-
-	      vffst += vsize;
+	      if (o!=n) (*expcoefM1[T][offset+m])(o, n) += retM[c + vffst];
+	      c++;
 	    }
 	  }
+
+	  // Mean assignment
+	  //
+	  for (int n=0; n<nmax; n++) {
+	    (*expcoefT1[T][offset+m])[n] += retM[c + vffst];
+	    c++;
+	  }
+	      
+	  if (c != nmax*(nmax+3)/2)
+	    std::cout << "out of bounds: wrong c [h]" << std::endl;
+	  
+	  vffst += vsize;
 	}
       }
 

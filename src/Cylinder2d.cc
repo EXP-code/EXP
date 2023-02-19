@@ -30,8 +30,6 @@ Cylinder2d::valid_keys = {
   "nmax",
   "mmax",
   "mlim",
-  "ncylnx",
-  "ncylny",
   "ncylr",
   "ncylorder",
   "ncylodd",
@@ -56,7 +54,6 @@ Cylinder2d::valid_keys = {
   "EVEN_M",
   "cmap",
   "cmapr",
-  "vflag",
   "self_consistent",
   "playback",
   "coefCompute",
@@ -94,7 +91,6 @@ Cylinder2d::Cylinder2d(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ncylodd         = -1;
   ncylrecomp      = -1;
 
-  vflag           = 0;
   eof             = 1;
   npca            = 50;
   npca0           = 0;
@@ -191,7 +187,6 @@ Cylinder2d::Cylinder2d(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		<< std::endl << sep << "override="    << std::boolalpha << eof_over
 		<< std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 		<< std::endl << sep << "logarithmic=" << logarithmic
-		<< std::endl << sep << "vflag="       << vflag
 		<< std::endl << std::endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
@@ -220,7 +215,6 @@ Cylinder2d::Cylinder2d(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << std::endl << sep << "override="    << std::boolalpha << eof_over
 	      << std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 	      << std::endl << sep << "logarithmic=" << logarithmic
-	      << std::endl << sep << "vflag="       << vflag
 	      << std::endl;
   }
 #endif
@@ -292,9 +286,6 @@ void Cylinder2d::initialize()
     if (conf["density"   ])    density  = conf["density"   ].as<bool>();
     if (conf["EVEN_M"    ])     EVEN_M  = conf["EVEN_M"    ].as<bool>();
     if (conf["cmap"      ])      cmapR  = conf["cmap"      ].as<int>();
-    if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
-    if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
-    if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
     if (conf["self_consistent"])
       self_consistent = conf["self_consistent"].as<bool>();
