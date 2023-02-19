@@ -92,6 +92,7 @@ int main(int argc, char** argv)
 	       type, biorth);
 
   // Sanity check
+  //
   M = std::min<int>(M, mmax);
 
   if (vm.count("grid"))  emp.writeBasis(M, filename + ".grid");

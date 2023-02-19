@@ -12,8 +12,6 @@
 #include <EmpCyl2D.H>
 #include <EXPmath.H>
 
-std::string EmpCyl2D::cache_name_2d = ".eof_cache_2d";
-
 // Clutton-Brock two-dimensional disk
 //
 class EmpCyl2D::CluttonBrock : public EmpCyl2D::Basis2d
@@ -451,14 +449,24 @@ double EmpCyl2D::Mapping::d_xi_to_r(double xi)
   }
 }
 
+// Default cache name
+//
+const std::string EmpCyl2D::default_cache_name = ".eof_cache_2d";
+
+
+// The main constructor
+//
 EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
 		   double rmin, double rmax, double A, double scale,
 		   bool cmap, bool logr,
-		   const std::string type, const std::string biorth) :
+		   const std::string type, const std::string biorth,
+		   const std::string cache) :
   mmax(mmax), nmax(nmax), knots(knots), numr(numr),
   rmin(rmin), rmax(rmax), A(A), scale(scale), cmap(cmap), logr(logr),
-  model(type), biorth(biorth)
+  model(type), biorth(biorth), cache_name_2d(cache)
 {
+  if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
+
   basis = Basis2d::createBasis(mmax, nmax, rmax, biorth);
 
   if (not read_cached_tables()) create_tables();

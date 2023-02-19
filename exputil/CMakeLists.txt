@@ -26,7 +26,8 @@ set(ORBIT_SRC orbit.cc orbit_trans.cc FindOrb.cc)
 
 set(BIORTH_SRC biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc
   sbessz.cc ultra.cc bessz.cc sphereSL.cc biorth1d.cc Coefs.cc
-  biorth_wake_orientation.cc SLGridMP2.cc scalarprod.cc EmpCylSL.cc)
+  biorth_wake_orientation.cc SLGridMP2.cc scalarprod.cc EmpCylSL.cc
+  EmpCyl2D.cc)
 
 set(GAUSS_SRC gaussQ.cc GaussCore.c Hermite.c Jacobi.c Laguerre.c)
 set(QPDISTF_SRC QPDistF.cc qld.c)

@@ -107,16 +107,21 @@ protected:
   void checkMN(int& M, int& N, const std::string& member);
   //@}
   
-public:
+  //! Default cache name
+  static const std::string default_cache_name;
 
   //! The cache file name
-  static std::string cache_name_2d;
+  std::string cache_name_2d;
+
+public:
 
   //! Constructor
   EmpCyl2D(int mmax, int nmax, int knots, int numr,
 	   double rmin, double rmax, double A, double scale,
-	   bool cmap, bool logr, const std::string type,
-	   const std::string biorth);
+	   bool cmap, bool logr,
+	   const std::string type,
+	   const std::string biorth,
+	   const std::string cache="");
   
   //! Linear interpolate on grid to get potential value
   double get_potl(double r, int M, int N);

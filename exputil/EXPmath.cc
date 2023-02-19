@@ -376,13 +376,10 @@ namespace AltMath
 
   double assoc_laguerre(unsigned l, unsigned n, double x)
   {
-    double xi[1], *yi, ret;
-
-    xi[0] = x;
-    yi = l_polynomial ((int)l, (int)n, xi);
-    ret = yi[0];
-    delete [] yi;
-    return yi[0];
+    double xi[] = {x};
+    auto yi = l_polynomial ((int)l, (int)n, xi);
+    double ret = yi[0]; delete [] yi;
+    return ret;
   }
   
 }

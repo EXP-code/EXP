@@ -1,11 +1,11 @@
-#ifndef _Cylinder_H
-#define _Cylinder_H
+#ifndef _Cylinder2d_H
+#define _Cylinder2d_H
 
 #include <memory>
 
 #include <Orient.H>
 #include <Basis.H>
-#include <CylEXP.H>
+#include <EmpCyl2D.H>
 #include <Coefficients.H>
 
 #include <config_exp.h>
@@ -79,7 +79,7 @@ private:
   int nmax, lmax, mmax, mlim;
   int ncylnx, ncylny, ncylr;
   double hcyl, hexp, snr, rem;
-  int ncylorder, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
+  int ncylorder, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR;
   string eof_file;
   bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
   bool try_cache, firstime, dump_basis, compute, firstime_coef;
