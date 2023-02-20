@@ -76,7 +76,7 @@ std::complex<double> compute_rat_integral(double a, double b,
   int i = 0;
   std::complex<double> val = y_data[i++];
   while(i<sz) {
-    if (fabs(val-y_data[i++]) > SMALL) break;
+    if (std::abs(val-y_data[i++]) > SMALL) break;
   }
   if (i>y_data.size()) {
     return val * (b-a);
@@ -201,7 +201,7 @@ Eigen::VectorXcd get_multiplicity(Eigen::VectorXcd &rrn, int &dim,
     icnt = 1;
     if (i!=irn) {
       for (int j=i+1; j<irn; j++) {
-	if ( fabs(tmp[i] - tmp[j]) < DEPS*(fabs(tmp[i])+fabs(tmp[j])) ) {
+	if ( std::abs(tmp[i] - tmp[j]) < DEPS*(std::abs(tmp[i])+std::abs(tmp[j])) ) {
 	  strike_entry1(tmp, j, irn);
 	  icnt++;
 	}
@@ -351,10 +351,10 @@ void renorm_coef(Eigen::VectorXcd& x1, Eigen::VectorXcd& y1, Eigen::VectorXcd& x
   int sizx = x1.size();
   int sizy = y1.size();
   
-  double ymax = fabs(y1[0]);
+  double ymax = std::abs(y1[0]);
   double ytmp;
   for (int i=1; i<sizy; i++) {
-    ytmp = fabs(y1[i]);
+    ytmp = std::abs(y1[i]);
     if (ytmp <= 1.0e-10) continue;
     if (ytmp > ymax) ymax = ytmp;
   }

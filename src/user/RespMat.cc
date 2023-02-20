@@ -419,7 +419,7 @@ void RespMat::make_matrix(void)
 	temp = compute_rat_integral(0.0, 1.0, mk, mab[alpha*nmax+beta]);
 	break;
       case jacoint:
-	temp = wk.adjoint()*mab[alpha*nmax+beta];
+	temp = wk.adjoint().dot(mab[alpha*nmax+beta]);
 	break;
       case rombint:
 	temp = Crombe(mk[1].real(), mk[num_K].real(), mab[alpha*nmax+beta]);
@@ -621,7 +621,7 @@ void RespMat::make_matrix_pv(void)
 	temp = compute_rat_integral(0.0, 1.0, mk, mab[alpha*nmax+beta]);
 	break;
       case jacoint:
-	temp = wk.adjoint()*mab[alpha*nmax+beta];
+	temp = wk.adjoint().dot(mab[alpha*nmax+beta]);
 	break;
       case rombint:
 	temp = Crombe(mk[1].real(), mk[num_K].real(), mab[alpha*nmax+beta]);
