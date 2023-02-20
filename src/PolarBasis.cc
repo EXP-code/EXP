@@ -1464,7 +1464,6 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 
       cC->AddAcc(indx, 0, -potr*xx/r);
       cC->AddAcc(indx, 1, -potr*yy/r);
-      cC->AddAcc(indx, 2, -potr*zz/r);
       if (fac > DSMALL) {
 	cC->AddAcc(indx, 0,  potp*yy/fac );
 	cC->AddAcc(indx, 1, -potp*xx/fac );
@@ -1794,7 +1793,8 @@ void PolarBasis::determine_fields_at_point
 
   double tpotR, tpotz, tpotp;
 
-  determine_fields_at_point_cyl(r, z, phi, tdens0, tpotl0, tdens, tpotl,
+  determine_fields_at_point_cyl(r, z, phi,
+				tdens0, tpotl0, tdens, tpotl,
 				tpotR, tpotz, tpotp);
   *tpotX = *tpotr*x/r;
   *tpotY = *tpotr*y/r;
@@ -1822,12 +1822,14 @@ void PolarBasis::determine_fields_at_point_cyl
   bool ioff = false;
   if (R>rmax) return;
 
+  double rs = r/scale;
+
   double p, dp, pc, ps, dpc, dps;
 
   sinecosine_R(Mmax, phi, cosm[id], sinm[id]);
 
-  get_dens(Mmax, nmax, r, dend);
-  get_dpot(Mmax, nmax, r, potd[id], dpot[id], id);
+  get_dens(Mmax, nmax, rs, dend);
+  get_dpot(Mmax, nmax, rs, potd[id], dpot[id], id);
 
   // m loop
   for (int m=0, moffset=0; m<=Mmax; m++) {
@@ -1855,6 +1857,10 @@ void PolarBasis::determine_fields_at_point_cyl
       moffset +=2;
     }
   }
+
+  tpotl /= scale;
+  tpotR /= scale*scale;
+  tpotp /= scale;
 }
 
 void PolarBasis::determine_fields_at_point_sph
@@ -1874,7 +1880,8 @@ void PolarBasis::determine_fields_at_point_sph
   bool ioff = false;
   if (R>rmax) return;
 
-  determine_fields_at_point_cyl(r, z, phi, tdens0, tpotl0, tdens, tpotl,
+  determine_fields_at_point_cyl(r, z, phi,
+				tdens0, tpotl0, tdens, tpotl,
 				tpotr, tpott, tpotp);
 }
 
