@@ -46,6 +46,14 @@ extern void mpi_gdb_wait_trace(int sig);
 
 void set_fpu_invalid_handler(void)
 {
+  // These calls are provided by glibc.  The key function
+  // 'feenableexcept(/*flags*/);' has the system raise a signal that
+  // may be trapped by gdb for debugging.
+  // 
+  // Please contribute solutions
+  // for other systems and unsupported architectures if possible...
+
+#ifdef __GNUC__
   // Flag invalid FP results only, such as 0/0 or infinity - infinity
   // or sqrt(-1).
   //
@@ -69,6 +77,8 @@ void set_fpu_invalid_handler(void)
     std::cout << "\b>" << std::endl;
   }
   signal(SIGFPE, mpi_gdb_print_trace);
+
+#endif
 }
 
 //===========================================
@@ -77,6 +87,8 @@ void set_fpu_invalid_handler(void)
 
 void set_fpu_trace_handler(void)
 {
+#ifdef __GNUC__
+  
   // Flag all FP errors except inexact
   //
   // fedisableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
@@ -104,6 +116,8 @@ void set_fpu_trace_handler(void)
     std::cout << "\b>" << std::endl;
   }
   signal(SIGFPE, mpi_gdb_print_trace);
+
+#endif
 }
 
 //===========================================
@@ -112,6 +126,8 @@ void set_fpu_trace_handler(void)
 
 void set_fpu_gdb_handler(void)
 {
+#ifdef __GNUC__
+
   // Flag all FP errors except inexact
   //
   // fedisableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
@@ -139,6 +155,7 @@ void set_fpu_gdb_handler(void)
     std::cout << "\b>" << std::endl;
   }
   signal(SIGFPE, mpi_gdb_wait_trace);
+#endif
 }
 
 
