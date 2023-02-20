@@ -1463,7 +1463,6 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
       potl = potr = pott = potp = 0.0;
       
-      get_dens(Lmax, nmax, rs, dend);
       get_dpotl(Lmax, nmax, rs, potd[id], dpot[id], id);
 
       if (!NO_L0) {
