@@ -36,7 +36,7 @@ int Imn(int m, char cs, int n, int nmax)
   else ret = (2*m - 1 + (cs=='s' ? 1 : 0))*nmax + n;
 
 #ifdef BOUNDS_CHECK
-  if (ret >= (2l+1)*nmax) {
+  if (ret >= (2m+1)*nmax) {
     printf("Imn oab: %4d %4d [%4d : %4d : %4d]\n", m, n, ret, (2*m+1)*nmax, nmax);
   }
 #endif
@@ -280,8 +280,8 @@ __global__ void coefKernel
 #endif
 		      ) * p0;
 	  
-	  coef._v[(2*n+0)*N + i] = v * cosp * mass;
-	  coef._v[(2*n+1)*N + i] = v * sinp * mass;
+	  coef._v[(2*n+0)*N + i] = v * cosp * mass * M_SQRT_2;
+	  coef._v[(2*n+1)*N + i] = v * sinp * mass * M_SQRT_2;
 
 	  // Load work space
 	  //
@@ -455,76 +455,69 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	if (plrNO_M1  and m==1        ) continue;
 	if (plrEVEN_M and (m/2)*2 != m) continue;
 
-	// m loop
-	//
-	for (int m=0; m<=l; m++) {
-	  
-	  if (plrEVEN_M and (m/2)*2 != m) continue;
-	  if (plrM0only and m != 0      ) continue;
-
-	  cuFP_t pp_c = 0.0;
-	  cuFP_t dp_c = 0.0;
-	  cuFP_t pp_s = 0.0;
-	  cuFP_t dp_s = 0.0;
-	  
-	  int indxC = Imn(m, 'c', 0, nmax);
-	  int indxS = Imn(m, 's', 0, nmax);
-
-	  for (size_t n=0; n<nmax; n++) {
+	cuFP_t pp_c = 0.0;
+	cuFP_t dp_c = 0.0;
+	cuFP_t pp_s = 0.0;
+	cuFP_t dp_s = 0.0;
 	
-	    int k = 1 + m*nmax + n;
+	int indxC = Imn(m, 'c', 0, nmax);
+	int indxS = Imn(m, 's', 0, nmax);
+
+	for (size_t n=0; n<nmax; n++) {
+	
+	  int k = 1 + m*nmax + n;
 	
 #ifdef BOUNDS_CHECK
-	    if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	  if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif	
 #if cuREAL == 4
-	    cuFP_t um1 = tex1D<float>(tex._v[k], ind-1);
-	    cuFP_t u00 = tex1D<float>(tex._v[k], ind  );
-	    cuFP_t up1 = tex1D<float>(tex._v[k], ind+1);
-	    cuFP_t u0  = u00;
-	    cuFP_t u1  = up1;
-	    if (in0==0) {
-	      u1 = u0;
-	      u0 = tex1D<float>(tex._v[k], 0);
-	    }
+	  cuFP_t um1 = tex1D<float>(tex._v[k], ind-1);
+	  cuFP_t u00 = tex1D<float>(tex._v[k], ind  );
+	  cuFP_t up1 = tex1D<float>(tex._v[k], ind+1);
+	  cuFP_t u0  = u00;
+	  cuFP_t u1  = up1;
+	  if (in0==0) {
+	    u1 = u0;
+	    u0 = tex1D<float>(tex._v[k], 0);
+	  }
 #else
-	    cuFP_t um1 = int2_as_double(tex1D<int2>(tex._v[k], ind-1));
-	    cuFP_t u00 = int2_as_double(tex1D<int2>(tex._v[k], ind  ));
-	    cuFP_t up1 = int2_as_double(tex1D<int2>(tex._v[k], ind+1));
-	    cuFP_t u0  = u00;
-	    cuFP_t u1  = up1;
-	    if (in0==0) {
-	      u1 = u0;
-	      u0 = int2_as_double(tex1D<int2>(tex._v[k], 0));
-	    }
+	  cuFP_t um1 = int2_as_double(tex1D<int2>(tex._v[k], ind-1));
+	  cuFP_t u00 = int2_as_double(tex1D<int2>(tex._v[k], ind  ));
+	  cuFP_t up1 = int2_as_double(tex1D<int2>(tex._v[k], ind+1));
+	  cuFP_t u0  = u00;
+	  cuFP_t u1  = up1;
+	  if (in0==0) {
+	    u1 = u0;
+	    u0 = int2_as_double(tex1D<int2>(tex._v[k], 0));
+	  }
 #endif
-	    cuFP_t v = (a0*u0 + b0*u1)*(a0*p0 + b0*p1);
+	  cuFP_t v = (a0*u0 + b0*u1)*(a0*p0 + b0*p1);
 	    
-	    cuFP_t dv =
-	      dx * ( (b1 - 0.5)*um1*pm1 - 2.0*b1*u00*p00 + (b1 + 0.5)*up1*pp1 );
+	  cuFP_t dv =
+	    dx * ( (b1 - 0.5)*um1*pm1 - 2.0*b1*u00*p00 + (b1 + 0.5)*up1*pp1 );
 	    
 #ifdef NAN_CHECK
-	    if (std::isnan(v))
-	      printf("v tab nan: (%d, %d): a=%f b=%f p0=%f p1=%f u0=%f u1=%f\n", l, m, a1, b1, p00, pp1, u00, up1);
+	  if (std::isnan(v))
+	    printf("v tab nan: (%d, %d): a=%f b=%f p0=%f p1=%f u0=%f u1=%f\n", l, m, a1, b1, p00, pp1, u00, up1);
 
-	    if (std::isnan(dv))
-	      printf("dv tab nan: (%d, %d): a=%f b=%f pn=%f p0=%f pp=%f un=%f u0=%f up=%f\n", l, m, a1, b1, pm1, p00, pp1, um1, u00, up1);
+	  if (std::isnan(dv))
+	    printf("dv tab nan: (%d, %d): a=%f b=%f pn=%f p0=%f pp=%f un=%f u0=%f up=%f\n", l, m, a1, b1, pm1, p00, pp1, um1, u00, up1);
 #endif
-
-	    pp_c -=  v * coef._v[indxC+n];
-	    dp_c -= dv * coef._v[indxC+n];
-	    if (m>0) {
-	      pp_s -=  v * coef._v[indxS+n];
-	      dp_s -= dv * coef._v[indxS+n];
-	    }
-
-	  } // END: n loop
 	  
+	  pp_c -=  v * coef._v[indxC+n];
+	  dp_c -= dv * coef._v[indxC+n];
+	  if (m>0) {
+	    pp_s -=  v * coef._v[indxS+n];
+	    dp_s -= dv * coef._v[indxS+n];
+	  }
+	  
+	} // END: n loop
+	
 #ifdef NAN_CHECK
-	  if (std::isnan(pp_c)) printf("pp_c eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
-	  if (std::isnan(dp_c)) printf("dp_c eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
-	  if (std::isnan(pp_s)) printf("pp_s eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
-	  if (std::isnan(dp_s)) printf("dp_s eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
+	if (std::isnan(pp_c)) printf("pp_c eval nan: m=%d: r=%f r0=%f\n", m, r, r0);
+	  if (std::isnan(dp_c)) printf("dp_c eval nan: m=%d: r=%f r0=%f\n", m, r, r0);
+	  if (std::isnan(pp_s)) printf("pp_s eval nan: m=%d: r=%f r0=%f\n", m, r, r0);
+	  if (std::isnan(dp_s)) printf("dp_s eval nan: m=%d: r=%f r0=%f\n", m, r, r0);
 #endif
 
 	  if (m==0) {
@@ -543,9 +536,9 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	      pp_c  = pp_s = dp_c = dp_s = 0.0;
 	    }
 
-	    potl +=   pp_c*ccos + pp_s*ssin;
-	    potr +=   dp_c*ccos + dp_s*ssin;
-	    potp += -(pp_c*ssin + pp_s*ccos)*m;
+	    potl +=   (pp_c*ccos + pp_s*ssin) * M_SQRT_2;
+	    potr +=   (dp_c*ccos + dp_s*ssin) * M_SQRT_2;
+	    potp += - (pp_c*ssin + pp_s*ccos) * M_SQRT_2 * m;
 	  }
 
 	  // Trig recursion to squeeze avoid internal FP fct call
@@ -567,7 +560,6 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 
       p.acc[0] += -potr*xx/r;
       p.acc[1] += -potr*yy/r;
-      p.acc[2] += -potr*zz/r;
       if (RR > FSMALL) {
 	p.acc[0] +=  potp*yy/RR;
 	p.acc[1] += -potp*xx/RR;
