@@ -5,6 +5,7 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <cmath>
 
 #include <Particle.H>
 #include <MixtureBasis.H>
@@ -357,8 +358,8 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
 	
       for (int l=1; l<=Lmax; l++) {
 
-	fac1 = cosm[id][l];
-	fac2 = sinm[id][l];
+	fac1 = cosm[id][l] * M_SQRT2;
+	fac2 = sinm[id][l] * M_SQRT2;
 	
 	for (int n=0; n<nmax; n++) {
 	  expcoef0[id](2*l - 1, n) +=  potd[id](l, n)*fac1*mass/normM(l, n);
@@ -454,9 +455,9 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
       get_pot_coefs_safe(l, expcoef->row(2*l - 1), pc, dpc, potd[id], dpot[id]);
       get_pot_coefs_safe(l, expcoef->row(2*l    ), ps, dps, potd[id], dpot[id]);
 
-      potl += pc*cosm[id][l]   + ps*sinm[id][l];
-      potr += dpc*cosm[id][l]  + dps*sinm[id][l];
-      potp += (-pc*sinm[id][l] + ps*cosm[id][l])*l;
+      potl += (pc *cosm[id][l]  + ps *sinm[id][l]) * M_SQRT2;
+      potr += (dpc*cosm[id][l]  + dps*sinm[id][l]) * M_SQRT2;
+      potp += (-pc*sinm[id][l]  + ps *cosm[id][l]) * M_SQRT2 * l;
     }
 
     double fac = xx*xx + yy*yy;
@@ -566,13 +567,13 @@ void CBrockDisk::determine_fields_at_point_polar
 
     get_dens_coefs(l,expcoef->row(2*l - 1), pc);
     get_dens_coefs(l,expcoef->row(2*l    ), ps);
-    dens += pc*cosm[0][l] + ps*sinm[0][l];
+    dens += (pc*cosm[0][l] + ps*sinm[0][l]) * M_SQRT2;
     
     get_pot_coefs(l,expcoef->row(2*l - 1), pc, dpc);
     get_pot_coefs(l,expcoef->row(2*l    ), ps, dps);
-    potl += pc*cosm[0][l] + ps*sinm[0][l];
-    potr += dpc*cosm[0][l] + dps*sinm[0][l];
-    potp += (-pc*sinm[0][l] + ps*cosm[0][l])*l;
+    potl += (pc *cosm[0][l] + ps *sinm[0][l]) * M_SQRT2;
+    potr += (dpc*cosm[0][l] + dps*sinm[0][l]) * M_SQRT2;
+    potp += (-pc*sinm[0][l] + ps *cosm[0][l]) * M_SQRT2 * l;
   }
 
   *tdens0 /= scale*scale*scale;

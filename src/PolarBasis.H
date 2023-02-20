@@ -201,6 +201,9 @@ protected:
   void update_noise(void);
   bool setup_noise;
 				// Parameters
+  //! Basis linear scale for mapping
+  double scale;
+
   //! The minimum radius
   double rmin;
 

@@ -5,6 +5,7 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <cmath>
 #include <set>
 
 #include <PolarBasis.H>
@@ -132,6 +133,10 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
       if (ssfrac>0.0 && ssfrac<1.0) subset = true;
     }
 
+    if (conf["Lmax"] and not conf["Mmax"]) Mmax = Lmax;
+    if (conf["Mmax"] and not conf["Lmax"]) Lmax = Mmax;
+    if (Lmax != Mmax) Lmax = Mmax;
+
     if (conf["playback"]) {
       std::string file = conf["playback"].as<std::string>();
 				// Check the file exists
@@ -245,14 +250,14 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   }
     
   expcoef .resize(2*Mmax+1);
-  expcoef1.resize(2*Lmax+1);
+  expcoef1.resize(2*Mmax+1);
   
   for (auto & v : expcoef ) v = std::make_shared<Eigen::VectorXd>(nmax);
   for (auto & v : expcoef1) v = std::make_shared<Eigen::VectorXd>(nmax);
   
   expcoef0.resize(nthrds);
   for (auto & t : expcoef0) {
-    t.resize(2*Lmax+1);
+    t.resize(2*Mmax+1);
     for (auto & v : t) v = std::make_shared<Eigen::VectorXd>(nmax);
   }
 
@@ -275,9 +280,9 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
   // Potential and deriv matrices
   //
-  normM.resize(Lmax+1, nmax);
-  krnl. resize(Lmax+1, nmax);
-  dend. resize(Lmax+1, nmax);
+  normM.resize(Mmax+1, nmax);
+  krnl. resize(Mmax+1, nmax);
+  dend. resize(Mmax+1, nmax);
 
   potd.resize(nthrds);
   dpot.resize(nthrds);
@@ -289,8 +294,6 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   //
   cosm .resize(nthrds);
   sinm .resize(nthrds);
-  legs .resize(nthrds);
-  dlegs.resize(nthrds);
 
   for (auto & v : cosm)  v.resize(Mmax+1);
   for (auto & v : sinm)  v.resize(Mmax+1);
@@ -431,7 +434,7 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
     int indx = component->levlist[mlevel][i];
 
     if (component->freeze(indx)) continue;
-
+    
     
     mass = component->Mass(indx) * adb;
 				// Adjust mass for subset
@@ -454,9 +457,9 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
       phi = atan2(yy,xx);
       rs = r/scale;
 	
-      sinecosine_R(Lmax, phi, cosm[id], sinm[id]);
+      sinecosine_R(Mmax, phi, cosm[id], sinm[id]);
 
-      get_potl(Lmax, nmax, rs, potd[id], id);
+      get_potl(Mmax, nmax, rs, potd[id], id);
       
       if (compute) {
 	muse1[id] += mass;
@@ -502,8 +505,8 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	else {
 	  if (not M0_only) {
 
-	    fac1 = cosm[id][m];
-	    fac2 = sinm[id][m];
+	    fac1 = cosm[id][m] * M_SQRT_2;
+	    fac2 = sinm[id][m] * M_SQRT_2;
 
 	    for (int n=0; n<nmax; n++) {
 
@@ -777,7 +780,7 @@ void PolarBasis::determine_coefficients_particles(void)
   //
   for (int i=0; i<nthrds; i++) use1 += use[i];
   for (int i=1; i<nthrds; i++) {
-    for (int l=0; l<(Lmax+1)*(Lmax+1); l++) (*expcoef0[0][l]) += (*expcoef0[i][l]);
+    for (int l=0; l<(Mmax+1)*(Mmax+1); l++) (*expcoef0[0][l]) += (*expcoef0[i][l]);
   }
   
   if (multistep==0 or tnow==resetT) {
@@ -990,7 +993,7 @@ void PolarBasis::multistep_update_finish()
 	}
       }
       out << std::string(10+16*nmax, '-') << std::endl;
-      for (int m=0; m<=2*Lmax; m++) {
+      for (int m=0; m<=2*Mmax; m++) {
 	if (L.find(m)==L.end()) continue;
 	out << std::setw(5) << " *** " << std::setw(5) << l;
 	for (int ir=0; ir<nmax; ir++)
@@ -1009,7 +1012,7 @@ void PolarBasis::multistep_update_finish()
   // Update the local coefficients
   //
   for (int M=mfirst[mstep]; M<=multistep; M++) {
-    offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
+    offset0 = (M - mfirst[mstep])*(Mmax+1)*(Mmax+1)*nmax;
     for (int m=0; m<=2*Mmax; m++) {
       offset1 = m*nmax;
       for (int ir=0; ir<nmax; ir++)
@@ -1043,7 +1046,7 @@ void PolarBasis::multistep_update(int from, int to, Component *c, int i, int id)
     double val, val1, val2, fac1, fac2;
     int moffset;
 
-    get_potl(Lmax, nmax, rs, potd[id], 0);
+    get_potl(Mmax, nmax, rs, potd[id], 0);
 
     //
     // m loop
@@ -1059,8 +1062,8 @@ void PolarBasis::multistep_update(int from, int to, Component *c, int i, int id)
 	moffset++;
 
       } else {
-	fac1 = cosm[id][m];
-	fac2 = sinm[id][m];
+	fac1 = cosm[id][m] * M_SQRT_2;
+	fac2 = sinm[id][m] * M_SQRT_2;
 
 	for (int n=0; n<nmax; n++) {
 	  val1 = potd[id](m, n)*fac1*mass/normM(m, n);
@@ -1445,9 +1448,9 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	    if (ioff) {
 	      pc = ps = dpc = dps = 0.0;
 	    }
-	    potl += fac*(pc*cosm[id][m] + ps*sinm[id][m]);
-	    potr += fac*(dpc*cosm[id][m] + dps*sinm[id][m]);
-	    potp += fac*(-pc*sinm[id][m] + ps*cosm[id][m])*m;
+	    potl += fac*(pc* cosm[id][m] + ps* sinm[id][m]) * M_SQRT_2;
+	    potr += fac*(dpc*cosm[id][m] + dps*sinm[id][m]) * M_SQRT_2;
+	    potp += fac*(-pc*sinm[id][m] + ps *cosm[id][m]) * M_SQRT_2 * m;
 	    moffset +=2;
 	  }
 	}
@@ -1779,30 +1782,26 @@ void PolarBasis::determine_fields_at_point
  double *tdens,  double *tpotl, 
  double *tpotX,  double *tpotY, double *tpotZ)
 {
-  double R2 = x*x + y*y;
-  double R  = sqrt(R) + DSMALL;
-  double r  = sqrt(R2 + z*z) + DSMALL;
-  double r2 = R2 + z*z + DSMALL;
-  double r3 = r2*r;
+  double r2  = x*x + y*y;
+  double r   = sqrt(R) + DSMALL;
+  double phi = atan2(y, x);
   
-  double theta = acos(z/r);
-  double phi   = atan2(y, x);
-  double cth   = cos(theta), sth = sin(theta);
-  double cph   = cos(phi),   sph = sin(phi);
-  double tpotr, tpott, tpotp;
+  *tdens0 = *tpotl0 = *tdens = *tdens0 = 0.0;
+  *tpotX  = *tpotY  = *tpotZ = 0.0;
 
-  determine_fields_at_point_sph(r, theta, phi,
-				tdens0, tpotl0, 
-				tdens, tpotl, 
-				&tpotr,	&tpott, &tpotp);
+  bool ioff = false;
+  if (R>rmax) return;
 
-  *tpotX = tpotr*x/r - tpott*x*z/r3;
-  *tpotY = tpotr*y/r - tpott*y*z/r3;
-  *tpotZ = tpotr*z/r + tpott*R2/r3;
+  double tpotR, tpotz, tpotp;
+
+  determine_fields_at_point_cyl(r, z, phi, tdens0, tpotl0, tdens, tpotl,
+				tpotR, tpotz, tpotp);
+  *tpotX = *tpotr*x/r;
+  *tpotY = *tpotr*y/r;
       
   if (R > DSMALL) {
-    *tpotX +=  tpotp*y/R;
-    *tpotY += -tpotp*x/R;
+    *tpotX +=  tpotp*y/r;
+    *tpotY += -tpotp*x/r;
   }
 }
 
@@ -1813,17 +1812,49 @@ void PolarBasis::determine_fields_at_point_cyl
  double *tdens, double *tpotl, 
  double *tpotR, double *tpotz, double *tpotp)
 {
-  double r = sqrt(R*R + z*z) + 1.0e-18;
-  double theta = acos(z/r);
-  double tpotr, tpott;
+  double r2  = x*x + y*y;
+  double r   = sqrt(R) + DSMALL;
+  double phi = atan2(y, x);
+  
+  *tdens0 = *tpotl0 = *tdens = *tpotl = 0.0;
+  *tpotR  = *tpotz  = *tpotp = 0.0;
 
-  determine_fields_at_point_sph(r, theta, phi, 
-				tdens0, tpotl0, 
-				tdens, tpotl, 
-				&tpotr,	&tpott, tpotp);
+  bool ioff = false;
+  if (R>rmax) return;
 
-  *tpotR = tpotr*sin(theta) - tpott*cos(theta)/r;
-  *tpotz = tpotr*cos(theta) + tpott*sin(theta)/r;
+  double p, dp, pc, ps, dpc, dps;
+
+  sinecosine_R(Mmax, phi, cosm[id], sinm[id]);
+
+  get_dens(Mmax, nmax, r, dend);
+  get_dpot(Mmax, nmax, r, potd[id], dpot[id], id);
+
+  // m loop
+  for (int m=0, moffset=0; m<=Mmax; m++) {
+    if (m==0) {
+      get_dens_coefs(m, *expcoef[loffset+moffset], p);
+      tdens0 = p;
+      get_pot_coefs_safe(m, *expcoef[moffset], p, dp, potd[id], dpot[id]);
+      tpotl = p;
+      tpotR = dp;
+
+      moffset++;
+    }
+    else {
+      get_dens_coefs(m, *expcoef[loffset+moffset], pc);
+      get_dens_coefs(m, *expcoef[loffset+moffset+1], ps);
+      tdens += (pc*cosm[0] + ps*sinm[0][m]) * M_SQRT_2;
+      
+      get_pot_coefs(m, *expcoef[loffset+moffset],   pc, dpc);
+      get_pot_coefs(m, *expcoef[loffset+moffset+1], ps, dps);
+
+      tpotl += (pc* cosm[0][m] + ps* sinm[0][m]) * M_SQRT_2;
+      tpotR += (dpc*cosm[0][m] + dps*sinm[0][m]) * M_SQRT_2;
+      tpotp += (-pc*sinm[0][m] + ps* cosm[0][m]) * M_SQRT_2;
+
+      moffset +=2;
+    }
+  }
 }
 
 void PolarBasis::determine_fields_at_point_sph
@@ -1832,77 +1863,19 @@ void PolarBasis::determine_fields_at_point_sph
  double *tdens, double *tpotl, 
  double *tpotr, double *tpott, double *tpotp)
 {
-  int l,loffset,moffset,m;
-  double rs,fac1,fac2,fac3,fac4,costh,dp;
-  double potr,potl,pott,potp,p,pc,dpc,ps,dps,dens;
-  double dfac=0.25/M_PI;
 
-  rs = r/scale;
-  costh = cos(theta);
-
-  fac1 = dfac;
-
-  dlegendre_R(Lmax, costh, legs[0], dlegs[0]);
-  sinecosine_R(Lmax, phi, cosm[0], sinm[0]);
-  get_dens(Lmax, nmax, rs, dend, 0);
-  get_dpotl(Lmax, nmax, rs, potd[0], dpot[0], 0);
-  get_dens_coefs(0, *expcoef[0], dens);
-  dens *= dfac*dfac;
-
-  get_pot_coefs(0, *expcoef[0], p, dp);
-  potl = fac1*p;
-  potr = fac1*dp;
-  pott = potp = 0.0;
+  double r2  = x*x + y*y;
+  double r   = sqrt(R) + DSMALL;
+  double phi = atan2(y, x);
   
-  *tdens0 = dens;
-  *tpotl0 = potl;
+  *tdens0 = *tpotl0 = *tdens = *tpotl = 0.0;
+  *tpotr  = *tpott  = *tpotp = 0.0;
 
-  // l loop
-    
-  for (l=1, loffset=1; l<=Lmax; loffset+=(2*l+1), l++) {
-    
-    // m loop
-    for (m=0, moffset=0; m<=l; m++) {
-      fac1 = (2.0*l+1.0)/(4.0*M_PI);
-      if (m==0) {
-	fac2 = fac1*legs[0](l, m);
-	get_dens_coefs(l, *expcoef[loffset+moffset], p);
-	dens += dfac*fac2*p;
-	get_pot_coefs(l, *expcoef[loffset+moffset], p, dp);
-	potl += fac2*p;
-	potr += fac2*dp;
-	pott += fac1*dlegs[0](l, m)*p;
-	moffset++;
-      }
-      else {
-	fac2 = 2.0 * fac1 * factorial(l, m);
-	fac3 = fac2 * legs[0](l, m);
-	fac4 = fac2 * dlegs[0](l, m);
-	
-	get_dens_coefs(l, *expcoef[loffset+moffset], pc);
-	get_dens_coefs(l, *expcoef[loffset+moffset+1], ps);
-	dens += dfac*fac3*(pc*cosm[0][m] + ps*sinm[0][m]);
-	
-	get_pot_coefs(l, *expcoef[loffset+moffset], pc, dpc);
-	get_pot_coefs(l, *expcoef[loffset+moffset+1], ps, dps);
-	potl += fac3*(pc*cosm[0][m] + ps*sinm[0][m]);
-	potr += fac3*(dpc*cosm[0][m] + dps*sinm[0][m]);
-	pott += fac4*(pc*cosm[0][m] + ps*sinm[0][m]);
-	potp += fac3*(-pc*sinm[0][m] + ps*cosm[0][m])*m;
-	moffset +=2;
-      }
-    }
-  }
+  bool ioff = false;
+  if (R>rmax) return;
 
-  *tdens0 /= scale*scale*scale;
-  *tpotl0 /= scale;
-
-  *tdens = dens/(scale*scale*scale);
-  *tpotl = potl/scale;
-  *tpotr = potr/(scale*scale);
-  *tpott = pott/scale;
-  *tpotp = potp/scale;
-  
+  determine_fields_at_point_cyl(r, z, phi, tdens0, tpotl0, tdens, tpotl,
+				tpotr, tpott, tpotp);
 }
 
 

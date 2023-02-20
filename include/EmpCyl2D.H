@@ -26,6 +26,24 @@
  */
 class EmpCyl2D
 {
+public:
+  //! A two-dimensional disk model for computing the EOF
+  class ModelCyl
+  {
+  protected:
+
+    double A;
+    std::string id;
+
+  public:
+
+    virtual double pot (double r) = 0;
+    virtual double dpot(double r) = 0;
+    virtual double dens(double r) = 0;
+
+    virtual std::string ID() { return id; }
+  };
+
 protected:
 
   double A, rmin, rmax, scale;
@@ -54,26 +72,12 @@ protected:
   class CluttonBrock;
   class Bessel;
 
-  std::shared_ptr<Basis2d> basis;
+  std::shared_ptr<ModelCyl> disk;
+  std::shared_ptr<Basis2d>  basis;
 
-  //! A two-dimensional disk model for computing the EOF
-  class ModelCyl
-  {
-  protected:
+  static std::shared_ptr<ModelCyl>
+  createModel(const std::string type, double A);
 
-    double A;
-    std::string id;
-
-  public:
-
-    static std::shared_ptr<ModelCyl>
-    createModel(const std::string type, double A);
-
-    virtual double pot (double r) = 0;
-    virtual double dpot(double r) = 0;
-    virtual double dens(double r) = 0;
-  };
-  
   class ExponCyl;
   class MestelCyl;
   class KuzminCyl;
@@ -118,10 +122,14 @@ public:
   //! Constructor
   EmpCyl2D(int mmax, int nmax, int knots, int numr,
 	   double rmin, double rmax, double A, double scale,
-	   bool cmap, bool logr,
-	   const std::string type,
-	   const std::string biorth,
-	   const std::string cache="");
+	   bool cmap, bool logr, const std::string model,
+	   const std::string biorth, const std::string cache="");
+  
+  //! Constructor with user-supplied target model
+  EmpCyl2D(int mmax, int nmax, int knots, int numr,
+	   double rmin, double rmax, double A, double scale,
+	   bool cmap, bool logr, std::shared_ptr<ModelCyl> disk,
+	   const std::string biorth, const std::string cache="");
   
   //! Linear interpolate on grid to get potential value
   double get_potl(double r, int M, int N);
@@ -131,6 +139,13 @@ public:
 
   //! Linear interpolate on grid to get potential gradient (-force) value
   double get_dpot(double r, int M, int N);
+
+  //@{
+  //! Matrix evaluation members
+  void get_pot  (Eigen::MatrixXd& mat, double r);
+  void get_dens (Eigen::MatrixXd& mat, double r);
+  void get_force(Eigen::MatrixXd& mat, double r);
+  //@}
 
   //! Write the basis for a partcular azimuthal M value to a file
   void writeBasis(int M, const std::string& file);

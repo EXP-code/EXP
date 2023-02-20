@@ -363,7 +363,7 @@ public:
 
 
 std::shared_ptr<EmpCyl2D::ModelCyl>
-EmpCyl2D::ModelCyl::createModel(const std::string type, double A)
+EmpCyl2D::createModel(const std::string type, double A)
 {
   // Convert ID string to lower case
   //
@@ -459,14 +459,33 @@ const std::string EmpCyl2D::default_cache_name = ".eof_cache_2d";
 EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
 		   double rmin, double rmax, double A, double scale,
 		   bool cmap, bool logr,
-		   const std::string type, const std::string biorth,
+		   const std::string model, const std::string biorth,
 		   const std::string cache) :
   mmax(mmax), nmax(nmax), knots(knots), numr(numr),
   rmin(rmin), rmax(rmax), A(A), scale(scale), cmap(cmap), logr(logr),
-  model(type), biorth(biorth), cache_name_2d(cache)
+  model(model), biorth(biorth), cache_name_2d(cache)
 {
   if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
 
+  disk  = createModel(model, A);
+  basis = Basis2d::createBasis(mmax, nmax, rmax, biorth);
+
+  if (not read_cached_tables()) create_tables();
+}
+
+
+EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
+		   double rmin, double rmax, double A, double scale,
+		   bool cmap, bool logr,
+		   std::shared_ptr<EmpCyl2D::ModelCyl> disk,
+		   const std::string biorth, const std::string cache) :
+  mmax(mmax), nmax(nmax), knots(knots), numr(numr),
+  rmin(rmin), rmax(rmax), A(A), scale(scale), cmap(cmap), logr(logr),
+  disk(disk), biorth(biorth), cache_name_2d(cache)
+{
+  if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
+
+  model = disk->ID();
   basis = Basis2d::createBasis(mmax, nmax, rmax, biorth);
 
   if (not read_cached_tables()) create_tables();
@@ -476,7 +495,6 @@ EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
 void EmpCyl2D::create_tables()
 {
   Mapping  map(scale, cmap);
-  auto     disk = ModelCyl::createModel(model, A);
 
   LegeQuad lw(knots);
 
@@ -606,23 +624,32 @@ void EmpCyl2D::writeTrans(int M, const std::string& filename)
 
 void EmpCyl2D::orthoCheck(int M, const std::string& filename)
 {
-  Eigen::MatrixXd orth(nmax, nmax);
-  orth.setZero();
+  Eigen::MatrixXd orth0(nmax, nmax), orth1(nmax, nmax);
+  orth0.setZero();
+  orth1.setZero();
 
   for (int i=1; i<numr; i++) {
     for (int j=0; j<nmax; j++) {
       for (int l=0; l<nmax; l++) {
-	orth(j, l) +=
+	orth0(j, l) +=
+	  (xgrid[i-1] * basis->potl(M, j, xgrid[i-1]) * basis->dens(M, l, xgrid[i-1]) + 
+	   xgrid[i  ] * basis->potl(M, j, xgrid[i  ]) * basis->dens(M, l, xgrid[i  ]) ) *
+	  (xgrid[i] - xgrid[i-1]) * 0.5 / sqrt(basis->norm(j, M)*basis->norm(l, M));
+
+	orth1(j, l) +=
 	  (xgrid[i-1] * potl_array[M](i-1, j) * dens_array[M](i-1, l) +
-	   xgrid[i  ] * potl_array[M](i  , j) * dens_array[M](i  , l) ) * (xgrid[i] - xgrid[i-1]) * 0.5;
+	   xgrid[i  ] * potl_array[M](i  , j) * dens_array[M](i  , l) ) *
+	  (xgrid[i] - xgrid[i-1]) * 0.5;
       }
     }
   }
   
   std::ofstream out(filename);
   if (out) {
-    out << std::endl << "# Orthogonality matrix of EOF basis for M=" << M << ":"
-	<< std::endl << std::endl << orth*2.0*M_PI << std::endl;
+    out << std::endl << "# Orthogonality matrix of basis for M=" << M << ":"
+	<< std::endl << std::endl << orth0*2.0*M_PI << std::endl << std::endl
+	<< std::endl << "# Orthogonality matrix of EOF basis for M=" << M << ":"
+	<< std::endl << std::endl << orth1*2.0*M_PI << std::endl << std::endl;
   } else {
     throw std::runtime_error("EmpCyl2D::orthoCheck: error opening <" + filename + ">");
   }
@@ -916,10 +943,52 @@ double EmpCyl2D::get_dpot(double r, int M, int N)
   return A*dpot_array[M](lo, N) + B*dpot_array[M](hi, N);
 }
 
+void EmpCyl2D::get_pot(Eigen::MatrixXd& mat, double r)
+{
+  int lo, hi;			// Get the linear interp
+  double A, B;
+  std::tie(lo, hi, A, B) = linear_interp(r);
+
+  mat.resize(mmax+1, nmax);	// Resize the return array
+
+  for (int m=0; m<=mmax; m++) {	// Pack the array
+    for (int j=0; j<nmax; j++)
+      mat(m, j) = A*potl_array[m](lo, j) + B*potl_array[m](hi, j);
+  }
+}
+
+void EmpCyl2D::get_dens(Eigen::MatrixXd& mat, double r)
+{
+  int lo, hi;
+  double A, B;
+  std::tie(lo, hi, A, B) = linear_interp(r);
+
+  mat.resize(mmax+1, nmax);
+
+  for (int m=0; m<=mmax; m++) {
+    for (int j=0; j<nmax; j++)
+      mat(m, j) = A*dens_array[m](lo, j) + B*dens_array[m](hi, j);
+  }
+}
+
+void EmpCyl2D::get_force(Eigen::MatrixXd& mat, double r)
+{
+  int lo, hi;
+  double A, B;
+  std::tie(lo, hi, A, B) = linear_interp(r);
+
+  mat.resize(mmax+1, nmax);
+
+  for (int m=0; m<=mmax; m++) {
+    for (int j=0; j<nmax; j++)
+      mat(m, j) = A*dpot_array[m](lo, j) + B*dpot_array[m](hi, j);
+  }
+}
+
 void EmpCyl2D::checkCoefs()
 {
   Mapping  map(scale, cmap);
-  auto     disk = ModelCyl::createModel(model, A);
+  auto     disk = createModel(model, A);
   LegeQuad lw(knots);
 
   Eigen::VectorXd coefs(nmax), coef0(nmax);
