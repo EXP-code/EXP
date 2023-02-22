@@ -101,7 +101,7 @@ void EmpCyl2D::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 
   cuda_safe_call(cudaMallocArray(&cuArray[0], &channelDesc, numr), __FILE__, __LINE__, "malloc cuArray");
 
-  for (int m=0; m<=mmax; l++) {
+  for (int m=0; m<=mmax; m++) {
     for (int n=0; n<nmax; n++) {
       int i = m*nmax + n;
       cuda_safe_call(cudaMallocArray(&cuArray[i], &channelDesc, numr), __FILE__, __LINE__, "malloc cuArray");
@@ -142,7 +142,7 @@ void EmpCyl2D::initialize_cuda(std::vector<cudaArray_t>& cuArray,
       for (int j=0; j<nmax; j++) {
 	ret = returnTestCyl2d(tex, m, j, nmax, numr);
 	for (int i=0; i<numr; i++) {
-	  cuFP_t a = potl_array[m](j, n);
+	  cuFP_t a = potl_array[m](i, j);
 	  cuFP_t b = ret[i];
 	  if (a>1.0e-18) {
 

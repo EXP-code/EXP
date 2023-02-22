@@ -28,7 +28,7 @@ __device__ __constant__
 bool   plrAcov, plrNO_M0, plrNO_M1, plrEVEN_M, plrM0only;
 
 __host__ __device__
-int Imn(int m, char cs, int n, int nmax)
+int Jmn(int m, char cs, int n, int nmax)
 {
   int ret = 0;
 
@@ -37,7 +37,7 @@ int Imn(int m, char cs, int n, int nmax)
 
 #ifdef BOUNDS_CHECK
   if (ret >= (2m+1)*nmax) {
-    printf("Imn oab: %4d %4d [%4d : %4d : %4d]\n", m, n, ret, (2*m+1)*nmax, nmax);
+    printf("Jmn oab: %4d %4d [%4d : %4d : %4d]\n", m, n, ret, (2*m+1)*nmax, nmax);
   }
 #endif
 
@@ -60,7 +60,7 @@ void testConstantsPlr()
 }
 
 __device__
-cuFP_t cu_r_to_xi(cuFP_t r)
+cuFP_t cu_R_to_xi(cuFP_t r)
 {
   cuFP_t ret;
 
@@ -74,12 +74,12 @@ cuFP_t cu_r_to_xi(cuFP_t r)
 }
     
 __device__
-cuFP_t cu_xi_to_r(cuFP_t xi)
+cuFP_t cu_xi_to_R(cuFP_t xi)
 {
   cuFP_t ret;
 
   if (plrCmap==1) {
-    ret = (1.0+xi)/(1.0 - xi) * plrRscale;
+    ret = (1.0+xi)/(1.0 - xi) * plrScale;
   } else {
     ret = xi;
   }
@@ -88,12 +88,12 @@ cuFP_t cu_xi_to_r(cuFP_t xi)
 }
 
 __device__
-cuFP_t cu_d_xi_to_r(cuFP_t xi)
+cuFP_t cu_d_xi_to_R(cuFP_t xi)
 {
   cuFP_t ret;
 
   if (plrCmap==1) {
-    ret = 0.5*(1.0-xi)*(1.0-xi)/plrRscale;
+    ret = 0.5*(1.0-xi)*(1.0-xi)/plrScale;
   } else {
     ret = 1.0;
   }
@@ -134,12 +134,10 @@ void PolarBasis::initialize_mapping_constants()
 
   cuda_safe_call(cudaMemcpyToSymbol(plrAcov,   &subsamp,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrAcov");
-  cuda_safe_call(cudaMemcpyToSymbol(plrNO_L0,  &NO_L0,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying plrNO_L0");
-  cuda_safe_call(cudaMemcpyToSymbol(plrNO_L1,  &NO_L1,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying plrNO_L1");
-  cuda_safe_call(cudaMemcpyToSymbol(plrEVEN_L, &EVEN_L,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying plrEVEN_L");
+  cuda_safe_call(cudaMemcpyToSymbol(plrNO_M0,  &NO_M0,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrNO_M0");
+  cuda_safe_call(cudaMemcpyToSymbol(plrNO_M1,  &NO_M1,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrNO_M1");
   cuda_safe_call(cudaMemcpyToSymbol(plrEVEN_M, &EVEN_M,   sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrEVEN_M");
   cuda_safe_call(cudaMemcpyToSymbol(plrM0only, &M0_only,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
@@ -187,7 +185,7 @@ __global__ void coordKernel
 #ifdef BOUNDS_CHECK
 	if (i>=phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	cuFP_t x  = cu_r_to_xi(r);
+	cuFP_t x  = cu_R_to_xi(r);
 	cuFP_t xi = (x - plrXmin)/plrDxi;
 	int indx = floor(xi);
 	
@@ -265,7 +263,7 @@ __global__ void coefKernel
 	    a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
 	    b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
 #endif
-	  int k = 1 + l*nmax + n;
+	  int k = 1 + m*nmax + n;
 
 #ifdef BOUNDS_CHECK
 	  if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -280,8 +278,8 @@ __global__ void coefKernel
 #endif
 		      ) * p0;
 	  
-	  coef._v[(2*n+0)*N + i] = v * cosp * mass * M_SQRT_2;
-	  coef._v[(2*n+1)*N + i] = v * sinp * mass * M_SQRT_2;
+	  coef._v[(2*n+0)*N + i] = v * cosp * mass * M_SQRT2;
+	  coef._v[(2*n+1)*N + i] = v * sinp * mass * M_SQRT2;
 
 	  // Load work space
 	  //
@@ -348,7 +346,7 @@ __global__ void coefKernel
 
 __global__ void
 forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
-	    dArray<cudaTextureObject_t> tex, dArray<cuFP_t> L1, dArray<cuFP_t> L2,
+	    dArray<cudaTextureObject_t> tex,
 	    int stride, unsigned Mmax, unsigned int nmax, PII lohi, cuFP_t rmax,
 	    bool external)
 {
@@ -356,6 +354,7 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
   const int psiz  = 2*Mmax+1;
 
   for (int n=0; n<stride; n++) {
+
     int i     = tid*stride + n;	// Index in the stride
     int npart = i + lohi.first;	// Particle index
 
@@ -389,9 +388,9 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	rs   = r/plrScale;
       }
 
-      cuFP_t  x = cu_r_to_xi(rs);
+      cuFP_t  x = cu_R_to_xi(rs);
       cuFP_t xi = (x - plrXmin)/plrDxi;
-      cuFP_t dx = cu_d_xi_to_r(x)/plrDxi;
+      cuFP_t dx = cu_d_xi_to_R(x)/plrDxi;
 
       int  ind = floor(xi);
       int  in0 = ind;
@@ -460,8 +459,8 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	cuFP_t pp_s = 0.0;
 	cuFP_t dp_s = 0.0;
 	
-	int indxC = Imn(m, 'c', 0, nmax);
-	int indxS = Imn(m, 's', 0, nmax);
+	int indxC = Jmn(m, 'c', 0, nmax);
+	int indxS = Jmn(m, 's', 0, nmax);
 
 	for (size_t n=0; n<nmax; n++) {
 	
@@ -519,39 +518,38 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	  if (std::isnan(pp_s)) printf("pp_s eval nan: m=%d: r=%f r0=%f\n", m, r, r0);
 	  if (std::isnan(dp_s)) printf("dp_s eval nan: m=%d: r=%f r0=%f\n", m, r, r0);
 #endif
+	  
+	if (m==0) {
 
-	  if (m==0) {
-
-	    if (ioff) {
-	      pp_c = dp_c = 0.0;
-	    }
+	  if (ioff) {
+	    pp_c = dp_c = 0.0;
+	  }
 	    
-	    potl += pp_c;
-	    potr += dp_c;
-	    potp += 0.0;
+	  potl += pp_c;
+	  potr += dp_c;
+	  potp += 0.0;
 	    
-	  } else {
+	} else {
 
-	    if (ioff) {
-	      pp_c  = pp_s = dp_c = dp_s = 0.0;
-	    }
-
-	    potl +=   (pp_c*ccos + pp_s*ssin) * M_SQRT_2;
-	    potr +=   (dp_c*ccos + dp_s*ssin) * M_SQRT_2;
-	    potp += - (pp_c*ssin + pp_s*ccos) * M_SQRT_2 * m;
+	  if (ioff) {
+	    pp_c  = pp_s = dp_c = dp_s = 0.0;
 	  }
 
-	  // Trig recursion to squeeze avoid internal FP fct call
-	  //
-	  cuFP_t cosM = ccos;
-	  cuFP_t sinM = ssin;
+	  potl +=   (pp_c*ccos + pp_s*ssin) * M_SQRT2;
+	  potr +=   (dp_c*ccos + dp_s*ssin) * M_SQRT2;
+	  potp += - (pp_c*ssin + pp_s*ccos) * M_SQRT2 * m;
+	}
 
-	  ccos = cosM * cosp - sinM * sinp;
-	  ssin = sinM * cosp + cosM * sinp;
+	// Trig recursion to squeeze avoid internal FP fct call
+	//
+	cuFP_t cosM = ccos;
+	cuFP_t sinM = ssin;
 
-	} // END: m loop
+	ccos = cosM * cosp - sinM * sinp;
+	ssin = sinM * cosp + cosM * sinp;
+	
+      } // END: m loop
 
-      } // END: l loop
 
       // Rescale
       potr /= plrScale*plrScale;
@@ -585,7 +583,7 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
       }
 #endif
 
-      } // Particle index block
+    } // Particle index block
 
   } // END: stride loop
 
@@ -604,7 +602,7 @@ public:
 
 
 void PolarBasis::cudaStorage::resize_coefs
-(int nmax, int Lmax, int N, int gridSize, int stride,
+(int nmax, int Mmax, int N, int gridSize, int stride,
  int sampT, bool pcavar, bool pcaeof, bool subsamp)
 {
   // Create space for coefficient reduction to prevent continued
@@ -723,10 +721,6 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
   // Only do this once but copying mapping coefficients and textures
   // must be done every time
   //
-  if (initialize_cuda_plr) {
-    initialize_cuda();
-    initialize_cuda_plr = false;
-  }
 
   // Copy coordinate mapping constants to device
   //
@@ -866,7 +860,7 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
     }
     thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
 
-    for (int m=0; m<=Mmax; l++) {
+    for (int m=0; m<=Mmax; m++) {
       // Compute the contribution to the coefficients from each
       // particle
       //
@@ -924,7 +918,7 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
 	    
 	    // Mass accumulation
 	    //
-	    if (l==0 and m==0) {
+	    if (m==0) {
 	      auto mbeg = cuS.u_d.begin();
 	      auto mend = mbeg;
 	      thrust::advance(mbeg, sN*T);
@@ -1075,8 +1069,8 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
   int offst = 0;
   for (int m=0; m<=Mmax; m++) {
     for (size_t j=0; j<nmax; j++) {
-      host_coefs[Imn(m, 'c', j, nmax)] += ret[2*j+offst];
-      if (m>0) host_coefs[Imn(m, 's', j, nmax)] += ret[2*j+1+offst];
+      host_coefs[Jmn(m, 'c', j, nmax)] += ret[2*j+offst];
+      if (m>0) host_coefs[Jmn(m, 's', j, nmax)] += ret[2*j+1+offst];
     }
     offst += nmax*2;
   }
@@ -1092,10 +1086,6 @@ void PolarBasis::determine_acceleration_cuda()
   // Only do this once but copying mapping coefficients and textures
   // must be done every time
   //
-  if (initialize_cuda_plr) {
-    initialize_cuda();
-    initialize_cuda_plr = false;
-  }
 
   // Copy coordinate mapping constants to device
   //
@@ -1168,8 +1158,7 @@ void PolarBasis::determine_acceleration_cuda()
     //
     forceKernel<<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
       (toKernel(cr->cuda_particles), toKernel(cr->indx1),
-       toKernel(dev_coefs), toKernel(t_d),
-       toKernel(cuS.plm1_d),
+       toKernel(dev_coefs), toKernel(t_d), 
        stride, Mmax, nmax, lohi, rmax, use_external);
   }
 }
@@ -1185,8 +1174,8 @@ void PolarBasis::HtoD_coefs(const std::vector<VectorP>& expcoef)
     // n loop
     //
     for (int n=0; n<nmax; n++) {
-      host_coefs[Imn(m, 'c', n, nmax)] = (*expcoef[moffset])[n];
-      if (m>0) host_coefs[Imn(m, 's', n, nmax)] = (*expcoef[moffset+1])[n];
+      host_coefs[Jmn(m, 'c', n, nmax)] = (*expcoef[moffset])[n];
+      if (m>0) host_coefs[Jmn(m, 's', n, nmax)] = (*expcoef[moffset+1])[n];
     }
 
     if (m>0) moffset += 2;
@@ -1206,8 +1195,8 @@ void PolarBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
     // n loop
     //
     for (int n=0; n<nmax; n++) {
-      (*expcoef0[0][moffset])[n] = host_coefs[Imn(m, 'c', n, nmax)];
-      if (m>0) (*expcoef0[0][moffset+1])[n] = host_coefs[Imn(m, 's', n, nmax)];
+      (*expcoef0[0][moffset])[n] = host_coefs[Jmn(m, 'c', n, nmax)];
+      if (m>0) (*expcoef0[0][moffset+1])[n] = host_coefs[Jmn(m, 's', n, nmax)];
     }
 
     if (m>0) moffset += 2;
@@ -1251,45 +1240,45 @@ void PolarBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	      
 	    offst += psize;
 	  }
-	}
-
-      } else {
-
-	thrust::host_vector<cuFP_t> retM = cuS.T_covr[T];
-	
-	int vffst = 0;
-	int vsize = nmax*(nmax+3)/2;
 	  
-	// m loop
-	//
-	for (int m=0, offset=0; m<=Mmax; m++) {
+	} else {
 
-	  // Variance assignment
+	  thrust::host_vector<cuFP_t> retM = cuS.T_covr[T];
+	
+	  int vffst = 0;
+	  int vsize = nmax*(nmax+3)/2;
+	  
+	  // m loop
 	  //
-	  int c = 0;	// Internal index 
-	  for (int n=0; n<nmax; n++) {
+	  for (int m=0, offset=0; m<=Mmax; m++) {
 	    
-	    for (int o=n; o<nmax; o++) {
-	      // Diagonal and upper diagonal
-	      (*expcoefM1[T][offset+m])(n, o) += retM[c + vffst];
+	    // Variance assignment
+	    //
+	    int c = 0;	// Internal index 
+	    for (int n=0; n<nmax; n++) {
+	      
+	      for (int o=n; o<nmax; o++) {
+		// Diagonal and upper diagonal
+		(*expcoefM1[T][offset+m])(n, o) += retM[c + vffst];
+		
+		// Below the diagonal
+		if (o!=n) (*expcoefM1[T][offset+m])(o, n) += retM[c + vffst];
+		c++;
+	      }
+	    }
 
-		  // Below the diagonal
-	      if (o!=n) (*expcoefM1[T][offset+m])(o, n) += retM[c + vffst];
+	    // Mean assignment
+	    //
+	    for (int n=0; n<nmax; n++) {
+	      (*expcoefT1[T][offset+m])[n] += retM[c + vffst];
 	      c++;
 	    }
+	    
+	    if (c != nmax*(nmax+3)/2)
+	      std::cout << "out of bounds: wrong c [h]" << std::endl;
+	    
+	    vffst += vsize;
 	  }
-
-	  // Mean assignment
-	  //
-	  for (int n=0; n<nmax; n++) {
-	    (*expcoefT1[T][offset+m])[n] += retM[c + vffst];
-	    c++;
-	  }
-	      
-	  if (c != nmax*(nmax+3)/2)
-	    std::cout << "out of bounds: wrong c [h]" << std::endl;
-	  
-	  vffst += vsize;
 	}
       }
 
@@ -1331,7 +1320,7 @@ void PolarBasis::coef_cuda_compare()
   constexpr bool compareC = true; // Compare host and device
   constexpr bool compareB = true;  // Tabulate largest errors
 
-  if (fabs(host_coefs[Ilmn(0, 0, 'c', 0, nmax)])==0.0) return;
+  if (fabs(host_coefs[Jmn(0, 'c', 0, nmax)])==0.0) return;
 
   if (compareC) {
     std::cout << std::string(2*4+4*20, '-') << std::endl
@@ -1360,7 +1349,7 @@ void PolarBasis::coef_cuda_compare()
 	      << std::endl;
   }
   
-  int i = Ilmn(0, 0, 'c', 0, nmax);
+  int i = Jmn(0, 'c', 0, nmax);
   auto cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
 
   for (size_t n=0; n<nmax; n++) {
@@ -1382,9 +1371,9 @@ void PolarBasis::coef_cuda_compare()
     }
   }
   
-  std::cout << "L=1, M=0 coefficients" << std::endl;
+  std::cout << "M=1c coefficients" << std::endl;
 
-  i = Ilmn(1, 0, 'c', 0, nmax);
+  i = Jmn(1, 'c', 0, nmax);
   cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
 
   for (size_t n=0; n<nmax; n++) {
@@ -1406,9 +1395,9 @@ void PolarBasis::coef_cuda_compare()
     }
   }
 
-  std::cout << "L=1, M=1c coefficients" << std::endl;
+  std::cout << "M=1s coefficients" << std::endl;
   
-  i = Ilmn(1, 1, 'c', 0, nmax);
+  i = Jmn(1, 's', 0, nmax);
   cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
   
   for (size_t n=0; n<nmax; n++) {
@@ -1430,33 +1419,9 @@ void PolarBasis::coef_cuda_compare()
     }
   }
   
-  std::cout << "L=1, M=1s coefficients" << std::endl;
-  
-  i = Ilmn(1, 1, 's', 0, nmax);
-  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+  std::cout << "M=2c coefficients" << std::endl;
 
-  for (size_t n=0; n<nmax; n++) {
-    cuFP_t a = host_coefs[i+n];
-    cuFP_t b = (*expcoef0[0][3])[n];
-    if (compareC) {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
-    } else {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::endl;
-    }
-  }
-
-  std::cout << "L=2, M=0 coefficients" << std::endl;
-
-  i = Ilmn(2, 0, 'c', 0, nmax);
+  i = Jmn(2, 'c', 0, nmax);
   cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
   
   for (size_t n=0; n<nmax; n++) {
@@ -1478,9 +1443,9 @@ void PolarBasis::coef_cuda_compare()
     }
   }
       
-  std::cout << "L=2, M=1c coefficients" << std::endl;
+  std::cout << "M=1s coefficients" << std::endl;
 
-  i = Ilmn(2, 1, 'c', 0, nmax);
+  i = Jmn(2, 's', 0, nmax);
   cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
   
   for (size_t n=0; n<nmax; n++) {
@@ -1502,35 +1467,7 @@ void PolarBasis::coef_cuda_compare()
     }
   }
 
-  std::cout << "L=2, M=1c coefficients" << std::endl;
-    
-  i = Ilmn(2, 1, 's', 0, nmax);
-  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-  
-  for (size_t n=0; n<nmax; n++) {
-    cuFP_t a = host_coefs[i+n];
-    cuFP_t b = (*expcoef0[0][6])[n];
-    if (compareC) {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b;
-      if (fabs(*cmax) > 0.0)
-	std::cout << std::setw(20) << (a - b)/fabs(*cmax);
-      else
-	std::cout << std::setw(20) << 0.0;
-      std::cout << std::endl;
-    } else {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::endl;
-    }
-  }
-  
   std::cout << std::string(2*4+4*20, '-') << std::endl;
-
 
   //
   // TEST comparison of coefficients for debugging
@@ -1552,86 +1489,77 @@ void PolarBasis::coef_cuda_compare()
 
     std::multimap<double, Element> compare;
 
-    std::ofstream out("test_sph.dat");
+    std::ofstream out("test_cyl2d.dat");
 
-    //		l loop
-    for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-      //		m loop
-      for (int m=0, moffset=0; m<=l; m++) {
+    //		m loop
+    for (int m=0, moffset=0; m<=Mmax; m++) {
 	
-	if (m==0) {
-	  for (int n=0; n<nmax; n++) {
-	    elem.l = l;
-	    elem.m = m;
-	    elem.n = n;
-	    elem.cs = 'c';
-	    elem.d = (*expcoef0[0][loffset+moffset])[n];
-	    elem.f = host_coefs[Ilmn(l, m, 'c', n, nmax)];
+      if (m==0) {
+	for (int n=0; n<nmax; n++) {
+	  elem.m = m;
+	  elem.n = n;
+	  elem.cs = 'c';
+	  elem.d = (*expcoef0[0][moffset])[n];
+	  elem.f = host_coefs[Jmn(m, 'c', n, nmax)];
 	    
-	    double test = fabs(elem.d - elem.f);
-	    if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
+	  double test = fabs(elem.d - elem.f);
+	  if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
 	    
-	    compare.insert(std::make_pair(test, elem));
+	  compare.insert(std::make_pair(test, elem));
 	    
-	    out << std::setw( 5) << l
-		<< std::setw( 5) << m
-		<< std::setw( 5) << n
-		<< std::setw( 5) << 'c'
-		<< std::setw( 5) << Ilmn(l, m, 'c', n, nmax)
-		<< std::setw(14) << elem.d
-		<< std::setw(14) << elem.f
-		<< std::endl;
-	  }
+	  out << std::setw( 5) << m
+	      << std::setw( 5) << n
+	      << std::setw( 5) << 'c'
+	      << std::setw( 5) << Jmn(m, 'c', n, nmax)
+	      << std::setw(14) << elem.d
+	      << std::setw(14) << elem.f
+	      << std::endl;
+	}
 	  
-	  moffset++;
+	moffset++;
+      }
+      else {
+	for (int n=0; n<nmax; n++) {
+	  elem.m = m;
+	  elem.n = n;
+	  elem.cs = 'c';
+	  elem.d = (*expcoef0[0][moffset])[n];
+	  elem.f = host_coefs[Jmn(m, 'c', n, nmax)];
+
+	  out << std::setw( 5) << m
+	      << std::setw( 5) << n
+	      << std::setw( 5) << 'c'
+	      << std::setw( 5) << Jmn(m, 'c', n, nmax)
+	      << std::setw(14) << elem.d
+	      << std::setw(14) << elem.f
+	      << std::endl;
+
+	  double test = fabs(elem.d - elem.f);
+	  if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
+
+	  compare.insert(std::make_pair(test, elem));
 	}
-	else {
-	  for (int n=0; n<nmax; n++) {
-	    elem.l = l;
-	    elem.m = m;
-	    elem.n = n;
-	    elem.cs = 'c';
-	    elem.d = (*expcoef0[0][loffset+moffset])[n];
-	    elem.f = host_coefs[Ilmn(l, m, 'c', n, nmax)];
-
-	    out << std::setw( 5) << l
-		<< std::setw( 5) << m
-		<< std::setw( 5) << n
-		<< std::setw( 5) << 'c'
-		<< std::setw( 5) << Ilmn(l, m, 'c', n, nmax)
-		<< std::setw(14) << elem.d
-		<< std::setw(14) << elem.f
-		<< std::endl;
-
-	    double test = fabs(elem.d - elem.f);
-	    if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
-
-	    compare.insert(std::make_pair(test, elem));
-	  }
-	  for (int n=0; n<nmax; n++) {
-	    elem.l = l;
-	    elem.m = m;
-	    elem.n = n;
-	    elem.cs = 's';
-	    elem.d = (*expcoef0[0][loffset+moffset+1])[n];
-	    elem.f = host_coefs[Ilmn(l, m, 's', n, nmax)];
-
-	    out << std::setw( 5) << l
-		<< std::setw( 5) << m
-		<< std::setw( 5) << n
-		<< std::setw( 5) << 's'
-		<< std::setw( 5) << Ilmn(l, m, 's', n, nmax)
-		<< std::setw(14) << elem.d
-		<< std::setw(14) << elem.f
-		<< std::endl;
+	for (int n=0; n<nmax; n++) {
+	  elem.m = m;
+	  elem.n = n;
+	  elem.cs = 's';
+	  elem.d = (*expcoef0[0][moffset+1])[n];
+	  elem.f = host_coefs[Jmn(m, 's', n, nmax)];
+	  
+	  out << std::setw( 5) << m
+	      << std::setw( 5) << n
+	      << std::setw( 5) << 's'
+	      << std::setw( 5) << Jmn(m, 's', n, nmax)
+	      << std::setw(14) << elem.d
+	      << std::setw(14) << elem.f
+	      << std::endl;
 	    
-	    double test = fabs(elem.d - elem.f);
-	    if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
-	    
-	    compare.insert(std::make_pair(test, elem));
-	  }
-	  moffset+=2;
+	  double test = fabs(elem.d - elem.f);
+	  if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
+	  
+	  compare.insert(std::make_pair(test, elem));
 	}
+	moffset+=2;
       }
     }
     
@@ -1641,12 +1569,11 @@ void PolarBasis::coef_cuda_compare()
     std::map<double, Element>::reverse_iterator last = compare.rbegin();
     
     std::cout << std::string(4*2 + 3*20 + 22, '-') << std::endl
-	      << "---- Spherical coefficients T=" << tnow
+	      << "---- 2d cylindrical coefficients T=" << tnow
 	      << " level=" << mlevel << std::endl
 	      << std::string(4*2 + 3*20 + 22, '-') << std::endl;
 
     std::cout << "Best case: ["
-	      << std::setw( 2) << best->second.l << ", "
 	      << std::setw( 2) << best->second.m << ", "
 	      << std::setw( 2) << best->second.n << ", "
 	      << std::setw( 2) << best->second.cs << "] = "
@@ -1656,7 +1583,6 @@ void PolarBasis::coef_cuda_compare()
 	      << std::endl;
   
     std::cout << "Mid case:  ["
-	      << std::setw( 2) << midl->second.l << ", "
 	      << std::setw( 2) << midl->second.m << ", "
 	      << std::setw( 2) << midl->second.n << ", "
 	      << std::setw( 2) << midl->second.cs << "] = "
@@ -1666,7 +1592,6 @@ void PolarBasis::coef_cuda_compare()
 	      << std::endl;
     
     std::cout << "Last case: ["
-	      << std::setw( 2) << last->second.l << ", "
 	      << std::setw( 2) << last->second.m << ", "
 	      << std::setw( 2) << last->second.n << ", "
 	      << std::setw( 2) << last->second.cs << "] = "
@@ -1772,8 +1697,7 @@ void PolarBasis::multistep_update_cuda()
 	coordKernel<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	  (toKernel(cs->cuda_particles), toKernel(cs->indx2),
 	   toKernel(cuS.m_d), toKernel(cuS.a_d), toKernel(cuS.p_d),
-	   toKernel(cuS.plm1_d), toKernel(cuS.i_d),
-	   Lmax, stride, cur, rmax);
+	   toKernel(cuS.i_d), Lmax, stride, cur, rmax);
 
 #ifdef VERBOSE_TIMING
 	finish = std::chrono::high_resolution_clock::now();
@@ -1799,8 +1723,8 @@ void PolarBasis::multistep_update_cuda()
 	      (toKernel(cuS.dN_coef),
 	       toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
 	       toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d),
-	       toKernel(cuS.a_d), toKernel(cuS.p_d), toKernel(cuS.plm1_d),
-	       toKernel(cuS.i_d), stride, l, m, Lmax, nmax, cur, false);
+	       toKernel(cuS.a_d), toKernel(cuS.p_d),
+	       toKernel(cuS.i_d), stride, m, Mmax, nmax, cur, false);
 
 #ifdef VERBOSE_TIMING
 	    finish = std::chrono::high_resolution_clock::now();

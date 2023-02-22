@@ -2,6 +2,7 @@
 #define _EmpCyl2D_H
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 #include <tuple>
@@ -9,6 +10,8 @@
 #include <Eigen/Eigen>
 #include <Eigen/Eigenvalues>
 #include <gaussQ.H>
+
+#include <config_exp.h>		// For config macros
 
 #if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
@@ -52,6 +55,7 @@ public:
 protected:
 
   double A, rmin, rmax, scale;
+  double xmin, xmax, dxi;
   int mmax, nmax, numr, knots;
   std::string model, biorth;
   bool cmap, logr;
@@ -140,7 +144,6 @@ public:
 	   const std::string biorth, const std::string cache="");
   
 #if HAVE_LIBCUDA==1
-  /*
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);
 
@@ -163,7 +166,6 @@ public:
 
     return ret;
   }
-  */
 #endif
 
   //! Linear interpolate on grid to get potential value
