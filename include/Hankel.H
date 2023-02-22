@@ -9,47 +9,56 @@
 #include <boost/math/special_functions/bessel.hpp>
 #include <boost/math/tools/minima.hpp>
 
-// Hankel transform based on the Ogata quadrature formulae from:
-//
-// Ogata, H, 2005, "A Numerical Integration Formula Based on the
-// Bessel Functions", Publ. Res. Inst. Math. Sci. 41 (4) (2005)
-// 949–970.
-//
+//! Hankel transform based on the Ogata quadrature formulae from:
+//!
+//! Ogata, H, 2005, "A Numerical Integration Formula Based on the
+//! Bessel Functions", Publ. Res. Inst. Math. Sci. 41 (4) (2005)
+//! 949–970.
+//!
 class HankelTransform
 {
 private:
-  // the h scaling value for the Ogata mapping
+  //! the h scaling value for the Ogata mapping
   double h;
 
-  // nu is Bessel function order
+  //! nu is Bessel function order
   double nu;
 
-  // N is number of function calls
+  //! N is number of function calls
   int N;
 
-  std::vector<double> jn_zeros0;
+  //! Will contain the zeros of the Bessel function of order nu
   std::vector<double> zeros;
+
+  //! Zeros divided by 2*pi for Ogata
   std::vector<double> xi;
-  std::vector<double> Jp1;
+
+  //! Ogata weights; Bessel functions of the second kind divided by
+  //! the first kind for nu+1 evaluated at the zeros
   std::vector<double> w;
 
+  //! True for mapping transformation algorithm (default)
   bool mapped;
 
+  //! The mapping transformation algorithm (default)
   double ogata_transformed
   (std::function<double (double) > f, double q, double h);
 
+  //! The unmapped algorithm
   double ogata_linear
   (std::function<double (double) > f, double q, double h);
 
+  //! Variable change
   double fk_trans(double x, std::function<double (double) > f, double q)
   {
     return f(x/q)/q;
   };
 
+  //! Ogata mapping formula
   double get_psi(double t);
-  double get_psip(double t);
 
-  bool transformed;
+  //! Derivative of the Ogata mapping formula
+  double get_psip(double t);
 
 public:
   //! Null constructor

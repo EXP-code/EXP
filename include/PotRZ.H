@@ -1,7 +1,7 @@
 #ifndef _PotRZ_H
 #define _PotRZ_H
 
-#include "Hankel.H"
+#include <Hankel.H>
 
 //! Compute the inverse Hankel transform to get the potential based on
 //! Gauss' Law applied to the cylindrical Laplacian.
@@ -58,10 +58,12 @@ public:
 
   //! The gravitational potential by Hankel transform
   //!
-  //! h1 and h2 are the steps for the inverse and Sk transform
-  //! N1 and N2 are the knot sizes for the inverse and Sk
-  //! M is the harmonic order
-  //! a is the model parameter vector
+  //! @param h1 is the step count for the inverse transform
+  //! @param h2 is the steps cout for the Sk transform
+  //! @param N1 is the knot number for the inverse
+  //! @param N2 is the knot number for Sk
+  //! @param M is the harmonic order
+  //! @param a is the model parameter vector
   PotRZ(double h1, double h2, int N1, int N2, int M,
 	std::function<double(double)> func) : mass(func)
   {
