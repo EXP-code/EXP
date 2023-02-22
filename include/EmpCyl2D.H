@@ -197,6 +197,12 @@ public:
   //! Check the coefficients of the EOF basis against the zeroth-order
   //! model
   void checkCoefs();
+
+  //! Access the minimum radius
+  double getRmin() { return rmin; }
+
+  //! Access the maximum radius
+  double getRmax() { return rmax; }
 };
 
 

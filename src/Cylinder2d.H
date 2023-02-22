@@ -57,17 +57,6 @@ private:
 
   void get_potl(int mmax, int nmax, double r, Eigen::MatrixXd& p, int tid);
 
-  double mapIntrp(const std::map<double, double> &data, double x);
-  double mapDeriv(const std::map<double, double> &data, double x);
-
-  void make_model() {
-    if (plummer) make_model_plummer();
-    else         make_model_bin();
-  }
-  
-  void make_model_bin();
-  void make_model_plummer();
-
 #if HAVE_LIBCUDA==1
   virtual void initialize_cuda()
   {
@@ -92,7 +81,9 @@ private:
   int    mmax;
   int    knots;
   int    cmap;
-  string cache_file;
+  string model;
+  string biorth;
+  string cachename;
   bool   logr;
 
   //! Valid keys for YAML configurations
@@ -115,18 +106,10 @@ public:
       @param cachename is the name for the SL grid cache file
       @param dtime is the interval between basis recomputations (<=0 for never)
   */
-  Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m=0);
+  Cylinder2d(Component* c0, const YAML::Node& conf, MixtureBasis* m=0);
 
   //! Destructor
-  virtual ~Sphere();
-
-  //! Override to redetermine basis, as desired
-  virtual void determine_coefficients(void)
-  {
-    if (recompute and tnow >= tnext) make_model();
-    SphericalBasis::determine_coefficients();
-  }
-
+  virtual ~Cylinder2d();
 };
 
 #endif

@@ -194,12 +194,6 @@ protected:
   //! Thread method for accerlation compuation
   virtual void * determine_acceleration_and_potential_thread(void * arg);
 
-  //! Compute rms coefficients
-  void compute_rms_coefs(void);
-
-  //! Add noise
-  void update_noise(void);
-  bool setup_noise;
 				// Parameters
   //! Basis linear scale for mapping
   double scale;
@@ -224,15 +218,6 @@ protected:
 
   //! Use axisymmetric term s
   bool M0_only;
-
-  //! Flag adding noise to coefficients (for testing diffusion)
-  bool NOISE;  
-
-  //! Number of "effective" points for RMS noise computation
-  double noiseN;
-
-  //! Model for RMS noise computation
-  string noise_model_file;
 
   //! Expected coefficient values for RMS noise computation
   Eigen::VectorXd meanC;
@@ -279,7 +264,7 @@ protected:
   /** Coefficient playback instance.  Using shared_ptr to avoid
       constructing a simple pointer or null instance
   */
-  std::shared_ptr<CoefClasses::SphCoefs> playback;
+  std::shared_ptr<CoefClasses::CylCoefs> playback;
 
   /** Master node ships coefficients to hosts.  True (default) implies
       that only the master node caches the coefficients for playback
@@ -293,7 +278,7 @@ protected:
   double lastPlayTime;
 
   //! Coefficient container instance for writing HDF5
-  CoefClasses::SphCoefs sphCoefs;
+  CoefClasses::CylCoefs cylCoefs;
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;

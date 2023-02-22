@@ -2,9 +2,9 @@
 set(CUDA_SRC)
 if (ENABLE_CUDA)
   list(APPEND CUDA_SRC 
-    cudaSphericalBasis.cu cudaCylinder.cu cudaEmpCylSL.cu
-    cudaComponent.cu NVTX.cc cudaHOT.cu cudaIncpos.cu cudaIncvel.cu
-    cudaMultistep.cu cudaOrient.cu)
+    cudaPolarBasis.cu cudaSphericalBasis.cu cudaCylinder.cu 
+    cudaEmpCylSL.cu cudaComponent.cu NVTX.cc cudaHOT.cu cudaIncpos.cu 
+    cudaIncvel.cu cudaMultistep.cu cudaOrient.cu)
 endif()
 
 set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
@@ -20,7 +20,7 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   multistep.cc parse.cc Slab.cc SlabSL.cc step.cc tidalField.cc
   ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
   ParticleFerry.cc pCell.cc chkSlurm.c chkTimer.cc pHOT.cc
-  GravKernel.cc ${CUDA_SRC} CenterFile.cc)
+  GravKernel.cc ${CUDA_SRC} CenterFile.cc PolarBasis.cc Cylinder2d.cc)
 
 set(common_INCLUDE_DIRS 
   $<INSTALL_INTERFACE:include>

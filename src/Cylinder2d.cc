@@ -25,29 +25,23 @@ Cylinder2d::Cylinder2d(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   numr       = 2000;
   cmap       = 1;
   acyl       = 0.01;
-  cache_file = "Cyl2d.cache";
+  cachename  = "Cyl2d.cache";
   tnext      = 0.0;
   logr       = false;
 
 				// Get initialization info
   initialize();
 
-				// Basis computation logic
-  if (dtime>0.0) {
-    recompute = true;
-    tnext = tnow + dtime;
-  }
 				// Enable MPI code for more than one node
-  if (numprocs>1) SLGridSph::mpi = 1;
+  // if (numprocs>1) EmpCyl2D::mpi = 1;
 
-  std::string modelname = homedir + model_file;
-  std::string cachename = outdir  + cache_file + "." + runtag;
+  std::string cachename = outdir  + cachename + "." + runtag;
 
-  id += ", model=" + modelname;
+  id += ", model=" + model;
 
 				// Generate Sturm-Liouville grid
   ortho = std::make_shared<EmpCyl2D>(Mmax, nmax, knots, numr,
-				     rmin, rmax, A, scale, cmap, logr,
+				     rmin, rmax, acyl, scale, cmap, logr,
 				     model, biorth, cachename);
 
 				// Get the min and max expansion radii
@@ -64,9 +58,8 @@ Cylinder2d::Cylinder2d(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 	      << std::endl << sep << "rmax="        << rmax
 	      << std::endl << sep << "acyl="        << acyl
 	      << std::endl << sep << "logr="        << std::boolalpha << logr
-	      << std::endl << sep << "NO_L0="       << std::boolalpha << NO_L0
-	      << std::endl << sep << "NO_L1="       << std::boolalpha << NO_L1
-	      << std::endl << sep << "EVEN_L="      << std::boolalpha << EVEN_L
+	      << std::endl << sep << "NO_L0="       << std::boolalpha << NO_M0
+	      << std::endl << sep << "NO_L1="       << std::boolalpha << NO_M1
 	      << std::endl << sep << "EVEN_M="      << std::boolalpha << EVEN_M
 	      << std::endl << sep << "M0_ONLY="     << std::boolalpha << M0_only
 	      << std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
@@ -91,11 +84,11 @@ void Cylinder2d::initialize()
     if (conf["numr"])      numr       = conf["numr"].as<int>();
     if (conf["knots"])     knots      = conf["knots"].as<int>();
     if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
-    if (conf["diverge"])   diverge    = conf["diverge"].as<int>();
-    if (conf["dfac"])      dfac       = conf["dfac"].as<double>();
-    if (conf["cachename"]) cache_file = conf["cachename"].as<std::string>();
+    if (conf["cachename"]) cachename  = conf["cachename"].as<std::string>();
     if (conf["dtime"])     dtime      = conf["dtime"].as<double>();
     if (conf["logr"])      logr       = conf["logr"].as<bool>();
+    if (conf["model"])     model      = conf["model"].as<std::string>();
+    if (conf["biorth"])    biorth     = conf["biorth"].as<std::string>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in Cylinder2d: "

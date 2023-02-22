@@ -69,12 +69,8 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   NO_M1            = false;
   EVEN_M           = false;
   M0_only          = false;
-  NOISE            = false;
-  noiseN           = 1.0e-6;
-  noise_model_file = "SLGridSph.model";
   ssfrac           = 0.0;
   subset           = false;
-  setup_noise      = true;
   coefMaster       = true;
   lastPlayTime     = -std::numeric_limits<double>::max();
 #if HAVE_LIBCUDA==1
@@ -113,20 +109,6 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"].as<bool>();
     if (conf["M0_ONLY"]) M0_only = conf["M0_ONLY"].as<bool>();
     
-    if (conf["NOISE"]) {
-      if (conf["NOISE"].as<bool>()) {
-	NOISE = true; 
-	self_consistent = false;
-      }
-      else NOISE = false;
-    }
-    
-    if (conf["noiseN"])  noiseN  = conf["noiseN"].as<bool>();
-
-    if (conf["noise_model_file"]) noise_model_file = conf["noise_model_file"].as<std::string>();
-
-    if (conf["seedN"])   seedN   = conf["seedN"].as<int>();
-    
     if (conf["ssfrac"]) {
       ssfrac = conf["ssfrac"].as<double>();
       // Check for sane value
@@ -151,7 +133,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
       }
 
       // This creates the Coefs instance
-      playback = std::dynamic_pointer_cast<CoefClasses::SphCoefs>(CoefClasses::Coefs::factory(file));
+      playback = std::dynamic_pointer_cast<CoefClasses::CylCoefs>(CoefClasses::Coefs::factory(file));
 
       // Check to make sure that has been created
       if (not playback) {
@@ -172,10 +154,10 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	exit(-1);
       }
 
-      if (playback->lmax() != Lmax) {
+      if (playback->mmax() != Mmax) {
 	if (myid==0) {
-	  std::cerr << "PolarBasis: Lmax for playback [" << playback->lmax()
-		    << "] does not match specification [" << Lmax << "]"
+	  std::cerr << "PolarBasis: Mmax for playback [" << playback->mmax()
+		    << "] does not match specification [" << Mmax << "]"
 		    << std::endl;
 	}
 	MPI_Finalize();
@@ -316,15 +298,13 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
 void PolarBasis::setup(void)
 {				// Call normalization and kernel
-  for (int m=0; m<=Mmax; l++) {	// with current binding from derived class
+  for (int m=0; m<=Mmax; m++) {	// with current binding from derived class
     for (int n=0; n<nmax; n++) {
-      normM (l, n) = norm(n, m);
-      krnl  (l, n) = knl (n, m);
-      sqnorm(l, n) = sqrt(normM(m, n));
+      normM (m, n) = norm(n, m);
+      krnl  (m, n) = knl (n, m);
+      sqnorm(m, n) = sqrt(normM(m, n));
     }
   }
-
-  if (NOISE) compute_rms_coefs();
 }  
 
 
@@ -362,8 +342,6 @@ void PolarBasis::get_acceleration_and_potential(Component* C)
 				
   cC = C;			// "Register" component
   nbodies = cC->Number();	// And compute number of bodies
-
-  if (NOISE) update_noise();
 
   //======================================
   // Determine potential and acceleration 
@@ -476,7 +454,7 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 
 	if (m==0) {
 	  for (int n=0; n<nmax; n++) {
-	    wk[n] = potd[id](m, n)*mass/normM(l, m);
+	    wk[n] = potd[id](m, n)*mass/normM(m, m);
 	    (*expcoef0[id][moffset])[n] += wk[n];
 	  }
 
@@ -505,12 +483,12 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	else {
 	  if (not M0_only) {
 
-	    fac1 = cosm[id][m] * M_SQRT_2;
-	    fac2 = sinm[id][m] * M_SQRT_2;
+	    fac1 = cosm[id][m] * M_SQRT2;
+	    fac2 = sinm[id][m] * M_SQRT2;
 
 	    for (int n=0; n<nmax; n++) {
 
-	      wk[n] = potd[id](l, n)*mass*fac0/normM(l, n);
+	      wk[n] = potd[id](m, n)*mass/normM(m, n);
 
 	      (*expcoef0[id][moffset  ])[n] += wk[n]*fac1;
 	      (*expcoef0[id][moffset+1])[n] += wk[n]*fac2;
@@ -588,7 +566,7 @@ void PolarBasis::determine_coefficients_playback(void)
       //            +---- Counter in complex array (cosing and sine
       //            |     components are the real and imag parts)
       //            v
-      for (int m=0, M=0; l<=Mmax; l++) {
+      for (int m=0, M=0; m<=Mmax; m++) {
 	*expcoefP[M] = mat.row(M).real();
 	MPI_Bcast((*expcoefP[M++]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	if (m) {
@@ -597,7 +575,7 @@ void PolarBasis::determine_coefficients_playback(void)
 	}
       }
     } else {
-      for (int m=0, M=0; m<=Mmax; l++) {
+      for (int m=0, M=0; m<=Mmax; m++) {
 	MPI_Bcast((*expcoefP[M++]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	if (m) {
 	  MPI_Bcast((*expcoefP[M++]).data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -615,7 +593,7 @@ void PolarBasis::determine_coefficients_playback(void)
     // Get the error signal
     if (not std::get<1>(ret)) stop_signal = 1;
 
-    for (int m=0, M=0; m<=l; m++) {
+    for (int m=0, M=0; m<=Mmax; m++) {
       *expcoefP[M++] = mat.row(M).real();
       if (m) {
 	*expcoefP[M++] = mat.row(M).imag();
@@ -787,7 +765,7 @@ void PolarBasis::determine_coefficients_particles(void)
     used += use1;
   }
   
-  for (int m=0, moffset=0; m<=l; m++) {
+  for (int m=0, moffset=0; m<=Mmax; m++) {
 
     if (m==0) {
 	  
@@ -820,9 +798,8 @@ void PolarBasis::determine_coefficients_particles(void)
 	  MPI_Allreduce ( (*expcoef0[0][moffset+1]).data(),
 			  (*expcoef[moffset+1]).data(),
 			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	}
-      moffset+=2;
       }
+      moffset+=2;
     }
   }
   
@@ -909,9 +886,9 @@ void PolarBasis::determine_coefficients_particles(void)
 	  }
 
 	  moffset+=2;
-	}
       }
     }
+    // END: m loop
     std::cout << std::string(60, '-') << std::endl;
   }
 
@@ -995,7 +972,7 @@ void PolarBasis::multistep_update_finish()
       out << std::string(10+16*nmax, '-') << std::endl;
       for (int m=0; m<=2*Mmax; m++) {
 	if (L.find(m)==L.end()) continue;
-	out << std::setw(5) << " *** " << std::setw(5) << l;
+	out << std::setw(5) << " *** " << std::setw(5) << m;
 	for (int ir=0; ir<nmax; ir++)
 	  out << std::setw(16) << (*expcoef[m])[ir];
 	out << std::endl;
@@ -1062,8 +1039,8 @@ void PolarBasis::multistep_update(int from, int to, Component *c, int i, int id)
 	moffset++;
 
       } else {
-	fac1 = cosm[id][m] * M_SQRT_2;
-	fac2 = sinm[id][m] * M_SQRT_2;
+	fac1 = cosm[id][m] * M_SQRT2;
+	fac2 = sinm[id][m] * M_SQRT2;
 
 	for (int n=0; n<nmax; n++) {
 	  val1 = potd[id](m, n)*fac1*mass/normM(m, n);
@@ -1114,7 +1091,7 @@ void PolarBasis::compute_multistep_coefficients()
     for (int m=0; m<=2*Mmax; m++) {
       for (int n=0; n<nmax; n++) {
 	(*expcoef[m])[n] += a*(*expcoefL[M][m])[n] + b*(*expcoefN[M][m])[n];
-	if (l==0 and n==1) saveF += a*(*expcoefL[M][m])[n] + b*(*expcoefN[M][m])[n];
+	if (m==0 and n==1) saveF += a*(*expcoefL[M][m])[n] + b*(*expcoefN[M][m])[n];
       }
     }
     
@@ -1181,7 +1158,7 @@ void PolarBasis::compute_multistep_coefficients()
     for (int m=0; m<=2*Mmax; m++) {
       for (int n=0; n<nmax; n++) {
 	(*expcoef[m])[n] += (*expcoefN[M][m])[n];
-	if (l==0 and n==1)saveG += (*expcoefN[M][m])[n];
+	if (m==0 and n==1)saveG += (*expcoefN[M][m])[n];
       }
     }
   }
@@ -1411,7 +1388,7 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
       
       get_dpotl(Mmax, nmax, rs, potd[id], dpot[id], id);
 
-      if (!NO_L0) {
+      if (!NO_M0) {
 	get_pot_coefs_safe(0, *expcoef[0], p, dp, potd[id], dpot[id]);
 	if (ioff) {
 	  p = dp = 0;
@@ -1424,35 +1401,37 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
       //		------
       for (m=1, moffset=1; m<=Mmax; m++) {
 
-				// Suppress m=1 terms?
+	// Suppress m=1 terms?
+	//
 	if (NO_M1 && m==1) continue;
 	
-				// Suppress odd m terms?
+	// Suppress odd m terms?
+	//
 	if (EVEN_M && (m/2)*2 != m) continue;
 
 				// Suppress all asymmetric terms
 	if (M0_only and m!=0) continue;
 
-	  if (m==0) {
-	    get_pot_coefs_safe(m, *expcoef[moffset], p, dp, potd[id], dpot[id]);
-	    if (ioff) {
-	      p = dp = 0.0;
-	    }
-	    potl += fac*p;
-	    potr += fac*dp;
-	    moffset++;
+	if (m==0) {
+	  get_pot_coefs_safe(m, *expcoef[moffset], p, dp, potd[id], dpot[id]);
+	  if (ioff) {
+	    p = dp = 0.0;
 	  }
-	  else {
-	    get_pot_coefs_safe(m, *expcoef[moffset], pc, dpc, potd[id], dpot[id]);
-	    get_pot_coefs_safe(m, *expcoef[moffset+1], ps, dps, potd[id], dpot[id]);
-	    if (ioff) {
-	      pc = ps = dpc = dps = 0.0;
-	    }
-	    potl += fac*(pc* cosm[id][m] + ps* sinm[id][m]) * M_SQRT_2;
-	    potr += fac*(dpc*cosm[id][m] + dps*sinm[id][m]) * M_SQRT_2;
-	    potp += fac*(-pc*sinm[id][m] + ps *cosm[id][m]) * M_SQRT_2 * m;
-	    moffset +=2;
+	  potl += fac*p;
+	  potr += fac*dp;
+	  moffset++;
+	}
+	else {
+	  get_pot_coefs_safe(m, *expcoef[moffset], pc, dpc, potd[id], dpot[id]);
+	  get_pot_coefs_safe(m, *expcoef[moffset+1], ps, dps, potd[id], dpot[id]);
+	  if (ioff) {
+	    pc = ps = dpc = dps = 0.0;
 	  }
+
+	  potl += fac*(pc* cosm[id][m] + ps* sinm[id][m]) * M_SQRT2;
+	  potr += fac*(dpc*cosm[id][m] + dps*sinm[id][m]) * M_SQRT2;
+	  potp += fac*(-pc*sinm[id][m] + ps *cosm[id][m]) * M_SQRT2 * m;
+	  moffset +=2;
 	}
       }
 
@@ -1473,7 +1452,6 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
       else
 	cC->AddPot(indx, potl);
     }
-
   }
 
   thread_timing_end(id);
@@ -1765,12 +1743,12 @@ void PolarBasis::dump_coefs_h5(const std::string& file)
     sout.str().copy(cur->buf.get(), hsize); // Copy to CoefStruct buffer
 
     // Add the name attribute.  We only need this on the first call.
-    sphCoefs.setName(component->name);
+    cylCoefs.setName(component->name);
 
     // And the new coefficients and write the new HDF5
-    sphCoefs.clear();
-    sphCoefs.add(cur);
-    sphCoefs.WriteH5Coefs(file);
+    cylCoefs.clear();
+    cylCoefs.add(cur);
+    cylCoefs.WriteH5Coefs(file);
   }
 }
 
@@ -1781,8 +1759,8 @@ void PolarBasis::determine_fields_at_point
  double *tdens,  double *tpotl, 
  double *tpotX,  double *tpotY, double *tpotZ)
 {
-  double r2  = x*x + y*y;
-  double r   = sqrt(R) + DSMALL;
+  double R2  = x*x + y*y;
+  double R   = sqrt(R2) + DSMALL;
   double phi = atan2(y, x);
   
   *tdens0 = *tpotl0 = *tdens = *tdens0 = 0.0;
@@ -1793,15 +1771,15 @@ void PolarBasis::determine_fields_at_point
 
   double tpotR, tpotz, tpotp;
 
-  determine_fields_at_point_cyl(r, z, phi,
+  determine_fields_at_point_cyl(R, z, phi,
 				tdens0, tpotl0, tdens, tpotl,
-				tpotR, tpotz, tpotp);
-  *tpotX = *tpotr*x/r;
-  *tpotY = *tpotr*y/r;
+				&tpotR, &tpotz, &tpotp);
+  *tpotX = tpotR*x/R;
+  *tpotY = tpotR*y/R;
       
   if (R > DSMALL) {
-    *tpotX +=  tpotp*y/r;
-    *tpotY += -tpotp*x/r;
+    *tpotX +=  tpotp*y/R;
+    *tpotY += -tpotp*x/R;
   }
 }
 
@@ -1812,55 +1790,51 @@ void PolarBasis::determine_fields_at_point_cyl
  double *tdens, double *tpotl, 
  double *tpotR, double *tpotz, double *tpotp)
 {
-  double r2  = x*x + y*y;
-  double r   = sqrt(R) + DSMALL;
-  double phi = atan2(y, x);
-  
   *tdens0 = *tpotl0 = *tdens = *tpotl = 0.0;
   *tpotR  = *tpotz  = *tpotp = 0.0;
 
   bool ioff = false;
   if (R>rmax) return;
 
-  double rs = r/scale;
+  double rs = R/scale;
 
   double p, dp, pc, ps, dpc, dps;
 
-  sinecosine_R(Mmax, phi, cosm[id], sinm[id]);
+  sinecosine_R(Mmax, phi, cosm[0], sinm[0]);
 
-  get_dens(Mmax, nmax, rs, dend);
-  get_dpot(Mmax, nmax, rs, potd[id], dpot[id], id);
+  get_dens(Mmax, nmax, rs, dend, 0);
+  get_dpotl(Mmax, nmax, rs, potd[0], dpot[0], 0);
 
   // m loop
   for (int m=0, moffset=0; m<=Mmax; m++) {
     if (m==0) {
-      get_dens_coefs(m, *expcoef[loffset+moffset], p);
-      tdens0 = p;
-      get_pot_coefs_safe(m, *expcoef[moffset], p, dp, potd[id], dpot[id]);
-      tpotl = p;
-      tpotR = dp;
+      get_dens_coefs(m, *expcoef[moffset], p);
+      *tdens0 = p;
+      get_pot_coefs_safe(m, *expcoef[moffset], p, dp, potd[0], dpot[0]);
+      *tpotl = p;
+      *tpotR = dp;
 
       moffset++;
     }
     else {
-      get_dens_coefs(m, *expcoef[loffset+moffset], pc);
-      get_dens_coefs(m, *expcoef[loffset+moffset+1], ps);
-      tdens += (pc*cosm[0] + ps*sinm[0][m]) * M_SQRT_2;
+      get_dens_coefs(m, *expcoef[moffset], pc);
+      get_dens_coefs(m, *expcoef[moffset+1], ps);
+      *tdens += (pc*cosm[0][m] + ps*sinm[0][m]) * M_SQRT2;
       
-      get_pot_coefs(m, *expcoef[loffset+moffset],   pc, dpc);
-      get_pot_coefs(m, *expcoef[loffset+moffset+1], ps, dps);
+      get_pot_coefs(m, *expcoef[moffset],   pc, dpc);
+      get_pot_coefs(m, *expcoef[moffset+1], ps, dps);
 
-      tpotl += (pc* cosm[0][m] + ps* sinm[0][m]) * M_SQRT_2;
-      tpotR += (dpc*cosm[0][m] + dps*sinm[0][m]) * M_SQRT_2;
-      tpotp += (-pc*sinm[0][m] + ps* cosm[0][m]) * M_SQRT_2;
+      *tpotl += (pc* cosm[0][m] + ps* sinm[0][m]) * M_SQRT2;
+      *tpotR += (dpc*cosm[0][m] + dps*sinm[0][m]) * M_SQRT2;
+      *tpotp += (-pc*sinm[0][m] + ps* cosm[0][m]) * M_SQRT2;
 
       moffset +=2;
     }
   }
 
-  tpotl /= scale;
-  tpotR /= scale*scale;
-  tpotp /= scale;
+  *tpotl /= scale;
+  *tpotR /= scale*scale;
+  *tpotp /= scale;
 }
 
 void PolarBasis::determine_fields_at_point_sph
@@ -1869,133 +1843,18 @@ void PolarBasis::determine_fields_at_point_sph
  double *tdens, double *tpotl, 
  double *tpotr, double *tpott, double *tpotp)
 {
-
-  double r2  = x*x + y*y;
-  double r   = sqrt(R) + DSMALL;
-  double phi = atan2(y, x);
-  
   *tdens0 = *tpotl0 = *tdens = *tpotl = 0.0;
   *tpotr  = *tpott  = *tpotp = 0.0;
+
+  // Cylindrical coords
+  double R = r, z = 0.0;
 
   bool ioff = false;
   if (R>rmax) return;
 
-  determine_fields_at_point_cyl(r, z, phi,
+  determine_fields_at_point_cyl(R, z, phi,
 				tdens0, tpotl0, tdens, tpotl,
 				tpotr, tpott, tpotp);
-}
-
-
-void PolarBasis::compute_rms_coefs(void)
-{
-  meanC.resize(nmax);
-  rmsC.resize(Mmax+1, nmax);
-
-  meanC.setZero();
-  rmsC.setZero();
-
-  const int numg = 100;
-  LegeQuad qe(numg);
-
-  PolarModelTable modl(noise_model_file);
-  double rmin = modl.get_min_radius();
-  double rmax = modl.get_max_radius();
-  double del = rmax - rmin;
-  double r, rs;
-
-  for (int i=0; i<numg; i++) {
-    r = rmin + del*qe.knot(i);
-    rs = r / scale;
-
-    get_potl(Mmax, nmax, rs, potd[0], 0);
-
-    for(int m=0; m<=Mmax; m++) {
-      
-      for (int n=0; n<nmax; n++) {
-
-	if (m==0)
-	  meanC[n] += del * qe.weight(i) * r * potd[0](m, n) *
-	    modl.get_density(r);
-
-	rmsC(l, n) += del * qe.weight(i) * r * potd[0](l, n) *
-	  potd[0](l, n) * modl.get_density(r);
-      }
-    }
-  }
-
-  double fac, mtot = modl.get_mass(rmax);
-
-  for(int l=0; l<=Lmax; l++) {
-
-    for (int n=0; n<nmax; n++) {
-      fac = normM(l, n);
-      if (l==0) meanC[n] /= fac;
-      rmsC(l, n) *= mtot/(fac*fac);
-    }
-  }
-
-}
-
-
-void PolarBasis::update_noise(void)
-{
-
-  if (setup_noise) {
-    setup_noise = false;	// Only do this initialization once
-    
-    rgen.seed(seedN);		// Want the same seed on each process
-
-    if (myid==0) {		// Diagnostic output
-      ofstream out("rmscoef.dat");
-
-      for(int m=0; m<=Mmax; m++) {
-
-	out << "# L=" << m << endl;
-	for (int n=0; n<nmax; n++) {
-	  if (l==0)
-	    out << setw(5)  << n
-		<< setw(16) << (*expcoef[m])[n]
-		<< setw(16) << meanC[n]
-		<< setw(16) << rmsC(m, n)
-		<< setw(16) << rmsC(m, n) - meanC[n]*meanC[n]
-		<< endl;
-	  else
-	    out << setw(5)  << n
-		<< setw(16) << (*expcoef[m])[n]
-		<< setw(16) << 0.0
-		<< setw(16) << rmsC(m, n)
-		<< setw(16) << rmsC(m, n)
-		<< endl;
-	}
-	out << endl;
-      }
-    }
-  }
-
-
-				// l loop
-  for (int m=0, moffset=0; m<=Mmax; m++) {
-
-      if (m==0) {
-	for (int n=0; n<nmax; n++) {
-	  (*expcoef[moffset])[n] = 
-	    sqrt(fabs(rmsC(m, n) - meanC[n]*meanC[n])/noiseN)*nrand(rgen);
-	  if (l==0) (*expcoef[m])[n] += meanC[n];
-	}
-	moffset++;
-      }
-      else {
-	for (int n=0; n<nmax; n++) {
-	  (*expcoef[moffset+0])[n] = 
-	    sqrt(0.5*fabs(rmsC(m, n) - meanC[n]*meanC[n])/noiseN)*nrand(rgen);
-	  (*expcoef[moffset+1])[n] = 
-	    sqrt(0.5*fabs(rmsC(m, n) - meanC[n]*meanC[n])/noiseN)*nrand(rgen);
-	}
-	moffset+=2;
-      }
-    }
-  }
-
 }
 
 
