@@ -45,17 +45,15 @@ HankelTransform::HankelTransform(double h, double nu, int N)
   // Imports zeros of the Bessel function. Initializing this way speeds up calls
   //
   try {
-    boost::math::cyl_bessel_j_zero(this->nu, 1, maxN, std::back_inserter(jn_zeros0));
+    boost::math::cyl_bessel_j_zero(this->nu, 1, maxN, std::back_inserter(zeros));
     for (size_t i = 0; i < maxN; i++) {
-      zeros.push_back( jn_zeros0[i] );
       xi.push_back( zeros[i]/M_PI );
 
-      // The functions gsl_sf_bessel_Jn and gsl_sf_bessel_Yn return
-      // the result of the Bessel functions of the first and second
-      // kinds respectively
+      // Evaluate the Bessel functions of the first and second
+      // kinds, respectively, at the zeros for the Ogata weights
       //
-      Jp1.push_back( boost::math::cyl_bessel_j(nu+1.,M_PI*xi[i]) );
-      w.push_back( boost::math::cyl_neumann(nu,M_PI*xi[i])/Jp1[i] );  
+      double Jp1 = boost::math::cyl_bessel_j(nu+1.0, M_PI*xi[i]);
+      w.push_back( boost::math::cyl_neumann(nu, M_PI*xi[i])/Jp1);  
     }
   }
   catch (std::exception& ex) {
