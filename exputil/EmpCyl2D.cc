@@ -799,6 +799,16 @@ bool EmpCyl2D::read_cached_tables()
   xgrid.resize(numr);
   in.read((char *)xgrid.data(), numr*sizeof(double));
 
+  if (cmap) {
+    xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
+    xmax = (rmax/scale - 1.0)/(rmax/scale + 1.0);
+    dxi = (xmax-xmin)/(numr-1);
+  } else {
+    xmin = rmin;
+    xmax = rmax;
+    dxi = (xmax-xmin)/(numr-1);
+  }
+
   for (int m=0; m<=mmax; m++) {
 
     potl_array[m].resize(numr, nmax);
