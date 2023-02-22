@@ -9,6 +9,12 @@
 #include <boost/math/special_functions/bessel.hpp>
 #include <boost/math/tools/minima.hpp>
 
+// Hankel transform based on the Ogata quadrature formulae from:
+//
+// Ogata, H, 2005, "A Numerical Integration Formula Based on the
+// Bessel Functions", Publ. Res. Inst. Math. Sci. 41 (4) (2005)
+// 949–970.
+//
 class HankelTransform
 {
 private:

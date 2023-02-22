@@ -3,16 +3,19 @@
 
 #include "Hankel.H"
 
-//! Compute the inverse Hankel transform to get the potential.  The
-//! user supplies a functor containing the (mass per cylindrical
-//! radius>/(2*pi).  E.g. surface density time radius.
+//! Compute the inverse Hankel transform to get the potential based on
+//! Gauss' Law applied to the cylindrical Laplacian.
+//!
+//! The user supplies a functor containing the <mass per cylindrical
+//! radius>/(2*pi) which is the surface density times the cylindrical
+//! radius.  E.g. B&T equations 2.184-2.185.
+//!
 class PotRZ
 {
-public:
-  //! The dM(R)/dR functor
+protected:
+  //! The R*Sigma(R) functor instance stored by the constructor
   std::function<double(double)> mass;
   
-protected:
   //! Compute the Hankel transform of the target density
   class Sk
   {
@@ -65,6 +68,9 @@ public:
     v = HankelTransform(h1, (double)M, N1);
     u = Sk(h2, N2, M, this);
   }
+
+  //! Change the functor without recomputing the knots
+  void setFunction(std::function<double(double)> func) { mass = func; }
 
   //! Perform the evaluation
   double operator()(double R, double z)

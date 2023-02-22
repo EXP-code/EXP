@@ -6,10 +6,10 @@
 #include <string>
 #include <cmath>
 
-#include <EmpCyl2D.H>
+#include <PotRZ.H>		// Hankel computation for potential
+#include <EmpCyl2D.H>		// 2d empirical basis
 #include <cxxopts.H>
 
-#include "PotRZ.H"
 
 int main(int argc, char** argv)
 {
