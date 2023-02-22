@@ -9,10 +9,12 @@
 #include <EmpCyl2D.H>
 #include <cxxopts.H>
 
+#include "PotRZ.H"
+
 int main(int argc, char** argv)
 {
   bool logr = false, cmap = false, ortho = false;
-  int numr, mmax, nmax, knots, M;
+  int numr, mmax, nmax, knots, M, N;
   double A, scale, rmin, rmax;
   std::string filename, type, biorth;
 
@@ -31,10 +33,13 @@ int main(int argc, char** argv)
     ("ortho", "Compute EOF orthogonal matrix and write to a file")
     ("grid", "Print the new basis grid to a file")
     ("trans", "Print the rotation matrices to a file")
+    ("vertical", "Compute the vertical grid")
     ("scale", "scaling from real coordinates to table",
      cxxopts::value<double>(scale)->default_value("1.0"))
     ("M,harmonic", "Aximuthal harmonic m=0,1,2,3,...",
      cxxopts::value<int>(M)->default_value("0"))
+    ("N,norder", "Radial harmonic for rendering",
+     cxxopts::value<int>(N)->default_value("1"))
     ("A,length", "characteristic disk scale length",
      cxxopts::value<double>(A)->default_value("1.0"))
     ("mmax", "maximum number of angular harmonics in the expansion",
@@ -100,6 +105,82 @@ int main(int argc, char** argv)
   if (vm.count("ortho")) emp.orthoCheck(M, filename + ".ortho");
 
   emp.checkCoefs();
+
+  if (vm.count("vertical")) {
+
+    // Create the functor
+    auto mass = [&emp, M, N](double x)
+    {
+      return x * emp.get_dens(x, M, N);
+    };
+
+    // Grid size
+    //
+    constexpr int num = 40;
+
+    // Define some representative limits
+    //
+    double Rmin = 0.001*A;
+    double Rmax = 3.00*A;
+    double Zmax = 1.00*A;
+
+    // Grid spacing
+    //
+    double dz = Zmax/(num - 1);
+    double dr = (Rmax - Rmin)/(num - 1);
+  
+    Eigen::MatrixXd outP(num, num), outH(num, num);
+    Eigen::MatrixXi outN(num, num);
+
+    // Do the grid computation
+    //
+    for (int j=0; j<num; j++) {
+	
+      double r = Rmin + dr*j;
+      
+      // These quadrature parameters are all empirical based on the
+      // exponential disk
+
+      // For inverse convergence
+      //
+      double h1 = std::min<double>(0.003*r, 0.05);
+      int    N1 = std::min<int>(1000, floor(std::max<double>(100, 0.5/h1)));
+
+      // For Sk convergence
+      //
+      double h2 = 0.05;
+      int    N2 = 60;
+      
+      // Potential instance with radially sensitive convergence parameters
+      //
+      PotRZ pot(h1, h2, N1, N2, M, mass);
+
+      for (int i=0; i<num; i++) {
+	outP(j, i) = pot(r, dz*i);
+	outH(j, i) = h1;
+	outN(j, i) = N1;
+      }
+    }
+
+    // Output file for grid
+    //
+    std::ofstream out(filename + ".RZ");
+
+    out << std::setw(8) << num << std::setw(8) << num << std::endl;
+
+    // Print the grid in the expected order
+    //
+    for (int i=0; i<num; i++) {
+      for (int j=0; j<num; j++) {
+	out << std::setw(16) << Rmin + dr*j
+	    << std::setw(16) << dz*i
+	    << std::setw(16) << outP(j, i)
+	    << std::setw(16) << outH(j, i)
+	    << std::setw( 8) << outN(j, i)
+	    << std::endl;
+      }
+    }
+  }
 
   return 0;
 }

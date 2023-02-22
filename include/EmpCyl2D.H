@@ -124,6 +124,9 @@ protected:
 
 public:
 
+  //! Null constructor
+  EmpCyl2D() {}
+
   //! Constructor
   EmpCyl2D(int mmax, int nmax, int knots, int numr,
 	   double rmin, double rmax, double A, double scale,
