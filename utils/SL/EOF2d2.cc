@@ -6,7 +6,7 @@
 #include <string>
 #include <cmath>
 
-#include <PotRZ.H>		// Hankel computation for potential
+#include <PotRZ2.H>		// Hankel computation for potential
 #include <EmpCyl2D.H>		// 2d empirical basis
 #include <cxxopts.H>
 
@@ -14,8 +14,8 @@
 int main(int argc, char** argv)
 {
   bool logr = false, cmap = false, ortho = false, plane = false;
-  int numr, mmax, nmax, knots, M, N, n20;
-  double A, scale, rmin, rmax, h20;
+  int numr, mmax, nmax, knots, M, N, nradial;
+  double A, scale, rmin, rmax, cutoff;
   std::string filename, type, biorth;
 
   // Parse command line
@@ -36,16 +36,17 @@ int main(int argc, char** argv)
     ("plane", "Compare the vertical evaluation on the disk plane")
     ("Sk", "Evaluation the forward transform")
     ("vertical", "Compute the vertical grid")
-    ("h2", "Step size for Sk computation",
-     cxxopts::value<double>(h20)->default_value("0.05"))
-    ("n2", "Knot number for Sk computation",
-     cxxopts::value<int>(n20)->default_value("100"))
+    ("roll", "Use a erf rollover for the density functions")
+    ("cutoff", "Number of scale lengths for cutoff",
+     cxxopts::value<double>(cutoff)->default_value("5.0"))
     ("scale", "scaling from real coordinates to table",
      cxxopts::value<double>(scale)->default_value("1.0"))
     ("M,harmonic", "Aximuthal harmonic m=0,1,2,3,...",
      cxxopts::value<int>(M)->default_value("0"))
-    ("N,norder", "Radial harmonic for rendering",
-     cxxopts::value<int>(N)->default_value("1"))
+    ("N,norder", "Default number of knots",
+     cxxopts::value<int>(N)->default_value("256"))
+    ("n,nradial", "Radial order for vertical potential output",
+     cxxopts::value<int>(nradial)->default_value("0"))
     ("A,length", "characteristic disk scale length",
      cxxopts::value<double>(A)->default_value("1.0"))
     ("mmax", "maximum number of angular harmonics in the expansion",
@@ -112,77 +113,62 @@ int main(int argc, char** argv)
 
   emp.checkCoefs();
 
+  std::function<double(double)> roll = [](double R){ return 1.0; };
+
+  if (vm.count("roll")) {	// Set an erf rollover function
+    roll = [A, cutoff](double R) {
+      return 0.5*(1.0 - erf(R/A - cutoff + 5.0));
+    };
+  }
+      
   if (vm.count("vertical")) {
 
     // Create the functor
-    auto mass = [&emp, M, N](double x)
+    auto dens = [&emp, M, nradial, roll](double R)
     {
-      return x * emp.get_dens(x, M, N);
+      return emp.get_dens(R, M, nradial)*roll(R);
     };
 
-    // Grid size
+    // Vertical grid size
     //
     constexpr int num = 40;
-
-    // Define some representative limits
-    //
-    double Rmin = 0.001*A;
-    double Rmax = 3.00*A;
-    double Zmax = 1.00*A;
-
-    // Grid spacing
-    //
-    double dz = Zmax/(num - 1);
-    double dr = (Rmax - Rmin)/(num - 1);
-  
-    Eigen::MatrixXd outP(num, num), outH(num, num);
-    Eigen::MatrixXi outN(num, num);
-
-    // Do the grid computation
-    //
-    for (int j=0; j<num; j++) {
-	
-      double r = Rmin + dr*j;
-      
-      // These quadrature parameters are all empirical based on the
-      // exponential disk
-
-      // For inverse convergence
-      //
-      double h1 = std::min<double>(0.003*r, 0.05);
-      int    N1 = std::min<int>(1000, floor(std::max<double>(100, 0.5/h1)));
-
-      // For Sk convergence
-      //
-      double h2 = h20;
-      int    N2 = n20;
-      
-      // Potential instance with radially sensitive convergence parameters
-      //
-      PotRZ pot(h1, h2, N1, N2, M, mass);
-
-      for (int i=0; i<num; i++) {
-	outP(j, i) = pot(r, dz*i);
-	outH(j, i) = h1;
-	outN(j, i) = N1;
-      }
-    }
 
     // Output file for grid
     //
     std::ofstream out(filename + ".RZ");
 
-    out << std::setw(8) << num << std::setw(8) << num << std::endl;
+    out << std::setw(8) << N << std::setw(8) << num << std::endl;
 
-    // Print the grid in the expected order
+    // Define some representative limits
     //
-    for (int i=0; i<num; i++) {
-      for (int j=0; j<num; j++) {
-	out << std::setw(16) << Rmin + dr*j
-	    << std::setw(16) << dz*i
-	    << std::setw(16) << outP(j, i)
-	    << std::setw(16) << outH(j, i)
-	    << std::setw( 8) << outN(j, i)
+    double Rmax = cutoff*A;
+    double Zmax = A;
+
+    // Grid spacing
+    //
+    double dz = Zmax/(num - 1);
+
+    // Do the grid computation
+    //
+    for (int j=0; j<num; j++) {
+	
+      double z = dz*j;
+
+      // These quadrature parameters are all empirical based on the
+      // exponential disk
+
+      // Potential instance with radially sensitive convergence parameters
+      //
+      PotRZ pot(Rmax, N, M);
+
+      Eigen::VectorXd r(N), p(N);
+
+      std::tie(r, p) = pot(z, dens);
+
+      for (int i=0; i<N; i++) {
+	out << std::setw(16) << r[i]
+	    << std::setw(16) << z
+	    << std::setw(16) << p[i]
 	    << std::endl;
       }
     }
@@ -190,59 +176,39 @@ int main(int argc, char** argv)
 
   if (vm.count("plane")) {
 
-    // Grid size
-    //
-    constexpr int num = 200;
-
     // Define some representative limits
     //
-    double Rmin = 0.001*A;
-    double Rmax = 3.00*A;
-
-    // Grid spacing
-    //
-    double dr = (Rmax - Rmin)/(num - 1);
+    double Rmax = cutoff*A;
 
     // Output file for grid
     //
     std::ofstream out(filename + ".R0");
 
-    // Do the grid computation
+    // Potential instance with radially sensitive convergence parameters
     //
-    for (int j=0; j<num; j++) {
-	
-      double r = Rmin + dr*j;
+    PotRZ pot(Rmax, N, M);
+
+    Eigen::VectorXd r(N), p(N);
+    Eigen::MatrixXd outP(nmax, N);
+
+    for (int n=0; n<nmax; n++) {
+      // Set the functor using a lambda
+      //
+      auto dens = [&emp, M, n, roll](double R) { return
+	  emp.get_dens(R, M, n) * roll(R);
+      };
       
-      // These quadrature parameters are all empirical based on the
-      // exponential disk
+      std::tie(r, p) = pot(0.0, dens);
+      outP.row(N) = p;
+    }
 
-      // For inverse convergence
-      //
-      double h1 = std::min<double>(0.003*r, 0.05);
-      int    N1 = std::min<int>(1000, floor(std::max<double>(300, 2.0/h1)));
-
-      // For Sk convergence
-      //
-      double h2 = h20;
-      int    N2 = n20;
-      
-      // Potential instance with radially sensitive convergence parameters
-      //
-      PotRZ pot(h1, h2, N1, N2, M);
-
-      out << std::setw(16) << r << std::setw(16) << h1 << std::setw(8) << N1;
-
-      for (int N=0; N<nmax; N++) {
-	// Set the functor using a lambda
-	//
-	pot.setFunction([&emp, M, N](double R)
-	{ return R * emp.get_dens(R, M, N); }
-	  );
-
-	// Write the results
-	//
-	out << std::setw(16) <<  pot(r, 0.0)
-	    << std::setw(16) << -emp.get_potl(r, M, N);
+    // Write the results
+    //
+    for (int i=0; i<N; i++) {
+      out << std::setw(16) << r[i];
+      for (int n=0; n<nmax; n++) {
+	out << std::setw(16) <<  outP(n, i)
+	    << std::setw(16) << -emp.get_potl(r[i], M, n);
       }
       out << std::endl;
     }
@@ -250,60 +216,38 @@ int main(int argc, char** argv)
 
   if (vm.count("Sk")) {
 
-    // Grid size
-    //
-    constexpr int num = 200;
-
     // Define some representative limits
     //
-    double Kmin = 0.001;
-    double Kmax = 100.0;
-
-    // Grid spacing
-    //
-    double dk = (log(Kmax) - log(Kmin))/(num - 1);
+    double Rmax = cutoff*A;
 
     // Output file for grid
     //
     std::ofstream out(filename + ".Sk");
 
-    // These quadrature parameters are all empirical based on the
-    // exponential disk
-
-    // For inverse convergence
-    //
-    double  r = 1.0;
-    double h1 = std::min<double>(0.003*r, 0.05);
-    int    N1 = std::min<int>(1000, floor(std::max<double>(300, 2.0/h1)));
-    
-    // For Sk convergence
-    //
-    double h2 = h20;
-    int    N2 = n20;
-    
     // Potential instance with radially sensitive convergence parameters
     //
-    PotRZ pot(h1, h2, N1, N2, M);
+    PotRZ pot(Rmax, N, M);
 
-    // Do the grid computation
+    Eigen::MatrixXd outS(N, nmax);
+    Eigen::VectorXd k(N), s(N);
+
+    for (int n=0; n<nmax; n++) {
+      // Set the functor using a lambda
+      //
+      auto dens = [&emp, M, n, roll](double R){
+	return emp.get_dens(R, M, n) * roll(R); };
+
+      std::tie(k, s) = pot.getKT(dens);
+      outS.col(n) = s;
+    }
+
+
+    // Write the results
     //
-    for (int j=0; j<num; j++) {
-	
-      double k = Kmin*exp(dk*j);
-      
-      out << std::setw(16) << k;
-
-      for (int N=0; N<nmax; N++) {
-	// Set the functor using a lambda
-	//
-	pot.setFunction([&emp, M, N](double R)
-	{ return R * emp.get_dens(R, M, N); }
-	  );
-
-	// Write the results
-	//
-	out << std::setw(16) <<  pot(k);
-      }
+    for (int i=0; i<k.size(); i++) {
+      out << std::setw(16) << k[i];
+      for (int n=0; n<nmax; n++) 
+	out << std::setw(16) << outS(i, n);
       out << std::endl;
     }
   }

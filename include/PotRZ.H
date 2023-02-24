@@ -63,9 +63,16 @@ public:
   //! @param N1 is the knot number for the inverse
   //! @param N2 is the knot number for Sk
   //! @param M is the harmonic order
-  //! @param a is the model parameter vector
+  //! @param func is the density*r target
   PotRZ(double h1, double h2, int N1, int N2, int M,
 	std::function<double(double)> func) : mass(func)
+  {
+    v = HankelTransform(h1, (double)M, N1);
+    u = Sk(h2, N2, M, this);
+  }
+
+  //! Constructor with unspecified model
+  PotRZ(double h1, double h2, int N1, int N2, int M)
   {
     v = HankelTransform(h1, (double)M, N1);
     u = Sk(h2, N2, M, this);
@@ -78,6 +85,12 @@ public:
   double operator()(double R, double z)
   {
     return v(std::bind(&PotRZ::func, this, std::placeholders::_1, z), R);
+  }
+
+  //! Evalute the forward transform: Sk
+  double operator()(double k)
+  {
+    return u(k);
   }
 };
 
