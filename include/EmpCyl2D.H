@@ -40,7 +40,7 @@ public:
   {
   protected:
 
-    double A;
+    double acyl;
     std::string id;
 
   public:
@@ -54,11 +54,11 @@ public:
 
 protected:
 
-  double A, rmin, rmax, scale;
+  double ascale, rmin, rmax, scale;
   double xmin, xmax, dxi;
   int mmax, nmax, numr, knots;
   std::string model, biorth;
-  bool cmap, logr;
+  bool cmap, logr, basis_test;
 
   std::vector<Eigen::MatrixXd> potl_array, dens_array, dpot_array;
   std::vector<Eigen::MatrixXd> rot_matrix;
@@ -69,13 +69,20 @@ protected:
   {
   public:
 
+    //! Enable orthgonality check
+    static bool debug;
+
+    //! Basis creation factory
     static std::shared_ptr<Basis2d>
     createBasis(int mmax, int nmax, double rmax, const std::string& type);
 
+    //@{
+    //! Required basis-function members
     virtual double potl(int M, int N, double r) = 0;
     virtual double dens(int M, int N, double r) = 0;
     virtual double dpot(int M, int N, double r) = 0;
     virtual double norm(int N, int M) = 0;
+    //@}
   };
 
   class CluttonBrock;
@@ -143,6 +150,9 @@ public:
 	   bool cmap, bool logr, std::shared_ptr<ModelCyl> disk,
 	   const std::string biorth, const std::string cache="");
   
+  //! Use underlying basis for testing?  Default: false.
+  void basisTest(bool which) { basis_test = which; }
+
 #if HAVE_LIBCUDA==1
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);

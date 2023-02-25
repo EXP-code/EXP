@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <algorithm>
+#include <chrono>
 #include <vector>
 #include <cmath>
 
@@ -44,6 +45,9 @@ private:
   Eigen::MatrixXd T;
 
 public:
+  //! For checking unitarity (default: false)
+  static bool debug;
+
   //! Null constructor
   QDHT() {}
 
@@ -74,6 +78,42 @@ public:
 
   //! Compute the transform coordinates (e.g. spatial frequencies)
   const Eigen::VectorXd& getK() { return k; }
+
+  //! Check solution
+  void check()
+  {
+    double det = T.determinant();
+    std::cout << "QDHT: solution quality=" << std::fabs(det-1.0)
+	      << " det=" << det << std::endl;
+    
+    // Perform the SVD
+    //
+    auto begin = std::chrono::steady_clock::now();
+    Eigen::BDCSVD<Eigen::MatrixXd>
+      svd(T, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    auto S = svd.singularValues();
+    auto end = std::chrono::steady_clock::now();
+    auto tim = std::chrono::duration<double>(end-begin).count();
+
+    int good=0, bad=0;
+    double worst = 0.0, det1 = 1.0;
+    for (size_t i=0; i<S.size(); i++) {
+      det1 *= S(i);
+      double test = fabs(S(i) - 1.0);
+      if (test < 1.0e-8) {
+	good++;
+      } else {
+	if (test>worst) worst = test;
+	bad++;
+      }
+    }
+      
+    std::cout << "QDHT: singular values: good=" << good << " bad=" << bad
+	      << " worst=" << worst << " det=" << det1
+	      << " time(SVD)=" << tim << " sec"
+	      << std::endl << std::endl;
+  }
+
 };
 
 #endif

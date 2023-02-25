@@ -3,6 +3,8 @@
 
 #include "QDHT.H"
 
+bool QDHT::debug = false;
+
 // Constructor
 QDHT::QDHT(int nu, int N, double R) : nu(nu), N(N), R(R)
 {
@@ -67,6 +69,8 @@ QDHT::QDHT(int nu, int N, double R) : nu(nu), N(N), R(R)
       if (i != j) T(j, i) = T(i, j);
     }
   }
+
+  if (debug) check();
 
 };
 

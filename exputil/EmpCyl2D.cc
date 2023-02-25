@@ -12,11 +12,22 @@
 #include <EmpCyl2D.H>
 #include <EXPmath.H>
 
+// Set to true for orthogonality checking
+//
+bool EmpCyl2D::Basis2d::debug = false;
+
 // Clutton-Brock two-dimensional disk
 //
 class EmpCyl2D::CluttonBrock : public EmpCyl2D::Basis2d
 {
+protected:
+
+  void test_ortho();
+
 public:
+
+  CluttonBrock() { test_ortho(); }
+
   double potl(int M, int N, double r);
   double dens(int M, int N, double r);
   double dpot(int M, int N, double r);
@@ -37,6 +48,7 @@ private:
   void test_ortho();
 
 public:
+
   Bessel(int mmax, int nmax, double L);
 
   double potl(int M, int N, double r);
@@ -55,33 +67,69 @@ EmpCyl2D::Bessel::Bessel(int mmax, int nmax, double L) :
     normv[m].resize(nmax);
     for (int n=0; n<nmax; n++) {
       double eval = EXPmath::cyl_bessel_j(m+1, roots[m][n]) * L;
-      normv[m][n] = eval*eval*0.5;
+      normv[m][n] = eval*eval*0.5 * roots[m][n]/L;
     }
   }
 
-  if (false) test_ortho();
+  test_ortho();
 }
 
 void EmpCyl2D::Bessel::test_ortho()
 {
-  const int knots = 128;
-  LegeQuad lw(knots);
-  Eigen::MatrixXd orth(nmax, nmax);
+  // Sanity check; set to false for production
+  //
+  if (debug) {
 
-  std::cout << std::endl;
-  for (int m=0; m<=mmax; m++) {
-    orth.setZero();
-    for (int i=0; i<knots; i++) {
-      double r = L*lw.knot(i);
-      for (int j=0; j<nmax; j++) {
-	for (int l=0; l<nmax; l++) {
-	  orth(j, l) += lw.weight(i)*L * r *
-	    potl(m, j, r)*dens(m, l, r) / sqrt(norm(j, m)*norm(l, m));
+    const int knots = 128;
+    LegeQuad lw(knots);
+    Eigen::MatrixXd orth(nmax, nmax);
+
+    std::cout << std::endl;
+    for (int m=0; m<=mmax; m++) {
+      orth.setZero();
+      for (int i=0; i<knots; i++) {
+	double r = L*lw.knot(i);
+	for (int j=0; j<nmax; j++) {
+	  for (int l=0; l<nmax; l++) {
+	    orth(j, l) += lw.weight(i)*L * r *
+	      potl(m, j, r)*dens(m, l, r) / sqrt(norm(j, m)*norm(l, m));
+	  }
 	}
       }
+      std::cout << "# Bessel orthgonality for M=" << m << std::endl;
+      std::cout << orth*2.0*M_PI << std::endl << std::endl;
     }
-    std::cout << "# Bessel orthgonality for M=" << m << std::endl;
-    std::cout << -orth*2.0*M_PI << std::endl << std::endl;
+  }
+}
+
+void EmpCyl2D::CluttonBrock::test_ortho()
+{
+  // Sanity check; set to false for production
+  //
+  if (debug) {
+
+    const int knots = 128, nmax = 10, mmax = 4;
+    LegeQuad lw(knots);
+    Eigen::MatrixXd orth(nmax, nmax);
+
+    auto xi_to_r   = [](double xi) { return (1.0+xi)/(1.0 - xi);   };
+    auto d_xi_to_r = [](double xi) { return 0.5*(1.0-xi)*(1.0-xi); };
+
+    for (int m=0; m<=mmax; m++) {
+      orth.setZero();
+      for (int i=0; i<knots; i++) {
+	double xi = 2.0*(lw.knot(i) - 0.5);
+	double r = xi_to_r(xi);
+	for (int j=0; j<nmax; j++) {
+	  for (int l=0; l<nmax; l++) {
+	    orth(j, l) += lw.weight(i)*2.0 * r / d_xi_to_r(xi) *
+	      potl(m, j, r)*dens(m, l, r) / sqrt(norm(j, m)*norm(l, m));
+	  }
+	}
+      }
+      std::cout << "# CluttonBrock orthgonality for M=" << m << std::endl;
+      std::cout << orth*2.0*M_PI << std::endl << std::endl;
+    }
   }
 }
 
@@ -224,14 +272,14 @@ double EmpCyl2D::CluttonBrock::norm(int n, int m)
 // Bessel disk potential
 double EmpCyl2D::Bessel::potl(int M, int N, double r)
 {
-  return -EXPmath::cyl_bessel_j(M, r*roots[M][N]/L);
+  return EXPmath::cyl_bessel_j(M, r*roots[M][N]/L);
 }
 
 // Bessel disk density
 //
 double EmpCyl2D::Bessel::dens(int M, int N, double r)
 {
-  return EXPmath::cyl_bessel_j(M, r*roots[M][N]/L)/(2.0*M_PI);
+  return EXPmath::cyl_bessel_j(M, r*roots[M][N]/L)*roots[M][N]/L/(2.0*M_PI);
 }
 
 // Bessel disk force
@@ -278,31 +326,31 @@ EmpCyl2D::Basis2d::createBasis(int mmax, int nmax, double rmax,
 class EmpCyl2D::ExponCyl : public EmpCyl2D::ModelCyl
 {
 
+private:
+
+  double sigma0;
+
 public:
 
-  ExponCyl(double scl) { A = scl; id = "expon"; }
+  ExponCyl(double scl)
+  { acyl = scl; sigma0 = 0.5/(M_PI*acyl*acyl); id = "expon"; }
 
   double pot(double r) {
-    double y = 0.5 * r / A;
-    return -2.0*M_PI*A*y*
+    double y = 0.5 * r / acyl;
+    return -M_PI*sigma0*r *
       (EXPmath::cyl_bessel_i(0, y)*EXPmath::cyl_bessel_k(1, y) -
        EXPmath::cyl_bessel_i(1, y)*EXPmath::cyl_bessel_k(0, y));
   }
 
   double dpot(double r) {
-    double y = 0.5 * r / A;
-   return 4.0*M_PI*A*y*y*
+    double y = 0.5 * r / acyl;
+    return 2.0*M_PI*sigma0*y*
      (EXPmath::cyl_bessel_i(0, y)*EXPmath::cyl_bessel_k(0, y) -
       EXPmath::cyl_bessel_i(1, y)*EXPmath::cyl_bessel_k(1, y));
   }
 
   double dens(double r) {
-    // This 4pi from Poisson's eqn
-    //        |
-    //        |       /-- This begins the true projected density profile
-    //        |       |
-    //        v       v
-    return 4.0*M_PI * exp(-r/A);
+    return sigma0*exp(-r/acyl);
   }
 
 };
@@ -311,21 +359,21 @@ class EmpCyl2D::KuzminCyl : public EmpCyl2D::ModelCyl
 {
 public:
   
-  KuzminCyl(double scl) { A = scl; id = "kuzmin"; }
+  KuzminCyl(double scl) { acyl = scl; id = "kuzmin"; }
 
   double pot(double R) {
-    double a2 = A * A;
+    double a2 = acyl * acyl;
     return -1.0/sqrt(R*R + a2);
   }
 
   double dpot(double R) {
-    double a2 = A * A;
+    double a2 = acyl * acyl;
     return R/pow(R*R + a2, 1.5);
   }
 
   double dens(double R) {
-    double a2 = A * A;
-    return 4.0*M_PI*A/pow(R*R + a2, 1.5)/(2.0*M_PI);
+    double a2 = acyl * acyl;
+    return 4.0*M_PI*acyl/pow(R*R + a2, 1.5)/(2.0*M_PI);
     //     ^
     //     |
     // This 4pi from Poisson's eqn
@@ -338,23 +386,23 @@ class EmpCyl2D::MestelCyl : public EmpCyl2D::ModelCyl
 {
 public:
   
-  MestelCyl(double scl) { A = scl;  id = "mestel"; }
+  MestelCyl(double scl) { acyl = scl;  id = "mestel"; }
 
   double pot(double R) {
-    return M_PI/(2.0*A)*log(0.5*R/A);
+    return M_PI/(2.0*acyl)*log(0.5*R/acyl);
   }
 
   double dpot(double R) {
-    double a2 = A * A;
+    double a2 = acyl * acyl;
     double fac = sqrt(1.0 + R*R/a2);
-    return M_PI/(2.0*A*R);
+    return M_PI/(2.0*acyl*R);
   }
 
   double dens(double R) {
-    if (R>A)
+    if (R>acyl)
       return 0.0;
     else
-      return 4.0*M_PI/(2.0*M_PI*A*R)*acos(R/A);
+      return 4.0*M_PI/(2.0*M_PI*acyl*R)*acos(R/acyl);
       //     ^
       //     |
       // This 4pi from Poisson's eqn
@@ -363,7 +411,7 @@ public:
 
 
 std::shared_ptr<EmpCyl2D::ModelCyl>
-EmpCyl2D::createModel(const std::string type, double A)
+EmpCyl2D::createModel(const std::string type, double acyl)
 {
   // Convert ID string to lower case
   //
@@ -373,22 +421,22 @@ EmpCyl2D::createModel(const std::string type, double A)
 
   if (data.find("kuzmin") != std::string::npos) {
     std::cout << "---- EmpCyl2D::ModelCyl: Making a Kuzmin disk" << std::endl;
-    return std::make_shared<KuzminCyl>(A);
+    return std::make_shared<KuzminCyl>(acyl);
   }
 
   if (data.find("mestel") != std::string::npos) {
     std::cout << "---- EmpCyl2D::ModelCyl: Making a finite Mestel disk" << std::endl;
-    return std::make_shared<MestelCyl>(A);
+    return std::make_shared<MestelCyl>(acyl);
   }
 
   if (data.find("expon") != std::string::npos) {
     std::cout << "---- EmpCyl2D::ModelCyl: Making an Exponential disk" << std::endl;
-    return std::make_shared<ExponCyl>(A);
+    return std::make_shared<ExponCyl>(acyl);
   }
 
   // Default if nothing else matches
   std::cout << "---- EmpCyl2D::ModelCyl: Making an Exponential disk [Default]" << std::endl;
-  return std::make_shared<ExponCyl>(A);
+  return std::make_shared<ExponCyl>(acyl);
 }
 
 
@@ -462,13 +510,15 @@ EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
 		   const std::string model, const std::string biorth,
 		   const std::string cache) :
   mmax(mmax), nmax(nmax), knots(knots), numr(numr),
-  rmin(rmin), rmax(rmax), A(A), scale(scale), cmap(cmap), logr(logr),
+  rmin(rmin), rmax(rmax), ascale(A), scale(scale), cmap(cmap), logr(logr),
   model(model), biorth(biorth), cache_name_2d(cache)
 {
   if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
 
-  disk  = createModel(model, A);
+  disk  = createModel(model, ascale);
   basis = Basis2d::createBasis(mmax, nmax, rmax, biorth);
+
+  basis_test = false;
 
   if (not read_cached_tables()) create_tables();
 }
@@ -480,13 +530,15 @@ EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
 		   std::shared_ptr<EmpCyl2D::ModelCyl> disk,
 		   const std::string biorth, const std::string cache) :
   mmax(mmax), nmax(nmax), knots(knots), numr(numr),
-  rmin(rmin), rmax(rmax), A(A), scale(scale), cmap(cmap), logr(logr),
+  rmin(rmin), rmax(rmax), ascale(A), scale(scale), cmap(cmap), logr(logr),
   disk(disk), biorth(biorth), cache_name_2d(cache)
 {
   if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
 
   model = disk->ID();
   basis = Basis2d::createBasis(mmax, nmax, rmax, biorth);
+
+  basis_test = false;
 
   if (not read_cached_tables()) create_tables();
 }
@@ -594,12 +646,6 @@ void EmpCyl2D::writeBasis(int M, const std::string& filename)
 	out << std::setw(16) << potl_array[M](i, n)
 	    << std::setw(16) << dens_array[M](i, n)
 	    << std::setw(16) << dpot_array[M](i, n);
-
-	/*
-	out << std::setw(16) << get_potl(xgrid[i], M, n)
-	    << std::setw(16) << get_dens(xgrid[i], M, n)
-	    << std::setw(16) << get_dpot(xgrid[i], M, n);
-	*/
       }
       out << std::endl;
     }
@@ -662,7 +708,7 @@ bool EmpCyl2D::read_cached_tables()
   if (!in) return false;
 
   int MMAX, NMAX, NUMR, KNOTS;
-  double RMIN, RMAX, AA, SCL;
+  double RMIN, RMAX, A, SCL;
   bool LOGR, CMAP;
   std::string MODEL, BIORTH;
 
@@ -711,7 +757,7 @@ bool EmpCyl2D::read_cached_tables()
     RMIN     = node["rmin"   ].as<double>();
     RMAX     = node["rmax"   ].as<double>();
     SCL      = node["scale"  ].as<double>();
-    AA       = node["A"      ].as<double>();
+    A        = node["acyl"   ].as<double>();
     MODEL    = node["model"  ].as<std::string>();
     BIORTH   = node["biorth" ].as<std::string>();
   } else {
@@ -773,9 +819,9 @@ bool EmpCyl2D::read_cached_tables()
     return false;
   }
 
-  if (AA!=A) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found A=" << AA
-	      << " wanted " << A << std::endl;
+  if (A!=ascale) {
+    std::cout << "---- EmpCyl2D::read_cached_table: found ascale=" << A
+	      << " wanted " << ascale << std::endl;
     return false;
   }
 
@@ -848,7 +894,7 @@ void EmpCyl2D::write_cached_tables()
   node["rmin"   ] = rmin;
   node["rmax"   ] = rmax;
   node["scale"  ] = scale;
-  node["A"      ] = A;
+  node["acyl"   ] = ascale;
   node["model"  ] = model;
   node["biorth" ] = biorth;
     
@@ -924,6 +970,10 @@ double EmpCyl2D::get_potl(double r, int M, int N)
 {
   checkMN(M, N, "get_potl");
 
+  if (basis_test) {
+    return basis->potl(M, N, r)/sqrt(basis->norm(N, M));
+  }
+
   int lo, hi;
   double A, B;
   std::tie(lo, hi, A, B) = linear_interp(r);
@@ -935,6 +985,10 @@ double EmpCyl2D::get_dens(double r, int M, int N)
 {
   checkMN(M, N, "get_dens");
 
+  if (basis_test) {
+    return basis->dens(M, N, r)/sqrt(basis->norm(N, M));
+  }
+
   int lo, hi;
   double A, B;
   std::tie(lo, hi, A, B) = linear_interp(r);
@@ -945,6 +999,10 @@ double EmpCyl2D::get_dens(double r, int M, int N)
 double EmpCyl2D::get_dpot(double r, int M, int N)
 {
   checkMN(M, N, "get_dpot");
+
+  if (basis_test) {
+    return basis->dpot(M, N, r)/sqrt(basis->norm(N, M));
+  }
 
   int lo, hi;
   double A, B;
@@ -998,7 +1056,7 @@ void EmpCyl2D::get_force(Eigen::MatrixXd& mat, double r)
 void EmpCyl2D::checkCoefs()
 {
   Mapping  map(scale, cmap);
-  auto     disk = createModel(model, A);
+  auto     disk = createModel(model, ascale);
   LegeQuad lw(knots);
 
   Eigen::VectorXd coefs(nmax), coef0(nmax);

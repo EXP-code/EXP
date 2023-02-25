@@ -1,19 +1,19 @@
 #ifndef _PotRZ_H
 #define _PotRZ_H
 
-#include <Hankel.H>
+#include <QDHT.H>
+#include <cmath>
 
 //! Compute the inverse Hankel transform to get the potential based on
 //! Gauss' Law applied to the cylindrical Laplacian.
 //!
-//! The user supplies a functor containing the <mass per cylindrical
-//! radius>/(2*pi) which is the surface density times the cylindrical
-//! radius.  E.g. B&T equations 2.184-2.185.
+//! The user supplies a functor containing the surface density.
+//! E.g. B&T equations 2.184-2.185.
 //!
 class PotRZ
 {
 protected:
-  //! The R*Sigma(R) functor instance stored by the constructor
+  //! Sigma(R) functor instance stored by the constructor
   std::function<double(double)> mass;
   
   //! Compute the Hankel transform of the target density
@@ -21,76 +21,66 @@ protected:
   {
   protected:
 
-    HankelTransform v;
-    PotRZ *ptr;
+    int N;
+    QDHT v;
 
   public:
     
     //! Null constructor
     Sk() {}
 
-    //! Constructor with h=step, N=number of knots, M=harmonic order,
+    //! Constructor with R=cutoff, N=number of knots, M=harmonic order,
     //! and a=parameter vector
-    Sk(double h, int N, int M, PotRZ *ptr) : ptr(ptr)
+    Sk(double R, int N, int M) : N(N)
     {
-      v = HankelTransform(h, (double)M, N);
+      v = QDHT(M, N, R);
     }
     
     //! Perform the transform
-    double operator()(double k)
+    std::tuple<Eigen::VectorXd, Eigen::VectorXd>
+    operator()(std::function<double(double)> dens)
     {
-      return -2.0*M_PI*v(ptr->mass, k);
+      auto r = v.getR();
+      Eigen::VectorXd f(N);
+      for (int i=0; i<N; i++) f[i] = dens(r[i]);
+      return {v.getK(), v(f)};
     }
   };
 
 
 private:
 
-  HankelTransform v;
-  Sk u;
-
-  double func(double k, double z)
-  {
-    return u(k) * exp(-k*z);
-  }
+  QDHT v;
+  Sk   u;
 
 public:
 
   //! The gravitational potential by Hankel transform
   //!
-  //! @param h1 is the step count for the inverse transform
-  //! @param h2 is the steps cout for the Sk transform
-  //! @param N1 is the knot number for the inverse
-  //! @param N2 is the knot number for Sk
-  //! @param M is the harmonic order
-  //! @param func is the density*r target
-  PotRZ(double h1, double h2, int N1, int N2, int M,
-	std::function<double(double)> func) : mass(func)
+  //! Constructor 
+  PotRZ(double R, int N, int M)
   {
-    v = HankelTransform(h1, (double)M, N1);
-    u = Sk(h2, N2, M, this);
+    v = QDHT(M, N, R);
+    u = Sk(R, N, M);
   }
-
-  //! Constructor with unspecified model
-  PotRZ(double h1, double h2, int N1, int N2, int M)
-  {
-    v = HankelTransform(h1, (double)M, N1);
-    u = Sk(h2, N2, M, this);
-  }
-
-  //! Change the functor without recomputing the knots
-  void setFunction(std::function<double(double)> func) { mass = func; }
 
   //! Perform the evaluation
-  double operator()(double R, double z)
+  std::tuple<Eigen::VectorXd, Eigen::VectorXd> operator()
+  (double z, std::function<double(double)> dens)
+
   {
-    return v(std::bind(&PotRZ::func, this, std::placeholders::_1, z), R);
+    Eigen::VectorXd k, S;
+    std::tie(k, S) = u(dens);
+    for (int i=0; i<k.size(); i++)
+      S[i] = exp(-k[i]*z)/k[i] * S[i] * (-2.0*M_PI);
+    return {v.getR(), v(S, false)};
   }
 
   //! Evalute the forward transform: Sk
-  double operator()(double k)
+  std::tuple<Eigen::VectorXd, Eigen::VectorXd>
+  getKT(std::function<double(double)> func)
   {
-    return u(k);
+    return u(func);
   }
 };
 
