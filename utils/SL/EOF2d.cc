@@ -37,7 +37,11 @@ int main(int argc, char** argv)
     ("Sk",         "Evaluation the forward transform")
     ("vertical",   "Compute the vertical grid")
     ("basis",      "Use fiducial basis in EmpCyl2D")
+    ("rforce",     "Evaluate radial force instead of potential")
+    ("zforce",     "Evaluate vertical force instead of potential")
     ("debug",      "Check unitarity in QDHT")
+    ("full",       "Use full transform rather than grid evaluation")
+    ("totforce",   "Compute the total radial force")
     ("M,harmonic", "Aximuthal harmonic m=0,1,2,3,...",
      cxxopts::value<int>(M)->default_value("0"))
     ("N,norder",   "Default number of knots",
@@ -119,7 +123,7 @@ int main(int argc, char** argv)
     //
     auto dens = [&emp, M, nradial](double R)
     {
-      return emp.get_dens(R, M, nradial)
+      return emp.get_dens(R, M, nradial);
     };
 
     // Vertical grid size
@@ -130,38 +134,85 @@ int main(int argc, char** argv)
     //
     std::ofstream out(filename + ".RZ");
 
-    out << std::setw(8) << N << std::setw(8) << num << std::endl;
-
     // Define some representative limits
     //
-    double Zmax = A;
+    double Rmax = 4.0*A;
+    double Zmax = 4.0*A;
 
     // Grid spacing
     //
+    double dR = Rmax/(num - 1);
     double dz = Zmax/(num - 1);
 
-    // Do the grid computation
+    // Get field type
     //
-    for (int j=0; j<num; j++) {
-	
-      double z = dz*j;
+    PotRZ::Field F = PotRZ::Field::potential;
+    if (vm.count("rforce")) F = PotRZ::Field::rforce;
+    if (vm.count("zforce")) F = PotRZ::Field::zforce;
+      
+    // Potential instance with radially sensitive convergence parameters
+    //
+    PotRZ pot(rmax, N, M);
 
-      // These quadrature parameters are all empirical based on the
-      // exponential disk
+    if (vm.count("full")) {
 
-      // Potential instance with radially sensitive convergence parameters
+      out << std::setw(8) << N << std::setw(8) << num << std::endl;
+
+      // Do the grid computation
       //
-      PotRZ pot(rmax, N, M);
+      for (int j=0; j<num; j++) {
+	
+	double z = dz*j;
+	
+	Eigen::VectorXd r(N), p(N);
+	
+	std::tie(r, p) = pot(z, dens, F);
+	
+	for (int i=0; i<N; i++) {
+	  out << std::setw(16) << r[i]
+	      << std::setw(16) << z
+	      << std::setw(16) << p[i]
+	      << std::endl;
+	}
+      }
+    }
+    else if (vm.count("totforce")) {
 
-      Eigen::VectorXd r(N), p(N);
+      out << std::setw(8) << num << std::setw(8) << num << std::endl;
 
-      std::tie(r, p) = pot(z, dens);
+      // Do the grid computation
+      //
+      for (int j=0; j<num; j++) {
+	
+	double z = dz*j;
+	
+	for (int i=0; i<num; i++) {
+	  double R = dR*i;
+	  double fR = pot(R, z, dens, PotRZ::Field::rforce);
+	  double fz = pot(R, z, dens, PotRZ::Field::zforce);
+	  out << std::setw(16) << R
+	      << std::setw(16) << z
+	      << std::setw(16) << sqrt(fR*fR + fz*fz)
+	      << std::endl;
+	}
+      }
+    }
+    else {
 
-      for (int i=0; i<N; i++) {
-	out << std::setw(16) << r[i]
-	    << std::setw(16) << z
-	    << std::setw(16) << p[i]
-	    << std::endl;
+      out << std::setw(8) << num << std::setw(8) << num << std::endl;
+
+      // Do the grid computation
+      //
+      for (int j=0; j<num; j++) {
+	
+	double z = dz*j;
+	
+	for (int i=0; i<num; i++) {
+	  out << std::setw(16) << dR*i
+	      << std::setw(16) << dz*j
+	      << std::setw(16) << pot(dR*i, dz*j, dens, F)
+	      << std::endl;
+	}
       }
     }
   }
@@ -176,29 +227,63 @@ int main(int argc, char** argv)
     //
     PotRZ pot(rmax, N, M);
 
-    Eigen::VectorXd r(N), p(N);
-    Eigen::MatrixXd outP(nmax, N);
+    if (vm.count("full")) {
 
-    for (int n=0; n<nmax; n++) {
-      // Set the functor using a lambda
-      //
-      auto dens = [&emp, M, n](double R) { return
-	  emp.get_dens(R, M, n);
-      };
-      
-      std::tie(r, p) = pot(0.0, dens);
-      outP.row(n) = p;
-    }
+      Eigen::VectorXd r(N), p(N);
+      Eigen::MatrixXd outP(nmax, N);
 
-    // Write the results
-    //
-    for (int i=0; i<N; i++) {
-      out << std::setw(16) << r[i];
       for (int n=0; n<nmax; n++) {
-	out << std::setw(16) <<  outP(n, i)
-	    << std::setw(16) << -emp.get_potl(r[i], M, n);
+	// Set the functor using a lambda
+	//
+	auto dens = [&emp, M, n](double R) { return
+	    emp.get_dens(R, M, n);
+	};
+      
+	std::tie(r, p) = pot(0.0, dens);
+	outP.row(n) = p;
       }
-      out << std::endl;
+
+      // Write the results
+      //
+      for (int i=0; i<N; i++) {
+	out << std::setw(16) << r[i];
+	for (int n=0; n<nmax; n++) {
+	  out << std::setw(16) <<  outP(n, i)
+	      << std::setw(16) << -emp.get_potl(r[i], M, n);
+	}
+	out << std::endl;
+      }
+
+    } else {
+
+      const int ngrid = 40;
+      double Rmax = 4.0*A;
+      double dR = Rmax/(ngrid-1);
+
+      Eigen::MatrixXd outP(nmax, ngrid);
+
+      for (int n=0; n<nmax; n++) {
+	// Set the functor using a lambda
+	//
+	auto dens = [&emp, M, n](double R) { return
+	    emp.get_dens(R, M, n);
+	};
+      
+	for (int j=0; j<ngrid; j++) {
+	  outP(n, j) = pot(dR*j, 0.0, dens);
+	}
+      }
+
+      // Write the results
+      //
+      for (int i=0; i<ngrid; i++) {
+	out << std::setw(16) << dR*i;
+	for (int n=0; n<nmax; n++) {
+	  out << std::setw(16) <<  outP(n, i)
+	      << std::setw(16) << -emp.get_potl(dR*i, M, n);
+	}
+	out << std::endl;
+      }
     }
   }
 

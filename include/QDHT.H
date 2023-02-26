@@ -14,6 +14,12 @@
 
 //! Hankel transform based on the QDHT algorithm
 //!
+//! See:
+//! "Computation of quasi-discrete Hankel transforms of the integer
+//! order for propagating optical wave fields" Manuel Guizar-Sicairos
+//! and Julio C. Guitierrez-Vega J. Opt. Soc. Am. A 21 (1) 53-58
+//! (2004)
+
 class QDHT
 {
 private:
@@ -61,17 +67,10 @@ public:
   ~QDHT() {}
 
   //! Compute the forward or backward Hankel transform
-  Eigen::VectorXd operator()(Eigen::VectorXd& v, bool forward=true) {
-    if (forward) {
-      Eigen::VectorXd F = v.array() / Jp.array() * R;
-      auto G = T * F;
-      return G.array() * Jp.array() / V;
-    } else {
-      Eigen::VectorXd G = v.array() / Jp.array() * V;
-      auto F = T * G;
-      return F.array() * Jp.array() / R;
-    }
-  }
+  Eigen::VectorXd operator()(Eigen::VectorXd& v, bool forward=true);
+
+  //! Inverse Hankel transform at r
+  double operator()(double r, Eigen::VectorXd& v);
 
   //! Compute the input coordinates (e.g. radii)
   const Eigen::VectorXd& getR() { return r; }
@@ -80,40 +79,7 @@ public:
   const Eigen::VectorXd& getK() { return k; }
 
   //! Check solution
-  void check()
-  {
-    double det = T.determinant();
-    std::cout << "QDHT: solution quality=" << std::fabs(det-1.0)
-	      << " det=" << det << std::endl;
-    
-    // Perform the SVD
-    //
-    auto begin = std::chrono::steady_clock::now();
-    Eigen::BDCSVD<Eigen::MatrixXd>
-      svd(T, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    auto S = svd.singularValues();
-    auto end = std::chrono::steady_clock::now();
-    auto tim = std::chrono::duration<double>(end-begin).count();
-
-    int good=0, bad=0;
-    double worst = 0.0, det1 = 1.0;
-    for (size_t i=0; i<S.size(); i++) {
-      det1 *= S(i);
-      double test = fabs(S(i) - 1.0);
-      if (test < 1.0e-8) {
-	good++;
-      } else {
-	if (test>worst) worst = test;
-	bad++;
-      }
-    }
-      
-    std::cout << "QDHT: singular values: good=" << good << " bad=" << bad
-	      << " worst=" << worst << " det=" << det1
-	      << " time(SVD)=" << tim << " sec"
-	      << std::endl << std::endl;
-  }
-
+  void check();
 };
 
 #endif
