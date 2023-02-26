@@ -22,7 +22,7 @@
 
 class MixtureBasis;
 
-//! Defines a 2d-cylindrical basis with members specific to polar symmetry
+//! Defines a cylindrical basis with members specific to polar symmetry
 class PolarBasis : public AxisymmetricBasis
 {
 
