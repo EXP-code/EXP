@@ -19,6 +19,7 @@
 #include <NVTX.H>
 
 #include <CoefContainer.H>
+#include <BiorthCyl.H>
 
 class MixtureBasis;
 
@@ -41,7 +42,7 @@ protected:
   std::vector<Eigen::MatrixXd> potd;
 
   //! Matrices per thread for obtaining derivative of potential field
-  std::vector<Eigen::MatrixXd> dpot;
+  std::vector<Eigen::MatrixXd> dpotR, dpotZ;
 
   //@{
   //! Matrices per thread for obtaining expansion coefficients
@@ -76,13 +77,13 @@ protected:
   void setup();
 
   //! Get potential and accel field values from coefficients
-  void get_pot_coefs(int m, const Eigen::VectorXd& coef, double& p, double& dp);
+  void get_pot_coefs(int m, const Eigen::VectorXd& coef, double& p, double& dpr, double& dprz);
 
   /** Get potential and field values from coefficients 
       (provide workspace for thread safety) */
   void get_pot_coefs_safe(int m, const Eigen::VectorXd& coef,
-			  double& p, double& dp,
-			  Eigen::MatrixXd& potd1, Eigen::MatrixXd& dpot1);
+			  double& p, double& dpr, double& dprz,
+			  Eigen::MatrixXd& potd1, Eigen::MatrixXd& dpotr1, Eigen::MatrixXd& dpotz1);
 
   //! Get density from coefficient vector
   void get_dens_coefs(int m, Eigen::VectorXd& coef, double& p);
@@ -325,49 +326,44 @@ public:
   //@}
 
   /** Get derivative of potential
-    \param lmax is the maximum harmonic order
-    \param nmax is the maximum radial order
     \param r is the evaluation radius
+    \param z is the evaluation height
     \param p will be returned array in harmonics l and radial order n
     for the potential
-    \param dp will be returned array in harmonics l and radial order n
+    \param dpr will be returned array in harmonics l and radial order n
+    for the derivative of the potential
+    \param dpz will be returned array in harmonics l and radial order n
     for the derivative of the potential
     \param tid is the thread enumerator that allows the function to
     provide some thread safety
   */
   virtual 
-  void get_dpotl(int lmax, int nmax, double r, Eigen::MatrixXd& p, Eigen::MatrixXd& dp, 
-		 int tid) = 0;
+  void get_dpotl(double r, double z, Eigen::MatrixXd& p,
+		 Eigen::MatrixXd& dpr, Eigen::MatrixXd& dpz, int tid) = 0;
 
   /** Get derivative of potential
-    \param lmax is the maximum harmonic order
-    \param nmax is the maximum radial order
     \param r is the evaluation radius
+    \param z is the evaluation height
     \param p will be returned array in harmonics l and radial order n
     for the potential
     \param tid is the thread enumerator that allows the function to
     provide some thread safety
   */
   virtual 
-  void get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p,
-		int tid) = 0;
+  void get_potl(double r, double z, Eigen::MatrixXd& p, int tid) = 0;
 
   /** Get derivative of potential
-    \param lmax is the maximum harmonic order
-    \param nmax is the maximum radial order
     \param r is the evaluation radius
+    \param z is the evaluation height
     \param d will be returned array in harmonics l and radial order n
     for the density
     \param tid is the thread enumerator that allows the function to
     provide some thread safety
   */
   virtual 
-  void get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& d,
-		int tid) = 0;
+  void get_dens(double r, double z, Eigen::MatrixXd& d, int tid) = 0;
 
-  /** Get derivative of potential
-    \param lmax is the maximum harmonic order
-    \param nmax is the maximum radial order
+  /** Get the potential and density
     \param r is the evaluation radius
     \param p will be returned array in harmonics l and radial order n
     for the potential
@@ -377,8 +373,8 @@ public:
     provide some thread safety
   */
   virtual 
-  void get_potl_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, Eigen::MatrixXd& d,
-		     int tid) = 0;
+  void get_potl_dens(double r, double z,
+		     Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid) = 0;
 
   //! Return the value for the fields in Cartesian coordinates
   void  determine_fields_at_point(double x, double y, double z,

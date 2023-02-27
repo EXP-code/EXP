@@ -33,16 +33,14 @@ Cylinder2d::Cylinder2d(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   initialize();
 
 				// Enable MPI code for more than one node
-  // if (numprocs>1) EmpCyl2D::mpi = 1;
+  // if (numprocs>1) BiorthCyl::mpi = 1;
 
   std::string cachename = outdir  + cachename + "." + runtag;
 
   id += ", model=" + model;
 
 				// Generate Sturm-Liouville grid
-  ortho = std::make_shared<EmpCyl2D>(Mmax, nmax, knots, numr,
-				     rmin, rmax, acyl, scale, cmap, logr,
-				     model, biorth, cachename);
+  ortho = std::make_shared<BiorthCyl>(conf);
 
 				// Get the min and max expansion radii
   rmin  = ortho->getRmin();
@@ -109,26 +107,27 @@ Cylinder2d::~Cylinder2d(void)
 }
 
 
-void Cylinder2d::get_dpotl(int lmax, int nmax, double r, Eigen::MatrixXd& p,
-		       Eigen::MatrixXd& dp, int tid)
+void Cylinder2d::get_dpotl(double r, double z,
+			   Eigen::MatrixXd& p, Eigen::MatrixXd& dpr, Eigen::MatrixXd& dpz, int tid)
 {
-  ortho->get_pot(p, r);
-  ortho->get_force(dp, r);
+  ortho->get_pot(p, r, z);
+  ortho->get_rforce(dpr, r, z);
+  ortho->get_zforce(dpz, r, z);
 }
 
-void Cylinder2d::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
+void Cylinder2d::get_potl(double r, double z, Eigen::MatrixXd& p, int tid)
 {
-  ortho->get_pot(p, r);
+  ortho->get_pot(p, r, z);
 }
 
-void Cylinder2d::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
+void Cylinder2d::get_dens(double r, double z, Eigen::MatrixXd& p, int tid)
 {
-  ortho->get_dens(p, r);
+  ortho->get_dens(p, r, z);
 }
 
-void Cylinder2d::get_potl_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p,
-			   Eigen::MatrixXd& d, int tid)
+void Cylinder2d::get_potl_dens(double r, double z, Eigen::MatrixXd& p,
+			       Eigen::MatrixXd& d, int tid)
 {
-  ortho->get_pot(p, r);
-  ortho->get_dens(d, r);
+  ortho->get_pot(p, r, z);
+  ortho->get_dens(d, r, z);
 }

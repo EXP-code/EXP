@@ -4,10 +4,10 @@
 #include <memory>
 #include <map>
 
-#include <EmpCyl2D.H>
+#include <BiorthCyl.H>
 #include <PolarBasis.H>
 
-typedef std::shared_ptr<EmpCyl2D> Cyl2DPtr;
+typedef std::shared_ptr<BiorthCyl> CylPtr;
 
 #if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
@@ -49,15 +49,17 @@ class Cylinder2d : public PolarBasis
 
 private:
 
-  Cyl2DPtr ortho;
+  CylPtr ortho;
 
   void initialize(void);
 
-  void get_dpotl(int mmax, int nmax, double r, Eigen::MatrixXd& p, Eigen::MatrixXd& dp, int tid);
+  void get_dpotl(double r, double z,
+		 Eigen::MatrixXd& p, Eigen::MatrixXd& dpr, Eigen::MatrixXd& dpz, int tid);
 
-  void get_potl(int mmax, int nmax, double r, Eigen::MatrixXd& p, int tid);
+  void get_potl(double r, double z, Eigen::MatrixXd& p, int tid);
 
 #if HAVE_LIBCUDA==1
+  /*
   virtual void initialize_cuda()
   {
     ortho->initialize_cuda(cuInterpArray, tex);
@@ -67,12 +69,12 @@ private:
   {
     return ortho->getCudaMappingConstants();
   }
-
+  */
 #endif
 
-  void get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid);
+  void get_dens(double r, double z, Eigen::MatrixXd& p, int tid);
 
-  void get_potl_dens(int lmax, int nmax, double r,
+  void get_potl_dens(double r, double z,
 		     Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid);
 
 				// Parameters
