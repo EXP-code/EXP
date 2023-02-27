@@ -234,7 +234,7 @@ __global__ void coordKernelPlr
  dArray<cuFP_t> mass, dArray<cuFP_t> phi,
  dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
  dArray<int> IndX, dArray<int> IndY,
- unsigned int stride, PII lohi, cuFP_t rmax)
+ unsigned int stride, PII lohi, cuFP_t rmax,  bool flat)
 {
   // Thread ID
   //
@@ -243,7 +243,7 @@ __global__ void coordKernelPlr
   for (int n=0; n<stride; n++) {
     int i     = tid*stride + n;	// Particle counter
     int npart = i + lohi.first;	// Particle index
-
+    
     if (npart < lohi.second) {	// Is particle index in range?
 
 #ifdef BOUNDS_CHECK
@@ -252,7 +252,7 @@ __global__ void coordKernelPlr
       cudaParticle & p = P._v[I._v[npart]];
     
       cuFP_t xx=0.0, yy=0.0, zz=0.0;
-
+      
       if (plrOrient) {
 	for (int k=0; k<3; k++) xx += plrBody[0+k]*(p.pos[k] - plrCen[k]);
 	for (int k=0; k<3; k++) yy += plrBody[3+k]*(p.pos[k] - plrCen[k]);
@@ -281,30 +281,51 @@ __global__ void coordKernelPlr
 #ifdef BOUNDS_CHECK
 	if (i>=phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	// Interpolation indices
+	// Vertical check
 	//
-	cuFP_t X  = (cu_r_to_xi_plr(R) - plrXmin)/plrDxi;
-	cuFP_t Y  = (cu_z_to_y_plr(zz) - plrYmin)/plrDyi;
-
-	int indX = floor(X);
-	int indY = floor(Y);
+	if (flat) {
+	  cuFP_t X  = (cu_r_to_xi_plr(R) - plrXmin)/plrDxi;
+	  int indX = floor(X);
+	    
+	  if (indX<0) indX = 0;
+	  if (indX>plrNumx-1) indX = plrNumx - 1;
 	
-	if (indX<0) indX = 0;
-	if (indX>plrNumx-1) indX = plrNumx - 1;
-	
-	if (indY<0) indY = 0;
-	if (indY>plrNumy-1) indY = plrNumy - 1;
-	
-	Xfac._v[i] = cuFP_t(indX+1) - X;
-	IndX._v[i] = indX;
-
-	Yfac._v[i] = cuFP_t(indY+1) - Y;
-	IndY._v[i] = indY;
+	  Xfac._v[i] = cuFP_t(indX+1) - X;
+	  IndX._v[i] = indX;
+	  
+	  Yfac._v[i] = 1.0;
+	  IndY._v[i] = 0;
 
 #ifdef OFF_GRID_ALERT
-	if (Xfac._v[i]<-0.5 or Xfac._v[i]>1.5) printf("X off grid: x=%f\n", X);
-	if (Yfac._v[i]<-0.5 or Yfac._v[i]>1.5) printf("Y off grid: y=%f\n", Y);
+	    if (Xfac._v[i]<-0.5 or Xfac._v[i]>1.5) printf("X off grid: x=%f\n", X);
 #endif
+	} else {
+
+	  // Interpolation indices
+	  //
+	  cuFP_t X  = (cu_r_to_xi_plr(R) - plrXmin)/plrDxi;
+	  cuFP_t Y  = (cu_z_to_y_plr(zz) - plrYmin)/plrDyi;
+
+	  int indX = floor(X);
+	  int indY = floor(Y);
+	
+	  if (indX<0) indX = 0;
+	  if (indX>plrNumx-1) indX = plrNumx - 1;
+	
+	  if (indY<0) indY = 0;
+	  if (indY>plrNumy-1) indY = plrNumy - 1;
+	
+	  Xfac._v[i] = cuFP_t(indX+1) - X;
+	  IndX._v[i] = indX;
+
+	  Yfac._v[i] = cuFP_t(indY+1) - Y;
+	  IndY._v[i] = indY;
+
+#ifdef OFF_GRID_ALERT
+	  if (Xfac._v[i]<-0.5 or Xfac._v[i]>1.5) printf("X off grid: x=%f\n", X);
+	  if (Yfac._v[i]<-0.5 or Yfac._v[i]>1.5) printf("Y off grid: y=%f\n", Y);
+#endif
+	}
 #ifdef BOUNDS_CHECK
 	if (i>=Xfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	if (i>=IndX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -500,13 +521,15 @@ __global__ void coefKernelPlr
 
 }
 
+
 __global__ void
 forceKernelPlr(dArray<cudaParticle> P, dArray<int> I,
 	       dArray<cuFP_t> coef,
 	       dArray<cudaTextureObject_t> tex,
 	       int stride, unsigned int mmax, unsigned int mlim,
 	       unsigned int nmax, PII lohi,
-	       cuFP_t rmax, cuFP_t plrmass, bool external)
+	       cuFP_t rmax, cuFP_t plrmass,
+	       bool external, bool flat)
 {
   // Thread ID
   //
@@ -592,6 +615,11 @@ forceKernelPlr(dArray<cudaParticle> P, dArray<int> I,
 	if (indY < 0) indY = 0;
 	if (indX >= plrNumx) indX = plrNumx - 1;
 	if (indY >= plrNumy) indY = plrNumy - 1;
+
+	if (flat) {
+	  Y    = 0.0;
+	  indY = 0;
+	}
 
 	cuFP_t delx0 = cuFP_t(indX+1) - X;
 	cuFP_t dely0 = cuFP_t(indY+1) - Y;
@@ -1100,13 +1128,18 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
     //
     int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
     
+    // Are we flat?
+    //
+    bool flat = false;
+    if (dof==2) flat = true;
+
     // Compute the coordinate transformation
     // 
     coordKernelPlr<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
        toKernel(cuS.m_d), toKernel(cuS.p_d),
        toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d),
-       toKernel(cuS.iY_d), stride, cur, rmax);
+       toKernel(cuS.iY_d), stride, cur, rmax, flat);
       
     // Compute the coefficient contribution for each order
     //
@@ -1820,12 +1853,18 @@ void PolarBasis::determine_acceleration_cuda()
     //
     cuFP_t rmax = getRtable();
       
+    // Is this component flat?
+    //
+    bool flat = false;
+    if (dof==2 and cC == component) flat = true;
+
     // Do the work
     //
     forceKernelPlr<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
        toKernel(dev_coefs), toKernel(t_d),
-       stride, Mmax, mlim, nmax, lohi, rmax, cylmass, use_external);
+       stride, Mmax, mlim, nmax, lohi, rmax, cylmass,
+       use_external, flat);
     
   }
 }
@@ -1977,13 +2016,18 @@ void PolarBasis::multistep_update_cuda()
 	//
 	int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
     
+	// Are we flat?
+	//
+	bool flat = false;
+	if (dof==2) flat = true;
+
 	// Compute the coordinate transformation
 	// 
 	coordKernelPlr<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	  (toKernel(cs->cuda_particles), toKernel(cs->indx2),
 	   toKernel(cuS.m_d), toKernel(cuS.p_d),
 	   toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d),
-	   toKernel(cuS.iY_d), stride, cur, rmax);
+	   toKernel(cuS.iY_d), stride, cur, rmax, flat);
       
 	// Compute the coefficient contribution for each order
 	//

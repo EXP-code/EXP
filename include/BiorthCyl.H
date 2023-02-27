@@ -94,6 +94,9 @@ protected:
   //! Read the HDF5 cache
   virtual bool ReadH5Cache();
 
+  //! Table scaling factors
+  double pfac, ffac, dfac;
+
 public:
 
   //! Flag for MPI enabled (default: 0=off)
@@ -128,35 +131,35 @@ public:
   
   //! Get potential for dimensionless coord with harmonic order m and radial orer n
   double get_pot(double r, double z, int m, int n)
-  { return interp(m, n, r, z, pot); }
+  { return interp(m, n, r, z, pot) * pfac; }
 
   //! Get density for dimensionless coord with harmonic order l and radial orer n  
   double get_dens(double r, double z, int m, int n)
-  { return interp(m, n, r, z, dens); }
+  { return interp(m, n, r, z, dens) * dfac; }
 
   //! Get radial force for dimensionless coord with harmonic order l and radial orer n
   double get_rforce(double r, double z, int m, int n)
-  { return interp(m, n, r, z, rforce); }
+  { return interp(m, n, r, z, rforce) * ffac; }
 
   //! Get radial force for dimensionless coord with harmonic order l and radial orer n
   double get_zforce(double r, double z, int m, int n)
-  { return interp(m, n, r, z, zforce); }
+  { return interp(m, n, r, z, zforce) * ffac; }
 
   //! Get potential for dimensionless coord with harmonic order m and radial orer n
   void get_pot(Eigen::MatrixXd& p, double r, double z)
-  { interp(r, z, pot, p); }
+  { interp(r, z, pot, p); p *= pfac; }
 
   //! Get density for dimensionless coord with harmonic order l and radial orer n  
   void get_dens(Eigen::MatrixXd& d, double r, double z)
-  { interp(r, z, dens, d); }
+  { interp(r, z, dens, d); d *= dfac; }
 
   //! Get radial force for dimensionless coord with harmonic order l and radial orer n
   void get_rforce(Eigen::MatrixXd& f, double r, double z)
-  { interp(r, z, rforce, f); }
+  { interp(r, z, rforce, f); f *= ffac; }
 
   //! Get radial force for dimensionless coord with harmonic order l and radial orer n
   void get_zforce(Eigen::MatrixXd& f, double r, double z)
-  { interp(r, z, zforce, f); }
+  { interp(r, z, zforce, f); f *= ffac; }
 
 #if HAVE_LIBCUDA==1
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,

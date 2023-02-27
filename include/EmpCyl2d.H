@@ -1,5 +1,5 @@
-#ifndef _EmpCyl2D_H
-#define _EmpCyl2D_H
+#ifndef _EmpCyl2d_H
+#define _EmpCyl2d_H
 
 #include <algorithm>
 #include <memory>
@@ -16,7 +16,7 @@
 /**
    A class that implements most of the members for an Exp force routine
 */
-class EmpCyl2D
+class EmpCyl2d
 {
 public:
   //! A two-dimensional disk model for computing the EOF
@@ -120,16 +120,16 @@ protected:
 public:
 
   //! Null constructor
-  EmpCyl2D() {}
+  EmpCyl2d() {}
 
   //! Constructor
-  EmpCyl2D(int mmax, int nmax, int knots, int numr,
+  EmpCyl2d(int mmax, int nmax, int knots, int numr,
 	   double rmin, double rmax, double A, double scale,
 	   bool cmap, bool logr, const std::string model,
 	   const std::string biorth, const std::string cache="");
   
   //! Constructor with user-supplied target model
-  EmpCyl2D(int mmax, int nmax, int knots, int numr,
+  EmpCyl2d(int mmax, int nmax, int knots, int numr,
 	   double rmin, double rmax, double A, double scale,
 	   bool cmap, bool logr, std::shared_ptr<ModelCyl> disk,
 	   const std::string biorth, const std::string cache="");

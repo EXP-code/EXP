@@ -18,7 +18,7 @@
 
 #include <BiorthCyl.H>		// Definition for this class
 #include <PotRZ.H>		// Hankel computation for potential
-#include <EmpCyl2D.H>		// 2d empirical basis
+#include <EmpCyl2d.H>		// 2d empirical basis
 #include <EXPException.H>	// For GenericError
 
 #include <numerical.H>
@@ -114,6 +114,7 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
   initialize();
 
   if (not ReadH5Cache()) create_tables();
+
 }
 
 void BiorthCyl::initialize()
@@ -148,6 +149,12 @@ void BiorthCyl::initialize()
       zforce[m][n].resize(numx, numy);
     }
   }
+
+  // For table scaling
+  //
+  pfac     = 1.0/sqrt(rscale);
+  ffac     = pfac/rscale;
+  dfac     = ffac/rscale;
 }
 
 void BiorthCyl::create_tables()
@@ -551,50 +558,34 @@ bool BiorthCyl::ReadH5Cache()
   return false;
 }
 
+// z coordinate is ignored here; assumed to be zero!
 void BiorthCyl::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
 			double r, double z)
 {
   Vc.resize(max(1, mmax)+1, norder);
   Vs.resize(max(1, mmax)+1, norder);
 
-  if (z/rscale > Rtable) z =  Rtable*rscale;
-  if (z/rscale <-Rtable) z = -Rtable*rscale;
-
   double X = (r_to_xi(r) - xmin)/dx;
-  double Y = (z_to_y(z)  - ymin)/dy;
 
   int ix = (int)X;
-  int iy = (int)Y;
 
   if (ix < 0) {
     ix = 0;
     X = 0.0;
-  }
-  if (iy < 0) {
-    iy = 0;
-    Y = 0.0;
   }
   
   if (ix >= numx-1) {
     ix = numx-2;
     X  = numx-1;
   }
-  if (iy >= numy-1) {
-    iy = numy-2;
-    Y  = numy-1;
-  }
 
   double delx0 = (double)ix + 1.0 - X;
-  double dely0 = (double)iy + 1.0 - Y;
   double delx1 = X - (double)ix;
-  double dely1 = Y - (double)iy;
 
-  double c00 = delx0*dely0;
-  double c10 = delx1*dely0;
-  double c01 = delx0*dely1;
-  double c11 = delx1*dely1;
+  double c0 = delx0;
+  double c1 = delx1;
 
-  double fac = 1.0;
+  double fac = pfac;
 
   for (int mm=0; mm<=std::min<int>(mlim, mmax); mm++) {
     
@@ -603,14 +594,7 @@ void BiorthCyl::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
 
     for (int n=0; n<norder; n++) {
 
-      Vc(mm, n) = fac *
-	(
-	 pot[mm][n](ix  , iy  ) * c00 +
-	 pot[mm][n](ix+1, iy  ) * c10 +
-	 pot[mm][n](ix  , iy+1) * c01 +
-	 pot[mm][n](ix+1, iy+1) * c11 
-	 );
-
+      Vc(mm, n) = fac * (pot[mm][n](ix  , 0)*c0 +  pot[mm][n](ix+1, 0)*c1);
       Vs(mm, n) = Vc(mm, n);
     }
   }

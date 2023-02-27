@@ -1,5 +1,5 @@
-#ifndef _Cylinder2d_H
-#define _Cylinder2d_H
+#ifndef _FlatDisk_H
+#define _FlatDisk_H
 
 #include <memory>
 #include <map>
@@ -44,7 +44,7 @@ typedef std::shared_ptr<BiorthCyl> CylPtr;
 
     \param dfac is the inverse slope of the power law
 */
-class Cylinder2d : public PolarBasis 
+class FlatDisk : public PolarBasis 
 {
 
 private:
@@ -94,6 +94,7 @@ private:
 
 protected:
 
+  //! Use BiorthCyl to evaluate the basis at r, z
   void get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs, double r, double z)
   { ortho->get_pot(Vc, Vs, r, z); }
 
@@ -114,10 +115,10 @@ public:
       @param cachename is the name for the SL grid cache file
       @param dtime is the interval between basis recomputations (<=0 for never)
   */
-  Cylinder2d(Component* c0, const YAML::Node& conf, MixtureBasis* m=0);
+  FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m=0);
 
   //! Destructor
-  virtual ~Cylinder2d();
+  virtual ~FlatDisk();
 };
 
 #endif

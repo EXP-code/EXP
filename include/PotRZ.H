@@ -83,14 +83,14 @@ public:
     for (int i=0; i<k.size(); i++) {
       switch (f) {
       case Field::potential:
-	S[i] = exp(-k[i]*z)/k[i] * S[i] * 2.0*M_PI;
+	S[i] = -exp(-k[i]*z)/k[i] * S[i] * 2.0*M_PI;
 	break;
       case Field::zforce:
-	S[i] = exp(-k[i]*z) * S[i] * 2.0*M_PI;
+	S[i] = -exp(-k[i]*z) * S[i] * 2.0*M_PI;
 	break;
       case Field::rforce:
 	if (M>0) Sm[i] = -exp(-k[i]*z) * S[i] * 2.0*M_PI;
-	Sp[i] = -exp(-k[i]*z) * S[i] * 2.0*M_PI;
+	Sp[i] = exp(-k[i]*z) * S[i] * 2.0*M_PI;
 	break;
       }
     }
@@ -121,14 +121,14 @@ public:
     for (int i=0; i<k.size(); i++) {
       switch (f) {
       case Field::potential:
-	S[i] = exp(-k[i]*z)/k[i] * S[i] * 2.0*M_PI;
+	S[i] = -exp(-k[i]*z)/k[i] * S[i] * 2.0*M_PI;
 	break;
       case Field::zforce:
-	S[i] = exp(-k[i]*z) * S[i] * 2.0*M_PI;
+	S[i] = -exp(-k[i]*z) * S[i] * 2.0*M_PI;
 	break;
       case Field::rforce:
 	if (M>0) Sm[i] = -exp(-k[i]*z) * S[i] * 2.0*M_PI;
-	Sp[i] = -exp(-k[i]*z) * S[i] * 2.0*M_PI;
+	Sp[i] = exp(-k[i]*z) * S[i] * 2.0*M_PI;
 	break;
       }
     }

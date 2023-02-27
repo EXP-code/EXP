@@ -35,9 +35,6 @@ public:
 
 protected:
 
-  //! Will cache values of the kernel required for recursion relations
-  Eigen::MatrixXd krnl;
-
   //! Work vectors to make recursion evaluations thread safe
   std::vector<Eigen::VectorXd> u;
 

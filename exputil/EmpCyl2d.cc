@@ -9,16 +9,16 @@
 #include <yaml-cpp/yaml.h>
 
 #include <EXPException.H>
-#include <EmpCyl2D.H>
+#include <EmpCyl2d.H>
 #include <EXPmath.H>
 
 // Set to true for orthogonality checking
 //
-bool EmpCyl2D::Basis2d::debug = false;
+bool EmpCyl2d::Basis2d::debug = false;
 
 // Clutton-Brock two-dimensional disk
 //
-class EmpCyl2D::CluttonBrock : public EmpCyl2D::Basis2d
+class EmpCyl2d::CluttonBrock : public EmpCyl2d::Basis2d
 {
 protected:
 
@@ -38,7 +38,7 @@ Eigen::VectorXd bessjz(int n, int m);
 
 // Clutton-Brock two-dimensional disk
 //
-class EmpCyl2D::Bessel : public EmpCyl2D::Basis2d
+class EmpCyl2d::Bessel : public EmpCyl2d::Basis2d
 {
 private:
   std::vector<Eigen::VectorXd> roots, normv;
@@ -57,7 +57,7 @@ public:
   double norm(int N, int M);
 };
 
-EmpCyl2D::Bessel::Bessel(int mmax, int nmax, double L) :
+EmpCyl2d::Bessel::Bessel(int mmax, int nmax, double L) :
   mmax(mmax), nmax(nmax), L(L)
 {
   roots.resize(mmax+1);
@@ -74,7 +74,7 @@ EmpCyl2D::Bessel::Bessel(int mmax, int nmax, double L) :
   test_ortho();
 }
 
-void EmpCyl2D::Bessel::test_ortho()
+void EmpCyl2d::Bessel::test_ortho()
 {
   // Sanity check; set to false for production
   //
@@ -102,7 +102,7 @@ void EmpCyl2D::Bessel::test_ortho()
   }
 }
 
-void EmpCyl2D::CluttonBrock::test_ortho()
+void EmpCyl2d::CluttonBrock::test_ortho()
 {
   // Sanity check; set to false for production
   //
@@ -133,7 +133,7 @@ void EmpCyl2D::CluttonBrock::test_ortho()
   }
 }
 
-double EmpCyl2D::CluttonBrock::potl(int M, int N, double r)
+double EmpCyl2d::CluttonBrock::potl(int M, int N, double r)
 {
   double r2   = r*r;
   double fac  = 1.0/(1.0 + r2);
@@ -164,7 +164,7 @@ double EmpCyl2D::CluttonBrock::potl(int M, int N, double r)
 
 // Clutton-Brock disk density
 //
-double EmpCyl2D::CluttonBrock::dens(int M, int N, double r)
+double EmpCyl2d::CluttonBrock::dens(int M, int N, double r)
 {
   double r2 = r*r;
   double fac = 1.0/(1.0 + r2);
@@ -206,7 +206,7 @@ double EmpCyl2D::CluttonBrock::dens(int M, int N, double r)
 
 // Clutton-Brock disk force
 //
-double EmpCyl2D::CluttonBrock::dpot(int M, int N, double r)
+double EmpCyl2d::CluttonBrock::dpot(int M, int N, double r)
 {
   double r2   = r*r;
   double fac  = 1.0/(1.0 + r2);
@@ -259,7 +259,7 @@ double EmpCyl2D::CluttonBrock::dpot(int M, int N, double r)
 
 // Normalization for CB inner product
 //
-double EmpCyl2D::CluttonBrock::norm(int n, int m)
+double EmpCyl2d::CluttonBrock::norm(int n, int m)
 {
   double ans = 1.0;
  
@@ -270,21 +270,21 @@ double EmpCyl2D::CluttonBrock::norm(int n, int m)
 
 
 // Bessel disk potential
-double EmpCyl2D::Bessel::potl(int M, int N, double r)
+double EmpCyl2d::Bessel::potl(int M, int N, double r)
 {
   return EXPmath::cyl_bessel_j(M, r*roots[M][N]/L);
 }
 
 // Bessel disk density
 //
-double EmpCyl2D::Bessel::dens(int M, int N, double r)
+double EmpCyl2d::Bessel::dens(int M, int N, double r)
 {
   return EXPmath::cyl_bessel_j(M, r*roots[M][N]/L)*roots[M][N]/L/(2.0*M_PI);
 }
 
 // Bessel disk force
 //
-double EmpCyl2D::Bessel::dpot(int M, int N, double r)
+double EmpCyl2d::Bessel::dpot(int M, int N, double r)
 {
   double z = r*roots[M][N]/L;
   return -(EXPmath::cyl_bessel_j(M, z)*M/z - EXPmath::cyl_bessel_j(M+1, z)) *
@@ -293,13 +293,13 @@ double EmpCyl2D::Bessel::dpot(int M, int N, double r)
 
 // Normalization for Bessel inner product
 //
-double EmpCyl2D::Bessel::norm(int n, int m)
+double EmpCyl2d::Bessel::norm(int n, int m)
 {
   return normv[m][n];
 }
 
-std::shared_ptr<EmpCyl2D::Basis2d>
-EmpCyl2D::Basis2d::createBasis(int mmax, int nmax, double rmax,
+std::shared_ptr<EmpCyl2d::Basis2d>
+EmpCyl2d::Basis2d::createBasis(int mmax, int nmax, double rmax,
 			       const std::string& type)
 {
   // Convert ID string to lower case
@@ -323,7 +323,7 @@ EmpCyl2D::Basis2d::createBasis(int mmax, int nmax, double rmax,
   return std::make_shared<CluttonBrock>();
 }
 
-class EmpCyl2D::ExponCyl : public EmpCyl2D::ModelCyl
+class EmpCyl2d::ExponCyl : public EmpCyl2d::ModelCyl
 {
 
 private:
@@ -355,7 +355,7 @@ public:
 
 };
 
-class EmpCyl2D::KuzminCyl : public EmpCyl2D::ModelCyl
+class EmpCyl2d::KuzminCyl : public EmpCyl2d::ModelCyl
 {
 public:
   
@@ -382,7 +382,7 @@ public:
 };
 
 
-class EmpCyl2D::MestelCyl : public EmpCyl2D::ModelCyl
+class EmpCyl2d::MestelCyl : public EmpCyl2d::ModelCyl
 {
 public:
   
@@ -410,8 +410,8 @@ public:
 };
 
 
-std::shared_ptr<EmpCyl2D::ModelCyl>
-EmpCyl2D::createModel(const std::string type, double acyl)
+std::shared_ptr<EmpCyl2d::ModelCyl>
+EmpCyl2d::createModel(const std::string type, double acyl)
 {
   // Convert ID string to lower case
   //
@@ -420,27 +420,27 @@ EmpCyl2D::createModel(const std::string type, double acyl)
 		 [](unsigned char c){ return std::tolower(c); });
 
   if (data.find("kuzmin") != std::string::npos) {
-    std::cout << "---- EmpCyl2D::ModelCyl: Making a Kuzmin disk" << std::endl;
+    std::cout << "---- EmpCyl2d::ModelCyl: Making a Kuzmin disk" << std::endl;
     return std::make_shared<KuzminCyl>(acyl);
   }
 
   if (data.find("mestel") != std::string::npos) {
-    std::cout << "---- EmpCyl2D::ModelCyl: Making a finite Mestel disk" << std::endl;
+    std::cout << "---- EmpCyl2d::ModelCyl: Making a finite Mestel disk" << std::endl;
     return std::make_shared<MestelCyl>(acyl);
   }
 
   if (data.find("expon") != std::string::npos) {
-    std::cout << "---- EmpCyl2D::ModelCyl: Making an Exponential disk" << std::endl;
+    std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk" << std::endl;
     return std::make_shared<ExponCyl>(acyl);
   }
 
   // Default if nothing else matches
-  std::cout << "---- EmpCyl2D::ModelCyl: Making an Exponential disk [Default]" << std::endl;
+  std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk [Default]" << std::endl;
   return std::make_shared<ExponCyl>(acyl);
 }
 
 
-double EmpCyl2D::Mapping::r_to_xi(double r)
+double EmpCyl2d::Mapping::r_to_xi(double r)
 {
   if (r<0.0) {
     std::ostringstream ostr;
@@ -455,7 +455,7 @@ double EmpCyl2D::Mapping::r_to_xi(double r)
   }
 }
     
-double EmpCyl2D::Mapping::xi_to_r(double xi)
+double EmpCyl2d::Mapping::xi_to_r(double xi)
 {
   if (cmap) {
     if (xi<-1.0) {
@@ -476,7 +476,7 @@ double EmpCyl2D::Mapping::xi_to_r(double xi)
   }
 }
 
-double EmpCyl2D::Mapping::d_xi_to_r(double xi)
+double EmpCyl2d::Mapping::d_xi_to_r(double xi)
 {
   if (cmap) {
     if (xi<-1.0) {
@@ -499,12 +499,12 @@ double EmpCyl2D::Mapping::d_xi_to_r(double xi)
 
 // Default cache name
 //
-const std::string EmpCyl2D::default_cache_name = ".eof_cache_2d";
+const std::string EmpCyl2d::default_cache_name = ".eof_cache_2d";
 
 
 // The main constructor
 //
-EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
+EmpCyl2d::EmpCyl2d(int mmax, int nmax, int knots, int numr,
 		   double rmin, double rmax, double A, double scale,
 		   bool cmap, bool logr,
 		   const std::string model, const std::string biorth,
@@ -524,10 +524,10 @@ EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
 }
 
 
-EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
+EmpCyl2d::EmpCyl2d(int mmax, int nmax, int knots, int numr,
 		   double rmin, double rmax, double A, double scale,
 		   bool cmap, bool logr,
-		   std::shared_ptr<EmpCyl2D::ModelCyl> disk,
+		   std::shared_ptr<EmpCyl2d::ModelCyl> disk,
 		   const std::string biorth, const std::string cache) :
   mmax(mmax), nmax(nmax), knots(knots), numr(numr),
   rmin(rmin), rmax(rmax), ascale(A), scale(scale), cmap(cmap), logr(logr),
@@ -544,7 +544,7 @@ EmpCyl2D::EmpCyl2D(int mmax, int nmax, int knots, int numr,
 }
 
 
-void EmpCyl2D::create_tables()
+void EmpCyl2d::create_tables()
 {
   Mapping  map(scale, cmap);
 
@@ -632,7 +632,7 @@ void EmpCyl2D::create_tables()
   write_cached_tables();
 }
 
-void EmpCyl2D::writeBasis(int M, const std::string& filename)
+void EmpCyl2d::writeBasis(int M, const std::string& filename)
 {
   std::ofstream out(filename);
 
@@ -650,11 +650,11 @@ void EmpCyl2D::writeBasis(int M, const std::string& filename)
       out << std::endl;
     }
   } else {
-    throw std::runtime_error("EmpCyl2D::writeBasis: error opening <" + filename + ">");
+    throw std::runtime_error("EmpCyl2d::writeBasis: error opening <" + filename + ">");
   }
 }
 
-void EmpCyl2D::writeTrans(int M, const std::string& filename)
+void EmpCyl2d::writeTrans(int M, const std::string& filename)
 {
   std::ofstream out(filename);
   if (out) {
@@ -663,12 +663,12 @@ void EmpCyl2D::writeTrans(int M, const std::string& filename)
     out << rot_matrix[M] << std::endl;
 
   } else {
-    throw std::runtime_error("EmpCyl2D::writeTrans: error opening <" + filename + ">");
+    throw std::runtime_error("EmpCyl2d::writeTrans: error opening <" + filename + ">");
   }
 }
 
 
-void EmpCyl2D::orthoCheck(int M, const std::string& filename)
+void EmpCyl2d::orthoCheck(int M, const std::string& filename)
 {
   Eigen::MatrixXd orth0(nmax, nmax), orth1(nmax, nmax);
   orth0.setZero();
@@ -697,12 +697,12 @@ void EmpCyl2D::orthoCheck(int M, const std::string& filename)
 	<< std::endl << "# Orthogonality matrix of EOF basis for M=" << M << ":"
 	<< std::endl << std::endl << orth1*2.0*M_PI << std::endl << std::endl;
   } else {
-    throw std::runtime_error("EmpCyl2D::orthoCheck: error opening <" + filename + ">");
+    throw std::runtime_error("EmpCyl2d::orthoCheck: error opening <" + filename + ">");
   }
 }
 
 
-bool EmpCyl2D::read_cached_tables()
+bool EmpCyl2d::read_cached_tables()
 {
   std::ifstream in(cache_name_2d);
   if (!in) return false;
@@ -712,7 +712,7 @@ bool EmpCyl2D::read_cached_tables()
   bool LOGR, CMAP;
   std::string MODEL, BIORTH;
 
-  std::cout << "---- EmpCyl2D::read_cached_table: trying to read cached table . . ."
+  std::cout << "---- EmpCyl2d::read_cached_table: trying to read cached table . . ."
 	    << std::endl;
 
   // Attempt to read magic number
@@ -761,78 +761,78 @@ bool EmpCyl2D::read_cached_tables()
     MODEL    = node["model"  ].as<std::string>();
     BIORTH   = node["biorth" ].as<std::string>();
   } else {
-    std::cout << "---- EmpCyl2D: bad magic number in cache file" << std::endl;
+    std::cout << "---- EmpCyl2d: bad magic number in cache file" << std::endl;
     return false;
   }
     
   if (MMAX!=mmax) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found mmax=" << MMAX
+    std::cout << "---- EmpCyl2d::read_cached_table: found mmax=" << MMAX
 	      << " wanted " << mmax << std::endl;
     return false;
   }
 
   if (NMAX!=nmax) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found nmax=" << NMAX
+    std::cout << "---- EmpCyl2d::read_cached_table: found nmax=" << NMAX
 	      << " wanted " << nmax << std::endl;
     return false;
   }
 
   if (NUMR!=numr) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found numr=" << NUMR
+    std::cout << "---- EmpCyl2d::read_cached_table: found numr=" << NUMR
 	      << " wanted " << numr << std::endl;
     return false;
   }
 
   if (KNOTS!=knots) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found knots=" << KNOTS
+    std::cout << "---- EmpCyl2d::read_cached_table: found knots=" << KNOTS
 	      << " wanted " << knots << std::endl;
     return false;
   }
 
   if (CMAP!=cmap) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found cmap=" << std::boolalpha << CMAP
+    std::cout << "---- EmpCyl2d::read_cached_table: found cmap=" << std::boolalpha << CMAP
 	      << " wanted " << std::boolalpha << cmap << std::endl;
     return false;
   }
 
   if (LOGR!=logr) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found logr=" << std::boolalpha << LOGR
+    std::cout << "---- EmpCyl2d::read_cached_table: found logr=" << std::boolalpha << LOGR
 	      << " wanted " << std::boolalpha << logr << std::endl;
     return false;
   }
 
   if (RMIN!=rmin) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found rmin=" << RMIN
+    std::cout << "---- EmpCyl2d::read_cached_table: found rmin=" << RMIN
 	      << " wanted " << rmin << std::endl;
     return false;
   }
 
   if (RMAX!=rmax) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found rmax=" << RMAX
+    std::cout << "---- EmpCyl2d::read_cached_table: found rmax=" << RMAX
 	      << " wanted " << rmax << std::endl;
     return false;
   }
 
   if (SCL!=scale) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found scale=" << SCL
+    std::cout << "---- EmpCyl2d::read_cached_table: found scale=" << SCL
 	      << " wanted " << scale << std::endl;
     return false;
   }
 
   if (A!=ascale) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found ascale=" << A
+    std::cout << "---- EmpCyl2d::read_cached_table: found ascale=" << A
 	      << " wanted " << ascale << std::endl;
     return false;
   }
 
   if (MODEL!=model) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found MODEL=" << MODEL
+    std::cout << "---- EmpCyl2d::read_cached_table: found MODEL=" << MODEL
 	      << " wanted " << model << std::endl;
     return false;
   }
 
   if (BIORTH!=biorth) {
-    std::cout << "---- EmpCyl2D::read_cached_table: found BIORTH=" << BIORTH
+    std::cout << "---- EmpCyl2d::read_cached_table: found BIORTH=" << BIORTH
 	      << " wanted " << biorth << std::endl;
     return false;
   }
@@ -868,16 +868,16 @@ bool EmpCyl2D::read_cached_tables()
     in.read((char *)rot_matrix[m].data(), rot_matrix[m].size()*sizeof(double));
   }
 
-  std::cout << "---- EmpCyl2D::read_cached_table: success!" << std::endl;
+  std::cout << "---- EmpCyl2d::read_cached_table: success!" << std::endl;
 
   return true;
 }
 
-void EmpCyl2D::write_cached_tables()
+void EmpCyl2d::write_cached_tables()
 {
   std::ofstream out(cache_name_2d);
   if (!out) {
-    std::cerr << "EmpCyl2D: error writing <" << cache_name_2d << ">" << std::endl;
+    std::cerr << "EmpCyl2d: error writing <" << cache_name_2d << ">" << std::endl;
     return;
   }
 
@@ -929,13 +929,13 @@ void EmpCyl2D::write_cached_tables()
     out.write((char *)rot_matrix[m].data(), rot_matrix[m].size()*sizeof(double));
   }
 
-  std::cout << "---- EmpCyl2D::write_cached_table: cache written" << std::endl;
+  std::cout << "---- EmpCyl2d::write_cached_table: cache written" << std::endl;
 
   return;
 }
 
 
-std::tuple<int, int, double, double> EmpCyl2D::linear_interp(double r)
+std::tuple<int, int, double, double> EmpCyl2d::linear_interp(double r)
 {
   auto it = std::lower_bound(xgrid.begin(), xgrid.end(), r);
 
@@ -958,15 +958,15 @@ std::tuple<int, int, double, double> EmpCyl2D::linear_interp(double r)
   return {lo, hi, A, B};
 }
 
-void EmpCyl2D::checkMN(int& M, int& N, const std::string& member)
+void EmpCyl2d::checkMN(int& M, int& N, const std::string& member)
 {
   if (M<0) M = 0;
   if (N<0) N = 0;
-  if (M>mmax)  throw std::runtime_error("EmpCyl2D::"+member+": M too large");
-  if (N>=nmax) throw std::runtime_error("EmpCyl2D::"+member+": N too large");
+  if (M>mmax)  throw std::runtime_error("EmpCyl2d::"+member+": M too large");
+  if (N>=nmax) throw std::runtime_error("EmpCyl2d::"+member+": N too large");
 }
 
-double EmpCyl2D::get_potl(double r, int M, int N)
+double EmpCyl2d::get_potl(double r, int M, int N)
 {
   checkMN(M, N, "get_potl");
 
@@ -981,7 +981,7 @@ double EmpCyl2D::get_potl(double r, int M, int N)
   return A*potl_array[M](lo, N) + B*potl_array[M](hi, N);
 }
 
-double EmpCyl2D::get_dens(double r, int M, int N)
+double EmpCyl2d::get_dens(double r, int M, int N)
 {
   checkMN(M, N, "get_dens");
 
@@ -996,7 +996,7 @@ double EmpCyl2D::get_dens(double r, int M, int N)
   return A*dens_array[M](lo, N) + B*dens_array[M](hi, N);
 }
 
-double EmpCyl2D::get_dpot(double r, int M, int N)
+double EmpCyl2d::get_dpot(double r, int M, int N)
 {
   checkMN(M, N, "get_dpot");
 
@@ -1011,7 +1011,7 @@ double EmpCyl2D::get_dpot(double r, int M, int N)
   return A*dpot_array[M](lo, N) + B*dpot_array[M](hi, N);
 }
 
-void EmpCyl2D::get_pot(Eigen::MatrixXd& mat, double r)
+void EmpCyl2d::get_pot(Eigen::MatrixXd& mat, double r)
 {
   int lo, hi;			// Get the linear interp
   double A, B;
@@ -1025,7 +1025,7 @@ void EmpCyl2D::get_pot(Eigen::MatrixXd& mat, double r)
   }
 }
 
-void EmpCyl2D::get_dens(Eigen::MatrixXd& mat, double r)
+void EmpCyl2d::get_dens(Eigen::MatrixXd& mat, double r)
 {
   int lo, hi;
   double A, B;
@@ -1039,7 +1039,7 @@ void EmpCyl2D::get_dens(Eigen::MatrixXd& mat, double r)
   }
 }
 
-void EmpCyl2D::get_force(Eigen::MatrixXd& mat, double r)
+void EmpCyl2d::get_force(Eigen::MatrixXd& mat, double r)
 {
   int lo, hi;
   double A, B;
@@ -1053,7 +1053,7 @@ void EmpCyl2D::get_force(Eigen::MatrixXd& mat, double r)
   }
 }
 
-void EmpCyl2D::checkCoefs()
+void EmpCyl2d::checkCoefs()
 {
   Mapping  map(scale, cmap);
   auto     disk = createModel(model, ascale);

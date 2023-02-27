@@ -96,9 +96,9 @@ void BiorthCyl::initialize_cuda
       //
       for (int j=0; j<numy; j++) {
 	for (int i=0; i<numx; i++) {
-	  h_buffer[i+j*numx              ]   = pot   [mm][n](i, j);
-	  h_buffer[i+j*numx + numx*numy  ]   = rforce[mm][n](i, j);
-	  h_buffer[i+j*numx + numx*numy*2]   = zforce[mm][n](i, j);
+	  h_buffer[i+j*numx              ]   = pot   [mm][n](i, j) * pfac;
+	  h_buffer[i+j*numx + numx*numy  ]   = rforce[mm][n](i, j) * ffac;
+	  h_buffer[i+j*numx + numx*numy*2]   = zforce[mm][n](i, j) * ffac;
 	}
       }
       

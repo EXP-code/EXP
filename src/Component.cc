@@ -15,7 +15,7 @@
 #include <Sphere.H>
 #include <EJcom.H>
 #include <Cylinder.H>
-#include <Cylinder2d.H>
+#include <FlatDisk.H>
 #include <Cube.H>
 #include <Slab.H>
 #include <SlabSL.H>
@@ -928,8 +928,8 @@ void Component::configure(void)
   else if ( !id.compare("cylinder") ) {
     force = new Cylinder(this, fconf);
   }
-  else if ( !id.compare("cylinder2d") ) {
-    force = new Cylinder2d(this, fconf);
+  else if ( !id.compare("flatdisk") ) {
+    force = new FlatDisk(this, fconf);
   }
   else if ( !id.compare("direct") ) {
     force = new Direct(this, fconf);

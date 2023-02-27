@@ -263,14 +263,13 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   // Potential and deriv matrices
   //
   normM.resize(Mmax+1, nmax);
-  krnl. resize(Mmax+1, nmax);
   dend. resize(Mmax+1, nmax);
 
-  potd.resize(nthrds);
+  potd. resize(nthrds);
   dpotR.resize(nthrds);
   dpotZ.resize(nthrds);
 
-  for (auto & v : potd) v.resize(Mmax+1, nmax);
+  for (auto & v : potd)  v.resize(Mmax+1, nmax);
   for (auto & v : dpotR) v.resize(Mmax+1, nmax);
   for (auto & v : dpotZ) v.resize(Mmax+1, nmax);
 
@@ -293,6 +292,8 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   firstime_coef  = true;
   firstime_accel = true;
 
+  // For basis evaluation
+  //
   vc.resize(nthrds);
   vs.resize(nthrds);
   for (int i=0; i<nthrds; i++) {
@@ -339,12 +340,10 @@ void PolarBasis::setup(void)
   for (int m=0; m<=Mmax; m++) {	// with current binding from derived class
     for (int n=0; n<nmax; n++) {
       normM (m, n) = norm(n, m);
-      krnl  (m, n) = knl (n, m);
       sqnorm(m, n) = sqrt(normM(m, n));
     }
   }
 }  
-
 
 PolarBasis::~PolarBasis()
 {
@@ -2097,7 +2096,7 @@ void PolarBasis::init_pca()
 
 
 void PolarBasis::accumulate(double r, double z, double phi, double mass, 
-			  unsigned long seq, int id, int mlevel, bool compute)
+			    unsigned long seq, int id, int mlevel, bool compute)
 {
 
   if (coefs_made[mlevel]) {
@@ -2107,8 +2106,7 @@ void PolarBasis::accumulate(double r, double z, double phi, double mass,
     throw GenericError(ostr.str(), __FILE__, __LINE__, 1039, false);
   }
 
-  double rr = sqrt(r*r+z*z);
-  if (rr/scale>getRtable()) return;
+  if (r/scale>getRtable() or fabs(z)/scale>getRtable()) return;
 
   howmany1[mlevel][id]++;
 
@@ -2178,8 +2176,8 @@ void PolarBasis::accumulate(std::vector<Particle>& part, int mlevel,
   for (auto p=part.begin(); p!=part.end(); p++) {
 
     double mass = p->mass;
-    double r    = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
-    double phi  = atan2(p->pos[1], p->pos[0]);
+    double r    = std::sqrt (p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+    double phi  = std::atan2(p->pos[1], p->pos[0]);
     double z    = p->pos[2];
     
     accumulate(r, z, phi, mass, p->indx, 0, mlevel, compute);

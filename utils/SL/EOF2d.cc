@@ -7,7 +7,7 @@
 #include <cmath>
 
 #include <PotRZ.H>		// Hankel computation for potential
-#include <EmpCyl2D.H>		// 2d empirical basis
+#include <EmpCyl2d.H>		// 2d empirical basis
 #include <cxxopts.H>
 
 
@@ -248,8 +248,8 @@ int main(int argc, char** argv)
       for (int i=0; i<N; i++) {
 	out << std::setw(16) << r[i];
 	for (int n=0; n<nmax; n++) {
-	  out << std::setw(16) <<  outP(n, i)
-	      << std::setw(16) << -emp.get_potl(r[i], M, n);
+	  out << std::setw(16) << outP(n, i)
+	      << std::setw(16) << emp.get_potl(r[i], M, n);
 	}
 	out << std::endl;
       }
