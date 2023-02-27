@@ -24,6 +24,10 @@ static bool cudaAccelOverride = false;
 static pthread_mutex_t io_lock;
 #endif
 
+pthread_mutex_t PolarBasis::used_lock;
+pthread_mutex_t PolarBasis::cos_coef_lock;
+pthread_mutex_t PolarBasis::sin_coef_lock;
+
 bool PolarBasis::NewCoefs = true;
 
 const std::set<std::string>
@@ -56,7 +60,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
   // Initialize the circular storage container 
   cuda_initialize();
-  initialize_cuda_sph = true;
+  initialize_cuda_plr = true;
 
 #endif
 
@@ -75,6 +79,8 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 #if HAVE_LIBCUDA==1
   cuda_aware       = true;
 #endif
+
+  coefs_made       = std::vector<bool>(multistep+1, false);
 
   // Remove matched keys
   //
@@ -247,7 +253,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     }
   }
 
-  if (pcavar or pcaeof) {
+  if (pcavar) {
     muse1 = vector<double>(nthrds, 0.0);
     muse0 = 0.0;
 
@@ -287,9 +293,45 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   firstime_coef  = true;
   firstime_accel = true;
 
+  vc.resize(nthrds);
+  vs.resize(nthrds);
+  for (int i=0; i<nthrds; i++) {
+    vc[i].resize(max<int>(1,Mmax)+1, nmax);
+    vs[i].resize(max<int>(1,Mmax)+1, nmax);
+  }
+
 #ifdef DEBUG
   pthread_mutex_init(&io_lock, NULL);
 #endif
+
+  // Initialize storage for the multistep arrays
+  //
+  differC1.resize(nthrds);
+  differS1.resize(nthrds);
+
+  for (auto & v : differC1) v.resize(multistep+1);
+  for (auto & v : differS1) v.resize(multistep+1);
+  
+  for (int nth=0; nth<nthrds; nth++) {
+    for (unsigned M=0; M<=multistep; M++) {
+      differC1[nth][M].resize(Mmax+1, nmax);
+      differS1[nth][M].resize(Mmax+1, nmax);
+      differC1[nth][M].setZero();
+      differS1[nth][M].setZero();
+    }
+  }
+    
+  unsigned sz2 = (multistep+1)*(Mmax+1)*nmax;
+  workC1.resize(sz2);
+  workC .resize(sz2);
+  workS1.resize(sz2);
+  workS .resize(sz2);
+
+  // Initialize accumulation values
+  //
+  cylmass = 0.0;
+  cylmass_made = false;
+  cylmass1 = std::vector<double>(nthrds);
 }
 
 void PolarBasis::setup(void)
@@ -306,7 +348,7 @@ void PolarBasis::setup(void)
 
 PolarBasis::~PolarBasis()
 {
-  if (pcavar or pcaeof) {
+  if (pcavar) {
     pthread_mutex_destroy(&cc_lock);
   }
 
@@ -441,7 +483,7 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	if (pcavar) {
 	  whch = indx % sampT;
 	  pthread_mutex_lock(&cc_lock);
-	  massT1[whch] += mass;
+	  massT1[whch][0] += mass;
 	  pthread_mutex_unlock(&cc_lock);
 	}
       }
@@ -465,11 +507,11 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	    pthread_mutex_unlock(&cc_lock);
 	  }
 
-	  if (compute and pcaeof) {
+	  if (compute) {
 	    pthread_mutex_lock(&cc_lock);
 	    for (int n=0; n<nmax; n++) {
 	      for (int o=0; o<nmax; o++) {
-		(*tvar[m])(n, o) += wk[n]*wk[o]/mass;
+		tvar[0][m](n, o) += wk[n]*wk[o]/mass;
 	      }
 	    }
 	    pthread_mutex_unlock(&cc_lock);
@@ -501,11 +543,11 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	      pthread_mutex_unlock(&cc_lock);
 	    }
 	    
-	    if (compute and pcaeof) {
+	    if (compute) {
 	      pthread_mutex_lock(&cc_lock);
 	      for (int n=0; n<nmax; n++) {
 		for (int o=0; o<nmax; o++) {
-		  (*tvar[m])(n, o) += wk[n]*wk[o]/mass;
+		  tvar[m][0](n, o) += wk[n]*wk[o]/mass;
 		}
 	      }
 	      pthread_mutex_unlock(&cc_lock);
@@ -613,7 +655,7 @@ void PolarBasis::determine_coefficients_particles(void)
   //
   if (!self_consistent && !firstime_coef && !initializing) return;
 
-  if (pcavar or pcaeof) {
+  if (pcavar) {
     if (this_step >= npca0) 
       compute = (mstep == 0) && !( (this_step-npca0) % npca);
     else
@@ -629,7 +671,8 @@ void PolarBasis::determine_coefficients_particles(void)
       if (defSampT) sampT = defSampT;
       else          sampT = floor(sqrt(component->CurTotal()));
       massT    .resize(sampT, 0);
-      massT1   .resize(sampT, 0);
+      massT1   .resize(nthrds);
+      for (auto & v : massT1) v.resize(sampT, 0);
       
       expcoefT .resize(sampT);
       for (auto & t : expcoefT ) {
@@ -668,11 +711,7 @@ void PolarBasis::determine_coefficients_particles(void)
       if (pcavar) {
 	for (auto & t : expcoefT1) { for (auto & v : t) v->setZero(); }
 	for (auto & t : expcoefM1) { for (auto & v : t) v->setZero(); }
-	for (auto & v : massT1)    v = 0;
-      }
-
-      if (pcaeof) {
-	for (auto & v : tvar) v->setZero();
+	for (auto & v : massT1)    { for (auto & u : v) u = 0;        }
       }
     }
   }
@@ -737,7 +776,7 @@ void PolarBasis::determine_coefficients_particles(void)
     } else {
       start1  = std::chrono::high_resolution_clock::now();
       determine_coefficients_cuda(compute);
-      DtoH_coefs(expcoef0[0]);
+      DtoH_coefs(mlevel);
       finish1 = std::chrono::high_resolution_clock::now();
     }
   } else {
@@ -1493,7 +1532,7 @@ void PolarBasis::determine_acceleration_and_potential(void)
       //
       // Copy coefficients from this component to device
       //
-      HtoD_coefs(expcoef);
+      HtoD_coefs();
       //
       // Do the force computation
       //
@@ -1891,4 +1930,316 @@ void PolarBasis::dump_coefs_all(ostream& out)
   }
 
 }
+
+void PolarBasis::setup_accumulation(int mlevel)
+{
+  if (accum_cos.size()==0) {	// First time only
+
+    accum_cos.resize(Mmax+1);
+    accum_sin.resize(Mmax+1);
+
+    cosL.resize(multistep+1);
+    cosN.resize(multistep+1);
+    sinL.resize(multistep+1);
+    sinN.resize(multistep+1);
+
+    howmany1.resize(multistep+1);
+    howmany .resize(multistep+1, 0);
+
+    for (unsigned M=0; M<=multistep; M++) {
+      cosL[M] = std::make_shared<VectorD2>(nthrds);
+      cosN[M] = std::make_shared<VectorD2>(nthrds);
+      sinL[M] = std::make_shared<VectorD2>(nthrds);
+      sinN[M] = std::make_shared<VectorD2>(nthrds);
+      
+      for (int nth=0; nth<nthrds; nth++) {
+	cosL(M)[nth].resize(Mmax+1);
+	cosN(M)[nth].resize(Mmax+1);
+	sinL(M)[nth].resize(Mmax+1);
+	sinN(M)[nth].resize(Mmax+1);
+      }
+
+      howmany1[M].resize(nthrds, 0);
+    }
+
+    for (unsigned M=0; M<=multistep; M++) {
+      
+      for (int nth=0; nth<nthrds; nth++) {
+	
+	for (int m=0; m<=Mmax; m++) {
+	  
+	  cosN(M)[nth][m].resize(nmax);
+	  cosL(M)[nth][m].resize(nmax);
+	  
+	  if (m>0) {
+	    sinN(M)[nth][m].resize(nmax);
+	    sinL(M)[nth][m].resize(nmax);
+	  }
+	}
+      }
+    }
+    
+    for (int m=0; m<=Mmax; m++) {
+      accum_cos[m].resize(nmax);
+      if (m>0) accum_sin[m].resize(nmax);
+    }
+    
+    for (unsigned M=0; M<=multistep; M++) {
+      for (int nth=0; nth<nthrds; nth++) {
+	for (int m=0; m<=Mmax; m++) {
+	  cosN(M)[nth][m].setZero();
+	  if (m>0) sinN(M)[nth][m].setZero();
+	}
+      }
+    }
+
+    if (pcavar and sampT>0) {
+      for (int nth=0; nth<nthrds; nth++) {
+	for (unsigned T=0; T<sampT; T++) {
+	  numbT1[nth][T] = 0;
+	  massT1[nth][T] = 0.0;
+	  covV[nth][T].resize(Mmax+1);
+	  covM[nth][T].resize(Mmax+1);
+	  for (int mm=0; mm<=Mmax; mm++) {
+	    covV[nth][T][mm].resize(nmax);
+	    covM[nth][T][mm].resize(nmax, nmax);
+	  }
+	}
+      }
+    }
+  }
+
+  // Zero values on every pass
+  //
+  for (int m=0; m<=Mmax; m++) {
+    accum_cos[m].setZero();
+    if (m>0) accum_sin[m].setZero();
+  }
+
+  if ( pcavar and mlevel==0 and sampT>0) {
+
+    for (int nth=0; nth<nthrds; nth++) {
+
+      for (unsigned T=0; T<sampT; T++) {
+	numbT1[nth][T] = 0;
+	massT1[nth][T] = 0.0;
+	for (int mm=0; mm<=Mmax; mm++) {
+	  covV[nth][T][mm].setZero();
+	  covM[nth][T][mm].setZero();
+	}
+      }
+    }
+  }
+
+  // Reset particle counter
+  //
+  howmany[mlevel] = 0;
+
+  // Swap buffers
+  //
+  auto p  = cosL[mlevel];
+  cosL[mlevel] = cosN[mlevel];
+  cosN[mlevel] = p;
+    
+  p       = sinL[mlevel];
+  sinL[mlevel] = sinN[mlevel];
+  sinN[mlevel] = p;
+    
+  // Clean current coefficient files
+  //
+  for (int nth=0; nth<nthrds; nth++) {
+    
+    howmany1[mlevel][nth] = 0;
+      
+    for (int m=0; m<=Mmax; m++) {
+      cosN(mlevel)[nth][m].setZero();
+      if (m>0) sinN(mlevel)[nth][m].setZero();
+    }
+  }
+    
+  coefs_made[mlevel] = false;
+
+  // DONE
+}
+
+void PolarBasis::init_pca()
+{
+  if (pcavar) {
+    if (defSampT) sampT = defSampT;
+    else          sampT = floor(sqrt(cC->CurTotal()));
+
+    pthread_mutex_init(&used_lock, NULL);
+
+    covV  .resize(nthrds);
+    covM  .resize(nthrds);
+    numbT1.resize(nthrds);
+    massT1.resize(nthrds);
+    numbT .resize(sampT, 0);
+    massT .resize(sampT, 0);
+
+    for (int nth=0; nth<nthrds;nth++) {
+      numbT1[nth].resize(sampT, 0);
+      massT1[nth].resize(sampT, 0);
+
+      covV[nth].resize(sampT);
+      covM[nth].resize(sampT);
+      for (unsigned T=0; T<sampT; T++) {
+	covV[nth][T].resize(Mmax+1);
+	covM[nth][T].resize(Mmax+1);
+	for (int mm=0; mm<=Mmax; mm++) {
+	  covV[nth][T][mm].resize(nmax);
+	  covM[nth][T][mm].resize(nmax, nmax);
+	}
+      }
+    }
+  }
+}
+
+
+void PolarBasis::accumulate(double r, double z, double phi, double mass, 
+			  unsigned long seq, int id, int mlevel, bool compute)
+{
+
+  if (coefs_made[mlevel]) {
+    ostringstream ostr;
+    ostr << "PolarBasis::accumulate: Process " << myid << ", Thread " << id 
+	 << ": calling setup_accumulation from accumulate, aborting" << endl;
+    throw GenericError(ostr.str(), __FILE__, __LINE__, 1039, false);
+  }
+
+  double rr = sqrt(r*r+z*z);
+  if (rr/scale>getRtable()) return;
+
+  howmany1[mlevel][id]++;
+
+  double msin, mcos;
+  int mm;
+  
+  double norm = -4.0*M_PI;
+  
+  unsigned whch;
+  if (compute and pcavar) {
+    whch = seq % sampT;
+    pthread_mutex_lock(&used_lock);
+    numbT1[id][whch] += 1;
+    massT1[id][whch] += mass;
+    pthread_mutex_unlock(&used_lock);
+  }
+
+  get_pot(vc[id], vs[id], r, z);
+
+  for (mm=0; mm<=Mmax; mm++) {
+
+    mcos = cos(phi*mm);
+    msin = sin(phi*mm);
+
+    for (int nn=0; nn<nmax; nn++) {
+      double hold = norm * mass * mcos * vc[id](mm, nn);
+
+      cosN(mlevel)[id][mm][nn] += hold;
+
+      if (compute and pcavar) {
+	double hc1 = vc[id](mm, nn)*mcos, hs1 = 0.0;
+	if (mm) hs1 = vs[id](mm, nn)*msin;
+	double modu1 = sqrt(hc1*hc1 + hs1*hs1);
+
+	covV(id, whch, mm)[nn] += mass * modu1;
+
+	for (int oo=0; oo<nmax; oo++) {
+	  double hc2 = vc[id](mm, oo)*mcos, hs2 = 0.0;
+	  if (mm) hs2 = vs[id](mm, oo)*msin;
+	  double modu2 = sqrt(hc2*hc2 + hs2*hs2);
+
+	  covM(id, whch, mm)(nn, oo) += mass * modu1 * modu2;
+	}
+      }
+
+      if (mm>0) {
+	hold = norm * mass * msin * vs[id](mm, nn);
+	sinN(mlevel)[id][mm][nn] += hold;
+      }
+    }
+
+    cylmass1[id] += mass;
+  }
+
+}
+
+void PolarBasis::accumulate(std::vector<Particle>& part, int mlevel,
+			  bool verbose, bool compute)
+{
+  double r, phi, z, mass;
+
+  int ncnt=0;
+  if (myid==0 && verbose) cout << endl;
+
+  setup_accumulation(mlevel);
+
+  for (auto p=part.begin(); p!=part.end(); p++) {
+
+    double mass = p->mass;
+    double r    = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+    double phi  = atan2(p->pos[1], p->pos[0]);
+    double z    = p->pos[2];
+    
+    accumulate(r, z, phi, mass, p->indx, 0, mlevel, compute);
+
+    if (myid==0 && verbose) {
+      if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
+      ncnt++;
+    }
+  }
+
+}
+  
+
+void PolarBasis::accumulate_thread(std::vector<Particle>& part, int mlevel, bool verbose)
+{
+  setup_accumulation(mlevel);
+
+  std::vector<std::thread> t(nthrds);
+ 
+  // Launch the threads
+  //
+  for (int id=0; id<nthrds; ++id) {
+    t[id] = std::thread(&PolarBasis::accumulate_thread_call, this, id, &part, mlevel, verbose);
+  }
+
+  // Join the threads
+  //
+  for (int id=0; id<nthrds; ++id) {
+    t[id].join();
+  }
+}
+
+
+void PolarBasis::accumulate_thread_call(int id, std::vector<Particle>* p, int mlevel, bool verbose)
+{
+  int nbodies = p->size();
+    
+  if (nbodies == 0) return;
+
+  int nbeg = nbodies*id/nthrds;
+  int nend = nbodies*(id+1)/nthrds;
+
+  int ncnt=0;
+  if (myid==0 && id==0 && verbose) cout << endl;
+
+  for (int n=nbeg; n<nend; n++) {
+    
+    double mass = (*p)[n].mass;
+    double r    = sqrt((*p)[n].pos[0]*(*p)[n].pos[0] + (*p)[n].pos[1]*(*p)[n].pos[1]);
+    double phi  = atan2((*p)[n].pos[1], (*p)[n].pos[0]);
+    double z    = (*p)[n].pos[2];
+    
+    accumulate(r, z, phi, mass, (*p)[n].indx, id, mlevel);
+
+    if (myid==0 && id==0 && verbose) {
+      if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
+      ncnt++;
+    }
+  }
+
+}
+  
 

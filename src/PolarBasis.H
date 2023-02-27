@@ -27,6 +27,12 @@ class MixtureBasis;
 class PolarBasis : public AxisymmetricBasis
 {
 
+public:
+  
+  using VectorM      = std::vector<Eigen::VectorXd>;
+  using MatrixM      = std::vector<Eigen::MatrixXd>;
+  using ContribArray = std::vector<Eigen::VectorXd>;
+
 protected:
 
   //! Will cache values of the kernel required for recursion relations
@@ -76,6 +82,12 @@ protected:
   //! Should be called by derived classes after initialization
   void setup();
 
+  //! Initialize for PCA variance computation
+  void init_pca();
+
+  //! Clear arrays for accumulation
+  void setup_accumulation(int mlevel);
+
   //! Get potential and accel field values from coefficients
   void get_pot_coefs(int m, const Eigen::VectorXd& coef, double& p, double& dpr, double& dprz);
 
@@ -103,18 +115,125 @@ protected:
   //! Compute the coefficients from an table
   virtual void determine_coefficients_playback(void);
 
+  typedef std::vector<std::vector<Eigen::VectorXd>> VectorD2;
+  typedef std::shared_ptr<VectorD2> VectorD2ptr;
+
+  /** Some syntactic sugar for array of shared pointers: define an
+      operator to the object of the shared pointer.  That is, for:
+
+      MstepArray step(N);
+
+      One can use:
+
+      step(n)[j][k] = ...
+
+      instead of
+
+      (*step[n])[j][k] = ...
+
+      to access elements.
+  */
+  struct MstepArray : public std::vector<VectorD2ptr>
+  {
+    VectorD2 & operator()(int M) { return (*(*this)[M]); }
+  };
+
+  MstepArray cosL, cosN, sinL, sinN;
+
+  std::vector<std::vector<unsigned>> howmany1;
+  std::vector<unsigned> howmany;
+
+  std::vector<Eigen::VectorXd> accum_cos;
+  std::vector<Eigen::VectorXd> accum_sin;
+
+  //! Add single particle to coefficients
+  void accumulate(double r, double z, double phi, double mass,
+		  unsigned long seq, int id, int mlev=0, bool compute=false);
+
+  //! Accumulate coefficients from particle distribution
+  void accumulate(std::vector<Particle>& part, int mlevel, bool verbose, bool compute);
+
+  //! Accumulate coefficients from particle distribution by thread.
+  //! Used by external applications.
+  void accumulate_thread(std::vector<Particle>& part, int mlevel, bool verbose);
+
+  //! Threaded call for the above call
+  void accumulate_thread_call(int id, std::vector<Particle>* p, int mlevel, bool verbose);
+
+  std::vector<bool> coefs_made;
+
+  //@{
+  /** More syntactic sugar for arrays of arrays: define an operator to
+      the object of the main nested arrays.  That is, for:
+
+      MatrixArray arr(N);
+      for (auto & v : arr) v.resize(M);
+
+      One can use:
+
+      arr(n, m)[j][k] = ...
+
+      instead of
+
+      (*arr[n][m])[j][k] = ...
+
+      to access elements.
+  */
+  struct CoefVector : public std::vector<std::vector<VectorM>>
+  {
+    Eigen::VectorXd & operator()(int i, unsigned j, int m) { return ((*this)[i][j][m]); }
+  };
+
+  struct CoefMatrix : public std::vector<std::vector<MatrixM>>
+  {
+    Eigen::MatrixXd & operator()(int i, unsigned j, int m) { return ((*this)[i][j][m]); }
+  };
+  //@}
+
+
+  // Test for eof trim
+  std::vector<std::vector<Eigen::MatrixXd>> tvar;
+
+  // Error analysis
+  CoefVector  covV;
+  CoefMatrix  covM;
+
+  std::vector< std::vector<unsigned>  > numbT1;
+  std::vector< std::vector<double>  > massT1;
+  std::vector<unsigned> numbT;
+  std::vector<double> massT;
+  unsigned sampT, defSampT;
+
+  std::vector<double> cylmass1;
+  bool cylmass_made;
+  double cylmass;
+  double minSNR, maxSNR;
+
+  std::vector<Eigen::MatrixXd> vc, vs;
+
+  virtual void get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs, double r, double z) = 0;
+
+  //! For updating levels
+  //@{
+  std::vector< std::vector<Eigen::MatrixXd> > differS1, differC1;
+  std::vector<double> workC1, workC, workS1, workS;
+  //@}
+
+
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
+  virtual double getRtable() = 0;
   virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();
 
   thrust::host_vector<cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
+  std::vector<thrust::host_vector<cuFP_t>> host_coefsT, host_covarT;
   cuFP_t host_mass_tot;
 
-  virtual void HtoD_coefs(const std::vector<VectorXdP>& coef);
-  virtual void DtoH_coefs(std::vector<VectorXdP>& coef);
+  virtual void HtoD_coefs();
+  virtual void DtoH_coefs(unsigned);
 
   //! For debugging only
   void coef_cuda_compare();
@@ -167,8 +286,8 @@ protected:
     thrust::device_vector<cuFP_t> dc_tvar;
     thrust::device_vector<cuFP_t> dw_tvar;
     thrust::device_vector<cuFP_t> df_tvar;
-    thrust::device_vector<cuFP_t> r_d, m_d, u_d, a_d, p_d;
-    thrust::device_vector<int   > i_d;
+    thrust::device_vector<cuFP_t> m_d, u_d, X_d, Y_d, a_d, p_d;
+    thrust::device_vector<int   > iX_d, iY_d;
     
     std::vector<thrust::device_vector<cuFP_t>> T_covr;
 
@@ -177,11 +296,98 @@ protected:
     void resize_acc  (int Lmax, int Nthread);
   };
 
+  double get_coef(int m, int n, char c)
+  {
+    if (m >  Mmax)
+      throw std::runtime_error("m>mmax");
+    
+    if (n >= nmax)
+      throw std::runtime_error("n>=nmax");
+    
+    if (c == 'c')
+      return accum_cos[m][n];
+    else
+      return accum_sin[m][n];
+  }
+  
+  double& set_coef(int mlevel, int m, int n, char c)
+  {
+    if (m >  Mmax)
+      throw std::runtime_error("m>mmax");
+    
+    if (n >= nmax)
+      throw std::runtime_error("n>=nmax");
+    
+    if (c == 'c')
+      return cosN(mlevel)[0][m][n];
+    else
+      return sinN(mlevel)[0][m][n];
+  }
+    
+  double& set_coefT(int T, int m, int n)
+  {
+    if (m >  Mmax)
+      throw std::runtime_error("m>mmax");
+    
+    if (n >= nmax)
+      throw std::runtime_error("n>=nmax");
+    
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+    
+    return covV(0, T, m)[n];
+  }
+  
+  double& set_covrT(int T, int m, int n, int o)
+  {
+    if (m >  Mmax)
+      throw std::runtime_error("m>mmax");
+    
+    if (n >= nmax)
+      throw std::runtime_error("n>=nmax");
+    
+    if (o >= nmax)
+      throw std::runtime_error("o>=nmax");
+    
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+    
+    return covM(0, T, m)(n, o);
+  }
+    
+  double& set_tvar(int m, int i, int j)
+  {
+    if (m >  Mmax)
+      throw std::runtime_error("m>mmax");
+
+    if (i >= nmax or j >= nmax)
+      throw std::runtime_error("n>nmax");
+
+    return tvar[0][m](i, j);
+  }
+
+  double& set_massT(int T)
+  {
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+
+    return massT1[0][T];
+  }
+
   //! A storage instance
   cudaStorage cuS;
 
   //! Only initialize once
-  bool initialize_cuda_sph;
+  bool initialize_cuda_plr;
 
   //! Initialize the container
   void cuda_initialize();
@@ -195,7 +401,9 @@ protected:
   //! Thread method for accerlation compuation
   virtual void * determine_acceleration_and_potential_thread(void * arg);
 
-				// Parameters
+  //! Maximum harmonic order restriction
+  int mlim;
+
   //! Basis linear scale for mapping
   double scale;
 
@@ -283,6 +491,11 @@ protected:
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  //! Mutexes for multithreading
+  //@{
+  static pthread_mutex_t used_lock, cos_coef_lock, sin_coef_lock;
+  //@}
 
 public:
 

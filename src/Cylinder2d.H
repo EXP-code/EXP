@@ -59,6 +59,7 @@ private:
   void get_potl(double r, double z, Eigen::MatrixXd& p, int tid);
 
 #if HAVE_LIBCUDA==1
+  virtual double getRtable() { return ortho->getRtable(); }
   /*
   virtual void initialize_cuda()
   {
@@ -90,6 +91,11 @@ private:
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+protected:
+
+  void get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs, double r, double z)
+  { ortho->get_pot(Vc, Vs, r, z); }
 
 public:
 				// Global parameters

@@ -33,7 +33,7 @@ set(GAUSS_SRC gaussQ.cc GaussCore.c Hermite.c Jacobi.c Laguerre.c)
 set(QPDISTF_SRC QPDistF.cc qld.c)
 set(SLEDGE_SRC sledge.f)
 set(PARTICLE_SRC Particle.cc ParticleReader.cc header.cc)
-set(CUDA_SRC cudaParticle.cu cudaSLGridMP2.cu cudaEmpCyl2D.cu)
+set(CUDA_SRC cudaParticle.cu cudaSLGridMP2.cu)
 
 set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
   ${RANDOM_SRC} ${UTIL_SRC} ${SPECFUNC_SRC}

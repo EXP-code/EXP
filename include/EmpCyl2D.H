@@ -13,25 +13,9 @@
 
 #include <config_exp.h>		// For config macros
 
-#if HAVE_LIBCUDA==1
-#include <cudaUtil.cuH>
-#include <cudaMappingConstants.cuH>
-#endif
-
 /**
    A class that implements most of the members for an Exp force routine
-
-   With a bit of work, this could be wrapped into a Basis class.
-
-   Things necessary to do this:
-
-   1. Add MPI support.  This could be fairly minimal since the
-      overhead in this class if very low.  At the very least, only the
-      root should be allowed to write a cache file.
-
-   2. Add Cuda support.  This guts could be straightforward copied
-      from the 1-d SLGridSph array and interpolation support.
- */
+*/
 class EmpCyl2D
 {
 public:
@@ -153,31 +137,6 @@ public:
   //! Use underlying basis for testing?  Default: false.
   void basisTest(bool which) { basis_test = which; }
 
-#if HAVE_LIBCUDA==1
-  void initialize_cuda(std::vector<cudaArray_t>& cuArray,
-		       thrust::host_vector<cudaTextureObject_t>& tex);
-
-  virtual cudaMappingConstants getCudaMappingConstants()
-  {
-    cudaMappingConstants ret;
-
-    ret.rscale = scale;
-    ret.hscale = 0.0;
-    ret.xmin   = xmin;
-    ret.xmax   = xmax;
-    ret.ymin   = 0.0;
-    ret.ymax   = 0.0;
-    ret.numr   = numr;
-    ret.numx   = 0;
-    ret.numy   = 0;
-    ret.dxi    = dxi;
-    ret.dyi    = 0.0;
-    ret.cmapR  = cmap;
-
-    return ret;
-  }
-#endif
-
   //! Linear interpolate on grid to get potential value
   double get_potl(double r, int M, int N);
 
@@ -192,10 +151,6 @@ public:
   void get_pot  (Eigen::MatrixXd& mat, double r);
   void get_dens (Eigen::MatrixXd& mat, double r);
   void get_force(Eigen::MatrixXd& mat, double r);
-
-#if HAVE_LIBCUDA==1
-  // void get_pot_cuda(float* tab, double x, int m);
-#endif
   //@}
 
   //! Write the basis for a partcular azimuthal M value to a file

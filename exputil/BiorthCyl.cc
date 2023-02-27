@@ -95,6 +95,9 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     
     if (conf["nlim"])        nlim = conf["nlim"].as<int>();
     else                     nlim = nmax;
+
+    if (conf["EVEN_M"])      EVEN_M = conf["EVEN_M"].as<bool>();
+    else                     EVEN_M = false;
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in BiorthCyl: "
@@ -120,16 +123,16 @@ void BiorthCyl::initialize()
   Rtable  = M_SQRT1_2 * rmax;
   xmin    = r_to_xi(rmin*rscale);
   xmax    = r_to_xi(Rtable*rscale);
-  dx      = (xmax - xmin)/numx;
+  dx      = (xmax - xmin)/(numx-1);
 
   ymin    = z_to_y(-Rtable*zscale);
   ymax    = z_to_y( Rtable*zscale);
-  dy      = (ymax - ymin)/numy;
+  dy      = (ymax - ymin)/(numy-1);
 
-  dens   .resize(mmax+1);
-  pot    .resize(mmax+1);
-  rforce .resize(mmax+1);
-  zforce .resize(mmax+1);
+  dens   .resize(mmax);
+  pot    .resize(mmax);
+  rforce .resize(mmax);
+  zforce .resize(mmax);
 
   for (int m=0; m<=mmax; m++) {
 
@@ -139,10 +142,10 @@ void BiorthCyl::initialize()
     zforce[m].resize(mmax+1);
 
     for (int n=0; n<norder; n++) {
-      dens  [m][n].resize(numx+1, numy+1);
-      pot   [m][n].resize(numx+1, numy+1);
-      rforce[m][n].resize(numx+1, numy+1);
-      zforce[m][n].resize(numx+1, numy+1);
+      dens  [m][n].resize(numx, numy);
+      pot   [m][n].resize(numx, numy);
+      rforce[m][n].resize(numx, numy);
+      zforce[m][n].resize(numx, numy);
     }
   }
 }
@@ -175,10 +178,10 @@ void BiorthCyl::create_tables()
 	return emp.get_dens(R, m, n);
       };
 
-      for (int ix=0; ix<=numx; ix++) {
+      for (int ix=0; ix<numx; ix++) {
 	double r = xi_to_r(xmin + dx*ix);
 
-	for (int iy=0; iy<=numy; iy++) {
+	for (int iy=0; iy<numy; iy++) {
 	  double z = y_to_z(ymin + dy*iy);
 	  
 	  dens[m][n](ix, iy) = 0.0;
@@ -280,7 +283,7 @@ void BiorthCyl::interp(double R, double z,
 		       const std::vector<std::vector<Eigen::MatrixXd>>& mat,
 		       Eigen::MatrixXd& ret)
 {
-  ret.resize(mmax+1, nmax);
+  ret.resize(mmax+1, norder);
   ret.setZero();
 
   if (R/rscale>Rtable) return;
@@ -300,13 +303,13 @@ void BiorthCyl::interp(double R, double z,
     Y  = 0.0;
   }
   
-  if (ix >= numx) {
-    ix = numx-1;
-    X  = numx;
+  if (ix >= numx-1) {
+    ix = numx-2;
+    X  = numx-1;
   }
-  if (iy >= numy) {
-    iy = numy-1;
-    Y  = numy;
+  if (iy >= numy-1) {
+    iy = numy-2;
+    Y  = numy-1;
   }
   
   double delx0 = (double)ix + 1.0 - X;
@@ -354,13 +357,13 @@ double BiorthCyl::interp(int m, int n, double R, double z,
     Y  = 0.0;
   }
   
-  if (ix >= numx) {
-    ix = numx-1;
-    X  = numx;
+  if (ix >= numx-1) {
+    ix = numx-2;
+    X  = numx-1;
   }
-  if (iy >= numy) {
-    iy = numy-1;
-    Y  = numy;
+  if (iy >= numy-1) {
+    iy = numy-2;
+    Y  = numy-1;
   }
   
   double delx0 = (double)ix + 1.0 - X;
@@ -546,4 +549,69 @@ bool BiorthCyl::ReadH5Cache()
   }
 
   return false;
+}
+
+void BiorthCyl::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
+			double r, double z)
+{
+  Vc.resize(max(1, mmax)+1, norder);
+  Vs.resize(max(1, mmax)+1, norder);
+
+  if (z/rscale > Rtable) z =  Rtable*rscale;
+  if (z/rscale <-Rtable) z = -Rtable*rscale;
+
+  double X = (r_to_xi(r) - xmin)/dx;
+  double Y = (z_to_y(z)  - ymin)/dy;
+
+  int ix = (int)X;
+  int iy = (int)Y;
+
+  if (ix < 0) {
+    ix = 0;
+    X = 0.0;
+  }
+  if (iy < 0) {
+    iy = 0;
+    Y = 0.0;
+  }
+  
+  if (ix >= numx-1) {
+    ix = numx-2;
+    X  = numx-1;
+  }
+  if (iy >= numy-1) {
+    iy = numy-2;
+    Y  = numy-1;
+  }
+
+  double delx0 = (double)ix + 1.0 - X;
+  double dely0 = (double)iy + 1.0 - Y;
+  double delx1 = X - (double)ix;
+  double dely1 = Y - (double)iy;
+
+  double c00 = delx0*dely0;
+  double c10 = delx1*dely0;
+  double c01 = delx0*dely1;
+  double c11 = delx1*dely1;
+
+  double fac = 1.0;
+
+  for (int mm=0; mm<=std::min<int>(mlim, mmax); mm++) {
+    
+    // Suppress odd M terms?
+    if (EVEN_M && (mm/2)*2 != mm) continue;
+
+    for (int n=0; n<norder; n++) {
+
+      Vc(mm, n) = fac *
+	(
+	 pot[mm][n](ix  , iy  ) * c00 +
+	 pot[mm][n](ix+1, iy  ) * c10 +
+	 pot[mm][n](ix  , iy+1) * c01 +
+	 pot[mm][n](ix+1, iy+1) * c11 
+	 );
+
+      Vs(mm, n) = Vc(mm, n);
+    }
+  }
 }

@@ -1,34 +1,35 @@
 // -*- C++ -*-
 
-#include <tuple>
-#include <list>
-
 #include <Component.H>
 #include <PolarBasis.H>
 #include <cudaReduce.cuH>
+#include "expand.H"
 
 // Define for debugging
 //
 // #define OFF_GRID_ALERT
 // #define BOUNDS_CHECK
 // #define VERBOSE_CTR
-// #define NAN_CHECK
-// #define VERBOSE_TIMING
 // #define VERBOSE_DBG
 
-// Global symbols for coordinate transformation in PolarBasis
+// Global symbols for coordinate transformation
 //
 __device__ __constant__
-cuFP_t plrScale, plrXmin, plrXmax, plrDxi, plrCen[3];
+cuFP_t plrRscale, plrHscale, plrXmin, plrXmax, plrYmin, plrYmax, plrDxi, plrDyi;
 
 __device__ __constant__
-int    plrNumr, plrCmap;
+cuFP_t plrCen[3], plrBody[9], plrOrig[9];
 
 __device__ __constant__
-bool   plrAcov, plrNO_M0, plrNO_M1, plrEVEN_M, plrM0only;
+int plrNumx, plrNumy, plrCmapR, plrCmapZ, plrOrient;
 
+__device__ __constant__
+bool plrAcov;
+
+// Index function for sine and cosine coefficients
+//
 __host__ __device__
-int Jmn(int m, char cs, int n, int nmax)
+int IImn(int m, char cs, int n, int nmax)
 {
   int ret = 0;
 
@@ -36,36 +37,60 @@ int Jmn(int m, char cs, int n, int nmax)
   else ret = (2*m - 1 + (cs=='s' ? 1 : 0))*nmax + n;
 
 #ifdef BOUNDS_CHECK
-  if (ret >= (2m+1)*nmax) {
-    printf("Jmn oab: %4d %4d [%4d : %4d : %4d]\n", m, n, ret, (2*m+1)*nmax, nmax);
+  // Verbose sanity check
+  if (ret >= (2*m+1)*nmax) {
+    printf("Imn oab: %4d %4d %4d [%4d : %4d ]\n", m, n, ret, (2*m+1)*nmax, nmax);
   }
 #endif
-
   return ret;
+}
+
+// Index function for modulus coefficients
+//
+__host__ __device__
+int JJmn(int m, int n, int nmax)
+{
+  return m*nmax + n;
+}
+
+// Index function for covariance matrix elements
+//
+__host__ __device__
+int KKmn(int m, int n, int o, int nmax)
+{
+  return (m*nmax + n)*nmax + o;
 }
 
 __global__
 void testConstantsPlr()
 {
   printf("-------------------------\n");
-  printf("---Polar 2d constants----\n");
+  printf("---PolarBasis constants--\n");
   printf("-------------------------\n");
-  printf("   Scale  = %f\n", plrScale );
+  printf("   Rscale = %f\n", plrRscale);
+  printf("   Hscale = %f\n", plrHscale);
   printf("   Xmin   = %f\n", plrXmin  );
   printf("   Xmax   = %f\n", plrXmax  );
+  printf("   Ymin   = %f\n", plrYmin  );
+  printf("   Ymax   = %f\n", plrYmax  );
   printf("   Dxi    = %f\n", plrDxi   );
-  printf("   Numr   = %d\n", plrNumr  );
-  printf("   Cmap   = %d\n", plrCmap  );
+  printf("   Dyi    = %f\n", plrDyi   );
+  printf("   Numx   = %d\n", plrNumx  );
+  printf("   Numy   = %d\n", plrNumy  );
+  printf("   CmapR  = %d\n", plrCmapR );
+  printf("   CmapZ  = %d\n", plrCmapZ );
   printf("-------------------------\n");
 }
 
+// R coordinate transformation
+//
 __device__
-cuFP_t cu_R_to_xi(cuFP_t r)
+cuFP_t cu_r_to_xi_plr(cuFP_t r)
 {
   cuFP_t ret;
 
-  if (plrCmap==1) {
-    ret = (r/plrScale-1.0)/(r/plrScale+1.0);
+  if (plrCmapR==1) {
+    ret = (r/plrRscale - 1.0)/(r/plrRscale + 1.0);
   } else {
     ret = r;
   }    
@@ -74,12 +99,12 @@ cuFP_t cu_R_to_xi(cuFP_t r)
 }
     
 __device__
-cuFP_t cu_xi_to_R(cuFP_t xi)
+cuFP_t cu_xi_to_r_plr(cuFP_t xi)
 {
   cuFP_t ret;
 
-  if (plrCmap==1) {
-    ret = (1.0+xi)/(1.0 - xi) * plrScale;
+  if (plrCmapR==1) {
+    ret = (1.0 + xi)/(1.0 - xi) * plrRscale;
   } else {
     ret = xi;
   }
@@ -88,12 +113,12 @@ cuFP_t cu_xi_to_R(cuFP_t xi)
 }
 
 __device__
-cuFP_t cu_d_xi_to_R(cuFP_t xi)
+cuFP_t cu_d_xi_to_r_plr(cuFP_t xi)
 {
   cuFP_t ret;
 
-  if (plrCmap==1) {
-    ret = 0.5*(1.0-xi)*(1.0-xi)/plrScale;
+  if (plrCmapR==1) {
+    ret = 0.5*(1.0 - xi)*(1.0 - xi) / plrRscale;
   } else {
     ret = 1.0;
   }
@@ -101,21 +126,73 @@ cuFP_t cu_d_xi_to_R(cuFP_t xi)
   return ret;
 }
 
+// Z coordinate transformation
+//
+__device__
+cuFP_t cu_z_to_y_plr(cuFP_t z)
+{
+  cuFP_t ret;
+
+  if (plrCmapZ==1)
+    ret = z/(fabs(z)+FLT_MIN)*asinh(fabs(z/plrHscale));
+  else if (plrCmapZ==2)
+    return z/sqrt(z*z + plrHscale*plrHscale);
+  else
+    ret = z;
+
+  return ret;
+}
+
+__device__
+cuFP_t cu_y_to_z_plr(cuFP_t y)
+{
+  cuFP_t ret;
+
+  if (plrCmapZ==1)
+    ret = plrHscale*sinh(y);
+  else if (plrCmapZ==2)
+    ret = y * plrHscale/sqrt(1.0 - y*y);
+  else
+    ret = y;
+
+  return ret;
+}
+
+
+__device__
+cuFP_t cu_d_y_to_z_plr(cuFP_t y)
+{
+  cuFP_t ret;
+
+  if (plrCmapZ==1)
+    ret = plrHscale*cosh(y);
+  else if (plrCmapZ==2)
+    return plrHscale*pow(1.0-y*y, -1.5);
+  else
+    ret = 1.0;
+
+  return ret;
+}
+
+
+// Initialize for streams
+//
 void PolarBasis::cuda_initialize()
 {
   // Nothing so far
 }
 
+// Copy constants to device
+//
 void PolarBasis::initialize_mapping_constants()
 {
-  // Copy constants to device
-  //
-  
   cudaMappingConstants f = getCudaMappingConstants();
-  cuFP_t z;
 
-  cuda_safe_call(cudaMemcpyToSymbol(plrScale, &(z=scale), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying plrScale");
+  cuda_safe_call(cudaMemcpyToSymbol(plrRscale, &f.rscale, sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrRscale");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrHscale, &f.hscale, sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrHscale");
 
   cuda_safe_call(cudaMemcpyToSymbol(plrXmin,   &f.xmin,   sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrXmin");
@@ -126,81 +203,113 @@ void PolarBasis::initialize_mapping_constants()
   cuda_safe_call(cudaMemcpyToSymbol(plrDxi,    &f.dxi,    sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrDxi");
 
-  cuda_safe_call(cudaMemcpyToSymbol(plrNumr,   &f.numr,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying plruNumr");
+  cuda_safe_call(cudaMemcpyToSymbol(plrNumx,   &f.numx,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrNumx");
 
-  cuda_safe_call(cudaMemcpyToSymbol(plrCmap,   &f.cmapR,  sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying plrCmap");
+  cuda_safe_call(cudaMemcpyToSymbol(plrYmin,   &f.ymin,   sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrYmin");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrYmax,   &f.ymax,   sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrYmax");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrDyi,    &f.dyi,    sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrDxi");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrNumy,   &f.numy,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrNumy");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrCmapR,  &f.cmapR,  sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrCmapR");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrCmapZ,  &f.cmapZ,  sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrCmapZ");
 
   cuda_safe_call(cudaMemcpyToSymbol(plrAcov,   &subsamp,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrAcov");
-  cuda_safe_call(cudaMemcpyToSymbol(plrNO_M0,  &NO_M0,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying plrNO_M0");
-  cuda_safe_call(cudaMemcpyToSymbol(plrNO_M1,  &NO_M1,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying plrNO_M1");
-  cuda_safe_call(cudaMemcpyToSymbol(plrEVEN_M, &EVEN_M,   sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying plrEVEN_M");
-  cuda_safe_call(cudaMemcpyToSymbol(plrM0only, &M0_only,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying plrM0only");
 }
 
 
-__global__ void coordKernel
-(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> mass,
- dArray<cuFP_t> Afac, dArray<cuFP_t> phi, dArray<int> Indx, 
- unsigned int Mmax, unsigned int stride, PII lohi, cuFP_t rmax)
+__global__ void coordKernelPlr
+(dArray<cudaParticle> P, dArray<int> I,
+ dArray<cuFP_t> mass, dArray<cuFP_t> phi,
+ dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
+ dArray<int> IndX, dArray<int> IndY,
+ unsigned int stride, PII lohi, cuFP_t rmax)
 {
-  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
-  const int psiz  = 2*Mmax+1;
+  // Thread ID
+  //
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
   for (int n=0; n<stride; n++) {
-    int i     = tid*stride + n;
-    int npart = i + lohi.first;
+    int i     = tid*stride + n;	// Particle counter
+    int npart = i + lohi.first;	// Particle index
 
-    if (npart < lohi.second) {
+    if (npart < lohi.second) {	// Is particle index in range?
 
 #ifdef BOUNDS_CHECK
       if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
       cudaParticle & p = P._v[I._v[npart]];
     
-      cuFP_t xx = p.pos[0] - plrCen[0];
-      cuFP_t yy = p.pos[1] - plrCen[1];
-      cuFP_t zz = p.pos[2] - plrCen[2];
+      cuFP_t xx=0.0, yy=0.0, zz=0.0;
+
+      if (plrOrient) {
+	for (int k=0; k<3; k++) xx += plrBody[0+k]*(p.pos[k] - plrCen[k]);
+	for (int k=0; k<3; k++) yy += plrBody[3+k]*(p.pos[k] - plrCen[k]);
+	for (int k=0; k<3; k++) zz += plrBody[6+k]*(p.pos[k] - plrCen[k]);
+      } else {
+	xx = p.pos[0] - plrCen[0];
+	yy = p.pos[1] - plrCen[1];
+	zz = p.pos[2] - plrCen[2];
+      }
       
-      cuFP_t r2 = (xx*xx + yy*yy);
-      cuFP_t r = sqrt(r2) + FSMALL;
-      
+      cuFP_t R2 = xx*xx + yy*yy;
+      cuFP_t r2 = R2 + zz*zz;
+      cuFP_t R  = sqrt(R2);
+      cuFP_t r  = sqrt(r2);
 #ifdef BOUNDS_CHECK
       if (i>=mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
       mass._v[i] = -1.0;
       
-      if (r<rmax) {
+      if (r<=rmax) {
 	
 	mass._v[i] = p.mass;
 	
-	phi._v[i] = atan2(yy,xx);
-	
+	phi._v[i] = atan2(yy, xx);
+
 #ifdef BOUNDS_CHECK
 	if (i>=phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	cuFP_t x  = cu_R_to_xi(r);
-	cuFP_t xi = (x - plrXmin)/plrDxi;
-	int indx = floor(xi);
-	
-	if (indx<0) indx = 0;
-	if (indx>plrNumr-2) indx = plrNumr - 2;
-	  
-	Afac._v[i] = cuFP_t(indx+1) - xi;
-#ifdef OFF_GRID_ALERT
-	if (Afac._v[i]<0.0 or Afac._v[i]>1.0) printf("off grid: x=%f\n", xi);
-#endif
-	Indx._v[i] = indx;
+	// Interpolation indices
+	//
+	cuFP_t X  = (cu_r_to_xi_plr(R) - plrXmin)/plrDxi;
+	cuFP_t Y  = (cu_z_to_y_plr(zz) - plrYmin)/plrDyi;
 
+	int indX = floor(X);
+	int indY = floor(Y);
+	
+	if (indX<0) indX = 0;
+	if (indX>plrNumx-1) indX = plrNumx - 1;
+	
+	if (indY<0) indY = 0;
+	if (indY>plrNumy-1) indY = plrNumy - 1;
+	
+	Xfac._v[i] = cuFP_t(indX+1) - X;
+	IndX._v[i] = indX;
+
+	Yfac._v[i] = cuFP_t(indY+1) - Y;
+	IndY._v[i] = indY;
+
+#ifdef OFF_GRID_ALERT
+	if (Xfac._v[i]<-0.5 or Xfac._v[i]>1.5) printf("X off grid: x=%f\n", X);
+	if (Yfac._v[i]<-0.5 or Yfac._v[i]>1.5) printf("Y off grid: y=%f\n", Y);
+#endif
 #ifdef BOUNDS_CHECK
-	if (i>=Afac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	if (i>=Indx._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=Xfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=IndX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=Yfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=IndY._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
       }
     }
@@ -208,30 +317,36 @@ __global__ void coordKernel
 }
 
 
-__global__ void coefKernel
+__global__ void coefKernelPlr
 (dArray<cuFP_t> coef, dArray<cuFP_t> tvar, dArray<cuFP_t> work,
  dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
- dArray<cuFP_t> Mass, dArray<cuFP_t> Afac, dArray<cuFP_t> Phi,
- dArray<int> Indx,  int stride, 
- int m, unsigned Mmax, unsigned int nmax, PII lohi, bool compute)
+ dArray<cuFP_t> Mass, dArray<cuFP_t> Phi,
+ dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
+ dArray<int> indX, dArray<int> indY,
+ int stride, int m, unsigned int nmax, PII lohi, bool compute)
 {
-  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
-  const int psiz  = 2*Mmax+1;
-  const int N     = lohi.second - lohi.first;
+  // Thread ID
+  //
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  const int N   = lohi.second - lohi.first;
 
-  for (int str=0; str<stride; str++) {
+  const cuFP_t norm = -4.0*M_PI;    // Biorthogonality factor
 
-    int i     = tid*stride + str;
+  for (int n=0; n<stride; n++) {
+
+    // Particle counter
+    //
+    int i     = tid*stride + n;
     int npart = i + lohi.first;
 
-    if (npart < lohi.second) {
-
+    if (npart < lohi.second) {	// Check that particle index is in
+				// range for consistency with other
+				// kernels
       cuFP_t mass = Mass._v[i];
-
+      
 #ifdef BOUNDS_CHECK
       if (i>=Mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-#endif
-
+#endif      
       if (mass>0.0) {
 				// For accumulating mass of used particles
 	if (m==0) used._v[i] = mass;
@@ -245,59 +360,97 @@ __global__ void coefKernel
 	
 	// Do the interpolation
 	//
-	cuFP_t a = Afac._v[i];
-	cuFP_t b = 1.0 - a;
-	int  ind = Indx._v[i];
-	
+	cuFP_t delx0 = Xfac._v[i];
+	cuFP_t dely0 = Yfac._v[i];
+	cuFP_t delx1 = 1.0 - delx0;
+	cuFP_t dely1 = 1.0 - dely0;
+
 #ifdef BOUNDS_CHECK
-	if (i>=Afac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	if (i>=Indx._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=Xfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=Yfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+	cuFP_t c00 = delx0*dely0;
+	cuFP_t c10 = delx1*dely0;
+	cuFP_t c01 = delx0*dely1;
+	cuFP_t c11 = delx1*dely1;
+
+	int   indx = indX._v[i];
+	int   indy = indY._v[i];
+
+#ifdef BOUNDS_CHECK
+	if (i>=indX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=indY._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
 	for (int n=0; n<nmax; n++) {
 
-	  cuFP_t p0 =
+	  // Texture maps are packed in slices
+	  // ---------------------------------
+	  // potC, rforceC, zforceC, potS, rforceS, zforceS
+	  // 0     1        2        3     4        5
+
+	  int k = m*nmax + n;
+
 #if cuREAL == 4
-	    a*tex1D<float>(tex._v[0], ind  ) +
-	    b*tex1D<float>(tex._v[0], ind+1) ;
+	  cuFP_t d00   = tex3D<float>(tex._v[k], indx,   indy  , 0);
+	  cuFP_t d10   = tex3D<float>(tex._v[k], indx+1, indy  , 0);
+	  cuFP_t d01   = tex3D<float>(tex._v[k], indx,   indy+1, 0);
+	  cuFP_t d11   = tex3D<float>(tex._v[k], indx+1, indy+1, 0);
+
 #else
-	    a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
-	    b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
+	  cuFP_t d00   = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy  , 0));
+	  cuFP_t d10   = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy  , 0));
+	  cuFP_t d01   = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy+1, 0));
+	  cuFP_t d11   = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy+1, 0));
 #endif
-	  int k = 1 + m*nmax + n;
+	  cuFP_t valC  = c00*d00 + c10*d10 + c01*d01 + c11*d11, valS = 0.0;
+	  
+#ifdef BOUNDS_CHECK
+	  if (k>=tex._s)            printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	  if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+	  coef._v[(2*n+0)*N + i] = valC * cosp * norm * mass;
+
+	  if (m>0) {
+	    // potS tables are offset from potC tables by +3
+	    //
+#if cuREAL == 4
+	    d00  = tex3D<float>(tex._v[k], indx,   indy  , 3);
+	    d10  = tex3D<float>(tex._v[k], indx+1, indy  , 3);
+	    d01  = tex3D<float>(tex._v[k], indx,   indy+1, 3);
+	    d11  = tex3D<float>(tex._v[k], indx+1, indy+1, 3);
+#else
+	    d00  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy  , 3));
+	    d10  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy  , 3));
+	    d01  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy+1, 3));
+	    d11  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy+1, 3));
+#endif
+	    valS = c00*d00 + c10*d10 + c01*d01 + c11*d11;
+	    coef._v[(2*n+1)*N + i] = valS * sinp * norm * mass;
 
 #ifdef BOUNDS_CHECK
-	  if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	    if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	  cuFP_t v = (
-#if cuREAL == 4
-		     a*tex1D<float>(tex._v[k], ind  ) +
-		     b*tex1D<float>(tex._v[k], ind+1)
-#else
-		     a*int2_as_double(tex1D<int2>(tex._v[k], ind  )) +
-		     b*int2_as_double(tex1D<int2>(tex._v[k], ind+1))
-#endif
-		      ) * p0;
-	  
-	  coef._v[(2*n+0)*N + i] = v * cosp * mass * M_SQRT2;
-	  coef._v[(2*n+1)*N + i] = v * sinp * mass * M_SQRT2;
+	  }
+	  // m==0
+	  else {
+	    coef._v[(2*n+1)*N + i] = 0.0;
+	  }
 
-	  // Load work space
-	  //
 	  if (compute and tvar._s>0) {
-	    if (plrAcov) tvar._v[n*N + i   ] = v * mass;
-	    else         work._v[i*nmax + n] = v;
+	    valC *= cosp;
+	    valS *= sinp;
+	    cuFP_t val = sqrt(valC*valC + valS*valS);
+	    if (plrAcov) tvar._v[n*N + i   ] = val * mass;
+	    else         work._v[i*nmax + n] = val;
 	  }
 	  
-#ifdef BOUNDS_CHECK
-	  if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	  if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-#endif
 	}
+	// END: norder loop
 
 	if (compute and not plrAcov and tvar._s>0) {
 
+	  // Variance
 	  int c = 0;
-	  // Variance computation
 	  for (int r=0; r<nmax; r++) {
 	    for (int s=r; s<nmax; s++) {
 	      tvar._v[N*c + i] =
@@ -305,18 +458,18 @@ __global__ void coefKernel
 	      c++;
 	    }
 	  }
-	  // Mean computation
+	  // Mean
 	  for (int r=0; r<nmax; r++) {
 	    tvar._v[N*c + i] = work._v[i*nmax + r] * mass;
 	    c++;
 	  }
-	  if (c != nmax*(nmax+3)/2) printf("out of bounds: wrong c [k]\n");
 	}
+
       } else {
 	// No contribution from off-grid particles
 	for (int n=0; n<nmax; n++) {
 	  coef._v[(2*n+0)*N + i] = 0.0;
-	  coef._v[(2*n+1)*N + i] = 0.0;
+	  if (m) coef._v[(2*n+1)*N + i] = 0.0;
 	}
 
 	if (compute and tvar._s>0) {
@@ -338,256 +491,321 @@ __global__ void coefKernel
 	    }
 	  }
 	}
-      }
-    }
-  }
+
+      } // mass value check
+
+    } // particle index check
+
+  } // stride loop
 
 }
 
 __global__ void
-forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
-	    dArray<cudaTextureObject_t> tex,
-	    int stride, unsigned Mmax, unsigned int nmax, PII lohi, cuFP_t rmax,
-	    bool external)
+forceKernelPlr(dArray<cudaParticle> P, dArray<int> I,
+	       dArray<cuFP_t> coef,
+	       dArray<cudaTextureObject_t> tex,
+	       int stride, unsigned int mmax, unsigned int mlim,
+	       unsigned int nmax, PII lohi,
+	       cuFP_t rmax, cuFP_t plrmass, bool external)
 {
+  // Thread ID
+  //
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
-  const int psiz  = 2*Mmax+1;
+
+  // Maximum radius squared
+  //
+  const cuFP_t rmax2 = rmax*rmax;
+
+  // Algorithm constants
+  //
+  constexpr cuFP_t ratmin = 0.75;
+  constexpr cuFP_t maxerf = 3.0;
+  constexpr cuFP_t midpt  = ratmin + 0.5*(1.0 - ratmin);
+  constexpr cuFP_t rsmth  = 0.5*(1.0 - ratmin)/maxerf;
+
+  int muse = mmax > mlim ? mlim : mmax;
 
   for (int n=0; n<stride; n++) {
-
     int i     = tid*stride + n;	// Index in the stride
     int npart = i + lohi.first;	// Particle index
 
-    if (npart < lohi.second) {
+    if (npart < lohi.second) {	// Check that particle index is in
+				// range
       
 #ifdef BOUNDS_CHECK
       if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
       cudaParticle & p = P._v[I._v[npart]];
       
-      cuFP_t xx = p.pos[0] - plrCen[0];
-      cuFP_t yy = p.pos[1] - plrCen[1];
-      cuFP_t zz = p.pos[2] - plrCen[2];
-      
-      cuFP_t r2 = (xx*xx + yy*yy);
-      cuFP_t r  = sqrt(r2) + FSMALL;
-      
-      cuFP_t phi   = atan2(yy, xx);
-      cuFP_t RR    = xx*xx + yy*yy;
-      cuFP_t cosp  = cos(phi);
-      cuFP_t sinp  = sin(phi);
-      
-      int ioff = 0;
-      cuFP_t rs = r/plrScale;
-      cuFP_t r0 = 0.0;
+      cuFP_t acc[3] = {0.0, 0.0, 0.0};
+      cuFP_t xx=0.0, yy=0.0, zz=0.0;
 
-      if (r>rmax) {
-	ioff = 1;
-	r0   = r;
-	r    = rmax;
-	rs   = r/plrScale;
+      if (plrOrient) {
+	for (int k=0; k<3; k++) xx += plrBody[0+k]*(p.pos[k] - plrCen[k]);
+	for (int k=0; k<3; k++) yy += plrBody[3+k]*(p.pos[k] - plrCen[k]);
+	for (int k=0; k<3; k++) zz += plrBody[6+k]*(p.pos[k] - plrCen[k]);
+      } else {
+	xx = p.pos[0] - plrCen[0];
+	yy = p.pos[1] - plrCen[1];
+	zz = p.pos[2] - plrCen[2];
       }
 
-      cuFP_t  x = cu_R_to_xi(rs);
-      cuFP_t xi = (x - plrXmin)/plrDxi;
-      cuFP_t dx = cu_d_xi_to_R(x)/plrDxi;
-
-      int  ind = floor(xi);
-      int  in0 = ind;
-
-      if (in0<0) in0 = 0;
-      if (in0>plrNumr-2) in0 = plrNumr - 2;
-
-      if (ind<1) ind = 1;
-      if (ind>plrNumr-2) ind = plrNumr - 2;
+      cuFP_t phi = atan2(yy, xx);
+      cuFP_t R2  = xx*xx + yy*yy;
+      cuFP_t  R  = sqrt(R2) + FSMALL;
       
-      cuFP_t a0 = (cuFP_t)(in0+1) - xi;
-      cuFP_t a1 = (cuFP_t)(ind+1) - xi;
-      cuFP_t b0 = 1.0 - a0;
-      cuFP_t b1 = 1.0 - a1;
+      cuFP_t ratio = sqrt( (R2 + zz*zz)/rmax2 );
+      cuFP_t mfactor = 1.0, frac = 1.0, cfrac = 0.0;
+
+      if (ratio >= 1.0) {
+	frac  = 0.0;
+	cfrac = 1.0;
+      } else if (ratio > ratmin) {
+	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
+	cfrac = 1.0 - frac;
+      } else {
+	frac  = 1.0;
+      }
+
+      // mfactor will apply this a fraction of this component's force
+      // when mixture models are implemented (see PolarBasis.cc)
+      /*
+      cfrac *= mfactor;
+      frac  *= mfactor;
+      */
+	
+      cuFP_t fr = 0.0;
+      cuFP_t fz = 0.0;
+      cuFP_t fp = 0.0;
+      cuFP_t pp = 0.0;
+      cuFP_t pa = 0.0;
+      
+      if (ratio < 1.0) {
+
+	cuFP_t X  = (cu_r_to_xi_plr(R) - plrXmin)/plrDxi;
+	cuFP_t Y  = (cu_z_to_y_plr(zz) - plrYmin)/plrDyi;
+
+	int indX = floor(X);
+	int indY = floor(Y);
+	
+	if (indX < 0) indX = 0;
+	if (indY < 0) indY = 0;
+	if (indX >= plrNumx) indX = plrNumx - 1;
+	if (indY >= plrNumy) indY = plrNumy - 1;
+
+	cuFP_t delx0 = cuFP_t(indX+1) - X;
+	cuFP_t dely0 = cuFP_t(indY+1) - Y;
 
 #ifdef OFF_GRID_ALERT
-      if (a0<0.0 or a0>1.0)
-	printf("forceKernel: off grid [0]: x=%f r=%f rs=%f a=%f b=%f\n", xi, r, rs, a0, b0);
-      if (a1<0.0 or a1>1.0)
-	printf("forceKernel: off grid [1]: x=%f r=%f rs=%f a=%f b=%f\n", xi, r, rs, a1, b1);
+	if (delx0<-0.5 or delx0>1.5) // X value check
+	  printf("X off grid: x=%f [%d, %d]\n", delx0, indX, indY);
+
+	if (dely0<-0.5 or dely0>1.5) // Y value check
+	  printf("Y off grid: y=%f [%d, %d]\n", dely0, indX, indY);
 #endif
+
+	cuFP_t delx1 = 1.0 - delx0;
+	cuFP_t dely1 = 1.0 - dely0;
       
-      // Do the interpolation for the prefactor potential
-      //
+	cuFP_t c00 = delx0*dely0;
+	cuFP_t c10 = delx1*dely0;
+	cuFP_t c01 = delx0*dely1;
+	cuFP_t c11 = delx1*dely1;
+
+	cuFP_t cos1 = cos(phi);
+	cuFP_t sin1 = sin(phi);
+
+	cuFP_t ccos = 1.0;
+	cuFP_t ssin = 0.0;
+
+	for (int mm=0; mm<=muse; mm++) {
+
+	  for (int n=0; n<nmax; n++) {
+      
+	    cuFP_t fac0 = coef._v[IImn(mm, 'c', n, nmax)];
+	    cuFP_t fac1 = fac0 * ccos;
+	    cuFP_t fac2 = fac0 * ssin;
+      
+	    // Texture table index
+	    //
+	    int k = mm*nmax + n;
+
+	    pp += fac1 *
+	      (
 #if cuREAL == 4
-      cuFP_t pm1 = tex1D<float>(tex._v[0], ind-1);
-      cuFP_t p00 = tex1D<float>(tex._v[0], ind  );
-      cuFP_t pp1 = tex1D<float>(tex._v[0], ind+1);
-      cuFP_t p0  = p00;
-      cuFP_t p1  = pp1;
-      if (in0==0) {
-	p1 = p0;
-	p0 = tex1D<float>(tex._v[0], 0);
-      }
+	       tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
+	       tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
+	       tex3D<float>(tex._v[k], indX,   indY+1, 0) * c01 +
+	       tex3D<float>(tex._v[k], indX+1, indY+1, 0) * c11 
 #else
-      cuFP_t pm1 = int2_as_double(tex1D<int2>(tex._v[0], ind-1));
-      cuFP_t p00 = int2_as_double(tex1D<int2>(tex._v[0], ind  ));
-      cuFP_t pp1 = int2_as_double(tex1D<int2>(tex._v[0], ind+1));
-      cuFP_t p0  = p00;
-      cuFP_t p1  = pp1;
-      if (in0==0) {
-	p1 = p0;
-	p0 = int2_as_double(tex1D<int2>(tex._v[0], 0));
-      }
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 0)) * c00 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 0)) * c10 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 0)) * c01 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 0)) * c11 
 #endif
-
-      // For force accumulation
-      //
-      cuFP_t potl = 0.0;
-      cuFP_t potr = 0.0;
-      cuFP_t potp = 0.0;
-
-      cuFP_t ccos = 1.0;	// For recursion
-      cuFP_t ssin = 0.0;
-
-      // l loop
-      //
-      for (int m=0; m<=Mmax; m++) {
-
-	if (plrNO_M0  and m==0        ) continue;
-	if (plrNO_M1  and m==1        ) continue;
-	if (plrEVEN_M and (m/2)*2 != m) continue;
-
-	cuFP_t pp_c = 0.0;
-	cuFP_t dp_c = 0.0;
-	cuFP_t pp_s = 0.0;
-	cuFP_t dp_s = 0.0;
-	
-	int indxC = Jmn(m, 'c', 0, nmax);
-	int indxS = Jmn(m, 's', 0, nmax);
-
-	for (size_t n=0; n<nmax; n++) {
-	
-	  int k = 1 + m*nmax + n;
-	
-#ifdef BOUNDS_CHECK
-	  if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-#endif	
+	       );
+	    
+	    fr += fac1 *
+	      (
 #if cuREAL == 4
-	  cuFP_t um1 = tex1D<float>(tex._v[k], ind-1);
-	  cuFP_t u00 = tex1D<float>(tex._v[k], ind  );
-	  cuFP_t up1 = tex1D<float>(tex._v[k], ind+1);
-	  cuFP_t u0  = u00;
-	  cuFP_t u1  = up1;
-	  if (in0==0) {
-	    u1 = u0;
-	    u0 = tex1D<float>(tex._v[k], 0);
-	  }
+	       tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
+	       tex3D<float>(tex._v[k], indX+1, indY  , 1) * c10 +
+	       tex3D<float>(tex._v[k], indX,   indY+1, 1) * c01 +
+	       tex3D<float>(tex._v[k], indX+1, indY+1, 1) * c11 
 #else
-	  cuFP_t um1 = int2_as_double(tex1D<int2>(tex._v[k], ind-1));
-	  cuFP_t u00 = int2_as_double(tex1D<int2>(tex._v[k], ind  ));
-	  cuFP_t up1 = int2_as_double(tex1D<int2>(tex._v[k], ind+1));
-	  cuFP_t u0  = u00;
-	  cuFP_t u1  = up1;
-	  if (in0==0) {
-	    u1 = u0;
-	    u0 = int2_as_double(tex1D<int2>(tex._v[k], 0));
-	  }
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 1)) * c00 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 1)) * c10 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 1)) * c01 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 1)) * c11 
 #endif
-	  cuFP_t v = (a0*u0 + b0*u1)*(a0*p0 + b0*p1);
-	    
-	  cuFP_t dv =
-	    dx * ( (b1 - 0.5)*um1*pm1 - 2.0*b1*u00*p00 + (b1 + 0.5)*up1*pp1 );
-	    
-#ifdef NAN_CHECK
-	  if (std::isnan(v))
-	    printf("v tab nan: (%d, %d): a=%f b=%f p0=%f p1=%f u0=%f u1=%f\n", l, m, a1, b1, p00, pp1, u00, up1);
-
-	  if (std::isnan(dv))
-	    printf("dv tab nan: (%d, %d): a=%f b=%f pn=%f p0=%f pp=%f un=%f u0=%f up=%f\n", l, m, a1, b1, pm1, p00, pp1, um1, u00, up1);
+	       );
+      
+	    fz += fac1 *
+	      (
+#if cuREAL == 4
+	       tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
+	       tex3D<float>(tex._v[k], indX+1, indY  , 2) * c10 +
+	       tex3D<float>(tex._v[k], indX,   indY+1, 2) * c01 +
+	       tex3D<float>(tex._v[k], indX+1, indY+1, 2) * c11 
+#else
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 2)) * c00 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 2)) * c10 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 2)) * c01 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 2)) * c11 
 #endif
-	  
-	  pp_c -=  v * coef._v[indxC+n];
-	  dp_c -= dv * coef._v[indxC+n];
-	  if (m>0) {
-	    pp_s -=  v * coef._v[indxS+n];
-	    dp_s -= dv * coef._v[indxS+n];
-	  }
-	  
-	} // END: n loop
+	       );
+	    
+	    fp += fac2 * mm *
+	      (
+#if cuREAL == 4
+	       tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
+	       tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
+	       tex3D<float>(tex._v[k], indX,   indY+1, 0) * c01 +
+	       tex3D<float>(tex._v[k], indX+1, indY+1, 0) * c11 
+#else
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 0)) * c00 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 0)) * c10 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 0)) * c01 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 0)) * c11 
+#endif
+	       );
+      
+      
+	    if (mm) {
 	
-#ifdef NAN_CHECK
-	if (std::isnan(pp_c)) printf("pp_c eval nan: m=%d: r=%f r0=%f\n", m, r, r0);
-	  if (std::isnan(dp_c)) printf("dp_c eval nan: m=%d: r=%f r0=%f\n", m, r, r0);
-	  if (std::isnan(pp_s)) printf("pp_s eval nan: m=%d: r=%f r0=%f\n", m, r, r0);
-	  if (std::isnan(dp_s)) printf("dp_s eval nan: m=%d: r=%f r0=%f\n", m, r, r0);
+	      cuFP_t fac0 =  coef._v[IImn(mm, 's', n, nmax)];
+	      cuFP_t fac1 =  fac0 * ssin;
+	      cuFP_t fac2 = -fac0 * ccos;
+
+	      pp += fac1 *
+		(
+#if cuREAL == 4
+		 tex3D<float>(tex._v[k], indX,   indY  , 3) * c00 +
+		 tex3D<float>(tex._v[k], indX+1, indY  , 3) * c10 +
+		 tex3D<float>(tex._v[k], indX,   indY+1, 3) * c01 +
+		 tex3D<float>(tex._v[k], indX+1, indY+1, 3) * c11
+#else		 
+ 		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 3)) * c00 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 3)) * c10 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 3)) * c01 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 3)) * c11 
 #endif
+		 );
+	      
+	      fr += fac1 *
+		(
+#if cuREAL == 4
+		 tex3D<float>(tex._v[k], indX,   indY  , 4) * c00 +
+		 tex3D<float>(tex._v[k], indX+1, indY  , 4) * c10 +
+		 tex3D<float>(tex._v[k], indX,   indY+1, 4) * c01 +
+		 tex3D<float>(tex._v[k], indX+1, indY+1, 4) * c11 
+#else
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 4)) * c00 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 4)) * c10 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 4)) * c01 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 4)) * c11 
+#endif
+		 );
+	      
+	      fz += fac1 *
+		(
+#if cuREAL == 4
+		 tex3D<float>(tex._v[k], indX,   indY  , 5) * c00 +
+		 tex3D<float>(tex._v[k], indX+1, indY  , 5) * c10 +
+		 tex3D<float>(tex._v[k], indX,   indY+1, 5) * c01 +
+		 tex3D<float>(tex._v[k], indX+1, indY+1, 5) * c11 
+#else
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 5)) * c00 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 5)) * c10 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 5)) * c01 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 5)) * c11 
+#endif
+		 );
+	      
+	      fp += fac2 * mm *
+		(
+#if cuREAL == 4
+		 tex3D<float>(tex._v[k], indX,   indY  , 3) * c00 +
+		 tex3D<float>(tex._v[k], indX+1, indY  , 3) * c10 +
+		 tex3D<float>(tex._v[k], indX,   indY+1, 3) * c01 +
+		 tex3D<float>(tex._v[k], indX+1, indY+1, 3) * c11 
+#else
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 3)) * c00 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 3)) * c10 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 3)) * c01 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 3)) * c11 
+#endif
+		 );
+	      
+	    }
+	  }
 	  
-	if (m==0) {
+	  // Trig recursion to squeeze avoid internal FP fct call
+	  //
+	  cuFP_t cosM = ccos;
+	  cuFP_t sinM = ssin;
 
-	  if (ioff) {
-	    pp_c = dp_c = 0.0;
-	  }
-	    
-	  potl += pp_c;
-	  potr += dp_c;
-	  potp += 0.0;
-	    
-	} else {
-
-	  if (ioff) {
-	    pp_c  = pp_s = dp_c = dp_s = 0.0;
-	  }
-
-	  potl +=   (pp_c*ccos + pp_s*ssin) * M_SQRT2;
-	  potr +=   (dp_c*ccos + dp_s*ssin) * M_SQRT2;
-	  potp += - (pp_c*ssin + pp_s*ccos) * M_SQRT2 * m;
+	  ccos = cosM * cos1 - sinM * sin1;
+	  ssin = sinM * cos1 + cosM * sin1;
 	}
 
-	// Trig recursion to squeeze avoid internal FP fct call
-	//
-	cuFP_t cosM = ccos;
-	cuFP_t sinM = ssin;
-
-	ccos = cosM * cosp - sinM * sinp;
-	ssin = sinM * cosp + cosM * sinp;
-	
-      } // END: m loop
-
-
-      // Rescale
-      potr /= plrScale*plrScale;
-      potl /= plrScale;
-      potp /= plrScale;
-
-      p.acc[0] += -potr*xx/r;
-      p.acc[1] += -potr*yy/r;
-      if (RR > FSMALL) {
-	p.acc[0] +=  potp*yy/RR;
-	p.acc[1] += -potp*xx/RR;
+	acc[0] += ( fr*xx/R - fp*yy/R2 ) * frac;
+	acc[1] += ( fr*yy/R + fp*xx/R2 ) * frac;
+	acc[2] += fz * frac;
+	pa     += pp * frac;
       }
+
+      if (ratio > ratmin) {
+
+	cuFP_t r3 = R2 + zz*zz;
+	pp = -plrmass/sqrt(r3);	// -M/r
+	fr = pp/r3;		// -M/r^3
+
+	acc[0] += xx*fr * cfrac;
+	acc[1] += yy*fr * cfrac;
+	acc[2] += zz*fr * cfrac;
+	pa     += pp    * cfrac;
+      }
+
+      if (plrOrient) {
+	for (int j=0; j<3; j++) {
+	  for (int k=0; k<3; k++) p.acc[j] += plrOrig[3*j+k]*acc[k];
+	}
+      } else {
+	for (int j=0; j<3; j++) p.acc[j] += acc[j];
+      }
+
       if (external)
-	p.potext += potl;
+	p.potext += pa;
       else
-	p.pot    += potl;
-
-#ifdef NAN_CHECK
-      // Sanity check
-      bool bad = false;
-      for (int k=0; k<3; k++) {
-	if (std::isnan(p.acc[k])) bad = true;
-      }
-
-      if (bad)  {
-	printf("Force nan value: [%d] x=%f X=%f Y=%f Z=%f r=%f R=%f P=%f dP/dr=%f dP/dx=%f dP/dp=%f\n", p.indx, x, xx, yy, zz, r, RR, potl, potr, pott, potp);
-	if (a<0.0 or a>1.0)  {
-	  printf("Force nan value, no ioff: [%d] x=%f xi=%f dxi=%f a=%f i=%d\n",
-		 p.indx, x, xi, dx, a, ind);
-	}
-      }
-#endif
+	p.pot    += pa;
 
     } // Particle index block
 
   } // END: stride loop
 
 }
+
 
 
 template<typename T>
@@ -602,24 +820,25 @@ public:
 
 
 void PolarBasis::cudaStorage::resize_coefs
-(int nmax, int Mmax, int N, int gridSize, int stride,
+(int norder, int mmax, int N, int gridSize, int stride,
  int sampT, bool pcavar, bool pcaeof, bool subsamp)
 {
-  // Create space for coefficient reduction to prevent continued
-  // dynamic allocation
+  // Reserve space for coefficient reduction
   //
-  if (dN_coef.capacity() < 2*nmax*N)
-    dN_coef.reserve(2*nmax*N);
+  if (dN_coef.capacity() < 2*norder*N)
+    dN_coef.reserve(2*norder*N);
   
-  if (dc_coef.capacity() < 2*nmax*gridSize)
-    dc_coef.reserve(2*nmax*gridSize);
+  if (dc_coef.capacity() < 2*norder*gridSize)
+    dc_coef.reserve(2*norder*gridSize);
   
-  if (r_d.capacity() < N) r_d.reserve(N);
-  if (m_d.capacity() < N) m_d.reserve(N);
-  if (u_d.capacity() < N) u_d.reserve(N);
-  if (a_d.capacity() < N) a_d.reserve(N);
-  if (p_d.capacity() < N) p_d.reserve(N);
-  if (i_d.capacity() < N) i_d.reserve(N);
+  if (m_d .capacity() < N) m_d .reserve(N);
+  if (u_d .capacity() < N) u_d .reserve(N);
+  if (X_d .capacity() < N) X_d .reserve(N);
+  if (Y_d .capacity() < N) Y_d .reserve(N);
+  if (p_d .capacity() < N) p_d .reserve(N);
+  if (iX_d.capacity() < N) iX_d.reserve(N);
+  if (iY_d.capacity() < N) iY_d.reserve(N);
+  
   
   // Fixed size arrays
   //
@@ -627,43 +846,41 @@ void PolarBasis::cudaStorage::resize_coefs
     T_covr.resize(sampT);
     for (int T=0; T<sampT; T++) {
       if (subsamp)
-	T_covr[T].resize((2*Mmax+1)*nmax);
+	T_covr[T].resize((mmax+1)*norder);
       else
-	T_covr[T].resize((2*Mmax+1)*(nmax*(nmax+3)/2));
+	T_covr[T].resize((mmax+1)*norder*(norder+3)/2);
     }
   }
 
   if (pcaeof or pcavar) {
     if (subsamp) {
-      dN_tvar.resize(nmax*N);
-      dc_tvar.resize(nmax*gridSize);
-      dw_tvar.resize(nmax);
+      dN_tvar.resize(norder*N);
+      dc_tvar.resize(norder*gridSize);
+      dw_tvar.resize(norder);
     } else {
-      int csz = nmax*(nmax+3)/2;
-      dW_tvar.resize(nmax*gridSize*BLOCK_SIZE*stride); // Volatile storage
+      int csz = norder*(norder+3)/2;
       dN_tvar.resize(csz*N);
+      dW_tvar.resize(norder*gridSize*BLOCK_SIZE*stride);
       dc_tvar.resize(csz*gridSize);
       dw_tvar.resize(csz);
     }
   }
-
-  // Set needed space for current step
+  
+  // Set space for current step
   //
-  dN_coef.resize(2*nmax*N);
-  dc_coef.resize(2*nmax*gridSize);
+  dN_coef.resize(2*norder*N);
+  dc_coef.resize(2*norder*gridSize);
+  dw_coef.resize(2*norder);	// This will stay fixed
 
-  // This will stay fixed for the entire run
+  // Space for coordinate arrays on the current step
   //
-  dw_coef.resize(2*nmax);
-
-  // Space for coordinates
-  //
-  r_d.resize(N);
-  m_d.resize(N);
-  u_d.resize(N);
-  a_d.resize(N);
-  p_d.resize(N);
-  i_d.resize(N);
+  m_d .resize(N);
+  u_d .resize(N);
+  X_d .resize(N);
+  Y_d .resize(N);
+  p_d .resize(N);
+  iX_d.resize(N);
+  iY_d.resize(N);
 }
 
 void PolarBasis::cuda_zero_coefs()
@@ -672,7 +889,7 @@ void PolarBasis::cuda_zero_coefs()
   
   // Resize output array
   //
-  cuS.df_coef.resize((2*Mmax+1)*nmax);
+  cuS.df_coef.resize((Mmax+1)*2*nmax);
     
   // Zero output array
   //
@@ -682,51 +899,47 @@ void PolarBasis::cuda_zero_coefs()
   // Resize and zero PCA arrays
   //
   if (pcavar) {
+				// (Re)initialize?
     if (cuS.T_covr.size() != sampT) {
       cuS.T_covr.resize(sampT);
       for (int T=0; T<sampT; T++) {
 	if (subsamp)
-	  cuS.T_covr[T].resize((2*Mmax+1)*nmax);
+	  cuS.T_covr[T].resize((Mmax+1)*nmax);
 	else
-	  cuS.T_covr[T].resize((2*Mmax+1)*(nmax*(nmax+3)/2));
+	  cuS.T_covr[T].resize((Mmax+1)*nmax*(nmax+3)/2);
       }
-      host_massT.resize(sampT);
     }
     
     for (int T=0; T<sampT; T++) {
       thrust::fill(thrust::cuda::par.on(cr->stream),
 		   cuS.T_covr[T].begin(), cuS.T_covr[T].end(), 0.0);
     }
-    
-    thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
   }
 
   if (pcaeof) {
-    cuS.df_tvar.resize((2*Mmax+1)*nmax*(nmax+1)/2);
+    
+    cuS.df_tvar.resize((Mmax+1)*nmax*(nmax+1)/2);
     
     thrust::fill(thrust::cuda::par.on(cr->stream),
 		 cuS.df_tvar.begin(), cuS.df_tvar.end(), 0.0);
-
-    if (not pcavar) host_mass_tot = 0.0;
   }
 }
-
-void PolarBasis::cudaStorage::resize_acc(int Lmax, int Nthread)
-{
-}
-
 
 void PolarBasis::determine_coefficients_cuda(bool compute)
 {
   // Only do this once but copying mapping coefficients and textures
   // must be done every time
   //
+  if (initialize_cuda_plr) {
+    initialize_cuda();
+    initialize_cuda_plr = false;
+  }
 
-  // Copy coordinate mapping constants to device
+  // Copy coordinate mapping
   //
   initialize_mapping_constants();
 
-  // Copy texture objects to device
+  // Copy texture memory
   //
   t_d = tex;
 
@@ -736,32 +949,62 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
   cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
-  auto cr = component->cuStream;
-
   // This will stay fixed for the entire run
   //
+				// Sine and cosine components
   host_coefs.resize((2*Mmax+1)*nmax);
+				// Variance components
+  /*
+  host_covar.resize((Mmax+1)*nmax*nmax);
 
-  if (pcavar) {
+  if (pcavar) {			// Set sample size
+    if (defSampT) sampT = defSampT;
+    else          sampT = floor(sqrt(component->CurTotal()));
+    host_coefsT.resize(sampT);	// Modulus components
+    host_covarT.resize(sampT);	// Upper diagonal
+    for (int T=0; T<sampT; T++) {
+      host_coefsT[T].resize((Mmax+1)*nmax);
+      host_covarT[T].resize((Mmax+1)*nmax*nmax);
+    }
     host_massT.resize(sampT);
   }
-
-  // Center assignment to symbol data
+  */
+  
+  // Set component center and orientation
   //
   std::vector<cuFP_t> ctr;
-  for (auto v : component->getCenter(Component::Local | Component::Centered))
-    ctr.push_back(v);
+  for (auto v : component->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
 
   cuda_safe_call(cudaMemcpyToSymbol(plrCen, &ctr[0], sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrCen");
+
+  bool orient = (component->EJ & Orient::AXIS) && !component->EJdryrun;
+
+  int tmp = orient ? 1 : 0;
+  cuda_safe_call(cudaMemcpyToSymbol(plrOrient, &tmp, sizeof(int),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cylOrient");
+
+  if (orient) {
+    std::vector<cuFP_t> trans(9);
+    for (int i=0; i<3; i++) 
+      for (int j=0; j<3; j++) trans[i*3+j] = component->orient->transformBody()(i, j);
   
+    cuda_safe_call(cudaMemcpyToSymbol(plrBody, &trans[0], sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		   __FILE__, __LINE__, "Error copying plrBody");
+  }
+
+  // Get the stream for this component
+  //
+  auto cs = component->cuStream;
+
   // VERBOSE diagnostic output on first call
   //
   static bool firstime = true;
-  
+
   if (firstime and myid==0 and VERBOSE>4) {
-    testConstantsPlr<<<1, 1, 0, cr->stream>>>();
+    testConstantsPlr<<<1, 1, 0, cs->stream>>>();
     cudaDeviceSynchronize();
     cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);
     firstime = false;
@@ -771,20 +1014,34 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
   //
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
-  if (compute) {
-    if (pcavar)
-      thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
-    else
-      host_mass_tot = 0.0;
+  if (pcavar) {
+    for (int T=0; T<sampT; T++) {
+      thrust::fill(host_coefsT[T].begin(), host_coefsT[T].end(), 0.0);
+      thrust::fill(host_covarT[T].begin(), host_covarT[T].end(), 0.0);
+    }
+    thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
   }
 
   // Zero out coefficient storage
   //
   cuda_zero_coefs();
 
+  // Maximum radius on grid; get actual value from PolarBasis
+  //
+  cuFP_t rmax = getRtable();
   // Get sorted particle range for mlevel
   //
   PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
+
+  if (false) {
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) std::cout << "[" << myid << "] mlevel=" << mlevel
+			     << " coef check (lo, hi) = (" << lohi.first << ", "
+			     << lohi.second << ")" << std::endl
+			     << std::string(60, '-') << std::endl;
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+  }
   
   unsigned int Ntotal = lohi.second - lohi.first;
   unsigned int Npacks = Ntotal/component->bunchSize + 1;
@@ -806,78 +1063,84 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
     unsigned int N         = cur.second - cur.first;
     unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
     unsigned int gridSize  = N/BLOCK_SIZE/stride;
-    
+  
     if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
 #ifdef VERBOSE_CTR
-    static int debug_max_count = 10;
-    static int debug_cur_count = 0;
+    static unsigned debug_max_count = 100;
+    static unsigned debug_cur_count = 0;
     if (debug_cur_count++ < debug_max_count) {
       std::cout << std::endl
+		<< "** -------------------------" << std::endl
 		<< "** cudaPolarBasis coefficients" << std::endl
-		<< "** N      = " << N          << std::endl
-		<< "** Npacks = " << Npacks     << std::endl
-		<< "** Stride = " << stride     << std::endl
-		<< "** Block  = " << BLOCK_SIZE << std::endl
-		<< "** Grid   = " << gridSize   << std::endl
-		<< "** Xcen   = " << ctr[0]     << std::endl
-		<< "** Ycen   = " << ctr[1]     << std::endl
-		<< "** Zcen   = " << ctr[2]     << std::endl
+		<< "** -------------------------" << std::endl
+		<< "** N      = " << N            << std::endl
+		<< "** Npacks = " << Npacks       << std::endl
+		<< "** I low  = " << cur.first    << std::endl
+		<< "** I high = " << cur.second   << std::endl
+		<< "** Stride = " << stride       << std::endl
+		<< "** Block  = " << BLOCK_SIZE   << std::endl
+		<< "** Grid   = " << gridSize     << std::endl
+		<< "** Xcen   = " << ctr[0]       << std::endl
+		<< "** Ycen   = " << ctr[1]       << std::endl
+		<< "** Zcen   = " << ctr[2]       << std::endl
+		<< "** Level  = " << mlevel       << std::endl
+		<< "** lo     = " << lohi.first   << std::endl
+		<< "** hi     = " << lohi.second  << std::endl
 		<< "**" << std::endl;
-    }
+  }
 #endif
-    
-    // Resize storage as needed
+  
+    // Adjust cached storage, if necessary
     //
     cuS.resize_coefs(nmax, Mmax, N, gridSize, stride,
 		     sampT, pcavar, pcaeof, subsamp);
-      
+    
     // Shared memory size for the reduction
     //
     int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
     
     // Compute the coordinate transformation
     // 
-    coordKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
-      (toKernel(cr->cuda_particles), toKernel(cr->indx1),
-       toKernel(cuS.m_d), toKernel(cuS.a_d), toKernel(cuS.p_d),
-       toKernel(cuS.i_d),
-       Mmax, stride, cur, rmax);
-    
+    coordKernelPlr<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+      (toKernel(cs->cuda_particles), toKernel(cs->indx1),
+       toKernel(cuS.m_d), toKernel(cuS.p_d),
+       toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d),
+       toKernel(cuS.iY_d), stride, cur, rmax);
+      
     // Compute the coefficient contribution for each order
     //
     int psize = nmax;
     int osize = nmax*2;
-    int vsize = nmax*(nmax+3)/2;
+    int vsize = nmax*(nmax+1)/2 + nmax;
     auto beg  = cuS.df_coef.begin();
     auto begV = cuS.df_tvar.begin();
+    std::vector<thrust::device_vector<cuFP_t>::iterator> bg, bh;
 
-    std::vector<thrust::device_vector<cuFP_t>::iterator> bm;
     if (pcavar) {
       for (int T=0; T<sampT; T++) {
-	bm.push_back(cuS.T_covr[T].begin());
+	bh.push_back(cuS.T_covr[T].begin());
       }
     }
+
     thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
 
     for (int m=0; m<=Mmax; m++) {
-      // Compute the contribution to the coefficients from each
-      // particle
-      //
-      coefKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
+
+      coefKernelPlr<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	(toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
-	 toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d),
-	 toKernel(cuS.a_d), toKernel(cuS.p_d),
-	 toKernel(cuS.i_d), stride, m, Mmax, nmax, cur, compute);
-	
-      // Begin the reduction per grid block [perhaps this should use
-      // a stride?]
+	 toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
+	 toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
+	 stride, m, nmax, cur, compute);
+      
+      // Begin the reduction by blocks [perhaps this should use a
+      // stride?]
       //
       unsigned int gridSize1 = N/BLOCK_SIZE;
       if (N > gridSize1*BLOCK_SIZE) gridSize1++;
 
       reduceSum<cuFP_t, BLOCK_SIZE>
-	<<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+	<<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
       
       // Finish the reduction for this order in parallel
@@ -885,39 +1148,48 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
       thrust::counting_iterator<int> index_begin(0);
       thrust::counting_iterator<int> index_end(gridSize1*osize);
 
+      // The key_functor indexes the sum reduced series by array index
+      //
       thrust::reduce_by_key
 	(
-	 thrust::cuda::par.on(cr->stream),
+	 thrust::cuda::par.on(cs->stream),
 	 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	 );
 
-      thrust::transform(thrust::cuda::par.on(cr->stream),
+      thrust::transform(thrust::cuda::par.on(cs->stream),
 			cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			beg, beg, thrust::plus<cuFP_t>());
-	
+
       thrust::advance(beg, osize);
-	
+
       if (compute) {
-	  
+
+	// Reuse dN_coef and use dN_tvar to create sampT partitions
+	//
 	if (pcavar) {
-	    
+
 	  int sN = N/sampT;
 	  int nT = sampT;
-	    
+
 	  if (sN==0) {	// Fail-safe underrun
 	    sN = 1;
 	    nT = N;
-	    }
-	    
+	  }
+
 	  for (int T=0; T<nT; T++) {
 	    int k = sN*T;	// Starting position
-	    int s = sN;
+	    int s = sN;		// Size of bunch
+				// Last bunch
 	    if (T==sampT-1) s = N - k;
 	    
-	    // Mass accumulation
+	    // Begin the reduction per grid block; we need gridsize1
+	    // blocks of the current block size
 	    //
+	    unsigned int gridSize1 = s/BLOCK_SIZE;
+	    if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+	    
 	    if (m==0) {
 	      auto mbeg = cuS.u_d.begin();
 	      auto mend = mbeg;
@@ -927,376 +1199,231 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
 	      
 	      host_massT[T] += thrust::reduce(mbeg, mend);
 	    }
-	    
-	    // Begin the reduction per grid block
-	    //
-	    /* A reminder to consider implementing strides in reduceSum */
-	    /*
-	      unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-	      unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
-	      
-	      if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
-	      */
-	    
-	    unsigned int gridSize1 = s/BLOCK_SIZE;
-	    if (s > gridSize1*BLOCK_SIZE) gridSize1++;
-	    
-	    // Sum reduce into gridsize1 blocks taking advantage of
-	    // GPU warp structure
-	    //
+
 	    if (subsamp) {
-	      
-	      // Mean computation only
+
+	      // Variance
 	      //
 	      reduceSumS<cuFP_t, BLOCK_SIZE>
-		<<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+		<<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 		(toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), psize, N, k, k+s);
-		
+      
 	      // Finish the reduction for this order in parallel
 	      //
-	      thrust::counting_iterator<int> index_begin(0);
-	      thrust::counting_iterator<int> index_end(gridSize1*psize);
+	      thrust::counting_iterator<int> indx2_begin(0);
+	      thrust::counting_iterator<int> indx2_end(gridSize1*psize);
 	      
+	      // The key_functor indexes the sum reduced series by array index
+	      //
 	      thrust::reduce_by_key
 		(
-		 thrust::cuda::par.on(cr->stream),
-		 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
-		 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+		 thrust::cuda::par.on(cs->stream),
+		 thrust::make_transform_iterator(indx2_begin, key_functor(gridSize1)),
+		 thrust::make_transform_iterator(indx2_end,   key_functor(gridSize1)),
 		 cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
 		 );
-
-	      
-	      thrust::transform(thrust::cuda::par.on(cr->stream),
+	    
+	      thrust::transform(thrust::cuda::par.on(cs->stream),
 				cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
-				bm[T], bm[T], thrust::plus<cuFP_t>());
-	      
-	      thrust::advance(bm[T], psize);
+				bh[T], bh[T], thrust::plus<cuFP_t>());
+	    
+	      thrust::advance(bh[T], psize);
 	      
 	    } else {
-	      
-	      // Variance and mean computation
+
+	      // Variance
 	      //
 	      reduceSumS<cuFP_t, BLOCK_SIZE>
-		<<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+		<<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 		(toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N, k, k+s);
-	      
+      
 	      // Finish the reduction for this order in parallel
 	      //
 	      thrust::counting_iterator<int> indx2_begin(0);
 	      thrust::counting_iterator<int> indx2_end(gridSize1*vsize);
 	      
+	      // The key_functor indexes the sum reduced series by array index
+	      //
 	      thrust::reduce_by_key
 		(
-		 thrust::cuda::par.on(cr->stream),
+		 thrust::cuda::par.on(cs->stream),
 		 thrust::make_transform_iterator(indx2_begin, key_functor(gridSize1)),
 		 thrust::make_transform_iterator(indx2_end,   key_functor(gridSize1)),
 		 cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
 		 );
-		
-	      thrust::transform(thrust::cuda::par.on(cr->stream),
+	    
+	      thrust::transform(thrust::cuda::par.on(cs->stream),
 				cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
-				bm[T], bm[T], thrust::plus<cuFP_t>());;
-	      
-	      thrust::advance(bm[T], vsize);
+				bh[T], bh[T], thrust::plus<cuFP_t>());
+	    
+	      thrust::advance(bh[T], vsize);
 	    }
 	  }
 	}
-	// END: pcavar
-	  
-	// Reduce EOF variance
+	// END: pcavar block
+
+	// Reduce EOF variance using dN_tvar (which may be reused from
+	// pcavar computation)
 	//
 	if (pcaeof) {
 	  
 	  reduceSum<cuFP_t, BLOCK_SIZE>
-	    <<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+	    <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	    (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N);
-	  
+      
 	  // Finish the reduction for this order in parallel
 	  //
 	  thrust::counting_iterator<int> index_begin(0);
 	  thrust::counting_iterator<int> index_end(gridSize1*vsize);
 	  
+	  // The key_functor indexes the sum reduced series by array
+	  // index
+	  //
 	  thrust::reduce_by_key
 	    (
-	     thrust::cuda::par.on(cr->stream),
+	     thrust::cuda::par.on(cs->stream),
 	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-	     cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
+	       cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
 	     );
-	    
-	  thrust::transform(thrust::cuda::par.on(cr->stream),
+
+	  thrust::transform(thrust::cuda::par.on(cs->stream),
 			    cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
 			    begV, begV, thrust::plus<cuFP_t>());
-	  
+
 	  thrust::advance(begV, vsize);
-	  
-	  if (not pcavar and m==0) {
-	    auto mbeg = cuS.u_d.begin();
-	    auto mend = cuS.u_d.end();
-	    host_mass_tot += thrust::reduce(mbeg, mend);
-	  }
-	    
-	} // END: pcaeof
-      } // END: compute
-    } // END: m-loop
+	}
+      }
+    }
 
     // Compute number and total mass of particles used in coefficient
     // determination
     //
-    thrust::sort(thrust::cuda::par.on(cr->stream), cuS.m_d.begin(), cuS.m_d.end());
+    thrust::sort(thrust::cuda::par.on(cs->stream),
+		 cuS.m_d.begin(), cuS.m_d.end());
+    
+    auto exec  = thrust::cuda::par.on(cs->stream);
+    auto first = cuS.u_d.begin();
+    auto last  = cuS.u_d.end();
 
-    // Call the kernel on a single thread
-    // 
+				// Sort used masses
+				//
+    thrust::sort(exec, first, last);
+
+				// Iterator will point to first
+				// non-zero element
+				//
     thrust::device_vector<cuFP_t>::iterator it;
 
     // Workaround for: https://github.com/NVIDIA/thrust/pull/1104
     //
     if (thrust_binary_search_workaround) {
-      cudaStreamSynchronize(cr->stream);
+      cudaStreamSynchronize(cs->stream);
       cuda_check_last_error_mpi("cudaStreamSynchronize", __FILE__, __LINE__, myid);
-      it = thrust::lower_bound(cuS.m_d.begin(), cuS.m_d.end(), 0.0);
+      it = thrust::upper_bound(first, last, 0.0);
     } else {
-      it = thrust::lower_bound(thrust::cuda::par.on(cr->stream),
-			       cuS.m_d.begin(), cuS.m_d.end(), 0.0);
+      it = thrust::upper_bound(exec, first, last, 0.0);
     }
-    
-    use[0] += thrust::distance(it, cuS.m_d.end());
+      
+				// Number of non-zero elements
+				//
+    used += thrust::distance(it, last);
+
+				// Sum of mass
+				// 
+    // cylmass0[0] += thrust::reduce(exec, it, last);
   }
 
-  // Copy back coefficient data from device and load the host
+  if (Ntotal == 0) {
+    return;
+  }
+
+  // Accumulate the coefficients from the device to the host
   //
   thrust::host_vector<cuFP_t> ret = cuS.df_coef;
   int offst = 0;
   for (int m=0; m<=Mmax; m++) {
     for (size_t j=0; j<nmax; j++) {
-      host_coefs[Jmn(m, 'c', j, nmax)] += ret[2*j+offst];
-      if (m>0) host_coefs[Jmn(m, 's', j, nmax)] += ret[2*j+1+offst];
+      host_coefs[IImn(m, 'c', j, nmax)] += ret[2*j+offst];
+      if (m>0) host_coefs[IImn(m, 's', j, nmax)] += ret[2*j+1+offst];
     }
-    offst += nmax*2;
-  }
-  
-  if (Ntotal == 0) {
-    return;
-  }
-
-}
-
-void PolarBasis::determine_acceleration_cuda()
-{
-  // Only do this once but copying mapping coefficients and textures
-  // must be done every time
-  //
-
-  // Copy coordinate mapping constants to device
-  //
-  initialize_mapping_constants();
-
-  // Copy texture objects to device
-  //
-  t_d = tex;
-
-  std::cout << std::scientific;
-
-  cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
-  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
-
-  // Stream structure iterators
-  //
-  auto cr = cC->cuStream;
-
-  // Assign expansion center
-  //
-  std::vector<cuFP_t> ctr;
-  for (auto v : component->getCenter(Component::Local | Component::Centered))
-    ctr.push_back(v);
-
-  cuda_safe_call(cudaMemcpyToSymbol(plrCen, &ctr[0], sizeof(cuFP_t)*3,
-				    size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying plrCen");
-  
-  // Get particle index range for levels [mlevel, multistep]
-  //
-  PII lohi = cC->CudaGetLevelRange(mlevel, multistep);
-
-  // Compute grid
-  //
-  unsigned int N         = lohi.second - lohi.first;
-  unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-  unsigned int gridSize  = N/BLOCK_SIZE/stride;
-    
-  if (N>0) {
-
-    if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
-
-    unsigned int Nthread = gridSize*BLOCK_SIZE;
-
-#ifdef VERBOSE_CTR
-    static int debug_max_count = 10;
-    static int debug_cur_count = 0;
-    if (debug_cur_count++ < debug_max_count) {
-      std::cout << std::endl
-		<< "** cudaPolarBasis acceleration" << std::endl
-		<< "** N      = " << N          << std::endl
-		<< "** Stride = " << stride     << std::endl
-		<< "** Block  = " << BLOCK_SIZE << std::endl
-		<< "** Grid   = " << gridSize   << std::endl
-		<< "** Xcen   = " << ctr[0]     << std::endl
-		<< "** Ycen   = " << ctr[1]     << std::endl
-		<< "** Zcen   = " << ctr[2]     << std::endl
-		<< "**" << std::endl;
-    }
-#endif
-      
-    cuS.resize_acc(Lmax, Nthread);
-
-    // Shared memory size for the reduction
-    //
-    int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
-    
-    // Do the work
-    //
-    forceKernel<<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
-      (toKernel(cr->cuda_particles), toKernel(cr->indx1),
-       toKernel(dev_coefs), toKernel(t_d), 
-       stride, Mmax, nmax, lohi, rmax, use_external);
-  }
-}
-
-void PolarBasis::HtoD_coefs(const std::vector<VectorP>& expcoef)
-{
-  host_coefs.resize((2*Mmax+1)*nmax); // Should stay fixed, no reserve
-
-  // m loop
-  //
-  for (int m=0, moffset=0; m<=Mmax; m++) {
-	
-    // n loop
-    //
-    for (int n=0; n<nmax; n++) {
-      host_coefs[Jmn(m, 'c', n, nmax)] = (*expcoef[moffset])[n];
-      if (m>0) host_coefs[Jmn(m, 's', n, nmax)] = (*expcoef[moffset+1])[n];
-    }
-
-    if (m>0) moffset += 2;
-    else     moffset += 1;
-  }
-
-  dev_coefs = host_coefs;
-}
-
-
-void PolarBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
-{
-  // m loop
-  //
-  for (int m=0, moffset=0; m<=Mmax; m++) {
-	
-    // n loop
-    //
-    for (int n=0; n<nmax; n++) {
-      (*expcoef0[0][moffset])[n] = host_coefs[Jmn(m, 'c', n, nmax)];
-      if (m>0) (*expcoef0[0][moffset+1])[n] = host_coefs[Jmn(m, 's', n, nmax)];
-    }
-
-    if (m>0) moffset += 2;
-    else     moffset += 1;
+    offst += 2*nmax;
   }
 
   if (compute) {
 
+    // Variance computation
+    //
     if (pcavar) {
-      for (int T=0; T<sampT; T++) {
-	massT1[T] += host_massT[T];
-	muse1 [0] += host_massT[T];
-      }
-    } else {
-      muse1[0] += host_mass_tot;
-    }
 
-
-    if (pcavar) {
-      
-      // T loop
-      //
       for (int T=0; T<sampT; T++) {
-	
+
 	if (subsamp) {
 
 	  thrust::host_vector<cuFP_t> retV = cuS.T_covr[T];
-	  
-	  int offst = 0;
-	  int psize = nmax;
-	  
-	  // m loop
-	  //
-	  for (int m=0; m<=Mmax; m++) {
-	    
-	    // n loop
-	    //
-	    for (int n=0; n<nmax; n++) {
-	      (*expcoefT1[T][m])[n] += retV[n + offst];
-	    }
-	      
-	    offst += psize;
-	  }
-	  
-	} else {
 
-	  thrust::host_vector<cuFP_t> retM = cuS.T_covr[T];
-	
-	  int vffst = 0;
-	  int vsize = nmax*(nmax+3)/2;
+	  int offst = 0;
+
+	  for (int m=0; m<=Mmax; m++) {
+
+	    for (size_t j=0; j<nmax; j++) {
+	      host_coefsT[T][JJmn(m, j, nmax)] += retV[j + offst];
+	    }
+
+	    offst += nmax;
+	  }
+
+	}
+	// END: subsample variance
+	else {
 	  
-	  // m loop
-	  //
-	  for (int m=0, offset=0; m<=Mmax; m++) {
-	    
+	  thrust::host_vector<cuFP_t> retM = cuS.T_covr[T];
+	  int vffst = 0;
+	  for (int m=0; m<=Mmax; m++) {
+
 	    // Variance assignment
 	    //
-	    int c = 0;	// Internal index 
-	    for (int n=0; n<nmax; n++) {
-	      
-	      for (int o=n; o<nmax; o++) {
-		// Diagonal and upper diagonal
-		(*expcoefM1[T][offset+m])(n, o) += retM[c + vffst];
-		
-		// Below the diagonal
-		if (o!=n) (*expcoefM1[T][offset+m])(o, n) += retM[c + vffst];
-		c++;
-	      }
-	    }
-
-	    // Mean assignment
-	    //
-	    for (int n=0; n<nmax; n++) {
-	      (*expcoefT1[T][offset+m])[n] += retM[c + vffst];
-	      c++;
-	    }
-	    
-	    if (c != nmax*(nmax+3)/2)
-	      std::cout << "out of bounds: wrong c [h]" << std::endl;
-	    
-	    vffst += vsize;
-	  }
-	}
-      }
-
-      // EOF variance computation
-      //
-      if (pcaeof) {
-	thrust::host_vector<cuFP_t> retV = cuS.df_tvar;
-	int csz = nmax*(nmax+1)/2;
-	int Ldim = (Lmax + 1)*(Lmax + 2)/2;
-	if (retV.size() == Ldim*csz) {
-	  for (int l=0; l<Ldim; l++) {
 	    int c = 0;
 	    for (size_t j=0; j<nmax; j++) {
 	      for (size_t k=j; k<nmax; k++) {
-		(*tvar[l])(j, k) += retV[csz*l + c];
-		if (j!=k) (*tvar[l])(k, j) += retV[csz*l + c];
+		host_covarT[T][KKmn(m, j, k, nmax)] += retM[c + vffst];
+		if (k!=j)
+		  host_covarT[T][KKmn(m, k, j, nmax)] += retM[c + vffst];
 		c++;
 	      }
+	    }
+	    
+	    // Mean assignment
+	    //
+	    for (size_t j=0; j<nmax; j++) {
+	      host_coefsT[T][JJmn(m, j, nmax)] += retM[c + vffst];
+	      c++;
+	    }
+
+	    if (myid==0 and c != nmax*(nmax+3)/2)
+	      std::cout << "out of bounds: c=" << c << " != "
+			<< nmax*(nmax+3)/2 << std::endl;
+
+	    vffst += nmax*(nmax+3)/2;
+	  }
+	}
+	// END: full pop variance
+      }
+    }
+	
+    // EOF variance computation
+    //
+    if (pcaeof) {
+      thrust::host_vector<cuFP_t> retV = cuS.df_tvar;
+      int csz = nmax*(nmax+1)/2;
+      if (retV.size() == (Mmax+1)*csz) {
+	for (int m=0; m<=Mmax; m++) {
+	  int c = 0;
+	  for (size_t j=0; j<nmax; j++) {
+	    for (size_t k=j; k<nmax; k++) {
+	      set_tvar(m, j, k) += retV[csz*m + c];
+	      if (j!=k) set_tvar(m, k, j) += retV[csz*m + c];
+	      c++;
 	    }
 	  }
 	}
@@ -1304,182 +1431,176 @@ void PolarBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
     }
   }
 
-  // Set to false for production
-  //   |
-  //   v
-  if (false) coef_cuda_compare();
-}
-
-
-void PolarBasis::coef_cuda_compare()
-{
 
   // DEBUG, only useful for CUDAtest branch
   //
+  if (false) {
+    constexpr bool compareC = false;
 
-  constexpr bool compareC = true; // Compare host and device
-  constexpr bool compareB = true;  // Tabulate largest errors
+    if (compareC) {
+      std::cout << std::string(2*4+4*20, '-') << std::endl
+		<< "---- Plrindrical "      << std::endl
+		<< std::string(2*4+4*20, '-') << std::endl;
+      std::cout << "M=0 coefficients" << std::endl
+		<< std::setprecision(10);
 
-  if (fabs(host_coefs[Jmn(0, 'c', 0, nmax)])==0.0) return;
+      std::cout << std::setw(4)  << "n"
+		<< std::setw(4)  << "i"
+		<< std::setw(20) << "GPU"
+		<< std::setw(20) << "CPU"
+		<< std::setw(20) << "diff"
+		<< std::setw(20) << "rel diff"
+		<< std::endl;
+    } else {
+      std::cout << std::string(2*4+20, '-') << std::endl
+		<< "---- Plrindrical "      << std::endl
+		<< std::string(2*4+20, '-') << std::endl;
+      std::cout << "M=0 coefficients" << std::endl
+		<< std::setprecision(10);
 
-  if (compareC) {
-    std::cout << std::string(2*4+4*20, '-') << std::endl
-	      << "---- Polar T=" << tnow << " level=" << mlevel
-	      << std::endl << std::string(2*4+4*20, '-') << std::endl;
-    std::cout << "M=0 coefficients" << std::endl
-	      << std::setprecision(10);
+      std::cout << std::setw(4)  << "n"
+		<< std::setw(4)  << "i"
+		<< std::setw(20) << "GPU"
+		<< std::endl;
+    }
+
+    int i = IImn(0, 'c', 0, nmax);
+    auto cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+
+    for (size_t n=0; n<nmax; n++) {
+      int    i = IImn(0, 'c', n, nmax);
+      cuFP_t a = host_coefs[i];
+      cuFP_t b = get_coef(0, n, 'c');
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
+    }
+
+    std::cout << "M=1c coefficients" << std::endl;
+
+    i = IImn(1, 'c', 0, nmax);
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+
+    for (size_t n=0; n<nmax; n++) {
+      int    i = IImn(1, 'c', n, nmax);
+      cuFP_t a = host_coefs[i];
+      cuFP_t b = get_coef(1, n, 'c');
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
+    }
+
+    std::cout << "M=1s coefficients" << std::endl;
+
+    i = IImn(1, 's', 0, nmax);
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+
+    for (size_t n=0; n<nmax; n++) {
+      int    i = IImn(1, 's', n, nmax);
+      cuFP_t a = host_coefs[i];
+      cuFP_t b = get_coef(1, n, 's');
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
+    }
+
+    std::cout << "M=2c coefficients" << std::endl;
+
+    i = IImn(2, 'c', 0, nmax);
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+
+    for (size_t n=0; n<nmax; n++) {
+      int    i = IImn(2, 'c', n, nmax);
+      cuFP_t a = host_coefs[i];
+      cuFP_t b = get_coef(2, n, 'c');
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
+    }
     
-    std::cout << std::setw(4)  << "n"
-	      << std::setw(4)  << "i"
-	      << std::setw(20) << "GPU"
-	      << std::setw(20) << "CPU"
-	      << std::setw(20) << "diff"
-	      << std::setw(20) << "rel diff"
-	      << std::endl;
-  } else {
-    std::cout << std::string(2*4+20, '-') << std::endl
-	      << "---- Polar T=" << tnow << " level=" << mlevel
-	      << std::endl << std::string(2*4+20, '-') << std::endl;
-    std::cout << "M=0 coefficients" << std::endl
-	      << std::setprecision(10);
-    
-    std::cout << std::setw(4)  << "n"
-	      << std::setw(4)  << "i"
-	      << std::setw(20) << "GPU"
-	      << std::endl;
-  }
-  
-  int i = Jmn(0, 'c', 0, nmax);
-  auto cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+    std::cout << "M=2s coefficients" << std::endl;
 
-  for (size_t n=0; n<nmax; n++) {
-    cuFP_t a = host_coefs[i+n];
-    cuFP_t b = (*expcoef0[0][0])[n];
-    if (compareC) {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
-    } else {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::endl;
+    i = IImn(2, 's', 0, nmax);
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
+
+    for (size_t n=0; n<nmax; n++) {
+      int    i = IImn(2, 's', n, nmax);
+      cuFP_t a = host_coefs[i];
+      cuFP_t b = get_coef(2, n, 's');
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
-  }
-  
-  std::cout << "M=1c coefficients" << std::endl;
 
-  i = Jmn(1, 'c', 0, nmax);
-  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-
-  for (size_t n=0; n<nmax; n++) {
-    cuFP_t a = host_coefs[i+n];
-    cuFP_t b = (*expcoef0[0][1])[n];
-    if (compareC) {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
-    } else {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::endl;
-    }
+    std::cout << std::string(2*4+4*20, '-') << std::endl;
   }
 
-  std::cout << "M=1s coefficients" << std::endl;
-  
-  i = Jmn(1, 's', 0, nmax);
-  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-  
-  for (size_t n=0; n<nmax; n++) {
-    cuFP_t a = host_coefs[i+n];
-    cuFP_t b = (*expcoef0[0][2])[n];
-    if (compareC) {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
-    } else {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::endl;
-    }
-  }
-  
-  std::cout << "M=2c coefficients" << std::endl;
-
-  i = Jmn(2, 'c', 0, nmax);
-  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-  
-  for (size_t n=0; n<nmax; n++) {
-    cuFP_t a = host_coefs[i+n];
-    cuFP_t b = (*expcoef0[0][4])[n];
-    if (compareC) {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
-    } else {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::endl;
-    }
-  }
-      
-  std::cout << "M=1s coefficients" << std::endl;
-
-  i = Jmn(2, 's', 0, nmax);
-  cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
-  
-  for (size_t n=0; n<nmax; n++) {
-    cuFP_t a = host_coefs[i+n];
-    cuFP_t b = (*expcoef0[0][5])[n];
-    if (compareC) {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
-    } else {
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::endl;
-    }
-  }
-
-  std::cout << std::string(2*4+4*20, '-') << std::endl;
 
   //
   // TEST comparison of coefficients for debugging
   //
-  if (compareB) {
+  if (false) {
 
     struct Element
     {
       double d;
       double f;
       
-      int  l;
       int  m;
       int  n;
       
@@ -1489,77 +1610,75 @@ void PolarBasis::coef_cuda_compare()
 
     std::multimap<double, Element> compare;
 
-    std::ofstream out("test_cyl2d.dat");
+    std::ofstream out("test_cyl.dat");
 
-    //		m loop
-    for (int m=0, moffset=0; m<=Mmax; m++) {
+    // m loop
+    for (int m=0; m<=Mmax; m++) {
 	
       if (m==0) {
 	for (int n=0; n<nmax; n++) {
 	  elem.m = m;
 	  elem.n = n;
 	  elem.cs = 'c';
-	  elem.d = (*expcoef0[0][moffset])[n];
-	  elem.f = host_coefs[Jmn(m, 'c', n, nmax)];
-	    
+	  elem.d = get_coef(m, n, 'c');
+	  elem.f = host_coefs[IImn(m, 'c', n, nmax)];
+	  
 	  double test = fabs(elem.d - elem.f);
 	  if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
-	    
-	  compare.insert(std::make_pair(test, elem));
+	  
+	  compare.insert(std::make_pair(test, elem));;
 	    
 	  out << std::setw( 5) << m
 	      << std::setw( 5) << n
 	      << std::setw( 5) << 'c'
-	      << std::setw( 5) << Jmn(m, 'c', n, nmax)
+	      << std::setw( 5) << IImn(m, 'c', n, nmax)
 	      << std::setw(14) << elem.d
 	      << std::setw(14) << elem.f
 	      << std::endl;
 	}
-	  
-	moffset++;
-      }
-      else {
+
+      } else {
 	for (int n=0; n<nmax; n++) {
 	  elem.m = m;
 	  elem.n = n;
 	  elem.cs = 'c';
-	  elem.d = (*expcoef0[0][moffset])[n];
-	  elem.f = host_coefs[Jmn(m, 'c', n, nmax)];
+	  elem.d = get_coef(m, n, 'c');
+	  elem.f = host_coefs[IImn(m, 'c', n, nmax)];
 
 	  out << std::setw( 5) << m
 	      << std::setw( 5) << n
 	      << std::setw( 5) << 'c'
-	      << std::setw( 5) << Jmn(m, 'c', n, nmax)
+	      << std::setw( 5) << IImn(m, 'c', n, nmax)
 	      << std::setw(14) << elem.d
 	      << std::setw(14) << elem.f
 	      << std::endl;
-
+	  
 	  double test = fabs(elem.d - elem.f);
 	  if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
 
-	  compare.insert(std::make_pair(test, elem));
+	  compare.insert(std::make_pair(test, elem));;
 	}
+
 	for (int n=0; n<nmax; n++) {
 	  elem.m = m;
 	  elem.n = n;
 	  elem.cs = 's';
-	  elem.d = (*expcoef0[0][moffset+1])[n];
-	  elem.f = host_coefs[Jmn(m, 's', n, nmax)];
-	  
+	  elem.d = get_coef(m, n, 's');
+	  elem.f = host_coefs[IImn(m, 's', n, nmax)];
+
 	  out << std::setw( 5) << m
 	      << std::setw( 5) << n
 	      << std::setw( 5) << 's'
-	      << std::setw( 5) << Jmn(m, 's', n, nmax)
+	      << std::setw( 5) << IImn(m, 's', n-1, nmax)
 	      << std::setw(14) << elem.d
 	      << std::setw(14) << elem.f
 	      << std::endl;
-	    
+	  
 	  double test = fabs(elem.d - elem.f);
 	  if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
 	  
-	  compare.insert(std::make_pair(test, elem));
+	  compare.insert(std::make_pair(test, elem));;
 	}
-	moffset+=2;
       }
     }
     
@@ -1568,10 +1687,9 @@ void PolarBasis::coef_cuda_compare()
     std::advance(midl, compare.size()/2);
     std::map<double, Element>::reverse_iterator last = compare.rbegin();
     
-    std::cout << std::string(4*2 + 3*20 + 22, '-') << std::endl
-	      << "---- 2d cylindrical coefficients T=" << tnow
-	      << " level=" << mlevel << std::endl
-	      << std::string(4*2 + 3*20 + 22, '-') << std::endl;
+    std::cout << std::string(3*2 + 3*20 + 20, '-') << std::endl
+	      << "---- PolarBasis coefficients" << std::endl
+	      << std::string(3*2 + 3*20 + 20, '-') << std::endl;
 
     std::cout << "Best case: ["
 	      << std::setw( 2) << best->second.m << ", "
@@ -1600,8 +1718,188 @@ void PolarBasis::coef_cuda_compare()
 	      << std::setw(20) << fabs(last->second.d - last->second.f)
 	      << std::endl;
   }
+
 }
 
+
+void PolarBasis::determine_acceleration_cuda()
+{
+  // Only do this once but copying mapping coefficients and textures
+  // must be done every time
+  //
+  if (initialize_cuda_plr) {
+    initialize_cuda();
+    initialize_cuda_plr = false;
+  }
+
+  // Copy coordinate mapping
+  //
+  initialize_mapping_constants();
+
+  // Copy texture memory
+  //
+  t_d = tex;
+
+  std::cout << std::scientific;
+
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
+
+  auto cs = cC->cuStream;
+
+  // Assign expansion center and orientation
+  //
+  std::vector<cuFP_t> ctr;
+  for (auto v : component->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrCen, &ctr[0], sizeof(cuFP_t)*3,
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrCen");
+
+  bool orient = (component->EJ & Orient::AXIS) && !component->EJdryrun;
+
+  if (orient) {
+    std::vector<cuFP_t> trans(9);
+    for (int i=0; i<3; i++) 
+      for (int j=0; j<3; j++)
+	trans[i*3+j] = component->orient->transformBody()(i, j);
+  
+    cuda_safe_call(cudaMemcpyToSymbol(plrBody, &trans[0], sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		   __FILE__, __LINE__, "Error copying plrBody");
+
+    for (int i=0; i<3; i++) 
+      for (int j=0; j<3; j++)
+	trans[i*3+j] = component->orient->transformOrig()(i, j);
+  
+    cuda_safe_call(cudaMemcpyToSymbol(plrOrig, &trans[0], sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		   __FILE__, __LINE__, "Error copying plrOrig");
+  }
+
+  // Get particle index range for levels [mlevel, multistep]
+  //
+  PII lohi = cC->CudaGetLevelRange(mlevel, multistep);
+
+  // Compute grid
+  //
+  unsigned int N         = lohi.second - lohi.first;
+  unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+  unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    
+  if (N>0) {
+
+    if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+#ifdef VERBOSE_CTR
+    static unsigned debug_max_count = 100;
+    static unsigned debug_cur_count = 0;
+    if (debug_cur_count++ < debug_max_count) {
+      std::cout << std::endl
+		<< "** -------------------------" << std::endl
+		<< "** cudaPolarBasis acceleration" << std::endl
+		<< "** -------------------------" << std::endl
+		<< "** N      = " << N            << std::endl
+		<< "** Stride = " << stride       << std::endl
+		<< "** Block  = " << BLOCK_SIZE   << std::endl
+		<< "** Grid   = " << gridSize     << std::endl
+		<< "** Xcen   = " << ctr[0]       << std::endl
+		<< "** Ycen   = " << ctr[1]       << std::endl
+		<< "** Zcen   = " << ctr[2]       << std::endl
+		<< "** Level  = " << mlevel       << std::endl
+		<< "** lo     = " << lohi.first   << std::endl
+		<< "** hi     = " << lohi.second  << std::endl
+		<< "**" << std::endl;
+    }
+#endif
+    
+    // Shared memory size for the reduction
+    //
+    int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
+      
+    // Maximum radius on grid; get value from PolarBasis
+    //
+    cuFP_t rmax = getRtable();
+      
+    // Do the work
+    //
+    forceKernelPlr<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
+      (toKernel(cs->cuda_particles), toKernel(cs->indx1),
+       toKernel(dev_coefs), toKernel(t_d),
+       stride, Mmax, mlim, nmax, lohi, rmax, cylmass, use_external);
+    
+  }
+}
+
+void PolarBasis::HtoD_coefs()
+{
+  // Check size
+  host_coefs.resize((2*Mmax+1)*nmax); // Should stay fixed, no reserve
+
+  // Copy from PolarBasis
+  
+  // m loop
+  //
+  for (int m=0; m<=Mmax; m++) {
+    
+    // n loop
+    //
+    for (int n=0; n<nmax; n++) {
+      host_coefs[IImn(m, 'c', n, nmax)] = get_coef(m, n, 'c');
+      if (m>0) host_coefs[IImn(m, 's', n, nmax)] = get_coef(m, n, 's');
+    }
+  }
+
+  // Copy to device
+  dev_coefs = host_coefs;
+}
+
+
+void PolarBasis::DtoH_coefs(unsigned M)
+{
+  // Copy from host device to PolarBasis
+
+  // m loop
+  //
+  for (int m=0; m<=Mmax; m++) {
+    
+    // n loop
+    //
+    for (int n=0; n<nmax; n++) {
+      set_coef(M, m, n, 'c') = host_coefs[IImn(m, 'c', n, nmax)];
+      if (m>0) set_coef(M, m, n, 's') = host_coefs[IImn(m, 's', n, nmax)];
+    }
+  }
+
+  if (compute and pcavar) {
+
+    // T loop
+    //
+    for (int T=0; T<sampT; T++) {
+
+      // Copy mass per sample T
+      //
+      set_massT(T) += host_massT[T];
+
+      // m loop
+      //
+      for (int m=0; m<=Mmax; m++) {
+	
+	// n loop
+	//
+	for (int n=0; n<nmax; n++) {
+	  set_coefT(T, m, n) += host_coefsT[T][JJmn(m, n, nmax)];
+
+	  // o loop
+	  for (int o=0; o<nmax; o++) {
+	   set_covrT(T, m, n, o) += host_covarT[T][KKmn(m, n, o, nmax)];
+
+	  }
+	}
+      }
+    }
+  }
+
+}
 
 void PolarBasis::multistep_update_cuda()
 {
@@ -1612,58 +1910,47 @@ void PolarBasis::multistep_update_cuda()
   //
 
   //! Sort the device vector by level changes
-#ifdef VERBOSE_TIMING
-  auto start0 = std::chrono::high_resolution_clock::now();
-  auto start  = std::chrono::high_resolution_clock::now();
-#endif
-
   auto chg = component->CudaSortLevelChanges();
 
-#ifdef VERBOSE_TIMING
-  auto finish = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double, std::micro> duration = finish - start;
-  std::cout << "Time in level sort=" << duration.count()*1.0e-6 << std::endl;
-#endif
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
+  auto cs = component->cuStream;
+
+  // Maximum radius on grid
+  //
+  cuFP_t rmax = getRtable() * scale;
 
   // Zero out coefficient storage
   //
   cuda_zero_coefs();
 
-  cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
-  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
-
-  auto cs = component->cuStream;
-
-#ifdef VERBOSE_TIMING
-  double coord = 0.0, coefs = 0.0, reduc = 0.0;
-#endif
   // Step through all levels
   //
   for (int olev=mfirst[mstep]; olev<=multistep; olev++) {
-    
+
     for (int nlev=0; nlev<=multistep; nlev++) {
 
       if (olev == nlev) continue;
 
       unsigned int Ntotal = chg[olev][nlev].second - chg[olev][nlev].first;
 
-      if (Ntotal==0) continue;	// No particles [from, to]=[olev, nlev]
+      if (Ntotal==0) continue;
 
       unsigned int Npacks = Ntotal/component->bunchSize + 1;
 
-
 #ifdef VERBOSE_DBG
       std::cout << "[" << myid << ", " << tnow
-		<< "] Adjust sphere: Ntotal=" << Ntotal << " Npacks=" << Npacks
+		<< "] Adjust cylinder: Ntotal=" << Ntotal << " Npacks=" << Npacks
 		<< " for (m, d)=(" << olev << ", " << nlev << ")" << std::endl;
 #endif
+
       // Loop over bunches
       //
       for (int n=0; n<Npacks; n++) {
 
 	PII cur;
-
+	
 	// Current bunch
 	//
 	cur. first = chg[olev][nlev].first + component->bunchSize*n;
@@ -1680,147 +1967,111 @@ void PolarBasis::multistep_update_cuda()
 	
 	if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
-	// Resize storage as needed
+    
+	// Adjust cached storage, if necessary
 	//
-	cuS.resize_coefs(nmax, Lmax, N, gridSize, stride,
+	cuS.resize_coefs(nmax, Mmax, N, gridSize, stride,
 			 sampT, pcavar, pcaeof, subsamp);
 	
 	// Shared memory size for the reduction
 	//
 	int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
-	
+    
 	// Compute the coordinate transformation
 	// 
-#ifdef VERBOSE_TIMING
-	start = std::chrono::high_resolution_clock::now();
-#endif
-	coordKernel<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+	coordKernelPlr<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	  (toKernel(cs->cuda_particles), toKernel(cs->indx2),
-	   toKernel(cuS.m_d), toKernel(cuS.a_d), toKernel(cuS.p_d),
-	   toKernel(cuS.i_d), Lmax, stride, cur, rmax);
-
-#ifdef VERBOSE_TIMING
-	finish = std::chrono::high_resolution_clock::now();
-	duration = finish - start;
-	coord += duration.count()*1.0e-6;
-#endif    
+	   toKernel(cuS.m_d), toKernel(cuS.p_d),
+	   toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d),
+	   toKernel(cuS.iY_d), stride, cur, rmax);
+      
 	// Compute the coefficient contribution for each order
 	//
 	int osize = nmax*2;
 	auto beg  = cuS.df_coef.begin();
-      
+
 	thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
 
-	for (int l=0; l<=Lmax; l++) {
-	  for (int m=0; m<=l; m++) {
-	    // Compute the contribution to the
-	    // coefficients from each particle
-	    //
-#ifdef VERBOSE_TIMING
-	    start = std::chrono::high_resolution_clock::now();
-#endif
-	    coefKernel<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-	      (toKernel(cuS.dN_coef),
-	       toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
-	       toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d),
-	       toKernel(cuS.a_d), toKernel(cuS.p_d),
-	       toKernel(cuS.i_d), stride, m, Mmax, nmax, cur, false);
+	for (int m=0; m<=Mmax; m++) {
 
-#ifdef VERBOSE_TIMING
-	    finish = std::chrono::high_resolution_clock::now();
-	    duration = finish - start;
-	    coefs += duration.count()*1.0e-6;
-	    start = std::chrono::high_resolution_clock::now();
-#endif	  
-	    // Begin the reduction per grid block
-	    // [perhaps this should use a stride?]
-	    //
-	    unsigned int gridSize1 = N/BLOCK_SIZE;
-	    if (N > gridSize1*BLOCK_SIZE) gridSize1++;
+	  coefKernelPlr<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+	    (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
+	     toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
+	     toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
+	     stride, m, nmax, cur, false);
 
-	    reduceSum<cuFP_t, BLOCK_SIZE>
-	      <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
-	      (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
-	    
-	    // Finish the reduction for this order
-	    // in parallel
-	    //
-	    thrust::counting_iterator<int> index_begin(0);
-	    thrust::counting_iterator<int> index_end(gridSize1*osize);
+	  // Begin the reduction per grid block [perhaps this should
+	  // use a stride?]
+	  //
+	  unsigned int gridSize1 = N/BLOCK_SIZE;
+	  if (N > gridSize1*BLOCK_SIZE) gridSize1++;
 
-	    thrust::reduce_by_key
-	      (
-	       thrust::cuda::par.on(cs->stream),
-	       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
-	       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-	       cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
-	       );
-	    
-	    thrust::transform(thrust::cuda::par.on(cs->stream),
-			      cuS.dw_coef.begin(), cuS.dw_coef.end(),
-			      beg, beg, thrust::plus<cuFP_t>());
+	  reduceSum<cuFP_t, BLOCK_SIZE>
+	    <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+	    (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
+	  
+	  // Finish the reduction for this order in parallel
+	  //
+	  thrust::counting_iterator<int> index_begin(0);
+	  thrust::counting_iterator<int> index_end(gridSize1*osize);
 
-#ifdef VERBOSE_TIMING
-	    finish = std::chrono::high_resolution_clock::now();
-	    duration = finish - start;
-	    reduc += duration.count()*1.0e-6;
-#endif	    
-	    thrust::advance(beg, osize);
-	  }
-	  // END: m-loop
+	  // The key_functor indexes the sum reduced series by array index
+	  //
+	  thrust::reduce_by_key
+	    (
+	     thrust::cuda::par.on(cs->stream),
+	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+	     cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
+	     );
+
+	  thrust::transform(thrust::cuda::par.on(cs->stream),
+			    cuS.dw_coef.begin(), cuS.dw_coef.end(),
+			    beg, beg, thrust::plus<cuFP_t>());
+	  
+	  thrust::advance(beg, osize);
 	}
-	// END: l-loop
+	// END: m loop
       }
       // END: bunches
 
-      // Copy back coefficient data from device and load the host
+      // Accumulate the coefficients from the device to the host
       //
       thrust::host_vector<cuFP_t> ret = cuS.df_coef;
 
       // Decrement current level and increment new level using the
-      // update matrices
+      // PolarBasis update matricies
       //
-      for (int l=0, loffset=0, offst=0; l<=Lmax; loffset+=(2*l+1), l++) {
-	for (int m=0, moffset=0; m<=l; m++) {
-	  for (size_t n=0; n<nmax; n++) {
-	    differ1[0][olev](loffset+moffset, n) -= ret[2*n+offst];
-	    differ1[0][nlev](loffset+moffset, n) += ret[2*n+offst];
-	    if (m>0) {
-	      differ1[0][olev](loffset+moffset+1, n) -= ret[2*n+1+offst];
-	      differ1[0][nlev](loffset+moffset+1, n) += ret[2*n+1+offst];
-	    }
+      // m loop
+      //
+      for (int m=0, offst=0; m<=Mmax; m++) {
+	// n loop
+	//
+	for (int n=0; n<nmax; n++) {
+	  differC1[0][olev](m, n) -= ret[2*n+offst];
+	  differC1[0][nlev](m, n) += ret[2*n+offst];
+	  if (m>0) {
+	    differS1[0][olev](m, n) -= ret[2*n+1+offst];
+	    differS1[0][nlev](m, n) += ret[2*n+1+offst];
 	  }
-
-	  // Update the offset into the device coefficient array
-	  offst += nmax*2;
-
-	  // Update the offset into the host coefficient matrix
-	  if (m>0) moffset += 2;
-	  else     moffset += 1;
 	}
-      }
-      // END: assign differences
-    }
-    // END: to new level loop
-  }
-  // END: from prev level loop
+	// END: n loop
 
-#ifdef VERBOSE_TIMING
-  std::cout << "Time in coord=" << coord << std::endl;
-  std::cout << "Time in coefs=" << coefs << std::endl;
-  std::cout << "Time in reduc=" << reduc << std::endl;
-  auto finish0 = std::chrono::high_resolution_clock::now();
-  duration = finish0 - start0;
-  std::cout << "Total adjust =" << duration.count()*1.0e-6 << std::endl;
-#endif
-  // DONE
+	// Increment update in coefficient array
+	offst += 2*nmax;
+      }
+      // END: m loop
+    }
+    // DONE: Inner loop
+  }
+  // DONE: Outer loop
 }
+
 
 void PolarBasis::destroy_cuda()
 {
   for (size_t i=0; i<tex.size(); i++) {
     std::ostringstream sout;
-
     sout << "trying to free TextureObject [" << i << "]";
     cuda_safe_call(cudaDestroyTextureObject(tex[i]),
 		   __FILE__, __LINE__, sout.str());
@@ -1828,8 +2079,10 @@ void PolarBasis::destroy_cuda()
 
   for (size_t i=0; i<cuInterpArray.size(); i++) {
     std::ostringstream sout;
-    sout << "trying to free cuArray [" << i << "]";
-    cuda_safe_call(cudaFreeArray(cuInterpArray[i]),
+    sout << "trying to free cuPitch [" << i << "]";
+    cuda_safe_call(cudaFree(cuInterpArray[i]),
 		     __FILE__, __LINE__, sout.str());
   }
 }
+
+

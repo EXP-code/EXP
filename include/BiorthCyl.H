@@ -28,6 +28,11 @@
 #include <highfive/H5DataSpace.hpp>
 #include <highfive/H5Attribute.hpp>
 
+#if HAVE_LIBCUDA==1
+#include <cudaParticle.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
+
 //!! BiorthCyl grid class
 class BiorthCyl
 {
@@ -41,7 +46,7 @@ protected:
   int mmax, nmax, numr, norder, mmin, mlim, nmin, nlim, knots;
   double rmin, rmax, zmax, rscale, zscale, acyl;
 
-  bool verbose;
+  bool EVEN_M, verbose;
   
   //@{
   //! Grid parameters
@@ -154,7 +159,6 @@ public:
   { interp(r, z, zforce, f); }
 
 #if HAVE_LIBCUDA==1
-  /*
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);
 
@@ -162,29 +166,34 @@ public:
   {
     cudaMappingConstants ret;
 
-    ret.rscale = scale;
-    ret.hscale = 0.0;
+    ret.rscale = rscale;
+    ret.hscale = zscale;
     ret.xmin   = xmin;
     ret.xmax   = xmax;
-    ret.ymin   = 0.0;
-    ret.ymax   = 0.0;
+    ret.ymin   = ymin;
+    ret.ymax   = ymax;
     ret.numr   = numr;
-    ret.numx   = 0;
-    ret.numy   = 0;
-    ret.dxi    = dxi;
-    ret.dyi    = 0.0;
-    ret.cmapR  = cmap;
+    ret.numx   = numx;
+    ret.numy   = numy;
+    ret.dxi    = dx;
+    ret.dyi    = dy;
+    ret.cmapR  = cmapR;
+    ret.cmapZ  = cmapZ;
 
     return ret;
   }
-  */
 #endif
+
+  //! Evaluate all orders in matrices; for n-body
+  void get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs, double r, double z);
 
   //@{
   //! Get the current minimum and maximum radii for the expansion
-  double getRmin() { return rmin; }
-  double getRmax() { return rmax; }
-  double getZmax() { return zmax; }
+  double getRmin()   { return rmin; }
+  double getRmax()   { return rmax; }
+  double getZmax()   { return zmax; }
+  double getRtable() { return Rtable; }
+  double getRscale() { return rscale; }
   //@}
 
 };

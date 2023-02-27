@@ -1,4 +1,3 @@
-
 #include <limits>
 
 #include "expand.H"
@@ -131,3 +130,5 @@ void Cylinder2d::get_potl_dens(double r, double z, Eigen::MatrixXd& p,
   ortho->get_pot(p, r, z);
   ortho->get_dens(d, r, z);
 }
+
+
