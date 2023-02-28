@@ -33,8 +33,11 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
   // Read and assign parameters
   //
   try {
-    if (conf["mmax"])        mmax = conf["mmax"].as<int>();
+    if (conf["Mmax"])        mmax = conf["Mmax"].as<int>();
     else                     mmax = 6;
+    
+    if (conf["Lmax"] and not conf["Mmax"])
+                             mmax = conf["Lmax"].as<int>();
     
     if (conf["nmax"])        nmax = conf["nmax"].as<int>();
     else                     nmax = 16;
@@ -54,14 +57,14 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     if (conf["knots"])       knots = conf["knots"].as<int>();	       
     else                     knots = 1000;			       
     			                                           
+    if (conf["NQDHT"])       NQDHT = conf["NQDHT"].as<int>();	       
+    else                     NQDHT = 512;
+    			                                           
     if (conf["rmin"])        rmin = conf["rmin"].as<double>();     
     else                     rmin = 0.0;			       
     			                                           
     if (conf["rmax"])        rmax = conf["rmax"].as<double>();     
-    else                     rmax = 0.0;			       
-    			                                           
-    if (conf["zmax"])        zmax = conf["zmax"].as<double>();     
-    else                     zmax = 0.0;			       
+    else                     rmax = 10.0;			       
     			                                           
     if (conf["cmapR"])       cmapR = conf["cmapR"].as<int>();      
     else                     cmapR = 1;			       
@@ -69,18 +72,20 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     if (conf["cmapZ"])       cmapZ = conf["cmapZ"].as<int>();      
     else                     cmapZ = 1;			       
     			                                           
-    if (conf["rscale"])      rscale = conf["rscale"].as<double>(); 
-    else                     rscale = 1.0;			       
+    if (conf["scale"])       scale = conf["scale"].as<double>(); 
+    else                     scale = 1.0;			       
     			                                           
-    if (conf["zscale"])      zscale = conf["zscale"].as<double>(); 
-    else                     zscale = 1.0;                         
-    
     if (conf["acyl"])        acyl   = conf["acyl"].as<double>(); 
-    else                     acyl   = 1.0;                         
+    else                     acyl   = 0.6;                         
     
     if (conf["cachename"])   cachename = conf["cachename"].as<std::string>();
     else                     cachename = default_cache;
     
+    // Add output directory and runtag
+    cachename = outdir + cachename;
+    if (runtag.size())		// Add if defined...
+      cachename = cachename + "." + runtag;
+
     if (conf["verbose"])     verbose = true;
     else                     verbose = false;
 
@@ -111,6 +116,9 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     exit(-1);
   }
 
+  geometry = "cylinder";
+  forceID  = "BiorthCyl";
+  
   initialize();
 
   if (not ReadH5Cache()) create_tables();
@@ -121,26 +129,27 @@ void BiorthCyl::initialize()
 {
   // Create storage and mapping constants
   //
-  Rtable  = M_SQRT1_2 * rmax;
-  xmin    = r_to_xi(rmin*rscale);
-  xmax    = r_to_xi(Rtable*rscale);
+  // Rtable  = M_SQRT1_2 * rmax;
+  Rtable  = rmax;
+  xmin    = r_to_xi(rmin*scale);
+  xmax    = r_to_xi(Rtable*scale);
   dx      = (xmax - xmin)/(numx-1);
 
-  ymin    = z_to_y(-Rtable*zscale);
-  ymax    = z_to_y( Rtable*zscale);
+  ymin    = z_to_y(-Rtable*scale);
+  ymax    = z_to_y( Rtable*scale);
   dy      = (ymax - ymin)/(numy-1);
 
-  dens   .resize(mmax);
-  pot    .resize(mmax);
-  rforce .resize(mmax);
-  zforce .resize(mmax);
+  dens   .resize(mmax+1);
+  pot    .resize(mmax+1);
+  rforce .resize(mmax+1);
+  zforce .resize(mmax+1);
 
   for (int m=0; m<=mmax; m++) {
 
-    dens  [m].resize(mmax+1);
-    pot   [m].resize(mmax+1);
-    rforce[m].resize(mmax+1);
-    zforce[m].resize(mmax+1);
+    dens  [m].resize(nmax);
+    pot   [m].resize(nmax);
+    rforce[m].resize(nmax);
+    zforce[m].resize(nmax);
 
     for (int n=0; n<norder; n++) {
       dens  [m][n].resize(numx, numy);
@@ -152,9 +161,9 @@ void BiorthCyl::initialize()
 
   // For table scaling
   //
-  pfac     = 1.0/sqrt(rscale);
-  ffac     = pfac/rscale;
-  dfac     = ffac/rscale;
+  pfac     = 1.0/sqrt(scale);
+  ffac     = pfac/scale;
+  dfac     = ffac/scale;
 }
 
 void BiorthCyl::create_tables()
@@ -165,18 +174,18 @@ void BiorthCyl::create_tables()
   std::string target("expon");
   std::string biorth("bess");
 
-  EmpCyl2D emp(mmax, nmax, knots, numr, rmin, rmax, acyl, 1.0, cmapR, logr,
+  EmpCyl2d emp(mmax, nmax, knots, numr, rmin, rmax, acyl, 1.0, cmapR, logr,
 	       target, biorth);
 
   if (conf["basis"]) emp.basisTest(true);
 
   for (int m=0; m<=mmax; m++) {
 
-    for (int n=0; n<norder; n++) {
+    // Potential instance
+    //
+    PotRZ potrz(Rtable, NQDHT, m);
 
-      // Potential instance
-      //
-      PotRZ potrz(rmax, n, m);
+    for (int n=0; n<norder; n++) {
 
       // Create the functor
       //
@@ -200,6 +209,8 @@ void BiorthCyl::create_tables()
       }
     }
   }
+
+  if (myid==0) WriteH5Cache();
 }
 
 
@@ -211,7 +222,7 @@ double BiorthCyl::r_to_xi(double r)
       msg << "radius=" << r << " < 0! [mapped]";
       throw GenericError(msg.str(), __FILE__, __LINE__, 2040, true);
     }
-    return (r/rscale - 1.0)/(r/rscale + 1.0);
+    return (r/scale - 1.0)/(r/scale + 1.0);
   } else {
     if (r<0.0)  {
       ostringstream msg;
@@ -228,7 +239,7 @@ double BiorthCyl::xi_to_r(double xi)
     if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__, 2040, true);
     if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__, 2040, true);
 
-    return (1.0 + xi)/(1.0 - xi) * rscale;
+    return (1.0 + xi)/(1.0 - xi) * scale;
   } else {
     return xi;
   }
@@ -241,7 +252,7 @@ double BiorthCyl::d_xi_to_r(double xi)
     if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__, 2040, true);
     if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__, 2040, true);
 
-    return 0.5*(1.0 - xi)*(1.0 - xi) / rscale;
+    return 0.5*(1.0 - xi)*(1.0 - xi) / scale;
   } else {
     return 1.0;
   }
@@ -251,9 +262,9 @@ double BiorthCyl::d_xi_to_r(double xi)
 double BiorthCyl::z_to_y(double z)
 {
   if (cmapZ==1)
-    return z/(fabs(z)+std::numeric_limits<double>::min())*asinh(fabs(z/zscale));
+    return z/(fabs(z)+std::numeric_limits<double>::min())*asinh(fabs(z/scale));
   else if (cmapZ==2)
-    return z/sqrt(z*z + zscale*zscale);
+    return z/sqrt(z*z + scale*scale);
   else
     return z;
 }
@@ -262,11 +273,11 @@ double BiorthCyl::z_to_y(double z)
 double BiorthCyl::y_to_z(double y)
 {
   if (cmapZ==1)
-    return zscale*sinh(y);
+    return scale*sinh(y);
   else if (cmapZ==2) {
     if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__, 2040, true);
     if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__, 2040, true);
-    return y * zscale/sqrt(1.0 - y*y);
+    return y * scale/sqrt(1.0 - y*y);
   }
   else
     return y;
@@ -276,11 +287,11 @@ double BiorthCyl::y_to_z(double y)
 double BiorthCyl::d_y_to_z(double y)
 {
   if (cmapZ==1)
-    return zscale*cosh(y);
+    return scale*cosh(y);
   else if (cmapZ==2) {
     if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__, 2040, true);
     if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__, 2040, true);
-    return zscale*pow(1.0-y*y, -1.5);
+    return scale*pow(1.0-y*y, -1.5);
   } else
     return 1.0;
 }
@@ -293,7 +304,7 @@ void BiorthCyl::interp(double R, double z,
   ret.resize(mmax+1, norder);
   ret.setZero();
 
-  if (R/rscale>Rtable) return;
+  if (R/scale>Rtable) return;
 
   double X = (r_to_xi(R) - xmin)/dx;
   double Y = (z_to_y(z)  - ymin)/dy;
@@ -347,7 +358,7 @@ double BiorthCyl::interp(int m, int n, double R, double z,
 {
   double ret = 0.0;
 
-  if (R/rscale>Rtable or n>=norder or m>mmax) return ret;
+  if (R/scale>Rtable or n>=norder or m>mmax) return ret;
 
   double X = (r_to_xi(R) - xmin)/dx;
   double Y = (z_to_y(z)  - ymin)/dy;
@@ -400,13 +411,10 @@ void BiorthCyl::WriteH5Params(HighFive::File& file)
   file.createAttribute<int>         ("numy",     HighFive::DataSpace::From(numy)).write(numy);
   file.createAttribute<double>      ("rmin",     HighFive::DataSpace::From(rmin)).write(rmin);
   file.createAttribute<double>      ("rmax",     HighFive::DataSpace::From(rmax)).write(rmax);
-  file.createAttribute<double>      ("zmax",     HighFive::DataSpace::From(zmax)).write(zmax);
-  file.createAttribute<double>      ("rscale",   HighFive::DataSpace::From(rscale)).write(rscale);
-  file.createAttribute<double>      ("zscale",   HighFive::DataSpace::From(zscale)).write(zscale);
+  file.createAttribute<double>      ("scale",    HighFive::DataSpace::From(scale)).write(scale);
   file.createAttribute<double>      ("acyl",     HighFive::DataSpace::From(acyl)).write(acyl);
   file.createAttribute<int>         ("cmapR",    HighFive::DataSpace::From(cmapR)).write(cmapR);
   file.createAttribute<int>         ("cmapZ",    HighFive::DataSpace::From(cmapZ)).write(cmapZ);
-  file.createAttribute<std::string> ("forceID",  HighFive::DataSpace::From(forceID)).write(forceID);
 }
 
 
@@ -454,11 +462,9 @@ void BiorthCyl::ReadH5Arrays(HighFive::Group& harmonic)
 void BiorthCyl::WriteH5Cache()
 {
   try {
-    // Create a new hdf5 file
+    // Create a new hdf5 file or overwrite an existing file
     //
-    HighFive::File file(cachename + ".h5",
-			HighFive::File::ReadWrite |
-			HighFive::File::Create);
+    HighFive::File file(cachename + ".h5", HighFive::File::Overwrite);
     
     // We write the basis geometry
     //
@@ -488,6 +494,9 @@ void BiorthCyl::WriteH5Cache()
     std::cerr << err.what() << std::endl;
   }
     
+  if (myid==0)
+    std::cout << "---- BiorthCyl::WriteH5Cache: "
+	      << "wrote <" << cachename + ".h5>" << std::endl;
 }
   
 bool BiorthCyl::ReadH5Cache()
@@ -524,16 +533,14 @@ bool BiorthCyl::ReadH5Cache()
     };
 
     if (not checkInt(mmax,     "mmax"))      return false;
-    if (not checkInt(mmax,     "nmax"))      return false;
+    if (not checkInt(nmax,     "nmax"))      return false;
     if (not checkInt(norder,   "norder"))    return false;
     if (not checkInt(numr,     "numr"))      return false;
     if (not checkInt(numx,     "numx"))      return false;
     if (not checkInt(numy,     "numy"))      return false;
     if (not checkDbl(rmin,     "rmin"))      return false;
     if (not checkDbl(rmax,     "rmax"))      return false;
-    if (not checkDbl(zmax,     "zmax"))      return false;
-    if (not checkDbl(rscale,   "rscale"))    return false;
-    if (not checkDbl(zscale,   "zscale"))    return false;
+    if (not checkDbl(scale,    "scale"))     return false;
     if (not checkDbl(acyl,     "acyl"))      return false;
     if (not checkInt(cmapR,    "cmapR"))     return false;
     if (not checkInt(cmapZ,    "cmapZ"))     return false;
@@ -550,7 +557,7 @@ bool BiorthCyl::ReadH5Cache()
     
   } catch (HighFive::Exception& err) {
     if (myid==0)
-      std::cerr << "---- BiorthCyl::ReadH5Cache "
+      std::cerr << "---- BiorthCyl::ReadH5Cache: "
 		<< "error opening as HDF5 basis cache"
 		<< std::endl;
   }
