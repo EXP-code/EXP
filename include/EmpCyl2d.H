@@ -13,6 +13,13 @@
 
 #include <config_exp.h>		// For config macros
 
+// For reading and writing cache file
+//
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+
 /**
    A class that implements most of the members for an Exp force routine
 */
@@ -38,7 +45,7 @@ public:
 
 protected:
 
-  double ascale, rmin, rmax, scale;
+  double acyl, rmin, rmax, scale;
   double xmin, xmax, dxi;
   int mmax, nmax, numr, knots;
   std::string model, biorth;
@@ -99,8 +106,8 @@ protected:
   };
 
   void create_tables();
-  bool read_cached_tables();
-  void write_cached_tables();
+  bool ReadH5Cache();
+  void WriteH5Cache();
 
   //! Basis magic number
   inline static const unsigned int hmagic = 0xc0a57a1;

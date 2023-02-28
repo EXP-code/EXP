@@ -518,17 +518,17 @@ EmpCyl2d::EmpCyl2d(int mmax, int nmax, int knots, int numr,
 		   const std::string model, const std::string biorth,
 		   const std::string cache) :
   mmax(mmax), nmax(nmax), knots(knots), numr(numr),
-  rmin(rmin), rmax(rmax), ascale(A), scale(scale), cmap(cmap), logr(logr),
+  rmin(rmin), rmax(rmax), acyl(A), scale(scale), cmap(cmap), logr(logr),
   model(model), biorth(biorth), cache_name_2d(cache)
 {
   if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
 
-  disk  = createModel(model, ascale);
+  disk  = createModel(model, acyl);
   basis = Basis2d::createBasis(mmax, nmax, rmax, biorth);
 
   basis_test = false;
 
-  if (not read_cached_tables()) create_tables();
+  if (not ReadH5Cache()) create_tables();
 }
 
 
@@ -538,7 +538,7 @@ EmpCyl2d::EmpCyl2d(int mmax, int nmax, int knots, int numr,
 		   std::shared_ptr<EmpCyl2d::ModelCyl> disk,
 		   const std::string biorth, const std::string cache) :
   mmax(mmax), nmax(nmax), knots(knots), numr(numr),
-  rmin(rmin), rmax(rmax), ascale(A), scale(scale), cmap(cmap), logr(logr),
+  rmin(rmin), rmax(rmax), acyl(A), scale(scale), cmap(cmap), logr(logr),
   disk(disk), biorth(biorth), cache_name_2d(cache)
 {
   if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
@@ -548,7 +548,7 @@ EmpCyl2d::EmpCyl2d(int mmax, int nmax, int knots, int numr,
 
   basis_test = false;
 
-  if (not read_cached_tables()) create_tables();
+  if (not ReadH5Cache()) create_tables();
 }
 
 
@@ -637,7 +637,7 @@ void EmpCyl2d::create_tables()
     }
   }
 
-  write_cached_tables();
+  if (myid==0) WriteH5Cache();
 }
 
 void EmpCyl2d::writeBasis(int M, const std::string& filename)
@@ -710,253 +710,153 @@ void EmpCyl2d::orthoCheck(int M, const std::string& filename)
 }
 
 
-bool EmpCyl2d::read_cached_tables()
-{
-  std::ifstream in(cache_name_2d);
-  if (!in) return false;
-
-  int MMAX, NMAX, NUMR, KNOTS;
-  double RMIN, RMAX, A, SCL;
-  bool LOGR, CMAP;
-  std::string MODEL, BIORTH;
-
-  if (myid==0)
-    std::cout << "---- EmpCyl2d::read_cached_table: trying to read cached table . . ."
-	      << std::endl;
-
-  // Attempt to read magic number
-  //
-  unsigned int tmagic;
-  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
-
-  if (tmagic == hmagic) {
-    
-    // YAML size
-    //
-    unsigned ssize;
-    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
-
-    // Make and read char buffer
-    //
-    auto buf = std::make_unique<char[]>(ssize+1);
-    in.read(buf.get(), ssize);
-    buf[ssize] = 0;		// Null terminate
-    
-    YAML::Node node;
-    
-    try {
-      node = YAML::Load(buf.get());
-    }
-    catch (YAML::Exception& error) {
-      std::ostringstream sout;
-      sout << "YAML: error parsing <" << buf.get() << "> "
-	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
-	   << "YAML error: " << error.what() << std::endl;
-      throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
-    }
-    
-    // Get parameters
-    //
-    MMAX     = node["mmax"   ].as<int>();
-    NMAX     = node["nmax"   ].as<int>();
-    NUMR     = node["numr"   ].as<int>();
-    KNOTS    = node["knots"  ].as<int>();
-    LOGR     = node["logr"   ].as<bool>();
-    CMAP     = node["cmap"   ].as<bool>();
-    RMIN     = node["rmin"   ].as<double>();
-    RMAX     = node["rmax"   ].as<double>();
-    SCL      = node["scale"  ].as<double>();
-    A        = node["acyl"   ].as<double>();
-    MODEL    = node["model"  ].as<std::string>();
-    BIORTH   = node["biorth" ].as<std::string>();
-  } else {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d: bad magic number in cache file" << std::endl;
-    return false;
-  }
-    
-  if (MMAX!=mmax) {
-    if (myid==0)
-    std::cout << "---- EmpCyl2d::read_cached_table: found mmax=" << MMAX
-	      << " wanted " << mmax << std::endl;
-    return false;
-  }
-
-  if (NMAX!=nmax) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::read_cached_table: found nmax=" << NMAX
-		<< " wanted " << nmax << std::endl;
-    return false;
-  }
-
-  if (NUMR!=numr) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::read_cached_table: found numr=" << NUMR
-		<< " wanted " << numr << std::endl;
-    return false;
-  }
-
-  if (KNOTS!=knots) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::read_cached_table: found knots=" << KNOTS
-		<< " wanted " << knots << std::endl;
-    return false;
-  }
-
-  if (CMAP!=cmap) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::read_cached_table: found cmap=" << std::boolalpha << CMAP
-		<< " wanted " << std::boolalpha << cmap << std::endl;
-    return false;
-  }
-
-  if (LOGR!=logr) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::read_cached_table: found logr=" << std::boolalpha << LOGR
-		<< " wanted " << std::boolalpha << logr << std::endl;
-    return false;
-  }
-
-  if (RMIN!=rmin) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::read_cached_table: found rmin=" << RMIN
-		<< " wanted " << rmin << std::endl;
-    return false;
-  }
-
-  if (RMAX!=rmax) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::read_cached_table: found rmax=" << RMAX
-		<< " wanted " << rmax << std::endl;
-    return false;
-  }
-
-  if (SCL!=scale) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::read_cached_table: found scale=" << SCL
-		<< " wanted " << scale << std::endl;
-    return false;
-  }
-
-  if (A!=ascale) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::read_cached_table: found ascale=" << A
-		<< " wanted " << ascale << std::endl;
-    return false;
-  }
-
-  if (MODEL!=model) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::read_cached_table: found MODEL=" << MODEL
-		<< " wanted " << model << std::endl;
-    return false;
-  }
-
-  if (BIORTH!=biorth) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::read_cached_table: found BIORTH=" << BIORTH
-		<< " wanted " << biorth << std::endl;
-    return false;
-  }
-
-  potl_array.resize(mmax+1);
-  dens_array.resize(mmax+1);
-  dpot_array.resize(mmax+1);
-  rot_matrix.resize(mmax+1);
-
-  xgrid.resize(numr);
-  in.read((char *)xgrid.data(), numr*sizeof(double));
-
-  if (cmap) {
-    xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
-    xmax = (rmax/scale - 1.0)/(rmax/scale + 1.0);
-    dxi = (xmax-xmin)/(numr-1);
-  } else {
-    xmin = rmin;
-    xmax = rmax;
-    dxi = (xmax-xmin)/(numr-1);
-  }
-
-  for (int m=0; m<=mmax; m++) {
-
-    potl_array[m].resize(numr, nmax);
-    dens_array[m].resize(numr, nmax);
-    dpot_array[m].resize(numr, nmax);
-    rot_matrix[m].resize(nmax, nmax);
-    
-    in.read((char *)potl_array[m].data(), potl_array[m].size()*sizeof(double));
-    in.read((char *)dens_array[m].data(), dens_array[m].size()*sizeof(double));
-    in.read((char *)dpot_array[m].data(), dpot_array[m].size()*sizeof(double));
-    in.read((char *)rot_matrix[m].data(), rot_matrix[m].size()*sizeof(double));
-  }
-
-  if (myid==0)
-    std::cout << "---- EmpCyl2d::read_cached_table: success!" << std::endl;
-
-  return true;
-}
-
-void EmpCyl2d::write_cached_tables()
+void EmpCyl2d::WriteH5Cache()
 {
   if (myid) return;
 
-  std::ofstream out(cache_name_2d);
-  if (!out) {
-    std::cerr << "EmpCyl2d: error writing <" << cache_name_2d << ">" << std::endl;
-    return;
-  }
-
-  // This is a node of simple {key: value} pairs.  More general
-  // content can be added as needed.
-  YAML::Node node;
-
-  node["mmax"   ] = mmax;
-  node["nmax"   ] = nmax;
-  node["numr"   ] = numr;
-  node["knots"  ] = knots;
-  node["logr"   ] = logr;
-  node["cmap"   ] = cmap;
-  node["rmin"   ] = rmin;
-  node["rmax"   ] = rmax;
-  node["scale"  ] = scale;
-  node["acyl"   ] = ascale;
-  node["model"  ] = model;
-  node["biorth" ] = biorth;
+  try {
+    // Create a new hdf5 file or overwrite an existing file
+    //
+    HighFive::File file(cache_name_2d + ".h5", HighFive::File::Overwrite);
     
-  // Serialize the node
-  //
-  YAML::Emitter y; y << node;
-  
-  // Get the size of the string
-  //
-  unsigned int hsize = strlen(y.c_str());
-  
-  // Write magic #
-  //
-  out.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
+    // Workaround for lack of HighFive boolean support
+    int ilogr = 0, icmap = 0;
+    if (logr) ilogr = 1;
+    if (cmap) icmap = 1;
 
-  // Write YAML string size
-  //
-  out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
-  
-  // Write YAML string
-  //
-  out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+    // Parameters
+    //
+    file.createAttribute<int>        ("mmax",   HighFive::DataSpace::From(mmax)).  write(mmax);
+    file.createAttribute<int>        ("nmax",   HighFive::DataSpace::From(nmax)).  write(nmax);
+    file.createAttribute<int>        ("numr",   HighFive::DataSpace::From(numr)).  write(numr);
+    file.createAttribute<int>        ("knots",  HighFive::DataSpace::From(knots)). write(knots);
+    file.createAttribute<int>        ("ilogr",  HighFive::DataSpace::From(ilogr)). write(ilogr);
+    file.createAttribute<int>        ("icmap",  HighFive::DataSpace::From(icmap)). write(icmap);
+    file.createAttribute<double>     ("rmin",   HighFive::DataSpace::From(rmin)).  write(rmin);
+    file.createAttribute<double>     ("rmax",   HighFive::DataSpace::From(rmax)).  write(rmax);
+    file.createAttribute<double>     ("scale",  HighFive::DataSpace::From(scale)). write(scale);
+    file.createAttribute<double>     ("acyl",   HighFive::DataSpace::From(acyl)).  write(acyl);
+    file.createAttribute<std::string>("model",  HighFive::DataSpace::From(model)). write(model);
+    file.createAttribute<std::string>("biorth", HighFive::DataSpace::From(biorth)).write(biorth);
+      
+    // Arrays
+    //
+    file.createDataSet("xgrid", xgrid);
 
-  // Now, write the tables
-  //
-  out.write((char *)xgrid.data(), numr*sizeof(double));
+    for (int m=0; m<=mmax; m++) {
+      std::ostringstream sout;
+      sout << m;
+      auto harmonic = file.createGroup(sout.str());
+      
+      harmonic.createDataSet("potl", potl_array[m]);
+      harmonic.createDataSet("dens", dens_array[m]);
+      harmonic.createDataSet("dpot", dpot_array[m]);
+      harmonic.createDataSet("rot",  rot_matrix[m]);
+    }
 
-  for (int m=0; m<=mmax; m++) {
-    out.write((char *)potl_array[m].data(), potl_array[m].size()*sizeof(double));
-    out.write((char *)dens_array[m].data(), dens_array[m].size()*sizeof(double));
-    out.write((char *)dpot_array[m].data(), dpot_array[m].size()*sizeof(double));
-    out.write((char *)rot_matrix[m].data(), rot_matrix[m].size()*sizeof(double));
+  } catch (HighFive::Exception& err) {
+    std::cerr << err.what() << std::endl;
   }
+    
+  std::cout << "---- EmpCyl2d::WriteH5Cache: "
+	    << "wrote <" << cache_name_2d + ".h5>" << std::endl;
+}
 
-  std::cout << "---- EmpCyl2d::write_cached_table: cache written" << std::endl;
+bool EmpCyl2d::ReadH5Cache()
+{
+  try {
+    // Silence the HDF5 error stack
+    //
+    HighFive::SilenceHDF5 quiet;
+    
 
-  return;
+    // Open the hdf5 file
+    //
+    HighFive::File file(cache_name_2d + ".h5", HighFive::File::ReadOnly);
+    
+
+    // Try checking the rest of the parameters before reading arrays
+    //
+    auto checkInt = [&file](int value, std::string name)
+    {
+      int v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
+      if (value == v) return true; return false;
+    };
+
+    auto checkDbl = [&file](double value, std::string name)
+    {
+      double v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
+      if (fabs(value - v) < 1.0e-16) return true; return false;
+    };
+
+    auto checkStr = [&file](std::string value, std::string name)
+    {
+      std::string v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
+      if (value.compare(v)==0) return true; return false;
+    };
+
+    // Workaround for lack of HighFive boolean support
+    int ilogr = 0, icmap = 0;
+    if (logr) ilogr = 1;
+    if (cmap) icmap = 1;
+    
+    if (not checkInt(mmax,     "mmax"))      return false;
+    if (not checkInt(nmax,     "nmax"))      return false;
+    if (not checkInt(nmax,     "nmax"))      return false;
+    if (not checkInt(numr,     "numr"))      return false;
+    if (not checkInt(knots,    "knots"))     return false;
+    if (not checkInt(ilogr,    "ilogr"))     return false;
+    if (not checkInt(icmap,    "icmap"))     return false;
+    if (not checkDbl(rmin,     "rmin"))      return false;
+    if (not checkDbl(rmax,     "rmax"))      return false;
+    if (not checkDbl(scale,    "scale"))     return false;
+    if (not checkDbl(acyl,     "acyl"))      return false;
+    if (not checkStr(model,    "model"))     return false;
+    if (not checkStr(biorth,  "biorth"))     return false;
+
+    // Arrays
+    //
+    file.getDataSet("xgrid").read(xgrid);
+
+    // Allocate arrays
+    //
+    potl_array.resize(mmax+1);
+    dens_array.resize(mmax+1);
+    dpot_array.resize(mmax+1);
+    rot_matrix.resize(mmax+1);
+
+    if (cmap) {
+      xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
+      xmax = (rmax/scale - 1.0)/(rmax/scale + 1.0);
+      dxi = (xmax-xmin)/(numr-1);
+    } else {
+      xmin = rmin;
+      xmax = rmax;
+      dxi = (xmax-xmin)/(numr-1);
+    }
+
+    // Read from H5
+    //
+    for (int m=0; m<=mmax; m++) {
+      std::ostringstream sout;
+      sout << m;
+      auto harmonic = file.getGroup(sout.str());
+      
+      harmonic.getDataSet("potl").read(potl_array[m]);
+      harmonic.getDataSet("dens").read(dens_array[m]);
+      harmonic.getDataSet("dpot").read(dpot_array[m]);
+      harmonic.getDataSet("rot" ).read(rot_matrix[m]);
+    }
+
+  } catch (HighFive::Exception& err) {
+    if (myid==0) std::cerr << "---- " << err.what() << std::endl;
+    return false;
+  }
+    
+  if (myid==0) std::cout << "---- EmpCyl2d::ReadH5Cache: "
+			 << "read <" << cache_name_2d + ".h5>" << std::endl;
+
+  return true;
 }
 
 
@@ -1083,7 +983,7 @@ void EmpCyl2d::checkCoefs()
   if (myid) return;
 
   Mapping  map(scale, cmap);
-  auto     disk = createModel(model, ascale);
+  auto     disk = createModel(model, acyl);
   LegeQuad lw(knots);
 
   Eigen::VectorXd coefs(nmax), coef0(nmax);
