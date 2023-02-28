@@ -8,7 +8,7 @@
 
 const std::set<std::string>
 FlatDisk::valid_keys = {
-  "norder",
+  "nfid",
   "numr",
   "numx",
   "numy",
