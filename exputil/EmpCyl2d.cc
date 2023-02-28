@@ -9,6 +9,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <EXPException.H>
+#include <localmpi.H>
 #include <EmpCyl2d.H>
 #include <EXPmath.H>
 
@@ -78,7 +79,7 @@ void EmpCyl2d::Bessel::test_ortho()
 {
   // Sanity check; set to false for production
   //
-  if (debug) {
+  if (debug and myid==0) {
 
     const int knots = 128;
     LegeQuad lw(knots);
@@ -106,7 +107,7 @@ void EmpCyl2d::CluttonBrock::test_ortho()
 {
   // Sanity check; set to false for production
   //
-  if (debug) {
+  if (debug and myid==0) {
 
     const int knots = 128, nmax = 10, mmax = 4;
     LegeQuad lw(knots);
@@ -309,17 +310,20 @@ EmpCyl2d::Basis2d::createBasis(int mmax, int nmax, double rmax,
 		 [](unsigned char c){ return std::tolower(c); });
 
   if (data.find("cb") != std::string::npos) {
-    std::cout << "---- EmpCyl2d::Basis2d: Making a Clutton-Brock basis" << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::Basis2d: Making a Clutton-Brock basis" << std::endl;
     return std::make_shared<CluttonBrock>();
   }
 
   if (data.find("bess") != std::string::npos) {
-    std::cout << "---- EmpCyl2d::Basis2d: Making a finite Bessel basis" << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::Basis2d: Making a finite Bessel basis" << std::endl;
     return std::make_shared<Bessel>(mmax, nmax, rmax);
   }
 
   // Default if nothing else matches
-  std::cout << "---- EmpCyl2d::Basis2d: Making an Clutton-Brock basis [Default]" << std::endl;
+  if (myid==0)
+    std::cout << "---- EmpCyl2d::Basis2d: Making an Clutton-Brock basis [Default]" << std::endl;
   return std::make_shared<CluttonBrock>();
 }
 
@@ -420,22 +424,26 @@ EmpCyl2d::createModel(const std::string type, double acyl)
 		 [](unsigned char c){ return std::tolower(c); });
 
   if (data.find("kuzmin") != std::string::npos) {
-    std::cout << "---- EmpCyl2d::ModelCyl: Making a Kuzmin disk" << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::ModelCyl: Making a Kuzmin disk" << std::endl;
     return std::make_shared<KuzminCyl>(acyl);
   }
 
   if (data.find("mestel") != std::string::npos) {
-    std::cout << "---- EmpCyl2d::ModelCyl: Making a finite Mestel disk" << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::ModelCyl: Making a finite Mestel disk" << std::endl;
     return std::make_shared<MestelCyl>(acyl);
   }
 
   if (data.find("expon") != std::string::npos) {
-    std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk" << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk" << std::endl;
     return std::make_shared<ExponCyl>(acyl);
   }
 
   // Default if nothing else matches
-  std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk [Default]" << std::endl;
+  if (myid==0)
+    std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk [Default]" << std::endl;
   return std::make_shared<ExponCyl>(acyl);
 }
 
@@ -712,8 +720,9 @@ bool EmpCyl2d::read_cached_tables()
   bool LOGR, CMAP;
   std::string MODEL, BIORTH;
 
-  std::cout << "---- EmpCyl2d::read_cached_table: trying to read cached table . . ."
-	    << std::endl;
+  if (myid==0)
+    std::cout << "---- EmpCyl2d::read_cached_table: trying to read cached table . . ."
+	      << std::endl;
 
   // Attempt to read magic number
   //
@@ -761,79 +770,92 @@ bool EmpCyl2d::read_cached_tables()
     MODEL    = node["model"  ].as<std::string>();
     BIORTH   = node["biorth" ].as<std::string>();
   } else {
-    std::cout << "---- EmpCyl2d: bad magic number in cache file" << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d: bad magic number in cache file" << std::endl;
     return false;
   }
     
   if (MMAX!=mmax) {
+    if (myid==0)
     std::cout << "---- EmpCyl2d::read_cached_table: found mmax=" << MMAX
 	      << " wanted " << mmax << std::endl;
     return false;
   }
 
   if (NMAX!=nmax) {
-    std::cout << "---- EmpCyl2d::read_cached_table: found nmax=" << NMAX
-	      << " wanted " << nmax << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::read_cached_table: found nmax=" << NMAX
+		<< " wanted " << nmax << std::endl;
     return false;
   }
 
   if (NUMR!=numr) {
-    std::cout << "---- EmpCyl2d::read_cached_table: found numr=" << NUMR
-	      << " wanted " << numr << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::read_cached_table: found numr=" << NUMR
+		<< " wanted " << numr << std::endl;
     return false;
   }
 
   if (KNOTS!=knots) {
-    std::cout << "---- EmpCyl2d::read_cached_table: found knots=" << KNOTS
-	      << " wanted " << knots << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::read_cached_table: found knots=" << KNOTS
+		<< " wanted " << knots << std::endl;
     return false;
   }
 
   if (CMAP!=cmap) {
-    std::cout << "---- EmpCyl2d::read_cached_table: found cmap=" << std::boolalpha << CMAP
-	      << " wanted " << std::boolalpha << cmap << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::read_cached_table: found cmap=" << std::boolalpha << CMAP
+		<< " wanted " << std::boolalpha << cmap << std::endl;
     return false;
   }
 
   if (LOGR!=logr) {
-    std::cout << "---- EmpCyl2d::read_cached_table: found logr=" << std::boolalpha << LOGR
-	      << " wanted " << std::boolalpha << logr << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::read_cached_table: found logr=" << std::boolalpha << LOGR
+		<< " wanted " << std::boolalpha << logr << std::endl;
     return false;
   }
 
   if (RMIN!=rmin) {
-    std::cout << "---- EmpCyl2d::read_cached_table: found rmin=" << RMIN
-	      << " wanted " << rmin << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::read_cached_table: found rmin=" << RMIN
+		<< " wanted " << rmin << std::endl;
     return false;
   }
 
   if (RMAX!=rmax) {
-    std::cout << "---- EmpCyl2d::read_cached_table: found rmax=" << RMAX
-	      << " wanted " << rmax << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::read_cached_table: found rmax=" << RMAX
+		<< " wanted " << rmax << std::endl;
     return false;
   }
 
   if (SCL!=scale) {
-    std::cout << "---- EmpCyl2d::read_cached_table: found scale=" << SCL
-	      << " wanted " << scale << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::read_cached_table: found scale=" << SCL
+		<< " wanted " << scale << std::endl;
     return false;
   }
 
   if (A!=ascale) {
-    std::cout << "---- EmpCyl2d::read_cached_table: found ascale=" << A
-	      << " wanted " << ascale << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::read_cached_table: found ascale=" << A
+		<< " wanted " << ascale << std::endl;
     return false;
   }
 
   if (MODEL!=model) {
-    std::cout << "---- EmpCyl2d::read_cached_table: found MODEL=" << MODEL
-	      << " wanted " << model << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::read_cached_table: found MODEL=" << MODEL
+		<< " wanted " << model << std::endl;
     return false;
   }
 
   if (BIORTH!=biorth) {
-    std::cout << "---- EmpCyl2d::read_cached_table: found BIORTH=" << BIORTH
-	      << " wanted " << biorth << std::endl;
+    if (myid==0)
+      std::cout << "---- EmpCyl2d::read_cached_table: found BIORTH=" << BIORTH
+		<< " wanted " << biorth << std::endl;
     return false;
   }
 
@@ -868,13 +890,16 @@ bool EmpCyl2d::read_cached_tables()
     in.read((char *)rot_matrix[m].data(), rot_matrix[m].size()*sizeof(double));
   }
 
-  std::cout << "---- EmpCyl2d::read_cached_table: success!" << std::endl;
+  if (myid==0)
+    std::cout << "---- EmpCyl2d::read_cached_table: success!" << std::endl;
 
   return true;
 }
 
 void EmpCyl2d::write_cached_tables()
 {
+  if (myid) return;
+
   std::ofstream out(cache_name_2d);
   if (!out) {
     std::cerr << "EmpCyl2d: error writing <" << cache_name_2d << ">" << std::endl;
@@ -1055,6 +1080,8 @@ void EmpCyl2d::get_force(Eigen::MatrixXd& mat, double r)
 
 void EmpCyl2d::checkCoefs()
 {
+  if (myid) return;
+
   Mapping  map(scale, cmap);
   auto     disk = createModel(model, ascale);
   LegeQuad lw(knots);
