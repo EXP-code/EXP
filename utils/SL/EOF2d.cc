@@ -254,11 +254,12 @@ int main(int argc, char** argv)
 
     } else {
 
-      const int ngrid = 40;
       double Rmax = 4.0*A;
-      double dR = Rmax/(ngrid-1);
+      double dR = Rmax/(nout-1);
 
-      Eigen::MatrixXd outP(nmax, ngrid);
+      Eigen::MatrixXd outP(nmax, nout);
+
+      const double h = dR*0.01;
 
       for (int n=0; n<nmax; n++) {
 	// Set the functor using a lambda
@@ -267,14 +268,14 @@ int main(int argc, char** argv)
 	    emp.get_dens(R, M, n);
 	};
       
-	for (int j=0; j<ngrid; j++) {
+	for (int j=0; j<nout; j++) {
 	  outP(n, j) = pot(dR*j, 0.0, dens);
 	}
       }
 
       // Write the results
       //
-      for (int i=0; i<ngrid; i++) {
+      for (int i=0; i<nout; i++) {
 	out << std::setw(16) << dR*i;
 	for (int n=0; n<nmax; n++) {
 	  out << std::setw(16) <<  outP(n, i)
