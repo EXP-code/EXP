@@ -80,6 +80,8 @@ AxisymmetricBasis:: AxisymmetricBasis(Component* c0, const YAML::Node& conf) :
     if (conf["tksmooth"])  tksmooth   = conf["tksmooth"].as<double>();
     if (conf["tkcum"])     tkcum      = conf["tkcum"].as<double>();
     if (conf["tk_type"])   tk_type    = setTK(conf["tk_type"].as<std::string>());
+
+    if (conf["Mmax"] and not conf["Lmax"]) Lmax = Mmax;
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in AxisymmetricBasis: "
