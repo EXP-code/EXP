@@ -58,7 +58,7 @@ void BiorthCyl::initialize_cuda
 {
   // Number of texture arrays
   //
-  size_t ndim = (mmax+1)*norder;
+  size_t ndim = (mmax+1)*nmax;
 
   // Interpolation data array
   //
@@ -90,7 +90,7 @@ void BiorthCyl::initialize_cuda
 
   for (size_t mm=0; mm<=mmax; mm++) {
 
-    for (size_t n=0; n<norder; n++) {
+    for (size_t n=0; n<nmax; n++) {
 
       // Copy table to flat array
       //
@@ -167,7 +167,7 @@ void BiorthCyl::initialize_cuda
     std::cout << "**HOST** Texture 2D compare" << std::endl;
     unsigned tot = 0, bad = 0;
     for (int mm=0; mm<=mmax; mm++) {
-      for (size_t n=0; n<norder; n++) {
+      for (size_t n=0; n<nmax; n++) {
 	
 	std::vector<Eigen::MatrixXd*> orig =
 	  {&pot[mm][n], &rforce[mm][n], &zforce[mm][n]};
@@ -176,7 +176,7 @@ void BiorthCyl::initialize_cuda
 	if (mm) kmax += 3;
 
 	for (int k=0; k<kmax; k++) {
-	  xyg = returnTestBioCyl(tex, mm, n, k, norder, numx, numy);
+	  xyg = returnTestBioCyl(tex, mm, n, k, nmax, numx, numy);
 	
 	  for (int j=0; j<numy; j++) {
 	    for (int i=0; i<numx; i++) {
