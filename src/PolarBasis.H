@@ -217,9 +217,11 @@ protected:
   //@}
 
 
+  //! Get table scale
+  virtual double getRtable() = 0;
+
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
-  virtual double getRtable() = 0;
   virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();
