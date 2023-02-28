@@ -3,28 +3,40 @@
 #include "expand.H"
 
 #include <gaussQ.H>
-#include <Cylinder2d.H>
+#include <FlatDisk.H>
 #include <interp.H>
 
 const std::set<std::string>
-Cylinder2d::valid_keys = {
-  "knots",
+FlatDisk::valid_keys = {
+  "norder",
   "numr",
+  "numx",
+  "numy",
+  "knots",
+  "cmapR",
+  "cmapZ",
   "acyl",
-  "cmap",
   "logr",
+  "dtime",
+  "model",
+  "biorth",
+  "cachename",
+  "verbose",
+  "mmin",
+  "mlim",
+  "nmin",
+  "nlim"
 };
 
-Cylinder2d::Cylinder2d(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
+FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   PolarBasis(c0, conf, m)
 {
-  id = "Cylinder2d EOF";
+  id = "FlatDisk EOF";
 				// Defaults
   knots      = 40;
   numr       = 2000;
   cmap       = 1;
   acyl       = 0.01;
-  cachename  = "Cyl2d.cache";
   tnext      = 0.0;
   logr       = false;
 
@@ -34,20 +46,11 @@ Cylinder2d::Cylinder2d(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 				// Enable MPI code for more than one node
   // if (numprocs>1) BiorthCyl::mpi = 1;
 
-  std::string cachename = outdir  + cachename + "." + runtag;
-
   id += ", model=" + model;
-
-				// Generate Sturm-Liouville grid
-  ortho = std::make_shared<BiorthCyl>(conf);
-
-				// Get the min and max expansion radii
-  rmin  = ortho->getRmin();
-  rmax  = ortho->getRmax();
 
   if (myid==0) {
     std::string sep("----    ");
-    std::cout << "---- Cylinder2d parameters: "
+    std::cout << "---- FlatDisk parameters: "
 	      << std::endl << sep << "lmax="        << Lmax
 	      << std::endl << sep << "nmax="        << nmax
 	      << std::endl << sep << "cmap="        << cmap
@@ -68,7 +71,7 @@ Cylinder2d::Cylinder2d(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 }
 
 
-void Cylinder2d::initialize()
+void FlatDisk::initialize()
 {
   // Remove matched keys
   //
@@ -81,14 +84,13 @@ void Cylinder2d::initialize()
     if (conf["numr"])      numr       = conf["numr"].as<int>();
     if (conf["knots"])     knots      = conf["knots"].as<int>();
     if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
-    if (conf["cachename"]) cachename  = conf["cachename"].as<std::string>();
     if (conf["dtime"])     dtime      = conf["dtime"].as<double>();
     if (conf["logr"])      logr       = conf["logr"].as<bool>();
     if (conf["model"])     model      = conf["model"].as<std::string>();
     if (conf["biorth"])    biorth     = conf["biorth"].as<std::string>();
   }
   catch (YAML::Exception & error) {
-    if (myid==0) std::cout << "Error parsing parameters in Cylinder2d: "
+    if (myid==0) std::cout << "Error parsing parameters in FlatDisk: "
 			   << error.what() << std::endl
 			   << std::string(60, '-') << std::endl
 			   << "Config node"        << std::endl
@@ -98,15 +100,19 @@ void Cylinder2d::initialize()
     MPI_Finalize();
     exit(-1);
   }
+
+  // Create the BiorthCyl instance
+  ortho = std::make_shared<BiorthCyl>(conf);
+
 }
 
-Cylinder2d::~Cylinder2d(void)
+FlatDisk::~FlatDisk(void)
 {
   // NADA
 }
 
 
-void Cylinder2d::get_dpotl(double r, double z,
+void FlatDisk::get_dpotl(double r, double z,
 			   Eigen::MatrixXd& p, Eigen::MatrixXd& dpr, Eigen::MatrixXd& dpz, int tid)
 {
   ortho->get_pot(p, r, z);
@@ -114,17 +120,17 @@ void Cylinder2d::get_dpotl(double r, double z,
   ortho->get_zforce(dpz, r, z);
 }
 
-void Cylinder2d::get_potl(double r, double z, Eigen::MatrixXd& p, int tid)
+void FlatDisk::get_potl(double r, double z, Eigen::MatrixXd& p, int tid)
 {
   ortho->get_pot(p, r, z);
 }
 
-void Cylinder2d::get_dens(double r, double z, Eigen::MatrixXd& p, int tid)
+void FlatDisk::get_dens(double r, double z, Eigen::MatrixXd& p, int tid)
 {
   ortho->get_dens(p, r, z);
 }
 
-void Cylinder2d::get_potl_dens(double r, double z, Eigen::MatrixXd& p,
+void FlatDisk::get_potl_dens(double r, double z, Eigen::MatrixXd& p,
 			       Eigen::MatrixXd& d, int tid)
 {
   ortho->get_pot(p, r, z);
