@@ -58,8 +58,10 @@ private:
 
   void get_potl(double r, double z, Eigen::MatrixXd& p, int tid);
 
-#if HAVE_LIBCUDA==1
   virtual double getRtable() { return ortho->getRtable(); }
+
+#if HAVE_LIBCUDA==1
+  // All of this is implemented in PolarBasis...remove placeholder (?)
   /*
   virtual void initialize_cuda()
   {
@@ -86,7 +88,6 @@ private:
   int    cmap;
   string model;
   string biorth;
-  string cachename;
   bool   logr;
 
   //! Valid keys for YAML configurations
@@ -112,7 +113,6 @@ public:
       @param diverge set to true means assume a cuspy profile
       @param dfac is the power of the "divergent" cusp
       @param modelname is the file containing the input background model profile
-      @param cachename is the name for the SL grid cache file
       @param dtime is the interval between basis recomputations (<=0 for never)
   */
   FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m=0);
