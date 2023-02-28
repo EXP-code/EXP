@@ -10,6 +10,9 @@ const std::set<std::string>
 FlatDisk::valid_keys = {
   "nfid",
   "numr",
+  "rcylmin",
+  "rcylmax",
+  "acyltbl",
   "numx",
   "numy",
   "knots",
@@ -36,7 +39,9 @@ FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   knots      = 40;
   numr       = 2000;
   cmap       = 1;
-  acyl       = 0.01;
+  acyltbl    = 1.0;
+  rcylmin    = 0.0;
+  rcylmax    = 10.0;
   tnext      = 0.0;
   logr       = false;
 
@@ -54,9 +59,9 @@ FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 	      << std::endl << sep << "lmax="        << Lmax
 	      << std::endl << sep << "nmax="        << nmax
 	      << std::endl << sep << "cmap="        << cmap
-	      << std::endl << sep << "rmin="        << rmin
-	      << std::endl << sep << "rmax="        << rmax
-	      << std::endl << sep << "acyl="        << acyl
+	      << std::endl << sep << "acyltbl="     << acyltbl
+	      << std::endl << sep << "rcylmin="     << rcylmin
+	      << std::endl << sep << "rcylmax="     << rcylmax
 	      << std::endl << sep << "logr="        << std::boolalpha << logr
 	      << std::endl << sep << "NO_L0="       << std::boolalpha << NO_M0
 	      << std::endl << sep << "NO_L1="       << std::boolalpha << NO_M1
@@ -80,7 +85,9 @@ void FlatDisk::initialize()
   // Assign values from YAML
   //
   try {
-    if (conf["acyl"])      acyl       = conf["acyl"].as<double>();
+    if (conf["acyltbl"])   acyltbl    = conf["acyltbl"].as<double>();
+    if (conf["rcylmin"])   rcylmin    = conf["rcylmin"].as<double>();
+    if (conf["rcylmax"])   rcylmax    = conf["rcylmax"].as<double>();
     if (conf["numr"])      numr       = conf["numr"].as<int>();
     if (conf["knots"])     knots      = conf["knots"].as<int>();
     if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
@@ -113,9 +120,11 @@ FlatDisk::~FlatDisk(void)
 
 
 void FlatDisk::get_dpotl(double r, double z,
-			   Eigen::MatrixXd& p, Eigen::MatrixXd& dpr, Eigen::MatrixXd& dpz, int tid)
+			 Eigen::MatrixXd& p,
+			 Eigen::MatrixXd& dpr,
+			 Eigen::MatrixXd& dpz, int tid)
 {
-  ortho->get_pot(p, r, z);
+  ortho->get_pot   (p,   r, z);
   ortho->get_rforce(dpr, r, z);
   ortho->get_zforce(dpz, r, z);
 }
@@ -131,10 +140,9 @@ void FlatDisk::get_dens(double r, double z, Eigen::MatrixXd& p, int tid)
 }
 
 void FlatDisk::get_potl_dens(double r, double z, Eigen::MatrixXd& p,
-			       Eigen::MatrixXd& d, int tid)
+			     Eigen::MatrixXd& d, int tid)
 {
-  ortho->get_pot(p, r, z);
+  ortho->get_pot (p, r, z);
   ortho->get_dens(d, r, z);
 }
-
 

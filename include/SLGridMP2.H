@@ -231,6 +231,12 @@ private:
   //! Basis magic number
   inline static const unsigned int hmagic = 0xc0a56a1;
 
+  //! Write HDF5 cache
+  void WriteH5Cache();
+
+  //! Read HDF5 cache
+  bool ReadH5Cache();
+
 public:
 
   //! Flag for MPI enabled (default: 0=off)

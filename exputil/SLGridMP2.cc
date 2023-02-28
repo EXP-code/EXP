@@ -25,6 +25,15 @@
 #include <dmalloc.h>
 #endif
 
+#include <config_exp.h>		// For config macros
+
+// For reading and writing cache file
+//
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+
 // For fortran call
 // (This should work both 32-bit and 64-bit . . . )
 //
@@ -1964,6 +1973,8 @@ int SLGridSph::read_cached_table(void)
 {
   if (!cache) return 0;
 
+  if (ReadH5Cache()) return 1;
+
   std::ifstream in(sph_cache_name);
   if (!in) return 0;
 
@@ -2118,8 +2129,10 @@ int SLGridSph::read_cached_table(void)
     }
   }
 
-  if (myid==0)
+  if (myid==0) {
     std::cout << "---- SLGridSph::read_cached_table: Success!!" << std::endl;
+    WriteH5Cache();
+  }
   
   return 1;
 }
@@ -2199,7 +2212,146 @@ void SLGridSph::write_cached_table(void)
 	out.write((char *)&table[l].ef(j, i), sizeof(double));
   }
 
+  WriteH5Cache();
+
   std::cout << "---- SLGridSph::write_cached_table: done!!" << std::endl;
+  return ;
+}
+
+
+bool SLGridSph::ReadH5Cache(void)
+{
+  // First attempt to read the file
+  //
+  try {
+    // Silence the HDF5 error stack
+    //
+    HighFive::SilenceHDF5 quiet;
+    
+    // Try opening the file as HDF5
+    //
+    HighFive::File h5file(sph_cache_name + ".h5", HighFive::File::ReadOnly);
+    
+    // Try checking the rest of the parameters before reading arrays
+    //
+    auto checkInt = [&h5file](int value, std::string name)
+    {
+      int v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
+      if (value == v) return true; return false;
+    };
+
+    auto checkDbl = [&h5file](double value, std::string name)
+    {
+      double v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
+      if (fabs(value - v) < 1.0e-16) return true; return false;
+    };
+
+    auto checkStr = [&h5file](std::string value, std::string name)
+    {
+      std::string v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
+      if (value.compare(v)==0) return true; return false;
+    };
+
+    // For cache ID
+    //
+    std::string geometry("sphere"), forceID("SLGridSph");
+    std::string modl(model_file_name);
+
+    // ID check
+    //
+    if (not checkStr(geometry, "geometry"))  return false;
+    if (not checkStr(forceID,  "forceID"))   return false;
+
+    // Parameter check
+    //
+    if (not checkStr(modl,     "model"))     return false;
+    if (not checkInt(lmax,     "lmax"))      return false;
+    if (not checkInt(nmax,     "nmax"))      return false;
+    if (not checkInt(numr,     "numr"))      return false;
+    if (not checkInt(cmap,     "cmap"))      return false;
+    if (not checkDbl(rmin,     "rmin"))      return false;
+    if (not checkDbl(rmax,     "rmax"))      return false;
+    if (not checkDbl(scale,    "scale"))     return false;
+    if (not checkInt(diverge,  "diverge"))   return false;
+    if (not checkDbl(dfac,     "dfac"))      return false;
+
+    // Harmonic order
+    //
+    for (int l=0; l<=lmax; l++) {
+      std::ostringstream sout;
+      sout << l;
+      auto arrays = h5file.getGroup(sout.str());
+      
+      arrays.getDataSet("ev").read(table[l].ev);
+      arrays.getDataSet("ef").read(table[l].ef);
+    }
+    
+    if (myid==0)
+      std::cerr << "---- SLGridSph::ReadH5Cache: "
+		<< "read basis cache <" << sph_cache_name + ".h5" << ">"
+		<< std::endl;
+
+    return true;
+    
+  } catch (HighFive::Exception& err) {
+    if (myid==0)
+      std::cerr << "---- SLGridSph::ReadH5Cache: "
+		<< "error opening as HDF5 basis cache"
+		<< std::endl;
+  }
+
+  return false;
+}
+
+
+
+void SLGridSph::WriteH5Cache(void)
+{
+  if (myid) return;
+
+  try {
+    // Create a new hdf5 file or overwrite an existing file
+    //
+    HighFive::File file(sph_cache_name + ".h5", HighFive::File::Overwrite);
+    
+    // For cache ID
+    //
+    std::string geometry("sphere"), forceID("SLGridSph");
+
+    file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
+    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
+      
+    // Write parameters
+    //
+    file.createAttribute<std::string> ("model",    HighFive::DataSpace::From(model_file_name)).write(model_file_name);
+    file.createAttribute<int>         ("lmax",     HighFive::DataSpace::From(lmax)).write(lmax);
+    file.createAttribute<int>         ("nmax",     HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<int>         ("numr",     HighFive::DataSpace::From(numr)).write(numr);
+    file.createAttribute<int>         ("cmap",     HighFive::DataSpace::From(cmap)).write(cmap);
+    file.createAttribute<double>      ("rmin",     HighFive::DataSpace::From(rmin)).write(rmin);
+    file.createAttribute<double>      ("rmax",     HighFive::DataSpace::From(rmax)).write(rmax);
+    file.createAttribute<double>      ("scale",    HighFive::DataSpace::From(scale)).write(scale);
+    file.createAttribute<int>         ("diverge",  HighFive::DataSpace::From(diverge)).write(diverge);
+    file.createAttribute<double>      ("dfac",     HighFive::DataSpace::From(dfac)).write(dfac);
+      
+    // Harmonic order
+    //
+    for (int l=0; l<=lmax; l++) {
+      std::ostringstream sout;
+      sout << l;
+      auto arrays = file.createGroup(sout.str());
+      
+      arrays.createDataSet("ev",   table[l].ev);
+      arrays.createDataSet("ef",   table[l].ef);
+    }
+    
+  } catch (HighFive::Exception& err) {
+    std::cerr << err.what() << std::endl;
+  }
+    
+  std::cout << "---- SLGridSph::WriteH5Cache: "
+	    << "wrote <" << sph_cache_name + ".h5>" << std::endl;
+  
   return ;
 }
 

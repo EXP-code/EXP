@@ -44,14 +44,14 @@ protected:
   std::string geometry, forceID;
   
   int mmax, nmax, numr, nfid, mmin, mlim, nmin, nlim, knots, NQDHT;
-  double rmin, rmax, scale, acyl;
+  double rcylmin, rcylmax, scale, acyltbl;
 
   bool EVEN_M, verbose;
   
   //@{
   //! Grid parameters
   int cmapR, cmapZ, numx, numy;
-  double xmin, xmax, dx, Rtable;
+  double xmin, xmax, dx;
   double ymin, ymax, dy;
   //@}
 
@@ -66,12 +66,13 @@ protected:
 
   //! Interpolate on grid
   double interp(int m, int n, double R, double z,
-		const std::vector<std::vector<Eigen::MatrixXd>>& mat);
+		const std::vector<std::vector<Eigen::MatrixXd>>& mat,
+		bool asymmetric=false);
 
   //! Matrix interpolation on grid for coefficient composition
   void interp(double R, double z,
 	      const std::vector<std::vector<Eigen::MatrixXd>>& mat,
-	      Eigen::MatrixXd& ret);
+	      Eigen::MatrixXd& ret, bool asymmetric=false);
 
   //! Default cache file name
   const std::string default_cache = ".biorth_cache";
@@ -131,35 +132,35 @@ public:
   
   //! Get potential for dimensionless coord with harmonic order m and radial orer n
   double get_pot(double r, double z, int m, int n)
-  { return interp(m, n, r, z, pot) * pfac; }
+  { return interp(m, n, r, z, pot); }
 
   //! Get density for dimensionless coord with harmonic order l and radial orer n  
   double get_dens(double r, double z, int m, int n)
-  { return interp(m, n, r, z, dens) * dfac; }
+  { return interp(m, n, r, z, dens); }
 
   //! Get radial force for dimensionless coord with harmonic order l and radial orer n
   double get_rforce(double r, double z, int m, int n)
-  { return interp(m, n, r, z, rforce) * ffac; }
+  { return interp(m, n, r, z, rforce); }
 
   //! Get radial force for dimensionless coord with harmonic order l and radial orer n
   double get_zforce(double r, double z, int m, int n)
-  { return interp(m, n, r, z, zforce) * ffac; }
+  { return interp(m, n, r, z, zforce, true); }
 
   //! Get potential for dimensionless coord with harmonic order m and radial orer n
   void get_pot(Eigen::MatrixXd& p, double r, double z)
-  { interp(r, z, pot, p); p *= pfac; }
+  { interp(r, z, pot, p); }
 
   //! Get density for dimensionless coord with harmonic order l and radial orer n  
   void get_dens(Eigen::MatrixXd& d, double r, double z)
-  { interp(r, z, dens, d); d *= dfac; }
+  { interp(r, z, dens, d); }
 
   //! Get radial force for dimensionless coord with harmonic order l and radial orer n
   void get_rforce(Eigen::MatrixXd& f, double r, double z)
-  { interp(r, z, rforce, f); f *= ffac; }
+  { interp(r, z, rforce, f); }
 
   //! Get radial force for dimensionless coord with harmonic order l and radial orer n
   void get_zforce(Eigen::MatrixXd& f, double r, double z)
-  { interp(r, z, zforce, f); f *= ffac; }
+  { interp(r, z, zforce, f, true); }
 
 #if HAVE_LIBCUDA==1
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,
@@ -191,11 +192,9 @@ public:
   void get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs, double r, double z);
 
   //@{
-  //! Get the current minimum and maximum radii for the expansion
-  double getRmin()   { return rmin;   }
-  double getRmax()   { return rmax;   }
-  double getRtable() { return Rtable; }
-  double getRscale() { return scale;  }
+  //! Get the table parameters
+  double getRtable() { return rcylmax; }
+  double getRscale() { return scale;   }
   //@}
 
 };

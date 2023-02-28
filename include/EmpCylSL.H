@@ -225,6 +225,12 @@ protected:
   //! The default cache file name
   const std::string default_cache = ".eof.cache.file";
 
+  //! Write HDF5 cache
+  void WriteH5Cache();
+
+  //! Read HDF5 cache
+  bool ReadH5Cache();
+
   //! The cache file name
   std::string cachefile;
 				// 1=write, 0=read

@@ -25,6 +25,14 @@
 #include <VtkPCA.H>
 #endif
 
+// For reading and writing HDF5 cache files
+//
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+
+
 #ifdef HAVE_OMP_H
 #include <omp.h>		// For multithreading basis construction
 #endif
@@ -778,9 +786,11 @@ int EmpCylSL::read_cache(void)
 				// Send table to worker processes
   if (use_mpi)  send_eof_grid();
 
-  if (myid==0) 
+  if (myid==0) {
     std::cout << "---- EmpCylSL::read_cache: table forwarded to all processes"
 	      << std::endl;
+    WriteH5Cache();
+  }
 
 
   eof_made   = true;
@@ -958,6 +968,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 
     }
     
+    WriteH5Cache();
   }
   else {
 
@@ -6871,3 +6882,247 @@ void EmpCylSL::getPotSC(int mm, int n, double R, double z,
       potS[mm][n](ix  , iy+1) * c01 +
       potS[mm][n](ix+1, iy+1) * c11 ;
 }
+
+void EmpCylSL::WriteH5Cache()
+{
+  if (myid) return;		// Only root node writes the cache
+
+  try {
+    // Create a new hdf5 file or overwrite an existing file
+    //
+    HighFive::File file(cachefile + ".h5", HighFive::File::ReadWrite | HighFive::File::Create);
+    
+    // For basis ID
+    std::string forceID("Cylinder"), geometry("cylinder");
+    std::string model = EmpModelLabs[mtype];
+
+    file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
+    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
+      
+    // HighFive boolean workarounds
+    //
+    int idens = 0;
+    if (DENS) idens = 1;
+
+    // Write the specific parameters
+    //
+    file.createAttribute<std::string>("model",  HighFive::DataSpace::From(model)).   write(model);
+    file.createAttribute<int>        ("mmax",   HighFive::DataSpace::From(MMAX)).    write(MMAX);
+    file.createAttribute<int>        ("numx",   HighFive::DataSpace::From(NUMX)).    write(NUMX);
+    file.createAttribute<int>        ("numy",   HighFive::DataSpace::From(NUMY)).    write(NUMY);
+    file.createAttribute<int>        ("nmax",   HighFive::DataSpace::From(NMAX)).    write(NMAX);
+    file.createAttribute<int>        ("norder", HighFive::DataSpace::From(NORDER)).  write(NORDER);
+    file.createAttribute<int>        ("neven",  HighFive::DataSpace::From(Neven)).   write(Neven);
+    file.createAttribute<int>        ("nodd",   HighFive::DataSpace::From(Nodd)).    write(Nodd);
+    file.createAttribute<int>        ("idens",  HighFive::DataSpace::From(idens)).   write(idens);
+    file.createAttribute<int>        ("cmapr",  HighFive::DataSpace::From(CMAPR)).   write(CMAPR);
+    file.createAttribute<int>        ("cmapz",  HighFive::DataSpace::From(CMAPZ)).   write(CMAPZ);
+    file.createAttribute<double>     ("rmin",   HighFive::DataSpace::From(RMIN)).    write(RMIN);
+    file.createAttribute<double>     ("rmax",   HighFive::DataSpace::From(RMAX)).    write(RMAX);
+    file.createAttribute<double>     ("ascl",   HighFive::DataSpace::From(ASCALE)).  write(ASCALE);
+    file.createAttribute<double>     ("hscl",   HighFive::DataSpace::From(HSCALE)).  write(HSCALE);
+    file.createAttribute<double>     ("cmass",  HighFive::DataSpace::From(cylmass)). write(cylmass);
+      
+    // Cosine functions
+
+    auto cosine = file.createGroup("C");
+
+    // Harmonic order
+    //
+    for (int m=0; m<=MMAX; m++) {
+      std::ostringstream sout;
+      sout << m;
+      auto harmonic = cosine.createGroup(sout.str());
+      
+      for (int n=0; n<NORDER; n++) {
+
+	std::ostringstream sout;
+	sout << n;
+	auto order = harmonic.createGroup(sout.str());
+      
+	order.createDataSet("potC",    potC   [m][n]);
+	order.createDataSet("rforceC", rforceC[m][n]);
+	order.createDataSet("zforceC", zforceC[m][n]);
+	if (DENS) order.createDataSet("densC", densC[m][n]);
+      }
+    }
+
+    // Sine functions
+
+    auto sine = file.createGroup("S");
+
+    // Harmonic order
+    //
+    for (int m=1; m<=MMAX; m++) {
+      std::ostringstream sout;
+      sout << m;
+      auto harmonic = sine.createGroup(sout.str());
+      
+      for (int n=0; n<NORDER; n++) {
+
+	std::ostringstream sout;
+	sout << n;
+	auto order = harmonic.createGroup(sout.str());
+      
+	order.createDataSet("potS",    potS   [m][n]);
+	order.createDataSet("rforceS", rforceS[m][n]);
+	order.createDataSet("zforceS", zforceS[m][n]);
+	if (DENS) order.createDataSet("densS", densS[m][n]);
+      }
+    }
+
+  } catch (HighFive::Exception& err) {
+    std::cerr << err.what() << std::endl;
+  }
+    
+  std::cout << "---- EmpCylSL::WriteH5Cache: "
+	    << "wrote <" << cachefile + ".h5>" << std::endl;
+}
+
+bool EmpCylSL::ReadH5Cache()
+{
+  try {
+    // Silence the HDF5 error stack
+    //
+    HighFive::SilenceHDF5 quiet;
+    
+    // Open the hdf5 file
+    //
+    HighFive::File file(cachefile + ".h5", HighFive::File::ReadOnly);
+    
+    // For basis ID
+    std::string forceID("Cylinder"), geometry("cylinder");
+    std::string model = EmpModelLabs[mtype];
+      
+    // HighFive boolean workarounds
+    //
+    int idens = 0;
+    if (DENS) idens = 1;
+
+    // Try checking the rest of the parameters before reading arrays
+    //
+    auto checkInt = [&file](int value, std::string name)
+    {
+      int v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
+      if (value == v) return true; return false;
+    };
+
+    auto checkDbl = [&file](double value, std::string name)
+    {
+      double v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
+      if (fabs(value - v) < 1.0e-16) return true; return false;
+    };
+
+    auto checkStr = [&file](std::string value, std::string name)
+    {
+      std::string v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
+      if (value.compare(v)==0) return true; return false;
+    };
+
+    if (not checkStr(geometry, "geometry"))  return false;
+    if (not checkStr(forceID,  "forceID"))   return false;
+    if (not checkInt(MMAX,     "mmax"))      return false;
+    if (not checkInt(NUMX,     "numx"))      return false;
+    if (not checkInt(NUMY,     "numy"))      return false;
+    if (not checkInt(NMAX,     "nmax"))      return false;
+    if (not checkInt(NORDER,   "norder"))    return false;
+    if (not checkInt(Neven,    "neven"))     return false;
+    if (not checkInt(Nodd,     "nodd"))      return false;
+    if (not checkInt(idens,    "idens"))     return false;
+    if (not checkInt(CMAPR,    "cmapr"))     return false;
+    if (not checkInt(CMAPZ,    "cmapz"))     return false;
+    if (not checkDbl(RMIN,     "rmin"))      return false;
+    if (not checkDbl(RMAX,     "rmax"))      return false;
+    if (not checkDbl(ASCALE,   "ascl"))      return false;
+    if (not checkDbl(HSCALE,   "hscl"))      return false;
+    if (not checkDbl(cylmass,  "cmass"))     return false;
+
+    // Allocate arrays for storing grids
+    //
+    potC    .resize(MMAX+1);
+    rforceC .resize(MMAX+1);
+    zforceC .resize(MMAX+1);
+  
+    potS    .resize(MMAX+1);
+    rforceS .resize(MMAX+1);
+    zforceS .resize(MMAX+1);
+  
+    if (DENS) {
+      densC .resize(MMAX+1);
+      densS .resize(MMAX+1);
+    }
+
+    for (int m=0; m<=MMAX; m++) {
+      potC[m]   .resize(NORDER);
+      rforceC[m].resize(NORDER);
+      zforceC[m].resize(NORDER);
+      if (DENS) densC[m].resize(NORDER);
+    }
+
+    for (int m=1; m<=MMAX; m++) {
+      potS[m]   .resize(NORDER);
+      rforceS[m].resize(NORDER);
+      zforceS[m].resize(NORDER);
+      if (DENS) densS[m].resize(NORDER);
+    }    
+
+    // Read arrays and data from H5 file
+    //
+
+    // Cosine grid group
+    //
+    auto cosine = file.getGroup("C");
+
+    // Harmonic order groups
+    //
+    for (int m=0; m<=MMAX; m++) {
+      std::ostringstream sout;
+      sout << m;
+      auto harmonic = cosine.getGroup(sout.str());
+      
+      for (int n=0; n<NORDER; n++) {
+	std::ostringstream sout;
+	sout << n;
+	auto order = harmonic.getGroup(sout.str());
+      
+	order.getDataSet("potC")   .read(potC   [m][n]);
+	order.getDataSet("rforceC").read(rforceC[m][n]);
+	order.getDataSet("zforceC").read(zforceC[m][n]);
+	if (DENS) order.getDataSet("densC").read(densC[m][n]);
+      }
+    }
+
+    // Sine grid group
+    //
+    auto sine = file.getGroup("S");
+
+    // Harmonic order groups
+    //
+    for (int m=1; m<=MMAX; m++) {
+      std::ostringstream sout;
+      sout << m;
+      auto harmonic = sine.getGroup(sout.str());
+      
+      for (int n=0; n<NORDER; n++) {
+	std::ostringstream sout;
+	sout << n;
+	auto order = harmonic.getGroup(sout.str());
+      
+	order.getDataSet("potS")   .read(potS   [m][n]);
+	order.getDataSet("rforceS").read(rforceS[m][n]);
+	order.getDataSet("zforceS").read(zforceS[m][n]);
+	if (DENS) order.getDataSet("densS").read(densS[m][n]);
+      }
+    }
+
+  } catch (HighFive::Exception& err) {
+    if (myid==0) std::cerr << "---- " << err.what() << std::endl;
+    return false;
+  }
+    
+  if (myid==0) std::cout << "---- EmpCylSL::ReadH5Cache: "
+			 << "read <" << cachefile + ".h5>" << std::endl;
+
+  return true;
+}
+

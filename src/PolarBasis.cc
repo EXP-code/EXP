@@ -1469,13 +1469,13 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 
       fac = xx*xx + yy*yy;
 
-      cC->AddAcc(indx, 0, -potr*xx/r);
-      cC->AddAcc(indx, 1, -potr*yy/r);
-      cC->AddAcc(indx, 2, -potz     );
+      cC->AddAcc(indx, 0, potr*xx/r);
+      cC->AddAcc(indx, 1, potr*yy/r);
+      cC->AddAcc(indx, 2, potz     );
       if (fac > DSMALL) {
-	cC->AddAcc(indx, 0,  potp*yy/fac );
-	cC->AddAcc(indx, 1, -potp*xx/fac );
-	cC->AddAcc(indx, 2, -potz        );
+	cC->AddAcc(indx, 0, -potp*yy/fac );
+	cC->AddAcc(indx, 1,  potp*xx/fac );
+	cC->AddAcc(indx, 2,  potz        );
       }
       if (use_external)
 	cC->AddPotExt(indx, potl);
@@ -1863,9 +1863,11 @@ void PolarBasis::determine_fields_at_point_cyl
     }
   }
 
+  /*
   *tpotl /= scale;
   *tpotR /= scale*scale;
   *tpotp /= scale;
+  */
 }
 
 void PolarBasis::determine_fields_at_point_sph

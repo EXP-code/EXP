@@ -81,7 +81,7 @@ private:
 		     Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid);
 
 				// Parameters
-  double tnext, dtime, acyl, scale;
+  double tnext, dtime, acyltbl, scale, rcylmin, rcylmax;
   int    numr;
   int    mmax;
   int    knots;
