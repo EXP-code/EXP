@@ -32,6 +32,7 @@ bool PolarBasis::NewCoefs = true;
 
 const std::set<std::string>
 PolarBasis::valid_keys = {
+  "scale",
   "rmin",
   "rmax",
   "self_consistent",
@@ -39,13 +40,9 @@ PolarBasis::valid_keys = {
   "NO_M1",
   "EVEN_M",
   "M0_ONLY",
-  "NOISE",
-  "noiseN",
-  "noise_model_file",
   "seedN",
   "ssfrac",
   "playback",
-  "coefCompute",
   "coefMaster"
 };
 
@@ -165,8 +162,6 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
       }
 
       play_back = true;
-
-      if (conf["coefCompute"]) play_cnew = conf["coefCompute"].as<bool>();
 
       if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
 
@@ -2113,7 +2108,7 @@ void PolarBasis::accumulate(double r, double z, double phi, double mass,
   double msin, mcos;
   int mm;
   
-  double norm = -4.0*M_PI;
+  double norm = 1.0;
   
   unsigned whch;
   if (compute and pcavar) {
