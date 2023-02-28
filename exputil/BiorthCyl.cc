@@ -39,11 +39,11 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     if (conf["Lmax"] and not conf["Mmax"])
                              mmax = conf["Lmax"].as<int>();
     
-    if (conf["nmax"])        nmax = conf["nmax"].as<int>();
-    else                     nmax = 16;
+    if (conf["nfid"])        nfid = conf["nfid"].as<int>();
+    else                     nfid = 40;
 
-    if (conf["norder"])      norder = conf["norder"].as<int>();    
-    else                     norder = nmax;			       
+    if (conf["nmax"])        nmax = conf["nmax"].as<int>();    
+    else                     nmax = nfid;			       
     			                                           
     if (conf["numr"])        numr = conf["numr"].as<int>();	       
     else                     numr = 2000;			       
@@ -151,7 +151,7 @@ void BiorthCyl::initialize()
     rforce[m].resize(nmax);
     zforce[m].resize(nmax);
 
-    for (int n=0; n<norder; n++) {
+    for (int n=0; n<nmax; n++) {
       dens  [m][n].resize(numx, numy);
       pot   [m][n].resize(numx, numy);
       rforce[m][n].resize(numx, numy);
@@ -174,7 +174,7 @@ void BiorthCyl::create_tables()
   std::string target("expon");
   std::string biorth("bess");
 
-  EmpCyl2d emp(mmax, nmax, knots, numr, rmin, rmax, acyl, 1.0, cmapR, logr,
+  EmpCyl2d emp(mmax, nfid, knots, numr, rmin, rmax, acyl, 1.0, cmapR, logr,
 	       target, biorth);
 
   if (conf["basis"]) emp.basisTest(true);
@@ -185,7 +185,7 @@ void BiorthCyl::create_tables()
     //
     PotRZ potrz(Rtable, NQDHT, m);
 
-    for (int n=0; n<norder; n++) {
+    for (int n=0; n<nmax; n++) {
 
       // Create the functor
       //
@@ -210,7 +210,7 @@ void BiorthCyl::create_tables()
     }
   }
 
-  if (myid==0) WriteH5Cache();
+  WriteH5Cache();
 }
 
 
@@ -301,7 +301,7 @@ void BiorthCyl::interp(double R, double z,
 		       const std::vector<std::vector<Eigen::MatrixXd>>& mat,
 		       Eigen::MatrixXd& ret)
 {
-  ret.resize(mmax+1, norder);
+  ret.resize(mmax+1, nmax);
   ret.setZero();
 
   if (R/scale>Rtable) return;
@@ -341,7 +341,7 @@ void BiorthCyl::interp(double R, double z,
   double c11 = delx1*dely1;
   
   for (int m=0; m<=mmax; m++) {
-    for (int n=0; m<nmax; n++) {
+    for (int n=0; n<nmax; n++) {
       ret(m, n) =
 	mat[m][n](ix  , iy  ) * c00 +
 	mat[m][n](ix+1, iy  ) * c10 +
@@ -358,7 +358,7 @@ double BiorthCyl::interp(int m, int n, double R, double z,
 {
   double ret = 0.0;
 
-  if (R/scale>Rtable or n>=norder or m>mmax) return ret;
+  if (R/scale>Rtable or n>=nmax or m>mmax) return ret;
 
   double X = (r_to_xi(R) - xmin)/dx;
   double Y = (z_to_y(z)  - ymin)/dy;
@@ -405,8 +405,8 @@ void BiorthCyl::WriteH5Params(HighFive::File& file)
 {
   file.createAttribute<int>         ("mmax",     HighFive::DataSpace::From(mmax)).write(mmax);
   file.createAttribute<int>         ("nmax",     HighFive::DataSpace::From(nmax)).write(nmax);
-  file.createAttribute<int>         ("norder",   HighFive::DataSpace::From(norder)).write(norder);
   file.createAttribute<int>         ("numr",     HighFive::DataSpace::From(numr)).write(numr);
+  file.createAttribute<int>         ("nfid",     HighFive::DataSpace::From(nmax)).write(nfid);
   file.createAttribute<int>         ("numx",     HighFive::DataSpace::From(numx)).write(numx);
   file.createAttribute<int>         ("numy",     HighFive::DataSpace::From(numy)).write(numy);
   file.createAttribute<double>      ("rmin",     HighFive::DataSpace::From(rmin)).write(rmin);
@@ -425,16 +425,17 @@ void BiorthCyl::WriteH5Arrays(HighFive::Group& harmonic)
     sout << m;
     auto order = harmonic.createGroup(sout.str());
       
-    for (int n=0; n<norder; n++) {
+    for (int n=0; n<nmax; n++) {
       std::ostringstream sout;
       sout << n;
       auto arrays = order.createGroup(sout.str());
 
-      HighFive::DataSet ds1 = arrays.createDataSet("density",   dens[m][n]);
-      HighFive::DataSet ds2 = arrays.createDataSet("potential", pot[m][n]);
+      HighFive::DataSet ds1 = arrays.createDataSet("density",   dens  [m][n]);
+      HighFive::DataSet ds2 = arrays.createDataSet("potential", pot   [m][n]);
       HighFive::DataSet ds3 = arrays.createDataSet("rforce",    rforce[m][n]);
       HighFive::DataSet ds4 = arrays.createDataSet("zforce",    zforce[m][n]);
     }
+    std::cout << "WRiteH5Arrays: m=" << m << " arrays" << std::endl;
   }
 }
 
@@ -445,7 +446,7 @@ void BiorthCyl::ReadH5Arrays(HighFive::Group& harmonic)
     sout << m;
     auto order = harmonic.getGroup(sout.str());
       
-    for (int n=0; n<norder; n++) {
+    for (int n=0; n<nmax; n++) {
       std::ostringstream sout;
       sout << n;
       auto arrays = order.getGroup(sout.str());
@@ -461,6 +462,8 @@ void BiorthCyl::ReadH5Arrays(HighFive::Group& harmonic)
 
 void BiorthCyl::WriteH5Cache()
 {
+  if (myid) return;
+
   try {
     // Create a new hdf5 file or overwrite an existing file
     //
@@ -494,9 +497,8 @@ void BiorthCyl::WriteH5Cache()
     std::cerr << err.what() << std::endl;
   }
     
-  if (myid==0)
-    std::cout << "---- BiorthCyl::WriteH5Cache: "
-	      << "wrote <" << cachename + ".h5>" << std::endl;
+  std::cout << "---- BiorthCyl::WriteH5Cache: "
+	    << "wrote <" << cachename + ".h5>" << std::endl;
 }
   
 bool BiorthCyl::ReadH5Cache()
@@ -532,10 +534,18 @@ bool BiorthCyl::ReadH5Cache()
       if (value.compare(v)==0) return true; return false;
     };
 
+
+    // ID check
+    //
+    if (not checkStr(geometry, "geometry"))  return false;
+    if (not checkStr(forceID,  "forceID"))   return false;
+
+    // Parameter check
+    //
     if (not checkInt(mmax,     "mmax"))      return false;
     if (not checkInt(nmax,     "nmax"))      return false;
-    if (not checkInt(norder,   "norder"))    return false;
     if (not checkInt(numr,     "numr"))      return false;
+    if (not checkInt(nfid,     "nfid"))      return false;
     if (not checkInt(numx,     "numx"))      return false;
     if (not checkInt(numy,     "numy"))      return false;
     if (not checkDbl(rmin,     "rmin"))      return false;
@@ -544,8 +554,6 @@ bool BiorthCyl::ReadH5Cache()
     if (not checkDbl(acyl,     "acyl"))      return false;
     if (not checkInt(cmapR,    "cmapR"))     return false;
     if (not checkInt(cmapZ,    "cmapZ"))     return false;
-    if (not checkStr(geometry, "cylinder"))  return false;
-    if (not checkStr(forceID,  "BiorthCyl")) return false;
 
     // Open the harmonic group
     //
@@ -569,8 +577,8 @@ bool BiorthCyl::ReadH5Cache()
 void BiorthCyl::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
 			double r, double z)
 {
-  Vc.resize(max(1, mmax)+1, norder);
-  Vs.resize(max(1, mmax)+1, norder);
+  Vc.resize(max(1, mmax)+1, nmax);
+  Vs.resize(max(1, mmax)+1, nmax);
 
   double X = (r_to_xi(r) - xmin)/dx;
 
@@ -599,7 +607,7 @@ void BiorthCyl::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
     // Suppress odd M terms?
     if (EVEN_M && (mm/2)*2 != mm) continue;
 
-    for (int n=0; n<norder; n++) {
+    for (int n=0; n<nmax; n++) {
 
       Vc(mm, n) = fac * (pot[mm][n](ix  , 0)*c0 +  pot[mm][n](ix+1, 0)*c1);
       Vs(mm, n) = Vc(mm, n);
