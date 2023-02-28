@@ -43,8 +43,8 @@ protected:
 
   std::string geometry, forceID;
   
-  int mmax, nmax, numr, norder, mmin, mlim, nmin, nlim, knots;
-  double rmin, rmax, zmax, rscale, zscale, acyl;
+  int mmax, nmax, numr, norder, mmin, mlim, nmin, nlim, knots, NQDHT;
+  double rmin, rmax, scale, acyl;
 
   bool EVEN_M, verbose;
   
@@ -169,8 +169,8 @@ public:
   {
     cudaMappingConstants ret;
 
-    ret.rscale = rscale;
-    ret.hscale = zscale;
+    ret.rscale = scale;
+    ret.hscale = scale;
     ret.xmin   = xmin;
     ret.xmax   = xmax;
     ret.ymin   = ymin;
@@ -192,11 +192,10 @@ public:
 
   //@{
   //! Get the current minimum and maximum radii for the expansion
-  double getRmin()   { return rmin; }
-  double getRmax()   { return rmax; }
-  double getZmax()   { return zmax; }
+  double getRmin()   { return rmin;   }
+  double getRmax()   { return rmax;   }
   double getRtable() { return Rtable; }
-  double getRscale() { return rscale; }
+  double getRscale() { return scale;  }
   //@}
 
 };
