@@ -1235,7 +1235,6 @@ void Component::initialize(void)
 		<< " and last step criteria is "
 		<< std::boolalpha << DTreset()
 		<< std::endl;
-    std::cout << std::endl;
   }
   
 }
