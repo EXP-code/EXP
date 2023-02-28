@@ -14,7 +14,7 @@
 int main(int argc, char** argv)
 {
   bool logr = false, cmap = false, ortho = false, plane = false;
-  int numr, mmax, nmax, knots, M, N, nradial;
+  int numr, mmax, nmax, knots, M, N, nradial, nout;
   double A, rmin, rmax;
   std::string filename, type, biorth;
 
@@ -62,6 +62,8 @@ int main(int argc, char** argv)
      cxxopts::value<double>(rmax)->default_value("20.0"))
     ("knots",       "Number of Legendre integration knots",
      cxxopts::value<int>(knots)->default_value("200"))
+    ("nout",        "number of points in the output grid per side",
+     cxxopts::value<int>(nout)->default_value("40"))
     ("type",        "Target model type (kuzmin, mestel, expon)",
      cxxopts::value<std::string>(type)->default_value("expon"))
     ("biorth",      "Biorthogonal type (cb, bess)",
@@ -101,7 +103,7 @@ int main(int argc, char** argv)
 
   // Make the class instance
   //
-  EmpCyl2D emp(mmax, nmax, knots, numr, rmin, rmax, A, 1.0, cmap, logr,
+  EmpCyl2d emp(mmax, nmax, knots, numr, rmin, rmax, A, 1.0, cmap, logr,
 	       type, biorth);
 
   if (vm.count("basis")) emp.basisTest(true);
@@ -126,10 +128,6 @@ int main(int argc, char** argv)
       return emp.get_dens(R, M, nradial);
     };
 
-    // Vertical grid size
-    //
-    constexpr int num = 40;
-
     // Output file for grid
     //
     std::ofstream out(filename + ".RZ");
@@ -141,8 +139,8 @@ int main(int argc, char** argv)
 
     // Grid spacing
     //
-    double dR = Rmax/(num - 1);
-    double dz = Zmax/(num - 1);
+    double dR = Rmax/(nout - 1);
+    double dz = Zmax/(nout - 1);
 
     // Get field type
     //
@@ -156,11 +154,11 @@ int main(int argc, char** argv)
 
     if (vm.count("full")) {
 
-      out << std::setw(8) << N << std::setw(8) << num << std::endl;
+      out << std::setw(8) << N << std::setw(8) << nout << std::endl;
 
       // Do the grid computation
       //
-      for (int j=0; j<num; j++) {
+      for (int j=0; j<nout; j++) {
 	
 	double z = dz*j;
 	
@@ -178,15 +176,15 @@ int main(int argc, char** argv)
     }
     else if (vm.count("totforce")) {
 
-      out << std::setw(8) << num << std::setw(8) << num << std::endl;
+      out << std::setw(8) << nout << std::setw(8) << nout << std::endl;
 
       // Do the grid computation
       //
-      for (int j=0; j<num; j++) {
+      for (int j=0; j<nout; j++) {
 	
 	double z = dz*j;
 	
-	for (int i=0; i<num; i++) {
+	for (int i=0; i<nout; i++) {
 	  double R = dR*i;
 	  double fR = pot(R, z, dens, PotRZ::Field::rforce);
 	  double fz = pot(R, z, dens, PotRZ::Field::zforce);
@@ -199,15 +197,15 @@ int main(int argc, char** argv)
     }
     else {
 
-      out << std::setw(8) << num << std::setw(8) << num << std::endl;
+      out << std::setw(8) << nout << std::setw(8) << nout << std::endl;
 
       // Do the grid computation
       //
-      for (int j=0; j<num; j++) {
+      for (int j=0; j<nout; j++) {
 	
 	double z = dz*j;
 	
-	for (int i=0; i<num; i++) {
+	for (int i=0; i<nout; i++) {
 	  out << std::setw(16) << dR*i
 	      << std::setw(16) << dz*j
 	      << std::setw(16) << pot(dR*i, dz*j, dens, F)
