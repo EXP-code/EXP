@@ -13,36 +13,37 @@ typedef std::shared_ptr<BiorthCyl> CylPtr;
 #include <cudaUtil.cuH>
 #endif
 
-/** Computes the potential, acceleration and density using the Sturm
-    Liouville direct solution
+/** Computes the potential, acceleration and density using an empirical
+    function analysis for a flat Bessel basis and a target density
 
-    \param rmin is the minimum value in the table for the 
-    radial basis functions (default is 0.001)
+    \param acyltbl is the scale length of target density (default is
+    0.6)
 
-    \param rs is the halo scale length (default is 0.067*rmax).  This
-    is used to for the coordinate mapping  (see below).
+    \param rcylmin is the minimum value in the table for the 
+    radial basis functions (default is 0.0)
 
-    \param cmap should be 1 for algebraic coordinate scaling, 2 for log
-    coordinate scaling, 0 for no scaling as follows: 
-    \f[ 
-    x = {r/r_s-1 \over r/r_s+1} 
-    \f]
-    when <code>cmap=1</code> and 
-    \f[
-    x =  \log(r)
-    \f]
-    when <code>cmap=2</code>.  Algebraic coordinate scaling is a good
-    general choice.  For spherical models with a very large dynamic
-    range (e.g. deep, cuspy halos), logarithmic scaling will be a
-    better choice.  Logarithmic scaling will insist that the
-    <code>rmin>0</code>.
+    \param rcylmax is the maximum value in the table for the 
+    radial basis functions in acyltbl units (default is 10.0)
+
+    \param scale is the expansion factor to get the physical scale from
+    the internal scale (default is 0.01)
+
+    \param numx is the number of grid points in the scaled radial direction
+
+    \param numy is the number of grid points in the scaled vertical direction
 
     \param numr is the number radial coordinate knots in the table 
     (default is 1000)
 
-    \param diverge sets the power law extrapolation of a cusp profile
+    \param nfid is the number of basis elements used in the EOF computation
 
-    \param dfac is the inverse slope of the power law
+    \param knots is the number of quadrature points for EmpCyl2d
+
+    \param logr scales the EmpCyl2d grid logarithmically
+
+    \param model name for EmpCyl2d (default: expon)
+
+    \param biorth set for EmpCyl2d (default: bess)
 */
 class FlatDisk : public PolarBasis 
 {
@@ -81,11 +82,10 @@ private:
 		     Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid);
 
 				// Parameters
-  double tnext, dtime, acyltbl, scale, rcylmin, rcylmax;
+  double acyltbl, scale, rcylmin, rcylmax;
   int    numr;
   int    mmax;
   int    knots;
-  int    cmap;
   string model;
   string biorth;
   bool   logr;

@@ -16,19 +16,9 @@ FlatDisk::valid_keys = {
   "numx",
   "numy",
   "knots",
-  "cmapR",
-  "cmapZ",
-  "acyl",
   "logr",
-  "dtime",
   "model",
-  "biorth",
-  "cachename",
-  "verbose",
-  "mmin",
-  "mlim",
-  "nmin",
-  "nlim"
+  "biorth"
 };
 
 FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
@@ -38,28 +28,22 @@ FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 				// Defaults
   knots      = 40;
   numr       = 2000;
-  cmap       = 1;
   acyltbl    = 1.0;
   rcylmin    = 0.0;
   rcylmax    = 10.0;
-  tnext      = 0.0;
   logr       = false;
   is_flat    = true;
 
 				// Get initialization info
   initialize();
 
-				// Enable MPI code for more than one node
-  // if (numprocs>1) BiorthCyl::mpi = 1;
-
-  id += ", model=" + model;
+  id += "[" + model + "][" + biorth + "]";
 
   if (myid==0) {
     std::string sep("----    ");
     std::cout << "---- FlatDisk parameters: "
 	      << std::endl << sep << "lmax="        << Lmax
 	      << std::endl << sep << "nmax="        << nmax
-	      << std::endl << sep << "cmap="        << cmap
 	      << std::endl << sep << "acyltbl="     << acyltbl
 	      << std::endl << sep << "rcylmin="     << rcylmin
 	      << std::endl << sep << "rcylmax="     << rcylmax
@@ -91,8 +75,6 @@ void FlatDisk::initialize()
     if (conf["rcylmax"])   rcylmax    = conf["rcylmax"].as<double>();
     if (conf["numr"])      numr       = conf["numr"].as<int>();
     if (conf["knots"])     knots      = conf["knots"].as<int>();
-    if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
-    if (conf["dtime"])     dtime      = conf["dtime"].as<double>();
     if (conf["logr"])      logr       = conf["logr"].as<bool>();
     if (conf["model"])     model      = conf["model"].as<std::string>();
     if (conf["biorth"])    biorth     = conf["biorth"].as<std::string>();

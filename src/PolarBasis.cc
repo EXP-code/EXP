@@ -40,7 +40,6 @@ PolarBasis::valid_keys = {
   "NO_M1",
   "EVEN_M",
   "M0_ONLY",
-  "seedN",
   "ssfrac",
   "playback",
   "coefMaster"

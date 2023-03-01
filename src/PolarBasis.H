@@ -23,7 +23,24 @@
 
 class MixtureBasis;
 
-//! Defines a cylindrical basis with members specific to polar symmetry
+/** Defines a cylindrical basis with members specific to polar symmetry
+
+    Configurable parameters:
+    @param scale is the characterisic scale of the basis
+    @param rmin is the minimum radius of the basis
+    @param rmax is the maximum radius of the basis
+    @param self_consistent true for updating the the coefficients at time steps
+    @param NO_M0 true to omit the m=0 harmonic (default: false)
+    @param NO_M1 true to omint the m=1 harmonic (default: false)
+    @param EVEN_M true to include only even m harmonics (default: false)
+    @param M0_ONLY true to include only the m=0 harmonic (default: false)
+    @param ssfrac set > 0.0 to compute a fraction of particles only
+    @param playback true to replay from a coefficient file
+    @param coefMaster true to have only the root node read and distribute the coefficients
+
+    Other parameters may be defined and passed to any derived classes
+    in addition to these.
+*/
 class PolarBasis : public AxisymmetricBasis
 {
 
