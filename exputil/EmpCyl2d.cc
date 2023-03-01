@@ -288,8 +288,12 @@ double EmpCyl2d::Bessel::dens(int M, int N, double r)
 double EmpCyl2d::Bessel::dpot(int M, int N, double r)
 {
   double z = r*roots[M][N]/L;
-  return -(EXPmath::cyl_bessel_j(M, z)*M/z - EXPmath::cyl_bessel_j(M+1, z)) *
-    roots[M][N]/L;
+  if (M==0) {		    // Using the derivative recursion relation
+    return EXPmath::cyl_bessel_j(M+1, z) * roots[M][N]/L;
+  } else {
+    return -(EXPmath::cyl_bessel_j(M-1, z) - EXPmath::cyl_bessel_j(M+1, z))
+      * 0.5*roots[M][N]/L;
+  }
 }
 
 // Normalization for Bessel inner product
@@ -554,7 +558,7 @@ EmpCyl2d::EmpCyl2d(int mmax, int nmax, int knots, int numr,
 
 void EmpCyl2d::create_tables()
 {
-  Mapping  map(scale, cmap);
+  map = Mapping(scale, cmap);
 
   LegeQuad lw(knots);
 
@@ -854,7 +858,8 @@ bool EmpCyl2d::ReadH5Cache()
   }
     
   if (myid==0) std::cout << "---- EmpCyl2d::ReadH5Cache: "
-			 << "read <" << cache_name_2d + ".h5>" << std::endl;
+			 << "read 2d basis cache <" << cache_name_2d + ".h5>"
+			 << std::endl;
 
   return true;
 }

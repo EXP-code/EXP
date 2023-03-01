@@ -98,12 +98,24 @@ protected:
     
   public:
     
+    //! Null constructor (for copy construct)
+    Mapping() {}
+
+    //! Main constructor
     Mapping(double scale, bool cmap) : scale(scale), cmap(cmap) {}
 
+    //! From semi-infinite radius to [-1, 1]
     double r_to_xi(double r);
+
+    //! From [-1, 1] to semi-infinite radius
     double xi_to_r(double xi);
+
+    //! Jacobian
     double d_xi_to_r(double xi);
   };
+
+  //! Mapping instance
+  Mapping map;
 
   void create_tables();
   bool ReadH5Cache();
@@ -126,7 +138,7 @@ protected:
 
 public:
 
-  //! Null constructor
+  //! Null constructor (for copy construct)
   EmpCyl2d() {}
 
   //! Constructor
