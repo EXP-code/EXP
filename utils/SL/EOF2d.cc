@@ -259,8 +259,6 @@ int main(int argc, char** argv)
 
       Eigen::MatrixXd outP(nmax, nout);
 
-      const double h = dR*0.01;
-
       for (int n=0; n<nmax; n++) {
 	// Set the functor using a lambda
 	//
@@ -269,7 +267,7 @@ int main(int argc, char** argv)
 	};
       
 	for (int j=0; j<nout; j++) {
-	  outP(n, j) = pot(dR*j, 0.0, dens);
+	  outP(n, j) = pot(dR*j, 0.0, dens, PotRZ::Field::potential);
 	}
       }
 
