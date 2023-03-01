@@ -95,9 +95,6 @@ protected:
   //! Read the HDF5 cache
   virtual bool ReadH5Cache();
 
-  //! Table scaling factors
-  double pfac, ffac, dfac;
-
 public:
 
   //! Flag for MPI enabled (default: 0=off)
@@ -122,13 +119,13 @@ public:
   double d_xi_to_r(double x);
 
   //! Map of vertical coordinate to nondimesional coordinate
-  double z_to_y(double z);
+  double z_to_yi(double z);
 
   //! Map of nondimensional coordinate to vertical coordinate
-  double y_to_z(double y);
+  double yi_to_z(double y);
 
   //! Jacobian of nondimensional vertical coordinate mapping
-  double d_y_to_z(double y);
+  double d_yi_to_z(double y);
   
   //! Get potential for dimensionless coord with harmonic order m and radial orer n
   double get_pot(double r, double z, int m, int n)
@@ -191,11 +188,8 @@ public:
   //! Evaluate all orders in matrices; for n-body
   void get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs, double r, double z);
 
-  //@{
-  //! Get the table parameters
-  double getRtable() { return rcylmax; }
-  double getRscale() { return scale;   }
-  //@}
+  //! Get the table bounds
+  double getRtable() { return rcylmax*scale; }
 
 };
 

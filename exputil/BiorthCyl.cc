@@ -133,8 +133,8 @@ void BiorthCyl::initialize()
   xmax    = r_to_xi(rcylmax*scale);
   dx      = (xmax - xmin)/(numx-1);
 
-  ymin    = z_to_y(-rcylmax*scale);
-  ymax    = z_to_y( rcylmax*scale);
+  ymin    = z_to_yi(0.0);
+  ymax    = z_to_yi(rcylmax*scale);
   dy      = (ymax - ymin)/(numy-1);
 
   dens   .resize(mmax+1);
@@ -156,12 +156,6 @@ void BiorthCyl::initialize()
       zforce[m][n].resize(numx, numy);
     }
   }
-
-  // For scaling from dimensionless table
-  //
-  pfac     = 1.0/sqrt(scale);
-  ffac     = pfac/scale;
-  dfac     = pfac;
 }
 
 void BiorthCyl::create_tables()
@@ -172,13 +166,15 @@ void BiorthCyl::create_tables()
   std::string target("expon");
   std::string biorth("bess");
 
-  EmpCyl2d emp(mmax, nfid, knots, numr, rcylmin, rcylmax, acyltbl,
-	       1.0, cmapR, logr, target, biorth);
+  EmpCyl2d emp(mmax, nfid, knots, numr,
+	       rcylmin*scale, rcylmax*scale, acyltbl*scale, scale,
+	       cmapR, logr, target, biorth);
 
   if (conf["basis"]) emp.basisTest(true);
 
-  double save_scale = scale;
-  scale = 1.0;
+  if (myid==0)
+    std::cout << "---- BiorthCyl::create_tables: creating 3d basis..."
+	      << std::endl;
 
   // Pack basis grids
   //
@@ -186,9 +182,14 @@ void BiorthCyl::create_tables()
 
     // Potential instance
     //
-    PotRZ potrz(rcylmax, NQDHT, m);
+    PotRZ potrz(rcylmax*scale, NQDHT, m);
 
     for (int n=0; n<nmax; n++) {
+
+      dens  [m][n].setZero();
+      pot   [m][n].setZero();
+      rforce[m][n].setZero();
+      zforce[m][n].setZero();
 
       // Create the functor
       //
@@ -197,32 +198,45 @@ void BiorthCyl::create_tables()
 	return emp.get_dens(R, m, n);
       };
 
+      int count = 0;
+
       for (int ix=0; ix<numx; ix++) {
 	double r = xi_to_r(xmin + dx*ix);
 
 	for (int iy=0; iy<numy; iy++) {
-	  double z = y_to_z(ymin + dy*iy);
+	  double z = yi_to_z(ymin + dy*iy);
 	  
-	  dens[m][n](ix, iy) = 0.0;
-	  if (fabs(r)<1.0e-6) dens[m][n](ix, iy) = emp.get_dens(r, m, n);
-	  pot   [m][n](ix, iy) = potrz(r, z, func, PotRZ::Field::potential);
-	  rforce[m][n](ix, iy) = potrz(r, z, func, PotRZ::Field::rforce   );
-	  zforce[m][n](ix, iy) = potrz(r, z, func, PotRZ::Field::zforce   );
+	  if (count++ % numprocs == myid) {
+	    if (fabs(z)<1.0e-6) dens[m][n](ix, iy) = -emp.get_dens(r, m, n);
+	    pot   [m][n](ix, iy) = potrz(r, z, func, PotRZ::Field::potential);
+	    rforce[m][n](ix, iy) = potrz(r, z, func, PotRZ::Field::rforce   );
+	    zforce[m][n](ix, iy) = potrz(r, z, func, PotRZ::Field::zforce   );
+	  }
+
 	}
       }
-
-      // Scale from unit length to disk scale length
-      //
-      dens  [m][n] *= dfac;
-      pot   [m][n] *= pfac;
-      rforce[m][n] *= ffac;
-      zforce[m][n] *= ffac;
     }
   }
 
-  WriteH5Cache();
+  for (int m=0; m<=mmax; m++) {
+    for (int n=0; n<nmax; n++) {
+      MPI_Allreduce(MPI_IN_PLACE, dens  [m][n].data(), numx*numy,
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, pot   [m][n].data(), numx*numy,
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, rforce[m][n].data(), numx*numy,
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, zforce[m][n].data(), numx*numy,
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    }
+  }
 
-  scale = save_scale;
+  if (myid==0) {
+    std::cout << "---- BiorthCyl::create_tables: done!"
+	      << std::endl;
+  }
+
+  WriteH5Cache();
 }
 
 
@@ -271,7 +285,7 @@ double BiorthCyl::d_xi_to_r(double xi)
 }
 
 // Compute non-dimensional vertical coordinate from Z
-double BiorthCyl::z_to_y(double z)
+double BiorthCyl::z_to_yi(double z)
 {
   if (cmapZ==1)
     return z/(fabs(z)+std::numeric_limits<double>::min())*asinh(fabs(z/scale));
@@ -282,7 +296,7 @@ double BiorthCyl::z_to_y(double z)
 }
 
 // Compute Z from non-dimensional vertical coordinate
-double BiorthCyl::y_to_z(double y)
+double BiorthCyl::yi_to_z(double y)
 {
   if (cmapZ==1)
     return scale*sinh(y);
@@ -296,7 +310,7 @@ double BiorthCyl::y_to_z(double y)
 }
 
 // For measure transformation in vertical coordinate
-double BiorthCyl::d_y_to_z(double y)
+double BiorthCyl::d_yi_to_z(double y)
 {
   if (cmapZ==1)
     return scale*cosh(y);
@@ -320,8 +334,10 @@ void BiorthCyl::interp(double R, double Z,
 
   double z = fabs(Z);
 
+  if (z/scale>rcylmax) return;
+
   double X = (r_to_xi(R) - xmin)/dx;
-  double Y = (z_to_y(z)  - ymin)/dy;
+  double Y = (z_to_yi(z) - ymin)/dy;
 
   int ix = (int)X;
   int iy = (int)Y;
@@ -378,8 +394,10 @@ double BiorthCyl::interp(int m, int n, double R, double Z,
 
   double z = fabs(Z);
 
+  if (z/scale>rcylmax) return ret;
+
   double X = (r_to_xi(R) - xmin)/dx;
-  double Y = (z_to_y(z)  - ymin)/dy;
+  double Y = (z_to_yi(z) - ymin)/dy;
 
   int ix = (int)X;
   int iy = (int)Y;
@@ -457,7 +475,6 @@ void BiorthCyl::WriteH5Arrays(HighFive::Group& harmonic)
       HighFive::DataSet ds3 = arrays.createDataSet("rforce",    rforce[m][n]);
       HighFive::DataSet ds4 = arrays.createDataSet("zforce",    zforce[m][n]);
     }
-    std::cout << "WRiteH5Arrays: m=" << m << " arrays" << std::endl;
   }
 }
 
@@ -509,7 +526,7 @@ void BiorthCyl::WriteH5Cache()
     //
     WriteH5Params(file);
       
-    // Harmonic order
+    // Harmonic order (for h5dump readability)
     //
     auto harmonic = file.createGroup("Harmonic");
 
@@ -583,12 +600,16 @@ bool BiorthCyl::ReadH5Cache()
 
     ReadH5Arrays(harmonic);
 
+    if (myid==0)
+      std::cerr << "---- BiorthCyl::ReadH5Cache: "
+		<< "read <" << cachename + ".h5>" << std::endl;
+
     return true;
     
   } catch (HighFive::Exception& err) {
     if (myid==0)
       std::cerr << "---- BiorthCyl::ReadH5Cache: "
-		<< "error opening as HDF5 basis cache"
+		<< "error opening HDF5 basis cache"
 		<< std::endl;
   }
 
@@ -599,8 +620,8 @@ bool BiorthCyl::ReadH5Cache()
 void BiorthCyl::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
 			double r, double z)
 {
-  Vc.resize(max(1, mmax)+1, nmax);
-  Vs.resize(max(1, mmax)+1, nmax);
+  Vc.resize(std::max<int>(1, mmax)+1, nmax);
+  Vs.resize(std::max<int>(1, mmax)+1, nmax);
 
   double X = (r_to_xi(r) - xmin)/dx;
 
@@ -629,7 +650,7 @@ void BiorthCyl::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
 
     for (int n=0; n<nmax; n++) {
 
-      Vc(mm, n) = pot[mm][n](ix  , 0)*c0 +  pot[mm][n](ix+1, 0)*c1;
+      Vc(mm, n) = pot[mm][n](ix, 0)*c0 +  pot[mm][n](ix+1, 0)*c1;
       Vs(mm, n) = Vc(mm, n);
     }
   }
