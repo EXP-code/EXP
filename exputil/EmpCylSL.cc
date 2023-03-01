@@ -778,7 +778,8 @@ int EmpCylSL::read_cache(void)
   setup_table();
   setup_accumulation();
 
-				// Root tries to read table
+  // Root tries to read table
+  //
   int retcode;
   if (myid==0)  retcode = cache_grid(0);
   if (use_mpi)  MPI_Bcast(&retcode, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -789,9 +790,7 @@ int EmpCylSL::read_cache(void)
   if (myid==0) {
     std::cout << "---- EmpCylSL::read_cache: table forwarded to all processes"
 	      << std::endl;
-    WriteH5Cache();
   }
-
 
   eof_made   = true;
   coefs_made = std::vector<short>(multistep+1, false);
@@ -819,15 +818,17 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 {
 
   // Option to reset cache file name
+  //
   if (cachename.size()) cachefile = cachename;
 
   if (readwrite) {
     
-    if (std::filesystem::exists(cachefile)) {
+    // Check for new HDF5 file
+    if (std::filesystem::exists(cachefile + ".h5")) {
       std::cerr << "---- EmpCylSL::cache_grid: cache file <"
 		<< cachefile << "> exists" << std::endl;
       try {
-	std::filesystem::rename(cachefile, cachefile + ".bak");
+	std::filesystem::rename(cachefile, cachefile + ".h5.bak");
       }
       catch(std::filesystem::filesystem_error const& ex) {
 	std::ostringstream sout;
@@ -839,139 +840,29 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
       }
 
       std::cout << "---- EmpCylSL::cache_grid: existing file backed up to <"
-		<< cachefile + ".bak>" << std::endl;
+		<< cachefile + ".h5.bak>" << std::endl;
     }
 
-    std::ofstream out(cachefile);
-    if (!out) {
-      std::cerr << "---- EmpCylSL::cache_grid: error opening file for writing"
-		<< std::endl;
-      return 0;
-    }
-
-    if (NewCache) {
-
-      // This is a node of simple {key: value} pairs.  More general
-      // content can be added as needed.
-      YAML::Node node;
-
-      node["model" ] = EmpModelLabs[mtype];
-      node["mmax"  ] = MMAX;
-      node["numx"  ] = NUMX;
-      node["numy"  ] = NUMY;
-      node["nmax"  ] = NMAX;
-      node["norder"] = NORDER;
-      node["neven" ] = Neven;
-      node["nodd"  ] = Nodd;
-      node["dens"  ] = DENS;
-      node["cmapr" ] = CMAPR;
-      node["cmapz" ] = CMAPZ;
-      node["rmin"  ] = RMIN;
-      node["rmax"  ] = RMAX;
-      node["ascl"  ] = ASCALE;
-      node["hscl"  ] = HSCALE;
-      node["cmass" ] = cylmass;
-
-      // Serialize the node
-      //
-      YAML::Emitter y; y << node;
-
-      // Get the size of the string
-      //
-      unsigned int hsize = strlen(y.c_str());
-
-      // Write magic #
-      //
-      out.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
-
-      // Write YAML string size
-      //
-      out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
-
-      // Write YAML string
-      //
-      out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
-
-    } else {
-
-      // Old-style header
-      //
-      const int one  = 1;
-      const int zero = 0;
-      double time    = 0.0;
-
-      out.write((const char *)&MMAX,    sizeof(int));
-      out.write((const char *)&NUMX,    sizeof(int));
-      out.write((const char *)&NUMY,    sizeof(int));
-      out.write((const char *)&NMAX,    sizeof(int));
-      out.write((const char *)&NORDER,  sizeof(int));
-      if (DENS) out.write((const char *)&one,  sizeof(int));
-      else      out.write((const char *)&zero, sizeof(int));
-      out.write((const char *)&CMAPR,   sizeof(int));
-      out.write((const char *)&RMIN,    sizeof(double));
-      out.write((const char *)&RMAX,    sizeof(double));
-      out.write((const char *)&ASCALE,  sizeof(double));
-      out.write((const char *)&HSCALE,  sizeof(double));
-      out.write((const char *)&cylmass, sizeof(double));
-      out.write((const char *)&time,    sizeof(double));
-    }
-
-    // Write table
+    // Write the cache
     //
-    for (int m=0; m<=MMAX; m++) {
-
-      for (int v=0; v<rank3; v++) {
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&potC[m][v](ix, iy), sizeof(double));
-	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&rforceC[m][v](ix, iy), sizeof(double));
-	  
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&zforceC[m][v](ix, iy), sizeof(double));
-	  
-	if (DENS) {
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      out.write((const char *)&densC[m][v](ix, iy), sizeof(double));
-
-	}
-      }
-    }
-
-    for (int m=1; m<=MMAX; m++) {
-
-      for (int v=0; v<rank3; v++) {
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&potS[m][v](ix, iy), sizeof(double));
-	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&rforceS[m][v](ix, iy), sizeof(double));
-	  
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&zforceS[m][v](ix, iy), sizeof(double));
-	
-	if (DENS) {
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      out.write((const char *)&densS[m][v](ix, iy), sizeof(double));
-	}
-      }
-
-    }
-    
     WriteH5Cache();
   }
   else {
 
+    // Attempt to read the HDF5 file if it exists...
+    //
+    if (std::filesystem::exists(cachefile + ".h5")) {
+      if (ReadH5Cache()) return 1;
+    } else {
+      if (myid==0) {
+	std::cout << "---- EmpCylSL::cache_grid: HDF5 file <"
+		  << cachefile + ".h5>, does not exist.  Checking binary . . ."
+		  << std::endl;
+      }
+    }
+
+    // Otherwise try to open an old-style binary cache
+    //
     std::ifstream in(cachefile.c_str());
     if (!in) {
       cerr << "---- EmpCylSL::cache_grid: error opening file" << endl;
@@ -1103,8 +994,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 	return 0;
       }
 
-				// Read table
-
+    // Read table
+    //
     Eigen::MatrixXd work(NUMY+1, NUMX+1);
 
     for (int m=0; m<=MMAX; m++) {
@@ -1169,12 +1060,93 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
     
     std::cout << "---- EmpCylSL::cache_grid: file read successfully"
 	      << std::endl;
+
+    // Rewrite as HDF5
+    //
+    WriteH5Cache();
   }
 
   return 1;
 }
 
 YAML::Node EmpCylSL::getHeader(const std::string& cachefile)
+{
+  if (std::filesystem::exists(cachefile + ".h5"))
+    return getHeader_hdf5(cachefile);
+  else
+    return getHeader_binary(cachefile);
+}
+
+YAML::Node EmpCylSL::getHeader_hdf5(const std::string& cachefile)
+{
+  YAML::Node node;
+
+  try {
+    // Silence the HDF5 error stack
+    //
+    HighFive::SilenceHDF5 quiet;
+    
+    // Open the hdf5 file
+    //
+    HighFive::File file(cachefile + ".h5", HighFive::File::ReadOnly);
+    
+    auto getInt = [&file](std::string name)
+    {
+      int v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    auto getDbl = [&file](std::string name)
+    {
+      double v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    auto getStr = [&file](std::string name)
+    {
+      std::string v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    YAML::Node node;
+
+    bool dens = false;
+    if (getInt("idens")) dens = true;
+
+    node["mmax"]   = getInt("mmax");
+    node["numx"]   = getInt("numx");
+    node["numy"]   = getInt("numy");
+    node["nmax"]   = getInt("nmax");
+    node["norder"] = getInt("norder");
+    node["neven"]  = getInt("neven");
+    node["nodd"]   = getInt("nodd");
+    node["dens"]   = dens;
+    node["cmapr"]  = getInt("cmapr");
+    node["cmapz"]  = getInt("cmapz");
+    node["rmin"]   = getDbl("rmin");
+    node["rmax"]   = getDbl("rmax");
+    node["ascl"]   = getDbl("ascl");
+    node["hscl"]   = getDbl("hscl");
+    node["cmass"]  = getDbl("cmass");
+  }
+  catch (YAML::Exception& error) {
+    std::ostringstream sout;
+    sout << "EmpCylSL::getHeader: invalid cache file <" << cachefile << ">. ";
+    sout << "YAML error in getHeader: " << error.what() << std::endl;
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
+  }
+
+  return node;
+}
+    
+
+YAML::Node EmpCylSL::getHeader_binary(const std::string& cachefile)
 {
   YAML::Node node;
 
@@ -6925,7 +6897,7 @@ void EmpCylSL::WriteH5Cache()
       
     // Cosine functions
 
-    auto cosine = file.createGroup("C");
+    auto cosine = file.createGroup("Cosine");
 
     // Harmonic order
     //
@@ -6949,7 +6921,7 @@ void EmpCylSL::WriteH5Cache()
 
     // Sine functions
 
-    auto sine = file.createGroup("S");
+    auto sine = file.createGroup("Sine");
 
     // Harmonic order
     //
@@ -7071,7 +7043,7 @@ bool EmpCylSL::ReadH5Cache()
 
     // Cosine grid group
     //
-    auto cosine = file.getGroup("C");
+    auto cosine = file.getGroup("Cosine");
 
     // Harmonic order groups
     //
@@ -7094,7 +7066,7 @@ bool EmpCylSL::ReadH5Cache()
 
     // Sine grid group
     //
-    auto sine = file.getGroup("S");
+    auto sine = file.getGroup("Sine");
 
     // Harmonic order groups
     //
@@ -7125,4 +7097,5 @@ bool EmpCylSL::ReadH5Cache()
 
   return true;
 }
+
 

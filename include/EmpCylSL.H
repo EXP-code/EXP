@@ -245,6 +245,8 @@ protected:
 
   //! Read the cache and return YAML db
   static YAML::Node getHeader(const std::string& cachefile);
+  static YAML::Node getHeader_hdf5(const std::string& cachefile);
+  static YAML::Node getHeader_binary(const std::string& cachefile);
 
   //! Data for each harmonic subspace
   class PCAelement

@@ -1814,7 +1814,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
       int worker = 0;
       int request_id = 1;
 
-      if (!read_cached_table()) {
+      if (not ReadH5Cache()) {
 
 
 	l=0;
@@ -1884,7 +1884,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	  worker--;
 	}
 
-	if (cache) write_cached_table();
+	if (cache) WriteH5Cache();
 
       }
 
@@ -1921,14 +1921,14 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
     table =  new TableSph [lmax+1];
 
-    if (!cache || !read_cached_table()) {
+    if (not ReadH5Cache()) {
 
       for (l=0; l<=lmax; l++) {
 	if (tbdbg) std::cerr << "Begin [" << l << "] . . ." << std::endl;
 	compute_table(&(table[l]), l);
 	if (tbdbg) std::cerr << ". . . done" << std::endl;
       }
-      if (cache) write_cached_table();
+      if (cache) WriteH5Cache();
     }
   }
 
@@ -1969,258 +1969,10 @@ void check_vector_values_SL(const Eigen::VectorXd& v)
   }
 }
 
-int SLGridSph::read_cached_table(void)
-{
-  if (!cache) return 0;
-
-  if (ReadH5Cache()) return 1;
-
-  std::ifstream in(sph_cache_name);
-  if (!in) return 0;
-
-  if (myid==0) {
-    std::cout << "---- SLGridSph::read_cached_table: trying to read cached table . . ."
-	      << std::endl;
-  }
-
-  int LMAX, NMAX, NUMR, CMAP;
-  double RMIN, RMAX, SCL;
-    
-  // Attempt to read magic number
-  //
-  unsigned int tmagic;
-  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
-
-  if (tmagic == hmagic) {
-
-    // YAML size
-    //
-    unsigned ssize;
-    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
-
-    // Make and read char buffer
-    //
-    auto buf = std::make_unique<char[]>(ssize+1);
-    in.read(buf.get(), ssize);
-    buf[ssize] = 0;		// Null terminate
-    
-    YAML::Node node;
-    
-    try {
-      node = YAML::Load(buf.get());
-    }
-    catch (YAML::Exception& error) {
-      std::ostringstream sout;
-      sout << "YAML: error parsing <" << buf.get() << "> "
-	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
-	   << "YAML error: " << error.what() << std::endl;
-      throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
-    }
-    
-    // Get parameters
-    //
-    LMAX     = node["lmax"   ].as<int>();
-    NMAX     = node["nmax"   ].as<int>();
-    NUMR     = node["numr"   ].as<int>();
-    CMAP     = node["cmap"   ].as<int>();
-    RMIN     = node["rmin"   ].as<double>();
-    RMAX     = node["rmax"   ].as<double>();
-    SCL      = node["scale"  ].as<double>();
-    diverge  = node["diverge"].as<int>();
-    dfac     = node["dfac"   ].as<double>();
-
-    // Check model file name, being cautious...
-    //
-    std::string model = node["model"].as<std::string>();
-    if (model.compare(model_file_name)) return 0;
-
-  } else {
-
-    // Rewind file (backward compatibility)
-    //
-    in.clear();
-    in.seekg(0);
-    
-    in.read((char *)&LMAX, sizeof(int));
-    in.read((char *)&NMAX, sizeof(int));
-    in.read((char *)&NUMR, sizeof(int));
-    in.read((char *)&CMAP, sizeof(int));
-    in.read((char *)&RMIN, sizeof(double));
-    in.read((char *)&RMAX, sizeof(double));
-    in.read((char *)&SCL, sizeof(double));
-
-    if (!in) {
-      std::cout << "---- SLGridSph::read_cached_table: error reading header info"
-		<< std::endl;
-      return 0;
-    }
-  }
-
-  if (LMAX!=lmax) {
-    std::cout << "---- SLGridSph::read_cached_table: found lmax=" << LMAX
-	      << " wanted " << lmax << std::endl;
-    return 0;
-  }
-
-  if (NMAX!=nmax) {
-    std::cout << "---- SLGridSph::read_cached_table: found nmax=" << NMAX
-	      << " wanted " << nmax << std::endl;
-    return 0;
-  }
-
-  if (NUMR!=numr) {
-    std::cout << "---- SLGridSph::read_cached_table: found numr=" << NUMR
-	      << " wanted " << numr << std::endl;
-    return 0;
-  }
-
-  if (CMAP!=cmap) {
-    std::cout << "---- SLGridSph::read_cached_table: found cmap=" << CMAP
-	      << " wanted " << cmap << std::endl;
-    return 0;
-  }
-
-  if (RMIN!=rmin) {
-    std::cout << "---- SLGridSph::read_cached_table: found rmin=" << RMIN
-	      << " wanted " << rmin << std::endl;
-    return 0;
-  }
-
-  if (RMAX!=rmax) {
-    std::cout << "---- SLGridSph::read_cached_table: found rmax=" << RMAX
-	      << " wanted " << rmax << std::endl;
-    return 0;
-  }
-
-  if (SCL!=scale) {
-    std::cout << "---- SLGridSph::read_cached_table: found scale=" << SCL
-	      << " wanted " << scale << std::endl;
-    return 0;
-  }
-
-  for (int l=0; l<=lmax; l++) {
-
-    in.read((char *)&table[l].l, sizeof(int));
-
-				// Double check
-    if (table[l].l != l) {
-      if (myid==0)
-	std::cerr << "SLGridSph: error reading <" << sph_cache_name << ">" << endl
-		  << "SLGridSph: l: read value (" << table[l].l 
-		  << ") != internal value (" << l << ")" << std::endl;
-	return 0;
-    }
-
-    table[l].ev.resize(nmax);
-    table[l].ef.resize(nmax, numr);
-
-    for (int j=0; j<nmax; j++) in.read((char *)&table[l].ev[j], sizeof(double));
-
-#ifdef DEBUG_NAN
-    check_vector_values_SL(table[l].ev);
-#endif
-
-    for (int j=0; j<nmax; j++) {
-      for (int i=0; i<numr; i++)
-	in.read((char *)&table[l].ef(j, i), sizeof(double));
-#ifdef DEBUG_NAN
-      check_vector_values_SL(table[l].ef[j]);
-#endif
-    }
-  }
-
-  if (myid==0) {
-    std::cout << "---- SLGridSph::read_cached_table: Success!!" << std::endl;
-    WriteH5Cache();
-  }
-  
-  return 1;
-}
-
-
-void SLGridSph::write_cached_table(void)
-{
-  const bool NewCache = true;
-
-  std::ofstream out(sph_cache_name);
-  if (!out) {
-    std::cerr << "SLGridSph: error writing <" << sph_cache_name << ">" << std::endl;
-    return;
-  } else {
-    std::cerr << "SLGridSph: opened <" << sph_cache_name << ">" << std::endl;
-  }
-
-  if (NewCache) {
-
-    // This is a node of simple {key: value} pairs.  More general
-    // content can be added as needed.
-    YAML::Node node;
-
-    node["model"  ] = model_file_name;
-    node["lmax"   ] = lmax;
-    node["nmax"   ] = nmax;
-    node["numr"   ] = numr;
-    node["cmap"   ] = cmap;
-    node["rmin"   ] = rmin;
-    node["rmax"   ] = rmax;
-    node["scale"  ] = scale;
-    node["diverge"] = diverge;
-    node["dfac"   ] = dfac;
-    
-    // Serialize the node
-    //
-    YAML::Emitter y; y << node;
-
-    // Get the size of the string
-    //
-    unsigned int hsize = strlen(y.c_str());
-
-    // Write magic #
-    //
-    out.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
-
-    // Write YAML string size
-    //
-    out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
-
-    // Write YAML string
-    //
-    out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
-
-  } else {
-
-    int i, j;
-
-    out.write((char *)&lmax,  sizeof(int));
-    out.write((char *)&nmax,  sizeof(int));
-    out.write((char *)&numr,  sizeof(int));
-    out.write((char *)&cmap,  sizeof(int));
-    out.write((char *)&rmin,  sizeof(double));
-    out.write((char *)&rmax,  sizeof(double));
-    out.write((char *)&scale, sizeof(double));
-  }
-    
-  for (int l=0; l<=lmax; l++) {
-
-    out.write((char *)&table[l].l, sizeof(int));
-
-    for (int j=0; j<nmax; j++)
-      out.write((char *)&table[l].ev[j], sizeof(double));
-
-    for (int j=0; j<nmax; j++)
-      for (int i=0; i<numr; i++)
-	out.write((char *)&table[l].ef(j, i), sizeof(double));
-  }
-
-  WriteH5Cache();
-
-  std::cout << "---- SLGridSph::write_cached_table: done!!" << std::endl;
-  return ;
-}
-
-
 bool SLGridSph::ReadH5Cache(void)
 {
+  if (!cache) return false;
+
   // First attempt to read the file
   //
   try {
@@ -2277,10 +2029,12 @@ bool SLGridSph::ReadH5Cache(void)
 
     // Harmonic order
     //
+    auto harmonic = h5file.getGroup("Harmonic");
+
     for (int l=0; l<=lmax; l++) {
       std::ostringstream sout;
       sout << l;
-      auto arrays = h5file.getGroup(sout.str());
+      auto arrays = harmonic.getGroup(sout.str());
       
       arrays.getDataSet("ev").read(table[l].ev);
       arrays.getDataSet("ef").read(table[l].ef);
@@ -2334,12 +2088,14 @@ void SLGridSph::WriteH5Cache(void)
     file.createAttribute<int>         ("diverge",  HighFive::DataSpace::From(diverge)).write(diverge);
     file.createAttribute<double>      ("dfac",     HighFive::DataSpace::From(dfac)).write(dfac);
       
-    // Harmonic order
+    // Harmonic order (for h5dump readability)
     //
+    auto harmonic = file.createGroup("Harmonic");
+
     for (int l=0; l<=lmax; l++) {
       std::ostringstream sout;
       sout << l;
-      auto arrays = file.createGroup(sout.str());
+      auto arrays = harmonic.createGroup(sout.str());
       
       arrays.createDataSet("ev",   table[l].ev);
       arrays.createDataSet("ef",   table[l].ef);
