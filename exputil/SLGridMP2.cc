@@ -2927,53 +2927,69 @@ void SLGridSph::mpi_unpack_table(void)
 
 YAML::Node SLGridSph::getHeader(const std::string& cachefile)
 {
-  YAML::Node node;
-
-  std::ifstream in(cachefile);
+  std::ifstream in(cachefile + ".h5");
   if (!in) {
     std::ostringstream sout;
     sout << "SLGridSph::getHeader: could not open cache file <" << cachefile << ">";
     std::runtime_error(sout.str());
   }
 
-  // Attempt to read magic number
-  //
-  unsigned int tmagic;
-  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+  YAML::Node node;
 
-  if (tmagic == hmagic) {
-
-    // YAML size
+  try {
+    // Silence the HDF5 error stack
     //
-    unsigned ssize;
-    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
-
-    // Make and read char buffer
-    //
-    auto buf = std::make_unique<char[]>(ssize+1);
-    in.read(buf.get(), ssize);
-    buf[ssize] = 0;		// Null terminate
+    HighFive::SilenceHDF5 quiet;
     
-    try {
-      node = YAML::Load(buf.get());
-    }
-    catch (YAML::Exception& error) {
-      std::ostringstream sout;
-      sout << "YAML: error parsing <" << buf.get() << "> "
-	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
-	   << "YAML error: " << error.what() << std::endl;
-      
-      throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
-    }
-  } else {
+    // Open the hdf5 file
+    //
+    HighFive::File file(cachefile + ".h5", HighFive::File::ReadOnly);
+    
+    auto getInt = [&file](std::string name)
+    {
+      int v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    auto getDbl = [&file](std::string name)
+    {
+      double v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    auto getStr = [&file](std::string name)
+    {
+      std::string v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    node["model"]   = getStr("model");
+    node["lmax"]    = getInt("lmax");
+    node["nmax"]    = getInt("nmax");
+    node["numr"]    = getInt("numr");
+    node["cmap"]    = getInt("cmap");
+    node["rmin"]    = getDbl("rmin");
+    node["rmax"]    = getDbl("rmax");
+    node["scale"]   = getDbl("scale");
+    node["diverge"] = getInt("diverge");
+    node["dfac"]    = getDbl("dfac");
+  }
+  catch (YAML::Exception& error) {
     std::ostringstream sout;
-    sout << "SLGridSph::getHeader: invalid cache file <" << cachefile << ">";
-    throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
+    sout << "SLGridMP2::getHeader: invalid cache file <" << cachefile << ">. ";
+    sout << "YAML error in getHeader: " << error.what() << std::endl;
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
   }
 
   return node;
 }
-    
+
 
 //======================================================================
 //======================================================================
