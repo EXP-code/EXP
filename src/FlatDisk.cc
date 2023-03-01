@@ -44,6 +44,7 @@ FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   rcylmax    = 10.0;
   tnext      = 0.0;
   logr       = false;
+  is_flat    = true;
 
 				// Get initialization info
   initialize();

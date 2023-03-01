@@ -97,6 +97,9 @@ protected:
   //! Get density from coefficient vector
   void get_dens_coefs(int m, Eigen::VectorXd& coef, double& p);
 
+  //! Model is flat
+  bool is_flat;
+
   //! Flag whether or not work space has been initialized for coefficients
   bool firstime_coef;
 
@@ -112,36 +115,8 @@ protected:
   //! Compute the coefficients from an table
   virtual void determine_coefficients_playback(void);
 
-  typedef std::vector<std::vector<Eigen::VectorXd>> VectorD2;
-  typedef std::shared_ptr<VectorD2> VectorD2ptr;
-
-  /** Some syntactic sugar for array of shared pointers: define an
-      operator to the object of the shared pointer.  That is, for:
-
-      MstepArray step(N);
-
-      One can use:
-
-      step(n)[j][k] = ...
-
-      instead of
-
-      (*step[n])[j][k] = ...
-
-      to access elements.
-  */
-  struct MstepArray : public std::vector<VectorD2ptr>
-  {
-    VectorD2 & operator()(int M) { return (*(*this)[M]); }
-  };
-
-  MstepArray cosL, cosN, sinL, sinN;
-
   std::vector<std::vector<unsigned>> howmany1;
   std::vector<unsigned> howmany;
-
-  std::vector<Eigen::VectorXd> accum_cos;
-  std::vector<Eigen::VectorXd> accum_sin;
 
   //! Add single particle to coefficients
   void accumulate(double r, double z, double phi, double mass,
@@ -303,10 +278,12 @@ protected:
     if (n >= nmax)
       throw std::runtime_error("n>=nmax");
     
-    if (c == 'c')
-      return accum_cos[m][n];
-    else
-      return accum_sin[m][n];
+    if (c == 'c') {
+      if (m==0) return (*expcoef[0])[n];
+      else      return (*expcoef[2*m-1])[n];
+    } else {
+      return (*expcoef[2*m])[n];
+    }
   }
   
   double& set_coef(int mlevel, int m, int n, char c)
@@ -317,10 +294,12 @@ protected:
     if (n >= nmax)
       throw std::runtime_error("n>=nmax");
     
-    if (c == 'c')
-      return cosN(mlevel)[0][m][n];
-    else
-      return sinN(mlevel)[0][m][n];
+    if (c == 'c') {
+      if (m==0) return (*expcoefN[0][0])[n];
+      else      return (*expcoefN[0][2*m-1])[n];
+    } else {
+      return (*expcoefN[0][2*m])[n];
+    }
   }
     
   double& set_coefT(int T, int m, int n)
@@ -337,7 +316,7 @@ protected:
       throw std::runtime_error(sout.str());
     }
     
-    return covV(0, T, m)[n];
+    return (*expcoefT[T][m])[n];
   }
   
   double& set_covrT(int T, int m, int n, int o)
@@ -357,7 +336,7 @@ protected:
       throw std::runtime_error(sout.str());
     }
     
-    return covM(0, T, m)(n, o);
+    return (*expcoefM[T][m])(n, o);
   }
     
   double& set_tvar(int m, int i, int j)
