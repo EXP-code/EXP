@@ -34,7 +34,7 @@ Eigen::VectorXd bessjz(int n, int m)
       zl = z;
       fl = f;
       z += dz;
-      f = EXPmath::cyl_bessel_j(n,z);
+      f = EXPmath::cyl_bessel_j(n, z);
     }
     a[i] = zbrent(zfunc, zl, z, TOL);
     zl = z;

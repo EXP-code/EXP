@@ -9,8 +9,7 @@
 
 #include <Eigen/Eigen>
 
-#include <boost/math/special_functions/bessel.hpp>
-#include <boost/math/tools/minima.hpp>
+#include <EXPmath.H>		// For C++17 special function workarounds
 
 //! Hankel transform based on the QDHT algorithm
 //!
@@ -30,7 +29,7 @@ private:
   int N;
 
   //! Will contain the zeros of the Bessel function of order nu
-  std::vector<double> zeros;
+  Eigen::VectorXd zeros;
 
   //! Dimension 1 scale
   double R;

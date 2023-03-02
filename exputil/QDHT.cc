@@ -5,6 +5,8 @@
 
 bool QDHT::debug = false;
 
+Eigen::VectorXd bessjz(int n, int m);
+
 // Constructor
 QDHT::QDHT(int nu, int N, double R) : nu(nu), N(N), R(R)
 {
@@ -26,14 +28,10 @@ QDHT::QDHT(int nu, int N, double R) : nu(nu), N(N), R(R)
     throw std::runtime_error(sout.str());
   }
 
-  // Sets maximum number of nodes to about 2^15:
-  //
-  const int maxN = 32769;
-  
   // Imports zeros of the Bessel function. Initializing this way speeds up calls
   //
   try {
-    boost::math::cyl_bessel_j_zero(this->nu, 1, maxN, std::back_inserter(zeros));
+    zeros  = bessjz(nu, N+1);
   }
   catch (std::exception& ex) {
     std::cout << "Thrown exception " << ex.what() << std::endl;
@@ -53,7 +51,7 @@ QDHT::QDHT(int nu, int N, double R) : nu(nu), N(N), R(R)
 
   // Get the Bessel function of order nu+1 evaluated at the roots
   for (int i=0; i<N; i++) {
-    Jp[i] = boost::math::cyl_bessel_j(nu+1.0, zeros[i]);
+    Jp[i] = EXPmath::cyl_bessel_j(nu+1.0, zeros[i]);
   }
 
   // Precompute the radial and spatial frequency vectors and the
@@ -65,7 +63,7 @@ QDHT::QDHT(int nu, int N, double R) : nu(nu), N(N), R(R)
     for (int j=i; j<N; j++) {
 
       T(i, j) = 2.0/S *
-	boost::math::cyl_bessel_j(nu, zeros[i]*zeros[j]/S) / (Jp[i]*Jp[j]);
+	EXPmath::cyl_bessel_j(nu, zeros[i]*zeros[j]/S) / (Jp[i]*Jp[j]);
       if (i != j) T(j, i) = T(i, j);
     }
   }
@@ -92,7 +90,7 @@ double QDHT::operator()(double r, Eigen::VectorXd& v)
 {
   double ret = 0.0;
   for (int i=0; i<N; i++) {
-    ret +=  2.0/(R*R*Jp[i]*Jp[i])*v[i]*boost::math::cyl_bessel_j(nu, zeros[i]*r/R);
+    ret +=  2.0/(R*R*Jp[i]*Jp[i])*v[i]*EXPmath::cyl_bessel_j(nu, zeros[i]*r/R);
   }
   return ret;
 }
