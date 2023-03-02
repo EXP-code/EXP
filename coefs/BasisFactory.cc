@@ -1351,13 +1351,13 @@ namespace BasisClasses
 
   const std::set<std::string>
   FlatDisk::valid_keys = {
-    "nfid",
-    "numr",
+    "nmaxfid",
     "rcylmin",
     "rcylmax",
     "acyltbl",
     "numx",
     "numy",
+    "numr",
     "knots",
     "logr",
     "model",
@@ -1372,7 +1372,7 @@ namespace BasisClasses
     "M0_ONLY",
     "ssfrac",
     "playback",
-    "coefMaster"
+    "coefMaster",
     "Lmax",
     "Mmax",
     "nmax",
@@ -1382,7 +1382,7 @@ namespace BasisClasses
     "vtkfreq",
     "tksmooth",
     "tkcum",
-    "tk_type"
+    "tk_type",
     "cachename"
   };
 
@@ -1518,8 +1518,6 @@ namespace BasisClasses
       if (rows != mmax+1 or cols != nmax) {
 	std::ostringstream sout;
 	sout << "FlatDisk::set_coefs: the basis has (mmax+1, nmax)=("
-	     << mmax << ", " << nmax
-	     << ") and the dimensions must be (rows, cols)=("
 	     << mmax+1 << ", " << nmax
 	     << "). The coef structure has (rows, cols)=("
 	     << rows << ", " << cols << ")";
@@ -1625,8 +1623,8 @@ namespace BasisClasses
       double r2 = R*R + z*z;
       double r  = sqrt(r2);
       pot0 = -totalMass/r;
-      rpot = -totalMass*R/(r*r2);
-      zpot = -totalMass*z/(r*r2);
+      rpot = -totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      zpot = -totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
       
       return;
     }
@@ -1659,33 +1657,33 @@ namespace BasisClasses
 
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc = expcoef(moffset+0, n) * dend(moffset+0, n);
-	  vs = expcoef(moffset+1, n) * dend(moffset+1, n);
+	  vc += expcoef(moffset+0, n) * dend(moffset+0, n);
+	  vs += expcoef(moffset+1, n) * dend(moffset+1, n);
 	}
 	
 	den1 += (vc*cosm + vs*sinm) * M_SQRT2;
       
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc = expcoef(moffset+0, n) * potd(moffset+0, n);
-	  vs = expcoef(moffset+1, n) * potd(moffset+1, n);
+	  vc += expcoef(moffset+0, n) * potd(moffset+0, n);
+	  vs += expcoef(moffset+1, n) * potd(moffset+1, n);
 	}
 	
 	pot1 += ( vc*cosm + vs*sinm) * M_SQRT2;
-	ppot += (-vc*sinm + vs*cosm) * M_SQRT2;
+	ppot += (-vc*sinm + vs*cosm) * m * M_SQRT2;
 
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc = expcoef(moffset+0, n) * potR(moffset+0, n);
-	  vs = expcoef(moffset+1, n) * potR(moffset+1, n);
+	  vc += expcoef(moffset+0, n) * potR(moffset+0, n);
+	  vs += expcoef(moffset+1, n) * potR(moffset+1, n);
 	}
 
 	rpot += (vc*cosm + vs*sinm) * M_SQRT2;
 	
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc = expcoef(moffset+0, n) * potZ(moffset+0, n);
-	  vs = expcoef(moffset+1, n) * potZ(moffset+1, n);
+	  vc += expcoef(moffset+0, n) * potZ(moffset+0, n);
+	  vs += expcoef(moffset+1, n) * potZ(moffset+1, n);
 	}
 
 	zpot += (vc*cosm + vs*sinm) * M_SQRT2;
@@ -1693,6 +1691,14 @@ namespace BasisClasses
 	moffset +=2;
       }
     }
+
+    den0 *= -1.0;
+    den1 *= -1.0;
+    pot0 *= -1.0;
+    pot1 *= -1.0;
+    rpot *= -1.0;
+    zpot *= -1.0;
+    ppot *= -1.0;
   }
 
 

@@ -6878,22 +6878,23 @@ void EmpCylSL::WriteH5Cache()
 
     // Write the specific parameters
     //
-    file.createAttribute<std::string>("model",  HighFive::DataSpace::From(model)).   write(model);
-    file.createAttribute<int>        ("mmax",   HighFive::DataSpace::From(MMAX)).    write(MMAX);
-    file.createAttribute<int>        ("numx",   HighFive::DataSpace::From(NUMX)).    write(NUMX);
-    file.createAttribute<int>        ("numy",   HighFive::DataSpace::From(NUMY)).    write(NUMY);
-    file.createAttribute<int>        ("nmax",   HighFive::DataSpace::From(NMAX)).    write(NMAX);
-    file.createAttribute<int>        ("norder", HighFive::DataSpace::From(NORDER)).  write(NORDER);
-    file.createAttribute<int>        ("neven",  HighFive::DataSpace::From(Neven)).   write(Neven);
-    file.createAttribute<int>        ("nodd",   HighFive::DataSpace::From(Nodd)).    write(Nodd);
-    file.createAttribute<int>        ("idens",  HighFive::DataSpace::From(idens)).   write(idens);
-    file.createAttribute<int>        ("cmapr",  HighFive::DataSpace::From(CMAPR)).   write(CMAPR);
-    file.createAttribute<int>        ("cmapz",  HighFive::DataSpace::From(CMAPZ)).   write(CMAPZ);
-    file.createAttribute<double>     ("rmin",   HighFive::DataSpace::From(RMIN)).    write(RMIN);
-    file.createAttribute<double>     ("rmax",   HighFive::DataSpace::From(RMAX)).    write(RMAX);
-    file.createAttribute<double>     ("ascl",   HighFive::DataSpace::From(ASCALE)).  write(ASCALE);
-    file.createAttribute<double>     ("hscl",   HighFive::DataSpace::From(HSCALE)).  write(HSCALE);
-    file.createAttribute<double>     ("cmass",  HighFive::DataSpace::From(cylmass)). write(cylmass);
+    file.createAttribute<std::string>("model",   HighFive::DataSpace::From(model)).   write(model);
+    file.createAttribute<int>        ("mmax",    HighFive::DataSpace::From(MMAX)).    write(MMAX);
+    file.createAttribute<int>        ("numx",    HighFive::DataSpace::From(NUMX)).    write(NUMX);
+    file.createAttribute<int>        ("numy",    HighFive::DataSpace::From(NUMY)).    write(NUMY);
+    file.createAttribute<int>        ("nmax",    HighFive::DataSpace::From(NORDER)).    write(NORDER);
+    file.createAttribute<int>        ("lmaxfid", HighFive::DataSpace::From(LMAX)).  write(LMAX);
+    file.createAttribute<int>        ("nmaxfid", HighFive::DataSpace::From(NMAX)).  write(NMAX);
+    file.createAttribute<int>        ("neven",   HighFive::DataSpace::From(Neven)).   write(Neven);
+    file.createAttribute<int>        ("nodd",    HighFive::DataSpace::From(Nodd)).    write(Nodd);
+    file.createAttribute<int>        ("idens",   HighFive::DataSpace::From(idens)).   write(idens);
+    file.createAttribute<int>        ("cmapr",   HighFive::DataSpace::From(CMAPR)).   write(CMAPR);
+    file.createAttribute<int>        ("cmapz",   HighFive::DataSpace::From(CMAPZ)).   write(CMAPZ);
+    file.createAttribute<double>     ("rmin",    HighFive::DataSpace::From(RMIN)).    write(RMIN);
+    file.createAttribute<double>     ("rmax",    HighFive::DataSpace::From(RMAX)).    write(RMAX);
+    file.createAttribute<double>     ("ascl",    HighFive::DataSpace::From(ASCALE)).  write(ASCALE);
+    file.createAttribute<double>     ("hscl",    HighFive::DataSpace::From(HSCALE)).  write(HSCALE);
+    file.createAttribute<double>     ("cmass",   HighFive::DataSpace::From(cylmass)). write(cylmass);
       
     // Cosine functions
 
@@ -6996,8 +6997,9 @@ bool EmpCylSL::ReadH5Cache()
     if (not checkInt(MMAX,     "mmax"))      return false;
     if (not checkInt(NUMX,     "numx"))      return false;
     if (not checkInt(NUMY,     "numy"))      return false;
-    if (not checkInt(NMAX,     "nmax"))      return false;
-    if (not checkInt(NORDER,   "norder"))    return false;
+    if (not checkInt(NORDER,   "nmax"))      return false;
+    if (not checkInt(LMAX,     "lmaxfid"))   return false;
+    if (not checkInt(NMAX,     "nmaxfid"))   return false;
     if (not checkInt(Neven,    "neven"))     return false;
     if (not checkInt(Nodd,     "nodd"))      return false;
     if (not checkInt(idens,    "idens"))     return false;

@@ -64,14 +64,14 @@ Cylinder::valid_keys = {
   "hexp",
   "snr",
   "evcut",
-  "nmax",
-  "lmax",
+  "nmaxfid",
+  "lmaxfid",
   "mmax",
   "mlim",
   "ncylnx",
   "ncylny",
   "ncylr",
-  "ncylorder",
+  "nmax",
   "ncylodd",
   "ncylrecomp",
   "npca",
@@ -131,12 +131,12 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ncylr           = 2000;
 
   acyl            = 1.0;
-  nmax            = 24;
-  lmax            = 36;
+  nmaxfid         = 24;
+  lmaxfid         = 36;
   mmax            = 4;
   mlim            = -1;
   hcyl            = 1.0;
-  ncylorder       = 10;
+  nmax            = 10;
   ncylodd         = -1;
   ncylrecomp      = -1;
 
@@ -216,7 +216,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   // Make the empirical orthogonal basis instance
   //
   ortho = std::make_shared<CylEXP>
-    (nmax, lmax, mmax, ncylorder, acyl, hcyl, ncylodd, cachename);
+    (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
   
   // Set azimuthal harmonic order restriction?
   //
@@ -324,11 +324,11 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   for (int n=0; n<numprocs; n++) {
     if (myid==n) {
       std::cout << std::endl << "Process " << myid << ": Cylinder parameters: "
-		<< std::endl << sep << "nmax="        << nmax
-		<< std::endl << sep << "lmax="        << lmax
+		<< std::endl << sep << "nmaxfid="     << nmaxfid
+		<< std::endl << sep << "lmaxfid="     << lmaxfid
 		<< std::endl << sep << "mmax="        << mmax
 		<< std::endl << sep << "mlim="        << mlim
-		<< std::endl << sep << "ncylorder="   << ncylorder
+		<< std::endl << sep << "nmax="        << nmax
 		<< std::endl << sep << "ncylodd="     << ncylodd
 		<< std::endl << sep << "rcylmin="     << rcylmin
 		<< std::endl << sep << "rcylmax="     << rcylmax
@@ -353,11 +353,11 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 #else
   if (myid==0) {
     std::cout << "---- Cylinder parameters: "
-	      << std::endl << sep << "nmax="        << nmax
-	      << std::endl << sep << "lmax="        << lmax
+	      << std::endl << sep << "nmaxfid="     << nmaxfid
+	      << std::endl << sep << "lmaxfid="     << lmaxfid
 	      << std::endl << sep << "mmax="        << mmax
 	      << std::endl << sep << "mlim="        << mlim
-	      << std::endl << sep << "ncylorder="   << ncylorder
+	      << std::endl << sep << "nmax="        << nmax
 	      << std::endl << sep << "ncylodd="     << ncylodd
 	      << std::endl << sep << "rcylmin="     << rcylmin
 	      << std::endl << sep << "rcylmax="     << rcylmax
@@ -414,14 +414,14 @@ void Cylinder::initialize()
     if (conf["hexp"      ])       hexp  = conf["hexp"      ].as<double>();
     if (conf["snr"       ])        snr  = conf["snr"       ].as<double>();
     if (conf["evcut"     ])        rem  = conf["evcut"     ].as<double>();
-    if (conf["nmax"      ])       nmax  = conf["nmax"      ].as<int>();
-    if (conf["lmax"      ])       lmax  = conf["lmax"      ].as<int>();
+    if (conf["nmaxfid"   ])    nmaxfid  = conf["nmaxfid"   ].as<int>();
+    if (conf["lmaxfid"   ])    lmaxfid  = conf["lmaxfid"   ].as<int>();
     if (conf["mmax"      ])       mmax  = conf["mmax"      ].as<int>();
     if (conf["mlim"      ])       mlim  = conf["mlim"      ].as<int>();
     if (conf["ncylnx"    ])     ncylnx  = conf["ncylnx"    ].as<int>();
     if (conf["ncylny"    ])     ncylny  = conf["ncylny"    ].as<int>();
     if (conf["ncylr"     ])      ncylr  = conf["ncylr"     ].as<int>();
-    if (conf["ncylorder" ])  ncylorder  = conf["ncylorder" ].as<int>();
+    if (conf["nmax"      ])       nmax  = conf["nmax"      ].as<int>();
     if (conf["ncylodd"   ])    ncylodd  = conf["ncylodd"   ].as<int>();
     if (conf["ncylrecomp"]) ncylrecomp  = conf["ncylrecomp"].as<int>();
     if (conf["npca"      ])       npca  = conf["npca"      ].as<int>();
@@ -477,10 +477,10 @@ void Cylinder::initialize()
       // Set tolerance to 2 master time steps
       playback->setDeltaT(dtime*2);
 
-      if (playback->nmax() != ncylorder) {
+      if (playback->nmax() != nmax) {
 	std::ostringstream sout;
 	sout << "Cylinder: norder for playback [" << playback->nmax()
-	     << "] does not match specification [" << ncylorder << "]";
+	     << "] does not match specification [" << nmax << "]";
 	throw GenericError(sout.str(), __FILE__, __LINE__, 1018, false);
       }
 
@@ -1499,17 +1499,17 @@ void Cylinder::dump_coefs_h5(const std::string& file)
   cur->geom = geoname[geometry];
   cur->id   = id;
   cur->mmax = mmax;
-  cur->nmax = ncylorder;
+  cur->nmax = nmax;
 
-  cur->coefs.resize(mmax+1, ncylorder);
+  cur->coefs.resize(mmax+1, nmax);
 
-  Eigen::VectorXd cos1(ncylorder), sin1(ncylorder);
+  Eigen::VectorXd cos1(nmax), sin1(nmax);
   
   for (int m=0; m<=mmax; m++) {
 
     ortho->get_coefs(m, cos1, sin1);
 
-    for (int ir=0; ir<ncylorder; ir++) {
+    for (int ir=0; ir<nmax; ir++) {
       if (m==0) {
 	cur->coefs(m, ir) = {cos1(ir), 0.0};
       } else {

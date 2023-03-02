@@ -1757,7 +1757,7 @@ void PolarBasis::dump_coefs_h5(const std::string& file)
   cur->mmax   = Mmax;
   cur->nmax   = nmax;
 
-  cur->coefs.resize(2*Mmax+1, nmax);
+  cur->coefs.resize(Mmax+1, nmax);
 
   for (int ir=0; ir<nmax; ir++) {
     for (int m=0, offset=0; m<=Mmax; m++) {

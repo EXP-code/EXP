@@ -38,11 +38,11 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     if (conf["Lmax"] and not conf["Mmax"])
                              mmax = conf["Lmax"].as<int>();
     
-    if (conf["nfid"])        nfid = conf["nfid"].as<int>();
-    else                     nfid = 40;
+    if (conf["nmaxfid"])     nmaxfid = conf["nmaxfid"].as<int>();
+    else                     nmaxfid = 40;
 
     if (conf["nmax"])        nmax = conf["nmax"].as<int>();    
-    else                     nmax = nfid;			       
+    else                     nmax = nmaxfid;			       
     			                                           
     if (conf["numr"])        numr = conf["numr"].as<int>();	       
     else                     numr = 2000;			       
@@ -82,8 +82,6 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     
     // Add output directory and runtag
     cachename = outdir + cachename;
-    if (runtag.size())		// Add if defined...
-      cachename = cachename + "." + runtag;
 
     if (conf["verbose"])     verbose = true;
     else                     verbose = false;
@@ -165,7 +163,7 @@ void BiorthCyl::create_tables()
   std::string target("expon");
   std::string biorth("bess");
 
-  emp = EmpCyl2d(mmax, nfid, knots, numr,
+  emp = EmpCyl2d(mmax, nmaxfid, knots, numr,
 		 rcylmin*scale, rcylmax*scale, acyltbl*scale, scale,
 		 cmapR, logr, target, biorth);
 
@@ -445,7 +443,7 @@ void BiorthCyl::WriteH5Params(HighFive::File& file)
   file.createAttribute<int>         ("mmax",     HighFive::DataSpace::From(mmax)).write(mmax);
   file.createAttribute<int>         ("nmax",     HighFive::DataSpace::From(nmax)).write(nmax);
   file.createAttribute<int>         ("numr",     HighFive::DataSpace::From(numr)).write(numr);
-  file.createAttribute<int>         ("nfid",     HighFive::DataSpace::From(nmax)).write(nfid);
+  file.createAttribute<int>         ("nmaxfid",  HighFive::DataSpace::From(nmax)).write(nmaxfid);
   file.createAttribute<int>         ("numx",     HighFive::DataSpace::From(numx)).write(numx);
   file.createAttribute<int>         ("numy",     HighFive::DataSpace::From(numy)).write(numy);
   file.createAttribute<double>      ("rcylmin",  HighFive::DataSpace::From(rcylmin)).write(rcylmin);
@@ -583,7 +581,7 @@ bool BiorthCyl::ReadH5Cache()
     if (not checkInt(mmax,     "mmax"))      return false;
     if (not checkInt(nmax,     "nmax"))      return false;
     if (not checkInt(numr,     "numr"))      return false;
-    if (not checkInt(nfid,     "nfid"))      return false;
+    if (not checkInt(nmaxfid,  "nmaxfid"))   return false;
     if (not checkInt(numx,     "numx"))      return false;
     if (not checkInt(numy,     "numy"))      return false;
     if (not checkDbl(rcylmin,  "rcylmin"))   return false;

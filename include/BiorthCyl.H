@@ -45,7 +45,7 @@ protected:
 
   std::string geometry, forceID;
   
-  int mmax, nmax, numr, nfid, mmin, mlim, nmin, nlim, knots, NQDHT;
+  int mmax, nmax, numr, nmaxfid, mmin, mlim, nmin, nlim, knots, NQDHT;
   double rcylmin, rcylmax, scale, acyltbl;
 
   bool EVEN_M, verbose;
