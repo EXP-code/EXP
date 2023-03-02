@@ -19,10 +19,11 @@ void BasisFactoryClasses(py::module &m) {
     "used to compute coefficients, provide field quantities such as\n"
     "forces and, together with the FieldGenerator, surfaces and fields for\n"
     "visualization.\n\n"
-    "Two bases are currently implemented: SphericalSL, the Sturm-\n"
-    "Liouiville spherical basis and the Cylindrical basis, which is\n"
+    "Three bases are currently implemented: SphericalSL, the Sturm-\n"
+    "Liouiville spherical basis, the Cylindrical basis, which is\n"
     "created by computing empirical orthogonal functions over a densely\n"
-    "sampled SphericalSL basis.  Each of these bases take a YAML\n"
+    "sampled SphericalSL basis, and a FlatDisk basis, which is an EOF\n"
+    "rotation of the finite Bessel basis.  Each of these bases take a YAML\n"
     "configuration file as input. These parameter lists are as subset of\n"
     "and have the same structure as thosed used by EXP. The factory\n"
     "and the individual constructors will check the parameters keys\n"
@@ -261,6 +262,57 @@ void BasisFactoryClasses(py::module &m) {
   };
 
 
+  class PyFlatDisk : public FlatDisk
+  {
+  protected:
+
+    void all_eval(double r, double costh, double phi,
+		  double& den0, double& den1,
+		  double& pot0, double& pot1,
+		  double& potr, double& pott, double& potp)override {
+      PYBIND11_OVERRIDE(void, FlatDisk, all_eval,
+			r, costh, phi, den0, den1, pot0, pot1,
+			potr, pott, potp);
+    }
+    
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, load_coefs, coefs, time);
+    }
+    
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, set_coefs, coefs);
+    }
+
+  public:
+
+    // Inherit the constructors
+    using FlatDisk::FlatDisk;
+
+    void getFields(double x, double y, double z,
+		   double& tdens0, double& tpotl0, double& tdens, double& tpotl,
+		   double& tpotx, double& tpoty, double& tpotz) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, getFields,
+			x, y, z,
+			tdens0, tpotl0, tdens, tpotl,
+			tpotx, tpoty, tpotz
+			);
+    }
+
+    void accumulate(double x, double y, double z, double mass) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, accumulate, x, y, z, mass);
+    }
+
+    void reset_coefs(void) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, reset_coefs,);
+    }
+
+    void make_coefs(void) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, make_coefs,);
+    }
+
+  };
+
+
   class PyAccelFunc : public AccelFunc
   {
   public:
@@ -420,6 +472,32 @@ void BasisFactoryClasses(py::module &m) {
     .def_static("cacheInfo", [](std::string cachefile)
     {
       return BasisClasses::Cylindrical::cacheInfo(cachefile);
+    },
+      "Report the parameters in a basis cache file and return a dictionary",
+      py::arg("cachefile"));
+
+  py::class_<BasisClasses::FlatDisk, std::shared_ptr<BasisClasses::FlatDisk>, PyFlatDisk, BasisClasses::Basis>(m, "FlatDisk")
+    .def(py::init<const std::string&>(), "Create a cylindrical EOF basis")
+    .def("getBasis", &BasisClasses::FlatDisk::getBasis,
+	 "Evaluate the basis functions on a linearly spaced 2d-grid for"
+	 "inspection",
+	   py::arg("logxmin")=-4.0,
+	   py::arg("logxmax")=-1.0,
+	   py::arg("numr")=400)
+    // The following member needs to be a lambda capture because
+    // orthoCheck is not in the base class and needs to have different
+    // parameters depending on the basis type.  Here, the quadrature
+    // is determined by the scale of the meridional grid.
+    .def("orthoCheck", [](BasisClasses::FlatDisk& A)
+	 {
+	   return A.orthoCheck();
+	 },
+	"Check the fidelity of the empirical orthogonal functions by computing\n"
+	"the orthogonality matrices for each harmonic order. Returned as a\n"
+	"list of numpy.ndarrays from [0, ... , Mmax]")
+    .def_static("cacheInfo", [](std::string cachefile)
+    {
+      return BasisClasses::FlatDisk::cacheInfo(cachefile);
     },
       "Report the parameters in a basis cache file and return a dictionary",
       py::arg("cachefile"));

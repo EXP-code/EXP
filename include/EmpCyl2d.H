@@ -183,6 +183,9 @@ public:
   //! particular azimuthal M value to a file
   void orthoCheck(int M, const std::string& file);
 
+  //! Return an array of inner-product matrices for the EOF basis
+  std::vector<Eigen::MatrixXd> orthoCheck();
+
   //! Check the coefficients of the EOF basis against the zeroth-order
   //! model
   void checkCoefs();

@@ -262,6 +262,7 @@ namespace BasisClasses
   void SphericalSL::reset_coefs(void)
   {
     if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
+    totalMass = 0.0;
     used = 0;
   }
   
@@ -1348,6 +1349,437 @@ namespace BasisClasses
     return ret;
   }
 
+  const std::set<std::string>
+  FlatDisk::valid_keys = {
+    "nfid",
+    "numr",
+    "rcylmin",
+    "rcylmax",
+    "acyltbl",
+    "numx",
+    "numy",
+    "knots",
+    "logr",
+    "model",
+    "biorth",
+    "scale",
+    "rmin",
+    "rmax",
+    "self_consistent",
+    "NO_M0",
+    "NO_M1",
+    "EVEN_M",
+    "M0_ONLY",
+    "ssfrac",
+    "playback",
+    "coefMaster"
+    "Lmax",
+    "Mmax",
+    "nmax",
+    "dof",
+    "subsamp",
+    "samplesz",
+    "vtkfreq",
+    "tksmooth",
+    "tkcum",
+    "tk_type"
+    "cachename"
+  };
+
+  FlatDisk::FlatDisk(const YAML::Node& CONF) : Basis(CONF)
+  {
+    initialize();
+  }
+
+  FlatDisk::FlatDisk(const std::string& confstr) : Basis(confstr)
+  {
+    initialize();
+  }
+
+  void FlatDisk::initialize()
+  {
+
+    // Assign some defaults
+    //
+    cmap       = 1;
+    mmax       = 6;
+    nmax       = 18;
+    
+    // Check for unmatched keys
+    //
+    auto unmatched = YamlCheck(conf, valid_keys);
+    if (unmatched.size())
+      throw YamlConfigError("Basis::Basis::FlatDisk", "parameter", unmatched, __FILE__, __LINE__);
+    
+    // Default cachename, empty by default
+    //
+    std::string cachename;
+
+    // Assign values from YAML
+    //
+    try {
+      if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
+      if (conf["mmax"])      mmax       = conf["mmax"].as<int>();
+      if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
+      
+      if (conf["rcylmin"]) 
+	rcylmin = conf["rcylmin"].as<double>();
+      else
+	rcylmin = 0.0;
+      
+      if (conf["rcylmax"]) 
+	rcylmax = conf["rcylmax"].as<double>();
+      else
+	rcylmax = 10.0;
+      
+      N1 = 0;
+      N2 = std::numeric_limits<int>::max();
+      NO_M0 = NO_M1 = EVEN_M = M0_only = false;
+      
+      if (conf["N1"]   )     N1        = conf["N1"].as<bool>();
+      if (conf["N2"]   )     N2        = conf["N2"].as<bool>();
+      if (conf["NO_M0"])     NO_M0     = conf["NO_M0"].as<bool>();
+      if (conf["NO_M1"])     NO_M1     = conf["NO_M1"].as<bool>();
+      if (conf["EVEN_M"])    EVEN_M    = conf["EVEN_M"].as<bool>();
+      if (conf["M0_ONLY"])   M0_only   = conf["M0_ONLY"].as<bool>();
+    } 
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing parameter stanza for <"
+			     << name << ">: "
+			     << error.what() << std::endl
+			     << std::string(60, '-') << std::endl
+			     << conf                 << std::endl
+			     << std::string(60, '-') << std::endl;
+      
+      throw std::runtime_error("FlatDisk: error parsing YAML");
+    }
+    
+    // Set cmapR and cmapZ
+    if (not conf["cmapR"]) conf["cmapR"] = cmap;
+    if (not conf["cmapZ"]) conf["cmapZ"] = cmap;
+    
+    // Finally, make the basis
+    ortho = std::make_shared<BiorthCyl>(conf);
+    
+    potd.resize(mmax+1, nmax);
+    potR.resize(mmax+1, nmax);
+    potZ.resize(mmax+1, nmax);
+    dend.resize(mmax+1, nmax);
+    
+    expcoef.resize(2*mmax+1, nmax);
+    expcoef.setZero();
+      
+    work.resize(nmax);
+      
+    used = 0;
+  }
+  
+  void FlatDisk::reset_coefs(void)
+  {
+    if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
+    totalMass = 0.0;
+    used = 0;
+  }
+  
+  
+  void FlatDisk::load_coefs(CoefClasses::CoefStrPtr coef, double time)
+  {
+    CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
+
+    cf->mmax   = mmax;
+    cf->nmax   = nmax;
+    cf->time   = time;
+
+    cf->coefs.resize(2*mmax+1, nmax);
+    for (int m=0, m0=0; m<=mmax; m++) {
+      for (int n=0; n<nmax; n++) {
+	if (m==0)
+	  cf->coefs(m, n) = {expcoef(m0, n), 0.0};
+	else
+	  cf->coefs(m, n) = {expcoef(m0, n), expcoef(m0+1, n)};
+      }
+      if (m==0) m0 += 1;
+      else      m0 += 2;
+    }
+  }
+
+  void FlatDisk::set_coefs(CoefClasses::CoefStrPtr coef)
+  {
+    // Sanity check on derived class type
+    //
+    if (typeid(*coef) != typeid(CoefClasses::CylStruct))
+      throw std::runtime_error("FlatDisk::set_coefs: you must pass a CoefClasses::CylStruct");
+
+    // Sanity check on dimensionality
+    //
+    {
+      int rows = coef->coefs.rows();
+      int cols = coef->coefs.cols();
+      if (rows != mmax+1 or cols != nmax) {
+	std::ostringstream sout;
+	sout << "FlatDisk::set_coefs: the basis has (mmax+1, nmax)=("
+	     << mmax << ", " << nmax
+	     << ") and the dimensions must be (rows, cols)=("
+	     << mmax+1 << ", " << nmax
+	     << "). The coef structure has (rows, cols)=("
+	     << rows << ", " << cols << ")";
+	  
+	throw std::runtime_error(sout.str());
+      }
+    }
+    
+    CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
+
+    // Assign internal coefficient table (doubles) from the complex struct
+    //
+    for (int m=0, m0=0; m<=mmax; m++) {
+      for (int n=0; n<nmax; n++) {
+	if (m==0)
+	  expcoef(m0,   n) = cf->coefs(m, n).real();
+	else {
+	  expcoef(m0,   n) = cf->coefs(m, n).real();
+	  expcoef(m0+1, n) = cf->coefs(m, n).imag();
+	}
+      }
+      if (m==0) m0 += 1;
+      else      m0 += 2;
+    }
+
+    // Assign center if need be
+    //
+    if (cf->ctr.size())
+      coefctr = cf->ctr;
+    else
+      coefctr = {0.0, 0.0, 0.0};
+  }
+
+  void FlatDisk::accumulate(double x, double y, double z, double mass)
+  {
+    //======================
+    // Compute coefficients 
+    //======================
+    
+    double R2 = x*x + y*y;
+    double R  = sqrt(R);
+    
+    if (R < ortho->getRtable() and fabs(z) < ortho->getRtable()) {
+    
+      used++;
+      totalMass += mass;
+    
+      double phi = atan2(y, x);
+
+      ortho->get_pot(potd, R, 0.0);
+    
+      // M loop
+      for (int m=0, moffset=0; m<=mmax; m++) {
+	
+	if (m==0) {
+	  for (int n=0; n<nmax; n++) {
+	    expcoef(moffset, n) += potd(m, n)* mass;
+	  }
+	  
+	  moffset++;
+	}
+	else {
+	  double ccos = cos(phi*m);
+	  double ssin = sin(phi*m);
+	  for (int n=0; n<nmax; n++) {
+	    expcoef(moffset  , n) += ccos * potd(m, n) * mass;
+	    expcoef(moffset+1, n) += ssin * potd(m, n) * mass;
+	  }
+	  moffset+=2;
+	}
+      }
+    }
+    
+  }
+  
+  void FlatDisk::make_coefs()
+  {
+    if (use_mpi) {
+      
+      MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
+		    MPI_SUM, MPI_COMM_WORLD);
+      
+      for (int m=0; m<2*mmax+1; m++) {
+	work = expcoef.row(m);
+	MPI_Allreduce(MPI_IN_PLACE, work.data(), nmax, MPI_DOUBLE,
+		      MPI_SUM, MPI_COMM_WORLD);
+	expcoef.row(m) = work;
+      }
+    }
+  }
+  
+  void FlatDisk::all_eval_cyl
+  (double R, double z, double phi, 
+   double& den0, double& den1,
+   double& pot0, double& pot1,
+   double& rpot, double& zpot, double& ppot)
+  {
+    den0 = den1 = 0.0;
+    pot0 = pot1 = 0.0;
+    rpot = zpot = ppot = 0.0;
+    
+    if (R>ortho->getRtable() or fabs(z)>ortho->getRtable()) {
+      double r2 = R*R + z*z;
+      double r  = sqrt(r2);
+      pot0 = -totalMass/r;
+      rpot = -totalMass*R/(r*r2);
+      zpot = -totalMass*z/(r*r2);
+      
+      return;
+    }
+
+    ortho->get_dens   (dend,  R, z);
+    ortho->get_pot    (potd,  R, z);
+    ortho->get_rforce (potR,  R, z);
+    ortho->get_zforce (potZ,  R, z);
+    
+    // m loop
+    for (int m=0, moffset=0; m<=mmax; m++) {
+      
+      if (m==0 and NO_M0)        continue;
+      if (m==1 and NO_M1)        continue;
+      if (EVEN_M and m/2*2 != m) continue;
+      if (m>0  and M0_only)      break;
+
+      if (m==0) {
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  den0 += expcoef(0, n) * dend(0, n);
+	  pot0 += expcoef(0, n) * potd(0, n);
+	  rpot += expcoef(0, n) * potR(0, n);
+	  zpot += expcoef(0, n) * potZ(0, n);
+	}
+	
+	moffset++;
+      }  else {
+	double cosm = cos(phi*m), sinm = sin(phi*m);
+	double vc, vs;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc = expcoef(moffset+0, n) * dend(moffset+0, n);
+	  vs = expcoef(moffset+1, n) * dend(moffset+1, n);
+	}
+	
+	den1 += (vc*cosm + vs*sinm) * M_SQRT2;
+      
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc = expcoef(moffset+0, n) * potd(moffset+0, n);
+	  vs = expcoef(moffset+1, n) * potd(moffset+1, n);
+	}
+	
+	pot1 += ( vc*cosm + vs*sinm) * M_SQRT2;
+	ppot += (-vc*sinm + vs*cosm) * M_SQRT2;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc = expcoef(moffset+0, n) * potR(moffset+0, n);
+	  vs = expcoef(moffset+1, n) * potR(moffset+1, n);
+	}
+
+	rpot += (vc*cosm + vs*sinm) * M_SQRT2;
+	
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc = expcoef(moffset+0, n) * potZ(moffset+0, n);
+	  vs = expcoef(moffset+1, n) * potZ(moffset+1, n);
+	}
+
+	zpot += (vc*cosm + vs*sinm) * M_SQRT2;
+
+	moffset +=2;
+      }
+    }
+  }
+
+
+  void FlatDisk::all_eval
+  (double r, double costh, double phi, 
+   double& den0, double& den1,
+   double& pot0, double& pot1,
+   double& potr, double& pott, double& potp)
+  {
+
+    den0 = den1 = pot0 = pot1 = 0.0;
+    potr = pott = potp = 0.0;
+
+    // Cylindrical coords
+    //
+    double sinth = sqrt(fabs(1.0 - costh*costh));
+    double R = r*sinth, z = r*costh, potR, potz;
+
+    all_eval_cyl(R, z, phi,
+		 den0, den1, pot0, pot1,
+		 potR, potz, potp);
+  
+    // Spherical force element converstion
+    //
+    potr = potR*sinth + potz*costh;
+    pott = potR*costh - potz*sinth;
+  }
+
+  void FlatDisk::getFields
+  (double x, double y, double z,
+   double& den0, double& pot0, double& den1, double& pot1, 
+   double& potx, double& poty, double& potz)
+  {
+    double R2  = x*x + y*y;
+    double R   = sqrt(R2);
+    double phi = atan2(y, x);
+  
+    den0 = pot0 = den1 = pot1 = 0.0;
+    potx = poty = potz = 0.0;
+
+    double tpotR, tpotz, tpotp;
+
+    all_eval_cyl(R, z, phi,
+		 den0, den1, pot0, pot1,
+		 tpotR, tpotz, tpotp);
+
+    R += 10.0*std::numeric_limits<double>::min();
+
+    potx = tpotR*x/R + tpotp*y/R;
+    poty = tpotR*y/R - tpotp*x/R;
+  }
+
+
+  std::vector<Eigen::MatrixXd> FlatDisk::orthoCheck()
+  {
+    return ortho->orthoCheck();
+  }
+  
+  std::vector<std::vector<Eigen::VectorXd>> FlatDisk::getBasis
+  (double logxmin, double logxmax, int numgrid)
+  {
+    // Assing return storage
+    std::vector<std::vector<Eigen::VectorXd>> ret(mmax+1);
+    for (auto & v : ret) {
+      v.resize(nmax);
+      for (auto & u : v) u.resize(numgrid);
+    }
+
+    // Radial grid spacing
+    double dx = (logxmax - logxmin)/numgrid;
+
+    // Basis storage
+    Eigen::MatrixXd tab;
+
+    // Evaluate on the plane
+    for (int i=0; i<numgrid; i++) {
+      ortho->get_pot(tab, pow(10.0, logxmin + dx*i), 0.0);
+      for (int m=0; m<=mmax; m++) {
+	for (int n=0; n<nmax; n++){
+	  ret[m][n](i) = tab(m, n);
+	}
+      }
+    }
+    
+    return ret;
+  }
+
   std::shared_ptr<Basis> Basis::factory_string(const std::string& conf)
   {
     YAML::Node node;
@@ -1399,10 +1831,13 @@ namespace BasisClasses
       else if ( !name.compare("cylinder") ) {
 	basis = std::make_shared<Cylindrical>(conf);
       }
+      else if ( !name.compare("flatdisk") ) {
+	basis = std::make_shared<FlatDisk>(conf);
+      }
       else {
 	std::string msg("I don't know about the basis named: ");
 	msg += name;
-	msg += ". Known types are currently 'sphereSL' and 'cylinder'";
+	msg += ". Known types are currently 'sphereSL', 'cylinder' and 'flatdisk'";
 	throw std::runtime_error(msg);
       }
     }

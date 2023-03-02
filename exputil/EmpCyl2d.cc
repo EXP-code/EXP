@@ -714,6 +714,32 @@ void EmpCyl2d::orthoCheck(int M, const std::string& filename)
 }
 
 
+std::vector<Eigen::MatrixXd> EmpCyl2d::orthoCheck()
+{
+  std::vector<Eigen::MatrixXd> ret;
+  Eigen::MatrixXd orth(nmax, nmax);
+
+  for (int M=0; M<=mmax; M++) {
+
+    ret[M].resize(nmax, nmax);
+    ret[M].setZero();
+
+    for (int i=1; i<numr; i++) {
+      for (int j=0; j<nmax; j++) {
+	for (int l=0; l<nmax; l++) {
+	  ret[M](j, l) +=
+	    (xgrid[i-1] * potl_array[M](i-1, j) * dens_array[M](i-1, l) +
+	     xgrid[i  ] * potl_array[M](i  , j) * dens_array[M](i  , l) ) *
+	    (xgrid[i] - xgrid[i-1]) * 0.5;
+	}
+      }
+    }
+  }
+
+  return ret;
+}
+
+
 void EmpCyl2d::WriteH5Cache()
 {
   if (myid) return;

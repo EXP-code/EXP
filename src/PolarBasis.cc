@@ -470,7 +470,10 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	
       sinecosine_R(Mmax, phi, cosm[id], sinm[id]);
 
-      get_potl(r, zz, potd[id], id);
+      if (cC == component and is_flat)
+	get_potl(r, 0.0, potd[id], id);
+      else
+	get_potl(r, zz, potd[id], id);
       
       if (compute) {
 	muse1[id] += mass;
@@ -1897,14 +1900,18 @@ void PolarBasis::determine_fields_at_point_sph
   *tpotr  = *tpott  = *tpotp = 0.0;
 
   // Cylindrical coords
-  double R = r, z = 0.0;
-
-  bool ioff = false;
-  if (R>rmax) return;
+  //
+  double cost = cos(theta), sint = sin(theta);
+  double R = r*sint, z = r*cost, tpotR, tpotz;
 
   determine_fields_at_point_cyl(R, z, phi,
 				tdens0, tpotl0, tdens, tpotl,
-				tpotr, tpott, tpotp);
+				&tpotR, &tpotz, tpotp);
+  
+  // Spherical force element converstion
+  //
+  *tpotr = tpotR*sint + tpotz*cost;
+  *tpott = tpotR*cost - tpotz*sint;
 }
 
 

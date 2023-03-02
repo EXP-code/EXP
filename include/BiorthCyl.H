@@ -33,6 +33,8 @@
 #include <cudaMappingConstants.cuH>
 #endif
 
+#include <EmpCyl2d.H>
+
 //!! BiorthCyl grid class
 class BiorthCyl
 {
@@ -57,6 +59,9 @@ protected:
 
   //! Storage for basis arrays
   std::vector<std::vector<Eigen::MatrixXd>> dens, pot, rforce, zforce;
+
+  //! The 2d basis instance
+  EmpCyl2d emp;
 
   //! Create storage arrays
   void initialize();
@@ -190,6 +195,10 @@ public:
 
   //! Get the table bounds
   double getRtable() { return rcylmax*scale; }
+
+  //! For pyEXP
+  std::vector<Eigen::MatrixXd>
+  orthoCheck() { return emp.orthoCheck(); }
 
 };
 

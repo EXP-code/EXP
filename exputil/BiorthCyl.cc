@@ -18,7 +18,6 @@
 
 #include <BiorthCyl.H>		// Definition for this class
 #include <PotRZ.H>		// Hankel computation for potential
-#include <EmpCyl2d.H>		// 2d empirical basis
 #include <EXPException.H>	// For GenericError
 
 #include <numerical.H>
@@ -166,9 +165,9 @@ void BiorthCyl::create_tables()
   std::string target("expon");
   std::string biorth("bess");
 
-  EmpCyl2d emp(mmax, nfid, knots, numr,
-	       rcylmin*scale, rcylmax*scale, acyltbl*scale, scale,
-	       cmapR, logr, target, biorth);
+  emp = EmpCyl2d(mmax, nfid, knots, numr,
+		 rcylmin*scale, rcylmax*scale, acyltbl*scale, scale,
+		 cmapR, logr, target, biorth);
 
   if (conf["basis"]) emp.basisTest(true);
 
@@ -193,7 +192,7 @@ void BiorthCyl::create_tables()
 
       // Create the functor
       //
-      auto func = [&emp, m, n](double R)
+      auto func = [&, this](double R)
       {
 	return emp.get_dens(R, m, n);
       };
