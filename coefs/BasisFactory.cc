@@ -1465,10 +1465,14 @@ namespace BasisClasses
       throw std::runtime_error("FlatDisk: error parsing YAML");
     }
     
-    // Set cmapR and cmapZ
-    if (not conf["cmapR"]) conf["cmapR"] = cmap;
-    if (not conf["cmapZ"]) conf["cmapZ"] = cmap;
+    // Set cmapR and cmapZ defaults
+    if (not conf["cmapR"])   conf["cmapR"] = cmap;
+    if (not conf["cmapZ"])   conf["cmapZ"] = cmap;
     
+    // Set characteristic radius defaults
+    if (not conf["acyltbl"]) conf["acyltbl"] = 0.6;
+    if (not conf["scale"])   conf["scale"]   = 0.01;
+
     // Finally, make the basis
     ortho = std::make_shared<BiorthCyl>(conf);
     
