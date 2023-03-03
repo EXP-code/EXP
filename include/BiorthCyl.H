@@ -164,6 +164,11 @@ public:
   void get_zforce(Eigen::MatrixXd& f, double r, double z)
   { interp(r, z, zforce, f, true); }
 
+  //! Read and print the cache and return the header parameters as a
+  //! map/dictionary
+  static std::map<std::string, std::string>
+  cacheInfo(const std::string& cachefile, bool verbose=true);
+
 #if HAVE_LIBCUDA==1
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);
@@ -197,8 +202,7 @@ public:
   double getRtable() { return rcylmax*scale; }
 
   //! For pyEXP
-  std::vector<Eigen::MatrixXd>
-  orthoCheck() { return emp.orthoCheck(); }
+  std::vector<Eigen::MatrixXd> orthoCheck();
 
 };
 

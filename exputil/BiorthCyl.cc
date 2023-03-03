@@ -652,3 +652,107 @@ void BiorthCyl::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
     }
   }
 }
+
+YAML::Node BiorthCyl::getHeader(const std::string& cachefile)
+{
+  std::ifstream in(cachefile + ".h5");
+  if (!in) {
+    std::ostringstream sout;
+    sout << "BiorthCyl::getHeader: could not open cache file <"
+	 << cachefile << ">";
+    std::runtime_error(sout.str());
+  }
+
+  YAML::Node node;
+
+  try {
+    // Silence the HDF5 error stack
+    //
+    HighFive::SilenceHDF5 quiet;
+    
+    // Open the hdf5 file
+    //
+    HighFive::File file(cachefile + ".h5", HighFive::File::ReadOnly);
+    
+    auto getInt = [&file](std::string name)
+    {
+      int v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    auto getDbl = [&file](std::string name)
+    {
+      double v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    auto getStr = [&file](std::string name)
+    {
+      std::string v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    node["mmax"]     = getInt("mmax");
+    node["nmax"]     = getInt("nmax");
+    node["numr"]     = getInt("numr");
+    node["nmaxfid"]  = getInt("nmaxfid");
+    node["numx"]     = getInt("numx");
+    node["numy"]     = getInt("numy");
+    node["rcylmin"]  = getDbl("rcylmin");
+    node["rcylmax"]  = getDbl("rcylmax");
+    node["scale"]    = getDbl("scale");
+    node["acyltbl"]  = getDbl("acyltbl");
+    node["cmapR"]    = getInt("cmapR");
+    node["cmapZ"]    = getInt("cmapZ");
+  }
+  catch (YAML::Exception& error) {
+    std::ostringstream sout;
+    sout << "BiorthCyl::getHeader: invalid cache file <" << cachefile << ">. ";
+    sout << "YAML error in getHeader: " << error.what() << std::endl;
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
+  }
+
+  return node;
+}
+
+
+std::map<std::string, std::string>
+BiorthCyl::cacheInfo(const std::string& cachefile, bool verbose)
+{
+  std::map<std::string, std::string> ret;
+  auto node = getHeader(cachefile);
+
+  if (verbose)
+    std::cout << std::string(60, '-') << std::endl
+	      << "Cache parameters for BiorthCyl: " << cachefile << std::endl
+	      << std::string(60, '-') << std::endl;
+
+  for (YAML::const_iterator it=node.begin(); it!=node.end(); ++it) {
+    if (verbose)
+      std::cout << std::left << std::setw(20) << it->first.as<std::string>()
+		<< ": " << it->second.as<std::string>() << std::endl;
+    ret[it->first.as<std::string>()] = it->second.as<std::string>();
+  }
+  if (verbose)
+    std::cout << std::string(60, '-') << std::endl;
+
+  return ret;
+}
+
+
+std::vector<Eigen::MatrixXd> BiorthCyl::orthoCheck()
+{
+  if (not emp()) {
+    emp = EmpCyl2d(mmax, nmaxfid, knots, numr,
+		   rcylmin*scale, rcylmax*scale, acyltbl*scale, scale,
+		   cmapR, false, "expon", "bess");
+  }
+
+  return emp.orthoCheck();
+}

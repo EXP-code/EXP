@@ -368,7 +368,7 @@ namespace BasisClasses
     static std::map<std::string, std::string>
     cacheInfo(const std::string& cachefile)
     {
-      return SLGridSph::cacheInfo(cachefile);
+      return BiorthCyl::cacheInfo(cachefile);
     }
 
     //! Zero out coefficients to prepare for a new expansion

@@ -49,7 +49,7 @@ protected:
   double xmin, xmax, dxi;
   int mmax, nmax, numr, knots;
   std::string model, biorth;
-  bool cmap, logr, basis_test;
+  bool cmap, logr, basis_test, configured;
 
   std::vector<Eigen::MatrixXd> potl_array, dens_array, dpot_array;
   std::vector<Eigen::MatrixXd> rot_matrix;
@@ -139,7 +139,7 @@ protected:
 public:
 
   //! Null constructor (for copy construct)
-  EmpCyl2d() {}
+  EmpCyl2d() : configured(false) {}
 
   //! Constructor
   EmpCyl2d(int mmax, int nmax, int knots, int numr,
@@ -195,6 +195,9 @@ public:
 
   //! Access the maximum radius
   double getRmax() { return rmax; }
+
+  //! Check for configuration
+  bool operator()() { return configured; }
 };
 
 

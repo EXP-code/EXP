@@ -533,6 +533,8 @@ EmpCyl2d::EmpCyl2d(int mmax, int nmax, int knots, int numr,
   basis_test = false;
 
   if (not ReadH5Cache()) create_tables();
+
+  configured = true;
 }
 
 
@@ -553,6 +555,8 @@ EmpCyl2d::EmpCyl2d(int mmax, int nmax, int knots, int numr,
   basis_test = false;
 
   if (not ReadH5Cache()) create_tables();
+
+  configured = true;
 }
 
 
@@ -716,8 +720,7 @@ void EmpCyl2d::orthoCheck(int M, const std::string& filename)
 
 std::vector<Eigen::MatrixXd> EmpCyl2d::orthoCheck()
 {
-  std::vector<Eigen::MatrixXd> ret;
-  Eigen::MatrixXd orth(nmax, nmax);
+  std::vector<Eigen::MatrixXd> ret(mmax+1);
 
   for (int M=0; M<=mmax; M++) {
 
@@ -734,6 +737,8 @@ std::vector<Eigen::MatrixXd> EmpCyl2d::orthoCheck()
 	}
       }
     }
+
+    ret[M] *= 2.0*M_PI;
   }
 
   return ret;
