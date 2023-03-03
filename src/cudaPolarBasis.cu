@@ -529,7 +529,7 @@ forceKernelPlr(dArray<cudaParticle> P, dArray<int> I,
 	       int stride, unsigned int mmax, unsigned int mlim,
 	       unsigned int nmax, PII lohi,
 	       cuFP_t rmax, cuFP_t plrmass,
-	       bool external, bool flat)
+	       bool external)
 {
   // Thread ID
   //
@@ -615,11 +615,6 @@ forceKernelPlr(dArray<cudaParticle> P, dArray<int> I,
 	if (indY < 0) indY = 0;
 	if (indX >= plrNumx) indX = plrNumx - 1;
 	if (indY >= plrNumy) indY = plrNumy - 1;
-
-	if (flat) {
-	  Y    = 0.0;
-	  indY = 0;
-	}
 
 	cuFP_t delx0 = cuFP_t(indX+1) - X;
 	cuFP_t dely0 = cuFP_t(indY+1) - Y;
@@ -1853,18 +1848,13 @@ void PolarBasis::determine_acceleration_cuda()
     //
     cuFP_t rmax = getRtable();
       
-    // Is this component flat?
-    //
-    bool flat = false;
-    if (dof==2 and cC == component) flat = true;
-
     // Do the work
     //
     forceKernelPlr<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
        toKernel(dev_coefs), toKernel(t_d),
        stride, Mmax, mlim, nmax, lohi, rmax, cylmass,
-       use_external, flat);
+       use_external);
     
   }
 }
