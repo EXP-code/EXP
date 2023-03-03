@@ -477,10 +477,13 @@ void BasisFactoryClasses(py::module &m) {
       py::arg("cachefile"));
 
   py::class_<BasisClasses::FlatDisk, std::shared_ptr<BasisClasses::FlatDisk>, PyFlatDisk, BasisClasses::Basis>(m, "FlatDisk")
-    .def(py::init<const std::string&>(), "Create a cylindrical EOF basis")
+    .def(py::init<const std::string&>(),
+	 "Create a razor-thin EOF basis.  The default parameters will give\n"
+	 "an exponential disk with scale length of 0.01 units. Set the disk\n"
+	 "scale length using the 'scale' parameter")
     .def("getBasis", &BasisClasses::FlatDisk::getBasis,
-	 "Evaluate the basis functions on a linearly spaced 2d-grid for"
-	 "inspection",
+	 "Evaluate the basis functions on a linearly spaced 2d-grid for "
+	 "inspection.  The min/max radii are given in log_10 units.",
 	   py::arg("logxmin")=-4.0,
 	   py::arg("logxmax")=-1.0,
 	   py::arg("numr")=400)
