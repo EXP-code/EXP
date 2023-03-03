@@ -4,6 +4,10 @@
 #include <DiskModels.H>
 #include <gaussQ.H>
 
+#ifdef __GNUC__
+// #include <fenv.h>
+#endif
+
 namespace BasisClasses
 {
   
@@ -38,6 +42,13 @@ namespace BasisClasses
 
   void Basis::initialize()
   {
+#ifdef __GNUC__
+    // Flag invalid FP results only, such as 0/0 or infinity - infinity
+    // or sqrt(-1).
+    //
+    // feenableexcept(FE_INVALID);
+#endif
+  
     // Check whether MPI is initialized
     //
     int flag;
@@ -1657,16 +1668,16 @@ namespace BasisClasses
 
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc += expcoef(moffset+0, n) * dend(moffset+0, n);
-	  vs += expcoef(moffset+1, n) * dend(moffset+1, n);
+	  vc += expcoef(moffset+0, n) * dend(m, n);
+	  vs += expcoef(moffset+1, n) * dend(m, n);
 	}
 	
 	den1 += (vc*cosm + vs*sinm) * M_SQRT2;
       
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc += expcoef(moffset+0, n) * potd(moffset+0, n);
-	  vs += expcoef(moffset+1, n) * potd(moffset+1, n);
+	  vc += expcoef(moffset+0, n) * potd(m, n);
+	  vs += expcoef(moffset+1, n) * potd(m, n);
 	}
 	
 	pot1 += ( vc*cosm + vs*sinm) * M_SQRT2;
@@ -1674,16 +1685,16 @@ namespace BasisClasses
 
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc += expcoef(moffset+0, n) * potR(moffset+0, n);
-	  vs += expcoef(moffset+1, n) * potR(moffset+1, n);
+	  vc += expcoef(moffset+0, n) * potR(m, n);
+	  vs += expcoef(moffset+1, n) * potR(m, n);
 	}
 
 	rpot += (vc*cosm + vs*sinm) * M_SQRT2;
 	
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc += expcoef(moffset+0, n) * potZ(moffset+0, n);
-	  vs += expcoef(moffset+1, n) * potZ(moffset+1, n);
+	  vc += expcoef(moffset+0, n) * potZ(m, n);
+	  vs += expcoef(moffset+1, n) * potZ(m, n);
 	}
 
 	zpot += (vc*cosm + vs*sinm) * M_SQRT2;
