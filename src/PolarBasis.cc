@@ -470,8 +470,10 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	
       sinecosine_R(Mmax, phi, cosm[id], sinm[id]);
 
+      // If we have a flat disk, project to the disk plane
       if (cC == component and is_flat)
 	get_potl(r, 0.0, potd[id], id);
+      // Otherwise do the 3d evaluation
       else
 	get_potl(r, zz, potd[id], id);
       
@@ -1485,10 +1487,7 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 
       cC->AddAcc(indx, 0, potr*xx/r);
       cC->AddAcc(indx, 1, potr*yy/r);
-      if (cC == component and is_flat)
-	cC->AddPos(indx, 2, -zz);
-      else
-	cC->AddAcc(indx, 2, potz);
+      cC->AddAcc(indx, 2, potz);
 
       if (rfac > DSMALL) {
 	cC->AddAcc(indx, 0, -potp*yy/rfac);
