@@ -62,10 +62,9 @@ private:
   virtual double getRtable() { return ortho->getRtable(); }
 
 #if HAVE_LIBCUDA==1
-  // All of this is implemented in PolarBasis...remove placeholder (?)
-  /*
   virtual void initialize_cuda()
   {
+    sampT = floor(sqrt(component->CurTotal()));
     ortho->initialize_cuda(cuInterpArray, tex);
   }
 
@@ -73,7 +72,6 @@ private:
   {
     return ortho->getCudaMappingConstants();
   }
-  */
 #endif
 
   void get_dens(double r, double z, Eigen::MatrixXd& p, int tid);
