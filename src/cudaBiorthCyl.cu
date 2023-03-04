@@ -83,7 +83,7 @@ void BiorthCyl::initialize_cuda
   // Temporary storage
   //
   cuFP_t *d_Interp;
-  cuda_safe_call(cudaMalloc((void **)&d_Interp, numx*numy*6*sizeof(cuFP_t)),
+  cuda_safe_call(cudaMalloc((void **)&d_Interp, numx*numy*3*sizeof(cuFP_t)),
 		 __FILE__, __LINE__,
 		 "Error allocating d_Interp for texture construction");
   
@@ -105,7 +105,7 @@ void BiorthCyl::initialize_cuda
       }
       
       // Copy data to device
-      cuda_safe_call(cudaMemcpy(d_Interp, &h_buffer[0], numx*numy*6*sizeof(cuFP_t), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying texture table to device");
+      cuda_safe_call(cudaMemcpy(d_Interp, &h_buffer[0], numx*numy*3*sizeof(cuFP_t), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying texture table to device");
 
       // cudaArray Descriptor
       //
@@ -116,7 +116,7 @@ void BiorthCyl::initialize_cuda
 #endif
       // cuda Array
       //
-      cuda_safe_call(cudaMalloc3DArray(&cuArray[k], &channelDesc, make_cudaExtent(numx, numy, 6), 0), __FILE__, __LINE__, "Error allocating cuArray for 3d texture");
+      cuda_safe_call(cudaMalloc3DArray(&cuArray[k], &channelDesc, make_cudaExtent(numx, numy, 3), 0), __FILE__, __LINE__, "Error allocating cuArray for 3d texture");
 
       // Array creation
       //
@@ -124,7 +124,7 @@ void BiorthCyl::initialize_cuda
       
       copyParams.srcPtr   = make_cudaPitchedPtr(d_Interp, numx*sizeof(cuFP_t), numx, numy);
       copyParams.dstArray = cuArray[k];
-      copyParams.extent   = make_cudaExtent(numx, numy, 6);
+      copyParams.extent   = make_cudaExtent(numx, numy, 3);
       copyParams.kind     = cudaMemcpyDeviceToDevice;
 
       cuda_safe_call(cudaMemcpy3D(&copyParams), __FILE__, __LINE__, "Error in copying 3d pitched array");
@@ -153,7 +153,7 @@ void BiorthCyl::initialize_cuda
   // This is for debugging: compare texture table fetches to original
   // tables
   //
-  if (false) {
+  if (true) {
     constexpr cuFP_t tol = 10.0*std::numeric_limits<cuFP_t>::epsilon();
 
     struct Element {
@@ -175,7 +175,6 @@ void BiorthCyl::initialize_cuda
 	  {&pot[mm][n], &rforce[mm][n], &zforce[mm][n]};
 
 	int kmax = 3;
-	if (mm) kmax += 3;
 
 	for (int k=0; k<kmax; k++) {
 	  xyg = returnTestBioCyl(tex, mm, n, k, nmax, numx, numy);
