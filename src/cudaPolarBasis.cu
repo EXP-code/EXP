@@ -338,7 +338,7 @@ __global__ void coordKernelPlr
 }
 
 
-__global__ void coefKernelPlr
+__global__ void coefKernelPlr6
 (dArray<cuFP_t> coef, dArray<cuFP_t> tvar, dArray<cuFP_t> work,
  dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
  dArray<cuFP_t> Mass, dArray<cuFP_t> Phi,
@@ -404,8 +404,8 @@ __global__ void coefKernelPlr
 #endif
 	for (int n=0; n<nmax; n++) {
 
-	  // Texture maps are packed in slices
-	  // ---------------------------------
+	  // Texture maps are packed in 6 slices
+	  // -----------------------------------
 	  // potC, rforceC, zforceC, potS, rforceS, zforceS
 	  // 0     1        2        3     4        5
 
@@ -523,13 +523,13 @@ __global__ void coefKernelPlr
 
 
 __global__ void
-forceKernelPlr(dArray<cudaParticle> P, dArray<int> I,
-	       dArray<cuFP_t> coef,
-	       dArray<cudaTextureObject_t> tex,
-	       int stride, unsigned int mmax, unsigned int mlim,
-	       unsigned int nmax, PII lohi,
-	       cuFP_t rmax, cuFP_t plrmass,
-	       bool external)
+forceKernelPlr6(dArray<cudaParticle> P, dArray<int> I,
+		dArray<cuFP_t> coef,
+		dArray<cudaTextureObject_t> tex,
+		int stride, unsigned int mmax, unsigned int mlim,
+		unsigned int nmax, PII lohi,
+		cuFP_t rmax, cuFP_t plrmass,
+		bool external)
 {
   // Thread ID
   //
@@ -829,6 +829,402 @@ forceKernelPlr(dArray<cudaParticle> P, dArray<int> I,
 
 }
 
+
+__global__ void coefKernelPlr3
+(dArray<cuFP_t> coef, dArray<cuFP_t> tvar, dArray<cuFP_t> work,
+ dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
+ dArray<cuFP_t> Mass, dArray<cuFP_t> Phi,
+ dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
+ dArray<int> indX, dArray<int> indY,
+ int stride, int m, unsigned int nmax, PII lohi, bool compute)
+{
+  // Thread ID
+  //
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  const int N   = lohi.second - lohi.first;
+
+  for (int n=0; n<stride; n++) {
+
+    // Particle counter
+    //
+    int i     = tid*stride + n;
+    int npart = i + lohi.first;
+
+    if (npart < lohi.second) {	// Check that particle index is in
+				// range for consistency with other
+				// kernels
+      cuFP_t mass = Mass._v[i];
+      
+#ifdef BOUNDS_CHECK
+      if (i>=Mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif      
+      if (mass>0.0) {
+				// For accumulating mass of used particles
+	if (m==0) used._v[i] = mass;
+
+#ifdef BOUNDS_CHECK
+	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+	cuFP_t phi  = Phi._v[i];
+	cuFP_t cosp = cos(phi*m);
+	cuFP_t sinp = sin(phi*m);
+	
+	// Do the interpolation
+	//
+	cuFP_t delx0 = Xfac._v[i];
+	cuFP_t dely0 = Yfac._v[i];
+	cuFP_t delx1 = 1.0 - delx0;
+	cuFP_t dely1 = 1.0 - dely0;
+
+#ifdef BOUNDS_CHECK
+	if (i>=Xfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=Yfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+	cuFP_t c00 = delx0*dely0;
+	cuFP_t c10 = delx1*dely0;
+	cuFP_t c01 = delx0*dely1;
+	cuFP_t c11 = delx1*dely1;
+
+	int   indx = indX._v[i];
+	int   indy = indY._v[i];
+
+#ifdef BOUNDS_CHECK
+	if (i>=indX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=indY._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+	for (int n=0; n<nmax; n++) {
+
+	  // Texture maps are packed in 3 slices
+	  // -----------------------------------
+	  // pot, rforce, zforce
+	  // 0    1       2
+
+	  int k = m*nmax + n;
+
+#if cuREAL == 4
+	  cuFP_t d00   = tex3D<float>(tex._v[k], indx,   indy  , 0);
+	  cuFP_t d10   = tex3D<float>(tex._v[k], indx+1, indy  , 0);
+	  cuFP_t d01   = tex3D<float>(tex._v[k], indx,   indy+1, 0);
+	  cuFP_t d11   = tex3D<float>(tex._v[k], indx+1, indy+1, 0);
+
+#else
+	  cuFP_t d00   = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy  , 0));
+	  cuFP_t d10   = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy  , 0));
+	  cuFP_t d01   = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy+1, 0));
+	  cuFP_t d11   = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy+1, 0));
+#endif
+	  cuFP_t val   = c00*d00 + c10*d10 + c01*d01 + c11*d11;
+	  
+#ifdef BOUNDS_CHECK
+	  if (k>=tex._s)            printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	  if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+	  coef._v[(2*n+0)*N + i] = val * cosp * mass;
+
+	  if (m>0) {
+	    coef._v[(2*n+1)*N + i] = val * sinp * mass;
+
+#ifdef BOUNDS_CHECK
+	    if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+	  }
+	  // m==0
+	  else {
+	    coef._v[(2*n+1)*N + i] = 0.0;
+	  }
+
+	  if (compute and tvar._s>0) {
+	    if (plrAcov) tvar._v[n*N + i   ] = val * mass;
+	    else         work._v[i*nmax + n] = val;
+	  }
+	  
+	}
+	// END: norder loop
+
+	if (compute and not plrAcov and tvar._s>0) {
+
+	  // Variance
+	  int c = 0;
+	  for (int r=0; r<nmax; r++) {
+	    for (int s=r; s<nmax; s++) {
+	      tvar._v[N*c + i] =
+		work._v[i*nmax + r] * work._v[i*nmax + s] * mass;
+	      c++;
+	    }
+	  }
+	  // Mean
+	  for (int r=0; r<nmax; r++) {
+	    tvar._v[N*c + i] = work._v[i*nmax + r] * mass;
+	    c++;
+	  }
+	}
+
+      } else {
+	// No contribution from off-grid particles
+	for (int n=0; n<nmax; n++) {
+	  coef._v[(2*n+0)*N + i] = 0.0;
+	  if (m) coef._v[(2*n+1)*N + i] = 0.0;
+	}
+
+	if (compute and tvar._s>0) {
+	  if (plrAcov) {
+	    for (int n=0; n<nmax; n++) {
+	      tvar._v[n*N + i] = 0.0;
+	    }
+	  } else {
+	    int c = 0;
+	    for (int r=0; r<nmax; r++) {
+	      for (int s=r; s<nmax; s++) {
+		tvar._v[N*c + i] = 0.0;
+		c++;
+	      }
+	    }
+	    for (int r=0; r<nmax; r++) {
+	      tvar._v[N*c + i] = 0.0;
+	      c++;
+	    }
+	  }
+	}
+
+      } // mass value check
+
+    } // particle index check
+
+  } // stride loop
+
+}
+
+
+__global__ void
+forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
+		dArray<cuFP_t> coef,
+		dArray<cudaTextureObject_t> tex,
+		int stride, unsigned int mmax, unsigned int mlim,
+		unsigned int nmax, PII lohi,
+		cuFP_t rmax, cuFP_t plrmass,
+		bool external)
+{
+  // Thread ID
+  //
+  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
+
+  // Maximum radius squared
+  //
+  const cuFP_t rmax2 = rmax*rmax;
+
+  // Algorithm constants
+  //
+  constexpr cuFP_t ratmin = 0.75;
+  constexpr cuFP_t maxerf = 3.0;
+  constexpr cuFP_t midpt  = ratmin + 0.5*(1.0 - ratmin);
+  constexpr cuFP_t rsmth  = 0.5*(1.0 - ratmin)/maxerf;
+
+  int muse = mmax > mlim ? mlim : mmax;
+
+  for (int n=0; n<stride; n++) {
+    int i     = tid*stride + n;	// Index in the stride
+    int npart = i + lohi.first;	// Particle index
+
+    if (npart < lohi.second) {	// Check that particle index is in
+				// range
+      
+#ifdef BOUNDS_CHECK
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+      cudaParticle & p = P._v[I._v[npart]];
+      
+      cuFP_t acc[3] = {0.0, 0.0, 0.0};
+      cuFP_t xx=0.0, yy=0.0, zz=0.0;
+
+      if (plrOrient) {
+	for (int k=0; k<3; k++) xx += plrBody[0+k]*(p.pos[k] - plrCen[k]);
+	for (int k=0; k<3; k++) yy += plrBody[3+k]*(p.pos[k] - plrCen[k]);
+	for (int k=0; k<3; k++) zz += plrBody[6+k]*(p.pos[k] - plrCen[k]);
+      } else {
+	xx = p.pos[0] - plrCen[0];
+	yy = p.pos[1] - plrCen[1];
+	zz = p.pos[2] - plrCen[2];
+      }
+
+      cuFP_t phi = atan2(yy, xx);
+      cuFP_t R2  = xx*xx + yy*yy;
+      cuFP_t  R  = sqrt(R2) + FSMALL;
+      
+      cuFP_t ratio = sqrt( (R2 + zz*zz)/rmax2 );
+      cuFP_t mfactor = 1.0, frac = 1.0, cfrac = 0.0;
+
+      if (ratio >= 1.0) {
+	frac  = 0.0;
+	cfrac = 1.0;
+      } else if (ratio > ratmin) {
+	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
+	cfrac = 1.0 - frac;
+      } else {
+	frac  = 1.0;
+      }
+
+      // mfactor will apply this a fraction of this component's force
+      // when mixture models are implemented (see PolarBasis.cc)
+      /*
+      cfrac *= mfactor;
+      frac  *= mfactor;
+      */
+	
+      cuFP_t fr = 0.0;
+      cuFP_t fz = 0.0;
+      cuFP_t fp = 0.0;
+      cuFP_t pp = 0.0;
+      cuFP_t pa = 0.0;
+      
+      if (ratio < 1.0) {
+
+	cuFP_t X  = (cu_r_to_xi_plr(R) - plrXmin)/plrDxi;
+	cuFP_t Y  = (cu_z_to_y_plr(zz) - plrYmin)/plrDyi;
+
+	int indX = floor(X);
+	int indY = floor(Y);
+	
+	if (indX < 0) indX = 0;
+	if (indY < 0) indY = 0;
+	if (indX >= plrNumx) indX = plrNumx - 1;
+	if (indY >= plrNumy) indY = plrNumy - 1;
+
+	cuFP_t delx0 = cuFP_t(indX+1) - X;
+	cuFP_t dely0 = cuFP_t(indY+1) - Y;
+
+#ifdef OFF_GRID_ALERT
+	if (delx0<-0.5 or delx0>1.5) // X value check
+	  printf("X off grid: x=%f [%d, %d]\n", delx0, indX, indY);
+
+	if (dely0<-0.5 or dely0>1.5) // Y value check
+	  printf("Y off grid: y=%f [%d, %d]\n", dely0, indX, indY);
+#endif
+
+	cuFP_t delx1 = 1.0 - delx0;
+	cuFP_t dely1 = 1.0 - dely0;
+      
+	cuFP_t c00 = delx0*dely0;
+	cuFP_t c10 = delx1*dely0;
+	cuFP_t c01 = delx0*dely1;
+	cuFP_t c11 = delx1*dely1;
+
+	cuFP_t cos1 = cos(phi);
+	cuFP_t sin1 = sin(phi);
+
+	cuFP_t ccos = 1.0;
+	cuFP_t ssin = 0.0;
+
+	for (int mm=0; mm<=muse; mm++) {
+
+	  for (int n=0; n<nmax; n++) {
+      
+	    // Texture table index
+	    //
+	    int k = mm*nmax + n;
+
+	    cuFP_t potr, rpot, zpot;
+
+	    potr =
+	      (
+#if cuREAL == 4
+	       tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
+	       tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
+	       tex3D<float>(tex._v[k], indX,   indY+1, 0) * c01 +
+	       tex3D<float>(tex._v[k], indX+1, indY+1, 0) * c11 
+#else
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 0)) * c00 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 0)) * c10 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 0)) * c01 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 0)) * c11 
+#endif
+	       );
+	    
+	    rpot =
+	      (
+#if cuREAL == 4
+	       tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
+	       tex3D<float>(tex._v[k], indX+1, indY  , 1) * c10 +
+	       tex3D<float>(tex._v[k], indX,   indY+1, 1) * c01 +
+	       tex3D<float>(tex._v[k], indX+1, indY+1, 1) * c11 
+#else
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 1)) * c00 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 1)) * c10 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 1)) * c01 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 1)) * c11 
+#endif
+	       );
+      
+	    zpot =
+	      (
+#if cuREAL == 4
+	       tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
+	       tex3D<float>(tex._v[k], indX+1, indY  , 2) * c10 +
+	       tex3D<float>(tex._v[k], indX,   indY+1, 2) * c01 +
+	       tex3D<float>(tex._v[k], indX+1, indY+1, 2) * c11 
+#else
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 2)) * c00 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 2)) * c10 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 2)) * c01 +
+	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 2)) * c11 
+#endif
+	       );
+	    
+	    cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
+	    cuFP_t facS = 0.0;
+	    if (mm) facS = coef._v[IImn(mm, 's', n, nmax)];
+
+	    pp += potr * ( facC * ccos + facS * ssin);
+	    fr += rpot * ( facC * ccos + facS * ssin);
+	    fz += zpot * ( facC * ccos + facS * ssin);
+	    fp += potr * (-facC * ssin + facS * ccos) * m;
+
+	  }
+	  
+	  // Trig recursion to squeeze avoid internal FP fct call
+	  //
+	  cuFP_t cosM = ccos;
+	  cuFP_t sinM = ssin;
+
+	  ccos = cosM * cos1 - sinM * sin1;
+	  ssin = sinM * cos1 + cosM * sin1;
+	}
+
+	acc[0] += ( fr*xx/R - fp*yy/R2 ) * frac;
+	acc[1] += ( fr*yy/R + fp*xx/R2 ) * frac;
+	acc[2] += fz * frac;
+	pa     += pp * frac;
+      }
+
+      if (ratio > ratmin) {
+
+	cuFP_t r3 = R2 + zz*zz;
+	pp = -plrmass/sqrt(r3);	// -M/r
+	fr = pp/r3;		// -M/r^3
+
+	acc[0] += xx*fr * cfrac;
+	acc[1] += yy*fr * cfrac;
+	acc[2] += zz*fr * cfrac;
+	pa     += pp    * cfrac;
+      }
+
+      if (plrOrient) {
+	for (int j=0; j<3; j++) {
+	  for (int k=0; k<3; k++) p.acc[j] += plrOrig[3*j+k]*acc[k];
+	}
+      } else {
+	for (int j=0; j<3; j++) p.acc[j] += acc[j];
+      }
+
+      if (external)
+	p.potext += pa;
+      else
+	p.pot    += pa;
+
+    } // Particle index block
+
+  } // END: stride loop
+
+}
 
 
 template<typename T>
@@ -1155,11 +1551,18 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
 
     for (int m=0; m<=Mmax; m++) {
 
-      coefKernelPlr<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-	(toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
-	 toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
-	 toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
-	 stride, m, nmax, cur, compute);
+      if (is_flat)
+	coefKernelPlr3<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+	  (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
+	   toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
+	   toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
+	   stride, m, nmax, cur, compute);
+      else
+	coefKernelPlr6<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+	  (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
+	   toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
+	   toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
+	   stride, m, nmax, cur, compute);
       
       // Begin the reduction by blocks [perhaps this should use a
       // stride?]
@@ -1467,7 +1870,7 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
 
     if (compareC) {
       std::cout << std::string(2*4+4*20, '-') << std::endl
-		<< "---- Plrindrical "      << std::endl
+		<< "---- Polar "      << std::endl
 		<< std::string(2*4+4*20, '-') << std::endl;
       std::cout << "M=0 coefficients" << std::endl
 		<< std::setprecision(10);
@@ -1481,7 +1884,7 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
 		<< std::endl;
     } else {
       std::cout << std::string(2*4+20, '-') << std::endl
-		<< "---- Plrindrical "      << std::endl
+		<< "---- Polar "      << std::endl
 		<< std::string(2*4+20, '-') << std::endl;
       std::cout << "M=0 coefficients" << std::endl
 		<< std::setprecision(10);
@@ -1850,12 +2253,18 @@ void PolarBasis::determine_acceleration_cuda()
       
     // Do the work
     //
-    forceKernelPlr<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
-      (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-       toKernel(dev_coefs), toKernel(t_d),
-       stride, Mmax, mlim, nmax, lohi, rmax, cylmass,
-       use_external);
-    
+    if (is_flat)
+      forceKernelPlr3<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
+	(toKernel(cs->cuda_particles), toKernel(cs->indx1),
+	 toKernel(dev_coefs), toKernel(t_d),
+	 stride, Mmax, mlim, nmax, lohi, rmax, cylmass,
+	 use_external);
+    else
+      forceKernelPlr6<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
+	(toKernel(cs->cuda_particles), toKernel(cs->indx1),
+	 toKernel(dev_coefs), toKernel(t_d),
+	 stride, Mmax, mlim, nmax, lohi, rmax, cylmass,
+	 use_external);
   }
 }
 
@@ -2028,7 +2437,14 @@ void PolarBasis::multistep_update_cuda()
 
 	for (int m=0; m<=Mmax; m++) {
 
-	  coefKernelPlr<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+	  if (is_flat)
+	  coefKernelPlr3<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+	    (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
+	     toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
+	     toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
+	     stride, m, nmax, cur, false);
+
+	  coefKernelPlr6<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	    (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
 	     toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
 	     toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
