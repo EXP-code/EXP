@@ -26,6 +26,7 @@ class MixtureBasis;
 /** Defines a cylindrical basis with members specific to polar symmetry
 
     Configurable parameters:
+
     @param scale is the characterisic scale of the basis
     @param rmin is the minimum radius of the basis
     @param rmax is the maximum radius of the basis
@@ -312,10 +313,10 @@ protected:
       throw std::runtime_error("n>=nmax");
     
     if (c == 'c') {
-      if (m==0) return (*expcoefN[0][0])[n];
-      else      return (*expcoefN[0][2*m-1])[n];
+      if (m==0) return (*expcoef0[0][0])[n];
+      else      return (*expcoef0[0][2*m-1])[n];
     } else {
-      return (*expcoefN[0][2*m])[n];
+      return (*expcoef0[0][2*m])[n];
     }
   }
     
