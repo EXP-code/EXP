@@ -137,8 +137,8 @@ void initialize(void)
     if (_G["barrier_check"])   barrier_check = _G["barrier_check"].as<bool>();
     if (_G["barrier_debug"])   barrier_debug = _G["barrier_debug"].as<bool>();
     if (_G["barrier_extra"])   barrier_extra = _G["barrier_extra"].as<bool>();
-    if (_G["barrier_label"])   barrier_extra = _G["barrier_label"].as<bool>();
-    if (_G["barrier_heavy"])   barrier_extra = _G["barrier_heavy"].as<bool>();
+    if (_G["barrier_label"])   barrier_label = _G["barrier_label"].as<bool>();
+    if (_G["barrier_light"])   barrier_light = _G["barrier_light"].as<bool>();
     if (_G["barrier_quiet"])   barrier_quiet = _G["barrier_quiet"].as<bool>();
     if (_G["barrier_verbose"]) barrier_quiet = not _G["barrier_quiet"].as<bool>();
 

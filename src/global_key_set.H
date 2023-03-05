@@ -35,7 +35,7 @@ global_valid_keys = {
   "barrier_debug",
   "barrier_extra",
   "barrier_label",
-  "barrier_heavy",
+  "barrier_light",
   "barrier_quiet",
   "barrier_verbose",
   "gdb_trace",
