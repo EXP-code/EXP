@@ -803,7 +803,7 @@ void PolarBasis::determine_coefficients_particles(void)
   //
   for (int i=0; i<nthrds; i++) use1 += use[i];
   for (int i=1; i<nthrds; i++) {
-    for (int l=0; l<(Mmax+1)*(Mmax+1); l++) (*expcoef0[0][l]) += (*expcoef0[i][l]);
+    for (int l=0; l<2*Mmax+1; l++) (*expcoef0[0][l]) += (*expcoef0[i][l]);
   }
   
   if (multistep==0 or tnow==resetT) {
