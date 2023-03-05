@@ -778,6 +778,7 @@ void PolarBasis::determine_coefficients_particles(void)
   std::fill(use.begin(), use.end(), 0);
 
 #if HAVE_LIBCUDA==1
+  (*barrier)("PolarBasis::entering cuda coefficients", __FILE__, __LINE__);
   if (component->cudaDevice>=0 and use_cuda) {
     if (cudaAccumOverride) {
       component->CudaToParticles();
@@ -791,6 +792,7 @@ void PolarBasis::determine_coefficients_particles(void)
   } else {
     exp_thread_fork(true);
   }
+  (*barrier)("PolarBasis::exiting cuda coefficients", __FILE__, __LINE__);
 #else
   exp_thread_fork(true);
 #endif
