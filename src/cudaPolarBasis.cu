@@ -1763,9 +1763,9 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
 				//
     used += thrust::distance(it, last);
 
-				// Sum of mass
+				// Sum of mass on grid
 				// 
-    // cylmass0[0] += thrust::reduce(exec, it, last);
+    cylmass1[0] += thrust::reduce(exec, it, last);
   }
 
   if (Ntotal == 0) {
