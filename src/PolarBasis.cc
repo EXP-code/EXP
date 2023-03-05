@@ -460,10 +460,10 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
       zz = component->Pos(indx, 2, Component::Local | Component::Centered);
     }
 
-    r2 = (xx*xx + yy*yy);
-    r = sqrt(r2) + DSMALL;
+    r2  = (xx*xx + yy*yy);
+    r   = sqrt(r2) + DSMALL;
       
-    if ( r < getRtable() and fabs(zz) < getRtable()) {
+    if (r < getRtable() and fabs(zz) < getRtable()) {
 
       use[id]++;
       phi = atan2(yy, xx);
@@ -912,7 +912,7 @@ void PolarBasis::determine_coefficients_particles(void)
   //  +--- Deep debugging. Set to 'false' for production.
   //  |
   //  v
-  if (false and myid==0 and mstep==0 and mlevel==multistep) {
+  if (true and myid==0 and mstep==0 and mlevel==multistep) {
 
     std::cout << std::string(60, '-') << std::endl
 	      << "-- PolarBasis T=" << std::setw(16) << tnow << std::endl
@@ -1426,15 +1426,29 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
       r = sqrt(xx*xx + yy*yy) + DSMALL;
       phi = atan2(yy, xx);
 
-      if (r>getRtable() or fabs(zz)>getRtable()) {
-	double R2 = xx*xx + yy*yy + zz*zz;
-	double R  = sqrt(R2);
-	potl = -cylmass/R;
-	potr = -cylmass*r/(R2*R);
-	potz = -cylmass*zz/(R2*R);
-	potp = 0.0;
+      double rtab  = getRtable();
+      double ratio = sqrt(r*r + zz*zz)/rtab;
+      double mfactor = 1.0, frac = 1.0, cfrac = 0.0;
+
+      // Algorithm constants
+      //
+      constexpr double ratmin = 0.75;
+      constexpr double maxerf = 3.0;
+      constexpr double midpt  = ratmin + 0.5*(1.0 - ratmin);
+      constexpr double rsmth  = 0.5*(1.0 - ratmin)/maxerf;
+      
+      if (ratio >= 1.0) {
+	frac  = 0.0;
+	cfrac = 1.0;
+      } else if (ratio > ratmin) {
+	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
+	cfrac = 1.0 - frac;
+      } else {
+	frac  = 1.0;
       }
-      else {
+      
+
+      if (ratio < 1.0) {
 
 	potl = potr = potz = potp = 0.0;
       
@@ -1483,23 +1497,40 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	    moffset +=2;
 	  }
 	}
+
+	double rfac = xx*xx + yy*yy;
+
+	cC->AddAcc(indx, 0, potr*xx/r * frac);
+	cC->AddAcc(indx, 1, potr*yy/r * frac);
+	cC->AddAcc(indx, 2, potz      * frac);
+
+	if (rfac > DSMALL) {
+	  cC->AddAcc(indx, 0, -potp*yy/rfac * frac);
+	  cC->AddAcc(indx, 1,  potp*xx/rfac * frac);
+	}
+	
+	if (use_external)
+	  cC->AddPotExt(indx, potl * frac);
+	else
+	  cC->AddPot(indx, potl * frac);
       }
 
-      double rfac = xx*xx + yy*yy;
+      
+      if (ratio > ratmin) {
 
-      cC->AddAcc(indx, 0, potr*xx/r);
-      cC->AddAcc(indx, 1, potr*yy/r);
-      cC->AddAcc(indx, 2, potz);
+	double r3 = r*r + zz*zz;
+	double pp = -cylmass/sqrt(r3); // -M/r
+	double fr = pp/r3;	       // -M/r^3
 
-      if (rfac > DSMALL) {
-	cC->AddAcc(indx, 0, -potp*yy/rfac);
-	cC->AddAcc(indx, 1,  potp*xx/rfac);
+	cC->AddAcc(indx, 0, xx*fr * cfrac);
+	cC->AddAcc(indx, 1, yy*fr * cfrac);
+	cC->AddAcc(indx, 2, zz*fr * cfrac);
+
+	if (use_external)
+	  cC->AddPotExt(indx, pp * frac);
+	else
+	  cC->AddPot(indx, pp * frac);
       }
-
-      if (use_external)
-	cC->AddPotExt(indx, potl);
-      else
-	cC->AddPot(indx, potl);
     }
   }
 
