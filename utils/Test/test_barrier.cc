@@ -75,24 +75,26 @@ int main(int argc, char **argv)
   cxxopts::Options options(argv[0], "Test mpi barrier wrapper");
 
   options.add_options()
-   ("h,help", "Produce help message")
-   ("m,mistake", "Make an intentional mistake to break synchronization")
-   ("b,broken", "Intentionally change label to test synchronization error")
-   ("n,times", "number of iterations",
+    ("h,help", "Produce help message")
+    ("m,mistake", "Make an intentional mistake to break synchronization")
+    ("b,broken", "Intentionally change label to test synchronization error")
+    ("n,times", "number of iterations",
      cxxopts::value<int >(times)->default_value("10"))
-   ("d,dice", "number of dice to roll",
+    ("d,dice", "number of dice to roll",
      cxxopts::value<int >(ndice)->default_value("1"))
-   ("s,size", "data size",
+    ("s,size", "data size",
      cxxopts::value<int >(vsize)->default_value("1000"))
-   ("C,check", "check the barrier",
+    ("C,check", "check the barrier",
      cxxopts::value<bool>(barrier_check)->default_value("true"))
-   ("l,label", "use labeling",
+    ("l,label", "use labeling",
      cxxopts::value<bool>(barrier_label)->default_value("true"))
-   ("L,light", "light-weight barrier",
+    ("L,light", "light-weight barrier",
      cxxopts::value<bool>(barrier_light)->default_value("false"))
-   ("V,extra", "extra verbose",
+    ("Q,quiet", "turn off verbose mode",
+     cxxopts::value<bool>(barrier_quiet)->default_value("false"))
+    ("V,extra", "extra verbose",
      cxxopts::value<bool>(barrier_extra)->default_value("false"))
-   ("D,debug", "turn on debugging",
+    ("D,debug", "turn on debugging",
      cxxopts::value<bool>(barrier_debug)->default_value("false"))
     ;
 
@@ -199,6 +201,16 @@ int main(int argc, char **argv)
     int secs = 0;
     for (int j=0; j<ndice; j++) secs += dice();
     sleep(secs);
+
+    // Another loop
+    //
+    (*barrier)("About to enter test loop", __FILE__, __LINE__);
+    for (int i=0; i<10; i++) {
+      MPI_Allreduce(MPI_IN_PLACE, vec1.data(), vec1.size(), MPI_DOUBLE,
+		    MPI_SUM, MPI_COMM_WORLD);
+    }
+    (*barrier)("About to exit test loop", __FILE__, __LINE__);
+    
 
     // Call the barrier wrapper
     //
