@@ -322,8 +322,8 @@ __global__ void coordKernelPlr
 	  IndY._v[i] = indY;
 
 #ifdef OFF_GRID_ALERT
-	  if (Xfac._v[i]<-0.5 or Xfac._v[i]>1.5) printf("X off grid: x=%f\n", X);
-	  if (Yfac._v[i]<-0.5 or Yfac._v[i]>1.5) printf("Y off grid: y=%f\n", Y);
+	  if (Xfac._v[i]<-0.5 or Xfac._v[i]>1.5) printf("X off grid: x=%f R=%f\n", X, R);
+	  if (Yfac._v[i]<-0.5 or Yfac._v[i]>1.5) printf("Y off grid: y=%f z=%f\n", Y, zz);
 #endif
 	}
 #ifdef BOUNDS_CHECK
@@ -621,10 +621,10 @@ forceKernelPlr6(dArray<cudaParticle> P, dArray<int> I,
 
 #ifdef OFF_GRID_ALERT
 	if (delx0<-0.5 or delx0>1.5) // X value check
-	  printf("X off grid: x=%f [%d, %d]\n", delx0, indX, indY);
+	  printf("X off grid: x=%f [%d, %d] R=%f\n", delx0, indX, indY, R);
 
 	if (dely0<-0.5 or dely0>1.5) // Y value check
-	  printf("Y off grid: y=%f [%d, %d]\n", dely0, indX, indY);
+	  printf("Y off grid: y=%f [%d, %d] z=%f\n", dely0, indX, indY, zz);
 #endif
 
 	cuFP_t delx1 = 1.0 - delx0;
@@ -1078,8 +1078,10 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
       
       if (ratio < 1.0) {
 
+	cuFP_t za = fabs(zz);
+
 	cuFP_t X  = (cu_r_to_xi_plr(R) - plrXmin)/plrDxi;
-	cuFP_t Y  = (cu_z_to_y_plr(zz) - plrYmin)/plrDyi;
+	cuFP_t Y  = (cu_z_to_y_plr(za) - plrYmin)/plrDyi;
 
 	int indX = floor(X);
 	int indY = floor(Y);
@@ -1094,10 +1096,10 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 
 #ifdef OFF_GRID_ALERT
 	if (delx0<-0.5 or delx0>1.5) // X value check
-	  printf("X off grid: x=%f [%d, %d]\n", delx0, indX, indY);
+	  printf("X off grid: x=%f [%d, %d] R=%f\n", delx0, indX, indY, R);
 
 	if (dely0<-0.5 or dely0>1.5) // Y value check
-	  printf("Y off grid: y=%f [%d, %d]\n", dely0, indX, indY);
+	  printf("Y off grid: y=%f [%d, %d] z=%f\n", dely0, indX, indY, zz);
 #endif
 
 	cuFP_t delx1 = 1.0 - delx0;
@@ -1122,10 +1124,10 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	    //
 	    int k = mm*nmax + n;
 
-	    cuFP_t potr, rpot, zpot;
+	    cuFP_t potl, rfrc, zfrc;
 
-	    potr =
-	      (
+	    potl =
+	      -(
 #if cuREAL == 4
 	       tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
 	       tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
@@ -1139,8 +1141,8 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 #endif
 	       );
 	    
-	    rpot =
-	      (
+	    rfrc =
+	      -(
 #if cuREAL == 4
 	       tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
 	       tex3D<float>(tex._v[k], indX+1, indY  , 1) * c10 +
@@ -1154,8 +1156,8 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 #endif
 	       );
       
-	    zpot =
-	      (
+	    zfrc =
+	      -(
 #if cuREAL == 4
 	       tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
 	       tex3D<float>(tex._v[k], indX+1, indY  , 2) * c10 +
@@ -1168,16 +1170,17 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 2)) * c11 
 #endif
 	       );
+
+	    if (zz < 0.0) zfrc *= -1.0;
 	    
 	    cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
 	    cuFP_t facS = 0.0;
 	    if (mm) facS = coef._v[IImn(mm, 's', n, nmax)];
 
-	    pp += potr * ( facC * ccos + facS * ssin);
-	    fr += rpot * ( facC * ccos + facS * ssin);
-	    fz += zpot * ( facC * ccos + facS * ssin);
-	    fp += potr * (-facC * ssin + facS * ccos) * m;
-
+	    pp += potl * ( facC * ccos + facS * ssin);
+	    fr += rfrc * ( facC * ccos + facS * ssin);
+	    fz += zfrc * ( facC * ccos + facS * ssin);
+	    fp += potl * (-facC * ssin + facS * ccos) * mm;
 	  }
 	  
 	  // Trig recursion to squeeze avoid internal FP fct call
