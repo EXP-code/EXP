@@ -40,6 +40,7 @@ PolarBasis::valid_keys = {
   "NO_M1",
   "EVEN_M",
   "M0_ONLY",
+  "mlim",
   "ssfrac",
   "playback",
   "coefMaster"
@@ -116,6 +117,9 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     if (conf["Mmax"] and not conf["Lmax"]) Lmax = Mmax;
     if (Lmax != Mmax) Lmax = Mmax;
 
+    if (conf["mlim"])    mlim = conf["mlim"].as<int>();
+    else                 mlim = Mmax;
+    
     if (conf["playback"]) {
       std::string file = conf["playback"].as<std::string>();
 				// Check the file exists
@@ -558,7 +562,7 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 
       } // m loop
 
-      if (mlevel==multistep) cylmass1[id] += mass;
+      cylmass1[id] += mass;
 
     } // r < rmax
 
@@ -703,12 +707,10 @@ void PolarBasis::determine_coefficients_particles(void)
 
     // Zero arrays?
     //
-    if (mlevel==0) {
+    if (mlevel==multistep and mstep==0) {
       for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
       muse0 = 0.0;
       
-      for (int n=0; n<nthrds; n++) use[n] = 0.0;
-
       if (pcavar) {
 	for (auto & t : expcoefT1) { for (auto & v : t) v->setZero(); }
 	for (auto & t : expcoefM1) { for (auto & v : t) v->setZero(); }
@@ -719,10 +721,11 @@ void PolarBasis::determine_coefficients_particles(void)
 
   // Set up for mass on grid
   //
-  if (mlevel == multistep) {
+  if (multistep and mlevel==0) {
     cylmass = 0.0; 
     cylmass_made = false; 
-    for (int n=0; n<nthrds; n++) cylmass1[n] = 0.0;
+    std::fill(cylmass1.begin(), cylmass1.end(), 0.0);
+    std::fill(use.begin(), use.end(), 0);
   }
 
 #ifdef DEBUG
@@ -775,7 +778,7 @@ void PolarBasis::determine_coefficients_particles(void)
   if (myid==0) cout << endl;
 #endif
     
-  std::fill(use.begin(), use.end(), 0);
+  // std::fill(use.begin(), use.end(), 0);
 
 #if HAVE_LIBCUDA==1
   (*barrier)("PolarBasis::entering cuda coefficients", __FILE__, __LINE__);
@@ -803,12 +806,12 @@ void PolarBasis::determine_coefficients_particles(void)
 
   // Sum up the results from each thread
   //
-  for (int i=0; i<nthrds; i++) use1 += use[i];
   for (int i=1; i<nthrds; i++) {
     for (int l=0; l<2*Mmax+1; l++) (*expcoef0[0][l]) += (*expcoef0[i][l]);
   }
   
-  if (multistep==0 or tnow==resetT) {
+  if (multistep==0) {
+    for (int i=0; i<nthrds; i++) use1 += use[i];
     used += use1;
   }
   
@@ -850,8 +853,10 @@ void PolarBasis::determine_coefficients_particles(void)
     }
   }
   
-  if (mlevel==multistep) {
+  if (multistep and mlevel==multistep) {
     if (!cylmass_made) {
+      MPI_Allreduce(&use[0], &used, 1, MPI_INT, MPI_SUM, 
+		    MPI_COMM_WORLD);
       MPI_Allreduce(&cylmass1[0], &cylmass, 1, MPI_DOUBLE, MPI_SUM, 
 		    MPI_COMM_WORLD);
       cylmass_made = true;
@@ -912,7 +917,7 @@ void PolarBasis::determine_coefficients_particles(void)
   //  +--- Deep debugging. Set to 'false' for production.
   //  |
   //  v
-  if (false and myid==0 and mstep==0 and mlevel==multistep) {
+  if (true and myid==0 and mstep==0 and mlevel==multistep) {
 
     std::cout << std::string(60, '-') << std::endl
 	      << "-- PolarBasis T=" << std::setw(16) << tnow << std::endl
