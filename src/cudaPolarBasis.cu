@@ -9,7 +9,7 @@
 //
 // #define OFF_GRID_ALERT
 // #define BOUNDS_CHECK
-#define VERBOSE_CTR
+// #define VERBOSE_CTR
 // #define VERBOSE_DBG
 
 // Global symbols for coordinate transformation
@@ -79,6 +79,7 @@ void testConstantsPlr()
   printf("   Numy   = %d\n", plrNumy  );
   printf("   CmapR  = %d\n", plrCmapR );
   printf("   CmapZ  = %d\n", plrCmapZ );
+  printf("   Orient = %d\n", plrOrient);
   printf("-------------------------\n");
 }
 
@@ -834,8 +835,7 @@ __global__ void coefKernelPlr3
 (dArray<cuFP_t> coef, dArray<cuFP_t> tvar, dArray<cuFP_t> work,
  dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
  dArray<cuFP_t> Mass, dArray<cuFP_t> Phi,
- dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
- dArray<int> indX, dArray<int> indY,
+ dArray<cuFP_t> Xfac, dArray<int> indX, 
  int stride, int m, unsigned int nmax, PII lohi, bool compute)
 {
   // Thread ID
@@ -872,26 +872,22 @@ __global__ void coefKernelPlr3
 	// Do the interpolation
 	//
 	cuFP_t delx0 = Xfac._v[i];
-	cuFP_t dely0 = Yfac._v[i];
 	cuFP_t delx1 = 1.0 - delx0;
-	cuFP_t dely1 = 1.0 - dely0;
 
 #ifdef BOUNDS_CHECK
 	if (i>=Xfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	if (i>=Yfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	cuFP_t c00 = delx0*dely0;
-	cuFP_t c10 = delx1*dely0;
-	cuFP_t c01 = delx0*dely1;
-	cuFP_t c11 = delx1*dely1;
-
 	int   indx = indX._v[i];
-	int   indy = indY._v[i];
 
 #ifdef BOUNDS_CHECK
 	if (i>=indX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	if (i>=indY._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
+
+	// Azimuthal normalization
+	//
+	cuFP_t sFac = 1.0;
+	if (m) sFac = M_SQRT2;
+
 	for (int n=0; n<nmax; n++) {
 
 	  // Texture maps are packed in 3 slices
@@ -902,27 +898,22 @@ __global__ void coefKernelPlr3
 	  int k = m*nmax + n;
 
 #if cuREAL == 4
-	  cuFP_t d00   = tex3D<float>(tex._v[k], indx,   indy  , 0);
-	  cuFP_t d10   = tex3D<float>(tex._v[k], indx+1, indy  , 0);
-	  cuFP_t d01   = tex3D<float>(tex._v[k], indx,   indy+1, 0);
-	  cuFP_t d11   = tex3D<float>(tex._v[k], indx+1, indy+1, 0);
-
+	  cuFP_t d00   = tex3D<float>(tex._v[k], indx,   0, 0);
+	  cuFP_t d10   = tex3D<float>(tex._v[k], indx+1, 0, 0);
 #else
-	  cuFP_t d00   = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy  , 0));
-	  cuFP_t d10   = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy  , 0));
-	  cuFP_t d01   = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy+1, 0));
-	  cuFP_t d11   = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy+1, 0));
+	  cuFP_t d00   = int2_as_double(tex3D<int2>(tex._v[k], indx,   0, 0));
+	  cuFP_t d10   = int2_as_double(tex3D<int2>(tex._v[k], indx+1, 0, 0));
 #endif
-	  cuFP_t val   = c00*d00 + c10*d10 + c01*d01 + c11*d11;
+	  cuFP_t val   = delx0*d00 + delx1*d10;
 	  
 #ifdef BOUNDS_CHECK
 	  if (k>=tex._s)            printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	  if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	  coef._v[(2*n+0)*N + i] = val * cosp * mass;
+	  coef._v[(2*n+0)*N + i] = val * cosp * sFac * mass;
 
 	  if (m>0) {
-	    coef._v[(2*n+1)*N + i] = val * sinp * mass;
+	    coef._v[(2*n+1)*N + i] = val * sinp * sFac * mass;
 
 #ifdef BOUNDS_CHECK
 	    if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -1050,7 +1041,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 
       cuFP_t phi = atan2(yy, xx);
       cuFP_t R2  = xx*xx + yy*yy;
-      cuFP_t  R  = sqrt(R2) + FSMALL;
+      cuFP_t R   = sqrt(R2);
       
       cuFP_t ratio = sqrt( (R2 + zz*zz)/rmax2 );
       cuFP_t mfactor = 1.0, frac = 1.0, cfrac = 0.0;
@@ -1059,7 +1050,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	frac  = 0.0;
 	cfrac = 1.0;
       } else if (ratio > ratmin) {
-	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
+	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth ));
 	cfrac = 1.0 - frac;
       } else {
 	frac  = 1.0;
@@ -1126,9 +1117,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	    //
 	    int k = mm*nmax + n;
 
-	    cuFP_t potl, rfrc, zfrc;
-
-	    potl =
+	    cuFP_t potl =
 	      (
 #if cuREAL == 4
 	       tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
@@ -1143,7 +1132,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 #endif
 	       );
 	    
-	    rfrc =
+	    cuFP_t rfrc =
 	      (
 #if cuREAL == 4
 	       tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
@@ -1158,7 +1147,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 #endif
 	       );
       
-	    zfrc =
+	    cuFP_t zfrc =
 	      (
 #if cuREAL == 4
 	       tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
@@ -1176,10 +1165,10 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	    if (zz < 0.0) zfrc *= -1.0;
 	    
 	    cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
-	    cuFP_t facS = 0.0, Sfac = -1.0;
-	    if (mm) {
+	    cuFP_t facS = 0.0, Sfac = -1.0; // Sign change for basis tables
+	    if (mm>0) {
 	      facS = coef._v[IImn(mm, 's', n, nmax)];
-	      Sfac = -M_SQRT2;
+	      Sfac = M_SQRT2*(-1.0);
 	    }
 
 	    pp += potl * ( facC * ccos + facS * ssin) * Sfac;
@@ -1196,6 +1185,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	  ccos = cosM * cos1 - sinM * sin1;
 	  ssin = sinM * cos1 + cosM * sin1;
 	}
+	// END m-harmonic loop
 
 	acc[0] += fr*xx/R * frac;
 	acc[1] += fr*yy/R * frac;
@@ -1531,18 +1521,13 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
     //
     int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
     
-    // Are we flat?
-    //
-    bool flat = false;
-    if (dof==2) flat = true;
-
     // Compute the coordinate transformation
     // 
     coordKernelPlr<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
        toKernel(cuS.m_d), toKernel(cuS.p_d),
        toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d),
-       toKernel(cuS.iY_d), stride, cur, rmax, flat);
+       toKernel(cuS.iY_d), stride, cur, rmax, is_flat);
       
     // Compute the coefficient contribution for each order
     //
@@ -1567,7 +1552,7 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
 	coefKernelPlr3<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	  (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
 	   toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
-	   toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
+	   toKernel(cuS.X_d), toKernel(cuS.iX_d),
 	   stride, m, nmax, cur, compute);
       else
 	coefKernelPlr6<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
@@ -1875,7 +1860,7 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
   }
 
 
-  // DEBUG, only useful for CUDAtest branch
+  // DEBUG
   //
   if (false) {
     constexpr bool compareC = false;
@@ -2453,7 +2438,7 @@ void PolarBasis::multistep_update_cuda()
 	  coefKernelPlr3<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	    (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
 	     toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
-	     toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
+	     toKernel(cuS.X_d), toKernel(cuS.iX_d),
 	     stride, m, nmax, cur, false);
 
 	  coefKernelPlr6<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
