@@ -9,7 +9,7 @@
 //
 // #define OFF_GRID_ALERT
 // #define BOUNDS_CHECK
-// #define VERBOSE_CTR
+#define VERBOSE_CTR
 // #define VERBOSE_DBG
 
 // Global symbols for coordinate transformation
@@ -575,7 +575,7 @@ forceKernelPlr6(dArray<cudaParticle> P, dArray<int> I,
 
       cuFP_t phi = atan2(yy, xx);
       cuFP_t R2  = xx*xx + yy*yy;
-      cuFP_t  R  = sqrt(R2) + FSMALL;
+      cuFP_t R   = sqrt(R2) + FSMALL;
       
       cuFP_t ratio = sqrt( (R2 + zz*zz)/rmax2 );
       cuFP_t mfactor = 1.0, frac = 1.0, cfrac = 0.0;
@@ -1018,6 +1018,8 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
   constexpr cuFP_t maxerf = 3.0;
   constexpr cuFP_t midpt  = ratmin + 0.5*(1.0 - ratmin);
   constexpr cuFP_t rsmth  = 0.5*(1.0 - ratmin)/maxerf;
+  constexpr cuFP_t DSMALL = 1.0e-16;
+
 
   int muse = mmax > mlim ? mlim : mmax;
 
@@ -1127,7 +1129,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	    cuFP_t potl, rfrc, zfrc;
 
 	    potl =
-	      -(
+	      (
 #if cuREAL == 4
 	       tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
 	       tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
@@ -1142,7 +1144,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	       );
 	    
 	    rfrc =
-	      -(
+	      (
 #if cuREAL == 4
 	       tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
 	       tex3D<float>(tex._v[k], indX+1, indY  , 1) * c10 +
@@ -1157,7 +1159,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	       );
       
 	    zfrc =
-	      -(
+	      (
 #if cuREAL == 4
 	       tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
 	       tex3D<float>(tex._v[k], indX+1, indY  , 2) * c10 +
@@ -1174,13 +1176,16 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	    if (zz < 0.0) zfrc *= -1.0;
 	    
 	    cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
-	    cuFP_t facS = 0.0;
-	    if (mm) facS = coef._v[IImn(mm, 's', n, nmax)];
+	    cuFP_t facS = 0.0, Sfac = -1.0;
+	    if (mm) {
+	      facS = coef._v[IImn(mm, 's', n, nmax)];
+	      Sfac = -M_SQRT2;
+	    }
 
-	    pp += potl * ( facC * ccos + facS * ssin);
-	    fr += rfrc * ( facC * ccos + facS * ssin);
-	    fz += zfrc * ( facC * ccos + facS * ssin);
-	    fp += potl * (-facC * ssin + facS * ccos) * mm;
+	    pp += potl * ( facC * ccos + facS * ssin) * Sfac;
+	    fr += rfrc * ( facC * ccos + facS * ssin) * Sfac;
+	    fz += zfrc * ( facC * ccos + facS * ssin) * Sfac;
+	    fp += potl * (-facC * ssin + facS * ccos) * Sfac * mm;
 	  }
 	  
 	  // Trig recursion to squeeze avoid internal FP fct call
@@ -1192,8 +1197,12 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	  ssin = sinM * cos1 + cosM * sin1;
 	}
 
-	acc[0] += ( fr*xx/R - fp*yy/R2 ) * frac;
-	acc[1] += ( fr*yy/R + fp*xx/R2 ) * frac;
+	acc[0] += fr*xx/R * frac;
+	acc[1] += fr*yy/R * frac;
+	if (R > DSMALL) {
+	  acc[0] += -fp*yy/R2 * frac;
+	  acc[1] +=  fp*xx/R2 * frac;
+	}
 	acc[2] += fz * frac;
 	pa     += pp * frac;
       }
@@ -1761,12 +1770,11 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
       
 				// Number of non-zero elements
 				//
-    used += thrust::distance(it, last);
+    use[0] += thrust::distance(it, last);
 
 				// Sum of mass on grid
 				// 
-    if (mlevel==multistep)
-      cylmass1[0] += thrust::reduce(exec, it, last);
+    cylmass1[0] += thrust::reduce(exec, it, last);
   }
 
   if (Ntotal == 0) {
