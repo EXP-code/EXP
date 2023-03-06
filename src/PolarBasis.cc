@@ -1433,7 +1433,7 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 
       double rtab  = getRtable();
       double ratio = sqrt(r*r + zz*zz)/rtab;
-      double mfactor = 1.0, frac = 1.0, cfrac = 0.0;
+      double frac = 1.0, cfrac = 0.0;
 
       // Algorithm constants
       //
@@ -1446,13 +1446,12 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	frac  = 0.0;
 	cfrac = 1.0;
       } else if (ratio > ratmin) {
-	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
+	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth ));
 	cfrac = 1.0 - frac;
       } else {
 	frac  = 1.0;
       }
       
-
       if (ratio < 1.0) {
 
 	potl = potr = potz = potp = 0.0;
@@ -1471,6 +1470,9 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	//		------
 	for (int m=1, moffset=1; m<=Mmax; m++) {
 	  
+	  // Suppress all asymmetric terms
+	  if (M0_only) continue;
+	  
 	  // Suppress m=1 terms?
 	  //
 	  if (NO_M1 && m==1) continue;
@@ -1479,28 +1481,15 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	  //
 	  if (EVEN_M && (m/2)*2 != m) continue;
 	  
-	  // Suppress all asymmetric terms
-	  if (M0_only and m!=0) continue;
-	  
-	  if (m==0) {
-	    get_pot_coefs_safe(m, *expcoef[moffset], p, drc, dzc, potd[id], dpotR[id], dpotZ[id]);
-
-	    potl += mfac*p;
-	    potr += mfac*drc;
-	    potz += mfac*dzc;
-	    moffset++;
-	  }
-	  else {
-	    get_pot_coefs_safe(m, *expcoef[moffset  ], pc, drc, dzc, potd[id], dpotR[id], dpotZ[id]);
-	    get_pot_coefs_safe(m, *expcoef[moffset+1], ps, drs, dzs, potd[id], dpotR[id], dpotZ[id]);
+	  get_pot_coefs_safe(m, *expcoef[moffset  ], pc, drc, dzc, potd[id], dpotR[id], dpotZ[id]);
+	  get_pot_coefs_safe(m, *expcoef[moffset+1], ps, drs, dzs, potd[id], dpotR[id], dpotZ[id]);
 
 	    
-	    potl += mfac*(pc*  cosm[id][m] + ps*  sinm[id][m]) * M_SQRT2;
-	    potr += mfac*(drc* cosm[id][m] + drs* sinm[id][m]) * M_SQRT2;
-	    potp += mfac*(-pc* sinm[id][m] + ps*  cosm[id][m]) * M_SQRT2 * m;
-	    potz += mfac*(dzc* cosm[id][m] + dzs* sinm[id][m]) * M_SQRT2;
-	    moffset +=2;
-	  }
+	  potl += mfac*(pc*  cosm[id][m] + ps*  sinm[id][m]) * M_SQRT2;
+	  potr += mfac*(drc* cosm[id][m] + drs* sinm[id][m]) * M_SQRT2;
+	  potp += mfac*(-pc* sinm[id][m] + ps*  cosm[id][m]) * M_SQRT2 * m;
+	  potz += mfac*(dzc* cosm[id][m] + dzs* sinm[id][m]) * M_SQRT2;
+	  moffset +=2;
 	}
 
 	double rfac = xx*xx + yy*yy;
@@ -1524,8 +1513,8 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
       if (ratio > ratmin) {
 
 	double r3 = r*r + zz*zz;
-	double pp = -cylmass/sqrt(r3); // -M/r
-	double fr = pp/r3;	       // -M/r^3
+	double pp = -cylmass*mfac/sqrt(r3); // -M/r
+	double fr = pp/r3;		    // -M/r^3
 
 	cC->AddAcc(indx, 0, xx*fr * cfrac);
 	cC->AddAcc(indx, 1, yy*fr * cfrac);
