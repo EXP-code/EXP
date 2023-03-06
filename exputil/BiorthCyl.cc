@@ -48,7 +48,7 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     else                     numr = 2000;			       
     			                                           
     if (conf["numx"])        numx = conf["numx"].as<int>();	       
-    else                     numr = 512;			       
+    else                     numx = 512;			       
     			                                           
     if (conf["numy"])        numy = conf["numy"].as<int>();	       
     else                     numy = 256;			       
