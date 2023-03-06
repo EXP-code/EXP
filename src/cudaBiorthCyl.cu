@@ -153,7 +153,7 @@ void BiorthCyl::initialize_cuda
   // This is for debugging: compare texture table fetches to original
   // tables
   //
-  if (false) {
+  if (true) {
     constexpr cuFP_t tol = 10.0*std::numeric_limits<cuFP_t>::epsilon();
 
     struct Element {
