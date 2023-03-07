@@ -8,11 +8,11 @@
 
 const std::set<std::string>
 FlatDisk::valid_keys = {
-  "nfid",
   "numr",
   "rcylmin",
   "rcylmax",
   "acyltbl",
+  "nmaxfid",
   "numx",
   "numy",
   "knots",
