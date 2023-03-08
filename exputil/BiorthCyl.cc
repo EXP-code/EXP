@@ -555,19 +555,40 @@ bool BiorthCyl::ReadH5Cache()
     auto checkInt = [&h5file](int value, std::string name)
     {
       int v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
-      if (value == v) return true; return false;
+      if (value == v) return true;
+      else {
+	std::cout << "ReadH5Cache(): wanted "
+		  << name << "=" << value
+		  << " but found "
+		  << name << "=" << v << std::endl;
+	return false;
+      }
     };
 
     auto checkDbl = [&h5file](double value, std::string name)
     {
       double v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
-      if (fabs(value - v) < 1.0e-16) return true; return false;
+      if (fabs(value - v) < 1.0e-16) return true;
+      else {
+	std::cout << "ReadH5Cache(): wanted "
+		  << name << "=" << value
+		  << " but found "
+		  << name << "=" << v << std::endl;
+	return false;
+      }
     };
 
     auto checkStr = [&h5file](std::string value, std::string name)
     {
       std::string v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
-      if (value.compare(v)==0) return true; return false;
+      if (value.compare(v)==0) return true;
+      else {
+	std::cout << "ReadH5Cache(): wanted "
+		  << name << "=" << value
+		  << " but found "
+		  << name << "=" << v << std::endl;
+	return false;
+      }
     };
 
 
