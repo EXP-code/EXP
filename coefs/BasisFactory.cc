@@ -1980,6 +1980,13 @@ namespace BasisClasses
 		<< m.rows() << "X" << m.cols() << " input array as "
 		<< m.cols() << "X" << m.rows() << "." << std::endl;
 
+      if (m.rows()<3) {
+	std::ostringstream msg;
+	msg << "Basis::addFromArray: you must pass a position array with at "
+	  "least three rows for x, y, z.  Yours has " << m.rows() << ".";
+	throw std::runtime_error(msg.str());
+      }
+
       for (int n=0; n<p.cols(); n++) {
 
 	if (n % numprocs==myid or not roundrobin) {
@@ -2000,6 +2007,13 @@ namespace BasisClasses
       }
       
     } else {
+
+      if (m.cols()<3) {
+	std::ostringstream msg;
+	msg << "Basis::addFromArray: you must pass a position array with at "
+	  "least three columns for x, y, z.  Yours has " << m.cols() << ".";
+	throw std::runtime_error(msg.str());
+      }
 
       for (int n=0; n<p.rows(); n++) {
 
