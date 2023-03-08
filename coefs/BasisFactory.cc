@@ -2005,7 +2005,7 @@ namespace BasisClasses
 
   // Generate coefficients from a phase-space table
   //
-  // I'm leaving the original version ad the default until the new
+  // I'm leaving the original version as the default until the new
   // version is tested
 #if 1
   CoefClasses::CoefStrPtr Basis::createFromArray
