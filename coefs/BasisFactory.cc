@@ -1387,6 +1387,7 @@ namespace BasisClasses
     "Lmax",
     "Mmax",
     "nmax",
+    "mmax",
     "dof",
     "subsamp",
     "samplesz",
