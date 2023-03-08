@@ -1975,22 +1975,63 @@ namespace BasisClasses
 
     std::vector<double> p1(3), v1(3, 0);
 
-    for (int n=0; n<p.rows(); n++) {
+    if (m.rows() < 10 and m.cols() > m.rows()) {
+      std::cout << "Basis::addFromArray: interpreting your "
+		<< m.rows() << "X" << m.cols() << " input array as "
+		<< m.cols() << "X" << m.rows() << "." << std::endl;
 
-      if (n % numprocs==myid or not roundrobin) {
+      if (m.rows()<3) {
+	std::ostringstream msg;
+	msg << "Basis::addFromArray: you must pass a position array with at "
+	  "least three rows for x, y, z.  Yours has " << m.rows() << ".";
+	throw std::runtime_error(msg.str());
+      }
 
-	bool use = true;
-	if (ftor) {
-	  for (int k=0; k<3; k++) p1[k] = p(n, k);
-	  use = ftor(m(n), p1, v1, coefindx);
-	} else {
-	  use = true;
+      for (int n=0; n<p.cols(); n++) {
+
+	if (n % numprocs==myid or not roundrobin) {
+
+	  bool use = true;
+	  if (ftor) {
+	    for (int k=0; k<3; k++) p1[k] = p(k, n);
+	    use = ftor(m(n), p1, v1, coefindx);
+	  } else {
+	    use = true;
+	  }
+	  coefindx++;
+	  
+	  if (use) accumulate(p(0, n)-coefctr[0],
+			      p(1, n)-coefctr[1],
+			      p(2, n)-coefctr[2], m(n));
 	}
-	coefindx++;
-	
-	if (use) accumulate(p(n, 0)-coefctr[0],
-			    p(n, 1)-coefctr[1],
-			    p(n, 2)-coefctr[2], m(n));
+      }
+      
+    } else {
+
+      if (m.cols()<3) {
+	std::ostringstream msg;
+	msg << "Basis::addFromArray: you must pass a position array with at "
+	  "least three columns for x, y, z.  Yours has " << m.cols() << ".";
+	throw std::runtime_error(msg.str());
+      }
+
+      for (int n=0; n<p.rows(); n++) {
+
+	if (n % numprocs==myid or not roundrobin) {
+
+	  bool use = true;
+	  if (ftor) {
+	    for (int k=0; k<3; k++) p1[k] = p(n, k);
+	    use = ftor(m(n), p1, v1, coefindx);
+	  } else {
+	    use = true;
+	  }
+	  coefindx++;
+	  
+	  if (use) accumulate(p(n, 0)-coefctr[0],
+			      p(n, 1)-coefctr[1],
+			      p(n, 2)-coefctr[2], m(n));
+	}
       }
     }
   }
