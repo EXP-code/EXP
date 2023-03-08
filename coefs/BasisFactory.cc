@@ -1975,10 +1975,10 @@ namespace BasisClasses
 
     std::vector<double> p1(3), v1(3, 0);
 
-    if (np.rows() < 10 and np.cols() > np.rows()) {
-      std::cout << "Basis::addFromArray: we are interpreting your "
-		<< np.rows() << "X" << np.cols() << " input array as "
-		<< np.cols() << "X" << np.rows() << << std::endl;
+    if (m.rows() < 10 and m.cols() > m.rows()) {
+      std::cout << "Basis::addFromArray: interpreting your "
+		<< m.rows() << "X" << m.cols() << " input array as "
+		<< m.cols() << "X" << m.rows() << "." << std::endl;
 
       for (int n=0; n<p.cols(); n++) {
 
