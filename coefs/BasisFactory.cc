@@ -1975,15 +1975,15 @@ namespace BasisClasses
 
     std::vector<double> p1(3), v1(3, 0);
 
-    if (m.rows() < 10 and m.cols() > m.rows()) {
+    if (p.rows() < 10 and p.cols() > p.rows()) {
       std::cout << "Basis::addFromArray: interpreting your "
-		<< m.rows() << "X" << m.cols() << " input array as "
-		<< m.cols() << "X" << m.rows() << "." << std::endl;
+		<< p.rows() << "X" << p.cols() << " input array as "
+		<< p.cols() << "X" << p.rows() << "." << std::endl;
 
-      if (m.rows()<3) {
+      if (p.rows()<3) {
 	std::ostringstream msg;
 	msg << "Basis::addFromArray: you must pass a position array with at "
-	  "least three rows for x, y, z.  Yours has " << m.rows() << ".";
+	  "least three rows for x, y, z.  Yours has " << p.rows() << ".";
 	throw std::runtime_error(msg.str());
       }
 
@@ -2008,10 +2008,10 @@ namespace BasisClasses
       
     } else {
 
-      if (m.cols()<3) {
+      if (p.cols()<3) {
 	std::ostringstream msg;
 	msg << "Basis::addFromArray: you must pass a position array with at "
-	  "least three columns for x, y, z.  Yours has " << m.cols() << ".";
+	  "least three columns for x, y, z.  Yours has " << p.cols() << ".";
 	throw std::runtime_error(msg.str());
       }
 
