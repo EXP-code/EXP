@@ -843,6 +843,13 @@ __global__ void coefKernelPlr3
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const int N   = lohi.second - lohi.first;
 
+  // The inner product of the potential-density pair is 1/(2*pi).  So
+  // the biorthgonal norm is 2*pi*density. The inner product of the
+  // trig functions is 2*pi.  So the norm is 1/sqrt(2*pi).  The total
+  // norm is therefore 2*pi/sqrt(2*pi) = sqrt(2*pi) = 2.5066...
+  // 
+  cuFP_t norm = 2.5066282746310002; 
+
   for (int n=0; n<stride; n++) {
 
     // Particle counter
@@ -865,7 +872,7 @@ __global__ void coefKernelPlr3
 #ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	cuFP_t phi  = Phi._v[i];
+	cuFP_t phi  = -Phi._v[i];
 	cuFP_t cosp = cos(phi*m);
 	cuFP_t sinp = sin(phi*m);
 	
@@ -882,11 +889,6 @@ __global__ void coefKernelPlr3
 #ifdef BOUNDS_CHECK
 	if (i>=indX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-
-	// Azimuthal normalization
-	//
-	cuFP_t sFac = 1.0;
-	if (m) sFac = M_SQRT2;
 
 	for (int n=0; n<nmax; n++) {
 
@@ -910,10 +912,10 @@ __global__ void coefKernelPlr3
 	  if (k>=tex._s)            printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	  if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	  coef._v[(2*n+0)*N + i] = val * cosp * sFac * mass;
+	  coef._v[(2*n+0)*N + i] = val * cosp * norm * mass;
 
 	  if (m>0) {
-	    coef._v[(2*n+1)*N + i] = val * sinp * sFac * mass;
+	    coef._v[(2*n+1)*N + i] = val * sinp * norm * mass;
 
 #ifdef BOUNDS_CHECK
 	    if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -925,8 +927,8 @@ __global__ void coefKernelPlr3
 	  }
 
 	  if (compute and tvar._s>0) {
-	    if (plrAcov) tvar._v[n*N + i   ] = val * mass;
-	    else         work._v[i*nmax + n] = val;
+	    if (plrAcov) tvar._v[n*N + i   ] = val * norm * mass;
+	    else         work._v[i*nmax + n] = val * norm;
 	  }
 	  
 	}
@@ -939,13 +941,13 @@ __global__ void coefKernelPlr3
 	  for (int r=0; r<nmax; r++) {
 	    for (int s=r; s<nmax; s++) {
 	      tvar._v[N*c + i] =
-		work._v[i*nmax + r] * work._v[i*nmax + s] * mass;
+		work._v[i*nmax + r] * work._v[i*nmax + s] * norm * mass;
 	      c++;
 	    }
 	  }
 	  // Mean
 	  for (int r=0; r<nmax; r++) {
-	    tvar._v[N*c + i] = work._v[i*nmax + r] * mass;
+	    tvar._v[N*c + i] = work._v[i*nmax + r] * mass * norm;
 	    c++;
 	  }
 	}
@@ -1010,7 +1012,6 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
   constexpr cuFP_t midpt  = ratmin + 0.5*(1.0 - ratmin);
   constexpr cuFP_t rsmth  = 0.5*(1.0 - ratmin)/maxerf;
   constexpr cuFP_t DSMALL = 1.0e-16;
-
 
   int muse = mmax > mlim ? mlim : mmax;
 
@@ -1164,11 +1165,14 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 
 	    if (zz < 0.0) zfrc *= -1.0;
 	    
+	    // The trigonometric norm with a minus sign for the tabled values:
+	    // -1/sqrt(2*pi)
+	    //
+	    cuFP_t Sfac = -0.3989422804014327;
 	    cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
-	    cuFP_t facS = 0.0, Sfac = -1.0; // Sign change for basis tables
+	    cuFP_t facS = 0.0;
 	    if (mm>0) {
 	      facS = coef._v[IImn(mm, 's', n, nmax)];
-	      Sfac = M_SQRT2*(-1.0);
 	    }
 
 	    pp += potl * ( facC * ccos + facS * ssin) * Sfac;
@@ -1195,14 +1199,16 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	}
 	acc[2] += fz * frac;
 	pa     += pp * frac;
+
       }
 
+      
       if (ratio > ratmin) {
 
 	cuFP_t r3 = R2 + zz*zz;
 	pp = -plrmass/sqrt(r3);	// -M/r
 	fr = pp/r3;		// -M/r^3
-
+	
 	acc[0] += xx*fr * cfrac;
 	acc[1] += yy*fr * cfrac;
 	acc[2] += zz*fr * cfrac;
@@ -1216,12 +1222,12 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
       } else {
 	for (int j=0; j<3; j++) p.acc[j] += acc[j];
       }
-
+      
       if (external)
 	p.potext += pa;
       else
 	p.pot    += pa;
-
+      
     } // Particle index block
 
   } // END: stride loop

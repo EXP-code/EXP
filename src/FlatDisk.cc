@@ -8,11 +8,12 @@
 
 const std::set<std::string>
 FlatDisk::valid_keys = {
+  "nmaxfid",
   "numr",
   "rcylmin",
   "rcylmax",
   "acyltbl",
-  "nmaxfid",
+  "mmax",
   "numx",
   "numy",
   "knots",
@@ -73,11 +74,14 @@ void FlatDisk::initialize()
     if (conf["acyltbl"])   acyltbl    = conf["acyltbl"].as<double>();
     if (conf["rcylmin"])   rcylmin    = conf["rcylmin"].as<double>();
     if (conf["rcylmax"])   rcylmax    = conf["rcylmax"].as<double>();
+    if (conf["mmax"])      mmax       = conf["mmax"].as<int>();
     if (conf["numr"])      numr       = conf["numr"].as<int>();
     if (conf["knots"])     knots      = conf["knots"].as<int>();
     if (conf["logr"])      logr       = conf["logr"].as<bool>();
     if (conf["model"])     model      = conf["model"].as<std::string>();
     if (conf["biorth"])    biorth     = conf["biorth"].as<std::string>();
+
+    if (conf["mmax"]) Lmax = Mmax = mmax; // Override base-class values
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in FlatDisk: "
