@@ -1881,6 +1881,8 @@ namespace BasisClasses
       coef = std::make_shared<CoefClasses::SphStruct>();
     else if (name.compare("cylinder") == 0)
       coef = std::make_shared<CoefClasses::CylStruct>();
+    else if (name.compare("flatdisk") == 0)
+      coef = std::make_shared<CoefClasses::CylStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
@@ -1931,6 +1933,8 @@ namespace BasisClasses
       coefret = std::make_shared<CoefClasses::SphStruct>();
     else if (name.compare("cylinder") == 0)
       coefret = std::make_shared<CoefClasses::CylStruct>();
+    else if (name.compare("flatdisk") == 0)
+      coefret = std::make_shared<CoefClasses::CylStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
@@ -1975,15 +1979,15 @@ namespace BasisClasses
 
     std::vector<double> p1(3), v1(3, 0);
 
-    if (m.rows() < 10 and m.cols() > m.rows()) {
+    if (p.rows() < 10 and p.cols() > p.rows()) {
       std::cout << "Basis::addFromArray: interpreting your "
-		<< m.rows() << "X" << m.cols() << " input array as "
-		<< m.cols() << "X" << m.rows() << "." << std::endl;
+		<< p.rows() << "X" << p.cols() << " input array as "
+		<< p.cols() << "X" << p.rows() << "." << std::endl;
 
-      if (m.rows()<3) {
+      if (p.rows()<3) {
 	std::ostringstream msg;
 	msg << "Basis::addFromArray: you must pass a position array with at "
-	  "least three rows for x, y, z.  Yours has " << m.rows() << ".";
+	  "least three rows for x, y, z.  Yours has " << p.rows() << ".";
 	throw std::runtime_error(msg.str());
       }
 
@@ -2008,10 +2012,10 @@ namespace BasisClasses
       
     } else {
 
-      if (m.cols()<3) {
+      if (p.cols()<3) {
 	std::ostringstream msg;
 	msg << "Basis::addFromArray: you must pass a position array with at "
-	  "least three columns for x, y, z.  Yours has " << m.cols() << ".";
+	  "least three columns for x, y, z.  Yours has " << p.cols() << ".";
 	throw std::runtime_error(msg.str());
       }
 
@@ -2046,9 +2050,6 @@ namespace BasisClasses
 
   // Generate coefficients from a phase-space table
   //
-  // I'm leaving the original version as the default until the new
-  // version is tested
-#if 1
   CoefClasses::CoefStrPtr Basis::createFromArray
   (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
    bool roundrobin)
@@ -2057,59 +2058,6 @@ namespace BasisClasses
     addFromArray(m, p, roundrobin);
     return makeFromArray(time);
   }
-#else
-  CoefClasses::CoefStrPtr Basis::createFromArray
-  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
-   bool roundrobin)
-  {
-    CoefClasses::CoefStrPtr coef;
-
-    if (name.compare("sphereSL") == 0)
-      coef = std::make_shared<CoefClasses::SphStruct>();
-    else if (name.compare("cylinder") == 0)
-      coef = std::make_shared<CoefClasses::CylStruct>();
-    else {
-      std::ostringstream sout;
-      sout << "Basis::createFromArray: basis <" << name << "> not recognized"
-	   << std::endl;
-      throw std::runtime_error(sout.str());
-    }
-      
-    // Is center non-zero?
-    //
-    bool addCenter = false;
-    for (auto v : ctr) {
-      if (v != 0.0) addCenter = true;
-    }
-
-    // Add the expansion center metadata
-    //
-    if (addCenter) coef->ctr = ctr;
-
-    reset_coefs();
-    std::vector<double> p1(3), v1(3, 0);
-    unsigned long indx = 0;
-
-    for (int n=0; n<p.rows(); n++) {
-
-      if (n % numprocs==myid or not roundrobin) {
-
-	bool use = true;
-	if (ftor) {
-	  for (int k=0; k<3; k++) p1[k] = p(n, k);
-	  use = ftor(m(n), p1, v1, indx);
-	} else {
-	  use = true;
-	}
-	
-	if (use) accumulate(p(n, 0)-ctr[0], p(n, 1)-ctr[1], p(n, 2)-ctr[2], m(n));
-      }
-    }
-    make_coefs();
-    load_coefs(coef, time);
-    return coef;
-  }
-#endif
 
   // This evaluation step is performed by all derived classes
   Eigen::MatrixXd& AccelFunc::evalaccel
