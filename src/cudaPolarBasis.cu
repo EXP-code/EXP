@@ -843,8 +843,12 @@ __global__ void coefKernelPlr3
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const int N   = lohi.second - lohi.first;
 
-  cuFP_t norm = 2.5066282746310002; // \sqrt(2\pi)
-  // if (m) norm = 3.5449077018110318; // 2\sqrt(\pi)
+  // The inner product of the potential-density pair is 1/(2*pi).  So
+  // the biorthgonal norm is 2*pi*density. The inner product of the
+  // trig functions is 2*pi.  So the norm is 1/sqrt(2*pi).  The total
+  // norm is therefore 2*pi/sqrt(2*pi) = sqrt(2*pi) = 2.5066...
+  // 
+  cuFP_t norm = 2.5066282746310002; 
 
   for (int n=0; n<stride; n++) {
 
@@ -1161,12 +1165,14 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 
 	    if (zz < 0.0) zfrc *= -1.0;
 	    
+	    // The trigonometric norm with a minus sign for the tabled values:
+	    // -1/sqrt(2*pi)
+	    //
+	    cuFP_t Sfac = -0.3989422804014327;
 	    cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
 	    cuFP_t facS = 0.0;
-	    cuFP_t Sfac = -0.3989422804014327; // -1/sqrt(2*pi)
 	    if (mm>0) {
 	      facS = coef._v[IImn(mm, 's', n, nmax)];
-	      // Sfac = -0.5641895835477563; // -1/sqrt(pi)
 	    }
 
 	    pp += potl * ( facC * ccos + facS * ssin) * Sfac;
