@@ -421,7 +421,7 @@ protected:
   //! Flag use of even m harmonics only
   bool EVEN_M;
 
-  //! Use axisymmetric term s
+  //! Use axisymmetric terms
   bool M0_only;
 
   //! Expected coefficient values for RMS noise computation
