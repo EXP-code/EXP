@@ -1,7 +1,7 @@
 
 set(USER_MODULES user bar ebar logpot disk ebarp halo ebars ebarn
   periodic reflect trigger mndisk tidalrad massevo addmass sat
-  satfix)
+  satfix mwgala)
 
 if (ENABLE_USER_ALL)
   list(APPEND USER_MODULES diffuse torque diffrot respot respotn
@@ -55,6 +55,7 @@ set(ebars_SRC     UserEBarS.cc)
 set(sat_SRC       UserSat.cc)
 set(diffuse_SRC   UserDiffuse.cc)
 set(satfix_SRC    SatFix.cc)
+set(mwgala_SRC    UserMW.cc)
 set(satfixorb_SRC SatFixOrb.cc)
 set(diffrot_SRC   UserDiffRot.cc)
 set(logpot_SRC    UserLogPot.cc)
