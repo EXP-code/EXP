@@ -20,10 +20,10 @@ void FieldGeneratorClasses(py::module &m) {
     "a list of upper bounds, and a list of knots per dimension.  These\n"
     "lists all have rank 3 for (x, y, z).  For a two-dimensional surface,\n"
     "one of the knot array values must be zero.  The member functions\n"
-    "slices and volumes, called with the basis and coefficient objects,\n"
-    "return a numpy.ndarray containing the field evaluations.  Each of\n"
-    "these functions returns a dictionary of times to a dictionary of\n"
-    "field names to numpy.ndarrays at each time.  There are also members\n"
+    "lines, slices and volumes, called with the basis and coefficient\n"
+    "objects, return a numpy.ndarray containing the field evaluations.\n"
+    "Each of these functions returns a dictionary of times to a dictionary\n"
+    "of field names to numpy.ndarrays at each time.  There are also members\n"
     "which will write these generated fields to files. See help(pyEXP.basis)\n"
     "and help(pyEXP.coefs) for info on the basis and coefficient objects.\n\n";
 
@@ -42,6 +42,11 @@ void FieldGeneratorClasses(py::module &m) {
 	"Return a dictionary of grids (2d numpy arrays) indexed by "
 	"time and field type", py::arg("basis"), py::arg("coefs"));
   
+  f.def("lines", &Field::FieldGenerator::lines,
+	"Return a dictionary of arrays (1d numpy arrays) indexed by "
+	"time and field type", py::arg("basis"), py::arg("coefs"),
+	py::arg("beg"), py::arg("end"), py::arg("num"));
+  
   f.def("histo2d", &Field::FieldGenerator::histogram2d,
 	"Return a density histogram (2d numpy arrays)",
 	py::arg("reader"),
@@ -54,10 +59,16 @@ void FieldGeneratorClasses(py::module &m) {
 	py::arg("projection"),
 	py::arg("center") = std::vector<double>(3, 0.0));
 
-  f.def("file_slices", &Field::FieldGenerator::file_slices,
+  f.def("file_lines", &Field::FieldGenerator::file_lines,
+	"Write field arrays to files using the supplied string prefix",
+	py::arg("basis"), py::arg("coefs"), py::arg("beg"), py::arg("end"),
+	py::arg("num")=1000, py::arg("filename"), py::arg("dir")=".");
+
+  f.def("file_lines", &Field::FieldGenerator::file_slices,
 	"Write 2d field grids to files using the supplied string prefix",
 	py::arg("basis"), py::arg("coefs"), py::arg("filename"),
 	py::arg("dir")=".");
+
 
   f.def("volumes", [](FieldGenerator& A,
 		      BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs)

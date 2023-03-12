@@ -54,6 +54,166 @@ namespace Field
     }
   }
   
+  std::map<double, std::map<std::string, Eigen::VectorXf>>
+  FieldGenerator::lines
+  (BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
+   std::vector<double> beg, std::vector<double> end, int num)
+  {
+    // Check
+    //
+    if (beg.size()!=3 or end.size()!=3) {
+      throw std::runtime_error("FieldGenerator::lines: vectors beg and end must have rank 3");
+    }
+
+    if (num<1) {
+      throw std::runtime_error("FieldGenerator::lines: number of evaluation points must be > 0");
+    }
+
+    check_times(coefs);
+
+    std::map<double, std::map<std::string, Eigen::VectorXf>> ret;
+
+    std::vector<std::string> labels =
+      {"x", "y", "z", "arc",
+       "p0", "p1", "p", "fr", "ft", "fp", "d0", "d1", "d", "dd"};
+
+
+    std::vector<double> dd(3);
+    for (int k=0; k<3; k++) dd[k] = (end[k] - beg[k])/num;
+    double dlen = sqrt(dd[0]*dd[0] + dd[1]*dd[1] + dd[2]*dd[2]);
+    std::cout << "Dlen=" << dlen << std::endl;
+
+    for (auto T : times) {
+
+      if (not coefs->getCoefStruct(T)) {
+	std::cout << "Could not find time=" << T << ", continuing" << std::endl;
+	continue;
+      }
+
+      basis->set_coefs(coefs->getCoefStruct(T));
+
+      std::map<std::string, Eigen::VectorXf> frame;
+      for (auto label : labels) {
+	frame[label] = Eigen::VectorXf::Zero(num);
+      }
+
+      double r, phi, costh;
+      double p0, p1, d0, d1, fr, ft, fp;
+      
+      int ncnt = 0;		// Process counter for MPI
+
+      for (int ncnt=0; ncnt<num; ncnt++) {
+
+	if (ncnt%numprocs == myid) {
+	  
+	  double x = beg[0] + dd[0]*ncnt;
+	  double y = beg[1] + dd[1]*ncnt;
+	  double z = beg[2] + dd[2]*ncnt;
+
+	  r     = sqrt(x*x + y*y + z*z) + 1.0e-18;
+	  costh = z/r;
+	  phi   = atan2(y, x);
+	  
+	  basis->all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
+	  
+	  frame["x"  ](ncnt) = x;
+	  frame["y"  ](ncnt) = y;
+	  frame["z"  ](ncnt) = z;
+	  frame["arc"](ncnt) = dlen*ncnt;
+	  frame["p0" ](ncnt) = p0;
+	  frame["p1" ](ncnt) = p1;
+	  frame["p"  ](ncnt) = p0 + p1;
+	  frame["fr" ](ncnt) = fr;
+	  frame["ft" ](ncnt) = ft;
+	  frame["fp" ](ncnt) = fp;
+	  frame["d0" ](ncnt) = d0;
+	  frame["d1" ](ncnt) = d1;
+	  frame["d"  ](ncnt) = d0 + d1;
+	  
+	  if (d0!=0.0)
+	    frame["dd" ](ncnt) = d1/d0;
+	  else
+	    frame["dd" ](ncnt) = 0.0;
+	}
+      }
+    
+      if (use_mpi) {
+	for (auto & f : frame) {
+	  if (myid==0) 
+	    MPI_Reduce(MPI_IN_PLACE, f.second.data(), f.second.size(),
+		       MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+	  else
+	    MPI_Reduce(f.second.data(), NULL, f.second.size(),
+		       MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+	}
+      }
+
+      ret[T] = frame;
+    }
+
+    return ret;
+  }
+
+  void FieldGenerator::file_lines
+  (BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
+   std::vector<double> beg, std::vector<double> end, int num,
+   const std::string prefix, const std::string outdir)
+  {
+    auto db = lines(basis, coefs, beg, end, num);
+
+    if (myid==0) {
+
+      int icnt = 0;
+
+      for (auto & frame : db) {
+
+	// Create the file name and open
+	//
+	std::ostringstream sout;
+	sout << outdir << "/" << prefix << "_surface_" << icnt << ".txt";
+
+	std::ofstream out(sout.str());
+
+	if (out) {
+
+	  // Write file header
+	  //
+	  out << "# T=" << frame.first << std::endl;
+
+	  int cnt = 0;
+	  for (auto u : frame.second) {
+	    if (cnt++==0) out << "#" << std::setw(15) << u.first;
+	    else          out << std::setw(16) << u.first;
+	  }
+	  out << std::endl;
+	  for (int n=0; n<cnt; n++) {
+	    std::ostringstream sout; sout << "[" << n+1 << "] ";
+	    if (n==0) out << "#" << std::setw(15) << std::right << sout.str();
+	    else out << std::setw(16) << std::right << sout.str();
+	  }
+	  out << std::endl;
+	  for (int n=0; n<cnt; n++) {
+	    if (n==0) out << "#" << std::setw(15) << std::right << std::string(10, '-');
+	    else out << std::setw(16) << std::right << std::string(10, '-');
+	  }
+	  out << std::endl;
+
+
+	  for (int i=0; i<num; i++) {
+	    for (auto & v : frame.second) {
+	      out << std::setw(16) << v.second(i);
+	    }
+	  }
+	} else {
+	  throw std::runtime_error("FieldGenerator::file_lines: couldn't open <" + sout.str() + ">");
+	}
+
+	icnt++;
+      }
+    }
+  }
+  
+  
   std::map<double, std::map<std::string, Eigen::MatrixXf>>
   FieldGenerator::slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs)
   {
