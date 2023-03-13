@@ -81,7 +81,6 @@ namespace Field
     std::vector<double> dd(3);
     for (int k=0; k<3; k++) dd[k] = (end[k] - beg[k])/num;
     double dlen = sqrt(dd[0]*dd[0] + dd[1]*dd[1] + dd[2]*dd[2]);
-    std::cout << "Dlen=" << dlen << std::endl;
 
     for (auto T : times) {
 
@@ -170,7 +169,7 @@ namespace Field
 	// Create the file name and open
 	//
 	std::ostringstream sout;
-	sout << outdir << "/" << prefix << "_surface_" << icnt << ".txt";
+	sout << outdir << "/" << prefix << "_probe_" << icnt << ".txt";
 
 	std::ofstream out(sout.str());
 
@@ -182,8 +181,9 @@ namespace Field
 
 	  int cnt = 0;
 	  for (auto u : frame.second) {
-	    if (cnt++==0) out << "#" << std::setw(15) << u.first;
-	    else          out << std::setw(16) << u.first;
+	    std::string label = u.first + " ";
+	    if (cnt++==0) out << "#" << std::setw(15) << std::right << label;
+	    else          out << std::setw(16) << std::right << label;
 	  }
 	  out << std::endl;
 	  for (int n=0; n<cnt; n++) {
@@ -203,6 +203,7 @@ namespace Field
 	    for (auto & v : frame.second) {
 	      out << std::setw(16) << v.second(i);
 	    }
+	    out << std::endl;
 	  }
 	} else {
 	  throw std::runtime_error("FieldGenerator::file_lines: couldn't open <" + sout.str() + ">");

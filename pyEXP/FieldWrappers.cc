@@ -24,8 +24,11 @@ void FieldGeneratorClasses(py::module &m) {
     "objects, return a numpy.ndarray containing the field evaluations.\n"
     "Each of these functions returns a dictionary of times to a dictionary\n"
     "of field names to numpy.ndarrays at each time.  There are also members\n"
-    "which will write these generated fields to files. See help(pyEXP.basis)\n"
-    "and help(pyEXP.coefs) for info on the basis and coefficient objects.\n\n";
+    "which will write these generated fields to files. The linear probe\n"
+    "members, 'lines' and 'file_lines', evaluate 'num' field points along\n"
+    "a user-specified segment between the 3d points 'beg' and 'end'.  See\n"
+    "help(pyEXP.basis) and help(pyEXP.coefs) for info on the basis and\n"
+    "coefficient objects.\n\n";
 
   using namespace Field;
 
@@ -60,12 +63,15 @@ void FieldGeneratorClasses(py::module &m) {
 	py::arg("center") = std::vector<double>(3, 0.0));
 
   f.def("file_lines", &Field::FieldGenerator::file_lines,
-	"Write field arrays to files using the supplied string prefix",
-	py::arg("basis"), py::arg("coefs"), py::arg("beg"), py::arg("end"),
+	"Write field arrays to files using the supplied string prefix. "
+	"The files are ascii tables with column headers.", py::arg("basis"),
+	py::arg("coefs"), py::arg("beg"), py::arg("end"),
 	py::arg("num")=1000, py::arg("filename"), py::arg("dir")=".");
 
-  f.def("file_lines", &Field::FieldGenerator::file_slices,
-	"Write 2d field grids to files using the supplied string prefix",
+  f.def("file_slices", &Field::FieldGenerator::file_slices,
+	"Write 2d field grids to files using the supplied string prefix. "
+	"The files will be ascii or VTK rectangular grid files (if you "
+	"compiled with VTK)",
 	py::arg("basis"), py::arg("coefs"), py::arg("filename"),
 	py::arg("dir")=".");
 
@@ -87,7 +93,9 @@ void FieldGeneratorClasses(py::module &m) {
     "time and field type");
 
   f.def("file_volumes", &Field::FieldGenerator::file_volumes,
-	"Write 3d field grids to files using the supplied string prefix",
+	"Write 3d field grids to files using the supplied string prefix. "
+	"The files will be ascii or VTK rectangular grid files (if you "
+	"compiled with VTK)",
 	py::arg("basis"), py::arg("coefs"), py::arg("filename"),
 	py::arg("dir")=".");
 }
