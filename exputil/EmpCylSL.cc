@@ -2152,6 +2152,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   // Initialize fixed variables and storage
   //
   setup_eof();
+  setup_accumulation();
 
   LegeQuad lr(numr);
   LegeQuad lt(numt);
