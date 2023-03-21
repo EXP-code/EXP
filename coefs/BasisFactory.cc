@@ -954,12 +954,13 @@ namespace BasisClasses
     acyl        = 0.01;
     hcyl        = 0.002;
     hexp        = 1.0;
-    lmax        = 128;
-    nmax        = 64;
+    nmax        = 18;
+    mmax        = 6;
     mlim        = std::numeric_limits<int>::max();
+    lmaxfid     = 128;
+    nmaxfid     = 64;
     ncylnx      = 256;
     ncylny      = 128;
-    ncylorder   = 18;
     ncylodd     = 9;
     ncylr       = 200;
     eof_file    = ".eof_cache_file";
@@ -1025,14 +1026,14 @@ namespace BasisClasses
       if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
       if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
       if (conf["hexp"      ])       hexp  = conf["hexp"      ].as<double>();
-      if (conf["lmax"      ])       lmax  = conf["lmax"      ].as<int>();
+      if (conf["lmaxfid"   ])    lmaxfid  = conf["lmaxfid"   ].as<int>();
+      if (conf["nmaxfid"   ])    nmaxfid  = conf["nmaxfid"   ].as<int>();
       if (conf["nmax"      ])       nmax  = conf["nmax"      ].as<int>();
       if (conf["mmax"      ])       mmax  = conf["mmax"      ].as<int>();
       if (conf["mlim"      ])       mlim  = conf["mlim"      ].as<int>();
       if (conf["ncylnx"    ])     ncylnx  = conf["ncylnx"    ].as<int>();
       if (conf["ncylny"    ])     ncylny  = conf["ncylny"    ].as<int>();
       if (conf["ncylr"     ])      ncylr  = conf["ncylr"     ].as<int>();
-      if (conf["ncylorder" ])  ncylorder  = conf["ncylorder" ].as<int>();
       if (conf["ncylodd"   ])    ncylodd  = conf["ncylodd"   ].as<int>();
       if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
       if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
@@ -1162,7 +1163,7 @@ namespace BasisClasses
       }
 
       std::shared_ptr<EmpCylSL> expandd =
-	std::make_shared<EmpCylSL>(nmax, lmax, mmax, ncylorder,
+	std::make_shared<EmpCylSL>(nmaxfid, lmaxfid, mmax, nmax,
 				   acyl, hcyl, ncylodd, cachename);
 
       // Use these user models to deproject for the EOF spherical basis
@@ -1210,7 +1211,7 @@ namespace BasisClasses
       // Make the empirical orthogonal basis instance
       //
       sl = std::make_shared<EmpCylSL>
-	(nmax, lmax, mmax, ncylorder, acyl, hcyl, ncylodd, cachename);
+	(nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
     
       // Set azimuthal harmonic order restriction?
       //
@@ -1332,7 +1333,7 @@ namespace BasisClasses
     // Allocate storage
     std::vector<std::vector<Eigen::MatrixXd>> ret(mmax+1);
     for (auto & v : ret) {
-      v.resize(ncylorder);
+      v.resize(nmax);
       for (auto & u : v) u.resize(numR, numZ);
     }
     
@@ -1345,7 +1346,7 @@ namespace BasisClasses
 
     // Now, evaluate the grid
     for (int m=0; m<=mmax; m++) {
-      for (int n=0; n<ncylorder; n++) {
+      for (int n=0; n<nmax; n++) {
 	for (int i=0; i<numR; i++) {
 	  double R = xmin + delR*i;
 	  for (int j=0; j<numZ; j++) {
