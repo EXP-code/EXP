@@ -674,16 +674,16 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
 
       // Get parameters
       //
-      MMAX   = node["mmax"  ].as<int>();
-      NUMX   = node["numx"  ].as<int>();
-      NUMY   = node["numy"  ].as<int>();
-      NMAX   = node["nmax"  ].as<int>();
-      NORDER = node["norder"].as<int>();
-      DENS   = node["dens"  ].as<bool>();
-      RMIN   = node["rmin"  ].as<double>();
-      RMAX   = node["rmax"  ].as<double>();
-      ASCALE = node["ascl"  ].as<double>();
-      HSCALE = node["hscl"  ].as<double>();
+      MMAX   = node["mmax"   ].as<int>();
+      NUMX   = node["numx"   ].as<int>();
+      NUMY   = node["numy"   ].as<int>();
+      NMAX   = node["nmaxfid"].as<int>();
+      NORDER = node["nmax"   ].as<int>();
+      DENS   = node["dens"   ].as<bool>();
+      RMIN   = node["rmin"   ].as<double>();
+      RMAX   = node["rmax"   ].as<double>();
+      ASCALE = node["ascl"   ].as<double>();
+      HSCALE = node["hscl"   ].as<double>();
 
       if (node["cmap"])		// Backwards compatibility
 	CMAPR  = node["cmap"  ].as<int>();
@@ -906,17 +906,17 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 
       // Get parameters
       //
-      mmax    = node["mmax"  ].as<int>();
-      numx    = node["numx"  ].as<int>();
-      numy    = node["numy"  ].as<int>();
-      nmax    = node["nmax"  ].as<int>();
-      norder  = node["norder"].as<int>();
-      dens    = node["dens"  ].as<bool>();
-      rmin    = node["rmin"  ].as<double>();
-      rmax    = node["rmax"  ].as<double>();
-      ascl    = node["ascl"  ].as<double>();
-      hscl    = node["hscl"  ].as<double>();
-      cylmass = node["cmass" ].as<double>();
+      mmax    = node["mmax"   ].as<int>();
+      numx    = node["numx"   ].as<int>();
+      numy    = node["numy"   ].as<int>();
+      nmax    = node["nmaxfid"].as<int>();
+      norder  = node["nmax"   ].as<int>();
+      dens    = node["dens"   ].as<bool>();
+      rmin    = node["rmin"   ].as<double>();
+      rmax    = node["rmax"   ].as<double>();
+      ascl    = node["ascl"   ].as<double>();
+      hscl    = node["hscl"   ].as<double>();
+      cylmass = node["cmass"  ].as<double>();
       
       if (node["time"]) 	// Backwards compatibility; 'time' is optional
 	time    = node["time"  ].as<double>();
@@ -1119,21 +1119,21 @@ YAML::Node EmpCylSL::getHeader_hdf5(const std::string& cachefile)
     bool dens = false;
     if (getInt("idens")) dens = true;
 
-    node["mmax"]   = getInt("mmax");
-    node["numx"]   = getInt("numx");
-    node["numy"]   = getInt("numy");
-    node["nmax"]   = getInt("nmax");
-    node["norder"] = getInt("norder");
-    node["neven"]  = getInt("neven");
-    node["nodd"]   = getInt("nodd");
-    node["dens"]   = dens;
-    node["cmapr"]  = getInt("cmapr");
-    node["cmapz"]  = getInt("cmapz");
-    node["rmin"]   = getDbl("rmin");
-    node["rmax"]   = getDbl("rmax");
-    node["ascl"]   = getDbl("ascl");
-    node["hscl"]   = getDbl("hscl");
-    node["cmass"]  = getDbl("cmass");
+    node["mmax"]     = getInt("mmax");
+    node["numx"]     = getInt("numx");
+    node["numy"]     = getInt("numy");
+    node["nmaxfid"]  = getInt("nmaxfid");
+    node["nmax"]     = getInt("nmax");
+    node["neven"]    = getInt("neven");
+    node["nodd"]     = getInt("nodd");
+    node["dens"]     = dens;
+    node["cmapr"]    = getInt("cmapr");
+    node["cmapz"]    = getInt("cmapz");
+    node["rmin"]     = getDbl("rmin");
+    node["rmax"]     = getDbl("rmax");
+    node["ascl"]     = getDbl("ascl");
+    node["hscl"]     = getDbl("hscl");
+    node["cmass"]    = getDbl("cmass");
   }
   catch (YAML::Exception& error) {
     std::ostringstream sout;
@@ -6130,17 +6130,17 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   in.read((char *)&hscl,   sizeof(double));
   
   out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
-  out << setw(20) << left << "MMAX"   << " : " << mmax << endl;
-  out << setw(20) << left << "NUMX"   << " : " << numx << endl;
-  out << setw(20) << left << "NUMY"   << " : " << numy << endl;
-  out << setw(20) << left << "NMAX"   << " : " << nmax << endl;
-  out << setw(20) << left << "NORDER" << " : " << norder << endl;
-  out << setw(20) << left << "DENS"   << " : " << std::boolalpha << dens << endl;
-  out << setw(20) << left << "CMAPR"  << " : " << cmap << endl;
-  out << setw(20) << left << "RMIN"   << " : " << rmin << endl;
-  out << setw(20) << left << "RMAX"   << " : " << rmax << endl;
-  out << setw(20) << left << "ASCALE" << " : " << ascl << endl;
-  out << setw(20) << left << "HSCALE" << " : " << hscl << endl;
+  out << setw(20) << left << "MMAX"    << " : " << mmax << endl;
+  out << setw(20) << left << "NUMX"    << " : " << numx << endl;
+  out << setw(20) << left << "NUMY"    << " : " << numy << endl;
+  out << setw(20) << left << "NMAXFID" << " : " << nmax << endl;
+  out << setw(20) << left << "NMAX"    << " : " << norder << endl;
+  out << setw(20) << left << "DENS"    << " : " << std::boolalpha << dens << endl;
+  out << setw(20) << left << "CMAPR"   << " : " << cmap << endl;
+  out << setw(20) << left << "RMIN"    << " : " << rmin << endl;
+  out << setw(20) << left << "RMAX"    << " : " << rmax << endl;
+  out << setw(20) << left << "ASCALE"  << " : " << ascl << endl;
+  out << setw(20) << left << "HSCALE"  << " : " << hscl << endl;
   out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
     
   double time;
@@ -6883,9 +6883,9 @@ void EmpCylSL::WriteH5Cache()
     file.createAttribute<int>        ("mmax",    HighFive::DataSpace::From(MMAX)).    write(MMAX);
     file.createAttribute<int>        ("numx",    HighFive::DataSpace::From(NUMX)).    write(NUMX);
     file.createAttribute<int>        ("numy",    HighFive::DataSpace::From(NUMY)).    write(NUMY);
-    file.createAttribute<int>        ("nmax",    HighFive::DataSpace::From(NORDER)).    write(NORDER);
-    file.createAttribute<int>        ("lmaxfid", HighFive::DataSpace::From(LMAX)).  write(LMAX);
-    file.createAttribute<int>        ("nmaxfid", HighFive::DataSpace::From(NMAX)).  write(NMAX);
+    file.createAttribute<int>        ("nmax",    HighFive::DataSpace::From(NORDER)).  write(NORDER);
+    file.createAttribute<int>        ("lmaxfid", HighFive::DataSpace::From(LMAX)).    write(LMAX);
+    file.createAttribute<int>        ("nmaxfid", HighFive::DataSpace::From(NMAX)).    write(NMAX);
     file.createAttribute<int>        ("neven",   HighFive::DataSpace::From(Neven)).   write(Neven);
     file.createAttribute<int>        ("nodd",    HighFive::DataSpace::From(Nodd)).    write(Nodd);
     file.createAttribute<int>        ("idens",   HighFive::DataSpace::From(idens)).   write(idens);
