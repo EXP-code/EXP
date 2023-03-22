@@ -19,7 +19,8 @@ FlatDisk::valid_keys = {
   "knots",
   "logr",
   "model",
-  "biorth"
+  "biorth",
+  "cachename"
 };
 
 FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
