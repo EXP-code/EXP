@@ -752,7 +752,7 @@ void EmpCyl2d::WriteH5Cache()
   try {
     // Create a new hdf5 file or overwrite an existing file
     //
-    HighFive::File file(cache_name_2d + ".h5", HighFive::File::Overwrite);
+    HighFive::File file(cache_name_2d, HighFive::File::Overwrite);
     
     // Workaround for lack of HighFive boolean support
     int ilogr = 0, icmap = 0;
@@ -794,7 +794,7 @@ void EmpCyl2d::WriteH5Cache()
   }
     
   std::cout << "---- EmpCyl2d::WriteH5Cache: "
-	    << "wrote <" << cache_name_2d + ".h5>" << std::endl;
+	    << "wrote <" << cache_name_2d << ">" << std::endl;
 }
 
 bool EmpCyl2d::ReadH5Cache()
@@ -807,7 +807,7 @@ bool EmpCyl2d::ReadH5Cache()
 
     // Open the hdf5 file
     //
-    HighFive::File file(cache_name_2d + ".h5", HighFive::File::ReadOnly);
+    HighFive::File file(cache_name_2d, HighFive::File::ReadOnly);
     
 
     // Try checking the rest of the parameters before reading arrays
@@ -889,7 +889,7 @@ bool EmpCyl2d::ReadH5Cache()
   }
     
   if (myid==0) std::cout << "---- EmpCyl2d::ReadH5Cache: "
-			 << "read 2d basis cache <" << cache_name_2d + ".h5>"
+			 << "read 2d basis cache <" << cache_name_2d << ">"
 			 << std::endl;
 
   return true;

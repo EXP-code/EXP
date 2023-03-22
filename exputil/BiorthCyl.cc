@@ -503,7 +503,7 @@ void BiorthCyl::WriteH5Cache()
   try {
     // Create a new hdf5 file or overwrite an existing file
     //
-    HighFive::File file(cachename + ".h5", HighFive::File::Overwrite);
+    HighFive::File file(cachename, HighFive::File::Overwrite);
     
     // We write the basis geometry
     //
@@ -534,7 +534,7 @@ void BiorthCyl::WriteH5Cache()
   }
     
   std::cout << "---- BiorthCyl::WriteH5Cache: "
-	    << "wrote <" << cachename + ".h5>" << std::endl;
+	    << "wrote <" << cachename << ">" << std::endl;
 }
   
 bool BiorthCyl::ReadH5Cache()
@@ -548,7 +548,7 @@ bool BiorthCyl::ReadH5Cache()
     
     // Try opening the file as HDF5
     //
-    HighFive::File h5file(cachename + ".h5", HighFive::File::ReadOnly);
+    HighFive::File h5file(cachename, HighFive::File::ReadOnly);
     
     // Try checking the rest of the parameters before reading arrays
     //
@@ -620,7 +620,7 @@ bool BiorthCyl::ReadH5Cache()
 
     if (myid==0)
       std::cerr << "---- BiorthCyl::ReadH5Cache: "
-		<< "read <" << cachename + ".h5>" << std::endl;
+		<< "read <" << cachename << ">" << std::endl;
 
     return true;
     
@@ -676,7 +676,7 @@ void BiorthCyl::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
 
 YAML::Node BiorthCyl::getHeader(const std::string& cachefile)
 {
-  std::ifstream in(cachefile + ".h5");
+  std::ifstream in(cachefile);
   if (!in) {
     std::ostringstream sout;
     sout << "BiorthCyl::getHeader: could not open cache file <"
@@ -693,7 +693,7 @@ YAML::Node BiorthCyl::getHeader(const std::string& cachefile)
     
     // Open the hdf5 file
     //
-    HighFive::File file(cachefile + ".h5", HighFive::File::ReadOnly);
+    HighFive::File file(cachefile, HighFive::File::ReadOnly);
     
     auto getInt = [&file](std::string name)
     {

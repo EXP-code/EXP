@@ -1982,7 +1982,7 @@ bool SLGridSph::ReadH5Cache(void)
     
     // Try opening the file as HDF5
     //
-    HighFive::File h5file(sph_cache_name + ".h5", HighFive::File::ReadOnly);
+    HighFive::File h5file(sph_cache_name, HighFive::File::ReadOnly);
     
     // Try checking the rest of the parameters before reading arrays
     //
@@ -2051,7 +2051,7 @@ bool SLGridSph::ReadH5Cache(void)
     
     if (myid==0)
       std::cerr << "---- SLGridSph::ReadH5Cache: "
-		<< "read basis cache <" << sph_cache_name + ".h5" << ">"
+		<< "read basis cache <" << sph_cache_name << ">"
 		<< std::endl;
 
     return true;
@@ -2075,14 +2075,14 @@ void SLGridSph::WriteH5Cache(void)
   try {
     // Create a new hdf5 file or overwrite an existing file
     //
-    HighFive::File file(sph_cache_name + ".h5", HighFive::File::Overwrite);
+    HighFive::File file(sph_cache_name, HighFive::File::Overwrite);
     
     // For cache ID
     //
     std::string geometry("sphere"), forceID("SLGridSph");
 
-    file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
-    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
+    file.createAttribute<std::string>("geometry",  HighFive::DataSpace::From(geometry)).write(geometry);
+    file.createAttribute<std::string>("forceID",   HighFive::DataSpace::From(forceID)).write(forceID);
       
     // Write parameters
     //
@@ -2936,7 +2936,7 @@ void SLGridSph::mpi_unpack_table(void)
 
 YAML::Node SLGridSph::getHeader(const std::string& cachefile)
 {
-  std::ifstream in(cachefile + ".h5");
+  std::ifstream in(cachefile);
   if (!in) {
     std::ostringstream sout;
     sout << "SLGridSph::getHeader: could not open cache file <" << cachefile << ">";
@@ -2952,7 +2952,7 @@ YAML::Node SLGridSph::getHeader(const std::string& cachefile)
     
     // Open the hdf5 file
     //
-    HighFive::File file(cachefile + ".h5", HighFive::File::ReadOnly);
+    HighFive::File file(cachefile, HighFive::File::ReadOnly);
     
     auto getInt = [&file](std::string name)
     {
