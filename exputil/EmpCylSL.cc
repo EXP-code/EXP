@@ -7024,7 +7024,7 @@ bool EmpCylSL::ReadH5Cache()
 
     // Set EvenOdd if values seem sane
     //
-    if (Neven>0 and Nodd>=0 and Nodd<=NORDER and Nodd+Neven==NORDER) {
+    if (Nodd>=0 and Nodd<=NORDER and Nodd+Neven==NORDER) {
       EvenOdd  = true;
     }
 
