@@ -305,13 +305,13 @@ main(int ac, char **av)
   // Begin opt parsing
   //====================
 
-  int          LMAXFID, NMAXFID, NUMR, SCMAP, NUMDF;
+  int          NUMR, SCMAP, NUMDF;
   double       RMIN, RCYLMIN, RCYLMAX, SCSPH, RSPHSL, DMFAC, RFACTOR, SHFAC;
   double       X0, Y0, Z0, U0, V0, W0;
   int          RNUM, PNUM, TNUM, VFLAG, DFLAG;
   bool         expcond, LOGR, CHEBY, SELECT, DUMPCOEF;
   int          CMAPR, CMAPZ, NCHEB, TCHEB, CMTYPE, NDR, NDZ, NHR, NHT, NDP;
-  int          NMAX, MMAX, NUMX, NUMY, NOUT, NMAXLIM, NODD, DF;
+  int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT, NODD, DF;
   int          DIVERGE, DIVERGE2, SEED, itmax;
   double       DIVERGE_RFAC, DIVERGE_RFAC2;
   double       PPower, R_DF, DR_DF;
@@ -340,19 +340,17 @@ main(int ac, char **av)
      cxxopts::value<string>(cachefile)->default_value(".eof_2d_cache"))
     ("ctype", "DiskHalo radial coordinate scaling type (one of: Linear, Log,Rat)",
      cxxopts::value<string>(ctype)->default_value("Log"))
-    ("MMAX", "",
-     cxxopts::value<int>(MMAX)->default_value("6"))
-    ("NUMX", "",
+    ("NUMX", "Number of knots in radial dimension of meridional grid",
      cxxopts::value<int>(NUMX)->default_value("256"))
-    ("NUMY", "",
+    ("NUMY", "Number of knots in vertical dimension of meridional grid",
      cxxopts::value<int>(NUMY)->default_value("128"))
-    ("DIVERGE", "",
+    ("DIVERGE", "Cusp power-law density extrapolation (0 means off)",
      cxxopts::value<int>(DIVERGE)->default_value("0"))
-    ("DIVERGE_RFAC", "",
+    ("DIVERGE_RFAC", "Exponent for inner cusp extrapolation",
      cxxopts::value<double>(DIVERGE_RFAC)->default_value("1.0"))
-    ("DIVERGE2", "",
+    ("DIVERGE2", "Cusp power-law extrapolation for number distribution (0 means off)",
      cxxopts::value<int>(DIVERGE2)->default_value("0"))
-    ("DIVERGE_RFAC2", "",
+    ("DIVERGE_RFAC2", "Exponent for inner cusp extrapolation in number density",
      cxxopts::value<double>(DIVERGE_RFAC2)->default_value("1.0"))
     ("DF", "Use change-over from Jeans to Eddington",
      cxxopts::value<int>(DF)->default_value("1"))
@@ -364,17 +362,23 @@ main(int ac, char **av)
      cxxopts::value<int>(nhalo)->default_value("100000"))
     ("ndisk", "Number of disk particles",
      cxxopts::value<int>(ndisk)->default_value("100000"))
-    ("dtype", "",
+    ("dtype", "Disk density target type",
      cxxopts::value<string>(dtype)->default_value("exponential"))
-    ("NOUT", "",
-     cxxopts::value<int>(NOUT)->default_value("18"))
-    ("NODD", "",
+    ("LMAX", "Harmonic order for halo expansion",
+     cxxopts::value<int>(LMAX)->default_value("18"))
+    ("MMAX", "Harmonic order for disk expansion",
+     cxxopts::value<int>(MMAX)->default_value("12"))
+    ("NOUT", "Number of radial terms in diagnostic basis file for cylinder",
+     cxxopts::value<int>(NOUT)->default_value("8"))
+    ("NODD", "Number of vertically odd terms in cylindrical expansion",
      cxxopts::value<int>(NODD)->default_value("6"))
-    ("NMAX", "",
-     cxxopts::value<int>(NMAX)->default_value("18"))
-    ("NMAXLIM", "",
-     cxxopts::value<int>(NMAXLIM)->default_value("10000"))
-    ("NUMDF", "",
+    ("NMAXH", "Number of radial terms in spherical expansion",
+     cxxopts::value<int>(NMAXH)->default_value("18"))
+    ("NMAXD", "Number of radial terms in cylindrical expansion",
+     cxxopts::value<int>(NMAXD)->default_value("12"))
+    ("NMAXFID", "Number of radial terms in Bessel EOF expansion",
+     cxxopts::value<int>(NMAXFID)->default_value("64"))
+    ("NUMDF", "Number of knots in Eddington inversion grid",
      cxxopts::value<int>(NUMDF)->default_value("1000"))
     ("VFLAG", "",
      cxxopts::value<int>(VFLAG)->default_value("31"))
@@ -520,7 +524,7 @@ main(int ac, char **av)
   // Write YAML template config file and exit
   //
   if (vm.count("template")) {
-    NOUT = std::min<int>(NOUT, NMAX);
+    NOUT = std::min<int>(NOUT, NMAXD);
 
     // Write template file
     //
@@ -742,7 +746,7 @@ main(int ac, char **av)
   // Create expansion only if needed . . .
   std::shared_ptr<SphericalSL> expandh;
   if (nhalo) {
-    expandh = std::make_shared<SphericalSL>(halofile1, nthrds, LMAXFID, NMAXFID, SCMAP, SCSPH);
+    expandh = std::make_shared<SphericalSL>(halofile1, nthrds, LMAX, NMAXH, SCMAP, SCSPH);
   }
 
   //===========================Cylindrical expansion===========================
@@ -751,28 +755,19 @@ main(int ac, char **av)
 
   YAML::Emitter yml;
   yml << YAML::BeginMap;
-  yml << YAML::Key << "acyltbl";
-  yml << YAML::Value << scale_length;
-  yml << YAML::Key << "rcylmin";
-  yml << YAML::Value << RCYLMIN;
-  yml << YAML::Key << "rcylmax";
-  yml << YAML::Value << RCYLMAX;
-  yml << YAML::Key << "numx";
-  yml << YAML::Value << NUMX;
-  yml << YAML::Key << "numy";
-  yml << YAML::Value << NUMY;
-  yml << YAML::Key << "numr";
-  yml << YAML::Value << NUMR;
-  yml << YAML::Key << "cmapR";
-  yml << YAML::Value << CMAPR;
-  yml << YAML::Key << "cmapZ";
-  yml << YAML::Value << CMAPZ;
-  yml << YAML::Key << "mmax";
-  yml << YAML::Value << MMAX;
-  yml << YAML::Key << "logr";
-  yml << YAML::Value << LOGR;
-  yml << YAML::Key << "cachename";
-  yml << YAML::Value << cachefile;
+  yml << YAML::Key << "acyltbl"   << YAML::Value << scale_length;
+  yml << YAML::Key << "rcylmin"   << YAML::Value << RCYLMIN;
+  yml << YAML::Key << "rcylmax"   << YAML::Value << RCYLMAX;
+  yml << YAML::Key << "numx"      << YAML::Value << NUMX;
+  yml << YAML::Key << "numy"      << YAML::Value << NUMY;
+  yml << YAML::Key << "numr"      << YAML::Value << NUMR;
+  yml << YAML::Key << "cmapR"     << YAML::Value << CMAPR;
+  yml << YAML::Key << "cmapZ"     << YAML::Value << CMAPZ;
+  yml << YAML::Key << "Mmax"      << YAML::Value << MMAX;
+  yml << YAML::Key << "nmax"      << YAML::Value << NMAXD;
+  yml << YAML::Key << "nmaxfid"   << YAML::Value << NMAXFID;
+  yml << YAML::Key << "logr"      << YAML::Value << LOGR;
+  yml << YAML::Key << "cachename" << YAML::Value << cachefile;
   yml << YAML::EndMap;
   
                                 // Create expansion only if needed . . .
