@@ -362,7 +362,7 @@ main(int ac, char **av)
   int          RNUM, PNUM, TNUM, VFLAG, DFLAG;
   bool         expcond, LOGR, CHEBY, SELECT, DUMPCOEF;
   int          CMAPR, CMAPZ, NCHEB, TCHEB, CMTYPE, NDR, NDZ, NHR, NHT, NDP;
-  int          NMAX, MMAX, NUMX, NUMY, NOUT, NMAXLIM, NODD, DF;
+  int          LMAX, NMAXH, NMAXD, MMAX, NUMX, NUMY, NOUT, NMAXLIM, NODD, DF;
   int          DIVERGE, DIVERGE2, SEED, itmax;
   double       DIVERGE_RFAC, DIVERGE_RFAC2;
   double       PPower, R_DF, DR_DF;
@@ -395,23 +395,25 @@ main(int ac, char **av)
      cxxopts::value<string>(cachefile)->default_value(".eof.cache.file"))
     ("ctype", "DiskHalo radial coordinate scaling type (one of: Linear, Log,Rat)",
      cxxopts::value<string>(ctype)->default_value("Log"))
-    ("LMAXFID", "",
+    ("LMAX", "Harmonic order for halo expansion",
+     cxxopts::value<int>(LMAX)->default_value("18"))
+    ("LMAXFID", "Harmonic order for EOF spherical model",
      cxxopts::value<int>(LMAXFID)->default_value("48"))
-    ("NMAXFID", "",
+    ("NMAXFID", "Radial order for EOF spherical model",
      cxxopts::value<int>(NMAXFID)->default_value("48"))
-    ("MMAX", "",
+    ("MMAX", "Aximuthal order for Cylindrical expansion",
      cxxopts::value<int>(MMAX)->default_value("6"))
-    ("NUMX", "",
+    ("NUMX", "Number of knots in radial dimension of meridional grid",
      cxxopts::value<int>(NUMX)->default_value("256"))
-    ("NUMY", "",
+    ("NUMY", "Number of knots in vertical dimension of meridional grid",
      cxxopts::value<int>(NUMY)->default_value("128"))
-    ("DIVERGE", "",
+    ("DIVERGE", "Cusp power-law density extrapolation (0 means off)",
      cxxopts::value<int>(DIVERGE)->default_value("0"))
-    ("DIVERGE_RFAC", "",
+    ("DIVERGE_RFAC", "Exponent for inner cusp extrapolation",
      cxxopts::value<double>(DIVERGE_RFAC)->default_value("1.0"))
-    ("DIVERGE2", "",
+    ("DIVERGE2", "Cusp power-law extrapolation for number distribution (0 means off)",
      cxxopts::value<int>(DIVERGE2)->default_value("0"))
-    ("DIVERGE_RFAC2", "",
+    ("DIVERGE_RFAC2", "Exponent for inner cusp extrapolation in number density",
      cxxopts::value<double>(DIVERGE_RFAC2)->default_value("1.0"))
     ("DF", "Use change-over from Jeans to Eddington",
      cxxopts::value<int>(DF)->default_value("1"))
@@ -427,17 +429,19 @@ main(int ac, char **av)
      cxxopts::value<int>(ngas)->default_value("0"))
     ("ngparam", "Number of gas parameters",
      cxxopts::value<int>(ngparam)->default_value("0"))
-    ("dtype", "",
+    ("dtype", "Disk density target type",
      cxxopts::value<string>(dtype)->default_value("exponential"))
-    ("NOUT", "",
+    ("NOUT", "Number of radial terms in diagnostic basis file for cylinder",
      cxxopts::value<int>(NOUT)->default_value("18"))
-    ("NODD", "",
+    ("NODD", "Number of vertically odd terms in cylindrical expansion",
      cxxopts::value<int>(NODD)->default_value("6"))
-    ("NMAX", "",
-     cxxopts::value<int>(NMAX)->default_value("18"))
+    ("NMAXH", "Number of radial terms for spherical expansion",
+     cxxopts::value<int>(NMAXH)->default_value("18"))
+    ("NMAXD", "Number of radial terms for cylindrical expansion",
+     cxxopts::value<int>(NMAXD)->default_value("18"))
     ("NMAXLIM", "",
      cxxopts::value<int>(NMAXLIM)->default_value("10000"))
-    ("NUMDF", "",
+    ("NUMDF", "Number of knots in Eddington inversion grid",
      cxxopts::value<int>(NUMDF)->default_value("1000"))
     ("VFLAG", "",
      cxxopts::value<int>(VFLAG)->default_value("31"))
@@ -589,7 +593,7 @@ main(int ac, char **av)
   // Write YAML template config file and exit
   //
   if (vm.count("template")) {
-    NOUT = std::min<int>(NOUT, NMAX);
+    NOUT = std::min<int>(NOUT, NMAXD);
 
     // Write template file
     //
@@ -850,7 +854,7 @@ main(int ac, char **av)
   // Create expansion only if needed . . .
   std::shared_ptr<SphericalSL> expandh;
   if (nhalo) {
-    expandh = std::make_shared<SphericalSL>(halofile1, nthrds, LMAXFID, NMAXFID, SCMAP, SCSPH);
+    expandh = std::make_shared<SphericalSL>(halofile1, nthrds, LMAX, NMAXH, SCMAP, SCSPH);
   }
 
   //===========================Cylindrical expansion===========================
@@ -875,8 +879,7 @@ main(int ac, char **av)
 
   if (ndisk) {
 
-    expandd = std::make_shared<EmpCylSL>(NMAXFID, LMAXFID, MMAX, NMAX, ASCALE, HSCALE, NODD,
-					 cachefile);
+    expandd = std::make_shared<EmpCylSL>(NMAXFID, LMAXFID, MMAX, NMAXD, ASCALE, HSCALE, NODD, cachefile);
 
 #ifdef DEBUG
    std::cout << "Process "   << myid << ": "
@@ -887,7 +890,7 @@ main(int ac, char **av)
 	     << " nmaxfid="  << NMAXFID
 	     << " lmaxfid="  << LMAXFID
 	     << " mmax="     << MMAX
-	     << " nmax="     << NMAX
+	     << " nmax="     << NMAXD
 	     << " nodd="     << NODD
 	     << std::endl  << std::flush;
 #endif
@@ -1262,8 +1265,8 @@ main(int ac, char **av)
       }
     }
 
-    if (NMAXLIM<NMAX) {
-      if (myid==0) std::cout << "Restricting order from " << NMAX 
+    if (NMAXLIM<NMAXD) {
+      if (myid==0) std::cout << "Restricting order from " << NMAXD
 			     << " to " << NMAXLIM << " . . . " << std::flush;
       expandd->restrict_order(NMAXLIM);
       if (myid==0) std::cout << "done" << std::endl;
@@ -1300,7 +1303,7 @@ main(int ac, char **av)
       expandd->dump_images(runtag, 5.0*scale_length, 5.0*scale_height,
 			   nout, nout, false);
       expandd->dump_images_basis(runtag, 5.0*scale_length, 5.0*scale_height,
-				 nout, nout, false, 0, MMAX, 0, NMAX-1);
+				 nout, nout, false, 0, MMAX, 0, NMAXD-1);
     }
 
 
