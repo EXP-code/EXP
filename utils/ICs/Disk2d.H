@@ -24,25 +24,60 @@ typedef std::shared_ptr<BiorthCyl> CylPtr;
     \param rcylmax is the maximum value in the table for the 
     radial basis functions in acyltbl units (default is 10.0)
 
-    \param scale is the expansion factor to get the physical scale from
-    the internal scale (default is 0.01)
-
-    \param numx is the number of grid points in the scaled radial direction
-
-    \param numy is the number of grid points in the scaled vertical direction
-
     \param numr is the number radial coordinate knots in the table 
     (default is 1000)
 
-    \param nfid is the number of basis elements used in the EOF computation
-
-    \param knots is the number of quadrature points for EmpCyl2d
+    \param knots is the number quadrature points for integrals in
+    basis construction
 
     \param logr scales the EmpCyl2d grid logarithmically
 
     \param model name for EmpCyl2d (default: expon)
 
     \param biorth set for EmpCyl2d (default: bess)
+
+    \param Mmax is the azimuthal order
+
+    \param nmaxfid is the radial order for the Bessel basis used to
+    construct the EOF
+
+    \param nmax is the radial order
+
+    \param numx is the number of grid points in the scaled radial direction
+
+    \param numy is the number of grid points in the scaled vertical direction
+
+    \param NQDHT is the number of Bessel knots in the underlying
+    Hankel transform used to get the vertical potential
+
+    \param cmapR is the scaling method for radius (0=none, 1=rational)
+    in the grid mapping
+
+    \param cmapZ is the scaling method for vertical height (0=none, 1=sinh, 2=rational)
+    in the grid mapping
+
+    \param scale is the expansion factor to get the physical scale from
+    the internal scale (default is 0.01)
+
+    \param cachename is the file cache for the 2d EOF basis
+
+    \param verbose set to true turns on some additional diagnostic
+    info in BiorthCyl
+
+    \param mmin changes the minimum harmonic order for evaluation to
+    some value >=0
+
+    \param mlim changes the maximum harmonic order for evaluation to
+    some value <=mmax
+
+    \param nmin changes the minimum radial order for evaluation to
+    some value >=0
+
+    \param nlim changes the maximum radial order for evaluation to
+    some value <=nmax
+
+    \param EVEN_M evaluates the expansion for even azimuthal harmonics
+    only
 */
 class Disk2d
 {
