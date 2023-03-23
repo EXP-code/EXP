@@ -781,7 +781,7 @@ int EmpCylSL::read_cache(void)
   // Root tries to read table
   //
   int retcode;
-  if (myid==0)  retcode = cache_grid(0);
+  if (myid==0)  retcode = cache_grid(0, cachefile);
   if (use_mpi)  MPI_Bcast(&retcode, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (!retcode) return 0;
 				// Send table to worker processes
