@@ -78,8 +78,6 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 #endif
   is_flat          = false;
 
-  coefs_made       = std::vector<bool>(multistep+1, false);
-
   // Remove matched keys
   //
   for (auto v : valid_keys) current_keys.erase(v);
