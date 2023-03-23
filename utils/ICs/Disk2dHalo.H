@@ -41,7 +41,7 @@ class Disk2dHalo
   std::shared_ptr<SphericalModelMulti> multi;
 
   std::shared_ptr<ExponentialDisk> disk;
-  double scalelength, scaleheight, dmass;
+  double scalelength, dmass;
   double center_pos[3], center_vel[3];
 
   SphericalSLptr expandh;
@@ -66,7 +66,6 @@ class Disk2dHalo
   int bufcnt;
   std::ostringstream bufout;
 
-  double disk_density(double R, double z);
   double disk_surface_density(double R);
   void write_record(ostream &out, SParticle &p);
   void write_record(ostream &out, Particle &p)
@@ -244,16 +243,16 @@ public:
 
   //! Constructor: equal mass
   Disk2dHalo(SphericalSLptr expandh, std::shared_ptr<Disk2d> expandd,
-	   double H, double A, double DMass, std::string maptype,
-	   string& filename, int DF=0, int DIVERGE=0, double DIVERGE_RFAC=1.0,
-	   DiskGenType type=Asymmetric);
+	     double A, double DMass, std::string maptype,
+	     string& filename, int DF=0, int DIVERGE=0, double DIVERGE_RFAC=1.0,
+	     DiskGenType type=Asymmetric);
 
   //! Constructor: multi mass
   Disk2dHalo(SphericalSLptr haloexp, std::shared_ptr<Disk2d> diskexp,
-	   double H, double A, double DMass, std::string maptype,
-	   string& filename1, int DIVERGE,  double DIVERGE_RFAC,
-	   string& filename2, int DIVERGE2, double DIVERGE_RFAC2,
-	   DiskGenType type=Asymmetric);
+	     double A, double DMass, std::string maptype,
+	     string& filename1, int DIVERGE,  double DIVERGE_RFAC,
+	     string& filename2, int DIVERGE2, double DIVERGE_RFAC2,
+	     DiskGenType type=Asymmetric);
 
   //! Copy constructor
   Disk2dHalo(const Disk2dHalo &);

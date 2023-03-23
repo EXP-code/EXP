@@ -47,14 +47,13 @@
 #include <SphericalSL.H>
 #include <interp.H>
 #include <Disk2d.H>
-#include <DiskModels.H>
 #include <libvars.H>		// Library globals
 #include <cxxopts.H>		// Command-line parsing
 #include <EXPini.H>		// Ini-style config
 
 #include <norminv.H>
 
-#define M_SQRT1_3 (0.5773502691896257645091487)
+using namespace __EXP__;	// Reference to n-body globals
 
                                 // For debugging
 #ifdef DEBUG
@@ -179,118 +178,7 @@ void set_fpu_gdb_handler(void)
 #include <SphericalSL.H>
 #include <Disk2dHalo.H>
 #include <localmpi.H>
-
-
-// Hydrogen fraction
-//
-const double f_H = 0.76;
-
-
-// Global variables
-//
-enum DiskType { constant, gaussian, mn, exponential, doubleexpon };
-
-std::map<std::string, DiskType> dtlookup =
-  { {"constant",    DiskType::constant},
-    {"gaussian",    DiskType::gaussian},
-    {"mn",          DiskType::mn},
-    {"exponential", DiskType::exponential},
-    {"doubleexpon", DiskType::doubleexpon}
-  };
-
-DiskType     DTYPE;
-double       ASCALE;
-double       ASHIFT;
-double       HSCALE;
-double       RTRUNC  = 1.0;
-double       RWIDTH  = 0.0;
-double       ARATIO  = 1.0;
-double       HRATIO  = 1.0;
-double       DWEIGHT = 1.0;
-
 #include <Particle.H>
-
-double DiskDens(double R, double z, double phi)
-{
-  double ans = 0.0;
-
-  switch (DTYPE) {
-
-  case DiskType::constant:
-    if (R < ASCALE && fabs(z) < HSCALE)
-      ans = 1.0/(2.0*HSCALE*M_PI*ASCALE*ASCALE);
-    break;
-
-  case DiskType::gaussian:
-    if (fabs(z) < HSCALE)
-      ans = 1.0/(2.0*HSCALE*2.0*M_PI*ASCALE*ASCALE)*
-	exp(-R*R/(2.0*ASCALE*ASCALE));
-    break;
-
-  case DiskType::mn:
-    {
-      double Z2 = z*z + HSCALE*HSCALE;
-      double Z  = sqrt(Z2);
-      double Q2 = (ASCALE + Z)*(ASCALE + Z);
-      ans = 0.25*HSCALE*HSCALE/M_PI*(ASCALE*R*R + (ASCALE + 3.0*Z)*Q2)/( pow(R*R + Q2, 2.5) * Z*Z2 );
-    }
-    break;
-
-  case DiskType::doubleexpon:
-    {
-      double a1 = ASCALE;
-      double a2 = ASCALE*ARATIO;
-      double h1 = HSCALE;
-      double h2 = HSCALE*HRATIO;
-      double w1 = 1.0/(1.0+DWEIGHT);
-      double w2 = DWEIGHT/(1.0+DWEIGHT);
-      
-      double f1 = cosh(z/h1);
-      double f2 = cosh(z/h2);
-
-      ans =
-	w1*exp(-R/a1)/(4.0*M_PI*a1*a1*h1*f1*f1) +
-	w2*exp(-R/a2)/(4.0*M_PI*a2*a2*h2*f2*f2) ;
-    }
-    break;
-  case DiskType::exponential:
-  default:
-    {
-      double f = cosh(z/HSCALE);
-      ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f);
-    }
-    break;
-  }
-
-  if (RWIDTH>0.0) ans *= erf((RTRUNC-R)/RWIDTH);
-
-  return ans;
-}
-
-double dcond(double R, double z, double phi, int M)
-{
-  //
-  // No shift for M==0
-  //
-  if (M==0) return DiskDens(R, z, phi);
-
-  //
-  // Fold into [-PI/M, PI/M] for M>=1
-  //
-  double dmult = M_PI/M, phiS;
-  if (phi>M_PI)
-    phiS = phi + dmult*(int)((2.0*M_PI - phi)/dmult);
-  else
-    phiS = phi - dmult*(int)(phi/dmult);
-  
-  //
-  // Apply a shift along the x-axis
-  //
-  double x = R*cos(phiS) - ASHIFT*ASCALE;
-  double y = R*sin(phiS);
-
-  return DiskDens(sqrt(x*x + y*y), z, atan2(y, x));
-}
 
 int 
 main(int ac, char **av)
@@ -306,19 +194,19 @@ main(int ac, char **av)
   //====================
 
   int          NUMR, SCMAP, NUMDF;
-  double       RMIN, RCYLMIN, RCYLMAX, SCSPH, RSPHSL, DMFAC, RFACTOR, SHFAC;
+  double       RMIN, RCYLMIN, RCYLMAX, SCSPH, RSPHSL, DMFAC, SHFAC, ACYL;
   double       X0, Y0, Z0, U0, V0, W0;
   int          RNUM, PNUM, TNUM, VFLAG, DFLAG;
   bool         expcond, LOGR, CHEBY, SELECT, DUMPCOEF;
   int          CMAPR, CMAPZ, NCHEB, TCHEB, CMTYPE, NDR, NDZ, NHR, NHT, NDP;
   int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT, NODD, DF;
-  int          DIVERGE, DIVERGE2, SEED, itmax;
+  int          DIVERGE, DIVERGE2, SEED, itmax, nthrds;
   double       DIVERGE_RFAC, DIVERGE_RFAC2;
   double       PPower, R_DF, DR_DF;
-  double       Hratio, scale_height, scale_length, scale_lenfkN;
+  double       Hratio, scale_length, scale_lenfkN;
   double       disk_mass, gas_mass, gscal_length, ToomreQ, Temp, Tmin;
   bool         const_height, images, multi, SVD, DENS, basis, zeropos, zerovel;
-  bool         report, ignore, evolved, diskmodel;
+  bool         report, ignore, evolved;
   int          nhalo, ndisk, ngparam;
   std::string  hbods, dbods, suffix, centerfile, halofile1, halofile2;
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
@@ -440,8 +328,6 @@ main(int ac, char **av)
      cxxopts::value<double>(disk_mass)->default_value("0.05"))
     ("scale_length", "Scale length for the realized disk",
      cxxopts::value<double>(scale_length)->default_value("0.01"))
-    ("scale_height", "Scale height for the realized disk",
-     cxxopts::value<double>(scale_height)->default_value("0.001"))
     ("ToomreQ", "Toomre Q parameter for the disk",
      cxxopts::value<double>(ToomreQ)->default_value("1.4"))
     ("RMIN", "Minimum halo radius",
@@ -456,26 +342,10 @@ main(int ac, char **av)
      cxxopts::value<double>(SCSPH)->default_value("1.0"))
     ("RSPHSL", "Maximum halo expansion radius",
      cxxopts::value<double>(RSPHSL)->default_value("47.5"))
-    ("ASCALE", "Radial scale length for disk basis construction",
-     cxxopts::value<double>(ASCALE)->default_value("1.0"))
-    ("ASHIFT", "Fraction of scale length for shift in conditioning function",
-     cxxopts::value<double>(ASHIFT)->default_value("0.0"))
-    ("HSCALE", "Vertical scale length for disk basis construction",
-     cxxopts::value<double>(HSCALE)->default_value("0.1"))
-    ("ARATIO", "Radial scale length ratio for disk basis construction with doubleexpon",
-     cxxopts::value<double>(ARATIO)->default_value("1.0"))
-    ("HRATIO", "Vertical scale height ratio for disk basis construction with doubleexpon",
-     cxxopts::value<double>(HRATIO)->default_value("1.0"))
-    ("DWEIGHT", "Ratio of second disk relative to the first disk for disk basis construction with double-exponential",
-     cxxopts::value<double>(DWEIGHT)->default_value("1.0"))
-    ("RTRUNC", "Maximum disk radius for erf truncation of EOF conditioning density",
-     cxxopts::value<double>(RTRUNC)->default_value("0.1"))
-    ("RWIDTH", "Width for erf truncationofr EOF conditioning density (ignored if zero)",
-     cxxopts::value<double>(RWIDTH)->default_value("0.0"))
+    ("ACYL", "Radial scale length for disk basis construction",
+     cxxopts::value<double>(ACYL)->default_value("0.6"))
     ("DMFAC", "Disk mass scaling factor for spherical deprojection model",
      cxxopts::value<double>(DMFAC)->default_value("1.0"))
-    ("RFACTOR", "Disk radial scaling factor for spherical deprojection model",
-     cxxopts::value<double>(RFACTOR)->default_value("1.0"))
     ("X0", "Disk-Halo x center position",
      cxxopts::value<double>(X0)->default_value("0.0"))
     ("Y0", "Disk-Halo y center position",
@@ -500,8 +370,6 @@ main(int ac, char **av)
      cxxopts::value<int>(CMAPZ)->default_value("1"))
     ("centerfile", "File containing phase-space center",
      cxxopts::value<std::string>(centerfile))
-    ("runtag", "Prefix for output files",
-     cxxopts::value<std::string>(runtag)->default_value("gendisk"))
     ("suffix", "Suffix for output files",
      cxxopts::value<std::string>(suffix)->default_value("diag"))
     ("threads", "Number of threads to run",
@@ -568,68 +436,6 @@ main(int ac, char **av)
     SphericalModelTable::linear = 1;
   }
 
-				// Convert mtype string to lower case
-  std::transform(mtype.begin(), mtype.end(), mtype.begin(),
-		 [](unsigned char c){ return std::tolower(c); });
-
-				// Convert gentype string to lower case
-  std::transform(gentype.begin(), gentype.end(), gentype.begin(),
-		 [](unsigned char c){ return std::tolower(c); });
-
-  // Set EmpCylSL mtype.  This is the spherical function used to
-  // generate the EOF basis.  If "deproject" is set, this will be
-  // overriden in EmpCylSL.
-  //
-  EmpCylSL::mtype = EmpCylSL::Exponential;
-  if (vm.count("mtype")) {
-    if (mtype.compare("exponential")==0)
-      EmpCylSL::mtype = EmpCylSL::Exponential;
-    else if (mtype.compare("gaussian")==0)
-      EmpCylSL::mtype = EmpCylSL::Gaussian;
-    else if (mtype.compare("plummer")==0)
-      EmpCylSL::mtype = EmpCylSL::Plummer;
-    else if (mtype.compare("power")==0) {
-      EmpCylSL::mtype = EmpCylSL::Power;
-      EmpCylSL::PPOW  = PPower;
-    } else {
-      if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
-			     << mtype << ">, valid types are: "
-			     << "Exponential, Gaussian, Plummer, Power "
-			     << "(not case sensitive)" << std::endl;
-      MPI_Finalize();
-      return 0;
-    }
-  }
-
-  // Set DiskType.  This is the functional form for the disk used to
-  // condition the basis.
-  //
-				// Convert dtype string to lower case
-  std::transform(dtype.begin(), dtype.end(), dtype.begin(),
-		 [](unsigned char c){ return std::tolower(c); });
-
-  try {				// Check for map entry, will through if the 
-    DTYPE = dtlookup.at(dtype);	// key is not in the map.
-
-    if (myid==0)		// Report DiskType
-      std::cout << "DiskType is <" << dtype << ">" << std::endl;
-  }
-  catch (const std::out_of_range& err) {
-    if (myid==0) {
-      std::cout << "DiskType error in configuraton file" << std::endl;
-      std::cout << "Valid options are: ";
-      for (auto v : dtlookup) std::cout << v.first << " ";
-      std::cout << std::endl;
-    }
-    MPI_Finalize();
-    return 0;
-  }
-
-  if (vm.count("diskmodel"))
-    diskmodel = true;
-  else
-    diskmodel = false;
-
   //====================
   // Cheb order for
   // SphericalModel DF 
@@ -646,7 +452,9 @@ main(int ac, char **av)
 #pragma omp parallel
   if (myid==0) {
     int numthrd = omp_get_num_threads();
-    std::cout << "Number of threads=" << numthrd << std::endl;
+    std::cout << "---- Number of threads=" << numthrd << std::endl
+	      << "---- Maximum # threads=" << omp_get_max_threads()
+	      << std::endl;
   }
 #endif
 
@@ -755,9 +563,10 @@ main(int ac, char **av)
 
   YAML::Emitter yml;
   yml << YAML::BeginMap;
-  yml << YAML::Key << "acyltbl"   << YAML::Value << scale_length;
+  yml << YAML::Key << "acyltbl"   << YAML::Value << ACYL;
   yml << YAML::Key << "rcylmin"   << YAML::Value << RCYLMIN;
   yml << YAML::Key << "rcylmax"   << YAML::Value << RCYLMAX;
+  yml << YAML::Key << "scale"     << YAML::Value << scale_length;
   yml << YAML::Key << "numx"      << YAML::Value << NUMX;
   yml << YAML::Key << "numy"      << YAML::Value << NUMY;
   yml << YAML::Key << "numr"      << YAML::Value << NUMR;
@@ -784,7 +593,7 @@ main(int ac, char **av)
     diskhalo =
       std::make_shared<Disk2dHalo>
       (expandh, expandd,
-       scale_height, scale_length, disk_mass, ctype,
+       scale_length, disk_mass, ctype,
        halofile1, DIVERGE,  DIVERGE_RFAC,
        halofile2, DIVERGE2, DIVERGE_RFAC2,
        Disk2dHalo::getDiskGenType[gentype]);
@@ -795,8 +604,7 @@ main(int ac, char **av)
     if (myid==0) std::cout << "Initializing for a SINGLE-MASS halo . . . " << std::flush;
     diskhalo = std::make_shared<Disk2dHalo>
       (expandh, expandd,
-       scale_height, scale_length, 
-       disk_mass, ctype, halofile1,
+       scale_length, disk_mass, ctype, halofile1,
        DF, DIVERGE, DIVERGE_RFAC,
        Disk2dHalo::getDiskGenType[gentype]);
     if (myid==0) std::cout << "done" << std::endl;
@@ -1087,7 +895,7 @@ main(int ac, char **av)
   diskhalo->virial_ratio(hparticles, dparticles);
 
   std::ofstream outprof("profile.diag");
-  diskhalo->profile(outprof, dparticles, 3.0e-3*ASCALE, 5.0*ASCALE, 100);
+  diskhalo->profile(outprof, dparticles, 3.0e-3*scale_length, 5.0*scale_length, 100);
 
   //===========================================================================
   // Shutdown MPI

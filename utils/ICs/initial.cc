@@ -747,7 +747,9 @@ main(int ac, char **av)
 #pragma omp parallel
   if (myid==0) {
     int numthrd = omp_get_num_threads();
-    std::cout << "Number of threads=" << numthrd << std::endl;
+    std::cout << "---- Number of threads=" << numthrd << std::endl
+	      << "---- Maximum # threads=" << omp_get_max_threads()
+	      << std::endl;
   }
 #endif
 

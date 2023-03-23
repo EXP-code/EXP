@@ -88,7 +88,7 @@ Disk2dHalo()
 
 Disk2dHalo::
 Disk2dHalo(SphericalSLptr haloexp, std::shared_ptr<Disk2d> diskexp,
-	   double H, double A, double DMass, std::string maptype,
+	   double A, double DMass, std::string maptype,
 	   string& filename, int DF1, int DIVERGE, double DIVERGE_RFAC,
 	   DiskGenType type)
 {
@@ -109,7 +109,6 @@ Disk2dHalo(SphericalSLptr haloexp, std::shared_ptr<Disk2d> diskexp,
 
   dmass       = DMass;
   scalelength = A;
-  scaleheight = H;
 
   expandh     = haloexp;
   expandd     = diskexp;
@@ -173,7 +172,7 @@ Disk2dHalo(SphericalSLptr haloexp, std::shared_ptr<Disk2d> diskexp,
 
 Disk2dHalo::
 Disk2dHalo(SphericalSLptr haloexp, std::shared_ptr<Disk2d> diskexp,
-	   double H, double A, double DMass, std::string maptype,
+	   double A, double DMass, std::string maptype,
 	   std::string& filename1, int DIVERGE, double DIVERGE_RFAC,
 	   std::string& filename2, int DIVERGE2, double DIVERGE_RFAC2,
 	   DiskGenType type)
@@ -193,7 +192,6 @@ Disk2dHalo(SphericalSLptr haloexp, std::shared_ptr<Disk2d> diskexp,
 
   dmass       = DMass;
   scalelength = A;
-  scaleheight = H;
 
   expandh     = haloexp;
   expandd     = diskexp;
@@ -315,9 +313,7 @@ Disk2dHalo::Disk2dHalo(const Disk2dHalo &p)
   halo3  = p.halo3;
   multi  = p.multi;
   disk   = p.disk;
-
-  scaleheight = p.scaleheight;
-  dmass = p.dmass;
+  dmass  = p.dmass;
 
   for (int k=0; k<3; k++) {
     center_pos[k] = p.center_pos[k];
@@ -351,13 +347,6 @@ Disk2dHalo::Disk2dHalo(const Disk2dHalo &p)
   Xmax  = p.Xmax;
 
   bufcnt = 0;
-}
-
-
-double Disk2dHalo::disk_density(double R, double z)
-{
-  double q = 1.0/cosh(z/scaleheight);
-  return disk_surface_density(R)*q*q*0.5/scaleheight;
 }
 
 double Disk2dHalo::disk_surface_density(double R)
@@ -1564,7 +1553,7 @@ double Disk2dHalo::vr_disp2(double xp, double yp, double zp)
   double r = sqrt(xp*xp + yp*yp);
 
   if (Q <= 0.0) {
-    double smth = 0.25*scaleheight;
+    double smth = 0.025*scalelength;
     return sigma0*sigma0*exp(-sqrt(r*r + smth*smth)/scalelength);
   } else {
     if (r > 10.0*scalelength) return 0.0;
