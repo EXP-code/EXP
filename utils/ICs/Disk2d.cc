@@ -125,7 +125,8 @@ void Disk2d::setup_accum()
 {
   if (accum_setup) return;
 
-  int nthrds = omp_get_max_threads();
+  // The maximum number of possible threads for this process
+  nthrds = omp_get_max_threads();
 
   potd.resize(nthrds);
   for (auto & v : potd) v.resize(2*mmax+1, nmax);
@@ -135,6 +136,7 @@ void Disk2d::setup_accum()
   potr.resize(2*mmax+1, nmax);
   potz.resize(2*mmax+1, nmax);
 
+  cylmass1.resize(nthrds);
   expcoef0.resize(nthrds);
   for (auto & v : expcoef0) v.resize(2*mmax+1, nmax);
     
@@ -183,7 +185,7 @@ void Disk2d::get_potl_dens(double r, double z, Eigen::MatrixXd& p,
 
 void Disk2d::accumulate(double R, double phi, double mass)
 {
-  constexpr double norm0 = sqrt(2.0*M_PI);
+  constexpr double norm0 = -sqrt(2.0*M_PI);
 
   double r = R + 10.0*std::numeric_limits<double>::min();
       
