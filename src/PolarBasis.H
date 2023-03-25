@@ -56,9 +56,6 @@ protected:
   //! Work vectors to make recursion evaluations thread safe
   std::vector<Eigen::VectorXd> u;
 
-  //! Work vectors to make recursion evaluations thread safe
-  std::vector<Eigen::VectorXd> du;
-
   //! Matrices per thread for obtaining potential field
   std::vector<Eigen::MatrixXd> potd;
 
@@ -179,7 +176,6 @@ protected:
   unsigned sampT, defSampT;
 
   std::vector<double> cylmass1;
-  bool cylmass_made;
   double cylmass;
   double minSNR, maxSNR;
 
