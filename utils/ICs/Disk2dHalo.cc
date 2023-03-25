@@ -882,7 +882,7 @@ get_hdpot(double xp, double yp, double zp)
   theta = 0.5*M_PI;
   phi = atan2(yp, xp);
   expandh->determine_fields_at_point(r, theta, phi, 
-				    &dens, &potl, &potr, &pott, &potp);
+				     &dens, &potl, &potr, &pott, &potp);
   
   return potr;
 }
@@ -892,7 +892,7 @@ get_ddpot(double xp, double yp, double zp)
 {
   if (!expandd) return 0.0;
 
-  double r = sqrt(xp*xp + yp*yp);
+  double r   = sqrt(xp*xp + yp*yp);
   double phi = atan2(yp, xp);
   double p, fr, fz, fp;
 
@@ -2514,8 +2514,7 @@ void Disk2dHalo::virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart)
     R2 = xx*xx + yy*yy + std::numeric_limits<double>::min();
     R = sqrt(R2);
     
-    if (expandd) 
-      disk_eval(R, zz, phi, potl, fr, fz, fp);
+    if (expandd) disk_eval(R, zz, phi, potl, fr, fz, fp);
     
     axd = fr*xx/R - fp*yy/R2;
     ayd = fr*yy/R + fp*xx/R2;
@@ -2558,8 +2557,7 @@ void Disk2dHalo::virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart)
     R2 = xx*xx + yy*yy;
     R = sqrt(R2);
     
-    if (expandd) 
-      disk_eval(R, zz, phi, potl, fr, fz, fp);
+    if (expandd) disk_eval(R, zz, phi, potl, fr, fz, fp);
     
     axd = fr*xx/R - fp*yy/R2;
     ayd = fr*yy/R + fp*xx/R2;
@@ -2723,8 +2721,7 @@ void Disk2dHalo::virial_ratio(const char *hfile, const char *dfile)
       R2 = xx*xx + yy*yy + std::numeric_limits<double>::min();
       R = sqrt(R2);
 
-      if (expandd)
-	disk_eval(R, zz, phi, potl, fr, fz, fp);
+      if (expandd) disk_eval(R, zz, phi, potl, fr, fz, fp);
 
       ax = -(potr*xx/r - pott*xx*zz/(r*r*r)) + fr*xx/R - fp*yy/R2;
       ay = -(potr*yy/r - pott*yy*zz/(r*r*r)) + fr*yy/R + fp*xx/R2;

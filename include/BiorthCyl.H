@@ -72,12 +72,12 @@ protected:
   //! Interpolate on grid
   double interp(int m, int n, double R, double z,
 		const std::vector<std::vector<Eigen::MatrixXd>>& mat,
-		bool asymmetric=false);
+		bool anti_symmetric=false);
 
   //! Matrix interpolation on grid for coefficient composition
   void interp(double R, double z,
 	      const std::vector<std::vector<Eigen::MatrixXd>>& mat,
-	      Eigen::MatrixXd& ret, bool asymmetric=false);
+	      Eigen::MatrixXd& ret, bool anti_symmetric=false);
 
   //! Default cache file name
   const std::string default_cache = ".biorth_cache";

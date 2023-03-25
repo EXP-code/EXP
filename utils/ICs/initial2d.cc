@@ -197,7 +197,7 @@ main(int ac, char **av)
   double       RMIN, RCYLMIN, RCYLMAX, SCSPH, RSPHSL, DMFAC, SHFAC, ACYL;
   double       X0, Y0, Z0, U0, V0, W0;
   int          RNUM, PNUM, TNUM, VFLAG, DFLAG;
-  bool         expcond, LOGR, CHEBY, SELECT, DUMPCOEF;
+  bool         LOGR, CHEBY, SELECT, DUMPCOEF;
   int          CMAPR, CMAPZ, NCHEB, TCHEB, CMTYPE, NDR, NDZ, NHR, NHT, NDP;
   int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT, NODD, DF;
   int          DIVERGE, DIVERGE2, SEED, itmax, nthrds;
@@ -272,13 +272,9 @@ main(int ac, char **av)
      cxxopts::value<int>(VFLAG)->default_value("31"))
     ("DFLAG", "",
      cxxopts::value<int>(DFLAG)->default_value("31"))
-    ("expcond", "",
-     cxxopts::value<bool>(expcond)->default_value("false"))
-    ("report", "",
-     cxxopts::value<bool>(report)->default_value("false"))
-    ("ignore", "",
+    ("ignore", "Build a new cache file",
      cxxopts::value<bool>(ignore)->default_value("false"))
-    ("evolved", "",
+    ("evolved", "Use an existing halo file as input",
      cxxopts::value<bool>(evolved)->default_value("false"))
     ("multi", "Turn on multimass halo generation",
      cxxopts::value<bool>(multi)->default_value("false"))
@@ -376,6 +372,7 @@ main(int ac, char **av)
      cxxopts::value<int>(nthrds)->default_value("1"))
     ("allow", "Allow multimass algorithm to generature negative masses for testing")
     ("nomono", "Allow non-monotonic mass interpolation")
+    ("report", "Print out progress in BiorthCyl table evaluation")
     ("diskmodel", "Table describing the model for the disk plane")
     ;
   
@@ -577,6 +574,8 @@ main(int ac, char **av)
   yml << YAML::Key << "nmaxfid"   << YAML::Value << NMAXFID;
   yml << YAML::Key << "logr"      << YAML::Value << LOGR;
   yml << YAML::Key << "cachename" << YAML::Value << cachefile;
+  if (vm.count("report"))
+    yml << YAML::Key << "verbose" << YAML::Value << true;
   yml << YAML::EndMap;
   
                                 // Create expansion only if needed . . .
@@ -853,8 +852,11 @@ main(int ac, char **av)
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (myid==0) {
-      std::cout << "done" << std::endl;
-      std::cout << "Reexpand . . . " << std::flush;
+      ostringstream sout;
+      sout << "disk_coefs.";
+      if (suffix.size()>0) sout << suffix;
+      else                 sout << "dump";
+      expandd->write_coefficients(sout.str());
     }
 
     MPI_Barrier(MPI_COMM_WORLD);

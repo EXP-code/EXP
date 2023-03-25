@@ -21,6 +21,7 @@
 #include <EXPException.H>	// For GenericError
 
 #include <numerical.H>
+#include <Progress.H>		// Progress bar
 #include <gaussQ.H>
 
 #include <libvars.H>
@@ -169,9 +170,18 @@ void BiorthCyl::create_tables()
 
   if (conf["basis"]) emp.basisTest(true);
 
-  if (myid==0)
+  std::shared_ptr<progress::progress_display> progress;
+
+  if (myid==0) {
     std::cout << "---- BiorthCyl::create_tables: creating 3d basis..."
 	      << std::endl;
+    if (verbose) {
+      int total = (mmax+1)*nmax*numx*numy;
+      progress = std::make_shared<progress::progress_display>(total);
+    }
+  }
+
+
 
   // Pack basis grids
   //
@@ -209,11 +219,19 @@ void BiorthCyl::create_tables()
 	    rforce[m][n](ix, iy) = potrz(r, z, func, PotRZ::Field::rforce   );
 	    zforce[m][n](ix, iy) = potrz(r, z, func, PotRZ::Field::zforce   );
 	  }
-
+	}
+	// END: y loop
+	if (verbose and myid==0) {
+	  ++(*progress);
 	}
       }
+      // END: x loop
     }
+    // END: n loop
   }
+  // END: m loop
+
+  if (verbose and myid==0) std::cout << std::endl;
 
   for (int m=0; m<=mmax; m++) {
     for (int n=0; n<nmax; n++) {
@@ -322,16 +340,21 @@ double BiorthCyl::d_yi_to_z(double y)
 // Matrix interpolation on grid for n-body
 void BiorthCyl::interp(double R, double Z,
 		       const std::vector<std::vector<Eigen::MatrixXd>>& mat,
-		       Eigen::MatrixXd& ret, bool asymmetric)
+		       Eigen::MatrixXd& ret, bool anti_symmetric)
 {
   ret.resize(mmax+1, nmax);
   ret.setZero();
 
+  // Off grid in radial dimension
   if (R/scale>rcylmax) return;
 
   double z = fabs(Z);
 
+  // Off grid in vertical dimension
   if (z/scale>rcylmax) return;
+
+  // Remove mid-plane discontinuity
+  if (anti_symmetric and fabs(z/scale) < 1.0e-6) return;
 
   double X = (r_to_xi(R) - xmin)/dx;
   double Y = (z_to_yi(z) - ymin)/dy;
@@ -377,21 +400,26 @@ void BiorthCyl::interp(double R, double Z,
     }
   }
 
-  if (Z<0.0 and asymmetric) ret *= -1.0;
+  if (Z<0.0 and anti_symmetric) ret *= -1.0;
 }
 
 
 double BiorthCyl::interp(int m, int n, double R, double Z,
 			 const std::vector<std::vector<Eigen::MatrixXd>>& mat,
-			 bool asymmetric)
+			 bool anti_symmetric)
 {
   double ret = 0.0;
 
+  // Off grid in radial dimension
   if (R/scale>rcylmax or n>=nmax or m>mmax) return ret;
 
   double z = fabs(Z);
 
+  // Off grid in vertical dimension
   if (z/scale>rcylmax) return ret;
+
+  // Remove mid-plane discontinuity
+  if (anti_symmetric and z/scale < 1.0e-6) return ret;
 
   double X = (r_to_xi(R) - xmin)/dx;
   double Y = (z_to_yi(z) - ymin)/dy;
@@ -433,7 +461,7 @@ double BiorthCyl::interp(int m, int n, double R, double Z,
     mat[m][n](ix  , iy+1) * c01 +
     mat[m][n](ix+1, iy+1) * c11 ;
 
-  if (Z<0.0 and asymmetric) ret *= -1.0;
+  if (Z<0.0 and anti_symmetric) ret *= -1.0;
 
   return ret;
 }
@@ -627,8 +655,8 @@ bool BiorthCyl::ReadH5Cache()
   } catch (HighFive::Exception& err) {
     if (myid==0)
       std::cerr << "---- BiorthCyl::ReadH5Cache: "
-		<< "error opening HDF5 basis cache"
-		<< std::endl;
+		<< "error opening HDF5 basis cache <"
+		<< cachename << ">" << std::endl;
   }
 
   return false;
