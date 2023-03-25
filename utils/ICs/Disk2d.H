@@ -170,6 +170,9 @@ public:
   //! Finish making the coefficients after accumulation
   void make_coefficients();
 
+  //! Write coefficients to a file for debugging
+  void write_coefficients(const std::string& outfile);
+
   //! Add single particle to coefficients
   void accumulate(double r, double phi, double mass);
 

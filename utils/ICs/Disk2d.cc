@@ -261,6 +261,8 @@ void Disk2d::make_coefficients()
 std::tuple<double, double, double, double, double, double, double>
 Disk2d::accumulated_eval(double R, double z, double phi)
 {
+  constexpr double norm0 = 1.0/sqrt(2.0*M_PI);
+
   double d0=0.0, d1=0.0, p0=0.0, p1=0.0, fr=0.0, fz=0.0, fp=0.0;
 
   if (R>getRtable() or fabs(z)>getRtable()) {
@@ -283,10 +285,10 @@ Disk2d::accumulated_eval(double R, double z, double phi)
 
       if (m==0) {
 	for (int n=0; n<nmax; n++) {
-	  d0 += expcoef(moffset, n)*dend(m, n);
-	  p0 += expcoef(moffset, n)*potl(m, n);
-	  fr += expcoef(moffset, n)*potr(m, n);
-	  fz += expcoef(moffset, n)*potz(m, n);
+	  d0 += expcoef(moffset, n)*norm0 * dend(m, n);
+	  p0 += expcoef(moffset, n)*norm0 * potl(m, n);
+	  fr += expcoef(moffset, n)*norm0 * potr(m, n);
+	  fz += expcoef(moffset, n)*norm0 * potz(m, n);
 	}
 	
 	moffset++;
@@ -296,15 +298,65 @@ Disk2d::accumulated_eval(double R, double z, double phi)
 	double cosm = cos(phi*m), sinm = sin(phi*m);
 
 	for (int n=0; n<nmax; n++) {
-	  d1 += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*dend(m, n);
-	  p1 += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*potl(m, n);
-	  fr += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*potr(m, n);
-	  fz += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*potz(m, n);
-	  fp += (-expcoef(moffset, n)*sinm + expcoef(moffset+1, n)*cosm )*potl(m, n);
+	  d1 += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm0*
+	    dend(m, n);
+	  p1 += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm0*
+	    potl(m, n);
+	  fr += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm0*
+	    potr(m, n);
+	  fz += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm0*
+	    potz(m, n);
+	  fp += (-expcoef(moffset, n)*sinm + expcoef(moffset+1, n)*cosm )*norm0*
+	    potl(m, n);
 	}
       }
     }
   }
     
   return {d0, d1, p0, p1, fr, fz, fp};
+}
+
+
+void Disk2d::write_coefficients(const std::string& outfile)
+{
+  std::ofstream out(outfile);
+
+  if (out) {
+
+    out << "#" << std::string(60, '-') << std::endl
+	<< "# cylmass=" << cylmass << std::endl
+	<< "#" << std::string(60, '-') << std::endl;
+
+    for (int m=0, moffset=0; m<=mmax; m++) {
+
+      if (m==0) {
+	  
+	for (int n=0; n<nmax; n++) {
+	  out  << std::setw(4)  << m
+	       << std::setw(4)  << n
+	       << std::setw(18) << expcoef(moffset, n)
+	       << std::endl;
+	}
+
+	moffset++;
+	
+      } else {
+	  
+	for (int n=0; n<nmax; n++) {
+	  out << std::setw(4)  << m
+	      << std::setw(4)  << n
+	      << std::setw(18) << expcoef(moffset  , n)
+	      << std::setw(18) << expcoef(moffset+1, n)
+	      << std::endl;
+	}
+	
+	moffset+=2;
+      }
+    }
+    // END: m loop
+    out << std::string(60, '-') << std::endl;
+  } else {
+    std::cout << "Disk2d::write_coefficients: could not open file <"
+	      << outfile << ">" << std::endl;
+  }
 }
