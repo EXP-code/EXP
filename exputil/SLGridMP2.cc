@@ -446,68 +446,79 @@ int SLGridCyl::read_cached_table(void)
     
 
   if (MMAX!=mmax) {
-    std::cout << "---- SLGridCyl::read_cached_table: found mmax=" << MMAX
-	      << " wanted " << mmax << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found mmax=" << MMAX
+		<< " wanted " << mmax << std::endl;
     return 0;
   }
 
   if (NMAX!=nmax) {
-    std::cout << "---- SLGridCyl::read_cached_table: found nmax=" << NMAX
-	      << " wanted " << nmax << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found nmax=" << NMAX
+		<< " wanted " << nmax << std::endl;
     return 0;
   }
 
   if (NUMK!=numk) {
-    std::cout << "---- SLGridCyl::read_cached_table: found numk=" << NUMK
-	      << " wanted " << numk << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found numk=" << NUMK
+		<< " wanted " << numk << std::endl;
     return 0;
   }
 
   if (NUMR!=numr) {
-    std::cout << "---- SLGridCyl::read_cached_table: found numr=" << NUMR
-	      << " wanted " << numr << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found numr=" << NUMR
+		<< " wanted " << numr << std::endl;
     return 0;
   }
 
   if (CMAP!=cmap) {
-    std::cout << "---- SLGridCyl::read_cached_table: found cmap=" << CMAP
-	      << " wanted " << cmap << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found cmap=" << CMAP
+		<< " wanted " << cmap << std::endl;
     return 0;
   }
 
   if (RMIN!=rmin) {
-    std::cout << "---- SLGridCyl::read_cached_table: found rmin=" << RMIN
-	      << " wanted " << rmin << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found rmin=" << RMIN
+		<< " wanted " << rmin << std::endl;
     return 0;
   }
 
   if (RMAX!=rmax) {
-    std::cout << "---- SLGridCyl::read_cached_table: found rmax=" << RMAX
-	      << " wanted " << rmax << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found rmax=" << RMAX
+		<< " wanted " << rmax << std::endl;
     return 0;
   }
 
   if (SCL!=scale) {
-    std::cout << "---- SLGridCyl::read_cached_table: found scale=" << SCL
-	      << " wanted " << scale << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found scale=" << SCL
+		<< " wanted " << scale << std::endl;
     return 0;
   }
 
   if (L!=l) {
-    std::cout << "---- SLGridCyl::read_cached_table: found l=" << L
-	      << " wanted " << l << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found l=" << L
+		<< " wanted " << l << std::endl;
     return 0;
   }
 
   if (AA!=A) {
-    std::cout << "---- SLGridCyl::read_cached_table: found A=" << AA
-	      << " wanted " << A << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found A=" << AA
+		<< " wanted " << A << std::endl;
     return 0;
   }
 
   if (MODEL!=cyl->ID()) {
-    std::cout << "---- SLGridCyl::read_cached_table: found ID=" << MODEL
-	      << " wanted " << cyl->ID() << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found ID=" << MODEL
+		<< " wanted " << cyl->ID() << std::endl;
     return 0;
   }
 
@@ -1782,40 +1793,36 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
   }
 
   table = 0;
+  
+  if (not ReadH5Cache()) {
 
-  if (mpi) {
+    // MPI loop
+    //
+    if (mpi) {
 
-    table =  new TableSph [lmax+1];
-
-    mpi_setup();
-
-    if (mpi_myid) {
-      compute_table_worker();
-
-      //
-      // <Receive completed table from root>
-      //
-
-      for (l=0; l<=lmax; l++) {
-
-	/*
-	MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, 0,
-		 MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-	*/
-
-	MPI_Bcast(mpi_buf, mpi_bufsz, MPI_PACKED, 0, MPI_COMM_WORLD);
-    
-	mpi_unpack_table();      
-      }
+      table =  new TableSph [lmax+1];
       
-    }
-    else {			// BEGIN Root
+      mpi_setup();
+      
+      if (mpi_myid) {		// Begin workers
+	compute_table_worker();
+	
+	//
+	// <Receive completed table from root>
+	//
 
-      int worker = 0;
-      int request_id = 1;
+	for (l=0; l<=lmax; l++) {
 
-      if (not ReadH5Cache()) {
-
+	  MPI_Bcast(mpi_buf, mpi_bufsz, MPI_PACKED, 0, MPI_COMM_WORLD);
+    
+	  mpi_unpack_table();      
+	}
+	
+      }
+      else {			// BEGIN Root
+	
+	int worker = 0;
+	int request_id = 1;
 
 	l=0;
 
@@ -1823,118 +1830,111 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
 	  if (worker<mpi_numprocs-1) { // Send request to worker
 	    worker++;
-      
-
+	    
+	    
 	    if (tbdbg)
 	      std::cout << "Root sending orders to Worker " << worker 
 			<< ": l=" << l << std::endl; 
-
+	    
 	    MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
 	    MPI_Send(&l, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
-      
+	    
 	    if (tbdbg)
 	      std::cout << "Root gave orders to Worker " << worker 
 			<< ": l=" << l << std::endl;
-
-				// Increment counters
+	    
+	    // Increment counters
 	    l++;
 	  }
-
+	  
 	  if (worker == mpi_numprocs-1 && l<=lmax) {
 	  
 	    //
 	    // <Wait and receive>
 	    //
-	
+	    
 	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		     MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 	    
 	    int retid = status.MPI_SOURCE;
-
+	  
 	    mpi_unpack_table();      
 
 	    //
 	    // <Send new request>
 	    //
-
+	    
 	    MPI_Send(&request_id, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
 	    MPI_Send(&l, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
-      
+	    
 	    if (tbdbg) 
 	      std::cout << "Root g orders to Worker " << retid
 			<< ": l=" << l << std::endl;
-
-				// Increment counters
+	    
+	    // Increment counters
 	    l++;
 	  }
 	}
-      
+	
 	//
 	// <Wait for all workers to return>
 	//
-  
+      
 	while (worker) {
 	
 	
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    
+	  
 	  mpi_unpack_table();      
-
+	  
 	  worker--;
 	}
 
-	if (cache) WriteH5Cache();
-
-      }
-
-
-      //
-      // <Tell workers to continue>
-      //
-
-      request_id = -1;
-      for (worker=1; worker < mpi_numprocs; worker++)
-	MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
-
-
-      //
-      // <Send table to workers>
-      //
-
-      for (l=0; l<=lmax; l++) {
-	int position = mpi_pack_table(&table[l], l);
-
-	/*
+	//
+	// <Tell workers to continue>
+	//
+      
+	request_id = -1;
 	for (worker=1; worker < mpi_numprocs; worker++)
-	  MPI_Send(mpi_buf, position, MPI_PACKED, worker, 11, MPI_COMM_WORLD);
-	*/
+	  MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
 
-	MPI_Bcast(mpi_buf, position, MPI_PACKED, 0, MPI_COMM_WORLD);
+
+	//
+	// <Send table to workers>
+	//
+
+	for (l=0; l<=lmax; l++) {
+	  int position = mpi_pack_table(&table[l], l);
+
+	  MPI_Bcast(mpi_buf, position, MPI_PACKED, 0, MPI_COMM_WORLD);
+	}
+
       }
+      // END Root
+    }
+    // END MPI stanza, BEGIN single-process stanza
+    else {
 
-
-    } // END Root
-
-  }
-  else {
-
-    table =  new TableSph [lmax+1];
-
-    if (not ReadH5Cache()) {
+      table =  new TableSph [lmax+1];
 
       for (l=0; l<=lmax; l++) {
 	if (tbdbg) std::cerr << "Begin [" << l << "] . . ." << std::endl;
 	compute_table(&(table[l]), l);
 	if (tbdbg) std::cerr << ". . . done" << std::endl;
       }
-      if (cache) WriteH5Cache();
     }
+    // END single process stanza
+
+    // Write cache
+    //
+    if (myid==0 and cache) WriteH5Cache();
   }
+  // END: make tables
 
   if (tbdbg)
     std::cerr << "Process " << myid << ": exiting constructor" << std::endl;
-
+  
 }
 
 void check_vector_values_SL(const Eigen::VectorXd& v)
@@ -1990,8 +1990,10 @@ bool SLGridSph::ReadH5Cache(void)
     {
       int v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
       if (value == v) return true;
-      std::cout << "Parameter " << name << ": wanted " << value
-		<< " found " << v << std::endl;
+      if (myid==0)
+	std::cout << "---- SLGridSph::ReadH5Cache: "
+		  << "parameter " << name << ": wanted " << value
+		  << " found " << v << std::endl;
       return false;
     };
 
@@ -1999,8 +2001,10 @@ bool SLGridSph::ReadH5Cache(void)
     {
       double v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
       if (fabs(value - v) < 1.0e-16) return true;
-      std::cout << "Parameter " << name << ": wanted " << value
-		<< " found " << v << std::endl;
+      if (myid==0)
+	std::cout << "---- SLGridSph::ReadH5Cache: "
+		  << "parameter " << name << ": wanted " << value
+		  << " found " << v << std::endl;
       return false;
     };
 
@@ -2008,8 +2012,10 @@ bool SLGridSph::ReadH5Cache(void)
     {
       std::string v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
       if (value.compare(v)==0) return true;
-      std::cout << "Parameter " << name << ": wanted " << value
-		<< " found " << v << std::endl;
+      if (myid==0)
+	std::cout << "---- SLGridSph::ReadH5Cache: "
+		  << "parameter " << name << ": wanted " << value
+		  << " found " << v << std::endl;
       return false;
     };
 
@@ -2040,27 +2046,33 @@ bool SLGridSph::ReadH5Cache(void)
     //
     auto harmonic = h5file.getGroup("Harmonic");
 
+    // Create table instances
+    //
+    table = new TableSph [lmax+1];
+
     for (int l=0; l<=lmax; l++) {
       std::ostringstream sout;
       sout << l;
       auto arrays = harmonic.getGroup(sout.str());
       
+      // Table arrays will be allocated
+      //
       arrays.getDataSet("ev").read(table[l].ev);
       arrays.getDataSet("ef").read(table[l].ef);
     }
     
     if (myid==0)
       std::cerr << "---- SLGridSph::ReadH5Cache: "
-		<< "read basis cache <" << sph_cache_name << ">"
-		<< std::endl;
+		<< "successfully read basis cache <" << sph_cache_name
+		<< ">" << std::endl;
 
     return true;
     
   } catch (HighFive::Exception& err) {
     if (myid==0)
       std::cerr << "---- SLGridSph::ReadH5Cache: "
-		<< "error opening as HDF5 basis cache"
-		<< std::endl;
+		<< "error opening <" << sph_cache_name
+		<< "> as HDF5 basis cache" << std::endl;
   }
 
   return false;
@@ -2115,7 +2127,7 @@ void SLGridSph::WriteH5Cache(void)
   }
     
   std::cout << "---- SLGridSph::WriteH5Cache: "
-	    << "wrote <" << sph_cache_name + ".h5>" << std::endl;
+	    << "wrote <" << sph_cache_name << ">" << std::endl;
   
   return ;
 }
@@ -3391,56 +3403,65 @@ int SLGridSlab::read_cached_table(void)
     
 
   if (NUMK!=numk) {
-    std::cout << "---- SLGridSlab::read_cached_table: found numk=" << NUMK
-	      << " wanted " << numk << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found numk=" << NUMK
+		<< " wanted " << numk << std::endl;
     return 0;
   }
 
   if (NMAX!=nmax) {
-    std::cout << "---- SLGridSlab::read_cached_table: found nmax=" << NMAX
-	      << " wanted " << nmax << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found nmax=" << NMAX
+		<< " wanted " << nmax << std::endl;
     return 0;
   }
 
   if (NUMZ!=numz) {
-    std::cout << "---- SLGridSlab::read_cached_table: found numz=" << NUMZ
-	      << " wanted " << numz << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found numz=" << NUMZ
+		<< " wanted " << numz << std::endl;
     return 0;
   }
 
   if (ZMAX!=zmax) {
-    std::cout << "---- SLGridSlab::read_cached_table: found zmax=" << ZMAX
-	      << " wanted " << zmax << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found zmax=" << ZMAX
+		<< " wanted " << zmax << std::endl;
     return 0;
   }
 
   if (HH!=H) {
-    std::cout << "---- SLGridSlab::read_cached_table: found H=" << HH
-	      << " wanted " << H << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found H=" << HH
+		<< " wanted " << H << std::endl;
     return 0;
   }
 
   if (LL!=L) {
-    std::cout << "---- SLGridSlab::read_cached_table: found L=" << LL
-	      << " wanted " << L << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found L=" << LL
+		<< " wanted " << L << std::endl;
     return 0;
   }
 
   if (zbeg!=ZBEG) {
-    std::cout << "---- SLGridSlab::read_cached_table: found ZBEG=" << ZBEG
-	      << " wanted " << zbeg << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found ZBEG=" << ZBEG
+		<< " wanted " << zbeg << std::endl;
     return 0;
   }
 
   if (zend!=ZEND) {
-    std::cout << "---- SLGridSlab::read_cached_table: found ZEND=" << ZEND
-	      << " wanted " << zend << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found ZEND=" << ZEND
+		<< " wanted " << zend << std::endl;
     return 0;
   }
 
   if (MODEL!=slab->ID()) {
-    std::cout << "---- SLGridSlab::read_cached_table: found ID=" << MODEL
-	      << " wanted " << slab->ID() << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found ID=" << MODEL
+		<< " wanted " << slab->ID() << std::endl;
     return 0;
   }
 
