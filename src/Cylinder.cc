@@ -450,6 +450,10 @@ void Cylinder::initialize()
     if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
+    if (not conf["ncylodd"]) {
+      ncylodd = nmax/4;
+    }
+
     if (conf["self_consistent"])
       self_consistent = conf["self_consistent"].as<bool>();
 
@@ -479,7 +483,7 @@ void Cylinder::initialize()
 
       if (playback->nmax() != nmax) {
 	std::ostringstream sout;
-	sout << "Cylinder: norder for playback [" << playback->nmax()
+	sout << "Cylinder: nmax for playback [" << playback->nmax()
 	     << "] does not match specification [" << nmax << "]";
 	throw GenericError(sout.str(), __FILE__, __LINE__, 1018, false);
       }
@@ -1524,7 +1528,7 @@ void Cylinder::dump_coefs_h5(const std::string& file)
 
   // Check if file exists
   //
-  if (std::filesystem::exists(file + ".h5")) {
+  if (std::filesystem::exists(file)) {
     cylCoefs.clear();
     cylCoefs.add(cur);
     cylCoefs.ExtendH5Coefs(file);

@@ -866,7 +866,7 @@ void CBrockDisk::dump_coefs_h5(const std::string& file)
 
   // Check if file exists
   //
-  if (std::filesystem::exists(file + ".h5")) {
+  if (std::filesystem::exists(file)) {
     cylCoefs.clear();
     cylCoefs.add(cur);
     cylCoefs.ExtendH5Coefs(file);

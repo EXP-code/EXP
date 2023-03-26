@@ -1228,7 +1228,7 @@ namespace CoefClasses
     try {
       // Create a new hdf5 file
       //
-      HighFive::File file(prefix + ".h5",
+      HighFive::File file(prefix,
 			  HighFive::File::ReadWrite |
 			  HighFive::File::Create);
       
@@ -1275,9 +1275,9 @@ namespace CoefClasses
   void Coefs::ExtendH5Coefs(const std::string& prefix)
   {
     try {
-      // Create a new hdf5 file
+      // Open an hdf5 file
       //
-      HighFive::File file(prefix + ".h5",	HighFive::File::ReadWrite);
+      HighFive::File file(prefix, HighFive::File::ReadWrite);
       
       // Get the dataset
       HighFive::DataSet dataset = file.getDataSet("count");

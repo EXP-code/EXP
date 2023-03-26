@@ -1840,7 +1840,7 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
 
   // Check if file exists
   //
-  if (std::filesystem::exists(file + ".h5")) {
+  if (std::filesystem::exists(file)) {
     sphCoefs.clear();
     sphCoefs.add(cur);
     sphCoefs.ExtendH5Coefs(file);

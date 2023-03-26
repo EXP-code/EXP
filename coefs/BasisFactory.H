@@ -433,8 +433,8 @@ namespace BasisClasses
     void initialize();
 
     std::shared_ptr<EmpCylSL> sl;
-    int lmax, mmax, nmax, mlim;
-    int ncylorder, ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
+    int lmaxfid, nmaxfid, mmax, mlim, nmax;
+    int ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
     int rnum, pnum, tnum;
     double rmin, rmax, rcylmin, rcylmax;
     double acyl, hcyl, hexp;

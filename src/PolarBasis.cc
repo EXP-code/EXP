@@ -78,8 +78,6 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 #endif
   is_flat          = false;
 
-  coefs_made       = std::vector<bool>(multistep+1, false);
-
   // Remove matched keys
   //
   for (auto v : valid_keys) current_keys.erase(v);
@@ -283,10 +281,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   // Work vectors
   //
   u. resize(nthrds);
-  du.resize(nthrds);
-
-  for (auto & v : u)  v.resize(nmax+1);
-  for (auto & v : du) v.resize(nmax+1);
+  for (auto & v : u) v.resize(nmax);
 
   firstime_coef  = true;
   firstime_accel = true;
@@ -330,7 +325,6 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   // Initialize accumulation values
   //
   cylmass = 0.0;
-  cylmass_made = false;
   cylmass1 = std::vector<double>(nthrds);
 }
 
@@ -420,7 +414,7 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
   // 
   constexpr double norm0 = sqrt(2.0*M_PI);
 
-  double r, r2, facL, fac1, fac2, phi, mass;
+  double r, r2, facL=1.0, fac1, fac2, phi, mass;
   double xx, yy, zz;
 
   unsigned nbodies = component->levlist[mlevel].size();
@@ -428,7 +422,6 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
-  std::vector<double> wk(nmax);
 
 #ifdef DEBUG
   pthread_mutex_lock(&io_lock);
@@ -506,16 +499,16 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 
 	if (m==0) {
 	  for (int n=0; n<nmax; n++) {
-	    wk[n] = potd[id](m, n)*mass*norm0/normM(m, m);
-	    (*expcoef0[id][moffset])[n] += wk[n];
+	    u[id](n) = potd[id](m, n)*mass*norm0/normM(m, m);
+	    (*expcoef0[id][moffset])(n) += u[id](n);
 	  }
 
 	  if (compute and pcavar) {
 	    pthread_mutex_lock(&cc_lock);
 	    for (int n=0; n<nmax; n++) {
-	      (*expcoefT1[whch][m])[n] += wk[n];
+	      (*expcoefT1[whch][m])(n) += u[id](n);
 	      for (int o=0; o<nmax; o++)
-		(*expcoefM1[whch][m])(n, o) += wk[n]*wk[o]/mass;
+		(*expcoefM1[whch][m])(n, o) += u[id](n)*u[id](o)/mass;
 	    }
 	    pthread_mutex_unlock(&cc_lock);
 	  }
@@ -524,7 +517,7 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	    pthread_mutex_lock(&cc_lock);
 	    for (int n=0; n<nmax; n++) {
 	      for (int o=0; o<nmax; o++) {
-		tvar[0][m](n, o) += wk[n]*wk[o]/mass;
+		tvar[0][m](n, o) += u[id](n)*u[id](o)/mass;
 	      }
 	    }
 	    pthread_mutex_unlock(&cc_lock);
@@ -540,18 +533,18 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 
 	    for (int n=0; n<nmax; n++) {
 
-	      wk[n] = potd[id](m, n)*mass*norm0/normM(m, n);
+	      u[id](n) = potd[id](m, n)*mass*norm0/normM(m, n);
 
-	      (*expcoef0[id][moffset  ])[n] += wk[n]*fac1;
-	      (*expcoef0[id][moffset+1])[n] += wk[n]*fac2;
+	      (*expcoef0[id][moffset  ])(n) += u[id](n)*fac1;
+	      (*expcoef0[id][moffset+1])(n) += u[id](n)*fac2;
 	    }
 
 	    if (compute and pcavar) {
 	      pthread_mutex_lock(&cc_lock);
 	      for (int n=0; n<nmax; n++) {
-		(*expcoefT1[whch][m])[n] += wk[n]*facL;
+		(*expcoefT1[whch][m])[n] += u[id](n)*facL;
 		for (int o=0; o<nmax; o++)
-		  (*expcoefM1[whch][m])(n, o) += wk[n]*wk[o]*facL*facL/mass;
+		  (*expcoefM1[whch][m])(n, o) += u[id](n)*u[id](o)*facL*facL/mass;
 	      }
 	      pthread_mutex_unlock(&cc_lock);
 	    }
@@ -560,7 +553,7 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	      pthread_mutex_lock(&cc_lock);
 	      for (int n=0; n<nmax; n++) {
 		for (int o=0; o<nmax; o++) {
-		  tvar[m][0](n, o) += wk[n]*wk[o]/mass;
+		  tvar[m][0](n, o) += u[id](n)*u[id](o)/mass;
 		}
 	      }
 	      pthread_mutex_unlock(&cc_lock);
@@ -731,9 +724,7 @@ void PolarBasis::determine_coefficients_particles(void)
 
   // Set up for mass on grid
   //
-  if (multistep and mlevel==0) {
-    cylmass = 0.0; 
-    cylmass_made = false; 
+  if (multistep==0 or (mstep==0 and mlevel==0)) {
     std::fill(cylmass1.begin(), cylmass1.end(), 0.0);
     std::fill(use.begin(), use.end(), 0);
   }
@@ -814,17 +805,20 @@ void PolarBasis::determine_coefficients_particles(void)
   cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
 #endif
 
-  // Sum up the results from each thread
-  //
-  for (int i=1; i<nthrds; i++) {
-    for (int l=0; l<2*Mmax+1; l++) (*expcoef0[0][l]) += (*expcoef0[i][l]);
-  }
-  
   if (multistep==0) {
     for (int i=0; i<nthrds; i++) use1 += use[i];
     used += use1;
   }
   
+
+  // Thread reduce
+  //
+  for (int i=1; i<nthrds; i++) {
+    for (int m=0; m<=2*Mmax; m++) *expcoef0[0][m] += *expcoef0[i][m];
+  }
+
+  // MPI reduce
+  //
   for (int m=0, moffset=0; m<=Mmax; m++) {
 
     if (m==0) {
@@ -847,32 +841,34 @@ void PolarBasis::determine_coefficients_particles(void)
 			(*expcoefN[mlevel][moffset]).data(),
 			nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	  
-	  MPI_Allreduce ( (*expcoef0[0][moffset+1]).data(),
-			  (*expcoefN[mlevel][moffset+1]).data(),
-			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	} else {
-	  MPI_Allreduce ( (*expcoef0[0][moffset]).data(),
-			  (*expcoef[moffset]).data(),
-			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	  
-	  MPI_Allreduce ( (*expcoef0[0][moffset+1]).data(),
-			  (*expcoef[moffset+1]).data(),
-			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce ( (*expcoef0[0][moffset+1]).data(),
+			(*expcoefN[mlevel][moffset+1]).data(),
+			nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      } else {
+	MPI_Allreduce ( (*expcoef0[0][moffset]).data(),
+			(*expcoef[moffset]).data(),
+			nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	
+	MPI_Allreduce ( (*expcoef0[0][moffset+1]).data(),
+			(*expcoef[moffset+1]).data(),
+			nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       }
       moffset+=2;
     }
   }
   
-  if (multistep and mlevel==multistep) {
-    if (!cylmass_made) {
-      MPI_Allreduce(&use[0], &used, 1, MPI_INT, MPI_SUM, 
-		    MPI_COMM_WORLD);
-      MPI_Allreduce(&cylmass1[0], &cylmass, 1, MPI_DOUBLE, MPI_SUM, 
-		    MPI_COMM_WORLD);
-      cylmass_made = true;
-    }
-  }
+  if (multistep==0 or (mstep==0 and mlevel==multistep)) {
+    MPI_Allreduce(&use[0], &used, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
+    // Sum up the results from each thread
+    //
+    for (int i=1; i<nthrds; i++) {
+      for (int l=0; l<2*Mmax+1; l++) (*expcoef0[0][l]) += (*expcoef0[i][l]);
+      cylmass1[0] += cylmass1[i];
+    }
+
+    MPI_Allreduce(&cylmass1[0], &cylmass, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  }
 
   //======================================
   // Last level?
@@ -927,10 +923,11 @@ void PolarBasis::determine_coefficients_particles(void)
   //  +--- Deep debugging. Set to 'false' for production.
   //  |
   //  v
-  if (false and myid==0 and mstep==0 and mlevel==multistep) {
+  if (true and myid==0 and (multistep==0 or (mstep==0 and mlevel==multistep))) {
 
     std::cout << std::string(60, '-') << std::endl
-	      << "-- PolarBasis T=" << std::setw(16) << tnow << std::endl
+	      << "-- PolarBasis T=" << std::setw(16) << tnow 
+	      << " cylmass=" << cylmass << std::endl
 	      << std::string(60, '-') << std::endl;
 
     for (int m=0, moffset=0; m<=Mmax; m++) {
@@ -1382,10 +1379,9 @@ void PolarBasis::compute_multistep_coefficients()
 
 void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 {
-  // The trigonometric norm with a minus sign for the tabled values:
-  // -1/sqrt(2*pi)
-  //
+  // The trigonometric norm
   constexpr double norm0 = 1.0/sqrt(2.0*M_PI);
+  
   double r, r0=0.0, phi;
   double potr, potz, potl, potp, p, pc, drc, drs, dzc, dzs, ps, dfacp, facdp;
 
@@ -1542,9 +1538,9 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	cC->AddAcc(indx, 2, zz*fr * cfrac);
 
 	if (use_external)
-	  cC->AddPotExt(indx, pp * frac);
+	  cC->AddPotExt(indx, pp * cfrac);
 	else
-	  cC->AddPot(indx, pp * frac);
+	  cC->AddPot(indx, pp * cfrac);
 
       }
     }
@@ -1825,7 +1821,7 @@ void PolarBasis::dump_coefs_h5(const std::string& file)
 
   // Check if file exists
   //
-  if (std::filesystem::exists(file + ".h5")) {
+  if (std::filesystem::exists(file)) {
     cylCoefs.clear();
     cylCoefs.add(cur);
     cylCoefs.ExtendH5Coefs(file);

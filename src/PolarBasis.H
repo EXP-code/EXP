@@ -56,9 +56,6 @@ protected:
   //! Work vectors to make recursion evaluations thread safe
   std::vector<Eigen::VectorXd> u;
 
-  //! Work vectors to make recursion evaluations thread safe
-  std::vector<Eigen::VectorXd> du;
-
   //! Matrices per thread for obtaining potential field
   std::vector<Eigen::MatrixXd> potd;
 
@@ -136,22 +133,6 @@ protected:
   std::vector<std::vector<unsigned>> howmany1;
   std::vector<unsigned> howmany;
 
-  //! Add single particle to coefficients
-  void accumulate(double r, double z, double phi, double mass,
-		  unsigned long seq, int id, int mlev=0, bool compute=false);
-
-  //! Accumulate coefficients from particle distribution
-  void accumulate(std::vector<Particle>& part, int mlevel, bool verbose, bool compute);
-
-  //! Accumulate coefficients from particle distribution by thread.
-  //! Used by external applications.
-  void accumulate_thread(std::vector<Particle>& part, int mlevel, bool verbose);
-
-  //! Threaded call for the above call
-  void accumulate_thread_call(int id, std::vector<Particle>* p, int mlevel, bool verbose);
-
-  std::vector<bool> coefs_made;
-
   //@{
   /** More syntactic sugar for arrays of arrays: define an operator to
       the object of the main nested arrays.  That is, for:
@@ -195,7 +176,6 @@ protected:
   unsigned sampT, defSampT;
 
   std::vector<double> cylmass1;
-  bool cylmass_made;
   double cylmass;
   double minSNR, maxSNR;
 
