@@ -623,27 +623,32 @@ namespace BasisClasses
   }
 
   
-  std::vector<std::vector<Eigen::VectorXd>> SphericalSL::getBasis
+  SphericalSL::BasisArray SphericalSL::getBasis
   (double logxmin, double logxmax, int numgrid)
   {
     // Assing return storage
-    std::vector<std::vector<Eigen::VectorXd>> ret(lmax+1);
+    BasisArray ret (lmax+1);
     for (auto & v : ret) {
       v.resize(nmax);
-      for (auto & u : v) u.resize(numgrid);
+      for (auto & u : v) {
+	std::get<0>(u).resize(numgrid); // Potential
+	std::get<1>(u).resize(numgrid); // Density
+      }
     }
 
     // Radial grid spacing
     double dx = (logxmax - logxmin)/numgrid;
 
     // Basis storage
-    Eigen::MatrixXd tab;
+    Eigen::MatrixXd tabpot, tabden;
 
     for (int i=0; i<numgrid; i++) {
-      sl->get_pot(tab, pow(10.0, logxmin + dx*i));
+      sl->get_pot (tabpot, pow(10.0, logxmin + dx*i));
+      sl->get_dens(tabden, pow(10.0, logxmin + dx*i));
       for (int l=0; l<=lmax; l++) {
 	for (int n=0; n<nmax;n++){
-	  ret[l][n](i) = tab(l, n);
+	  std::get<0>(ret[l][n])(i) = tabpot(l, n);
+	  std::get<1>(ret[l][n])(i) = tabden(l, n);
 	}
       }
     }
@@ -1326,14 +1331,17 @@ namespace BasisClasses
   }
   
   
-  std::vector<std::vector<Eigen::MatrixXd>> Cylindrical::getBasis
+  Cylindrical::BasisArray Cylindrical::getBasis
   (double xmin, double xmax, int numR, double zmin, double zmax, int numZ)
   {
     // Allocate storage
-    std::vector<std::vector<Eigen::MatrixXd>> ret(mmax+1);
+    BasisArray ret(mmax+1);
     for (auto & v : ret) {
       v.resize(ncylorder);
-      for (auto & u : v) u.resize(numR, numZ);
+      for (auto & u : v) {
+	std::get<0>(u).resize(numR, numZ); // Potential
+	std::get<1>(u).resize(numR, numZ); // Density
+      }
     }
     
     // Grid spacing
@@ -1351,7 +1359,8 @@ namespace BasisClasses
 	  for (int j=0; j<numZ; j++) {
 	    double Z = zmin + delZ*j;
 	    sl->get_all(m, n, R, Z, 0.0, p, d, fr, fz, fp);
-	    ret[m][n](i,j) = p;
+	    std::get<0>(ret[m][n])(i,j) = p;
+	    std::get<1>(ret[m][n])(i,j) = d;
 	  }
 	}
       }
@@ -1773,28 +1782,33 @@ namespace BasisClasses
     return ortho->orthoCheck();
   }
   
-  std::vector<std::vector<Eigen::VectorXd>> FlatDisk::getBasis
+  FlatDisk::BasisArray FlatDisk::getBasis
   (double logxmin, double logxmax, int numgrid)
   {
     // Assing return storage
-    std::vector<std::vector<Eigen::VectorXd>> ret(mmax+1);
+    BasisArray ret(mmax+1);
     for (auto & v : ret) {
       v.resize(nmax);
-      for (auto & u : v) u.resize(numgrid);
+      for (auto & u : v) {
+	std::get<0>(u).resize(numgrid); // Potential
+	std::get<1>(u).resize(numgrid); // Density
+      }
     }
 
     // Radial grid spacing
     double dx = (logxmax - logxmin)/numgrid;
 
     // Basis storage
-    Eigen::MatrixXd tab;
+    Eigen::MatrixXd tabpot, tabden;
 
     // Evaluate on the plane
     for (int i=0; i<numgrid; i++) {
-      ortho->get_pot(tab, pow(10.0, logxmin + dx*i), 0.0);
+      ortho->get_pot (tabpot, pow(10.0, logxmin + dx*i), 0.0);
+      ortho->get_dens(tabden, pow(10.0, logxmin + dx*i), 0.0);
       for (int m=0; m<=mmax; m++) {
 	for (int n=0; n<nmax; n++){
-	  ret[m][n](i) = tab(m, n);
+	  std::get<0>(ret[m][n])(i) = tabpot(m, n);
+	  std::get<1>(ret[m][n])(i) = tabden(m, n);
 	}
       }
     }

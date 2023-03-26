@@ -423,8 +423,9 @@ void BasisFactoryClasses(py::module &m) {
     py::class_<BasisClasses::SphericalSL, std::shared_ptr<BasisClasses::SphericalSL>, PySphericalSL, BasisClasses::Basis>(m, "SphericalSL")
       .def(py::init<const std::string&>(), "Create a spherical Sturm-Liouville basis")
       .def("getBasis", &BasisClasses::SphericalSL::getBasis,
-	   "Evaluate the basis functions on a logarithmically spaced grid for"
-	   "inspection",
+	   "Evaluate the potential-density basis functions on a logarithmically\n"
+	   "spaced grid for inspection. The structure is a two-grid of dimension\n"
+	   "lmax by nmax each pointing to a tuple of arrays of dimension numr.",
 	   py::arg("logxmin")=-3.0,
 	   py::arg("logxmax")=0.5,
 	   py::arg("numr")=400)
@@ -450,8 +451,10 @@ void BasisFactoryClasses(py::module &m) {
   py::class_<BasisClasses::Cylindrical, std::shared_ptr<BasisClasses::Cylindrical>, PyCylindrical, BasisClasses::Basis>(m, "Cylindrical")
     .def(py::init<const std::string&>(), "Create a cylindrical EOF basis")
     .def("getBasis", &BasisClasses::Cylindrical::getBasis,
-	 "Evaluate the basis functions on a linearly spaced 2d-grid for"
-	 "inspection",
+	 "Evaluate the potential-density basis functions on a linearly spaced\n"
+	 "2d-grid for inspection.  The structure is a two-grid of dimension\n"
+	 "lmax by nmax each pointing to a tuple of grids of dimension numr\n"
+	 "by numz.",
 	 py::arg("xmin")=0.0,
 	 py::arg("xmax")=1.0,
 	 py::arg("numr")=40,
@@ -482,11 +485,13 @@ void BasisFactoryClasses(py::module &m) {
 	 "an exponential disk with scale length of 0.01 units. Set the disk\n"
 	 "scale length using the 'scale' parameter")
     .def("getBasis", &BasisClasses::FlatDisk::getBasis,
-	 "Evaluate the basis functions on a linearly spaced 2d-grid for "
-	 "inspection.  The min/max radii are given in log_10 units.",
-	   py::arg("logxmin")=-4.0,
-	   py::arg("logxmax")=-1.0,
-	   py::arg("numr")=400)
+	 "Evaluate the potential-density basis functions on a linearly spaced\n"
+	 "2d-grid for inspection. The min/max radii are given in log_10 units.\n"
+	 "The structure is a two-grid of dimension mmax by nmax each pointing to\n"
+	 "a tuple of arrays of dimension numr.",
+	 py::arg("logxmin")=-4.0,
+	 py::arg("logxmax")=-1.0,
+	 py::arg("numr")=400)
     // The following member needs to be a lambda capture because
     // orthoCheck is not in the base class and needs to have different
     // parameters depending on the basis type.  Here, the quadrature

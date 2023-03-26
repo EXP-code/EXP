@@ -21,7 +21,7 @@ namespace Field
 
 namespace BasisClasses
 {
-    using RowMatrixXd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+  using RowMatrixXd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
     //! Callback function signature for selection particles to
     //! accumulate
@@ -183,6 +183,11 @@ namespace BasisClasses
   class SphericalSL : public Basis
   {
     
+  public:
+
+    using BasisPair  = std::tuple<Eigen::VectorXd, Eigen::VectorXd>;
+    using BasisArray = std::vector<std::vector<BasisPair>>;
+
   private:
     
     //! Helper for constructor
@@ -278,10 +283,10 @@ namespace BasisClasses
     //! Return current maximum order in radial expansion
     int getNmax() { return nmax; }
 
-    //! Return a vector of a vector of 1d basis-function grids for
-    //! SphericalSL, logarithmically spaced between [logxmin, logxmax]
-    //! (base 10).
-    std::vector<std::vector<Eigen::VectorXd>> getBasis
+    //! Return potential-density pair of a vector of a vector of 1d
+    //! basis-function grids for SphericalSL, logarithmically spaced
+    //! between [logxmin, logxmax] (base 10).
+    BasisArray getBasis
     (double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
 
     //! Compute the orthogonality of the basis by returning inner
@@ -296,7 +301,12 @@ namespace BasisClasses
   */
   class FlatDisk : public Basis
   {
-    
+
+  public:
+
+    using BasisPair  = std::tuple<Eigen::VectorXd, Eigen::VectorXd>;
+    using BasisArray = std::vector<std::vector<BasisPair>>;
+
   private:
     
     //! Helper for constructor
@@ -396,7 +406,7 @@ namespace BasisClasses
     //! Return a vector of a vector of 1d basis-function grids for
     //! FlatDisk, logarithmically spaced between [logxmin, logxmax]
     //! (base 10).
-    std::vector<std::vector<Eigen::VectorXd>> getBasis
+    BasisArray getBasis
     (double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
 
     //! Compute the orthogonality of the basis by returning inner
@@ -412,6 +422,11 @@ namespace BasisClasses
   class Cylindrical : public Basis
   {
     
+  public:
+
+    using BasisPair  = std::tuple<Eigen::MatrixXd, Eigen::MatrixXd>;
+    using BasisArray = std::vector<std::vector<BasisPair>>;
+
   private:
     
     //! Help for constructor
@@ -523,7 +538,7 @@ namespace BasisClasses
 
     //! Return a vector of vector of basis functions for Cylindrical,
     //! linearly spaced between [xmin, xmax] and [zmin, zmax]
-    std::vector<std::vector<Eigen::MatrixXd>> getBasis
+    BasisArray getBasis
     (double xmin=0.0, double xmax=1.0, int numr=40,
      double zmin=-0.1, double zmax=0.1, int numz=40);
 
