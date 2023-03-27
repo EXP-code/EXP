@@ -243,12 +243,9 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   // Allocate normalization matrix
 
   normM.resize(Mmax+1, nmax);
-
-  for (int m=0; m<=Mmax; m++) {
-    for (int n=0; n<nmax; n++) {
-      normM(m, n) = 1.0;
-    }
-  }
+  sqnorm.resize(Mmax+1, nmax);
+  std::fill(normM.data(),  normM.data()+normM.size(),  1.0);
+  std::fill(sqnorm.data(), sqnorm.data()+normM.size(), 1.0);
 
   if (pcavar) {
     muse1 = vector<double>(nthrds, 0.0);
@@ -259,7 +256,6 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
   // Potential and deriv matrices
   //
-  normM.resize(Mmax+1, nmax);
   dend. resize(Mmax+1, nmax);
 
   potd. resize(nthrds);
@@ -327,16 +323,6 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   cylmass = 0.0;
   cylmass1 = std::vector<double>(nthrds);
 }
-
-void PolarBasis::setup(void)
-{				// Call normalization and kernel
-  for (int m=0; m<=Mmax; m++) {	// with current binding from derived class
-    for (int n=0; n<nmax; n++) {
-      normM (m, n) = norm(n, m);
-      sqnorm(m, n) = sqrt(normM(m, n));
-    }
-  }
-}  
 
 PolarBasis::~PolarBasis()
 {
@@ -407,12 +393,11 @@ void PolarBasis::get_acceleration_and_potential(Component* C)
 
 void * PolarBasis::determine_coefficients_thread(void * arg)
 {
-  // The inner product of the potential-density pair is 1/(2*pi).  So
-  // the biorthgonal norm is 2*pi*density. The inner product of the
-  // trig functions is 2*pi.  So the norm is 1/sqrt(2*pi).  The total
-  // norm is therefore 2*pi/sqrt(2*pi) = sqrt(2*pi) = 2.5066...
+  // For biorthogonal density component and normalization
   // 
-  constexpr double norm0 = sqrt(2.0*M_PI);
+  constexpr double normD = 2.0*M_PI;
+  constexpr double norm0 = std::sqrt(0.5/M_PI) * normD;
+  constexpr double norm1 = std::sqrt(1.0/M_PI) * normD;
 
   double r, r2, facL=1.0, fac1, fac2, phi, mass;
   double xx, yy, zz;
@@ -499,7 +484,7 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 
 	if (m==0) {
 	  for (int n=0; n<nmax; n++) {
-	    u[id](n) = potd[id](m, n)*mass*norm0/normM(m, m);
+	    u[id](n) = potd[id](m, n)*mass*norm0;
 	    (*expcoef0[id][moffset])(n) += u[id](n);
 	  }
 
@@ -533,7 +518,7 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 
 	    for (int n=0; n<nmax; n++) {
 
-	      u[id](n) = potd[id](m, n)*mass*norm0/normM(m, n);
+	      u[id](n) = potd[id](m, n)*mass*norm1;
 
 	      (*expcoef0[id][moffset  ])(n) += u[id](n)*fac1;
 	      (*expcoef0[id][moffset+1])(n) += u[id](n)*fac2;
@@ -1072,8 +1057,11 @@ void PolarBasis::multistep_update(int from, int to, Component *c, int i, int id)
   if (play_back and not play_cnew) return;
   if (c->freeze(i)) return;
 
-  // 2*pi/sqrt(2*pi); biorthogonal*trig norm
-  constexpr double norm0 = sqrt(2.0*M_PI);
+  // For biorthogonal density component and normalization
+  // 
+  constexpr double normD = 2.0*M_PI;
+  constexpr double norm0 = std::sqrt(0.5/M_PI) * normD;
+  constexpr double norm1 = std::sqrt(1.0/M_PI) * normD;
 
   double mass = c->Mass(i) * component->Adiabatic();
 
@@ -1104,7 +1092,7 @@ void PolarBasis::multistep_update(int from, int to, Component *c, int i, int id)
 
       if (m==0) {
 	for (int n=0; n<nmax; n++) {
-	  val = potd[id](m, n)*mass*norm0/normM(m, n);
+	  val = potd[id](m, n)*mass*norm0;
 	  
 	  differ1[id][from](moffset, n) -= val;
 	  differ1[id][  to](moffset, n) += val;
@@ -1116,8 +1104,8 @@ void PolarBasis::multistep_update(int from, int to, Component *c, int i, int id)
 	fac2 = sinm[id][m];
 
 	for (int n=0; n<nmax; n++) {
-	  val1 = potd[id](m, n)*fac1*mass*norm0/normM(m, n);
-	  val2 = potd[id](m, n)*fac2*mass*norm0/normM(m, n);
+	  val1 = potd[id](m, n)*fac1*mass*norm1;
+	  val2 = potd[id](m, n)*fac2*mass*norm1;
 
 	  differ1[id][from](moffset  , n) -= val1;
 	  differ1[id][from](moffset+1, n) -= val2;
@@ -1379,9 +1367,9 @@ void PolarBasis::compute_multistep_coefficients()
 
 void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 {
-  // The trigonometric norm
-  constexpr double norm0 = 1.0/sqrt(2.0*M_PI);
-  
+  constexpr double norm0 = std::sqrt(0.5/M_PI);
+  constexpr double norm1 = std::sqrt(1.0/M_PI);
+
   double r, r0=0.0, phi;
   double potr, potz, potl, potp, p, pc, drc, drs, dzc, dzs, ps, dfacp, facdp;
 
@@ -1502,10 +1490,10 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	  get_pot_coefs_safe(m, *expcoef[moffset  ], pc, drc, dzc, potd[id], dpotR[id], dpotZ[id]);
 	  get_pot_coefs_safe(m, *expcoef[moffset+1], ps, drs, dzs, potd[id], dpotR[id], dpotZ[id]);
 
-	  potl += mfac*norm0 * (pc*  cosm[id][m] + ps*  sinm[id][m]);
-	  potr += mfac*norm0 * (drc* cosm[id][m] + drs* sinm[id][m]);
-	  potp += mfac*norm0 * (-pc* sinm[id][m] + ps*  cosm[id][m]) * m;
-	  potz += mfac*norm0 * (dzc* cosm[id][m] + dzs* sinm[id][m]);
+	  potl += mfac*norm1 * (pc*  cosm[id][m] + ps*  sinm[id][m]);
+	  potr += mfac*norm1 * (drc* cosm[id][m] + drs* sinm[id][m]);
+	  potp += mfac*norm1 * (-pc* sinm[id][m] + ps*  cosm[id][m]) * m;
+	  potz += mfac*norm1 * (dzc* cosm[id][m] + dzs* sinm[id][m]);
 	  moffset +=2;
 	}
 

@@ -88,11 +88,13 @@ protected:
 
   //! Initialize method
   virtual void initialize();
+  
   //! Provided by derived classes to check consistency
   virtual void check_range();
 
-  //! Should be called by derived classes after initialization
-  void setup();
+  //! Should be called by derived classes after initialization (does
+  //! nothing here)
+  void setup() {}
 
   //! Initialize for PCA variance computation
   void init_pca();
@@ -584,10 +586,6 @@ public:
 				     double *tdens0, double *tpotl0, 
 				     double *tdens, double *tpotl, 
 				     double *tpotr, double *tpotz, double *tpotp);
-
-
-  //! Normalization for recursion relation basis
-  virtual double norm(int, int) { return 1.0; }
 
   //! Kernel value for recursion relation basis
   virtual double knl(int, int) { return 1.0; }
