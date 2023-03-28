@@ -1801,7 +1801,6 @@ namespace BasisClasses
 	u["potential"].resize(numgrid); // Potential
 	u["density"  ].resize(numgrid); // Density
 	u["rforce"   ].resize(numgrid); // Radial force
-	u["zforce"   ].resize(numgrid); // Vertical force
       }
     }
 
@@ -1809,20 +1808,18 @@ namespace BasisClasses
     double dx = (logxmax - logxmin)/numgrid;
 
     // Basis storage
-    Eigen::MatrixXd tabpot, tabden, tabrfc, tabzfc;
+    Eigen::MatrixXd tabpot, tabden, tabrfc;
 
     // Evaluate on the plane
     for (int i=0; i<numgrid; i++) {
       ortho->get_pot   (tabpot, pow(10.0, logxmin + dx*i), 0.0);
       ortho->get_dens  (tabden, pow(10.0, logxmin + dx*i), 0.0);
       ortho->get_rforce(tabrfc, pow(10.0, logxmin + dx*i), 0.0);
-      ortho->get_zforce(tabzfc, pow(10.0, logxmin + dx*i), 0.0);
       for (int m=0; m<=mmax; m++) {
 	for (int n=0; n<nmax; n++){
 	  ret[m][n]["potential"](i) = tabpot(m, n);
 	  ret[m][n]["density"  ](i) = tabden(m, n);
 	  ret[m][n]["rforce"   ](i) = tabrfc(m, n);
-	  ret[m][n]["zforce"   ](i) = tabzfc(m, n);
 	}
       }
     }
