@@ -457,7 +457,7 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
       use[id]++;
       phi = atan2(yy, xx);
 	
-      sinecosine_R(Mmax, -phi, cosm[id], sinm[id]);
+      sinecosine_R(Mmax, phi, cosm[id], sinm[id]);
 
       // If we have a flat disk, project to the disk plane
       //
@@ -1070,7 +1070,7 @@ void PolarBasis::multistep_update(int from, int to, Component *c, int i, int id)
 
     get_potl(r, zz, potd[id], 0);
 
-    sinecosine_R(Mmax, -phi, cosm[id], sinm[id]);
+    sinecosine_R(Mmax, phi, cosm[id], sinm[id]);
 
     //
     // m loop

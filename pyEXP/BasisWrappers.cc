@@ -425,7 +425,8 @@ void BasisFactoryClasses(py::module &m) {
       .def("getBasis", &BasisClasses::SphericalSL::getBasis,
 	   "Evaluate the potential-density basis functions on a logarithmically\n"
 	   "spaced grid for inspection. The structure is a two-grid of dimension\n"
-	   "lmax by nmax each pointing to a tuple of arrays of dimension numr.",
+	   "lmax by nmax each pointing to a dictionary of arrays ('potential',\n"
+	   "'density', 'rforce') of dimension numr.",
 	   py::arg("logxmin")=-3.0,
 	   py::arg("logxmax")=0.5,
 	   py::arg("numr")=400)
@@ -453,8 +454,8 @@ void BasisFactoryClasses(py::module &m) {
     .def("getBasis", &BasisClasses::Cylindrical::getBasis,
 	 "Evaluate the potential-density basis functions on a linearly spaced\n"
 	 "2d-grid for inspection.  The structure is a two-grid of dimension\n"
-	 "lmax by nmax each pointing to a tuple of grids of dimension numr\n"
-	 "by numz.",
+	 "lmax by nmax each pointing to a dictionary of arrays ('potential',\n"
+	 "'density', 'rforce', 'zforce') of dimension numr X numz.",
 	 py::arg("xmin")=0.0,
 	 py::arg("xmax")=1.0,
 	 py::arg("numr")=40,
@@ -488,7 +489,8 @@ void BasisFactoryClasses(py::module &m) {
 	 "Evaluate the potential-density basis functions on a linearly spaced\n"
 	 "2d-grid for inspection. The min/max radii are given in log_10 units.\n"
 	 "The structure is a two-grid of dimension mmax by nmax each pointing to\n"
-	 "a tuple of arrays of dimension numr.",
+	 "a dictionary of arrays ('potential', 'density', 'rforce', 'zforce')\n"
+	 "of dimension numr.",
 	 py::arg("logxmin")=-4.0,
 	 py::arg("logxmax")=-1.0,
 	 py::arg("numr")=400)

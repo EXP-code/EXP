@@ -633,6 +633,7 @@ namespace BasisClasses
       for (auto & u : v) {
 	u["potential"].resize(numgrid); // Potential
 	u["density"  ].resize(numgrid); // Density
+	u["rforce"   ].resize(numgrid); // Radial force
       }
     }
 
@@ -640,15 +641,17 @@ namespace BasisClasses
     double dx = (logxmax - logxmin)/numgrid;
 
     // Basis storage
-    Eigen::MatrixXd tabpot, tabden;
+    Eigen::MatrixXd tabpot, tabden, tabfrc;
 
     for (int i=0; i<numgrid; i++) {
-      sl->get_pot (tabpot, pow(10.0, logxmin + dx*i));
-      sl->get_dens(tabden, pow(10.0, logxmin + dx*i));
+      sl->get_pot  (tabpot, pow(10.0, logxmin + dx*i));
+      sl->get_dens (tabden, pow(10.0, logxmin + dx*i));
+      sl->get_force(tabfrc, pow(10.0, logxmin + dx*i));
       for (int l=0; l<=lmax; l++) {
 	for (int n=0; n<nmax;n++){
 	  ret[l][n]["potential"](i) = tabpot(l, n);
 	  ret[l][n]["density"  ](i) = tabden(l, n);
+	  ret[l][n]["rforce"   ](i) = tabfrc(l, n);
 	}
       }
     }
@@ -1342,6 +1345,8 @@ namespace BasisClasses
       for (auto & u : v) {
 	u["potential"].resize(numR, numZ); // Potential
 	u["density"  ].resize(numR, numZ); // Density
+	u["rforce"   ].resize(numR, numZ); // Radial force
+	u["zforce"   ].resize(numR, numZ); // Vertical force
       }
     }
     
@@ -1362,6 +1367,8 @@ namespace BasisClasses
 	    sl->get_all(m, n, R, Z, 0.0, p, d, fr, fz, fp);
 	    ret[m][n]["potential"](i,j) = p;
 	    ret[m][n]["density"  ](i,j) = d;
+	    ret[m][n]["rforce"   ](i,j) = fr;
+	    ret[m][n]["zforce"   ](i,j) = fz;
 	  }
 	}
       }
@@ -1793,6 +1800,8 @@ namespace BasisClasses
       for (auto & u : v) {
 	u["potential"].resize(numgrid); // Potential
 	u["density"  ].resize(numgrid); // Density
+	u["rforce"   ].resize(numgrid); // Radial force
+	u["zforce"   ].resize(numgrid); // Vertical force
       }
     }
 
@@ -1800,16 +1809,20 @@ namespace BasisClasses
     double dx = (logxmax - logxmin)/numgrid;
 
     // Basis storage
-    Eigen::MatrixXd tabpot, tabden;
+    Eigen::MatrixXd tabpot, tabden, tabrfc, tabzfc;
 
     // Evaluate on the plane
     for (int i=0; i<numgrid; i++) {
-      ortho->get_pot (tabpot, pow(10.0, logxmin + dx*i), 0.0);
-      ortho->get_dens(tabden, pow(10.0, logxmin + dx*i), 0.0);
+      ortho->get_pot   (tabpot, pow(10.0, logxmin + dx*i), 0.0);
+      ortho->get_dens  (tabden, pow(10.0, logxmin + dx*i), 0.0);
+      ortho->get_rforce(tabrfc, pow(10.0, logxmin + dx*i), 0.0);
+      ortho->get_zforce(tabzfc, pow(10.0, logxmin + dx*i), 0.0);
       for (int m=0; m<=mmax; m++) {
 	for (int n=0; n<nmax; n++){
 	  ret[m][n]["potential"](i) = tabpot(m, n);
 	  ret[m][n]["density"  ](i) = tabden(m, n);
+	  ret[m][n]["rforce"   ](i) = tabrfc(m, n);
+	  ret[m][n]["zforce"   ](i) = tabzfc(m, n);
 	}
       }
     }
