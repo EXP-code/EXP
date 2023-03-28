@@ -895,7 +895,7 @@ void PolarBasis::determine_coefficients_particles(void)
   //  +--- Deep debugging. Set to 'false' for production.
   //  |
   //  v
-  if (true and myid==0 and (multistep==0 or (mstep==0 and mlevel==multistep))) {
+  if (false and myid==0 and (multistep==0 or (mstep==0 and mlevel==multistep))) {
 
     std::cout << std::string(60, '-') << std::endl
 	      << "-- PolarBasis T=" << std::setw(16) << tnow 
