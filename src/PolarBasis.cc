@@ -244,7 +244,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
   normM.resize(Mmax+1, nmax);
   sqnorm.resize(Mmax+1, nmax);
-  std::fill(normM.data(),  normM.data()+normM.size(),  1.0);
+  std::fill(normM .data(), normM.data()+normM.size(),  1.0);
   std::fill(sqnorm.data(), sqnorm.data()+normM.size(), 1.0);
 
   if (pcavar) {
@@ -482,29 +482,25 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
       //		m loop
       for (int m=0, moffset=0; m<=Mmax; m++) {
 
+	if (NO_M1 && m==1) {
+	  moffset += 2;
+	  continue;
+	}
+
 	if (m==0) {
-	  for (int n=0; n<nmax; n++) {
-	    u[id](n) = potd[id](m, n)*mass*norm0;
-	    (*expcoef0[id][moffset])(n) += u[id](n);
-	  }
+	  u[id] = potd[id].row(m)*mass*norm0;
+	  *expcoef0[id][moffset] += u[id];
 
 	  if (compute and pcavar) {
 	    pthread_mutex_lock(&cc_lock);
-	    for (int n=0; n<nmax; n++) {
-	      (*expcoefT1[whch][m])(n) += u[id](n);
-	      for (int o=0; o<nmax; o++)
-		(*expcoefM1[whch][m])(n, o) += u[id](n)*u[id](o)/mass;
-	    }
+	    *expcoefT1[whch][m] += u[id];
+	    *expcoefM1[whch][m] += u[id]*u[id].transpose()/mass;
 	    pthread_mutex_unlock(&cc_lock);
 	  }
 
 	  if (compute) {
 	    pthread_mutex_lock(&cc_lock);
-	    for (int n=0; n<nmax; n++) {
-	      for (int o=0; o<nmax; o++) {
-		tvar[0][m](n, o) += u[id](n)*u[id](o)/mass;
-	      }
-	    }
+	    tvar[0][m] += u[id]*u[id].transpose()/mass;
 	    pthread_mutex_unlock(&cc_lock);
 	  }
 
@@ -516,31 +512,22 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	    fac1 = cosm[id][m];
 	    fac2 = sinm[id][m];
 
-	    for (int n=0; n<nmax; n++) {
+	    u[id] = potd[id].row(m)*mass*norm1;
 
-	      u[id](n) = potd[id](m, n)*mass*norm1;
+	    *expcoef0[id][moffset  ] += u[id]*fac1;
+	    *expcoef0[id][moffset+1] += u[id]*fac2;
 
-	      (*expcoef0[id][moffset  ])(n) += u[id](n)*fac1;
-	      (*expcoef0[id][moffset+1])(n) += u[id](n)*fac2;
-	    }
 
 	    if (compute and pcavar) {
 	      pthread_mutex_lock(&cc_lock);
-	      for (int n=0; n<nmax; n++) {
-		(*expcoefT1[whch][m])[n] += u[id](n)*facL;
-		for (int o=0; o<nmax; o++)
-		  (*expcoefM1[whch][m])(n, o) += u[id](n)*u[id](o)*facL*facL/mass;
-	      }
+	      *expcoefT1[whch][m] += u[id]*facL;
+	      *expcoefM1[whch][m] += u[id]*u[id].transpose()*facL*facL/mass;
 	      pthread_mutex_unlock(&cc_lock);
 	    }
 	    
 	    if (compute) {
 	      pthread_mutex_lock(&cc_lock);
-	      for (int n=0; n<nmax; n++) {
-		for (int o=0; o<nmax; o++) {
-		  tvar[m][0](n, o) += u[id](n)*u[id](o)/mass;
-		}
-	      }
+	      tvar[m][0] += u[id]*u[id].transpose()/mass;
 	      pthread_mutex_unlock(&cc_lock);
 	    }
 	  }
@@ -1090,6 +1077,11 @@ void PolarBasis::multistep_update(int from, int to, Component *c, int i, int id)
     //
     for (int m=0, moffset=0; m<=Mmax; m++) {
 
+      if (NO_M1 && m==1) {
+	moffset += 2;
+	continue;
+      }
+
       if (m==0) {
 	for (int n=0; n<nmax; n++) {
 	  val = potd[id](m, n)*mass*norm0;
@@ -1135,10 +1127,6 @@ void PolarBasis::compute_multistep_coefficients()
   // 
   for (int m=0; m<=2*Mmax; m++) expcoef[m]->setZero();
 
-  // For debugging only
-  //
-  double saveF = 0.0, saveG = 0.0;
-  
   // Interpolate to get coefficients above
   // 
   for (int M=0; M<mfirst[mdrft]; M++) {
@@ -1150,10 +1138,7 @@ void PolarBasis::compute_multistep_coefficients()
     double a = 1.0 - b;
 
     for (int m=0; m<=2*Mmax; m++) {
-      for (int n=0; n<nmax; n++) {
-	(*expcoef[m])[n] += a*(*expcoefL[M][m])[n] + b*(*expcoefN[M][m])[n];
-	if (m==0 and n==1) saveF += a*(*expcoefL[M][m])[n] + b*(*expcoefN[M][m])[n];
-      }
+      *expcoef[m] += a*(*expcoefL[M][m]) + b*(*expcoefN[M][m]);
     }
     
     //  +--- Deep debugging
@@ -1217,34 +1202,8 @@ void PolarBasis::compute_multistep_coefficients()
     }
 
     for (int m=0; m<=2*Mmax; m++) {
-      for (int n=0; n<nmax; n++) {
-	(*expcoef[m])[n] += (*expcoefN[M][m])[n];
-	if (m==0 and n==1)saveG += (*expcoefN[M][m])[n];
-      }
+      *expcoef[m] += *expcoefN[M][m];
     }
-  }
-
-  //  +--- Deep debugging
-  //  |
-  //  v
-  if (false and myid==0) {
-    std::cout << std::left << std::fixed
-	      << "CYL2d FULVAL mstep=" << std::setw(3) << mstep
-	      << "  mdrft=" << std::setw(3) << mdrft
-	      << " f=" << std::setw(16) << (*expcoef[0])[1]
-	      << std::endl << std::right;
-  }
-
-  if (false and myid==0) {
-    std::cout << "CYL2d interpolated value:"
-	      << " mlev="  << std::setw( 4) << mlevel
-	      << " mstep=" << std::setw( 4) << mstep
-	      << " mdrft=" << std::setw( 4) << mdrft
-	      << " T="     << std::setw( 8) << tnow
-	      << " c01="   << std::setw(14) << (*expcoef[0])[1]
-	      << " u01="   << std::setw(14) << saveF
-	      << " v01="   << std::setw(14) << saveG
-	      << std::endl;
   }
 
 #ifdef TMP_DEBUG
@@ -1481,11 +1440,17 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	  
 	  // Suppress m=1 terms?
 	  //
-	  if (NO_M1 && m==1) continue;
+	  if (NO_M1 && m==1) {
+	    moffset += 2;
+	    continue;
+	  }
 	  
 	  // Suppress odd m terms?
 	  //
-	  if (EVEN_M && (m/2)*2 != m) continue;
+	  if (EVEN_M && (m/2)*2 != m) {
+	    moffset += 2;
+	    continue;
+	  }
 	  
 	  get_pot_coefs_safe(m, *expcoef[moffset  ], pc, drc, dzc, potd[id], dpotR[id], dpotZ[id]);
 	  get_pot_coefs_safe(m, *expcoef[moffset+1], ps, drs, dzs, potd[id], dpotR[id], dpotZ[id]);
