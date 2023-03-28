@@ -185,8 +185,8 @@ namespace BasisClasses
     
   public:
 
-    using BasisPair  = std::tuple<Eigen::VectorXd, Eigen::VectorXd>;
-    using BasisArray = std::vector<std::vector<BasisPair>>;
+    using BasisMap   = std::map<std::string, Eigen::VectorXd>;
+    using BasisArray = std::vector<std::vector<BasisMap>>;
 
   private:
     
@@ -304,8 +304,8 @@ namespace BasisClasses
 
   public:
 
-    using BasisPair  = std::tuple<Eigen::VectorXd, Eigen::VectorXd>;
-    using BasisArray = std::vector<std::vector<BasisPair>>;
+    using BasisMap   = std::map<std::string, Eigen::VectorXd>;
+    using BasisArray = std::vector<std::vector<BasisMap>>;
 
   private:
     
@@ -424,8 +424,8 @@ namespace BasisClasses
     
   public:
 
-    using BasisPair  = std::tuple<Eigen::MatrixXd, Eigen::MatrixXd>;
-    using BasisArray = std::vector<std::vector<BasisPair>>;
+    using BasisMap   = std::map<std::string, Eigen::MatrixXd>;
+    using BasisArray = std::vector<std::vector<BasisMap>>;
 
   private:
     

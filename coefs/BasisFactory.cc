@@ -631,8 +631,8 @@ namespace BasisClasses
     for (auto & v : ret) {
       v.resize(nmax);
       for (auto & u : v) {
-	std::get<0>(u).resize(numgrid); // Potential
-	std::get<1>(u).resize(numgrid); // Density
+	u["potential"].resize(numgrid); // Potential
+	u["density"  ].resize(numgrid); // Density
       }
     }
 
@@ -647,8 +647,8 @@ namespace BasisClasses
       sl->get_dens(tabden, pow(10.0, logxmin + dx*i));
       for (int l=0; l<=lmax; l++) {
 	for (int n=0; n<nmax;n++){
-	  std::get<0>(ret[l][n])(i) = tabpot(l, n);
-	  std::get<1>(ret[l][n])(i) = tabden(l, n);
+	  ret[l][n]["potential"](i) = tabpot(l, n);
+	  ret[l][n]["density"  ](i) = tabden(l, n);
 	}
       }
     }
@@ -1340,8 +1340,8 @@ namespace BasisClasses
     for (auto & v : ret) {
       v.resize(nmax);
       for (auto & u : v) {
-	std::get<0>(u).resize(numR, numZ); // Potential
-	std::get<1>(u).resize(numR, numZ); // Density
+	u["potential"].resize(numR, numZ); // Potential
+	u["density"  ].resize(numR, numZ); // Density
       }
     }
     
@@ -1360,8 +1360,8 @@ namespace BasisClasses
 	  for (int j=0; j<numZ; j++) {
 	    double Z = zmin + delZ*j;
 	    sl->get_all(m, n, R, Z, 0.0, p, d, fr, fz, fp);
-	    std::get<0>(ret[m][n])(i,j) = p;
-	    std::get<1>(ret[m][n])(i,j) = d;
+	    ret[m][n]["potential"](i,j) = p;
+	    ret[m][n]["density"  ](i,j) = d;
 	  }
 	}
       }
@@ -1791,8 +1791,8 @@ namespace BasisClasses
     for (auto & v : ret) {
       v.resize(nmax);
       for (auto & u : v) {
-	std::get<0>(u).resize(numgrid); // Potential
-	std::get<1>(u).resize(numgrid); // Density
+	u["potential"].resize(numgrid); // Potential
+	u["density"  ].resize(numgrid); // Density
       }
     }
 
@@ -1808,8 +1808,8 @@ namespace BasisClasses
       ortho->get_dens(tabden, pow(10.0, logxmin + dx*i), 0.0);
       for (int m=0; m<=mmax; m++) {
 	for (int n=0; n<nmax; n++){
-	  std::get<0>(ret[m][n])(i) = tabpot(m, n);
-	  std::get<1>(ret[m][n])(i) = tabden(m, n);
+	  ret[m][n]["potential"](i) = tabpot(m, n);
+	  ret[m][n]["density"  ](i) = tabden(m, n);
 	}
       }
     }
