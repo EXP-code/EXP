@@ -1586,6 +1586,12 @@ namespace BasisClasses
 
   void FlatDisk::accumulate(double x, double y, double z, double mass)
   {
+    // Normalization factors
+    //
+    constexpr double normD = 2.0*M_PI;
+    constexpr double norm0 = std::sqrt(0.5/M_PI) * normD;
+    constexpr double norm1 = std::sqrt(1.0/M_PI) * normD;
+
     //======================
     // Compute coefficients 
     //======================
@@ -1607,7 +1613,7 @@ namespace BasisClasses
 	
 	if (m==0) {
 	  for (int n=0; n<nmax; n++) {
-	    expcoef(moffset, n) += potd(m, n)* mass;
+	    expcoef(moffset, n) += potd(m, n)* mass * norm0;
 	  }
 	  
 	  moffset++;
@@ -1616,8 +1622,8 @@ namespace BasisClasses
 	  double ccos = cos(phi*m);
 	  double ssin = sin(phi*m);
 	  for (int n=0; n<nmax; n++) {
-	    expcoef(moffset  , n) += ccos * potd(m, n) * mass;
-	    expcoef(moffset+1, n) += ssin * potd(m, n) * mass;
+	    expcoef(moffset  , n) += ccos * potd(m, n) * mass * norm1;
+	    expcoef(moffset+1, n) += ssin * potd(m, n) * mass * norm1;
 	  }
 	  moffset+=2;
 	}
@@ -1648,6 +1654,9 @@ namespace BasisClasses
    double& pot0, double& pot1,
    double& rpot, double& zpot, double& ppot)
   {
+    constexpr double norm0 = std::sqrt(0.5/M_PI);
+    constexpr double norm1 = std::sqrt(1.0/M_PI);
+
     den0 = den1 = 0.0;
     pot0 = pot1 = 0.0;
     rpot = zpot = ppot = 0.0;
@@ -1677,10 +1686,10 @@ namespace BasisClasses
 
       if (m==0) {
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  den0 += expcoef(0, n) * dend(0, n);
-	  pot0 += expcoef(0, n) * potd(0, n);
-	  rpot += expcoef(0, n) * potR(0, n);
-	  zpot += expcoef(0, n) * potZ(0, n);
+	  den0 += expcoef(0, n) * dend(0, n) * norm0;
+	  pot0 += expcoef(0, n) * potd(0, n) * norm0;
+	  rpot += expcoef(0, n) * potR(0, n) * norm0;
+	  zpot += expcoef(0, n) * potZ(0, n) * norm0;
 	}
 	
 	moffset++;
@@ -1694,7 +1703,7 @@ namespace BasisClasses
 	  vs += expcoef(moffset+1, n) * dend(m, n);
 	}
 	
-	den1 += (vc*cosm + vs*sinm) * M_SQRT2;
+	den1 += (vc*cosm + vs*sinm) * norm1;
       
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
@@ -1702,8 +1711,8 @@ namespace BasisClasses
 	  vs += expcoef(moffset+1, n) * potd(m, n);
 	}
 	
-	pot1 += ( vc*cosm + vs*sinm) * M_SQRT2;
-	ppot += (-vc*sinm + vs*cosm) * m * M_SQRT2;
+	pot1 += ( vc*cosm + vs*sinm) * norm1;
+	ppot += (-vc*sinm + vs*cosm) * m * norm1;
 
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
@@ -1711,7 +1720,7 @@ namespace BasisClasses
 	  vs += expcoef(moffset+1, n) * potR(m, n);
 	}
 
-	rpot += (vc*cosm + vs*sinm) * M_SQRT2;
+	rpot += (vc*cosm + vs*sinm) * norm1;
 	
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
@@ -1719,7 +1728,7 @@ namespace BasisClasses
 	  vs += expcoef(moffset+1, n) * potZ(m, n);
 	}
 
-	zpot += (vc*cosm + vs*sinm) * M_SQRT2;
+	zpot += (vc*cosm + vs*sinm) * norm1;
 
 	moffset +=2;
       }
