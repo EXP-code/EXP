@@ -62,7 +62,7 @@ void set_fpu_handler(void)
 	{FE_UNDERFLOW, "underflow"} };
     
     int _flags = fegetexcept();
-    std::cout << "Enabled FE flags: <";
+    std::cout << "---- Enabled FE flags: <";
     for (auto v : flags) {
       if (v.first & _flags) std::cout << v.second << ' ';
     }

@@ -585,10 +585,10 @@ bool BiorthCyl::ReadH5Cache()
       int v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
       if (value == v) return true;
       else {
-	std::cout << "---- BiorthCyl::ReadH5Cache(): wanted "
-		  << name << "=" << value
-		  << " but found "
-		  << name << "=" << v << std::endl;
+	if (myid==0)  std::cout << "---- BiorthCyl::ReadH5Cache(): wanted "
+				<< name << "=" << value
+				<< " but found "
+				<< name << "=" << v << std::endl;
 	return false;
       }
     };
@@ -598,10 +598,10 @@ bool BiorthCyl::ReadH5Cache()
       double v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
       if (fabs(value - v) < 1.0e-16) return true;
       else {
-	std::cout << "ReadH5Cache(): wanted "
-		  << name << "=" << value
-		  << " but found "
-		  << name << "=" << v << std::endl;
+	if (myid==0) std::cout << "ReadH5Cache(): wanted "
+			       << name << "=" << value
+			       << " but found "
+			       << name << "=" << v << std::endl;
 	return false;
       }
     };
@@ -611,10 +611,10 @@ bool BiorthCyl::ReadH5Cache()
       std::string v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
       if (value.compare(v)==0) return true;
       else {
-	std::cout << "ReadH5Cache(): wanted "
-		  << name << "=" << value
-		  << " but found "
-		  << name << "=" << v << std::endl;
+	if (myid==0) std::cout << "ReadH5Cache(): wanted "
+			       << name << "=" << value
+			       << " but found "
+			       << name << "=" << v << std::endl;
 	return false;
       }
     };
