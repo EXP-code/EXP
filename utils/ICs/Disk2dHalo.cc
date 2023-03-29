@@ -1130,6 +1130,7 @@ table_disk(vector<Particle>& part)
   Eigen::VectorXd workQ2(NDR);
   Eigen::VectorXd workQ3(NDR);
   Eigen::VectorXd workQ4(NDR);
+  Eigen::VectorXd workQ5(NDR);
 #ifdef LOGCHEBY
   Eigen::VectorXd workQ2log   (NDR);
   Eigen::VectorXd workQ2smooth(NDR);
@@ -1264,6 +1265,7 @@ table_disk(vector<Particle>& part)
 
       workQ3[j]   = -fr;	// For testing only
       workQ4[j]   = dpr;	// For testing only
+      workQ5[j]   = pot;	// For testing only
 
       if (i==0) {
 	workD(4, j) = -fr;
@@ -1442,23 +1444,24 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << workQ2[j]		// #5
 	  << setw(14) << workQ3[j]		// #6
 	  << setw(14) << workQ4[j]		// #7
-	  << setw(14) << deriv2                 // #8
-	  << setw(14) << vrq0                   // #9
-	  << setw(14) << vrq1                   // #10
-	  << setw(14) << v_circ(r, 0.0, 0.0)    // #11
-	  << setw(14) << workD(0, j)		// #12  dV(tot)/dR
-	  << setw(14) << workD(1, j)		// #13  d^2V(tot)/dlnR
-	  << setw(14) << workD(2, j)		// #14  d^2V(tot)/dlnR + 3V(tot)
-	  << setw(14) << workD(3, j)		// #15  kappa^2
-	  << setw(14) << workD(4, j)		// #16  dV(disk)/dR
-	  << setw(14) << workD(5, j)		// #17  dV(halo)/dR
-	  << setw(14) << rho			// #18
-	  << setw(14) << deriv			// #19
-	  << setw(14) << lhs			// #20
-	  << setw(14) << rhs			// #21
-	  << setw(14) << lhs - rhs		// #22
-	  << setw(14) << odd2(log(r), nrD, nhM, 1) // #23  Enclosed mass
-	  << setw(14) << epi(r, 0.0, 0.0)	// #24  Epi routine
+	  << setw(14) << workQ5[j]		// #8
+	  << setw(14) << deriv2                 // #9
+	  << setw(14) << vrq0                   // #10
+	  << setw(14) << vrq1                   // #11
+	  << setw(14) << v_circ(r, 0.0, 0.0)    // #12
+	  << setw(14) << workD(0, j)		// #13  dV(tot)/dR
+	  << setw(14) << workD(1, j)		// #14  d^2V(tot)/dlnR
+	  << setw(14) << workD(2, j)		// #15  d^2V(tot)/dlnR + 3V(tot)
+	  << setw(14) << workD(3, j)		// #16  kappa^2
+	  << setw(14) << workD(4, j)		// #17  dV(disk)/dR
+	  << setw(14) << workD(5, j)		// #18  dV(halo)/dR
+	  << setw(14) << rho			// #19
+	  << setw(14) << deriv			// #20
+	  << setw(14) << lhs			// #21
+	  << setw(14) << rhs			// #22
+	  << setw(14) << lhs - rhs		// #23
+	  << setw(14) << odd2(log(r), nrD, nhM, 1) // #24  Enclosed mass
+	  << setw(14) << epi(r, 0.0, 0.0)	// #25  Epi routine
 	  << std::endl;
     }
 
