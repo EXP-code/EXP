@@ -186,6 +186,7 @@ void Disk2d::get_potl_dens(double r, double z, Eigen::MatrixXd& p,
 void Disk2d::accumulate(double R, double phi, double mass)
 {
   constexpr double norm0 = -sqrt(2.0*M_PI);
+  constexpr double norm1 = norm0 * M_SQRT2;
 
   double r = R + 10.0*std::numeric_limits<double>::min();
       
@@ -207,12 +208,12 @@ void Disk2d::accumulate(double R, double phi, double mass)
 	moffset++;
       }
       else {
-	double fac1 = cos(-phi*m);
-	double fac2 = sin(-phi*m);
+	double fac1 = cos(phi*m);
+	double fac2 = sin(phi*m);
 	
 	for (int n=0; n<nmax; n++) {
 	  
-	  double wk = potd[id](m, n)*mass*norm0;
+	  double wk = potd[id](m, n)*mass*norm1;
 	  
 	  expcoef0[id](moffset  , n) += wk*fac1;
 	  expcoef0[id](moffset+1, n) += wk*fac2;
@@ -262,6 +263,7 @@ std::tuple<double, double, double, double, double, double, double>
 Disk2d::accumulated_eval(double R, double z, double phi)
 {
   constexpr double norm0 = 1.0/sqrt(2.0*M_PI);
+  constexpr double norm1 = M_SQRT2 * norm0;
 
   double d0=0.0, d1=0.0, p0=0.0, p1=0.0, fr=0.0, fz=0.0, fp=0.0;
 
@@ -298,15 +300,15 @@ Disk2d::accumulated_eval(double R, double z, double phi)
 	double cosm = cos(phi*m), sinm = sin(phi*m);
 
 	for (int n=0; n<nmax; n++) {
-	  d1 += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm0*
+	  d1 += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm1*
 	    dend(m, n);
-	  p1 += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm0*
+	  p1 += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm1*
 	    potl(m, n);
-	  fr += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm0*
+	  fr += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm1*
 	    potr(m, n);
-	  fz += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm0*
+	  fz += ( expcoef(moffset, n)*cosm + expcoef(moffset+1, n)*sinm )*norm1*
 	    potz(m, n);
-	  fp += (-expcoef(moffset, n)*sinm + expcoef(moffset+1, n)*cosm )*norm0*
+	  fp += (-expcoef(moffset, n)*sinm + expcoef(moffset+1, n)*cosm )*norm1*
 	    potl(m, n);
 	}
       }
