@@ -244,8 +244,8 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
   normM.resize(Mmax+1, nmax);
   sqnorm.resize(Mmax+1, nmax);
-  std::fill(normM .data(), normM.data()+normM.size(),  1.0);
-  std::fill(sqnorm.data(), sqnorm.data()+normM.size(), 1.0);
+  std::fill(normM.data(), normM.data()+normM.size(),  1.0);
+  std::fill(sqnorm.data(), sqnorm.data()+sqnorm.size(), 1.0);
 
   if (pcavar) {
     muse1 = vector<double>(nthrds, 0.0);
