@@ -848,7 +848,8 @@ __global__ void coefKernelPlr3
   // trig functions is 2*pi.  So the norm is 1/sqrt(2*pi).  The total
   // norm is therefore 2*pi/sqrt(2*pi) = sqrt(2*pi) = 2.5066...
   // 
-  cuFP_t norm = 2.5066282746310002; 
+  cuFP_t norm = 2.5066282746310007;
+  if (m) norm = 3.5449077018110322;
 
   for (int n=0; n<stride; n++) {
 
@@ -912,20 +913,17 @@ __global__ void coefKernelPlr3
 	  if (k>=tex._s)            printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	  if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	  coef._v[(2*n+0)*N + i] = val * cosp * norm * mass;
-
-	  if (m>0) {
+	  if (m==0) {
+	    coef._v[(2*n+0)*N + i] = val * cosp * norm * mass;
+	    coef._v[(2*n+1)*N + i] = 0.0;
+	  } else {
+	    coef._v[(2*n+0)*N + i] = val * cosp * norm * mass;
 	    coef._v[(2*n+1)*N + i] = val * sinp * norm * mass;
+	  }
 
 #ifdef BOUNDS_CHECK
-	    if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	  if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	  }
-	  // m==0
-	  else {
-	    coef._v[(2*n+1)*N + i] = 0.0;
-	  }
-
 	  if (compute and tvar._s>0) {
 	    if (plrAcov) tvar._v[n*N + i   ] = val * norm * mass;
 	    else         work._v[i*nmax + n] = val * norm;
@@ -1012,6 +1010,12 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
   constexpr cuFP_t midpt  = ratmin + 0.5*(1.0 - ratmin);
   constexpr cuFP_t rsmth  = 0.5*(1.0 - ratmin)/maxerf;
   constexpr cuFP_t DSMALL = 1.0e-16;
+
+  // Normalization constants
+  //
+  cuFP_t norm0 = 0.39894228040143270286;
+  cuFP_t norm1 = 0.56418958354775627928;
+  cuFP_t norm;
 
   int muse = mmax > mlim ? mlim : mmax;
 
@@ -1112,6 +1116,9 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 
 	for (int mm=0; mm<=muse; mm++) {
 
+	  if (mm) norm = norm1;
+	  else    norm = norm0;
+
 	  for (int n=0; n<nmax; n++) {
       
 	    // Texture table index
@@ -1166,9 +1173,9 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	    if (zz < 0.0) zfrc *= -1.0;
 	    
 	    // The trigonometric norm with a minus sign for the tabled values:
-	    // -1/sqrt(2*pi)
+	    // -1/sqrt(2*pi) for m==0 or -1/sqrt(pi) for m>0
 	    //
-	    cuFP_t Sfac = -0.3989422804014327;
+	    cuFP_t Sfac = -norm;
 	    cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
 	    cuFP_t facS = 0.0;
 	    if (mm>0) {
