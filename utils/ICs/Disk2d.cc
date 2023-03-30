@@ -362,3 +362,36 @@ void Disk2d::write_coefficients(const std::string& outfile)
 	      << outfile << ">" << std::endl;
   }
 }
+
+
+// Compute the m=0 coefficients for the provided density profile
+void Disk2d::inner_product(std::function<double(double)> dens,
+			   int numr, int nlim)
+{
+  setup_accumulation();
+
+  LegeQuad lege(numr);
+
+  double xmin = ortho->r_to_xi(rcylmin);
+  double xmax = ortho->r_to_xi(rcylmax);
+  double dx   = xmax - xmin;
+
+  expcoef.setZero();
+  
+  for (int l=0; l<numr; l++) {
+    double x = xmin + dx*lege.knot(l);
+    double r = ortho->xi_to_r(x);
+    double jac = dx*lege.weight(l)/ortho->d_xi_to_r(x);
+    
+    for (int n=0; n<std::min<int>(nmax, nlim); n++)
+      expcoef(0, n) += jac * r * dens(r) * ortho->get_pot(r, 0.0, 0, n);
+  }
+
+  // Factor of -2*pi for density in biorthonormality; factor of 2*pi
+  // for integral over azimuthal angle; factor of 1/sqrt(2*pi) for
+  // coefficient norm.
+  //
+  expcoef *= -sqrt(2.0*M_PI)*2.0*M_PI;
+
+  coefs_made = true;
+}

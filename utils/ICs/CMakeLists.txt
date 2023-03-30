@@ -2,7 +2,7 @@
 set(bin_PROGRAMS shrinkics gensph gendisk gendisk2d gsphere pstmod
   empinfo empdump eofbasis makeIon phIon phConv eofcomp testcoefs
   testcoefs2 testdeval forcetest hdf52accel forcetest2 cylcache
-  modelfit)
+  modelfit test2d)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
@@ -78,6 +78,8 @@ add_executable(cylcache cylcache.cc)
 add_executable(hdf52accel hdf52accel.cc)
 
 add_executable(modelfit ModelFit.cc)
+
+add_executable(test2d test2d.cc Disk2d.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})

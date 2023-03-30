@@ -9,6 +9,7 @@
 
 #include <BiorthCyl.H>
 #include <Particle.H>
+#include <gaussQ.H>
 
 typedef std::shared_ptr<BiorthCyl> CylPtr;
 
@@ -182,6 +183,10 @@ public:
   //! Evaluation of field. Returns: den0, den1, pot0, pot1, Fr, Fz, Fp
   std::tuple<double, double, double, double, double, double, double>
   accumulated_eval(double R, double z, double phi);
+
+  //! Compute the m=0 coefficients for the provided density profile
+  void inner_product(std::function<double(double)> dens, int numr,
+		     int nlim=std::numeric_limits<int>::max());
 };
 
 

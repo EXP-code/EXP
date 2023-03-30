@@ -206,7 +206,7 @@ main(int ac, char **av)
   double       Hratio, scale_length, scale_lenfkN;
   double       disk_mass, gas_mass, gscal_length, ToomreQ, Temp, Tmin;
   bool         const_height, images, multi, SVD, DENS, basis, zeropos, zerovel;
-  bool         report, ignore, evolved;
+  bool         evolved;
   int          nhalo, ndisk, ngparam;
   std::string  hbods, dbods, suffix, centerfile, halofile1, halofile2;
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
@@ -272,8 +272,6 @@ main(int ac, char **av)
      cxxopts::value<int>(VFLAG)->default_value("31"))
     ("DFLAG", "",
      cxxopts::value<int>(DFLAG)->default_value("31"))
-    ("ignore", "Build a new cache file",
-     cxxopts::value<bool>(ignore)->default_value("false"))
     ("evolved", "Use an existing halo file as input",
      cxxopts::value<bool>(evolved)->default_value("false"))
     ("multi", "Turn on multimass halo generation",
