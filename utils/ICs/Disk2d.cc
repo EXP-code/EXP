@@ -311,6 +311,8 @@ Disk2d::accumulated_eval(double R, double z, double phi)
 	  fp += (-expcoef(moffset, n)*sinm + expcoef(moffset+1, n)*cosm )*norm1*
 	    potl(m, n);
 	}
+
+	moffset += 2;
       }
     }
   }
@@ -361,4 +363,55 @@ void Disk2d::write_coefficients(const std::string& outfile)
     std::cout << "Disk2d::write_coefficients: could not open file <"
 	      << outfile << ">" << std::endl;
   }
+}
+
+
+// Compute the m=0 coefficients for the provided density profile
+void Disk2d::inner_product(std::function<double(int, double)> dens,
+			   int numr, int nlim)
+{
+  setup_accumulation();
+
+  LegeQuad lege(numr);
+
+  double xmin = ortho->r_to_xi(rcylmin);
+  double xmax = ortho->r_to_xi(rcylmax);
+  double dx   = xmax - xmin;
+
+  expcoef.setZero();
+  
+  // Normalization:
+  //
+  // 1. Factor of -2*pi for density in biorthonormality
+  //
+  // 2. A factor of 2*pi (for m=0 which integrand of 1) and pi (for
+  //    m>0 which is integrand of cos(m*phi)^2 or sin(m*phi)^2) for
+  //    integral over azimuthal angle
+  //
+  // 3. A factor of 1/sqrt(2*pi) (for m=0) and 1/sqrt(pi) (for m>0)
+  //    for complex coefficient norm
+  //
+  constexpr double normD = -2.0*M_PI;
+
+  for (int l=0; l<numr; l++) {
+
+    double x   = xmin + dx*lege.knot(l);
+    double r   = ortho->xi_to_r(x);
+    double jac = dx*lege.weight(l)/ortho->d_xi_to_r(x);
+    
+    for (int m=0, moffset=0; m<=mmax; m++) {
+
+      double norm = normD * 2.0*M_PI/sqrt(2.0*M_PI);
+      if (m) norm = normD *     M_PI/sqrt(    M_PI);
+
+      for (int n=0; n<std::min<int>(nmax, nlim); n++)
+	expcoef(moffset, n) +=
+	  jac * r * dens(m, r) * ortho->get_pot(r, 0.0, m, n) * norm;
+
+      if (m) moffset += 2;
+      else   moffset += 1;
+    }
+  }
+
+  coefs_made = true;
 }

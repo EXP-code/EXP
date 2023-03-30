@@ -199,15 +199,13 @@ main(int ac, char **av)
   int          RNUM, PNUM, TNUM, VFLAG, DFLAG;
   bool         LOGR, CHEBY, SELECT, DUMPCOEF;
   int          CMAPR, CMAPZ, NCHEB, TCHEB, CMTYPE, NDR, NDZ, NHR, NHT, NDP;
-  int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT, NODD, DF;
-  int          DIVERGE, DIVERGE2, SEED, itmax, nthrds;
-  double       DIVERGE_RFAC, DIVERGE_RFAC2;
-  double       PPower, R_DF, DR_DF;
-  double       Hratio, scale_length, scale_lenfkN;
-  double       disk_mass, gas_mass, gscal_length, ToomreQ, Temp, Tmin;
+  int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT, DF;
+  int          DIVERGE, DIVERGE2, SEED, itmax, nthrds, M;
+  double       DIVERGE_RFAC, DIVERGE_RFAC2, R_DF, DR_DF;
+  double       scale_length, disk_mass, ToomreQ, pert;
   bool         const_height, images, multi, SVD, DENS, basis, zeropos, zerovel;
-  bool         report, ignore, evolved;
-  int          nhalo, ndisk, ngparam;
+  bool         evolved;
+  int          nhalo, ndisk;
   std::string  hbods, dbods, suffix, centerfile, halofile1, halofile2;
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
   
@@ -258,8 +256,6 @@ main(int ac, char **av)
      cxxopts::value<int>(MMAX)->default_value("12"))
     ("NOUT", "Number of radial terms in diagnostic basis file for cylinder",
      cxxopts::value<int>(NOUT)->default_value("8"))
-    ("NODD", "Number of vertically odd terms in cylindrical expansion",
-     cxxopts::value<int>(NODD)->default_value("6"))
     ("NMAXH", "Number of radial terms in spherical expansion",
      cxxopts::value<int>(NMAXH)->default_value("18"))
     ("NMAXD", "Number of radial terms in cylindrical expansion",
@@ -272,8 +268,6 @@ main(int ac, char **av)
      cxxopts::value<int>(VFLAG)->default_value("31"))
     ("DFLAG", "",
      cxxopts::value<int>(DFLAG)->default_value("31"))
-    ("ignore", "Build a new cache file",
-     cxxopts::value<bool>(ignore)->default_value("false"))
     ("evolved", "Use an existing halo file as input",
      cxxopts::value<bool>(evolved)->default_value("false"))
     ("multi", "Turn on multimass halo generation",
@@ -370,6 +364,10 @@ main(int ac, char **av)
      cxxopts::value<std::string>(suffix)->default_value("diag"))
     ("threads", "Number of threads to run",
      cxxopts::value<int>(nthrds)->default_value("1"))
+    ("M,MP", "For testing an m>0 harmonic distribution using test2d",
+     cxxopts::value<int>(M)->default_value("2"))
+    ("pert", "For testing a quadrupole distribution using test2d",
+     cxxopts::value<double>(pert)->default_value("0.0"))
     ("allow", "Allow multimass algorithm to generature negative masses for testing")
     ("nomono", "Allow non-monotonic mass interpolation")
     ("report", "Print out progress in BiorthCyl table evaluation")
@@ -531,6 +529,8 @@ main(int ac, char **av)
   Disk2dHalo::VFLAG       = static_cast<unsigned int>(DFLAG);
   Disk2dHalo::CHEBY       = CHEBY;
   Disk2dHalo::NCHEB       = NCHEB;
+  Disk2dHalo::MPERT       = M;
+  Disk2dHalo::AMPL        = pert;
 
   if (vm.count("itmax"))  Disk2dHalo::ITMAX    = itmax;
   if (vm.count("allow"))  Disk2dHalo::ALLOW    = true;

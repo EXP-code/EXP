@@ -176,11 +176,10 @@ void BiorthCyl::create_tables()
     std::cout << "---- BiorthCyl::create_tables: creating 3d basis..."
 	      << std::endl;
     if (verbose) {
-      int total = (mmax+1)*nmax*numx*numy;
+      int total = (mmax+1)*nmax*numx;
       progress = std::make_shared<progress::progress_display>(total);
     }
   }
-
 
 
   // Pack basis grids
