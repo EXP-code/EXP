@@ -102,6 +102,7 @@ main(int ac, char **av)
     ("nlim", "Limit for the number of radial terms",
      cxxopts::value<int>(nlim)->default_value("1000000"))
     ("report", "Print out progress in BiorthCyl table evaluation")
+    ("coefs", "Print out coefficient array for m=0")
     ;
   
   cxxopts::ParseResult vm;
@@ -204,6 +205,10 @@ main(int ac, char **av)
 	    << std::setw(16) << Fr
 	    << std::endl;
       }
+
+      if (vm.count("coefs"))
+	std::cout << "Coefficients: " << disk.get_coefs().row(0)
+		  << std::endl;
     } else {
       std::cout << "Test2d: could not open <" << prefix + ".data"
 		<< "> for output" << std::endl;
