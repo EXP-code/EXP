@@ -199,15 +199,13 @@ main(int ac, char **av)
   int          RNUM, PNUM, TNUM, VFLAG, DFLAG;
   bool         LOGR, CHEBY, SELECT, DUMPCOEF;
   int          CMAPR, CMAPZ, NCHEB, TCHEB, CMTYPE, NDR, NDZ, NHR, NHT, NDP;
-  int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT, NODD, DF;
+  int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT, DF;
   int          DIVERGE, DIVERGE2, SEED, itmax, nthrds;
-  double       DIVERGE_RFAC, DIVERGE_RFAC2;
-  double       PPower, R_DF, DR_DF;
-  double       Hratio, scale_length, scale_lenfkN;
-  double       disk_mass, gas_mass, gscal_length, ToomreQ, Temp, Tmin;
+  double       DIVERGE_RFAC, DIVERGE_RFAC2, R_DF, DR_DF;
+  double       scale_length, disk_mass, ToomreQ;
   bool         const_height, images, multi, SVD, DENS, basis, zeropos, zerovel;
   bool         evolved;
-  int          nhalo, ndisk, ngparam;
+  int          nhalo, ndisk;
   std::string  hbods, dbods, suffix, centerfile, halofile1, halofile2;
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
   
@@ -258,8 +256,6 @@ main(int ac, char **av)
      cxxopts::value<int>(MMAX)->default_value("12"))
     ("NOUT", "Number of radial terms in diagnostic basis file for cylinder",
      cxxopts::value<int>(NOUT)->default_value("8"))
-    ("NODD", "Number of vertically odd terms in cylindrical expansion",
-     cxxopts::value<int>(NODD)->default_value("6"))
     ("NMAXH", "Number of radial terms in spherical expansion",
      cxxopts::value<int>(NMAXH)->default_value("18"))
     ("NMAXD", "Number of radial terms in cylindrical expansion",
