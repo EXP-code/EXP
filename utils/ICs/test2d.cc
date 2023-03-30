@@ -50,9 +50,9 @@ main(int ac, char **av)
 
   double       RCYLMIN, RCYLMAX, DMFAC, ACYL;
   bool         LOGR, CHEBY, SELECT, DUMPCOEF;
-  int          NUMR, CMAPR, CMAPZ, knots, nlim;
+  int          NUMR, CMAPR, CMAPZ, knots, nlim, M;
   int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT;
-  double       scale_length, disk_mass;
+  double       scale_length, disk_mass, mamp;
   std::string  cachefile, config, prefix;
   
   const std::string mesg("Generates a 2d cylindrical basis and computes the fields for an exponential disk target for checking convergence\n");
@@ -104,6 +104,10 @@ main(int ac, char **av)
      cxxopts::value<int>(nlim)->default_value("1000000"))
     ("report", "Print out progress in BiorthCyl table evaluation")
     ("coefs", "Print out coefficient array for m=0")
+    ("M,MP", "Perturbation harmonic",
+     cxxopts::value<int>(M)->default_value("2"))
+    ("pert", "Harmonic amplitude",
+     cxxopts::value<double>(mamp)->default_value("0.0"))
     ;
   
   cxxopts::ParseResult vm;
@@ -185,13 +189,36 @@ main(int ac, char **av)
   //
   if (myid==0) {
 
-    auto dens = [&scale_length, &disk_mass](double r)
-    { return disk_mass/(2.0*M_PI*scale_length*scale_length)*exp(-r/scale_length); };
+    auto dens = [&scale_length, &disk_mass, &mamp, &M](int m, double r)
+    {
+      double dens0 = disk_mass/(2.0*M_PI*scale_length*scale_length)*exp(-r/scale_length);
+      if (m==0) return dens0;
+      if (m==M) return dens0*mamp*
+		  exp(-(r - scale_length)*(r - scale_length)/(2.0*scale_length*scale_length*0.09));
+      else      return 0.0;
+    };
 
     disk.inner_product(dens, knots, nlim);
 
     std::ofstream out(prefix + ".data");
     if (out) {
+      out << "#" << std::setw(15) << "radius |"
+	  << std::setw(16) << "dens(m=0) |"
+	  << std::setw(16) << "dens(m=2) |"
+	  << std::setw(16) << "rho (m=0) |"
+	  << std::setw(16) << "rho (m>0) |"
+	  << std::setw(16) << "pot (m=0) |"
+	  << std::setw(16) << "pot (m>0) |"
+	  << std::setw(16) << "Fr |" << std::endl
+	  << "#" << std::setw(15) << "[1] |"
+	  << std::setw(16) << "[2] |"
+	  << std::setw(16) << "[3] |"
+	  << std::setw(16) << "[4] |"
+	  << std::setw(16) << "[5] |"
+	  << std::setw(16) << "[6] |"
+	  << std::setw(16) << "[7] |"
+	  << std::setw(16) << "[8] |" << std::endl;
+
       double rmin = log(ACYL*1.0e-4), rmax = log(RCYLMAX);
       double dr = (rmax - rmin)/NOUT;
       double d0, d1, p0, p1, Fr, Fz, Fp;
@@ -200,16 +227,22 @@ main(int ac, char **av)
 	std::tie(d0, d1, p0, p1, Fr, Fz, Fp) = disk.accumulated_eval(r, 0.0, 0.0);
 	
 	out << std::setw(16) << r
-	    << std::setw(16) << dens(r)
-	    << std::setw(16) << d0+d1
-	    << std::setw(16) << p0+p1
+	    << std::setw(16) << dens(0, r)
+	    << std::setw(16) << dens(2, r)
+	    << std::setw(16) << d0
+	    << std::setw(16) << d1
+	    << std::setw(16) << p0
+	    << std::setw(16) << p1
 	    << std::setw(16) << Fr
 	    << std::endl;
       }
 
-      if (vm.count("coefs"))
-	std::cout << "Coefficients: " << disk.get_coefs().row(0)
+      if (vm.count("coefs")) {
+	std::cout << "Coefficients m=0: " << disk.get_coefs().row(0)
 		  << std::endl;
+	std::cout << "Coefficients m=" << M << ": "
+		  << disk.get_coefs().row(1+2*(M-1)) << std::endl;
+      }
     } else {
       std::cout << av[0] << ": could not open <" << prefix + ".data"
 		<< "> for output" << std::endl;

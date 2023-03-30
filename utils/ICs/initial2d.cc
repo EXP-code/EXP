@@ -200,9 +200,9 @@ main(int ac, char **av)
   bool         LOGR, CHEBY, SELECT, DUMPCOEF;
   int          CMAPR, CMAPZ, NCHEB, TCHEB, CMTYPE, NDR, NDZ, NHR, NHT, NDP;
   int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT, DF;
-  int          DIVERGE, DIVERGE2, SEED, itmax, nthrds;
+  int          DIVERGE, DIVERGE2, SEED, itmax, nthrds, M;
   double       DIVERGE_RFAC, DIVERGE_RFAC2, R_DF, DR_DF;
-  double       scale_length, disk_mass, ToomreQ;
+  double       scale_length, disk_mass, ToomreQ, pert;
   bool         const_height, images, multi, SVD, DENS, basis, zeropos, zerovel;
   bool         evolved;
   int          nhalo, ndisk;
@@ -364,6 +364,10 @@ main(int ac, char **av)
      cxxopts::value<std::string>(suffix)->default_value("diag"))
     ("threads", "Number of threads to run",
      cxxopts::value<int>(nthrds)->default_value("1"))
+    ("M,MP", "For testing an m>0 harmonic distribution using test2d",
+     cxxopts::value<int>(M)->default_value("2"))
+    ("pert", "For testing a quadrupole distribution using test2d",
+     cxxopts::value<double>(pert)->default_value("0.0"))
     ("allow", "Allow multimass algorithm to generature negative masses for testing")
     ("nomono", "Allow non-monotonic mass interpolation")
     ("report", "Print out progress in BiorthCyl table evaluation")
@@ -525,6 +529,8 @@ main(int ac, char **av)
   Disk2dHalo::VFLAG       = static_cast<unsigned int>(DFLAG);
   Disk2dHalo::CHEBY       = CHEBY;
   Disk2dHalo::NCHEB       = NCHEB;
+  Disk2dHalo::MPERT       = M;
+  Disk2dHalo::AMPL        = pert;
 
   if (vm.count("itmax"))  Disk2dHalo::ITMAX    = itmax;
   if (vm.count("allow"))  Disk2dHalo::ALLOW    = true;

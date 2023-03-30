@@ -31,6 +31,8 @@ double Disk2dHalo::XI          = 1.0;
 double Disk2dHalo::SHFACTOR    = 16.0;
 double Disk2dHalo::TOLE        = 0.003;
 double Disk2dHalo::COMPRESSION = 1.0;
+double Disk2dHalo::AMPL        = 0.0;
+int    Disk2dHalo::MPERT       = 2;
 int    Disk2dHalo::NDP         = 16;
 int    Disk2dHalo::NDZ         = 40;
 int    Disk2dHalo::NDR         = 800;
@@ -463,11 +465,11 @@ void Disk2dHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   
   if (myid==0) {
     std::cout << "     *****";
-    std::cout << " (x, y, z)=(" << pos[0] 
+    std::cout << "  halo com (x, y, z)=(" << pos[0] 
 	 << ", " << pos[1]
 	 << ", " << pos[2] << ")" << std::endl;
     std::cout << "     *****";
-    std::cout << " (u, v, w)=(" << vel[0]
+    std::cout << "  halo cov (u, v, w)=(" << vel[0]
 	 << ", " << vel[1]
 	 << ", " << vel[2] << ")" << std::endl;
   }
@@ -742,6 +744,10 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
   double R, phi;
   double pos[3], pos1[3], massp, massp1;
 
+  // Bar angle test routine
+  //
+  GenPhi Phi(scalelength, AMPL, MPERT);
+
   // Diagnostics
   //
   double radmin1=1.0e30, radmax1=0.0, radmin, radmax, r;
@@ -768,7 +774,7 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
   for (int i=0; i<npart; i++) {
     targetmass = mmin + (mtot-mmin)*rndU(gen);
     R = zbrent(mass_func, rmin, rmax, tol);
-    phi = 2.0*M_PI*rndU(gen);
+    phi = Phi.Angle(R);
 
     p.pos[0] = R*cos(phi);
     p.pos[1] = R*sin(phi);
@@ -812,11 +818,28 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
     for (int k=0; k<3; k++) pos[k] /= massp;
   }
 
+  unsigned numtot, numbar;
+  std::vector<unsigned> counts;
+
+  std::tie(numtot, numbar, counts) = Phi.getStats();
+
   if (myid==0) {
     std::cout << "     *****";
-    std::cout << " (x, y, z)=(" << pos[0] 
-	      << ", " << pos[1]
+    std::cout << "  disk com (x, y, z)=(" << pos[0] << ", " << pos[1]
 	      << ", " << pos[2] << ")" << std::endl;
+    std::cout << "     *****";
+    std::cout << "  total=" << numtot << " quad=" << numbar << std::endl;
+    if (numbar) {
+      std::cout << std::string(26, '-') << std::endl;
+      for (int i=0; i<counts.size(); i++) {
+	std::cout << std::setw(6) << std::setprecision(3)
+		  << static_cast<double>(counts[i])/numbar
+		  << " [" << std::setw(6) << 360.0*i/counts.size()
+		  << ", " << std::setw(6) << 360.0*(i+1)/counts.size() << "]"
+		  << std::endl;
+      }
+      std::cout << std::string(26, '-') << std::endl;
+    }
   }
   
   if (com) {

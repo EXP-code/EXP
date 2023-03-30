@@ -149,6 +149,72 @@ class Disk2dHalo
     return cmap;
   }
 
+  class GenPhi
+  {
+  private:
+
+    double scale, baramp;
+    unsigned numtot, numbar;
+    int m;
+
+    std::random_device dev;		   // Random device
+    std::mt19937 rng;			   // Random generator
+    std::uniform_real_distribution<> dist; // Random distribution
+
+    static constexpr int numcnt = 32;
+    std::vector<unsigned> counts;
+
+  public:
+
+    GenPhi(double scale, double amp, int m) :
+      scale(scale), baramp(amp), numtot(0), numbar(0), m(m)
+    {
+      rng = std::mt19937(dev()); // Set generator
+      dist = std::uniform_real_distribution<>(0.0, 1.0); // Set distribution
+      counts.resize(numcnt, 0);
+    }
+    
+    double Angle(double r)
+    {
+      numtot++;
+      // Relative bar amplitude factor
+      //
+      double f = baramp*exp(-(r - scale)*(r - scale)/(2.0*scale*scale*0.09));
+
+      // Do we have a bar particle? (Factor of 2 accounts for [-1, 1]
+      // range of cos(m*phi) amplitude)
+      //
+      if (dist(rng) < f*2.0) {
+	numbar++;
+	// Compute quadrupole angle
+	auto dp = [this](double phi)
+	{ return 0.5*(1.0 + cos(phi*this->m)); };
+
+	double phi = 2.0*M_PI*dist(rng);
+	if (dp(phi) < dist(rng)) {
+	  phi = 2.0*M_PI*dist(rng);
+	}
+	// Debug
+	int cnt = floor(phi*numcnt/(2.0*M_PI));
+	if (cnt>=0 and cnt<numcnt) counts[cnt]++;
+
+	return phi;
+      } else {
+	// Random azimuthal angle
+	return 2.0*M_PI*dist(rng);
+      }
+    }
+
+    std::tuple<unsigned, unsigned, std::vector<unsigned>> getStats()
+    {
+      MPI_Allreduce(MPI_IN_PLACE, &numtot, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, &numbar, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, counts.data(), numcnt, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+      return {numtot, numbar, counts};
+    }
+
+  };
+  
 public:
 
   enum DiskGenType { Jeans, Asymmetric, Epicyclic };
@@ -195,6 +261,10 @@ public:
 
   static double SIG0;           // Velocity dispersion fraction at a
 				// scale length. Default: 0.1
+
+  static int MPERT;		// Harmonic perturbation order. Default: 2
+
+  static double AMPL;		// Harmonic amplitude.  Default: 0.0
 
   static double R_DF;		// Change over points for DF and Jeans
   static double DR_DF;
