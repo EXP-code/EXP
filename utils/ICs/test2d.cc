@@ -1,5 +1,6 @@
 /*
-  Test Disk2d
+  Test Disk2d by computing coefficients and evaluating fields for an
+  exponential disk target
 */
                                 // C++/STL headers
 #include <filesystem>
@@ -50,11 +51,11 @@ main(int ac, char **av)
   double       RCYLMIN, RCYLMAX, DMFAC, ACYL;
   bool         LOGR, CHEBY, SELECT, DUMPCOEF;
   int          NUMR, CMAPR, CMAPZ, knots, nlim;
-  int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT, NODD, DF;
-  double       Hratio, scale_length, disk_mass;
+  int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT;
+  double       scale_length, disk_mass;
   std::string  cachefile, config, prefix;
   
-  const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
+  const std::string mesg("Generates a 2d cylindrical basis and computes the fields for an exponential disk target for checking convergence\n");
 
   cxxopts::Options options(av[0], mesg);
 
@@ -210,7 +211,7 @@ main(int ac, char **av)
 	std::cout << "Coefficients: " << disk.get_coefs().row(0)
 		  << std::endl;
     } else {
-      std::cout << "Test2d: could not open <" << prefix + ".data"
+      std::cout << av[0] << ": could not open <" << prefix + ".data"
 		<< "> for output" << std::endl;
     }
   }
