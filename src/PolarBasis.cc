@@ -100,9 +100,9 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     } else
       self_consistent = true;
 
-    if (conf["NO_M0"])   NO_M0   = conf["NO_M0"].as<bool>();
-    if (conf["NO_M1"])   NO_M1   = conf["NO_M1"].as<bool>();
-    if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"].as<bool>();
+    if (conf["NO_M0"])   NO_M0   = conf["NO_M0"].  as<bool>();
+    if (conf["NO_M1"])   NO_M1   = conf["NO_M1"].  as<bool>();
+    if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"]. as<bool>();
     if (conf["M0_ONLY"]) M0_only = conf["M0_ONLY"].as<bool>();
     
     if (conf["ssfrac"]) {
@@ -777,12 +777,6 @@ void PolarBasis::determine_coefficients_particles(void)
   cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
 #endif
 
-  if (multistep==0) {
-    for (int i=0; i<nthrds; i++) use1 += use[i];
-    used += use1;
-  }
-  
-
   // Thread reduce
   //
   for (int i=1; i<nthrds; i++) {
@@ -830,12 +824,11 @@ void PolarBasis::determine_coefficients_particles(void)
   }
   
   if (multistep==0 or (mstep==0 and mlevel==multistep)) {
+    // Sum up the particle count and mass from each thread
+    //
     MPI_Allreduce(&use[0], &used, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-    // Sum up the results from each thread
-    //
     for (int i=1; i<nthrds; i++) {
-      for (int l=0; l<2*Mmax+1; l++) (*expcoef0[0][l]) += (*expcoef0[i][l]);
       cylmass1[0] += cylmass1[i];
     }
 
