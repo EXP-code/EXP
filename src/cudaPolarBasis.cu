@@ -24,7 +24,7 @@ __device__ __constant__
 int plrNumx, plrNumy, plrCmapR, plrCmapZ, plrOrient;
 
 __device__ __constant__
-bool plrAcov;
+bool plrAcov, plrNO_M0, plrNO_M1, plrEVEN_M, plrM0only;
 
 // Index function for sine and cosine coefficients
 //
@@ -80,6 +80,10 @@ void testConstantsPlr()
   printf("   CmapR  = %d\n", plrCmapR );
   printf("   CmapZ  = %d\n", plrCmapZ );
   printf("   Orient = %d\n", plrOrient);
+  printf("   NO_M0  = %d\n", plrNO_M0 );
+  printf("   NO_M1  = %d\n", plrNO_M1 );
+  printf("   EVEN_M = %d\n", plrEVEN_M);
+  printf("   M0only = %d\n", plrM0only);
   printf("-------------------------\n");
 }
 
@@ -224,6 +228,18 @@ void PolarBasis::initialize_mapping_constants()
 
   cuda_safe_call(cudaMemcpyToSymbol(plrCmapZ,  &f.cmapZ,  sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrCmapZ");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrNO_M0,  &NO_M0,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrNO_M0");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrNO_M1,  &NO_M1,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrNO_M1");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrEVEN_M, &EVEN_M,    sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrEVEN_M");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrM0only, &M0_only,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrM0only");
 
   cuda_safe_call(cudaMemcpyToSymbol(plrAcov,   &subsamp,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrAcov");
@@ -644,6 +660,11 @@ forceKernelPlr6(dArray<cudaParticle> P, dArray<int> I,
 
 	for (int mm=0; mm<=muse; mm++) {
 
+	  if (plrM0only and mm>0          ) continue;
+	  if (plrNO_M0  and mm==0         ) continue;
+	  if (plrNO_M1  and mm==1         ) continue;
+	  if (plrEVEN_M and (mm/2)*2 != mm) continue;
+
 	  for (int n=0; n<nmax; n++) {
       
 	    cuFP_t fac0 = coef._v[IImn(mm, 'c', n, nmax)];
@@ -799,7 +820,7 @@ forceKernelPlr6(dArray<cudaParticle> P, dArray<int> I,
 	pa     += pp * frac;
       }
 
-      if (ratio > ratmin) {
+      if (ratio > ratmin and not plrNO_M0) {
 
 	cuFP_t r3 = R2 + zz*zz;
 	pp = -plrmass/sqrt(r3);	// -M/r
@@ -1116,6 +1137,11 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 
 	for (int mm=0; mm<=muse; mm++) {
 
+	  if (plrM0only and mm>0          ) continue;
+	  if (plrNO_M0  and mm==0         ) continue;
+	  if (plrNO_M1  and mm==1         ) continue;
+	  if (plrEVEN_M and (mm/2)*2 != mm) continue;
+
 	  if (mm) norm = norm1;
 	  else    norm = norm0;
 
@@ -1210,7 +1236,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
       }
 
       
-      if (ratio > ratmin) {
+      if (ratio > ratmin and not plrNO_M0) {
 
 	cuFP_t r3 = R2 + zz*zz;
 	pp = -plrmass/sqrt(r3);	// -M/r
