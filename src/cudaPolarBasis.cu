@@ -940,6 +940,10 @@ __global__ void coefKernelPlr3
 	  } else {
 	    coef._v[(2*n+0)*N + i] = val * cosp * norm * mass;
 	    coef._v[(2*n+1)*N + i] = val * sinp * norm * mass;
+	    if ( (plrNO_M1 and m==1) or (plrEVEN_M and (m/2)*2!=m) ) {
+	      coef._v[(2*n+0)*N + i] = 0.0;
+	      coef._v[(2*n+1)*N + i] = 0.0;
+	    }
 	  }
 
 #ifdef BOUNDS_CHECK
@@ -1211,7 +1215,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	    pp += potl * ( facC * ccos + facS * ssin) * Sfac;
 	    fr += rfrc * ( facC * ccos + facS * ssin) * Sfac;
 	    fz += zfrc * ( facC * ccos + facS * ssin) * Sfac;
-	    fp += potl * (-facC * ssin + facS * ccos) * Sfac * mm;
+	    fp += potl * ( facC * ssin - facS * ccos) * Sfac * mm;
 	  }
 	  
 	  // Trig recursion to squeeze avoid internal FP fct call
@@ -1762,6 +1766,7 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
 	}
       }
     }
+    // END: M loop
 
     // Compute number and total mass of particles used in coefficient
     // determination

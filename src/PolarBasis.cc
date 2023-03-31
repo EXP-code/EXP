@@ -1449,7 +1449,7 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	    
 	    potl += mfac*norm1 * (pc*  cosm[id][m] + ps*  sinm[id][m]);
 	    potr += mfac*norm1 * (drc* cosm[id][m] + drs* sinm[id][m]);
-	    potp += mfac*norm1 * (-pc* sinm[id][m] + ps*  cosm[id][m]) * m;
+	    potp += mfac*norm1 * (pc*  sinm[id][m] - ps*  cosm[id][m]) * m;
 	    potz += mfac*norm1 * (dzc* cosm[id][m] + dzs* sinm[id][m]);
 	  }
 	  // END: m loop
