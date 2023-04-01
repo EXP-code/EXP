@@ -1208,10 +1208,6 @@ main(int ac, char **av)
 	std::cout << "done" << std::endl;
       }
     }
-
-    // Make dispersion table from particle distribution
-    //
-    if (evolved) diskhalo->table_halo(hparticles);
   }
   
   if (ndisk) {
@@ -1283,6 +1279,11 @@ main(int ac, char **av)
     }
   }
   
+  // Make dispersion table from particle distribution
+  //
+  if (evolved) diskhalo->table_halo(hparticles);
+
+  MPI_Barrier(MPI_COMM_WORLD);
 
   //===========================Diagnostics=====================================
 
