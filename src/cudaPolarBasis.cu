@@ -894,7 +894,7 @@ __global__ void coefKernelPlr3
 #ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	cuFP_t phi  = -Phi._v[i];
+	cuFP_t phi  = Phi._v[i];
 	cuFP_t cosp = cos(phi*m);
 	cuFP_t sinp = sin(phi*m);
 	
