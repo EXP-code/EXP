@@ -353,6 +353,10 @@ namespace MSSA {
     
   void expMSSA::reconstruct(const std::vector<int>& evlist)
   {
+    // Prevent a belly-up situation
+    //
+    if (not computed) mssa_analysis();
+
     // Use the OpenMP implementation
     const bool useOpenMP  = true;
 
