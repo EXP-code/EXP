@@ -702,7 +702,7 @@ main(int argc, char** argv)
     if (e.getDeadlock())
       std::cerr << std::string(72, '-') << std::endl
 		<< "Process " << myid << ": EXP asynchronous exception"
-		<< std::endl;
+		<< std::endl
 		<< std::string(72, '-') << std::endl
 		<< e.getErrorMessage()  << std::endl
 		<< std::string(72, '-') << std::endl;
