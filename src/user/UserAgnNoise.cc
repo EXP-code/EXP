@@ -1,9 +1,8 @@
-#include <math.h>
+#include <cmath>
 #include <sstream>
 
 #include "expand.H"
 #include <localmpi.H>
-#include <gaussQ.H>
 
 #include <UserAgnNoise.H>
 
@@ -11,8 +10,8 @@ UserAgnNoise::UserAgnNoise(const YAML::Node &conf) : ExternalForce(conf)
 {
   id = "AGNnoise";
 
-  comp_name = "";		// Component for com: mandatory parameter
-  tev = tnow;			// Initial time offset value
+  comp_name = "";		// Component for AGN emulation: mandatory
+
   tau = 0.1;			// Default half life
   R0  = 0.003;			// Default radius of event region
   eps = 0.1;			// Default fraction of mass lost in region
@@ -45,25 +44,28 @@ UserAgnNoise::UserAgnNoise(const YAML::Node &conf) : ExternalForce(conf)
 
   userinfo();
 
-  // Assign generator and find time of first event
+  // Assign uniform generator for Poisson events
   //
   number_01 = std::uniform_real_distribution<double>(0.0, 1.0);
 
-  tev = tev - tau*log(number_01(random_gen));
+  // Compute time for first event
+  //
+  tev = tnow - tau*log(number_01(random_gen));
 
   // Assign initial counter values
   //
   if (not restart) {
     int nbodies = c0->Number();
-    PartMapItr it = cC->Particles().begin();
+    PartMapItr it = c0->Particles().begin();
     if (myid==0) {
-      // Sanity check
+      // Sanity check: attribute dimension
       if (it->second->dattrib.size() < loc+1) {
 	std::ostringstream sout;
 	sout << "Number float attribute in Particle must be >= " << loc+2;
 	throw GenericError(sout.str(), __FILE__, __LINE__, 37, false);
       }
     }
+    // Assign initial attribute values
     for (int q=0; q<nbodies; q++) {
       PartPtr p = it++->second;
       p->dattrib[loc+0] = p->mass;   // Initial mass
@@ -83,8 +85,8 @@ void UserAgnNoise::userinfo()
   print_divider();
 
   cout << "** User routine AGN noise initialized "
-       << "using component <" << comp_name << "> with"
-       << " tau=" << tau
+       << "using component <" << comp_name << "> with" << std::endl
+       << "    tau=" << tau
        << " R0="  << R0
        << " eps=" << eps
        << std::endl;

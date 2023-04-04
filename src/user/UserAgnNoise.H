@@ -29,13 +29,14 @@ private:
   int    loc;
   //@}
 
-  //! Current value of mass-evolution function
+  //! Current value of next AGN/starburst event
   double tev;
-
-  void userinfo();
 
   //! For selecting events
   std::uniform_real_distribution<double> number_01;
+
+  //! Log parameter info
+  void userinfo();
 
 public:
 
