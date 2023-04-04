@@ -11,8 +11,8 @@ UserAgnNoise::UserAgnNoise(const YAML::Node &conf) : ExternalForce(conf)
 {
   id = "AGNnoise";
 
-  comp_name = "";		// Default component for com
-  tev = 0.0;			// Default time offset
+  comp_name = "";		// Component for com: mandatory parameter
+  tev = tnow;			// Initial time offset value
   tau = 0.1;			// Default half life
   R0  = 0.003;			// Default radius of event region
   eps = 0.1;			// Default fraction of mass lost in region
@@ -53,12 +53,22 @@ UserAgnNoise::UserAgnNoise(const YAML::Node &conf) : ExternalForce(conf)
 
   // Assign initial counter values
   //
-  int nbodies = c0->Number();
-  PartMapItr it = cC->Particles().begin();
-  for (int q=0; q<nbodies; q++) {
-    PartPtr p = it++->second;
-    p->dattrib[loc+0] = p->mass;
-    p->dattrib[loc+1] = -32*tau;
+  if (not restart) {
+    int nbodies = c0->Number();
+    PartMapItr it = cC->Particles().begin();
+    if (myid==0) {
+      // Sanity check
+      if (it->second->dattrib.size() < loc+1) {
+	std::ostringstream sout;
+	sout << "Number float attribute in Particle must be >= " << loc+2;
+	throw GenericError(sout.str(), __FILE__, __LINE__, 37, false);
+      }
+    }
+    for (int q=0; q<nbodies; q++) {
+      PartPtr p = it++->second;
+      p->dattrib[loc+0] = p->mass;   // Initial mass
+      p->dattrib[loc+1] = -32.0*tau; // Large negative value
+    }
   }
 }
 
@@ -150,7 +160,7 @@ void * UserAgnNoise::determine_acceleration_and_potential_thread(void * arg)
   for (int q=nbeg; q<nend; q++) {
     PartPtr p = it++->second;	// Particle pointer for convenience
 
-    if (tnow>tev) {		// Did we just have an event?
+    if (tnow>tev) {		// Did an event occur?
       double R = 0.0;
       for (int k=0; k<3; k++) R += p->pos[k]*p->pos[k];
       if (R*R < R0*R0) {
@@ -158,7 +168,7 @@ void * UserAgnNoise::determine_acceleration_and_potential_thread(void * arg)
       }
     }
 				// The updated particle mass
-    p->mass = p->dattrib[loc+0]*(1.0 - eps*exp(-(tnow-p->dattrib[loc+1])/tau));
+    p->mass = p->dattrib[loc]*(1.0 - eps*exp(-(tnow-p->dattrib[loc+1])/tau));
   }
 
   thread_timing_end(id);
@@ -168,18 +178,18 @@ void * UserAgnNoise::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerMassEvo(const YAML::Node& conf)
+  ExternalForce *makerAgnNoise(const YAML::Node& conf)
   {
     return new UserAgnNoise(conf);
   }
 }
 
-class proxymassevo { 
+class proxyagnnoise { 
 public:
-  proxymassevo()
+  proxyagnnoise()
   {
-    factory["usermassevo"] = makerMassEvo;
+    factory["useragnnoise"] = makerAgnNoise;
   }
 };
 
-static proxymassevo p;
+static proxyagnnoise p;
