@@ -8,7 +8,8 @@
 /** Evolve the per particle masses after after AGN/star burst event
 
     @param compname is the component and must be specified
-    @param tau is the half-life between events (0.1 by default)
+    @param tau1 is the half-life between events (0.1 by default)
+    @param tau2 is the recovery time (0.05 by default)
     @param R0 is the radius of the event (0.003 by default)
     @param eps is the amplitude of the event (0.1 by default)
 */
@@ -25,8 +26,9 @@ private:
 
   //@{
   //! Parameters
-  double tau, R0, eps;
+  double tau1, tau2, R0, eps;
   int    loc;
+  bool   info;
   //@}
 
   //! Current value of next AGN/starburst event

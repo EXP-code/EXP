@@ -12,13 +12,14 @@ UserAgnNoise::UserAgnNoise(const YAML::Node &conf) : ExternalForce(conf)
 
   comp_name = "";		// Component for AGN emulation: mandatory
 
-  tau = 0.1;			// Default half life
-  R0  = 0.003;			// Default radius of event region
-  eps = 0.1;			// Default fraction of mass lost in region
-  loc = 0;			// Default location of interaction
+  tau1 = 0.1;			// Default half life
+  tau2 = 0.05;			// Default recovery time
+  R0   = 0.003;			// Default radius of event region
+  eps  = 0.1;			// Default fraction of mass lost in region
+  loc  = 0;			// Default location of interaction
 				// time in particle attribute array
 
-  initialize();
+  initialize();			// Assign parameters
 
   if (comp_name.size()>0) {
 				// Look for the fiducial component
@@ -50,7 +51,12 @@ UserAgnNoise::UserAgnNoise(const YAML::Node &conf) : ExternalForce(conf)
 
   // Compute time for first event
   //
-  tev = tnow - tau*log(number_01(random_gen));
+  if (myid==0) {
+    tev = tnow - tau1*log(number_01(random_gen));
+    if (info) std::cout << "**** AGN noise: next event will be T="
+			<< tev << std::endl;
+  }
+  MPI_Bcast(&tev, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   // Assign initial counter values
   //
@@ -68,8 +74,8 @@ UserAgnNoise::UserAgnNoise(const YAML::Node &conf) : ExternalForce(conf)
     // Assign initial attribute values
     for (int q=0; q<nbodies; q++) {
       PartPtr p = it++->second;
-      p->dattrib[loc+0] = p->mass;   // Initial mass
-      p->dattrib[loc+1] = -32.0*tau; // Large negative value
+      p->dattrib[loc+0] = p->mass;    // Initial mass
+      p->dattrib[loc+1] = -32.0*tau1; // Large negative value
     }
   }
 }
@@ -80,15 +86,17 @@ UserAgnNoise::~UserAgnNoise()
 
 void UserAgnNoise::userinfo()
 {
-  if (myid) return;		// Return if node master node
+  if (myid) return;		// Only root node prints to stdout
 
   print_divider();
 
   cout << "** User routine AGN noise initialized "
        << "using component <" << comp_name << "> with" << std::endl
-       << "    tau=" << tau
-       << " R0="  << R0
-       << " eps=" << eps
+       << "   tau1=" << tau1
+       << " tau2="   << tau2
+       << " R0="     << R0
+       << " eps="    << eps
+       << " info="   << std::boolalpha << info
        << std::endl;
 
   print_divider();
@@ -98,10 +106,12 @@ void UserAgnNoise::initialize()
 {
   try {
     if (conf["compname"]) comp_name = conf["compname"].as<std::string>();
-    if (conf["tau"])      tau       = conf["tau"].as<double>();
+    if (conf["tau1"])     tau1      = conf["tau1"].as<double>();
+    if (conf["tau2"])     tau2      = conf["tau2"].as<double>();
     if (conf["R0"])       R0        = conf["R0"].as<double>();
     if (conf["esp"])      eps       = conf["eps"].as<double>();
     if (conf["loc"])      loc       = conf["loc"].as<int>();
+    if (conf["info"])     info      = conf["info"].as<bool>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in UserAgnNoise: "
@@ -137,7 +147,12 @@ void UserAgnNoise::determine_acceleration_and_potential(void)
   // Compute next event
   //
   if (tnow > tev) {
-    tev = tev - tau*log(number_01(random_gen));
+    if (myid==0) {
+      tev = tev - tau1*log(number_01(random_gen));
+      if (info) std::cout << "**** AGN noise: next event will be T="
+			  << tev << std::endl;
+    }
+    MPI_Bcast(&tev, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
   }
 
 }
@@ -170,7 +185,7 @@ void * UserAgnNoise::determine_acceleration_and_potential_thread(void * arg)
       }
     }
 				// The updated particle mass
-    p->mass = p->dattrib[loc]*(1.0 - eps*exp(-(tnow-p->dattrib[loc+1])/tau));
+    p->mass = p->dattrib[loc]*(1.0 - eps*exp(-(tnow-p->dattrib[loc+1])/tau2));
   }
 
   thread_timing_end(id);
