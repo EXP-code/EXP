@@ -26,7 +26,7 @@
 #include <numerical.H>
 #include <gaussQ.H>
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 #include <model3d.H>
 #include <biorth.H>
 #include <SphericalSL.H>
@@ -76,7 +76,7 @@ void set_fpu_invalid_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -111,7 +111,7 @@ void set_fpu_trace_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -146,7 +146,7 @@ void set_fpu_gdb_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -221,7 +221,7 @@ double DiskDens(double R, double z, double phi)
       double h2 = HSCALE*HRATIO;
       double w1 = 1.0/(1.0+DWEIGHT);
       double w2 = DWEIGHT/(1.0+DWEIGHT);
-      
+
       double f1 = cosh(z/h1);
       double f2 = cosh(z/h2);
 
@@ -259,7 +259,7 @@ double dcond(double R, double z, double phi, int M)
     phiS = phi + dmult*(int)((2.0*M_PI - phi)/dmult);
   else
     phiS = phi - dmult*(int)(phi/dmult);
-  
+
   //
   // Apply a shift along the x-axis
   //
@@ -269,13 +269,13 @@ double dcond(double R, double z, double phi, int M)
   return DiskDens(sqrt(x*x + y*y), z, atan2(y, x));
 }
 
-int 
+int
 main(int ac, char **av)
 {
   //====================
   // Inialize MPI stuff
   //====================
-  
+
   local_init_mpi(ac, av);
 
   //====================
@@ -311,7 +311,7 @@ main(int ac, char **av)
   std::string  dmodel;
   std::string  mtype;
   std::string  ctype;
-  
+
   const std::string mesg("Generates an EmpCylSL cache\n");
 
   cxxopts::Options options(av[0], mesg);
@@ -390,7 +390,7 @@ main(int ac, char **av)
     ("CMAPZ", "Vertical coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
      cxxopts::value<int>(CMAPZ)->default_value("1"))
     ;
-  
+
   cxxopts::ParseResult vm;
 
   try {
@@ -400,7 +400,7 @@ main(int ac, char **av)
     MPI_Finalize();
     exit(-1);
   }
-  
+
   // Write YAML template config file and exit
   //
   if (vm.count("template")) {
@@ -444,7 +444,7 @@ main(int ac, char **av)
       return 0;
     }
   }
-  
+
   // Enable new YAML cache header
   //
   if (vm.count("newcache")) {
@@ -491,7 +491,7 @@ main(int ac, char **av)
   // Set DiskType.  This is the functional form for the disk used to
   // condition the basis.
   //
-  try {				// Check for map entry, will through if the 
+  try {				// Check for map entry, will through if the
     DTYPE = dtlookup.at(dtype);	// key is not in the map.
 
     if (myid==0)		// Report DiskType
@@ -527,12 +527,12 @@ main(int ac, char **av)
   // Okay, now begin ...
   //====================
 
-#ifdef DEBUG                    // For gdb . . . 
+#ifdef DEBUG                    // For gdb . . .
   sleep(20);
   // set_fpu_handler();         // Make gdb trap FPU exceptions
   set_fpu_gdb_handler();	// Make gdb trap FPU exceptions
 #endif
-  
+
 
 
   //===========================Cylindrical expansion===========================
@@ -596,10 +596,10 @@ main(int ac, char **av)
 	 std::cout << "Made truncated model with R=" << RTRUNC/ASCALE
 		   << " and W=" << RWIDTH/ASCALE << std::endl;
      }
-     
+
      expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
    }
-    
+
    // Regenerate EOF from analytic density
    //
    expandd->generate_eof(RNUM, PNUM, TNUM, dcond);

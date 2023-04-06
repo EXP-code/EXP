@@ -1,5 +1,5 @@
-#ifndef _hernquist_H
-#define _hernquist_H
+#ifndef _hernquistmodel_H
+#define _hernquistmodel_H
 
 #include <cmath>
 #include <massmodel.H>

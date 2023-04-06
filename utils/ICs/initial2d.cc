@@ -41,7 +41,7 @@
 #include <numerical.H>
 #include <gaussQ.H>
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 #include <model3d.H>
 #include <biorth.H>
 #include <SphericalSL.H>
@@ -91,7 +91,7 @@ void set_fpu_invalid_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -126,7 +126,7 @@ void set_fpu_trace_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -161,7 +161,7 @@ void set_fpu_gdb_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -180,13 +180,13 @@ void set_fpu_gdb_handler(void)
 #include <localmpi.H>
 #include <Particle.H>
 
-int 
+int
 main(int ac, char **av)
 {
   //====================
   // Inialize MPI stuff
   //====================
-  
+
   local_init_mpi(ac, av);
 
   //====================
@@ -208,7 +208,7 @@ main(int ac, char **av)
   int          nhalo, ndisk;
   std::string  hbods, dbods, suffix, centerfile, halofile1, halofile2;
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
-  
+
   const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
 
   cxxopts::Options options(av[0], mesg);
@@ -373,7 +373,7 @@ main(int ac, char **av)
     ("report", "Print out progress in BiorthCyl table evaluation")
     ("diskmodel", "Table describing the model for the disk plane")
     ;
-  
+
   cxxopts::ParseResult vm;
 
   try {
@@ -424,7 +424,7 @@ main(int ac, char **av)
       return 0;
     }
   }
-  
+
   if (vm.count("spline")) {
     SphericalModelTable::linear = 0;
   } else {
@@ -433,7 +433,7 @@ main(int ac, char **av)
 
   //====================
   // Cheb order for
-  // SphericalModel DF 
+  // SphericalModel DF
   //====================
 
   SphericalModelTable::chebyN = TCHEB;
@@ -465,45 +465,45 @@ main(int ac, char **av)
   // Okay, now begin ...
   //====================
 
-#ifdef DEBUG                    // For gdb . . . 
+#ifdef DEBUG                    // For gdb . . .
   sleep(20);
   // set_fpu_handler();         // Make gdb trap FPU exceptions
   set_fpu_gdb_handler();	// Make gdb trap FPU exceptions
 #endif
-  
+
   int n_particlesH, n_particlesD;
-  
+
   if (suffix.size()>0) {
     hbods = hbods + "." + suffix;
     dbods = dbods + "." + suffix;
   }
-  
+
   // Divvy up the particles by core
   //
   n_particlesH = nhalo/numprocs;
   if (myid==0) n_particlesH = nhalo - n_particlesH*(numprocs-1);
-  
+
   n_particlesD = ndisk/numprocs;
   if (myid==0) n_particlesD = ndisk - n_particlesD*(numprocs-1);
-  
-#ifdef DEBUG  
+
+#ifdef DEBUG
   std::cout << "Processor " << myid << ": n_particlesH=" << n_particlesH
 	    << std::endl
 	    << "Processor " << myid << ": n_particlesD=" << n_particlesD
 	    << std::endl
 #endif
-  
+
   if (nhalo + ndisk <= 0) {
     if (myid==0) std::cout << "You have specified zero particles!" << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 3);
     exit(0);
   }
-  
+
   // Vectors to contain phase space Particle structure is defined in
   // Particle.H
   //
   vector<Particle> dparticles, hparticles;
-  
+
   //
   // Disk halo grid parameters
   //
@@ -536,15 +536,15 @@ main(int ac, char **av)
   if (vm.count("allow"))  Disk2dHalo::ALLOW    = true;
   if (vm.count("nomono")) Disk2dHalo::use_mono = false;
   if (suffix.size())      Disk2dHalo::RUNTAG   = suffix;
-  
+
   AddDisk::use_mpi      = true;
   AddDisk::Rmin         = RMIN;
-  
+
   //===========================Spherical expansion=============================
-  
+
   // SLGridSph::diverge = DIVERGE;
   // SLGridSph::divergexp = DIVERGE_RFAC;
-  
+
   SphericalSL::RMIN = RMIN;
   SphericalSL::RMAX = RSPHSL;
   SphericalSL::NUMR = NUMR;
@@ -577,7 +577,7 @@ main(int ac, char **av)
   if (vm.count("report"))
     yml << YAML::Key << "verbose" << YAML::Value << true;
   yml << YAML::EndMap;
-  
+
                                 // Create expansion only if needed . . .
   std::shared_ptr<Disk2d> expandd;
 
@@ -608,7 +608,7 @@ main(int ac, char **av)
        Disk2dHalo::getDiskGenType[gentype]);
     if (myid==0) std::cout << "done" << std::endl;
   }
-  
+
   std::ifstream center(centerfile);
   if (center) {
 
@@ -625,7 +625,7 @@ main(int ac, char **av)
 
     if (ok) {
       diskhalo->set_pos_origin(X0, Y0, Z0);
-      if (myid==0) std::cout << "Using position origin: " 
+      if (myid==0) std::cout << "Using position origin: "
 			     << X0 << ", " << Y0 << ", " << Z0 << std::endl;
     }
 
@@ -640,7 +640,7 @@ main(int ac, char **av)
 
     if (ok) {
       diskhalo->set_vel_origin(U0, V0, W0);
-      if (myid==0) std::cout << "Using velocity origin: " 
+      if (myid==0) std::cout << "Using velocity origin: "
 			     << U0 << ", " << V0 << ", " << W0 << std::endl;
     }
   }
@@ -649,7 +649,7 @@ main(int ac, char **av)
                                 // center of velocity
   diskhalo->zero_com(zeropos);
   diskhalo->zero_cov(zerovel);
-  
+
   //===========================================================================
 
                                 // Open output file (make sure it exists
@@ -680,7 +680,7 @@ main(int ac, char **av)
   if (evolved) {		// ---------------------------
 				// Use existing halo body file
     std::ifstream hin(hbods);	// ---------------------------
-    
+
     if (hin) {
       std::string line;
       std::getline(hin, line);
@@ -690,7 +690,7 @@ main(int ac, char **av)
       sin >> nhalo;
       sin >> niatr;
       sin >> ndatr;
-      
+
       // Divvy up the particles by core.  The root node gets any
       // remainder.
       //
@@ -698,7 +698,7 @@ main(int ac, char **av)
 
       int ibeg = 0;
       int iend = nhalo - n_particlesH*(numprocs-myid-1);
-      
+
       if (myid>0) {
 	ibeg = nhalo - n_particlesH*(numprocs-myid);
 	for (int i=0; i<ibeg; i++) std::getline(hin, line);
@@ -833,7 +833,7 @@ main(int ac, char **av)
     }
 
   }
-  
+
   if (ndisk) {
     if (myid==0) std::cout << "Beginning disk accumulation . . . " << std::flush;
     expandd->setup_accumulation();
@@ -861,7 +861,7 @@ main(int ac, char **av)
       std::cout << "done" << std::endl;
     }
   }
-  
+
   // Make dispersion table from particle distribution
   //
   if (evolved) diskhalo->table_halo(hparticles);
@@ -875,11 +875,11 @@ main(int ac, char **av)
     diskhalo->set_vel_halo(hparticles);
     if (myid==0) std::cout << "done" << std::endl;
   }
-  
+
   if (myid==0) std::cout << "Generating disk velocities . . . " << std::endl;
   diskhalo->set_vel_disk(dparticles);
   if (myid==0) std::cout << "done" << std::endl;
-  
+
 
   //====================All done: write it out=================================
 
