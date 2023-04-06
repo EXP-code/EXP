@@ -197,7 +197,7 @@ main(int ac, char **av)
   double       RMIN, RCYLMIN, RCYLMAX, SCSPH, RSPHSL, DMFAC, SHFAC, ACYL;
   double       X0, Y0, Z0, U0, V0, W0;
   int          RNUM, PNUM, TNUM, VFLAG, DFLAG;
-  bool         LOGR, CHEBY, SELECT, DUMPCOEF;
+  bool         LOGR, CHEBY, SELECT, DUMPCOEF, DUMPBASIS;
   int          CMAPR, CMAPZ, NCHEB, TCHEB, CMTYPE, NDR, NDZ, NHR, NHT, NDP;
   int          NMAXH, NMAXD, NMAXFID, LMAX, MMAX, NUMX, NUMY, NOUT, DF;
   int          DIVERGE, DIVERGE2, SEED, itmax, nthrds, M;
@@ -294,6 +294,8 @@ main(int ac, char **av)
      cxxopts::value<bool>(const_height)->default_value("true"))
     ("DUMPCOEF", "(boolean) dump coefficients",
      cxxopts::value<bool>(DUMPCOEF)->default_value("false"))
+    ("DUMPBASIS", "(boolean) dump a few basis profiles for testing",
+     cxxopts::value<bool>(DUMPBASIS)->default_value("false"))
     ("NCHEB", "",
      cxxopts::value<int>(NCHEB)->default_value("12"))
     ("TCHEB", "",
@@ -782,6 +784,16 @@ main(int ac, char **av)
 	else                 sout << "dump";
 	ofstream out(sout.str());
 	if (out) expandh->dump_coefs(out, false);
+	std::cout << "done" << std::endl;
+      }
+      if (DUMPBASIS) {
+	std::cout << "Dumping some halo basis functions . . . " << std::flush;
+	ostringstream sout;
+	sout << "halo_basis.";
+	if (suffix.size()>0) sout << suffix;
+	else                 sout << "dump";
+	std::string name = sout.str();
+	expandh->dump_basis(name);
 	std::cout << "done" << std::endl;
       }
       if (vm.count("probe")) {
