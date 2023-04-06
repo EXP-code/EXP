@@ -41,7 +41,7 @@
 #include <massmodel.H>
 
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 #include <model3d.H>
 #include <interp.H>
 #include <YamlCheck.H>
