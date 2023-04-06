@@ -185,8 +185,8 @@ void Disk2d::get_potl_dens(double r, double z, Eigen::MatrixXd& p,
 
 void Disk2d::accumulate(double R, double phi, double mass)
 {
-  constexpr double norm0 = -sqrt(2.0*M_PI);
-  constexpr double norm1 = norm0 * M_SQRT2;
+  constexpr double norm0 = -2.0*M_SQRT2/M_2_SQRTPI;
+  constexpr double norm1 = -4.0/M_2_SQRTPI;
 
   double r = R + 10.0*std::numeric_limits<double>::min();
       
@@ -262,8 +262,8 @@ void Disk2d::make_coefficients()
 std::tuple<double, double, double, double, double, double, double>
 Disk2d::accumulated_eval(double R, double z, double phi)
 {
-  constexpr double norm0 = 1.0/sqrt(2.0*M_PI);
-  constexpr double norm1 = M_SQRT2 * norm0;
+  constexpr double norm0 = M_2_SQRTPI/(2.0*M_SQRT2);
+  constexpr double norm1 = M_2_SQRTPI/2.0;
 
   double d0=0.0, d1=0.0, p0=0.0, p1=0.0, fr=0.0, fz=0.0, fp=0.0;
 

@@ -395,9 +395,8 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 {
   // For biorthogonal density component and normalization
   // 
-  constexpr double normD = 2.0*M_PI;
-  constexpr double norm0 = std::sqrt(0.5/M_PI) * normD;
-  constexpr double norm1 = std::sqrt(1.0/M_PI) * normD;
+  constexpr double norm0 = 2.0*M_PI * M_2_SQRTPI/M_SQRT2;
+  constexpr double norm1 = 2.0*M_PI * M_2_SQRTPI/2.0;
 
   double r, r2, facL=1.0, fac1, fac2, phi, mass;
   double xx, yy, zz;
@@ -1039,9 +1038,8 @@ void PolarBasis::multistep_update(int from, int to, Component *c, int i, int id)
 
   // For biorthogonal density component and normalization
   // 
-  constexpr double normD = 2.0*M_PI;
-  constexpr double norm0 = std::sqrt(0.5/M_PI) * normD;
-  constexpr double norm1 = std::sqrt(1.0/M_PI) * normD;
+  constexpr double norm0 = 2.0*M_PI * M_2_SQRTPI/M_SQRT2;
+  constexpr double norm1 = 2.0*M_PI * M_2_SQRTPI/2.0;
 
   double mass = c->Mass(i) * component->Adiabatic();
 
@@ -1319,8 +1317,8 @@ void PolarBasis::compute_multistep_coefficients()
 
 void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 {
-  constexpr double norm0 = std::sqrt(0.5/M_PI);
-  constexpr double norm1 = std::sqrt(1.0/M_PI);
+  constexpr double norm0 = M_2_SQRTPI/M_SQRT2;
+  constexpr double norm1 = M_2_SQRTPI/2.0;
 
   double r, r0=0.0, phi;
   double potr, potz, potl, potp, p, pc, drc, drs, dzc, dzs, ps, dfacp, facdp;
