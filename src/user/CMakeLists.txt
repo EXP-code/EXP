@@ -1,7 +1,7 @@
 
 set(USER_MODULES user bar ebar logpot disk ebarp halo ebars ebarn
   periodic reflect trigger mndisk tidalrad massevo addmass sat
-  satfix mwgala)
+  satfix mwgala agnnoise)
 
 if (ENABLE_USER_ALL)
   list(APPEND USER_MODULES diffuse torque diffrot respot respotn
@@ -81,6 +81,7 @@ set(trigger_SRC   UserBarTrigger.cc)
 set(shear_SRC     UserShear.cc)
 set(profile_SRC   UserProfile.cc)
 set(wake_SRC      UserWake.cc)
+set(agnnoise_SRC  UserAgnNoise.cc)
 
 if (ENABLE_CUDA)
   list(APPEND sat_SRC cudaUserSat.cu)
