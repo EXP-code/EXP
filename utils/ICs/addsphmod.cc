@@ -25,7 +25,7 @@
 #include <numerical.H>
 #include <gaussQ.H>
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 #include <model3d.H>
 #include <biorth.H>
 #include <SphericalSL.H>
@@ -39,13 +39,13 @@
 #include <SphericalSL.H>
 #include <localmpi.H>
 
-int 
+int
 main(int ac, char **av)
 {
   //====================
   // Inialize MPI stuff
   //====================
-  
+
   local_init_mpi(ac, av);
 
   //====================
@@ -56,7 +56,7 @@ main(int ac, char **av)
   int          DIVERGE, DIVERGE2;
   double       DIVERGE_RFAC, DIVERGE_RFAC2, bmass;
   std::string  outfile, config;
-  
+
   const std::string mesg("Make a model from the combination of two spherical models.  E.g. a DM halo and a bulge.\n");
 
   cxxopts::Options options(av[0], mesg);
@@ -84,7 +84,7 @@ main(int ac, char **av)
     ("bmass", "Mass factor for second model relative to first",
      cxxopts::value<double>(bmass)->default_value("1.0"))
     ;
-  
+
   cxxopts::ParseResult vm;
 
   try {
@@ -133,7 +133,7 @@ main(int ac, char **av)
       return 0;
     }
   }
-  
+
   if (vm.count("spline")) {
     SphericalModelTable::linear = 0;
   } else {
@@ -146,7 +146,7 @@ main(int ac, char **av)
 
 
   AddSpheres combo(mod1, mod2, bmass);
-  
+
   combo.get_model()->print_model(outfile);
 
   return 0;

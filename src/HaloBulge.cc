@@ -16,7 +16,7 @@
 #include <massmodel.H>
 #include <model3d.H>
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 
 #include <HaloBulge.H>
 
@@ -43,12 +43,12 @@ HaloBulge::HaloBulge(const YAML::Node& conf) : ExternalForce(conf)
 				// Defaults
   HMODEL   = file;
   INFILE   = "w05";
-  
+
   MHALO    = 1.0;
   RHALO    = 1.0;
   RMODMIN  = 1.0e-3;
   RMOD     = 20.0;
-  
+
   RBCORE   = 1.0;
   MBULGE   = 1.0;
   RBULGE   = 1.0;
@@ -70,7 +70,7 @@ HaloBulge::HaloBulge(const YAML::Node& conf) : ExternalForce(conf)
     break;
   case hernquist_model:
     model = std::make_shared<HernquistSphere>(1.0, RMODMIN, RMOD);
-    break; 
+    break;
   default:
     {
       std::ostringstream sout;
@@ -111,10 +111,10 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
     potlB *= MBULGE/RBULGE;
     dpotB *= MBULGE/RBULGE/RBULGE;
 
-    for (int k=0; k<3; k++) 
+    for (int k=0; k<3; k++)
       cC->AddAcc(i, k, -(dpot + dpotB)*cC->Pos(i, k)/r );
     cC->AddPotExt(i,  potl + potlB );
-    
+
   }
 
   return (NULL);
@@ -126,7 +126,7 @@ void HaloBulge::initialize()
   // Remove matched keys
   //
   for (auto v : valid_keys) current_keys.erase(v);
-  
+
   // Assign values from YAML
   //
   try {
