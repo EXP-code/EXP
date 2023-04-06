@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.15) # This is the oldest version I've
 project(
   EXP
   VERSION "7.7.22"
-  HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
+  HOMEPAGE_URL https://github.com/EXP-code/EXP
   LANGUAGES C CXX Fortran)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
