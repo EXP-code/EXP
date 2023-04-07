@@ -49,11 +49,11 @@ void set_fpu_invalid_handler(void)
   // These calls are provided by glibc.  The key function
   // 'feenableexcept(/*flags*/);' has the system raise a signal that
   // may be trapped by gdb for debugging.
-  // 
+  //
   // Please contribute solutions
   // for other systems and unsupported architectures if possible...
 
-#ifdef __GNUC__
+#ifdef __unix__
   // Flag invalid FP results only, such as 0/0 or infinity - infinity
   // or sqrt(-1).
   //
@@ -68,7 +68,7 @@ void set_fpu_invalid_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "---- Enabled FE flags: <";
     for (auto v : flags) {
@@ -87,8 +87,8 @@ void set_fpu_invalid_handler(void)
 
 void set_fpu_trace_handler(void)
 {
-#ifdef __GNUC__
-  
+#ifdef __unix__
+
   // Flag all FP errors except inexact
   //
   // fedisableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
@@ -107,7 +107,7 @@ void set_fpu_trace_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -126,7 +126,7 @@ void set_fpu_trace_handler(void)
 
 void set_fpu_gdb_handler(void)
 {
-#ifdef __GNUC__
+#ifdef __unix__
 
   // Flag all FP errors except inexact
   //
@@ -146,7 +146,7 @@ void set_fpu_gdb_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -216,7 +216,7 @@ void exp_mpi_error_handler(MPI_Comm *communicator, int *error_code, ...)
     } else if (sofar % 1800==0) {
       std::cerr << hostname << "[pid=" << pid << "] waiting [MPI] "
 		<< sofar/60 << " minutes" << std::endl;
-    }      
+    }
   }
 
 }
@@ -229,7 +229,7 @@ void exp_mpi_error_handler(MPI_Comm *communicator, int *error_code, ...)
 //! Abort the time stepping and checkpoint when signaled
 static int stop_signal0 = 0;
 
-void signal_handler_stop(int sig) 
+void signal_handler_stop(int sig)
 {
   if (myid==0) {
     stop_signal0 = 1;
@@ -243,10 +243,10 @@ void signal_handler_stop(int sig)
   //
   ostringstream sout;
   if (BarrierWrapper::inOper) {
-    sout << "BarrierWrapper label is:" 
+    sout << "BarrierWrapper label is:"
 	 << left << setw(60) << BarrierWrapper::lbOper;
     if (BarrierWrapper::flOper.size())
-      sout << " ==> called from " << BarrierWrapper::flOper << ":" 
+      sout << " ==> called from " << BarrierWrapper::flOper << ":"
 	   << BarrierWrapper::lnOper;
   } else
     sout << "process called abort";
@@ -259,7 +259,7 @@ void signal_handler_stop(int sig)
 //! Dump phase space
 static int dump_signal0 = 0;
 
-void signal_handler_dump(int sig) 
+void signal_handler_dump(int sig)
 {
   if (myid==0) {
     dump_signal0 = 1;
@@ -277,13 +277,13 @@ void YAML_parse_args(int argc, char** argv);
 void make_node_list(int argc, char **argv)
 {
   if (myid==0)
-    std:: cout << std::setfill('%') << std::setw(80) << "%" << std::endl 
+    std:: cout << std::setfill('%') << std::setw(80) << "%" << std::endl
 	       << std::setfill(' ') << std::endl
-	       << std::setw(4) << std::left << "#" <<std::setw(20) 
-	       << "Node name" << std::setw(12) << "PID" 
+	       << std::setw(4) << std::left << "#" <<std::setw(20)
+	       << "Node name" << std::setw(12) << "PID"
 	       << std::setw(40) << "Executable" << endl
-	       << std::setw(4) << std::left << "-" << std::setw(20) 
-	       << "---------" << std::setw(12) << "---" 
+	       << std::setw(4) << std::left << "-" << std::setw(20)
+	       << "---------" << std::setw(12) << "---"
 	       << setw(40) << "----------" << endl;
 
   MPI_Status stat;
@@ -291,7 +291,7 @@ void make_node_list(int argc, char **argv)
   char *procn = new char [nprocn];
   char *cmdnm = new char [ncmd];
   long pid = getpid();
-  
+
   strncpy(procn, processor_name, nprocn);
   strncpy(cmdnm, argv[0], ncmd);
 
@@ -304,7 +304,7 @@ void make_node_list(int argc, char **argv)
       }
       cout << setw(4)  << left << j
 	   << setw(20) << string(procn)
-	   << setw(12) << pid 
+	   << setw(12) << pid
 	   << setw(ncmd) << cmdnm << endl;
     }
   } else {
@@ -312,7 +312,7 @@ void make_node_list(int argc, char **argv)
     MPI_Send(cmdnm,   ncmd, MPI_CHAR, 0, 62, MPI_COMM_WORLD);
     MPI_Send(&pid,       1, MPI_LONG, 0, 63, MPI_COMM_WORLD);
   }
-  
+
   if (myid==0) std::cout << std::setfill('%') << std::setw(80) << "%" << endl
 			 << std::setfill(' ') << std::endl << std::endl;
 
@@ -362,7 +362,7 @@ void make_node_list(int argc, char **argv)
 std::map<std::string, std::vector<int> >
 generateNodeList()
 {
-  
+
 
   return nameMap;
 }
@@ -373,7 +373,7 @@ int set_memlock_limits()
   if (rlimit_val==0) return 0;
 
   struct rlimit rlim;
-  
+
   if (rlimit_val<0) {
     rlim.rlim_cur = RLIM_INFINITY;
     rlim.rlim_max = RLIM_INFINITY;
@@ -382,7 +382,7 @@ int set_memlock_limits()
     rlim.rlim_cur = static_cast<rlim_t>(rlimit_val) * GB;
     rlim.rlim_max = static_cast<rlim_t>(rlimit_val) * GB;
   }
-  
+
   return setrlimit(RLIMIT_MEMLOCK, &rlim);
 }
 
@@ -394,7 +394,7 @@ void report_memlock_limits()
 
   sout << "Node " << processor_name << ", pid=" << getpid();
   if (getrlimit(RLIMIT_MEMLOCK, &rlim) == 0) {
-    sout << ", using MEMLOCK limits (soft, hard) = (" 
+    sout << ", using MEMLOCK limits (soft, hard) = ("
 	 << rlim.rlim_cur << ", " << rlim.rlim_max << ")";
   } else {
     sout << ", could not get RLIMIT_MEMLOCK!";
@@ -407,7 +407,7 @@ void report_memlock_limits()
 /**
    The MAIN routine
 */
-int 
+int
 main(int argc, char** argv)
 {
   const int hdbufsize=1024;
@@ -419,7 +419,7 @@ main(int argc, char** argv)
   MPI_Errhandler errhandler;
 
   //===================
-  // MPI preliminaries 
+  // MPI preliminaries
   //===================
 
   MPI_Init(&argc,&argv);
@@ -433,7 +433,7 @@ main(int argc, char** argv)
     MPI_Comm_set_errhandler(MPI_COMM_WORLD, errhandler);
   }
 
-				// Make SLAVE group 
+				// Make SLAVE group
 #ifdef SLAVE_GROUP
   slaves = numprocs - 1;
   MPI_Comm_group(MPI_COMM_WORLD, &world_group);
@@ -448,11 +448,11 @@ main(int argc, char** argv)
   MPI_Comm_create(MPI_COMM_WORLD, slave_group, &MPI_COMM_SLAVE);
   delete [] nslaves;
 
-  // Debug id 
+  // Debug id
   MPI_Group_rank ( slave_group, &n );
   if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl
 		     << setfill(' ')
-		     << "Process " << setw(4) << right << myid 
+		     << "Process " << setw(4) << right << myid
 		     << " on " << processor_name
 		     << "   pid=" << getpid()
 		     << "   MASTER NODE\t Ready to go!\n";
@@ -460,7 +460,7 @@ main(int argc, char** argv)
 #ifdef DEBUG
   MPI_Barrier(MPI_COMM_WORLD);
   for (int j=1; j<numprocs; j++) {
-    if (myid==j) cerr << "Process " << setw(4) << right << myid 
+    if (myid==j) cerr << "Process " << setw(4) << right << myid
 		      << " on " << processor_name
 		      << "   pid=" << getpid()
 		      << "   rank in SLAVE: " << j << "\t Ready to go!\n";
@@ -475,7 +475,7 @@ main(int argc, char** argv)
   //====================================
 
   if (signal(SIGTERM, signal_handler_stop) == SIG_ERR) {
-    cerr << endl 
+    cerr << endl
 	 << "Process " << myid
 	 << ": Error setting signal handler [TERM]" << endl;
     MPI_Finalize();
@@ -483,14 +483,14 @@ main(int argc, char** argv)
   }
 #ifdef DEBUG
   else {
-    cerr << endl 
+    cerr << endl
 	 << "Process " << myid
 	 << ": SIGTERM error handler set" << endl;
   }
 #endif
 
   if (signal(SIGHUP, signal_handler_dump) == SIG_ERR) {
-    cerr << endl 
+    cerr << endl
 	 << "Process " << myid
 	 << ": Error setting signal handler [HUP]" << endl;
     MPI_Finalize();
@@ -498,7 +498,7 @@ main(int argc, char** argv)
   }
 #ifdef DEBUG
   else {
-    cerr << endl 
+    cerr << endl
 	 << "Process " << myid
 	 << ": SIGHUP error handler set" << endl;
   }
@@ -529,12 +529,12 @@ main(int argc, char** argv)
   make_node_list(argc, argv);
 
   //================
-  // Print welcome  
+  // Print welcome
   //================
 
   if (myid==0) exp_version();
 
-  
+
   //==============================================
   // Begin exception handling
   //==============================================
@@ -542,8 +542,8 @@ main(int argc, char** argv)
   try {
 
     //============================
-    // Parse command line:        
-    // broadcast to all processes 
+    // Parse command line:
+    // broadcast to all processes
     //============================
 
     YAML_parse_args(argc, argv);
@@ -558,10 +558,10 @@ main(int argc, char** argv)
     if (fpe_wait ) set_fpu_gdb_handler();
 
     //========================
-    // Change to desired home 
-    // directory              
+    // Change to desired home
+    // directory
     //========================
-    
+
     if (use_cwd) {
       // Get Node 0 working directory and broadcast to everyone
       //
@@ -574,7 +574,7 @@ main(int argc, char** argv)
 	std::cout << "main: working directory is <" << homedir << ">"
 		  << std::endl;
     }
-  
+
     retdir = chdir(homedir.c_str());
     if (retdir) {
       std::cerr << "Process " << myid << ": could not change to home directory "
@@ -591,7 +591,7 @@ main(int argc, char** argv)
     }
 
     //=======
-    // DEBUG 
+    // DEBUG
     //=======
 #if 0
     if (myid) {
@@ -615,24 +615,24 @@ main(int argc, char** argv)
     else               BarrierWrapper::extra_verbose = false;
     if (barrier_debug) BarrierWrapper::debugging     = true;
     else               BarrierWrapper::debugging     = false;
-    
+
     //================
-    // Nice process ? 
+    // Nice process ?
     //================
-    
+
     if (NICE>0) setpriority(PRIO_PROCESS, 0, NICE);
 
 
     //===================
     // Set memory limits
     //===================
-    
+
     if (set_memlock_limits()) report_memlock_limits();
-    
+
     //==============================================
     // Sleep loop for debugging
     //==============================================
-    
+
     if (!main_wait or myid==0) {
       while (debug_wait) {
 	sleep(5);
@@ -640,21 +640,21 @@ main(int argc, char** argv)
     }
 
     //==============================================
-    // Read in points and initialize expansion grid 
+    // Read in points and initialize expansion grid
     //==============================================
-    
+
     (*barrier)("Expand: BEFORE begin_run", __FILE__, __LINE__);
     begin_run();
     (*barrier)("Expand: AFTER begin_run", __FILE__, __LINE__);
 
     //===========
-    // MAIN LOOP 
+    // MAIN LOOP
     //===========
 
     for (this_step=1; this_step<=nsteps; this_step++) {
 
       do_step(this_step);
-    
+
       //
       // Checking for exit time
       //
@@ -666,7 +666,7 @@ main(int argc, char** argv)
 	  quit_signal = 1;
 	}
       }
-      MPI_Bcast(&quit_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);      
+      MPI_Bcast(&quit_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
       if (quit_signal)  break;
 
       //
@@ -685,17 +685,17 @@ main(int argc, char** argv)
 
       if (stop_signal) {
 	cout << "Process " << myid << ": have stop signal\n";
-	this_step++; 
+	this_step++;
 	break;
       }
-    
+
       if (dump_signal) {
 	cout << "Process " << myid << ": dump signal received,"
 	     << " will dump on Step " << this_step+1 << ", continuing . . .\n";
       }
 
     }
-    
+
   }
   catch (EXPException& e) {
 
@@ -782,12 +782,10 @@ main(int argc, char** argv)
   if (quit_signal && myid==0) {
     std::cout << "Executing the epilogue command: " << restart_cmd << endl;
     if (system(restart_cmd.c_str()) == -1) {
-      std::cerr << "In MAIN, error executing the restart command <" 
+      std::cerr << "In MAIN, error executing the restart command <"
 		<< restart_cmd << ">" << std::endl;
     }
   }
 
   return 0;
 }
-
-
