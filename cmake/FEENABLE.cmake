@@ -20,10 +20,14 @@ set(_fe_snippet
   "
   )
 
+# Check the test source
 include(CheckCXXSourceCompiles)
-
 check_cxx_source_compiles("${_fe_snippet}" FE_ENABLE_FOUND)
 
+# Parse the response flag and provide config info
 if(FE_ENABLE_FOUND)
   set(HAVE_FE_ENABLE TRUE)
+  message(STATUS "We have <feenableexcept>: will compile FPE handlers.")
+else()
+  message(STATUS "We do NOT have <feenableexcept>: not compling FPE handlers.")
 endif()
