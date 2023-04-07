@@ -53,7 +53,7 @@ void set_fpu_invalid_handler(void)
   // Please contribute solutions
   // for other systems and unsupported architectures if possible...
 
-#ifdef __GNUC__
+#ifdef HAVE_FE_ENABLE
   // Flag invalid FP results only, such as 0/0 or infinity - infinity
   // or sqrt(-1).
   //
@@ -87,7 +87,7 @@ void set_fpu_invalid_handler(void)
 
 void set_fpu_trace_handler(void)
 {
-#ifdef __GNUC__
+#ifdef HAVE_FE_ENABLE
   
   // Flag all FP errors except inexact
   //
@@ -126,7 +126,7 @@ void set_fpu_trace_handler(void)
 
 void set_fpu_gdb_handler(void)
 {
-#ifdef __GNUC__
+#ifdef HAVE_FE_ENABLE
 
   // Flag all FP errors except inexact
   //
