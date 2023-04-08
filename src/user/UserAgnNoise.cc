@@ -109,7 +109,7 @@ void UserAgnNoise::initialize()
     if (conf["tau1"])     tau1      = conf["tau1"].as<double>();
     if (conf["tau2"])     tau2      = conf["tau2"].as<double>();
     if (conf["R0"])       R0        = conf["R0"].as<double>();
-    if (conf["esp"])      eps       = conf["eps"].as<double>();
+    if (conf["eps"])      eps       = conf["eps"].as<double>();
     if (conf["loc"])      loc       = conf["loc"].as<int>();
     if (conf["info"])     info      = conf["info"].as<bool>();
   }

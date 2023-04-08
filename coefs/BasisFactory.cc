@@ -1588,8 +1588,8 @@ namespace BasisClasses
   {
     // Normalization factors
     //
-    constexpr double norm0 = 2.0*M_PI * M_2_SQRTPI/M_SQRT2;
-    constexpr double norm1 = 2.0*M_PI * M_2_SQRTPI/2.0;
+    constexpr double norm0 = 2.0*M_PI * 0.5*M_2_SQRTPI/M_SQRT2;
+    constexpr double norm1 = 2.0*M_PI * 0.5*M_2_SQRTPI;
 
     //======================
     // Compute coefficients 
@@ -1653,8 +1653,8 @@ namespace BasisClasses
    double& pot0, double& pot1,
    double& rpot, double& zpot, double& ppot)
   {
-    constexpr double norm0 = M_2_SQRTPI/M_SQRT2;
-    constexpr double norm1 = M_2_SQRTPI/2.0;
+    constexpr double norm0 = 0.5*M_2_SQRTPI/M_SQRT2;
+    constexpr double norm1 = 0.5*M_2_SQRTPI;
 
     den0 = den1 = 0.0;
     pot0 = pot1 = 0.0;
