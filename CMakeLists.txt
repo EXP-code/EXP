@@ -60,6 +60,9 @@ find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
 find_package(PNG)
 
+# Check for FE
+include(FEENABLE)
+
 # Optional VTK support
 if(ENABLE_VTK)
   find_package(VTK)

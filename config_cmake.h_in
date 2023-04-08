@@ -7,6 +7,9 @@
 /* Similarly */
 #define HAVE_HASH
 
+/* Defined if you have feenableexcept */
+#cmakedefine HAVE_FE_ENABLE @HAVE_FE_ENABLE@
+
 /* Defined if you have FFTW */
 #cmakedefine HAVE_FFTW @FFTW_FOUND@
 

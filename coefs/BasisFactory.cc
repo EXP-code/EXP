@@ -4,8 +4,8 @@
 #include <DiskModels.H>
 #include <gaussQ.H>
 
-#ifdef __GNUC__
-// #include <fenv.h>
+#ifdef HAVE_FE_ENABLE
+#include <cfenv>
 #endif
 
 namespace BasisClasses
@@ -42,7 +42,7 @@ namespace BasisClasses
 
   void Basis::initialize()
   {
-#ifdef __GNUC__
+#ifdef HAVE_FE_ENABLE
     // Flag invalid FP results only, such as 0/0 or infinity - infinity
     // or sqrt(-1).
     //
