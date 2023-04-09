@@ -19,7 +19,7 @@ set (common_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 set (common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
-  exputil yaml-cpp)
+  exputil EXPlib yaml-cpp)
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
@@ -100,4 +100,3 @@ if(ENABLE_USER_ALL)
   target_link_libraries(satwake PUBLIC expuser_common expuser_swake
     ${common_LINKLIBS})
 endif()
-
