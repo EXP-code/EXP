@@ -7,9 +7,9 @@
 
 #include <iostream>
 #include <iomanip>
+#include <cfenv>
 #include <list>
 
-#include <fenv.h>
 #include <signal.h>
 #ifdef HAVE_FPU_CONTROL_H
 #include <fpu_control.h>
