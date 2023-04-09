@@ -9,7 +9,6 @@ void clean_up(void);
 #include <sys/resource.h>
 #include <sys/types.h>
 
-#include <fenv.h>
 #include <fpetrap.h>
 
 #ifdef USE_GPTL
