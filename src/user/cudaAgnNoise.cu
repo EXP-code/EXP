@@ -148,10 +148,9 @@ void UserAgnNoise::determine_acceleration_and_potential_cuda()
 
   // VERBOSE diagnostic output on first ncheck calls
   //
-  static int cntr = 0;
-  const  int ncheck = 10;
+  static bool first_time = true;
   
-  if (cntr==0) {
+  if (first_time) {
 
     cuda_safe_call(cudaMemcpyToSymbol(userAgnR0, &R0, sizeof(cuFP_t),
 				      size_t(0), cudaMemcpyHostToDevice),
@@ -168,15 +167,15 @@ void UserAgnNoise::determine_acceleration_and_potential_cuda()
     cuda_safe_call(cudaMemcpyToSymbol(userAgnLoc, &loc, sizeof(int),
 				      size_t(0), cudaMemcpyHostToDevice),
 		   __FILE__, __LINE__, "Error copying userSatPos");
-  }
-    
-  if (cntr < ncheck) {
+
+    // Verbose check of Cuda constants
     if (myid==0) {
       testConstantsAgnNoise<<<1, 1, 0, cr->stream>>>(tnow);
       cudaDeviceSynchronize();
       cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);
     }
-    cntr++;
+
+    first_time = false;
   }
 
   // Compute grid
@@ -195,24 +194,6 @@ void UserAgnNoise::determine_acceleration_and_potential_cuda()
       (toKernel(cr->cuda_particles), stride, tnow, tev);
   }
 
-  /*
-  std::cout << "AGN: " << &cr->cuda_particles
-	    << " ID=" << cC->name
-	    << std::endl;
-
-  thrust::host_vector<cudaParticle> tst(cr->cuda_particles);
-  for (int i=0; i<3; i++) {
-    std::cout << "AGN mass: " << std::setw(15) << tst[i].mass
-	      << "(x, y, z):"
-	      << " (" << std::setw(15) << tst[i].pos[0]
-	      << ", " << std::setw(15) << tst[i].pos[1]
-	      << ", " << std::setw(15) << tst[i].pos[2] << ") "
-	      << "(m0, tau): "
-	      << " (" << std::setw(15) << tst[i].datr[0]
-	      << ", " << std::setw(15) << tst[i].datr[1] << ") "
-	      << std::endl;
-  }
-  */
 }
 
 
