@@ -1,6 +1,7 @@
 #ifndef _UserAgnNoise_H
 #define _UserAgnNoise_H
 
+#include <expand.H>
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
