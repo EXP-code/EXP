@@ -85,6 +85,7 @@ set(agnnoise_SRC  UserAgnNoise.cc)
 
 if (ENABLE_CUDA)
   list(APPEND sat_SRC cudaUserSat.cu)
+  list(APPEND agnnoise_SRC cudaAgnNoise.cu)
   set(cudatest_Src UserTestCuda.cc cudaUserTest.cu)
 endif()
 

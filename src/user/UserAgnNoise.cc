@@ -132,17 +132,21 @@ void UserAgnNoise::determine_acceleration_and_potential(void)
 {
   if (cC != c0) return;		// Check that this component is the target
 
-#if HAVE_LIBCUDA==1		// Cuda compatibility
-  getParticlesCuda(cC);
-#endif
-
   // Only compute for top level
   //
   if (multistep && mlevel>0) return;
 
   // Update masses
   //
+#if HAVE_LIBCUDA==1
+  if (use_cuda) {
+    determine_acceleration_and_potential_cuda();
+  } else {
+    exp_thread_fork(false);
+  }
+#else
   exp_thread_fork(false);
+#endif
 
   // Compute next event
   //
@@ -178,9 +182,9 @@ void * UserAgnNoise::determine_acceleration_and_potential_thread(void * arg)
     PartPtr p = it++->second;	// Particle pointer for convenience
 
     if (tnow>tev) {		// Did an event occur?
-      double R = 0.0;
-      for (int k=0; k<3; k++) R += p->pos[k]*p->pos[k];
-      if (R*R < R0*R0) {
+      double R2 = 0.0;
+      for (int k=0; k<3; k++) R2 += p->pos[k]*p->pos[k];
+      if (R2 < R0*R0) {
 	p->dattrib[loc+1] = tnow;
       }
     }

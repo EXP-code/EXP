@@ -20,6 +20,10 @@ private:
   std::string comp_name;
   Component *c0;
 
+#if HAVE_LIBCUDA==1
+  //! Cuda implementation
+  void determine_acceration_and_potential_cuda();
+#endif
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
