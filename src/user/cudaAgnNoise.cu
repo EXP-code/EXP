@@ -74,7 +74,7 @@ __global__
 void testConstantsAgnNoise(cuFP_t tnow)
 {
   printf("------------------------------\n");
-  printf("---UserAgnNoise constants-----\n");
+  printf("---cudaAgnNoise constants-----\n");
   printf("------------------------------\n");
   printf("   Time   = %e\n", tnow          );
   printf("   R0     = %e\n", userAgnR0     );
