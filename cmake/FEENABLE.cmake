@@ -1,6 +1,9 @@
-# Checks for the existence of feenableexcept() and sets the flag
-# HAVE_FE_ENABLE if the code snippet compiles.  The HAVE_FE_ENABLE
-# preprocessor flag will then be set in config_exp.h if TRUE.
+# Checks for the existence of feenableexcept() by attempting to
+# compile some C++ code and sets the flag HAVE_FE_ENABLE if the
+# snippet compiles.
+#
+# The HAVE_FE_ENABLE preprocessor flag will then be set in
+# config_exp.h if TRUE.
 #
 # MDW 04/07/23
 
