@@ -50,13 +50,13 @@ __global__
 void testConstantsAgnNoise(cuFP_t tnow)
 {
   printf("-------------------------\n");
-  printf("---UserSat constants-----\n");
+  printf("---UserAgn constants-----\n");
   printf("-------------------------\n");
   printf("   Time   = %e\n", tnow        );
   printf("   R0     = %e\n", userAgnR0   );
   printf("   Tau2   = %e\n", userAgnTau2 );
   printf("   eps    = %e\n", userAgnEps  );
-  printf("   loc    = %e\n", userAgnLoc  );
+  printf("   loc    = %d\n", userAgnLoc  );
   printf("-------------------------\n");
 }
 
