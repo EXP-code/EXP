@@ -23,8 +23,7 @@ userAgnNoiseKernel(dArray<cudaParticle> P, int stride,
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
   for (int n=0; n<stride; n++) {
-    int i     = tid*stride + n;	// Index in the stride
-    int npart = i + lohi.first;	// Particle index
+    int npart = tid*stride + n;	// Index in the stride
 
     if (npart < P._s) {
       
@@ -61,7 +60,8 @@ void testConstantsAgnNoise(cuFP_t tnow)
   printf("-------------------------\n");
 }
 
-void UserSat::determine_acceration_and_potential_cuda()
+
+void UserAgnNoise::determine_acceleration_and_potential_cuda()
 {
   // Sanity check
   //
@@ -73,7 +73,7 @@ void UserSat::determine_acceration_and_potential_cuda()
   }
   
   if (nbodies==0) {		// Return if there are no particles
-    if (verbose) {
+    if (VERBOSE>4) {
       std::cout << "Process " << myid << ": in UserAgnNoise, nbodies=0" 
 		<< " for Component <" << cC->name << "> at T=" << tnow
 		<< std::endl;
@@ -124,7 +124,7 @@ void UserSat::determine_acceration_and_potential_cuda()
 
   // Compute grid
   //
-  unsigned int N         =  cr->cuda_particles.size();
+  unsigned int N         = cr->cuda_particles.size();
   unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
   unsigned int gridSize  = N/BLOCK_SIZE/stride;
     
