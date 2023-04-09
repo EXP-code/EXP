@@ -9,19 +9,43 @@
 // Global device symbols for CUDA kernel
 //
 __device__ __constant__
-cuFP_t userAgnR0, userAgnTau2, userAgnEps;
+cuFP_t userAgnR0, userAgnTau1, userAgnTau2, userAgnEps;
 
 __device__ __constant__
 int userAgnLoc;
 
-// Cuda implementation of AGN mass update
+// Cuda implementation of AGN mass setup
+//
+__global__ void
+userAgnSetupKernel(dArray<cudaParticle> P, int stride, cuFP_t tau1)
+{
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+  for (int n=0; n<stride; n++) {
+
+    int npart = tid*stride + n; // Index in the stride
+    
+    if (npart < P._s) {
+      
+      cudaParticle & p = P._v[npart];
+      
+      p.datr[userAgnLoc+0] = p.mass;    // Initial mass
+      p.datr[userAgnLoc+1] = -32.0*tau1; // Large negative value
+      
+    } // Particle index block
+
+  } // END: stride loop
+  
+}
+
+// Cuda implementation of AGN mass update with no level control
 //
 __global__ void
 userAgnNoiseKernel(dArray<cudaParticle> P, int stride,
 		   cuFP_t tnow, cuFP_t tev)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
-
+  
   for (int n=0; n<stride; n++) {
     int npart = tid*stride + n;	// Index in the stride
 
@@ -37,7 +61,8 @@ userAgnNoiseKernel(dArray<cudaParticle> P, int stride,
 	}
       }
 
-      p.mass = p.datr[userAgnLoc]*(1.0 - userAgnEps*exp(-(tnow - p.datr[userAgnLoc+1])/userAgnTau2));
+      p.mass = p.datr[userAgnLoc] *
+	(1.0 - userAgnEps*exp(-(tnow - p.datr[userAgnLoc+1])/userAgnTau2));
       
     } // Particle index block
 
@@ -45,19 +70,51 @@ userAgnNoiseKernel(dArray<cudaParticle> P, int stride,
 
 }
 
-
 __global__
 void testConstantsAgnNoise(cuFP_t tnow)
 {
-  printf("-------------------------\n");
-  printf("---UserAgn constants-----\n");
-  printf("-------------------------\n");
-  printf("   Time   = %e\n", tnow        );
-  printf("   R0     = %e\n", userAgnR0   );
-  printf("   Tau2   = %e\n", userAgnTau2 );
-  printf("   eps    = %e\n", userAgnEps  );
-  printf("   loc    = %d\n", userAgnLoc  );
-  printf("-------------------------\n");
+  printf("------------------------------\n");
+  printf("---UserAgnNoise constants-----\n");
+  printf("------------------------------\n");
+  printf("   Time   = %e\n", tnow          );
+  printf("   R0     = %e\n", userAgnR0     );
+  printf("   Tau2   = %e\n", userAgnTau2   );
+  printf("   eps    = %e\n", userAgnEps    );
+  printf("   loc    = %d\n", userAgnLoc    );
+  printf("------------------------------\n");
+}
+
+// Cuda implementation of AGN mass update with level control
+//
+__global__ void
+userAgnNoiseKernel(dArray<cudaParticle> P, dArray<int> I, int stride,
+		   PII lohi, cuFP_t tnow, cuFP_t tev)
+{
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+  for (int n=0; n<stride; n++) {
+    int i     = tid*stride + n; // Index in the stride
+    int npart = i + lohi.first;	// Particle index
+
+    if (npart < P._s) {
+      
+      cudaParticle & p = P._v[I._v[npart]];
+      
+      if (tnow > tev) {
+	cuFP_t rr = 0.0;
+	for (int k=0; k<3; k++) rr += p.pos[k]*p.pos[k];
+	if (rr < userAgnR0*userAgnR0) {
+	  p.datr[userAgnLoc+1] = tnow;
+	}
+      }
+
+      p.mass = p.datr[userAgnLoc]*(1.0 - userAgnEps*exp(-(tnow - p.datr[userAgnLoc+1])/userAgnTau2));
+      
+    } // Particle index block
+
+  } // END: stride loop
+
+  // DONE
 }
 
 
@@ -136,5 +193,52 @@ void UserAgnNoise::determine_acceleration_and_potential_cuda()
     //
     userAgnNoiseKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
       (toKernel(cr->cuda_particles), stride, tnow, tev);
+  }
+
+  /*
+  std::cout << "AGN: " << &cr->cuda_particles
+	    << " ID=" << cC->name
+	    << std::endl;
+
+  thrust::host_vector<cudaParticle> tst(cr->cuda_particles);
+  for (int i=0; i<3; i++) {
+    std::cout << "AGN mass: " << std::setw(15) << tst[i].mass
+	      << "(x, y, z):"
+	      << " (" << std::setw(15) << tst[i].pos[0]
+	      << ", " << std::setw(15) << tst[i].pos[1]
+	      << ", " << std::setw(15) << tst[i].pos[2] << ") "
+	      << "(m0, tau): "
+	      << " (" << std::setw(15) << tst[i].datr[0]
+	      << ", " << std::setw(15) << tst[i].datr[1] << ") "
+	      << std::endl;
+  }
+  */
+}
+
+
+ void UserAgnNoise::setup_decay_cuda(void)
+{
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
+
+  // Stream structure iterators
+  //
+  auto cr = cC->cuStream;
+
+  // Compute grid
+  //
+  unsigned int N         = cr->cuda_particles.size();
+  unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+  unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    
+  if (N>0) {
+
+    if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+    // Do the work
+    //
+    userAgnSetupKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
+      (toKernel(cr->cuda_particles), stride, tau1);
   }
 }

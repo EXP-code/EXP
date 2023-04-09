@@ -23,8 +23,10 @@ private:
 
 #if HAVE_LIBCUDA==1
   //! Cuda implementation
+  void setup_decay_cuda(void);
   void determine_acceleration_and_potential_cuda();
 #endif
+  void setup_decay(void);
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();

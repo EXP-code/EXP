@@ -21,6 +21,8 @@ UserAgnNoise::UserAgnNoise(const YAML::Node &conf) : ExternalForce(conf)
 
   initialize();			// Assign parameters
 
+  cuda_aware = true;		// Cuda is implemented
+
   if (comp_name.size()>0) {
 				// Look for the fiducial component
     bool found = false;
@@ -58,24 +60,17 @@ UserAgnNoise::UserAgnNoise(const YAML::Node &conf) : ExternalForce(conf)
   }
   MPI_Bcast(&tev, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  // Assign initial counter values
+  // Check attribute count
   //
-  if (not restart) {
-    int nbodies = c0->Number();
+  if (myid==0) {
+    // Sanity check: ensure attribute dimension is large enough
+    //
     PartMapItr it = c0->Particles().begin();
-    if (myid==0) {
-      // Sanity check: attribute dimension
-      if (it->second->dattrib.size() < loc+1) {
-	std::ostringstream sout;
-	sout << "Number float attribute in Particle must be >= " << loc+2;
-	throw GenericError(sout.str(), __FILE__, __LINE__, 37, false);
-      }
-    }
-    // Assign initial attribute values
-    for (int q=0; q<nbodies; q++) {
-      PartPtr p = it++->second;
-      p->dattrib[loc+0] = p->mass;    // Initial mass
-      p->dattrib[loc+1] = -32.0*tau1; // Large negative value
+    if (it->second->dattrib.size() < loc+1) {
+      std::ostringstream sout;
+      sout << "Number of Particle float attributes for component ["
+	   << c0->name << "] must be >= " << loc+2;
+      throw GenericError(sout.str(), __FILE__, __LINE__, 37, false);
     }
   }
 }
@@ -127,10 +122,37 @@ void UserAgnNoise::initialize()
 
 }
 
+void UserAgnNoise::setup_decay(void)
+{
+  int nbodies = cC->Number();
+  PartMapItr it = cC->Particles().begin();
+  for (int q=0; q<nbodies; q++) {
+    PartPtr p = it++->second;
+    p->dattrib[loc+0] = p->mass;    // Initial mass
+    p->dattrib[loc+1] = -32.0*tau1; // Large negative value
+  }
+}
 
 void UserAgnNoise::determine_acceleration_and_potential(void)
 {
   if (cC != c0) return;		// Check that this component is the target
+
+  // Initialize on first call
+  //
+  static bool first_call = true;
+  if (first_call) {
+    
+#if HAVE_LIBCUDA==1
+    if (use_cuda) {
+      setup_decay_cuda();
+    } else {
+      setup_decay();
+    }
+#else
+    setup_decay();
+#endif
+    first_call = false;
+  }
 
   // Only compute for top level
   //
