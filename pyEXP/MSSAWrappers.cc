@@ -99,7 +99,7 @@ void MSSAtoolkitClasses(py::module &m) {
     "                        all channels"
     "The following parameters take values, defaults are given in ()\n\n"
     "  evtol: double(0.01)   Truncate by the given cumulative p-value in\n"
-    "                        chatty mode\n"
+    "                        verbose mode\n"
     "  output: str(exp_mssa) Prefix name for output files\n\n"
     "The 'output' value is only used if 'writeFiles' is specified, too.\n"
     "A simple YAML configuration for expMSSA might look like this:\n"
