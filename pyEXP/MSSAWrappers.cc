@@ -68,7 +68,7 @@ void MSSAtoolkitClasses(py::module &m) {
     "                        available from the interface\n"
     "  Jacobi: true          Use the Jacobi SVD rather than the Random\n"
     "                        approximation algorithm from Halko, Martinsson,\n"
-    "                        and Tropp (RedSVD). This is quite accurate but\n" 
+    "                        and Tropp (RedSVD). This is quite accurate but\n"
     "                        _very_ slow\n"
     "  BDCSVD: true          Use the Binary Divide and Conquer SVD rather\n"
     "                        rather than RedSVD; this is faster and more\n"
@@ -137,7 +137,7 @@ void MSSAtoolkitClasses(py::module &m) {
     "compute node and save the results using the 'saveState()' member to\n"
     "an HDF5 file and reread those files on a local machine using the\n"
     "'restoreState()' member.\n\n";
-  
+
   using namespace MSSA;
 
   py::class_<MSSA::expMSSA, std::shared_ptr<MSSA::expMSSA>> f(m, "expMSSA");
@@ -154,11 +154,11 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("eigenvalues", &expMSSA::eigenvalues,
 	"Return the vector of eigenvalues from the MSSA analysis");
-  
+
   f.def("cumulative", &expMSSA::cumulative,
 	"Return a cumulatively summed vector of eigenvalues from the\n"
 	"MSSA analysis");
-  
+
   f.def("getU", &expMSSA::getU,
 	"Return the right-singular) vectors from the MSSA analysis\n"
 	"which describe the contribution of each channel to each PC");
@@ -186,7 +186,7 @@ void MSSAtoolkitClasses(py::module &m) {
   f.def("getReconstructed", &expMSSA::getReconstructed,
 	"Return the reconstucted time series in the orginal coefficient form\n"
 	"that may be used in basis classes.  Note: the reconstructed data\n"
-	"will overwrite the memory of the original coefficient data.");
+	"will overwrite the memory of the original coefficient data.", py::arg("reconstructmean")=true);
 
   f.def("background", &expMSSA::background,
 	"Copy the background data streams back to the working coefficient\n"
