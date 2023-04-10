@@ -14,7 +14,7 @@ namespace MSSA
   {
 
   protected:
-    
+
     //@{
     //! Repacked stream data
     std::map<Key, std::vector<double>, mSSAkeyCompare > data;
@@ -78,7 +78,7 @@ namespace MSSA
 
     //! Toggle for detrending
     bool useMean;
-    
+
     //! Detrending type
     TrendType type;
 
@@ -87,7 +87,7 @@ namespace MSSA
 
   public:
 
-    /** Constructor 
+    /** Constructor
 
 	@param spec map/dictionary of tuples listing the Coefs object
 	and a list of keys
@@ -100,8 +100,8 @@ namespace MSSA
 
 	The map/dictionary has the following structure:
 	{
-	"mnemonic1": (Coefs1, [ [key11], [key12], [...], ...]), 
-	"mnemonic2": (Coefs2, [ [key21], [key22], [...], ...]), 
+	"mnemonic1": (Coefs1, [ [key11], [key12], [...], ...]),
+	"mnemonic2": (Coefs2, [ [key21], [key22], [...], ...]),
 	.
 	.
 	}
@@ -161,7 +161,7 @@ namespace MSSA
 	 Eigen::VectorXd F;
 	 Eigen::MatrixXd P;
 	 std::tie(F, P) = pcDFT();
-	 // Do something with F and P.  
+	 // Do something with F and P.
 	 //------------------------------------------------------------
 	 This example is the C++ equivalent of the Python: (F, P) = pcDFT()
     */
@@ -170,20 +170,20 @@ namespace MSSA
 
     /** Return the frequency and power spectrum of the channel vectors for
 	the reconstruction
-	
+
 	See @pcDFT for intended C++ call signature and return.
     */
     std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
     channelDFT();
 
     /** Return the frequency and power spectrum by PC for the selected channel
-	
+
 	See @pcDFT for intended C++ call signature and return.
     */
     std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
     singleDFT(const Key& key);
 
-    /** Reconstruction for desired eigenvalues 
+    /** Reconstruction for desired eigenvalues
 
 	@param evlist is a vector of indices correponding to the
 	eigenvalue and PC ordering (i.e. a group). An empty list
@@ -199,7 +199,7 @@ namespace MSSA
 	name as the key.  You may call resetReconstructed() to get a
 	fresh copy of the data.
     */
-    std::map<std::string, CoefClasses::CoefsPtr> getReconstructed();
+    std::map<std::string, CoefClasses::CoefsPtr> getReconstructed(bool reconstructmean=true);
 
     //! Copy background coefficients to working coefficient database
     //! (e.g. for use after a zerocopy())
@@ -237,7 +237,7 @@ namespace MSSA
 
     /**
        Kmean analysis of the trajectories by PC with fixed cluster size
-       
+
        @param toTerm write to stdout if true
        @param toFile write to file if true
     */
