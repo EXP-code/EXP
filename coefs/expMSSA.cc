@@ -1227,17 +1227,17 @@ namespace MSSA {
   const std::set<std::string>
   expMSSA::valid_keys = {
     "verbose",
+    "writeCov",
+    "Jacobi",
+    "BDCSVD",
+    "Traj",
+    "RedSym",
+    "allchan",
+    "distance",
     "flip",
     "power",
     "evtol",
     "output",
-    "Traj",
-    "writeCov",
-    "Jacobi",
-    "BDCSVD",
-    "RedSym",
-    "distance",
-    "allchan",
     "totVar",
     "totPow",
     "noMean"
@@ -1612,7 +1612,7 @@ namespace MSSA {
 	}
       }
 
-    } else if (params["totVar"]) {
+    } else if (type == TrendType::totVar) {
 
       for (auto & u : mean) {
 	Key k = u.first;
@@ -1633,6 +1633,7 @@ namespace MSSA {
 	}
       }
     } else {
+      // the default detrending, by mean and variance, type = TrendType::perChannel
       for (auto & u : mean) {
 	Key k = u.first;
 	//--------------
