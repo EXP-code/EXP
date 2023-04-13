@@ -7,6 +7,7 @@
 namespace py = pybind11;
 
 extern void MSSAtoolkitClasses   (py::module &m);
+extern void EDMDtoolkitClasses   (py::module &m);
 extern void CoefficientClasses   (py::module &m);
 extern void BasisFactoryClasses  (py::module &m);
 extern void FieldGeneratorClasses(py::module &m);
@@ -124,6 +125,7 @@ PYBIND11_MODULE(pyEXP, m)
   FieldGeneratorClasses(mod_field);
   ParticleReaderClasses(mod_read);
   MSSAtoolkitClasses(mod_mssa);
+  EDMDtoolkitClasses(mod_mssa);
   UtilityClasses(mod_util);
 }
 
