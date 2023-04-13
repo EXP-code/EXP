@@ -125,6 +125,9 @@ namespace MSSA {
     //
     Eigen::MatrixXd D = S.asDiagonal();
 
+    // E.g. Tu et al. 2014, equation 4 (parens to enforce effficient
+    // order)
+    //
     A = U.transpose() * (X1 * V) * D.inverse();
 
     // Now compute the eigenvalues and eigenvectors
@@ -142,6 +145,8 @@ namespace MSSA {
       else Linv(i) = 0.0;
     }
 
+    // This is the exact mode from Tu et al. 2014, equation 9
+    //
     Phi = Linv.asDiagonal() * X1 * V * D.inverse() * W.transpose();
 
     computed = true;
@@ -161,7 +166,7 @@ namespace MSSA {
     auto lsz = evlist.size();
 
     if (lsz) {
-      for (auto v : evlist) if (v<ncomp) I[v] = true;
+      for (auto v : evlist) if (v<nev) I[v] = true;
     }
 
     Y.resize(numT, nkeys);
@@ -176,11 +181,11 @@ namespace MSSA {
       Eigen::VectorXcd B = Phi.adjoint() * xx;
       auto L0 = L.asDiagonal();
 
-      Eigen::MatrixXcd L = Eigen::MatrixXd::Identity(L.size(), L.size());
+      Eigen::MatrixXcd LL = Eigen::MatrixXd::Identity(L.size(), L.size());
 	
       for (int i=0; i<numT; i++) {
-	Y.row(i) = (Phi*L*B).real();
-	L *= L0;
+	Y.row(i) = (Phi*LL*B).real();
+	LL *= L0;
       }
     }
 
@@ -450,9 +455,7 @@ namespace MSSA {
 
 	// Compute the summed data stream
 	//
-	for (int i=0; i<numT; i++) {
-	  for (int j=0; j<ncomp; j++) in(i) = Y(i, nch);
-	}
+	for (int i=0; i<numT; i++) in(i) = Y(i, nch);
 
 	// Compute the DFT for the summed data stream
 	//
@@ -484,14 +487,14 @@ namespace MSSA {
 		<< std::setw(15) << "Period"
 		<< std::setw(15) << "Summed"
 		<< std::setw(15) << "Full";
-	    for (int j=0; j<ncomp; j++) {
-	      std::ostringstream sout; sout << "PC " << j;
+	    for (int j=0; j<nev; j++) {
+	      std::ostringstream sout; sout << "Mode " << j;
 	      out << std::setw(15) << sout.str();
 	    }
 	    out << "# " << std::setw(13) << "[1]"
 		<< std::setw(15) << "[2]"
 		<< std::setw(15) << "[3]";
-	    for (int j=0; j<ncomp; j++) {
+	    for (int j=0; j<nev; j++) {
 	      std::ostringstream sout; sout << '[' << j+4 << ']';
 	      out << std::setw(15) << sout.str();
 	    }
@@ -608,7 +611,7 @@ namespace MSSA {
   }
 
 
-  // Save current MSSA state to an HDF5 file with the given prefix
+  // Save current KOOPMAN state to an HDF5 file with the given prefix
   void Koopman::saveState(const std::string& prefix)
   {
     if (not computed) return;	// No point in saving anything
@@ -680,7 +683,7 @@ namespace MSSA {
     }
   }
 
-  // Restore current MSSA state to an HDF5 file with the given prefix
+  // Restore current KOOPMAN state to an HDF5 file with the given prefix
   void Koopman::restoreState(const std::string& prefix)
   {
     try {
@@ -698,7 +701,7 @@ namespace MSSA {
 
       h5file.getAttribute("numT" ).read(nTime);
       h5file.getAttribute("nKeys").read(nKeys);
-      h5file.getAttribute("nEV").read(nEV);
+      h5file.getAttribute("nEV"  ).read(nEV  );
 
       // Number of channels
       //
@@ -710,7 +713,7 @@ namespace MSSA {
 	std::ostringstream sout;
 	sout << "Koopman::restoreState: saved state has numT="
 	     << nTime << " but Koopman expects numT=" << numT
-	     << ".\nCan't restore mssa state!";
+	     << ".\nCan't restore Koopman state!";
 	throw std::runtime_error(sout.str());
       }
 
@@ -718,7 +721,7 @@ namespace MSSA {
 	std::ostringstream sout;
 	sout << "Koopman::restoreState: saved state has nkeys="
 	     << nKeys << " but Koopman expects nkeys=" << nkeys
-	     << ".\nCan't restore mssa state!";
+	     << ".\nCan't restore Koopman state!";
 	throw std::runtime_error(sout.str());
       }
 
@@ -726,7 +729,7 @@ namespace MSSA {
 	std::ostringstream sout;
 	sout << "Koopman::restoreState: saved state has nEV="
 	     << nEV << " but Koopman expects nEV=" << nev
-	     << ".\nCan't restore mssa state!";
+	     << ".\nCan't restore Koopman state!";
 	throw std::runtime_error(sout.str());
       }
 
@@ -759,7 +762,7 @@ namespace MSSA {
       if (bad) {
 	std::ostringstream sout;
 	sout << "Koopman::restoreState: keylist mismatch." << std::endl
-	     << "Can't restore mssa state! Wanted keylist: ";
+	     << "Can't restore Koopman state! Wanted keylist: ";
 	for (auto v : data) {
 	  sout << "[";
 	  for (auto u : v.first) sout << u << ' ';
