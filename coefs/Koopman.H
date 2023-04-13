@@ -77,9 +77,6 @@ namespace MSSA
     //! Number of points in the time series
     int numT;
 
-    //! Number of components in the reconstruction
-    int ncomp;
-
     //! Valid keys for YAML configurations
     static const std::set<std::string> valid_keys;
 
