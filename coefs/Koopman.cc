@@ -68,6 +68,13 @@ namespace MSSA {
     //
     nkeys = data.size();
 
+    // Enforce nev to be <= rank
+    //
+    if (nev > nkeys) std::cout << "Koopman: setting nEV=" << nkeys << std::endl;
+    nev = std::min<int>(nev, nkeys);
+
+    // Allocate trajectory arrays
+    //
     X0.resize(nkeys, numT-1);
     X1.resize(nkeys, numT-1);
 
@@ -76,12 +83,13 @@ namespace MSSA {
 
     // Build input & output data series
     //
+    int n=0;
     for (auto k : data) {
-      for (int i=0; i<nkeys; i++)
-	for (int j=0; j<numT-1; j++) {
-	  X0(i, j) = data[k.first][j+0];
-	  X1(i, j) = data[k.first][j+1];
-	}
+      for (int j=0; j<numT-1; j++) {
+	X0(n, j) = data[k.first][j+0];
+	X1(n, j) = data[k.first][j+1];
+      }
+      n++;
     }
 
     // Approximate the pseudoinverse using the rank-r SVD
@@ -112,32 +120,29 @@ namespace MSSA {
       V = svd.matrixV();
     }
 
-    std::cout << "shape U = " << U.rows() << " x "
-	      << U.cols() << std::endl;
-
     // Compute the approximation to the Koopman operator for the rank
     // reduced approximation
     //
-    S = S.block(0, 0, nev, nev);
-    U = U.block(0, 0, numT-1, nev);
-    V = V.block(0, 0, numT-1, nev);
+    Eigen::MatrixXd D = S.asDiagonal();
 
-    A = U.transpose() * X1 * V * S.inverse();
+    A = U.transpose() * (X1 * V) * D.inverse();
 
     // Now compute the eigenvalues and eigenvectors
     //
     Eigen::EigenSolver<Eigen::MatrixXd> sol(A, true);
+
     L = sol.eigenvalues();
     W = sol.eigenvectors();
 
-    // EDMD modes
+    // Compute the EDMD modes
     //
     Eigen::VectorXcd Linv(L);
     for (int i=0; i<L.size(); i++) {
       if (Linv(i) != 0.0) Linv(i) = 1.0/Linv(i);
       else Linv(i) = 0.0;
     }
-    Phi = L.asDiagonal() * X1 * V * S.inverse() * V;
+
+    Phi = Linv.asDiagonal() * X1 * V * D.inverse() * W.transpose();
 
     computed = true;
     reconstructed = false;
@@ -218,8 +223,7 @@ namespace MSSA {
     for (int i=0; i<numT; i++) {
       for (int j=0; j<nev; j++) {
 	for (int k=0; k<nkeys; k++) {
-	  double mod = std::abs( LL(j)*Phi.col(j).dot(B) );
-	  retF(j, k) += mod*mod;
+	  retF(j, k) += std::norm( LL(j)*Phi.col(j).dot(B) );
 	}
       }
       LL = LL.array() * L.array();
@@ -561,7 +565,6 @@ namespace MSSA {
     "power",
     "Jacobi",
     "BDCSVD",
-    "RedSym",
     "allchan",
     "distance",
     "output"
