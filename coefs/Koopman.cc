@@ -152,10 +152,17 @@ namespace MSSA {
       else Linv(i) = 0.0;
     }
 
+    // Projected mode
+    //
+    if (project) {
+      Phi = U * W;
+    }
     // This is the exact mode from Tu et al. 2014, equation 9
     //
-    Phi = Linv.asDiagonal() * X1 * V * D.inverse() * W.transpose();
-
+    else {
+      Phi = Linv.asDiagonal() * X1 * V * D.inverse() * W;
+    }
+    
     computed = true;
     reconstructed = false;
   }
@@ -182,17 +189,18 @@ namespace MSSA {
     if (lsz) {
 
       int n = 0;
-      Eigen::VectorXd xx(nkeys);
-      for (auto u : data) xx[n++] = data[u.first][0];
+      Eigen::VectorXd xx(nkeys); xx.setZero();
+      for (auto u : data) {
+	if (I[n]) xx[n] = data[u.first][0];
+	n++;
+      }
 	
-      Eigen::VectorXcd B = Phi.adjoint() * xx;
-      auto L0 = L.asDiagonal();
-
+      Eigen::VectorXcd B  = Phi.inverse() * xx;
       Eigen::MatrixXcd LL = Eigen::MatrixXd::Identity(L.size(), L.size());
 	
       for (int i=0; i<numT; i++) {
 	Y.row(i) = (Phi*LL*B).real();
-	LL *= L0;
+	LL *= L.asDiagonal();
       }
     }
 
@@ -229,7 +237,7 @@ namespace MSSA {
     Eigen::VectorXd xx(nkeys);
     for (auto u : data) xx[nn++] = data[u.first][0];
     
-    Eigen::VectorXcd B = Phi.adjoint() * xx;
+    Eigen::VectorXcd B = Phi.inverse() * xx;
     Eigen::VectorXcd LL = Eigen::VectorXd::Ones(L.size());
 
     for (int i=0; i<numT; i++) {
@@ -575,8 +583,7 @@ namespace MSSA {
     "power",
     "Jacobi",
     "BDCSVD",
-    "allchan",
-    "distance",
+    "project",
     "output"
   };
 
@@ -603,11 +610,12 @@ namespace MSSA {
 
       // Top level parameter flags
       //
-      verbose  = bool(params["verbose"   ]);
-      powerf   = bool(params["power"     ]);
+      verbose  = bool(params["verbose"]);
+      powerf   = bool(params["power"  ]);
+      project  = bool(params["project"]);
 
-      if (params["output"] ) prefix   = params["output"].as<std::string>();
-      else                   prefix   = "exp_edmd";
+      if (params["output"] ) prefix = params["output"].as<std::string>();
+      else                   prefix = "exp_edmd";
 
     }
     catch (const YAML::ParserException& e) {

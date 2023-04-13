@@ -63,7 +63,7 @@ namespace MSSA
 
     //! Parameters
     //@{
-    bool verbose, powerf;
+    bool verbose, powerf, project;
     std::string prefix, config;
     int nev;
     //@}
