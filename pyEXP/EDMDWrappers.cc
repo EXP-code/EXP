@@ -93,7 +93,7 @@ void EDMDtoolkitClasses(py::module &m) {
     "A simple YAML configuration for Koopman might look like this:\n"
     "---\n"
     "BDCSVD: true\n"
-    "evtol: 0.01\n"
+    "project: true\n"
     "...\n\n"
     "If you find that you are using these YAML parameters often, let me\n"
     "know and I can promote them to the main API\n\n"
@@ -106,7 +106,9 @@ void EDMDtoolkitClasses(py::module &m) {
     "the identical input data and keys and then using restoreState(prefix)\n"
     "to read the Koopman analysis from the HDF5 file.  The restore step will\n"
     "check that your data has the same dimension, same parameters, and key\n"
-    "list so it should be pretty hard to fool, but not impossible.\n\n"
+    "list so it should be pretty hard to fool, but not impossible.  The\n"
+    "computation is much less expensive, generally, than MSSA so saving the\n"
+    "analysis is not strictly necessary, even on a laptop.\n\n"
     "Computational notes\n"
     "-------------------\n"
     "Some of the linear algebra operations can parallelize itself using\n"
@@ -114,10 +116,11 @@ void EDMDtoolkitClasses(py::module &m) {
     "-fopenmp when compiling in GNU or and set the appropriate environment\n"
     "(e.g. 'export OMP_NUM_THREADS=X' for Bash). The initial Koopman analysis\n"
     "can also be memory intensive, depending on the size of the time series\n"
-    "and the number of channels. One possible strategy is to run the analyses\n"
-    "on a larger memory compute node and save using the 'saveState()' member\n"
-    "to an HDF5 file and reread those files on a local machine using the\n"
-    "'restoreState()' member.\n\n";
+    "and the number of channels.  Although it requires much less memory than\n"
+    "the equivalent mSSA analysis. If memory is a problem, try running the\n"
+    "analyses on a larger memory compute node and save using the 'saveState()'\n"
+    "member to an HDF5 file and reread those files on a local machine using\n"
+    "the 'restoreState()' member.\n\n";
 
   using namespace MSSA;
 
@@ -132,14 +135,18 @@ void EDMDtoolkitClasses(py::module &m) {
 	py::arg("flags") = "");
 
   f.def("eigenvalues", &Koopman::eigenvalues,
-	"Return the vector of eigenvalues from the EDMD analysis");
+	"Return the vector of eigenvalues from the EDMD analysis. Note that\n"
+	"these eigenvalues are complex.  It may be helpful to separate the\n"
+	"magnitude and phase using Numpy's 'absolute' and 'angle' functions.\n");
 
   f.def("channelDFT", &Koopman::channelDFT,
-	"Returns the frequency and the DFT of the selected data channels");
+	"Returns the frequency and the DFT of the selected data channels.\n"
+	"Unlike mSSA, there is no meaningful counterpart to DFT analysis of\n"
+	"PCs.");
 
   f.def("reconstruct", &Koopman::reconstruct,
 	"Reconstruct the data channels with the provided list of eigenvalue "
-	"indices (a group).", py::arg("evlist"));
+	"indices", py::arg("evlist"));
 
   f.def("getReconstructed", &Koopman::getReconstructed,
 	"Return the reconstucted time series in the orginal coefficient form\n"
@@ -165,9 +172,11 @@ void EDMDtoolkitClasses(py::module &m) {
 	py::arg("prefix"));
 
   f.def("getModes", &Koopman::getModes,
-	"Access to detrended reconstructed channel series");
+	"Access to detrended reconstructed channel series.  Also see the member\n"
+	"'contributions' to visualize the support from each EDMD mode to the\n"
+	"coefficient series.");
 
   f.def("getAllKeys", &Koopman::getAllKeys,
-	"Provides a list of all internal channel keys (for reference)");
+	"As in mSSA, provides a list of all internal channel keys (for reference)");
 
 }

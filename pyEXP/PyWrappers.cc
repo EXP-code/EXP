@@ -29,7 +29,7 @@ PYBIND11_MODULE(pyEXP, m)
     "We recommend beginning with the example Python scripts and IPython\n"
     "notebooks and adapting them to your own needs. You can explore\n"
     "the available classes and member functions using the usual Python\n"
-    "``help'' function.  The classes are organized into six submodules\n"
+    "``help'' function.  The classes are organized into seven submodules\n"
     "that are described briefly below.  Run 'help(pyEXP.xxxx) for each\n"
     "of the submodules below for more detailed usage info...\n\n"
     "The available submodules\n"
@@ -50,6 +50,12 @@ PYBIND11_MODULE(pyEXP, m)
     "mssa\n"
     "     Tools to apply Multivariate Singular Spectrum Analysis (MSSA)\n"
     "     to the coefficients computed using the 'basis' classes\n"
+    "edmd\n"
+    "     Tools to apply the discrete Koopman operator analysis using\n"
+    "     the extended Dynamical Mode Decomposition (EDMD) algorith to\n"
+    "     approximate the Koopman operator.  The use of the Koopman class\n"
+    "     echos that for mSSA.  As of this point, this is NOT a recommended\n"
+    "     toolset.  If you have success with this, please post a message.\n"
     "util\n"
     "     Miscellaneous tools that support the others.  Currently this\n"
     "     include centering algorithms.  While EXP has native methods for\n"
@@ -116,6 +122,10 @@ PYBIND11_MODULE(pyEXP, m)
 				  "Spectrum Analysis (MSSA) to the coefficients "
 				  "computed using the 'basis' classes");
   
+  auto mod_edmd = m.def_submodule("edmd", "Tools to apply extended Dynamical Mode "
+				  "Decomposition to the coefficients computed using "
+				  "the 'basis' classes");
+  
   auto mod_util = m.def_submodule("util", "Miscellaneous tools that support the "
 				  "others.  Currently these contain several "
 				  "centering algorithms.");
@@ -125,7 +135,7 @@ PYBIND11_MODULE(pyEXP, m)
   FieldGeneratorClasses(mod_field);
   ParticleReaderClasses(mod_read);
   MSSAtoolkitClasses(mod_mssa);
-  EDMDtoolkitClasses(mod_mssa);
+  EDMDtoolkitClasses(mod_edmd);
   UtilityClasses(mod_util);
 }
 
