@@ -116,19 +116,10 @@ namespace MSSA
     virtual ~Koopman() {}
 
     //! Get the eigenvalues
-    Eigen::VectorXd eigenvalues()
+    Eigen::VectorXcd eigenvalues()
     {
       if (not computed) koopman_analysis();
-      return S;
-    }
-
-    //! Cumulative sum of the eigenvalues
-    Eigen::VectorXd cumulative()
-    {
-      if (not computed) koopman_analysis();
-      auto C = S;
-      for (int i=1; i<C.size(); i++) C(i) += C(i-1);
-      return C;
+      return L;
     }
 
     //! Return the EDMD modes
