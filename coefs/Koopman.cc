@@ -8,6 +8,13 @@
 // trajectory matrix rather than covariance matrix analysis may lead
 // to large errors in eigenvectors.
 //
+// The implementation here follows:
+//
+// Jonathan H. Tu, Clarence W. Rowley, Dirk M. Luchtenburg, Steven
+// L. Brunton and J. Nathan Kutz, 2014, "On Dynamic Mode
+// Decomposition: Theory and Applications", Journal of Computational
+// Dynamics, 1(2), 391-421
+//
 
 #include <filesystem>
 #include <stdexcept>
