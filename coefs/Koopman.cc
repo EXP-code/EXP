@@ -152,7 +152,7 @@ namespace MSSA {
       else Linv(i) = 0.0;
     }
 
-    // Projected mode
+    // Projected mode for testing
     //
     if (project) {
       Phi = U * W;
@@ -198,6 +198,8 @@ namespace MSSA {
       Eigen::VectorXcd B  = Phi.inverse() * xx;
       Eigen::MatrixXcd LL = Eigen::MatrixXd::Identity(L.size(), L.size());
 	
+      // Propate the solution with the operator
+      //
       for (int i=0; i<numT; i++) {
 	Y.row(i) = (Phi*LL*B).real();
 	LL *= L.asDiagonal();
