@@ -173,15 +173,11 @@ namespace MSSA {
     //
     if (not computed) koopman_analysis();
 
-    // Make a bool vector
+    // Make a zero vector
     //
-    std::vector<bool> I(nev, false);
+    Eigen::VectorXcd I(nev); I.setZero();
 
     auto lsz = evlist.size();
-
-    if (lsz) {
-      for (auto v : evlist) if (v<nev) I[v] = true;
-    }
 
     Y.resize(numT, nkeys);
     Y.setZero();
@@ -189,14 +185,16 @@ namespace MSSA {
     if (lsz) {
 
       int n = 0;
-      Eigen::VectorXd xx(nkeys); xx.setZero();
-      for (auto u : data) {
-	if (I[n]) xx[n] = data[u.first][0];
-	n++;
-      }
+      Eigen::VectorXd xx(nkeys);
+      xx.setZero();
+      for (auto u : data) xx[n++] = data[u.first][0];
 	
+      for (auto v : evlist) {
+	if (v<nev) I[v] = 1.0;
+      }
+
       Eigen::VectorXcd B  = Phi.inverse() * xx;
-      Eigen::MatrixXcd LL = Eigen::MatrixXd::Identity(L.size(), L.size());
+      Eigen::MatrixXcd LL = I.asDiagonal();
 	
       // Propate the solution with the operator
       //
@@ -244,13 +242,13 @@ namespace MSSA {
 
     for (int i=0; i<numT; i++) {
       for (int j=0; j<nev; j++) {
-	for (int k=0; k<nkeys; k++) {
-	  retF(j, k) += std::norm( LL(j)*Phi.col(j).dot(B) );
+	for (int n=0; n<nkeys; n++) {
+	  retF(j, n) += std::norm( Phi(j, n)*LL(n)*B(n) );
 	}
       }
       LL = LL.array() * L.array();
     }
-
+    retF /= numT;
     retG = retF;
 
     // This is norm for each series over the entire reconstruction
