@@ -35,6 +35,10 @@ CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   scale           = 1.0;
   Lmax            = 4;
   nmax            = 10;
+  NO_M0           = false;
+  NO_M1           = false;
+  EVEN_M          = false;
+  M0_only         = false;
 
   self_consistent = true;
   coef_dump       = true;
@@ -112,6 +116,12 @@ void CBrockDisk::initialize(void)
     if (conf["scale"])           scale  = conf["scale"].as<double>();
     if (conf["Lmax"])            Lmax   = conf["Lmax"].as<int>();
     if (conf["nmax"])            nmax   = conf["nmax"].as<int>();
+
+    if (conf["NO_M0"])   NO_M0   = conf["NO_M0"].  as<bool>();
+    if (conf["NO_M1"])   NO_M1   = conf["NO_M1"].  as<bool>();
+    if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"]. as<bool>();
+    if (conf["M0_ONLY"]) M0_only = conf["M0_ONLY"].as<bool>();
+
     if (conf["self_consistent"]) self_consistent = conf["self_consistent"].as<bool>();
     if (conf["playback"]) {
       std::string file = conf["playback"].as<std::string>();
@@ -441,14 +451,30 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
 
     sinecosine_R(Lmax, phi, cosm[id], sinm[id]);
     get_dpotl(Lmax, nmax, rs, potd[id], dpot[id]);
-    get_pot_coefs_safe(0, expcoef->row(0), p, dp, potd[id], dpot[id]);
 
-    double potl = p;
-    double potr = dp;
-    double pott = 0.0, potp = 0.0;
+    double potl = 0.0, potr = 0.0, pott = 0.0, potp = 0.0;
+
+    if (not NO_M0) {
+      get_pot_coefs_safe(0, expcoef->row(0), p, dp, potd[id], dpot[id]);
+
+      double potl = p;
+      double potr = dp;
+    }
+
+	// Asymmetric terms?
+	//
+	if (not M0_only) {
 
 				// l loop
     for (int l=1; l<=Lmax; l++) {
+
+	    // Skip m=1 terms?
+	    //
+	    if (NO_M1 && l==1) continue;
+
+	    // Skip odd m terms?
+	    //
+	    if (EVEN_M && (l/2)*2 != l) continue;
 
       double pc, dpc, ps, dps;
 
@@ -458,6 +484,7 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
       potl += (pc *cosm[id][l]  + ps *sinm[id][l]) * M_SQRT2;
       potr += (dpc*cosm[id][l]  + dps*sinm[id][l]) * M_SQRT2;
       potp += (-pc*sinm[id][l]  + ps *cosm[id][l]) * M_SQRT2 * l;
+    }
     }
 
     double fac = xx*xx + yy*yy;
@@ -480,6 +507,7 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
 
     it++;
   }
+
 
   return (NULL);
 }
