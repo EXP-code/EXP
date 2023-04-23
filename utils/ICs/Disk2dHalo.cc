@@ -45,8 +45,8 @@ double Disk2dHalo::RA          = 1.0e20;
 int    Disk2dHalo::NUMDF       = 800;
 int    Disk2dHalo::RNUM        = 4000;
 
-double Disk2dHalo::R_DF        = 20.0;
-double Disk2dHalo::DR_DF       = 5.0;
+double Disk2dHalo::R_DF        = -std::numeric_limits<double>::max();
+double Disk2dHalo::DR_DF       = 1.0;
 
 bool   Disk2dHalo::LOGR        = true;
 

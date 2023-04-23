@@ -42,8 +42,8 @@ double DiskHalo::RA          = 1.0e20;
 int    DiskHalo::NUMDF       = 800;
 int    DiskHalo::RNUM        = 4000;
 
-double DiskHalo::R_DF        = 20.0;
-double DiskHalo::DR_DF       = 5.0;
+double DiskHalo::R_DF        = -std::numeric_limits<double>::max();
+double DiskHalo::DR_DF       = 1.0;
 
 bool   DiskHalo::LOGR        = true;
 

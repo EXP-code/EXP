@@ -418,7 +418,7 @@ main(int ac, char **av)
     ("DF", "Use change-over from Jeans to Eddington",
      cxxopts::value<int>(DF)->default_value("1"))
     ("R_DF", "Change-over radius from Jeans to Eddington",
-     cxxopts::value<double>(R_DF)->default_value("1.0"))
+     cxxopts::value<double>(R_DF)->default_value("-1.0e20"))
     ("DR_DF", "Width of change-over from Jeans to Eddington",
      cxxopts::value<double>(DR_DF)->default_value("1.0"))
     ("nhalo", "Number of halo particles",
