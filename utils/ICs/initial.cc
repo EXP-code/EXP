@@ -482,7 +482,7 @@ main(int ac, char **av)
     ("NCHEB", "",
      cxxopts::value<int>(NCHEB)->default_value("12"))
     ("TCHEB", "",
-     cxxopts::value<int>(TCHEB)->default_value("12"))
+     cxxopts::value<int>(TCHEB)->default_value("0"))
     ("NDR", "",
      cxxopts::value<int>(NDR)->default_value("800"))
     ("SEED", "Random number seed for realization",
