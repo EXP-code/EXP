@@ -723,8 +723,10 @@ main(int argc, char **argv)
       TT += 0.5*mass*ps[0]*ps[3+i]*ps[3+i];
     }
     RR  =  sqrt(RR);
-    VC += -mass*ps[0]*rmodel->get_mass(RR)/RR;
-    WW +=  0.5*mass*ps[0]*rmodel->get_pot(RR);
+    if (RR>=rmin) {
+      VC += -mass*ps[0]*rmodel->get_mass(RR)/RR;
+      WW +=  0.5*mass*ps[0]*rmodel->get_pot(RR);
+    }
 
     if (zeropos or zerovel) {
       ps[0] *= mass;
