@@ -56,7 +56,7 @@
 #include "expMSSA.H"
 
 namespace MSSA {
-  
+
   Eigen::MatrixXd expMSSA::wCorrKey(const Key& key)
   {
     if (RC.find(key)==RC.end()) {
@@ -64,26 +64,26 @@ namespace MSSA {
     }
 
     auto R     = RC[key];
-    
+
     int numT   = R.rows();
     int numW   = R.cols();
     int Lstar  = std::min<int>(numT - numW, numW);
     int Kstar  = std::max<int>(numT - numW, numW);
-    
+
     // A Lambda for the weight function
     auto w = [&](int i) {
       if      (i < Lstar) return i;
       else if (i < Kstar) return Lstar;
       else                return numT - i + 1;
     };
-    
+
     Eigen::MatrixXd ret = Eigen::MatrixXd::Zero(numW, numW);
     for (int m=0; m<numW; m++) {
       for (int n=m; n<numW; n++) {
 	for (int i=0; i<numT; i++) ret(m, n) += w(i) * R(i, m)*R(i, n);
       }
     }
-    
+
     // Normalize
     //
     for (int m=0; m<numW; m++) {
@@ -92,35 +92,35 @@ namespace MSSA {
 	  ret(m, n) /= sqrt(ret(m, m)*ret(n, n));
       }
     }
-    
+
     // Unit diagonal
     //
     for (int m=0; m<numW; m++) ret(m, m) = 1.0;
-    
+
     // Complete
     //
     for (int m=0; m<numW; m++) {
       for (int n=0; n<m; n++) ret(m, n) = ret(n, m);
     }
-    
+
     return ret;
   }
-  
-  
+
+
   Eigen::MatrixXd expMSSA::wCorrAll()
   {
     int numT   = RC.begin()->second.rows();
     int numW   = RC.begin()->second.cols();
     int Lstar  = std::min<int>(numT - numW, numW);
     int Kstar  = std::max<int>(numT - numW, numW);
-    
+
     // A Lambda for the weight function
     auto w = [&](int i) {
       if      (i < Lstar) return i;
       else if (i < Kstar) return Lstar;
       else                return numT - i + 1;
     };
-    
+
     Eigen::MatrixXd ret = Eigen::MatrixXd::Zero(numW, numW);
     for (auto R : RC) {
       for (int m=0; m<numW; m++) {
@@ -130,7 +130,7 @@ namespace MSSA {
 	}
       }
     }
-    
+
     // Normalize
     //
     for (int m=0; m<numW; m++) {
@@ -139,20 +139,20 @@ namespace MSSA {
 	  ret(m, n) /= sqrt(ret(m, m)*ret(n, n));
       }
     }
-    
+
     // Unit diagonal
     //
     for (int m=0; m<numW; m++) ret(m, m) = 1.0;
-    
+
     // Complete
     //
     for (int m=0; m<numW; m++) {
       for (int n=0; n<m; n++) ret(m, n) = ret(n, m);
     }
-    
+
     return ret;
   }
-  
+
   Eigen::MatrixXd expMSSA::wCorr(const std::string& name, const Key& key)
   {
     int indx = coefDB.index(name);
@@ -199,8 +199,8 @@ namespace MSSA {
     out << sout.str();
     return out;
   }
-  
-  
+
+
   // Do the SVD, populate singular value vectors
   //
   void expMSSA::mssa_analysis()
@@ -208,17 +208,17 @@ namespace MSSA {
     // Number of channels
     //
     nkeys = mean.size();
-    
+
     // Make sure parameters are sane
     //
     if (numW<=0) numW = numT/2;
     if (numW > numT/2) numW = numT/2;
 
     numK = numT - numW + 1;
-    
+
     Y.resize(numK, numW*nkeys);
     Y.fill(0.0);
-    
+
     // Build embedded time series.  Augmented vectors are the rows.
     //
     {
@@ -231,11 +231,11 @@ namespace MSSA {
 	n++;
       }
     }
-    
+
     Eigen::MatrixXd cov;
     double Scale;
     int rank;
-    
+
     // Covariance is the default
     //
     if (params["Traj"]) {
@@ -247,7 +247,7 @@ namespace MSSA {
 			    static_cast<int>(Y.rows()), npc}
 			   );
       Scale = Y.norm();
-      
+
       if (Scale<=0.0) {
 	std::cout << "Frobenius norm of trajectory matrix is <= 0!" << std::endl;
 	exit(-1);
@@ -257,14 +257,14 @@ namespace MSSA {
       rank  = std::min<int>(cov.cols(), npc);
       Scale = cov.norm();
     }
-    
+
     if (Scale<=0.0) {
       std::cout << "Frobenius norm of trajectory or covariance matrix is <= 0!" << std::endl;
       exit(-1);
     } else {
       cov /= Scale;
     }
-    
+
     // Only write covariance matrix on request
     //
     if (not params["Traj"] and params["writeCov"]) {
@@ -273,7 +273,7 @@ namespace MSSA {
       out << cov;
       out.close();
     }
-    
+
     // Use one of the built-in Eigen3 algorithms
     //
     if (params["Jacobi"]) {
@@ -325,34 +325,38 @@ namespace MSSA {
 	  S = svd.singularValues();
 	  U = svd.matrixU();
 	}
-      } 
+      }
     }
-    
+
     std::cout << "shape U = " << U.rows() << " x "
 	      << U.cols() << std::endl;
-    
+
     // Rescale the SVD factorization by the Frobenius norm
     //
     S *= Scale;
     if (params["Traj"]) {
       for (int i=0; i<S.size(); i++) S(i) = S(i)*S(i)/numK;
     }
-    
+
     double tot = 0.0;
     for (int j=0; j<S.size(); j++) tot += S(j);
-      
+
     npc = std::min<int>(npc, numW*nkeys);
-	
+
     // Compute the PCs by projecting the data
     //
     PC = Y * U;
-	
+
     computed = true;
     reconstructed = false;
   }
-    
+
   void expMSSA::reconstruct(const std::vector<int>& evlist)
   {
+    // Prevent a belly-up situation
+    //
+    if (not computed) mssa_analysis();
+
     // Use the OpenMP implementation
     const bool useOpenMP  = true;
 
@@ -363,33 +367,33 @@ namespace MSSA {
     // Reconstructed time series
     //
     ncomp = std::min<int>({numW, npc, static_cast<int>(PC.cols())});
-    
+
     // Make a bool vector
     //
     std::vector<bool> I(ncomp, false);
 
     auto lsz = evlist.size();
-    
+
     if (lsz) {
       for (auto v : evlist) if (v<ncomp) I[v] = true;
     }
-    
+
     for (auto u : mean) {
       RC[u.first].resize(numT, ncomp);
       RC[u.first].setZero();
     }
-    
+
     if (lsz) {
 
       // Embedded time series matrix
       //
       Eigen::MatrixXd Z;
       if (useReverse) Z.resize(numT, numW);
-    
+
       // Split eigenvectors into channel sequences
       //
       std::map<Key, Eigen::MatrixXd, mSSAkeyCompare> rho;
-    
+
       int n = 0;
       for (auto u : mean) {
 	rho[u.first].resize(numW, ncomp);
@@ -400,7 +404,7 @@ namespace MSSA {
 	}
 	n++;
       }
-      
+
 #pragma omp parallel
       if (useOpenMP) {
 	// Parallelize the map iteration by wrapping it in a standard loop.
@@ -409,20 +413,20 @@ namespace MSSA {
 	int thread_count = omp_get_num_threads();
 	int thread_num   = omp_get_thread_num();
 	size_t map_size  = mean.size();
-	
+
 	auto u = mean.begin();
 	std::advance(u, thread_num);
-	
+
 	for (int q=thread_num; q<map_size; q+=thread_count) {
-	  
+
 	  for (int w=0; w<ncomp; w++) {
-	    
+
 	    // Choose limits and weight
 	    //
 	    for (int i=0; i<numT; i++) {
 	      double W;
 	      int L, U;
-	    
+
 	      if (i<numW) {		// Lower
 		W = 1.0/(1.0 + i);
 		L = 0;
@@ -436,25 +440,25 @@ namespace MSSA {
 		L = i - numT + numW;
 		U = numW;
 	      }
-	      
+
 	      RC[u->first](i, w) = 0.0;
 	      for (int j=L; j<U; j++) {
 		RC[u->first](i, w) += PC(i - j, w) * rho[u->first](j, w) * W;
 	      }
 	    }
 	  }
-	  
+
 	  if (q+thread_count < map_size) std::advance(u, thread_count);
 	}
       }
       // The original serial implementation
       //
       else {
-	
+
 	for (auto u : mean) {
 
 	  for (int w=0; w<ncomp; w++) {
-	
+
 	    // Build reverse embedded time series.
 	    //
 	    if (useReverse) {
@@ -464,13 +468,13 @@ namespace MSSA {
 		  if (i - j >= 0 and i - j < numK) Z(i, j) = PC(i - j, w);
 	      }
 	    }
-	    
+
 	    // Choose limits and weight
 	    //
 	    for (int i=0; i<numT; i++) {
 	      double W;
 	      int L, U;
-	      
+
 	      if (i<numW) {	// Lower
 		W = 1.0/(1.0 + i);
 		L = 0;
@@ -484,7 +488,7 @@ namespace MSSA {
 		L = i - numT + numW;
 		U = numW;
 	      }
-	      
+
 	      RC[u.first](i, w) = 0.0;
 	      for (int j=L; j<U; j++) {
 		if (useReverse)
@@ -500,7 +504,7 @@ namespace MSSA {
 
     reconstructed = true;
   }
-  
+
   // This computes an image of the contributions
   //
   std::tuple<Eigen::MatrixXd, Eigen::MatrixXd> expMSSA::contributions()
@@ -518,13 +522,13 @@ namespace MSSA {
 	std::cout << "expMSSA::contributions: "
 		  << "call reconstruct() before contributions()"
 		  << std::endl;
-      
+
       return std::tuple<Eigen::MatrixXd, Eigen::MatrixXd>(retF, retG);
     }
 
     retF.resize(ncomp, mean.size());
     retG.resize(ncomp, mean.size());
-      
+
     int nk = 0;
     retF.setZero();
     for (auto u : mean) {
@@ -536,7 +540,7 @@ namespace MSSA {
       }
       nk++;
     }
-      
+
     retG = retF;
 
     // This is norm for each series over the entire reconstruction
@@ -544,7 +548,7 @@ namespace MSSA {
 
     Eigen::VectorXd norm(nk);
     norm.setZero();
-    
+
     for (int n=0; n<nk; n++) {
       for (int j=0; j<ncomp; j++) {
 	norm[n] += retF(j, n);
@@ -557,7 +561,7 @@ namespace MSSA {
 	retF(j, n) = sqrt(retF(j, n));
       }
     }
-    
+
     norm.resize(ncomp);
     norm.setZero();
 
@@ -566,18 +570,18 @@ namespace MSSA {
 	norm[j] += retG(j, n);
       }
     }
-      
+
     for (int n=0; n<nk; n++) {
       for (int j=0; j<ncomp; j++) {
 	if (norm[j]>0.0) retG(j, n) /= norm[j];
 	retG(j, n) = sqrt(retG(j, n));
       }
     }
-    
-    
+
+
     return std::tuple<Eigen::MatrixXd, Eigen::MatrixXd>(retF, retG);
   }
-  
+
   // This computes an image of the contributions
   //
   void expMSSA::contributionsPNG()
@@ -590,33 +594,33 @@ namespace MSSA {
     }
 
 #ifdef HAVE_LIBPNGPP
-    
+
     auto ret  = contributions();
     auto retF = std::get<0>(ret);
     auto retG = std::get<1>(ret);
 
     std::string filename = prefix + ".f_contrib";
     std::ofstream out(filename);
-    
+
     // Used in both computations
     //
     std::map<Key, std::vector<double>, mSSAkeyCompare> values;
-    
+
     //
     const int minSize = 600;
     int ndupX = 1, ndupY = 1;
     if (npc < minSize) ndupX = minSize/npc + 1;
     if (mean.size() < minSize) ndupY = minSize/mean.size() + 1;
-    
+
     std::cout << "Matrix size: " << npc << " X " << mean.size() << std::endl;
-    
+
     png::image< png::rgb_pixel > image1(npc*ndupX, mean.size()*ndupY);
     png::image< png::rgb_pixel > image2(npc*ndupX, mean.size()*ndupY);
     ColorGradient color;
     color.createFiveColorHeatMapGradient();
-    
+
     if (out) {
-      
+
       // Column header
       //
       out << std::setw(4) << "# m"
@@ -627,13 +631,13 @@ namespace MSSA {
 	out << std::setw(18) << sout.str();
       }
       out << std::endl;
-      
+
       int n = 0;
       double maxVal = 0.0;
       for (auto u : mean) {
 	auto key = u.first;
 	for (auto q : key) out << std::setw(4) << q;
-	
+
 	for (int j=0; j<npc; j++) {
 	  out << std::setw(18) << sqrt(retF(n, j));
 	  maxVal = std::max<double>(maxVal, retF(n, j));
@@ -642,7 +646,7 @@ namespace MSSA {
 	n++;
       }
       out.close();
-      
+
       int i = 0;
       for (auto u : mean) {
 	auto key = u.first;
@@ -657,14 +661,14 @@ namespace MSSA {
 	i++;
       }
       out.close();
-      
+
       image1.write(filename + ".png");
-      
+
     } else {
       std::cout << "Could not open <" << filename << ">" << std::endl;
       exit(-1);
     }
-    
+
     filename = prefix + ".g_contrib";
     out.open(filename);
     if (out) {
@@ -677,9 +681,9 @@ namespace MSSA {
 	out << std::setw(18) << sout.str();
       }
       out << std::endl;
-      
+
       std::vector<double> norm(npc, 0.0);
-      
+
       double maxVal = 0.0;
       for (int j=0; j<npc; j++) {
 	out << std::setw(8) << j;
@@ -692,7 +696,7 @@ namespace MSSA {
 	out << std::endl;
       }
       out.close();
-      
+
       for (int j=0; j<npc; j++) {
 	int i = 0;
 	for (auto u : mean) {
@@ -706,9 +710,9 @@ namespace MSSA {
 	  i++;
 	}
       }
-      
+
       image2.write(filename + ".png");
-      
+
     } else {
       std::cout << "Could not open <" << filename << ">" << std::endl;
       exit(-1);
@@ -717,10 +721,10 @@ namespace MSSA {
     std::cout << "PNG is not available, so I can't make contribution images"
 	      << std::endl;
 #endif
-    
+
   }
-  
-  
+
+
   // Return the DFT of the PCs
   //
   std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
@@ -730,15 +734,15 @@ namespace MSSA {
     Eigen::MatrixXd pw;
     {
       double DT = coefDB.times[1] - coefDB.times[0];
-      
+
       int nfreq = numK/2 + 1;
 
       fw.resize(nfreq);
       pw.resize(nfreq, npc);
       Eigen::VectorXd in(numK);
-      
+
       pw.setZero();
-      
+
       for (int j=0; j<npc; j++) {
 	for (int i=0; i<numK; i++) in(i) = PC(i, j);
 	TransformFFT fft(DT, in);
@@ -746,7 +750,7 @@ namespace MSSA {
 	if (j==0) for (int i=0; i<nfreq; i++) fw(i) = F(i);
 	for (int i=0; i<nfreq; i++) pw(i, j) = P(i);
       }
-      
+
       if (powerf) {
 	std::ostringstream filename;
 	filename << prefix << ".pc_power";
@@ -767,7 +771,7 @@ namespace MSSA {
 	    out << std::setw(15) << sout.str();
 	  }
 	  out << std::endl;
-	  
+
 	  for (int j=0; j<nfreq; j++) {
 	    out << std::setw(15) << std::setprecision(6) << F(j)
 		<< std::setw(15) << std::setprecision(6) << 2.0*M_PI/F(j);
@@ -782,10 +786,10 @@ namespace MSSA {
 	}
       }
     }
-    
+
     return {fw, pw};
   }
-  
+
   // Return the DFT of the individual reconstructed data channels
   //
   std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
@@ -805,13 +809,13 @@ namespace MSSA {
 	std::cout << "expMSSA::channelDFT: "
 		  << "call reconstruct() before channelDFT()"
 		  << std::endl;
-      
+
       return {fw, pw};
     }
 
     {
       double DT = coefDB.times[1] - coefDB.times[0];
-      
+
       int nfreq = numT/2 + 1;
       int nchan = mean.size();
 
@@ -820,10 +824,10 @@ namespace MSSA {
 
       Eigen::VectorXd p0(nfreq), in(numT);
       Eigen::MatrixXd pt(nfreq, ncomp);
-      
+
       int nch = 0;
       for (auto u : mean) {
-	
+
 	// Compute the summed data stream
 	//
 	for (int i=0; i<numT; i++) {
@@ -846,19 +850,19 @@ namespace MSSA {
 	// Augment the channel counter
 	//
 	nch++;
-	
+
 	if (powerf) {
 
 	  // Only need to do the partial DFTs if files are requested
 	  //
 	  for (int j=0; j<ncomp; j++) {
 	    for (int i=0; i<numT; i++) in(i) = RC[u.first](i, j);
-	  
+
 	    TransformFFT fft(DT, in);
 	    fft.Power(F, P);
 	    for (int k=0; k<nfreq; k++) pt(k, j) = P(k);
 	  }
-	
+
 	  std::ostringstream filename;
 	  filename << prefix << ".power_" << u.first;
 	  std::ofstream out(filename.str());
@@ -880,7 +884,7 @@ namespace MSSA {
 	      out << std::setw(15) << sout.str();
 	    }
 	    out << std::endl;
-	  
+
 	    for (int j=0; j<nfreq; j++) {
 	      out << std::setw(15) << std::setprecision(6) << F(j)
 		  << std::setw(15) << std::setprecision(6) << 2.0*M_PI/F(j)
@@ -897,10 +901,10 @@ namespace MSSA {
 	}
       }
     }
-    
+
     return {fw, pw};
   }
-  
+
   // Return the DFT for a single channel for each PC
   //
   std::tuple<Eigen::VectorXd, Eigen::MatrixXd>
@@ -910,27 +914,27 @@ namespace MSSA {
     Eigen::MatrixXd pt;
     {
       double DT = coefDB.times[1] - coefDB.times[0];
-      
+
       int nfreq = numT/2 + 1;
 
       fw.resize(nfreq);
       pt.resize(nfreq, ncomp);
 
       Eigen::VectorXd in(numT);
-      
+
       auto u = mean.find(key);
 
       // Make sure that we have the requested key
       //
       if (u == mean.end())
 	throw std::runtime_error("expMSSA::singleDFT: requested key not found");
-      
+
       for (int j=0; j<ncomp; j++) {
 
 	// Pack the data for each PC
 	//
 	for (int i=0; i<numT; i++) in(i) = RC[u->first](i, j);
-	  
+
 	// Perform the DFT
 	//
 	TransformFFT fft(DT, in);
@@ -944,10 +948,10 @@ namespace MSSA {
 	}
       }
     }
-    
+
     return {fw, pt};
   }
-  
+
   void expMSSA::wcorrPNG()
   {
 #ifdef HAVE_LIBPNGPP
@@ -957,16 +961,16 @@ namespace MSSA {
       int nDim = std::min<int>(numW, npc);
       if (nDim < minSize) ndup = minSize/nDim + 1;
       if (ndup > 1) std::cout << "Pixel duplication=" << ndup << std::endl;
-      
+
       bool use_dist = false;
       if (params["distance"]) use_dist = true;
-      
+
       for (auto u : RC) {
 	Eigen::MatrixXd wc = wCorrKey(u.first);
-	
+
 	png::image< png::rgb_pixel > image(nDim*ndup, nDim*ndup);
 	ColorGradient color;
-	
+
 	for (size_t y = 0; y < nDim; y++) {
 	  for (size_t x = 0; x < nDim; x++) {
 	    double val = wc(y, x);
@@ -976,12 +980,12 @@ namespace MSSA {
 	      for (size_t xx = x*ndup; xx < (x+1)*ndup; xx++) {
 		if (flip) image[image.get_height()-1-yy][xx] = cval;
 		else      image[yy][xx] = cval;
-		
+
 	      }
 	    }
 	  }
 	}
-	
+
 	std::ostringstream sout; sout << prefix + ".wcorr" + "_"
 				      << u.first << ".png";
 
@@ -990,44 +994,44 @@ namespace MSSA {
 
 	image.write(sout.str());
       }
-      
+
       {
 	Eigen::MatrixXd wc = wCorrAll();
-	
+
 	png::image< png::rgb_pixel > image(nDim*ndup, nDim*ndup);
 	ColorGradient color;
-	
+
 	for (size_t y = 0; y < nDim; y++) {
 	  for (size_t x = 0; x < nDim; x++) {
 	    double val = wc(y, x);
 	    if (use_dist) val = 1.0 - sqrt(val);
-	    
+
 	    png::rgb_pixel cval = color(val);
-	    
+
 	    for (size_t yy = y*ndup; yy < (y+1)*ndup; yy++) {
 	      for (size_t xx = x*ndup; xx < (x+1)*ndup; xx++) {
 		if (flip) image[image.get_height()-1-yy][xx] = cval;
 		else      image[yy][xx] = cval;
-		
+
 	      }
 	    }
 	  }
 	}
-	
+
 	std::ostringstream sout; sout << prefix + ".wcorr_allchan.png";
 
 	std::cout << "Attempting to write: " << sout.str() << std::endl;
 
 	image.write(sout.str());
       }
-      
+
     }
 #else
     std::cout << "PNG is not available so I can't make w-correlation images"
 	      << std::endl;
 #endif
   }
-  
+
   void expMSSA::kmeans(int clusters, bool toTerm, bool toFile)
   {
     if (clusters==0) {
@@ -1041,7 +1045,7 @@ namespace MSSA {
       std::cout << "---- numT=" << numT << " numW=" << numW   << std::endl;
       std::cout << "----------------------------------------" << std::endl;
     }
-    
+
     std::ofstream out;
     std::string filename;
 
@@ -1055,7 +1059,7 @@ namespace MSSA {
     // W-correlation-based distance functor
     //
     KMeans::WcorrDistance dist(numT, numW);
-      
+
     for (auto u : mean) {
       // Pack point array
       //
@@ -1064,40 +1068,40 @@ namespace MSSA {
 	data.push_back(std::make_shared<KMeans::Point>(numT));
 	for (int i=0; i<numT; i++) data.back()->x[i] = RC[u.first](i, j);
       }
-      
+
       // Initialize k-means routine
       //
       KMeans::kMeansClustering kMeans(data);
-      
+
       // Run 100 iterations
       //
       kMeans.iterate(dist, 100, clusters, 2, false);
-      
+
       // Retrieve cluster associations
       //
       auto results = kMeans.get_results();
-      
+
       // Write to file
       //
       if (out) {
 	out << std::string(60, '-') << std::endl
 	    << " *** n=" << u.first << std::endl
 	    << std::string(60, '-') << std::endl;
-	
+
 	for (int j=0; j<results.size(); j++) {
 	  out << std::setw(6)  << j
 	      << std::setw(12) << std::get<1>(results[j])
 	      << std::endl;
 	}
       }
-	
+
       // Write to stdout
       //
       if (toTerm) {
 	std::cout << std::string(60, '-') << std::endl
 		  << " *** n=" << u.first << std::endl
 		  << std::string(60, '-') << std::endl;
-	
+
 	for (int j=0; j<results.size(); j++) {
 	  std::cout << std::setw(6)  << j
 		    << std::setw(12) << std::get<1>(results[j])
@@ -1105,9 +1109,9 @@ namespace MSSA {
 	}
       }
     }
-      
+
     if (params["allchan"]) {
-	
+
       // Pack point array
       //
       std::vector<KMeans::Ptr> data;
@@ -1119,33 +1123,33 @@ namespace MSSA {
 	  for (int i=0; i<numT; i++) data.back()->x[c++] = RC[u.first](i, j);
 	}
       }
-	
+
       // Initialize k-means routine
       //
       KMeans::kMeansClustering kMeans(data);
-	
+
       // Run 100 iterations
       //
       KMeans::WcorrDistMulti dist2(numT, numW, sz);
       kMeans.iterate(dist2, 100, clusters, 2, false);
-	
+
       // Retrieve cluster associations
       //
       auto results = kMeans.get_results();
-      
+
       // Write to file
       //
       if (out) {
 	out << std::string(60, '-') << std::endl
 	    << " *** total"         << std::endl
 	    << std::string(60, '-') << std::endl;
-	
+
 	for (int j=0; j<results.size(); j++) {
 	  out << std::setw(6) << j
 	      << std::setw(9) << std::get<1>(results[j])
 	      << std::endl;
 	}
-      }	
+      }
 
       // Write to stdout
       //
@@ -1153,25 +1157,25 @@ namespace MSSA {
 	std::cout << std::string(60, '-') << std::endl
 		  << " *** total"         << std::endl
 		  << std::string(60, '-') << std::endl;
-	
+
 	for (int j=0; j<results.size(); j++) {
 	  std::cout << std::setw(6) << j
 		    << std::setw(9) << std::get<1>(results[j])
 		    << std::endl;
 	}
       }
-      
+
     }
-      
+
     if (!out) {
       if (toFile)
 	std::cout << "Bad output stream for <" << filename << ">" << std::endl;
     }
     out.close();
-    
+
   }
-  
-  std::map<std::string, CoefClasses::CoefsPtr> expMSSA::getReconstructed()
+
+  std::map<std::string, CoefClasses::CoefsPtr> expMSSA::getReconstructed(bool reconstructmean)
   {
     if (not reconstructed) {
       std::ostringstream sout;
@@ -1182,7 +1186,7 @@ namespace MSSA {
       else
 	sout << "expMSSA::getReconstructed(): "
 	     << "call reconstruct() before getReconstructed()";
-      
+
       std::runtime_error(sout.str());
     }
 
@@ -1190,21 +1194,24 @@ namespace MSSA {
     // Copy the original map for return
     //
     auto newdata = data;
-    
+
     for (int i=0; i<numT; i++) {
       for (auto u : mean) {
 	double disp = totVar;
 	if (type == TrendType::totPow) disp = totPow;
 	if (disp==0.0) disp = var[u.first];
-	
+
 	double acc = 0.0;
 	for (int j=0; j<ncomp; j++) acc += RC[u.first](i, j);
-	
-	newdata[u.first][i] = acc*disp;
-	if (useMean) newdata[u.first][i] += u.second;
+
+
+  	newdata[u.first][i] = acc*disp;
+  if (reconstructmean) {
+      	if (useMean) newdata[u.first][i] += u.second;
       }
+        }
     }
-    
+
     // Copy to the working data
     //
     for (auto v : newdata) {
@@ -1216,36 +1223,36 @@ namespace MSSA {
     //
     return coefDB.endUpdate();
   }
-  
+
   const std::set<std::string>
   expMSSA::valid_keys = {
     "verbose",
+    "writeCov",
+    "Jacobi",
+    "BDCSVD",
+    "Traj",
+    "RedSym",
+    "allchan",
+    "distance",
     "flip",
     "power",
     "evtol",
     "output",
-    "Traj",
-    "writeCov",
-    "Jacobi",
-    "BDCSVD",
-    "RedSym",
-    "distance",
-    "allchan",
     "totVar",
     "totPow",
     "noMean"
-  };      
+  };
 
   void expMSSA::assignParameters(const std::string flags)
   {
     // Parse the parameters database
     //
     try {
-      
+
       // Load parameters from string
       //
       params = YAML::Load(flags);
-      
+
       // Check for unmatched keys
       //
       auto unmatched = YamlCheck(params, valid_keys);
@@ -1256,19 +1263,19 @@ namespace MSSA {
       //
       computed      = false;
       reconstructed = false;
-      
+
       // Top level parameter flags
       //
       verbose  = bool(params["verbose"   ]);
       flip     = bool(params["flip"      ]);
       powerf   = bool(params["power"     ]);
-      
+
       if (params["evtol"]  ) evtol    = params["evtol"].as<double>();
       else                   evtol    = 0.01;
-      
+
       if (params["output"] ) prefix   = params["output"].as<std::string>();
       else                   prefix   = "exp_mssa";
-      
+
     }
     catch (const YAML::ParserException& e) {
       std::cout << "expMSSA::assignParameters, parsing error=" << e.what()
@@ -1276,8 +1283,8 @@ namespace MSSA {
       throw;
     }
   }
-  
-  
+
+
   // Save current MSSA state to an HDF5 file with the given prefix
   void expMSSA::saveState(const std::string& prefix)
   {
@@ -1297,23 +1304,23 @@ namespace MSSA {
       HighFive::File file(prefix + "_mssa.h5",
 			  HighFive::File::ReadWrite |
 			  HighFive::File::Create);
-      
+
       // Write the time dimension
       //
       file.createAttribute<int>("numT", HighFive::DataSpace::From(numT)).write(numT);
-      
+
       // Write the number of channels
       //
       file.createAttribute<int>("nKeys", HighFive::DataSpace::From(nkeys)).write(nkeys);
-      
+
       // Write the window size
       //
       file.createAttribute<int>("numW", HighFive::DataSpace::From(numW)).write(numW);
-      
+
       // Write the number of PCs
       //
       file.createAttribute<int>("numPC", HighFive::DataSpace::From(npc)).write(npc);
-      
+
       // Save trend state
       //
       int trend = static_cast<std::underlying_type<TrendType>::type>(type);
@@ -1323,7 +1330,7 @@ namespace MSSA {
       //
       std::vector<Key> keylist;
       for (auto k : mean) keylist.push_back(k.first);
-      
+
       // Pad keylist entries to maximum key length for HighFive
       //
       size_t maxSZ = 0;
@@ -1335,11 +1342,11 @@ namespace MSSA {
 	  for (auto k=v.size(); k<maxSZ; k++) v.push_back(padVal);
 	}
       }
-      
+
       // Finally, create the dataset
       //
       file.createDataSet("keylist", keylist);
-      
+
       // Save mssa_analysis state
       //
       HighFive::Group analysis = file.createGroup("mssa_analysis");
@@ -1348,7 +1355,7 @@ namespace MSSA {
       analysis.createDataSet("S",  S );
       analysis.createDataSet("U",  U );
       analysis.createDataSet("PC", PC);
-      
+
       // Save reconstruction
       //
       if (reconstructed) {
@@ -1364,7 +1371,7 @@ namespace MSSA {
 	  recon.createDataSet(scnt.str(), RC[keylist[n]]);
 	}
       }
-      
+
     } catch (HighFive::Exception& err) {
       std::cerr << err.what() << std::endl;
     }
@@ -1377,11 +1384,11 @@ namespace MSSA {
       // Silence the HDF5 error stack
       //
       HighFive::SilenceHDF5 quiet;
-      
+
       // Try opening the file as HDF5
       //
       HighFive::File h5file(prefix + "_mssa.h5", HighFive::File::ReadOnly);
-      
+
       // Read and check parameters
       //
       int nTime, nKeys, numW1, numPC, trend;
@@ -1391,7 +1398,7 @@ namespace MSSA {
       h5file.getAttribute("numW" ).read(numW1);
       h5file.getAttribute("numPC").read(numPC);
       h5file.getAttribute("trendType").read(trend);
-      
+
       // Number of channels
       //
       nkeys = mean.size();
@@ -1405,7 +1412,7 @@ namespace MSSA {
 	     << ".\nCan't restore mssa state!";
 	throw std::runtime_error(sout.str());
       }
-      
+
       if (nKeys != nkeys) {
 	std::ostringstream sout;
 	sout << "expMSSA::restoreState: saved state has nkeys="
@@ -1413,7 +1420,7 @@ namespace MSSA {
 	     << ".\nCan't restore mssa state!";
 	throw std::runtime_error(sout.str());
       }
-      
+
       if (numW != numW1) {
 	std::ostringstream sout;
 	sout << "expMSSA::restoreState: saved state has numW="
@@ -1421,7 +1428,7 @@ namespace MSSA {
 	     << ".\nCan't restore mssa state!";
 	throw std::runtime_error(sout.str());
       }
-      
+
       if (numPC != npc) {
 	std::ostringstream sout;
 	sout << "expMSSA::restoreState: saved state has npc="
@@ -1483,7 +1490,7 @@ namespace MSSA {
 	  for (auto u : v) sout << u << ' ';
 	  sout << "] ";
 	}
-      
+
 	throw std::runtime_error(sout.str());
       }
 
@@ -1500,7 +1507,7 @@ namespace MSSA {
 
       if (h5file.exist("reconstruction")) {
 	auto recon = h5file.getGroup("reconstruction");
-	
+
 	recon.getAttribute("ncomp" ).read(ncomp);
 	recon.getAttribute("totVar").read(totVar);
 	recon.getAttribute("totPow").read(totPow);
@@ -1536,8 +1543,8 @@ namespace MSSA {
       type = TrendType::totPow;
     else
       type = TrendType::perChannel;
-    
-    
+
+
     // Eigen OpenMP reporting
     //
     static bool firstTime = true;
@@ -1546,34 +1553,34 @@ namespace MSSA {
 		<< " threads" << std::endl;
       firstTime = false;
     }
-    
+
     // Now open and parse the coefficient files
     //
     coefDB = CoefContainer(config, flags);
-    
+
     numT = coefDB.times.size();
-    
+
     // Generate all the channels
     //
     for (auto key : coefDB.getKeys()) {
-      
+
       mean[key] = 0.0;
       var [key] = 0.0;
-      
+
       for (auto y : coefDB.getData(key)) {
 	mean[key] += y;
 	var [key] += y*y;
 	data[key].push_back(y);
       }
     }
-    
+
     // Normalize and detrend
     //
     totVar = totPow = 0.0;
     useMean = true;
-    
+
     if (type == TrendType::totPow) {
-      
+
       // Compute total power from the coefficient database
       //
       for (auto k : coefDB.getKeys()) {
@@ -1581,11 +1588,11 @@ namespace MSSA {
 	  totPow += v*v;
 	}
       }
-      
+
       // Average total power per time slice
       //
       totPow = std::sqrt(totPow/numT + std::numeric_limits<double>::min());
-      
+
       for (auto & u : mean) {
 	Key k = u.first;
 	//--------------
@@ -1594,9 +1601,9 @@ namespace MSSA {
 	totVar  += var[k];
 	var[k]   = sqrt(fabs(var[k]) + std::numeric_limits<double>::min());
       }
-      
+
       if (params["noMean"]) useMean = false;
-      
+
       for (auto & u : mean) {
 	Key k = u.first;
 	for (auto & v : data[k]) {
@@ -1604,9 +1611,9 @@ namespace MSSA {
 	  v /= totPow;
 	}
       }
-      
-    } else if (params["totVar"]) {
-      
+
+    } else if (type == TrendType::totVar) {
+
       for (auto & u : mean) {
 	Key k = u.first;
 	//--------------
@@ -1615,9 +1622,9 @@ namespace MSSA {
 	totVar  += var[k];
 	var[k]   = std::sqrt(fabs(var[k]) + std::numeric_limits<double>::min());
       }
-      
+
       totVar = std::sqrt(totVar+std::numeric_limits<double>::min());
-      
+
       for (auto & u : mean) {
 	Key k = u.first;
 	for (auto & v : data[k]) {
@@ -1626,6 +1633,7 @@ namespace MSSA {
 	}
       }
     } else {
+      // the default detrending, by mean and variance, type = TrendType::perChannel
       for (auto & u : mean) {
 	Key k = u.first;
 	//--------------
@@ -1645,4 +1653,3 @@ namespace MSSA {
 
 }
 // END namespace MSSA
-  

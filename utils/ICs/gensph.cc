@@ -43,7 +43,7 @@
 #include <model3d.H>
 #include <GenPoly.H>
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 #include <EllipForce.H>
 #include <localmpi.H>
 #include <fpetrap.h>
@@ -73,23 +73,23 @@ main(int argc, char **argv)
   bool LOGR, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR, zeropos, zerovel;
   bool VTEST;
   std::string INFILE, MMFILE, OUTFILE, OUTPS, config;
-  
+
 #ifdef DEBUG
   set_fpu_handler();
 #endif
-  
+
 #ifdef FPETRAP
   fpeinit(0);
 #endif
-  
+
   // MPI initialization
   //
   local_init_mpi(argc, argv);
-  
+
   // Option parsing
   //
   cxxopts::Options options("gensph", "Generate single-mass or multi-mass spherical ICs");
-  
+
   options.add_options()
     ("h,help", "Print this help message")
     ("v,verbose", "Print additional diagnostic information")
@@ -203,9 +203,9 @@ main(int argc, char **argv)
     ("b,bar",     "add an ellipsoidal bar model",
      cxxopts::value<bool>(EBAR)->default_value("false"))
     ;
-  
+
   cxxopts::ParseResult vm;
-  
+
   try {
     vm = options.parse(argc, argv);
   } catch (cxxopts::OptionException& e) {
@@ -225,7 +225,7 @@ main(int argc, char **argv)
     MPI_Finalize();
     return 0;
   }
-  
+
   // Write template config file in INI style and exit
   //
   if (vm.count("template")) {
@@ -249,7 +249,7 @@ main(int argc, char **argv)
       return 0;
     }
   }
-  
+
   if (vm.count("verbose")) VERBOSE = true;
   else                     VERBOSE = false;
 
@@ -269,26 +269,26 @@ main(int argc, char **argv)
     MPI_Finalize();
     exit(-1);
   }
-  
+
   out.precision(11);
   out.setf(ios::scientific, ios::floatfield);
-  
+
   // Begin integration
   //
   AxiSymModPtr hmodel;
   SphModTblPtr htmodel, htmodel2, mmmodel;
   SphModMultPtr multi;
-  
+
   SphericalModelTable::even = 0;
-  
+
   AxiSymModel::numr     = NUMR;
   AxiSymModel::numj     = NUMJ;
   AxiSymModel::gen_N    = NUMG;
   AxiSymModel::gen_E    = NUME;
   AxiSymModel::gen_tolE = TOLE;
-  
+
   if (HMODEL>=0) {
-    
+
     // Halo model
     //
     switch (HMODEL) {
@@ -296,13 +296,13 @@ main(int argc, char **argv)
       SphericalModelTable::even = 0;
       SphericalModelTable::linear = LINEAR;
       htmodel = std::make_shared<SphericalModelTable>(INFILE, DIVERGE, DIVERGE_RFAC);
-      
+
       htmodel->setup_df(NUMDF, RA);
-      
+
       if (VERBOSE and myid==0) {
 	htmodel->print_df("gensph.df");
       }
-      
+
       hmodel = htmodel;
       break;
     case isothermal:
@@ -319,77 +319,77 @@ main(int argc, char **argv)
 	std::cerr << "No such HALO model type: " << HMODEL << std::endl;
       exit(-2);
     }
-    
+
   }
-  
-  
+
+
   double rmin = hmodel->get_min_radius();
   double rmax = hmodel->get_max_radius();
   double r, dr = (log(rmax) - log(rmin))/(RNUM-1);
-  
+
   vector<double> r2(RNUM), d2(RNUM), m2(RNUM), p2(RNUM), t2(RNUM), MS(RNUM);
-  
+
   if (LOGR)
     dr = (log(rmax) - log(rmin))/(RNUM-1);
   else
     dr = (rmax - rmin)/(RNUM-1);
-  
-  
+
+
   for (int i=0; i<RNUM; i++) {
     if (LOGR)
       r2[i] = rmin*exp(dr*i);
     else
       r2[i] = rmin + dr*i;
   }
-  
+
   //--------------------
   // Make bar if desired
   //--------------------
-  
+
   if (EBAR) {
-    
+
     if (myid==0) cout << "-----------" << std::endl;
     auto ellip = std::make_shared<EllipForce>
       (RBAR, RBAR*BRATIO, RBAR*BRATIO*CRATIO, MBAR, NUMINT, 200);
-    
+
 #ifdef HAVE_FFTW
     if (SMOOTH>0.0) {
-      
+
       double a[NUMR], b[NUMR], c[NUMR];
       fftw_complex A[NUMR], B[NUMR], C[NUMR];
       fftw_plan pa, pb, pinv;
-      
+
       pa   = fftw_plan_dft_r2c_1d(NUMR, a, A, FFTW_ESTIMATE);
       pb   = fftw_plan_dft_r2c_1d(NUMR, b, B, FFTW_ESTIMATE);
       pinv = fftw_plan_dft_c2r_1d(NUMR, C, c, FFTW_ESTIMATE);
-      
+
       double xmin=rmin, xmax=rmax;
-      
+
       double x, z, dx = (30*SMOOTH + xmax - xmin)/NUMR;
       double y, dk = (30.0*SMOOTH + xmax - xmin)/NUMR;
       double scale = dk / NUMR;
       int indx;
-      
+
       ofstream tin, tout;
-      
+
       if (myid==0) {
 	tin.open("ebar_fft.input");
 	tout.open("ebar_fft.output");
       }
-      
+
       for (int i=0; i<NUMR; i++) {
-	
+
 	x = xmin + dx*i;
 	indx = (NUMR/2+i) % NUMR;
 	z = dx*(indx-NUMR/2);
-	
+
 	if (x<xmax)
 	  a[indx] = ellip->getMass(x);
 	else
 	  a[indx] = 0.0;
-	
+
 	b[indx] = exp( -z*z/(2.0*SMOOTH*SMOOTH)) / sqrt(2.0*M_PI*SMOOTH*SMOOTH);
-	
+
 	if (myid==0)
 	  tin << std::setw(10) << indx
 	      << std::setw(20) << x
@@ -398,27 +398,27 @@ main(int argc, char **argv)
 	      << std::setw(20) << b[indx]
 	      << std::endl;
       }
-      
+
       fftw_execute(pa);
       fftw_execute(pb);
-      
+
       for (int i=0; i<NUMR; i++) {
 	C[i][0] = (A[i][0] * B[i][0] - A[i][1] * B[i][1]) * scale;
 	C[i][1] = (A[i][0] * B[i][1] + A[i][1] * B[i][0]) * scale;
       }
-      
+
       // inverse transform to get c, the convolution of a and b;
       //            this has the side effect of overwriting C
       fftw_execute(pinv);
-      
+
       // ...
-      
+
       double mbar=-1.0;
       vector<double> rr(NUMR), mm(NUMR);
       double fac;
-      
+
       for (int i=0; i<NUMR; i++) {
-	
+
 	rr[i] = x = xmin + dx*i;
 	y = ellip->getMass(x);
 	fac = 0.5*(1.0 + erf((x-0.1*RBAR)/(0.025*RBAR)));
@@ -427,39 +427,39 @@ main(int argc, char **argv)
 	  mm[i] = mbar;
 	else
 	  mm[i] = (1.0 - fac)*y + fac*c[i-1];
-	
+
 	if (myid==0)
 	  tout << std::setw(20) << x
 	       << std::setw(20) << y
 	       << std::setw(20) << mm[i]
 	       << std::endl;
       }
-      
+
       fftw_destroy_plan(pa);
       fftw_destroy_plan(pb);
       fftw_destroy_plan(pinv);
-      
+
       Linear1d mass1(rr, mm);
-      
+
       for (int i=0; i<RNUM; i++) MS[i] = mass1.eval(r2[i]);
-      
+
     } else {
       for (int i=0; i<RNUM; i++) MS[i] = ellip->getMass(r2[i]);
     }
 #else
     for (int i=0; i<RNUM; i++) MS[i] = ellip->getMass(r2[i]);
 #endif
-    
+
     //
     // Make new model including dark halo and bar
     //
-    
+
     for (int i=0; i<RNUM; i++) {
       d2[i] = hmodel->get_density(r2[i]);
       m2[i] = hmodel->get_mass(r2[i]) + MS[i];
     }
-    
-    
+
+
     double dm1, dm2;
     p2[0] = 0.0;
     t2[0] = 0.0;
@@ -469,22 +469,22 @@ main(int argc, char **argv)
       dm2 = drv2(r2[i], r2, m2);
       t2[i] += 0.5*(dm1/r2[i-1] + dm2/r2[i])*(r2[i] - r2[i-1]) + t2[i-1];
     }
-    
+
     for (int i=0; i<RNUM; i++) {
       if (r2[i]>0.0)
 	p2[i] = - m2[i]/r2[i] - (t2[RNUM-1] - t2[i]);
       else
 	p2[i] = - (t2[RNUM-1] - t2[i]);
     }
-    
-    
+
+
     htmodel2 = std::make_shared<SphericalModelTable>
       (RNUM, r2.data(), d2.data(), m2.data(), p2.data());
-    
+
     htmodel2->setup_df(NUMDF, RA);
-    
+
     hmodel = htmodel2;
-    
+
     if (MODELS and myid==0) {
       string mname = OUTFILE + ".ellip";
       ofstream outmod(mname.c_str());
@@ -498,7 +498,7 @@ main(int argc, char **argv)
 	    r = rmin*exp(dr*i);
 	  else
 	    r = rmin + dr*i;
-	  
+
 	  outmod << std::setw(20) << r2[i]
 		 << std::setw(20) << d2[i]
 		 << std::setw(20) << m2[i]
@@ -509,32 +509,32 @@ main(int argc, char **argv)
 	cerr << "Error opening <" << mname << std::endl;
       }
     }
-    
+
   }
-  
+
   double mass = hmodel->get_mass(hmodel->get_max_radius())/N;
   AxiSymModPtr rmodel = hmodel;
-  
+
   if (vm.count("MMFILE")) {
-    
+
     SphericalModelTable::even = 0;
     SphericalModelTable::linear = LINEAR;
-    
+
     // Generate "fake" profile
     //
     mmmodel = std::make_shared<SphericalModelTable>
       (MMFILE, DIVERGE2, DIVERGE_RFAC2);
-    
+
     mass = mmmodel->get_mass(mmmodel->get_max_radius())/N;
-    
+
     // Packs fake density and mass model with target (real) potential
     // and reinitializes the model
     //
     std::vector<double> r2(RNUM), d2(RNUM), m2(RNUM), p2(RNUM);
-    
+
     double rlast = rmin;
     vector<double> mt2(RNUM, 0.0), tt2(RNUM, 0.0);
-    
+
     if (GRIDPOT) {
       m2[0] = 0.0;
       for (int i=1; i<RNUM; i++) {
@@ -542,38 +542,38 @@ main(int argc, char **argv)
 	  r2[i] = r = rmin*exp(dr*i);
 	else
 	  r2[i] = r = rmin + dr*i;
-	
+
 	mt2[i] = mt2[i-1] +
 	  0.5*(hmodel->get_density(rlast)*rlast*rlast +
 	       hmodel->get_density(r2[i])*r2[i]*r2[i] )
 	  * (r2[i] - rlast) * 4.0*M_PI;
-	
+
 	m2[i] = m2[i-1] +
 	  0.5*(mmmodel->get_density(rlast)*rlast*rlast +
 	       mmmodel->get_density(r2[i])*r2[i]*r2[i] )
 	  * (r2[i] - rlast) * 4.0*M_PI;
-	
+
 	tt2[i] = tt2[i-1] +
 	  0.5*(hmodel->get_density(rlast)*rlast +
 	       hmodel->get_density(r2[i])*r2[i] )
 	  * (r2[i] - rlast) * 4.0*M_PI;
-	
+
 	rlast = r2[i];
       }
-      
+
       if (VERBOSE and myid==0)
 	cout << "-----------" << std::endl
 	     << "Mass (computed)=" << mt2[RNUM-1] << std::endl;
     }
-    
+
     for (int i=0; i<RNUM; i++) {
       if (LOGR)
 	r2[i] = r = rmin*exp(dr*i);
       else
 	r2[i] = r = rmin + dr*i;
-      
+
       d2[i] = mmmodel -> get_density(r);
-      
+
       if (GRIDPOT) {
 	if (r2[i]<=0.0)
 	  p2[i] = 0.0;
@@ -583,19 +583,19 @@ main(int argc, char **argv)
 	m2[i] = mmmodel -> get_mass(r);
 	p2[i] = hmodel  -> get_pot(r);
       }
-      
+
     }
-    
+
     mmmodel = std::make_shared<SphericalModelTable>
       (RNUM, r2.data(), d2.data(), m2.data(), p2.data(),
        DIVERGE2, DIVERGE_RFAC2);
-    
+
     mmmodel->setup_df(NUMDF, RA);
-    
+
     if (VERBOSE and myid==0) {
       mmmodel->print_df("gensph.dfmulti");
     }
-    
+
     if (MODELS and myid==0) {
       string mname = OUTFILE + ".multi";
       ofstream outmod(mname.c_str());
@@ -609,7 +609,7 @@ main(int argc, char **argv)
 	    r = rmin*exp(dr*i);
 	  else
 	    r = rmin + dr*i;
-	  
+
 	  outmod << std::setw(20) << r
 		 << std::setw(20) << mmmodel->get_density(r)
 		 << std::setw(20) << mmmodel->get_mass(r)
@@ -620,22 +620,22 @@ main(int argc, char **argv)
 	cerr << "Error opening <" << mname << std::endl;
       }
     }
-    
+
     // Generate the multimass model
     //
     if (EBAR)
       multi = std::make_shared<SphericalModelMulti>(htmodel2, mmmodel);
     else
       multi = std::make_shared<SphericalModelMulti>(htmodel,  mmmodel);
-    
+
     if (vm.count("allow")) multi->allowNegativeMass();
 
     rmodel = multi;
   }
-  
+
   random_gen.seed(SEED*numprocs+myid);
   rmodel->set_itmax(ITMAX);
-  
+
   if (MODELS and myid==0) {
     std::ofstream outmod(OUTFILE);
     if (outmod) {
@@ -648,7 +648,7 @@ main(int argc, char **argv)
 	  r = rmin*exp(dr*i);
 	else
 	  r = rmin + dr*i;
-	
+
 	outmod << std::setw(20) << r
 	       << std::setw(20) << rmodel->get_density(r)
 	       << std::setw(20) << rmodel->get_mass(r)
@@ -658,12 +658,12 @@ main(int argc, char **argv)
     } else {
       std::cerr << "Error opening <" << OUTFILE << std::endl;
     }
-    
+
   }
-  
+
   int ierr;
   Eigen::VectorXd ps(7), ps0(7);
-  
+
   ps0[0] = 0.0;
   ps0[1] = X0;
   ps0[2] = Y0;
@@ -671,32 +671,32 @@ main(int argc, char **argv)
   ps0[4] = U0;
   ps0[5] = V0;
   ps0[6] = W0;
-  
+
   if (myid==0) {
     out << std::setw(12) << N
 	<< std::setw( 6) << NI << std::setw( 6) << ND  << std::endl;
   }
-  
+
   // Diagnostic variables
   //
   int count=0, negms=0;
   double TT=0.0, WW=0.0, VC=0.0;
-  
+
   if (myid==0)
     std::cout << "-----------" << std::endl
 	      << "Body count:" << std::endl;
-  
+
   int npernode = N/numprocs;
   int beg = myid*npernode;
   int end = beg + npernode;
-  
+
   if (myid==numprocs-1) end = N;
-  
+
   std::vector<Eigen::VectorXd> PS;
   Eigen::VectorXd zz = Eigen::VectorXd::Zero(7);
 
   for (int n=beg; n<end; n++) {
-    
+
     do {
       if (ELIMIT)
 	ps = rmodel->gen_point(Emin0, Emax0, Kmin0, Kmax0, ierr);
@@ -710,22 +710,24 @@ main(int argc, char **argv)
 		    << ps[2] << "\n";
 	}
       }
-      else		
+      else
 	ps = rmodel->gen_point(ierr);
       if (ierr) count++;
     } while (ierr);
-    
+
     if (ps[0] <= 0.0) negms++;
-    
+
     double RR=0.0;
     for (int i=1; i<=3; i++) {
       RR += ps[i]*ps[i];
       TT += 0.5*mass*ps[0]*ps[3+i]*ps[3+i];
     }
     RR  =  sqrt(RR);
-    VC += -mass*ps[0]*rmodel->get_mass(RR)/RR;
-    WW +=  0.5*mass*ps[0]*rmodel->get_pot(RR);
-    
+    if (RR>=rmin) {
+      VC += -mass*ps[0]*rmodel->get_mass(RR)/RR;
+      WW +=  0.5*mass*ps[0]*rmodel->get_pot(RR);
+    }
+
     if (zeropos or zerovel) {
       ps[0] *= mass;
       PS.push_back(ps);
@@ -736,17 +738,17 @@ main(int argc, char **argv)
     else {
       out << std::setw(20) << mass * ps[0];
       for (int i=1; i<=6; i++) out << std::setw(20) << ps[i]+ps0[i];
-    
+
       if (NI) {
 	for (int n=0; n<NI; n++) out << std::setw(10) << 0;
       }
       if (ND) {
 	for (int n=0; n<ND; n++) out << std::setw(20) << 0.0;
       }
-      
+
       out << std::endl;
     }
-    
+
     if (myid==0 and !((n+1)%NREPORT)) cout << '\r' << (n+1)*numprocs << flush;
   }
 
@@ -759,34 +761,34 @@ main(int argc, char **argv)
     for (auto ps : PS) {
       out << std::setw(20) << ps[0];
       for (int i=1; i<=6; i++) out << std::setw(20) << ps[i]+ps0[i];
-    
+
       if (NI) {
 	for (int n=0; n<NI; n++) out << std::setw(10) << 0;
       }
       if (ND) {
 	for (int n=0; n<ND; n++) out << std::setw(20) << 0.0;
       }
-      
+
       out << std::endl;
     }
   }
-    
+
   if (myid) {
-    
+
     MPI_Reduce(&count, 0, 1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&negms, 0, 1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&TT,    0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&WW,    0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&VC,    0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    
+
   } else {
-    
+
     MPI_Reduce(MPI_IN_PLACE, &count, 1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, &negms, 1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, &TT,    1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, &WW,    1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, &VC,    1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    
+
     cout << std::endl << "-----------" << std::endl << std::endl;
     cout << std::setw(20) << "States rejected: " << count      << std::endl;
     cout << std::setw(20) << "Negative masses: " << negms      << std::endl;
@@ -798,7 +800,7 @@ main(int argc, char **argv)
     cout << std::setw(20) << "Ratio (-2T/C)="    << -2.0*TT/VC << std::endl;
     std::cout << std::setw(60) << std::setfill('-') << '-' << std::endl << std::setfill(' ');
   }
-  
+
   out.close();
   MPI_Barrier(MPI_COMM_WORLD);
 
@@ -811,6 +813,6 @@ main(int argc, char **argv)
   }
 
   MPI_Finalize();
-  
+
   return 0;
 }

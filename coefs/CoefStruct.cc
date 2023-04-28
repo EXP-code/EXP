@@ -23,6 +23,7 @@ namespace CoefClasses
     ret->id    = id;
     ret->time  = time;
     ret->coefs = coefs;
+    if (ret->ctr.size()) ret->ctr = ctr;
   }
 
   void CylStruct::create()

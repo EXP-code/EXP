@@ -4,6 +4,7 @@
 
 #include <interp.H>
 #include <Bessel.H>
+#include <EXPmath.H>
 
 int Bessel::RNUM = 1000;
 
@@ -135,8 +136,8 @@ double Bessel::dens(double r, int n)
     throw GenericError("Routine dens() called with n out of bounds", __FILE__, __LINE__, 1001, true);
 
   alpha = p->a[n];
-  return alpha*M_SQRT2/fabs(std::sph_bessel(p->l, alpha)) * pow(rmax,-2.5) *
-    std::sph_bessel(p->l, alpha*r/rmax);
+  return alpha*M_SQRT2/fabs(EXPmath::sph_bessel(p->l, alpha)) * pow(rmax,-2.5) *
+    EXPmath::sph_bessel(p->l, alpha*r/rmax);
 }
 
 double Bessel::potl(double r, int n)
@@ -147,8 +148,8 @@ double Bessel::potl(double r, int n)
     throw GenericError("Routine potl() called with n out of bounds", __FILE__, __LINE__, 1002, true);
 
   alpha = p->a[n];
-  return M_SQRT2/fabs(alpha*std::sph_bessel(p->l,alpha)) * pow(rmax,-0.5) *
-    std::sph_bessel(p->l,alpha*r/rmax);
+  return M_SQRT2/fabs(alpha*EXPmath::sph_bessel(p->l,alpha)) * pow(rmax,-0.5) *
+    EXPmath::sph_bessel(p->l,alpha*r/rmax);
 }
 
 void Bessel::make_grid(double rmin, double rmax, int lmax, int nmax)

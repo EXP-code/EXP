@@ -28,7 +28,7 @@ void CoefficientClasses(py::module &m) {
     "create() member so that you can instaniate and load a coefficient\n"
     "structure using Python.  To do this, use the constructor to make\n"
     "a blank instance, assign the dimensions and use create() to create\n"
-    "a data matrix of initially zero values.  The dimensions are \n",
+    "a data matrix of initially zero values.  The dimensions are \n"
     "(lmax, nmax) for SphStruct, (mmax,nmax) for a CylStruct, and\n"
     "(cols) for a TblStruct.\n\n"
     "Coefs\n"

@@ -1,5 +1,5 @@
-#ifndef SphereSL_H
-#define SphereSL_H 1
+#ifndef SphSL_H
+#define SphSL_H 1
 
 #include <string>
 
@@ -11,7 +11,7 @@
    Uses SLGridSph basis to evaluate expansion coeffients and provide
    potential and density basis fields
 */
-class SphereSL
+class SphSL
 {
 
 private:
@@ -80,11 +80,11 @@ public:
       \param COVAR true will evaluate the covariance matrix for coeffficients
       \param NPART >0 will evaluate the covariance matrix using a jackknife partition with number given
   */
-  SphereSL(std::shared_ptr<SphericalModelTable> mod, int LMAX, int NMAX,
+  SphSL(std::shared_ptr<SphericalModelTable> mod, int LMAX, int NMAX,
 	   int CMAP=0, double SCALE=0.067, bool COVAR=false, int NPART=0);
   
   //! Destructor
-  ~SphereSL(void);
+  ~SphSL(void);
   
   //! Prescaling factor
   void set_scale(const double scl) { rscl = scl; }

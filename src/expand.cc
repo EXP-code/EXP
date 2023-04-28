@@ -9,7 +9,6 @@ void clean_up(void);
 #include <sys/resource.h>
 #include <sys/types.h>
 
-#include <fenv.h>
 #include <fpetrap.h>
 
 #ifdef USE_GPTL
@@ -46,6 +45,14 @@ extern void mpi_gdb_wait_trace(int sig);
 
 void set_fpu_invalid_handler(void)
 {
+  // These calls are provided by glibc.  The key function
+  // 'feenableexcept(/*flags*/);' has the system raise a signal that
+  // may be trapped by gdb for debugging.
+  // 
+  // Please contribute solutions
+  // for other systems and unsupported architectures if possible...
+
+#ifdef HAVE_FE_ENABLE
   // Flag invalid FP results only, such as 0/0 or infinity - infinity
   // or sqrt(-1).
   //
@@ -69,6 +76,8 @@ void set_fpu_invalid_handler(void)
     std::cout << "\b>" << std::endl;
   }
   signal(SIGFPE, mpi_gdb_print_trace);
+
+#endif
 }
 
 //===========================================
@@ -77,6 +86,8 @@ void set_fpu_invalid_handler(void)
 
 void set_fpu_trace_handler(void)
 {
+#ifdef HAVE_FE_ENABLE
+  
   // Flag all FP errors except inexact
   //
   // fedisableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
@@ -104,6 +115,8 @@ void set_fpu_trace_handler(void)
     std::cout << "\b>" << std::endl;
   }
   signal(SIGFPE, mpi_gdb_print_trace);
+
+#endif
 }
 
 //===========================================
@@ -112,6 +125,8 @@ void set_fpu_trace_handler(void)
 
 void set_fpu_gdb_handler(void)
 {
+#ifdef HAVE_FE_ENABLE
+
   // Flag all FP errors except inexact
   //
   // fedisableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
@@ -139,6 +154,7 @@ void set_fpu_gdb_handler(void)
     std::cout << "\b>" << std::endl;
   }
   signal(SIGFPE, mpi_gdb_wait_trace);
+#endif
 }
 
 
@@ -685,6 +701,7 @@ main(int argc, char** argv)
     if (e.getDeadlock())
       std::cerr << std::string(72, '-') << std::endl
 		<< "Process " << myid << ": EXP asynchronous exception"
+		<< std::endl
 		<< std::string(72, '-') << std::endl
 		<< e.getErrorMessage()  << std::endl
 		<< std::string(72, '-') << std::endl;

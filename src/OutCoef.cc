@@ -19,7 +19,6 @@ OutCoef::OutCoef(const YAML::Node& conf) : Output(conf)
 {
   nint = 10;
   nintsub = std::numeric_limits<int>::max();
-  filename = outdir + "outcoef." + runtag;
   native = false;
   tcomp = NULL;
 
@@ -50,7 +49,6 @@ void OutCoef::initialize()
   // Assign values from YAML
   //
   try {
-    if (conf["filename"])     filename = conf["filename"].as<std::string>();
     if (conf["nint"])         nint     = conf["nint"].as<int>();
     if (conf["native"])       native   = conf["native"].as<bool>();
     if (conf["nintsub"]) {
@@ -64,6 +62,16 @@ void OutCoef::initialize()
 	  if (!(c->name.compare(tmp))) tcomp  = c;
 	}
       }
+
+    if (conf["filename"])
+      {
+	filename = conf["filename"].as<std::string>();
+      }
+    else
+      {
+	filename = outdir + "outcoef." + tcomp->name + "." + runtag;
+      }
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in OutCoef: "

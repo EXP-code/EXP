@@ -48,6 +48,36 @@ namespace Field
     std::map<double, std::map<std::string, Eigen::MatrixXf>>
     slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs);
     
+    //@{
+    /** Get a field probes as a map in time and type
+
+	For example:
+	.
+	.
+	// Generate the fields for all coefficients in 'coefs' along the 
+	// line specfied by (beg, end) where beg, end are three vectors 
+	// describing points in space and num is the number of evaluations
+	auto db = lines(basis, coefs, beg, end, num);
+
+	// The code will provide three additional vectors: x, y, z,
+	// arc where x, y, z, are the evaulation positions along the
+	// line and arc describing the distance along the line from
+	// beg to end
+
+	// Get an image at Time=3.14 for density ("d")
+	arc = db["3.14"]["arc"];
+	pot = db["3.14"]["p1"];
+    */
+    std::map<double, std::map<std::string, Eigen::VectorXf>>
+    lines(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
+	  std::vector<double> beg, std::vector<double> end, int num);
+    
+    void
+    file_lines(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
+	       std::vector<double> beg, std::vector<double> end, int num,
+	  const std::string prefix, const std::string outdir=".");    
+    //@}
+
     //! Compute surface histogram from particles
     std::map<std::string, Eigen::MatrixXf>
     histogram2d(PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});

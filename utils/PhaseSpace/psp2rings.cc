@@ -14,6 +14,7 @@
 #include <vector>
 #include <random>
 #include <string>
+#include <array>
 #include <list>
 #include <map>
 

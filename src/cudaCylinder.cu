@@ -886,7 +886,7 @@ void Cylinder::cuda_zero_coefs()
   
   // Resize output array
   //
-  cuS.df_coef.resize((mmax+1)*2*ncylorder);
+  cuS.df_coef.resize((mmax+1)*2*nmax);
     
   // Zero output array
   //
@@ -901,9 +901,9 @@ void Cylinder::cuda_zero_coefs()
       cuS.T_covr.resize(sampT);
       for (int T=0; T<sampT; T++) {
 	if (subsamp)
-	  cuS.T_covr[T].resize((mmax+1)*ncylorder);
+	  cuS.T_covr[T].resize((mmax+1)*nmax);
 	else
-	  cuS.T_covr[T].resize((mmax+1)*ncylorder*(ncylorder+3)/2);
+	  cuS.T_covr[T].resize((mmax+1)*nmax*(nmax+3)/2);
       }
     }
     
@@ -915,7 +915,7 @@ void Cylinder::cuda_zero_coefs()
 
   if (pcaeof) {
     
-    cuS.df_tvar.resize((mmax+1)*ncylorder*(ncylorder+1)/2);
+    cuS.df_tvar.resize((mmax+1)*nmax*(nmax+1)/2);
     
     thrust::fill(thrust::cuda::par.on(cr->stream),
 		 cuS.df_tvar.begin(), cuS.df_tvar.end(), 0.0);
@@ -949,9 +949,9 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   // This will stay fixed for the entire run
   //
 				// Sine and cosine components
-  host_coefs.resize((2*mmax+1)*ncylorder);
+  host_coefs.resize((2*mmax+1)*nmax);
 				// Variance components
-  host_covar.resize((mmax+1)*ncylorder*ncylorder);
+  host_covar.resize((mmax+1)*nmax*nmax);
 
   if (pcavar) {			// Set sample size
     if (defSampT) sampT = defSampT;
@@ -959,8 +959,8 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     host_coefsT.resize(sampT);	// Modulus components
     host_covarT.resize(sampT);	// Upper diagonal
     for (int T=0; T<sampT; T++) {
-      host_coefsT[T].resize((mmax+1)*ncylorder);
-      host_covarT[T].resize((mmax+1)*ncylorder*ncylorder);
+      host_coefsT[T].resize((mmax+1)*nmax);
+      host_covarT[T].resize((mmax+1)*nmax*nmax);
     }
     host_massT.resize(sampT);
   }
@@ -1088,7 +1088,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   
     // Adjust cached storage, if necessary
     //
-    cuS.resize_coefs(ncylorder, mmax, N, gridSize, stride,
+    cuS.resize_coefs(nmax, mmax, N, gridSize, stride,
 		     sampT, pcavar, pcaeof, subsamp);
     
     // Shared memory size for the reduction
@@ -1105,9 +1105,9 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       
     // Compute the coefficient contribution for each order
     //
-    int psize = ncylorder;
-    int osize = ncylorder*2;
-    int vsize = ncylorder*(ncylorder+1)/2 + ncylorder;
+    int psize = nmax;
+    int osize = nmax*2;
+    int vsize = nmax*(nmax+1)/2 + nmax;
     auto beg  = cuS.df_coef.begin();
     auto begV = cuS.df_tvar.begin();
     std::vector<thrust::device_vector<cuFP_t>::iterator> bg, bh;
@@ -1126,7 +1126,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	(toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
 	 toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
 	 toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
-	 stride, m, ncylorder, cur, compute);
+	 stride, m, nmax, cur, compute);
       
       // Begin the reduction by blocks [perhaps this should use a
       // stride?]
@@ -1338,11 +1338,11 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   thrust::host_vector<cuFP_t> ret = cuS.df_coef;
   int offst = 0;
   for (int m=0; m<=mmax; m++) {
-    for (size_t j=0; j<ncylorder; j++) {
-      host_coefs[Imn(m, 'c', j, ncylorder)] += ret[2*j+offst];
-      if (m>0) host_coefs[Imn(m, 's', j, ncylorder)] += ret[2*j+1+offst];
+    for (size_t j=0; j<nmax; j++) {
+      host_coefs[Imn(m, 'c', j, nmax)] += ret[2*j+offst];
+      if (m>0) host_coefs[Imn(m, 's', j, nmax)] += ret[2*j+1+offst];
     }
-    offst += 2*ncylorder;
+    offst += 2*nmax;
   }
 
   if (compute) {
@@ -1361,11 +1361,11 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
 	  for (int m=0; m<=mmax; m++) {
 
-	    for (size_t j=0; j<ncylorder; j++) {
-	      host_coefsT[T][Jmn(m, j, ncylorder)] += retV[j + offst];
+	    for (size_t j=0; j<nmax; j++) {
+	      host_coefsT[T][Jmn(m, j, nmax)] += retV[j + offst];
 	    }
 
-	    offst += ncylorder;
+	    offst += nmax;
 	  }
 
 	}
@@ -1379,27 +1379,27 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	    // Variance assignment
 	    //
 	    int c = 0;
-	    for (size_t j=0; j<ncylorder; j++) {
-	      for (size_t k=j; k<ncylorder; k++) {
-		host_covarT[T][Kmn(m, j, k, ncylorder)] += retM[c + vffst];
+	    for (size_t j=0; j<nmax; j++) {
+	      for (size_t k=j; k<nmax; k++) {
+		host_covarT[T][Kmn(m, j, k, nmax)] += retM[c + vffst];
 		if (k!=j)
-		  host_covarT[T][Kmn(m, k, j, ncylorder)] += retM[c + vffst];
+		  host_covarT[T][Kmn(m, k, j, nmax)] += retM[c + vffst];
 		c++;
 	      }
 	    }
 	    
 	    // Mean assignment
 	    //
-	    for (size_t j=0; j<ncylorder; j++) {
-	      host_coefsT[T][Jmn(m, j, ncylorder)] += retM[c + vffst];
+	    for (size_t j=0; j<nmax; j++) {
+	      host_coefsT[T][Jmn(m, j, nmax)] += retM[c + vffst];
 	      c++;
 	    }
 
-	    if (myid==0 and c != ncylorder*(ncylorder+3)/2)
+	    if (myid==0 and c != nmax*(nmax+3)/2)
 	      std::cout << "out of bounds: c=" << c << " != "
-			<< ncylorder*(ncylorder+3)/2 << std::endl;
+			<< nmax*(nmax+3)/2 << std::endl;
 
-	    vffst += ncylorder*(ncylorder+3)/2;
+	    vffst += nmax*(nmax+3)/2;
 	  }
 	}
 	// END: full pop variance
@@ -1410,12 +1410,12 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     //
     if (pcaeof) {
       thrust::host_vector<cuFP_t> retV = cuS.df_tvar;
-      int csz = ncylorder*(ncylorder+1)/2;
+      int csz = nmax*(nmax+1)/2;
       if (retV.size() == (mmax+1)*csz) {
 	for (int m=0; m<=mmax; m++) {
 	  int c = 0;
-	  for (size_t j=0; j<ncylorder; j++) {
-	    for (size_t k=j; k<ncylorder; k++) {
+	  for (size_t j=0; j<nmax; j++) {
+	    for (size_t k=j; k<nmax; k++) {
 	      ortho->set_tvar(m, j, k) += retV[csz*m + c];
 	      if (j!=k) ortho->set_tvar(m, k, j) += retV[csz*m + c];
 	      c++;
@@ -1459,11 +1459,11 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 		<< std::endl;
     }
 
-    int i = Imn(0, 'c', 0, ncylorder);
-    auto cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+ncylorder, LessAbs<cuFP_t>());
+    int i = Imn(0, 'c', 0, nmax);
+    auto cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
 
-    for (size_t n=0; n<ncylorder; n++) {
-      int    i = Imn(0, 'c', n, ncylorder);
+    for (size_t n=0; n<nmax; n++) {
+      int    i = Imn(0, 'c', n, nmax);
       cuFP_t a = host_coefs[i];
       cuFP_t b = ortho->get_coef(0, n, 'c');
       if (compareC) {
@@ -1484,11 +1484,11 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
     std::cout << "M=1c coefficients" << std::endl;
 
-    i = Imn(1, 'c', 0, ncylorder);
-    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+ncylorder, LessAbs<cuFP_t>());
+    i = Imn(1, 'c', 0, nmax);
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
 
-    for (size_t n=0; n<ncylorder; n++) {
-      int    i = Imn(1, 'c', n, ncylorder);
+    for (size_t n=0; n<nmax; n++) {
+      int    i = Imn(1, 'c', n, nmax);
       cuFP_t a = host_coefs[i];
       cuFP_t b = ortho->get_coef(1, n, 'c');
       if (compareC) {
@@ -1509,11 +1509,11 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
     std::cout << "M=1s coefficients" << std::endl;
 
-    i = Imn(1, 's', 0, ncylorder);
-    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+ncylorder, LessAbs<cuFP_t>());
+    i = Imn(1, 's', 0, nmax);
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
 
-    for (size_t n=0; n<ncylorder; n++) {
-      int    i = Imn(1, 's', n, ncylorder);
+    for (size_t n=0; n<nmax; n++) {
+      int    i = Imn(1, 's', n, nmax);
       cuFP_t a = host_coefs[i];
       cuFP_t b = ortho->get_coef(1, n, 's');
       if (compareC) {
@@ -1534,11 +1534,11 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
     std::cout << "M=2c coefficients" << std::endl;
 
-    i = Imn(2, 'c', 0, ncylorder);
-    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+ncylorder, LessAbs<cuFP_t>());
+    i = Imn(2, 'c', 0, nmax);
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
 
-    for (size_t n=0; n<ncylorder; n++) {
-      int    i = Imn(2, 'c', n, ncylorder);
+    for (size_t n=0; n<nmax; n++) {
+      int    i = Imn(2, 'c', n, nmax);
       cuFP_t a = host_coefs[i];
       cuFP_t b = ortho->get_coef(2, n, 'c');
       if (compareC) {
@@ -1559,11 +1559,11 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     
     std::cout << "M=2s coefficients" << std::endl;
 
-    i = Imn(2, 's', 0, ncylorder);
-    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+ncylorder, LessAbs<cuFP_t>());
+    i = Imn(2, 's', 0, nmax);
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
 
-    for (size_t n=0; n<ncylorder; n++) {
-      int    i = Imn(2, 's', n, ncylorder);
+    for (size_t n=0; n<nmax; n++) {
+      int    i = Imn(2, 's', n, nmax);
       cuFP_t a = host_coefs[i];
       cuFP_t b = ortho->get_coef(2, n, 's');
       if (compareC) {
@@ -1611,12 +1611,12 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     for (int m=0; m<=mmax; m++) {
 	
       if (m==0) {
-	for (int n=0; n<ncylorder; n++) {
+	for (int n=0; n<nmax; n++) {
 	  elem.m = m;
 	  elem.n = n;
 	  elem.cs = 'c';
 	  elem.d = ortho->get_coef(m, n, 'c');
-	  elem.f = host_coefs[Imn(m, 'c', n, ncylorder)];
+	  elem.f = host_coefs[Imn(m, 'c', n, nmax)];
 	  
 	  double test = fabs(elem.d - elem.f);
 	  if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
@@ -1626,24 +1626,24 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	  out << std::setw( 5) << m
 	      << std::setw( 5) << n
 	      << std::setw( 5) << 'c'
-	      << std::setw( 5) << Imn(m, 'c', n, ncylorder)
+	      << std::setw( 5) << Imn(m, 'c', n, nmax)
 	      << std::setw(14) << elem.d
 	      << std::setw(14) << elem.f
 	      << std::endl;
 	}
 
       } else {
-	for (int n=0; n<ncylorder; n++) {
+	for (int n=0; n<nmax; n++) {
 	  elem.m = m;
 	  elem.n = n;
 	  elem.cs = 'c';
 	  elem.d = ortho->get_coef(m, n, 'c');
-	  elem.f = host_coefs[Imn(m, 'c', n, ncylorder)];
+	  elem.f = host_coefs[Imn(m, 'c', n, nmax)];
 
 	  out << std::setw( 5) << m
 	      << std::setw( 5) << n
 	      << std::setw( 5) << 'c'
-	      << std::setw( 5) << Imn(m, 'c', n, ncylorder)
+	      << std::setw( 5) << Imn(m, 'c', n, nmax)
 	      << std::setw(14) << elem.d
 	      << std::setw(14) << elem.f
 	      << std::endl;
@@ -1654,17 +1654,17 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	  compare.insert(std::make_pair(test, elem));;
 	}
 
-	for (int n=0; n<ncylorder; n++) {
+	for (int n=0; n<nmax; n++) {
 	  elem.m = m;
 	  elem.n = n;
 	  elem.cs = 's';
 	  elem.d = ortho->get_coef(m, n, 's');
-	  elem.f = host_coefs[Imn(m, 's', n, ncylorder)];
+	  elem.f = host_coefs[Imn(m, 's', n, nmax)];
 
 	  out << std::setw( 5) << m
 	      << std::setw( 5) << n
 	      << std::setw( 5) << 's'
-	      << std::setw( 5) << Imn(m, 's', n-1, ncylorder)
+	      << std::setw( 5) << Imn(m, 's', n-1, nmax)
 	      << std::setw(14) << elem.d
 	      << std::setw(14) << elem.f
 	      << std::endl;
@@ -1820,7 +1820,7 @@ void Cylinder::determine_acceleration_cuda()
     forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
        toKernel(dev_coefs), toKernel(t_d),
-       stride, mmax, mlim, ncylorder, lohi, rmax, cylmass, use_external);
+       stride, mmax, mlim, nmax, lohi, rmax, cylmass, use_external);
     
   }
 }
@@ -1828,7 +1828,7 @@ void Cylinder::determine_acceleration_cuda()
 void Cylinder::HtoD_coefs()
 {
   // Check size
-  host_coefs.resize((2*mmax+1)*ncylorder); // Should stay fixed, no reserve
+  host_coefs.resize((2*mmax+1)*nmax); // Should stay fixed, no reserve
 
   // Copy from EmpCylSL
   
@@ -1838,9 +1838,9 @@ void Cylinder::HtoD_coefs()
     
     // n loop
     //
-    for (int n=0; n<ncylorder; n++) {
-      host_coefs[Imn(m, 'c', n, ncylorder)] = ortho->get_coef(m, n, 'c');
-      if (m>0) host_coefs[Imn(m, 's', n, ncylorder)] = ortho->get_coef(m, n, 's');
+    for (int n=0; n<nmax; n++) {
+      host_coefs[Imn(m, 'c', n, nmax)] = ortho->get_coef(m, n, 'c');
+      if (m>0) host_coefs[Imn(m, 's', n, nmax)] = ortho->get_coef(m, n, 's');
     }
   }
 
@@ -1859,9 +1859,9 @@ void Cylinder::DtoH_coefs(int M)
     
     // n loop
     //
-    for (int n=0; n<ncylorder; n++) {
-      ortho->set_coef(M, m, n, 'c') = host_coefs[Imn(m, 'c', n, ncylorder)];
-      if (m>0) ortho->set_coef(M, m, n, 's') = host_coefs[Imn(m, 's', n, ncylorder)];
+    for (int n=0; n<nmax; n++) {
+      ortho->set_coef(M, m, n, 'c') = host_coefs[Imn(m, 'c', n, nmax)];
+      if (m>0) ortho->set_coef(M, m, n, 's') = host_coefs[Imn(m, 's', n, nmax)];
     }
   }
 
@@ -1881,12 +1881,12 @@ void Cylinder::DtoH_coefs(int M)
 	
 	// n loop
 	//
-	for (int n=0; n<ncylorder; n++) {
-	  ortho->set_coefT(T, m, n) += host_coefsT[T][Jmn(m, n, ncylorder)];
+	for (int n=0; n<nmax; n++) {
+	  ortho->set_coefT(T, m, n) += host_coefsT[T][Jmn(m, n, nmax)];
 
 	  // o loop
-	  for (int o=0; o<ncylorder; o++) {
-	    ortho->set_covrT(T, m, n, o) += host_covarT[T][Kmn(m, n, o, ncylorder)];
+	  for (int o=0; o<nmax; o++) {
+	    ortho->set_covrT(T, m, n, o) += host_covarT[T][Kmn(m, n, o, nmax)];
 
 	  }
 	}
@@ -1965,7 +1965,7 @@ void Cylinder::multistep_update_cuda()
     
 	// Adjust cached storage, if necessary
 	//
-	cuS.resize_coefs(ncylorder, mmax, N, gridSize, stride,
+	cuS.resize_coefs(nmax, mmax, N, gridSize, stride,
 			 sampT, pcavar, pcaeof, subsamp);
 	
 	// Shared memory size for the reduction
@@ -1982,7 +1982,7 @@ void Cylinder::multistep_update_cuda()
       
 	// Compute the coefficient contribution for each order
 	//
-	int osize = ncylorder*2;
+	int osize = nmax*2;
 	auto beg  = cuS.df_coef.begin();
 
 	thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
@@ -1993,7 +1993,7 @@ void Cylinder::multistep_update_cuda()
 	    (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
 	     toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
 	     toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
-	     stride, m, ncylorder, cur, false);
+	     stride, m, nmax, cur, false);
 
 	  // Begin the reduction per grid block [perhaps this should
 	  // use a stride?]
@@ -2042,7 +2042,7 @@ void Cylinder::multistep_update_cuda()
       for (int m=0, offst=0; m<=mmax; m++) {
 	// n loop
 	//
-	for (int n=0; n<ncylorder; n++) {
+	for (int n=0; n<nmax; n++) {
 	  ortho->differC1[0][olev](m, n) -= ret[2*n+offst];
 	  ortho->differC1[0][nlev](m, n) += ret[2*n+offst];
 	  if (m>0) {
@@ -2053,7 +2053,7 @@ void Cylinder::multistep_update_cuda()
 	// END: n loop
 
 	// Increment update in coefficient array
-	offst += 2*ncylorder;
+	offst += 2*nmax;
       }
       // END: m loop
     }

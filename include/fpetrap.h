@@ -2,14 +2,14 @@
 /** Some FPE trapping stuff for debugging
  */
 
-#ifndef FPU_TRAP_H
+#ifndef FPE_TRAP_H
 #define FPE_TRAP_H
 
 #include <iostream>
 #include <iomanip>
+#include <cfenv>
 #include <list>
 
-#include <fenv.h>
 #include <signal.h>
 #ifdef HAVE_FPU_CONTROL_H
 #include <fpu_control.h>
@@ -62,7 +62,7 @@ void set_fpu_handler(void)
 	{FE_UNDERFLOW, "underflow"} };
     
     int _flags = fegetexcept();
-    std::cout << "Enabled FE flags: <";
+    std::cout << "---- Enabled FE flags: <";
     for (auto v : flags) {
       if (v.first & _flags) std::cout << v.second << ' ';
     }

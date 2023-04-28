@@ -171,6 +171,16 @@ public:
     return it->second.get();
   }
 
+  //! Get an atomic weight map
+  std::map<unsigned, double> getAtomicWeights()
+  {
+    std::map<unsigned, double> ret;
+    for (auto v : dataZ) {
+      ret[v.first] = std::get<3>(*v.second);
+    }
+    return ret;
+  }
+
   //! Print data to an output stream, defaulting to stdout
   void print(std::ostream& out=std::cout);
 

@@ -45,6 +45,7 @@ using namespace std;
 
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 #include <cstdlib>
 #include <string>
 #include <vector>

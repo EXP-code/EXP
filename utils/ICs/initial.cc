@@ -20,7 +20,7 @@
 
  Added the basis expansion of the disk: 12/10/01. KHB
 
- Rewritten and debugged by MDW between 12/28/01-12/31/01.  
+ Rewritten and debugged by MDW between 12/28/01-12/31/01.
 
         Added command line parsing.  "gendisk -h" will list parameters.
 
@@ -38,10 +38,10 @@
         general algorithm.
 
         Solution to Jeans' equations are now computed in parallel and
-        tabulated.  
+        tabulated.
 
         Particles are stored on local nodes and written to disk by
-        master.  
+        master.
 
         Removed lots of other cruft.
 
@@ -64,6 +64,8 @@
  Updates for constructing disk velocities from an evolved halo 01/20 by MDW
 
  Added double-exponential disk preconditioning 08/21 by MDW
+
+ Updated Jeans' closure options 01/23 by MDW
 
 */
                                 // C++/STL headers
@@ -90,7 +92,7 @@
 #include <numerical.H>
 #include <gaussQ.H>
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 #include <model3d.H>
 #include <biorth.H>
 #include <SphericalSL.H>
@@ -141,7 +143,7 @@ void set_fpu_invalid_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -176,7 +178,7 @@ void set_fpu_trace_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -211,7 +213,7 @@ void set_fpu_gdb_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -293,7 +295,7 @@ double DiskDens(double R, double z, double phi)
       double h2 = HSCALE*HRATIO;
       double w1 = 1.0/(1.0+DWEIGHT);
       double w2 = DWEIGHT/(1.0+DWEIGHT);
-      
+
       double f1 = cosh(z/h1);
       double f2 = cosh(z/h2);
 
@@ -331,7 +333,7 @@ double dcond(double R, double z, double phi, int M)
     phiS = phi + dmult*(int)((2.0*M_PI - phi)/dmult);
   else
     phiS = phi - dmult*(int)(phi/dmult);
-  
+
   //
   // Apply a shift along the x-axis
   //
@@ -341,26 +343,26 @@ double dcond(double R, double z, double phi, int M)
   return DiskDens(sqrt(x*x + y*y), z, atan2(y, x));
 }
 
-int 
+int
 main(int ac, char **av)
 {
   //====================
   // Inialize MPI stuff
   //====================
-  
+
   local_init_mpi(ac, av);
 
   //====================
   // Begin opt parsing
   //====================
 
-  int          LMAX, NMAX, NUMR, SCMAP, NUMDF;
+  int          LMAXFID, NMAXFID, NUMR, SCMAP, NUMDF;
   double       RMIN, RCYLMIN, RCYLMAX, SCSPH, RSPHSL, DMFAC, RFACTOR, SHFAC;
   double       X0, Y0, Z0, U0, V0, W0;
   int          RNUM, PNUM, TNUM, VFLAG, DFLAG;
   bool         expcond, LOGR, CHEBY, SELECT, DUMPCOEF;
   int          CMAPR, CMAPZ, NCHEB, TCHEB, CMTYPE, NDR, NDZ, NHR, NHT, NDP;
-  int          NMAX2, LMAX2, MMAX, NUMX, NUMY, NOUT, NORDER, NORDER1, NODD, DF;
+  int          LMAX, NMAXH, NMAXD, MMAX, NUMX, NUMY, NOUT, NMAXLIM, NODD, DF;
   int          DIVERGE, DIVERGE2, SEED, itmax;
   double       DIVERGE_RFAC, DIVERGE_RFAC2;
   double       PPower, R_DF, DR_DF;
@@ -371,7 +373,7 @@ main(int ac, char **av)
   int          nhalo, ndisk, ngas, ngparam;
   std::string  hbods, dbods, gbods, suffix, centerfile, halofile1, halofile2;
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
-  
+
   const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
 
   cxxopts::Options options(av[0], mesg);
@@ -393,32 +395,30 @@ main(int ac, char **av)
      cxxopts::value<string>(cachefile)->default_value(".eof.cache.file"))
     ("ctype", "DiskHalo radial coordinate scaling type (one of: Linear, Log,Rat)",
      cxxopts::value<string>(ctype)->default_value("Log"))
-    ("LMAX", "",
-     cxxopts::value<int>(LMAX)->default_value("6"))
-    ("NMAX", "",
-     cxxopts::value<int>(NMAX)->default_value("20"))
-    ("LMAX2", "",
-     cxxopts::value<int>(LMAX2)->default_value("48"))
-    ("NMAX2", "",
-     cxxopts::value<int>(NMAX2)->default_value("48"))
-    ("MMAX", "",
+    ("LMAX", "Harmonic order for halo expansion",
+     cxxopts::value<int>(LMAX)->default_value("18"))
+    ("LMAXFID", "Harmonic order for EOF spherical model",
+     cxxopts::value<int>(LMAXFID)->default_value("48"))
+    ("NMAXFID", "Radial order for EOF spherical model",
+     cxxopts::value<int>(NMAXFID)->default_value("48"))
+    ("MMAX", "Aximuthal order for Cylindrical expansion",
      cxxopts::value<int>(MMAX)->default_value("6"))
-    ("NUMX", "",
+    ("NUMX", "Number of knots in radial dimension of meridional grid",
      cxxopts::value<int>(NUMX)->default_value("256"))
-    ("NUMY", "",
+    ("NUMY", "Number of knots in vertical dimension of meridional grid",
      cxxopts::value<int>(NUMY)->default_value("128"))
-    ("DIVERGE", "",
+    ("DIVERGE", "Cusp power-law density extrapolation (0 means off)",
      cxxopts::value<int>(DIVERGE)->default_value("0"))
-    ("DIVERGE_RFAC", "",
+    ("DIVERGE_RFAC", "Exponent for inner cusp extrapolation",
      cxxopts::value<double>(DIVERGE_RFAC)->default_value("1.0"))
-    ("DIVERGE2", "",
+    ("DIVERGE2", "Cusp power-law extrapolation for number distribution (0 means off)",
      cxxopts::value<int>(DIVERGE2)->default_value("0"))
-    ("DIVERGE_RFAC2", "",
+    ("DIVERGE_RFAC2", "Exponent for inner cusp extrapolation in number density",
      cxxopts::value<double>(DIVERGE_RFAC2)->default_value("1.0"))
     ("DF", "Use change-over from Jeans to Eddington",
      cxxopts::value<int>(DF)->default_value("1"))
     ("R_DF", "Change-over radius from Jeans to Eddington",
-     cxxopts::value<double>(R_DF)->default_value("1.0"))
+     cxxopts::value<double>(R_DF)->default_value("-1.0e20"))
     ("DR_DF", "Width of change-over from Jeans to Eddington",
      cxxopts::value<double>(DR_DF)->default_value("1.0"))
     ("nhalo", "Number of halo particles",
@@ -429,17 +429,19 @@ main(int ac, char **av)
      cxxopts::value<int>(ngas)->default_value("0"))
     ("ngparam", "Number of gas parameters",
      cxxopts::value<int>(ngparam)->default_value("0"))
-    ("dtype", "",
+    ("dtype", "Disk density target type",
      cxxopts::value<string>(dtype)->default_value("exponential"))
-    ("NOUT", "",
+    ("NOUT", "Number of radial terms in diagnostic basis file for cylinder",
      cxxopts::value<int>(NOUT)->default_value("18"))
-    ("NODD", "",
+    ("NODD", "Number of vertically odd terms in cylindrical expansion",
      cxxopts::value<int>(NODD)->default_value("6"))
-    ("NORDER", "",
-     cxxopts::value<int>(NORDER)->default_value("18"))
-    ("NORDER1", "",
-     cxxopts::value<int>(NORDER1)->default_value("10000"))
-    ("NUMDF", "",
+    ("NMAXH", "Number of radial terms for spherical expansion",
+     cxxopts::value<int>(NMAXH)->default_value("18"))
+    ("NMAXD", "Number of radial terms for cylindrical expansion",
+     cxxopts::value<int>(NMAXD)->default_value("18"))
+    ("NMAXLIM", "",
+     cxxopts::value<int>(NMAXLIM)->default_value("10000"))
+    ("NUMDF", "Number of knots in Eddington inversion grid",
      cxxopts::value<int>(NUMDF)->default_value("1000"))
     ("VFLAG", "",
      cxxopts::value<int>(VFLAG)->default_value("31"))
@@ -480,7 +482,7 @@ main(int ac, char **av)
     ("NCHEB", "",
      cxxopts::value<int>(NCHEB)->default_value("12"))
     ("TCHEB", "",
-     cxxopts::value<int>(TCHEB)->default_value("12"))
+     cxxopts::value<int>(TCHEB)->default_value("0"))
     ("NDR", "",
      cxxopts::value<int>(NDR)->default_value("800"))
     ("SEED", "Random number seed for realization",
@@ -577,7 +579,7 @@ main(int ac, char **av)
     ("nomono", "Allow non-monotonic mass interpolation")
     ("diskmodel", "Table describing the model for the disk plane")
     ;
-  
+
   cxxopts::ParseResult vm;
 
   try {
@@ -591,7 +593,7 @@ main(int ac, char **av)
   // Write YAML template config file and exit
   //
   if (vm.count("template")) {
-    NOUT = std::min<int>(NOUT, NORDER);
+    NOUT = std::min<int>(NOUT, NMAXD);
 
     // Write template file
     //
@@ -628,7 +630,7 @@ main(int ac, char **av)
       return 0;
     }
   }
-  
+
   // Enable new YAML cache header
   //
   if (vm.count("newcache")) {
@@ -681,7 +683,7 @@ main(int ac, char **av)
   std::transform(dtype.begin(), dtype.end(), dtype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
-  try {				// Check for map entry, will through if the 
+  try {				// Check for map entry, will through if the
     DTYPE = dtlookup.at(dtype);	// key is not in the map.
 
     if (myid==0)		// Report DiskType
@@ -707,7 +709,7 @@ main(int ac, char **av)
   // check boolean parameters
   if (myid==0) {
     std::cout << "multi="    << multi
-              << " LMAX2="   << LMAX2
+              << " LMAXFID="   << LMAXFID
               << " ASCALE="  << ASCALE
               << " ignore="  << ignore
               << " expcond=" << expcond
@@ -731,7 +733,7 @@ main(int ac, char **av)
 
   //====================
   // Cheb order for
-  // SphericalModel DF 
+  // SphericalModel DF
   //====================
 
   SphericalModelTable::chebyN = TCHEB;
@@ -745,7 +747,9 @@ main(int ac, char **av)
 #pragma omp parallel
   if (myid==0) {
     int numthrd = omp_get_num_threads();
-    std::cout << "Number of threads=" << numthrd << std::endl;
+    std::cout << "---- Number of threads=" << numthrd << std::endl
+	      << "---- Maximum # threads=" << omp_get_max_threads()
+	      << std::endl;
   }
 #endif
 
@@ -761,33 +765,33 @@ main(int ac, char **av)
   // Okay, now begin ...
   //====================
 
-#ifdef DEBUG                    // For gdb . . . 
+#ifdef DEBUG                    // For gdb . . .
   sleep(20);
   // set_fpu_handler();         // Make gdb trap FPU exceptions
   set_fpu_gdb_handler();	// Make gdb trap FPU exceptions
 #endif
-  
+
   int n_particlesH, n_particlesD, n_particlesG;
-  
+
   if (suffix.size()>0) {
     hbods = hbods + "." + suffix;
     dbods = dbods + "." + suffix;
     gbods = gbods + "." + suffix;
   }
-  
+
   // Divvy up the particles by core
   //
   n_particlesH = nhalo/numprocs;
   if (myid==0) n_particlesH = nhalo - n_particlesH*(numprocs-1);
-  
+
   n_particlesD = ndisk/numprocs;
   if (myid==0) n_particlesD = ndisk - n_particlesD*(numprocs-1);
-  
+
   n_particlesG = ngas/numprocs;
   if (myid==0) n_particlesG = ngas  - n_particlesG*(numprocs-1);
-  
-  
-#ifdef DEBUG  
+
+
+#ifdef DEBUG
   std::cout << "Processor " << myid << ": n_particlesH=" << n_particlesH
 	    << std::endl
 	    << "Processor " << myid << ": n_particlesD=" << n_particlesD
@@ -795,18 +799,18 @@ main(int ac, char **av)
 	    << "Processor " << myid << ": n_particlesG=" << n_particlesG
 	    << std::endl;
 #endif
-  
+
   if (nhalo + ndisk + ngas <= 0) {
     if (myid==0) std::cout << "You have specified zero particles!" << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 3);
     exit(0);
   }
-  
+
   // Vectors to contain phase space Particle structure is defined in
   // Particle.H
   //
   vector<Particle> dparticles, hparticles;
-  
+
   //
   // Disk halo grid parameters
   //
@@ -837,22 +841,22 @@ main(int ac, char **av)
   if (vm.count("allow"))  DiskHalo::ALLOW    = true;
   if (vm.count("nomono")) DiskHalo::use_mono = false;
   if (suffix.size())      DiskHalo::RUNTAG   = suffix;
-  
+
   AddDisk::use_mpi      = true;
   AddDisk::Rmin         = RMIN;
-  
+
   //===========================Spherical expansion=============================
-  
+
   // SLGridSph::diverge = DIVERGE;
   // SLGridSph::divergexp = DIVERGE_RFAC;
-  
+
   SphericalSL::RMIN = RMIN;
   SphericalSL::RMAX = RSPHSL;
   SphericalSL::NUMR = NUMR;
   // Create expansion only if needed . . .
   std::shared_ptr<SphericalSL> expandh;
   if (nhalo) {
-    expandh = std::make_shared<SphericalSL>(halofile1, nthrds, LMAX, NMAX, SCMAP, SCSPH);
+    expandh = std::make_shared<SphericalSL>(halofile1, nthrds, LMAX, NMAXH, SCMAP, SCSPH);
   }
 
   //===========================Cylindrical expansion===========================
@@ -877,20 +881,19 @@ main(int ac, char **av)
 
   if (ndisk) {
 
-    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD,
-					 cachefile);
+    expandd = std::make_shared<EmpCylSL>(NMAXFID, LMAXFID, MMAX, NMAXD, ASCALE, HSCALE, NODD, cachefile);
 
 #ifdef DEBUG
-   std::cout << "Process " << myid << ": "
-	     << " rmin="   << EmpCylSL::RMIN
-	     << " rmax="   << EmpCylSL::RMAX
-	     << " a="      << ASCALE
-	     << " h="      << HSCALE
-	     << " nmax2="  << NMAX2
-	     << " lmax2="  << LMAX2
-	     << " mmax="   << MMAX
-	     << " nordz="  << NORDER
-	     << " noddz="  << NODD
+   std::cout << "Process "   << myid << ": "
+	     << " rmin="     << EmpCylSL::RMIN
+	     << " rmax="     << EmpCylSL::RMAX
+	     << " a="        << ASCALE
+	     << " h="        << HSCALE
+	     << " nmaxfid="  << NMAXFID
+	     << " lmaxfid="  << LMAXFID
+	     << " mmax="     << MMAX
+	     << " nmax="     << NMAXD
+	     << " nodd="     << NODD
 	     << std::endl  << std::flush;
 #endif
 
@@ -976,13 +979,13 @@ main(int ac, char **av)
     if (myid==0) std::cout << "Initializing for a SINGLE-MASS halo . . . " << std::flush;
     diskhalo = std::make_shared<DiskHalo>
       (expandh, expandd,
-       scale_height, scale_length, 
+       scale_height, scale_length,
        disk_mass, ctype, halofile1,
        DF, DIVERGE, DIVERGE_RFAC,
        DiskHalo::getDiskGenType[gentype]);
     if (myid==0) std::cout << "done" << std::endl;
   }
-  
+
   std::ifstream center(centerfile);
   if (center) {
 
@@ -999,7 +1002,7 @@ main(int ac, char **av)
 
     if (ok) {
       diskhalo->set_pos_origin(X0, Y0, Z0);
-      if (myid==0) std::cout << "Using position origin: " 
+      if (myid==0) std::cout << "Using position origin: "
 			     << X0 << ", " << Y0 << ", " << Z0 << std::endl;
     }
 
@@ -1014,7 +1017,7 @@ main(int ac, char **av)
 
     if (ok) {
       diskhalo->set_vel_origin(U0, V0, W0);
-      if (myid==0) std::cout << "Using velocity origin: " 
+      if (myid==0) std::cout << "Using velocity origin: "
 			     << U0 << ", " << V0 << ", " << W0 << std::endl;
     }
   }
@@ -1023,7 +1026,7 @@ main(int ac, char **av)
                                 // center of velocity
   diskhalo->zero_com(zeropos);
   diskhalo->zero_cov(zerovel);
-  
+
   //===========================================================================
 
                                 // Open output file (make sure it exists
@@ -1054,7 +1057,7 @@ main(int ac, char **av)
   if (evolved) {		// ---------------------------
 				// Use existing halo body file
     std::ifstream hin(hbods);	// ---------------------------
-    
+
     if (hin) {
       std::string line;
       std::getline(hin, line);
@@ -1064,7 +1067,7 @@ main(int ac, char **av)
       sin >> nhalo;
       sin >> niatr;
       sin >> ndatr;
-      
+
       // Divvy up the particles by core.  The root node gets any
       // remainder.
       //
@@ -1072,7 +1075,7 @@ main(int ac, char **av)
 
       int ibeg = 0;
       int iend = nhalo - n_particlesH*(numprocs-myid-1);
-      
+
       if (myid>0) {
 	ibeg = nhalo - n_particlesH*(numprocs-myid);
 	for (int i=0; i<ibeg; i++) std::getline(hin, line);
@@ -1122,10 +1125,10 @@ main(int ac, char **av)
 				// Generate new halo body file
     if (nhalo) {		// ---------------------------
       if (multi) {
-	if (myid==0) std::cout << "Generating halo phase space . . . " << std::flush;
+	if (myid==0) std::cout << "Generating halo phase space . . . " << std::endl;
 	diskhalo->set_halo(hparticles, nhalo, n_particlesH);
       } else {
-	if (myid==0) std::cout << "Generating halo coordinates . . . " << std::flush;
+	if (myid==0) std::cout << "Generating halo coordinates . . . " << std::endl;
 	diskhalo->set_halo_coordinates(hparticles, nhalo, n_particlesH);
 	MPI_Barrier(MPI_COMM_WORLD);
       }
@@ -1135,7 +1138,7 @@ main(int ac, char **av)
   }
 
   if (ndisk) {
-    if (myid==0) std::cout << "Generating disk coordinates . . . " << std::flush;
+    if (myid==0) std::cout << "Generating disk coordinates . . . " << std::endl;
     diskhalo->set_disk_coordinates(dparticles, ndisk, n_particlesD);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) std::cout << "done" << std::endl;
@@ -1205,12 +1208,8 @@ main(int ac, char **av)
 	std::cout << "done" << std::endl;
       }
     }
-
-    // Make dispersion table from particle distribution
-    //
-    if (evolved) diskhalo->table_halo(hparticles);
   }
-  
+
   if (ndisk) {
     if (myid==0) std::cout << "Beginning disk accumulation . . . " << std::flush;
     expandd->setup_accumulation();
@@ -1224,7 +1223,7 @@ main(int ac, char **av)
       MPI_Barrier(MPI_COMM_WORLD);
 
       if (myid==0) std::cout << "done" << std::endl;
-  
+
       if (myid==0) std::cout << "Making the EOF . . . " << std::flush;
       expandd->make_eof();
       MPI_Barrier(MPI_COMM_WORLD);
@@ -1264,10 +1263,10 @@ main(int ac, char **av)
       }
     }
 
-    if (NORDER1<NORDER) {
-      if (myid==0) std::cout << "Restricting order from " << NORDER 
-			     << " to " << NORDER1 << " . . . " << std::flush;
-      expandd->restrict_order(NORDER1);
+    if (NMAXLIM<NMAXD) {
+      if (myid==0) std::cout << "Restricting order from " << NMAXD
+			     << " to " << NMAXLIM << " . . . " << std::flush;
+      expandd->restrict_order(NMAXLIM);
       if (myid==0) std::cout << "done" << std::endl;
     }
 
@@ -1279,7 +1278,12 @@ main(int ac, char **av)
       std::cout << "done" << std::endl;
     }
   }
-  
+
+  // Make dispersion table from particle distribution
+  //
+  if (evolved) diskhalo->table_halo(hparticles);
+
+  MPI_Barrier(MPI_COMM_WORLD);
 
   //===========================Diagnostics=====================================
 
@@ -1292,9 +1296,9 @@ main(int ac, char **av)
                                 // For examining the coverage, etc.
                                 // Images can be contoured in SM using
   if (myid==0 && basis) {	// the "ch" file type
-    
+
     std::cout << "Dumping basis images . . . " << std::flush;
-    
+
     if (ndisk) {
       int nout = 200;
       string dumpstr = runtag + ".dump";
@@ -1302,7 +1306,7 @@ main(int ac, char **av)
       expandd->dump_images(runtag, 5.0*scale_length, 5.0*scale_height,
 			   nout, nout, false);
       expandd->dump_images_basis(runtag, 5.0*scale_length, 5.0*scale_height,
-				 nout, nout, false, 0, MMAX, 0, NORDER-1);
+				 nout, nout, false, 0, MMAX, 0, NMAXD-1);
     }
 
 
@@ -1310,23 +1314,23 @@ main(int ac, char **av)
       string extn("test");
       expandh->dump_basis(extn);
     }
-    
+
     if (nhalo) {
-      
+
       const int nstr = 5;
       const char *names[nstr] = {".dens", ".potl", ".potr", ".pott", ".potp"};
       std::vector<std::ofstream> out(nstr);
-      
+
       int nout = 200;
       double rmax = 6.0*scale_length;
       double x, y, dr = 2.0*rmax/(nout-1);
       float f;
-    
+
       for (int i=0; i<nstr; i++) {
         string name("halo");
         name += names[i];
         out[i].open(name);
-        
+
         out[i].write((char *)&nout, sizeof(int));
         out[i].write((char *)&nout, sizeof(int));
         out[i].write((char *)&(f=-rmax), sizeof(float));
@@ -1334,33 +1338,33 @@ main(int ac, char **av)
         out[i].write((char *)&(f=-rmax), sizeof(float));
         out[i].write((char *)&(f= rmax), sizeof(float));
       }
-      
+
       double r, theta, phi;
       double dens, potl, potr, pott, potp;
-    
+
       for (int j=0; j<nout; j++) {
         y = -rmax + dr*j;
-      
+
         for (int i=0; i<nout; i++) {
           x = -rmax + dr*i;
-        
+
           r = sqrt(x*x + y*y);
           theta = 0.5*M_PI;
           phi = atan2(y, x);
-        
+
           expandh->determine_fields_at_point(r, theta, phi,
-                                             &dens, &potl, 
+                                             &dens, &potl,
                                              &potr, &pott, &potp);
-        
+
           out[0].write((char *)&(f=dens), sizeof(float));
           out[1].write((char *)&(f=potl), sizeof(float));
           out[2].write((char *)&(f=potr), sizeof(float));
           out[3].write((char *)&(f=pott), sizeof(float));
           out[4].write((char *)&(f=potp), sizeof(float));
         }
-        
+
       }
-    
+
       for (int i=0; i<nstr; i++) out[i].close();
     }
 
@@ -1369,17 +1373,17 @@ main(int ac, char **av)
       const int nstr = 5;
       const char *names[nstr] = {".dens", ".pot", ".fr", ".fz", ".fp"};
       std::vector<std::ofstream> out(nstr);
-    
+
       int nout = 200;
       double rmax = DiskHalo::RDMAX;
       double x, y, dr = 2.0*rmax/(nout-1);
       float f;
-    
+
       for (int i=0; i<nstr; i++) {
         string name("disk");
         name += names[i];
         out[i].open(name);
-        
+
         out[i].write((char *)&nout, sizeof(int));
         out[i].write((char *)&nout, sizeof(int));
         out[i].write((char *)&(f=-rmax), sizeof(float));
@@ -1387,15 +1391,15 @@ main(int ac, char **av)
         out[i].write((char *)&(f=-rmax), sizeof(float));
         out[i].write((char *)&(f= rmax), sizeof(float));
       }
-    
+
       double z = 0.0, d0, p0, d, p, fr, fz, fp;
-    
+
       for (int j=0; j<nout; j++) {
         y = -rmax + dr*j;
-      
+
         for (int i=0; i<nout; i++) {
           x = -rmax + dr*i;
-        
+
 	  if (x<0.0)
 	    expandd->accumulated_eval(fabs(x), y, M_PI, p0, p, fr, fz, fp);
 	  else
@@ -1403,37 +1407,37 @@ main(int ac, char **av)
 
 
           d = expandd->accumulated_dens_eval(sqrt(x*x + y*y), z, atan2(y, x), d0);
-        
-          
+
+
           out[0].write((char *)&(f=d ), sizeof(float));
           out[1].write((char *)&(f=p ), sizeof(float));
           out[2].write((char *)&(f=fr), sizeof(float));
           out[3].write((char *)&(f=fz), sizeof(float));
           out[4].write((char *)&(f=fp), sizeof(float));
         }
-        
+
       }
-    
+
       for (int i=0; i<nstr; i++) out[i].close();
     }
-    
+
     std::cout << "done" << std::endl;
   }
-  
+
   MPI_Barrier(MPI_COMM_WORLD);
 
   //====================Make the phase space velocities========================
 
   if (!multi and !evolved) {
-    if (myid==0) std::cout << "Generating halo velocities . . . " << std::flush;
+    if (myid==0) std::cout << "Generating halo velocities . . . " << std::endl;
     diskhalo->set_vel_halo(hparticles);
     if (myid==0) std::cout << "done" << std::endl;
   }
-  
-  if (myid==0) std::cout << "Generating disk velocities . . . " << std::flush;
+
+  if (myid==0) std::cout << "Generating disk velocities . . . " << std::endl;
   diskhalo->set_vel_disk(dparticles);
   if (myid==0) std::cout << "done" << std::endl;
-  
+
 
   //====================All done: write it out=================================
 
@@ -1474,7 +1478,7 @@ main(int ac, char **av)
 
     double T = Temp;
 
-    
+
     double Lunit = 3.0e5*pc;	// Virial radius
     double Munit = 1.0e12*msun;	// Virial mass
     double Tunit = sqrt(Lunit*Lunit*Lunit/(Munit*G));
@@ -1503,7 +1507,7 @@ main(int ac, char **av)
     double zmin = 0.001*scale_height;
     int   nrint = 200;
     int   nzint = 400;
-    
+
     vector< vector<double> > zrho, zmas, vcir;
     double r, R, dR = (rmax - rmin)/(nrint-1);
     double z, dz = (log(rmax) - log(zmin))/(nzint-1);
@@ -1522,7 +1526,7 @@ main(int ac, char **av)
 	for (int j=0; j<nzint; j++) {
 	  z = zmin*exp(dz*j);
 	  r = sqrt(R*R + z*z);
-	  
+
 	  double pot=0.0, frt0=0.0, fzt0=0.0;
 	  if (expandd) {
 	    expandd->accumulated_eval(R, z, 0, p0, p, fr, fz, fp);
@@ -1532,21 +1536,21 @@ main(int ac, char **av)
 	  }
 	  if (expandh) {
 	    expandh->determine_fields_at_point(r, acos(z/(r+1.0e-8)), 0.0,
-					       &dens, &potl, 
+					       &dens, &potl,
 					       &potr, &pott, &potp);
-	    
+
 	    frt0 += potr;
 	    fzt0 += (potr*z + pott*R*R/(r*r))/r;
 	    pot += potl;
 	  }
-	  
+
 	  trho[j] = fzt0*scale_height;
 	  tcir[j] = sqrt(max<double>(R*frt0-R*trho[j]/Scale_Length, 0.0));
 	}
-	
-	for (int j=0; j<nzint; j++) 
+
+	for (int j=0; j<nzint; j++)
 	  tmas[j] = 1.0 - exp(-zmin*exp(dz*j)/scale_height);
-	
+
 	zrho.push_back(trho);
 	zmas.push_back(tmas);
 	vcir.push_back(tcir);
@@ -1573,7 +1577,7 @@ main(int ac, char **av)
       }
       ztest.close();
       std::cout << "done" << std::endl;
-      
+
     } else {
 
       for (int i=0; i<nrint; i++) {
@@ -1586,7 +1590,7 @@ main(int ac, char **av)
 	for (int j=0; j<nzint; j++) {
 	  z = zmin*exp(dz*j);
 	  r = sqrt(R*R + z*z);
-	  
+
 	  double frt0=0.0, fzt0=0.0;
 	  if (expandd) {
 	    expandd->accumulated_eval(R, z, 0, p0, p, fr, fz, fp);
@@ -1595,26 +1599,26 @@ main(int ac, char **av)
 	  }
 	  if (expandh) {
 	    expandh->determine_fields_at_point(r, acos(z/(r+1.0e-8)), 0.0,
-					       &dens, &potl, 
+					       &dens, &potl,
 					       &potr, &pott, &potp);
 	    frt0 += potr;
 	    fzt0 += (potr*z + pott*R*R/(r*r))/r;
 	  }
-	  
+
 	  trho[j] = -fzt0/(vthermal*vthermal);
 	  tcir[j] = sqrt(max<double>(R*frt0-R*vthermal*vthermal/Scale_Length, 0.0));
 	}
-	
+
 	double mass = 0.0;
 	double zfac = 1.0 - exp(-dz);
-				    
+
 	lrho[0] = 0.0;
-	for (int j=1; j<nzint; j++) 
+	for (int j=1; j<nzint; j++)
 	  lrho[j] = lrho[j-1] + 0.5*(trho[j-1] + trho[j]) * zmin*exp(dz*j)*zfac;
-	
-	for (int j=1; j<nzint; j++) 
+
+	for (int j=1; j<nzint; j++)
 	  tmas[j] = tmas[j-1] + 0.5*(exp(lrho[j-1]) + exp(lrho[j])) * zmin*exp(dz*j)*zfac;
-	
+
 	for (int j=0; j<nzint; j++) {
 	  if (tmas[nzint-1]>0.0 && !std::isnan(tmas[nzint-1])) {
 	    trho[j]  = exp(lrho[j])/tmas[nzint-1];
@@ -1649,10 +1653,10 @@ main(int ac, char **av)
       }
       ztest.close();
       std::cout << "done" << std::endl;
-      
+
     }
 
-    // 
+    //
     // Prepare output stream
     //
     ofstream outps("gas.bods");
@@ -1663,7 +1667,7 @@ main(int ac, char **av)
 
     const int ITMAX=1000;
     const int NREPORT=1000;
-    
+
     //
     // Maximum enclosed disk mass given rmax
     //
@@ -1718,7 +1722,7 @@ main(int ac, char **av)
 	R += -F/dF;
 	if (fabs(F/dF)<1.0e-12) break;
       }
-    
+
       int indr = static_cast<int>(floor(R/dR));
       if (indr<0) indr=0;
       if (indr>nrint-2) indr=nrint-2;
@@ -1731,9 +1735,9 @@ main(int ac, char **av)
 	vz[j] = a*vcir[indr][j] + b*vcir[indr+1][j];
       }
       for (int j=0; j<nzint; j++) mz[j] /= mz[nzint-1];
-      
+
       if (const_height) {
-	for (int j=0; j<nzint; j++) 
+	for (int j=0; j<nzint; j++)
 	  mc2[j] = max<double>(a*zrho[indr][j] + b*zrho[indr+1][j], vmin2);
       }
 
@@ -1760,8 +1764,8 @@ main(int ac, char **av)
       double u = -vc*sinp + vthermal*norminv(unitN(random_gen));
       double v =  vc*cosp + vthermal*norminv(unitN(random_gen));
       double w =  vthermal*norminv(unitN(random_gen));
-      
-      gmass = gmass0*exp(-R*(1.0/Scale_Length - 1.0/gscal_length)) * 
+
+      gmass = gmass0*exp(-R*(1.0/Scale_Length - 1.0/gscal_length)) *
 	mmax*gscal_length*gscal_length/(mfac*Scale_Length*Scale_Length);
 
       outps << setw(18) << gmass
@@ -1773,13 +1777,13 @@ main(int ac, char **av)
 	    << setw(18) << w;
       for (int k=0; k<ngparam; k++) outps << setw(18) << 0.0;
       outps << endl;
-    
+
       if (expandd)
 	expandd->accumulated_eval(R, z, phi, p0, p, fr, fz, fp);
 
       if (expandh)
 	expandh->determine_fields_at_point(rr, acos(z/(rr+1.0e-8)), 0.0,
-					   &dens, &potl, 
+					   &dens, &potl,
 					   &potr, &pott, &potp);
       KE += 0.5*gmass*(u*u + v*v + w*w);
 

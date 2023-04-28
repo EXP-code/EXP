@@ -3,11 +3,12 @@ set(ODE_SRC rk4.cc bs.cc odesolve.cc)
 set(SYMP_SRC sia4.cc)
 set(ROOT_SRC rtbis.cc rtsafe.cc brent.cc zbrent.cc mnbrak.cc zbrak.cc zbrac.cc)
 set(QUAD_SRC qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc
-Trapsum.cc Splsum.cc)
-set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc
+  Trapsum.cc Splsum.cc)
+set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc # Hankel.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc stack.cc
-  localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc
-  YamlCheck.cc parseVersionString.cc)
+  localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc QDHT.cc
+  YamlCheck.cc parseVersionString.cc EXPmath.cc laguerre_polynomial.cpp
+  YamlConfig.cc)
 
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)
@@ -26,7 +27,8 @@ set(ORBIT_SRC orbit.cc orbit_trans.cc FindOrb.cc)
 
 set(BIORTH_SRC biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc
   sbessz.cc ultra.cc bessz.cc sphereSL.cc biorth1d.cc Coefs.cc
-  biorth_wake_orientation.cc SLGridMP2.cc scalarprod.cc EmpCylSL.cc)
+  biorth_wake_orientation.cc SLGridMP2.cc scalarprod.cc EmpCylSL.cc
+  EmpCyl2d.cc BiorthCyl.cc)
 
 set(GAUSS_SRC gaussQ.cc GaussCore.c Hermite.c Jacobi.c Laguerre.c)
 set(QPDISTF_SRC QPDistF.cc qld.c)
@@ -44,6 +46,8 @@ set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
 set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/> ${CMAKE_BINARY_DIR}
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>
   ${DEP_INC} ${EIGEN3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS}
   ${FFTW_INCLUDE_DIRS})
 

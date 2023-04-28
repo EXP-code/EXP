@@ -1,5 +1,6 @@
 
-set(bin_PROGRAMS slcheck slshift orthochk diskpot qtest cyltest eoftest)
+set(bin_PROGRAMS slcheck slshift orthochk diskpot qtest cyltest
+  eoftest)
 		
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES})
@@ -27,7 +28,7 @@ add_executable(orthochk orthochk.cc)
 add_executable(diskpot diskpot.cc CylindricalDisk.cc SLSphere.cc)
 add_executable(qtest qtest.cc)
 add_executable(cyltest cyltest.cc)
-add_executable(eoftest EOF2d.cc EmpCyl2D.cc)
+add_executable(eoftest EOF2d.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})

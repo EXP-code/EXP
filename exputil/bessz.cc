@@ -12,6 +12,7 @@
 
 #include <cmath>
 #include <numerical.H>
+#include <EXPmath.H>
 
 #define STEPS 6
 #define TOL 1.0e-7
@@ -20,20 +21,20 @@ Eigen::VectorXd bessjz(int n, int m)
 {
   Eigen::VectorXd a(m);
 
-  auto zfunc = [n](double z) { return std::cyl_bessel_j(n, z); };
+  auto zfunc = [n](double z) { return EXPmath::cyl_bessel_j(n, z); };
 
   double dz = M_PI/STEPS;
   double z  = 0.5+fabs((double)n), zl, fl, f;
 
   for (int i=0; i<m; i++) {
-    fl = std::cyl_bessel_j(n, z);
+    fl = EXPmath::cyl_bessel_j(n, z);
     z += dz;
-    f  = std::cyl_bessel_j(n, z);
+    f  = EXPmath::cyl_bessel_j(n, z);
     while (f*fl>0.0) {
       zl = z;
       fl = f;
       z += dz;
-      f = std::cyl_bessel_j(n,z);
+      f = EXPmath::cyl_bessel_j(n, z);
     }
     a[i] = zbrent(zfunc, zl, z, TOL);
     zl = z;

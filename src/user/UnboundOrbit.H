@@ -1,7 +1,7 @@
 // This may look like C code, but it is really -*- C++ -*-
 
 #ifndef _UnboundOrbit_H
-#define _UnboundOrbit_h
+#define _UnboundOrbit_H
 
 #include <memory>
 #include <string>

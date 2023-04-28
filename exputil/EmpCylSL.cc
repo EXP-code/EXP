@@ -25,6 +25,14 @@
 #include <VtkPCA.H>
 #endif
 
+// For reading and writing HDF5 cache files
+//
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+
+
 #ifdef HAVE_OMP_H
 #include <omp.h>		// For multithreading basis construction
 #endif
@@ -666,16 +674,16 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
 
       // Get parameters
       //
-      MMAX   = node["mmax"  ].as<int>();
-      NUMX   = node["numx"  ].as<int>();
-      NUMY   = node["numy"  ].as<int>();
-      NMAX   = node["nmax"  ].as<int>();
-      NORDER = node["norder"].as<int>();
-      DENS   = node["dens"  ].as<bool>();
-      RMIN   = node["rmin"  ].as<double>();
-      RMAX   = node["rmax"  ].as<double>();
-      ASCALE = node["ascl"  ].as<double>();
-      HSCALE = node["hscl"  ].as<double>();
+      MMAX   = node["mmax"   ].as<int>();
+      NUMX   = node["numx"   ].as<int>();
+      NUMY   = node["numy"   ].as<int>();
+      NMAX   = node["nmaxfid"].as<int>();
+      NORDER = node["nmax"   ].as<int>();
+      DENS   = node["dens"   ].as<bool>();
+      RMIN   = node["rmin"   ].as<double>();
+      RMAX   = node["rmax"   ].as<double>();
+      ASCALE = node["ascl"   ].as<double>();
+      HSCALE = node["hscl"   ].as<double>();
 
       if (node["cmap"])		// Backwards compatibility
 	CMAPR  = node["cmap"  ].as<int>();
@@ -770,18 +778,19 @@ int EmpCylSL::read_cache(void)
   setup_table();
   setup_accumulation();
 
-				// Root tries to read table
+  // Root tries to read table
+  //
   int retcode;
-  if (myid==0)  retcode = cache_grid(0);
+  if (myid==0)  retcode = cache_grid(0, cachefile);
   if (use_mpi)  MPI_Bcast(&retcode, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (!retcode) return 0;
 				// Send table to worker processes
   if (use_mpi)  send_eof_grid();
 
-  if (myid==0) 
+  if (myid==0) {
     std::cout << "---- EmpCylSL::read_cache: table forwarded to all processes"
 	      << std::endl;
-
+  }
 
   eof_made   = true;
   coefs_made = std::vector<short>(multistep+1, false);
@@ -809,10 +818,12 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 {
 
   // Option to reset cache file name
+  //
   if (cachename.size()) cachefile = cachename;
 
   if (readwrite) {
     
+    // Check for new HDF5 file
     if (std::filesystem::exists(cachefile)) {
       std::cerr << "---- EmpCylSL::cache_grid: cache file <"
 		<< cachefile << "> exists" << std::endl;
@@ -832,338 +843,321 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 		<< cachefile + ".bak>" << std::endl;
     }
 
-    std::ofstream out(cachefile);
-    if (!out) {
-      std::cerr << "---- EmpCylSL::cache_grid: error opening file for writing"
-		<< std::endl;
-      return 0;
-    }
-
-    if (NewCache) {
-
-      // This is a node of simple {key: value} pairs.  More general
-      // content can be added as needed.
-      YAML::Node node;
-
-      node["model" ] = EmpModelLabs[mtype];
-      node["mmax"  ] = MMAX;
-      node["numx"  ] = NUMX;
-      node["numy"  ] = NUMY;
-      node["nmax"  ] = NMAX;
-      node["norder"] = NORDER;
-      node["neven" ] = Neven;
-      node["nodd"  ] = Nodd;
-      node["dens"  ] = DENS;
-      node["cmapr" ] = CMAPR;
-      node["cmapz" ] = CMAPZ;
-      node["rmin"  ] = RMIN;
-      node["rmax"  ] = RMAX;
-      node["ascl"  ] = ASCALE;
-      node["hscl"  ] = HSCALE;
-      node["cmass" ] = cylmass;
-
-      // Serialize the node
-      //
-      YAML::Emitter y; y << node;
-
-      // Get the size of the string
-      //
-      unsigned int hsize = strlen(y.c_str());
-
-      // Write magic #
-      //
-      out.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
-
-      // Write YAML string size
-      //
-      out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
-
-      // Write YAML string
-      //
-      out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
-
-    } else {
-
-      // Old-style header
-      //
-      const int one  = 1;
-      const int zero = 0;
-      double time    = 0.0;
-
-      out.write((const char *)&MMAX,    sizeof(int));
-      out.write((const char *)&NUMX,    sizeof(int));
-      out.write((const char *)&NUMY,    sizeof(int));
-      out.write((const char *)&NMAX,    sizeof(int));
-      out.write((const char *)&NORDER,  sizeof(int));
-      if (DENS) out.write((const char *)&one,  sizeof(int));
-      else      out.write((const char *)&zero, sizeof(int));
-      out.write((const char *)&CMAPR,   sizeof(int));
-      out.write((const char *)&RMIN,    sizeof(double));
-      out.write((const char *)&RMAX,    sizeof(double));
-      out.write((const char *)&ASCALE,  sizeof(double));
-      out.write((const char *)&HSCALE,  sizeof(double));
-      out.write((const char *)&cylmass, sizeof(double));
-      out.write((const char *)&time,    sizeof(double));
-    }
-
-    // Write table
+    // Write the cache
     //
-    for (int m=0; m<=MMAX; m++) {
-
-      for (int v=0; v<rank3; v++) {
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&potC[m][v](ix, iy), sizeof(double));
-	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&rforceC[m][v](ix, iy), sizeof(double));
-	  
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&zforceC[m][v](ix, iy), sizeof(double));
-	  
-	if (DENS) {
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      out.write((const char *)&densC[m][v](ix, iy), sizeof(double));
-
-	}
-      }
-    }
-
-    for (int m=1; m<=MMAX; m++) {
-
-      for (int v=0; v<rank3; v++) {
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&potS[m][v](ix, iy), sizeof(double));
-	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&rforceS[m][v](ix, iy), sizeof(double));
-	  
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&zforceS[m][v](ix, iy), sizeof(double));
-	
-	if (DENS) {
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      out.write((const char *)&densS[m][v](ix, iy), sizeof(double));
-	}
-      }
-
-    }
-    
+    WriteH5Cache();
   }
   else {
 
-    std::ifstream in(cachefile.c_str());
-    if (!in) {
-      cerr << "---- EmpCylSL::cache_grid: error opening file" << endl;
-      return 0;
-    }
+    if (std::filesystem::exists(cachefile)) {
 
-    int mmax, numx, numy, nmax, norder, tmp, cmapr, cmapz;
-    bool dens=false;
-    double rmin, rmax, ascl, hscl, time;
-
-
-    // Attempt to read magic number
-    //
-    unsigned int tmagic;
-    in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
-
-    if (tmagic == hmagic) {
-      // YAML size
+      // Attempt to read the HDF5 file if it exists...
       //
-      unsigned ssize;
-      in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
-
-      // Make and read char buffer
-      //
-      auto buf = std::make_unique<char[]>(ssize+1);
-      in.read(buf.get(), ssize);
-      buf[ssize] = 0;		// Null terminate
-
-      YAML::Node node;
-      
       try {
-	node = YAML::Load(buf.get());
+	auto node = getHeader(cachefile); // This tests for valid HDF
+					  // cache
+	if (ReadH5Cache()) return 1;
+	else {
+	  throw std::runtime_error("---- EmpCylSL::cache_grid: HDF5 parameter mismatch");
+	}
       }
-      catch (YAML::Exception& error) {
-	std::ostringstream sout;
-	sout << "YAML: error parsing <" << buf.get() << "> "
-	     << "in " << __FILE__ << ":" << __LINE__ << std::endl
-	     << "YAML error: " << error.what() << std::endl;
-	throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
+      catch (EXPException& error) {
+	if (myid==0) {
+	  std::cout << "---- EmpCylSL::cache_grid: file <"
+		    << cachefile + ">, is not HDF5.  Checking binary . . ."
+		    << std::endl;
+	}
       }
-
-      // Get parameters
-      //
-      mmax    = node["mmax"  ].as<int>();
-      numx    = node["numx"  ].as<int>();
-      numy    = node["numy"  ].as<int>();
-      nmax    = node["nmax"  ].as<int>();
-      norder  = node["norder"].as<int>();
-      dens    = node["dens"  ].as<bool>();
-      rmin    = node["rmin"  ].as<double>();
-      rmax    = node["rmax"  ].as<double>();
-      ascl    = node["ascl"  ].as<double>();
-      hscl    = node["hscl"  ].as<double>();
-      cylmass = node["cmass" ].as<double>();
       
-      if (node["time"]) 	// Backwards compatibility; 'time' is optional
-	time    = node["time"  ].as<double>();
-      else
-	time    = 0.0;
-
-      if (node["cmap"]) 	// Backwards compatibility; parameter change
-	cmapr   = node["cmap" ].as<int>();
-      else
-	cmapr   = node["cmapr"].as<int>();
-
-      if (node["cmapz"])	// Backwards compatibility; parameter change
-	cmapz = node["cmapz"].as<int>();
-      else
-	cmapz = CMAPZ;
-
-    } else {
-				// Rewind file
-      in.clear();
-      in.seekg(0);
-
-      in.read((char *)&mmax,    sizeof(int));
-      in.read((char *)&numx,    sizeof(int));
-      in.read((char *)&numy,    sizeof(int));
-      in.read((char *)&nmax,    sizeof(int));
-      in.read((char *)&norder,  sizeof(int));
-      in.read((char *)&tmp,     sizeof(int));    if (tmp) dens = true;
-      in.read((char *)&cmapr,   sizeof(int));
-      in.read((char *)&rmin,    sizeof(double));
-      in.read((char *)&rmax,    sizeof(double));
-      in.read((char *)&ascl,    sizeof(double));
-      in.read((char *)&hscl,    sizeof(double));
-      in.read((char *)&cylmass, sizeof(double));
-      in.read((char *)&time,    sizeof(double));
-
-      cmapz = 1;
-    }
-
-				// Spot check compatibility
-    if ( (MMAX    != mmax   ) |
-	 (NUMX    != numx   ) |
-	 (NUMY    != numy   ) |
-	 (NMAX    != nmax   ) |
-	 (NORDER  != norder ) |
-	 (DENS    != dens   ) |
-	 (CMAPR   != cmapr  ) |
-	 (fabs(rmin-RMIN)>1.0e-12 ) |
-	 (fabs(rmax-RMAX)>1.0e-12 ) |
-	 (fabs(ascl-ASCALE)>1.0e-12 ) |
-	 (fabs(hscl-HSCALE)>1.0e-12 )
-	 ) 
-      {
-	cout << std::setw(15) << std::right << "Key"
-	     << std::setw(15) << std::right << "Wanted"
-	     << std::setw(15) << std::right << "Cached"
-	     << std::endl
-	     << std::setw(15) << std::right << "------"
-	     << std::setw(15) << std::right << "------"
-	     << std::setw(15) << std::right << "------"
-	     << std::endl;
-
-	cout << compare_out("mmax",   MMAX,   mmax);
-	cout << compare_out("numx",   NUMX,   numx);
-	cout << compare_out("numy",   NUMY,   numy);
-	cout << compare_out("nmax",   NMAX,   nmax);
-	cout << compare_out("norder", NORDER, norder);
-	cout << compare_out("dens",   DENS,   dens);
-	cout << compare_out("cmapr",  CMAPR,  cmapr);
-	cout << compare_out("cmapz",  CMAPZ,  cmapz);
-	cout << compare_out("rmin",   RMIN,   rmin);
-	cout << compare_out("rmax",   RMAX,   rmax);
-	cout << compare_out("ascale", ASCALE, ascl);
-	cout << compare_out("hscale", HSCALE, hscl);
-
+      // Otherwise try to open an old-style binary cache
+      //
+      std::ifstream in(cachefile.c_str());
+      if (!in) {
+	cerr << "---- EmpCylSL::cache_grid: error opening file" << endl;
 	return 0;
       }
+      
+      int mmax, numx, numy, nmax, norder, tmp, cmapr, cmapz;
+      bool dens=false;
+      double rmin, rmax, ascl, hscl, time;
+      
 
-				// Read table
+      // Attempt to read magic number
+      //
+      unsigned int tmagic;
+      in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
 
-    Eigen::MatrixXd work(NUMY+1, NUMX+1);
-
-    for (int m=0; m<=MMAX; m++) {
-
-      for (int v=0; v<rank3; v++) {
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&potC[m][v](ix, iy), sizeof(double));
+      if (tmagic == hmagic) {
+	// YAML size
+	//
+	unsigned ssize;
+	in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
 	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&rforceC[m][v](ix, iy), sizeof(double));
-	  
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&zforceC[m][v](ix, iy), sizeof(double));
-	  
-	if (DENS) {
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      in.read((char *)&densC[m][v](ix, iy), sizeof(double));
+	// Make and read char buffer
+	//
+	auto buf = std::make_unique<char[]>(ssize+1);
+	in.read(buf.get(), ssize);
+	buf[ssize] = 0;		// Null terminate
 
+	YAML::Node node;
+      
+	try {
+	  node = YAML::Load(buf.get());
 	}
+	catch (YAML::Exception& error) {
+	  std::ostringstream sout;
+	  sout << "YAML: error parsing <" << buf.get() << "> "
+	       << "in " << __FILE__ << ":" << __LINE__ << std::endl
+	       << "YAML error: " << error.what() << std::endl;
+	  throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
+	}
+	
+	// Get parameters
+	//
+	mmax    = node["mmax"   ].as<int>();
+	numx    = node["numx"   ].as<int>();
+	numy    = node["numy"   ].as<int>();
+	nmax    = node["nmaxfid"].as<int>();
+	norder  = node["nmax"   ].as<int>();
+	dens    = node["dens"   ].as<bool>();
+	rmin    = node["rmin"   ].as<double>();
+	rmax    = node["rmax"   ].as<double>();
+	ascl    = node["ascl"   ].as<double>();
+	hscl    = node["hscl"   ].as<double>();
+	cylmass = node["cmass"  ].as<double>();
+      
+	if (node["time"]) 	// Backwards compatibility; 'time' is optional
+	  time    = node["time"  ].as<double>();
+	else
+	  time    = 0.0;
+
+	if (node["cmap"]) 	// Backwards compatibility; parameter change
+	  cmapr   = node["cmap" ].as<int>();
+	else
+	  cmapr   = node["cmapr"].as<int>();
+	
+	if (node["cmapz"])	// Backwards compatibility; parameter change
+	  cmapz = node["cmapz"].as<int>();
+	else
+	  cmapz = CMAPZ;
+	
+      } else {
+				// Rewind file
+	in.clear();
+	in.seekg(0);
+
+	in.read((char *)&mmax,    sizeof(int));
+	in.read((char *)&numx,    sizeof(int));
+	in.read((char *)&numy,    sizeof(int));
+	in.read((char *)&nmax,    sizeof(int));
+	in.read((char *)&norder,  sizeof(int));
+	in.read((char *)&tmp,     sizeof(int));    if (tmp) dens = true;
+	in.read((char *)&cmapr,   sizeof(int));
+	in.read((char *)&rmin,    sizeof(double));
+	in.read((char *)&rmax,    sizeof(double));
+	in.read((char *)&ascl,    sizeof(double));
+	in.read((char *)&hscl,    sizeof(double));
+	in.read((char *)&cylmass, sizeof(double));
+	in.read((char *)&time,    sizeof(double));
+	
+	cmapz = 1;
       }
 
-    }
-
-    for (int m=1; m<=MMAX; m++) {
-
-      for (int v=0; v<rank3; v++) {
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&potS[m][v](ix, iy), sizeof(double));
-	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&rforceS[m][v](ix, iy), sizeof(double));
+				// Spot check compatibility
+      if ( (MMAX    != mmax   ) |
+	   (NUMX    != numx   ) |
+	   (NUMY    != numy   ) |
+	   (NMAX    != nmax   ) |
+	   (NORDER  != norder ) |
+	   (DENS    != dens   ) |
+	   (CMAPR   != cmapr  ) |
+	   (fabs(rmin-RMIN)>1.0e-12 ) |
+	   (fabs(rmax-RMAX)>1.0e-12 ) |
+	   (fabs(ascl-ASCALE)>1.0e-12 ) |
+	   (fabs(hscl-HSCALE)>1.0e-12 )
+	   ) 
+	{
+	  cout << std::setw(15) << std::right << "Key"
+	       << std::setw(15) << std::right << "Wanted"
+	       << std::setw(15) << std::right << "Cached"
+	       << std::endl
+	       << std::setw(15) << std::right << "------"
+	       << std::setw(15) << std::right << "------"
+	       << std::setw(15) << std::right << "------"
+	       << std::endl;
 	  
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&zforceS[m][v](ix, iy), sizeof(double));
+	  cout << compare_out("mmax",   MMAX,   mmax);
+	  cout << compare_out("numx",   NUMX,   numx);
+	  cout << compare_out("numy",   NUMY,   numy);
+	  cout << compare_out("nmax",   NMAX,   nmax);
+	  cout << compare_out("norder", NORDER, norder);
+	  cout << compare_out("dens",   DENS,   dens);
+	  cout << compare_out("cmapr",  CMAPR,  cmapr);
+	  cout << compare_out("cmapz",  CMAPZ,  cmapz);
+	  cout << compare_out("rmin",   RMIN,   rmin);
+	  cout << compare_out("rmax",   RMAX,   rmax);
+	  cout << compare_out("ascale", ASCALE, ascl);
+	  cout << compare_out("hscale", HSCALE, hscl);
+	  
+	  return 0;
+	}
+
+      // Read table
+      //
+      Eigen::MatrixXd work(NUMY+1, NUMX+1);
+      
+      for (int m=0; m<=MMAX; m++) {
 	
-	if (DENS) {
+	for (int v=0; v<rank3; v++) {
+	  
 	  for (int ix=0; ix<=NUMX; ix++)
 	    for (int iy=0; iy<=NUMY; iy++)
-	      in.read((char *)&densS[m][v](ix, iy), sizeof(double));
+	      in.read((char *)&potC[m][v](ix, iy), sizeof(double));
+	  
+	  for (int ix=0; ix<=NUMX; ix++)
+	    for (int iy=0; iy<=NUMY; iy++)
+	      in.read((char *)&rforceC[m][v](ix, iy), sizeof(double));
+	  
+	  for (int ix=0; ix<=NUMX; ix++)
+	    for (int iy=0; iy<=NUMY; iy++)
+	      in.read((char *)&zforceC[m][v](ix, iy), sizeof(double));
+	  
+	  if (DENS) {
+	    for (int ix=0; ix<=NUMX; ix++)
+	      for (int iy=0; iy<=NUMY; iy++)
+		in.read((char *)&densC[m][v](ix, iy), sizeof(double));
+	    
+	  }
 	}
+	
       }
 
+      for (int m=1; m<=MMAX; m++) {
+
+	for (int v=0; v<rank3; v++) {
+
+	  for (int ix=0; ix<=NUMX; ix++)
+	    for (int iy=0; iy<=NUMY; iy++)
+	      in.read((char *)&potS[m][v](ix, iy), sizeof(double));
+	  
+	  for (int ix=0; ix<=NUMX; ix++)
+	    for (int iy=0; iy<=NUMY; iy++)
+	      in.read((char *)&rforceS[m][v](ix, iy), sizeof(double));
+	  
+	  for (int ix=0; ix<=NUMX; ix++)
+	    for (int iy=0; iy<=NUMY; iy++)
+	      in.read((char *)&zforceS[m][v](ix, iy), sizeof(double));
+	  
+	  if (DENS) {
+	    for (int ix=0; ix<=NUMX; ix++)
+	      for (int iy=0; iy<=NUMY; iy++)
+		in.read((char *)&densS[m][v](ix, iy), sizeof(double));
+	  }
+	}
+	
+      }
+    
+      Rtable = M_SQRT1_2 * RMAX;
+      XMIN = r_to_xi(RMIN*ASCALE);
+      XMAX = r_to_xi(Rtable*ASCALE);
+      dX = (XMAX - XMIN)/NUMX;
+      
+      YMIN = z_to_y(-Rtable*ASCALE);
+      YMAX = z_to_y( Rtable*ASCALE);
+      dY = (YMAX - YMIN)/NUMY;
+      
+      std::cout << "---- EmpCylSL::cache_grid: file read successfully"
+		<< std::endl;
+      
+      // Rewrite as HDF5
+      //
+      WriteH5Cache();
+    } else {
+      std::cout << "---- EmpCylSL::cache_grid: file <" << cachefile
+		<< "> does not exist" << std::endl;
+      return 0;
     }
-    
-    Rtable = M_SQRT1_2 * RMAX;
-    XMIN = r_to_xi(RMIN*ASCALE);
-    XMAX = r_to_xi(Rtable*ASCALE);
-    dX = (XMAX - XMIN)/NUMX;
-    
-    YMIN = z_to_y(-Rtable*ASCALE);
-    YMAX = z_to_y( Rtable*ASCALE);
-    dY = (YMAX - YMIN)/NUMY;
-    
-    std::cout << "---- EmpCylSL::cache_grid: file read successfully"
-	      << std::endl;
   }
 
   return 1;
 }
 
 YAML::Node EmpCylSL::getHeader(const std::string& cachefile)
+{
+  if (std::filesystem::exists(cachefile))
+    return getHeader_hdf5(cachefile);
+  else
+    return getHeader_binary(cachefile);
+}
+
+YAML::Node EmpCylSL::getHeader_hdf5(const std::string& cachefile)
+{
+  YAML::Node node;
+
+  try {
+    // Silence the HDF5 error stack
+    //
+    HighFive::SilenceHDF5 quiet;
+    
+    // Open the hdf5 file
+    //
+    HighFive::File file(cachefile, HighFive::File::ReadOnly);
+    
+    auto getInt = [&file](std::string name)
+    {
+      int v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    auto getDbl = [&file](std::string name)
+    {
+      double v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    auto getStr = [&file](std::string name)
+    {
+      std::string v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    bool dens = false;
+    if (getInt("idens")) dens = true;
+
+    node["mmax"]     = getInt("mmax");
+    node["numx"]     = getInt("numx");
+    node["numy"]     = getInt("numy");
+    node["nmaxfid"]  = getInt("nmaxfid");
+    node["nmax"]     = getInt("nmax");
+    node["neven"]    = getInt("neven");
+    node["nodd"]     = getInt("nodd");
+    node["dens"]     = dens;
+    node["cmapr"]    = getInt("cmapr");
+    node["cmapz"]    = getInt("cmapz");
+    node["rmin"]     = getDbl("rmin");
+    node["rmax"]     = getDbl("rmax");
+    node["ascl"]     = getDbl("ascl");
+    node["hscl"]     = getDbl("hscl");
+    node["cmass"]    = getDbl("cmass");
+  }
+  catch (YAML::Exception& error) {
+    std::ostringstream sout;
+    sout << "EmpCylSL::getHeader: invalid cache file <" << cachefile << ">. ";
+    sout << "YAML error in getHeader: " << error.what() << std::endl;
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
+  }
+
+  return node;
+}
+    
+
+YAML::Node EmpCylSL::getHeader_binary(const std::string& cachefile)
 {
   YAML::Node node;
 
@@ -2169,6 +2163,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   // Initialize fixed variables and storage
   //
   setup_eof();
+  setup_accumulation();
 
   LegeQuad lr(numr);
   LegeQuad lt(numt);
@@ -6146,17 +6141,17 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   in.read((char *)&hscl,   sizeof(double));
   
   out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
-  out << setw(20) << left << "MMAX"   << " : " << mmax << endl;
-  out << setw(20) << left << "NUMX"   << " : " << numx << endl;
-  out << setw(20) << left << "NUMY"   << " : " << numy << endl;
-  out << setw(20) << left << "NMAX"   << " : " << nmax << endl;
-  out << setw(20) << left << "NORDER" << " : " << norder << endl;
-  out << setw(20) << left << "DENS"   << " : " << std::boolalpha << dens << endl;
-  out << setw(20) << left << "CMAPR"  << " : " << cmap << endl;
-  out << setw(20) << left << "RMIN"   << " : " << rmin << endl;
-  out << setw(20) << left << "RMAX"   << " : " << rmax << endl;
-  out << setw(20) << left << "ASCALE" << " : " << ascl << endl;
-  out << setw(20) << left << "HSCALE" << " : " << hscl << endl;
+  out << setw(20) << left << "MMAX"    << " : " << mmax << endl;
+  out << setw(20) << left << "NUMX"    << " : " << numx << endl;
+  out << setw(20) << left << "NUMY"    << " : " << numy << endl;
+  out << setw(20) << left << "NMAXFID" << " : " << nmax << endl;
+  out << setw(20) << left << "NMAX"    << " : " << norder << endl;
+  out << setw(20) << left << "DENS"    << " : " << std::boolalpha << dens << endl;
+  out << setw(20) << left << "CMAPR"   << " : " << cmap << endl;
+  out << setw(20) << left << "RMIN"    << " : " << rmin << endl;
+  out << setw(20) << left << "RMAX"    << " : " << rmax << endl;
+  out << setw(20) << left << "ASCALE"  << " : " << ascl << endl;
+  out << setw(20) << left << "HSCALE"  << " : " << hscl << endl;
   out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
     
   double time;
@@ -6871,3 +6866,265 @@ void EmpCylSL::getPotSC(int mm, int n, double R, double z,
       potS[mm][n](ix  , iy+1) * c01 +
       potS[mm][n](ix+1, iy+1) * c11 ;
 }
+
+void EmpCylSL::WriteH5Cache()
+{
+  if (myid) return;		// Only root node writes the cache
+
+  try {
+    // Create a new hdf5 file or overwrite an existing file
+    //
+    HighFive::File file(cachefile, HighFive::File::ReadWrite | HighFive::File::Create);
+    
+    // For basis ID
+    std::string forceID("Cylinder"), geometry("cylinder");
+    std::string model = EmpModelLabs[mtype];
+
+    file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
+    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
+      
+    // HighFive boolean workarounds
+    //
+    int idens = 0;
+    if (DENS) idens = 1;
+
+    // Write the specific parameters
+    //
+    file.createAttribute<std::string>("model",   HighFive::DataSpace::From(model)).   write(model);
+    file.createAttribute<int>        ("mmax",    HighFive::DataSpace::From(MMAX)).    write(MMAX);
+    file.createAttribute<int>        ("numx",    HighFive::DataSpace::From(NUMX)).    write(NUMX);
+    file.createAttribute<int>        ("numy",    HighFive::DataSpace::From(NUMY)).    write(NUMY);
+    file.createAttribute<int>        ("nmax",    HighFive::DataSpace::From(NORDER)).  write(NORDER);
+    file.createAttribute<int>        ("lmaxfid", HighFive::DataSpace::From(LMAX)).    write(LMAX);
+    file.createAttribute<int>        ("nmaxfid", HighFive::DataSpace::From(NMAX)).    write(NMAX);
+    file.createAttribute<int>        ("neven",   HighFive::DataSpace::From(Neven)).   write(Neven);
+    file.createAttribute<int>        ("nodd",    HighFive::DataSpace::From(Nodd)).    write(Nodd);
+    file.createAttribute<int>        ("idens",   HighFive::DataSpace::From(idens)).   write(idens);
+    file.createAttribute<int>        ("cmapr",   HighFive::DataSpace::From(CMAPR)).   write(CMAPR);
+    file.createAttribute<int>        ("cmapz",   HighFive::DataSpace::From(CMAPZ)).   write(CMAPZ);
+    file.createAttribute<double>     ("rmin",    HighFive::DataSpace::From(RMIN)).    write(RMIN);
+    file.createAttribute<double>     ("rmax",    HighFive::DataSpace::From(RMAX)).    write(RMAX);
+    file.createAttribute<double>     ("ascl",    HighFive::DataSpace::From(ASCALE)).  write(ASCALE);
+    file.createAttribute<double>     ("hscl",    HighFive::DataSpace::From(HSCALE)).  write(HSCALE);
+    file.createAttribute<double>     ("cmass",   HighFive::DataSpace::From(cylmass)). write(cylmass);
+      
+    // Cosine functions
+
+    auto cosine = file.createGroup("Cosine");
+
+    // Harmonic order
+    //
+    for (int m=0; m<=MMAX; m++) {
+      std::ostringstream sout;
+      sout << m;
+      auto harmonic = cosine.createGroup(sout.str());
+      
+      for (int n=0; n<NORDER; n++) {
+
+	std::ostringstream sout;
+	sout << n;
+	auto order = harmonic.createGroup(sout.str());
+      
+	order.createDataSet("potC",    potC   [m][n]);
+	order.createDataSet("rforceC", rforceC[m][n]);
+	order.createDataSet("zforceC", zforceC[m][n]);
+	if (DENS) order.createDataSet("densC", densC[m][n]);
+      }
+    }
+
+    // Sine functions
+
+    auto sine = file.createGroup("Sine");
+
+    // Harmonic order
+    //
+    for (int m=1; m<=MMAX; m++) {
+      std::ostringstream sout;
+      sout << m;
+      auto harmonic = sine.createGroup(sout.str());
+      
+      for (int n=0; n<NORDER; n++) {
+
+	std::ostringstream sout;
+	sout << n;
+	auto order = harmonic.createGroup(sout.str());
+      
+	order.createDataSet("potS",    potS   [m][n]);
+	order.createDataSet("rforceS", rforceS[m][n]);
+	order.createDataSet("zforceS", zforceS[m][n]);
+	if (DENS) order.createDataSet("densS", densS[m][n]);
+      }
+    }
+
+  } catch (HighFive::Exception& err) {
+    std::cerr << err.what() << std::endl;
+  }
+    
+  std::cout << "---- EmpCylSL::WriteH5Cache: "
+	    << "wrote <" << cachefile << ">" << std::endl;
+}
+
+bool EmpCylSL::ReadH5Cache()
+{
+  try {
+    // Silence the HDF5 error stack
+    //
+    HighFive::SilenceHDF5 quiet;
+    
+    // Open the hdf5 file
+    //
+    HighFive::File file(cachefile, HighFive::File::ReadOnly);
+    
+    // For basis ID
+    std::string forceID("Cylinder"), geometry("cylinder");
+    std::string model = EmpModelLabs[mtype];
+      
+    // HighFive boolean workarounds
+    //
+    int idens = 0;
+    if (DENS) idens = 1;
+
+    // Try checking the rest of the parameters before reading arrays
+    //
+    auto checkInt = [&file](int value, std::string name)
+    {
+      int v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
+      if (value == v) return true;
+      std::cout << "Parameter " << name << ": wanted " << value
+		<< " found " << v << std::endl;
+      return false;
+    };
+
+    auto checkDbl = [&file](double value, std::string name)
+    {
+      double v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
+      if (fabs(value - v) < 1.0e-16) return true;
+      std::cout << "Parameter " << name << ": wanted " << value
+		<< " found " << v << std::endl;
+      return false;
+    };
+
+    auto checkStr = [&file](std::string value, std::string name)
+    {
+      std::string v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
+      if (value.compare(v)==0) return true;
+      std::cout << "Parameter " << name << ": wanted " << value
+		<< " found " << v << std::endl;
+      return false;
+    };
+
+    if (not checkStr(geometry, "geometry"))  return false;
+    if (not checkStr(forceID,  "forceID"))   return false;
+    if (not checkInt(MMAX,     "mmax"))      return false;
+    if (not checkInt(NUMX,     "numx"))      return false;
+    if (not checkInt(NUMY,     "numy"))      return false;
+    if (not checkInt(NORDER,   "nmax"))      return false;
+    if (not checkInt(LMAX,     "lmaxfid"))   return false;
+    if (not checkInt(NMAX,     "nmaxfid"))   return false;
+    if (not checkInt(Neven,    "neven"))     return false;
+    if (not checkInt(Nodd,     "nodd"))      return false;
+    if (not checkInt(idens,    "idens"))     return false;
+    if (not checkInt(CMAPR,    "cmapr"))     return false;
+    if (not checkInt(CMAPZ,    "cmapz"))     return false;
+    if (not checkDbl(RMIN,     "rmin"))      return false;
+    if (not checkDbl(RMAX,     "rmax"))      return false;
+    if (not checkDbl(ASCALE,   "ascl"))      return false;
+    if (not checkDbl(HSCALE,   "hscl"))      return false;
+    if (not checkDbl(cylmass,  "cmass"))     return false;
+
+    // Set EvenOdd if values seem sane
+    //
+    if (Nodd>=0 and Nodd<=NORDER and Nodd+Neven==NORDER) {
+      EvenOdd  = true;
+    }
+
+    // Allocate arrays for storing grids
+    //
+    potC    .resize(MMAX+1);
+    rforceC .resize(MMAX+1);
+    zforceC .resize(MMAX+1);
+  
+    potS    .resize(MMAX+1);
+    rforceS .resize(MMAX+1);
+    zforceS .resize(MMAX+1);
+  
+    if (DENS) {
+      densC .resize(MMAX+1);
+      densS .resize(MMAX+1);
+    }
+
+    for (int m=0; m<=MMAX; m++) {
+      potC[m]   .resize(NORDER);
+      rforceC[m].resize(NORDER);
+      zforceC[m].resize(NORDER);
+      if (DENS) densC[m].resize(NORDER);
+    }
+
+    for (int m=1; m<=MMAX; m++) {
+      potS[m]   .resize(NORDER);
+      rforceS[m].resize(NORDER);
+      zforceS[m].resize(NORDER);
+      if (DENS) densS[m].resize(NORDER);
+    }    
+
+    // Read arrays and data from H5 file
+    //
+
+    // Cosine grid group
+    //
+    auto cosine = file.getGroup("Cosine");
+
+    // Harmonic order groups
+    //
+    for (int m=0; m<=MMAX; m++) {
+      std::ostringstream sout;
+      sout << m;
+      auto harmonic = cosine.getGroup(sout.str());
+      
+      for (int n=0; n<NORDER; n++) {
+	std::ostringstream sout;
+	sout << n;
+	auto order = harmonic.getGroup(sout.str());
+      
+	order.getDataSet("potC")   .read(potC   [m][n]);
+	order.getDataSet("rforceC").read(rforceC[m][n]);
+	order.getDataSet("zforceC").read(zforceC[m][n]);
+	if (DENS) order.getDataSet("densC").read(densC[m][n]);
+      }
+    }
+
+    // Sine grid group
+    //
+    auto sine = file.getGroup("Sine");
+
+    // Harmonic order groups
+    //
+    for (int m=1; m<=MMAX; m++) {
+      std::ostringstream sout;
+      sout << m;
+      auto harmonic = sine.getGroup(sout.str());
+      
+      for (int n=0; n<NORDER; n++) {
+	std::ostringstream sout;
+	sout << n;
+	auto order = harmonic.getGroup(sout.str());
+      
+	order.getDataSet("potS")   .read(potS   [m][n]);
+	order.getDataSet("rforceS").read(rforceS[m][n]);
+	order.getDataSet("zforceS").read(zforceS[m][n]);
+	if (DENS) order.getDataSet("densS").read(densS[m][n]);
+      }
+    }
+
+  } catch (HighFive::Exception& err) {
+    if (myid==0) std::cerr << "---- " << err.what() << std::endl;
+    return false;
+  }
+    
+  if (myid==0) std::cout << "---- EmpCylSL::ReadH5Cache: "
+			 << "read <" << cachefile << ">" << std::endl;
+
+  return true;
+}
+
+

@@ -35,7 +35,7 @@
 #include <numerical.H>
 #include <gaussQ.H>
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 #include <model3d.H>
 #include <biorth.H>
 #include <SphericalSL.H>
@@ -84,7 +84,7 @@ void set_fpu_invalid_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -119,7 +119,7 @@ void set_fpu_trace_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -154,7 +154,7 @@ void set_fpu_gdb_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -201,17 +201,17 @@ double DiskDens(double R, double z, double phi)
   double ans = 0.0;
 
   switch (dtype) {
-    
+
   case DiskType::constant:
     if (R < AA && fabs(z) < HH)
       ans = 1.0/(2.0*HH*M_PI*AA*AA);
     break;
-  
+
   case DiskType::gaussian:
     if (fabs(z) < HH)
       ans = 1.0/(2.0*HH*2.0*M_PI*AA*AA) * exp(-R*R/(2.0*AA*AA));
     break;
-    
+
   case DiskType::mn:
     {
       double Z2 = z*z + HH*HH;
@@ -248,7 +248,7 @@ double dcond(double R, double z, double phi, int M)
     phiS = phi + dmult*(int)((2.0*M_PI - phi)/dmult);
   else
     phiS = phi - dmult*(int)(phi/dmult);
-  
+
   //
   // Apply a shift along the x-axis
   //
@@ -275,13 +275,13 @@ double drdx(double x, double a)
   return a*pow(1.0 - x*x, -1.5);
 }
 
-int 
+int
 main(int ac, char **av)
 {
   //====================
   // Inialize MPI stuff
   //====================
-  
+
   local_init_mpi(ac, av);
 
   //====================
@@ -334,7 +334,7 @@ main(int ac, char **av)
   string       dmodel;
   string       mtype;
   string       prefix;
-  
+
   cxxopts::Options options("testcoefs2", "Check coefficient expansion for cylindrical basis and compare to a high-order multipole expansion for force and potential");
 
   options.add_options()
@@ -355,7 +355,7 @@ main(int ac, char **av)
     ("NUMY", "Size of the (mapped) cylindrical vertical grid",
      cxxopts::value<int>(NUMY)->default_value("128"))
     ("NOUT", "Maximum radial order for diagnostic basis dump",
-     cxxopts::value<int>(NOUT)->default_value("18")) 
+     cxxopts::value<int>(NOUT)->default_value("18"))
     ("NINT", "Number of Gauss-Legendre knots",
      cxxopts::value<int>(NINT)->default_value("100"))
     ("NUMR", "Size of radial grid for Spherical SL",
@@ -431,8 +431,8 @@ main(int ac, char **av)
     ("prefix", "Output file prefix",
      cxxopts::value<std::string>(prefix)->default_value("checkcoefs2"))
      ;
-  
-							       
+
+
   // Parse command line for control and critical parameters
   //
   cxxopts::ParseResult vm;
@@ -547,12 +547,12 @@ main(int ac, char **av)
   // Okay, now begin ...
   //====================
 
-#ifdef DEBUG                    // For gdb . . . 
+#ifdef DEBUG                    // For gdb . . .
   sleep(20);
   // set_fpu_handler();         // Make gdb trap FPU exceptions
   set_fpu_gdb_handler();	// Make gdb trap FPU exceptions
 #endif
-  
+
   //===========================Cylindrical expansion===========================
 
 
@@ -562,7 +562,7 @@ main(int ac, char **av)
 
     std::ifstream in(cachefile);
     if (!in) {
-      std::cerr << "Error opening cachefile named <" 
+      std::cerr << "Error opening cachefile named <"
 		<< cachefile << "> . . ."
 		<< std::endl
 		<< "I will build <" << cachefile
@@ -593,7 +593,7 @@ main(int ac, char **av)
 	buf[ssize] = 0;		// Null terminate
 
 	YAML::Node node;
-      
+
 	try {
 	  node = YAML::Load(buf.get());
 	}
@@ -604,7 +604,7 @@ main(int ac, char **av)
 		      << "YAML error: " << error.what() << std::endl;
 	  throw error;
 	}
-	
+
 	// Get parameters
 	//
 	MMAX   = node["mmax"  ].as<int>();
@@ -625,30 +625,30 @@ main(int ac, char **av)
 	  CMAPR  = node["cmap"  ].as<int>();
 	else
 	  CMAPR  = node["cmapr" ].as<int>();
-	
+
 	if (node["cmapz"])	// Backwards compatibility
 	  CMAPZ  = node["cmapz" ].as<int>();
 
       } else {
-	
+
 	// Rewind file
 	//
 	in.clear();
 	in.seekg(0);
 
 	int tmp;
-      
+
 	in.read((char *)&MMAX,    sizeof(int));
 	in.read((char *)&NUMX,    sizeof(int));
 	in.read((char *)&NUMY,    sizeof(int));
 	in.read((char *)&NMAX,    sizeof(int));
 	in.read((char *)&NORDER,  sizeof(int));
-	
-	in.read((char *)&tmp,     sizeof(int)); 
+
+	in.read((char *)&tmp,     sizeof(int));
 	if (tmp) DENS = true;
 	else     DENS = false;
-	
-	in.read((char *)&CMTYPE,  sizeof(int)); 
+
+	in.read((char *)&CMTYPE,  sizeof(int));
 	in.read((char *)&RCYLMIN, sizeof(double));
 	in.read((char *)&RCYLMAX, sizeof(double));
 	in.read((char *)&ASCALE,  sizeof(double));
@@ -712,19 +712,19 @@ main(int ac, char **av)
       // height relative to the length
       //
       double H = scale_height/scale_length;
-      
+
       // The model instance (you can add others in DiskModels.H
       //
       EmpCylSL::AxiDiskPtr model;
-      
+
       if (dmodel.compare("MN")==0) // Miyamoto-Nagai
 	model = std::make_shared<MNdisk>(1.0, H);
       else			// Default to exponential
 	model = std::make_shared<Exponential>(1.0, H);
-      
+
       expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
     }
-    
+
     // Regenerate EOF from analytic density
     //
     if (expcond and not save_eof) {
@@ -732,7 +732,7 @@ main(int ac, char **av)
       save_eof = true;
     }
   }
-  
+
   //===========================================================================
   // Compute coefficients
   //===========================================================================
@@ -765,11 +765,11 @@ main(int ac, char **av)
   case DiskType::constant:
     std::cout << "Dens = constant" << std::endl;
     break;
-  
+
   case DiskType::gaussian:
     std::cout << "Dens = gaussian" << std::endl;
     break;
-    
+
   case DiskType::mn:
     std::cout << "Dens = mn" << std::endl;
     break;
@@ -801,7 +801,7 @@ main(int ac, char **av)
   }
 
   if (LOGR2) {
-    
+
     double Rmin = log(RCYLMIN*AA);
     double Rmax = log(RCYLMAX*AA);
     double Zmin = log(RCYLMIN*HH);
@@ -819,10 +819,10 @@ main(int ac, char **av)
       double facX = lq.weight(i) * 2.0*M_PI * R * R * (Rmax - Rmin);
 
       for (int j=0; j<NINT; j++) { // Vertical
-	
+
 	double y = Zmin + (Zmax - Zmin) * lq.knot(j);
 	double z = exp(y);
-	
+
 	double fac = facX * lq.weight(j) * z * (Zmax - Zmin);
 	double den = DiskDens(R, z, 0.0);
 	totM += 2.0 * fac * den;
@@ -835,7 +835,7 @@ main(int ac, char **av)
 	  double value = fac * p * den * 4.0*M_PI;
 #pragma omp atomic
 	  coefs[n] += value;
-	  
+
 	  if (orthotst) {
 	    for (int n2=n; n2<NOUT; n2++) {
 	      if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
@@ -845,7 +845,7 @@ main(int ac, char **av)
 	    }
 	  }
 	}
-	
+
 	for (int n=0; n<NOUT; n++) {
 	  double p, p2, d, d2, fr, fz, fp;
 	  expandd->get_all(0, n, R, -z, 0.0, p, d, fr, fz, fp);
@@ -881,10 +881,10 @@ main(int ac, char **av)
       double facX = lq.weight(i) * 2.0 * M_PI * R * drdx(x, AA) * (xmax - xmin);
 
       for (int j=0; j<NINT; j++) { // Vertical
-	
+
 	double y = ymax*(2.0*lq.knot(j) - 1.0);
 	double z = x_to_r(y, HH);
-	
+
 	double fac = facX * lq.weight(j) * drdx(y, HH) * 2.0*ymax;
 
 	double den = DiskDens(R, z, 0.0);
@@ -945,7 +945,7 @@ main(int ac, char **av)
   // Evaluate force using multipole expansion
   //
   EmpCylSL::AxiDiskPtr modl;
-      
+
   if (dmodel.compare("MN")==0) // Miyamoto-Nagai
     modl = std::make_shared<MNdisk>(AA, HH);
   else			// Default to exponential
@@ -960,7 +960,7 @@ main(int ac, char **av)
   // Overkill accuracy
   //
   // DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 400, 8000, 400, use_progress);
-  
+
   DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 200, 1000, 800, use_progress);
   //                                          ^    ^    ^     ^
   //                                          |    |    |     |
@@ -976,7 +976,7 @@ main(int ac, char **av)
     std::cout << std::endl << "Begin: grid evaluation"
 	      << std::endl << "----------------------"
 	      << std::endl;
-      
+
     std::cout << std::endl << "Midplane force evaluation"
 	      << std::endl;
     progress = std::make_shared<progress::progress_display>(NFRC1D);
@@ -988,7 +988,7 @@ main(int ac, char **av)
   double z    = 0.0;
   double phi  = 0.0;
   double mass = 1.0;
-  
+
   std::ofstream fout(prefix + ".compare");
 
   int nmin = std::min<int>(NOUT, 5);
@@ -1062,17 +1062,17 @@ main(int ac, char **av)
     // Get density for n=0, 1, ... , nmin
     {
       double p1, fr1, fz1, fp1;	// Dummy variables
-      for (int nn=0; nn<nmin; nn++) 
+      for (int nn=0; nn<nmin; nn++)
 	expandd->get_all(0, nn, r, z, 0.0, pp[nn], dd[nn], fr1, fz1, fp1);
     }
 
-    
+
     double D;
 
     if (dmodel.compare("MN")==0) { // Miyamoto-Nagai
       double zb = sqrt( z*z + HH*HH );
       double ab = AA + zb;
-      
+
       D  = 0.25*HH*HH/M_PI*(AA*r*r + (AA + 3.0*zb)*ab*ab)/( pow(r*r + ab*ab, 2.5) * zb*zb*zb );
     } else {			// Default to exponential
       double f = cosh(z/HH);
@@ -1197,11 +1197,11 @@ main(int ac, char **av)
 
       double FZ0 = 1.0;
       {				// Dummy variables
-	double p1, d1, fR1, fz1, fp1;	
+	double p1, d1, fR1, fz1, fp1;
 
 	// Get density for n=0, 1, ... , nmin
 	//
-	for (int nn=0; nn<nmin; nn++) 
+	for (int nn=0; nn<nmin; nn++)
 	  expandd->get_all(0, nn, r, z, 0.0, pp[nn], dd[nn], fR1, fz1, fp1);
 
 	// Compute vertical force at one scale height
@@ -1209,7 +1209,7 @@ main(int ac, char **av)
 	if (z>0.0) FZ0 =  FZH;
 	else       FZ0 = -FZH;
       }
-      
+
       auto ret = test(r, z);
       double P = std::get<0>(ret), FR = std::get<1>(ret), Fz = std::get<2>(ret);
 
@@ -1243,4 +1243,3 @@ main(int ac, char **av)
 
   return 0;
 }
-

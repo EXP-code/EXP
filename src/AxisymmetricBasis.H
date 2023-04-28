@@ -9,6 +9,8 @@
 
   @param Lmax  is the maximum spherical harmonic order
 
+  @param Mmax  is the maximum spherical harmonic order
+
   @param nmax  is the maximum radial order
 
   @param dof   is the dimensionality of the basis
@@ -46,7 +48,7 @@ class AxisymmetricBasis : public Basis
 protected:
 
   //! Maximum angular harmonic
-  int Lmax;
+  int Lmax, Mmax;
 
   //! Maximum radial basis index
   int nmax;
@@ -175,8 +177,12 @@ public:
   //! Destructor
   virtual ~AxisymmetricBasis();
 
+  //@{
   //! Compute component noise suppression using PCA analysis
-  void pca_hall(bool compute);
+  void pca_hall(bool compute);	  // Choose between 2d and 3d
+  void pca_hall_2d(bool compute); // 2d-polar implementation
+  void pca_hall_3d(bool compute); // 3d spherical harmonic implementation
+  //@}
 
   //! Reset used particle counter
   virtual void multistep_reset() { used=0; }

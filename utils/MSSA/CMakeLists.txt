@@ -1,7 +1,7 @@
 set(bin_PROGRAMS exp_haloN disk_noise halo_noise expmssa)
 
 set(common_LINKLIB
-  exputil yaml-cpp PNG::PNG ${VTK_LIBRARIES} ${EIGEN3_LIBRARIES}
+  yaml-cpp PNG::PNG exputil ${VTK_LIBRARIES} ${EIGEN3_LIBRARIES}
   ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES} ${FFTW_DOUBLE_LIB})
 
 set(common_INCLUDE $<INSTALL_INTERFACE:include>

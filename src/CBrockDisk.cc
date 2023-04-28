@@ -5,6 +5,7 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <cmath>
 
 #include <Particle.H>
 #include <MixtureBasis.H>
@@ -34,6 +35,10 @@ CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   scale           = 1.0;
   Lmax            = 4;
   nmax            = 10;
+  NO_M0           = false;
+  NO_M1           = false;
+  EVEN_M          = false;
+  M0_only         = false;
 
   self_consistent = true;
   coef_dump       = true;
@@ -111,6 +116,12 @@ void CBrockDisk::initialize(void)
     if (conf["scale"])           scale  = conf["scale"].as<double>();
     if (conf["Lmax"])            Lmax   = conf["Lmax"].as<int>();
     if (conf["nmax"])            nmax   = conf["nmax"].as<int>();
+
+    if (conf["NO_M0"])   NO_M0   = conf["NO_M0"].  as<bool>();
+    if (conf["NO_M1"])   NO_M1   = conf["NO_M1"].  as<bool>();
+    if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"]. as<bool>();
+    if (conf["M0_ONLY"]) M0_only = conf["M0_ONLY"].as<bool>();
+
     if (conf["self_consistent"]) self_consistent = conf["self_consistent"].as<bool>();
     if (conf["playback"]) {
       std::string file = conf["playback"].as<std::string>();
@@ -357,8 +368,8 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
 	
       for (int l=1; l<=Lmax; l++) {
 
-	fac1 = cosm[id][l];
-	fac2 = sinm[id][l];
+	fac1 = cosm[id][l] * M_SQRT2;
+	fac2 = sinm[id][l] * M_SQRT2;
 	
 	for (int n=0; n<nmax; n++) {
 	  expcoef0[id](2*l - 1, n) +=  potd[id](l, n)*fac1*mass/normM(l, n);
@@ -440,23 +451,40 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
 
     sinecosine_R(Lmax, phi, cosm[id], sinm[id]);
     get_dpotl(Lmax, nmax, rs, potd[id], dpot[id]);
-    get_pot_coefs_safe(0, expcoef->row(0), p, dp, potd[id], dpot[id]);
 
-    double potl = p;
-    double potr = dp;
-    double pott = 0.0, potp = 0.0;
+    double potl = 0.0, potr = 0.0, pott = 0.0, potp = 0.0;
+
+    if (not NO_M0) {
+      get_pot_coefs_safe(0, expcoef->row(0), p, dp, potd[id], dpot[id]);
+
+      double potl = p;
+      double potr = dp;
+    }
+
+	// Asymmetric terms?
+	//
+	if (not M0_only) {
 
 				// l loop
     for (int l=1; l<=Lmax; l++) {
+
+	    // Skip m=1 terms?
+	    //
+	    if (NO_M1 && l==1) continue;
+
+	    // Skip odd m terms?
+	    //
+	    if (EVEN_M && (l/2)*2 != l) continue;
 
       double pc, dpc, ps, dps;
 
       get_pot_coefs_safe(l, expcoef->row(2*l - 1), pc, dpc, potd[id], dpot[id]);
       get_pot_coefs_safe(l, expcoef->row(2*l    ), ps, dps, potd[id], dpot[id]);
 
-      potl += pc*cosm[id][l]   + ps*sinm[id][l];
-      potr += dpc*cosm[id][l]  + dps*sinm[id][l];
-      potp += (-pc*sinm[id][l] + ps*cosm[id][l])*l;
+      potl += (pc *cosm[id][l]  + ps *sinm[id][l]) * M_SQRT2;
+      potr += (dpc*cosm[id][l]  + dps*sinm[id][l]) * M_SQRT2;
+      potp += (-pc*sinm[id][l]  + ps *cosm[id][l]) * M_SQRT2 * l;
+    }
     }
 
     double fac = xx*xx + yy*yy;
@@ -467,7 +495,6 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
 
     cC->AddAcc(j, 0, -potr*xx/r);
     cC->AddAcc(j, 1, -potr*yy/r);
-    cC->AddAcc(j, 2, -potr*zz/r);
     if (fac > DSMALL) {
       cC->AddAcc(j, 0,  potp*yy/fac);
       cC->AddAcc(j, 1, -potp*xx/fac);
@@ -480,6 +507,7 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
 
     it++;
   }
+
 
   return (NULL);
 }
@@ -566,13 +594,13 @@ void CBrockDisk::determine_fields_at_point_polar
 
     get_dens_coefs(l,expcoef->row(2*l - 1), pc);
     get_dens_coefs(l,expcoef->row(2*l    ), ps);
-    dens += pc*cosm[0][l] + ps*sinm[0][l];
+    dens += (pc*cosm[0][l] + ps*sinm[0][l]) * M_SQRT2;
     
     get_pot_coefs(l,expcoef->row(2*l - 1), pc, dpc);
     get_pot_coefs(l,expcoef->row(2*l    ), ps, dps);
-    potl += pc*cosm[0][l] + ps*sinm[0][l];
-    potr += dpc*cosm[0][l] + dps*sinm[0][l];
-    potp += (-pc*sinm[0][l] + ps*cosm[0][l])*l;
+    potl += (pc *cosm[0][l] + ps *sinm[0][l]) * M_SQRT2;
+    potr += (dpc*cosm[0][l] + dps*sinm[0][l]) * M_SQRT2;
+    potp += (-pc*sinm[0][l] + ps *cosm[0][l]) * M_SQRT2 * l;
   }
 
   *tdens0 /= scale*scale*scale;
@@ -866,7 +894,7 @@ void CBrockDisk::dump_coefs_h5(const std::string& file)
 
   // Check if file exists
   //
-  if (std::filesystem::exists(file + ".h5")) {
+  if (std::filesystem::exists(file)) {
     cylCoefs.clear();
     cylCoefs.add(cur);
     cylCoefs.ExtendH5Coefs(file);

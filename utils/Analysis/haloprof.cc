@@ -49,7 +49,7 @@ using namespace std;
 #include <ParticleReader.H>
 #include <interp.H>
 #include <massmodel.H>
-#include <SphereSL.H>
+#include <SphSL.H>
 #include <DataGrid.H>
 				// Library support
 #include <localmpi.H>
@@ -182,7 +182,7 @@ void add_particles(PR::PRptr reader, const std::string comp,
 
 enum class Slice {xy, xz, yz};
 
-void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo,
+void write_output(SphSL& ortho, int icnt, double time, Histogram& histo,
 		  Slice slice=Slice::xy)
 {
   unsigned ncnt = 0;
@@ -748,11 +748,11 @@ main(int argc, char **argv)
 
   auto halo = std::make_shared<SphericalModelTable>(MODFILE);
 
-  SphereSL::mpi  = true;
-  SphereSL::NUMR = 4000;
-  SphereSL::HEXP = Hexp;
+  SphSL::mpi  = true;
+  SphSL::NUMR = 4000;
+  SphSL::HEXP = Hexp;
 
-  SphereSL ortho(halo, LMAX, NMAX, 1, rscale, true, NPART);
+  SphSL ortho(halo, LMAX, NMAX, 1, rscale, true, NPART);
   
   std::string file;
 

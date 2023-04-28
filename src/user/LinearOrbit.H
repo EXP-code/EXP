@@ -1,7 +1,7 @@
 // This may look like C code, but it is really -*- C++ -*-
 
 #ifndef _LinearOrbit_H
-#define _LinearOrbit_h
+#define _LinearOrbit_H
 
 #include <string>
 

@@ -10,7 +10,9 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <thrust/host_vector.h>
+#if CUDART_VERSION < 12000
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
+#endif
 
 #include <cudaUtil.cuH>
 

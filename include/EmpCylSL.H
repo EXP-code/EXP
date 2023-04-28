@@ -4,13 +4,13 @@
 #include <functional>
 #include <vector>
 #include <memory>
+#include <limits>
 
 #include <Eigen/Eigen>
 
 #include <gaussQ.H>
 #include <interp.H>
 #include <math.h>
-#include <values.h>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -225,6 +225,12 @@ protected:
   //! The default cache file name
   const std::string default_cache = ".eof.cache.file";
 
+  //! Write HDF5 cache
+  void WriteH5Cache();
+
+  //! Read HDF5 cache
+  bool ReadH5Cache();
+
   //! The cache file name
   std::string cachefile;
 				// 1=write, 0=read
@@ -239,6 +245,8 @@ protected:
 
   //! Read the cache and return YAML db
   static YAML::Node getHeader(const std::string& cachefile);
+  static YAML::Node getHeader_hdf5(const std::string& cachefile);
+  static YAML::Node getHeader_binary(const std::string& cachefile);
 
   //! Data for each harmonic subspace
   class PCAelement

@@ -4,8 +4,6 @@
   MDWeinberg 01/20/16
 */
 
-using namespace std;
-
 #include <cstdlib>
 
 #include <algorithm>
@@ -17,6 +15,8 @@ using namespace std;
 #include <string>
 #include <list>
 #include <map>
+
+using namespace std;
 
 #include <Species.H>
 

@@ -387,7 +387,7 @@ main(int argc, char **argv)
   EmpCylSL::NUMY        = numy;
   EmpCylSL::CMAPR       = cmapr;
   EmpCylSL::CMAPZ       = cmapz;
-  EmpCylSL::logarithmic = logl;
+  EmpCylSL::logarithmic = LOG;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::PCAVAR      = true;
   EmpCylSL::PCADRY      = true;

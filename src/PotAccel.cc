@@ -82,6 +82,8 @@ void PotAccel::exp_thread_fork(bool coef)
     case ComponentContainer::EXTERNAL:
       comp->timer_thr_ext.start();
       break;
+    case ComponentContainer::NONE:
+      break;
     }
 
   }
@@ -136,6 +138,8 @@ void PotAccel::exp_thread_fork(bool coef)
       break;
     case ComponentContainer::EXTERNAL:
       comp->timer_thr_ext.stop();
+      break;
+    case ComponentContainer::NONE:
       break;
     }
 
@@ -225,15 +229,18 @@ void PotAccel::print_timings(const string& label)
 void PotAccel::thread_timing_beg(int id)
 {
   if (VERBOSE>5) {
-    
-    timer_list[2*id] = std::chrono::system_clock::to_time_t(std::chrono::high_resolution_clock::now());
+    auto const now = std::chrono::system_clock::now();
+    std::time_t newt = std::chrono::system_clock::to_time_t(now);
+    timer_list[2*id] = newt;
   }
 }
 
 void PotAccel::thread_timing_end(int id)
 {
   if (VERBOSE>5) {
-    timer_list[2*id+1] = std::chrono::system_clock::to_time_t(std::chrono::high_resolution_clock::now());
+    auto const now = std::chrono::system_clock::now();
+    std::time_t newt = std::chrono::system_clock::to_time_t(now);
+    timer_list[2*id+1] = newt;
   }
 }
 

@@ -89,7 +89,7 @@ main(int argc, char **argv)
      cxxopts::value<std::vector<std::string>>(INFILE))
     ("CURDIR", "Alternative directory",
      cxxopts::value<string>(CURDIR)->default_value(""))
-    ("COMP", "Compute wake for this component name",
+    ("COMP", "Compute monopole model for this component name",
      cxxopts::value<std::string>(COMP)->default_value("stars"))
     ("ORIENTFILE", "EXP generated orient file for center selection (ignored if null)",
      cxxopts::value<std::vector<std::string>>(ORIENTFILE))

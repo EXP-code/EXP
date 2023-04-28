@@ -256,7 +256,7 @@ main(int argc, char **argv)
   EmpCylSL::NUMY        = numy;
   EmpCylSL::CMAPR       = cmapr;
   EmpCylSL::CMAPZ       = cmapz;
-  EmpCylSL::logarithmic = logl;
+  EmpCylSL::logarithmic = true;
   EmpCylSL::DENS        = DENS;
 
 				// Create expansion
