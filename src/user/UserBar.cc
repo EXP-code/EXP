@@ -146,7 +146,7 @@ void UserBar::initialize()
     if (conf["length"])   length    = conf["length"].as<double>();
     if (conf["bratio"])   bratio    = conf["bratio"].as<double>();
     if (conf["cratio"])   cratio    = conf["cratio"].as<double>();
-    if (conf["amp"])      amplitude = conf["amplitude"].as<double>();
+    if (conf["amp"])      amplitude = conf["amp"].as<double>();
     if (conf["Ton"])      Ton       = conf["Ton"].as<double>();
     if (conf["Toff"])     Toff      = conf["Toff"].as<double>();
     if (conf["DeltaT"])   DeltaT    = conf["DeltaT"].as<double>();
@@ -225,7 +225,7 @@ void UserBar::determine_acceleration_and_potential(void)
 
     double u, d, t, denom, ans1=0.0, ans2=0.0;
     double mass = fabs(amplitude);
-    for (int i=1; i<=N; i++) {
+    for (int i=0; i<N; i++) {
       t = 0.5*M_PI*gq.knot(i);
       u = tan(t);
       d = cos(t);
