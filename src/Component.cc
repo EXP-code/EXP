@@ -15,6 +15,7 @@
 #include <Sphere.H>
 #include <EJcom.H>
 #include <Cylinder.H>
+#include <FlatDisk.H>
 #include <Cube.H>
 #include <Slab.H>
 #include <SlabSL.H>
@@ -927,6 +928,9 @@ void Component::configure(void)
   else if ( !id.compare("cylinder") ) {
     force = new Cylinder(this, fconf);
   }
+  else if ( !id.compare("flatdisk") ) {
+    force = new FlatDisk(this, fconf);
+  }
   else if ( !id.compare("direct") ) {
     force = new Direct(this, fconf);
   }
@@ -1231,7 +1235,6 @@ void Component::initialize(void)
 		<< " and last step criteria is "
 		<< std::boolalpha << DTreset()
 		<< std::endl;
-    std::cout << std::endl;
   }
   
 }
@@ -1680,7 +1683,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
       
     int icount = 0;
     PartPtr part;
-    while (part=pf->RecvParticle()) {
+    while ((part=pf->RecvParticle())) {
       particles[part->indx] = part;
       icount++;
     }
@@ -2028,7 +2031,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
       
     int icount = 0;
     PartPtr part;
-    while (part=pf->RecvParticle()) {
+    while ((part=pf->RecvParticle())) {
       particles[part->indx] = part;
       icount++;
     }
@@ -3852,7 +3855,7 @@ void Component::redistributeByList(vector<int>& redist)
 	    }
 	  }
 	  if (myid==lastnode) {
-	    while (part=pf->RecvParticle())
+	    while ((part=pf->RecvParticle()))
 	      particles[part->indx] = part;
 	  }
 	  tlist.clear();

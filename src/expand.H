@@ -57,7 +57,6 @@
 
 #include <mpi.h>
 
-#include <values.h>
 #include <pthread.h>
 
 #include <stdexcept>
@@ -70,6 +69,7 @@
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <limits>
 
 #include <Eigen/Eigen>
 

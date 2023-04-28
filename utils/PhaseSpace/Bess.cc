@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include <Bess.H>
+#include <EXPmath.H>
 
 /**
    Brent's algorithm root finder
@@ -157,7 +158,7 @@ std::vector<double> Bess::zeros(double Nu, int Nz, double tol)
 
   std::vector<double> refine(Nz);
 
-  std::function<double(double)> B = [Nu](double x){return std::cyl_bessel_j(Nu, x);};
+  std::function<double(double)> B = [Nu](double x){return EXPmath::cyl_bessel_j(Nu, x);};
 
   for (int k=0; k<Nz; k++) {
     try {

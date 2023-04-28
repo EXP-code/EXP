@@ -2,9 +2,9 @@
 set(CUDA_SRC)
 if (ENABLE_CUDA)
   list(APPEND CUDA_SRC 
-    cudaSphericalBasis.cu cudaCylinder.cu cudaEmpCylSL.cu
-    cudaComponent.cu NVTX.cc cudaHOT.cu cudaIncpos.cu cudaIncvel.cu
-    cudaMultistep.cu cudaOrient.cu)
+    cudaPolarBasis.cu cudaSphericalBasis.cu cudaCylinder.cu 
+    cudaEmpCylSL.cu cudaComponent.cu NVTX.cc cudaHOT.cu cudaIncpos.cu 
+    cudaIncvel.cu cudaMultistep.cu cudaOrient.cu cudaBiorthCyl.cu)
 endif()
 
 set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
@@ -20,7 +20,7 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   multistep.cc parse.cc Slab.cc SlabSL.cc step.cc tidalField.cc
   ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
   ParticleFerry.cc pCell.cc chkSlurm.c chkTimer.cc pHOT.cc
-  GravKernel.cc ${CUDA_SRC} CenterFile.cc)
+  GravKernel.cc ${CUDA_SRC} CenterFile.cc PolarBasis.cc FlatDisk.cc)
 
 set(common_INCLUDE_DIRS 
   $<INSTALL_INTERFACE:include>
@@ -54,10 +54,10 @@ if(ENABLE_XDR AND TIRPC_FOUND)
   list(APPEND common_LINKLIB ${TIRPC_LIBRARY})
 endif()
 
-add_library(EXP ${exp_SOURCES})
-set_target_properties(EXP PROPERTIES OUTPUT_NAME EXP)
-target_include_directories(EXP PUBLIC ${common_INCLUDE_DIRS})
-target_link_libraries(EXP PUBLIC ${common_LINKLIB})
+add_library(EXPlib ${exp_SOURCES})
+set_target_properties(EXPlib PROPERTIES OUTPUT_NAME EXPlib)
+target_include_directories(EXPlib PUBLIC ${common_INCLUDE_DIRS})
+target_link_libraries(EXPlib PUBLIC ${common_LINKLIB})
 
 if (ENABLE_USER OR ENABLE_USER_ALL)
   add_subdirectory(user)
@@ -65,7 +65,7 @@ endif()
 
 add_executable(exp expand.cc)
 target_include_directories(exp PUBLIC ${common_INCLUDE_DIRS})
-target_link_libraries(exp PUBLIC ${common_LINKLIB} EXP)
+target_link_libraries(exp PUBLIC ${common_LINKLIB} EXPlib)
 
-install(TARGETS EXP DESTINATION lib)
+install(TARGETS EXPlib DESTINATION lib)
 install(TARGETS exp DESTINATION bin)

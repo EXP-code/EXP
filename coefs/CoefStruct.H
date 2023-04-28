@@ -33,6 +33,9 @@ namespace CoefClasses
     //! Center data
     std::vector<double> ctr;
 
+    //! Destructor
+    virtual ~CoefStruct() {}
+
     //! Read data from a stream
     virtual bool read(std::istream& in, bool exp_type,
 		      bool verbose=false) = 0;

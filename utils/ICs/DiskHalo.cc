@@ -3,8 +3,6 @@
 
 #undef ENFORCE_KAPPA		// Clamp kappa^2
 
-				// System
-#include <values.h>
 				// C++/STL
 #include <iostream>
 #include <fstream>
@@ -12,6 +10,7 @@
 #include <algorithm>
 #include <memory>
 #include <vector>
+#include <limits>
 				// EXP classes
 #include <interp.H>
 #include <numerical.H>
@@ -43,8 +42,8 @@ double DiskHalo::RA          = 1.0e20;
 int    DiskHalo::NUMDF       = 800;
 int    DiskHalo::RNUM        = 4000;
 
-double DiskHalo::R_DF        = 20.0;
-double DiskHalo::DR_DF       = 5.0;
+double DiskHalo::R_DF        = -std::numeric_limits<double>::max();
+double DiskHalo::DR_DF       = 1.0;
 
 bool   DiskHalo::LOGR        = true;
 
@@ -452,11 +451,10 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE,   MPI_MIN, 0, MPI_COMM_WORLD);
   MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE,   MPI_MAX, 0, MPI_COMM_WORLD);
 
-  if (myid==0)
-    std::cout << "     *****"
-	      << "  min(r)=" << radmin 
-	      << "  max(r)=" << radmax
-	      << std::endl;
+  if (myid==0) std::cout << "     *****"
+			 << "  min(r)=" << radmin 
+			 << "  max(r)=" << radmax
+			 << std::endl;
   
   if (myid==0 && count)
     std::cout << "DiskHalo::set_halo: " 
@@ -653,8 +651,10 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
   MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   
-  if (myid==0) std::cout << "  min(r)=" << radmin 
-			 << "  max(r)=" << radmax;
+  if (myid==0) std::cout << "     *****"
+			 << "  min(r)=" << radmin 
+			 << "  max(r)=" << radmax
+			 << std::endl;
 
   MPI_Allreduce(&massp1, &massp, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(pos1, pos, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -729,8 +729,10 @@ set_halo_table_single(vector<Particle>& phalo)
   MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
   MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   
-  if (myid==0) std::cout << "  min(r)=" << radmin 
-			 << "  max(r)=" << radmax;
+  if (myid==0) std::cout << "     *****"
+			 << "  min(r)=" << radmin 
+			 << "  max(r)=" << radmax
+			 << std::endl;
 
   MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
@@ -2935,7 +2937,7 @@ void DiskHalo::virial_ratio(const char *hfile, const char *dfile)
     for (int i=ibeg; i<iend; i++) {
 
       in[c].getline(linebuffer, linesize);
-      if (!in) break;
+      if (!in[c]) break;
     
       istringstream ins(linebuffer);
     

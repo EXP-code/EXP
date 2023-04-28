@@ -53,7 +53,7 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   mykey   = 1u;
   level   = 0;
   maxplev = 0;
-  time    = -DBL_MAX;		// -Infinity
+  time    = -std::numeric_limits<double>::max(); // -Infinity
 
 				// My body mask
   mask    = mykey << 3*(nbits - level);
@@ -74,12 +74,8 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   // Root is born on the frontier and is the only one to start
   tree->frontier[mykey] = this;	
 
-  // DEBUG
-  if (this==0) {
-    cout << "pCell::pCell: I am null [root]" << endl;
-  }
-  //
 }
+
 
 pCell::pCell(pCell* mom, unsigned id) :
   tree(mom->tree), C(mom->C), parent(mom), isLeaf(true)
@@ -116,11 +112,7 @@ pCell::pCell(pCell* mom, unsigned id) :
   iattrib = mom->iattrib;
 
   tree->frontier[mykey] = this;	// All nodes born on the frontier
-  // DEBUG
-  if (this==0) {
-    cout << "pCell::pCell: I am null [branch/node]" << endl;
-  }
-  //
+
 }
 
 pCell::~pCell()

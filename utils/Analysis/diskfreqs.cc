@@ -45,7 +45,7 @@
 #include <numerical.H>
 #include <interp.H>
 #include <EmpCylSL.H>
-#include <SphereSL.H>
+#include <SphSL.H>
 
 				// Local coefficient classes
 #include "Coefs.H"
@@ -307,9 +307,9 @@ main(int argc, char **argv)
   // ==================================================
 
   auto halo = std::make_shared<SphericalModelTable>(MODEL);
-  SphereSL::NUMR = 4000;
+  SphSL::NUMR = 4000;
   int LMAX = 1, NMAX = coefsH.begin()->second->coefs.cols();
-  SphereSL ortho_halo(halo, LMAX, NMAX);
+  SphSL ortho_halo(halo, LMAX, NMAX);
 
     
   // Begin grid creation

@@ -4,8 +4,6 @@
   MDWeinberg 07/24/19
 */
 
-using namespace std;
-
 #include <unistd.h>
 #include <stdlib.h>
 
@@ -16,6 +14,8 @@ using namespace std;
 #include <vector>
 #include <string>
 #include <list>
+
+using namespace std;
 
 #include <yaml-cpp/yaml.h>	// YAML library support
 

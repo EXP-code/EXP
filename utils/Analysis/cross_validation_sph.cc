@@ -51,7 +51,7 @@
 #include <ParticleReader.H>
 #include <interp.H>
 #include <massmodel.H>
-#include <SphereSL.H>
+#include <SphSL.H>
 #include <foarray.H>
 
 #include <localmpi.H>
@@ -200,11 +200,11 @@ main(int argc, char **argv)
 
   auto halo = std::make_shared<SphericalModelTable>(modelf);
 
-  SphereSL::mpi  = true;
-  SphereSL::NUMR = 4000;
-  SphereSL::HEXP = Hexp;
+  SphSL::mpi  = true;
+  SphSL::NUMR = 4000;
+  SphSL::HEXP = Hexp;
 
-  SphereSL ortho(halo, LMAX, NMAX, 1, rscale, true, NPART);
+  SphSL ortho(halo, LMAX, NMAX, 1, rscale, true, NPART);
 
   auto sl = ortho.basis();
 

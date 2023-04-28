@@ -28,7 +28,7 @@
 #include <numerical.H>
 #include <gaussQ.H>
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 #include <model3d.H>
 #include <biorth.H>
 #include <SphericalSL.H>
@@ -38,6 +38,7 @@
 #include <DiskEval.H>
 #include <norminv.H>
 #include <cxxopts.H>
+#include <EXPmath.H>
 #include <EXPini.H>
 
 #define M_SQRT1_3 (0.5773502691896257645091487)
@@ -78,7 +79,7 @@ void set_fpu_invalid_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -113,7 +114,7 @@ void set_fpu_trace_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -148,7 +149,7 @@ void set_fpu_gdb_handler(void)
 	{FE_INVALID,   "invalid"},
 	{FE_OVERFLOW,  "overflow"},
 	{FE_UNDERFLOW, "underflow"} };
-    
+
     int _flags = fegetexcept();
     std::cout << "Enabled FE flags: <";
     for (auto v : flags) {
@@ -196,21 +197,21 @@ double DiskDens(double R, double z, double phi)
   static bool firsttime = true;
 
   switch (dtype) {
-      
+
 
   case DiskType::constant:
     if (firsttime) std::cout << "Dens = constant" << std::endl;
     if (R < AA && fabs(z) < HH)
       ans = 1.0/(2.0*HH*M_PI*AA*AA);
     break;
-  
+
   case DiskType::gaussian:
     if (firsttime) std::cout << "Dens = gaussian" << std::endl;
     if (fabs(z) < HH)
       ans = 1.0/(2.0*HH*2.0*M_PI*AA*AA)*
 	exp(-R*R/(2.0*AA*AA));
     break;
-    
+
   case DiskType::mn:
     if (firsttime) std::cout << "Dens = mn" << std::endl;
     {
@@ -251,7 +252,7 @@ double dcond(double R, double z, double phi, int M)
     phiS = phi + dmult*(int)((2.0*M_PI - phi)/dmult);
   else
     phiS = phi - dmult*(int)(phi/dmult);
-  
+
   //
   // Apply a shift along the x-axis
   //
@@ -278,13 +279,13 @@ double drdx(double x, double a)
   return a*pow(1.0 - x*x, -1.5);
 }
 
-int 
+int
 main(int ac, char **av)
 {
   //====================
   // Inialize MPI stuff
   //====================
-  
+
   local_init_mpi(ac, av);
 
   //====================
@@ -338,7 +339,7 @@ main(int ac, char **av)
   string       disktype;
   string       dmodel;
   string       mtype;
-  
+
   cxxopts::Options options("testcoefs", "Check orthgonality for cylindrical basis");
 
   options.add_options()
@@ -359,7 +360,7 @@ main(int ac, char **av)
     ("NUMY", "Size of the (mapped) cylindrical vertical grid",
      cxxopts::value<int>(NUMY)->default_value("128"))
     ("NOUT", "Maximum radial order for diagnostic basis dump",
-     cxxopts::value<int>(NOUT)->default_value("18")) 
+     cxxopts::value<int>(NOUT)->default_value("18"))
     ("NINT", "Number of Gauss-Legendre knots",
      cxxopts::value<int>(NINT)->default_value("100"))
     ("NUMR", "Size of radial grid for Spherical SL",
@@ -423,7 +424,7 @@ main(int ac, char **av)
     ("mtype", "Desired deprojection sphericla models (Exponential, Gaussian, Plummer)",
      cxxopts::value<std::string>(mtype)->default_value("Exponential"))
      ;
-  
+
   // Parse command line for control and critical parameters
   //
   cxxopts::ParseResult vm;
@@ -538,12 +539,12 @@ main(int ac, char **av)
   // Okay, now begin ...
   //====================
 
-#ifdef DEBUG                    // For gdb . . . 
+#ifdef DEBUG                    // For gdb . . .
   sleep(20);
   // set_fpu_handler();         // Make gdb trap FPU exceptions
   set_fpu_gdb_handler();	// Make gdb trap FPU exceptions
 #endif
-  
+
   //===========================Cylindrical expansion===========================
 
 
@@ -553,7 +554,7 @@ main(int ac, char **av)
 
     std::ifstream in(cachefile);
     if (!in) {
-      std::cerr << "Error opening cachefile named <" 
+      std::cerr << "Error opening cachefile named <"
 		<< cachefile << "> . . ."
 		<< std::endl
 		<< "I will build <" << cachefile
@@ -584,7 +585,7 @@ main(int ac, char **av)
 	buf[ssize] = 0;		// Null terminate
 
 	YAML::Node node;
-      
+
 	try {
 	  node = YAML::Load(buf.get());
 	}
@@ -595,7 +596,7 @@ main(int ac, char **av)
 		      << "YAML error: " << error.what() << std::endl;
 	  throw error;
 	}
-	
+
 	// Get parameters
 	//
 	MMAX   = node["mmax"  ].as<int>();
@@ -613,7 +614,7 @@ main(int ac, char **av)
 	  CMAPR  = node["cmap"  ].as<int>();
 	else
 	  CMAPR  = node["cmapr" ].as<int>();
-	
+
 	if (node["cmapz"])	// Backwards compatibility
 	  CMAPZ  = node["cmapz" ].as<int>();
 
@@ -625,18 +626,18 @@ main(int ac, char **av)
 	in.seekg(0);
 
       int tmp;
-      
+
       in.read((char *)&MMAX,    sizeof(int));
       in.read((char *)&NUMX,    sizeof(int));
       in.read((char *)&NUMY,    sizeof(int));
       in.read((char *)&NMAX,    sizeof(int));
       in.read((char *)&NORDER,  sizeof(int));
-      
-      in.read((char *)&tmp,     sizeof(int)); 
+
+      in.read((char *)&tmp,     sizeof(int));
       if (tmp) DENS = true;
       else     DENS = false;
-      
-      in.read((char *)&CMTYPE,  sizeof(int)); 
+
+      in.read((char *)&CMTYPE,  sizeof(int));
       in.read((char *)&RCYLMIN, sizeof(double));
       in.read((char *)&RCYLMAX, sizeof(double));
       in.read((char *)&ASCALE,  sizeof(double));
@@ -644,7 +645,7 @@ main(int ac, char **av)
       }
     }
   }
-    
+
   // Limit value of NOUT
   //
   NOUT = std::min<int>(NOUT, NORDER);
@@ -699,19 +700,19 @@ main(int ac, char **av)
       // height relative to the length
       //
       double H = scale_height/scale_length;
-      
+
       // The model instance (you can add others in DiskModels.H
       //
       EmpCylSL::AxiDiskPtr model;
-      
+
       if (dmodel.compare("MN")==0) // Miyamoto-Nagai
 	model = std::make_shared<MNdisk>(1.0, H);
       else			// Default to exponential
 	model = std::make_shared<Exponential>(1.0, H);
-      
+
       expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
     }
-    
+
     // Regenerate EOF from analytic density
     //
     if (expcond and not save_eof) {
@@ -719,7 +720,7 @@ main(int ac, char **av)
       save_eof = true;
     }
   }
-  
+
   //===========================================================================
   // Compute coefficients
   //===========================================================================
@@ -750,7 +751,7 @@ main(int ac, char **av)
   double totM = 0.0;
 
   if (LOGR2) {
-    
+
     double Rmin = log(RCYLMIN*AA);
     double Rmax = log(RCYLMAX*AA);
     double Zmin = log(RCYLMIN*HH);
@@ -764,10 +765,10 @@ main(int ac, char **av)
       double facX = lq.weight(i) * 2.0*M_PI * R * R * (Rmax - Rmin);
 
       for (int j=0; j<NINT; j++) { // Vertical
-	
+
 	double y = Zmin + (Zmax - Zmin) * lq.knot(j);
 	double z = exp(y);
-	
+
 	double fac = facX * lq.weight(j) * z * (Zmax - Zmin);
 	double den = DiskDens(R, z, 0.0);
 	totM += 2.0 * fac * den;
@@ -778,7 +779,7 @@ main(int ac, char **av)
 	  double p, p2, d, d2, fr, fz, fp;
 	  expandd->get_all(0, n, R, z, 0.0, p, d, fr, fz, fp);
 	  coefs[n] += fac * p * den * 4.0*M_PI;
-	  
+
 	  if (orthotst) {
 	    for (int n2=n; n2<NOUT; n2++) {
 	      if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
@@ -787,7 +788,7 @@ main(int ac, char **av)
 	    }
 	  }
 	}
-	
+
 	for (int n=0; n<NOUT; n++) {
 	  double p, p2, d, d2, fr, fz, fp;
 	  expandd->get_all(0, n, R, -z, 0.0, p, d, fr, fz, fp);
@@ -814,10 +815,10 @@ main(int ac, char **av)
       double facX = lq.weight(i) * 2.0 * M_PI * R * drdx(x, AA) * (xmax - xmin);
 
       for (int j=0; j<NINT; j++) { // Vertical
-	
+
 	double y = ymax*(2.0*lq.knot(j) - 1.0);
 	double z = x_to_r(y, HH);
-	
+
 	double fac = facX * lq.weight(j) * drdx(y, HH) * 2.0*ymax;
 
 	double den = DiskDens(R, z, 0.0);
@@ -875,7 +876,7 @@ main(int ac, char **av)
   double z    = 0.0;
   double phi  = 0.0;
   double mass = 1.0;
-  
+
   std::ofstream fout("testcoefs.compare");
 
   int nmin = std::min<int>(NOUT, 5);
@@ -891,18 +892,18 @@ main(int ac, char **av)
     // Get density for n=0, 1, ... , nmin
     {
       double p1, fr1, fz1, fp1;	// Dummy variables
-      for (int nn=0; nn<nmin; nn++) 
+      for (int nn=0; nn<nmin; nn++)
 	expandd->get_all(0, nn, r, z, 0.0, p1, dd[nn], fr1, fz1, fp1);
     }
 
-    
+
     double D, P, FR;
 
     if (dmodel.compare("MN")==0) { // Miyamoto-Nagai
       double zb = sqrt( z*z + HH*HH );
       double ab = AA + zb;
       double dn = sqrt( r*r + ab*ab );
-      
+
       P  = -mass/dn;
       // double FZ = -mass*z*ab/(zb*dn*dn*dn);
       FR = -mass*r/(dn*dn*dn);
@@ -910,10 +911,10 @@ main(int ac, char **av)
 
     } else {			// Default to exponential
       double y = r/(2.0*AA);
-      double i0 = std::cyl_bessel_i(0, y);
-      double k0 = std::cyl_bessel_k(0, y);
-      double i1 = std::cyl_bessel_i(1, y);
-      double k1 = std::cyl_bessel_k(1, y);
+      double i0 = EXPmath::cyl_bessel_i(0, y);
+      double k0 = EXPmath::cyl_bessel_k(0, y);
+      double i1 = EXPmath::cyl_bessel_i(1, y);
+      double k1 = EXPmath::cyl_bessel_k(1, y);
       P  = -0.5*mass*r/(AA*AA) * (i0*k1 - i1*k0);
       FR = -y/(AA*AA)*(i0*k0 - i1*k1);
 
@@ -945,4 +946,3 @@ main(int ac, char **av)
 
   return 0;
 }
-

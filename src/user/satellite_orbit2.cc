@@ -28,8 +28,6 @@
  *
  ***************************************************************************/
 
-static char rcsid_satellite_orbit[] = "$Id$";
-
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
@@ -46,7 +44,7 @@ static char rcsid_satellite_orbit[] = "$Id$";
 #include <model2d.H>
 #include <model3d.H>
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 
 
 void parse_args(void);

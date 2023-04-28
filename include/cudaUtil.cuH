@@ -16,7 +16,9 @@
 #include <thrust/system_error.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
+#if CUDART_VERSION < 12000
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
+#endif
 
 //! Wrapper function for a cuda call that processes error
 inline void

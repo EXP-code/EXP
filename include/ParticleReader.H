@@ -54,6 +54,9 @@ namespace PR
       }
     }
     
+    //! Destructor
+    virtual ~ParticleReader() {}
+
     //! Select a particular particle type and reset the iterator
     virtual void SelectType(const std::string& type) = 0;
     

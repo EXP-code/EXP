@@ -45,6 +45,8 @@ UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
 
   initialize();
 
+  cuda_aware = true;		// Cuda routine is implemented
+
   if (pinning) {		// Look for the fiducial component
     bool found = false;
     for (auto c : comp->components) {

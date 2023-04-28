@@ -46,7 +46,7 @@
 #include <ParticleReader.H>
 #include <interp.H>
 #include <massmodel.H>
-#include <SphereSL.H>
+#include <SphSL.H>
 
 #include <localmpi.H>
 #include <foarray.H>

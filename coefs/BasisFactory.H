@@ -10,6 +10,7 @@
 #include <Coefficients.H>
 #include <SLGridMP2.H>
 #include <YamlCheck.H>
+#include <BiorthCyl.H>
 #include <EmpCylSL.H>
 #include <localmpi.H>
 
@@ -20,7 +21,7 @@ namespace Field
 
 namespace BasisClasses
 {
-    using RowMatrixXd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+  using RowMatrixXd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
     //! Callback function signature for selection particles to
     //! accumulate
@@ -57,14 +58,14 @@ namespace BasisClasses
     //! Return instance for coefficients created from arrays
     CoefClasses::CoefStrPtr coefret;
 
-    //! Center vector for coefficients created from arrays
-    std::vector<double> coefctr;
-
     //! Current particle index
     unsigned long coefindx;
     
   protected:
     
+    //! The expansion center
+    std::vector<double> coefctr;
+
     //! Contains contructor and BFE parameter database
     YAML::Node node, conf;
     
@@ -85,7 +86,7 @@ namespace BasisClasses
     //! Total mass on grid
     double totalMass;
     
-    //! Evaluate fields in spherical coordinates
+    //! Evaluate fields in spherical coordinates in centered coordinate system
     virtual void all_eval(double r, double costh, double phi,
 			  double& den0, double& den1,
 			  double& pot0, double& pot1,
@@ -182,6 +183,11 @@ namespace BasisClasses
   class SphericalSL : public Basis
   {
     
+  public:
+
+    using BasisMap   = std::map<std::string, Eigen::VectorXd>;
+    using BasisArray = std::vector<std::vector<BasisMap>>;
+
   private:
     
     //! Helper for constructor
@@ -277,15 +283,135 @@ namespace BasisClasses
     //! Return current maximum order in radial expansion
     int getNmax() { return nmax; }
 
-    //! Return a vector of a vector of 1d basis-function grids for
-    //! SphericalSL, logarithmically spaced between [logxmin, logxmax]
-    //! (base 10).
-    std::vector<std::vector<Eigen::VectorXd>> getBasis
+    //! Return potential-density pair of a vector of a vector of 1d
+    //! basis-function grids for SphericalSL, logarithmically spaced
+    //! between [logxmin, logxmax] (base 10).
+    BasisArray getBasis
     (double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
 
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
     std::vector<Eigen::MatrixXd> orthoCheck(int knots=40);
+
+  };
+  
+  /**
+     Uses the BiorthCyl basis to evaluate expansion coeffients and
+     provide potential and density basis fields
+  */
+  class FlatDisk : public Basis
+  {
+
+  public:
+
+    using BasisMap   = std::map<std::string, Eigen::VectorXd>;
+    using BasisArray = std::vector<std::vector<BasisMap>>;
+
+  private:
+    
+    //! Helper for constructor
+    void initialize();
+
+    std::shared_ptr<BiorthCyl> ortho;
+    
+    std::string model_file;
+    int mmax, nmax, cmap, numr;
+    double rcylmin, rcylmax;
+    
+    bool NO_M0, NO_M1, EVEN_M, M0_only;
+    
+    Eigen::MatrixXd potd, potR, potZ, dend;
+    
+    Eigen::MatrixXd expcoef;
+    int N1, N2;
+    int used;
+    
+    using matT = std::vector<Eigen::MatrixXd>;
+    using vecT = std::vector<Eigen::VectorXd>;
+    
+    double totalMass;
+    int npart;
+    
+    Eigen::VectorXd work;
+    
+    //! For coefficient writing
+    typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
+    EigenColMajor;
+    
+  protected:
+
+    //! Evaluate basis in cylindrical coordinates
+    void all_eval_cyl
+    (double R, double z, double phi, 
+     double& den0, double& den1,
+     double& pot0, double& pot1,
+     double& potR, double& potz, double& potp);
+      
+    //! Evaluate basis in spherical coordinates.  Conversion from the
+    //! cylindrical evaluation above.
+    virtual void all_eval(double r, double costh, double phi,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potr, double& pott, double& potp);
+    
+    //! Load coefficients into the new CoefStruct
+    virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
+
+    //! Set coefficients
+    virtual void set_coefs(CoefClasses::CoefStrPtr coefs);
+
+    //! Valid keys for YAML configurations
+    static const std::set<std::string> valid_keys;
+
+  public:
+    
+    //! Constructor from YAML node
+    FlatDisk(const YAML::Node& conf);
+    
+    //! Constructor from YAML string
+    FlatDisk(const std::string& confstr);
+    
+    //! Destructor
+    virtual ~FlatDisk(void) {}
+    
+    //! Print and return the cache parameters
+    static std::map<std::string, std::string>
+    cacheInfo(const std::string& cachefile)
+    {
+      return BiorthCyl::cacheInfo(cachefile);
+    }
+
+    //! Zero out coefficients to prepare for a new expansion
+    void reset_coefs(void);
+    
+    //! Make coefficients after accumulation
+    void make_coefs(void);
+    
+    //! Accumulate new coefficients
+    virtual void accumulate(double x, double y, double z, double mass);
+    
+    //! Get potential, density and forces at a point
+    virtual void getFields
+    (double x, double y, double z,
+     double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
+     double& tpotx, double& tpoty, double& tpotz);
+    
+    
+    //! Return current maximum harmonic order in expansion
+    int getMmax() { return mmax; }
+    
+    //! Return current maximum order in radial expansion
+    int getNmax() { return nmax; }
+
+    //! Return a vector of a vector of 1d basis-function grids for
+    //! FlatDisk, logarithmically spaced between [logxmin, logxmax]
+    //! (base 10).
+    BasisArray getBasis
+    (double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
+
+    //! Compute the orthogonality of the basis by returning inner
+    //! produce matrices
+    std::vector<Eigen::MatrixXd> orthoCheck();
 
   };
   
@@ -296,14 +422,19 @@ namespace BasisClasses
   class Cylindrical : public Basis
   {
     
+  public:
+
+    using BasisMap   = std::map<std::string, Eigen::MatrixXd>;
+    using BasisArray = std::vector<std::vector<BasisMap>>;
+
   private:
     
     //! Help for constructor
     void initialize();
 
     std::shared_ptr<EmpCylSL> sl;
-    int lmax, mmax, nmax, mlim;
-    int ncylorder, ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
+    int lmaxfid, nmaxfid, mmax, mlim, nmax;
+    int ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
     int rnum, pnum, tnum;
     double rmin, rmax, rcylmin, rcylmax;
     double acyl, hcyl, hexp;
@@ -407,7 +538,7 @@ namespace BasisClasses
 
     //! Return a vector of vector of basis functions for Cylindrical,
     //! linearly spaced between [xmin, xmax] and [zmin, zmax]
-    std::vector<std::vector<Eigen::MatrixXd>> getBasis
+    BasisArray getBasis
     (double xmin=0.0, double xmax=1.0, int numr=40,
      double zmin=-0.1, double zmax=0.1, int numz=40);
 
@@ -439,7 +570,11 @@ namespace BasisClasses
 
   public:
     
+    //! Constructor
     AccelFunc() {}
+
+    //! Destructor
+    virtual ~AccelFunc() {}
 
     //! This evaluates the coefficients at time t.  This is the member
     //! that is implemented in derived classes.  It is more naturally

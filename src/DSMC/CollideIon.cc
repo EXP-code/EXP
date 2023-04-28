@@ -14666,7 +14666,7 @@ void CollideIon::parseSpecies()
   // Record algorithm type in stdout log file
   if (myid==0) {
     std::cout << printDivider << std::endl
-	      << "--- CollideIon: collision algorithm type is <"
+	      << "---- CollideIon: collision algorithm type is <"
 	      << AlgorithmLabels[aType] << ">" << std::endl
 	      << printDivider << std::endl;
   }

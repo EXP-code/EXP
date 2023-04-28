@@ -91,6 +91,9 @@ namespace CoefClasses
       deltaT   = p.deltaT;
     }
     
+    //! Destructor
+    virtual ~Coefs() {}
+
     //! Get coefficient matrix at given time
     virtual Eigen::MatrixXcd& operator()(double time) = 0;
     

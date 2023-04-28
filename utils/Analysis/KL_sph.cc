@@ -53,7 +53,7 @@
 #include <ParticleReader.H>
 #include <interp.H>
 #include <massmodel.H>
-#include <SphereSL.H>
+#include <SphSL.H>
 #include <KDtree.H>
 #include <foarray.H>
 #include <cxxopts.H>		// Command-line parsing
@@ -259,15 +259,15 @@ main(int argc, char **argv)
 
   auto halo = std::make_shared<SphericalModelTable>(modelf);
 
-  SphereSL::mpi  = true;
-  SphereSL::NUMR = 4000;
-  SphereSL::HEXP = Hexp;
+  SphSL::mpi  = true;
+  SphSL::NUMR = 4000;
+  SphSL::HEXP = Hexp;
 
   int nbod = reader->CurrentNumber();
   int nprt = std::floor(sqrt(nbod));
 
-  SphereSL ortho0(halo, LMAX, NMAX, 1, rscale, true, nprt);
-  SphereSL ortho1(halo, LMAX, NMAX, 1, rscale);
+  SphSL ortho0(halo, LMAX, NMAX, 1, rscale, true, nprt);
+  SphSL ortho1(halo, LMAX, NMAX, 1, rscale);
 
   if (myid==0) std::cout << std::endl
 			 << "Accumulating particle positions . . . "

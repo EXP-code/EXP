@@ -4,8 +4,6 @@
   MDWeinberg 11/24/19, 07/01/22
 */
 
-using namespace std;
-
 #include <functional>
 #include <iostream>
 #include <fstream>
@@ -15,6 +13,7 @@ using namespace std;
 #include <vector>
 #include <random>
 #include <string>
+#include <array>
 #include <list>
 #include <map>
 
@@ -22,6 +21,8 @@ using namespace std;
 #include <libvars.H>		// EXP library globals
 #include <header.H>		// PSP headers
 #include <ParticleReader.H>	// Read snaps
+
+using namespace std;
 
 int
 main(int ac, char **av)
@@ -179,9 +180,9 @@ main(int ac, char **av)
     if (use_ctr) {
       std::map<double, std::array<double, 7>> posn;
       for (auto part=snap->firstParticle(); part!=0; part=snap->nextParticle()) {
-	posn[part->pot] = {{part->pos[0], part->pos[1], part->pos[2],
+	posn[part->pot] = {part->pos[0], part->pos[1], part->pos[2],
 	  part->vel[0], part->vel[1], part->vel[2],
-	  part->mass}};
+	  part->mass};
       }
 	  
       double total = 0.0;

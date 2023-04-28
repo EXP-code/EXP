@@ -46,7 +46,7 @@
 #include <model2d.H>
 #include <model3d.H>
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 #include <mestel.H>
 #include <toomre.H>
 #include <exponential.H>

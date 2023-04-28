@@ -137,8 +137,8 @@ void initialize(void)
     if (_G["barrier_check"])   barrier_check = _G["barrier_check"].as<bool>();
     if (_G["barrier_debug"])   barrier_debug = _G["barrier_debug"].as<bool>();
     if (_G["barrier_extra"])   barrier_extra = _G["barrier_extra"].as<bool>();
-    if (_G["barrier_label"])   barrier_extra = _G["barrier_label"].as<bool>();
-    if (_G["barrier_heavy"])   barrier_extra = _G["barrier_heavy"].as<bool>();
+    if (_G["barrier_label"])   barrier_label = _G["barrier_label"].as<bool>();
+    if (_G["barrier_light"])   barrier_light = _G["barrier_light"].as<bool>();
     if (_G["barrier_quiet"])   barrier_quiet = _G["barrier_quiet"].as<bool>();
     if (_G["barrier_verbose"]) barrier_quiet = not _G["barrier_quiet"].as<bool>();
 
@@ -342,43 +342,43 @@ void update_parm()
   try {
     YAML::Node conf = parse["Global"];
 
-    if (not conf["nsteps"])     conf["nsteps"]      = nsteps;
-    if (not conf["nthrds"])     conf["nthrds"]      = nthrds;
-    if (not conf["ngpus"])      conf["ngpus"]       = ngpus;
-    if (not conf["nreport"])    conf["nreport"]     = nreport;
-    if (not conf["nbalance"])   conf["nbalance"]    = nbalance;
-    if (not conf["dbthresh"])   conf["dbthresh"]    = dbthresh;
+    if (not conf["nsteps"])        conf["nsteps"]      = nsteps;
+    if (not conf["nthrds"])        conf["nthrds"]      = nthrds;
+    if (not conf["ngpus"])         conf["ngpus"]       = ngpus;
+    if (not conf["nreport"])       conf["nreport"]     = nreport;
+    if (not conf["nbalance"])      conf["nbalance"]    = nbalance;
+    if (not conf["dbthresh"])      conf["dbthresh"]    = dbthresh;
     
-    if (not conf["time"])       conf["time"]        = tnow;
-    if (not conf["dtime"])      conf["dtime"]       = dtime;
-    if (not conf["nbits"])      conf["nbits"]       = nbits;
-    if (not conf["pkbits"])     conf["pkbits"]      = pkbits;
-    if (not conf["PFbufsz"])    conf["PFbufsz"]     = PFbufsz;
-    if (not conf["NICE"])       conf["NICE"]        = NICE;
-    if (not conf["VERBOSE"])    conf["VERBOSE"]     = VERBOSE;
-    if (not conf["rlimit"])     conf["rlimit"]      = rlimit_val;
-    if (not conf["runtime"])    conf["runtime"]     = runtime;
+    if (not conf["time"])          conf["time"]        = tnow;
+    if (not conf["dtime"])         conf["dtime"]       = dtime;
+    if (not conf["nbits"])         conf["nbits"]       = nbits;
+    if (not conf["pkbits"])        conf["pkbits"]      = pkbits;
+    if (not conf["PFbufsz"])       conf["PFbufsz"]     = PFbufsz;
+    if (not conf["NICE"])          conf["NICE"]        = NICE;
+    if (not conf["VERBOSE"])       conf["VERBOSE"]     = VERBOSE;
+    if (not conf["rlimit"])        conf["rlimit"]      = rlimit_val;
+    if (not conf["runtime"])       conf["runtime"]     = runtime;
     
-    if (not conf["multistep"])  conf["multistep"]   = multistep;
-    if (not conf["centerlevl"]) conf["centerlevl"]  = centerlevl;
-    if (not conf["DTold"])      conf["DTold"]       = DTold;
-    if (not conf["dynfracS"])   conf["dynfracS"]    = dynfracS;
-    if (not conf["dynfracV"])   conf["dynfracV"]    = dynfracV;
-    if (not conf["dynfracA"])   conf["dynfracA"]    = dynfracA;
-    if (not conf["dynfracP"])   conf["dynfracP"]    = dynfracP;
+    if (not conf["multistep"])     conf["multistep"]   = multistep;
+    if (not conf["centerlevl"])    conf["centerlevl"]  = centerlevl;
+    if (not conf["DTold"])         conf["DTold"]       = DTold;
+    if (not conf["dynfracS"])      conf["dynfracS"]    = dynfracS;
+    if (not conf["dynfracV"])      conf["dynfracV"]    = dynfracV;
+    if (not conf["dynfracA"])      conf["dynfracA"]    = dynfracA;
+    if (not conf["dynfracP"])      conf["dynfracP"]    = dynfracP;
     
-    if (not conf["use_cwd"])    conf["use_cwd"]     = use_cwd;
-    if (not conf["eqmotion"])   conf["eqmotion"]    = eqmotion;
-    if (not conf["global_cov"]) conf["global_cov"]  = global_cov;
+    if (not conf["use_cwd"])       conf["use_cwd"]     = use_cwd;
+    if (not conf["eqmotion"])      conf["eqmotion"]    = eqmotion;
+    if (not conf["global_cov"])    conf["global_cov"]  = global_cov;
 
-    if (not conf["homedir"])    conf["homedir"]     = homedir;
-    if (not conf["ldlibdir"])   conf["ldlibdir"]    = ldlibdir;
-    if (not conf["infile"])     conf["infile"]      = infile;
-    if (not conf["parmfile"])   conf["parmfile"]    = parmfile;
-    if (not conf["ratefile"])   conf["ratefile"]    = ratefile;
-    if (not conf["outdir"])     conf["outdir"]      = outdir;
-    if (not conf["runtag"])     conf["runtag"]      = runtag;
-    if (not conf["command"])    conf["command"]    = restart_cmd;
+    if (not conf["homedir"])       conf["homedir"]     = homedir;
+    if (not conf["ldlibdir"])      conf["ldlibdir"]    = ldlibdir;
+    if (not conf["infile"])        conf["infile"]      = infile;
+    if (not conf["parmfile"])      conf["parmfile"]    = parmfile;
+    if (not conf["ratefile"])      conf["ratefile"]    = ratefile;
+    if (not conf["outdir"])        conf["outdir"]      = outdir;
+    if (not conf["runtag"])        conf["runtag"]      = runtag;
+    if (not conf["restart_cmd"])   conf["restart_cmd"] = restart_cmd;
     
     parse["Global"] = conf;
   }

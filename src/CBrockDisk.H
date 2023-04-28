@@ -57,6 +57,7 @@ private:
   double rmax, scale;
   int Lmax, nmax;
   bool self_consistent;
+  bool NO_M0, NO_M1, EVEN_M, M0_only;
 
   //! Coefficient magic number
   const unsigned int cmagic = 0xc0a57a4;

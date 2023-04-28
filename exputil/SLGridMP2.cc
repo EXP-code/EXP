@@ -19,10 +19,20 @@
 #include <EXPException.H>
 #include <SLGridMP2.H>
 #include <massmodel.H>
+#include <EXPmath.H>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
 #endif
+
+#include <config_exp.h>		// For config macros
+
+// For reading and writing cache file
+//
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
 
 // For fortran call
 // (This should work both 32-bit and 64-bit . . . )
@@ -116,15 +126,15 @@ public:
   double pot(double r) {
     double y = 0.5 * r / SLGridCyl::A;
     return -2.0*M_PI*SLGridCyl::A*y*
-      (std::cyl_bessel_i(0, y)*std::cyl_bessel_k(1, y) -
-       std::cyl_bessel_i(1, y)*std::cyl_bessel_k(0, y));
+      (EXPmath::cyl_bessel_i(0, y)*EXPmath::cyl_bessel_k(1, y) -
+       EXPmath::cyl_bessel_i(1, y)*EXPmath::cyl_bessel_k(0, y));
   }
 
   double dpot(double r) {
     double y = 0.5 * r / SLGridCyl::A;
    return 4.0*M_PI*SLGridCyl::A*y*y*
-     (std::cyl_bessel_i(0, y)*std::cyl_bessel_k(0, y) -
-      std::cyl_bessel_i(1, y)*std::cyl_bessel_k(1, y));
+     (EXPmath::cyl_bessel_i(0, y)*EXPmath::cyl_bessel_k(0, y) -
+      EXPmath::cyl_bessel_i(1, y)*EXPmath::cyl_bessel_k(1, y));
   }
 
   double dens(double r) {
@@ -436,68 +446,79 @@ int SLGridCyl::read_cached_table(void)
     
 
   if (MMAX!=mmax) {
-    std::cout << "---- SLGridCyl::read_cached_table: found mmax=" << MMAX
-	      << " wanted " << mmax << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found mmax=" << MMAX
+		<< " wanted " << mmax << std::endl;
     return 0;
   }
 
   if (NMAX!=nmax) {
-    std::cout << "---- SLGridCyl::read_cached_table: found nmax=" << NMAX
-	      << " wanted " << nmax << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found nmax=" << NMAX
+		<< " wanted " << nmax << std::endl;
     return 0;
   }
 
   if (NUMK!=numk) {
-    std::cout << "---- SLGridCyl::read_cached_table: found numk=" << NUMK
-	      << " wanted " << numk << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found numk=" << NUMK
+		<< " wanted " << numk << std::endl;
     return 0;
   }
 
   if (NUMR!=numr) {
-    std::cout << "---- SLGridCyl::read_cached_table: found numr=" << NUMR
-	      << " wanted " << numr << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found numr=" << NUMR
+		<< " wanted " << numr << std::endl;
     return 0;
   }
 
   if (CMAP!=cmap) {
-    std::cout << "---- SLGridCyl::read_cached_table: found cmap=" << CMAP
-	      << " wanted " << cmap << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found cmap=" << CMAP
+		<< " wanted " << cmap << std::endl;
     return 0;
   }
 
   if (RMIN!=rmin) {
-    std::cout << "---- SLGridCyl::read_cached_table: found rmin=" << RMIN
-	      << " wanted " << rmin << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found rmin=" << RMIN
+		<< " wanted " << rmin << std::endl;
     return 0;
   }
 
   if (RMAX!=rmax) {
-    std::cout << "---- SLGridCyl::read_cached_table: found rmax=" << RMAX
-	      << " wanted " << rmax << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found rmax=" << RMAX
+		<< " wanted " << rmax << std::endl;
     return 0;
   }
 
   if (SCL!=scale) {
-    std::cout << "---- SLGridCyl::read_cached_table: found scale=" << SCL
-	      << " wanted " << scale << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found scale=" << SCL
+		<< " wanted " << scale << std::endl;
     return 0;
   }
 
   if (L!=l) {
-    std::cout << "---- SLGridCyl::read_cached_table: found l=" << L
-	      << " wanted " << l << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found l=" << L
+		<< " wanted " << l << std::endl;
     return 0;
   }
 
   if (AA!=A) {
-    std::cout << "---- SLGridCyl::read_cached_table: found A=" << AA
-	      << " wanted " << A << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found A=" << AA
+		<< " wanted " << A << std::endl;
     return 0;
   }
 
   if (MODEL!=cyl->ID()) {
-    std::cout << "---- SLGridCyl::read_cached_table: found ID=" << MODEL
-	      << " wanted " << cyl->ID() << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridCyl::read_cached_table: found ID=" << MODEL
+		<< " wanted " << cyl->ID() << std::endl;
     return 0;
   }
 
@@ -1772,40 +1793,36 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
   }
 
   table = 0;
+  
+  if (not ReadH5Cache()) {
 
-  if (mpi) {
+    // MPI loop
+    //
+    if (mpi) {
 
-    table =  new TableSph [lmax+1];
-
-    mpi_setup();
-
-    if (mpi_myid) {
-      compute_table_worker();
-
-      //
-      // <Receive completed table from root>
-      //
-
-      for (l=0; l<=lmax; l++) {
-
-	/*
-	MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, 0,
-		 MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-	*/
-
-	MPI_Bcast(mpi_buf, mpi_bufsz, MPI_PACKED, 0, MPI_COMM_WORLD);
-    
-	mpi_unpack_table();      
-      }
+      table =  new TableSph [lmax+1];
       
-    }
-    else {			// BEGIN Root
+      mpi_setup();
+      
+      if (mpi_myid) {		// Begin workers
+	compute_table_worker();
+	
+	//
+	// <Receive completed table from root>
+	//
 
-      int worker = 0;
-      int request_id = 1;
+	for (l=0; l<=lmax; l++) {
 
-      if (!read_cached_table()) {
-
+	  MPI_Bcast(mpi_buf, mpi_bufsz, MPI_PACKED, 0, MPI_COMM_WORLD);
+    
+	  mpi_unpack_table();      
+	}
+	
+      }
+      else {			// BEGIN Root
+	
+	int worker = 0;
+	int request_id = 1;
 
 	l=0;
 
@@ -1813,118 +1830,111 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
 	  if (worker<mpi_numprocs-1) { // Send request to worker
 	    worker++;
-      
-
+	    
+	    
 	    if (tbdbg)
 	      std::cout << "Root sending orders to Worker " << worker 
 			<< ": l=" << l << std::endl; 
-
+	    
 	    MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
 	    MPI_Send(&l, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
-      
+	    
 	    if (tbdbg)
 	      std::cout << "Root gave orders to Worker " << worker 
 			<< ": l=" << l << std::endl;
-
-				// Increment counters
+	    
+	    // Increment counters
 	    l++;
 	  }
-
+	  
 	  if (worker == mpi_numprocs-1 && l<=lmax) {
 	  
 	    //
 	    // <Wait and receive>
 	    //
-	
+	    
 	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		     MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 	    
 	    int retid = status.MPI_SOURCE;
-
+	  
 	    mpi_unpack_table();      
 
 	    //
 	    // <Send new request>
 	    //
-
+	    
 	    MPI_Send(&request_id, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
 	    MPI_Send(&l, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
-      
+	    
 	    if (tbdbg) 
 	      std::cout << "Root g orders to Worker " << retid
 			<< ": l=" << l << std::endl;
-
-				// Increment counters
+	    
+	    // Increment counters
 	    l++;
 	  }
 	}
-      
+	
 	//
 	// <Wait for all workers to return>
 	//
-  
+      
 	while (worker) {
 	
 	
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    
+	  
 	  mpi_unpack_table();      
-
+	  
 	  worker--;
 	}
 
-	if (cache) write_cached_table();
-
-      }
-
-
-      //
-      // <Tell workers to continue>
-      //
-
-      request_id = -1;
-      for (worker=1; worker < mpi_numprocs; worker++)
-	MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
-
-
-      //
-      // <Send table to workers>
-      //
-
-      for (l=0; l<=lmax; l++) {
-	int position = mpi_pack_table(&table[l], l);
-
-	/*
+	//
+	// <Tell workers to continue>
+	//
+      
+	request_id = -1;
 	for (worker=1; worker < mpi_numprocs; worker++)
-	  MPI_Send(mpi_buf, position, MPI_PACKED, worker, 11, MPI_COMM_WORLD);
-	*/
+	  MPI_Send(&request_id, 1, MPI_INT, worker, 11, MPI_COMM_WORLD);
 
-	MPI_Bcast(mpi_buf, position, MPI_PACKED, 0, MPI_COMM_WORLD);
+
+	//
+	// <Send table to workers>
+	//
+
+	for (l=0; l<=lmax; l++) {
+	  int position = mpi_pack_table(&table[l], l);
+
+	  MPI_Bcast(mpi_buf, position, MPI_PACKED, 0, MPI_COMM_WORLD);
+	}
+
       }
+      // END Root
+    }
+    // END MPI stanza, BEGIN single-process stanza
+    else {
 
-
-    } // END Root
-
-  }
-  else {
-
-    table =  new TableSph [lmax+1];
-
-    if (!cache || !read_cached_table()) {
+      table =  new TableSph [lmax+1];
 
       for (l=0; l<=lmax; l++) {
 	if (tbdbg) std::cerr << "Begin [" << l << "] . . ." << std::endl;
 	compute_table(&(table[l]), l);
 	if (tbdbg) std::cerr << ". . . done" << std::endl;
       }
-      if (cache) write_cached_table();
     }
+    // END single process stanza
+
+    // Write cache
+    //
+    if (myid==0 and cache) WriteH5Cache();
   }
+  // END: make tables
 
   if (tbdbg)
     std::cerr << "Process " << myid << ": exiting constructor" << std::endl;
-
+  
 }
 
 void check_vector_values_SL(const Eigen::VectorXd& v)
@@ -1959,246 +1969,166 @@ void check_vector_values_SL(const Eigen::VectorXd& v)
   }
 }
 
-int SLGridSph::read_cached_table(void)
+bool SLGridSph::ReadH5Cache(void)
 {
-  if (!cache) return 0;
+  if (!cache) return false;
 
-  std::ifstream in(sph_cache_name);
-  if (!in) return 0;
-
-  if (myid==0) {
-    std::cout << "---- SLGridSph::read_cached_table: trying to read cached table . . ."
-	      << std::endl;
-  }
-
-  int LMAX, NMAX, NUMR, CMAP;
-  double RMIN, RMAX, SCL;
-    
-  // Attempt to read magic number
+  // First attempt to read the file
   //
-  unsigned int tmagic;
-  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
-
-  if (tmagic == hmagic) {
-
-    // YAML size
+  try {
+    // Silence the HDF5 error stack
     //
-    unsigned ssize;
-    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
-
-    // Make and read char buffer
-    //
-    auto buf = std::make_unique<char[]>(ssize+1);
-    in.read(buf.get(), ssize);
-    buf[ssize] = 0;		// Null terminate
+    HighFive::SilenceHDF5 quiet;
     
-    YAML::Node node;
-    
-    try {
-      node = YAML::Load(buf.get());
-    }
-    catch (YAML::Exception& error) {
-      std::ostringstream sout;
-      sout << "YAML: error parsing <" << buf.get() << "> "
-	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
-	   << "YAML error: " << error.what() << std::endl;
-      throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
-    }
-    
-    // Get parameters
+    // Try opening the file as HDF5
     //
-    LMAX     = node["lmax"   ].as<int>();
-    NMAX     = node["nmax"   ].as<int>();
-    NUMR     = node["numr"   ].as<int>();
-    CMAP     = node["cmap"   ].as<int>();
-    RMIN     = node["rmin"   ].as<double>();
-    RMAX     = node["rmax"   ].as<double>();
-    SCL      = node["scale"  ].as<double>();
-    diverge  = node["diverge"].as<int>();
-    dfac     = node["dfac"   ].as<double>();
-
-    // Check model file name, being cautious...
-    //
-    std::string model = node["model"].as<std::string>();
-    if (model.compare(model_file_name)) return 0;
-
-  } else {
-
-    // Rewind file (backward compatibility)
-    //
-    in.clear();
-    in.seekg(0);
+    HighFive::File h5file(sph_cache_name, HighFive::File::ReadOnly);
     
-    in.read((char *)&LMAX, sizeof(int));
-    in.read((char *)&NMAX, sizeof(int));
-    in.read((char *)&NUMR, sizeof(int));
-    in.read((char *)&CMAP, sizeof(int));
-    in.read((char *)&RMIN, sizeof(double));
-    in.read((char *)&RMAX, sizeof(double));
-    in.read((char *)&SCL, sizeof(double));
-
-    if (!in) {
-      std::cout << "---- SLGridSph::read_cached_table: error reading header info"
-		<< std::endl;
-      return 0;
-    }
-  }
-
-  if (LMAX!=lmax) {
-    std::cout << "---- SLGridSph::read_cached_table: found lmax=" << LMAX
-	      << " wanted " << lmax << std::endl;
-    return 0;
-  }
-
-  if (NMAX!=nmax) {
-    std::cout << "---- SLGridSph::read_cached_table: found nmax=" << NMAX
-	      << " wanted " << nmax << std::endl;
-    return 0;
-  }
-
-  if (NUMR!=numr) {
-    std::cout << "---- SLGridSph::read_cached_table: found numr=" << NUMR
-	      << " wanted " << numr << std::endl;
-    return 0;
-  }
-
-  if (CMAP!=cmap) {
-    std::cout << "---- SLGridSph::read_cached_table: found cmap=" << CMAP
-	      << " wanted " << cmap << std::endl;
-    return 0;
-  }
-
-  if (RMIN!=rmin) {
-    std::cout << "---- SLGridSph::read_cached_table: found rmin=" << RMIN
-	      << " wanted " << rmin << std::endl;
-    return 0;
-  }
-
-  if (RMAX!=rmax) {
-    std::cout << "---- SLGridSph::read_cached_table: found rmax=" << RMAX
-	      << " wanted " << rmax << std::endl;
-    return 0;
-  }
-
-  if (SCL!=scale) {
-    std::cout << "---- SLGridSph::read_cached_table: found scale=" << SCL
-	      << " wanted " << scale << std::endl;
-    return 0;
-  }
-
-  for (int l=0; l<=lmax; l++) {
-
-    in.read((char *)&table[l].l, sizeof(int));
-
-				// Double check
-    if (table[l].l != l) {
+    // Try checking the rest of the parameters before reading arrays
+    //
+    auto checkInt = [&h5file](int value, std::string name)
+    {
+      int v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
+      if (value == v) return true;
       if (myid==0)
-	std::cerr << "SLGridSph: error reading <" << sph_cache_name << ">" << endl
-		  << "SLGridSph: l: read value (" << table[l].l 
-		  << ") != internal value (" << l << ")" << std::endl;
-	return 0;
+	std::cout << "---- SLGridSph::ReadH5Cache: "
+		  << "parameter " << name << ": wanted " << value
+		  << " found " << v << std::endl;
+      return false;
+    };
+
+    auto checkDbl = [&h5file](double value, std::string name)
+    {
+      double v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
+      if (fabs(value - v) < 1.0e-16) return true;
+      if (myid==0)
+	std::cout << "---- SLGridSph::ReadH5Cache: "
+		  << "parameter " << name << ": wanted " << value
+		  << " found " << v << std::endl;
+      return false;
+    };
+
+    auto checkStr = [&h5file](std::string value, std::string name)
+    {
+      std::string v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
+      if (value.compare(v)==0) return true;
+      if (myid==0)
+	std::cout << "---- SLGridSph::ReadH5Cache: "
+		  << "parameter " << name << ": wanted " << value
+		  << " found " << v << std::endl;
+      return false;
+    };
+
+    // For cache ID
+    //
+    std::string geometry("sphere"), forceID("SLGridSph");
+    std::string modl(model_file_name);
+
+    // ID check
+    //
+    if (not checkStr(geometry, "geometry"))  return false;
+    if (not checkStr(forceID,  "forceID"))   return false;
+
+    // Parameter check
+    //
+    if (not checkStr(modl,     "model"))     return false;
+    if (not checkInt(lmax,     "lmax"))      return false;
+    if (not checkInt(nmax,     "nmax"))      return false;
+    if (not checkInt(numr,     "numr"))      return false;
+    if (not checkInt(cmap,     "cmap"))      return false;
+    if (not checkDbl(rmin,     "rmin"))      return false;
+    if (not checkDbl(rmax,     "rmax"))      return false;
+    if (not checkDbl(scale,    "scale"))     return false;
+    if (not checkInt(diverge,  "diverge"))   return false;
+    if (not checkDbl(dfac,     "dfac"))      return false;
+
+    // Harmonic order
+    //
+    auto harmonic = h5file.getGroup("Harmonic");
+
+    // Create table instances
+    //
+    table = new TableSph [lmax+1];
+
+    for (int l=0; l<=lmax; l++) {
+      std::ostringstream sout;
+      sout << l;
+      auto arrays = harmonic.getGroup(sout.str());
+      
+      // Table arrays will be allocated
+      //
+      arrays.getDataSet("ev").read(table[l].ev);
+      arrays.getDataSet("ef").read(table[l].ef);
     }
+    
+    if (myid==0)
+      std::cerr << "---- SLGridSph::ReadH5Cache: "
+		<< "successfully read basis cache <" << sph_cache_name
+		<< ">" << std::endl;
 
-    table[l].ev.resize(nmax);
-    table[l].ef.resize(nmax, numr);
-
-    for (int j=0; j<nmax; j++) in.read((char *)&table[l].ev[j], sizeof(double));
-
-#ifdef DEBUG_NAN
-    check_vector_values_SL(table[l].ev);
-#endif
-
-    for (int j=0; j<nmax; j++) {
-      for (int i=0; i<numr; i++)
-	in.read((char *)&table[l].ef(j, i), sizeof(double));
-#ifdef DEBUG_NAN
-      check_vector_values_SL(table[l].ef[j]);
-#endif
-    }
+    return true;
+    
+  } catch (HighFive::Exception& err) {
+    if (myid==0)
+      std::cerr << "---- SLGridSph::ReadH5Cache: "
+		<< "error opening <" << sph_cache_name
+		<< "> as HDF5 basis cache" << std::endl;
   }
 
-  if (myid==0)
-    std::cout << "---- SLGridSph::read_cached_table: Success!!" << std::endl;
-  
-  return 1;
+  return false;
 }
 
 
-void SLGridSph::write_cached_table(void)
+
+void SLGridSph::WriteH5Cache(void)
 {
-  const bool NewCache = true;
+  if (myid) return;
 
-  std::ofstream out(sph_cache_name);
-  if (!out) {
-    std::cerr << "SLGridSph: error writing <" << sph_cache_name << ">" << std::endl;
-    return;
-  } else {
-    std::cerr << "SLGridSph: opened <" << sph_cache_name << ">" << std::endl;
-  }
-
-  if (NewCache) {
-
-    // This is a node of simple {key: value} pairs.  More general
-    // content can be added as needed.
-    YAML::Node node;
-
-    node["model"  ] = model_file_name;
-    node["lmax"   ] = lmax;
-    node["nmax"   ] = nmax;
-    node["numr"   ] = numr;
-    node["cmap"   ] = cmap;
-    node["rmin"   ] = rmin;
-    node["rmax"   ] = rmax;
-    node["scale"  ] = scale;
-    node["diverge"] = diverge;
-    node["dfac"   ] = dfac;
+  try {
+    // Create a new hdf5 file or overwrite an existing file
+    //
+    HighFive::File file(sph_cache_name, HighFive::File::Overwrite);
     
-    // Serialize the node
+    // For cache ID
     //
-    YAML::Emitter y; y << node;
+    std::string geometry("sphere"), forceID("SLGridSph");
 
-    // Get the size of the string
+    file.createAttribute<std::string>("geometry",  HighFive::DataSpace::From(geometry)).write(geometry);
+    file.createAttribute<std::string>("forceID",   HighFive::DataSpace::From(forceID)).write(forceID);
+      
+    // Write parameters
     //
-    unsigned int hsize = strlen(y.c_str());
-
-    // Write magic #
+    file.createAttribute<std::string> ("model",    HighFive::DataSpace::From(model_file_name)).write(model_file_name);
+    file.createAttribute<int>         ("lmax",     HighFive::DataSpace::From(lmax)).write(lmax);
+    file.createAttribute<int>         ("nmax",     HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<int>         ("numr",     HighFive::DataSpace::From(numr)).write(numr);
+    file.createAttribute<int>         ("cmap",     HighFive::DataSpace::From(cmap)).write(cmap);
+    file.createAttribute<double>      ("rmin",     HighFive::DataSpace::From(rmin)).write(rmin);
+    file.createAttribute<double>      ("rmax",     HighFive::DataSpace::From(rmax)).write(rmax);
+    file.createAttribute<double>      ("scale",    HighFive::DataSpace::From(scale)).write(scale);
+    file.createAttribute<int>         ("diverge",  HighFive::DataSpace::From(diverge)).write(diverge);
+    file.createAttribute<double>      ("dfac",     HighFive::DataSpace::From(dfac)).write(dfac);
+      
+    // Harmonic order (for h5dump readability)
     //
-    out.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
+    auto harmonic = file.createGroup("Harmonic");
 
-    // Write YAML string size
-    //
-    out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
-
-    // Write YAML string
-    //
-    out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
-
-  } else {
-
-    int i, j;
-
-    out.write((char *)&lmax,  sizeof(int));
-    out.write((char *)&nmax,  sizeof(int));
-    out.write((char *)&numr,  sizeof(int));
-    out.write((char *)&cmap,  sizeof(int));
-    out.write((char *)&rmin,  sizeof(double));
-    out.write((char *)&rmax,  sizeof(double));
-    out.write((char *)&scale, sizeof(double));
+    for (int l=0; l<=lmax; l++) {
+      std::ostringstream sout;
+      sout << l;
+      auto arrays = harmonic.createGroup(sout.str());
+      
+      arrays.createDataSet("ev",   table[l].ev);
+      arrays.createDataSet("ef",   table[l].ef);
+    }
+    
+  } catch (HighFive::Exception& err) {
+    std::cerr << err.what() << std::endl;
   }
     
-  for (int l=0; l<=lmax; l++) {
-
-    out.write((char *)&table[l].l, sizeof(int));
-
-    for (int j=0; j<nmax; j++)
-      out.write((char *)&table[l].ev[j], sizeof(double));
-
-    for (int j=0; j<nmax; j++)
-      for (int i=0; i<numr; i++)
-	out.write((char *)&table[l].ef(j, i), sizeof(double));
-  }
-
-  std::cout << "---- SLGridSph::write_cached_table: done!!" << std::endl;
+  std::cout << "---- SLGridSph::WriteH5Cache: "
+	    << "wrote <" << sph_cache_name << ">" << std::endl;
+  
   return ;
 }
 
@@ -3018,8 +2948,6 @@ void SLGridSph::mpi_unpack_table(void)
 
 YAML::Node SLGridSph::getHeader(const std::string& cachefile)
 {
-  YAML::Node node;
-
   std::ifstream in(cachefile);
   if (!in) {
     std::ostringstream sout;
@@ -3027,44 +2955,62 @@ YAML::Node SLGridSph::getHeader(const std::string& cachefile)
     std::runtime_error(sout.str());
   }
 
-  // Attempt to read magic number
-  //
-  unsigned int tmagic;
-  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+  YAML::Node node;
 
-  if (tmagic == hmagic) {
-
-    // YAML size
+  try {
+    // Silence the HDF5 error stack
     //
-    unsigned ssize;
-    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
-
-    // Make and read char buffer
-    //
-    auto buf = std::make_unique<char[]>(ssize+1);
-    in.read(buf.get(), ssize);
-    buf[ssize] = 0;		// Null terminate
+    HighFive::SilenceHDF5 quiet;
     
-    try {
-      node = YAML::Load(buf.get());
-    }
-    catch (YAML::Exception& error) {
-      std::ostringstream sout;
-      sout << "YAML: error parsing <" << buf.get() << "> "
-	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
-	   << "YAML error: " << error.what() << std::endl;
-      
-      throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
-    }
-  } else {
+    // Open the hdf5 file
+    //
+    HighFive::File file(cachefile, HighFive::File::ReadOnly);
+    
+    auto getInt = [&file](std::string name)
+    {
+      int v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    auto getDbl = [&file](std::string name)
+    {
+      double v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    auto getStr = [&file](std::string name)
+    {
+      std::string v;
+      HighFive::Attribute vv = file.getAttribute(name);
+      vv.read(v);
+      return v;
+    };
+
+    node["model"]   = getStr("model");
+    node["lmax"]    = getInt("lmax");
+    node["nmax"]    = getInt("nmax");
+    node["numr"]    = getInt("numr");
+    node["cmap"]    = getInt("cmap");
+    node["rmin"]    = getDbl("rmin");
+    node["rmax"]    = getDbl("rmax");
+    node["scale"]   = getDbl("scale");
+    node["diverge"] = getInt("diverge");
+    node["dfac"]    = getDbl("dfac");
+  }
+  catch (YAML::Exception& error) {
     std::ostringstream sout;
-    sout << "SLGridSph::getHeader: invalid cache file <" << cachefile << ">";
-    throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
+    sout << "SLGridMP2::getHeader: invalid cache file <" << cachefile << ">. ";
+    sout << "YAML error in getHeader: " << error.what() << std::endl;
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
   }
 
   return node;
 }
-    
+
 
 //======================================================================
 //======================================================================
@@ -3457,56 +3403,65 @@ int SLGridSlab::read_cached_table(void)
     
 
   if (NUMK!=numk) {
-    std::cout << "---- SLGridSlab::read_cached_table: found numk=" << NUMK
-	      << " wanted " << numk << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found numk=" << NUMK
+		<< " wanted " << numk << std::endl;
     return 0;
   }
 
   if (NMAX!=nmax) {
-    std::cout << "---- SLGridSlab::read_cached_table: found nmax=" << NMAX
-	      << " wanted " << nmax << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found nmax=" << NMAX
+		<< " wanted " << nmax << std::endl;
     return 0;
   }
 
   if (NUMZ!=numz) {
-    std::cout << "---- SLGridSlab::read_cached_table: found numz=" << NUMZ
-	      << " wanted " << numz << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found numz=" << NUMZ
+		<< " wanted " << numz << std::endl;
     return 0;
   }
 
   if (ZMAX!=zmax) {
-    std::cout << "---- SLGridSlab::read_cached_table: found zmax=" << ZMAX
-	      << " wanted " << zmax << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found zmax=" << ZMAX
+		<< " wanted " << zmax << std::endl;
     return 0;
   }
 
   if (HH!=H) {
-    std::cout << "---- SLGridSlab::read_cached_table: found H=" << HH
-	      << " wanted " << H << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found H=" << HH
+		<< " wanted " << H << std::endl;
     return 0;
   }
 
   if (LL!=L) {
-    std::cout << "---- SLGridSlab::read_cached_table: found L=" << LL
-	      << " wanted " << L << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found L=" << LL
+		<< " wanted " << L << std::endl;
     return 0;
   }
 
   if (zbeg!=ZBEG) {
-    std::cout << "---- SLGridSlab::read_cached_table: found ZBEG=" << ZBEG
-	      << " wanted " << zbeg << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found ZBEG=" << ZBEG
+		<< " wanted " << zbeg << std::endl;
     return 0;
   }
 
   if (zend!=ZEND) {
-    std::cout << "---- SLGridSlab::read_cached_table: found ZEND=" << ZEND
-	      << " wanted " << zend << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found ZEND=" << ZEND
+		<< " wanted " << zend << std::endl;
     return 0;
   }
 
   if (MODEL!=slab->ID()) {
-    std::cout << "---- SLGridSlab::read_cached_table: found ID=" << MODEL
-	      << " wanted " << slab->ID() << std::endl;
+    if (myid==0)
+      std::cout << "---- SLGridSlab::read_cached_table: found ID=" << MODEL
+		<< " wanted " << slab->ID() << std::endl;
     return 0;
   }
 

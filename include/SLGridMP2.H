@@ -201,8 +201,6 @@ private:
   void mpi_setup(void);
   void mpi_unpack_table(void);
   int  mpi_pack_table(TableSph* table, int l);
-  int  read_cached_table(void);
-  void write_cached_table(void);
 
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
@@ -230,6 +228,12 @@ private:
 
   //! Basis magic number
   inline static const unsigned int hmagic = 0xc0a56a1;
+
+  //! Write HDF5 cache
+  void WriteH5Cache();
+
+  //! Read HDF5 cache
+  bool ReadH5Cache();
 
 public:
 

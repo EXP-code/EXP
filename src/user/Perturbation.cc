@@ -9,7 +9,7 @@
 #include <biorth.H>
 #include <model3d.H>
 #include <isothermal.H>
-#include <hernquist.H>
+#include <hernquist_model.H>
 #include <gaussQ.H>
 
 #include <Perturbation.H>

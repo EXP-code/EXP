@@ -4,8 +4,6 @@
   MDWeinberg 06/10/02, 11/24/19
 */
 
-using namespace std;
-
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
@@ -15,6 +13,8 @@ using namespace std;
 #include <string>
 #include <random>
 #include <list>
+
+using namespace std;
 
 #include <StringTok.H>
 #include <header.H>

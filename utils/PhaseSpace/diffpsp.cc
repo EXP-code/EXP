@@ -48,6 +48,7 @@
 #include <Eigen/Eigen>
 
 #include <ParticleReader.H>
+#include <Centering.H>
 #include <massmodel.H>
 #include <localmpi.H>
 #include <EXPini.H>		// Enhanced option parsing
@@ -62,8 +63,8 @@ void p_rec(std::ofstream& out, double E, double K, double V)
 }
 
 
-double p1[3] = {0.0, 0.0, 0.0};	// Phase space #1 center
-double p2[3] = {0.0, 0.0, 0.0};	// Phase space #2 center
+std::vector<double> p1 {0.0, 0.0, 0.0};	// Phase space #1 center
+std::vector<double> p2 {0.0, 0.0, 0.0};	// Phase space #2 center
 
 int
 main(int argc, char **argv)
@@ -108,12 +109,15 @@ main(int argc, char **argv)
   int          RNUM;
   int          POSNEG;
   int          TAG;
+  int          cstride;
+  int          cball=32;
   double       MINBIN;
   bool         SPECIFIC;
   bool         CUMULATE;
   bool         LZDIST;
   bool         LOGMOD;
   bool         meshgrid;
+  bool         KDcenter;
   double       DIVERGE_RFAC;
   double       KPOWER;
   std::string  COMP;
@@ -182,9 +186,9 @@ main(int argc, char **argv)
     ("RMAX", "Maximum model radius",
      cxxopts::value<double>(RMAX)->default_value("1.0"))
     ("BMIN", "Minimum value in cos(b)",
-     cxxopts::value<double>(BMIN)->default_value("-1.0"))
+     cxxopts::value<double>(BMIN)->default_value("-10.0"))
     ("BMAX", "Maximum value in cos(b)",
-     cxxopts::value<double>(BMAX)->default_value("1.0"))
+     cxxopts::value<double>(BMAX)->default_value("10.0"))
     ("EMIN", "Minimum value in phase-space energy",
       cxxopts::value<double>(EMIN)->default_value("-1.0e20"))
     ("EMAX", "Maximum value in phase-space energy",
@@ -197,6 +201,8 @@ main(int argc, char **argv)
      cxxopts::value<int>(NLIMIT)->default_value("-1"))
     ("NSKIP", "Number of particles to skip before comparing",
      cxxopts::value<int>(NSKIP)->default_value("0"))
+    ("CSTRIDE", "Number of particles to stride for center analysis",
+     cxxopts::value<int>(cstride)->default_value("10"))
     ("NREPORT", "Interval for reporting processing progress",
      cxxopts::value<int>(NREPORT)->default_value("0"))
     ("NUMR", "Number of radius bins",
@@ -229,6 +235,8 @@ main(int argc, char **argv)
      cxxopts::value<bool>(LOGMOD)->default_value("false"))
     ("meshgrid", "Print dimensions for Python meshgrid-like arrays",
      cxxopts::value<bool>(meshgrid)->default_value("true"))
+    ("KD", "Use KD to find the density center and use it as the expansion center",
+     cxxopts::value<bool>(KDcenter)->default_value("false"))
     ("DIVERGE_RFAC", "Cusp index for extrapolation",
      cxxopts::value<double>(DIVERGE_RFAC)->default_value("1.0"))
     ("Kpow", "Create kappa bins with power scaling",
@@ -486,10 +494,11 @@ main(int argc, char **argv)
   }
 
   if (actions) {
+
     Emin *= 1.0 - KTOL;
     Emax *= 1.0 + KTOL;
 
-    orb.new_orbit(Emin, 1.0-KTOL);
+    orb.new_orbit(Emin, 1.0 - KTOL);
     if (I1min<0) I1min = orb.get_action(0);
 
     orb.new_orbit(Emin, KTOL);
@@ -501,6 +510,16 @@ main(int argc, char **argv)
     orb.new_orbit(Emax, 1.0 - KTOL);
     if (I2max<0) I2max = orb.get_action(1);
 
+    if (myid==0)
+      std::cout << std::endl
+		<< std::string(40, '-')  << std::endl
+		<< "---- Action limits"  << std::endl
+		<< std::string(40, '-')  << std::endl
+		<< "-- I1min: " << I1min << std::endl
+		<< "-- I1max: " << I1max << std::endl
+		<< "-- I2min: " << I2min << std::endl
+		<< "-- I2max: " << I2max << std::endl
+		<< std::string(40, '-')  << std::endl;
   } else {
     if (I1min<0) I1min = Emin;
     if (I1max<0) I1max = Emax;
@@ -537,9 +556,7 @@ main(int argc, char **argv)
 
   // Diagnostic values
   //
-  int numK0=0, numK1=0, reject=0, N=0, total=0, rover=0, pmiss=0;
-  double KOVER  = 0.0;
-  double KUNDER = 1.0;
+  int reject=0, N=0, total=0, rover=0, emiss=0, pmiss=0, Ntot=0;
 
   // Times for the PSP snaps
   //
@@ -584,7 +601,8 @@ main(int argc, char **argv)
 
       if (myid==0) {
 	std::cout << "File 2: " << INFILE2[n] << endl;
-      std::cout << "Found dump at time: " << final_time << std::endl;
+	std::cout << "Found dump at time: " << final_time << std::endl;
+	std::cout << std::string(40, '-') << std::endl;
       }
     }
     catch (const std::runtime_error& error) {
@@ -597,6 +615,43 @@ main(int argc, char **argv)
       exit(-1);
     }
     
+
+    //============================================================
+    // Default centers using KD?
+    //============================================================
+    
+    if (KDcenter) {
+
+      if (myid==0) {		// stdout info
+	std::cout << std::endl
+		  << std::string(52, '-')     << std::endl
+		  << "---- Center estimation" << std::endl
+		  << std::string(52, '-')     << std::endl;
+      }
+
+      p1 = Utility::getDensityCenter(psp1, cstride, 0, cball);
+      p2 = Utility::getDensityCenter(psp2, cstride, 0, cball);
+
+      if (myid==0) {		// stdout info
+	std::cout << "#:  "
+		  << std::setw(16) << std::right << "X    "
+		  << std::setw(16) << std::right << "Y    "
+		  << std::setw(16) << std::right << "Z    "
+		  << std::endl
+		  << "--  " << std::setfill('-')
+		  << std::setw(16) << std::left << "  "
+		  << std::setw(16) << std::left << "  "
+		  << std::setw(16) << std::left << "  "
+		  << std::endl << std::setfill(' ');
+	std::cout << "0:  ";
+	for (auto v : p1) std::cout << std::setw(16) << std::right << v;
+	std::cout << std::endl << "1:  ";
+	for (auto v : p2) std::cout << std::setw(16) << std::right << v;
+	std::cout << std::endl << std::string(52, '-') << std::endl
+		  << std::endl;
+      }
+    }
+
     //============================================================
     // Do difference
     //============================================================
@@ -617,7 +672,6 @@ main(int argc, char **argv)
       if (myid==0 and NREPORT) {
 	std::cout << "Initial map creation" << std::endl;
       }
-
 
       N = 0;
       for (auto pp=psp1->firstParticle(); pp!=0; pp=psp1->nextParticle()) {
@@ -643,7 +697,8 @@ main(int argc, char **argv)
       }
 
       if (myid==0 and NREPORT) {
-	std::cout << "\nParticle map exchange..." << std::endl;
+	std::cout << std::endl << std::endl
+		  << "Particle map exchange..." << std::endl;
       }
 
       // Exchange particles with other processes
@@ -691,7 +746,7 @@ main(int argc, char **argv)
     // Begin particle difference loop
     //
     if (myid==0 and NREPORT) {
-      std::cout << "\nParticle differencing..." << std::endl;
+      std::cout << std::endl << "Particle differencing..." << std::endl;
     }
 
     N = 0;
@@ -724,12 +779,12 @@ main(int argc, char **argv)
 	if (rr1 <= RMAX*RMAX && rr1 >= RMIN*RMIN) {
 	
 	  double E1 = 0.5*vv1 + hmodel->get_pot(sqrt(rr1));
-	  E1 = max<double>(E1, Emin);
-	  E1 = min<double>(E1, Emax);
-	  
+
+	  if (E1 < Emin or E1 > Emax) {emiss++; continue;}
+
 	  double E2 = 0.5*vv2 + hmodel->get_pot(sqrt(rr2));
-	  E2 = max<double>(E2, Emin);
-	  E2 = min<double>(E2, Emax);
+	  
+	  if (E2 < Emin or E2 > Emax) {emiss++; continue;}
 	  
 	  angmom1[0] = p10[1]*v10[2] - p10[2]*v10[1];
 	  angmom1[1] = p10[2]*v10[0] - p10[0]*v10[2];
@@ -739,11 +794,10 @@ main(int argc, char **argv)
 					angmom1[1]*angmom1[1] +
 					angmom1[2]*angmom1[2] );
 	
-	  if (POSNEG>0 && angmom1[2]<0.0 || POSNEG<0 && angmom1[2]>0.0)
-	    continue;
+	  if (POSNEG>0 && angmom1[2]<0.0 ||
+	      POSNEG<0 && angmom1[2]>0.0) continue;
 
-	  if (cosb<BMIN || cosb>BMAX)
-	    continue;
+	  if (cosb<BMIN || cosb>BMAX) continue;
 	
 	  angmom2[0] = p20[1]*v20[2] - p20[2]*v20[1];
 	  angmom2[1] = p20[2]*v20[0] - p20[0]*v20[2];
@@ -766,16 +820,9 @@ main(int argc, char **argv)
 	  try {
 	    orb.new_orbit(E1, 0.5);
 	    double K1 = sqrt(j1)/orb.Jmax();
-	    if (K1>1.0-KTOL) {
-	      numK1++;
-	      KOVER = std::max<double>(KOVER,  K1);
-	      K1 = 1.0 - KTOL;
-	    }
-	    if (K1<KTOL) {
-	      numK0++;
-	      KUNDER = min<double>(KUNDER, K1);
-	      K1 = KTOL;
-	    }
+
+	    if (K1>1.0-KTOL) throw std::runtime_error("K1 > 1-KTOL");
+	    if (K1<KTOL)     throw std::runtime_error("K1 < KTOL");
 	    
 	    orb.new_orbit(E1, K1);
 	  
@@ -784,16 +831,9 @@ main(int argc, char **argv)
 	  
 	    orb.new_orbit(E2, 0.5);
 	    double K2 = sqrt(j2)/orb.Jmax();
-	    if (K2>1.0-KTOL) {
-	      numK1++;
-	      KOVER  = max<double>(KOVER, K2);
-	      K2 = 1.0 - KTOL;
-	    }
-	    if (K2<KTOL) {
-	      numK0++;
-	      KUNDER = min<double>(KUNDER, K2);
-	      K2 = KTOL;
-	    }
+
+	    if (K2>1.0-KTOL) throw std::runtime_error("K2 > 1-KTOL");
+	    if (K2<KTOL)     throw std::runtime_error("K2 < KTOL");
 	  
 	    orb.new_orbit(E2, K2);
 
@@ -832,9 +872,9 @@ main(int argc, char **argv)
 	      KK = 0.5*(K1 + K2);
 	    }
 	    
-	    KK = std::min<double>(KK, 1.0-KTOL);
-	    KK = std::max<double>(KK, KTOL);
-	  
+	    if (EE > Emax or EE < Emin) continue;
+	    if (KK > 1.0 - KTOL or KK < KTOL) continue;
+
 	    double I1_1, I2_1, I1_2, I2_2, ra, rp, O1, O2;
 	    int i1, i2, i11, i12, i21, i22;
 
@@ -851,12 +891,6 @@ main(int argc, char **argv)
 	      I1 = orb.get_action(0);
 	      I2 = orb.get_action(1);
 
-	      I1 = std::max<double>(I1, I1min);
-	      I1 = std::min<double>(I1, I1max);
-	  
-	      I2 = std::max<double>(I2, I2min);
-	      I2 = std::min<double>(I2, I2max);
-	      
 	      if (WHICHEK == 1) {
 		I1_1 = I1;
 		I2_1 = I2;
@@ -877,6 +911,16 @@ main(int argc, char **argv)
 		I1_2 = orb.get_action(0);
 		I2_2 = orb.get_action(1);
 	      }
+
+	      if (I1_1 < I1min) throw std::runtime_error("I1 < I1min [1]");
+	      if (I1_1 > I1max) throw std::runtime_error("I1 > I1max [1]");
+	      if (I2_1 < I2min) throw std::runtime_error("I2 < I2min [1]");
+	      if (I2_1 > I2max) throw std::runtime_error("I2 > I2max [1]");
+
+	      if (I1_2 < I1min) throw std::runtime_error("I1 < I1min [2]");
+	      if (I1_2 > I1max) throw std::runtime_error("I1 > I1max [2]");
+	      if (I2_2 < I2min) throw std::runtime_error("I2 < I2min [2]");
+	      if (I2_2 > I2max) throw std::runtime_error("I2 > I2max [2]");
 
 	      i1 = (int)floor( (I1 - I1min) / d1 );
 	      i1 = std::max<int>(i1, 0);
@@ -928,22 +972,32 @@ main(int argc, char **argv)
 	      
 	    } else {
 
+	      if (E1 < Emin) throw std::runtime_error("E1 < Emin");
+	      if (E1 > Emax) throw std::runtime_error("E1 > Emax");
+	      if (E2 < Emin) throw std::runtime_error("E2 < Emin");
+	      if (E2 > Emax) throw std::runtime_error("E2 > Emax");
+
+	      if (K1 < KTOL) throw std::runtime_error("K1 < KTOL");
+	      if (K2 < KTOL) throw std::runtime_error("K2 < KTOL");
+
+	      if (K1 > 1.0 - KTOL) throw std::runtime_error("K1 > 1-KTOL");
+	      if (K2 > 1.0 - KTOL) throw std::runtime_error("K2 > 1-KTOL");
 
 	      i11 = (int)floor( (E1 - Emin) / d1 );
-	      i11 = std::max<int>(i11, 0);
-	      i11 = std::min<int>(i11, NUM1-1);
+	      if (i11 < 0)     throw std::runtime_error("i11 < 0");
+	      if (i11 >= NUM1) throw std::runtime_error("i11 >= NUM1");
 	    
 	      i21 = (int)floor( K1 / d2 );
-	      i21 = std::max<int>(i21, 0);
-	      i21 = std::min<int>(i21, NUM2-1);
+	      if (i21 < 0)     throw std::runtime_error("i21 < 0");
+	      if (i21 >= NUM2) throw std::runtime_error("i21 >= NUM2");
 
 	      i12 = (int)floor( (E2 - Emin) / d1 );
-	      i12 = std::max<int>(i12, 0);
-	      i12 = std::min<int>(i12, NUM1-1);
+	      if (i12 < 0)     throw std::runtime_error("i12 < 0");
+	      if (i12 >= NUM1) throw std::runtime_error("i12 >= NUM1");
 	  
 	      i22 = (int)floor( K2 / d2 );
-	      i22 = max<int>(i22, 0);
-	      i22 = min<int>(i22, NUM2-1);
+	      if (i22 < 0)     throw std::runtime_error("i22 < 0");
+	      if (i22 >= NUM2) throw std::runtime_error("i22 >= NUM2");
 
 	      if (Ebins.size()) {
 		auto it = std::lower_bound(Ebins.begin(), Ebins.end(), EE);
@@ -1027,8 +1081,12 @@ main(int argc, char **argv)
 	    total++;
 	  }
 	  catch (const std::runtime_error& error) {
-	    reject++;
+	    if (false)		// Verbose output
+	       std::cout << "error [" << reject << "]: "
+			 << error.what() << std::endl;
+	    reject++;		// Tally grid rejections
 	  }
+	  Ntot++;
 	} else rover++;
 
       } else pmiss++;
@@ -1055,6 +1113,8 @@ main(int argc, char **argv)
     MPI_Reduce(&total,        0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&rover,        0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&pmiss,        0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&emiss,        0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Ntot,         0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&reject,       0,             1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoC.data(), 0, histoC.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(histoM.data(), 0, histoM.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -1086,6 +1146,8 @@ main(int argc, char **argv)
     MPI_Reduce(MPI_IN_PLACE, &total,  1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, &rover,  1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, &pmiss,  1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, &emiss,  1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, &Ntot,   1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, &reject, 1,                   MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoC.data(), histoC.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histoM.data(), histoM.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -1111,15 +1173,21 @@ main(int argc, char **argv)
     MPI_Reduce(MPI_IN_PLACE, histo1_1d[1].data(), histo1_1d[1].size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, histo2_1d[1].data(), histo2_1d[1].size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
-    std::cout << std::endl;
-    
-    std::cout << "Total number of particles processed: " << total << std::endl
-	      << "Out of radial bounds: " << rover << std::endl
-	      << "Cache miss: " << pmiss << std::endl
-	      << std::endl;
+    std::cout << std::endl
+	      << std::setw(40) << std::left
+	      << "Total number of particles processed: " << total << std::endl
+	      << std::setw(40) << std::left
+	      << "Out of radial bounds: "                << rover << std::endl
+	      << std::setw(40) << std::left
+	      << "Out of energy bounds: "                << emiss << std::endl
+	      << std::setw(40) << std::left
+	      << "Index cache miss: "                    << pmiss << std::endl;
 
-    if (reject) std::cout << "SphericalOrbit failures in " << reject
-			  << "/" << N << " states" << std::endl << std::endl;
+    if (reject) std::cout << std::setw(40) << std::left
+			  << "Orbit off-grid failures: " << reject
+			  << "/" << Ntot << " states" << std::endl << std::endl;
+    std::cout << std::endl;
+
     
     Eigen::VectorXd I1avg  = Eigen::VectorXd::Zero(NUM1);
     Eigen::VectorXd I2avg  = Eigen::VectorXd::Zero(NUM2);
@@ -1329,7 +1397,7 @@ main(int argc, char **argv)
     }
     
     {
-      const int nrlabs = 3, fieldsz=18;
+      const int nrlabs = 5, fieldsz=18;
 
       std::vector<std::vector<std::string>>
 	labels = { {"E", "F1", "F2", "DF", "Df"}, 
@@ -1372,8 +1440,8 @@ main(int argc, char **argv)
 	out[17+l] << endl << setfill(' ');
 	
 	for (int j=0; j<histo1_1d[l].size(); j++) {
-	  if (actions)  out[17+l] << setw(fieldsz) << left << I1min + d1*j;
-	  else          out[17+l] << setw(fieldsz) << left << I2min + d2*j;
+	  if (l==0) out[17+l] << setw(fieldsz) << left << I1min + d1*j;
+	  else      out[17+l] << setw(fieldsz) << left << I2min + d2*j;
 	  
 	  out[17+l] << setw(fieldsz) << left << histo1_1d[l][j]
 		    << setw(fieldsz) << left << histo2_1d[l][j]
@@ -1383,10 +1451,6 @@ main(int argc, char **argv)
 	}
       }
     }
-    
-    std::cout << "K check:" << std::endl
-	      << "  Under=" << numK0 << "  Min=" << KUNDER << std::endl
-	      << "   Over=" << numK1 << "  Max=" << KOVER  << std::endl;
   }
   
   MPI_Finalize();

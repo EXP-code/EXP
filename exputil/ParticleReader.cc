@@ -1055,11 +1055,13 @@ namespace PR {
     
     if (pcount==0) {
       for (int n=0; n<myid; n++) {
-	if (pcount < spos->comp.nbod)
-	  if (spos->r_size == 4)
+	if (pcount < spos->comp.nbod) {
+	  if (spos->r_size == 4) {
 	    fpart.skip(in, pcount++, spos);
-	  else
+	  } else {
 	    dpart.skip(in, pcount++, spos);
+	  }
+	}
       }
     }
     

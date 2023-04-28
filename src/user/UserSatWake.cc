@@ -526,7 +526,7 @@ void UserSatWake::initialize_coefficients()
 	std::complex<double> tmp;
 	for (int i=0; i<nfreqs; i++) {
 	  from_save.read((char *)&tmp, sizeof(std::complex<double>));
-	  if (fabs(tmp - freqs[i])>1.0e-10) reading = 0;
+	  if (std::abs(tmp - freqs[i])>1.0e-10) reading = 0;
 	}
       }
 
@@ -901,7 +901,7 @@ void UserSatWake::initialize_coefficients()
 		 << setw( 5) << n
 		 << setw(18) << rcoefs[nt][ihalo][n].real()
 		 << setw(18) << rcoefs[nt][ihalo][n].imag()
-		 << setw(18) << fabs(rcoefs[nt][ihalo][n])
+		 << setw(18) << std::abs(rcoefs[nt][ihalo][n])
 		 << endl;
 	  outc << endl;
 	}
@@ -922,7 +922,7 @@ void UserSatWake::initialize_coefficients()
 		<< setw( 5) << n
 		<< setw(18) << rcoefs[nt][ihalo][n].real()
 		<< setw(18) << rcoefs[nt][ihalo][n].imag()
-		<< setw(18) << fabs(rcoefs[nt][ihalo][n])
+		<< setw(18) << std::abs(rcoefs[nt][ihalo][n])
 		<< endl;
 	  out << endl;
 	}

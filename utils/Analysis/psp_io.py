@@ -103,7 +103,7 @@ class Input():
             self.zvel = I.data['vz']
             self.pote = I.data['potE']
             
-            if (I.header['dark']['parameters']['indexing']):
+            if (I.header[I.comp]['parameters']['indexing']):
                 self.indx = I.data['index']
 
         else:

@@ -1,12 +1,11 @@
 
 set(USER_MODULES user bar ebar logpot disk ebarp halo ebars ebarn
-  periodic reflect trigger mndisk tidalrad massevo addmass sat
-  satfix)
+  periodic reflect trigger mndisk tidalrad sat satfix mwgala)
 
 if (ENABLE_USER_ALL)
   list(APPEND USER_MODULES diffuse torque diffrot respot respotn
-    respotorb rptest wake atmos satwake userslab shear snheat
-    profile)
+    respotorb rptest wake atmos satwake userslab shear snheat profile
+    massevo addmass agnnoise)
 endif()
 
 
@@ -19,7 +18,7 @@ set (common_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 set (common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
-  exputil yaml-cpp)
+  exputil EXPlib yaml-cpp)
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
@@ -55,6 +54,7 @@ set(ebars_SRC     UserEBarS.cc)
 set(sat_SRC       UserSat.cc)
 set(diffuse_SRC   UserDiffuse.cc)
 set(satfix_SRC    SatFix.cc)
+set(mwgala_SRC    UserMW.cc)
 set(satfixorb_SRC SatFixOrb.cc)
 set(diffrot_SRC   UserDiffRot.cc)
 set(logpot_SRC    UserLogPot.cc)
@@ -80,9 +80,11 @@ set(trigger_SRC   UserBarTrigger.cc)
 set(shear_SRC     UserShear.cc)
 set(profile_SRC   UserProfile.cc)
 set(wake_SRC      UserWake.cc)
+set(agnnoise_SRC  UserAgnNoise.cc)
 
 if (ENABLE_CUDA)
   list(APPEND sat_SRC cudaUserSat.cu)
+  list(APPEND agnnoise_SRC cudaAgnNoise.cu)
   set(cudatest_Src UserTestCuda.cc cudaUserTest.cu)
 endif()
 
@@ -98,4 +100,3 @@ if(ENABLE_USER_ALL)
   target_link_libraries(satwake PUBLIC expuser_common expuser_swake
     ${common_LINKLIBS})
 endif()
-

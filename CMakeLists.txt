@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.15) # This is the oldest version I've
 				     # preferred esp. for Cuda support
 project(
   EXP
-  VERSION 7.718
-  HOMEPAGE_URL https://mdweinberg@bitbucket.org/mdweinberg/exp.git
+  VERSION "7.7.22"
+  HOMEPAGE_URL https://github.com/EXP-code/EXP
   LANGUAGES C CXX Fortran)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
@@ -12,14 +12,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Compiler flags.  Not all tested thoroughly...
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # using Clang
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   # using GCC
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
   # using intel
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qno-offload")
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   # using Visual Studio C++
 endif()
 
@@ -58,6 +59,9 @@ find_package(SLURM)
 find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
 find_package(PNG)
+
+# Check for FE
+include(FEENABLE)
 
 # Optional VTK support
 if(ENABLE_VTK)

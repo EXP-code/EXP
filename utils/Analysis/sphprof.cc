@@ -47,7 +47,7 @@
 #include <ParticleReader.H>
 #include <interp.H>
 #include <massmodel.H>
-#include <SphereSL.H>
+#include <SphSL.H>
 #include <DataGrid.H>
 #include <localmpi.H>
 #include <foarray.H>
@@ -82,7 +82,7 @@ typedef struct {
 } Node;
 
 
-void write_output(SphereSL& ortho, int icnt, double time)
+void write_output(SphSL& ortho, int icnt, double time)
 {
   unsigned ncnt = 0;
   Node node;
@@ -539,9 +539,9 @@ main(int argc, char **argv)
   // ==================================================
 
   auto halo = std::make_shared<SphericalModelTable>(MODFILE);
-  SphereSL::mpi = true;
-  SphereSL::NUMR = 4000;
-  SphereSL ortho(halo, LMAX, NMAX);
+  SphSL::mpi = true;
+  SphSL::NUMR = 4000;
+  SphSL ortho(halo, LMAX, NMAX);
 
   // ==================================================
   // Begin sequence
