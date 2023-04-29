@@ -74,7 +74,8 @@ of the submodules below for more detailed usage info...
 | basis     | Create and apply specific biorthogonal bases to generate coefficients from particle data and evaluate potential, density, and force fields. |
 | coefs     | Classes for reading, passing, writing, converting, and querying coefficient sets. |
 | field     | Create two- and three-dimension rectangular grids of fields for visualization. |
-| mssa      | Tools to apply Multivariate Singular Spectrum Analysis (MSSA) to the coefficients computed using the 'basis' classes. |
+| mssa      | Tools to apply Multivariate Singular Spectrum Analysis (mSSA) to the coefficients computed using the 'basis' classes. |
+| edmd      | Tools to test extended Dynamical Mode Decomposition (eDMD) using the basis as the 'observable' functions. |
 | util      | Miscellaneous tools that support the others.  Currently this include centering algorithms.  While EXP has native methods for doing this, others will need to supply an estimated center. |
 
 #### pyEXP example workflow
