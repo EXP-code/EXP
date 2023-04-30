@@ -1,6 +1,6 @@
 
-set(USER_MODULES user bar ebar logpot disk ebarp halo ebars ebarn
-  periodic reflect trigger mndisk tidalrad sat satfix mwgala)
+set(USER_MODULES user bar logpot disk halo periodic reflect trigger
+  mndisk tidalrad satfix mwgala)
 
 set (common_INCLUDE_DIRS
   $<INSTALL_INTERFACE:include>
@@ -20,19 +20,14 @@ endif()
 
 set(user_SRC      UserTest.cc)
 set(bar_SRC       UserBar.cc)
-set(ebar_SRC      UserEBar.cc)
-set(ebarn_SRC     UserEBarN.cc)
-set(ebarp_SRC     UserEBarP.cc)
-set(ebars_SRC     UserEBarS.cc)
-set(sat_SRC       UserSat.cc)
 set(satfix_SRC    SatFix.cc)
-set(mwgala_SRC    UserMW.cc)
 set(satfixorb_SRC SatFixOrb.cc)
+set(mwgala_SRC    UserMW.cc)
 set(logpot_SRC    UserLogPot.cc)
+set(halo_SRC      UserHalo.cc)
 set(disk_SRC      UserDisk.cc)
 set(mndisk_SRC    UserMNdisk.cc)
 set(tidalrad_SRC  UserTidalRad.cc)
-set(halo_SRC      UserHalo.cc)
 set(periodic_SRC  UserPeriodic.cc)
 set(reflect_SRC   UserReflect.cc)
 set(trigger_SRC   UserBarTrigger.cc)
