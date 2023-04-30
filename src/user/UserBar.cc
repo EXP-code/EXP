@@ -252,6 +252,8 @@ void UserBar::determine_acceleration_and_potential(void)
       cout << "V_1=" << ans1 << endl;
       cout << "V_2=" << ans2 << endl;
       cout << "I_3=" << 0.2*mass*(a1*a1 + a2*a2) << endl;
+      cout << "Omp=" << omega << endl;
+      cout << "Res=" << R << endl;
 
     }
 
