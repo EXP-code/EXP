@@ -42,8 +42,8 @@ double DiskHalo::RA          = 1.0e20;
 int    DiskHalo::NUMDF       = 800;
 int    DiskHalo::RNUM        = 4000;
 
-double DiskHalo::R_DF        = 20.0;
-double DiskHalo::DR_DF       = 5.0;
+double DiskHalo::R_DF        = -std::numeric_limits<double>::max();
+double DiskHalo::DR_DF       = 1.0;
 
 bool   DiskHalo::LOGR        = true;
 
@@ -584,6 +584,10 @@ void DiskHalo::
 set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 {
   const double tol = 1.0e-12;
+
+  Eigen::VectorXd ps(7);
+  int ierr;
+
   double rmin = max<double>(halo->get_min_radius(), RHMIN);
   double rmax = halo->get_max_radius();
   double mmin = halo->get_mass(rmin);
@@ -625,6 +629,10 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
     p.pos[0] = r*sinth*cos(phi);
     p.pos[1] = r*sinth*sin(phi);
     p.pos[2] = r*costh;
+
+    do {
+      ps = halo2->gen_point(ierr);
+    } while (ierr);
 
     massp1 += p.mass;
     for (int k=0; k<3; k++) pos1[k] += p.mass*p.pos[k];
