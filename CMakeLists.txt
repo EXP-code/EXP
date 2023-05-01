@@ -45,7 +45,6 @@ option(ENABLE_VTK "Configure VTK if available" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
-option(ENABLE_USER_PRIVATE "Enable private user modules" FALSE)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
 
@@ -210,9 +209,8 @@ add_subdirectory(utils)
 if (ENABLE_PYEXP)
   add_subdirectory(pyEXP)
 endif()
-if (ENABLE_USER_PRIVATE)
-  add_subdirectory(extern/EXP-modules)
-endif()
+
+add_subdirectory(extern/user-modules)
 
 # try to find pybind11 and build wrapper python module
 find_package(Python3 COMPONENTS Interpreter Development)
