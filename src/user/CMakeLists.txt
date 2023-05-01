@@ -1,6 +1,5 @@
 
-set(USER_MODULES user bar logpot disk halo periodic reflect trigger
-  mndisk tidalrad satfix mwgala)
+set(USER_MODULES user bar logpot disk halo mndisk mwgala)
 
 set (common_INCLUDE_DIRS
   $<INSTALL_INTERFACE:include>
@@ -20,17 +19,11 @@ endif()
 
 set(user_SRC      UserTest.cc)
 set(bar_SRC       UserBar.cc)
-set(satfix_SRC    SatFix.cc)
-set(satfixorb_SRC SatFixOrb.cc)
-set(mwgala_SRC    UserMW.cc)
 set(logpot_SRC    UserLogPot.cc)
-set(halo_SRC      UserHalo.cc)
 set(disk_SRC      UserDisk.cc)
+set(halo_SRC      UserHalo.cc)
 set(mndisk_SRC    UserMNdisk.cc)
-set(tidalrad_SRC  UserTidalRad.cc)
-set(periodic_SRC  UserPeriodic.cc)
-set(reflect_SRC   UserReflect.cc)
-set(trigger_SRC   UserBarTrigger.cc)
+set(mwgala_SRC    UserMW.cc)
 
 if (ENABLE_CUDA)
   set(cudatest_Src UserTestCuda.cc cudaUserTest.cu)
