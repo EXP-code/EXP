@@ -307,9 +307,10 @@ void initialize(void)
     if (myid==0 && ok) {	// Try to open a file in this path
       tfile << outdir << ".test.file." << rand();
 
-      if (mknod(tfile.str().c_str(),  S_IFREG | 0666, 0)==-1) {
-				// If the file exists, ok, otherwise NOT ok
-	if (errno != EEXIST) ok = false;
+      std::ofstream otest(tfile.str());
+      if (!otest) {	 
+				// File not created
+	ok = false;
       }
 				// Clean up
       unlink(tfile.str().c_str()); 
