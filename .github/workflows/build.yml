@@ -1,0 +1,76 @@
+name: "Test Builds"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+
+    name: "Test pyEXP Build"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install core dependencies - ubuntu
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libeigen3-dev libfftw3-dev libhdf5-dev libopenmpi-dev
+
+      - name: Install core dependencies - mac
+        if: startsWith(matrix.os, 'mac')
+        run: |
+          brew update
+          brew install eigen fftw hdf5 open-mpi libomp
+
+      - name: Setup submodule and build
+        run: |
+          git submodule update --init --recursive
+          mkdir -p build/install
+
+      - name: Compile - Linux
+        if: runner.os == 'Linux'
+        env:
+          CC: gcc
+        working-directory: ./build
+        run: >-
+          cmake
+          -DENABLE_NBODY=NO
+          -DENABLE_PYEXP=YES
+          -DCMAKE_BUILD_TYPE=Release
+          -DENABLE_USER=YES
+          -DEigen3_DIR=/usr/include/eigen3/share/eigen3/cmake
+          -DCMAKE_INSTALL_PREFIX=./install
+          -Wno-dev
+          ..
+
+      # - name: Setup upterm session
+      #   if: startsWith(matrix.os, 'mac')
+      #   uses: lhotari/action-upterm@v1
+
+      - name: Compile - Mac
+        if: startsWith(matrix.os, 'mac')
+        env:
+          CC: gcc
+          LDFLAGS: -L/usr/local/opt/libomp/lib
+          CPPFLAGS: -I/usr/local/opt/libomp/include
+        working-directory: ./build
+        run: >-
+          cmake
+          -DENABLE_NBODY=NO
+          -DENABLE_PYEXP=YES
+          -DCMAKE_BUILD_TYPE=Release
+          -DENABLE_USER=YES
+          -DEigen3_DIR=/usr/local/share/eigen3/cmake
+          -DCMAKE_INSTALL_PREFIX=./install
+          -DOpenMP_CXX_INCLUDE_DIR=/usr/local/opt/libomp/include
+          -DOpenMP_C_INCLUDE_DIR=/usr/local/opt/libomp/include
+          -Wno-dev
+          ..
