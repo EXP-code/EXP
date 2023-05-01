@@ -162,7 +162,8 @@ vector<string> ExternalCollection::getlibs(void)
       unsigned sz = strlen(s);
       if (sz>3) {
 	if (strncmp(s, "lib", 3) ==0 && 
-	    strncmp(&s[sz-3], ".so", 3)==0  ) 
+	    (strncmp(&s[sz-3], ".so",    3)==0  ||
+	     strncmp(&s[sz-6], ".dylib", 6)==0) )
 	  ret.push_back(namelist[i]->d_name);
       }
       free(namelist[i]);
