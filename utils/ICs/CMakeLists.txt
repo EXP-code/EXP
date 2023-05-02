@@ -32,6 +32,8 @@ if(ENABLE_DSMC)
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>)
   add_executable(makeIon makeIonIC.cc
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src/atomic_constants.cc>)
+  add_executable(phIon ph_ion.cc)
+  add_executable(phConv ph_conv.cc)
 endif()
 
 add_executable(shrinkics shrinkics.cc)
@@ -60,10 +62,6 @@ add_executable(empdump empdump.cc)
 add_executable(eofbasis eof_basis.cc)
 
 add_executable(eofcomp eof_compare.cc)
-
-add_executable(phIon ph_ion.cc)
-
-add_executable(phConv ph_conv.cc)
 
 add_executable(testcoefs check_coefs.cc SphericalSL.cc legendre.cc
   sinecosine.cc)
