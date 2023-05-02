@@ -17,7 +17,7 @@ endif()
 
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/DSMC/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/utils/SL/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
@@ -26,6 +26,13 @@ set(common_INCLUDE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/..
   ${HDF5_INCLUDE_DIRS})
+
+if(ENABLE_DSMC)
+  list(APPEND common_INCLUDE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>)
+  add_executable(makeIon makeIonIC.cc
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src/atomic_constants.cc>)
+endif()
 
 add_executable(shrinkics shrinkics.cc)
 
@@ -53,9 +60,6 @@ add_executable(empdump empdump.cc)
 add_executable(eofbasis eof_basis.cc)
 
 add_executable(eofcomp eof_compare.cc)
-
-add_executable(makeIon makeIonIC.cc
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/DSMC/atomic_constants.cc>)
 
 add_executable(phIon ph_ion.cc)
 
