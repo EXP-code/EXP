@@ -252,6 +252,8 @@ void UserBar::determine_acceleration_and_potential(void)
       cout << "V_1=" << ans1 << endl;
       cout << "V_2=" << ans2 << endl;
       cout << "I_3=" << 0.2*mass*(a1*a1 + a2*a2) << endl;
+      cout << "Omp=" << omega << endl;
+      cout << "Res=" << R << endl;
 
     }
 
@@ -269,11 +271,14 @@ void UserBar::determine_acceleration_and_potential(void)
       cout << "====================================================\n" 
 	   << flush;
 
-      name = outdir + filename;
-      name += ".barstat";
+      name = filename + ".barstat";
 
       if (!restart) {
-	ofstream out(name.c_str(), ios::out | ios::app);
+	std::ofstream out(name, ios::out | ios::app);
+
+	if (!out) throw FileCreateError(name,
+					"UserBar: error opening new log file",
+					__FILE__, __LINE__);
 
 	out << setw(15) << "# Time"
 	    << setw(15) << "Phi"
@@ -302,27 +307,24 @@ void UserBar::determine_acceleration_and_potential(void)
       if (myid == 0) {
 	
 	// Backup up old file
-	string backupfile = outdir + name + ".bak";
-	string command("cp ");
-	command += outdir + name + " " + backupfile;
+	std::string backupfile = filename + ".bak";
+	std::string command("cp ");
+	command += filename + " " + backupfile;
 	if (system(command.c_str()) == -1) {
 	  std::cerr << "UserBar: error in executing <"
 		    << command << ">" << endl;
 	}
 	
 	// Open new output stream for writing
-	ofstream out(string(outdir+name).c_str());
-	if (!out) {
-	  throw FileCreateError(outdir+name, "UserBar: error opening new log file",
-				__FILE__, __LINE__);
-	}
-	
+	std::ofstream out(filename);
+	if (!out) throw FileCreateError(filename,
+					"UserBar: error opening new log file",
+					__FILE__, __LINE__);
 	// Open old file for reading
-	ifstream in(backupfile.c_str());
-	if (!in) {
-	  throw FileOpenError(backupfile, "UserBar: error opening new log file",
-			      __FILE__, __LINE__);
-	}
+	std::ifstream in(backupfile.c_str());
+	if (!in) throw FileOpenError(backupfile,
+				     "UserBar: error opening new log file",
+				     __FILE__, __LINE__);
 
 	const int linesize = 1024;
 	char line[linesize];
@@ -392,25 +394,32 @@ void UserBar::determine_acceleration_and_potential(void)
 
   if (myid==0 && update) 
     {
-      ofstream out(string(outdir+name).c_str(), ios::out | ios::app);
-      out.setf(ios::scientific);
+      std::ofstream out(name, ios::out | ios::app);
+      if (out) {
+	out.setf(ios::scientific);
 
-      out << setw(15) << tnow
-	  << setw(15) << posang
-	  << setw(15) << omega;
-
-      if (c1)
-	out << setw(15) << Lz + Lz0 - c1->angmom[2]
-	    << setw(15) << c1->angmom[2];
-      else
-	out << setw(15) << Lz
-	    << setw(15) << 0.0;
-
-      out << setw(15) << amplitude *  
-	0.5*(1.0 + erf( (tnow - Ton )/DeltaT )) *
-	0.5*(1.0 - erf( (tnow - Toff)/DeltaT ))
-	  << endl;
+	out << setw(15) << tnow
+	    << setw(15) << posang
+	    << setw(15) << omega;
+	
+	if (c1)
+	  out << setw(15) << Lz + Lz0 - c1->angmom[2]
+	      << setw(15) << c1->angmom[2];
+	else
+	  out << setw(15) << Lz
+	      << setw(15) << 0.0;
+	
+	out << setw(15) << amplitude *  
+	  0.5*(1.0 + erf( (tnow - Ton )/DeltaT )) *
+	  0.5*(1.0 - erf( (tnow - Toff)/DeltaT ))
+	    << endl;
+      } else {
+	throw FileOpenError(name,
+			    "UserBar: error opening barstat file",
+			    __FILE__, __LINE__);
+      }
     }
+      
   
   print_timings("UserBar: acceleration timings");
 }
