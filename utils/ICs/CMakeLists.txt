@@ -1,6 +1,6 @@
 
 set(bin_PROGRAMS shrinkics gensph gendisk gendisk2d gsphere pstmod
-  empinfo empdump eofbasis makeIon phIon phConv eofcomp testcoefs
+  empinfo empdump eofbasis phIon phConv eofcomp testcoefs
   testcoefs2 testdeval forcetest hdf52accel forcetest2 cylcache
   modelfit test2d addsphmod)
 
@@ -28,6 +28,7 @@ set(common_INCLUDE
   ${HDF5_INCLUDE_DIRS})
 
 if(ENABLE_DSMC)
+  list(APPEND bin_PROGRAMS makeIon)
   list(APPEND common_INCLUDE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>)
   add_executable(makeIon makeIonIC.cc
