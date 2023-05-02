@@ -27,7 +27,7 @@ set(common_INCLUDE
   ${HDF5_INCLUDE_DIRS})
 
 if(ENABLE_DSMC)
-  list(APPEND bin_PROGRAMS makeIon phIon phConv
+  list(APPEND bin_PROGRAMS makeIon phIon phConv)
   list(APPEND common_INCLUDE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>)
   add_executable(makeIon makeIonIC.cc
