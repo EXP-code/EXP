@@ -1,8 +1,7 @@
 
 set(bin_PROGRAMS shrinkics gensph gendisk gendisk2d gsphere pstmod
-  empinfo empdump eofbasis makeIon phIon phConv eofcomp testcoefs
-  testcoefs2 testdeval forcetest hdf52accel forcetest2 cylcache
-  modelfit test2d addsphmod)
+  empinfo empdump eofbasis eofcomp testcoefs testcoefs2 testdeval
+  forcetest hdf52accel forcetest2 cylcache modelfit test2d addsphmod)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
@@ -28,10 +27,13 @@ set(common_INCLUDE
   ${HDF5_INCLUDE_DIRS})
 
 if(ENABLE_DSMC)
+  list(APPEND bin_PROGRAMS makeIon phIon phConv)
   list(APPEND common_INCLUDE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>)
   add_executable(makeIon makeIonIC.cc
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src/atomic_constants.cc>)
+  add_executable(phIon ph_ion.cc)
+  add_executable(phConv ph_conv.cc)
 endif()
 
 add_executable(shrinkics shrinkics.cc)
@@ -60,10 +62,6 @@ add_executable(empdump empdump.cc)
 add_executable(eofbasis eof_basis.cc)
 
 add_executable(eofcomp eof_compare.cc)
-
-add_executable(phIon ph_ion.cc)
-
-add_executable(phConv ph_conv.cc)
 
 add_executable(testcoefs check_coefs.cc SphericalSL.cc legendre.cc
   sinecosine.cc)
