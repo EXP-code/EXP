@@ -160,10 +160,10 @@ vector<string> ExternalCollection::getlibs(void)
     for (int i=0; i<n; i++) {
       char *s = namelist[i]->d_name;
       unsigned sz = strlen(s);
-      if (sz>3) {
+      if (sz>5) {		// Safety check on string length
 	if (strncmp(s, "lib", 3) ==0 && 
-	    (strncmp(&s[sz-3], ".so",    3)==0  ||
-	     strncmp(&s[sz-6], ".dylib", 6)==0) )
+	    (strncmp(&s[sz-3], ".so",    3)==0  || // Linux
+	     strncmp(&s[sz-6], ".dylib", 6)==0) )  // MacOS
 	  ret.push_back(namelist[i]->d_name);
       }
       free(namelist[i]);
