@@ -26,7 +26,7 @@ set(common_INCLUDE_DIRS
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/pyEXP/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/DSMC/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
@@ -34,7 +34,7 @@ set(common_INCLUDE_DIRS
 
 set(DSMC_LIBS)
 if (ENABLE_DSMC)
-  add_subdirectory(DSMC)
+  add_subdirectory(${PROJECT_SOURCE_DIR}/extern/DSMC/src DSMC)
   list(APPEND DSMC_LIBS expdsmc)
 endif()
 
@@ -59,7 +59,7 @@ set_target_properties(EXPlib PROPERTIES OUTPUT_NAME EXPlib)
 target_include_directories(EXPlib PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(EXPlib PUBLIC ${common_LINKLIB})
 
-if (ENABLE_USER OR ENABLE_USER_ALL)
+if (ENABLE_USER)
   add_subdirectory(user)
 endif()
 
