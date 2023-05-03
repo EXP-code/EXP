@@ -11,6 +11,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest]
+        cc: [gcc, mpicc]
 
     name: "Test pyEXP Build"
     runs-on: ${{ matrix.os }}
@@ -38,7 +39,7 @@ jobs:
       - name: Compile - Linux
         if: runner.os == 'Linux'
         env:
-          CC: gcc
+          CC: ${{ matrix.cc }}
         working-directory: ./build
         run: >-
           cmake
@@ -56,7 +57,7 @@ jobs:
       - name: Compile - Mac
         if: startsWith(matrix.os, 'mac')
         env:
-          CC: gcc
+          CC: ${{ matrix.cc }}
           LDFLAGS: -L/usr/local/opt/libomp/lib
           CPPFLAGS: -I/usr/local/opt/libomp/include
         working-directory: ./build
