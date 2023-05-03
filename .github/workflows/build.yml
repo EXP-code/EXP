@@ -51,10 +51,6 @@ jobs:
           -Wno-dev
           ..
 
-      # - name: Setup upterm session
-      #   if: startsWith(matrix.os, 'mac')
-      #   uses: lhotari/action-upterm@v1
-
       - name: Compile - Mac
         if: startsWith(matrix.os, 'mac')
         env:
