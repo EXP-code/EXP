@@ -2,6 +2,9 @@
 
 [![Test Builds](https://github.com/EXP-code/EXP/actions/workflows/build.yml/badge.svg)](https://github.com/EXP-code/EXP/actions/workflows/build.yml)
 
+[![Documentation](https://readthedocs.org/projects/exp-docs/badge/?version=latest)](https://exp-docs.readthedocs.io/)
+
+
 ## Repo organization
 
 | Files   | Description |
