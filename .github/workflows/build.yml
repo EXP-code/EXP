@@ -51,6 +51,8 @@ jobs:
           -Wno-dev
           ..
 
+      # Note for future: The homebrew paths are for intel only. Once ARM macs are
+      # supported in here, we'll need to update to /opt/homebrew/... instead
       - name: Compile - Mac
         if: startsWith(matrix.os, 'mac')
         env:
