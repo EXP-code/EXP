@@ -1904,7 +1904,8 @@ void Cylinder::multistep_update_cuda()
   // particles for correction to coefficient matrix
   //
 
-  //! Sort the device vector by level changes
+  // Sort the device vector by level changes
+  //
   auto chg = component->CudaSortLevelChanges();
 
   cudaDeviceProp deviceProp;
