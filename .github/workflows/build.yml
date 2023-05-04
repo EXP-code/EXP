@@ -72,6 +72,10 @@ jobs:
           -Wno-dev
           ..
 
+      - name: Make
+        working-directory: ./build
+        run: make -j 2
+
   # -----------------------------------------------------------------------------------
 
   exp:
@@ -138,3 +142,7 @@ jobs:
           -DOpenMP_C_INCLUDE_DIR=/usr/local/opt/libomp/include
           -Wno-dev
           ..
+
+      - name: Make
+        working-directory: ./build
+        run: make -j 2
