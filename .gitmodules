@@ -8,6 +8,3 @@
 [submodule "extern/HighFive"]
 	path = extern/HighFive
 	url = https://github.com/BlueBrain/HighFive.git
-[submodule "extern/user-modules/mycode1"]
-	path = extern/user-modules/mycode1
-	url = git@github.com:The9Cat/EXP-modules.git
