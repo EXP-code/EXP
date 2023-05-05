@@ -26,7 +26,9 @@ if (!(x)) { throw (std::runtime_error("Eigen assert error")); }
 */
 
 #include <TransformFFT.H>
+#ifdef HAVE_LIBPNGPP
 #include <ColorGradient.H>
+#endif
 #include <KMeans.H>
 
 #include <CoefDB.H>

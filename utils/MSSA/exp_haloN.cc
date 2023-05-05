@@ -26,7 +26,9 @@
 #include <Eigen/Dense>
 
 #include <TransformFFT.H>
+#ifdef HAVE_LIBPNGPP
 #include <ColorGradient.H>
+#endif
 
 #include "Coefs.H"
 #include "RedSVD.H"
