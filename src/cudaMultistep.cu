@@ -91,7 +91,7 @@ __global__ void
 timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	       cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	       int minactlev, int dim, int stride, PII lohi,
-	       bool noswitch, bool reset)
+	       bool noswitch)
 {
   const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
   const cuFP_t eps = 1.0e-20;
@@ -177,12 +177,8 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       if (dt < eps) dt = eps;
       
       if (noswitch) {
-	if (reset) p.dtreq = 0.0;
-	if (p.dtreq <= 0.0) p.dtreq = dt;
-	else {
-	  if (dt > p.dtreq) dt = p.dtreq;
-	  else              p.dtreq = dt;
-	}
+	if (p.dtreq <= 0.0)    p.dtreq = dt;
+	else if (dt < p.dtreq) p.dtreq = dt;
       }
 
       // Time step wants to be LARGER than the maximum
@@ -343,17 +339,12 @@ void cuda_compute_levels()
       //
       auto ctr = c->getCenter(Component::Local | Component::Centered);
       
-      // Reset dt minimizer for entire step and switching algorithm
-      //
-      bool reset    = c->DTreset() and mdrft==1;
-      bool noswitch = c->NoSwitch();
-
       // Do the work
       //
       timestepKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles),
 	 toKernel(c->cuStream->indx1), ctr[0], ctr[1], ctr[2],
-	 mfirst[mdrft], c->dim, stride, lohi, noswitch, reset);
+	 mfirst[mdrft], c->dim, stride, lohi, c->NoSwitch());
     }
   }
 
