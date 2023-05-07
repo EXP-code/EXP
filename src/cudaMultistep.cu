@@ -91,7 +91,7 @@ __global__ void
 timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	       cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	       int minactlev, int dim, int stride, PII lohi,
-	       bool switching, bool shift)
+	       bool noswitch, bool reset)
 {
   const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
   const cuFP_t eps = 1.0e-20;
@@ -116,6 +116,7 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t zz = p.pos[2] - cz;
       
       cuFP_t dtd=1.0/eps, dtv=1.0/eps, dta=1.0/eps, dtA=1.0/eps, dts=1.0/eps;
+      cuFP_t atot = 0.0;
 
       if (cuDTold) {
 
@@ -125,20 +126,19 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	
 	cuFP_t rtot = sqrt(xx*xx + yy*yy + zz*zz);
 	cuFP_t vtot = 0.0;
-	cuFP_t atot = 0.0;
 
 	for (int k=0; k<dim; k++) {
 	  vtot += p.vel[k]*p.vel[k];
 	  atot += p.acc[k]*p.acc[k];
 	}
-	vtot = sqrt(vtot) + 1.0e-18;
-	atot = sqrt(atot) + 1.0e-18;
+	vtot = sqrt(vtot);
+	atot = sqrt(atot);
 	
 	if (p.scale>0.0) dts = cuDynfracS*p.scale/vtot;
 
-	dtv = cuDynfracV*rtot/vtot;
-	dta = cuDynfracA*vtot/atot;
-	dtA = cuDynfracP*sqrt(rtot/atot);
+	dtv = cuDynfracV*rtot/(vtot+eps);
+	dta = cuDynfracA*vtot/(atot+eps);
+	dtA = cuDynfracP*sqrt(rtot/(atot+eps));
 
       } else {
 
@@ -149,7 +149,6 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 
 	cuFP_t dtr  = 0.0;
 	cuFP_t vtot = 0.0;
-	cuFP_t atot = 0.0;
 	
 	for (int k=0; k<dim; k++) {
 	  dtr  += p.vel[k]*p.acc[k];
@@ -177,39 +176,41 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       if (dt > dtA) dt = dtA;
       if (dt < eps) dt = eps;
       
-      if (p.dtreq<=0) {
-	p.dtreq = dt;
-      } else {
-	if (dt > p.dtreq) dt = p.dtreq;
-	else              p.dtreq = dt;
+      if (noswitch) {
+	if (reset) p.dtreq = 0.0;
+	if (p.dtreq <= 0.0) p.dtreq = dt;
+	else {
+	  if (dt > p.dtreq) dt = p.dtreq;
+	  else              p.dtreq = dt;
+	}
       }
 
-      if (switching or minactlev==0) {
-
-	// Time step wants to be LARGER than the maximum
-	//
-	p.lev[1] = 0;
-	if (dt<cuDtime)
-	  p.lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
+      // Time step wants to be LARGER than the maximum
+      //
+      if (dt > cuDtime) p.lev[1] = 0;
+      else              p.lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
     
-	// Time step wants to be SMALLER than the maximum
-	//
-	if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
+      // Time step wants to be SMALLER than the maximum
+      //
+      if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
       
-	// Limit new level to minimum active level
-	//
-	if (p.lev[1]<minactlev)   p.lev[1] = minactlev;
+      // Limit new level to minimum active level
+      //
+      if (p.lev[1]<minactlev)   p.lev[1] = minactlev;
 	
-	// Enforce n-level shifts at a time
-	//
-	if (cuShiftlev and shift) {
-	  if (p.lev[1] > p.lev[0]) {
-	    if (p.lev[1] - p.lev[0] > cuShiftlev)
-	      p.lev[1] = p.lev[0] + cuShiftlev;
-	  } else if (p.lev[0] > p.lev[1]) {
-	    if (p.lev[0] - p.lev[1] > cuShiftlev)
-	      p.lev[1] = p.lev[0] - cuShiftlev;
-	  }
+      // Case with ZERO acceleration (possibly leading to bad assignment)
+      //
+      if (atot==0)              p.lev[1] = cuMultistep;
+
+      // Enforce n-level shifts at a time
+      //
+      if (cuShiftlev) {
+	if (p.lev[1] > p.lev[0]) {
+	  if (p.lev[1] - p.lev[0] > cuShiftlev)
+	    p.lev[1] = p.lev[0] + cuShiftlev;
+	} else if (p.lev[0] > p.lev[1]) {
+	  if (p.lev[0] - p.lev[1] > cuShiftlev)
+	    p.lev[1] = p.lev[0] - cuShiftlev;
 	}
       }
       // Active level = 0
@@ -342,21 +343,17 @@ void cuda_compute_levels()
       //
       auto ctr = c->getCenter(Component::Local | Component::Centered);
       
-      // Allow intrastep level switches
+      // Reset dt minimizer for entire step and switching algorithm
       //
-      bool switching = true;
-
-      // Allowing switching on first call to set levels
-      //
-      bool notFirstCall = this_step!=0 or mstep!=0;
-      if (c->NoSwitch() and notFirstCall) switching = false;
+      bool reset    = c->DTreset() and mdrft==1;
+      bool noswitch = c->NoSwitch();
 
       // Do the work
       //
       timestepKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles),
 	 toKernel(c->cuStream->indx1), ctr[0], ctr[1], ctr[2],
-	 mfirst[mdrft], c->dim, stride, lohi, switching, notFirstCall);
+	 mfirst[mdrft], c->dim, stride, lohi, noswitch, reset);
     }
   }
 
