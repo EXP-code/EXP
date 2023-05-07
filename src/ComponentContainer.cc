@@ -510,6 +510,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 #if HAVE_LIBCUDA==1
     if (use_cuda) {		// GPU device version
       c->ZeroPotAccel(mlevel);
+      fetched[c] = false;
     } else
 #endif
       {
