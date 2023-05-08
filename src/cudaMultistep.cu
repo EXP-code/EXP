@@ -350,71 +350,83 @@ void cuda_compute_levels()
   time1 += duration.count()*1.0e-6;
 #endif
   
-  //
   // Finish the update
   //
   for (auto c : comp->components) {
+
+    bool firstCall = this_step==0 and mdrft==0;
+    bool restrict  = not c->NoSwitch() or mdrft==Mstep or firstCall;
+    //                            ^            ^              ^
+    //                            |            |              |
+    // allow intrastep switching--+            |              |
+    // otherwise: relevel at end of step-------+              |
+    // or on the very first call to initialize levels---------+
+  
+    if (restrict) {
 #ifdef VERBOSE_TIMING
-    start = std::chrono::high_resolution_clock::now();
+      start = std::chrono::high_resolution_clock::now();
 #endif
-    cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
-    cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
+      cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
+      cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
     
-    if (not c->force->NoCoefs()) c->force->multistep_update_cuda();
-
-#ifdef VERBOSE_TIMING
-    finish = std::chrono::high_resolution_clock::now();
-    duration = finish - start;
-    timeADJ += duration.count()*1.0e-6;
-    start = std::chrono::high_resolution_clock::now();
-#endif
-
-    // Compute grid
-    //
-    PII lohi = {0, c->cuStream->cuda_particles.size()};
-    if (multistep) lohi = c->CudaGetLevelRange(mfirst[mdrft], multistep);
-      
-    unsigned int N         = lohi.second - lohi.first;
-    unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-    unsigned int gridSize  = N/BLOCK_SIZE/stride;
-    
-    if (N>0) {
-
-      if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
-
-      timestepFinalizeKernel<<<gridSize, BLOCK_SIZE>>>
-	(toKernel(c->cuStream->cuda_particles),
-	 toKernel(c->cuStream->indx1), stride, lohi);
+      if (not c->force->NoCoefs()) c->force->multistep_update_cuda();
 
 #ifdef VERBOSE_TIMING
       finish = std::chrono::high_resolution_clock::now();
       duration = finish - start;
-      time2 += duration.count()*1.0e-6;
+      timeADJ += duration.count()*1.0e-6;
       start = std::chrono::high_resolution_clock::now();
 #endif
 
-      // Resort for next substep; this makes indx1
+      // Compute grid
       //
-      c->CudaSortByLevel();
+      PII lohi = {0, c->cuStream->cuda_particles.size()};
+      if (multistep) lohi = c->CudaGetLevelRange(mfirst[mdrft], multistep);
+      
+      unsigned int N         = lohi.second - lohi.first;
+      unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+      unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    
+      if (N>0) {
+
+	if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+	timestepFinalizeKernel<<<gridSize, BLOCK_SIZE>>>
+	  (toKernel(c->cuStream->cuda_particles),
+	   toKernel(c->cuStream->indx1), stride, lohi);
+
+#ifdef VERBOSE_TIMING
+	finish = std::chrono::high_resolution_clock::now();
+	duration = finish - start;
+	time2 += duration.count()*1.0e-6;
+	start = std::chrono::high_resolution_clock::now();
+#endif
+	
+	// Resort for next substep; this makes indx1
+	//
+	c->CudaSortByLevel();
+      }
+
+#ifdef VERBOSE_TIMING
+      finish = std::chrono::high_resolution_clock::now();
+      duration = finish - start;
+      timeSRT += duration.count()*1.0e-6;
+      start = std::chrono::high_resolution_clock::now();
+#endif
+
+      c->fix_positions_cuda();
+
+#ifdef VERBOSE_TIMING
+      finish = std::chrono::high_resolution_clock::now();
+      duration = finish - start;
+      timeCOM += duration.count()*1.0e-6;
+#endif
+
+      c->force->multistep_update_finish();
     }
-
-#ifdef VERBOSE_TIMING
-    finish = std::chrono::high_resolution_clock::now();
-    duration = finish - start;
-    timeSRT += duration.count()*1.0e-6;
-    start = std::chrono::high_resolution_clock::now();
-#endif
-
-    c->fix_positions_cuda();
-
-#ifdef VERBOSE_TIMING
-    finish = std::chrono::high_resolution_clock::now();
-    duration = finish - start;
-    timeCOM += duration.count()*1.0e-6;
-#endif
-
-    c->force->multistep_update_finish();
+    // END: coefficient update stanza
   }
+  // END: component loop
 
 #ifdef VERBOSE_TIMING
   auto finish0 = std::chrono::high_resolution_clock::now();
