@@ -111,6 +111,8 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
       }
     }
     // END: DEBUG
+
+    c->CudaToParticles();
   }
   // END: component loop
 }
