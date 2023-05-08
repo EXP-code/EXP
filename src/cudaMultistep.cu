@@ -116,7 +116,7 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t zz = p.pos[2] - cz;
       
       cuFP_t dtd=1.0/eps, dtv=1.0/eps, dta=1.0/eps, dtA=1.0/eps, dts=1.0/eps;
-      cuFP_t atot = 0.0;
+      cuFP_t atot = 0.0, vtot = 0.0, rtot = sqrt(xx*xx + yy*yy + zz*zz);
 
       if (cuDTold) {
 
@@ -124,9 +124,6 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	// dta = eps* v/a         -- force scale
 	// dtA = eps* sqrt(r/a)   -- acceleration time
 	
-	cuFP_t rtot = sqrt(xx*xx + yy*yy + zz*zz);
-	cuFP_t vtot = 0.0;
-
 	for (int k=0; k<dim; k++) {
 	  vtot += p.vel[k]*p.vel[k];
 	  atot += p.acc[k]*p.acc[k];
@@ -148,7 +145,6 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	// dtA = eps* sqrt(phi/a^2) -- char. "escape" time scale
 
 	cuFP_t dtr  = 0.0;
-	cuFP_t vtot = 0.0;
 	
 	for (int k=0; k<dim; k++) {
 	  dtr  += p.vel[k]*p.acc[k];
@@ -236,7 +232,7 @@ timestepFinalizeKernel(dArray<cudaParticle> P, dArray<int> I,
 #endif
       cudaParticle & p = P._v[I._v[npart]];
       
-      if (p.lev[0] != p.lev[1]) p.lev[0] = p.lev[1];
+      p.lev[0] = p.lev[1];
 
     } // Particle index block
     

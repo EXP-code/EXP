@@ -112,7 +112,7 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
     }
     // END: DEBUG
 
-    c->CudaToParticles();
+    if (not leapfrog_cuda) c->CudaToParticles();
   }
   // END: component loop
 }
