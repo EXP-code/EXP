@@ -75,7 +75,7 @@ void testConstantsMultistep()
 }
 
 __global__ void
-timestepSetKernel(dArray<cudaParticle> P, int stride, int mstep, int mdrft)
+timestepSetKernel(dArray<cudaParticle> P, int stride)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -301,7 +301,7 @@ void cuda_compute_levels()
 	if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
 	timestepSetKernel<<<gridSize, BLOCK_SIZE>>>
-	  (toKernel(c->cuStream->cuda_particles), stride, mstep, mdrft);
+	  (toKernel(c->cuStream->cuda_particles), stride);
       }
     }
 
