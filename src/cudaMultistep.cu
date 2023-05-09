@@ -111,12 +111,8 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       // Particle index ------+    |
       // Sort index ---------------+
       
-      cuFP_t xx = p.pos[0] - cx;
-      cuFP_t yy = p.pos[1] - cy;
-      cuFP_t zz = p.pos[2] - cz;
-      
       cuFP_t dtd=1.0/eps, dtv=1.0/eps, dta=1.0/eps, dtA=1.0/eps, dts=1.0/eps;
-      cuFP_t atot = 0.0, vtot = 0.0, rtot = sqrt(xx*xx + yy*yy + zz*zz);
+      cuFP_t atot = 0.0, vtot = 0.0;
 
       if (cuDTold) {
 
@@ -124,6 +120,12 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	// dta = eps* v/a         -- force scale
 	// dtA = eps* sqrt(r/a)   -- acceleration time
 	
+	cuFP_t xx = p.pos[0] - cx;
+	cuFP_t yy = p.pos[1] - cy;
+	cuFP_t zz = p.pos[2] - cz;
+
+	cuFP_t rtot = sqrt(xx*xx + yy*yy + zz*zz);
+
 	for (int k=0; k<dim; k++) {
 	  vtot += p.vel[k]*p.vel[k];
 	  atot += p.acc[k]*p.acc[k];
