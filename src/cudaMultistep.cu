@@ -285,7 +285,7 @@ void cuda_compute_levels()
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
     cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
-    // Set maximum time step
+    // Reset minimum time step field
     //
     if (multistep and c->NoSwitch() and c->DTreset() and mdrft==1) {
 
@@ -303,6 +303,8 @@ void cuda_compute_levels()
       }
     }
 
+    // Sort by levels
+    //
     PII lohi = {0, c->cuStream->cuda_particles.size()};
     if (multistep) lohi = c->CudaGetLevelRange(mfirst[mdrft], multistep);
       
@@ -327,6 +329,8 @@ void cuda_compute_levels()
     unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
     unsigned int gridSize  = N/BLOCK_SIZE/stride;
     
+    // We have particle at this level: get the new time-step level
+    //
     if (N>0) {
 
       if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
@@ -343,6 +347,7 @@ void cuda_compute_levels()
 	 mfirst[mdrft], c->dim, stride, lohi, c->NoSwitch());
     }
   }
+  // END: component loop
 
 #ifdef VERBOSE_TIMING
   auto finish = std::chrono::high_resolution_clock::now();
@@ -362,6 +367,8 @@ void cuda_compute_levels()
     // otherwise: relevel at end of step-------+              |
     // or on the very first call to initialize levels---------+
   
+    // Call the multistep update for the force instance
+    //
     if (restrict) {
 #ifdef VERBOSE_TIMING
       start = std::chrono::high_resolution_clock::now();
@@ -387,6 +394,8 @@ void cuda_compute_levels()
       unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
       unsigned int gridSize  = N/BLOCK_SIZE/stride;
     
+      // Assign the newly computed, updated level
+      //
       if (N>0) {
 
 	if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
