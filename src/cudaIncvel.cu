@@ -7,7 +7,12 @@
 #include <cudaParticle.cuH>
 
 __global__ void velocityKick
-(dArray<cudaParticle> P, dArray<int> I, cuFP_t dt, int dim, int stride, PII lohi)
+(dArray<cudaParticle> P, dArray<int> I, cuFP_t dt, int dim, int stride, PII lohi
+#ifdef  DEEP_ACCEL_CHECK
+ , cuFP_t time, int mstep)
+#else
+  )
+#endif
 {
   // Thread ID
   //
@@ -25,6 +30,12 @@ __global__ void velocityKick
       cudaParticle & p = P._v[I._v[npart]];
     
       for (int k=0; k<dim; k++) p.vel[k] += p.acc[k]*dt;
+#ifdef DEEP_ACCEL_CHECK
+      if (p.indx==2 or p.indx==4) {
+	printf("%2d %6d %8.4f %13.6e %13.6e %13.6e\n", p.indx, mstep, time,
+	       p.acc[0], p.acc[1], p.acc[2]);
+      }
+#endif
     }
   }
 }
@@ -82,7 +93,12 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
       //
       velocityKick<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(cr->cuda_particles),
-	 toKernel(cr->indx1), dt, c->dim, stride, lohi);
+	 toKernel(cr->indx1), dt, c->dim, stride, lohi
+#ifdef DEEP_ACCEL_CHECK
+	 , tnow, mstep);
+#else
+      );
+#endif
     }
 
     // DEBUGGING output

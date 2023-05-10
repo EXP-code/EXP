@@ -69,6 +69,18 @@ void * incr_velocity_thread(void *ptr)
 	  p->vel[k] += p->acc[k]*dt;
 	// }
 
+#ifdef DEEP_ACCEL_CHECK
+      if (p->indx==2 or p->indx==4) {
+	std::cout << std::setw( 1) << p->indx
+		  << " " << std::setw( 5) << mstep
+		  << " " << std::setw(10) << std::fixed << tnow
+		  << " " << std::setw(13) << std::scientific << p->acc[0]
+		  << " " << std::setw(13) << std::scientific << p->acc[1]
+		  << " " << std::setw(13) << std::scientific << p->acc[2]
+		  << std::endl;
+      }
+#endif
+
     }
       
   }
