@@ -75,7 +75,7 @@ void testConstantsMultistep()
 }
 
 __global__ void
-timestepSetKernel(dArray<cudaParticle> P, int stride, int mstep, int mdrft)
+timestepSetKernel(dArray<cudaParticle> P, int stride)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -91,7 +91,7 @@ __global__ void
 timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	       cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	       int minactlev, int dim, int stride, PII lohi,
-	       bool switching, bool shift)
+	       bool noswitch)
 {
   const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
   const cuFP_t eps = 1.0e-20;
@@ -111,11 +111,8 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       // Particle index ------+    |
       // Sort index ---------------+
       
-      cuFP_t xx = p.pos[0] - cx;
-      cuFP_t yy = p.pos[1] - cy;
-      cuFP_t zz = p.pos[2] - cz;
-      
       cuFP_t dtd=1.0/eps, dtv=1.0/eps, dta=1.0/eps, dtA=1.0/eps, dts=1.0/eps;
+      cuFP_t atot = 0.0, vtot = 0.0;
 
       if (cuDTold) {
 
@@ -123,22 +120,24 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	// dta = eps* v/a         -- force scale
 	// dtA = eps* sqrt(r/a)   -- acceleration time
 	
+	cuFP_t xx = p.pos[0] - cx;
+	cuFP_t yy = p.pos[1] - cy;
+	cuFP_t zz = p.pos[2] - cz;
+
 	cuFP_t rtot = sqrt(xx*xx + yy*yy + zz*zz);
-	cuFP_t vtot = 0.0;
-	cuFP_t atot = 0.0;
 
 	for (int k=0; k<dim; k++) {
 	  vtot += p.vel[k]*p.vel[k];
 	  atot += p.acc[k]*p.acc[k];
 	}
-	vtot = sqrt(vtot) + 1.0e-18;
-	atot = sqrt(atot) + 1.0e-18;
+	vtot = sqrt(vtot);
+	atot = sqrt(atot);
 	
 	if (p.scale>0.0) dts = cuDynfracS*p.scale/vtot;
 
-	dtv = cuDynfracV*rtot/vtot;
-	dta = cuDynfracA*vtot/atot;
-	dtA = cuDynfracP*sqrt(rtot/atot);
+	dtv = cuDynfracV*rtot/(vtot+eps);
+	dta = cuDynfracA*vtot/(atot+eps);
+	dtA = cuDynfracP*sqrt(rtot/(atot+eps));
 
       } else {
 
@@ -148,8 +147,6 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	// dtA = eps* sqrt(phi/a^2) -- char. "escape" time scale
 
 	cuFP_t dtr  = 0.0;
-	cuFP_t vtot = 0.0;
-	cuFP_t atot = 0.0;
 	
 	for (int k=0; k<dim; k++) {
 	  dtr  += p.vel[k]*p.acc[k];
@@ -177,39 +174,37 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       if (dt > dtA) dt = dtA;
       if (dt < eps) dt = eps;
       
-      if (p.dtreq<=0) {
-	p.dtreq = dt;
-      } else {
-	if (dt > p.dtreq) dt = p.dtreq;
-	else              p.dtreq = dt;
+      if (noswitch) {
+	if (p.dtreq <= 0.0)    p.dtreq = dt;
+	else if (dt < p.dtreq) p.dtreq = dt;
       }
 
-      if (switching or minactlev==0) {
-
-	// Time step wants to be LARGER than the maximum
-	//
-	p.lev[1] = 0;
-	if (dt<cuDtime)
-	  p.lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
+      // Time step wants to be LARGER than the maximum
+      //
+      if (dt > cuDtime) p.lev[1] = 0;
+      else              p.lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
     
-	// Time step wants to be SMALLER than the maximum
-	//
-	if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
+      // Time step wants to be SMALLER than the maximum
+      //
+      if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
       
-	// Limit new level to minimum active level
-	//
-	if (p.lev[1]<minactlev)   p.lev[1] = minactlev;
+      // Limit new level to minimum active level
+      //
+      if (p.lev[1]<minactlev)   p.lev[1] = minactlev;
 	
-	// Enforce n-level shifts at a time
-	//
-	if (cuShiftlev and shift) {
-	  if (p.lev[1] > p.lev[0]) {
-	    if (p.lev[1] - p.lev[0] > cuShiftlev)
-	      p.lev[1] = p.lev[0] + cuShiftlev;
-	  } else if (p.lev[0] > p.lev[1]) {
-	    if (p.lev[0] - p.lev[1] > cuShiftlev)
-	      p.lev[1] = p.lev[0] - cuShiftlev;
-	  }
+      // Case with ZERO acceleration (possibly leading to bad assignment)
+      //
+      if (atot==0)              p.lev[1] = cuMultistep;
+
+      // Enforce n-level shifts at a time
+      //
+      if (cuShiftlev) {
+	if (p.lev[1] > p.lev[0]) {
+	  if (p.lev[1] - p.lev[0] > cuShiftlev)
+	    p.lev[1] = p.lev[0] + cuShiftlev;
+	} else if (p.lev[0] > p.lev[1]) {
+	  if (p.lev[0] - p.lev[1] > cuShiftlev)
+	    p.lev[1] = p.lev[0] - cuShiftlev;
 	}
       }
       // Active level = 0
@@ -239,7 +234,7 @@ timestepFinalizeKernel(dArray<cudaParticle> P, dArray<int> I,
 #endif
       cudaParticle & p = P._v[I._v[npart]];
       
-      if (p.lev[0] != p.lev[1]) p.lev[0] = p.lev[1];
+      p.lev[0] = p.lev[1];
 
     } // Particle index block
     
@@ -292,7 +287,7 @@ void cuda_compute_levels()
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
     cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
-    // Set maximum time step
+    // Reset minimum time step field
     //
     if (multistep and c->NoSwitch() and c->DTreset() and mdrft==1) {
 
@@ -306,10 +301,12 @@ void cuda_compute_levels()
 	if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
 	timestepSetKernel<<<gridSize, BLOCK_SIZE>>>
-	  (toKernel(c->cuStream->cuda_particles), stride, mstep, mdrft);
+	  (toKernel(c->cuStream->cuda_particles), stride);
       }
     }
 
+    // Sort by levels
+    //
     PII lohi = {0, c->cuStream->cuda_particles.size()};
     if (multistep) lohi = c->CudaGetLevelRange(mfirst[mdrft], multistep);
       
@@ -334,6 +331,8 @@ void cuda_compute_levels()
     unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
     unsigned int gridSize  = N/BLOCK_SIZE/stride;
     
+    // We have particle at this level: get the new time-step level
+    //
     if (N>0) {
 
       if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
@@ -342,23 +341,15 @@ void cuda_compute_levels()
       //
       auto ctr = c->getCenter(Component::Local | Component::Centered);
       
-      // Allow intrastep level switches
-      //
-      bool switching = true;
-
-      // Allowing switching on first call to set levels
-      //
-      bool notFirstCall = this_step!=0 or mstep!=0;
-      if (c->NoSwitch() and notFirstCall) switching = false;
-
       // Do the work
       //
       timestepKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles),
 	 toKernel(c->cuStream->indx1), ctr[0], ctr[1], ctr[2],
-	 mfirst[mdrft], c->dim, stride, lohi, switching, notFirstCall);
+	 mfirst[mdrft], c->dim, stride, lohi, c->NoSwitch());
     }
   }
+  // END: component loop
 
 #ifdef VERBOSE_TIMING
   auto finish = std::chrono::high_resolution_clock::now();
@@ -366,71 +357,87 @@ void cuda_compute_levels()
   time1 += duration.count()*1.0e-6;
 #endif
   
-  //
   // Finish the update
   //
   for (auto c : comp->components) {
-#ifdef VERBOSE_TIMING
-    start = std::chrono::high_resolution_clock::now();
-#endif
-    cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
-    cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
-    
-    if (not c->force->NoCoefs()) c->force->multistep_update_cuda();
 
-#ifdef VERBOSE_TIMING
-    finish = std::chrono::high_resolution_clock::now();
-    duration = finish - start;
-    timeADJ += duration.count()*1.0e-6;
-    start = std::chrono::high_resolution_clock::now();
-#endif
-
-    // Compute grid
+    bool firstCall = this_step==0 and mdrft==0;
+    bool restrict  = not c->NoSwitch() or mdrft==Mstep or firstCall;
+    //                            ^            ^              ^
+    //                            |            |              |
+    // allow intrastep switching--+            |              |
+    // otherwise: relevel at end of step-------+              |
+    // or on the very first call to initialize levels---------+
+  
+    // Call the multistep update for the force instance
     //
-    PII lohi = {0, c->cuStream->cuda_particles.size()};
-    if (multistep) lohi = c->CudaGetLevelRange(mfirst[mdrft], multistep);
-      
-    unsigned int N         = lohi.second - lohi.first;
-    unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-    unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    if (restrict) {
+#ifdef VERBOSE_TIMING
+      start = std::chrono::high_resolution_clock::now();
+#endif
+      cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
+      cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
     
-    if (N>0) {
-
-      if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
-
-      timestepFinalizeKernel<<<gridSize, BLOCK_SIZE>>>
-	(toKernel(c->cuStream->cuda_particles),
-	 toKernel(c->cuStream->indx1), stride, lohi);
+      if (not c->force->NoCoefs()) c->force->multistep_update_cuda();
 
 #ifdef VERBOSE_TIMING
       finish = std::chrono::high_resolution_clock::now();
       duration = finish - start;
-      time2 += duration.count()*1.0e-6;
+      timeADJ += duration.count()*1.0e-6;
       start = std::chrono::high_resolution_clock::now();
 #endif
 
-      // Resort for next substep; this makes indx1
+      // Compute grid
       //
-      c->CudaSortByLevel();
+      PII lohi = {0, c->cuStream->cuda_particles.size()};
+      if (multistep) lohi = c->CudaGetLevelRange(mfirst[mdrft], multistep);
+      
+      unsigned int N         = lohi.second - lohi.first;
+      unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+      unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    
+      // Assign the newly computed, updated level
+      //
+      if (N>0) {
+
+	if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+	timestepFinalizeKernel<<<gridSize, BLOCK_SIZE>>>
+	  (toKernel(c->cuStream->cuda_particles),
+	   toKernel(c->cuStream->indx1), stride, lohi);
+
+#ifdef VERBOSE_TIMING
+	finish = std::chrono::high_resolution_clock::now();
+	duration = finish - start;
+	time2 += duration.count()*1.0e-6;
+	start = std::chrono::high_resolution_clock::now();
+#endif
+	
+	// Resort for next substep; this makes indx1
+	//
+	c->CudaSortByLevel();
+      }
+
+#ifdef VERBOSE_TIMING
+      finish = std::chrono::high_resolution_clock::now();
+      duration = finish - start;
+      timeSRT += duration.count()*1.0e-6;
+      start = std::chrono::high_resolution_clock::now();
+#endif
+
+      c->fix_positions_cuda();
+
+#ifdef VERBOSE_TIMING
+      finish = std::chrono::high_resolution_clock::now();
+      duration = finish - start;
+      timeCOM += duration.count()*1.0e-6;
+#endif
+
+      c->force->multistep_update_finish();
     }
-
-#ifdef VERBOSE_TIMING
-    finish = std::chrono::high_resolution_clock::now();
-    duration = finish - start;
-    timeSRT += duration.count()*1.0e-6;
-    start = std::chrono::high_resolution_clock::now();
-#endif
-
-    c->fix_positions_cuda();
-
-#ifdef VERBOSE_TIMING
-    finish = std::chrono::high_resolution_clock::now();
-    duration = finish - start;
-    timeCOM += duration.count()*1.0e-6;
-#endif
-
-    c->force->multistep_update_finish();
+    // END: coefficient update stanza
   }
+  // END: component loop
 
 #ifdef VERBOSE_TIMING
   auto finish0 = std::chrono::high_resolution_clock::now();

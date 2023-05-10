@@ -299,14 +299,16 @@ __global__ void coordKernelCyl
 	IndY._v[i] = indY;
 
 #ifdef OFF_GRID_ALERT
-	if (Xfac._v[i]<-0.5 or Xfac._v[i]>1.5) printf("X off grid: x=%f\n", X);
-	if (Yfac._v[i]<-0.5 or Yfac._v[i]>1.5) printf("Y off grid: y=%f\n", Y);
+	if (Xfac._v[i]<-0.5 or Xfac._v[i]>1.5)
+	  printf("cuda cylinder--X off grid: x=%f R=%f\n", X, R);
+	if (Yfac._v[i]<-0.5 or Yfac._v[i]>1.5)
+	  printf("cuda cylinder--Y off grid: y=%f z=%f\n", Y, zz);
 #endif
 #ifdef BOUNDS_CHECK
-	if (i>=Xfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	if (i>=IndX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	if (i>=Yfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	if (i>=IndY._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=Xfac._s) printf("cuda cylinder out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=IndX._s) printf("cuda cylinder out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=Yfac._s) printf("cuda cylinder out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=IndY._s) printf("cuda cylinder out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
       }
     }
@@ -595,10 +597,10 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
 
 #ifdef OFF_GRID_ALERT
 	if (delx0<-0.5 or delx0>1.5) // X value check
-	  printf("X off grid: x=%f [%d, %d]\n", delx0, indX, indY);
+	  printf("cuda cylinder--X off grid: x=%f [%d, %d] R=%f\n", delx0, indX, indY, R);
 
 	if (dely0<-0.5 or dely0>1.5) // Y value check
-	  printf("Y off grid: y=%f [%d, %d]\n", dely0, indX, indY);
+	  printf("cuda cylinder--Y off grid: y=%f [%d, %d] z=%f\n", dely0, indX, indY, zz);
 #endif
 
 	cuFP_t delx1 = 1.0 - delx0;

@@ -421,9 +421,17 @@ void ComponentContainer::initialize(void)
   // END: missing interation check
 
 #if HAVE_LIBCUDA==1
-  // Move all particles to cuda devices
+  // 1. Move all particles to cuda devices
+  // 2. Check that primary forces are cuda aware
   if (use_cuda) {
-    for (auto c : components) c->ParticlesToCuda();
+    leapfrog_cuda = true;
+    for (auto c : components) {
+      c->ParticlesToCuda();
+      leapfrog_cuda = leapfrog_cuda and c->force->cudaAware();
+    }
+    if (myid==0)
+      std::cout << "---- ComponentContainer: leapfrog no-copy is "
+		<< std::boolalpha << leapfrog_cuda << std::endl;
   }
 #endif
 
@@ -510,6 +518,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 #if HAVE_LIBCUDA==1
     if (use_cuda) {		// GPU device version
       c->ZeroPotAccel(mlevel);
+      fetched[c] = false;
     } else
 #endif
       {

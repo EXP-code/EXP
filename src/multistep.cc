@@ -175,6 +175,7 @@ void * adjust_multistep_level_thread(void *ptr)
     dt = std::max<double>(eps, dseq.begin()->first);
 
     // Enforce minimum step per level
+    //
     if (c->NoSwitch()) {
       if (c->DTreset() and mdrft==1) p->dtreq = 0.0;
       if (p->dtreq <= 0.0) p->dtreq = dt;
@@ -182,6 +183,7 @@ void * adjust_multistep_level_thread(void *ptr)
     }
 
     // Time step wants to be LARGER than the maximum
+    //
     if (dt>dtime) {
       lev = 0;
       maxdt1[id] = std::max<double>(dt, maxdt1[id]);

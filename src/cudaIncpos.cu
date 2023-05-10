@@ -119,6 +119,8 @@ void incr_position_cuda(cuFP_t dt, int mlevel)
       }
     }
     // END: DEBUG
+
+    if (not leapfrog_cuda) c->CudaToParticles();
   }
   // END: component loop
 }

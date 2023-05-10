@@ -290,7 +290,7 @@ __global__ void coordKernel
 	  
 	Afac._v[i] = cuFP_t(indx+1) - xi;
 #ifdef OFF_GRID_ALERT
-	if (Afac._v[i]<0.0 or Afac._v[i]>1.0) printf("off grid: x=%f\n", xi);
+	if (Afac._v[i]<0.0 or Afac._v[i]>1.0) printf("spherical coord kernel--off grid: x=%f r=%f\n", xi, r);
 #endif
 	Indx._v[i] = indx;
 
@@ -516,9 +516,9 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 
 #ifdef OFF_GRID_ALERT
       if (a0<0.0 or a0>1.0)
-	printf("forceKernel: off grid [0]: x=%f r=%f rs=%f a=%f b=%f\n", xi, r, rs, a0, b0);
+	printf("spherical forceKernel--off grid [0]: x=%f r=%f rs=%f a=%f b=%f\n", xi, r, rs, a0, b0);
       if (a1<0.0 or a1>1.0)
-	printf("forceKernel: off grid [1]: x=%f r=%f rs=%f a=%f b=%f\n", xi, r, rs, a1, b1);
+	printf("spherical forceKernel--off grid [1]: x=%f r=%f rs=%f a=%f b=%f\n", xi, r, rs, a1, b1);
 #endif
       
       // Do the interpolation for the prefactor potential

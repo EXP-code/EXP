@@ -413,6 +413,8 @@ void Component::CudaToParticles(hostPartItr beg, hostPartItr end)
     ParticleDtoH(p, particles[p.indx]);
   }
 
+  MakeLevlist();
+
   if (step_timing and use_cuda) comp->timer_cuda.stop();
 }
 

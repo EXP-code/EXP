@@ -141,3 +141,4 @@ bool all_couples   = true;
 
 int  rlimit_val    = 0;
 bool use_cuda      = false;
+bool leapfrog_cuda = true;

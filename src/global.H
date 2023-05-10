@@ -329,6 +329,9 @@ extern bool main_wait;
 //! Set to false to suppress cuda computation
 extern bool use_cuda;
 
+//! Can we leave phase space on GPUs or do we need to copy back to host?
+extern bool leapfrog_cuda;
+
 //! Mersenne random number generator provided by Boost.Random.  This
 //! could be changed to another if needed.
 extern unsigned int   random_seed;
