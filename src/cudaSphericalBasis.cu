@@ -1894,6 +1894,11 @@ void SphericalBasis::multistep_update_cuda()
 {
   if (not self_consistent) return;
 
+  static double last_time = -1.0;
+  if (last_time < 0.0) last_time = tnow;
+  else if (tnow - last_time < 1.0e-18) return;
+  last_time = tnow;
+
   // The plan: for the current active level search above and below for
   // particles for correction to coefficient matrix
   //
@@ -1905,6 +1910,10 @@ void SphericalBasis::multistep_update_cuda()
 #endif
 
   auto chg = component->CudaSortLevelChanges();
+
+#ifdef SPH_UPDATE_TABLE
+  multistep_add_debug(chg);
+#endif
 
 #ifdef VERBOSE_TIMING
   auto finish = std::chrono::high_resolution_clock::now();
@@ -1927,7 +1936,7 @@ void SphericalBasis::multistep_update_cuda()
 #endif
   // Step through all levels
   //
-  for (int olev=mfirst[mstep]; olev<=multistep; olev++) {
+  for (int olev=mfirst[mdrft]; olev<=multistep; olev++) {
     
     for (int nlev=0; nlev<=multistep; nlev++) {
 
@@ -1943,7 +1952,9 @@ void SphericalBasis::multistep_update_cuda()
 #ifdef VERBOSE_DBG
       std::cout << "[" << myid << ", " << tnow
 		<< "] Adjust sphere: Ntotal=" << Ntotal << " Npacks=" << Npacks
-		<< " for (m, d)=(" << olev << ", " << nlev << ")" << std::endl;
+		<< " for (m, d)=(" << olev << ", " << nlev << ")"
+		<< " beg(olev)=" << mfirst[mdrft] << " mdrft=" << mdrft
+		<< std::endl;
 #endif
       // Loop over bunches
       //
