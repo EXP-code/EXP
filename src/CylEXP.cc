@@ -46,7 +46,7 @@ void CylEXP::multistep_update_begin()
 {
 				// Clear the update matricies
   for (int nth=0; nth<nthrds; nth++) {
-    for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+    for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
       differC1[nth][M].setZero();
       differS1[nth][M].setZero();
     }
@@ -56,7 +56,7 @@ void CylEXP::multistep_update_begin()
 void CylEXP::multistep_update_finish()
 {
   unsigned offset0, offset1;
-  unsigned sz = (multistep - mfirst[mstep]+1)*(MMAX+1)*rank3;
+  unsigned sz = (multistep - mfirst[mdrft] + 1)*(MMAX+1)*rank3;
   for (unsigned j=0; j<sz; j++) 
     workC1[j] = workC[j] = workS1[j] = workS[j] = 0.0;
 
