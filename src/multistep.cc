@@ -80,7 +80,7 @@ void * adjust_multistep_level_thread(void *ptr)
   //
   // Small positive constant
   //
-  const double eps = 1.0e-20;
+  const double eps = 1.0e-10;
 
   //
   // The particle loop
@@ -129,7 +129,6 @@ void * adjust_multistep_level_thread(void *ptr)
       // dta = eps* phi/(v * a)   -- char. work time scale
       // dtA = eps* sqrt(phi/a^2) -- char. "escape" time scale
 
-
       dtr  = 0.0;
       vtot = 0.0;
       atot = 0.0;
@@ -159,16 +158,13 @@ void * adjust_multistep_level_thread(void *ptr)
       dseq[dts] = 1;
       if ( dta > 0.0 ) dseq[dta] = 2;
       if ( dtA > 0.0 ) dseq[dtA] = 3;
-      if ( (dtr=p->dtreq) > 0.0 ) dseq[dtr] = 4;
     } else {
       dseq[dtd] = 0;
       dseq[dtv] = 1;
       dseq[dts] = 2;
       if ( dta > 0.0 ) dseq[dta] = 3;
       if ( dtA > 0.0 ) dseq[dtA] = 4;
-      if ( (dtr=p->dtreq) > 0.0 ) dseq[dtr] = 5;
     }
-
 
     // Smallest time step
     //
@@ -176,84 +172,88 @@ void * adjust_multistep_level_thread(void *ptr)
 
     // Enforce minimum step per level
     //
-    if (c->NoSwitch()) {
-      if (c->DTreset() and mdrft==1) p->dtreq = 0.0;
-      if (p->dtreq <= 0.0) p->dtreq = dt;
-      else p->dtreq = std::min<double>(p->dtreq, dt);
-    }
-
-    // Time step wants to be LARGER than the maximum
-    //
-    if (dt>dtime) {
-      lev = 0;
-      maxdt1[id] = std::max<double>(dt, maxdt1[id]);
-      offhi++;
-    }
-    else lev = (int)floor(log(dtime/dt)/log(2.0));
-    
-    // Time step wants to be SMALLER than the maximum
-    //
-    if (lev>multistep) {
-      lev = multistep;
-      mindt1[id] = std::min<double>(dt, mindt1[id]);
-      offlo++;
-    }
-
-    // Limit new level to minimum active level
-    //
-    lev = std::max<int>(lev, mfirst[mdrft]);
-
-    // Case with ZERO acceleration (possibly leading to bad assignment)
-    //
-    if (atot==0) {
-      lev = multistep;
-      // MP: probably don't want offlo++ here? MDW: Nope, but offlo is
-      // diagnostic only.
-    }
-    
-    unsigned plev = p->level;
-    unsigned nlev = lev;
-
-    // Enforce n-level shifts at a time
-    //
-    if (shiftlevl) {
-      if (nlev > plev) {
-	if (nlev - plev > shiftlevl) nlev = plev + shiftlevl;
-      } else if (plev > nlev) {
-	if (plev - nlev > shiftlevl) nlev = plev - shiftlevl;
-      }
-    }
-
-    // Sanity check
-    //
-    if (level != plev) {
-      cerr << "ERROR [" << myid << "] id=" << id 
-	   << ": n=" << n << " level=" << level 
-	   << " tlevel=" << plev
-	   << " plevel=" << p->level << endl;
-    }
-
-    // Update coefficients
-    //
     bool firstCall = this_step==0 and mdrft==0;
+
+    if (c->NoSwitch()) {
+      if ((c->DTreset() and mstep==0) or firstCall) p->dtreq = 0.0;
+      if (p->dtreq <= 0.0) p->dtreq = dt;
+      if (dt < p->dtreq)   p->dtreq = dt;
+    }
+
+    // Update coefficients at this substep?
+    //
     bool restrict  = not c->NoSwitch() or mdrft==Mstep or firstCall;
     //                            ^            ^              ^
     //                            |            |              |
     // allow intrastep switching--+            |              |
+    //                                         |              |
     // otherwise: relevel at end of step-------+              |
+    //                                                        |
     // or on the very first call to initialize levels---------+
 
-    if (restrict and nlev != level) {
-      std::chrono::high_resolution_clock::time_point start1, finish1;
-      start1 = std::chrono::high_resolution_clock::now();
-      c->force->multistep_update(plev, nlev, c, n, id);
-      finish1 = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double, std::micro> duration = finish1 - start1;
-      adjtm2[id] += duration.count();
-      p->level = nlev;
-      numsw[id]++;
+    // Only assign levels on first call; option for testing
+    //
+    if (not firstCall and c->FreezeLev()) restrict = false;
+
+    // Select this substep for update?
+    //
+    if (restrict) {
+
+      // Time step wants to be LARGER than the maximum
+      //
+      if (p->dtreq>dtime) {
+	lev = 0;
+	maxdt1[id] = std::max<double>(p->dtreq, maxdt1[id]);
+	offhi++;
+      }
+      else lev = (int)floor(log(dtime/p->dtreq)/log(2.0));
+      
+      // Time step wants to be SMALLER than the maximum
+      //
+      if (lev>multistep) {
+	lev = multistep;
+	mindt1[id] = std::min<double>(p->dtreq, mindt1[id]);
+	offlo++;
+      }
+      
+      // Limit new level to minimum active level
+      //
+      lev = std::max<int>(lev, mfirst[mdrft]);
+      
+      unsigned plev = p->level;
+      unsigned nlev = lev;
+
+      // Enforce n-level shifts at a time
+      //
+      if (shiftlevl) {
+	if (nlev > plev) {
+	  if (nlev - plev > shiftlevl) nlev = plev + shiftlevl;
+	} else if (plev > nlev) {
+	  if (plev - nlev > shiftlevl) nlev = plev - shiftlevl;
+	}
+      }
+      
+      // Sanity check
+      //
+      if (level != plev) {
+	cerr << "ERROR [" << myid << "] id=" << id 
+	     << ": n=" << n << " level=" << level 
+	     << " tlevel=" << plev
+	     << " plevel=" << p->level << endl;
+      }
+      
+      if (plev != nlev) {
+	std::chrono::high_resolution_clock::time_point start1, finish1;
+	start1 = std::chrono::high_resolution_clock::now();
+	c->force->multistep_update(plev, nlev, c, n, id);
+	finish1 = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double, std::micro> duration = finish1 - start1;
+	adjtm2[id] += duration.count();
+	p->level = nlev;
+	numsw[id]++;
+      }
+      numtt[id]++;
     }
-    numtt[id]++;
 
     // For reporting level populations: evaluating at the final sub
     // step guarantees that every particle is active.  Also note:
