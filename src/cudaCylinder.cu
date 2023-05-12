@@ -1902,6 +1902,8 @@ void Cylinder::multistep_update_cuda()
 {
   if (not self_consistent) return;
 
+  // Sanity check: don't redo a previous update
+  //
   static double last_time = -1.0;
   if (last_time < 0.0) last_time = tnow;
   else if (tnow - last_time < 1.0e-18) return;
