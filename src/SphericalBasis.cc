@@ -7,6 +7,8 @@
 #include <vector>
 #include <set>
 
+#define SPH_UPDATE_TABLE
+
 #include <SphericalBasis.H>
 #include <MixtureBasis.H>
 
@@ -968,9 +970,10 @@ void SphericalBasis::multistep_reset()
 void SphericalBasis::multistep_update_begin()
 {
   if (play_back and not play_cnew) return;
+
 				// Clear the update matricies
   for (int n=0; n<nthrds; n++) {
-    for (int M=mfirst[mstep]; M<=multistep; M++) {
+    for (int M=mfirst[mdrft]; M<=multistep; M++) {
       for (int l=0; l<=Lmax*(Lmax+2); l++) {
 	for (int ir=0; ir<nmax; ir++) {
 	  differ1[n][M](l, ir) = 0.0;
@@ -979,6 +982,15 @@ void SphericalBasis::multistep_update_begin()
     }
   }
 
+#ifdef SPH_UPDATE_TABLE
+  if ((not component->NoSwitch() or mdrft==1) or (this_step==0 and mdrft==0)) {
+    occt.resize(multistep+1);
+    for (auto & o : occt) {
+      o.resize(multistep+1);
+      std::fill(o.begin(), o.end(), 0);
+    }
+  }
+#endif
 }
 
 void SphericalBasis::multistep_update_finish()
@@ -987,7 +999,7 @@ void SphericalBasis::multistep_update_finish()
 
 				// Combine the update matricies
 				// from all nodes
-  unsigned sz = (multistep - mfirst[mstep]+1)*(Lmax+1)*(Lmax+1)*nmax;
+  unsigned sz = (multistep - mfirst[mdrft] + 1)*(Lmax+1)*(Lmax+1)*nmax;
   unsigned offset0, offset1;
 
 				// Zero the buffer space
@@ -996,8 +1008,8 @@ void SphericalBasis::multistep_update_finish()
 
   // Pack the difference matrices
   //
-  for (int M=mfirst[mstep]; M<=multistep; M++) {
-    offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
+  for (int M=mfirst[mdrft]; M<=multistep; M++) {
+    offset0 = (M - mfirst[mdrft])*(Lmax+1)*(Lmax+1)*nmax;
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       offset1 = l*nmax;
       for (int n=0; n<nthrds; n++) 
@@ -1019,8 +1031,8 @@ void SphericalBasis::multistep_update_finish()
     if (out) {
       out << std::string(10+16*nmax, '-') << std::endl;
       out << "# T=" << tnow << " mstep=" << mstep << std::endl;
-      for (int M=mfirst[mstep]; M<=multistep; M++) {
-	offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
+      for (int M=mfirst[mdrft]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mdrft])*(Lmax+1)*(Lmax+1)*nmax;
 	for (int l=0; l<=Lmax*(Lmax+2); l++) {
 	  if (L.find(l)==L.end()) continue;
 	  offset1 = l*nmax;
@@ -1049,8 +1061,8 @@ void SphericalBasis::multistep_update_finish()
 
   // Update the local coefficients
   //
-  for (int M=mfirst[mstep]; M<=multistep; M++) {
-    offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
+  for (int M=mfirst[mdrft]; M<=multistep; M++) {
+    offset0 = (M - mfirst[mdrft])*(Lmax+1)*(Lmax+1)*nmax;
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       offset1 = l*nmax;
       for (int ir=0; ir<nmax; ir++)
@@ -1058,6 +1070,9 @@ void SphericalBasis::multistep_update_finish()
     }
   }
 
+#ifdef SPH_UPDATE_TABLE
+  occt_output();
+#endif
 }
 
 void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int id)
@@ -1067,6 +1082,9 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 
   double mass = c->Mass(i) * component->Adiabatic();
 
+#ifdef SPH_UPDATE_TABLE
+  occt[from][to]++;
+#endif
 				// Adjust mass for subset
   if (subset) mass /= ssfrac;
 
@@ -2153,3 +2171,38 @@ void SphericalBasis::dump_coefs_all(ostream& out)
 
 }
 
+void SphericalBasis::occt_output()
+{
+  for (int m=0; m<=multistep; m++) {
+    if (myid) {
+      MPI_Reduce(occt[m].data(), NULL, multistep+1,
+		 MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    } else {
+      MPI_Reduce(MPI_IN_PLACE, occt[m].data(), multistep+1,
+		 MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
+  }
+    
+  if (myid==0) {
+
+    unsigned total = 0;
+    for (int m0=0; m0<=multistep; m0++) {
+      for (int m1=0; m1<=multistep; m1++) total += occt[m0][m1];
+    }
+    
+    if (total) {
+      std::cout << std::string(8*(multistep+1), '-') << std::endl
+		<< "SphericalBasis update matrix at T=" << tnow
+		<< " mdrft=" << mdrft << std::endl
+		<< std::string(8*(multistep+1), '-') << std::endl;
+      
+      for (int m0=0; m0<=multistep; m0++) {
+	for (int m1=0; m1<=multistep; m1++) {
+	  std::cout << std::setw(8) << occt[m0][m1];
+	}
+	std::cout << std::endl;
+      }
+      std::cout << std::string(8*(multistep+1), '-') << std::endl;
+    }
+  }
+}

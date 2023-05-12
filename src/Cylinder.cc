@@ -1631,6 +1631,9 @@ void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 
   ortho->multistep_update(from, to, r, zz, phi, mass, id);
 
+#ifdef CYL_UPDATE_TABLE
+  occt[from][to]++;
+#endif
 }
 
 
@@ -1707,7 +1710,8 @@ void Cylinder::compute_grid_mass()
       cylmass += cC->Mass(n);
       used    += 1;
     } 
-  } // END: particle loop
+  }
+  // END: particle loop
 
   MPI_Allreduce(MPI_IN_PLACE, &cylmass, 1, MPI_DOUBLE, MPI_SUM,
 		MPI_COMM_WORLD);
@@ -1718,3 +1722,37 @@ void Cylinder::compute_grid_mass()
   ortho->set_mass(cylmass);
 }
 
+void Cylinder::occt_output()
+{
+  for (int m=0; m<=multistep; m++) {
+    if (myid) {
+      MPI_Reduce(occt[m].data(), NULL, multistep+1,
+		 MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    } else {
+      MPI_Reduce(MPI_IN_PLACE, occt[m].data(), multistep+1,
+		 MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
+  }
+  
+  if (myid==0) {
+    unsigned total = 0;
+    for (int m0=0; m0<=multistep; m0++) {
+      for (int m1=0; m1<=multistep; m1++) total += occt[m0][m1];
+    }
+    
+    if (total) {
+      std::cout << std::string(8*(multistep+1), '-') << std::endl
+		<< "Cylinder update matrix at T=" << tnow
+		<< " mdrft=" << mdrft << std::endl
+		<< std::string(8*(multistep+1), '-') << std::endl;
+    
+      for (int m0=0; m0<=multistep; m0++) {
+	for (int m1=0; m1<=multistep; m1++) {
+	  std::cout << std::setw(8) << occt[m0][m1];
+	}
+	std::cout << std::endl;
+      }
+      std::cout << std::string(8*(multistep+1), '-') << std::endl;
+    }
+  }
+}

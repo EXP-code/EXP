@@ -18,6 +18,9 @@
 
 #include <CoefContainer.H>
 
+// This prints out the level switch matrix.  For deep debugging only.
+// #define CYL_UPDATE_TABLE
+
 class MixtureBasis;
 
 /** This routine computes the potential, acceleration and density 
@@ -256,6 +259,15 @@ protected:
 
 #endif
 
+  /** Test change level counts for deep debugging enabled by setting
+      CYL_UPDATE_TABLE at the top of this header file or the command
+      line 
+  */
+  std::vector<std::vector<unsigned>> occt;
+
+  //! Print deep debugging data
+  void occt_output();
+
   /** Coefficient playback instance.  Using shared_ptr to avoid
       constructing a simple pointer or null instance
   */
@@ -417,13 +429,39 @@ public:
   virtual void multistep_update_begin() { 
     if (play_back and not play_cnew) return;
     if (self_consistent) ortho->multistep_update_begin();
+#ifdef CYL_UPDATE_TABLE
+    if ((not component->NoSwitch() or mdrft==1) or (this_step==0 and mdrft==0)) {
+      occt.resize(multistep+1);
+      for (auto & o : occt) {
+	o.resize(multistep+1);
+	std::fill(o.begin(), o.end(), 0);
+      }
+    }
+#endif
+
   }
   virtual void multistep_update(int cur, int next, Component* c, int i, int id);
   virtual void multistep_update_finish() { 
     if (play_back and not play_cnew) return;
     if (self_consistent) ortho->multistep_update_finish();
+#ifdef CYL_UPDATE_TABLE
+    occt_output();
+#endif
   }
   //@}
+
+  //! Multistep accumulate debugging info
+  virtual void multistep_add_debug
+  (const std::vector<std::vector<std::pair<unsigned, unsigned>>>& data)
+  {
+    unsigned total = 0;
+    for (int i=0; i<occt.size(); i++) {
+      for (int j=0; j<occt[i].size(); j++) {
+	occt[i][j] += data[i][j].second - data[i][j].first;
+	total += data[i][j].second - data[i][j].first;
+      }
+    }
+  }
 
   //! Print debug info
   virtual void multistep_debug();

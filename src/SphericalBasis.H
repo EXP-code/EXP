@@ -20,6 +20,9 @@
 
 #include <CoefContainer.H>
 
+// This prints out the level switch matrix.  For deep debugging only.
+// #define SPH_UPDATE_TABLE
+
 class MixtureBasis;
 
 //! Defines a spherical basis with members specific to spherical symmetry
@@ -201,6 +204,14 @@ protected:
 
 #endif
 
+  /** Test change level counts for deep debugging enabled by setting
+      SPH_UPDATE_TABLE at the top of this header file
+  */
+  std::vector<std::vector<unsigned>> occt;
+
+  //! Print deep debugging data
+  void occt_output();
+
   //! Thread method for accerlation compuation
   virtual void * determine_acceleration_and_potential_thread(void * arg);
 
@@ -347,6 +358,14 @@ public:
   virtual void multistep_update_begin();
   virtual void multistep_update(int cur, int next, Component* c, int i, int id);
   virtual void multistep_update_finish();
+  virtual void multistep_add_debug
+  (const std::vector<std::vector<std::pair<unsigned, unsigned>>>& data)
+  {
+    for (int i=0; i<occt.size(); i++) {
+      for (int j=0; j<occt[i].size(); j++)
+	occt[i][j] += data[i][j].second - data[i][j].first;
+    }
+  }
   //@}
 
   /** Get derivative of potential
