@@ -265,7 +265,7 @@ void cuda_compute_levels()
   }
   // END DEBUGGING
 
-  bool firstCall = this_step==0 and mdrft==0;
+  bool firstCall = this_step==0 and mstep==0;
 
   //
   // Begin the update
@@ -290,9 +290,19 @@ void cuda_compute_levels()
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
     cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
+    bool restrict = not c->NoSwitch() or mdrft==1 or firstCall;
+    //                           ^            ^          ^
+    //                           |            |          |
+    // allow intrastep switching-+            |          |
+    //                                        |          |
+    // otherwise: relevel at end of step------+          |
+    //                                                   |
+    // or on the very first call to initialize levels----+
+
+
     // Reset minimum time step field
     //
-    if (multistep and c->NoSwitch() and c->DTreset() and mdrft==1) {
+    if (firstCall or (c->DTreset() and mstep==0)) {
 
       // Compute grid
       //
@@ -328,11 +338,6 @@ void cuda_compute_levels()
     }
     // END DEBUGGING
 
-    // Compute levels?
-    //
-    bool apply = false;
-    if (firsttime or not c->NoSwitch() or mdrft==Mstep) apply = true;
-
     // Compute grid
     //
     unsigned int N         = lohi.second - lohi.first;
@@ -354,7 +359,7 @@ void cuda_compute_levels()
       timestepKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles),
 	 toKernel(c->cuStream->indx1), ctr[0], ctr[1], ctr[2],
-	 mfirst[mdrft], c->dim, stride, lohi, c->NoSwitch(), apply);
+	 mfirst[mdrft], c->dim, stride, lohi, c->NoSwitch(), restrict);
     }
   }
   // END: component loop
