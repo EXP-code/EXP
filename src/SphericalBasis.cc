@@ -7,8 +7,6 @@
 #include <vector>
 #include <set>
 
-#define SPH_UPDATE_TABLE
-
 #include <SphericalBasis.H>
 #include <MixtureBasis.H>
 
