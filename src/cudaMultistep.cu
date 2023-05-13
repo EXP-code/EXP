@@ -300,7 +300,7 @@ void cuda_compute_levels()
     // or on the very first call to initialize levels------+
 
 
-    // Reset minimum time step field
+    // Reset minimum time step field at the beginning of the master step
     //
     if (firstCall or (c->DTreset() and mstep==0)) {
 
@@ -323,7 +323,7 @@ void cuda_compute_levels()
     PII lohi = {0, c->cuStream->cuda_particles.size()};
     if (multistep) lohi = c->CudaGetLevelRange(mfirst[mdrft], multistep);
       
-    // DEBUGGING
+    // DEEP DEBUGGING
     if (false and multistep>0) {
       for (int n=0; n<numprocs; n++) {
 	if (n==myid) testConstantsMultistep<<<1, 1>>>();
@@ -336,7 +336,7 @@ void cuda_compute_levels()
 	MPI_Barrier(MPI_COMM_WORLD);
       }
     }
-    // END DEBUGGING
+    // END DEEP DEBUGGING
 
     // Compute grid
     //
@@ -344,7 +344,7 @@ void cuda_compute_levels()
     unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
     unsigned int gridSize  = N/BLOCK_SIZE/stride;
     
-    // We have particle at this level: get the new time-step level
+    // We have particles at this level: get the new time-step level
     //
     if (N>0) {
 
@@ -372,7 +372,7 @@ void cuda_compute_levels()
   time1 += duration.count()*1.0e-6;
 #endif
   
-  // Finish the update
+  // Finish by updating the coefficients and level list
   //
   for (auto c : comp->components) {
 
@@ -395,6 +395,8 @@ void cuda_compute_levels()
       cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
       cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
     
+      // Update the coefficient level tableau
+      //
       if (not c->force->NoCoefs()) c->force->multistep_update_cuda();
 
 #ifdef VERBOSE_TIMING
@@ -430,7 +432,7 @@ void cuda_compute_levels()
 	start = std::chrono::high_resolution_clock::now();
 #endif
 	
-	// Resort for next substep; this makes indx1
+	// Re-sort level array for next substep; this makes indx1
 	//
 	c->CudaSortByLevel();
       }
