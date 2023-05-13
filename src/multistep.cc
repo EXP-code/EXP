@@ -182,22 +182,22 @@ void * adjust_multistep_level_thread(void *ptr)
 
     // Update coefficients at this substep?
     //
-    bool restrict  = not c->NoSwitch() or mdrft==Mstep or firstCall;
-    //                            ^            ^              ^
-    //                            |            |              |
-    // allow intrastep switching--+            |              |
-    //                                         |              |
-    // otherwise: relevel at end of step-------+              |
-    //                                                        |
-    // or on the very first call to initialize levels---------+
+    bool apply = not c->NoSwitch() or mdrft==Mstep or firstCall;
+    //                        ^             ^              ^
+    //                        |             |              |
+    // at every substep-------+             |              |
+    //                                      |              |
+    // otherwise: at end of full step-------+              |
+    //                                                     |
+    // or on the very first call to initialize levels------+
 
     // Only assign levels on first call; option for testing
     //
-    if (not firstCall and c->FreezeLev()) restrict = false;
+    if (not firstCall and c->FreezeLev()) apply = false;
 
     // Select this substep for update?
     //
-    if (restrict) {
+    if (apply) {
 
       // Time step wants to be LARGER than the maximum
       //

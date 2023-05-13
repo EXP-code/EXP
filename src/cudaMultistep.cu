@@ -179,6 +179,8 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	else if (dt < p.dtreq) p.dtreq = dt;
       }
 
+      // Assign new levels?
+      //
       if (apply) {
 
 	// Time step wants to be LARGER than the maximum
@@ -290,14 +292,16 @@ void cuda_compute_levels()
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
     cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
-    bool restrict = not c->NoSwitch() or mdrft==Mstep or firstCall;
-    //                           ^            ^            ^
-    //                           |            |            |
-    // allow intrastep switching-+            |            |
-    //                                        |            |
-    // otherwise: relevel at end of step------+            |
-    //                                                     |
-    // or on the very first call to initialize levels------+
+    // Initiate new level computation
+    //
+    bool apply = not c->NoSwitch() or mdrft==Mstep or firstCall;
+    //                        ^            ^            ^
+    //                        |            |            |
+    // at every substep-------+            |            |
+    //                                     |            |
+    // otherwise: at end of full step------+            |
+    //                                                  |
+    // or on the very first call to initialize levels---+
 
 
     // Reset minimum time step field at the beginning of the master step
@@ -359,7 +363,7 @@ void cuda_compute_levels()
       timestepKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles),
 	 toKernel(c->cuStream->indx1), ctr[0], ctr[1], ctr[2],
-	 mfirst[mdrft], c->dim, stride, lohi, c->NoSwitch(), restrict);
+	 mfirst[mdrft], c->dim, stride, lohi, c->NoSwitch(), apply);
     }
   }
   // END: component loop
@@ -376,19 +380,23 @@ void cuda_compute_levels()
   //
   for (auto c : comp->components) {
 
-    bool firstCall = this_step==0 and mdrft==0;
-    bool restrict  = not c->NoSwitch() or mdrft==Mstep or firstCall;
-    //                            ^            ^              ^
-    //                            |            |              |
-    // allow intrastep switching--+            |              |
-    // otherwise: relevel at end of step-------+              |
-    // or on the very first call to initialize levels---------+
+    bool firstCall = this_step==0 and mstep==0;
+    bool apply = not c->NoSwitch() or mdrft==Mstep or firstCall;
+    //                        ^             ^              ^
+    //                        |             |              |
+    // at every substep-------+             |              |
+    //                                      |              |
+    // otherwise: at end of full step-------+              |
+    //                                                     |
+    // or on the very first call to initialize levels------+
   
-    if (not firstCall and c->FreezeLev()) restrict = false;
+    // Freeze levels after first step
+    //
+    if (not firstCall and c->FreezeLev()) apply = false;
 
     // Call the multistep update for the force instance
     //
-    if (restrict) {
+    if (apply) {
 #ifdef VERBOSE_TIMING
       start = std::chrono::high_resolution_clock::now();
 #endif
