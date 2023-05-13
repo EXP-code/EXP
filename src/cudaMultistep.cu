@@ -290,14 +290,14 @@ void cuda_compute_levels()
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
     cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
-    bool restrict = not c->NoSwitch() or mdrft==1 or firstCall;
-    //                           ^            ^          ^
-    //                           |            |          |
-    // allow intrastep switching-+            |          |
-    //                                        |          |
-    // otherwise: relevel at end of step------+          |
-    //                                                   |
-    // or on the very first call to initialize levels----+
+    bool restrict = not c->NoSwitch() or mdrft==Mstep or firstCall;
+    //                           ^            ^            ^
+    //                           |            |            |
+    // allow intrastep switching-+            |            |
+    //                                        |            |
+    // otherwise: relevel at end of step------+            |
+    //                                                     |
+    // or on the very first call to initialize levels------+
 
 
     // Reset minimum time step field
