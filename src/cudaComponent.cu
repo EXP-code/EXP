@@ -197,7 +197,7 @@ Component::I2vec Component::CudaSortLevelChanges()
   //
   if (false) {
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
-    std::cout << "--- " << name << " [" << myid << "] mstep=" << mstep
+    std::cout << "---- " << name << " [" << myid << "] mstep=" << mstep
 	      << " mdrft=" << mdrft << std::endl;
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
     for (int m1=0; m1<=multistep; m1++) {
@@ -220,7 +220,7 @@ Component::I2vec Component::CudaSortLevelChanges()
     for (int rank=0; rank<numprocs; rank++) {
       if (rank==myid) {
 	std::cout << std::string(40, '-') << std::endl
-		  << "--- Sorting debug for " << name
+		  << "---- Sorting debug for " << name
 		  << " [" << myid << "] mstep=" << mstep
 		  << " T=" << tnow << std::endl
 		  << std::string(40, '-') << std::endl;
@@ -243,13 +243,10 @@ Component::I2vec Component::CudaSortLevelChanges()
 	}
 	std::cout << "---- Index check: good=" << good << " bad=" << bad << std::endl;
 
-
 	// Make a map for checking indices
 	//
 	std::vector<int> lookup(li.size());
 	for (int i=0; i<li.size(); i++) lookup[li[i]] = i;
-	
-	std::cout << "---- Index check: good=" << good << " bad=" << bad << std::endl;
 	
 	good = bad = 0;
 	for (int i=0; i<li.size(); i++) {
@@ -425,6 +422,66 @@ void Component::CudaSortByLevel()
     std::cerr << "Some other error happened during sort, lower_bound, or upper_bound:" << e.what() << std::endl;
     exit(-1);
   }
+
+  // Direct comparison with particle vector
+  // [This is expensive and only for deep debugging]
+  //
+  if (false) {
+
+    bool total = true;		// Print totals in matrix rather than
+				// particle end points
+
+    for (int rank=0; rank<numprocs; rank++) {
+      if (rank==myid) {
+	
+	std::cout << std::string(40, '-') << std::endl
+		  << "---- Sorting by level debug for " << name
+		  << " [" << myid << "] mstep=" << mstep
+		  << " T=" << tnow << std::endl
+		  << std::string(40, '-') << std::endl;
+	
+	// Get particles from device
+	//
+	thrust::host_vector<cudaParticle> pp = cuStream->cuda_particles;
+	thrust::host_vector<int> lp = cuStream->levList;
+	thrust::host_vector<int> li = cuStream->indx1;
+	
+	// Check particles from level lists
+	//
+	int good = 0, bad = 0;
+	for (int i=0; i<li.size(); i++) {
+	  int j = li[i];
+	  if (pp[j].lev[0] != lp[i])
+	    bad++;
+	  else
+	    good++;
+	}
+	std::cout << "---- Index check: good=" << good << " bad=" << bad << std::endl;
+
+	// Make a map for checking indices
+	//
+	std::vector<int> lookup(li.size());
+	for (int i=0; i<li.size(); i++) lookup[li[i]] = i;
+	
+	good = bad = 0;
+	for (int i=0; i<li.size(); i++) {
+	  int j = lookup[i];
+	  if (pp[i].lev[0] != lp[j])
+	    bad++;
+	  else
+	    good++;
+	}
+	
+	std::cout << "---- Parts check: good=" << good << " bad=" << bad << std::endl;
+	std::cout << std::string(40, '-') << std::endl;
+      }
+
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+    // END: MPI rank loop
+  }
+  // END: deep debugging of sorted block list
+
 }
 
 
@@ -491,6 +548,73 @@ Component::CudaGetLevelRange(int minlev, int maxlev)
     exit(-1);
   }
  
+
+  // Direct comparison with particle vector
+  // [This is expensive and only for deep debugging]
+  //
+  if (false) {
+    
+    for (int rank=0; rank<numprocs; rank++) {
+      if (rank==myid) {
+	
+	// Get particles from device
+	//
+	thrust::host_vector<cudaParticle> pp = cuStream->cuda_particles;
+	thrust::host_vector<int> lp = cuStream->levList;
+	thrust::host_vector<int> li = cuStream->indx1;
+	
+	// Make a list
+	//
+	std::vector<int> hl(pp.size());
+	for (int p=0; p<pp.size(); p++) hl[p] = pp[p].lev[0];
+
+	std::vector<int> indx(pp.size());
+	std::iota(indx.begin(), indx.end(), 0);
+
+	// Sort the list
+	//
+	struct Comparator
+	{
+	  Comparator(const std::vector<int> & data) : m_data(data) {}
+	  bool operator()(int left, int right) const { return m_data[left] < m_data[right]; }
+	  const std::vector<int> & m_data;
+	};
+
+	std::sort(indx.begin(), indx.end(), Comparator(hl));
+
+	std::vector<int> sorted(hl.size());
+	for (int p=0; p<hl.size(); p++) sorted[p] = hl[indx[p]];
+
+	auto lot = std::lower_bound(sorted.begin(), sorted.end(), minlev);
+	auto hit = std::upper_bound(sorted.begin(), sorted.end(), maxlev);
+
+	std::cout << std::string(40, '-') << std::endl
+		  << "---- Level range debug for " << name
+		  << " [" << myid << "] mstep=" << mstep
+		  << " T=" << tnow << std::endl;
+
+	if (ret.first  != std::distance(sorted.begin(), lot) or
+	    ret.second != std::distance(sorted.begin(), hit)   ) {
+	  std::cout << std::string(40, '-') << std::endl
+		    << "---- Found [" << ret.first << "," << ret.second << "]"
+		    << "but expected [" << std::distance(sorted.begin(), lot)
+		    << "," << std::distance(sorted.begin(), hit) << "]" << std::endl
+		    << std::string(40, '-') << std::endl;
+	} else {
+	  std::cout << "---- Good [" << ret.first << "," << ret.second << "]"
+		    << " for [" << minlev << "," << maxlev << "]"
+		    << std::endl;
+	}
+	std::cout << std::string(40, '-') << std::endl;
+
+      }
+
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+    // END: MPI rank loop
+  }
+  // END: deep debugging of sorted block list
+
   return ret;
 }
 
