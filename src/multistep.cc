@@ -178,6 +178,8 @@ void * adjust_multistep_level_thread(void *ptr)
       if ((c->DTreset() and mstep==0) or firstCall) p->dtreq = 0.0;
       if (p->dtreq <= 0.0) p->dtreq = dt;
       if (dt < p->dtreq)   p->dtreq = dt;
+    } else {
+      p->dtreq = dt;
     }
 
     // Update coefficients at this substep?

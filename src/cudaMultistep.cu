@@ -177,6 +177,8 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       if (noswitch) {
 	if (p.dtreq <= 0.0)    p.dtreq = dt;
 	else if (dt < p.dtreq) p.dtreq = dt;
+      } else {
+	p.dtreq = dt;
       }
 
       // Assign new levels?
@@ -185,8 +187,10 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 
 	// Time step wants to be LARGER than the maximum
 	//
-	if (dt > cuDtime) p.lev[1] = 0;
-	else              p.lev[1] = (int)floor(log(cuDtime/p.dtreq)/log(2.0));
+	if (p.dtreq >= cuDtime)
+	  p.lev[1] = 0;
+	else
+	  p.lev[1] = (int)floor(log(cuDtime/p.dtreq)/log(2.0));
 	
 	// Time step wants to be SMALLER than the maximum
 	//
@@ -445,24 +449,24 @@ void cuda_compute_levels()
 	c->CudaSortByLevel();
       }
 
-#ifdef VERBOSE_TIMING
-      finish = std::chrono::high_resolution_clock::now();
-      duration = finish - start;
-      timeSRT += duration.count()*1.0e-6;
-      start = std::chrono::high_resolution_clock::now();
-#endif
-
-      c->fix_positions_cuda();
-
-#ifdef VERBOSE_TIMING
-      finish = std::chrono::high_resolution_clock::now();
-      duration = finish - start;
-      timeCOM += duration.count()*1.0e-6;
-#endif
-
       c->force->multistep_update_finish();
     }
     // END: coefficient update stanza
+
+#ifdef VERBOSE_TIMING
+    finish = std::chrono::high_resolution_clock::now();
+    duration = finish - start;
+    timeSRT += duration.count()*1.0e-6;
+    start = std::chrono::high_resolution_clock::now();
+#endif
+
+    c->fix_positions_cuda();
+
+#ifdef VERBOSE_TIMING
+    finish = std::chrono::high_resolution_clock::now();
+    duration = finish - start;
+    timeCOM += duration.count()*1.0e-6;
+#endif
   }
   // END: component loop
 
