@@ -235,4 +235,4 @@ public:
   }
 };
 
-proxymw p;
+static proxymw p;
