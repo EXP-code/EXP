@@ -227,8 +227,8 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
   // MPI buffer space
   //
   unsigned sz = (multistep+1)*(Lmax+1)*(Lmax+1)*nmax;
-  pack   = vector<double>(sz);
-  unpack = vector<double>(sz);
+  pack  .resize(sz);
+  unpack.resize(sz);
 
   // Coefficient evaluation times
   // 
@@ -998,75 +998,108 @@ void SphericalBasis::multistep_update_finish()
 				// Combine the update matricies
 				// from all nodes
   unsigned sz = (multistep - mfirst[mdrft] + 1)*(Lmax+1)*(Lmax+1)*nmax;
-  unsigned offset0, offset1;
 
 				// Zero the buffer space
 				//
-  for (unsigned j=0; j<sz; j++) pack[j] = unpack[j] = 0.0;
+  std::fill(pack.begin(),   pack.begin()   + sz, 0.0);
 
   // Pack the difference matrices
   //
   for (int M=mfirst[mdrft]; M<=multistep; M++) {
-    offset0 = (M - mfirst[mdrft])*(Lmax+1)*(Lmax+1)*nmax;
+    unsigned offset0 = (M - mfirst[mdrft])*(Lmax+1)*(Lmax+1)*nmax;
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
-      offset1 = l*nmax;
-      for (int n=0; n<nthrds; n++) 
-	for (int ir=0; ir<nmax; ir++) 
+      unsigned offset1 = l*nmax;
+      for (int n=0; n<nthrds; n++) {
+	for (int ir=0; ir<nmax; ir++) {
 	  pack[offset0+offset1+ir] += differ1[n][M](l, ir);
+	}
+      }
     }
   }
 
-  MPI_Allreduce (&pack[0], &unpack[0], sz, 
+  MPI_Allreduce (pack.data(), unpack.data(), sz, 
 		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   
+  // Update the local coefficients
+  //
+  for (int M=mfirst[mdrft]; M<=multistep; M++) {
+    unsigned offset0 = (M - mfirst[mdrft])*(Lmax+1)*(Lmax+1)*nmax;
+    for (int l=0; l<=Lmax*(Lmax+2); l++) {
+      unsigned offset1 = l*nmax;
+      for (int ir=0; ir<nmax; ir++)
+	(*expcoefN[M][l])[ir] += unpack[offset0+offset1+ir];
+    }
+  }
+
   //  +--- Deep debugging
   //  |
   //  v
   if (false and myid==0) {
     std::string filename = runtag + ".differ_sph_" + component->name;
     std::ofstream out(filename, ios::app);
-    std::set<int> L = {0, 1, 2};
+
     if (out) {
-      out << std::string(10+16*nmax, '-') << std::endl;
-      out << "# T=" << tnow << " mstep=" << mstep << std::endl;
+      
+      out << std::string(14+16*nmax, '-') << std::endl;
+      out << "# T=" << tnow << " mstep=" << mstep
+	  << " mfirst=" << mfirst[mdrft] << std::endl;
+      
       for (int M=mfirst[mdrft]; M<=multistep; M++) {
-	offset0 = (M - mfirst[mdrft])*(Lmax+1)*(Lmax+1)*nmax;
-	for (int l=0; l<=Lmax*(Lmax+2); l++) {
-	  if (L.find(l)==L.end()) continue;
-	  offset1 = l*nmax;
-	  out << std::setw(5) << M << std::setw(5) << l;
-	  for (int ir=0; ir<nmax; ir++)
-	    out << std::setw(16) << unpack[offset0+offset1+ir];
-	  out << std::endl;
+	unsigned offset0 = (M - mfirst[mdrft])*(Lmax+1)*(Lmax+1)*nmax;
+	for (int l=0, ll=0; l<=Lmax; l++) {
+	  for (int m=0; m<=l; m++) {
+	    unsigned offset1 = ll*nmax;
+	    out << std::setw(3) << M << std::setw(3) << l
+		<< std::setw(3) << m << std::setw(3) << 'c';
+	    for (int ir=0; ir<nmax; ir++)
+	      out << std::setw(16) << unpack[offset0+offset1+ir];
+	    out << std::endl;
+	    ll++;
+	    if (m) {
+	      offset1 = ll*nmax;
+	      out << std::setw(3) << M << std::setw(3) << l
+		  << std::setw(3) << m << std::setw(3) << 's';
+	      for (int ir=0; ir<nmax; ir++)
+		out << std::setw(16) << unpack[offset0+offset1+ir];
+	      out << std::endl;
+	      ll++;
+	    }
+	  }
 	}
       }
-      out << std::string(10+16*nmax, '-') << std::endl;
-      for (int l=0; l<=Lmax*(Lmax+2); l++) {
-	if (L.find(l)==L.end()) continue;
-	out << std::setw(5) << " *** " << std::setw(5) << l;
-	for (int ir=0; ir<nmax; ir++)
-	  out << std::setw(16) << (*expcoef[l])[ir];
-	out << std::endl;
+      
+      out << std::string(14+16*nmax, '-') << std::endl
+	  << "---- Updated coefficients"  << std::endl
+	  << std::string(14+16*nmax, '-') << std::endl;
+
+      for (int M=mfirst[mdrft]; M<=multistep; M++) {
+	for (int l=0, ll=0; l<=Lmax; l++) {
+	  for (int m=0; m<=l; m++) {
+	    out << std::setw(3) << M << std::setw(3) << l
+		<< std::setw(3) << m << std::setw(3) << 'c';
+	    for (int ir=0; ir<nmax; ir++)
+	      out << std::setw(16) << (*expcoefN[M][ll])[ir];
+	    out << std::endl;
+	    ll++;
+	    if (m) {
+	      out << std::setw(3) << M << std::setw(3) << l
+		  << std::setw(3) << m << std::setw(3) << 's';
+	      for (int ir=0; ir<nmax; ir++)
+		out << std::setw(16) << (*expcoef[ll])[ir];
+	      out << std::endl;
+	      ll++;
+	    }
+	  }
+	}
       }
-      out << std::string(10+16*nmax, '-') << std::endl;
-      out << std::string(10+16*nmax, '-') << std::endl;
+      out << std::string(14+16*nmax, '-') << std::endl;
+
     } else {
-      std::cout << "Error opening test file <" << filename << "> at T=" << tnow
-		<< std::endl;
+	std::cout << "Error opening test file <" << filename << "> at T=" << tnow
+		  << std::endl;
     }
   }
   // END: deep debug
-
-  // Update the local coefficients
-  //
-  for (int M=mfirst[mdrft]; M<=multistep; M++) {
-    offset0 = (M - mfirst[mdrft])*(Lmax+1)*(Lmax+1)*nmax;
-    for (int l=0; l<=Lmax*(Lmax+2); l++) {
-      offset1 = l*nmax;
-      for (int ir=0; ir<nmax; ir++)
-	(*expcoefN[M][l])[ir] += unpack[offset0+offset1+ir];
-    }
-  }
 
 #ifdef SPH_UPDATE_TABLE
   occt_output();
