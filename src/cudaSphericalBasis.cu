@@ -973,6 +973,10 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
       host_mass_tot = 0.0;
   }
 
+  // Zero out coefficient storage
+  //
+  cuda_zero_coefs();
+
   // Get sorted particle range for mlevel
   //
   PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
