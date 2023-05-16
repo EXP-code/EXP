@@ -973,10 +973,6 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
       host_mass_tot = 0.0;
   }
 
-  // Zero out coefficient storage
-  //
-  cuda_zero_coefs();
-
   // Get sorted particle range for mlevel
   //
   PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
@@ -1944,12 +1940,17 @@ void SphericalBasis::multistep_update_cuda()
 
       if (olev == nlev) continue;
 
+      // Get range of update block in particle index
+      //
       unsigned int Ntotal = chg[olev][nlev].second - chg[olev][nlev].first;
 
-      if (Ntotal==0) continue;	// No particles [from, to]=[olev, nlev]
+      if (Ntotal==0) continue; // No particles [from, to]=[olev, nlev]
 
       unsigned int Npacks = Ntotal/component->bunchSize + 1;
 
+      // Zero out coefficient storage
+      //
+      cuda_zero_coefs();
 
 #ifdef VERBOSE_DBG
       std::cout << "[" << myid << ", " << tnow
@@ -2081,14 +2082,14 @@ void SphericalBasis::multistep_update_cuda()
       // Decrement current level and increment new level using the
       // update matrices
       //
-      for (int l=0, loffset=0, offst=0; l<=Lmax; loffset+=(2*l+1), l++) {
+      for (int l=0, loffset=0, offst=0; l<=Lmax; l++) {
 	for (int m=0, moffset=0; m<=l; m++) {
 	  for (size_t n=0; n<nmax; n++) {
-	    differ1[0][olev](loffset+moffset, n) -= ret[2*n+offst];
-	    differ1[0][nlev](loffset+moffset, n) += ret[2*n+offst];
+	    differ1[0][olev](loffset, n) -= ret[2*n+offst];
+	    differ1[0][nlev](loffset, n) += ret[2*n+offst];
 	    if (m>0) {
-	      differ1[0][olev](loffset+moffset+1, n) -= ret[2*n+1+offst];
-	      differ1[0][nlev](loffset+moffset+1, n) += ret[2*n+1+offst];
+	      differ1[0][olev](loffset+1, n) -= ret[2*n+1+offst];
+	      differ1[0][nlev](loffset+1, n) += ret[2*n+1+offst];
 	    }
 	  }
 
@@ -2096,8 +2097,8 @@ void SphericalBasis::multistep_update_cuda()
 	  offst += nmax*2;
 
 	  // Update the offset into the host coefficient matrix
-	  if (m>0) moffset += 2;
-	  else     moffset += 1;
+	  if (m>0) loffset += 2;
+	  else     loffset += 1;
 	}
       }
       // END: assign differences

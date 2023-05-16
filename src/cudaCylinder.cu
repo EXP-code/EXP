@@ -1930,10 +1930,6 @@ void Cylinder::multistep_update_cuda()
   //
   cuFP_t rmax = rcylmax * acyl;
 
-  // Zero out coefficient storage
-  //
-  cuda_zero_coefs();
-
   // Step through all levels
   //
   for (int olev=mfirst[mdrft]; olev<=multistep; olev++) {
@@ -1942,11 +1938,17 @@ void Cylinder::multistep_update_cuda()
 
       if (olev == nlev) continue;
 
+      // Get range of update block in particle index
+      //
       unsigned int Ntotal = chg[olev][nlev].second - chg[olev][nlev].first;
 
-      if (Ntotal==0) continue;
+      if (Ntotal==0) continue; // No particles [from, to]=[olev, nlev]
 
       unsigned int Npacks = Ntotal/component->bunchSize + 1;
+
+      // Zero out coefficient storage
+      //
+      cuda_zero_coefs();
 
 #ifdef VERBOSE_DBG
       std::cout << "[" << myid << ", " << tnow
