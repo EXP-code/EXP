@@ -1,5 +1,7 @@
 // -*- C++ -*-
 
+#include <limits>
+
 #include "expand.H"
 #include <Component.H>
 #include <cudaReduce.cuH>
@@ -12,6 +14,9 @@
 //
 __device__ __constant__
 cuFP_t cuDynfracS, cuDynfracD, cuDynfracV, cuDynfracA, cuDynfracP, cuDtime;
+
+__device__ __constant__
+cuFP_t cuMaxDbl;
 
 __device__ __constant__
 int cuMultistep, cuShiftlev, cuDTold;
@@ -50,6 +55,9 @@ void cuda_initialize_multistep_constants()
 
   cuda_safe_call(cudaMemcpyToSymbol(cuDTold, &(tmp), sizeof(int), size_t(0), cudaMemcpyHostToDevice),
 		   __FILE__, __LINE__, "Error copying cuDTold");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuMaxDbl, &(z=std::numeric_limits<cuFP_t>::max()), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuMaxDbl");
 }
 
 
@@ -67,6 +75,7 @@ void testConstantsMultistep()
   printf("   Dtime  = %f\n", cuDtime    );
   printf("   Multi  = %d\n", cuMultistep);
   printf("   Shift  = %d\n", cuShiftlev );
+  printf("   MaxFL  = %e\n", cuMaxDbl   );
   if (cuDTold)
     printf("   DTold  = true\n"         );
   else
@@ -81,7 +90,7 @@ timestepSetKernel(dArray<cudaParticle> P, int stride)
 
   for (int n=0; n<stride; n++) {
     int npart = tid*stride + n;
-    if (npart < P._s) P._v[npart].dtreq = 0.0;
+    if (npart < P._s) P._v[npart].dtreq = cuMaxDbl;
   }
   // END: stride loop
 
@@ -175,8 +184,7 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       if (dt < eps) dt = eps;
       
       if (noswitch) {
-	if (p.dtreq <= 0.0)    p.dtreq = dt;
-	else if (dt < p.dtreq) p.dtreq = dt;
+	if (dt < p.dtreq) p.dtreq = dt;
       } else {
 	p.dtreq = dt;
       }
@@ -192,14 +200,6 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	else
 	  p.lev[1] = (int)floor(log(cuDtime/p.dtreq)/log(2.0));
 	
-	// Time step wants to be SMALLER than the maximum
-	//
-	if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
-	
-	// Limit new level to minimum active level
-	//
-	if (p.lev[1]<minactlev)   p.lev[1] = minactlev;
-	
 	// Enforce n-level shifts at a time
 	//
 	if (cuShiftlev) {
@@ -211,6 +211,14 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	      p.lev[1] = p.lev[0] - cuShiftlev;
 	  }
 	}
+
+	// Time step wants to be SMALLER than the maximum
+	//
+	if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
+	
+	// Limit new level to minimum active level
+	//
+	if (p.lev[1]<minactlev)   p.lev[1] = minactlev;
       }
       // Apply level selction
 	
@@ -308,21 +316,26 @@ void cuda_compute_levels()
     // or on the very first call to initialize levels---+
 
 
-    // Reset minimum time step field at the beginning of the master step
+    // Reset minimum time step field at the beginning of the master
+    // step.  Only need to do this if the no-switch algorithm is on...
     //
-    if (firstCall or (c->DTreset() and mstep==0)) {
+    if (c->NoSwitch()) {
 
-      // Compute grid
+      // Zero dtreq?
       //
-      unsigned int N         = c->cuStream->cuda_particles.size();
-      unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-      unsigned int gridSize  = N/BLOCK_SIZE/stride;
-    
-      if (N>0) {
-	if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
-
-	timestepSetKernel<<<gridSize, BLOCK_SIZE>>>
-	  (toKernel(c->cuStream->cuda_particles), stride);
+      if ((c->DTreset() and mstep==0) or firstCall) {
+	// Compute grid
+	//
+	unsigned int N         = c->cuStream->cuda_particles.size();
+	unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+	unsigned int gridSize  = N/BLOCK_SIZE/stride;
+	
+	if (N>0) {
+	  if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+	  
+	  timestepSetKernel<<<gridSize, BLOCK_SIZE>>>
+	    (toKernel(c->cuStream->cuda_particles), stride);
+	}
       }
     }
 
