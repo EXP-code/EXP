@@ -6,6 +6,10 @@
 #include <Component.H>
 #include <cudaReduce.cuH>
 
+// Define this for deep time step check
+//
+// #define OVER_UNDER
+
 // Define this to see per operation sub timings
 //
 // #define VERBOSE_TIMING
@@ -56,7 +60,7 @@ void cuda_initialize_multistep_constants()
   cuda_safe_call(cudaMemcpyToSymbol(cuDTold, &(tmp), sizeof(int), size_t(0), cudaMemcpyHostToDevice),
 		   __FILE__, __LINE__, "Error copying cuDTold");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuMaxDbl, &(z=std::numeric_limits<cuFP_t>::max()), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+  cuda_safe_call(cudaMemcpyToSymbol(cuMaxDbl, &(z=1.0e32), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cuMaxDbl");
 }
 
@@ -255,6 +259,47 @@ timestepFinalizeKernel(dArray<cudaParticle> P, dArray<int> I,
 
 }
 
+
+#ifdef OVER_UNDER
+
+// Convert linear index to row index for column reduction
+//
+template <typename T>
+struct to_row_index : public thrust::unary_function<T,T> {
+
+  T Ncols; // --- Number of columns
+  
+  __host__ __device__ to_row_index(T Ncols) : Ncols(Ncols) {}
+  
+  __host__ __device__ T operator()(T i) { return i / Ncols; }
+};
+
+
+__global__ void
+DTKernel(dArray<cudaParticle> P, dArray<int> I, dArray<int> ret,
+	 int stride, PII lohi)
+{
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+  for (int n=0; n<stride; n++) {
+    int i     = tid*stride + n;	// Index in the stride
+    int npart = i + lohi.first;	// Index into the sorted array
+
+    if (npart < lohi.second) {
+      
+      cudaParticle & p = P._v[I._v[npart]];
+      
+      if (p.dtreq >10.0) ret._v[i*2+0] += 1;
+      if (p.dtreq<=10.0) ret._v[i*2+1] += 1;
+
+    } // Particle index block
+    
+  } // END: stride loop
+
+}
+
+#endif
+
 void cuda_initialize_multistep()
 {
   // Constants to device once only
@@ -324,6 +369,7 @@ void cuda_compute_levels()
       // Zero dtreq?
       //
       if ((c->DTreset() and mstep==0) or firstCall) {
+
 	// Compute grid
 	//
 	unsigned int N         = c->cuStream->cuda_particles.size();
@@ -350,7 +396,7 @@ void cuda_compute_levels()
 	if (n==myid) testConstantsMultistep<<<1, 1>>>();
 	std::cout << std::string(60, '-') << std::endl
 		  << "[" << myid << ", " << c->name
-		  << "]: mlevel=" << mfirst[mdrft]
+		  << "]: T=" << tnow << " mlevel=" << mfirst[mdrft]
 		  << " mstep=" << mstep << " mdrft=" << mdrft
 		  << " (lo, hi) = (" << lohi.first << ", " << lohi.second << ")"
 		  << std::endl << std::string(60, '-') << std::endl;
@@ -442,6 +488,8 @@ void cuda_compute_levels()
     
       // Assign the newly computed, updated level
       //
+      int dtover = 0, dtundr = 0;
+      
       if (N>0) {
 
 	if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
@@ -450,19 +498,70 @@ void cuda_compute_levels()
 	  (toKernel(c->cuStream->cuda_particles),
 	   toKernel(c->cuStream->indx1), stride, lohi);
 
+	// Re-sort level array for next substep; this makes indx1
+	//
+	c->CudaSortByLevel();
+
+#ifdef OVER_UNDER
+
+	// Test uncomputed timesteps
+	//
+	const int Ncols = 2;
+	thrust::device_vector<int> ret(Ncols*N);
+	thrust::fill(ret.begin(), ret.end(), 0);
+
+	// Allocate space for row sums and indices
+	//
+	thrust::device_vector<cuFP_t> d_sums   (Ncols);
+	thrust::device_vector<int>    d_indices(Ncols);
+	
+	// Find big dtreq values
+	// 
+	DTKernel<<<gridSize, BLOCK_SIZE, 0, c->cuStream->stream>>>
+	  (toKernel(c->cuStream->cuda_particles), toKernel(c->cuStream->indx1),
+	   toKernel(ret), stride, lohi);
+	
+	// Perform sum over columns by summing values with equal column indices
+	//
+	thrust::reduce_by_key
+	  (thrust::make_transform_iterator(thrust::counting_iterator<int>(0), to_row_index<int>(N)),
+	   thrust::make_transform_iterator(thrust::counting_iterator<int>(0), to_row_index<int>(N)) + (N*Ncols),
+	   thrust::make_permutation_iterator
+	   (ret.begin(), thrust::make_transform_iterator(thrust::make_counting_iterator(0),(thrust::placeholders::_1 % N) * Ncols + thrust::placeholders::_1 / N)),
+	   d_indices.begin(),
+	   d_sums.begin(),
+	   thrust::equal_to<int>(),
+	   thrust::plus<cuFP_t>());
+
+	dtover += d_sums[0];
+	dtundr += d_sums[1];
+#endif
+
 #ifdef VERBOSE_TIMING
 	finish = std::chrono::high_resolution_clock::now();
 	duration = finish - start;
 	time2 += duration.count()*1.0e-6;
 	start = std::chrono::high_resolution_clock::now();
 #endif
-	
-	// Re-sort level array for next substep; this makes indx1
-	//
-	c->CudaSortByLevel();
       }
 
+#ifdef OVER_UNDER
+      // Sum errors
+      //
+      int totover = 0, totundr = 0;
+      MPI_Reduce(&dtover, &totover, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&dtundr, &totundr, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+      if (myid==0) {
+	std::cout << "cudaMultistep: over=" << totover
+		  << " under=" << totundr
+		  << " T=" << tnow << std::endl;
+      }
+#endif
+
+      // Commit the updates
+      //
       c->force->multistep_update_finish();
+
     }
     // END: coefficient update stanza
 
