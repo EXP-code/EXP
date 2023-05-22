@@ -95,7 +95,7 @@ void CylEXP::multistep_update_finish()
   //  +--- Deep debugging
   //  |
   //  v
-  if (true and myid==0) {
+  if (false and myid==0) {
     std::string filename = runtag + ".differ_cyl";
     std::ofstream out(filename, ios::app);
     if (out) {

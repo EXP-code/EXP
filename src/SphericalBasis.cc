@@ -217,9 +217,9 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
   // Allocate coefficient matrix (one for each multistep level)
   // and zero-out contents
   //
-  differ1 = vector< vector<Eigen::MatrixXd> >(nthrds);
+  differ1 = std::vector< std::vector<Eigen::MatrixXd> >(nthrds);
   for (int n=0; n<nthrds; n++) {
-    differ1[n] = vector<Eigen::MatrixXd>(multistep+1);
+    differ1[n].resize(multistep+1);
     for (int i=0; i<=multistep; i++)
       differ1[n][i].resize((Lmax+1)*(Lmax+1), nmax);
   }
@@ -971,13 +971,7 @@ void SphericalBasis::multistep_update_begin()
 
 				// Clear the update matricies
   for (int n=0; n<nthrds; n++) {
-    for (int M=mfirst[mdrft]; M<=multistep; M++) {
-      for (int l=0; l<=Lmax*(Lmax+2); l++) {
-	for (int ir=0; ir<nmax; ir++) {
-	  differ1[n][M](l, ir) = 0.0;
-	}
-      }
-    }
+    for (int M=mfirst[mdrft]; M<=multistep; M++) differ1[n][M].setZero();
   }
 
 #ifdef SPH_UPDATE_TABLE
@@ -1001,7 +995,7 @@ void SphericalBasis::multistep_update_finish()
 
 				// Zero the buffer space
 				//
-  std::fill(pack.begin(),   pack.begin()   + sz, 0.0);
+  std::fill(pack.begin(), pack.begin() + sz, 0.0);
 
   // Pack the difference matrices
   //
