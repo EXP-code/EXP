@@ -61,9 +61,9 @@ void CylEXP::multistep_update_finish()
     workC1[j] = workC[j] = workS1[j] = workS[j] = 0.0;
 
 				// Combine the update matricies
-  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+  for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
 
-    offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
+    offset0 = (M - mfirst[mdrft])*(MMAX+1)*rank3;
 
     for (int mm=0; mm<=MMAX; mm++) {
       
@@ -95,13 +95,14 @@ void CylEXP::multistep_update_finish()
   //  +--- Deep debugging
   //  |
   //  v
-  if (false and myid==0) {
-    std::ofstream out("test_differ.cyl", ios::app);
+  if (true and myid==0) {
+    std::string filename = runtag + ".differ_cyl";
+    std::ofstream out(filename, ios::app);
     if (out) {
       out << std::string(13+16*rank3, '-') << std::endl;
-      out << "# mstep=" << mstep << std::endl;
-      for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
-	offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
+      out << "# T=" << tnow << " mstep=" << mstep << std::endl;
+      for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mdrft])*(MMAX+1)*rank3;
 	for (int mm=0; mm<=MMAX; mm++) {
 	  offset1 = mm*rank3;
 	  out << std::setw(5) << M << " C " << std::setw(5) << mm;
@@ -141,9 +142,9 @@ void CylEXP::multistep_update_finish()
   }
 
 
-  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+  for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
 
-    offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
+    offset0 = (M - mfirst[mdrft])*(MMAX+1)*rank3;
 
     for (int mm=0; mm<=MMAX; mm++) {
       
