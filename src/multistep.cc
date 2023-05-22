@@ -215,7 +215,6 @@ void * adjust_multistep_level_thread(void *ptr)
       }
       else nlev = (int)floor(log(dtime/p->dtreq)/log(2.0));
 
-
       // Enforce n-level shifts at a time
       //
       if (shiftlevl) {
@@ -281,7 +280,7 @@ void * adjust_multistep_level_thread(void *ptr)
 }
 
 
-void adjust_multistep_level(bool all)
+void adjust_multistep_level()
 {
   if (!multistep) return;
 
@@ -312,10 +311,16 @@ void adjust_multistep_level(bool all)
 
   start = std::chrono::high_resolution_clock::now();
 
+  // Always assign levels on first pass
+  //
+  bool firstCall = this_step==0 and mdrft==0;
+
   //
   // Begin the update
   //
-  for (auto c : comp->components) c->force->multistep_update_begin();
+  for (auto c : comp->components) {
+    c->force->multistep_update_begin();
+  }
 
   //
   // Preliminary data structure and thread creation
@@ -383,7 +388,7 @@ void adjust_multistep_level(bool all)
     int first = mfirst[mdrft];	// First active level at drifted
 				// subgrid position
 
-    if (all) first = 0;		// Do all levels by request
+    if (this_step==0 and mstep==0) first = 0; // Do all levels
 
     for (int level=first; level<=multistep; level++) {
       
@@ -461,19 +466,22 @@ void adjust_multistep_level(bool all)
   // Finish the update
   //
   for (auto c : comp->components) {
-    // Always assign levels on first pass
-    bool firstCall = this_step==0 and mdrft==0;
 
     // Assign levels on every step or final drift for noswitch==True
-    bool apply = not c->NoSwitch() or mdrft==Mstep;
+    //
+    bool apply = not c->NoSwitch() or mdrft==Mstep or firstCall;
 
     // Only apply on first pass (for testing)
+    //
     if (not firstCall and c->FreezeLev()) apply = false;
 
     // Update level coefficients
-    if (firstCall or apply) c->force->multistep_update_finish();
-
-    c->reset_level_lists();
+    //
+    if (apply) {
+      c->force->multistep_update_finish();
+      c->reset_level_lists();
+    }
+    
     c->fix_positions();
   }
 
