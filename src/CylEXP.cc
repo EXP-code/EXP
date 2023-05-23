@@ -69,19 +69,14 @@ void CylEXP::multistep_update_finish()
       
       offset1 = mm*rank3;
 
-      for (int k=0; k<rank3; k++) 
-	workC1[offset0+offset1+k] = differC1[0][M](mm, k);
-      for (int nth=1; nth<nthrds; nth++)
+      for (int nth=0; nth<nthrds; nth++)
 	for (int k=0; k<rank3; k++) 
 	  workC1[offset0+offset1+k] += differC1[nth][M](mm, k);
 
       if (mm) {
-	for (int k=0; k<rank3; k++) 
-	  workS1[offset0+offset1+k] = differS1[0][M](mm, k);
-	for (int nth=1; nth<nthrds; nth++)
+	for (int nth=0; nth<nthrds; nth++)
 	  for (int k=0; k<rank3; k++) 
 	    workS1[offset0+offset1+k] += differS1[nth][M](mm, k);
-
       }
     }
   }
@@ -151,14 +146,13 @@ void CylEXP::multistep_update_finish()
       offset1 = mm*rank3;
 
       for (int nn=0; nn<rank3; nn++) 
-	accum_cos[mm][nn] += workC[offset0+offset1+nn];
+	cosN(M)[0][mm][nn] += workC[offset0+offset1+nn];
 
       if (mm) {
 	for (int nn=0; nn<rank3; nn++) 
-	  accum_sin[mm][nn] += workS[offset0+offset1+nn];
+	  sinN(M)[0][mm][nn] += workS[offset0+offset1+nn];
       }
     }
-
   }
 }
 
@@ -209,7 +203,7 @@ void CylEXP::compute_multistep_coefficients(unsigned mlevel)
 				// Interpolate to get coefficients above the
 				// current active level
   for (unsigned M=0; M<mfirst[mdrft]; M++) {
-
+    
     double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
     double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
 
