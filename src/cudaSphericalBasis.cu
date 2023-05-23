@@ -2087,7 +2087,7 @@ void SphericalBasis::multistep_update_cuda()
       // update matrices
       //
       for (int l=0, loffset=0, offst=0; l<=Lmax; l++) {
-	for (int m=0, moffset=0; m<=l; m++) {
+	for (int m=0; m<=l; m++) {
 	  for (size_t n=0; n<nmax; n++) {
 	    differ1[0][olev](loffset, n) -= ret[2*n+offst];
 	    differ1[0][nlev](loffset, n) += ret[2*n+offst];
