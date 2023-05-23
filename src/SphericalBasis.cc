@@ -1000,9 +1000,13 @@ void SphericalBasis::multistep_update_finish()
   // Pack the difference matrices
   //
   for (int M=mfirst[mdrft]; M<=multistep; M++) {
+
     unsigned offset0 = (M - mfirst[mdrft])*(Lmax+1)*(Lmax+1)*nmax;
+
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
+
       unsigned offset1 = l*nmax;
+
       for (int n=0; n<nthrds; n++) {
 	for (int ir=0; ir<nmax; ir++) {
 	  pack[offset0+offset1+ir] += differ1[n][M](l, ir);
@@ -1017,9 +1021,13 @@ void SphericalBasis::multistep_update_finish()
   // Update the local coefficients
   //
   for (int M=mfirst[mdrft]; M<=multistep; M++) {
+
     unsigned offset0 = (M - mfirst[mdrft])*(Lmax+1)*(Lmax+1)*nmax;
+
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
+
       unsigned offset1 = l*nmax;
+
       for (int ir=0; ir<nmax; ir++)
 	(*expcoefN[M][l])[ir] += unpack[offset0+offset1+ir];
     }
