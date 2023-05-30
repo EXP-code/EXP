@@ -109,10 +109,11 @@ void begin_run(void)
     // Initialize multistep levels
     //==============================
 
-    adjust_multistep_level(true);
-    //                     ^
-    //                     |
-    // Do all particles----+
+    adjust_multistep_level();
+    //  ^
+    //  |  
+    //  \----All on first call
+    
   }
 
   //===========================================

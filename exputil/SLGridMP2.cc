@@ -1206,7 +1206,7 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   logical endfin[2] = {1, 1};
   
 #ifdef DEBUG_SLEDGE
-  if (myid==1) VERBOSE = SLEDGE_VERBOSE;
+  if (myid==0) VERBOSE = SLEDGE_VERBOSE;
 #endif
 
   cons[6] = rmin;
@@ -1381,7 +1381,7 @@ void SLGridCyl::compute_table_worker(void)
   int M, N, K;
 
 #ifdef DEBUG_SLEDGE
-  if (myid==1) VERBOSE = SLEDGE_VERBOSE;
+  if (myid==0) VERBOSE = SLEDGE_VERBOSE;
 #endif
 
   if (tbdbg)
@@ -2546,7 +2546,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   logical endfin[2] = {1, 1};
   
 #ifdef DEBUG_SLEDGE
-  if (myid==1) VERBOSE = SLEDGE_VERBOSE;
+  if (myid==0) VERBOSE = SLEDGE_VERBOSE;
 #endif
 
   cons[6] = rmin;
@@ -2719,7 +2719,7 @@ void SLGridSph::compute_table_worker(void)
   int L, N;
 
 #ifdef DEBUG_SLEDGE
-  if (myid==1) VERBOSE = SLEDGE_VERBOSE;
+  if (myid==0) VERBOSE = SLEDGE_VERBOSE;
 #endif
 
 #ifdef DEBUG
@@ -4000,7 +4000,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   logical endfin[2] = {1, 1};
   
 #ifdef DEBUG_SLEDGE
-  if (myid==1) VERBOSE = SLEDGE_VERBOSE;
+  if (myid==0) VERBOSE = SLEDGE_VERBOSE;
 #endif
 
   cons[6] =  ZBEG;
@@ -4227,7 +4227,7 @@ void SLGridSlab::compute_table_worker(void)
   int KX, KY, N;
 
 #ifdef DEBUG_SLEDGE
-  if (myid==1) VERBOSE = SLEDGE_VERBOSE;
+  if (myid==0) VERBOSE = SLEDGE_VERBOSE;
 #endif
 
 #ifdef DEBUG

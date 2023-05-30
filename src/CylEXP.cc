@@ -46,7 +46,7 @@ void CylEXP::multistep_update_begin()
 {
 				// Clear the update matricies
   for (int nth=0; nth<nthrds; nth++) {
-    for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+    for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
       differC1[nth][M].setZero();
       differS1[nth][M].setZero();
     }
@@ -56,32 +56,27 @@ void CylEXP::multistep_update_begin()
 void CylEXP::multistep_update_finish()
 {
   unsigned offset0, offset1;
-  unsigned sz = (multistep - mfirst[mstep]+1)*(MMAX+1)*rank3;
+  unsigned sz = (multistep - mfirst[mdrft] + 1)*(MMAX+1)*rank3;
   for (unsigned j=0; j<sz; j++) 
     workC1[j] = workC[j] = workS1[j] = workS[j] = 0.0;
 
 				// Combine the update matricies
-  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+  for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
 
-    offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
+    offset0 = (M - mfirst[mdrft])*(MMAX+1)*rank3;
 
     for (int mm=0; mm<=MMAX; mm++) {
       
       offset1 = mm*rank3;
 
-      for (int k=0; k<rank3; k++) 
-	workC1[offset0+offset1+k] = differC1[0][M](mm, k);
-      for (int nth=1; nth<nthrds; nth++)
+      for (int nth=0; nth<nthrds; nth++)
 	for (int k=0; k<rank3; k++) 
 	  workC1[offset0+offset1+k] += differC1[nth][M](mm, k);
 
       if (mm) {
-	for (int k=0; k<rank3; k++) 
-	  workS1[offset0+offset1+k] = differS1[0][M](mm, k);
-	for (int nth=1; nth<nthrds; nth++)
+	for (int nth=0; nth<nthrds; nth++)
 	  for (int k=0; k<rank3; k++) 
 	    workS1[offset0+offset1+k] += differS1[nth][M](mm, k);
-
       }
     }
   }
@@ -96,12 +91,13 @@ void CylEXP::multistep_update_finish()
   //  |
   //  v
   if (false and myid==0) {
-    std::ofstream out("test_differ.cyl", ios::app);
+    std::string filename = runtag + ".differ_cyl";
+    std::ofstream out(filename, ios::app);
     if (out) {
       out << std::string(13+16*rank3, '-') << std::endl;
-      out << "# mstep=" << mstep << std::endl;
-      for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
-	offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
+      out << "# T=" << tnow << " mstep=" << mstep << std::endl;
+      for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mdrft])*(MMAX+1)*rank3;
 	for (int mm=0; mm<=MMAX; mm++) {
 	  offset1 = mm*rank3;
 	  out << std::setw(5) << M << " C " << std::setw(5) << mm;
@@ -141,23 +137,22 @@ void CylEXP::multistep_update_finish()
   }
 
 
-  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+  for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
 
-    offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
+    offset0 = (M - mfirst[mdrft])*(MMAX+1)*rank3;
 
     for (int mm=0; mm<=MMAX; mm++) {
       
       offset1 = mm*rank3;
 
       for (int nn=0; nn<rank3; nn++) 
-	accum_cos[mm][nn] += workC[offset0+offset1+nn];
+	cosN(M)[0][mm][nn] += workC[offset0+offset1+nn];
 
       if (mm) {
 	for (int nn=0; nn<rank3; nn++) 
-	  accum_sin[mm][nn] += workS[offset0+offset1+nn];
+	  sinN(M)[0][mm][nn] += workS[offset0+offset1+nn];
       }
     }
-
   }
 }
 
@@ -208,7 +203,7 @@ void CylEXP::compute_multistep_coefficients(unsigned mlevel)
 				// Interpolate to get coefficients above the
 				// current active level
   for (unsigned M=0; M<mfirst[mdrft]; M++) {
-
+    
     double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
     double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
 

@@ -220,7 +220,7 @@ void do_step(int n)
 #endif
 				// Adjust particle time-step levels
       if (step_timing) timer_adj.start();
-      adjust_multistep_level(false);
+      adjust_multistep_level();
       if (step_timing) timer_adj.stop();
       
       // Print the level lists

@@ -102,7 +102,7 @@ void OutCoef::Run(int n, int mstep, bool last)
 
   // Skip this sub step
   //
-  if (multistep>1 and mstep % nintsub != 0) return;
+  if (mstep < std::numeric_limits<int>::max() and mstep % nintsub != 0) return;
 
   if (myid==0) {
 

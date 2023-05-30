@@ -1902,6 +1902,13 @@ void Cylinder::multistep_update_cuda()
 {
   if (not self_consistent) return;
 
+  // Sanity check: don't redo a previous update
+  //
+  static double last_time = -1.0;
+  if (last_time < 0.0) last_time = tnow;
+  else if (tnow - last_time < 1.0e-18) return;
+  last_time = tnow;
+
   // The plan: for the current active level search above and below for
   // particles for correction to coefficient matrix
   //
@@ -1909,6 +1916,10 @@ void Cylinder::multistep_update_cuda()
   // Sort the device vector by level changes
   //
   auto chg = component->CudaSortLevelChanges();
+
+#ifdef CYL_UPDATE_TABLE
+  multistep_add_debug(chg);
+#endif
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
@@ -1919,28 +1930,32 @@ void Cylinder::multistep_update_cuda()
   //
   cuFP_t rmax = rcylmax * acyl;
 
-  // Zero out coefficient storage
-  //
-  cuda_zero_coefs();
-
   // Step through all levels
   //
-  for (int olev=mfirst[mstep]; olev<=multistep; olev++) {
+  for (int olev=mfirst[mdrft]; olev<=multistep; olev++) {
 
     for (int nlev=0; nlev<=multistep; nlev++) {
 
       if (olev == nlev) continue;
 
+      // Get range of update block in particle index
+      //
       unsigned int Ntotal = chg[olev][nlev].second - chg[olev][nlev].first;
 
-      if (Ntotal==0) continue;
+      if (Ntotal==0) continue; // No particles [from, to]=[olev, nlev]
 
       unsigned int Npacks = Ntotal/component->bunchSize + 1;
+
+      // Zero out coefficient storage
+      //
+      cuda_zero_coefs();
 
 #ifdef VERBOSE_DBG
       std::cout << "[" << myid << ", " << tnow
 		<< "] Adjust cylinder: Ntotal=" << Ntotal << " Npacks=" << Npacks
-		<< " for (m, d)=(" << olev << ", " << nlev << ")" << std::endl;
+		<< " for (m, d)=(" << olev << ", " << nlev << ")"
+		<< " beg(olev)=" << mfirst[mdrft] << " mdrft=" << mdrft
+		<< std::endl;
 #endif
 
       // Loop over bunches

@@ -348,6 +348,9 @@ protected:
   //! No multistep switching
   bool noswitch;
 
+  //! Compute new levels on the first step only
+  bool freezeLev;
+
   //! Select level from criteria over last time step
   bool dtreset;
 
@@ -912,6 +915,9 @@ public:
 
   //! Check for multistep restriction (this is still a test option)
   inline bool NoSwitch() { return noswitch; }
+
+  //! Only compute new levels on first step
+  inline bool FreezeLev() { return freezeLev; }
 
   //! Compute level from minimum requested time step from last master step
   inline bool DTreset()  { return dtreset;  }
