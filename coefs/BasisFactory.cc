@@ -2294,12 +2294,26 @@ namespace BasisClasses
     //
     Eigen::MatrixXd accel(rows, 3);
 
+    // Sanity check
+    //
+    if ( (tfinal - tinit)/h >
+	 static_cast<double>(std::numeric_limits<int>::max()) )
+      {
+	std::cout << "BasicFactor::IntegrateOrbits: step size is too small or "
+		  << "time interval is too large.\n";
+	// Return empty data
+	//
+	return {Eigen::VectorXd(), Eigen::Tensor<float, 3>()};
+      }
+    
+    // Number of steps
+    //
     int numT = floor( (tfinal - tinit)/h );
 
     // Compute output step
     //
     nout = std::min<int>(numT, nout);
-    double H = (tfinal - tinit)/(nout-1);
+    double H = (tfinal - tinit)/nout;
 
     // Return data
     //
@@ -2312,9 +2326,11 @@ namespace BasisClasses
       std::cout << "BasicFactor::IntegrateOrbits: memory allocation failed: "
 		<< e.what() << std::endl
 		<< "Your requested number of orbits and time steps requires "
-		<< floor(rows*6*nout*8/1e9)+1 << " GB" << std::endl;
+		<< floor(8.0*rows*6*nout/1e9)+1 << " GB free memory"
+		<< std::endl;
 
       // Return empty data
+      //
       return {Eigen::VectorXd(), Eigen::Tensor<float, 3>()};
     }
 
@@ -2329,18 +2345,17 @@ namespace BasisClasses
       for (int k=0; k<6; k++) ret(n, k, 0) = ps(n, k);
 
     double tnow = tinit;
-    int cnt = 1;
     for (int s=1, cnt=1; s<numT; s++) {
-      std::tie(tnow, ps) = OneStep(times(s-1), h, ps, accel, bfe, F);
+      std::tie(tnow, ps) = OneStep(tnow, h, ps, accel, bfe, F);
       if (tnow >= H*cnt-h*1.0e-8) {
+	times(cnt) = tnow;
 	for (int n=0; n<rows; n++)
 	  for (int k=0; k<6; k++) ret(n, k, cnt) = ps(n, k);
 	cnt += 1;
-	times(cnt) = tnow;
       }
     }
 
-    times(nout-1) = tfinal;
+    times(nout-1) = tnow;
     for (int n=0; n<rows; n++)
       for (int k=0; k<6; k++) ret(n, k, nout-1) = ps(n, k);
     
