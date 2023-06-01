@@ -2275,7 +2275,8 @@ namespace BasisClasses
   std::tuple<Eigen::VectorXd, Eigen::Tensor<float, 3>>
   IntegrateOrbits
   (double tinit, double tfinal, double h,
-   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe, AccelFunctor F)
+   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe, AccelFunctor F,
+   int nout)
   {
     int rows = ps.rows();
     int cols = ps.cols();
@@ -2295,15 +2296,31 @@ namespace BasisClasses
 
     int numT = floor( (tfinal - tinit)/h );
 
+    // Compute output step
+    //
+    nout = std::min<int>(numT, nout);
+    double H = (tfinal - tinit)/(nout-1);
+
     // Return data
     //
     Eigen::Tensor<float, 3> ret;
 
-    ret.resize({rows, 6, numT});
+    try {
+      ret.resize({rows, 6, nout});
+    }
+    catch (const std::bad_alloc& e) {
+      std::cout << "BasicFactor::IntegrateOrbits: memory allocation failed: "
+		<< e.what() << std::endl
+		<< "Your requested number of orbits and time steps requires "
+		<< floor(rows*6*nout*8/1e9)+1 << " GB" << std::endl;
+
+      // Return empty data
+      return {Eigen::VectorXd(), Eigen::Tensor<float, 3>()};
+    }
 
     // Time array
     //
-    Eigen::VectorXd times(numT);
+    Eigen::VectorXd times(nout);
     
     // Do the work
     //
@@ -2311,12 +2328,22 @@ namespace BasisClasses
     for (int n=0; n<rows; n++)
       for (int k=0; k<6; k++) ret(n, k, 0) = ps(n, k);
 
-    for (int s=1; s<numT; s++) {
-      std::tie(times(s), ps) = OneStep(times(s-1), h, ps, accel, bfe, F);
-      for (int n=0; n<rows; n++)
-	for (int k=0; k<6; k++) ret(n, k, s) = ps(n, k);
+    double tnow = tinit;
+    int cnt = 1;
+    for (int s=1, cnt=1; s<numT; s++) {
+      std::tie(tnow, ps) = OneStep(times(s-1), h, ps, accel, bfe, F);
+      if (tnow >= H*cnt-h*1.0e-8) {
+	for (int n=0; n<rows; n++)
+	  for (int k=0; k<6; k++) ret(n, k, cnt) = ps(n, k);
+	cnt += 1;
+	times(cnt) = tnow;
+      }
     }
 
+    times(nout-1) = tfinal;
+    for (int n=0; n<rows; n++)
+      for (int k=0; k<6; k++) ret(n, k, nout-1) = ps(n, k);
+    
     return {times, ret};
   }
 
