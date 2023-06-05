@@ -29,7 +29,8 @@ jobs:
         if: startsWith(matrix.os, 'mac')
         run: |
           brew update
-          brew install eigen fftw hdf5 open-mpi libomp gfortran
+          brew reinstall gcc
+          brew install eigen fftw hdf5 open-mpi libomp
 
       - name: Setup submodule and build
         run: |
