@@ -41,6 +41,7 @@ option(ENABLE_NBODY "Enable EXP n-body" ON)
 option(ENABLE_PYEXP "Enable the Python bindings" ON)
 option(ENABLE_PNG "Enable PNG graphics support" FALSE)
 option(ENABLE_CUDA "Enable CUDA" FALSE)
+option(ENABLE_SLURM "Enable SLURM checkpointing support" TRUE)
 option(ENABLE_XDR "Enable RPC/XDR support for Tipsy standard" FALSE)
 option(ENABLE_VTK "Configure VTK if available" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
@@ -55,13 +56,17 @@ find_package(Boost COMPONENTS serialization)
 find_package(OpenMP)
 find_package(FFTW)
 find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
-find_package(SLURM)
 find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
 find_package(PNG)
 
 # Check for FE
 include(FEENABLE)
+
+# Check for Slurm if user has not set to false
+if(ENABLE_SLURM)
+  find_package(SLURM)
+endif()
 
 # Optional VTK support
 if(ENABLE_VTK)
