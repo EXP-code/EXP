@@ -529,7 +529,8 @@ void BasisFactoryClasses(py::module &m) {
   
   m.def("IntegrateOrbits", 
 	[](double tinit, double tfinal, double h, Eigen::MatrixXd ps,
-	   std::vector<BasisClasses::BasisCoef> bfe, BasisClasses::AccelFunc& func)
+	   std::vector<BasisClasses::BasisCoef> bfe,
+	   BasisClasses::AccelFunc& func, int stride)
 	{
 	  Eigen::VectorXd T;
 	  Eigen::Tensor<float, 3> O;
@@ -537,14 +538,18 @@ void BasisFactoryClasses(py::module &m) {
 	  AccelFunctor F = [&func](double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)->Eigen::MatrixXd& { return func.F(t, ps, accel, mod);};
 
 	  std::tie(T, O) =
-	    BasisClasses::IntegrateOrbits(tinit, tfinal, h, ps, bfe, F);
+	    BasisClasses::IntegrateOrbits(tinit, tfinal, h, ps, bfe, F, stride);
 
 	  py::array_t<float> ret = make_ndarray<float>(O);
 	  return std::tuple<Eigen::VectorXd, py::array_t<float>>(T, ret);
 	},
-	"Integrate a list of initial conditions from tinit to tfinaal with a\n"
-	"step size of h using the list of basis and coefficient  pairs.\n",
+	"Integrate a list of initial conditions from tinit to tfinal with a\n"
+	"step size of h using the list of basis and coefficient pairs. Every\n"
+	"step will be included in return unless you provide an explicit\n"
+	"value for 'nout', the number of desired output steps.  This will\n"
+	"choose the 'nout' points closed to the desired time.\n",
 	py::arg("tinit"), py::arg("tfinal"), py::arg("h"),
-	py::arg("ps"), py::arg("basiscoef"), py::arg("func"));
+	py::arg("ps"), py::arg("basiscoef"), py::arg("func"),
+	py::arg("nout")=std::numeric_limits<int>::max());
 
 }
