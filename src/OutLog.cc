@@ -10,46 +10,46 @@ using namespace std;
 
 char OutLog::lab_global[][19] = {
   "Time",
-  "Mass", 
-  "Bodies", 
-  "R(x)", 
-  "R(y)", 
-  "R(z)", 
-  "V(x)", 
-  "V(y)", 
-  "V(z)", 
-  "L(x)", 
-  "L(y)", 
-  "L(z)", 
-  "KE", 
-  "PE", 
-  "VC", 
-  "E", 
-  "2T/VC", 
-  "Clock", 
+  "Mass",
+  "Bodies",
+  "R(x)",
+  "R(y)",
+  "R(z)",
+  "V(x)",
+  "V(y)",
+  "V(z)",
+  "L(x)",
+  "L(y)",
+  "L(z)",
+  "KE",
+  "PE",
+  "VC",
+  "E",
+  "2T/VC",
+  "Clock",
   "# used"
 };
 
 char OutLog::lab_component[][20] = {
-  "mass", 
-  "bodies", 
-  "R(x)", 
-  "R(y)", 
-  "R(z)", 
-  "V(x)", 
-  "V(y)", 
-  "V(z)", 
-  "L(x)", 
-  "L(y)", 
-  "L(z)", 
-  "C(x)", 
-  "C(y)", 
-  "C(z)", 
-  "KE", 
-  "PE", 
-  "VC", 
-  "E", 
-  "2T/VC", 
+  "mass",
+  "bodies",
+  "R(x)",
+  "R(y)",
+  "R(z)",
+  "V(x)",
+  "V(y)",
+  "V(z)",
+  "L(x)",
+  "L(y)",
+  "L(z)",
+  "C(x)",
+  "C(y)",
+  "C(z)",
+  "KE",
+  "PE",
+  "VC",
+  "E",
+  "2T/VC",
   "# used"
 };
 
@@ -58,7 +58,8 @@ OutLog::valid_keys = {
   "filename",
   "freq",
   "nint",
-  "nintsub"
+  "nintsub",
+  "precision"
 };
 
 
@@ -77,7 +78,7 @@ void OutLog::initialize()
   // Remove matched keys
   //
   for (auto v : valid_keys) current_keys.erase(v);
-  
+
   // Assign values from YAML
   //
   try {
@@ -88,7 +89,7 @@ void OutLog::initialize()
       filename.erase();
       filename = outdir + "OUTLOG." + runtag;
     }
-    
+
     if (Output::conf["freq"])
       nint = Output::conf["freq"].as<int>();
     else if (Output::conf["nint"])
@@ -101,6 +102,11 @@ void OutLog::initialize()
       if (nintsub <= 0) nintsub = 1;
     } else
       nintsub = std::numeric_limits<int>::max();
+
+    if (Output::conf["precision"]) {
+      precisionvalue = Output::conf["precision"].as<int>();
+    } else
+      precisionvalue = 6; // standard default precision
 
   }
   catch (YAML::Exception & error) {
@@ -131,7 +137,7 @@ void OutLog::Run(int n, int mstep, bool last)
   const int bufsize = 16384;
   char mybuffer [bufsize];
   out.rdbuf()->pubsetbuf(mybuffer, bufsize);
-  
+
   if (myid==0) {
 
 				// Open output stream for writing
@@ -186,13 +192,13 @@ void OutLog::Run(int n, int mstep, bool last)
     angm0     = std::vector<double>(3);
     pos0      = std::vector<double>(3);
     vel0      = std::vector<double>(3);
-	                         
+
     posL      = std::vector<double>(3);
     velL      = std::vector<double>(3);
-    	                         
+
     comG      = std::vector<double>(3);
     covG      = std::vector<double>(3);
-    
+
     ektot     = std::vector<double>(comp->ncomp);
     ektot1    = std::vector<double>(comp->ncomp);
     eptot     = std::vector<double>(comp->ncomp);
@@ -221,8 +227,8 @@ void OutLog::Run(int n, int mstep, bool last)
 	  std::filesystem::rename(filename, backupfile);
 	} catch (const std::filesystem::filesystem_error& e) {
 	  std::ostringstream message;
-	  message << "OutLog::Run(): error creating backup file <" 
-		  << backupfile << "> from <" << filename 
+	  message << "OutLog::Run(): error creating backup file <"
+		  << backupfile << "> from <" << filename
 		  << ">, message: " << e.code().message();
 	  throw GenericError(message.str(), __FILE__, __LINE__, 1036, true);
 	}
@@ -232,17 +238,17 @@ void OutLog::Run(int n, int mstep, bool last)
 
 	if (!out) {
 	  std::ostringstream message;
-	  message << "OutLog: error opening new log file <" 
+	  message << "OutLog: error opening new log file <"
 		  << filename << "> for writing";
 	  throw GenericError(message.str(), __FILE__, __LINE__, 1036, true);
 	}
-	  
+
 	// Open old file for reading
 	std::ifstream in(backupfile.c_str());
 
 	if (in.fail()) {
 	  ostringstream message;
-	  message << "OutLog: error opening original log file <" 
+	  message << "OutLog: error opening original log file <"
 		  << backupfile << "> for reading";
 	  throw GenericError(message.str(), __FILE__, __LINE__, 1036, true);
 	}
@@ -252,7 +258,7 @@ void OutLog::Run(int n, int mstep, bool last)
 
 	// Use this as of C++17
 	// info = std::make_shared<char[]>(ninfochar+1);
-	
+
 	// C++14 workaround:
 	cbuffer = std::shared_ptr<char>(new char[cbufsiz],
 					std::default_delete<char[]>());
@@ -270,18 +276,18 @@ void OutLog::Run(int n, int mstep, bool last)
 	  out << cbuffer.get() << "\n";
 	  if (line.find_first_of("Time") != string::npos) break;
 	}
-	
+
 	while (in) {
 	  in.getline(cbuffer.get(), cbufsiz);
 	  if (!in) break;
 	  string line(cbuffer.get());
-	  
+
 	  StringTok<string> toks(line);
 	  ttim  = atof(toks(" ").c_str());
 	  if (tnow < ttim) break;
 	  out << cbuffer.get() << "\n";
 	}
-	
+
 	try {
 	  in.close();
 	}
@@ -295,26 +301,26 @@ void OutLog::Run(int n, int mstep, bool last)
 	string field;
 				// Global stanza
 	out << setfill('-') << setw(cwid) << "Global stats";
-	for (int i=1; i<num_global; i++) 
+	for (int i=1; i<num_global; i++)
 	  out << "|" << setfill(' ') << setw(cwid) << " ";
 
-      
+
 				// Component stanzas
 	for (auto c : comp->components) {
 	  out << "|" << setw(cwid) << c->id.c_str();
-	  for (int i=1; i<num_component; i++) 
+	  for (int i=1; i<num_component; i++)
 	    out << "|" << setfill(' ') << setw(cwid) << " ";
 	}
 	out << endl;
-    
+
 				// Global divider
 	out << setfill('-') << setw(cwid) << "-";
-	for (int i=1; i<num_global; i++) 
+	for (int i=1; i<num_global; i++)
 	  out << "+" << setfill('-') << setw(cwid)  << "-";
-      
+
 				// Component dividers
 	for (auto c : comp->components) {
-	  for (int i=0; i<num_component; i++) 
+	  for (int i=0; i<num_component; i++)
 	    out << "+" << setfill('-') << setw(cwid) << "-";
 	}
 	out << endl << setfill(' ');
@@ -323,7 +329,7 @@ void OutLog::Run(int n, int mstep, bool last)
 				// Global labels
 	out << setfill(' ') << setw(cwid) << lab_global[0];
 	for (int i=1; i<num_global; i++) out << "|" << setw(cwid) << lab_global[i];
-    
+
 				// Component labels
 	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) {
@@ -338,16 +344,16 @@ void OutLog::Run(int n, int mstep, bool last)
 
 				// Global divider
 	out << setfill('-') << setw(cwid) << "-";
-	for (int i=1; i<num_global; i++) 
+	for (int i=1; i<num_global; i++)
 	  out << "+" << setfill('-') << setw(cwid) << "-";
-	
+
 				// Component dividers
 	for (auto c : comp->components) {
-	  for (int i=0; i<num_component; i++) 
+	  for (int i=0; i<num_component; i++)
 	    out << "+" << setfill('-') << setw(cwid) << "-";
 	}
 	out << endl << setfill(' ');
-	
+
 				// Global count
 	int count=0;
 	{
@@ -359,7 +365,7 @@ void OutLog::Run(int n, int mstep, bool last)
 	  ostringstream slab;
 	  slab << "[" << ++count << "]";
 	  out << "|" << setw(cwid) << slab.str();
-	}    
+	}
 				// Component count
 	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) {
@@ -372,21 +378,21 @@ void OutLog::Run(int n, int mstep, bool last)
 
 				// Global divider
 	out << setfill('-') << setw(cwid) << "-";
-	for (int i=1; i<num_global; i++) 
+	for (int i=1; i<num_global; i++)
 	  out << "+" << setfill('-') << setw(cwid) << "-";
-	
+
 				// Component dividers
 	for (auto c : comp->components) {
-	  for (int i=0; i<num_component; i++) 
+	  for (int i=0; i<num_component; i++)
 	    out << "+" << setfill('-') << setw(cwid) << "-";
 	}
 	out << endl << setfill(' ');
-	
+
       }
     }
-    
+
   } // END: firstime
-  
+
 
   if (n % nint && !last) return;
   if (multistep>1 and mstep % nintsub !=0) return;
@@ -433,7 +439,7 @@ void OutLog::Run(int n, int mstep, bool last)
   int indx = 0;
 
   for (auto c : comp->components) {
-  
+
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {
       if (c->force->cudaAware() and not comp->fetched[c]) {
@@ -457,7 +463,7 @@ void OutLog::Run(int n, int mstep, bool last)
       Particle *p = c->Part(i);
 
       mtot1[indx] +=  p->mass;
-      
+
       for (int k=0; k<3; k++) {
 	pos0[k] = c->Pos(i, k, Component::Inertial);
 	vel0[k] = c->Vel(i, k, Component::Inertial);
@@ -481,7 +487,7 @@ void OutLog::Run(int n, int mstep, bool last)
       angmG[2] += p->mass*(pos0[0]*vel0[1] - pos0[1]*vel0[0]);
 
       for (int k=0; k<3; k++) pos0[k] = c->Pos(i, k, Component::Centered);
-      
+
       eptot1[indx]  += 0.5*p->mass*p->pot;
       eptotx1[indx] += p->mass*p->potext;
       for (int k=0; k<3; k++) {
@@ -498,38 +504,38 @@ void OutLog::Run(int n, int mstep, bool last)
   }
 				// Send back to Process 0
 
-  MPI_Reduce(&nbodies1[0], &nbodies[0], comp->ncomp, MPI_INT, MPI_SUM, 
+  MPI_Reduce(&nbodies1[0], &nbodies[0], comp->ncomp, MPI_INT, MPI_SUM,
 	     0, MPI_COMM_WORLD);
 
-  MPI_Reduce(&mtot1[0], &mtot[0], comp->ncomp, MPI_DOUBLE, MPI_SUM, 
+  MPI_Reduce(&mtot1[0], &mtot[0], comp->ncomp, MPI_DOUBLE, MPI_SUM,
 	     0, MPI_COMM_WORLD);
 
   for (int i=0; i<comp->ncomp; i++) {
-    MPI_Reduce(&com1[i][0], &com[i][0], 3, MPI_DOUBLE, MPI_SUM, 
+    MPI_Reduce(&com1[i][0], &com[i][0], 3, MPI_DOUBLE, MPI_SUM,
 	       0, MPI_COMM_WORLD);
-    MPI_Reduce(&cov1[i][0], &cov[i][0], 3, MPI_DOUBLE, MPI_SUM, 
+    MPI_Reduce(&cov1[i][0], &cov[i][0], 3, MPI_DOUBLE, MPI_SUM,
 	       0, MPI_COMM_WORLD);
-    MPI_Reduce(&angm1[i][0], &angm[i][0], 3, MPI_DOUBLE, MPI_SUM, 
+    MPI_Reduce(&angm1[i][0], &angm[i][0], 3, MPI_DOUBLE, MPI_SUM,
 	       0, MPI_COMM_WORLD);
   }
 
-  MPI_Reduce(&comG[0], &com0[0], 3, MPI_DOUBLE, MPI_SUM, 
+  MPI_Reduce(&comG[0], &com0[0], 3, MPI_DOUBLE, MPI_SUM,
 	     0, MPI_COMM_WORLD);
-  MPI_Reduce(&covG[0], &cov0[0], 3, MPI_DOUBLE, MPI_SUM, 
+  MPI_Reduce(&covG[0], &cov0[0], 3, MPI_DOUBLE, MPI_SUM,
 	     0, MPI_COMM_WORLD);
-  MPI_Reduce(&angmG[0], &angm0[0], 3, MPI_DOUBLE, MPI_SUM, 
-	     0, MPI_COMM_WORLD);
-
-  MPI_Reduce(&ektot1[0], &ektot[0], comp->ncomp, MPI_DOUBLE, MPI_SUM, 
-	     0, MPI_COMM_WORLD);
-  MPI_Reduce(&eptot1[0], &eptot[0], comp->ncomp, MPI_DOUBLE, MPI_SUM, 
-	     0, MPI_COMM_WORLD);
-  MPI_Reduce(&eptotx1[0], &eptotx[0], comp->ncomp, MPI_DOUBLE, MPI_SUM, 
-	     0, MPI_COMM_WORLD);
-  MPI_Reduce(&clausius1[0], &clausius[0], comp->ncomp, MPI_DOUBLE, MPI_SUM, 
+  MPI_Reduce(&angmG[0], &angm0[0], 3, MPI_DOUBLE, MPI_SUM,
 	     0, MPI_COMM_WORLD);
 
-  MPI_Reduce(&used1[0], &used[0], comp->ncomp, MPI_INT, MPI_SUM, 
+  MPI_Reduce(&ektot1[0], &ektot[0], comp->ncomp, MPI_DOUBLE, MPI_SUM,
+	     0, MPI_COMM_WORLD);
+  MPI_Reduce(&eptot1[0], &eptot[0], comp->ncomp, MPI_DOUBLE, MPI_SUM,
+	     0, MPI_COMM_WORLD);
+  MPI_Reduce(&eptotx1[0], &eptotx[0], comp->ncomp, MPI_DOUBLE, MPI_SUM,
+	     0, MPI_COMM_WORLD);
+  MPI_Reduce(&clausius1[0], &clausius[0], comp->ncomp, MPI_DOUBLE, MPI_SUM,
+	     0, MPI_COMM_WORLD);
+
+  MPI_Reduce(&used1[0], &used[0], comp->ncomp, MPI_INT, MPI_SUM,
 	     0, MPI_COMM_WORLD);
 
 
@@ -538,6 +544,8 @@ void OutLog::Run(int n, int mstep, bool last)
     // =============
     // Global
     // =============
+
+    out << std::scientific << setprecision(precisionvalue);
 
 				// Current time
     out << std::setw(cwid) << tnow;
@@ -567,21 +575,21 @@ void OutLog::Run(int n, int mstep, bool last)
 	out << "|" << setw(cwid) << cov0[j]/mtot0;
       else
 	out << "|" << setw(cwid) << 0.0;
-	
+
 				// Ang mom
     for (int j=0; j<3; j++)
       out << "|" << setw(cwid) << angm0[j];
-    
+
 				// KE
     double ektot0 = 0.0;
     for (int i=0; i<comp->ncomp; i++) ektot0 += ektot[i];
     out << "|" << setw(cwid) << ektot0;
-      
+
 				// PE
     double eptot0 = 0.0;
     for (int i=0; i<comp->ncomp; i++) eptot0 += eptot[i] + 0.5*eptotx[i];
     out << "|" << setw(cwid) << eptot0;
-     
+
 				// Clausius, Total, 2T/VC
     double clausius0 = 0.0;
     for (int i=0; i<comp->ncomp; i++) clausius0 += clausius[i];
@@ -630,7 +638,7 @@ void OutLog::Run(int n, int mstep, bool last)
       }
 				// Update KE to cov frame
       if (nbodies[i]>1) ektot[i] -= 0.5*mtot[i]*vbar2;
-      
+
       out << "|" << setw(cwid) << ektot[i];
       out << "|" << setw(cwid) << eptot[i] + eptotx[i];
       out << "|" << setw(cwid) << clausius[i];
@@ -654,4 +662,3 @@ void OutLog::Run(int n, int mstep, bool last)
   }
 
 }
-
