@@ -104,9 +104,9 @@ void OutLog::initialize()
       nintsub = std::numeric_limits<int>::max();
 
     if (Output::conf["precision"]) {
-      precisionvalue = Output::conf["precision"].as<int>();
+      precision = Output::conf["precision"].as<int>();
     } else
-      precisionvalue = 6; // standard default precision
+      precision = 10; // standard default precision
 
   }
   catch (YAML::Exception & error) {
@@ -130,7 +130,7 @@ void OutLog::Run(int n, int mstep, bool last)
   std::ofstream out;
 
   // Field width
-  const int cwid = 20;
+  const int cwid = 10 + precision;
 
   // Make a bigger output buffer
   //
@@ -545,7 +545,7 @@ void OutLog::Run(int n, int mstep, bool last)
     // Global
     // =============
 
-    out << std::scientific << setprecision(precisionvalue);
+    out << std::scientific << setprecision(precision);
 
 				// Current time
     out << std::setw(cwid) << tnow;

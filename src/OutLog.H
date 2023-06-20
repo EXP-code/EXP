@@ -53,7 +53,7 @@ private:
   string filename;
   int nfreq;
   int laststep;
-  int precisionvalue;
+  int precision;
 
   double curwtime, lastwtime;
   double ektotxy;
