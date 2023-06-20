@@ -99,7 +99,7 @@ void MSSAtoolkitClasses(py::module &m) {
     "                        all channels"
     "The following parameters take values, defaults are given in ()\n\n"
     "  evtol: double(0.01)   Truncate by the given cumulative p-value in\n"
-    "                        verbose mode\n"
+    "                        chatty mode\n"
     "  output: str(exp_mssa) Prefix name for output files\n\n"
     "The 'output' value is only used if 'writeFiles' is specified, too.\n"
     "A simple YAML configuration for expMSSA might look like this:\n"
@@ -146,122 +146,297 @@ void MSSAtoolkitClasses(py::module &m) {
     "compute node and save the results using the 'saveState()' member to\n"
     "an HDF5 file and reread those files on a local machine using the\n"
     "'restoreState()' member.\n\n";
-
+  
   using namespace MSSA;
 
   py::class_<MSSA::expMSSA, std::shared_ptr<MSSA::expMSSA>> f(m, "expMSSA");
 
-  f.def(py::init<const mssaConfig&, int, int, const std::string>(),
-	"Constructor\nconfig\tis the input database of components"
-	"\nwindow\tis the length of the cross-correlation interval"
-	"\nnumpc\tis the default number of eigenvalues to compute"
-	"\nflag\tis a YAML stanza of parameter values",
-	py::arg("config"),
-	py::arg("window"),
-	py::arg("numpc"),
-	py::arg("flags") = "");
+  f.def(py::init<const mssaConfig&, int, int, const std::string&>(),
+    R"(
+    Constructor.
+
+    Args:
+        config (mssaConfig): The input database of components. The configuration should be in the format:
+                             {'example': (coefs, keylst, [])}
+                             where keylst is a list of selected PCs in the format: 
+                             [[l1, m1, n1], [l2, m2, n2], ...]
+                             Each sublist represents a PC, where l, m, and n are the spherical harmonics basis parameters.
+        window (int): The length of the cross-correlation interval. It is suggested to use half of the time series length.
+        numpc (int): The default number of eigenvalues to compute.
+        flags (str): A YAML stanza of parameter values. Default is an empty string.
+
+    Returns:
+        None
+    )",
+    py::arg("config"),
+    py::arg("window"),
+    py::arg("numpc"),
+    py::arg("flags") = "");
+
 
   f.def("eigenvalues", &expMSSA::eigenvalues,
-	"Return the vector of eigenvalues from the MSSA analysis");
+    R"(
+    Return the vector of eigenvalues from the MSSA analysis.
+
+    Returns:
+        list: The vector of eigenvalues obtained from the MSSA analysis.
+    )");
 
   f.def("cumulative", &expMSSA::cumulative,
-	"Return a cumulatively summed vector of eigenvalues from the\n"
-	"MSSA analysis");
+    R"(
+    Return a cumulatively summed vector of eigenvalues from the MSSA analysis.
 
+    Returns:
+        list: A cumulatively summed vector of eigenvalues from the MSSA analysis.
+    )");
+
+  
   f.def("getU", &expMSSA::getU,
-	"Return the right-singular) vectors from the MSSA analysis\n"
-	"which describe the contribution of each channel to each PC");
+    R"(
+    Return the right-singular vectors from the MSSA analysis
+    which describe the contribution of each channel to each PC.
+
+    Returns:
+        ndarray: The right-singular vectors describing the contribution
+        of each channel to each principal component.
+    )");
+
 
   f.def("getPC", &expMSSA::getPC,
-	"Return the principle component (left-singular) vectors from the MSSA\n"
-	"analysis which describe the key temporal variation");
+    R"(
+    Return the principal component (left-singular) vectors from the MSSA
+    analysis which describe the key temporal variation.
+
+    Returns:
+        ndarray: The principal component vectors describing the key temporal variation.
+    )");
 
   f.def("pcDFT", &expMSSA::pcDFT,
-	"Return the DFT of the principal component vectors for quantifying\n"
-	"temporal power distribution");
+    R"(
+    Return the DFT of the principal component vectors for quantifying temporal power distribution.
+
+    The frequency values are given in terms of angular frequency with 2 * np.pi / T.
+
+    Returns:
+        ndarray: The DFT of the principal component vectors for temporal power distribution.
+    )");
 
   f.def("channelDFT", &expMSSA::channelDFT,
-	"Returns the frequency and the DFT of the selected data channels for\n"
-	"comparison with the PC power");
+    R"(
+    Returns the frequency values and the DFT of the selected data channels.
 
-  f.def("singleDFT", &expMSSA::singleDFT,
-	"Returns the frequency, the DFT of the selected data channel\n"
-	"with partial power for each PC", py::arg("key"));
+    This information can be used to compare with the power of the principal components (PC).
 
-  f.def("reconstruct", &expMSSA::reconstruct,
-	"Reconstruct the data channels with the provided list of eigenvalue "
-	"indices (a group).", py::arg("evlist"));
+    Returns:
+        tuple: A tuple containing the angular frequency values and the DFT of the selected data channels.
+    )");
+    
+  f.def("singleDFT", &expMSSA::singleDFT, py::arg("key"),
+    R"(
+    Returns the frequency, the DFT of the selected data channel
+    with partial power for each PC.
+
+    Args:
+        key (str): The identifier of the selected data channel.
+
+    Returns:
+        tuple: A tuple containing the frequency values and the DFT of
+        the selected data channel with partial power for each PC.
+    )");
+  
+
+  f.def("reconstruct", &expMSSA::reconstruct, py::arg("evlist"),
+    R"(
+    Reconstruct the data channels with the provided list of eigenvalue indices (a group).
+
+    Args:
+        evlist (list): The list of eigenvalue indices specifying the group.
+
+    Returns:
+        ndarray: The reconstructed data channels.
+    )");
+
 
   f.def("getReconstructed", &expMSSA::getReconstructed,
-	"Return the reconstucted time series in the orginal coefficient form\n"
-	"that may be used in basis classes.  Note: the reconstructed data\n"
-	"will overwrite the memory of the original coefficient data.", py::arg("reconstructmean")=true);
+    R"(
+    Return the reconstructed time series in the original coefficient form
+    that may be used in basis classes.
+
+    Note: The reconstructed data will overwrite the memory of the original coefficient data.
+
+    Returns:
+        ndarray: The reconstructed time series in the original coefficient form.
+    )");
 
   f.def("background", &expMSSA::background,
-	"Copy the background data streams back to the working coefficient\n"
-	"database.  This can be used after a zerodata() call to include the\n"
-	"background in theh reconstruction");
+    R"(
+    Copy the background data streams back to the working coefficient
+    database.
 
-  f.def("wCorr", &expMSSA::wCorr,
-	"Get the w-correlation matrix for the selected component and channel\n"
-	"key.  Returns the combined cosine+sine correlation for complex types\n"
-	"for viewing (e.g.) with 'imshow'",
-	py::arg("name"), py::arg("key"));
+    This can be used after a zerodata() call to include the background in the reconstruction.
+    )");
 
-  f.def("wCorrKey", &expMSSA::wCorrKey,
-	"Get the w-correlation matrix for the selected component and channel\n"
-	"key extended by the cosine/sine index if the channel is complex and\n"
-	"the component index. Try plotting using 'imshow'.\n", py::arg("key"));
+  f.def("wCorr", &expMSSA::wCorr, py::arg("name"), py::arg("key"),
+    R"(
+    Get the w-correlation matrix for the selected component and channel key.
+
+    Returns the combined cosine+sine correlation for complex types for viewing (e.g., with 'imshow').
+
+    The w-correlation values range from 0 to 1, where a higher value corresponds to a stronger correlation.
+
+    Args:
+        name (str): The name of the selected component.
+        key (str): The identifier of the selected channel.
+
+    Returns:
+        ndarray: The w-correlation matrix for the selected component and channel.
+    )");
+
+  f.def("wCorrKey", &expMSSA::wCorrKey, py::arg("key"),
+    R"(
+    Get the w-correlation matrix for the selected component and channel key,
+    extended by the cosine/sine index if the channel is complex and the component index.
+
+    This matrix can be visualized using 'imshow' for plotting.
+
+    The w-correlation values range from 0 to 1, where a higher value corresponds to a stronger correlation.
+
+    Args:
+        key (str): The identifier of the selected channel.
+
+    Returns:
+        ndarray: The w-correlation matrix for the selected component and channel key.
+    )");
 
   f.def("wCorrAll", &expMSSA::wCorrAll,
-	"Get the w-correlation matrix for all channels in the reconstruction.\n"
-	"These can be nicely plotted using 'imshow'.");
+    R"(
+    Get the w-correlation matrix for all channels in the reconstruction.
+
+    These matrices can be nicely plotted using 'imshow'.
+
+    The w-correlation values range from 0 to 1, where a higher value corresponds to a stronger correlation.
+
+    Returns:
+        ndarray: The w-correlation matrices for all channels in the reconstruction.
+    )");
 
   f.def("wcorrPNG", &expMSSA::wcorrPNG,
-	"Create wcorrlation matricies and output PNG image representations");
+    R"(
+    Create w-correlation matrices and output PNG image representations.
 
-  f.def("kmeans", &expMSSA::kmeans,
-	"Perform a k-means analysis on the reconstructed trajectory matrices\n"
-	"to provide grouping insight.  This will write to the standard output\n"
-	"by default.  Set toFile=True to write ot a file.  The file name will\n"
-	"be derived from the 'output' parameter.",
-	py::arg("clusters")=4,
-	py::arg("toTerm")=true,
-	py::arg("toFile")=false);
+    The w-correlation values range from 0 to 1, where a higher value corresponds to a stronger correlation.
+    )");
+
+  f.def("kmeans", &expMSSA::kmeans, py::arg("clusters") = 4, py::arg("toTerm") = true, py::arg("toFile") = false,
+    R"(
+    Perform a k-means analysis on the reconstructed trajectory matrices to provide grouping insight.
+
+    By default, this will write the output to the standard output. Set `toFile=True` to write the output to a file.
+    The file name will be derived from the 'output' parameter.
+
+    Note: The output format and how to interpret it is currently work in progress. [TODO: Update explanation]
+
+    Args:
+        clusters (int): The number of clusters for the k-means analysis.
+        toTerm (bool): Flag indicating whether to output to the terminal (standard output).
+        toFile (bool): Flag indicating whether to write the output to a file.
+
+    Returns:
+        None
+    )");
 
   f.def("contrib", &expMSSA::contributions,
-	"Computes the relative contribution of each PC to the coefficient\n"
-	"series and the breakdown of the coefficient series to each PC.\n"
-	"The views normed on columns and rows are returned as a tuple\n"
-	"of 2d arrays. These are intended to be plotted using 'imshow'.");
+    R"(
+    Computes the relative contribution of each principal component (PC) to the coefficient series
+    and the breakdown of the coefficient series to each PC.
+
+    The views are L2 normed on columns and rows and returned as a 2D tuple.
+
+    Returns:
+        tuple: A 2D tuple (F, G) representing the contributions:
+            - F: Each PC's contribution to each channel. The columns are L2 normed.
+            - G: Each channel's contribution to each PC. The rows are L2 normed.
+
+    By default, channels for non-zero 'm' are split into cosine and sine components from the real+imaginary values.
+
+    The L2 norm, or Euclidean norm, computes the length of a vector in a multi-dimensional space.
+    For a vector v = [v1, v2, ..., vn], the L2 norm is calculated as sqrt(v1^2 + v2^2 + ... + vn^2).
+
+    The L2 normed views provide a measure of the relative contribution of each PC to each channel
+    and the relative contribution of each channel to each PC. These contributions can be plotted using 'imshow'.
+    )");
+
 
   f.def("saveState", &expMSSA::saveState,
-	"Save current MSSA state to an HDF5 file with the given prefix",
-	py::arg("prefix"));
+    R"(
+    Save the current MSSA state to an HDF5 file with the given prefix.
+
+    Args:
+        prefix (str): The prefix used for the HDF5 file.
+
+    Returns:
+        None
+    )");
 
   f.def("restoreState", &expMSSA::restoreState,
-	"Restore current MSSA state from an HDF5 file with the given prefix.\n"
-	"To use this, the expMSSA instance must be constructed with the same\n"
-	"data and parameters as the save stated.  The restoreState routine will\n"
-	"check for the same data dimension and trend state but can not sure\n"
-	"complete consistency.",
-	py::arg("prefix"));
+    R"(
+    Restore the current MSSA state from an HDF5 file with the given prefix.
+
+    Note: To use this method, the expMSSA instance must be constructed with the same
+    data and parameters as the saved state. The restoreState routine will check for
+    the same data dimension and trend state but cannot ensure complete consistency.
+
+    Args:
+        prefix (str): The prefix used for the HDF5 file.
+
+    Returns:
+        None
+    )");
+
 
   f.def("getTotVar", &expMSSA::getTotVar,
-	"Variance value used for normalizing coefficient series");
+	R"(
+	Returns the variance value used for normalizing the coefficient series.
+
+	Returns:
+	    The variance value.
+	)");
 
   f.def("getTotPow", &expMSSA::getTotPow,
-	"Power value used for normalizing coefficient series");
+	R"(
+	Returns the power value used for normalizing the coefficient series.
+
+	Returns:
+	    The power value.
+	)");
+
 
   f.def("getRC", &expMSSA::getRC,
-	"Access to detrended reconstructed channel series by "
-	"internal key", py::arg("key"));
+    R"(
+    Access the detrended reconstructed channel series by internal key.
+
+    Args:
+        key (str): The internal key for the desired channel.
+
+    Returns:
+        ndarray: The detrended reconstructed channel series.
+    )");
 
   f.def("getRCkeys", &expMSSA::getRCkeys,
-	"Provides a list of internal keys for accessing the "
-	"detrended channel series using getRC()");
+	R"(
+	Provides a list of internal keys for accessing the detrended channel series using getRC().
+
+	Returns:
+	    A list of internal keys representing the detrended channel series.
+	)");
 
   f.def("getAllKeys", &expMSSA::getAllKeys,
-	"Provides a list of all internal channel keys (for reference)");
+	R"(
+	Provides a list of all internal channel keys for reference.
+
+	Returns:
+	    A list of all internal channel keys.
+	)");
+
 
 }

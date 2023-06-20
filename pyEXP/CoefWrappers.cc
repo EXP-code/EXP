@@ -85,7 +85,7 @@ void CoefficientClasses(py::module &m) {
   class PyCoefStruct : public CoefStruct
   {
   public:
-    
+
     // Inherit the constructors
     using CoefStruct::CoefStruct;
 
@@ -109,11 +109,11 @@ void CoefficientClasses(py::module &m) {
     void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
       PYBIND11_OVERRIDE_PURE(void, Coefs, readNativeCoefs, file, stride, tmin, tmax);
     }
-    
+
     std::string getYAML() override {
       PYBIND11_OVERRIDE_PURE(std::string, Coefs, getYAML,);
     }
-    
+
     void WriteH5Params(HighFive::File& file) override {
       PYBIND11_OVERRIDE_PURE(void, Coefs, WriteH5Params, file);
     }
@@ -196,11 +196,11 @@ void CoefficientClasses(py::module &m) {
     void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
       PYBIND11_OVERRIDE(void, SphCoefs, readNativeCoefs, file, stride, tmin, tmax);
     }
-    
+
     std::string getYAML() override {
       PYBIND11_OVERRIDE(std::string, SphCoefs, getYAML,);
     }
-    
+
     void WriteH5Params(HighFive::File& file) override {
       PYBIND11_OVERRIDE(void, SphCoefs, WriteH5Params, file);
     }
@@ -280,11 +280,11 @@ void CoefficientClasses(py::module &m) {
     void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
       PYBIND11_OVERRIDE(void, CylCoefs,	readNativeCoefs, file, stride, tmin, tmax);
     }
-    
+
     std::string getYAML() override {
       PYBIND11_OVERRIDE(std::string, CylCoefs, getYAML,);
     }
-    
+
     void WriteH5Params(HighFive::File& file) override {
       PYBIND11_OVERRIDE(void, CylCoefs, WriteH5Params, file);
     }
@@ -363,11 +363,11 @@ void CoefficientClasses(py::module &m) {
     void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
       PYBIND11_OVERRIDE(void, TableData, readNativeCoefs, file, stride, tmin, tmax);
     }
-    
+
     std::string getYAML() override {
       PYBIND11_OVERRIDE(std::string, TableData, getYAML,);
     }
-    
+
     void WriteH5Params(HighFive::File& file) override {
       PYBIND11_OVERRIDE(void, TableData, WriteH5Params, file);
     }
@@ -442,25 +442,50 @@ void CoefficientClasses(py::module &m) {
 
   py::class_<CoefClasses::CoefStruct, std::shared_ptr<CoefClasses::CoefStruct>, PyCoefStruct>(m, "CoefStruct")
     .def(py::init<>(), "Base class coefficient data structure object")
-    .def("create",            &CoefStruct::create, 
-	 "Initialize a coefficient zeroed structure from user supplied "
-	 "dimensions")
-    .def("deepcopy",          &CoefStruct::deepcopy,
-	 "Make a new instance and copy all data into the new instance")
-    .def_readonly("geometry", &CoefStruct::geom,  "The geometry type")
-    .def_readwrite("time",    &CoefStruct::time,  "The data's time")
-    .def("getCoefs",          &CoefStruct::getCoefs,
-	 "Read-only access to the underlying data store. The Eigen complex\n"
-	 "valued matrix is mapped to a numpy.ndarray of complex values\n"
-	 "without copying.  Use this one generally.  If you need to change\n"
-	 "values in the C++ CoefStruct instance, then use setCoefs(), which\n"
-	 "provides read-write access.")
-    .def("setCoefs",          &CoefStruct::setCoefs,
-	 "Read-write access to the underlying data store. The Eigen complex\n"
-	 "valued matrix is mapped to a numpy.ndarray of complex values.\n"
-	 "Changes to the data array will automatically mapped back to the\n"
-	 "C++ CoefStruct instance.");
-  
+    .def("create", &CoefStruct::create,
+        R"(
+        Initialize a coefficient zeroed structure from user supplied dimensions.
+
+        Args:
+            None
+
+        Returns:
+            None
+        )")
+    .def("deepcopy", &CoefStruct::deepcopy,
+        R"(
+        Make a new instance and copy all data into the new instance.
+
+        Args:
+            None
+
+        Returns:
+            CoefStruct: A new instance with the copied data.
+        )")
+    .def_readonly("geometry", &CoefStruct::geom,
+        "The geometry type.")
+    .def_readwrite("time", &CoefStruct::time,
+        "The data's time.")
+    .def("getCoefs", &CoefStruct::getCoefs,
+        R"(
+        Read-only access to the underlying data store.
+
+        Returns:
+            numpy.ndarray: The complex-valued matrix as a NumPy array of complex values.
+        )")
+    .def("setCoefs", &CoefStruct::setCoefs,
+        R"(
+        Read-write access to the underlying data store.
+
+        Args:
+            coefs (numpy.ndarray): The complex-valued matrix represented as a NumPy array of complex values.
+                                   Changes made to the data array will be automatically mapped back to the
+                                   C++ CoefStruct instance.
+
+        Returns:
+            None
+        )");
+
 
   py::class_<CoefClasses::SphStruct, std::shared_ptr<CoefClasses::SphStruct>, CoefStruct>(m, "SphStruct")
     .def(py::init<>(), "Spherical coefficient data structure object");
@@ -473,59 +498,190 @@ void CoefficientClasses(py::module &m) {
 
   py::class_<CoefClasses::Coefs, std::shared_ptr<CoefClasses::Coefs>, PyCoefs>(m, "Coefs")
     .def(py::init<std::string, bool>(),
-	 "Base coefficient container class",
-	 py::arg("type"), py::arg("verbose"))
-    .def("__call__",       &CoefClasses::Coefs::operator(),
-	 "Return the coefficient matrix for the desired time",
-	 py::arg("time"))
-    .def("setMatrix",      &CoefClasses::Coefs::setMatrix,
-	 "Rewrite the coefficient matrix at the time provided. For those\n"
-	 "tracking memory use, these will be copied,not passed by reference.",
-	 py::arg("time"), py::arg("mat"))
-    .def("add",            &CoefClasses::Coefs::add,
-	 "Add a coefficient structure to the coefficient container",
-	 py::arg("coef"))
-    .def("getCoefStruct",  &CoefClasses::Coefs::getCoefStruct,
-	 "Return the coefficient structure for the desired time",
-	 py::arg("time"))
-    .def("Times",          &CoefClasses::Coefs::Times,
-	 "Return a list of times for coefficient sets current in the container")
-    .def("WriteH5Coefs",   &CoefClasses::Coefs::WriteH5Coefs,
-	 "Write the coefficients into an EXP HDF5 coefficieint file with the "
-	 "given prefix name", py::arg("filename"))
-    .def("ExtendH5Coefs",  &CoefClasses::Coefs::ExtendH5Coefs,
-	 "Extend an existing EXP HDF5 coefficient file with given prefix "
-	 "name using the coefficient in the container", py::arg("filename"))
-    .def("Power",          &CoefClasses::Coefs::Power,
-	 "Return a ndarray table of the full power for the top-level harmonic "
-	 "index as function of time",
-	 py::arg("min")=0, py::arg("max")=std::numeric_limits<int>::max())
-    .def("makeKeys",       &CoefClasses::Coefs::makeKeys,
-	 "Return a vector/list of keys for an entire subspace of "
-	 "subdimensional rank", py::arg("subkey"))
+         R"(
+         Constructor.
+
+         Args:
+             type (str): The type of coefficient container.
+             verbose (bool): Flag indicating whether to display verbose information.
+
+         Returns:
+             None
+         )",
+         py::arg("type"),
+         py::arg("verbose"))
+    .def("__call__",
+         &CoefClasses::Coefs::operator(),
+         R"(
+         Return the coefficient matrix for the desired time.
+
+         Args:
+             time (float): The desired time.
+
+         Returns:
+             np.ndarray: The coefficient matrix.
+         )",
+         py::arg("time"))
+    .def("setMatrix",
+         &CoefClasses::Coefs::setMatrix,
+         R"(
+         Rewrite the coefficient matrix at the provided time.
+
+         Args:
+             time (float): The time at which to rewrite the coefficient matrix.
+             matrix (np.ndarray): The new coefficient matrix.
+
+         Returns:
+             None
+         )",py::arg("time"), py::arg("mat"))
+    .def("add",
+         &CoefClasses::Coefs::add,
+         R"(
+         Add a coefficient structure to the coefficient container.
+
+         Args:
+             coef (CoefStruct): The coefficient structure to add.
+
+         Returns:
+             None
+         )",py::arg("coef"))
+    .def("getCoefStruct",
+         &CoefClasses::Coefs::getCoefStruct,
+         R"(
+         Return the coefficient structure for the desired time.
+
+         Args:
+             time (float): The desired time.
+
+         Returns:
+             CoefStruct: The coefficient structure.
+         )",py::arg("time"))
+    .def("Times",
+            &CoefClasses::Coefs::Times,
+            R"(
+            Return a list of times for coefficient sets currently in the container.
+
+            Returns:
+                list: List of times.
+            )")
+    .def("WriteH5Coefs",
+            &CoefClasses::Coefs::WriteH5Coefs,
+            R"(
+            Write the coefficients into an EXP HDF5 coefficient file with the given prefix name.
+
+            Args:
+                filename (str): The filename prefix.
+
+            Returns:
+                None
+            )",py::arg("filename"))
+    .def("ExtendH5Coefs",
+            &CoefClasses::Coefs::ExtendH5Coefs,
+            R"(
+            Extend an existing EXP HDF5 coefficient file with the given prefix name using the coefficients in the container.
+
+            Args:
+                filename (str): The filename prefix.
+
+            Returns:
+                None
+            )",py::arg("filename"))
+    .def("Power",
+             &CoefClasses::Coefs::Power,
+             R"(
+             Return an ndarray table of the full power for the top-level harmonic index as a function of time.
+
+             Args:
+                 min (int): The minimum harmonic index (default: 0).
+                 max (int): The maximum harmonic index (default: infinity).
+
+             Returns:
+                 np.ndarray: The power table.
+             )",py::arg("min")=0, py::arg("max")=std::numeric_limits<int>::max())
+    .def("makeKeys",
+         &CoefClasses::Coefs::makeKeys,
+         R"(
+         Return a vector/list of keys for an entire subspace of subdimensional rank.
+
+         Args:
+             subkey (str): The subkey.
+
+         Returns:
+             list: List of keys.
+         )", py::arg("subkey"))
     .def("getGeometry",    &CoefClasses::Coefs::getGeometry,
-	 "Return the coefficient geometry string")
+         R"(
+         Return the coefficient geometry string.
+
+         Returns:
+             str: The coefficient geometry string.
+         )")
     .def("getName",        &CoefClasses::Coefs::getName,
-	 "Return the coefficient set nmenonic name")
+         R"(
+         Return the coefficient set mnemonic name.
+
+         Returns:
+             str: The coefficient set mnemonic name.
+         )")
     .def("setName",        &CoefClasses::Coefs::setName,
-	 "Set or rename the coefficient set nmenonic name", py::arg("newname"))
+         R"(
+         Set or rename the coefficient set mnemonic name.
+
+         Args:
+             newname (str): The new name.
+
+         Returns:
+             None
+         )", py::arg("newname"))
     .def("deepcopy",       &CoefClasses::Coefs::deepcopy,
-	 "Return a byte-by-byte copy of the original data")
+         R"(
+         Return a byte-by-byte copy of the original data.
+
+         Returns:
+             Coefs: The copied Coefs object.
+         )")
     .def("zerodata",       &CoefClasses::Coefs::zerodata,
-	 "Zero all of the coefficient data, keeping sizes and metadata intact")
+         R"(
+         Zero all of the coefficient data, keeping sizes and metadata intact.
+
+         Returns:
+             None
+         )")
     .def("CompareStanzas", &CoefClasses::Coefs::CompareStanzas,
-	 "Check that the data in one Coefs set is identical to "
-	 "that in another")
+         R"(
+         Check that the data in one Coefs set is identical to that in another.
+
+         Returns:
+             bool: True if the data is identical, False otherwise.
+         )")
     .def_static("factory", &CoefClasses::Coefs::factory,
-		"Deduce the type and read coefficients from a native or HDF5 file",
-		py::arg("file"), py::arg("stride")=1,
-		py::arg("tmin")=-std::numeric_limits<double>::max(),
-		py::arg("tmax")= std::numeric_limits<double>::max())
+              R"(
+              Deduce the type and read coefficients from a native or HDF5 file.
+
+              Args:
+                file (str): The file path.
+                stride (int): The stride value. Default is 1.
+                tmin (float): The minimum time value. Default is -infinity.
+                tmax (float): The maximum time value. Default is +infinity.
+
+            Returns:
+                Coefs: The created Coefs object.
+            )",
+            py::arg("file"), py::arg("stride")=1,
+            py::arg("tmin")=-std::numeric_limits<double>::max(),
+            py::arg("tmax")= std::numeric_limits<double>::max())
     .def_static("makecoefs", &CoefClasses::Coefs::makecoefs,
-		"Create a new coefficient instance compatible with the "
-		"supplied coefficient structure. You still need to call "
-		"add() to add the coefficient structure to the container",
-		py::arg("coef"), py::arg("name")="");
+		R"(
+            Create a new coefficient instance compatible with the supplied coefficient structure.
+
+            Args:
+                coef (CoefStruct): The coefficient structure.
+                name (str): The name of the coefficient instance. Default is an empty string.
+
+            Returns:
+                Coefs: The created Coefs object.
+            )",
+		        py::arg("coef"), py::arg("name")="");
 
   py::class_<CoefClasses::SphCoefs, std::shared_ptr<CoefClasses::SphCoefs>, PySphCoefs, CoefClasses::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
     .def(py::init<bool>())
@@ -536,8 +692,14 @@ void CoefficientClasses(py::module &m) {
 	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
 	   return ret;
 	 },
-	 "Return a 3d ndarray index by spherical index, radial index and time index.  The spherical "
-	 "index serializes all pairs of (l, m). The index for (l, m) is: l*(l+1)/2 + m");
+	 R"(
+        Return a 3-dimensional ndarray indexed by spherical index, radial index, and time index.
+
+        The spherical index serializes all pairs of (l, m). The index for (l, m) is calculated as: l*(l+1)/2 + m.
+
+        Returns:
+            ndarray: A 3-dimensional numpy array containing the spherical coefficients.
+        )");
 
   py::class_<CoefClasses::CylCoefs, std::shared_ptr<CoefClasses::CylCoefs>, PyCylCoefs, CoefClasses::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
     .def(py::init<bool>())
@@ -548,16 +710,30 @@ void CoefficientClasses(py::module &m) {
 	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
 	   return ret;
 	 },
-	 "Return a 3d ndarray index by azimuthal index, radial index and time index")
+	 R"(
+         Return a 3-dimensional ndarray indexed by azimuthal index, radial index, and time index.
+
+         Returns:
+             ndarray: A 3-dimensional numpy array containing the cylindrical coefficients.
+         )")
     .def("EvenOddPower",
 	 [](CoefClasses::CylCoefs& A, int nodd, int min, int max)
 	 {
 	   return A.EvenOddPower(nodd, min, max);
 	 },
-	 "Get cylindrical coefficient power separated into vertically even and odd\n"
-	 "contributions.  The default parameters will query the YAML config for the\n"
-	 "value of ncylodd but this can be provided as an argument if it is\n"
-	 "not explicit in your EXP::Cylinder configuration.",
+	 R"(
+         Get cylindrical coefficient power separated into vertically even and odd contributions.
+
+         The default parameters will query the YAML config for the value of ncylodd, but this can be provided as an argument if it is not explicitly set in your EXP::Cylinder configuration.
+
+         Args:
+             nodd (int): Number of odd vertical modes to compute. Default is -1.
+             min (int): Minimum time index for power calculation. Default is 0.
+             max (int): Maximum time index for power calculation. Default is infinity.
+
+         Returns:
+             ndarray: A 2-dimensional numpy array containing the even and odd power coefficients.
+         )",
 	 py::arg("nodd")=-1, py::arg("min")=0,
 	 py::arg("max") = std::numeric_limits<double>::max());
 
@@ -565,6 +741,10 @@ void CoefficientClasses(py::module &m) {
   py::class_<CoefClasses::TableData, std::shared_ptr<CoefClasses::TableData>, PyTableData, CoefClasses::Coefs>(m, "TableData", "Container for simple data tables with multiple columns")
     .def(py::init<bool>())
     .def("getAllCoefs",    &CoefClasses::TableData::getAllCoefs,
-	 "Return a 2d ndarray index by column and time");
-}
+	 R"(
+         Return a 2-dimensional ndarray indexed by column and time.
 
+         Returns:
+             ndarray: A 2-dimensional numpy array containing the data table.
+         )");
+}
