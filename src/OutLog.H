@@ -10,9 +10,9 @@
 
    Centers of mass, Centers of velocity, Virial of Clausius and 2T/VC
    will be computed for each component
-   
-   NB: 
-   the "Virial of Clausius" is a better indicatator of the true potential 
+
+   NB:
+   the "Virial of Clausius" is a better indicatator of the true potential
    energy for multiple components or external forces
 
    Current ordering (will be labeled in the file):
@@ -53,6 +53,7 @@ private:
   string filename;
   int nfreq;
   int laststep;
+  int precision;
 
   double curwtime, lastwtime;
   double ektotxy;
@@ -94,11 +95,11 @@ public:
   OutLog(const YAML::Node& conf);
 
   /*! \brief Generate output
-      \param nstep 
+      \param nstep
              the current step number (used e.g. to decide whether
 	     or not to write output
       \param mstep is the current multistep level to decide whether or not to dump multisteps
-      \param last 
+      \param last
       	     if true, output is generated independent of the step number
   */
   void Run(int nstep, int mstep, bool last);
