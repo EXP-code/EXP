@@ -28,7 +28,13 @@ void FieldGeneratorClasses(py::module &m) {
     "members, 'lines' and 'file_lines', evaluate 'num' field points along\n"
     "a user-specified segment between the 3d points 'beg' and 'end'.  See\n"
     "help(pyEXP.basis) and help(pyEXP.coefs) for info on the basis and\n"
-    "coefficient objects.\n\n";
+    "coefficient objects.\n"
+    "Data packing\n"
+    "------------\n"
+    "All slices and volumes are returned as numpy.ndarrays in row-major\n"
+    "order.  That is, the first index is x, the second is y, and the\n"
+    "third is z.  The ranks are specified by the 'gridsize' array with\n"
+    "(nx, ny, nz) as input to the FieldGenerator constructor.\n\n";
 
   using namespace Field;
 
