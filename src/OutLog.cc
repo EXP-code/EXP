@@ -489,7 +489,7 @@ void OutLog::Run(int n, int mstep, bool last)
       for (int k=0; k<3; k++) pos0[k] = c->Pos(i, k, Component::Centered);
 
       eptot1[indx]  += 0.5*p->mass*p->pot;
-      eptotx1[indx] += p->mass*p->potext;
+      eptotx1[indx] += 0.5*p->mass*p->potext;
       for (int k=0; k<3; k++) {
 	ektot1[indx]    += 0.5*p->mass*velL[k]*velL[k];
 	clausius1[indx] += p->mass*posL[k]*p->acc[k];
@@ -587,7 +587,7 @@ void OutLog::Run(int n, int mstep, bool last)
 
 				// PE
     double eptot0 = 0.0;
-    for (int i=0; i<comp->ncomp; i++) eptot0 += eptot[i] + 0.5*eptotx[i];
+    for (int i=0; i<comp->ncomp; i++) eptot0 += eptot[i] + eptotx[i];
     out << "|" << setw(cwid) << eptot0;
 
 				// Clausius, Total, 2T/VC
