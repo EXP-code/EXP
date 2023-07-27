@@ -1279,10 +1279,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 #endif
       }
     
-      if (use_external)
-	cC->AddPotExt(indx, pa);
-      else
-	cC->AddPot(indx, pa);
+      cC->AddPot(indx, pa);
 
       if ( (component->EJ & Orient::AXIS) && !component->EJdryrun) 
 	frc[id] = component->orient->transformOrig() * frc[id];

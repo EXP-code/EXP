@@ -290,17 +290,14 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 	    cC->AddAcc(j, 1, fr*yy/(rr+1.0e-10) );
 	    cC->AddAcc(j, 2, fz );
 	  
-	    // External Potential
-	    //
-	    if (use_external) {
-	      cC->AddPotExt(j, pot );
 #ifdef DEBUG
+	    if (use_external) {
 	      ncnt++;
 	      tclausius[id] += mass * ( (fr*xx + fr*yy)/(rr+1.0e-10) + fz);
-#endif
 	    }
-	    // Internal potential
-	    else cC->AddPot(j, pot );
+#endif
+	    // Particle potential
+	    cC->AddPot(j, pot );
 
 	  }
 	  // END: Miyamoto-Nagai point mass
@@ -331,16 +328,15 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 	      cC->AddAcc(j, k, -mass *(cC->Pos(j, k) - pos[k]) * rfac );
 	    
 	    // Potential
-	    if (use_external) {
-	      cC->AddPotExt(j, pot );
 #ifdef DEBUG
+	    if (use_external) {
 	      ncnt++;
 	      for (int k=0; k<3; k++)
 		tclausius[id] += -mass *
 		  (cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
-#endif
 	    }
-	    else cC->AddPot(j, pot );
+#endif
+	    cC->AddPot(j, pot );
 	  }
 	}
 	// END: spherical point mass

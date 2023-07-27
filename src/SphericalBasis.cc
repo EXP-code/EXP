@@ -1599,10 +1599,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 	cC->AddAcc(indx, 0,  potp*yy/fac );
 	cC->AddAcc(indx, 1, -potp*xx/fac );
       }
-      if (use_external)
-	cC->AddPotExt(indx, potl);
-      else
-	cC->AddPot(indx, potl);
+      cC->AddPot(indx, potl);
     }
 
   }

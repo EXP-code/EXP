@@ -240,10 +240,8 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
     cC->AddAcc(i, 0, accx.real());
     cC->AddAcc(i, 1, accy.real());
     cC->AddAcc(i, 2, accz.real());
-    if (use_external)
-      cC->AddPotExt(i, potl.real());
-    else
-      cC->AddPot(i, potl.real());
+
+    cC->AddPot(i, potl.real());
   }
   
   return (NULL);
