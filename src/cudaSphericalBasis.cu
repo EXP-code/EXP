@@ -450,8 +450,7 @@ __global__ void coefKernel
 __global__ void
 forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	    dArray<cudaTextureObject_t> tex, dArray<cuFP_t> L1, dArray<cuFP_t> L2,
-	    int stride, unsigned Lmax, unsigned int nmax, PII lohi, cuFP_t rmax,
-	    bool external)
+	    int stride, unsigned Lmax, unsigned int nmax, PII lohi, cuFP_t rmax)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
@@ -733,10 +732,7 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	p.acc[0] +=  potp*yy/RR;
 	p.acc[1] += -potp*xx/RR;
       }
-      if (external)
-	p.potext += potl;
-      else
-	p.pot    += potl;
+      p.pot += potl;
 
 #ifdef NAN_CHECK
       // Sanity check
@@ -1363,7 +1359,7 @@ void SphericalBasis::determine_acceleration_cuda()
       (toKernel(cr->cuda_particles), toKernel(cr->indx1),
        toKernel(dev_coefs), toKernel(t_d),
        toKernel(cuS.plm1_d), toKernel(cuS.plm2_d),
-       stride, Lmax, nmax, lohi, rmax, use_external);
+       stride, Lmax, nmax, lohi, rmax);
   }
 }
 
