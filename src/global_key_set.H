@@ -23,7 +23,6 @@ global_valid_keys = {
   "dynfracV",
   "dynfracA",
   "dynfracP",
-  "DTold",
   "random_seed",
   "use_cwd",
   "eqmotion",

@@ -91,81 +91,39 @@ void * adjust_multistep_level_thread(void *ptr)
     int n = c->levlist[level][i];
     Particle *p = c->Part(n);
 
-    if (DTold) {
+    // dtd = eps* rscale/v_i    -- char. drift time scale
+    // dtv = eps* min(v_i/a_i)  -- char. force time scale
+    // dta = eps* phi/(v * a)   -- char. work time scale
+    // dtA = eps* sqrt(phi/a^2) -- char. "escape" time scale
+    
+    dtr  = 0.0;
+    vtot = 0.0;
+    atot = 0.0;
 
-      // dtv = eps* r/v         -- roughly, crossing time
-      // dta = eps* v/a         -- force scale
-      // dtA = eps* sqrt(r/a)   -- acceleration time
-
-      rtot = 0.0;
-      vtot = 0.0;
-      atot = 0.0;
-
-      for (int k=0; k<c->dim; k++) {
-	rtot += 
-	  c->Pos(n, k, Component::Local | Component::Centered) *
-	  c->Pos(n, k, Component::Local | Component::Centered) ;
-	vtot += p->vel[k]*p->vel[k];
-	atot += p->acc[k]*p->acc[k];
-      }
-      rtot = sqrt(rtot);
-      vtot = sqrt(vtot);
-      atot = sqrt(atot);
-
-      double vflr = vtot + 1.0e-18;
-      double aflr = atot + 1.0e-18;
-
-      dsr = p->scale;
-      if (dsr>0) dts = dynfracS*dsr/vflr;
-      else       dts = 1.0/eps;
-
-      dtv = dynfracV*rtot/vflr;
-      dta = dynfracA*vtot/aflr;
-      dtA = dynfracP*sqrt(rtot/aflr);
-
-    } else {
-
-      // dtd = eps* rscale/v_i    -- char. drift time scale
-      // dtv = eps* min(v_i/a_i)  -- char. force time scale
-      // dta = eps* phi/(v * a)   -- char. work time scale
-      // dtA = eps* sqrt(phi/a^2) -- char. "escape" time scale
-
-      dtr  = 0.0;
-      vtot = 0.0;
-      atot = 0.0;
-
-      for (int k=0; k<c->dim; k++) {
-	dtr  += p->vel[k]*p->acc[k];
-	vtot += p->vel[k]*p->vel[k];
-	atot += p->acc[k]*p->acc[k];
-      }
-      ptot = fabs(p->pot + p->potext);
-
-
-      dsr = p->scale;
-      if (dsr>0) dts = dynfracS*dsr/fabs(sqrt(vtot)+eps);
-      else       dts = 1.0/eps;
-      
-      dtd = dynfracD * 1.0/sqrt(vtot+eps);
-      dtv = dynfracV * sqrt(vtot/(atot+eps));
-      dta = dynfracA * ptot/(fabs(dtr)+eps);
-      dtA = dynfracP * sqrt(ptot/(atot+eps));
+    for (int k=0; k<c->dim; k++) {
+      dtr  += p->vel[k]*p->acc[k];
+      vtot += p->vel[k]*p->vel[k];
+      atot += p->acc[k]*p->acc[k];
     }
+    ptot = fabs(p->pot + p->potext);
+
+
+    dsr = p->scale;
+    if (dsr>0) dts = dynfracS*dsr/fabs(sqrt(vtot)+eps);
+    else       dts = 1.0/eps;
+    
+    dtd = dynfracD * 1.0/sqrt(vtot+eps);
+    dtv = dynfracV * sqrt(vtot/(atot+eps));
+    dta = dynfracA * ptot/(fabs(dtr)+eps);
+    dtA = dynfracP * sqrt(ptot/(atot+eps));
 
     std::map<double, int> dseq;
 
-    if (DTold) {
-      dseq[dtv] = 0;
-      dseq[dts] = 1;
-      if ( dta > 0.0 ) dseq[dta] = 2;
-      if ( dtA > 0.0 ) dseq[dtA] = 3;
-    } else {
-      dseq[dtd] = 0;
-      dseq[dtv] = 1;
-      dseq[dts] = 2;
-      if ( dta > 0.0 ) dseq[dta] = 3;
-      if ( dtA > 0.0 ) dseq[dtA] = 4;
-    }
+    dseq[dtd] = 0;
+    dseq[dtv] = 1;
+    dseq[dts] = 2;
+    if ( dta > 0.0 ) dseq[dta] = 3;
+    if ( dtA > 0.0 ) dseq[dtA] = 4;
 
     // Smallest time step
     //
