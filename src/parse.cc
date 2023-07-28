@@ -111,12 +111,6 @@ void initialize(void)
     if (_G["dynfracA"])	     dynfracA   = _G["dynfracA"].as<double>();
     if (_G["dynfracP"])	     dynfracP   = _G["dynfracP"].as<double>();
 
-    if (_G["DTold"]) {
-      DTold = _G["DTold"].as<bool>();
-      if (DTold and myid==0)
-	cout << "---- Using original (old) time-step algorithm" << endl;
-    }
-    
     if (_G["random_seed"])     random_seed   = _G["random_seed"].as<unsigned int>();
     if (myid==0) {
       cout << "---- Random seed for Node 0 is: " << random_seed << std::endl;
@@ -362,7 +356,6 @@ void update_parm()
     
     if (not conf["multistep"])     conf["multistep"]   = multistep;
     if (not conf["centerlevl"])    conf["centerlevl"]  = centerlevl;
-    if (not conf["DTold"])         conf["DTold"]       = DTold;
     if (not conf["dynfracS"])      conf["dynfracS"]    = dynfracS;
     if (not conf["dynfracV"])      conf["dynfracV"]    = dynfracV;
     if (not conf["dynfracA"])      conf["dynfracA"]    = dynfracA;

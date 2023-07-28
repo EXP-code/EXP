@@ -99,8 +99,6 @@ extern int centerlevl;
 
 //! Fraction of dynamical time for determining multistep level
 //@{
-//! Use old (original) timestep criteria
-extern bool DTold;
 
 //! Scale coefficient (default: 1.00)
 extern double dynfracS;
