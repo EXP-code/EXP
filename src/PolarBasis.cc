@@ -1465,10 +1465,7 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	  cC->AddAcc(indx, 1,  potp*xx/rfac * frac);
 	}
 	
-	if (use_external)
-	  cC->AddPotExt(indx, potl * frac);
-	else
-	  cC->AddPot(indx, potl * frac);
+	cC->AddPot(indx, potl * frac);
       }
       // END: ratio < 1.0
 
@@ -1485,11 +1482,7 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	cC->AddAcc(indx, 1, yy*fr * cfrac);
 	cC->AddAcc(indx, 2, zz*fr * cfrac);
 
-	if (use_external)
-	  cC->AddPotExt(indx, pp * cfrac);
-	else
-	  cC->AddPot(indx, pp * cfrac);
-
+	cC->AddPot(indx, pp * cfrac);
       }
       // END: ratio > ratmin
     }

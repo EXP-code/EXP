@@ -164,10 +164,7 @@ void * Shells::determine_acceleration_and_potential_thread(void * arg)
 	cC->AddAcc(j, k, -cC->Pos(j, k) * rfac );
       
 				// Potential
-      if (use_external)
-	cC->AddPotExt(j, potl-mass/rr);
-      
-      else if (rr > 1.0e-16)
+      if (rr > 1.0e-16)
 	cC->AddPot(j, potl-mass/rr );
     }
   }

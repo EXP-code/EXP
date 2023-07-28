@@ -587,7 +587,7 @@ void OutLog::Run(int n, int mstep, bool last)
 
 				// PE
     double eptot0 = 0.0;
-    for (int i=0; i<comp->ncomp; i++) eptot0 += eptot[i] + 0.5*eptotx[i];
+    for (int i=0; i<comp->ncomp; i++) eptot0 += eptot[i] + eptotx[i];
     out << "|" << setw(cwid) << eptot0;
 
 				// Clausius, Total, 2T/VC
