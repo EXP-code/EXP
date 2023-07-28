@@ -504,10 +504,7 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
       cC->AddAcc(j, 1, -potp*xx/fac);
     }
 
-    if (use_external)
-      cC->AddPotExt(j, potl);
-    else
-      cC->AddPot(j, potl);
+    cC->AddPot(j, potl);
 
     it++;
   }
