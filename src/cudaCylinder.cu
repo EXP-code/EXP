@@ -505,7 +505,7 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
 	       dArray<cudaTextureObject_t> tex,
 	       int stride, unsigned int mmax, unsigned int mlim,
 	       unsigned int nmax, PII lohi,
-	       cuFP_t rmax, cuFP_t cylmass, bool external)
+	       cuFP_t rmax, cuFP_t cylmass)
 {
   // Thread ID
   //
@@ -794,10 +794,7 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
 	for (int j=0; j<3; j++) p.acc[j] += acc[j];
       }
 
-      if (external)
-	p.potext += pa;
-      else
-	p.pot    += pa;
+      p.pot += pa;
 
     } // Particle index block
 
@@ -1822,7 +1819,7 @@ void Cylinder::determine_acceleration_cuda()
     forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
        toKernel(dev_coefs), toKernel(t_d),
-       stride, mmax, mlim, nmax, lohi, rmax, cylmass, use_external);
+       stride, mmax, mlim, nmax, lohi, rmax, cylmass);
     
   }
 }
