@@ -20,11 +20,11 @@ CBrockDisk::valid_keys = {
   "self_consistent",
   "playback",
   "coefCompute",
-  "coefMaster"
+  "coefMaster",
   "NO_M0",
   "NO_M1",
   "EVEN_M",
-  "M0_only"
+  "M0_ONLY"
 };
 
 CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :  AxisymmetricBasis(c0, conf)
@@ -461,8 +461,8 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
     if (not NO_M0) {
       get_pot_coefs_safe(0, expcoef->row(0), p, dp, potd[id], dpot[id]);
 
-      double potl = p;
-      double potr = dp;
+      potl = p;
+      potr = dp;
     }
 
 	// Asymmetric terms?
