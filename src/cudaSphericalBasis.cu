@@ -309,7 +309,8 @@ __global__ void coefKernel
  dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
  dArray<cuFP_t> Mass, dArray<cuFP_t> Afac, dArray<cuFP_t> Phi,
  dArray<cuFP_t> Plm,  dArray<int> Indx,  int stride, 
- int l, int m, unsigned Lmax, unsigned int nmax, PII lohi, bool compute)
+ int l, int m, unsigned Lmax, unsigned int nmax, cuFP_t norm,
+ PII lohi, bool compute)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
@@ -379,7 +380,7 @@ __global__ void coefKernel
 		     a*int2_as_double(tex1D<int2>(tex._v[k], ind  )) +
 		     b*int2_as_double(tex1D<int2>(tex._v[k], ind+1))
 #endif
-		      ) * p0 * plm[Ilm(l, m)] * fac0;
+		      ) * p0 * plm[Ilm(l, m)] * fac0 * norm;
 	  
 	  coef._v[(2*n+0)*N + i] = v * cosp * mass;
 	  coef._v[(2*n+1)*N + i] = v * sinp * mass;
@@ -559,7 +560,7 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	if (sphNO_L1  and l==1        ) continue;
 	if (sphEVEN_L and (l/2)*2 != l) continue;
 
-	cuFP_t fac1 = (2.0*l + 1.0)/(4.0*M_PI);
+	cuFP_t fac1 = sqrt( (2.0*l + 1.0)/(4.0*M_PI) );
 
 	cuFP_t ccos = 1.0;	// For recursion
 	cuFP_t ssin = 0.0;
@@ -699,7 +700,7 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	      if (i<=l-m) numf *= i; denf *= i;
 	    }
 	    
-	    cuFP_t fac2 = 2.0 * numf/denf * fac1;
+	    cuFP_t fac2 = 2.0 * sqrt(numf/denf) * fac1;
 	    
 	    potl += fac2 * Plm1 * ( pp_c*ccos + pp_s*ssin);
 	    potr += fac2 * Plm1 * ( dp_c*ccos + dp_s*ssin);
@@ -1053,6 +1054,8 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
     for (int l=0; l<=Lmax; l++) {
       for (int m=0; m<=l; m++) {
+	cuFP_t ft = factorial(l, m);
+
 	// Compute the contribution to the coefficients from each
 	// particle
 	//
@@ -1060,7 +1063,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	  (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
 	   toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d),
 	   toKernel(cuS.a_d), toKernel(cuS.p_d), toKernel(cuS.plm1_d),
-	   toKernel(cuS.i_d), stride, l, m, Lmax, nmax, cur, compute);
+	   toKernel(cuS.i_d), stride, l, m, Lmax, nmax, ft, cur, compute);
 	
 	// Begin the reduction per grid block [perhaps this should use
 	// a stride?]
