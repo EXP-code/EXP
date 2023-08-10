@@ -493,11 +493,11 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	//		m loop
 	for (int m=0, moffset=0; m<=l; m++) {
 
-	  double ft = factorial(l, m);
+	  facL = factorial(l, m) * legs[id](l, m);
 
 	  if (m==0) {
 	    for (int n=0; n<nmax; n++) {
-	      wk[n] = potd[id](l, n)*ft*legs[id](l, m)*mass*fac0/normM(l, n);
+	      wk[n] = potd[id](l, n)*facL*mass*fac0/normM(l, n);
 	      (*expcoef0[id][loffset+moffset])[n] += wk[n];
 	    }
 
@@ -527,7 +527,6 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	  else {
 	    if (not M0_only) {
 
-	      facL = ft*legs[id](l, m);
 	      fac1 = facL*cosm[id][m];
 	      fac2 = facL*sinm[id][m];
 
@@ -1135,7 +1134,7 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
     double costh = zz/r;
     double phi   = atan2(yy,xx);
     double rs    = r/scale;
-    double val, val1, val2, fac0=4.0*M_PI, fac1, fac2;
+    double val, val1, val2, fac0=4.0*M_PI, fac1, fac2, facL;
     int moffset;
 
     legendre_R(Lmax, costh, legs[id]);
@@ -1152,11 +1151,11 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
       //
       for (int m=0, moffset=0; m<=l; m++) {
 
-	double ft = factorial(l, m);
+	facL = factorial(l, m)*legs[id](l, m);
 	
 	if (m==0) {
 	  for (int n=0; n<nmax; n++) {
-	    val = potd[id](l, n)*ft*legs[id](l, m)*mass*fac0/normM(l, n);
+	    val = potd[id](l, n)*facL*mass*fac0/normM(l, n);
 	    
 	    differ1[id][from](loffset+moffset, n) -= val;
 	    differ1[id][  to](loffset+moffset, n) += val;
@@ -1164,8 +1163,8 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 	  moffset++;
 
 	} else {
-	  fac1 = ft*legs[id](l, m)*cosm[id][m];
-	  fac2 = ft*legs[id](l, m)*sinm[id][m];
+	  fac1 = facL*cosm[id][m];
+	  fac2 = facL*sinm[id][m];
 
 	  for (int n=0; n<nmax; n++) {
 	    val1 = potd[id](l, n)*fac1*mass*fac0/normM(l, n);
@@ -1434,7 +1433,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 {
   int l, loffset, moffset, m, ioff, indx, nbeg, nend;
   unsigned nbodies;
-  double r, rs, r0=0.0, fac, fac1, fac2, fac3, fac4, costh, phi, dp;
+  double r, rs, r0=0.0, fac, fac1, fac2, fac3, fac4, facL, facD, costh, phi, dp;
   double potr, potl, pott, potp, p, pc, dpc, ps, dps, facp, facdp;
   double dfac=0.25/M_PI;
 
@@ -1546,7 +1545,8 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 	//		------
 	for (m=0, moffset=0; m<=l; m++) {
 	  
-	  double ft = factorial(l, m);
+	  facL = factorial(l, m) *  legs[id](l, m) * mfactor;
+	  facD = factorial(l, m) * dlegs[id](l, m) * mfactor;
 
 				// Suppress odd M terms?
 	  if (EVEN_M && (m/2)*2 != m) continue;
@@ -1554,24 +1554,21 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 				// Suppress all asymmetric terms
 	  if (M0_only and m!=0) continue;
 
-	  fac1 = ft * mfactor;
 	  if (m==0) {
-	    fac2 = fac1*ft*legs[id](l, m);
 	    get_pot_coefs_safe(l, *expcoef[loffset+moffset], p, dp,
 			       potd[id], dpot[id]);
 	    if (ioff) {
-	      p *= pow(rmax/r0,(double)(l+1));
+	      p *= facL*pow(rmax/r0,(double)(l+1));
 	      dp = -p/r0 * (l+1);
 	    }
-	    potl += fac2*p;
-	    potr += fac2*dp;
-	    pott += fac1*dlegs[id](l, m)*p;
+	    potl += facL * p;
+	    potr += facL * dp;
+	    pott += facD * p;
 	    moffset++;
 	  }
 	  else {
-	    fac2 = 2.0 * fac1 * factorial(l, m);
-	    fac3 = fac2 * ft * legs[id](l, m);
-	    fac4 = fac2 * dlegs[id](l, m);
+	    fac3 = 2.0 * facL;
+	    fac4 = 2.0 * facD;
 	    get_pot_coefs_safe(l, *expcoef[loffset+moffset], pc, dpc,
 			       potd[id], dpot[id]);
 	    get_pot_coefs_safe(l, *expcoef[loffset+moffset+1], ps, dps,
@@ -2156,8 +2153,7 @@ void SphericalBasis::update_noise(void)
       }
       else {
 	for (int n=0; n<nmax; n++) {
-	  (*expcoef[loffset+moffset+0])[n] = 
-	    sqrt(0.5*fabs(rmsC(l, n) - meanC[n]*meanC[n])*factorial(l, m)/noiseN)*nrand(rgen);
+	  (*expcoef[loffset+moffset+0])[n] = sqrt(0.5*fabs(rmsC(l, n) - meanC[n]*meanC[n])*factorial(l, m)/noiseN)*nrand(rgen);
 	  (*expcoef[loffset+moffset+1])[n] = 
 	    sqrt(0.5*fabs(rmsC(l, n) - meanC[n]*meanC[n])*factorial(l, m)/noiseN)*nrand(rgen);
 	}

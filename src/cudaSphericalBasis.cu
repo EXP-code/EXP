@@ -2018,6 +2018,8 @@ void SphericalBasis::multistep_update_cuda()
 
 	for (int l=0; l<=Lmax; l++) {
 	  for (int m=0; m<=l; m++) {
+	    cuFP_t ft = factorial(l, m);
+
 	    // Compute the contribution to the
 	    // coefficients from each particle
 	    //
@@ -2029,7 +2031,7 @@ void SphericalBasis::multistep_update_cuda()
 	       toKernel(cuS.dN_tvar), toKernel(cuS.dW_tvar),
 	       toKernel(cuS.u_d), toKernel(t_d), toKernel(cuS.m_d),
 	       toKernel(cuS.a_d), toKernel(cuS.p_d), toKernel(cuS.plm1_d),
-	       toKernel(cuS.i_d), stride, l, m, Lmax, nmax, cur, false);
+	       toKernel(cuS.i_d), stride, l, m, Lmax, nmax, ft, cur, false);
 
 #ifdef VERBOSE_TIMING
 	    finish = std::chrono::high_resolution_clock::now();
