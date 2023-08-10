@@ -1206,10 +1206,10 @@ namespace MSSA {
 
 
   	newdata[u.first][i] = acc*disp;
-  if (reconstructmean) {
-      	if (useMean) newdata[u.first][i] += u.second;
+	if (reconstructmean) {
+	  if (useMean) newdata[u.first][i] += u.second;
+	}
       }
-        }
     }
 
     // Copy to the working data
