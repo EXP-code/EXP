@@ -485,7 +485,7 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
       
       legendre_v2(Lmax, costh, plm1, plm2);
 
-      int ioff = 0;
+      int ioff  = 0;
       cuFP_t rs = r/sphScale;
       cuFP_t r0 = 0.0;
 
@@ -669,9 +669,10 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	    
 	  } else {
 
-	    if (ioff) {
+	    if (ioff) {		// Factors for external multipole solution
 	      cuFP_t facp  = pow(rmax/r0,(cuFP_t)(l+1));
-	      cuFP_t facdp = -facp/r0 * (l+1);
+	      cuFP_t facdp = -1.0/r0 * (l+1);
+				// Apply the factors
 	      pp_c *= facp;
 	      pp_s *= facp;
 	      dp_c = pp_c * facdp;

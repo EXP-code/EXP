@@ -1577,13 +1577,14 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
 	    get_pot_coefs_safe(l, *expcoef[loffset+moffset+1], ps, dps,
 			       potd[id], dpot[id]);
-	    if (ioff) {
+	    if (ioff) {		// Factors for external multipole solution
 	      facp  = pow(rmax/r0,(double)(l+1));
 	      facdp = -1.0/r0 * (l+1);
+				// Apply the factors
 	      pc   *= facp;
 	      ps   *= facp;
-	      dpc   = pc*facdp;
-	      dps   = ps*facdp;
+	      dpc   = pc * facdp;
+	      dps   = ps * facdp;
 	    }
 	    potl += facL * (pc *cosm[id][m] + ps *sinm[id][m] );
 	    potr += facL * (dpc*cosm[id][m] + dps*sinm[id][m] );
