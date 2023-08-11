@@ -316,7 +316,7 @@ __global__ void coefKernel
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
   const int N     = lohi.second - lohi.first;
 
-  cuFP_t fac0 = 4.0*M_PI;
+  const cuFP_t fac0 = -4.0*M_PI;
 
   for (int str=0; str<stride; str++) {
 
@@ -636,11 +636,11 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	      printf("dv tab nan: (%d, %d): a=%f b=%f pn=%f p0=%f pp=%f un=%f u0=%f up=%f\n", l, m, a1, b1, pm1, p00, pp1, um1, u00, up1);
 #endif
 
-	    pp_c -=  v * coef._v[indxC+n];
-	    dp_c -= dv * coef._v[indxC+n];
+	    pp_c +=  v * coef._v[indxC+n];
+	    dp_c += dv * coef._v[indxC+n];
 	    if (m>0) {
-	      pp_s -=  v * coef._v[indxS+n];
-	      dp_s -= dv * coef._v[indxS+n];
+	      pp_s +=  v * coef._v[indxS+n];
+	      dp_s += dv * coef._v[indxS+n];
 	    }
 
 	  } // END: n loop
@@ -700,7 +700,7 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	      if (i<=l-m) numf *= i; denf *= i;
 	    }
 	    
-	    cuFP_t fac2 = 2.0 * sqrt(numf/denf) * fac1;
+	    cuFP_t fac2 = M_SQRT2 * sqrt(numf/denf) * fac1;
 	    
 	    potl += fac2 * Plm1 * ( pp_c*ccos + pp_s*ssin);
 	    potr += fac2 * Plm1 * ( dp_c*ccos + dp_s*ssin);
