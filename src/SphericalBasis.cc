@@ -412,8 +412,12 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
 void * SphericalBasis::determine_coefficients_thread(void * arg)
 {
+  // Biorthgonal normalization factor
+  //
   double fac0=-4.0*M_PI;
 
+  // Partition bodies and get features
+  //
   unsigned nbodies = component->levlist[mlevel].size();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
@@ -1431,9 +1435,14 @@ void SphericalBasis::compute_multistep_coefficients()
 
 void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 {
+  // Density basis is 4piG times physical density
+  //
+  double dfac=0.25/M_PI;
+
+  // Local variables
+  //
   double r0=0.0, dp;
   double potr, potl, pott, potp, p, pc, dpc, ps, dps, facp, facdp;
-  double dfac=0.25/M_PI;
 
   double pos[3];
   double xx, yy, zz, mfactor=1.0;
@@ -1505,11 +1514,13 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
       int ioff = 0;
       if (r>rmax) {
 	ioff = 1;
-	r0 = r;
-	r = rmax;
-	rs = r/scale;
+	r0   = r;
+	r    = rmax;
+	rs   = r/scale;
       }
 
+      // Zero coefficient accumulated field values
+      //
       potl = potr = pott = potp = 0.0;
       
       get_dpotl(Lmax, nmax, rs, potd[id], dpot[id], id);
@@ -1563,15 +1574,16 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 	  else {
 	    get_pot_coefs_safe(l, *expcoef[loffset+moffset], pc, dpc,
 			       potd[id], dpot[id]);
+
 	    get_pot_coefs_safe(l, *expcoef[loffset+moffset+1], ps, dps,
 			       potd[id], dpot[id]);
 	    if (ioff) {
-	      facp = pow(rmax/r0,(double)(l+1));
+	      facp  = pow(rmax/r0,(double)(l+1));
 	      facdp = -1.0/r0 * (l+1);
-	      pc *= facp;
-	      ps *= facp;
-	      dpc = pc*facdp;
-	      dps = ps*facdp;
+	      pc   *= facp;
+	      ps   *= facp;
+	      dpc   = pc*facdp;
+	      dps   = ps*facdp;
 	    }
 	    potl += facL * (pc *cosm[id][m] + ps *sinm[id][m] );
 	    potr += facL * (dpc*cosm[id][m] + dps*sinm[id][m] );
