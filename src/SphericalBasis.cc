@@ -412,7 +412,7 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
 void * SphericalBasis::determine_coefficients_thread(void * arg)
 {
-  double fac0=4.0*M_PI;
+  double fac0=-4.0*M_PI;
 
   unsigned nbodies = component->levlist[mlevel].size();
   int id = *((int*)arg);
@@ -497,7 +497,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 	  if (m==0) {
 	    for (int n=0; n<nmax; n++) {
-	      wk[n] = potd[id](l, n)*facL*mass*fac0/normM(l, n);
+	      wk[n] = potd[id](l, n)*facL*mass*fac0/sqnorm(l, n);
 	      (*expcoef0[id][loffset+moffset])[n] += wk[n];
 	    }
 
@@ -532,7 +532,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 	      for (int n=0; n<nmax; n++) {
 
-		wk[n] = potd[id](l, n)*mass*fac0/normM(l, n);
+		wk[n] = potd[id](l, n)*mass*fac0/sqnorm(l, n);
 
 		(*expcoef0[id][loffset+moffset  ])[n] += wk[n]*fac1;
 		(*expcoef0[id][loffset+moffset+1])[n] += wk[n]*fac2;
@@ -1155,7 +1155,7 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 	
 	if (m==0) {
 	  for (int n=0; n<nmax; n++) {
-	    double val = potd[id](l, n)*facL*mass*fac0/normM(l, n);
+	    double val = potd[id](l, n)*facL*mass*fac0/sqnorm(l, n);
 	    
 	    differ1[id][from](loffset+moffset, n) -= val;
 	    differ1[id][  to](loffset+moffset, n) += val;
@@ -1167,8 +1167,8 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 	  double fac2 = facL*sinm[id][m];
 
 	  for (int n=0; n<nmax; n++) {
-	    double val1 = potd[id](l, n)*fac1*mass*fac0/normM(l, n);
-	    double val2 = potd[id](l, n)*fac2*mass*fac0/normM(l, n);
+	    double val1 = potd[id](l, n)*fac1*mass*fac0/sqnorm(l, n);
+	    double val2 = potd[id](l, n)*fac2*mass*fac0/sqnorm(l, n);
 
 	    differ1[id][from](loffset+moffset  , n) -= val1;
 	    differ1[id][from](loffset+moffset+1, n) -= val2;
@@ -1728,8 +1728,8 @@ void SphericalBasis::get_pot_coefs(int l, const Eigen::VectorXd& coef,
     dpp += dpot[0](l, i) * coef[i];
   }
 
-  p = -pp;
-  dp = -dpp;
+  p  = pp;
+  dp = dpp;
 }
 
 
@@ -1747,8 +1747,8 @@ void SphericalBasis::get_pot_coefs_safe(int l, const Eigen::VectorXd& coef,
     dpp += dpot1(l, i) * coef[i];
   }
 
-  p = -pp;
-  dp = -dpp;
+  p  = pp;
+  dp = dpp;
 }
 
 
@@ -2049,14 +2049,14 @@ void SphericalBasis::compute_rms_coefs(void)
   LegeQuad qe(numg);
 
   SphericalModelTable modl(noise_model_file);
+
   double rmin = modl.get_min_radius();
   double rmax = modl.get_max_radius();
   double del = rmax - rmin;
-  double r, rs;
 
   for (int i=0; i<numg; i++) {
-    r = rmin + del*qe.knot(i);
-    rs = r / scale;
+    double r = rmin + del*qe.knot(i);
+    double rs = r / scale;
 
     get_potl(Lmax, nmax, rs, potd[0], 0);
 
@@ -2064,27 +2064,17 @@ void SphericalBasis::compute_rms_coefs(void)
       
       for (int n=0; n<nmax; n++) {
 
-	if (l==0)
-	  meanC[n] += del * qe.weight(i) * r * r * potd[0](l, n)/scale *
-	    modl.get_density(r);
+	double pot = potd[0](l, n)/sqnorm(l, n)/scale;
 
-	rmsC(l, n) += del * qe.weight(i) * r * r * potd[0](l, n)/scale *
-	  potd[0](l, n)/scale * modl.get_density(r);
+	if (l==0)
+	  meanC[n] += del * qe.weight(i) * r * r * pot *
+	    4.0*M_PI * modl.get_density(r);
+
+	rmsC(l, n) += del * qe.weight(i) * r * r * pot * pot *
+	  4.0*M_PI * modl.get_density(r);
       }
     }
   }
-
-  double mtot = modl.get_mass(rmax);
-
-  for(int l=0; l<=Lmax; l++) {
-
-    for (int n=0; n<nmax; n++) {
-      double fac = normM(l, n);
-      if (l==0) meanC[n] *= 4.0*M_PI/fac;
-      rmsC(l, n) *= mtot*4.0*M_PI/(fac*fac);
-    }
-  }
-
 }
 
 
@@ -2142,9 +2132,9 @@ void SphericalBasis::update_noise(void)
       }
       else {
 	for (int n=0; n<nmax; n++) {
-	  (*expcoef[loffset+moffset+0])[n] = sqrt(0.5*fabs(rmsC(l, n) - meanC[n]*meanC[n])*factorial(l, m)/noiseN)*nrand(rgen);
+	  (*expcoef[loffset+moffset+0])[n] = sqrt(fabs(rmsC(l, n) - meanC[n]*meanC[n])*factorial(l, m)/noiseN)*nrand(rgen);
 	  (*expcoef[loffset+moffset+1])[n] = 
-	    sqrt(0.5*fabs(rmsC(l, n) - meanC[n]*meanC[n])*factorial(l, m)/noiseN)*nrand(rgen);
+	    sqrt(fabs(rmsC(l, n) - meanC[n]*meanC[n])*factorial(l, m)/noiseN)*nrand(rgen);
 	}
 	moffset+=2;
       }
