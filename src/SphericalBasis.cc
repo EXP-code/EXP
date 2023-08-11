@@ -1138,7 +1138,7 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
     double costh = zz/r;
     double phi   = atan2(yy,xx);
     double rs    = r/scale;
-    double fac0=4.0*M_PI;
+    double fac0  = -4.0*M_PI;
     int moffset;
 
     legendre_R(Lmax, costh, legs[id]);
