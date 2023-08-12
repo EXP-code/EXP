@@ -1,16 +1,11 @@
 #include "expand.H"
 #include <CBrock.H>
 
-CBrock::CBrock(Component* c0, const YAML::Node& conf, MixtureBasis *m) : SphericalBasis(c0, conf, m)
+CBrock::CBrock(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
+  SphericalBasis(c0, conf, m)
 {
   id = "Clutton-Brock sphere";
-
   initialize();
-
-				// Initialize grids for potential
-  uu. resize(nmax);
-  duu.resize(nmax);
-
   setup();
 }
 
@@ -32,31 +27,30 @@ double CBrock::norm(int n, int l)
 
 void CBrock::initialize(void)
 {
+  // Do nothing
 }
 
 void CBrock::get_dpotl(int lmax, int nmax, double r,
 		       Eigen::MatrixXd& p, Eigen::MatrixXd& dp, int tid)
 {
-  double x, dx, fac, rfac, drfac, dfac1, dfac2;
+  double x  = r_to_rh(r);
+  double dx = d_r_to_rh(r);
 
-  x  = r_to_rh(r);
-  dx = d_r_to_rh(r);
-
-  fac   = 0.5*sqrt(1.0 - x*x);
-  rfac  = sqrt(0.5*(1.0 - x));
-  drfac = -0.5/(1.0 - x*x);
+  double fac   = 0.5*sqrt(1.0 - x*x);
+  double rfac  = sqrt(0.5*(1.0 - x));
+  double drfac = -0.5/(1.0 - x*x);
   
   for (int l=0; l<=lmax; l++) {
-    dfac1 = 1.0 + x + 2.0*x*l;
-    dfac2 = 2.0*(l + 1);
+    double dfac1 = 1.0 + x + 2.0*x*l;
+    double dfac2 = 2.0*(l + 1);
 
     get_ultra(nmax-1, (double)l,     x, u[tid]);
     get_ultra(nmax-1, (double)(l+1), x, du[tid]);
 
-    for (int n=0; n<nmax; n++) p(l, n+1) = rfac*u[tid][n];
-    dp(l, 1) = dx*drfac*dfac1*rfac*u[tid][0];
-    for (int n=1; n<nmax; n++) dp(l, n+1) = dx*rfac*(drfac*dfac1*u[tid][n] + 
-						     dfac2*du[tid][n-1]);
+    for (int n=0; n<nmax; n++) p(l, n) = rfac*u[tid][n];
+    dp(l, 0) = dx*drfac*dfac1*rfac*u[tid][0];
+    for (int n=1; n<nmax; n++) dp(l, n) = dx*rfac*(drfac*dfac1*u[tid][n] + 
+						   dfac2*du[tid][n-1]);
 
     rfac *= fac;
   }
@@ -65,16 +59,13 @@ void CBrock::get_dpotl(int lmax, int nmax, double r,
 
 void CBrock::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
-  double x, fac, rfac;
-  int l, n;
-
-  x = r_to_rh(r);
-  fac = 0.5*sqrt(1.0 - x*x);
-  rfac = sqrt(0.5*(1.0 - x));
+  double x    = r_to_rh(r);
+  double fac  = 0.5*sqrt(1.0 - x*x);
+  double rfac = sqrt(0.5*(1.0 - x));
   
-  for (l=0; l<=lmax; l++) {
+  for (int l=0; l<=lmax; l++) {
     get_ultra(nmax-1, (double)l, x, u[tid]);
-    for (n=0; n<nmax; n++) p(l, n+1) = rfac*u[tid][n];
+    for (int n=0; n<nmax; n++) p(l, n) = rfac*u[tid][n];
     rfac *= fac;
   }
 
@@ -82,16 +73,13 @@ void CBrock::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 
 void CBrock::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
-  double x, fac, rfac;
-  int l, n;
+  double x    = r_to_rh(r);
+  double fac  = 0.5*sqrt(1.0 - x*x);
+  double rfac = pow(0.5*(1.0 - x),2.5);
 
-  x = r_to_rh(r);
-  fac = 0.5*sqrt(1.0 - x*x);
-  rfac = pow(0.5*(1.0 - x),2.5);
-
-  for (l=0; l<=lmax; l++) {
+  for (int l=0; l<=lmax; l++) {
     get_ultra(nmax-1, (double)l, x, u[tid]);
-    for (n=0; n<nmax; n++) p(l, n+1) = krnl(l, n+1)*rfac*u[tid][n];
+    for (int n=0; n<nmax; n++) p(l, n) = krnl(l, n)*rfac*u[tid][n];
     rfac *= fac;
   }
 
@@ -100,19 +88,17 @@ void CBrock::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 void CBrock::get_potl_dens(int lmax, int nmax, double r, 
 			   Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid)
 {
-  double x, fac, rfac_p, rfac_d;
-  int l, n;
+  double x   = r_to_rh(r);
+  double fac = 0.5*sqrt(1.0 - x*x);
 
-  x = r_to_rh(r);
-  fac = 0.5*sqrt(1.0 - x*x);
-  rfac_p = sqrt(0.5*(1.0 - x));
-  rfac_d = pow(0.5*(1.0 - x),2.5);
+  double rfac_p = sqrt(0.5*(1.0 - x));
+  double rfac_d = pow(0.5*(1.0 - x),2.5);
   
-  for (l=0; l<=lmax; l++) {
+  for (int l=0; l<=lmax; l++) {
     get_ultra(nmax-1, (double)l, x, u[tid]);
-    for (n=0; n<nmax; n++) {
-      p(l, n+1) = rfac_p*u[tid][n];
-      d(l, n+1) = krnl(l, n+1)*rfac_d*u[tid][n];
+    for (int n=0; n<nmax; n++) {
+      p(l, n) = rfac_p*u[tid][n];
+      d(l, n) = krnl(l, n)*rfac_d*u[tid][n];
     }
     rfac_p *= fac;
     rfac_d *= fac;
