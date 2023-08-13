@@ -82,6 +82,7 @@ protected:
 
   //! Initialize method
   virtual void initialize();
+
   //! Provided by derived classes to check consistency
   virtual void check_range();
 
@@ -318,6 +319,19 @@ protected:
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  //@{
+  //! Radial coordinate mapping (r->x, and x->r)
+  virtual double r_to_xi  (double r) { return r;   }
+  virtual double xi_to_r  (double x) { return x;   }
+  virtual double d_r_to_xi(double r) { return 1.0; }
+  //@}
+
+  /** Compute the biorthogonality inner product and write to a file
+      for internal self-consistency check.  Enabled by including the
+      YAML boolean 'orthocheck'.
+  */
+  void biorthogonality_check();
 
 public:
 

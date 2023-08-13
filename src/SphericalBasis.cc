@@ -43,7 +43,8 @@ SphericalBasis::valid_keys = {
   "ssfrac",
   "playback",
   "coefCompute",
-  "coefMaster"
+  "coefMaster",
+  "orthocheck"
 };
 
 SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) : 
@@ -81,6 +82,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 #if HAVE_LIBCUDA==1
   cuda_aware       = true;
 #endif
+  ortho_check      = false;
 
   // Remove matched keys
   //
@@ -196,7 +198,9 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 	  std::cout << "---- New coefficients will be computed from particles on playback" << std::endl;
       }
     }
+    // END: playback config
 
+    if (conf["orthocheck"]) ortho_check = conf["orthocheck"].as<bool>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in SphericalBasis: "
@@ -338,6 +342,7 @@ void SphericalBasis::setup(void)
   }
 
   if (NOISE) compute_rms_coefs();
+  if (ortho_check) biorthogonality_check();
 }  
 
 
@@ -2228,4 +2233,85 @@ void SphericalBasis::occt_output()
       std::cout << std::string(8*(multistep+1), '-') << std::endl;
     }
   }
+}
+
+void SphericalBasis::biorthogonality_check()
+{
+  // Allocate storage
+  //
+  std::vector<std::vector<Eigen::MatrixXd>> one(numprocs);
+  for (auto & v : one) {
+    v.resize(Lmax+1);
+    for (auto & u : v) {
+      v.resize(nmax, nmax);
+      v.setZeros();
+    }
+  }
+
+  // Number of knots
+  //
+  const int num = 400;
+  LegeQuad wk(num);
+  
+  // Mapped radial range
+  //
+  double xmin = r_to_xi(rmin), xmax = xi_to_r(rmax);
+  double dx = xmax - xmin;
+
+  Eigen::MatrixXd p(Lmax+1, nmax), d(Lmax+1, nmax);
+
+
+  // Biorthogonal integral loop
+  //
+  for (int i=0; i<num; i++) {
+    for (i % numprocs == myid) {
+      double x = xmin + dx*wk.knot(i+1);
+      double r = xi_to_r(x);
+
+      get_potl(Lmax, nmax, r, p, 0);
+      get_dens(Lmax, nmax, r, d, 0);
+
+      for (int L=0, cnt=0; L<=Lmax; L++) {
+	for (int n1=0; n1<nmax; n1++) {
+	  for (int n2=0; n2<nmax; n2++, cnt++) {
+	    one[myid][L](n1, n2) += 4.0*M_PI*dx*wk.weight(i+1) *
+	      d_r_to_xi(r) * r * r * p(L, n1) * d(L, n2);
+	  }
+	}
+      }
+    }
+  }
+
+  // Reduce from workers to root and print to file
+  //
+  if (myid==0) {
+    for (int L=0; L<=Lmax; L++)
+      MPI_Reduce(MPI_IN_PLACE, one[0][L].data(), one[0][L].size(),
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    std::ostringstream filename;
+    filename << "ortho_check." << component->name << "." << runtag;
+    std::ofstream out(filename.str());
+    if (out) {
+      // Header
+      //
+      out << "# component=" << component->name << std::endl
+	  << "# force ID =" << this->id << std::endl
+	  << "#" << std::endl;
+
+      // Print biorthogonality matrices
+      //
+      for (int L=0, cnt=0; L<=Lmax; L++) {
+	out << "#" << std::string(72, '-') << std::endl;
+	out << "# L=" << L << std::endl
+	out << "#" << std::string(72, '-') << std::endl;
+	out << one[0][L] << std::endl;
+    }
+  }
+  else {
+    for (int L=0; L<=Lmax; L++)
+      MPI_Reduce(one[myid][L].data(), 0, one[myid][L].size(),
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
+
 }

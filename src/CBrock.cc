@@ -33,8 +33,8 @@ void CBrock::initialize(void)
 void CBrock::get_dpotl(int lmax, int nmax, double r,
 		       Eigen::MatrixXd& p, Eigen::MatrixXd& dp, int tid)
 {
-  double x  = r_to_rh(r);
-  double dx = d_r_to_rh(r);
+  double x  = r_to_xi(r);
+  double dx = d_r_to_xi(r);
 
   double fac   = 0.5*sqrt(1.0 - x*x);
   double rfac  = sqrt(0.5*(1.0 - x));
@@ -59,7 +59,7 @@ void CBrock::get_dpotl(int lmax, int nmax, double r,
 
 void CBrock::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
-  double x    = r_to_rh(r);
+  double x    = r_to_xi(r);
   double fac  = 0.5*sqrt(1.0 - x*x);
   double rfac = sqrt(0.5*(1.0 - x));
   
@@ -73,7 +73,7 @@ void CBrock::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 
 void CBrock::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
-  double x    = r_to_rh(r);
+  double x    = r_to_xi(r);
   double fac  = 0.5*sqrt(1.0 - x*x);
   double rfac = pow(0.5*(1.0 - x),2.5);
 
@@ -88,7 +88,7 @@ void CBrock::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 void CBrock::get_potl_dens(int lmax, int nmax, double r, 
 			   Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid)
 {
-  double x   = r_to_rh(r);
+  double x   = r_to_xi(r);
   double fac = 0.5*sqrt(1.0 - x*x);
 
   double rfac_p = sqrt(0.5*(1.0 - x));
@@ -110,29 +110,29 @@ void CBrock::get_potl_dens(int lmax, int nmax, double r,
  *                                                                       *
  *      Convert between reduced coordinate                               *
  *                                                                       *
- *                 r^2-1                                                 *
- *          rh =  -------                                                *
- *                 r^2+1                                                 *
+ *               r^2-1                                                   *
+ *          x = -------                                                  *
+ *               r^2+1                                                   *
  *                                                                       *
  *      and its inverse:                                                 *
  *                                                                       *
- *              (1+rh)^(1/2)                                             *
+ *              (1+x)^(1/2)                                              *
  *          r = ------------                                             *
- *              (1-rh)^(1/2)                                             *
+ *              (1-x)^(1/2)                                              *
  *                                                                       *
  *-----------------------------------------------------------------------*/
 
 
 #define BIG 1.0e30
-double CBrock::rh_to_r(double rh)
+double CBrock::xi_to_r(double xi)
 {
-  if (rh>=1.0) 
+  if (xi>=1.0) 
     return BIG;
   else
-    return sqrt( (1.0+rh)/(1.0-rh) );
+    return sqrt( (1.0+xi)/(1.0-xi) );
 }
 
-double CBrock::d_r_to_rh(double r)
+double CBrock::d_r_to_xi(double r)
 {
   double fac;
 
@@ -140,7 +140,7 @@ double CBrock::d_r_to_rh(double r)
   return 4.0*r/(fac*fac);
 }
 
-double CBrock::r_to_rh(double r)
+double CBrock::r_to_xi(double r)
 {
   return (r*r-1.0)/(r*r+1.0);
 }
