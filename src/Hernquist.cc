@@ -35,8 +35,8 @@ void Hernquist::get_dpotl(int lmax, int nmax, double r,
 			  Eigen::MatrixXd& p, Eigen::MatrixXd& dp,
 			  int tid)
 {
-  double x     = r_to_rq(r);
-  double dx    = d_r_to_rq(r);
+  double x     = r_to_xi(r);
+  double dx    = d_r_to_xi(r);
   double fac   = 0.25*(1.0 - x*x);
   double rfac  = 0.5*(1.0 - x);
   double drfac = -1.0/(1.0 - x*x);
@@ -61,7 +61,7 @@ void Hernquist::get_dpotl(int lmax, int nmax, double r,
 void Hernquist::get_potl(int lmax, int nmax, double r,
 			 Eigen::MatrixXd& p, int tid)
 {
-  double x    = r_to_rq(r);
+  double x    = r_to_xi(r);
   double fac  = 0.25*(1.0 - x*x);
   double rfac = 0.5*(1.0 - x);
   
@@ -75,7 +75,7 @@ void Hernquist::get_potl(int lmax, int nmax, double r,
 void Hernquist::get_dens(int lmax, int nmax, double r,
 			 Eigen::MatrixXd& p, int tid)
 { 
-  double x    = r_to_rq(r);
+  double x    = r_to_xi(r);
   double fac  = 0.25*(1.0 - x*x);
   double rfac = 0.25*pow(1.0 - x, 5.0)/(1.0 - x*x);
 
@@ -90,7 +90,7 @@ void Hernquist::get_dens(int lmax, int nmax, double r,
 void Hernquist::get_potl_dens(int lmax, int nmax, double r, 
 			      Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid)
 {
-  double x     = r_to_rq(r);
+  double x     = r_to_xi(r);
   double fac   = 0.25*(1.0 - x*x);
   double rfacp = 0.5*(1.0 - x);
   double rfacd = 0.25*pow(1.0 - x, 5.0)/(1.0 - x*x);
@@ -109,29 +109,29 @@ void Hernquist::get_potl_dens(int lmax, int nmax, double r,
  *                                                                       *
  *      Convert between reduced coordinate                               *
  *                                                                       *
- *                 r - 1                                                 *
- *          rq =  -------                                                *
- *                 r + 1                                                 *
+ *               r - 1                                                   *
+ *          x = -------                                                  *
+ *               r + 1                                                   *
  *                                                                       *
  *      and its inverse:                                                 *
  *                                                                       *
- *              (1+rq)
- *          r = ------
- *              (1-rq)
+ *              (1+x)                                                    *
+ *          r = ------                                                   *
+ *              (1-x)                                                    *
  *                                                                       *
  *-----------------------------------------------------------------------*/
 
 
 #define BIG 1.0e30
-double Hernquist::rq_to_r(double rq)
+double Hernquist::xi_to_r(double x)
 {
-  if (rq>=1.0) 
+  if (x>=1.0) 
     return BIG;
   else
-    return (1.0+rq)/(1.0-rq);
+    return (1.0+x)/(1.0-x);
 }
 
-double Hernquist::d_r_to_rq(double r)
+double Hernquist::d_r_to_xi(double r)
 {
   double fac;
 
@@ -139,7 +139,7 @@ double Hernquist::d_r_to_rq(double r)
   return 2.0/(fac*fac);
 }
 
-double Hernquist::r_to_rq(double r)
+double Hernquist::r_to_xi(double r)
 {
   return (r-1.0)/(r+1.0);
 }

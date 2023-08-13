@@ -327,11 +327,14 @@ protected:
   virtual double d_r_to_xi(double r) { return 1.0; }
   //@}
 
+  //@{
   /** Compute the biorthogonality inner product and write to a file
       for internal self-consistency check.  Enabled by including the
       YAML boolean 'orthocheck'.
   */
+  bool ortho_check;
   void biorthogonality_check();
+  //@}
 
 public:
 

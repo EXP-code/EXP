@@ -2237,14 +2237,16 @@ void SphericalBasis::occt_output()
 
 void SphericalBasis::biorthogonality_check()
 {
-  // Allocate storage
+  // Allocate storage:
+  // - 1st index is the node
+  // - 2nd index is L
   //
   std::vector<std::vector<Eigen::MatrixXd>> one(numprocs);
   for (auto & v : one) {
     v.resize(Lmax+1);
     for (auto & u : v) {
-      v.resize(nmax, nmax);
-      v.setZeros();
+      u.resize(nmax, nmax);
+      u.setZero();
     }
   }
 
@@ -2255,7 +2257,7 @@ void SphericalBasis::biorthogonality_check()
   
   // Mapped radial range
   //
-  double xmin = r_to_xi(rmin), xmax = xi_to_r(rmax);
+  double xmin = r_to_xi(rmin), xmax = r_to_xi(rmax);
   double dx = xmax - xmin;
 
   Eigen::MatrixXd p(Lmax+1, nmax), d(Lmax+1, nmax);
@@ -2264,18 +2266,26 @@ void SphericalBasis::biorthogonality_check()
   // Biorthogonal integral loop
   //
   for (int i=0; i<num; i++) {
-    for (i % numprocs == myid) {
-      double x = xmin + dx*wk.knot(i+1);
-      double r = xi_to_r(x);
 
+    // Each node contributes individual radii
+    //
+    if (i % numprocs == myid) {
+
+      double x = xmin + dx*wk.knot(i);
+      double r = xi_to_r(x);
+      double w = dx*wk.weight(i) * d_r_to_xi(r) * r * r;
+
+      // Evaluate basis at radius r
+      //
       get_potl(Lmax, nmax, r, p, 0);
       get_dens(Lmax, nmax, r, d, 0);
 
+      // Contribution to the integrand
+      //
       for (int L=0, cnt=0; L<=Lmax; L++) {
 	for (int n1=0; n1<nmax; n1++) {
 	  for (int n2=0; n2<nmax; n2++, cnt++) {
-	    one[myid][L](n1, n2) += 4.0*M_PI*dx*wk.weight(i+1) *
-	      d_r_to_xi(r) * r * r * p(L, n1) * d(L, n2);
+	    one[myid][L](n1, n2) += w * p(L, n1) * d(L, n2);
 	  }
 	}
       }
@@ -2285,10 +2295,15 @@ void SphericalBasis::biorthogonality_check()
   // Reduce from workers to root and print to file
   //
   if (myid==0) {
+
+    // Get contributions from worker nodes
+    //
     for (int L=0; L<=Lmax; L++)
       MPI_Reduce(MPI_IN_PLACE, one[0][L].data(), one[0][L].size(),
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
+    // Output file
+    //
     std::ostringstream filename;
     filename << "ortho_check." << component->name << "." << runtag;
     std::ofstream out(filename.str());
@@ -2303,15 +2318,18 @@ void SphericalBasis::biorthogonality_check()
       //
       for (int L=0, cnt=0; L<=Lmax; L++) {
 	out << "#" << std::string(72, '-') << std::endl;
-	out << "# L=" << L << std::endl
+	out << "# L=" << L << std::endl;
 	out << "#" << std::string(72, '-') << std::endl;
-	out << one[0][L] << std::endl;
+	out << std::scientific << std::setprecision(4)
+	    << one[0][L] << std::endl;
+      }
     }
   }
   else {
+    // Send contributions to root node
+    //
     for (int L=0; L<=Lmax; L++)
       MPI_Reduce(one[myid][L].data(), 0, one[myid][L].size(),
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   }
-
 }
