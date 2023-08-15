@@ -77,7 +77,7 @@ public:
   virtual ~SlabSL();
 
   //! Print coefficients to output stream
-  void dump_coefs(ostream& out);
+  void dump_coefs(std::ostream& out);
 };
 
 

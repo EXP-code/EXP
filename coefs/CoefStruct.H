@@ -136,7 +136,7 @@ namespace CoefClasses
     { geom = "slab"; }
 
     //! No need to read
-    bool read(std::istream& in, bool exp_type, bool verbose=false) { return false; }
+    bool read(std::istream& in, bool exp_type, bool verbose=false);
 
     //! Create an empty data storage
     void create();
@@ -159,7 +159,7 @@ namespace CoefClasses
     { geom = "box"; }
 
     //! No need to read
-    bool read(std::istream& in, bool exp_type, bool verbose=false) { return false; }
+    bool read(std::istream& in, bool exp_type, bool verbose=false);
 
     //! Create an empty data storage
     void create();

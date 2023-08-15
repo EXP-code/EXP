@@ -144,10 +144,9 @@ void CoefficientClasses(py::module &m) {
 			     time);
     }
 
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE_PURE(void, Coefs, dump,
-			     mmin, mmax, nmin, nmax);
-    }
+    // void dump(std::vector<int>& min, std::vector<int>& max) override {
+    // PYBIND11_OVERRIDE_PURE(void, Coefs, dump, min, max);
+    // }
 
     std::vector<double> Times() override {
       PYBIND11_OVERRIDE_PURE(std::vector<double>, Coefs, Times,);
@@ -226,10 +225,9 @@ void CoefficientClasses(py::module &m) {
 			time);
     }
 
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE(void, SphCoefs,dump,
-			mmin, mmax, nmin, nmax);
-    }
+    // void dump(std::vector<int>& min, std::vector<int>& max) override {
+    // PYBIND11_OVERRIDE(void, SphCoefs, dump, min, max);
+    // }
 
     std::vector<double> Times() override {
       PYBIND11_OVERRIDE(std::vector<double>, SphCoefs, Times,);
@@ -310,10 +308,9 @@ void CoefficientClasses(py::module &m) {
 			time);
     }
 
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE(void, CylCoefs, dump,
-			mmin, mmax, nmin, nmax);
-    }
+    // void dump(std::vector<int>& min, std::vector& max) override {
+    // PYBIND11_OVERRIDE(void, CylCoefs, dump, min, max);
+    // }
 
     std::vector<double> Times() override {
       PYBIND11_OVERRIDE(std::vector<double>, CylCoefs, Times,);
@@ -393,10 +390,9 @@ void CoefficientClasses(py::module &m) {
 			time);
     }
 
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE(void, TableData, dump,
-			mmin, mmax, nmin, nmax);
-    }
+    // void dump(std::vector<int>& min, std::vector<int>& max) override {
+    // PYBIND11_OVERRIDE(void, TableData, dump, min, max);
+    // }
 
     std::vector<double> Times() override {
       PYBIND11_OVERRIDE(std::vector<double>, TableData, Times,);

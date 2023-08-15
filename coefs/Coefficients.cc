@@ -436,8 +436,11 @@ namespace CoefClasses
     return ret;
   }
   
-  void SphCoefs::dump(int lmin, int lmax, int nmin, int nmax)
+
+  void SphCoefs::dump(std::vector<int>& min, std::vector<int>& max)
   {
+    int lmin = min[0], nmin = min[1], lmax = min[0], nmax = max[1];
+
     for (auto c : coefs) {
       unsigned I = 0;
       if (lmin>0) I += lmin*lmin;
@@ -770,9 +773,9 @@ namespace CoefClasses
     return ret;
   }
   
-  void CylCoefs::dump(int mmin, int mmax, int nmin, int nmax)
+  void CylCoefs::dump(std::vector<int>& min, std::vector<int>& max)
   {
-    
+    int mmin = min[0], nmin = min[1], mmax = max[0], nmax = max[1];
     for (auto c : coefs) {
       for (int mm=mmin; mm<=std::min<int>(mmax, c.second->mmax); mm++) {
 	std::cout << std::setw(18) << c.first << std::setw(5) << mm;
@@ -1052,8 +1055,10 @@ namespace CoefClasses
     return ret;
   }
   
-  void SlabCoefs::dump(int minx, int maxx, int miny, int maxy, int nmin, int nmax)
+  void SlabCoefs::dump(std::vector<int>& min, std::vector<int>& max)
   {
+    int minx = min[0], miny = min[1], nmin = min[2];
+    int maxx = max[0], maxy = max[1], nmax = max[2];
     for (auto c : coefs) {
       for (int nx=minx; nx<=std::min<int>(maxx, c.second->nmaxx); nx++) {
 	for (int ny=miny; ny<=std::min<int>(maxy, c.second->nmaxy); ny++) {
@@ -1395,8 +1400,11 @@ namespace CoefClasses
     return ret;
   }
   
-  void BoxCoefs::dump(int minx, int maxx, int miny, int maxy, int minz, int maxz)
+  void BoxCoefs::dump(std::vector<int>& min, std::vector<int>& max)
   {
+    int minx = min[0], miny = min[1], minz = min[2];
+    int maxx = max[0], maxy = max[1], maxz = max[2];
+
     for (auto c : coefs) {
       for (int nx=std::max<int>(minx, 0); nx<=std::min<int>(maxx, c.second->nmaxx); nx++) {
 	for (int ny=std::max<int>(miny, 0); ny<=std::min<int>(maxy, c.second->nmaxy); ny++) {

@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <cmath>
 
 #include "expand.H"
@@ -14,6 +15,8 @@ ShearSL::valid_keys = {
   "nminx",
   "nminy",
   "hslab",
+  "Lx",
+  "Ly",
   "R",
   "Omega",
   "Kappa",
@@ -23,37 +26,48 @@ ShearSL::valid_keys = {
 ShearSL::ShearSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Shear (Sturm-Liouville)";
-  NGRID = 100;
-  nminx = nminy = 0;
-  nmaxx = nmaxy = nmaxz = 10;
-  zmax = 10.0;
-  hslab = 0.2;
-  Omega = 1.0;
-  Kappa = M_SQRT2;
-  R     = 1.0;
+  NGRID  = 100;
+  nminx  = 0;
+  nminy  = 0;
+  nmaxx  = 10;
+  nmaxy  = 10;
+  nmaxz  = 10;
+  zmax   = 10.0;
+  hslab  = 0.2;
+  Omega  = 1.0;
+  Kappa  = M_SQRT2;
+  R      = 1.0;
+  Lx     = 0.2;
+  Ly     = 0.2;
   coef_dump = true;
 
   initialize();
 
-  SLGridSlab::mpi = 1;
+  SLGridSlab::mpi  = 1;
   SLGridSlab::ZBEG = 0.0;
   SLGridSlab::ZEND = 0.1;
-  SLGridSlab::H = hslab;
+  SLGridSlab::H    = hslab;
   
   int nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
-  grid = new SLGridSlab(nnmax, nmaxz, NGRID, zmax);
+  grid = std::make_shared<SLGridSlab>(nnmax, nmaxz, NGRID, zmax);
 
-  imx = 1+2*nmaxx;
-  imy = 1+2*nmaxy;
-  imz = nmaxz;
+  imx  = 1+2*nmaxx;
+  imy  = 1+2*nmaxy;
+  imz  = nmaxz;
   jmax = imx*imy*imz;
 
   expccof.resize(nthrds);
   for (auto & v : expccof) v.resize(jmax);
     
-  dfac = 2.0*M_PI;
-  kfac = std::complex<double>(0.0, dfac);
+  dfacx = 2.0*M_PI/Lx;
+  dfacy = 2.0*M_PI/Ly;
+
+  normx = 1.0/sqrt(Lx);
+  normy = 1.0/sqrt(Ly);
+
+  kfacx = std::complex<double>(0.0, dfacx);
+  kfacy = std::complex<double>(0.0, dfacy);
     
   nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
@@ -66,7 +80,7 @@ ShearSL::ShearSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 
 ShearSL::~ShearSL()
 {
-  delete grid;
+  // Nothing
 }
 
 void ShearSL::initialize()
@@ -87,6 +101,8 @@ void ShearSL::initialize()
     if (conf["zmax" ])          zmax        = conf["zmax" ].as<double>();
     if (conf["Omega"])          Omega       = conf["Omega"].as<double>();
     if (conf["Kappa"])          Kappa       = conf["Kappa"].as<double>();
+    if (conf["Lx"   ])          Lx          = conf["Lx"   ].as<double>();
+    if (conf["Ly"   ])          Ly          = conf["Ly"   ].as<double>();
     if (conf["R"    ])          R           = conf["R"    ].as<double>();
   }
   catch (YAML::Exception & error) {
@@ -108,7 +124,7 @@ void ShearSL::determine_coefficients(void)
 				//  n=-nmax,-nmax+1,...,0,...,nmax-1,nmax
 				//  in a single array for each dimension
 				//  with z dimension changing most rapidly
-
+  
   // Clean 
 
   for (int i=0; i<nthrds; i++) {
@@ -134,53 +150,59 @@ void ShearSL::determine_coefficients(void)
 
 void * ShearSL::determine_coefficients_thread(void * arg)
 {
-  int ix, iy, iz, iix, iiy, ii, jj, indx;
-
-  std::complex<double> startx, starty, facx, facy;
-  std::complex<double> stepx, stepy;
+  int ix, iy;
+  std::complex<double> facx, facy;
 
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   double adb = cC->Adiabatic();
-  double zz;
 
   for (int i=nbeg; i<nend; i++) {
     
 				// Increment particle counter
     use[id]++;
 
-				// Truncate to box with sides in [0,1]
+				// Truncate to box with sides in
+				// [-Lx/2, Lx/2] x [ 0, Ly ]
     
-    if (cC->Pos(i, 0)<0.0)
-      cC->AddPos(i, 0, (double)((int)fabs(cC->Pos(i, 0))) + 1.0 );
-    else
-      cC->AddPos(i, 0, -(double)((int)cC->Pos(i, 0)) );
+    if (cC->Pos(i, 0) < -0.5*Lx) {
+      int delta = floor((0.5*Lx - cC->Pos(i, 0)/Lx));
+      cC->AddPos(i, 0, Lx*delta);
+    }
+    if (cC->Pos(i, 0) > 0.5*Lx) {
+      int delta = floor((cC->Pos(i, 0) + 0.5*Lx)/Lx);
+      cC->AddPos(i, 0, -Lx*delta);
+    }
     
-    if (cC->Pos(i, 1)<0.0)
-      cC->AddPos(i, 1, (double)((int)fabs(cC->Pos(i, 1))) + 1.0 );
-    else
-      cC->AddPos(i, 1, -(double)((int)cC->Pos(i, 1)) );
+    if (cC->Pos(i, 1) < 0) {
+      int delta = floor(-cC->Pos(i, 0)/Ly);
+      cC->AddPos(i, 1, Ly*delta);
+    }
+    if (cC->Pos(i, 0) > Ly) {
+      int delta = floor(cC->Pos(i, 1)/Ly);
+      cC->AddPos(i, 0, -Ly*delta);
+    }
     
 
 				// Recursion multipliers
-    stepx = exp(-kfac*cC->Pos(i, 0));
-    stepy = exp(-kfac*cC->Pos(i, 1));
+    auto stepx = std::exp(-kfacx*cC->Pos(i, 0));
+    auto stepy = std::exp(-kfacy*cC->Pos(i, 1));
    
 				// Initial values
-    startx = exp(static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
-    starty = exp(static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
+    auto startx = exp(static_cast<double>(nmaxx)*kfacx*cC->Pos(i, 0));
+    auto starty = exp(static_cast<double>(nmaxy)*kfacy*cC->Pos(i, 1));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
-      ii = ix - nmaxx;
-      iix = abs(ii);
+      int ii = ix - nmaxx;
+      int iix = abs(ii);
       
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	
-	jj = iy - nmaxy;
-	iiy = abs(jj);
+	int jj = iy - nmaxy;
+	int iiy = abs(jj);
 	
 	if (iix > nmaxx) {
 	  cerr << "Out of bounds: iix=" << ii << endl;
@@ -189,7 +211,7 @@ void * ShearSL::determine_coefficients_thread(void * arg)
 	  cerr << "Out of bounds: iiy=" << jj << endl;
 	}
 	
-	zz = cC->Pos(i, 2, Component::Centered);
+	double zz = cC->Pos(i, 2, Component::Centered);
 
 	if (iix>=iiy)
 	  grid->get_pot(zpot[id], zz, iix, iiy);
@@ -197,15 +219,15 @@ void * ShearSL::determine_coefficients_thread(void * arg)
 	  grid->get_pot(zpot[id], zz, iiy, iix);
 
 
-	for (iz=0; iz<imz; iz++) {
+	for (int iz=0; iz<imz; iz++) {
 
-	  indx = imz*(iy + imy*ix) + iz;
+	  int indx = imz*(iy + imy*ix) + iz;
 
                               // |--- density in orthogonal series
                               // |    is 4.0*M_PI rho
                               // v
 	  expccof[id][indx] += -4.0*M_PI*cC->Mass(i)*adb*
-	    facx*facy*zpot[id][iz+1];
+	    facx*facy*zpot[id][iz+1] * normx * normy;
 	}
       }
     }
@@ -241,12 +263,12 @@ void * ShearSL::determine_acceleration_and_potential_thread(void * arg)
     accx = accy = accz = potl = 0.0;
     
 				// Recursion multipliers
-    stepx = exp(kfac*cC->Pos(i, 0));
-    stepy = exp(kfac*cC->Pos(i, 1));
+    auto stepx = exp(kfacx*cC->Pos(i, 0));
+    auto stepy = exp(kfacy*cC->Pos(i, 1));
 
 				// Initial values (note sign change)
-    startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
-    starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
+    auto startx = exp(-static_cast<double>(nmaxx)*kfacx*cC->Pos(i, 0));
+    auto starty = exp(-static_cast<double>(nmaxy)*kfacy*cC->Pos(i, 1));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
@@ -284,8 +306,8 @@ void * ShearSL::determine_acceleration_and_potential_thread(void * arg)
 	  
 	  indx = imz*(iy + imy*ix) + iz;
 	  
-	  fac  = facx*facy*zpot[id][iz+1]*expccof[0][indx];
-	  facf = facx*facy*zfrc[id][iz+1]*expccof[0][indx];
+	  fac  = facx*facy*zpot[id][iz+1]*expccof[0][indx] * normx * normy;
+	  facf = facx*facy*zfrc[id][iz+1]*expccof[0][indx] * normx * normy;
 	  
 				// Limit to minimum wave number
 	  
@@ -293,8 +315,8 @@ void * ShearSL::determine_acceleration_and_potential_thread(void * arg)
 	  
 	  potl += fac;
 	  
-	  accx += -dfac*ii*std::complex<double>(0.0,1.0)*fac;
-	  accy += -dfac*jj*std::complex<double>(0.0,1.0)*fac;
+	  accx += -dfacx*ii*std::complex<double>(0.0,1.0)*fac;
+	  accy += -dfacy*jj*std::complex<double>(0.0,1.0)*fac;
 	  accz += -facf;
 	  
 	}
@@ -310,19 +332,54 @@ void * ShearSL::determine_acceleration_and_potential_thread(void * arg)
   return (NULL);
 }
 
-void ShearSL::dump_coefs(ostream& out)
+void ShearSL::dump_coefs_h5(const std::string& file)
 {
-  coefheader.time = tnow;
-  coefheader.zmax = zmax;
-  coefheader.h = hslab;
-  coefheader.type = ID;
-  coefheader.nmaxx = nmaxx;
-  coefheader.nmaxy = nmaxy;
-  coefheader.nmaxz = nmaxz;
-  coefheader.jmax = (1+2*nmaxx)*(1+2*nmaxy)*nmaxz;
-  
-  out.write((char *)&coefheader, sizeof(SlabSLCoefHeader));
-  out.write((char *)expccof[0].data(),
-	    expccof[0].size()*sizeof(std::complex<double>));
+  // Add the current coefficients
+  auto cur = std::make_shared<CoefClasses::SlabStruct>();
+
+  cur->time   = tnow;
+  cur->geom   = geoname[geometry];
+  cur->id     = id;
+  cur->time   = tnow;
+  cur->nmaxx  = nmaxx;
+  cur->nmaxy  = nmaxy;
+  cur->nmaxz  = nmaxz;
+
+
+  cur->coefT.resize({2*nmaxx+1, 2*nmaxy+1, nmaxz});
+
+  for (int nx=0; nx<2*nmaxx; nx++) {
+    for (int ny=0; ny<2*nmaxy; ny++) {
+      for (int nz=0; nz<nmaxz; nz++) {
+	int indx = imz*(ny + imy*nx) + nz;
+	cur->coefT(nx, ny, nz) = expccof[0][indx];
+      }
+    }
+  }
+
+  // Check if file exists
+  //
+  if (std::filesystem::exists(file)) {
+    slabCoefs.clear();
+    slabCoefs.add(cur);
+    slabCoefs.ExtendH5Coefs(file);
+  }
+  // Otherwise, extend the existing HDF5 file
+  //
+  else {
+    // Copy the YAML config.  We only need this on the first call.
+    std::ostringstream sout; sout << conf;
+    size_t hsize = sout.str().size() + 1;
+    cur->buf = std::shared_ptr<char[]>(new char [hsize]);
+    sout.str().copy(cur->buf.get(), hsize); // Copy to CoefStruct buffer
+
+    // Add the name attribute.  We only need this on the first call.
+    slabCoefs.setName(component->name);
+
+    // And the new coefficients and write the new HDF5
+    slabCoefs.clear();
+    slabCoefs.add(cur);
+    slabCoefs.WriteH5Coefs(file);
+  }
 }
 

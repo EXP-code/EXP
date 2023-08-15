@@ -42,6 +42,19 @@ namespace CoefClasses
       throw std::runtime_error("SphStruct::create: nmax must be >0");
   }
 
+  void SlabStruct::create()
+  {
+    if (nmaxz>0)
+      coefT.resize({2*nmaxx+1, 2*nmaxy+1, nmaxz});
+    else
+      throw std::runtime_error("labStruct::create: vertical order must be >0");
+  }
+
+  void BoxStruct::create()
+  {
+    coefT.resize({2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1});
+  }
+
   void TblStruct::create()
   {
     if (cols>0)
@@ -389,6 +402,13 @@ namespace CoefClasses
       return false;
     }
   }
+
+  bool SlabStruct::read(std::istream& in, bool exp_type, bool verbose)
+  { return false; }
+
+  bool  BoxStruct::read(std::istream& in, bool exp_type, bool verbose)
+  { return false; }
+
 
 }
 // END namespace CoefClasses

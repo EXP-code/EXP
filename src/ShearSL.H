@@ -2,6 +2,8 @@
 #define _ShearSL_H
 
 #include <complex>
+#include <memory>
+
 #include <SLGridMP2.H>
 #include <biorth1d.H>
 #include <PotAccel.H>
@@ -15,19 +17,21 @@ class ShearSL : public PotAccel
 {
 private:
 
-  SLGridSlab *grid;
+  std::shared_ptr<SLGridSlab> grid;
 
   std::vector<Eigen::VectorXcd> expccof;
   std::vector<std::vector<OneDTrig>> trig;
 
   int nminx, nminy;
   int nmaxx, nmaxy, nmaxz;
-  double zmax, hslab, Omega, Kappa, R;
+  double zmax, hslab, Omega, Kappa, R, Lx, Ly;
 
   int imx, imy, imz, jmax, nnmax;
-  double  dfac;
-  std::complex<double> kfac;
 
+  double dfacx, dfacy;
+  double normx, normy;
+  std::complex<double> kfacx, kfacy;
+  
   std::vector<Eigen::VectorXd> zfrc, zpot;
 
   int NGRID;
@@ -53,6 +57,9 @@ protected:
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
 
+  //! Coefficient container instance for writing HDF5
+  CoefClasses::SlabCoefs slabCoefs;
+
 public:
 
   //! Id string
@@ -64,8 +71,8 @@ public:
   //! Destructor
   virtual ~ShearSL();
 
-  //! Print coefficients to output stream
-  void dump_coefs(std::ostream& out);
+  //! Dump current coefficients into named HDF5 file
+  void dump_coefs_h5(const std::string& file);
 };
 
 

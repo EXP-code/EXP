@@ -264,7 +264,7 @@ namespace CoefClasses
     { return coefs[time]; }
 
     //! Dump to ascii list for testing
-    virtual void dump(int lmin, int lmax, int nmin, int nmax);
+    virtual void dump(std::vector<int>& min, std::vector<int>& max);
     
     //! Get list of coefficient times
     virtual std::vector<double> Times()
@@ -387,7 +387,7 @@ namespace CoefClasses
 
 
     //! Dump to ascii list for testing
-    virtual void dump(int mmin, int mmax, int nmin, int nmax);
+    virtual void dump(std::vector<int>& min, std::vector<int>& max);
     
     //! Get list of coefficient times
     virtual std::vector<double> Times()
@@ -500,7 +500,7 @@ namespace CoefClasses
 
 
     //! Dump to ascii list for testing
-    virtual void dump(int minx, int maxx, int miny, int maxy, int nmin, int nmax);
+    virtual void dump(std::vector<int>& min, std::vector<int>& max);
     
     //! Get list of coefficient times
     virtual std::vector<double> Times()
@@ -618,7 +618,7 @@ namespace CoefClasses
 
 
     //! Dump to ascii list for testing
-    virtual void dump(int minx, int maxx, int miny, int maxy, int nmin, int nmax);
+    virtual void dump(std::vector<int>& min, std::vector<int>& max);
     
     //! Get list of coefficient times
     virtual std::vector<double> Times()
@@ -748,7 +748,7 @@ namespace CoefClasses
     { return coefs[time]; }
 
     //! Dump to ascii list for testing
-    virtual void dump(int lmin, int lmax, int nmin, int nmax) {}
+    virtual void dump(std::vector<int>& min, std::vector<int>& max) {}
     
     //! Get list of coefficient times
     virtual std::vector<double> Times() { return times; }
