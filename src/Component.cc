@@ -19,6 +19,7 @@
 #include <Cube.H>
 #include <Slab.H>
 #include <SlabSL.H>
+#include <ShearSL.H>
 #include <Direct.H>
 #include <Shells.H>
 #include <NoForce.H>
@@ -929,6 +930,9 @@ void Component::configure(void)
   }
   else if ( !id.compare("slabSL") ) {
     force = new SlabSL(this, fconf);
+  }
+  else if ( !id.compare("shearSL") ) {
+    force = new ShearSL(this, fconf);
   }
   else if ( !id.compare("cylinder") ) {
     force = new Cylinder(this, fconf);

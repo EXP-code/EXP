@@ -32,7 +32,7 @@ namespace CoefClasses
     p->verbose  = verbose;
     p->times    = times;
   }
-
+  
   std::tuple<Eigen::MatrixXcd&, bool> Coefs::interpolate(double time)
   {
     bool onGrid = true;
@@ -176,6 +176,46 @@ namespace CoefClasses
     ret->Mmax  = Mmax;
     ret->Nmax  = Nmax;
     ret->angle = angle;
+
+    return ret;
+  }
+
+  std::shared_ptr<Coefs> SlabCoefs::deepcopy()
+  {
+    auto ret = std::make_shared<SlabCoefs>();
+
+    // Copy the base-class fields
+    copyfields(ret);
+
+    // Copy the local structures from the map to the struct pointers
+    // by copyfing fields, not the pointer
+    for (auto v : coefs)
+      ret->coefs[v.first] =
+	std::dynamic_pointer_cast<SlabStruct>(v.second->deepcopy());
+
+    ret->NmaxX = NmaxX;
+    ret->NmaxY = NmaxY;
+    ret->NmaxZ = NmaxZ;
+
+    return ret;
+  }
+
+  std::shared_ptr<Coefs> BoxCoefs::deepcopy()
+  {
+    auto ret = std::make_shared<BoxCoefs>();
+
+    // Copy the base-class fields
+    copyfields(ret);
+
+    // Copy the local structures from the map to the struct pointers
+    // by copyfing fields, not the pointer
+    for (auto v : coefs)
+      ret->coefs[v.first] =
+	std::dynamic_pointer_cast<BoxStruct>(v.second->deepcopy());
+
+    ret->NmaxX = NmaxX;
+    ret->NmaxY = NmaxY;
+    ret->NmaxZ = NmaxZ;
 
     return ret;
   }
@@ -845,6 +885,697 @@ namespace CoefClasses
     return {powerE, powerO};
   }
   
+  SlabCoefs::SlabCoefs(HighFive::File& file, int stride,
+		       double Tmin, double Tmax, bool verbose) :
+    Coefs("slab", verbose)
+  {
+    unsigned count;
+    std::string config;
+    
+    file.getAttribute("name"   ).read(name  );
+    file.getAttribute("nmaxx"  ).read(NmaxX );
+    file.getAttribute("nmaxy"  ).read(NmaxY );
+    file.getAttribute("nmaxz"  ).read(NmaxZ );
+    file.getAttribute("config" ).read(config);
+    file.getDataSet  ("count"  ).read(count );
+    
+    // Open the snapshot group
+    //
+    auto snaps = file.getGroup("snapshots");
+    
+    for (unsigned n=0; n<count; n+=stride) {
+      
+      std::ostringstream sout;
+      sout << std::setw(8) << std::setfill('0') << std::right << n;
+      
+      auto stanza = snaps.getGroup(sout.str());
+      
+      double Time;
+      stanza.getAttribute("Time").read(Time);
+      
+      if (Time < Tmin or Time > Tmax) continue;
+
+      // Read/write with an intermediate allocation of a vector
+      //
+      Eigen::Tensor<std::complex<double>, 3> in(2*NmaxX+1, 2*NmaxY+1, NmaxZ);
+
+      // Read the vector
+      //
+      std::vector<std::complex<double>> tmp;
+      stanza.getDataSet("coefficients").read(tmp);
+      
+      // Load the tensor
+      //
+      for (int i=0; i<in.size(); i++) in.data()[i] = tmp[i];
+
+      // Pack the data into the coefficient variable
+      //
+      auto coef = std::make_shared<SlabStruct>();
+      
+      coef->nmaxx = NmaxX;
+      coef->nmaxy = NmaxY;
+      coef->nmaxz = NmaxZ;
+      coef->time  = Time;
+      coef->coefT = in;
+      
+      coefs[roundTime(Time)] = coef;
+    }
+
+    times.clear();
+    for (auto t : coefs) times.push_back(t.first);
+  }
+  
+  Eigen::MatrixXcd& SlabCoefs::operator()(double time)
+  {
+    auto it = coefs.find(roundTime(time));
+    
+    if (it == coefs.end()) {
+      
+      mat.resize(0, 0);
+      
+    } else {
+      
+      mat = it->second->coefs;
+      
+    }
+    
+    return mat;
+  }
+  
+  
+  void SlabCoefs::setTensor(double time, const Eigen::Tensor<std::complex<double>, 3>& mat)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      std::ostringstream str;
+      str << "SlabCoefs::setTensor: requested time=" << time << " not found";
+      throw std::runtime_error(str.str());
+    } else {
+      it->second->coefT = mat;
+    }
+  }
+
+  Eigen::Tensor<std::complex<double>, 4> SlabCoefs::getAllCoefs()
+  {
+    Eigen::Tensor<std::complex<double>, 4> ret;
+
+    auto times = Times();
+
+    int ntim = times.size();
+
+    // Resize the tensor
+    ret.resize({2*NmaxX+1, 2*NmaxY+1, NmaxZ, ntim});
+    
+    // Get the dimensions for convenience
+    const auto& d = ret.dimensions();
+
+    for (int t=0; t<ntim; t++) {
+      auto cof = coefs[times[t]];
+      for (int n1=0; n1<d[0]; n1++) {
+	for (int n2=0; n2<d[1]; n2++) {
+	  for (int n3=0; n1<d[2]; n3++) {
+	    ret(n1, n2, n3, t) = cof->coefT(n1, n2, n3);
+	  }
+	}
+      }
+    }
+
+    return ret;
+  }
+
+  void SlabCoefs::WriteH5Params(HighFive::File& file)
+  {
+    std::string forceID(coefs.begin()->second->id);
+
+    file.createAttribute<int>("mmaxx", HighFive::DataSpace::From(NmaxX)).write(NmaxX);
+    file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(NmaxY)).write(NmaxY);
+    file.createAttribute<int>("mmaxz", HighFive::DataSpace::From(NmaxZ)).write(NmaxZ);
+    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
+  }
+  
+  unsigned SlabCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
+  {
+    for (auto c : coefs) {
+      auto C = c.second;
+      
+      std::ostringstream stim;
+      stim << std::setw(8) << std::setfill('0') << std::right << count++;
+      HighFive::Group stanza = snaps.createGroup(stim.str());
+      
+      // Add time attribute
+      //
+      stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time)).write(C->time);
+      
+      // Copy tensor data to vector
+      //
+      std::vector<std::complex<double>> tmp(C->coefs.size());
+      std::copy(C->coefs.data(), C->coefs.data() + C->coefs.size(), tmp.begin());
+
+      // Add coefficient data
+      //
+      HighFive::DataSet dataset = stanza.createDataSet("coefficients", tmp);
+    }
+    
+    return count;
+  }
+  
+  
+  std::string SlabCoefs::getYAML()
+  {
+    std::string ret;
+    if (coefs.size()) {
+      if (coefs.begin()->second->buf.get())
+	ret = std::string(coefs.begin()->second->buf.get());
+    }
+
+    return ret;
+  }
+  
+  void SlabCoefs::dump(int minx, int maxx, int miny, int maxy, int nmin, int nmax)
+  {
+    for (auto c : coefs) {
+      for (int nx=minx; nx<=std::min<int>(maxx, c.second->nmaxx); nx++) {
+	for (int ny=miny; ny<=std::min<int>(maxy, c.second->nmaxy); ny++) {
+	  std::cout << std::setw(18) << c.first
+		    << std::setw( 5) << nx
+		    << std::setw( 5) << ny;
+	  int nX = nx + c.second->nmaxx;
+	  int nY = ny + c.second->nmaxy;
+	  for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->nmaxz); nn++) {
+	    std::cout << std::setw(18) << c.second->coefT(nX, nY, nn).real()
+		      << std::setw(18) << c.second->coefT(nX, nY, nn).imag();
+	  }
+	  std::cout << std::endl;
+	}
+	// ny loop
+      }
+      // nx loop
+    }
+    // T loop
+    
+  }
+  
+  Eigen::MatrixXd& SlabCoefs::Power(const std::string& axis, int min, int max)
+  {
+    if (coefs.size()) {
+      
+      int maxx = coefs.begin()->second->nmaxx;
+      int maxy = coefs.begin()->second->nmaxy;
+      int maxz = coefs.begin()->second->nmaxz;
+      
+      // Which axis?
+      //
+      if (axis.find("x") != std::string::npos) {
+
+	// Resize the power
+	//
+	power.resize(coefs.size(), 2*maxx+1);
+	power.setZero();
+
+	min += maxx;
+	max += maxx;
+
+	int T=0;
+	for (auto v : coefs) {
+	  const auto& d = v.second->coefT.dimensions();
+	  for (int nx=std::max<int>(0, min); nx<std::min<int>(2*maxx+1, max); nx++) {
+	    for (int ny=0; ny<2*maxy+1; ny++) {
+	      for (int nz=0; nz<maxz; nz++) {
+		double val = std::abs(v.second->coefT(nx, ny, nz));
+		power(T, nx) += val * val;
+	      }
+	    }
+	  }
+	  T++;
+	}
+	// END: coef loop
+      }
+      else if (axis.find("y") != std::string::npos) {
+	// Resize the power
+	//
+	power.resize(coefs.size(), 2*maxy+1);
+	power.setZero();
+
+	min += maxy;
+	max += maxy;
+
+	int T=0;
+	for (auto v : coefs) {
+	  const auto& d = v.second->coefT.dimensions();
+	  for (int nx=0; nx<2*maxx+1; nx++) {
+	    for (int ny=std::max<int>(0, min); ny<std::min<int>(2*maxy+1, max); ny++) {
+	      for (int nz=0; nz<maxz; nz++) {
+		double val = std::abs(v.second->coefT(nx, ny, nz));
+		power(T, ny) += val * val;
+	      }
+	    }
+	  }
+	  T++;
+	}
+	// END: coef loop
+      } else {
+	// Resize the power
+	//
+	power.resize(coefs.size(), maxz);
+	power.setZero();
+
+	int T=0;
+	for (auto v : coefs) {
+	  const auto& d = v.second->coefT.dimensions();
+	  for (int nx=0; nx<2*maxx+1; nx++) {
+	    for (int ny=0; ny<2*maxy; ny++) {
+	      for (int nz=std::max<int>(0, min); nz<std::min<int>(maxz, max); nz++) {
+		double val = std::abs(v.second->coefT(nx, ny, nz));
+		power(T, nz) += val * val;
+	      }
+	    }
+	  }
+	  T++;
+	}
+	// END: coef loop
+      }
+
+    } else {
+      power.resize(0, 0);
+    }
+    
+    return power;
+  }
+  
+  std::vector<Key> SlabCoefs::makeKeys(Key k)
+  {
+    std::vector<Key> ret;
+
+    if (coefs.size()==0) return ret;
+
+    // Sanity
+    if (k.size()) {
+      k[0] = std::max<unsigned>(k[0], 0);
+      k[0] = std::min<unsigned>(k[0], 2*NmaxX);
+    }
+
+    if (k.size()>1) {
+      k[1] = std::max<unsigned>(k[1], 0);
+      k[1] = std::min<unsigned>(k[1], 2*NmaxY);
+    }
+
+    if (k.size()>2) {
+      k[2] = std::max<unsigned>(k[2],  0);
+      k[2] = std::min<unsigned>(k[2],  NmaxZ-1);
+    }
+
+    // Three options
+    // 1. return all nz keys for a fixed nx, ny
+    // 2. return all nx, ny keys for a fixed nz
+    // 3. return all keys
+
+    // Option 3
+    if (k.size()==0) {
+      for (unsigned nx=0; nx<=2*NmaxX; nx++)
+	for (unsigned ny=0; ny<=2*NmaxY; ny++)
+	  for (unsigned nz=0; nz<NmaxZ; nz++)
+	    ret.push_back({nx, ny, nz});
+    }
+    // Option 2
+    else if (k.size()==3 and k[0]==0 and k[1]==0) {
+      for (unsigned nx=0; nx<=2*NmaxX; nx++)
+	for (unsigned ny=0; ny<=2*NmaxY; ny++)
+	  ret.push_back({nx, ny, k[2]});
+    }
+    // Option 1
+    else if (k.size()==3 and k[2]<0) {
+      for (unsigned nz=0; nz<NmaxZ; nz++)
+	ret.push_back({k[0], k[1], nz});
+    }
+    // Bad sub key?
+    else {
+      throw std::runtime_error
+	("SlabCoefs::makeKeys: the subkey must have rank 0, 1 or 2");
+    }
+
+    return ret;
+  }
+
+  void SlabCoefs::add(CoefStrPtr coef)
+  {
+    auto p = std::dynamic_pointer_cast<SlabStruct>(coef);
+    
+    NmaxX = p->nmaxx;
+    NmaxY = p->nmaxy;
+    NmaxZ = p->nmaxy;
+    coefs[roundTime(coef->time)] = p;
+  }
+
+
+  BoxCoefs::BoxCoefs(HighFive::File& file, int stride,
+		     double Tmin, double Tmax, bool verbose) :
+    Coefs("slab", verbose)
+  {
+    unsigned count;
+    std::string config;
+    
+    file.getAttribute("name"   ).read(name  );
+    file.getAttribute("nmaxx"  ).read(NmaxX );
+    file.getAttribute("nmaxy"  ).read(NmaxY );
+    file.getAttribute("nmaxz"  ).read(NmaxZ );
+    file.getAttribute("config" ).read(config);
+    file.getDataSet  ("count"  ).read(count );
+    
+    // Open the snapshot group
+    //
+    auto snaps = file.getGroup("snapshots");
+    
+    for (unsigned n=0; n<count; n+=stride) {
+      
+      std::ostringstream sout;
+      sout << std::setw(8) << std::setfill('0') << std::right << n;
+      
+      auto stanza = snaps.getGroup(sout.str());
+      
+      double Time;
+      stanza.getAttribute("Time").read(Time);
+      
+      if (Time < Tmin or Time > Tmax) continue;
+
+      // Read/write with an intermediate allocation of a vector
+      //
+      Eigen::Tensor<std::complex<double>, 3> in(2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1);
+
+      // Read the vector
+      //
+      std::vector<std::complex<double>> tmp;
+      stanza.getDataSet("coefficients").read(tmp);
+      
+      // Load the tensor
+      //
+      for (int i=0; i<in.size(); i++) in.data()[i] = tmp[i];
+
+      // Pack the data into the coefficient variable
+      //
+      auto coef = std::make_shared<BoxStruct>();
+      
+      coef->nmaxx = NmaxX;
+      coef->nmaxy = NmaxY;
+      coef->nmaxz = NmaxZ;
+      coef->time  = Time;
+      coef->coefT = in;
+      
+      coefs[roundTime(Time)] = coef;
+    }
+
+    times.clear();
+    for (auto t : coefs) times.push_back(t.first);
+  }
+  
+  Eigen::MatrixXcd& BoxCoefs::operator()(double time)
+  {
+    auto it = coefs.find(roundTime(time));
+    
+    if (it == coefs.end()) {
+      
+      mat.resize(0, 0);
+      
+    } else {
+      
+      mat = it->second->coefs;
+      
+    }
+    
+    return mat;
+  }
+  
+  
+  void BoxCoefs::setTensor(double time, const Eigen::Tensor<std::complex<double>, 3>& mat)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      std::ostringstream str;
+      str << "BoxCoefs::setTensor: requested time=" << time << " not found";
+      throw std::runtime_error(str.str());
+    } else {
+      it->second->coefT = mat;
+    }
+  }
+
+  Eigen::Tensor<std::complex<double>, 4> BoxCoefs::getAllCoefs()
+  {
+    Eigen::Tensor<std::complex<double>, 4> ret;
+
+    auto times = Times();
+
+    int ntim = times.size();
+
+    // Resize the tensor
+    ret.resize({2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1, ntim});
+    
+    // Get the dimensions for convenience
+    const auto& d = ret.dimensions();
+
+    for (int t=0; t<ntim; t++) {
+      auto cof = coefs[times[t]];
+      for (int n1=0; n1<d[0]; n1++) {
+	for (int n2=0; n2<d[1]; n2++) {
+	  for (int n3=0; n1<d[2]; n3++) {
+	    ret(n1, n2, n3, t) = cof->coefT(n1, n2, n3);
+	  }
+	}
+      }
+    }
+
+    return ret;
+  }
+
+  void BoxCoefs::WriteH5Params(HighFive::File& file)
+  {
+    std::string forceID(coefs.begin()->second->id);
+
+    file.createAttribute<int>("mmaxx", HighFive::DataSpace::From(NmaxX)).write(NmaxX);
+    file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(NmaxY)).write(NmaxY);
+    file.createAttribute<int>("mmaxz", HighFive::DataSpace::From(NmaxZ)).write(NmaxZ);
+    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
+  }
+  
+  unsigned BoxCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
+  {
+    for (auto c : coefs) {
+      auto C = c.second;
+      
+      std::ostringstream stim;
+      stim << std::setw(8) << std::setfill('0') << std::right << count++;
+      HighFive::Group stanza = snaps.createGroup(stim.str());
+      
+      // Add time attribute
+      //
+      stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time)).write(C->time);
+      
+      // Copy tensor data to vector
+      //
+      std::vector<std::complex<double>> tmp(C->coefs.size());
+      std::copy(C->coefs.data(), C->coefs.data() + C->coefs.size(), tmp.begin());
+
+      // Add coefficient data
+      //
+      HighFive::DataSet dataset = stanza.createDataSet("coefficients", tmp);
+    }
+    
+    return count;
+  }
+  
+  
+  std::string BoxCoefs::getYAML()
+  {
+    std::string ret;
+    if (coefs.size()) {
+      if (coefs.begin()->second->buf.get())
+	ret = std::string(coefs.begin()->second->buf.get());
+    }
+
+    return ret;
+  }
+  
+  void BoxCoefs::dump(int minx, int maxx, int miny, int maxy, int minz, int maxz)
+  {
+    for (auto c : coefs) {
+      for (int nx=std::max<int>(minx, 0); nx<=std::min<int>(maxx, c.second->nmaxx); nx++) {
+	for (int ny=std::max<int>(miny, 0); ny<=std::min<int>(maxy, c.second->nmaxy); ny++) {
+	  for (int nz=std::max<int>(minz, 0); nz<std::min<int>(maxz, c.second->nmaxz); nz++) {
+
+	  std::cout << std::setw(18) << c.first
+		    << std::setw( 5) << nx
+		    << std::setw( 5) << ny
+		    << std::setw( 5) << nz;
+	  int nX = nx + c.second->nmaxx;
+	  int nY = ny + c.second->nmaxy;
+	  int nZ = nz + c.second->nmaxz;
+	  std::cout << std::setw(18) << c.second->coefT(nX, nY, nz).real()
+		    << std::setw(18) << c.second->coefT(nX, nY, nz).imag();
+	  }
+	  std::cout << std::endl;
+	}
+	// ny loop
+      }
+      // nx loop
+    }
+    // T loop
+    
+  }
+  
+  Eigen::MatrixXd& BoxCoefs::Power(const std::string& axis, int min, int max)
+  {
+    if (coefs.size()) {
+      
+      int maxx = coefs.begin()->second->nmaxx;
+      int maxy = coefs.begin()->second->nmaxy;
+      int maxz = coefs.begin()->second->nmaxz;
+      
+      // Which axis?
+      //
+      if (axis.find("x") != std::string::npos) {
+
+	// Resize the power
+	//
+	power.resize(coefs.size(), 2*maxx+1);
+	power.setZero();
+
+	min += maxx;
+	max += maxx;
+
+	int T=0;
+	for (auto v : coefs) {
+	  const auto& d = v.second->coefT.dimensions();
+	  for (int nx=std::max<int>(0, min); nx<std::min<int>(2*maxx+1, max); nx++) {
+	    for (int ny=0; ny<2*maxy+1; ny++) {
+	      for (int nz=0; nz<2*maxz+1; nz++) {
+		double val = std::abs(v.second->coefT(nx, ny, nz));
+		power(T, nx) += val * val;
+	      }
+	    }
+	  }
+	  T++;
+	}
+	// END: coef loop
+      }
+      else if (axis.find("y") != std::string::npos) {
+	// Resize the power
+	//
+	power.resize(coefs.size(), 2*maxy+1);
+	power.setZero();
+
+	min += maxy;
+	max += maxy;
+
+	int T=0;
+	for (auto v : coefs) {
+	  const auto& d = v.second->coefT.dimensions();
+	  for (int nx=0; nx<2*maxx+1; nx++) {
+	    for (int ny=std::max<int>(0, min); ny<std::min<int>(2*maxy+1, max); ny++) {
+	      for (int nz=0; nz<2*maxz+1; nz++) {
+		double val = std::abs(v.second->coefT(nx, ny, nz));
+		power(T, ny) += val * val;
+	      }
+	    }
+	  }
+	  T++;
+	}
+	// END: coef loop
+      } else {
+	// Resize the power
+	//
+	power.resize(coefs.size(), 2*maxz+1);
+	power.setZero();
+
+	int T=0;
+	for (auto v : coefs) {
+	  const auto& d = v.second->coefT.dimensions();
+	  for (int nx=0; nx<2*maxx+1; nx++) {
+	    for (int ny=0; ny<2*maxy; ny++) {
+	      for (int nz=std::max<int>(0, min); nz<std::min<int>(2*maxz+1, max); nz++) {
+		double val = std::abs(v.second->coefT(nx, ny, nz));
+		power(T, nz) += val * val;
+	      }
+	    }
+	  }
+	  T++;
+	}
+	// END: coef loop
+      }
+
+    } else {
+      power.resize(0, 0);
+    }
+    
+    return power;
+  }
+  
+  
+  std::vector<Key> BoxCoefs::makeKeys(Key k)
+  {
+    std::vector<Key> ret;
+
+    if (coefs.size()==0) return ret;
+
+    // Sanity
+    if (k.size()) {
+      k[0] = std::max<unsigned>(k[0], 0);
+      k[0] = std::min<unsigned>(k[0], 2*NmaxX);
+    }
+
+    if (k.size()>1) {
+      k[1] = std::max<unsigned>(k[1], 0);
+      k[1] = std::min<unsigned>(k[1], 2*NmaxY);
+    }
+
+    if (k.size()>2) {
+      k[2] = std::max<unsigned>(k[2], 0);
+      k[2] = std::min<unsigned>(k[2], NmaxZ-1);
+    }
+
+    // Three options
+    // 1. return all nz keys for a fixed nx, ny
+    // 2. return all nx, ny keys for a fixed nz
+    // 3. return all keys
+
+    // Option 3
+    if (k.size()==0) {
+      for (unsigned nx=0; nx<=2*NmaxX; nx++)
+	for (unsigned ny=0; ny<=2*NmaxY; ny++)
+	  for (unsigned nz=0; nz<NmaxZ; nz++)
+	    ret.push_back({nx, ny, nz});
+    }
+    // Option 2
+    else if (k.size()==3 and k[0]==0 and k[1]==0) {
+      for (unsigned nx=0; nx<=2*NmaxX; nx++)
+	for (unsigned ny=0; ny<=2*NmaxY; ny++)
+	  ret.push_back({nx, ny, k[2]});
+    }
+    // Option 1
+    else if (k.size()==3 and k[2]<0) {
+      for (unsigned nz=0; nz<NmaxZ; nz++)
+	ret.push_back({k[0], k[1], nz});
+    }
+    // Bad sub key?
+    else {
+      throw std::runtime_error
+	("BoxCoefs::makeKeys: the subkey must have rank 0, 1 or 2");
+    }
+
+    return ret;
+  }
+
+
+  void BoxCoefs::add(CoefStrPtr coef)
+  {
+    auto p = std::dynamic_pointer_cast<BoxStruct>(coef);
+    
+    NmaxX = p->nmaxx;
+    NmaxY = p->nmaxy;
+    NmaxZ = p->nmaxy;
+    coefs[roundTime(coef->time)] = p;
+  }
+
+
   TableData::TableData(const std::vector<double>& Times,
 		       const std::vector<std::vector<double>>& data,
 		       bool verbose) :

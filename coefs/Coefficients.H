@@ -49,7 +49,7 @@ namespace CoefClasses
 
     //! Read the coefficients
     virtual void readNativeCoefs(const std::string& file,
-				 int stride, double tmin, double tmax) = 0;
+				 int stride, double tmin, double tmax) {}
     
     //! Get the YAML config for the basis (to be implemented by EXP)
     virtual std::string getYAML() = 0;
@@ -98,7 +98,10 @@ namespace CoefClasses
     virtual Eigen::MatrixXcd& operator()(double time) = 0;
     
     //! Set coefficient matrix at given time to the provided matrix
-    virtual void setMatrix(double time, const Eigen::MatrixXcd& mat) = 0;
+    virtual void setMatrix(double time, const Eigen::MatrixXcd& mat) {}
+
+    //! Set coefficient tensor at given time to the provided matrix
+    virtual void setTensor(double time, const Eigen::Tensor<std::complex<double>, 3>& mat) {}
 
     //! Interpolate coefficient matrix at given time
     virtual std::tuple<Eigen::MatrixXcd&, bool> interpolate(double time);
@@ -106,9 +109,6 @@ namespace CoefClasses
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time) = 0;
 
-    //! Dump to ascii list (for testing only)
-    virtual void dump(int mmin, int mmax, int nmin, int nmax) = 0;
-    
     //! Get list of coefficient times
     virtual std::vector<double> Times() { return times; }
     
@@ -435,10 +435,246 @@ namespace CoefClasses
     }
 
     //! Get mmax
-    double mmax() const { return Mmax; }
+    int mmax() const { return Mmax; }
 
     //! Get lmax
-    double nmax() const { return Nmax; }
+    int nmax() const { return Nmax; }
+  };
+  
+
+  /** Derived class for periodic slab coefficients */
+  class SlabCoefs : public Coefs
+  {
+  protected:
+    
+    //! Working array for power
+    Eigen::MatrixXd power;
+    
+    //! Parameters
+    int NmaxX, NmaxY, NmaxZ;
+
+    //! The coefficient DB
+    std::map<double, SlabStrPtr> coefs;
+
+    //! Get the YAML config
+    virtual std::string getYAML();
+    
+    //! Write parameter attributes
+    virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Write coefficient data in H5
+    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
+    
+  public:
+    
+    //! Constructor
+    SlabCoefs(bool verbose=false) : Coefs("slab", verbose) {}
+    
+    //! H5 constructor
+    SlabCoefs(HighFive::File& file, int stride=1,
+	     double tmin=-std::numeric_limits<double>::max(),
+	     double tmax= std::numeric_limits<double>::max(),
+	     bool verbose=false);
+    
+    //! Copy constructor
+    SlabCoefs(SlabCoefs& p) : Coefs(p)
+    {
+      coefs = p.coefs;
+    }
+
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
+
+    //! Add a coefficient structure to the container
+    virtual void add(CoefStrPtr coef);
+
+    //! Get coefficient matrix at given time
+    virtual Eigen::MatrixXcd& operator()(double time);
+    
+    //! Set coefficient matrix at given time
+    virtual void setTensor(double time, const Eigen::Tensor<std::complex<double>, 3>& mat);
+    
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[time]; }
+
+
+    //! Dump to ascii list for testing
+    virtual void dump(int minx, int maxx, int miny, int maxy, int nmin, int nmax);
+    
+    //! Get list of coefficient times
+    virtual std::vector<double> Times()
+    {
+      times.clear();
+      for (auto t : coefs) times.push_back(t.first);
+      return times;
+    }
+    
+    //! Get all coefficients indexed in nx, ny, n, time
+    Eigen::Tensor<std::complex<double>, 4> getAllCoefs();
+
+    /** Get power for the coefficient DB marginalized
+	by dimension.  Time as rows, harmonics as columns.
+
+	@param min is the minimum order
+	@param max is the maximum order
+	@param axis is either "x", "y", or "z"
+    */
+    virtual Eigen::MatrixXd& Power
+    (const std::string& axis, int min=0, int max=std::numeric_limits<int>::max());
+
+    //! Required member uses returns "z" axis
+    virtual Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max())
+    {
+      return Power("z", min, max);
+    }
+    //@}
+
+    //! Make keys for the remaining indices in a subspace
+    virtual std::vector<Key> makeKeys(Key k);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    virtual std::shared_ptr<Coefs> deepcopy();
+
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+    }
+
+    //! Compare two collections of stanzas (this is for testing only)
+    virtual bool CompareStanzas(std::shared_ptr<Coefs> check)
+    {
+      return true;
+    }
+
+    //! Get x size
+    int nmaxx() const { return NmaxX; }
+
+    //! Get y size
+    int nmaxy() const { return NmaxY; }
+
+    //! Get z size
+    int nmaxz() const { return NmaxZ; }
+
+  };
+  
+
+  /** Derived class for periodic box coefficients */
+  class BoxCoefs : public Coefs
+  {
+  protected:
+    
+    //! Working array for power
+    Eigen::MatrixXd power;
+    
+    //! Parameters
+    int NmaxX, NmaxY, NmaxZ;
+
+    //! The coefficient DB
+    std::map<double, BoxStrPtr> coefs;
+
+    //! Get the YAML config
+    virtual std::string getYAML();
+    
+    //! Write parameter attributes
+    virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Write coefficient data in H5
+    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
+    
+  public:
+    
+    //! Constructor
+    BoxCoefs(bool verbose=false) : Coefs("box", verbose) {}
+    
+    //! H5 constructor
+    BoxCoefs(HighFive::File& file, int stride=1,
+	     double tmin=-std::numeric_limits<double>::max(),
+	     double tmax= std::numeric_limits<double>::max(),
+	     bool verbose=false);
+    
+    //! Copy constructor
+    BoxCoefs(BoxCoefs& p) : Coefs(p)
+    {
+      coefs = p.coefs;
+    }
+
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
+
+    //! Add a coefficient structure to the container
+    virtual void add(CoefStrPtr coef);
+
+    //! Get coefficient matrix at given time
+    virtual Eigen::MatrixXcd& operator()(double time);
+    
+    //! Set coefficient matrix at given time
+    virtual void setTensor(double time, const Eigen::Tensor<std::complex<double>, 3>& mat);
+    
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[time]; }
+
+
+    //! Dump to ascii list for testing
+    virtual void dump(int minx, int maxx, int miny, int maxy, int nmin, int nmax);
+    
+    //! Get list of coefficient times
+    virtual std::vector<double> Times()
+    {
+      times.clear();
+      for (auto t : coefs) times.push_back(t.first);
+      return times;
+    }
+    
+    //! Get all coefficients indexed in nx, ny, n, time
+    Eigen::Tensor<std::complex<double>, 4> getAllCoefs();
+
+    /** Get power for the coefficient DB marginalized
+	by dimension.  Time as rows, harmonics as columns.
+
+	@param min is the minimum order
+	@param max is the maximum order
+	@param axis is either "x", "y", or "z"
+    */
+    virtual Eigen::MatrixXd& Power
+    (const std::string& axis, int min=0, int max=std::numeric_limits<int>::max());
+
+    //! Required member uses returns "z" axis
+    virtual Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max())
+    {
+      return Power("z", min, max);
+    }
+    //@}
+
+    //! Make keys for the remaining indices in a subspace
+    virtual std::vector<Key> makeKeys(Key k);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    virtual std::shared_ptr<Coefs> deepcopy();
+
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+    }
+
+    //! Compare two collections of stanzas (this is for testing only)
+    virtual bool CompareStanzas(std::shared_ptr<Coefs> check)
+    {
+      return true;
+    }
+
+    //! Get x size
+    int nmaxx() const { return NmaxX; }
+
+    //! Get y size
+    int nmaxy() const { return NmaxY; }
+
+    //! Get z size
+    int nmaxz() const { return NmaxZ; }
+
   };
   
 

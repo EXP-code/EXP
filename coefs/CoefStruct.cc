@@ -62,6 +62,32 @@ namespace CoefClasses
     return ret;
   }
 
+  std::shared_ptr<CoefStruct> SlabStruct::deepcopy()
+  {
+    auto ret = std::make_shared<SlabStruct>();
+
+    copyfields(ret);
+
+    ret->nmaxx  = nmaxx;
+    ret->nmaxy  = nmaxy;
+    ret->nmaxz  = nmaxz;
+
+    return ret;
+  }
+
+  std::shared_ptr<CoefStruct> BoxStruct::deepcopy()
+  {
+    auto ret = std::make_shared<BoxStruct>();
+
+    copyfields(ret);
+
+    ret->nmaxx  = nmaxx;
+    ret->nmaxy  = nmaxy;
+    ret->nmaxz  = nmaxz;
+
+    return ret;
+  }
+
   std::shared_ptr<CoefStruct> SphStruct::deepcopy()
   {
     auto ret = std::make_shared<SphStruct>();

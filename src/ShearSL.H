@@ -1,28 +1,18 @@
-#ifndef _SlabSL_H
-#define _SlabSL_H
+#ifndef _ShearSL_H
+#define _ShearSL_H
 
 #include <complex>
 #include <SLGridMP2.H>
 #include <biorth1d.H>
 #include <PotAccel.H>
 
-/** This routine computes the potential, acceleration and density
-  using expansion periodic in X & Y and outgoing vacuum boundary
-  condtions in Z 
+/**
+   This routine computes the potential, acceleration and density
+   using expansion periodic in X & Y and outgoing vacuum boundary
+   condtions in Z for a shearing slab
 */
-class SlabSL : public PotAccel
+class ShearSL : public PotAccel
 {
-
-//! Header structure for Sturm-Liouville slab expansion
-struct SlabSLCoefHeader {
-  double time;
-  double zmax;
-  double h;
-  int type;
-  int nmaxx, nmaxy, nmaxz;
-  int jmax;
-};
-
 private:
 
   SLGridSlab *grid;
@@ -32,15 +22,13 @@ private:
 
   int nminx, nminy;
   int nmaxx, nmaxy, nmaxz;
-  double zmax, hslab;
+  double zmax, hslab, Omega, Kappa, R;
 
   int imx, imy, imz, jmax, nnmax;
   double  dfac;
   std::complex<double> kfac;
 
   std::vector<Eigen::VectorXd> zfrc, zpot;
-
-  SlabSLCoefHeader coefheader;
 
   int NGRID;
 
@@ -71,13 +59,13 @@ public:
   string id;
 
   //! Constructor
-  SlabSL(Component* c0, const YAML::Node& conf);
+  ShearSL(Component* c0, const YAML::Node& conf);
 
   //! Destructor
-  virtual ~SlabSL();
+  virtual ~ShearSL();
 
   //! Print coefficients to output stream
-  void dump_coefs(ostream& out);
+  void dump_coefs(std::ostream& out);
 };
 
 

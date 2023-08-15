@@ -2,7 +2,9 @@
 #define _COEF_STRUCT_H
 
 #include <memory>
+#include <complex>
 #include <Eigen/Eigen>
+#include <unsupported/Eigen/CXX11/Tensor> // For general rectangular grids
 
 namespace CoefClasses
 {
@@ -23,12 +25,20 @@ namespace CoefClasses
     //! Time stamp
     double time;
     
-    typedef
-    Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
-    EigenColMajor;
+    //@{
+    //! Coefficient data types
+    using EigenColMajor =
+      Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
+
+    using Eigen3Tensor =
+      Eigen::Tensor<std::complex<double>, 3>;
+    //@}
     
+    //@{
     //! Coefficient data
-    EigenColMajor coefs;
+    EigenColMajor coefs;	// 2d
+    Eigen3Tensor  coefT;	// 3d
+    //@}
     
     //! Center data
     std::vector<double> ctr;
@@ -57,6 +67,9 @@ namespace CoefClasses
 
     //! Read-only access to coefficient data (no copy)
     Eigen::Ref<const EigenColMajor> getCoefs() { return coefs; }
+
+    //! Read-only access to coefficient data (no copy)
+    const Eigen3Tensor getCoefT() { return coefT; }
 
   };
   
@@ -109,6 +122,52 @@ namespace CoefClasses
     std::shared_ptr<CoefStruct> deepcopy();
   };
   
+  //! Specialization of CoefStruct for slabs
+  class SlabStruct : public CoefStruct
+  {
+  public:
+    //! Elements in each dimension
+    int nmaxx, nmaxy, nmaxz;
+    
+    //! Coefficient tensor
+
+    //! Constructor
+    SlabStruct() : nmaxx(0), nmaxy(0), nmaxz(0)
+    { geom = "slab"; }
+
+    //! No need to read
+    bool read(std::istream& in, bool exp_type, bool verbose=false) { return false; }
+
+    //! Create an empty data storage
+    void create();
+
+    //! Copy all of data contents to a new instance
+    std::shared_ptr<CoefStruct> deepcopy();
+  };
+  
+  //! Specialization of CoefStruct for a simple box/cube
+  class BoxStruct : public CoefStruct
+  {
+  public:
+    //! Elements in each dimension
+    int nmaxx, nmaxy, nmaxz;
+    
+    //! Coefficient tensor
+
+    //! Constructor
+    BoxStruct() : nmaxx(0), nmaxy(0), nmaxz(0)
+    { geom = "box"; }
+
+    //! No need to read
+    bool read(std::istream& in, bool exp_type, bool verbose=false) { return false; }
+
+    //! Create an empty data storage
+    void create();
+
+    //! Copy all of data contents to a new instance
+    std::shared_ptr<CoefStruct> deepcopy();
+  };
+  
   //! Specialization of CoefStruct for a data table
   class TblStruct : public CoefStruct
   {
@@ -119,7 +178,7 @@ namespace CoefClasses
     //! Constructor
     TblStruct() : cols(0) { geom = "table"; }
 
-    //! No need to read
+    //! Read data from a stream
     bool read(std::istream& in, bool exp_type, bool verbose=false);
 
     //! Create an empty data storage
@@ -132,6 +191,8 @@ namespace CoefClasses
   typedef std::shared_ptr<CoefStruct> CoefStrPtr;
   typedef std::shared_ptr<SphStruct>  SphStrPtr;
   typedef std::shared_ptr<CylStruct>  CylStrPtr;
+  typedef std::shared_ptr<SlabStruct> SlabStrPtr;
+  typedef std::shared_ptr<BoxStruct>  BoxStrPtr;
   typedef std::shared_ptr<TblStruct>  TblStrPtr;
 
 }  
