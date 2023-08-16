@@ -308,7 +308,8 @@ namespace BasisClasses
   {
     // Sanity check on derived class type
     //
-    if (typeid(*coef) != typeid(CoefClasses::SphStruct))
+    auto& r = *coef.get();	// To quiet clang++ warning
+    if (typeid(r) != typeid(CoefClasses::SphStruct))
       throw std::runtime_error("SphericalSL::set_coefs: you must pass a CoefClasses::SphStruct");
 
     // Sanity check on dimensionality
@@ -1312,7 +1313,8 @@ namespace BasisClasses
 
   void Cylindrical::set_coefs(CoefClasses::CoefStrPtr coef)
   {
-    if (typeid(*coef) != typeid(CoefClasses::CylStruct))
+    auto& r = *coef.get();	// To quiet clang++ warning
+    if (typeid(r) != typeid(CoefClasses::CylStruct))
       throw std::runtime_error("Cylindrical::set_coefs: you must pass a CoefClasses::CylStruct");
 
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
@@ -1540,7 +1542,8 @@ namespace BasisClasses
   {
     // Sanity check on derived class type
     //
-    if (typeid(*coef) != typeid(CoefClasses::CylStruct))
+    auto& r = *coef.get();	// To quiet clang++ warning
+    if (typeid(r) != typeid(CoefClasses::CylStruct))
       throw std::runtime_error("FlatDisk::set_coefs: you must pass a CoefClasses::CylStruct");
 
     // Sanity check on dimensionality
