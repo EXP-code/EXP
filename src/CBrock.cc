@@ -75,7 +75,7 @@ void CBrock::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
   double x    = r_to_xi(r);
   double fac  = 0.5*sqrt(1.0 - x*x);
-  double rfac = pow(0.5*(1.0 - x),2.5);
+  double rfac = pow(0.5*(1.0 - x), 2.5);
 
   for (int l=0; l<=lmax; l++) {
     get_ultra(nmax-1, (double)l, x, u[tid]);
