@@ -1904,9 +1904,7 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
   else {
     // Copy the YAML config.  We only need this on the first call.
     std::ostringstream sout; sout << conf;
-    size_t hsize = sout.str().size() + 1;
-    cur->buf = std::shared_ptr<char[]>(new char [hsize]);
-    sout.str().copy(cur->buf.get(), hsize); // Copy to CoefStruct buffer
+    cur->buf = sout.str();	// Copy to CoefStruct buffer
 
     // Add the name attribute.  We only need this on the first call.
     sphCoefs.setName(component->name);
