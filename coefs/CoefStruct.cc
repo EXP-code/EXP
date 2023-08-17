@@ -13,12 +13,7 @@ namespace CoefClasses
   
   void CoefStruct::copyfields(std::shared_ptr<CoefStruct> ret)
   {
-    if (buf) {
-      size_t buflen = std::strlen(buf.get());
-      ret->buf = std::shared_ptr<char[]>(new char [buflen+1]);
-      std::strncpy(ret->buf.get(), buf.get(), buflen+1);
-    }
-
+    ret->buf   = buf;
     ret->geom  = geom;
     ret->id    = id;
     ret->time  = time;
@@ -116,13 +111,17 @@ namespace CoefClasses
 	unsigned ssize;
 	in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
 	
-	// Make and read char buffer for YAML config
+	// Make char buffer for YAML config
 	//
-	buf = std::shared_ptr<char[]>(new char [ssize+1]);
-	in.read(buf.get(), ssize);
-	buf[ssize] = 0;		// Null terminate
+	auto cbuf = std::make_unique<char[]>(ssize+1);
+
+	// Read YAML string
+	//
+	in.read(cbuf.get(), ssize);
+	cbuf[ssize] = '\0';
+	buf = std::string(cbuf.get());
 	
-	YAML::Node node = YAML::Load(buf.get());
+	YAML::Node node = YAML::Load(buf.c_str());
 	
 	// Get parameters
 	//
@@ -232,16 +231,17 @@ namespace CoefClasses
 	
 	if (in.eof()) return false;
 	
-	// Make and read char buffer for YAML config
+	// Make char buffer for YAML config
 	//
-	buf = std::shared_ptr<char[]>(new char [hsize+1]);
+	auto cbuf = std::make_unique<char[]>(hsize+1);
 	
 	// Read YAML string
 	//
-	in.read(buf.get(), hsize);
-	buf[hsize] = 0;		// Null terminate
+	in.read(cbuf.get(), hsize);
+	cbuf[hsize] = '\0';
+	buf = std::string(cbuf.get());
 	
-	YAML::Node node = YAML::Load(buf.get());
+	YAML::Node node = YAML::Load(buf.c_str());
 	
 	// Get parameters
 	//
