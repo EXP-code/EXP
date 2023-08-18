@@ -390,8 +390,7 @@ namespace CoefClasses
   {
     std::string ret;
     if (coefs.size()) {
-      if (coefs.begin()->second->buf.get())
-	ret = std::string(coefs.begin()->second->buf.get());
+      ret = coefs.begin()->second->buf;
     }
     return ret;
   }
@@ -723,10 +722,8 @@ namespace CoefClasses
   {
     std::string ret;
     if (coefs.size()) {
-      if (coefs.begin()->second->buf.get())
-	ret = std::string(coefs.begin()->second->buf.get());
+      ret = coefs.begin()->second->buf;
     }
-
     return ret;
   }
   
@@ -998,10 +995,8 @@ namespace CoefClasses
   {
     std::string ret;
     if (coefs.size()) {
-      if (coefs.begin()->second->buf.get())
-	ret = std::string(coefs.begin()->second->buf.get());
+      ret = coefs.begin()->second->buf;
     }
-
     return ret;
   }
 

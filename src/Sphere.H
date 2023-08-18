@@ -104,6 +104,14 @@ private:
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
 
+  //@{
+  //! Coordinate mapping
+  double r_to_xi(double r)  { return ortho->r_to_xi(r); }
+  double xi_to_r(double x)  { return ortho->xi_to_r(x); }
+  double d_r_to_xi(double r) { return 1.0/ortho->d_xi_to_r(r_to_xi(r)); }
+  double d_xi_to_r(double x) { return ortho->d_xi_to_r(x); }
+  //@}
+
 public:
 				// Global parameters
   /** Constructor
