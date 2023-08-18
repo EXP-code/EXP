@@ -422,14 +422,14 @@ void write_parm(void)
   auto in_time_t = std::chrono::system_clock::to_time_t(now);
 
   std::stringstream ss;
-  ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X");
+  ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X %Z");
 
   out << std::endl
       << "---"                             << std::endl
       << "#-----------------------------"  << std::endl
-      << "# Parameter database          "  << std::endl
+      << "# EXP parameter database      "  << std::endl
       << "#-----------------------------"  << std::endl
-      << "# EXP [" << VERSION << "]"       << std::endl
+      << "# EXP #:  " << VERSION           << std::endl
       << "# URL:    " << PACKAGE_URL       << std::endl
       << "# Branch: " << GIT_BRANCH        << std::endl
       << "# Commit: " << GIT_COMMIT        << std::endl
