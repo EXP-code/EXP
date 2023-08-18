@@ -23,9 +23,9 @@ private:
   double knl(int, int);
   double norm(int, int);
 
-  double r_to_rh(double r);
-  double rh_to_r(double rh);
-  double d_r_to_rh(double);
+  double r_to_xi  (double r);
+  double xi_to_r  (double x);
+  double d_r_to_xi(double r);
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;

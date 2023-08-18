@@ -21,9 +21,9 @@ private:
   double norm(int, int);
   double knl(int, int);
 
-  double rq_to_r(double rq);
-  double d_r_to_rq(double r);
-  double r_to_rq(double r);
+  double xi_to_r  (double x);
+  double d_r_to_xi(double r);
+  double r_to_xi  (double r);
 
   void initialize(void);
 

@@ -12,7 +12,7 @@ namespace CoefClasses
   {
   public:
     //! For YAML config
-    std::shared_ptr<char[]> buf;
+    std::string buf;
     
     //! Geometry
     std::string geom;

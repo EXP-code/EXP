@@ -43,7 +43,8 @@ SphericalBasis::valid_keys = {
   "ssfrac",
   "playback",
   "coefCompute",
-  "coefMaster"
+  "coefMaster",
+  "orthocheck"
 };
 
 SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) : 
@@ -81,6 +82,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 #if HAVE_LIBCUDA==1
   cuda_aware       = true;
 #endif
+  ortho_check      = false;
 
   // Remove matched keys
   //
@@ -196,7 +198,9 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 	  std::cout << "---- New coefficients will be computed from particles on playback" << std::endl;
       }
     }
+    // END: playback config
 
+    if (conf["orthocheck"]) ortho_check = conf["orthocheck"].as<bool>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in SphericalBasis: "
@@ -313,8 +317,10 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
   factorial.resize(Lmax+1, Lmax+1);
 
   for (int l=0; l<=Lmax; l++) {
-    for (int m=0; m<=l; m++) 
-      factorial(l, m) = factrl(l-m)/factrl(l+m);
+    for (int m=0; m<=l; m++) {
+      factorial(l, m) = sqrt( (2.0*l+1.0)/(4.0*M_PI) * factrl(l-m)/factrl(l+m) );
+      if (m) factorial(l, m) *= M_SQRT2;
+    }
   }
 
   firstime_coef  = true;
@@ -336,6 +342,7 @@ void SphericalBasis::setup(void)
   }
 
   if (NOISE) compute_rms_coefs();
+  if (ortho_check) biorthogonality_check();
 }  
 
 
@@ -410,10 +417,12 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
 void * SphericalBasis::determine_coefficients_thread(void * arg)
 {
-  double r, r2, rs, facL, fac1, fac2, costh, phi, mass;
-  double fac0=4.0*M_PI;
-  double xx, yy, zz;
+  // Biorthgonal normalization factor
+  //
+  double fac0=-4.0*M_PI;
 
+  // Partition bodies and get features
+  //
   unsigned nbodies = component->levlist[mlevel].size();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
@@ -448,10 +457,11 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
     if (component->freeze(indx)) continue;
 
     
-    mass = component->Mass(indx) * adb;
+    double mass = component->Mass(indx) * adb;
 				// Adjust mass for subset
     if (subset) mass /= ssfrac;
     
+    double xx, yy, zz;
     if (mix) {
       xx = component->Pos(indx, 0, Component::Local) - ctr[0];
       yy = component->Pos(indx, 1, Component::Local) - ctr[1];
@@ -462,16 +472,15 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
       zz = component->Pos(indx, 2, Component::Local | Component::Centered);
     }
 
-    r2 = (xx*xx + yy*yy + zz*zz);
-    r = sqrt(r2) + DSMALL;
+    double r2 = (xx*xx + yy*yy + zz*zz);
+    double r  = sqrt(r2) + DSMALL;
       
     if (r>=rmin and r<=rmax) {
 
       use[id]++;
-      costh = zz/r;
-      phi = atan2(yy,xx);
-      rs = r/scale;
-	
+      double costh = zz/r;
+      double phi = atan2(yy,xx);
+      double rs = r/scale;
       
       legendre_R(Lmax, costh, legs[id]);
       sinecosine_R(Lmax, phi, cosm[id], sinm[id]);
@@ -493,9 +502,11 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	//		m loop
 	for (int m=0, moffset=0; m<=l; m++) {
 
+	  double facL = factorial(l, m) * legs[id](l, m);
+
 	  if (m==0) {
 	    for (int n=0; n<nmax; n++) {
-	      wk[n] = potd[id](l, n)*legs[id](l, m)*mass*fac0/normM(l, n);
+	      wk[n] = potd[id](l, n)*facL*mass*fac0/sqnorm(l, n);
 	      (*expcoef0[id][loffset+moffset])[n] += wk[n];
 	    }
 
@@ -525,13 +536,12 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	  else {
 	    if (not M0_only) {
 
-	      facL = legs[id](l, m);
-	      fac1 = facL*cosm[id][m];
-	      fac2 = facL*sinm[id][m];
+	      double fac1 = facL*cosm[id][m];
+	      double fac2 = facL*sinm[id][m];
 
 	      for (int n=0; n<nmax; n++) {
 
-		wk[n] = potd[id](l, n)*mass*fac0/normM(l, n);
+		wk[n] = potd[id](l, n)*mass*fac0/sqnorm(l, n);
 
 		(*expcoef0[id][loffset+moffset  ])[n] += wk[n]*fac1;
 		(*expcoef0[id][loffset+moffset+1])[n] += wk[n]*fac2;
@@ -1133,7 +1143,7 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
     double costh = zz/r;
     double phi   = atan2(yy,xx);
     double rs    = r/scale;
-    double val, val1, val2, fac0=4.0*M_PI, fac1, fac2;
+    double fac0  = -4.0*M_PI;
     int moffset;
 
     legendre_R(Lmax, costh, legs[id]);
@@ -1149,9 +1159,12 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
       // m loop
       //
       for (int m=0, moffset=0; m<=l; m++) {
+
+	double facL = factorial(l, m)*legs[id](l, m);
+	
 	if (m==0) {
 	  for (int n=0; n<nmax; n++) {
-	    val = potd[id](l, n)*legs[id](l, m)*mass*fac0/normM(l, n);
+	    double val = potd[id](l, n)*facL*mass*fac0/sqnorm(l, n);
 	    
 	    differ1[id][from](loffset+moffset, n) -= val;
 	    differ1[id][  to](loffset+moffset, n) += val;
@@ -1159,12 +1172,12 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 	  moffset++;
 
 	} else {
-	  fac1 = legs[id](l, m)*cosm[id][m];
-	  fac2 = legs[id](l, m)*sinm[id][m];
+	  double fac1 = facL*cosm[id][m];
+	  double fac2 = facL*sinm[id][m];
 
 	  for (int n=0; n<nmax; n++) {
-	    val1 = potd[id](l, n)*fac1*mass*fac0/normM(l, n);
-	    val2 = potd[id](l, n)*fac2*mass*fac0/normM(l, n);
+	    double val1 = potd[id](l, n)*fac1*mass*fac0/sqnorm(l, n);
+	    double val2 = potd[id](l, n)*fac2*mass*fac0/sqnorm(l, n);
 
 	    differ1[id][from](loffset+moffset  , n) -= val1;
 	    differ1[id][from](loffset+moffset+1, n) -= val2;
@@ -1427,11 +1440,14 @@ void SphericalBasis::compute_multistep_coefficients()
 
 void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 {
-  int l, loffset, moffset, m, ioff, indx, nbeg, nend;
-  unsigned nbodies;
-  double r, rs, r0=0.0, fac, fac1, fac2, fac3, fac4, costh, phi, dp;
-  double potr, potl, pott, potp, p, pc, dpc, ps, dps, facp, facdp;
+  // Density basis is 4piG times physical density
+  //
   double dfac=0.25/M_PI;
+
+  // Local variables
+  //
+  double r0=0.0, dp;
+  double potr, potl, pott, potp, p, pc, dpc, ps, dps, facp, facdp;
 
   double pos[3];
   double xx, yy, zz, mfactor=1.0;
@@ -1447,12 +1463,12 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
   //
   for (int lev=mlevel; lev<=multistep; lev++) {
 
-    nbodies = cC->levlist[lev].size();
+    unsigned nbodies = cC->levlist[lev].size();
 
     if (nbodies==0) continue;
 
-    nbeg = nbodies*(id  )/nthrds;
-    nend = nbodies*(id+1)/nthrds;
+    int nbeg = nbodies*(id  )/nthrds;
+    int nend = nbodies*(id+1)/nthrds;
 
 #ifdef DEBUG
     pthread_mutex_lock(&io_lock);
@@ -1465,7 +1481,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
     for (int i=nbeg; i<nend; i++) {
 
-      indx = cC->levlist[lev][i];
+      int indx = cC->levlist[lev][i];
 
       if (cC->freeze(indx)) continue;
 
@@ -1492,26 +1508,24 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 	zz = pos[2];
       }	
 
-      fac1 = dfac * mfactor;
-
-      r = sqrt(xx*xx + yy*yy + zz*zz) + DSMALL;
-      costh = zz/r;
-      rs = r/scale;
-      phi = atan2(yy, xx);
+      double r = sqrt(xx*xx + yy*yy + zz*zz) + DSMALL;
+      double costh = zz/r;
+      double rs = r/scale;
+      double phi = atan2(yy, xx);
 
       dlegendre_R (Lmax, costh, legs[id], dlegs[id]);
       sinecosine_R(Lmax, phi,   cosm[id], sinm [id]);
 
+      int ioff = 0;
       if (r>rmax) {
 	ioff = 1;
-	r0 = r;
-	r = rmax;
-	rs = r/scale;
+	r0   = r;
+	r    = rmax;
+	rs   = r/scale;
       }
-      else
-	ioff = 0;
 
-
+      // Zero coefficient accumulated field values
+      //
       potl = potr = pott = potp = 0.0;
       
       get_dpotl(Lmax, nmax, rs, potd[id], dpot[id], id);
@@ -1522,13 +1536,14 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 	  p *= rmax/r0;
 	  dp = -p/r0;
 	}
-	potl = fac1*p;
-	potr = fac1*dp;
+	double facL = mfactor * factorial(0, 0);
+	potl = facL * p;
+	potr = facL * dp;
       }
       
       //		l loop
       //		------
-      for (l=1, loffset=1; l<=Lmax; loffset+=(2*l+1), l++) {
+      for (int l=1, loffset=1; l<=Lmax; loffset+=(2*l+1), l++) {
 
 				// Suppress L=1 terms?
 	if (NO_L1 && l==1) continue;
@@ -1538,54 +1553,54 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
 	//		m loop
 	//		------
-	for (m=0, moffset=0; m<=l; m++) {
+	for (int m=0, moffset=0; m<=l; m++) {
 	  
+	  double facL = factorial(l, m) *  legs[id](l, m) * mfactor;
+	  double facD = factorial(l, m) * dlegs[id](l, m) * mfactor;
+
 				// Suppress odd M terms?
 	  if (EVEN_M && (m/2)*2 != m) continue;
 
 				// Suppress all asymmetric terms
 	  if (M0_only and m!=0) continue;
 
-	  fac1 = (2.0*l+1.0)/(4.0*M_PI) * mfactor;
 	  if (m==0) {
-	    fac2 = fac1*legs[id](l, m);
 	    get_pot_coefs_safe(l, *expcoef[loffset+moffset], p, dp,
 			       potd[id], dpot[id]);
 	    if (ioff) {
 	      p *= pow(rmax/r0,(double)(l+1));
 	      dp = -p/r0 * (l+1);
 	    }
-	    potl += fac2*p;
-	    potr += fac2*dp;
-	    pott += fac1*dlegs[id](l, m)*p;
+	    potl += facL * p;
+	    potr += facL * dp;
+	    pott += facD * p;
 	    moffset++;
 	  }
 	  else {
-	    fac2 = 2.0 * fac1 * factorial(l, m);
-	    fac3 = fac2 * legs[id](l, m);
-	    fac4 = fac2 * dlegs[id](l, m);
 	    get_pot_coefs_safe(l, *expcoef[loffset+moffset], pc, dpc,
 			       potd[id], dpot[id]);
+
 	    get_pot_coefs_safe(l, *expcoef[loffset+moffset+1], ps, dps,
 			       potd[id], dpot[id]);
-	    if (ioff) {
-	      facp = pow(rmax/r0,(double)(l+1));
+	    if (ioff) {		// Factors for external multipole solution
+	      facp  = pow(rmax/r0,(double)(l+1));
 	      facdp = -1.0/r0 * (l+1);
-	      pc *= facp;
-	      ps *= facp;
-	      dpc = pc*facdp;
-	      dps = ps*facdp;
+				// Apply the factors
+	      pc   *= facp;
+	      ps   *= facp;
+	      dpc   = pc * facdp;
+	      dps   = ps * facdp;
 	    }
-	    potl += fac3*(pc*cosm[id][m] + ps*sinm[id][m]);
-	    potr += fac3*(dpc*cosm[id][m] + dps*sinm[id][m]);
-	    pott += fac4*(pc*cosm[id][m] + ps*sinm[id][m]);
-	    potp += fac3*(-pc*sinm[id][m] + ps*cosm[id][m])*m;
+	    potl += facL * (pc *cosm[id][m] + ps *sinm[id][m] );
+	    potr += facL * (dpc*cosm[id][m] + dps*sinm[id][m] );
+	    pott += facD * (pc *cosm[id][m] + ps *sinm[id][m] );
+	    potp += facL * (-pc*sinm[id][m] + ps *cosm[id][m] )*m;
 	    moffset +=2;
 	  }
 	}
       }
 
-      fac = xx*xx + yy*yy;
+      double fac = xx*xx + yy*yy;
 
       potr /= scale*scale;
       potl /= scale;
@@ -1731,8 +1746,8 @@ void SphericalBasis::get_pot_coefs(int l, const Eigen::VectorXd& coef,
     dpp += dpot[0](l, i) * coef[i];
   }
 
-  p = -pp;
-  dp = -dpp;
+  p  = pp;
+  dp = dpp;
 }
 
 
@@ -1750,8 +1765,8 @@ void SphericalBasis::get_pot_coefs_safe(int l, const Eigen::VectorXd& coef,
     dpp += dpot1(l, i) * coef[i];
   }
 
-  p = -pp;
-  dp = -dpp;
+  p  = pp;
+  dp = dpp;
 }
 
 
@@ -1808,15 +1823,13 @@ void SphericalBasis::dump_coefs(ostream& out)
 
     for (int ir=0; ir<nmax; ir++) {
       for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-	double fac1 = (2.0*l+1.0)/(4.0*M_PI);
 	for (int m=0, moffset=0; m<=l; m++) {
-	  double fac2 = sqrt(fac1*factorial(l, m));
 	  if (m==0) {
-	    out.write((char *)&(z=fac2*(*expcoef[loffset+moffset+0])[ir]), sizeof(double));
+	    out.write((char *)&(z=(*expcoef[loffset+moffset+0])[ir]), sizeof(double));
 	    moffset += 1;
 	  } else {
-	    out.write((char *)&(z=fac2*(*expcoef[loffset+moffset+0])[ir]), sizeof(double));
-	    out.write((char *)&(z=fac2*(*expcoef[loffset+moffset+1])[ir]), sizeof(double));
+	    out.write((char *)&(z=(*expcoef[loffset+moffset+0])[ir]), sizeof(double));
+	    out.write((char *)&(z=(*expcoef[loffset+moffset+1])[ir]), sizeof(double));
 	    moffset += 2;
 	  }
 	}
@@ -1868,14 +1881,12 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
 
   for (int ir=0; ir<nmax; ir++) {
     for (int l=0, L=0, offset=0; l<=Lmax; l++) {
-      double fac1 = (2.0*l+1.0)/(4.0*M_PI);
       for (int m=0; m<=l; m++, L++) {
-	double fac2 = sqrt(fac1*factorial(l, m));
 	if (m==0) {
-	  cur->coefs(L, ir) = {fac2*(*expcoef[offset])[ir], 0.0};
+	  cur->coefs(L, ir) = {(*expcoef[offset])[ir], 0.0};
 	  offset += 1;
 	} else {
-	  cur->coefs(L, ir) = {fac2*(*expcoef[offset])[ir], fac2*(*expcoef[offset+1])[ir]};
+	  cur->coefs(L, ir) = {(*expcoef[offset])[ir], (*expcoef[offset+1])[ir]};
 	  offset += 2;
 	}
       }
@@ -1898,9 +1909,7 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
   else {
     // Copy the YAML config.  We only need this on the first call.
     std::ostringstream sout; sout << conf;
-    size_t hsize = sout.str().size() + 1;
-    cur->buf = std::shared_ptr<char[]>(new char [hsize]);
-    sout.str().copy(cur->buf.get(), hsize); // Copy to CoefStruct buffer
+    cur->buf = sout.str();	// Copy to CoefStruct buffer
 
     // Add the name attribute.  We only need this on the first call.
     sphCoefs.setName(component->name);
@@ -1972,63 +1981,61 @@ void SphericalBasis::determine_fields_at_point_sph
  double *tdens, double *tpotl, 
  double *tpotr, double *tpott, double *tpotp)
 {
-  int l,loffset,moffset,m;
-  double rs,fac1,fac2,fac3,fac4,costh,dp;
-  double potr,potl,pott,potp,p,pc,dpc,ps,dps,dens;
+  double dp, potr, potl, pott, potp, p, pc, dpc, ps, dps, dens;
   double dfac=0.25/M_PI;
 
-  rs = r/scale;
-  costh = cos(theta);
-
-  fac1 = dfac;
+  double rs = r/scale;
+  double costh = cos(theta);
 
   dlegendre_R(Lmax, costh, legs[0], dlegs[0]);
   sinecosine_R(Lmax, phi, cosm[0], sinm[0]);
+
+  double facL = factorial(0, 0) * legs[0](0, 0);
+
   get_dens(Lmax, nmax, rs, dend, 0);
   get_dpotl(Lmax, nmax, rs, potd[0], dpot[0], 0);
   get_dens_coefs(0, *expcoef[0], dens);
-  dens *= dfac*dfac;
+  dens *= dfac * facL;
 
   get_pot_coefs(0, *expcoef[0], p, dp);
-  potl = fac1*p;
-  potr = fac1*dp;
+  potl = facL * p;
+  potr = facL * dp;
   pott = potp = 0.0;
   
   *tdens0 = dens;
   *tpotl0 = potl;
 
   // l loop
-    
-  for (l=1, loffset=1; l<=Lmax; loffset+=(2*l+1), l++) {
+  //
+  for (int l=1, loffset=1; l<=Lmax; loffset+=(2*l+1), l++) {
     
     // m loop
-    for (m=0, moffset=0; m<=l; m++) {
-      fac1 = (2.0*l+1.0)/(4.0*M_PI);
+    //
+    for (int m=0, moffset=0; m<=l; m++) {
+
+      double facL = factorial(l, m) * legs[0](l, m);
+      double facD = factorial(l, m) * dlegs[0](l, m);
+
       if (m==0) {
-	fac2 = fac1*legs[0](l, m);
 	get_dens_coefs(l, *expcoef[loffset+moffset], p);
-	dens += dfac*fac2*p;
+	dens += dfac*facL*p;
 	get_pot_coefs(l, *expcoef[loffset+moffset], p, dp);
-	potl += fac2*p;
-	potr += fac2*dp;
-	pott += fac1*dlegs[0](l, m)*p;
+	potl += facL * p;
+	potr += facL * dp;
+	pott += facD * p;
 	moffset++;
       }
       else {
-	fac2 = 2.0 * fac1 * factorial(l, m);
-	fac3 = fac2 * legs[0](l, m);
-	fac4 = fac2 * dlegs[0](l, m);
-	
 	get_dens_coefs(l, *expcoef[loffset+moffset], pc);
 	get_dens_coefs(l, *expcoef[loffset+moffset+1], ps);
-	dens += dfac*fac3*(pc*cosm[0][m] + ps*sinm[0][m]);
+	dens += dfac * facL * (pc*cosm[0][m] + ps*sinm[0][m]);
 	
 	get_pot_coefs(l, *expcoef[loffset+moffset], pc, dpc);
 	get_pot_coefs(l, *expcoef[loffset+moffset+1], ps, dps);
-	potl += fac3*(pc*cosm[0][m] + ps*sinm[0][m]);
-	potr += fac3*(dpc*cosm[0][m] + dps*sinm[0][m]);
-	pott += fac4*(pc*cosm[0][m] + ps*sinm[0][m]);
-	potp += fac3*(-pc*sinm[0][m] + ps*cosm[0][m])*m;
+	potl += facL * (pc*cosm[0][m] + ps*sinm[0][m]);
+	potr += facL * (dpc*cosm[0][m] + dps*sinm[0][m]);
+	pott += facD * (pc*cosm[0][m] + ps*sinm[0][m]);
+	potp += facL * (-pc*sinm[0][m] + ps*cosm[0][m])*m;
 	moffset +=2;
       }
     }
@@ -2058,14 +2065,14 @@ void SphericalBasis::compute_rms_coefs(void)
   LegeQuad qe(numg);
 
   SphericalModelTable modl(noise_model_file);
+
   double rmin = modl.get_min_radius();
   double rmax = modl.get_max_radius();
   double del = rmax - rmin;
-  double r, rs;
 
   for (int i=0; i<numg; i++) {
-    r = rmin + del*qe.knot(i);
-    rs = r / scale;
+    double r = rmin + del*qe.knot(i);
+    double rs = r / scale;
 
     get_potl(Lmax, nmax, rs, potd[0], 0);
 
@@ -2073,30 +2080,17 @@ void SphericalBasis::compute_rms_coefs(void)
       
       for (int n=0; n<nmax; n++) {
 
-	if (l==0)
-	  meanC[n] += del * qe.weight(i) * r * r * potd[0](l, n)/scale *
-	    modl.get_density(r);
+	double pot = potd[0](l, n)/sqnorm(l, n)/scale;
 
-	rmsC(l, n) += del * qe.weight(i) * r * r * potd[0](l, n)/scale *
-	  potd[0](l, n)/scale * modl.get_density(r);
+	if (l==0)
+	  meanC[n] += del * qe.weight(i) * r * r * pot *
+	    4.0*M_PI * modl.get_density(r);
+
+	rmsC(l, n) += del * qe.weight(i) * r * r * pot * pot *
+	  4.0*M_PI * modl.get_density(r);
       }
     }
   }
-
-  double fac, fac1;
-  double mtot = modl.get_mass(rmax);
-
-  for(int l=0; l<=Lmax; l++) {
-
-    fac1 = (4.0*M_PI)/(2.0*l+1.0);
-
-    for (int n=0; n<nmax; n++) {
-      fac = normM(l, n);
-      if (l==0) meanC[n] *= 4.0*M_PI*fac1/fac;
-      rmsC(l, n) *= mtot*4.0*M_PI*fac1*fac1/(fac*fac);
-    }
-  }
-
 }
 
 
@@ -2114,13 +2108,16 @@ void SphericalBasis::update_noise(void)
       for(int l=0; l<=Lmax; l++) {
 
 	out << "# L=" << l << endl;
+
+	double fac = sqrt((2.0*l + 1.0)/(4.0*M_PI));
+
 	for (int n=0; n<nmax; n++) {
 	  if (l==0)
 	    out << setw(5)  << n
 		<< setw(16) << (*expcoef[l])[n]
-		<< setw(16) << meanC[n]
-		<< setw(16) << rmsC(l, n)
-		<< setw(16) << rmsC(l, n) - meanC[n]*meanC[n]
+		<< setw(16) << meanC[n] * fac
+		<< setw(16) << rmsC(l, n) * fac*fac
+		<< setw(16) << (rmsC(l, n) - meanC[n]*meanC[n])*fac*fac
 		<< endl;
 	  else
 	    out << setw(5)  << n
@@ -2144,17 +2141,16 @@ void SphericalBasis::update_noise(void)
       if (m==0) {
 	for (int n=0; n<nmax; n++) {
 	  (*expcoef[loffset+moffset])[n] = 
-	    sqrt(fabs(rmsC(l, n) - meanC[n]*meanC[n])/factorial(l, m)/noiseN)*nrand(rgen);
+	    sqrt(fabs(rmsC(l, n) - meanC[n]*meanC[n])*factorial(l, m)/noiseN)*nrand(rgen);
 	  if (l==0) (*expcoef[l])[n] += meanC[n];
 	}
 	moffset++;
       }
       else {
 	for (int n=0; n<nmax; n++) {
-	  (*expcoef[loffset+moffset+0])[n] = 
-	    sqrt(0.5*fabs(rmsC(l, n) - meanC[n]*meanC[n])/factorial(l, m)/noiseN)*nrand(rgen);
+	  (*expcoef[loffset+moffset+0])[n] = sqrt(fabs(rmsC(l, n) - meanC[n]*meanC[n])*factorial(l, m)/noiseN)*nrand(rgen);
 	  (*expcoef[loffset+moffset+1])[n] = 
-	    sqrt(0.5*fabs(rmsC(l, n) - meanC[n]*meanC[n])/factorial(l, m)/noiseN)*nrand(rgen);
+	    sqrt(fabs(rmsC(l, n) - meanC[n]*meanC[n])*factorial(l, m)/noiseN)*nrand(rgen);
 	}
 	moffset+=2;
       }
@@ -2234,5 +2230,104 @@ void SphericalBasis::occt_output()
       }
       std::cout << std::string(8*(multistep+1), '-') << std::endl;
     }
+  }
+}
+
+void SphericalBasis::biorthogonality_check()
+{
+  // Allocate storage:
+  // - 1st index is the node
+  // - 2nd index is L
+  //
+  std::vector<std::vector<Eigen::MatrixXd>> one(numprocs);
+  for (auto & v : one) {
+    v.resize(Lmax+1);
+    for (auto & u : v) {
+      u.resize(nmax, nmax);
+      u.setZero();
+    }
+  }
+
+  // Number of knots
+  //
+  const int num = 400;
+  LegeQuad wk(num);
+  
+  // Mapped radial range
+  //
+  double xmin = r_to_xi(rmin), xmax = r_to_xi(rmax);
+  double dx = xmax - xmin;
+
+  Eigen::MatrixXd p(Lmax+1, nmax), d(Lmax+1, nmax);
+
+
+  // Biorthogonal integral loop
+  //
+  for (int i=0; i<num; i++) {
+
+    // Each node contributes individual radii
+    //
+    if (i % numprocs == myid) {
+
+      double x = xmin + dx*wk.knot(i);
+      double r = xi_to_r(x);
+      double w = dx*wk.weight(i) * d_r_to_xi(r) * r * r;
+
+      // Evaluate basis at radius r
+      //
+      get_potl(Lmax, nmax, r, p, 0);
+      get_dens(Lmax, nmax, r, d, 0);
+
+      // Contribution to the integrand
+      //
+      for (int L=0, cnt=0; L<=Lmax; L++) {
+	for (int n1=0; n1<nmax; n1++) {
+	  for (int n2=0; n2<nmax; n2++, cnt++) {
+	    one[myid][L](n1, n2) += w * p(L, n1) * d(L, n2);
+	  }
+	}
+      }
+    }
+  }
+
+  // Reduce from workers to root and print to file
+  //
+  if (myid==0) {
+
+    // Get contributions from worker nodes
+    //
+    for (int L=0; L<=Lmax; L++)
+      MPI_Reduce(MPI_IN_PLACE, one[0][L].data(), one[0][L].size(),
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    // Output file
+    //
+    std::ostringstream filename;
+    filename << "ortho_check." << component->name << "." << runtag;
+    std::ofstream out(filename.str());
+    if (out) {
+      // Header
+      //
+      out << "# component=" << component->name << std::endl
+	  << "# force ID =" << this->id << std::endl
+	  << "#" << std::endl;
+
+      // Print biorthogonality matrices
+      //
+      for (int L=0, cnt=0; L<=Lmax; L++) {
+	out << "#" << std::string(72, '-') << std::endl;
+	out << "# L=" << L << std::endl;
+	out << "#" << std::string(72, '-') << std::endl;
+	out << std::scientific << std::setprecision(4)
+	    << one[0][L] << std::endl;
+      }
+    }
+  }
+  else {
+    // Send contributions to root node
+    //
+    for (int L=0; L<=Lmax; L++)
+      MPI_Reduce(one[myid][L].data(), 0, one[myid][L].size(),
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   }
 }
