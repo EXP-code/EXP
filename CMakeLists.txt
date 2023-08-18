@@ -55,7 +55,7 @@ find_package(MPI REQUIRED)
 find_package(Boost COMPONENTS serialization)
 find_package(OpenMP)
 find_package(FFTW)
-find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
+find_package(HDF5 1.8.20 COMPONENTS C CXX HL REQUIRED)
 find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
 find_package(PNG)
