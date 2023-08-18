@@ -14,6 +14,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <chrono>
+#include <ctime>
 #include <set>
 
 #include <global_key_set.H>
@@ -416,13 +418,25 @@ void write_parm(void)
 
   update_parm();
 
+  auto now = std::chrono::system_clock::now();
+  auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+  std::stringstream ss;
+  ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X");
+
   out << std::endl
-      << "---"                       << std::endl
-      << "#------------------------" << std::endl
-      << "# Parameter database     " << std::endl
-      << "# EXP [" << VERSION << "]" << std::endl
-      << "#------------------------" << std::endl
-      << "#"                         << std::endl;
+      << "---"                             << std::endl
+      << "#-----------------------------"  << std::endl
+      << "# Parameter database          "  << std::endl
+      << "#-----------------------------"  << std::endl
+      << "# EXP [" << VERSION << "]"       << std::endl
+      << "# URL:    " << PACKAGE_URL       << std::endl
+      << "# Branch: " << GIT_BRANCH        << std::endl
+      << "# Commit: " << GIT_COMMIT        << std::endl
+      << "# Built:  " << COMPILE_TIME      << std::endl
+      << "# Today:  " << ss.str()          << std::endl
+      << "#-----------------------------"  << std::endl
+      << "#"                               << std::endl;
 
   out << parse << std::endl
       << "..." << std::endl;
