@@ -182,7 +182,7 @@ execute_process(
 
 # Get the build date
 execute_process(
-  COMMAND date -u +%Y-%m-%d\ %H:%M:%S\ UTC
+  COMMAND date +%Y-%m-%d\ %H:%M:%S\ %Z
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   OUTPUT_VARIABLE COMPILE_TIME
   OUTPUT_STRIP_TRAILING_WHITESPACE
