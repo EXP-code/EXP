@@ -67,7 +67,6 @@ CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 
   // Allocate and compute normalization matrix
 
-  normM.resize(Lmax+1, nmax);
   dend .resize(Lmax+1, nmax);
   work .resize(Lmax+2, nmax);
 
@@ -93,8 +92,7 @@ CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 
   for (int l=0; l<=Lmax; l++) {
     for (int n=0; n<nmax; n++) {
-      normM (l, n) = norm(n, l);
-      sqnorm(l, n) = sqrt(normM(l, n));
+      sqnorm(l, n) = sqrt(norm(l, n));
     }
   }
 
@@ -360,12 +358,12 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
 				// l loop
 
       for (int n=0; n<nmax; n++) {
-	expcoef0[id](0, n) += potd[id](0, n)*mass/normM(0, n);
+	expcoef0[id](0, n) += potd[id](0, n)*mass/sqnorm(0, n);
 	if (pcavar && compute) {
 	  pthread_mutex_lock(&cc_lock);
 	  for (int nn=n; nn<nmax; nn++)
 	    cc1[0](n, nn) += potd[id](0, n)*potd[id](0, nn)*mass/
-	      (normM(0, n)*normM(0, nn));
+	      (sqnorm(0, n)*sqnorm(0, nn));
 	  pthread_mutex_unlock(&cc_lock);
 	}
       }
@@ -376,15 +374,15 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
 	fac2 = sinm[id][l] * M_SQRT2;
 
 	for (int n=0; n<nmax; n++) {
-	  expcoef0[id](2*l - 1, n) +=  potd[id](l, n)*fac1*mass/normM(l, n);
-	  expcoef0[id](2*l    , n) +=  potd[id](l, n)*fac2*mass/normM(l, n);
+	  expcoef0[id](2*l - 1, n) +=  potd[id](l, n)*fac1*mass/sqnorm(l, n);
+	  expcoef0[id](2*l    , n) +=  potd[id](l, n)*fac2*mass/sqnorm(l, n);
 	  if (pcavar && compute) {
 	    pthread_mutex_lock(&cc_lock);
 	    for (int nn=n; nn<nmax; nn++) {
 	      cc1[2*l - 1](n, nn) += potd[id](l, n)*potd[id](l, nn)*fac1*fac1*
-		mass/(normM(l, n)*normM(l, nn));
+		mass/(sqnorm(l, n)*sqnorm(l, nn));
 	      cc1[2*l    ](n, nn) += potd[id](l, n)*potd[id](l, nn)*fac2*fac2*
-		mass/(normM(l, n)*normM(l, nn));
+		mass/(sqnorm(l, n)*sqnorm(l, nn));
 	    }
 	    pthread_mutex_unlock(&cc_lock);
 	  }
@@ -595,13 +593,13 @@ void CBrockDisk::determine_fields_at_point_polar
 
     get_dens_coefs(l,expcoef->row(2*l - 1), pc);
     get_dens_coefs(l,expcoef->row(2*l    ), ps);
-    dens += (pc*cosm[0][l] + ps*sinm[0][l]) * M_SQRT2;
+    dens += (pc*cosm[0][l] + ps*sinm[0][l]) * M_SQRT2 / sqnorm(l,n);
 
     get_pot_coefs(l,expcoef->row(2*l - 1), pc, dpc);
     get_pot_coefs(l,expcoef->row(2*l    ), ps, dps);
-    potl += (pc *cosm[0][l] + ps *sinm[0][l]) * M_SQRT2;
-    potr += (dpc*cosm[0][l] + dps*sinm[0][l]) * M_SQRT2;
-    potp += (-pc*sinm[0][l] + ps *cosm[0][l]) * M_SQRT2 * l;
+    potl += (pc *cosm[0][l] + ps *sinm[0][l]) * M_SQRT2 / sqnorm(l,n);
+    potr += (dpc*cosm[0][l] + dps*sinm[0][l]) * M_SQRT2 / sqnorm(l,n);
+    potp += (-pc*sinm[0][l] + ps *cosm[0][l]) * M_SQRT2 * l / sqnorm(l,n);
   }
 
   *tdens0 /= scale*scale*scale;
@@ -622,8 +620,8 @@ void CBrockDisk::get_pot_coefs(int l, const Eigen::VectorXd& coef,
   pp = dpp = 0.0;
 
   for (int i=0; i<nmax; i++) {
-    pp  += potd[0](l, i) * coef[i];
-    dpp += dpot[0](l, i) * coef[i];
+    pp  += potd[0](l, i) * coef[i] / sqnorm(l,n);
+    dpp += dpot[0](l, i) * coef[i] / sqnorm(l,n);
   }
 
   p = -pp;
@@ -640,8 +638,8 @@ void CBrockDisk::get_pot_coefs_safe
   pp = dpp = 0.0;
 
   for (int i=0; i<nmax; i++) {
-    pp  += potd1(l, i) * coef[i];
-    dpp += dpot1(l, i) * coef[i];
+    pp  += potd1(l, i) * coef[i] / sqnorm(l,n);
+    dpp += dpot1(l, i) * coef[i] / sqnorm(l,n);
   }
 
   p  = -pp;
@@ -655,7 +653,7 @@ void CBrockDisk::get_dens_coefs
   double pp = 0.0;
 
   for (int i=0; i<nmax; i++)
-    pp  += dend(l, i) * coef[i];
+    pp  += dend(l, i) * coef[i] / sqnorm(l,n);
 
   p = pp;
 }
