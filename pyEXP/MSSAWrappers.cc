@@ -66,7 +66,7 @@ void MSSAtoolkitClasses(py::module &m) {
     "  verbose: false        Whether there is report or not\n"
     "  noMean: false         If true, do not subtract the mean when\n"
     "                        reading in channels. Valid only for totPow\n"
-    "                        detrending method."
+    "                        detrending method.\n"
     "  writeCov: true        Write the covariance matrix to a file for\n"
     "                        diagnostics since this is not directly\n"
     "                        available from the interface\n"
@@ -96,8 +96,8 @@ void MSSAtoolkitClasses(py::module &m) {
     "  totVar: false         Detrend according to the total variance\n"
     "                        in all channel\n"
     "  totPow: false         Detrend according to the total power in\n"
-    "                        all channels"
-    "The following parameters take values, defaults are given in ()\n\n"
+    "                        all channels\n\n"
+    "The following parameters take values,\ndefaults are given in ()\n\n"
     "  evtol: double(0.01)   Truncate by the given cumulative p-value in\n"
     "                        chatty mode\n"
     "  output: str(exp_mssa) Prefix name for output files\n\n"
@@ -257,12 +257,19 @@ void MSSAtoolkitClasses(py::module &m) {
     )");
 
 
-  f.def("getReconstructed", &expMSSA::getReconstructed,
+  f.def("getReconstructed", &expMSSA::getReconstructed, py::arg("reconstructmean")=true,
     R"(
     Return the reconstructed time series in the original coefficient form
-    that may be used in basis classes.
+    that may be used in basis classes.   Setting 'reconstructmean=False' may 
+    be helpful to compare the variance between data channels.
 
-    Note: The reconstructed data will overwrite the memory of the original coefficient data.
+    Note: The reconstructed data will overwrite the memory of the original 
+          coefficient data.
+
+    Args:
+        reconstructmean (bool): If True (default), the data channel includes 
+                                the mean value that was subtracted during 
+                                SSA detrending.
 
     Returns:
         ndarray: The reconstructed time series in the original coefficient form.
@@ -376,7 +383,7 @@ void MSSAtoolkitClasses(py::module &m) {
 
     Returns:
         None
-    )");
+    )", py::arg("prefix"));
 
   f.def("restoreState", &expMSSA::restoreState,
     R"(
@@ -391,7 +398,7 @@ void MSSAtoolkitClasses(py::module &m) {
 
     Returns:
         None
-    )");
+    )", py::arg("prefix"));
 
 
   f.def("getTotVar", &expMSSA::getTotVar,
@@ -420,7 +427,7 @@ void MSSAtoolkitClasses(py::module &m) {
 
     Returns:
         ndarray: The detrended reconstructed channel series.
-    )");
+    )", py::arg("key"));
 
   f.def("getRCkeys", &expMSSA::getRCkeys,
 	R"(
