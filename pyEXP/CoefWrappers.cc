@@ -441,49 +441,76 @@ void CoefficientClasses(py::module &m) {
   };
 
   py::class_<CoefClasses::CoefStruct, std::shared_ptr<CoefClasses::CoefStruct>, PyCoefStruct>(m, "CoefStruct")
-    .def(py::init<>(), "Base class coefficient data structure object")
+    .def(py::init<>(),
+	 R"(
+         Base class coefficient data structure object
+
+         Returns
+         -------
+         CoefStruct
+         )")
     .def("create", &CoefStruct::create,
-        R"(
-        Initialize a coefficient zeroed structure from user supplied dimensions.
+	 R"(
+        Initialize a coefficient zeroed structure from user supplied dimensions
 
-        Args:
-            None
-
-        Returns:
-            None
+        Returns
+        -------
+        None
         )")
     .def("deepcopy", &CoefStruct::deepcopy,
         R"(
-        Make a new instance and copy all data into the new instance.
+        Make a new instance and copy all data into the new instance
 
-        Args:
-            None
+        Returns
+        -------
+        CoefStruct
+            new CoefStruct instance with the copied data
 
-        Returns:
-            CoefStruct: A new instance with the copied data.
+        Notes
+        -----
+        This is useful if you would like to modify some coefficients while preserving
+        your original coefficients.
         )")
     .def_readonly("geometry", &CoefStruct::geom,
-        "The geometry type.")
+		  R"(
+                  str
+                      geometry type
+                  )")
     .def_readwrite("time", &CoefStruct::time,
-        "The data's time.")
+		   R"(
+                   float
+                       data's time stamp
+                   )")
     .def("getCoefs", &CoefStruct::getCoefs,
         R"(
-        Read-only access to the underlying data store.
+        Read-only access to the underlying data store
 
-        Returns:
-            numpy.ndarray: The complex-valued matrix as a NumPy array of complex values.
+        Returns
+        -------
+        numpy.ndarray
+            complex-valued matrix as a NumPy array of complex values
+
+        See also
+        --------
+        setCoefs : read-write access to Coefs
         )")
     .def("setCoefs", &CoefStruct::setCoefs,
         R"(
-        Read-write access to the underlying data store.
+        Read-write access to the underlying data store
 
-        Args:
-            coefs (numpy.ndarray): The complex-valued matrix represented as a NumPy array of complex values.
-                                   Changes made to the data array will be automatically mapped back to the
-                                   C++ CoefStruct instance.
+        Returns
+        -------
+        numpy.ndarray
+            complex-valued matrix represented as a NumPy array of complex values
 
-        Returns:
-            None
+        Notes
+        -----
+        Changes made to the data array will be automatically mapped back to the
+        C++ CoefStruct instance.
+
+        See also
+        --------
+        getCoefs : read-only access to Coefs
         )");
 
 
@@ -499,14 +526,23 @@ void CoefficientClasses(py::module &m) {
   py::class_<CoefClasses::Coefs, std::shared_ptr<CoefClasses::Coefs>, PyCoefs>(m, "Coefs")
     .def(py::init<std::string, bool>(),
          R"(
-         Constructor.
+         Create a coefficient container
 
-         Args:
-             type (str): The type of coefficient container.
-             verbose (bool): Flag indicating whether to display verbose information.
+         Parameters
+         ----------
+         type : str
+             type of coefficient container
+         verbose : bool
+             display verbose information.
 
-         Returns:
-             None
+         Returns
+         -------
+         Coefs instance
+
+         Notes
+         -----
+         This container that holds, stores, and reads coefficient structures for a part or all of
+         the snapshots in your simulation
          )",
          py::arg("type"),
          py::arg("verbose"))
@@ -515,173 +551,279 @@ void CoefficientClasses(py::module &m) {
          R"(
          Return the coefficient matrix for the desired time.
 
-         Args:
-             time (float): The desired time.
+         Parameters
+         ----------
+         time : float
+             the desired time
 
-         Returns:
-             np.ndarray: The coefficient matrix.
+         Returns
+         -------
+         numpy.ndarray
+             the coefficient matrix at the requested time
+
+         Notes
+         -----
+         This operator will return the 0-rank matrix if no coefficients are found at the
+         requested time
          )",
          py::arg("time"))
     .def("setMatrix",
          &CoefClasses::Coefs::setMatrix,
          R"(
-         Rewrite the coefficient matrix at the provided time.
+         Enter and/or rewrite the coefficient matrix at the provided time
 
-         Args:
-             time (float): The time at which to rewrite the coefficient matrix.
-             matrix (np.ndarray): The new coefficient matrix.
+         Parameters
+         ----------
+         time : float
+             snapshot time corresponding to the the coefficient matrix
+             mat : numpy.ndarray
+                 the new coefficient matrix.
 
-         Returns:
-             None
+         Returns
+         -------
+         None
          )",py::arg("time"), py::arg("mat"))
     .def("add",
          &CoefClasses::Coefs::add,
          R"(
-         Add a coefficient structure to the coefficient container.
+         Add a coefficient structure to the coefficient container
 
-         Args:
-             coef (CoefStruct): The coefficient structure to add.
+         Parameters
+         ----------
+         coef : CoefStruct
+             coefficient structure to add
 
-         Returns:
-             None
+         Returns
+         -------
+         None
+
+         Notes
+         -----
+         The time value is supplied by the CoefStruct
+
+         See also
+         --------
+         CoefStruct : the coefficient structure for a single snaphot
          )",py::arg("coef"))
     .def("getCoefStruct",
          &CoefClasses::Coefs::getCoefStruct,
          R"(
-         Return the coefficient structure for the desired time.
+         Return the coefficient structure for the desired time
 
-         Args:
-             time (float): The desired time.
+         Parameters
+         ----------
+         time : float
+             requested time
 
-         Returns:
-             CoefStruct: The coefficient structure.
+         Returns
+         -------
+         CoefStruct: coefficient structure
+
+         Notes
+         -----
+         You will get a runtime error if the entry does not exist.
          )",py::arg("time"))
     .def("Times",
             &CoefClasses::Coefs::Times,
             R"(
-            Return a list of times for coefficient sets currently in the container.
+            Return a list of times for coefficient sets currently in the container
 
-            Returns:
-                list: List of times.
+            Returns
+            -------
+            list(float,...)
+                list of times
             )")
     .def("WriteH5Coefs",
             &CoefClasses::Coefs::WriteH5Coefs,
             R"(
             Write the coefficients into an EXP HDF5 coefficient file with the given prefix name.
 
-            Args:
-                filename (str): The filename prefix.
+            Parameters
+            ----------
+            filename : str
+                the filename prefix.
 
-            Returns:
-                None
+            Returns
+            -------
+            None
+
+            Notes
+            -----
+            This call will throw a runtime exception of the HDF5 coefficient file already exists.
+            This is a safety feature.  If you'd like a new version of this file, delete the old
+            before this call.
             )",py::arg("filename"))
     .def("ExtendH5Coefs",
             &CoefClasses::Coefs::ExtendH5Coefs,
             R"(
-            Extend an existing EXP HDF5 coefficient file with the given prefix name using the coefficients in the container.
+            Extend an existing EXP HDF5 coefficient file with added data
 
-            Args:
-                filename (str): The filename prefix.
+            Parameters
+            ----------
+            filename : str 
+                the filename prefix
 
-            Returns:
-                None
+            Returns
+            -------
+            None
+
+            Notes
+            -----
+            You will get a runtime error if the H5 filename does not exist
             )",py::arg("filename"))
     .def("Power",
              &CoefClasses::Coefs::Power,
              R"(
-             Return an ndarray table of the full power for the top-level harmonic index as a function of time.
+             Table of the full power for the top-level harmonic index as a function of time
 
-             Args:
-                 min (int): The minimum harmonic index (default: 0).
-                 max (int): The maximum harmonic index (default: infinity).
+             Parameters
+             ----------
+             min : int, default=0
+                 the minimum harmonic index
+             max : int, default=inf
+                 the maximum harmonic index
 
-             Returns:
-                 np.ndarray: The power table.
+             Returns
+             -------
+             numpy.ndarray: 
+                 table of coefficient power values
              )",py::arg("min")=0, py::arg("max")=std::numeric_limits<int>::max())
     .def("makeKeys",
          &CoefClasses::Coefs::makeKeys,
          R"(
-         Return a vector/list of keys for an entire subspace of subdimensional rank.
+         a vector/list of keys for an entire subspace of subdimensional rank
 
-         Args:
-             subkey (str): The subkey.
+         Parameters
+         ----------
+         subkey : list(int,...)
+             the subkey
 
-         Returns:
-             list: List of keys.
+         Returns
+         -------
+         list(list)
+             list of keys with the provided subkey prefix
+
+         Notes
+         -----
+         The subkey prefix is a list of ints with size smaller than the key.  The
+         values will be used as leading key indices and all the matching trailing key
+         values will be generated.
          )", py::arg("subkey"))
     .def("getGeometry",    &CoefClasses::Coefs::getGeometry,
          R"(
-         Return the coefficient geometry string.
+         The coefficient geometry string
 
-         Returns:
-             str: The coefficient geometry string.
+         Returns
+         -------
+         str
+             geometry name
          )")
     .def("getName",        &CoefClasses::Coefs::getName,
          R"(
-         Return the coefficient set mnemonic name.
+         The coefficient set mnemonic name.
 
-         Returns:
-             str: The coefficient set mnemonic name.
+         Returns
+         -------
+         str
+             mnemonic name
          )")
     .def("setName",        &CoefClasses::Coefs::setName,
          R"(
          Set or rename the coefficient set mnemonic name.
 
-         Args:
-             newname (str): The new name.
+         Parameters
+         ----------
+         newname : str
+             new mnemonic name
 
-         Returns:
-             None
+         Returns
+         -------
+         None
          )", py::arg("newname"))
     .def("deepcopy",       &CoefClasses::Coefs::deepcopy,
          R"(
-         Return a byte-by-byte copy of the original data.
+         byte-by-byte copy of the original data
 
-         Returns:
-             Coefs: The copied Coefs object.
+         Returns
+         -------
+         Coefs
+             New copied instance of the Coefs object
+
+         Notes
+         -----
+         Useful if you would like to change your coefficients or filter using
+         mSSA but keep a copy of your original coefficient db for comparison
+
+         See also
+         --------
+         pyEXP.mssa
          )")
     .def("zerodata",       &CoefClasses::Coefs::zerodata,
          R"(
          Zero all of the coefficient data, keeping sizes and metadata intact.
 
-         Returns:
-             None
+         Returns
+         -------
+         None
          )")
     .def("CompareStanzas", &CoefClasses::Coefs::CompareStanzas,
          R"(
-         Check that the data in one Coefs set is identical to that in another.
+         Check that the data in one Coefs set is identical to that in another
 
-         Returns:
-             bool: True if the data is identical, False otherwise.
+         Returns
+         -------
+         bool
+             True if the data is identical, False otherwise.
          )")
     .def_static("factory", &CoefClasses::Coefs::factory,
               R"(
-              Deduce the type and read coefficients from a native or HDF5 file.
+              Deduce the type and read coefficients from a native or HDF5 file
 
-              Args:
-                file (str): The file path.
-                stride (int): The stride value. Default is 1.
-                tmin (float): The minimum time value. Default is -infinity.
-                tmax (float): The maximum time value. Default is +infinity.
+              Parameters
+              ----------
+              file : str
+                  the file path.
+              stride : int, default=1
+                  stride value
+              tmin : float, default=-inf
+                   minimum time value
+              tmax : float, default=inf
+                   maximum time value
 
-            Returns:
-                Coefs: The created Coefs object.
+            Returns
+            -------
+            Coefs
+                the newly created Coefs object
             )",
             py::arg("file"), py::arg("stride")=1,
             py::arg("tmin")=-std::numeric_limits<double>::max(),
             py::arg("tmax")= std::numeric_limits<double>::max())
     .def_static("makecoefs", &CoefClasses::Coefs::makecoefs,
 		R"(
-            Create a new coefficient instance compatible with the supplied coefficient structure.
+                make a new coefficient container instance compatible
 
-            Args:
-                coef (CoefStruct): The coefficient structure.
-                name (str): The name of the coefficient instance. Default is an empty string.
+                Parameters
+                ----------
+                coef : CoefStruct
+                    coefficient structure
+                name : str, default=""
+                     name of the coefficient instance
 
-            Returns:
-                Coefs: The created Coefs object.
-            )",
-		        py::arg("coef"), py::arg("name")="");
+                Returns
+                -------
+                Coefs 
+                    the newly created Coefs object
+
+                Notes
+                -----
+                The type will be deduced from the supplied coefficient structure.  Subsequent
+                additions of coefficients sets should use the addcoef() member
+
+                See also
+                --------
+                addcoef : add coefficient structures to an existing coefficieint container
+                )",
+		py::arg("coef"), py::arg("name")="");
 
   py::class_<CoefClasses::SphCoefs, std::shared_ptr<CoefClasses::SphCoefs>, PySphCoefs, CoefClasses::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
     .def(py::init<bool>())
@@ -693,12 +835,17 @@ void CoefficientClasses(py::module &m) {
 	   return ret;
 	 },
 	 R"(
-        Return a 3-dimensional ndarray indexed by spherical index, radial index, and time index.
+        Provide a 3-dimensional ndarray indexed by spherical index, radial index, and time index
 
-        The spherical index serializes all pairs of (l, m). The index for (l, m) is calculated as: l*(l+1)/2 + m.
+        Returns
+        -------
+        numpy.ndarray
+            3-dimensional numpy array containing the spherical coefficients
 
-        Returns:
-            ndarray: A 3-dimensional numpy array containing the spherical coefficients.
+        Notes
+        -----
+        The spherical index serializes all pairs of (l, m). The index for (l, m) is calculated 
+        as: l*(l+1)/2 + m.
         )");
 
   py::class_<CoefClasses::CylCoefs, std::shared_ptr<CoefClasses::CylCoefs>, PyCylCoefs, CoefClasses::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
@@ -711,10 +858,12 @@ void CoefficientClasses(py::module &m) {
 	   return ret;
 	 },
 	 R"(
-         Return a 3-dimensional ndarray indexed by azimuthal index, radial index, and time index.
+         Provide a 3-dimensional ndarray indexed by azimuthal index, radial index, and time index
 
-         Returns:
-             ndarray: A 3-dimensional numpy array containing the cylindrical coefficients.
+         Returns
+         -------
+         numpy.ndarray
+             3-dimensional numpy array containing the cylindrical coefficients
          )")
     .def("EvenOddPower",
 	 [](CoefClasses::CylCoefs& A, int nodd, int min, int max)
@@ -724,15 +873,25 @@ void CoefficientClasses(py::module &m) {
 	 R"(
          Get cylindrical coefficient power separated into vertically even and odd contributions.
 
-         The default parameters will query the YAML config for the value of ncylodd, but this can be provided as an argument if it is not explicitly set in your EXP::Cylinder configuration.
+         Parameters
+         ----------
+         nodd : int, default=-1
+             number of odd vertical modes to compute
+         min : int, default=0
+             minimum time index for power calculation
+         max : int, default=inf
+             maximum time index for power calculation
 
-         Args:
-             nodd (int): Number of odd vertical modes to compute. Default is -1.
-             min (int): Minimum time index for power calculation. Default is 0.
-             max (int): Maximum time index for power calculation. Default is infinity.
+         Returns
+         -------
+         numpy.ndarray
+             2-dimensional numpy array containing the even and odd power coefficients
 
-         Returns:
-             ndarray: A 2-dimensional numpy array containing the even and odd power coefficients.
+         Notes
+         -----
+         The default parameters (nodd<0) will query the YAML config for the value of ncylodd, 
+         but this can be provided as an argument if it is not explicitly set in your EXP::Cylinder 
+         configuration. If in doubt, use the default.
          )",
 	 py::arg("nodd")=-1, py::arg("min")=0,
 	 py::arg("max") = std::numeric_limits<double>::max());
@@ -742,9 +901,11 @@ void CoefficientClasses(py::module &m) {
     .def(py::init<bool>())
     .def("getAllCoefs",    &CoefClasses::TableData::getAllCoefs,
 	 R"(
-         Return a 2-dimensional ndarray indexed by column and time.
+         Return a 2-dimensional ndarray indexed by column and time
 
-         Returns:
-             ndarray: A 2-dimensional numpy array containing the data table.
+         Returns
+         -------
+         numpy.ndarray
+             2-dimensional numpy array containing the data table
          )");
 }

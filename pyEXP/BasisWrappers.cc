@@ -606,8 +606,10 @@ void BasisFactoryClasses(py::module &m) {
          YAMLstring : str
              The YAML configuration for the spherical basis
 
-         Returns:
-              SphericalSL
+         Returns
+         -------
+         SphericalSL
+              the new intance
          )", py::arg("YAMLstring"))
 
       .def("getBasis", &BasisClasses::SphericalSL::getBasis,
@@ -690,8 +692,10 @@ void BasisFactoryClasses(py::module &m) {
          YAMLstring : str
              The YAML configuration for the cylindrical basis
 
-         Returns:
-              Cylindrical
+         Returns
+         -------
+         Cylindrical
+              the new instance
          )", py::arg("YAMLstring"))
     .def("getBasis", &BasisClasses::Cylindrical::getBasis,
 	 R"(
@@ -784,8 +788,10 @@ void BasisFactoryClasses(py::module &m) {
              parameters will give an exponential disk with scale length of
              0.01 units. Set the disk scale length using the 'scale'  parameter.
 
-         Returns:
-              FlatDisk
+         Returns
+         -------
+         FlatDisk
+             the new instance
          )", py::arg("YAMLstring"))
     .def("getBasis", &BasisClasses::FlatDisk::getBasis,
 	 R"(
