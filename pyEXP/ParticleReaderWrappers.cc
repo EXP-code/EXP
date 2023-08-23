@@ -260,45 +260,143 @@ void ParticleReaderClasses(py::module &m) {
   pr.def(py::init<>(), "The base class for particle reading");
 
   pr.def("SelectType",      &ParticleReader::SelectType,
-	 "Select the particle type to read.  "
-	 "Use GetTypes() to see the available types.");
+	 R"(
+         Select the particle type to read.  
+
+         Parameters
+         ----------
+         type : str
+             particle type to select
+
+         Returns
+         -------
+         None
+
+         Notes
+         -----
+         Use GetTypes() to see the available types
+         )");
 
   pr.def("CurrentNumber",   &ParticleReader::CurrentNumber,
-	 "Return the current number of particles in the snapshot "
-	 "for the selected type");
+	 R"(
+         Number of particles in the snapshot for the selected type
+
+         Returns
+         -------
+         int
+             number of particles
+         )");
   
   pr.def("GetTypes",        &ParticleReader::GetTypes,
-	 "View the available particle types");
+	 R"(
+         View the available particle types
+
+         Returns
+         -------
+         list(str)
+             Available types to select
+
+         See also
+         --------
+         SelectType
+         )");
   
   pr.def("CurrentTime",     &ParticleReader::CurrentTime,
-	 "Return the time for the current snapshot");
+	 R"(
+	 Return the time for the current snapshot
+
+	 Returns
+         -------
+         float
+             the current time
+	 )");
   
   pr.def("PrintSummary",
 	 [](ParticleReader& A, bool stats, bool timeonly)
 	 { A.PrintSummary(std::cout, stats, timeonly); },
-	 "Print a summary of list of extents, center of mass, and "
-	 "other global quantities for this snapshopt.  This requires "
-	 "a read pass and may be time consuming",
+	 R"(
+         Summarize global phase-space features
+
+         Print a summary of list of extents, center of mass, and
+	 other global quantities for this snapshopt.  This requires
+	 a read pass and may be time consuming.
+
+         Parameters
+         ----------
+         stats : bool, default=True
+             compute ensemble properties of positions and velocities
+         timeonly : bool, default=False
+             report current time only
+         )",
 	 py::arg("stats")=true, py::arg("timeonly")=false);
   
   pr.def_static("parseFileList", &ParticleReader::parseFileList,
-		py::doc("Read snapshot file names from a file and format into "
-			"bunches for the reader using the provided delimiter "
-			"string to separate the snapshot name from the "
-			"processor index"),
-		py::arg("file"), py::arg("delimiter")="");
+		py::doc(R"(
+                        Group files into times and segments for reader
+
+                        Read snapshot file names from a file and format into bunches for the 
+                        reader using the provided delimiter string to separate the snapshot name 
+                        from the processor index
+
+                        Parameters
+                        ----------
+                        file : str
+                            file containing the file list
+                        delimiter : str, default=" "
+                            string that delimits filename fields
+
+                        Returns
+                        -------
+                        list(list(str))
+                            List of bunches for each snapshot. Bunches are lists of phase-space 
+                            partitions for each time.
+                        )"),
+		py::arg("file"), py::arg("delimiter")=" ");
   
   pr.def_static("parseStringList", &ParticleReader::parseStringList,
-		py::doc("Format a list of snapshot file names into bunches "
-			"for the reader"),
-		py::arg("filelist"), py::arg("delimiter")="");
+		py::doc(R"(
+			Format a list of snapshot file names into bunches for the reader
+
+                        As in parseFileList but for a vector of file name strings
+
+                        Parameters
+                        ----------
+                        file : list(str)
+                            list of file names
+                        delimiter : str, default=" "
+                            string that delimits filename fields
+
+                        Returns
+                        -------
+                        list(list(str))
+                            List of bunches for each snapshot. Bunches are lists of phase-space 
+                            partitions for each time.
+                        )"),		
+		py::arg("filelist"), py::arg("delimiter")=" ");
 
   pr.def_static("createReader", &ParticleReader::createReader,
-	 py::doc("Create a particle reader from the provided type "
-		 "string bunch list constructed by praseFileList or "
-		 "parseStringList"),
-	 py::arg("type"), py::arg("bunch"),
-	 py::arg("myid")=0, py::arg("verbose")=false);
+		py::doc(R"(
+                        Create a particle reader from the provided type
+
+		        Uses the string bunch list constructed by praseFileList or parseStringList
+
+                        Parameters
+                        ----------
+                        type : str
+                            component type
+                        bunch : list(str)
+                            list of file segments to process
+                        myid : int, default=0
+                            MPI processor id (use 0 if not using MPI)
+                        verbose : bool, default=False
+                            verbose, diagnostic output
+
+                        Returns
+                        -------
+                        ParticleReader
+                        )"),
+		py::arg("type"), py::arg("bunch"),
+		py::arg("myid")=0, py::arg("verbose")=false);
 
   pr.def_static("getReaders", []()
   {
@@ -308,14 +406,49 @@ void ParticleReaderClasses(py::module &m) {
 
     return formats;
     },
-    py::doc("Returns the list of phase-space snapshot format types as a Python list"));
+    py::doc(R"(
+            Returns the list of phase-space snapshot format types as a Python list
+
+            Returns
+            -------
+            list(str)
+                List of valid format strings
+            )")
+    );
 
   py::class_<GadgetHDF5, std::shared_ptr<GadgetHDF5>, PyGadgetHDF5, ParticleReader>(m, "GadgetHDF5")
     .def(py::init<const std::vector<std::string>&, bool>(),
-	 "Read Gadget HDF5 format snapshots");
+	 R"(
+         Read Gadget HDF5 format snapshots
+
+         Parameters
+         ----------
+         files : list(str)
+             List of files with phase-space segments comprising a single snapshot
+         verbose : bool, default=False
+             Verbose, diagnostic output
+
+         Returns
+         -------
+         ParticleReader
+         )");
 
   py::class_<GadgetNative, std::shared_ptr<GadgetNative>, PyGadgetNative, ParticleReader>(m, "GadgetNative")
-    .def(py::init<const std::vector<std::string>&, bool>(), "Read Gadget native format snapshots");
+    .def(py::init<const std::vector<std::string>&, bool>(),
+	 R"(
+         Read Gadget native format snapshots
+
+         Parameters
+         ----------
+         files : list(str)
+             List of files with phase-space segments comprising a single snapshot
+         verbose : bool, default=False
+             Verbose, diagnostic output
+
+         Returns
+         -------
+         ParticleReader
+         )");
 
   py::class_<PSP, std::shared_ptr<PSP>, PyPSP, ParticleReader>(m, "PSP")
     .def(py::init<bool>(), "Base class for PSP reader")
