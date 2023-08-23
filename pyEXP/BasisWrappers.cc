@@ -327,71 +327,174 @@ void BasisFactoryClasses(py::module &m) {
 
   py::class_<BasisClasses::Basis, std::shared_ptr<BasisClasses::Basis>, PyBasis>(m, "Basis")
     .def(py::init<const std::string&>(),
-	 "Initialize a biorthogonal basis from the configuration in the\n"
-	 "provided YAML configuration", py::arg("YAMLstring"))
+	 R"(
+         Initialize a biorthogonal basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             the serialized YAML configuration
+
+         Returns
+         -------
+         Basis
+             the Basis object
+        )", py::arg("YAMLstring"))
     .def("createFromReader", &BasisClasses::Basis::createFromReader,
-	 "Generate the coefficients from the supplied ParticleReader and\n"
-	 "an optional expansion center location",
+	 R"(
+         Generate the coefficients from the supplied ParticleReader
+
+         Parameters
+         ----------
+         reader : Particle reader
+             the ParticleReader instance
+         center : list, default=[0, 0, 0]
+	     an optional expansion center location
+
+         Returns
+         -------
+         CoefStruct
+             the basis coefficients computed from the particles
+         )",
 	 py::arg("reader"), 
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("createFromArray",
 	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
-	    double time, std::vector<double> center, bool rrobin)
+	    double time, std::vector<double> center, bool roundrobin)
 	 {
-	   return A.createFromArray(mass, pos, time, center, rrobin);
+	   return A.createFromArray(mass, pos, time, center, roundrobin);
 	 },
-	 "Generate the coefficients from a mass and position array, \n"
-	 "time, and an optional expansion center location. Mass is a\n"
-	 "simple vector containing the masses for the n particles and\n"
-	 "position is an array with n rows and 3 columns (x, y, z). If\n"
-	 "used with MPI, the particles will be accumulated for each\n"
-	 "process round-robin style by default.  This may be disabled\n"
-	 "on the Python side by setting 'rrobin=false'.",
+	 R"(
+         Generate the coefficients from a mass and position array,
+	 time, and an optional expansion center location. 
+
+         Parameters
+         ----------
+         mass : list
+             vector containing the masses for the n particles
+         pos  : numpy.ndarray
+             an array with n rows and 3 columns (x, y, z)
+         roundrobin : bool
+             the particles will be accumulated for each process 
+             round-robin style with MPI by default.  This may be 
+             disabled with 'roundrobin=false'.
+
+         Returns
+         -------
+         CoefStruct
+             the coefficient structure derived from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray : add contribution for particles
+         makeFromArray: create coefficients contributions
+         )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0),
-	 py::arg("rrobin") = true)
+	 py::arg("roundrobin") = true)
     .def("initFromArray",
 	 [](BasisClasses::Basis& A, std::vector<double> center)
 	 {
 	   return A.initFromArray(center);
 	 },
-	 "This initializes coefficient computation from array vectors\n"
-	 "for an optionally provided center.  Phase-space data is then\n"
-	 "added with addFromArray() call.  addFromArray() may be called\n"
-	 "multiple times with any unique partition of phase space. The\n"
-	 "final generation is finished with a call to makeFromArray() with\n"
-	 "the snapshot time.  This final call returns the coefficient set.\n"
-	 "This sequence of calls is identical to createFromArray() for a\n"
-	 "single set of phase space arrays but allows for generation from\n"
-	 "very large phase-space sets that can not be stored in physical\n"
-	 "memory.",
+	 R"(
+         Initialize coefficient accumulation
+
+         Parameters
+         ----------
+         center : list, default=[0, 0, 0]
+             vector of center positions
+
+         Returns
+         -------
+         None
+
+         Notes
+         -----
+	 After initialization, phase-space data is then added with 
+         addFromArray() call.  addFromArray() may be called multiple times 
+         with any unique partition of phase space. The final generation is 
+         finished with a call to makeFromArray() with the snapshot time.  
+         This final call returns the coefficient set. This sequence of 
+         calls is identical to createFromArray() for a single set of 
+         phase space arrays but allows for generation from very large 
+         phase-space sets that can not be stored in physical memory.
+         )",
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("addFromArray",
 	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& pos)
 	 {
 	   return A.addFromArray(mass, pos);
 	 },
-	 "Accumulates information for coefficients from a mass and position\n"
-	 "array.  See introduction and documentation for initFromArray and\n"
-	 "for additional information",
+	 R"(
+         Add particle contributions to coefficients
+
+         Parameters
+         ----------
+         mass : list
+             vector containing the masses for the n particles
+         pos : numpy.ndarray
+             an array with n rows and 3 columns (x, y, z)
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         makeFromArray: create coefficients contributions
+         )",
 	 py::arg("mass"), py::arg("pos"))
     .def("makeFromArray",
 	 [](BasisClasses::Basis& A, double time)
 	 {
 	   return A.makeFromArray(time);
 	 },
-	 "This is the final call in the initFromArray(), addFromArray()...\n"
-	 "addFromArray()...makeFromArray() call sequence.  This returns the\n"
-	 "newly created coefficients. See introduction and documentation\n"
-	 "for initFromArray and for additional information",
+	 R"(
+         Make the coefficients
+
+         This is the final call in the initFromArray(), addFromArray()...
+	 addFromArray()...makeFromArray() call sequence.
+
+         Parameters
+         ----------
+         time : float
+             snapshot time
+
+         Returns
+         -------
+         CoefStructure
+             the coefficient structure created from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray : add contribution for particles
+         )",
 	 py::arg("time")
 	 )
     .def("setSelector", &BasisClasses::Basis::setSelector,
-	 "Register a Python particle selection functor. This boolean\n"
-	 "function will be in effect until cleared with the 'clrSelector'\n"
-	 "member function")
+	 R"(
+         Register a Python particle selection functor. 
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         clrSelector : clears the selection set here
+         )")
     .def("clrSelector", &BasisClasses::Basis::clrSelector,
-	 "Clear the previously registered particle selection functor")
+	 R"(
+         Clear the previously registered particle selection functor
+
+         Returns
+         -------
+         None
+         )")
     .def("getFields",
 	 [](BasisClasses::Basis& A, double x, double y, double z)
 	 {
@@ -401,32 +504,135 @@ void BasisFactoryClasses(py::module &m) {
 		       ret[4], ret[5], ret[6]);
 	   return ret;
 	 },
-	 "Return the density, potential, and forces for a cartesian position.\n"
-	 "Field order is: dens0, potl0, dens, potl, fx, fy, fz. Dens0 and\n"
-	 "potl0 are the fields evaluated for l=0 or m=0 and dens and potl\n"
-	 "are evaluated for l>0 or m>0\n",
+	 R"(
+         Return the density, potential, and forces for a cartesian position.
+
+	 Field order is: dens0, potl0, dens, potl, fx, fy, fz. Dens0 and
+	 potl0 are the fields evaluated for l=0 or m=0 and dens and potl
+	 are evaluated for l>0 or m>0
+
+         Parameters
+         ----------
+         x : float
+             x-axis position
+         y : float
+             y-axis position
+         z : float
+             z-axis position
+
+         Returns
+         -------
+         None
+         )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
     .def("accumulate",         &BasisClasses::Basis::accumulate,
-	 "Add the contribution of a single particle to the coefficients")
+	 R"(
+         Add the contribution of a single particle to the coefficients
+
+         Parameters
+         ----------
+         x : float
+             x-axis position
+         y : float
+             y-axis position
+         z : float
+             z-axis position
+         mass : float
+             particle mass
+
+         Returns
+         -------
+         None
+        )", 
+	 py::arg("x"), py::arg("y"), py::arg("z"), py::arg("mass"))
     .def("getMass",            &BasisClasses::Basis::getMass,
-	 "Return the total mass of particles contributing the the current\n"
-	 "coefficient set")
+	 R"(
+         Return the total mass of particles contributing the current coefficient set
+
+         Returns
+         -------
+         out : float
+            total mass value
+         )")
     .def("reset_coefs",        &BasisClasses::Basis::reset_coefs,
-	 "Reset the coefficients to begin a generating a new set")
+	 R"(
+         Reset the coefficients to begin a generating a new set
+
+         Returns
+         -------
+         None
+         )")
     .def("make_coefs",         &BasisClasses::Basis::make_coefs,
-	 "Create the coefficients after particle accumuluation is complete")
+	 R"(
+         Create the coefficients after particle accumuluation is complete
+
+         Returns
+         -------
+         None
+         )")
     .def("set_coefs",          &BasisClasses::Basis::set_coefs,
-	 "Install a new set of coefficients from a CoefStruct")
+	 R"(
+         Install a new set of coefficients from a CoefStruct
+
+         Parameters
+         ----------
+         coefs : CoefStruct
+
+         Returns
+         -------
+         None
+         )", py::arg("coefs"))
     .def("factory",            &BasisClasses::Basis::factory_string,
-	 "Generate a basis from a YAML configuration supplied as a string");
+	 R"(
+         Generate a basis from a YAML configuration supplied as a string
+
+         Parameters
+         ----------
+         config : str
+             the YAML config string
+
+         Returns
+         -------
+         None
+         )");
 
     py::class_<BasisClasses::SphericalSL, std::shared_ptr<BasisClasses::SphericalSL>, PySphericalSL, BasisClasses::Basis>(m, "SphericalSL")
-      .def(py::init<const std::string&>(), "Create a spherical Sturm-Liouville basis")
+      .def(py::init<const std::string&>(),
+	 R"(
+         Create a spherical Sturm-Liouville basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the spherical basis
+
+         Returns:
+              SphericalSL
+         )", py::arg("YAMLstring"))
+
       .def("getBasis", &BasisClasses::SphericalSL::getBasis,
-	   "Evaluate the potential-density basis functions on a logarithmically\n"
-	   "spaced grid for inspection. The structure is a two-grid of dimension\n"
-	   "lmax by nmax each pointing to a dictionary of 1-d arrays ('potential',\n"
-	   "'density', 'rforce') of dimension numr.",
+	   R"(
+           Get basis functions
+
+	   Evaluate the potential-density basis functions on a logarithmically
+	   spaced grid for inspection. The structure is a two-grid of dimension
+	   lmax by nmax each pointing to a dictionary of 1-d arrays ('potential',
+	   'density', 'rforce') of dimension numr.
+
+           Parameters
+           ----------
+           logxmin : float, default=-3.0
+                minimum mapped radius in log10 units
+           logxmax : float, default=0.5
+                maximum mapped radius in log10 units
+           numr : int, default=400
+                number of equally spaced output points
+
+           Returns
+           -------
+           list(list(dict))
+               dictionaries of basis functions as lists indexed by l, n
+           )",
 	   py::arg("logxmin")=-3.0,
 	   py::arg("logxmax")=0.5,
 	   py::arg("numr")=400)
@@ -438,24 +644,85 @@ void BasisFactoryClasses(py::module &m) {
       {
 	return A.orthoCheck(knots);
       },
-	"Check the fidelity of the Sturm-Liouville solutions by computing the\n"
-	"orthogonality matrices for each harmonic order. Returned as a list\n"
-	"of numpy.ndarrays from [0, ... , Lmax]",
+	R"(
+        Check orthgonality of basis functions by quadrature
+
+        Inner-product matrix of Sturm-Liouville solutions indexed by
+        harmonic order used to assess fidelity.
+
+        Parameters
+        ----------
+        knots : int, default=40
+            Number of quadrature knots
+
+        Returns
+        -------
+        list(numpy.ndarray)
+	    list of numpy.ndarrays from [0, ... , Lmax]
+        )",
 	py::arg("knots")=40)
       .def_static("cacheInfo", [](std::string cachefile)
       {
 	return BasisClasses::SphericalSL::cacheInfo(cachefile);
       },
-	"Report the parameters in a basis cache file and return a dictionary",
+	R"(
+        Report the parameters in a basis cache file and return a dictionary
+
+        Parameters
+        ----------
+        cachefile : str
+            name of cache file
+
+        Returns
+        -------
+        dict({tag: value},...)
+            cache parameters
+        )",
 	py::arg("cachefile"));
 
   py::class_<BasisClasses::Cylindrical, std::shared_ptr<BasisClasses::Cylindrical>, PyCylindrical, BasisClasses::Basis>(m, "Cylindrical")
-    .def(py::init<const std::string&>(), "Create a cylindrical EOF basis")
+    .def(py::init<const std::string&>(),
+	 R"(
+	 Create a cylindrical EOF basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the cylindrical basis
+
+         Returns:
+              Cylindrical
+         )", py::arg("YAMLstring"))
     .def("getBasis", &BasisClasses::Cylindrical::getBasis,
-	 "Evaluate the potential-density basis functions on a linearly spaced\n"
-	 "2d-grid for inspection.  The structure is a two-grid of dimension\n"
-	 "lmax by nmax each pointing to a dictionary of 2-d arrays ('potential',\n"
-	 "'density', 'rforce', 'zforce') of dimension numr X numz.",
+	 R"(
+
+         Evaluate basis on grid for visualization
+
+         Evaluate the potential-density basis functions on a linearly spaced
+	 2d-grid for inspection.  The structure is a two-grid of dimension
+	 lmax by nmax each pointing to a dictionary of 2-d arrays ('potential',
+	 'density', 'rforce', 'zforce') of dimension numr X numz.
+
+         Parameters
+         ----------
+         xmin : float, default=0.0
+              minimum value in mapped radius
+         xmax : float, default=1.0
+              maximum value in mapped radius
+         numr : int, default=40
+              number of linearly-space evaluation points in radius
+         zmin : float, default=-0.1
+              minimum value in vertical height
+         zmax : float, default=0.1
+              maximum value in vertical height
+         numz : int, default=40
+              number of linearly-space evaluation points in height
+
+         Returns
+         -------
+         list(list(dict))
+             dictionaries of basis functions as lists indexed by m, n
+         )",
 	 py::arg("xmin")=0.0,
 	 py::arg("xmax")=1.0,
 	 py::arg("numr")=40,
@@ -470,27 +737,80 @@ void BasisFactoryClasses(py::module &m) {
 	 {
 	   return A.orthoCheck();
 	 },
-	"Check the fidelity of the empirical orthogonal functions by computing\n"
-	"the orthogonality matrices for each harmonic order. Returned as a\n"
-	"list of numpy.ndarrays from [0, ... , Mmax]")
+	R"(
+        Check orthgonality of basis functions by quadrature
+
+        Inner-product matrix of Sturm-Liouville solutions indexed by
+        harmonic order used to assess fidelity.
+
+        Parameters
+        ----------
+        knots : int
+            Number of quadrature knots
+
+        Returns
+        -------
+        list(numpy.ndarray)
+	    list of numpy.ndarrays from [0, ... , Mmax]
+        )")
     .def_static("cacheInfo", [](std::string cachefile)
     {
       return BasisClasses::Cylindrical::cacheInfo(cachefile);
     },
-      "Report the parameters in a basis cache file and return a dictionary",
+      R"(
+      Report the parameters in a basis cache file and return a dictionary
+
+      Parameters
+      ----------
+      cachefile : str
+          name of cache file
+
+      Returns
+      -------
+      dict({tag: value},...)
+          cache parameters
+      )",
       py::arg("cachefile"));
 
   py::class_<BasisClasses::FlatDisk, std::shared_ptr<BasisClasses::FlatDisk>, PyFlatDisk, BasisClasses::Basis>(m, "FlatDisk")
     .def(py::init<const std::string&>(),
-	 "Create a razor-thin EOF basis.  The default parameters will give\n"
-	 "an exponential disk with scale length of 0.01 units. Set the disk\n"
-	 "scale length using the 'scale' parameter")
+	 R"(
+         Create a 2d disk basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the razor-thin EOF basis.  The default 
+             parameters will give an exponential disk with scale length of
+             0.01 units. Set the disk scale length using the 'scale'  parameter.
+
+         Returns:
+              FlatDisk
+         )", py::arg("YAMLstring"))
     .def("getBasis", &BasisClasses::FlatDisk::getBasis,
-	 "Evaluate the potential-density basis functions on a linearly spaced\n"
-	 "2d-grid for inspection. The min/max radii are given in log_10 units.\n"
-	 "The structure is a two-grid of dimension mmax by nmax each pointing to\n"
-	 "a dictionary of 1-d arrays ('potential', 'density', 'rforce') of\n"
-	 "dimension numr.",
+	 R"(
+         Evaluate the potential-density basis functions
+
+         Returned functions will linearly spaced 2d-grid for inspection. The 
+         min/max radii are given in log_10 units.  The structure is a two-grid of 
+         dimension mmax by nmax each pointing to a dictionary of 1-d arrays 
+         ('potential', 'density', 'rforce') of dimension numr.
+
+         Parameters
+         ----------
+         logxmin : float, default=-4.0
+             the minimum radius in log10 scaled units
+         logxmax : float, default=-1.0
+             the maximum radius in log10 scaled units
+         numr : int
+             the number of output evaluations
+
+         Returns
+         -------
+         list(dict{str: numpy.ndarray})
+             list of lists of dictionaries in harmonic and radial pointing to 
+             density and potential basis functions
+         )",
 	 py::arg("logxmin")=-4.0,
 	 py::arg("logxmax")=-1.0,
 	 py::arg("numr")=400)
@@ -499,33 +819,111 @@ void BasisFactoryClasses(py::module &m) {
     // parameters depending on the basis type.  Here, the quadrature
     // is determined by the scale of the meridional grid.
     .def("orthoCheck", [](BasisClasses::FlatDisk& A)
-	 {
-	   return A.orthoCheck();
-	 },
-	"Check the fidelity of the empirical orthogonal functions by computing\n"
-	"the orthogonality matrices for each harmonic order. Returned as a\n"
-	"list of numpy.ndarrays from [0, ... , Mmax]")
+    {
+      return A.orthoCheck();
+    },
+      R"(
+      Check orthgonality of basis functions by quadrature
+
+      Inner-product matrix of Sturm-Liouville solutions indexed by
+      harmonic order used to assess fidelity.
+
+      Parameters
+      ----------
+      knots : int, default=40
+          Number of quadrature knots
+
+      Returns
+      -------
+      list(numpy.ndarray)
+          list of numpy.ndarrays from [0, ... , Mmax]
+       )"
+      )
     .def_static("cacheInfo", [](std::string cachefile)
     {
       return BasisClasses::FlatDisk::cacheInfo(cachefile);
     },
-      "Report the parameters in a basis cache file and return a dictionary",
+      R"(
+      Report the parameters in a basis cache file and return a dictionary
+
+      Parameters
+      ----------
+      cachefile : str
+          name of cache file
+
+      Returns
+      -------
+      out : dict({tag: value})
+          cache parameters
+      )",
       py::arg("cachefile"));
 
   py::class_<BasisClasses::AccelFunc, std::shared_ptr<BasisClasses::AccelFunc>, PyAccelFunc>(m, "AccelFunc")
-    .def(py::init<>(), "Create a AccelFunc instance")
+    .def(py::init<>(),
+	 R"(
+         Create a acceleration functor (AccelFunc instance) for a basis component
+
+         Returns
+         -------
+         AccelFunc
+         )")
     .def("F", &BasisClasses::AccelFunc::F,
+	 R"(
+         Computes and returns the acceleration array
+
+         Parameters
+         ----------
+         time : float
+             evaluation time
+         ps : numpy.ndarray
+             n x 6 phase space array
+         accel : numpy.ndarray
+             n x 6 array of accelerations
+         mod : BasisCoef = tuple(Basis, Coefs)
+             model description
+
+         Returns
+         -------
+         accel : numpy.ndarray
+             n x 6 array of accelerations
+         )",
 	 py::arg("time"), py::arg("ps"), py::arg("accel"), py::arg("mod"));
 
   py::class_<BasisClasses::AllTimeAccel, std::shared_ptr<BasisClasses::AllTimeAccel>, BasisClasses::AccelFunc>(m, "AllTimeAccel")
-    .def(py::init<>(), "Create an acceleration function that interpolates coefficients from the Coefs database for every time")
-    .def("F", &BasisClasses::AllTimeAccel::F,
-	 py::arg("time"), py::arg("ps"), py::arg("accel"), py::arg("mod"));
+    .def(py::init<>(),
+	 R"(
+         AccelFunc instance that interpolates coefficients from the Coefs database for every time
+
+         Returns
+         -------
+         AllTimeAccel : AccelFunc
+
+         See also
+         --------
+         AccelFunc
+         )");
 
   py::class_<BasisClasses::SingleTimeAccel, std::shared_ptr<BasisClasses::SingleTimeAccel>, BasisClasses::AccelFunc>(m, "SingleTimeAccel")
-    .def(py::init<double, std::vector<BasisClasses::BasisCoef>>(), "Create an acceleration function that uses coefficients for a single time")
-    .def("F", &BasisClasses::SingleTimeAccel::F,
-	 py::arg("time"), py::arg("ps"), py::arg("accel"), py::arg("mod"));
+    .def(py::init<double, std::vector<BasisClasses::BasisCoef>>(),
+	 R"(
+         AccelFunc instance that uses a single time Coefs database
+
+         Parameters
+         ----------
+         time : float
+             evaluation time
+         mod : BasisCoef = tuple(Basis, Coefs)
+             model description
+
+         Returns
+         -------
+         SingleTimeAccel : AccelFunc
+
+         See also
+         --------
+         AccelFunc
+         AllTimeAccel
+         )", py::arg("time"), py::arg("mod"));
   
   m.def("IntegrateOrbits", 
 	[](double tinit, double tfinal, double h, Eigen::MatrixXd ps,
@@ -543,11 +941,38 @@ void BasisFactoryClasses(py::module &m) {
 	  py::array_t<float> ret = make_ndarray<float>(O);
 	  return std::tuple<Eigen::VectorXd, py::array_t<float>>(T, ret);
 	},
-	"Integrate a list of initial conditions from tinit to tfinal with a\n"
-	"step size of h using the list of basis and coefficient pairs. Every\n"
-	"step will be included in return unless you provide an explicit\n"
-	"value for 'nout', the number of desired output steps.  This will\n"
-	"choose the 'nout' points closed to the desired time.\n",
+	R"(
+        Compute particle orbits in gravitational field from the bases
+
+        Integrate a list of initial conditions from tinit to tfinal with a
+	step size of h using the list of basis and coefficient pairs. Every
+	step will be included in return unless you provide an explicit
+	value for 'nout', the number of desired output steps.  This will
+	choose the 'nout' points closed to the desired time.
+
+        Parameters
+        ----------
+        tinit : float
+            the intial time
+        tfinal : float
+            the final time
+        h : float
+            the integration step size
+        ps : numpy.ndarray
+            an n x 6 table of phase-space initial conditions
+        bfe : list(BasisCoef)
+            a list of BFE coefficients used to generate the gravitational 
+            field
+        func : AccelFunctor
+            the force function
+        nout : int 
+            the number of output intervals
+
+        Returns
+        -------
+        tuple(numpy.array, numpy.ndarray)
+            time and phase-space arrays
+        )",
 	py::arg("tinit"), py::arg("tfinal"), py::arg("h"),
 	py::arg("ps"), py::arg("basiscoef"), py::arg("func"),
 	py::arg("nout")=std::numeric_limits<int>::max());
