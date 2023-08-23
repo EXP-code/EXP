@@ -75,7 +75,9 @@ namespace Field
 
     std::vector<std::string> labels =
       {"x", "y", "z", "arc",
-       "p0", "p1", "p", "fr", "ft", "fp", "d0", "d1", "d", "dd"};
+       "potl", "potl m=0",
+       "rad force", "mer force", "azi force",
+       "dens", "dens m=0"};
 
 
     std::vector<double> dd(3);
@@ -115,24 +117,17 @@ namespace Field
 	  
 	  basis->all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
 	  
-	  frame["x"  ](ncnt) = x;
-	  frame["y"  ](ncnt) = y;
-	  frame["z"  ](ncnt) = z;
-	  frame["arc"](ncnt) = dlen*ncnt;
-	  frame["p0" ](ncnt) = p0;
-	  frame["p1" ](ncnt) = p1;
-	  frame["p"  ](ncnt) = p0 + p1;
-	  frame["fr" ](ncnt) = fr;
-	  frame["ft" ](ncnt) = ft;
-	  frame["fp" ](ncnt) = fp;
-	  frame["d0" ](ncnt) = d0;
-	  frame["d1" ](ncnt) = d1;
-	  frame["d"  ](ncnt) = d0 + d1;
-	  
-	  if (d0!=0.0)
-	    frame["dd" ](ncnt) = d1/d0;
-	  else
-	    frame["dd" ](ncnt) = 0.0;
+	  frame["x"        ](ncnt) = x;
+	  frame["y"        ](ncnt) = y;
+	  frame["z"        ](ncnt) = z;
+	  frame["arc"      ](ncnt) = dlen*ncnt;
+	  frame["potl"     ](ncnt) = p0 + p1;
+	  frame["potl m=0" ](ncnt) = p0;
+	  frame["rad force"](ncnt) = fr;
+	  frame["mer force"](ncnt) = ft;
+	  frame["axi force"](ncnt) = fp;
+	  frame["dens"     ](ncnt) = d0 + d1;
+	  frame["dens m=0" ](ncnt) = d0;
 	}
       }
     
@@ -225,7 +220,8 @@ namespace Field
     std::map<double, std::map<std::string, Eigen::MatrixXf>> ret;
 
     std::vector<std::string> labels =
-      {"p0", "p1", "p", "fr", "ft", "fp", "d0", "d1", "d", "dd"};
+      {"potl", "potl m=0", "rad force", "mer force", "azi force",
+       "dens", "dens m=0"};
 
     // Find the first two non-zero indices
     //
@@ -291,20 +287,13 @@ namespace Field
 	    basis->all_eval(r, costh, phi,
 			    d0, d1, p0, p1, fr, ft, fp);
 
-	    frame["p0"](i, j) = p0;
-	    frame["p1"](i, j) = p1;
-	    frame["p" ](i, j) = p0 + p1;
-	    frame["fr"](i, j) = fr;
-	    frame["ft"](i, j) = ft;
-	    frame["fp"](i, j) = fp;
-	    frame["d0"](i, j) = d0;
-	    frame["d1"](i, j) = d1;
-	    frame["d" ](i, j) = d0 + d1;
-	    
-	    if (d0!=0.0)
-	      frame["dd" ](i, j) = d1/d0;
-	    else
-	      frame["dd" ](i, j) = 0.0;
+	    frame["potl"     ](i, j) = p0 + p1;
+	    frame["potl m=0" ](i, j) = p0;
+	    frame["rad force"](i, j) = fr;
+	    frame["mer force"](i, j) = ft;
+	    frame["azi force"](i, j) = fp;
+	    frame["dens"     ](i, j) = d0 + d1;
+	    frame["dens m=0" ](i, j) = d0;
 	  }
 	}
       }
@@ -377,7 +366,10 @@ namespace Field
     std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>> ret;
 
     std::vector<std::string> labels =
-      {"p0", "p1", "p", "fr", "ft", "fp", "d0", "d1", "d", "dd"};
+      {"x", "y", "z", "arc",
+       "potl", "potl m=0",
+       "rad force", "mer force", "azi force",
+       "dens", "dens m=0"};
 
     for (auto T : times) {
 
@@ -418,20 +410,13 @@ namespace Field
 
 	      basis->all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
 
-	      frame["p0"](i, j, k) = p0;
-	      frame["p1"](i, j, k) = p1;
-	      frame["p" ](i, j, k) = p0 + p1;
-	      frame["fr"](i, j, k) = fr;
-	      frame["ft"](i, j, k) = ft;
-	      frame["fp"](i, j, k) = fp;
-	      frame["d0"](i, j, k) = d0;
-	      frame["d1"](i, j, k) = d1;
-	      frame["d" ](i, j, k) = d0 + d1;
-	    
-	      if (d0!=0.0)
-		frame["dd" ](i, j, k) = d1/d0;
-	      else
-		frame["dd" ](i, j, k) = 0.0;
+	      frame["potl"     ](i, j, k) = p0 + p1;
+	      frame["potl m=0" ](i, j, k) = p0;
+	      frame["rad force"](i, j, k) = fr;
+	      frame["mer force"](i, j, k) = ft;
+	      frame["azi force"](i, j, k) = fp;
+	      frame["dens"     ](i, j, k) = d0 + d1;
+	      frame["dens m=0" ](i, j, k) = d0;
 	    }
 	  }
 	}
