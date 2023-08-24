@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.15) # This is the oldest version I've
 				     # preferred esp. for Cuda support
 project(
   EXP
-  VERSION "7.7.24"
+  VERSION "7.7.26"
   HOMEPAGE_URL https://github.com/EXP-code/EXP
   LANGUAGES C CXX Fortran)
 
@@ -50,7 +50,14 @@ option(ENABLE_USER "Enable basic user modules" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
 
+
+# Find newest version if multiple versions are available
+
+set(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
+set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
+
 # Package support
+
 find_package(MPI REQUIRED)
 find_package(Boost COMPONENTS serialization)
 find_package(OpenMP)
@@ -92,6 +99,21 @@ endif()
 
 # For mpi
 include_directories(${MPI_C_HEADER_DIR})
+
+# HDF5 version restrictions
+if(HDF5_VERSION VERSION_LESS 1.8)
+  message(FATAL_ERROR "Your HDF5 version must be >=1.8.20 or >=1.10.2 or >=1.12")
+endif()
+
+if(HDF5_VERSION VERSION_GREATER_EQUAL 1.8.0 AND
+    HDF5_VERSION VERSION_LESS 1.8.20)
+  message(FATAL_ERROR "Your HDF5 version in 1.8 series must be 1.8.20 or greater")
+endif()
+
+if(HDF5_VERSION VERSION_GREATER_EQUAL 1.10.0 AND
+    HDF5_VERSION VERSION_LESS 1.10.2)
+  message(FATAL_ERROR "Your HDF5 version in 1.10 series must be 1.10.2 or greater")
+endif()
 
 # For git submodules
 include_directories(${PROJECT_SOURCE_DIR}/extern)
