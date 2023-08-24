@@ -587,7 +587,7 @@ void Component::print_level_lists(double T)
 	ofil << outdir << runtag << ".levels";
 	std::ofstream out(ofil.str().c_str(), ios::app);
 
-	unsigned curn, dtcnt, sum=0;
+	unsigned curn, dtcnt=6, sum=0;
 	out << setw(90) << std::setfill('-') << '-' << std::endl;
 	std::ostringstream sout;
 	sout << "--- Component <" << name 
@@ -597,22 +597,13 @@ void Component::print_level_lists(double T)
 	out << std::setw(3)  << "L" 
 	    << std::setw(10) << "Number" 
 	    << std::setw(10) << "dN/dL" 
-	    << std::setw(10) << "N(<=L)";
-	if (DTold) {
-	  out << std::setw(10) << "f(r/v)"
-	      << std::setw(10) << "f(s/v)"
-	      << std::setw(10) << "f(v/a)"
-	      << std::setw(10) << "f(r/a)";
-	  dtcnt = 5;
-	} else {
-	  out << std::setw(10) << "f(q/v)"
-	      << std::setw(10) << "f(v/a)"
-	      << std::setw(10) << "f(s/v)"
-	      << std::setw(10) << "f(r/v)" 
-	      << std::setw(10) << "f(r/a)";
-	  dtcnt = 6;
-	}
-	out << std::setw(10) << "f(int)" << std::endl;
+	    << std::setw(10) << "N(<=L)"
+	    << std::setw(10) << "f(q/v)"
+	    << std::setw(10) << "f(v/a)"
+	    << std::setw(10) << "f(s/v)"
+	    << std::setw(10) << "f(r/v)" 
+	    << std::setw(10) << "f(r/a)"
+	    << std::setw(10) << "f(int)" << std::endl;
 	out << std::setw(90) << std::setfill('-') << '-' << std::endl
 	    << std::setfill(' ');
 	for (unsigned n=0; n<=multistep; n++) {

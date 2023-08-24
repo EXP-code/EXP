@@ -57,22 +57,74 @@ void UtilityClasses(py::module &m) {
   using namespace Utility;
 
   m.def("getDensityCenter", &getDensityCenter,
-	"Compute the center of the particle component using the density\n"
-	"weighted position using KD NN estimator.  A stride >1 will\n"
-	"generate a subsample of every nth particle over a random\n"
-	"permutation. Ndens is the number of particles per sample ball\n"
-	"(32 is a good compromise between accuracy and runtime; 16 is\n"
-	"okay if you are trying to shave off runtime. Nsort>0 keeps\n"
-	"the particles of the Nsort densest samples.",
+	R"(
+        Compute the center of the particle component
+
+        This implementation uses the density weighted position using KD 
+        N-nearest neighbor estimator.  
+
+        Parameters
+        ----------
+        reader : ParticleReader
+            the particle-reader class instance
+        stride : int, default=1
+             stride >1 will generate a subsample of every nth particle 
+             over a random permutation
+        Ndens : int, default=32
+             number of particles per sample ball (32 is a good 
+             compromise between accuracy and runtime; 16 is okay if 
+             you are trying to shave off runtime. 
+        Nsort : int, default=0
+             Nsort >0 keeps the particles of the Nsort densest samples
+
+        Returns
+        -------
+        list(float)
+            Computed center
+        )",
 	py::arg("reader"), py::arg("stride")=1,
 	py::arg("Nsort")=0, py::arg("Ndens")=32);
 
   m.def("getCenterOfMass", &getCenterOfMass,
-	"Compute the center of mass for the particle component",
-	py::arg("reader"));
+	R"(
+        Compute the center of mass for the particle component
+
+        Parameters
+        ----------
+        reader : ParticleReader
+            the particle-reader class instance
+
+        Returns
+        -------
+        list(float)
+            Computed center
+        )", py::arg("reader"));
 
   m.def("particleIterator", &particleIterator,
-	"Apply a user-defined functor to every particle in phase space",
+	R"(
+        Apply a user-defined functor to every particle in phase space
+
+        Parameters
+        ----------
+        reader : ParticleReader
+            the particle-reader class instance
+        functor :
+            the callback function to compute a phase-space quantity
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        The callback function must have the signature:
+
+        void(float, list, list, int)
+
+        where the first argument is mass, the second is position,
+        the third is velocity, and the fourth is index.  Not all
+        values need to be used in the function, of course.
+        )",
 	py::arg("reader"), py::arg("functor"));
 
   m.def("getVersionInfo",
@@ -99,6 +151,8 @@ void UtilityClasses(py::module &m) {
 		    << std::setw(W) << '%' << std::setfill(' ') << std::endl
 		    << std::endl;
 	},
-	"Report on the version and git commit.  This is the same version\n"
-	"information reported by the EXP N-body code.");
+	R"(
+        Report on the version and git commit.  
+
+        This is the same version information reported by the EXP N-body code.)");
 }

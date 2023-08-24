@@ -152,298 +152,448 @@ void MSSAtoolkitClasses(py::module &m) {
   py::class_<MSSA::expMSSA, std::shared_ptr<MSSA::expMSSA>> f(m, "expMSSA");
 
   f.def(py::init<const mssaConfig&, int, int, const std::string&>(),
-    R"(
-    Constructor.
+	R"(
+        The MSSA analysis class
 
-    Args:
-        config (mssaConfig): The input database of components. The configuration should be in the format:
-                             {'example': (coefs, keylst, [])}
-                             where keylst is a list of selected PCs in the format: 
-                             [[l1, m1, n1], [l2, m2, n2], ...]
-                             Each sublist represents a PC, where l, m, and n are the spherical harmonics basis parameters.
-        window (int): The length of the cross-correlation interval. It is suggested to use half of the time series length.
-        numpc (int): The default number of eigenvalues to compute.
-        flags (str): A YAML stanza of parameter values. Default is an empty string.
+        Parameters
+        ----------
+        config : mssaConfig
+             the input database of components; see Notes. 
+        window : int
+             the length of the cross-correlation interval. Start with
+             half of the time series length.
+        numpc : int
+             the default number of eigenvalues to compute
+        flags : str, default=""
+             YAML stanza of parameter values
 
-    Returns:
+        Returns
+        -------
         None
-    )",
-    py::arg("config"),
-    py::arg("window"),
-    py::arg("numpc"),
-    py::arg("flags") = "");
+
+        Notes
+        -----
+        The configuration should be in the format:
+
+        {'example': (coefs, keylst, []), ...}
+
+        where keylst is a list of selected PCs.  For example, a SphericalBasis 
+        would have keys in the format: 
+
+        [[l1, m1, n1], [l2, m2, n2], ...]
+
+        Each sublist represents a PC, where l, m, and n are the spherical 
+        harmonics basis parameters.
+        )",
+	py::arg("config"),
+	py::arg("window"),
+	py::arg("numpc"),
+	py::arg("flags") = "");
 
 
   f.def("eigenvalues", &expMSSA::eigenvalues,
     R"(
-    Return the vector of eigenvalues from the MSSA analysis.
+    Return the vector of eigenvalues from the MSSA analysis
 
-    Returns:
-        list: The vector of eigenvalues obtained from the MSSA analysis.
+    Returns
+    -------
+    list(float)
+        vector of eigenvalues obtained from the MSSA analysis
     )");
 
   f.def("cumulative", &expMSSA::cumulative,
     R"(
-    Return a cumulatively summed vector of eigenvalues from the MSSA analysis.
+    Cumulatively summed vector of eigenvalues from the MSSA analysis
 
-    Returns:
-        list: A cumulatively summed vector of eigenvalues from the MSSA analysis.
+    Returns
+    -------
+    list (float) 
+        cumulatively summed vector
     )");
 
   
   f.def("getU", &expMSSA::getU,
-    R"(
-    Return the right-singular vectors from the MSSA analysis
-    which describe the contribution of each channel to each PC.
+	R"(
+        right-singular vectors from the MSSA analysis
 
-    Returns:
-        ndarray: The right-singular vectors describing the contribution
-        of each channel to each principal component.
-    )");
+        These vectors describe the contribution of each channel to each PC
+
+        Returns
+        -------
+        numpy.ndarray
+            right-singular vectors
+        )");
 
 
   f.def("getPC", &expMSSA::getPC,
-    R"(
-    Return the principal component (left-singular) vectors from the MSSA
-    analysis which describe the key temporal variation.
+	R"(
+        left-singular vectors from the MSSA analysis
 
-    Returns:
-        ndarray: The principal component vectors describing the key temporal variation.
+        These are the 'principal component vectors' that 
+        describe the correlated temporal variation
+
+        Returns
+        -------
+        numpy.ndarray
+            principal component vectors
     )");
 
   f.def("pcDFT", &expMSSA::pcDFT,
-    R"(
-    Return the DFT of the principal component vectors for quantifying temporal power distribution.
+	R"(
+        DFT of the principal component vectors
 
-    The frequency values are given in terms of angular frequency with 2 * np.pi / T.
+        Returns
+        -------
+        tuple(numpy.ndarray, numpy.ndarray)
+            The frequency vector and power distribution for each pc
 
-    Returns:
-        ndarray: The DFT of the principal component vectors for temporal power distribution.
-    )");
+        Notes
+        -----
+        frequency values are given in angular frequency with 2 * np.pi / T
+        )");
 
   f.def("channelDFT", &expMSSA::channelDFT,
-    R"(
-    Returns the frequency values and the DFT of the selected data channels.
+	R"(
+        DFT of the selected data channels
 
-    This information can be used to compare with the power of the principal components (PC).
+        Returns
+        -------
+        tuple(numpy.ndarray, numpy.ndarray)
+            The frequency vector and power distribution for each channel
 
-    Returns:
-        tuple: A tuple containing the angular frequency values and the DFT of the selected data channels.
-    )");
+        Notes
+        -----
+        Useful for comparing with the power of the principal components (PCs)
+        )");
     
   f.def("singleDFT", &expMSSA::singleDFT, py::arg("key"),
-    R"(
-    Returns the frequency, the DFT of the selected data channel
-    with partial power for each PC.
+	R"(
+        DFT of the selected data channel with partial power for each PC
 
-    Args:
-        key (str): The identifier of the selected data channel.
+        Parameters
+        ----------
+        key : list(int)
+            identifier indices of the selected data channel
 
-    Returns:
-        tuple: A tuple containing the frequency values and the DFT of
-        the selected data channel with partial power for each PC.
-    )");
+        Returns
+        -------
+        tuple(numpy.ndarray, numpy.ndarray)
+            The frequency vector and power distribution for each channel
+        )");
   
 
   f.def("reconstruct", &expMSSA::reconstruct, py::arg("evlist"),
-    R"(
-    Reconstruct the data channels with the provided list of eigenvalue indices (a group).
+	R"(
+        Reconstruct the data channels with the provided group list of eigenvalue indices
 
-    Args:
-        evlist (list): The list of eigenvalue indices specifying the group.
+        Parameters
+        ----------
+        evlist : list(int)
+            list of eigenvalue indices specifying the group
 
-    Returns:
-        ndarray: The reconstructed data channels.
-    )");
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Use getReconstructed() to copy the reconstruction back to the coefficient db
+
+        See also
+        --------
+        getReconstructed
+        )");
 
 
   f.def("getReconstructed", &expMSSA::getReconstructed, py::arg("reconstructmean")=true,
-    R"(
-    Return the reconstructed time series in the original coefficient form
-    that may be used in basis classes.   Setting 'reconstructmean=False' may 
-    be helpful to compare the variance between data channels.
+	R"(
+        provide reconstructed time series
 
-    Note: The reconstructed data will overwrite the memory of the original 
-          coefficient data.
+        Parameters
+        ----------
+        reconstructmean : bool, default=True
+             include the detrended mean in the data channel reconstruction
 
-    Args:
-        reconstructmean (bool): If True (default), the data channel includes 
-                                the mean value that was subtracted during 
-                                SSA detrending.
+        Returns
+        -------
+        dict({id: Coefs},...)
+             reconstructed time series in the original coefficient form
 
-    Returns:
-        ndarray: The reconstructed time series in the original coefficient form.
-    )");
+
+        Notes
+        -----
+        The reconstructed data will overwrite the memory of the original coefficient 
+        data.  We suggest a deepcopy() if you wish to preserve the input coefficient db.
+
+        Setting 'reconstructmean=False' may be helpful to compare the variance between 
+        data channels.
+        )");
 
   f.def("background", &expMSSA::background,
-    R"(
-    Copy the background data streams back to the working coefficient
-    database.
+	R"(
+        Copy the background data streams back to the working coefficient database
 
-    This can be used after a zerodata() call to include the background in the reconstruction.
-    )");
+        Notes
+        -----
+        This can be used after a zerodata() call to include the background in the 
+        reconstruction
+        )");
 
   f.def("wCorr", &expMSSA::wCorr, py::arg("name"), py::arg("key"),
-    R"(
-    Get the w-correlation matrix for the selected component and channel key.
+	R"(
+        The w-correlation matrix for the selected component and channel key
 
-    Returns the combined cosine+sine correlation for complex types for viewing (e.g., with 'imshow').
+        Parameters
+        ----------
+        name : str
+            The name of the selected component.
+        key : tuple
+            The identifier key of the selected channel.
 
-    The w-correlation values range from 0 to 1, where a higher value corresponds to a stronger correlation.
+        Returns
+        -------
+        numpy.ndarray
+            The w-correlation matrix for the selected component and channel
 
-    Args:
-        name (str): The name of the selected component.
-        key (str): The identifier of the selected channel.
+        Notes
+        -----
+        Returns the combined cosine+sine correlation for complex types for viewing 
+        (e.g., with 'imshow').
 
-    Returns:
-        ndarray: The w-correlation matrix for the selected component and channel.
-    )");
+        The w-correlation values range from 0 to 1, where a higher value corresponds 
+        to a stronger correlation.
+        )");
 
   f.def("wCorrKey", &expMSSA::wCorrKey, py::arg("key"),
-    R"(
-    Get the w-correlation matrix for the selected component and channel key,
-    extended by the cosine/sine index if the channel is complex and the component index.
+	R"(
+        Get the w-correlation matrix for the selected component and channel key
 
-    This matrix can be visualized using 'imshow' for plotting.
+        Parameters
+        ----------
+        key : list(int,...)
+            identifier of the selected channel
 
-    The w-correlation values range from 0 to 1, where a higher value corresponds to a stronger correlation.
+        Returns
+        -------
+        numpy.ndarray
+            w-correlation matrix for the selected component and channel key.
 
-    Args:
-        key (str): The identifier of the selected channel.
+        Notes
+        -----
+        The index key here is 'extended' by the prefixed component index
+  
+        The rows and columns contain distinct cosine and sine indicies if the channel 
+        is complex valued.
 
-    Returns:
-        ndarray: The w-correlation matrix for the selected component and channel key.
+        This matrix can be visualized using 'imshow' for plotting.
+
+        The w-correlation values range from 0 to 1, where a higher value corresponds to 
+        a stronger correlation.
     )");
 
   f.def("wCorrAll", &expMSSA::wCorrAll,
-    R"(
-    Get the w-correlation matrix for all channels in the reconstruction.
+	R"(
+        the w-correlation matrix for all channels in the reconstruction
 
-    These matrices can be nicely plotted using 'imshow'.
+        Returns
+        -------
+        numpy.ndarray
+            w-correlation matrix for all channels in the reconstruction
 
-    The w-correlation values range from 0 to 1, where a higher value corresponds to a stronger correlation.
+        Notes
+        -----
+        The w-correlation values range from 0 to 1, where a higher value corresponds to a 
+        stronger correlation.
 
-    Returns:
-        ndarray: The w-correlation matrices for all channels in the reconstruction.
-    )");
+        See also
+        --------
+        wCorr : return the w-correlation matrix by component name and key
+        wCorrPNG : output w-correlation matrices in PNG images
+        wCorrKey : return the w-correlation matrix by extended key
+        )");
 
   f.def("wcorrPNG", &expMSSA::wcorrPNG,
-    R"(
-    Create w-correlation matrices and output PNG image representations.
+	R"(
+        w-correlation matrices and output PNG image representations
 
-    The w-correlation values range from 0 to 1, where a higher value corresponds to a stronger correlation.
-    )");
+        Notes
+        -----
+        The w-correlation values range from 0 to 1, where a higher value corresponds to a 
+        stronger correlation.
 
-  f.def("kmeans", &expMSSA::kmeans, py::arg("clusters") = 4, py::arg("toTerm") = true, py::arg("toFile") = false,
-    R"(
-    Perform a k-means analysis on the reconstructed trajectory matrices to provide grouping insight.
+        See also
+        --------
+        wCorr : return the w-correlation matrix by component name and key
+        wCorrAll : return the combined correlation matrix for all components and keys
+        wCorrKey : return the w-correlation matrix by extended key
+        )");
 
-    By default, this will write the output to the standard output. Set `toFile=True` to write the output to a file.
-    The file name will be derived from the 'output' parameter.
+  f.def("kmeans", &expMSSA::kmeans,
+	py::arg("clusters") = 4,
+	py::arg("toTerm") = true,
+	py::arg("toFile") = false,
+	R"(
+        Do a k-means analysis on the reconstructed trajectory matrices to provide grouping insight
 
-    Note: The output format and how to interpret it is currently work in progress. [TODO: Update explanation]
+        Parameters
+        ----------
+        clusters : int, default=4
+            number of clusters for the k-means analysis
+        toTerm  : bool, default=True
+            flag indicating whether to output to the terminal (standard output)
+        toFile : bool
+            flag indicating whether to write the output to a file
 
-    Args:
-        clusters (int): The number of clusters for the k-means analysis.
-        toTerm (bool): Flag indicating whether to output to the terminal (standard output).
-        toFile (bool): Flag indicating whether to write the output to a file.
-
-    Returns:
+        Returns
+        -------
         None
-    )");
+
+        Notes
+        -----
+        By default, results are written to the standard output. Set `toFile=True` to write 
+        the output to a file. The file name will be derived from the 'output' parameter.
+        )");
 
   f.def("contrib", &expMSSA::contributions,
-    R"(
-    Computes the relative contribution of each principal component (PC) to the coefficient series
-    and the breakdown of the coefficient series to each PC.
+	R"(
+        the relative contribution of each principal component (PC)
 
-    The views are L2 normed on columns and rows and returned as a 2D tuple.
+        Returns
+        -------
+        tuple(numpy.ndarray, numpy.ndarray)
 
-    Returns:
-        tuple: A 2D tuple (F, G) representing the contributions:
+        Notes
+        -----
+        The reutrn tuple (F, G) represents two views of the contributions as follows
             - F: Each PC's contribution to each channel. The columns are L2 normed.
             - G: Each channel's contribution to each PC. The rows are L2 normed.
 
-    By default, channels for non-zero 'm' are split into cosine and sine components from the real+imaginary values.
+        By default, channels for non-zero 'm' are split into cosine and sine components 
+        from the real+imaginary values.
 
-    The L2 norm, or Euclidean norm, computes the length of a vector in a multi-dimensional space.
-    For a vector v = [v1, v2, ..., vn], the L2 norm is calculated as sqrt(v1^2 + v2^2 + ... + vn^2).
+        The L2 norm, or Euclidean norm, computes the length of a vector in a multi-dimensional space.
+        For a vector v = [v1, v2, ..., vn], the L2 norm is calculated as sqrt(v1^2 + v2^2 + ... + vn^2).
 
-    The L2 normed views provide a measure of the relative contribution of each PC to each channel
-    and the relative contribution of each channel to each PC. These contributions can be plotted using 'imshow'.
-    )");
+        The L2 normed views provide a measure of the relative contribution of each PC to each channel
+        and the relative contribution of each channel to each PC. These contributions can be plotted 
+        using 'imshow'.
+        )");
 
 
   f.def("saveState", &expMSSA::saveState,
-    R"(
-    Save the current MSSA state to an HDF5 file with the given prefix.
+	R"(
+        Save the current MSSA state to an HDF5 file
 
-    Args:
-        prefix (str): The prefix used for the HDF5 file.
+        Parameters
+        ----------
+        prefix : str
+            prefix used for the HDF5 file
 
-    Returns:
+        Returns
+        -------
         None
+<<<<<<< HEAD
     )", py::arg("prefix"));
+=======
+        )", py::arg("prefix"));
+>>>>>>> main
 
   f.def("restoreState", &expMSSA::restoreState,
-    R"(
-    Restore the current MSSA state from an HDF5 file with the given prefix.
+	R"(
+        Restore the current MSSA state from an HDF5 file
 
-    Note: To use this method, the expMSSA instance must be constructed with the same
-    data and parameters as the saved state. The restoreState routine will check for
-    the same data dimension and trend state but cannot ensure complete consistency.
+        Parameters
+        ----------
+        prefix : str
+             prefix used for the HDF5 file
 
-    Args:
-        prefix (str): The prefix used for the HDF5 file.
-
-    Returns:
+        Returns
+        -------
         None
+<<<<<<< HEAD
     )", py::arg("prefix"));
+=======
+
+        Notes
+        -----
+        The expMSSA instance must be constructed with the same data and parameters as 
+        the saved state. The restoreState routine will check for the same data dimension 
+        and trend state but cannot ensure complete consistency.
+        )", py::arg("prefix"));
+>>>>>>> main
 
 
   f.def("getTotVar", &expMSSA::getTotVar,
 	R"(
-	Returns the variance value used for normalizing the coefficient series.
+	variance value used for normalizing the coefficient series
 
-	Returns:
-	    The variance value.
+	Returns
+        ------
+	float
+            variance value
 	)");
 
   f.def("getTotPow", &expMSSA::getTotPow,
 	R"(
-	Returns the power value used for normalizing the coefficient series.
+        power value used for normalizing the coefficient series
 
-	Returns:
-	    The power value.
+	Returns
+        -------
+        float
+	    power value
 	)");
 
 
   f.def("getRC", &expMSSA::getRC,
-    R"(
-    Access the detrended reconstructed channel series by internal key.
+	R"(
+        Access the detrended reconstructed channel series by internal key
 
-    Args:
-        key (str): The internal key for the desired channel.
+        Parameters
+        ----------
+        key : list(int,...)
+            internal key for the desired channel
 
+<<<<<<< HEAD
     Returns:
         ndarray: The detrended reconstructed channel series.
     )", py::arg("key"));
+=======
+        Returns
+        -------
+        numpy.ndarray: 
+            detrended reconstructed channel series
+
+        Notes
+        -----
+        keys are a lists of integer values
+        )", py::arg("key"));
+>>>>>>> main
 
   f.def("getRCkeys", &expMSSA::getRCkeys,
 	R"(
 	Provides a list of internal keys for accessing the detrended channel series using getRC().
 
-	Returns:
-	    A list of internal keys representing the detrended channel series.
+	Returns
+        -------
+	list(list(int,...)) 
+            list of internal keys representing the detrended channel series
+
+        Notes
+        -----
+        keys are a lists of integer values
 	)");
 
   f.def("getAllKeys", &expMSSA::getAllKeys,
 	R"(
-	Provides a list of all internal channel keys for reference.
+	Provides a list of all internal channel keys for reference
 
-	Returns:
-	    A list of all internal channel keys.
+	Returns
+        -------
+	list(list)
+            list of all internal channel keys which are list(int,...)
+
+        Notes
+        -----
+        keys are a lists of integer values
 	)");
-
-
 }

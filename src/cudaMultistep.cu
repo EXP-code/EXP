@@ -23,7 +23,7 @@ __device__ __constant__
 cuFP_t cuMaxDbl;
 
 __device__ __constant__
-int cuMultistep, cuShiftlev, cuDTold;
+int cuMultistep, cuShiftlev;
 
 void cuda_initialize_multistep_constants()
 {
@@ -55,11 +55,6 @@ void cuda_initialize_multistep_constants()
   cuda_safe_call(cudaMemcpyToSymbol(cuShiftlev, &shiftlevl, sizeof(int), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cuShiftlev");
 
-  int tmp = DTold ? 1 : 0;
-
-  cuda_safe_call(cudaMemcpyToSymbol(cuDTold, &(tmp), sizeof(int), size_t(0), cudaMemcpyHostToDevice),
-		   __FILE__, __LINE__, "Error copying cuDTold");
-
   cuda_safe_call(cudaMemcpyToSymbol(cuMaxDbl, &(z=1.0e32), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cuMaxDbl");
 }
@@ -80,10 +75,6 @@ void testConstantsMultistep()
   printf("   Multi  = %d\n", cuMultistep);
   printf("   Shift  = %d\n", cuShiftlev );
   printf("   MaxFL  = %e\n", cuMaxDbl   );
-  if (cuDTold)
-    printf("   DTold  = true\n"         );
-  else
-    printf("   DTold  = false\n"        );
   printf("------------------------\n"   );
 }
 
@@ -127,56 +118,27 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t dtd=1.0/eps, dtv=1.0/eps, dta=1.0/eps, dtA=1.0/eps, dts=1.0/eps;
       cuFP_t atot = 0.0, vtot = 0.0;
 
-      if (cuDTold) {
-
-	// dtv = eps* r/v         -- roughly, crossing time
-	// dta = eps* v/a         -- force scale
-	// dtA = eps* sqrt(r/a)   -- acceleration time
-	
-	cuFP_t xx = p.pos[0] - cx;
-	cuFP_t yy = p.pos[1] - cy;
-	cuFP_t zz = p.pos[2] - cz;
-
-	cuFP_t rtot = sqrt(xx*xx + yy*yy + zz*zz);
-
-	for (int k=0; k<dim; k++) {
-	  vtot += p.vel[k]*p.vel[k];
-	  atot += p.acc[k]*p.acc[k];
-	}
-	vtot = sqrt(vtot);
-	atot = sqrt(atot);
-	
-	if (p.scale>0.0) dts = cuDynfracS*p.scale/vtot;
-
-	dtv = cuDynfracV*rtot/(vtot+eps);
-	dta = cuDynfracA*vtot/(atot+eps);
-	dtA = cuDynfracP*sqrt(rtot/(atot+eps));
-
-      } else {
-
-	// dtd = eps* rscale/v_i    -- char. drift time scale
-	// dtv = eps* min(v_i/a_i)  -- char. force time scale
-	// dta = eps* phi/(v * a)   -- char. work time scale
-	// dtA = eps* sqrt(phi/a^2) -- char. "escape" time scale
-
-	cuFP_t dtr  = 0.0;
-	
-	for (int k=0; k<dim; k++) {
-	  dtr  += p.vel[k]*p.acc[k];
-	  vtot += p.vel[k]*p.vel[k];
-	  atot += p.acc[k]*p.acc[k];
-	}
-
-	cuFP_t ptot = fabs(p.pot + p.potext);
-	
-	if (p.scale>0) dts = cuDynfracS*p.scale/fabs(sqrt(vtot)+eps);
-	
-	dtd = cuDynfracD * 1.0/sqrt(vtot+eps);
-	dtv = cuDynfracV * sqrt(vtot/(atot+eps));
-	dta = cuDynfracA * ptot/(fabs(dtr)+eps);
-	dtA = cuDynfracP * sqrt(ptot/(atot+eps));
+      // dtd = eps* rscale/v_i    -- char. drift time scale
+      // dtv = eps* min(v_i/a_i)  -- char. force time scale
+      // dta = eps* phi/(v * a)   -- char. work time scale
+      // dtA = eps* sqrt(phi/a^2) -- char. "escape" time scale
+      
+      cuFP_t dtr  = 0.0;
+      
+      for (int k=0; k<dim; k++) {
+	dtr  += p.vel[k]*p.acc[k];
+	vtot += p.vel[k]*p.vel[k];
+	atot += p.acc[k]*p.acc[k];
       }
 
+      cuFP_t ptot = fabs(p.pot + p.potext);
+	
+      if (p.scale>0) dts = cuDynfracS*p.scale/fabs(sqrt(vtot)+eps);
+	
+      dtd = cuDynfracD * 1.0/sqrt(vtot+eps);
+      dtv = cuDynfracV * sqrt(vtot/(atot+eps));
+      dta = cuDynfracA * ptot/(fabs(dtr)+eps);
+      dtA = cuDynfracP * sqrt(ptot/(atot+eps));
       
       // Smallest time step
       //

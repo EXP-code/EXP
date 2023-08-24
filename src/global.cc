@@ -64,7 +64,6 @@ int             mstep      = 0;
 int             Mstep      = 1;
 int             centerlevl = -1;
 				// Timestep control
-bool            DTold      = false;
 double          dynfracS   = 1.00;
 double          dynfracD   = 1.0e32;
 double          dynfracV   = 0.01;
