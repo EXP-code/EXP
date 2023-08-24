@@ -132,56 +132,164 @@ void EDMDtoolkitClasses(py::module &m) {
   py::class_<MSSA::Koopman, std::shared_ptr<MSSA::Koopman>> f(m, "Koopman");
 
   f.def(py::init<const mssaConfig&, int, const std::string>(),
-	"Constructor\nconfig\tis the input database of components"
-	"\numev\tis the default number of eigenvalues to compute"
-	"\nflag\tis a YAML stanza of parameter values",
+	R"(
+        Koopman operator approximatation class
+
+        Parameters
+        ----------
+        config : mssaConfig
+	     the input database of components
+	numev : int
+             the default number of eigenvalues to compute"
+	flag : str
+            YAML stanza of parameter values
+
+        Returns
+        -------
+        Koopman instance
+
+        Notes
+        -----
+        The configuration should be in the format:
+
+        {'example': (coefs, keylst, [])}
+
+        where keylst is a list of selected PCs.  With a SphericalBasis
+        for example, the keylst should have the format:
+
+        [[l1, m1, n1], [l2, m2, n2], ...]
+
+        Each sublist represents a PC, where l, m, and n are the 
+        spherical harmonics basis parameters.
+        )",
 	py::arg("config"),
 	py::arg("numev"),
 	py::arg("flags") = "");
 
   f.def("eigenvalues", &Koopman::eigenvalues,
-	"Return the vector of eigenvalues from the EDMD analysis. Note that\n"
-	"these eigenvalues are complex.  It may be helpful to separate the\n"
-	"magnitude and phase using Numpy's 'absolute' and 'angle' functions.\n");
+	R"(
+        Vector of eigenvalues from the EDMD analysis. 
+
+        Returns
+        -------
+        numpy.ndarray
+            the vector of eigenvalues
+
+        Notes
+        -----
+        Note that these eigenvalues are complex.  It may be helpful 
+        to separate the magnitude and phase using Numpy's 'absolute' 
+        and 'angle' functions.
+       )");
 
   f.def("channelDFT", &Koopman::channelDFT,
-	"Returns the frequency and the DFT of the selected data channels.\n"
-	"Unlike mSSA, there is no meaningful counterpart to DFT analysis of\n"
-	"PCs.");
+	R"(
+        Returns the frequency and the DFT of the selected data channels.
+
+        Returns
+        -------
+        tuple(numpy.ndarray, numpy.ndarray) : frequencies and spectral power
+        
+        Notes
+        -----
+	Unlike mSSA, there is no meaningful counterpart to DFT analysis of PCs.
+        )");
 
   f.def("reconstruct", &Koopman::reconstruct,
-	"Reconstruct the data channels with the provided list of eigenvalue "
-	"indices", py::arg("evlist"));
+	R"(
+        Reconstruct the data channels with the provided list of eigenvalue indices
+
+        Parameters
+        ----------
+        evlist : list(int)
+            eigenvalue indices to include in the reconstruction
+        
+        Returns
+        -------
+        None
+        )", py::arg("evlist"));
 
   f.def("getReconstructed", &Koopman::getReconstructed,
-	"Return the reconstucted time series in the orginal coefficient form\n"
-	"that may be used in basis classes.  Note: the reconstructed data\n"
-	"will overwrite the memory of the original coefficient data.");
+	R"(
+        Reconstruct the channels
+
+        Reconstucted time series in the orginal coefficient form
+	that may be used in basis classes.  
+
+        Notes
+        -----
+	the reconstructed data will overwrite the memory of the original coefficient data
+        )");
 
   f.def("contrib", &Koopman::contributions,
-	"Computes the relative contribution of each mode to the coefficient\n"
-	"series and the breakdown of the coefficient series to each mode.\n"
-	"The views normed on columns and rows are returned as a tuple\n"
-	"of 2d arrays. These are intended to be plotted using 'imshow'.");
+	R"(
+        Contributions per channel
+
+        Computes the relative contribution of each mode to the coefficient
+	series and the breakdown of the coefficient series to each mode.
+
+        Notes
+        -----
+	The views normed on columns and rows are returned as a tuple
+	"of 2d arrays. These are intended to be plotted using 'imshow'.
+        )");
 
   f.def("saveState", &Koopman::saveState,
-	"Save current EDMD state to an HDF5 file with the given prefix",
-	py::arg("prefix"));
+	R"(
+        Save current EDMD state to an HDF5 file with the given prefix
+
+        Parameters
+        ----------
+        prefix : str
+            output filename prefix
+
+        Returns
+        -------
+        None
+        )", py::arg("prefix"));
 
   f.def("restoreState", &Koopman::restoreState,
-	"Restore current EDMD state from an HDF5 file with the given prefix.\n"
-	"To use this, the Koopman instance must be constructed with the same\n"
-	"data and parameters as the save stated.  The restoreState routine will\n"
-	"check for the same data dimension and trend state but can not sure\n"
-	"complete consistency.",
-	py::arg("prefix"));
+	R"(
+        Restore current EDMD state from an HDF5 file
+
+        Parameters
+        ----------
+        prefix : str
+            input filename prefix
+
+        Notes
+        -----
+	The Koopman instance must be constructed with the same data and parameters
+        as the saved state.  The restoreState routine will check for the same 
+        data dimension and trend state but can not sure	complete consistency.
+        )", py::arg("prefix"));
 
   f.def("getModes", &Koopman::getModes,
-	"Access to detrended reconstructed channel series.  Also see the member\n"
-	"'contributions' to visualize the support from each EDMD mode to the\n"
-	"coefficient series.");
+	R"(
+        Access to detrended reconstructed channel series.
+
+        Returns
+        -------
+        numpy.ndarray
+            the EDMD modes
+
+        See also
+        --------
+        Use in conjunction with 'contributions' to visualize the support 
+        from each EDMD mode to the coefficient series.
+        )");
 
   f.def("getAllKeys", &Koopman::getAllKeys,
-	"As in mSSA, provides a list of all internal channel keys (for reference)");
+	R"(
+        Provides a list of all internal channel keys (for reference)
 
+        Returns
+        -------
+        list(Key)
+            list of keys in the format described in config file
+
+        See also
+        --------
+        Koopman
+        )");
 }

@@ -42,8 +42,8 @@ namespace Field
 	// Generate the fields for all coefficients in 'coefs'
 	auto db = slices(basis, coefs);
 
-	// Get an image at Time=3.14 for density ("d")
-	Eigen::MatrixXf surface = db["3.14"]["d"];
+	// Get an image at Time=3.14 for density ("dens")
+	Eigen::MatrixXf surface = db["3.14"]["dens"];
     */
     std::map<double, std::map<std::string, Eigen::MatrixXf>>
     slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs);
@@ -64,9 +64,9 @@ namespace Field
 	// line and arc describing the distance along the line from
 	// beg to end
 
-	// Get an image at Time=3.14 for density ("d")
+	// Get an image at Time=3.14 for density ("dens")
 	arc = db["3.14"]["arc"];
-	pot = db["3.14"]["p1"];
+	pot = db["3.14"]["potl"] - db["3.14"]["potl m=0"];
     */
     std::map<double, std::map<std::string, Eigen::VectorXf>>
     lines(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
