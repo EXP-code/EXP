@@ -492,12 +492,8 @@ void MSSAtoolkitClasses(py::module &m) {
         Returns
         -------
         None
-<<<<<<< HEAD
-    )", py::arg("prefix"));
-=======
         )", py::arg("prefix"));
->>>>>>> main
-
+  
   f.def("restoreState", &expMSSA::restoreState,
 	R"(
         Restore the current MSSA state from an HDF5 file
@@ -510,9 +506,6 @@ void MSSAtoolkitClasses(py::module &m) {
         Returns
         -------
         None
-<<<<<<< HEAD
-    )", py::arg("prefix"));
-=======
 
         Notes
         -----
@@ -520,7 +513,6 @@ void MSSAtoolkitClasses(py::module &m) {
         the saved state. The restoreState routine will check for the same data dimension 
         and trend state but cannot ensure complete consistency.
         )", py::arg("prefix"));
->>>>>>> main
 
 
   f.def("getTotVar", &expMSSA::getTotVar,
@@ -553,11 +545,6 @@ void MSSAtoolkitClasses(py::module &m) {
         key : list(int,...)
             internal key for the desired channel
 
-<<<<<<< HEAD
-    Returns:
-        ndarray: The detrended reconstructed channel series.
-    )", py::arg("key"));
-=======
         Returns
         -------
         numpy.ndarray: 
@@ -567,7 +554,7 @@ void MSSAtoolkitClasses(py::module &m) {
         -----
         keys are a lists of integer values
         )", py::arg("key"));
->>>>>>> main
+
 
   f.def("getRCkeys", &expMSSA::getRCkeys,
 	R"(
