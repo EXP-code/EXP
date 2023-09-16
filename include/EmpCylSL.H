@@ -5,12 +5,13 @@
 #include <vector>
 #include <memory>
 #include <limits>
+#include <cmath>
 
 #include <Eigen/Eigen>
 
 #include <gaussQ.H>
 #include <interp.H>
-#include <math.h>
+#include <Timer.H>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -219,6 +220,8 @@ protected:
   void receive_eof     (int request_id, int m);
   void compute_eof_grid(int request_id, int m);
   void compute_even_odd(int request_id, int m);
+  void eigen_problem   (int request_id, int M, Timer& timer);
+
   void setup_eof_grid(void);
   void parityCheck(const std::string& prefix);
 
