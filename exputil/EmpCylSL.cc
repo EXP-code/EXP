@@ -13,7 +13,6 @@
 #include <TableGrid.H>		// For three-dimensional array
 
 #include <interp.H>
-#include <Timer.H>
 #include <thread>
 #include <exp_thread.h>
 #include <EXPException.H>
@@ -87,7 +86,6 @@ std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs =
 EmpCylSL::EmpCylSL()
 {
   NORDER     = 0;
-  coefs_made = std::vector<short>(multistep+1, false);
   eof_made   = false;
   defSampT   = 1;
   sampT      = 1;
@@ -104,6 +102,11 @@ EmpCylSL::EmpCylSL()
   maxSNR     = 0.0;
   cachefile  = default_cache;
 
+  // Initial allocation; set to false
+  //
+  coefs_made.resize(multistep+1);
+  std::fill(coefs_made.begin(), coefs_made.end(), false);
+
   // Check whether MPI is initialized.  Use flag to suppress MPI calls
   // if MPI is not active.
   //
@@ -111,6 +114,10 @@ EmpCylSL::EmpCylSL()
   MPI_Initialized(&flag);
   if (flag) use_mpi = true;
   else      use_mpi = false;
+
+  // Enable MPI code in SLGridSph
+  //
+  if (use_mpi) SLGridSph::mpi = 1;
 
   // Choose table dimension
   //
@@ -189,9 +196,9 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   if (flag) use_mpi = true;
   else      use_mpi = false;
 
-  // Enable MPI code for more than one node
+  // Enable MPI code in SLGridSph
   //
-  if (numprocs>1) SLGridSph::mpi = 1;
+  if (use_mpi and numprocs>1) SLGridSph::mpi = 1;
 
   // Choose table dimension
   //
@@ -202,7 +209,9 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 
   // Initialize storage and values
   //
-  coefs_made = std::vector<short>(multistep+1, false);
+  coefs_made.resize(multistep+1);
+  std::fill(coefs_made.begin(), coefs_made.end(), false);
+
   eof_made   = false;
 
   sampT        = 1;
@@ -262,11 +271,20 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   ffac   = pfac/ascale;
   dfac   = ffac/ascale;
 
-  SLGridSph::mpi = 1;		// Turn on MPI
+  if (use_mpi and numprocs>1)
+    SLGridSph::mpi = 1;		// Turn on MPI
+  else
+    SLGridSph::mpi = 0;		// Turn off MPI
+
   ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 				      RMIN, RMAX*0.99, false, 1, 1.0);
 
-  coefs_made = std::vector<short>(multistep+1, false);
+  // Resize (should not be necessary) but just in case some future
+  // feature changes mulitstep on the fly
+  //
+  coefs_made.resize(multistep+1);
+  std::fill(coefs_made.begin(), coefs_made.end(), false);
+
   eof_made = false;
 
   // Choose table dimension
@@ -747,7 +765,6 @@ int EmpCylSL::read_eof_file(const string& eof_file)
   ffac = pfac/ASCALE;
   dfac = ffac/ASCALE;
 
-  SLGridSph::mpi = 1;		// Turn on MPI
   ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					RMIN, RMAX*0.99, false, 1, 1.0);
 
@@ -767,8 +784,10 @@ int EmpCylSL::read_eof_file(const string& eof_file)
 	      << std::endl;
 
 
-  eof_made   = true;
-  coefs_made = std::vector<short>(multistep+1, false);
+  // EOF basis complete but need to compute coefficients
+  //
+  eof_made = true;
+  std::fill(coefs_made.begin(), coefs_made.end(), false);
 
   return 1;
 }
@@ -784,7 +803,9 @@ int EmpCylSL::read_cache(void)
   if (myid==0)  retcode = cache_grid(0, cachefile);
   if (use_mpi)  MPI_Bcast(&retcode, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (!retcode) return 0;
-				// Send table to worker processes
+
+  // Send table to worker processes
+  //
   if (use_mpi)  send_eof_grid();
 
   if (myid==0) {
@@ -792,8 +813,10 @@ int EmpCylSL::read_cache(void)
 	      << std::endl;
   }
 
-  eof_made   = true;
-  coefs_made = std::vector<short>(multistep+1, false);
+  // EOF complete, but still need to compute coefficients
+  //
+  eof_made = true;
+  std::fill(coefs_made.begin(), coefs_made.end(), false);
 
   return 1;
 }
@@ -825,8 +848,9 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
     
     // Check for new HDF5 file
     if (std::filesystem::exists(cachefile)) {
-      std::cerr << "---- EmpCylSL::cache_grid: cache file <"
-		<< cachefile << "> exists" << std::endl;
+      if (myid==0)
+	std::cout << "---- EmpCylSL::cache_grid: cache file <"
+		  << cachefile << "> exists" << std::endl;
       try {
 	std::filesystem::rename(cachefile, cachefile + ".bak");
       }
@@ -838,9 +862,10 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 	     << "path2(): " << ex.path2() << std::endl;
 	throw GenericError(sout.str(), __FILE__, __LINE__, 12, true);
       }
-
-      std::cout << "---- EmpCylSL::cache_grid: existing file backed up to <"
-		<< cachefile + ".bak>" << std::endl;
+      
+      if (myid==0)
+	std::cout << "---- EmpCylSL::cache_grid: existing file backed up to <"
+		  << cachefile + ".bak>" << std::endl;
     }
 
     // Write the cache
@@ -858,7 +883,10 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 					  // cache
 	if (ReadH5Cache()) return 1;
 	else {
-	  throw std::runtime_error("---- EmpCylSL::cache_grid: HDF5 parameter mismatch");
+	  if (myid==0)
+	    std::cout << "---- EmpCylSL::cache_grid: HDF5 parameter mismatch"
+		      << std::endl;
+	  return 0;
 	}
       }
       catch (EXPException& error) {
@@ -1323,7 +1351,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
   //  Read in coefficient matrix or
   //  make grid if needed
-  double fac1, fac2, dens, potl, potr, pott, fac3, fac4;
+  double fac2, dens, potl, potr, pott, fac3, fac4;
   
   int icnt, off;
   
@@ -1359,8 +1387,6 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
 	  for (int l=m; l<=LMAX; l++) {
 
-	    fac1 = 1.;//sqrt((2.0*l+1.0)/(4.0*M_PI));
-
 	    if (m==0) {
 	      fac2 = legs[0](l, m);
 
@@ -1392,92 +1418,108 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	      -ef(nn, v) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
 	    if (DENS) 
-	      tdens[v](ix, iy) +=  ef(nn, v) * dens;
+	      tdens[v](ix, iy) +=  ef(nn, v) * dens * 0.25/M_PI;
 	  }
 	}
       }
     }
   }
 
-				// Send stuff back to root
+  // Send tables back to root process
+  //
+  if (use_mpi) {
+
+    MPI_Send(&request_id, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
+    MPI_Send(&m, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
       
-  MPI_Send(&request_id, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
-  MPI_Send(&m, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
-      
     
-  for (int n=0; n<NORDER; n++) {
+    for (int n=0; n<NORDER; n++) {
 
-				// normalization factors
-    if (DENS)
-      tdens[n] *= 0.25/M_PI;
-
-				// Potential
-
-    off = MPIbufsz*(MPItable*n+0);
-    icnt = 0;
-    for (int ix=0; ix<=NUMX; ix++)
-      for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = tpot[n](ix, iy);
-    
-    if (VFLAG & 16)
-      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
-	   << ", M=" << m << " send Potential" << endl;
-
-    MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
-	     13 + MPItable*n+1, MPI_COMM_WORLD);
-
-				// R force
-
-    off = MPIbufsz*(MPItable*n+1);
-    icnt = 0;
-    for (int ix=0; ix<=NUMX; ix++)
-      for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = trforce[n](ix, iy);
-    
-    if (VFLAG & 16)
-      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
-	   << ", M=" << m << " sending R force" << endl;
-
-    MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
-	     13 + MPItable*n+2, MPI_COMM_WORLD);
-
-				// Z force
-
-    off = MPIbufsz*(MPItable*n+2);
-    icnt = 0;
-    for (int ix=0; ix<=NUMX; ix++)
-      for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = tzforce[n](ix, iy);
-    
-    if (VFLAG & 16)
-      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
-	   << ", M=" << m << " sending Z force" << endl;
-
-
-    MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
-	     13 + MPItable*n+3, MPI_COMM_WORLD);
-
-				// Density
-
-    if (DENS) {
-      off = MPIbufsz*(MPItable*n+3);
+      // Potential
+      //
+      off = MPIbufsz*(MPItable*n+0);
       icnt = 0;
       for (int ix=0; ix<=NUMX; ix++)
 	for (int iy=0; iy<=NUMY; iy++)
-	  mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
-    
+	  mpi_double_buf2[off + icnt++] = tpot[n](ix, iy);
+      
       if (VFLAG & 16)
-	cerr << "Worker " << setw(4) << myid 
-	     << ": with request_id=" << request_id
-	     << ", M=" << m << " sending Density" << endl;
+	std::cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
+		  << ", M=" << m << " send Potential" << std::endl;
 
       MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
-	       13 + MPItable*n+4, MPI_COMM_WORLD);
+	       13 + MPItable*n+1, MPI_COMM_WORLD);
 
+      // R force
+      //
+      off = MPIbufsz*(MPItable*n+1);
+      icnt = 0;
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	  mpi_double_buf2[off + icnt++] = trforce[n](ix, iy);
+      
+      if (VFLAG & 16)
+	std::cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
+		  << ", M=" << m << " sending R force" << std::endl;
+
+      MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+	       13 + MPItable*n+2, MPI_COMM_WORLD);
+
+      // Z force
+      //
+      off = MPIbufsz*(MPItable*n+2);
+      icnt = 0;
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	  mpi_double_buf2[off + icnt++] = tzforce[n](ix, iy);
+    
+      if (VFLAG & 16)
+	std::cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
+		  << ", M=" << m << " sending Z force" << std::endl;
+
+
+      MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+	       13 + MPItable*n+3, MPI_COMM_WORLD);
+
+      // Density
+      //
+      if (DENS) {
+	off = MPIbufsz*(MPItable*n+3);
+	icnt = 0;
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
+	
+	if (VFLAG & 16)
+	  std::cerr << "Worker " << setw(4) << myid 
+	       << ": with request_id=" << request_id
+		    << ", M=" << m << " sending Density" << std::endl;
+	
+	MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+		 13 + MPItable*n+4, MPI_COMM_WORLD);
+	
+      }
     }
-
   }
-
+  // END: MPI packing
+  //
+  // Copy directory to final table arrays for non-MPI
+  //
+  else {
+    for (int n=0; n<NORDER; n++) {
+      if (request_id) {
+	potC   [m][n] = tpot[n];
+	rforceC[m][n] = trforce[n];
+	zforceC[m][n] = tzforce[n];
+	if (DENS) densC[m][n] = tdens[n];
+      } else {
+	potS   [m][n] = tpot[n];
+	rforceS[m][n] = trforce[n];
+	zforceS[m][n] = trforce[n];
+	if (DENS) densS[m][n] = tdens[n];
+      }
+    }
+  }
 }
 
 void EmpCylSL::compute_even_odd(int request_id, int m)
@@ -1489,7 +1531,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 					  LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
 					  false, 1, 1.0);
 
-  double fac1, fac2, dens, potl, potr, pott, fac3, fac4;
+  double dens, potl, potr, pott;
   
   int icnt, off;
   
@@ -1529,10 +1571,8 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 
 	    int l = lE[m][il];	// Even l values first
 	    
-	    fac1 = 1.;//sqrt((2.0*l+1.0)/(4.0*M_PI));
-
 	    if (m==0) {
-	      fac2 = legs[0](l, m);
+	      double fac2 = legs[0](l, m);
 
 	      dens = fac2*dend(l, ir) * dfac;
 	      potl = fac2*potd(l, ir) * pfac;
@@ -1541,9 +1581,9 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 
 	    } else {
 
-	      fac2 = M_SQRT2;
-	      fac3 = fac2 * legs[0](l, m);
-	      fac4 = fac2 * dlegs[0](l, m);
+	      double fac2 = M_SQRT2;
+	      double fac3 = fac2 *  legs[0](l, m);
+	      double fac4 = fac2 * dlegs[0](l, m);
 	      
 	      dens = fac3*dend(l, ir) * dfac;
 	      potl = fac3*potd(l, ir) * pfac;
@@ -1577,10 +1617,8 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 
 	    int l = lO[m][il];
 
-	    fac1 = 1.;//sqrt((2.0*l+1.0)/(4.0*M_PI));
-
 	    if (m==0) {
-	      fac2 = legs[0](l, m);
+	      double fac2 = legs[0](l, m);
 
 	      dens = fac2*dend(l, ir) * dfac;
 	      potl = fac2*potd(l, ir) * pfac;
@@ -1588,10 +1626,10 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	      pott = dlegs[0](l, m)*potd(l, ir) * pfac;
 
 	    } else {
-
-	      fac2 = M_SQRT2;
-	      fac3 = fac2 * legs[0](l, m);
-	      fac4 = fac2 * dlegs[0](l, m);
+	      
+	      double fac2 = M_SQRT2;
+	      double fac3 = fac2 *  legs[0](l, m);
+	      double fac4 = fac2 * dlegs[0](l, m);
 	      
 	      dens = fac3*dend(l, ir) * dfac;
 	      potl = fac3*potd(l, ir) * pfac;
@@ -1610,90 +1648,107 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	      -efO(nn, w) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
 	    if (DENS) 
-	      tdens[v](ix, iy) +=  efO(nn, w) * dens;
+	      tdens[v](ix, iy) +=  efO(nn, w) * dens * 0.25/M_PI;
 	  }
 	}
       }
     }
   }
   
-				// Send stuff back to root
+  
+  // Send tables back to root process
+  //
+  if (use_mpi) {
       
-  MPI_Send(&request_id, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
-  MPI_Send(&m, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
+    MPI_Send(&request_id, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
+    MPI_Send(&m, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
       
     
-  for (int n=0; n<NORDER; n++) {
+    for (int n=0; n<NORDER; n++) {
 
-				// normalization factors
-    if (DENS)
-      tdens[n] *= 0.25/M_PI;
-
-				// Potential
-
-    off = MPIbufsz*(MPItable*n+0);
-    icnt = 0;
-    for (int ix=0; ix<=NUMX; ix++)
-      for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = tpot[n](ix, iy);
-    
-    if (VFLAG & 16)
-      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
-	   << ", M=" << m << " send Potential" << endl;
-
-    MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
-	     13 + MPItable*n+1, MPI_COMM_WORLD);
-
-				// R force
-
-    off = MPIbufsz*(MPItable*n+1);
-    icnt = 0;
-    for (int ix=0; ix<=NUMX; ix++)
-      for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = trforce[n](ix, iy);
-    
-    if (VFLAG & 16)
-      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
-	   << ", M=" << m << " sending R force" << endl;
-
-    MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
-	     13 + MPItable*n+2, MPI_COMM_WORLD);
-
-				// Z force
-
-    off = MPIbufsz*(MPItable*n+2);
-    icnt = 0;
-    for (int ix=0; ix<=NUMX; ix++)
-      for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = tzforce[n](ix, iy);
-    
-    if (VFLAG & 16)
-      cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
-	   << ", M=" << m << " sending Z force" << endl;
-
-
-    MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
-	     13 + MPItable*n+3, MPI_COMM_WORLD);
-
-				// Density
-
-    if (DENS) {
-      off = MPIbufsz*(MPItable*n+3);
+      // Potential
+      //
+      off = MPIbufsz*(MPItable*n+0);
       icnt = 0;
       for (int ix=0; ix<=NUMX; ix++)
 	for (int iy=0; iy<=NUMY; iy++)
-	  mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
-    
+	  mpi_double_buf2[off + icnt++] = tpot[n](ix, iy);
+      
       if (VFLAG & 16)
-	cerr << "Worker " << setw(4) << myid 
-	     << ": with request_id=" << request_id
-	     << ", M=" << m << " sending Density" << endl;
+	std::cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
+		  << ", M=" << m << " send Potential" << std::endl;
 
       MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
-	       13 + MPItable*n+4, MPI_COMM_WORLD);
+	       13 + MPItable*n+1, MPI_COMM_WORLD);
 
+      // R force
+      //
+      off = MPIbufsz*(MPItable*n+1);
+      icnt = 0;
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	  mpi_double_buf2[off + icnt++] = trforce[n](ix, iy);
+      
+      if (VFLAG & 16)
+	std::cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
+		  << ", M=" << m << " sending R force" << std::endl;
+      
+      MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+	       13 + MPItable*n+2, MPI_COMM_WORLD);
+
+      // Z force
+      //
+      off = MPIbufsz*(MPItable*n+2);
+      icnt = 0;
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	mpi_double_buf2[off + icnt++] = tzforce[n](ix, iy);
+      
+      if (VFLAG & 16)
+	std::cerr << "Worker " << setw(4) << myid << ": with request_id=" << request_id
+		  << ", M=" << m << " sending Z force" << std::endl;
+
+
+      MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+	       13 + MPItable*n+3, MPI_COMM_WORLD);
+
+      // Density
+      //
+      if (DENS) {
+	off = MPIbufsz*(MPItable*n+3);
+	icnt = 0;
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
+	
+	if (VFLAG & 16)
+	  std::cerr << "Worker " << setw(4) << myid 
+		    << ": with request_id=" << request_id
+		    << ", M=" << m << " sending Density" << std::endl;
+
+	MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+		 13 + MPItable*n+4, MPI_COMM_WORLD);
+      }
     }
-
+  }
+  // END: MPI packing
+  //
+  // Copy directory to final table arrays for non-MPI
+  //
+  else {
+    for (int n=0; n<NORDER; n++) {
+      if (request_id) {
+	potC   [m][n] = tpot[n];
+	rforceC[m][n] = trforce[n];
+	zforceC[m][n] = tzforce[n];
+	if (DENS) densC[m][n] = tdens[n];
+      } else {
+	potS   [m][n] = tpot[n];
+	rforceS[m][n] = trforce[n];
+	zforceS[m][n] = trforce[n];
+	if (DENS) densS[m][n] = tdens[n];
+      }
+    }
   }
 
 }
@@ -2420,7 +2475,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 		  << std::setw(18) << t
 		  << std::endl;
       }
-      MPI_Barrier(MPI_COMM_WORLD);
+      if (use_mpi) MPI_Barrier(MPI_COMM_WORLD);
     }
 
     if (myid==0) {
@@ -2431,10 +2486,8 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
     timer.start();
   }
 
-  //
   // Now, we are ready to make the EOF basis
   //
-
   make_eof();
 
   if (VFLAG & 16) {
@@ -2443,11 +2496,9 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	 << endl;
   }
 
-  //
   // We still need to make the coefficients
   //
-
-  coefs_made = std::vector<short>(multistep+1, false);
+  std::fill(coefs_made.begin(), coefs_made.end(), false);
 
 }
 
@@ -2632,9 +2683,8 @@ void EmpCylSL::make_eof(void)
 {
   Timer timer;
   int icnt;
-  double tmp;
 
-  if (MPIin_eof.size()==0) {
+  if (use_mpi and MPIin_eof.size()==0) {
     MPIin_eof .resize(rank2*(rank2+1)/2);
     MPIout_eof.resize(rank2*(rank2+1)/2);
   }
@@ -2741,117 +2791,120 @@ void EmpCylSL::make_eof(void)
       }
       
       if (bad) {
-	cerr << "Process " << myid << ": EmpCylSL.Has nan in S[" << mm << "]"
-	     << endl;
+	std::cerr << "Process " << myid
+		  << ": EmpCylSL.Has nan in S[" << mm << "]" << std::endl;
       }
     }
 
   }
 
   //
-  //  Distribute covariance to all processes
+  //  Distribute covariance to all processes (if using MPI)
   //
-  for (int mm=0; mm<=MMAX; mm++) {
+  if (use_mpi) {
 
-    if (EvenOdd) {
-      int Esiz = lE[mm].size();
-      int Osiz = lO[mm].size();
+    for (int mm=0; mm<=MMAX; mm++) {
 
-      icnt=0;
-      for (int i=0; i<NMAX*Esiz; i++)
-	for (int j=i; j<NMAX*Esiz; j++)
-	  MPIin_eof[icnt++] = SCe[0][mm][i][j];
-    
-      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
-		      NMAX*Esiz*(NMAX*Esiz+1)/2,
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      icnt=0;
-      for (int i=0; i<NMAX*Esiz; i++)
-	for (int j=i; j<NMAX*Esiz; j++)
-	  SCe[0][mm][i][j] = MPIout_eof[icnt++];
-      
+      if (EvenOdd) {
+	int Esiz = lE[mm].size();
+	int Osiz = lO[mm].size();
 
-      icnt=0;
-      for (int i=0; i<NMAX*Osiz; i++)
-	for (int j=i; j<NMAX*Osiz; j++)
-	  MPIin_eof[icnt++] = SCo[0][mm][i][j];
-    
-      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
-		      NMAX*Osiz*(NMAX*Osiz+1)/2,
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      icnt=0;
-      for (int i=0; i<NMAX*Osiz; i++)
-	for (int j=i; j<NMAX*Osiz; j++)
-	  SCo[0][mm][i][j] = MPIout_eof[icnt++];
-      
-    } else {
+	icnt=0;
+	for (int i=0; i<NMAX*Esiz; i++)
+	  for (int j=i; j<NMAX*Esiz; j++)
+	    MPIin_eof[icnt++] = SCe[0][mm][i][j];
+	
+	MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+			NMAX*Esiz*(NMAX*Esiz+1)/2,
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	icnt=0;
+	for (int i=0; i<NMAX*Esiz; i++)
+	  for (int j=i; j<NMAX*Esiz; j++)
+	    SCe[0][mm][i][j] = MPIout_eof[icnt++];
+	
 
-      icnt=0;
-      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	  MPIin_eof[icnt++] = SC[0][mm][i][j];
-    
-      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
-		      NMAX*(LMAX-mm+1)*(NMAX*(LMAX-mm+1)+1)/2,
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      icnt=0;
-      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	  SC[0][mm][i][j] = MPIout_eof[icnt++];
+	icnt=0;
+	for (int i=0; i<NMAX*Osiz; i++)
+	  for (int j=i; j<NMAX*Osiz; j++)
+	    MPIin_eof[icnt++] = SCo[0][mm][i][j];
+	
+	MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+			NMAX*Osiz*(NMAX*Osiz+1)/2,
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	icnt=0;
+	for (int i=0; i<NMAX*Osiz; i++)
+	  for (int j=i; j<NMAX*Osiz; j++)
+	    SCo[0][mm][i][j] = MPIout_eof[icnt++];
+	
+      } else {
+	
+	icnt=0;
+	for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	  for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	    MPIin_eof[icnt++] = SC[0][mm][i][j];
+	
+	MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+			NMAX*(LMAX-mm+1)*(NMAX*(LMAX-mm+1)+1)/2,
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	icnt=0;
+	for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	  for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	    SC[0][mm][i][j] = MPIout_eof[icnt++];
+	
+      }
+    }
+  
+    for (int mm=1; mm<=MMAX; mm++) {
+
+      if (EvenOdd) {
+	int Esiz = lE[mm].size();
+	int Osiz = lO[mm].size();
+	
+	icnt=0;
+	for (int i=0; i<NMAX*Esiz; i++)
+	  for (int j=i; j<NMAX*Esiz; j++)
+	    MPIin_eof[icnt++] = SSe[0][mm][i][j];
+	
+	MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+			NMAX*Esiz*(NMAX*Esiz+1)/2,
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	icnt=0;
+	for (int i=0; i<NMAX*Esiz; i++)
+	  for (int j=i; j<NMAX*Esiz; j++)
+	    SSe[0][mm][i][j] = MPIout_eof[icnt++];
+	
+	icnt=0;
+	for (int i=0; i<NMAX*Osiz; i++)
+	  for (int j=i; j<NMAX*Osiz; j++)
+	    MPIin_eof[icnt++] = SSo[0][mm][i][j];
+	
+	MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+			NMAX*Osiz*(NMAX*Osiz+1)/2,
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	icnt=0;
+	for (int i=0; i<NMAX*Osiz; i++)
+	  for (int j=i; j<NMAX*Osiz; j++)
+	    SSo[0][mm][i][j] = MPIout_eof[icnt++];
+	
+      } else {
+
+	icnt=0;
+	for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	  for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	    MPIin_eof[icnt++] = SS[0][mm][i][j];
+  
+	MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+			NMAX*(LMAX-mm+1)*(NMAX*(LMAX-mm+1)+1)/2,
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	icnt=0;
+	for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	  for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	    SS[0][mm][i][j] = MPIout_eof[icnt++];
+      }
       
     }
   }
-  
-  for (int mm=1; mm<=MMAX; mm++) {
-
-    if (EvenOdd) {
-      int Esiz = lE[mm].size();
-      int Osiz = lO[mm].size();
-
-      icnt=0;
-      for (int i=0; i<NMAX*Esiz; i++)
-	for (int j=i; j<NMAX*Esiz; j++)
-	  MPIin_eof[icnt++] = SSe[0][mm][i][j];
-  
-      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
-		      NMAX*Esiz*(NMAX*Esiz+1)/2,
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      icnt=0;
-      for (int i=0; i<NMAX*Esiz; i++)
-	for (int j=i; j<NMAX*Esiz; j++)
-	  SSe[0][mm][i][j] = MPIout_eof[icnt++];
-
-      icnt=0;
-      for (int i=0; i<NMAX*Osiz; i++)
-	for (int j=i; j<NMAX*Osiz; j++)
-	  MPIin_eof[icnt++] = SSo[0][mm][i][j];
-  
-      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
-		      NMAX*Osiz*(NMAX*Osiz+1)/2,
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      icnt=0;
-      for (int i=0; i<NMAX*Osiz; i++)
-	for (int j=i; j<NMAX*Osiz; j++)
-	  SSo[0][mm][i][j] = MPIout_eof[icnt++];
-
-    } else {
-
-      icnt=0;
-      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	  MPIin_eof[icnt++] = SS[0][mm][i][j];
-  
-      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
-		      NMAX*(LMAX-mm+1)*(NMAX*(LMAX-mm+1)+1)/2,
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      icnt=0;
-      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	  SS[0][mm][i][j] = MPIout_eof[icnt++];
-    }
-
-  }
-
+    
   //
   // DEBUG: check for nan
   //
@@ -2914,623 +2967,689 @@ void EmpCylSL::make_eof(void)
 	  }
 	}
       }
-      MPI_Barrier(MPI_COMM_WORLD);
+      if (use_mpi) MPI_Barrier(MPI_COMM_WORLD);
     }
-
+    // END: MPI process loop (okay for a single process)
   }
+  // END: DEBUG
 
-  // END DEBUG
 
+  // Enter this loop for each MPI process
+  //
+  if (use_mpi) {
 
-  if (myid==0) {
+    if (myid==0) {
 
-    int worker = 0;
-    int request_id = 1;		// Begin with cosine case
-    int M;
+      int worker = 0;
+      int request_id = 1;	// Begin with cosine case, 0 is sine case
+      int M = 0;		// Begin with M=0
 
-    M = 0;			// Initial counters
-    while (M<=MMAX) {
+      while (M<=MMAX) {
 	
-      // Send request to worker
-      if (worker<numprocs-1) {
+	// Send request to worker
+	if (worker<numprocs-1) {
 	  
-	worker++;
+	  worker++;
+	
+	  MPI_Send(&request_id, 1, MPI_INT, worker, 1, MPI_COMM_WORLD);
+	  MPI_Send(&M,  1, MPI_INT, worker, 2, MPI_COMM_WORLD);
 	  
-	MPI_Send(&request_id, 1, MPI_INT, worker, 1, MPI_COMM_WORLD);
-	MPI_Send(&M,  1, MPI_INT, worker, 2, MPI_COMM_WORLD);
+	  // Increment counters
+	  request_id++;
+	  if (request_id>1) {
+	    M++;
+	    request_id = 0;
+	  }
 	  
-	// Increment counters
-	request_id++;
-	if (request_id>1) {
-	  M++;
-	  request_id = 0;
+	  if (VFLAG & 16)
+	    std::cerr << "root in make_eof: done waiting on Worker " << worker 
+		      << ", next M=" << M << std::endl;
 	}
 	
-	if (VFLAG & 16)
-	  cerr << "root in make_eof: done waiting on Worker " << worker 
-	       << ", next M=" << M << endl;
-      }
+	// If M>MMAX before processor queue exhausted,
+	// exit loop and reap the worker data
+	if (M>MMAX) break;
 	
-				// If M>MMAX before processor queue exhausted,
-				// exit loop and reap the worker data
-      if (M>MMAX) break;
-
-      if (worker == numprocs-1) {
+	if (worker == numprocs-1) {
 	  
-	//
-	// <Wait and receive and send new request>
-	//
-	receive_eof(request_id, M);
+	  //
+	  // <Wait and receive and send new request>
+	  //
+	  receive_eof(request_id, M);
 	  
-	// Increment counters
-
-	request_id++;
-	if (request_id>1) {
-	  M++;
-	  request_id = 0;
+	  // Increment counters
+	  
+	  request_id++;
+	  if (request_id>1) {
+	    M++;
+	    request_id = 0;
+	  }
 	}
       }
-    }
-    
-    //
-    // <Wait for all workers to return and flag to continue>
-    //
-    if (VFLAG & 16)
-      cerr << "root in make_eof: now waiting for all workers to finish" 
-	   << endl;
       
-				// Dispatch resting workers
-    if (worker < numprocs-1) {
-      request_id = -1;		// request_id < 0 means continue
-      for (int s=numprocs-1; s>worker; s--) {
-	MPI_Send(&request_id, 1, MPI_INT, s, 1, MPI_COMM_WORLD);
+      //
+      // <Wait for all workers to return and flag to continue>
+      //
+      if (VFLAG & 16)
+	std::cerr << "root in make_eof: now waiting for all workers to finish" 
+		  << std::endl;
+      
+      // Dispatch resting workers
+      if (worker < numprocs-1) {
+	request_id = -1;		// request_id < 0 means continue
+	for (int s=numprocs-1; s>worker; s--) {
+	  MPI_Send(&request_id, 1, MPI_INT, s, 1, MPI_COMM_WORLD);
+	}
       }
-    }
-
-				// Get data from working workers
-    while (worker) {
-      receive_eof(-1,0);
-      worker--;
-    }
       
-  } else {
+      // Get data from working workers
+      while (worker) {
+	receive_eof(-1,0);
+	worker--;
+      }
+      
+    } else {
 
-    int M, request_id;
+      int M, request_id;
 
-    while (1) {
-				// Wait for request . . .
-      MPI_Recv(&request_id, 1, 
-	       MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
+      while (1) {
+	// Wait for request . . .
+	MPI_Recv(&request_id, 1, 
+		 MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
       
 				// Done!
-      if (request_id<0) {
-	if (VFLAG & 16)
-	  cerr << "Worker " << setw(4) << myid 
-	       << ": received DONE signal" << endl;
-	break;
-      }
-
-      MPI_Recv(&M, 1, 
-	       MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
+	if (request_id<0) {
+	  if (VFLAG & 16)
+	    cerr << "Worker " << setw(4) << myid 
+		 << ": received DONE signal" << endl;
+	  break;
+	}
 	
-      if (VFLAG & 16)
-	cerr << "Worker " << setw(4) << myid << ": received orders type="
-	     << request_id << "  M=" << M << endl;
-
-      if (request_id) {
-				// Complete symmetric part
-
-	if (EvenOdd) {
-	  int Esiz = lE[M].size();
-	  int Osiz = lO[M].size();
-
-	  for (int i=0; i<NMAX*Esiz; i++) {
-	    for (int j=i; j<NMAX*Esiz; j++)
-	      varE[M](i, j) = SCe[0][M][i][j];
-	  }
-
-	  for (int i=0; i<NMAX*Esiz; i++) {
-	    for (int j=i; j<NMAX*Esiz; j++) {
-	      varE[M](j, i) = SCe[0][M][i][j];
-	    }
-	  }
-    
-	  double maxV = 0.0;
-	  for (int i=0; i<NMAX*Esiz; i++) {
-	    for (int j=0; j<NMAX*Esiz; j++) {
-	      tmp = fabs(varE[M](i, j));
-	      if (tmp > maxV) maxV = tmp;
-	    }
-	  }
-	  
-	  varE[M] /= maxV;
-
-	  for (int i=0; i<NMAX*Osiz; i++) {
-	    for (int j=i; j<NMAX*Osiz; j++)
-	      varO[M](i, j) = SCo[0][M][i][j];
-	  }
-
-	  for (int i=0; i<NMAX*Osiz; i++) {
-	    for (int j=i; j<NMAX*Osiz; j++) {
-	      varO[M](j, i) = SCo[0][M][i][j];
-	    }
-	  }
-    
-	  maxV = 0.0;
-	  for (int i=0; i<NMAX*Osiz; i++) {
-	    for (int j=i; j<NMAX*Osiz; j++) {
-	      tmp = fabs(varO[M](i, j));
-	      if (tmp > maxV) maxV = tmp;
-	    }
-	  }
-	  
-	  varO[M] /= maxV;
-
-	} else {
-
-	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<NMAX*(LMAX-M+1); j++)
-	      var[M](i, j) = SC[0][M][i][j];
-	  }
-
-	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<NMAX*(LMAX-M+1); j++) {
-	      var[M](j, i) = SC[0][M][i][j];
-	    }
-	  }
-    
-	  double maxV = 0.0;
-	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<NMAX*(LMAX-M+1); j++) {
-	      tmp = fabs(var[M](i, j));
-	      if (tmp > maxV) maxV = tmp;
-	    }
-	  }
-	  
-	  var[M] /= maxV;
-	}
-
-    
-	//==========================
-	// Solve eigenvalue problem 
-	//==========================
-    
-	if (VFLAG & 16) {
-	  int nancount = 0;
-
-	  if (EvenOdd) {
-
-	    for (int i=0; i<varE[M].rows(); i++) {
-	      for (int j=0; j<varE[M].cols(); j++) {
-		if (std::isnan(varE[M](i, j))) nancount++;
-	      }
-	    }
-
-	    if (nancount) {
-	      std::cout << "Process " << setw(4) << myid 
-			<< ": in eigenvalue problem [even] with "
-			<< "rank=[" << varE[M].cols() << ", " 
-			<< varE[M].rows() << "]"
-			<< ", found " << nancount << " NaN values" << endl;
-	    }
-
-	    nancount = 0;
-	    for (int i=0; i<varO[M].rows(); i++) {
-	      for (int j=0; j<varO[M].cols(); j++) {
-		if (std::isnan(varO[M](i, j))) nancount++;
-	      }
-	    }
-
-	    if (nancount) {
-	      std::cout << "Process " << setw(4) << myid 
-			<< ": in eigenvalue problem [odd] with "
-			<< "rank=[" << varO[M].cols() << ", " 
-			<< varO[M].rows() << "]"
-			<< ", found " << nancount << " NaN values" << endl;
-	    }
-
-	  } else {
-
-	    for (int i=0; i<var[M].rows(); i++) {
-	      for (int j=0; j<var[M].cols(); j++) {
-		if (std::isnan(var[M](i, j))) nancount++;
-	      }
-	    }
-	  
-	    if (nancount) {
-
-	      std::cout << "Process " << setw(4) << myid 
-			<< ": in eigenvalue problem with "
-			<< "rank=[" << var[M].cols() << ", " 
-			<< var[M].rows() << "]"
-			<< ", found " << nancount << " NaN values" << endl;
-	    }
-	  }
-
-	  timer.reset();
-	  timer.start();
-	}
-
-	if (VFLAG & 32) {
-
-	  std::ostringstream sout;
-	  sout << "variance_test." << M << "." << request_id;
-	  std::ofstream dout(sout.str());
-	  
-	  dout << std::string(60, '-') << std::endl
-	       << " M=" << M           << std::endl
-	       << std::string(60, '-') << std::endl;
-
-	  if (EvenOdd) {
-
-	    for (int i=0; i<varE[M].rows(); i++) {
-	      for (int j=0; j<varE[M].cols(); j++) {
-		dout << std::setw(16) << varE[M](i, j);
-	      }
-	      dout << std::endl;
-	    }
-
-	    dout << std::endl;
-	    for (int i=0; i<varO[M].rows(); i++) {
-	      for (int j=0; j<varO[M].cols(); j++) {
-		dout << std::setw(16) << varO[M](i, j);
-	      }
-	      dout << std::endl;
-	    }
-
-	  } else {
-
-	    for (int i=0; i<var[M].rows(); i++) {
-	      for (int j=0; j<var[M].cols(); j++) {
-		dout << std::setw(16) << var[M](i, j);
-	      }
-	      dout << std::endl;
-	    }
-	  }
-	}
-
-	if (EvenOdd) {
-
-	  Eigen::EigenSolver<Eigen::MatrixXd> esE(varE[M]);
-	  Eigen::EigenSolver<Eigen::MatrixXd> esO(varO[M]);
-
-	  evE = esE.eigenvalues().real();
-	  evO = esO.eigenvalues().real();
-
-	  efE = esE.eigenvectors().real();
-	  efO = esO.eigenvectors().real();
-
-	  if (VFLAG & 32) {
-
-	    std::ostringstream sout;
-	    sout << "ev_test." << M << "." << request_id;
-	    std::ofstream dout(sout.str());
-	  
-	    for (int i=0; i<efE.cols(); i++) {
-	      for (int j=0; j<efE.cols(); j++) {
-		double sum = efE.col(i).adjoint() * efE.col(j);
-		dout << std::setw(4) << i << std::setw(4) << j
-		     << std::setw(18) << sum << std::endl;
-	      }
-	    }
-
-	    dout << std::endl;
-	  
-	    for (int i=0; i<efO.cols(); i++) {
-	      for (int j=0; j<efO.cols(); j++) {
-		double sum = efO.col(i).adjoint() * efO.col(j);
-		dout << std::setw(4) << i << std::setw(4) << j
-		     << std::setw(18) << sum << std::endl;
-	      }
-	    }
-	  }
-
-	} else {
-
-	  Eigen::EigenSolver<Eigen::MatrixXd> es(var[M]);
-
-	  ev = es.eigenvalues().real();
-	  ef = es.eigenvectors().real();
-
-	  if (VFLAG & 32) {
-
-	    std::ostringstream sout;
-	    sout << "ev_test." << M << "." << request_id;
-	    std::ofstream dout(sout.str());
-	  
-	    for (int i=0; i<ef.cols(); i++) {
-	      for (int j=0; j<ef.cols(); j++) {
-		double sum = ef.col(i).adjoint() * ef.col(j);
-		dout << std::setw(4) << i << std::setw(4) << j
-		     << std::setw(18) << sum << std::endl;
-	      }
-	    }
-	  }
-	}
-
-	if (VFLAG & 16) {
-	  cout << "Process " << setw(4) << myid 
-	       << ": completed eigenproblem in " 
-	       << timer.stop() << " seconds"
-	       << endl;
-	}
-
-      } else {
-				// Complete symmetric part
-    
-	if (EvenOdd) {
-	  int Esiz = lE[M].size();
-	  int Osiz = lO[M].size();
-
-	  for (int i=0; i<NMAX*Esiz; i++) {
-	    for (int j=i; j<NMAX*Esiz; j++)
-	      varE[M](i, j) = SSe[0][M][i][j];
-	  }
-
-	  for (int i=0; i<NMAX*Esiz; i++) {
-	    for (int j=i; j<NMAX*Esiz; j++) {
-	      varE[M](j, i) = SSe[0][M][i][j];
-	    }
-	  }
-    
-	  double maxV = 0.0;
-	  for (int i=0; i<NMAX*Esiz; i++) {
-	    for (int j=i; j<NMAX*Esiz; j++) {
-	      tmp = fabs(varE[M](i, j));
-	      if (tmp > maxV) maxV = tmp;
-	    }
-	  }
-	  
-	  if (maxV>1.0e-5)
-	    varE[M] /= maxV;
-    
-	  for (int i=0; i<NMAX*Osiz; i++) {
-	    for (int j=i; j<NMAX*Osiz; j++)
-	      varO[M](i, j) = SSo[0][M][i][j];
-	  }
-
-	  for (int i=0; i<NMAX*Osiz; i++) {
-	    for (int j=i; j<NMAX*Osiz; j++) {
-	      varO[M](j, i) = SSo[0][M][i][j];
-	    }
-	  }
-    
-	  maxV = 0.0;
-	  for (int i=0; i<NMAX*Osiz; i++) {
-	    for (int j=i; j<NMAX*Osiz; j++) {
-	      tmp = fabs(varO[M](i, j));
-	      if (tmp > maxV) maxV = tmp;
-	    }
-	  }
-	  
-	  if (maxV>1.0e-5)
-	    varO[M] /= maxV;
-    
-	} else {
-
-	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<NMAX*(LMAX-M+1); j++)
-	      var[M](i, j) = SS[0][M][i][j];
-	  }
-	  
-	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<NMAX*(LMAX-M+1); j++) {
-	      var[M](j, i) = SS[0][M][i][j];
-	    }
-	  }
-	  
-	  double maxV = 0.0;
-	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<NMAX*(LMAX-M+1); j++) {
-	      tmp = fabs(var[M](i, j));
-	      if (tmp > maxV) maxV = tmp;
-	    }
-	  }
-	  
-	  if (maxV>1.0e-5)
-	    var[M] /= maxV;
-	}
-
-	//==========================
-	// Solve eigenvalue problem
-	//==========================
-    
-	if (VFLAG & 16) {
-
-	  int nancount = 0;
-
-	  if (EvenOdd) {
-
-	    for (int i=0; i<varE[M].rows(); i++) {
-	      for (int j=0; j<varE[M].cols(); j++) {
-		if (std::isnan(varE[M](i, j))) nancount++;
-	      }
-	    }
-	    
-	    cout << "Process " << setw(4) << myid 
-		 << ": in eigenvalue problem [even] with "
-		 << "rank=[" << varE[M].cols() << ", " 
-		 << varE[M].rows() << "]"
-		 << ", found " << nancount << " NaN values" << endl;
-
-	    nancount = 0;
-	    for (int i=0; i<varO[M].cols(); i++) {
-	      for (int j=0; j<varO[M].cols(); j++) {
-		if (std::isnan(varO[M](i, j))) nancount++;
-	      }
-	    }
-	    
-	    cout << "Process " << setw(4) << myid 
-		 << ": in eigenvalue problem [odd] with "
-		 << "rank=[" << varO[M].cols() << ", " 
-		 << varO[M].rows() << "]"
-		 << ", found " << nancount << " NaN values" << endl;
-
-	  } else {
-
-	    for (int i=0; i<var[M].rows(); i++) {
-	      for (int j=0; j<var[M].cols(); j++) {
-		if (std::isnan(var[M](i, j))) nancount++;
-	      }
-	    }
-	    
-	    cout << "Process " << setw(4) << myid 
-		 << ": in eigenvalue problem with "
-		 << "rank=[" << var[M].cols() << ", " 
-		 << var[M].rows() << "]"
-		 << ", found " << nancount << " NaN values" << endl;
-	  }
-
-	  timer.reset();
-	  timer.start();
-	}
-
-	if (EvenOdd) {
-
-	  Eigen::EigenSolver<Eigen::MatrixXd> esE(varE[M]);
-	  Eigen::EigenSolver<Eigen::MatrixXd> esO(varO[M]);
-
-	  evE = esE.eigenvalues().real();
-	  evO = esO.eigenvalues().real();
-
-	  efE = esE.eigenvectors().real();
-	  efO = esO.eigenvectors().real();
-
-	  if (VFLAG & 32) {
-
-	    std::ostringstream sout;
-	    sout << "ev_test." << M << "." << request_id;
-	    std::ofstream dout(sout.str());
-	  
-	    for (int i=0; i<efE.cols(); i++) {
-	      for (int j=0; j<efE.cols(); j++) {
-		double sum = efE.col(i).adjoint() * efE.col(j);
-		dout << std::setw(4) << i << std::setw(4) << j
-		     << std::setw(18) << sum << std::endl;
-	      }
-	    }
-
-	    dout << std::endl;
-	  
-	    for (int i=0; i<efO.cols(); i++) {
-	      for (int j=0; j<efO.cols(); j++) {
-		double sum = efO.col(i).adjoint() * efO.col(j);
-		dout << std::setw(4) << i << std::setw(4) << j
-		     << std::setw(18) << sum << std::endl;
-	      }
-	    }
-	  }
-
-	} else {
-
-	  Eigen::EigenSolver<Eigen::MatrixXd> es(var[M]);
-
-	  ev = es.eigenvalues().real();
-	  ef = es.eigenvectors().real();
-
-	  if (VFLAG & 32) {
-
-	    std::ostringstream sout;
-	    sout << "ev_test." << M << "." << request_id;
-	    std::ofstream dout(sout.str());
-	  
-	    for (int i=0; i<ef.cols(); i++) {
-	      for (int j=0; j<ef.cols(); j++) {
-		double sum = ef.col(i).adjoint() * ef.col(j);
-		dout << std::setw(4) << i << std::setw(4) << j
-		     << std::setw(18) << sum << std::endl;
-	      }
-	    }
-	  }
-	}
-
-	if (VFLAG & 16) {
-	  cout << "Process " << setw(4) << myid 
-	       << ": completed eigenproblem in " 
-	       << timer.stop() << " seconds"
-	       << endl;
-	}
-
+	MPI_Recv(&M, 1, 
+		 MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
+	
+	if (VFLAG & 16)
+	  std::cerr << "Worker " << std::setw(4) << myid
+		    << ": received orders type="
+		    << request_id << "  M=" << M << std::endl;
+	
+	eigen_problem(request_id, M, timer);
       }
+    }
 
-      if (VFLAG & 2)
-	cerr << "Worker " << setw(4) << myid 
-	     << ": with request_id=" << request_id
-	     << ", M=" << M << " calling compute_eof_grid" << endl;
+    // Send grid to all processes
+    //
+    if (VFLAG & 2) {
+      MPI_Barrier(MPI_COMM_WORLD);
+      cerr << "Process " << std::setw(4) << myid 
+	   << ": about to enter send_eof_grid" << endl;
+    }
+    
+    if (VFLAG & 16) {
+      timer.reset();
+      timer.start();
+    }
 
+    send_eof_grid();
+
+    if (VFLAG & 16) {
+      std::cout << "Process " << std::setw(4) << myid << ": grid reduced in " 
+		<< timer.stop()  << " seconds"
+		<< std::endl;
+    }
+    else if (VFLAG & 2) {
+      std::cerr << "Process " << setw(4) << myid
+		<< ": grid reduce completed" << std::endl;
+    }
+  }
+  // MPI End
+  //
+  // Do the following loop for a single process
+  else {
+
+    // Non-MPI loop
+    //
+    for (int M=0; M<=MMAX; M++) {
       if (VFLAG & 16) {
+	std::cout << "Process " << std::setw(4) << myid
+		  << ": Begin computing M=" << M << std::endl;
 	timer.reset();
 	timer.start();
       }
 
-      if (EvenOdd)
-	compute_even_odd(request_id, M);
-      else
-	compute_eof_grid(request_id, M);
+      if (M==0) {
+	eigen_problem(1, M, timer); // Cosine
+      } else {
+	eigen_problem(0, M, timer); // Sine
+	eigen_problem(1, M, timer); // Cosine
+      }
 
       if (VFLAG & 16) {
-	cout << "Process " << setw(4) << myid << ": completed EOF grid for id="
-	     << request_id << " and M=" << M << " in " 
-	     << timer.stop() << " seconds"
-	     << endl;
+	std::cout << "Process " << std::setw(4) << myid
+		  << ": Computed M=" << M << " in "
+		  << timer.stop()  << " seconds" << std::endl;
       }
-      else if (VFLAG & 2)
-	cerr << "Worker " << setw(4) << myid 
-	     << ": with request_id=" << request_id
-	     << ", M=" << M << " COMPLETED compute_eof_grid" << endl;
     }
-
-  }
-				// Send grid to all processes
-  if (VFLAG & 2) {
-    MPI_Barrier(MPI_COMM_WORLD);
-    cerr << "Process " << setw(4) << myid 
-	 << ": about to enter send_eof_grid" << endl;
   }
 
-  if (VFLAG & 16) {
-    timer.reset();
-    timer.start();
-  }
-
-  send_eof_grid();
-
-  if (VFLAG & 16) {
-    cout << "Process " << setw(4) << myid << ": grid reduced in " 
-	 << timer.stop()  << " seconds"
-	 << endl;
-  } 
-  else if (VFLAG & 2)
-    cerr << "Process " << setw(4) << myid << ": grid reduce completed" << endl;
-
-				// Cache table for restarts
-				// (it would be nice to multithread or fork
-				//  this call . . . )
+  // Cache table for restarts
+  //
   if (myid==0) cache_grid(1);
   
-  eof_made      = true;
-  coefs_made    = std::vector<short>(multistep+1, false);
+  // Basis complete but still need to compute coefficients
+  //
+  eof_made = true;
+  std::fill(coefs_made.begin(), coefs_made.end(), false);
 
   if (VFLAG & 2) {
-    MPI_Barrier(MPI_COMM_WORLD);
-    cerr << "Process " << setw(4) << myid 
-	 << ": EOF computation completed" << endl;
+    if (use_mpi) MPI_Barrier(MPI_COMM_WORLD);
+    std::cerr << "Process " << std::setw(4) << myid 
+	      << ": EOF computation completed" << std::endl;
   }
 }
 
 
-void EmpCylSL::accumulate_eof(std::vector<Particle>& part, bool verbose)
+void EmpCylSL::eigen_problem(int request_id, int M, Timer& timer)
 {
 
-  double r, phi, z, mass;
+  if (request_id) {
 
+    // Cosine components
+    //
+    if (EvenOdd) {
+      int Esiz = lE[M].size();
+      int Osiz = lO[M].size();
+	    
+      for (int i=0; i<NMAX*Esiz; i++) {
+	for (int j=i; j<NMAX*Esiz; j++)
+	  varE[M](i, j) = SCe[0][M][i][j];
+      }
+      
+      for (int i=0; i<NMAX*Esiz; i++) {
+	for (int j=i; j<NMAX*Esiz; j++) {
+	  varE[M](j, i) = SCe[0][M][i][j];
+	}
+      }
+      
+      double maxV = 0.0;
+      for (int i=0; i<NMAX*Esiz; i++) {
+	for (int j=0; j<NMAX*Esiz; j++) {
+	  double tmp = fabs(varE[M](i, j));
+	  if (tmp > maxV) maxV = tmp;
+	}
+      }
+      
+      varE[M] /= maxV;
+      
+      for (int i=0; i<NMAX*Osiz; i++) {
+	for (int j=i; j<NMAX*Osiz; j++)
+	  varO[M](i, j) = SCo[0][M][i][j];
+      }
+      
+      for (int i=0; i<NMAX*Osiz; i++) {
+	for (int j=i; j<NMAX*Osiz; j++) {
+	  varO[M](j, i) = SCo[0][M][i][j];
+	}
+      }
+      
+      maxV = 0.0;
+      for (int i=0; i<NMAX*Osiz; i++) {
+	for (int j=i; j<NMAX*Osiz; j++) {
+	  double tmp = fabs(varO[M](i, j));
+	  if (tmp > maxV) maxV = tmp;
+	}
+      }
+      
+      varO[M] /= maxV;
+      
+    } else {
+      
+      for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	for (int j=i; j<NMAX*(LMAX-M+1); j++)
+	  var[M](i, j) = SC[0][M][i][j];
+      }
+      
+      for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	for (int j=i; j<NMAX*(LMAX-M+1); j++) {
+	  var[M](j, i) = SC[0][M][i][j];
+	}
+      }
+      
+      double maxV = 0.0;
+      for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	for (int j=i; j<NMAX*(LMAX-M+1); j++) {
+	  double tmp = fabs(var[M](i, j));
+	  if (tmp > maxV) maxV = tmp;
+	}
+      }
+      
+      var[M] /= maxV;
+    }
+    
+    
+    //==========================
+    // Solve eigenvalue problem 
+    //==========================
+    
+    if (VFLAG & 16) {
+      int nancount = 0;
+      
+      if (EvenOdd) {
+	
+	for (int i=0; i<varE[M].rows(); i++) {
+	  for (int j=0; j<varE[M].cols(); j++) {
+	    if (std::isnan(varE[M](i, j))) nancount++;
+	  }
+	}
+	
+	if (nancount) {
+	  std::cout << "Process " << setw(4) << myid 
+		    << ": in eigenvalue problem [even] with "
+		    << "rank=[" << varE[M].cols() << ", " 
+		    << varE[M].rows() << "]"
+		    << ", found " << nancount << " NaN values" << endl;
+	}
+	
+	nancount = 0;
+	for (int i=0; i<varO[M].rows(); i++) {
+	  for (int j=0; j<varO[M].cols(); j++) {
+	    if (std::isnan(varO[M](i, j))) nancount++;
+	  }
+	}
+	
+	if (nancount) {
+	  std::cout << "Process " << setw(4) << myid 
+		    << ": in eigenvalue problem [odd] with "
+		    << "rank=[" << varO[M].cols() << ", " 
+		    << varO[M].rows() << "]"
+		    << ", found " << nancount << " NaN values" << endl;
+	}
+	
+      } else {
+	
+	for (int i=0; i<var[M].rows(); i++) {
+	  for (int j=0; j<var[M].cols(); j++) {
+	    if (std::isnan(var[M](i, j))) nancount++;
+	  }
+	}
+	
+	if (nancount) {
+	  
+	  std::cout << "Process " << setw(4) << myid 
+		    << ": in eigenvalue problem with "
+		    << "rank=[" << var[M].cols() << ", " 
+		    << var[M].rows() << "]"
+		    << ", found " << nancount << " NaN values" << endl;
+	}
+      }
+      
+      timer.reset();
+      timer.start();
+    }
+    
+    if (VFLAG & 32) {
+      
+      std::ostringstream sout;
+      sout << "variance_test." << M << "." << request_id;
+      std::ofstream dout(sout.str());
+      
+      dout << std::string(60, '-') << std::endl
+	   << " M=" << M           << std::endl
+	   << std::string(60, '-') << std::endl;
+      
+      if (EvenOdd) {
+	
+	for (int i=0; i<varE[M].rows(); i++) {
+	  for (int j=0; j<varE[M].cols(); j++) {
+	    dout << std::setw(16) << varE[M](i, j);
+	  }
+	  dout << std::endl;
+	}
+	
+	dout << std::endl;
+	for (int i=0; i<varO[M].rows(); i++) {
+	  for (int j=0; j<varO[M].cols(); j++) {
+	    dout << std::setw(16) << varO[M](i, j);
+	  }
+	  dout << std::endl;
+	}
+	
+      } else {
+	
+	for (int i=0; i<var[M].rows(); i++) {
+	  for (int j=0; j<var[M].cols(); j++) {
+	    dout << std::setw(16) << var[M](i, j);
+	  }
+	  dout << std::endl;
+	}
+      }
+    }
+    
+    if (EvenOdd) {
+      
+      Eigen::EigenSolver<Eigen::MatrixXd> esE(varE[M]);
+      Eigen::EigenSolver<Eigen::MatrixXd> esO(varO[M]);
+      
+      evE = esE.eigenvalues().real();
+      evO = esO.eigenvalues().real();
+      
+      efE = esE.eigenvectors().real();
+      efO = esO.eigenvectors().real();
+      
+      if (VFLAG & 32) {
+	
+	std::ostringstream sout;
+	sout << "ev_test." << M << "." << request_id;
+	std::ofstream dout(sout.str());
+	
+	dout << "Even EV" << std::endl;
+	for (int j=0; j<evE.size(); j++) {
+	  dout << std::setw(4) << j << std::setw(18) << evE[j] << std::endl;
+	}
+	dout << std::endl;
+
+	dout << "Odd EV" << std::endl;
+	for (int j=0; j<evO.size(); j++) {
+	  dout << std::setw(4) << j << std::setw(18) << evO[j] << std::endl;
+	}
+	dout << std::endl;
+
+	dout << "Even ortho" << std::endl;
+	for (int i=0; i<efE.cols(); i++) {
+	  for (int j=0; j<efE.cols(); j++) {
+	    double sum = efE.col(i).adjoint() * efE.col(j);
+	    dout << std::setw(4) << i << std::setw(4) << j
+		 << std::setw(18) << sum << std::endl;
+	  }
+	}
+	dout << std::endl;
+	
+	dout << "Odd ortho" << std::endl;
+	for (int i=0; i<efO.cols(); i++) {
+	  for (int j=0; j<efO.cols(); j++) {
+	    double sum = efO.col(i).adjoint() * efO.col(j);
+	    dout << std::setw(4) << i << std::setw(4) << j
+		 << std::setw(18) << sum << std::endl;
+	  }
+	}
+      }
+      
+    } else {
+      
+      Eigen::EigenSolver<Eigen::MatrixXd> es(var[M]);
+      
+      ev = es.eigenvalues().real();
+      ef = es.eigenvectors().real();
+      
+      if (VFLAG & 32) {
+	
+	std::ostringstream sout;
+	sout << "ev_test." << M << "." << request_id;
+	std::ofstream dout(sout.str());
+	
+	dout << "EV" << std::endl;
+	for (int j=0; j<ev.size(); j++) {
+	  dout << std::setw(4) << j << std::setw(18) << ev[j] << std::endl;
+	}
+	dout << std::endl;
+
+
+	dout << "Ortho" << std::endl;
+	for (int i=0; i<ef.cols(); i++) {
+	  for (int j=0; j<ef.cols(); j++) {
+	    double sum = ef.col(i).adjoint() * ef.col(j);
+	    dout << std::setw(4) << i << std::setw(4) << j
+		 << std::setw(18) << sum << std::endl;
+	  }
+	}
+      }
+    }
+    
+    if (VFLAG & 16) {
+      cout << "Process " << setw(4) << myid 
+	   << ": completed eigenproblem in " 
+	   << timer.stop() << " seconds"
+	   << endl;
+    }
+    
+  } else {
+
+    // Sine components
+    //
+    if (EvenOdd) {
+      int Esiz = lE[M].size();
+      int Osiz = lO[M].size();
+      
+      for (int i=0; i<NMAX*Esiz; i++) {
+	for (int j=i; j<NMAX*Esiz; j++)
+	  varE[M](i, j) = SSe[0][M][i][j];
+      }
+      
+      for (int i=0; i<NMAX*Esiz; i++) {
+	for (int j=i; j<NMAX*Esiz; j++) {
+	  varE[M](j, i) = SSe[0][M][i][j];
+	}
+      }
+      
+      double maxV = 0.0;
+      for (int i=0; i<NMAX*Esiz; i++) {
+	for (int j=i; j<NMAX*Esiz; j++) {
+	  double tmp = fabs(varE[M](i, j));
+	  if (tmp > maxV) maxV = tmp;
+	}
+      }
+      
+      if (maxV>1.0e-5)
+	varE[M] /= maxV;
+      
+      for (int i=0; i<NMAX*Osiz; i++) {
+	for (int j=i; j<NMAX*Osiz; j++)
+	  varO[M](i, j) = SSo[0][M][i][j];
+      }
+      
+      for (int i=0; i<NMAX*Osiz; i++) {
+	for (int j=i; j<NMAX*Osiz; j++) {
+	  varO[M](j, i) = SSo[0][M][i][j];
+	}
+      }
+      
+      maxV = 0.0;
+      for (int i=0; i<NMAX*Osiz; i++) {
+	for (int j=i; j<NMAX*Osiz; j++) {
+	  double tmp = fabs(varO[M](i, j));
+	  if (tmp > maxV) maxV = tmp;
+	}
+      }
+      
+      if (maxV>1.0e-5)
+	varO[M] /= maxV;
+      
+    } else {
+      
+      for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	for (int j=i; j<NMAX*(LMAX-M+1); j++)
+	  var[M](i, j) = SS[0][M][i][j];
+      }
+      
+      for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	for (int j=i; j<NMAX*(LMAX-M+1); j++) {
+	  var[M](j, i) = SS[0][M][i][j];
+	}
+      }
+      
+      double maxV = 0.0;
+      for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	for (int j=i; j<NMAX*(LMAX-M+1); j++) {
+	  double tmp = fabs(var[M](i, j));
+	  if (tmp > maxV) maxV = tmp;
+	}
+      }
+      
+      if (maxV>1.0e-5)
+	var[M] /= maxV;
+    }
+    
+    //==========================
+    // Solve eigenvalue problem
+    //==========================
+    
+    if (VFLAG & 16) {
+      
+      int nancount = 0;
+      
+      if (EvenOdd) {
+	
+	for (int i=0; i<varE[M].rows(); i++) {
+	  for (int j=0; j<varE[M].cols(); j++) {
+	    if (std::isnan(varE[M](i, j))) nancount++;
+	  }
+	}
+	
+	cout << "Process " << setw(4) << myid 
+	     << ": in eigenvalue problem [even] with "
+	     << "rank=[" << varE[M].cols() << ", " 
+	     << varE[M].rows() << "]"
+	     << ", found " << nancount << " NaN values" << endl;
+	
+	nancount = 0;
+	for (int i=0; i<varO[M].cols(); i++) {
+	  for (int j=0; j<varO[M].cols(); j++) {
+	    if (std::isnan(varO[M](i, j))) nancount++;
+	  }
+	}
+	
+	cout << "Process " << setw(4) << myid 
+	     << ": in eigenvalue problem [odd] with "
+	     << "rank=[" << varO[M].cols() << ", " 
+	     << varO[M].rows() << "]"
+	     << ", found " << nancount << " NaN values" << endl;
+	
+      } else {
+	
+	for (int i=0; i<var[M].rows(); i++) {
+	  for (int j=0; j<var[M].cols(); j++) {
+	    if (std::isnan(var[M](i, j))) nancount++;
+	  }
+	}
+	
+	cout << "Process " << setw(4) << myid 
+	     << ": in eigenvalue problem with "
+	     << "rank=[" << var[M].cols() << ", " 
+	     << var[M].rows() << "]"
+	     << ", found " << nancount << " NaN values" << endl;
+      }
+      
+      timer.reset();
+      timer.start();
+    }
+    
+    if (EvenOdd) {
+      
+      Eigen::EigenSolver<Eigen::MatrixXd> esE(varE[M]);
+      Eigen::EigenSolver<Eigen::MatrixXd> esO(varO[M]);
+      
+      evE = esE.eigenvalues().real();
+      evO = esO.eigenvalues().real();
+      
+      efE = esE.eigenvectors().real();
+      efO = esO.eigenvectors().real();
+      
+      if (VFLAG & 32) {
+	
+	std::ostringstream sout;
+	sout << "ev_test." << M << "." << request_id;
+	std::ofstream dout(sout.str());
+	
+	for (int i=0; i<efE.cols(); i++) {
+	  for (int j=0; j<efE.cols(); j++) {
+	    double sum = efE.col(i).adjoint() * efE.col(j);
+	    dout << std::setw(4) << i << std::setw(4) << j
+		 << std::setw(18) << sum << std::endl;
+	  }
+	}
+	
+	dout << std::endl;
+	
+	for (int i=0; i<efO.cols(); i++) {
+	  for (int j=0; j<efO.cols(); j++) {
+	    double sum = efO.col(i).adjoint() * efO.col(j);
+	    dout << std::setw(4) << i << std::setw(4) << j
+		 << std::setw(18) << sum << std::endl;
+	  }
+	}
+      }
+      
+    } else {
+      
+      Eigen::EigenSolver<Eigen::MatrixXd> es(var[M]);
+      
+      ev = es.eigenvalues().real();
+      ef = es.eigenvectors().real();
+      
+      if (VFLAG & 32) {
+	
+	std::ostringstream sout;
+	sout << "ev_test." << M << "." << request_id;
+	std::ofstream dout(sout.str());
+	
+	for (int i=0; i<ef.cols(); i++) {
+	  for (int j=0; j<ef.cols(); j++) {
+	    double sum = ef.col(i).adjoint() * ef.col(j);
+	    dout << std::setw(4) << i << std::setw(4) << j
+		 << std::setw(18) << sum << std::endl;
+	  }
+	}
+      }
+    }
+    
+    if (VFLAG & 16) {
+      cout << "Process " << setw(4) << myid 
+	   << ": completed eigenproblem in " 
+	   << timer.stop() << " seconds"
+	   << endl;
+    }
+    
+  }
+  
+  if (VFLAG & 2)
+    cerr << "Worker " << setw(4) << myid 
+	 << ": with request_id=" << request_id
+	 << ", M=" << M << " calling compute_eof_grid" << endl;
+  
+  if (VFLAG & 16) {
+    timer.reset();
+    timer.start();
+  }
+  
+  if (EvenOdd)
+    compute_even_odd(request_id, M);
+  else
+    compute_eof_grid(request_id, M);
+  
+  if (VFLAG & 16) {
+    std::cout << "Process " << std::setw(4) << myid << ": completed EOF grid for id="
+	      << request_id << " and M=" << M << " in " 
+	      << timer.stop() << " seconds"
+	      << std::endl;
+  }
+  else if (VFLAG & 2)
+    std::cerr << "Worker " << setw(4) << myid 
+	      << ": with request_id=" << request_id
+	      << ", M=" << M << " COMPLETED compute_eof_grid" << std::endl;
+}
+
+void EmpCylSL::accumulate_eof(std::vector<Particle>& part, bool verbose)
+{
+    
+  double r, phi, z, mass;
+    
   int ncnt=0;
   if (myid==0 && verbose) cout << endl;
-
+  
   setup_eof();
-
+    
   for (auto p=part.begin(); p!=part.end(); p++) {
-
+      
     mass = p->mass;
     r = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
     phi = atan2(p->pos[1], p->pos[0]);
@@ -3542,16 +3661,16 @@ void EmpCylSL::accumulate_eof(std::vector<Particle>& part, bool verbose)
       ncnt++;
     }
   }
-
+  
 }
   
-
+  
 void EmpCylSL::accumulate_eof_thread(std::vector<Particle>& part, bool verbose)
 {
   setup_eof();
-
+    
   std::vector<std::thread> t(nthrds);
- 
+  
   // Launch the threads
   for (int id=0; id<nthrds; ++id) {
     t[id] = std::thread(&EmpCylSL::accumulate_eof_thread_call, this, id, &part, verbose);
@@ -3562,36 +3681,35 @@ void EmpCylSL::accumulate_eof_thread(std::vector<Particle>& part, bool verbose)
   }
 }
 
-
 void EmpCylSL::accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool verbose)
 {
   int nbodies = p->size();
-    
+  
   if (nbodies == 0) return;
-
+  
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
-
+  
   double r, phi, z, mass;
-
+  
   int ncnt=0;
   if (myid==0 && id==0 && verbose) cout << endl;
   
   for (int n=nbeg; n<nend; n++) {
-				// Phase space coords
+    // Phase space coords
     mass = (*p)[n].mass;
     r    = sqrt((*p)[n].pos[0]*(*p)[n].pos[0] + (*p)[n].pos[1]*(*p)[n].pos[1]);
     phi  = atan2((*p)[n].pos[1], (*p)[n].pos[0]);
     z    = (*p)[n].pos[2];
-				// Call accumulation for this particle
+    // Call accumulation for this particle
     accumulate_eof(r, z, phi, mass, id, (*p)[n].level);
-
+    
     if (myid==0 && id==0 && verbose) {
       if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
       ncnt++;
     }
   }
-
+  
 }
   
 
@@ -3704,9 +3822,10 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 {
 
   if (coefs_made[mlevel]) {
-    ostringstream ostr;
+    std::ostringstream ostr;
     ostr << "EmpCylSL::accumulate: Process " << myid << ", Thread " << id 
-	 << ": calling setup_accumulation from accumulate, aborting" << endl;
+	 << ": calling setup_accumulation from accumulate, aborting"
+	 << std::endl;
     throw GenericError(ostr.str(), __FILE__, __LINE__, 1039, false);
   }
 
@@ -4145,8 +4264,7 @@ void EmpCylSL::make_coefficients(bool compute)
     
   } // END: 'compute' stanza
   
-  coefs_made = vector<short>(multistep+1, true);
-
+  std::fill(coefs_made.begin(), coefs_made.end(), true);
 }
 
 
@@ -4772,8 +4890,8 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
 {
   if (!coefs_made_all()) {
     if (VFLAG>3)
-      cerr << "Process " << myid << ": in EmpCylSL::accumlated_eval, "
-	   << "calling make_coefficients()" << endl;
+      std::cerr << "Process " << myid << ": in EmpCylSL::accumlated_eval, "
+		<< "calling make_coefficients()" << std::endl;
     make_coefficients();
   }
 
@@ -4930,8 +5048,8 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
 
   if (!coefs_made_all()) {
     if (VFLAG>3) 
-      cerr << "Process " << myid << ": in EmpCylSL::accumlated_dens_eval, "
-	   << "calling make_coefficients()" << endl;
+      std::cerr << "Process " << myid << ": in EmpCylSL::accumlated_dens_eval, "
+		<< "calling make_coefficients()" << std::endl;
     make_coefficients();
   }
 
@@ -5103,8 +5221,8 @@ void EmpCylSL::get_all(int mm, int nn,
 {
   if (!coefs_made_all()) {
     if (VFLAG & 4) 
-      cerr << "Process " << myid << ": in EmpCylSL::gel_all, "
-	   << "calling make_coefficients()" << endl;
+      std::cerr << "Process " << myid << ": in EmpCylSL::gel_all, "
+		<< "calling make_coefficients()" << std::endl;
     make_coefficients();
   }
 
@@ -5273,8 +5391,7 @@ void EmpCylSL::set_coefs(int m1,
   if (zero1) {
     for (int mm=0; mm<=MMAX; mm++) accum_cos[mm].setZero();
     for (int mm=1; mm<=MMAX; mm++) accum_sin[mm].setZero();
-
-    coefs_made = vector<short>(multistep+1, true);
+    std::fill(coefs_made.begin(), coefs_made.end(), true);
   }
 
   int nmin = std::min<int>(rank3, cos1.size());
@@ -5296,8 +5413,7 @@ void EmpCylSL::set_coefs(int m1,
   if (zero1) {
     for (int mm=0; mm<=MMAX; mm++) accum_cos[mm].setZero();
     for (int mm=1; mm<=MMAX; mm++) accum_sin[mm].setZero();
-
-    coefs_made = vector<short>(multistep+1, true);
+    std::fill(coefs_made.begin(), coefs_made.end(), true);
   }
 
   int nminC = std::min<int>(rank3, cos1.size());
@@ -5814,7 +5930,7 @@ void EmpCylSL::dump_images_basis(const string& OUTFILE,
   double tmp, rP, rN, zP, zN, r, z, del;
   double potpr, potnr, potpz, potnz;
   
-  ofstream *out = new ofstream [Number];
+  std::vector<std::ofstream> out(Number);
   
   double hr = HFAC*dr;
   double hz = HFAC*dz;
@@ -5833,7 +5949,7 @@ void EmpCylSL::dump_images_basis(const string& OUTFILE,
       for (int j=0; j<Number; j++) {
 	ostringstream fname;
 	fname << OUTFILE << Types[j] << '.' << m << '.' << n << ".eof_basis";
-	out[j].open(fname.str().c_str());
+	out[j].open(fname.str());
 	if (out[j].bad()) {
 	  cout << "EmpCylSL::dump_images_basis: failed to open " 
 	       << fname.str() << endl;
@@ -5911,7 +6027,6 @@ void EmpCylSL::dump_images_basis(const string& OUTFILE,
     
   }
   
-  delete [] out;
 }
 
 double EmpCylSL::r_to_xi(double r)
