@@ -295,14 +295,14 @@ main(int ac, char **av)
   int          CMAPR;
   int          CMAPZ;
   int          CMTYPE;
-  int          NMAX2;
-  int          LMAX2;
+  int          NMAXFID;
+  int          LMAXFID;
   int          MMAX;
   int          NUMX;
   int          NUMY;
   int          NOUT;
-  int          NORDER;
-  int          NODD;
+  int          NMAX;
+  int          NCYLODD;
   double       PPower;
   bool         DENS;
   std::string  cachefile;
@@ -327,10 +327,10 @@ main(int ac, char **av)
      cxxopts::value<string>(cachefile)->default_value(".eof.cache.file"))
     ("ctype", "DiskHalo radial coordinate scaling type (one of: Linear, Log, Rat)",
      cxxopts::value<string>(ctype)->default_value("Log"))
-    ("LMAX2", "Maximum angular order for spherical basis in adaptive construction of the cylindrical basis",
-     cxxopts::value<int>(LMAX2)->default_value("48"))
-    ("NMAX2", "Maximum radial order for the spherical basis in adapative construction of the cylindrical basis",
-     cxxopts::value<int>(NMAX2)->default_value("48"))
+    ("LMAXFID", "Maximum angular order for spherical basis in adaptive construction of the cylindrical basis",
+     cxxopts::value<int>(LMAXFID)->default_value("32"))
+    ("NMAXFID", "Maximum radial order for the spherical basis in adapative construction of the cylindrical basis",
+     cxxopts::value<int>(NMAXFID)->default_value("32"))
     ("MMAX", "Maximum azimuthal order for the cylindrical basis",
      cxxopts::value<int>(MMAX)->default_value("6"))
     ("NUMX", "Size of the (mapped) cylindrical radial grid",
@@ -339,12 +339,10 @@ main(int ac, char **av)
      cxxopts::value<int>(NUMY)->default_value("128"))
     ("dtype", "Spherical model type for adpative basis creation",
      cxxopts::value<string>(dtype)->default_value("exponential"))
-    ("NOUT", "Maximum radial order for diagnostic basis dump",
-     cxxopts::value<int>(NOUT)->default_value("18"))
-    ("NODD", "Number of vertically odd basis functions per harmonic order",
-     cxxopts::value<int>(NODD)->default_value("6"))
-    ("NORDER", "Total number of basis functions per harmonic order",
-     cxxopts::value<int>(NORDER)->default_value("32"))
+    ("NCYLODD", "Number of vertically odd basis functions per harmonic order",
+     cxxopts::value<int>(NCYLODD)->default_value("6"))
+    ("NMAX", "Total number of basis functions per harmonic order",
+     cxxopts::value<int>(NMAX)->default_value("20"))
     ("VFLAG", "Diagnostic flag for EmpCylSL",
      cxxopts::value<int>(VFLAG)->default_value("31"))
     ("expcond", "Use analytic target density rather than particle distribution",
@@ -404,7 +402,7 @@ main(int ac, char **av)
   // Write YAML template config file and exit
   //
   if (vm.count("template")) {
-    NOUT = std::min<int>(NOUT, NORDER);
+    NOUT = NMAX;//std::min<int>(NOUT, NMAX);
 
     // Write template file
     //
@@ -543,7 +541,7 @@ main(int ac, char **av)
   EmpCylSL::NUMX        = NUMX;
   EmpCylSL::NUMY        = NUMY;
   EmpCylSL::NUMR        = NUMR;
-  EmpCylSL::NOUT        = NOUT;
+  EmpCylSL::NOUT        = NMAX;
   EmpCylSL::CMAPR       = CMAPR;
   EmpCylSL::CMAPZ       = CMAPZ;
   EmpCylSL::VFLAG       = VFLAG;
@@ -553,7 +551,8 @@ main(int ac, char **av)
                                 // Create expansion only if needed . . .
   std::shared_ptr<EmpCylSL> expandd;
 
-  expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD, cachefile);
+	//
+  expandd = std::make_shared<EmpCylSL>(NMAXFID, LMAXFID, MMAX, NMAX, ASCALE, HSCALE, NCYLODD, cachefile);
 
 #ifdef DEBUG
    std::cout << "Process " << myid << ": "
@@ -561,11 +560,11 @@ main(int ac, char **av)
 	     << " rmax="   << EmpCylSL::RMAX
 	     << " a="      << ASCALE
 	     << " h="      << HSCALE
-	     << " nmax2="  << NMAX2
-	     << " lmax2="  << LMAX2
+	     << " nmax2="  << NMAXFID
+	     << " lmax2="  << LMAXFID
 	     << " mmax="   << MMAX
-	     << " nordz="  << NORDER
-	     << " noddz="  << NODD
+	     << " nordz="  << NMAX
+	     << " noddz="  << NCYLODD
 	     << std::endl  << std::flush;
 #endif
 
