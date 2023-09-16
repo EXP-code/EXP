@@ -1113,9 +1113,32 @@ namespace BasisClasses
     //
     if (eof_file.size()) cachename = eof_file;
 
-    // Remake cylindrical basis
+
+    // Make the empirical orthogonal basis instance
     //
-    if (Ignore) {
+    sl = std::make_shared<EmpCylSL>
+      (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
+    
+    // Set azimuthal harmonic order restriction?
+    //
+    if (mlim>=0)  sl->set_mlim(mlim);
+    if (EVEN_M)   sl->setEven(EVEN_M);
+      
+    // Attempt to read EOF cache
+    //
+    if (sl->read_cache() == 0) {
+
+      // Remake cylindrical basis
+      //
+
+      if (Ignore and myid==0) {
+	std::cout << "---- BasisFactory: We have deprecated the 'ignore' parameter for the" << std::endl
+		  << "----               Cylindrical class. If the cache file exists but does" << std::endl
+		  << "----               not match the requested parameters, the old cache file" << std::endl
+		  << "----               will be moved to a .bak file, a new basis will be re-" << std::endl
+		  << "----               computed, and a new cache saved in its place.  Please" << std::endl
+		  << "----               remove 'ignore' from your YAML configuration." << std::endl;
+      }
 
       // Convert mtype string to lower case
       //
@@ -1170,10 +1193,6 @@ namespace BasisClasses
 	return;
       }
 
-      std::shared_ptr<EmpCylSL> expandd =
-	std::make_shared<EmpCylSL>(nmaxfid, lmaxfid, mmax, nmax,
-				   acyl, hcyl, ncylodd, cachename);
-
       // Use these user models to deproject for the EOF spherical basis
       //
       if (deproject) {
@@ -1201,7 +1220,7 @@ namespace BasisClasses
 		      << " and W=" << rwidth/acyl << std::endl;
 	}
      
-	expandd->create_deprojection(H, rfactor, rnum, ncylr, model);
+	sl->create_deprojection(H, rfactor, rnum, ncylr, model);
       }
     
       // Regenerate EOF from analytic density
@@ -1212,23 +1231,7 @@ namespace BasisClasses
 	  return this->dcond(R, z, phi, M);
 	};
 
-      expandd->generate_eof(rnum, pnum, tnum, f);
-      
-    } else {
-
-      // Make the empirical orthogonal basis instance
-      //
-      sl = std::make_shared<EmpCylSL>
-	(nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
-    
-      // Set azimuthal harmonic order restriction?
-      //
-      if (mlim>=0)  sl->set_mlim(mlim);
-      if (EVEN_M)   sl->setEven(EVEN_M);
-      
-      // Set up the coefficient storage and read basis
-      //
-      sl->read_cache();
+      sl->generate_eof(rnum, pnum, tnum, f);
     }
   }
   
