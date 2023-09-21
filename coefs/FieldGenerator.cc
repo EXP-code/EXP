@@ -75,9 +75,9 @@ namespace Field
 
     std::vector<std::string> labels =
       {"x", "y", "z", "arc",
-       "potl", "potl m=0",
+       "potl m>0", "potl m=0",
        "rad force", "mer force", "azi force",
-       "dens", "dens m=0"};
+       "dens m>0", "dens m=0"};
 
 
     std::vector<double> dd(3);
@@ -121,12 +121,12 @@ namespace Field
 	  frame["y"        ](ncnt) = y;
 	  frame["z"        ](ncnt) = z;
 	  frame["arc"      ](ncnt) = dlen*ncnt;
-	  frame["potl"     ](ncnt) = p0 + p1;
+	  frame["potl m>0" ](ncnt) = p1;
 	  frame["potl m=0" ](ncnt) = p0;
 	  frame["rad force"](ncnt) = fr;
 	  frame["mer force"](ncnt) = ft;
 	  frame["axi force"](ncnt) = fp;
-	  frame["dens"     ](ncnt) = d0 + d1;
+	  frame["dens m>0" ](ncnt) = d1;
 	  frame["dens m=0" ](ncnt) = d0;
 	}
       }
@@ -221,8 +221,8 @@ namespace Field
     std::map<double, std::map<std::string, Eigen::MatrixXf>> ret;
 
     std::vector<std::string> labels =
-      {"potl", "potl m=0", "rad force", "mer force", "azi force",
-       "dens", "dens m=0"};
+      {"potl m>0", "potl m=0", "rad force", "mer force", "azi force",
+       "dens m>0", "dens m=0"};
 
     // Find the first two non-zero indices
     //
@@ -303,13 +303,13 @@ namespace Field
 	
 	// Pack the frame structure
 	//
-	frame["potl"     ](i, j) = -(p0 + p1);
-	frame["potl m=0" ](i, j) = -p0;
+	frame["potl m>0" ](i, j) = p1;
+	frame["potl m=0" ](i, j) = p0;
 	frame["rad force"](i, j) = fr;
 	frame["mer force"](i, j) = ft;
 	frame["azi force"](i, j) = fp;
-	frame["dens"     ](i, j) = -(d0 + d1);
-	frame["dens m=0" ](i, j) = -d0;
+	frame["dens m>0" ](i, j) = d1;
+	frame["dens m=0" ](i, j) = d0;
       }
 
       ret[T] = frame;
@@ -434,9 +434,9 @@ namespace Field
 
     std::vector<std::string> labels =
       {"x", "y", "z", "arc",
-       "potl", "potl m=0",
+       "potl m>0", "potl m=0",
        "rad force", "mer force", "azi force",
-       "dens", "dens m=0"};
+       "dens m>0", "dens m=0"};
 
     // Allocate frame storge
     //
@@ -487,13 +487,16 @@ namespace Field
 
 	// Pack the frame structure
 	//
-	frame["potl"     ](i, j, k) = -(p0 + p1);
-	frame["potl m=0" ](i, j, k) = -p0;
+	frame["x"        ](i, j, k) = x;
+	frame["y"        ](i, j, k) = y;
+	frame["z"        ](i, j, k) = z;
+	frame["potl m>0" ](i, j, k) = p1;
+	frame["potl m=0" ](i, j, k) = p0;
 	frame["rad force"](i, j, k) = fr;
 	frame["mer force"](i, j, k) = ft;
 	frame["azi force"](i, j, k) = fp;
-	frame["dens"     ](i, j, k) = -(d0 + d1);
-	frame["dens m=0" ](i, j, k) = -d0;
+	frame["dens m>0" ](i, j, k) = d1;
+	frame["dens m=0" ](i, j, k) = d0;
       }
 
       ret[T] = frame;

@@ -555,9 +555,12 @@ namespace BasisClasses
       }
     }
     
-    double densfac = -1.0/(rscl*rscl*rscl) * 0.25/M_PI;
-    double potlfac = -1.0/rscl;
+    double densfac = 1.0/(rscl*rscl*rscl) * 0.25/M_PI;
+    double potlfac = 1.0/rscl;
     
+    den1 += den0;
+    pot1 += pot0;
+
     den0  *=  densfac;
     den1  *=  densfac;
     pot0  *=  potlfac;
@@ -1273,11 +1276,17 @@ namespace BasisClasses
     sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
     
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
-    tdens -= tdens0;
-    tpotl -= tpotl0;
 
     tpotr = tpotR*R/r + tpotz*z/R ;
     tpott = tpotR*z/r - tpotz*R/r ;
+
+    tdens0 *= -1.0;
+    tdens  *= -1.0;
+    tpotl0 *= -1.0;
+    tpotl  *= -1.0;
+    tpotr  *= -1.0;
+    tpott  *= -1.0;
+    tpotp  *= -1.0;
   }
   
   void Cylindrical::accumulate(double x, double y, double z, double mass)
