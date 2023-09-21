@@ -556,8 +556,8 @@ namespace BasisClasses
       }
     }
     
-    double densfac = 1.0/(rscl*rscl*rscl) * 0.25/M_PI;
-    double potlfac = 1.0/rscl;
+    double densfac = -1.0/(rscl*rscl*rscl) * 0.25/M_PI;
+    double potlfac = -1.0/rscl;
     
     den0  *=  densfac;
     den1  *=  densfac;
