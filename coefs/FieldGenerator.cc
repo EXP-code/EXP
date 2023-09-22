@@ -84,33 +84,35 @@ namespace Field
     for (int k=0; k<3; k++) dd[k] = (end[k] - beg[k])/num;
     double dlen = sqrt(dd[0]*dd[0] + dd[1]*dd[1] + dd[2]*dd[2]);
 
-    for (auto T : times) {
+    std::map<std::string, Eigen::VectorXf> frame;
+    for (auto label : labels) {
+      frame[label] = Eigen::VectorXf::Zero(num);
+    }
 
-      if (not coefs->getCoefStruct(T)) {
-	std::cout << "Could not find time=" << T << ", continuing" << std::endl;
-	continue;
-      }
+    for (int icnt=0; icnt<times.size(); icnt++) {
 
-      basis->set_coefs(coefs->getCoefStruct(T));
-
-      std::map<std::string, Eigen::VectorXf> frame;
-      for (auto label : labels) {
-	frame[label] = Eigen::VectorXf::Zero(num);
-      }
-
-      double r, phi, costh;
-      double p0, p1, d0, d1, fr, ft, fp;
+      if (icnt % numprocs == myid) {
       
-      int ncnt = 0;		// Process counter for MPI
+	double T = times[icnt];
 
-      for (int ncnt=0; ncnt<num; ncnt++) {
+	if (not coefs->getCoefStruct(T)) {
+	  std::cout << "Could not find time=" << T << ", continuing"
+		    << std::endl;
+	  continue;
+	}
 
-	if (ncnt%numprocs == myid) {
-	  
+	basis->set_coefs(coefs->getCoefStruct(T));
+
+	double r, phi, costh;
+	double p0, p1, d0, d1, fr, ft, fp;
+      
+#pragma omp parallel for
+	for (int ncnt=0; ncnt<num; ncnt++) {
+
 	  double x = beg[0] + dd[0]*ncnt;
 	  double y = beg[1] + dd[1]*ncnt;
 	  double z = beg[2] + dd[2]*ncnt;
-
+	  
 	  r     = sqrt(x*x + y*y + z*z) + 1.0e-18;
 	  costh = z/r;
 	  phi   = atan2(y, x);
@@ -125,24 +127,86 @@ namespace Field
 	  frame["potl m=0" ](ncnt) = p0;
 	  frame["rad force"](ncnt) = fr;
 	  frame["mer force"](ncnt) = ft;
-	  frame["axi force"](ncnt) = fp;
+	  frame["azi force"](ncnt) = fp;
 	  frame["dens"     ](ncnt) = d1;
 	  frame["dens m=0" ](ncnt) = d0;
 	}
+	
+	ret[T] = frame;
       }
+    }
     
-      if (use_mpi) {
-	for (auto & f : frame) {
-	  if (myid==0) 
-	    MPI_Reduce(MPI_IN_PLACE, f.second.data(), f.second.size(),
-		       MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-	  else
-	    MPI_Reduce(f.second.data(), NULL, f.second.size(),
-		       MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (use_mpi) {
+
+      for (int n=0; n<numprocs; n++) {
+	
+	if (myid==n) {
+	  // Send the number of time frames in this node
+	  int num = ret.size();
+	  MPI_Send(&num, 1, MPI_INT, 0, 200, MPI_COMM_WORLD);
+
+	  // Iterate through the time frames
+	  for (auto & F : ret) {
+	    MPI_Send(&F.first, 1, MPI_DOUBLE, 0, 201, MPI_COMM_WORLD);
+
+	    int nf = F.second.size(); // Number of fields in this frame
+	    MPI_Send(&num, 1, MPI_INT, 0, 202, MPI_COMM_WORLD);
+
+	    // Iterate through the fields
+	    for (auto & f : F.second) {
+	      // Send tag
+	      MPI_Send(f.first.c_str(), f.first.length(), MPI_CHAR, 0, 203,
+		       MPI_COMM_WORLD);
+	      // Send field data
+	      MPI_Send(f.second.data(), f.second.size(),
+		       MPI_FLOAT, 0, 204, MPI_COMM_WORLD);
+	    }
+
+	  }
+	}
+
+	if (myid==0) {
+	  std::vector<char> bf(9); // Char buffer for field label
+	  MPI_Status status;	   // For MPI_Probe
+	  int num, nf, l;
+	  double T;
+
+	  // Get the number of frames from node n
+	  MPI_Recv(&num, 1, MPI_INT, n, 200, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+
+	  // Iterate through the frames
+	  for (int j=0; j<num; j++) {
+	    // Get the time for this frame
+	    MPI_Recv(&T, 1, MPI_DOUBLE, n, 201, MPI_COMM_WORLD, &status);
+
+	    // Get the number of fields in this frame
+	    MPI_Recv(&nf, 1, MPI_INT, n, 202, MPI_COMM_WORLD, &status);
+
+	    // Iterate through the fields
+	    for (int k=0; k<nf; k++) {
+	      MPI_Probe(n, 203, MPI_COMM_WORLD, &status);
+	      MPI_Get_count(&status, MPI_CHAR, &l);
+	      MPI_Recv(bf.data(), l, MPI_CHAR, n, 203, MPI_COMM_WORLD, &status);
+
+	      // Sanity check on the field name
+	      //
+	      std::string s(bf.data(), l);
+	      if (frame.find(s) == frame.end()) {
+		std::cerr << "Error finding <" << s << "> in field map"
+			  << std::endl;
+	      }
+
+	      // Get the data
+	      //
+	      MPI_Recv(frame[s].data(), frame[s].size(), MPI_FLOAT, n, 204,
+		       MPI_COMM_WORLD, &status);
+	    }
+	    
+	    ret[T] = frame;
+	  }
 	}
       }
-
-      ret[T] = frame;
     }
 
     return ret;
