@@ -52,7 +52,7 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 				// Enable MPI code for more than one node
   if (numprocs>1) SLGridSph::mpi = 1;
 
-  std::string modelname = homedir + model_file;
+  std::string modelname = model_file;
   std::string cachename = outdir  + cache_file + "." + runtag;
 
   id += ", model=" + modelname;
