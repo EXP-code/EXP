@@ -9,11 +9,12 @@
 				// evaluations where possible
 #define XOFFSET (1.0e-8)
 
-#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <iomanip>
+#include <cstdlib>
 #include <vector>
 
 #include <EXPException.H>
@@ -2085,9 +2086,33 @@ void SLGridSph::WriteH5Cache(void)
   if (myid) return;
 
   try {
-    // Create a new hdf5 file or overwrite an existing file
+
+    // Check for new HDF5 file
+    if (std::filesystem::exists(sph_cache_name)) {
+      if (myid==0)
+	std::cout << "---- SLGridSph::WriteH5Cache cache file <"
+		  << sph_cache_name << "> exists" << std::endl;
+      try {
+	std::filesystem::rename(sph_cache_name, sph_cache_name + ".bak");
+      }
+      catch(std::filesystem::filesystem_error const& ex) {
+	std::ostringstream sout;
+        sout << "---- SLGridSph::WriteH5Cache write error: "
+	     << "what():  " << ex.what()  << std::endl
+	     << "path1(): " << ex.path1() << std::endl
+	     << "path2(): " << ex.path2() << std::endl;
+	throw GenericError(sout.str(), __FILE__, __LINE__, 12, true);
+      }
+      
+      if (myid==0)
+	std::cout << "---- SLGridSph::WriteH5Cache: existing file backed up to <"
+		  << sph_cache_name + ".bak>" << std::endl;
+    }
+    
+    // Create a new hdf5 file
     //
-    HighFive::File file(sph_cache_name, HighFive::File::Overwrite);
+    HighFive::File file(sph_cache_name,
+			HighFive::File::ReadWrite | HighFive::File::Create);
     
     // For cache ID
     //
