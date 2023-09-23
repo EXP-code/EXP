@@ -183,6 +183,9 @@ namespace BasisClasses
       else
 	rscl = 1.0;
       
+      if (conf["rs"]) 		// Alternate name for scale
+	rscl = conf["rs"].as<double>();
+      
       if (conf["rmin"]) 
 	rmin = conf["rmin"].as<double>();
       else
@@ -222,6 +225,18 @@ namespace BasisClasses
       throw std::runtime_error("SphericalSL: error parsing YAML");
     }
     
+    // Check for non-null cache file name.  This must be specified
+    // to prevent recomputation and unexpected behavior.
+    //
+    if (cachename.size() == 0) {
+      throw std::runtime_error
+	("SphericalSL requires a specified cachename in your YAML config\n"
+	 "for consistency with previous invocations and existing coefficient\n"
+	 "sets.  Please add explicitly add 'cachename: name' to your config\n"
+	 "with new 'name' for creating a basis or an existing 'name' for\n"
+	 "reading a previously generated basis cache\n");
+    }
+
     // Set MPI flag in SLGridSph from MPI_Initialized
     SLGridSph::mpi = use_mpi ? 1 : 0;
     
@@ -1126,20 +1141,23 @@ namespace BasisClasses
     //
     if (density) EmpCylSL::DENS = true;
 
-    // Default cache file name
-    //
-    std::string cachename = outdir + ".eof.cache." + runtag;
-    
-    // EOF default file name override.  Default uses runtag suffix as
-    // above.  Override file must exist if explicitly specified.
-    //
-    if (eof_file.size()) cachename = eof_file;
 
+    // Check for non-null cache file name.  This must be specified
+    // to prevent recomputation and unexpected behavior.
+    //
+    if (not conf["eof_file"]) {
+      throw std::runtime_error
+	("Cylindrical requires a specified 'eof_name' in your YAML config\n"
+	 "for consistency with previous invocations and existing coefficient\n"
+	 "sets.  Please add explicitly add 'eof_name: name' to your config\n"
+	 "with new 'name' for creating a basis or an existing 'name' for\n"
+	 "reading a previously generated basis cache\n");
+    }
 
     // Make the empirical orthogonal basis instance
     //
     sl = std::make_shared<EmpCylSL>
-      (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
+      (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, eof_file);
     
     // Set azimuthal harmonic order restriction?
     //
@@ -1298,14 +1316,6 @@ namespace BasisClasses
 
     tpotr = tpotR*R/r + tpotz*z/R ;
     tpott = tpotR*z/r - tpotz*R/r ;
-
-    tdens0 *= -1.0;
-    tdens  *= -1.0;
-    tpotl0 *= -1.0;
-    tpotl  *= -1.0;
-    tpotr  *= -1.0;
-    tpott  *= -1.0;
-    tpotp  *= -1.0;
   }
   
   void Cylindrical::accumulate(double x, double y, double z, double mass)
@@ -1523,6 +1533,19 @@ namespace BasisClasses
     //
     if (not conf["acyltbl"]) conf["acyltbl"] = 0.6;
     if (not conf["scale"])   conf["scale"]   = 0.01;
+
+
+    // Check for non-null cache file name.  This must be specified
+    // to prevent recomputation and unexpected behavior.
+    //
+    if (not conf["cachename"]) {
+      throw std::runtime_error
+	("FlatDisk requires a specified cachename in your YAML config\n"
+	 "for consistency with previous invocations and existing coefficient\n"
+	 "sets.  Please add explicitly add 'cachename: name' to your config\n"
+	 "with new 'name' for creating a basis or an existing 'name' for\n"
+	 "reading a previously generated basis cache\n");
+    }
 
     // Finally, make the basis
     //
