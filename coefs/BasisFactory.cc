@@ -172,19 +172,23 @@ namespace BasisClasses
 
     // Assign values from YAML
     //
+    double rs = 1.0;
+
     try {
       if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
       if (conf["Lmax"])      lmax       = conf["Lmax"].as<int>();
       if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
       if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
       
-      if (conf["scale"]) 
-	rscl = conf["scale"].as<double>();
+      if (conf["rs"]) 
+	rs   = conf["rs"].as<double>();
       else
-	rscl = 1.0;
+	rs   = 1.0;
       
-      if (conf["rs"]) 		// Alternate name for scale
-	rscl = conf["rs"].as<double>();
+      if (conf["scale"]) 
+	scale = conf["scale"].as<double>();
+      else
+	scale = 1.0;
       
       if (conf["rmin"]) 
 	rmin = conf["rmin"].as<double>();
@@ -253,10 +257,8 @@ namespace BasisClasses
     
     // Finally, make the Sturm-Lioville basis...
     sl = std::make_shared<SLGridSph>
-      (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rscl,
+      (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rs,
        0, 1, cachename);
-    
-    rscl = 1.0;
     
     // Number of possible threads
     int nthrds = omp_get_max_threads();
@@ -311,7 +313,7 @@ namespace BasisClasses
 
     cf->lmax   = lmax;
     cf->nmax   = nmax;
-    cf->scale  = rscl;
+    cf->scale  = scale;
     cf->time   = time;
     cf->normed = true;
 
@@ -402,7 +404,7 @@ namespace BasisClasses
     double r = sqrt(r2) + dsmall;
     double costh = z/r;
     double phi = atan2(y,x);
-    double rs = r/rscl;
+    double rs = r/scale;
     
     if (r < rmin or r > rmax) return;
     
@@ -511,9 +513,9 @@ namespace BasisClasses
     
     fac1 = factorial(0, 0);
     
-    sl->get_dens (dend[tid], r/rscl);
-    sl->get_pot  (potd[tid], r/rscl);
-    sl->get_force(dpot[tid], r/rscl);
+    sl->get_dens (dend[tid], r/scale);
+    sl->get_pot  (potd[tid], r/scale);
+    sl->get_force(dpot[tid], r/scale);
     
     legendre_R(lmax, costh, legs[tid], dlegs[tid]);
     
@@ -589,8 +591,8 @@ namespace BasisClasses
       }
     }
     
-    double densfac = 1.0/(rscl*rscl*rscl) * 0.25/M_PI;
-    double potlfac = 1.0/rscl;
+    double densfac = 1.0/(scale*scale*scale) * 0.25/M_PI;
+    double potlfac = 1.0/scale;
     
     den1 += den0;
     pot1 += pot0;
@@ -599,7 +601,7 @@ namespace BasisClasses
     den1  *=  densfac;
     pot0  *=  potlfac;
     pot1  *=  potlfac;
-    potr  *= -potlfac/rscl;
+    potr  *= -potlfac/scale;
     pott  *= -potlfac;
     potp  *= -potlfac;
     //       ^
@@ -1532,7 +1534,7 @@ namespace BasisClasses
     // Set characteristic radius defaults
     //
     if (not conf["acyltbl"]) conf["acyltbl"] = 0.6;
-    if (not conf["scale"])   conf["scale"]   = 0.01;
+    if (not conf["scale"])   conf["scale"]   = 1.0;
 
 
     // Check for non-null cache file name.  This must be specified
