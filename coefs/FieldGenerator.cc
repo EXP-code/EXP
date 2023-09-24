@@ -75,8 +75,8 @@ namespace Field
 
     std::vector<std::string> labels =
       {"x", "y", "z", "arc",
-       "potl", "potl m=0",
-       "dens", "dens m=0",
+       "potl", "potl m=0", "potl m>0",
+       "dens", "dens m=0", "dens m>0",
        "rad force", "mer force", "azi force"};
 
 
@@ -124,11 +124,13 @@ namespace Field
 	  frame["z"        ](ncnt) = z;
 	  frame["arc"      ](ncnt) = dlen*ncnt;
 	  frame["potl"     ](ncnt) = p1;
+	  frame["potl m>0" ](ncnt) = p1 - p0;
 	  frame["potl m=0" ](ncnt) = p0;
 	  frame["rad force"](ncnt) = fr;
 	  frame["mer force"](ncnt) = ft;
 	  frame["azi force"](ncnt) = fp;
 	  frame["dens"     ](ncnt) = d1;
+	  frame["dens m>0" ](ncnt) = d1 - d0;
 	  frame["dens m=0" ](ncnt) = d0;
 	}
 	
@@ -285,8 +287,10 @@ namespace Field
     std::map<double, std::map<std::string, Eigen::MatrixXf>> ret;
 
     std::vector<std::string> labels =
-      {"potl", "potl m=0", "rad force", "mer force", "azi force",
-       "dens", "dens m=0"};
+      {"potl", "potl m>0", "potl m=0", 
+       "dens", "dens m>0", "dens m=0",
+       "rad force", "mer force", "azi force",
+      };
 
     // Find the first two non-zero indices
     //
@@ -368,11 +372,13 @@ namespace Field
 	// Pack the frame structure
 	//
 	frame["potl"     ](i, j) = p1;
+	frame["potl m>0" ](i, j) = p1 - p0;
 	frame["potl m=0" ](i, j) = p0;
 	frame["rad force"](i, j) = fr;
 	frame["mer force"](i, j) = ft;
 	frame["azi force"](i, j) = fp;
 	frame["dens"     ](i, j) = d1;
+	frame["dens m>0" ](i, j) = d1 - d0;
 	frame["dens m=0" ](i, j) = d0;
       }
 
@@ -497,8 +503,8 @@ namespace Field
     std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>> ret;
 
     std::vector<std::string> labels =
-      {"potl", "potl m=0",
-       "dens", "dens m=0",
+      {"potl", "potl m>0", "potl m=0",
+       "dens", "dens m>0", "dens m=0",
        "rad force", "mer force", "azi force"};
 
     // Allocate frame storge
@@ -551,8 +557,10 @@ namespace Field
 	// Pack the frame structure
 	//
 	frame["potl"     ](i, j, k) = p1;
+	frame["potl m>0" ](i, j, k) = p1 - p0;
 	frame["potl m=0" ](i, j, k) = p0;
 	frame["dens"     ](i, j, k) = d1;
+	frame["dens m>0" ](i, j, k) = d1 - d0;
 	frame["dens m=0" ](i, j, k) = d0;
 	frame["rad force"](i, j, k) = fr;
 	frame["mer force"](i, j, k) = ft;

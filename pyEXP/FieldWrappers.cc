@@ -45,24 +45,22 @@ void FieldGeneratorClasses(py::module &m) {
     -----------
     The data fields are as follows:
     * 'dens'        the total density
+    * 'dens m>0'    the non-axisymmetric component of the density
     * 'dens m=0'    the axisymmetric component of the density
     * 'rad force'   the radial force
     * 'mer force'   the meridional force
     * 'azi force'   the azimuthal force
     * 'potl'        the total potential
+    * 'potl m>0'    the non-axisymmetric component of the potential
     * 'potl m=0'    the axisymmetric component of the potential
 
     Notes
     -----
-    One can difference the field quantities for density and potential 
-    to get the non-axisymmetric field values.  For example, assume
-    that you have used the 'slices' member to get field slices and
-    assigned the return value to variable 'db'.  Then one can the
-    non-axisymmetric contribution to the gravitation potential at time
-    3.14 as:
-
-    pot = db["3.14"]["potl"] - db["3.14"]["potl m=0"];
-
+    Note that the 'dens' field is the sum of the 'dens m=0' and 'dens m>0'
+    fields and, similarly, the 'potl' field is the sum of 'potl m=0' and 
+    'potl m>0' fields. These redundant entries are provided for convenience 
+    and conceptual clarity.  For spherical bases, the 'm' index should be
+    interpreted as the 'l' index.
     )";
     
 
