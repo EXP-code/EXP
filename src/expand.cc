@@ -15,6 +15,10 @@ void clean_up(void);
 #include <gptl.h>
 #endif
 
+#ifdef HAVE_LIBSLURM
+#include <slurm/slurm.h>
+#endif
+
 #include <BarrierWrapper.H>
 #include <FileUtils.H>
 
@@ -628,6 +632,18 @@ main(int argc, char** argv)
     
     if (set_memlock_limits()) report_memlock_limits();
     
+    //=====================
+    // Initialize slurm api
+    //=====================
+#ifdef HAVE_LIBSLURM
+    {
+      int rc = slurm_init(0);
+      if (rc != SLURM_SUCCESS)
+	std::cerr << "EXP [" << myid << "]: error initializing Slurm API: "
+		  << slurm_strerror(rc) << std::endl;
+    }
+#endif
+
     //==============================================
     // Sleep loop for debugging
     //==============================================
@@ -773,6 +789,14 @@ main(int argc, char** argv)
   //=================
 
   clean_up();
+
+  //======================
+  // Clean up slurm config
+  //======================
+
+#ifdef HAVE_LIBSLURM
+  slurm_fini();
+#endif
 
   //=================
   // Epilogue command

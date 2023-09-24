@@ -202,12 +202,12 @@ namespace BasisClasses
     
     bool NO_L0, NO_L1, EVEN_L, EVEN_M, M0_only;
     
-    Eigen::MatrixXd potd, dpot, dpt2, dend;
-    Eigen::MatrixXd legs, dlegs, d2legs;
+    std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
+    std::vector<Eigen::MatrixXd> legs, dlegs, d2legs;
     
     Eigen::MatrixXd factorial;
     Eigen::MatrixXd expcoef;
-    double rscl;
+    double scale;
     int N1, N2;
     int used;
     
@@ -259,7 +259,7 @@ namespace BasisClasses
     }
 
     //! Prescaling factor
-    void set_scale(const double scl) { rscl = scl; }
+    void set_scale(const double scl) { scale = scl; }
     
     //! Zero out coefficients to prepare for a new expansion
     void reset_coefs(void);
@@ -320,7 +320,7 @@ namespace BasisClasses
     
     bool NO_M0, NO_M1, EVEN_M, M0_only;
     
-    Eigen::MatrixXd potd, potR, potZ, dend;
+    std::vector<Eigen::MatrixXd> potd, potR, potZ, dend;
     
     Eigen::MatrixXd expcoef;
     int N1, N2;
@@ -440,8 +440,8 @@ namespace BasisClasses
     double acyl, hcyl, hexp;
     bool expcond, logarithmic, density, EVEN_M;
     
-    Eigen::MatrixXd potd, dpot, dpt2, dend;
-    Eigen::MatrixXd legs, dlegs, d2legs;
+    std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
+    std::vector<Eigen::MatrixXd> legs, dlegs, d2legs;
     
     bool coefs_defined;
     Eigen::MatrixXd factorial;
