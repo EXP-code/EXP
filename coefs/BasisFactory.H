@@ -207,7 +207,7 @@ namespace BasisClasses
     
     Eigen::MatrixXd factorial;
     Eigen::MatrixXd expcoef;
-    double rscl;
+    double scale;
     int N1, N2;
     int used;
     
@@ -259,7 +259,7 @@ namespace BasisClasses
     }
 
     //! Prescaling factor
-    void set_scale(const double scl) { rscl = scl; }
+    void set_scale(const double scl) { scale = scl; }
     
     //! Zero out coefficients to prepare for a new expansion
     void reset_coefs(void);
