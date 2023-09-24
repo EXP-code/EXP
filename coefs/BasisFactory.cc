@@ -172,16 +172,23 @@ namespace BasisClasses
 
     // Assign values from YAML
     //
+    double rs = 1.0;
+
     try {
       if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
       if (conf["Lmax"])      lmax       = conf["Lmax"].as<int>();
       if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
       if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
       
-      if (conf["scale"]) 
-	rscl = conf["scale"].as<double>();
+      if (conf["rs"]) 
+	rs   = conf["rs"].as<double>();
       else
-	rscl = 1.0;
+	rs   = 1.0;
+      
+      if (conf["scale"]) 
+	scale = conf["scale"].as<double>();
+      else
+	scale = 1.0;
       
       if (conf["rmin"]) 
 	rmin = conf["rmin"].as<double>();
@@ -222,6 +229,18 @@ namespace BasisClasses
       throw std::runtime_error("SphericalSL: error parsing YAML");
     }
     
+    // Check for non-null cache file name.  This must be specified
+    // to prevent recomputation and unexpected behavior.
+    //
+    if (cachename.size() == 0) {
+      throw std::runtime_error
+	("SphericalSL requires a specified cachename in your YAML config\n"
+	 "for consistency with previous invocations and existing coefficient\n"
+	 "sets.  Please add explicitly add 'cachename: name' to your config\n"
+	 "with new 'name' for creating a basis or an existing 'name' for\n"
+	 "reading a previously generated basis cache\n");
+    }
+
     // Set MPI flag in SLGridSph from MPI_Initialized
     SLGridSph::mpi = use_mpi ? 1 : 0;
     
@@ -238,19 +257,29 @@ namespace BasisClasses
     
     // Finally, make the Sturm-Lioville basis...
     sl = std::make_shared<SLGridSph>
-      (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rscl,
+      (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rs,
        0, 1, cachename);
     
-    rscl = 1.0;
+    // Number of possible threads
+    int nthrds = omp_get_max_threads();
     
-    potd.resize(lmax+1, nmax);
-    dpot.resize(lmax+1, nmax);
-    dpt2.resize(lmax+1, nmax);
-    dend.resize(lmax+1, nmax);
+    potd.resize(nthrds);
+    dpot.resize(nthrds);
+    dpt2.resize(nthrds);
+    dend.resize(nthrds);
     
-    legs  .resize(lmax+1, lmax+1);
-    dlegs .resize(lmax+1, lmax+1);
-    d2legs.resize(lmax+1, lmax+1);
+    legs  .resize(nthrds);
+    dlegs .resize(nthrds);
+    d2legs.resize(nthrds);
+
+    for (auto & v : potd) v.resize(lmax+1, nmax);
+    for (auto & v : dpot) v.resize(lmax+1, nmax);
+    for (auto & v : dpt2) v.resize(lmax+1, nmax);
+    for (auto & v : dend) v.resize(lmax+1, nmax);
+
+    for (auto & v : legs  ) v.resize(lmax+1, lmax+1);
+    for (auto & v : dlegs ) v.resize(lmax+1, lmax+1);
+    for (auto & v : d2legs) v.resize(lmax+1, lmax+1);
 
     expcoef.resize((lmax+1)*(lmax+1), nmax);
     expcoef.setZero();
@@ -284,7 +313,7 @@ namespace BasisClasses
 
     cf->lmax   = lmax;
     cf->nmax   = nmax;
-    cf->scale  = rscl;
+    cf->scale  = scale;
     cf->time   = time;
     cf->normed = true;
 
@@ -365,6 +394,9 @@ namespace BasisClasses
     double norm = -4.0*M_PI;
     const double dsmall = 1.0e-20;
     
+    // Get thread id
+    int tid = omp_get_thread_num();
+
     //======================
     // Compute coefficients 
     //======================
@@ -373,16 +405,16 @@ namespace BasisClasses
     double r = sqrt(r2) + dsmall;
     double costh = z/r;
     double phi = atan2(y,x);
-    double rs = r/rscl;
+    double rs = r/scale;
     
     if (r < rmin or r > rmax) return;
     
     used++;
     totalMass += mass;
     
-    sl->get_pot(potd, rs);
+    sl->get_pot(potd[tid], rs);
     
-    legendre_R(lmax, costh, legs);
+    legendre_R(lmax, costh, legs[tid]);
     
     // L loop
     for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
@@ -394,20 +426,20 @@ namespace BasisClasses
       for (int m=0, moffset=0, moffE=0; m<=l; m++) {
 	
 	if (m==0) {
-	  fac = factorial(l, m) * legs(l, m);
+	  fac = factorial(l, m) * legs[tid](l, m);
 	  for (int n=0; n<nmax; n++) {
-	    fac4 = potd(l, n)*fac;
+	    fac4 = potd[tid](l, n)*fac;
 	    expcoef(loffset+moffset, n) += fac4 * norm * mass;
 	  }
 	  
 	  moffset++;
 	}
 	else {
-	  fac  = factorial(l, m) * legs(l, m);
+	  fac  = factorial(l, m) * legs[tid](l, m);
 	  fac1 = fac*cos(phi*m);
 	  fac2 = fac*sin(phi*m);
 	  for (int n=0; n<nmax; n++) {
-	    fac4 = potd(l, n);
+	    fac4 = potd[tid](l, n);
 	    expcoef(loffset+moffset  , n) += fac1 * fac4 * norm * mass;
 	    expcoef(loffset+moffset+1, n) += fac2 * fac4 * norm * mass;
 	  }
@@ -474,26 +506,30 @@ namespace BasisClasses
 			     double& pot0, double& pot1,
 			     double& potr, double& pott, double& potp)
   {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
     double fac1, cosm, sinm;
     double sinth = -sqrt(fabs(1.0 - costh*costh));
     
     fac1 = factorial(0, 0);
     
-    sl->get_dens (dend, r/rscl);
-    sl->get_pot  (potd, r/rscl);
-    sl->get_force(dpot, r/rscl);
+    sl->get_dens (dend[tid], r/scale);
+    sl->get_pot  (potd[tid], r/scale);
+    sl->get_force(dpot[tid], r/scale);
     
-    legendre_R(lmax, costh, legs, dlegs);
+    legendre_R(lmax, costh, legs[tid], dlegs[tid]);
     
     if (NO_L0) {
       den0 = 0.0;
       pot0 = 0.0;
       potr = 0.0;
     } else {
-      den0 = fac1 * expcoef.row(0).dot(dend.row(0));
-      pot0 = fac1 * expcoef.row(0).dot(potd.row(0));
-      potr = fac1 * expcoef.row(0).dot(dpot.row(0));
+      den0 = fac1 * expcoef.row(0).dot(dend[tid].row(0));
+      pot0 = fac1 * expcoef.row(0).dot(potd[tid].row(0));
+      potr = fac1 * expcoef.row(0).dot(dpot[tid].row(0));
     }
+
     den1 = 0.0;
     pot1 = 0.0;
     pott = 0.0;
@@ -518,15 +554,15 @@ namespace BasisClasses
 	if (m==0) {
 	  double sumR=0.0, sumP=0.0, sumD=0.0;
 	  for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	    sumR += expcoef(loffset+moffset, n) * dend(l, n);
-	    sumP += expcoef(loffset+moffset, n) * potd(l, n);
-	    sumD += expcoef(loffset+moffset, n) * dpot(l, n);
+	    sumR += expcoef(loffset+moffset, n) * dend[tid](l, n);
+	    sumP += expcoef(loffset+moffset, n) * potd[tid](l, n);
+	    sumD += expcoef(loffset+moffset, n) * dpot[tid](l, n);
 	  }
 	  
-	  den1 += fac1*legs (l, m) * sumR;
-	  pot1 += fac1*legs (l, m) * sumP;
-	  potr += fac1*legs (l, m) * sumD;
-	  pott += fac1*dlegs(l, m) * sumP;
+	  den1 += fac1*legs[tid] (l, m) * sumR;
+	  pot1 += fac1*legs[tid] (l, m) * sumP;
+	  potr += fac1*legs[tid] (l, m) * sumD;
+	  pott += fac1*dlegs[tid](l, m) * sumP;
 	  
 	  moffset++;
 	}
@@ -537,33 +573,36 @@ namespace BasisClasses
 	  double sumR0=0.0, sumP0=0.0, sumD0=0.0;
 	  double sumR1=0.0, sumP1=0.0, sumD1=0.0;
 	  for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	    sumR0 += expcoef(loffset+moffset+0, n) * dend(l, n);
-	    sumP0 += expcoef(loffset+moffset+0, n) * potd(l, n);
-	    sumD0 += expcoef(loffset+moffset+0, n) * dpot(l, n);
-	    sumR1 += expcoef(loffset+moffset+1, n) * dend(l, n);
-	    sumP1 += expcoef(loffset+moffset+1, n) * potd(l, n);
-	    sumD1 += expcoef(loffset+moffset+1, n) * dpot(l, n);
+	    sumR0 += expcoef(loffset+moffset+0, n) * dend[tid](l, n);
+	    sumP0 += expcoef(loffset+moffset+0, n) * potd[tid](l, n);
+	    sumD0 += expcoef(loffset+moffset+0, n) * dpot[tid](l, n);
+	    sumR1 += expcoef(loffset+moffset+1, n) * dend[tid](l, n);
+	    sumP1 += expcoef(loffset+moffset+1, n) * potd[tid](l, n);
+	    sumD1 += expcoef(loffset+moffset+1, n) * dpot[tid](l, n);
 	  }
 	  
-	  den1 += fac1 * legs (l, m) *  ( sumR0*cosm + sumR1*sinm );
-	  pot1 += fac1 * legs (l, m) *  ( sumP0*cosm + sumP1*sinm );
-	  potr += fac1 * legs (l, m) *  ( sumD0*cosm + sumD1*sinm );
-	  pott += fac1 * dlegs(l, m) *  ( sumP0*cosm + sumP1*sinm );
-	  potp += fac1 * legs (l, m) *  (-sumP0*sinm + sumP1*cosm ) * m;
+	  den1 += fac1 * legs[tid] (l, m) *  ( sumR0*cosm + sumR1*sinm );
+	  pot1 += fac1 * legs[tid] (l, m) *  ( sumP0*cosm + sumP1*sinm );
+	  potr += fac1 * legs[tid] (l, m) *  ( sumD0*cosm + sumD1*sinm );
+	  pott += fac1 * dlegs[tid](l, m) *  ( sumP0*cosm + sumP1*sinm );
+	  potp += fac1 * legs[tid] (l, m) *  (-sumP0*sinm + sumP1*cosm ) * m;
 	  
 	  moffset +=2;
 	}
       }
     }
     
-    double densfac = -1.0/(rscl*rscl*rscl) * 0.25/M_PI;
-    double potlfac = -1.0/rscl;
+    double densfac = 1.0/(scale*scale*scale) * 0.25/M_PI;
+    double potlfac = 1.0/scale;
     
+    den1 += den0;
+    pot1 += pot0;
+
     den0  *=  densfac;
     den1  *=  densfac;
     pot0  *=  potlfac;
     pot1  *=  potlfac;
-    potr  *= -potlfac/rscl;
+    potr  *= -potlfac/scale;
     pott  *= -potlfac;
     potp  *= -potlfac;
     //       ^
@@ -1105,20 +1144,23 @@ namespace BasisClasses
     //
     if (density) EmpCylSL::DENS = true;
 
-    // Default cache file name
-    //
-    std::string cachename = outdir + ".eof.cache." + runtag;
-    
-    // EOF default file name override.  Default uses runtag suffix as
-    // above.  Override file must exist if explicitly specified.
-    //
-    if (eof_file.size()) cachename = eof_file;
 
+    // Check for non-null cache file name.  This must be specified
+    // to prevent recomputation and unexpected behavior.
+    //
+    if (not conf["eof_file"]) {
+      throw std::runtime_error
+	("Cylindrical requires a specified 'eof_name' in your YAML config\n"
+	 "for consistency with previous invocations and existing coefficient\n"
+	 "sets.  Please add explicitly add 'eof_name: name' to your config\n"
+	 "with new 'name' for creating a basis or an existing 'name' for\n"
+	 "reading a previously generated basis cache\n");
+    }
 
     // Make the empirical orthogonal basis instance
     //
     sl = std::make_shared<EmpCylSL>
-      (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
+      (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, eof_file);
     
     // Set azimuthal harmonic order restriction?
     //
@@ -1274,8 +1316,6 @@ namespace BasisClasses
     sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
     
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
-    tdens -= tdens0;
-    tpotl -= tpotl0;
 
     tpotr = tpotR*R/r + tpotz*z/R ;
     tpott = tpotR*z/r - tpotz*R/r ;
@@ -1489,21 +1529,48 @@ namespace BasisClasses
     }
     
     // Set cmapR and cmapZ defaults
+    //
     if (not conf["cmapR"])   conf["cmapR"] = cmap;
     if (not conf["cmapZ"])   conf["cmapZ"] = cmap;
     
     // Set characteristic radius defaults
+    //
     if (not conf["acyltbl"]) conf["acyltbl"] = 0.6;
-    if (not conf["scale"])   conf["scale"]   = 0.01;
+    if (not conf["scale"])   conf["scale"]   = 1.0;
+
+
+    // Check for non-null cache file name.  This must be specified
+    // to prevent recomputation and unexpected behavior.
+    //
+    if (not conf["cachename"]) {
+      throw std::runtime_error
+	("FlatDisk requires a specified cachename in your YAML config\n"
+	 "for consistency with previous invocations and existing coefficient\n"
+	 "sets.  Please add explicitly add 'cachename: name' to your config\n"
+	 "with new 'name' for creating a basis or an existing 'name' for\n"
+	 "reading a previously generated basis cache\n");
+    }
 
     // Finally, make the basis
+    //
     ortho = std::make_shared<BiorthCyl>(conf);
     
-    potd.resize(mmax+1, nmax);
-    potR.resize(mmax+1, nmax);
-    potZ.resize(mmax+1, nmax);
-    dend.resize(mmax+1, nmax);
-    
+    // Get max threads
+    //
+    int nthrds = omp_get_max_threads();
+
+    // Allocate memory
+    //
+    potd.resize(nthrds);
+    potR.resize(nthrds);
+    potZ.resize(nthrds);
+    dend.resize(nthrds);
+
+    for (auto & v : potd) v.resize(mmax+1, nmax);
+    for (auto & v : potR) v.resize(mmax+1, nmax);
+    for (auto & v : potZ) v.resize(mmax+1, nmax);
+    for (auto & v : dend) v.resize(mmax+1, nmax);
+
     expcoef.resize(2*mmax+1, nmax);
     expcoef.setZero();
       
@@ -1604,6 +1671,9 @@ namespace BasisClasses
     double R2 = x*x + y*y;
     double R  = sqrt(R);
     
+    // Get thread id
+    int tid = omp_get_thread_num();
+
     if (R < ortho->getRtable() and fabs(z) < ortho->getRtable()) {
     
       used++;
@@ -1611,14 +1681,14 @@ namespace BasisClasses
     
       double phi = atan2(y, x);
 
-      ortho->get_pot(potd, R, 0.0);
+      ortho->get_pot(potd[tid], R, 0.0);
     
       // M loop
       for (int m=0, moffset=0; m<=mmax; m++) {
 	
 	if (m==0) {
 	  for (int n=0; n<nmax; n++) {
-	    expcoef(moffset, n) += potd(m, n)* mass * norm0;
+	    expcoef(moffset, n) += potd[tid](m, n)* mass * norm0;
 	  }
 	  
 	  moffset++;
@@ -1627,8 +1697,8 @@ namespace BasisClasses
 	  double ccos = cos(phi*m);
 	  double ssin = sin(phi*m);
 	  for (int n=0; n<nmax; n++) {
-	    expcoef(moffset  , n) += ccos * potd(m, n) * mass * norm1;
-	    expcoef(moffset+1, n) += ssin * potd(m, n) * mass * norm1;
+	    expcoef(moffset  , n) += ccos * potd[tid](m, n) * mass * norm1;
+	    expcoef(moffset+1, n) += ssin * potd[tid](m, n) * mass * norm1;
 	  }
 	  moffset+=2;
 	}
@@ -1659,13 +1729,19 @@ namespace BasisClasses
    double& pot0, double& pot1,
    double& rpot, double& zpot, double& ppot)
   {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Fixed values
     constexpr double norm0 = 0.5*M_2_SQRTPI/M_SQRT2;
     constexpr double norm1 = 0.5*M_2_SQRTPI;
 
+    // Zero return values
     den0 = den1 = 0.0;
     pot0 = pot1 = 0.0;
     rpot = zpot = ppot = 0.0;
     
+    // Off grid evaluation
     if (R>ortho->getRtable() or fabs(z)>ortho->getRtable()) {
       double r2 = R*R + z*z;
       double r  = sqrt(r2);
@@ -1676,10 +1752,11 @@ namespace BasisClasses
       return;
     }
 
-    ortho->get_dens   (dend,  R, z);
-    ortho->get_pot    (potd,  R, z);
-    ortho->get_rforce (potR,  R, z);
-    ortho->get_zforce (potZ,  R, z);
+    // Get the basis fields
+    ortho->get_dens   (dend[tid],  R, z);
+    ortho->get_pot    (potd[tid],  R, z);
+    ortho->get_rforce (potR[tid],  R, z);
+    ortho->get_zforce (potZ[tid],  R, z);
     
     // m loop
     for (int m=0, moffset=0; m<=mmax; m++) {
@@ -1691,10 +1768,10 @@ namespace BasisClasses
 
       if (m==0) {
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  den0 += expcoef(0, n) * dend(0, n) * norm0;
-	  pot0 += expcoef(0, n) * potd(0, n) * norm0;
-	  rpot += expcoef(0, n) * potR(0, n) * norm0;
-	  zpot += expcoef(0, n) * potZ(0, n) * norm0;
+	  den0 += expcoef(0, n) * dend[tid](0, n) * norm0;
+	  pot0 += expcoef(0, n) * potd[tid](0, n) * norm0;
+	  rpot += expcoef(0, n) * potR[tid](0, n) * norm0;
+	  zpot += expcoef(0, n) * potZ[tid](0, n) * norm0;
 	}
 	
 	moffset++;
@@ -1704,16 +1781,16 @@ namespace BasisClasses
 
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc += expcoef(moffset+0, n) * dend(m, n);
-	  vs += expcoef(moffset+1, n) * dend(m, n);
+	  vc += expcoef(moffset+0, n) * dend[tid](m, n);
+	  vs += expcoef(moffset+1, n) * dend[tid](m, n);
 	}
 	
 	den1 += (vc*cosm + vs*sinm) * norm1;
       
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc += expcoef(moffset+0, n) * potd(m, n);
-	  vs += expcoef(moffset+1, n) * potd(m, n);
+	  vc += expcoef(moffset+0, n) * potd[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potd[tid](m, n);
 	}
 	
 	pot1 += ( vc*cosm + vs*sinm) * norm1;
@@ -1721,16 +1798,16 @@ namespace BasisClasses
 
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc += expcoef(moffset+0, n) * potR(m, n);
-	  vs += expcoef(moffset+1, n) * potR(m, n);
+	  vc += expcoef(moffset+0, n) * potR[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potR[tid](m, n);
 	}
 
 	rpot += (vc*cosm + vs*sinm) * norm1;
 	
 	vc = vs = 0.0;
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	  vc += expcoef(moffset+0, n) * potZ(m, n);
-	  vs += expcoef(moffset+1, n) * potZ(m, n);
+	  vc += expcoef(moffset+0, n) * potZ[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potZ[tid](m, n);
 	}
 
 	zpot += (vc*cosm + vs*sinm) * norm1;
@@ -1738,6 +1815,9 @@ namespace BasisClasses
 	moffset +=2;
       }
     }
+
+    den1 += den0;
+    pot1 += pot0;
 
     den0 *= -1.0;
     den1 *= -1.0;

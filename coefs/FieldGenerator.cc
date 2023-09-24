@@ -75,42 +75,44 @@ namespace Field
 
     std::vector<std::string> labels =
       {"x", "y", "z", "arc",
-       "potl", "potl m=0",
-       "rad force", "mer force", "azi force",
-       "dens", "dens m=0"};
+       "potl", "potl m=0", "potl m>0",
+       "dens", "dens m=0", "dens m>0",
+       "rad force", "mer force", "azi force"};
 
 
     std::vector<double> dd(3);
     for (int k=0; k<3; k++) dd[k] = (end[k] - beg[k])/num;
     double dlen = sqrt(dd[0]*dd[0] + dd[1]*dd[1] + dd[2]*dd[2]);
 
-    for (auto T : times) {
+    std::map<std::string, Eigen::VectorXf> frame;
+    for (auto label : labels) {
+      frame[label] = Eigen::VectorXf::Zero(num);
+    }
 
-      if (not coefs->getCoefStruct(T)) {
-	std::cout << "Could not find time=" << T << ", continuing" << std::endl;
-	continue;
-      }
+    for (int icnt=0; icnt<times.size(); icnt++) {
 
-      basis->set_coefs(coefs->getCoefStruct(T));
-
-      std::map<std::string, Eigen::VectorXf> frame;
-      for (auto label : labels) {
-	frame[label] = Eigen::VectorXf::Zero(num);
-      }
-
-      double r, phi, costh;
-      double p0, p1, d0, d1, fr, ft, fp;
+      if (icnt % numprocs == myid) {
       
-      int ncnt = 0;		// Process counter for MPI
+	double T = times[icnt];
 
-      for (int ncnt=0; ncnt<num; ncnt++) {
+	if (not coefs->getCoefStruct(T)) {
+	  std::cout << "Could not find time=" << T << ", continuing"
+		    << std::endl;
+	  continue;
+	}
 
-	if (ncnt%numprocs == myid) {
-	  
+	basis->set_coefs(coefs->getCoefStruct(T));
+
+	double r, phi, costh;
+	double p0, p1, d0, d1, fr, ft, fp;
+      
+#pragma omp parallel for
+	for (int ncnt=0; ncnt<num; ncnt++) {
+
 	  double x = beg[0] + dd[0]*ncnt;
 	  double y = beg[1] + dd[1]*ncnt;
 	  double z = beg[2] + dd[2]*ncnt;
-
+	  
 	  r     = sqrt(x*x + y*y + z*z) + 1.0e-18;
 	  costh = z/r;
 	  phi   = atan2(y, x);
@@ -121,28 +123,92 @@ namespace Field
 	  frame["y"        ](ncnt) = y;
 	  frame["z"        ](ncnt) = z;
 	  frame["arc"      ](ncnt) = dlen*ncnt;
-	  frame["potl"     ](ncnt) = p0 + p1;
+	  frame["potl"     ](ncnt) = p1;
+	  frame["potl m>0" ](ncnt) = p1 - p0;
 	  frame["potl m=0" ](ncnt) = p0;
 	  frame["rad force"](ncnt) = fr;
 	  frame["mer force"](ncnt) = ft;
-	  frame["axi force"](ncnt) = fp;
-	  frame["dens"     ](ncnt) = d0 + d1;
+	  frame["azi force"](ncnt) = fp;
+	  frame["dens"     ](ncnt) = d1;
+	  frame["dens m>0" ](ncnt) = d1 - d0;
 	  frame["dens m=0" ](ncnt) = d0;
 	}
+	
+	ret[T] = frame;
       }
+    }
     
-      if (use_mpi) {
-	for (auto & f : frame) {
-	  if (myid==0) 
-	    MPI_Reduce(MPI_IN_PLACE, f.second.data(), f.second.size(),
-		       MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-	  else
-	    MPI_Reduce(f.second.data(), NULL, f.second.size(),
-		       MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (use_mpi) {
+
+      for (int n=0; n<numprocs; n++) {
+	
+	if (myid==n) {
+	  // Send the number of time frames in this node
+	  int num = ret.size();
+	  MPI_Send(&num, 1, MPI_INT, 0, 200, MPI_COMM_WORLD);
+
+	  // Iterate through the time frames
+	  for (auto & F : ret) {
+	    MPI_Send(&F.first, 1, MPI_DOUBLE, 0, 201, MPI_COMM_WORLD);
+
+	    int nf = F.second.size(); // Number of fields in this frame
+	    MPI_Send(&num, 1, MPI_INT, 0, 202, MPI_COMM_WORLD);
+
+	    // Iterate through the fields
+	    for (auto & f : F.second) {
+	      // Send tag
+	      MPI_Send(f.first.c_str(), f.first.length(), MPI_CHAR, 0, 203,
+		       MPI_COMM_WORLD);
+	      // Send field data
+	      MPI_Send(f.second.data(), f.second.size(),
+		       MPI_FLOAT, 0, 204, MPI_COMM_WORLD);
+	    }
+
+	  }
+	}
+
+	if (myid==0) {
+	  std::vector<char> bf(9); // Char buffer for field label
+	  MPI_Status status;	   // For MPI_Probe
+	  int num, nf, l;
+	  double T;
+
+	  // Get the number of frames from node n
+	  MPI_Recv(&num, 1, MPI_INT, n, 200, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+
+	  // Iterate through the frames
+	  for (int j=0; j<num; j++) {
+	    // Get the time for this frame
+	    MPI_Recv(&T, 1, MPI_DOUBLE, n, 201, MPI_COMM_WORLD, &status);
+
+	    // Get the number of fields in this frame
+	    MPI_Recv(&nf, 1, MPI_INT, n, 202, MPI_COMM_WORLD, &status);
+
+	    // Iterate through the fields
+	    for (int k=0; k<nf; k++) {
+	      MPI_Probe(n, 203, MPI_COMM_WORLD, &status);
+	      MPI_Get_count(&status, MPI_CHAR, &l);
+	      MPI_Recv(bf.data(), l, MPI_CHAR, n, 203, MPI_COMM_WORLD, &status);
+
+	      // Sanity check on the field name
+	      //
+	      std::string s(bf.data(), l);
+	      if (frame.find(s) == frame.end()) {
+		std::cerr << "Error finding <" << s << "> in field map"
+			  << std::endl;
+	      }
+
+	      // Get the data
+	      //
+	      MPI_Recv(frame[s].data(), frame[s].size(), MPI_FLOAT, n, 204,
+		       MPI_COMM_WORLD, &status);
+	    }
+	    
+	    ret[T] = frame;
+	  }
 	}
       }
-
-      ret[T] = frame;
     }
 
     return ret;
@@ -221,8 +287,10 @@ namespace Field
     std::map<double, std::map<std::string, Eigen::MatrixXf>> ret;
 
     std::vector<std::string> labels =
-      {"potl", "potl m=0", "rad force", "mer force", "azi force",
-       "dens", "dens m=0"};
+      {"potl", "potl m>0", "potl m=0", 
+       "dens", "dens m>0", "dens m=0",
+       "rad force", "mer force", "azi force",
+      };
 
     // Find the first two non-zero indices
     //
@@ -303,13 +371,15 @@ namespace Field
 	
 	// Pack the frame structure
 	//
-	frame["potl"     ](i, j) = -(p0 + p1);
-	frame["potl m=0" ](i, j) = -p0;
+	frame["potl"     ](i, j) = p1;
+	frame["potl m>0" ](i, j) = p1 - p0;
+	frame["potl m=0" ](i, j) = p0;
 	frame["rad force"](i, j) = fr;
 	frame["mer force"](i, j) = ft;
 	frame["azi force"](i, j) = fp;
-	frame["dens"     ](i, j) = -(d0 + d1);
-	frame["dens m=0" ](i, j) = -d0;
+	frame["dens"     ](i, j) = d1;
+	frame["dens m>0" ](i, j) = d1 - d0;
+	frame["dens m=0" ](i, j) = d0;
       }
 
       ret[T] = frame;
@@ -433,10 +503,23 @@ namespace Field
     std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>> ret;
 
     std::vector<std::string> labels =
-      {"x", "y", "z", "arc",
-       "potl", "potl m=0",
-       "rad force", "mer force", "azi force",
-       "dens", "dens m=0"};
+      {"potl", "potl m>0", "potl m=0",
+       "dens", "dens m>0", "dens m=0",
+       "rad force", "mer force", "azi force"};
+
+    // Allocate frame storge
+    //
+    std::map<std::string, Eigen::Tensor<float, 3>> frame;
+    for (auto label : labels) {
+      frame[label].resize({grid[0], grid[1], grid[2]});
+    }	
+    
+    std::vector<double> del =
+      { (pmax[0] - pmin[0])/std::max<int>(grid[0]-1, 1),
+	(pmax[1] - pmin[1])/std::max<int>(grid[1]-1, 1),
+	(pmax[2] - pmin[2])/std::max<int>(grid[2]-1, 1) };
+    
+    int ncnt = 0;		// Process counter for MPI
 
     // Allocate frame storge
     //
@@ -487,13 +570,15 @@ namespace Field
 
 	// Pack the frame structure
 	//
-	frame["potl"     ](i, j, k) = -(p0 + p1);
-	frame["potl m=0" ](i, j, k) = -p0;
+	frame["potl"     ](i, j, k) = p1;
+	frame["potl m>0" ](i, j, k) = p1 - p0;
+	frame["potl m=0" ](i, j, k) = p0;
+	frame["dens"     ](i, j, k) = d1;
+	frame["dens m>0" ](i, j, k) = d1 - d0;
+	frame["dens m=0" ](i, j, k) = d0;
 	frame["rad force"](i, j, k) = fr;
 	frame["mer force"](i, j, k) = ft;
 	frame["azi force"](i, j, k) = fp;
-	frame["dens"     ](i, j, k) = -(d0 + d1);
-	frame["dens m=0" ](i, j, k) = -d0;
       }
 
       ret[T] = frame;
@@ -582,52 +667,45 @@ namespace Field
   }
   
   void FieldGenerator::file_volumes(BasisClasses::BasisPtr basis,
-				    CoefClasses::CoefsPtr coefs,
-				    const std::string prefix,
-				    const std::string outdir)
+				    CoefClasses::CoefsPtr  coefs,
+				    const std::string      prefix,
+				    const std::string      outdir)
   {
     auto db = volumes(basis, coefs);
 
-    if (myid==0) {
+    int bunch = db.size()/numprocs;
+    int first = bunch*myid;
+    int last  = std::min<int>(bunch*(myid+1), db.size());
 
-      int icnt = 0;
+#pragma omp parallel for
+    for (int icnt=first; icnt<last; icnt++) {
 
-      for (auto & frame : db) {
+      auto it = db.begin();
+      std::advance(it, icnt);
 
-	DataGrid datagrid(grid[0], grid[1], grid[2],
-			  pmin[0], pmax[0],
-			  pmin[1], pmax[1],
-			  pmin[2], pmax[2]);
+      DataGrid datagrid(grid[0], grid[1], grid[2],
+			pmin[0], pmax[0],
+			pmin[1], pmax[1],
+			pmin[2], pmax[2]);
 
-	std::vector<double> tmp(grid[0]*grid[1]*grid[2]);
+      std::vector<double> tmp(grid[0]*grid[1]*grid[2]);
 
-	for (auto & v : frame.second) {
+      for (auto & v : it->second) {
 	  
-	  for (int i=0; i<grid[0]; i++) {
-	    for (int j=0; j<grid[1]; j++) {
-	      for (int k=0; k<grid[2]; k++) {
-		tmp[(k*grid[1] + j)*grid[0] + i] = v.second(i, j, k);
-	      }
+	for (int i=0; i<grid[0]; i++) {
+	  for (int j=0; j<grid[1]; j++) {
+	    for (int k=0; k<grid[2]; k++) {
+	      tmp[(k*grid[1] + j)*grid[0] + i] = v.second(i, j, k);
 	    }
 	  }
-
-	  datagrid.Add(tmp, v.first);
-#ifdef DEBUG
-	  rusage usage;
-	  int err = getrusage(RUSAGE_SELF, &usage);
-	  std::cout << "file_volume: T=" << std::setw(8) << std::fixed
-		    << v.first
-		    << " Size=" << std::setw(8)
-		    << usage.ru_maxrss/1024/1024
-		    << std::endl;
-#endif
 	}
-
-	std::ostringstream sout;
-	sout << outdir << "/" << prefix << "_volume_" << icnt;
-	datagrid.Write(sout.str());
-	icnt++;
+	
+	datagrid.Add(tmp, v.first);
       }
+      
+      std::ostringstream sout;
+      sout << outdir << "/" << prefix << "_volume_" << icnt;
+      datagrid.Write(sout.str());
     }
   }
   
