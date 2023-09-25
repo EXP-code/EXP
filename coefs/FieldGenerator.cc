@@ -521,20 +521,6 @@ namespace Field
     
     int ncnt = 0;		// Process counter for MPI
 
-    // Allocate frame storge
-    //
-    std::map<std::string, Eigen::Tensor<float, 3>> frame;
-    for (auto label : labels) {
-      frame[label].resize({grid[0], grid[1], grid[2]});
-    }	
-    
-    std::vector<double> del =
-      { (pmax[0] - pmin[0])/std::max<int>(grid[0]-1, 1),
-	(pmax[1] - pmin[1])/std::max<int>(grid[1]-1, 1),
-	(pmax[2] - pmin[2])/std::max<int>(grid[2]-1, 1) };
-    
-    int ncnt = 0;		// Process counter for MPI
-
     for (auto T : times) {
 
       if (ncnt++ % numprocs > 0) continue;
