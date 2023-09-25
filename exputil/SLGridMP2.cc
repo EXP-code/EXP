@@ -2679,9 +2679,17 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 
   table->ef.resize(N, numr);
 
+  // Choose sign conventions for the ef table
+  //
+  int nfid = std::min<int>(nevsign, N) - 1;
+  Eigen::VectorXi sgn = Eigen::VectorXi::Ones(N);
+  for (int j=0; j<N; j++) {
+    if (ef[j*NUM+nfid]<0.0) sgn(j) = -1;
+  }
+  
   for (int i=0; i<numr; i++) {
     for(int j=0; j<N; j++) 
-      table->ef(j, i) = ef[j*NUM+i];
+      table->ef(j, i) = ef[j*NUM+i] * sgn(j);
   }
 
   table->l = l;
@@ -2862,15 +2870,24 @@ void SLGridSph::compute_table_worker(void)
 	}
       }
     }
-				// Load table
 
+    // Load table
+    //
     table.ev.resize(N);
     for (int i=0; i<N; i++) table.ev[i] = ev[i];
+
+    // Choose sign conventions for the ef table
+    //
+    int nfid = std::min<int>(nevsign, N) - 1;
+    Eigen::VectorXi sgn = Eigen::VectorXi::Ones(N);
+    for (int j=0; j<N; j++) {
+      if (ef[j*NUM+nfid]<0.0) sgn(j) = -1;
+    }
 
     table.ef.resize(N, numr);
     for (int i=0; i<numr; i++) {
       for (int j=0; j<N; j++) 
-	table.ef(j, i) = ef[j*NUM+i];
+	table.ef(j, i) = ef[j*NUM+i] * sgn(j);
     }
 
     table.l = L;

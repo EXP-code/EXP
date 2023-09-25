@@ -3336,6 +3336,20 @@ void EmpCylSL::eigen_problem(int request_id, int M, Timer& timer)
       efE = esE.eigenvectors().real();
       efO = esO.eigenvectors().real();
       
+      // Choose sign conventions for the ef table
+      //
+      int nfid = std::min<int>(4, efE.rows()) - 1;
+
+      // Even case
+      for (int j=0; j<efE.cols(); j++) {
+	if (efE(nfid, j) < 0.0) efE.col(j) *= -1;
+      }
+
+      // Odd case
+      for (int j=0; j<efO.cols(); j++) {
+	if (efO(nfid, j) < 0.0) efO.col(j) *= -1;
+      }
+
       if (VFLAG & 32) {
 	
 	std::ostringstream sout;
@@ -3381,6 +3395,13 @@ void EmpCylSL::eigen_problem(int request_id, int M, Timer& timer)
       ev = es.eigenvalues().real();
       ef = es.eigenvectors().real();
       
+      // Sign convention
+      //
+      int nfid = std::min<int>(4, efE.rows()) - 1;
+      for (int j=0; j<ef.cols(); j++) {
+	if (ef(nfid, j) < 0.0) ef.col(j) *= -1;
+      }
+
       if (VFLAG & 32) {
 	
 	std::ostringstream sout;
@@ -3554,6 +3575,23 @@ void EmpCylSL::eigen_problem(int request_id, int M, Timer& timer)
       efE = esE.eigenvectors().real();
       efO = esO.eigenvectors().real();
       
+
+      // Sign convention
+      //
+      int nfid = std::min<int>(4, efE.rows()) - 1;
+
+      // Even case
+      //
+      for (int j=0; j<efE.cols(); j++) {
+	if (efE(nfid, j) < 0.0) efE.col(j) *= -1;
+      }
+
+      // Odd case
+      //
+      for (int j=0; j<efO.cols(); j++) {
+	if (efO(nfid, j) < 0.0) efO.col(j) *= -1;
+      }
+
       if (VFLAG & 32) {
 	
 	std::ostringstream sout;
@@ -3586,6 +3624,13 @@ void EmpCylSL::eigen_problem(int request_id, int M, Timer& timer)
       ev = es.eigenvalues().real();
       ef = es.eigenvectors().real();
       
+      // Sign convention
+      //
+      int nfid = std::min<int>(4, efE.rows()) - 1;
+      for (int j=0; j<ef.cols(); j++) {
+	if (ef(nfid, j) < 0.0) ef.col(j) *= -1;
+      }
+
       if (VFLAG & 32) {
 	
 	std::ostringstream sout;
@@ -4424,6 +4469,14 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 
 	(*pb)[mm]->evalJK = es.eigenvalues().real();
 	(*pb)[mm]->evecJK = es.eigenvectors().real();
+
+	// Sign convention
+	//
+	int nfid = std::min<int>(4, efE.rows()) - 1;
+	for (int j=0; j<(*pb)[mm]->evecJK.cols(); j++) {
+	  if ((*pb)[mm]->evecJK(nfid, j) < 0.0) (*pb)[mm]->evecJK.col(j) *= -1;
+	}
+
       }
     
       // Transformation output
@@ -4478,6 +4531,14 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 
 	  evalVar = es.eigenvalues().real();
 	  evecVar = es.eigenvectors().real();
+
+	  // Sign convention for eigenvectors
+	  //
+	  int nfid = std::min<int>(4, evecVar.rows()) - 1;
+	  for (int j=0; j<evecVar.cols(); j++) {
+	    if (evecVar(nfid, j) < 0.0) evecVar.col(j) *= -1;
+	  }
+
 
 	  mout << "# EOF eigenvalues" << std::endl;
 	  double total = 0.0;

@@ -15,6 +15,9 @@
 #include <sltableMP2.H>
 #include <yaml-cpp/yaml.h>
 
+#include <libvars.H>
+using namespace __EXP__;
+
 #if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
 #include <cudaMappingConstants.cuH>

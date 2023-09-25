@@ -30,6 +30,10 @@ namespace __EXP__
 
   //! Source/line info exception strings
   bool             sourceline       = false;
+
+  //! Sign convention element rank for eigenfunctions and eigenvectors
+  int              nevsign          = 4;
+
 };
 
 
