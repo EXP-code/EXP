@@ -36,6 +36,9 @@ namespace __EXP__
   //! Control flag for source/line debug info
   extern bool sourceline;
 
+  //! Sign convention element rank for eigenfunctions and eigenvectors
+  extern int nevsign;
+
 };
 
 #endif	// END _LIBVARS_H

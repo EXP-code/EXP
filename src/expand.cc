@@ -636,12 +636,9 @@ main(int argc, char** argv)
     // Initialize slurm api
     //=====================
 #ifdef HAVE_LIBSLURM
-    {
-      int rc = slurm_init(0);
-      if (rc != SLURM_SUCCESS)
-	std::cerr << "EXP [" << myid << "]: error initializing Slurm API: "
-		  << slurm_strerror(rc) << std::endl;
-    }
+#if SLURM_VERSION_NUMBER > SLURM_VERSION_NUM(21,10,0)
+    slurm_init(0);
+#endif
 #endif
 
     //==============================================
@@ -795,7 +792,9 @@ main(int argc, char** argv)
   //======================
 
 #ifdef HAVE_LIBSLURM
+#if SLURM_VERSION_NUMBER > SLURM_VERSION_NUM(21,10,0)
   slurm_fini();
+#endif
 #endif
 
   //=================
