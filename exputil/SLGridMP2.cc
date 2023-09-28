@@ -253,6 +253,8 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
     mpi_setup();
 
+    int totbad = 0;
+
     if (mpi_myid) {
 
       compute_table_worker();
@@ -310,12 +312,21 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	    //
 	    // <Wait and receive>
 	    //
-	
-	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
-		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    
+#ifdef SLEDGE_THROW
+	    int bad;
+	    MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
+		     MPI_COMM_WORLD, &status);
 	    int retid = status.MPI_SOURCE;
+	    totbad += bad;
+	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		     MPI_COMM_WORLD, &status);
+#else
+	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 11,
+		     MPI_COMM_WORLD, &status);
 
+	    int retid = status.MPI_SOURCE;
+#endif
+    
 	    mpi_unpack_table();      
 
 	    //
@@ -347,9 +358,18 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
   
 	while (worker) {
 	
-	
+#ifdef SLEDGE_THROW
+	  int bad;
+	  MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
+		   MPI_COMM_WORLD, &status);
+	  totbad += bad;
+	  int retid = status.MPI_SOURCE;
+	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		   MPI_COMM_WORLD, &status);
+#else
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+#endif
     
 	  mpi_unpack_table();      
 
@@ -381,9 +401,29 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	}
       }
 
-
     } // END Root
 
+#ifdef SLEDGE_THROW
+    MPI_Bcast(&totbad, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (totbad) {
+      std::ostringstream sout;
+      if (myid==0) {
+	sout << std::endl
+	     << "SLGridCyl found " << totbad
+	     << " tolerance errors in computing SL solutions" << std::endl
+	     << "We suggest checking your model for sufficient smoothness and"
+	     << std::endl
+	     << "sufficiently many grid points that the relative difference"
+	     << std::endl
+	     << "between field quantities is <= 0.3";
+      } else {
+	sout << std::endl << "sledge tolerance failure";
+      }
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
+#endif
   }
   else {
 
@@ -1586,17 +1626,6 @@ void SLGridCyl::compute_table_worker(void)
 		  << std::endl;
       }
       std::cout << std::endl;
-      
-      sout << std::endl
-	   << "SLGridCyl found " << bad
-	   << " tolerance errors in computing SL solutions" << std::endl
-	   << "We suggest checking your model for sufficient smoothness and"
-	   << std::endl
-	   << "sufficiently many grid points that the relative difference"
-	   << std::endl
-	   << "between field quantities is <= 0.3";
-      
-      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
 #endif
 
@@ -1681,6 +1710,10 @@ void SLGridCyl::compute_table_worker(void)
     table.m = M;
     table.k = K;
   
+#ifdef SLEDGE_THROW
+    MPI_Send(&bad, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
+#endif
+
     int position = mpi_pack_table(&table, M, K);
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
@@ -1934,6 +1967,8 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
       
       mpi_setup();
       
+      int totbad = 0;
+
       if (mpi_myid) {		// Begin workers
 	compute_table_worker();
 	
@@ -1983,10 +2018,20 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	    // <Wait and receive>
 	    //
 	    
+#ifdef SLEDGE_THROW
+	    int bad;
+	    MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
+		     MPI_COMM_WORLD, &status);
+	    totbad += bad;
+	    int retid = status.MPI_SOURCE;
+	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		     MPI_COMM_WORLD, &status);
+#else
 	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		     MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 	    
 	    int retid = status.MPI_SOURCE;
+#endif
 	  
 	    mpi_unpack_table();      
 
@@ -2011,11 +2056,20 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	//
       
 	while (worker) {
-	
-	
-	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
-		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+#ifdef SLEDGE_THROW
+	  int bad;
+	  MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
+		   MPI_COMM_WORLD, &status);
+	  totbad += bad;
+
+	  int retid = status.MPI_SOURCE;
+	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		   MPI_COMM_WORLD, &status);
+#else
+	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 11,
+		   MPI_COMM_WORLD, &status);
 	  
+#endif
 	  mpi_unpack_table();      
 	  
 	  worker--;
@@ -2042,6 +2096,29 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
       }
       // END Root
+
+#ifdef SLEDGE_THROW
+      MPI_Bcast(&totbad, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+      if (totbad) {
+	std::ostringstream sout;
+
+	if (myid==0) {
+	  sout << std::endl
+	       << "SLGridSph found " << totbad
+	       << " tolerance errors in computing SL solutions." << std::endl
+	       << "We suggest checking your model file for smoothness and for"
+	       << std::endl
+	       << "a sufficient number grid points that the relative difference"
+	       << std::endl
+	       << "between field quantities is <= 0.3";
+	} else {
+	  sout << std::endl << "sledge tolerance failure";
+	}
+
+	throw GenericError(sout.str(), __FILE__, __LINE__);
+      }
+#endif
     }
     // END MPI stanza, BEGIN single-process stanza
     else {
@@ -3064,16 +3141,6 @@ void SLGridSph::compute_table_worker(void)
       }
       std::cout << std::endl;
       
-      sout << std::endl
-	   << "SLGridSph found " << bad
-	   << " tolerance errors in computing SL solutions." << std::endl
-	   << "We suggest checking your model file for smoothness and for"
-	   << std::endl
-	   << "a sufficient number grid points that the relative difference"
-	   << std::endl
-	   << "between field quantities is <= 0.3";
-      
-      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
 #endif
 
@@ -3132,6 +3199,10 @@ void SLGridSph::compute_table_worker(void)
 
     table.l = L;
   
+#ifdef SLEDGE_THROW
+    MPI_Send(&bad, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
+#endif
+
     int position = mpi_pack_table(&table, L);
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
@@ -3462,7 +3533,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
     mpi_setup();
 
+    int totbad = 0;
+
     if (mpi_myid) {
+
       compute_table_worker();
 
       //
@@ -3520,11 +3594,20 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	    //
 	    // <Wait and receive>
 	    //
-	
+#ifdef SLEDGE_THROW
+	    int bad;
+	    MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_TAG, 10,
+		     MPI_COMM_WORLD, &status);
+	    totbad += bad;
+	    int retid = status.MPI_SOURCE;
+	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		     MPI_COMM_WORLD, &status);
+#else
 	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		     MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 	    
 	    int retid = status.MPI_SOURCE;
+#endif
 
 	    mpi_unpack_table();      
 
@@ -3556,10 +3639,18 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
   
 	while (worker) {
 	
-	
-	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
-		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    
+#ifdef SLEDGE_THROW
+	  int bad;
+	  MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10, MPI_COMM_WORLD,
+		   &status);
+	  totbad += bad;
+	  int retid = status.MPI_SOURCE;
+	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		   MPI_COMM_WORLD, &status);
+#else
+	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 11,
+		   MPI_COMM_WORLD, &status);
+#endif
 	  mpi_unpack_table();      
 
 	  worker--;
@@ -3568,7 +3659,6 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	if (cache) write_cached_table();
 
       }
-
 
       //
       // <Tell workers to continue>
@@ -3594,6 +3684,26 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
     } // END Root
 
+#ifdef SLEDGE_THROW
+    MPI_Bcast(&totbad, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (totbad) {
+      std::ostringstream sout;
+      
+      if (myid==0) {
+	sout << std::endl << "SLGridSlab found " << totbad
+	     << " tolerance errors in computing SL solutions." << std::endl
+	     << "We suggest checking your model parameters to ensure a"
+	     << std::endl
+	     << "sufficient number of grid points that the relative difference"
+	     << std::endl << "between field quantities is <= 0.3";
+      } else {
+	sout << std::endl << "sledge tolerance failure";
+      }
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
+#endif
   }
   else {
 
@@ -4759,16 +4869,7 @@ void SLGridSlab::compute_table_worker(void)
 		  << std::endl;
       }
       std::cout << std::endl;
-      
-      sout << std::endl << "SLGridSlab found " << bad
-	   << " tolerance errors in computing SL solutions." << std::endl
-	   << "We suggest checking your model parameters to ensure a"
-	   << std::endl
-	   << "sufficient number of grid points that the relative difference"
-	   << std::endl << "between field quantities is <= 0.3";
-
-    throw GenericError(sout.str(), __FILE__, __LINE__);
-  }
+    }
 #endif
 
     if (tbdbg) {
@@ -4932,6 +5033,9 @@ void SLGridSlab::compute_table_worker(void)
     table.kx = KX;
     table.ky = KY;
   
+#ifdef SLEDGE_THROW
+    MPI_Send(&bad, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
+#endif
     int position = mpi_pack_table(&table, KX, KY);
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 

@@ -109,7 +109,7 @@ int main(int argc, char** argv)
   //
   try {
     ortho = std::make_shared<SLGridSph>(filename, Lmax, nmax, numr, rmin, rmax, 
-					   true, cmap, rs, 0, 1.0, cachefile, true);
+					   true, cmap, rs, 0, 1.0, cachefile, false);
     //                                     ^               ^                  ^
     //                                     |               |                  |
     // Use cache file----------------------+               |                  |
@@ -130,7 +130,10 @@ int main(int argc, char** argv)
     exit(0);
   }
 
-  if (bad) exit(-1);
+  if (bad) {
+    MPI_Finalize();
+    exit(0);
+  }
 				// Do what?
   while (1) {
     bool done=false;
