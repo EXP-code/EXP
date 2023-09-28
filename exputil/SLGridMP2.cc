@@ -62,6 +62,30 @@ extern "C" {
 }
 
 
+static
+std::string sledge_error(int flag)
+{
+  if (flag==0)
+    return "reliable";
+  else if (flag==-1)
+    return "too many levels for eigenvalues";
+  else if (flag==-2)
+    return "too many levels for eigenvectors";
+  else if (flag==1)
+    return "eigenvalue cluster?";
+  else if (flag==2)
+    return "classification uncertainty";
+  else if (flag>0) {
+    std::ostringstream sout;
+    sout << "unexpected warning: " << flag; 
+    return sout.str();
+  } else {
+    std::ostringstream sout;
+    sout << "unexpected fatal error: " << flag; 
+    return sout.str();
+  }
+}
+
 // Unit density exponential disk with scale length A
 
 class KuzminCyl : public CylModel
@@ -423,7 +447,7 @@ int SLGridCyl::read_cached_table(void)
       std::ostringstream sout;
       sout << "YAML: error parsing <" << buf.get() << "> "
 	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
-	   << "YAML error: " << error.what() << std::endl;
+	   << "YAML error: " << error.what();
       throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
     }
     
@@ -1280,6 +1304,60 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	   t, rho, iflag, store);
   //
+  //     Check for errors
+  //
+#ifdef SLEDGE_THROW
+  unsigned bad = 0;		// Count non-zero iflag
+  for (int i=0; i<N; i++) {
+    if (iflag[i] != 0) bad++;
+  }
+
+  std::ostringstream sout;	// Exception message
+
+  if (bad>0) {
+
+    if (myid==0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+    
+      std::cout << "Tolerance errors in Sturm-Liouville solver for m="
+		<< std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "ev"
+		<< std::setw(40) << "error"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "-----"
+		<< std::setw(40) << "-----"
+		<< std::endl;
+
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      
+      sout << "SLGridCyl found " << bad
+	   << " tolerance errors in computing"
+	   << std::endl
+	   << "SL solutions. We suggest checking your model for sufficient"
+	   << std::endl
+	   << "smoothness and sufficiently many grid points that the relative"
+	   << std::endl << " difference between field quantities is <= 0.3";
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+
+    } else {
+      throw GenericError("sledge errors", __FILE__, __LINE__);
+    }
+  }
+#endif
+
+  //
   //     Print results:
   //
   if (tbdbg) {
@@ -1312,8 +1390,7 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
       }
     }
   }
-  
-				// Load table
+
 
   table->ev.resize(N);
   for (int i=0; i<N; i++) table->ev[i] = ev[i];
@@ -1470,10 +1547,58 @@ void SLGridCyl::compute_table_worker(void)
 
     sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	    t, rho, iflag, store);
+
+    //
+    //     Check for errors
+    //
+#ifdef SLEDGE_THROW
+    unsigned bad = 0;		// Number of non-zero iflag values
+    for (int i=0; i<N; i++) {
+      if (iflag[i] != 0) bad++;
+    }
+
+    std::ostringstream sout;	// Runtime exception message
+
+    if (bad>0) {
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+    
+      std::cout << "Tolerance errors in Sturm-Liouville solver for m="
+		<< M << " K=" << K << std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "ev"
+		<< std::setw(40) << "error"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "-----"
+		<< std::setw(40) << "-----"
+		<< std::endl;
+      
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      
+      sout << "SLGridCyl found " << bad
+	   << " tolerance errors in computing"
+	   << std::endl
+	   << "SL solutions. We suggest checking your model for sufficient"
+	   << std::endl
+	   << "smoothness and sufficiently many grid points that the relative"
+	   << std::endl
+	   << " difference between field quantities is <= 0.3";
+      
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
+#endif
+
     //
     //     Print results:
     //
-    
     if (tbdbg) {
     
       if (type[0]) std::cout << "Worker " << myid 
@@ -2100,7 +2225,7 @@ void SLGridSph::WriteH5Cache(void)
         sout << "---- SLGridSph::WriteH5Cache write error: "
 	     << "what():  " << ex.what()  << std::endl
 	     << "path1(): " << ex.path1() << std::endl
-	     << "path2(): " << ex.path2() << std::endl;
+	     << "path2(): " << ex.path2();
 	throw GenericError(sout.str(), __FILE__, __LINE__, 12, true);
       }
       
@@ -2638,6 +2763,63 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 
   sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	   t, rho, iflag, store);
+
+  //
+  //     Check for errors
+  //
+#ifdef SLEDGE_THROW
+  unsigned bad = 0;
+
+  for (int i=0; i<N; i++) {
+    if (iflag[i] != 0) bad++;
+  }
+
+  std::ostringstream sout;
+
+  if (bad>0) {
+
+    if (myid==0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+    
+      std::cout << "Tolerance errors in Sturm-Liouville solver for l=" << l
+		<<  std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "ev"
+		<< std::setw(40) << "error"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "-----"
+		<< std::setw(40) << "-----"
+		<< std::endl;
+      
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      
+      sout << "SLGridSph found " << bad
+	   << " tolerance errors in computing"
+	   << std::endl
+	   << "SL solutions. We suggest checking your model file for smoothness"
+	   << std::endl
+	   << "and ensure a sufficient number grid points that the relative"
+	   << std::endl
+	   << "difference between field quantities is <= 0.3";
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
+    else {
+      throw GenericError("sledge errors", __FILE__, __LINE__);
+    }
+  }
+#endif
+
   //
   //     Print results:
   //
@@ -2836,10 +3018,60 @@ void SLGridSph::compute_table_worker(void)
 
     sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	    t, rho, iflag, store);
+
+    //
+    //     Check for errors
+    //
+#ifdef SLEDGE_THROW
+    unsigned bad = 0;
+
+    for (int i=0; i<N; i++) {
+      if (iflag[i] != 0) bad++;
+    }
+    
+    std::ostringstream sout;
+
+    if (bad>0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+    
+      std::cout << "Tolerance errors in Sturm-Liouville solver for l=" << L
+		<<  std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "ev"
+		<< std::setw(40) << "error"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "-----"
+		<< std::setw(40) << "-----"
+		<< std::endl;
+      
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      
+      sout << "SLGridSph found " << bad
+	   << " tolerance errors in computing"
+	   << std::endl
+	   << "SL solutions. We suggest checking your model file for smoothness"
+	   << std::endl
+	   << "and for a sufficient number grid points that the relative"
+	   << std::endl
+	   << "difference between field quantities is <= 0.3";
+      
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
+#endif
+
     //
     //     Print results:
     //
-    
     if (tbdbg) {
       std::cout << "Worker " <<  mpi_myid << ": computed l = " << L << "" << std::endl;
 
@@ -3046,7 +3278,7 @@ YAML::Node SLGridSph::getHeader(const std::string& cachefile)
   catch (YAML::Exception& error) {
     std::ostringstream sout;
     sout << "SLGridMP2::getHeader: invalid cache file <" << cachefile << ">. ";
-    sout << "YAML error in getHeader: " << error.what() << std::endl;
+    sout << "YAML error in getHeader: " << error.what();
     throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
   }
 
@@ -3422,7 +3654,7 @@ int SLGridSlab::read_cached_table(void)
       std::ostringstream sout;
       sout << "YAML: error parsing <" << buf.get() << "> "
 	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
-	   << "YAML error: " << error.what() << std::endl;
+	   << "YAML error: " << error.what();
       throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
     }
     
@@ -4111,10 +4343,63 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 
   sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	   t, rho, iflag, store);
+
+  //
+  //     Check for errors
+  //
+#ifdef SLEDGE_THROW
+  unsigned bad = 0;		// Number of non-zero iflag values
+  for (int i=0; i<N; i++) {
+    if (iflag[i] != 0) bad++;
+  }
+
+  std::ostringstream sout;	// Runtime error message
+
+  if (bad>0) {
+
+    if (myid==0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+      
+      std::cout << "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+		<< " Ky=" << KY << ", even" <<  std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "ev"
+		<< std::setw(40) << "error"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "-----"
+		<< std::setw(40) << "-----"
+		<< std::endl;
+      
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      
+      sout << "SLGridSph found " << bad
+	   << " tolerance errors in computing"
+	   << std::endl
+	   << "SL solutions. We suggest checking your model parameters to"
+	   << std::endl
+	   << "ensure a sufficient number of grid points that the relative"
+	   << std::endl << "difference between field quantities is <= 0.3";
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    } else {
+      throw GenericError("sledge errors", __FILE__, __LINE__);
+    }
+  }
+#endif
+
   //
   //     Print results:
   //
-  
   if (tbdbg) {
 
     std::cout.precision(6);
@@ -4169,6 +4454,58 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	  t, rho, iflag, store);
 
+  //
+  //     Check for errors
+  //
+#ifdef SLEDGE_THROW
+  bad = 0;
+  for (int i=0; i<N; i++) {
+    if (iflag[i] != 0) bad++;
+  }
+
+  sout.str("");
+
+  if (bad>0) {
+
+    if (myid==0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+    
+      std::cout << "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+		<< " Ky=" << KY << ", odd" <<  std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "ev"
+		<< std::setw(40) << "error"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "-----"
+		<< std::setw(40) << "-----"
+		<< std::endl;
+      
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      
+      sout << "SLGridSph found " << bad
+	   << " tolerance errors in computing"
+	   << std::endl
+	   << "SL solutions. We suggest checking your model parameters to"
+	   << std::endl
+	   << "ensure a sufficient number of grid points that the relative"
+	   << std::endl << "difference between field quantities is <= 0.3";
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    } else {
+      throw GenericError("sledge errors", __FILE__, __LINE__);
+    }
+  }
+#endif
 
   //
   //     Print results:
@@ -4255,7 +4592,6 @@ void SLGridSlab::init_table(void)
 
 void SLGridSlab::compute_table_worker(void)
 {
-
   //  double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
   //  double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
   double cons[8];
@@ -4375,6 +4711,54 @@ void SLGridSlab::compute_table_worker(void)
     //     Print results:
     //
     
+    //
+    //     Check for errors
+    //
+#ifdef SLEDGE_THROW
+    unsigned bad = 0;		// Number of non-zero iflag values
+    for (int i=0; i<N; i++) {
+      if (iflag[i] != 0) bad++;
+    }
+    
+    std::ostringstream sout;	// Runtime error message
+
+    if (bad>0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+    
+      std::cout << "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+	      << " Ky=" << KY << ", even" <<  std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "ev"
+		<< std::setw(40) << "error"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "-----"
+		<< std::setw(40) << "-----"
+		<< std::endl;
+
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      
+      sout << "SLGridSlab found " << bad
+	   << " tolerance errors in computing"
+	   << std::endl
+	   << "SL solutions. We suggest checking your model parameters to"
+	   << std::endl
+	   << "ensure a sufficient number of grid points that the relative"
+	   << std::endl << "difference between field quantities is <= 0.3";
+
+    throw GenericError(sout.str(), __FILE__, __LINE__);
+  }
+#endif
+
     if (tbdbg) {
       std::cout << "Worker " << mpi_myid << ": computed Kx, Ky = " 
 		<< KX << ", " << KY << " [Even]" << std::endl;
@@ -4429,6 +4813,60 @@ void SLGridSlab::compute_table_worker(void)
 
     sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	    t, rho, iflag, store);
+
+    //
+    //     Check for errors
+    //
+#ifdef SLEDGE_THROW
+    bad = 0;
+
+    for (int i=0; i<N; i++) {
+      if (iflag[i] != 0) bad++;
+    }
+
+    sout.str("");
+
+    if (bad>0) {
+
+      if (myid==0) {
+
+	std::cout.precision(6);
+	std::cout.setf(ios::scientific);
+	std::cout << std::left;
+    
+	std::cout << "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+		  << " Ky=" << KY << ", odd" <<  std::endl;
+
+	std::cout << std::setw(15) << "order"
+		  << std::setw(15) << "ev"
+		  << std::setw(40) << "error"
+		  << std::endl
+		  << std::setw(15) << "-----"
+		  << std::setw(15) << "-----"
+		  << std::setw(40) << "---"
+		  << std::endl;
+	
+	for (int i=0; i<N; i++) {
+	  std::cout << std::setw(15) << invec[3+i] 
+		    << std::setw(15) << ev[i]
+		    << std::setw(40) << sledge_error(iflag[i])
+		    << std::endl;
+	}
+      
+	sout << "SLGridSlab found " << bad
+	     << " tolerance errors in computing"
+	     << std::endl
+	     << "SL solutions. We suggest checking your model parameters to"
+	     << std::endl
+	     << "ensure a sufficient number of grid points that the relative"
+	     << std::endl << "difference between field quantities is <= 0.3";
+
+	throw GenericError(sout.str(), __FILE__, __LINE__);
+      } else {
+	throw GenericError("sledge errors", __FILE__, __LINE__);
+      }
+    }
+#endif
 
     //     Print results:
     //
