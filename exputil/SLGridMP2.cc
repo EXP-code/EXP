@@ -313,11 +313,13 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	    // <Wait and receive>
 	    //
 #ifdef SLEDGE_THROW
-	    int bad;
+	    int bad;		// Get count of sledge failures
 	    MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
 		     MPI_COMM_WORLD, &status);
-	    int retid = status.MPI_SOURCE;
 	    totbad += bad;
+				// Get source node identity
+	    int retid = status.MPI_SOURCE;
+
 	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
 		     MPI_COMM_WORLD, &status);
 #else
@@ -359,10 +361,11 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	while (worker) {
 	
 #ifdef SLEDGE_THROW
-	  int bad;
+	  int bad;		// Get count of sledge failures
 	  MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
 		   MPI_COMM_WORLD, &status);
 	  totbad += bad;
+				// Get source node identity
 	  int retid = status.MPI_SOURCE;
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
 		   MPI_COMM_WORLD, &status);
@@ -404,8 +407,10 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
     } // END Root
 
 #ifdef SLEDGE_THROW
+    // Send total number of sledge failures to all nodes
     MPI_Bcast(&totbad, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+    // All nodes throw exception if any errors
     if (totbad) {
       std::ostringstream sout;
       if (myid==0) {
@@ -1347,13 +1352,14 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   //     Check for errors
   //
 #ifdef SLEDGE_THROW
-  unsigned bad = 0;		// Count non-zero iflag
+  unsigned bad = 0;		// Count non-zero sledge flags
   for (int i=0; i<N; i++) {
     if (iflag[i] != 0) bad++;
   }
 
   std::ostringstream sout;	// Exception message
 
+  // Print info and throw exception if we have errors...
   if (bad>0) {
 
     if (myid==0) {
@@ -1601,6 +1607,8 @@ void SLGridCyl::compute_table_worker(void)
 
     std::ostringstream sout;	// Runtime exception message
 
+    // Print info if we have errors.  Number of errors will be sent to
+    // and accumulated by the root node.
     if (bad>0) {
       std::cout.precision(6);
       std::cout.setf(ios::scientific);
@@ -1711,6 +1719,7 @@ void SLGridCyl::compute_table_worker(void)
     table.k = K;
   
 #ifdef SLEDGE_THROW
+    // Send the failure code to the root
     MPI_Send(&bad, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
 #endif
 
@@ -1967,7 +1976,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
       
       mpi_setup();
       
-      int totbad = 0;
+      int totbad = 0;		// Count total number of sledge errors
 
       if (mpi_myid) {		// Begin workers
 	compute_table_worker();
@@ -2019,7 +2028,8 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	    //
 	    
 #ifdef SLEDGE_THROW
-	    int bad;
+	    int bad;		// Get the sledge error count from a
+				// worker
 	    MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
 		     MPI_COMM_WORLD, &status);
 	    totbad += bad;
@@ -2057,7 +2067,8 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
       
 	while (worker) {
 #ifdef SLEDGE_THROW
-	  int bad;
+	  int bad;		// Get the sledge error count from a
+				// worker
 	  MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
 		   MPI_COMM_WORLD, &status);
 	  totbad += bad;
@@ -2098,8 +2109,10 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
       // END Root
 
 #ifdef SLEDGE_THROW
+      // Share the total sledge error count with all nodes
       MPI_Bcast(&totbad, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+      // Emit runtime exception on sledge errors
       if (totbad) {
 	std::ostringstream sout;
 
@@ -2849,14 +2862,15 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   //     Check for errors
   //
 #ifdef SLEDGE_THROW
+  // Accumulate error count
   unsigned bad = 0;
-
   for (int i=0; i<N; i++) {
     if (iflag[i] != 0) bad++;
   }
 
   std::ostringstream sout;
 
+  // Print info if we have errors and throw a runtime error
   if (bad>0) {
 
     if (myid==0) {
@@ -3106,14 +3120,16 @@ void SLGridSph::compute_table_worker(void)
     //     Check for errors
     //
 #ifdef SLEDGE_THROW
+    // Get sledge error count
     unsigned bad = 0;
-
     for (int i=0; i<N; i++) {
       if (iflag[i] != 0) bad++;
     }
     
     std::ostringstream sout;
 
+    // Print info if we have errors.  Number of errors will be sent to
+    // and accumulated by the root node.
     if (bad>0) {
 
       std::cout.precision(6);
@@ -3200,9 +3216,10 @@ void SLGridSph::compute_table_worker(void)
     table.l = L;
   
 #ifdef SLEDGE_THROW
+    // Send sledge error count to root
     MPI_Send(&bad, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
 #endif
-
+    // Send sledge comptuation to root
     int position = mpi_pack_table(&table, L);
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
@@ -3533,7 +3550,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
     mpi_setup();
 
-    int totbad = 0;
+    int totbad = 0;		// Accumulate total sledge error count
 
     if (mpi_myid) {
 
@@ -3595,10 +3612,11 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	    // <Wait and receive>
 	    //
 #ifdef SLEDGE_THROW
-	    int bad;
+	    int bad;		// Get sledge error count
 	    MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_TAG, 10,
 		     MPI_COMM_WORLD, &status);
 	    totbad += bad;
+				// Get sledge comptuation result
 	    int retid = status.MPI_SOURCE;
 	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
 		     MPI_COMM_WORLD, &status);
@@ -3640,10 +3658,12 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	while (worker) {
 	
 #ifdef SLEDGE_THROW
+	  // Get sledge error count
 	  int bad;
 	  MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10, MPI_COMM_WORLD,
 		   &status);
 	  totbad += bad;
+	  // Get sledge computation result
 	  int retid = status.MPI_SOURCE;
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
 		   MPI_COMM_WORLD, &status);
@@ -3685,8 +3705,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
     } // END Root
 
 #ifdef SLEDGE_THROW
+    // Share total sledge error count with all nodes
     MPI_Bcast(&totbad, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+    // Throw runtime error if sledge comtputation has errors
     if (totbad) {
       std::ostringstream sout;
       
@@ -4473,6 +4495,8 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 
   std::ostringstream sout;	// Runtime error message
 
+  // Print info if we have sledge errors and throw a runtime
+  // exception
   if (bad>0) {
 
     if (myid==0) {
@@ -4578,13 +4602,14 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   //     Check for errors
   //
 #ifdef SLEDGE_THROW
-  bad = 0;
+  bad = 0;			// Accumulate sledge error count
   for (int i=0; i<N; i++) {
     if (iflag[i] != 0) bad++;
   }
 
   sout.str("");
 
+  // Print info if we have errors and throw a runtime exception
   if (bad>0) {
 
     if (myid==0) {
@@ -4843,6 +4868,8 @@ void SLGridSlab::compute_table_worker(void)
     
     std::ostringstream sout;	// Runtime error message
 
+    // Print info if we have errors.  Number of errors will be sent to
+    // and accumulated by the root node.
     if (bad>0) {
 
       std::cout.precision(6);
@@ -4931,8 +4958,8 @@ void SLGridSlab::compute_table_worker(void)
     //     Check for errors
     //
 #ifdef SLEDGE_THROW
+    // Accumulate sledge error count
     bad = 0;
-
     for (int i=0; i<N; i++) {
       if (iflag[i] != 0) bad++;
     }
@@ -4941,6 +4968,7 @@ void SLGridSlab::compute_table_worker(void)
 
     if (bad>0) {
 
+      // Print sledge error info and throw runtime exception
       if (myid==0) {
 
 	std::cout.precision(6);
@@ -5034,6 +5062,7 @@ void SLGridSlab::compute_table_worker(void)
     table.ky = KY;
   
 #ifdef SLEDGE_THROW
+    // Send sledge error count to root
     MPI_Send(&bad, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
 #endif
     int position = mpi_pack_table(&table, KX, KY);
