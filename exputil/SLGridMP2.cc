@@ -1321,17 +1321,18 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
       std::cout.precision(6);
       std::cout.setf(ios::scientific);
       std::cout << std::left;
-    
-      std::cout << "Tolerance errors in Sturm-Liouville solver for m="
-		<< std::endl;
+      
+      std::cout	<< std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for m="
+		<< std::endl << std::endl;
 
       std::cout << std::setw(15) << "order"
-		<< std::setw(15) << "ev"
-		<< std::setw(40) << "error"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
 		<< std::endl
 		<< std::setw(15) << "-----"
-		<< std::setw(15) << "-----"
-		<< std::setw(40) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
 		<< std::endl;
 
       for (int i=0; i<N; i++) {
@@ -1340,14 +1341,15 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
 		  << std::setw(40) << sledge_error(iflag[i])
 		  << std::endl;
       }
-      
-      sout << "SLGridCyl found " << bad
-	   << " tolerance errors in computing"
+      std::cout << std::endl;
+
+      sout << std::endl
+	   << "SLGridCyl found " << bad
+	   << " tolerance errors in computing SL solutions." << std::endl
+	   << "We suggest checking your model for sufficient smoothness and"
 	   << std::endl
-	   << "SL solutions. We suggest checking your model for sufficient"
-	   << std::endl
-	   << "smoothness and sufficiently many grid points that the relative"
-	   << std::endl << " difference between field quantities is <= 0.3";
+	   << "sufficiently many grid points that the relative difference"
+	   << std::endl << "between field quantities is <= 0.3";
 
       throw GenericError(sout.str(), __FILE__, __LINE__);
 
@@ -1564,16 +1566,17 @@ void SLGridCyl::compute_table_worker(void)
       std::cout.setf(ios::scientific);
       std::cout << std::left;
     
-      std::cout << "Tolerance errors in Sturm-Liouville solver for m="
-		<< M << " K=" << K << std::endl;
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for m="
+		<< M << " K=" << K << std::endl << std::endl;
 
       std::cout << std::setw(15) << "order"
-		<< std::setw(15) << "ev"
-		<< std::setw(40) << "error"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
 		<< std::endl
 		<< std::setw(15) << "-----"
-		<< std::setw(15) << "-----"
-		<< std::setw(40) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
 		<< std::endl;
       
       for (int i=0; i<N; i++) {
@@ -1582,15 +1585,16 @@ void SLGridCyl::compute_table_worker(void)
 		  << std::setw(40) << sledge_error(iflag[i])
 		  << std::endl;
       }
+      std::cout << std::endl;
       
-      sout << "SLGridCyl found " << bad
-	   << " tolerance errors in computing"
+      sout << std::endl
+	   << "SLGridCyl found " << bad
+	   << " tolerance errors in computing SL solutions" << std::endl
+	   << "We suggest checking your model for sufficient smoothness and"
 	   << std::endl
-	   << "SL solutions. We suggest checking your model for sufficient"
+	   << "sufficiently many grid points that the relative difference"
 	   << std::endl
-	   << "smoothness and sufficiently many grid points that the relative"
-	   << std::endl
-	   << " difference between field quantities is <= 0.3";
+	   << "between field quantities is <= 0.3";
       
       throw GenericError(sout.str(), __FILE__, __LINE__);
     }
@@ -2784,16 +2788,17 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
       std::cout.setf(ios::scientific);
       std::cout << std::left;
     
-      std::cout << "Tolerance errors in Sturm-Liouville solver for l=" << l
-		<<  std::endl;
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for l=" << l
+		<<  std::endl << std::endl;
 
       std::cout << std::setw(15) << "order"
-		<< std::setw(15) << "ev"
-		<< std::setw(40) << "error"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
 		<< std::endl
 		<< std::setw(15) << "-----"
-		<< std::setw(15) << "-----"
-		<< std::setw(40) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
 		<< std::endl;
       
       for (int i=0; i<N; i++) {
@@ -2802,15 +2807,16 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 		  << std::setw(40) << sledge_error(iflag[i])
 		  << std::endl;
       }
+      std::cout << std::endl;
       
-      sout << "SLGridSph found " << bad
-	   << " tolerance errors in computing"
+      sout << std::endl
+	   << "SLGridSph found " << bad
+	   << " tolerance errors in computing SL solutions." << std::endl
+	   << "We suggest checking your model file for smoothness and ensure"
 	   << std::endl
-	   << "SL solutions. We suggest checking your model file for smoothness"
+	   << "a sufficient number grid points that the relative difference"
 	   << std::endl
-	   << "and ensure a sufficient number grid points that the relative"
-	   << std::endl
-	   << "difference between field quantities is <= 0.3";
+	   << "between field quantities is <= 0.3";
 
       throw GenericError(sout.str(), __FILE__, __LINE__);
     }
@@ -3037,16 +3043,17 @@ void SLGridSph::compute_table_worker(void)
       std::cout.setf(ios::scientific);
       std::cout << std::left;
     
-      std::cout << "Tolerance errors in Sturm-Liouville solver for l=" << L
-		<<  std::endl;
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for l=" << L
+		<<  std::endl << std::endl;
 
       std::cout << std::setw(15) << "order"
-		<< std::setw(15) << "ev"
-		<< std::setw(40) << "error"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
 		<< std::endl
 		<< std::setw(15) << "-----"
-		<< std::setw(15) << "-----"
-		<< std::setw(40) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
 		<< std::endl;
       
       for (int i=0; i<N; i++) {
@@ -3055,15 +3062,16 @@ void SLGridSph::compute_table_worker(void)
 		  << std::setw(40) << sledge_error(iflag[i])
 		  << std::endl;
       }
+      std::cout << std::endl;
       
-      sout << "SLGridSph found " << bad
-	   << " tolerance errors in computing"
+      sout << std::endl
+	   << "SLGridSph found " << bad
+	   << " tolerance errors in computing SL solutions." << std::endl
+	   << "We suggest checking your model file for smoothness and for"
 	   << std::endl
-	   << "SL solutions. We suggest checking your model file for smoothness"
+	   << "a sufficient number grid points that the relative difference"
 	   << std::endl
-	   << "and for a sufficient number grid points that the relative"
-	   << std::endl
-	   << "difference between field quantities is <= 0.3";
+	   << "between field quantities is <= 0.3";
       
       throw GenericError(sout.str(), __FILE__, __LINE__);
     }
@@ -4363,16 +4371,17 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
       std::cout.setf(ios::scientific);
       std::cout << std::left;
       
-      std::cout << "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
-		<< " Ky=" << KY << ", even" <<  std::endl;
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+		<< " Ky=" << KY << ", even" <<  std::endl << std::endl;
 
       std::cout << std::setw(15) << "order"
-		<< std::setw(15) << "ev"
-		<< std::setw(40) << "error"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
 		<< std::endl
 		<< std::setw(15) << "-----"
-		<< std::setw(15) << "-----"
-		<< std::setw(40) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
 		<< std::endl;
       
       for (int i=0; i<N; i++) {
@@ -4381,14 +4390,15 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 		  << std::setw(40) << sledge_error(iflag[i])
 		  << std::endl;
       }
+      std::cout << std::endl;
       
-      sout << "SLGridSph found " << bad
-	   << " tolerance errors in computing"
+      sout << std::endl
+	   << "SLGridSph found " << bad
+	   << " tolerance errors in computing SL solutions." << std::endl
+	   << "We suggest checking your model parameters to ensure a"
 	   << std::endl
-	   << "SL solutions. We suggest checking your model parameters to"
-	   << std::endl
-	   << "ensure a sufficient number of grid points that the relative"
-	   << std::endl << "difference between field quantities is <= 0.3";
+	   << "sufficient number of grid points that the relative difference"
+	   << std::endl << "between field quantities is <= 0.3";
 
       throw GenericError(sout.str(), __FILE__, __LINE__);
     } else {
@@ -4473,16 +4483,17 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
       std::cout.setf(ios::scientific);
       std::cout << std::left;
     
-      std::cout << "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
 		<< " Ky=" << KY << ", odd" <<  std::endl;
 
       std::cout << std::setw(15) << "order"
-		<< std::setw(15) << "ev"
-		<< std::setw(40) << "error"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
 		<< std::endl
 		<< std::setw(15) << "-----"
-		<< std::setw(15) << "-----"
-		<< std::setw(40) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
 		<< std::endl;
       
       for (int i=0; i<N; i++) {
@@ -4491,14 +4502,14 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 		  << std::setw(40) << sledge_error(iflag[i])
 		  << std::endl;
       }
+      std::cout << std::endl;
       
-      sout << "SLGridSph found " << bad
-	   << " tolerance errors in computing"
+      sout << std::endl << "SLGridSph found " << bad
+	   << " tolerance errors in computing SL solutions." << std::endl
+	   << "We suggest checking your model parameters to ensure a"
 	   << std::endl
-	   << "SL solutions. We suggest checking your model parameters to"
-	   << std::endl
-	   << "ensure a sufficient number of grid points that the relative"
-	   << std::endl << "difference between field quantities is <= 0.3";
+	   << "sufficient number of grid points that the relative difference"
+	   << std::endl << "between field quantities is <= 0.3";
 
       throw GenericError(sout.str(), __FILE__, __LINE__);
     } else {
@@ -4728,16 +4739,17 @@ void SLGridSlab::compute_table_worker(void)
       std::cout.setf(ios::scientific);
       std::cout << std::left;
     
-      std::cout << "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
-	      << " Ky=" << KY << ", even" <<  std::endl;
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+		<< " Ky=" << KY << ", even" <<  std::endl << std::endl;
 
       std::cout << std::setw(15) << "order"
-		<< std::setw(15) << "ev"
-		<< std::setw(40) << "error"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
 		<< std::endl
 		<< std::setw(15) << "-----"
-		<< std::setw(15) << "-----"
-		<< std::setw(40) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
 		<< std::endl;
 
       for (int i=0; i<N; i++) {
@@ -4746,14 +4758,14 @@ void SLGridSlab::compute_table_worker(void)
 		  << std::setw(40) << sledge_error(iflag[i])
 		  << std::endl;
       }
+      std::cout << std::endl;
       
-      sout << "SLGridSlab found " << bad
-	   << " tolerance errors in computing"
+      sout << std::endl << "SLGridSlab found " << bad
+	   << " tolerance errors in computing SL solutions." << std::endl
+	   << "We suggest checking your model parameters to ensure a"
 	   << std::endl
-	   << "SL solutions. We suggest checking your model parameters to"
-	   << std::endl
-	   << "ensure a sufficient number of grid points that the relative"
-	   << std::endl << "difference between field quantities is <= 0.3";
+	   << "sufficient number of grid points that the relative difference"
+	   << std::endl << "between field quantities is <= 0.3";
 
     throw GenericError(sout.str(), __FILE__, __LINE__);
   }
@@ -4834,16 +4846,17 @@ void SLGridSlab::compute_table_worker(void)
 	std::cout.setf(ios::scientific);
 	std::cout << std::left;
     
-	std::cout << "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
-		  << " Ky=" << KY << ", odd" <<  std::endl;
+	std::cout << std::endl
+		  << "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+		  << " Ky=" << KY << ", odd" <<  std::endl << std::endl;
 
 	std::cout << std::setw(15) << "order"
-		  << std::setw(15) << "ev"
-		  << std::setw(40) << "error"
+		  << std::setw(15) << "eigenvalue"
+		  << std::setw(40) << "condition"
 		  << std::endl
 		  << std::setw(15) << "-----"
-		  << std::setw(15) << "-----"
-		  << std::setw(40) << "---"
+		  << std::setw(15) << "----------"
+		  << std::setw(40) << "---------"
 		  << std::endl;
 	
 	for (int i=0; i<N; i++) {
@@ -4852,14 +4865,14 @@ void SLGridSlab::compute_table_worker(void)
 		    << std::setw(40) << sledge_error(iflag[i])
 		    << std::endl;
 	}
+	std::cout << std::endl;
       
-	sout << "SLGridSlab found " << bad
-	     << " tolerance errors in computing"
+	sout << std::endl << "SLGridSlab found " << bad
+	     << " tolerance errors in computing SL solutions" << std::endl
+	     << "We suggest checking your model parameters to ensure a"
 	     << std::endl
-	     << "SL solutions. We suggest checking your model parameters to"
-	     << std::endl
-	     << "ensure a sufficient number of grid points that the relative"
-	     << std::endl << "difference between field quantities is <= 0.3";
+	     << "sufficient number of grid points that the relative difference"
+	     << std::endl << "between field quantities is <= 0.3";
 
 	throw GenericError(sout.str(), __FILE__, __LINE__);
       } else {
