@@ -415,7 +415,7 @@ namespace MSSA {
 	size_t map_size  = mean.size();
 
 	auto u = mean.begin();
-	std::advance(u, thread_num);
+	for (int i=0; i<thread_num and u!=mean.end(); i++) u++;
 
 	for (int q=thread_num; q<map_size; q+=thread_count) {
 
