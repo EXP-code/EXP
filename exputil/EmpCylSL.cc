@@ -1602,7 +1602,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	      -efE(nn, v) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
 	    if (DENS) 
-	      tdens[v](ix, iy) +=  efE(nn, v) * dens;
+	      tdens[v](ix, iy) +=  efE(nn, v) * dens * 0.25/M_PI;
 	  }
 	}
       }
@@ -6912,7 +6912,10 @@ std::vector<Eigen::MatrixXd> EmpCylSL::orthoCheck()
 	
 	// Combine sines and cosines
 	//
-	ret[mm](n1, n2) = sqrt(0.5*(sumC*sumC + sumS*sumS));
+	if (mm==0)
+	  ret[mm](n1, n2) = sumC;
+	else
+	  ret[mm](n1, n2) = sqrt(0.5*(sumC*sumC + sumS*sumS));
       }
     }
   } else {
