@@ -101,6 +101,18 @@ namespace BasisClasses
     //! Using MPI
     bool use_mpi;
 
+    //! Test the orthogonality of the basis (for all derived classes)
+    void orthoTest(const std::vector<Eigen::MatrixXd>&);
+
+    //! Sanity tolerance for orthogonality
+    static constexpr double orthoTol = 1.0e-2;
+
+    //! Return readable class name
+    virtual const std::string classname() = 0;
+
+    //! Subspace index
+    virtual const std::string harmonic() = 0;
+
   public:
     
     //! Constructor from YAML node
@@ -240,6 +252,12 @@ namespace BasisClasses
     //! Valid keys for YAML configurations
     static const std::set<std::string> valid_keys;
 
+    //! Return readable class name
+    virtual const std::string classname() { return "SphericalSL";}
+
+    //! Subspace index
+    virtual const std::string harmonic() { return "l";}
+
   public:
     
     //! Constructor from YAML node
@@ -362,6 +380,12 @@ namespace BasisClasses
 
     //! Valid keys for YAML configurations
     static const std::set<std::string> valid_keys;
+
+    //! Return readable class name
+    virtual const std::string classname() { return "FlatDisk";}
+
+    //! Subspace index
+    virtual const std::string harmonic() { return "m";}
 
   public:
     
@@ -492,6 +516,12 @@ namespace BasisClasses
 
     //! Valid keys for YAML configurations
     static const std::set<std::string> valid_keys;
+
+    //! Return readable class name
+    virtual const std::string classname() { return "Cylindrical";}
+
+    //! Subspace index
+    virtual const std::string harmonic() { return "m";}
 
   public:
     

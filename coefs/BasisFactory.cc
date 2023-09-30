@@ -90,6 +90,60 @@ namespace BasisClasses
 
   }
   
+  void Basis::orthoTest(const std::vector<Eigen::MatrixXd>& tests)
+  {
+    // Number of possible threads
+    int nthrds = omp_get_max_threads();
+
+    // Worst so far
+    std::vector<double> worst(nthrds), lworst(tests.size());;
+
+    // Rank
+    int nmax = tests[0].rows();
+
+    // Test loop
+    for (int l=0; l<tests.size(); l++) {
+
+      // Initialize test array
+      std::fill(worst.begin(), worst.end(), 0.0);
+
+#pragma omp parallel for
+      for (int nn=0; nn<nmax*nmax; nn++) {
+	int tid = omp_get_thread_num();
+	int  n1 = nn/nmax;
+	int  n2 = nn - n1*nmax;
+
+	if (n1==n2)
+	  worst[tid] = std::max<double>(worst[tid],
+					fabs(1.0 - tests[l](n1, n2)));
+	else
+	  worst[tid] = std::max<double>(worst[tid],
+					fabs(tests[l](n1, n2)));
+      }
+      // END: unrolled loop
+
+      lworst[l] = *std::max_element(worst.begin(), worst.end());
+    }
+    // END: harmonic order loop
+
+    double worst_ever = *std::max_element(lworst.begin(), lworst.end());
+
+    if (worst_ever > orthoTol) {
+      std::cout << classname() << ": orthogonality failure" << std::endl
+		<< std::right
+		<< std::setw(4) << harmonic() << std::setw(16) << "Worst" << std::endl;
+      for (int l=0; l<tests.size(); l++) {
+	std::cout << std::setw(4) << l << std::setw(16) << lworst[l] << std::endl;
+      }
+
+      throw std::runtime_error(classname() + ": biorthogonal sanity check");
+    } else {
+      if (myid==0) 
+	std::cout << classname() + ": biorthogonal check passed" << std::endl;
+    }
+  }
+
+
   const std::set<std::string>
   SphericalSL::valid_keys = {
     "rs",
@@ -260,6 +314,9 @@ namespace BasisClasses
       (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rs,
        0, 1, cachename);
     
+    // Test basis for consistency
+    orthoTest(orthoCheck(std::max<int>(nmax*5, 100)));
+
     // Number of possible threads
     int nthrds = omp_get_max_threads();
     
@@ -661,7 +718,6 @@ namespace BasisClasses
     return ret;
   }
 
-  
   SphericalSL::BasisArray SphericalSL::getBasis
   (double logxmin, double logxmax, int numgrid)
   {
@@ -1089,7 +1145,6 @@ namespace BasisClasses
 
       if (conf["ashift"    ])     ashift  = conf["ashift"    ].as<double>();
       if (conf["logr"      ]) logarithmic = conf["logr"      ].as<bool>();
-      if (conf["density"   ])    density  = conf["density"   ].as<bool>();
       if (conf["EVEN_M"    ])     EVEN_M  = conf["EVEN_M"    ].as<bool>();
       if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
       if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
@@ -1108,6 +1163,14 @@ namespace BasisClasses
       if (conf["mtype"     ])       mtype = conf["mtype"     ].as<std::string>();
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
+
+      // Deprecation warning
+      if (conf["density"   ]) {
+	if (myid==0)
+	  std::cout << "Cylindrical: parameter 'density' is deprecated. "
+		    << "The density field will be computed regardless."
+		    << std::endl;
+      }
 
     }
     catch (YAML::Exception & error) {
@@ -1275,7 +1338,12 @@ namespace BasisClasses
 
       sl->generate_eof(rnum, pnum, tnum, f);
     }
+
+    // Orthogonality sanity check
+    //
+    orthoTest(orthoCheck());
   }
+
   
   void Cylindrical::getFields
   (double x, double y, double z,
@@ -1553,6 +1621,10 @@ namespace BasisClasses
     //
     ortho = std::make_shared<BiorthCyl>(conf);
     
+    // Orthogonality sanity check
+    //
+    orthoTest(orthoCheck());
+
     // Get max threads
     //
     int nthrds = omp_get_max_threads();
@@ -1881,6 +1953,7 @@ namespace BasisClasses
     return ortho->orthoCheck();
   }
   
+
   FlatDisk::BasisArray FlatDisk::getBasis
   (double logxmin, double logxmax, int numgrid)
   {
