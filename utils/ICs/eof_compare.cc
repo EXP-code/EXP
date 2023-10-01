@@ -94,7 +94,6 @@ main(int argc, char **argv)
   EmpCylSL::NUMY        = 64;
   EmpCylSL::CMAPR       = 1;
   EmpCylSL::CMAPZ       = 1;
-  EmpCylSL::DENS        = true;
   EmpCylSL::VFLAG       = 26;
 
   EmpCylSL test1(nmax, lmax, mmax, norder, acyl, hcyl, nodd, eof1);

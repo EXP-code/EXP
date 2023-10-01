@@ -251,8 +251,6 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
 
-  bool DENS = false;
-  
   // ==================================================
   // Read basis cache
   // ==================================================
@@ -308,7 +306,6 @@ main(int argc, char **argv)
       numy    = node["numy"  ].as<int>();
       nmax    = node["nmax"  ].as<int>();
       norder  = node["norder"].as<int>();
-      DENS    = node["dens"  ].as<bool>();
       if (node["nodd"])
 	nodd  = node["nodd"  ].as<int>();
       if (node["cmap"])
@@ -340,8 +337,6 @@ main(int argc, char **argv)
       in.read((char *)&rcylmax, sizeof(double));
       in.read((char *)&rscale,  sizeof(double));
       in.read((char *)&vscale,  sizeof(double));
-
-      if (tmp) DENS = true;
     }
   }
 
@@ -352,7 +347,6 @@ main(int argc, char **argv)
   EmpCylSL::CMAPR       = cmapr;
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = true;
-  EmpCylSL::DENS        = DENS;
 
   // Create expansion instance
   //

@@ -304,7 +304,6 @@ main(int ac, char **av)
   int          NMAX;
   int          NCYLODD;
   double       PPower;
-  bool         DENS;
   std::string  cachefile;
   std::string  config;
   std::string  dtype;
@@ -349,8 +348,6 @@ main(int ac, char **av)
      cxxopts::value<bool>(expcond)->default_value("true"))
     ("LOGR", "Logarithmic scaling for model table in EmpCylSL",
      cxxopts::value<bool>(LOGR)->default_value("true"))
-    ("DENS", "Compute and cache basis density field",
-     cxxopts::value<bool>(DENS)->default_value("true"))
     ("RCYLMIN", "Minimum disk radius for EmpCylSL",
      cxxopts::value<double>(RCYLMIN)->default_value("0.001"))
     ("RCYLMAX", "Maximum disk radius for EmpCylSL",
@@ -546,7 +543,6 @@ main(int ac, char **av)
   EmpCylSL::CMAPZ       = CMAPZ;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
-  EmpCylSL::DENS        = DENS;
 
                                 // Create expansion only if needed . . .
   std::shared_ptr<EmpCylSL> expandd;

@@ -62,7 +62,7 @@ main(int argc, char **argv)
 {
   int numx, numy, lmax=36, mmax, nmax, norder, cmapr, cmapz, numr, nodd=-1;
   double rcylmin, rcylmax, rscale, vscale, RMAX, Tmin, Tmax, dT, H, eps;
-  bool DENS, verbose = false, mask = false, ignore, logl;
+  bool verbose = false, mask = false, ignore, logl;
   std::string CACHEFILE, COEFFILE, COEFFILE2, MODEL, OUTFILE, fileType, filePrefix;
 
   // ==================================================
@@ -200,7 +200,6 @@ main(int argc, char **argv)
       numy    = node["numy"  ].as<int>();
       nmax    = node["nmax"  ].as<int>();
       norder  = node["norder"].as<int>();
-      DENS    = node["dens"  ].as<bool>();
       if (node["nodd"])
 	nodd  = node["nodd"  ].as<int>();
       if (node["cmap"])
@@ -226,7 +225,7 @@ main(int argc, char **argv)
       in.read((char *)&numy,    sizeof(int));
       in.read((char *)&nmax,    sizeof(int));
       in.read((char *)&norder,  sizeof(int));
-      in.read((char *)&DENS,    sizeof(int)); 
+      in.read((char *)&tmp,     sizeof(int)); 
       in.read((char *)&cmapr,   sizeof(int)); 
       in.read((char *)&rcylmin, sizeof(double));
       in.read((char *)&rcylmax, sizeof(double));
@@ -242,7 +241,6 @@ main(int argc, char **argv)
   EmpCylSL::CMAPR       = cmapr;
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = logl;
-  EmpCylSL::DENS        = DENS;
 
 				// Create expansion
 				//

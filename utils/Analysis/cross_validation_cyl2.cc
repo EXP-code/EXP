@@ -286,7 +286,6 @@ main(int argc, char **argv)
 
   int mmax, numx, numy, norder, cmapr, cmapz, nodd=-1;
   double rcylmin, rcylmax, vscale;
-  bool DENS;
 
   if (not ignore) {
 
@@ -343,7 +342,6 @@ main(int argc, char **argv)
 	numy    = node["numy"  ].as<int>();
 	NMAX    = node["nmax"  ].as<int>();
 	norder  = node["norder"].as<int>();
-	DENS    = node["dens"  ].as<bool>();
 	if (node["nodd"])
 	  nodd  = node["nodd"  ].as<int>();
 	if (node["cmap"])
@@ -375,8 +373,6 @@ main(int argc, char **argv)
 	in.read((char *)&rcylmax, sizeof(double));
 	in.read((char *)&rscale,  sizeof(double));
 	in.read((char *)&vscale,  sizeof(double));
-
-	if (idens) DENS = true;
       }
     }
   }
@@ -388,7 +384,6 @@ main(int argc, char **argv)
   EmpCylSL::CMAPR       = cmapr;
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = LOG;
-  EmpCylSL::DENS        = DENS;
   EmpCylSL::PCAVAR      = true;
   EmpCylSL::PCADRY      = true;
 

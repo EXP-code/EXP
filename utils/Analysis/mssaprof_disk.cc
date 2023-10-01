@@ -401,7 +401,7 @@ main(int argc, char **argv)
 
   int lmax=36, stride=1;
   double rcylmin, rcylmax, rscale, vscale;
-  bool DENS, verbose = false, mask = false;
+  bool verbose = false, mask = false;
   std::string CACHEFILE, coeffile, config;
 
   cxxopts::Options options(argv[0], overview);
@@ -509,7 +509,6 @@ main(int argc, char **argv)
   // ==================================================
 
   int mmax, numx, numy, nmax, norder, cmapr=1, cmapz=1, tmp, nodd=-1;
-  bool dens=false;
   double rmin, rmax, ascl, hscl;
 
   // Open EOF cachefile
@@ -563,7 +562,6 @@ main(int argc, char **argv)
     numy    = node["numy"  ].as<int>();
     nmax    = node["nmax"  ].as<int>();
     norder  = node["norder"].as<int>();
-    dens    = node["dens"  ].as<bool>();
     if (node["nodd"])
       nodd  = node["nodd"  ].as<int>();
     if (node["cmap"])
@@ -587,7 +585,7 @@ main(int argc, char **argv)
     in.read((char *)&numy,   sizeof(int));
     in.read((char *)&nmax,   sizeof(int));
     in.read((char *)&norder, sizeof(int));
-    in.read((char *)&dens,   sizeof(int));    if (tmp) dens = true;
+    in.read((char *)&tmp,    sizeof(int));
     in.read((char *)&cmapr,  sizeof(int));
     in.read((char *)&rmin,   sizeof(double));
     in.read((char *)&rmax,   sizeof(double));
@@ -602,7 +600,6 @@ main(int argc, char **argv)
   EmpCylSL::CMAPR       = cmapr;
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = true;
-  EmpCylSL::DENS        = dens;
 
 				// Create expansion
 				//
