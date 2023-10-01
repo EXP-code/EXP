@@ -961,14 +961,14 @@ namespace BasisClasses
     ncylnx      = 256;
     ncylny      = 128;
     ncylodd     = 9;
-    ncylr       = 200;
+    ncylr       = 2000;
     eof_file    = ".eof_cache_file";
     Ignore      = false;
     deproject   = false;
     
-    rnum        = 100;
+    rnum        = 200;
     pnum        = 1;
-    tnum        = 40;
+    tnum        = 80;
     ashift      = 0.0;
     logarithmic = false;
     density     = true;
