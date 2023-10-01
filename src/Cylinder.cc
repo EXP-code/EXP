@@ -375,7 +375,8 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   }
 #endif
       
-  // Test for basis consistency
+  // Test for basis consistency (will generate an exception if maximum
+  // error is out of tolerance)
   //
   std::cout << "---- ";
   orthoTest(ortho->orthoCheck(), "Cylinder", "m");

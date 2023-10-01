@@ -86,10 +86,11 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   }
 
 
-  // Test for basis consistency
+  // Test for basis consistency (will generate an exception if maximum
+  // error is out of tolerance)
   //
   std::cout << "---- ";
-  orthoTest(ortho->orthoCheck(std::max<int>(nmax*5, 100)), "Sphere", "l");
+  orthoTest(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
 
   setup();
 }
@@ -325,10 +326,11 @@ void Sphere::make_model_bin()
   std::string cachename = outdir  + cache_file + "." + runtag;
   ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0, cachename);
 
-  // Test for basis consistency
+  // Test for basis consistency (will generate an exception if maximum
+  // error is out of tolerance)
   //
   std::cout << "---- ";
-  orthoTest(ortho->orthoCheck(std::max<int>(nmax*5, 100)), "Sphere", "l");
+  orthoTest(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
 
   // Update time trigger
   //
@@ -470,10 +472,11 @@ void Sphere::make_model_plummer()
   std::string cachename = outdir  + cache_file + "." + runtag;
   ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numr, Rmin, Rmax, false, 1, 1.0, cachename);
 
-  // Test for basis consistency
+  // Test for basis consistency (will generate an exception if maximum
+  // error is out of tolerance)
   //
   std::cout << "---- ";
-  orthoTest(ortho->orthoCheck(std::max<int>(nmax*5, 100)), "Sphere", "l");
+  orthoTest(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
 
   // Update time trigger
   //

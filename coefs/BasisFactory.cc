@@ -262,7 +262,7 @@ namespace BasisClasses
        0, 1, cachename);
     
     // Test basis for consistency
-    orthoTest(orthoCheck(std::max<int>(nmax*5, 100)), classname(), harmonic());
+    orthoTest(orthoCheck(std::max<int>(nmax*50, 200)), classname(), harmonic());
 
     // Number of possible threads
     int nthrds = omp_get_max_threads();
