@@ -16,6 +16,10 @@ Timer timer_debug;
 
 double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
 
+extern void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
+		      const std::string& classname,
+		      const std::string& indexname);
+
 //@{
 //! These are for testing exclusively (should be set false for production)
 static bool cudaAccumOverride = false;
@@ -212,6 +216,10 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ortho = std::make_shared<CylEXP>
     (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
   
+  // Test for basis consistency
+  //
+  orthoTest(ortho->orthoCheck(), "Cylinder", "m");
+
   // Set azimuthal harmonic order restriction?
   //
   if (mlim>=0)  ortho->set_mlim(mlim);

@@ -8,6 +8,10 @@
 #include <plummer.H>
 #include <interp.H>
 
+extern void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
+		      const std::string& classname,
+		      const std::string& indexname);
+
 const std::set<std::string>
 Sphere::valid_keys = {
   "rs",
@@ -318,6 +322,10 @@ void Sphere::make_model_bin()
   //
   std::string cachename = outdir  + cache_file + "." + runtag;
   ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0, cachename);
+
+  // Test for basis consistency
+  //
+  orthoTest(ortho->orthoCheck(std::max<int>(nmax*5, 100)), "Sphere", "l");
 
   // Update time trigger
   //
