@@ -58,7 +58,7 @@ private:
   double rmin, rmax, l;
 
   int cmap;
-  double scale;
+  double rs;
 
   double dk;
 
@@ -108,7 +108,7 @@ public:
 
   //! Constructor
   SLGridCyl(int mmax, int nmax, int numr, int numk, double rmin, double rmax,
-	    double l, bool cache, int Cmap, double Scale,
+	    double l, bool cache, int Cmap, double RS,
 	    const std::string type, bool Verbose=false);
 
   //! Destructor
@@ -180,7 +180,7 @@ private:
   double rmin, rmax;
 
   int cmap, diverge;
-  double scale, dfac;
+  double rs, dfac;
 
   double xmin, xmax, dxi;
 
@@ -193,7 +193,7 @@ private:
 
   void initialize(int LMAX, int NMAX, int NUMR,
 		  double RMIN, double RMAX, 
-		  bool CACHE, int CMAP, double SCALE);
+		  bool CACHE, int CMAP, double RS);
 
   void init_table(void);
   void compute_table(TableSph* table, int L);
@@ -248,14 +248,14 @@ public:
   //! Constructor with model table
   SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 	    int lmax, int nmax, int numr, double rmin, double rmax,
-	    bool cache, int Cmap, double Scale,
+	    bool cache, int Cmap, double RS,
 	    std::string cachename="",
 	    bool Verbose=false);
 
   //! Constructor (uses file *model_file_name* for file)
   SLGridSph(std::string modelname,
 	    int lmax, int nmax, int numr, double rmin, double rmax,
-	    bool cache, int Cmap, double Scale, 
+	    bool cache, int Cmap, double RS, 
 	    int DIVERGE, double DFAC,
 	    std::string cachename="",
 	    bool Verbose=false);
@@ -315,7 +315,7 @@ public:
   {
     cudaMappingConstants ret;
 
-    ret.rscale = scale;
+    ret.rscale = rs;
     ret.hscale = 0.0;
     ret.xmin   = xmin;
     ret.xmax   = xmax;

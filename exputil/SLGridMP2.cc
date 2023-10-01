@@ -201,7 +201,7 @@ void SLGridCyl::bomb(std::string oops)
 
 SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK, 
 		     double RMIN, double RMAX, double L, 
-		     bool CACHE, int CMAP, double SCALE,
+		     bool CACHE, int CMAP, double RS,
 		     const std::string type, bool VERBOSE)
 {
   int m, k;
@@ -217,7 +217,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
   cache = CACHE;
   cmap  = CMAP;
-  scale = SCALE;
+  rs    = RS;
 
   tbdbg = VERBOSE;
 
@@ -458,7 +458,7 @@ int SLGridCyl::read_cached_table(void)
   if (!in) return 0;
 
   int MMAX, NMAX, NUMR, NUMK, i, j, CMAP;
-  double RMIN, RMAX, L, AA, SCL;
+  double RMIN, RMAX, L, AA, RS;
   std::string MODEL;
 
   if (myid==0)
@@ -505,7 +505,7 @@ int SLGridCyl::read_cached_table(void)
     CMAP     = node["cmap"   ].as<int>();
     RMIN     = node["rmin"   ].as<double>();
     RMAX     = node["rmax"   ].as<double>();
-    SCL      = node["scale"  ].as<double>();
+    RS       = node["rs"     ].as<double>();
     L        = node["L"      ].as<double>();
     AA       = node["A"      ].as<double>();
     MODEL    = node["model"  ].as<std::string>();
@@ -564,10 +564,10 @@ int SLGridCyl::read_cached_table(void)
     return 0;
   }
 
-  if (SCL!=scale) {
+  if (RS!=rs) {
     if (myid==0)
-      std::cout << "---- SLGridCyl::read_cached_table: found scale=" << SCL
-		<< " wanted " << scale << std::endl;
+      std::cout << "---- SLGridCyl::read_cached_table: found rs=" << RS
+		<< " wanted " << rs << std::endl;
     return 0;
   }
 
@@ -647,7 +647,7 @@ void SLGridCyl::write_cached_table(void)
   node["cmap"   ] = cmap;
   node["rmin"   ] = rmin;
   node["rmax"   ] = rmax;
-  node["scale"  ] = scale;
+  node["rs"     ] = rs;
   node["L"      ] = l;
   node["A"      ] = A;
   node["model"  ] = cyl->ID();
@@ -714,7 +714,7 @@ double SLGridCyl::r_to_xi(double r)
   }
 
   if (cmap) {
-    return (r/scale-1.0)/(r/scale+1.0);
+    return (r/rs-1.0)/(r/rs+1.0);
   } else {
     return r;
   }
@@ -735,7 +735,7 @@ double SLGridCyl::xi_to_r(double xi)
       bomb(ostr.str());
     }
 
-    return (1.0+xi)/(1.0 - xi) * scale;
+    return (1.0+xi)/(1.0 - xi) * rs;
   } else {
     return xi;
   }
@@ -757,7 +757,7 @@ double SLGridCyl::d_xi_to_r(double xi)
       bomb(ostr.str());
     }
     
-    return 0.5*(1.0-xi)*(1.0-xi)/scale;
+    return 0.5*(1.0-xi)*(1.0-xi)/rs;
   } else {
     return 1.0;
   }
@@ -1267,9 +1267,9 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4*scale,1.0e-5,  
-		   1.0e-4*scale,1.0e-5,  
-		   1.0e-4*scale,1.0e-5};
+  double tol[6] = {1.0e-4*rs,1.0e-5,  
+		   1.0e-4*rs,1.0e-5,  
+		   1.0e-4*rs,1.0e-5};
   int VERBOSE=0;
   integer NUM, N, M;
   logical type[8];
@@ -1472,8 +1472,8 @@ void SLGridCyl::init_table(void)
   d0.resize(numr);
 
   if (cmap) {
-    xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
-    xmax = (rmax/scale - 1.0)/(rmax/scale + 1.0);
+    xmin = (rmin/rs - 1.0)/(rmin/rs + 1.0);
+    xmax = (rmax/rs - 1.0)/(rmax/rs + 1.0);
     dxi = (xmax-xmin)/(numr-1);
   } else {
     xmin = rmin;
@@ -1495,9 +1495,9 @@ void SLGridCyl::compute_table_worker(void)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4*scale,1.0e-5,  
-		   1.0e-4*scale,1.0e-5, 
-		   1.0e-4*scale,1.0e-5};
+  double tol[6] = {1.0e-4*rs,1.0e-5,  
+		   1.0e-4*rs,1.0e-5, 
+		   1.0e-4*rs,1.0e-5};
   int i, j, VERBOSE=0;
   integer NUM;
   logical type[8];
@@ -1876,7 +1876,7 @@ void SLGridSph::bomb(string oops)
 SLGridSph::SLGridSph(std::string modelname,
 		     int LMAX, int NMAX, int NUMR,
 		     double RMIN, double RMAX, 
-		     bool CACHE, int CMAP, double SCALE,
+		     bool CACHE, int CMAP, double RS,
 		     int DIVERGE, double DFAC,
 		     std::string cachename, bool VERBOSE)
 {
@@ -1892,12 +1892,12 @@ SLGridSph::SLGridSph(std::string modelname,
   diverge  = DIVERGE;
   dfac     = DFAC;
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, RS);
 }
 
 SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 		     int LMAX, int NMAX, int NUMR, double RMIN, double RMAX, 
-		     bool CACHE, int CMAP, double SCALE,
+		     bool CACHE, int CMAP, double RS,
 		     std::string cachename, bool VERBOSE)
 {
   mpi_buf  = 0;
@@ -1909,7 +1909,7 @@ SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
   if (cachename.size()) sph_cache_name  = cachename;
   else                  sph_cache_name  = default_cache;
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, RS);
 }
 
 
@@ -1939,7 +1939,7 @@ SLGridSph::cacheInfo(const std::string& cachefile, bool verbose)
 
 void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 			   double RMIN, double RMAX, 
-			   bool CACHE, int CMAP, double SCALE)
+			   bool CACHE, int CMAP, double RS)
 {
   int l;
 
@@ -1952,7 +1952,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
   cache = CACHE;
   cmap  = CMAP;
-  scale = SCALE;
+  rs    = RS;
 
   init_table();
 
@@ -2258,7 +2258,7 @@ bool SLGridSph::ReadH5Cache(void)
     if (not checkInt(cmap,     "cmap"))      return false;
     if (not checkDbl(rmin,     "rmin"))      return false;
     if (not checkDbl(rmax,     "rmax"))      return false;
-    if (not checkDbl(scale,    "scale"))     return false;
+    if (not checkDbl(rs,       "rs"))        return false;
     if (not checkInt(diverge,  "diverge"))   return false;
     if (not checkDbl(dfac,     "dfac"))      return false;
 
@@ -2349,7 +2349,7 @@ void SLGridSph::WriteH5Cache(void)
     file.createAttribute<int>         ("cmap",     HighFive::DataSpace::From(cmap)).write(cmap);
     file.createAttribute<double>      ("rmin",     HighFive::DataSpace::From(rmin)).write(rmin);
     file.createAttribute<double>      ("rmax",     HighFive::DataSpace::From(rmax)).write(rmax);
-    file.createAttribute<double>      ("scale",    HighFive::DataSpace::From(scale)).write(scale);
+    file.createAttribute<double>      ("rs",       HighFive::DataSpace::From(rs)).write(rs);
     file.createAttribute<int>         ("diverge",  HighFive::DataSpace::From(diverge)).write(diverge);
     file.createAttribute<double>      ("dfac",     HighFive::DataSpace::From(dfac)).write(dfac);
       
@@ -2391,7 +2391,7 @@ double SLGridSph::r_to_xi(double r)
 
   if (cmap==1) {
     if (r<0.0) bomb("radius < 0!");
-    ret =  (r/scale-1.0)/(r/scale+1.0);
+    ret =  (r/rs-1.0)/(r/rs+1.0);
   } else if (cmap==2) {
     if (r<=0.0) bomb("radius <= 0!");
     ret = log(r);
@@ -2410,7 +2410,7 @@ double SLGridSph::xi_to_r(double xi)
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
-    ret =(1.0+xi)/(1.0 - xi) * scale;
+    ret =(1.0+xi)/(1.0 - xi) * rs;
   } else if (cmap==2) {
     ret = exp(xi);
   } else {
@@ -2430,7 +2430,7 @@ double SLGridSph::d_xi_to_r(double xi)
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
-    ret = 0.5*(1.0-xi)*(1.0-xi)/scale;
+    ret = 0.5*(1.0-xi)*(1.0-xi)/rs;
   } else if (cmap==2) {
     ret = exp(-xi);
   } else {
@@ -2781,9 +2781,9 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4*scale,1.0e-6,  
-		   1.0e-4*scale,1.0e-6,  
-		   1.0e-4*scale,1.0e-6};
+  double tol [6] = {1.0e-4*rs, 1.0e-6,  
+                    1.0e-4*rs, 1.0e-6,  
+		    1.0e-4*rs, 1.0e-6};
   int VERBOSE=0;
   integer NUM, N;
   logical type[8] = {0, 0, 1, 0, 0, 0, 1, 0};
@@ -2992,8 +2992,8 @@ void SLGridSph::init_table(void)
   d0.resize(numr);
 
   if (cmap==1) {
-    xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
-    xmax = (rmax/scale - 1.0)/(rmax/scale + 1.0);
+    xmin = (rmin/rs - 1.0)/(rmin/rs + 1.0);
+    xmax = (rmax/rs - 1.0)/(rmax/rs + 1.0);
   }
   else if (cmap==2) {
     xmin = log(rmin);
@@ -3018,9 +3018,9 @@ void SLGridSph::compute_table_worker(void)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-1*scale,1.0e-6,  
-		   1.0e-1*scale,1.0e-6,  
-		   1.0e-1*scale,1.0e-6};
+  double tol [6] = {1.0e-1*rs, 1.0e-6,  
+                    1.0e-1*rs, 1.0e-6,  
+		    1.0e-1*rs, 1.0e-6};
 
   int VERBOSE=0;
   integer NUM;
@@ -3367,7 +3367,7 @@ YAML::Node SLGridSph::getHeader(const std::string& cachefile)
     node["cmap"]    = getInt("cmap");
     node["rmin"]    = getDbl("rmin");
     node["rmax"]    = getDbl("rmax");
-    node["scale"]   = getDbl("scale");
+    node["rs"  ]    = getDbl("rs");
     node["diverge"] = getInt("diverge");
     node["dfac"]    = getDbl("dfac");
   }
