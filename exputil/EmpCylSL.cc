@@ -48,7 +48,6 @@ using namespace __EXP__;	// For reference to n-body globals
 #define TINY 1.0e-16
 
 
-bool     EmpCylSL::DENS            = false;
 bool     EmpCylSL::PCAVAR          = false;
 bool     EmpCylSL::PCAVTK          = false;
 bool     EmpCylSL::PCAEOF          = false;
@@ -121,10 +120,7 @@ EmpCylSL::EmpCylSL()
 
   // Choose table dimension
   //
-  if (DENS)
-    MPItable = 4;
-  else
-    MPItable = 3;
+  MPItable = 4;
 
   // Initialize values
   //
@@ -202,10 +198,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 
   // Choose table dimension
   //
-  if (DENS)
-    MPItable = 4;
-  else
-    MPItable = 3;
+  MPItable = 4;
 
   // Initialize storage and values
   //
@@ -289,10 +282,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
 
   // Choose table dimension
   //
-  if (DENS)
-    MPItable = 4;
-  else
-    MPItable = 3;
+  MPItable = 4;
 
   // Initialize data and storage
   sampT = 1;
@@ -607,12 +597,10 @@ void EmpCylSL::send_eof_grid()
 		MPI_DOUBLE, 0, MPI_COMM_WORLD);
       blab("after", "zforceC", myid, m, v);
 
-      if (DENS) {
-	blab("before", "densC", myid, m, v);
-	MPI_Bcast(densC[m][v].data(), densC[m][v].size(),
-		  MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	blab("after", "densC", myid, m, v);
-      }
+      blab("before", "densC", myid, m, v);
+      MPI_Bcast(densC[m][v].data(), densC[m][v].size(),
+		MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      blab("after", "densC", myid, m, v);
     }
   }
 
@@ -637,13 +625,10 @@ void EmpCylSL::send_eof_grid()
 		MPI_DOUBLE, 0, MPI_COMM_WORLD);
       blab("after", "zforceS", myid, m, v);
 
-      if (DENS) {
-	blab("before", "densS", myid, m, v);
-	MPI_Bcast(densS[m][v].data(), densS[m][v].size(),
-		    MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	blab("after", "densS", myid, m, v);
-      }
-      
+      blab("before", "densS", myid, m, v);
+      MPI_Bcast(densS[m][v].data(), densS[m][v].size(),
+		MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      blab("after", "densS", myid, m, v);
     }
       
   }
@@ -697,7 +682,6 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
       NUMY   = node["numy"   ].as<int>();
       NMAX   = node["nmaxfid"].as<int>();
       NORDER = node["nmax"   ].as<int>();
-      DENS   = node["dens"   ].as<bool>();
       RMIN   = node["rmin"   ].as<double>();
       RMAX   = node["rmax"   ].as<double>();
       ASCALE = node["ascl"   ].as<double>();
@@ -727,7 +711,6 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
     in.read((char *)&NMAX,   sizeof(int));
     in.read((char *)&NORDER, sizeof(int));
     in.read((char *)&tmp,    sizeof(int)); 
-    if (tmp) DENS = true; else DENS = false;
     in.read((char *)&CMAPR,  sizeof(int)); 
     in.read((char *)&RMIN,   sizeof(double));
     in.read((char *)&RMAX,   sizeof(double));
@@ -744,7 +727,6 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
     cout << "NUMY="   << NUMY   << endl;
     cout << "NMAX="   << NMAX   << endl;
     cout << "NORDER=" << NORDER << endl;
-    cout << "DENS="   << DENS   << endl;
     cout << "CMAPR="  << CMAPR  << endl;
     cout << "CMAPZ="  << CMAPZ  << endl;
     cout << "RMIN="   << RMIN   << endl;
@@ -997,7 +979,6 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 	   (NUMY    != numy   ) |
 	   (NMAX    != nmax   ) |
 	   (NORDER  != norder ) |
-	   (DENS    != dens   ) |
 	   (CMAPR   != cmapr  ) |
 	   (fabs(rmin-RMIN)>1.0e-12 ) |
 	   (fabs(rmax-RMAX)>1.0e-12 ) |
@@ -1019,7 +1000,6 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 	  cout << compare_out("numy",   NUMY,   numy);
 	  cout << compare_out("nmax",   NMAX,   nmax);
 	  cout << compare_out("norder", NORDER, norder);
-	  cout << compare_out("dens",   DENS,   dens);
 	  cout << compare_out("cmapr",  CMAPR,  cmapr);
 	  cout << compare_out("cmapz",  CMAPZ,  cmapz);
 	  cout << compare_out("rmin",   RMIN,   rmin);
@@ -1050,12 +1030,9 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 	    for (int iy=0; iy<=NUMY; iy++)
 	      in.read((char *)&zforceC[m][v](ix, iy), sizeof(double));
 	  
-	  if (DENS) {
-	    for (int ix=0; ix<=NUMX; ix++)
-	      for (int iy=0; iy<=NUMY; iy++)
-		in.read((char *)&densC[m][v](ix, iy), sizeof(double));
-	    
-	  }
+	  for (int ix=0; ix<=NUMX; ix++)
+	    for (int iy=0; iy<=NUMY; iy++)
+	      in.read((char *)&densC[m][v](ix, iy), sizeof(double));
 	}
 	
       }
@@ -1076,11 +1053,9 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 	    for (int iy=0; iy<=NUMY; iy++)
 	      in.read((char *)&zforceS[m][v](ix, iy), sizeof(double));
 	  
-	  if (DENS) {
-	    for (int ix=0; ix<=NUMX; ix++)
-	      for (int iy=0; iy<=NUMY; iy++)
-		in.read((char *)&densS[m][v](ix, iy), sizeof(double));
-	  }
+	  for (int ix=0; ix<=NUMX; ix++)
+	    for (int iy=0; iy<=NUMY; iy++)
+	      in.read((char *)&densS[m][v](ix, iy), sizeof(double));
 	}
 	
       }
@@ -1155,9 +1130,6 @@ YAML::Node EmpCylSL::getHeader_hdf5(const std::string& cachefile)
       return v;
     };
 
-    bool dens = false;
-    if (getInt("idens")) dens = true;
-
     node["mmax"]     = getInt("mmax");
     node["numx"]     = getInt("numx");
     node["numy"]     = getInt("numy");
@@ -1165,7 +1137,6 @@ YAML::Node EmpCylSL::getHeader_hdf5(const std::string& cachefile)
     node["nmax"]     = getInt("nmax");
     node["neven"]    = getInt("neven");
     node["nodd"]     = getInt("nodd");
-    node["dens"]     = dens;
     node["cmapr"]    = getInt("cmapr");
     node["cmapz"]    = getInt("cmapz");
     node["rmin"]     = getDbl("rmin");
@@ -1269,10 +1240,10 @@ void EmpCylSL::receive_eof(int request_id, int MM)
     MPI_Recv(&mpi_double_buf2[MPIbufsz*(MPItable*n+2)], 
 	     MPIbufsz, MPI_DOUBLE, current_source, 13 + MPItable*n+3, 
 	     MPI_COMM_WORLD, &status);
-    if (DENS)
-      MPI_Recv(&mpi_double_buf2[MPIbufsz*(MPItable*n+3)], 
-	       MPIbufsz, MPI_DOUBLE, current_source, 13 + MPItable*n+4, 
-	       MPI_COMM_WORLD, &status);
+
+    MPI_Recv(&mpi_double_buf2[MPIbufsz*(MPItable*n+3)], 
+	     MPIbufsz, MPI_DOUBLE, current_source, 13 + MPItable*n+4, 
+	     MPI_COMM_WORLD, &status);
   }
   
 
@@ -1320,16 +1291,14 @@ void EmpCylSL::receive_eof(int request_id, int MM)
 	zforceS[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
     
 
-    if (DENS) {
-      off = MPIbufsz*(MPItable*n+3);
-      icnt = 0;
-      for (int ix=0; ix<=NUMX; ix++)
-	for (int iy=0; iy<=NUMY; iy++)
-	  if (type)
-	    densC[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
-	  else
-	    densS[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
-    }
+    off = MPIbufsz*(MPItable*n+3);
+    icnt = 0;
+    for (int ix=0; ix<=NUMX; ix++)
+      for (int iy=0; iy<=NUMY; iy++)
+	if (type)
+	  densC[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
+	else
+	  densS[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
   }
   
   if (VFLAG & 16)
@@ -1359,7 +1328,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     tpot[v].setZero();
     trforce[v].setZero();
     tzforce[v].setZero();
-    if (DENS) tdens[v].setZero();
+    tdens[v].setZero();
   }
 
   for (int ix=0; ix<=NUMX; ix++) {
@@ -1376,7 +1345,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
       ortho->get_pot(potd, rr/ASCALE);
       ortho->get_force(dpot, rr/ASCALE);
-      if (DENS) ortho->get_dens(dend, rr/ASCALE);
+      ortho->get_dens(dend, rr/ASCALE);
 
       double costh = z/rr;
       dlegendre_R(LMAX, costh, legs[0], dlegs[0]);
@@ -1417,8 +1386,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	    tzforce[v](ix, iy) += 
 	      -ef(nn, v) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
-	    if (DENS) 
-	      tdens[v](ix, iy) +=  ef(nn, v) * dens * 0.25/M_PI;
+	    tdens[v](ix, iy) +=  ef(nn, v) * dens * 0.25/M_PI;
 	  }
 	}
       }
@@ -1483,22 +1451,20 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
       // Density
       //
-      if (DENS) {
-	off = MPIbufsz*(MPItable*n+3);
-	icnt = 0;
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
+      off = MPIbufsz*(MPItable*n+3);
+      icnt = 0;
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	  mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
+      
+      if (VFLAG & 16)
+	std::cerr << "Worker " << setw(4) << myid 
+		  << ": with request_id=" << request_id
+		  << ", M=" << m << " sending Density" << std::endl;
 	
-	if (VFLAG & 16)
-	  std::cerr << "Worker " << setw(4) << myid 
-	       << ": with request_id=" << request_id
-		    << ", M=" << m << " sending Density" << std::endl;
+      MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+	       13 + MPItable*n+4, MPI_COMM_WORLD);
 	
-	MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
-		 13 + MPItable*n+4, MPI_COMM_WORLD);
-	
-      }
     }
   }
   // END: MPI packing
@@ -1511,12 +1477,12 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	potC   [m][n] = tpot[n];
 	rforceC[m][n] = trforce[n];
 	zforceC[m][n] = tzforce[n];
-	if (DENS) densC[m][n] = tdens[n];
+	densC  [m][n] = tdens[n];
       } else {
 	potS   [m][n] = tpot[n];
 	rforceS[m][n] = trforce[n];
 	zforceS[m][n] = trforce[n];
-	if (DENS) densS[m][n] = tdens[n];
+	densS  [m][n] = tdens[n];
       }
     }
   }
@@ -1539,7 +1505,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
     tpot[v].setZero();
     trforce[v].setZero();
     tzforce[v].setZero();
-    if (DENS) tdens[v].setZero();
+    tdens[v].setZero();
   }
 
   for (int ix=0; ix<=NUMX; ix++) {
@@ -1556,7 +1522,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 
       ortho->get_pot(potd, rr/ASCALE);
       ortho->get_force(dpot, rr/ASCALE);
-      if (DENS) ortho->get_dens(dend, rr/ASCALE);
+      ortho->get_dens(dend, rr/ASCALE);
 
       double costh = z/rr;
       dlegendre_R(LMAX, costh, legs[0], dlegs[0]);
@@ -1601,8 +1567,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	    tzforce[v](ix, iy) += 
 	      -efE(nn, v) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
-	    if (DENS) 
-	      tdens[v](ix, iy) +=  efE(nn, v) * dens * 0.25/M_PI;
+	    tdens[v](ix, iy) +=  efE(nn, v) * dens * 0.25/M_PI;
 	  }
 	}
       }
@@ -1647,8 +1612,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	    tzforce[v](ix, iy) += 
 	      -efO(nn, w) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
-	    if (DENS) 
-	      tdens[v](ix, iy) +=  efO(nn, w) * dens * 0.25/M_PI;
+	    tdens[v](ix, iy) +=  efO(nn, w) * dens * 0.25/M_PI;
 	  }
 	}
       }
@@ -1714,21 +1678,19 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 
       // Density
       //
-      if (DENS) {
-	off = MPIbufsz*(MPItable*n+3);
-	icnt = 0;
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
-	
-	if (VFLAG & 16)
-	  std::cerr << "Worker " << setw(4) << myid 
-		    << ": with request_id=" << request_id
-		    << ", M=" << m << " sending Density" << std::endl;
-
-	MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
-		 13 + MPItable*n+4, MPI_COMM_WORLD);
-      }
+      off = MPIbufsz*(MPItable*n+3);
+      icnt = 0;
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	  mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
+      
+      if (VFLAG & 16)
+	std::cerr << "Worker " << setw(4) << myid 
+		  << ": with request_id=" << request_id
+		  << ", M=" << m << " sending Density" << std::endl;
+      
+      MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+	       13 + MPItable*n+4, MPI_COMM_WORLD);
     }
   }
   // END: MPI packing
@@ -1741,12 +1703,12 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	potC   [m][n] = tpot[n];
 	rforceC[m][n] = trforce[n];
 	zforceC[m][n] = tzforce[n];
-	if (DENS) densC[m][n] = tdens[n];
+	densC  [m][n] = tdens[n];
       } else {
 	potS   [m][n] = tpot[n];
 	rforceS[m][n] = trforce[n];
 	zforceS[m][n] = trforce[n];
-	if (DENS) densS[m][n] = tdens[n];
+	densS  [m][n] = tdens[n];
       }
     }
   }
@@ -1974,23 +1936,21 @@ void EmpCylSL::setup_table()
   rforceS .resize(MMAX+1);
   zforceS .resize(MMAX+1);
   
-  if (DENS) {
-    densC .resize(MMAX+1);
-    densS .resize(MMAX+1);
-  }
+  densC   .resize(MMAX+1);
+  densS   .resize(MMAX+1);
 
   for (int m=0; m<=MMAX; m++) {
 
     potC[m]   .resize(rank3);
     rforceC[m].resize(rank3);
     zforceC[m].resize(rank3);
-    if (DENS) densC[m].resize(rank3);
+    densC[m]  .resize(rank3);
     
     for (int v=0; v<rank3; v++) {
       potC   [m][v].resize(NUMX+1, NUMY+1);
       rforceC[m][v].resize(NUMX+1, NUMY+1);
       zforceC[m][v].resize(NUMX+1, NUMY+1);
-      if (DENS) densC[m][v].resize(NUMX+1, NUMY+1);
+      densC  [m][v].resize(NUMX+1, NUMY+1);
     }
   }
   
@@ -1999,13 +1959,13 @@ void EmpCylSL::setup_table()
     potS[m]   .resize(rank3);
     rforceS[m].resize(rank3);
     zforceS[m].resize(rank3);
-    if (DENS) densS[m].resize(rank3);
+    densS[m]  .resize(rank3);
     
     for (int v=0; v<rank3; v++) {
       potS   [m][v].resize(NUMX+1, NUMY+1);
       rforceS[m][v].resize(NUMX+1, NUMY+1);
       zforceS[m][v].resize(NUMX+1, NUMY+1);
-      if (DENS) densS[m][v].resize(NUMX+1, NUMY+1);
+      densS  [m][v].resize(NUMX+1, NUMY+1);
     }
   }
 
@@ -2027,13 +1987,13 @@ void EmpCylSL::setup_eof()
     tpot   .resize(NORDER);
     trforce.resize(NORDER);
     tzforce.resize(NORDER);
-    if (DENS) tdens.resize(NORDER);
+    tdens  .resize(NORDER);
 
     for (int n=0; n<NORDER; n++) {
       tpot[n].resize(NUMX+1, NUMY+1);
       trforce[n].resize(NUMX+1, NUMY+1);
       tzforce[n].resize(NUMX+1, NUMY+1);
-      if (DENS) tdens[n].resize(NUMX+1, NUMY+1);
+      tdens[n].resize(NUMX+1, NUMY+1);
     }
 
     if (EvenOdd) {
@@ -5105,8 +5065,6 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
 double EmpCylSL::accumulated_dens_eval(double r, double z, double phi, 
 				       double& d0)
 {
-  if (!DENS) return 0.0;
-
   if (!coefs_made_all()) {
     if (VFLAG>3) 
       std::cerr << "Process " << myid << ": in EmpCylSL::accumlated_dens_eval, "
@@ -5365,7 +5323,6 @@ void EmpCylSL::get_all(int mm, int nn,
      potC[mm][nn](ix+1, iy+1) * c11 
      );
   
-  if (DENS)
   d += ccos *
     (
      densC[mm][nn](ix  , iy  ) * c00 +
@@ -5409,7 +5366,6 @@ void EmpCylSL::get_all(int mm, int nn,
 	   potS[mm][nn](ix+1, iy+1) * c11 
 	   );
       
-    if (DENS)
     d += ssin *
       (
        densS[mm][nn](ix  , iy  ) * c00 +
@@ -5667,13 +5623,12 @@ void EmpCylSL::dump_basis(const string& name, int step, double Rmax)
 		       zforceC[mm][n](ix  , iy+1) * c01 +
 		       zforceC[mm][n](ix+1, iy+1) * c11 );
 	  
-	  if (DENS)
-	    outC << setw(15)
-		 << fac*(
-			 densC[mm][n](ix  , iy  ) * c00 +
-			 densC[mm][n](ix+1, iy  ) * c10 +
-			 densC[mm][n](ix  , iy+1) * c01 +
-			 densC[mm][n](ix+1, iy+1) * c11 );
+	  outC << setw(15)
+	       << fac*(
+		       densC[mm][n](ix  , iy  ) * c00 +
+		       densC[mm][n](ix+1, iy  ) * c10 +
+		       densC[mm][n](ix  , iy+1) * c01 +
+		       densC[mm][n](ix+1, iy+1) * c11 );
 
 	  outC << endl;
 
@@ -5699,13 +5654,12 @@ void EmpCylSL::dump_basis(const string& name, int step, double Rmax)
 			 zforceS[mm][n](ix  , iy+1) * c01 +
 			 zforceS[mm][n](ix+1, iy+1) * c11 );
 	    
-	    if (DENS)
-	      outS << setw(15) 
-		   << fac*(
-			   densS[mm][n](ix  , iy  ) * c00 +
-			   densS[mm][n](ix+1, iy  ) * c10 +
-			   densS[mm][n](ix  , iy+1) * c01 +
-			   densS[mm][n](ix+1, iy+1) * c11 );
+	    outS << setw(15) 
+		 << fac*(
+			 densS[mm][n](ix  , iy  ) * c00 +
+			 densS[mm][n](ix+1, iy  ) * c10 +
+			 densS[mm][n](ix  , iy+1) * c01 +
+			 densS[mm][n](ix+1, iy+1) * c11 );
 	    outS << endl;
 	  }
 
@@ -6322,7 +6276,6 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   out << setw(20) << left << "NUMY"    << " : " << numy << endl;
   out << setw(20) << left << "NMAXFID" << " : " << nmax << endl;
   out << setw(20) << left << "NMAX"    << " : " << norder << endl;
-  out << setw(20) << left << "DENS"    << " : " << std::boolalpha << dens << endl;
   out << setw(20) << left << "CMAPR"   << " : " << cmap << endl;
   out << setw(20) << left << "RMIN"    << " : " << rmin << endl;
   out << setw(20) << left << "RMAX"    << " : " << rmax << endl;
@@ -6339,8 +6292,7 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
 
   // Read table
   //
-  int nfield = 3;
-  if (DENS) nfield += 1;
+  int nfield = 4;
   
   Dynamic3dArray<double> mat(nfield, numx+1, numy+1);
   
@@ -6361,12 +6313,9 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
 	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[2][ix][iy], sizeof(double));
       
-      if (DENS) {
-	for (int ix=0; ix<=numx; ix++)
-	  for (int iy=0; iy<=numy; iy++)
-	    in.read((char *)&mat[3][ix][iy], sizeof(double));
-	
-      }
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
+	  in.read((char *)&mat[3][ix][iy], sizeof(double));
       
       for (int ix=0; ix<numx; ix++) {
 	for (int iy=0; iy<numy; iy++) {
@@ -6399,11 +6348,9 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
 	for (int iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[2][ix][iy], sizeof(double));
       
-      if (DENS) {
-	for (int ix=0; ix<=numx; ix++)
-	  for (int iy=0; iy<=numy; iy++)
-	    in.read((char *)&mat[3][ix][iy], sizeof(double));
-      }
+      for (int ix=0; ix<=numx; ix++)
+	for (int iy=0; iy<=numy; iy++)
+	  in.read((char *)&mat[3][ix][iy], sizeof(double));
 
       for (int ix=0; ix<numx; ix++) {
 	for (int iy=0; iy<numy; iy++) {
@@ -6648,23 +6595,20 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
 	  DBmax["zforceC"][m] = dif>cur ? dif : cur;
 	}
       
-      if (DENS) {
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++) {
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
 
-	    double one = densC[m][v](ix, iy);
-	    double two = p->densC[m][v](ix, iy);
+	  double one = densC[m][v](ix, iy);
+	  double two = p->densC[m][v](ix, iy);
 	    
-	    double cur = DBdif["densC"][m];
-	    double dif = fabs(one-two);
-	    DBdif["densC"][m] = dif>cur ? dif : cur;
-	    
-	    cur = DBmax["densC"][m];
-	    dif = fabs(one);
-	    DBmax["densC"][m] = dif>cur ? dif : cur;
-	  }
-      }
-      
+	  double cur = DBdif["densC"][m];
+	  double dif = fabs(one-two);
+	  DBdif["densC"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["densC"][m];
+	  dif = fabs(one);
+	  DBmax["densC"][m] = dif>cur ? dif : cur;
+	}
     }
     
   }
@@ -6718,22 +6662,19 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
 	  DBmax["zforceS"][m] = dif>cur ? dif : cur;
 	}
       
-      if (DENS) {
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++) {
-	    double one = densS[m][v](ix, iy);
-	    double two = p->densS[m][v](ix, iy);
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+	  double one = densS[m][v](ix, iy);
+	  double two = p->densS[m][v](ix, iy);
 	    
-	    double cur = DBdif["densS"][m];
-	    double dif = fabs(one-two);
-	    DBdif["densS"][m] = dif>cur ? dif : cur;
+	  double cur = DBdif["densS"][m];
+	  double dif = fabs(one-two);
+	  DBdif["densS"][m] = dif>cur ? dif : cur;
 	    
-	    cur = DBmax["densS"][m];
-	    dif = fabs(one);
-	    DBmax["densS"][m] = dif>cur ? dif : cur;
-	  }
-      }
-      
+	  cur = DBmax["densS"][m];
+	  dif = fabs(one);
+	  DBmax["densS"][m] = dif>cur ? dif : cur;
+	}
     }
     
   }
@@ -6807,89 +6748,26 @@ double EmpCylSL::d_y_to_z(double y)
 //
 void EmpCylSL::ortho_check(std::ostream& out)
 {
-  if (DENS) {
+  for (int mm=0; mm<=MMAX; mm++) {
+    // Header
+    //
+    out << std::string(60, '-') << std::endl
+	<< " M=" << mm << std::endl
+	<< std::string(60, '-') << std::endl;
 
-    for (int mm=0; mm<=MMAX; mm++) {
-      // Header
-      //
-      out << std::string(60, '-') << std::endl
-	  << " M=" << mm << std::endl
-	  << std::string(60, '-') << std::endl;
+    // Normalization:
+    //            +--- Gravitational energy kernel
+    //            |           +--- Aximuthal
+    //            |           |
+    //            v           v
+    double fac = -4.0*M_PI * (2.0*M_PI) * dX * dY;
+    if (mm) fac *= 0.5;
 
-      // Normalization:
-      //            +--- Gravitational energy kernel
-      //            |           +--- Aximuthal
-      //            |           |
-      //            v           v
-      double fac = -4.0*M_PI * (2.0*M_PI) * dX * dY;
-      if (mm) fac *= 0.5;
-
-      // Compute orthogonality matrix
-      //
-      for (int n1=0; n1<NORDER; n1++) {
-
-	for (int n2=0; n2<NORDER; n2++) {
-
-	  double sumC = 0.0, sumS = 0.0;
-
-	  for (int ix=0; ix<=NUMX; ix++) {
-	    double x = XMIN + dX*ix;
-	    double r = xi_to_r(x);
-
-	    for (int iy=0; iy<=NUMY; iy++) {
-
-	      double y = YMIN + dY*iy;
-
-	      sumC += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
-		potC[mm][n1](ix, iy) * densC[mm][n2](ix, iy);
-
-	      if (mm)
-		sumS += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
-		  potS[mm][n1](ix, iy) * densS[mm][n2](ix, iy);
-	    }
-	  }
-
-	  out << std::setw(16) << sumC << std::setw(16) << sumS;
-	}
-	out << std::endl;
-      }
-    }
-  } else {
-    out << "EmpCylSL::ortho_check: "
-	<< "can not check orthogonality without density computation"
-	<< std::endl;
-  }
-}
-
-// Check orthogonality for basis
-//
-std::vector<Eigen::MatrixXd> EmpCylSL::orthoCheck()
-{
-  std::vector<Eigen::MatrixXd> ret;
-
-  if (DENS) {
-
-    ret.resize(MMAX+1);
-    for (auto & v : ret) v.resize(NORDER, NORDER);
-
-    for (int mm=0; mm<=MMAX; mm++) {
-
-      // Normalization:
-      //            +--- Gravitational energy kernel
-      //            |           +--- Aximuthal
-      //            |           |
-      //            v           v
-      double fac = -4.0*M_PI * (2.0*M_PI) * dX * dY;
-      if (mm) fac *= 0.5;
-
-      // Compute orthogonality matrix
-      //
-
-      // Unroll loop for OpenMP
-#pragma omp parallel for
-      for (int nn=0; nn<NORDER*NORDER; nn++) {
-	int n1 = nn/NORDER;
-	int n2 = nn - n1*NORDER;
+    // Compute orthogonality matrix
+    //
+    for (int n1=0; n1<NORDER; n1++) {
+      
+      for (int n2=0; n2<NORDER; n2++) {
 
 	double sumC = 0.0, sumS = 0.0;
 
@@ -6909,22 +6787,70 @@ std::vector<Eigen::MatrixXd> EmpCylSL::orthoCheck()
 		potS[mm][n1](ix, iy) * densS[mm][n2](ix, iy);
 	  }
 	}
-	
-	// Combine sines and cosines.  sumC and sumS should each by
-	// unity or zero so the returns below combine sumC and sumS
-	// for m>0.
-	//
-	if (mm==0)
-	  ret[mm](n1, n2) = sumC;
-	else
-	  ret[mm](n1, n2) = sqrt(0.5*(sumC*sumC + sumS*sumS));
+
+	out << std::setw(16) << sumC << std::setw(16) << sumS;
       }
+      out << std::endl;
     }
-  } else {
-    std::cout << "EmpCylSL::orthoCheck: "
-	      << "can not check orthogonality without density grid.\n"
-	      << "Rerun EOF grid computation with DENS=true..."
-	      << std::endl;
+  }
+}
+
+// Check orthogonality for basis
+//
+std::vector<Eigen::MatrixXd> EmpCylSL::orthoCheck()
+{
+  std::vector<Eigen::MatrixXd> ret;
+
+  ret.resize(MMAX+1);
+  for (auto & v : ret) v.resize(NORDER, NORDER);
+  
+  for (int mm=0; mm<=MMAX; mm++) {
+
+    // Normalization:
+    //            +--- Gravitational energy kernel
+    //            |           +--- Aximuthal
+    //            |           |
+    //            v           v
+    double fac = -4.0*M_PI * (2.0*M_PI) * dX * dY;
+    if (mm) fac *= 0.5;
+
+    // Compute orthogonality matrix
+    //
+
+    // Unroll loop for OpenMP
+#pragma omp parallel for
+    for (int nn=0; nn<NORDER*NORDER; nn++) {
+      int n1 = nn/NORDER;
+      int n2 = nn - n1*NORDER;
+      
+      double sumC = 0.0, sumS = 0.0;
+
+      for (int ix=0; ix<=NUMX; ix++) {
+	double x = XMIN + dX*ix;
+	double r = xi_to_r(x);
+	
+	for (int iy=0; iy<=NUMY; iy++) {
+	  
+	  double y = YMIN + dY*iy;
+
+	  sumC += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
+	    potC[mm][n1](ix, iy) * densC[mm][n2](ix, iy);
+	  
+	  if (mm)
+	    sumS += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
+	      potS[mm][n1](ix, iy) * densS[mm][n2](ix, iy);
+	}
+      }
+	
+      // Combine sines and cosines.  sumC and sumS should each by
+      // unity or zero so the returns below combine sumC and sumS
+      // for m>0.
+      //
+      if (mm==0)
+	ret[mm](n1, n2) = sumC;
+      else
+	ret[mm](n1, n2) = sqrt(0.5*(sumC*sumC + sumS*sumS));
+    }
   }
 
   return ret;
@@ -6937,8 +6863,6 @@ void EmpCylSL::getDensSC(int mm, int n, double R, double z,
 
   dC = 0.0;
   dS = 0.0;
-
-  if (not DENS) return;
 
   if (R/ASCALE>Rtable or mm>MMAX or n>=rank3) return;
 
@@ -7064,11 +6988,6 @@ void EmpCylSL::WriteH5Cache()
     file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
       
-    // HighFive boolean workarounds
-    //
-    int idens = 0;
-    if (DENS) idens = 1;
-
     // Write the specific parameters
     //
     file.createAttribute<std::string>("model",   HighFive::DataSpace::From(model)).   write(model);
@@ -7080,7 +6999,6 @@ void EmpCylSL::WriteH5Cache()
     file.createAttribute<int>        ("nmaxfid", HighFive::DataSpace::From(NMAX)).    write(NMAX);
     file.createAttribute<int>        ("neven",   HighFive::DataSpace::From(Neven)).   write(Neven);
     file.createAttribute<int>        ("nodd",    HighFive::DataSpace::From(Nodd)).    write(Nodd);
-    file.createAttribute<int>        ("idens",   HighFive::DataSpace::From(idens)).   write(idens);
     file.createAttribute<int>        ("cmapr",   HighFive::DataSpace::From(CMAPR)).   write(CMAPR);
     file.createAttribute<int>        ("cmapz",   HighFive::DataSpace::From(CMAPZ)).   write(CMAPZ);
     file.createAttribute<double>     ("rmin",    HighFive::DataSpace::From(RMIN)).    write(RMIN);
@@ -7109,7 +7027,7 @@ void EmpCylSL::WriteH5Cache()
 	order.createDataSet("potC",    potC   [m][n]);
 	order.createDataSet("rforceC", rforceC[m][n]);
 	order.createDataSet("zforceC", zforceC[m][n]);
-	if (DENS) order.createDataSet("densC", densC[m][n]);
+	order.createDataSet("densC",   densC  [m][n]);
       }
     }
 
@@ -7133,7 +7051,7 @@ void EmpCylSL::WriteH5Cache()
 	order.createDataSet("potS",    potS   [m][n]);
 	order.createDataSet("rforceS", rforceS[m][n]);
 	order.createDataSet("zforceS", zforceS[m][n]);
-	if (DENS) order.createDataSet("densS", densS[m][n]);
+	order.createDataSet("densS",   densS  [m][n]);
       }
     }
 
@@ -7160,11 +7078,6 @@ bool EmpCylSL::ReadH5Cache()
     std::string forceID("Cylinder"), geometry("cylinder");
     std::string model = EmpModelLabs[mtype];
       
-    // HighFive boolean workarounds
-    //
-    int idens = 0;
-    if (DENS) idens = 1;
-
     // Try checking the rest of the parameters before reading arrays
     //
     auto checkInt = [&file](int value, std::string name)
@@ -7204,7 +7117,6 @@ bool EmpCylSL::ReadH5Cache()
     if (not checkInt(NMAX,     "nmaxfid"))   return false;
     if (not checkInt(Neven,    "neven"))     return false;
     if (not checkInt(Nodd,     "nodd"))      return false;
-    if (not checkInt(idens,    "idens"))     return false;
     if (not checkInt(CMAPR,    "cmapr"))     return false;
     if (not checkInt(CMAPZ,    "cmapz"))     return false;
     if (not checkDbl(RMIN,     "rmin"))      return false;
@@ -7229,23 +7141,21 @@ bool EmpCylSL::ReadH5Cache()
     rforceS .resize(MMAX+1);
     zforceS .resize(MMAX+1);
   
-    if (DENS) {
-      densC .resize(MMAX+1);
-      densS .resize(MMAX+1);
-    }
+    densC   .resize(MMAX+1);
+    densS   .resize(MMAX+1);
 
     for (int m=0; m<=MMAX; m++) {
       potC[m]   .resize(NORDER);
       rforceC[m].resize(NORDER);
       zforceC[m].resize(NORDER);
-      if (DENS) densC[m].resize(NORDER);
+      densC[m]  .resize(NORDER);
     }
 
     for (int m=1; m<=MMAX; m++) {
       potS[m]   .resize(NORDER);
       rforceS[m].resize(NORDER);
       zforceS[m].resize(NORDER);
-      if (DENS) densS[m].resize(NORDER);
+      densS[m]  .resize(NORDER);
     }    
 
     // Read arrays and data from H5 file
@@ -7270,7 +7180,7 @@ bool EmpCylSL::ReadH5Cache()
 	order.getDataSet("potC")   .read(potC   [m][n]);
 	order.getDataSet("rforceC").read(rforceC[m][n]);
 	order.getDataSet("zforceC").read(zforceC[m][n]);
-	if (DENS) order.getDataSet("densC").read(densC[m][n]);
+	order.getDataSet("densC")  .read(densC[m][n]);
       }
     }
 
@@ -7293,7 +7203,7 @@ bool EmpCylSL::ReadH5Cache()
 	order.getDataSet("potS")   .read(potS   [m][n]);
 	order.getDataSet("rforceS").read(rforceS[m][n]);
 	order.getDataSet("zforceS").read(zforceS[m][n]);
-	if (DENS) order.getDataSet("densS").read(densS[m][n]);
+	order.getDataSet("densS")  .read(densS[m][n]);
       }
     }
 
