@@ -6910,7 +6910,9 @@ std::vector<Eigen::MatrixXd> EmpCylSL::orthoCheck()
 	  }
 	}
 	
-	// Combine sines and cosines
+	// Combine sines and cosines.  sumC and sumS should each by
+	// unity or zero so the returns below combine sumC and sumS
+	// for m>0.
 	//
 	if (mm==0)
 	  ret[mm](n1, n2) = sumC;
