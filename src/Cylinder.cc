@@ -11,14 +11,12 @@
 #include <Cylinder.H>
 #include <MixtureBasis.H>
 #include <Timer.H>
+#include <exputils.H>
 
 Timer timer_debug;
 
 double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
 
-extern void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
-		      const std::string& classname,
-		      const std::string& indexname);
 
 //@{
 //! These are for testing exclusively (should be set false for production)

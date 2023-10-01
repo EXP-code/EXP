@@ -7,10 +7,7 @@
 #include <Sphere.H>
 #include <plummer.H>
 #include <interp.H>
-
-extern void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
-		      const std::string& classname,
-		      const std::string& indexname);
+#include <exputils.H>
 
 const std::set<std::string>
 Sphere::valid_keys = {

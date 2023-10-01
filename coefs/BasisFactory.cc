@@ -2,15 +2,12 @@
 #include <EXPException.H>
 #include <BasisFactory.H>
 #include <DiskModels.H>
+#include <exputils.H>
 #include <gaussQ.H>
 
 #ifdef HAVE_FE_ENABLE
 #include <cfenv>
 #endif
-
-extern void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
-		      const std::string& classname,
-		      const std::string& indexname);
 
 namespace BasisClasses
 {
