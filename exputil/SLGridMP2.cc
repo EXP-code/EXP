@@ -2282,7 +2282,7 @@ bool SLGridSph::ReadH5Cache(void)
     }
     
     if (myid==0)
-      std::cerr << "---- SLGridSph::ReadH5Cache: "
+      std::cout << "---- SLGridSph::ReadH5Cache: "
 		<< "successfully read basis cache <" << sph_cache_name
 		<< ">" << std::endl;
 

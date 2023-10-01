@@ -866,14 +866,14 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
 	if (ReadH5Cache()) return 1;
 	else {
 	  if (myid==0)
-	    std::cout << "---- EmpCylSL::cache_grid: HDF5 parameter mismatch"
+	    std::cerr << "---- EmpCylSL::cache_grid: HDF5 parameter mismatch"
 		      << std::endl;
 	  return 0;
 	}
       }
       catch (EXPException& error) {
 	if (myid==0) {
-	  std::cout << "---- EmpCylSL::cache_grid: file <"
+	  std::cerr << "---- EmpCylSL::cache_grid: file <"
 		    << cachefile + ">, is not HDF5.  Checking binary . . ."
 		    << std::endl;
 	}
@@ -7088,7 +7088,7 @@ bool EmpCylSL::ReadH5Cache()
     {
       int v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
       if (value == v) return true;
-      std::cout << "---- EmpCylSL: parameter " << name << ": wanted "
+      std::cout << "---- EmpCylSL cache parameter " << name << ": wanted "
 		<< value << " found " << v << std::endl;
       return false;
     };
@@ -7097,7 +7097,7 @@ bool EmpCylSL::ReadH5Cache()
     {
       double v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
       if (fabs(value - v) < 1.0e-16) return true;
-      std::cout << "---- EmpCylSL: parameter " << name << ": wanted "
+      std::cout << "---- EmpCylSL cache parameter " << name << ": wanted "
 		<< value << " found " << v << std::endl;
       return false;
     };
@@ -7106,7 +7106,7 @@ bool EmpCylSL::ReadH5Cache()
     {
       std::string v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
       if (value.compare(v)==0) return true;
-      std::cout << "--- EmpCylSL: parameter " << name << ": wanted "
+      std::cout << "--- EmpCylSL cache parameter " << name << ": wanted "
 		<< value << " found " << v << std::endl;
       return false;
     };
