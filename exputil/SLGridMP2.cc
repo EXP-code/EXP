@@ -3382,6 +3382,57 @@ YAML::Node SLGridSph::getHeader(const std::string& cachefile)
 }
 
 
+std::vector<Eigen::MatrixXd> SLGridSph::orthoCheck(int num)
+{
+  // Gauss-Legendre knots and weights
+  LegeQuad lw(num);
+
+  // Get the scaled coordinate limits
+  double ximin = r_to_xi(rmin);
+  double ximax = r_to_xi(rmax);
+
+  // Initialize the return matrices
+  std::vector<Eigen::MatrixXd> ret(lmax+1);
+  for (auto & v : ret) v.resize(nmax, nmax);
+
+  // Do each harmonic order
+  for (int L=0; L<=lmax; L++) {
+
+    // Unroll the loop for OpenMP parallelization
+#pragma omp parallel for
+    for (int nn=0; nn<nmax*nmax; nn++) {
+      int n1 = nn/nmax;
+      int n2 = nn - n1*nmax;
+      
+      // The inner product
+      double ans=0.0;
+      for (int i=0; i<num; i++) {
+	
+	double x = ximin + (ximax - ximin)*lw.knot(i);
+	double r = xi_to_r(x);
+	  
+	ans += r*r*get_pot(x, L, n1, 0)*
+	  get_dens(x, L, n2, 0) /
+	  d_xi_to_r(x) * (ximax - ximin)*lw.weight(i);
+	  
+      }
+      // END: inner product
+	    
+      // Assign the matrix element
+      //
+      ret[L](n1, n2) = - ans;
+      //               ^
+      //               |
+      //               +--- Switch to normed scalar product rather
+      //                    that normed gravitational energy
+    }
+    // END: unrolled loop
+  }
+  // END: harmonic order loop
+  
+  return ret;
+}
+
 //======================================================================
 //======================================================================
 //======================================================================
@@ -4527,7 +4578,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
       std::cout << std::endl;
       
       sout << std::endl
-	   << "SLGridSph found " << bad
+	   << "SLGridSlab found " << bad
 	   << " tolerance errors in computing SL solutions." << std::endl
 	   << "We suggest checking your model parameters to ensure a"
 	   << std::endl

@@ -303,6 +303,10 @@ public:
   static std::map<std::string, std::string>
   cacheInfo(const std::string& cachefile, bool verbose=true);
 
+  //! Compute the orthogonality of the basis by returning inner
+  //! produce matrices
+  std::vector<Eigen::MatrixXd> orthoCheck(int knots=40);
+
 #if HAVE_LIBCUDA==1
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);
