@@ -1202,11 +1202,6 @@ namespace BasisClasses
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
     
-    // For visualization
-    //
-    if (density) EmpCylSL::DENS = true;
-
-
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
     //
