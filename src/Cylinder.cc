@@ -214,10 +214,6 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ortho = std::make_shared<CylEXP>
     (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
   
-  // Test for basis consistency
-  //
-  orthoTest(ortho->orthoCheck(), "Cylinder", "m");
-
   // Set azimuthal harmonic order restriction?
   //
   if (mlim>=0)  ortho->set_mlim(mlim);
@@ -379,6 +375,13 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   }
 #endif
       
+  // Test for basis consistency
+  //
+  std::cout << "---- ";
+  orthoTest(ortho->orthoCheck(), "Cylinder", "m");
+
+  // Initialize internal variables
+  //
   ncompcyl = 0;
 
   pos.resize(nthrds);
