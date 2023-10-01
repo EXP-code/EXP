@@ -6826,19 +6826,23 @@ std::vector<Eigen::MatrixXd> EmpCylSL::orthoCheck()
       double sumC = 0.0, sumS = 0.0;
 
       for (int ix=0; ix<=NUMX; ix++) {
-	double x = XMIN + dX*ix;
-	double r = xi_to_r(x);
+	double x  = XMIN + dX*ix;
+	double r  = xi_to_r(x);
+	double fx = 1.0;
+				// Trapezoidal rule
+	if (ix ==0 or ix==NUMX) fx = 0.5;
 	
 	for (int iy=0; iy<=NUMY; iy++) {
 	  
 	  double y = YMIN + dY*iy;
+	  double fy = 1.0;
+				// Trapezoidal rule
+	  if (iy ==0 or iy==NUMX) fy = 0.5;
 
-	  sumC += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
-	    potC[mm][n1](ix, iy) * densC[mm][n2](ix, iy);
-	  
-	  if (mm)
-	    sumS += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
-	      potS[mm][n1](ix, iy) * densS[mm][n2](ix, iy);
+	  double jac = fac * r/d_xi_to_r(x) * d_y_to_z(y) * fx * fy;
+
+	  sumC += jac * potC[mm][n1](ix, iy) * densC[mm][n2](ix, iy);
+	  if (mm) sumS += jac * potS[mm][n1](ix, iy) * densS[mm][n2](ix, iy);
 	}
       }
 	
