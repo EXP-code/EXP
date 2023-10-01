@@ -39,6 +39,9 @@ namespace __EXP__
   //! Sign convention element rank for eigenfunctions and eigenvectors
   extern int nevsign;
 
+  //! Sanity tolerance for orthogonality
+  extern double orthoTol;
+
 };
 
 #endif	// END _LIBVARS_H

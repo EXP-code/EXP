@@ -34,6 +34,8 @@ namespace __EXP__
   //! Sign convention element rank for eigenfunctions and eigenvectors
   int              nevsign          = 4;
 
+  //! Sanity tolerance for orthogonality
+  double           orthoTol         = 1.0e-2;
 };
 
 
