@@ -93,7 +93,7 @@ namespace BasisClasses
   
   const std::set<std::string>
   SphericalSL::valid_keys = {
-    "rs",
+    "rmapping",
     "cmap",
     "Lmax",
     "dof",
@@ -173,7 +173,7 @@ namespace BasisClasses
 
     // Assign values from YAML
     //
-    double rs = 1.0;
+    double rmap = 1.0;
 
     try {
       if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
@@ -181,10 +181,10 @@ namespace BasisClasses
       if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
       if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
       
-      if (conf["rs"]) 
-	rs   = conf["rs"].as<double>();
+      if (conf["rmapping"]) 
+	rmap = conf["rmapping"].as<double>();
       else
-	rs   = 1.0;
+	rmap = 1.0;
       
       if (conf["scale"]) 
 	scale = conf["scale"].as<double>();
@@ -258,7 +258,7 @@ namespace BasisClasses
     
     // Finally, make the Sturm-Lioville basis...
     sl = std::make_shared<SLGridSph>
-      (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rs,
+      (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rmap,
        0, 1, cachename);
     
     // Test basis for consistency

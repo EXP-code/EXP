@@ -204,7 +204,7 @@ namespace BasisClasses
     
     std::string model_file;
     int lmax, nmax, cmap, numr;
-    double rmin, rmax;
+    double rmin, rmax, rmap;
     
     bool NO_L0, NO_L1, EVEN_L, EVEN_M, M0_only;
     
