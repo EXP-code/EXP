@@ -62,6 +62,30 @@ extern "C" {
 }
 
 
+static
+std::string sledge_error(int flag)
+{
+  if (flag==0)
+    return "reliable";
+  else if (flag==-1)
+    return "too many levels for eigenvalues";
+  else if (flag==-2)
+    return "too many levels for eigenvectors";
+  else if (flag==1)
+    return "eigenvalue cluster?";
+  else if (flag==2)
+    return "classification uncertainty";
+  else if (flag>0) {
+    std::ostringstream sout;
+    sout << "unexpected warning: " << flag; 
+    return sout.str();
+  } else {
+    std::ostringstream sout;
+    sout << "unexpected fatal error: " << flag; 
+    return sout.str();
+  }
+}
+
 // Unit density exponential disk with scale length A
 
 class KuzminCyl : public CylModel
@@ -177,7 +201,7 @@ void SLGridCyl::bomb(std::string oops)
 
 SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK, 
 		     double RMIN, double RMAX, double L, 
-		     bool CACHE, int CMAP, double SCALE,
+		     bool CACHE, int CMAP, double RMAP,
 		     const std::string type, bool VERBOSE)
 {
   int m, k;
@@ -193,7 +217,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
   cache = CACHE;
   cmap  = CMAP;
-  scale = SCALE;
+  rmap  = RMAP;
 
   tbdbg = VERBOSE;
 
@@ -228,6 +252,8 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
     for (m=0; m<=mmax; m++) table[m] = new TableCyl [numk+1];
 
     mpi_setup();
+
+    int totbad = 0;
 
     if (mpi_myid) {
 
@@ -286,12 +312,23 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	    //
 	    // <Wait and receive>
 	    //
-	
-	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
-		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    
+#ifdef SLEDGE_THROW
+	    int bad;		// Get count of sledge failures
+	    MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
+		     MPI_COMM_WORLD, &status);
+	    totbad += bad;
+				// Get source node identity
 	    int retid = status.MPI_SOURCE;
 
+	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		     MPI_COMM_WORLD, &status);
+#else
+	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 11,
+		     MPI_COMM_WORLD, &status);
+
+	    int retid = status.MPI_SOURCE;
+#endif
+    
 	    mpi_unpack_table();      
 
 	    //
@@ -323,9 +360,19 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
   
 	while (worker) {
 	
-	
+#ifdef SLEDGE_THROW
+	  int bad;		// Get count of sledge failures
+	  MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
+		   MPI_COMM_WORLD, &status);
+	  totbad += bad;
+				// Get source node identity
+	  int retid = status.MPI_SOURCE;
+	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		   MPI_COMM_WORLD, &status);
+#else
 	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+#endif
     
 	  mpi_unpack_table();      
 
@@ -357,9 +404,31 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 	}
       }
 
-
     } // END Root
 
+#ifdef SLEDGE_THROW
+    // Send total number of sledge failures to all nodes
+    MPI_Bcast(&totbad, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // All nodes throw exception if any errors
+    if (totbad) {
+      std::ostringstream sout;
+      if (myid==0) {
+	sout << std::endl
+	     << "SLGridCyl found " << totbad
+	     << " tolerance errors in computing SL solutions" << std::endl
+	     << "We suggest checking your model for sufficient smoothness and"
+	     << std::endl
+	     << "sufficiently many grid points that the relative difference"
+	     << std::endl
+	     << "between field quantities is <= 0.3";
+      } else {
+	sout << std::endl << "sledge tolerance failure";
+      }
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
+#endif
   }
   else {
 
@@ -389,7 +458,7 @@ int SLGridCyl::read_cached_table(void)
   if (!in) return 0;
 
   int MMAX, NMAX, NUMR, NUMK, i, j, CMAP;
-  double RMIN, RMAX, L, AA, SCL;
+  double RMIN, RMAX, L, AA, RMAP;
   std::string MODEL;
 
   if (myid==0)
@@ -423,23 +492,23 @@ int SLGridCyl::read_cached_table(void)
       std::ostringstream sout;
       sout << "YAML: error parsing <" << buf.get() << "> "
 	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
-	   << "YAML error: " << error.what() << std::endl;
+	   << "YAML error: " << error.what();
       throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
     }
     
     // Get parameters
     //
-    MMAX     = node["mmax"   ].as<int>();
-    NMAX     = node["nmax"   ].as<int>();
-    NUMK     = node["numk"   ].as<int>();
-    NUMR     = node["numr"   ].as<int>();
-    CMAP     = node["cmap"   ].as<int>();
-    RMIN     = node["rmin"   ].as<double>();
-    RMAX     = node["rmax"   ].as<double>();
-    SCL      = node["scale"  ].as<double>();
-    L        = node["L"      ].as<double>();
-    AA       = node["A"      ].as<double>();
-    MODEL    = node["model"  ].as<std::string>();
+    MMAX     = node["mmax"    ].as<int>();
+    NMAX     = node["nmax"    ].as<int>();
+    NUMK     = node["numk"    ].as<int>();
+    NUMR     = node["numr"    ].as<int>();
+    CMAP     = node["cmap"    ].as<int>();
+    RMIN     = node["rmin"    ].as<double>();
+    RMAX     = node["rmax"    ].as<double>();
+    RMAP     = node["rmapping"].as<double>();
+    L        = node["L"       ].as<double>();
+    AA       = node["A"       ].as<double>();
+    MODEL    = node["model"   ].as<std::string>();
   } else {
     std::cout << "---- SLGridCyl: bad magic number in cache file" << std::endl;
     return 0;
@@ -495,10 +564,10 @@ int SLGridCyl::read_cached_table(void)
     return 0;
   }
 
-  if (SCL!=scale) {
+  if (RMAP!=rmap) {
     if (myid==0)
-      std::cout << "---- SLGridCyl::read_cached_table: found scale=" << SCL
-		<< " wanted " << scale << std::endl;
+      std::cout << "---- SLGridCyl::read_cached_table: found rmapping=" << RMAP
+		<< " wanted " << rmap << std::endl;
     return 0;
   }
 
@@ -571,17 +640,17 @@ void SLGridCyl::write_cached_table(void)
   // content can be added as needed.
   YAML::Node node;
 
-  node["mmax"   ] = mmax;
-  node["nmax"   ] = nmax;
-  node["numk"   ] = numk;
-  node["numr"   ] = numr;
-  node["cmap"   ] = cmap;
-  node["rmin"   ] = rmin;
-  node["rmax"   ] = rmax;
-  node["scale"  ] = scale;
-  node["L"      ] = l;
-  node["A"      ] = A;
-  node["model"  ] = cyl->ID();
+  node["mmax"    ] = mmax;
+  node["nmax"    ] = nmax;
+  node["numk"    ] = numk;
+  node["numr"    ] = numr;
+  node["cmap"    ] = cmap;
+  node["rmin"    ] = rmin;
+  node["rmax"    ] = rmax;
+  node["rmapping"] = rmap;
+  node["L"       ] = l;
+  node["A"       ] = A;
+  node["model"   ] = cyl->ID();
     
   // Serialize the node
   //
@@ -645,7 +714,7 @@ double SLGridCyl::r_to_xi(double r)
   }
 
   if (cmap) {
-    return (r/scale-1.0)/(r/scale+1.0);
+    return (r/rmap-1.0)/(r/rmap+1.0);
   } else {
     return r;
   }
@@ -666,7 +735,7 @@ double SLGridCyl::xi_to_r(double xi)
       bomb(ostr.str());
     }
 
-    return (1.0+xi)/(1.0 - xi) * scale;
+    return (1.0+xi)/(1.0 - xi) * rmap;
   } else {
     return xi;
   }
@@ -688,7 +757,7 @@ double SLGridCyl::d_xi_to_r(double xi)
       bomb(ostr.str());
     }
     
-    return 0.5*(1.0-xi)*(1.0-xi)/scale;
+    return 0.5*(1.0-xi)*(1.0-xi)/rmap;
   } else {
     return 1.0;
   }
@@ -1198,9 +1267,9 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4*scale,1.0e-5,  
-		   1.0e-4*scale,1.0e-5,  
-		   1.0e-4*scale,1.0e-5};
+  double tol[6] = {1.0e-4*rmap,1.0e-5,  
+		   1.0e-4*rmap,1.0e-5,  
+		   1.0e-4*rmap,1.0e-5};
   int VERBOSE=0;
   integer NUM, N, M;
   logical type[8];
@@ -1280,6 +1349,63 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	   t, rho, iflag, store);
   //
+  //     Check for errors
+  //
+#ifdef SLEDGE_THROW
+  unsigned bad = 0;		// Count non-zero sledge flags
+  for (int i=0; i<N; i++) {
+    if (iflag[i] != 0) bad++;
+  }
+
+  std::ostringstream sout;	// Exception message
+
+  // Print info and throw exception if we have errors...
+  if (bad>0) {
+
+    if (myid==0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+      
+      std::cout	<< std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for m="
+		<< std::endl << std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
+		<< std::endl;
+
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      std::cout << std::endl;
+
+      sout << std::endl
+	   << "SLGridCyl found " << bad
+	   << " tolerance errors in computing SL solutions." << std::endl
+	   << "We suggest checking your model for sufficient smoothness and"
+	   << std::endl
+	   << "sufficiently many grid points that the relative difference"
+	   << std::endl << "between field quantities is <= 0.3";
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+
+    } else {
+      throw GenericError("sledge errors", __FILE__, __LINE__);
+    }
+  }
+#endif
+
+  //
   //     Print results:
   //
   if (tbdbg) {
@@ -1312,8 +1438,7 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
       }
     }
   }
-  
-				// Load table
+
 
   table->ev.resize(N);
   for (int i=0; i<N; i++) table->ev[i] = ev[i];
@@ -1347,8 +1472,8 @@ void SLGridCyl::init_table(void)
   d0.resize(numr);
 
   if (cmap) {
-    xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
-    xmax = (rmax/scale - 1.0)/(rmax/scale + 1.0);
+    xmin = (rmin/rmap - 1.0)/(rmin/rmap + 1.0);
+    xmax = (rmax/rmap - 1.0)/(rmax/rmap + 1.0);
     dxi = (xmax-xmin)/(numr-1);
   } else {
     xmin = rmin;
@@ -1370,9 +1495,9 @@ void SLGridCyl::compute_table_worker(void)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4*scale,1.0e-5,  
-		   1.0e-4*scale,1.0e-5, 
-		   1.0e-4*scale,1.0e-5};
+  double  tol[6] = {1.0e-4*rmap,1.0e-5,  
+                    1.0e-4*rmap,1.0e-5, 
+		    1.0e-4*rmap,1.0e-5};
   int i, j, VERBOSE=0;
   integer NUM;
   logical type[8];
@@ -1470,10 +1595,51 @@ void SLGridCyl::compute_table_worker(void)
 
     sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	    t, rho, iflag, store);
+
+    //
+    //     Check for errors
+    //
+#ifdef SLEDGE_THROW
+    unsigned bad = 0;		// Number of non-zero iflag values
+    for (int i=0; i<N; i++) {
+      if (iflag[i] != 0) bad++;
+    }
+
+    std::ostringstream sout;	// Runtime exception message
+
+    // Print info if we have errors.  Number of errors will be sent to
+    // and accumulated by the root node.
+    if (bad>0) {
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+    
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for m="
+		<< M << " K=" << K << std::endl << std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
+		<< std::endl;
+      
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      std::cout << std::endl;
+    }
+#endif
+
     //
     //     Print results:
     //
-    
     if (tbdbg) {
     
       if (type[0]) std::cout << "Worker " << myid 
@@ -1552,6 +1718,11 @@ void SLGridCyl::compute_table_worker(void)
     table.m = M;
     table.k = K;
   
+#ifdef SLEDGE_THROW
+    // Send the failure code to the root
+    MPI_Send(&bad, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
+#endif
+
     int position = mpi_pack_table(&table, M, K);
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
@@ -1705,7 +1876,7 @@ void SLGridSph::bomb(string oops)
 SLGridSph::SLGridSph(std::string modelname,
 		     int LMAX, int NMAX, int NUMR,
 		     double RMIN, double RMAX, 
-		     bool CACHE, int CMAP, double SCALE,
+		     bool CACHE, int CMAP, double RMAP,
 		     int DIVERGE, double DFAC,
 		     std::string cachename, bool VERBOSE)
 {
@@ -1721,12 +1892,12 @@ SLGridSph::SLGridSph(std::string modelname,
   diverge  = DIVERGE;
   dfac     = DFAC;
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, RMAP);
 }
 
 SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 		     int LMAX, int NMAX, int NUMR, double RMIN, double RMAX, 
-		     bool CACHE, int CMAP, double SCALE,
+		     bool CACHE, int CMAP, double RMAP,
 		     std::string cachename, bool VERBOSE)
 {
   mpi_buf  = 0;
@@ -1738,7 +1909,7 @@ SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
   if (cachename.size()) sph_cache_name  = cachename;
   else                  sph_cache_name  = default_cache;
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, RMAP);
 }
 
 
@@ -1768,7 +1939,7 @@ SLGridSph::cacheInfo(const std::string& cachefile, bool verbose)
 
 void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 			   double RMIN, double RMAX, 
-			   bool CACHE, int CMAP, double SCALE)
+			   bool CACHE, int CMAP, double RMAP)
 {
   int l;
 
@@ -1781,7 +1952,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
   cache = CACHE;
   cmap  = CMAP;
-  scale = SCALE;
+  rmap  = RMAP;
 
   init_table();
 
@@ -1805,6 +1976,8 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
       
       mpi_setup();
       
+      int totbad = 0;		// Count total number of sledge errors
+
       if (mpi_myid) {		// Begin workers
 	compute_table_worker();
 	
@@ -1854,10 +2027,21 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	    // <Wait and receive>
 	    //
 	    
+#ifdef SLEDGE_THROW
+	    int bad;		// Get the sledge error count from a
+				// worker
+	    MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
+		     MPI_COMM_WORLD, &status);
+	    totbad += bad;
+	    int retid = status.MPI_SOURCE;
+	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		     MPI_COMM_WORLD, &status);
+#else
 	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		     MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 	    
 	    int retid = status.MPI_SOURCE;
+#endif
 	  
 	    mpi_unpack_table();      
 
@@ -1882,11 +2066,21 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	//
       
 	while (worker) {
-	
-	
-	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
-		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+#ifdef SLEDGE_THROW
+	  int bad;		// Get the sledge error count from a
+				// worker
+	  MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10,
+		   MPI_COMM_WORLD, &status);
+	  totbad += bad;
+
+	  int retid = status.MPI_SOURCE;
+	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		   MPI_COMM_WORLD, &status);
+#else
+	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 11,
+		   MPI_COMM_WORLD, &status);
 	  
+#endif
 	  mpi_unpack_table();      
 	  
 	  worker--;
@@ -1913,6 +2107,31 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
       }
       // END Root
+
+#ifdef SLEDGE_THROW
+      // Share the total sledge error count with all nodes
+      MPI_Bcast(&totbad, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+      // Emit runtime exception on sledge errors
+      if (totbad) {
+	std::ostringstream sout;
+
+	if (myid==0) {
+	  sout << std::endl
+	       << "SLGridSph found " << totbad
+	       << " tolerance errors in computing SL solutions." << std::endl
+	       << "We suggest checking your model file for smoothness and for"
+	       << std::endl
+	       << "a sufficient number grid points that the relative difference"
+	       << std::endl
+	       << "between field quantities is <= 0.3";
+	} else {
+	  sout << std::endl << "sledge tolerance failure";
+	}
+
+	throw GenericError(sout.str(), __FILE__, __LINE__);
+      }
+#endif
     }
     // END MPI stanza, BEGIN single-process stanza
     else {
@@ -2039,7 +2258,7 @@ bool SLGridSph::ReadH5Cache(void)
     if (not checkInt(cmap,     "cmap"))      return false;
     if (not checkDbl(rmin,     "rmin"))      return false;
     if (not checkDbl(rmax,     "rmax"))      return false;
-    if (not checkDbl(scale,    "scale"))     return false;
+    if (not checkDbl(rmap,     "rmapping"))  return false;
     if (not checkInt(diverge,  "diverge"))   return false;
     if (not checkDbl(dfac,     "dfac"))      return false;
 
@@ -2063,7 +2282,7 @@ bool SLGridSph::ReadH5Cache(void)
     }
     
     if (myid==0)
-      std::cerr << "---- SLGridSph::ReadH5Cache: "
+      std::cout << "---- SLGridSph::ReadH5Cache: "
 		<< "successfully read basis cache <" << sph_cache_name
 		<< ">" << std::endl;
 
@@ -2100,7 +2319,7 @@ void SLGridSph::WriteH5Cache(void)
         sout << "---- SLGridSph::WriteH5Cache write error: "
 	     << "what():  " << ex.what()  << std::endl
 	     << "path1(): " << ex.path1() << std::endl
-	     << "path2(): " << ex.path2() << std::endl;
+	     << "path2(): " << ex.path2();
 	throw GenericError(sout.str(), __FILE__, __LINE__, 12, true);
       }
       
@@ -2130,7 +2349,7 @@ void SLGridSph::WriteH5Cache(void)
     file.createAttribute<int>         ("cmap",     HighFive::DataSpace::From(cmap)).write(cmap);
     file.createAttribute<double>      ("rmin",     HighFive::DataSpace::From(rmin)).write(rmin);
     file.createAttribute<double>      ("rmax",     HighFive::DataSpace::From(rmax)).write(rmax);
-    file.createAttribute<double>      ("scale",    HighFive::DataSpace::From(scale)).write(scale);
+    file.createAttribute<double>      ("rmapping", HighFive::DataSpace::From(rmap)).write(rmap);
     file.createAttribute<int>         ("diverge",  HighFive::DataSpace::From(diverge)).write(diverge);
     file.createAttribute<double>      ("dfac",     HighFive::DataSpace::From(dfac)).write(dfac);
       
@@ -2172,7 +2391,7 @@ double SLGridSph::r_to_xi(double r)
 
   if (cmap==1) {
     if (r<0.0) bomb("radius < 0!");
-    ret =  (r/scale-1.0)/(r/scale+1.0);
+    ret =  (r/rmap-1.0)/(r/rmap+1.0);
   } else if (cmap==2) {
     if (r<=0.0) bomb("radius <= 0!");
     ret = log(r);
@@ -2191,7 +2410,7 @@ double SLGridSph::xi_to_r(double xi)
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
-    ret =(1.0+xi)/(1.0 - xi) * scale;
+    ret =(1.0+xi)/(1.0 - xi) * rmap;
   } else if (cmap==2) {
     ret = exp(xi);
   } else {
@@ -2211,7 +2430,7 @@ double SLGridSph::d_xi_to_r(double xi)
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
-    ret = 0.5*(1.0-xi)*(1.0-xi)/scale;
+    ret = 0.5*(1.0-xi)*(1.0-xi)/rmap;
   } else if (cmap==2) {
     ret = exp(-xi);
   } else {
@@ -2562,9 +2781,9 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4*scale,1.0e-6,  
-		   1.0e-4*scale,1.0e-6,  
-		   1.0e-4*scale,1.0e-6};
+  double tol [6] = {1.0e-4*rmap, 1.0e-6,  
+                    1.0e-4*rmap, 1.0e-6,  
+		    1.0e-4*rmap, 1.0e-6};
   int VERBOSE=0;
   integer NUM, N;
   logical type[8] = {0, 0, 1, 0, 0, 0, 1, 0};
@@ -2638,6 +2857,66 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 
   sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	   t, rho, iflag, store);
+
+  //
+  //     Check for errors
+  //
+#ifdef SLEDGE_THROW
+  // Accumulate error count
+  unsigned bad = 0;
+  for (int i=0; i<N; i++) {
+    if (iflag[i] != 0) bad++;
+  }
+
+  std::ostringstream sout;
+
+  // Print info if we have errors and throw a runtime error
+  if (bad>0) {
+
+    if (myid==0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+    
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for l=" << l
+		<<  std::endl << std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
+		<< std::endl;
+      
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      std::cout << std::endl;
+      
+      sout << std::endl
+	   << "SLGridSph found " << bad
+	   << " tolerance errors in computing SL solutions." << std::endl
+	   << "We suggest checking your model file for smoothness and ensure"
+	   << std::endl
+	   << "a sufficient number grid points that the relative difference"
+	   << std::endl
+	   << "between field quantities is <= 0.3";
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
+    else {
+      throw GenericError("sledge errors", __FILE__, __LINE__);
+    }
+  }
+#endif
+
   //
   //     Print results:
   //
@@ -2713,8 +2992,8 @@ void SLGridSph::init_table(void)
   d0.resize(numr);
 
   if (cmap==1) {
-    xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
-    xmax = (rmax/scale - 1.0)/(rmax/scale + 1.0);
+    xmin = (rmin/rmap - 1.0)/(rmin/rmap + 1.0);
+    xmax = (rmax/rmap - 1.0)/(rmax/rmap + 1.0);
   }
   else if (cmap==2) {
     xmin = log(rmin);
@@ -2739,9 +3018,9 @@ void SLGridSph::compute_table_worker(void)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-1*scale,1.0e-6,  
-		   1.0e-1*scale,1.0e-6,  
-		   1.0e-1*scale,1.0e-6};
+  double tol [6] = {1.0e-1*rmap, 1.0e-6,  
+                    1.0e-1*rmap, 1.0e-6,  
+		    1.0e-1*rmap, 1.0e-6};
 
   int VERBOSE=0;
   integer NUM;
@@ -2836,10 +3115,54 @@ void SLGridSph::compute_table_worker(void)
 
     sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	    t, rho, iflag, store);
+
+    //
+    //     Check for errors
+    //
+#ifdef SLEDGE_THROW
+    // Get sledge error count
+    unsigned bad = 0;
+    for (int i=0; i<N; i++) {
+      if (iflag[i] != 0) bad++;
+    }
+    
+    std::ostringstream sout;
+
+    // Print info if we have errors.  Number of errors will be sent to
+    // and accumulated by the root node.
+    if (bad>0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+    
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for l=" << L
+		<<  std::endl << std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
+		<< std::endl;
+      
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      std::cout << std::endl;
+      
+    }
+#endif
+
     //
     //     Print results:
     //
-    
     if (tbdbg) {
       std::cout << "Worker " <<  mpi_myid << ": computed l = " << L << "" << std::endl;
 
@@ -2892,6 +3215,11 @@ void SLGridSph::compute_table_worker(void)
 
     table.l = L;
   
+#ifdef SLEDGE_THROW
+    // Send sledge error count to root
+    MPI_Send(&bad, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
+#endif
+    // Send sledge comptuation to root
     int position = mpi_pack_table(&table, L);
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
@@ -3032,27 +3360,78 @@ YAML::Node SLGridSph::getHeader(const std::string& cachefile)
       return v;
     };
 
-    node["model"]   = getStr("model");
-    node["lmax"]    = getInt("lmax");
-    node["nmax"]    = getInt("nmax");
-    node["numr"]    = getInt("numr");
-    node["cmap"]    = getInt("cmap");
-    node["rmin"]    = getDbl("rmin");
-    node["rmax"]    = getDbl("rmax");
-    node["scale"]   = getDbl("scale");
-    node["diverge"] = getInt("diverge");
-    node["dfac"]    = getDbl("dfac");
+    node["model"]    = getStr("model");
+    node["lmax"]     = getInt("lmax");
+    node["nmax"]     = getInt("nmax");
+    node["numr"]     = getInt("numr");
+    node["cmap"]     = getInt("cmap");
+    node["rmin"]     = getDbl("rmin");
+    node["rmax"]     = getDbl("rmax");
+    node["rmapping"] = getDbl("rmapping");
+    node["diverge"]  = getInt("diverge");
+    node["dfac"]     = getDbl("dfac");
   }
   catch (YAML::Exception& error) {
     std::ostringstream sout;
     sout << "SLGridMP2::getHeader: invalid cache file <" << cachefile << ">. ";
-    sout << "YAML error in getHeader: " << error.what() << std::endl;
+    sout << "YAML error in getHeader: " << error.what();
     throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
   }
 
   return node;
 }
 
+
+std::vector<Eigen::MatrixXd> SLGridSph::orthoCheck(int num)
+{
+  // Gauss-Legendre knots and weights
+  LegeQuad lw(num);
+
+  // Get the scaled coordinate limits
+  double ximin = r_to_xi(rmin);
+  double ximax = r_to_xi(rmax);
+
+  // Initialize the return matrices
+  std::vector<Eigen::MatrixXd> ret(lmax+1);
+  for (auto & v : ret) v.resize(nmax, nmax);
+
+  // Do each harmonic order
+  for (int L=0; L<=lmax; L++) {
+
+    // Unroll the loop for OpenMP parallelization
+#pragma omp parallel for
+    for (int nn=0; nn<nmax*nmax; nn++) {
+      int n1 = nn/nmax;
+      int n2 = nn - n1*nmax;
+      
+      // The inner product
+      double ans=0.0;
+      for (int i=0; i<num; i++) {
+	
+	double x = ximin + (ximax - ximin)*lw.knot(i);
+	double r = xi_to_r(x);
+	  
+	ans += r*r*get_pot(x, L, n1, 0)*
+	  get_dens(x, L, n2, 0) /
+	  d_xi_to_r(x) * (ximax - ximin)*lw.weight(i);
+	  
+      }
+      // END: inner product
+	    
+      // Assign the matrix element
+      //
+      ret[L](n1, n2) = - ans;
+      //               ^
+      //               |
+      //               +--- Switch to normed scalar product rather
+      //                    that normed gravitational energy
+    }
+    // END: unrolled loop
+  }
+  // END: harmonic order loop
+  
+  return ret;
+}
 
 //======================================================================
 //======================================================================
@@ -3222,7 +3601,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
     mpi_setup();
 
+    int totbad = 0;		// Accumulate total sledge error count
+
     if (mpi_myid) {
+
       compute_table_worker();
 
       //
@@ -3280,11 +3662,21 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	    //
 	    // <Wait and receive>
 	    //
-	
+#ifdef SLEDGE_THROW
+	    int bad;		// Get sledge error count
+	    MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_TAG, 10,
+		     MPI_COMM_WORLD, &status);
+	    totbad += bad;
+				// Get sledge comptuation result
+	    int retid = status.MPI_SOURCE;
+	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		     MPI_COMM_WORLD, &status);
+#else
 	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		     MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 	    
 	    int retid = status.MPI_SOURCE;
+#endif
 
 	    mpi_unpack_table();      
 
@@ -3316,10 +3708,20 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
   
 	while (worker) {
 	
-	
-	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
-		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    
+#ifdef SLEDGE_THROW
+	  // Get sledge error count
+	  int bad;
+	  MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_SOURCE, 10, MPI_COMM_WORLD,
+		   &status);
+	  totbad += bad;
+	  // Get sledge computation result
+	  int retid = status.MPI_SOURCE;
+	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+		   MPI_COMM_WORLD, &status);
+#else
+	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 11,
+		   MPI_COMM_WORLD, &status);
+#endif
 	  mpi_unpack_table();      
 
 	  worker--;
@@ -3328,7 +3730,6 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	if (cache) write_cached_table();
 
       }
-
 
       //
       // <Tell workers to continue>
@@ -3354,6 +3755,28 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
     } // END Root
 
+#ifdef SLEDGE_THROW
+    // Share total sledge error count with all nodes
+    MPI_Bcast(&totbad, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Throw runtime error if sledge comtputation has errors
+    if (totbad) {
+      std::ostringstream sout;
+      
+      if (myid==0) {
+	sout << std::endl << "SLGridSlab found " << totbad
+	     << " tolerance errors in computing SL solutions." << std::endl
+	     << "We suggest checking your model parameters to ensure a"
+	     << std::endl
+	     << "sufficient number of grid points that the relative difference"
+	     << std::endl << "between field quantities is <= 0.3";
+      } else {
+	sout << std::endl << "sledge tolerance failure";
+      }
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
+#endif
   }
   else {
 
@@ -3422,7 +3845,7 @@ int SLGridSlab::read_cached_table(void)
       std::ostringstream sout;
       sout << "YAML: error parsing <" << buf.get() << "> "
 	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
-	   << "YAML error: " << error.what() << std::endl;
+	   << "YAML error: " << error.what();
       throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
     }
     
@@ -4111,10 +4534,67 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 
   sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	   t, rho, iflag, store);
+
+  //
+  //     Check for errors
+  //
+#ifdef SLEDGE_THROW
+  unsigned bad = 0;		// Number of non-zero iflag values
+  for (int i=0; i<N; i++) {
+    if (iflag[i] != 0) bad++;
+  }
+
+  std::ostringstream sout;	// Runtime error message
+
+  // Print info if we have sledge errors and throw a runtime
+  // exception
+  if (bad>0) {
+
+    if (myid==0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+      
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+		<< " Ky=" << KY << ", even" <<  std::endl << std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
+		<< std::endl;
+      
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      std::cout << std::endl;
+      
+      sout << std::endl
+	   << "SLGridSlab found " << bad
+	   << " tolerance errors in computing SL solutions." << std::endl
+	   << "We suggest checking your model parameters to ensure a"
+	   << std::endl
+	   << "sufficient number of grid points that the relative difference"
+	   << std::endl << "between field quantities is <= 0.3";
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    } else {
+      throw GenericError("sledge errors", __FILE__, __LINE__);
+    }
+  }
+#endif
+
   //
   //     Print results:
   //
-  
   if (tbdbg) {
 
     std::cout.precision(6);
@@ -4169,6 +4649,60 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	  t, rho, iflag, store);
 
+  //
+  //     Check for errors
+  //
+#ifdef SLEDGE_THROW
+  bad = 0;			// Accumulate sledge error count
+  for (int i=0; i<N; i++) {
+    if (iflag[i] != 0) bad++;
+  }
+
+  sout.str("");
+
+  // Print info if we have errors and throw a runtime exception
+  if (bad>0) {
+
+    if (myid==0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+    
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+		<< " Ky=" << KY << ", odd" <<  std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
+		<< std::endl;
+      
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      std::cout << std::endl;
+      
+      sout << std::endl << "SLGridSph found " << bad
+	   << " tolerance errors in computing SL solutions." << std::endl
+	   << "We suggest checking your model parameters to ensure a"
+	   << std::endl
+	   << "sufficient number of grid points that the relative difference"
+	   << std::endl << "between field quantities is <= 0.3";
+
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    } else {
+      throw GenericError("sledge errors", __FILE__, __LINE__);
+    }
+  }
+#endif
 
   //
   //     Print results:
@@ -4255,7 +4789,6 @@ void SLGridSlab::init_table(void)
 
 void SLGridSlab::compute_table_worker(void)
 {
-
   //  double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
   //  double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
   double cons[8];
@@ -4375,6 +4908,48 @@ void SLGridSlab::compute_table_worker(void)
     //     Print results:
     //
     
+    //
+    //     Check for errors
+    //
+#ifdef SLEDGE_THROW
+    unsigned bad = 0;		// Number of non-zero iflag values
+    for (int i=0; i<N; i++) {
+      if (iflag[i] != 0) bad++;
+    }
+    
+    std::ostringstream sout;	// Runtime error message
+
+    // Print info if we have errors.  Number of errors will be sent to
+    // and accumulated by the root node.
+    if (bad>0) {
+
+      std::cout.precision(6);
+      std::cout.setf(ios::scientific);
+      std::cout << std::left;
+    
+      std::cout << std::endl
+		<< "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+		<< " Ky=" << KY << ", even" <<  std::endl << std::endl;
+
+      std::cout << std::setw(15) << "order"
+		<< std::setw(15) << "eigenvalue"
+		<< std::setw(40) << "condition"
+		<< std::endl
+		<< std::setw(15) << "-----"
+		<< std::setw(15) << "----------"
+		<< std::setw(40) << "---------"
+		<< std::endl;
+
+      for (int i=0; i<N; i++) {
+	std::cout << std::setw(15) << invec[3+i] 
+		  << std::setw(15) << ev[i]
+		  << std::setw(40) << sledge_error(iflag[i])
+		  << std::endl;
+      }
+      std::cout << std::endl;
+    }
+#endif
+
     if (tbdbg) {
       std::cout << "Worker " << mpi_myid << ": computed Kx, Ky = " 
 		<< KX << ", " << KY << " [Even]" << std::endl;
@@ -4430,6 +5005,62 @@ void SLGridSlab::compute_table_worker(void)
     sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
 	    t, rho, iflag, store);
 
+    //
+    //     Check for errors
+    //
+#ifdef SLEDGE_THROW
+    // Accumulate sledge error count
+    bad = 0;
+    for (int i=0; i<N; i++) {
+      if (iflag[i] != 0) bad++;
+    }
+
+    sout.str("");
+
+    if (bad>0) {
+
+      // Print sledge error info and throw runtime exception
+      if (myid==0) {
+
+	std::cout.precision(6);
+	std::cout.setf(ios::scientific);
+	std::cout << std::left;
+    
+	std::cout << std::endl
+		  << "Tolerance errors in Sturm-Liouville solver for Kx=" << KX
+		  << " Ky=" << KY << ", odd" <<  std::endl << std::endl;
+
+	std::cout << std::setw(15) << "order"
+		  << std::setw(15) << "eigenvalue"
+		  << std::setw(40) << "condition"
+		  << std::endl
+		  << std::setw(15) << "-----"
+		  << std::setw(15) << "----------"
+		  << std::setw(40) << "---------"
+		  << std::endl;
+	
+	for (int i=0; i<N; i++) {
+	  std::cout << std::setw(15) << invec[3+i] 
+		    << std::setw(15) << ev[i]
+		    << std::setw(40) << sledge_error(iflag[i])
+		    << std::endl;
+	}
+	std::cout << std::endl;
+      
+	sout << std::endl << "SLGridSlab found " << bad
+	     << " tolerance errors in computing SL solutions" << std::endl
+	     << "We suggest checking your model parameters to ensure a"
+	     << std::endl
+	     << "sufficient number of grid points that the relative difference"
+	     << std::endl << "between field quantities is <= 0.3";
+
+	throw GenericError(sout.str(), __FILE__, __LINE__);
+      } else {
+	throw GenericError("sledge errors", __FILE__, __LINE__);
+      }
+    }
+#endif
+
     //     Print results:
     //
     if (tbdbg) {
@@ -4481,6 +5112,10 @@ void SLGridSlab::compute_table_worker(void)
     table.kx = KX;
     table.ky = KY;
   
+#ifdef SLEDGE_THROW
+    // Send sledge error count to root
+    MPI_Send(&bad, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
+#endif
     int position = mpi_pack_table(&table, KX, KY);
     MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 

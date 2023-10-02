@@ -1,6 +1,9 @@
 /* True if DSMC is enabled */
 #cmakedefine DSMC_ENABLED @DSMC_ENABLED@
 
+/* Defined if ENABLE_SLCHECK is enabled */
+#cmakedefine SLEDGE_THROW @ENABLE_SLCHECK@
+
 /* "Have C++0x (set standard to cxx14 so legacy define)*/
 #define HAVE_CXX0X
 

@@ -19,7 +19,7 @@ typedef std::shared_ptr<SLGridSph> SLGridSphPtr;
     \param rmin is the minimum value in the table for the 
     radial basis functions (default is 0.001)
 
-    \param rs is the halo scale length (default is 0.067*rmax).  This
+    \param rmapping is the halo scale length (default is 0.067*rmax).  This
     is used to for the coordinate mapping  (see below).
 
     \param cmap should be 1 for algebraic coordinate scaling, 2 for log
@@ -88,7 +88,7 @@ private:
 
 				// Parameters
   double rsphSL;
-  double rs;
+  double rmap;
   double tnext, dtime;
   int    numr;
   int    nums;
@@ -120,7 +120,7 @@ public:
       @param m allows the spherical basis to be used for multiple center expansions 
       
       Input line parameters include:
-      @param rs is the radius for coordinate scaling
+      @param rmapping is the radius for coordinate scaling
       @param numr is the number of radial grid points
       @param cmap set to true for scaling coordinates from the semi-infinite to finite segment
       @param diverge set to true means assume a cuspy profile

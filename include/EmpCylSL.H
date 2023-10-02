@@ -387,9 +387,6 @@ public:
   
   typedef std::shared_ptr<AxiDisk> AxiDiskPtr;
 
-  //! TRUE if density is computed (default: false)
-  static bool DENS;
-
   //! TRUE if signal-to-noise methods are on (default: false)
   static bool PCAVAR;
 

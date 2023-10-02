@@ -101,6 +101,12 @@ namespace BasisClasses
     //! Using MPI
     bool use_mpi;
 
+    //! Return readable class name
+    virtual const std::string classname() = 0;
+
+    //! Subspace index
+    virtual const std::string harmonic() = 0;
+
   public:
     
     //! Constructor from YAML node
@@ -198,7 +204,7 @@ namespace BasisClasses
     
     std::string model_file;
     int lmax, nmax, cmap, numr;
-    double rmin, rmax;
+    double rmin, rmax, rmap;
     
     bool NO_L0, NO_L1, EVEN_L, EVEN_M, M0_only;
     
@@ -239,6 +245,12 @@ namespace BasisClasses
 
     //! Valid keys for YAML configurations
     static const std::set<std::string> valid_keys;
+
+    //! Return readable class name
+    virtual const std::string classname() { return "SphericalSL";}
+
+    //! Subspace index
+    virtual const std::string harmonic() { return "l";}
 
   public:
     
@@ -291,7 +303,10 @@ namespace BasisClasses
 
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
-    std::vector<Eigen::MatrixXd> orthoCheck(int knots=40);
+    std::vector<Eigen::MatrixXd> orthoCheck(int knots=40)
+    {
+      return sl->orthoCheck(knots);
+    }
 
   };
   
@@ -362,6 +377,12 @@ namespace BasisClasses
 
     //! Valid keys for YAML configurations
     static const std::set<std::string> valid_keys;
+
+    //! Return readable class name
+    virtual const std::string classname() { return "FlatDisk";}
+
+    //! Subspace index
+    virtual const std::string harmonic() { return "m";}
 
   public:
     
@@ -492,6 +513,12 @@ namespace BasisClasses
 
     //! Valid keys for YAML configurations
     static const std::set<std::string> valid_keys;
+
+    //! Return readable class name
+    virtual const std::string classname() { return "Cylindrical";}
+
+    //! Subspace index
+    virtual const std::string harmonic() { return "m";}
 
   public:
     

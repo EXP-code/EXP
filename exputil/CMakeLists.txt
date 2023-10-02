@@ -8,7 +8,7 @@ set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc # Hankel.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc stack.cc
   localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc QDHT.cc
   YamlCheck.cc parseVersionString.cc EXPmath.cc laguerre_polynomial.cpp
-  YamlConfig.cc)
+  YamlConfig.cc orthoTest.cc)
 
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)

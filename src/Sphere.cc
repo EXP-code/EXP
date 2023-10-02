@@ -7,10 +7,11 @@
 #include <Sphere.H>
 #include <plummer.H>
 #include <interp.H>
+#include <exputils.H>
 
 const std::set<std::string>
 Sphere::valid_keys = {
-  "rs",
+  "rmapping",
   "numr",
   "nums",
   "cmap",
@@ -28,7 +29,7 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 {
   id = "Sphere SL";
 				// Defaults
-  rs = 0.067*rmax;
+  rmap = 0.067*rmax;
   numr = 2000;
   nums = 2000;
   cmap = 1;
@@ -60,7 +61,7 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 				// Generate Sturm-Liouville grid
   ortho = std::make_shared<SLGridSph>(modelname,
 				      Lmax, nmax, numr, rmin, rmax, true,
-				      cmap, rs, diverge, dfac, cachename);
+				      cmap, rmap, diverge, dfac, cachename);
 
 				// Get the min and max expansion radii
   rmin  = ortho->getRmin();
@@ -71,6 +72,7 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
     std::cout << "---- Sphere parameters: "
 	      << std::endl << sep << "lmax="        << Lmax
 	      << std::endl << sep << "nmax="        << nmax
+	      << std::endl << sep << "rmapping="    << rmap
 	      << std::endl << sep << "cmap="        << cmap
 	      << std::endl << sep << "rmin="        << rmin
 	      << std::endl << sep << "rmax="        << rmax
@@ -85,6 +87,12 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   }
 
 
+  // Test for basis consistency (will generate an exception if maximum
+  // error is out of tolerance)
+  //
+  std::cout << "---- ";
+  orthoTest(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
+
   setup();
 }
 
@@ -98,7 +106,7 @@ void Sphere::initialize()
   // Assign values from YAML
   //
   try {
-    if (conf["rs"])        rs         = conf["rs"].as<double>();
+    if (conf["rmapping"])  rmap       = conf["rmapping"].as<double>();
     if (conf["numr"])      numr       = conf["numr"].as<int>();
     if (conf["nums"])      nums       = conf["nums"].as<int>();
     if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
@@ -319,6 +327,12 @@ void Sphere::make_model_bin()
   std::string cachename = outdir  + cache_file + "." + runtag;
   ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0, cachename);
 
+  // Test for basis consistency (will generate an exception if maximum
+  // error is out of tolerance)
+  //
+  std::cout << "---- ";
+  orthoTest(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
+
   // Update time trigger
   //
   tnext = tnow + dtime;
@@ -458,6 +472,12 @@ void Sphere::make_model_plummer()
   //
   std::string cachename = outdir  + cache_file + "." + runtag;
   ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numr, Rmin, Rmax, false, 1, 1.0, cachename);
+
+  // Test for basis consistency (will generate an exception if maximum
+  // error is out of tolerance)
+  //
+  std::cout << "---- ";
+  orthoTest(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
 
   // Update time trigger
   //

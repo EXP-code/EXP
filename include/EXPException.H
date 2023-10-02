@@ -121,8 +121,8 @@ public:
 	       int sourcelinenumber, int errorcode=-1, bool deadlock=false)
     : EXPException(sourcefilename, sourcelinenumber, errorcode, deadlock)
   {
-    exceptionname = "Execution exception";
-    std::ostringstream ostr; ostr << "Error details: " << msg << ".";
+    exceptionname = "Execution Exception";
+    std::ostringstream ostr; ostr << msg << ".";
     errormessage = ostr.str();
 
     // Assemble and store the error message

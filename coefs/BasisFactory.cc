@@ -2,6 +2,7 @@
 #include <EXPException.H>
 #include <BasisFactory.H>
 #include <DiskModels.H>
+#include <exputils.H>
 #include <gaussQ.H>
 
 #ifdef HAVE_FE_ENABLE
@@ -92,7 +93,7 @@ namespace BasisClasses
   
   const std::set<std::string>
   SphericalSL::valid_keys = {
-    "rs",
+    "rmapping",
     "cmap",
     "Lmax",
     "dof",
@@ -172,7 +173,7 @@ namespace BasisClasses
 
     // Assign values from YAML
     //
-    double rs = 1.0;
+    double rmap = 1.0;
 
     try {
       if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
@@ -180,10 +181,10 @@ namespace BasisClasses
       if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
       if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
       
-      if (conf["rs"]) 
-	rs   = conf["rs"].as<double>();
+      if (conf["rmapping"]) 
+	rmap = conf["rmapping"].as<double>();
       else
-	rs   = 1.0;
+	rmap = 1.0;
       
       if (conf["scale"]) 
 	scale = conf["scale"].as<double>();
@@ -257,9 +258,12 @@ namespace BasisClasses
     
     // Finally, make the Sturm-Lioville basis...
     sl = std::make_shared<SLGridSph>
-      (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rs,
+      (model_file, lmax, nmax, numr, rmin, rmax, true, cmap, rmap,
        0, 1, cachename);
     
+    // Test basis for consistency
+    orthoTest(orthoCheck(std::max<int>(nmax*50, 200)), classname(), harmonic());
+
     // Number of possible threads
     int nthrds = omp_get_max_threads();
     
@@ -610,58 +614,6 @@ namespace BasisClasses
   }
 
 
-  std::vector<Eigen::MatrixXd> SphericalSL::orthoCheck(int num)
-  {
-    // Gauss-Legendre knots and weights
-    LegeQuad lw(num);
-
-    // Get the scaled coordinate limits
-    double ximin = sl->r_to_xi(rmin);
-    double ximax = sl->r_to_xi(rmax);
-
-    // Initialize the return matrices
-    std::vector<Eigen::MatrixXd> ret(lmax+1);
-    for (auto & v : ret) v.resize(nmax, nmax);
-
-    // Do each harmonic order
-    for (int L=0; L<=lmax; L++) {
-
-      // Unroll the loop for OpenMP parallelization
-#pragma omp parallel for
-      for (int nn=0; nn<nmax*nmax; nn++) {
-	int n1 = nn/nmax;
-	int n2 = nn - n1*nmax;
-
-	// The inner product
-	double ans=0.0;
-	for (int i=0; i<num; i++) {
-	  
-	  double x = ximin + (ximax - ximin)*lw.knot(i);
-	  double r = sl->xi_to_r(x);
-	  
-	  ans += r*r*sl->get_pot(x, L, n1, 0)*
-	    sl->get_dens(x, L, n2, 0) /
-	    sl->d_xi_to_r(x) * (ximax - ximin)*lw.weight(i);
-	  
-	}
-	// END: inner product
-	    
-	// Assign the matrix element
-	//
-	ret[L](n1, n2) = - ans;
-	//               ^
-	//               |
-	//               +--- Switch to normed scalar product rather
-	//                    that normed gravitational energy
-      }
-      // END: unrolled loop
-    }
-    // END: harmonic order loop
-
-    return ret;
-  }
-
-  
   SphericalSL::BasisArray SphericalSL::getBasis
   (double logxmin, double logxmax, int numgrid)
   {
@@ -1009,14 +961,14 @@ namespace BasisClasses
     ncylnx      = 256;
     ncylny      = 128;
     ncylodd     = 9;
-    ncylr       = 200;
+    ncylr       = 2000;
     eof_file    = ".eof_cache_file";
     Ignore      = false;
     deproject   = false;
     
-    rnum        = 100;
+    rnum        = 200;
     pnum        = 1;
-    tnum        = 40;
+    tnum        = 80;
     ashift      = 0.0;
     logarithmic = false;
     density     = true;
@@ -1089,7 +1041,6 @@ namespace BasisClasses
 
       if (conf["ashift"    ])     ashift  = conf["ashift"    ].as<double>();
       if (conf["logr"      ]) logarithmic = conf["logr"      ].as<bool>();
-      if (conf["density"   ])    density  = conf["density"   ].as<bool>();
       if (conf["EVEN_M"    ])     EVEN_M  = conf["EVEN_M"    ].as<bool>();
       if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
       if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
@@ -1108,6 +1059,14 @@ namespace BasisClasses
       if (conf["mtype"     ])       mtype = conf["mtype"     ].as<std::string>();
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
+
+      // Deprecation warning
+      if (conf["density"   ]) {
+	if (myid==0)
+	  std::cout << "Cylindrical: parameter 'density' is deprecated. "
+		    << "The density field will be computed regardless."
+		    << std::endl;
+      }
 
     }
     catch (YAML::Exception & error) {
@@ -1139,11 +1098,6 @@ namespace BasisClasses
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
     
-    // For visualization
-    //
-    if (density) EmpCylSL::DENS = true;
-
-
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
     //
@@ -1275,7 +1229,12 @@ namespace BasisClasses
 
       sl->generate_eof(rnum, pnum, tnum, f);
     }
+
+    // Orthogonality sanity check
+    //
+    orthoTest(orthoCheck(), classname(), harmonic());
   }
+
   
   void Cylindrical::getFields
   (double x, double y, double z,
@@ -1553,6 +1512,10 @@ namespace BasisClasses
     //
     ortho = std::make_shared<BiorthCyl>(conf);
     
+    // Orthogonality sanity check
+    //
+    orthoTest(orthoCheck(), classname(), harmonic());
+
     // Get max threads
     //
     int nthrds = omp_get_max_threads();
@@ -1881,6 +1844,7 @@ namespace BasisClasses
     return ortho->orthoCheck();
   }
   
+
   FlatDisk::BasisArray FlatDisk::getBasis
   (double logxmin, double logxmax, int numgrid)
   {

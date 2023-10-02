@@ -69,7 +69,7 @@ main(int argc, char **argv)
   int    OUTR, OUTZ, lmax, mmax, nmax, norder, numx, numy, nodd;
   std::string CACHEFILE, OUTTAG;
   double rcylmin, rcylmax, rscale, vscale;
-  bool   DENS, LOGSC;
+  bool   LOGSC;
 
   //
   // Parse Command line
@@ -114,8 +114,6 @@ main(int argc, char **argv)
      cxxopts::value<std::string>(CACHEFILE)->default_value(".eof.cache.file"))
     ("outtag", "outtag for basis files",
      cxxopts::value<std::string>(OUTTAG)->default_value("basis"))
-    ("density", "compute density",
-     cxxopts::value<bool>(DENS)->default_value("true"))
     ("logscale", "logscale for output basis",
      cxxopts::value<bool>(LOGSC)->default_value("false"))
     ;
@@ -154,7 +152,6 @@ main(int argc, char **argv)
   EmpCylSL::CMAPR       = 1;
   EmpCylSL::CMAPZ       = 1;
   EmpCylSL::logarithmic = true;
-  EmpCylSL::DENS        = DENS;
   EmpCylSL::NOUT        = norder;
 
 				// Create expansion

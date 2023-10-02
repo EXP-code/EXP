@@ -94,8 +94,6 @@ class MixtureBasis;
     
     @param try_cache false suppresses cache reading on restart (default: true)
 
-    @param density builds grid with density fields (e.g. for post processing)
-
     @param EVEN_M true uses even harmonic orders only
 
     @param cmap is the coordinate mapping type (deprecated but kept for backward consistency)
@@ -136,7 +134,7 @@ private:
   double hcyl, hexp, snr, rem;
   int nmax, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
   string eof_file;
-  bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
+  bool self_consistent, logarithmic, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
   bool try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
@@ -357,7 +355,6 @@ public:
   //! \param pcavtk set to true dumps PCA functions in VTK format for diagnostics (default: false)
   //! \param try_cache set to true means try to read basis from cache (default: true)
   //! \param dump_basis set to true outputs basis into file
-  //! \param density set to true means compute density basis in addition to potential (default: false)
   //! \param cmapR selects the radial coordinate mapping (default: 2, power mapping)
   //! \param cmapZ selects the vertical coordinate mapping (default: 1, sinh mapping)
   //!

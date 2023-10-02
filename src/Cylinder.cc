@@ -11,10 +11,12 @@
 #include <Cylinder.H>
 #include <MixtureBasis.H>
 #include <Timer.H>
+#include <exputils.H>
 
 Timer timer_debug;
 
 double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
+
 
 //@{
 //! These are for testing exclusively (should be set false for production)
@@ -166,7 +168,6 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   subsamp         = false;
   nvtk            = 1;
   pcainit         = true;
-  density         = false;
   coef_dump       = true;
   try_cache       = true;
   dump_basis      = false;
@@ -207,11 +208,6 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   // above.  Override file must exist if explicitly specified.
   //
   if (eof_file.size()) cachename = eof_file;
-
-  // For debugging; no use by force algorithm
-  //
-  if (density) EmpCylSL::DENS = true;
-
 
   // Make the empirical orthogonal basis instance
   //
@@ -379,6 +375,14 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   }
 #endif
       
+  // Test for basis consistency (will generate an exception if maximum
+  // error is out of tolerance)
+  //
+  std::cout << "---- ";
+  orthoTest(ortho->orthoCheck(), "Cylinder", "m");
+
+  // Initialize internal variables
+  //
   ncompcyl = 0;
 
   pos.resize(nthrds);
@@ -443,13 +447,20 @@ void Cylinder::initialize()
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["subsamp"   ])    subsamp  = conf["subsamp"   ].as<bool>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
-    if (conf["density"   ])    density  = conf["density"   ].as<bool>();
     if (conf["EVEN_M"    ])     EVEN_M  = conf["EVEN_M"    ].as<bool>();
     if (conf["cmap"      ])      cmapR  = conf["cmap"      ].as<int>();
     if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
     if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
+    // Deprecation warning
+    if (conf["density"   ]) {
+      if (myid==0)
+	std::cout << "Cylinder: parameter 'density' is deprecated. "
+		  << "The density field will be computed regardless."
+		  << std::endl;
+    }
+
     if (not conf["ncylodd"]) {
       ncylodd = nmax/4;
     }
@@ -1477,10 +1488,7 @@ void Cylinder::determine_fields_at_point_cyl(double r, double z, double phi,
   *tpotr *= -1.0;
   *tpotz *= -1.0;
   *tpotp *= -1.0;
-  if (density)
-    *tdens = ortho->accumulated_dens_eval(r, z, phi, *tdens0);
-  else
-    *tdens = 0.0;
+  *tdens = ortho->accumulated_dens_eval(r, z, phi, *tdens0);
 }
 
 				// Dump coefficients to a file

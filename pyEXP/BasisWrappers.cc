@@ -134,6 +134,14 @@ void BasisFactoryClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(void, Basis, set_coefs, coefs);
     }
 
+    const std::string classname() override {
+      PYBIND11_OVERRIDE_PURE(std::string, Basis, classname);
+    }
+
+    const std::string harmonic() override {
+      PYBIND11_OVERRIDE_PURE(std::string, Basis, harmonic);
+    }
+
   public:
     // Inherit the constructors
     using BasisClasses::Basis::Basis;
@@ -181,6 +189,14 @@ void BasisFactoryClasses(py::module &m) {
     
     void set_coefs(CoefClasses::CoefStrPtr coefs) override {
       PYBIND11_OVERRIDE(void, SphericalSL, set_coefs, coefs);
+    }
+
+    const std::string classname() override {
+      PYBIND11_OVERRIDE(std::string, SphericalSL, classname);
+    }
+
+    const std::string harmonic() override {
+      PYBIND11_OVERRIDE(std::string, SphericalSL, harmonic);
     }
 
   public:
@@ -232,6 +248,14 @@ void BasisFactoryClasses(py::module &m) {
       PYBIND11_OVERRIDE(void, Cylindrical, set_coefs, coefs);
     }
 
+    const std::string classname() override {
+      PYBIND11_OVERRIDE(std::string, Cylindrical, classname);
+    }
+
+    const std::string harmonic() override {
+      PYBIND11_OVERRIDE(std::string, Cylindrical, harmonic);
+    }
+
   public:
 
     // Inherit the constructors
@@ -281,6 +305,14 @@ void BasisFactoryClasses(py::module &m) {
     
     void set_coefs(CoefClasses::CoefStrPtr coefs) override {
       PYBIND11_OVERRIDE(void, FlatDisk, set_coefs, coefs);
+    }
+
+    const std::string classname() override {
+      PYBIND11_OVERRIDE(std::string, FlatDisk, classname);
+    }
+
+    const std::string harmonic() override {
+      PYBIND11_OVERRIDE(std::string, FlatDisk, harmonic);
     }
 
   public:

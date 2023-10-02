@@ -368,7 +368,7 @@ main(int ac, char **av)
   double       PPower, R_DF, DR_DF;
   double       Hratio, scale_height, scale_length, scale_lenfkN;
   double       disk_mass, gas_mass, gscal_length, ToomreQ, Temp, Tmin;
-  bool         const_height, images, multi, SVD, DENS, basis, zeropos, zerovel;
+  bool         const_height, images, multi, SVD, basis, zeropos, zerovel;
   bool         report, ignore, evolved, diskmodel;
   int          nhalo, ndisk, ngas, ngparam;
   std::string  hbods, dbods, gbods, suffix, centerfile, halofile1, halofile2;
@@ -467,8 +467,6 @@ main(int ac, char **av)
      cxxopts::value<bool>(LOGR)->default_value("true"))
     ("CHEBY", "(boolean) Use Chebyshev smoothing for disc velocities",
      cxxopts::value<bool>(CHEBY)->default_value("false"))
-    ("DENS", "(boolean) Output density cylindrical basis tables",
-     cxxopts::value<bool>(DENS)->default_value("false"))
     ("zeropos", "(boolean) Zero center of mass",
      cxxopts::value<bool>(zeropos)->default_value("true"))
     ("zerovel", "(boolean) Zero center of velocity",
@@ -872,7 +870,6 @@ main(int ac, char **av)
   EmpCylSL::CMAPZ       = CMAPZ;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
-  EmpCylSL::DENS        = DENS;
   EmpCylSL::PCAVAR      = SELECT;
 
                                 // Create expansion only if needed . . .

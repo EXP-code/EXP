@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.15) # This is the oldest version I've
 				     # preferred esp. for Cuda support
 project(
   EXP
-  VERSION "7.7.25"
+  VERSION "7.7.26"
   HOMEPAGE_URL https://github.com/EXP-code/EXP
   LANGUAGES C CXX Fortran)
 
@@ -47,6 +47,7 @@ option(ENABLE_VTK "Configure VTK if available" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
+option(ENABLE_SLCHECK "Enable *careful* Sturm-Liouville solutions" TRUE)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
 
@@ -145,6 +146,9 @@ if(HDF5_FOUND)
 endif()
 if(FFTW_FOUND)
   set(HAVE_FFTW TRUE)
+endif()
+if(ENABLE_SLCHECK)
+  set(SLEDGE_THROW TRUE)
 endif()
 if(PNG_FOUND AND ENABLE_PNG)
   set(HAVE_LIBPNGPP TRUE)

@@ -842,7 +842,7 @@ main(int argc, char **argv)
   int nice, numx, numy, lmax, mmax, nmax, norder, m1, m2, n1, n2, nodd=-1;
   int initc, partc, init, cmapr, cmapz;
   double rcylmin, rcylmax, rscale, vscale, snr, Hexp=4.0;
-  bool DENS, PCA, PVD, verbose = false, mask = false, ignore, logl;
+  bool PCA, PVD, verbose = false, mask = false, ignore, logl;
   std::string CACHEFILE, COEFFILE, cname, dir("."), fileType, filePrefix, config;
   std::string psfiles, delim;
 
@@ -916,8 +916,6 @@ main(int argc, char **argv)
     ("C,center", "Accumulation center",
      cxxopts::value<std::vector<double> >(c0))
     ("diff", "render the difference between the trimmed and untrimmed basis")
-    ("density", "compute density",
-     cxxopts::value<bool>(DENS)->default_value("true"))
     ("compname", "train on Component (default=stars)",
      cxxopts::value<std::string>(cname)->default_value("stars"))
     ("init", "fiducial index",
@@ -1125,7 +1123,6 @@ main(int argc, char **argv)
 	numy    = node["numy"  ].as<int>();
 	nmax    = node["nmax"  ].as<int>();
 	norder  = node["norder"].as<int>();
-	DENS    = node["dens"  ].as<bool>();
 	if (node["nodd"])
 	  nodd  = node["nodd"  ].as<int>();
 	if (node["cmap"])
@@ -1151,11 +1148,7 @@ main(int argc, char **argv)
 	in.read((char *)&numy,    sizeof(int));
 	in.read((char *)&nmax,    sizeof(int));
 	in.read((char *)&norder,  sizeof(int));
-      
 	in.read((char *)&tmp,     sizeof(int)); 
-	if (tmp) DENS = true;
-	else     DENS = false;
-	
 	in.read((char *)&cmapr,   sizeof(int)); 
 	in.read((char *)&rcylmin, sizeof(double));
 	in.read((char *)&rcylmax, sizeof(double));
@@ -1172,7 +1165,6 @@ main(int argc, char **argv)
   EmpCylSL::CMAPR       = cmapr;
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = logl;
-  EmpCylSL::DENS        = DENS;
 
 				// Create expansion
 				//

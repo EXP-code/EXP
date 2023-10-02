@@ -6,11 +6,12 @@
 
 #include <Eigen/Eigen>
 
-#include <libvars.H>
-#include <localmpi.H>
+#include <EXPException.H>
 #include <SLGridMP2.H>
-#include <gaussQ.H>
+#include <localmpi.H>
+#include <libvars.H>
 #include <cxxopts.H>
+#include <gaussQ.H>
 
 int main(int argc, char** argv)
 {
@@ -100,23 +101,39 @@ int main(int argc, char** argv)
   if (rmin<0.0) rmin = model.get_min_radius();
   if (rmax<0.0) rmax = model.get_max_radius();
 
-				// Generate Sturm-Liouville grid
-  auto ortho = std::make_shared<SLGridSph>(filename, Lmax, nmax, numr, rmin, rmax, 
-					   true, cmap, rs, 0, 1.0, cachefile, true);
-  //                                       ^               ^                  ^
-  //                                       |               |                  |
-  // Use cache file------------------------+               |                  |
-  //                                                       |                  |
-  // Cusp extrapolation------------------------------------+                  |
-  //                                                                          |
-  // Turn on diagnostic output in SL creation---------------------------------+
+  bool bad = false;
 
+  std::shared_ptr<SLGridSph> ortho;
+
+  // Generate Sturm-Liouville grid
+  //
+  try {
+    ortho = std::make_shared<SLGridSph>(filename, Lmax, nmax, numr, rmin, rmax, 
+					   true, cmap, rs, 0, 1.0, cachefile, false);
+    //                                     ^               ^                  ^
+    //                                     |               |                  |
+    // Use cache file----------------------+               |                  |
+    //                                                     |                  |
+    // Cusp extrapolation----------------------------------+                  |
+    //                                                                        |
+    // Turn on diagnostic output in SL creation-------------------------------+
+  }
+  catch (const EXPException& err) {
+    if (myid==0) {
+      std::cerr << err.what() << std::endl;
+    }
+    bad = true;
+  }
 				// Slaves exit
   if (use_mpi && myid>0) {
     MPI_Finalize();
     exit(0);
   }
 
+  if (bad) {
+    MPI_Finalize();
+    exit(0);
+  }
 				// Do what?
   while (1) {
     bool done=false;

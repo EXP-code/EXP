@@ -324,7 +324,6 @@ main(int ac, char **av)
   double       rtrunc;
   double       rwidth;
   int          NINT;
-  bool         DENS;
   bool         ignore;
   bool         orthotst;
   bool         use_progress;
@@ -394,8 +393,6 @@ main(int ac, char **av)
      cxxopts::value<int>(VFLAG)->default_value("0"))
     ("expcond", "EOF conditioning from analytic density profile",
      cxxopts::value<bool>(expcond)->default_value("true"))
-    ("DENS", "Compute density basis functions",
-     cxxopts::value<bool>(DENS)->default_value("true"))
     ("ignore", "Ignore parameters in cachefile and recompute basis",
      cxxopts::value<bool>(ignore)->default_value("false"))
     ("orthotst", "Compute orthgonality of basis functions",
@@ -612,7 +609,6 @@ main(int ac, char **av)
 	NUMY   = node["numy"  ].as<int>();
 	NMAX   = node["nmax"  ].as<int>();
 	NORDER = node["norder"].as<int>();
-	DENS   = node["dens"  ].as<bool>();
 	// RMIN   = node["rmin"  ].as<double>();
 	// RMAX   = node["rmax"  ].as<double>();
 	ASCALE = node["ascl"  ].as<double>();
@@ -643,11 +639,7 @@ main(int ac, char **av)
 	in.read((char *)&NUMY,    sizeof(int));
 	in.read((char *)&NMAX,    sizeof(int));
 	in.read((char *)&NORDER,  sizeof(int));
-
 	in.read((char *)&tmp,     sizeof(int));
-	if (tmp) DENS = true;
-	else     DENS = false;
-
 	in.read((char *)&CMTYPE,  sizeof(int));
 	in.read((char *)&RCYLMIN, sizeof(double));
 	in.read((char *)&RCYLMAX, sizeof(double));
@@ -674,7 +666,6 @@ main(int ac, char **av)
   EmpCylSL::CMAPZ       = CMAPZ;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
-  EmpCylSL::DENS        = DENS;
 
 				// For DiskDens
   AA = ASCALE;

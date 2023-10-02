@@ -525,7 +525,6 @@ main(int argc, char **argv)
   EmpCylSL::CMAPR       = cmapr;
   EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = true;
-  EmpCylSL::DENS        = dens;
 
 				// Create expansion
 				//
