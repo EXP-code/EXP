@@ -92,7 +92,7 @@ CBrockDisk::CBrockDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 
   for (int l=0; l<=Lmax; l++) {
     for (int n=0; n<nmax; n++) {
-      sqnorm(l, n) = sqrt(norm(l, n));
+      sqnorm(l, n) = sqrt(norm(n, l));
     }
   }
 
