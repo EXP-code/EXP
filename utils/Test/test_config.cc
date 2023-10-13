@@ -1,57 +1,98 @@
-#include <EXPini.H>
+#include <iostream>
+#include <iomanip>
+#include <string>
+
+#include <yaml-cpp/yaml.h>	// YAML support
+#include <cxxopts.H>		// Command-line parsing
+
+
+static bool verbose = false;
+
+void parse(const YAML::Node& cur, int level=0, bool lf=true)
+{
+  if (lf and verbose) {
+    for (int i=0; i<level; i++) std::cout << "  ";
+  }
+
+  if (cur.IsMap()) {
+    if (lf and verbose and level>0) std::cout << std::endl;
+    for (YAML::const_iterator it=cur.begin(); it!=cur.end(); it++) {
+      if (lf and verbose) {
+	for (int i=0; i<=level; i++) std::cout << "  ";
+      }
+      lf = true;
+      std::string lab = it->first.as<std::string>() + ":";
+      if (verbose) std::cout << std::setw(16) << std::left << lab;
+      parse(it->second, level+1);
+    }
+  } else if (cur.IsSequence()) {
+    if (verbose) std::cout << std::endl;
+    for (std::size_t i=0; i< cur.size(); i++) {
+      if (verbose) {
+	for (int i=0; i<=level; i++) std::cout << "  ";
+	std::cout << "- ";
+      }
+      parse(cur[i], level+1, false);
+    }
+  } else if (cur.IsScalar()) {
+    if (verbose) {
+      std::string lab = cur.as<std::string>();
+      std::cout << lab << std::endl;
+    }
+  } else if (cur.IsNull()) {
+    if (verbose) std::cout << std::endl;
+  }
+
+  level += 1;
+}
 
 int main(int argc, char **argv)
 {
-  double x, y, z, u;
-  std::string config;
-  bool b;
+  std::string file;
 
-  cxxopts::Options options(argv[0], "Test config routine");
+  cxxopts::Options options(argv[0], "Check EXP YAML config file");
 
   options.add_options()
-    ("h,help", "This help message")
-    ("e,expert", "Print out the expert options, too")
-    ("v,verbose", "Print verbose debugging output")
-    ("t,template", "Make a YAML template config file")
-    ("c,config", "Config file", cxxopts::value<std::string>(config)->default_value("config.yaml"))
-    ("x,xval", "x value", cxxopts::value<double>(x)->default_value("1.1"))
-    ("y,yval", "y value", cxxopts::value<double>(y)->default_value("2.1"))
-    ("z,zval", "z value", cxxopts::value<double>(z)->default_value("3.1"))
+    ("h,help",    "Produce help message")
+    ("v,verbose", "Print parsed values to stdout")
+    ("f,file",    "Name of config file", cxxopts::value<std::string>(file))
     ;
 
-  options.add_options("expert")
-    ("C,crazy", "Do something totally crazy")
-    ("u,uval", "u value", cxxopts::value<double>(u)->default_value("-13.1"))
-    ("b,bool", "logic", cxxopts::value<bool>(b)->default_value("false"))
-    ;
+  cxxopts::ParseResult vm;
 
-  auto vm = options.parse(argc, argv);
-
-  if (vm.count("template")) {
-    if (vm.count("expert"))
-      SaveConfig(vm, options, "template.yaml", {"", "expert"});
-    else
-      SaveConfig(vm, options, "template.yaml");
-    return 0;
-  }
-
-  if (vm.count("expert")) {
-    std::cout << options.help({"", "expert"}) << std::endl;
+  try {
+    vm = options.parse(argc, argv);
+  } catch (cxxopts::OptionException& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
     return 1;
+  } catch (std::exception e){
+    std::cerr << "Exception thrown parsing config file:" 
+	      << std::endl << e.what() << std::endl;
+    return 2;
   }
 
   if (vm.count("help")) {
-    std::cout << options.help({""}) << std::endl;
-    return 1;
+    std::cout << options.help() << std::endl;
+    return 0;
   }
 
-  if (vm.count("config")) {
-    vm = LoadConfig(options, config);
-  }
-  
-  std::cout << "Current config:" << std::endl;
-  for (const auto &kv: vm) {
-    std::cout << kv.key() << " = " << kv.value() << std::endl;
+  if (vm.count("verbose")) {
+    verbose = true;
+    std::cout << std::string(70, '=') << std::endl;
   }
 
+  try {
+    parse(YAML::LoadFile(file));
+  }
+  catch (const std::runtime_error& err) {
+    std::cerr << err.what() << std::endl;
+    std::cerr << "***" << argv[0] << ": parsing failure" << std::endl;
+    exit(-1);
+  }
+
+  if (vm.count("verbose")) {
+    std::cout << std::string(70, '=') << std::endl;
+  }
+
+  std::cout << file << " parsed successfully" << std::endl;
 }

@@ -31,3 +31,5 @@ foreach(program ${bin_PROGRAMS})
   # Don't install these tests
   # install(TARGETS ${program} DESTINATION bin)
 endforeach()
+
+install(TARGETS testConfig DESTINATION bin)
