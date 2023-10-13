@@ -8,6 +8,48 @@
 
 static bool verbose = false;
 
+void stanza_check(const YAML::Node& root)
+{
+  const std::vector<std::string> stanzas
+    {
+      "Global", "Components", "Output", "External", "Interaction"
+    };
+
+  std::vector<std::string> unexpected, remain(stanzas), duplicates;
+
+  for (YAML::const_iterator it=root.begin(); it!=root.end(); it++) {
+    auto lab = it->first.as<std::string>();
+    auto loc = std::find(stanzas.begin(), stanzas.end(), lab);
+    if (loc == stanzas.end()) unexpected.push_back(lab);
+    else {
+      auto loc = std::find(remain.begin(), remain.end(), lab);
+      if (loc == remain.end()) duplicates.push_back(lab);
+      else remain.erase(loc);
+    }
+  }
+    
+  std::ostringstream sout;
+
+  if (remain.size()) {
+    sout << "The following stanzas were not found:";
+    for (auto s : remain) sout << " " << s;
+    throw std::runtime_error(sout.str());
+  }
+
+  if (unexpected.size()) {
+    std::cout << "The following stanzas were not used by EXP:";
+    for (auto s : unexpected) std::cout << " " << s;
+    std::cout << std::endl;
+  }
+
+  if (duplicates.size()) {
+    sout << "The following stanzas were duplicated:";
+    for (auto s : duplicates) sout << " " << s;
+    throw std::runtime_error(sout.str());
+  }
+
+}
+
 void parse(const YAML::Node& cur, int level=0, bool lf=true)
 {
   if (lf and verbose) {
@@ -44,6 +86,7 @@ void parse(const YAML::Node& cur, int level=0, bool lf=true)
   }
 
   level += 1;
+
 }
 
 int main(int argc, char **argv)
@@ -55,8 +98,11 @@ int main(int argc, char **argv)
   options.add_options()
     ("h,help",    "Produce help message")
     ("v,verbose", "Print parsed values to stdout")
+    ("n,noEXP",   "Check general YAML without EXP check")
     ("f,file",    "Name of config file", cxxopts::value<std::string>(file))
     ;
+
+  options.parse_positional({"file"});
 
   cxxopts::ParseResult vm;
 
@@ -81,8 +127,11 @@ int main(int argc, char **argv)
     std::cout << std::string(70, '=') << std::endl;
   }
 
+  YAML::Node root = YAML::LoadFile(file);
+
   try {
-    parse(YAML::LoadFile(file));
+    parse(root);
+    if (vm.count("noEXP")==0) stanza_check(root);
   }
   catch (const std::runtime_error& err) {
     std::cerr << err.what() << std::endl;
