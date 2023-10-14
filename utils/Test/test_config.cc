@@ -41,9 +41,16 @@ public:
 
 void EXPparser::exp_check(const YAML::Node& root)
 {
+  // All EXP stanzas
   const std::vector<std::string> stanzas
     {
       "Global", "Components", "Output", "External", "Interaction"
+    };
+
+  // Optional EXP stanzas
+  const std::vector<std::string> optional
+    {
+      "External", "Interaction"
     };
 
   std::vector<std::string> unexpected, remain(stanzas), duplicates;
@@ -61,10 +68,34 @@ void EXPparser::exp_check(const YAML::Node& root)
     
   std::ostringstream sout;
 
+  // Check EXP stanzas not found
   if (remain.size()) {
-    sout << "The following stanzas were not found:";
-    for (auto s : remain) sout << " " << s;
-    throw std::runtime_error(sout.str());
+
+    // Find and remove optional stanzas
+    std::vector<std::string> opt;
+    for (auto s : optional) {
+      auto it = std::find(remain.begin(), remain.end(), s);
+      if (it != remain.end()) {
+	opt.push_back(s);
+	remain.erase(it);
+      }
+    }
+    
+    // Print info message for optional stanzas
+    if (opt.size()) {
+      if (ostr.rdbuf()  == std::cout.rdbuf())
+	std::cout << std::string(70, '=') << std::endl;
+
+      std::cout << "The following optional stanzas were not found:";
+      for (auto s : opt) std::cout << " " << s;
+      std::cout << std::endl;
+    }
+
+    if (remain.size()) {
+      sout << "The following required stanzas were not found:";
+      for (auto s : remain) sout << " " << s;
+      throw std::runtime_error(sout.str());
+    }
   }
 
   if (unexpected.size()) {
