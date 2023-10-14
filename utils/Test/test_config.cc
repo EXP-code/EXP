@@ -10,14 +10,17 @@
 class EXPparser
 {
 private:
-  std::ostream& ostr;
-  YAML::Node root;
-  bool verbose;
+  std::ostream& ostr;		// Reference to the 'console' output stream
+  YAML::Node root;		// Root node read from YAMLloadFile
+  int wid;			// Pretty-printing width (default: 0)
 
+  //! Check for EXP stanzas
   void exp_check(const YAML::Node& root);
+
+  //! Parse a YAML file
   void exp_parse(const YAML::Node& cur, int level=0, bool seq=false);
 
-  // Level spacer
+  //! Level spacer for console and output files
   void spacer(int lev, bool seq=false)
   {
     for (int i=0; i<lev; i++) ostr << "  ";
@@ -26,8 +29,11 @@ private:
   }
 
 public:
-  //! Constructor
-  EXPparser(std::string file, std::ostream& ostr) : ostr(ostr)
+
+  /** Constructor.  Instatiate with a file and output stream.  The
+      stream may be a file or std::cout.  If the file is labeled
+      'bad', it's a good /dev/null */
+  EXPparser(std::string file, std::ostream& ostr) : ostr(ostr), wid(0)
   {
     root = YAML::LoadFile(file);
   }
@@ -37,6 +43,13 @@ public:
 
   //! Check for EXP stanzas
   void check() { exp_check(root); }
+
+  //! Set pretty-printing width
+  int setPretty(int width=24) {
+    int last = wid;
+    wid = width;
+    return last;
+  }
 };
 
 void EXPparser::exp_check(const YAML::Node& root)
@@ -55,10 +68,19 @@ void EXPparser::exp_check(const YAML::Node& root)
 
   std::vector<std::string> unexpected, remain(stanzas), duplicates;
 
+  // Iterate over all top-level nodes
+  //
   for (YAML::const_iterator it=root.begin(); it!=root.end(); it++) {
+    // The key
     auto lab = it->first.as<std::string>();
+
+    // Look for the key in the EXP stanza list
     auto loc = std::find(stanzas.begin(), stanzas.end(), lab);
+
+    // Save it to the unexpected list, if not found
     if (loc == stanzas.end()) unexpected.push_back(lab);
+
+    // Remove the found key from the working list (remain)
     else {
       auto loc = std::find(remain.begin(), remain.end(), lab);
       if (loc == remain.end()) duplicates.push_back(lab);
@@ -68,7 +90,7 @@ void EXPparser::exp_check(const YAML::Node& root)
     
   std::ostringstream sout;
 
-  // Check EXP stanzas not found
+  // If keys remain, they may be foreign to EXP or optional
   if (remain.size()) {
 
     // Find and remove optional stanzas
@@ -91,6 +113,7 @@ void EXPparser::exp_check(const YAML::Node& root)
       std::cout << std::endl;
     }
 
+    // Throw an error; this will break EXP
     if (remain.size()) {
       sout << "The following required stanzas were not found:";
       for (auto s : remain) sout << " " << s;
@@ -98,6 +121,8 @@ void EXPparser::exp_check(const YAML::Node& root)
     }
   }
 
+  // Print info message about foreign stanzas.  These might be comment
+  // or provenance metadata, e.g.
   if (unexpected.size()) {
     if (ostr.rdbuf()  == std::cout.rdbuf())
       std::cout << std::string(70, '=') << std::endl;
@@ -106,6 +131,7 @@ void EXPparser::exp_check(const YAML::Node& root)
     std::cout << std::endl;
   }
 
+  // Throw an error; this will most likely break EXP
   if (duplicates.size()) {
     sout << "The following stanzas are duplicated:";
     for (auto s : duplicates) sout << " " << s;
@@ -123,19 +149,24 @@ void EXPparser::exp_parse(const YAML::Node& cur, int level, bool seq)
       if (seq) seq = false;	// Clear the seq flag
       else spacer(level);	// Otherwise, print a level spacer
       // Print the key
-      ostr << std::left << it->first.as<std::string>() + ": ";
+      ostr << std::setw(std::max<int>(0, wid-2*level)) << std::left
+	   << it->first.as<std::string>() + ": ";
       if (it->second.IsMap() or it->second.IsSequence()) ostr << std::endl;
       exp_parse(it->second, level+1);
     }
   } else if (cur.IsSequence()) {
     for (std::size_t i=0; i< cur.size(); i++) {
-      spacer(level+1, true);
+      spacer(level+1, true);	// A bit awkward but shorter
       exp_parse(cur[i], level+1, true);
     }
-  } else if (cur.IsScalar()) {
+  } else if (cur.IsScalar()) {	// Print the scalar value and done
     std::string lab = cur.as<std::string>();
-    ostr << lab << std::endl;
-  } else if (cur.IsNull()) {
+    if (seq)
+      ostr << std::setw(std::max<int>(0, wid-2*level)) << std::left
+	   << lab << std::endl;
+    else
+      ostr << lab << std::endl;
+  } else if (cur.IsNull()) {	// Print LF and done
     ostr << std::endl;
   }
 
@@ -145,6 +176,7 @@ void EXPparser::exp_parse(const YAML::Node& cur, int level, bool seq)
 int main(int argc, char **argv)
 {
   std::string file, outyaml;
+  int width;
 
   cxxopts::Options options(argv[0],
 			   "Check EXP YAML config file for problems.  This does not check the validity\nof the parameters keys or values but only the YAML syntax.  A successful\ncompletion implies that your config file will be parsed correctly by EXP.\n");
@@ -157,6 +189,8 @@ int main(int argc, char **argv)
      cxxopts::value<std::string>(file))
     ("o,outyaml", "Store parsed YAML into this file",
      cxxopts::value<std::string>(outyaml))
+    ("w,width",   "Pretty-printing field width (default: 0, try 24)",
+     cxxopts::value<int>(width))
     ;
 
   options.parse_positional({"file"});
@@ -191,6 +225,7 @@ int main(int argc, char **argv)
       exit(-1);
     }
   } else {
+    // This makes 'ofs' a proxy for /dev/null
     ofs.setstate(std::ios_base::badbit);
   }
 
@@ -208,6 +243,7 @@ int main(int argc, char **argv)
   //
   try {
     EXPparser p(file, ofs);
+    if (vm.count("width")) p.setPretty(width);
     p.parse();
     if (vm.count("noEXP")==0) p.check();
   }
