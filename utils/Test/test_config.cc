@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <string>
 
@@ -6,9 +7,39 @@
 #include <cxxopts.H>		// Command-line parsing
 
 
-static bool verbose = false;
+class EXPparser
+{
+private:
+  std::ostream& ostr;
+  YAML::Node root;
+  bool verbose;
 
-void stanza_check(const YAML::Node& root)
+  void exp_check(const YAML::Node& root);
+  void exp_parse(const YAML::Node& cur, int level=0, bool seq=false);
+
+  // Level spacer
+  void spacer(int lev, bool seq=false)
+  {
+    for (int i=0; i<lev; i++) ostr << "  ";
+    if (seq) ostr << "- ";
+    else     ostr << "  ";
+  }
+
+public:
+  //! Constructor
+  EXPparser(std::string file, std::ostream& ostr) : ostr(ostr)
+  {
+    root = YAML::LoadFile(file);
+  }
+
+  //! Parse a YAML file
+  void parse() { exp_parse(root); }
+
+  //! Check for EXP stanzas
+  void check() { exp_check(root); }
+};
+
+void EXPparser::exp_check(const YAML::Node& root)
 {
   const std::vector<std::string> stanzas
     {
@@ -37,7 +68,8 @@ void stanza_check(const YAML::Node& root)
   }
 
   if (unexpected.size()) {
-    if (verbose) std::cout << std::string(70, '=') << std::endl;
+    if (ostr.rdbuf()  == std::cout.rdbuf())
+      std::cout << std::string(70, '=') << std::endl;
     std::cout << "The following stanzas are not used by EXP:";
     for (auto s : unexpected) std::cout << " " << s;
     std::cout << std::endl;
@@ -51,44 +83,29 @@ void stanza_check(const YAML::Node& root)
 
 }
 
-void parse(const YAML::Node& cur, int level=0, bool seq=false)
+void EXPparser::exp_parse(const YAML::Node& cur, int level, bool seq)
 {
-  // Key spacer
-  auto spacer = [&level]() {
-    if (verbose) {
-      for (int i=0; i<level; i++) std::cout << "  ";
-    }
-  };
-
-  // Initial key spacer at this level unless we're a sequence
-  // if (not seq) spacer();
-
   // Check for node type
+  //
   if (cur.IsMap()) {
-				// End the previous level
-    if (not seq and verbose and level>0)
-      std::cout << std::endl;
-
     for (YAML::const_iterator it=cur.begin(); it!=cur.end(); it++) {
-      if (not seq) spacer();
-      seq = false;
-      if (verbose) std::cout << std::left << it->first.as<std::string>() + ": ";
-      parse(it->second, level+1);
+      if (seq) seq = false;	// Clear the seq flag
+      else spacer(level);	// Otherwise, print a level spacer
+      // Print the key
+      ostr << std::left << it->first.as<std::string>() + ": ";
+      if (it->second.IsMap() or it->second.IsSequence()) ostr << std::endl;
+      exp_parse(it->second, level+1);
     }
   } else if (cur.IsSequence()) {
-    if (not seq and verbose) std::cout << std::endl;
     for (std::size_t i=0; i< cur.size(); i++) {
-      if (not seq) spacer();
-      if (verbose) std::cout << "- ";
-      parse(cur[i], level+1, true);
+      spacer(level+1, true);
+      exp_parse(cur[i], level+1, true);
     }
   } else if (cur.IsScalar()) {
-    if (verbose) {
-      std::string lab = cur.as<std::string>();
-      std::cout << lab << std::endl;
-    }
+    std::string lab = cur.as<std::string>();
+    ostr << lab << std::endl;
   } else if (cur.IsNull()) {
-    if (verbose) std::cout << std::endl;
+    ostr << std::endl;
   }
 
   level += 1;
@@ -96,18 +113,24 @@ void parse(const YAML::Node& cur, int level=0, bool seq=false)
 
 int main(int argc, char **argv)
 {
-  std::string file;
+  std::string file, outyaml;
 
-  cxxopts::Options options(argv[0], "Check EXP YAML config file");
+  cxxopts::Options options(argv[0],
+			   "Check EXP YAML config file for problems.  This does not check the validity\nof the parameters keys or values but only the YAML syntax.  A successful\ncompletion implies that your config file will be parsed correctly by EXP.\n");
 
   options.add_options()
     ("h,help",    "Produce help message")
     ("v,verbose", "Print parsed values to stdout")
     ("n,noEXP",   "Check general YAML without EXP check")
-    ("f,file",    "Name of config file", cxxopts::value<std::string>(file))
+    ("f,file",    "Name of YAML config file; alternative to final positional argument",
+     cxxopts::value<std::string>(file))
+    ("o,outyaml", "Store parsed YAML into this file",
+     cxxopts::value<std::string>(outyaml))
     ;
 
   options.parse_positional({"file"});
+  options.positional_help("[<YAML file>]");
+  options.show_positional_help();
 
   cxxopts::ParseResult vm;
 
@@ -127,16 +150,35 @@ int main(int argc, char **argv)
     return 0;
   }
 
+  std::ofstream ofs;
+
+  if (vm.count("outyaml")) {
+    ofs.open(outyaml);
+    if (not ofs) {
+      std::cout << argv[0] << ": could not open <" << outyaml
+		<< "> for YAML output" << std::endl;
+      exit(-1);
+    }
+  } else {
+    ofs.setstate(std::ios_base::badbit);
+  }
+
+  bool verbose = false;
   if (vm.count("verbose")) {
     verbose = true;
     std::cout << std::string(70, '=') << std::endl;
+
+    ofs.copyfmt(std::cout);
+    ofs.clear(std::cout.rdstate());
+    ofs.basic_ios<char>::rdbuf(std::cout.rdbuf());
   }
 
-  YAML::Node root = YAML::LoadFile(file);
-
+  // Finally, do the work ...
+  //
   try {
-    parse(root);
-    if (vm.count("noEXP")==0) stanza_check(root);
+    EXPparser p(file, ofs);
+    p.parse();
+    if (vm.count("noEXP")==0) p.check();
   }
   catch (const std::runtime_error& err) {
     if (verbose) std::cout << std::string(70, '=') << std::endl;
@@ -145,8 +187,7 @@ int main(int argc, char **argv)
     exit(-1);
   }
 
-  if (vm.count("verbose"))
-    std::cout << std::string(70, '=') << std::endl;
+  if (verbose) std::cout << std::string(70, '=') << std::endl;
 
   std::cout << file << " parsed successfully" << std::endl;
 }
