@@ -37,44 +37,50 @@ void stanza_check(const YAML::Node& root)
   }
 
   if (unexpected.size()) {
-    std::cout << "The following stanzas were not used by EXP:";
+    if (verbose) std::cout << std::string(70, '=') << std::endl;
+    std::cout << "The following stanzas are not used by EXP:";
     for (auto s : unexpected) std::cout << " " << s;
     std::cout << std::endl;
   }
 
   if (duplicates.size()) {
-    sout << "The following stanzas were duplicated:";
+    sout << "The following stanzas are duplicated:";
     for (auto s : duplicates) sout << " " << s;
     throw std::runtime_error(sout.str());
   }
 
 }
 
-void parse(const YAML::Node& cur, int level=0, bool lf=true)
+void parse(const YAML::Node& cur, int level=0, bool seq=false)
 {
-  if (lf and verbose) {
-    for (int i=0; i<level; i++) std::cout << "  ";
-  }
+  // Key spacer
+  auto spacer = [&level]() {
+    if (verbose) {
+      for (int i=0; i<level; i++) std::cout << "  ";
+    }
+  };
 
+  // Initial key spacer at this level unless we're a sequence
+  // if (not seq) spacer();
+
+  // Check for node type
   if (cur.IsMap()) {
-    if (lf and verbose and level>0) std::cout << std::endl;
+				// End the previous level
+    if (not seq and verbose and level>0)
+      std::cout << std::endl;
+
     for (YAML::const_iterator it=cur.begin(); it!=cur.end(); it++) {
-      if (lf and verbose) {
-	for (int i=0; i<=level; i++) std::cout << "  ";
-      }
-      lf = true;
-      std::string lab = it->first.as<std::string>() + ":";
-      if (verbose) std::cout << std::setw(16) << std::left << lab;
+      if (not seq) spacer();
+      seq = false;
+      if (verbose) std::cout << std::left << it->first.as<std::string>() + ": ";
       parse(it->second, level+1);
     }
   } else if (cur.IsSequence()) {
-    if (verbose) std::cout << std::endl;
+    if (not seq and verbose) std::cout << std::endl;
     for (std::size_t i=0; i< cur.size(); i++) {
-      if (verbose) {
-	for (int i=0; i<=level; i++) std::cout << "  ";
-	std::cout << "- ";
-      }
-      parse(cur[i], level+1, false);
+      if (not seq) spacer();
+      if (verbose) std::cout << "- ";
+      parse(cur[i], level+1, true);
     }
   } else if (cur.IsScalar()) {
     if (verbose) {
@@ -86,7 +92,6 @@ void parse(const YAML::Node& cur, int level=0, bool lf=true)
   }
 
   level += 1;
-
 }
 
 int main(int argc, char **argv)
@@ -134,14 +139,14 @@ int main(int argc, char **argv)
     if (vm.count("noEXP")==0) stanza_check(root);
   }
   catch (const std::runtime_error& err) {
-    std::cerr << err.what() << std::endl;
-    std::cerr << "***" << argv[0] << ": parsing failure" << std::endl;
+    if (verbose) std::cout << std::string(70, '=') << std::endl;
+    std::cout << err.what() << std::endl;
+    std::cout << "***" << argv[0] << ": parsing failure" << std::endl;
     exit(-1);
   }
 
-  if (vm.count("verbose")) {
+  if (vm.count("verbose"))
     std::cout << std::string(70, '=') << std::endl;
-  }
 
   std::cout << file << " parsed successfully" << std::endl;
 }
