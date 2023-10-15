@@ -1,5 +1,5 @@
 
-set(bin_PROGRAMS readSL testBarrier explint testBessz)
+set(bin_PROGRAMS testBarrier explint)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG expcoef exputil
   yaml-cpp ${VTK_LIBRARIES})
@@ -20,10 +20,8 @@ if(ENABLE_XDR AND TIRPC_FOUND)
   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
 endif()
 
-add_executable(readSL         read_slsph.cc)
 add_executable(testBarrier    test_barrier.cc)
 add_executable(explint        test_config.cc)
-add_executable(testBessz      test_bessz.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})
