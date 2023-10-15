@@ -35,7 +35,7 @@ Two routines that test internal EXP technology
 
 ### Cooling
 
-[These are not the droids you are looking for!]
+> **_NOTE:_** These are not the droids you are looking for!
 
 Check heating and cooling rates from DSMC species files. The DSMC
 module is not distributed in the public release.
