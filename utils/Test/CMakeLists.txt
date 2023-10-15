@@ -1,5 +1,5 @@
 
-set(bin_PROGRAMS testBarrier explint)
+set(bin_PROGRAMS testBarrier expyaml)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG expcoef exputil
   yaml-cpp ${VTK_LIBRARIES})
@@ -21,7 +21,7 @@ if(ENABLE_XDR AND TIRPC_FOUND)
 endif()
 
 add_executable(testBarrier    test_barrier.cc)
-add_executable(explint        test_config.cc)
+add_executable(expyaml        test_config.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})
@@ -30,4 +30,4 @@ foreach(program ${bin_PROGRAMS})
   # install(TARGETS ${program} DESTINATION bin)
 endforeach()
 
-install(TARGETS explint DESTINATION bin)
+install(TARGETS expyaml DESTINATION bin)

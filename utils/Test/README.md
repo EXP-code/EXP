@@ -1,9 +1,9 @@
 # Test
 These codes provide tests of EXP-related infrastructure
 
-### explint
+### expyaml
 
-`explint` reads an EXP YAML configuration file and generates a lint
+`expyaml` reads an EXP YAML configuration file and generates a lint
 report.  The code runs your configuration through the parser used by
 EXP internally and will report any syntax errors.  It also checks that
 mandatory map entries are present, reports whether optional map
