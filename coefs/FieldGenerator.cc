@@ -511,7 +511,7 @@ namespace Field
     //
     std::map<std::string, Eigen::Tensor<float, 3>> frame;
     for (auto label : labels) {
-      frame[label].resize({grid[0], grid[1], grid[2]});
+      frame[label].resize(grid[0], grid[1], grid[2]);
     }	
     
     std::vector<double> del =

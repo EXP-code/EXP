@@ -13,8 +13,12 @@ if(HAVE_XDR)
   list(APPEND bin_PROGRAMS tipstd2psp)
 endif()
 
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG yaml-cpp
-  expcoef exputil PNG::PNG ${VTK_LIBRARIES} ${HDF5_LIBRARIES})
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp expcoef
+  exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES})
+
+if(PNG_FOUND)
+  list(APPEND common_LINKLIB PNG::PNG)
+endif()
 
 if(CUDA_FOUND)
   list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
