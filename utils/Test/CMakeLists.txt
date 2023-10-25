@@ -1,5 +1,5 @@
 
-set(bin_PROGRAMS readSL testBarrier testConfig testBessz)
+set(bin_PROGRAMS testBarrier expyaml)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG expcoef exputil
   yaml-cpp ${VTK_LIBRARIES})
@@ -20,10 +20,8 @@ if(ENABLE_XDR AND TIRPC_FOUND)
   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
 endif()
 
-add_executable(readSL         read_slsph.cc)
 add_executable(testBarrier    test_barrier.cc)
-add_executable(testConfig     test_config.cc)
-add_executable(testBessz      test_bessz.cc)
+add_executable(expyaml        test_config.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})
@@ -31,3 +29,5 @@ foreach(program ${bin_PROGRAMS})
   # Don't install these tests
   # install(TARGETS ${program} DESTINATION bin)
 endforeach()
+
+install(TARGETS expyaml DESTINATION bin)

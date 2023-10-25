@@ -35,6 +35,12 @@ void ExternalCollection::initialize()
 
   dynamicload();
   
+  if (not parse["External"]) {
+    if (myid==0)
+      std::cout << "---- ExternalCollection: "
+		<< "no entries found.  Continuing ..." << std::endl;
+  }
+
   YAML::Node ext;
 
   try {
