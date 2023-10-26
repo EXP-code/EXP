@@ -130,8 +130,8 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(Eigen::VectorXcd&, Coefs, getData, time);
     }
 
-    void setData(double time, const Eigen::VectorXcd& mat) override {
-      PYBIND11_OVERRIDE_PURE(void, Coefs, setData, time, mat);
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE_PURE(void, Coefs, setData, time, array);
     }
 
     // This has left the interface
@@ -214,8 +214,8 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, SphCoefs, getData, time);
     }
 
-    void setData(double time, const Eigen::VectorXcd& mat) override {
-      PYBIND11_OVERRIDE(void, SphCoefs, setData, time, mat);
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE(void, SphCoefs, setData, time, array);
     }
 
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
@@ -301,8 +301,8 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, CylCoefs, getData, time);
     }
 
-    void setData(double time, const Eigen::VectorXcd& mat) override {
-      PYBIND11_OVERRIDE(void, CylCoefs, setData, time, mat);
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE(void, CylCoefs, setData, time, array);
     }
 
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
@@ -387,8 +387,8 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, CubeCoefs, getData, time);
     }
 
-    void setData(double time, const Eigen::VectorXcd& mat) override {
-      PYBIND11_OVERRIDE(void, CubeCoefs, setData, time, mat);
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE(void, CubeCoefs, setData, time, array);
     }
 
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
@@ -474,8 +474,8 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, TableData, getData, time);
     }
 
-    void setData(double time, const Eigen::VectorXcd& mat) override {
-      PYBIND11_OVERRIDE(void, TableData, setData, time, mat);
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE(void, TableData, setData, time, array);
     }
 
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
@@ -675,7 +675,7 @@ void CoefficientClasses(py::module &m) {
          Returns
          -------
          None
-         )",py::arg("time"), py::arg("mat"))
+         )",py::arg("time"), py::arg("array"))
     .def("add",
          &CoefClasses::Coefs::add,
          R"(
@@ -957,7 +957,7 @@ void CoefficientClasses(py::module &m) {
          -------
          None
          )",
-         py::arg("time"))
+         py::arg("time"), py::arg("mat"))
     .def("getAllCoefs",
 	 [](CoefClasses::SphCoefs& A)
 	 {
@@ -1018,7 +1018,7 @@ void CoefficientClasses(py::module &m) {
          -------
          None
          )",
-         py::arg("time"))
+         py::arg("time"), py::arg("mat"))
     .def("getAllCoefs",
 	 [](CoefClasses::CylCoefs& A)
 	 {
@@ -1090,7 +1090,7 @@ void CoefficientClasses(py::module &m) {
          )",
          py::arg("time"))
     .def("setTensor",
-	 &CoefClasses::SphCoefs::setTensor,
+	 &CoefClasses::CubeCoefs::setTensor,
          R"(
          Enter and/or rewrite the coefficient tensor at the provided time
 
@@ -1105,7 +1105,7 @@ void CoefficientClasses(py::module &m) {
          -------
          None
          )",
-         py::arg("time"))
+         py::arg("time"), py::arg("tensor"))
     .def("getAllCoefs",
 	 [](CoefClasses::CubeCoefs& A)
 	 {
