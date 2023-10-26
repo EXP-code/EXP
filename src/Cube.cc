@@ -154,11 +154,11 @@ void * Cube::determine_coefficients_thread(void * arg)
 
 void Cube::determine_coefficients(void)
 {
-				//  Coefficients are ordered as follows:
-				//  n=-nmax,-nmax+1,...,0,...,nmax-1,nmax
-				//  in a single array for each dimension
-				//  with z dimension changing most rapidly
-  // Clean 
+  //  Coefficients are ordered as follows:
+  //  n=-nmax,-nmax+1,...,0,...,nmax-1,nmax in a single array for each
+  //  dimension with z dimension changing most rapidly
+
+  // Clean  the coefficients
   for (auto & v : expccof) v.setZero();
 
   exp_thread_fork(true);
@@ -176,9 +176,8 @@ void Cube::determine_coefficients(void)
 
 void * Cube::determine_acceleration_and_potential_thread(void * arg)
 {
-  int ix,iy,iz,ii,jj,kk,indx;
-  std::complex<double> fac,startx,starty,startz,facx,facy,facz,dens,potl,accx,accy,accz;
-  std::complex<double> stepx,stepy,stepz;
+  int ix, iy, iz;
+  std::complex<double> fac,facx,facy,facz,dens,potl,accx,accy,accz;
   double k2;
 
   unsigned nbodies = cC->Number();
@@ -197,14 +196,14 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
     accx = accy = accz = dens = potl = 0.0;
     
     // Recursion multipliers
-    stepx = exp(kfac*cC->Pos(i, 0));
-    stepy = exp(kfac*cC->Pos(i, 1));
-    stepz = exp(kfac*cC->Pos(i, 2));
+    auto stepx = exp(kfac*cC->Pos(i, 0));
+    auto stepy = exp(kfac*cC->Pos(i, 1));
+    auto stepz = exp(kfac*cC->Pos(i, 2));
     
     // Initial values (note sign change)
-    startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
-    starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
-    startz = exp(-static_cast<double>(nmaxz)*kfac*cC->Pos(i, 2));
+    auto startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
+    auto starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
+    auto startz = exp(-static_cast<double>(nmaxz)*kfac*cC->Pos(i, 2));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
@@ -216,11 +215,10 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
 	  // Compute wavenumber; recall that the coefficients are
 	  // stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
 	  //
-	  ii = ix-nmaxx;
-	  jj = iy-nmaxy;
-	  kk = iz-nmaxz;
+	  int ii = ix-nmaxx;
+	  int jj = iy-nmaxy;
+	  int kk = iz-nmaxz;
 	  
-
 	  // No contribution to acceleration and potential ("swindle")
 	  // for zero wavenumber
 	  if (ii==0 && jj==0 && kk==0) continue;
