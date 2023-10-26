@@ -14,20 +14,26 @@
 //! Periodic cube basis
 class Cube : public PotAccel
 {
-
 private:
 
+  //! Coefficient container
   std::vector<Eigen::Tensor<std::complex<double>, 3>> expccof;
 
+  //! Index extends and particle counts for methods
   int imx, imy, imz, use1, use0;
+
+  //@{
+  //! Wave number factors
   double dfac;
   std::complex<double> kfac;
+  //@}
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
 
 protected:
 
+  //! Initialize parameters
   void initialize(void);
 				// Parameters
 
@@ -53,7 +59,7 @@ protected:
 public:
 
   //! Id string
-  string id;
+  std::string id;
 
   //! Constructor
   Cube(Component* c0, const YAML::Node& conf);
