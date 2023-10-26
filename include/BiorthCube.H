@@ -82,32 +82,6 @@ public:
   //! Get radial force for dimensionless coord with harmonic order l and radial orer n
   Eigen::Vector3cd get_force(const coefType& c, Eigen::Vector3d x);
 
-#if HAVE_LIBCUDA==1
-  void initialize_cuda(std::vector<cudaArray_t>& cuArray,
-		       thrust::host_vector<cudaTextureObject_t>& tex);
-
-  virtual cudaMappingConstants getCudaMappingConstants()
-  {
-    cudaMappingConstants ret;
-
-    ret.rscale = scale;
-    ret.hscale = scale;
-    ret.xmin   = xmin;
-    ret.xmax   = xmax;
-    ret.ymin   = ymin;
-    ret.ymax   = ymax;
-    ret.numr   = numr;
-    ret.numx   = numx;
-    ret.numy   = numy;
-    ret.dxi    = dx;
-    ret.dyi    = dy;
-    ret.cmapR  = cmapR;
-    ret.cmapZ  = cmapZ;
-
-    return ret;
-  }
-#endif
-
   //! For pyEXP
   Eigen::MatrixXcd orthoCheck();
 
