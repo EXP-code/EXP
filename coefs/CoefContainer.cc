@@ -303,6 +303,105 @@ namespace MSSA
     // END time loop
   }
   
+  void CoefDB::pack_cube()
+  {
+    auto cur = dynamic_cast<CoefClasses::CubeCoefs*>(coefs.get());
+
+    times = cur->Times();
+    complexKey = true;
+
+    auto cf = dynamic_cast<CoefClasses::CubeStruct*>( cur->getCoefStruct(times[0]).get() );
+
+    int nmaxx   = cf->nmaxx;
+    int nmaxy   = cf->nmaxy;
+    int nmaxz   = cf->nmaxz;
+    int ntimes  = times.size();
+
+    // Make extended key list
+    //
+    keys.clear();
+    for (auto k : keys0) {
+      // Sanity check rank
+      //
+      if (k.size() != 3) {
+	std::ostringstream sout;
+	sout << "CoefDB::pack_cube: key vector should have rank 3; "
+	     << "found rank " << k.size() << " instead";
+	throw std::runtime_error(sout.str());
+      }
+      // Sanity check values
+      //
+      else if (k[0] <= 2*nmaxx and k[0] >= 0 and
+	       k[1] <= 2*nmaxy and k[1] >= 0 and
+	       k[2] <= 2*nmaxz and k[2] >= 0 ) {
+	
+	auto v = k;
+	v.push_back(0);
+	keys.push_back(v);
+	data[v].resize(ntimes);
+
+	v[3] = 1;
+	keys.push_back(v);
+	data[v].resize(ntimes);
+      }
+      else {
+	throw std::runtime_error("CoefDB::pack_cube: key is out of bounds");
+      }
+    }
+
+    bkeys.clear();
+    for (auto k : bkeys0) {
+      // Sanity check values
+      //
+      if (k[0] <= 2*nmaxx and k[0] >= 0 and
+	  k[1] <= 2*nmaxy and k[1] >= 0 and
+	  k[2] <= 2*nmaxz and k[2] >= 0 ) {
+	
+	auto v = k;
+	v.push_back(0);
+	keys.push_back(v);
+	data[v].resize(ntimes);
+
+	v[3] = 1;
+	keys.push_back(v);
+	data[v].resize(ntimes);
+      }
+    }
+
+    for (int t=0; t<ntimes; t++) {
+      cf = dynamic_cast<CoefClasses::CubeStruct*>( cur->getCoefStruct(times[t]).get() );
+      for (auto k : keys)  {
+	auto c = (*cf->coefs)(k[0], k[1], k[2]);
+	if (k[3]) data[k][t] = c.imag();
+	else      data[k][t] = c.real();
+      }
+
+      for (auto k : bkeys)  {
+	auto c = (*cf->coefs)(k[0], k[1], k[2]);
+	if (k[3]) data[k][t] = c.imag();
+	else      data[k][t] = c.real();
+      }
+    }
+  }
+
+  void CoefDB::unpack_cube()
+  {
+    for (int i=0; i<times.size(); i++) {
+
+      auto cf = dynamic_cast<CoefClasses::CubeStruct*>( coefs->getCoefStruct(times[i]).get() );
+      
+      for (auto k : keys0) {
+	auto c = k, s = k;
+	c.push_back(0);
+	s.push_back(1);
+
+	(*cf->coefs)(k[0], k[1], k[2]) = {data[c][i], data[s][i]};
+      }
+      // END key loop
+    }
+    // END time loop
+  }
+  
   void CoefDB::pack_table()
   {
     auto cur = dynamic_cast<CoefClasses::TableData*>(coefs.get());

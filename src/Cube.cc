@@ -1,7 +1,8 @@
 #include "expand.H"
 
-#include <stdlib.h>
-#include <math.h>
+#include <filesystem>
+#include <cstdlib>
+#include <cmath>
 
 #include <Cube.H>
 
@@ -12,7 +13,8 @@ Cube::valid_keys = {
   "nminz",
   "nmaxx",
   "nmaxy",
-  "nmaxz"
+  "nmaxz",
+  "knots"
 };
 
 
@@ -272,7 +274,10 @@ void Cube::dump_coefs_h5(const std::string& file)
   cur->nmaxx    = nmaxx;
   cur->nmaxy    = nmaxy;
   cur->nmaxz    = nmaxz;
-  cur->coefs3d  = expccof[0];
+
+  cur->allocate();		// Set the storage and copy the
+				// coefficients through the map
+  *cur->coefs   = expccof[0];
 
   // Check if file exists
   //

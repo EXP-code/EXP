@@ -1745,15 +1745,17 @@ void PolarBasis::dump_coefs_h5(const std::string& file)
   cur->mmax   = Mmax;
   cur->nmax   = nmax;
 
-  cur->coefs.resize(Mmax+1, nmax);
+  cur->allocate();		// Assign storage and make the map
+
+  auto & cof = *cur->coefs;	// Reference for convenience
 
   for (int ir=0; ir<nmax; ir++) {
     for (int m=0, offset=0; m<=Mmax; m++) {
       if (m==0) {
-	cur->coefs(m, ir) = {(*expcoef[offset])[ir], 0.0};
+	cof(m, ir) = {(*expcoef[offset])[ir], 0.0};
 	offset += 1;
       } else {
-	cur->coefs(m, ir) = {(*expcoef[offset])[ir], (*expcoef[offset+1])[ir]};
+	cof(m, ir) = {(*expcoef[offset])[ir], (*expcoef[offset+1])[ir]};
 	offset += 2;
       }
     }

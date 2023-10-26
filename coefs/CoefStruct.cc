@@ -358,6 +358,13 @@ namespace CoefClasses
     return true;
   }
 
+  bool CubeStruct::read(std::istream& in, bool exp_type, bool verbose)
+  {
+    std::cout << "CubeStruct: no native coefficient format for this class" << std::endl;
+    return false;
+  }
+  
+
   bool TblStruct::read(std::istream& in, bool exp_type, bool verbose)
   {
     std::vector<double> row;

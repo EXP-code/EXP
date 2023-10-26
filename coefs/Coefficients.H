@@ -101,10 +101,10 @@ namespace CoefClasses
     virtual ~Coefs() {}
 
     //! Get coefficient data at given time
-    virtual Eigen::VectorXcd& operator()(double time) = 0;
+    virtual Eigen::VectorXcd& getData(double time) = 0;
 
     //! Set coefficient store at given time to the provided matrix
-    virtual void setMatrix(double time, const Eigen::VectorXcd& data) = 0;
+    virtual void setData(double time, const Eigen::VectorXcd& data) = 0;
 
     //! Interpolate coefficient matrix at given time
     std::tuple<Eigen::VectorXcd&, bool> interpolate(double time);
@@ -259,11 +259,17 @@ namespace CoefClasses
     //! Add a coefficient structure to the container
     virtual void add(CoefStrPtr coef);
 
-    //! Get coefficient matrix at given time
-    virtual Eigen::VectorXcd& operator()(double time);
+    //! Get coefficient array at given time
+    virtual Eigen::VectorXcd& getData(double time);
     
+    //! Operator for pyEXP
+    Eigen::MatrixXcd& getMatrix(double time);
+
     //! Set coefficient matrix at given time
-    virtual void setMatrix(double time, const Eigen::VectorXcd& mat);
+    virtual void setData(double time, const Eigen::VectorXcd& arr);
+
+    //! Natural data setter for pyEXP
+    void setMatrix(double time, const Eigen::MatrixXcd& mat);
 
     //! Interpolate coefficient matrix at given time
     std::tuple<Eigen::MatrixXcd&, bool> interpolate(double time)
@@ -392,10 +398,16 @@ namespace CoefClasses
     virtual void add(CoefStrPtr coef);
 
     //! Get coefficient matrix at given time
-    virtual Eigen::VectorXcd& operator()(double time);
+    virtual Eigen::VectorXcd& getData(double time);
+    
+    //! Natively mapped version
+    Eigen::MatrixXcd& getMatrix(double time);
     
     //! Set coefficient matrix at given time
-    virtual void setMatrix(double time, const Eigen::VectorXcd& mat);
+    virtual void setData(double time, const Eigen::VectorXcd& arr);
+    
+    //! For pyEXP
+    void setMatrix(double time, const Eigen::MatrixXcd& arr);
     
     //! Interpolate coefficient matrix at given time
     std::tuple<Eigen::MatrixXcd&, bool> interpolate(double time)
@@ -521,10 +533,16 @@ namespace CoefClasses
     virtual void add(CoefStrPtr coef);
 
     //! Get coefficient matrix at given time
-    virtual Eigen::VectorXcd& operator()(double time);
+    virtual Eigen::VectorXcd& getData(double time);
+    
+    //! Native version
+    virtual Eigen3d& getTensor(double time);
     
     //! Set coefficient matrix at given time
-    virtual void setMatrix(double time, const Eigen::VectorXcd& dat);
+    virtual void setData(double time, const Eigen::VectorXcd& dat);
+
+    //! Native version
+    virtual void setTensor(double time, const Eigen3d& dat);
     
     //! Interpolate coefficient tensor at given time
     std::tuple<Eigen::Tensor<std::complex<double>, 3>&, bool>
@@ -555,18 +573,20 @@ namespace CoefClasses
     Eigen::Tensor<std::complex<double>, 4> getAllCoefs();
 
     /** Get power for the coefficient DB as a function of harmonic
-	index.  Time as rows, harmonics as columns.
+	index by dimension: x, y, z specified as a quoted char */
+    Eigen::MatrixXd& Power
+    (char d, int min=0, int max=std::numeric_limits<int>::max());
+
+    /** Get power for the coefficient DB as a function of harmonic
+	index.  Time as rows, harmonics as columns.  'x' dimension by
+	default.
 
 	@param min is the minimum radial order
 	@param max is the maximum radial order
     */
     Eigen::MatrixXd& Power
-    (int min=0, int max=std::numeric_limits<int>::max(), char d='x');
-
-    //! Required default member
-    Eigen::MatrixXd& Power
     (int min=0, int max=std::numeric_limits<int>::max())
-    { return Power(min, max, 'x'); }
+    { return Power('x', min, max); }
 
     //! Make a list of all index keys 
     virtual std::vector<Key> makeKeys();
@@ -651,12 +671,14 @@ namespace CoefClasses
     virtual void add(CoefStrPtr coef);
 
     //! Get coefficient data at given time
-    virtual Eigen::VectorXcd& operator()(double time);
+    virtual Eigen::VectorXcd& getData(double time);
     
     /** Set coefficient matrix at given time.  This is for pybind11,
 	since the operator() will not allow lvalue assignment, it
 	seems. */
-    virtual void setMatrix(double time, const Eigen::VectorXcd& mat);
+    virtual void setData(double time, const Eigen::VectorXcd& arr);
+
+    void setArray(double time, const Eigen::VectorXcd& arr) { setData(time, arr); }
 
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)

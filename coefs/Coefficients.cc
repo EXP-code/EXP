@@ -221,7 +221,7 @@ namespace CoefClasses
     return ret;
   }
 
-  Eigen::VectorXcd& SphCoefs::operator()(double time)
+  Eigen::VectorXcd& SphCoefs::getData(double time)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -234,7 +234,22 @@ namespace CoefClasses
     return arr;
   }
   
-  void SphCoefs::setMatrix(double time, const Eigen::VectorXcd& dat)
+  Eigen::MatrixXcd& SphCoefs::getMatrix(double time)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      arr.resize(0);
+    } else {
+      arr = it->second->store;
+      int ldim = (Lmax+1)*(Lmax+2)/2;
+      mat = Eigen::Map<Eigen::MatrixXcd>(arr.data(), ldim, Nmax); 
+    }
+    
+    return mat;
+  }
+  
+  void SphCoefs::setData(double time, const Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -246,6 +261,20 @@ namespace CoefClasses
       it->second->store = dat;
       it->second->coefs = std::make_shared<CoefClasses::SphStruct::coefType>
 	(it->second->store.data(), (Lmax+1)*(Lmax+2)/2, Nmax);
+    }
+  }
+  
+  void SphCoefs::setMatrix(double time, const Eigen::MatrixXcd& dat)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      std::ostringstream str;
+      str << "SphCoefs::setMatrix: requested time=" << time << " not found";
+      throw std::runtime_error(str.str());
+    } else {
+      it->second->allocate();
+      *it->second->coefs = dat;
     }
   }
   
@@ -589,7 +618,7 @@ namespace CoefClasses
     for (auto t : coefs) times.push_back(t.first);
   }
   
-  Eigen::VectorXcd& CylCoefs::operator()(double time)
+  Eigen::VectorXcd& CylCoefs::getData(double time)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -602,7 +631,21 @@ namespace CoefClasses
     return arr;
   }
   
-  void CylCoefs::setMatrix(double time, const Eigen::VectorXcd& dat)
+  Eigen::MatrixXcd& CylCoefs::getMatrix(double time)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      arr.resize(0);
+    } else {
+      arr = it->second->store;
+      mat = Eigen::Map<Eigen::MatrixXcd>(arr.data(), Mmax+1, Nmax); 
+    }
+    
+    return mat;
+  }
+  
+  void CylCoefs::setData(double time, const Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -614,6 +657,20 @@ namespace CoefClasses
       it->second->store = dat;
       it->second->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
 	(it->second->store.data(), Mmax+1, Nmax);
+    }
+  }
+
+  void CylCoefs::setMatrix(double time, const Eigen::MatrixXcd& dat)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      std::ostringstream str;
+      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      throw std::runtime_error(str.str());
+    } else {
+      it->second->allocate();
+      *it->second->coefs = dat;
     }
   }
 
@@ -912,7 +969,7 @@ namespace CoefClasses
       Eigen::VectorXcd in;
       stanza.getDataSet("coefficients").read(in);
       
-      Eigen::TensorMap<Eigen3d> dat(in.data(), NmaxX, NmaxY, NmaxZ);
+      Eigen::TensorMap<Eigen3d> dat(in.data(), 2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1);
 
       // Pack the data into the coefficient variable
       //
@@ -928,7 +985,7 @@ namespace CoefClasses
     for (auto t : coefs) times.push_back(t.first);
   }
   
-  Eigen::VectorXcd& CubeCoefs::operator()(double time)
+  Eigen::VectorXcd& CubeCoefs::getData(double time)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -941,7 +998,7 @@ namespace CoefClasses
     return arr;
   }
 
-  void CubeCoefs::setMatrix(double time, const Eigen::VectorXcd& dat)
+  void CubeCoefs::setData(double time, const Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -952,8 +1009,36 @@ namespace CoefClasses
     } else {
       it->second->store = dat;
       it->second->coefs = std::make_shared<CoefClasses::CubeStruct::coefType>
-	(it->second->store.data(), NmaxX, NmaxY, NmaxZ);
+	(it->second->store.data(), 2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1);
     }
+  }
+
+  void CubeCoefs::setTensor(double time, const Eigen3d& dat)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      std::ostringstream str;
+      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      throw std::runtime_error(str.str());
+    } else {
+      it->second->allocate();	// Assign storage for the flattened tensor
+      *it->second->coefs = dat;	// Populate using the tensor map
+    }
+  }
+
+  CubeCoefs::Eigen3d& CubeCoefs::getTensor(double time)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      arr.resize(0);
+    } else {
+      arr = it->second->store;
+      dat = Eigen::TensorMap<Eigen3d>(arr.data(), 2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1);
+    }
+    
+    return dat;
   }
 
   Eigen::Tensor<std::complex<double>, 4> CubeCoefs::getAllCoefs()
@@ -965,13 +1050,13 @@ namespace CoefClasses
     int ntim = times.size();
 
     // Resize the tensor
-    ret.resize(NmaxX, NmaxY, NmaxZ, ntim);
+    ret.resize(2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1, ntim);
     
     for (int t=0; t<ntim; t++) {
       auto cof = coefs[times[t]];
-      for (int ix=0; ix<NmaxX; ix++) {
-	for (int iy=0; iy<NmaxY; iy++) {
-	  for (int iz=0; iz<NmaxZ; iz++) {
+      for (int ix=0; ix<=2*NmaxX; ix++) {
+	for (int iy=0; iy<=2*NmaxY; iy++) {
+	  for (int iz=0; iz<=2*NmaxZ; iz++) {
 	    ret(ix, iy, iz, t) = (*cof->coefs)(ix, iy, iz);
 	  }
 	}
@@ -986,9 +1071,9 @@ namespace CoefClasses
     std::vector<Key> ret;
     if (coefs.size()==0) return ret;
 
-    for (unsigned ix=0; ix<NmaxX; ix++) {
-      for (unsigned iy=0; iy<NmaxY; iy++) {
-	for (unsigned iz=0; iz<NmaxZ; iz++) {
+    for (unsigned ix=0; ix<=2*NmaxX; ix++) {
+      for (unsigned iy=0; iy<=2*NmaxY; iy++) {
+	for (unsigned iz=0; iz<=2*NmaxZ; iz++) {
 	  ret.push_back({ix, iy, iz});
 	}
       }
@@ -1061,7 +1146,7 @@ namespace CoefClasses
     // T loop
   }
   
-  Eigen::MatrixXd& CubeCoefs::Power(int min, int max, char d)
+  Eigen::MatrixXd& CubeCoefs::Power(char d, int min, int max)
   {
     if (coefs.size()) {
       
@@ -1069,21 +1154,13 @@ namespace CoefClasses
       int nmaxY = coefs.begin()->second->nmaxy;
       int nmaxZ = coefs.begin()->second->nmaxz;
       
-      int nminX = std::max<int>(min, 0);
-      int nminY = std::max<int>(min, 0);
-      int nminZ = std::max<int>(min, 0);
-
-      nmaxX = std::min<int>(max, nminX);
-      nmaxY = std::min<int>(max, nminY);
-      nmaxZ = std::min<int>(max, nmaxZ);
-
       int dim = 0;
       if (d == 'x')
-	dim  = nmaxX - nminX;
+	dim  = 2*nmaxX + 1;
       else if (d == 'y')
-	dim  = nmaxY - nminY;
+	dim  = 2*nmaxY + 1;
       else
-	dim  = nmaxZ - nminZ;
+	dim  = 2*nmaxZ + 1;
 
       power.resize(coefs.size(), dim);
       power.setZero();
@@ -1091,30 +1168,36 @@ namespace CoefClasses
       int T=0;
       for (auto v : coefs) {
 	if (d=='x') {
-	  for (int ix=0; ix<NmaxX; ix++) {
+	  for (int ix=0; ix<=2*NmaxX; ix++) {
 	    double val(0.0);
-	    for (int iy=0; iy<NmaxY; iy++) {
-	      for (int iz=0; iz<NmaxZ; iz++) {
+	    for (int iy=0; iy<=2*NmaxY; iy++) {
+	      if (abs(iy - nmaxY) < min) continue;
+	      for (int iz=0; iz<=2*NmaxZ; iz++) {
+		if (abs(iz - nmaxZ) < min) continue;
 		double val = std::abs((*v.second->coefs)(ix, iy, iz));
 		power(T, ix) += val * val;
 	      }
 	    }
 	  }
 	} else if (d=='y') {
-	  for (int iy=0; iy<NmaxY; iy++) {
+	  for (int iy=0; iy<=2*NmaxY; iy++) {
 	    double val(0.0);
-	    for (int ix=0; iy<NmaxX; ix++) {
-	      for (int iz=0; iz<NmaxZ; iz++) {
+	    for (int ix=0; iy<=2*NmaxX; ix++) {
+	      if (abs(ix - nmaxX) < min) continue;
+	      for (int iz=0; iz<=2*NmaxZ; iz++) {
+		if (abs(iz - nmaxZ) < min) continue;
 		double val = std::abs((*v.second->coefs)(ix, iy, iz));
 		power(T, iy) += val * val;
 	      }
 	    }
 	  }
 	} else {
-	  for (int iz=0; iz<NmaxZ; iz++) {
+	  for (int iz=0; iz<=2*NmaxZ; iz++) {
 	    double val(0.0);
-	    for (int ix=0; ix<NmaxX; ix++) {
-	      for (int iy=0; iy<NmaxY; iy++) {
+	    for (int ix=0; ix<=2*NmaxX; ix++) {
+	      if (abs(ix - nmaxX) < min) continue;
+	      for (int iy=0; iy<=2*NmaxY; iy++) {
+		if (abs(iy - nmaxY) < min) continue;
 		double val = std::abs((*v.second->coefs)(ix, iy, iz));
 		power(T, iz) += val * val;
 	      }
@@ -1130,6 +1213,65 @@ namespace CoefClasses
     return power;
   }
   
+  bool CubeCoefs::CompareStanzas(CoefsPtr check)
+  {
+    bool ret = true;
+    
+    auto other = std::dynamic_pointer_cast<CubeCoefs>(check);
+    
+    // Check that every time in this one is in the other
+    for (auto v : coefs) {
+      if (other->coefs.find(roundTime(v.first)) == other->coefs.end()) {
+	std::cout << "Can't find Time=" << v.first << std::endl;
+	ret = false;
+      }
+    }
+    
+    if (not ret) {
+      std::cout << "Times in other coeffcients are:";
+      for (auto v : other->Times()) std::cout << " " << v;
+      std::cout << std::endl;
+    }
+
+    if (ret) {
+      std::cout << "Times are the same, now checking parameters at each time"
+		<< std::endl;
+      for (auto v : coefs) {
+	auto it = other->coefs.find(v.first);
+	if (v.second->nmaxx != it->second->nmaxx) ret = false;
+	if (v.second->nmaxy != it->second->nmaxy) ret = false;
+	if (v.second->nmaxz != it->second->nmaxz) ret = false;
+	if (v.second->time  != it->second->time ) ret = false;
+      }
+    }
+    
+    if (ret) {
+      std::cout << "Parameters are the same, now checking coefficients"
+		<< std::endl;
+      for (auto v : coefs) {
+	auto it = other->coefs.find(v.first);
+	auto & cv = *(v.second->coefs);
+	auto & ci = *(it->second->coefs);
+	auto  dim = cv.dimensions(); // This is an Eigen::Tensor map
+	for (int i=0; i<dim[0]; i++) {
+	  for (int j=0; j<dim[1]; j++) {
+	    for (int k=0; k<dim[2]; k++) {
+	      if (cv(i, j, k) != ci(i, j, k)) {
+		std::cout << "Coefficient (" << i << ", " << j << ", " << k << ")  "
+			  << cv(i, j, k) << " != "
+			  << ci(i, j, k) << std::endl;
+		ret = false;
+	      }
+	    }
+	  }
+	}
+      }
+    }
+    
+    return ret;
+  }
+  
+
   TableData::TableData(const std::vector<double>& Times,
 		       const std::vector<std::vector<double>>& data,
 		       bool verbose) :
@@ -1201,7 +1343,7 @@ namespace CoefClasses
     }
   }
   
-  Eigen::VectorXcd& TableData::operator()(double time)
+  Eigen::VectorXcd& TableData::getData(double time)
   {
     auto it = coefs.find(roundTime(time));
     
@@ -1218,7 +1360,7 @@ namespace CoefClasses
     return arr;
   }
   
-  void TableData::setMatrix(double time, const Eigen::VectorXcd& dat)
+  void TableData::setData(double time, const Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
