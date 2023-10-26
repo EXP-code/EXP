@@ -497,12 +497,8 @@ namespace CoefClasses
 
     //! Read the coefficients
     virtual void readNativeCoefs(const std::string& file,
-				 int stride, double tmin, double tmax)
-    {
-      std::runtime_error("CubeCoefs: no native coefficients files");
-    }
+				 int stride, double tmin, double tmax);
 
-    
     //! Get the YAML config
     virtual std::string getYAML();
     

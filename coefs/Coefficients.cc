@@ -1213,6 +1213,12 @@ namespace CoefClasses
     return power;
   }
   
+  void CubeCoefs::readNativeCoefs(const std::string& file,
+				  int stride, double tmin, double tmax)
+  {
+    std::runtime_error("CubeCoefs: no native coefficients files");
+  }
+
   bool CubeCoefs::CompareStanzas(CoefsPtr check)
   {
     bool ret = true;
