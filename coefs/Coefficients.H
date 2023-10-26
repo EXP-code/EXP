@@ -17,6 +17,12 @@ namespace CoefClasses
   //! An index key
   using Key = std::vector<unsigned>;
   
+  using E2d = 
+  Eigen::Matrix<std::complex<double>,
+		Eigen::Dynamic,	Eigen::Dynamic,	Eigen::ColMajor>;
+    
+  using E3d = Eigen::Tensor<std::complex<double>, 3>;
+
   /** 
       Abstract class for any type of coefficient database
       
@@ -30,7 +36,7 @@ namespace CoefClasses
   protected:
     
     //! Blank instance
-    Eigen::MatrixXcd mat;
+    Eigen::VectorXcd arr;
     
     //! Working array for power
     Eigen::MatrixXd power;
@@ -83,7 +89,7 @@ namespace CoefClasses
     //! Copy constructor
     Coefs(Coefs& p)
     {
-      mat      = p.mat;
+      arr      = p.arr;
       power    = p.power;
       geometry = p.geometry;
       name     = p.name;
@@ -94,21 +100,18 @@ namespace CoefClasses
     //! Destructor
     virtual ~Coefs() {}
 
-    //! Get coefficient matrix at given time
-    virtual Eigen::MatrixXcd& operator()(double time) = 0;
-    
-    //! Set coefficient matrix at given time to the provided matrix
-    virtual void setMatrix(double time, const Eigen::MatrixXcd& mat) = 0;
+    //! Get coefficient data at given time
+    virtual Eigen::VectorXcd& operator()(double time) = 0;
+
+    //! Set coefficient store at given time to the provided matrix
+    virtual void setMatrix(double time, const Eigen::VectorXcd& data) = 0;
 
     //! Interpolate coefficient matrix at given time
-    virtual std::tuple<Eigen::MatrixXcd&, bool> interpolate(double time);
+    std::tuple<Eigen::VectorXcd&, bool> interpolate(double time);
     
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time) = 0;
 
-    //! Dump to ascii list (for testing only)
-    virtual void dump(int mmin, int mmax, int nmin, int nmax) = 0;
-    
     //! Get list of coefficient times
     virtual std::vector<double> Times() { return times; }
     
@@ -201,6 +204,9 @@ namespace CoefClasses
   {
   protected:
     
+    //! Data
+    Eigen::MatrixXcd mat;
+
     //! Parameters
     int Lmax, Nmax;
 
@@ -254,17 +260,26 @@ namespace CoefClasses
     virtual void add(CoefStrPtr coef);
 
     //! Get coefficient matrix at given time
-    virtual Eigen::MatrixXcd& operator()(double time);
+    virtual Eigen::VectorXcd& operator()(double time);
     
     //! Set coefficient matrix at given time
-    virtual void setMatrix(double time, const Eigen::MatrixXcd& mat);
+    virtual void setMatrix(double time, const Eigen::VectorXcd& mat);
 
+    //! Interpolate coefficient matrix at given time
+    std::tuple<Eigen::MatrixXcd&, bool> interpolate(double time)
+    {
+      auto ret = Coefs::interpolate(time);
+      int ldim = (Lmax+1)*(Lmax+2)/2;
+      mat = Eigen::Map<Eigen::MatrixXcd>(std::get<0>(ret).data(), ldim, Nmax); 
+      return {mat, std::get<1>(ret)};
+    }
+    
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
     { return coefs[time]; }
 
     //! Dump to ascii list for testing
-    virtual void dump(int lmin, int lmax, int nmin, int nmax);
+    void dump(int lmin, int lmax, int nmin, int nmax);
     
     //! Get list of coefficient times
     virtual std::vector<double> Times()
@@ -313,7 +328,9 @@ namespace CoefClasses
   class CylCoefs : public Coefs
   {
   protected:
-    
+    //! Data
+    Eigen::MatrixXcd mat;
+
     //! Working array for power
     Eigen::MatrixXd powerE, powerO;
     
@@ -329,7 +346,6 @@ namespace CoefClasses
     //! Read the coefficients
     virtual void readNativeCoefs(const std::string& file,
 				 int stride, double tmin, double tmax);
-
     
     //! Get the YAML config
     virtual std::string getYAML();
@@ -376,18 +392,26 @@ namespace CoefClasses
     virtual void add(CoefStrPtr coef);
 
     //! Get coefficient matrix at given time
-    virtual Eigen::MatrixXcd& operator()(double time);
+    virtual Eigen::VectorXcd& operator()(double time);
     
     //! Set coefficient matrix at given time
-    virtual void setMatrix(double time, const Eigen::MatrixXcd& mat);
+    virtual void setMatrix(double time, const Eigen::VectorXcd& mat);
     
+    //! Interpolate coefficient matrix at given time
+    std::tuple<Eigen::MatrixXcd&, bool> interpolate(double time)
+    {
+      auto ret = Coefs::interpolate(time);
+      mat = Eigen::Map<Eigen::MatrixXcd>(std::get<0>(ret).data(), Mmax+1, Nmax); 
+      return {mat, std::get<1>(ret)};
+    }
+
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
     { return coefs[time]; }
 
 
     //! Dump to ascii list for testing
-    virtual void dump(int mmin, int mmax, int nmin, int nmax);
+    void dump(int mmin, int mmax, int nmin, int nmax);
     
     //! Get list of coefficient times
     virtual std::vector<double> Times()
@@ -439,6 +463,133 @@ namespace CoefClasses
 
     //! Get lmax
     double nmax() const { return Nmax; }
+  };
+  
+
+  /** Derived class for cube coefficients */
+  class CubeCoefs : public Coefs
+  {
+  protected:
+    //! 3d coefficient data type
+    typedef
+    Eigen::Tensor<std::complex<double>, 3> Eigen3d;
+
+    //! Data
+    Eigen3d dat;
+
+    //! Parameters
+    int NmaxX, NmaxY, NmaxZ;
+
+    //! The coefficient DB
+    std::map<double, CubeStrPtr> coefs;
+
+    //! Read the coefficients
+    virtual void readNativeCoefs(const std::string& file,
+				 int stride, double tmin, double tmax)
+    {
+      std::runtime_error("CubeCoefs: no native coefficients files");
+    }
+
+    
+    //! Get the YAML config
+    virtual std::string getYAML();
+    
+    //! Write parameter attributes
+    virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Write coefficient data in H5
+    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
+    
+  public:
+    
+    //! Constructor
+    CubeCoefs(bool verbose=false) : Coefs("cube", verbose) {}
+    
+    //! H5 constructor
+    CubeCoefs(HighFive::File& file, int stride=1,
+	     double tmin=-std::numeric_limits<double>::max(),
+	     double tmax= std::numeric_limits<double>::max(),
+	     bool verbose=false);
+    
+    //! Copy constructor
+    CubeCoefs(CubeCoefs& p) : Coefs(p) { coefs = p.coefs; }
+
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
+
+    //! Add a coefficient structure to the container
+    virtual void add(CoefStrPtr coef);
+
+    //! Get coefficient matrix at given time
+    virtual Eigen::VectorXcd& operator()(double time);
+    
+    //! Set coefficient matrix at given time
+    virtual void setMatrix(double time, const Eigen::VectorXcd& dat);
+    
+    //! Interpolate coefficient tensor at given time
+    std::tuple<Eigen::Tensor<std::complex<double>, 3>&, bool>
+    interpolate(double time)
+    {
+      auto ret = Coefs::interpolate(time);
+      dat = Eigen::TensorMap<Eigen3d>(std::get<0>(ret).data(), NmaxX, NmaxY, NmaxZ); 
+      return {dat, std::get<1>(ret)};
+    }
+
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[time]; }
+
+
+    //! Dump to ascii list for testing
+    void dump(int nmaxx, int nmaxy, int nmaxz);
+    
+    //! Get list of coefficient times
+    virtual std::vector<double> Times()
+    {
+      times.clear();
+      for (auto t : coefs) times.push_back(t.first);
+      return times;
+    }
+    
+    //! Get all coefficients indexed in time
+    Eigen::Tensor<std::complex<double>, 4> getAllCoefs();
+
+    /** Get power for the coefficient DB as a function of harmonic
+	index.  Time as rows, harmonics as columns.
+
+	@param min is the minimum radial order
+	@param max is the maximum radial order
+    */
+    Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max(), char d='x');
+
+    //! Required default member
+    Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max())
+    { return Power(min, max, 'x'); }
+
+    //! Make a list of all index keys 
+    virtual std::vector<Key> makeKeys();
+    virtual std::vector<Key> makeKeys(Key k) { return makeKeys(); }
+
+    //! Compare two collections of stanzas (this is for testing only)
+    virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    virtual std::shared_ptr<Coefs> deepcopy();
+
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+    }
+
+    //! Get nmax
+    double nmax(char d) const {
+      if (d=='x') return NmaxX;
+      if (d=='y') return NmaxY;
+      if (d=='z') return NmaxZ;
+      std::runtime_error("CubeCoefs: error in nmax accessor");
+    }
   };
   
 
@@ -499,21 +650,18 @@ namespace CoefClasses
     //! Add a coefficient structure to the container
     virtual void add(CoefStrPtr coef);
 
-    //! Get coefficient matrix at given time
-    virtual Eigen::MatrixXcd& operator()(double time);
+    //! Get coefficient data at given time
+    virtual Eigen::VectorXcd& operator()(double time);
     
     /** Set coefficient matrix at given time.  This is for pybind11,
 	since the operator() will not allow lvalue assignment, it
 	seems. */
-    virtual void setMatrix(double time, const Eigen::MatrixXcd& mat);
+    virtual void setMatrix(double time, const Eigen::VectorXcd& mat);
 
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
     { return coefs[time]; }
 
-    //! Dump to ascii list for testing
-    virtual void dump(int lmin, int lmax, int nmin, int nmax) {}
-    
     //! Get list of coefficient times
     virtual std::vector<double> Times() { return times; }
     
@@ -548,7 +696,6 @@ namespace CoefClasses
 
   };
   
-
   using CoefsPtr = std::shared_ptr<Coefs>;
 }
 // END namespace CoefClasses

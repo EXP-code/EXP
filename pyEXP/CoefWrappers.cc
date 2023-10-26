@@ -126,11 +126,11 @@ void CoefficientClasses(py::module &m) {
     // Inherit the constructors
     using CoefClasses::Coefs::Coefs;
 
-    Eigen::MatrixXcd& operator()(double time) override {
+    Eigen::VectorXcd& operator()(double time) override {
       PYBIND11_OVERRIDE_PURE(Eigen::MatrixXcd&, Coefs, operator(), time);
     }
 
-    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
+    void setMatrix(double time, const Eigen::VectorXcd& mat) override {
       PYBIND11_OVERRIDE_PURE(void, Coefs, setMatrix, time, mat);
     }
 
@@ -213,11 +213,11 @@ void CoefficientClasses(py::module &m) {
     // Inherit the constructors
     using SphCoefs::SphCoefs;
 
-    Eigen::MatrixXcd& operator()(double time) override {
+    Eigen::VectorXcd& operator()(double time) override {
       PYBIND11_OVERRIDE(Eigen::MatrixXcd&, SphCoefs, operator(), time);
     }
 
-    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
+    void setMatrix(double time, const Eigen::VectorXcd& mat) override {
       PYBIND11_OVERRIDE(void, SphCoefs, setMatrix, time, mat);
     }
 
@@ -297,11 +297,11 @@ void CoefficientClasses(py::module &m) {
     // Inherit the constructors
     using CylCoefs::CylCoefs;
 
-    Eigen::MatrixXcd& operator()(double time) override {
+    Eigen::VectorXcd& operator()(double time) override {
       PYBIND11_OVERRIDE(Eigen::MatrixXcd&, CylCoefs, operator(), time);
     }
 
-    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
+    void setMatrix(double time, const Eigen::VectorXcd& mat) override {
       PYBIND11_OVERRIDE(void, CylCoefs, setMatrix, time, mat);
     }
 
@@ -380,11 +380,11 @@ void CoefficientClasses(py::module &m) {
     // Inherit the constructors
     using TableData::TableData;
 
-    Eigen::MatrixXcd& operator()(double time) override {
+    Eigen::VectorXcd& operator()(double time) override {
       PYBIND11_OVERRIDE(Eigen::MatrixXcd&, TableData, operator(), time);
     }
 
-    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
+    void setMatrix(double time, const Eigen::VectorXcd& mat) override {
       PYBIND11_OVERRIDE(void, TableData, setMatrix, time, mat);
     }
 
@@ -547,7 +547,7 @@ void CoefficientClasses(py::module &m) {
          py::arg("type"),
          py::arg("verbose"))
     .def("__call__",
-         &CoefClasses::Coefs::operator(),
+	 &CoefClasses::Coefs::operator(),
          R"(
          Return the coefficient matrix for the desired time.
 

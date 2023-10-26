@@ -321,14 +321,23 @@ namespace BasisClasses
     cf->time   = time;
     cf->normed = true;
 
-    cf->coefs.resize((lmax+1)*(lmax+2)/2, nmax);
+    // Angular storage dimension
+    int ldim = (lmax+1)*(lmax+2)/2;
+
+    // Allocate the coefficient storage
+    cf->store.resize((lmax+1)*(lmax+2)/2, nmax);
+
+    // Make the coefficient map
+    cf->coefs = std::make_shared<CoefClasses::SphStruct::coefType>
+      (cf->store.data(),ldim, nmax);
+
     for (int l=0, L0=0, L1=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<nmax; n++) {
 	  if (m==0)
-	    cf->coefs(L0, n) = {expcoef(L1, n), 0.0};
+	    (*cf->coefs)(L0, n) = {expcoef(L1, n), 0.0};
 	  else
-	    cf->coefs(L0, n) = {expcoef(L1, n), expcoef(L1+1, n)};
+	    (*cf->coefs)(L0, n) = {expcoef(L1, n), expcoef(L1+1, n)};
 	}
 	L0 += 1;
 	if (m==0) L1 += 1;
@@ -347,8 +356,10 @@ namespace BasisClasses
     // Sanity check on dimensionality
     //
     {
-      int rows = coef->coefs.rows();
-      int cols = coef->coefs.cols();
+      auto & cf = *dynamic_cast<CoefClasses::SphStruct*>(coef.get());
+
+      int rows = (*cf.coefs).rows();
+      int cols = (*cf.coefs).cols();
       int rexp = (lmax+1)*(lmax+2)/2;
       if (rows != rexp or cols != nmax) {
 	std::ostringstream sout;
@@ -371,10 +382,10 @@ namespace BasisClasses
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<nmax; n++) {
 	  if (m==0)
-	    expcoef(L1,   n) = cf->coefs(L0, n).real();
+	    expcoef(L1,   n) = (*cf->coefs)(L0, n).real();
 	  else {
-	    expcoef(L1,   n) = cf->coefs(L0, n).real();
-	    expcoef(L1+1, n) = cf->coefs(L0, n).imag();
+	    expcoef(L1,   n) = (*cf->coefs)(L0, n).real();
+	    expcoef(L1+1, n) = (*cf->coefs)(L0, n).imag();
 	  }
 	}
 	L0 += 1;
@@ -1301,13 +1312,15 @@ namespace BasisClasses
 
     Eigen::VectorXd cos1(nmax), sin1(nmax);
 
-    cf->coefs.resize(mmax+1, nmax);
+    cf->store((mmax+1)*nmax);
+    cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
+      (cf->store.data(), mmax+1, nmax);
 
     for (int m=0; m<=mmax; m++) {
       sl->get_coefs(m, cos1, sin1);
 
       for (int n=0; n<nmax; n++) {
-	cf->coefs(m, n) = {cos1(n), sin1(n)};
+	(*cf->coefs)(m, n) = {cos1(n), sin1(n)};
       }
     }
   }
@@ -1320,7 +1333,7 @@ namespace BasisClasses
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
 
     for (int m=0; m<=mmax; m++) { // Set to zero on m=0 call only--------+
-      sl->set_coefs(m, cf->coefs.row(m).real(), cf->coefs.row(m).imag(), m==0);
+      sl->set_coefs(m, (*cf->coefs).row(m).real(), (*cf->coefs).row(m).imag(), m==0);
     }
 
     // Assign center if need be
@@ -1556,13 +1569,16 @@ namespace BasisClasses
     cf->nmax   = nmax;
     cf->time   = time;
 
-    cf->coefs.resize(2*mmax+1, nmax);
+    cf->store((2*mmax+1)*nmax);
+    cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
+      (cf->store.data(), 2*mmax+1, nmax);
+
     for (int m=0, m0=0; m<=mmax; m++) {
       for (int n=0; n<nmax; n++) {
 	if (m==0)
-	  cf->coefs(m, n) = {expcoef(m0, n), 0.0};
+	  (*cf->coefs)(m, n) = {expcoef(m0, n), 0.0};
 	else
-	  cf->coefs(m, n) = {expcoef(m0, n), expcoef(m0+1, n)};
+	  (*cf->coefs)(m, n) = {expcoef(m0, n), expcoef(m0+1, n)};
       }
       if (m==0) m0 += 1;
       else      m0 += 2;
@@ -1579,8 +1595,10 @@ namespace BasisClasses
     // Sanity check on dimensionality
     //
     {
-      int rows = coef->coefs.rows();
-      int cols = coef->coefs.cols();
+      auto cc = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
+      auto cf = cc->coefs;
+      int rows = cf->rows();
+      int cols = cf->cols();
       if (rows != mmax+1 or cols != nmax) {
 	std::ostringstream sout;
 	sout << "FlatDisk::set_coefs: the basis has (mmax+1, nmax)=("
@@ -1593,16 +1611,17 @@ namespace BasisClasses
     }
     
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
+    auto & cc = *cf->coefs;
 
     // Assign internal coefficient table (doubles) from the complex struct
     //
     for (int m=0, m0=0; m<=mmax; m++) {
       for (int n=0; n<nmax; n++) {
 	if (m==0)
-	  expcoef(m0,   n) = cf->coefs(m, n).real();
+	  expcoef(m0,   n) = cc(m, n).real();
 	else {
-	  expcoef(m0,   n) = cf->coefs(m, n).real();
-	  expcoef(m0+1, n) = cf->coefs(m, n).imag();
+	  expcoef(m0,   n) = cc(m, n).real();
+	  expcoef(m0+1, n) = cc(m, n).imag();
 	}
       }
       if (m==0) m0 += 1;
@@ -1882,6 +1901,283 @@ namespace BasisClasses
     return ret;
   }
 
+  const std::set<std::string>
+  Cube::valid_keys = {
+    "nminx",
+    "nminy",
+    "nminz",
+    "nmaxx",
+    "nmaxy",
+    "nmaxz",
+    "knots"
+  };
+
+  Cube::Cube(const YAML::Node& CONF) : Basis(CONF)
+  {
+    initialize();
+  }
+
+  Cube::Cube(const std::string& confstr) : Basis(confstr)
+  {
+    initialize();
+  }
+
+  void Cube::initialize()
+  {
+    nminx = std::numeric_limits<int>::max();
+    nminy = std::numeric_limits<int>::max();
+    nminz = std::numeric_limits<int>::max();
+
+    nmaxx = 6;
+    nmaxy = 6;
+    nmaxz = 6;
+
+    knots = 40;
+
+    // Check for unmatched keys
+    //
+    auto unmatched = YamlCheck(conf, valid_keys);
+    if (unmatched.size())
+      throw YamlConfigError("Basis::Basis::Cube", "parameter", unmatched, __FILE__, __LINE__);
+    
+    // Default cachename, empty by default
+    //
+    std::string cachename;
+
+    // Assign values from YAML
+    //
+    try {
+      if (conf["nminx"])      nminx = conf["mminx"].as<int>();
+      if (conf["nminy"])      nminy = conf["nminy"].as<int>();
+      if (conf["nminz"])      nminz = conf["nminz"].as<int>();
+      
+      if (conf["nmaxx"])      nmaxx = conf["mmaxx"].as<int>();
+      if (conf["nmaxy"])      nmaxy = conf["nmaxy"].as<int>();
+      if (conf["nmaxz"])      nmaxz = conf["nmaxz"].as<int>();
+      
+      if (conf["knots"])      knots = conf["knots"].as<int>();
+    } 
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing parameter stanza for <"
+			     << name << ">: "
+			     << error.what() << std::endl
+			     << std::string(60, '-') << std::endl
+			     << conf                 << std::endl
+			     << std::string(60, '-') << std::endl;
+      
+      throw std::runtime_error("Cube: error parsing YAML");
+    }
+    
+    // Finally, make the basis
+    //
+    ortho = std::make_shared<BiorthCube>(conf);
+    
+    // Orthogonality sanity check
+    //
+    auto orth = orthoCheck();
+    std::vector<Eigen::MatrixXd> mod(1);
+    mod[0].resize(orth.rows(), orth.cols());
+    for (int i=0; i<mod.size(); i++) mod[0].data()[i] = sqrt(std::abs(orth.data()[i]));
+
+    orthoTest(mod, classname(), harmonic());
+
+    // Get max threads
+    //
+    int nthrds = omp_get_max_threads();
+
+    expcoef.resize(2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1);
+    expcoef.setZero();
+      
+    used = 0;
+  }
+  
+  void Cube::reset_coefs(void)
+  {
+    expcoef.setZero();
+    totalMass = 0.0;
+    used = 0;
+  }
+  
+  
+  void Cube::load_coefs(CoefClasses::CoefStrPtr coef, double time)
+  {
+    auto cf = dynamic_cast<CoefClasses::CubeStruct*>(coef.get());
+
+    cf->nmaxx   = nmaxx;
+    cf->nmaxy   = nmaxy;
+    cf->nmaxz   = nmaxz;
+    cf->time    = time;
+
+    cf->allocate();
+
+    *cf->coefs = expcoef;
+  }
+
+  void Cube::set_coefs(CoefClasses::CoefStrPtr coef)
+  {
+    // Sanity check on derived class type
+    //
+    if (typeid(*coef) != typeid(CoefClasses::CubeStruct))
+      throw std::runtime_error("Cube::set_coefs: you must pass a CoefClasses::CubeStruct");
+
+    // Sanity check on dimensionality
+    //
+    {
+      auto cc = dynamic_cast<CoefClasses::CubeStruct*>(coef.get());
+      auto d  = cc->coefs->dimensions();
+      if (d[0] != 2*nmaxx+1 or d[1] != 2*nmaxy+1 or d[2] != 2*nmaxz+1) {
+	std::ostringstream sout;
+	sout << "Cube::set_coefs: the basis has (2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1)=("
+	     << 2*nmaxx+1 << ", " 
+	     << 2*nmaxy+1 << ", " 
+	     << 2*nmaxz+1
+	     << "). The coef structure has dimension=("
+	     << d[0] << ", " << d[1] << ", " << d[2] << ")";
+	  
+	throw std::runtime_error(sout.str());
+      }
+    }
+    
+    auto cf = dynamic_cast<CoefClasses::CubeStruct*>(coef.get());
+    expcoef = *cf->coefs;
+
+    coefctr = {0.0, 0.0, 0.0};
+  }
+
+  void Cube::accumulate(double x, double y, double z, double mass)
+  {
+    // Truncate to cube with sides in [0,1]
+    if (x<0.0)
+      x += (double)((int)fabs(x)) + 1.0;
+    else
+      x -= (double)((int)x);
+    
+    if (y<0.0)
+      y += (double)((int)fabs(y)) + 1.0;
+    else
+      y -= (double)((int)y);
+    
+    if (z<0.0)
+      z += (double)((int)fabs(x)) + 1.0;
+    else
+      z -= (double)((int)z);;
+    
+    
+    // Recursion multipliers
+    Eigen::Vector3cd step
+      {std::exp(-kfac*x), std::exp(-kfac*y), std::exp(-kfac*z)};
+    
+    // Initial values for recursion
+    Eigen::Vector3cd curr
+      {std::exp(-kfac*x*static_cast<double>(nmaxx)),
+       std::exp(-kfac*y*static_cast<double>(nmaxy)),
+       std::exp(-kfac*z*static_cast<double>(nmaxz))};
+    
+    for (int ix=0; ix<=2*nmaxx; ix++, curr(0)*=step(0)) {
+      for (int iy=0; iy<=2*nmaxy; iy++, curr(1)*=step(1)) {
+	for (int iz=0; iz<=2*nmaxz; iz++, curr(2)*=step(2)) {
+	  
+	  // Compute wavenumber; recall that the coefficients are
+	  // stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+	  //
+	  int ii = ix-nmaxx;
+	  int jj = iy-nmaxy;
+	  int kk = iz-nmaxz;
+
+	  // Normalization
+	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
+
+	  expcoef(ix, iy, iz) += - mass * curr(0)*curr(1)*curr(2) * norm;
+	}
+      }
+    }
+  }
+  
+  void Cube::make_coefs()
+  {
+    if (use_mpi) {
+      
+      MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
+		    MPI_SUM, MPI_COMM_WORLD);
+      
+      MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(), MPI_DOUBLE_COMPLEX,
+		    MPI_SUM, MPI_COMM_WORLD);
+    }
+  }
+  
+  void Cube::all_eval_cart
+  (double x, double y, double z, 
+   double& den0, double& den1,
+   double& pot0, double& pot1,
+   double& frcx, double& frcy, double& frcz)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Zero return values
+    den0 = pot0 = 0.0;
+    
+    // Position vector
+    Eigen::Vector3d pos {x, y, z};
+
+    // Get the basis fields
+    den1 = ortho->get_dens(expcoef, pos).real();
+    pot1 = ortho->get_pot (expcoef, pos).real();
+
+    auto frc = ortho->get_force(expcoef, pos);
+    
+    frcx = frc(0).real();
+    frcy = frc(1).real();
+    frcz = frc(2).real();
+  }
+
+  void Cube::all_eval(double r, double costh, double phi,
+		      double& den0, double& den1,
+		      double& pot0, double& pot1,
+		      double& potr, double& pott, double& potp)
+
+  {
+    double cosp(phi), sinp(phi), sinth = sqrt(fabs(1.0 - costh*costh));
+
+    double x = r*sinth*cosp;
+    double y = r*sinth*sinp;
+    double z = r*costh;
+    
+    // Get the cartesian values
+    double frcx, frcy, frcz;
+    all_eval_cart(x, y, z,
+		  den0, den1, pot0, pot1,
+		  frcx, frcy, frcz);
+
+    // Euler rotation
+    //
+    potr = -sinth*cosp*frcx - sinth*sinp*frcy - costh*frcz;
+    pott = -costh*cosp*frcx - costh*sinp*frcy + sinth*frcz;
+    potp =  sinp      *frcx + cosp      *frcy ;
+  }
+    
+  void Cube::getFields
+  (double x, double y, double z,
+   double& den0, double& pot0, double& den1, double& pot1, 
+   double& potx, double& poty, double& potz)
+  {
+    den0 = pot0 = den1 = pot1 = 0.0;
+    potx = poty = potz = 0.0;
+
+    all_eval_cart(x, y, z,
+		 den0, den1, pot0, pot1,
+		 potx, poty, potx);
+
+    potx *= -1.0;
+    poty *= -1.0;
+    potz *= -1.0;
+  }
+
+  Eigen::MatrixXcd Cube::orthoCheck()
+  {
+    return ortho->orthoCheck();
+  }
+  
   std::shared_ptr<Basis> Basis::factory_string(const std::string& conf)
   {
     YAML::Node node;
@@ -1935,6 +2231,9 @@ namespace BasisClasses
       }
       else if ( !name.compare("flatdisk") ) {
 	basis = std::make_shared<FlatDisk>(conf);
+      }
+      else if ( !name.compare("cube") ) {
+	basis = std::make_shared<Cube>(conf);
       }
       else {
 	std::string msg("I don't know about the basis named: ");
@@ -2208,10 +2507,12 @@ namespace BasisClasses
     //
     newcoef->time = t;
 
-    for (int i=0; i<newcoef->coefs.size(); i++)
-      newcoef->coefs.data()[i] =
-	a * coefsA->coefs.data()[i] +
-	b * coefsB->coefs.data()[i];
+    auto & cN = newcoef->store;
+    auto & cA = coefsA->store;
+    auto & cB = coefsB->store;
+
+    for (int i=0; i<newcoef->store.size(); i++)
+      cN(i) = a * cA(i) + b * cB(i);
 
     // Interpolate center
     //
@@ -2266,10 +2567,12 @@ namespace BasisClasses
       //
       newcoef->time = t;
 
-      for (int i=0; i<newcoef->coefs.size(); i++)
-	newcoef->coefs.data()[i] =
-	  a * coefsA->coefs.data()[i] +
-	  b * coefsB->coefs.data()[i];
+      auto & cN = newcoef->store;
+      auto & cA = coefsA ->store;
+      auto & cB = coefsB ->store;
+
+      for (int i=0; i<cN.size(); i++)
+	cN(i) = a * cA(i) + b * cB(i);
 
       // Interpolate center
       //

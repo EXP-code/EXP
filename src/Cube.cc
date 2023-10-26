@@ -19,6 +19,7 @@ Cube::valid_keys = {
 Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Cube";
+  geometry = cube;
 
   nminx = nminy = nminz = 0;
   nmaxx = nmaxy = nmaxz = 16;
@@ -28,13 +29,11 @@ Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   imx  = 1+2*nmaxx;
   imy  = 1+2*nmaxy;
   imz  = 1+2*nmaxz;
-  jmax = imx*imy*imz;
 
   expccof.resize(nthrds);
-  for (auto & v : expccof) v.resize(jmax);
+  for (auto & v : expccof) v.resize(imx, imy, imz);
 
-  dfac = 2.0*M_PI;
-  kfac = std::complex<double>(0.0,dfac);
+  kfac = std::complex<double>(0.0, 2.0*M_PI);
 }
 
 Cube::~Cube(void)
@@ -99,8 +98,7 @@ void * Cube::determine_coefficients_thread(void * arg)
     use[id]++;
     mass = cC->Mass(i) * adb;
 
-				/* Truncate to cube with sides in [0,1] */
-    
+    // Truncate to cube with sides in [0,1]
     if (cC->Pos(i, 0)<0.0)
       cC->AddPos(i, 0, (double)((int)fabs(cC->Pos(i, 0))) + 1.0);
     else
@@ -117,12 +115,12 @@ void * Cube::determine_coefficients_thread(void * arg)
       cC->AddPos(i, 2, -(double)((int)cC->Pos(i, 2)));
     
     
-				/* Recursion multipliers */
+    // Recursion multipliers
     stepx = exp(-kfac*cC->Pos(i, 0));
     stepy = exp(-kfac*cC->Pos(i, 1));
     stepz = exp(-kfac*cC->Pos(i, 2));
     
-				/* Initial values */
+    // Initial values for recursion
     startx = exp(static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
     starty = exp(static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
     startz = exp(static_cast<double>(nmaxz)*kfac*cC->Pos(i, 2));
@@ -131,8 +129,18 @@ void * Cube::determine_coefficients_thread(void * arg)
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
 	  
+	  // Compute wavenumber; recall that the coefficients are
+	  // stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+	  //
+	  int ii = ix-nmaxx;
+	  int jj = iy-nmaxy;
+	  int kk = iz-nmaxz;
+
+	  // Normalization
+	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
+
 	  indx = imz*(iy + imy*ix) + iz;
-	  expccof[id][indx] += mass*facx*facy*facz;
+	  expccof[id](ix, iy, iz) += - mass * facx * facy * facz * norm;
 	  
 	}
       }
@@ -158,13 +166,9 @@ void Cube::determine_coefficients(void)
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   used = use0;
 
-  for (int i=1; i<nthrds; i++) {
-    for (int indx=0; indx<jmax; indx++) {
-      expccof[0][indx] += expccof[i][indx];
-    }
-  }
-
-  MPI_Allreduce( MPI_IN_PLACE, expccof[0].data(), jmax,
+  for (int i=1; i<nthrds; i++) expccof[0] += expccof[i];
+  
+  MPI_Allreduce( MPI_IN_PLACE, expccof[0].data(), expccof[0].size(),
 		 MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 }
 
@@ -190,12 +194,12 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
 
     accx = accy = accz = dens = potl = 0.0;
     
-				/* Recursion multipliers */
+    // Recursion multipliers
     stepx = exp(kfac*cC->Pos(i, 0));
     stepy = exp(kfac*cC->Pos(i, 1));
     stepz = exp(kfac*cC->Pos(i, 2));
     
-				/* Initial values (note sign change) */
+    // Initial values (note sign change)
     startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
     starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
     startz = exp(-static_cast<double>(nmaxz)*kfac*cC->Pos(i, 2));
@@ -204,34 +208,32 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
 	  
-	  indx = imz*(iy + imy*ix) + iz;
-	  
-	  fac = facx*facy*facz*expccof[0][indx];
+	  fac = facx*facy*facz*expccof[0](ix, iy, iz);
 	  dens += fac;
 	  
-				/* Compute wavenumber; recall that the */
-				/* coefficients are stored as follows: */
-				/* -nmax,-nmax+1,...,0,...,nmax-1,nmax */
+	  // Compute wavenumber; recall that the coefficients are
+	  // stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+	  //
 	  ii = ix-nmaxx;
 	  jj = iy-nmaxy;
 	  kk = iz-nmaxz;
 	  
-				/* No contribution to acceleration and */
-	                        /* potential ("swindle") for zero      */
-	                        /* wavenumber */
-	  
+
+	  // No contribution to acceleration and potential ("swindle")
+	  // for zero wavenumber
 	  if (ii==0 && jj==0 && kk==0) continue;
 	  
-				/* Limit to minimum wave number */
-	  
+	  // Limit to minimum wave number
 	  if (abs(ii)<nminx || abs(jj)<nminy || abs(kk)<nminz) continue;
 	  
-	  k2 = 4.0*M_PI/(dfac*dfac*(ii*ii + jj*jj + kk*kk));
-	  potl -= k2*fac;
+	  // Normalization
+	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
+
+	  potl += fac*norm;
 	  
-	  accx -= k2*std::complex<double>(0.0,-dfac*ii)*fac;
-	  accy -= k2*std::complex<double>(0.0,-dfac*jj)*fac;
-	  accz -= k2*std::complex<double>(0.0,-dfac*kk)*fac;
+	  accx -= std::complex<double>(0.0, dfac*ii)*fac*norm;
+	  accy -= std::complex<double>(0.0, dfac*jj)*fac*norm;
+	  accz -= std::complex<double>(0.0, dfac*kk)*fac*norm;
 	  
 	}
       }
@@ -255,4 +257,44 @@ void Cube::get_acceleration_and_potential(Component* C)
 
   // Clear external potential flag
   use_external = false;
+}
+
+
+void Cube::dump_coefs_h5(const std::string& file)
+{
+  // Add the current coefficients
+  auto cur = std::make_shared<CoefClasses::CubeStruct>();
+
+  cur->time     = tnow;
+  cur->geom     = geoname[geometry];
+  cur->id       = id;
+  cur->time     = tnow;
+  cur->nmaxx    = nmaxx;
+  cur->nmaxy    = nmaxy;
+  cur->nmaxz    = nmaxz;
+  cur->coefs3d  = expccof[0];
+
+  // Check if file exists
+  //
+  if (std::filesystem::exists(file)) {
+    cubeCoefs.clear();
+    cubeCoefs.add(cur);
+    cubeCoefs.ExtendH5Coefs(file);
+  }
+  // Otherwise, extend the existing HDF5 file
+  //
+  else {
+    // Copy the YAML config.  We only need this on the first call.
+    std::ostringstream sout; sout << conf;
+    cur->buf = sout.str();	// Copy to CoefStruct buffer
+
+    // Add the name attribute.  We only need this on the first call.
+    cubeCoefs.setName(component->name);
+
+    // And the new coefficients and write the new HDF5
+    cubeCoefs.clear();
+    cubeCoefs.add(cur);
+    cubeCoefs.WriteH5Coefs(file);
+  }
+
 }

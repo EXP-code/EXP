@@ -10,10 +10,13 @@
 
 namespace MSSA
 {
+  //! An index key
+  using Key = std::vector<unsigned>;
+  
   // Constructor from lists
   CoefDB::CoefDB(const std::string& name, CoefClasses::CoefsPtr coefs,
-		 const std::vector<Key>& keys0, const std::vector<Key>& bkeys0, 
-		 unsigned index, unsigned stride, double tmin, double tmax)
+		    const std::vector<Key>& keys0, const std::vector<Key>& bkeys0, 
+		    unsigned index, unsigned stride, double tmin, double tmax)
     :
     name(name), coefs(coefs), keys0(keys0), bkeys0(bkeys0), index(index),
     stride(stride), tmin(tmin), tmax(tmax)
@@ -51,6 +54,9 @@ namespace MSSA
     }
     else if (dynamic_cast<CoefClasses::CylCoefs*>(coefs.get())) {
       unpack_cylinder();
+    }
+    else if (dynamic_cast<CoefClasses::CubeCoefs*>(coefs.get())) {
+      unpack_cube();
     }
     else if (dynamic_cast<CoefClasses::TableData*>(coefs.get())) {
       unpack_table();
@@ -155,16 +161,16 @@ namespace MSSA
       cf = dynamic_cast<CoefClasses::CylStruct*>( cur->getCoefStruct(times[t]).get() );
       for (auto k : keys) {
 	if (k[2]==0)
-	  data[k][t] = cf->coefs(k[0], k[1]).real();
+	  data[k][t] = (*cf->coefs)(k[0], k[1]).real();
 	else
-	  data[k][t] = cf->coefs(k[0], k[1]).imag();
+	  data[k][t] = (*cf->coefs)(k[0], k[1]).imag();
       }
 
       for (auto k : bkeys) {
 	if (k[2]==0)
-	  data[k][t] = cf->coefs(k[0], k[1]).real();
+	  data[k][t] = (*cf->coefs)(k[0], k[1]).real();
 	else
-	  data[k][t] = cf->coefs(k[0], k[1]).imag();
+	  data[k][t] = (*cf->coefs)(k[0], k[1]).imag();
       }
     }
   }
@@ -180,8 +186,8 @@ namespace MSSA
 
 	int m = k[0], n = k[1];
 
-	if (m==0) cf->coefs(m, n) = {data[c][i], 0.0};
-	else      cf->coefs(m, n) = {data[c][i], data[s][i]};
+	if (m==0) (*cf->coefs)(m, n) = {data[c][i], 0.0};
+	else      (*cf->coefs)(m, n) = {data[c][i], data[s][i]};
       }
       // END key loop
     }
@@ -261,13 +267,13 @@ namespace MSSA
     for (int t=0; t<ntimes; t++) {
       cf = dynamic_cast<CoefClasses::SphStruct*>( cur->getCoefStruct(times[t]).get() );
       for (auto k : keys)  {
-	auto c = cf->coefs(I(k), k[2]);
+	auto c = (*cf->coefs)(I(k), k[2]);
 	data[k][t] = c.real();
 	if (k[3]) data[k][t] = c.imag();
       }
 
       for (auto k : bkeys)  {
-	auto c = cf->coefs(I(k), k[2]);
+	auto c = (*cf->coefs)(I(k), k[2]);
 	data[k][t] = c.real();
 	if (k[3]) data[k][t] = c.imag();
       }
@@ -289,8 +295,8 @@ namespace MSSA
 
 	int m = k[1], n = k[2];
 
-	if (m==0) cf->coefs(I(k), n) = {data[c][i], 0.0       };
-	else      cf->coefs(I(k), n) = {data[c][i], data[s][i]};
+	if (m==0) (*cf->coefs)(I(k), n) = {data[c][i], 0.0       };
+	else      (*cf->coefs)(I(k), n) = {data[c][i], data[s][i]};
       }
       // END key loop
     }
@@ -342,7 +348,7 @@ namespace MSSA
 	Key key = {c};
 
 	cf = dynamic_cast<CoefClasses::TblStruct*>( cur->getCoefStruct(times[t]).get() );
-	data[key][t] = cf->coefs(0, c).real();
+	data[key][t] = (*cf->coefs)(0, c).real();
       }
     }
   }
@@ -357,7 +363,7 @@ namespace MSSA
 
       for (unsigned c=0; c<cols; c++) {
 	Key key = {c};
-	cf->coefs(0, c) = data[key][i];
+	(*cf->coefs)(c) = data[key][i];
       }
       // End field loop
     }
@@ -469,10 +475,15 @@ namespace MSSA
     auto I = [](const Key& k) { return k[0]*(k[0]+1)/2 + k[1]; };
 
     for (int t=0; t<times.size(); t++) {
-      auto cf = cur->getCoefStruct(times[t]);
+      // Cast the coefficient class to spherical
+      auto cf = dynamic_cast<CoefClasses::SphStruct*>
+	(cur->getCoefStruct(times[t]).get());
+
+      // Get the coefficient map
+      auto & ar = *(cf->coefs);
 
       for (auto k : bkeys)  {
-	auto c = cf->coefs(I(k), k[2]);
+	auto c = ar(I(k), k[2]);
 	data[k][t] = c.real();
 	if (k[3]) data[k][t] = c.imag();
       }
@@ -484,13 +495,18 @@ namespace MSSA
     auto cur = dynamic_cast<CoefClasses::CylCoefs*>(coefs.get());
 
     for (int t=0; t<times.size(); t++) {
-      auto cf = cur->getCoefStruct(times[t]);
+      // Cast the coefficient class to cylindrical
+      auto cf = dynamic_cast<CoefClasses::CylStruct*>
+	(cur->getCoefStruct(times[t]).get());
       
+      // Get the coefficient map
+      auto & ar = *(cf->coefs);
+
       for (auto k : bkeys) {
 	if (k[2]==0)
-	  data[k][t] = cf->coefs(k[0], k[1]).real();
+	  data[k][t] = ar(k[0], k[1]).real();
 	else
-	  data[k][t] = cf->coefs(k[0], k[1]).imag();
+	  data[k][t] = ar(k[0], k[1]).imag();
       }
     }
   }

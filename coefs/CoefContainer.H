@@ -55,6 +55,8 @@ namespace MSSA
       {static_cast<std::underlying_type<TrendType>::type>(TrendType::totPow),     "total power"   } };
 
 
+  class CoefContainer;
+
   //! Base class for per component coefficients
   class CoefDB
   {
@@ -95,6 +97,13 @@ namespace MSSA
     void pack_cylinder();
     void unpack_cylinder();
     void restore_background_cylinder();
+    //@}
+
+    //@{
+    //! Cylindrical coefficients
+    void pack_cube();
+    void unpack_cube();
+    void restore_background_cube();
     //@}
 
     //@{
@@ -199,7 +208,6 @@ components:
      (in this case: n=4,5,6,7), and the cosine (0) or sine (1)
      coefficients.  In this case, only cosines.
    */
-
   class CoefContainer
   {
   protected:
