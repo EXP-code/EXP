@@ -364,7 +364,7 @@ void CoefficientClasses(py::module &m) {
   {
   protected:
     void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
-      PYBIND11_OVERRIDE(void, Coefs, readNativeCoefs, file, stride, tmin, tmax);
+      PYBIND11_OVERRIDE(void, CubeCoefs, readNativeCoefs, file, stride, tmin, tmax);
     }
 
     std::string getYAML() override {
