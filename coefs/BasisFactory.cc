@@ -2670,7 +2670,7 @@ namespace BasisClasses
     Eigen::Tensor<float, 3> ret;
 
     try {
-      ret.resize({rows, 6, nout});
+      ret.resize(rows, 6, nout);
     }
     catch (const std::bad_alloc& e) {
       std::cout << "BasicFactor::IntegrateOrbits: memory allocation failed: "

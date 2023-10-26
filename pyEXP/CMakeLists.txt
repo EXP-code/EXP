@@ -2,8 +2,12 @@ find_package (Python3 COMPONENTS Interpreter Development)
 
 # Default build environment
 #
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG yaml-cpp
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp
   exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+
+if(PNG_FOUND)
+  list(APPEND common_LINKLIB PNG::PNG)
+endif()
 
 set(common_INCLUDE $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
