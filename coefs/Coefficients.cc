@@ -126,15 +126,15 @@ namespace CoefClasses
       
       if (ctr.size()) coef->ctr = ctr;
 
-      coef->store.resize(ldim*Nmax);
-
       coef->lmax  = Lmax;
       coef->nmax  = Nmax;
       coef->time  = Time;
       coef->scale = scale;
-      coef->coefs = std::make_shared<SphStruct::coefType>(in.data(), ldim, Nmax); 
       coef->geom  = geometry;
       coef->id    = forceID;
+
+      coef->allocate();
+      *coef->coefs = in;
       
       coefs[roundTime(Time)] = coef;
     }
