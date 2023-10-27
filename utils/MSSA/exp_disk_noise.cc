@@ -18,7 +18,7 @@
 #include <limits>
 #include <cmath>
 #include <map>
-
+#include <cassert>
 
 #include <Eigen/Dense>
 

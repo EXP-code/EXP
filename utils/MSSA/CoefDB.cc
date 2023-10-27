@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <fstream>
 #include <cctype>
+#include <cassert>
 
 #include "CoefDB.H"
 
