@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstring>
+#include <cassert>
 #include <cmath>
 
 #include <yaml-cpp/yaml.h>	// YAML support
