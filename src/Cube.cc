@@ -35,7 +35,8 @@ Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   expccof.resize(nthrds);
   for (auto & v : expccof) v.resize(imx, imy, imz);
 
-  kfac = std::complex<double>(0.0, 2.0*M_PI);
+  dfac = 2.0*M_PI;
+  kfac = std::complex<double>(0.0, dfac);
 }
 
 Cube::~Cube(void)
