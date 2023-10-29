@@ -25,10 +25,10 @@ main(int ac, char **av)
   int          N;		// Number of particles
   double       M;		// Total mass
   unsigned     seed;
-  std::array<double, 3> disp;
+  std::vector<double> disp(3, 1.0), bulk(3, 0.0);
   std::string  bodyfile;
   
-  cxxopts::Options options(av[0], "Cube IC generator");
+  cxxopts::Options options(av[0], "Cube IC generator with uniform spatial and normal velocities.  You may specify a bulk velocity and anisotropic dispersion vector.");
 
   options.add_options()
     ("h,help", "Print this help message")
@@ -36,12 +36,10 @@ main(int ac, char **av)
      cxxopts::value<int>(N)->default_value("100000"))
     ("M,mass", "Total mass of the cube",
      cxxopts::value<double>(M)->default_value("1.0"))
-    ("x,dispX", "Velocity disperion in the X direction",
-     cxxopts::value<double>(disp[0])->default_value("1.0"))
-    ("y,dispY", "Velocity disperion in the Y direction",
-     cxxopts::value<double>(disp[1])->default_value("1.0"))
-    ("z,dispZ", "Velocity disperion in the Z direction",
-     cxxopts::value<double>(disp[2])->default_value("1.0"))
+    ("d,disp", "Velocity dispersion triple",
+     cxxopts::value<std::vector<double>>(disp))
+    ("v,bulk", "Bulk velocity triple",
+     cxxopts::value<std::vector<double>>(bulk))
     ("s,seed", "Random number seed. Default: use /dev/random",
      cxxopts::value<unsigned>(seed))
     ("o,file", "Output body file",
@@ -69,7 +67,7 @@ main(int ac, char **av)
   }
 
   if (N<=0) {
-    std::cerr << argv[0] << ": you must requiest at least one body"
+    std::cerr << av[0] << ": you must requiest at least one body"
 	      << std::endl;
   }
 
@@ -80,19 +78,19 @@ main(int ac, char **av)
   if (out) {
     // Header
     //
-    out << std::setw(10) << N << std::setw(10) << 0 << std::setw(10)
-	<< std::endl;
-    
+    out << std::setw(10) << N << std::setw(10) << 0 << std::setw(10) << 0
+	<< std::endl << std::setprecision(10);
+
     std::mt19937 gen(seed);
     std::uniform_real_distribution<> uniform(0.0, 1.0);
     std::normal_distribution<> normal(0.0, 1.0);
 
-    double mass = Mass/N;
+    double mass = M/N;
 
     for (int n=0; n<N; n++) {
       out << std::setw(18) << mass;
       for (int k=0; k<3; k++) out << std::setw(18) << uniform(gen);
-      for (int k=0; k<3; k++) out << std::setw(18) << normal(gen)*disp[k];
+      for (int k=0; k<3; k++) out << std::setw(18) << normal(gen)*disp[k] + bulk[k];
       out << std::endl;
     }
 
