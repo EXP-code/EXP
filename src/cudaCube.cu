@@ -163,6 +163,8 @@ __global__ void coefKernelCube
 	jj -= cubeNY;
 	kk -= cubeNZ;
 
+	if (ii==0 and jj==0 and kk==0) continue;
+
 	// Make the the basis function
 	double expon = pos[0]*ii + pos[1]*jj + pos[2]*kk;
 	double norm  = sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
@@ -198,7 +200,7 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 #endif
       cudaParticle & p = P._v[I._v[npart]];
       
-      thrust::complex<cuFP_t> acc[3] = {0.0, 0.0, 0.0};
+      thrust::complex<cuFP_t> acc[3] = {0.0, 0.0, 0.0}, pot = 0.0;
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
       cuFP_t mm = p.mass;
       int ind[3];
@@ -221,15 +223,23 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 	}
 	norm = sqrt(M_PI*norm);
 
+	// No force from the constant term
+	//
+	if (ind[0]==0 and ind[1]==0 and ind[2]==0) continue;
+
 	thrust::complex<cuFP_t> pfac  =
 	  thrust::exp(thrust::complex<cuFP_t>(0.0, cubeDfac*expon))/norm * coef._v[s];
+
+	pot += pfac;
 
 	for (int k=0; k<3; k++) {
 	  acc[k] += -thrust::complex<cuFP_t>(0.0, cubeDfac*ind[k]) * pfac;
 	}
+
       }
       // index loop
 
+      p.pot = pot.real();
       for (int k=0; k<3; k++) p.acc[k] = acc[k].real();
 
     } // particle index check

@@ -180,8 +180,10 @@ void * Cube::determine_coefficients_thread(void * arg)
 	  int jj = iy-nmaxy;
 	  int kk = iz-nmaxz;
 
+	  if (ii==0 and jj==0 and kk==0) continue;
+
 	  // Normalization
-	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
+	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 
 	  expcoef[id](ix, iy, iz) += - mass * facx * facy * facz * norm;
 	}
