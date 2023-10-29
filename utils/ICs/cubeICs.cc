@@ -11,22 +11,25 @@
 #include <random>
 #include <string>
 #include <vector>
-#include <array>
 
 #include <cxxopts.H>
 
 int 
 main(int ac, char **av)
 {
-  //====================
-  // Begin opt parsing
-  //====================
+  //=====================
+  // Begin option parsing
+  //=====================
 
   int          N;		// Number of particles
   double       M;		// Total mass
-  unsigned     seed;
+  std::string  bodyfile;	// Output file
+  unsigned     seed;		// Will be inialized by /dev/random if
+				// not set on the command line
+
+  // Default values for the velocity dispersion and bulk velocity
+  //
   std::vector<double> disp(3, 1.0), bulk(3, 0.0);
-  std::string  bodyfile;
   
   cxxopts::Options options(av[0], "Cube IC generator with uniform spatial and normal velocities.  You may specify a bulk velocity and anisotropic dispersion vector.");
 
@@ -62,16 +65,18 @@ main(int ac, char **av)
     return 1;
   }
 
+  // Set from /dev/random if not specified
   if (vm.count("seed")==0) {
     seed = std::random_device{}();
   }
 
+  // Make sure N>0
   if (N<=0) {
     std::cerr << av[0] << ": you must requiest at least one body"
 	      << std::endl;
   }
 
-  // Open the oputput file
+  // Open the output file
   //
   std::ofstream out(bodyfile);
 
@@ -102,4 +107,3 @@ main(int ac, char **av)
 
   return 0;
 }
-
