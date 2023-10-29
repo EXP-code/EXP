@@ -102,7 +102,7 @@ __global__ void reduceSum(dArray<T> out, dArray<T> in,
     }
 
     if (tid < 32) {
-      warpReduce<T, blockSize>(&sdata[0], tid);
+      warpReduce<T>(&sdata[0], tid);
     }
 
     if (tid == 0) {
@@ -176,7 +176,7 @@ __global__ void reduceSumS(dArray<T> out, dArray<T> in,
     }
 
     if (tid < 32) {
-      warpReduce<T, blockSize>(&sdata[0], tid);
+      warpReduce<T>(&sdata[0], tid);
     }
 
     if (tid == 0) {
