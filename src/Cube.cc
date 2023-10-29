@@ -289,14 +289,14 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
     double z = cC->Pos(i, 2);
 
     // Recursion multipliers
-    auto stepx = exp(kfac*x);
-    auto stepy = exp(kfac*y);
-    auto stepz = exp(kfac*z);
+    auto stepx = std::exp(kfac*x);
+    auto stepy = std::exp(kfac*y);
+    auto stepz = std::exp(kfac*z);
     
     // Initial values (note sign change)
-    auto startx = exp(-kfac*(x*nmaxx));
-    auto starty = exp(-kfac*(y*nmaxy));
-    auto startz = exp(-kfac*(z*nmaxz));
+    auto startx = std::exp(-kfac*(x*nmaxx));
+    auto starty = std::exp(-kfac*(y*nmaxy));
+    auto startz = std::exp(-kfac*(z*nmaxz));
     
     std::complex<double> facx, facy, facz;
     int ix, iy, iz;
