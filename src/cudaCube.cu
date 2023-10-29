@@ -199,9 +199,9 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
       cudaParticle & p = P._v[I._v[npart]];
       
       thrust::complex<cuFP_t> acc[3] = {0.0, 0.0, 0.0};
-      cuFP_t xx=0.0, yy=0.0, zz=0.0, mm = p.mass;
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
-      cuFP_t ind[3];
+      cuFP_t mm = p.mass;
+      int ind[3];
 
       // Index loop
       //
