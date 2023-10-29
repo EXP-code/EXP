@@ -392,7 +392,7 @@ void Cube::determine_coefficients_cuda()
     
     // Shared memory size for the reduction
     //
-    int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
+    int sMemSize = BLOCK_SIZE * sizeof(thrust::complex<cuFP_t>);
     
     // Compute the coefficient contribution for each order
     //
@@ -401,7 +401,7 @@ void Cube::determine_coefficients_cuda()
 
     coefKernelCube<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-       toKernel(cuS.dN_coef), stride, lohi);
+       toKernel(cuS.dN_coef), stride, cur);
       
     // Begin the reduction by blocks [perhaps this should use a
     // stride?]
@@ -620,7 +620,7 @@ void Cube::determine_acceleration_cuda()
     
     // Shared memory size for the reduction
     //
-    int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
+    int sMemSize = BLOCK_SIZE * sizeof(thrust::complex<cuFP_t>);
       
     forceKernelCube<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
@@ -718,7 +718,7 @@ void Cube::multistep_update_cuda()
 	
 	// Shared memory size for the reduction
 	//
-	int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
+	int sMemSize = BLOCK_SIZE * sizeof(thrust::complex<cuFP_t>);
     
 	// Compute the coefficient contribution for each order
 	//

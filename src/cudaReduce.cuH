@@ -56,13 +56,13 @@ __global__ void reduceSum(dArray<T> out, dArray<T> in,
       // Sanity checks
       //
       if (i+n*j>=in._s) {
-	printf("out of bounds: %d >= %d @ %s:%d\n",
+	printf("out of bounds: %d >= %lu @ %s:%d\n",
 	       i+n*j, in._s, __FILE__, __LINE__);
       }
 
       if (i+blockSize<n) {
 	if (i+n*j+blockSize>=in._s)
-	  printf("out of bounds: block %d >= %d @ %s:%d\n",
+	  printf("out of bounds: block %d >= %lu @ %s:%d\n",
 		 i+n*j+blockSize, in._s, __FILE__, __LINE__);
       }
 
@@ -136,7 +136,7 @@ __global__ void reduceSumS(dArray<T> out, dArray<T> in,
       // Sanity checks
       //
       if (i+n*j>=in._s) {
-	printf("reduceSumS out of bounds: %d >= %d @ %s:%d\n",
+	printf("reduceSumS out of bounds: %d >= %lu @ %s:%d\n",
 	       i+n*j, in._s, __FILE__, __LINE__);
       }
 
