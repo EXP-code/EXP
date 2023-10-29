@@ -1,10 +1,10 @@
 
 set(CUDA_SRC)
 if (ENABLE_CUDA)
-  list(APPEND CUDA_SRC 
-    cudaPolarBasis.cu cudaSphericalBasis.cu cudaCylinder.cu 
-    cudaEmpCylSL.cu cudaComponent.cu NVTX.cc cudaHOT.cu cudaIncpos.cu 
-    cudaIncvel.cu cudaMultistep.cu cudaOrient.cu cudaBiorthCyl.cu)
+  list(APPEND CUDA_SRC cudaPolarBasis.cu cudaSphericalBasis.cu
+    cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc
+    cudaHOT.cu cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu
+    cudaOrient.cu cudaBiorthCyl.cu cudaCube.cu)
 endif()
 
 set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc

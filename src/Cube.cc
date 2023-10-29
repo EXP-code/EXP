@@ -17,6 +17,11 @@ Cube::valid_keys = {
   "knots"
 };
 
+//@{
+//! These are for testing exclusively (should be set false for production)
+static bool cudaAccumOverride = false;
+static bool cudaAccelOverride = false;
+//@}
 
 Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
@@ -26,21 +31,58 @@ Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   nminx = nminy = nminz = 0;
   nmaxx = nmaxy = nmaxz = 16;
 
+#if HAVE_LIBCUDA==1
+  cuda_aware = true;
+#endif
+
   initialize();
 
-  imx  = 1+2*nmaxx;
-  imy  = 1+2*nmaxy;
-  imz  = 1+2*nmaxz;
+  imx   = 1+2*nmaxx;
+  imy   = 1+2*nmaxy;
+  imz   = 1+2*nmaxz;
+  osize = imx * imy * imz;
 
-  expccof.resize(nthrds);
-  for (auto & v : expccof) v.resize(imx, imy, imz);
+  expcoef.resize(nthrds);
+  for (auto & v : expcoef) v.resize(imx, imy, imz);
 
+  // Allocate coefficient matrix (one for each multistep level)
+  // and zero-out contents
+  //
+  differ1 = std::vector< std::vector<coefType> >(nthrds);
+  for (int n=0; n<nthrds; n++) {
+    differ1[n].resize(multistep+1);
+    for (int i=0; i<=multistep; i++)
+      differ1[n][i].resize(imx, imy, imz);
+  }
+
+  // MPI buffer space (including multistep arrays)
+  //
+  unsigned sz = (multistep+1)*osize;
+  pack  .resize(sz);
+  unpack.resize(sz);
+
+  // Coefficient evaluation times
+  // 
+  expcoefN.resize(multistep+1);
+  expcoefL.resize(multistep+1);
+  for (int i=0; i<=multistep; i++) {
+    expcoefN[i] = std::make_shared<coefType>(imx, imy, imz);
+    expcoefL[i] = std::make_shared<coefType>(imx, imy, imz);
+    expcoefN[i] -> setZero();
+    expcoefL[i] -> setZero();
+  }
+    
+  // Constant factors
+  //
   dfac = 2.0*M_PI;
   kfac = std::complex<double>(0.0, dfac);
 }
 
 Cube::~Cube(void)
 {
+#if HAVE_LIBCUDA==1
+  if (component->cudaDevice>=0) destroy_cuda();
+#endif
 }
 
 void Cube::initialize(void)
@@ -75,12 +117,6 @@ void Cube::initialize(void)
 
 void * Cube::determine_coefficients_thread(void * arg)
 {
-
-  int ix,iy,iz,indx;
-  std::complex<double> startx,starty,startz,facx,facy,facz;
-  std::complex<double> stepx,stepy,stepz;
-  double mass;
-
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
@@ -99,41 +135,46 @@ void * Cube::determine_coefficients_thread(void * arg)
     it++;
 
     use[id]++;
-    mass = cC->Mass(i) * adb;
+    double mass = cC->Mass(i) * adb;
 
-    // Truncate to cube with sides in [0,1]
-    if (cC->Pos(i, 0)<0.0)
-      cC->AddPos(i, 0, (double)((int)fabs(cC->Pos(i, 0))) + 1.0);
-    else
-      cC->AddPos(i, 0, -(double)((int)cC->Pos(i, 0)));
+    // Get position
+    //
+    double x = cC->Pos(i, 0);
+    double y = cC->Pos(i, 1);
+    double z = cC->Pos(i, 2);
+
+    // Wrap coordinates into the unit cube
+    //
+    if (x<0.0) x += std::floor(-x) + 1.0;
+    else       x -= std::floor( x);
     
-    if (cC->Pos(i, 1)<0.0)
-      cC->AddPos(i, 1, (double)((int)fabs(cC->Pos(i, 1))) + 1.0);
-    else
-      cC->AddPos(i, 1, -(double)((int)cC->Pos(i, 1)));
+    if (y<0.0) y += std::floor(-y) + 1.0;
+    else       y -= std::floor( y);
     
-    if (cC->Pos(i, 2)<0.0)
-      cC->AddPos(i, 2, (double)((int)fabs(cC->Pos(i, 2))) + 1.0);
-    else
-      cC->AddPos(i, 2, -(double)((int)cC->Pos(i, 2)));
-    
+    if (z<0.0) z += std::floor(-z) + 1.0;
+    else       z -= std::floor( z);
     
     // Recursion multipliers
-    stepx = exp(-kfac*cC->Pos(i, 0));
-    stepy = exp(-kfac*cC->Pos(i, 1));
-    stepz = exp(-kfac*cC->Pos(i, 2));
+    //
+    std::complex<double> stepx = std::exp(-kfac*x);
+    std::complex<double> stepy = std::exp(-kfac*y);
+    std::complex<double> stepz = std::exp(-kfac*z);
     
     // Initial values for recursion
-    startx = exp(static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
-    starty = exp(static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
-    startz = exp(static_cast<double>(nmaxz)*kfac*cC->Pos(i, 2));
+    //
+    std::complex<double> startx = std::exp(kfac*(x*nmaxx));
+    std::complex<double> starty = std::exp(kfac*(y*nmaxy));
+    std::complex<double> startz = std::exp(kfac*(z*nmaxz));
     
+    std::complex<double> facx, facy, facz;
+    int ix, iy, iz;
+
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
 	  
-	  // Compute wavenumber; recall that the coefficients are
-	  // stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+	  // Compute wavenumber; the coefficients are stored as:
+	  // -nmax,-nmax+1,...,0,...,nmax-1,nmax
 	  //
 	  int ii = ix-nmaxx;
 	  int jj = iy-nmaxy;
@@ -142,9 +183,7 @@ void * Cube::determine_coefficients_thread(void * arg)
 	  // Normalization
 	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
 
-	  indx = imz*(iy + imy*ix) + iz;
-	  expccof[id](ix, iy, iz) += - mass * facx * facy * facz * norm;
-	  
+	  expcoef[id](ix, iy, iz) += - mass * facx * facy * facz * norm;
 	}
       }
     }
@@ -155,32 +194,80 @@ void * Cube::determine_coefficients_thread(void * arg)
 
 void Cube::determine_coefficients(void)
 {
-  //  Coefficients are ordered as follows:
+  exeTimer timer(this, "Coefficient evaluation");
+
+  //  Coefficients in the Eigen::Tensor are packed as
   //  n=-nmax,-nmax+1,...,0,...,nmax-1,nmax in a single array for each
   //  dimension with z dimension changing most rapidly
 
   // Clean  the coefficients
-  for (auto & v : expccof) v.setZero();
+  //
+  for (auto & v : expcoef) v.setZero();
 
+  // Swap interpolation arrays
+  //
+  if (multistep) {
+
+    auto p = expcoefL[mlevel];
+  
+    expcoefL[mlevel] = expcoefN[mlevel];
+    expcoefN[mlevel] = p;
+  
+    // Clean arrays for current level
+    //
+    expcoefN[mlevel]->setZero();
+  }
+    
+  use1 = 0;
+  if (multistep==0) used = 0;
+    
+#if HAVE_LIBCUDA==1
+  (*barrier)("Cube::entering cuda coefficients", __FILE__, __LINE__);
+  if (component->cudaDevice>=0 and use_cuda) {
+    if (cudaAccumOverride) {
+      component->CudaToParticles();
+      exp_thread_fork(true);
+    } else {
+      timer.Start1();
+      determine_coefficients_cuda();
+      DtoH_coefs(mlevel);
+      timer.Stop1();
+    }
+  } else {
+    exp_thread_fork(true);
+  }
+  (*barrier)("Cube::exiting cuda coefficients", __FILE__, __LINE__);
+#else
   exp_thread_fork(true);
+#endif
 
   for (int i=0; i<nthrds; i++) use1 += use[i];
   
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   used = use0;
 
-  for (int i=1; i<nthrds; i++) expccof[0] += expccof[i];
+  for (int i=1; i<nthrds; i++) expcoef[0] += expcoef[i];
   
-  MPI_Allreduce( MPI_IN_PLACE, expccof[0].data(), expccof[0].size(),
-		 MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+  if (multistep) {
+
+    MPI_Allreduce( expcoef[0].data(), expcoefN[mlevel]->data(),
+		   expcoef[0].size(),
+		   MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+  } else {
+    
+    MPI_Allreduce( MPI_IN_PLACE, expcoef[0].data(), expcoef[0].size(),
+		   MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+  }
+
+  // Last level?
+  //
+  if (multistep and mlevel==multistep) {
+     compute_multistep_coefficients();
+  }
 }
 
 void * Cube::determine_acceleration_and_potential_thread(void * arg)
 {
-  int ix, iy, iz;
-  std::complex<double> fac,facx,facy,facz,dens,potl,accx,accy,accz;
-  double k2;
-
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
@@ -194,23 +281,31 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
     
     i = it->first; it++;
 
-    accx = accy = accz = dens = potl = 0.0;
+    std::complex<double> accx(0), accy(0), accz(0), dens(0), potl(0);
     
+    // Get positions
+    double x = cC->Pos(i, 0);
+    double y = cC->Pos(i, 1);
+    double z = cC->Pos(i, 2);
+
     // Recursion multipliers
-    auto stepx = exp(kfac*cC->Pos(i, 0));
-    auto stepy = exp(kfac*cC->Pos(i, 1));
-    auto stepz = exp(kfac*cC->Pos(i, 2));
+    auto stepx = exp(kfac*x);
+    auto stepy = exp(kfac*y);
+    auto stepz = exp(kfac*z);
     
     // Initial values (note sign change)
-    auto startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
-    auto starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
-    auto startz = exp(-static_cast<double>(nmaxz)*kfac*cC->Pos(i, 2));
+    auto startx = exp(-kfac*(x*nmaxx));
+    auto starty = exp(-kfac*(y*nmaxy));
+    auto startz = exp(-kfac*(z*nmaxz));
     
+    std::complex<double> facx, facy, facz;
+    int ix, iy, iz;
+
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
 	  
-	  fac = facx*facy*facz*expccof[0](ix, iy, iz);
+	  std::complex<double> fac = facx*facy*facz*expcoef[0](ix, iy, iz);
 	  dens += fac;
 	  
 	  // Compute wavenumber; recall that the coefficients are
@@ -252,12 +347,68 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
 
 void Cube::get_acceleration_and_potential(Component* C)
 {
-  cC = C;
+  cC = C;			// "Register" component
+  nbodies = cC->Number();	// And compute number of bodies
 
-  exp_thread_fork(false);
+  // Call the parallel acceleration and potential
+  //
+  MPL_start_timer();
+  determine_acceleration_and_potential();
+  MPL_stop_timer();
 
   // Clear external potential flag
   use_external = false;
+}
+
+void Cube::determine_acceleration_and_potential(void)
+{
+  exeTimer timer(this, "Force evaluation");
+
+  if (play_back) {
+    swap_coefs(expcoefP, expcoef);
+  }
+
+  if (use_external == false) {
+
+    if (multistep && initializing) {
+      compute_multistep_coefficients();
+    }
+
+  }
+
+#if HAVE_LIBCUDA==1
+  if (use_cuda and cC->cudaDevice>=0 and cC->force->cudaAware()) {
+    if (cudaAccelOverride) {
+      cC->CudaToParticles();
+      exp_thread_fork(false);
+      cC->ParticlesToCuda();
+    } else {
+      timer.Start1();
+
+      // Copy coefficients from this component to device
+      //
+      HtoD_coefs();
+      //
+      // Do the force computation
+      //
+      determine_acceleration_cuda();
+      
+      timer.Stop1();
+    }
+  } else {
+
+    exp_thread_fork(false);
+
+  }
+#else
+
+  exp_thread_fork(false);
+
+#endif
+
+  if (play_back) {
+    swap_coefs(expcoef, expcoefP);
+  }
 }
 
 
@@ -276,7 +427,7 @@ void Cube::dump_coefs_h5(const std::string& file)
 
   cur->allocate();		// Set the storage and copy the
 				// coefficients through the map
-  *cur->coefs   = expccof[0];
+  *cur->coefs   = expcoef[0];
 
   // Check if file exists
   //
@@ -300,5 +451,159 @@ void Cube::dump_coefs_h5(const std::string& file)
     cubeCoefs.add(cur);
     cubeCoefs.WriteH5Coefs(file);
   }
-
 }
+
+
+void Cube::multistep_update_begin()
+{
+  if (play_back and not play_cnew) return;
+
+				// Clear the update matricies
+  for (int n=0; n<nthrds; n++) {
+    for (int M=mfirst[mdrft]; M<=multistep; M++) differ1[n][M].setZero();
+  }
+}
+
+void Cube::multistep_update_finish()
+{
+  if (play_back and not play_cnew) return;
+
+  // Combine the update matricies from all nodes
+  //
+  unsigned sz = (multistep - mfirst[mdrft] + 1)*osize;
+
+  // Zero the buffer space
+  //
+  std::fill(pack.begin(), pack.begin() + sz, 0.0);
+
+  // Pack the difference matrices
+  //
+  for (int M=mfirst[mdrft]; M<=multistep; M++) {
+
+    unsigned offset = (M - mfirst[mdrft])*osize;
+
+    for (int i=0; i<osize; i++)
+      for (int n=0; n<nthrds; n++) {
+	pack[offset + i] += differ1[n][M].data()[i];
+      }
+  }
+
+  MPI_Allreduce (pack.data(), unpack.data(), sz, 
+		 MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+  
+  // Update the local coefficients
+  //
+  for (int M=mfirst[mdrft]; M<=multistep; M++) {
+
+    unsigned offset = (M - mfirst[mdrft])*osize;
+
+    for (int i=0; i<osize; i++)
+      expcoefN[M]->data()[i] += unpack[offset+i];
+  }
+}
+
+void Cube::multistep_update(int from, int to, Component *c, int i, int id)
+{
+  if (play_back and not play_cnew) return;
+  if (c->freeze(i)) return;
+
+  double mass = c->Mass(i) * component->Adiabatic();
+
+  double x = c->Pos(i, 0);
+  double y = c->Pos(i, 1);
+  double z = c->Pos(i, 2);
+  
+  // Truncate to cube with sides in [0,1]
+  //
+  if (x<0.0) x += std::floor(-x) + 1.0;
+  else       x -= std::floor( x);
+  
+  if (y<0.0) y += std::floor(-y) + 1.0;
+  else       y -= std::floor( y);
+  
+  if (z<0.0) z += std::floor(-z) + 1.0;
+  else       z -= std::floor( z);
+    
+  // Recursion multipliers
+  std::complex<double> stepx = std::exp(-kfac*x);
+  std::complex<double> stepy = std::exp(-kfac*y);
+  std::complex<double> stepz = std::exp(-kfac*z);
+    
+  // Initial values for recursion
+  std::complex<double> startx = std::exp(kfac*(x*nmaxx));
+  std::complex<double> starty = std::exp(kfac*(y*nmaxy));
+  std::complex<double> startz = std::exp(kfac*(z*nmaxz));
+  
+  std::complex<double> facx, facy, facz;
+  int ix, iy, iz;
+
+  for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+    for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+      for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
+	
+	// Compute wavenumber; recall that the coefficients are
+	// stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+	//
+	int ii = ix-nmaxx;
+	int jj = iy-nmaxy;
+	int kk = iz-nmaxz;
+	
+	// Normalization
+	double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
+	
+	std::complex<double> val = -mass*facx*facy*facz*norm;
+
+	differ1[id][from](ix, iy, iz) -= val;
+	differ1[id][  to](ix, iy, iz) += val;
+      }
+    }
+  }
+}
+
+void Cube::compute_multistep_coefficients()
+{
+  if (play_back and not play_cnew) return;
+
+  // Clean coefficient matrix
+  // 
+  expcoef[0].setZero();
+    
+  // Interpolate to get coefficients above
+  // 
+  for (int M=0; M<mfirst[mdrft]; M++) {
+    
+    double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
+    double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
+
+    double b = numer/denom;	// Interpolation weights
+    double a = 1.0 - b;
+
+    for (int i=0; i<osize; i++) {
+      expcoef[0].data()[i] +=
+	a*expcoefL[M]->data()[i] + b*expcoefN[M]->data()[i] ;
+    }
+    
+    // Sanity debug check
+    // 
+    if (a<0.0 && a>1.0) {
+      std::cout << "Process " << myid
+		<< ": interpolation error in multistep [a]" 
+		<< std::endl;
+    }
+    if (b<0.0 && b>1.0) {
+      std::cout << "Process " << myid
+		<< ": interpolation error in multistep [b]" 
+		<< std::endl;
+    }
+  }
+
+  // Add coefficients at or below this level
+  // 
+  for (int M=mfirst[mdrft]; M<=multistep; M++) {
+
+    for (int i=0; i<osize; i++) {
+      expcoef[0].data()[i] += expcoefN[M]->data()[i];
+    }
+  }
+}
+
