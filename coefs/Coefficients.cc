@@ -1530,6 +1530,8 @@ namespace CoefClasses
 	  coefs = std::make_shared<SphCoefs>(h5file, stride, tmin, tmax);
 	} else if (geometry.compare("cylinder")==0) {
 	  coefs = std::make_shared<CylCoefs>(h5file, stride, tmin, tmax);
+	} else if (geometry.compare("cube")==0) {
+	  coefs = std::make_shared<CubeCoefs>(h5file, stride, tmin, tmax);
 	} else if (geometry.compare("table")==0) {
 	  coefs = std::make_shared<TableData>(h5file, stride, tmin, tmax);
 	} else {
