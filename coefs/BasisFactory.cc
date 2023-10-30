@@ -1909,7 +1909,9 @@ namespace BasisClasses
     "nmaxx",
     "nmaxy",
     "nmaxz",
-    "knots"
+    "knots",
+    "verbose",
+    "check"
   };
 
   Cube::Cube(const YAML::Node& CONF) : Basis(CONF)
@@ -1934,6 +1936,11 @@ namespace BasisClasses
 
     knots = 40;
 
+    // Check orthogonality (false by default because of its long
+    // runtime and very low utility)
+    //
+    bool check = false;
+
     // Check for unmatched keys
     //
     auto unmatched = YamlCheck(conf, valid_keys);
@@ -1956,6 +1963,8 @@ namespace BasisClasses
       if (conf["nmaxz"])      nmaxz = conf["nmaxz"].as<int>();
       
       if (conf["knots"])      knots = conf["knots"].as<int>();
+
+      if (conf["check"])      check = conf["check"].as<bool>();
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -1974,12 +1983,15 @@ namespace BasisClasses
     
     // Orthogonality sanity check
     //
-    auto orth = orthoCheck();
-    std::vector<Eigen::MatrixXd> mod(1);
-    mod[0].resize(orth.rows(), orth.cols());
-    for (int i=0; i<mod.size(); i++) mod[0].data()[i] = sqrt(std::abs(orth.data()[i]));
-
-    orthoTest(mod, classname(), harmonic());
+    if (check) {
+      auto orth = orthoCheck();
+      std::vector<Eigen::MatrixXd> mod(1);
+      mod[0].resize(orth.rows(), orth.cols());
+      for (int i=0; i<mod[0].size(); i++)
+	mod[0].data()[i] = sqrt(std::abs(orth.data()[i]));
+      
+      orthoTest(mod, classname(), harmonic());
+    }
 
     // Get max threads
     //
@@ -2137,8 +2149,9 @@ namespace BasisClasses
 		      double& potr, double& pott, double& potp)
 
   {
-    double cosp(phi), sinp(phi), sinth = sqrt(fabs(1.0 - costh*costh));
+    double cosp=cos(phi), sinp=sin(phi), sinth = sqrt(fabs(1.0 - costh*costh));
 
+    // Spherical to Cartesian
     double x = r*sinth*cosp;
     double y = r*sinth*sinp;
     double z = r*costh;

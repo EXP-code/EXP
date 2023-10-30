@@ -357,7 +357,7 @@ namespace Field
 	double y = pp[1];
 	double z = pp[2];
 
-	// Spherical polar coordinates
+	// To spherical polar coordinates
 	//
 	double r     = sqrt(x*x + y*y + z*z) + 1.0e-18;
 	double costh = z/r;

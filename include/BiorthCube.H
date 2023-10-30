@@ -45,10 +45,14 @@ protected:
 
   std::string geometry, forceID;
   
-  int nmaxx, nmaxy, nmaxz;
-  int nminx, nminy, nminz;
+  Eigen::Vector3i nmin, nmax;
   
   int knots;
+
+  bool verbose;
+
+  static constexpr double dfac = 2.0*M_PI;
+  static constexpr std::complex<double> kfac{0.0, dfac};
 
 public:
 
