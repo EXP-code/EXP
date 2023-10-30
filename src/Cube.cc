@@ -25,9 +25,14 @@ static bool cudaAccelOverride = false;
 
 Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
-  id = "Cube";
-  geometry = cube;
+  // ID parameters
+  //
+  id        = "Cube";
+  geometry  = cube;
+  coef_dump = true;
 
+  // Default parameter values
+  //
   nminx = nminy = nminz = 0;
   nmaxx = nmaxy = nmaxz = 16;
 
@@ -35,13 +40,19 @@ Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   cuda_aware = true;
 #endif
 
+  // Parse parameters
+  //
   initialize();
 
+  // Cache computed paramters
+  //
   imx   = 1+2*nmaxx;
   imy   = 1+2*nmaxy;
   imz   = 1+2*nmaxz;
   osize = imx * imy * imz;
 
+  // Allocate storage
+  //
   expcoef.resize(nthrds);
   for (auto & v : expcoef) v.resize(imx, imy, imz);
 
