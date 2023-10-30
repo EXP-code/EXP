@@ -203,6 +203,10 @@ namespace CoefClasses
   //! Specialization of CoefStruct for a cube
   class CubeStruct : public CoefStruct
   {
+  private:
+    //! Array dimensions
+    int nx, ny, nz, dim;
+
   public:
     //! Coefficient map type
     using coefType = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 3>>;
@@ -214,7 +218,7 @@ namespace CoefClasses
     int nmaxx, nmaxy, nmaxz;
     
     //! Constructor
-    CubeStruct() : nmaxx(0), nmaxy(0), nmaxz(0)
+    CubeStruct() : nmaxx(0), nmaxy(0), nmaxz(0), nx(0), ny(0), nz(0), dim(0)
     { geom = "slab"; }
 
     //! Read native EXP coefficients
@@ -229,17 +233,34 @@ namespace CoefClasses
     //! Allocate storage arrays
     void allocate()
     {
-      store.resize(nmaxx*nmaxy*nmaxz);
-      coefs = std::make_shared<coefType>(store.data(), nmaxx, nmaxy, nmaxz);
+      // Grid dimenions
+      nx = 2*nmaxx + 1;
+      ny = 2*nmaxy + 1;
+      nz = 2*nmaxz + 1;
+      dim = nx * ny * nz;
+
+      // Allocate
+      store.resize(dim);
+      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
     }
 
     //! Assign matrix
     void assign(const Eigen::Tensor<std::complex<double>, 3>& dat)
     {
       const auto& d = dat.dimensions();
-      nmaxx = d[0];
-      nmaxy = d[1];
-      nmaxz = d[2];
+
+      // Assign grid dimensions
+      nx = d[0];
+      ny = d[1];
+      nz = d[2];
+      dim = nx * ny * nz;
+
+      // Deduce max wave numbers from grid dimensions
+      nmaxx = (d[0]-1)/2;
+      nmaxy = (d[1]-1)/2;
+      nmaxz = (d[2]-1)/2;
+
+      // Allocate storage and assign
       allocate();
       *coefs = dat;
     }

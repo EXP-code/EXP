@@ -40,9 +40,13 @@ namespace CoefClasses
 
   void CubeStruct::create()
   {
-    if (nmaxx>0 and nmaxy>0 and nmaxz>0)
-      coefs = std::make_shared<coefType>(store.data(), nmaxx, nmaxy, nmaxz);
-    else
+    if (nmaxx>0 and nmaxy>0 and nmaxz>0) {
+      nx = 2*nmaxx + 1;
+      ny = 2*nmaxy + 1;
+      nz = 2*nmaxz + 1;
+      dim = nx * ny * nz;
+      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
+    } else
       throw std::runtime_error("CubeStruct::create: all dimensions must be >0");
   }
 
@@ -95,14 +99,16 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("SphStruct::deepcopy dimension mismatch",
-	    (2*nmaxx+1)*(2*nmaxy+1)*(2*nmaxz+1) == store.size()));
+    assert(("CubeStruct::deepcopy dimension mismatch", dim == store.size()));
 
-    ret->coefs  = std::make_shared<coefType>(ret->store.data(),
-					     2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1);
+    ret->coefs  = std::make_shared<coefType>(ret->store.data(), nx, ny, nz);
     ret->nmaxx  = nmaxx;
     ret->nmaxy  = nmaxy;
     ret->nmaxz  = nmaxz;
+    ret->nx     = nx;
+    ret->ny     = ny;
+    ret->nz     = nz;
+    ret->dim    = dim;
 
     return ret;
   }
