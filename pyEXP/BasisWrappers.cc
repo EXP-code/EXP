@@ -8,7 +8,6 @@
 #include <BasisFactory.H>
 
 namespace py = pybind11;
-// #include <pyTensor.H>
 #include <TensorToArray.H>
 
 void BasisFactoryClasses(py::module &m) {
@@ -19,14 +18,16 @@ void BasisFactoryClasses(py::module &m) {
     "used to compute coefficients, provide field quantities such as\n"
     "forces and, together with the FieldGenerator, surfaces and fields for\n"
     "visualization.\n\n"
-    "Three bases are currently implemented: SphericalSL, the Sturm-\n"
-    "Liouiville spherical basis, the Cylindrical basis, which is\n"
-    "created by computing empirical orthogonal functions over a densely\n"
-    "sampled SphericalSL basis, and a FlatDisk basis, which is an EOF\n"
-    "rotation of the finite Bessel basis.  Each of these bases take a YAML\n"
-    "configuration file as input. These parameter lists are as subset of\n"
-    "and have the same structure as thosed used by EXP. The factory\n"
-    "and the individual constructors will check the parameters keys\n"
+    "Four bases are currently implemented:\n"
+    " 1. SphericalSL, the Sturm-Liouiville spherical basis;\n"
+    " 2. Cylindrical, created created by computing empirical orthogonal functions\n"
+    "    over a densely sampled SphericalSL basis;\n"
+    " 3. FlatDisk, an EOF rotation of the finite Bessel basis; and\n"
+    " 4. Cube, a periodic cube basis whose functions are the Cartesian eigenfunctions\n"
+    "    of the Cartesian Laplacian: sines and cosines.\n"
+    "Each of these bases take a YAML configuration file as input. These parameter\n"
+    "lists are as subset of and have the same structure as thosed used by EXP. The\n"
+    "factory and the individual constructors will check the parameters keys\n"
     "and warn of mismatches for safety.  See the EXP documentation and\n"
     "the pyEXP examples for more detail.  Other bases in EXP but not in\n"
     "pyEXP include those for cubic and slab geometries and other special-\n"
@@ -340,6 +341,65 @@ void BasisFactoryClasses(py::module &m) {
 
     void make_coefs(void) override {
       PYBIND11_OVERRIDE(void, FlatDisk, make_coefs,);
+    }
+
+  };
+
+
+  class PyCube : public Cube
+  {
+  protected:
+
+    void all_eval(double r, double costh, double phi,
+		  double& den0, double& den1,
+		  double& pot0, double& pot1,
+		  double& potr, double& pott, double& potp)override {
+      PYBIND11_OVERRIDE(void, Cube, all_eval,
+			r, costh, phi, den0, den1, pot0, pot1,
+			potr, pott, potp);
+    }
+    
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
+      PYBIND11_OVERRIDE(void, Cube, load_coefs, coefs, time);
+    }
+    
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override {
+      PYBIND11_OVERRIDE(void, Cube, set_coefs, coefs);
+    }
+
+    const std::string classname() override {
+      PYBIND11_OVERRIDE(std::string, Cube, classname);
+    }
+
+    const std::string harmonic() override {
+      PYBIND11_OVERRIDE(std::string, Cube, harmonic);
+    }
+
+  public:
+
+    // Inherit the constructors
+    using Cube::Cube;
+
+    void getFields(double x, double y, double z,
+		   double& tdens0, double& tpotl0, double& tdens, double& tpotl,
+		   double& tpotx, double& tpoty, double& tpotz) override {
+      PYBIND11_OVERRIDE(void, Cube, getFields,
+			x, y, z,
+			tdens0, tpotl0, tdens, tpotl,
+			tpotx, tpoty, tpotz
+			);
+    }
+
+    void accumulate(double x, double y, double z, double mass) override {
+      PYBIND11_OVERRIDE(void, Cube, accumulate, x, y, z, mass);
+    }
+
+    void reset_coefs(void) override {
+      PYBIND11_OVERRIDE(void, Cube, reset_coefs,);
+    }
+
+    void make_coefs(void) override {
+      PYBIND11_OVERRIDE(void, Cube, make_coefs,);
     }
 
   };
@@ -895,6 +955,50 @@ void BasisFactoryClasses(py::module &m) {
           cache parameters
       )",
       py::arg("cachefile"));
+
+  py::class_<BasisClasses::Cube, std::shared_ptr<BasisClasses::Cube>, PyCube, BasisClasses::Basis>(m, "Cube")
+    .def(py::init<const std::string&>(),
+	 R"(
+         Create a 3d periodic cube basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the periodic cube basis.  The coordinates
+             are the unit cube with origin at (0, 0, 0) and maximum extent (1, 1, 1).
+             The default  parameters will wave numbers between [-6,...,6] in each
+             dimension.
+
+         Returns
+         -------
+         Cube
+             the new instance
+         )", py::arg("YAMLstring"))
+    .def("orthoCheck", [](BasisClasses::Cube& A)
+    {
+      return A.orthoCheck();
+    },
+      R"(
+      Check orthgonality of basis functions by quadrature
+
+      Inner-product matrix of indexed by flattened wave number (nx, ny, nz) where
+      each of nx is in [-nmaxx, nmaxx], and so on for ny and nz.  Each dimension 
+      has dx=2*nmaxx+1 wave numbers and similarly for dy and dz.  The index into the
+      array is index=(nx+nmaxx)*dx*dy + (ny+nmaxy)*dy + (nz+nmaxz).   This is an 
+      analyic basis so the orthogonality matrix is not a check of andy numerical
+      computation other than the quadature itself.  It is included for completeness.
+
+      Parameters
+      ----------
+      None
+
+      Returns
+      -------
+      numpy.ndarray)
+          list of numpy.ndarrays from [0, ... , dx*dy*dz]
+       )"
+      );
+
 
   py::class_<BasisClasses::AccelFunc, std::shared_ptr<BasisClasses::AccelFunc>, PyAccelFunc>(m, "AccelFunc")
     .def(py::init<>(),
