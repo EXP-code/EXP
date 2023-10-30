@@ -2048,19 +2048,19 @@ namespace BasisClasses
   {
     // Truncate to cube with sides in [0,1]
     if (x<0.0)
-      x += (double)((int)fabs(x)) + 1.0;
+      x += std::floor(-x) + 1.0;
     else
-      x -= (double)((int)x);
+      x -= std::floor( x);
     
     if (y<0.0)
-      y += (double)((int)fabs(y)) + 1.0;
+      y += std::floor(-y) + 1.0;
     else
-      y -= (double)((int)y);
+      y -= std::floor( y);
     
     if (z<0.0)
-      z += (double)((int)fabs(x)) + 1.0;
+      z += std::floor(-z) + 1.0;
     else
-      z -= (double)((int)z);;
+      z -= std::floor( z);
     
     
     // Recursion multipliers
@@ -2069,16 +2069,16 @@ namespace BasisClasses
     
     // Initial values for recursion
     Eigen::Vector3cd curr
-      {std::exp(-kfac*x*static_cast<double>(nmaxx)),
-       std::exp(-kfac*y*static_cast<double>(nmaxy)),
-       std::exp(-kfac*z*static_cast<double>(nmaxz))};
+      {std::exp(-kfac*(x*nmaxx)),
+       std::exp(-kfac*(y*nmaxy)),
+       std::exp(-kfac*(z*nmaxz))};
     
     for (int ix=0; ix<=2*nmaxx; ix++, curr(0)*=step(0)) {
       for (int iy=0; iy<=2*nmaxy; iy++, curr(1)*=step(1)) {
 	for (int iz=0; iz<=2*nmaxz; iz++, curr(2)*=step(2)) {
 	  
 	  // Compute wavenumber; recall that the coefficients are
-	  // stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+	  // stored as: -nmax,-nmax+1,...,0,...,nmax-1,nmax
 	  //
 	  int ii = ix-nmaxx;
 	  int jj = iy-nmaxy;
