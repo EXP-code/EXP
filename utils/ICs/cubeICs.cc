@@ -30,6 +30,11 @@ main(int ac, char **av)
   // Default values for the velocity dispersion and bulk velocity
   //
   std::vector<double> disp(3, 1.0), bulk(3, 0.0);
+
+  // Perturbation wave vector and amplitude
+  //
+  std::vector<int> pert;
+  double pamp = 0.0;
   
   cxxopts::Options options(av[0], "Cube IC generator with uniform spatial and normal velocities.  You may specify a bulk velocity and anisotropic dispersion vector.");
 
@@ -47,6 +52,10 @@ main(int ac, char **av)
      cxxopts::value<unsigned>(seed))
     ("o,file", "Output body file",
      cxxopts::value<std::string>(bodyfile)->default_value("cube.bods"))
+    ("w,wave", "Perturbation wave vector",
+     cxxopts::value<std::vector<int>>(pert))
+    ("p,pamp", "Perturbation amplitude",
+     cxxopts::value<double>(pamp))
     ;
 
   cxxopts::ParseResult vm;
@@ -68,6 +77,30 @@ main(int ac, char **av)
   // Set from /dev/random if not specified
   if (vm.count("seed")==0) {
     seed = std::random_device{}();
+  }
+
+  // Check for consistent pertubation amplitude
+  bool pwave = false;
+  if (vm.count("pamp")) {
+    if (pert.size()!=3) {
+      std::cout << "You must specify a three vector wave vector"
+		<< ". Current size=" << pert.size()
+		<< std::endl;
+      return 2;
+    }
+    int ntot = 0;
+    for (int k=0; k<3; k++) ntot += pert[k]*pert[k];
+    if (ntot==0) {
+      std::cout << "You must specify a non-zero pertubation wave number"
+		<< std::endl;
+      return 2;
+    }
+    if (fabs(pamp)>=1.0) {
+      std::cout << "Your pertubation amplitude must be in (-1, 1)"
+		<< std::endl;
+      return 2;
+    }
+    pwave = true;
   }
 
   // Make sure N>0
@@ -94,7 +127,23 @@ main(int ac, char **av)
 
     for (int n=0; n<N; n++) {
       out << std::setw(18) << mass;
-      for (int k=0; k<3; k++) out << std::setw(18) << uniform(gen);
+      if (pwave) {
+	// Select?
+	std::vector<double> x(3);
+	while (true) {
+	  double nx = 0.0;
+	  for (int k=0; k<3; k++) {
+	    x[k] = uniform(gen);
+	    nx  += x[k] * pert[k];
+	  }
+	  double frac = (1.0 + pamp*cos(2.0*M_PI*nx))/(1.0 + fabs(pamp));
+	  if (frac > uniform(gen)) break;
+	}
+	for (int k=0; k<3; k++) out << std::setw(18) << x[k];
+      }
+      else {
+	for (int k=0; k<3; k++) out << std::setw(18) << uniform(gen);
+      }
       for (int k=0; k<3; k++) out << std::setw(18) << normal(gen)*disp[k] + bulk[k];
       out << std::endl;
     }
