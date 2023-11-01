@@ -22,27 +22,37 @@ int cubeNumX, cubeNumY, cubeNumZ, cubeNX, cubeNY, cubeNZ, cubeNdim;
 __device__ __constant__
 cuFP_t cubeDfac;
 
-__device__ __constant__
-std::complex<cuFP_t> cubeKfac;
-
 // Index functions for coefficients based on Eigen Tensor packing order
 //
-__host__ __device__
-int Index(int i, int j, int k, int numx, int numy)
+__device__
+int Index(int i, int j, int k)
 {
-  return k*numx*numy + j*numx + i;
+  i += cubeNumX;
+  j += cubeNumY;
+  k += cubeNumZ;
+  return k*cubeNX*cubeNY + j*cubeNX + i;
 }
 
 // Index function for modulus coefficients
 //
-__host__ __device__
-thrust::tuple<int, int, int> Indices(int indx, int numx, int numy)
+__device__
+thrust::tuple<int, int, int> TensorIndices(int indx)
 {
-  int k = indx/(numx*numy);
-  int j = indx/numx - k*numy;
-  int i = indx - (j + k*numy)*numx;
+  int k = indx/(cubeNX*cubeNY);
+  int j = (indx - k*cubeNX*cubeNY)/cubeNX;
+  int i = indx - (j + k*cubeNY)*cubeNX;
 
   return {i, j, k};
+}
+
+__device__
+thrust::tuple<int, int, int> WaveNumbers(int indx)
+{
+  int k = indx/(cubeNX*cubeNY);
+  int j = (indx - k*cubeNX*cubeNY)/cubeNX;
+  int i = indx - (j + k*cubeNY)*cubeNX;
+
+  return {i-cubeNumX, j-cubeNumY, k-cubeNumZ};
 }
 
 
@@ -52,6 +62,7 @@ void testConstantsCube()
   printf("-------------------------\n");
   printf("---CubeBasis constants---\n");
   printf("-------------------------\n");
+  printf("   Ndim   = %d\n", cubeNdim );
   printf("   Numx   = %d\n", cubeNumX );
   printf("   Numy   = %d\n", cubeNumY );
   printf("   Numy   = %d\n", cubeNumZ );
@@ -59,8 +70,6 @@ void testConstantsCube()
   printf("   Ny     = %d\n", cubeNY   );
   printf("   Nz     = %d\n", cubeNZ   );
   printf("   Dfac   = %e\n", cubeDfac );
-  // printf("   Kfac   = (%e, %e)\n",
-  // cubeKfac.real, cubeKfac.imag);
   printf("-------------------------\n");
 }
 
@@ -75,29 +84,29 @@ void Cube::cuda_initialize()
 //
 void Cube::initialize_constants()
 {
-  cuda_safe_call(cudaMemcpyToSymbol(cubeNX, &nmaxx, sizeof(int),
-				    size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cubeNX");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cubeNY, &nmaxy, sizeof(int),
-				    size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cubeNY");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cubeNZ, &nmaxz, sizeof(int),
-				    size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cubeNZ");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cubeNumX, &imx, sizeof(int),
+  cuda_safe_call(cudaMemcpyToSymbol(cubeNumX, &nmaxx, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cubeNumX");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cubeNumY, &imy, sizeof(int),
+  cuda_safe_call(cudaMemcpyToSymbol(cubeNumY, &nmaxy, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cubeNumY");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cubeNumZ, &imz, sizeof(int),
+  cuda_safe_call(cudaMemcpyToSymbol(cubeNumZ, &nmaxz, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cubeNumZ");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cubeNX, &imx, sizeof(int),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cubeNX");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cubeNY, &imy, sizeof(int),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cubeNY");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cubeNZ, &imz, sizeof(int),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cubeNZ");
 
   cuda_safe_call(cudaMemcpyToSymbol(cubeNdim, &osize, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
@@ -108,13 +117,6 @@ void Cube::initialize_constants()
   cuda_safe_call(cudaMemcpyToSymbol(cubeDfac, &dfac, sizeof(cuFP_t),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cubeDfac");
-
-  std::complex<cuFP_t> kfac = std::complex<cuFP_t>(0.0, 2.0*M_PI);
-
-  cuda_safe_call(cudaMemcpyToSymbol(cubeKfac, &kfac,
-				    sizeof(std::complex<cuFP_t>),
-				    size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cubeKfac");
 }
 
 __global__ void coefKernelCube
@@ -154,28 +156,25 @@ __global__ void coefKernelCube
       //
       for (int s=0; s<cubeNdim; s++) {
 
-	// Get the tensor indices
+	// Get the wave numbers
 	int ii, jj, kk;
-	thrust::tie(ii, jj, kk) = Indices(s, cubeNumX, cubeNumY);
+	thrust::tie(ii, jj, kk) = WaveNumbers(s);
 
-	// Wave numbers
-	ii -= cubeNX;
-	jj -= cubeNY;
-	kk -= cubeNZ;
-
-	if (ii==0 and jj==0 and kk==0) continue;
-
-	// Make the the basis function
-	double expon = pos[0]*ii + pos[1]*jj + pos[2]*kk;
-	double norm  = sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
+	// Skip the constant term
+	//
+	if (ii!=0 or jj!=0 or kk!=0) {
+	  cuFP_t expon = cubeDfac*(pos[0]*ii + pos[1]*jj + pos[2]*kk);
+	  cuFP_t norm  = sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 			    
-	coef._v[s*N + i] = -mm*thrust::exp(thrust::complex<cuFP_t>(0.0, -expon))/norm;
+	  coef._v[s*N + i] = -mm*thrust::exp(thrust::complex<cuFP_t>(0.0, -expon))/norm;
+	}
       }
-      // index loop
+      // END: index loop
 
-    } // particle index check
-
-  } // stride loop
+    }
+    // END: particle index limit
+  }
+  // END: stride loop
 
 }
 
@@ -209,13 +208,10 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
       //
       for (int s=0; s<cubeNdim; s++) {
 
-	thrust::tie(ind[0], ind[1], ind[2]) = Indices(s, cubeNumX, cubeNumY);
+	thrust::tie(ind[0], ind[1], ind[2]) = WaveNumbers(s);
 
-	ind[0] -= cubeNX;
-	ind[1] -= cubeNY;
-	ind[2] -= cubeNZ;
-
-	// Recursion multipliers
+	// Exponent and normalization
+	//
 	cuFP_t expon = 0.0, norm = 0.0;
 	for (int k=0; k<3; k++) {
 	  expon += pos[k]*ind[k];
@@ -225,26 +221,28 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 
 	// No force from the constant term
 	//
-	if (ind[0]==0 and ind[1]==0 and ind[2]==0) continue;
+	if (ind[0]!=0 or ind[1]!=0 or ind[2]!=0) {
 
-	thrust::complex<cuFP_t> pfac  =
-	  thrust::exp(thrust::complex<cuFP_t>(0.0, cubeDfac*expon))/norm * coef._v[s];
+	  auto pfac  = coef._v[s] *
+	    thrust::exp(thrust::complex<cuFP_t>(0.0, cubeDfac*expon)) / norm;
 
-	pot += pfac;
+	  pot += pfac;
 
-	for (int k=0; k<3; k++) {
-	  acc[k] += -thrust::complex<cuFP_t>(0.0, cubeDfac*ind[k]) * pfac;
+	  for (int k=0; k<3; k++) {
+	    acc[k] += -thrust::complex<cuFP_t>(0.0, cubeDfac*ind[k]) * pfac;
+	  }
 	}
 
       }
-      // index loop
+      // END: index loop
 
       p.pot = pot.real();
       for (int k=0; k<3; k++) p.acc[k] = acc[k].real();
 
-    } // particle index check
-
-  } // stride loop
+    }
+    // END: particle index limit
+  }
+  // END: stride loop
 }
 
 template<typename T>
@@ -451,11 +449,23 @@ void Cube::determine_coefficients_cuda()
   //
   host_coefs = cuS.df_coef;
 
+  // Create a wavenumber tuple from a flattened index
+  //
+  auto indices = [&](int indx)
+  {
+    int NX = 2*this->nmaxx+1, NY = 2*this->nmaxy+1;
+    int k  = indx/(NX*NY);
+    int j  = (indx - k*NX*NY)/NX;
+    int i  = indx - (j + k*NY)*NX;
+    
+    return std::tuple<int, int, int>{i, j, k};
+  };
+
   // DEBUG
   //
   if (false) {
     std::cout << std::string(3*4+4*20, '-') << std::endl
-	      << "---- Polar "      << std::endl
+	      << "---- Cube, T=" << tnow    << std::endl
 	      << std::string(3*4+4*20, '-') << std::endl
 	      << std::setprecision(10);
 
@@ -473,13 +483,13 @@ void Cube::determine_coefficients_cuda()
 
     for (int n=0; n<osize; n++) {
       int i, j, k;
-      thrust::tie(i, j, k) = Indices(n, nmaxx, nmaxy);
+      std::tie(i, j, k) = indices(n);
       auto a = static_cast<std::complex<double>>(host_coefs[n]);
       auto b = expcoef[0](i, j, k);
       auto c = std::abs(a - b);
-      std::cout << std::setw(4)  << i
-		<< std::setw(4)  << j
-		<< std::setw(4)  << k
+      std::cout << std::setw(4)  << i-nmaxx
+		<< std::setw(4)  << j-nmaxy
+		<< std::setw(4)  << k-nmaxz
 		<< std::setw(20) << a
 		<< std::setw(20) << b
 		<< std::setw(20) << c
@@ -491,10 +501,116 @@ void Cube::determine_coefficients_cuda()
   }
 
 
+  // Dump the coefficients for sanity checking (set to false for
+  // production)
+  //
+  if (false) {
+
+    coefType test;
+    if (myid==0) test.resize(2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1);
+
+    MPI_Reduce (thrust::raw_pointer_cast(&host_coefs[0]), test.data(), osize,
+		MPI_DOUBLE_COMPLEX, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    if (myid==0) {
+
+      std::string ofile = "cube_dump." + runtag + ".dat";
+      std::ofstream out(ofile, ios::app | ios::out);
+
+      if (out) {
+	out << std::string(3*4+3*20, '-') << std::endl
+	    << "---- Cube, T=" << tnow    << std::endl
+	    << std::string(3*4+3*20, '-') << std::endl
+	    << std::setprecision(10);
+	
+	out << std::setw(4)  << "i"
+	    << std::setw(4)  << "j"
+	    << std::setw(4)  << "k"
+	    << std::setw(20) << "Real"
+	    << std::setw(20) << "Imag"
+	    << std::setw(20) << "Abs"
+	    << std::endl;
+	
+
+	for (int n=0; n<osize; n++) {
+	  int i, j, k;
+	  std::tie(i, j, k) = indices(n);
+	  auto a = test(i, j, k);
+	  out << std::setw(4)  << i-nmaxx
+	      << std::setw(4)  << j-nmaxy
+	      << std::setw(4)  << k-nmaxz
+	      << std::setw(20) << std::real(a)
+	      << std::setw(20) << std::imag(a)
+	      << std::setw(20) << std::abs(a)
+	      << std::endl;
+	}
+	out << std::string(3*4+4*20, '-') << std::endl;
+      } else {
+	std::cout << "Error opening <" << ofile << ">" << std::endl;
+      }
+    }
+  }
+
+  // Deep debug for checking a single wave number from cubeics
+  //
+  if (false) {
+
+    coefType test;
+    if (myid==0) test.resize(2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1);
+
+    MPI_Reduce (thrust::raw_pointer_cast(&host_coefs[0]), test.data(), osize,
+		MPI_DOUBLE_COMPLEX, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    if (myid==0) {
+
+      std::string ofile = "cube_test." + runtag + ".dat";
+      std::ofstream out(ofile, ios::app | ios::out);
+
+      if (out) {
+	std::multimap<double, int> biggest;
+
+	for (int n=0; n<osize; n++)
+	  biggest.insert({std::abs(test.data()[n]), n});
+
+	out << std::string(3*4+3*20, '-') << std::endl
+	    << "---- Cube, T=" << tnow    << std::endl
+	    << std::string(3*4+3*20, '-') << std::endl
+	    << std::setprecision(10);
+	
+	out << std::setw(4)  << "i"
+	    << std::setw(4)  << "j"
+	    << std::setw(4)  << "k"
+	    << std::setw(20) << "Real"
+	    << std::setw(20) << "Imag"
+	    << std::setw(20) << "Abs"
+	    << std::endl;
+	
+	int cnt = 0, i, j, k;
+	for (auto it = biggest.rbegin(); it!=biggest.rend() and cnt<20; it++, cnt++) {
+	  std::tie(i, j, k) = indices(it->second);
+	  auto a = test(i, j, k);
+
+
+	  out << std::setw(4)  << i-nmaxx
+	      << std::setw(4)  << j-nmaxy
+	      << std::setw(4)  << k-nmaxz
+	      << std::setw(20) << std::real(a)
+	      << std::setw(20) << std::imag(a)
+	      << std::setw(20) << std::abs(a)
+	      << std::endl;
+	}
+	out << std::string(3*4+4*20, '-') << std::endl;
+      } else {
+	std::cout << "Error opening <" << ofile << ">" << std::endl;
+      }
+    }
+  }
+
+
   //
   // TEST comparison of coefficients for debugging
   //
-  if (false) {
+  if (false and myid==0) {
 
     struct Element
     {
@@ -509,65 +625,69 @@ void Cube::determine_coefficients_cuda()
 
     std::multimap<double, Element> compare;
 
-    std::ofstream out("test_cube.dat");
+    std::string ofile = "test_cube." + runtag + ".dat";
+    std::ofstream out(ofile);
 
-    // m loop
-    for (int n=0; n<osize; n++) {
+    if (out) {
+
+      // m loop
+      for (int n=0; n<osize; n++) {
 	
-      thrust::tie(elem.i, elem.j, elem.k) = Indices(n, nmaxx, nmaxy);
+	std::tie(elem.i, elem.j, elem.k) = indices(n);
 
-      elem.d = expcoef[0](elem.i, elem.j, elem.k);
-      elem.f = static_cast<std::complex<double>>(host_coefs[n]);
+	elem.d = expcoef[0](elem.i, elem.j, elem.k);
+	elem.f = static_cast<std::complex<double>>(host_coefs[n]);
 	  
-      double test = std::abs(elem.d - elem.f);
-      if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
+	double test = std::abs(elem.d - elem.f);
+	if (fabs(elem.d)>1.0e-12) test /= fabs(elem.d);
 	  
-      compare.insert(std::make_pair(test, elem));
-	    
-      out << std::setw( 5) << elem.i
-	  << std::setw( 5) << elem.j
-	  << std::setw( 5) << elem.k
-	  << std::setw( 5) << n
-	  << std::setw(20) << elem.d
-	  << std::setw(20) << elem.f
-	  << std::endl;
-    }
+	compare.insert(std::make_pair(test, elem));
+	
+	out << std::setw( 5) << elem.i - nmaxx
+	    << std::setw( 5) << elem.j - nmaxy
+	    << std::setw( 5) << elem.k - nmaxz
+	    << std::setw( 5) << n
+	    << std::setw(20) << elem.d
+	    << std::setw(20) << elem.f
+	    << std::endl;
+      }
     
-    std::map<double, Element>::iterator best = compare.begin();
-    std::map<double, Element>::iterator midl = best;
-    std::advance(midl, compare.size()/2);
-    std::map<double, Element>::reverse_iterator last = compare.rbegin();
-    
-    std::cout << std::string(3*3 + 3*20 + 20, '-') << std::endl
-	      << "---- Cube coefficients" << std::endl
-	      << std::string(3*3 + 3*20 + 20, '-') << std::endl;
-
-    std::cout << "Best case: ["
-	      << std::setw( 3) << best->second.i << ", "
-	      << std::setw( 3) << best->second.j << ", "
-	      << std::setw( 3) << best->second.k << "] = "
-	      << std::setw(20) << best->second.d
-	      << std::setw(20) << best->second.f
-	      << std::setw(20) << fabs(best->second.d - best->second.f)
-	      << std::endl;
+      std::map<double, Element>::iterator best = compare.begin();
+      std::map<double, Element>::iterator midl = best;
+      std::advance(midl, compare.size()/2);
+      std::map<double, Element>::reverse_iterator last = compare.rbegin();
+      
+      std::cout << std::string(3*3 + 3*20 + 20, '-') << std::endl
+		<< "---- Cube coefficients" << std::endl
+		<< std::string(3*3 + 3*20 + 20, '-') << std::endl;
+      
+      std::cout << "Best case: ["
+		<< std::setw( 3) << best->second.i << ", "
+		<< std::setw( 3) << best->second.j << ", "
+		<< std::setw( 3) << best->second.k << "] = "
+		<< std::setw(20) << best->second.d
+		<< std::setw(20) << best->second.f
+		<< std::setw(20) << fabs(best->second.d - best->second.f)
+		<< std::endl;
   
-    std::cout << "Mid case:  ["
-	      << std::setw( 3) << midl->second.i << ", "
-	      << std::setw( 3) << midl->second.j << ", "
-	      << std::setw( 3) << midl->second.k << "] = "
-	      << std::setw(20) << midl->second.d
-	      << std::setw(20) << midl->second.f
-	      << std::setw(20) << fabs(midl->second.d - midl->second.f)
-	      << std::endl;
+      std::cout << "Mid case:  ["
+		<< std::setw( 3) << midl->second.i << ", "
+		<< std::setw( 3) << midl->second.j << ", "
+		<< std::setw( 3) << midl->second.k << "] = "
+		<< std::setw(20) << midl->second.d
+		<< std::setw(20) << midl->second.f
+		<< std::setw(20) << fabs(midl->second.d - midl->second.f)
+		<< std::endl;
     
-    std::cout << "Last case: ["
-	      << std::setw( 3) << last->second.i << ", "
-	      << std::setw( 3) << last->second.j << ", "
-	      << std::setw( 3) << last->second.k << "] = "
-	      << std::setw(20) << last->second.d
-	      << std::setw(20) << last->second.f
-	      << std::setw(20) << fabs(last->second.d - last->second.f)
-	      << std::endl;
+      std::cout << "Last case: ["
+		<< std::setw( 3) << last->second.i << ", "
+		<< std::setw( 3) << last->second.j << ", "
+		<< std::setw( 3) << last->second.k << "] = "
+		<< std::setw(20) << last->second.d
+		<< std::setw(20) << last->second.f
+		<< std::setw(20) << fabs(last->second.d - last->second.f)
+		<< std::endl;
+    }
   }
 
 }

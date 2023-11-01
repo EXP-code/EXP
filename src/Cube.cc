@@ -277,6 +277,61 @@ void Cube::determine_coefficients(void)
   if (multistep and mlevel==multistep) {
      compute_multistep_coefficients();
   }
+
+  // Deep debug for checking a single wave number from cubeics
+  //
+  if (false and myid==0) {
+
+    // Create a wavenumber tuple from a flattened index
+    auto indices = [&](int indx)
+    {
+      int NX = 2*this->nmaxx+1, NY = 2*this->nmaxy+1;
+      int k  = indx/(NX*NY);
+      int j  = (indx - k*NX*NY)/NX;
+      int i  = indx - (j + k*NY)*NX;
+      
+      return std::tuple<int, int, int>{i, j, k};
+    };
+
+    std::string ofile = "cube_test_cpu." + runtag + ".dat";
+    std::ofstream out(ofile, ios::app | ios::out);
+
+    if (out) {
+      std::multimap<double, int> biggest;
+
+      for (int n=0; n<expcoef[0].size(); n++) 
+	biggest.insert({std::abs(expcoef[0].data()[n]), n});
+
+      out << std::string(3*4+3*20, '-') << std::endl
+	  << "---- Cube, T=" << tnow    << std::endl
+	  << std::string(3*4+3*20, '-') << std::endl
+	  << std::setprecision(10);
+	
+      out << std::setw(4)  << "i"
+	  << std::setw(4)  << "j"
+	  << std::setw(4)  << "k"
+	  << std::setw(20) << "Real"
+	  << std::setw(20) << "Imag"
+	  << std::setw(20) << "Abs"
+	  << std::endl;
+      
+      int cnt = 0, i, j, k;
+      for (auto it = biggest.rbegin(); it!=biggest.rend() and cnt<20; it++, cnt++) {
+	std::tie(i, j, k) = indices(it->second);
+	auto a = expcoef[0](i, j, k);
+	out << std::setw(4)  << i-nmaxx
+	    << std::setw(4)  << j-nmaxy
+	    << std::setw(4)  << k-nmaxz
+	    << std::setw(20) << std::real(a)
+	    << std::setw(20) << std::imag(a)
+	    << std::setw(20) << std::abs(a)
+	    << std::endl;
+      }
+      out << std::string(3*4+4*20, '-') << std::endl;
+    } else {
+      std::cout << "Error opening <" << ofile << ">" << std::endl;
+    }
+  }
 }
 
 void * Cube::determine_acceleration_and_potential_thread(void * arg)
