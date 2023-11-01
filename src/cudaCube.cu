@@ -169,7 +169,7 @@ __global__ void coefKernelCube
 	double expon = pos[0]*ii + pos[1]*jj + pos[2]*kk;
 	double norm  = sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 			    
-	coef._v[s*N + i] += -mm*thrust::exp(thrust::complex<cuFP_t>(0.0, -expon))/norm;
+	coef._v[s*N + i] = -mm*thrust::exp(thrust::complex<cuFP_t>(0.0, -expon))/norm;
       }
       // index loop
 
