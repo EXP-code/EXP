@@ -20,6 +20,7 @@
 #include <cmath>
 #include <set>
 #include <map>
+#include <cassert>
 
 #include <yaml-cpp/yaml.h>
 

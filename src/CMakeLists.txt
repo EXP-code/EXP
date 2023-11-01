@@ -39,7 +39,11 @@ if (ENABLE_DSMC)
 endif()
 
 set(common_LINKLIB ${DSMC_LIBS} exputil expcoef OpenMP::OpenMP_CXX
-  MPI::MPI_CXX PNG::PNG yaml-cpp ${VTK_LIBRARIES})
+  MPI::MPI_CXX yaml-cpp ${VTK_LIBRARIES})
+
+if(PNG_FOUND)
+  list(APPEND common_LINKLIB PNG::PNG)
+endif()
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})

@@ -233,7 +233,7 @@ namespace CoefClasses
     int ntim = times.size();
 
     // Resize the tensor
-    ret.resize({(Lmax+1)*(Lmax+2)/2, Nmax, ntim});
+    ret.resize((Lmax+1)*(Lmax+2)/2, Nmax, ntim);
 
     for (int t=0; t<ntim; t++) {
       auto cof = coefs[times[t]];
@@ -602,7 +602,7 @@ namespace CoefClasses
     int ntim = times.size();
 
     // Resize the tensor
-    ret.resize({Mmax+1, Nmax, ntim});
+    ret.resize(Mmax+1, Nmax, ntim);
     
     for (int t=0; t<ntim; t++) {
       auto cof = coefs[times[t]];

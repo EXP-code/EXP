@@ -1,8 +1,12 @@
 
 set(bin_PROGRAMS testBarrier expyaml)
 
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX PNG::PNG expcoef exputil
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX expcoef exputil
   yaml-cpp ${VTK_LIBRARIES})
+
+if(PNG_FOUND)
+  list(APPEND common_LINKLIB PNG::PNG)
+endif()
 
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>
