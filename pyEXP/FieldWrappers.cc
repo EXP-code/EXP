@@ -41,6 +41,16 @@ void FieldGeneratorClasses(py::module &m) {
     third is z.  The ranks are specified by the 'gridsize' array with
     (nx, ny, nz) as input to the FieldGenerator constructor.
 
+    Coordinate systems
+    ------------------
+    The FieldGenerator class supports spherical, cylindrical, and 
+    Cartesian for force field components.  These are selected in the
+    'lines', 'slices' and 'volumes' functions using the 'coord' string
+    argument.  The default is 'spherical' for backward compatibility.
+    The argument is case insensitive and only distinguishing characters
+    are necessary.  E.g. for 'Cylindrical', the argument 'cyl' or even
+    'cy' is sufficient.  The argument 'c' is clearly not enough.
+
     Field names
     -----------
     The data fields are as follows:
@@ -54,17 +64,17 @@ void FieldGeneratorClasses(py::module &m) {
     * 'potl m>0'    the non-axisymmetric component of the potential
     * 'potl m=0'    the axisymmetric component of the potential
 
-    For spherical coordinates:
+    For spherical coordinates (coord="Spherical"):
     * 'rad force'   the radial force
     * 'mer force'   the meridional force
     * 'azi force'   the azimuthal force
 
-    For cylindrical coordinates:
+    For cylindrical coordinates (coord="Cylindrical"):
     * 'rad force'   the radial force
     * 'ver force'   the meridional force
     * 'azi force'   the azimuthal force
 
-    For Cartesian coordinates:
+    For Cartesian coordinates (coord="Cartesian"):
     * 'x force'     the radial force
     * 'y force'     the meridional force
     * 'z force'     the azimuthal force

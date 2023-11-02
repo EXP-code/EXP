@@ -286,7 +286,7 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 	    int l2 = ii*ii + jj*jj + kk*kk;
 	    if (l2) {
 	      cuFP_t norm  = 1.0/sqrt(M_PI*l2);
-	      auto pfac  = coef._v[Index(ii, jj, kk)] * X*Y*Z*norm;
+	      auto pfac = coef._v[Index(ii, jj, kk)] * X*Y*Z*norm;
 
 	      pot    += pfac;
 	      acc[0] += thrust::complex<cuFP_t>(0.0, -cubeDfac*ii) * pfac;
