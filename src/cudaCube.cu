@@ -179,24 +179,25 @@ __global__ void coefKernelCube
 #else
       // Wave number loop
       //
-      const auto xx = CmplxT(0.0, cubeDfac*pos[0]);
+      const auto xx = CmplxT(0.0, cubeDfac*pos[0]); // Phase values
       const auto yy = CmplxT(0.0, cubeDfac*pos[1]);
       const auto zz = CmplxT(0.0, cubeDfac*pos[2]);
 
+      // Recursion increments and initial values
       const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*cubeNumX);
       const auto sy = thrust::exp(-yy), cy = thrust::exp(yy*cubeNumY);
       const auto sz = thrust::exp(-zz), cz = thrust::exp(zz*cubeNumZ);
 
-      CmplxT X, Y, Z;
+      CmplxT X, Y, Z;		// Will contain the incremented basis
 
-      X = cx;
+      X = cx;			// Assign the min X wavenumber conjugate
       for (int ii=-cubeNumX; ii<=cubeNumX; ii++, X*=sx) {
-	Y = cy;
+	Y = cy;			// Assign the min Y wavenumber conjugate
 	for (int jj=-cubeNumY; jj<=cubeNumY; jj++, Y*=sy) {
-	  Z = cz;
+	  Z = cz;		// Assign the min Z wavenumber conjugate
 	  for (int kk=-cubeNumZ; kk<=cubeNumZ; kk++, Z*=sz) {
 	    int l2 = ii*ii + jj*jj + kk*kk;
-	    if (l2) {
+	    if (l2) {		// Only compute for non-zero l-index
 	      cuFP_t norm = -mm/sqrt(M_PI*l2);
 	      coef._v[Index(ii, jj, kk)*N + i] = X*Y*Z*norm;
 	    }
@@ -271,28 +272,29 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 #else
       // Wave number loop
       //
-      const auto xx = CmplxT(0.0, cubeDfac*pos[0]);
+      const auto xx = CmplxT(0.0, cubeDfac*pos[0]); // Phase values
       const auto yy = CmplxT(0.0, cubeDfac*pos[1]);
       const auto zz = CmplxT(0.0, cubeDfac*pos[2]);
 
+      // Recursion increments and initial values
       const auto sx = thrust::exp(xx), cx = thrust::exp(-xx*cubeNumX);
       const auto sy = thrust::exp(yy), cy = thrust::exp(-yy*cubeNumY);
       const auto sz = thrust::exp(zz), cz = thrust::exp(-zz*cubeNumZ);
 
-      CmplxT X, Y, Z;
+      CmplxT X, Y, Z;		// Will contain the incremented basis
 
-      X = cx;
+      X = cx;			// Assign the min X wavenumber
       for (int ii=-cubeNumX; ii<=cubeNumX; ii++, X*=sx) {
-	Y = cy;
+	Y = cy;			// Assign the min Y wavenumber
 	for (int jj=-cubeNumY; jj<=cubeNumY; jj++, Y*=sy) {
-	  Z = cz;
+	  Z = cz;		// Assign the min Z wavenumber
 	  for (int kk=-cubeNumZ; kk<=cubeNumZ; kk++, Z*=sz) {
 	    int l2 = ii*ii + jj*jj + kk*kk;
-	    if (l2) {
+	    if (l2) {		// Only compute the non-constant terms
 	      cuFP_t norm  = 1.0/sqrt(M_PI*l2);
 	      auto pfac = coef._v[Index(ii, jj, kk)] * X*Y*Z*norm;
 
-	      pot    += pfac;
+	      pot    += pfac;	// Potential and force vector
 	      acc[0] += CmplxT(0.0, -cubeDfac*ii) * pfac;
 	      acc[1] += CmplxT(0.0, -cubeDfac*jj) * pfac;
 	      acc[2] += CmplxT(0.0, -cubeDfac*kk) * pfac;
@@ -304,6 +306,8 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
       }
       // END: ii wavenumber loop
 #endif
+      // Particle assignment
+      //
       p.pot = pot.real();
       for (int k=0; k<3; k++) p.acc[k] = acc[k].real();
     }
