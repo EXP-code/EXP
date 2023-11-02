@@ -126,15 +126,19 @@ BiorthCube::get_pot(const BiorthCube::coefType& c, Eigen::Vector3d x)
   std::complex<double> potl = 0.0;
     
   // Recursion multipliers and initial values
-  Eigen::Vector3cd step, curr;
+  Eigen::Vector3cd step, init, curr;
+  Eigen::Vector3i i;
+
   for (int k=0; k<3; k++) {
     step(k) = std::exp(kfac*x(k));
-    curr(k) = std::exp(-kfac*(x(k)*nmax(k)));
+    init(k) = std::exp(-kfac*(x(k)*nmax(k)));
   }
     
-  Eigen::Vector3i i;
+  curr(0) = init(0);
   for (i(0)=0; i(0)<=2*nmax(0); i(0)++, curr(0)*=step(0)) {
+    curr(1) = init(1);
     for (i(1)=0; i(1)<=2*nmax(1); i(1)++, curr(1)*=step(1)) {
+      curr(2) = init(2);
       for (i(2)=0; i(2)<=2*nmax(2); i(2)++, curr(2)*=step(2)) {
 	
 	auto fac = curr(0)*curr(1)*curr(2)*c(i(0), i(1), i(2));
@@ -174,15 +178,19 @@ BiorthCube::get_dens(const BiorthCube::coefType& c, Eigen::Vector3d x)
   std::complex<double> dens = 0.0;
     
   // Recursion multipliers and initial values
-  Eigen::Vector3cd step, curr;
+  Eigen::Vector3cd step, init, curr;
+  Eigen::Vector3i i;
+
   for (int k=0; k<3; k++) {
     step(k) = std::exp(kfac*x(k));
-    curr(k) = std::exp(-kfac*(x(k)*nmax(k)));
+    init(k) = std::exp(-kfac*(x(k)*nmax(k)));
   }
     
-  Eigen::Vector3i i;
+  curr(0) = init(0);
   for (i(0)=0; i(0)<=2*nmax(0); i(0)++, curr(0)*=step(0)) {
+    curr(1) = init(1);
     for (i(1)=0; i(1)<=2*nmax(1); i(1)++, curr(1)*=step(1)) {
+      curr(2) = init(2);
       for (i(2)=0; i(2)<=2*nmax(2); i(2)++, curr(2)*=step(2)) {
 	
 	auto fac = curr(0)*curr(1)*curr(2)*c(i(0), i(1), i(2));
@@ -224,15 +232,19 @@ BiorthCube::get_force(const BiorthCube::coefType& c, Eigen::Vector3d x)
   
     
   // Recursion multipliers and initial values
-  Eigen::Vector3cd step, curr;
+  Eigen::Vector3cd step, init, curr;
+  Eigen::Vector3i i;
+
   for (int k=0; k<3; k++) {
     step(k)  = std::exp(kfac*x(k));
-    curr(k) = std::exp(-kfac*(x(k)*nmax(k)));
+    init(k) = std::exp(-kfac*(x(k)*nmax(k)));
   }
     
-  Eigen::Vector3i i;
+  curr(0) = init(0);
   for (i(0)=0; i(0)<=2*nmax(0); i(0)++, curr(0)*=step(0)) {
+    curr(1) = init(1);
     for (i(1)=0; i(1)<=2*nmax(1); i(1)++, curr(1)*=step(1)) {
+      curr(2) = init(2);
       for (i(2)=0; i(2)<=2*nmax(2); i(2)++, curr(2)*=step(2)) {
 	
 	auto fac = curr(0)*curr(1)*curr(2)*c(i(0), i(1), i(2));

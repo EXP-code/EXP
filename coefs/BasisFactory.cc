@@ -2080,13 +2080,16 @@ namespace BasisClasses
       {std::exp(-kfac*x), std::exp(-kfac*y), std::exp(-kfac*z)};
     
     // Initial values for recursion
-    Eigen::Vector3cd curr
+    Eigen::Vector3cd init
       {std::exp(-kfac*(x*nmaxx)),
        std::exp(-kfac*(y*nmaxy)),
        std::exp(-kfac*(z*nmaxz))};
     
+    Eigen::Vector3cd curr(init);
     for (int ix=0; ix<=2*nmaxx; ix++, curr(0)*=step(0)) {
+      curr(1) = init(1);
       for (int iy=0; iy<=2*nmaxy; iy++, curr(1)*=step(1)) {
+	curr(2) = init(2);
 	for (int iz=0; iz<=2*nmaxz; iz++, curr(2)*=step(2)) {
 	  
 	  // Compute wavenumber; recall that the coefficients are
