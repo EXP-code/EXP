@@ -13,6 +13,7 @@
 // #define BOUNDS_CHECK
 // #define VERBOSE_RPT
 // #define VERBOSE_DBG
+// #define NORECURSION
 
 // Global symbols for cube construction
 //
@@ -152,6 +153,7 @@ __global__ void coefKernelCube
 	if (pos[k]>1.0) pos[k] -= std::floor( pos[k]);
       }
 
+#ifdef NORECURSION
       // Index loop
       //
       for (int s=0; s<cubeNdim; s++) {
@@ -160,7 +162,7 @@ __global__ void coefKernelCube
 	int ii, jj, kk;
 	thrust::tie(ii, jj, kk) = WaveNumbers(s);
 
-	// Skip the constant term
+	// Skip the constant term and the divide by zero
 	//
 	if (ii!=0 or jj!=0 or kk!=0) {
 	  cuFP_t expon = cubeDfac*(pos[0]*ii + pos[1]*jj + pos[2]*kk);
@@ -170,7 +172,33 @@ __global__ void coefKernelCube
 	}
       }
       // END: index loop
+#else
+      // Wave number loop
+      //
+      const auto xx = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[0]);
+      const auto yy = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[1]);
+      const auto zz = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[2]);
 
+      const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*cubeNumX);
+      const auto sy = thrust::exp(-yy), cy = thrust::exp(yy*cubeNumY);
+      const auto sz = thrust::exp(-zz), cz = thrust::exp(zz*cubeNumZ);
+
+      thrust::complex<cuFP_t> X, Y, Z;
+
+      X = cx;
+      for (int ii=-cubeNumX; ii<=cubeNumX; ii++, X*=sx) {
+	Y = cy;
+	for (int jj=-cubeNumY; jj<=cubeNumY; jj++, Y*=sy) {
+	  Z = cz;
+	  for (int kk=-cubeNumZ; kk<=cubeNumZ; kk++, Z*=sz) {
+	    int s = Index(ii, jj, kk);
+	    cuFP_t norm = sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
+	    if (norm>0) coef._v[s*N + i] = -mm*X*Y*Z/norm;
+	  }
+	}
+      }
+      // END: wave number loop
+#endif
     }
     // END: particle index limit
   }
@@ -204,6 +232,7 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t mm = p.mass;
       int ind[3];
 
+#ifdef NORECURSION
       // Index loop
       //
       for (int s=0; s<cubeNdim; s++) {
@@ -223,22 +252,54 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 	//
 	if (ind[0]!=0 or ind[1]!=0 or ind[2]!=0) {
 
-	  auto pfac  = coef._v[s] *
+	  auto pfac = coef._v[s] *
 	    thrust::exp(thrust::complex<cuFP_t>(0.0, cubeDfac*expon)) / norm;
 
 	  pot += pfac;
-
 	  for (int k=0; k<3; k++) {
 	    acc[k] += -thrust::complex<cuFP_t>(0.0, cubeDfac*ind[k]) * pfac;
 	  }
 	}
-
       }
       // END: index loop
+#else
+      // Wave number loop
+      //
+      const auto xx = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[0]);
+      const auto yy = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[1]);
+      const auto zz = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[2]);
 
+      const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*cubeNumX);
+      const auto sy = thrust::exp(-yy), cy = thrust::exp(yy*cubeNumY);
+      const auto sz = thrust::exp(-zz), cz = thrust::exp(zz*cubeNumZ);
+
+      thrust::complex<cuFP_t> X, Y, Z;
+
+      X = cx;
+      for (int ii=-cubeNumX; ii<=cubeNumX; ii++, X*=sx) {
+	Y = cy;
+	for (int jj=-cubeNumY; jj<=cubeNumY; jj++, Y*=sy) {
+	  Z = cz;
+	  for (int kk=-cubeNumZ; kk<=cubeNumZ; kk++, Z*=sz) {
+	    int s = Index(ii, jj, kk);
+	    cuFP_t norm  = sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
+	    if (norm>0) {
+	      auto pfac  = coef._v[s] * X*Y*Z/norm;
+
+	      pot    += pfac;
+	      acc[0] += -thrust::complex<cuFP_t>(0.0, cubeDfac*ii) * pfac;
+	      acc[1] += -thrust::complex<cuFP_t>(0.0, cubeDfac*jj) * pfac;
+	      acc[2] += -thrust::complex<cuFP_t>(0.0, cubeDfac*kk) * pfac;
+	    }
+	  }
+	  // END: kk wavenumber loop
+	}
+	// END: jj wave number loop
+      }
+      // END: ii wavenumber loop
+#endif
       p.pot = pot.real();
       for (int k=0; k<3; k++) p.acc[k] = acc[k].real();
-
     }
     // END: particle index limit
   }
