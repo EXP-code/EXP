@@ -23,6 +23,10 @@ int cubeNumX, cubeNumY, cubeNumZ, cubeNX, cubeNY, cubeNZ, cubeNdim;
 __device__ __constant__
 cuFP_t cubeDfac;
 
+// Alias for Thrust complex type to make this code more readable
+//
+using CmplxT = thrust::complex<cuFP_t>;
+
 // Index functions for coefficients based on Eigen Tensor packing order
 //
 __device__
@@ -121,7 +125,7 @@ void Cube::initialize_constants()
 }
 
 __global__ void coefKernelCube
-(dArray<cudaParticle> P, dArray<int> I, dArray<thrust::complex<cuFP_t>> coef,
+(dArray<cudaParticle> P, dArray<int> I, dArray<CmplxT> coef,
  int stride, PII lohi)
 {
   // Thread ID
@@ -166,24 +170,24 @@ __global__ void coefKernelCube
 	//
 	if (ii!=0 or jj!=0 or kk!=0) {
 	  cuFP_t expon = cubeDfac*(pos[0]*ii + pos[1]*jj + pos[2]*kk);
-	  cuFP_t norm  = sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
+	  cuFP_t norm  = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 			    
-	  coef._v[s*N + i] = -mm*thrust::exp(thrust::complex<cuFP_t>(0.0, -expon))/norm;
+	  coef._v[s*N + i] = -mm*thrust::exp(CmplxT(0.0, -expon))*norm;
 	}
       }
       // END: index loop
 #else
       // Wave number loop
       //
-      const auto xx = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[0]);
-      const auto yy = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[1]);
-      const auto zz = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[2]);
+      const auto xx = CmplxT(0.0, cubeDfac*pos[0]);
+      const auto yy = CmplxT(0.0, cubeDfac*pos[1]);
+      const auto zz = CmplxT(0.0, cubeDfac*pos[2]);
 
       const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*cubeNumX);
       const auto sy = thrust::exp(-yy), cy = thrust::exp(yy*cubeNumY);
       const auto sz = thrust::exp(-zz), cz = thrust::exp(zz*cubeNumZ);
 
-      thrust::complex<cuFP_t> X, Y, Z;
+      CmplxT X, Y, Z;
 
       X = cx;
       for (int ii=-cubeNumX; ii<=cubeNumX; ii++, X*=sx) {
@@ -211,7 +215,7 @@ __global__ void coefKernelCube
 
 __global__ void
 forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
-		dArray<thrust::complex<cuFP_t>> coef, int stride, PII lohi)
+		dArray<CmplxT> coef, int stride, PII lohi)
 {
   // Thread ID
   //
@@ -229,7 +233,7 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 #endif
       cudaParticle & p = P._v[I._v[npart]];
       
-      thrust::complex<cuFP_t> acc[3] = {0.0, 0.0, 0.0}, pot = 0.0;
+      CmplxT acc[3] = {0.0, 0.0, 0.0}, pot = 0.0;
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
       cuFP_t mm = p.mass;
       int ind[3];
@@ -248,18 +252,18 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 	  expon += pos[k]*ind[k];
 	  norm  += ind[k]*ind[k];
 	}
-	norm = sqrt(M_PI*norm);
+	norm = 1.0/sqrt(M_PI*norm);
 
 	// No force from the constant term
 	//
 	if (ind[0]!=0 or ind[1]!=0 or ind[2]!=0) {
 
 	  auto pfac = coef._v[s] *
-	    thrust::exp(thrust::complex<cuFP_t>(0.0, cubeDfac*expon)) / norm;
+	    thrust::exp(CmplxT(0.0, cubeDfac*expon)) * norm;
 
 	  pot += pfac;
 	  for (int k=0; k<3; k++) {
-	    acc[k] += -thrust::complex<cuFP_t>(0.0, cubeDfac*ind[k]) * pfac;
+	    acc[k] += CmplxT(0.0, -cubeDfac*ind[k]) * pfac;
 	  }
 	}
       }
@@ -267,15 +271,15 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 #else
       // Wave number loop
       //
-      const auto xx = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[0]);
-      const auto yy = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[1]);
-      const auto zz = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[2]);
+      const auto xx = CmplxT(0.0, cubeDfac*pos[0]);
+      const auto yy = CmplxT(0.0, cubeDfac*pos[1]);
+      const auto zz = CmplxT(0.0, cubeDfac*pos[2]);
 
       const auto sx = thrust::exp(xx), cx = thrust::exp(-xx*cubeNumX);
       const auto sy = thrust::exp(yy), cy = thrust::exp(-yy*cubeNumY);
       const auto sz = thrust::exp(zz), cz = thrust::exp(-zz*cubeNumZ);
 
-      thrust::complex<cuFP_t> X, Y, Z;
+      CmplxT X, Y, Z;
 
       X = cx;
       for (int ii=-cubeNumX; ii<=cubeNumX; ii++, X*=sx) {
@@ -289,9 +293,9 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 	      auto pfac = coef._v[Index(ii, jj, kk)] * X*Y*Z*norm;
 
 	      pot    += pfac;
-	      acc[0] += thrust::complex<cuFP_t>(0.0, -cubeDfac*ii) * pfac;
-	      acc[1] += thrust::complex<cuFP_t>(0.0, -cubeDfac*jj) * pfac;
-	      acc[2] += thrust::complex<cuFP_t>(0.0, -cubeDfac*kk) * pfac;
+	      acc[0] += CmplxT(0.0, -cubeDfac*ii) * pfac;
+	      acc[1] += CmplxT(0.0, -cubeDfac*jj) * pfac;
+	      acc[2] += CmplxT(0.0, -cubeDfac*kk) * pfac;
 	    }
 	  }
 	  // END: kk wavenumber loop
@@ -463,7 +467,7 @@ void Cube::determine_coefficients_cuda()
     
     // Shared memory size for the reduction
     //
-    int sMemSize = BLOCK_SIZE * sizeof(thrust::complex<cuFP_t>);
+    int sMemSize = BLOCK_SIZE * sizeof(CmplxT);
     
     // Compute the coefficient contribution for each order
     //
@@ -480,7 +484,7 @@ void Cube::determine_coefficients_cuda()
     unsigned int gridSize1 = N/BLOCK_SIZE;
     if (N > gridSize1*BLOCK_SIZE) gridSize1++;
 
-    reduceSum<thrust::complex<cuFP_t>, BLOCK_SIZE>
+    reduceSum<CmplxT, BLOCK_SIZE>
       <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
       (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
       
@@ -501,7 +505,7 @@ void Cube::determine_coefficients_cuda()
     
     thrust::transform(thrust::cuda::par.on(cs->stream),
 		      cuS.dw_coef.begin(), cuS.dw_coef.end(),
-		      beg, beg, thrust::plus<thrust::complex<cuFP_t>>());
+		      beg, beg, thrust::plus<CmplxT>());
     
     thrust::advance(beg, osize);
 
@@ -542,7 +546,7 @@ void Cube::determine_coefficients_cuda()
 	      << std::endl;
     
     auto cmax = std::max_element(host_coefs.begin(), host_coefs.begin()+osize,
-				 LessAbs<thrust::complex<cuFP_t>>());
+				 LessAbs<CmplxT>());
 
     for (int n=0; n<osize; n++) {
       int i, j, k;
@@ -813,7 +817,7 @@ void Cube::determine_acceleration_cuda()
     
     // Shared memory size for the reduction
     //
-    int sMemSize = BLOCK_SIZE * sizeof(thrust::complex<cuFP_t>);
+    int sMemSize = BLOCK_SIZE * sizeof(CmplxT);
       
     forceKernelCube<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
@@ -911,7 +915,7 @@ void Cube::multistep_update_cuda()
 	
 	// Shared memory size for the reduction
 	//
-	int sMemSize = BLOCK_SIZE * sizeof(thrust::complex<cuFP_t>);
+	int sMemSize = BLOCK_SIZE * sizeof(CmplxT);
     
 	// Compute the coefficient contribution for each order
 	//
@@ -926,7 +930,7 @@ void Cube::multistep_update_cuda()
 	unsigned int gridSize1 = N/BLOCK_SIZE;
 	if (N > gridSize1*BLOCK_SIZE) gridSize1++;
 
-	reduceSum<thrust::complex<cuFP_t>, BLOCK_SIZE>
+	reduceSum<CmplxT, BLOCK_SIZE>
 	  <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	  (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
 	  
@@ -947,7 +951,7 @@ void Cube::multistep_update_cuda()
 
 	thrust::transform(thrust::cuda::par.on(cs->stream),
 			  cuS.dw_coef.begin(), cuS.dw_coef.end(),
-			  beg, beg, thrust::plus<thrust::complex<cuFP_t>>());
+			  beg, beg, thrust::plus<CmplxT>());
 	
 	thrust::advance(beg, osize);
       }
@@ -955,7 +959,7 @@ void Cube::multistep_update_cuda()
 
       // Accumulate the coefficients from the device to the host
       //
-      thrust::host_vector<thrust::complex<cuFP_t>> ret = cuS.df_coef;
+      thrust::host_vector<CmplxT> ret = cuS.df_coef;
 
       // Decrement current level and increment new level using the
       // Cube update matricies
