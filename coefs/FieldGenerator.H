@@ -1,6 +1,7 @@
 #ifndef _Field_Generator_H
 #define _Field_Generator_H
 
+#include <string_view>
 #include <vector>
 #include <map>
 
@@ -46,7 +47,8 @@ namespace Field
 	Eigen::MatrixXf surface = db["3.14"]["dens"];
     */
     std::map<double, std::map<std::string, Eigen::MatrixXf>>
-    slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs);
+    slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
+	   std::string coord_type="Sph");
     
     //@{
     /** Get a field probes as a map in time and type
@@ -70,12 +72,14 @@ namespace Field
     */
     std::map<double, std::map<std::string, Eigen::VectorXf>>
     lines(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
-	  std::vector<double> beg, std::vector<double> end, int num);
+	  std::vector<double> beg, std::vector<double> end, int num,
+	  std::string coord_type="Sph");
     
     void
     file_lines(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
 	       std::vector<double> beg, std::vector<double> end, int num,
-	  const std::string prefix, const std::string outdir=".");    
+	       const std::string prefix, std::string coord_type="Sph",
+	       const std::string outdir=".");    
     //@}
 
     //! Compute surface histogram from particles
@@ -90,7 +94,9 @@ namespace Field
     //! Write field slices to files.  This will be VTK your build is
     //! compiled with VTK and ascii tables otherwise.
     void file_slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
-		    const std::string prefix, const std::string outdir=".");
+		     const std::string prefix,
+		     std::string coord_type="Sph",
+		     const std::string outdir=".");
 
     /** Get a field volumes as a map in time and type.
     
@@ -98,12 +104,15 @@ namespace Field
 	Eigen::MatrixXf.
     */
     std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>>
-    volumes(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs);
+    volumes(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
+	    std::string coord_type="Sph");
     
     //! Write field slices to files.  This will be VTK your build is
     //! compiled with VTK and ascii tables otherwise.
     void file_volumes(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
-		      const std::string prefix, const std::string outdir=".");
+		      const std::string prefix,
+		      std::string coord_type="Sph",
+		      const std::string outdir=".");
     //@}
     
   };

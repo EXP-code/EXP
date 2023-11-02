@@ -54,6 +54,21 @@ void FieldGeneratorClasses(py::module &m) {
     * 'potl m>0'    the non-axisymmetric component of the potential
     * 'potl m=0'    the axisymmetric component of the potential
 
+    For spherical coordinates:
+    * 'rad force'   the radial force
+    * 'mer force'   the meridional force
+    * 'azi force'   the azimuthal force
+
+    For cylindrical coordinates:
+    * 'rad force'   the radial force
+    * 'ver force'   the meridional force
+    * 'azi force'   the azimuthal force
+
+    For Cartesian coordinates:
+    * 'x force'     the radial force
+    * 'y force'     the meridional force
+    * 'z force'     the azimuthal force
+
     Notes
     -----
     Note that the 'dens' field is the sum of the 'dens m=0' and 'dens m>0'
@@ -104,6 +119,9 @@ void FieldGeneratorClasses(py::module &m) {
         coefs : Coefs
             coefficient container instance
 
+        coord : str
+	    coordinate system type ("spherical", "cylindrical", "cartesian")
+
         Returns
         -------
         dict({time: {field-name: numpy.ndarray})
@@ -119,7 +137,7 @@ void FieldGeneratorClasses(py::module &m) {
         --------
         lines : generate fields along a line given by its end points
         volumes : generate fields in volume given by the initializtion grid
-       )", py::arg("basis"), py::arg("coefs"));
+       )", py::arg("basis"), py::arg("coefs"), py::arg("coord"));
   
   f.def("lines", &Field::FieldGenerator::lines,
 	R"(
@@ -137,6 +155,8 @@ void FieldGeneratorClasses(py::module &m) {
             final evaluation point
         num : int
             number of evaluations
+        coord : str
+	    coordinate system type ("spherical", "cylindrical", "cartesian")
 
         Returns
         -------
@@ -154,7 +174,7 @@ void FieldGeneratorClasses(py::module &m) {
         volumes : generate fields in volume given by the initializtion grid
         )",
 	py::arg("basis"), py::arg("coefs"),
-	py::arg("beg"), py::arg("end"), py::arg("num"));
+	py::arg("beg"), py::arg("end"), py::arg("num"), py::arg("coord"));
   
   f.def("histo2d", &Field::FieldGenerator::histogram2d,
 	R"(
@@ -222,6 +242,8 @@ void FieldGeneratorClasses(py::module &m) {
             number of evaluations
         filename : str
             file name for output
+        coord : str
+	    coordinate system type ("spherical", "cylindrical", "cartesian")
         dir : str, default='.'
             directory to write files
 
@@ -241,7 +263,7 @@ void FieldGeneratorClasses(py::module &m) {
         )", 
 	py::arg("basis"),
 	py::arg("coefs"), py::arg("beg"), py::arg("end"),
-	py::arg("num")=1000, py::arg("filename"), py::arg("dir")=".");
+	py::arg("num")=1000, py::arg("filename"), py::arg("coord")="Sph", py::arg("dir")=".");
 
   f.def("file_slices", &Field::FieldGenerator::file_slices,
 	R"(
@@ -255,6 +277,8 @@ void FieldGeneratorClasses(py::module &m) {
             coefficient container instance
         filename : str
             file name for output
+        coord : str
+	    coordinate system type ("spherical", "cylindrical", "cartesian")
         dir : str, default='.'
             directory to write files
 
@@ -273,7 +297,7 @@ void FieldGeneratorClasses(py::module &m) {
         lines : generate fields along a line given by its end points
         )",
 	py::arg("basis"), py::arg("coefs"), py::arg("filename"),
-	py::arg("dir")=".");
+	py::arg("coord")="Sph", py::arg("dir")=".");
 
 
   f.def("volumes", [](FieldGenerator& A,
@@ -327,6 +351,8 @@ void FieldGeneratorClasses(py::module &m) {
             coefficient container instance
         filename : str
             file name for output
+        coord : str
+	    coordinate system type ("spherical", "cylindrical", "cartesian")
         dir : str, default='.'
             directory to write files
 
@@ -344,5 +370,5 @@ void FieldGeneratorClasses(py::module &m) {
         file_slices : generate files with fields along surfaces
 	)",
 	py::arg("basis"), py::arg("coefs"), py::arg("filename"),
-	py::arg("dir")=".");
+	py::arg("coord")="Sph", py::arg("dir")=".");
 }

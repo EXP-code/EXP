@@ -88,11 +88,24 @@ namespace BasisClasses
     double totalMass;
     
     //! Evaluate fields in spherical coordinates in centered coordinate system
-    virtual void all_eval(double r, double costh, double phi,
+    virtual void all_eval_sph(double r, double costh, double phi,
 			  double& den0, double& den1,
 			  double& pot0, double& pot1,
 			  double& potr, double& pott, double& potp) = 0;
-    
+
+    //! Evaluate fields in cylindrical coordinates in centered coordinate system
+    virtual void all_eval_cyl(double r, double z, double phi,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potr, double& potz, double& potp) = 0;
+
+
+    //! Evaluate fields in Cartesian coordinates in centered coordinate system
+    virtual void all_eval_crt(double x, double y, double z,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potx, double& poty, double& potz) = 0;
+
     //! Name of the derived class
     std::string name;
     
@@ -108,6 +121,34 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() = 0;
 
+    //! Desired coordinate system for evaluation (default: Spherical)
+    enum class Coord { Spherical, Cylindrical, Cartesian, None };
+
+    //! Get field type
+    Coord getFieldType(std::string Coord_type);
+    
+    //! Get field labels
+    std::vector<std::string> getFieldLabels(const Coord ctype);
+
+    //! Evaluate basis in spherical coordinates
+    virtual void all_eval(double x1, double x2, double x3,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& p1, double& p2, double& p3,
+			  const Coord ctype=Coord::Spherical)
+    {
+      if (ctype==Coord::Spherical)
+	all_eval_sph(x1, x2, x3, den0, den1, pot0, pot1, p1, p2, p3);
+      else if (ctype==Coord::Cylindrical)
+	all_eval_cyl(x1, x2, x3, den0, den1, pot0, pot1, p1, p2, p3);
+      else if (ctype==Coord::Cartesian)
+	all_eval_crt(x1, x2, x3, den0, den1, pot0, pot1, p1, p2, p3);
+      else {
+	all_eval_sph(x1, x2, x3, den0, den1, pot0, pot1, p1, p2, p3);
+	p1 = p2 = p3 = 0.0;
+      };
+    };
+    
   public:
     
     //! Constructor from YAML node
@@ -232,12 +273,6 @@ namespace BasisClasses
     
   protected:
 
-    //! Evaluate basis in spherical coordinates
-    virtual void all_eval(double r, double costh, double phi,
-			  double& den0, double& den1,
-			  double& pot0, double& pot1,
-			  double& potr, double& pott, double& potp);
-    
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
 
@@ -252,6 +287,25 @@ namespace BasisClasses
 
     //! Subspace index
     virtual const std::string harmonic() { return "l";}
+
+    //! Evaluate basis in spherical coordinates
+    virtual void all_eval_sph(double r, double costh, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potr, double& pott, double& potp);
+
+    //! Evaluate basis in cartesian coordinates
+    virtual void all_eval_crt(double x, double y, double z,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potx, double& poty, double& potz);
+
+
+    //! Evaluate basis in cylindrical coordinates
+    virtual void all_eval_cyl(double R, double z, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potR, double& potz, double& potp);
 
   public:
     
@@ -357,7 +411,7 @@ namespace BasisClasses
   protected:
 
     //! Evaluate basis in cylindrical coordinates
-    void all_eval_cyl
+    virtual void all_eval_cyl
     (double R, double z, double phi, 
      double& den0, double& den1,
      double& pot0, double& pot1,
@@ -365,10 +419,16 @@ namespace BasisClasses
       
     //! Evaluate basis in spherical coordinates.  Conversion from the
     //! cylindrical evaluation above.
-    virtual void all_eval(double r, double costh, double phi,
+    virtual void all_eval_sph(double r, double costh, double phi,
 			  double& den0, double& den1,
 			  double& pot0, double& pot1,
 			  double& potr, double& pott, double& potp);
+    
+    // Cartesian
+    virtual void all_eval_crt(double x, double y, double z,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potx, double& poty, double& potz);
     
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
@@ -501,10 +561,22 @@ namespace BasisClasses
   protected:
 
     //! Evaluate basis in spherical coordinates
-    virtual void all_eval(double r, double costh, double phi,
-			  double& den0, double& den1,
-			  double& pot0, double& pot1,
-			  double& potr, double& pott, double& potp);
+    virtual void all_eval_sph(double r, double costh, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potr, double& pott, double& potp);
+
+    //! Evaluate basis in cylindrical coordinates
+    virtual void all_eval_cyl(double r, double z, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potr, double& potz, double& potp);
+
+    //! Evaluate basis in cartesian coordinates
+    virtual void all_eval_crt(double x, double y, double z,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potx, double& poty, double& potz);
 
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
@@ -626,19 +698,26 @@ namespace BasisClasses
   protected:
 
     //! Evaluate basis in Cartesian coordinates
-    void all_eval_cart
+    virtual void all_eval_crt
     (double x, double y, double z, 
      double& den0, double& den1,
      double& pot0, double& pot1,
-     double& frcx, double& frcy, double& frcz);
-      
+     double& potx, double& poty, double& potz);
+    
     //! Evaluate basis in spherical coordinates.  Conversion from the
     //! Cartesian evaluation above.
-    virtual void all_eval(double r, double costh, double phi,
-			  double& den0, double& den1,
-			  double& pot0, double& pot1,
-			  double& potr, double& pott, double& potp);
+    virtual void all_eval_sph(double r, double costh, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potr, double& pott, double& potp);
     
+    //! Evaluate basis in cylindrical coordinates
+    virtual void all_eval_cyl(double r, double z, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potr, double& potz, double& potp);
+
+
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
 

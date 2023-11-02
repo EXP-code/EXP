@@ -191,9 +191,11 @@ __global__ void coefKernelCube
 	for (int jj=-cubeNumY; jj<=cubeNumY; jj++, Y*=sy) {
 	  Z = cz;
 	  for (int kk=-cubeNumZ; kk<=cubeNumZ; kk++, Z*=sz) {
-	    int s = Index(ii, jj, kk);
-	    cuFP_t norm = sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
-	    if (norm>0) coef._v[s*N + i] = -mm*X*Y*Z/norm;
+	    int l2 = ii*ii + jj*jj + kk*kk;
+	    if (l2) {
+	      cuFP_t norm = -mm/sqrt(M_PI*l2);
+	      coef._v[Index(ii, jj, kk)*N + i] = X*Y*Z*norm;
+	    }
 	  }
 	}
       }
@@ -269,9 +271,9 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
       const auto yy = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[1]);
       const auto zz = thrust::complex<cuFP_t>(0.0, cubeDfac*pos[2]);
 
-      const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*cubeNumX);
-      const auto sy = thrust::exp(-yy), cy = thrust::exp(yy*cubeNumY);
-      const auto sz = thrust::exp(-zz), cz = thrust::exp(zz*cubeNumZ);
+      const auto sx = thrust::exp(xx), cx = thrust::exp(-xx*cubeNumX);
+      const auto sy = thrust::exp(yy), cy = thrust::exp(-yy*cubeNumY);
+      const auto sz = thrust::exp(zz), cz = thrust::exp(-zz*cubeNumZ);
 
       thrust::complex<cuFP_t> X, Y, Z;
 
@@ -281,15 +283,15 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 	for (int jj=-cubeNumY; jj<=cubeNumY; jj++, Y*=sy) {
 	  Z = cz;
 	  for (int kk=-cubeNumZ; kk<=cubeNumZ; kk++, Z*=sz) {
-	    int s = Index(ii, jj, kk);
-	    cuFP_t norm  = sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
-	    if (norm>0) {
-	      auto pfac  = coef._v[s] * X*Y*Z/norm;
+	    int l2 = ii*ii + jj*jj + kk*kk;
+	    if (l2) {
+	      cuFP_t norm  = 1.0/sqrt(M_PI*l2);
+	      auto pfac  = coef._v[Index(ii, jj, kk)] * X*Y*Z*norm;
 
 	      pot    += pfac;
-	      acc[0] += -thrust::complex<cuFP_t>(0.0, cubeDfac*ii) * pfac;
-	      acc[1] += -thrust::complex<cuFP_t>(0.0, cubeDfac*jj) * pfac;
-	      acc[2] += -thrust::complex<cuFP_t>(0.0, cubeDfac*kk) * pfac;
+	      acc[0] += thrust::complex<cuFP_t>(0.0, -cubeDfac*ii) * pfac;
+	      acc[1] += thrust::complex<cuFP_t>(0.0, -cubeDfac*jj) * pfac;
+	      acc[2] += thrust::complex<cuFP_t>(0.0, -cubeDfac*kk) * pfac;
 	    }
 	  }
 	  // END: kk wavenumber loop

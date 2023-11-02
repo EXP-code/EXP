@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include <YamlCheck.H>
 #include <EXPException.H>
 #include <BasisFactory.H>
@@ -140,6 +142,55 @@ namespace BasisClasses
     "self_consistent",
     "cachename"
   };
+
+  Basis::Coord Basis::getFieldType(std::string coord_type)
+  {
+    // Find coordinate type
+    //
+    std::transform(coord_type.begin(), coord_type.end(), coord_type.begin(),
+    [](unsigned char c){ return std::tolower(c); });
+
+    Coord ctype;
+
+    if (coord_type.find("cyl") != std::string::npos) {
+      ctype = Coord::Cylindrical;
+    } else if (coord_type.find("cart") != std::string::npos) {
+      ctype = Coord::Cartesian;
+    } else if (coord_type.find("none") != std::string::npos) {
+      ctype = Coord::None;
+    } else {
+      ctype = Coord::Spherical;
+    }
+
+    return ctype;
+  }
+
+  std::vector<std::string> Basis::getFieldLabels(const Coord ctype)
+  {
+    // Field labels (force field labels added below)
+    //
+    std::vector<std::string> labels =
+      {"potl", "potl m>0", "potl m=0", 
+       "dens", "dens m>0", "dens m=0"};
+
+    if (ctype == Coord::Cylindrical) {
+      labels.push_back("rad force");
+      labels.push_back("ver force");
+      labels.push_back("azi force");
+    } else if (ctype == Coord::Cartesian) {
+      labels.push_back("x force");
+      labels.push_back("y force");
+      labels.push_back("z force");
+    } else if (ctype == Coord::None) {
+      // No forces
+    } else {
+      labels.push_back("rad force");
+      labels.push_back("mer force");
+      labels.push_back("azi force");
+    }
+
+    return labels;
+  }
 
   SphericalSL::SphericalSL(const YAML::Node& CONF) : Basis(CONF)
   {
@@ -515,10 +566,10 @@ namespace BasisClasses
 
   }
   
-  void SphericalSL::all_eval(double r, double costh, double phi,
-			     double& den0, double& den1,
-			     double& pot0, double& pot1,
-			     double& potr, double& pott, double& potp)
+  void SphericalSL::all_eval_sph(double r, double costh, double phi,
+				 double& den0, double& den1,
+				 double& pot0, double& pot1,
+				 double& potr, double& pott, double& potp)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -624,6 +675,41 @@ namespace BasisClasses
     //       +--- Return force not potential gradient
   }
 
+
+  void SphericalSL::all_eval_cyl(double R, double z, double phi,
+				 double& den0, double& den1,
+				 double& pot0, double& pot1,
+				 double& potR, double& potz, double& potp)
+  {
+    double r = sqrt(R*R + z*z) + 1.0e-18;
+    double costh = z/r, sinth = R/r;
+    
+    double potr, pott;
+    all_eval_sph(r, costh, phi, den0, den1, pot0, pot1,
+		 potr, pott, potp);
+
+    potR = potr*sinth + pott*costh;
+    potz = potr*costh - pott*sinth;
+  }
+
+
+  // Evaluate in cartesian coordinates
+  void SphericalSL::all_eval_crt
+  (double x, double y, double z,
+   double& tdens0, double& tdens, double& tpotl0, double& tpotl, 
+   double& tpotx, double& tpoty, double& tpotz)
+  {
+    double R = sqrt(x*x + y*y);
+    double phi = atan2(y, x);
+
+    double tpotR, tpotp;
+    all_eval_cyl(R, z, phi, tdens0, tdens, tpotl0, tpotl,
+		 tpotR, tpotz, tpotp);
+    
+    tpotx = tpotR*x/R - tpotp*y/R ;
+    tpoty = tpotR*y/R + tpotp*x/R ;
+  }
+  
 
   SphericalSL::BasisArray SphericalSL::getBasis
   (double logxmin, double logxmax, int numgrid)
@@ -1270,8 +1356,8 @@ namespace BasisClasses
     tpoty = tpotR*sph + tpotP*cph ;
   }
   
-  // Evaluate in on spherical coordinates (should this be Cartesian)
-  void Cylindrical::all_eval
+  // Evaluate in spherical coordinates
+  void Cylindrical::all_eval_sph
   (double r, double cth, double phi,
    double& tdens0, double& tdens, double& tpotl0, double& tpotl, 
    double& tpotr, double& tpott, double& tpotp)
@@ -1288,6 +1374,33 @@ namespace BasisClasses
 
     tpotr = tpotR*R/r + tpotz*z/R ;
     tpott = tpotR*z/r - tpotz*R/r ;
+  }
+  
+  // Evaluate in cartesian coordinates
+  void Cylindrical::all_eval_crt
+  (double x, double y, double z,
+   double& tdens0, double& tdens, double& tpotl0, double& tpotl, 
+   double& tpotx, double& tpoty, double& tpotz)
+  {
+    double R = sqrt(x*x + y*y);
+    double phi = atan2(y, x);
+
+    double tpotR, tpotp;
+    sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
+    
+    tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
+
+    tpotx = tpotR*x/R - tpotp*y/R ;
+    tpoty = tpotR*y/R + tpotp*x/R ;
+  }
+  
+  // Evaluate in cylindrical coordinates
+  void Cylindrical::all_eval_cyl
+  (double R, double z, double phi,
+   double& tdens0, double& tdens, double& tpotl0, double& tpotl, 
+   double& tpotR, double& tpotz, double& tpotp)
+  {
+    sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
   }
   
   void Cylindrical::accumulate(double x, double y, double z, double mass)
@@ -1808,7 +1921,7 @@ namespace BasisClasses
   }
 
 
-  void FlatDisk::all_eval
+  void FlatDisk::all_eval_sph
   (double r, double costh, double phi, 
    double& den0, double& den1,
    double& pot0, double& pot1,
@@ -1831,6 +1944,28 @@ namespace BasisClasses
     //
     potr = potR*sinth + potz*costh;
     pott = potR*costh - potz*sinth;
+  }
+
+  void FlatDisk::all_eval_crt
+  (double x, double y, double z, 
+   double& den0, double& den1,
+   double& pot0, double& pot1,
+   double& potx, double& poty, double& potz)
+  {
+    den0 = den1 = pot0 = pot1 = 0.0;
+
+    // Cylindrical coords from Cartesian
+    //
+    double R = sqrt(x*x + y*y) + 1.0e-18;
+    double phi = atan2(y, x);
+    double potR, potp;
+
+    all_eval_cyl(R, z, phi,
+		 den0, den1, pot0, pot1,
+		 potR, potz, potp);
+
+    potx = potR*x/R - potp*y/R;
+    poty = potR*y/R + potp*x/R;
   }
 
   void FlatDisk::getFields
@@ -2120,7 +2255,7 @@ namespace BasisClasses
     }
   }
   
-  void Cube::all_eval_cart
+  void Cube::all_eval_crt
   (double x, double y, double z, 
    double& den0, double& den1,
    double& pot0, double& pot1,
@@ -2141,37 +2276,84 @@ namespace BasisClasses
 
     auto frc = ortho->get_force(expcoef, pos);
     
-    frcx = frc(0).real();
-    frcy = frc(1).real();
-    frcz = frc(2).real();
+    frcx = -frc(0).real();
+    frcy = -frc(1).real();
+    frcz = -frc(2).real();
   }
 
-  void Cube::all_eval(double r, double costh, double phi,
-		      double& den0, double& den1,
-		      double& pot0, double& pot1,
-		      double& potr, double& pott, double& potp)
-
+  void Cube::all_eval_cyl
+  (double R, double z, double phi, 
+   double& den0, double& den1,
+   double& pot0, double& pot1,
+   double& potR, double& potz, double& potp)
   {
-    double cosp=cos(phi), sinp=sin(phi), sinth = sqrt(fabs(1.0 - costh*costh));
+    // Get thread id
+    int tid = omp_get_thread_num();
 
-    // Spherical to Cartesian
-    double x = r*sinth*cosp;
-    double y = r*sinth*sinp;
-    double z = r*costh;
+    // Zero return values
+    den0 = pot0 = 0.0;
     
-    // Get the cartesian values
-    double frcx, frcy, frcz;
-    all_eval_cart(x, y, z,
-		  den0, den1, pot0, pot1,
-		  frcx, frcy, frcz);
+    // Cartesian from Cylindrical coordinates
+    double x = R*cos(phi), y = R*sin(phi);
 
-    // Euler rotation
-    //
-    potr = -sinth*cosp*frcx - sinth*sinp*frcy - costh*frcz;
-    pott = -costh*cosp*frcx - costh*sinp*frcy + sinth*frcz;
-    potp =  sinp      *frcx + cosp      *frcy ;
+    // Position vector
+    Eigen::Vector3d pos {x, y, z};
+
+    // Get the basis fields
+    den1 = ortho->get_dens(expcoef, pos).real();
+    pot1 = ortho->get_pot (expcoef, pos).real();
+
+    auto frc = ortho->get_force(expcoef, pos);
+    
+    double frcx = frc(0).real(), frcy = frc(1).real(), frcz = frc(2).real();
+
+    potR =  frcx*cos(phi) + frcy*sin(phi);
+    potp = -frcx*sin(phi) + frcy*cos(phi);
+    potz =  frcz;
+
+    potR *= -1;
+    potp *= -1;
+    potz *= -1;
   }
+
+  void Cube::all_eval_sph
+  (double r, double costh, double phi, 
+   double& den0, double& den1,
+   double& pot0, double& pot1,
+   double& potr, double& pott, double& potp)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Zero return values
+    den0 = pot0 = 0.0;
     
+    // Spherical from Cylindrical coordinates
+    double sinth = sqrt(fabs(1.0 - costh*costh));
+    double x = r*cos(phi)*sinth, y = r*sin(phi)*sinth, z = r*costh;
+
+    // Position vector
+    Eigen::Vector3d pos {x, y, z};
+
+    // Get the basis fields
+    den1 = ortho->get_dens(expcoef, pos).real();
+    pot1 = ortho->get_pot (expcoef, pos).real();
+
+    auto frc = ortho->get_force(expcoef, pos);
+    
+    double frcx = frc(0).real();
+    double frcy = frc(1).real();
+    double frcz = frc(2).real();
+
+    potr =  frcx*cos(phi)*sinth + frcy*sin(phi)*sinth + frcz*costh;
+    pott =  frcx*cos(phi)*costh + frcy*sin(phi)*costh - frcz*sinth;
+    potp = -frcx*sin(phi)       + frcy*cos(phi);
+
+    potr *= -1;
+    pott *= -1;
+    potp *= -1;
+  }
+
   void Cube::getFields
   (double x, double y, double z,
    double& den0, double& pot0, double& den1, double& pot1, 
@@ -2180,7 +2362,7 @@ namespace BasisClasses
     den0 = pot0 = den1 = pot1 = 0.0;
     potx = poty = potz = 0.0;
 
-    all_eval_cart(x, y, z,
+    all_eval_crt(x, y, z,
 		 den0, den1, pot0, pot1,
 		 potx, poty, potx);
 

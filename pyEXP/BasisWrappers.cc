@@ -118,11 +118,29 @@ void BasisFactoryClasses(py::module &m) {
   class PyBasis : public Basis
   {
   protected:
-    void all_eval(double r, double costh, double phi,
+    void all_eval_sph(double r, double costh, double phi,
 		  double& den0, double& den1,
 		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp)override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, all_eval,
+		  double& potr, double& pott, double& potp) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, all_eval_sph,
+			     r, costh, phi, den0, den1, pot0, pot1,
+			     potr, pott, potp);
+    }
+    
+    void all_eval_cyl(double r, double costh, double phi,
+		  double& den0, double& den1,
+		  double& pot0, double& pot1,
+		  double& potr, double& pott, double& potp) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, all_eval_cyl,
+			     r, costh, phi, den0, den1, pot0, pot1,
+			     potr, pott, potp);
+    }
+    
+    void all_eval_crt(double r, double costh, double phi,
+		  double& den0, double& den1,
+		  double& pot0, double& pot1,
+		  double& potr, double& pott, double& potp) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, all_eval_crt,
 			     r, costh, phi, den0, den1, pot0, pot1,
 			     potr, pott, potp);
     }
@@ -178,10 +196,11 @@ void BasisFactoryClasses(py::module &m) {
     void all_eval(double r, double costh, double phi,
 		  double& den0, double& den1,
 		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp) override {
+		  double& potr, double& pott, double& potp,
+		  Coord ctype) override {
       PYBIND11_OVERRIDE(void, SphericalSL, all_eval,
 			r, costh, phi, den0, den1, pot0, pot1,
-			potr, pott, potp);
+			potr, pott, potp, ctype);
     }
     
     void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
@@ -235,7 +254,8 @@ void BasisFactoryClasses(py::module &m) {
     void all_eval(double r, double costh, double phi,
 		  double& den0, double& den1,
 		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp)override {
+		  double& potr, double& pott, double& potp,
+		  Coord ctype) override {
       PYBIND11_OVERRIDE(void, Cylindrical, all_eval,
 			r, costh, phi, den0, den1, pot0, pot1,
 			potr, pott, potp);
@@ -291,13 +311,31 @@ void BasisFactoryClasses(py::module &m) {
   {
   protected:
 
-    void all_eval(double r, double costh, double phi,
-		  double& den0, double& den1,
-		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp)override {
-      PYBIND11_OVERRIDE(void, FlatDisk, all_eval,
+    void all_eval_sph(double r, double costh, double phi,
+		      double& den0, double& den1,
+		      double& pot0, double& pot1,
+		      double& potr, double& pott, double& potp) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, all_eval_sph,
 			r, costh, phi, den0, den1, pot0, pot1,
 			potr, pott, potp);
+    }
+    
+    void all_eval_cyl(double R, double z, double phi,
+		      double& den0, double& den1,
+		      double& pot0, double& pot1,
+		      double& potR, double& potz, double& potp) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, all_eval_cyl,
+			R, z, phi, den0, den1, pot0, pot1,
+			potR, potz, potp);
+    }
+    
+    void all_eval_crt(double x, double y, double z,
+		      double& den0, double& den1,
+		      double& pot0, double& pot1,
+		      double& potx, double& poty, double& potz) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, all_eval_crt,
+			x, y, z, den0, den1, pot0, pot1,
+			potx, poty, potz);
     }
     
     void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
@@ -350,13 +388,33 @@ void BasisFactoryClasses(py::module &m) {
   {
   protected:
 
-    void all_eval(double r, double costh, double phi,
+    
+    void all_eval_sph(double r, double costh, double phi,
 		  double& den0, double& den1,
 		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp)override {
-      PYBIND11_OVERRIDE(void, Cube, all_eval,
+		  double& potr, double& pott, double& potp) override {
+      PYBIND11_OVERRIDE(void, Cube, all_eval_sph,
 			r, costh, phi, den0, den1, pot0, pot1,
 			potr, pott, potp);
+    }
+    
+
+    void all_eval_cyl(double R, double z, double phi,
+		      double& den0, double& den1,
+		      double& pot0, double& pot1,
+		      double& potR, double& potz, double& potp) override {
+      PYBIND11_OVERRIDE(void, Cube, all_eval_cyl,
+			R, z, phi, den0, den1, pot0, pot1,
+			potR, potz, potp);
+    }
+    
+    void all_eval_crt(double x, double y, double z,
+		      double& den0, double& den1,
+		      double& pot0, double& pot1,
+		      double& potx, double& poty, double& potz) override {
+      PYBIND11_OVERRIDE(void, Cube, all_eval_crt,
+			x, y, z, den0, den1, pot0, pot1,
+			potx, poty, potz);
     }
     
     void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
