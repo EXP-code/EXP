@@ -315,9 +315,9 @@ void Cube::determine_coefficients(void)
 	  << std::setw(20) << "Abs"
 	  << std::endl;
       
-      int cnt = 0, i, j, k;
+      int cnt = 0;
       for (auto it = biggest.rbegin(); it!=biggest.rend() and cnt<20; it++, cnt++) {
-	std::tie(i, j, k) = indices(it->second);
+	auto [i, j, k] = indices(it->second);
 	auto a = expcoef[0](i, j, k);
 	out << std::setw(4)  << i-nmaxx
 	    << std::setw(4)  << j-nmaxy

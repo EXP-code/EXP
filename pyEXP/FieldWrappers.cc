@@ -311,10 +311,11 @@ void FieldGeneratorClasses(py::module &m) {
 
 
   f.def("volumes", [](FieldGenerator& A,
-		      BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs)
+		      BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
+		      std::string coord="Sph")
   {
     std::map<double, std::map<std::string, py::array_t<float>>> ret;
-    auto vols = A.volumes(basis, coefs);
+    auto vols = A.volumes(basis, coefs, coord);
     for (auto & v : vols) {
       for (auto & u : v.second) {
 	ret[v.first][u.first] = make_ndarray<float>(u.second);

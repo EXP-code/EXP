@@ -553,8 +553,7 @@ void Cube::determine_coefficients_cuda()
 				 LessAbs<CmplxT>());
 
     for (int n=0; n<osize; n++) {
-      int i, j, k;
-      std::tie(i, j, k) = indices(n);
+      auto [i, j, k] = indices(n);
       auto a = static_cast<std::complex<double>>(host_coefs[n]);
       auto b = expcoef[0](i, j, k);
       auto c = std::abs(a - b);
@@ -604,8 +603,7 @@ void Cube::determine_coefficients_cuda()
 	
 
 	for (int n=0; n<osize; n++) {
-	  int i, j, k;
-	  std::tie(i, j, k) = indices(n);
+	  auto [i, j, k] = indices(n);
 	  auto a = test(i, j, k);
 	  out << std::setw(4)  << i-nmaxx
 	      << std::setw(4)  << j-nmaxy
@@ -656,11 +654,10 @@ void Cube::determine_coefficients_cuda()
 	    << std::setw(20) << "Abs"
 	    << std::endl;
 	
-	int cnt = 0, i, j, k;
+	int cnt = 0;
 	for (auto it = biggest.rbegin(); it!=biggest.rend() and cnt<20; it++, cnt++) {
-	  std::tie(i, j, k) = indices(it->second);
+	  auto [i, j, k] = indices(it->second);
 	  auto a = test(i, j, k);
-
 
 	  out << std::setw(4)  << i-nmaxx
 	      << std::setw(4)  << j-nmaxy
