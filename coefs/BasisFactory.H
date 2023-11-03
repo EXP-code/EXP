@@ -124,9 +124,15 @@ namespace BasisClasses
     //! Desired coordinate system for evaluation (default: Spherical)
     enum class Coord { Spherical, Cylindrical, Cartesian, None };
 
+    //! Set the correponding coorindate labels
+    static std::map<Coord, std::string> coordLabels;
+
     //! Get field type
-    Coord getFieldType(std::string Coord_type);
+    Coord parseFieldType(std::string Coord_type);
     
+    //! Current field coordindate type
+    Coord coordinates;
+
     //! Get field labels
     std::vector<std::string> getFieldLabels(const Coord ctype);
 
@@ -210,6 +216,13 @@ namespace BasisClasses
     //! Provide a set of coefficients using a CoefStruct
     virtual void set_coefs(CoefClasses::CoefStrPtr coefs) = 0;
 
+    //! Set field coordindate system
+    void setFieldType(std::string coord_type)
+    { coordinates = parseFieldType(coord_type); }
+    
+    //! Get current field coordinate type
+    std::string getFieldType() { return coordLabels[coordinates]; }
+    
     //@{
     //! The coefficient factory.  Creates a shared pointer to derived
     //! instance of the desired type and returns it.

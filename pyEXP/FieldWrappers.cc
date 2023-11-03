@@ -44,12 +44,10 @@ void FieldGeneratorClasses(py::module &m) {
     Coordinate systems
     ------------------
     The FieldGenerator class supports spherical, cylindrical, and 
-    Cartesian for force field components.  These are selected in the
-    'lines', 'slices' and 'volumes' functions using the 'coord' string
-    argument.  The default is 'spherical' for backward compatibility.
-    The argument is case insensitive and only distinguishing characters
-    are necessary.  E.g. for 'Cylindrical', the argument 'cyl' or even
-    'cy' is sufficient.  The argument 'c' is clearly not enough.
+    Cartesian for force field components.  These are selected by your
+    basis instance, consistent with the natural coordinate system for
+    that basis.  You may change the default coorindate system for a basis
+    using the 'setFieldType()' member function.
 
     Field names
     -----------
@@ -129,9 +127,6 @@ void FieldGeneratorClasses(py::module &m) {
         coefs : Coefs
             coefficient container instance
 
-        coord : str
-	    coordinate system type ("spherical", "cylindrical", "cartesian")
-
         Returns
         -------
         dict({time: {field-name: numpy.ndarray})
@@ -147,7 +142,7 @@ void FieldGeneratorClasses(py::module &m) {
         --------
         lines : generate fields along a line given by its end points
         volumes : generate fields in volume given by the initializtion grid
-       )", py::arg("basis"), py::arg("coefs"), py::arg("coord"));
+       )", py::arg("basis"), py::arg("coefs"));
   
   f.def("lines", &Field::FieldGenerator::lines,
 	R"(
@@ -159,14 +154,15 @@ void FieldGeneratorClasses(py::module &m) {
             basis instance of any geometry; geometry will be deduced by the generator
         coefs : Coefs
             coefficient container instance
+
         beg : list(float, float, float)
             initial evaluation point
+
         end : list(float, float, float)
             final evaluation point
+
         num : int
             number of evaluations
-        coord : str
-	    coordinate system type ("spherical", "cylindrical", "cartesian")
 
         Returns
         -------
@@ -184,7 +180,7 @@ void FieldGeneratorClasses(py::module &m) {
         volumes : generate fields in volume given by the initializtion grid
         )",
 	py::arg("basis"), py::arg("coefs"),
-	py::arg("beg"), py::arg("end"), py::arg("num"), py::arg("coord"));
+	py::arg("beg"), py::arg("end"), py::arg("num"));
   
   f.def("histo2d", &Field::FieldGenerator::histogram2d,
 	R"(
@@ -252,8 +248,6 @@ void FieldGeneratorClasses(py::module &m) {
             number of evaluations
         filename : str
             file name for output
-        coord : str
-	    coordinate system type ("spherical", "cylindrical", "cartesian")
         dir : str, default='.'
             directory to write files
 
@@ -273,7 +267,7 @@ void FieldGeneratorClasses(py::module &m) {
         )", 
 	py::arg("basis"),
 	py::arg("coefs"), py::arg("beg"), py::arg("end"),
-	py::arg("num")=1000, py::arg("filename"), py::arg("coord")="Sph", py::arg("dir")=".");
+	py::arg("num")=1000, py::arg("filename"), py::arg("dir")=".");
 
   f.def("file_slices", &Field::FieldGenerator::file_slices,
 	R"(
@@ -287,8 +281,6 @@ void FieldGeneratorClasses(py::module &m) {
             coefficient container instance
         filename : str
             file name for output
-        coord : str
-	    coordinate system type ("spherical", "cylindrical", "cartesian")
         dir : str, default='.'
             directory to write files
 
@@ -307,15 +299,14 @@ void FieldGeneratorClasses(py::module &m) {
         lines : generate fields along a line given by its end points
         )",
 	py::arg("basis"), py::arg("coefs"), py::arg("filename"),
-	py::arg("coord")="Sph", py::arg("dir")=".");
+	py::arg("dir")=".");
 
 
   f.def("volumes", [](FieldGenerator& A,
-		      BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
-		      std::string coord="Sph")
+		      BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs)
   {
     std::map<double, std::map<std::string, py::array_t<float>>> ret;
-    auto vols = A.volumes(basis, coefs, coord);
+    auto vols = A.volumes(basis, coefs);
     for (auto & v : vols) {
       for (auto & u : v.second) {
 	ret[v.first][u.first] = make_ndarray<float>(u.second);
@@ -362,8 +353,6 @@ void FieldGeneratorClasses(py::module &m) {
             coefficient container instance
         filename : str
             file name for output
-        coord : str
-	    coordinate system type ("spherical", "cylindrical", "cartesian")
         dir : str, default='.'
             directory to write files
 
@@ -381,5 +370,5 @@ void FieldGeneratorClasses(py::module &m) {
         file_slices : generate files with fields along surfaces
 	)",
 	py::arg("basis"), py::arg("coefs"), py::arg("filename"),
-	py::arg("coord")="Sph", py::arg("dir")=".");
+	py::arg("dir")=".");
 }

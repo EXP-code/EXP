@@ -14,6 +14,10 @@
 namespace BasisClasses
 {
   
+  std::map<Basis::Coord, std::string> Basis::coordLabels =
+    { {Basis::Coord::Spherical, "Spherical"}, {Basis::Coord::Cylindrical, "Cylindrical"},
+      {Basis::Coord::Cartesian, "Cartesian"}, {Basis::Coord::None, "None"} };
+
   Basis::Basis(const YAML::Node& CONF)
   {
     // Copy the YAML config
@@ -91,6 +95,9 @@ namespace BasisClasses
     //
     coefctr = {0.0, 0.0, 0.0};
 
+    // Default null coordinate type
+    //
+    coordinates = Coord::None;
   }
   
   const std::set<std::string>
@@ -143,7 +150,7 @@ namespace BasisClasses
     "cachename"
   };
 
-  Basis::Coord Basis::getFieldType(std::string coord_type)
+  Basis::Coord Basis::parseFieldType(std::string coord_type)
   {
     // Find coordinate type
     //
@@ -352,6 +359,10 @@ namespace BasisClasses
     }
 
     used = 0;
+
+    // Set spherical coordindates
+    //
+    coordinates = Coord::Spherical;
   }
   
   void SphericalSL::reset_coefs(void)
@@ -1330,6 +1341,10 @@ namespace BasisClasses
     // Orthogonality sanity check
     //
     orthoTest(orthoCheck(), classname(), harmonic());
+
+    // Set cylindrical coordindates
+    //
+    coordinates = Coord::Cylindrical;
   }
 
   
@@ -1664,6 +1679,10 @@ namespace BasisClasses
     work.resize(nmax);
       
     used = 0;
+
+    // Set cylindrical coordindates
+    //
+    coordinates = Coord::Cylindrical;
   }
   
   void FlatDisk::reset_coefs(void)
@@ -2136,6 +2155,10 @@ namespace BasisClasses
     expcoef.setZero();
       
     used = 0;
+
+    // Set cartesian coordindates
+    //
+    coordinates = Coord::Spherical;
   }
   
   void Cube::reset_coefs(void)

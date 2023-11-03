@@ -59,7 +59,7 @@ namespace Field
   std::map<double, std::map<std::string, Eigen::VectorXf>>
   FieldGenerator::lines
   (BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
-   std::vector<double> beg, std::vector<double> end, int num, std::string coord_type)
+   std::vector<double> beg, std::vector<double> end, int num)
   {
     // Check
     //
@@ -75,9 +75,9 @@ namespace Field
 
     std::map<double, std::map<std::string, Eigen::VectorXf>> ret;
 
-    // Now get the desired coordinate type
+    // Now get the coordinate type
     //
-    auto ctype = basis->getFieldType(coord_type);
+    auto ctype = basis->coordinates;
 
     // Field labels (force field labels added below)
     //
@@ -231,10 +231,9 @@ namespace Field
 				  std::vector<double>    end,
 				  int                    num,
 				  const std::string      prefix,
-				  std::string            coord_type,
 				  const std::string      outdir)
   {
-    auto db = lines(basis, coefs, beg, end, num, coord_type);
+    auto db = lines(basis, coefs, beg, end, num);
 
     if (myid==0) {
 
@@ -293,8 +292,7 @@ namespace Field
   
   std::map<double, std::map<std::string, Eigen::MatrixXf>>
   FieldGenerator::slices(BasisClasses::BasisPtr basis,
-			 CoefClasses::CoefsPtr coefs,
-			 std::string coord_type)
+			 CoefClasses::CoefsPtr coefs)
   {
     // Check
     //
@@ -304,7 +302,7 @@ namespace Field
 
     // Now get the desired coordinate type
     //
-    auto ctype = basis->getFieldType(coord_type);
+    auto ctype = basis->coordinates;
 
     // Field labels (force field labels added below)
     //
@@ -481,10 +479,9 @@ namespace Field
   void FieldGenerator::file_slices(BasisClasses::BasisPtr basis,
 				   CoefClasses::CoefsPtr  coefs,
 				   const std::string      prefix,
-				   std::string            coord_type,
 				   const std::string      outdir)
   {
-    auto db = slices(basis, coefs, coord_type);
+    auto db = slices(basis, coefs);
 
     if (myid==0) {
 
@@ -528,14 +525,13 @@ namespace Field
   
   std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>>
   FieldGenerator::volumes(BasisClasses::BasisPtr basis,
-			  CoefClasses::CoefsPtr coefs,
-			  std::string coord_type)
+			  CoefClasses::CoefsPtr coefs)
   {
     std::map<double, std::map<std::string, Eigen::Tensor<float, 3>>> ret;
 
     // Now get the desired coordinate type
     //
-    auto ctype = basis->getFieldType(coord_type);
+    auto ctype = basis->coordinates;
 
     // Field labels (force field labels added below)
     //
@@ -695,10 +691,9 @@ namespace Field
   void FieldGenerator::file_volumes(BasisClasses::BasisPtr basis,
 				    CoefClasses::CoefsPtr  coefs,
 				    const std::string      prefix,
-				    std::string            coord_type,
 				    const std::string      outdir)
   {
-    auto db = volumes(basis, coefs, coord_type);
+    auto db = volumes(basis, coefs);
 
     int bunch = db.size()/numprocs;
     int first = bunch*myid;
