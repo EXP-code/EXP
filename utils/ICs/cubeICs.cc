@@ -30,7 +30,7 @@ main(int ac, char **av)
 
   // Default values for the velocity dispersion and bulk velocity
   //
-  std::vector<double> disp(3, 1.0), bulk(3, 0.0);
+  std::vector<double> disp, bulk;
 
   // Perturbation wave vector and amplitude
   //
@@ -102,6 +102,14 @@ main(int ac, char **av)
       return 2;
     }
     pwave = true;
+  }
+
+  if (disp.size()<3) {
+    for (auto j=disp.size(); j<3; j++) disp.push_back(1.0);
+  }
+
+  if (bulk.size()<3) {
+    for (auto j=bulk.size(); j<3; j++) bulk.push_back(0.0);
   }
 
   // Make sure N>0
