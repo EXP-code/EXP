@@ -2158,7 +2158,7 @@ namespace BasisClasses
 
     // Set cartesian coordindates
     //
-    coordinates = Coord::Spherical;
+    coordinates = Coord::Cartesian;
   }
   
   void Cube::reset_coefs(void)
