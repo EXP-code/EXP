@@ -14,7 +14,7 @@ Cube::valid_keys = {
   "nmaxx",
   "nmaxy",
   "nmaxz",
-  "knots"
+  "planes"
 };
 
 //@{
@@ -30,6 +30,7 @@ Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   id        = "Cube";
   geometry  = cube;
   coef_dump = true;
+  byPlanes  = false;
 
   // Default parameter values
   //
@@ -105,12 +106,13 @@ void Cube::initialize(void)
   // Assign values from YAML
   //
   try {
-    if (conf["nminx"]) nminx = conf["nminx"].as<int>();
-    if (conf["nminy"]) nminy = conf["nminy"].as<int>();
-    if (conf["nminz"]) nminz = conf["nminz"].as<int>();
-    if (conf["nmaxx"]) nmaxx = conf["nmaxx"].as<int>();
-    if (conf["nmaxy"]) nmaxy = conf["nmaxy"].as<int>();
-    if (conf["nmaxz"]) nmaxz = conf["nmaxz"].as<int>();
+    if (conf["nminx" ])  nminx    = conf["nminx" ].as<int>();
+    if (conf["nminy" ])  nminy    = conf["nminy" ].as<int>();
+    if (conf["nminz" ])  nminz    = conf["nminz" ].as<int>();
+    if (conf["nmaxx" ])  nmaxx    = conf["nmaxx" ].as<int>();
+    if (conf["nmaxy" ])  nmaxy    = conf["nmaxy" ].as<int>();
+    if (conf["nmaxz" ])  nmaxz    = conf["nmaxz" ].as<int>();
+    if (conf["planes"])  byPlanes = conf["planes"].as<bool>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in Cube: "

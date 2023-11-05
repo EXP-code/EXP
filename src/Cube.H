@@ -89,6 +89,9 @@ private:
 
 #endif
 
+  //! Cuda batch method
+  bool byPlanes;
+
   //! Time routines
   class exeTimer
   {
