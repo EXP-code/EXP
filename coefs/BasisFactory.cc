@@ -2065,7 +2065,8 @@ namespace BasisClasses
     "nmaxz",
     "knots",
     "verbose",
-    "check"
+    "check",
+    "planes"
   };
 
   Cube::Cube(const YAML::Node& CONF) : Basis(CONF)
