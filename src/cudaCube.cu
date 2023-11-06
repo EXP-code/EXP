@@ -173,60 +173,66 @@ __global__ void coefKernelCube
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
       cuFP_t mm     = p.mass;
 
-      for (int k=0; k<3; k++) {
-	if (pos[k]<0.0)	pos[k] += std::floor(-pos[k]) + 1.0;
-	if (pos[k]>1.0) pos[k] -= std::floor( pos[k]);
+      bool good = true;
+      for (int k=0; k<3; k++) {	// Are particles inside the unit cube?
+	if (pos[k]<0.0 or pos[k]>1.0) good = false;
       }
+
+      // Yes: do the expansion
+      //
+      if (good) {
 
 #ifdef NORECURSION
-      // Index loop
-      //
-      for (int s=0; s<cubeNdim; s++) {
-
-	// Get the wave numbers
-	int ii, jj, kk;
-	thrust::tie(ii, jj, kk) = WaveNumbers(s);
-
-	// Skip the constant term and the divide by zero
+	// Index loop
 	//
-	if (ii!=0 or jj!=0 or kk!=0) {
-	  cuFP_t expon = cubeDfac*(pos[0]*ii + pos[1]*jj + pos[2]*kk);
-	  cuFP_t norm  = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
-			    
-	  coef._v[s*N + i] = -mm*thrust::exp(CmplxT(0.0, -expon))*norm;
+	for (int s=0; s<cubeNdim; s++) {
+
+	  // Get the wave numbers
+	  int ii, jj, kk;
+	  thrust::tie(ii, jj, kk) = WaveNumbers(s);
+
+	  // Skip the constant term and the divide by zero
+	  //
+	  if (ii!=0 or jj!=0 or kk!=0) {
+	    cuFP_t expon = cubeDfac*(pos[0]*ii + pos[1]*jj + pos[2]*kk);
+	    cuFP_t norm  = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
+	    
+	    coef._v[s*N + i] = -mm*thrust::exp(CmplxT(0.0, -expon))*norm;
+	  }
 	}
-      }
-      // END: index loop
+	// END: index loop
 #else
-      // Wave number loop
-      //
-      const auto xx = CmplxT(0.0, cubeDfac*pos[0]); // Phase values
-      const auto yy = CmplxT(0.0, cubeDfac*pos[1]);
-      const auto zz = CmplxT(0.0, cubeDfac*pos[2]);
+	// Wave number loop
+	//
+	const auto xx = CmplxT(0.0, cubeDfac*pos[0]); // Phase values
+	const auto yy = CmplxT(0.0, cubeDfac*pos[1]);
+	const auto zz = CmplxT(0.0, cubeDfac*pos[2]);
 
-      // Recursion increments and initial values
-      const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*cubeNumX);
-      const auto sy = thrust::exp(-yy), cy = thrust::exp(yy*cubeNumY);
-      const auto sz = thrust::exp(-zz), cz = thrust::exp(zz*cubeNumZ);
-
-      CmplxT X, Y, Z;		// Will contain the incremented basis
-
-      X = cx;			// Assign the min X wavenumber conjugate
-      for (int ii=-cubeNumX; ii<=cubeNumX; ii++, X*=sx) {
-	Y = cy;			// Assign the min Y wavenumber conjugate
-	for (int jj=-cubeNumY; jj<=cubeNumY; jj++, Y*=sy) {
-	  Z = cz;		// Assign the min Z wavenumber conjugate
-	  for (int kk=-cubeNumZ; kk<=cubeNumZ; kk++, Z*=sz) {
-	    int l2 = ii*ii + jj*jj + kk*kk;
-	    if (l2) {		// Only compute for non-zero l-index
-	      cuFP_t norm = -mm/sqrt(M_PI*l2);
-	      coef._v[Index(ii, jj, kk)*N + i] = X*Y*Z*norm;
+	// Recursion increments and initial values
+	const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*cubeNumX);
+	const auto sy = thrust::exp(-yy), cy = thrust::exp(yy*cubeNumY);
+	const auto sz = thrust::exp(-zz), cz = thrust::exp(zz*cubeNumZ);
+	
+	CmplxT X, Y, Z;		// Will contain the incremented basis
+	
+	X = cx;			// Assign the min X wavenumber conjugate
+	for (int ii=-cubeNumX; ii<=cubeNumX; ii++, X*=sx) {
+	  Y = cy;			// Assign the min Y wavenumber conjugate
+	  for (int jj=-cubeNumY; jj<=cubeNumY; jj++, Y*=sy) {
+	    Z = cz;		// Assign the min Z wavenumber conjugate
+	    for (int kk=-cubeNumZ; kk<=cubeNumZ; kk++, Z*=sz) {
+	      int l2 = ii*ii + jj*jj + kk*kk;
+	      if (l2) {		// Only compute for non-zero l-index
+		cuFP_t norm = -mm/sqrt(M_PI*l2);
+		coef._v[Index(ii, jj, kk)*N + i] = X*Y*Z*norm;
+	      }
 	    }
 	  }
 	}
-      }
-      // END: wave number loop
+	// END: wave number loop
 #endif
+      }
+      // END: particle in unit cube
     }
     // END: particle index limit
   }
@@ -262,52 +268,58 @@ __global__ void coefKernelCubeX
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
       cuFP_t mm     = p.mass;
 
-      for (int k=0; k<3; k++) {
-	if (pos[k]<0.0)	pos[k] += std::floor(-pos[k]) + 1.0;
-	if (pos[k]>1.0) pos[k] -= std::floor( pos[k]);
+      bool good = true;
+      for (int k=0; k<3; k++) {	// Are particles inside the unit cube?
+	if (pos[k]<0.0 or pos[k]>1.0) good = false;
       }
+
+      // Yes: do the expansion
+      //
+      if (good) {
 
 #ifdef NORECURSION
-      // Index loop
-      //
-      for (int s=0; s<cubeNX; s++) {
-
-	// Get the wave numbers
-	int kk = s - cubeNumX;
-
-	// Skip the constant term and the divide by zero
+	// Index loop
 	//
-	if (ii!=0 or jj!=0 or kk!=0) {
-	  cuFP_t expon = cubeDfac*(pos[0]*ii + pos[1]*jj + pos[2]*kk);
-	  cuFP_t norm  = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
-			    
-	  coef._v[s*N + i] = -mm*thrust::exp(CmplxT(0.0, -expon))*norm;
+	for (int s=0; s<cubeNX; s++) {
+	  
+	  // Get the wave numbers
+	  int kk = s - cubeNumX;
+
+	  // Skip the constant term and the divide by zero
+	  //
+	  if (ii!=0 or jj!=0 or kk!=0) {
+	    cuFP_t expon = cubeDfac*(pos[0]*ii + pos[1]*jj + pos[2]*kk);
+	    cuFP_t norm  = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
+	    
+	    coef._v[s*N + i] = -mm*thrust::exp(CmplxT(0.0, -expon))*norm;
+	  }
 	}
-      }
-      // END: index loop
+	// END: index loop
 #else
-      // Wave number loop
-      //
-      const auto xx = CmplxT(0.0, cubeDfac*pos[0]); // Phase values
-      const auto yy = CmplxT(0.0, cubeDfac*pos[1]);
-      const auto zz = CmplxT(0.0, cubeDfac*pos[2]);
-
-      // Recursion increments and initial values
-      const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*cubeNumX);
-      const auto Y = thrust::exp(-yy*jj), Z = thrust::exp(-zz*kk);
+	// Wave number loop
+	//
+	const auto xx = CmplxT(0.0, cubeDfac*pos[0]); // Phase values
+	const auto yy = CmplxT(0.0, cubeDfac*pos[1]);
+	const auto zz = CmplxT(0.0, cubeDfac*pos[2]);
+	
+	// Recursion increments and initial values
+	const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*cubeNumX);
+	const auto Y = thrust::exp(-yy*jj), Z = thrust::exp(-zz*kk);
       
-      CmplxT X;		// Will contain the incremented basis
+	CmplxT X;		// Will contain the incremented basis
 
-      X = cx;			// Assign the min X wavenumber conjugate
-      for (int ii=-cubeNumX; ii<=cubeNumX; ii++, X*=sx) {
-	int l2 = ii*ii + jj*jj + kk*kk;
-	if (l2) {		// Only compute for non-zero l-index
-	  cuFP_t norm = -mm/sqrt(M_PI*l2);
-	  coef._v[(ii+cubeNumX)*N + i] = X*Y*Z*norm;
+	X = cx;			// Assign the min X wavenumber conjugate
+	for (int ii=-cubeNumX; ii<=cubeNumX; ii++, X*=sx) {
+	  int l2 = ii*ii + jj*jj + kk*kk;
+	  if (l2) {		// Only compute for non-zero l-index
+	    cuFP_t norm = -mm/sqrt(M_PI*l2);
+	    coef._v[(ii+cubeNumX)*N + i] = X*Y*Z*norm;
+	  }
 	}
-      }
-      // END: wave number loop
+	// END: wave number loop
 #endif
+      }
+      // END: particle in unit cube
     }
     // END: particle index limit
   }

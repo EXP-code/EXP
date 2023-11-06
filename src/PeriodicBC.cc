@@ -29,9 +29,9 @@ PeriodicBC::PeriodicBC(const YAML::Node& conf) : ExternalForce(conf)
   id = "PeriodicBC";		// Periodic boundary condition ID
 
 				// Sizes in each dimension
-  L = vector<double>(3, 2.0);	
+  L = vector<double>(3, 1.0);	
 				// Center offset in each dimension
-  offset = vector<double>(3, 1.0);
+  offset = vector<double>(3, 0.0);
 
   bc = "ppp";			// Periodic BC in all dimensions
 

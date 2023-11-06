@@ -156,16 +156,11 @@ void * Cube::determine_coefficients_thread(void * arg)
     double y = cC->Pos(i, 1);
     double z = cC->Pos(i, 2);
 
-    // Wrap coordinates into the unit cube
+    // Only compute for points inside the unit cube
     //
-    if (x<0.0) x += std::floor(-x) + 1.0;
-    else       x -= std::floor( x);
-    
-    if (y<0.0) y += std::floor(-y) + 1.0;
-    else       y -= std::floor( y);
-    
-    if (z<0.0) z += std::floor(-z) + 1.0;
-    else       z -= std::floor( z);
+    if (x<0.0 or x>1.0) continue;
+    if (y<0.0 or y>1.0) continue;
+    if (z<0.0 or z>1.0) continue;
     
     // Recursion multipliers
     //
@@ -583,16 +578,11 @@ void Cube::multistep_update(int from, int to, Component *c, int i, int id)
   double y = c->Pos(i, 1);
   double z = c->Pos(i, 2);
   
-  // Truncate to cube with sides in [0,1]
+  // Only compute for points inside the unit cube
   //
-  if (x<0.0) x += std::floor(-x) + 1.0;
-  else       x -= std::floor( x);
-  
-  if (y<0.0) y += std::floor(-y) + 1.0;
-  else       y -= std::floor( y);
-  
-  if (z<0.0) z += std::floor(-z) + 1.0;
-  else       z -= std::floor( z);
+  if (x<0.0 or x>1.0) return;
+  if (y<0.0 or y>1.0) return;
+  if (z<0.0 or z>1.0) return;
     
   // Recursion multipliers
   std::complex<double> stepx = std::exp(-kfac*x);
