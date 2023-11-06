@@ -19,10 +19,6 @@ PeriodicBC::valid_keys = {
   "cx",
   "cy",
   "cz",
-  "dT",
-  "nbin",
-  "tcol",
-  "vunit",
   "btype"
 };
 
@@ -40,11 +36,6 @@ PeriodicBC::PeriodicBC(const YAML::Node& conf) : ExternalForce(conf)
   bc = "ppp";			// Periodic BC in all dimensions
 
   comp_name = "";		// Default component (must be specified)
-
-  nbin = 0;			// Number of bins in trace (0 means no trace)
-  dT = 1.0;			// Interval for trace
-  tcol = -1;			// Column for temperture info (ignored if <0)
-  trace = false;		// Tracing off until signalled
 
   initialize();
 
@@ -65,24 +56,6 @@ PeriodicBC::PeriodicBC(const YAML::Node& conf) : ExternalForce(conf)
     throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
   }
   
-  // 
-  // Initialize structures for trace data
-  //
-  if (nbin) {
-    cbinT = vector< vector<unsigned> >(nthrds);
-    mbinT = vector< vector<double>   >(nthrds);
-    tbinT = vector< vector<double>   >(nthrds);
-    for (int n=0; n<nthrds; n++) {
-      cbinT[n] = vector<unsigned>(nbin, 0);
-      mbinT[n] = vector<double>  (nbin, 0);
-      tbinT[n] = vector<double>  (nbin, 0);
-    }
-    cbin = vector<unsigned>(nbin);
-    mbin = vector<double>  (nbin);
-    tbin = vector<double>  (nbin);
-    Tnext = tnow;
-    dX = L[0]/nbin;
-  }
 
   userinfo();
 
@@ -115,11 +88,8 @@ void PeriodicBC::userinfo()
 
   print_divider();
 
-  cout << "** User routine PERIODIC BOUNDARY CONDITION initialized"
-       << " using component <" << comp_name << ">";
-  if (nbin) cout << " with gas trace, dT=" << dT 
-		 << ", nbin=" << nbin << ", tcol=" << tcol;
-  cout << endl;
+  cout << "** External routine PERIODIC BOUNDARY CONDITION initialized"
+       << " using component <" << comp_name << ">" << endl;
 
   cout << "   Cube sides (x , y , z) = (" 
        << L[0] << " , " 
@@ -161,14 +131,6 @@ void PeriodicBC::initialize()
     if (conf["cy"])             offset[1]          = conf["cy"].as<double>();
     if (conf["cz"])             offset[2]          = conf["cz"].as<double>();
     
-    if (conf["dT"])             dT                 = conf["dT"].as<double>();
-    if (conf["nbin"])           nbin               = conf["nbin"].as<int>();
-    if (conf["tcol"])           tcol               = conf["tcol"].as<int>();
-    
-    if (conf["vunit"])          vunit              = conf["vunit"].as<double>();
-    if (conf["temp"])           temp               = conf["temp"].as<double>();
-    
-    
     if (conf["btype"]) {
       std::string val = conf["btype"].as<std::string>();
       if (strlen(val.c_str()) >= 3) {
@@ -209,59 +171,9 @@ void PeriodicBC::determine_acceleration_and_potential(void)
 #if HAVE_LIBCUDA==1		// Cuda compatibility
   getParticlesCuda(cC);
 #endif
-  if (nbin && tnow>=Tnext) trace = true;
   exp_thread_fork(false);
-  if (trace) write_trace();
   print_timings("PeriodicBC: thread timings");
 }
-
-void PeriodicBC::write_trace()
-{
-  for (int n=1; n<nthrds; n++) {
-    for (int k=0; k<nbin; k++) {
-      cbinT[0][k] += cbinT[n][k];
-      mbinT[0][k] += mbinT[n][k];
-      tbinT[0][k] += tbinT[n][k];
-    }
-  }
-
-  MPI_Reduce(&cbinT[0][0], &cbin[0], nbin, MPI_UNSIGNED, MPI_SUM, 0, 
-	     MPI_COMM_WORLD);
-
-  MPI_Reduce(&mbinT[0][0], &mbin[0], nbin, MPI_DOUBLE,   MPI_SUM, 0, 
-	     MPI_COMM_WORLD);
-
-  MPI_Reduce(&tbinT[0][0], &tbin[0], nbin, MPI_DOUBLE,   MPI_SUM, 0, 
-	     MPI_COMM_WORLD);
-
-  if (myid==0) {
-    ostringstream fout;
-    fout << outdir << runtag << ".shocktube_trace";
-    ofstream out(fout.str().c_str(), ios::app);
-    for (int k=0; k<nbin; k++)
-      out << setw(18) << tnow
-	  << setw(18) << dX*(0.5+k) - offset[0]
-	  << setw(18) << mbin[k]/(dX*L[1]*L[2])
-	  << setw(18) << tbin[k]/(mbin[k]+1.0e-10)
-	  << setw(10) << cbin[k]
-	  << endl;
-    out << endl;
-  }
-
-  //
-  // Clean data structures for next call
-  //
-  for (int n=0; n<nthrds; n++) {
-    for (int k=0; k<nbin; k++) {
-      cbinT[n][k] = 0;
-      mbinT[n][k] = tbinT[n][k] = 0.0;
-    }
-  }
-
-  trace = false;		// Tracing off until
-  Tnext += dT;			// tnow>=Tnext
-}
-
 
 void * PeriodicBC::determine_acceleration_and_potential_thread(void * arg) 
 {
@@ -334,20 +246,6 @@ void * PeriodicBC::determine_acceleration_and_potential_thread(void * arg)
 	     << ": Error in pos[" << k << "]=" << p->pos[k] << endl;
       }
     }
-
-    //
-    // Acccumlate data for shocktube trace
-    //
-    if (trace) {
-      int indx = static_cast<int>(floor((p->pos[0]+offset[0])/dX));
-      if (indx>=0 && indx<nbin) {
-	cbinT[id][indx]++;
-	mbinT[id][indx] += p->mass;
-	if (tcol>=0 && tcol<static_cast<int>(p->dattrib.size()))
-	  tbinT[id][indx] += p->mass*p->dattrib[tcol];
-      }
-    }
-
   }
   
   thread_timing_end(id);
