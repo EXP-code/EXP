@@ -2066,7 +2066,7 @@ namespace BasisClasses
     "knots",
     "verbose",
     "check",
-    "planes"
+    "method"
   };
 
   Cube::Cube(const YAML::Node& CONF) : Basis(CONF)

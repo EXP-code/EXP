@@ -87,10 +87,13 @@ private:
   void cuda_zero_coefs();
   //@}
 
+  //! Plane method (default: true)
+  bool byPlanes;
+
 #endif
 
-  //! Cuda batch method
-  bool byPlanes;
+  //! Cuda batch method (string, default: planes
+  std::string cuMethod;
 
   //! Time routines
   class exeTimer

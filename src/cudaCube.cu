@@ -82,7 +82,20 @@ void testConstantsCube()
 //
 void Cube::cuda_initialize()
 {
-  // Nothing so far
+  // Default
+  byPlanes = true;
+  
+  // Parse cudaMethods variable (whittle these down?)
+  //
+  if (cuMethod.find("all")    != std::string::npos) byPlanes = false;
+  if (cuMethod.find("full")   != std::string::npos) byPlanes = false;
+  if (cuMethod.find("cube")   != std::string::npos) byPlanes = false;
+  if (cuMethod.find("3d")     != std::string::npos) byPlanes = false;
+  if (cuMethod.find("planes") != std::string::npos) byPlanes = true;
+  if (cuMethod.find("axis")   != std::string::npos) byPlanes = true;
+  if (cuMethod.find("rows")   != std::string::npos) byPlanes = true;
+  if (cuMethod.find("cols")   != std::string::npos) byPlanes = true;
+  if (cuMethod.find("1d")     != std::string::npos) byPlanes = true;
 }
 
 // Copy constants to device
