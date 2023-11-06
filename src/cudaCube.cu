@@ -78,23 +78,31 @@ void testConstantsCube()
   printf("-------------------------\n");
 }
 
-// Initialize for streams
+// Initialize anything cuda specific
 //
 void Cube::cuda_initialize()
 {
   // Default
+  //
   byPlanes = true;
   
-  // Parse cudaMethods variable (whittle these down?)
+  // Make method string lower case
+  //
+  std::transform(cuMethod.begin(), cuMethod.end(), cuMethod.begin(),
+                 [](unsigned char c){ return std::tolower(c); });
+
+  // Parse cuMethods variable
+  //
+  // All dimensions at once
   //
   if (cuMethod.find("all")    != std::string::npos) byPlanes = false;
   if (cuMethod.find("full")   != std::string::npos) byPlanes = false;
-  if (cuMethod.find("cube")   != std::string::npos) byPlanes = false;
   if (cuMethod.find("3d")     != std::string::npos) byPlanes = false;
+  //
+  // Only one dimension at a time
+  //
   if (cuMethod.find("planes") != std::string::npos) byPlanes = true;
-  if (cuMethod.find("axis")   != std::string::npos) byPlanes = true;
-  if (cuMethod.find("rows")   != std::string::npos) byPlanes = true;
-  if (cuMethod.find("cols")   != std::string::npos) byPlanes = true;
+  if (cuMethod.find("axes")   != std::string::npos) byPlanes = true;
   if (cuMethod.find("1d")     != std::string::npos) byPlanes = true;
 }
 
