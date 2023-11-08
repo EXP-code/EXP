@@ -15,11 +15,7 @@
     @param cx is the center offset in the x-direction
     @param cy is the center offset in the y-direction
     @param cz is the center offset in the z-direction
-    @param btype is a string of length that defines the type of boundary condition for each dimension ('r' for reflection bc, 'p' for periodic bc, 'v' is vacuum, and 't' is thermal)
-    @param nbin is the number of bins in the x-direction (0 signals no trace)
-    @param dT is the time step for binned density/temp trace
-    @param tcol is the double attribute index for the temperature data (ignored if < 0)
-    @param temp is the temperature of the wall for 'thermal' boundary conditions (ignored for r, p, and v boundaries)
+    @param btype is a string of length that defines the type of boundary condition for each dimension ('r' for reflection bc, 'p' for periodic bc, 'v' is vacuum)
 */
 class PeriodicBC : public ExternalForce
 {
@@ -29,13 +25,8 @@ private:
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
-  void write_trace();
-
   std::vector<double> offset, L;
   std::string comp_name, bc;
-  double dT, Tnext, dX;
-  int nbin, tcol;
-  bool thermal;
 
   // Needed for converting thermal energy using Boltzmann constant
   double vunit;
@@ -43,12 +34,6 @@ private:
   double temp;
 
   std::vector<double> atomic_weights;
-
-  std::vector< std::vector<unsigned> > cbinT;
-  std::vector< std::vector<double>   > mbinT, tbinT;
-  std::vector<unsigned>                cbin;
-  std::vector<double>                  mbin, tbin;
-  bool trace;
 
   Component *c0;
 
