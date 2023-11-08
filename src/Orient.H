@@ -8,7 +8,7 @@
 #include <deque>
 #include <algorithm>
 
-#include <Eigen/Eigen>
+#include <euler.H>
 #include <Particle.H>
 
 #include <config_exp.h>
@@ -86,7 +86,6 @@ Log file contents:
 <li> System COM(y) </li>
 <li> System COM(z) </li>
 </ol>
-
 */
 class Orient
 {
