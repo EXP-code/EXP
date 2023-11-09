@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 
+#include <euler.H>
 #include <biorth.H>
 #include <biorth_wake.H>
 #include <SimAnn.H>
@@ -10,7 +11,6 @@
 double factrl(int n);
 double plgndr(int l, int m, double x);
 double rot_matrix(int l, int m, int n, double beta);
-Eigen::Matrix3d return_euler_slater(double, double, double, int);
 
 using namespace std;
 

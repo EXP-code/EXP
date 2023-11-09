@@ -36,9 +36,6 @@ void EL3::debug() const
   }
 }
 
-Eigen::MatrixXd
-return_euler_slater(double PHI, double THETA, double PSI, int BODY);
-
 Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	       string Logfile, double dt, double damping)
 {
