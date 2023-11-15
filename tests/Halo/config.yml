@@ -1,0 +1,69 @@
+---
+# YAML 1.2
+# See: http://yaml.org for more info.  EXP uses the yaml-cpp library
+# (http://github.com/jbeder/yaml-cpp) for parsing and emitting YAML
+#
+# ------------------------------------------------------------------------
+# These parameters control the simulation
+# ------------------------------------------------------------------------
+Global:
+  nthrds     : 1
+  dtime      : 0.005
+  runtag     : run0
+  nsteps     : 100
+  multistep  : 4
+  dynfracV   : 0.01
+  dynfracA   : 0.03
+  dynfracV   : 0.05
+  infile     : OUT.run0.chkpt
+  VERBOSE    : 0
+  cuda       : off
+
+# ------------------------------------------------------------------------
+# This is a sequence of components.  The parameters for the force are
+# now included as a parameter map, rather than a separate file.
+#
+# Each indented stanza beginning with '-' is a component
+# ------------------------------------------------------------------------
+Components:
+  - name       : dark halo
+    parameters : {nlevel: 1, indexing: true}
+    bodyfile   : new.bods
+    force :
+      id : sphereSL
+      parameters :
+        numr: 4000
+        rmin: 0.0001
+        rmax: 1.95
+        Lmax: 2
+        nmax: 10
+        rmapping : 0.0667
+        self_consistent: true
+        modelname: SLGridSph.model
+
+# ------------------------------------------------------------------------
+# This is a sequence of outputs
+# ------------------------------------------------------------------------
+Output:
+  - id : outlog
+    parameters : {nint: 10}
+
+# ------------------------------------------------------------------------
+# This is a sequence of external forces
+# This can be empty (or missing)
+# ------------------------------------------------------------------------
+External:
+
+# Currently empty
+
+# ------------------------------------------------------------------------
+# List of interations as name1 : name2 map entries
+# This can be empty (or missing).  By default, all components will
+# interact unless interactions are listed below.  This behavior can
+# be inverted using the 'allcouples: false' flag in the 'Global' map
+# ------------------------------------------------------------------------
+Interaction:
+
+# None: only one component
+
+...
