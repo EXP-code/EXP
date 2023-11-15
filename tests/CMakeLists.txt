@@ -31,14 +31,14 @@ if(ENABLE_NBODY)
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Remove cruft
-  add_test(NAME expSimTest_cruft
+  add_test(NAME removeTempFiles
     COMMAND ${CMAKE_COMMAND} -E remove
     config.run0.yml current.processor.rates.run0 new.bods new.bods.0
     OUTLOG.run0 run0.levels SLGridSph.cache.run0 test.grid
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Will removes these files if they all exist; perhaps there is a better way?
-  set_tests_properties(expSimTest_cruft PROPERTIES DEPENDS expSimTest
+  set_tests_properties(removeTempFiles PROPERTIES DEPENDS expSimTest
     REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;new.bods.0;OUTLOG.run0;run0.levels;SLGridSph.cache.run0;test.grid;"
     )
 endif()
