@@ -48,7 +48,7 @@ option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
 option(ENABLE_SLCHECK "Enable *careful* Sturm-Liouville solutions" TRUE)
-option(ENABLE_TESTS "Enable tests" ON)
+option(ENABLE_TESTS "Enable build tests for EXP, pyEXP and helpers" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
 
@@ -245,6 +245,7 @@ endif()
 
 add_subdirectory(extern/user-modules)
 
+# Build the tests; set ENABLE_TEST=OFF to disable
 if(ENABLE_TESTS)
   include(CTest)
   add_subdirectory(tests)
