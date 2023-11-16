@@ -42,6 +42,8 @@ The `CMakeLists.txt` file is divided into three sections:
    reported by the `make test` or `ctest` command.
 5. We might need or want additional categories.  For example, we might
    want to have specific MPI tests or cases the require matplotlib
+6. It would be better to stage tests that create files in a temporary
+   directory and purge that at the end.  Any ideas on that?
 
 The `pyEXP` section needs more detailed unit tests that exercise each
 of the major `pyEXP` classes.  Many of these tests depend on existing

@@ -5,24 +5,24 @@ include(CTest)
 if(ENABLE_PYEXP)
   # Check that pyEXP can be loaded; does not execute anything
   add_test(NAME pyexpLoadTest
-    COMMAND python3 import.py
+    COMMAND ${CMAKE_COMMAND} -E env
+    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+    ${PYTHON_EXECUTABLE} import.py
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
-
+  
   # Make a spherical basis using pyEXP
   add_test(NAME pyexpSphBasisTest
-    COMMAND python3 sph_basis.py
+    COMMAND ${CMAKE_COMMAND} -E env
+    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+    ${PYTHON_EXECUTABLE} sph_basis.py
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
 
   # Make a cylindrical basis using pyEXP
   add_test(NAME pyexpCylBasisTest
-    COMMAND python3 cyl_basis.py
+    COMMAND ${CMAKE_COMMAND} -E env
+    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+    ${PYTHON_EXECUTABLE} cyl_basis.py
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Disk")
-
-  # Append the pyEXP build directory to PYTHONPATH.  The property
-  # might be changed depending on arch target.  Here, I assume that
-  # this PYTHONPATH is valid for all arch targets.
-  set_property(TEST pyexpLoadTest PROPERTY ENVIRONMENT_MODIFICATION
-    "PYTHONPATH=path_list_prepend:${CMAKE_BINARY_DIR}/pyexp}")
 
   # Remove cache files
   add_test(NAME removeSphCache
@@ -52,21 +52,23 @@ endif()
 if(ENABLE_NBODY)
   # Check that exp executes; does not test any functionality
   add_test(NAME expExecuteTest
-    COMMAND mpirun -np 1 ${CMAKE_BINARY_DIR}/src/exp -v)
+    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp -v)
 
   # Makes some spherical ICs using utils/ICs/gensph
   add_test(NAME makeICTest
-    COMMAND mpirun -np 1 ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 1000 -i SLGridSph.model
+    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 1000 -i SLGridSph.model
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Runs those ICs using exp
   add_test(NAME expNbodyTest
-    COMMAND mpirun -np 1 ${CMAKE_BINARY_DIR}/src/exp config.yml
+    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp config.yml
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Check OUTLOG file for a sane 2T/W mean and stdv
   add_test(NAME expNbodyCheck2TW
-    COMMAND COMMAND python3 check.py
+    COMMAND ${CMAKE_COMMAND} -E env
+    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+    ${PYTHON_EXECUTABLE} check.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # A separate test to remove the generated files if they all exist;
