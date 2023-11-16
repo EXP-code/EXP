@@ -105,7 +105,7 @@ void Cube::cuda_initialize()
   if (cuMethod.find("axes")   != std::string::npos) byPlanes = true;
   if (cuMethod.find("1d")     != std::string::npos) byPlanes = true;
 
-  std::cout << "---- cudaCube::initialize: byPlanes="
+  std::cout << "---- Cube::cuda_initialize: byPlanes="
 	    << std::boolalpha << byPlanes << std::endl;
 }
 

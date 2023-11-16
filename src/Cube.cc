@@ -30,6 +30,7 @@ Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   id         = "Cube";
   geometry   = cube;
   coef_dump  = true;
+  byPlanes   = true;
   cuMethod   = "planes";
 
   // Default parameter values
@@ -126,6 +127,9 @@ void Cube::initialize(void)
     exit(-1);
   }
 
+#if HAVE_LIBCUDA==1
+  cuda_initialize();
+#endif
 }
 
 void * Cube::determine_coefficients_thread(void * arg)
