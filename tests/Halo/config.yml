@@ -10,7 +10,7 @@ Global:
   nthrds     : 1
   dtime      : 0.005
   runtag     : run0
-  nsteps     : 100
+  nsteps     : 200
   multistep  : 4
   dynfracV   : 0.01
   dynfracA   : 0.03
