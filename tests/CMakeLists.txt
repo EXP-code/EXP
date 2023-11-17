@@ -64,12 +64,16 @@ if(ENABLE_NBODY)
     COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp config.yml
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
+  set_tests_properties(expNbodyTest PROPERTIES DEPENDS makeICTest)
+
   # Check OUTLOG file for a sane 2T/W mean and stdv
   add_test(NAME expNbodyCheck2TW
     COMMAND ${CMAKE_COMMAND} -E env
     PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
     ${PYTHON_EXECUTABLE} check.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+
+  set_tests_properties(expNbodyCheck2TW PROPERTIES DEPENDS makeNbodyTest)
 
   # A separate test to remove the generated files if they all exist;
   # perhaps there is a better way?
@@ -80,7 +84,7 @@ if(ENABLE_NBODY)
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Remove the temporary files
-  set_tests_properties(removeTempFiles PROPERTIES DEPENDS expNbodyTest
+  set_tests_properties(removeTempFiles PROPERTIES DEPENDS expNbodyCheck2TW
     REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;new.bods.0;OUTLOG.run0;run0.levels;SLGridSph.cache.run0;test.grid;"
     )
 
