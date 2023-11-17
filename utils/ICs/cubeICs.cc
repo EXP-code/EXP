@@ -40,22 +40,23 @@ main(int ac, char **av)
   cxxopts::Options options(av[0], "Cube IC generator with uniform spatial and normal velocities.  You may specify a bulk velocity and anisotropic dispersion vector.");
 
   options.add_options()
-    ("h,help", "Print this help message")
-    ("N,number", "Number of particles to generate",
+    ("h,help",    "Print this help message")
+    ("z,zerovel", "Zero the mean velocity")
+    ("N,number",  "Number of particles to generate",
      cxxopts::value<int>(N)->default_value("100000"))
-    ("M,mass", "Total mass of the cube",
+    ("M,mass",    "Total mass of the cube",
      cxxopts::value<double>(M)->default_value("1.0"))
-    ("d,disp", "Velocity dispersion triple",
+    ("d,disp",    "Velocity dispersion triple",
      cxxopts::value<std::vector<double>>(disp))
-    ("v,bulk", "Bulk velocity triple",
+    ("v,bulk",    "Bulk velocity triple",
      cxxopts::value<std::vector<double>>(bulk))
-    ("s,seed", "Random number seed. Default: use /dev/random",
+    ("s,seed",    "Random number seed. Default: use /dev/random",
      cxxopts::value<unsigned>(seed))
-    ("o,file", "Output body file",
+    ("o,file",    "Output body file",
      cxxopts::value<std::string>(bodyfile)->default_value("cube.bods"))
-    ("w,wave", "Perturbation wave vector",
+    ("w,wave",    "Perturbation wave vector",
      cxxopts::value<std::vector<int>>(pert))
-    ("p,pamp", "Perturbation amplitude",
+    ("p,pamp",    "Perturbation amplitude",
      cxxopts::value<double>(pamp))
     ;
 
@@ -132,14 +133,18 @@ main(int ac, char **av)
     std::uniform_real_distribution<> uniform(0.0, 1.0);
     std::normal_distribution<> normal(0.0, 1.0);
 
-    double mass = M/N;
+    // Save the position and velocity vectors
+    std::vector<std::array<double, 3>> pos, vel;
 
+    // Temporary position for iteration
+    std::array<double, 3> x;
+
+    // Generation loop
     for (int n=0; n<N; n++) {
-      out << std::setw(18) << mass;
 
       // Select a wave perturbation?
       if (pwave) {
-	std::vector<double> x(3);
+
 	// Acceptance-rejection loop
 	while (true) {
 	  double nx = 0.0;
@@ -150,15 +155,38 @@ main(int ac, char **av)
 	  double frac = (1.0 + pamp*cos(2.0*M_PI*nx))/(1.0 + fabs(pamp));
 	  if (frac > uniform(gen)) break; // Accept?
 	}
-	// Print the position vector
-	for (int k=0; k<3; k++) out << std::setw(18) << x[k];
+	// Make the position vector
+	pos.push_back(x);
       }
       else {
-	// Print the position vector
-	for (int k=0; k<3; k++) out << std::setw(18) << uniform(gen);
+	// Make the position vector
+	pos.push_back({uniform(gen), uniform(gen), uniform(gen)});
       }
-      // Print the velocity vector
-      for (int k=0; k<3; k++) out << std::setw(18) << normal(gen)*disp[k] + bulk[k];
+
+      // Make the velocity vector
+      for (int k=0; k<3; k++) x[k] = normal(gen)*disp[k] + bulk[k];
+      vel.push_back(x);
+    }
+
+    // Zero the mean velocity
+    //
+    if (vm.count("zerovel")) {
+      x = {0, 0, 0};
+      double w = 1.0/N;
+      for (int i=0; i<N; i++) {
+	for (int k=0; k<3; k++) x[k] += w*vel[i][k];
+      }
+      for (int i=0; i<N; i++) {
+	for (int k=0; k<3; k++) vel[i][k] -= x[k];
+      }
+    }
+      
+    double mass = M/N;
+
+    for (int i=0; i<N; i++)  {
+      out << std::setw(18) << mass;
+      for (int k=0; k<3; k++) out << std::setw(18) << pos[i][k];
+      for (int k=0; k<3; k++) out << std::setw(18) << vel[i][k];
       out << std::endl;
     }
 
