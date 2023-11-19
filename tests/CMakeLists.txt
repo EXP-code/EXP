@@ -41,7 +41,7 @@ if(ENABLE_PYEXP)
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Disk)
 
   add_test(NAME removeFlatCache
-    COMMAND ${CMAKE_COMMAND} -E remove .biorth.cache
+    COMMAND ${CMAKE_COMMAND} -E remove .biorth_cache .eof_cache_2d
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Flat)
 
   set_tests_properties(removeSphCache
@@ -54,18 +54,22 @@ if(ENABLE_PYEXP)
 
   set_tests_properties(removeFlatCache
     PROPERTIES DEPENDS pyexpFlatBasisTest
-    REQUIRED_FILES ".biorth.cache")
+    REQUIRED_FILES ".biorth_cache;.eof_cache_2d")
 
   # Additional tests for pyEXP go here ...
   
   # Set labels for pyEXP tests
-  set_tests_properties(pyexpLoadTest pyexpSphBasisTest
+  
+  # Tests that take seconds
+  set_tests_properties(pyexpLoadTest pyexpSphBasisTest removeSphCache
     PROPERTIES LABELS "quick")
 
-  set_tests_properties(pyexpCylBasisTest
+  # Tests that take a few minutes
+  set_tests_properties(pyexpCylBasisTest removeCylCache
     PROPERTIES LABELS "medium")
 
-  set_tests_properties(pyexpFlatBasisTest
+  # Tests that take *many minutes
+  set_tests_properties(pyexpFlatBasisTest removeFlatCache
     PROPERTIES LABELS "long")
 
 endif()
@@ -112,7 +116,11 @@ if(ENABLE_NBODY)
     )
 
   # Set labels for pyEXP tests
+
+  # Tests that take seconds
   set_tests_properties(expExecuteTest PROPERTIES LABELS "quick")
+
+  # Tests that take a few minutes
   set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW removeTempFiles
     PROPERTIES LABELS "medium")
 
