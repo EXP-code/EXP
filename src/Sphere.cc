@@ -91,7 +91,7 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   // error is out of tolerance)
   //
   std::cout << "---- ";
-  orthoTest(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
+  orthoCompare(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
 
   setup();
 }
@@ -331,7 +331,7 @@ void Sphere::make_model_bin()
   // error is out of tolerance)
   //
   std::cout << "---- ";
-  orthoTest(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
+  orthoCompare(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
 
   // Update time trigger
   //
@@ -477,7 +477,7 @@ void Sphere::make_model_plummer()
   // error is out of tolerance)
   //
   std::cout << "---- ";
-  orthoTest(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
+  orthoCompare(ortho->orthoCheck(std::max<int>(nmax*50, 200)), "Sphere", "l");
 
   // Update time trigger
   //

@@ -24,6 +24,13 @@ if(ENABLE_PYEXP)
     ${PYTHON_EXECUTABLE} cyl_basis.py
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Disk")
 
+  # Make a flatdisk basis using pyEXP
+  add_test(NAME pyexpFlatBasisTest
+    COMMAND ${CMAKE_COMMAND} -E env
+    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+    ${PYTHON_EXECUTABLE} flat_basis.py
+    WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Flat")
+
   # Remove cache files
   add_test(NAME removeSphCache
     COMMAND ${CMAKE_COMMAND} -E remove .slgrid_sph_cache
@@ -33,17 +40,33 @@ if(ENABLE_PYEXP)
     COMMAND ${CMAKE_COMMAND} -E remove .eof.cache.run0t test_adddisk_sl.0
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Disk)
 
-  set_tests_properties(removeSphCache PROPERTIES DEPENDS pyexpSphBasisTest
+  add_test(NAME removeFlatCache
+    COMMAND ${CMAKE_COMMAND} -E remove .biorth.cache
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Flat)
+
+  set_tests_properties(removeSphCache
+    PROPERTIES DEPENDS pyexpSphBasisTest
     REQUIRED_FILES ".slgrid_sph_cache")
 
-  set_tests_properties(removeCylCache PROPERTIES DEPENDS pyexpCylBasisTest
+  set_tests_properties(removeCylCache
+    PROPERTIES DEPENDS pyexpCylBasisTest
     REQUIRED_FILES ".eof.cache.run0t;test_adddisk_sl.0")
 
-  # Other tests for pyEXP go here ...
+  set_tests_properties(removeFlatCache
+    PROPERTIES DEPENDS pyexpFlatBasisTest
+    REQUIRED_FILES ".biorth.cache")
+
+  # Additional tests for pyEXP go here ...
   
   # Set labels for pyEXP tests
-  set_tests_properties(pyexpLoadTest pyexpSphBasisTest PROPERTIES LABELS "quick")
-  set_tests_properties(pyexpCylBasisTest PROPERTIES LABELS "long")
+  set_tests_properties(pyexpLoadTest pyexpSphBasisTest
+    PROPERTIES LABELS "quick")
+
+  set_tests_properties(pyexpCylBasisTest
+    PROPERTIES LABELS "medium")
+
+  set_tests_properties(pyexpFlatBasisTest
+    PROPERTIES LABELS "long")
 
 endif()
 
@@ -90,7 +113,8 @@ if(ENABLE_NBODY)
 
   # Set labels for pyEXP tests
   set_tests_properties(expExecuteTest PROPERTIES LABELS "quick")
-  set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW removeTempFiles PROPERTIES LABELS "long")
+  set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW removeTempFiles
+    PROPERTIES LABELS "medium")
 
 endif()
 

@@ -12,6 +12,7 @@
 #include <YamlCheck.H>
 #include <BiorthCyl.H>
 #include <EmpCylSL.H>
+#include <exputils.H>
 #include <localmpi.H>
 
 namespace Field
@@ -301,11 +302,20 @@ namespace BasisClasses
     BasisArray getBasis
     (double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
 
-    //! Compute the orthogonality of the basis by returning inner
-    //! produce matrices
-    std::vector<Eigen::MatrixXd> orthoCheck(int knots=40)
+    //! Compute the orthogonality of the basis by returning
+    //! inner-product matrices
+    std::vector<Eigen::MatrixXd> orthoCheck(int knots=100)
     {
       return sl->orthoCheck(knots);
+    }
+
+    //! Biorthogonality sanity check
+    bool orthoTest(int knots=100)
+    {
+      auto [ret, worst, lworst] = orthoCompute(sl->orthoCheck(knots));
+      // For the CTest log
+      std::cout << "SphericalSL::orthoTest: worst=" << worst << std::endl;
+      return ret;
     }
 
   };
@@ -430,9 +440,18 @@ namespace BasisClasses
     BasisArray getBasis
     (double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
 
-    //! Compute the orthogonality of the basis by returning inner
-    //! produce matrices
+    //! Compute the orthogonality of the basis by returning
+    //! inner-product matrices
     std::vector<Eigen::MatrixXd> orthoCheck();
+
+    //! Biorthogonality sanity check
+    bool orthoTest()
+    {
+      auto [ret, worst, lworst] = orthoCompute(orthoCheck());
+      // For the CTest log
+      std::cout << "FlatDisk::orthoTest: worst=" << worst << std::endl;
+      return ret;
+    }
 
   };
   
@@ -569,12 +588,22 @@ namespace BasisClasses
     (double xmin=0.0, double xmax=1.0, int numr=40,
      double zmin=-0.1, double zmax=0.1, int numz=40);
 
-    //! Compute the orthogonality of the basis by returning inner
-    //! produce matrices
+    //! Compute the orthogonality of the basis by returning
+    //! inner-product matrices
     std::vector<Eigen::MatrixXd> orthoCheck()
     {
       return sl->orthoCheck();
     }
+
+    //! Biorthogonality sanity check
+    bool orthoTest()
+    {
+      auto [ret, worst, lworst] = orthoCompute(sl->orthoCheck());
+      // For the CTest log
+      std::cout << "Cylindrical::orthoTest: worst=" << worst << std::endl;
+      return ret;
+    }
+
   };
   
   //! Time-dependent potential-density model
