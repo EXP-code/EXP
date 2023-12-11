@@ -3,10 +3,10 @@
 
 #include <memory>
 #include <Eigen/Eigen>
+#include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 
 namespace CoefClasses
 {
-  
   //! This is a general struct for any dimensionality
   class CoefStruct
   {
@@ -23,12 +23,8 @@ namespace CoefClasses
     //! Time stamp
     double time;
     
-    typedef
-    Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
-    EigenColMajor;
-    
     //! Coefficient data
-    EigenColMajor coefs;
+    Eigen::VectorXcd store;
     
     //! Center data
     std::vector<double> ctr;
@@ -50,13 +46,13 @@ namespace CoefClasses
     void copyfields(std::shared_ptr<CoefStruct> p);
 
     //! Zero the existing data
-    void zerodata() { coefs.setZero(); }
+    virtual void zerodata() { store.setZero(); }
 
     //! Read-write access to coefficient data (no copy)
-    Eigen::Ref<EigenColMajor> setCoefs() { return coefs; }
+    Eigen::Ref<Eigen::VectorXcd> setCoefs() { return store; }
 
     //! Read-only access to coefficient data (no copy)
-    Eigen::Ref<const EigenColMajor> getCoefs() { return coefs; }
+    Eigen::Ref<const Eigen::VectorXcd> getCoefs() { return store; }
 
   };
   
@@ -64,6 +60,12 @@ namespace CoefClasses
   class SphStruct : public CoefStruct
   {
   public:
+    //! Coefficient map type
+    using coefType = Eigen::Map<Eigen::MatrixXcd>;
+
+    //! Coefficient map
+    std::shared_ptr<coefType> coefs;
+
     //! Angular and radial dimension
     int lmax, nmax;
     
@@ -86,12 +88,36 @@ namespace CoefClasses
     //! Copy all of data contents to a new instance
     std::shared_ptr<CoefStruct> deepcopy();
 
+    //! Allocate storage arrays
+    void allocate()
+    {
+      int rows = (lmax+1)*(lmax+2)/2;
+      int cols = nmax;
+      store.resize(rows*cols);
+      coefs = std::make_shared<coefType>(store.data(), rows, cols);
+    }
+
+    //! Assign matrix
+    void assign(const Eigen::MatrixXcd& mat, int Lmax, int Nmax)
+    {
+      lmax = Lmax;
+      nmax = Nmax;
+      allocate();
+      *coefs = mat;
+    }
+
   };
   
   //! Specialization of CoefStruct for cylinders
   class CylStruct : public CoefStruct
   {
   public:
+    //! Coefficient map type
+    using coefType = Eigen::Map<Eigen::MatrixXcd>;
+
+    //! Coefficient map
+    std::shared_ptr<coefType> coefs;
+
     //! Angular and radial dimension
     int mmax, nmax;
     
@@ -107,12 +133,150 @@ namespace CoefClasses
 
     //! Copy all of data contents to a new instance
     std::shared_ptr<CoefStruct> deepcopy();
+
+    //! Allocate storage arrays
+    void allocate()
+    {
+      int rows = mmax+1;
+      int cols = nmax;
+      store.resize(rows*cols);
+      coefs = std::make_shared<coefType>(store.data(), rows, cols);
+    }
+
+    //! Assign matrix
+    void assign(const Eigen::MatrixXcd& mat, int Mmax, int Nmax)
+    {
+      mmax = Mmax;
+      nmax = Nmax;
+      allocate();
+      *coefs = mat;
+    }
   };
   
+  //! Specialization of CoefStruct for a slab
+  class SlabStruct : public CoefStruct
+  {
+  public:
+    //! Coefficient map type
+    using coefType = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 3>>;
+
+    //! Coefficient map
+    std::shared_ptr<coefType> coefs;
+
+    //! Angular and radial dimension
+    int nmaxx, nmaxy, nmaxz;
+    
+    //! Constructor
+    SlabStruct() : nmaxx(0), nmaxy(0), nmaxz(0)
+    { geom = "slab"; }
+
+    //! Read native EXP coefficients
+    bool read(std::istream& in, bool exp_type, bool verbose=false);
+
+    //! Create an empty data storage
+    void create();
+
+    //! Copy all of data contents to a new instance
+    std::shared_ptr<CoefStruct> deepcopy();
+
+    //! Allocate storage arrays
+    void allocate()
+    {
+      store.resize(nmaxx*nmaxy*nmaxz);
+      coefs = std::make_shared<coefType>(store.data(), nmaxx, nmaxy, nmaxz);
+    }
+
+
+    //! Assign matrix
+    void assign(const Eigen::Tensor<std::complex<double>, 3>& dat)
+    {
+      const auto& d = dat.dimensions();
+      nmaxx = d[0];
+      nmaxy = d[1];
+      nmaxz = d[2];
+      allocate();
+      *coefs = dat;
+    }
+
+  };
+  
+  //! Specialization of CoefStruct for a cube
+  class CubeStruct : public CoefStruct
+  {
+  private:
+    //! Array dimensions
+    int nx, ny, nz, dim;
+
+  public:
+    //! Coefficient map type
+    using coefType = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 3>>;
+
+    //! Coefficient map
+    std::shared_ptr<coefType> coefs;
+
+    //! Angular and radial dimension
+    int nmaxx, nmaxy, nmaxz;
+    
+    //! Constructor
+    CubeStruct() : nmaxx(0), nmaxy(0), nmaxz(0), nx(0), ny(0), nz(0), dim(0)
+    { geom = "slab"; }
+
+    //! Read native EXP coefficients
+    bool read(std::istream& in, bool exp_type, bool verbose=false);
+
+    //! Create an empty data storage
+    void create();
+
+    //! Copy all of data contents to a new instance
+    std::shared_ptr<CoefStruct> deepcopy();
+
+    //! Allocate storage arrays
+    void allocate()
+    {
+      // Grid dimenions
+      nx = 2*nmaxx + 1;
+      ny = 2*nmaxy + 1;
+      nz = 2*nmaxz + 1;
+      dim = nx * ny * nz;
+
+      // Allocate
+      store.resize(dim);
+      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
+    }
+
+    //! Assign matrix
+    void assign(const Eigen::Tensor<std::complex<double>, 3>& dat)
+    {
+      const auto& d = dat.dimensions();
+
+      // Assign grid dimensions
+      nx = d[0];
+      ny = d[1];
+      nz = d[2];
+      dim = nx * ny * nz;
+
+      // Deduce max wave numbers from grid dimensions
+      nmaxx = (d[0]-1)/2;
+      nmaxy = (d[1]-1)/2;
+      nmaxz = (d[2]-1)/2;
+
+      // Allocate storage and assign
+      allocate();
+      *coefs = dat;
+    }
+  };
+  
+
   //! Specialization of CoefStruct for a data table
   class TblStruct : public CoefStruct
   {
   public:
+    //! Coefficient map type
+    using coefType = Eigen::Map<Eigen::VectorXcd>;
+
+    //! Coefficient map
+    std::shared_ptr<coefType> coefs;
+
     //! Number of columns
     int cols;
     
@@ -127,12 +291,29 @@ namespace CoefClasses
 
     //! Copy all of data contents to a new instance
     std::shared_ptr<CoefStruct> deepcopy();
+
+    //! Assign array
+    void assign(const Eigen::VectorXcd& arr)
+    {
+      store = arr;
+      coefs = std::make_shared<coefType>(store.data(), store.size());
+    }
+
+    //! Allocate storage arrays
+    void allocate()
+    {
+      store.resize(cols);
+      coefs = std::make_shared<coefType>(store.data(), cols);
+    }
+
   };
   
-  typedef std::shared_ptr<CoefStruct> CoefStrPtr;
-  typedef std::shared_ptr<SphStruct>  SphStrPtr;
-  typedef std::shared_ptr<CylStruct>  CylStrPtr;
-  typedef std::shared_ptr<TblStruct>  TblStrPtr;
+  using CoefStrPtr = std::shared_ptr<CoefStruct> ;
+  using SphStrPtr  = std::shared_ptr<SphStruct>  ;       
+  using CylStrPtr  = std::shared_ptr<CylStruct>  ;   
+  using SlabStrPtr = std::shared_ptr<SlabStruct> ;  
+  using CubeStrPtr = std::shared_ptr<CubeStruct> ;  
+  using TblStrPtr  = std::shared_ptr<TblStruct>  ;  
 
 }  
 // END namespace CoefClasses

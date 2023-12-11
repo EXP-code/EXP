@@ -878,14 +878,16 @@ void CBrockDisk::dump_coefs_h5(const std::string& file)
   cur->mmax   = Lmax;
   cur->nmax   = nmax;
 
-  cur->coefs.resize(Lmax+1, nmax);
+  cur->allocate();
 
   Eigen::VectorXd cos1(nmax), sin1(nmax);
 
+  auto & cofs = *cur->coefs;
+
   for (int m=0; m<=Lmax; m++) {
     for (int ir=0; ir<nmax; ir++) {
-      if (m==0) cur->coefs(m, ir) = {(*expcoef)(2*m, ir), 0.0};
-      else cur->coefs(m, ir) = {(*expcoef)(2*m-1, ir), (*expcoef)(2*m, ir)};
+      if (m==0) cofs(m, ir) = {(*expcoef)(2*m, ir), 0.0};
+      else cofs(m, ir) = {(*expcoef)(2*m-1, ir), (*expcoef)(2*m, ir)};
     }
   }
 

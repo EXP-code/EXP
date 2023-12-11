@@ -1,9 +1,8 @@
-cmake_minimum_required(VERSION 3.15) # This is the oldest version I've
-				     # tested but newer versions are
-				     # preferred esp. for Cuda support
+cmake_minimum_required(VERSION 3.21) # Needed for CUA, MPI, and CTest features
+
 project(
   EXP
-  VERSION "7.7.26"
+  VERSION "7.7.27"
   HOMEPAGE_URL https://github.com/EXP-code/EXP
   LANGUAGES C CXX Fortran)
 
@@ -41,16 +40,20 @@ option(ENABLE_NBODY "Enable EXP n-body" ON)
 option(ENABLE_PYEXP "Enable the Python bindings" ON)
 option(ENABLE_PNG "Enable PNG graphics support" FALSE)
 option(ENABLE_CUDA "Enable CUDA" FALSE)
-option(ENABLE_SLURM "Enable SLURM checkpointing support" TRUE)
+option(ENABLE_SLURM "Enable SLURM checkpointing support" FALSE)
 option(ENABLE_XDR "Enable RPC/XDR support for Tipsy standard" FALSE)
 option(ENABLE_VTK "Configure VTK if available" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
 option(ENABLE_SLCHECK "Enable *careful* Sturm-Liouville solutions" TRUE)
+option(ENABLE_TESTS "Enable build tests for EXP, pyEXP and helpers" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
 
+# Set mpirun launcher for CTest
+
+set(EXP_MPI_LAUNCH "mpirun" CACHE STRING "Command to run an MPI application (for unit tests only)")
 
 # Find newest version if multiple versions are available
 
@@ -243,6 +246,12 @@ if (ENABLE_PYEXP)
 endif()
 
 add_subdirectory(extern/user-modules)
+
+# Build the tests; set ENABLE_TEST=OFF to disable
+if(ENABLE_TESTS)
+  include(CTest)
+  add_subdirectory(tests)
+endif()
 
 # try to find pybind11 and build wrapper python module
 find_package(Python3 COMPONENTS Interpreter Development)

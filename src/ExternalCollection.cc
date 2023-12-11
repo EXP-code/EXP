@@ -18,6 +18,7 @@
 #include <externalShock.H>
 #include <generateRelaxation.H>
 #include <ScatterMFP.H>
+#include <PeriodicBC.H>
 #include <HaloBulge.H>
 
 #if DSMC_ENABLED>0
@@ -83,6 +84,10 @@ void ExternalCollection::initialize()
       else if ( !name.compare("ScatterMFP") )
 
 	force_list.insert(force_list.end(), new ScatterMFP(node));
+      
+      else if ( !name.compare("PeriodicBC") )
+
+	force_list.insert(force_list.end(), new PeriodicBC(node));
       
 #if DSMC_ENABLED>0
       else if ( !name.compare("TreeDSMC") )

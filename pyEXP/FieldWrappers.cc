@@ -41,6 +41,14 @@ void FieldGeneratorClasses(py::module &m) {
     third is z.  The ranks are specified by the 'gridsize' array with
     (nx, ny, nz) as input to the FieldGenerator constructor.
 
+    Coordinate systems
+    ------------------
+    The FieldGenerator class supports spherical, cylindrical, and 
+    Cartesian for force field components.  These are selected by your
+    basis instance, consistent with the natural coordinate system for
+    that basis.  You may change the default coorindate system for a basis
+    using the 'setFieldType()' member function.
+
     Field names
     -----------
     The data fields are as follows:
@@ -53,6 +61,21 @@ void FieldGeneratorClasses(py::module &m) {
     * 'potl'        the total potential
     * 'potl m>0'    the non-axisymmetric component of the potential
     * 'potl m=0'    the axisymmetric component of the potential
+
+    For spherical coordinates (coord="Spherical"):
+    * 'rad force'   the radial force
+    * 'mer force'   the meridional force
+    * 'azi force'   the azimuthal force
+
+    For cylindrical coordinates (coord="Cylindrical"):
+    * 'rad force'   the radial force
+    * 'ver force'   the meridional force
+    * 'azi force'   the azimuthal force
+
+    For Cartesian coordinates (coord="Cartesian"):
+    * 'x force'     the radial force
+    * 'y force'     the meridional force
+    * 'z force'     the azimuthal force
 
     Notes
     -----
@@ -131,10 +154,13 @@ void FieldGeneratorClasses(py::module &m) {
             basis instance of any geometry; geometry will be deduced by the generator
         coefs : Coefs
             coefficient container instance
+
         beg : list(float, float, float)
             initial evaluation point
+
         end : list(float, float, float)
             final evaluation point
+
         num : int
             number of evaluations
 

@@ -1,6 +1,7 @@
 #ifndef _Field_Generator_H
 #define _Field_Generator_H
 
+#include <string_view>
 #include <vector>
 #include <map>
 
@@ -75,7 +76,7 @@ namespace Field
     void
     file_lines(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
 	       std::vector<double> beg, std::vector<double> end, int num,
-	  const std::string prefix, const std::string outdir=".");    
+	       const std::string prefix, const std::string outdir=".");    
     //@}
 
     //! Compute surface histogram from particles
@@ -90,7 +91,7 @@ namespace Field
     //! Write field slices to files.  This will be VTK your build is
     //! compiled with VTK and ascii tables otherwise.
     void file_slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
-		    const std::string prefix, const std::string outdir=".");
+		     const std::string prefix, const std::string outdir=".");
 
     /** Get a field volumes as a map in time and type.
     

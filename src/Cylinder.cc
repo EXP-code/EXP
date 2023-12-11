@@ -1510,7 +1510,9 @@ void Cylinder::dump_coefs_h5(const std::string& file)
   cur->mmax = mmax;
   cur->nmax = nmax;
 
-  cur->coefs.resize(mmax+1, nmax);
+  cur->allocate();
+
+  auto & cof = *cur->coefs;	// Reference to the coefficient map
 
   Eigen::VectorXd cos1(nmax), sin1(nmax);
   
@@ -1520,9 +1522,9 @@ void Cylinder::dump_coefs_h5(const std::string& file)
 
     for (int ir=0; ir<nmax; ir++) {
       if (m==0) {
-	cur->coefs(m, ir) = {cos1(ir), 0.0};
+	cof(m, ir) = {cos1(ir), 0.0};
       } else {
-	cur->coefs(m, ir) = {cos1(ir), sin1(ir)};
+	cof(m, ir) = {cos1(ir), sin1(ir)};
       }
     }
   }

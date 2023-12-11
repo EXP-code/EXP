@@ -65,8 +65,8 @@ int main(int argc, char **argv)
     double time;
     std::cin  >> time;
 
-    auto mat = (*coefs)(time);
-    if (mat.rows()) {
+    auto mat = coefs->getData(time);
+    if (mat.size()) {
       std::cout << std::endl << mat << std::endl << std::endl;
     } else {
       break;

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstring>
+#include <cassert>
 #include <cmath>
 
 #include <yaml-cpp/yaml.h>	// YAML support
@@ -17,14 +18,14 @@ namespace CoefClasses
     ret->geom  = geom;
     ret->id    = id;
     ret->time  = time;
-    ret->coefs = coefs;
+    ret->store = store;
     if (ret->ctr.size()) ret->ctr = ctr;
   }
 
   void CylStruct::create()
   {
     if (nmax>0)
-      coefs.resize(mmax+1, nmax);
+      coefs = std::make_shared<coefType>(store.data(), mmax+1, nmax);
     else
       throw std::runtime_error("CylStruct::create: nmax must be >0");
   }
@@ -32,15 +33,27 @@ namespace CoefClasses
   void SphStruct::create()
   {
     if (nmax>0)
-      coefs.resize((lmax+1)*(lmax+2)/2, nmax);
+      coefs = std::make_shared<coefType>(store.data(), (lmax+1)*(lmax+2)/2, nmax);
     else
       throw std::runtime_error("SphStruct::create: nmax must be >0");
+  }
+
+  void CubeStruct::create()
+  {
+    if (nmaxx>0 and nmaxy>0 and nmaxz>0) {
+      nx = 2*nmaxx + 1;
+      ny = 2*nmaxy + 1;
+      nz = 2*nmaxz + 1;
+      dim = nx * ny * nz;
+      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
+    } else
+      throw std::runtime_error("CubeStruct::create: all dimensions must be >0");
   }
 
   void TblStruct::create()
   {
     if (cols>0)
-      coefs.resize(1, cols);
+      coefs = std::make_shared<coefType>(store.data(), cols);
     else
       throw std::runtime_error("TblStruct::create: cols must be >0");
   }
@@ -51,6 +64,10 @@ namespace CoefClasses
 
     copyfields(ret);
 
+    assert(("CylStruct::deepcopy dimension mismatch",
+	    (mmax+1)*nmax == store.size()));
+
+    ret->coefs = std::make_shared<coefType>(ret->store.data(), mmax+1, nmax);
     ret->mmax  = mmax;
     ret->nmax  = nmax;
 
@@ -63,10 +80,35 @@ namespace CoefClasses
 
     copyfields(ret);
 
+    assert(("SphStruct::deepcopy dimension mismatch",
+	    (lmax+1)*(lmax+2)/2*nmax == store.size()));
+
+    ret->coefs  = std::make_shared<coefType>
+      (ret->store.data(), (lmax+1)*(lmax+2)/2, nmax);
     ret->lmax   = lmax;
     ret->nmax   = nmax;
     ret->scale  = scale;
     ret->normed = normed;
+
+    return ret;
+  }
+
+  std::shared_ptr<CoefStruct> CubeStruct::deepcopy()
+  {
+    auto ret = std::make_shared<CubeStruct>();
+
+    copyfields(ret);
+
+    assert(("CubeStruct::deepcopy dimension mismatch", dim == store.size()));
+
+    ret->coefs  = std::make_shared<coefType>(ret->store.data(), nx, ny, nz);
+    ret->nmaxx  = nmaxx;
+    ret->nmaxy  = nmaxy;
+    ret->nmaxz  = nmaxz;
+    ret->nx     = nx;
+    ret->ny     = ny;
+    ret->nz     = nz;
+    ret->dim    = dim;
 
     return ret;
   }
@@ -77,7 +119,12 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    ret->cols = cols;
+    assert(("TblStruct::deepcopy dimension mismatch",
+	    cols == store.size()));
+
+
+    ret->coefs = std::make_shared<coefType>(ret->store.data(), cols);
+    ret->cols  = cols;
 
     return ret;
   }
@@ -164,7 +211,8 @@ namespace CoefClasses
       return false;
     }
     
-    coefs.resize(mmax+1, nmax);
+    store.resize((mmax+1)*nmax);
+    coefs = std::make_shared<coefType>(store.data(), mmax+1, nmax);
     Eigen::VectorXd workR(nmax), workC(nmax);
     workC.setZero();
     
@@ -174,8 +222,8 @@ namespace CoefClasses
 	in.read((char *)workR.data(), sizeof(double)*nmax);
 	if (mm) in.read((char *)workC.data(), sizeof(double)*nmax);
 	
-	coefs.row(mm).real() = workR;
-	coefs.row(mm).imag() = workC;
+	coefs->row(mm).real() = workR;
+	coefs->row(mm).imag() = workC;
       }
       
       if (verbose) {
@@ -278,8 +326,9 @@ namespace CoefClasses
 	normed = false;
       }
 	
-      coefs.resize((lmax+1)*(lmax+2)/2, nmax);
-	
+      int ldim = (lmax+1)*(lmax+2)/2;
+      store.resize(ldim*nmax);
+      coefs = std::make_shared<coefType>(store.data(), ldim, nmax);
       for (int ir=0; ir<nmax; ir++) {
 	for (int l=0, L=0; l<=lmax; l++) {
 	  for (int m=0; m<=l; m++, L++) {
@@ -290,7 +339,7 @@ namespace CoefClasses
 	      in.read((char *)&re, sizeof(double));
 	      in.read((char *)&im, sizeof(double));
 	    }
-	    coefs(L, ir) = {re, im};
+	    (*coefs)(L, ir) = {re, im};
 	  }
 	}
       } 
@@ -315,12 +364,12 @@ namespace CoefClasses
 	  if (m != 0) fac *= M_SQRT2;
 	  
 	  // Cosine terms
-	  for (int ir=0; ir<nmax; ir++) coefs(k, ir) *= fac;
+	  for (int ir=0; ir<nmax; ir++) (*coefs)(k, ir) *= fac;
 	  k++;
 	  
 	  // Sine terms
 	  if (m != 0) {
-	    for (int ir=0; ir<nmax; ir++) coefs(k, ir) *= fac;
+	    for (int ir=0; ir<nmax; ir++) (*coefs)(k, ir) *= fac;
 	    k++;
 	  }
 	}
@@ -329,6 +378,13 @@ namespace CoefClasses
     
     return true;
   }
+
+  bool CubeStruct::read(std::istream& in, bool exp_type, bool verbose)
+  {
+    std::cout << "CubeStruct: no native coefficient format for this class" << std::endl;
+    return false;
+  }
+  
 
   bool TblStruct::read(std::istream& in, bool exp_type, bool verbose)
   {
@@ -355,8 +411,9 @@ namespace CoefClasses
       // Number of cols
       cols = row.size();
       
-      coefs.resize(1, cols);
-      for (int i=0; i<cols; i++) coefs(0, i) = row[i];
+      store.resize(cols);
+      coefs = std::make_shared<coefType>(store.data(), cols);
+      for (int i=0; i<cols; i++) (*coefs)(i) = row[i];
 
       return true;
     } else {

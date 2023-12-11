@@ -8,6 +8,7 @@
 
 #include <ParticleReader.H>
 #include <Coefficients.H>
+#include <BiorthCube.H>
 #include <SLGridMP2.H>
 #include <YamlCheck.H>
 #include <BiorthCyl.H>
@@ -87,11 +88,24 @@ namespace BasisClasses
     double totalMass;
     
     //! Evaluate fields in spherical coordinates in centered coordinate system
-    virtual void all_eval(double r, double costh, double phi,
+    virtual void all_eval_sph(double r, double costh, double phi,
 			  double& den0, double& den1,
 			  double& pot0, double& pot1,
 			  double& potr, double& pott, double& potp) = 0;
-    
+
+    //! Evaluate fields in cylindrical coordinates in centered coordinate system
+    virtual void all_eval_cyl(double r, double z, double phi,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potr, double& potz, double& potp) = 0;
+
+
+    //! Evaluate fields in Cartesian coordinates in centered coordinate system
+    virtual void all_eval_crt(double x, double y, double z,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potx, double& poty, double& potz) = 0;
+
     //! Name of the derived class
     std::string name;
     
@@ -107,6 +121,40 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() = 0;
 
+    //! Desired coordinate system for evaluation (default: Spherical)
+    enum class Coord { Spherical, Cylindrical, Cartesian, None };
+
+    //! Set the correponding coorindate labels
+    static std::map<Coord, std::string> coordLabels;
+
+    //! Get field type
+    Coord parseFieldType(std::string Coord_type);
+    
+    //! Current field coordindate type
+    Coord coordinates;
+
+    //! Get field labels
+    std::vector<std::string> getFieldLabels(const Coord ctype);
+
+    //! Evaluate basis in spherical coordinates
+    virtual void all_eval(double x1, double x2, double x3,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& p1, double& p2, double& p3,
+			  const Coord ctype=Coord::Spherical)
+    {
+      if (ctype==Coord::Spherical)
+	all_eval_sph(x1, x2, x3, den0, den1, pot0, pot1, p1, p2, p3);
+      else if (ctype==Coord::Cylindrical)
+	all_eval_cyl(x1, x2, x3, den0, den1, pot0, pot1, p1, p2, p3);
+      else if (ctype==Coord::Cartesian)
+	all_eval_crt(x1, x2, x3, den0, den1, pot0, pot1, p1, p2, p3);
+      else {
+	all_eval_sph(x1, x2, x3, den0, den1, pot0, pot1, p1, p2, p3);
+	p1 = p2 = p3 = 0.0;
+      };
+    };
+    
   public:
     
     //! Constructor from YAML node
@@ -168,6 +216,13 @@ namespace BasisClasses
     //! Provide a set of coefficients using a CoefStruct
     virtual void set_coefs(CoefClasses::CoefStrPtr coefs) = 0;
 
+    //! Set field coordindate system
+    void setFieldType(std::string coord_type)
+    { coordinates = parseFieldType(coord_type); }
+    
+    //! Get current field coordinate type
+    std::string getFieldType() { return coordLabels[coordinates]; }
+    
     //@{
     //! The coefficient factory.  Creates a shared pointer to derived
     //! instance of the desired type and returns it.
@@ -231,12 +286,6 @@ namespace BasisClasses
     
   protected:
 
-    //! Evaluate basis in spherical coordinates
-    virtual void all_eval(double r, double costh, double phi,
-			  double& den0, double& den1,
-			  double& pot0, double& pot1,
-			  double& potr, double& pott, double& potp);
-    
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
 
@@ -251,6 +300,25 @@ namespace BasisClasses
 
     //! Subspace index
     virtual const std::string harmonic() { return "l";}
+
+    //! Evaluate basis in spherical coordinates
+    virtual void all_eval_sph(double r, double costh, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potr, double& pott, double& potp);
+
+    //! Evaluate basis in cartesian coordinates
+    virtual void all_eval_crt(double x, double y, double z,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potx, double& poty, double& potz);
+
+
+    //! Evaluate basis in cylindrical coordinates
+    virtual void all_eval_cyl(double R, double z, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potR, double& potz, double& potp);
 
   public:
     
@@ -356,7 +424,7 @@ namespace BasisClasses
   protected:
 
     //! Evaluate basis in cylindrical coordinates
-    void all_eval_cyl
+    virtual void all_eval_cyl
     (double R, double z, double phi, 
      double& den0, double& den1,
      double& pot0, double& pot1,
@@ -364,10 +432,16 @@ namespace BasisClasses
       
     //! Evaluate basis in spherical coordinates.  Conversion from the
     //! cylindrical evaluation above.
-    virtual void all_eval(double r, double costh, double phi,
+    virtual void all_eval_sph(double r, double costh, double phi,
 			  double& den0, double& den1,
 			  double& pot0, double& pot1,
 			  double& potr, double& pott, double& potp);
+    
+    // Cartesian
+    virtual void all_eval_crt(double x, double y, double z,
+			  double& den0, double& den1,
+			  double& pot0, double& pot1,
+			  double& potx, double& poty, double& potz);
     
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
@@ -500,10 +574,22 @@ namespace BasisClasses
   protected:
 
     //! Evaluate basis in spherical coordinates
-    virtual void all_eval(double r, double costh, double phi,
-			  double& den0, double& den1,
-			  double& pot0, double& pot1,
-			  double& potr, double& pott, double& potp);
+    virtual void all_eval_sph(double r, double costh, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potr, double& pott, double& potp);
+
+    //! Evaluate basis in cylindrical coordinates
+    virtual void all_eval_cyl(double r, double z, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potr, double& potz, double& potp);
+
+    //! Evaluate basis in cartesian coordinates
+    virtual void all_eval_crt(double x, double y, double z,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potx, double& poty, double& potz);
 
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
@@ -577,6 +663,126 @@ namespace BasisClasses
     }
   };
   
+  /**
+     Uses the BiorthCyl basis to evaluate expansion coeffients and
+     provide potential and density basis fields
+  */
+  class Cube : public Basis
+  {
+
+  public:
+    
+    using BasisMap   = std::map<std::string, Eigen::VectorXd>;
+    using BasisArray = std::vector<std::vector<BasisMap>>;
+
+  private:
+    
+    //! Wave function constant
+    static constexpr std::complex<double> kfac{0.0, 2.0*M_PI};
+
+    //! Initialization helper
+    void initialize();
+
+    //! Orthogonal basis instance
+    std::shared_ptr<BiorthCube> ortho;
+    
+    //! Minimum expansion order for restriction
+    int nminx, nminy, nminz;
+
+    //! Maximum expansion order for construction
+    int nmaxx, nmaxy, nmaxz;
+
+    //! Number of integration knots for orthogonal check
+    int knots;
+
+    //! Number of particles used to compute grid
+    unsigned used;
+  
+    using coefType = Eigen::Tensor<std::complex<double>, 3>;
+
+    coefType expcoef;
+    
+    //! Notal mass on grid
+    double totalMass;
+
+    //! Number of particles
+    int npart;
+    
+  protected:
+
+    //! Evaluate basis in Cartesian coordinates
+    virtual void all_eval_crt
+    (double x, double y, double z, 
+     double& den0, double& den1,
+     double& pot0, double& pot1,
+     double& potx, double& poty, double& potz);
+    
+    //! Evaluate basis in spherical coordinates.  Conversion from the
+    //! Cartesian evaluation above.
+    virtual void all_eval_sph(double r, double costh, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potr, double& pott, double& potp);
+    
+    //! Evaluate basis in cylindrical coordinates
+    virtual void all_eval_cyl(double r, double z, double phi,
+			      double& den0, double& den1,
+			      double& pot0, double& pot1,
+			      double& potr, double& potz, double& potp);
+
+
+    //! Load coefficients into the new CoefStruct
+    virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
+
+    //! Set coefficients
+    virtual void set_coefs(CoefClasses::CoefStrPtr coefs);
+
+    //! Valid keys for YAML configurations
+    static const std::set<std::string> valid_keys;
+
+    //! Return readable class name
+    virtual const std::string classname() { return "Cube";}
+
+    //! Readable index name
+    virtual const std::string harmonic()  { return "n";}
+
+  public:
+    
+    //! Constructor from YAML node
+    Cube(const YAML::Node& conf);
+    
+    //! Constructor from YAML string
+    Cube(const std::string& confstr);
+    
+    //! Destructor
+    virtual ~Cube(void) {}
+    
+    //! Zero out coefficients to prepare for a new expansion
+    void reset_coefs(void);
+    
+    //! Make coefficients after accumulation
+    void make_coefs(void);
+    
+    //! Accumulate new coefficients
+    virtual void accumulate(double x, double y, double z, double mass);
+    
+    //! Get potential, density and forces at a point
+    virtual void getFields
+    (double x, double y, double z,
+     double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
+     double& tpotx, double& tpoty, double& tpotz);
+    
+    
+    //! Return current maximum harmonic order in expansion
+    Eigen::Vector3i getNmax() { return {nmaxx, nmaxy, nmaxz}; }
+    
+    //! Compute the orthogonality of the basis by returning inner
+    //! produce matrices
+    Eigen::MatrixXcd orthoCheck();
+
+  };
+  
+
   //! Time-dependent potential-density model
   using BasisCoef = std::tuple<std::shared_ptr<Basis>, std::shared_ptr<CoefClasses::Coefs>>;
 
