@@ -12,6 +12,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <array>
 
 #include <cxxopts.H>
 

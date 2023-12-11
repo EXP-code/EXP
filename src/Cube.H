@@ -87,10 +87,10 @@ private:
   void cuda_zero_coefs();
   //@}
 
+#endif
+
   //! Plane method (default: true)
   bool byPlanes;
-
-#endif
 
   //! Cuda batch method (string, default: planes
   std::string cuMethod;
