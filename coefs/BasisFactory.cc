@@ -1416,6 +1416,7 @@ namespace BasisClasses
    double& tpotR, double& tpotz, double& tpotp)
   {
     sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
+    tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
   }
   
   void Cylindrical::accumulate(double x, double y, double z, double mass)
