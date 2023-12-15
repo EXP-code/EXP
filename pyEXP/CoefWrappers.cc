@@ -608,13 +608,37 @@ void CoefficientClasses(py::module &m) {
 
 
   py::class_<CoefClasses::SphStruct, std::shared_ptr<CoefClasses::SphStruct>, CoefStruct>(m, "SphStruct")
-    .def(py::init<>(), "Spherical coefficient data structure object");
+    .def(py::init<>(), "Spherical coefficient data structure object")
+    .def("assign", &SphStruct::assign,
+	      R"(
+        Assign a coefficient matrix to CoefStruct.
+
+        Returns
+        -------
+        None
+        )");
 
   py::class_<CoefClasses::CylStruct, std::shared_ptr<CoefClasses::CylStruct>, CoefStruct>(m, "CylStruct")
-    .def(py::init<>(), "Cylindrical coefficient data structure object");
+    .def(py::init<>(), "Cylindrical coefficient data structure object")
+    .def("assign", &CylStruct::assign,
+	      R"(
+        Assign a coefficient matrix to CoefStruct.
+
+        Returns
+        -------
+        None
+        )");
 
   py::class_<CoefClasses::TblStruct, std::shared_ptr<CoefClasses::TblStruct>, CoefStruct>(m, "TblStruct")
-    .def(py::init<>(), "Multicolumn table data structure object");
+    .def(py::init<>(), "Multicolumn table data structure object")
+    .def("assign", &TblStruct::assign,
+	      R"(
+        Assign a coefficient matrix to CoefStruct.
+
+        Returns
+        -------
+        None
+        )");
 
   py::class_<CoefClasses::Coefs, std::shared_ptr<CoefClasses::Coefs>, PyCoefs>(m, "Coefs")
     .def(py::init<std::string, bool>(),

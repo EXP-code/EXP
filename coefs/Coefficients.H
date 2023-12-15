@@ -2,6 +2,7 @@
 #define _COEFFICIENTS_H
 
 #include <tuple>
+#include <stdexcept> 
 
 // Needed by member functions for writing parameters and stanzas
 #include <highfive/H5File.hpp>
@@ -604,7 +605,7 @@ namespace CoefClasses
       if (d=='x') return NmaxX;
       if (d=='y') return NmaxY;
       if (d=='z') return NmaxZ;
-      std::runtime_error("CubeCoefs: error in nmax accessor");
+      throw std::runtime_error("CubeCoefs: error in nmax accessor");
     }
   };
   
