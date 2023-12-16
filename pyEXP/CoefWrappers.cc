@@ -1200,6 +1200,19 @@ void CoefficientClasses(py::module &m) {
          -------
          TableData instance
          )")
+    .def(py::init<std::string&>(),
+	 R"(
+         Construct a TableData object from a data file
+
+         Parameters
+         ----------
+         type : str
+             ascii table data file
+
+         Returns
+         -------
+         TableData instance
+         )")
     .def(py::init<std::string&, bool>(),
 	 R"(
          Construct a TableData object from a data file
