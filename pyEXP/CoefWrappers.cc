@@ -25,11 +25,11 @@ void CoefficientClasses(py::module &m) {
     "maintained, and interfaced by the Coefs class.  Access to the\n"
     "underlying data is provided to Python in case you need to change\n"
     "or rewrite the data for some reason.  We have also provided a\n"
-    "create() member so that you can instaniate and load a coefficient\n"
+    "assign() member so that you can instaniate and load a coefficient\n"
     "structure using Python.  To do this, use the constructor to make\n"
-    "a blank instance, assign the dimensions and use create() to create\n"
-    "a data matrix of initially zero values.  The dimensions are \n"
-    "(lmax, nmax) for SphStruct, (mmax,nmax) for a CylStruct, and\n"
+    "a blank instance, assign the dimensions and use assign() to create\n"
+    "a data matrix with the supplied matrix or array.  The dimensions are\n"
+    "(lmax, nmax) for SphStruct, (mmax, nmax) for a CylStruct, and\n"
     "(cols) for a TblStruct.\n\n"
     "Coefs\n"
     "-----\n"
@@ -613,6 +613,15 @@ void CoefficientClasses(py::module &m) {
 	      R"(
         Assign a coefficient matrix to CoefStruct.
 
+        Parameters
+        ----------
+        mat  : numpy.ndarray
+             Matrix of coefficients
+        lmax : int
+             angular order
+        nmax : int
+             radial order
+
         Returns
         -------
         None
@@ -624,9 +633,38 @@ void CoefficientClasses(py::module &m) {
 	      R"(
         Assign a coefficient matrix to CoefStruct.
 
+        Parameters
+        ----------
+        mat  : numpy.ndarray
+             Matrix of coefficients
+        mmax : int
+             angular order
+        nmax : int
+             radial order
+
         Returns
         -------
         None
+        )");
+
+  py::class_<CoefClasses::CubeStruct, std::shared_ptr<CoefClasses::CubeStruct>, CoefStruct>(m, "CubeStruct")
+    .def(py::init<>(), "Cube coefficient data structure object")
+    .def("assign", &CubeStruct::assign,
+	      R"(
+        Assign a coefficient matrix to CoefStruct.
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray, complex
+             complex-valued NumPy tensor of coefficient values
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        The dimensions are inferred from the 3-dimensional NumPy array (tensor)
         )");
 
   py::class_<CoefClasses::TblStruct, std::shared_ptr<CoefClasses::TblStruct>, CoefStruct>(m, "TblStruct")
@@ -634,6 +672,11 @@ void CoefficientClasses(py::module &m) {
     .def("assign", &TblStruct::assign,
 	      R"(
         Assign a coefficient matrix to CoefStruct.
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray, complex
+             complex-valued NumPy array of table values
 
         Returns
         -------
