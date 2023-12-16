@@ -1149,6 +1149,7 @@ void CoefficientClasses(py::module &m) {
 
   py::class_<CoefClasses::TableData, std::shared_ptr<CoefClasses::TableData>, PyTableData, CoefClasses::Coefs>(m, "TableData", "Container for simple data tables with multiple columns")
     .def(py::init<bool>())
+    .def(py::init<std::string&, bool>())
     .def("getAllCoefs",    &CoefClasses::TableData::getAllCoefs,
 	 R"(
          Return a 2-dimensional ndarray indexed by column and time
