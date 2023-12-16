@@ -943,7 +943,19 @@ void CoefficientClasses(py::module &m) {
 		py::arg("coef"), py::arg("name")="");
 
   py::class_<CoefClasses::SphCoefs, std::shared_ptr<CoefClasses::SphCoefs>, PySphCoefs, CoefClasses::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
-    .def(py::init<bool>())
+    .def(py::init<bool>(),
+	       R"(
+         Construct a null SphCoefs object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         SphCoefs instance
+         )")
     .def("__call__",
 	 &CoefClasses::SphCoefs::getMatrix,
          R"(
@@ -1004,7 +1016,19 @@ void CoefficientClasses(py::module &m) {
         )");
 
   py::class_<CoefClasses::CylCoefs, std::shared_ptr<CoefClasses::CylCoefs>, PyCylCoefs, CoefClasses::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
-    .def(py::init<bool>())
+    .def(py::init<bool>(),
+	       R"(
+         Construct a null CylCoefs object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         CylCoefs instance
+         )")
     .def("__call__",
 	 &CoefClasses::CylCoefs::getMatrix,
          R"(
@@ -1091,7 +1115,19 @@ void CoefficientClasses(py::module &m) {
 
 
   py::class_<CoefClasses::CubeCoefs, std::shared_ptr<CoefClasses::CubeCoefs>, PyCubeCoefs, CoefClasses::Coefs>(m, "CubeCoefs", "Container for cube coefficients")
-    .def(py::init<bool>())
+    .def(py::init<bool>(),
+	       R"(
+         Construct a null CubeCoefs object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         CubeCoefs instance
+         )")
     .def("__call__",
 	 &CoefClasses::CubeCoefs::getTensor,
          R"(
