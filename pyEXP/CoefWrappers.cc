@@ -18,8 +18,8 @@ void CoefficientClasses(py::module &m) {
     "----------\n"
     "The CoefStruct class is low-level structure that stores the data\n"
     "and metadata specific to each geometry. These are spherical\n"
-    "(SphStruct), cylindrical (CylStruct), and table data (TblStruct).\n"
-    "EXP also knows about rectangular grids and slabs.  These may be\n"
+    "(SphStruct), cylindrical (CylStruct), cube (CubeStruct) and table\n"
+    "data (TblStruct).  EXP also knows about slabs.  These may be\n"
     "added in a future release if there is a need.  Instances of these\n"
     "structures represent individual times points and are created,\n"
     "maintained, and interfaced by the Coefs class.  Access to the\n"
@@ -29,14 +29,14 @@ void CoefficientClasses(py::module &m) {
     "structure using Python.  To do this, use the constructor to make\n"
     "a blank instance, assign the dimensions and use assign() to create\n"
     "a data matrix with the supplied matrix or array.  The dimensions are\n"
-    "(lmax, nmax) for SphStruct, (mmax, nmax) for a CylStruct, and\n"
-    "(cols) for a TblStruct.\n\n"
+    "(lmax, nmax) for SphStruct, (mmax, nmax) for a CylStruct, (nmaxx,\n"
+    "nmaxy, nmaxz) for a CubeStruct and (cols) for a TblStruct.\n\n"
     "Coefs\n"
     "-----\n"
     "The base class, 'Coefs', provides a factory reader that will\n"
-    "create one of the derived coefficient classes, SphCoef, CylCoef,\n"
-    "or TblCoef, deducing the type from the input file.  The input\n"
-    "files may be EXP native or HDF5 cofficient files.  The Basis\n"
+    "create one of the derived coefficient classes, SphCoefs, CylCoefs,\n"
+    "CubeCoefs, or TblCoefs, deducing the type from the input file. The\n"
+    "input files may be EXP native or HDF5 cofficient files.  The Basis\n"
     "factory, Basis::createCoefficients, will create set of coef-\n"
     "ficients from phase-space snapshots.  See help(pyEXP.basis).\n"
     "Files which are not recognized as EXP coefficient files are\n"
@@ -134,14 +134,6 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(void, Coefs, setData, time, array);
     }
 
-    // This has left the interface
-    /*
-    using ValueError = std::tuple<Eigen::VectorXcd&, bool>;
-    ValueError interpolate(double time) override {
-      PYBIND11_OVERRIDE(ValueError, Coefs, interpolate, time);
-    }
-    */
-
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
       PYBIND11_OVERRIDE_PURE(std::shared_ptr<CoefStruct>, Coefs, getCoefStruct, time);
     }
@@ -223,14 +215,6 @@ void CoefficientClasses(py::module &m) {
 			time);
     }
 
-    // No longer in the abstract interface
-    /*
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE(void, SphCoefs,dump,
-			mmin, mmax, nmin, nmax);
-    }
-    */
-
     std::vector<double> Times() override {
       PYBIND11_OVERRIDE(std::vector<double>, SphCoefs, Times,);
     }
@@ -310,14 +294,6 @@ void CoefficientClasses(py::module &m) {
 			time);
     }
 
-    // Left the interface
-    /*
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE(void, CylCoefs, dump,
-			mmin, mmax, nmin, nmax);
-    }
-    */
-
     std::vector<double> Times() override {
       PYBIND11_OVERRIDE(std::vector<double>, CylCoefs, Times,);
     }
@@ -395,14 +371,6 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(std::shared_ptr<CoefStruct>, CubeCoefs, getCoefStruct,
 			time);
     }
-
-    // Left the interface
-    /*
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE(void, CubeCoefs,dump,
-			mmin, mmax, nmin, nmax);
-    }
-    */
 
     std::vector<double> Times() override {
       PYBIND11_OVERRIDE(std::vector<double>, CubeCoefs, Times,);
@@ -482,14 +450,6 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(std::shared_ptr<CoefStruct>, TableData, getCoefStruct,
 			time);
     }
-
-    // No longer in the interface
-    /*
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE(void, TableData, dump,
-			mmin, mmax, nmin, nmax);
-    }
-    */
 
     std::vector<double> Times() override {
       PYBIND11_OVERRIDE(std::vector<double>, TableData, Times,);
