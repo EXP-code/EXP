@@ -295,6 +295,7 @@ namespace CoefClasses
     //! Assign array
     void assign(const Eigen::VectorXcd& arr)
     {
+      cols  = arr.size();
       store = arr;
       coefs = std::make_shared<coefType>(store.data(), store.size());
     }

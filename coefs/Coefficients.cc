@@ -1495,7 +1495,7 @@ namespace CoefClasses
     for (int t=0; t<ntim; t++) {
       auto cof = coefs[times[t]];
       for (int c=0; c<cols; c++) {
-	ret(c, t) = (*cof->coefs)(0, c).real();
+	ret(c, t) = (*cof->coefs)(c).real();
       }
     }
 
