@@ -46,7 +46,7 @@ protected:
   std::string geometry, forceID;
   
   int mmax, nmax, numr, nmaxfid, mmin, mlim, nmin, nlim, knots, NQDHT;
-  double rcylmin, rcylmax, scale, acyltbl;
+  double rcylmin, rcylmax, scale, acyltbl, acylcut, Ninner, Mouter;
 
   bool EVEN_M, verbose;
   
@@ -81,6 +81,9 @@ protected:
 
   //! Default cache file name
   const std::string default_cache = ".biorth_cache";
+
+  //! Density target name
+  std::string disktype;
 
   //! Active cache file name
   std::string cachename;

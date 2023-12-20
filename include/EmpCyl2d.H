@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <array>
 #include <tuple>
 
 #include <Eigen/Eigen>
@@ -26,12 +27,15 @@
 class EmpCyl2d
 {
 public:
+
+  //! Datatype for passing model parameters
+  using ParamVec = std::array<double, 6>;
+
   //! A two-dimensional disk model for computing the EOF
   class ModelCyl
   {
   protected:
 
-    double acyl;
     std::string id;
 
   public:
@@ -45,9 +49,10 @@ public:
 
 protected:
 
-  double acyl, rmin, rmax, scale;
+  ParamVec par;
+  double rmin, rmax, scale;
   double xmin, xmax, dxi;
-  int mmax, nmax, numr, knots;
+  int mmax, nmaxfid, numr, knots, nmax;
   std::string model, biorth;
   bool cmap, logr, basis_test, configured;
 
@@ -65,7 +70,7 @@ protected:
 
     //! Basis creation factory
     static std::shared_ptr<Basis2d>
-    createBasis(int mmax, int nmax, double rmax, const std::string& type);
+    createBasis(int mmax, int nmaxfid, double rmax, const std::string& type);
 
     //@{
     //! Required basis-function members
@@ -83,11 +88,12 @@ protected:
   std::shared_ptr<Basis2d>  basis;
 
   static std::shared_ptr<ModelCyl>
-  createModel(const std::string type, double A);
+  createModel(const std::string type, const ParamVec& params);
 
   class ExponCyl;
   class MestelCyl;
   class KuzminCyl;
+  class ZangCyl;
 
   //! Map the radius
   class Mapping
@@ -142,15 +148,15 @@ public:
   EmpCyl2d() : configured(false) {}
 
   //! Constructor
-  EmpCyl2d(int mmax, int nmax, int knots, int numr,
-	   double rmin, double rmax, double A, double scale,
-	   bool cmap, bool logr, const std::string model,
+  EmpCyl2d(int mmax, int nmaxfid, int nmax, int knots, int numr,
+	   double rmin, double rmax, const ParamVec& P,
+	   double scale, bool cmap, bool logr, const std::string model,
 	   const std::string biorth, const std::string cache="");
   
   //! Constructor with user-supplied target model
-  EmpCyl2d(int mmax, int nmax, int knots, int numr,
-	   double rmin, double rmax, double A, double scale,
-	   bool cmap, bool logr, std::shared_ptr<ModelCyl> disk,
+  EmpCyl2d(int mmax, int nmaxfid, int nmax, int knots, int numr,
+	   double rmin, double rmax, const ParamVec& P,
+	   double scale, bool cmap, bool logr, std::shared_ptr<ModelCyl> disk,
 	   const std::string biorth, const std::string cache="");
   
   //! Use underlying basis for testing?  Default: false.

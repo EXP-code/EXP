@@ -13,6 +13,9 @@ FlatDisk::valid_keys = {
   "rcylmin",
   "rcylmax",
   "acyltbl",
+  "acylcut",
+  "Ninner",
+  "Nouter",
   "mmax",
   "numx",
   "numy",
@@ -20,6 +23,7 @@ FlatDisk::valid_keys = {
   "logr",
   "model",
   "biorth",
+  "disktype",
   "cachename"
 };
 

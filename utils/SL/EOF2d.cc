@@ -14,16 +14,16 @@
 int main(int argc, char** argv)
 {
   bool logr = false, cmap = false, ortho = false, plane = false;
-  int numr, mmax, nmax, knots, M, N, nradial, nout;
-  double A, rmin, rmax;
+  int numr, mmax, nmaxfid, nmax, knots, M, N, nradial, nout;
+  double A, rmin, rmax, O, ZN, ZM, rout;
   std::string filename, type, biorth;
 
   // Parse command line
   //
   cxxopts::Options options(argv[0],
 			   "Computes an EOF two-dimensional disk basis from the Clutton-Brock basis for\n"
-			   "one of the Kuzmin, finite Mestel or Exponential disk targets.  [The Mestel\n"
-			   "disk will work very poorly because the Clutton-Brock basis has infinite\n"
+			   "one of the Kuzmin, finite Mestel, Zang or Exponential disk targets.  [The\n"
+			   "Mestel disk will work very poorly because the Clutton-Brock basis has infinite\n"
 			   "support and looks nothing like the Mestel disk profile.] The new basis, the\n"
 			   "orthgonogality matrix and the rotation matrices may be written to files.\n");
   options.add_options()
@@ -44,31 +44,41 @@ int main(int argc, char** argv)
     ("totforce",   "Compute the total radial force")
     ("M,harmonic", "Aximuthal harmonic m=0,1,2,3,...",
      cxxopts::value<int>(M)->default_value("0"))
-    ("N,norder",   "Default number of knots",
+    ("N,nsize",    "Default radial grid size",
      cxxopts::value<int>(N)->default_value("256"))
-    ("n,nradial",   "Radial order for vertical potential output",
+    ("n,nradial",  "Radial order for vertical potential output",
      cxxopts::value<int>(nradial)->default_value("0"))
-    ("A,length",    "characteristic disk scale length",
+    ("A,length",   "characteristic disk scale length",
      cxxopts::value<double>(A)->default_value("1.0"))
-    ("mmax",        "maximum number of angular harmonics in the expansion",
+    ("O,outer",    "outer disk truncation",
+     cxxopts::value<double>(O)->default_value("10.0"))
+    ("1,TaperN",   "Inner taper exponent",
+     cxxopts::value<double>(ZN)->default_value("1.0"))
+    ("2,TaperM",   "Outer taper exponent",
+     cxxopts::value<double>(ZM)->default_value("4.0"))
+    ("mmax",       "maximum number of angular harmonics in the expansion",
      cxxopts::value<int>(mmax)->default_value("4"))
-    ("nmax",        "maximum number of radial harmonics in the expansion",
+    ("nmaxfid",    "maximum number of radial basis harmonics for EOF construction",
+     cxxopts::value<int>(nmaxfid)->default_value("64"))
+    ("nmax",       "maximum number of radial harmonics in the expansion",
      cxxopts::value<int>(nmax)->default_value("10"))
-    ("numr",        "radial knots for the SL grid",
+    ("numr",       "radial knots for the SL grid",
      cxxopts::value<int>(numr)->default_value("4000"))
-    ("r,rmin",      "minimum radius for the SL grid",
+    ("r,rmin",     "minimum radius for the SL grid",
      cxxopts::value<double>(rmin)->default_value("0.0001"))
-    ("R,rmax",      "maximum radius for the SL grid",
+    ("R,rmax",     "maximum radius for the SL grid",
      cxxopts::value<double>(rmax)->default_value("20.0"))
-    ("knots",       "Number of Legendre integration knots",
+    ("knots",      "Number of Legendre integration knots",
      cxxopts::value<int>(knots)->default_value("200"))
-    ("nout",        "number of points in the output grid per side",
+    ("rout",       "Outer radius for evaluation",
+     cxxopts::value<double>(rout)->default_value("10.0"))
+    ("nout",       "number of points in the output grid per side",
      cxxopts::value<int>(nout)->default_value("40"))
-    ("type",        "Target model type (kuzmin, mestel, expon)",
+    ("type",       "Target model type (kuzmin, mestel, zang, expon)",
      cxxopts::value<std::string>(type)->default_value("expon"))
-    ("biorth",      "Biorthogonal type (cb, bess)",
+    ("biorth",     "Biorthogonal type (cb, bess)",
      cxxopts::value<std::string>(biorth)->default_value("bess"))
-    ("o,filename",  "Output filename",
+    ("o,filename", "Output filename",
      cxxopts::value<std::string>(filename)->default_value("testeof"))
     ;
 
@@ -101,9 +111,13 @@ int main(int argc, char** argv)
   //
   if (vm.count("cmap")) cmap = true;
 
+  // Parameter vector for the EmpCyl2d models
+  //
+  EmpCyl2d::ParamVec par {A, O, ZN, ZM};
+
   // Make the class instance
   //
-  EmpCyl2d emp(mmax, nmax, knots, numr, rmin, rmax, A, 1.0, cmap, logr,
+  EmpCyl2d emp(mmax, nmaxfid, nmax, knots, numr, rmin, rmax, par, A, cmap, logr,
 	       type, biorth);
 
   if (vm.count("basis")) emp.basisTest(true);
@@ -134,8 +148,8 @@ int main(int argc, char** argv)
 
     // Define some representative limits
     //
-    double Rmax = 4.0*A;
-    double Zmax = 4.0*A;
+    double Rmax = rout;
+    double Zmax = rout;
 
     // Grid spacing
     //
@@ -207,9 +221,16 @@ int main(int argc, char** argv)
 	
 	for (int i=0; i<nout; i++) {
 	  out << std::setw(16) << dR*i
-	      << std::setw(16) << dz*j
-	      << std::setw(16) << pot(dR*i, dz*j, dens, F)
-	      << std::endl;
+	      << std::setw(16) << dz*j;
+
+	  for (int n=0; n<nmax; n++) {
+	    auto dens = [&emp, M, n](double R)
+	    {
+	      return emp.get_dens(R, M, n);
+	    };
+	    out << std::setw(16) << pot(dR*i, dz*j, dens, F);
+	  }
+	  out << std::endl;
 	}
       }
     }
@@ -254,7 +275,7 @@ int main(int argc, char** argv)
 
     } else {
 
-      double Rmax = 4.0*A;
+      double Rmax = rout;
       double dR = Rmax/(nout-1);
 
       Eigen::MatrixXd outP(nmax, nout);
@@ -277,7 +298,8 @@ int main(int argc, char** argv)
 	out << std::setw(16) << dR*i;
 	for (int n=0; n<nmax; n++) {
 	  out << std::setw(16) <<  outP(n, i)
-	      << std::setw(16) << -emp.get_potl(dR*i, M, n);
+	      << std::setw(16) << -emp.get_potl(dR*i, M, n)
+	      << std::setw(16) << -emp.get_dens(dR*i, M, n);
 	}
 	out << std::endl;
       }
