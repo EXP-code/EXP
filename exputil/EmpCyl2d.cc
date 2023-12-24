@@ -435,8 +435,14 @@ private:
   //! Parameters
   double a, c, N, M;
 
+  //! Softening factor
+  double asoft = 1.0e-8;
+
   //! Normalization
   double norm = 1.0;
+
+  //! Ignore inner cut-off for N<0.05
+  bool Inner = true;
 
   //! Jacobian for inf to unit-segment mapping
   double drdz(double x)
@@ -477,23 +483,38 @@ public:
     c  = par[1];
     N  = par[2];
     M  = par[3];
+
+    if (N<0.05) {
+      // Exponent is now for mapping only
+      N = 1.0;
+      Inner = false;
+    }
+
+    // Normalization
     compute_norm();
   }
 
-  //! Potential (not implemented)
+  //! Potential (infinite Mestel)
   double pot(double R) {
-    return 0.0;
+    return -2.0*M_PI*norm/a/R;
   }
 
-  //! Potential gradient (not implemented)
+  //! Potential gradient (infinite Mestel)
   double dpot(double R) {
-    return 0.0;
+    return 2.0*M_PI*norm/a/(R*R);
   }
 
   //! Surface density
   double dens(double R) {
-    double faca = pow(R/a, N), facc = pow(R/c, M);
-    return norm * a/(R+1.0e-8) * faca/(faca + 1.0)/(facc + 1.0);
+    // Outer cut-out
+    double facc = pow(R/c, M);
+    double ret = norm * a/(R+asoft) /(facc + 1.0);
+    // Inner cut-out
+    if (Inner) {
+      double faca = pow(R/a, N);
+      ret *= faca/(faca + 1.0);
+    }
+    return ret;
   }
 
 };

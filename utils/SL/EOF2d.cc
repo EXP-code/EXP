@@ -131,6 +131,12 @@ int main(int argc, char** argv)
   if (vm.count("trans")) emp.writeTrans(M, filename + ".trans");
   if (vm.count("ortho")) emp.orthoCheck(M, filename + ".ortho");
 
+  // Get field type
+  //
+  PotRZ::Field F = PotRZ::Field::potential;
+  if (vm.count("rforce")) F = PotRZ::Field::rforce;
+  if (vm.count("zforce")) F = PotRZ::Field::zforce;
+
   emp.checkCoefs();
 
   if (vm.count("vertical")) {
@@ -156,12 +162,6 @@ int main(int argc, char** argv)
     double dR = Rmax/(nout - 1);
     double dz = Zmax/(nout - 1);
 
-    // Get field type
-    //
-    PotRZ::Field F = PotRZ::Field::potential;
-    if (vm.count("rforce")) F = PotRZ::Field::rforce;
-    if (vm.count("zforce")) F = PotRZ::Field::zforce;
-      
     // Potential instance with radially sensitive convergence parameters
     //
     PotRZ pot(rmax, N, M);
@@ -278,7 +278,7 @@ int main(int argc, char** argv)
       double Rmax = rout;
       double dR = Rmax/(nout-1);
 
-      Eigen::MatrixXd outP(nmax, nout);
+      Eigen::MatrixXd outF(nmax, nout);
 
       for (int n=0; n<nmax; n++) {
 	// Set the functor using a lambda
@@ -288,7 +288,7 @@ int main(int argc, char** argv)
 	};
       
 	for (int j=0; j<nout; j++) {
-	  outP(n, j) = pot(dR*j, 0.0, dens, PotRZ::Field::potential);
+	  outF(n, j) = pot(dR*j, 0.0, dens, F);
 	}
       }
 
@@ -297,7 +297,7 @@ int main(int argc, char** argv)
       for (int i=0; i<nout; i++) {
 	out << std::setw(16) << dR*i;
 	for (int n=0; n<nmax; n++) {
-	  out << std::setw(16) <<  outP(n, i)
+	  out << std::setw(16) <<  outF(n, i)
 	      << std::setw(16) << -emp.get_potl(dR*i, M, n)
 	      << std::setw(16) << -emp.get_dens(dR*i, M, n);
 	}
