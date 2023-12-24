@@ -1,17 +1,17 @@
-#ifndef _OrthoPoly_H_
-#define _OrthoPoly_H_
+#ifndef _OrthoFunction_H_
+#define _OrthoFunction_H_
 
 #include <functional>
 #include <memory>
 
 #include <Eigen/Eigen>
 
-#include <gaussQ.h>
+#include <gaussQ.H>
 
 //! Compute orthogonal functions whose lowest-order member is the
 //! background density using the Stieltjes procedure for generating
 //! 3-term recursion
-class OrthoPoly
+class OrthoFunction
 {
 public:
   
@@ -82,11 +82,11 @@ private:
 public:
 
   //! Constructor
-  OrthoPoly(int nmax, DensFunc W, double rmin, double rmax, double scale,
-	    int dof=3, bool segment=false);
+  OrthoFunction(int nmax, DensFunc W, double rmin, double rmax, double scale,
+		int dof=3, bool segment=false);
 
   //! Destructor
-  virtual ~OrthoPoly() {}
+  virtual ~OrthoFunction() {}
 
   //! Evaluate orthogonal function
   Eigen::VectorXd operator()(double r);
