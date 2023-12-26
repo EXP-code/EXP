@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -39,11 +40,9 @@ OutVel::OutVel(const YAML::Node& conf) : Output(conf)
 
   initialize();
 
-  if (!(tcomp->force->HaveCoefDump())) {
-    if (myid==0) {
-      cerr << "OutVel: no coefficients for this force\n";
-    }
-  }
+  // Target output file
+  //
+  outfile = "velcoef." + tcomp->name;
 
   // Check for valid model type
   //
@@ -64,63 +63,9 @@ OutVel::OutVel(const YAML::Node& conf) : Output(conf)
     throw std::runtime_error(sout.str());
   }
 
-  // Allocate storage for coefficients
+  // Create the basis
   //
-  coefs.resize(dof);
-
-  if (dof==2) {
-    for (auto & v : coefs) v.resize(lmax+1, nmax);
-  } else {
-    for (auto & v : coefs) v.resize((lmax+1)*(lmax+2)/2, nmax);
-  }
-
-  // Create model needed for density prefactor in OrthoFunction
-  //
-  if (model == "file") {
-    std::vector<double> r, d;
-    std::ifstream in(filename);
-    if (not in) throw std::runtime_error("Error opening file: " + filename);
-
-    std::string line;
-    while (std::getline(in, line)) {
-      auto pos = line.find_first_of("!#");
-      if (pos == std::string::npos) {
-	std::istringstream iss(line);
-	double x, y;
-	iss >> x >> y;
-	if (iss) {
-	  r.push_back(x);
-	  d.push_back(y);
-	}
-      }
-    }
-    
-    
-    double rmin = r.front(), rmax = r.back();
-  
-    interp = std::make_shared<Linear1d>(r, d);
-    densfunc = [this](double r)
-    {
-      return this->interp->eval(r);
-    };
-    
-  } else if (model == "expon") {
-
-    densfunc = [&](double r)
-    {
-      return exp(-r/ascl) * 0.5*(1.0 + std::erf((rmax - 5.0*delta - r)/delta)) / ascl;
-    };
-
-  } else {
-    throw InternalError("OutVel: model logic failure?! "
-			"You should not be here...",
-			__FILE__, __LINE__);
-  }
-
-  // Generate the orthogonal function instance
-  //
-  ortho = std::make_shared<OrthoFunction>(nmax, densfunc, rmin, rmax, scale);
-
+  basis = std::make_shared<OrthoBasisClasses::VelocityBasis>(conf);
 }
 
 void OutVel::initialize()
@@ -137,16 +82,6 @@ void OutVel::initialize()
       nintsub  = conf["nintsub"].as<int>();
       if (nintsub <= 0) nintsub = 1;
     }
-
-    if (conf["lmax"])         lmax     = conf["lmax" ].as<int>();
-    if (conf["nmax"])         nmax     = conf["nmax" ].as<int>();
-    if (conf["rmin"])         rmin     = conf["rmin" ].as<double>();
-    if (conf["rmax"])         rmax     = conf["rmax" ].as<double>();
-    if (conf["ascl"])         ascl     = conf["ascl" ].as<double>();
-    if (conf["delta"])        delta    = conf["delta"].as<double>();
-    if (conf["scale"])        scale    = conf["scale"].as<double>();
-    if (conf["model"])        model    = conf["model"].as<std::string>();
-
     if (conf["name"])
       {				// Search for desired component
 	std::string tmp = conf["name"].as<std::string>();
@@ -167,7 +102,7 @@ void OutVel::initialize()
       }
     else
       {
-	filename = outdir + "outcoef." + tcomp->name + "." + runtag;
+	filename = outdir + "velcoef." + tcomp->name + "." + runtag;
       }
 
   }
@@ -194,11 +129,172 @@ void OutVel::Run(int n, int mstep, bool last)
   //
   if (mstep < std::numeric_limits<int>::max() and mstep % nintsub != 0) return;
 
-  if (myid==0) {
-    // Notes.  To be implemented:
-    // 1. Zero coefficients
-    // 2. Run through phase space and compute expansion of flow field
-    // 3. Save and append to HDF5 file
-  }
+  // Zero coefficients
+  //
+  basis->reset_coefs();
+    
+  // Compute coefficients
+  //
+  PartMapItr ibeg = tcomp->Particles().begin();
+  PartMapItr iend = tcomp->Particles().end();
 
+  constexpr std::complex<double> I(0.0, 1.0);
+
+#pragma omp parallel
+  {
+    for (PartMapItr it=ibeg; it!=iend; ++it) {
+      
+#pragma omp single nowait
+      {
+	double M = it->second->mass;
+
+	double x = it->second->pos[0];
+	double y = it->second->pos[1];
+	double z = it->second->pos[2];
+	
+	double u = it->second->vel[0];
+	double v = it->second->vel[1];
+	double w = it->second->vel[2];
+	
+	basis->accumulate(M, x, y, z, u, v, w);
+      }
+    }
+  }
+  
+  // Make coefficients
+  //
+  basis->make_coefs();
+
+  // Check if file exists
+  //
+  if (std::filesystem::exists(outfile)) {
+    ExtendH5Coefs();
+  }
+  // Otherwise, extend the existing HDF5 file
+  //
+  else {
+    WriteH5Coefs();
+  }
+}
+
+void OutVel::WriteH5Coefs()
+{
+  try {
+    // Create a new hdf5 file
+    //
+    HighFive::File file(outfile,
+			HighFive::File::ReadWrite |
+			HighFive::File::Create);
+      
+    // Write the specific parameters
+    //
+    WriteH5Params(file);
+      
+    // Group count variable
+    //
+    unsigned count = 0;
+    HighFive::DataSet dataset = file.createDataSet("count", count);
+      
+    // Create a new group for coefficient snapshots
+    //
+    HighFive::Group group = file.createGroup("snapshots");
+    
+    // Write the coefficients
+    //
+    count = WriteH5Times(group, count);
+      
+    // Update the count
+    //
+    dataset.write(count);
+    
+  } catch (HighFive::Exception& err) {
+    std::cerr << err.what() << std::endl;
+  }
+  
+}
+  
+
+void OutVel::ExtendH5Coefs()
+{
+  try {
+    // Open an hdf5 file
+    //
+    HighFive::File file(outfile, HighFive::File::ReadWrite);
+      
+    // Get the dataset
+    HighFive::DataSet dataset = file.getDataSet("count");
+      
+    unsigned count;
+    dataset.read(count);
+    
+    HighFive::Group group = file.getGroup("snapshots");
+    
+    // Write the coefficients
+    //
+    count = WriteH5Times(group, count);
+    
+    // Update the count
+    //
+    dataset.write(count);
+    
+  } catch (HighFive::Exception& err) {
+    std::cerr << err.what() << std::endl;
+  }
+  
+}
+  
+void OutVel::WriteH5Params(HighFive::File& file)
+{
+  // Identify myself
+  //
+  std::string whoami("Velocity orthgonal function coefficients");
+  file.createAttribute<std::string>("whoami", HighFive::DataSpace::From(whoami)).write(whoami);
+
+  // Write the model type
+  //
+  file.createAttribute<std::string>("model", HighFive::DataSpace::From(model)).write(model);
+  
+  // We write the coefficient mnemonic
+  //
+  file.createAttribute<std::string>("name", HighFive::DataSpace::From(tcomp->name)).write(tcomp->name);
+    
+  // Stash the config string
+  //
+  std::ostringstream yaml; yaml << conf;
+  file.createAttribute<std::string>("config", HighFive::DataSpace::From(yaml.str())).write(yaml.str());
+  
+
+  // Write the remaining parameters
+  //
+  file.createAttribute<int>   ("lmax",  HighFive::DataSpace::From(lmax)  ).write(lmax);
+  file.createAttribute<int>   ("nmax",  HighFive::DataSpace::From(nmax)  ).write(nmax);
+  file.createAttribute<int>   ("dof",   HighFive::DataSpace::From(dof)   ).write(dof);
+  file.createAttribute<double>("scale", HighFive::DataSpace::From(scale) ).write(scale);
+  file.createAttribute<double>("rmin",  HighFive::DataSpace::From(rmin)  ).write(rmin);
+  file.createAttribute<double>("rmax",  HighFive::DataSpace::From(rmax)  ).write(rmax);
+  file.createAttribute<double>("ascl",  HighFive::DataSpace::From(ascl)  ).write(ascl);
+  file.createAttribute<double>("delta", HighFive::DataSpace::From(delta) ).write(delta);
+}
+  
+unsigned OutVel::WriteH5Times(HighFive::Group& snaps, unsigned count)
+{
+  std::ostringstream stim;
+  stim << std::setw(8) << std::setfill('0') << std::right << count++;
+  HighFive::Group stanza = snaps.createGroup(stim.str());
+      
+  // Add time attribute
+  //
+  stanza.createAttribute<double>("Time", HighFive::DataSpace::From(tnow)).write(tnow);
+      
+  // Coefficient size (allow Eigen::Tensor to be easily recontructed from metadata)
+  //
+  const auto& d = coefs[0]->dimensions();
+  std::array<long int, 3> shape {d[0], d[1], d[2]};
+  stanza.createAttribute<double>("shape", HighFive::DataSpace::From(shape)).write(shape);
+
+  // Add coefficient data from flattened tensor
+  //
+  HighFive::DataSet dataset = stanza.createDataSet("coefficients", store);
+  
+  return count;
 }

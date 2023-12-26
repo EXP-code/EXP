@@ -6,11 +6,18 @@
 #include <vector>
 
 #include <Eigen/Eigen>
+#include <unsupported/Eigen/CXX11/Tensor>
+
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
 
 #include <interp.H>
 #include <Component.H>
 #include <EXPException.H>
-#include <OrthoFunction.H>
+#include <Coefficients.H>
+#include <OrthoBasisFactory.H>
 
 /** Dump coefficients at each interval
     
@@ -43,7 +50,7 @@ class OutVel : public Output
 
 private:
 
-  std::string filename, model;
+  std::string filename, model, outfile;
   Component *tcomp;
   double scale, rmin, rmax, ascl, delta;
   int lmax, nmax, dof;
@@ -56,11 +63,22 @@ private:
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
 
-  //! Coefficient tables
-  std::vector<Eigen::MatrixXcd> coefs;
+  using CoefType = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 3>>;
 
-  //! The orthgonal function instance
-  std::shared_ptr<OrthoFunction> ortho;
+  //! The basis isntance
+  std::shared_ptr<OrthoBasisClasses::VelocityBasis> basis;
+    
+  //! Initialize and write the HDF5 file
+  void WriteH5Coefs();
+
+  //! Extend the HDF5 file
+  void ExtendH5Coefs();
+
+  //! Write the parameters to the HDF5 file
+  void WriteH5Params(HighFive::File& file);
+
+  //! Write the coefficient data to the HDF5 file
+  unsigned WriteH5Times(HighFive::Group& snaps, unsigned count);
 
 public:
 

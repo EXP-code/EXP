@@ -10,6 +10,9 @@
 #include <Eigen/Eigen>	      // Store coefficient matrices and 2d grids
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids?
 
+// YAML support
+#include <yaml-cpp/yaml.h>
+
 // The EXP native coefficient classes
 #include <CoefStruct.H>
 
@@ -715,6 +718,257 @@ namespace CoefClasses
 
   };
   
+  /** Derived class for spherical velocity coefficients */
+  class SphVelCoefs : public Coefs
+  {
+
+  protected:
+    
+    //! Data
+    std::shared_ptr<SphVelStruct::coefType> mat;
+
+    //! Parameters
+    int Lmax, Nmax, dof=3;
+
+    //! The coefficient DB
+    std::map<double, SphVelPtr> coefs;
+
+    //! Read the coefficients
+    virtual void readNativeCoefs(const std::string& file,
+				 int stride, double tmin, double tmax)
+    {
+      throw std::runtime_error("SphVelCoefs: native coefficient type not implemented");
+    }
+    
+    //! Get the YAML config
+    virtual std::string getYAML();
+    
+    //! Write parameter attributes
+    virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Write coefficient data in H5
+    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
+    
+  public:
+    
+    //! Constructor
+    SphVelCoefs(bool verbose=false) : Coefs("sphere", verbose) {}
+    
+    //! Copy constructor
+    SphVelCoefs(SphVelCoefs& p) : Coefs(p)
+    {
+      coefs = p.coefs;
+    }
+
+    //! YAML onstructor
+    SphVelCoefs(const YAML::Node& conf, bool verbose);
+    
+    //! H5 constructor
+    SphVelCoefs(HighFive::File& file, int stride=0,
+		double tmin=-std::numeric_limits<double>::max(),
+		double tmax= std::numeric_limits<double>::max(),
+		bool verbose=false);
+    
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
+
+    //! Add a coefficient structure to the container
+    virtual void add(CoefStrPtr coef);
+
+    //! Get coefficient array at given time
+    virtual Eigen::VectorXcd& getData(double time);
+    
+    //! Operator for pyEXP
+    SphVelStruct::coefType& getMatrix(double time);
+
+    //! Set coefficient matrix at given time
+    virtual void setData(double time, const Eigen::VectorXcd& arr);
+
+    //! Natural data setter for pyEXP
+    void setMatrix(double time, const SphVelStruct::coefType& mat);
+
+    //! Interpolate coefficient matrix at given time
+    std::tuple<SphVelStruct::coefType&, bool> interpolate(double time)
+    {
+      auto ret = Coefs::interpolate(time);
+      int ldim = (Lmax+1)*(Lmax+2)/2;
+      mat = std::make_shared<SphVelStruct::coefType>
+	(std::get<0>(ret).data(), 4, ldim, Nmax);
+      return {*mat, std::get<1>(ret)};
+    }
+    
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[time]; }
+
+    //! Get list of coefficient times
+    virtual std::vector<double> Times()
+    {
+      times.clear();
+      for (auto t : coefs) times.push_back(t.first);
+      return times;
+    }
+    
+    //! Get all coefficients indexed in index, l, m, n, time
+    Eigen::Tensor<std::complex<double>, 4> getAllCoefs();
+
+    /** Get power for the coefficient DB as a function of harmonic
+	index.  Time as rows, harmonics as columns.
+
+	@param min is the minimum radial order
+	@param max is the maximum radial order
+    */
+    virtual Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max());
+    
+    //! Make keys for the remaining indices in a subspace
+    virtual std::vector<Key> makeKeys(Key k);
+
+    //! Compare two collections of stanzas (this is for testing only)
+    virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    virtual std::shared_ptr<Coefs> deepcopy();
+
+    //! Zero the existing data
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+    }
+
+    //! Get lmax
+    double lmax() const { return Lmax; }
+
+    //! Get lmax
+    double nmax() const { return Nmax; }
+
+  };
+  
+
+  /** Derived class for spherical velocity coefficients */
+  class PolarVelCoefs : public Coefs
+  {
+  protected:
+    
+    //! Data
+    std::shared_ptr<PolarVelStruct::coefType> mat;
+
+    //! Parameters
+    int Mmax, Nmax, dof=2;
+
+    //! The coefficient DB
+    std::map<double, PlrVelPtr> coefs;
+
+    //! Read the coefficients
+    virtual void readNativeCoefs(const std::string& file,
+				 int stride, double tmin, double tmax)
+    {
+      throw std::runtime_error("PolarVelCoefs: native coefficient type not implemented");
+    }
+    
+    //! Get the YAML config
+    virtual std::string getYAML();
+    
+    //! Write parameter attributes
+    virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Write coefficient data in H5
+    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
+    
+  public:
+    
+    //! Constructor
+    PolarVelCoefs(bool verbose=false) : Coefs("cylinder", verbose) {}
+    
+    //! Copy constructor
+    PolarVelCoefs(PolarVelCoefs& p) : Coefs(p)
+    {
+      coefs = p.coefs;
+    }
+
+    //! H5 constructor
+    PolarVelCoefs(HighFive::File& file, int stride=0,
+		  double tmin=-std::numeric_limits<double>::max(),
+		  double tmax= std::numeric_limits<double>::max(),
+		  bool verbose=false);
+    
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
+
+    //! Add a coefficient structure to the container
+    virtual void add(CoefStrPtr coef);
+
+    //! Get coefficient array at given time
+    virtual Eigen::VectorXcd& getData(double time);
+    
+    //! Operator for pyEXP
+    PolarVelStruct::coefType & getMatrix(double time);
+
+    //! Set coefficient matrix at given time
+    virtual void setData(double time, const Eigen::VectorXcd& arr);
+
+    //! Natural data setter for pyEXP
+    void setMatrix(double time, const PolarVelStruct::coefType& mat);
+
+    //! Interpolate coefficient matrix at given time
+    std::tuple<PolarVelStruct::coefType&, bool> interpolate(double time)
+    {
+      auto ret = Coefs::interpolate(time);
+      int mdim = Mmax + 1;
+      mat = std::make_shared<PolarVelStruct::coefType>
+	(std::get<0>(ret).data(), 3, mdim, Nmax); 
+
+      return {*mat, std::get<1>(ret)};
+    }
+    
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[time]; }
+
+    //! Get list of coefficient times
+    virtual std::vector<double> Times()
+    {
+      times.clear();
+      for (auto t : coefs) times.push_back(t.first);
+      return times;
+    }
+    
+    //! Get all coefficients indexed in index, l, m, n, time
+    Eigen::Tensor<std::complex<double>, 4> getAllCoefs();
+
+    /** Get power for the coefficient DB as a function of harmonic
+	index.  Time as rows, harmonics as columns.
+
+	@param min is the minimum radial order
+	@param max is the maximum radial order
+    */
+    virtual Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max());
+    
+    //! Make keys for the remaining indices in a subspace
+    virtual std::vector<Key> makeKeys(Key k);
+
+    //! Compare two collections of stanzas (this is for testing only)
+    virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    virtual std::shared_ptr<Coefs> deepcopy();
+
+    //! Zero the existing data
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+    }
+
+    //! Get mmax
+    double mmax() const { return Mmax; }
+
+    //! Get lmax
+    double nmax() const { return Nmax; }
+
+  };
+  
+
   using CoefsPtr = std::shared_ptr<Coefs>;
 }
 // END namespace CoefClasses

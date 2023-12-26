@@ -58,6 +58,23 @@ namespace CoefClasses
       throw std::runtime_error("TblStruct::create: cols must be >0");
   }
 
+  void SphVelStruct::create()
+  {
+    if (nmax>0)
+      coefs = std::make_shared<coefType>(store.data(), 4, (lmax+1)*(lmax+2)/2, nmax);
+    else
+      throw std::runtime_error("SphStruct::SphVelStruct: nmax must be >0");
+  }
+
+
+  void PolarVelStruct::create()
+  {
+    if (nmax>0)
+      coefs = std::make_shared<coefType>(store.data(), 3, mmax+1, nmax);
+    else
+      throw std::runtime_error("SphStruct::PolarVelStruct: nmax must be >0");
+  }
+
   std::shared_ptr<CoefStruct> CylStruct::deepcopy()
   {
     auto ret = std::make_shared<CylStruct>();
@@ -128,6 +145,43 @@ namespace CoefClasses
 
     return ret;
   }
+
+  std::shared_ptr<CoefStruct> SphVelStruct::deepcopy()
+  {
+    auto ret = std::make_shared<SphVelStruct>();
+
+    copyfields(ret);
+
+    assert(("SphVelStruct::deepcopy dimension mismatch",
+	    4*(lmax+1)*(lmax+2)/2*nmax == store.size()));
+
+    ret->coefs  = std::make_shared<coefType>
+      (ret->store.data(), 4, (lmax+1)*(lmax+2)/2, nmax);
+    ret->lmax   = lmax;
+    ret->nmax   = nmax;
+    ret->scale  = scale;
+
+    return ret;
+  }
+
+  std::shared_ptr<CoefStruct> PolarVelStruct::deepcopy()
+  {
+    auto ret = std::make_shared<PolarVelStruct>();
+
+    copyfields(ret);
+
+    assert(("PolarVelStruct::deepcopy dimension mismatch",
+	    3*(mmax+1)*nmax == store.size()));
+
+    ret->coefs  = std::make_shared<coefType>
+      (ret->store.data(), 3, mmax+1, nmax);
+    ret->mmax   = mmax;
+    ret->nmax   = nmax;
+    ret->scale  = scale;
+
+    return ret;
+  }
+
 
   bool CylStruct::read(std::istream& in, bool exp_type, bool verbose)
   {
@@ -421,5 +475,19 @@ namespace CoefClasses
     }
   }
 
+  bool SphVelStruct::read(std::istream& in, bool exp_type, bool verbose)
+  {
+    std::cout << "SphVelStruct: no native coefficient format for this class"
+	      << std::endl;
+    return false;
+  }
+  
+  bool PolarVelStruct::read(std::istream& in, bool exp_type, bool verbose)
+  {
+    std::cout << "PolarVelStruct: no native coefficient format for this class"
+	      << std::endl;
+    return false;
+  }
+  
 }
 // END namespace CoefClasses
