@@ -69,7 +69,7 @@ namespace OrthoBasisClasses
     //! Contains contructor and BFE parameter database
     YAML::Node node, conf;
     
-//! Total mass on grid
+    //! Total mass on grid
     double totalMass;
     
     //! Evaluate fields in spherical coordinates in centered coordinate system
@@ -116,22 +116,6 @@ namespace OrthoBasisClasses
     //! Get field labels
     virtual std::vector<std::string> getFieldLabels(const Coord ctype) = 0;
 
-    //! Evaluate basis in desired coordinates
-    virtual std::vector<double>
-    operator()(double x1, double x2, double x3,
-	       const Coord ctype=Coord::Spherical)
-    {
-      if (ctype==Coord::Spherical)
-	return sph_eval(x1, x2, x3);
-      else if (ctype==Coord::Cylindrical)
-	return cyl_eval(x1, x2, x3);
-      else if (ctype==Coord::Cartesian)
-	return crt_eval(x1, x2, x3);
-      else {
-	return sph_eval(x1, x2, x3);
-      };
-    };
-    
   public:
     
     //! Constructor from YAML node
@@ -147,13 +131,21 @@ namespace OrthoBasisClasses
     void setCenter(std::vector<double> center)
     { coefctr = center; }
     
-    //! Get potential, density and forces at a point
-    /*
-    virtual void getFields
-    (double x, double y, double z,
-     double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
-     double& tpotx, double& tpoty, double& tpotz) = 0;
-    */
+    //! Evaluate basis in desired coordinates
+    virtual std::vector<double>
+    operator()(double x1, double x2, double x3,
+	       const Coord ctype=Coord::Spherical)
+    {
+      if (ctype==Coord::Spherical)
+	return sph_eval(x1, x2, x3);
+      else if (ctype==Coord::Cylindrical)
+	return cyl_eval(x1, x2, x3);
+      else if (ctype==Coord::Cartesian)
+	return crt_eval(x1, x2, x3);
+      else {
+	return sph_eval(x1, x2, x3);
+      };
+    };
     
     //! Retrieve the coefficients 
     virtual CoefClasses::CoefStrPtr getCoefficients() = 0;
@@ -230,10 +222,6 @@ namespace OrthoBasisClasses
     std::vector<double> massT;
     int used;
     
-    //! For coefficient writing
-    // typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
-    // EigenColMajor;
-    
   protected:
 
     //! Load coefficients into the new CoefStruct
@@ -253,21 +241,15 @@ namespace OrthoBasisClasses
     { if (dof==3) return "l"; return "m"; }
 
     virtual std::vector<double>
-    sph_eval(double r, double costh, double phi)
-    { return std::vector<double>(4, 0); }
-
+    sph_eval(double r, double costh, double phi);
 
     //! Evaluate fields in cylindrical coordinates in centered coordinate system
     virtual std::vector<double>
-    cyl_eval(double r, double costh, double phi)
-    { return std::vector<double>(4, 0); }
-
+    cyl_eval(double r, double z, double phi);
 
     //! Evaluate fields in Cartesian coordinates in centered coordinate system
     virtual std::vector<double>
-    crt_eval(double x, double y, double z)
-    { return std::vector<double>(4, 0); }
-
+    crt_eval(double x, double y, double z);
 
   public:
     

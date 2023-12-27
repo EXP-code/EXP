@@ -737,7 +737,8 @@ namespace CoefClasses
     virtual void readNativeCoefs(const std::string& file,
 				 int stride, double tmin, double tmax)
     {
-      throw std::runtime_error("SphVelCoefs: native coefficient type not implemented");
+      throw std::runtime_error("SphVelCoefs: "
+			       "native coefficient type not implemented");
     }
     
     //! Get the YAML config
@@ -755,10 +756,7 @@ namespace CoefClasses
     SphVelCoefs(bool verbose=false) : Coefs("sphere", verbose) {}
     
     //! Copy constructor
-    SphVelCoefs(SphVelCoefs& p) : Coefs(p)
-    {
-      coefs = p.coefs;
-    }
+    SphVelCoefs(SphVelCoefs& p) : Coefs(p) { coefs = p.coefs; }
 
     //! YAML onstructor
     SphVelCoefs(const YAML::Node& conf, bool verbose);
@@ -863,7 +861,8 @@ namespace CoefClasses
     virtual void readNativeCoefs(const std::string& file,
 				 int stride, double tmin, double tmax)
     {
-      throw std::runtime_error("PolarVelCoefs: native coefficient type not implemented");
+      throw std::runtime_error("PolarVelCoefs: "
+			       "native coefficient type not implemented");
     }
     
     //! Get the YAML config
@@ -968,7 +967,6 @@ namespace CoefClasses
 
   };
   
-
   using CoefsPtr = std::shared_ptr<Coefs>;
 }
 // END namespace CoefClasses

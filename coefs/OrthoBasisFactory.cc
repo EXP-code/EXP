@@ -260,7 +260,8 @@ namespace OrthoBasisClasses
       //
       densfunc = [&](double r)
       {
-	return exp(-r/ascl) * 0.5*(1.0 + std::erf((rmax - 5.0*delta - r)/delta)) / ascl;
+	return exp(-r/ascl) *
+	  0.5*(1.0 + std::erf((rmax - 5.0*delta - r)/delta)) / ascl;
       };
     
     } else {
@@ -409,18 +410,6 @@ namespace OrthoBasisClasses
 
     MPI_Allreduce(&usedT[0], &used,      1, MPI_INT,    MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&massT[0], &totalMass, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    /*
-    // Check if file exists
-    //
-    if (std::filesystem::exists(outfile)) {
-      ExtendH5Coefs();
-    }
-    // Otherwise, extend the existing HDF5 file
-    //
-    else {
-      WriteH5Coefs();
-    }
-    */
   }
 
 
@@ -437,7 +426,57 @@ namespace OrthoBasisClasses
       return cstr;
     }
   }
+  
+  std::vector<double>
+  VelocityBasis::sph_eval(double r, double costh, double phi)
+  {
+    constexpr std::complex<double> I(0, 1);
 
+    if (dof==2) {
+      std::vector<double> ret(3, 0);
+      auto p = (*ortho)(r*sqrt(fabs(1.0 - costh*costh)));
+      for (int i=0; i<3; i++) {
+	for (int m=0; m<=lmax; m++) {
+	  for (int n=0; n<nmax; n++) {
+	    ret[i] += std::real((*coefs[0])(i, m, n)*exp(I*(phi*m)))*p[n];
+	  }
+	}
+      }
+      return ret;
+    } else {
+      std::vector<double> ret(4, 0);
+      auto p = (*ortho)(r);
+      for (int i=0; i<3; i++) {
+	for (int l=0, L=0; l<=lmax; l++) {
+	  for (int m=0; m<=lmax; m++, L++) {
+	    for (int n=0; n<nmax; n++) {
+	      ret[i] += std::real((*coefs[0])(i, L, n)*exp(I*(phi*m)))*p[n]*
+		Ylm01(l, m)*plgndr(l, m, costh);
+	    }
+	  }
+	}
+      }
+      return ret;
+    }
+  }
+
+  std::vector<double>
+  VelocityBasis::cyl_eval(double R, double z, double phi)
+  {
+    double r = sqrt(R*R + z*z);
+    double costh = z/(r + 1.0e-18);
+
+    return sph_eval(r, costh, phi);
+  }
+
+  std::vector<double>
+  VelocityBasis::crt_eval(double x, double y, double z)
+  {
+    double r = sqrt(x*x + y*y + z*z);
+    double costh = z/(r + 1.0e-18), phi = atan2(y, x);
+    
+    return sph_eval(r, costh, phi);
+  }
 
 }
 // END namespace OrthoBasisClasses
