@@ -307,6 +307,19 @@ namespace OrthoBasisClasses
     }
   }
 
+  void VelocityBasis::load_coefs(CoefClasses::CoefStrPtr cf, double time)
+  {
+    coefstr = cf;		// Assign the coeffiicient container
+    coefstr->time = time;	// and the time
+
+    // Copy the data structure
+    if (dof==2) {
+      coefs[0] = dynamic_pointer_cast<CoefClasses::SphVelStruct>(cf)->coefs;
+    } else {
+      coefs[0] = dynamic_pointer_cast<CoefClasses::SphVelStruct>(cf)->coefs;
+    }
+  }
+
   void VelocityBasis::reset_coefs()
   {
     used = 0;

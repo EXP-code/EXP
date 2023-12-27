@@ -29,14 +29,7 @@ OutVel::OutVel(const YAML::Node& conf) : Output(conf)
   nint    = 10;
   nintsub = std::numeric_limits<int>::max();
   tcomp   = NULL;
-  lmax    = 4;
-  nmax    = 10;
-  rmin    = 1.0e-4;
-  rmax    = 2.0;
-  ascl    = 0.01;
-  delta   = 0.005;
-  scale   = 0.05;
-  model   = "file";
+  dof     = 3;
 
   initialize();
 
@@ -66,6 +59,13 @@ OutVel::OutVel(const YAML::Node& conf) : Output(conf)
   // Create the basis
   //
   basis = std::make_shared<OrthoBasisClasses::VelocityBasis>(conf);
+
+  // Create the coefficient container
+  //
+  if (dof==2)
+    coefs = std::make_shared<CoefClasses::PolarVelCoefs>();
+  else
+    coefs = std::make_shared<CoefClasses::SphVelCoefs>();
 }
 
 void OutVel::initialize()
@@ -77,6 +77,7 @@ void OutVel::initialize()
   // Assign values from YAML
   //
   try {
+    if (conf["dof"])          dof      = conf["dof"  ].as<int>();
     if (conf["nint"])         nint     = conf["nint" ].as<int>();
     if (conf["nintsub"]) {
       nintsub  = conf["nintsub"].as<int>();
@@ -165,136 +166,25 @@ void OutVel::Run(int n, int mstep, bool last)
   //
   basis->make_coefs();
 
-  // Check if file exists
+  // Check if file exists and extend the existing HDF5 file
   //
   if (std::filesystem::exists(outfile)) {
-    ExtendH5Coefs();
+    if (dof==2)
+      std::dynamic_pointer_cast<CoefClasses::PolarVelCoefs>(coefs)->
+	ExtendH5Coefs(outfile);
+    else
+      std::dynamic_pointer_cast<CoefClasses::SphVelCoefs>(coefs)->
+	ExtendH5Coefs(outfile);
   }
-  // Otherwise, extend the existing HDF5 file
+  // Otherwise, write a new HDF5 coefficient file
   //
   else {
-    WriteH5Coefs();
+    if (dof==2)
+      std::dynamic_pointer_cast<CoefClasses::PolarVelCoefs>(coefs)->
+	WriteH5Coefs(outfile);
+    else
+      std::dynamic_pointer_cast<CoefClasses::SphVelCoefs>(coefs)->
+	WriteH5Coefs(outfile);
   }
 }
 
-void OutVel::WriteH5Coefs()
-{
-  try {
-    // Create a new hdf5 file
-    //
-    HighFive::File file(outfile,
-			HighFive::File::ReadWrite |
-			HighFive::File::Create);
-      
-    // Write the specific parameters
-    //
-    WriteH5Params(file);
-      
-    // Group count variable
-    //
-    unsigned count = 0;
-    HighFive::DataSet dataset = file.createDataSet("count", count);
-      
-    // Create a new group for coefficient snapshots
-    //
-    HighFive::Group group = file.createGroup("snapshots");
-    
-    // Write the coefficients
-    //
-    count = WriteH5Times(group, count);
-      
-    // Update the count
-    //
-    dataset.write(count);
-    
-  } catch (HighFive::Exception& err) {
-    std::cerr << err.what() << std::endl;
-  }
-  
-}
-  
-
-void OutVel::ExtendH5Coefs()
-{
-  try {
-    // Open an hdf5 file
-    //
-    HighFive::File file(outfile, HighFive::File::ReadWrite);
-      
-    // Get the dataset
-    HighFive::DataSet dataset = file.getDataSet("count");
-      
-    unsigned count;
-    dataset.read(count);
-    
-    HighFive::Group group = file.getGroup("snapshots");
-    
-    // Write the coefficients
-    //
-    count = WriteH5Times(group, count);
-    
-    // Update the count
-    //
-    dataset.write(count);
-    
-  } catch (HighFive::Exception& err) {
-    std::cerr << err.what() << std::endl;
-  }
-  
-}
-  
-void OutVel::WriteH5Params(HighFive::File& file)
-{
-  // Identify myself
-  //
-  std::string whoami("Velocity orthgonal function coefficients");
-  file.createAttribute<std::string>("whoami", HighFive::DataSpace::From(whoami)).write(whoami);
-
-  // Write the model type
-  //
-  file.createAttribute<std::string>("model", HighFive::DataSpace::From(model)).write(model);
-  
-  // We write the coefficient mnemonic
-  //
-  file.createAttribute<std::string>("name", HighFive::DataSpace::From(tcomp->name)).write(tcomp->name);
-    
-  // Stash the config string
-  //
-  std::ostringstream yaml; yaml << conf;
-  file.createAttribute<std::string>("config", HighFive::DataSpace::From(yaml.str())).write(yaml.str());
-  
-
-  // Write the remaining parameters
-  //
-  file.createAttribute<int>   ("lmax",  HighFive::DataSpace::From(lmax)  ).write(lmax);
-  file.createAttribute<int>   ("nmax",  HighFive::DataSpace::From(nmax)  ).write(nmax);
-  file.createAttribute<int>   ("dof",   HighFive::DataSpace::From(dof)   ).write(dof);
-  file.createAttribute<double>("scale", HighFive::DataSpace::From(scale) ).write(scale);
-  file.createAttribute<double>("rmin",  HighFive::DataSpace::From(rmin)  ).write(rmin);
-  file.createAttribute<double>("rmax",  HighFive::DataSpace::From(rmax)  ).write(rmax);
-  file.createAttribute<double>("ascl",  HighFive::DataSpace::From(ascl)  ).write(ascl);
-  file.createAttribute<double>("delta", HighFive::DataSpace::From(delta) ).write(delta);
-}
-  
-unsigned OutVel::WriteH5Times(HighFive::Group& snaps, unsigned count)
-{
-  std::ostringstream stim;
-  stim << std::setw(8) << std::setfill('0') << std::right << count++;
-  HighFive::Group stanza = snaps.createGroup(stim.str());
-      
-  // Add time attribute
-  //
-  stanza.createAttribute<double>("Time", HighFive::DataSpace::From(tnow)).write(tnow);
-      
-  // Coefficient size (allow Eigen::Tensor to be easily recontructed from metadata)
-  //
-  const auto& d = coefs[0]->dimensions();
-  std::array<long int, 3> shape {d[0], d[1], d[2]};
-  stanza.createAttribute<double>("shape", HighFive::DataSpace::From(shape)).write(shape);
-
-  // Add coefficient data from flattened tensor
-  //
-  HighFive::DataSet dataset = stanza.createDataSet("coefficients", store);
-  
-  return count;
-}

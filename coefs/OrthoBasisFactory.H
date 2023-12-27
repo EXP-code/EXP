@@ -148,10 +148,12 @@ namespace OrthoBasisClasses
     { coefctr = center; }
     
     //! Get potential, density and forces at a point
+    /*
     virtual void getFields
     (double x, double y, double z,
      double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
      double& tpotx, double& tpoty, double& tpotz) = 0;
+    */
     
     //! Retrieve the coefficients 
     virtual CoefClasses::CoefStrPtr getCoefficients() = 0;
@@ -222,6 +224,7 @@ namespace OrthoBasisClasses
     using dataType = Eigen::Tensor<std::complex<double>, 3>;
     using coefType = Eigen::TensorMap<dataType>;
     std::vector<std::shared_ptr<coefType>> coefs;
+    CoefClasses::CoefStrPtr coefstr;
 
     std::vector<int> usedT;
     std::vector<double> massT;
@@ -243,7 +246,7 @@ namespace OrthoBasisClasses
     static const std::set<std::string> valid_keys;
 
     //! Return readable class name
-    virtual const std::string classname() { return "SphericalSL";}
+    virtual const std::string classname() { return "VelocityBasis"; }
 
     //! Subspace index
     virtual const std::string harmonic()
@@ -294,14 +297,6 @@ namespace OrthoBasisClasses
 			    double x, double y, double z,
 			    double u, double v, double w);
 			    
-    
-    //! Get potential, density and forces at a point
-    virtual void getFields
-    (double x, double y, double z,
-     double& tdens0, double& tpotl0, double& tdens, double& tpotl, 
-     double& tpotx, double& tpoty, double& tpotz);
-    
-    
     //! Get the field labels
     std::vector<std::string> getFieldLabels(const Coord ctype);
   

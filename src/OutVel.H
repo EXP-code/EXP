@@ -52,11 +52,8 @@ private:
 
   std::string filename, model, outfile;
   Component *tcomp;
-  double scale, rmin, rmax, ascl, delta;
-  int lmax, nmax, dof;
-
-  std::shared_ptr<Linear1d> interp;
-  std::function<double(double)> densfunc;
+  CoefClasses::CoefsPtr coefs;
+  int dof;
 
   void initialize(void);
 
