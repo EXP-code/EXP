@@ -37,11 +37,11 @@ double OrthoFunction::scalar_prod(int n, int m)
   double ans = 0.0;
 
   for (int i=0; i<knots; i++) {
-    double x = xmin + dx*lq->knot(i+1);
+    double x = xmin + dx*lq->knot(i);
     double r = x_to_r(x);
     double y = 2.0*r/scale; if (segment) y = x;
     Eigen::VectorXd p = poly_eval(y, n) * W(r);
-    ans += dx*lq->weight(i+1)*d_r_to_x(x)*pow(r, dof-1) *
+    ans += dx*lq->weight(i)*d_r_to_x(x)*pow(r, dof-1) *
       p(n) * p(n) * pow(y, m);
   }
 
@@ -69,9 +69,9 @@ Eigen::MatrixXd OrthoFunction::testOrtho()
 
   for (int i=0; i<knots; i++) {
     // Get abscissa and weight
-    double x = xmin + dx*lq->knot(i+1);
+    double x = xmin + dx*lq->knot(i);
     double r = x_to_r(x);
-    double f = dx*lq->weight(i+1)*d_r_to_x(x)*pow(r, dof-1);
+    double f = dx*lq->weight(i)*d_r_to_x(x)*pow(r, dof-1);
     double y = 2.0*r/scale; if (segment) y = x;
 
     // Evaluate polynomial
