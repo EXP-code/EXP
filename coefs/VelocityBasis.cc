@@ -38,6 +38,8 @@ namespace BasisClasses
     //
     std::vector<std::string> labels;
 
+    labels.push_back("density");
+
     if (ctype == Coord::Cylindrical) {
       labels.push_back("v_R");
       labels.push_back("v_p");
@@ -93,7 +95,12 @@ namespace BasisClasses
       sout << "VelocityBasis: found " << dof << " for dof.  Must be 2 or 3.";
       throw std::runtime_error(sout.str());
     }
-    
+
+    // Assign coordinate type
+    //
+    if (dof==2) coordinates = Coord::Cylindrical;
+    else        coordinates = Coord::Spherical;
+
     // Allocate storage for coefficients
     //
     int nt = omp_get_max_threads();
@@ -204,9 +211,17 @@ namespace BasisClasses
 
     // Copy the data structure
     if (dof==2) {
-      dynamic_pointer_cast<CoefClasses::PolarVelStruct>(cf)->coefs = coefs[0];
+      auto p = dynamic_pointer_cast<CoefClasses::PolarVelStruct>(cf);
+      p->mmax = lmax;
+      p->nmax = nmax;
+      p->allocate();
+      p->store = store[0];
     } else {
-      dynamic_pointer_cast<CoefClasses::SphVelStruct>(cf)->coefs = coefs[0];
+      auto p = dynamic_pointer_cast<CoefClasses::SphVelStruct>(cf);
+      p->lmax = lmax;
+      p->nmax = nmax;
+      p->allocate();
+      p->store = store[0];
     }
   }
 
@@ -340,9 +355,9 @@ namespace BasisClasses
     } else {
       std::vector<double> ret(4, 0);
       auto p = (*ortho)(r);
-      for (int i=0; i<3; i++) {
+      for (int i=0; i<4; i++) {
 	for (int l=0, L=0; l<=lmax; l++) {
-	  for (int m=0; m<=lmax; m++, L++) {
+	  for (int m=0; m<=l; m++, L++) {
 	    for (int n=0; n<nmax; n++) {
 	      ret[i] += std::real((*coefs[0])(i, L, n)*exp(I*(phi*m)))*p[n]*
 		Ylm01(l, m)*plgndr(l, m, costh);
