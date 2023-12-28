@@ -136,7 +136,8 @@ namespace Field
 	  frame["y"      ](ncnt) = y;
 	  frame["z"      ](ncnt) = z;
 	  frame["arc"    ](ncnt) = dlen*ncnt;
-	  for (int i=0; i<labels.size(); i++) frame[labels[i]](ncnt) = v[i];
+
+	  for (int n=0; n<labels.size(); n++) frame[labels[n]](ncnt) = v[n];
 	}
 	
 	ret[T] = frame;
@@ -389,8 +390,8 @@ namespace Field
 	
 	// Pack the frame structure
 	//
-	for (int i=0; i<labels.size(); i++)
-	  frame[labels[i]](i, j) = v[i];
+	for (int n=0; n<labels.size(); n++)
+	  frame[labels[n]](i, j) = v[n];
       }
 
       ret[T] = frame;
@@ -576,8 +577,8 @@ namespace Field
 
 	// Pack the frame structure
 	//
-	for (int i=0; i<labels.size(); i++)
-	  frame[labels[i]](i, j, k) = v[i];
+	for (int n=0; n<labels.size(); n++)
+	  frame[labels[n]](i, j, k) = v[n];
       }
 
       ret[T] = frame;
