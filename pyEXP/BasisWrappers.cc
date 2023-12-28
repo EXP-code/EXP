@@ -207,6 +207,20 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(void, Basis, make_coefs,);
     }
 
+    virtual CoefClasses::CoefStrPtr
+    createFromReader(PR::PRptr reader, std::vector<double> ctr) override {
+      PYBIND11_OVERRIDE_PURE(CoefClasses::CoefStrPtr, Basis, createFromReader, reader, ctr);
+    }
+
+
+    virtual void initFromArray(std::vector<double> ctr) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, initFromArray, ctr);
+    }
+
+    virtual void
+    addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin);
+    }
   };
 
   class PyVelocityBasis : public VelocityBasis
@@ -574,7 +588,132 @@ void BasisFactoryClasses(py::module &m)
     }
   };
 
-  py::class_<BasisClasses::BiorthBasis, std::shared_ptr<BasisClasses::BiorthBasis>, PyBiorthBasis>
+
+  py::class_<BasisClasses::Basis, std::shared_ptr<BasisClasses::Basis>, PyBasis>
+    (m, "Basis")
+    .def("factory",            &BasisClasses::BiorthBasis::factory_string,
+	 R"(
+         Generate a basis from a YAML configuration supplied as a string
+
+         Parameters
+         ----------
+         config : str
+             the YAML config string
+
+         Returns
+         -------
+         None
+         )")
+    .def("__call__", [](BasisClasses::Basis& A,	double x, double y, double z)
+    {
+      return A.evaluate(x, y, z);
+    },
+      R"(
+         Evaluate the field at the given point, returning the tuple of
+         field values and field labels as a pair of lists.
+
+         Parameters
+         ----------
+         x, y, z : float values
+             desired position for field evaluation
+
+         Returns
+         -------
+         tuple of lists
+             the field array and label array
+
+         Note
+         ----
+         This is an experimental feature
+         )"
+      )
+    .def("createFromArray",
+	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& ps,
+	    double time, std::vector<double> center, bool roundrobin)
+	 {
+	   return A.createFromArray(mass, ps, time, center, roundrobin);
+	 },
+	 R"(
+         Generate the coefficients from a mass and position array or,
+	 phase-space array, time, and an optional expansion center location. 
+
+         Parameters
+         ----------
+         mass : list
+             vector containing the masses for the n particles
+         ps   : numpy.ndarray
+             an array with n rows and 6 columns (x, y, z, u, v, w)
+             or 3 columns (x, y, z) for a biorthogonal basis
+         roundrobin : bool
+             the particles will be accumulated for each process 
+             round-robin style with MPI by default.  This may be 
+             disabled with 'roundrobin=false'.
+
+         Returns
+         -------
+         CoefStruct
+             the coefficient structure derived from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray : add contribution for particles
+         makeFromArray: create coefficients contributions
+         )",
+	 py::arg("mass"), py::arg("pos"), py::arg("time"),
+	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("roundrobin") = true)
+    .def("makeFromArray",
+	 [](BasisClasses::Basis& A, double time)
+	 {
+	   return A.makeFromArray(time);
+	 },
+	 R"(
+         Make the coefficients
+
+         This is the final call in the initFromArray(), addFromArray()...
+	 addFromArray()...makeFromArray() call sequence.
+
+         Parameters
+         ----------
+         time : float
+             snapshot time
+
+         Returns
+         -------
+         CoefStructure
+             the coefficient structure created from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray : add contribution for particles
+         )",
+	 py::arg("time")
+	 )
+    .def("setSelector", &BasisClasses::Basis::setSelector,
+	 R"(
+         Register a Python particle selection functor. 
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         clrSelector : clears the selection set here
+         )")
+    .def("clrSelector", &BasisClasses::Basis::clrSelector,
+	 R"(
+         Clear the previously registered particle selection functor
+
+         Returns
+         -------
+         None
+         )");
+
+
+  py::class_<BasisClasses::BiorthBasis, std::shared_ptr<BasisClasses::BiorthBasis>, PyBiorthBasis, BasisClasses::Basis>
     (m, "BiorthBasis")
     .def(py::init<const std::string&>(),
 	 R"(
@@ -697,54 +836,6 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray: create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
-    .def("makeFromArray",
-	 [](BasisClasses::BiorthBasis& A, double time)
-	 {
-	   return A.makeFromArray(time);
-	 },
-	 R"(
-         Make the coefficients
-
-         This is the final call in the initFromArray(), addFromArray()...
-	 addFromArray()...makeFromArray() call sequence.
-
-         Parameters
-         ----------
-         time : float
-             snapshot time
-
-         Returns
-         -------
-         CoefStructure
-             the coefficient structure created from the particles
-
-         See also
-         --------
-         initFromArray : initialize for coefficient contributions
-         addFromArray : add contribution for particles
-         )",
-	 py::arg("time")
-	 )
-    .def("setSelector", &BasisClasses::BiorthBasis::setSelector,
-	 R"(
-         Register a Python particle selection functor. 
-
-         Returns
-         -------
-         None
-
-         See also
-         --------
-         clrSelector : clears the selection set here
-         )")
-    .def("clrSelector", &BasisClasses::BiorthBasis::clrSelector,
-	 R"(
-         Clear the previously registered particle selection functor
-
-         Returns
-         -------
-         None
-         )")
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
          Return the density, potential, and forces for a cartesian position.
@@ -857,20 +948,7 @@ void BasisFactoryClasses(py::module &m)
          Returns
          -------
          None
-         )", py::arg("coefs"))
-    .def("factory",            &BasisClasses::BiorthBasis::factory_string,
-	 R"(
-         Generate a basis from a YAML configuration supplied as a string
-
-         Parameters
-         ----------
-         config : str
-             the YAML config string
-
-         Returns
-         -------
-         None
-         )");
+         )", py::arg("coefs"));
 
     py::class_<BasisClasses::SphericalSL, std::shared_ptr<BasisClasses::SphericalSL>, PySphericalSL, BasisClasses::BiorthBasis>(m, "SphericalSL")
       .def(py::init<const std::string&>(),
@@ -1184,7 +1262,7 @@ void BasisFactoryClasses(py::module &m)
       );
 
 
-  py::class_<BasisClasses::VelocityBasis, std::shared_ptr<BasisClasses::VelocityBasis>, PyVelocityBasis>(m, "VelocityBasis")
+  py::class_<BasisClasses::VelocityBasis, std::shared_ptr<BasisClasses::VelocityBasis>, PyVelocityBasis, BasisClasses::Basis>(m, "VelocityBasis")
       .def(py::init<const std::string&>(),
 	 R"(
          Create a orthogonal velocity-field basis
@@ -1199,7 +1277,106 @@ void BasisFactoryClasses(py::module &m)
          VelocityBasis
               the new instance
          )", py::arg("YAMLstring"))
+    .def("createFromReader", &BasisClasses::VelocityBasis::createFromReader,
+	 R"(
+         Generate the coefficients from the supplied ParticleReader
 
+         Parameters
+         ----------
+         reader : Particle reader
+             the ParticleReader instance
+         center : list, default=[0, 0, 0]
+	     an optional expansion center location
+
+         Returns
+         -------
+         CoefStruct
+             the basis coefficients computed from the particles
+         )",
+	 py::arg("reader"), 
+	 py::arg("center") = std::vector<double>(3, 0.0))
+    .def("initFromArray",
+	 [](BasisClasses::VelocityBasis& A, std::vector<double> center)
+	 {
+	   return A.initFromArray(center);
+	 },
+	 R"(
+         Initialize coefficient accumulation
+
+         Parameters
+         ----------
+         center : list, default=[0, 0, 0]
+             vector of center positions
+
+         Returns
+         -------
+         None
+
+         Notes
+         -----
+	 After initialization, phase-space data is then added with 
+         addFromArray() call.  addFromArray() may be called multiple times 
+         with any unique partition of phase space. The final generation is 
+         finished with a call to makeFromArray() with the snapshot time.  
+         This final call returns the coefficient set. This sequence of 
+         calls is identical to createFromArray() for a single set of 
+         phase space arrays but allows for generation from very large 
+         phase-space sets that can not be stored in physical memory.
+         )",
+	 py::arg("center") = std::vector<double>(3, 0.0))
+    .def("addFromArray",
+	 [](BasisClasses::VelocityBasis& A, Eigen::VectorXd& mass, RowMatrixXd& ps)
+	 {
+	   return A.addFromArray(mass, ps);
+	 },
+	 R"(
+         Add particle contributions to coefficients
+
+         Parameters
+         ----------
+         mass : list
+             vector containing the masses for the n particles
+         pos : numpy.ndarray
+             an array with n rows and 6 columns (x, y, z, u, v, w)
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         makeFromArray: create coefficients contributions
+         )",
+	 py::arg("mass"), py::arg("pos"))
+    .def("makeFromArray",
+	 [](BasisClasses::VelocityBasis& A, double time)
+	 {
+	   return A.makeFromArray(time);
+	 },
+	 R"(
+         Make the coefficients
+
+         This is the final call in the initFromArray(), addFromArray()...
+	 addFromArray()...makeFromArray() call sequence.
+
+         Parameters
+         ----------
+         time : float
+             snapshot time
+
+         Returns
+         -------
+         CoefStructure
+             the coefficient structure created from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray : add contribution for particles
+         )",
+	 py::arg("time")
+	 )
       .def("getBasis", &BasisClasses::VelocityBasis::getBasis,
 	   R"(
            Get basis functions
