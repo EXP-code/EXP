@@ -25,13 +25,15 @@ namespace BasisClasses
     
   public:
 
-    using BasisMap   = std::map<std::string, Eigen::VectorXd>;
-    using BasisArray = std::vector<std::vector<BasisMap>>;
+    using BasisArray = Eigen::MatrixXd;
 
   private:
     
-    //! Helper for constructor
+    //@{
+    //! Helpers for constructor
     void initialize();
+    void configure();
+    //@}
 
     std::shared_ptr<OrthoFunction> ortho;
     std::shared_ptr<Linear1d> interp;
@@ -83,10 +85,9 @@ namespace BasisClasses
   public:
     
     //! Constructor from YAML node
-    VelocityBasis(const YAML::Node& conf);
-    
-    //! Constructor from YAML string
-    VelocityBasis(const std::string& confstr);
+    VelocityBasis(const YAML::Node& conf) : Basis(conf) { configure(); }
+
+    VelocityBasis(const std::string& confstr) : Basis(confstr) { configure(); }
     
     //! Destructor
     virtual ~VelocityBasis(void) {}
@@ -108,6 +109,11 @@ namespace BasisClasses
 			    double x, double y, double z,
 			    double u, double v, double w);
 			    
+    [[deprecated("not relevant for this class")]]
+    virtual void accumulate(double x, double y, double z, double mass)
+    {
+    }
+
     //! Get the field labels
     std::vector<std::string> getFieldLabels(const Coord ctype);
   
@@ -125,19 +131,14 @@ namespace BasisClasses
 
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
-    /*
-    std::vector<Eigen::MatrixXd> orthoCheck(int knots=40)
-    {
-    }
-    */
-
+    Eigen::MatrixXd orthoCheck() { return ortho->testOrtho(); }
   };
   
   using VelocityBasisPtr = std::shared_ptr<VelocityBasis>;
 }
 // END: namespace BasisClasses
   
-#endif // _OrthoBasisFactory_H
+#endif // _VelocityBasisFactory_H
   
   
   

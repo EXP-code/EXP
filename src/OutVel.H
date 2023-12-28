@@ -17,7 +17,7 @@
 #include <Component.H>
 #include <EXPException.H>
 #include <Coefficients.H>
-#include <OrthoBasisFactory.H>
+#include <VelocityBasis.H>
 
 /** Dump coefficients at each interval
     
@@ -63,7 +63,7 @@ private:
   using CoefType = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 3>>;
 
   //! The basis isntance
-  std::shared_ptr<OrthoBasisClasses::VelocityBasis> basis;
+  std::shared_ptr<BasisClasses::VelocityBasis> basis;
     
   //! Initialize and write the HDF5 file
   void WriteH5Coefs();

@@ -58,7 +58,7 @@ OutVel::OutVel(const YAML::Node& conf) : Output(conf)
 
   // Create the basis
   //
-  basis = std::make_shared<OrthoBasisClasses::VelocityBasis>(conf);
+  basis = std::make_shared<BasisClasses::VelocityBasis>(conf);
 
   // Create the coefficient container
   //

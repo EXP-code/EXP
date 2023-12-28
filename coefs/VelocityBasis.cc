@@ -1,9 +1,9 @@
 #include <algorithm>
 
-#include <YamlCheck.H>
+#include <VelocityBasis.H>
 #include <EXPException.H>
-#include <OrthoBasisFactory.H>
 #include <DiskModels.H>
+#include <YamlCheck.H>
 #include <exputils.H>
 #include <gaussQ.H>
 
@@ -14,96 +14,8 @@
 extern double Ylm01(int ll, int mm);
 extern double plgndr(int l, int m, double x);
 
-namespace OrthoBasisClasses
+namespace BasisClasses
 {
-  std::map<OrthoBasis::Coord, std::string> OrthoBasis::coordLabels =
-    { {OrthoBasis::Coord::Spherical,   "Spherical"},
-      {OrthoBasis::Coord::Cylindrical, "Cylindrical"},
-      {OrthoBasis::Coord::Cartesian,   "Cartesian"},
-      {OrthoBasis::Coord::None,        "None"} };
-
-  OrthoBasis::OrthoBasis(const YAML::Node& CONF)
-  {
-    // Copy the YAML config
-    //
-    node = CONF;
-
-    // Complete the initialization
-    //
-    initialize();
-  }
-
-  OrthoBasis::OrthoBasis(const std::string& confstr)
-  {
-    try {
-      // Read the YAML from a string
-      //
-      node = YAML::Load(confstr);
-    }
-    catch (const std::runtime_error& error) {
-      std::cout << "Basis constructor: found a problem in the YAML config"
-		<< std::endl;
-      throw;
-    }
-
-    // Complete the initialization
-    //
-    initialize();
-  }
-
-  void OrthoBasis::initialize()
-  {
-#ifdef HAVE_FE_ENABLE
-    // Flag invalid FP results only, such as 0/0 or infinity - infinity
-    // or sqrt(-1).
-    //
-    // feenableexcept(FE_INVALID);
-#endif
-  
-    // Check whether MPI is initialized
-    //
-    int flag;
-    MPI_Initialized(&flag);
-    if (flag) use_mpi = true;
-    else      use_mpi = false;
-    
-    // Fall back sanity (works for me but this needs to be fixed
-    // generally)
-    //
-    if (use_mpi) {
-      MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-      MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-    }
-
-    // Parameters for force
-    //
-    try {
-      // First get the id name; we know it exists because it has been
-      // parsed by the factory
-      name = node["id"].as<std::string>();
-      // Then . . . 
-      conf = node["parameters"];
-    }
-    catch (YAML::Exception & error) {
-      if (myid==0) std::cout << "Error parsing force 'parameters' for <"
-			     << name << ">: "
-			     << error.what() << std::endl
-			     << std::string(60, '-') << std::endl
-			     << node                 << std::endl
-			     << std::string(60, '-') << std::endl;
-      
-      throw std::runtime_error("Basis: error parsing YAML");
-    }
-    
-    // Set coefficient center to zero by default
-    //
-    coefctr = {0.0, 0.0, 0.0};
-
-    // Default null coordinate type
-    //
-    coordinates = Coord::None;
-  }
-  
   const std::set<std::string>
   VelocityBasis::valid_keys = {
     "filename",
@@ -120,28 +32,6 @@ namespace OrthoBasisClasses
     "nmax",
     "model"
   };
-
-  OrthoBasis::Coord OrthoBasis::parseFieldType(std::string coord_type)
-  {
-    // Find coordinate type
-    //
-    std::transform(coord_type.begin(), coord_type.end(), coord_type.begin(),
-    [](unsigned char c){ return std::tolower(c); });
-
-    Coord ctype;
-
-    if (coord_type.find("cyl") != std::string::npos) {
-      ctype = Coord::Cylindrical;
-    } else if (coord_type.find("cart") != std::string::npos) {
-      ctype = Coord::Cartesian;
-    } else if (coord_type.find("none") != std::string::npos) {
-      ctype = Coord::None;
-    } else {
-      ctype = Coord::Spherical;
-    }
-
-    return ctype;
-  }
 
   std::vector<std::string>
   VelocityBasis::getFieldLabels(const Coord ctype)
@@ -170,9 +60,9 @@ namespace OrthoBasisClasses
   }
 
 
-  // Derived construcgtor for kinematic bases
+  // Deploy instance based on configuration file 
   //
-  VelocityBasis::VelocityBasis(const YAML::Node& CONF) : OrthoBasis(CONF)
+  void VelocityBasis::configure()
   {
     lmax     = 4;
     nmax     = 10;
@@ -478,5 +368,22 @@ namespace OrthoBasisClasses
     return sph_eval(r, costh, phi);
   }
 
+  VelocityBasis::BasisArray
+  VelocityBasis::getBasis(double logxmin, double logxmax, int numgrid)
+  {
+    // Assign return storage
+    //
+    BasisArray ret(nmax, numgrid);
+
+    // Radial grid spacing
+    double dx = (logxmax - logxmin)/numgrid;
+
+    for (int i=0; i<numgrid; i++) {
+      double R = pow(10.0, logxmin + dx*i);
+      ret.col(i) = (*ortho)(R);
+    }
+    
+    return ret;
+  }
 }
 // END namespace OrthoBasisClasses
