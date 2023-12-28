@@ -1775,6 +1775,10 @@ namespace CoefClasses
       ret = std::make_shared<CylCoefs>();
     } else if (dynamic_cast<TblStruct*>(coef.get())) {
       ret = std::make_shared<TableData>();
+    } else if (dynamic_cast<SphVelStruct*>(coef.get())) {
+      ret = std::make_shared<SphVelCoefs>();
+    } else if (dynamic_cast<PolarVelStruct*>(coef.get())) {
+      ret = std::make_shared<PolarVelCoefs>();
     } else {
       throw std::runtime_error("Coefs::makecoefs: cannot deduce coefficient file type");
     }
