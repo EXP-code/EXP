@@ -1705,23 +1705,41 @@ namespace CoefClasses
       geom.read(geometry);
       
       try {
-	if (geometry.compare("sphere")==0) {
-	  coefs = std::make_shared<SphCoefs>(h5file, stride, tmin, tmax);
-	} else if (geometry.compare("cylinder")==0) {
-	  coefs = std::make_shared<CylCoefs>(h5file, stride, tmin, tmax);
-	} else if (geometry.compare("cube")==0) {
-	  coefs = std::make_shared<CubeCoefs>(h5file, stride, tmin, tmax);
-	} else if (geometry.compare("table")==0) {
-	  coefs = std::make_shared<TableData>(h5file, stride, tmin, tmax);
-	} else {
-	  throw std::runtime_error("Coefs::factory: unknown H5 coefficient file geometry");
+	// Is the set a biorthogonal basis (has the forceID attribute)
+	// or general basis (fieldID attribute)?
+	//
+	if (h5file.hasAttribute("forceID")) {
+	  if (geometry.compare("sphere")==0) {
+	    coefs = std::make_shared<SphCoefs>(h5file, stride, tmin, tmax);
+	  } else if (geometry.compare("cylinder")==0) {
+	    coefs = std::make_shared<CylCoefs>(h5file, stride, tmin, tmax);
+	  } else if (geometry.compare("cube")==0) {
+	    coefs = std::make_shared<CubeCoefs>(h5file, stride, tmin, tmax);
+	  } else if (geometry.compare("table")==0) {
+	    coefs = std::make_shared<TableData>(h5file, stride, tmin, tmax);
+	  } else {
+	    throw std::runtime_error("Coefs::factory: unknown H5 coefficient file geometry: " + geometry);
+	  }
+	} else if (h5file.hasAttribute("fieldID")) {
+	  // Use the fieldID to choose the basis type
+	  std::string field;
+	  HighFive::Attribute fieldID = h5file.getAttribute("fieldID");
+	  fieldID.read(field);
+
+	  if (field.compare("spherical velocity")>0) {
+	    coefs = std::make_shared<SphVelCoefs>(h5file, stride, tmin, tmax);
+	  } else if (field.compare("polar velocity")>0) {
+	    coefs = std::make_shared<PolarVelCoefs>(h5file, stride, tmin, tmax);
+	  } else {
+	    throw std::runtime_error("Coefs::factory: unknown H5 coefficient file fieldID: " + field);
+	  }
 	}
       } catch (HighFive::Exception& err) {
-	std::cerr << "**** Error reading HDF5 file ****" << std::endl;
-	std::cerr << err.what() << std::endl;
-	exit(-1);
-      }
-      
+	  std::cerr << "**** Error reading HDF5 file ****" << std::endl;
+	  std::cerr << err.what() << std::endl;
+	  exit(-1);
+	}
+	
       return coefs;
       
     } catch (HighFive::Exception& err) {
@@ -2115,18 +2133,16 @@ namespace CoefClasses
   {
     // Identify myself
     //
-    std::string fieldID("Spherical velocity orthgonal function coefficients");
+    std::string fieldID("spherical velocity orthgonal function coefficients");
     file.createAttribute<std::string>("fieldID", HighFive::DataSpace::From(fieldID)).write(fieldID);
     
-    // Stash the config string
-    //
-    std::string config(getYAML());
-    file.createAttribute<std::string>("config", HighFive::DataSpace::From(config)).write(config);
-    
+    double scale = coefs.begin()->second->scale;
+
     // Write the remaining parameters
     //
     file.createAttribute<int>   ("lmax",  HighFive::DataSpace::From(Lmax)  ).write(Lmax);
     file.createAttribute<int>   ("nmax",  HighFive::DataSpace::From(Nmax)  ).write(Nmax);
+    file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
     file.createAttribute<int>   ("dof",   HighFive::DataSpace::From(dof)   ).write(dof);
   }
   
@@ -2153,7 +2169,7 @@ namespace CoefClasses
       //
       const auto& d = C->coefs->dimensions();
       std::array<long int, 3> shape {d[0], d[1], d[2]};
-      stanza.createAttribute<double>("shape", HighFive::DataSpace::From(shape)).write(shape);
+      stanza.createAttribute<long int>("shape", HighFive::DataSpace::From(shape)).write(shape);
       
       // Add coefficient data from flattened tensor
       //
@@ -2235,7 +2251,7 @@ namespace CoefClasses
   {
     // Identify myself
     //
-    std::string fieldID("Polar velocity orthgonal function coefficients");
+    std::string fieldID("polar velocity orthgonal function coefficients");
     file.createAttribute<std::string>("fieldID", HighFive::DataSpace::From(fieldID)).write(fieldID);
     
     // Stash the config string
@@ -2243,10 +2259,13 @@ namespace CoefClasses
     std::string config(getYAML());
     file.createAttribute<std::string>("config", HighFive::DataSpace::From(config)).write(config);
     
+    double scale = coefs.begin()->second->scale;
+
     // Write the remaining parameters
     //
     file.createAttribute<int>   ("mmax",  HighFive::DataSpace::From(Mmax)  ).write(Mmax);
     file.createAttribute<int>   ("nmax",  HighFive::DataSpace::From(Nmax)  ).write(Nmax);
+    file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
     file.createAttribute<int>   ("dof",   HighFive::DataSpace::From(dof)   ).write(dof);
   }
   
@@ -2273,7 +2292,7 @@ namespace CoefClasses
       //
       const auto& d = C->coefs->dimensions();
       std::array<long int, 3> shape {d[0], d[1], d[2]};
-      stanza.createAttribute<double>("shape", HighFive::DataSpace::From(shape)).write(shape);
+      stanza.createAttribute<long int>("shape", HighFive::DataSpace::From(shape)).write(shape);
       
       // Add coefficient data from flattened tensor
       //
