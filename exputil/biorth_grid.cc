@@ -126,10 +126,14 @@ double plgndr(int l, int m, double x)
   int i,ll;
   
   if (m < 0 || m > l || fabs(x) > 1.0) {
-    std::cerr << "Bad arguments in routine PLGNDR" << std::endl;
-    exit(-1);
+    std::ostringstream sout;
+    sout << "plgndr: bad arguments in routine l=" << l
+	 << " m=" << m << " x=" << x;
+    throw std::runtime_error(sout.str());
   }
+
   pmm=1.0;
+
   if (m > 0) {
     somx2=sqrt((1.0-x)*(1.0+x));
     fact=1.0;
@@ -159,8 +163,10 @@ double plgndr(int l, int m, double x)
 double dplgndr(int l, int m, double x)
 {
   if (m < 0 || m > l || fabs(x) > 1.0) {
-    std::cerr << "Bad arguments in routine DPLGNDR" << std::endl;
-    exit(-1);
+    std::ostringstream sout;
+    sout << "dplgndr: bad arguments in routine l=" << l
+	 << " m=" << m << " x=" << x;
+    throw std::runtime_error(sout.str());
   }
 
   if (l==0 && m==0) return 0.0;
