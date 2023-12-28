@@ -104,6 +104,26 @@ namespace BasisClasses
     //! Retrieve the coefficients 
     CoefClasses::CoefStrPtr getCoefficients();
 
+    //! Generate coeffients from a particle reader and optional center
+    //! location for the expansion
+    CoefClasses::CoefStrPtr createFromReader
+    (PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
+    
+    
+    //! Generate coeffients from an array and optional center location
+    //! for the expansion using multiple particle partitions
+    //@{
+
+    //! Initialize accumulating coefficients from arrays with an optional
+    //! center vector.  This is called once to initialize the accumulation.
+    void initFromArray
+    (std::vector<double> center={0.0, 0.0, 0.0});
+    
+    //! Initialize accumulating coefficients from arrays.  This is
+    //! called once to initialize the accumulation.
+    void addFromArray
+    (Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin=true);
+    
     //! Accumulate new coefficients
     virtual void accumulate(double mass,
 			    double x, double y, double z,

@@ -116,6 +116,7 @@ namespace BasisClasses
     //! Get field labels
     virtual std::vector<std::string> getFieldLabels(const Coord ctype) = 0;
 
+
   public:
     
     //! Constructor from YAML node
@@ -136,8 +137,13 @@ namespace BasisClasses
     operator()(double x1, double x2, double x3,
 	       const Coord ctype=Coord::Spherical);
     
-    //! Get potential, density and forces at a point
+    //! Evaluate fields at a point
     virtual std::vector<double> getFields(double x, double y, double z);
+    
+    //! Evaluate fields at a point, and provide field lables
+    virtual std::tuple<std::vector<double>, std::vector<std::string>>
+    evaluate(double x, double y, double z)
+    { return {getFields(x, y, z), getFieldLabels(coordinates)}; }
     
     //! Retrieve the coefficients 
     virtual CoefClasses::CoefStrPtr getCoefficients()
@@ -174,9 +180,31 @@ namespace BasisClasses
     //@{
     //! The coefficient factory.  Creates a shared pointer to derived
     //! instance of the desired type and returns it.
-    static std::shared_ptr<Basis> factory(const YAML::Node&  conf);
+    static std::shared_ptr<Basis> factory(const YAML::Node& conf);
     static std::shared_ptr<Basis> factory_string(const std::string& conf);
     //@}
+    
+    //! Generate coeffients from a particle reader
+    virtual CoefClasses::CoefStrPtr
+    createFromReader(PR::PRptr reader, std::vector<double> ctr) = 0;
+
+    //! Generate coefficients from a phase-space table
+    virtual void
+    initFromArray(std::vector<double> ctr) = 0;
+
+    //! Accumulate coefficient contributions from arrays
+    virtual void
+    addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin) = 0;
+
+    //! Generate coeffients from an array and optional center location
+    //! for the expansion
+    CoefClasses::CoefStrPtr createFromArray
+    (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
+     std::vector<double> center={0.0, 0.0, 0.0}, bool roundrobin=true);
+
+    //! Create and the coefficients from the array accumulation with the
+    //! provided time value
+    CoefClasses::CoefStrPtr makeFromArray(double time=0.0);
     
     //! Set the particle selector callback
     void setSelector(const Callback& f) { ftor = f; }

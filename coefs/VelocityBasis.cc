@@ -19,8 +19,6 @@ namespace BasisClasses
   const std::set<std::string>
   VelocityBasis::valid_keys = {
     "filename",
-    "nint",
-    "nintsub",
     "name",
     "dof",
     "scale",
@@ -90,7 +88,7 @@ namespace BasisClasses
     
     // Check dof value
     //
-    if (dof!=2 or dof!=3) {
+    if (dof!=2 and dof!=3) {
       std::ostringstream sout;
       sout << "VelocityBasis: found " << dof << " for dof.  Must be 2 or 3.";
       throw std::runtime_error(sout.str());
@@ -98,12 +96,13 @@ namespace BasisClasses
     
     // Allocate storage for coefficients
     //
-    store.resize(omp_get_max_threads());
-    coefs.resize(omp_get_max_threads());
-    massT.resize(omp_get_max_threads());
-    usedT.resize(omp_get_max_threads());
+    int nt = omp_get_max_threads();
+    store.resize(nt);
+    coefs.resize(nt);
+    massT.resize(nt);
+    usedT.resize(nt);
     
-    for (int t=0; t<omp_get_max_threads(); t++) {
+    for (int t=0; t<nt; t++) {
       if (dof==2) {
 	store[t].resize(3*(lmax+1)*nmax);
 	coefs[t] = std::make_shared<coefType>(store[t].data(), 3, lmax+1, nmax);
@@ -193,7 +192,7 @@ namespace BasisClasses
 			     << std::string(60, '-') << std::endl
 			     << conf                 << std::endl
 			     << std::string(60, '-') << std::endl;
-      MPI_Finalize();
+      if (use_mpi) MPI_Finalize();
       exit(-1);
     }
   }
@@ -205,9 +204,9 @@ namespace BasisClasses
 
     // Copy the data structure
     if (dof==2) {
-      coefs[0] = dynamic_pointer_cast<CoefClasses::SphVelStruct>(cf)->coefs;
+      dynamic_pointer_cast<CoefClasses::PolarVelStruct>(cf)->coefs = coefs[0];
     } else {
-      coefs[0] = dynamic_pointer_cast<CoefClasses::SphVelStruct>(cf)->coefs;
+      dynamic_pointer_cast<CoefClasses::SphVelStruct>(cf)->coefs = coefs[0];
     }
   }
 
@@ -268,7 +267,7 @@ namespace BasisClasses
       auto p = (*ortho)(r);
       
       for (int l=0, k=0; l<=lmax; l++) {
-	for (int m=0; m<=lmax; m++, k++) {
+	for (int m=0; m<=l; m++, k++) {
 	  std::complex<double> P =
 	    std::exp(I*(phi*m))*Ylm01(l, m)*plgndr(l, m, cth);
 	
@@ -295,11 +294,16 @@ namespace BasisClasses
       
     for (int t=1; t<coefs.size(); t++) *coefs[0] += *coefs[t];
 
-    MPI_Allreduce(MPI_IN_PLACE, coefs[0]->data(), coefs[0]->size(),
-		  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+    if (use_mpi) {
+      MPI_Allreduce(MPI_IN_PLACE, coefs[0]->data(), coefs[0]->size(),
+		    MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 
-    MPI_Allreduce(&usedT[0], &used,      1, MPI_INT,    MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&massT[0], &totalMass, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&usedT[0], &used,      1, MPI_INT,    MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&massT[0], &totalMass, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    } else {
+      used = usedT[0];
+      totalMass = massT[0];
+    }
   }
 
 
@@ -385,5 +389,189 @@ namespace BasisClasses
     
     return ret;
   }
+
+  // Generate coeffients from a particle reader
+  CoefClasses::CoefStrPtr VelocityBasis::createFromReader
+  (PR::PRptr reader, std::vector<double> ctr)
+  {
+    CoefClasses::CoefStrPtr coef;
+    
+    if (dof==3)
+      coef = std::make_shared<CoefClasses::SphVelStruct>();
+    else if (dof==2)
+      coef = std::make_shared<CoefClasses::PolarVelStruct>();
+    else {
+      std::ostringstream sout;
+      sout << "VelocityBasis::createCoefficients: dof must be 2 or 3"
+	   << std::endl;
+      throw std::runtime_error(sout.str());
+    }
+    
+    // Is center non-zero?
+    //
+    bool addCenter = false;
+    for (auto v : ctr) {
+      if (v != 0.0) addCenter = true;
+    }
+
+    // Add the expansion center metadata
+    //
+    if (addCenter) coef->ctr = ctr;
+
+    std::vector<double> pp(3), vv(3);
+
+    reset_coefs();
+    for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
+
+      bool use = false;
+      
+      if (ftor) {
+	pp.assign(p->pos, p->pos+3);
+	vv.assign(p->vel, p->vel+3);
+	use = ftor(p->mass, pp, vv, p->indx);
+      } else {
+	use = true;
+      }
+
+      if (use) accumulate(p->mass,
+			  p->pos[0]-ctr[0],
+			  p->pos[1]-ctr[1],
+			  p->pos[2]-ctr[2],
+			  p->vel[0],
+			  p->vel[1],
+			  p->vel[2]);
+
+    }
+    make_coefs();
+    load_coefs(coef, reader->CurrentTime());
+    return coef;
+  }
+
+  // Generate coefficients from a phase-space table
+  void VelocityBasis::initFromArray(std::vector<double> ctr)
+  {
+    if (dof==3)
+      coefret = std::make_shared<CoefClasses::SphVelStruct>();
+    else if (dof==2)
+      coefret = std::make_shared<CoefClasses::PolarVelStruct>();
+    else {
+      std::ostringstream sout;
+      sout << "VelocityBasis::createCoefficients: dof must be 2 or 3"
+	   << std::endl;
+      throw std::runtime_error(sout.str());
+    }
+      
+    // Is center non-zero?
+    //
+    bool addCenter = false;
+    for (auto v : ctr) {
+      if (v != 0.0) addCenter = true;
+    }
+
+    // Add the expansion center metadata
+    //
+    if (addCenter) coefret->ctr = ctr;
+    
+    // Register the center
+    //
+    coefctr = ctr;
+
+    // Clean up for accumulation
+    //
+    reset_coefs();
+    coefindx = 0;
+  }
+
+  // Accumulate coefficient contributions from arrays
+  void VelocityBasis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin)
+  {
+    // Sanity check: is coefficient instance created?  This is not
+    // foolproof.  It is really up the user to make sure that a call
+    // to initFromArray() comes first.
+    //
+    if (not coefret) {
+      std::string msg =
+	"VelocityBasis::addFromArray: you must initialize coefficient accumulation "
+	"with a call to VelocityBasis::initFromArray()";
+      throw std::runtime_error(msg);
+    }
+
+    std::vector<double> p1(3), v1(3);
+
+    if (p.rows() < 10 and p.cols() > p.rows()) {
+      std::cout << "Basis::addFromArray: interpreting your "
+		<< p.rows() << "X" << p.cols() << " input array as "
+		<< p.cols() << "X" << p.rows() << "." << std::endl;
+
+      if (p.rows()<6) {
+	std::ostringstream msg;
+	msg << "Basis::addFromArray: you must pass a position array with at "
+	  "least three six for x, y, z, u, v, w.  Yours has " << p.rows() << ".";
+	throw std::runtime_error(msg.str());
+      }
+
+      for (int n=0; n<p.cols(); n++) {
+
+	if (n % numprocs==myid or not roundrobin) {
+
+	  bool use = true;
+	  if (ftor) {
+	    for (int k=0; k<3; k++) {
+	      p1[k] = p(k+0, n);
+	      v1[k] = p(k+3, n);
+	    }
+	    use = ftor(m(n), p1, v1, coefindx);
+	  } else {
+	    use = true;
+	  }
+	  coefindx++;
+	  
+	  if (use) accumulate(m(n),
+			      p(0, n)-coefctr[0],
+			      p(1, n)-coefctr[1],
+			      p(2, n)-coefctr[2],
+			      p(3, n),
+			      p(4, n),
+			      p(5, n));
+	}
+      }
+      
+    } else {
+
+      if (p.cols()<6) {
+	std::ostringstream msg;
+	msg << "Basis::addFromArray: you must pass a position array with at "
+	  "least six columns for x, y, z, u, v, w.  Yours has " << p.cols() << ".";
+	throw std::runtime_error(msg.str());
+      }
+
+      for (int n=0; n<p.rows(); n++) {
+
+	if (n % numprocs==myid or not roundrobin) {
+
+	  bool use = true;
+	  if (ftor) {
+	    for (int k=0; k<3; k++) {
+	      p1[k] = p(n, k+0);
+	      v1[k] = p(n, k+3);
+	    }
+	    use = ftor(m(n), p1, v1, coefindx);
+	  } else {
+	    use = true;
+	  }
+	  coefindx++;
+	  
+	  if (use) accumulate(m(n),
+			      p(n, 0)-coefctr[0],
+			      p(n, 1)-coefctr[1],
+			      p(n, 2)-coefctr[2], 
+			      p(n, 3),
+			      p(n, 4),
+			      p(n, 5));
+	}
+      }
+    }
+  }
+
 }
-// END namespace OrthoBasisClasses
+// END namespace BasisClasses

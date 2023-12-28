@@ -215,5 +215,24 @@ namespace BasisClasses
     return crt_eval(x, y, z);
   }
     
+  // Generate coefficients from the accumulated array values
+  CoefClasses::CoefStrPtr Basis::makeFromArray(double time)
+  {
+    make_coefs();
+    load_coefs(coefret, time);
+    return coefret;
+  }
+
+  // Generate coefficients from a phase-space table
+  //
+  CoefClasses::CoefStrPtr Basis::createFromArray
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
+   bool roundrobin)
+  {
+    initFromArray(ctr);
+    addFromArray(m, p, roundrobin);
+    return makeFromArray(time);
+  }
+
 }
 // END namespace BasisClasses
