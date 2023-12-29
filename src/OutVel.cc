@@ -26,16 +26,20 @@ OutVel::valid_keys = {
 
 OutVel::OutVel(const YAML::Node& conf) : Output(conf)
 {
+  // Defaults
+  //
   nint    = 10;
   nintsub = std::numeric_limits<int>::max();
   tcomp   = NULL;
   dof     = 3;
 
+  // Retrieve parameters
+  //
   initialize();
 
   // Target output file
   //
-  outfile = "velcoef." + tcomp->name;
+  outfile = "velcoef." +  tcomp->name + "." + runtag;
 
   // Check for valid model type
   //
@@ -60,7 +64,8 @@ OutVel::OutVel(const YAML::Node& conf) : Output(conf)
   //
   basis = std::make_shared<BasisClasses::VelocityBasis>(conf);
 
-  // Create the coefficient container
+  // Create the coefficient container based on the dimensionality.
+  // Currently, these are spherical and polar grids.
   //
   if (dof==2)
     coefs = std::make_shared<CoefClasses::PolarVelCoefs>();
@@ -85,7 +90,7 @@ void OutVel::initialize()
       if (nintsub <= 0) nintsub = 1;
     }
 
-    if (conf["model"])
+    if (conf["model"])		// Model type is a required parameter
       model    = conf["model"].as<std::string>();
     else {
       std::string message = "OutVel: no model specified. Please specify "
@@ -94,14 +99,17 @@ void OutVel::initialize()
       throw std::runtime_error(message);
     }
 
-    if (conf["name"])
-      {				// Search for desired component
-	std::string tmp = conf["name"].as<std::string>();
-	for (auto c : comp->components) {
-	  if (!(c->name.compare(tmp))) tcomp  = c;
-	}
+    // Search for desired component
+    //
+    if (conf["name"]) {
+      std::string tmp = conf["name"].as<std::string>();
+      for (auto c : comp->components) {
+	if (!(c->name.compare(tmp))) tcomp  = c;
       }
+    }
 
+    // Success is required!
+    //
     if (!tcomp) {
       std::string message = "OutVel: no component to trace. Please specify "
 	"the component name using the 'name' parameter.";
@@ -149,6 +157,7 @@ void OutVel::Run(int n, int mstep, bool last)
   {
     for (PartMapItr it=ibeg; it!=iend; ++it) {
       
+      // Execute block for one particle at a time...
 #pragma omp single nowait
       {
 	double M = it->second->mass;
@@ -170,25 +179,31 @@ void OutVel::Run(int n, int mstep, bool last)
   //
   basis->make_coefs();
 
-  // Check if file exists and extend the existing HDF5 file
+  // Only root node writes the coefficient file
   //
-  if (std::filesystem::exists(outfile)) {
-    if (dof==2)
-      std::dynamic_pointer_cast<CoefClasses::PolarVelCoefs>(coefs)->
-	ExtendH5Coefs(outfile);
-    else
-      std::dynamic_pointer_cast<CoefClasses::SphVelCoefs>(coefs)->
-	ExtendH5Coefs(outfile);
+  if (myid==0) {
+
+    // Check if file exists and extend the existing HDF5 file
+    //
+    if (std::filesystem::exists(outfile)) {
+      if (dof==2)
+	std::dynamic_pointer_cast<CoefClasses::PolarVelCoefs>(coefs)->
+	  ExtendH5Coefs(outfile);
+      else
+	std::dynamic_pointer_cast<CoefClasses::SphVelCoefs>(coefs)->
+	  ExtendH5Coefs(outfile);
+    }
+    // Otherwise, write a new HDF5 coefficient file
+    //
+    else {
+      if (dof==2)
+	std::dynamic_pointer_cast<CoefClasses::PolarVelCoefs>(coefs)->
+	  WriteH5Coefs(outfile);
+      else
+	std::dynamic_pointer_cast<CoefClasses::SphVelCoefs>(coefs)->
+	  WriteH5Coefs(outfile);
+    }
   }
-  // Otherwise, write a new HDF5 coefficient file
-  //
-  else {
-    if (dof==2)
-      std::dynamic_pointer_cast<CoefClasses::PolarVelCoefs>(coefs)->
-	WriteH5Coefs(outfile);
-    else
-      std::dynamic_pointer_cast<CoefClasses::SphVelCoefs>(coefs)->
-	WriteH5Coefs(outfile);
-  }
+  // END: write to file
 }
 
