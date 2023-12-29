@@ -50,7 +50,7 @@ OutVel::OutVel(const YAML::Node& conf) : Output(conf)
 
   // Check dof value
   //
-  if (dof!=2 or dof!=3) {
+  if (dof!=2 and dof!=3) {
     std::ostringstream sout;
     sout << "OutVel: found " << dof << " for dof.  Must be 2 or 3.";
     throw std::runtime_error(sout.str());
