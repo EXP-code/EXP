@@ -18,13 +18,18 @@ OrthoFunction::OrthoFunction
 
 void OrthoFunction::generate()
 {
-  alph.resize(nmax+1);
+  // Recursion coefficients
+  alph.resize(nmax+1);		
   beta.resize(nmax+1);
-  norm.resize(nmax+1);
 
+  // Normalization
+  norm.resize(nmax+1);	
+
+  // Initial values
   beta[0] = norm[0] = scalar_prod(0, 0);
   alph[0] = scalar_prod(0, 1)/norm[0];
 
+  // Remaining values
   for (int i=1; i<=nmax; i++) {
     norm[i] = scalar_prod(i, 0);
     alph[i] = scalar_prod(i, 1)/norm[i];

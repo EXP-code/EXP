@@ -70,10 +70,10 @@ private:
   }
   //@}
 
-  //! Inner product poly n with moment m
+  //! Inner product polynomial of order n with moment m
   double scalar_prod(int n, int m);
 
-  //! Poly evaluation from j=0,...,n
+  //! Polynomial evaluation at t for orders j=0,...,n
   Eigen::VectorXd poly_eval(double t, int n);
 
   //! Generate the recursion for the orthogonal polynomials
@@ -88,7 +88,7 @@ public:
   //! Destructor
   virtual ~OrthoFunction() {}
 
-  //! Evaluate orthogonal function
+  //! Evaluate orthogonal functions at r
   Eigen::VectorXd operator()(double r);
 
   //! Reset Legendre knots and weights for inner product
