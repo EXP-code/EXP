@@ -201,19 +201,23 @@ namespace BasisClasses
     coefstr = cf;		// Assign the coeffiicient container
     coefstr->time = time;	// and the time
 
+    std::ostringstream sout; sout << node;
+
     // Copy the data structure
     if (dof==2) {
       auto p = dynamic_pointer_cast<CoefClasses::PolarVelStruct>(cf);
-      p->mmax = lmax;
-      p->nmax = nmax;
+      p->mmax  = lmax;
+      p->nmax  = nmax;
       p->allocate();
       p->store = store[0];
+      p->buf   = sout.str();
     } else {
       auto p = dynamic_pointer_cast<CoefClasses::SphVelStruct>(cf);
-      p->lmax = lmax;
-      p->nmax = nmax;
+      p->lmax  = lmax;
+      p->nmax  = nmax;
       p->allocate();
       p->store = store[0];
+      p->buf   = sout.str();
     }
   }
 
