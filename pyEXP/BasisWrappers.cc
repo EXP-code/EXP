@@ -868,25 +868,7 @@ void BasisFactoryClasses(py::module &m) {
         list(numpy.ndarray)
 	    list of numpy.ndarrays from [0, ... , Lmax]
         )",
-	py::arg("knots")=100)
-      .def("orthoTest", [](BasisClasses::SphericalSL& A, int knots)
-      {
-	return A.orthoTest(knots);
-      },
-	R"(
-        Check orthgonality of basis functions by quadrature and return
-        success value.  Uses orthoCheck() to test orthogonality.
-
-        Parameters
-        ----------
-        knots : int, default=40
-            Number of quadrature knots
-
-        Returns
-        -------
-        boolean
-        )",
-	py::arg("knots")=100)
+	py::arg("knots")=40)
       .def_static("cacheInfo", [](std::string cachefile)
       {
 	return BasisClasses::SphericalSL::cacheInfo(cachefile);
@@ -973,30 +955,13 @@ void BasisFactoryClasses(py::module &m) {
 
         Parameters
         ----------
-        None
+        knots : int
+            Number of quadrature knots
 
         Returns
         -------
         list(numpy.ndarray)
 	    list of numpy.ndarrays from [0, ... , Mmax]
-        )")
-    .def("orthoTest", [](BasisClasses::Cylindrical& A)
-	 {
-	   return A.orthoTest();
-	 },
-	R"(
-        Check orthgonality of basis functions by quadrature.
-
-        Uses orthoTest() to return a success value based on distance 
-        from the identity matrix.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        boolean
         )")
     .def_static("cacheInfo", [](std::string cachefile)
     {
@@ -1077,7 +1042,8 @@ void BasisFactoryClasses(py::module &m) {
 
       Parameters
       ----------
-      None
+      knots : int, default=40
+          Number of quadrature knots
 
       Returns
       -------
@@ -1085,22 +1051,6 @@ void BasisFactoryClasses(py::module &m) {
           list of numpy.ndarrays from [0, ... , Mmax]
        )"
       )
-      .def("orthoTest", [](BasisClasses::FlatDisk& A)
-      {
-	return A.orthoTest();
-      },
-	R"(
-        Check orthgonality of basis functions by quadrature and return
-        success value.  Uses orthoCheck() to test orthogonality.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        boolean
-        )")
     .def_static("cacheInfo", [](std::string cachefile)
     {
       return BasisClasses::FlatDisk::cacheInfo(cachefile);

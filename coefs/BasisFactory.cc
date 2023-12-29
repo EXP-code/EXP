@@ -4,6 +4,7 @@
 #include <EXPException.H>
 #include <BasisFactory.H>
 #include <DiskModels.H>
+#include <exputils.H>
 #include <gaussQ.H>
 
 #ifdef HAVE_FE_ENABLE
@@ -319,7 +320,7 @@ namespace BasisClasses
        0, 1, cachename);
     
     // Test basis for consistency
-    orthoCompare(orthoCheck(std::max<int>(nmax*50, 200)), classname(), harmonic());
+    orthoTest(orthoCheck(std::max<int>(nmax*50, 200)), classname(), harmonic());
 
     // Number of possible threads
     int nthrds = omp_get_max_threads();
@@ -1655,7 +1656,7 @@ namespace BasisClasses
     
     // Orthogonality sanity check
     //
-    orthoCompare(orthoCheck(), classname(), harmonic());
+    orthoTest(orthoCheck(), classname(), harmonic());
 
     // Get max threads
     //
