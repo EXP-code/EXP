@@ -223,69 +223,69 @@ void BasisFactoryClasses(py::module &m)
     }
   };
 
-  class PyVelocityBasis : public VelocityBasis
+  class PyFieldBasis : public FieldBasis
   {
   protected:
     std::vector<double> sph_eval(double r, double costh, double phi) override
     {
-      PYBIND11_OVERRIDE(std::vector<double>, VelocityBasis,
+      PYBIND11_OVERRIDE(std::vector<double>, FieldBasis,
 			sph_eval, r, costh, phi);
     }
     
     std::vector<double> cyl_eval(double R, double z, double phi) override
     {
-      PYBIND11_OVERRIDE(std::vector<double>, VelocityBasis,
+      PYBIND11_OVERRIDE(std::vector<double>, FieldBasis,
 			cyl_eval, R, z, phi);
     }
     
     std::vector<double> crt_eval(double x, double y, double z) override
     {
-      PYBIND11_OVERRIDE(std::vector<double> , VelocityBasis,
+      PYBIND11_OVERRIDE(std::vector<double> , FieldBasis,
 			     crt_eval, x, y, z);
     }
     
     void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override
     {
-      PYBIND11_OVERRIDE(void, VelocityBasis, load_coefs, coefs, time);
+      PYBIND11_OVERRIDE(void, FieldBasis, load_coefs, coefs, time);
     }
     
     void set_coefs(CoefClasses::CoefStrPtr coefs) override
     {
-      PYBIND11_OVERRIDE(void, VelocityBasis, set_coefs, coefs);
+      PYBIND11_OVERRIDE(void, FieldBasis, set_coefs, coefs);
     }
 
     const std::string classname() override
     {
-      PYBIND11_OVERRIDE(std::string, VelocityBasis, classname);
+      PYBIND11_OVERRIDE(std::string, FieldBasis, classname);
     }
 
     const std::string harmonic() override
     {
-      PYBIND11_OVERRIDE(std::string, VelocityBasis, harmonic);
+      PYBIND11_OVERRIDE(std::string, FieldBasis, harmonic);
     }
 
   public:
     // Inherit the constructors
-    using VelocityBasis::VelocityBasis;
+    using FieldBasis::FieldBasis;
 
     std::vector<double> getFields(double x, double y, double z) override
     {
-      PYBIND11_OVERRIDE(std::vector<double>, VelocityBasis, getFields,
+      PYBIND11_OVERRIDE(std::vector<double>, FieldBasis, getFields,
 			x, y, z);
     }
 
     void accumulate(double m, double x, double y, double z,
 		    double u, double v, double w) override
     {
-      PYBIND11_OVERRIDE(void, VelocityBasis, accumulate, m, x, y, z, u, v, w);
+      PYBIND11_OVERRIDE(void, FieldBasis, accumulate, m, x, y, z, u, v, w);
     }
     
     void reset_coefs(void) override {
-      PYBIND11_OVERRIDE(void, VelocityBasis, reset_coefs,);
+      PYBIND11_OVERRIDE(void, FieldBasis, reset_coefs,);
     }
 
     void make_coefs(void) override {
-      PYBIND11_OVERRIDE(void, VelocityBasis, make_coefs,);
+      PYBIND11_OVERRIDE(void, FieldBasis, make_coefs,);
     }
 
   };
@@ -1262,41 +1262,42 @@ void BasisFactoryClasses(py::module &m)
       );
 
 
-  py::class_<BasisClasses::VelocityBasis, std::shared_ptr<BasisClasses::VelocityBasis>, PyVelocityBasis, BasisClasses::Basis>(m, "VelocityBasis")
+  py::class_<BasisClasses::FieldBasis, std::shared_ptr<BasisClasses::FieldBasis>, PyFieldBasis, BasisClasses::Basis>(m, "FieldBasis")
       .def(py::init<const std::string&>(),
 	 R"(
-         Create a orthogonal velocity-field basis
+         Create a orthogonal basis for representing general fields
 
          Parameters
          ----------
          YAMLstring : str
-             The YAML configuration for the velocity basis
+             The YAML configuration for the field basis
 
          Returns
          -------
-         VelocityBasis
+         FieldBasis
               the new instance
          )", py::arg("YAMLstring"))
-    .def("createFromReader", &BasisClasses::VelocityBasis::createFromReader,
+    .def("addPSFunction", &BasisClasses::FieldBasis::addPSFunction,
 	 R"(
-         Generate the coefficients from the supplied ParticleReader
+         Register a functor that returns a list of derived phase-space
+         fields and a list of labels desribing them
 
          Parameters
          ----------
-         reader : Particle reader
-             the ParticleReader instance
-         center : list, default=[0, 0, 0]
-	     an optional expansion center location
+         function : [float,...] = f(float, [float, float, float], [float, float, float]
+             Returns a list of n float values derived from mass, position,
+             and velocity of the following form:
+             [a, b, c] = function(mass, [x, y, z], [u, v, w])
+         labels : list of str
+	     labels for the fields, e.g. ['a', 'b', 'c']
 
          Returns
          -------
-         CoefStruct
-             the basis coefficients computed from the particles
+         None
          )",
-	 py::arg("reader"), 
-	 py::arg("center") = std::vector<double>(3, 0.0))
+	 py::arg("function"), py::arg("labels"))
     .def("initFromArray",
-	 [](BasisClasses::VelocityBasis& A, std::vector<double> center)
+	 [](BasisClasses::FieldBasis& A, std::vector<double> center)
 	 {
 	   return A.initFromArray(center);
 	 },
@@ -1325,7 +1326,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("addFromArray",
-	 [](BasisClasses::VelocityBasis& A, Eigen::VectorXd& mass, RowMatrixXd& ps)
+	 [](BasisClasses::FieldBasis& A, Eigen::VectorXd& mass, RowMatrixXd& ps)
 	 {
 	   return A.addFromArray(mass, ps);
 	 },
@@ -1350,7 +1351,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("mass"), py::arg("pos"))
     .def("makeFromArray",
-	 [](BasisClasses::VelocityBasis& A, double time)
+	 [](BasisClasses::FieldBasis& A, double time)
 	 {
 	   return A.makeFromArray(time);
 	 },
@@ -1377,7 +1378,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("time")
 	 )
-      .def("getBasis", &BasisClasses::VelocityBasis::getBasis,
+      .def("getBasis", &BasisClasses::FieldBasis::getBasis,
 	   R"(
            Get basis functions
 
@@ -1408,7 +1409,7 @@ void BasisFactoryClasses(py::module &m)
       // orthoCheck is not in the base class and needs to have
       // different parameters depending on the basis type.  Here the
       // user can and will often need to specify a quadrature value.
-      .def("orthoCheck", [](BasisClasses::VelocityBasis& A)
+      .def("orthoCheck", [](BasisClasses::FieldBasis& A)
       {
 	return A.orthoCheck();
       },
@@ -1427,6 +1428,27 @@ void BasisFactoryClasses(py::module &m)
 	    orthogonality matrix
         )"
 	);
+
+  py::class_<BasisClasses::VelocityBasis, std::shared_ptr<BasisClasses::VelocityBasis>, BasisClasses::FieldBasis>(m, "VelocityBasis")
+      .def(py::init<const std::string&>(),
+	 R"(
+         Create a orthogonal velocity-field basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the velocity basis
+
+         Returns
+         -------
+         VelocityBasis
+              the new instance
+
+         Notes
+         -----
+         This is a FieldBasis specialized to return velocity fields in
+         spherical, cylindrical, or Cartesian systems.
+         )", py::arg("YAMLstring"));
 
   py::class_<BasisClasses::AccelFunc, std::shared_ptr<BasisClasses::AccelFunc>, PyAccelFunc>(m, "AccelFunc")
     .def(py::init<>(),
