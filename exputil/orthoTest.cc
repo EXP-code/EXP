@@ -59,14 +59,15 @@ orthoCompute(const std::vector<Eigen::MatrixXd>& tests)
   return {good, worst_ever, lworst};
 }
 
-// Digest the stats from orthoCompute and report
+// Digest the extrema from orthoCompute and report
 //
 void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
 	       const std::string& classname, const std::string& indexname)
 {
-
+  // Compute the orthogonality checks
   auto [good, worst, lworst] = orthoCompute(tests);
 
+  // If any fail, report
   if (not good) {
     std::cout << classname << ": orthogonality failure" << std::endl
 	      << std::right
@@ -78,6 +79,7 @@ void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
     
     throw std::runtime_error(classname + ": biorthogonal sanity check");
   } else {
+    // Success message
     if (myid==0) 
       std::cout << classname + ": biorthogonal check passed" << std::endl;
   }
