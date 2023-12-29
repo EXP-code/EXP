@@ -17,7 +17,7 @@
 #include <Component.H>
 #include <EXPException.H>
 #include <Coefficients.H>
-#include <VelocityBasis.H>
+#include <FieldBasis.H>
 
 /** Dump coefficients at each interval
     

@@ -1,5 +1,5 @@
-#ifndef _OrthoBasisFactory_H
-#define _OrthoBasisFactory_H
+#ifndef _FieldBasis_H
+#define _FieldBasis_H
 
 #include <functional>
 #include <Eigen/Eigen>
@@ -18,14 +18,17 @@
 namespace BasisClasses
 {
   /**
-     Velocity basis expansion
+     General basis expansion
   */
-  class VelocityBasis : public Basis
+  class FieldBasis : public Basis
   {
     
   public:
 
     using BasisArray = Eigen::MatrixXd;
+    using PS3 = std::array<double, 3>;
+    using PSFunction = std::function<std::vector<double>
+				     (double, PS3&, PS3&)>;
 
   private:
     
@@ -42,7 +45,7 @@ namespace BasisClasses
     std::string model, filename;
     int lmax, nmax, dof;
     double rmin, rmax, ascl, scale, delta;
-    
+
     std::vector<Eigen::VectorXcd> store;
     using dataType = Eigen::Tensor<std::complex<double>, 3>;
     using coefType = Eigen::TensorMap<dataType>;
@@ -55,6 +58,9 @@ namespace BasisClasses
     
   protected:
 
+    PSFunction fieldFunc;
+    std::vector<std::string> fieldLabels;
+  
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
 
@@ -65,7 +71,7 @@ namespace BasisClasses
     static const std::set<std::string> valid_keys;
 
     //! Return readable class name
-    virtual const std::string classname() { return "VelocityBasis"; }
+    virtual const std::string classname() { return "FieldBasis"; }
 
     //! Subspace index
     virtual const std::string harmonic()
@@ -85,13 +91,16 @@ namespace BasisClasses
   public:
     
     //! Constructor from YAML node
-    VelocityBasis(const YAML::Node& conf) : Basis(conf) { configure(); }
+    FieldBasis(const YAML::Node& conf) : Basis(conf) { configure(); }
 
-    VelocityBasis(const std::string& confstr) : Basis(confstr) { configure(); }
+    FieldBasis(const std::string& confstr) : Basis(confstr) { configure(); }
     
     //! Destructor
-    virtual ~VelocityBasis(void) {}
+    virtual ~FieldBasis(void) {}
     
+    //! Register phase-space functionoid
+    void addPSFunction(PSFunction func, std::vector<std::string>& labels);
+
     //! Prescaling factor
     void set_scale(const double scl) { scale = scl; }
     
@@ -135,7 +144,8 @@ namespace BasisClasses
     }
 
     //! Get the field labels
-    std::vector<std::string> getFieldLabels(const Coord ctype);
+    std::vector<std::string> getFieldLabels(const Coord ctype)
+    { return fieldLabels; }
   
     //! Return current maximum harmonic order in expansion
     int getLmax() { return lmax; }
@@ -144,7 +154,7 @@ namespace BasisClasses
     int getNmax() { return nmax; }
 
     //! Return potential-density pair of a vector of a vector of 1d
-    //! basis-function grids for VelocityBasis, logarithmically spaced
+    //! basis-function grids for FieldBasis, logarithmically spaced
     //! between [logxmin, logxmax] (base 10).
     BasisArray getBasis
     (double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
@@ -154,11 +164,27 @@ namespace BasisClasses
     Eigen::MatrixXd orthoCheck() { return ortho->testOrtho(); }
   };
   
+  class VelocityBasis : public FieldBasis
+  {
+
+  private:
+
+    void assignFunc();
+
+  public:
+    //! Constructor from YAML node
+    VelocityBasis(const YAML::Node& conf);
+
+    //! Constructor from YAML string
+    VelocityBasis(const std::string& confstr);
+  };
+
+  using FieldBasisPtr    = std::shared_ptr<FieldBasis>;
   using VelocityBasisPtr = std::shared_ptr<VelocityBasis>;
 }
 // END: namespace BasisClasses
   
-#endif // _VelocityBasisFactory_H
+#endif // _FieldBasis_H
   
   
   

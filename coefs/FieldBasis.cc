@@ -1,6 +1,6 @@
 #include <algorithm>
 
-#include <VelocityBasis.H>
+#include <FieldBasis.H>
 #include <EXPException.H>
 #include <DiskModels.H>
 #include <YamlCheck.H>
@@ -17,7 +17,7 @@ extern double plgndr(int l, int m, double x);
 namespace BasisClasses
 {
   const std::set<std::string>
-  VelocityBasis::valid_keys = {
+  FieldBasis::valid_keys = {
     "filename",
     "name",
     "dof",
@@ -31,38 +31,30 @@ namespace BasisClasses
     "model"
   };
 
-  std::vector<std::string>
-  VelocityBasis::getFieldLabels(const Coord ctype)
+  void FieldBasis::addPSFunction(FieldBasis::PSFunction func,
+				 std::vector<std::string>& labels)
   {
-    // Field labels (force field labels added below)
+    // Test return dimensionality
     //
-    std::vector<std::string> labels;
-
-    labels.push_back("density");
-
-    if (ctype == Coord::Cylindrical) {
-      labels.push_back("v_R");
-      labels.push_back("v_p");
-      labels.push_back("v_z");
-    } else if (ctype == Coord::Cartesian) {
-      labels.push_back("v_x");
-      labels.push_back("v_y");
-      labels.push_back("v_z");
-    } else if (ctype == Coord::None) {
-      // No forces
-    } else {
-      labels.push_back("v_r");
-      labels.push_back("v_t");
-      labels.push_back("v_p");
+    double z = 0.01;
+    PS3 pos{z, z, z}, vel{z, z, z};
+    auto p = func(z, pos, vel);
+    if (p.size() != labels.size()) {
+      std::ostringstream sout;
+      sout << "FieldBasis::register mismatch between field dimension <"
+	   << p.size() << "> and label dimension <" << labels.size() << ">";
+      throw std::runtime_error(sout.str());
     }
 
-    return labels;
+    // Okay to register
+    //
+    fieldFunc   = func;
+    fieldLabels = labels;
   }
-
 
   // Deploy instance based on configuration file 
   //
-  void VelocityBasis::configure()
+  void FieldBasis::configure()
   {
     lmax     = 4;
     nmax     = 10;
@@ -83,7 +75,7 @@ namespace BasisClasses
     auto it = std::find(modelTypes.begin(), modelTypes.end(), model);
     if (it == modelTypes.end()) {
       std::ostringstream sout;
-      sout << "VelocityBasis: found type <" << model << ">.  Must be one of ";
+      sout << "FieldBasis: found type <" << model << ">.  Must be one of ";
       for (auto v : modelTypes) sout << " " << v;
       throw std::runtime_error(sout.str());
     }
@@ -92,7 +84,7 @@ namespace BasisClasses
     //
     if (dof!=2 and dof!=3) {
       std::ostringstream sout;
-      sout << "VelocityBasis: found " << dof << " for dof.  Must be 2 or 3.";
+      sout << "FieldBasis: found " << dof << " for dof.  Must be 2 or 3.";
       throw std::runtime_error(sout.str());
     }
 
@@ -161,7 +153,7 @@ namespace BasisClasses
       };
     
     } else {
-      throw InternalError("VelocityBasis: model logic failure?! "
+      throw InternalError("FieldBasis: model logic failure?! "
 			  "You should not be here...",
 			  __FILE__, __LINE__);
     }
@@ -171,7 +163,7 @@ namespace BasisClasses
     ortho = std::make_shared<OrthoFunction>(nmax, densfunc, rmin, rmax, scale);
   }
 
-  void VelocityBasis::initialize()
+  void FieldBasis::initialize()
   {
     // Remove matched keys
     //
@@ -192,7 +184,7 @@ namespace BasisClasses
       if (conf["model"])        model    = conf["model"].as<std::string>();
     }
     catch (YAML::Exception & error) {
-      if (myid==0) std::cout << "Error parsing parameters in VelocityBasis: "
+      if (myid==0) std::cout << "Error parsing parameters in FieldBasis: "
 			     << error.what() << std::endl
 			     << std::string(60, '-') << std::endl
 			     << "Config node"        << std::endl
@@ -204,7 +196,7 @@ namespace BasisClasses
     }
   }
 
-  void VelocityBasis::load_coefs(CoefClasses::CoefStrPtr cf, double time)
+  void FieldBasis::load_coefs(CoefClasses::CoefStrPtr cf, double time)
   {
     coefstr = cf;		// Assign the coeffiicient container
     coefstr->time = time;	// and the time
@@ -225,7 +217,7 @@ namespace BasisClasses
     }
   }
 
-  void VelocityBasis::reset_coefs()
+  void FieldBasis::reset_coefs()
   {
     used = 0;
     totalMass = 0.0;
@@ -234,7 +226,7 @@ namespace BasisClasses
     for (auto & v : store) v.setZero();
   }
 
-  void VelocityBasis::set_coefs(CoefClasses::CoefStrPtr c)
+  void FieldBasis::set_coefs(CoefClasses::CoefStrPtr c)
   {
     if (dof==2) {
       auto p = dynamic_cast<CoefClasses::PolarVelStruct*>(c.get());
@@ -245,13 +237,16 @@ namespace BasisClasses
     }
   }
 
-  void VelocityBasis::accumulate(double mass,
-				 double x, double y, double z,
-				 double u, double v, double w)
+  void FieldBasis::accumulate(double mass,
+			      double x, double y, double z,
+			      double u, double v, double w)
   {
     constexpr std::complex<double> I(0, 1);
     int tid = omp_get_thread_num();
+    PS3 pos{x, y, z}, vel{u, v, w};
 
+    auto vec = fieldFunc(mass, pos, vel);
+    
     double R   = sqrt(x*x + y*y);
     double r   = sqrt(R*R + z*z);
     double phi = atan2(y, x);
@@ -259,25 +254,18 @@ namespace BasisClasses
     
     if (dof==2) {
       
-      double vr  = (u*x + v*y)/(R + 1.0e-18);
-      double vp  = (u*y - v*x)/(R + 1.0e-18);
-    
       auto p = (*ortho)(R);
     
       for (int m=0; m<=lmax; m++) {
 	std::complex<double> P = std::exp(I*(phi*m));
 	for (int n=0; n<nmax; n++) {
 	  (*coefs[tid])(0, m, n) += mass*P*p(n);
-	  (*coefs[tid])(1, m, n) += mass*P*p(n)*vr;
-	  (*coefs[tid])(2, m, n) += mass*P*p(n)*vp;
+	  for (int k=0; k<p.size(); k++)
+	    (*coefs[tid])(k+1, m, n) += mass*P*p(n)*vec[k];
 	}
       }	 
       
     } else {
-    
-      double vr  = (u*x + v*y + w*z)/(r + 1.0e-18);
-      double vt  = (u*z*x + v*z*y - w*R)/(R + 1.0e-18)/(r + 1.0-18);
-      double vp  = (u*y - v*x)/(R + 1.0e-18);
     
       auto p = (*ortho)(r);
       
@@ -288,16 +276,15 @@ namespace BasisClasses
 	
 	  for (int n=0; n<nmax; n++) {
 	    (*coefs[tid])(0, m, n) += mass*P*p(n);
-	    (*coefs[tid])(1, m, n) += mass*P*p(n)*vr;
-	    (*coefs[tid])(2, m, n) += mass*P*p(n)*vt;
-	    (*coefs[tid])(3, m, n) += mass*P*p(n)*vp;
+	    for (int k=0; k<p.size(); k++)
+	      (*coefs[tid])(k+1, m, n) += mass*P*p(n)*vec[k];
 	  }
 	}
       }
     }
   }
 
-  void VelocityBasis::make_coefs()
+  void FieldBasis::make_coefs()
   {
     // Sum over threads
     //
@@ -323,7 +310,7 @@ namespace BasisClasses
 
 
   //! Retrieve the coefficients 
-  CoefClasses::CoefStrPtr VelocityBasis::getCoefficients()
+  CoefClasses::CoefStrPtr FieldBasis::getCoefficients()
   {
     if (dof==2) {
       auto cstr = std::make_shared<CoefClasses::PolarVelStruct>();
@@ -337,7 +324,7 @@ namespace BasisClasses
   }
   
   std::vector<double>
-  VelocityBasis::sph_eval(double r, double costh, double phi)
+  FieldBasis::sph_eval(double r, double costh, double phi)
   {
     constexpr std::complex<double> I(0, 1);
 
@@ -370,7 +357,7 @@ namespace BasisClasses
   }
 
   std::vector<double>
-  VelocityBasis::cyl_eval(double R, double z, double phi)
+  FieldBasis::cyl_eval(double R, double z, double phi)
   {
     double r = sqrt(R*R + z*z);
     double costh = z/(r + 1.0e-18);
@@ -379,7 +366,7 @@ namespace BasisClasses
   }
 
   std::vector<double>
-  VelocityBasis::crt_eval(double x, double y, double z)
+  FieldBasis::crt_eval(double x, double y, double z)
   {
     double r = sqrt(x*x + y*y + z*z);
     double costh = z/(r + 1.0e-18), phi = atan2(y, x);
@@ -387,8 +374,8 @@ namespace BasisClasses
     return sph_eval(r, costh, phi);
   }
 
-  VelocityBasis::BasisArray
-  VelocityBasis::getBasis(double logxmin, double logxmax, int numgrid)
+  FieldBasis::BasisArray
+  FieldBasis::getBasis(double logxmin, double logxmax, int numgrid)
   {
     // Assign return storage
     //
@@ -406,7 +393,7 @@ namespace BasisClasses
   }
 
   // Generate coeffients from a particle reader
-  CoefClasses::CoefStrPtr VelocityBasis::createFromReader
+  CoefClasses::CoefStrPtr FieldBasis::createFromReader
   (PR::PRptr reader, std::vector<double> ctr)
   {
     CoefClasses::CoefStrPtr coef;
@@ -417,7 +404,7 @@ namespace BasisClasses
       coef = std::make_shared<CoefClasses::PolarVelStruct>();
     else {
       std::ostringstream sout;
-      sout << "VelocityBasis::createCoefficients: dof must be 2 or 3"
+      sout << "FieldBasis::createCoefficients: dof must be 2 or 3"
 	   << std::endl;
       throw std::runtime_error(sout.str());
     }
@@ -463,7 +450,7 @@ namespace BasisClasses
   }
 
   // Generate coefficients from a phase-space table
-  void VelocityBasis::initFromArray(std::vector<double> ctr)
+  void FieldBasis::initFromArray(std::vector<double> ctr)
   {
     if (dof==3)
       coefret = std::make_shared<CoefClasses::SphVelStruct>();
@@ -471,7 +458,7 @@ namespace BasisClasses
       coefret = std::make_shared<CoefClasses::PolarVelStruct>();
     else {
       std::ostringstream sout;
-      sout << "VelocityBasis::createCoefficients: dof must be 2 or 3"
+      sout << "FieldBasis::createCoefficients: dof must be 2 or 3"
 	   << std::endl;
       throw std::runtime_error(sout.str());
     }
@@ -498,7 +485,7 @@ namespace BasisClasses
   }
 
   // Accumulate coefficient contributions from arrays
-  void VelocityBasis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin)
+  void FieldBasis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin)
   {
     // Sanity check: is coefficient instance created?  This is not
     // foolproof.  It is really up the user to make sure that a call
@@ -506,8 +493,8 @@ namespace BasisClasses
     //
     if (not coefret) {
       std::string msg =
-	"VelocityBasis::addFromArray: you must initialize coefficient accumulation "
-	"with a call to VelocityBasis::initFromArray()";
+	"FieldBasis::addFromArray: you must initialize coefficient accumulation "
+	"with a call to FieldBasis::initFromArray()";
       throw std::runtime_error(msg);
     }
 
@@ -587,6 +574,94 @@ namespace BasisClasses
       }
     }
   }
+
+  std::vector<double> cylVel(double mass,
+			     FieldBasis::PS3& pos, FieldBasis::PS3& vel)
+  {
+    auto [x, y, z] = pos;
+    auto [u, v, w] = vel;
+    
+    double R   = sqrt(x*x + y*y);
+    double r   = sqrt(R*R + z*z);
+    double phi = atan2(y, x);
+    double cth = z/(r + 1.0e-18);
+    
+    double vr  = (u*x + v*y)/(R + 1.0e-18);
+    double vp  = (u*y - v*x)/(R + 1.0e-18);
+    
+    return {vr, vp};
+  }
+
+  std::vector<double> sphVel(double mass,
+			     FieldBasis::PS3& pos, FieldBasis::PS3& vel)
+  {
+    auto [x, y, z] = pos;
+    auto [u, v, w] = vel;
+    
+    double R   = sqrt(x*x + y*y);
+    double r   = sqrt(R*R + z*z);
+    double phi = atan2(y, x);
+    double cth = z/(r + 1.0e-18);
+    
+    double vr  = (u*x + v*y + w*z)/(r + 1.0e-18);
+    double vt  = (u*z*x + v*z*y - w*R)/(R + 1.0e-18)/(r + 1.0-18);
+    double vp  = (u*y - v*x)/(R + 1.0e-18);
+
+    return {vr, vt, vp};
+  }
+
+  std::vector<double> crtVel(double mass,
+			     FieldBasis::PS3& pos, FieldBasis::PS3& vel)
+  {
+    return {vel[0], vel[1], vel[2]};
+  }
+
+
+  void VelocityBasis::assignFunc()
+  {
+    fieldLabels.clear();
+
+    // Field labels (force field labels added below)
+    //
+    fieldLabels.push_back("density");
+
+    if (coordinates == Coord::Cylindrical) {
+      fieldLabels.push_back("v_R");
+      fieldLabels.push_back("v_p");
+      fieldLabels.push_back("v_z");
+
+      fieldFunc = cylVel;
+    } else if (coordinates == Coord::Cartesian) {
+      fieldLabels.push_back("v_x");
+      fieldLabels.push_back("v_y");
+      fieldLabels.push_back("v_z");
+
+      fieldFunc = crtVel;
+    } else if (coordinates == Coord::None) {
+      fieldLabels.push_back("v_x");
+      fieldLabels.push_back("v_y");
+      fieldLabels.push_back("v_z");
+
+      fieldFunc = crtVel;
+    } else {
+      fieldLabels.push_back("v_r");
+      fieldLabels.push_back("v_t");
+      fieldLabels.push_back("v_p");
+
+      fieldFunc = sphVel;
+    }
+  }
+
+  VelocityBasis::VelocityBasis(const YAML::Node& conf) : FieldBasis(conf)
+  {
+    assignFunc();
+  }
+
+  VelocityBasis::VelocityBasis(const std::string& confstr) : FieldBasis(confstr)
+  {
+    assignFunc();
+  }
+
 
 }
 // END namespace BasisClasses

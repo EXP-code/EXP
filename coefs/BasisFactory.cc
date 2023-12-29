@@ -4,7 +4,7 @@
 #include <EXPException.H>
 #include <BasisFactory.H>
 #include <BiorthBasis.H>
-#include <VelocityBasis.H>
+#include <FieldBasis.H>
 #include <exputils.H>
 
 #ifdef HAVE_FE_ENABLE

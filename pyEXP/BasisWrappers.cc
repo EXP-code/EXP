@@ -6,7 +6,7 @@
 #include <pybind11/stl.h>
 
 #include <BiorthBasis.H>
-#include <VelocityBasis.H>
+#include <FieldBasis.H>
 
 namespace py = pybind11;
 #include <TensorToArray.H>

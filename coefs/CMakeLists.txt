@@ -31,7 +31,7 @@ endif()
 
 # Make the expcoef shared library
 #
-set(expcoef_SOURCES BasisFactory.cc BiorthBasis.cc VelocityBasis.cc
+set(expcoef_SOURCES BasisFactory.cc BiorthBasis.cc FieldBasis.cc
   CoefContainer.cc CoefStruct.cc FieldGenerator.cc expMSSA.cc
   Coefficients.cc KMeans.cc Centering.cc ParticleIterator.cc
   Koopman.cc)
