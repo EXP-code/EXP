@@ -13,15 +13,17 @@
 #include <localmpi.H>		// MPI support
 #include <libvars.H>		// For orthoTol
 
-void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
-	       const std::string& classname, const std::string& indexname)
+// Compute the orthogonality of a list of matrices and gather stats
+//
+std::tuple<bool, double, std::vector<double>>
+orthoCompute(const std::vector<Eigen::MatrixXd>& tests)
 {
   // Number of possible threads
   int nthrds = omp_get_max_threads();
 
   // Worst so far
   std::vector<double> worst(nthrds), lworst(tests.size());
-
+  
   // Rank
   int nmax = tests[0].rows();
   
@@ -51,8 +53,21 @@ void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
   // END: harmonic order loop
 
   double worst_ever = *std::max_element(lworst.begin(), lworst.end());
+  bool good = true;
+  if (worst_ever > __EXP__::orthoTol) good = false;
 
-  if (worst_ever > __EXP__::orthoTol) {
+  return {good, worst_ever, lworst};
+}
+
+// Digest the stats from orthoCompute and report
+//
+void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
+	       const std::string& classname, const std::string& indexname)
+{
+
+  auto [good, worst, lworst] = orthoCompute(tests);
+
+  if (not good) {
     std::cout << classname << ": orthogonality failure" << std::endl
 	      << std::right
 	      << std::setw(4) << indexname
@@ -67,4 +82,3 @@ void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
       std::cout << classname + ": biorthogonal check passed" << std::endl;
   }
 }
-

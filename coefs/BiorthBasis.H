@@ -15,6 +15,7 @@
 #include <BiorthCyl.H>
 #include <EmpCylSL.H>
 #include <localmpi.H>
+#include <exputils.H>
 
 namespace Field
 {
