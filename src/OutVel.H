@@ -19,7 +19,7 @@
 #include <Coefficients.H>
 #include <FieldBasis.H>
 
-/** Dump coefficients at each interval
+/** Dump velocity flow coefficients at each interval
     
     @param filename of the coefficient file
 
