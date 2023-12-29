@@ -79,10 +79,21 @@ void OutVel::initialize()
   try {
     if (conf["dof"])          dof      = conf["dof"  ].as<int>();
     if (conf["nint"])         nint     = conf["nint" ].as<int>();
+
     if (conf["nintsub"]) {
       nintsub  = conf["nintsub"].as<int>();
       if (nintsub <= 0) nintsub = 1;
     }
+
+    if (conf["model"])
+      model    = conf["model"].as<std::string>();
+    else {
+      std::string message = "OutVel: no model specified. Please specify "
+	"either 'file' with the model 'filename' or 'expon' for the\n"
+	"exponential disk model (i.e. Laguerre polynomials)";
+      throw std::runtime_error(message);
+    }
+
     if (conf["name"])
       {				// Search for desired component
 	std::string tmp = conf["name"].as<std::string>();
@@ -97,14 +108,7 @@ void OutVel::initialize()
       throw std::runtime_error(message);
     }
 
-    if (conf["filename"])
-      {
-	filename = conf["filename"].as<std::string>();
-      }
-    else
-      {
-	filename = outdir + "velcoef." + tcomp->name + "." + runtag;
-      }
+    if (conf["filename"]) filename = conf["filename"].as<std::string>();
 
   }
   catch (YAML::Exception & error) {
