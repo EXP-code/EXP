@@ -24,9 +24,9 @@ You can see the deatiled output from the test using the `ctest
 ctest -V -R expExecuteTest
 ```
 
-In addition, tests are also labeled as "quick" and "long".  Labeled
-tests are run with the `ctest -L label` option.  Something like this
-might be useful for GitHub CI.
+In addition, tests are also labeled as "quick", "medium", and "long".
+Labeled tests are run with the `ctest -L label` option.  Something
+like this might be useful for GitHub CI.
 
 ## Notes for developers
 
@@ -37,9 +37,10 @@ The `CMakeLists.txt` file is divided into three sections:
 2. A pyEXP section that is run if `ENABLE_PYEXP` is set in CMake.
 3. A general section that is a placeholder for any tests that are not
    specific to a particular configuration.
-4. Each test is labeled as "quick" and "long" for quick testing and
-   long-running testing respectively.  Time in each label group is
-   reported by the `make test` or `ctest` command.
+4. Each test is labeled as "quick", "medium", and "long".  Quick tests
+   take seconds, medium tests are a few minutes and long tests may be
+   tens of minutes.  Time in each label group is reported by the `make
+   test` or `ctest` command.
 5. We might need or want additional categories.  For example, we might
    want to have specific MPI tests or cases the require matplotlib
 6. It would be better to stage tests that create files in a temporary

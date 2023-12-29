@@ -283,6 +283,15 @@ namespace BasisClasses
       return sl->orthoCheck(knots);
     }
 
+    //! Biorthogonality sanity check
+    bool orthoTest(int knots=100)
+    {
+      auto [ret, worst, lworst] = orthoCompute(sl->orthoCheck(knots));
+      // For the CTest log
+      std::cout << "SphericalSL::orthoTest: worst=" << worst << std::endl;
+      return ret;
+    }
+
   };
   
   /**
@@ -400,6 +409,15 @@ namespace BasisClasses
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
     std::vector<Eigen::MatrixXd> orthoCheck();
+
+    //! Biorthogonality sanity check
+    bool orthoTest()
+    {
+      auto [ret, worst, lworst] = orthoCompute(orthoCheck());
+      // For the CTest log
+      std::cout << "FlatDisk::orthoTest: worst=" << worst << std::endl;
+      return ret;
+    }
 
   };
   
@@ -541,6 +559,15 @@ namespace BasisClasses
     {
       return sl->orthoCheck();
     }
+
+    //! Biorthogonality sanity check
+    bool orthoTest()
+    {
+      auto [ret, worst, lworst] = orthoCompute(sl->orthoCheck());
+      // For the CTest log
+      std::cout << "Cylindrical::orthoTest: worst=" << worst << std::endl;
+      return ret;
+    }
   };
   
   /**
@@ -644,6 +671,24 @@ namespace BasisClasses
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
     Eigen::MatrixXcd orthoCheck();
+
+    //! Biorthogonality sanity check
+    bool orthoTest()
+    {
+      auto c = orthoCheck();
+      double worst = 0.0;
+      for (int n1=0; n1<c.rows(); n1++) {
+	for (int n2=0; n2<c.cols(); n2++) {
+	  double val = std::abs(c(n1, n2));
+	  if (n1==n2) val = std::fabs(val - 1.0);
+	  worst = std::max<double>(val, worst);
+	}
+      }
+	
+      std::cout << "Cube::orthoTest: worst=" << worst << std::endl;
+      if (worst > __EXP__::orthoTol) return false;
+      return true;
+    }
 
   };
   

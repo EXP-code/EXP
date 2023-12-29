@@ -11,6 +11,7 @@
 #include <Coefficients.H>
 #include <YamlCheck.H>
 #include <localmpi.H>
+#include <exputils.H>
 #include <interp.H>
 
 namespace Field
