@@ -379,7 +379,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   // error is out of tolerance)
   //
   std::cout << "---- ";
-  orthoCompare(ortho->orthoCheck(), "Cylinder", "m");
+  orthoTest(ortho->orthoCheck(), "Cylinder", "m");
 
   // Initialize internal variables
   //

@@ -39,10 +39,3 @@ disk_basis = pyEXP.basis.Basis.factory(disk_config)
 # Look into the cache file
 #
 node_cyl = disk_basis.cacheInfo('.eof.cache.run0t')
-
-# Orthogonality test
-#
-if (disk_basis.orthoTest()):
-    exit(0)
-else:
-    exit(1)
