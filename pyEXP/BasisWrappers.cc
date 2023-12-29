@@ -1296,6 +1296,24 @@ void BasisFactoryClasses(py::module &m)
          None
          )",
 	 py::arg("function"), py::arg("labels"))
+    .def("createFromReader", &BasisClasses::FieldBasis::createFromReader,
+	 R"(
+         Generate the coefficients from the supplied ParticleReader
+
+         Parameters
+         ----------
+         reader : Particle reader
+             the ParticleReader instance
+         center : list, default=[0, 0, 0]
+	     an optional expansion center location
+
+         Returns
+         -------
+         CoefStruct
+             the basis coefficients computed from the particles
+         )",
+	 py::arg("reader"), 
+	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("initFromArray",
 	 [](BasisClasses::FieldBasis& A, std::vector<double> center)
 	 {
