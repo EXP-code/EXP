@@ -2254,11 +2254,6 @@ namespace CoefClasses
     std::string fieldID("polar velocity orthgonal function coefficients");
     file.createAttribute<std::string>("fieldID", HighFive::DataSpace::From(fieldID)).write(fieldID);
     
-    // Stash the config string
-    //
-    std::string config(getYAML());
-    file.createAttribute<std::string>("config", HighFive::DataSpace::From(config)).write(config);
-    
     double scale = coefs.begin()->second->scale;
 
     // Write the remaining parameters
