@@ -1877,16 +1877,18 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
   cur->scale  = scale;
   cur->normed = true;
 
-  cur->coefs.resize((Lmax+1)*(Lmax+2)/2, nmax);
+  cur->allocate();
+
+  auto & cof = *cur->coefs;	// Reference for convenience
 
   for (int ir=0; ir<nmax; ir++) {
     for (int l=0, L=0, offset=0; l<=Lmax; l++) {
       for (int m=0; m<=l; m++, L++) {
 	if (m==0) {
-	  cur->coefs(L, ir) = {(*expcoef[offset])[ir], 0.0};
+	  cof(L, ir) = {(*expcoef[offset])[ir], 0.0};
 	  offset += 1;
 	} else {
-	  cur->coefs(L, ir) = {(*expcoef[offset])[ir], (*expcoef[offset+1])[ir]};
+	  cof(L, ir) = {(*expcoef[offset])[ir], (*expcoef[offset+1])[ir]};
 	  offset += 2;
 	}
       }

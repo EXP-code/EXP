@@ -62,7 +62,7 @@ set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 
 # Package support
 
-find_package(MPI REQUIRED)
+find_package(MPI REQUIRED COMPONENTS C CXX)
 find_package(Boost COMPONENTS serialization)
 find_package(OpenMP)
 find_package(FFTW)

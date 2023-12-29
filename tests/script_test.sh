@@ -2,7 +2,7 @@
 
 set -eu
 
-FILE="test_file"
+FILE="../README.md"
 if [ -f $FILE ]; then
     echo "File found! Test passed!"
 else

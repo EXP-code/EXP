@@ -12,19 +12,29 @@ constexpr cuFP_t FSMALL = 20.0 * std::numeric_limits<cuFP_t>::min();
 constexpr cuFP_t MINEPS = 20.0 * std::numeric_limits<cuFP_t>::min();
 
 typedef std::pair<unsigned int, unsigned int> PII;
-
 // Loop unroll
 //
-template <typename T, unsigned int blockSize>
-__device__
-void warpReduce(volatile T *sdata, unsigned int tid)
-{
-  if (blockSize >= 64) sdata[tid] += sdata[tid + 32];
-  if (blockSize >= 32) sdata[tid] += sdata[tid + 16];
-  if (blockSize >= 16) sdata[tid] += sdata[tid +  8];
-  if (blockSize >=  8) sdata[tid] += sdata[tid +  4];
-  if (blockSize >=  4) sdata[tid] += sdata[tid +  2];
-  if (blockSize >=  2) sdata[tid] += sdata[tid +  1];
+// Assumes blocksize is 64 or larger power of 2 up to max of 512 (or
+// 1024 see below)
+//
+// https://developer.nvidia.com/blog/using-cuda-warp-level-primitives/
+//
+template <typename T>
+__device__ void warpReduce(T *sdata, unsigned int tid) {
+
+  T v = sdata[tid]; 
+  v += sdata[tid+32]; 
+  sdata[tid] = v;     __syncwarp();
+  v += sdata[tid+16]; __syncwarp();
+  sdata[tid] = v;     __syncwarp();
+  v += sdata[tid+8];  __syncwarp();
+  sdata[tid] = v;     __syncwarp();
+  v += sdata[tid+4];  __syncwarp();
+  sdata[tid] = v;     __syncwarp();
+  v += sdata[tid+2];  __syncwarp();
+  sdata[tid] = v;     __syncwarp();
+  v += sdata[tid+1];  __syncwarp();
+  sdata[tid] = v;
 }
 
 template <typename T, unsigned int blockSize>
@@ -46,13 +56,13 @@ __global__ void reduceSum(dArray<T> out, dArray<T> in,
       // Sanity checks
       //
       if (i+n*j>=in._s) {
-	printf("out of bounds: %d >= %d @ %s:%d\n",
+	printf("out of bounds: %d >= %lu @ %s:%d\n",
 	       i+n*j, in._s, __FILE__, __LINE__);
       }
 
       if (i+blockSize<n) {
 	if (i+n*j+blockSize>=in._s)
-	  printf("out of bounds: block %d >= %d @ %s:%d\n",
+	  printf("out of bounds: block %d >= %lu @ %s:%d\n",
 		 i+n*j+blockSize, in._s, __FILE__, __LINE__);
       }
 
@@ -92,7 +102,7 @@ __global__ void reduceSum(dArray<T> out, dArray<T> in,
     }
 
     if (tid < 32) {
-      warpReduce<T, blockSize>(&sdata[0], tid);
+      warpReduce<T>(&sdata[0], tid);
     }
 
     if (tid == 0) {
@@ -126,7 +136,7 @@ __global__ void reduceSumS(dArray<T> out, dArray<T> in,
       // Sanity checks
       //
       if (i+n*j>=in._s) {
-	printf("reduceSumS out of bounds: %d >= %d @ %s:%d\n",
+	printf("reduceSumS out of bounds: %d >= %lu @ %s:%d\n",
 	       i+n*j, in._s, __FILE__, __LINE__);
       }
 
@@ -166,7 +176,7 @@ __global__ void reduceSumS(dArray<T> out, dArray<T> in,
     }
 
     if (tid < 32) {
-      warpReduce<T, blockSize>(&sdata[0], tid);
+      warpReduce<T>(&sdata[0], tid);
     }
 
     if (tid == 0) {

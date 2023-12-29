@@ -8,105 +8,131 @@
 #include <BasisFactory.H>
 
 namespace py = pybind11;
-// #include <pyTensor.H>
 #include <TensorToArray.H>
 
 void BasisFactoryClasses(py::module &m) {
 
-  m.doc() = "BasisFactory class bindings\n\n"
-    "This module provides a factory class that will create biorthogonal\n"
-    "bases from input YAML configuration files.  Each basis can then be\n"
-    "used to compute coefficients, provide field quantities such as\n"
-    "forces and, together with the FieldGenerator, surfaces and fields for\n"
-    "visualization.\n\n"
-    "Three bases are currently implemented: SphericalSL, the Sturm-\n"
-    "Liouiville spherical basis, the Cylindrical basis, which is\n"
-    "created by computing empirical orthogonal functions over a densely\n"
-    "sampled SphericalSL basis, and a FlatDisk basis, which is an EOF\n"
-    "rotation of the finite Bessel basis.  Each of these bases take a YAML\n"
-    "configuration file as input. These parameter lists are as subset of\n"
-    "and have the same structure as thosed used by EXP. The factory\n"
-    "and the individual constructors will check the parameters keys\n"
-    "and warn of mismatches for safety.  See the EXP documentation and\n"
-    "the pyEXP examples for more detail.  Other bases in EXP but not in\n"
-    "pyEXP include those for cubic and slab geometries and other special-\n"
-    "purpose bases such as the Hernquist, Clutton-Brock sphere and two-\n"
-    "dimensional disk basis.  These will be made available in a future\n"
-    "release if there is demand.  Note however that the Hernquist and\n"
-    "Clutton-Brock spheres can be constructed using SphericalSL with a\n"
-    "Hernquist of modified Plummer model as input.\n\n"
-    "The primary functions of these basis classes are:\n"
-    "  1. To compute BFE coefficients from phase-space snapshots\n"
-    "     using the ParticleReader class. See help(pyEXP.read).\n"
-    "  2. To evaluate the fields from the basis and a coefficient\n"
-    "     object. See help(pyEXP.coefs) and help(pyEXP.field).\n\n"
-    "Introspection\n"
-    "-------------\n"
-    "The two bases have a 'cacheInfo(str)' member that reports the\n"
-    "parameters used to create the cached basis.  This may be used\n"
-    "grab the parameters for creating a basis.  At this point, you\n"
-    "must create the YAML configuration for the basis even if the\n"
-    "basis is cached.  This is a safety and consistency feature that\n"
-    "may be relaxed in a future version.\n\n"
-    "Coefficient creation\n"
-    "--------------------\n"
-    "The Basis class creates coefficients from phase space with two\n"
-    "methods: 'createFromReader()' and 'createFromArray()'.  The first\n"
-    "uses a ParticleReader, see help(pyEXP.read), and the second uses\n"
-    "arrays of mass and 3d position vectors.  Both methods take an\n"
-    "optional center vector (default: 0, 0, 0).  You may also register\n"
-    "and an optional boolean functor used to select which particles to\n"
-    "using the 'setSelector(functor)' member.  An example functor\n"
-    "would be defined in Python as follows:\n"
-    "   def myFunctor(m, pos, vel, index):\n"
-    "      ret = False  # Default return value\n"
-    "      # some caculation with scalar mass, pos array, vel array and\n"
-    "      # integer index that sets ret to True if desired . . . \n"
-    "      return ret\n"
-    "If you are using 'createFromArray()', you will only have access to\n"
-    "the mass and position vector.   You may clear and turn off the\n"
-    "selector using the 'clrSelector()' member.\n\n"
-    "Scalablility\n"
-    "------------\n"
-    "createFromArray() is a convenience method allows you to transform\n"
-    "coordinates and preprocess phase space using your own methods and\n"
-    "readers.  Inside this method are three member functions calls that\n"
-    "separately initialize, accumulate the coefficient contributions from\n"
-    "the provided vectors, and finally construct and return the new coeffi-\n"
-    "cient instance (Coefs).  For scalability, we provide access to each \n"
-    "of these three methods so that the phase space may be partitioned into\n"
-    "any number of smaller pieces.  These three members are: initFromArray(),\n"
-    "addFromArray(), makeFromArray().  The initFromArray() is called once to\n"
-    "begin the creation and the makeFromArray() method is called once to\n"
-    "build the final set of coefficients.  The addFromArray() may be called\n"
-    "any number of times in between.  For example, the addFromArray() call\n"
-    "can be inside of a loop that iterates over any partition of phase space\n"
-    "from your own pipeline.  The underlying computation is identical to\n"
-    "createFromArray().  However, access to the three underlying steps allows\n"
-    "you to scale your phase-space processing to snapshots of any size.\n"
-    "For reference, the createFromReader() method uses a producer-consumer\n"
-    "pattern internally to provide scalability.  These three methods allow\n"
-    "you to provide the same pattern in your own pipeline.\n\n"
-    "Orbit integration\n"
-    "-----------------\n"
-    "The IntegrateOrbits routine uses a fixed time step leap frog integrator\n"
-    "to advance orbits from tinit to tfinal with time step h.  The initial\n"
-    "positions and velocities are supplied in an nx6 NumPy array.  Tuples\n"
-    "of the basis (a Basis instance) and coefficient database (a Coefs\n"
-    "instance) for each component is supplied to IntegrateOrbtis as a list.\n"
-    "Finally, the type of acceleration is an instance of the AccelFunc class.\n"
-    "The acceleration at each time step is computed by setting a coefficient\n"
-    "set in Basis and evaluating and accumulating the acceleration for each\n"
-    "phase-space point.  The coefficient are handled by implementing the\n"
-    "evalcoefs() method of AccelFunc. We supply two implemented derived\n"
-    "classes, AllTimeFunc and SingleTimeFunc.  The first interpolates on the\n"
-    "Coefs data base and installs the interpolated coefficients for the\n"
-    "current time in the basis instance.  The SingleTimeFunc interpolates on\n"
-    "the Coefs data base for a single fixed time and sets the interpolated\n"
-    "coefficients once at the beginning of the integration.  This implementes\n"
-    "a fixed potential model.  AccelFunc can be inherited by a native Python\n"
-    "class and the evalcoefs() may be implemented in Python and passed to\n"
-    "IntegrateOrbits in the same way as a native C++ class.\n\n";
+  m.doc() =
+    R"(
+    BasisFactory class bindings
+    
+    This module provides a factory class that will create biorthogonal
+    bases from input YAML configuration files.  Each basis can then be
+    used to compute coefficients, provide field quantities such as
+    forces and, together with the FieldGenerator, surfaces and fields for
+    visualization.
+
+    Four bases are currently implemented:
+     1. SphericalSL, the Sturm-Liouiville spherical basis;
+     2. Cylindrical, created created by computing empirical orthogonal functions
+        over a densely sampled SphericalSL basis;
+     3. FlatDisk, an EOF rotation of the finite Bessel basis; and
+     4. Cube, a periodic cube basis whose functions are the Cartesian eigenfunctions
+        of the Cartesian Laplacian: sines and cosines.
+
+    Each of these bases take a YAML configuration file as input. These parameter
+    lists are as subset of and have the same structure as thosed used by EXP. The
+    factory and the individual constructors will check the parameters keys
+    and warn of mismatches for safety.  See the EXP documentation and
+    the pyEXP examples for more detail.  Other bases in EXP but not in
+    pyEXP include those for cubic and slab geometries and other special-
+    purpose bases such as the Hernquist, Clutton-Brock sphere and two-
+    dimensional disk basis.  These will be made available in a future
+    release if there is demand.  Note however that the Hernquist and
+    Clutton-Brock spheres can be constructed using SphericalSL with a
+    Hernquist of modified Plummer model as input.
+
+    The primary functions of these basis classes are:
+      1. To compute BFE coefficients from phase-space snapshots
+         using the ParticleReader class. See help(pyEXP.read).
+      2. To evaluate the fields from the basis and a coefficient
+         object. See help(pyEXP.coefs) and help(pyEXP.field).
+
+    Introspection
+    -------------
+    The two bases have a 'cacheInfo(str)' member that reports the
+    parameters used to create the cached basis.  This may be used
+    grab the parameters for creating a basis.  At this point, you
+    must create the YAML configuration for the basis even if the
+    basis is cached.  This is a safety and consistency feature that
+    may be relaxed in a future version.
+
+    Coefficient creation
+    --------------------
+    The Basis class creates coefficients from phase space with two
+    methods: 'createFromReader()' and 'createFromArray()'.  The first
+    uses a ParticleReader, see help(pyEXP.read), and the second uses
+    arrays of mass and 3d position vectors.  Both methods take an
+    optional center vector (default: 0, 0, 0).  You may also register
+    and an optional boolean functor used to select which particles to
+    using the 'setSelector(functor)' member.  An example functor
+    would be defined in Python as follows:
+       def myFunctor(m, pos, vel, index):
+          ret = False  # Default return value
+          # some caculation with scalar mass, pos array, vel array and
+          # integer index that sets ret to True if desired . . . 
+          return ret
+    If you are using 'createFromArray()', you will only have access to
+    the mass and position vector.   You may clear and turn off the
+    selector using the 'clrSelector()' member.
+
+    Scalablility
+    ------------
+    createFromArray() is a convenience method allows you to transform
+    coordinates and preprocess phase space using your own methods and
+    readers.  Inside this method are three member functions calls that
+    separately initialize, accumulate the coefficient contributions from
+    the provided vectors, and finally construct and return the new coeffi-
+    cient instance (Coefs).  For scalability, we provide access to each 
+    of these three methods so that the phase space may be partitioned into
+    any number of smaller pieces.  These three members are: initFromArray(),
+    addFromArray(), makeFromArray().  The initFromArray() is called once to
+    begin the creation and the makeFromArray() method is called once to
+    build the final set of coefficients.  The addFromArray() may be called
+    any number of times in between.  For example, the addFromArray() call
+    can be inside of a loop that iterates over any partition of phase space
+    from your own pipeline.  The underlying computation is identical to
+    createFromArray().  However, access to the three underlying steps allows
+    you to scale your phase-space processing to snapshots of any size.
+    For reference, the createFromReader() method uses a producer-consumer
+    pattern internally to provide scalability.  These three methods allow
+    you to provide the same pattern in your own pipeline.
+
+    Coordinate systems
+    -------------------
+    Each basis is assigned a natural coordinate system for field evaluation
+    as follows:
+     1. SphericalSL uses spherical coordinates
+     2. Cylindrical uses cylindrical coordinates
+     3. FlatDisk uses cylindrical coordinates
+     4. Cube uses Cartesian coordinates
+    These default choices may be overridden by passing a string argument
+    to the 'setFieldType()' member. The argument is case insensitive and only 
+    distinguishing characters are necessary.  E.g. for 'Cylindrical', the 
+    argument 'cyl' or even 'cy' is sufficient.  The argument 'c' is clearly 
+    not enough.
+
+    Orbit integration
+    -----------------
+    The IntegrateOrbits routine uses a fixed time step leap frog integrator
+    to advance orbits from tinit to tfinal with time step h.  The initial
+    positions and velocities are supplied in an nx6 NumPy array.  Tuples
+    of the basis (a Basis instance) and coefficient database (a Coefs
+    instance) for each component is supplied to IntegrateOrbtis as a list.
+    Finally, the type of acceleration is an instance of the AccelFunc class.
+    The acceleration at each time step is computed by setting a coefficient
+    set in Basis and evaluating and accumulating the acceleration for each
+    phase-space point.  The coefficient are handled by implementing the
+    evalcoefs() method of AccelFunc. We supply two implemented derived
+    classes, AllTimeFunc and SingleTimeFunc.  The first interpolates on the
+    Coefs data base and installs the interpolated coefficients for the
+    current time in the basis instance.  The SingleTimeFunc interpolates on
+    the Coefs data base for a single fixed time and sets the interpolated
+    coefficients once at the beginning of the integration.  This implementes
+    a fixed potential model.  AccelFunc can be inherited by a native Python
+    class and the evalcoefs() may be implemented in Python and passed to
+    IntegrateOrbits in the same way as a native C++ class.
+    )";
 
   using namespace BasisClasses;
 
@@ -117,11 +143,29 @@ void BasisFactoryClasses(py::module &m) {
   class PyBasis : public Basis
   {
   protected:
-    void all_eval(double r, double costh, double phi,
+    void all_eval_sph(double r, double costh, double phi,
 		  double& den0, double& den1,
 		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp)override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, all_eval,
+		  double& potr, double& pott, double& potp) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, all_eval_sph,
+			     r, costh, phi, den0, den1, pot0, pot1,
+			     potr, pott, potp);
+    }
+    
+    void all_eval_cyl(double r, double costh, double phi,
+		  double& den0, double& den1,
+		  double& pot0, double& pot1,
+		  double& potr, double& pott, double& potp) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, all_eval_cyl,
+			     r, costh, phi, den0, den1, pot0, pot1,
+			     potr, pott, potp);
+    }
+    
+    void all_eval_crt(double r, double costh, double phi,
+		  double& den0, double& den1,
+		  double& pot0, double& pot1,
+		  double& potr, double& pott, double& potp) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, all_eval_crt,
 			     r, costh, phi, den0, den1, pot0, pot1,
 			     potr, pott, potp);
     }
@@ -177,10 +221,11 @@ void BasisFactoryClasses(py::module &m) {
     void all_eval(double r, double costh, double phi,
 		  double& den0, double& den1,
 		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp) override {
+		  double& potr, double& pott, double& potp,
+		  Coord ctype) override {
       PYBIND11_OVERRIDE(void, SphericalSL, all_eval,
 			r, costh, phi, den0, den1, pot0, pot1,
-			potr, pott, potp);
+			potr, pott, potp, ctype);
     }
     
     void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
@@ -234,7 +279,8 @@ void BasisFactoryClasses(py::module &m) {
     void all_eval(double r, double costh, double phi,
 		  double& den0, double& den1,
 		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp)override {
+		  double& potr, double& pott, double& potp,
+		  Coord ctype) override {
       PYBIND11_OVERRIDE(void, Cylindrical, all_eval,
 			r, costh, phi, den0, den1, pot0, pot1,
 			potr, pott, potp);
@@ -290,13 +336,31 @@ void BasisFactoryClasses(py::module &m) {
   {
   protected:
 
-    void all_eval(double r, double costh, double phi,
-		  double& den0, double& den1,
-		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp)override {
-      PYBIND11_OVERRIDE(void, FlatDisk, all_eval,
+    void all_eval_sph(double r, double costh, double phi,
+		      double& den0, double& den1,
+		      double& pot0, double& pot1,
+		      double& potr, double& pott, double& potp) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, all_eval_sph,
 			r, costh, phi, den0, den1, pot0, pot1,
 			potr, pott, potp);
+    }
+    
+    void all_eval_cyl(double R, double z, double phi,
+		      double& den0, double& den1,
+		      double& pot0, double& pot1,
+		      double& potR, double& potz, double& potp) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, all_eval_cyl,
+			R, z, phi, den0, den1, pot0, pot1,
+			potR, potz, potp);
+    }
+    
+    void all_eval_crt(double x, double y, double z,
+		      double& den0, double& den1,
+		      double& pot0, double& pot1,
+		      double& potx, double& poty, double& potz) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, all_eval_crt,
+			x, y, z, den0, den1, pot0, pot1,
+			potx, poty, potz);
     }
     
     void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
@@ -340,6 +404,85 @@ void BasisFactoryClasses(py::module &m) {
 
     void make_coefs(void) override {
       PYBIND11_OVERRIDE(void, FlatDisk, make_coefs,);
+    }
+
+  };
+
+
+  class PyCube : public Cube
+  {
+  protected:
+
+    
+    void all_eval_sph(double r, double costh, double phi,
+		  double& den0, double& den1,
+		  double& pot0, double& pot1,
+		  double& potr, double& pott, double& potp) override {
+      PYBIND11_OVERRIDE(void, Cube, all_eval_sph,
+			r, costh, phi, den0, den1, pot0, pot1,
+			potr, pott, potp);
+    }
+    
+
+    void all_eval_cyl(double R, double z, double phi,
+		      double& den0, double& den1,
+		      double& pot0, double& pot1,
+		      double& potR, double& potz, double& potp) override {
+      PYBIND11_OVERRIDE(void, Cube, all_eval_cyl,
+			R, z, phi, den0, den1, pot0, pot1,
+			potR, potz, potp);
+    }
+    
+    void all_eval_crt(double x, double y, double z,
+		      double& den0, double& den1,
+		      double& pot0, double& pot1,
+		      double& potx, double& poty, double& potz) override {
+      PYBIND11_OVERRIDE(void, Cube, all_eval_crt,
+			x, y, z, den0, den1, pot0, pot1,
+			potx, poty, potz);
+    }
+    
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
+      PYBIND11_OVERRIDE(void, Cube, load_coefs, coefs, time);
+    }
+    
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override {
+      PYBIND11_OVERRIDE(void, Cube, set_coefs, coefs);
+    }
+
+    const std::string classname() override {
+      PYBIND11_OVERRIDE(std::string, Cube, classname);
+    }
+
+    const std::string harmonic() override {
+      PYBIND11_OVERRIDE(std::string, Cube, harmonic);
+    }
+
+  public:
+
+    // Inherit the constructors
+    using Cube::Cube;
+
+    void getFields(double x, double y, double z,
+		   double& tdens0, double& tpotl0, double& tdens, double& tpotl,
+		   double& tpotx, double& tpoty, double& tpotz) override {
+      PYBIND11_OVERRIDE(void, Cube, getFields,
+			x, y, z,
+			tdens0, tpotl0, tdens, tpotl,
+			tpotx, tpoty, tpotz
+			);
+    }
+
+    void accumulate(double x, double y, double z, double mass) override {
+      PYBIND11_OVERRIDE(void, Cube, accumulate, x, y, z, mass);
+    }
+
+    void reset_coefs(void) override {
+      PYBIND11_OVERRIDE(void, Cube, reset_coefs,);
+    }
+
+    void make_coefs(void) override {
+      PYBIND11_OVERRIDE(void, Cube, make_coefs,);
     }
 
   };
@@ -557,6 +700,37 @@ void BasisFactoryClasses(py::module &m) {
          None
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("setFieldType",       &BasisClasses::Basis::setFieldType,
+         R"(
+         Set the coordinate system for force evaluations.  The natural 
+         coordinates for the basis class are the default; spherical
+         coordinates for SphericalSL, cylindrical coordinates for
+         Cylindrical and FlatDisk, and Cartesian coordinates for Cube.
+         This member function can be used to override the default.  The
+         available coorindates are: 'spherical', 'cylindrical', 'cartesian'.
+
+         Parameters
+         ----------
+         coord : str
+             the coordinate system
+
+         Returns
+         -------
+         None
+         )",
+	 py::arg("coord"))
+    .def("getFieldType",       &BasisClasses::Basis::getFieldType,
+         R"(
+         Get the coordinate system for force evaluations for inspection.
+
+         Parameters
+         ----------
+         None
+
+         Returns
+         -------
+         None
+         )")
     .def("accumulate",         &BasisClasses::Basis::accumulate,
 	 R"(
          Add the contribution of a single particle to the coefficients
@@ -945,6 +1119,50 @@ void BasisFactoryClasses(py::module &m) {
           cache parameters
       )",
       py::arg("cachefile"));
+
+  py::class_<BasisClasses::Cube, std::shared_ptr<BasisClasses::Cube>, PyCube, BasisClasses::Basis>(m, "Cube")
+    .def(py::init<const std::string&>(),
+	 R"(
+         Create a 3d periodic cube basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the periodic cube basis.  The coordinates
+             are the unit cube with origin at (0, 0, 0) and maximum extent (1, 1, 1).
+             The default  parameters will wave numbers between [-6,...,6] in each
+             dimension.
+
+         Returns
+         -------
+         Cube
+             the new instance
+         )", py::arg("YAMLstring"))
+    .def("orthoCheck", [](BasisClasses::Cube& A)
+    {
+      return A.orthoCheck();
+    },
+      R"(
+      Check orthgonality of basis functions by quadrature
+
+      Inner-product matrix of indexed by flattened wave number (nx, ny, nz) where
+      each of nx is in [-nmaxx, nmaxx], and so on for ny and nz.  Each dimension 
+      has dx=2*nmaxx+1 wave numbers and similarly for dy and dz.  The index into the
+      array is index=(nx+nmaxx)*dx*dy + (ny+nmaxy)*dy + (nz+nmaxz).   This is an 
+      analyic basis so the orthogonality matrix is not a check of andy numerical
+      computation other than the quadature itself.  It is included for completeness.
+
+      Parameters
+      ----------
+      None
+
+      Returns
+      -------
+      numpy.ndarray)
+          list of numpy.ndarrays from [0, ... , dx*dy*dz]
+       )"
+      );
+
 
   py::class_<BasisClasses::AccelFunc, std::shared_ptr<BasisClasses::AccelFunc>, PyAccelFunc>(m, "AccelFunc")
     .def(py::init<>(),

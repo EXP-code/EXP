@@ -17,20 +17,12 @@ OutCoef::valid_keys = {
 
 OutCoef::OutCoef(const YAML::Node& conf) : Output(conf)
 {
-  nint = 10;
+  nint    = 10;
   nintsub = std::numeric_limits<int>::max();
-  native = false;
-  tcomp = NULL;
+  native  = false;
+  tcomp   = NULL;
 
   initialize();
-
-  if (!tcomp) {
-    if (myid==0) {
-      std::cerr << "OutCoef: no component to trace\n";
-    }
-    MPI_Finalize();
-    exit(112);
-  }
 
   if (!(tcomp->force->HaveCoefDump())) {
     if (myid==0) {
@@ -55,6 +47,7 @@ void OutCoef::initialize()
       nintsub  = conf["nintsub"].as<int>();
       if (nintsub <= 0) nintsub = 1;
     }
+
     if (conf["name"])
       {				// Search for desired component
 	std::string tmp = conf["name"].as<std::string>();
@@ -62,6 +55,12 @@ void OutCoef::initialize()
 	  if (!(c->name.compare(tmp))) tcomp  = c;
 	}
       }
+
+    if (!tcomp) {
+      std::string message = "OutCoef: no component to trace. Please specify "
+	"the component name using the 'name' parameter.";
+      throw std::runtime_error(message);
+    }
 
     if (conf["filename"])
       {

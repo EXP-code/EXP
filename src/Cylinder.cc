@@ -128,24 +128,24 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   rcylmin         = 0.001;	// Should only change these two in
   rcylmax         = 20.0;	// extreme circumstances
 
-  ncylnx          = 128;	// These defaults should do fine in
+  ncylnx          = 256;	// These defaults should do fine in
   ncylny          = 128;	// most cases, as well
   ncylr           = 2000;
 
-  acyl            = 1.0;
-  nmaxfid         = 24;
-  lmaxfid         = 36;
-  mmax            = 4;
+  acyl            = 0.01;
+  lmaxfid         = 128;
+  nmaxfid         = 64;
+  mmax            = 6;
   mlim            = -1;
-  hcyl            = 1.0;
-  nmax            = 10;
-  ncylodd         = -1;
+  hcyl            = 0.002;
+  nmax            = 18;
+  ncylodd         = 9;
   ncylrecomp      = -1;
 
-  rnum            = 100;
-  pnum            = 40;
-  tnum            = 40;
-  ashift          = 0.25;
+  rnum            = 200;
+  pnum            = 1;
+  tnum            = 80;
+  ashift          = 0.0;
 
   vflag           = 0;
   eof             = 1;
@@ -1510,7 +1510,9 @@ void Cylinder::dump_coefs_h5(const std::string& file)
   cur->mmax = mmax;
   cur->nmax = nmax;
 
-  cur->coefs.resize(mmax+1, nmax);
+  cur->allocate();
+
+  auto & cof = *cur->coefs;	// Reference to the coefficient map
 
   Eigen::VectorXd cos1(nmax), sin1(nmax);
   
@@ -1520,9 +1522,9 @@ void Cylinder::dump_coefs_h5(const std::string& file)
 
     for (int ir=0; ir<nmax; ir++) {
       if (m==0) {
-	cur->coefs(m, ir) = {cos1(ir), 0.0};
+	cof(m, ir) = {cos1(ir), 0.0};
       } else {
-	cur->coefs(m, ir) = {cos1(ir), sin1(ir)};
+	cof(m, ir) = {cos1(ir), sin1(ir)};
       }
     }
   }

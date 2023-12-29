@@ -18,25 +18,25 @@ void CoefficientClasses(py::module &m) {
     "----------\n"
     "The CoefStruct class is low-level structure that stores the data\n"
     "and metadata specific to each geometry. These are spherical\n"
-    "(SphStruct), cylindrical (CylStruct), and table data (TblStruct).\n"
-    "EXP also knows about rectangular grids and slabs.  These may be\n"
+    "(SphStruct), cylindrical (CylStruct), cube (CubeStruct) and table\n"
+    "data (TblStruct).  EXP also knows about slabs.  These may be\n"
     "added in a future release if there is a need.  Instances of these\n"
     "structures represent individual times points and are created,\n"
     "maintained, and interfaced by the Coefs class.  Access to the\n"
     "underlying data is provided to Python in case you need to change\n"
     "or rewrite the data for some reason.  We have also provided a\n"
-    "create() member so that you can instaniate and load a coefficient\n"
+    "assign() member so that you can instaniate and load a coefficient\n"
     "structure using Python.  To do this, use the constructor to make\n"
-    "a blank instance, assign the dimensions and use create() to create\n"
-    "a data matrix of initially zero values.  The dimensions are \n"
-    "(lmax, nmax) for SphStruct, (mmax,nmax) for a CylStruct, and\n"
-    "(cols) for a TblStruct.\n\n"
+    "a blank instance, assign the dimensions and use assign() to create\n"
+    "a data matrix with the supplied matrix or array.  The dimensions are\n"
+    "(lmax, nmax) for SphStruct, (mmax, nmax) for a CylStruct, (nmaxx,\n"
+    "nmaxy, nmaxz) for a CubeStruct and (cols) for a TblStruct.\n\n"
     "Coefs\n"
     "-----\n"
     "The base class, 'Coefs', provides a factory reader that will\n"
-    "create one of the derived coefficient classes, SphCoef, CylCoef,\n"
-    "or TblCoef, deducing the type from the input file.  The input\n"
-    "files may be EXP native or HDF5 cofficient files.  The Basis\n"
+    "create one of the derived coefficient classes, SphCoefs, CylCoefs,\n"
+    "CubeCoefs, or TblCoefs, deducing the type from the input file. The\n"
+    "input files may be EXP native or HDF5 cofficient files.  The Basis\n"
     "factory, Basis::createCoefficients, will create set of coef-\n"
     "ficients from phase-space snapshots.  See help(pyEXP.basis).\n"
     "Files which are not recognized as EXP coefficient files are\n"
@@ -126,27 +126,16 @@ void CoefficientClasses(py::module &m) {
     // Inherit the constructors
     using CoefClasses::Coefs::Coefs;
 
-    Eigen::MatrixXcd& operator()(double time) override {
-      PYBIND11_OVERRIDE_PURE(Eigen::MatrixXcd&, Coefs, operator(), time);
+    Eigen::VectorXcd& getData(double time) override {
+      PYBIND11_OVERRIDE_PURE(Eigen::VectorXcd&, Coefs, getData, time);
     }
 
-    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
-      PYBIND11_OVERRIDE_PURE(void, Coefs, setMatrix, time, mat);
-    }
-
-    using ValueError = std::tuple<Eigen::MatrixXcd&, bool>;
-    ValueError interpolate(double time) override {
-      PYBIND11_OVERRIDE(ValueError, Coefs, interpolate, time);
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE_PURE(void, Coefs, setData, time, array);
     }
 
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
-      PYBIND11_OVERRIDE_PURE(std::shared_ptr<CoefStruct>, Coefs, getCoefStruct,
-			     time);
-    }
-
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE_PURE(void, Coefs, dump,
-			     mmin, mmax, nmin, nmax);
+      PYBIND11_OVERRIDE_PURE(std::shared_ptr<CoefStruct>, Coefs, getCoefStruct, time);
     }
 
     std::vector<double> Times() override {
@@ -213,22 +202,17 @@ void CoefficientClasses(py::module &m) {
     // Inherit the constructors
     using SphCoefs::SphCoefs;
 
-    Eigen::MatrixXcd& operator()(double time) override {
-      PYBIND11_OVERRIDE(Eigen::MatrixXcd&, SphCoefs, operator(), time);
+    Eigen::VectorXcd& getData(double time) override {
+      PYBIND11_OVERRIDE(Eigen::VectorXcd&, SphCoefs, getData, time);
     }
 
-    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
-      PYBIND11_OVERRIDE(void, SphCoefs, setMatrix, time, mat);
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE(void, SphCoefs, setData, time, array);
     }
 
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
       PYBIND11_OVERRIDE(std::shared_ptr<CoefStruct>, SphCoefs, getCoefStruct,
 			time);
-    }
-
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE(void, SphCoefs,dump,
-			mmin, mmax, nmin, nmax);
     }
 
     std::vector<double> Times() override {
@@ -297,22 +281,17 @@ void CoefficientClasses(py::module &m) {
     // Inherit the constructors
     using CylCoefs::CylCoefs;
 
-    Eigen::MatrixXcd& operator()(double time) override {
-      PYBIND11_OVERRIDE(Eigen::MatrixXcd&, CylCoefs, operator(), time);
+    Eigen::VectorXcd& getData(double time) override {
+      PYBIND11_OVERRIDE(Eigen::VectorXcd&, CylCoefs, getData, time);
     }
 
-    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
-      PYBIND11_OVERRIDE(void, CylCoefs, setMatrix, time, mat);
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE(void, CylCoefs, setData, time, array);
     }
 
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
       PYBIND11_OVERRIDE(std::shared_ptr<CoefStruct>, CylCoefs, getCoefStruct,
 			time);
-    }
-
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE(void, CylCoefs, dump,
-			mmin, mmax, nmin, nmax);
     }
 
     std::vector<double> Times() override {
@@ -357,6 +336,85 @@ void CoefficientClasses(py::module &m) {
 
   };
 
+  class PyCubeCoefs : public CubeCoefs
+  {
+  protected:
+    void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
+      PYBIND11_OVERRIDE(void, CubeCoefs, readNativeCoefs, file, stride, tmin, tmax);
+    }
+
+    std::string getYAML() override {
+      PYBIND11_OVERRIDE(std::string, CubeCoefs, getYAML,);
+    }
+
+    void WriteH5Params(HighFive::File& file) override {
+      PYBIND11_OVERRIDE(void, CubeCoefs, WriteH5Params, file);
+    }
+
+    unsigned WriteH5Times(HighFive::Group& group, unsigned count) override {
+      PYBIND11_OVERRIDE(unsigned, CubeCoefs, WriteH5Times, group, count);
+    }
+
+  public:
+    // Inherit the constructors
+    using CubeCoefs::CubeCoefs;
+
+    Eigen::VectorXcd& getData(double time) override {
+      PYBIND11_OVERRIDE(Eigen::VectorXcd&, CubeCoefs, getData, time);
+    }
+
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE(void, CubeCoefs, setData, time, array);
+    }
+
+    std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
+      PYBIND11_OVERRIDE(std::shared_ptr<CoefStruct>, CubeCoefs, getCoefStruct,
+			time);
+    }
+
+    std::vector<double> Times() override {
+      PYBIND11_OVERRIDE(std::vector<double>, CubeCoefs, Times,);
+    }
+
+    void WriteH5Coefs(const std::string& prefix) override {
+      PYBIND11_OVERRIDE(void, CubeCoefs, WriteH5Coefs, prefix);
+    }
+
+    void ExtendH5Coefs(const std::string& prefix) override {
+      PYBIND11_OVERRIDE(void, CubeCoefs, ExtendH5Coefs, prefix);
+    }
+
+    Eigen::MatrixXd& Power(int min, int max) override {
+      PYBIND11_OVERRIDE(Eigen::MatrixXd&, CubeCoefs, Power, min, max);
+    }
+
+    bool CompareStanzas(std::shared_ptr<Coefs> check) override {
+      PYBIND11_OVERRIDE(bool, CubeCoefs, CompareStanzas, check);
+    }
+
+    void clear() override {
+      PYBIND11_OVERRIDE(void, CubeCoefs,	clear,);
+    }
+
+    void add(CoefStrPtr coef) override {
+      PYBIND11_OVERRIDE(void, CubeCoefs,	add, coef);
+    }
+
+    std::vector<Key> makeKeys(Key k) override {
+      PYBIND11_OVERRIDE(std::vector<Key>, CubeCoefs, makeKeys, k);
+    }
+
+    std::shared_ptr<Coefs> deepcopy() override {
+      PYBIND11_OVERRIDE(std::shared_ptr<Coefs>, CubeCoefs, deepcopy,);
+    }
+
+    void zerodata() override {
+      PYBIND11_OVERRIDE(void, CubeCoefs, zerodata,);
+    }
+
+
+  };
+
   class PyTableData : public TableData
   {
   protected:
@@ -380,22 +438,17 @@ void CoefficientClasses(py::module &m) {
     // Inherit the constructors
     using TableData::TableData;
 
-    Eigen::MatrixXcd& operator()(double time) override {
-      PYBIND11_OVERRIDE(Eigen::MatrixXcd&, TableData, operator(), time);
+    Eigen::VectorXcd& getData(double time) override {
+      PYBIND11_OVERRIDE(Eigen::VectorXcd&, TableData, getData, time);
     }
 
-    void setMatrix(double time, const Eigen::MatrixXcd& mat) override {
-      PYBIND11_OVERRIDE(void, TableData, setMatrix, time, mat);
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE(void, TableData, setData, time, array);
     }
 
     std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
       PYBIND11_OVERRIDE(std::shared_ptr<CoefStruct>, TableData, getCoefStruct,
 			time);
-    }
-
-    void dump(int mmin, int mmax, int nmin, int nmax) override {
-      PYBIND11_OVERRIDE(void, TableData, dump,
-			mmin, mmax, nmin, nmax);
     }
 
     std::vector<double> Times() override {
@@ -515,13 +568,80 @@ void CoefficientClasses(py::module &m) {
 
 
   py::class_<CoefClasses::SphStruct, std::shared_ptr<CoefClasses::SphStruct>, CoefStruct>(m, "SphStruct")
-    .def(py::init<>(), "Spherical coefficient data structure object");
+    .def(py::init<>(), "Spherical coefficient data structure object")
+    .def("assign", &SphStruct::assign,
+	      R"(
+        Assign a coefficient matrix to CoefStruct.
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray
+             Matrix of coefficients
+        lmax : int
+             angular order
+        nmax : int
+             radial order
+
+        Returns
+        -------
+        None
+        )");
 
   py::class_<CoefClasses::CylStruct, std::shared_ptr<CoefClasses::CylStruct>, CoefStruct>(m, "CylStruct")
-    .def(py::init<>(), "Cylindrical coefficient data structure object");
+    .def(py::init<>(), "Cylindrical coefficient data structure object")
+    .def("assign", &CylStruct::assign,
+	      R"(
+        Assign a coefficient matrix to CoefStruct.
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray
+             Matrix of coefficients
+        mmax : int
+             angular order
+        nmax : int
+             radial order
+
+        Returns
+        -------
+        None
+        )");
+
+  py::class_<CoefClasses::CubeStruct, std::shared_ptr<CoefClasses::CubeStruct>, CoefStruct>(m, "CubeStruct")
+    .def(py::init<>(), "Cube coefficient data structure object")
+    .def("assign", &CubeStruct::assign,
+	      R"(
+        Assign a coefficient matrix to CoefStruct.
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray, complex
+             complex-valued NumPy tensor of coefficient values
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        The dimensions are inferred from the 3-dimensional NumPy array (tensor)
+        )");
 
   py::class_<CoefClasses::TblStruct, std::shared_ptr<CoefClasses::TblStruct>, CoefStruct>(m, "TblStruct")
-    .def(py::init<>(), "Multicolumn table data structure object");
+    .def(py::init<>(), "Multicolumn table data structure object")
+    .def("assign", &TblStruct::assign,
+	      R"(
+        Assign a coefficient matrix to CoefStruct.
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray, complex
+             complex-valued NumPy array of table values
+
+        Returns
+        -------
+        None
+        )");
 
   py::class_<CoefClasses::Coefs, std::shared_ptr<CoefClasses::Coefs>, PyCoefs>(m, "Coefs")
     .def(py::init<std::string, bool>(),
@@ -547,9 +667,9 @@ void CoefficientClasses(py::module &m) {
          py::arg("type"),
          py::arg("verbose"))
     .def("__call__",
-         &CoefClasses::Coefs::operator(),
+	 &CoefClasses::Coefs::getData,
          R"(
-         Return the coefficient matrix for the desired time.
+         Return the flattened coefficient structure for the desired time.
 
          Parameters
          ----------
@@ -559,30 +679,30 @@ void CoefficientClasses(py::module &m) {
          Returns
          -------
          numpy.ndarray
-             the coefficient matrix at the requested time
+             the flattened coefficient array at the requested time
 
          Notes
          -----
-         This operator will return the 0-rank matrix if no coefficients are found at the
+         This operator will return the 0-rank array if no coefficients are found at the
          requested time
          )",
          py::arg("time"))
-    .def("setMatrix",
-         &CoefClasses::Coefs::setMatrix,
+    .def("setData",
+         &CoefClasses::Coefs::setData,
          R"(
-         Enter and/or rewrite the coefficient matrix at the provided time
+         Enter and/or rewrite the flattened coefficient array at the provided time
 
          Parameters
          ----------
          time : float
              snapshot time corresponding to the the coefficient matrix
              mat : numpy.ndarray
-                 the new coefficient matrix.
+                 the new coefficient array.
 
          Returns
          -------
          None
-         )",py::arg("time"), py::arg("mat"))
+         )",py::arg("time"), py::arg("array"))
     .def("add",
          &CoefClasses::Coefs::add,
          R"(
@@ -826,7 +946,57 @@ void CoefficientClasses(py::module &m) {
 		py::arg("coef"), py::arg("name")="");
 
   py::class_<CoefClasses::SphCoefs, std::shared_ptr<CoefClasses::SphCoefs>, PySphCoefs, CoefClasses::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
-    .def(py::init<bool>())
+    .def(py::init<bool>(),
+	       R"(
+         Construct a null SphCoefs object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         SphCoefs instance
+         )")
+    .def("__call__",
+	 &CoefClasses::SphCoefs::getMatrix,
+         R"(
+         Return the coefficient Matrix for the desired time.
+
+         Parameters
+         ----------
+         time : float
+             the desired time
+
+         Returns
+         -------
+         numpy.ndarray
+             the coefficient Matrix at the requested time
+
+         Notes
+         -----
+         This operator will return the 0-rank matrix if no coefficients are found at the
+         requested time
+         )",
+         py::arg("time"))
+    .def("setMatrix",
+	 &CoefClasses::SphCoefs::setMatrix,
+         R"(
+         Enter and/or rewrite the coefficient matrix at the provided time
+
+         Parameters
+         ----------
+         time : float
+             snapshot time corresponding to the the coefficient matrix
+             mat : numpy.ndarray
+                 the new coefficient array.
+
+         Returns
+         -------
+         None
+         )",
+         py::arg("time"), py::arg("mat"))
     .def("getAllCoefs",
 	 [](CoefClasses::SphCoefs& A)
 	 {
@@ -849,7 +1019,57 @@ void CoefficientClasses(py::module &m) {
         )");
 
   py::class_<CoefClasses::CylCoefs, std::shared_ptr<CoefClasses::CylCoefs>, PyCylCoefs, CoefClasses::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
-    .def(py::init<bool>())
+    .def(py::init<bool>(),
+	       R"(
+         Construct a null CylCoefs object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         CylCoefs instance
+         )")
+    .def("__call__",
+	 &CoefClasses::CylCoefs::getMatrix,
+         R"(
+         Return the coefficient Matrix for the desired time.
+
+         Parameters
+         ----------
+         time : float
+             the desired time
+
+         Returns
+         -------
+         numpy.ndarray
+             the coefficient Matrix at the requested time
+
+         Notes
+         -----
+         This operator will return the 0-rank matrix if no coefficients are found at the
+         requested time
+         )",
+         py::arg("time"))
+    .def("setMatrix",
+	 &CoefClasses::CylCoefs::setMatrix,
+         R"(
+         Enter and/or rewrite the coefficient matrix at the provided time
+
+         Parameters
+         ----------
+         time : float
+             snapshot time corresponding to the the coefficient matrix
+             mat : numpy.ndarray
+                 the new coefficient array.
+
+         Returns
+         -------
+         None
+         )",
+         py::arg("time"), py::arg("mat"))
     .def("getAllCoefs",
 	 [](CoefClasses::CylCoefs& A)
 	 {
@@ -897,8 +1117,117 @@ void CoefficientClasses(py::module &m) {
 	 py::arg("max") = std::numeric_limits<double>::max());
 
 
+  py::class_<CoefClasses::CubeCoefs, std::shared_ptr<CoefClasses::CubeCoefs>, PyCubeCoefs, CoefClasses::Coefs>(m, "CubeCoefs", "Container for cube coefficients")
+    .def(py::init<bool>(),
+	       R"(
+         Construct a null CubeCoefs object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         CubeCoefs instance
+         )")
+    .def("__call__",
+	 &CoefClasses::CubeCoefs::getTensor,
+         R"(
+         Return the coefficient tensor for the desired time.
+
+         Parameters
+         ----------
+         time : float
+             the desired time
+
+         Returns
+         -------
+         numpy.ndarray
+             the coefficient Matrix at the requested time
+
+         Notes
+         -----
+         This operator will return the 0-rank tensor if no coefficients are found at the
+         requested time
+         )",
+         py::arg("time"))
+    .def("setTensor",
+	 &CoefClasses::CubeCoefs::setTensor,
+         R"(
+         Enter and/or rewrite the coefficient tensor at the provided time
+
+         Parameters
+         ----------
+         time : float
+             snapshot time corresponding to the the coefficient tensor
+             mat : numpy.ndarray
+                 the new coefficient array.
+
+         Returns
+         -------
+         None
+         )",
+         py::arg("time"), py::arg("tensor"))
+    .def("getAllCoefs",
+	 [](CoefClasses::CubeCoefs& A)
+	 {
+	   auto M = A.getAllCoefs(); // Need a copy here
+	   py::array_t<std::complex<double>> ret = make_ndarray4<std::complex<double>>(M);
+	   return ret;
+	 },
+	 R"(
+         Provide a 4-dimensional ndarray indexed by nx, ny, nz, and time indices.
+
+         Returns
+         -------
+         numpy.ndarray
+             4-dimensional numpy array containing the cylindrical coefficients
+         )");
+
+
   py::class_<CoefClasses::TableData, std::shared_ptr<CoefClasses::TableData>, PyTableData, CoefClasses::Coefs>(m, "TableData", "Container for simple data tables with multiple columns")
-    .def(py::init<bool>())
+    .def(py::init<bool>(),
+	 R"(
+         Construct a null TableData object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         TableData instance
+         )")
+    .def(py::init<std::string&>(),
+	 R"(
+         Construct a TableData object from a data file
+
+         Parameters
+         ----------
+         type : str
+             ascii table data file
+
+         Returns
+         -------
+         TableData instance
+         )")
+    .def(py::init<std::string&, bool>(),
+	 R"(
+         Construct a TableData object from a data file
+
+         Parameters
+         ----------
+         type : str
+             ascii table data file
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         TableData instance
+         )")
     .def("getAllCoefs",    &CoefClasses::TableData::getAllCoefs,
 	 R"(
          Return a 2-dimensional ndarray indexed by column and time

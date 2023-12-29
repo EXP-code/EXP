@@ -115,14 +115,45 @@ if(ENABLE_NBODY)
     REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;new.bods.0;OUTLOG.run0;run0.levels;SLGridSph.cache.run0;test.grid;"
     )
 
+  # Makes some cube ICs using utils/ICs/cubeics
+  add_test(NAME makeCubeICTest
+    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/cubeics -N 4000 -z -d 2,2,2
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
+
+  # Runs those ICs using exp
+  add_test(NAME expCubeTest
+    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
+
+  set_tests_properties(expCubeTest PROPERTIES DEPENDS makeCubeICTest)
+
+  # Check OUTLOG file for mean position
+  add_test(NAME expCubeCheckPos
+    COMMAND ${CMAKE_COMMAND} -E env
+    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+    ${PYTHON_EXECUTABLE} check.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
+
+  set_tests_properties(expCubeCheckPos PROPERTIES DEPENDS expCubeTest)
+
+  # A separate test to remove the generated files if they all exist
+  add_test(NAME removeCubeFiles
+    COMMAND ${CMAKE_COMMAND} -E remove
+    config.runS.yml current.processor.rates.runS cube.bods
+    OUTLOG.runS runS.levels
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
+
+  # Remove the temporary files
+  set_tests_properties(removeCubeFiles PROPERTIES DEPENDS expCubeCheckPos
+    REQUIRED_FILES "config.runS.yml;current.processor.rates.runS;cube.bods;OUTLOG.runS;runS.levels;")
+
   # Set labels for pyEXP tests
 
   # Tests that take seconds
   set_tests_properties(expExecuteTest PROPERTIES LABELS "quick")
 
-  # Tests that take a few minutes
-  set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW removeTempFiles
-    PROPERTIES LABELS "medium")
+  # Longer running tests
+  set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW removeTempFiles expCubeTest removeCubeFiles PROPERTIES LABELS "long")
 
 endif()
 

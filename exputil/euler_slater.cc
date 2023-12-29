@@ -43,9 +43,6 @@
 
 // #define TEST for test program
 
-Eigen::Matrix3d return_euler_slater(double PHI, double THETA, double PSI, int BODY);
-
-
 Eigen::Matrix3d return_euler_slater(double PHI, double THETA, double PSI, int BODY)
 {
   double sph, cph, sth, cth, sps, cps;
