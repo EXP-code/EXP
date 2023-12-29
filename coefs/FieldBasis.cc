@@ -173,15 +173,15 @@ namespace BasisClasses
     //
     try {
       if (conf["filename"])	filename = conf["filename"].as<std::string>();
-      if (conf["lmax"])         lmax     = conf["lmax" ].as<int>();
-      if (conf["nmax"])         nmax     = conf["nmax" ].as<int>();
-      if (conf["dof"])          dof      = conf["dof"  ].as<int>();
-      if (conf["rmin"])         rmin     = conf["rmin" ].as<double>();
-      if (conf["rmax"])         rmax     = conf["rmax" ].as<double>();
-      if (conf["ascl"])         ascl     = conf["ascl" ].as<double>();
-      if (conf["delta"])        delta    = conf["delta"].as<double>();
-      if (conf["scale"])        scale    = conf["scale"].as<double>();
-      if (conf["model"])        model    = conf["model"].as<std::string>();
+      if (conf["lmax"    ])     lmax     = conf["lmax"    ].as<int>();
+      if (conf["nmax"    ])     nmax     = conf["nmax"    ].as<int>();
+      if (conf["dof"     ])     dof      = conf["dof"     ].as<int>();
+      if (conf["rmin"    ])     rmin     = conf["rmin"    ].as<double>();
+      if (conf["rmax"    ])     rmax     = conf["rmax"    ].as<double>();
+      if (conf["ascl"    ])     ascl     = conf["ascl"    ].as<double>();
+      if (conf["delta"   ])     delta    = conf["delta"   ].as<double>();
+      if (conf["scale"   ])     scale    = conf["scale"   ].as<double>();
+      if (conf["model"   ])     model    = conf["model"   ].as<std::string>();
     }
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameters in FieldBasis: "
@@ -656,12 +656,14 @@ namespace BasisClasses
     }
   }
 
-  VelocityBasis::VelocityBasis(const YAML::Node& conf) : FieldBasis(conf)
+  VelocityBasis::VelocityBasis(const YAML::Node& conf) :
+    FieldBasis(conf, "VelocityBasis")
   {
     assignFunc();
   }
 
-  VelocityBasis::VelocityBasis(const std::string& confstr) : FieldBasis(confstr)
+  VelocityBasis::VelocityBasis(const std::string& confstr) :
+    FieldBasis(confstr, "VelocityBasis")
   {
     assignFunc();
   }

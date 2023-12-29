@@ -76,11 +76,14 @@ namespace BasisClasses
   public:
     
     //! Constructor from YAML node
-    BiorthBasis(const YAML::Node& conf) : Basis(conf) {}
+    BiorthBasis(const YAML::Node& conf,
+		const std::string& name="BiorthBasis") : Basis(conf, name) {}
     
     //! Constructor from YAML string
-    BiorthBasis(const std::string& confstr) : Basis(confstr) {}
+    BiorthBasis(const std::string& confstr,
+		const std::string& name="BiorthBasis") : Basis(confstr, name) {}
     
+    //! Destructor
     virtual ~BiorthBasis(void) {}
     
     //! Generate coeffients from a particle reader and optional center

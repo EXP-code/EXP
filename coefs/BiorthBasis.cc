@@ -90,12 +90,14 @@ namespace BasisClasses
     return labels;
   }
 
-  SphericalSL::SphericalSL(const YAML::Node& CONF) : BiorthBasis(CONF)
+  SphericalSL::SphericalSL(const YAML::Node& CONF) :
+    BiorthBasis(CONF, "SphericalSL")
   {
     initialize();
   }
 
-  SphericalSL::SphericalSL(const std::string& confstr) : BiorthBasis(confstr)
+  SphericalSL::SphericalSL(const std::string& confstr) :
+    BiorthBasis(confstr, "SphericalSL")
   {
     initialize();
   }
@@ -825,12 +827,14 @@ namespace BasisClasses
     "coefMaster"
   };
 
-  Cylindrical::Cylindrical(const YAML::Node& CONF) : BiorthBasis(CONF)
+  Cylindrical::Cylindrical(const YAML::Node& CONF) :
+    BiorthBasis(CONF, "Cylindrical")
   {
     initialize();
   }
 
-  Cylindrical::Cylindrical(const std::string& confstr) : BiorthBasis(confstr)
+  Cylindrical::Cylindrical(const std::string& confstr) :
+    BiorthBasis(confstr, "Cylindrical")
   {
     initialize();
   }
@@ -1869,12 +1873,12 @@ namespace BasisClasses
     "method"
   };
 
-  Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF)
+  Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF, "Cube")
   {
     initialize();
   }
 
-  Cube::Cube(const std::string& confstr) : BiorthBasis(confstr)
+  Cube::Cube(const std::string& confstr) : BiorthBasis(confstr, "Cube")
   {
     initialize();
   }

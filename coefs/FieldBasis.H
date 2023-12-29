@@ -91,9 +91,14 @@ namespace BasisClasses
   public:
     
     //! Constructor from YAML node
-    FieldBasis(const YAML::Node& conf) : Basis(conf) { configure(); }
+    FieldBasis(const YAML::Node& conf,
+	       const std::string& name="FieldBasis") : Basis(conf, name)
+    { configure(); }
 
-    FieldBasis(const std::string& confstr) : Basis(confstr) { configure(); }
+    //! Constructor from YAML string
+    FieldBasis(const std::string& confstr,
+	       const std::string& name="FieldBasis") : Basis(confstr, name)
+    { configure(); }
     
     //! Destructor
     virtual ~FieldBasis(void) {}
