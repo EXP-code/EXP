@@ -284,7 +284,7 @@ namespace BasisClasses
 
     // Make the coefficient map
     cf->coefs = std::make_shared<CoefClasses::SphStruct::coefType>
-      (cf->store.data(),ldim, nmax);
+      (cf->store.data(), ldim, nmax);
 
     for (int l=0, L0=0, L1=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {

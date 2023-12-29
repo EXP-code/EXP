@@ -198,8 +198,8 @@ namespace BasisClasses
 
   void FieldBasis::load_coefs(CoefClasses::CoefStrPtr cf, double time)
   {
-    coefstr = cf;		// Assign the coeffiicient container
-    coefstr->time = time;	// and the time
+    coefret = cf;		// Assign the coeffiicient container
+    coefret->time = time;	// and the time
 
     std::ostringstream sout; sout << node;
 
@@ -249,13 +249,20 @@ namespace BasisClasses
     int tid = omp_get_thread_num();
     PS3 pos{x, y, z}, vel{u, v, w};
 
+    // Compute the field value array
+    //
     auto vec = fieldFunc(mass, pos, vel);
     
+    // Compute spherical/polar coordinates
+    //
     double R   = sqrt(x*x + y*y);
     double r   = sqrt(R*R + z*z);
     double phi = atan2(y, x);
     double cth = z/(r + 1.0e-18);
     
+    usedT[tid] ++;		// Count used particles
+    massT[tid] += mass;		// Sum particles' mass
+
     if (dof==2) {
       
       auto p = (*ortho)(R);
@@ -293,15 +300,13 @@ namespace BasisClasses
     // Sum over threads
     //
     for (int t=1; t<coefs.size(); t++) {
-      *coefs[0] += *coefs[t];
+      store[0] += store[t];
       usedT[0] += usedT[t];
       massT[0] += massT[t];
     }
       
-    for (int t=1; t<coefs.size(); t++) *coefs[0] += *coefs[t];
-
     if (use_mpi) {
-      MPI_Allreduce(MPI_IN_PLACE, coefs[0]->data(), coefs[0]->size(),
+      MPI_Allreduce(MPI_IN_PLACE, store[0].data(), store[0].size(),
 		    MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 
       MPI_Allreduce(&usedT[0], &used,      1, MPI_INT,    MPI_SUM, MPI_COMM_WORLD);
@@ -310,19 +315,40 @@ namespace BasisClasses
       used = usedT[0];
       totalMass = massT[0];
     }
-  }
 
+    // Create a structure of the appropriate type, if needed
+    //
+    if (not coefret) {
+      if (dof==2) coefret = std::make_shared<CoefClasses::PolarVelStruct>();
+      else        coefret = std::make_shared<CoefClasses::SphVelStruct  >();
+				// Add the configuration data
+      std::ostringstream sout; sout << node;
+      coefret->buf = sout.str();
+    }
+
+    // Assign the data by downcasting.  Ideally, the 'assign' method
+    // would be in the base class but the signature depends on data
+    // type in the derived class.
+    //
+    if (dof==2) {
+      auto p = dynamic_pointer_cast<CoefClasses::PolarVelStruct>(coefret);
+      p->assign(store[0], lmax, nmax);
+    } else {
+      auto p = dynamic_pointer_cast<CoefClasses::SphVelStruct>(coefret);
+      p->assign(store[0], lmax, nmax);
+    }
+  }
 
   //! Retrieve the coefficients 
   CoefClasses::CoefStrPtr FieldBasis::getCoefficients()
   {
     if (dof==2) {
       auto cstr = std::make_shared<CoefClasses::PolarVelStruct>();
-      cstr->assign(*coefs[0], lmax, nmax);
+      cstr->assign(store[0], lmax, nmax);
       return cstr;
     } else {
       auto cstr = std::make_shared<CoefClasses::SphVelStruct>();
-      cstr->assign(*coefs[0], lmax, nmax);
+      cstr->assign(store[0], lmax, nmax);
       return cstr;
     }
   }

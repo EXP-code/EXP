@@ -50,7 +50,6 @@ namespace BasisClasses
     using dataType = Eigen::Tensor<std::complex<double>, 3>;
     using coefType = Eigen::TensorMap<dataType>;
     std::vector<std::shared_ptr<coefType>> coefs;
-    CoefClasses::CoefStrPtr coefstr;
 
     std::vector<int> usedT;
     std::vector<double> massT;

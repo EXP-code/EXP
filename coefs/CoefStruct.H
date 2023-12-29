@@ -350,14 +350,13 @@ namespace CoefClasses
       coefs = std::make_shared<coefType>(store.data(), 4, rows, cols);
     }
 
-    //! Assign matrix
-    void assign(const Eigen::Tensor<std::complex<double>, 4>& mat,
-		int Lmax, int Nmax)
+    //! Assign data
+    void assign(const Eigen::VectorXcd& data, int Lmax, int Nmax)
     {
       lmax = Lmax;
       nmax = Nmax;
       allocate();
-      *coefs = mat;
+      store = data;
     }
 
   };
@@ -405,13 +404,12 @@ namespace CoefClasses
     }
 
     //! Assign matrix
-    void assign(const Eigen::Tensor<std::complex<double>, 3>& mat,
-		int Mmax, int Nmax)
+    void assign(const Eigen::VectorXcd& data, int Mmax, int Nmax)
     {
       mmax = Mmax;
       nmax = Nmax;
       allocate();
-      *coefs = mat;
+      store = data;
     }
 
   };

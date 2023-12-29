@@ -175,9 +175,9 @@ void OutVel::Run(int n, int mstep, bool last)
     }
   }
   
-  // Make coefficients
+  // Make coefficients and enter in coefficient DB
   //
-  basis->make_coefs();
+  coefs->add(basis->makeFromArray(tnow));
 
   // Only root node writes the coefficient file
   //
