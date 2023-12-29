@@ -100,10 +100,10 @@ protected:
   //! Read the HDF5 cache
   virtual bool ReadH5Cache();
 
-public:
-
   //! Flag for MPI enabled (default: 0=off)
-  static int mpi;
+  int use_mpi;
+
+public:
 
   //! Constructor
   BiorthCyl(const YAML::Node& conf);
