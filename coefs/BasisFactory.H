@@ -11,6 +11,7 @@
 #include <Coefficients.H>
 #include <YamlCheck.H>
 #include <localmpi.H>
+#include <exputils.H>
 #include <interp.H>
 
 namespace Field
@@ -120,10 +121,10 @@ namespace BasisClasses
   public:
     
     //! Constructor from YAML node
-    Basis(const YAML::Node& conf);
+    Basis(const YAML::Node& conf,     const std::string& name="Basis");
     
     //! Constructor from YAML string
-    Basis(const std::string& confstr);
+    Basis(const std::string& confstr, const std::string& name="Basis");
     
     //! Destructor
     virtual ~Basis(void) {}

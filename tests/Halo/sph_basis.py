@@ -29,3 +29,9 @@ halo_basis = pyEXP.basis.Basis.factory(halo_config)
 #
 node_sph = halo_basis.cacheInfo('.slgrid_sph_cache')
 
+# Orthogonality test
+#
+if (halo_basis.orthoTest()):
+    exit(0)
+else:
+    exit(1)

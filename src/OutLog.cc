@@ -247,21 +247,15 @@ void OutLog::Run(int n, int mstep, bool last)
 	std::ifstream in(backupfile.c_str());
 
 	if (in.fail()) {
-	  ostringstream message;
+	  std::ostringstream message;
 	  message << "OutLog: error opening original log file <"
 		  << backupfile << "> for reading";
 	  throw GenericError(message.str(), __FILE__, __LINE__, 1036, true);
 	}
 
+	// Temporary character buffer
 	const int cbufsiz = 16384;
-	std::shared_ptr<char> cbuffer;
-
-	// Use this as of C++17
-	// info = std::make_shared<char[]>(ninfochar+1);
-
-	// C++14 workaround:
-	cbuffer = std::shared_ptr<char>(new char[cbufsiz],
-					std::default_delete<char[]>());
+	auto cbuffer = std::make_unique<char[]>(cbufsiz);
 
 	// Null fill the buffer
 	std::fill(cbuffer.get(), cbuffer.get()+cbufsiz, 0);

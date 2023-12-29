@@ -13,14 +13,14 @@
 #include <localmpi.H>		// MPI support
 #include <libvars.H>		// For orthoTol
 
-void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
-	       const std::string& classname, const std::string& indexname)
+std::tuple<bool, double, std::vector<double>>
+orthoCompute(const std::vector<Eigen::MatrixXd>& tests)
 {
   // Number of possible threads
   int nthrds = omp_get_max_threads();
 
   // Worst so far
-  std::vector<double> worst(nthrds), lworst(tests.size());;
+  std::vector<double> worst(nthrds), lworst(tests.size());
 
   // Rank
   int nmax = tests[0].rows();
@@ -53,18 +53,28 @@ void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
   double worst_ever = *std::max_element(lworst.begin(), lworst.end());
 
   if (worst_ever > __EXP__::orthoTol) {
+    return {false, worst_ever, lworst};
+  } else {
+    return {true, worst_ever, lworst};
+  }
+}
+
+
+void orthoCompare(const std::vector<Eigen::MatrixXd>& tests,
+		  const std::string& classname, const std::string& indexname)
+{
+  auto [good, worst, lworst] = orthoCompute(tests);
+
+  if (good) {
+    if (myid==0) 
+      std::cout << classname + ": biorthogonal check passed" << std::endl;
+  } else {
     std::cout << classname << ": orthogonality failure" << std::endl
 	      << std::right
 	      << std::setw(4) << indexname
 	      << std::setw(16) << "Worst" << std::endl;
-    for (int l=0; l<tests.size(); l++) {
+    for (int l=0; l<lworst.size(); l++) {
       std::cout << std::setw(4) << l << std::setw(16) << lworst[l] << std::endl;
     }
-    
-    throw std::runtime_error(classname + ": biorthogonal sanity check");
-  } else {
-    if (myid==0) 
-      std::cout << classname + ": biorthogonal check passed" << std::endl;
   }
 }
-

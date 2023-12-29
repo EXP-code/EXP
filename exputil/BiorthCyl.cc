@@ -30,6 +30,16 @@ using namespace __EXP__;	// For reference to n-body globals
 // Constructor
 BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
 {
+  // Check whether MPI is initialized.  Use flag to suppress MPI calls
+  // if MPI is not active.
+  //
+  {
+    int flag;
+    MPI_Initialized(&flag);
+    if (flag) use_mpi = true;
+    else      use_mpi = false;
+  }
+
   // Read and assign parameters
   //
   try {
@@ -110,7 +120,7 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
 			   << std::string(60, '-') << std::endl
 			   << conf
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
+    if (use_mpi) MPI_Finalize();
     exit(-1);
   }
 
@@ -154,6 +164,7 @@ void BiorthCyl::initialize()
       zforce[m][n].resize(numx, numy);
     }
   }
+
 }
 
 void BiorthCyl::create_tables()
@@ -230,18 +241,21 @@ void BiorthCyl::create_tables()
   }
   // END: m loop
 
+  // Does not require mpi; mpid=0 for non-MPI invocations
   if (verbose and myid==0) std::cout << std::endl;
 
-  for (int m=0; m<=mmax; m++) {
-    for (int n=0; n<nmax; n++) {
-      MPI_Allreduce(MPI_IN_PLACE, dens  [m][n].data(), numx*numy,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(MPI_IN_PLACE, pot   [m][n].data(), numx*numy,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(MPI_IN_PLACE, rforce[m][n].data(), numx*numy,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(MPI_IN_PLACE, zforce[m][n].data(), numx*numy,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  if (use_mpi) {
+    for (int m=0; m<=mmax; m++) {
+      for (int n=0; n<nmax; n++) {
+	MPI_Allreduce(MPI_IN_PLACE, dens  [m][n].data(), numx*numy,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(MPI_IN_PLACE, pot   [m][n].data(), numx*numy,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(MPI_IN_PLACE, rforce[m][n].data(), numx*numy,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(MPI_IN_PLACE, zforce[m][n].data(), numx*numy,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      }
     }
   }
 

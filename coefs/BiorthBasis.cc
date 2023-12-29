@@ -211,7 +211,7 @@ namespace BasisClasses
        0, 1, cachename);
     
     // Test basis for consistency
-    orthoTest(orthoCheck(std::max<int>(nmax*50, 200)), classname(), harmonic());
+    orthoTest(200);
 
     // Number of possible threads
     int nthrds = omp_get_max_threads();
@@ -1207,7 +1207,7 @@ namespace BasisClasses
 
     // Orthogonality sanity check
     //
-    orthoTest(orthoCheck(), classname(), harmonic());
+    orthoTest();
 
     // Set cylindrical coordindates
     //
@@ -1500,7 +1500,7 @@ namespace BasisClasses
     
     // Orthogonality sanity check
     //
-    orthoTest(orthoCheck(), classname(), harmonic());
+    orthoTest();
 
     // Get max threads
     //
@@ -1938,15 +1938,7 @@ namespace BasisClasses
     
     // Orthogonality sanity check
     //
-    if (check) {
-      auto orth = orthoCheck();
-      std::vector<Eigen::MatrixXd> mod(1);
-      mod[0].resize(orth.rows(), orth.cols());
-      for (int i=0; i<mod[0].size(); i++)
-	mod[0].data()[i] = sqrt(std::abs(orth.data()[i]));
-      
-      orthoTest(mod, classname(), harmonic());
-    }
+    if (check) orthoTest();
 
     // Get max threads
     //

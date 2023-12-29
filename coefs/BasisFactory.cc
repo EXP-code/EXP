@@ -14,11 +14,17 @@
 namespace BasisClasses
 {
   std::map<Basis::Coord, std::string> Basis::coordLabels =
-    { {Basis::Coord::Spherical, "Spherical"}, {Basis::Coord::Cylindrical, "Cylindrical"},
-      {Basis::Coord::Cartesian, "Cartesian"}, {Basis::Coord::None, "None"} };
+    { {Basis::Coord::Spherical,   "Spherical"  },
+      {Basis::Coord::Cylindrical, "Cylindrical"},
+      {Basis::Coord::Cartesian,   "Cartesian"  },
+      {Basis::Coord::None,        "None"       } };
 
-  Basis::Basis(const YAML::Node& CONF)
+  Basis::Basis(const YAML::Node& CONF, const std::string& id)
   {
+    // Class name
+    //
+    name = id;
+
     // Copy the YAML config
     //
     node = CONF;
@@ -28,11 +34,15 @@ namespace BasisClasses
     initialize();
   }
 
-  Basis::Basis(const std::string& confstr)
+  Basis::Basis(const std::string& confstr, const std::string& id)
   {
+    // Assign class name
+    //
+    name = id;
+
+    // Read the YAML from a string
+    //
     try {
-      // Read the YAML from a string
-      //
       node = YAML::Load(confstr);
     }
     catch (const std::runtime_error& error) {
@@ -73,14 +83,10 @@ namespace BasisClasses
     // Parameters for force
     //
     try {
-      // First get the id name; we know it exists because it has been
-      // parsed by the factory
-      name = node["id"].as<std::string>();
-      // Then . . . 
       conf = node["parameters"];
     }
     catch (YAML::Exception & error) {
-      if (myid==0) std::cout << "Error parsing force 'parameters' for <"
+      if (myid==0) std::cout << "Error parsing Basis parameters for <"
 			     << name << ">: "
 			     << error.what() << std::endl
 			     << std::string(60, '-') << std::endl
