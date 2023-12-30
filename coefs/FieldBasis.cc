@@ -60,7 +60,7 @@ namespace BasisClasses
   //
   void FieldBasis::configure()
   {
-    nfld     = 1;		// One density field by default
+    nfld     = 2;		// Weight and density fields by default
     lmax     = 4;
     nmax     = 10;
     rmin     = 1.0e-4;
@@ -161,6 +161,7 @@ namespace BasisClasses
     // Initialize fieldlabels
     //
     fieldLabels.clear();
+    fieldLabels.push_back("weight");
     fieldLabels.push_back("density");
   }
 
@@ -289,10 +290,11 @@ namespace BasisClasses
     
       for (int m=0; m<=lmax; m++) {
 	std::complex<double> P = std::exp(I*(phi*m));
+	(*coefs[tid])(0, m, 0) += mass*P*p(0);
 	for (int n=0; n<nmax; n++) {
-	  (*coefs[tid])(0, m, n) += mass*P*p(n);
+	  (*coefs[tid])(1, m, n) += mass*P*p(n);
 	  for (int k=0; k<vec.size(); k++)
-	    (*coefs[tid])(k+1, m, n) += mass*P*p(n)*vec[k];
+	    (*coefs[tid])(k+2, m, n) += mass*P*p(n)*vec[k];
 	}
       }	 
       
@@ -305,10 +307,11 @@ namespace BasisClasses
 	  std::complex<double> P =
 	    std::exp(I*(phi*m))*Ylm01(l, m)*plgndr(l, m, cth);
 	
+	  (*coefs[tid])(0, m, 0) += mass*P*p(0);
 	  for (int n=0; n<nmax; n++) {
-	    (*coefs[tid])(0, m, n) += mass*P*p(n);
+	    (*coefs[tid])(1, m, n) += mass*P*p(n);
 	    for (int k=0; k<vec.size(); k++)
-	      (*coefs[tid])(k+1, m, n) += mass*P*p(n)*vec[k];
+	      (*coefs[tid])(k+2, m, n) += mass*P*p(n)*vec[k];
 	  }
 	}
       }
@@ -667,6 +670,7 @@ namespace BasisClasses
 
     // Field labels (force field labels added below)
     //
+    fieldLabels.push_back("weight");
     fieldLabels.push_back("density");
 
     if (coordinates == Coord::Cylindrical) {
@@ -693,7 +697,7 @@ namespace BasisClasses
 
     // Allocate storage
     //
-    nfld = 4;
+    nfld = fieldLabels.size();
     allocateStore();
   }
 
