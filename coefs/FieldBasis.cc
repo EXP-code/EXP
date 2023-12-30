@@ -47,20 +47,20 @@ namespace BasisClasses
 
     // Allocate coefficient storage
     //
-    nfld = p.size();
+    nfld = p.size() + 1;
     allocateStore();
 
     // Okay to register
     //
-    fieldFunc   = func;
-    fieldLabels = labels;
+    fieldFunc = func;
+    for (auto & v : labels) fieldLabels.push_back(v);
   }
 
   // Deploy instance based on configuration file 
   //
   void FieldBasis::configure()
   {
-    nfld     = 0;
+    nfld     = 1;		// One density field by default
     lmax     = 4;
     nmax     = 10;
     rmin     = 1.0e-4;
@@ -157,23 +157,23 @@ namespace BasisClasses
     // Generate the orthogonal function instance
     //
     ortho = std::make_shared<OrthoFunction>(nmax, densfunc, rmin, rmax, scale);
+
+    // Initialize fieldlabels
+    //
+    fieldLabels.clear();
+    fieldLabels.push_back("density");
   }
 
   void FieldBasis::allocateStore() 
   {
-    if (nfld) {
-      for (int t=0; t<nt; t++) {
-	if (dof==2) {
-	  store[t].resize(nfld*(lmax+1)*nmax);
-	  coefs[t] = std::make_shared<coefType>(store[t].data(), nfld, lmax+1, nmax);
-	} else {
-	  store[t].resize(nfld*(lmax+1)*(lmax+2)/2*nmax);
-	  coefs[t] = std::make_shared<coefType>(store[t].data(), nfld, (lmax+1)*(lmax+2)/2, nmax);
-	}
+    for (int t=0; t<nt; t++) {
+      if (dof==2) {
+	store[t].resize(nfld*(lmax+1)*nmax);
+	coefs[t] = std::make_shared<coefType>(store[t].data(), nfld, lmax+1, nmax);
+      } else {
+	store[t].resize(nfld*(lmax+1)*(lmax+2)/2*nmax);
+	coefs[t] = std::make_shared<coefType>(store[t].data(), nfld, (lmax+1)*(lmax+2)/2, nmax);
       }
-    } else {
-      std::string msg("FieldBasis: can't allocate coefficients for zero fields [");
-      throw std::runtime_error(msg + name + "]");
     }
   }
 
@@ -264,19 +264,14 @@ namespace BasisClasses
 			      double x, double y, double z,
 			      double u, double v, double w)
   {
-    // Sanity check
-    if (not fieldFunc) {
-      std::string msg("FieldBasis: you must allocate a phase-space function");
-      throw std::runtime_error(msg);
-    }
-
     constexpr std::complex<double> I(0, 1);
     int tid = omp_get_thread_num();
     PS3 pos{x, y, z}, vel{u, v, w};
 
     // Compute the field value array
     //
-    auto vec = fieldFunc(mass, pos, vel);
+    std::vector<double> vec;
+    if (fieldFunc) vec = fieldFunc(mass, pos, vel);
     
     // Compute spherical/polar coordinates
     //
