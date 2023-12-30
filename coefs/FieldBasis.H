@@ -42,15 +42,6 @@ namespace BasisClasses
     std::shared_ptr<Linear1d> interp;
     std::function<double(double)> densfunc;
 
-    std::string model, filename;
-    int lmax, nmax, dof;
-    double rmin, rmax, ascl, scale, delta;
-
-    std::vector<Eigen::VectorXcd> store;
-    using dataType = Eigen::Tensor<std::complex<double>, 3>;
-    using coefType = Eigen::TensorMap<dataType>;
-    std::vector<std::shared_ptr<coefType>> coefs;
-
     std::vector<int> usedT;
     std::vector<double> massT;
     int used;
@@ -60,6 +51,26 @@ namespace BasisClasses
     PSFunction fieldFunc;
     std::vector<std::string> fieldLabels;
   
+    //@{
+    //! Parameters
+    std::string model, filename;
+    int lmax, nmax;
+    double rmin, rmax, ascl, scale, delta;
+    //@}
+
+    //@{
+    //! Coefficient storage
+    int nt;
+    std::vector<Eigen::VectorXcd> store;
+    using dataType = Eigen::Tensor<std::complex<double>, 3>;
+    using coefType = Eigen::TensorMap<dataType>;
+    std::vector<std::shared_ptr<coefType>> coefs;
+    void allocateStore();
+    //@}
+
+    //! Number of data fields
+    int nfld, dof;
+
     //! Load coefficients into the new CoefStruct
     virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
 

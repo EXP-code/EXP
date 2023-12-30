@@ -19,7 +19,6 @@ namespace BasisClasses
   const std::set<std::string>
   FieldBasis::valid_keys = {
     "filename",
-    "name",
     "dof",
     "scale",
     "rmin",
@@ -46,6 +45,11 @@ namespace BasisClasses
       throw std::runtime_error(sout.str());
     }
 
+    // Allocate coefficient storage
+    //
+    nfld = p.size();
+    allocateStore();
+
     // Okay to register
     //
     fieldFunc   = func;
@@ -56,6 +60,7 @@ namespace BasisClasses
   //
   void FieldBasis::configure()
   {
+    nfld     = 0;
     lmax     = 4;
     nmax     = 10;
     rmin     = 1.0e-4;
@@ -65,6 +70,7 @@ namespace BasisClasses
     scale    = 0.05;
     dof      = 3;
     model    = "file";
+    name     = "field";
     filename = "SLGridSph.model";
 
     initialize();
@@ -95,22 +101,12 @@ namespace BasisClasses
 
     // Allocate storage for coefficients
     //
-    int nt = omp_get_max_threads();
+    nt = omp_get_max_threads();
     store.resize(nt);
     coefs.resize(nt);
     massT.resize(nt);
     usedT.resize(nt);
     
-    for (int t=0; t<nt; t++) {
-      if (dof==2) {
-	store[t].resize(3*(lmax+1)*nmax);
-	coefs[t] = std::make_shared<coefType>(store[t].data(), 3, lmax+1, nmax);
-      } else {
-	store[t].resize(4*(lmax+1)*(lmax+2)/2*nmax);
-	coefs[t] = std::make_shared<coefType>(store[t].data(), 4, (lmax+1)*(lmax+2)/2, nmax);
-      }
-    }
-       
     // Create model needed for density prefactor in OrthoFunction
     //
     if (model == "file") {
@@ -163,6 +159,24 @@ namespace BasisClasses
     ortho = std::make_shared<OrthoFunction>(nmax, densfunc, rmin, rmax, scale);
   }
 
+  void FieldBasis::allocateStore() 
+  {
+    if (nfld) {
+      for (int t=0; t<nt; t++) {
+	if (dof==2) {
+	  store[t].resize(nfld*(lmax+1)*nmax);
+	  coefs[t] = std::make_shared<coefType>(store[t].data(), nfld, lmax+1, nmax);
+	} else {
+	  store[t].resize(nfld*(lmax+1)*(lmax+2)/2*nmax);
+	  coefs[t] = std::make_shared<coefType>(store[t].data(), nfld, (lmax+1)*(lmax+2)/2, nmax);
+	}
+      }
+    } else {
+      std::string msg("FieldBasis: can't allocate coefficients for zero fields [");
+      throw std::runtime_error(msg + name + "]");
+    }
+  }
+
   void FieldBasis::initialize()
   {
     // Remove matched keys
@@ -173,6 +187,7 @@ namespace BasisClasses
     //
     try {
       if (conf["filename"])	filename = conf["filename"].as<std::string>();
+      if (conf["nfld"    ])     nfld     = conf["nfld"    ].as<int>();
       if (conf["lmax"    ])     lmax     = conf["lmax"    ].as<int>();
       if (conf["nmax"    ])     nmax     = conf["nmax"    ].as<int>();
       if (conf["dof"     ])     dof      = conf["dof"     ].as<int>();
@@ -198,21 +213,25 @@ namespace BasisClasses
 
   void FieldBasis::load_coefs(CoefClasses::CoefStrPtr cf, double time)
   {
-    coefret = cf;		// Assign the coeffiicient container
-    coefret->time = time;	// and the time
+    // Assign the coeffiicient container and the time
+    // 
+    coefret = cf;
+    coefret->time = time;
 
     std::ostringstream sout; sout << node;
 
     // Copy the data structure
     if (dof==2) {
-      auto p = dynamic_pointer_cast<CoefClasses::PolarVelStruct>(cf);
+      auto p = dynamic_pointer_cast<CoefClasses::CylFldStruct>(cf);
+      p->nfld  = nfld;
       p->mmax  = lmax;
       p->nmax  = nmax;
       p->allocate();
       p->store = store[0];
       p->buf   = sout.str();
     } else {
-      auto p = dynamic_pointer_cast<CoefClasses::SphVelStruct>(cf);
+      auto p = dynamic_pointer_cast<CoefClasses::SphFldStruct>(cf);
+      p->nfld  = nfld;
       p->lmax  = lmax;
       p->nmax  = nmax;
       p->allocate();
@@ -233,10 +252,10 @@ namespace BasisClasses
   void FieldBasis::set_coefs(CoefClasses::CoefStrPtr c)
   {
     if (dof==2) {
-      auto p = dynamic_cast<CoefClasses::PolarVelStruct*>(c.get());
+      auto p = dynamic_cast<CoefClasses::CylFldStruct*>(c.get());
       coefs[0] = p->coefs;
     } else {
-      auto p = dynamic_cast<CoefClasses::SphVelStruct*>(c.get());
+      auto p = dynamic_cast<CoefClasses::SphFldStruct*>(c.get());
       coefs[0] = p->coefs;
     }
   }
@@ -245,6 +264,12 @@ namespace BasisClasses
 			      double x, double y, double z,
 			      double u, double v, double w)
   {
+    // Sanity check
+    if (not fieldFunc) {
+      std::string msg("FieldBasis: you must allocate a phase-space function");
+      throw std::runtime_error(msg);
+    }
+
     constexpr std::complex<double> I(0, 1);
     int tid = omp_get_thread_num();
     PS3 pos{x, y, z}, vel{u, v, w};
@@ -319,8 +344,8 @@ namespace BasisClasses
     // Create a structure of the appropriate type, if needed
     //
     if (not coefret) {
-      if (dof==2) coefret = std::make_shared<CoefClasses::PolarVelStruct>();
-      else        coefret = std::make_shared<CoefClasses::SphVelStruct  >();
+      if (dof==2) coefret = std::make_shared<CoefClasses::CylFldStruct>();
+      else        coefret = std::make_shared<CoefClasses::SphFldStruct  >();
 				// Add the configuration data
       std::ostringstream sout; sout << node;
       coefret->buf = sout.str();
@@ -331,11 +356,11 @@ namespace BasisClasses
     // type in the derived class.
     //
     if (dof==2) {
-      auto p = dynamic_pointer_cast<CoefClasses::PolarVelStruct>(coefret);
-      p->assign(store[0], lmax, nmax);
+      auto p = dynamic_pointer_cast<CoefClasses::CylFldStruct>(coefret);
+      p->assign(store[0], nfld, lmax, nmax);
     } else {
-      auto p = dynamic_pointer_cast<CoefClasses::SphVelStruct>(coefret);
-      p->assign(store[0], lmax, nmax);
+      auto p = dynamic_pointer_cast<CoefClasses::SphFldStruct>(coefret);
+      p->assign(store[0], nfld, lmax, nmax);
     }
   }
 
@@ -343,12 +368,12 @@ namespace BasisClasses
   CoefClasses::CoefStrPtr FieldBasis::getCoefficients()
   {
     if (dof==2) {
-      auto cstr = std::make_shared<CoefClasses::PolarVelStruct>();
-      cstr->assign(store[0], lmax, nmax);
+      auto cstr = std::make_shared<CoefClasses::CylFldStruct>();
+      cstr->assign(store[0], nfld, lmax, nmax);
       return cstr;
     } else {
-      auto cstr = std::make_shared<CoefClasses::SphVelStruct>();
-      cstr->assign(store[0], lmax, nmax);
+      auto cstr = std::make_shared<CoefClasses::SphFldStruct>();
+      cstr->assign(store[0], nfld, lmax, nmax);
       return cstr;
     }
   }
@@ -429,9 +454,9 @@ namespace BasisClasses
     CoefClasses::CoefStrPtr coef;
     
     if (dof==3)
-      coef = std::make_shared<CoefClasses::SphVelStruct>();
+      coef = std::make_shared<CoefClasses::SphFldStruct>();
     else if (dof==2)
-      coef = std::make_shared<CoefClasses::PolarVelStruct>();
+      coef = std::make_shared<CoefClasses::CylFldStruct>();
     else {
       std::ostringstream sout;
       sout << "FieldBasis::createCoefficients: dof must be 2 or 3"
@@ -483,9 +508,9 @@ namespace BasisClasses
   void FieldBasis::initFromArray(std::vector<double> ctr)
   {
     if (dof==3)
-      coefret = std::make_shared<CoefClasses::SphVelStruct>();
+      coefret = std::make_shared<CoefClasses::SphFldStruct>();
     else if (dof==2)
-      coefret = std::make_shared<CoefClasses::PolarVelStruct>();
+      coefret = std::make_shared<CoefClasses::CylFldStruct>();
     else {
       std::ostringstream sout;
       sout << "FieldBasis::createCoefficients: dof must be 2 or 3"
@@ -619,7 +644,7 @@ namespace BasisClasses
     double vr  = (u*x + v*y)/(R + 1.0e-18);
     double vp  = (u*y - v*x)/(R + 1.0e-18);
     
-    return {vr, vp};
+    return {vr, w, vp};
   }
 
   std::vector<double> sphVel(double mass,
@@ -657,40 +682,43 @@ namespace BasisClasses
 
     if (coordinates == Coord::Cylindrical) {
       fieldLabels.push_back("v_R");
-      fieldLabels.push_back("v_p");
       fieldLabels.push_back("v_z");
-
+      fieldLabels.push_back("v_p");
       fieldFunc = cylVel;
     } else if (coordinates == Coord::Cartesian) {
       fieldLabels.push_back("v_x");
       fieldLabels.push_back("v_y");
       fieldLabels.push_back("v_z");
-
       fieldFunc = crtVel;
     } else if (coordinates == Coord::None) {
       fieldLabels.push_back("v_x");
       fieldLabels.push_back("v_y");
       fieldLabels.push_back("v_z");
-
       fieldFunc = crtVel;
     } else {
       fieldLabels.push_back("v_r");
       fieldLabels.push_back("v_t");
       fieldLabels.push_back("v_p");
-
       fieldFunc = sphVel;
     }
+
+    // Allocate storage
+    //
+    nfld = 4;
+    allocateStore();
   }
 
   VelocityBasis::VelocityBasis(const YAML::Node& conf) :
     FieldBasis(conf, "VelocityBasis")
   {
+    name = "velocity";
     assignFunc();
   }
 
   VelocityBasis::VelocityBasis(const std::string& confstr) :
     FieldBasis(confstr, "VelocityBasis")
   {
+    name = "velocity";
     assignFunc();
   }
 

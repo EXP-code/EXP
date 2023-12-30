@@ -184,6 +184,9 @@ namespace BasisClasses
       else if ( !name.compare("cube") ) {
 	basis = std::make_shared<Cube>(conf);
       }
+      else if ( !name.compare("field") ) {
+	basis = std::make_shared<FieldBasis>(conf);
+      }
       else if ( !name.compare("velocity") ) {
 	basis = std::make_shared<VelocityBasis>(conf);
       }

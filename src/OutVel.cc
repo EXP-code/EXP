@@ -68,9 +68,9 @@ OutVel::OutVel(const YAML::Node& conf) : Output(conf)
   // Currently, these are spherical and polar grids.
   //
   if (dof==2)
-    coefs = std::make_shared<CoefClasses::PolarVelCoefs>();
+    coefs = std::make_shared<CoefClasses::CylFldCoefs>();
   else
-    coefs = std::make_shared<CoefClasses::SphVelCoefs>();
+    coefs = std::make_shared<CoefClasses::SphFldCoefs>();
 }
 
 void OutVel::initialize()
@@ -187,20 +187,20 @@ void OutVel::Run(int n, int mstep, bool last)
     //
     if (std::filesystem::exists(outfile)) {
       if (dof==2)
-	std::dynamic_pointer_cast<CoefClasses::PolarVelCoefs>(coefs)->
+	std::dynamic_pointer_cast<CoefClasses::CylFldCoefs>(coefs)->
 	  ExtendH5Coefs(outfile);
       else
-	std::dynamic_pointer_cast<CoefClasses::SphVelCoefs>(coefs)->
+	std::dynamic_pointer_cast<CoefClasses::SphFldCoefs>(coefs)->
 	  ExtendH5Coefs(outfile);
     }
     // Otherwise, write a new HDF5 coefficient file
     //
     else {
       if (dof==2)
-	std::dynamic_pointer_cast<CoefClasses::PolarVelCoefs>(coefs)->
+	std::dynamic_pointer_cast<CoefClasses::CylFldCoefs>(coefs)->
 	  WriteH5Coefs(outfile);
       else
-	std::dynamic_pointer_cast<CoefClasses::SphVelCoefs>(coefs)->
+	std::dynamic_pointer_cast<CoefClasses::SphFldCoefs>(coefs)->
 	  WriteH5Coefs(outfile);
     }
   }

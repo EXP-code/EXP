@@ -718,26 +718,26 @@ namespace CoefClasses
 
   };
   
-  /** Derived class for spherical velocity coefficients */
-  class SphVelCoefs : public Coefs
+  /** Derived class for spherical field coefficients */
+  class SphFldCoefs : public Coefs
   {
 
   protected:
     
     //! Data
-    std::shared_ptr<SphVelStruct::coefType> mat;
+    std::shared_ptr<SphFldStruct::coefType> mat;
 
     //! Parameters
-    int Lmax, Nmax, dof=3;
+    int Nfld, Lmax, Nmax, dof=3;
 
     //! The coefficient DB
-    std::map<double, SphVelPtr> coefs;
+    std::map<double, SphFldPtr> coefs;
 
     //! Read the coefficients
     virtual void readNativeCoefs(const std::string& file,
 				 int stride, double tmin, double tmax)
     {
-      throw std::runtime_error("SphVelCoefs: "
+      throw std::runtime_error("SphFldCoefs: "
 			       "native coefficient type not implemented");
     }
     
@@ -753,16 +753,16 @@ namespace CoefClasses
   public:
     
     //! Constructor
-    SphVelCoefs(bool verbose=false) : Coefs("sphere", verbose) {}
+    SphFldCoefs(bool verbose=false) : Coefs("sphere", verbose) {}
     
     //! Copy constructor
-    SphVelCoefs(SphVelCoefs& p) : Coefs(p) { coefs = p.coefs; }
+    SphFldCoefs(SphFldCoefs& p) : Coefs(p) { coefs = p.coefs; }
 
     //! YAML onstructor
-    SphVelCoefs(const YAML::Node& conf, bool verbose);
+    SphFldCoefs(const YAML::Node& conf, bool verbose);
     
     //! H5 constructor
-    SphVelCoefs(HighFive::File& file, int stride=0,
+    SphFldCoefs(HighFive::File& file, int stride=0,
 		double tmin=-std::numeric_limits<double>::max(),
 		double tmax= std::numeric_limits<double>::max(),
 		bool verbose=false);
@@ -777,21 +777,21 @@ namespace CoefClasses
     virtual Eigen::VectorXcd& getData(double time);
     
     //! Operator for pyEXP
-    SphVelStruct::coefType& getMatrix(double time);
+    SphFldStruct::coefType& getMatrix(double time);
 
     //! Set coefficient matrix at given time
     virtual void setData(double time, const Eigen::VectorXcd& arr);
 
     //! Natural data setter for pyEXP
-    void setMatrix(double time, const SphVelStruct::coefType& mat);
+    void setMatrix(double time, const SphFldStruct::coefType& mat);
 
     //! Interpolate coefficient matrix at given time
-    std::tuple<SphVelStruct::coefType&, bool> interpolate(double time)
+    std::tuple<SphFldStruct::coefType&, bool> interpolate(double time)
     {
       auto ret = Coefs::interpolate(time);
       int ldim = (Lmax+1)*(Lmax+2)/2;
-      mat = std::make_shared<SphVelStruct::coefType>
-	(std::get<0>(ret).data(), 4, ldim, Nmax);
+      mat = std::make_shared<SphFldStruct::coefType>
+	(std::get<0>(ret).data(), Nfld, ldim, Nmax);
       return {*mat, std::get<1>(ret)};
     }
     
@@ -834,6 +834,9 @@ namespace CoefClasses
       for (auto v : coefs) v.second->zerodata();
     }
 
+    //! Get number of data fields
+    double nfld() const { return Nfld; }
+
     //! Get lmax
     double lmax() const { return Lmax; }
 
@@ -843,25 +846,25 @@ namespace CoefClasses
   };
   
 
-  /** Derived class for spherical velocity coefficients */
-  class PolarVelCoefs : public Coefs
+  /** Derived class for spherical field coefficients */
+  class CylFldCoefs : public Coefs
   {
   protected:
     
     //! Data
-    std::shared_ptr<PolarVelStruct::coefType> mat;
+    std::shared_ptr<CylFldStruct::coefType> mat;
 
     //! Parameters
-    int Mmax, Nmax, dof=2;
+    int Nfld, Mmax, Nmax, dof=2;
 
     //! The coefficient DB
-    std::map<double, PlrVelPtr> coefs;
+    std::map<double, PlrFldPtr> coefs;
 
     //! Read the coefficients
     virtual void readNativeCoefs(const std::string& file,
 				 int stride, double tmin, double tmax)
     {
-      throw std::runtime_error("PolarVelCoefs: "
+      throw std::runtime_error("CylFldCoefs: "
 			       "native coefficient type not implemented");
     }
     
@@ -877,16 +880,16 @@ namespace CoefClasses
   public:
     
     //! Constructor
-    PolarVelCoefs(bool verbose=false) : Coefs("cylinder", verbose) {}
+    CylFldCoefs(bool verbose=false) : Coefs("cylinder", verbose) {}
     
     //! Copy constructor
-    PolarVelCoefs(PolarVelCoefs& p) : Coefs(p)
+    CylFldCoefs(CylFldCoefs& p) : Coefs(p)
     {
       coefs = p.coefs;
     }
 
     //! H5 constructor
-    PolarVelCoefs(HighFive::File& file, int stride=0,
+    CylFldCoefs(HighFive::File& file, int stride=0,
 		  double tmin=-std::numeric_limits<double>::max(),
 		  double tmax= std::numeric_limits<double>::max(),
 		  bool verbose=false);
@@ -901,21 +904,21 @@ namespace CoefClasses
     virtual Eigen::VectorXcd& getData(double time);
     
     //! Operator for pyEXP
-    PolarVelStruct::coefType & getMatrix(double time);
+    CylFldStruct::coefType & getMatrix(double time);
 
     //! Set coefficient matrix at given time
     virtual void setData(double time, const Eigen::VectorXcd& arr);
 
     //! Natural data setter for pyEXP
-    void setMatrix(double time, const PolarVelStruct::coefType& mat);
+    void setMatrix(double time, const CylFldStruct::coefType& mat);
 
     //! Interpolate coefficient matrix at given time
-    std::tuple<PolarVelStruct::coefType&, bool> interpolate(double time)
+    std::tuple<CylFldStruct::coefType&, bool> interpolate(double time)
     {
       auto ret = Coefs::interpolate(time);
       int mdim = Mmax + 1;
-      mat = std::make_shared<PolarVelStruct::coefType>
-	(std::get<0>(ret).data(), 3, mdim, Nmax); 
+      mat = std::make_shared<CylFldStruct::coefType>
+	(std::get<0>(ret).data(), Nfld, mdim, Nmax); 
 
       return {*mat, std::get<1>(ret)};
     }
@@ -958,6 +961,9 @@ namespace CoefClasses
     virtual void zerodata() {
       for (auto v : coefs) v.second->zerodata();
     }
+
+    //! Get number of fields
+    double nfld() const { return Nfld; }
 
     //! Get mmax
     double mmax() const { return Mmax; }

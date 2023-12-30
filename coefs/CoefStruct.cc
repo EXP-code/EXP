@@ -58,21 +58,20 @@ namespace CoefClasses
       throw std::runtime_error("TblStruct::create: cols must be >0");
   }
 
-  void SphVelStruct::create()
+  void SphFldStruct::create()
   {
-    if (nmax>0)
-      coefs = std::make_shared<coefType>(store.data(), 4, (lmax+1)*(lmax+2)/2, nmax);
+    if (nfld>0 and nmax>0)
+      coefs = std::make_shared<coefType>(store.data(), nfld, (lmax+1)*(lmax+2)/2, nmax);
     else
-      throw std::runtime_error("SphStruct::SphVelStruct: nmax must be >0");
+      throw std::runtime_error("CoefStruct::SphFldStruct: nfld and nmax must be >0");
   }
 
-
-  void PolarVelStruct::create()
+  void CylFldStruct::create()
   {
-    if (nmax>0)
-      coefs = std::make_shared<coefType>(store.data(), 3, mmax+1, nmax);
+    if (nfld>0 and nmax>0)
+      coefs = std::make_shared<coefType>(store.data(), nfld, mmax+1, nmax);
     else
-      throw std::runtime_error("SphStruct::PolarVelStruct: nmax must be >0");
+      throw std::runtime_error("CoefStruct::CylFldStruct: nfld and nmax must be >0");
   }
 
   std::shared_ptr<CoefStruct> CylStruct::deepcopy()
@@ -146,17 +145,18 @@ namespace CoefClasses
     return ret;
   }
 
-  std::shared_ptr<CoefStruct> SphVelStruct::deepcopy()
+  std::shared_ptr<CoefStruct> SphFldStruct::deepcopy()
   {
-    auto ret = std::make_shared<SphVelStruct>();
+    auto ret = std::make_shared<SphFldStruct>();
 
     copyfields(ret);
 
-    assert(("SphVelStruct::deepcopy dimension mismatch",
-	    4*(lmax+1)*(lmax+2)/2*nmax == store.size()));
+    assert(("SphFldStruct::deepcopy dimension mismatch",
+	    nfld*(lmax+1)*(lmax+2)/2*nmax == store.size()));
 
     ret->coefs  = std::make_shared<coefType>
-      (ret->store.data(), 4, (lmax+1)*(lmax+2)/2, nmax);
+      (ret->store.data(), nfld, (lmax+1)*(lmax+2)/2, nmax);
+    ret->nfld   = nfld;
     ret->lmax   = lmax;
     ret->nmax   = nmax;
     ret->scale  = scale;
@@ -164,17 +164,18 @@ namespace CoefClasses
     return ret;
   }
 
-  std::shared_ptr<CoefStruct> PolarVelStruct::deepcopy()
+  std::shared_ptr<CoefStruct> CylFldStruct::deepcopy()
   {
-    auto ret = std::make_shared<PolarVelStruct>();
+    auto ret = std::make_shared<CylFldStruct>();
 
     copyfields(ret);
 
-    assert(("PolarVelStruct::deepcopy dimension mismatch",
-	    3*(mmax+1)*nmax == store.size()));
+    assert(("CylFldStruct::deepcopy dimension mismatch",
+	    nfld*(mmax+1)*nmax == store.size()));
 
     ret->coefs  = std::make_shared<coefType>
-      (ret->store.data(), 3, mmax+1, nmax);
+      (ret->store.data(), nfld, mmax+1, nmax);
+    ret->nfld   = nfld;
     ret->mmax   = mmax;
     ret->nmax   = nmax;
     ret->scale  = scale;
@@ -475,16 +476,16 @@ namespace CoefClasses
     }
   }
 
-  bool SphVelStruct::read(std::istream& in, bool exp_type, bool verbose)
+  bool SphFldStruct::read(std::istream& in, bool exp_type, bool verbose)
   {
-    std::cout << "SphVelStruct: no native coefficient format for this class"
+    std::cout << "SphFldStruct: no native coefficient format for this class"
 	      << std::endl;
     return false;
   }
   
-  bool PolarVelStruct::read(std::istream& in, bool exp_type, bool verbose)
+  bool CylFldStruct::read(std::istream& in, bool exp_type, bool verbose)
   {
-    std::cout << "PolarVelStruct: no native coefficient format for this class"
+    std::cout << "CylFldStruct: no native coefficient format for this class"
 	      << std::endl;
     return false;
   }

@@ -309,8 +309,8 @@ namespace CoefClasses
 
   };
   
-  //! Specialization of CoefStruct for spheres
-  class SphVelStruct : public CoefStruct
+  //! Specialization of CoefStruct for spheres for general fields
+  class SphFldStruct : public CoefStruct
   {
   public:
     //! Coefficient data type
@@ -322,6 +322,9 @@ namespace CoefClasses
     //! Coefficient map
     std::shared_ptr<coefType> coefs;
 
+    //! Number of data fields
+    int nfld;
+
     //! Angular and radial dimension
     int lmax, nmax;
     
@@ -329,7 +332,7 @@ namespace CoefClasses
     double scale;
     
     //! Constructor
-    SphVelStruct() : lmax(0), nmax(0), scale(1.0)
+    SphFldStruct() : nfld(0), lmax(0), nmax(0), scale(1.0)
     { geom = "sphere"; }
 
     //! Read native EXP coefficients
@@ -346,13 +349,14 @@ namespace CoefClasses
     {
       int rows = (lmax+1)*(lmax+2)/2;
       int cols = nmax;
-      store.resize(4*rows*cols);
-      coefs = std::make_shared<coefType>(store.data(), 4, rows, cols);
+      store.resize(nfld*rows*cols);
+      coefs = std::make_shared<coefType>(store.data(), nfld, rows, cols);
     }
 
     //! Assign data
-    void assign(const Eigen::VectorXcd& data, int Lmax, int Nmax)
+    void assign(const Eigen::VectorXcd& data, int Nfld, int Lmax, int Nmax)
     {
+      nfld = Nfld;
       lmax = Lmax;
       nmax = Nmax;
       allocate();
@@ -362,8 +366,8 @@ namespace CoefClasses
   };
   
 
-  //! Specialization of CoefStruct for disks
-  class PolarVelStruct : public CoefStruct
+  //! Specialization of CoefStruct for disks for general fields
+  class CylFldStruct : public CoefStruct
   {
   public:
     //! Coefficient data type
@@ -375,6 +379,9 @@ namespace CoefClasses
     //! Coefficient map
     std::shared_ptr<coefType> coefs;
 
+    //! Number of data fields
+    int nfld;
+
     //! Angular and radial dimension
     int mmax, nmax;
     
@@ -382,7 +389,7 @@ namespace CoefClasses
     double scale;
     
     //! Constructor
-    PolarVelStruct() : mmax(0), nmax(0), scale(1.0)
+    CylFldStruct() : nfld(0), mmax(0), nmax(0), scale(1.0)
     { geom = "cylinder"; }
 
     //! Read native EXP coefficients
@@ -399,13 +406,14 @@ namespace CoefClasses
     {
       int rows = mmax+1;
       int cols = nmax;
-      store.resize(3*rows*cols);
-      coefs = std::make_shared<coefType>(store.data(), 3, rows, cols);
+      store.resize(nfld*rows*cols);
+      coefs = std::make_shared<coefType>(store.data(), nfld, rows, cols);
     }
 
     //! Assign matrix
-    void assign(const Eigen::VectorXcd& data, int Mmax, int Nmax)
+    void assign(const Eigen::VectorXcd& data, int Nfld, int Mmax, int Nmax)
     {
+      nfld = Nfld;
       mmax = Mmax;
       nmax = Nmax;
       allocate();
@@ -415,14 +423,14 @@ namespace CoefClasses
   };
   
 
-  using CoefStrPtr = std::shared_ptr<CoefStruct>     ;
-  using SphStrPtr  = std::shared_ptr<SphStruct>      ;       
-  using CylStrPtr  = std::shared_ptr<CylStruct>      ;   
-  using SlabStrPtr = std::shared_ptr<SlabStruct>     ;  
-  using CubeStrPtr = std::shared_ptr<CubeStruct>     ;  
-  using TblStrPtr  = std::shared_ptr<TblStruct>      ;  
-  using SphVelPtr  = std::shared_ptr<SphVelStruct>   ;  
-  using PlrVelPtr  = std::shared_ptr<PolarVelStruct> ;  
+  using CoefStrPtr = std::shared_ptr<CoefStruct>   ;
+  using SphStrPtr  = std::shared_ptr<SphStruct>    ;       
+  using CylStrPtr  = std::shared_ptr<CylStruct>    ;   
+  using SlabStrPtr = std::shared_ptr<SlabStruct>   ;  
+  using CubeStrPtr = std::shared_ptr<CubeStruct>   ;  
+  using TblStrPtr  = std::shared_ptr<TblStruct>    ;  
+  using SphFldPtr  = std::shared_ptr<SphFldStruct> ;  
+  using PlrFldPtr  = std::shared_ptr<CylFldStruct> ;  
 
 }  
 // END namespace CoefClasses
