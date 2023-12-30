@@ -271,7 +271,7 @@ namespace BasisClasses
 	std::complex<double> P = std::exp(I*(phi*m));
 	for (int n=0; n<nmax; n++) {
 	  (*coefs[tid])(0, m, n) += mass*P*p(n);
-	  for (int k=0; k<p.size(); k++)
+	  for (int k=0; k<vec.size(); k++)
 	    (*coefs[tid])(k+1, m, n) += mass*P*p(n)*vec[k];
 	}
       }	 
@@ -287,7 +287,7 @@ namespace BasisClasses
 	
 	  for (int n=0; n<nmax; n++) {
 	    (*coefs[tid])(0, m, n) += mass*P*p(n);
-	    for (int k=0; k<p.size(); k++)
+	    for (int k=0; k<vec.size(); k++)
 	      (*coefs[tid])(k+1, m, n) += mass*P*p(n)*vec[k];
 	  }
 	}
