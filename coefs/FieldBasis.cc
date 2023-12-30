@@ -379,9 +379,9 @@ namespace BasisClasses
     constexpr std::complex<double> I(0, 1);
 
     if (dof==2) {
-      std::vector<double> ret(3, 0);
+      std::vector<double> ret(nfld, 0);
       auto p = (*ortho)(r*sqrt(fabs(1.0 - costh*costh)));
-      for (int i=0; i<3; i++) {
+      for (int i=0; i<nfld; i++) {
 	for (int m=0; m<=lmax; m++) {
 	  for (int n=0; n<nmax; n++) {
 	    ret[i] += std::real((*coefs[0])(i, m, n)*exp(I*(phi*m)))*p[n];
@@ -390,9 +390,9 @@ namespace BasisClasses
       }
       return ret;
     } else {
-      std::vector<double> ret(4, 0);
+      std::vector<double> ret(nfld, 0);
       auto p = (*ortho)(r);
-      for (int i=0; i<4; i++) {
+      for (int i=0; i<nfld; i++) {
 	for (int l=0, L=0; l<=lmax; l++) {
 	  for (int m=0; m<=l; m++, L++) {
 	    for (int n=0; n<nmax; n++) {
@@ -631,13 +631,9 @@ namespace BasisClasses
     auto [x, y, z] = pos;
     auto [u, v, w] = vel;
     
-    double R   = sqrt(x*x + y*y);
-    double r   = sqrt(R*R + z*z);
-    double phi = atan2(y, x);
-    double cth = z/(r + 1.0e-18);
-    
-    double vr  = (u*x + v*y)/(R + 1.0e-18);
-    double vp  = (u*y - v*x)/(R + 1.0e-18);
+    double R   = sqrt(x*x + y*y) + 1.0e-18;
+    double vr  = (u*x + v*y)/R;
+    double vp  = (u*y - v*x)/R;
     
     return {vr, w, vp};
   }
@@ -648,14 +644,12 @@ namespace BasisClasses
     auto [x, y, z] = pos;
     auto [u, v, w] = vel;
     
-    double R   = sqrt(x*x + y*y);
+    double R   = sqrt(x*x + y*y) + 1.0e-18;
     double r   = sqrt(R*R + z*z);
-    double phi = atan2(y, x);
-    double cth = z/(r + 1.0e-18);
     
-    double vr  = (u*x + v*y + w*z)/(r + 1.0e-18);
-    double vt  = (u*z*x + v*z*y - w*R)/(R + 1.0e-18)/(r + 1.0-18);
-    double vp  = (u*y - v*x)/(R + 1.0e-18);
+    double vr  = (u*x + v*y + w*z)/r;
+    double vt  = (u*z*x + v*z*y - w*R)/R/r;
+    double vp  = (u*y - v*x)/R;
 
     return {vr, vt, vp};
   }
