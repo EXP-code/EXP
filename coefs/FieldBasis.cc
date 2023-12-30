@@ -288,9 +288,10 @@ namespace BasisClasses
       
       auto p = (*ortho)(R);
     
+      (*coefs[tid])(0, 0, 0) += mass*p(0);
+
       for (int m=0; m<=lmax; m++) {
 	std::complex<double> P = std::exp(I*(phi*m));
-	(*coefs[tid])(0, m, 0) += mass*P*p(0);
 	for (int n=0; n<nmax; n++) {
 	  (*coefs[tid])(1, m, n) += mass*P*p(n);
 	  for (int k=0; k<vec.size(); k++)
@@ -302,12 +303,13 @@ namespace BasisClasses
     
       auto p = (*ortho)(r);
       
+      (*coefs[tid])(0, 0, 0) += mass*p(0);
+
       for (int l=0, k=0; l<=lmax; l++) {
 	for (int m=0; m<=l; m++, k++) {
 	  std::complex<double> P =
 	    std::exp(I*(phi*m))*Ylm01(l, m)*plgndr(l, m, cth);
 	
-	  (*coefs[tid])(0, m, 0) += mass*P*p(0);
 	  for (int n=0; n<nmax; n++) {
 	    (*coefs[tid])(1, m, n) += mass*P*p(n);
 	    for (int k=0; k<vec.size(); k++)
