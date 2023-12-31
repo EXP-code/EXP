@@ -23,41 +23,61 @@ void BasisFactoryClasses(py::module &m)
     forces and, together with the FieldGenerator, surfaces and fields for
     visualization.
 
-    Five bases are currently implemented:
+    Six bases are currently implemented:
+
      1. SphericalSL, the Sturm-Liouiville spherical basis;
+
      2. Cylindrical, created created by computing empirical orthogonal functions
         over a densely sampled SphericalSL basis;
+
      3. FlatDisk, an EOF rotation of the finite Bessel basis; and
-     4. Cube, a periodic cube basis whose functions are the Cartesian eigenfunctions
-        of the Cartesian Laplacian: sines and cosines.
-     5. VelocityBasis, a basis for computing the mean field velocity fields from
-        a phase-space snapshot.
+
+     4. Cube, a periodic cube basis whose functions are the Cartesian
+        eigenfunctions of the Cartesian Laplacian: sines and cosines.
+
+     5. FieldBasis, for computing user-provided quantities from a
+        phase-space snapshot.
+
+     6. VelocityBasis, for computing the mean field velocity fields from
+        a phase-space snapshot.  This is a specialized version of FieldBasis.
 
     Each of these bases take a YAML configuration file as input. These parameter
-    lists are as subset of and have the same structure as thosed used by EXP. The
-    factory and the individual constructors will check the parameters keys
-    and warn of mismatches for safety.  See the EXP documentation and
-    the pyEXP examples for more detail.  Other bases in EXP but not in
-    pyEXP include those for cubic and slab geometries and other special-
-    purpose bases such as the Hernquist, Clutton-Brock sphere and two-
-    dimensional disk basis.  These will be made available in a future
-    release if there is demand.  Note however that the Hernquist and
-    Clutton-Brock spheres can be constructed using SphericalSL with a
-    Hernquist of modified Plummer model as input.
+    lists are as subset of and have the same structure as thosed used by EXP.
+    The factory and the individual constructors will check the parameters keys
+    and warn of mismatches for safety.  See the EXP documentation and the pyEXP
+    examples for more detail.  The first four bases are the most often used bi-
+    orthogonal basis types used for computing the potential and forces from
+    density distributions.  Other biorthgonal bases in EXP but not in pyEXP
+    include those for cubic and slab geometries and other special-purpose bases
+    such as the Hernquist, Clutton-Brock sphere and two-dimensional disk basis.
+    These will be made available in a future release if there is demand.  Note
+    that the Hernquist and Clutton-Brock spheres can be constructed using
+    SphericalSL with a Hernquist of modified Plummer model as input.  The
+    FieldBasis and VelocityBasis are designed for producing summary data for
+    post-production analysis (using mSSA or eDMD, for example) and for
+    simulation cross-comparison.
 
     The primary functions of these basis classes are:
+
       1. To compute BFE coefficients from phase-space snapshots
          using the ParticleReader class. See help(pyEXP.read).
+
       2. To evaluate the fields from the basis and a coefficient
          object. See help(pyEXP.coefs) and help(pyEXP.field).
 
+      3. To provide compact summary field data for post-production
+         analysis.  See help(pyEXP.basis.FieldBasis) and
+         help(pyEXP.basis.VelocityBasis).
+
     Introspection
     -------------
-    The two bases have a 'cacheInfo(str)' member that reports the
-    parameters used to create the cached basis.  This may be used
-    grab the parameters for creating a basis.  At this point, you
-    must create the YAML configuration for the basis even if the
-    basis is cached.  This is a safety and consistency feature that
+    The first two bases have a 'cacheInfo(str)' member that reports the
+    parameters used to create the cached basis.  This may be used to
+    grab the parameters for creating a basis.  Cache use ensures that
+    your analyses are computed with the same bases used in a simulation
+    or with the same basis used on previous pyEXP invocations.  At this
+    point, you must create the YAML configuration for the basis even if
+    the basis is cached.  This is a safety and consistency feature that
     may be relaxed in a future version.
 
     Coefficient creation
@@ -70,14 +90,34 @@ void BasisFactoryClasses(py::module &m)
     and an optional boolean functor used to select which particles to
     using the 'setSelector(functor)' member.  An example functor
     would be defined in Python as follows:
+
        def myFunctor(m, pos, vel, index):
           ret = False  # Default return value
           # some caculation with scalar mass, pos array, vel array and
           # integer index that sets ret to True if desired . . . 
           return ret
+
     If you are using 'createFromArray()', you will only have access to
     the mass and position vector.   You may clear and turn off the
     selector using the 'clrSelector()' member.
+
+    The FieldBasis class requires a user-specified phase-space field
+    functor that produces an list of quantities derived from the
+    phase space for each particle.  For example, to get a total
+    velocity field, we could use:
+
+       def totalVelocity(m, pos, vel):
+          # Some caculation with scalar mass, pos array, vel array.
+          # Total velocity for this example...
+          return [(vel[0]**2 + vel[1]**2 + vel[2]**2)**0.5]
+
+    This function is registered with the FieldBasis using:
+
+       basis->addPSFunction(totalVelocity, ['total velocity'])
+
+    The VelocityBasis is a FieldBasis that automatically sets the
+    phase-space field functor to cylindrical or spherical velocities
+    based on the 'dof' parameter.  More on 'dof' below.
 
     Scalablility
     ------------
@@ -105,10 +145,21 @@ void BasisFactoryClasses(py::module &m)
     -------------------
     Each basis is assigned a natural coordinate system for field evaluation
     as follows:
+
      1. SphericalSL uses spherical coordinates
+
      2. Cylindrical uses cylindrical coordinates
+
      3. FlatDisk uses cylindrical coordinates
+
      4. Cube uses Cartesian coordinates
+
+     5. FieldBasis and VelocityBasis provides two natural geometries for
+        field evaluation: a two-dimensional (dof=2) polar disk and a
+        three-dimensional (dof=3) spherical geometry that are chosen using
+        the 'dof' parameter.  These use cylindrical and spherical
+        coordinates, respectively, by default.
+
     These default choices may be overridden by passing a string argument
     to the 'setFieldType()' member. The argument is case insensitive and only 
     distinguishing characters are necessary.  E.g. for 'Cylindrical', the 
@@ -326,14 +377,6 @@ void BasisFactoryClasses(py::module &m)
   public:
     // Inherit the constructors
     using BasisClasses::BiorthBasis::BiorthBasis;
-
-    /*
-    std::vector<double> getFields(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE(std::vector<double>, BiorthBasis, getFields,
-			     x, y, z);
-    }
-    */
 
     void accumulate(double x, double y, double z, double mass) override {
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, accumulate, x, y, z, mass);
@@ -726,8 +769,13 @@ void BasisFactoryClasses(py::module &m)
 
          Returns
          -------
-         Basis
-             the Basis object
+         BiorthBasis
+             the BiorthBasis object
+
+         Notes
+         -----
+         Needed for copying objects in the Python interpreter.  This can not be
+         instantiated directly.
         )", py::arg("YAMLstring"))
     .def("createFromReader", &BasisClasses::BiorthBasis::createFromReader,
 	 R"(
@@ -1258,14 +1306,14 @@ void BasisFactoryClasses(py::module &m)
       -------
       numpy.ndarray)
           list of numpy.ndarrays from [0, ... , dx*dy*dz]
-       )"
+      )"
       );
 
 
   py::class_<BasisClasses::FieldBasis, std::shared_ptr<BasisClasses::FieldBasis>, PyFieldBasis, BasisClasses::Basis>(m, "FieldBasis")
       .def(py::init<const std::string&>(),
 	 R"(
-         Create a orthogonal basis for representing general fields
+         Create a orthogonal basis for representing general phase-space fields
 
          Parameters
          ----------
@@ -1276,6 +1324,23 @@ void BasisFactoryClasses(py::module &m)
          -------
          FieldBasis
               the new instance
+
+         Notes
+         -----
+         A FieldBasis instance may be created directly or by the Basis.factory().
+         The fields are defined by a user provided function, addPSFunction().
+         VelocityBasis is derived from this class and provides a field function
+         for velocity fields by default.
+
+         The evaluation geometry is a polar using the phase-space x-y coordinates
+         if the 'dof' parameter is 2 and spherical using x-y-z coordinates if
+         'dof' is 3.  The output values and their coordinates are determined by
+         the user-suppied field function.
+
+         See also
+         --------
+         addPSFunction: register the user-supplied field generating function and
+                        field names.
          )", py::arg("YAMLstring"))
     .def("addPSFunction", &BasisClasses::FieldBasis::addPSFunction,
 	 R"(
@@ -1465,7 +1530,12 @@ void BasisFactoryClasses(py::module &m)
          Notes
          -----
          This is a FieldBasis specialized to return velocity fields in
-         spherical, cylindrical, or Cartesian systems.
+         spherical, cylindrical, or Cartesian systems.  By default, the
+         coordinates will be cylindrical if the 'dof' parameter is 2 and
+         spherical if the 'dof' parameter is 3. This default can be changed
+         using the setFieldType() member.  For example, the following call:
+              basis->setFieldType('cart')
+         will selection Cartesian velocities u, v, w for output.
          )", py::arg("YAMLstring"));
 
   py::class_<BasisClasses::AccelFunc, std::shared_ptr<BasisClasses::AccelFunc>, PyAccelFunc>(m, "AccelFunc")
