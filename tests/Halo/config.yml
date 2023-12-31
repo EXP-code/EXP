@@ -47,7 +47,7 @@ Components:
 Output:
   - id : outlog
     parameters : {nint: 10}
-   -id : outcoef
+  - id : outcoef
     parameters : {nint: 1, name: dark halo}
 
 # ------------------------------------------------------------------------
