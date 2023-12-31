@@ -1041,7 +1041,31 @@ void CoefficientClasses(py::module &m) {
          Returns
          -------
          SphCoefs instance
-         )")
+         )",
+	 )
+    .def(py::init<std::string, int>(),
+         R"(
+         Create a spherical coefficient container from a HDF5 coefficient file
+
+         Parameters
+         ----------
+         type : str
+             type of coefficient container
+         stride : int
+             interval between dumps (1=read all dumps, 2=skip every other)
+
+         Returns
+         -------
+         SphCoefs instance
+
+         Notes
+         -----
+         This container that holds, stores, and reads coefficient
+         structures for a part or all of the snapshots in your
+         simulation
+         )",
+         py::arg("file"),
+         py::arg("stride")=1)
     .def("__call__",
 	 &CoefClasses::SphCoefs::getMatrix,
          R"(
@@ -1117,6 +1141,29 @@ void CoefficientClasses(py::module &m) {
          -------
          CylCoefs instance
          )")
+    .def(py::init<std::string, int>(),
+         R"(
+         Create a cylindrical coefficient container from a HDF5 coefficient file
+
+         Parameters
+         ----------
+         type : str
+             type of coefficient container
+         stride : int
+             interval between dumps (1=read all dumps, 2=skip every other)
+
+         Returns
+         -------
+         SphCoefs instance
+
+         Notes
+         -----
+         This container that holds, stores, and reads coefficient
+         structures for a part or all of the snapshots in your
+         simulation
+         )",
+         py::arg("file"),
+         py::arg("stride")=1)
     .def("__call__",
 	 &CoefClasses::CylCoefs::getMatrix,
          R"(
@@ -1219,6 +1266,29 @@ void CoefficientClasses(py::module &m) {
          -------
          SphFldCoefs instance
          )")
+    .def(py::init<std::string, int>(),
+         R"(
+         Create a spherical field coefficient container from a HDF5 coefficient file
+
+         Parameters
+         ----------
+         type : str
+             type of coefficient container
+         stride : int
+             interval between dumps (1=read all dumps, 2=skip every other)
+
+         Returns
+         -------
+         SphFldCoefs instance
+
+         Notes
+         -----
+         This container that holds, stores, and reads coefficient
+         structures for a part or all of the snapshots in your
+         simulation
+         )",
+         py::arg("file"),
+         py::arg("stride")=1)
     .def("__call__",
 	 &CoefClasses::SphFldCoefs::getMatrix,
          R"(
@@ -1294,6 +1364,29 @@ void CoefficientClasses(py::module &m) {
          -------
          CylFldCoefs instance
          )")
+    .def(py::init<std::string, int>(),
+         R"(
+         Create a cylindrical field coefficient container from a HDF5 coefficient file
+
+         Parameters
+         ----------
+         type : str
+             type of coefficient container
+         stride : int
+             interval between dumps (1=read all dumps, 2=skip every other)
+
+         Returns
+         -------
+         CylFldCoefs instance
+
+         Notes
+         -----
+         This container that holds, stores, and reads coefficient
+         structures for a part or all of the snapshots in your
+         simulation
+         )",
+         py::arg("file"),
+         py::arg("stride")=1)
     .def("__call__",
 	 &CoefClasses::CylFldCoefs::getMatrix,
          R"(
@@ -1363,6 +1456,29 @@ void CoefficientClasses(py::module &m) {
          -------
          CubeCoefs instance
          )")
+    .def(py::init<std::string, int>(),
+         R"(
+         Create a cube coefficient container from a HDF5 coefficient file
+
+         Parameters
+         ----------
+         type : str
+             type of coefficient container
+         stride : int
+             interval between dumps (1=read all dumps, 2=skip every other)
+
+         Returns
+         -------
+         CubeCoefs instance
+
+         Notes
+         -----
+         This container that holds, stores, and reads coefficient
+         structures for a part or all of the snapshots in your
+         simulation
+         )",
+         py::arg("file"),
+         py::arg("stride")=1)
     .def("__call__",
 	 &CoefClasses::CubeCoefs::getTensor,
          R"(
