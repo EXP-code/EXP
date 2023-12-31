@@ -75,12 +75,25 @@ if(ENABLE_NBODY)
 
   set_tests_properties(expNbodyCheck2TW PROPERTIES DEPENDS makeNbodyTest)
 
+  # This adds a coefficient read test using pyEXP only if
+  # makeNbodyTest is run and pyEXP has been built
+  if(ENABLE_PYEXP)
+     # Read coefficient file with pyEXP
+     add_test(NAME pyEXPCoefReadTest
+              COMMAND ${CMAKE_COMMAND} -E env
+              PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+              ${PYTHON_EXECUTABLE} readCoefs.py
+              WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
+     set_tests_properties(pyEXPCoefReadTest PROPERTIES DEPENDS makeNbodyTest)
+  endif()
+
   # A separate test to remove the generated files if they all exist;
   # perhaps there is a better way?
   add_test(NAME removeTempFiles
     COMMAND ${CMAKE_COMMAND} -E remove
     config.run0.yml current.processor.rates.run0 new.bods new.bods.0
     OUTLOG.run0 run0.levels SLGridSph.cache.run0 test.grid
+    'outcoef.dark halo.run0'
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Remove the temporary files
@@ -122,7 +135,9 @@ if(ENABLE_NBODY)
 
   # Set labels for pyEXP tests
   set_tests_properties(expExecuteTest PROPERTIES LABELS "quick")
-  set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW removeTempFiles expCubeTest removeCubeFiles PROPERTIES LABELS "long")
+  set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW
+  pyEXPCoefReadTest removeTempFiles expCubeTest removeCubeFiles
+  PROPERTIES LABELS "long")
 
 endif()
 
