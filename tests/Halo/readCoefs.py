@@ -3,5 +3,7 @@
 
 import pyEXP
 
-coefs = pyEXP.coefs.SphCoefs('outcoef.dark halo.run0')
-print(coefs)
+coefs = pyEXP.coefs.Coefs.factory('outcoef.dark halo.run0')
+data  = coefs.getAllCoefs()
+print(data.shape)
+print(coefs.getName())
