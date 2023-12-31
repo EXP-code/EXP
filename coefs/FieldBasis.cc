@@ -47,7 +47,7 @@ namespace BasisClasses
 
     // Allocate coefficient storage
     //
-    nfld = p.size() + 1;
+    nfld = p.size() + 2;
     allocateStore();
 
     // Okay to register
