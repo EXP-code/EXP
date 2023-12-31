@@ -35,18 +35,19 @@ void CoefficientClasses(py::module &m) {
     "-----\n"
     "The base class, 'Coefs', provides a factory reader that will\n"
     "create one of the derived coefficient classes, SphCoefs, CylCoefs,\n"
-    "CubeCoefs, or TblCoefs, deducing the type from the input file. The\n"
-    "input files may be EXP native or HDF5 cofficient files.  The Basis\n"
-    "factory, Basis::createCoefficients, will create set of coef-\n"
-    "ficients from phase-space snapshots.  See help(pyEXP.basis).\n"
-    "Files which are not recognized as EXP coefficient files are\n"
-    "assumed to be data files and are parsed by the TblCoefs class.\n"
-    "The first column in data tables is interpreted as time and each\n"
-    "successive column is interpreted as a new data field.\n\n"
+    "CubeCoefs, TblCoefs, SphFldCoefs, and CylFldCoefs, deducing the\n"
+    "type from the input file. The input files may be EXP native or HDF5\n"
+    "cofficient files.  The Basis factory, Basis::createCoefficients,\n"
+    "will create set of coefficients from phase-space snapshots.  Se\n"
+    "help(pyEXP.basis). Files which are not recognized as EXP coefficient\n"
+    "files are assumed to be data files and are parsed by the TblCoefs\n"
+    "class. The first column in data tables is interpreted as time and\n"
+    "each successive column is interpreted as a new data field.\n\n"
     "Once created, you may get a list of times, get the total gravi-\n"
-    "tation power from biothogonal basis coefficients, and write a new\n"
-    "HDF5 file.  Their main use is as a container object for MSSA (using\n"
-    "expMSSA) and field visualization using the FieldGenerator class.\n\n"
+    "tation power from biothogonal basis coefficients and general power\n"
+    "from the field coefficients, and write a new HDF5 file.  Their\n"
+    "primary use is as a container object for MSSA (using expMSSA) and\n"
+    "field visualization using the FieldGenerator class.\n\n"
     "Updates\n"
     "-------\n"
     "The expMSSA class will update the contribution to the coefficients\n"
@@ -643,6 +644,50 @@ void CoefficientClasses(py::module &m) {
         None
         )");
 
+  py::class_<CoefClasses::SphFldStruct, std::shared_ptr<CoefClasses::SphFldStruct>, CoefStruct>(m, "SphFldStruct")
+    .def(py::init<>(), "Spherical field coefficient data structure object")
+    .def("assign", &SphFldStruct::assign,
+	R"(
+        Assign a coefficient matrix to CoefStruct.
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray
+             Flattened array of coefficients
+        nfld : int
+             number of data fields
+        lmax : int
+             angular order
+        nmax : int
+             radial order
+
+        Returns
+        -------
+        None
+        )");
+
+  py::class_<CoefClasses::CylFldStruct, std::shared_ptr<CoefClasses::CylFldStruct>, CoefStruct>(m, "CylFldStruct")
+    .def(py::init<>(), "Cylindrical field coefficient data structure object")
+    .def("assign", &CylFldStruct::assign,
+	      R"(
+        Assign a flattened coefficient array to CylFldStruct.
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray
+             Flattened array of coefficients
+        nfld : int
+             number of data fields
+        mmax : int
+             angular order
+        nmax : int
+             radial order
+
+        Returns
+        -------
+        None
+        )");
+
   py::class_<CoefClasses::Coefs, std::shared_ptr<CoefClasses::Coefs>, PyCoefs>(m, "Coefs")
     .def(py::init<std::string, bool>(),
          R"(
@@ -947,7 +992,7 @@ void CoefficientClasses(py::module &m) {
 
   py::class_<CoefClasses::SphCoefs, std::shared_ptr<CoefClasses::SphCoefs>, PySphCoefs, CoefClasses::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
     .def(py::init<bool>(),
-	       R"(
+	 R"(
          Construct a null SphCoefs object
 
          Parameters
@@ -1020,7 +1065,7 @@ void CoefficientClasses(py::module &m) {
 
   py::class_<CoefClasses::CylCoefs, std::shared_ptr<CoefClasses::CylCoefs>, PyCylCoefs, CoefClasses::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
     .def(py::init<bool>(),
-	       R"(
+	 R"(
          Construct a null CylCoefs object
 
          Parameters
@@ -1117,6 +1162,154 @@ void CoefficientClasses(py::module &m) {
 	 py::arg("max") = std::numeric_limits<double>::max());
 
 
+  py::class_<CoefClasses::SphFldCoefs, std::shared_ptr<CoefClasses::SphFldCoefs>, CoefClasses::Coefs>(m, "SphFldCoefs", "Container for spherical field coefficients")
+    .def(py::init<bool>(),
+	       R"(
+         Construct a null SphFldCoefs object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         SphFldCoefs instance
+         )")
+    .def("__call__",
+	 &CoefClasses::SphFldCoefs::getMatrix,
+         R"(
+         Return the coefficient tensor for the desired time.
+
+         Parameters
+         ----------
+         time : float
+             the desired time
+
+         Returns
+         -------
+         numpy.ndarray
+             the coefficient tensor at the requested time
+
+         Notes
+         -----
+         This operator will return the 0-rank tensor if no coefficients are found at the
+         requested time
+         )",
+         py::arg("time"))
+    .def("setMatrix",
+	 &CoefClasses::SphFldCoefs::setMatrix,
+         R"(
+         Enter and/or rewrite the coefficient tensor at the provided time
+
+         Parameters
+         ----------
+         time : float
+             snapshot time corresponding to the the coefficient matrix
+             mat : numpy.ndarray
+                 the new coefficient array.
+
+         Returns
+         -------
+         None
+         )",
+         py::arg("time"), py::arg("mat"))
+    .def("getAllCoefs",
+	 [](CoefClasses::SphFldCoefs& A)
+	 {
+	   auto M = A.getAllCoefs(); // Need a copy here
+	   py::array_t<std::complex<double>> ret = make_ndarray4<std::complex<double>>(M);
+	   return ret;
+	 },
+	 R"(
+        Provide a 4-dimensional ndarray indexed by channel index, spherical index, radial index, and time index
+
+        Returns
+        -------
+        numpy.ndarray
+            4-dimensional numpy array containing the spherical coefficients
+
+        Notes
+        -----
+        The spherical index serializes all pairs of (n, l, m) where n is the
+        channel index, and l, m are the aximuthal indices. The index for
+        (n, l, m) triple is calculated as: n*lmax*(lmax+1)/2 + l*(l+1)/2 + m.
+        )");
+
+  py::class_<CoefClasses::CylFldCoefs, std::shared_ptr<CoefClasses::CylFldCoefs>, CoefClasses::Coefs>(m, "CylFldCoefs", "Container for cylindrical field coefficients")
+    .def(py::init<bool>(),
+	 R"(
+         Construct a null CylFldCoefs object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         CylFldCoefs instance
+         )")
+    .def("__call__",
+	 &CoefClasses::CylFldCoefs::getMatrix,
+         R"(
+         Return the coefficient tensor for the desired time.
+
+         Parameters
+         ----------
+         time : float
+             the desired time
+
+         Returns
+         -------
+         numpy.ndarray
+             the coefficient tensor at the requested time
+
+         Notes
+         -----
+         This operator will return the 0-rank tensor if no coefficients are found at the
+         requested time
+         )",
+         py::arg("time"))
+    .def("setMatrix",
+	 &CoefClasses::CylFldCoefs::setMatrix,
+         R"(
+         Enter and/or rewrite the coefficient tensor at the provided time
+
+         Parameters
+         ----------
+         time : float
+             snapshot time corresponding to the the coefficient matrix
+             mat : numpy.ndarray
+                 the new coefficient array.
+
+         Returns
+         -------
+         None
+         )",
+         py::arg("time"), py::arg("mat"))
+    .def("getAllCoefs",
+	 [](CoefClasses::CylFldCoefs& A)
+	 {
+	   auto M = A.getAllCoefs(); // Need a copy here
+	   py::array_t<std::complex<double>> ret = make_ndarray4<std::complex<double>>(M);
+	   return ret;
+	 },
+	 R"(
+        Provide a 4-dimensional ndarray indexed by channel index, spherical index, radial index, and time index
+
+        Returns
+        -------
+        numpy.ndarray
+            4-dimensional numpy array containing the spherical coefficients
+
+        Notes
+        -----
+        The spherical index serializes all pairs of (n, m) where n is the
+        channel index and m is the aximuthal index. The index for (n, m) pair
+        is calculated as: n*(mmax+1) + m;
+        )");
+
   py::class_<CoefClasses::CubeCoefs, std::shared_ptr<CoefClasses::CubeCoefs>, PyCubeCoefs, CoefClasses::Coefs>(m, "CubeCoefs", "Container for cube coefficients")
     .def(py::init<bool>(),
 	       R"(
@@ -1184,7 +1377,6 @@ void CoefficientClasses(py::module &m) {
          numpy.ndarray
              4-dimensional numpy array containing the cylindrical coefficients
          )");
-
 
   py::class_<CoefClasses::TableData, std::shared_ptr<CoefClasses::TableData>, PyTableData, CoefClasses::Coefs>(m, "TableData", "Container for simple data tables with multiple columns")
     .def(py::init<bool>(),
