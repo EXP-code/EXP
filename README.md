@@ -29,7 +29,7 @@ resource request.
 
 ## Compile hints
 
-See README.build for a brief synposis.
+See INSTALL.md for a brief synposis.
 
 A few quick additional notes. By default, both the n-body code and the
 Python bindings, the pyEXP interface, will be compiled by default.
