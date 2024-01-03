@@ -86,20 +86,10 @@ endif()
 
 # Optional CUDA support
 if(ENABLE_CUDA)
-  # CMake has native language support for CUDA as of 3.27.  But now,
-  # we need the CUDA Toolit module.
-  if(CMAKE_VERSION VERSION_LESS "3.27") 
-    find_package(CUDA REQUIRED)
-    find_cuda_helper_libs(nvToolsExt)
-    cuda_select_nvcc_arch_flags(ARCH_FLAGS 5.2 6.0 6.1 7.0 7.2 7.5)
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${ARCH_FLAGS}" CACHE STRING "Global compile flags for nvcc")
-    message("CUDA arch flags are: ${ARCH_FLAGS}")
-  else()
-    find_package(CUDAToolkit REQUIRED)
-    set(CMAKE_CUDA_ARCHITECTURES "60;61;70;72;75;86" CACHE STRING "CUDA architectures")
-    message(STATUS "Using CUDA architectures ${CMAKE_CUDA_ARCHITECTURES} by default.  Please set the CUDAARCHS environment variable to override this.")
-  endif()
   enable_language(CUDA)
+  find_package(CUDAToolkit REQUIRED)
+  set(CMAKE_CUDA_ARCHITECTURES "60;61;70;72;75;86" CACHE STRING "CUDA architectures" FORCE)
+  message(STATUS "Using CUDA architectures ${CMAKE_CUDA_ARCHITECTURES} by default.  Please set the CUDAARCHS environment variable to override this.")
   set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -w"
     CACHE STRING "Global cuda flags for Release build" FORCE)
   set(CMAKE_CUDA_FLAGS_MINSIZEREL "-O3 -w"

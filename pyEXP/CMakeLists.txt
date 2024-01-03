@@ -17,7 +17,7 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
   ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
 
 if(ENABLE_CUDA)
-  list(APPEND common_LINKLIB ${CUDA_CUDART_LIBRARY} ${CUDA_nvToolsExt_LIBRARY})
+  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
 endif()
 
 if(SLURM_FOUND)
