@@ -47,13 +47,8 @@ option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
 option(ENABLE_DSMC "Enable DSCM module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
 option(ENABLE_SLCHECK "Enable *careful* Sturm-Liouville solutions" TRUE)
-option(ENABLE_TESTS "Enable build tests for EXP, pyEXP and helpers" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
-
-# Set mpirun launcher for CTest
-
-set(EXP_MPI_LAUNCH "mpirun" CACHE STRING "Command to run an MPI application (for unit tests only)")
 
 # Find newest version if multiple versions are available
 
@@ -246,12 +241,6 @@ if (ENABLE_PYEXP)
 endif()
 
 add_subdirectory(extern/user-modules)
-
-# Build the tests; set ENABLE_TEST=OFF to disable
-if(ENABLE_TESTS)
-  include(CTest)
-  add_subdirectory(tests)
-endif()
 
 # try to find pybind11 and build wrapper python module
 find_package(Python3 COMPONENTS Interpreter Development)
