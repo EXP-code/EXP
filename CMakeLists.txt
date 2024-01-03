@@ -88,7 +88,6 @@ endif()
 if(ENABLE_CUDA)
   enable_language(CUDA)
   find_package(CUDAToolkit REQUIRED)
-  set(CMAKE_CUDA_ARCHITECTURES "60;61;70;72;75;86" CACHE STRING "CUDA architectures" FORCE)
   message(STATUS "Using CUDA architectures ${CMAKE_CUDA_ARCHITECTURES} by default.  Please set the CUDAARCHS environment variable to override this.")
   set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -w"
     CACHE STRING "Global cuda flags for Release build" FORCE)
@@ -184,7 +183,7 @@ else()
 endif()
 
 # For setting the default size of the Cuda real attribute array
-set(CUDA_EXP_DATTRIB "0" CACHE STRING
+set(CUDA_EXP_DATTRIB "4" CACHE STRING
   "Number of real particle attributes for Cuda particle structure")
 add_compile_definitions(DATTRIB_CUDA=${CUDA_EXP_DATTRIB})
 

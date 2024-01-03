@@ -94,43 +94,27 @@ manually.
 ## Configuring CUDA support
 
 Different versions of CMake seem to treat CUDA architecture
-specification differently.  The current implementation uses an
-architecture list set within the top-level CMakeLists. Version >= 3.18
-uses a command-line settable variable.  This should switched over once
-we are using versions >= 3.18 everywhere.  If you are having trouble,
-you can set the flags directly using the `CMAKE_CUDA_FLAGS variable`.
-E.g. `-arch compute_61 -code sm_61,sm_70,sm_75` for a combination of
-GPU types with a common virtual architecture.
+specification differently.  Since CMake version >= 3.18, the default
+is the lowest `nvcc`-supported compute capability for CUDA.  You are
+therefore **required** to set `CUDAARCHS` to a semi-colon-separated list
+of custom compute capabilites or enter your desired string manually
+using `ccmake`.
 
-The CUDA real size is double (real*8) by default.  You can configure
-EXP to use real*4 with the `-DENABLE_CUDA_SINGLE=on` flag to CMake.  This
+The CUDA real size is double (real\*8) by default.  You can configure
+EXP to use real\*4 with the `-DENABLE_CUDA_SINGLE=on` flag to CMake.  This
 will save some GPU memory if you are close to your hardware limit, but
 I don't recommend this generally.
 
 The CUDA particle structure can carry a fixed number real attributes.
 This is configurable at compile time using the -DCUDA_EXP_DATTRIB=X flag
-for X attributes.  This is 0 by default.
+for X attributes.  This is 4 by default.
 
-Putting these together so far, the CMake call would be:
+Putting these together so far, your CMake call would be:
 
 ```
-cmake -DCMAKE_BUILD_TYPE=Release -DCUDA_USE_STATIC_CUDA_RUNTIME=off -DENABLE_CUDA=YES -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
+export CUDAARCHS="75;80;86"
+cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=YES -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
 ````
-
-### Note on CUDA
-
-have tried to include an SM capability list that covers many commonly
-used architectures.  I have had a bit of trouble getting recompiled
-elf binaries rather than PTX code.  Precompiled elf seems to be
-necessary for a module deployment; I am not sure why the JIT PTX
-compiler can not handle this.  Which versions get compiled seems to be
-CMake and CUDA configuration dependent even for the same capability
-list.  If this is causing problems, you can add (e.g.) `-arch
-compute_60 -code=sm_60,sm_61,sm_70,sm_75` to the `CMAKE_CUDA_FLAGS`
-variable.  You can use the 'cuobjdump' to examine the compiled SM
-code; e.g. in the build directory, `cuobjdump
-exputil/CMakeFiles/exputil.dir/cudaSLGridMP2.cu.o` will tell you the
-precompiled elf code in the cu fatbinary.
 
 ## Configuring without CUDA
 
@@ -143,6 +127,7 @@ Many users will like configuring with one the CMake GUI tools, such as
 `ccmake` or `cmake-gui` instead of the command-line `cmake`.  The GUI
 will allow you to change the parameters interactively and display the
 help info for each parameter.  For example:
+
 ```
    ccmake ..
 ```
@@ -199,7 +184,8 @@ will work perfectly.
 
 EXP using `CTest` for basic unit testing.  The tests are configured by
 default, but if you really don't want them, you can change the
-`ENABLE_TESTS` variable in CMake (e.g. `-DENABLE_TESTS=OFF`).
+`ENABLE_TESTS` variable in CMake (e.g. `-DENABLE_TESTS=OFF`).  There
+is no overhead for leaving them enabled.
 
 Once you have successfully build and installed EXP, you can run `make
 test` or the `ctest` command to run the unit tests.  They will take
