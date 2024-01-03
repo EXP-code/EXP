@@ -12,7 +12,7 @@ set (common_INCLUDE_DIRS
 set (common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
   exputil EXPlib yaml-cpp)
 
-if(CUDA_FOUND)
+if(ENABLE_CUDA)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
   list(APPEND common_LINKLIB ${CUDA_CUDART_LIBRARY} ${CUDA_nvToolsExt_LIBRARY})
 endif()

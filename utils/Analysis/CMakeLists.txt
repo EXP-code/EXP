@@ -12,7 +12,7 @@ if(PNG_FOUND)
   list(APPEND common_LINKLIB PNG::PNG)
 endif()
 
-if(CUDA_FOUND)
+if(ENABLE_CUDA)
   list(APPEND common_LINKLIB ${CUDA_CUDART_LIBRARY} ${CUDA_nvToolsExt_LIBRARY})
 endif()
 

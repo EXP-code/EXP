@@ -5,7 +5,7 @@ set(bin_PROGRAMS slcheck slshift orthochk diskpot qtest cyltest
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES})
 
-if(CUDA_FOUND)
+if(ENABLE_CUDA)
   list(APPEND common_LINKLIB ${CUDA_CUDART_LIBRARY} ${CUDA_nvToolsExt_LIBRARY})
 endif()
 
