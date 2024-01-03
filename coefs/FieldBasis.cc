@@ -640,7 +640,7 @@ namespace BasisClasses
     double vr  = (u*x + v*y)/R;
     double vp  = (u*y - v*x)/R;
     
-    return {vr, w, vp};
+    return {vr, w, vp, vr*vr, w*w, vp*vp};
   }
 
   std::vector<double> sphVel(double mass,
@@ -656,13 +656,14 @@ namespace BasisClasses
     double vt  = (u*z*x + v*z*y - w*R)/R/r;
     double vp  = (u*y - v*x)/R;
 
-    return {vr, vt, vp};
+    return {vr, vt, vp, vr*vr, vt*vt, vp*vp};
   }
 
   std::vector<double> crtVel(double mass,
 			     FieldBasis::PS3& pos, FieldBasis::PS3& vel)
   {
-    return {vel[0], vel[1], vel[2]};
+    auto [u, v, w] = vel;
+    return {u, v, w, u*u, v*v, w*w};
   }
 
 
@@ -679,21 +680,33 @@ namespace BasisClasses
       fieldLabels.push_back("v_R");
       fieldLabels.push_back("v_z");
       fieldLabels.push_back("v_p");
+      fieldLabels.push_back("v_R^2");
+      fieldLabels.push_back("v_z^2");
+      fieldLabels.push_back("v_p^2");
       fieldFunc = cylVel;
     } else if (coordinates == Coord::Cartesian) {
       fieldLabels.push_back("v_x");
       fieldLabels.push_back("v_y");
       fieldLabels.push_back("v_z");
+      fieldLabels.push_back("v_x^2");
+      fieldLabels.push_back("v_y^2");
+      fieldLabels.push_back("v_z^2");
       fieldFunc = crtVel;
     } else if (coordinates == Coord::None) {
       fieldLabels.push_back("v_x");
       fieldLabels.push_back("v_y");
       fieldLabels.push_back("v_z");
+      fieldLabels.push_back("v_x^2");
+      fieldLabels.push_back("v_y^2");
+      fieldLabels.push_back("v_z^2");
       fieldFunc = crtVel;
     } else {
       fieldLabels.push_back("v_r");
       fieldLabels.push_back("v_t");
       fieldLabels.push_back("v_p");
+      fieldLabels.push_back("v_r^2");
+      fieldLabels.push_back("v_t^2");
+      fieldLabels.push_back("v_p^2");
       fieldFunc = sphVel;
     }
 
