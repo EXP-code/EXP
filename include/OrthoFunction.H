@@ -83,7 +83,7 @@ public:
 
   //! Constructor
   OrthoFunction(int nmax, DensFunc W, double rmin, double rmax, double scale,
-		int dof=3, bool segment=false);
+		int dof, bool segment=false);
 
   //! Destructor
   virtual ~OrthoFunction() {}

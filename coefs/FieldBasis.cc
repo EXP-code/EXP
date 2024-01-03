@@ -156,7 +156,7 @@ namespace BasisClasses
     
     // Generate the orthogonal function instance
     //
-    ortho = std::make_shared<OrthoFunction>(nmax, densfunc, rmin, rmax, scale);
+    ortho = std::make_shared<OrthoFunction>(nmax, densfunc, rmin, rmax, scale, dof);
 
     // Initialize fieldlabels
     //
