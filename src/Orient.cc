@@ -299,7 +299,7 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
     if (oflags & AXIS) {
 
-      double phi = atan2(axis[0], axis[0]);
+      double phi = atan2(axis[1], axis[0]);
       double theta = -acos(axis[2]/sqrt(axis.dot(axis)));
       double psi = 0.0;
 
@@ -580,7 +580,7 @@ void Orient::accumulate(double time, Component *c)
     }
     sigA /= i;
     
-    double phi = atan2(axis[2], axis[0]);
+    double phi = atan2(axis[1], axis[0]);
     double theta = -acos(axis[2]/sqrt(axis.dot(axis)));
     double psi = 0.0;
     
