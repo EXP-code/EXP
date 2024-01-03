@@ -13,7 +13,7 @@ if(PNG_FOUND)
 endif()
 
 if(CUDA_FOUND)
-  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+  list(APPEND common_LINKLIB ${CUDA_CUDART_LIBRARY} ${CUDA_nvToolsExt_LIBRARY})
 endif()
 
 if(SLURM_FOUND)

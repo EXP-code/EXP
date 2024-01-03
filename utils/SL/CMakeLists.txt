@@ -6,7 +6,7 @@ set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES})
 
 if(CUDA_FOUND)
-  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+  list(APPEND common_LINKLIB ${CUDA_CUDART_LIBRARY} ${CUDA_nvToolsExt_LIBRARY})
 endif()
 
 if(ENABLE_XDR AND TIRPC_FOUND)

@@ -97,6 +97,7 @@ if(ENABLE_CUDA)
   else()
     find_package(CUDAToolkit REQUIRED)
     set(CMAKE_CUDA_ARCHITECTURES "60;61;70;72;75;86" CACHE STRING "CUDA architectures")
+    message(STATUS "Using CUDA architectures ${CMAKE_CUDA_ARCHITECTURES} by default.  Please set the CUDAARCHS environment variable to override this.")
   endif()
   enable_language(CUDA)
   set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -w"
@@ -106,9 +107,6 @@ if(ENABLE_CUDA)
   set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O2 -g -w"
     CACHE STRING "Global cuda flags for RelWithDebInfo build" FORCE)
   set(HAVE_LIBCUDA TRUE)
-  set(CUDA_LIBRARIES ${CUDA_CUDART} ${CUDAToolkit_rt_LIBRARY} ${CUDA_nvToolsExt_LIBRARY})
-  message(STATUS "CUDA libraries: ${CUDA_LIBRARIES}")
-  message(STATUS "Using CUDA architectures ${CMAKE_CUDA_ARCHITECTURES} by default.  Please set the CUDAARCHS environment variable to override this.")
 endif()
 
 # For mpi

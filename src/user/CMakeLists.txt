@@ -14,7 +14,7 @@ set (common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
 
 if(CUDA_FOUND)
   list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
-  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+  list(APPEND common_LINKLIB ${CUDA_CUDART_LIBRARY} ${CUDA_nvToolsExt_LIBRARY})
 endif()
 
 set(user_SRC      UserTest.cc)
