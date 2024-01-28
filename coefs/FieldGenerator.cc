@@ -79,18 +79,23 @@ namespace Field
     //
     auto ctype = basis->coordinates;
 
-    // Field labels (force field labels added below)
+    // Coordinate and field labels
     //
     auto labels = basis->getFieldLabels(ctype);
+    labels.insert(labels.end(), {"x", "y", "z", "arc"});
 
-    std::vector<double> dd(3);
-    for (int k=0; k<3; k++) dd[k] = (end[k] - beg[k])/num;
-    double dlen = sqrt(dd[0]*dd[0] + dd[1]*dd[1] + dd[2]*dd[2]);
-
+    // Initialize the frame map
+    //
     std::map<std::string, Eigen::VectorXf> frame;
     for (auto label : labels) {
       frame[label] = Eigen::VectorXf::Zero(num);
     }
+
+    // Compute the probe length
+    //
+    std::vector<double> dd(3);
+    for (int k=0; k<3; k++) dd[k] = (end[k] - beg[k])/num;
+    double dlen = sqrt(dd[0]*dd[0] + dd[1]*dd[1] + dd[2]*dd[2]);
 
     for (int icnt=0; icnt<times.size(); icnt++) {
 
