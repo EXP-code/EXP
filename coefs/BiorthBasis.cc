@@ -68,8 +68,8 @@ namespace BasisClasses
     // Field labels (force field labels added below)
     //
     std::vector<std::string> labels =
-      {"potl", "potl m>0", "potl m=0", 
-       "dens", "dens m>0", "dens m=0"};
+      {"dens m=0", "dens",
+       "potl m=0", "potl"};
 
     if (ctype == Coord::Cylindrical) {
       labels.push_back("rad force");
@@ -1728,7 +1728,7 @@ namespace BasisClasses
 	}
 	
 	moffset++;
-      }  else {
+      } else {
 	double cosm = cos(phi*m), sinm = sin(phi*m);
 	double vc, vs;
 

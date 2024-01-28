@@ -81,15 +81,14 @@ namespace Field
 
     // Coordinate and field labels
     //
+    std::vector<std::string> coords {"x", "y", "z", "arc"};
     auto labels = basis->getFieldLabels(ctype);
-    labels.insert(labels.end(), {"x", "y", "z", "arc"});
 
     // Initialize the frame map
     //
     std::map<std::string, Eigen::VectorXf> frame;
-    for (auto label : labels) {
-      frame[label] = Eigen::VectorXf::Zero(num);
-    }
+    for (auto label : coords) frame[label] = Eigen::VectorXf::Zero(num);
+    for (auto label : labels) frame[label] = Eigen::VectorXf::Zero(num);
 
     // Compute the probe length
     //
@@ -144,7 +143,7 @@ namespace Field
 
 	  for (int n=0; n<labels.size(); n++) frame[labels[n]](ncnt) = v[n];
 	}
-	
+
 	ret[T] = frame;
       }
     }
