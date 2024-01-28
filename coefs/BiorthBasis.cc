@@ -68,8 +68,8 @@ namespace BasisClasses
     // Field labels (force field labels added below)
     //
     std::vector<std::string> labels =
-      {"dens m=0", "dens",
-       "potl m=0", "potl"};
+      {"dens m=0", "dens m>0", "dens",
+       "potl m=0", "potl m>0", "potl"};
 
     if (ctype == Coord::Cylindrical) {
       labels.push_back("rad force");
@@ -530,14 +530,13 @@ namespace BasisClasses
     double densfac = 1.0/(scale*scale*scale) * 0.25/M_PI;
     double potlfac = 1.0/scale;
     
-    den1 += den0;
-    pot1 += pot0;
-
     return
       {den0 * densfac,
        den1 * densfac,
+       (den0 + den1) * densfac,
        pot0 * potlfac,
        pot1 * potlfac,
+       (pot0 + pot1) * densfac,
        potr * (-potlfac)/scale,
        pott * (-potlfac),
        potp * (-potlfac)};
@@ -1235,7 +1234,9 @@ namespace BasisClasses
     double tpotr = tpotR*R/r + tpotz*z/R ;
     double tpott = tpotR*z/r - tpotz*R/r ;
 
-    return {tdens0, tdens, tpotl0, tpotl, tpotr, tpott, tpotp};
+    return
+      {tdens0, tdens-tdens0, tdens,
+       tpotl0, tpotl-tpotl0, tpotl, tpotr, tpott, tpotp};
   }
   
   // Evaluate in cartesian coordinates
@@ -1253,7 +1254,9 @@ namespace BasisClasses
     double tpotx = tpotR*x/R - tpotp*y/R ;
     double tpoty = tpotR*y/R + tpotp*x/R ;
 
-    return {tdens0, tdens, tpotl0, tpotl, tpotx, tpoty, tpotz};
+    return
+      {tdens0, tdens - tdens0, tdens,
+       tpotl0, tpotl - tpotl0, tpotl, tpotx, tpoty, tpotz};
   }
   
   // Evaluate in cylindrical coordinates
@@ -1769,9 +1772,6 @@ namespace BasisClasses
       }
     }
 
-    den1 += den0;
-    pot1 += pot0;
-
     den0 *= -1.0;
     den1 *= -1.0;
     pot0 *= -1.0;
@@ -1780,7 +1780,7 @@ namespace BasisClasses
     zpot *= -1.0;
     ppot *= -1.0;
 
-    return {den0, den1, pot0, pot1, rpot, zpot, ppot};
+    return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
   }
 
 
@@ -2123,7 +2123,7 @@ namespace BasisClasses
     potp *= -1;
     potz *= -1;
 
-    return {0, den1, 0, pot1, potR, potz, potp};
+    return {0, den1, den1, 0, pot1, pot1, potR, potz, potp};
   }
 
   std::vector<double> Cube::sph_eval(double r, double costh, double phi)
@@ -2156,7 +2156,7 @@ namespace BasisClasses
     pott *= -1;
     potp *= -1;
     
-    return {0, den1, 0, pot1, potr, pott, potp};
+    return {0, den1, den1, 0, pot1, pot1, potr, pott, potp};
   }
 
   Eigen::MatrixXcd Cube::orthoCheck()
