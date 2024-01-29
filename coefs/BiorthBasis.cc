@@ -1371,7 +1371,7 @@ namespace BasisClasses
     for (int m=0; m<=mmax; m++) {
       for (int n=0; n<nmax; n++) {
 	for (int i=0; i<numR; i++) {
-	  double R = xmin + delR*i;
+	  double R = pow(10.0, xmin + delR*i);
 	  for (int j=0; j<numZ; j++) {
 	    double Z = zmin + delZ*j;
 	    sl->get_all(m, n, R, Z, 0.0, p, d, fr, fz, fp);
@@ -2380,7 +2380,8 @@ namespace BasisClasses
     int rows = accel.rows();
     for (int n=0; n<rows; n++) {
       auto v = basis->getFields(ps(n, 0), ps(n, 1), ps(n, 2));
-      for (int k=0; k<3; k++) accel(n, k) += v[4+k];
+      // First 6 fields are density and potential, follewed by acceleration
+      for (int k=0; k<3; k++) accel(n, k) += v[6+k];
     }
 
     return accel;
