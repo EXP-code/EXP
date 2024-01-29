@@ -456,7 +456,7 @@ namespace BasisClasses
     double rscl;
     int used;
     
-    std::string eof_file;
+    std::string cachename;
     
     using matT = std::vector<Eigen::MatrixXd>;
     using vecT = std::vector<Eigen::VectorXd>;

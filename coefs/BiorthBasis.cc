@@ -788,6 +788,7 @@ namespace BasisClasses
     "npca",
     "npca0",
     "nvtk",
+    "cachename",
     "eof_file",
     "override",
     "samplesz",
@@ -940,7 +941,7 @@ namespace BasisClasses
     ncylny      = 128;
     ncylodd     = 9;
     ncylr       = 2000;
-    eof_file    = ".eof_cache_file";
+    cachename   = ".eof_cache_file";
     Ignore      = false;
     deproject   = false;
     
@@ -1012,7 +1013,8 @@ namespace BasisClasses
       if (conf["ncylny"    ])     ncylny  = conf["ncylny"    ].as<int>();
       if (conf["ncylr"     ])      ncylr  = conf["ncylr"     ].as<int>();
       if (conf["ncylodd"   ])    ncylodd  = conf["ncylodd"   ].as<int>();
-      if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
+      if (conf["cachename" ])  cachename  = conf["cachename" ].as<std::string>();
+      if (conf["eof_file"  ])  cachename  = conf["eof_file"  ].as<std::string>();
       if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
       if (conf["pnum"      ])       pnum  = conf["pnum"      ].as<int>();
       if (conf["tnum"      ])       tnum  = conf["tnum"      ].as<int>();
@@ -1046,6 +1048,17 @@ namespace BasisClasses
 		    << std::endl;
       }
 
+      // Deprecation warning
+      if (conf["eof_file"]) {
+	if (myid==0)
+	  std::cout << "Cylinder: parameter 'eof_file' is deprecated. "
+		    << "and will be removed in a future release. Please "
+		    << "use 'cachename' instead."
+		    << std::endl;
+
+	conf["cachename"] = conf["eof_file"];
+      }
+      
     }
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing 'force' for Component <"
@@ -1079,11 +1092,11 @@ namespace BasisClasses
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
     //
-    if (not conf["eof_file"]) {
+    if (not conf["cachename"]) {
       throw std::runtime_error
-	("Cylindrical requires a specified 'eof_name' in your YAML config\n"
+	("Cylindrical requires a specified 'cachename' in your YAML config\n"
 	 "for consistency with previous invocations and existing coefficient\n"
-	 "sets.  Please add explicitly add 'eof_name: name' to your config\n"
+	 "sets.  Please add explicitly add 'cachename: name' to your config\n"
 	 "with new 'name' for creating a basis or an existing 'name' for\n"
 	 "reading a previously generated basis cache\n");
     }
@@ -1091,7 +1104,7 @@ namespace BasisClasses
     // Make the empirical orthogonal basis instance
     //
     sl = std::make_shared<EmpCylSL>
-      (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, eof_file);
+      (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
     
     // Set azimuthal harmonic order restriction?
     //
