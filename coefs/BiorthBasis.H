@@ -552,7 +552,7 @@ namespace BasisClasses
     //! linearly spaced between [xmin, xmax] and [zmin, zmax]
     BasisArray getBasis
     (double xmin=0.0, double xmax=1.0, int numr=40,
-     double zmin=-0.1, double zmax=0.1, int numz=40);
+     double zmin=-0.1, double zmax=0.1, int numz=40, bool linear=true);
 
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices

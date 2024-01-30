@@ -1123,6 +1123,8 @@ void BasisFactoryClasses(py::module &m)
               maximum value in vertical height
          numz : int, default=40
               number of linearly-space evaluation points in height
+         linear : bool, default=True
+              use linear spacing
 
          Returns
          -------
@@ -1134,7 +1136,8 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("numr")=40,
 	 py::arg("zmin")=-0.1,
 	 py::arg("zmax")=0.1,
-	 py::arg("numz")=40 )
+	 py::arg("numz")=40,
+	 py::arg("linear")=true)
     // The following member needs to be a lambda capture because
     // orthoCheck is not in the base class and needs to have different
     // parameters depending on the basis type.  Here, the quadrature

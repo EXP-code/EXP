@@ -1346,7 +1346,8 @@ namespace BasisClasses
   
   
   Cylindrical::BasisArray Cylindrical::getBasis
-  (double xmin, double xmax, int numR, double zmin, double zmax, int numZ)
+  (double xmin, double xmax, int numR, double zmin, double zmax, int numZ,
+   bool linear)
   {
     // Allocate storage
     BasisArray ret(mmax+1);
@@ -1371,7 +1372,8 @@ namespace BasisClasses
     for (int m=0; m<=mmax; m++) {
       for (int n=0; n<nmax; n++) {
 	for (int i=0; i<numR; i++) {
-	  double R = pow(10.0, xmin + delR*i);
+	  double R = xmin + delR*i;
+	  if (not linear) R = pow(10.0, R);
 	  for (int j=0; j<numZ; j++) {
 	    double Z = zmin + delZ*j;
 	    sl->get_all(m, n, R, Z, 0.0, p, d, fr, fz, fp);
