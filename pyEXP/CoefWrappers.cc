@@ -1431,7 +1431,7 @@ void CoefficientClasses(py::module &m) {
          Returns
          -------
          TableData instance
-         )")
+         )", py::arg("verbose")=true)
     .def(py::init<std::string&>(),
 	 R"(
          Construct a TableData object from a data file
@@ -1459,7 +1459,24 @@ void CoefficientClasses(py::module &m) {
          Returns
          -------
          TableData instance
-         )")
+         )", py::arg("filename"), py::arg("verbose")=true)
+    .def(py::init<std::vector<double>&, std::vector<std::vector<double>>&, bool>(),
+	 R"(
+         Construct a TableData object from data arrays
+
+         Parameters
+         ----------
+         time : ndarray
+             time data
+         array : ndarray
+             data columns
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         TableData instance
+         )", py::arg("time"), py::arg("array"), py::arg("verbose")=true)
     .def("getAllCoefs",    &CoefClasses::TableData::getAllCoefs,
 	 R"(
          Return a 2-dimensional ndarray indexed by column and time
