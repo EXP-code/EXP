@@ -286,7 +286,7 @@ namespace CoefClasses
     
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
+    { return coefs[roundTime(time)]; }
 
     //! Dump to ascii list for testing
     void dump(int lmin, int lmax, int nmin, int nmax);
@@ -423,7 +423,7 @@ namespace CoefClasses
 
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
+    { return coefs[roundTime(time)]; }
 
 
     //! Dump to ascii list for testing
@@ -555,7 +555,7 @@ namespace CoefClasses
 
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
+    { return coefs[roundTime(time)]; }
 
 
     //! Dump to ascii list for testing
@@ -682,7 +682,7 @@ namespace CoefClasses
 
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
+    { return coefs[roundTime(time)]; }
 
     //! Get list of coefficient times
     virtual std::vector<double> Times() { return times; }
@@ -797,7 +797,7 @@ namespace CoefClasses
     
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
+    { return coefs[roundTime(time)]; }
 
     //! Get list of coefficient times
     virtual std::vector<double> Times()
@@ -925,7 +925,7 @@ namespace CoefClasses
     
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
+    { return coefs[roundTime(time)]; }
 
     //! Get list of coefficient times
     virtual std::vector<double> Times()
