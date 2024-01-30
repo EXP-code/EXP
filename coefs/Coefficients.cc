@@ -1471,6 +1471,7 @@ namespace CoefClasses
     times = Times;
     for (int i=0; i<times.size(); i++) {
       TblStrPtr c = std::make_shared<TblStruct>();
+      c->time = times[i];
       c->cols = data[i].size();
       c->store.resize(c->cols);
       c->coefs = std::make_shared<TblStruct::coefType>(c->store.data(), c->cols);
