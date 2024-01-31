@@ -444,7 +444,7 @@ namespace BasisClasses
     int ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
     int rnum, pnum, tnum;
     double rmin, rmax, rcylmin, rcylmax;
-    double acyl, hcyl, hexp;
+    double acyl, hcyl;
     bool expcond, logarithmic, density, EVEN_M;
     
     std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;

@@ -25,7 +25,6 @@ namespace BasisClasses
     "pcadiag",
     "pcavtk",
     "subsamp",
-    "hexp",
     "snr",
     "samplesz",
     "vtkfreq",
@@ -772,7 +771,6 @@ namespace BasisClasses
     "rcylmax",
     "acyl",
     "hcyl",
-    "hexp",
     "snr",
     "evcut",
     "nmaxfid",
@@ -931,7 +929,6 @@ namespace BasisClasses
     rcylmax     = 20.0;
     acyl        = 0.01;
     hcyl        = 0.002;
-    hexp        = 1.0;
     nmax        = 18;
     mmax        = 6;
     mlim        = std::numeric_limits<int>::max();
@@ -1003,7 +1000,6 @@ namespace BasisClasses
       
       if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
       if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
-      if (conf["hexp"      ])       hexp  = conf["hexp"      ].as<double>();
       if (conf["lmaxfid"   ])    lmaxfid  = conf["lmaxfid"   ].as<int>();
       if (conf["nmaxfid"   ])    nmaxfid  = conf["nmaxfid"   ].as<int>();
       if (conf["nmax"      ])       nmax  = conf["nmax"      ].as<int>();
