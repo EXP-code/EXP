@@ -92,13 +92,26 @@ timestepSetKernel(dArray<cudaParticle> P, int stride)
 }
 
 __global__ void
-timestepKernel(dArray<cudaParticle> P, dArray<int> I,
+timestepKernel(dArray<cudaParticle> P,
+	       dArray<int> I,
+	       dArray<int> loLev,
+	       dArray<int> hiLev,
+	       dArray<float> mindt,
+	       dArray<float> maxdt,
 	       cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	       int minactlev, int dim, int stride, PII lohi,
 	       bool noswitch, bool apply)
 {
+  extern __shared__ float cache[];
+
   const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
   const cuFP_t eps = 1.0e-10;
+  const int cIndex = threadIdx.x;
+
+  int lo = 0;
+  int hi = 0;
+  float minDT = 1.0e32;
+  float maxDT = 0.0;
 
   for (int n=0; n<stride; n++) {
     int i     = tid*stride + n;	// Index in the stride
@@ -149,6 +162,9 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       if (dt > dtA) dt = dtA;
       if (dt < eps) dt = eps;
       
+      if (minDT > dt) minDT = dt;
+      if (maxDT < dt) maxDT = dt;
+
       if (noswitch) {
 	if (dt < p.dtreq) p.dtreq = dt;
       } else {
@@ -161,9 +177,10 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 
 	// Time step wants to be LARGER than the maximum
 	//
-	if (p.dtreq >= cuDtime)
+	if (p.dtreq >= cuDtime) {
 	  p.lev[1] = 0;
-	else
+	  hi++;
+	} else
 	  p.lev[1] = (int)floor(log(cuDtime/p.dtreq)/log(2.0));
 	
 	// Enforce n-level shifts at a time
@@ -180,11 +197,14 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 
 	// Time step wants to be SMALLER than the maximum
 	//
-	if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
+	if (p.lev[1]>cuMultistep) {
+	  p.lev[1] = cuMultistep;
+	  lo++;
+	}
 	
 	// Limit new level to minimum active level
 	//
-	if (p.lev[1]<minactlev)   p.lev[1] = minactlev;
+	if (p.lev[1]<minactlev) p.lev[1] = minactlev;
       }
       // Apply level selction
 	
@@ -192,7 +212,48 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
     
   } // END: stride loop
 
+  // set the cache values
+  //
+  cache[cIndex + 0*blockDim.x] = lo;
+  cache[cIndex + 1*blockDim.x] = hi;
+  cache[cIndex + 2*blockDim.x] = minDT;
+  cache[cIndex + 3*blockDim.x] = maxDT;
+
+  __syncthreads();
+  
+  // perform parallel reduction, threadsPerBlock must be 2^m
+  //
+  int ib = blockDim.x / 2;
+  while (ib != 0) {
+
+    if (cIndex < ib) {
+
+      // Sums
+      cache[cIndex + 0*blockDim.x] += cache[cIndex + ib + 0*blockDim.x]; 
+      cache[cIndex + 1*blockDim.x] += cache[cIndex + ib + 1*blockDim.x]; 
+    
+      // Min
+      if (cache[cIndex + ib + 2*blockDim.x] < cache[cIndex + 2*blockDim.x])
+	cache[cIndex + 2*blockDim.x] = cache[cIndex + ib + 2*blockDim.x]; 
+    
+      // Max
+      if (cache[cIndex + ib + 3*blockDim.x] > cache[cIndex + 3*blockDim.x])
+	cache[cIndex + 3*blockDim.x] = cache[cIndex + ib + 3*blockDim.x]; 
+    }
+
+    __syncthreads();
+    
+    ib /= 2;
+  }
+    
+  if (cIndex == 0) {
+    loLev._v[blockIdx.x] = (int)cache[0];
+    hiLev._v[blockIdx.x] = (int)cache[1];
+    mindt._v[blockIdx.x] = cache[2];
+    maxdt._v[blockIdx.x] = cache[3];
+  }
 }
+
 
 // Reset target level to current level
 //
@@ -296,6 +357,9 @@ void cuda_compute_levels()
     if (not c->force->cudaAware()) c->ParticlesToCuda();
   }
 
+  std::map<Component*, int> offlo, offhi;
+  float mindt = 1.0e32, maxdt = 0.0;
+
   cudaDeviceProp deviceProp;
 
 #ifdef VERBOSE_TIMING
@@ -372,12 +436,16 @@ void cuda_compute_levels()
     unsigned int N         = lohi.second - lohi.first;
     unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
     unsigned int gridSize  = N/BLOCK_SIZE/stride;
-    
+    unsigned int sm        = BLOCK_SIZE*sizeof(float)*4;
+
     // We have particles at this level: get the new time-step level
     //
     if (N>0) {
 
       if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+      thrust::device_vector<int>   loLev(gridSize), hiLev(gridSize);
+      thrust::device_vector<float> minDT(gridSize), maxDT(gridSize);
 
       // Get the current expansion center
       //
@@ -385,10 +453,22 @@ void cuda_compute_levels()
       
       // Do the work
       //
-      timestepKernel<<<gridSize, BLOCK_SIZE>>>
+      timestepKernel<<<gridSize, BLOCK_SIZE, sm>>>
 	(toKernel(c->cuStream->cuda_particles),
-	 toKernel(c->cuStream->indx1), ctr[0], ctr[1], ctr[2],
+	 toKernel(c->cuStream->indx1),
+	 toKernel(loLev), toKernel(hiLev), toKernel(minDT), toKernel(maxDT),
+	 ctr[0], ctr[1], ctr[2],
 	 mfirst[mdrft], c->dim, stride, lohi, c->NoSwitch(), apply);
+
+      // Reductions
+      //
+      offlo[c] = thrust::reduce(loLev.begin(), loLev.end(), 0, thrust::plus<int>());
+      offhi[c] = thrust::reduce(hiLev.begin(), hiLev.end(), 0, thrust::plus<int>());
+      float minT = *thrust::min_element(minDT.begin(), maxDT.end());
+      float maxT = *thrust::max_element(maxDT.begin(), maxDT.end());
+
+      if (minT<mindt) mindt = minT;
+      if (maxT>maxdt) maxdt = maxT;
     }
   }
   // END: component loop
@@ -543,6 +623,55 @@ void cuda_compute_levels()
 #endif
   }
   // END: component loop
+
+  // Check for multistep overrun
+  //
+  if (VERBOSE>0 && mdrft==Mstep) {
+
+    unsigned sumlo=0, sumhi=0;
+    for (auto c : comp->components) {
+      sumlo += offlo[c];
+      sumhi += offhi[c];
+    }
+      
+    if (sumlo || sumhi) {
+      std::cout << std::endl
+		<< std::setw(70) << std::setfill('-') << '-'
+		<< std::endl << std::setfill(' ')
+		<< std::left << "--- Multistepping overrun" << std::endl;
+      if (sumlo)
+	std::cout << std::left << "--- Min DT=" << std::setw(16) << mindt  
+		  << " < " << std::setw(16) << dtime/(1<<multistep) 
+		  << " [" << sumlo << "]" <<  std::endl;
+      if (sumhi)
+	std::cout << std::left << "--- Max DT=" << std::setw(16) << maxdt  
+		  << " > " << std::setw(16) << dtime 
+		  << " [" << sumhi << "]" << std::endl;
+      std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl 
+		<< std::setfill(' ') << std::right;
+      
+      if (sumlo) {
+	for (auto c : comp->components) {
+	  std::ostringstream sout;
+	  sout << "Component <" << c->name << ">";
+	  std::cout << std::setw(30) << sout.str() << " |   low: "
+		    << offlo[c] << "/" << c->CurTotal() << std::endl;
+	}
+      }
+      
+      if (sumhi) {
+	for (auto c : comp->components) {
+	  std::ostringstream sout;
+	  sout << "Component <" << c->name << ">";
+	  std::cout << std::setw(30) << sout.str() << " |  high: "
+		    << offhi[c] << "/" << c->CurTotal() << std::endl;
+	}
+      }
+      
+      std::cout << std::setw(70) << std::setfill('-') << '-'
+		<< std::endl << std::setfill(' ');
+    }
+  }
 
 #ifdef VERBOSE_TIMING
   auto finish0 = std::chrono::high_resolution_clock::now();
