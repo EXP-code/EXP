@@ -307,6 +307,9 @@ void OutCHKPTQ::Run(int n, int mstep, bool last)
 
   chktimer.mark();
 
+  // Clear the dump signal to prevent an out of sequence *real* output
+  // of a *double* output exists
+  //
   dump_signal = 0;
 
   if (timer) {
