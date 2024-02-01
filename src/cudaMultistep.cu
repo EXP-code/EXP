@@ -249,10 +249,10 @@ timestepKernel(dArray<cudaParticle> P,
     }
     
     if (cIndex == 0) {
-      loLev._v[blockIdx.x] = (int)cache[0];
-      hiLev._v[blockIdx.x] = (int)cache[1];
-      mindt._v[blockIdx.x] = cache[2];
-      maxdt._v[blockIdx.x] = cache[3];
+      loLev._v[blockIdx.x] = floor(cache[0*blockDim.x]);
+      hiLev._v[blockIdx.x] = floor(cache[1*blockDim.x]);
+      mindt._v[blockIdx.x] = cache[2*blockDim.x];
+      maxdt._v[blockIdx.x] = cache[3*blockDim.x];
     }
   }
 }
@@ -463,21 +463,24 @@ void cuda_compute_levels()
       timestepKernel<<<gridSize, BLOCK_SIZE, sm>>>
 	(toKernel(c->cuStream->cuda_particles),
 	 toKernel(c->cuStream->indx1),
-	 toKernel(c->loLev), toKernel(c->hiLev),
-	 toKernel(c->minDT), toKernel(c->maxDT),
+	 toKernel(c->loLev), toKernel(c->hiLev), // For level under/overruns
+	 toKernel(c->minDT), toKernel(c->maxDT), // For min/max timesteps
 	 ctr[0], ctr[1], ctr[2],
 	 mfirst[mdrft], c->dim, stride, lohi, c->NoSwitch(), apply);
 
-      // Reductions
+      // Thrust reductions
       //
       offlo[c] = thrust::reduce(c->loLev.begin(), c->loLev.end(),
 				0, thrust::plus<int>());
+
       offhi[c] = thrust::reduce(c->hiLev.begin(), c->hiLev.end(),
 				0, thrust::plus<int>());
 
-      float minT = *thrust::min_element(c->minDT.begin(), c->maxDT.end());
-      float maxT = *thrust::max_element(c->maxDT.begin(), c->maxDT.end());
-
+      // Make thrust do device copy
+      //
+      float minT = *(thrust::min_element(c->minDT.begin(), c->minDT.end()));
+      float maxT = *(thrust::max_element(c->maxDT.begin(), c->maxDT.end()));
+	
       if (minT<mindt) mindt = minT;
       if (maxT>maxdt) maxdt = maxT;
     }
