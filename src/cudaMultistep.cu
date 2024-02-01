@@ -212,45 +212,48 @@ timestepKernel(dArray<cudaParticle> P,
     
   } // END: stride loop
 
-  // set the cache values
-  //
-  cache[cIndex + 0*blockDim.x] = lo;
-  cache[cIndex + 1*blockDim.x] = hi;
-  cache[cIndex + 2*blockDim.x] = minDT;
-  cache[cIndex + 3*blockDim.x] = maxDT;
+  if (apply) {
 
-  __syncthreads();
-  
-  // perform parallel reduction, threadsPerBlock must be 2^m
-  //
-  int ib = blockDim.x / 2;
-  while (ib != 0) {
-
-    if (cIndex < ib) {
-
-      // Sums
-      cache[cIndex + 0*blockDim.x] += cache[cIndex + ib + 0*blockDim.x]; 
-      cache[cIndex + 1*blockDim.x] += cache[cIndex + ib + 1*blockDim.x]; 
-    
-      // Min
-      if (cache[cIndex + ib + 2*blockDim.x] < cache[cIndex + 2*blockDim.x])
-	cache[cIndex + 2*blockDim.x] = cache[cIndex + ib + 2*blockDim.x]; 
-    
-      // Max
-      if (cache[cIndex + ib + 3*blockDim.x] > cache[cIndex + 3*blockDim.x])
-	cache[cIndex + 3*blockDim.x] = cache[cIndex + ib + 3*blockDim.x]; 
-    }
+    // set the cache values
+    //
+    cache[cIndex + 0*blockDim.x] = lo;
+    cache[cIndex + 1*blockDim.x] = hi;
+    cache[cIndex + 2*blockDim.x] = minDT;
+    cache[cIndex + 3*blockDim.x] = maxDT;
 
     __syncthreads();
+  
+    // perform parallel reduction, threadsPerBlock must be 2^m
+    //
+    int ib = blockDim.x / 2;
+    while (ib != 0) {
+      
+      if (cIndex < ib) {
+	
+	// Sums
+	cache[cIndex + 0*blockDim.x] += cache[cIndex + ib + 0*blockDim.x]; 
+	cache[cIndex + 1*blockDim.x] += cache[cIndex + ib + 1*blockDim.x]; 
+	
+	// Min
+	if (cache[cIndex + ib + 2*blockDim.x] < cache[cIndex + 2*blockDim.x])
+	  cache[cIndex + 2*blockDim.x] = cache[cIndex + ib + 2*blockDim.x]; 
+	
+	// Max
+	if (cache[cIndex + ib + 3*blockDim.x] > cache[cIndex + 3*blockDim.x])
+	  cache[cIndex + 3*blockDim.x] = cache[cIndex + ib + 3*blockDim.x]; 
+      }
+
+      __syncthreads();
+      
+      ib /= 2;
+    }
     
-    ib /= 2;
-  }
-    
-  if (cIndex == 0) {
-    loLev._v[blockIdx.x] = (int)cache[0];
-    hiLev._v[blockIdx.x] = (int)cache[1];
-    mindt._v[blockIdx.x] = cache[2];
-    maxdt._v[blockIdx.x] = cache[3];
+    if (cIndex == 0) {
+      loLev._v[blockIdx.x] = (int)cache[0];
+      hiLev._v[blockIdx.x] = (int)cache[1];
+      mindt._v[blockIdx.x] = cache[2];
+      maxdt._v[blockIdx.x] = cache[3];
+    }
   }
 }
 
@@ -444,8 +447,12 @@ void cuda_compute_levels()
 
       if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
-      thrust::device_vector<int>   loLev(gridSize), hiLev(gridSize);
-      thrust::device_vector<float> minDT(gridSize), maxDT(gridSize);
+      // Multilevel device storage
+      //
+      c->loLev.resize(gridSize);
+      c->hiLev.resize(gridSize);
+      c->minDT.resize(gridSize);
+      c->maxDT.resize(gridSize);
 
       // Get the current expansion center
       //
@@ -456,16 +463,20 @@ void cuda_compute_levels()
       timestepKernel<<<gridSize, BLOCK_SIZE, sm>>>
 	(toKernel(c->cuStream->cuda_particles),
 	 toKernel(c->cuStream->indx1),
-	 toKernel(loLev), toKernel(hiLev), toKernel(minDT), toKernel(maxDT),
+	 toKernel(c->loLev), toKernel(c->hiLev),
+	 toKernel(c->minDT), toKernel(c->maxDT),
 	 ctr[0], ctr[1], ctr[2],
 	 mfirst[mdrft], c->dim, stride, lohi, c->NoSwitch(), apply);
 
       // Reductions
       //
-      offlo[c] = thrust::reduce(loLev.begin(), loLev.end(), 0, thrust::plus<int>());
-      offhi[c] = thrust::reduce(hiLev.begin(), hiLev.end(), 0, thrust::plus<int>());
-      float minT = *thrust::min_element(minDT.begin(), maxDT.end());
-      float maxT = *thrust::max_element(maxDT.begin(), maxDT.end());
+      offlo[c] = thrust::reduce(c->loLev.begin(), c->loLev.end(),
+				0, thrust::plus<int>());
+      offhi[c] = thrust::reduce(c->hiLev.begin(), c->hiLev.end(),
+				0, thrust::plus<int>());
+
+      float minT = *thrust::min_element(c->minDT.begin(), c->maxDT.end());
+      float maxT = *thrust::max_element(c->maxDT.begin(), c->maxDT.end());
 
       if (minT<mindt) mindt = minT;
       if (maxT>maxdt) maxdt = maxT;

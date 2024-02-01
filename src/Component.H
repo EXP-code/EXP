@@ -1039,6 +1039,12 @@ public:
   //! Get the level lists from cuda particles for diagnostic purposes
   std::vector<int> get_level_lists_cuda();
 
+  //@{
+  //! Time step vectors
+  thrust::device_vector<int>   loLev, hiLev;
+  thrust::device_vector<float> minDT, maxDT;
+  //@}
+
   //@}
 #endif
 
