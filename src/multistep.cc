@@ -316,19 +316,18 @@ void multistep_sanity_check(std::map< Component*, unsigned >& offlo,
 	      << std::endl << std::setfill(' ')
 	      << "---- EXP is going to stop this run for you at the end of this step" << std::endl
 	      << "---- because these components have more than "
-	      << floor(100.0*max_mindt)
-	      << "% of their particles below the minimum time step" << std::endl;
-    std::cout << std::setw(70) << std::setfill('-') << '-'
-	      << std::endl << std::setfill(' ');
+	      << (int)std::floor(100.0*max_mindt)
+	      << "% of their" std::endl
+	      << "---- particles below the minimum time step:" << std::endl;
     for (auto c : bad) {
       std::ostringstream sout;
       sout << "Component <" << c->name << ">";
-      std::cout << std::setw(30) << sout.str() << " | "
+      std::cout << "---- " << std::setw(30) << std::left << sout.str() << " | "
 		<< offlo[c] << "/" << c->CurTotal() << std::endl;
     }
     std::cout << std::setw(70) << std::setfill('-') << '-'
 	      << std::endl << std::setfill(' ')
-	      << "---- Try decreasing your 'dtime' value, increasing your 'multilevel' value, or both!" << std::endl
+	      << "---- Try decreasing your 'dtime' value, increasing your 'multilevel'" << std::endl << "---- value, or both!" << std::endl
 	      << std::setw(70) << std::setfill('-') << '-'
 	      << std::endl << std::setfill(' ');
   }
