@@ -98,53 +98,46 @@ void OutCHKPT::Run(int n, int mstep, bool last)
     if (multistep>1 and mstep % nintsub !=0) return;
   }
 
-  if (VERBOSE>5 && myid==0) {
-    cout << " OutCHKPT::Run(): n=" << n << " psdump=" << psdump << endl;
-  }
-  
   int returnStatus = 1;
 
-  if (n == psdump) {       
-
-    if (myid==0) {
-      string backfile = filename + ".bak";
-      if (unlink(backfile.c_str())) {
-	if (VERBOSE>5) perror("OutCHKPT::Run()");
-	cout << "OutCHKPT::Run(): error unlinking old backup file <" 
-	     << backfile << ">, it may not exist" << endl;
-      } else {
-	if (VERBOSE>5) {
-	  cout << "OutCHKPT::Run(): successfully unlinked <"
-	       << backfile << ">" << endl;
-	}
+  if (myid==0) {
+    string backfile = filename + ".bak";
+    if (unlink(backfile.c_str())) {
+      if (VERBOSE>5) perror("OutCHKPT::Run()");
+      cout << "OutCHKPT::Run(): error unlinking old backup file <" 
+	   << backfile << ">, it may not exist" << endl;
+    } else {
+      if (VERBOSE>5) {
+	cout << "OutCHKPT::Run(): successfully unlinked <"
+	     << backfile << ">" << endl;
       }
-      if (rename(filename.c_str(), backfile.c_str())) {
-	if (VERBOSE>5) perror("OutCHKPT::Run()");
-	cout << "OutCHKPT: renaming backup file <" 
-	     << backfile << ">, it may not exist" << endl;
-      } else {
-	if (VERBOSE>5) {
-	  cout << "OutCHKPT::Run(): successfully renamed <"
-	       << filename << "> to <" << backfile << ">" << endl;
-	}
+    }
+    if (rename(filename.c_str(), backfile.c_str())) {
+      if (VERBOSE>5) perror("OutCHKPT::Run()");
+      cout << "OutCHKPT: renaming backup file <" 
+	   << backfile << ">, it may not exist" << endl;
+    } else {
+      if (VERBOSE>5) {
+	cout << "OutCHKPT::Run(): successfully renamed <"
+	     << filename << "> to <" << backfile << ">" << endl;
       }
-
-      if (lastPS.size()) {
-	if (symlink(lastPS.c_str(), filename.c_str())) {
-	  if (VERBOSE>5) perror("OutCHKPT::Run()");
-	  cout << "OutCHKPT::Run(): no file <" << lastPS
-	       << "> to link, we will create a new checkpoint" << endl;
-	  returnStatus = 0;
-	} else {
-	  if (VERBOSE>5) {
-	    cout << "OutCHKPT::Run(): successfully linked <"
-		 << lastPS << "> to new backup file <" 
-		 << filename << ">" << endl;
-	  }
-	}
-      } else {
+    }
+    
+    if (lastPS.size()) {
+      if (symlink(lastPS.c_str(), filename.c_str())) {
+	if (VERBOSE>5) perror("OutCHKPT::Run()");
+	cout << "OutCHKPT::Run(): no file <" << lastPS
+	     << "> to link, we will create a new checkpoint" << endl;
 	returnStatus = 0;
+      } else {
+	if (VERBOSE>5) {
+	  cout << "OutCHKPT::Run(): successfully linked <"
+	       << lastPS << "> to new backup file <" 
+	       << filename << ">" << endl;
+	}
       }
+    } else {
+      returnStatus = 0;
     }
   }
 

@@ -91,123 +91,117 @@ void OutCHKPTQ::Run(int n, int mstep, bool last)
     if (multistep>1 and mstep % nintsub !=0) return;
   }
   
-  if (VERBOSE>5 && myid==0) {
-    cout << " OutCHKPTQ::Run(): n=" << n << " psdump=" << psdump << endl;
-  }
-
   int returnStatus = 1;
   
-  if (n == psdump) {       
-
-    if (myid==0) {
-      string currfile = outdir + filename;
-      string backfile = currfile + ".bak";
-      if (unlink(backfile.c_str())) {
-	if (VERBOSE>5) perror("OutCHKPTQ::Run()");
-	cout << "OutCHKPTQ::Run(): error unlinking old backup file <" 
-	     << backfile << ">, it may not exist" << endl;
-      } else {
-	if (VERBOSE>5) {
-	  cout << "OutCHKPTQ::Run(): successfully unlinked <"
-	       << backfile << ">" << endl;
-	}
+  if (myid==0) {
+    std::string currfile = outdir + filename;
+    std::string backfile = currfile + ".bak";
+    if (unlink(backfile.c_str())) {
+      if (VERBOSE>5) perror("OutCHKPTQ::Run()");
+      std::cout << "OutCHKPTQ::Run(): error unlinking old backup file <" 
+		<< backfile << ">, it may not exist" << std::endl;
+    } else {
+      if (VERBOSE>5) {
+	std::cout << "OutCHKPTQ::Run(): successfully unlinked <"
+		  << backfile << ">" << std::endl;
       }
+    }
 
-      if (rename(currfile.c_str(), backfile.c_str())) {
-	if (VERBOSE>5) perror("OutCHKPTQ::Run()");
-	cout << "OutCHKPTQ: renaming backup file <" 
-	     << backfile << ">, it may not exist" << endl;
-      } else {
-	if (VERBOSE>5) {
-	  cout << "OutCHKPTQ::Run(): successfully renamed <"
-	       << currfile << "> to <" << backfile << ">" << endl;
-	}
+    if (rename(currfile.c_str(), backfile.c_str())) {
+      if (VERBOSE>5) perror("OutCHKPTQ::Run()");
+      std::cout << "OutCHKPTQ: renaming backup file <" 
+		<< backfile << ">, it may not exist" << std::endl;
+    } else {
+      if (VERBOSE>5) {
+	std::cout << "OutCHKPTQ::Run(): successfully renamed <"
+		  << currfile << "> to <" << backfile << ">" << std::endl;
       }
-
-      if (lastPSQ.size()) {
-	if (symlink(lastPSQ.c_str(), currfile.c_str())) {
-	  if (VERBOSE>5) perror("OutCHKPTQ::Run()");
-	  cout << "OutCHKPTQ::Run(): no file <" << lastPSQ
-	       << "> to link, we will create a new checkpoint" << endl;
-	  returnStatus = 0;
-	} else {
-	  if (VERBOSE>5) {
-	    cout << "OutCHKPTQ::Run(): successfully linked <"
-		 << lastPSQ << "> to new backup file <" 
-		 << currfile << ">" << endl;
-	  }
-	}
-      } else {
-	returnStatus = 0;
-      }
-
-      int count = 0;
-      for (auto c : comp->components) {
-				// Component file
-	std::ostringstream cname;
-	cname << outdir << filename << "_" << count;
+    }
     
-	for (int n=0; n<numprocs; n++) {
-
-	  std::ostringstream sout1;
-	  sout1 << cname.str() << "-" << n;
-	  std::string fileN = sout1.str();
-
-	  sout1 << ".bak";
-	  std::string backN = sout1.str();
-
-	  if (unlink(backN.c_str())) {
-	    if (VERBOSE>15) perror("OutCHKPTQ::Run()");
-	    if (VERBOSE>10)
-	      cout << "OutCHKPTQ::Run(): error unlinking old backup file <" 
-		   << backN << ">, it may not exist" << endl;
-	  } else {
-	    if (VERBOSE>15) {
-	      cout << "OutCHKPTQ::Run(): successfully unlinked <"
-		   << backN << ">" << endl;
-	    }
+    if (lastPSQ.size()) {
+      if (symlink(lastPSQ.c_str(), currfile.c_str())) {
+	if (VERBOSE>5) perror("OutCHKPTQ::Run()");
+	std::cout << "OutCHKPTQ::Run(): no file <" << lastPSQ
+		  << "> to link, we will create a new checkpoint" << std::endl;
+	returnStatus = 0;
+      } else {
+	if (VERBOSE>5) {
+	  std::cout << "OutCHKPTQ::Run(): successfully linked <"
+		    << lastPSQ << "> to new backup file <" 
+		    << currfile << ">" << std::endl;
+	}
+      }
+    } else {
+      returnStatus = 0;
+    }
+    
+    int count = 0;
+    for (auto c : comp->components) {
+      // Component file
+      std::ostringstream cname;
+      cname << outdir << filename << "_" << count;
+    
+      for (int n=0; n<numprocs; n++) {
+	
+	std::ostringstream sout1;
+	sout1 << cname.str() << "-" << n;
+	std::string fileN = sout1.str();
+	
+	sout1 << ".bak";
+	std::string backN = sout1.str();
+	
+	if (unlink(backN.c_str())) {
+	  if (VERBOSE>15) perror("OutCHKPTQ::Run()");
+	  if (VERBOSE>10)
+	    std::cout << "OutCHKPTQ::Run(): error unlinking old backup file <" 
+		      << backN << ">, it may not exist" << std::endl;
+	} else {
+	  if (VERBOSE>15) {
+	    std::cout << "OutCHKPTQ::Run(): successfully unlinked <"
+		      << backN << ">" << std::endl;
 	  }
-	  if (rename(fileN.c_str(), backN.c_str())) {
-	    if (VERBOSE>15) perror("OutCHKPTQ::Run()");
-	    if (VERBOSE>10)
-	      cout << "OutCHKPTQ: renaming backup file <" 
-		   << backN << ">, it may not exist" << endl;
-	  } else {
-	    if (VERBOSE>15) {
-	      cout << "OutCHKPTQ::Run(): successfully renamed <"
-		   << filename << "> to <" << backN << ">" << endl;
-	    }
+	}
+	if (rename(fileN.c_str(), backN.c_str())) {
+	  if (VERBOSE>15) perror("OutCHKPTQ::Run()");
+	  if (VERBOSE>10)
+	    std::cout << "OutCHKPTQ: renaming backup file <" 
+		      << backN << ">, it may not exist" << std::endl;
+	} else {
+	  if (VERBOSE>15) {
+	    std::cout << "OutCHKPTQ::Run(): successfully renamed <"
+		      << filename << "> to <" << backN << ">" << std::endl;
 	  }
+	}
 
-	  if (lastPSQ.size()) {
-	    std::ostringstream sout2;
-	    sout2 << lastPSQ << "_" << count << "-" << n;
-	    std::string lastN = sout2.str();
+	if (lastPSQ.size()) {
+	  std::ostringstream sout2;
+	  sout2 << lastPSQ << "_" << count << "-" << n;
+	  std::string lastN = sout2.str();
 	  
-	    if (symlink(lastN.c_str(), fileN.c_str())) {
-	      if (VERBOSE>15) perror("OutCHKPTQ::Run()");
-	      if (VERBOSE>10)
-		cout << "OutCHKPTQ::Run(): no file <" << lastN
-		     << "> to link, we will create a new checkpoint" << endl;
-	      returnStatus = 0;
-	    } else {
-	      if (VERBOSE>15) {
-		cout << "OutCHKPTQ::Run(): successfully linked <"
-		     << lastN << "> to new backup file <" 
-		     << fileN << ">" << endl;
-	      }
-	    }
-	  } else {
+	  if (symlink(lastN.c_str(), fileN.c_str())) {
+	    if (VERBOSE>15) perror("OutCHKPTQ::Run()");
+	    if (VERBOSE>10)
+	      std::cout << "OutCHKPTQ::Run(): no file <" << lastN
+			<< "> to link, we will create a new checkpoint"
+			<< std::endl;
 	    returnStatus = 0;
+	  } else {
+	    if (VERBOSE>15) {
+	      std::cout << "OutCHKPTQ::Run(): successfully linked <"
+			<< lastN << "> to new backup file <" 
+			<< fileN << ">" << std::endl;
+	      }
 	  }
-	} // END: process loop
+	} else {
+	  returnStatus = 0;
+	}
+      } // END: process loop
+      
+      count++;
+    } // END: component loop
+    
+  } // myid==0
 
-	count++;
-      } // END: component loop
-
-    } // myid==0
-
-  } // n == psdump
 
   MPI_Bcast(&returnStatus, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (returnStatus==1) return;
@@ -215,8 +209,6 @@ void OutCHKPTQ::Run(int n, int mstep, bool last)
   std::chrono::high_resolution_clock::time_point beg, end;
   if (timer) beg = std::chrono::high_resolution_clock::now();
   
-  psdump = n;
-
   int nOK = 0;
 
   std::ofstream out;

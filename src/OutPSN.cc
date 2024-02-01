@@ -122,8 +122,6 @@ void OutPSN::Run(int n, int mstep, bool last)
   std::ofstream out;
   std::ostringstream fname;
 
-  psdump = n;
-
   int nOK = 0;
 
   if (myid==0) {

@@ -88,8 +88,6 @@ void OutPS::Run(int n, int mstep, bool last)
 
   std::ofstream out;
 
-  psdump = n;
-
   int nOK = 0;
 
   if (myid==0) {

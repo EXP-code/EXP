@@ -47,7 +47,6 @@ string ratefile = "processor.rates";
 string ldlibdir = ".";
 
 double tnow     = 0.0;		// Per step variables
-int psdump      = -1;
 int this_step   = 0;
 				// Global center of mass
 double mtot;

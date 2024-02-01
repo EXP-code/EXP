@@ -144,8 +144,6 @@ void OutPSQ::Run(int n, int mstep, bool last)
   // Master file name
   std::string master = outdir + fname.str();
 
-  psdump = n;
-
   int nOK = 0;
 
   if (myid==0) {
