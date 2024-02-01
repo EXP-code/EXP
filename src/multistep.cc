@@ -318,14 +318,17 @@ void multistep_sanity_check(std::map< Component*, unsigned >& offlo,
 	      << "---- because these components have more than "
 	      << (int)std::floor(100.0*max_mindt)
 	      << "% of their" << std::endl
-	      << "---- particles below the minimum time step:" << std::endl;
+	      << "---- particles below the minimum time step:" << std::endl
+	      << std::setw(70) << std::setfill('-') << '-'
+	      << std::endl << std::setfill(' ');
     for (auto c : bad) {
-      std::ostringstream sout;
-      sout << "Component <" << c->name << ">";
-      std::cout << "---- " << std::setw(30) << std::left << sout.str() << " | "
-		<< offlo[c] << "/" << c->CurTotal() << "  ["
-		<< floor(10000.0*offlo[c]/c->CurTotal())*0.01 << "%]"
-		<< std::endl;
+      std::ostringstream sout0, sout1, sout2;
+      sout0 << "Component <" << c->name << ">";
+      sout1 << offlo[c] << "/" << c->CurTotal();
+      sout2 << "[" << floor(10000.0*offlo[c]/c->CurTotal())*0.01 << "%]";
+      std::cout << "---- " << std::setw(30) << std::left << sout0.str()
+		<< std::setw(25) << std::left << sout1.str()
+		<< std::left << sout2.str() << std::endl;
     }
     std::cout << std::setw(70) << std::setfill('-') << '-'
 	      << std::endl << std::setfill(' ')
