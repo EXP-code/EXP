@@ -103,6 +103,12 @@ void OutCoef::Run(int n, int mstep, bool last)
   //
   if (mstep < std::numeric_limits<int>::max() and mstep % nintsub != 0) return;
 
+  // Check for repeat time
+  //
+  if (tnow <= prev) return;
+
+  prev = tnow;
+
   if (myid==0) {
 
     if (native) {

@@ -17,6 +17,11 @@ extern void cuda_initialize_multistep();
 extern void cuda_compute_levels();
 #endif
 
+// Signal handler for stopping and scheduling a checkpoint
+// (implemented in expand.cc)
+//
+extern void signal_handler_stop(int);
+
 //
 // Helper class to pass info to threaded multistep update routine
 //
@@ -306,13 +311,10 @@ void multistep_sanity_check(std::map< Component*, unsigned >& offlo,
   // If we found any bad components, set signal and print diagnostics
   //
   if (bad.size()) {
+
     // Set flag to stop at the end of the current step
     //
-    quit_signal = 1;
-
-    // Trigger a checkpoint
-    //
-    dump_signal = 1;
+    signal_handler_stop(0);
     
     // Log info to stdout
     //

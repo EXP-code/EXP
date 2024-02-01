@@ -23,13 +23,15 @@ class OutCalbr : public Output
 
 private:
 
-  string filename;
+  std::string filename;
   Component *tcomp;
   int num;
-  vector<double> Ec, deltaE, deltaLx, deltaLy, deltaLz;
-  vector<double> deltaE1, deltaLx1, deltaLy1, deltaLz1;
-  vector<unsigned> ncnt, ncnt1;
+  std::vector<double> Ec, deltaE, deltaLx, deltaLy, deltaLz;
+  std::vector<double> deltaE1, deltaLx1, deltaLy1, deltaLz1;
+  std::vector<unsigned> ncnt, ncnt1;
   double Emin, Emax, dE;
+
+  double prev = -std::numeric_limits<double>::max();
 
   void set_energies(void);
   void initialize(void);

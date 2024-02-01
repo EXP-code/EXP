@@ -257,7 +257,9 @@ void OrbTrace::Run(int n, int mstep, bool last)
 {
   if (n % nint && !last && !tcomp && norb) return;
   if (mstep % nintsub !=0 && !tcomp && norb) return;
+  if (tnow <= prev) return;
 
+  prev = tnow;			// Record current time
 
   MPI_Status status;
 
@@ -271,13 +273,14 @@ void OrbTrace::Run(int n, int mstep, bool last)
 #endif
 
 				// Open output file
-  ofstream out;
+  std::ofstream out;
   if (myid==0) {
     out.open(filename.c_str(), ios::out | ios::app);
     if (!out) {
-      cout << "OrbTrace: can't open file <" << filename << ">\n";
+      std::cout << "OrbTrace: can't open file <" << filename
+		<< ">" << std::endl;
     }
-    if (out) out << setw(15) << tnow;
+    if (out) out << std::setw(15) << tnow;
   }
 
   int curproc, nflag;
@@ -308,12 +311,12 @@ void OrbTrace::Run(int n, int mstep, bool last)
       }
 
 #ifdef DEBUG
-      cout << "Process " << myid << ": packing particle #" << orblist[i]
+      std::cout << "Process " << myid << ": packing particle #" << orblist[i]
 	   << "  index=" << it->second->indx;
       for (int k=0; k<3; k++) 
-	cout << " " << 
+	std::cout << " " << 
 	  it->second->pos[k];
-      cout << endl;
+      std::cout << std::endl;
 #endif 
     } 
 
@@ -335,5 +338,5 @@ void OrbTrace::Run(int n, int mstep, bool last)
     
   }
   
-  if (myid==0 && out) out << endl;
+  if (myid==0 && out) out << std::endl;
 }

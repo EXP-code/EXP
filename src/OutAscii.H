@@ -24,8 +24,9 @@ class OutAscii : public Output
 
 private:
 
-  string filename;
-  string name;
+  std::string filename;
+  std::string name;
+  double prev = -std::numeric_limits<double>::max();
   int nbeg;
   bool accel;
 

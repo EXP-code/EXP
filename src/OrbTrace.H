@@ -33,8 +33,8 @@ class OrbTrace : public Output
 
 private:
 
-  string filename;
-  string orbitlist;
+  std::string filename;
+  std::string orbitlist;
   int nbeg;
   int nskip;
   int norb;
@@ -43,8 +43,8 @@ private:
   bool use_lev;
   bool local;
   Component *tcomp;
-  vector<int> orblist;
-  vector<double> pbuf;
+  std::vector<int> orblist;
+  std::vector<double> pbuf;
   int nbuf;
   int flags;
 
@@ -52,6 +52,9 @@ private:
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  //! Last output time
+  double prev = -std::numeric_limits<double>::max();
 
 public:
 

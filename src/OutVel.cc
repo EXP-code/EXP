@@ -142,6 +142,14 @@ void OutVel::Run(int n, int mstep, bool last)
   //
   if (mstep < std::numeric_limits<int>::max() and mstep % nintsub != 0) return;
 
+  // Don't duplicate times
+  //
+  if (tnow <= prev) return;
+
+  // Record current time
+  //
+  prev = tnow;
+
   // Zero coefficients
   //
   basis->reset_coefs();

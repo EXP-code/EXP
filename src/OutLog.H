@@ -50,7 +50,7 @@ class OutLog : public Output
 
 private:
 
-  string filename;
+  std::string filename;
   int nfreq;
   int laststep;
   int precision;

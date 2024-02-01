@@ -51,6 +51,7 @@ class OutVel : public Output
 private:
 
   std::string filename, model, outfile;
+  double prev = -std::numeric_limits<double>::max();
   Component *tcomp;
   CoefClasses::CoefsPtr coefs;
   int dof;
