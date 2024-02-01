@@ -642,48 +642,75 @@ void cuda_compute_levels()
   //
   if (VERBOSE>0 && mdrft==Mstep) {
 
-    unsigned sumlo=0, sumhi=0;
-    for (auto c : comp->components) {
-      sumlo += offlo[c];
-      sumhi += offhi[c];
+    // MPI reduction
+    //
+    if (myid==0) {
+      for (auto c : comp->components) {
+	MPI_Reduce(MPI_IN_PLACE,
+		   &offlo[c], 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(MPI_IN_PLACE,
+		   &offhi[c], 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+      }
+      MPI_Reduce(MPI_IN_PLACE,
+		 &mindt, 1, MPI_FLOAT, MPI_MIN, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE,
+		 &maxdt, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
+    } else {
+      for (auto c : comp->components) {
+	MPI_Reduce(&offlo[c], 0, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(&offhi[c], 0, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+      }
+      MPI_Reduce(&mindt, 0, 1, MPI_FLOAT, MPI_MIN, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&maxdt, 0, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
     }
-      
-    if (sumlo || sumhi) {
-      std::cout << std::endl
-		<< std::setw(70) << std::setfill('-') << '-'
-		<< std::endl << std::setfill(' ')
-		<< std::left << "--- Multistepping overrun" << std::endl;
-      if (sumlo)
-	std::cout << std::left << "--- Min DT=" << std::setw(16) << mindt  
-		  << " < " << std::setw(16) << dtime/(1<<multistep) 
-		  << " [" << sumlo << "]" <<  std::endl;
-      if (sumhi)
-	std::cout << std::left << "--- Max DT=" << std::setw(16) << maxdt  
-		  << " > " << std::setw(16) << dtime 
-		  << " [" << sumhi << "]" << std::endl;
-      std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl 
-		<< std::setfill(' ') << std::right;
-      
-      if (sumlo) {
-	for (auto c : comp->components) {
-	  std::ostringstream sout;
-	  sout << "Component <" << c->name << ">";
-	  std::cout << std::setw(30) << sout.str() << " |   low: "
-		    << offlo[c] << "/" << c->CurTotal() << std::endl;
-	}
+    
+    // Root process prints the diagnostics
+    //
+    if (myid==0) {
+
+      unsigned sumlo=0, sumhi=0;
+      for (auto c : comp->components) {
+	sumlo += offlo[c];
+	sumhi += offhi[c];
       }
-      
-      if (sumhi) {
-	for (auto c : comp->components) {
-	  std::ostringstream sout;
-	  sout << "Component <" << c->name << ">";
-	  std::cout << std::setw(30) << sout.str() << " |  high: "
-		    << offhi[c] << "/" << c->CurTotal() << std::endl;
+
+      if (sumlo || sumhi) {
+	std::cout << std::endl
+		  << std::setw(70) << std::setfill('-') << '-'
+		  << std::endl << std::setfill(' ')
+		  << std::left << "--- Multistepping overrun" << std::endl;
+	if (sumlo)
+	  std::cout << std::left << "--- Min DT=" << std::setw(16) << mindt  
+		    << " < " << std::setw(16) << dtime/(1<<multistep) 
+		    << " [" << sumlo << "]" <<  std::endl;
+	if (sumhi)
+	  std::cout << std::left << "--- Max DT=" << std::setw(16) << maxdt  
+		    << " > " << std::setw(16) << dtime 
+		    << " [" << sumhi << "]" << std::endl;
+	std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl 
+		  << std::setfill(' ') << std::right;
+	
+	if (sumlo) {
+	  for (auto c : comp->components) {
+	    std::ostringstream sout;
+	    sout << "Component <" << c->name << ">";
+	    std::cout << std::setw(30) << sout.str() << " |   low: "
+		      << offlo[c] << "/" << c->CurTotal() << std::endl;
+	  }
 	}
+	
+	if (sumhi) {
+	  for (auto c : comp->components) {
+	    std::ostringstream sout;
+	    sout << "Component <" << c->name << ">";
+	    std::cout << std::setw(30) << sout.str() << " |  high: "
+		      << offhi[c] << "/" << c->CurTotal() << std::endl;
+	  }
+	}
+	
+	std::cout << std::setw(70) << std::setfill('-') << '-'
+		  << std::endl << std::setfill(' ');
       }
-      
-      std::cout << std::setw(70) << std::setfill('-') << '-'
-		<< std::endl << std::setfill(' ');
     }
   }
 

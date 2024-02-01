@@ -3,6 +3,7 @@
 #ifndef _CUDAHELP_H
 #define _CUDAHELP_H
 
+//! Threads per block.  This must be 2^m or Cuda reductions will break.
 #define BLOCK_SIZE 256
 
 #include <sstream>
