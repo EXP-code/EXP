@@ -309,6 +309,10 @@ void multistep_sanity_check(std::map< Component*, unsigned >& offlo,
     // Set flag to stop at the end of the current step
     //
     quit_signal = 1;
+
+    // Trigger a checkpoint
+    //
+    dump_signal = 1;
     
     // Log info to stdout
     //
@@ -332,7 +336,9 @@ void multistep_sanity_check(std::map< Component*, unsigned >& offlo,
     }
     std::cout << std::setw(70) << std::setfill('-') << '-'
 	      << std::endl << std::setfill(' ')
-	      << "---- Try decreasing your 'dtime' value, increasing your 'multilevel'" << std::endl << "---- value, or both!" << std::endl
+	      << "---- Try decreasing your 'dtime' value, increasing your 'multilevel'"
+	      << std::endl << "---- value, or both!  Requesting a checkpoint..."
+	      << std::endl
 	      << std::setw(70) << std::setfill('-') << '-'
 	      << std::endl << std::setfill(' ');
   }
