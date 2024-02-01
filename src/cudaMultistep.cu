@@ -11,6 +11,11 @@
 //
 // #define OVER_UNDER
 
+// Check for level overruns (implemented in multistep.cc)
+extern void multistep_sanity_check(std::map< Component*, unsigned >& offlo,
+				   std::map< Component*, unsigned >& offhi,
+				   double mindt, double maxdt);
+
 // Define this to see per operation sub timings
 //
 // #define VERBOSE_TIMING
@@ -361,7 +366,7 @@ void cuda_compute_levels()
     if (not c->force->cudaAware()) c->ParticlesToCuda();
   }
 
-  std::map<Component*, int> offlo, offhi;
+  std::map<Component*, unsigned> offlo, offhi;
   float mindt = 1.0e32, maxdt = 0.0;
 
   cudaDeviceProp deviceProp;
@@ -665,98 +670,7 @@ void cuda_compute_levels()
       MPI_Reduce(&maxdt, 0, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
     }
     
-    // Root process prints the diagnostics
-    //
-    if (myid==0) {
-
-      unsigned sumlo=0, sumhi=0;
-      for (auto c : comp->components) {
-	sumlo += offlo[c];
-	sumhi += offhi[c];
-      }
-
-      if (VERBOSE>0) {
-
-	if (sumlo || sumhi) {
-	  std::cout << std::endl
-		    << std::setw(70) << std::setfill('-') << '-'
-		    << std::endl << std::setfill(' ')
-		    << std::left << "--- Multistepping overrun" << std::endl;
-	  if (sumlo)
-	    std::cout << std::left << "--- Min DT=" << std::setw(16) << mindt  
-		      << " < " << std::setw(16) << dtime/(1<<multistep) 
-		      << " [" << sumlo << "]" <<  std::endl;
-	  if (sumhi)
-	    std::cout << std::left << "--- Max DT=" << std::setw(16) << maxdt  
-		      << " > " << std::setw(16) << dtime 
-		      << " [" << sumhi << "]" << std::endl;
-	  std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl 
-		    << std::setfill(' ') << std::right;
-	  
-	  if (sumlo) {
-	    for (auto c : comp->components) {
-	      std::ostringstream sout;
-	      sout << "Component <" << c->name << ">";
-	      std::cout << std::setw(30) << sout.str() << " |   low: "
-			<< offlo[c] << "/" << c->CurTotal() << std::endl;
-	    }
-	  }
-	  
-	  if (sumhi) {
-	    for (auto c : comp->components) {
-	      std::ostringstream sout;
-	      sout << "Component <" << c->name << ">";
-	      std::cout << std::setw(30) << sout.str() << " |  high: "
-			<< offhi[c] << "/" << c->CurTotal() << std::endl;
-	    }
-	  }
-	  
-	  std::cout << std::setw(70) << std::setfill('-') << '-'
-		    << std::endl << std::setfill(' ');
-	}
-      }
-
-      // Impose sanity checks and trigger stop if necessary
-      //
-      if (myid==0) {
-	// Search for components that exceed max level threshold
-	std::set<Component*> bad;
-	for (auto c : comp->components) {
-	  double frac = static_cast<double>(offlo[c])/c->CurTotal();
-	  if (frac > max_mindt) bad.insert(c);
-	}
-
-	// If we found any bad components, set signal and print diagnostics
-	//
-	if (bad.size()) {
-	  // Set flag to stop at the end of the current step
-	  //
-	  quit_signal = 1;
-
-	  // Log info to stdout
-	  //
-	  std::cout << std::setw(70) << std::setfill('-') << '-'
-		    << std::endl << std::setfill(' ')
-		    << "---- EXP is going to stop this run for you at the end of this step" << std::endl
-		    << "---- because these components have more than "
-		    << floor(100.0*max_mindt)
-		    << "% particles below the minimum time step" << std::endl;
-	  std::cout << std::setw(70) << std::setfill('-') << '-'
-		    << std::endl << std::setfill(' ');
-	  for (auto c : bad) {
-	    std::ostringstream sout;
-	    sout << "Component <" << c->name << ">";
-	    std::cout << std::setw(30) << sout.str() << " | "
-		      << offlo[c] << "/" << c->CurTotal() << std::endl;
-	  }
-	  std::cout << std::setw(70) << std::setfill('-') << '-'
-		    << std::endl << std::setfill(' ')
-		    << "---- Try decreasing your 'dtime' value, increasing your 'multilevel' value, or both!" << std::endl
-		    << std::setw(70) << std::setfill('-') << '-'
-		    << std::endl << std::setfill(' ');
-	}
-      }
-    }
+    multistep_sanity_check(offlo, offhi, mindt, maxdt);
   }
 
 #ifdef VERBOSE_TIMING
