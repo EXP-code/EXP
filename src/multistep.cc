@@ -451,7 +451,7 @@ void adjust_multistep_level()
   //
   // Diagnostic output
   //
-  if (VERBOSE>0 && mdrft==Mstep) {
+  if (mdrft==Mstep) {
 
     //
     // Count offgrid particles in the threads
@@ -513,46 +513,84 @@ void adjust_multistep_level()
 	std::cout.precision(pc);
       }
 
-      unsigned sumlo=0, sumhi=0;
-      for (auto c : comp->components) {
-	sumlo += offlo[c];
-	sumhi += offhi[c];
-      }
+      if (VERBOSE>0) {
+
+	unsigned sumlo=0, sumhi=0;
+	for (auto c : comp->components) {
+	  sumlo += offlo[c];
+	  sumhi += offhi[c];
+	}
       
-      if (sumlo || sumhi) {
-	cout << endl
-	     << setw(70) << setfill('-') << '-' << endl << setfill(' ')
-	     << left << "--- Multistepping overrun" << endl;
-	if (sumlo)
-	  cout << left << "--- Min DT=" << setw(16) << mindt  
-	       << " < " << setw(16) << dtime/(1<<multistep) 
-	       << " [" << sumlo << "]" << endl;
-	if (sumhi)
-	  cout << left << "--- Max DT=" << setw(16) << maxdt  
-	       << " > " << setw(16) << dtime 
-	       << " [" << sumhi << "]" << endl;
-	cout << setw(70) << setfill('-') << '-' << endl 
-	     << setfill(' ') << right;
-
-	if (sumlo) {
-	  for (auto c : comp->components) {
-	    ostringstream sout;
-	    sout << "Component <" << c->name << ">";
-	    cout << setw(30) << sout.str() << " |   low: "
-		 << offlo[c] << "/" << c->CurTotal() << endl;
+	if (sumlo || sumhi) {
+	  cout << endl
+	       << setw(70) << setfill('-') << '-' << endl << setfill(' ')
+	       << left << "--- Multistepping overrun" << endl;
+	  if (sumlo)
+	    cout << left << "--- Min DT=" << setw(16) << mindt  
+		 << " < " << setw(16) << dtime/(1<<multistep) 
+		 << " [" << sumlo << "]" << endl;
+	  if (sumhi)
+	    cout << left << "--- Max DT=" << setw(16) << maxdt  
+		 << " > " << setw(16) << dtime 
+		 << " [" << sumhi << "]" << endl;
+	  cout << setw(70) << setfill('-') << '-' << endl 
+	       << setfill(' ') << right;
+	  
+	  if (sumlo) {
+	    for (auto c : comp->components) {
+	      ostringstream sout;
+	      sout << "Component <" << c->name << ">";
+	      cout << setw(30) << sout.str() << " |   low: "
+		   << offlo[c] << "/" << c->CurTotal() << endl;
+	    }
 	  }
-	}
-
-	if (sumhi) {
-	  for (auto c : comp->components) {
-	    ostringstream sout;
-	    sout << "Component <" << c->name << ">";
-	    cout << setw(30) << sout.str() << " |  high: "
-		 << offhi[c] << "/" << c->CurTotal() << endl;
+	  
+	  if (sumhi) {
+	    for (auto c : comp->components) {
+	      ostringstream sout;
+	      sout << "Component <" << c->name << ">";
+	      cout << setw(30) << sout.str() << " |  high: "
+		   << offhi[c] << "/" << c->CurTotal() << endl;
+	    }
 	  }
+	  
+	  cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
 	}
+      }
 
-	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+      // Impose sanity checks and trigger stop if necessary
+      //
+      // Search for components that exceed max level threshold
+      std::set<Component*> bad;
+      for (auto c : comp->components) {
+	double frac = static_cast<double>(offlo[c])/c->CurTotal();
+	if (frac > max_mindt) bad.insert(c);
+      }
+
+      // If we found any bad components, set signal and print diagnostics
+      //
+      if (bad.size()) {
+	// Set flag to stop at the end of the current step
+	//
+	quit_signal = 1;
+	
+	// Log info to stdout
+	//
+	std::cout << std::setw(70) << std::setfill('-') << '-'
+		  << std::endl << std::setfill(' ');
+	std::cout << "---- The following components have more than "
+		  << floor(100.0*max_mindt)
+		  << "% particles below the minimum time step" << std::endl;
+	std::cout << std::setw(70) << std::setfill('-') << '-'
+		  << std::endl << std::setfill(' ');
+	for (auto c : bad) {
+	  std::ostringstream sout;
+	  sout << "Component <" << c->name << ">";
+	  std::cout << std::setw(30) << sout.str() << " | "
+		    << offlo[c] << "/" << c->CurTotal() << std::endl;
+	}
+	std::cout << std::setw(70) << std::setfill('-') << '-'
+		  << std::endl << std::setfill(' ');
       }
     }
   }

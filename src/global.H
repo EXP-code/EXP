@@ -141,6 +141,9 @@ extern double tnow;
 //! Last phase space dump step
 extern int psdump;
 
+//! Maximum fraction of particles that request a smaller than minimum timestep
+extern double max_mindt;
+
 //! Total mass in simulation (used by Orient and log diagnostics)
 extern double mtot;
 
