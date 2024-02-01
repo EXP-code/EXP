@@ -736,8 +736,9 @@ void cuda_compute_levels()
 	  // Log info to stdout
 	  //
 	  std::cout << std::setw(70) << std::setfill('-') << '-'
-		    << std::endl << std::setfill(' ');
-	  std::cout << "---- The following components have more than "
+		    << std::endl << std::setfill(' ')
+		    << "---- EXP is going to stop this run for you at the end of this step" << std::endl
+		    << "---- because these components have more than "
 		    << floor(100.0*max_mindt)
 		    << "% particles below the minimum time step" << std::endl;
 	  std::cout << std::setw(70) << std::setfill('-') << '-'
@@ -749,6 +750,9 @@ void cuda_compute_levels()
 		      << offlo[c] << "/" << c->CurTotal() << std::endl;
 	  }
 	  std::cout << std::setw(70) << std::setfill('-') << '-'
+		    << std::endl << std::setfill(' ')
+		    << "---- Try decreasing your 'dtime' value, increasing your 'multilevel' value, or both!" << std::endl
+		    << std::setw(70) << std::setfill('-') << '-'
 		    << std::endl << std::setfill(' ');
 	}
       }
