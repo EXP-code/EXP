@@ -317,13 +317,15 @@ void multistep_sanity_check(std::map< Component*, unsigned >& offlo,
 	      << "---- EXP is going to stop this run for you at the end of this step" << std::endl
 	      << "---- because these components have more than "
 	      << (int)std::floor(100.0*max_mindt)
-	      << "% of their" std::endl
+	      << "% of their" << std::endl
 	      << "---- particles below the minimum time step:" << std::endl;
     for (auto c : bad) {
       std::ostringstream sout;
       sout << "Component <" << c->name << ">";
       std::cout << "---- " << std::setw(30) << std::left << sout.str() << " | "
-		<< offlo[c] << "/" << c->CurTotal() << std::endl;
+		<< offlo[c] << "/" << c->CurTotal() << "  ["
+		<< floor(10000.0*offlo[c]/c->CurTotal())*0.01 << "%]"
+		<< std::endl;
     }
     std::cout << std::setw(70) << std::setfill('-') << '-'
 	      << std::endl << std::setfill(' ')
