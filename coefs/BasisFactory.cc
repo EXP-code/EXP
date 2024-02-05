@@ -224,6 +224,30 @@ namespace BasisClasses
     return crt_eval(x, y, z);
   }
     
+  std::tuple<std::map<std::string, Eigen::VectorXd>, Eigen::VectorXd>
+  Basis::getFieldsCoefs
+  (double x, double y, double z, std::shared_ptr<CoefClasses::Coefs> coefs)
+  {
+    std::map<std::string, Eigen::VectorXd> ret;
+
+    auto times  = coefs->Times();
+    auto fields = getFieldLabels(coordinates);
+    for (auto s : fields) ret[s].resize(times.size());
+
+    // Make the return array
+    for (int i=0; i<times.size(); i++) {
+      set_coefs(coefs->getCoefStruct(times[i]));
+      auto v = crt_eval(x, y, z);
+      for (int j=0; j<fields.size(); j++) ret[fields[j]][i] = v[j];
+    }
+
+    // An attempt at an efficient return type
+    Eigen::VectorXd T =
+      Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(times.data(), times.size());
+
+    return {ret, T};
+  }
+
   // Generate coefficients from the accumulated array values
   CoefClasses::CoefStrPtr Basis::makeFromArray(double time)
   {

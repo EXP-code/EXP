@@ -242,10 +242,19 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override
     {
-      PYBIND11_OVERRIDE_PURE(std::vector<double>, Basis, getFields,
-			     x, y, z);
+      PYBIND11_OVERRIDE(std::vector<double>, Basis, getFields,
+			x, y, z);
     }
 
+    using FCReturn = std::tuple<std::map<std::string, Eigen::VectorXd>,
+				Eigen::VectorXd>;
+
+    FCReturn getFieldsCoefs
+    (double x, double y, double z, CoefClasses::CoefsPtr coefs) override
+    {
+      PYBIND11_OVERRIDE(FCReturn, Basis, getFieldsCoefs, x, y, z, coefs);
+    }
+    
     void accumulate(double x, double y, double z, double mass) override {
       PYBIND11_OVERRIDE_PURE(void, Basis, accumulate, mass, x, y, z, mass);
     }
@@ -906,6 +915,31 @@ void BasisFactoryClasses(py::module &m)
          None
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getFieldsCoefs", &BasisClasses::BiorthBasis::getFieldsCoefs,
+	 R"(
+         Return the density, potential, and forces for a cartesian position.
+
+	 Field order is: dens0, potl0, dens, potl, fx, fy, fz. Dens0 and
+	 potl0 are the fields evaluated for l=0 or m=0 and dens and potl
+	 are evaluated for l>0 or m>0
+
+         Parameters
+         ----------
+         x : float
+             x-axis position
+         y : float
+             y-axis position
+         z : float
+             z-axis position
+         coefs: CoefClasses::Coefs
+             the coefficient set
+
+         Returns
+         -------
+         tuple of a dictionary of fields of array values, and an 
+             array of evaluation times
+         )",
+	 py::arg("x"), py::arg("y"), py::arg("z"), py::arg("coefs"))
     .def("setFieldType",       &BasisClasses::BiorthBasis::setFieldType,
          R"(
          Set the coordinate system for force evaluations.  The natural 

@@ -141,6 +141,11 @@ namespace BasisClasses
     //! Evaluate fields at a point
     virtual std::vector<double> getFields(double x, double y, double z);
     
+    //! Evaluate fields at a point for all coefficients sets
+    virtual std::tuple<std::map<std::string, Eigen::VectorXd>,
+		       Eigen::VectorXd> getFieldsCoefs
+    (double x, double y, double z, std::shared_ptr<CoefClasses::Coefs> coefs);
+    
     //! Evaluate fields at a point, and provide field lables
     virtual std::tuple<std::vector<double>, std::vector<std::string>>
     evaluate(double x, double y, double z)
