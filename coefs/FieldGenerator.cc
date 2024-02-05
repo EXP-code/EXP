@@ -727,17 +727,17 @@ namespace Field
 
     if (grid[0]>0 and grid[1]>0) {
       ret["xy"] = Eigen::MatrixXf::Zero(grid[0], grid[1]);
-      fac["xy"] = 1.0/(grid[0]*grid[1]);
+      fac["xy"] = 1.0/(del[0]*del[1]);
     }
 
     if (grid[0]>0 and grid[2]>0) {
       ret["xz"] = Eigen::MatrixXf::Zero(grid[0], grid[2]);
-      fac["xz"] = 1.0/(grid[0]*grid[2]);
+      fac["xz"] = 1.0/(del[0]*del[2]);
     }
 
     if (grid[1]>0 and grid[2]>0) {
       ret["yz"] = Eigen::MatrixXf::Zero(grid[1], grid[2]);
-      fac["yz"] = 1.0/(grid[1]*grid[2]);
+      fac["yz"] = 1.0/(del[1]*del[2]);
     }
     
     std::vector<double> pp(3);
