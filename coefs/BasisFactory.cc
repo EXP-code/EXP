@@ -228,23 +228,30 @@ namespace BasisClasses
   Basis::getFieldsCoefs
   (double x, double y, double z, std::shared_ptr<CoefClasses::Coefs> coefs)
   {
+    // Python dictonary for return
     std::map<std::string, Eigen::VectorXd> ret;
 
+    // Times for the coefficients
     auto times  = coefs->Times();
+
+    // Initialize the dictionary/map
     auto fields = getFieldLabels(coordinates);
     for (auto s : fields) ret[s].resize(times.size());
 
-    // Make the return array
+    // Make the return dictionary of arrays
     for (int i=0; i<times.size(); i++) {
       set_coefs(coefs->getCoefStruct(times[i]));
-      auto v = crt_eval(x, y, z);
+      // The field evaluation
+      auto v = crt_eval(x, y, z); 
+      // Pack the fields into the dictionary
       for (int j=0; j<fields.size(); j++) ret[fields[j]][i] = v[j];
     }
 
-    // An attempt at an efficient return type
+    // An attempt at an efficient return type for the time array
     Eigen::VectorXd T =
       Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(times.data(), times.size());
 
+    // Return the dictionary and the time array
     return {ret, T};
   }
 
