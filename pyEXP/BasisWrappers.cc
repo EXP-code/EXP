@@ -242,8 +242,7 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override
     {
-      PYBIND11_OVERRIDE(std::vector<double>, Basis, getFields,
-			x, y, z);
+      PYBIND11_OVERRIDE(std::vector<double>, Basis, getFields, x, y, z);
     }
 
     using FCReturn = std::tuple<std::map<std::string, Eigen::VectorXd>,
@@ -330,8 +329,7 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override
     {
-      PYBIND11_OVERRIDE(std::vector<double>, FieldBasis, getFields,
-			x, y, z);
+      PYBIND11_OVERRIDE(std::vector<double>, FieldBasis, getFields, x, y, z);
     }
 
     void accumulate(double m, double x, double y, double z,
@@ -431,8 +429,7 @@ void BasisFactoryClasses(py::module &m)
     using SphericalSL::SphericalSL;
 
     std::vector<double> getFields(double x, double y, double z) override {
-      PYBIND11_OVERRIDE(std::vector<double>, SphericalSL, getFields,
-			x, y, z);
+      PYBIND11_OVERRIDE(std::vector<double>, SphericalSL, getFields, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -475,8 +472,7 @@ void BasisFactoryClasses(py::module &m)
     using Cylindrical::Cylindrical;
 
     std::vector<double> getFields(double x, double y, double z) override {
-      PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getFields,
-			x, y, z);
+      PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getFields, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -538,8 +534,7 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override
     {
-      PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getFields,
-			x, y, z);
+      PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getFields, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -671,7 +666,7 @@ void BasisFactoryClasses(py::module &m)
 
          Returns
          -------
-         tuple of lists
+         tuple of numpy.ndarray and list of labels
              the field array and label array
 
          Note
@@ -709,8 +704,8 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          initFromArray : initialize for coefficient contributions
-         addFromArray : add contribution for particles
-         makeFromArray: create coefficients contributions
+         addFromArray  : add contribution for particles
+         makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0),
@@ -739,7 +734,7 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          initFromArray : initialize for coefficient contributions
-         addFromArray : add contribution for particles
+         addFromArray  : add contribution for particles
          )",
 	 py::arg("time")
 	 )
@@ -833,8 +828,8 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          initFromArray : initialize for coefficient contributions
-         addFromArray : add contribution for particles
-         makeFromArray: create coefficients contributions
+         addFromArray  : add contribution for particles
+         makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0),
@@ -890,16 +885,19 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          initFromArray : initialize for coefficient contributions
-         makeFromArray: create coefficients contributions
+         makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
-         Return the density, potential, and forces for a cartesian position.
+         Return the field evaluations for a given cartesian position. The
+         fields include density, potential, and force.  The density and
+         potential evaluations are separated into full, axisymmetric and
+         non-axisymmetric contributions.
 
-	 Field order is: dens0, potl0, dens, potl, fx, fy, fz. Dens0 and
-	 potl0 are the fields evaluated for l=0 or m=0 and dens and potl
-	 are evaluated for l>0 or m>0
+         You can get the fields labels by using the __call__ method of the
+         basis object.  This is equilevalent to a tuple of the getFields()
+         output with a list of field labels.
 
          Parameters
          ----------
@@ -912,16 +910,23 @@ void BasisFactoryClasses(py::module &m)
 
          Returns
          -------
-         None
+         fields: numpy.ndarray
+
+         See also
+         --------
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
     .def("getFieldsCoefs", &BasisClasses::BiorthBasis::getFieldsCoefs,
 	 R"(
-         Return the density, potential, and forces for a cartesian position.
+         Return the field evaluations for a given cartesian position
+         for every frame in a coefficient set.  The field evaluations are
+         produced by a call to getFields().
 
-	 Field order is: dens0, potl0, dens, potl, fx, fy, fz. Dens0 and
-	 potl0 are the fields evaluated for l=0 or m=0 and dens and potl
-	 are evaluated for l>0 or m>0
+         You get a dictionary of fields keyed by field name and an array
+         of evaluation times for convenience.  These times will be the same
+         as Times() for the coefficient object.
 
          Parameters
          ----------
@@ -938,6 +943,11 @@ void BasisFactoryClasses(py::module &m)
          -------
          tuple of a dictionary of fields of array values, and an 
              array of evaluation times
+
+         See also
+         --------
+         getFields  : get fields for the currently assigned coefficients
+         __call__   : same getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"), py::arg("coefs"))
     .def("setFieldType",       &BasisClasses::BiorthBasis::setFieldType,
@@ -1467,7 +1477,7 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          initFromArray : initialize for coefficient contributions
-         makeFromArray: create coefficients contributions
+         makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
     .def("makeFromArray",
@@ -1494,7 +1504,7 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          initFromArray : initialize for coefficient contributions
-         addFromArray : add contribution for particles
+         addFromArray  : add contribution for particles
          )",
 	 py::arg("time")
 	 )
@@ -1609,7 +1619,8 @@ void BasisFactoryClasses(py::module &m)
   py::class_<BasisClasses::AllTimeAccel, std::shared_ptr<BasisClasses::AllTimeAccel>, BasisClasses::AccelFunc>(m, "AllTimeAccel")
     .def(py::init<>(),
 	 R"(
-         AccelFunc instance that interpolates coefficients from the Coefs database for every time
+         AccelFunc instance that interpolates coefficients from the Coefs 
+         database for every time
 
          Returns
          -------
