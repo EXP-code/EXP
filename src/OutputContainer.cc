@@ -11,6 +11,7 @@
 #include <OutPSP.H>
 #include <OutPSQ.H>
 #include <OutPSR.H>
+#include <OutVel.H>
 #include <OutAscii.H>
 #include <OutCHKPT.H>
 #include <OutCHKPTQ.H>
@@ -74,6 +75,10 @@ void OutputContainer::initialize(void)
 	out.push_back(new OutPSR (node));
       }
     
+      else if ( !name.compare("outvel") ) {
+	out.push_back(new OutVel (node));
+      }
+    
       else if ( !name.compare("outascii") ) {
 	out.push_back(new OutAscii(node));
       }
@@ -135,9 +140,10 @@ OutputContainer::~OutputContainer()
 
 void OutputContainer::Run(int nstep, int mstep, bool final)
 {
-  // Don't rerun a step . . . but allow for multisteps to be run
+  // Don't rerun a step unless EXP is quitting . . . but allow for
+  // multisteps to be run
   //
-  if (fabs(tnow - last) < 0.5*dtime/Mstep) return;
+  if (not stop_signal and fabs(tnow - last) < 0.5*dtime/Mstep) return;
 
 #ifdef HAVE_LIBCUDA
   // List of components for cuda fetching
@@ -174,7 +180,6 @@ void OutputContainer::Run(int nstep, int mstep, bool final)
   // Mark: step ran at this time
   //
   last = tnow;
-
 
   // Wait check that all previous threads are finished
   //

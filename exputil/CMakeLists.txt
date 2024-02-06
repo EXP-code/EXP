@@ -8,7 +8,7 @@ set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc # Hankel.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc stack.cc
   localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc QDHT.cc
   YamlCheck.cc parseVersionString.cc EXPmath.cc laguerre_polynomial.cpp
-  YamlConfig.cc orthoTest.cc)
+  YamlConfig.cc orthoTest.cc OrthoFunction.cc)
 
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)
@@ -55,9 +55,9 @@ set(common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
   yaml-cpp ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
   ${FFTW_DOUBLE_LIB})
 
-if(CUDA_FOUND)
-  list(APPEND common_INCLUDE_DIRS ${CUDA_TOOLKIT_INCLUDE})
-  list(APPEND common_LINKLIB ${CUDA_LIBRARIES})
+if(ENABLE_CUDA)
+  list(APPEND common_INCLUDE_DIRS ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
+  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
 endif()
 
 if(ENABLE_XDR AND TIRPC_FOUND)

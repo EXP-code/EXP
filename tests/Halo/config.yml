@@ -47,6 +47,8 @@ Components:
 Output:
   - id : outlog
     parameters : {nint: 10}
+  - id : outcoef
+    parameters : {nint: 1, name: dark halo}
 
 # ------------------------------------------------------------------------
 # This is a sequence of external forces

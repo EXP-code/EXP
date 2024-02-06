@@ -20,8 +20,8 @@ if(PNG_FOUND)
   list(APPEND common_LINKLIB PNG::PNG)
 endif()
 
-if(CUDA_FOUND)
-  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+if(ENABLE_CUDA)
+  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
 endif()
 
 if(ENABLE_XDR AND TIRPC_FOUND)

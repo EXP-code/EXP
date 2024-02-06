@@ -15,7 +15,7 @@
 void clean_up(void)
 {
 				// Call for final output to files
-  output->Run(this_step, true);
+  output->Run(this_step, 0, true);
 				// Cache for restart
   external->finish();
 

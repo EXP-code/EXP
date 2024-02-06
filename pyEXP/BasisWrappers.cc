@@ -5,13 +5,14 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include <BasisFactory.H>
+#include <BiorthBasis.H>
+#include <FieldBasis.H>
 
 namespace py = pybind11;
 #include <TensorToArray.H>
 
-void BasisFactoryClasses(py::module &m) {
-
+void BasisFactoryClasses(py::module &m)
+{
   m.doc() =
     R"(
     BasisFactory class bindings
@@ -22,39 +23,61 @@ void BasisFactoryClasses(py::module &m) {
     forces and, together with the FieldGenerator, surfaces and fields for
     visualization.
 
-    Four bases are currently implemented:
+    Six bases are currently implemented:
+
      1. SphericalSL, the Sturm-Liouiville spherical basis;
+
      2. Cylindrical, created created by computing empirical orthogonal functions
         over a densely sampled SphericalSL basis;
+
      3. FlatDisk, an EOF rotation of the finite Bessel basis; and
-     4. Cube, a periodic cube basis whose functions are the Cartesian eigenfunctions
-        of the Cartesian Laplacian: sines and cosines.
+
+     4. Cube, a periodic cube basis whose functions are the Cartesian
+        eigenfunctions of the Cartesian Laplacian: sines and cosines.
+
+     5. FieldBasis, for computing user-provided quantities from a
+        phase-space snapshot.
+
+     6. VelocityBasis, for computing the mean field velocity fields from
+        a phase-space snapshot.  This is a specialized version of FieldBasis.
 
     Each of these bases take a YAML configuration file as input. These parameter
-    lists are as subset of and have the same structure as thosed used by EXP. The
-    factory and the individual constructors will check the parameters keys
-    and warn of mismatches for safety.  See the EXP documentation and
-    the pyEXP examples for more detail.  Other bases in EXP but not in
-    pyEXP include those for cubic and slab geometries and other special-
-    purpose bases such as the Hernquist, Clutton-Brock sphere and two-
-    dimensional disk basis.  These will be made available in a future
-    release if there is demand.  Note however that the Hernquist and
-    Clutton-Brock spheres can be constructed using SphericalSL with a
-    Hernquist of modified Plummer model as input.
+    lists are as subset of and have the same structure as thosed used by EXP.
+    The factory and the individual constructors will check the parameters keys
+    and warn of mismatches for safety.  See the EXP documentation and the pyEXP
+    examples for more detail.  The first four bases are the most often used bi-
+    orthogonal basis types used for computing the potential and forces from
+    density distributions.  Other biorthgonal bases in EXP but not in pyEXP
+    include those for cubic and slab geometries and other special-purpose bases
+    such as the Hernquist, Clutton-Brock sphere and two-dimensional disk basis.
+    These will be made available in a future release if there is demand.  Note
+    that the Hernquist and Clutton-Brock spheres can be constructed using
+    SphericalSL with a Hernquist of modified Plummer model as input.  The
+    FieldBasis and VelocityBasis are designed for producing summary data for
+    post-production analysis (using mSSA or eDMD, for example) and for
+    simulation cross-comparison.
 
     The primary functions of these basis classes are:
+
       1. To compute BFE coefficients from phase-space snapshots
          using the ParticleReader class. See help(pyEXP.read).
+
       2. To evaluate the fields from the basis and a coefficient
          object. See help(pyEXP.coefs) and help(pyEXP.field).
 
+      3. To provide compact summary field data for post-production
+         analysis.  See help(pyEXP.basis.FieldBasis) and
+         help(pyEXP.basis.VelocityBasis).
+
     Introspection
     -------------
-    The two bases have a 'cacheInfo(str)' member that reports the
-    parameters used to create the cached basis.  This may be used
-    grab the parameters for creating a basis.  At this point, you
-    must create the YAML configuration for the basis even if the
-    basis is cached.  This is a safety and consistency feature that
+    The first two bases have a 'cacheInfo(str)' member that reports the
+    parameters used to create the cached basis.  This may be used to
+    grab the parameters for creating a basis.  Cache use ensures that
+    your analyses are computed with the same bases used in a simulation
+    or with the same basis used on previous pyEXP invocations.  At this
+    point, you must create the YAML configuration for the basis even if
+    the basis is cached.  This is a safety and consistency feature that
     may be relaxed in a future version.
 
     Coefficient creation
@@ -67,14 +90,34 @@ void BasisFactoryClasses(py::module &m) {
     and an optional boolean functor used to select which particles to
     using the 'setSelector(functor)' member.  An example functor
     would be defined in Python as follows:
+
        def myFunctor(m, pos, vel, index):
           ret = False  # Default return value
           # some caculation with scalar mass, pos array, vel array and
           # integer index that sets ret to True if desired . . . 
           return ret
+
     If you are using 'createFromArray()', you will only have access to
     the mass and position vector.   You may clear and turn off the
     selector using the 'clrSelector()' member.
+
+    The FieldBasis class requires a user-specified phase-space field
+    functor that produces an list of quantities derived from the
+    phase space for each particle.  For example, to get a total
+    velocity field, we could use:
+
+       def totalVelocity(m, pos, vel):
+          # Some caculation with scalar mass, pos array, vel array.
+          # Total velocity for this example...
+          return [(vel[0]**2 + vel[1]**2 + vel[2]**2)**0.5]
+
+    This function is registered with the FieldBasis using:
+
+       basis->addPSFunction(totalVelocity, ['total velocity'])
+
+    The VelocityBasis is a FieldBasis that automatically sets the
+    phase-space field functor to cylindrical or spherical velocities
+    based on the 'dof' parameter.  More on 'dof' below.
 
     Scalablility
     ------------
@@ -102,10 +145,21 @@ void BasisFactoryClasses(py::module &m) {
     -------------------
     Each basis is assigned a natural coordinate system for field evaluation
     as follows:
+
      1. SphericalSL uses spherical coordinates
+
      2. Cylindrical uses cylindrical coordinates
+
      3. FlatDisk uses cylindrical coordinates
+
      4. Cube uses Cartesian coordinates
+
+     5. FieldBasis and VelocityBasis provides two natural geometries for
+        field evaluation: a two-dimensional (dof=2) polar disk and a
+        three-dimensional (dof=3) spherical geometry that are chosen using
+        the 'dof' parameter.  These use cylindrical and spherical
+        coordinates, respectively, by default.
+
     These default choices may be overridden by passing a string argument
     to the 'setFieldType()' member. The argument is case insensitive and only 
     distinguishing characters are necessary.  E.g. for 'Cylindrical', the 
@@ -143,31 +197,22 @@ void BasisFactoryClasses(py::module &m) {
   class PyBasis : public Basis
   {
   protected:
-    void all_eval_sph(double r, double costh, double phi,
-		  double& den0, double& den1,
-		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, all_eval_sph,
-			     r, costh, phi, den0, den1, pot0, pot1,
-			     potr, pott, potp);
+    std::vector<double> sph_eval(double r, double costh, double phi) override
+    {
+      PYBIND11_OVERRIDE_PURE(std::vector<double>, Basis,
+			     sph_eval, r, costh, phi);
     }
     
-    void all_eval_cyl(double r, double costh, double phi,
-		  double& den0, double& den1,
-		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, all_eval_cyl,
-			     r, costh, phi, den0, den1, pot0, pot1,
-			     potr, pott, potp);
+    std::vector<double> cyl_eval(double R, double z, double phi) override
+    {
+      PYBIND11_OVERRIDE_PURE(std::vector<double>, Basis,
+			     cyl_eval, R, z, phi);
     }
     
-    void all_eval_crt(double r, double costh, double phi,
-		  double& den0, double& den1,
-		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, all_eval_crt,
-			     r, costh, phi, den0, den1, pot0, pot1,
-			     potr, pott, potp);
+    std::vector<double> crt_eval(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE_PURE(std::vector<double>, Basis,
+			     crt_eval, x, y, z);
     }
     
     void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
@@ -186,22 +231,31 @@ void BasisFactoryClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(std::string, Basis, harmonic);
     }
 
+    std::vector<std::string> getFieldLabels(const Coord ctype) override {
+      PYBIND11_OVERRIDE_PURE(std::vector<std::string>, Basis, getFieldLabels, ctype);
+    }
+
+
   public:
     // Inherit the constructors
     using BasisClasses::Basis::Basis;
 
-    void getFields(double x, double y, double z,
-		   double& tdens0, double& tpotl0, double& tdens, double& tpotl,
-		   double& tpotx, double& tpoty, double& tpotz) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, getFields,
-			     x, y, z,
-			     tdens0, tpotl0, tdens, tpotl,
-			     tpotx, tpoty, tpotz
-			     );
+    std::vector<double> getFields(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Basis, getFields, x, y, z);
     }
 
+    using FCReturn = std::tuple<std::map<std::string, Eigen::VectorXd>,
+				Eigen::VectorXd>;
+
+    FCReturn getFieldsCoefs
+    (double x, double y, double z, CoefClasses::CoefsPtr coefs) override
+    {
+      PYBIND11_OVERRIDE(FCReturn, Basis, getFieldsCoefs, x, y, z, coefs);
+    }
+    
     void accumulate(double x, double y, double z, double mass) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, accumulate, x, y, z, mass);
+      PYBIND11_OVERRIDE_PURE(void, Basis, accumulate, mass, x, y, z, mass);
     }
 
     void reset_coefs(void) override {
@@ -212,22 +266,147 @@ void BasisFactoryClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(void, Basis, make_coefs,);
     }
 
+    virtual CoefClasses::CoefStrPtr
+    createFromReader(PR::PRptr reader, std::vector<double> ctr) override {
+      PYBIND11_OVERRIDE_PURE(CoefClasses::CoefStrPtr, Basis, createFromReader, reader, ctr);
+    }
+
+
+    virtual void initFromArray(std::vector<double> ctr) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, initFromArray, ctr);
+    }
+
+    virtual void
+    addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin);
+    }
+  };
+
+  class PyFieldBasis : public FieldBasis
+  {
+  protected:
+    std::vector<double> sph_eval(double r, double costh, double phi) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, FieldBasis,
+			sph_eval, r, costh, phi);
+    }
+    
+    std::vector<double> cyl_eval(double R, double z, double phi) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, FieldBasis,
+			cyl_eval, R, z, phi);
+    }
+    
+    std::vector<double> crt_eval(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double> , FieldBasis,
+			     crt_eval, x, y, z);
+    }
+    
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override
+    {
+      PYBIND11_OVERRIDE(void, FieldBasis, load_coefs, coefs, time);
+    }
+    
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override
+    {
+      PYBIND11_OVERRIDE(void, FieldBasis, set_coefs, coefs);
+    }
+
+    const std::string classname() override
+    {
+      PYBIND11_OVERRIDE(std::string, FieldBasis, classname);
+    }
+
+    const std::string harmonic() override
+    {
+      PYBIND11_OVERRIDE(std::string, FieldBasis, harmonic);
+    }
+
+  public:
+    // Inherit the constructors
+    using FieldBasis::FieldBasis;
+
+    std::vector<double> getFields(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, FieldBasis, getFields, x, y, z);
+    }
+
+    void accumulate(double m, double x, double y, double z,
+		    double u, double v, double w) override
+    {
+      PYBIND11_OVERRIDE(void, FieldBasis, accumulate, m, x, y, z, u, v, w);
+    }
+    
+    void reset_coefs(void) override {
+      PYBIND11_OVERRIDE(void, FieldBasis, reset_coefs,);
+    }
+
+    void make_coefs(void) override {
+      PYBIND11_OVERRIDE(void, FieldBasis, make_coefs,);
+    }
+
+  };
+
+  class PyBiorthBasis : public BiorthBasis
+  {
+  protected:
+    std::vector<double> sph_eval(double r, double costh, double phi) override
+    {
+      PYBIND11_OVERRIDE_PURE(std::vector<double>, BiorthBasis,
+			sph_eval, r, costh, phi);
+    }
+    
+    std::vector<double> cyl_eval(double R, double z, double phi) override
+    {
+      PYBIND11_OVERRIDE_PURE(std::vector<double>, BiorthBasis,
+			cyl_eval, R, z, phi);
+    }
+    
+    std::vector<double> crt_eval(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE_PURE(std::vector<double> , BiorthBasis,
+			crt_eval, x, y, z);
+    }
+    
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
+      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, load_coefs, coefs, time);
+    }
+    
+    const std::string classname() override {
+      PYBIND11_OVERRIDE_PURE(std::string, BiorthBasis, classname);
+    }
+
+    const std::string harmonic() override {
+      PYBIND11_OVERRIDE_PURE(std::string, BiorthBasis, harmonic);
+    }
+
+  public:
+    // Inherit the constructors
+    using BasisClasses::BiorthBasis::BiorthBasis;
+
+    void accumulate(double x, double y, double z, double mass) override {
+      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, accumulate, x, y, z, mass);
+    }
+
+    void reset_coefs(void) override {
+      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, reset_coefs,);
+    }
+
+    void make_coefs(void) override {
+      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, make_coefs,);
+    }
+
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override {
+      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, set_coefs, coefs);
+    }
+
   };
 
   class PySphericalSL : public SphericalSL
   {
   protected:
 
-    void all_eval(double r, double costh, double phi,
-		  double& den0, double& den1,
-		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp,
-		  Coord ctype) override {
-      PYBIND11_OVERRIDE(void, SphericalSL, all_eval,
-			r, costh, phi, den0, den1, pot0, pot1,
-			potr, pott, potp, ctype);
-    }
-    
     void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
       PYBIND11_OVERRIDE(void, SphericalSL, load_coefs, coefs, time);
     }
@@ -248,14 +427,9 @@ void BasisFactoryClasses(py::module &m) {
 
     // Inherit the constructors
     using SphericalSL::SphericalSL;
-    void getFields(double x, double y, double z,
-		   double& tdens0, double& tpotl0, double& tdens, double& tpotl,
-		   double& tpotx, double& tpoty, double& tpotz) override {
-      PYBIND11_OVERRIDE(void, SphericalSL, getFields,
-			x, y, z,
-			tdens0, tpotl0, tdens, tpotl,
-			tpotx, tpoty, tpotz
-			);
+
+    std::vector<double> getFields(double x, double y, double z) override {
+      PYBIND11_OVERRIDE(std::vector<double>, SphericalSL, getFields, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -276,16 +450,6 @@ void BasisFactoryClasses(py::module &m) {
   {
   protected:
 
-    void all_eval(double r, double costh, double phi,
-		  double& den0, double& den1,
-		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp,
-		  Coord ctype) override {
-      PYBIND11_OVERRIDE(void, Cylindrical, all_eval,
-			r, costh, phi, den0, den1, pot0, pot1,
-			potr, pott, potp);
-    }
-    
     void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
       PYBIND11_OVERRIDE(void, Cylindrical, load_coefs, coefs, time);
     }
@@ -307,14 +471,8 @@ void BasisFactoryClasses(py::module &m) {
     // Inherit the constructors
     using Cylindrical::Cylindrical;
 
-    void getFields(double x, double y, double z,
-		   double& tdens0, double& tpotl0, double& tdens, double& tpotl,
-		   double& tpotx, double& tpoty, double& tpotz) override {
-      PYBIND11_OVERRIDE(void, Cylindrical, getFields,
-			x, y, z,
-			tdens0, tpotl0, tdens, tpotl,
-			tpotx, tpoty, tpotz
-			);
+    std::vector<double> getFields(double x, double y, double z) override {
+      PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getFields, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -336,38 +494,28 @@ void BasisFactoryClasses(py::module &m) {
   {
   protected:
 
-    void all_eval_sph(double r, double costh, double phi,
-		      double& den0, double& den1,
-		      double& pot0, double& pot1,
-		      double& potr, double& pott, double& potp) override {
-      PYBIND11_OVERRIDE(void, FlatDisk, all_eval_sph,
-			r, costh, phi, den0, den1, pot0, pot1,
-			potr, pott, potp);
+    std::vector<double> sph_eval(double r, double costh, double phi) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, sph_eval, r, costh, phi);
     }
     
-    void all_eval_cyl(double R, double z, double phi,
-		      double& den0, double& den1,
-		      double& pot0, double& pot1,
-		      double& potR, double& potz, double& potp) override {
-      PYBIND11_OVERRIDE(void, FlatDisk, all_eval_cyl,
-			R, z, phi, den0, den1, pot0, pot1,
-			potR, potz, potp);
+    std::vector<double> cyl_eval(double R, double z, double phi) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, cyl_eval, R, z, phi);
     }
     
-    void all_eval_crt(double x, double y, double z,
-		      double& den0, double& den1,
-		      double& pot0, double& pot1,
-		      double& potx, double& poty, double& potz) override {
-      PYBIND11_OVERRIDE(void, FlatDisk, all_eval_crt,
-			x, y, z, den0, den1, pot0, pot1,
-			potx, poty, potz);
+    std::vector<double> crt_eval(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, crt_eval, x, y, z);
     }
     
-    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override
+    {
       PYBIND11_OVERRIDE(void, FlatDisk, load_coefs, coefs, time);
     }
     
-    void set_coefs(CoefClasses::CoefStrPtr coefs) override {
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override
+    {
       PYBIND11_OVERRIDE(void, FlatDisk, set_coefs, coefs);
     }
 
@@ -384,25 +532,23 @@ void BasisFactoryClasses(py::module &m) {
     // Inherit the constructors
     using FlatDisk::FlatDisk;
 
-    void getFields(double x, double y, double z,
-		   double& tdens0, double& tpotl0, double& tdens, double& tpotl,
-		   double& tpotx, double& tpoty, double& tpotz) override {
-      PYBIND11_OVERRIDE(void, FlatDisk, getFields,
-			x, y, z,
-			tdens0, tpotl0, tdens, tpotl,
-			tpotx, tpoty, tpotz
-			);
+    std::vector<double> getFields(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getFields, x, y, z);
     }
 
-    void accumulate(double x, double y, double z, double mass) override {
+    void accumulate(double x, double y, double z, double mass) override
+    {
       PYBIND11_OVERRIDE(void, FlatDisk, accumulate, x, y, z, mass);
     }
 
-    void reset_coefs(void) override {
+    void reset_coefs(void) override
+    {
       PYBIND11_OVERRIDE(void, FlatDisk, reset_coefs,);
     }
 
-    void make_coefs(void) override {
+    void make_coefs(void) override
+    {
       PYBIND11_OVERRIDE(void, FlatDisk, make_coefs,);
     }
 
@@ -413,48 +559,39 @@ void BasisFactoryClasses(py::module &m) {
   {
   protected:
 
-    
-    void all_eval_sph(double r, double costh, double phi,
-		  double& den0, double& den1,
-		  double& pot0, double& pot1,
-		  double& potr, double& pott, double& potp) override {
-      PYBIND11_OVERRIDE(void, Cube, all_eval_sph,
-			r, costh, phi, den0, den1, pot0, pot1,
-			potr, pott, potp);
+    std::vector<double> sph_eval(double r, double costh, double phi) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Cube, sph_eval, r, costh, phi);
     }
     
 
-    void all_eval_cyl(double R, double z, double phi,
-		      double& den0, double& den1,
-		      double& pot0, double& pot1,
-		      double& potR, double& potz, double& potp) override {
-      PYBIND11_OVERRIDE(void, Cube, all_eval_cyl,
-			R, z, phi, den0, den1, pot0, pot1,
-			potR, potz, potp);
+    std::vector<double> cyl_eval(double R, double z, double phi) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Cube, cyl_eval, R, z, phi);
     }
     
-    void all_eval_crt(double x, double y, double z,
-		      double& den0, double& den1,
-		      double& pot0, double& pot1,
-		      double& potx, double& poty, double& potz) override {
-      PYBIND11_OVERRIDE(void, Cube, all_eval_crt,
-			x, y, z, den0, den1, pot0, pot1,
-			potx, poty, potz);
+    std::vector<double> crt_eval(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Cube, crt_eval, x, y, z);
     }
     
-    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override
+    {
       PYBIND11_OVERRIDE(void, Cube, load_coefs, coefs, time);
     }
     
-    void set_coefs(CoefClasses::CoefStrPtr coefs) override {
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override
+    {
       PYBIND11_OVERRIDE(void, Cube, set_coefs, coefs);
     }
 
-    const std::string classname() override {
+    const std::string classname() override
+    {
       PYBIND11_OVERRIDE(std::string, Cube, classname);
     }
 
-    const std::string harmonic() override {
+    const std::string harmonic() override
+    {
       PYBIND11_OVERRIDE(std::string, Cube, harmonic);
     }
 
@@ -463,25 +600,23 @@ void BasisFactoryClasses(py::module &m) {
     // Inherit the constructors
     using Cube::Cube;
 
-    void getFields(double x, double y, double z,
-		   double& tdens0, double& tpotl0, double& tdens, double& tpotl,
-		   double& tpotx, double& tpoty, double& tpotz) override {
-      PYBIND11_OVERRIDE(void, Cube, getFields,
-			x, y, z,
-			tdens0, tpotl0, tdens, tpotl,
-			tpotx, tpoty, tpotz
-			);
+    std::vector<double> getFields(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Cube, getFields, x, y, z);
     }
 
-    void accumulate(double x, double y, double z, double mass) override {
+    void accumulate(double x, double y, double z, double mass) override
+    {
       PYBIND11_OVERRIDE(void, Cube, accumulate, x, y, z, mass);
     }
 
-    void reset_coefs(void) override {
+    void reset_coefs(void) override
+    {
       PYBIND11_OVERRIDE(void, Cube, reset_coefs,);
     }
 
-    void make_coefs(void) override {
+    void make_coefs(void) override
+    {
       PYBIND11_OVERRIDE(void, Cube, make_coefs,);
     }
 
@@ -500,7 +635,133 @@ void BasisFactoryClasses(py::module &m) {
     }
   };
 
-  py::class_<BasisClasses::Basis, std::shared_ptr<BasisClasses::Basis>, PyBasis>(m, "Basis")
+
+  py::class_<BasisClasses::Basis, std::shared_ptr<BasisClasses::Basis>, PyBasis>
+    (m, "Basis")
+    .def("factory",            &BasisClasses::BiorthBasis::factory_string,
+	 R"(
+         Generate a basis from a YAML configuration supplied as a string
+
+         Parameters
+         ----------
+         config : str
+             the YAML config string
+
+         Returns
+         -------
+         None
+         )")
+    .def("__call__", [](BasisClasses::Basis& A,	double x, double y, double z)
+    {
+      return A.evaluate(x, y, z);
+    },
+      R"(
+         Evaluate the field at the given point, returning the tuple of
+         field values and field labels as a pair of lists.
+
+         Parameters
+         ----------
+         x, y, z : float values
+             desired position for field evaluation
+
+         Returns
+         -------
+         tuple of numpy.ndarray and list of labels
+             the field array and label array
+
+         Note
+         ----
+         This is an experimental feature
+         )"
+      )
+    .def("createFromArray",
+	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& ps,
+	    double time, std::vector<double> center, bool roundrobin)
+	 {
+	   return A.createFromArray(mass, ps, time, center, roundrobin);
+	 },
+	 R"(
+         Generate the coefficients from a mass and position array or,
+	 phase-space array, time, and an optional expansion center location. 
+
+         Parameters
+         ----------
+         mass : list
+             vector containing the masses for the n particles
+         ps   : numpy.ndarray
+             an array with n rows and 6 columns (x, y, z, u, v, w)
+             or 3 columns (x, y, z) for a biorthogonal basis
+         roundrobin : bool
+             the particles will be accumulated for each process 
+             round-robin style with MPI by default.  This may be 
+             disabled with 'roundrobin=false'.
+
+         Returns
+         -------
+         CoefStruct
+             the coefficient structure derived from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray  : add contribution for particles
+         makeFromArray : create coefficients contributions
+         )",
+	 py::arg("mass"), py::arg("pos"), py::arg("time"),
+	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("roundrobin") = true)
+    .def("makeFromArray",
+	 [](BasisClasses::Basis& A, double time)
+	 {
+	   return A.makeFromArray(time);
+	 },
+	 R"(
+         Make the coefficients
+
+         This is the final call in the initFromArray(), addFromArray()...
+	 addFromArray()...makeFromArray() call sequence.
+
+         Parameters
+         ----------
+         time : float
+             snapshot time
+
+         Returns
+         -------
+         CoefStructure
+             the coefficient structure created from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray  : add contribution for particles
+         )",
+	 py::arg("time")
+	 )
+    .def("setSelector", &BasisClasses::Basis::setSelector,
+	 R"(
+         Register a Python particle selection functor. 
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         clrSelector : clears the selection set here
+         )")
+    .def("clrSelector", &BasisClasses::Basis::clrSelector,
+	 R"(
+         Clear the previously registered particle selection functor
+
+         Returns
+         -------
+         None
+         )");
+
+
+  py::class_<BasisClasses::BiorthBasis, std::shared_ptr<BasisClasses::BiorthBasis>, PyBiorthBasis, BasisClasses::Basis>
+    (m, "BiorthBasis")
     .def(py::init<const std::string&>(),
 	 R"(
          Initialize a biorthogonal basis
@@ -512,10 +773,15 @@ void BasisFactoryClasses(py::module &m) {
 
          Returns
          -------
-         Basis
-             the Basis object
+         BiorthBasis
+             the BiorthBasis object
+
+         Notes
+         -----
+         Needed for copying objects in the Python interpreter.  This can not be
+         instantiated directly.
         )", py::arg("YAMLstring"))
-    .def("createFromReader", &BasisClasses::Basis::createFromReader,
+    .def("createFromReader", &BasisClasses::BiorthBasis::createFromReader,
 	 R"(
          Generate the coefficients from the supplied ParticleReader
 
@@ -534,7 +800,7 @@ void BasisFactoryClasses(py::module &m) {
 	 py::arg("reader"), 
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("createFromArray",
-	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
+	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
 	    double time, std::vector<double> center, bool roundrobin)
 	 {
 	   return A.createFromArray(mass, pos, time, center, roundrobin);
@@ -562,14 +828,14 @@ void BasisFactoryClasses(py::module &m) {
          See also
          --------
          initFromArray : initialize for coefficient contributions
-         addFromArray : add contribution for particles
-         makeFromArray: create coefficients contributions
+         addFromArray  : add contribution for particles
+         makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0),
 	 py::arg("roundrobin") = true)
     .def("initFromArray",
-	 [](BasisClasses::Basis& A, std::vector<double> center)
+	 [](BasisClasses::BiorthBasis& A, std::vector<double> center)
 	 {
 	   return A.initFromArray(center);
 	 },
@@ -598,7 +864,7 @@ void BasisFactoryClasses(py::module &m) {
          )",
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("addFromArray",
-	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& pos)
+	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos)
 	 {
 	   return A.addFromArray(mass, pos);
 	 },
@@ -619,72 +885,19 @@ void BasisFactoryClasses(py::module &m) {
          See also
          --------
          initFromArray : initialize for coefficient contributions
-         makeFromArray: create coefficients contributions
+         makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
-    .def("makeFromArray",
-	 [](BasisClasses::Basis& A, double time)
-	 {
-	   return A.makeFromArray(time);
-	 },
+    .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
-         Make the coefficients
+         Return the field evaluations for a given cartesian position. The
+         fields include density, potential, and force.  The density and
+         potential evaluations are separated into full, axisymmetric and
+         non-axisymmetric contributions.
 
-         This is the final call in the initFromArray(), addFromArray()...
-	 addFromArray()...makeFromArray() call sequence.
-
-         Parameters
-         ----------
-         time : float
-             snapshot time
-
-         Returns
-         -------
-         CoefStructure
-             the coefficient structure created from the particles
-
-         See also
-         --------
-         initFromArray : initialize for coefficient contributions
-         addFromArray : add contribution for particles
-         )",
-	 py::arg("time")
-	 )
-    .def("setSelector", &BasisClasses::Basis::setSelector,
-	 R"(
-         Register a Python particle selection functor. 
-
-         Returns
-         -------
-         None
-
-         See also
-         --------
-         clrSelector : clears the selection set here
-         )")
-    .def("clrSelector", &BasisClasses::Basis::clrSelector,
-	 R"(
-         Clear the previously registered particle selection functor
-
-         Returns
-         -------
-         None
-         )")
-    .def("getFields",
-	 [](BasisClasses::Basis& A, double x, double y, double z)
-	 {
-	   std::vector<double> ret(7);
-	   A.getFields(x, y, z,
-		       ret[0], ret[1], ret[2], ret[3],
-		       ret[4], ret[5], ret[6]);
-	   return ret;
-	 },
-	 R"(
-         Return the density, potential, and forces for a cartesian position.
-
-	 Field order is: dens0, potl0, dens, potl, fx, fy, fz. Dens0 and
-	 potl0 are the fields evaluated for l=0 or m=0 and dens and potl
-	 are evaluated for l>0 or m>0
+         You can get the fields labels by using the __call__ method of the
+         basis object.  This is equilevalent to a tuple of the getFields()
+         output with a list of field labels.
 
          Parameters
          ----------
@@ -697,10 +910,47 @@ void BasisFactoryClasses(py::module &m) {
 
          Returns
          -------
-         None
+         fields: numpy.ndarray
+
+         See also
+         --------
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
-    .def("setFieldType",       &BasisClasses::Basis::setFieldType,
+    .def("getFieldsCoefs", &BasisClasses::BiorthBasis::getFieldsCoefs,
+	 R"(
+         Return the field evaluations for a given cartesian position
+         for every frame in a coefficient set.  The field evaluations are
+         produced by a call to getFields().
+
+         You get a dictionary of fields keyed by field name and an array
+         of evaluation times for convenience.  These times will be the same
+         as Times() for the coefficient object.
+
+         Parameters
+         ----------
+         x : float
+             x-axis position
+         y : float
+             y-axis position
+         z : float
+             z-axis position
+         coefs: CoefClasses::Coefs
+             the coefficient set
+
+         Returns
+         -------
+         tuple of a dictionary of fields of array values, and an 
+             array of evaluation times
+
+         See also
+         --------
+         getFields  : get fields for the currently assigned coefficients
+         __call__   : same getFields() but provides field labels in a tuple
+         )",
+	 py::arg("x"), py::arg("y"), py::arg("z"), py::arg("coefs"))
+    .def("setFieldType",       &BasisClasses::BiorthBasis::setFieldType,
          R"(
          Set the coordinate system for force evaluations.  The natural 
          coordinates for the basis class are the default; spherical
@@ -719,7 +969,7 @@ void BasisFactoryClasses(py::module &m) {
          None
          )",
 	 py::arg("coord"))
-    .def("getFieldType",       &BasisClasses::Basis::getFieldType,
+    .def("getFieldType",       &BasisClasses::BiorthBasis::getFieldType,
          R"(
          Get the coordinate system for force evaluations for inspection.
 
@@ -731,8 +981,11 @@ void BasisFactoryClasses(py::module &m) {
          -------
          None
          )")
-    .def("accumulate",         &BasisClasses::Basis::accumulate,
-	 R"(
+    .def("accumulate", [](BasisClasses::BiorthBasis& A, double x, double y, double z, double mass)
+    {
+      return A.accumulate(x, y, z, mass);
+    },
+      R"(
          Add the contribution of a single particle to the coefficients
 
          Parameters
@@ -751,7 +1004,7 @@ void BasisFactoryClasses(py::module &m) {
          None
         )", 
 	 py::arg("x"), py::arg("y"), py::arg("z"), py::arg("mass"))
-    .def("getMass",            &BasisClasses::Basis::getMass,
+    .def("getMass",            &BasisClasses::BiorthBasis::getMass,
 	 R"(
          Return the total mass of particles contributing the current coefficient set
 
@@ -760,7 +1013,7 @@ void BasisFactoryClasses(py::module &m) {
          out : float
             total mass value
          )")
-    .def("reset_coefs",        &BasisClasses::Basis::reset_coefs,
+    .def("reset_coefs",        &BasisClasses::BiorthBasis::reset_coefs,
 	 R"(
          Reset the coefficients to begin a generating a new set
 
@@ -768,7 +1021,7 @@ void BasisFactoryClasses(py::module &m) {
          -------
          None
          )")
-    .def("make_coefs",         &BasisClasses::Basis::make_coefs,
+    .def("make_coefs",         &BasisClasses::BiorthBasis::make_coefs,
 	 R"(
          Create the coefficients after particle accumuluation is complete
 
@@ -776,7 +1029,7 @@ void BasisFactoryClasses(py::module &m) {
          -------
          None
          )")
-    .def("set_coefs",          &BasisClasses::Basis::set_coefs,
+    .def("set_coefs",          &BasisClasses::BiorthBasis::set_coefs,
 	 R"(
          Install a new set of coefficients from a CoefStruct
 
@@ -787,22 +1040,9 @@ void BasisFactoryClasses(py::module &m) {
          Returns
          -------
          None
-         )", py::arg("coefs"))
-    .def("factory",            &BasisClasses::Basis::factory_string,
-	 R"(
-         Generate a basis from a YAML configuration supplied as a string
+         )", py::arg("coefs"));
 
-         Parameters
-         ----------
-         config : str
-             the YAML config string
-
-         Returns
-         -------
-         None
-         )");
-
-    py::class_<BasisClasses::SphericalSL, std::shared_ptr<BasisClasses::SphericalSL>, PySphericalSL, BasisClasses::Basis>(m, "SphericalSL")
+    py::class_<BasisClasses::SphericalSL, std::shared_ptr<BasisClasses::SphericalSL>, PySphericalSL, BasisClasses::BiorthBasis>(m, "SphericalSL")
       .def(py::init<const std::string&>(),
 	 R"(
          Create a spherical Sturm-Liouville basis
@@ -815,7 +1055,7 @@ void BasisFactoryClasses(py::module &m) {
          Returns
          -------
          SphericalSL
-              the new intance
+              the new instance
          )", py::arg("YAMLstring"))
 
       .def("getBasis", &BasisClasses::SphericalSL::getBasis,
@@ -888,7 +1128,7 @@ void BasisFactoryClasses(py::module &m) {
         )",
 	py::arg("cachefile"));
 
-  py::class_<BasisClasses::Cylindrical, std::shared_ptr<BasisClasses::Cylindrical>, PyCylindrical, BasisClasses::Basis>(m, "Cylindrical")
+  py::class_<BasisClasses::Cylindrical, std::shared_ptr<BasisClasses::Cylindrical>, PyCylindrical, BasisClasses::BiorthBasis>(m, "Cylindrical")
     .def(py::init<const std::string&>(),
 	 R"(
 	 Create a cylindrical EOF basis
@@ -927,6 +1167,8 @@ void BasisFactoryClasses(py::module &m) {
               maximum value in vertical height
          numz : int, default=40
               number of linearly-space evaluation points in height
+         linear : bool, default=True
+              use linear spacing
 
          Returns
          -------
@@ -938,7 +1180,8 @@ void BasisFactoryClasses(py::module &m) {
 	 py::arg("numr")=40,
 	 py::arg("zmin")=-0.1,
 	 py::arg("zmax")=0.1,
-	 py::arg("numz")=40 )
+	 py::arg("numz")=40,
+	 py::arg("linear")=true)
     // The following member needs to be a lambda capture because
     // orthoCheck is not in the base class and needs to have different
     // parameters depending on the basis type.  Here, the quadrature
@@ -982,7 +1225,7 @@ void BasisFactoryClasses(py::module &m) {
       )",
       py::arg("cachefile"));
 
-  py::class_<BasisClasses::FlatDisk, std::shared_ptr<BasisClasses::FlatDisk>, PyFlatDisk, BasisClasses::Basis>(m, "FlatDisk")
+  py::class_<BasisClasses::FlatDisk, std::shared_ptr<BasisClasses::FlatDisk>, PyFlatDisk, BasisClasses::BiorthBasis>(m, "FlatDisk")
     .def(py::init<const std::string&>(),
 	 R"(
          Create a 2d disk basis
@@ -1070,7 +1313,7 @@ void BasisFactoryClasses(py::module &m) {
       )",
       py::arg("cachefile"));
 
-  py::class_<BasisClasses::Cube, std::shared_ptr<BasisClasses::Cube>, PyCube, BasisClasses::Basis>(m, "Cube")
+  py::class_<BasisClasses::Cube, std::shared_ptr<BasisClasses::Cube>, PyCube, BasisClasses::BiorthBasis>(m, "Cube")
     .def(py::init<const std::string&>(),
 	 R"(
          Create a 3d periodic cube basis
@@ -1110,9 +1353,237 @@ void BasisFactoryClasses(py::module &m) {
       -------
       numpy.ndarray)
           list of numpy.ndarrays from [0, ... , dx*dy*dz]
-       )"
+      )"
       );
 
+
+  py::class_<BasisClasses::FieldBasis, std::shared_ptr<BasisClasses::FieldBasis>, PyFieldBasis, BasisClasses::Basis>(m, "FieldBasis")
+      .def(py::init<const std::string&>(),
+	 R"(
+         Create a orthogonal basis for representing general phase-space fields
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the field basis
+
+         Returns
+         -------
+         FieldBasis
+              the new instance
+
+         Notes
+         -----
+         A FieldBasis instance may be created directly or by the Basis.factory().
+         The fields are defined by a user provided function, addPSFunction().
+         VelocityBasis is derived from this class and provides a field function
+         for velocity fields by default.
+
+         The evaluation geometry is a polar using the phase-space x-y coordinates
+         if the 'dof' parameter is 2 and spherical using x-y-z coordinates if
+         'dof' is 3.  The output values and their coordinates are determined by
+         the user-suppied field function.
+
+         See also
+         --------
+         addPSFunction: register the user-supplied field generating function and
+                        field names.
+         )", py::arg("YAMLstring"))
+    .def("addPSFunction", &BasisClasses::FieldBasis::addPSFunction,
+	 R"(
+         Register a functor that returns a list of derived phase-space
+         fields and a list of labels desribing them
+
+         Parameters
+         ----------
+         function : [float,...] = f(float, [float, float, float], [float, float, float]
+             Returns a list of n float values derived from mass, position,
+             and velocity of the following form:
+             [a, b, c] = function(mass, [x, y, z], [u, v, w])
+         labels : list of str
+	     labels for the fields, e.g. ['a', 'b', 'c']
+
+         Returns
+         -------
+         None
+         )",
+	 py::arg("function"), py::arg("labels"))
+    .def("createFromReader", &BasisClasses::FieldBasis::createFromReader,
+	 R"(
+         Generate the coefficients from the supplied ParticleReader
+
+         Parameters
+         ----------
+         reader : Particle reader
+             the ParticleReader instance
+         center : list, default=[0, 0, 0]
+	     an optional expansion center location
+
+         Returns
+         -------
+         CoefStruct
+             the basis coefficients computed from the particles
+         )",
+	 py::arg("reader"), 
+	 py::arg("center") = std::vector<double>(3, 0.0))
+    .def("initFromArray",
+	 [](BasisClasses::FieldBasis& A, std::vector<double> center)
+	 {
+	   return A.initFromArray(center);
+	 },
+	 R"(
+         Initialize coefficient accumulation
+
+         Parameters
+         ----------
+         center : list, default=[0, 0, 0]
+             vector of center positions
+
+         Returns
+         -------
+         None
+
+         Notes
+         -----
+	 After initialization, phase-space data is then added with 
+         addFromArray() call.  addFromArray() may be called multiple times 
+         with any unique partition of phase space. The final generation is 
+         finished with a call to makeFromArray() with the snapshot time.  
+         This final call returns the coefficient set. This sequence of 
+         calls is identical to createFromArray() for a single set of 
+         phase space arrays but allows for generation from very large 
+         phase-space sets that can not be stored in physical memory.
+         )",
+	 py::arg("center") = std::vector<double>(3, 0.0))
+    .def("addFromArray",
+	 [](BasisClasses::FieldBasis& A, Eigen::VectorXd& mass, RowMatrixXd& ps)
+	 {
+	   return A.addFromArray(mass, ps);
+	 },
+	 R"(
+         Add particle contributions to coefficients
+
+         Parameters
+         ----------
+         mass : list
+             vector containing the masses for the n particles
+         pos : numpy.ndarray
+             an array with n rows and 6 columns (x, y, z, u, v, w)
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         makeFromArray : create coefficients contributions
+         )",
+	 py::arg("mass"), py::arg("pos"))
+    .def("makeFromArray",
+	 [](BasisClasses::FieldBasis& A, double time)
+	 {
+	   return A.makeFromArray(time);
+	 },
+	 R"(
+         Make the coefficients
+
+         This is the final call in the initFromArray(), addFromArray()...
+	 addFromArray()...makeFromArray() call sequence.
+
+         Parameters
+         ----------
+         time : float
+             snapshot time
+
+         Returns
+         -------
+         CoefStructure
+             the coefficient structure created from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray  : add contribution for particles
+         )",
+	 py::arg("time")
+	 )
+      .def("getBasis", &BasisClasses::FieldBasis::getBasis,
+	   R"(
+           Get basis functions
+
+	   Evaluate the orthogonal basis functions on a logarithmically
+	   spaced grid for inspection. The structure is a two-grid of dimension
+	   lmax by nmax each pointing to a dictionary of 1-d arrays for the 
+           velocity fields depending on the geometry (dof=2->cylindrical, 
+           dof=3->spherical)
+
+           Parameters
+           ----------
+           logxmin : float, default=-3.0
+                minimum mapped radius in log10 units
+           logxmax : float, default=0.5
+                maximum mapped radius in log10 units
+           numr : int, default=400
+                number of equally spaced output points
+
+           Returns
+           -------
+           list(list(dict))
+               dictionaries of basis functions as lists indexed by l, n
+           )",
+	   py::arg("logxmin")=-3.0,
+	   py::arg("logxmax")=0.5,
+	   py::arg("numr")=400)
+      // The following member needs to be a lambda capture because
+      // orthoCheck is not in the base class and needs to have
+      // different parameters depending on the basis type.  Here the
+      // user can and will often need to specify a quadrature value.
+      .def("orthoCheck", [](BasisClasses::FieldBasis& A)
+      {
+	return A.orthoCheck();
+      },
+	R"(
+        Check orthgonality of basis functions by quadrature
+
+        Inner-product matrix of orthogonal functions
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        numpy.ndarray
+	    orthogonality matrix
+        )"
+	);
+
+  py::class_<BasisClasses::VelocityBasis, std::shared_ptr<BasisClasses::VelocityBasis>, BasisClasses::FieldBasis>(m, "VelocityBasis")
+      .def(py::init<const std::string&>(),
+	 R"(
+         Create a orthogonal velocity-field basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the velocity basis
+
+         Returns
+         -------
+         VelocityBasis
+              the new instance
+
+         Notes
+         -----
+         This is a FieldBasis specialized to return velocity fields in
+         spherical, cylindrical, or Cartesian systems.  By default, the
+         coordinates will be cylindrical if the 'dof' parameter is 2 and
+         spherical if the 'dof' parameter is 3. This default can be changed
+         using the setFieldType() member.  For example, the following call:
+              basis->setFieldType('cart')
+         will selection Cartesian velocities u, v, w for output.
+         )", py::arg("YAMLstring"));
 
   py::class_<BasisClasses::AccelFunc, std::shared_ptr<BasisClasses::AccelFunc>, PyAccelFunc>(m, "AccelFunc")
     .def(py::init<>(),
@@ -1148,7 +1619,8 @@ void BasisFactoryClasses(py::module &m) {
   py::class_<BasisClasses::AllTimeAccel, std::shared_ptr<BasisClasses::AllTimeAccel>, BasisClasses::AccelFunc>(m, "AllTimeAccel")
     .def(py::init<>(),
 	 R"(
-         AccelFunc instance that interpolates coefficients from the Coefs database for every time
+         AccelFunc instance that interpolates coefficients from the Coefs 
+         database for every time
 
          Returns
          -------

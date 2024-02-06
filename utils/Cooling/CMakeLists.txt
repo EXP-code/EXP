@@ -9,7 +9,7 @@ if(ENABLE_DSMC)
     yaml-cpp exputil testdsmc ${VTK_LIBRARIES})
 
   if(HAVE_CUDA)
-    list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+    list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
   endif()
 
   target_include_directories(hctest

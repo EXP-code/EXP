@@ -140,8 +140,6 @@ void OutPSP::Run(int n, int mstep, bool last)
   MPI_Info   info;
   int        len;
 
-  psdump = n;
-
   // Output name
   //
   ostringstream fname;

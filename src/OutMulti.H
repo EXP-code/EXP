@@ -13,8 +13,10 @@ class OutMulti : public Output
 
 private:
 
-  string filename;
+  std::string filename;
   void initialize(void);
+
+  double prev = -std::numeric_limits<double>::max();
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21) # Needed for CUA, MPI, and CTest features
+cmake_minimum_required(VERSION 3.21) # Needed for CUDA, MPI, and CTest features
 
 project(
   EXP
@@ -44,7 +44,7 @@ option(ENABLE_SLURM "Enable SLURM checkpointing support" FALSE)
 option(ENABLE_XDR "Enable RPC/XDR support for Tipsy standard" FALSE)
 option(ENABLE_VTK "Configure VTK if available" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
-option(ENABLE_DSMC "Enable DSCM module" FALSE)
+option(ENABLE_DSMC "Enable DSMC module" FALSE)
 option(ENABLE_USER "Enable basic user modules" ON)
 option(ENABLE_SLCHECK "Enable *careful* Sturm-Liouville solutions" TRUE)
 option(ENABLE_TESTS "Enable build tests for EXP, pyEXP and helpers" ON)
@@ -84,21 +84,18 @@ if(ENABLE_VTK)
   find_package(VTK)
 endif()
 
-# Optional Cuda support
+# Optional CUDA support
 if(ENABLE_CUDA)
-  find_package(CUDA REQUIRED)
   enable_language(CUDA)
-  find_cuda_helper_libs(nvToolsExt)
-  cuda_select_nvcc_arch_flags(ARCH_FLAGS 5.2 6.0 6.1 7.0 7.2 7.5)
-  # list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
-  set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${ARCH_FLAGS}" CACHE STRING "Global compile flags for nvcc")
-  message("CUDA arch flags are: ${ARCH_FLAGS}")
+  find_package(CUDAToolkit REQUIRED)
+  message(STATUS "Using CUDA architectures ${CMAKE_CUDA_ARCHITECTURES} by default.  Please set the CUDAARCHS environment variable to override this.")
   set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -w"
     CACHE STRING "Global cuda flags for Release build" FORCE)
   set(CMAKE_CUDA_FLAGS_MINSIZEREL "-O3 -w"
     CACHE STRING "Global cuda flags for MinSizeRel build" FORCE)
   set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O2 -g -w"
     CACHE STRING "Global cuda flags for RelWithDebInfo build" FORCE)
+  set(HAVE_LIBCUDA TRUE)
 endif()
 
 # For mpi
@@ -140,9 +137,6 @@ if(VTK_FOUND)
   else()
     include_directories("${VTK_PREFIX_PATH}/include/vtk-${VTK_MAJOR_VERSION}.${VTK_MINOR_VERSION}")
   endif()
-endif()
-if(CUDA_FOUND)
-  set(HAVE_LIBCUDA TRUE)
 endif()
 if(HDF5_FOUND)
   set(HAVE_HDF5 TRUE)
@@ -189,7 +183,7 @@ else()
 endif()
 
 # For setting the default size of the Cuda real attribute array
-set(CUDA_EXP_DATTRIB "0" CACHE STRING
+set(CUDA_EXP_DATTRIB "4" CACHE STRING
   "Number of real particle attributes for Cuda particle structure")
 add_compile_definitions(DATTRIB_CUDA=${CUDA_EXP_DATTRIB})
 

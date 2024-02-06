@@ -6,8 +6,8 @@ set(bin_PROGRAMS shrinkics gensph gendisk gendisk2d gsphere pstmod
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
-if(CUDA_FOUND)
-  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+if(ENABLE_CUDA)
+  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
 endif()
 
 if(ENABLE_XDR AND TIRPC_FOUND)

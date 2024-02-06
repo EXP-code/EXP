@@ -15,9 +15,9 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
   ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${FFTW_INCLUDE_DIRS})
 
 
-if(CUDA_FOUND)
-  list(APPEND common_INCLUDE ${CUDA_TOOLKIT_INCLUDE})
-  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+if(ENABLE_CUDA)
+  list(APPEND common_INCLUDE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
+  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
 endif()
 
 if(SLURM_FOUND)
@@ -31,9 +31,10 @@ endif()
 
 # Make the expcoef shared library
 #
-set(expcoef_SOURCES BasisFactory.cc CoefContainer.cc CoefStruct.cc
-  FieldGenerator.cc expMSSA.cc Coefficients.cc KMeans.cc Centering.cc
-  ParticleIterator.cc Koopman.cc)
+set(expcoef_SOURCES BasisFactory.cc BiorthBasis.cc FieldBasis.cc
+  CoefContainer.cc CoefStruct.cc FieldGenerator.cc expMSSA.cc
+  Coefficients.cc KMeans.cc Centering.cc ParticleIterator.cc
+  Koopman.cc)
 add_library(expcoef ${expcoef_SOURCES})
 set_target_properties(expcoef PROPERTIES OUTPUT_NAME expcoef)
 target_include_directories(expcoef PUBLIC ${common_INCLUDE})

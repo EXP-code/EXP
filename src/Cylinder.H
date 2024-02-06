@@ -60,7 +60,7 @@ class MixtureBasis;
 
     @param nvtk is the number steps between vtk visualization output for the PCA variance/error analyses
 
-    @param eof_file is the name of the basis cache file
+    @param cachename is the name of the basis cache file
 
     @param override boolean ignores the specificed cache file name and performes a recomputation
 
@@ -133,7 +133,7 @@ private:
   int ncylnx, ncylny, ncylr;
   double hcyl, hexp, snr, rem;
   int nmax, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
-  string eof_file;
+  std::string cachename;
   bool self_consistent, logarithmic, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
   bool try_cache, firstime, dump_basis, compute, firstime_coef;
 
@@ -341,7 +341,7 @@ public:
   //! \param npca0 is the first step for Hall coefficient computaton 
   //! \param nvtk is the number of step VTK output 
   //! \param pcadiag set to true enables PCA output diagnostics (default: false)
-  //! \param eof_file is an override for the default EOF cache file name
+  //! \param cachename is an override for the default EOF cache file name
   //! \param vflag sets verbosity (see EmpCylSL.cc)
   //! \param rnum is the number of Legendre radial knots for numerical basis computation
   //! \param pnum is the number of azimuthal knots for numerical basis computation

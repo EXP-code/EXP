@@ -79,6 +79,7 @@ Cylinder::valid_keys = {
   "npca",
   "npca0",
   "nvtk",
+  "cachename",
   "eof_file",
   "override",
   "samplesz",
@@ -177,7 +178,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   lastPlayTime    = -std::numeric_limits<double>::max();
   EVEN_M          = false;
   eof_over        = false;
-  eof_file        = "";
+  cachename       = "";
 #if HAVE_LIBCUDA==1
   cuda_aware      = true;
 #endif
@@ -200,14 +201,10 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   EmpCylSL::logarithmic = logarithmic;
   EmpCylSL::VFLAG       = vflag;
 
-  // Default cache file name
-  //
-  std::string cachename = outdir + ".eof.cache." + runtag;
-
   // EOF default file name override.  Default uses runtag suffix as
   // above.  Override file must exist if explicitly specified.
   //
-  if (eof_file.size()) cachename = eof_file;
+  if (cachename.size()==0) cachename = outdir + ".eof.cache." + runtag;
 
   // Make the empirical orthogonal basis instance
   //
@@ -250,7 +247,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     // whether first time or restart.  Aborts if overridden cache is
     // not found.
     //
-    if (eof_file.size()>0) {
+    if (cachename.size()>0) {
 
       cache_ok = ortho->read_cache();
       
@@ -337,7 +334,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		<< std::endl << sep << "npca="        << npca
 		<< std::endl << sep << "npca0="       << npca0
 		<< std::endl << sep << "pcadiag="     << pcadiag
-		<< std::endl << sep << "eof_file="    << eof_file
+		<< std::endl << sep << "cachename="   << cachename
 		<< std::endl << sep << "override="    << std::boolalpha << eof_over
 		<< std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 		<< std::endl << sep << "logarithmic=" << logarithmic
@@ -366,7 +363,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << std::endl << sep << "npca="        << npca
 	      << std::endl << sep << "npca0="       << npca0
 	      << std::endl << sep << "pcadiag="     << pcadiag
-	      << std::endl << sep << "eof_file="    << eof_file
+	      << std::endl << sep << "cachename="   << cachename
 	      << std::endl << sep << "override="    << std::boolalpha << eof_over
 	      << std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 	      << std::endl << sep << "logarithmic=" << logarithmic
@@ -431,7 +428,8 @@ void Cylinder::initialize()
     if (conf["npca"      ])       npca  = conf["npca"      ].as<int>();
     if (conf["npca0"     ])      npca0  = conf["npca0"     ].as<int>();
     if (conf["nvtk"      ])       nvtk  = conf["nvtk"      ].as<int>();
-    if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
+    if (conf["cachename" ])   cachename = conf["cachename" ].as<std::string>();
+    if (conf["eof_file"  ])   cachename = conf["eof_file"  ].as<std::string>();
     if (conf["override"  ])   eof_over  = conf["override"  ].as<bool>();
     if (conf["samplesz"  ])   defSampT  = conf["samplesz"  ].as<int>();
     
@@ -454,10 +452,19 @@ void Cylinder::initialize()
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
     // Deprecation warning
-    if (conf["density"   ]) {
+    if (conf["density"]) {
       if (myid==0)
 	std::cout << "Cylinder: parameter 'density' is deprecated. "
 		  << "The density field will be computed regardless."
+		  << std::endl;
+    }
+
+    // Deprecation warning
+    if (conf["eof_file"]) {
+      if (myid==0)
+	std::cout << "Cylinder: parameter 'eof_file' is deprecated. "
+		  << "and will be removed in a future release. Please "
+		  << "use 'cachename' instead."
 		  << std::endl;
     }
 

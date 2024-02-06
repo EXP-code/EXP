@@ -95,6 +95,7 @@ void initialize(void)
     
     if (_G["time"])          tnow       = _G["time"].as<double>();
     if (_G["dtime"])         dtime      = _G["dtime"].as<double>();
+    if (_G["maxMindt"])      max_mindt  = _G["maxMindt"].as<double>();
     if (_G["nbits"])         nbits      = _G["nbits"].as<int>();
     if (_G["pkbits"])        pkbits     = _G["pkbits"].as<int>();
     if (_G["PFbufsz"])       PFbufsz    = _G["PFbufsz"].as<int>();

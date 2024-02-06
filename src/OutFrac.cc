@@ -193,6 +193,9 @@ void OutFrac::Run(int n, int mstep, bool last)
 {
   if (n % nint != 0 && !last) return;
   if (multistep>1 and mstep % nintsub !=0) return;
+  if (tnow <= prev) return;
+
+  prev = tnow;
 
   MPI_Status status;
 

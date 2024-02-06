@@ -8,7 +8,7 @@
 #include <libvars.H>
 
 #include <Coefficients.H>
-#include <BasisFactory.H>
+#include <BiorthBasis.H>
 #include <FieldGenerator.H>
 #include <ParticleReader.H>
 
@@ -87,6 +87,9 @@ int main(int argc, char **argv)
     // Loop through list of snapshots
     //
     for (auto batch : PR::ParticleReader::parseFileList(files, delim)) {
+      // Cast to a Biorth basis
+      //
+      auto biorth = dynamic_pointer_cast<BasisClasses::BiorthBasis>(basis);
       
       // Create a particle reader object
       //
@@ -95,13 +98,13 @@ int main(int argc, char **argv)
       
       // Make the coefficients from this reader
       //
-      auto coef = basis->createFromReader(reader);
+      auto coef = biorth->createFromReader(reader);
       
       // Add the coefficients to the container (makes the instance if
       // necessary)
       //
       coefs = CoefClasses::Coefs::addcoef(coefs, coef); 
-
+	
       // Some running commentary
       //
       if (vm.count("verbose")) {
@@ -110,7 +113,7 @@ int main(int argc, char **argv)
 	std::cout << std::endl;
       }
     }
-
+    
     // Write an H5 file
     //
     if (hdf5_exists and extend)

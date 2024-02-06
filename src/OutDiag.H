@@ -9,9 +9,10 @@ class OutDiag : public Output
 
 private:
 
-  string filename;
-  list<Component*> lcomp;
-  vector<string> names;
+  std::string filename;
+  std::list<Component*> lcomp;
+  std::vector<std::string> names;
+  double prev = -std::numeric_limits<double>::max();
 
   int NUM;
   double THETA, PHI, RMIN, RMAX;

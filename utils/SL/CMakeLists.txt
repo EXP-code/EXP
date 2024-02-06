@@ -1,12 +1,12 @@
 
 set(bin_PROGRAMS slcheck slshift orthochk diskpot qtest cyltest
-  eoftest)
+  eoftest oftest)
 		
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES})
 
-if(CUDA_FOUND)
-  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+if(ENABLE_CUDA)
+  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
 endif()
 
 if(ENABLE_XDR AND TIRPC_FOUND)
@@ -29,6 +29,7 @@ add_executable(diskpot diskpot.cc CylindricalDisk.cc SLSphere.cc)
 add_executable(qtest qtest.cc)
 add_executable(cyltest cyltest.cc)
 add_executable(eoftest EOF2d.cc)
+add_executable(oftest oftest.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})

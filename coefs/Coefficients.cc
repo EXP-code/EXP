@@ -221,6 +221,191 @@ namespace CoefClasses
     return ret;
   }
 
+
+  SphFldCoefs::SphFldCoefs(HighFive::File& file, int stride,
+			   double Tmin, double Tmax, bool verbose) :
+    Coefs("sphere", verbose)
+  {
+    std::string config, geometry, fieldID;
+    unsigned count;
+    double scale;
+    
+    file.getAttribute("name"    ).read(name    );
+    file.getAttribute("nfld"    ).read(Nfld    );
+    file.getAttribute("lmax"    ).read(Lmax    );
+    file.getAttribute("nmax"    ).read(Nmax    );
+    file.getAttribute("scale"   ).read(scale   );
+    file.getAttribute("config"  ).read(config  );
+    file.getDataSet  ("count"   ).read(count   );
+    file.getAttribute("geometry").read(geometry);
+    file.getAttribute("fieldID" ).read(fieldID );
+    
+    // Open the snapshot group
+    //
+    auto snaps = file.getGroup("snapshots");
+    
+    for (unsigned n=0; n<count; n+=stride) {
+      
+      std::ostringstream sout;
+      sout << std::setw(8) << std::setfill('0') << std::right << n;
+      
+      auto stanza = snaps.getGroup(sout.str());
+      
+      double Time;
+      stanza.getAttribute("Time").read(Time);
+      
+      // Check for center data
+      //
+      std::vector<double> ctr;
+      if (stanza.hasAttribute("Center")) {
+	stanza.getAttribute("Center").read(ctr);
+      }
+
+      if (Time < Tmin or Time > Tmax) continue;
+
+      std::array<long int, 3> shape;
+      stanza.getAttribute("shape").read(shape);
+
+      Eigen::VectorXcd in(shape[0]*shape[1]*shape[2]);
+      stanza.getDataSet("coefficients").read(in);
+      
+      // Pack the data into the coefficient variable
+      //
+      auto coef = std::make_shared<SphFldStruct>();
+      
+      if (ctr.size()) coef->ctr = ctr;
+
+      coef->nfld  = Nfld;
+      coef->lmax  = Lmax;
+      coef->nmax  = Nmax;
+      coef->time  = Time;
+      coef->scale = scale;
+      coef->geom  = geometry;
+      coef->id    = fieldID;
+
+      coef->allocate();
+      coef->store = in;
+      
+      coefs[roundTime(Time)] = coef;
+    }
+
+    times.clear();
+    for (auto t : coefs) times.push_back(t.first);
+  }
+  
+  std::shared_ptr<Coefs> SphFldCoefs::deepcopy()
+  {
+    auto ret = std::make_shared<SphFldCoefs>();
+
+    // Copy the base-class fields
+    copyfields(ret);
+
+    // Copy the local structures from the map to the struct pointers
+    // by copyfing fields, not the pointer
+    for (auto v : coefs)
+      ret->coefs[v.first] =
+	std::dynamic_pointer_cast<SphFldStruct>(v.second->deepcopy());
+
+    ret->Nfld = Nfld;
+    ret->Lmax = Lmax;
+    ret->Nmax = Nmax;
+
+    return ret;
+  }
+
+  
+  CylFldCoefs::CylFldCoefs(HighFive::File& file, int stride,
+			       double Tmin, double Tmax, bool verbose) :
+    Coefs("cylinder", verbose)
+  {
+    std::string config, geometry, fieldID;
+    unsigned count;
+    double scale;
+    
+    file.getAttribute("name"    ).read(name    );
+    file.getAttribute("nfld"    ).read(Nfld    );
+    file.getAttribute("mmax"    ).read(Mmax    );
+    file.getAttribute("nmax"    ).read(Nmax    );
+    file.getAttribute("scale"   ).read(scale   );
+    file.getAttribute("config"  ).read(config  );
+    file.getDataSet  ("count"   ).read(count   );
+    file.getAttribute("geometry").read(geometry);
+    file.getAttribute("fieldID" ).read(fieldID );
+    
+    // Open the snapshot group
+    //
+    auto snaps = file.getGroup("snapshots");
+    
+    for (unsigned n=0; n<count; n+=stride) {
+      
+      std::ostringstream sout;
+      sout << std::setw(8) << std::setfill('0') << std::right << n;
+      
+      auto stanza = snaps.getGroup(sout.str());
+      
+      double Time;
+      stanza.getAttribute("Time").read(Time);
+      
+      // Check for center data
+      //
+      std::vector<double> ctr;
+      if (stanza.hasAttribute("Center")) {
+	stanza.getAttribute("Center").read(ctr);
+      }
+
+      if (Time < Tmin or Time > Tmax) continue;
+
+      std::array<long int, 3> shape;
+      stanza.getAttribute("shape").read(shape);
+
+      Eigen::VectorXcd in(shape[0]*shape[1]*shape[2]);
+      stanza.getDataSet("coefficients").read(in);
+      
+      // Pack the data into the coefficient variable
+      //
+      auto coef = std::make_shared<CylFldStruct>();
+      
+      if (ctr.size()) coef->ctr = ctr;
+
+      coef->nfld  = Nfld;
+      coef->mmax  = Mmax;
+      coef->nmax  = Nmax;
+      coef->time  = Time;
+      coef->scale = scale;
+      coef->geom  = geometry;
+      coef->id    = fieldID;
+
+      coef->allocate();
+      coef->store = in;
+      
+      coefs[roundTime(Time)] = coef;
+    }
+
+    times.clear();
+    for (auto t : coefs) times.push_back(t.first);
+  }
+  
+  std::shared_ptr<Coefs> CylFldCoefs::deepcopy()
+  {
+    auto ret = std::make_shared<CylFldCoefs>();
+
+    // Copy the base-class fields
+    copyfields(ret);
+
+    // Copy the local structures from the map to the struct pointers
+    // by copyfing fields, not the pointer
+    for (auto v : coefs)
+      ret->coefs[v.first] =
+	std::dynamic_pointer_cast<CylFldStruct>(v.second->deepcopy());
+
+    ret->Nfld = Nfld;
+    ret->Mmax = Mmax;
+    ret->Nmax = Nmax;
+
+    return ret;
+  }
+
+
   Eigen::VectorXcd& SphCoefs::getData(double time)
   {
     auto it = coefs.find(roundTime(time));
@@ -1286,6 +1471,7 @@ namespace CoefClasses
     times = Times;
     for (int i=0; i<times.size(); i++) {
       TblStrPtr c = std::make_shared<TblStruct>();
+      c->time = times[i];
       c->cols = data[i].size();
       c->store.resize(c->cols);
       c->coefs = std::make_shared<TblStruct::coefType>(c->store.data(), c->cols);
@@ -1526,23 +1712,40 @@ namespace CoefClasses
       geom.read(geometry);
       
       try {
-	if (geometry.compare("sphere")==0) {
-	  coefs = std::make_shared<SphCoefs>(h5file, stride, tmin, tmax);
-	} else if (geometry.compare("cylinder")==0) {
-	  coefs = std::make_shared<CylCoefs>(h5file, stride, tmin, tmax);
-	} else if (geometry.compare("cube")==0) {
-	  coefs = std::make_shared<CubeCoefs>(h5file, stride, tmin, tmax);
-	} else if (geometry.compare("table")==0) {
-	  coefs = std::make_shared<TableData>(h5file, stride, tmin, tmax);
-	} else {
-	  throw std::runtime_error("Coefs::factory: unknown H5 coefficient file geometry");
+	// Is the set a biorthogonal basis (has the forceID attribute)
+	// or general basis (fieldID attribute)?
+	//
+	if (h5file.hasAttribute("forceID")) {
+	  if (geometry.compare("sphere")==0) {
+	    coefs = std::make_shared<SphCoefs>(h5file, stride, tmin, tmax);
+	  } else if (geometry.compare("cylinder")==0) {
+	    coefs = std::make_shared<CylCoefs>(h5file, stride, tmin, tmax);
+	  } else if (geometry.compare("cube")==0) {
+	    coefs = std::make_shared<CubeCoefs>(h5file, stride, tmin, tmax);
+	  } else if (geometry.compare("table")==0) {
+	    coefs = std::make_shared<TableData>(h5file, stride, tmin, tmax);
+	  } else {
+	    throw std::runtime_error("Coefs::factory: unknown H5 coefficient file geometry: " + geometry);
+	  }
+	} else if (h5file.hasAttribute("fieldID")) {
+	  // Use the fieldID to choose the basis type
+	  std::string field;
+	  HighFive::Attribute fieldID = h5file.getAttribute("fieldID");
+	  fieldID.read(field);
+
+	  if (field.compare("spherical field")>0) {
+	    coefs = std::make_shared<SphFldCoefs>(h5file, stride, tmin, tmax);
+	  } else if (field.compare("polar field")>0) {
+	    coefs = std::make_shared<CylFldCoefs>(h5file, stride, tmin, tmax);
+	  } else {
+	    throw std::runtime_error("Coefs::factory: unknown H5 coefficient file fieldID: " + field);
+	  }
 	}
       } catch (HighFive::Exception& err) {
-	std::cerr << "**** Error reading HDF5 file ****" << std::endl;
-	std::cerr << err.what() << std::endl;
-	exit(-1);
+	std::string msg("Coefs::factory: error reading HDF5 file, ");
+	throw std::runtime_error(msg + err.what());
       }
-      
+	
       return coefs;
       
     } catch (HighFive::Exception& err) {
@@ -1596,6 +1799,10 @@ namespace CoefClasses
       ret = std::make_shared<CylCoefs>();
     } else if (dynamic_cast<TblStruct*>(coef.get())) {
       ret = std::make_shared<TableData>();
+    } else if (dynamic_cast<SphFldStruct*>(coef.get())) {
+      ret = std::make_shared<SphFldCoefs>();
+    } else if (dynamic_cast<CylFldStruct*>(coef.get())) {
+      ret = std::make_shared<CylFldCoefs>();
     } else {
       throw std::runtime_error("Coefs::makecoefs: cannot deduce coefficient file type");
     }
@@ -1761,6 +1968,590 @@ namespace CoefClasses
     coefs[roundTime(coef->time)] = std::dynamic_pointer_cast<TblStruct>(coef);
   }
 
+
+  void SphFldCoefs::add(CoefStrPtr coef)
+  {
+    auto p = std::dynamic_pointer_cast<SphFldStruct>(coef);
+    Nfld = p->nfld;
+    Lmax = p->lmax;
+    Nmax = p->nmax;
+    coefs[roundTime(coef->time)] = p;
+  }
+
+  void CylFldCoefs::add(CoefStrPtr coef)
+  {
+    auto p = std::dynamic_pointer_cast<CylFldStruct>(coef);
+    Nfld = p->nfld;
+    Mmax = p->mmax;
+    Nmax = p->nmax;
+    coefs[roundTime(coef->time)] = p;
+  }
+
+  Eigen::VectorXcd& SphFldCoefs::getData(double time)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      arr.resize(0);
+    } else {
+      arr = it->second->store;
+    }
+    
+    return arr;
+  }
+  
+  SphFldStruct::coefType & SphFldCoefs::getMatrix(double time)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      arr.resize(0);
+    } else {
+      arr = it->second->store;
+      int ldim = (Lmax+1)*(Lmax+2)/2;
+      mat = std::make_shared<SphFldStruct::coefType>
+	(arr.data(), 4, ldim, Nmax); 
+    }
+    
+    return *mat;
+  }
+  
+  void SphFldCoefs::setData(double time, const Eigen::VectorXcd& dat)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      std::ostringstream str;
+      str << "SphVelCoefs::setMatrix: requested time=" << time << " not found";
+      throw std::runtime_error(str.str());
+    } else {
+      it->second->store = dat;
+      it->second->coefs = std::make_shared<SphFldStruct::coefType>
+	(it->second->store.data(), Nfld, (Lmax+1)*(Lmax+2)/2, Nmax);
+    }
+  }
+  
+  void SphFldCoefs::setMatrix(double time, const SphFldStruct::coefType& dat)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      std::ostringstream str;
+      str << "SphVelCoefs::setMatrix: requested time=" << time << " not found";
+      throw std::runtime_error(str.str());
+    } else {
+      it->second->allocate();
+      *it->second->coefs = dat;
+    }
+  }
+  
+  Eigen::Tensor<std::complex<double>, 4> SphFldCoefs::getAllCoefs()
+  {
+    Eigen::Tensor<std::complex<double>, 4> ret;
+
+    auto times = Times();
+    int ntim = times.size();
+
+    // Resize the tensor
+    ret.resize(Nfld, (Lmax+1)*(Lmax+2)/2, Nmax, ntim);
+
+    for (int t=0; t<ntim; t++) {
+      auto & cof = *(coefs[times[t]]->coefs);
+      for (int i=0; i<4; i++) {
+	for (int l=0; l<(Lmax+2)*(Lmax+1)/2; l++) {
+	  for (int n=0; n<Nmax; n++) {
+	    ret(i, l, n, t) = cof(i, l, n);
+	  }
+	}
+      }
+    }
+
+    return ret;
+  }
+
+
+  std::vector<Key> SphFldCoefs::makeKeys(Key k)
+  {
+    std::vector<Key> ret;
+    if (coefs.size()==0) return ret;
+
+    // Sanity
+    if (k.size()) {
+      k[0] = std::max<unsigned>(k[0], 0);
+      k[0] = std::min<unsigned>(k[0], Nfld);
+    }
+
+    if (k.size()>1) {
+      k[1] = std::max<unsigned>(k[1], 0);
+      k[1] = std::min<unsigned>(k[1], Lmax);
+    }
+
+    if (k.size()>2) {
+      k[2] = std::max<unsigned>(k[2], 0);
+      k[2] = std::min<unsigned>(k[2], k[1]);
+    }
+
+    // Four options
+    // 1. return all keys for a fixed i, l, m
+    // 2. return all keys for a fixed i, l
+    // 3. return all keys for a fixed i
+    // 4. return all keys
+
+    // Option 4
+    if (k.size()==0) {
+      for (unsigned i=0; i<Nfld; i++)
+	for (unsigned l=0; l<=Lmax; l++)
+	  for (unsigned m=0; m<=l; m++) 
+	    for (unsigned n=0; n<Nmax; n++) ret.push_back({i, l, m, n});
+    }
+    // Option 3
+    else if (k.size()==1) {
+      for (unsigned l=0; l<=Lmax; l++)
+	for (unsigned m=0; m<=l; m++) 
+	  for (unsigned n=0; n<Nmax; n++) ret.push_back({k[0], l, m, n});
+    }
+    // Option 2
+    else if (k.size()==2) {
+      for (unsigned m=0; m<=k[1]; m++) 
+	for (unsigned n=0; n<Nmax; n++) ret.push_back({k[0], k[1], m, n});
+    }
+    // Option 1
+    else if (k.size()==3) {
+      for (unsigned n=0; n<Nmax; n++) ret.push_back({k[0], k[1], k[2], n});
+    }
+    // Bad sub key?
+    else {
+      throw std::runtime_error
+	("SphVelCoefs::makeKeys: the subkey must have rank 0, 1 or 2");
+    }
+
+    return ret;
+  }
+
+  std::string SphFldCoefs::getYAML()
+  {
+    std::string ret;
+    if (coefs.size()) {
+      ret = coefs.begin()->second->buf;
+    }
+    return ret;
+  }
+  
+  void SphFldCoefs::WriteH5Params(HighFive::File& file)
+  {
+    // Identify myself
+    //
+    std::string fieldID("spherical velocity orthgonal function coefficients");
+    file.createAttribute<std::string>("fieldID", HighFive::DataSpace::From(fieldID)).write(fieldID);
+    
+    double scale = coefs.begin()->second->scale;
+
+    // Write the remaining parameters
+    //
+    file.createAttribute<int>   ("nfld",  HighFive::DataSpace::From(Nfld)  ).write(Nfld);
+    file.createAttribute<int>   ("lmax",  HighFive::DataSpace::From(Lmax)  ).write(Lmax);
+    file.createAttribute<int>   ("nmax",  HighFive::DataSpace::From(Nmax)  ).write(Nmax);
+    file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
+    file.createAttribute<int>   ("dof",   HighFive::DataSpace::From(dof)   ).write(dof);
+  }
+  
+  unsigned SphFldCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
+  {
+    for (auto c : coefs) {
+      auto C = c.second;
+      
+      std::ostringstream stim;
+      stim << std::setw(8) << std::setfill('0') << std::right << count++;
+      HighFive::Group stanza = snaps.createGroup(stim.str());
+    
+      // Add time attribute
+      //
+      stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time)).write(C->time);
+    
+      // Add a center attribute
+      //
+      if (C->ctr.size()>0)
+	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+      
+
+      // Coefficient size (allow Eigen::Tensor to be easily recontructed from metadata)
+      //
+      const auto& d = C->coefs->dimensions();
+      std::array<long int, 3> shape {d[0], d[1], d[2]};
+      stanza.createAttribute<long int>("shape", HighFive::DataSpace::From(shape)).write(shape);
+      
+      // Add coefficient data from flattened tensor
+      //
+      HighFive::DataSet dataset = stanza.createDataSet("coefficients", C->store);
+    }
+    
+    return count;
+  }
+
+  bool SphFldCoefs::CompareStanzas(CoefsPtr check)
+  {
+    bool ret = true;
+    
+    auto other = std::dynamic_pointer_cast<SphFldCoefs>(check);
+    
+    // Check that every time in this one is in the other
+    for (auto v : coefs) {
+      if (other->coefs.find(roundTime(v.first)) == other->coefs.end()) {
+	std::cout << "Can't find Time=" << v.first << std::endl;
+	ret = false;
+      }
+    }
+    
+    if (not ret) {
+      std::cout << "Times in other coeffcients are:";
+      for (auto v : other->Times()) std::cout << " " << v;
+      std::cout << std::endl;
+    }
+
+    if (ret) {
+      std::cout << "Times are the same, now checking parameters at each time"
+		<< std::endl;
+      for (auto v : coefs) {
+	auto it = other->coefs.find(v.first);
+	if (v.second->nfld != it->second->nfld) ret = false;
+	if (v.second->lmax != it->second->lmax) ret = false;
+	if (v.second->nmax != it->second->nmax) ret = false;
+	if (v.second->time != it->second->time) ret = false;
+      }
+    }
+    
+    if (ret) {
+      std::cout << "Parameters are the same, now checking coefficients"
+		<< std::endl;
+      for (auto v : coefs) {
+	auto it = other->coefs.find(v.first);
+	auto & cv = *(v.second->coefs);
+	auto & ci = *(it->second->coefs);
+	const auto & d = cv.dimensions();
+	for (int n=0; n<d[0]; n++) {
+	  for (int i=0; i<d[1]; i++) {
+	    for (int j=0; j<d[2]; j++) {
+	      if (cv(n, i, j) != ci(n, i, j)) {
+		std::cout << "Coefficient (" << n << ", " << i << ", " << j << ")  "
+			  << cv(n, i, j) << " != "
+			  << ci(n, i, j) << std::endl;
+		ret = false;
+	      }
+	    }
+	  }
+	}
+      }
+    }
+    
+    return ret;
+  }
+  
+
+  std::string CylFldCoefs::getYAML()
+  {
+    std::string ret;
+    if (coefs.size()) {
+      ret = coefs.begin()->second->buf;
+    }
+    return ret;
+  }
+  
+
+  void CylFldCoefs::WriteH5Params(HighFive::File& file)
+  {
+    // Identify myself
+    //
+    std::string fieldID("polar velocity orthgonal function coefficients");
+    file.createAttribute<std::string>("fieldID", HighFive::DataSpace::From(fieldID)).write(fieldID);
+    
+    double scale = coefs.begin()->second->scale;
+
+    // Write the remaining parameters
+    //
+    file.createAttribute<int>   ("nfld",  HighFive::DataSpace::From(Nfld)  ).write(Nfld);
+    file.createAttribute<int>   ("mmax",  HighFive::DataSpace::From(Mmax)  ).write(Mmax);
+    file.createAttribute<int>   ("nmax",  HighFive::DataSpace::From(Nmax)  ).write(Nmax);
+    file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
+    file.createAttribute<int>   ("dof",   HighFive::DataSpace::From(dof)   ).write(dof);
+  }
+  
+  unsigned CylFldCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
+  {
+    for (auto c : coefs) {
+      auto C = c.second;
+      
+      std::ostringstream stim;
+      stim << std::setw(8) << std::setfill('0') << std::right << count++;
+      HighFive::Group stanza = snaps.createGroup(stim.str());
+    
+      // Add time attribute
+      //
+      stanza.createAttribute<double>("Time", HighFive::DataSpace::From(C->time)).write(C->time);
+    
+      // Add a center attribute
+      //
+      if (C->ctr.size()>0)
+	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+      
+
+      // Coefficient size (allow Eigen::Tensor to be easily recontructed from metadata)
+      //
+      const auto& d = C->coefs->dimensions();
+      std::array<long int, 3> shape {d[0], d[1], d[2]};
+      stanza.createAttribute<long int>("shape", HighFive::DataSpace::From(shape)).write(shape);
+      
+      // Add coefficient data from flattened tensor
+      //
+      HighFive::DataSet dataset = stanza.createDataSet("coefficients", C->store);
+    }
+    
+    return count;
+  }
+
+
+  bool CylFldCoefs::CompareStanzas(CoefsPtr check)
+  {
+    bool ret = true;
+    
+    auto other = std::dynamic_pointer_cast<CylFldCoefs>(check);
+    
+    // Check that every time in this one is in the other
+    for (auto v : coefs) {
+      if (other->coefs.find(roundTime(v.first)) == other->coefs.end()) {
+	std::cout << "Can't find Time=" << v.first << std::endl;
+	ret = false;
+      }
+    }
+    
+    if (not ret) {
+      std::cout << "Times in other coeffcients are:";
+      for (auto v : other->Times()) std::cout << " " << v;
+      std::cout << std::endl;
+    }
+
+    if (ret) {
+      std::cout << "Times are the same, now checking parameters at each time"
+		<< std::endl;
+      for (auto v : coefs) {
+	auto it = other->coefs.find(v.first);
+	if (v.second->nfld != it->second->nfld) ret = false;
+	if (v.second->mmax != it->second->mmax) ret = false;
+	if (v.second->nmax != it->second->nmax) ret = false;
+	if (v.second->time != it->second->time) ret = false;
+      }
+    }
+    
+    if (ret) {
+      std::cout << "Parameters are the same, now checking coefficients"
+		<< std::endl;
+      for (auto v : coefs) {
+	auto it = other->coefs.find(v.first);
+	auto & cv = *(v.second->coefs);
+	auto & ci = *(it->second->coefs);
+	const auto & d = cv.dimensions();
+	for (int n=0; n<d[0]; n++) {
+	  for (int i=0; i<d[1]; i++) {
+	    for (int j=0; j<d[2]; j++) {
+	      if (cv(n, i, j) != ci(n, i, j)) {
+		std::cout << "Coefficient (" << n << ", " << i << ", " << j << ")  "
+			  << cv(n, i, j) << " != "
+			  << ci(n, i, j) << std::endl;
+		ret = false;
+	      }
+	    }
+	  }
+	}
+      }
+    }
+    
+    return ret;
+  }
+  
+
+  Eigen::MatrixXd& SphFldCoefs::Power(int min, int max)
+  {
+    if (coefs.size()) {
+      
+      int nfld = coefs.begin()->second->nfld;
+      int lmax = coefs.begin()->second->lmax;
+      int nmax = coefs.begin()->second->nmax;
+      power.resize(coefs.size(), lmax+1);
+      power.setZero();
+      
+      int T=0;
+      for (auto v : coefs) {
+	for (int i=1; i<nfld; i++) {
+	  for (int l=0, L=0; l<=lmax; l++) {
+	    for (int m=0; m<=l; m++, L++) {
+	      for (int n=std::max<int>(0, min); n<std::min<int>(nmax, max); n++) {
+		power(T, l) += std::norm((*v.second->coefs)(i, l, n));
+	      }
+	    }
+	  }
+	}
+	T++;
+      }
+    } else {
+      power.resize(0, 0);
+    }
+    
+    return power;
+  }
+  
+  Eigen::MatrixXd& CylFldCoefs::Power(int min, int max)
+  {
+    if (coefs.size()) {
+      
+      int nfld = coefs.begin()->second->nfld;
+      int mmax = coefs.begin()->second->mmax;
+      int nmax = coefs.begin()->second->nmax;
+      power.resize(coefs.size(), mmax+1);
+      power.setZero();
+      
+      int T=0;
+      for (auto v : coefs) {
+	for (int i=1; i<nfld; i++) {
+	  for (int m=0; m<=mmax; m++) {
+	    for (int n=std::max<int>(0, min); n<std::min<int>(nmax, max); n++) {
+	      power(T, m) += std::norm((*v.second->coefs)(i, m, n));
+	    }
+	  }
+	}
+	T++;
+      }
+    } else {
+      power.resize(0, 0);
+    }
+    
+    return power;
+  }
+  
+
+  Eigen::VectorXcd& CylFldCoefs::getData(double time)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      arr.resize(0);
+    } else {
+      arr = it->second->store;
+    }
+    
+    return arr;
+  }
+  
+  CylFldStruct::coefType & CylFldCoefs::getMatrix(double time)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      arr.resize(0);
+    } else {
+      arr = it->second->store;
+      int mdim = Mmax + 1;
+      mat = std::make_shared<CylFldStruct::coefType>(arr.data(), 3, mdim, Nmax); 
+    }
+    
+    return *mat;
+  }
+  
+  void CylFldCoefs::setData(double time, const Eigen::VectorXcd& dat)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      std::ostringstream str;
+      str << "CylFldCoefs::setData: requested time=" << time << " not found";
+      throw std::runtime_error(str.str());
+    } else {
+      it->second->store = dat;
+      it->second->coefs = std::make_shared<SphFldStruct::coefType>
+	(it->second->store.data(), Nfld, Mmax+1, Nmax);
+    }
+  }
+  
+  void CylFldCoefs::setMatrix(double time, const CylFldStruct::coefType& dat)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      std::ostringstream str;
+      str << "CylNfldCoefs::setMatrix: requested time=" << time << " not found";
+      throw std::runtime_error(str.str());
+    } else {
+      it->second->allocate();
+      *it->second->coefs = dat;
+    }
+  }
+  
+  Eigen::Tensor<std::complex<double>, 4> CylFldCoefs::getAllCoefs()
+  {
+    Eigen::Tensor<std::complex<double>, 4> ret;
+
+    auto times = Times();
+    int ntim = times.size();
+
+    // Resize the tensor
+    ret.resize(Nfld, Mmax+1, Nmax, ntim);
+
+    for (int t=0; t<ntim; t++) {
+      auto & cof = *(coefs[times[t]]->coefs);
+      for (int i=0; i<Nfld; i++) {
+	for (int m=0; m<=Mmax; m++) {
+	  for (int n=0; n<Nmax; n++) {
+	    ret(i, m, n, t) = cof(i, m, n);
+	  }
+	}
+      }
+    }
+
+    return ret;
+  }
+
+  std::vector<Key> CylFldCoefs::makeKeys(Key k)
+  {
+    std::vector<Key> ret;
+    if (coefs.size()==0) return ret;
+
+    // Sanity
+    if (k.size()) {
+      k[0] = std::max<unsigned>(k[0], 0);
+      k[0] = std::min<unsigned>(k[0], Nfld);
+    }
+
+    if (k.size()>1) {
+      k[1] = std::max<unsigned>(k[1], 0);
+      k[1] = std::min<unsigned>(k[1], Mmax);
+    }
+
+    // Three options
+    // 1. return all keys for a fixed i, m
+    // 2. return all keys for a fixed i
+    // 3. return all keys
+
+    // Option 3
+    if (k.size()==0) {
+      for (unsigned i=0; i<3; i++) 
+	for (unsigned m=0; m<=Mmax; m++)
+	  for (unsigned n=0; n<Nmax; n++) ret.push_back({i, m, n});
+    }
+    // Option 2
+    else if (k.size()==1) {
+      for (unsigned m=0; m<=Mmax; m++) 
+	for (unsigned n=0; n<Nmax; n++) ret.push_back({k[0], m, n});
+    }
+    // Option 1
+    else if (k.size()==2) {
+      for (unsigned n=0; n<Nmax; n++) ret.push_back({k[0], k[1],  n});
+    }
+    // Bad sub key?
+    else {
+      throw std::runtime_error
+	("SphVelCoefs::makeKeys: the subkey must have rank 0, 1 or 2");
+    }
+
+    return ret;
+  }
 
 }
 // END namespace CoefClasses

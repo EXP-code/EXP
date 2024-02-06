@@ -69,9 +69,11 @@ void OutMulti::Run(int n, int mstep, bool last)
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
   if (multistep>1 && mstep % nintsub !=0 && !dump_signal) return;
+  if (tnow <= prev) return;
+  
+  prev = tnow;			// Record current run time
 
-
-  ofstream *out;
+  std::ofstream *out;
   
   vector<unsigned> counts(multistep+1, 0), histo(multistep+1, 0);
 
@@ -107,6 +109,5 @@ void OutMulti::Run(int n, int mstep, bool last)
     exit(33);
   }
 
-  dump_signal = 0;
 }
 

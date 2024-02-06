@@ -118,6 +118,9 @@ void OutAscii::Run(int n, int mstep, bool last)
   if (n % nint && !last) return;
   if (multistep>1 and mstep % nintsub !=0) return;
   if (!c0) return;
+  if (tnow <= prev) return;
+
+  prev = tnow;
 
 #ifdef HAVE_LIBCUDA
   if (use_cuda) {

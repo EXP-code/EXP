@@ -169,7 +169,8 @@ void exp_mpi_error_handler(MPI_Comm *communicator, int *error_code, ...)
   int error_string_length;
 
   std::cout << "exp_mpi_error_handler: entry" << std::endl;
-  std::cout << "exp_mpi_error_handler: error_code = " << *error_code << std::endl;
+  std::cout << "exp_mpi_error_handler: error_code = " << *error_code
+	    << std::endl;
   MPI_Error_string(*error_code, error_string, &error_string_length);
   error_string[error_string_length] = '\0';
 
@@ -232,22 +233,30 @@ void exp_mpi_error_handler(MPI_Comm *communicator, int *error_code, ...)
 //! Abort the time stepping and checkpoint when signaled
 static int stop_signal0 = 0;
 
+//! Dump phase space
+static int dump_signal0 = 0;
+
 void signal_handler_stop(int sig) 
 {
   if (myid==0) {
     stop_signal0 = 1;
-    cout << endl << "Process 0: user signaled a STOP at step=" << this_step << " . . . quitting on next step after output" << endl;
+    dump_signal0 = 1;
+    std::cout << std::endl
+	      << "Process 0: user signaled a STOP at step=" << this_step
+	      << " . . . quitting on next step after output" << std::endl;
   } else {
-    cout << endl << "Process " << myid << ": user signaled a STOP but only the root process can stop me . . . continuing" << endl;
+    std::cout << std::endl
+	      << "Process " << myid
+	      << ": user signaled a STOP but only the root process can stop me . . . continuing" << std::endl;
   }
 
   // Check for barrier wrapper failure to provide some additional
   // debugging info to help with interpreting the backtrace . . .
   //
-  ostringstream sout;
+  std::ostringstream sout;
   if (BarrierWrapper::inOper) {
     sout << "BarrierWrapper label is:" 
-	 << left << setw(60) << BarrierWrapper::lbOper;
+	 << std::left << setw(60) << BarrierWrapper::lbOper;
     if (BarrierWrapper::flOper.size())
       sout << " ==> called from " << BarrierWrapper::flOper << ":" 
 	   << BarrierWrapper::lnOper;
@@ -259,17 +268,17 @@ void signal_handler_stop(int sig)
   mpi_print_trace("signal_handler_stop", sout.str(), __FILE__, __LINE__);
 }
 
-//! Dump phase space
-static int dump_signal0 = 0;
-
 void signal_handler_dump(int sig) 
 {
   if (myid==0) {
     dump_signal0 = 1;
-    cout << endl << "Process 0: user signaled a DUMP at step=" << this_step
-	 << endl;
+    std::cout << std::endl
+	      << "Process 0: user signaled a DUMP at step=" << this_step
+	      << std::endl;
   } else {
-    cout << endl << "Process " << myid << ": user signaled a DUMP but only the root process can do this . . . continuing" << endl;
+    std::cout << std::endl
+	      << "Process " << myid << ": user signaled a DUMP but only the root process can do this . . . continuing"
+	      << std::endl;
   }
 }
 
@@ -305,10 +314,10 @@ void make_node_list(int argc, char **argv)
 	MPI_Recv(cmdnm,   ncmd, MPI_CHAR, j, 62, MPI_COMM_WORLD, &stat);
 	MPI_Recv(&pid,       1, MPI_LONG, j, 63, MPI_COMM_WORLD, &stat);
       }
-      cout << setw(4)  << left << j
-	   << setw(20) << string(procn)
-	   << setw(12) << pid 
-	   << setw(ncmd) << cmdnm << endl;
+      std::cout << std::setw(4)  << std::left << j
+		<< std::setw(20) << std::string(procn)
+		<< std::setw(12) << pid 
+		<< std::setw(ncmd) << cmdnm << std::endl;
     }
   } else {
     MPI_Send(procn, nprocn, MPI_CHAR, 0, 61, MPI_COMM_WORLD);
@@ -316,7 +325,7 @@ void make_node_list(int argc, char **argv)
     MPI_Send(&pid,       1, MPI_LONG, 0, 63, MPI_COMM_WORLD);
   }
   
-  if (myid==0) std::cout << std::setfill('%') << std::setw(80) << "%" << endl
+  if (myid==0) std::cout << std::setfill('%') << std::setw(80) << "%" << std::endl
 			 << std::setfill(' ') << std::endl << std::endl;
 
   // Make MPI datatype
@@ -403,7 +412,7 @@ void report_memlock_limits()
     sout << ", could not get RLIMIT_MEMLOCK!";
   }
 
-  cout << sout.str() << endl << flush;
+  std::cout << sout.str() << std::endl << std::flush;
 }
 
 
@@ -599,7 +608,7 @@ main(int argc, char** argv)
 #if 0
     if (myid) {
       getcwd(hdbuffer, (size_t)hdbufsize);
-      cout << "Process " << myid << ": homedir=" << hdbuffer << "\n";
+      std::cout << "Process " << myid << ": homedir=" << hdbuffer << std::endl;
     }
 #endif
 
@@ -673,39 +682,49 @@ main(int argc, char** argv)
 
       if (chktimer.done()) {
 	if (myid==0) {
-	  cout << "Checkpoint timer says: quit now!" << endl;
-	  cout << "Restart command is: " << restart_cmd << endl;
+	  std::cout << "Checkpoint timer says: quit now!" << std::endl;
+	  std::cout << "Restart command is: " << restart_cmd << std::endl;
 	  quit_signal = 1;
 	}
       }
       MPI_Bcast(&quit_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);      
-      if (quit_signal)  break;
 
       //
       // Synchronize and check for signals
       //
 
-				// Signal will only be set after the step
+      // Signal will only be set after the step
+      //
       dump_signal = dump_signal0;
       stop_signal = stop_signal0;
-				// Reset signals
+
+      // Reset static signals
+      //
       stop_signal0 = 0;
       dump_signal0 = 0;
-				// Broadcast the signal
+
+      // Broadcast the signals
+      //
       MPI_Bcast(&dump_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
       MPI_Bcast(&stop_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
+      // Break the step loop if quit flag is set
+      //
+      if (quit_signal) break;
+
+      // Be chatty about OS signals
+      //
       if (stop_signal) {
-	cout << "Process " << myid << ": have stop signal\n";
+	std::cout << "Process " << myid << ": have stop signal" << std::endl;
 	this_step++; 
 	break;
       }
     
       if (dump_signal) {
-	cout << "Process " << myid << ": dump signal received,"
-	     << " will dump on Step " << this_step+1 << ", continuing . . .\n";
+	std::cout << "Process " << myid << ": dump signal received,"
+		  << " will dump on Step " << this_step+1
+		  << ", continuing . . ." << std::endl;
       }
-
     }
     
   }

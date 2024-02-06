@@ -16,8 +16,8 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
   ${CMAKE_CURRENT_SOURCE_DIR}/.. ${HighFive_SOURCE_DIR}/include
   ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
 
-if(CUDA_FOUND)
-  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+if(ENABLE_CUDA)
+  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
 endif()
 
 if(SLURM_FOUND)

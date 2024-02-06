@@ -18,6 +18,8 @@ int nbalance = 0;		// Steps between load balancing
 int nreport = 0;		// Steps between particle reporting
 double dbthresh = 0.05;		// Load balancing threshold (5% by default)
 double dtime = 0.1;		// Default time step size
+double max_mindt = 0.05;        // Below minimum time step threshold
+
 unsigned nbits = 32;		// Number of bits per dimension
 unsigned pkbits = 6;		// Number of bits for parition
 unsigned PFbufsz = 40000;	// ParticleFerry buffer size in particles
@@ -45,7 +47,6 @@ string ratefile = "processor.rates";
 string ldlibdir = ".";
 
 double tnow     = 0.0;		// Per step variables
-int psdump      = -1;
 int this_step   = 0;
 				// Global center of mass
 double mtot;

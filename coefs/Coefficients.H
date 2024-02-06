@@ -10,6 +10,9 @@
 #include <Eigen/Eigen>	      // Store coefficient matrices and 2d grids
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids?
 
+// YAML support
+#include <yaml-cpp/yaml.h>
+
 // The EXP native coefficient classes
 #include <CoefStruct.H>
 
@@ -283,7 +286,7 @@ namespace CoefClasses
     
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
+    { return coefs[roundTime(time)]; }
 
     //! Dump to ascii list for testing
     void dump(int lmin, int lmax, int nmin, int nmax);
@@ -420,7 +423,7 @@ namespace CoefClasses
 
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
+    { return coefs[roundTime(time)]; }
 
 
     //! Dump to ascii list for testing
@@ -552,7 +555,7 @@ namespace CoefClasses
 
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
+    { return coefs[roundTime(time)]; }
 
 
     //! Dump to ascii list for testing
@@ -679,7 +682,7 @@ namespace CoefClasses
 
     //! Get coefficient structure at a given time
     virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
-    { return coefs[time]; }
+    { return coefs[roundTime(time)]; }
 
     //! Get list of coefficient times
     virtual std::vector<double> Times() { return times; }
@@ -712,6 +715,261 @@ namespace CoefClasses
       for (auto v : coefs) v.second->zerodata();
       for (auto & v : data) std::fill(v.begin(), v.end(), 0.0);
     }
+
+  };
+  
+  /** Derived class for spherical field coefficients */
+  class SphFldCoefs : public Coefs
+  {
+
+  protected:
+    
+    //! Data
+    std::shared_ptr<SphFldStruct::coefType> mat;
+
+    //! Parameters
+    int Nfld, Lmax, Nmax, dof=3;
+
+    //! The coefficient DB
+    std::map<double, SphFldPtr> coefs;
+
+    //! Read the coefficients
+    virtual void readNativeCoefs(const std::string& file,
+				 int stride, double tmin, double tmax)
+    {
+      throw std::runtime_error("SphFldCoefs: "
+			       "native coefficient type not implemented");
+    }
+    
+    //! Get the YAML config
+    virtual std::string getYAML();
+    
+    //! Write parameter attributes
+    virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Write coefficient data in H5
+    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
+    
+  public:
+    
+    //! Constructor
+    SphFldCoefs(bool verbose=false) : Coefs("sphere", verbose) {}
+    
+    //! Copy constructor
+    SphFldCoefs(SphFldCoefs& p) : Coefs(p) { coefs = p.coefs; }
+
+    //! YAML onstructor
+    SphFldCoefs(const YAML::Node& conf, bool verbose);
+    
+    //! H5 constructor
+    SphFldCoefs(HighFive::File& file, int stride=0,
+		double tmin=-std::numeric_limits<double>::max(),
+		double tmax= std::numeric_limits<double>::max(),
+		bool verbose=false);
+    
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
+
+    //! Add a coefficient structure to the container
+    virtual void add(CoefStrPtr coef);
+
+    //! Get coefficient array at given time
+    virtual Eigen::VectorXcd& getData(double time);
+    
+    //! Operator for pyEXP
+    SphFldStruct::coefType& getMatrix(double time);
+
+    //! Set coefficient matrix at given time
+    virtual void setData(double time, const Eigen::VectorXcd& arr);
+
+    //! Natural data setter for pyEXP
+    void setMatrix(double time, const SphFldStruct::coefType& mat);
+
+    //! Interpolate coefficient matrix at given time
+    std::tuple<SphFldStruct::coefType&, bool> interpolate(double time)
+    {
+      auto ret = Coefs::interpolate(time);
+      int ldim = (Lmax+1)*(Lmax+2)/2;
+      mat = std::make_shared<SphFldStruct::coefType>
+	(std::get<0>(ret).data(), Nfld, ldim, Nmax);
+      return {*mat, std::get<1>(ret)};
+    }
+    
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[roundTime(time)]; }
+
+    //! Get list of coefficient times
+    virtual std::vector<double> Times()
+    {
+      times.clear();
+      for (auto t : coefs) times.push_back(t.first);
+      return times;
+    }
+    
+    //! Get all coefficients indexed in index, l, m, n, time
+    Eigen::Tensor<std::complex<double>, 4> getAllCoefs();
+
+    /** Get power for the coefficient DB as a function of harmonic
+	index.  Time as rows, harmonics as columns.
+
+	@param min is the minimum radial order
+	@param max is the maximum radial order
+    */
+    virtual Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max());
+    
+    //! Make keys for the remaining indices in a subspace
+    virtual std::vector<Key> makeKeys(Key k);
+
+    //! Compare two collections of stanzas (this is for testing only)
+    virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    virtual std::shared_ptr<Coefs> deepcopy();
+
+    //! Zero the existing data
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+    }
+
+    //! Get number of data fields
+    double nfld() const { return Nfld; }
+
+    //! Get lmax
+    double lmax() const { return Lmax; }
+
+    //! Get lmax
+    double nmax() const { return Nmax; }
+
+  };
+  
+
+  /** Derived class for spherical field coefficients */
+  class CylFldCoefs : public Coefs
+  {
+  protected:
+    
+    //! Data
+    std::shared_ptr<CylFldStruct::coefType> mat;
+
+    //! Parameters
+    int Nfld, Mmax, Nmax, dof=2;
+
+    //! The coefficient DB
+    std::map<double, PlrFldPtr> coefs;
+
+    //! Read the coefficients
+    virtual void readNativeCoefs(const std::string& file,
+				 int stride, double tmin, double tmax)
+    {
+      throw std::runtime_error("CylFldCoefs: "
+			       "native coefficient type not implemented");
+    }
+    
+    //! Get the YAML config
+    virtual std::string getYAML();
+    
+    //! Write parameter attributes
+    virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Write coefficient data in H5
+    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
+    
+  public:
+    
+    //! Constructor
+    CylFldCoefs(bool verbose=false) : Coefs("cylinder", verbose) {}
+    
+    //! Copy constructor
+    CylFldCoefs(CylFldCoefs& p) : Coefs(p)
+    {
+      coefs = p.coefs;
+    }
+
+    //! H5 constructor
+    CylFldCoefs(HighFive::File& file, int stride=0,
+		  double tmin=-std::numeric_limits<double>::max(),
+		  double tmax= std::numeric_limits<double>::max(),
+		  bool verbose=false);
+    
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
+
+    //! Add a coefficient structure to the container
+    virtual void add(CoefStrPtr coef);
+
+    //! Get coefficient array at given time
+    virtual Eigen::VectorXcd& getData(double time);
+    
+    //! Operator for pyEXP
+    CylFldStruct::coefType & getMatrix(double time);
+
+    //! Set coefficient matrix at given time
+    virtual void setData(double time, const Eigen::VectorXcd& arr);
+
+    //! Natural data setter for pyEXP
+    void setMatrix(double time, const CylFldStruct::coefType& mat);
+
+    //! Interpolate coefficient matrix at given time
+    std::tuple<CylFldStruct::coefType&, bool> interpolate(double time)
+    {
+      auto ret = Coefs::interpolate(time);
+      int mdim = Mmax + 1;
+      mat = std::make_shared<CylFldStruct::coefType>
+	(std::get<0>(ret).data(), Nfld, mdim, Nmax); 
+
+      return {*mat, std::get<1>(ret)};
+    }
+    
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[roundTime(time)]; }
+
+    //! Get list of coefficient times
+    virtual std::vector<double> Times()
+    {
+      times.clear();
+      for (auto t : coefs) times.push_back(t.first);
+      return times;
+    }
+    
+    //! Get all coefficients indexed in index, l, m, n, time
+    Eigen::Tensor<std::complex<double>, 4> getAllCoefs();
+
+    /** Get power for the coefficient DB as a function of harmonic
+	index.  Time as rows, harmonics as columns.
+
+	@param min is the minimum radial order
+	@param max is the maximum radial order
+    */
+    virtual Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max());
+    
+    //! Make keys for the remaining indices in a subspace
+    virtual std::vector<Key> makeKeys(Key k);
+
+    //! Compare two collections of stanzas (this is for testing only)
+    virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    virtual std::shared_ptr<Coefs> deepcopy();
+
+    //! Zero the existing data
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+    }
+
+    //! Get number of fields
+    double nfld() const { return Nfld; }
+
+    //! Get mmax
+    double mmax() const { return Mmax; }
+
+    //! Get lmax
+    double nmax() const { return Nmax; }
 
   };
   

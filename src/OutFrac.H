@@ -19,7 +19,8 @@ class OutFrac : public Output
 
 private:
 
-  string filename;
+  double prev = -std::numeric_limits<double>::max();
+  std::string filename;
   Component *tcomp;
   int numQuant;
   vector<double> Quant;

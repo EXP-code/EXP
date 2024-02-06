@@ -11,74 +11,99 @@ namespace py = pybind11;
 
 void CoefficientClasses(py::module &m) {
 
-  m.doc() = "Coefficient class bindings\n\n"
-    "These classes store, write, and provide an interface to coefficients\n"
-    "and table data for use by the other pyEXP classes.\n\n"
-    "CoefStruct\n"
-    "----------\n"
-    "The CoefStruct class is low-level structure that stores the data\n"
-    "and metadata specific to each geometry. These are spherical\n"
-    "(SphStruct), cylindrical (CylStruct), cube (CubeStruct) and table\n"
-    "data (TblStruct).  EXP also knows about slabs.  These may be\n"
-    "added in a future release if there is a need.  Instances of these\n"
-    "structures represent individual times points and are created,\n"
-    "maintained, and interfaced by the Coefs class.  Access to the\n"
-    "underlying data is provided to Python in case you need to change\n"
-    "or rewrite the data for some reason.  We have also provided a\n"
-    "assign() member so that you can instaniate and load a coefficient\n"
-    "structure using Python.  To do this, use the constructor to make\n"
-    "a blank instance, assign the dimensions and use assign() to create\n"
-    "a data matrix with the supplied matrix or array.  The dimensions are\n"
-    "(lmax, nmax) for SphStruct, (mmax, nmax) for a CylStruct, (nmaxx,\n"
-    "nmaxy, nmaxz) for a CubeStruct and (cols) for a TblStruct.\n\n"
-    "Coefs\n"
-    "-----\n"
-    "The base class, 'Coefs', provides a factory reader that will\n"
-    "create one of the derived coefficient classes, SphCoefs, CylCoefs,\n"
-    "CubeCoefs, or TblCoefs, deducing the type from the input file. The\n"
-    "input files may be EXP native or HDF5 cofficient files.  The Basis\n"
-    "factory, Basis::createCoefficients, will create set of coef-\n"
-    "ficients from phase-space snapshots.  See help(pyEXP.basis).\n"
-    "Files which are not recognized as EXP coefficient files are\n"
-    "assumed to be data files and are parsed by the TblCoefs class.\n"
-    "The first column in data tables is interpreted as time and each\n"
-    "successive column is interpreted as a new data field.\n\n"
-    "Once created, you may get a list of times, get the total gravi-\n"
-    "tation power from biothogonal basis coefficients, and write a new\n"
-    "HDF5 file.  Their main use is as a container object for MSSA (using\n"
-    "expMSSA) and field visualization using the FieldGenerator class.\n\n"
-    "Updates\n"
-    "-------\n"
-    "The expMSSA class will update the contribution to the coefficients\n"
-    "specified by key from each eigen component to the reconstructed\n"
-    "series. Unspecified coefficients series will not be updated and\n"
-    "their original data will be intact. For visualization, the series\n"
-    "data in a Coefs object may be zeroed using the 'zerodata()' member\n"
-    "function prior to an expMSSA update.  This allows one to include\n"
-    "reconstructions that *only* include particular eigen components for\n"
-    "the coefficients specified by key.  Then, one can visualize only the\n"
-    "updated fields using 'FieldGenerator'. See help(pyEXP.mssa) and\n"
-    "help(pyEXP.field) for more details.\n\n"
-    "Dataset indexing\n"
-    "----------------\n"
-    "Coefficients and other auxilliary data from simulations are stored\n"
-    "and retrieved by their time.  Internally, these are floating fixed-\n"
-    "point values truncated to 8 signficant figures so that they may be\n"
-    "used as dictionary/map keys.  The values in the time list, returned\n"
-    "with the Times() member function contain the truncated values for\n"
-    "reference.\n\n"
-    "Object lifetime\n"
-    "---------------\n"
-    "As in native Python, the memory for created objects persists until\n"
-    "it is no longer referenced.  For example, replacing the variable with\n"
-    "a new set of coefficients will allow the memory to be deallocated if\n"
-    "no other class instance holds a reference. Because coefficient sets\n"
-    "can be large, the creation of a Coefs instance by the 'factory' will\n"
-    "be passed to any other class that needs it.  The MSSA class, expMSSA,\n"
-    "will hold a reference to the the Coefs object passed on creation, and\n"
-    "it update the values of the coefficients on reconstruction, without\n"
-    "copying. If you want to keep the initial set without change, we have\n"
-    "provided a 'deepcopy()' member that provides a byte-by-byte copy.\n\n";
+  m.doc() =
+    R"(
+    Coefficient class bindings
+
+    These classes store, write, and provide an interface to coefficients
+    and table data for use by the other pyEXP classes.
+
+    CoefStruct
+    ----------
+    The CoefStruct class is low-level structure that stores the data
+    and metadata specific to each geometry. There are three groups of
+    CoefStruct derived classes for biorthogonal basis coefficients,
+    field data coeffients, and auxiliary table data. The biorthogonal
+    classes are spherical (SphStruct), cylindrical (CylStruct), and
+    cube (CubeStruct). EXP also knows about slabs.  These may be added
+    in a future release if there is a need.  The field classes
+    cylindrical (CylFldStruct), and spherical (SphFldStruct).  The
+    table data is stored in TblStruct.
+
+    Instances of these structures represent individual times points
+    and are created, maintained, and interfaced by the Coefs class.
+    Access to the underlying data is provided to Python in case you
+    need to change or rewrite the data for some reason.  We have also
+    provided a assign() member so that you can instaniate and load a
+    coefficient structure using Python.  To do this, use the
+    constructor to make a blank instance, assign the dimensions and
+    use assign() to create a data matrix with the supplied matrix or
+    array.  The dimen- sions are:
+     1. (lmax, nmax) for SphStruct
+     2. (mmax, nmax) for a CylStruct
+     3. (nmaxx, nmaxy, nmaxz) for a CubeStruct
+     4. (nfld, lmax, nmax) for a SphFldStruct
+     5. (nfld, mmax, nmax) for a CylFldStruct
+     6. (cols) for a TblStruct.
+
+    Coefs
+    -----
+    The base class, 'Coefs', provides a factory reader that will
+    create one of the derived coefficient classes, SphCoefs, CylCoefs,
+    CubeCoefs, TblCoefs, SphFldCoefs, and CylFldCoefs, deducing the
+    type from the input file. The input files may be EXP native or
+    HDF5 cofficient files.  Only biorthgonal basis coefficients have a
+    native EXP type.  The Basis factory, Basis::createCoefficients,
+    will create set of coefficients from phase-space snapshots.  See
+    help(pyEXP.basis). Files which are not recognized as EXP
+    coefficient files are assumed to be data files and are parsed by
+    the TblCoefs class. The first column in data tables is interpreted
+    as time and each successive column is interpreted as a new data
+    field.
+
+    Once created, you may get a list of times, get the total
+    gravitational power from biothogonal basis coefficients and
+    general power from the field coefficients, and write a new HDF5
+    file.  Their primary use is as a container object for MSSA (using
+    expMSSA) and field visualization using the FieldGenerator class.
+
+    Updates
+    -------
+    The expMSSA class will update the contribution to the coefficients
+    specified by key from each eigen component to the reconstructed
+    series. Unspecified coefficients series will not be updated and
+    their original data will be intact. For visualization, the series
+    data in a Coefs object may be zeroed using the 'zerodata()' member
+    function prior to an expMSSA update.  This allows one to include
+    reconstructions that *only* include particular eigen components for
+    the coefficients specified by key.  Then, one can visualize only the
+    updated fields using 'FieldGenerator'. See help(pyEXP.mssa) and
+    help(pyEXP.field) for more details.
+
+    Dataset indexing
+    ----------------
+    Coefficients and other auxilliary data from simulations are stored
+    and retrieved by their time field.  Internally, these are floating
+    fixed-point values truncated to 8 signficant figures so that they
+    may be used as dictionary/map keys.  The values in the time list,
+    returned with the Times() member function contain the truncated
+    values for reference.
+
+    Object lifetime
+    ---------------
+    As in native Python, the memory for created objects persists until
+    it is no longer referenced.  For example, replacing the variable
+    with a new set of coefficients will allow the memory to be
+    deallocated if no other class instance holds a reference. Because
+    coefficient sets can be large, the creation of a Coefs instance by
+    the 'factory' will be passed to any other class that needs it.
+    The MSSA class, expMSSA, will hold a reference to the the Coefs
+    object passed on creation, and it update the values of the
+    coefficients on reconstruction, without copying. If you want to
+    keep the initial set without change, we have provided a
+    'deepcopy()' member that provides a byte-by-byte copy.
+
+  )";
 
   using namespace CoefClasses;
 
@@ -493,7 +518,8 @@ void CoefficientClasses(py::module &m) {
 
   };
 
-  py::class_<CoefClasses::CoefStruct, std::shared_ptr<CoefClasses::CoefStruct>, PyCoefStruct>(m, "CoefStruct")
+  py::class_<CoefClasses::CoefStruct, std::shared_ptr<CoefClasses::CoefStruct>, PyCoefStruct>
+    (m, "CoefStruct")
     .def(py::init<>(),
 	 R"(
          Base class coefficient data structure object
@@ -521,8 +547,8 @@ void CoefficientClasses(py::module &m) {
 
         Notes
         -----
-        This is useful if you would like to modify some coefficients while preserving
-        your original coefficients.
+        This is useful if you would like to modify some coefficients
+        while preserving your original coefficients.
         )")
     .def_readonly("geometry", &CoefStruct::geom,
 		  R"(
@@ -558,8 +584,8 @@ void CoefficientClasses(py::module &m) {
 
         Notes
         -----
-        Changes made to the data array will be automatically mapped back to the
-        C++ CoefStruct instance.
+        Changes made to the data array will be automatically mapped
+        back to the C++ CoefStruct instance.
 
         See also
         --------
@@ -567,7 +593,8 @@ void CoefficientClasses(py::module &m) {
         )");
 
 
-  py::class_<CoefClasses::SphStruct, std::shared_ptr<CoefClasses::SphStruct>, CoefStruct>(m, "SphStruct")
+  py::class_<CoefClasses::SphStruct, std::shared_ptr<CoefClasses::SphStruct>, CoefStruct>
+    (m, "SphStruct")
     .def(py::init<>(), "Spherical coefficient data structure object")
     .def("assign", &SphStruct::assign,
 	      R"(
@@ -587,7 +614,8 @@ void CoefficientClasses(py::module &m) {
         None
         )");
 
-  py::class_<CoefClasses::CylStruct, std::shared_ptr<CoefClasses::CylStruct>, CoefStruct>(m, "CylStruct")
+  py::class_<CoefClasses::CylStruct, std::shared_ptr<CoefClasses::CylStruct>, CoefStruct>
+    (m, "CylStruct")
     .def(py::init<>(), "Cylindrical coefficient data structure object")
     .def("assign", &CylStruct::assign,
 	      R"(
@@ -607,7 +635,8 @@ void CoefficientClasses(py::module &m) {
         None
         )");
 
-  py::class_<CoefClasses::CubeStruct, std::shared_ptr<CoefClasses::CubeStruct>, CoefStruct>(m, "CubeStruct")
+  py::class_<CoefClasses::CubeStruct, std::shared_ptr<CoefClasses::CubeStruct>, CoefStruct>
+    (m, "CubeStruct")
     .def(py::init<>(), "Cube coefficient data structure object")
     .def("assign", &CubeStruct::assign,
 	      R"(
@@ -624,10 +653,12 @@ void CoefficientClasses(py::module &m) {
 
         Notes
         -----
-        The dimensions are inferred from the 3-dimensional NumPy array (tensor)
+        The dimensions are inferred from the 3-dimensional NumPy array
+        (tensor)
         )");
 
-  py::class_<CoefClasses::TblStruct, std::shared_ptr<CoefClasses::TblStruct>, CoefStruct>(m, "TblStruct")
+  py::class_<CoefClasses::TblStruct, std::shared_ptr<CoefClasses::TblStruct>, CoefStruct>
+    (m, "TblStruct")
     .def(py::init<>(), "Multicolumn table data structure object")
     .def("assign", &TblStruct::assign,
 	      R"(
@@ -643,7 +674,54 @@ void CoefficientClasses(py::module &m) {
         None
         )");
 
-  py::class_<CoefClasses::Coefs, std::shared_ptr<CoefClasses::Coefs>, PyCoefs>(m, "Coefs")
+  py::class_<CoefClasses::SphFldStruct, std::shared_ptr<CoefClasses::SphFldStruct>, CoefStruct>
+    (m, "SphFldStruct")
+    .def(py::init<>(), "Spherical field coefficient data structure object")
+    .def("assign", &SphFldStruct::assign,
+	R"(
+        Assign a coefficient matrix to CoefStruct.
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray
+             Flattened array of coefficients
+        nfld : int
+             number of data fields
+        lmax : int
+             angular order
+        nmax : int
+             radial order
+
+        Returns
+        -------
+        None
+        )");
+
+  py::class_<CoefClasses::CylFldStruct, std::shared_ptr<CoefClasses::CylFldStruct>, CoefStruct>
+    (m, "CylFldStruct")
+    .def(py::init<>(), "Cylindrical field coefficient data structure object")
+    .def("assign", &CylFldStruct::assign,
+	      R"(
+        Assign a flattened coefficient array to CylFldStruct.
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray
+             Flattened array of coefficients
+        nfld : int
+             number of data fields
+        mmax : int
+             angular order
+        nmax : int
+             radial order
+
+        Returns
+        -------
+        None
+        )");
+
+  py::class_<CoefClasses::Coefs, std::shared_ptr<CoefClasses::Coefs>, PyCoefs>
+    (m, "Coefs")
     .def(py::init<std::string, bool>(),
          R"(
          Create a coefficient container
@@ -661,8 +739,9 @@ void CoefficientClasses(py::module &m) {
 
          Notes
          -----
-         This container that holds, stores, and reads coefficient structures for a part or all of
-         the snapshots in your simulation
+         This container that holds, stores, and reads coefficient
+         structures for a part or all of the snapshots in your
+         simulation
          )",
          py::arg("type"),
          py::arg("verbose"))
@@ -683,8 +762,8 @@ void CoefficientClasses(py::module &m) {
 
          Notes
          -----
-         This operator will return the 0-rank array if no coefficients are found at the
-         requested time
+         This operator will return the 0-rank array if no coefficients
+         are found at the requested time
          )",
          py::arg("time"))
     .def("setData",
@@ -769,9 +848,10 @@ void CoefficientClasses(py::module &m) {
 
             Notes
             -----
-            This call will throw a runtime exception of the HDF5 coefficient file already exists.
-            This is a safety feature.  If you'd like a new version of this file, delete the old
-            before this call.
+            This call will throw a runtime exception of the HDF5
+            coefficient file already exists.  This is a safety
+            feature.  If you'd like a new version of this file, delete
+            the old before this call.
             )",py::arg("filename"))
     .def("ExtendH5Coefs",
             &CoefClasses::Coefs::ExtendH5Coefs,
@@ -825,9 +905,9 @@ void CoefficientClasses(py::module &m) {
 
          Notes
          -----
-         The subkey prefix is a list of ints with size smaller than the key.  The
-         values will be used as leading key indices and all the matching trailing key
-         values will be generated.
+         The subkey prefix is a list of ints with size smaller than
+         the key.  The values will be used as leading key indices and
+         all the matching trailing key values will be generated.
          )", py::arg("subkey"))
     .def("getGeometry",    &CoefClasses::Coefs::getGeometry,
          R"(
@@ -871,8 +951,9 @@ void CoefficientClasses(py::module &m) {
 
          Notes
          -----
-         Useful if you would like to change your coefficients or filter using
-         mSSA but keep a copy of your original coefficient db for comparison
+         Useful if you would like to change your coefficients or
+         filter using mSSA but keep a copy of your original
+         coefficient db for comparison
 
          See also
          --------
@@ -936,8 +1017,9 @@ void CoefficientClasses(py::module &m) {
 
                 Notes
                 -----
-                The type will be deduced from the supplied coefficient structure.  Subsequent
-                additions of coefficients sets should use the addcoef() member
+                The type will be deduced from the supplied coefficient
+                structure.  Subsequent additions of coefficients sets
+                should use the addcoef() member
 
                 See also
                 --------
@@ -945,9 +1027,10 @@ void CoefficientClasses(py::module &m) {
                 )",
 		py::arg("coef"), py::arg("name")="");
 
-  py::class_<CoefClasses::SphCoefs, std::shared_ptr<CoefClasses::SphCoefs>, PySphCoefs, CoefClasses::Coefs>(m, "SphCoefs", "Container for spherical coefficients")
+  py::class_<CoefClasses::SphCoefs, std::shared_ptr<CoefClasses::SphCoefs>, PySphCoefs, CoefClasses::Coefs>
+    (m, "SphCoefs", "Container for spherical coefficients")
     .def(py::init<bool>(),
-	       R"(
+	 R"(
          Construct a null SphCoefs object
 
          Parameters
@@ -976,8 +1059,8 @@ void CoefficientClasses(py::module &m) {
 
          Notes
          -----
-         This operator will return the 0-rank matrix if no coefficients are found at the
-         requested time
+         This operator will return the 0-rank matrix if no
+         coefficients are found at the requested time
          )",
          py::arg("time"))
     .def("setMatrix",
@@ -1005,7 +1088,8 @@ void CoefficientClasses(py::module &m) {
 	   return ret;
 	 },
 	 R"(
-        Provide a 3-dimensional ndarray indexed by spherical index, radial index, and time index
+        Provide a 3-dimensional ndarray indexed by spherical index, radial index,
+        and time index
 
         Returns
         -------
@@ -1014,13 +1098,14 @@ void CoefficientClasses(py::module &m) {
 
         Notes
         -----
-        The spherical index serializes all pairs of (l, m). The index for (l, m) is calculated 
-        as: l*(l+1)/2 + m.
+        The spherical index serializes all pairs of (l, m). The index
+        for (l, m) is calculated as: l*(l+1)/2 + m.
         )");
 
-  py::class_<CoefClasses::CylCoefs, std::shared_ptr<CoefClasses::CylCoefs>, PyCylCoefs, CoefClasses::Coefs>(m, "CylCoefs", "Container for cylindrical coefficients")
+  py::class_<CoefClasses::CylCoefs, std::shared_ptr<CoefClasses::CylCoefs>, PyCylCoefs, CoefClasses::Coefs>
+    (m, "CylCoefs", "Container for cylindrical coefficients")
     .def(py::init<bool>(),
-	       R"(
+	 R"(
          Construct a null CylCoefs object
 
          Parameters
@@ -1049,8 +1134,8 @@ void CoefficientClasses(py::module &m) {
 
          Notes
          -----
-         This operator will return the 0-rank matrix if no coefficients are found at the
-         requested time
+         This operator will return the 0-rank matrix if no
+         coefficients are found at the requested time
          )",
          py::arg("time"))
     .def("setMatrix",
@@ -1105,19 +1190,166 @@ void CoefficientClasses(py::module &m) {
          Returns
          -------
          numpy.ndarray
-             2-dimensional numpy array containing the even and odd power coefficients
+             2-dimensional numpy array containing the even and odd
+             power coefficients
 
          Notes
          -----
-         The default parameters (nodd<0) will query the YAML config for the value of ncylodd, 
-         but this can be provided as an argument if it is not explicitly set in your EXP::Cylinder 
+         The default parameters (nodd<0) will query the YAML config
+         for the value of ncylodd, but this can be provided as an
+         argument if it is not explicitly set in your EXP::Cylinder
          configuration. If in doubt, use the default.
          )",
 	 py::arg("nodd")=-1, py::arg("min")=0,
 	 py::arg("max") = std::numeric_limits<double>::max());
 
 
-  py::class_<CoefClasses::CubeCoefs, std::shared_ptr<CoefClasses::CubeCoefs>, PyCubeCoefs, CoefClasses::Coefs>(m, "CubeCoefs", "Container for cube coefficients")
+  py::class_<CoefClasses::SphFldCoefs, std::shared_ptr<CoefClasses::SphFldCoefs>, CoefClasses::Coefs>
+    (m, "SphFldCoefs", "Container for spherical field coefficients")
+    .def(py::init<bool>(),
+	       R"(
+         Construct a null SphFldCoefs object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         SphFldCoefs instance
+         )")
+    .def("__call__",
+	 &CoefClasses::SphFldCoefs::getMatrix,
+         R"(
+         Return the coefficient tensor for the desired time.
+
+         Parameters
+         ----------
+         time : float
+             the desired time
+
+         Returns
+         -------
+         numpy.ndarray
+             the coefficient tensor at the requested time
+
+         Notes
+         -----
+         This operator will return the 0-rank tensor if no
+         coefficients are found at the requested time
+         )",
+         py::arg("time"))
+    .def("setMatrix",
+	 &CoefClasses::SphFldCoefs::setMatrix,
+         R"(
+         Enter and/or rewrite the coefficient tensor at the provided time
+
+         Parameters
+         ----------
+         time : float
+             snapshot time corresponding to the the coefficient matrix
+             mat : numpy.ndarray
+                 the new coefficient array.
+
+         Returns
+         -------
+         None
+         )",
+         py::arg("time"), py::arg("mat"))
+    .def("getAllCoefs",
+	 [](CoefClasses::SphFldCoefs& A)
+	 {
+	   auto M = A.getAllCoefs(); // Need a copy here
+	   py::array_t<std::complex<double>> ret = make_ndarray4<std::complex<double>>(M);
+	   return ret;
+	 },
+	 R"(
+        Provide a 4-dimensional ndarray indexed by channel index, spherical index, radial index, and time index
+
+        Returns
+        -------
+        numpy.ndarray
+            4-dimensional numpy array containing the spherical coefficients
+
+        Notes
+        -----
+        The spherical index serializes all pairs of (l, m) where l, m
+        are the aximuthal indices. The index for (l, m) pair is
+        calculated as: l*(l+1)/2 + m
+        )");
+
+  py::class_<CoefClasses::CylFldCoefs, std::shared_ptr<CoefClasses::CylFldCoefs>, CoefClasses::Coefs>
+    (m, "CylFldCoefs", "Container for cylindrical field coefficients")
+    .def(py::init<bool>(),
+	 R"(
+         Construct a null CylFldCoefs object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         CylFldCoefs instance
+         )")
+    .def("__call__",
+	 &CoefClasses::CylFldCoefs::getMatrix,
+         R"(
+         Return the coefficient tensor for the desired time.
+
+         Parameters
+         ----------
+         time : float
+             the desired time
+
+         Returns
+         -------
+         numpy.ndarray
+             the coefficient tensor at the requested time
+
+         Notes
+         -----
+         This operator will return the 0-rank tensor if no
+         coefficients are found at the requested time
+         )",
+         py::arg("time"))
+    .def("setMatrix",
+	 &CoefClasses::CylFldCoefs::setMatrix,
+         R"(
+         Enter and/or rewrite the coefficient tensor at the provided time
+
+         Parameters
+         ----------
+         time : float
+             snapshot time corresponding to the the coefficient matrix
+             mat : numpy.ndarray
+                 the new coefficient array.
+
+         Returns
+         -------
+         None
+         )",
+         py::arg("time"), py::arg("mat"))
+    .def("getAllCoefs",
+	 [](CoefClasses::CylFldCoefs& A)
+	 {
+	   auto M = A.getAllCoefs(); // Need a copy here
+	   py::array_t<std::complex<double>> ret = make_ndarray4<std::complex<double>>(M);
+	   return ret;
+	 },
+	 R"(
+        Provide a 4-dimensional ndarray indexed by channel index, spherical index, radial index, and time index
+
+        Returns
+        -------
+        numpy.ndarray
+            4-dimensional numpy array containing the spherical coefficients
+        )");
+
+  py::class_<CoefClasses::CubeCoefs, std::shared_ptr<CoefClasses::CubeCoefs>, PyCubeCoefs, CoefClasses::Coefs>
+    (m, "CubeCoefs", "Container for cube coefficients")
     .def(py::init<bool>(),
 	       R"(
          Construct a null CubeCoefs object
@@ -1148,8 +1380,8 @@ void CoefficientClasses(py::module &m) {
 
          Notes
          -----
-         This operator will return the 0-rank tensor if no coefficients are found at the
-         requested time
+         This operator will return the 0-rank tensor if no
+         coefficients are found at the requested time
          )",
          py::arg("time"))
     .def("setTensor",
@@ -1185,8 +1417,8 @@ void CoefficientClasses(py::module &m) {
              4-dimensional numpy array containing the cylindrical coefficients
          )");
 
-
-  py::class_<CoefClasses::TableData, std::shared_ptr<CoefClasses::TableData>, PyTableData, CoefClasses::Coefs>(m, "TableData", "Container for simple data tables with multiple columns")
+  py::class_<CoefClasses::TableData, std::shared_ptr<CoefClasses::TableData>, PyTableData, CoefClasses::Coefs>
+    (m, "TableData", "Container for simple data tables with multiple columns")
     .def(py::init<bool>(),
 	 R"(
          Construct a null TableData object
@@ -1199,7 +1431,7 @@ void CoefficientClasses(py::module &m) {
          Returns
          -------
          TableData instance
-         )")
+         )", py::arg("verbose")=true)
     .def(py::init<std::string&>(),
 	 R"(
          Construct a TableData object from a data file
@@ -1227,7 +1459,24 @@ void CoefficientClasses(py::module &m) {
          Returns
          -------
          TableData instance
-         )")
+         )", py::arg("filename"), py::arg("verbose")=true)
+    .def(py::init<std::vector<double>&, std::vector<std::vector<double>>&, bool>(),
+	 R"(
+         Construct a TableData object from data arrays
+
+         Parameters
+         ----------
+         time : ndarray
+             time data
+         array : ndarray
+             data columns
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         TableData instance
+         )", py::arg("time"), py::arg("array"), py::arg("verbose")=true)
     .def("getAllCoefs",    &CoefClasses::TableData::getAllCoefs,
 	 R"(
          Return a 2-dimensional ndarray indexed by column and time

@@ -19,6 +19,7 @@ class OutCoef : public Output
 private:
 
   std::string filename;
+  double prev = -std::numeric_limits<double>::max();
   Component *tcomp;
   bool native;
 

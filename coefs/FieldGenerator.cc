@@ -79,18 +79,22 @@ namespace Field
     //
     auto ctype = basis->coordinates;
 
-    // Field labels (force field labels added below)
+    // Coordinate and field labels
     //
+    std::vector<std::string> coords {"x", "y", "z", "arc"};
     auto labels = basis->getFieldLabels(ctype);
 
+    // Initialize the frame map
+    //
+    std::map<std::string, Eigen::VectorXf> frame;
+    for (auto label : coords) frame[label] = Eigen::VectorXf::Zero(num);
+    for (auto label : labels) frame[label] = Eigen::VectorXf::Zero(num);
+
+    // Compute the probe length
+    //
     std::vector<double> dd(3);
     for (int k=0; k<3; k++) dd[k] = (end[k] - beg[k])/num;
     double dlen = sqrt(dd[0]*dd[0] + dd[1]*dd[1] + dd[2]*dd[2]);
-
-    std::map<std::string, Eigen::VectorXf> frame;
-    for (auto label : labels) {
-      frame[label] = Eigen::VectorXf::Zero(num);
-    }
 
     for (int icnt=0; icnt<times.size(); icnt++) {
 
@@ -116,35 +120,30 @@ namespace Field
 	  double y = beg[1] + dd[1]*ncnt;
 	  double z = beg[2] + dd[2]*ncnt;
 	  
+	  std::vector<double> v;
+
 	  if (ctype == BasisClasses::Basis::Coord::Spherical) {
 	    r     = sqrt(x*x + y*y + z*z) + 1.0e-18;
 	    costh = z/r;
 	    phi   = atan2(y, x);
-	    basis->all_eval(r, costh, phi, d0, d1, p0, p1, f1, f2, f3, ctype);
+	    v = (*basis)(r, costh, phi, ctype);
 	  } else if (ctype == BasisClasses::Basis::Coord::Cylindrical) {
 	    R     = sqrt(x*x + y*y) + 1.0e-18;
 	    phi   = atan2(y, x);
-	    basis->all_eval(R, z, phi, d0, d1, p0, p1, f1, f2, f3, ctype);
+	    v = (*basis)(R, z, phi, ctype);
 	  } else {		// A default
 	    ctype = BasisClasses::Basis::Coord::Cartesian;
-	    basis->all_eval(x, y, z, d0, d1, p0, p1, f1, f2, f3, ctype);
+	    v = (*basis)(x, y, z, ctype);
 	  }
 	  
 	  frame["x"      ](ncnt) = x;
 	  frame["y"      ](ncnt) = y;
 	  frame["z"      ](ncnt) = z;
 	  frame["arc"    ](ncnt) = dlen*ncnt;
-	  frame[labels[0]](ncnt) = p1;
-	  frame[labels[1]](ncnt) = p1 - p0;
-	  frame[labels[2]](ncnt) = p0;
-	  frame[labels[3]](ncnt) = d1;
-	  frame[labels[4]](ncnt) = d1 - d0;
-	  frame[labels[5]](ncnt) = d0;
-	  frame[labels[6]](ncnt) = f1;
-	  frame[labels[7]](ncnt) = f2;
-	  frame[labels[8]](ncnt) = f3;
+
+	  for (int n=0; n<labels.size(); n++) frame[labels[n]](ncnt) = v[n];
 	}
-	
+
 	ret[T] = frame;
       }
     }
@@ -378,35 +377,25 @@ namespace Field
 
 	// Return values
 	double p0, p1, d0, d1, f1, f2, f3;
+	std::vector<double> v;
 
 	if (ctype == BasisClasses::Basis::Coord::Spherical) {
 	  r     = sqrt(x*x + y*y + z*z) + 1.0e-18;
 	  costh = z/r;
 	  phi   = atan2(y, x);
-	  basis->all_eval(r, costh, phi,
-			  d0, d1, p0, p1, f1, f2, f3, ctype);
+	  v = (*basis)(r, costh, phi, ctype);
 	} else if (ctype == BasisClasses::Basis::Coord::Cylindrical) {
 	  R     = sqrt(x*x + y*y) + 1.0e-18;
 	  phi   = atan2(y, x);
-	  basis->all_eval(R, z, phi,
-			  d0, d1, p0, p1, f1, f2, f3, ctype);
+	  v = (*basis)(R, z, phi, ctype);
 	} else {
-	  basis->all_eval(x, y, z,
-			  d0, d1, p0, p1, f1, f2, f3,
-			  BasisClasses::Basis::Coord::Cartesian);
+	  v = (*basis)(x, y, z, BasisClasses::Basis::Coord::Cartesian);
 	}
 	
 	// Pack the frame structure
 	//
-	frame[labels[0]](i, j) = p1;
-	frame[labels[1]](i, j) = p1 - p0;
-	frame[labels[2]](i, j) = p0;
-	frame[labels[3]](i, j) = d1;
-	frame[labels[4]](i, j) = d1 - d0;
-	frame[labels[5]](i, j) = d0;
-	frame[labels[6]](i, j) = f1;
-	frame[labels[7]](i, j) = f2;
-	frame[labels[8]](i, j) = f3;
+	for (int n=0; n<labels.size(); n++)
+	  frame[labels[n]](i, j) = v[n];
       }
 
       ret[T] = frame;
@@ -574,33 +563,26 @@ namespace Field
 	double y = pmin[1] + del[1]*j;
 	double z = pmin[2] + del[2]*k;
 	    
-	double p0, p1, d0, d1, f1, f2, f3;
+	std::vector<double> v;
 
 	if (ctype == BasisClasses::Basis::Coord::Spherical) {
 	  double r     = sqrt(x*x + y*y + z*z) + 1.0e-18;
 	  double costh = z/r;
 	  double phi   = atan2(y, x);
-	  basis->all_eval(r, costh, phi, d0, d1, p0, p1, f1, f2, f3, ctype);
+	  v = (*basis)(r, costh, phi, ctype);
 	} else if (ctype == BasisClasses::Basis::Coord::Cylindrical) {
 	  double R     = sqrt(x*x + y*y) + 1.0e-18;
 	  double phi   = atan2(y, x);
-	  basis->all_eval(R, z, phi, d0, d1, p0, p1, f1, f2, f3, ctype);
+	  v = (*basis)(R, z, phi, ctype);
 	} else {
 	  ctype = BasisClasses::Basis::Coord::Cartesian;
-	  basis->all_eval(x, y, z, d0, d1, p0, p1, f1, f2, f3, ctype);
+	  v = (*basis)(x, y, z, ctype);
 	}
 
 	// Pack the frame structure
 	//
-	frame[labels[0]](i, j, k) = p1;
-	frame[labels[1]](i, j, k) = p1 - p0;
-	frame[labels[2]](i, j, k) = p0;
-	frame[labels[3]](i, j, k) = d1;
-	frame[labels[4]](i, j, k) = d1 - d0;
-	frame[labels[5]](i, j, k) = d0;
-	frame[labels[6]](i, j, k) = f1;
-	frame[labels[7]](i, j, k) = f2;
-	frame[labels[8]](i, j, k) = f3;
+	for (int n=0; n<labels.size(); n++)
+	  frame[labels[n]](i, j, k) = v[n];
       }
 
       ret[T] = frame;
@@ -745,17 +727,17 @@ namespace Field
 
     if (grid[0]>0 and grid[1]>0) {
       ret["xy"] = Eigen::MatrixXf::Zero(grid[0], grid[1]);
-      fac["xy"] = 1.0/(grid[0]*grid[1]);
+      fac["xy"] = 1.0/(del[0]*del[1]);
     }
 
     if (grid[0]>0 and grid[2]>0) {
       ret["xz"] = Eigen::MatrixXf::Zero(grid[0], grid[2]);
-      fac["xz"] = 1.0/(grid[0]*grid[2]);
+      fac["xz"] = 1.0/(del[0]*del[2]);
     }
 
     if (grid[1]>0 and grid[2]>0) {
       ret["yz"] = Eigen::MatrixXf::Zero(grid[1], grid[2]);
-      fac["yz"] = 1.0/(grid[1]*grid[2]);
+      fac["yz"] = 1.0/(del[1]*del[2]);
     }
     
     std::vector<double> pp(3);

@@ -1,6 +1,7 @@
 // -*- C++ -*-
 
 #include <limits>
+#include <set>
 
 #include "expand.H"
 #include <Component.H>
@@ -9,6 +10,11 @@
 // Define this for deep time step check
 //
 // #define OVER_UNDER
+
+// Check for level overruns (implemented in multistep.cc)
+extern void multistep_sanity_check(std::map< Component*, unsigned >& offlo,
+				   std::map< Component*, unsigned >& offhi,
+				   double mindt, double maxdt);
 
 // Define this to see per operation sub timings
 //
@@ -92,13 +98,26 @@ timestepSetKernel(dArray<cudaParticle> P, int stride)
 }
 
 __global__ void
-timestepKernel(dArray<cudaParticle> P, dArray<int> I,
+timestepKernel(dArray<cudaParticle> P,
+	       dArray<int> I,
+	       dArray<int> loLev,
+	       dArray<int> hiLev,
+	       dArray<float> mindt,
+	       dArray<float> maxdt,
 	       cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	       int minactlev, int dim, int stride, PII lohi,
 	       bool noswitch, bool apply)
 {
+  extern __shared__ float cache[];
+
   const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
   const cuFP_t eps = 1.0e-10;
+  const int cIndex = threadIdx.x;
+
+  int lo = 0;
+  int hi = 0;
+  float minDT = 1.0e32;
+  float maxDT = 0.0;
 
   for (int n=0; n<stride; n++) {
     int i     = tid*stride + n;	// Index in the stride
@@ -149,6 +168,9 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       if (dt > dtA) dt = dtA;
       if (dt < eps) dt = eps;
       
+      if (minDT > dt) minDT = dt;
+      if (maxDT < dt) maxDT = dt;
+
       if (noswitch) {
 	if (dt < p.dtreq) p.dtreq = dt;
       } else {
@@ -161,9 +183,10 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 
 	// Time step wants to be LARGER than the maximum
 	//
-	if (p.dtreq >= cuDtime)
+	if (p.dtreq >= cuDtime) {
 	  p.lev[1] = 0;
-	else
+	  hi++;
+	} else
 	  p.lev[1] = (int)floor(log(cuDtime/p.dtreq)/log(2.0));
 	
 	// Enforce n-level shifts at a time
@@ -180,11 +203,14 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 
 	// Time step wants to be SMALLER than the maximum
 	//
-	if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
+	if (p.lev[1]>cuMultistep) {
+	  p.lev[1] = cuMultistep;
+	  lo++;
+	}
 	
 	// Limit new level to minimum active level
 	//
-	if (p.lev[1]<minactlev)   p.lev[1] = minactlev;
+	if (p.lev[1]<minactlev) p.lev[1] = minactlev;
       }
       // Apply level selction
 	
@@ -192,7 +218,51 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
     
   } // END: stride loop
 
+  if (apply) {
+
+    // set the cache values
+    //
+    cache[cIndex + 0*blockDim.x] = lo;
+    cache[cIndex + 1*blockDim.x] = hi;
+    cache[cIndex + 2*blockDim.x] = minDT;
+    cache[cIndex + 3*blockDim.x] = maxDT;
+
+    __syncthreads();
+  
+    // perform parallel reduction, threadsPerBlock must be 2^m
+    //
+    int ib = blockDim.x / 2;
+    while (ib != 0) {
+      
+      if (cIndex < ib) {
+	
+	// Sums
+	cache[cIndex + 0*blockDim.x] += cache[cIndex + ib + 0*blockDim.x]; 
+	cache[cIndex + 1*blockDim.x] += cache[cIndex + ib + 1*blockDim.x]; 
+	
+	// Min
+	if (cache[cIndex + ib + 2*blockDim.x] < cache[cIndex + 2*blockDim.x])
+	  cache[cIndex + 2*blockDim.x] = cache[cIndex + ib + 2*blockDim.x]; 
+	
+	// Max
+	if (cache[cIndex + ib + 3*blockDim.x] > cache[cIndex + 3*blockDim.x])
+	  cache[cIndex + 3*blockDim.x] = cache[cIndex + ib + 3*blockDim.x]; 
+      }
+
+      __syncthreads();
+      
+      ib /= 2;
+    }
+    
+    if (cIndex == 0) {
+      loLev._v[blockIdx.x] = floor(cache[0*blockDim.x]);
+      hiLev._v[blockIdx.x] = floor(cache[1*blockDim.x]);
+      mindt._v[blockIdx.x] = cache[2*blockDim.x];
+      maxdt._v[blockIdx.x] = cache[3*blockDim.x];
+    }
+  }
 }
+
 
 // Reset target level to current level
 //
@@ -296,6 +366,9 @@ void cuda_compute_levels()
     if (not c->force->cudaAware()) c->ParticlesToCuda();
   }
 
+  std::map<Component*, unsigned> offlo, offhi;
+  float mindt = 1.0e32, maxdt = 0.0;
+
   cudaDeviceProp deviceProp;
 
 #ifdef VERBOSE_TIMING
@@ -372,12 +445,20 @@ void cuda_compute_levels()
     unsigned int N         = lohi.second - lohi.first;
     unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
     unsigned int gridSize  = N/BLOCK_SIZE/stride;
-    
+    unsigned int sm        = BLOCK_SIZE*sizeof(float)*4;
+
     // We have particles at this level: get the new time-step level
     //
     if (N>0) {
 
       if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+      // Multilevel device storage
+      //
+      c->loLev.resize(gridSize);
+      c->hiLev.resize(gridSize);
+      c->minDT.resize(gridSize);
+      c->maxDT.resize(gridSize);
 
       // Get the current expansion center
       //
@@ -385,10 +466,29 @@ void cuda_compute_levels()
       
       // Do the work
       //
-      timestepKernel<<<gridSize, BLOCK_SIZE>>>
+      timestepKernel<<<gridSize, BLOCK_SIZE, sm>>>
 	(toKernel(c->cuStream->cuda_particles),
-	 toKernel(c->cuStream->indx1), ctr[0], ctr[1], ctr[2],
+	 toKernel(c->cuStream->indx1),
+	 toKernel(c->loLev), toKernel(c->hiLev), // For level under/overruns
+	 toKernel(c->minDT), toKernel(c->maxDT), // For min/max timesteps
+	 ctr[0], ctr[1], ctr[2],
 	 mfirst[mdrft], c->dim, stride, lohi, c->NoSwitch(), apply);
+
+      // Thrust reductions
+      //
+      offlo[c] = thrust::reduce(c->loLev.begin(), c->loLev.end(),
+				0, thrust::plus<int>());
+
+      offhi[c] = thrust::reduce(c->hiLev.begin(), c->hiLev.end(),
+				0, thrust::plus<int>());
+
+      // Make thrust do device copy
+      //
+      float minT = *(thrust::min_element(c->minDT.begin(), c->minDT.end()));
+      float maxT = *(thrust::max_element(c->maxDT.begin(), c->maxDT.end()));
+	
+      if (minT<mindt) mindt = minT;
+      if (maxT>maxdt) maxdt = maxT;
     }
   }
   // END: component loop
@@ -543,6 +643,35 @@ void cuda_compute_levels()
 #endif
   }
   // END: component loop
+
+  // Check for multistep overrun
+  //
+  if (mdrft==Mstep) {
+
+    // MPI reduction
+    //
+    if (myid==0) {
+      for (auto c : comp->components) {
+	MPI_Reduce(MPI_IN_PLACE,
+		   &offlo[c], 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(MPI_IN_PLACE,
+		   &offhi[c], 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+      }
+      MPI_Reduce(MPI_IN_PLACE,
+		 &mindt, 1, MPI_FLOAT, MPI_MIN, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE,
+		 &maxdt, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
+    } else {
+      for (auto c : comp->components) {
+	MPI_Reduce(&offlo[c], 0, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(&offhi[c], 0, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+      }
+      MPI_Reduce(&mindt, 0, 1, MPI_FLOAT, MPI_MIN, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&maxdt, 0, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
+    }
+    
+    multistep_sanity_check(offlo, offhi, mindt, maxdt);
+  }
 
 #ifdef VERBOSE_TIMING
   auto finish0 = std::chrono::high_resolution_clock::now();

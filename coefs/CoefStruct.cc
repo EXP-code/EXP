@@ -58,6 +58,22 @@ namespace CoefClasses
       throw std::runtime_error("TblStruct::create: cols must be >0");
   }
 
+  void SphFldStruct::create()
+  {
+    if (nfld>0 and nmax>0)
+      coefs = std::make_shared<coefType>(store.data(), nfld, (lmax+1)*(lmax+2)/2, nmax);
+    else
+      throw std::runtime_error("CoefStruct::SphFldStruct: nfld and nmax must be >0");
+  }
+
+  void CylFldStruct::create()
+  {
+    if (nfld>0 and nmax>0)
+      coefs = std::make_shared<coefType>(store.data(), nfld, mmax+1, nmax);
+    else
+      throw std::runtime_error("CoefStruct::CylFldStruct: nfld and nmax must be >0");
+  }
+
   std::shared_ptr<CoefStruct> CylStruct::deepcopy()
   {
     auto ret = std::make_shared<CylStruct>();
@@ -128,6 +144,45 @@ namespace CoefClasses
 
     return ret;
   }
+
+  std::shared_ptr<CoefStruct> SphFldStruct::deepcopy()
+  {
+    auto ret = std::make_shared<SphFldStruct>();
+
+    copyfields(ret);
+
+    assert(("SphFldStruct::deepcopy dimension mismatch",
+	    nfld*(lmax+1)*(lmax+2)/2*nmax == store.size()));
+
+    ret->coefs  = std::make_shared<coefType>
+      (ret->store.data(), nfld, (lmax+1)*(lmax+2)/2, nmax);
+    ret->nfld   = nfld;
+    ret->lmax   = lmax;
+    ret->nmax   = nmax;
+    ret->scale  = scale;
+
+    return ret;
+  }
+
+  std::shared_ptr<CoefStruct> CylFldStruct::deepcopy()
+  {
+    auto ret = std::make_shared<CylFldStruct>();
+
+    copyfields(ret);
+
+    assert(("CylFldStruct::deepcopy dimension mismatch",
+	    nfld*(mmax+1)*nmax == store.size()));
+
+    ret->coefs  = std::make_shared<coefType>
+      (ret->store.data(), nfld, mmax+1, nmax);
+    ret->nfld   = nfld;
+    ret->mmax   = mmax;
+    ret->nmax   = nmax;
+    ret->scale  = scale;
+
+    return ret;
+  }
+
 
   bool CylStruct::read(std::istream& in, bool exp_type, bool verbose)
   {
@@ -421,5 +476,19 @@ namespace CoefClasses
     }
   }
 
+  bool SphFldStruct::read(std::istream& in, bool exp_type, bool verbose)
+  {
+    std::cout << "SphFldStruct: no native coefficient format for this class"
+	      << std::endl;
+    return false;
+  }
+  
+  bool CylFldStruct::read(std::istream& in, bool exp_type, bool verbose)
+  {
+    std::cout << "CylFldStruct: no native coefficient format for this class"
+	      << std::endl;
+    return false;
+  }
+  
 }
 // END namespace CoefClasses

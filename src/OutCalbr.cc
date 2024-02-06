@@ -187,6 +187,9 @@ void OutCalbr::Run(int ns, int mstep, bool last)
 
   if (ns % nint != 0 && !last) return;
   if (multistep>1 and mstep % nintsub !=0) return;
+  if (tnow <= prev) return;
+
+  prev = tnow;
 
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {		// Get particles from device

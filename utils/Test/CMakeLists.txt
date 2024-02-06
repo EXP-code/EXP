@@ -17,7 +17,7 @@ set(common_INCLUDE
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 if(ENABLE_CUDA)
-  list(APPEND common_LINKLIB ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY} )
+  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt )
 endif()
 
 if(ENABLE_XDR AND TIRPC_FOUND)
