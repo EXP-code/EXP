@@ -40,6 +40,7 @@ PolarBasis::valid_keys = {
   "NO_M1",
   "EVEN_M",
   "M0_ONLY",
+  "M0_BACK",
   "mlim",
   "ssfrac",
   "playback",
@@ -69,6 +70,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   NO_M1            = false;
   EVEN_M           = false;
   M0_only          = false;
+  M0_back          = false;
   ssfrac           = 0.0;
   subset           = false;
   coefMaster       = true;
@@ -104,6 +106,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     if (conf["NO_M1"])   NO_M1   = conf["NO_M1"].  as<bool>();
     if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"]. as<bool>();
     if (conf["M0_ONLY"]) M0_only = conf["M0_ONLY"].as<bool>();
+    if (conf["M0_BACK"]) M0_back = conf["M0_BACK"].as<bool>();
     
     if (conf["ssfrac"]) {
       ssfrac = conf["ssfrac"].as<double>();
@@ -1419,11 +1422,17 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	// Add m=0 force contribution
 	//
 	if (not NO_M0) {
-	  get_pot_coefs_safe(0, *expcoef[0], p, drc, dzc, potd[id], dpotR[id], dpotZ[id]);
 
-	  potl = mfac*norm0 * p;
-	  potr = mfac*norm0 * drc;
-	  potz = mfac*norm0 * dzc;
+	  if (M0_back) {
+	    get_pot_background(r, zz, p, drc, dzc);
+	  } else {
+	    get_pot_coefs_safe(0, *expcoef[0], p, drc, dzc,
+			       potd[id], dpotR[id], dpotZ[id]);
+
+	    potl = mfac*norm0 * p;
+	    potr = mfac*norm0 * drc;
+	    potz = mfac*norm0 * dzc;
+	  }
 	}
 	
 	// Asymmetric terms?

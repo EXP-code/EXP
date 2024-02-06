@@ -74,6 +74,11 @@ private:
   }
 #endif
 
+  //! Background evaluation
+  virtual void get_pot_background(double r, double z,
+				  double & p, double & dr, double & dz)
+  { ortho->background(r, z, p, dr, dz); }
+
   void get_dens(double r, double z, Eigen::MatrixXd& p, int tid);
 
   void get_potl_dens(double r, double z,

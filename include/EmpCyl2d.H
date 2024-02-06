@@ -204,6 +204,13 @@ public:
 
   //! Check for configuration
   bool operator()() { return configured; }
+
+  //! Background evaluation
+  void background(double r, double & p, double & dr)
+  {
+    p  = disk->pot(r);
+    dr = disk->dpot(r);
+  }
 };
 
 

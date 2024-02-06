@@ -201,6 +201,14 @@ public:
   //! Evaluate all orders in matrices; for n-body
   void get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs, double r, double z);
 
+  //! Background evaluation
+  virtual void background(double r, double z,
+			  double & p, double & dr, double & dz)
+  {
+    emp.background(r, p, dr);
+    dz = 0.0;
+  }
+
   //! Get the table bounds
   double getRtable() { return rcylmax*scale; }
 

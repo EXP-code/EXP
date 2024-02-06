@@ -35,6 +35,7 @@ class MixtureBasis;
     @param NO_M1 true to omint the m=1 harmonic (default: false)
     @param EVEN_M true to include only even m harmonics (default: false)
     @param M0_ONLY true to include only the m=0 harmonic (default: false)
+    @param M0_BACK true includes fixed m=0 harmonic (default: false)
     @param ssfrac set > 0.0 to compute a fraction of particles only
     @param playback true to replay from a coefficient file
     @param coefMaster true to have only the root node read and distribute the coefficients
@@ -376,6 +377,11 @@ protected:
 
 #endif
 
+  //! Background evaluation
+  virtual void get_pot_background(double r, double z,
+				  double & p, double & dr, double & dz)
+  { p = dr = dz = 0.0; }
+
   //! Thread method for accerlation compuation
   virtual void * determine_acceleration_and_potential_thread(void * arg);
 
@@ -394,7 +400,7 @@ protected:
   //! Flag self_consitency
   bool self_consistent;
 
-  //! Flag fixed monopole
+  //! Omit monopole
   bool NO_M0;
 
   //! Flag drop m=1 term
@@ -405,6 +411,9 @@ protected:
 
   //! Use axisymmetric terms
   bool M0_only;
+
+  //! Flag fixed monopole
+  bool M0_back;
 
   //! Expected coefficient values for RMS noise computation
   Eigen::VectorXd meanC;
