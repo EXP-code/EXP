@@ -20,7 +20,8 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   OutVel.cc OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc step.cc
   tidalField.cc ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
   ParticleFerry.cc pCell.cc chkSlurm.c chkTimer.cc pHOT.cc
-  GravKernel.cc ${CUDA_SRC} CenterFile.cc PolarBasis.cc FlatDisk.cc)
+  GravKernel.cc ${CUDA_SRC} CenterFile.cc PolarBasis.cc FlatDisk.cc
+  signals.cc)
 
 set(common_INCLUDE_DIRS 
   $<INSTALL_INTERFACE:include>
