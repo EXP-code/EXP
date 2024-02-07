@@ -237,6 +237,10 @@ extern unsigned char stop_signal;
 */
 extern unsigned char quit_signal;
 
+/** Implementation variables for handlers */
+extern int stop_signal0;
+extern int dump_signal0;
+
 				// MPI variables
 
 //! Used to flag separate behavior on inintialization (unused)

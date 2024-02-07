@@ -123,12 +123,16 @@ double plgndr(int, int, double);
 double dplgndr(int l, int m, double x);
 double factrl(int n);
 
+//===========================================
 // Constants
+//===========================================
 
 static const double DSMALL = 1.0e-16;
 static const int    mdtDim = 7;
 
+//===========================================
 // Parallel prototypes
+//===========================================
 
 void setup_distribution(void);
 void redistribute_particles(void);
@@ -141,7 +145,9 @@ void MPL_start_timer(void);
 void MPL_stop_timer(void);
 double MPL_read_timer(int reset);
 
+//===========================================
 // Utilities
+//===========================================
 
 void get_ultra(int nmax, double l, double x, Eigen::VectorXd& p);
 string trimRight(const string);
@@ -152,27 +158,68 @@ inline int atoi(string& s) {return atoi(s.c_str());}
 inline bool atol(string& s) {return atoi(s.c_str()) ? true : false;}
 
 
+//===========================================
 // Component structures
+//===========================================
 
 #include <ComponentContainer.H>
 
+//===========================================
 // External forces
+//===========================================
 
 #include <ExternalForce.H>
 
+//===========================================
 // Output list
+//===========================================
 
 #include <Output.H>
 
 void do_output_init(void);
 
+//===========================================
 // Parameter database
+//===========================================
 
 #include <yaml-cpp/yaml.h>
 #include <ComponentContainer.H>
 #include <global.H>
 
+//===========================================
+// Handlers defined in signal.cc
+//===========================================
+
+void set_fpu_invalid_handler(void);
+
+void set_fpu_trace_handler(void);
+
+void set_fpu_gdb_handler(void);
+
+void exp_mpi_error_handler(MPI_Comm *communicator, int *error_code, ...);
+
+void signal_handler_stop(int sig);
+
+void signal_handler_dump(int sig);
+
+//===========================================
+// Handlers defined in exputil/stack.cc
+//===========================================
+
+void print_trace(std::ostream& out,
+			const char *file, int line);
+
+void mpi_print_trace(const string& routine, const string& msg,
+			    const char *file, int line);
+
+void mpi_gdb_print_trace(int sig);
+
+void mpi_gdb_wait_trace(int sig);
+
+
+//===========================================
 // Exception handler
+//===========================================
 
 #include <EXPException.H>
 

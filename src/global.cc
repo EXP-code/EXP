@@ -57,6 +57,10 @@ bool eqmotion = true;
 unsigned char stop_signal  = 0;
 unsigned char dump_signal  = 0;
 unsigned char quit_signal  = 0;
+
+int stop_signal0 = 0;		// Internal implementation of stop_signal
+int dump_signal0 = 0;		// Internal implementation of dump_signal
+
 				// Multistep variables
 unsigned        shiftlevl  = 0;
 unsigned        maxlev     = 100;
