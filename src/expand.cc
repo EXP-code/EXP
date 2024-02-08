@@ -1,8 +1,10 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "expand.H"
+
 
 void do_step (int);
 void clean_up(void);
