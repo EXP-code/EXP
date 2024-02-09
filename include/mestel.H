@@ -181,7 +181,7 @@ public:
   
   double get_mass(double R)
   {
-    if (interp) {
+    if (not interp) {
       // Compute a grid spacing
       double dr = 0.01*Ri;
       int N = std::floor((rmax - rmin)/dr) + 1;
