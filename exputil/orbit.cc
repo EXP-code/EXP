@@ -12,23 +12,21 @@
 #include <interp.H>
 #include <orbit.H>
 
-void RegularOrbit::bomb(const char *s) {
-  std::cerr << "ERROR from " << OrbitID << ": " << s << std::endl;
-#ifdef DEBUG
-  abort();
-#endif
-  exit(-1);
+void RegularOrbit::bomb(const char *s)
+{
+  std::ostringstream msg;
+  msg << "ERROR from " << OrbitID << ": " << s;
+  throw std::runtime_error(msg.str());
 }
 
 void RegularOrbit::bomb(const string& s) {
-  cerr << "ERROR from " << OrbitID << ": " << s << endl;
-#ifdef DEBUG
-  abort();
-#endif
-  exit(-1);
+  std::ostringstream msg;
+  msg << "ERROR from " << OrbitID << ": " << s;
+  throw std::runtime_error(msg.str());
 }
 
-void RegularOrbit::warn(const string& fct, const string& msg) {
+void RegularOrbit::warn(const string& fct, const string& msg)
+{
   cerr << fct << ": from " << OrbitID << ": " << msg << endl;
 }
 
