@@ -99,7 +99,9 @@ main(int ac, char **av)
 
   // Create the model
   //
-  auto model = std::make_shared<TaperedMestelDisk>(nu, mu, Ri, 1.0, 0.1*Rmin, 10.0*Rmax);
+  auto model = std::make_shared<TaperedMestelDisk>(nu, mu, Ri, 1.0,
+						   0.1*Rmin, 10.0*Rmax);
+  model->setup_df(sigma);
 
   // Progress bar
   //
@@ -149,7 +151,7 @@ main(int ac, char **av)
   // Save the position and velocity vectors
   std::vector<std::array<double, 3>> pos(N), vel(N);
 
-  int itmax = 10000;
+  int itmax = 100000;
   int tid   = 0;
   int over  = 0;
 

@@ -47,10 +47,10 @@ SphericalOrbit::SphericalOrbit(void) {
 
   model = 0;
 
-  model_defined = false;
+  model_defined  = false;
   action_defined = false;
-  freq_defined = false;
-  angle_defined = false;
+  freq_defined   = false;
+  angle_defined  = false;
   biorth_defined = false;
 
   set_numerical_params();
@@ -71,11 +71,11 @@ SphericalOrbit::SphericalOrbit(AxiSymModPtr Model)
   r_circ = 0.0;
 
   model = Model;
-  model_defined = true;
+  model_defined  = true;
 
   action_defined = false;
-  freq_defined = false;
-  angle_defined = false;
+  freq_defined   = false;
+  angle_defined  = false;
   biorth_defined = false;
 
   set_numerical_params();
@@ -118,10 +118,10 @@ SphericalOrbit::SphericalOrbit(const SphericalOrbit &t)
 
   model = t.model;
 
-  model_defined = t.model_defined;
+  model_defined  = t.model_defined;
   action_defined = t.action_defined;
-  freq_defined = t.freq_defined;
-  angle_defined = t.angle_defined;
+  freq_defined   = t.freq_defined;
+  angle_defined  = t.angle_defined;
 }
 
 SphericalOrbit &SphericalOrbit::operator=(const SphericalOrbit &t)
@@ -154,8 +154,9 @@ void SphericalOrbit::new_orbit(double Energy, double Kappa, double Beta)
     bomb(ost.str().c_str());
   }
 
-//  if (Energy < model->get_pot(model->get_min_radius()) || 
-//      Energy > model->get_pot(model->get_max_radius())) {
+  //  if (Energy < model->get_pot(model->get_min_radius()) || 
+  //      Energy > model->get_pot(model->get_max_radius())) {
+
   if (guard && Energy < model->get_pot(model->get_min_radius())) {
     ostringstream ost;
     ost << "[new orbit] illegal value of Energy: " << Energy;
@@ -166,12 +167,12 @@ void SphericalOrbit::new_orbit(double Energy, double Kappa, double Beta)
 
 
   energy = Energy;
-  kappa = Kappa;
-  beta = Beta;
+  kappa  = Kappa;
+  beta   = Beta;
 
   action_defined = false;
-  freq_defined = false;
-  angle_defined = false;
+  freq_defined   = false;
+  angle_defined  = false;
   biorth_defined = false;
 }
 

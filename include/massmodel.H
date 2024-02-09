@@ -97,7 +97,8 @@ public:
   int dof() { return dim; }
 
   //! Exception handling using std::exception
-  void bomb(const char *s) {
+  void bomb(const char *s)
+  {
     std::ostringstream sout;
     sout << "MassModel error from " << ModelID << ": " << s;
     throw std::runtime_error(sout.str());
