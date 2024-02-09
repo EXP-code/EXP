@@ -12,9 +12,12 @@
 #include <vector>
 #include <array>
 
+#include <omp.h>
+
 #include <mestel.H>
 
-#include <cxxopts.H>
+#include <Progress.H>		// Progress bar
+#include <cxxopts.H>		// Option parsing
 
 int 
 main(int ac, char **av)
@@ -92,18 +95,32 @@ main(int ac, char **av)
     throw std::runtime_error(msg);
   }
 
+  SphericalOrbit::ZFRAC=0.3;	// TEST
+
   // Create the model
   //
-  auto model = std::make_shared<TaperedMestelDisk>(nu, mu, Ri);
+  auto model = std::make_shared<TaperedMestelDisk>(nu, mu, Ri, 1.0, 0.1*Rmin, 10.0*Rmax);
+
+  // Progress bar
+  //
+  std::shared_ptr<progress::progress_display> progress;
+  int nomp = 1;
+#pragma omp parallel
+  {
+    nomp = omp_get_num_threads();
+    if (omp_get_thread_num()==0)
+      progress = std::make_shared<progress::progress_display>(N/nomp);
+  }
 
   // Create an orbit grid
   //
-  SphericalOrbit orb(model);
-  
+  std::vector<std::shared_ptr<SphericalOrbit>> orb(nomp);
+  for (auto & v : orb) v = std::make_shared<SphericalOrbit>(model);
+
   double Ktol = 0.01;
   double Kmin = Ktol, Kmax = 1.0 - Ktol;
 
-  double Emin = 0.5*Rmin*model->get_dpot(Rmin) + model->get_pot(Emin);
+  double Emin = 0.5*Rmin*model->get_dpot(Rmin) + model->get_pot(Rmin);
   double Emax = 0.5*Rmax*model->get_dpot(Rmax) + model->get_pot(Rmax);
 
   // Scan to find the peak df
@@ -115,8 +132,8 @@ main(int ac, char **av)
     double E = Emin + dE*i;
     for (int j=0; j<=num; j++) {
       double K = Kmin + dK*j;
-      orb.new_orbit(E, K);
-      double F = model->distf(E, orb.get_action(2)) / orb.get_freq(1);
+      orb[0]->new_orbit(E, K);
+      double F = model->distf(E, orb[0]->get_action(2)) / orb[0]->get_freq(1);
       peak = std::max<double>(peak, F);
     }
   }
@@ -133,11 +150,15 @@ main(int ac, char **av)
   std::vector<std::array<double, 3>> pos(N), vel(N);
 
   int itmax = 10000;
+  int tid   = 0;
   int over  = 0;
 
   // Generation loop
+  //
+#pragma omp parallel for reduction(+:over)
   for (int n=0; n<N; n++) {
-    
+    tid = omp_get_thread_num();
+
     double E, K, R;
     int j;
 
@@ -147,18 +168,18 @@ main(int ac, char **av)
       K = Kmin + (Kmax - Kmin)*uniform(gen);
       R = uniform(gen);
 
-      orb.new_orbit(E, K);
-      double F = model->distf(E, orb.get_action(2)) / orb.get_freq(1);
+      orb[tid]->new_orbit(E, K);
+      double F = model->distf(E, orb[tid]->get_action(2)) / orb[tid]->get_freq(1);
       if (F/peak > R) break;
     }
 
     if (j==itmax) over++;
 
-    double J   = orb.get_action(2);
-    double T   = 2.0*M_PI/orb.get_freq(1)*uniform(gen);
-    double r   = orb.get_angle(6, T);
-    double w1  = orb.get_angle(1, T);
-    double phi = 2.0*M_PI*uniform(gen) + orb.get_angle(7, T);
+    double J   = orb[tid]->get_action(2);
+    double T   = 2.0*M_PI/orb[tid]->get_freq(1)*uniform(gen);
+    double r   = orb[tid]->get_angle(6, T);
+    double w1  = orb[tid]->get_angle(1, T);
+    double phi = 2.0*M_PI*uniform(gen) + orb[tid]->get_angle(7, T);
 
     double vt  = J/r;
     double vr  = sqrt(fabs(2.0*E - model->get_pot(r)) - J*J/(r*r));
@@ -174,7 +195,11 @@ main(int ac, char **av)
     vel[n][0] = vr*cos(phi) - vt*sin(phi);
     vel[n][1] = vr*sin(phi) + vt*cos(phi);
     vel[n][2] = 0.0;
+
+    // Print progress bar
+    if (progress) ++(*progress);
   }
+  std::cout << std::endl << "** Main loop complete" << std::endl;
 
   // Compute the particle mass
   //
@@ -186,12 +211,25 @@ main(int ac, char **av)
   out << std::setw(8) << N << std::setw(8) << 0 << std::setw(8) << 0
       << std::endl;
 
+  double ektot = 0.0, clausius = 0.0;
   for (int n=0; n<N; n++) {
     out << std::setw(18) << mass;
     for (int k=0; k<3; k++) out << std::setw(18) << pos[n][k];
     for (int k=0; k<3; k++) out << std::setw(18) << vel[n][k];
     out << std::endl;
+
+    double r2 = 0.0, v2 = 0.0;
+    for (int k=0; k<3; k++) {
+      r2 += pos[n][k]*pos[n][k];
+      v2 += vel[n][k]*vel[n][k];
+    }
+
+    ektot += mass*v2;
+    double r = sqrt(r2);
+    clausius += mass*model->get_dpot(r)*r;
   }
+
+  std::cout <<  "2T/VC=" << ektot/clausius << std::endl;
 
   return 0;
 }
