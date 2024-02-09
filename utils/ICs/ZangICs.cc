@@ -142,6 +142,7 @@ main(int ac, char **av)
     int j;
 
     for (j=0; j<itmax; j++) {
+
       E = Emin + (Emax - Emin)*uniform(gen);
       K = Kmin + (Kmax - Kmin)*uniform(gen);
       R = uniform(gen);
@@ -153,30 +154,42 @@ main(int ac, char **av)
 
     if (j==itmax) over++;
 
-    double J = orb.get_action(2);
-    double T = 2.0*M_PI/orb.get_freq(1)*uniform(gen);
-    double r = orb.get_angle(6, T);
-    double w1 = orb.get_angle(1, T);
+    double J   = orb.get_action(2);
+    double T   = 2.0*M_PI/orb.get_freq(1)*uniform(gen);
+    double r   = orb.get_angle(6, T);
+    double w1  = orb.get_angle(1, T);
     double phi = 2.0*M_PI*uniform(gen) + orb.get_angle(7, T);
 
     double vt  = J/r;
     double vr  = sqrt(fabs(2.0*E - model->get_pot(r)) - J*J/(r*r));
-    if (w1 > M_PI) vr *= -1.0;
 
+    if (w1 > M_PI) vr *= -1.0;	// Branch of radial motion
+
+    // Convert from polar to Cartesian
+    //
     pos[n][0] = r*cos(phi);
     pos[n][1] = r*sin(phi);
     pos[n][2] = 0.0;
+
     vel[n][0] = vr*cos(phi) - vt*sin(phi);
     vel[n][1] = vr*sin(phi) + vt*cos(phi);
     vel[n][2] = 0.0;
   }
 
-  std::cout << "** " << over << " particles failed iteration" << std::endl; 
+  // Compute the particle mass
+  //
+  double mass = (model->get_mass(Rmax) - model->get_mass(Rmin))/N;
+
+  std::cout << "** " << over << " particles failed iteration" << std::endl
+	    << "** Particle mass=" << mass << std::endl;
+
+  out << std::setw(8) << N << std::setw(8) << 0 << std::setw(8) << 0
+      << std::endl;
 
   for (int n=0; n<N; n++) {
     out << std::setw(18) << mass;
-    for (int k=0; k<3; k++) out << std::setw(18) << pos[i][k];
-    for (int k=0; k<3; k++) out << std::setw(18) << vel[i][k];
+    for (int k=0; k<3; k++) out << std::setw(18) << pos[n][k];
+    for (int k=0; k<3; k++) out << std::setw(18) << vel[n][k];
     out << std::endl;
   }
 

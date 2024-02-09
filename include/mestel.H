@@ -35,7 +35,7 @@ public:
 
   //@{
   //! Required member functions
-  double get_mass(const double r) { 
+  virtual double get_mass(const double r) { 
     if (r>0.0) return rot*r; 
     else bomb("radius cannot be zero!");
     return 0;
@@ -116,8 +116,11 @@ public:
 //! Doubly tapered Mestel Disk
 class TaperedMestelDisk : public MestelDisk
 {
+private:
+
+  std::shared_ptr<Linear1d> interp;
+
 protected:
-  
   //! Taper parameters
   double nu, mu;
 
@@ -176,20 +179,41 @@ public:
     return 0;
   }
   
-  double get_mass_ratio(double Rmin, double Rmax)
+  double get_mass(double R)
   {
-    double dr = 0.01*Ri;
-    int N = std::floor((Rmax - Rmin)/dr) + 1;
-    dr = (Rmax - Rmin)/N;
-    double lst = get_density(Rmin);
-    double ret = 0.0;
-    for (int i=1; i<=N; i++) {
-      double cur = get_density(Rmin+dr*i);
-      ret += 0.5*dr*(lst + cur);
-      lst = cur;
+    if (interp) {
+      // Compute a grid spacing
+      double dr = 0.01*Ri;
+      int N = std::floor((rmax - rmin)/dr) + 1;
+      dr = (rmax - rmin)/N;
+
+      // Storage for table
+      Eigen::VectorXd vecR(N+1), vecM(N+1);
+
+      double lst = get_density(rmin);
+      double cum = 0.0;
+
+      // Make the table
+      //
+      vecR(0) = rmin;
+      vecM(0) = 0.0;
+
+      for (int i=1; i<=N; i++) {
+	double rr  = rmin + dr*i;
+	double cur = get_density(rr);
+	cum += 0.5*dr*(lst + cur);
+	lst = cur;
+
+	vecR(i) = rr;
+	vecM(i) = cum;
+      }
+
+      // Make the interpolation function
+      //
+      interp = std::make_shared<Linear1d>(vecR, vecM);
     }
 
-    return ret / (get_mass(Rmax) - get_mass(Rmin));
+    return interp->eval(R);
   }
 
   //@{
