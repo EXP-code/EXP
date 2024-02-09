@@ -399,121 +399,100 @@ class EmpCyl2d::MestelCyl : public EmpCyl2d::ModelCyl
 {
 private:
 
-  double acyl;
+  double vrot, rot;
 
 public:
   
   MestelCyl(const EmpCyl2d::ParamVec& par)
-  { acyl = par[0];  id = "mestel"; }
+  { vrot = par[0];  rot = vrot*vrot; id = "mestel"; }
 
-  double pot(double R) {
-    return M_PI/(2.0*acyl)*log(0.5*R/acyl);
+  virtual double pot(double R) {
+    if (R>0.0) return rot*log(R);
+    else throw std::runtime_error("MestelCyl::pot: R<=0");
   }
 
-  double dpot(double R) {
-    double a2 = acyl * acyl;
-    double fac = sqrt(1.0 + R*R/a2);
-    return M_PI/(2.0*acyl*R);
+  virtual double dpot(double R) {
+    if (R>0.0) return rot/R;
+    else throw std::runtime_error("MestelCyl::dpot: R<=0");
   }
 
-  double dens(double R) {
-    if (R>acyl)
-      return 0.0;
-    else
-      return 4.0*M_PI/(2.0*M_PI*acyl*R)*acos(R/acyl);
-      //     ^
-      //     |
-      // This 4pi from Poisson's eqn
+  virtual double dens(double R) {
+    if (R>0.0) return rot/(2.0*M_PI*R);
+    else throw std::runtime_error("MestelCyl::dens: R<=0");
   }
 };
 
 
-class EmpCyl2d::ZangCyl : public EmpCyl2d::ModelCyl
+class EmpCyl2d::ZangCyl : public EmpCyl2d::MestelCyl
 {
   
 private:
   //! Parameters
-  double a, c, N, M;
+  double vr, mu, nu, ri;
 
   //! Softening factor
   double asoft = 1.0e-8;
 
-  //! Normalization
-  double norm = 1.0;
-
   //! Ignore inner cut-off for N<0.05
   bool Inner = true;
 
-  //! Jacobian for inf to unit-segment mapping
-  double drdz(double x)
+  //! Taper factor
+  double Tifac;
+
+  //! Inner taper function
+  double Tinner(double Jp)
   {
-    double ra = x/a, faca = pow(x/a, N);
-    return a * pow(ra, 1.0 - N) * (faca + 1.0)*(faca + 1.0)/N;
+    double fac = pow(Jp, nu);
+    return fac/(Tifac + fac);
   }
 
-  //! Normalize the surface density
-  void compute_norm()
+  //! Outer taper function
+  double Touter(double Jp)
   {
-    const int grid = 4000;
-    double cur = 0.0;
+    return 1.0/(1.0 + pow(Jp/vr, mu));
+  }
 
-    norm = 1.0;
+  //! Deriv of inner taper function
+  double dTinner(double Jp)
+  {
+    double fac  = pow(Jp, nu);
+    double fac2 = Tifac + fac;
+    return Tifac*nu/Jp/fac2;
+  }
 
-    double dz = 1.0/grid, z = 0.0, last = 0.0;
-
-    for (int i=1; i<grid; i++) {
-      z += dz;
-      double x = a * pow(z/(1.0 - z), 1.0/N);
-      double next = drdz(x) * x * dens(x);
-      cur += (last + next)*0.5*dz;
-      last = next;
-    }
-
-    norm = 1.0/(2.0*M_PI*cur);
+  //! Deriv of outer taper function
+  double dTouter(double Jp)
+  {
+    double fac = pow(Jp/vr, mu);
+    double fac2 = 1.0 + fac;
+    return -nu*fac/Jp/fac2;
   }
 
 
 public:
   
   //! Constructor
-  ZangCyl(const EmpCyl2d::ParamVec& par)
+  ZangCyl(const EmpCyl2d::ParamVec& par) : MestelCyl(par)
   {
     id = "zang";
-    a  = par[0];
-    c  = par[1];
-    N  = par[2];
-    M  = par[3];
+    vr = par[0];
+    nu = par[1];
+    mu = par[2];
+    ri = par[3];
 
-    if (N<0.05) {
+    Tifac = pow(ri*vr, nu);
+
+    if (nu<0.05) {
       // Exponent is now for mapping only
-      N = 1.0;
       Inner = false;
     }
-
-    // Normalization
-    compute_norm();
-  }
-
-  //! Potential (infinite Mestel)
-  double pot(double R) {
-    return -2.0*M_PI*norm/a/R;
-  }
-
-  //! Potential gradient (infinite Mestel)
-  double dpot(double R) {
-    return 2.0*M_PI*norm/a/(R*R);
   }
 
   //! Surface density
-  double dens(double R) {
-    // Outer cut-out
-    double facc = pow(R/c, M);
-    double ret = norm * a/(R+asoft) /(facc + 1.0);
-    // Inner cut-out
-    if (Inner) {
-      double faca = pow(R/a, N);
-      ret *= faca/(faca + 1.0);
-    }
+  double dens(double R)
+  {
+    double ret = MestelCyl::dens(R) * Touter(R);
+    if (Inner) ret *= Tinner(R);
     return ret;
   }
 
