@@ -110,8 +110,9 @@ main(int ac, char **av)
 #pragma omp parallel
   {
     nomp = omp_get_num_threads();
-    if (omp_get_thread_num()==0)
+    if (omp_get_thread_num()==0) {
       progress = std::make_shared<progress::progress_display>(N/nomp);
+    }
   }
 
   // Create an orbit grid
@@ -149,21 +150,25 @@ main(int ac, char **av)
   std::uniform_real_distribution<> uniform(0.0, 1.0);
 
   // Save the position and velocity vectors
+  //
   std::vector<std::array<double, 3>> pos(N), vel(N);
 
+  // Maximum number rejection-method iterations
   int itmax = 100000;
-  int tid   = 0;
+
+  // Track number of iteration overflows
   int over  = 0;
 
-  // Generation loop
+  // Generation loop with OpenMP
   //
 #pragma omp parallel for reduction(+:over)
   for (int n=0; n<N; n++) {
-    tid = omp_get_thread_num();
+    // Thread id
+    int tid = omp_get_thread_num();
 
+    // Loop variables
     double E, K, R;
     int j;
-
     for (j=0; j<itmax; j++) {
 
       E = Emin + (Emax - Emin)*uniform(gen);
@@ -202,7 +207,7 @@ main(int ac, char **av)
     vel[n][2] = 0.0;
 
     // Print progress bar
-    if (progress) ++(*progress);
+    if (tid==0) ++(*progress);
   }
   std::cout << std::endl << "** Main loop complete" << std::endl;
 
@@ -210,7 +215,7 @@ main(int ac, char **av)
   //
   double mass = (model->get_mass(Rmax) - model->get_mass(Rmin))/N;
 
-  std::cout << "** " << over << " particles failed iteration" << std::endl
+  std::cout << "** " << over << " particles failed acceptance" << std::endl
 	    << "** Particle mass=" << mass << std::endl;
 
   out << std::setw(8) << N << std::setw(8) << 0 << std::setw(8) << 0
