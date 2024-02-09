@@ -52,11 +52,11 @@ main(int ac, char **av)
     ("R,Rmax",    "Outer radius for model",
      cxxopts::value<double>(Rmax)->default_value("10.0"))
     ("S,sigma",   "Radial velocity dispersion",
-     cxxopts::value<double>(sigma))
+     cxxopts::value<double>(sigma)->default_value("1.0"))
     ("s,seed",    "Random number seed. Default: use /dev/random",
      cxxopts::value<unsigned>(seed))
     ("o,file",    "Output body file",
-     cxxopts::value<std::string>(bodyfile)->default_value("cube.bods"))
+     cxxopts::value<std::string>(bodyfile)->default_value("zang.bods"))
     ;
 
   cxxopts::ParseResult vm;
@@ -135,7 +135,7 @@ main(int ac, char **av)
     for (int j=0; j<=num; j++) {
       double K = Kmin + dK*j;
       orb[0]->new_orbit(E, K);
-      double F = model->distf(E, orb[0]->get_action(2)) / orb[0]->get_freq(1);
+      double F = model->distf(E, orb[0]->get_action(1)) / orb[0]->get_freq(0);
       peak = std::max<double>(peak, F);
     }
   }
@@ -171,20 +171,23 @@ main(int ac, char **av)
       R = uniform(gen);
 
       orb[tid]->new_orbit(E, K);
-      double F = model->distf(E, orb[tid]->get_action(2)) / orb[tid]->get_freq(1);
+      double F = model->distf(E, orb[tid]->get_action(1)) / orb[tid]->get_freq(0);
       if (F/peak > R) break;
     }
 
     if (j==itmax) over++;
 
-    double J   = orb[tid]->get_action(2);
-    double T   = 2.0*M_PI/orb[tid]->get_freq(1)*uniform(gen);
+    double J   = orb[tid]->get_action(1);
+    double T   = 2.0*M_PI/orb[tid]->get_freq(0)*uniform(gen);
     double r   = orb[tid]->get_angle(6, T);
     double w1  = orb[tid]->get_angle(1, T);
     double phi = 2.0*M_PI*uniform(gen) + orb[tid]->get_angle(7, T);
 
     double vt  = J/r;
-    double vr  = sqrt(fabs(2.0*E - model->get_pot(r)) - J*J/(r*r));
+    double vr  = sqrt(fabs(2.0*(E - model->get_pot(r)) - J*J/(r*r)));
+    //                ^
+    //                |
+    // For sanity-----+
 
     if (w1 > M_PI) vr *= -1.0;	// Branch of radial motion
 
@@ -231,7 +234,7 @@ main(int ac, char **av)
     clausius += mass*model->get_dpot(r)*r;
   }
 
-  std::cout <<  "2T/VC=" << ektot/clausius << std::endl;
+  std::cout <<  "** 2T/VC=" << ektot/clausius << std::endl;
 
   return 0;
 }
