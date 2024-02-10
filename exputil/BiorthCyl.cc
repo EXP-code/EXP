@@ -87,9 +87,6 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     if (conf["Mouter"])      Mouter  = conf["Mouter"].as<double>(); 
     else                     Mouter  = 4.0;                         
     
-    if (conf["disktype"])    disktype  = conf["disktype"].as<std::string>(); 
-    else                     disktype  = "expon";
-    
     if (conf["cachename"])   cachename = conf["cachename"].as<std::string>();
     else                     cachename = default_cache;
     
@@ -113,6 +110,9 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
 
     if (conf["EVEN_M"])      EVEN_M = conf["EVEN_M"].as<bool>();
     else                     EVEN_M = false;
+
+    if (conf["diskconf"])    diskconf  = conf["diskconf"];
+    else throw std::runtime_error("BiorthCyl: you must specify the diskconf stanza");
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in BiorthCyl: "
@@ -175,11 +175,9 @@ void BiorthCyl::create_tables()
   bool logr = false;
   std::string biorth("bess");
 
-  EmpCyl2d::ParamVec par {acyltbl*scale, acylcut, Ninner, Mouter};
-			     
   emp = EmpCyl2d(mmax, nmaxfid, nmax, knots, numr,
-		 rcylmin*scale, rcylmax*scale, par, scale,
-		 cmapR, logr, disktype, biorth);
+		 rcylmin*scale, rcylmax*scale, 
+		 scale, cmapR, logr, diskconf, biorth);
 
   if (conf["basis"]) emp.basisTest(true);
 
@@ -813,11 +811,9 @@ BiorthCyl::cacheInfo(const std::string& cachefile, bool verbose)
 std::vector<Eigen::MatrixXd> BiorthCyl::orthoCheck()
 {
   if (not emp()) {
-    EmpCyl2d::ParamVec par {acyltbl*scale, acyltbl*scale*10.0, 2.0, 2.0};
-
     emp = EmpCyl2d(mmax, nmaxfid, nmax, knots, numr,
-		   rcylmin*scale, rcylmax*scale, par, scale,
-		   cmapR, false, "expon", "bess");
+		   rcylmin*scale, rcylmax*scale, scale,
+		   cmapR, false, diskconf, "bess");
   }
 
   return emp.orthoCheck();

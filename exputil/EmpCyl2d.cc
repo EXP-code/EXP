@@ -338,10 +338,38 @@ private:
 
   double acyl, sigma0;
 
+  // Assign values from YAML
+  //
+  void parse(const YAML::Node& conf)
+  {
+    try {
+      if (conf["acyl"]) 
+	acyl = conf["acyl"].as<double>();
+      else
+	acyl = 1.0;
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0)
+	std::cout << "Error parsing parameters in EmpCyl2d::ExponCyl: "
+		  << error.what() << std::endl
+		  << std::string(60, '-') << std::endl
+		  << "Config node"        << std::endl
+		  << std::string(60, '-') << std::endl
+		  << conf                 << std::endl
+		  << std::string(60, '-') << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
+
 public:
 
-  ExponCyl(const EmpCyl2d::ParamVec& par)
-  { acyl = par[0]; sigma0 = 0.5/(M_PI*acyl*acyl); id = "expon"; }
+  ExponCyl(const YAML::Node& par)
+  {
+    parse(par);
+    sigma0 = 0.5/(M_PI*acyl*acyl);
+    id = "expon";
+  }
 
   double pot(double r) {
     double y = 0.5 * r / acyl;
@@ -369,10 +397,37 @@ private:
 
   double acyl;
 
+  // Assign values from YAML
+  //
+  void parse(const YAML::Node& conf)
+  {
+    try {
+      if (conf["acyl"]) 
+	acyl = conf["acyl"].as<double>();
+      else
+	acyl = 1.0;
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0)
+	std::cout << "Error parsing parameters in EmpCyl2d::KuzminCyl: "
+		  << error.what() << std::endl
+		  << std::string(60, '-') << std::endl
+		  << "Config node"        << std::endl
+		  << std::string(60, '-') << std::endl
+		  << conf                 << std::endl
+		  << std::string(60, '-') << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
+
 public:
   
-  KuzminCyl(const EmpCyl2d::ParamVec& par)
-  { acyl = par[0]; id = "kuzmin"; }
+  KuzminCyl(const YAML::Node& par)
+  {
+    parse(par);
+    id = "kuzmin";
+  }
 
   double pot(double R) {
     double a2 = acyl * acyl;
@@ -397,14 +452,42 @@ public:
 
 class EmpCyl2d::MestelCyl : public EmpCyl2d::ModelCyl
 {
-private:
+protected:
 
   double vrot, rot;
 
+  // Assign values from YAML
+  //
+  void parse(const YAML::Node& conf)
+  {
+    try {
+      if (conf["vrot"]) 
+	vrot = conf["vrot"].as<double>();
+      else
+	vrot = 1.0;
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0)
+	std::cout << "Error parsing parameters in EmpCyl2d::MestelCyl: "
+		  << error.what() << std::endl
+		  << std::string(60, '-') << std::endl
+		  << "Config node"        << std::endl
+		  << std::string(60, '-') << std::endl
+		  << conf                 << std::endl
+		  << std::string(60, '-') << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
+
 public:
   
-  MestelCyl(const EmpCyl2d::ParamVec& par)
-  { vrot = par[0];  rot = vrot*vrot; id = "mestel"; }
+  MestelCyl(const YAML::Node& par)
+  {
+    parse(par);
+    rot = vrot*vrot;
+    id = "mestel";
+  }
 
   virtual double pot(double R) {
     if (R>0.0) return rot*log(R);
@@ -468,18 +551,57 @@ private:
     return -nu*fac/Jp/fac2;
   }
 
+protected:
+
+  //! Assign values from YAML
+  void parse(const YAML::Node& conf)
+  {
+    try {
+      if (conf["vrot"]) 
+	vrot = conf["vrot"].as<double>();
+      else
+	vrot = 1.0;
+
+      if (conf["Ninner"]) 
+	nu = conf["Ninner"].as<double>();
+      else
+	nu = 2.0;
+
+      if (conf["Mouter"]) 
+	mu = conf["Mouter"].as<double>();
+      else
+	mu = 2.0;
+
+      if (conf["Ri"]) 
+	ri = conf["Ri"].as<double>();
+      else
+	ri = 1.0;
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0)
+	std::cout << "Error parsing parameters in EmpCyl2d::ZangCyl: "
+		  << error.what() << std::endl
+		  << std::string(60, '-') << std::endl
+		  << "Config node"        << std::endl
+		  << std::string(60, '-') << std::endl
+		  << conf                 << std::endl
+		  << std::string(60, '-') << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
 
 public:
   
   //! Constructor
-  ZangCyl(const EmpCyl2d::ParamVec& par) : MestelCyl(par)
+  ZangCyl(const YAML::Node& par) : MestelCyl(par)
   {
+    // Parse the YAML
+    parse(par);
+    // Assign the id
     id = "zang";
-    vr = par[0];
-    nu = par[1];
-    mu = par[2];
-    ri = par[3];
 
+    // Cache taper factor
     Tifac = pow(ri*vr, nu);
 
     if (nu<0.05) {
@@ -499,47 +621,76 @@ public:
 };
 
 std::shared_ptr<EmpCyl2d::ModelCyl>
-EmpCyl2d::createModel(const std::string type, const EmpCyl2d::ParamVec& par)
+EmpCyl2d::createModel()
 {
-  // Convert ID string to lower case
-  //
-  std::string data(type);
-  std::transform(data.begin(), data.end(), data.begin(),
-		 [](unsigned char c){ return std::tolower(c); });
+  try {
+    // Get model name
+    //
+    std::string name;
+    if (Params["name"])
+      name = Params["name"].as<std::string>();
+    else
+      throw std::runtime_error("EmpCyl2d::createModel: the 'diskconf' stanza must specify the model 'name'");
 
-  if (data.find("kuzmin") != std::string::npos) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::ModelCyl: Making a Kuzmin disk with A="
-		<< par[0] << std::endl;
-    return std::make_shared<KuzminCyl>(par);
+    // Convert ID string to lower case
+    //
+    std::transform(name.begin(), name.end(), name.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+
+  if (name.find("kuzmin") != std::string::npos) {
+    if (myid==0) {
+      std::cout << "---- EmpCyl2d::ModelCyl: Making a Kuzmin disk";
+      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      std::cout << std::endl;
+    }
+    return std::make_shared<KuzminCyl>(Params["parameters"]);
   }
 
-  if (data.find("mestel") != std::string::npos) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::ModelCyl: Making a finite Mestel disk "
-		<< "with A=" << par[0] << std::endl;
-    return std::make_shared<MestelCyl>(par);
+  if (name.find("mestel") != std::string::npos) {
+    if (myid==0) {
+      std::cout << "---- EmpCyl2d::ModelCyl: Making a finite Mestel disk";
+      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      std::cout << std::endl;
+    }
+    return std::make_shared<MestelCyl>(Params["parameters"]);
   }
 
-  if (data.find("zang") != std::string::npos) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::ModelCyl: Making a double-tapered Zang "
-	"disk with A=" << par[0] << std::endl;
-    return std::make_shared<ZangCyl>(par);
+  if (name.find("zang") != std::string::npos) {
+    if (myid==0) {
+      std::cout << "---- EmpCyl2d::ModelCyl: Making a double-tapered Zang";
+      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      std::cout << std::endl;
+    }
+    return std::make_shared<ZangCyl>(Params["parameters"]);
   }
 
-  if (data.find("expon") != std::string::npos) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk "
-		<< "with A=" << par[0] << std::endl;
-    return std::make_shared<ExponCyl>(par);
+  if (name.find("expon") != std::string::npos) {
+    if (myid==0) {
+      std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk";
+      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      std::cout << std::endl;
+    }
+    return std::make_shared<ExponCyl>(Params["parameters"]);
   }
 
   // Default if nothing else matches
   if (myid==0)
     std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk [Default]"
-	      << " with A=" << par[0] << std::endl;
-  return std::make_shared<ExponCyl>(par);
+	      << std::endl;
+  return std::make_shared<ExponCyl>(Params["parameters"]);
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0)
+      std::cout << "Error parsing parameters in EmpCyl2d::modelCreate: "
+		<< error.what() << std::endl
+		<< std::string(60, '-') << std::endl
+		<< "Config node"        << std::endl
+		<< std::string(60, '-') << std::endl
+		<< Params               << std::endl
+		<< std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 
@@ -607,18 +758,18 @@ const std::string EmpCyl2d::default_cache_name = ".eof_cache_2d";
 
 // The main constructor
 //
-EmpCyl2d::EmpCyl2d(int mmax, int nmaxfid, int nmax, int knots, int numr,
-		   double rmin, double rmax, const EmpCyl2d::ParamVec& par,
-		   double scale, bool cmap, bool logr,
-		   const std::string model, const std::string biorth,
-		   const std::string cache) :
+EmpCyl2d::EmpCyl2d
+(int mmax, int nmaxfid, int nmax, int knots, int numr,
+ double rmin, double rmax, double scale, bool cmap, bool logr,
+ const YAML::Node& par,
+ const std::string biorth, const std::string cache) :
   mmax(mmax), nmaxfid(nmaxfid), nmax(nmax), knots(knots), numr(numr),
-  rmin(rmin), rmax(rmax), par(par), scale(scale), cmap(cmap), logr(logr),
-  model(model), biorth(biorth), cache_name_2d(cache)
+  rmin(rmin), rmax(rmax), scale(scale), cmap(cmap), logr(logr),
+  Params(par), biorth(biorth), cache_name_2d(cache)
 {
   if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
 
-  disk  = createModel(model, par);
+  disk  = createModel();
   basis = Basis2d::createBasis(mmax, nmaxfid, rmax, biorth);
 
   basis_test = false;
@@ -631,13 +782,13 @@ EmpCyl2d::EmpCyl2d(int mmax, int nmaxfid, int nmax, int knots, int numr,
 }
 
 
-EmpCyl2d::EmpCyl2d(int mmax, int nmaxfid, int nmax, int knots, int numr,
-		   double rmin, double rmax, const EmpCyl2d::ParamVec& par,
-		   double scale, bool cmap, bool logr,
-		   std::shared_ptr<EmpCyl2d::ModelCyl> disk,
-		   const std::string biorth, const std::string cache) :
+EmpCyl2d::EmpCyl2d
+(int mmax, int nmaxfid, int nmax, int knots, int numr,
+ double rmin, double rmax, double scale, bool cmap, bool logr,
+ std::shared_ptr<EmpCyl2d::ModelCyl> disk,
+ const std::string biorth, const std::string cache) :
   mmax(mmax), nmaxfid(nmaxfid), nmax(nmax), knots(knots), numr(numr),
-  rmin(rmin), rmax(rmax), par(par), scale(scale), cmap(cmap), logr(logr),
+  rmin(rmin), rmax(rmax), scale(scale), cmap(cmap), logr(logr),
   disk(disk), biorth(biorth), cache_name_2d(cache)
 {
   if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
@@ -854,6 +1005,10 @@ void EmpCyl2d::WriteH5Cache()
     if (logr) ilogr = 1;
     if (cmap) icmap = 1;
 
+    // Serialize the config and make a string
+    YAML::Emitter y; y << Params;
+    std::string params(y.c_str());
+
     // Parameters
     //
     file.createAttribute<int>        ("mmax",   HighFive::DataSpace::From(mmax)).  write(mmax);
@@ -866,7 +1021,7 @@ void EmpCyl2d::WriteH5Cache()
     file.createAttribute<double>     ("rmin",   HighFive::DataSpace::From(rmin)).  write(rmin);
     file.createAttribute<double>     ("rmax",   HighFive::DataSpace::From(rmax)).  write(rmax);
     file.createAttribute<double>     ("scale",  HighFive::DataSpace::From(scale)). write(scale);
-    file.createAttribute<double>     ("params", HighFive::DataSpace::From(par)).write(par);
+    file.createAttribute<double>     ("params", HighFive::DataSpace::From(params)).write(params);
     file.createAttribute<std::string>("model",  HighFive::DataSpace::From(model)). write(model);
     file.createAttribute<std::string>("biorth", HighFive::DataSpace::From(biorth)).write(biorth);
       
@@ -920,20 +1075,17 @@ bool EmpCyl2d::ReadH5Cache()
       if (fabs(value - v) < 1.0e-16) return true; return false;
     };
 
-    auto checkArr = [&file](ParamVec& value, std::string name)
-    {
-      ParamVec v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
-      for (int i=0; i<v.size(); i++) {
-	if (fabs(value[i] - v[i]) > 1.0e-16) return false;
-      }
-      return true;
-    };
-
     auto checkStr = [&file](std::string value, std::string name)
     {
       std::string v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
       if (value.compare(v)==0) return true; return false;
     };
+
+    //
+
+    // Serialize the config and make a string for checking
+    YAML::Emitter y; y << Params;
+    std::string params(y.c_str());
 
     // Workaround for lack of HighFive boolean support
     int ilogr = 0, icmap = 0;
@@ -950,7 +1102,7 @@ bool EmpCyl2d::ReadH5Cache()
     if (not checkDbl(rmin,     "rmin"))      return false;
     if (not checkDbl(rmax,     "rmax"))      return false;
     if (not checkDbl(scale,    "scale"))     return false;
-    if (not checkArr(par,      "params"))    return false;
+    if (not checkStr(params,   "params"))    return false;
     if (not checkStr(model,    "model"))     return false;
     if (not checkStr(biorth,   "biorth"))    return false;
 
@@ -1124,7 +1276,7 @@ void EmpCyl2d::checkCoefs()
   if (myid) return;
 
   Mapping  map(scale, cmap);
-  auto     disk = createModel(model, par);
+  auto     disk = createModel();
   LegeQuad lw(knots);
 
   Eigen::VectorXd coefs(nmax), coef0(nmax);

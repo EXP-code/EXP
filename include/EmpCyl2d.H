@@ -12,6 +12,7 @@
 #include <Eigen/Eigenvalues>
 #include <gaussQ.H>
 
+#include <yaml-cpp/yaml.h>	// Parameters parsing
 #include <config_exp.h>		// For config macros
 
 // For reading and writing cache file
@@ -28,15 +29,13 @@ class EmpCyl2d
 {
 public:
 
-  //! Datatype for passing model parameters
-  using ParamVec = std::array<double, 6>;
-
   //! A two-dimensional disk model for computing the EOF
   class ModelCyl
   {
   protected:
 
     std::string id;
+    virtual void parse(const YAML::Node&) = 0;
 
   public:
 
@@ -49,7 +48,9 @@ public:
 
 protected:
 
-  ParamVec par;
+  //! Contains parameter database
+  YAML::Node Params;
+
   double rmin, rmax, scale;
   double xmin, xmax, dxi;
   int mmax, nmaxfid, numr, knots, nmax;
@@ -87,8 +88,7 @@ protected:
   std::shared_ptr<ModelCyl> disk;
   std::shared_ptr<Basis2d>  basis;
 
-  static std::shared_ptr<ModelCyl>
-  createModel(const std::string type, const ParamVec& params);
+  std::shared_ptr<ModelCyl> createModel();
 
   class ExponCyl;
   class MestelCyl;
@@ -149,14 +149,14 @@ public:
 
   //! Constructor
   EmpCyl2d(int mmax, int nmaxfid, int nmax, int knots, int numr,
-	   double rmin, double rmax, const ParamVec& P,
-	   double scale, bool cmap, bool logr, const std::string model,
+	   double rmin, double rmax, double scale, bool cmap, bool logr,
+	   const YAML::Node& P,
 	   const std::string biorth, const std::string cache="");
   
   //! Constructor with user-supplied target model
   EmpCyl2d(int mmax, int nmaxfid, int nmax, int knots, int numr,
-	   double rmin, double rmax, const ParamVec& P,
-	   double scale, bool cmap, bool logr, std::shared_ptr<ModelCyl> disk,
+	   double rmin, double rmax, double scale, bool cmap, bool logr,
+	   std::shared_ptr<ModelCyl> disk,
 	   const std::string biorth, const std::string cache="");
   
   //! Use underlying basis for testing?  Default: false.

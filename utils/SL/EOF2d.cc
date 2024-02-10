@@ -16,7 +16,7 @@ int main(int argc, char** argv)
   bool logr = false, cmap = false, ortho = false, plane = false;
   int numr, mmax, nmaxfid, nmax, knots, M, N, nradial, nout;
   double A, rmin, rmax, O, ZN, ZM, rout;
-  std::string filename, type, biorth;
+  std::string filename, config, biorth;
 
   // Parse command line
   //
@@ -74,8 +74,8 @@ int main(int argc, char** argv)
      cxxopts::value<double>(rout)->default_value("10.0"))
     ("nout",       "number of points in the output grid per side",
      cxxopts::value<int>(nout)->default_value("40"))
-    ("type",       "Target model type (kuzmin, mestel, zang, expon)",
-     cxxopts::value<std::string>(type)->default_value("expon"))
+    ("config",     "Target model config (kuzmin, mestel, zang, expon)",
+     cxxopts::value<std::string>(config)->default_value("{name: expon, parameters: {acyl: 0.01}}"))
     ("biorth",     "Biorthogonal type (cb, bess)",
      cxxopts::value<std::string>(biorth)->default_value("bess"))
     ("o,filename", "Output filename",
@@ -113,12 +113,12 @@ int main(int argc, char** argv)
 
   // Parameter vector for the EmpCyl2d models
   //
-  EmpCyl2d::ParamVec par {A, O, ZN, ZM};
+  YAML::Node par(config);
 
   // Make the class instance
   //
-  EmpCyl2d emp(mmax, nmaxfid, nmax, knots, numr, rmin, rmax, par, A, cmap, logr,
-	       type, biorth);
+  EmpCyl2d emp(mmax, nmaxfid, nmax, knots, numr, rmin, rmax, A, cmap, logr,
+	       par, biorth);
 
   if (vm.count("basis")) emp.basisTest(true);
   if (vm.count("debug")) QDHT::debug = true;

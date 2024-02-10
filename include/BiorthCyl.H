@@ -41,7 +41,7 @@ class BiorthCyl
 
 protected:
 
-  YAML::Node conf;
+  YAML::Node conf, diskconf;
 
   std::string geometry, forceID;
   

@@ -39,6 +39,7 @@ main(int ac, char **av)
   options.add_options()
     ("h,help",    "Print this help message")
     ("z,zerovel", "Zero the mean velocity")
+    ("d,debug",   "Print debug grid")
     ("N,number",  "Number of particles to generate",
      cxxopts::value<int>(N)->default_value("100000"))
     ("n,nu",      "Inner taper exponent (0 for no taper)",
@@ -128,18 +129,42 @@ main(int ac, char **av)
 
   // Scan to find the peak df
   //
-  const int num = 100;
+  const int numE = 400;
+  const int numK = 20;
+  Eigen::VectorXd cumE(numE+1), cumF(numE+1), topF(numE+1);
   double peak = 0.0;
-  double dE = (Emax - Emin)/num, dK = (1.0 - 2.0*Ktol)/num;
-  for (int i=0; i<=num; i++) {
+  double dE = (Emax - Emin)/numE, dK = (1.0 - 2.0*Ktol)/numK;
+  for (int i=0; i<=numE; i++) {
     double E = Emin + dE*i;
-    for (int j=0; j<=num; j++) {
+    cumE(i) = E;
+    cumF(i) = 0.0;
+    topF(i) = 0.0;
+    for (int j=0; j<=numK; j++) {
       double K = Kmin + dK*j;
       orb[0]->new_orbit(E, K);
       double F = model->distf(E, orb[0]->get_action(1)) / orb[0]->get_freq(0);
       peak = std::max<double>(peak, F);
+      topF(i) = std::max<double>(topF(i), F);
+      cumF(i) += F * orb[0]->Jmax()/orb[0]->get_freq(0);
     }
   }
+
+  if (peak <= 0.0) {
+    throw std::runtime_error(std::string(av[0]) + ": peak DF is zero!");
+  }
+
+  // Improve the acceptance rejection by computing the cumulative
+  // distribution
+  //
+  for (int i=1; i<=numE; i++) cumF[i] += cumF[i-1];
+
+  if (cumF[numE] <= 0.0) {
+    throw std::runtime_error(std::string(av[0]) + ": no mass on cum DF grid!");
+  }
+
+  for (int i=0; i<=numE; i++) cumF[i] /= cumF[numE];
+
+  Linear1d Ecum(cumF, cumE), Ftop(cumE, topF);
 
   // Header
   //
@@ -167,17 +192,17 @@ main(int ac, char **av)
     int tid = omp_get_thread_num();
 
     // Loop variables
-    double E, K, R;
+    double E, F, K;
     int j;
     for (j=0; j<itmax; j++) {
 
-      E = Emin + (Emax - Emin)*uniform(gen);
+      E = Ecum.eval(uniform(gen));
+      F = Ftop.eval(E);
       K = Kmin + (Kmax - Kmin)*uniform(gen);
-      R = uniform(gen);
 
       orb[tid]->new_orbit(E, K);
       double F = model->distf(E, orb[tid]->get_action(1)) / orb[tid]->get_freq(0);
-      if (F/peak > R) break;
+      if (F/peak > uniform(gen)) break;
     }
 
     if (j==itmax) over++;
@@ -240,6 +265,19 @@ main(int ac, char **av)
   }
 
   std::cout <<  "** 2T/VC=" << ektot/clausius << std::endl;
+
+  if (vm.count("debug")) {
+    std::cout << std::endl << "Peak per energy" << std::endl;
+    for (int i=0; i<=numE; i++) {
+      std::cout << std::setw(6)  << i
+		<< std::setw(18) << cumE(i)
+		<< std::setw(18) << cumF(i)
+		<< std::setw(18) << topF(i)
+		<< std::endl;
+    }
+    std::cout << std::endl;
+  }
+
 
   return 0;
 }

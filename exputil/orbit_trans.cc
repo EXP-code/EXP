@@ -112,8 +112,10 @@ void SphericalOrbit::compute_freq(void)
       if (r_circ < model->get_min_radius()) {
 	r_circ = model->get_min_radius();
       }
-      std::string message("SphericalOrbit::compute_freq warning: Circular radius outside mass distribution");
-      throw std::runtime_error(message);
+      /*
+	std::string message("SphericalOrbit::compute_freq warning: Circular radius outside mass distribution");
+	throw std::runtime_error(message);
+      */
     }
   }
 
