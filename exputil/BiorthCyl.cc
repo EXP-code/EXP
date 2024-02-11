@@ -81,12 +81,6 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     if (conf["acylcut"])     acylcut = conf["acylcut"].as<double>(); 
     else                     acylcut = 10.0;                         
     
-    if (conf["Ninner"])      Ninner  = conf["Ninner"].as<double>(); 
-    else                     Ninner  = 2.0;                         
-    
-    if (conf["Mouter"])      Mouter  = conf["Mouter"].as<double>(); 
-    else                     Mouter  = 4.0;                         
-    
     if (conf["cachename"])   cachename = conf["cachename"].as<std::string>();
     else                     cachename = default_cache;
     
@@ -489,8 +483,6 @@ void BiorthCyl::WriteH5Params(HighFive::File& file)
   file.createAttribute<double>      ("scale",    HighFive::DataSpace::From(scale)).write(scale);
   file.createAttribute<double>      ("acyltbl",  HighFive::DataSpace::From(acyltbl)).write(acyltbl);
   file.createAttribute<double>      ("acylcut",  HighFive::DataSpace::From(acylcut)).write(acylcut);
-  file.createAttribute<double>      ("Ninner",   HighFive::DataSpace::From(Ninner)).write(Ninner);
-  file.createAttribute<double>      ("Mouter",   HighFive::DataSpace::From(Mouter)).write(Mouter);
   file.createAttribute<int>         ("cmapR",    HighFive::DataSpace::From(cmapR)).write(cmapR);
   file.createAttribute<int>         ("cmapZ",    HighFive::DataSpace::From(cmapZ)).write(cmapZ);
 }
@@ -662,6 +654,19 @@ bool BiorthCyl::ReadH5Cache()
     if (myid==0)
       std::cerr << "---- BiorthCyl::ReadH5Cache: "
 		<< "read <" << cachename << ">" << std::endl;
+
+    // Hardwired for testing.  Could be variables.
+    //
+    bool logr = false;
+    std::string biorth("bess");
+
+    // Create the basis instance
+    //
+    emp = EmpCyl2d(mmax, nmaxfid, nmax, knots, numr,
+		   rcylmin*scale, rcylmax*scale, 
+		   scale, cmapR, logr, diskconf, biorth);
+    
+    if (conf["basis"]) emp.basisTest(true);
 
     return true;
     
