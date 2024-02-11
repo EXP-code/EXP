@@ -166,11 +166,6 @@ main(int ac, char **av)
 
   Linear1d Ecum(cumF, cumE), Ftop(cumE, topF);
 
-  // Header
-  //
-  out << std::setw(10) << N << std::setw(10) << 0 << std::setw(10) << 0
-	<< std::endl << std::setprecision(10);
-
   std::mt19937 gen(seed);
   std::uniform_real_distribution<> uniform(0.0, 1.0);
 
