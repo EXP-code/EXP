@@ -1021,7 +1021,7 @@ void EmpCyl2d::WriteH5Cache()
     file.createAttribute<double>     ("rmin",   HighFive::DataSpace::From(rmin)).  write(rmin);
     file.createAttribute<double>     ("rmax",   HighFive::DataSpace::From(rmax)).  write(rmax);
     file.createAttribute<double>     ("scale",  HighFive::DataSpace::From(scale)). write(scale);
-    file.createAttribute<double>     ("params", HighFive::DataSpace::From(params)).write(params);
+    file.createAttribute<std::string>("params", HighFive::DataSpace::From(params)).write(params);
     file.createAttribute<std::string>("model",  HighFive::DataSpace::From(model)). write(model);
     file.createAttribute<std::string>("biorth", HighFive::DataSpace::From(biorth)).write(biorth);
       
