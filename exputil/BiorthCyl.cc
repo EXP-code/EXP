@@ -603,7 +603,7 @@ bool BiorthCyl::ReadH5Cache()
       double v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
       if (fabs(value - v) < 1.0e-16) return true;
       else {
-	if (myid==0) std::cout << "ReadH5Cache(): wanted "
+	if (myid==0) std::cout << "---- BiortyCyl::ReadH5Cache: wanted "
 			       << name << "=" << value
 			       << " but found "
 			       << name << "=" << v << std::endl;
