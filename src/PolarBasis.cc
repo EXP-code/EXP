@@ -1425,6 +1425,10 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 
 	  if (M0_back) {
 	    get_pot_background(r, zz, p, drc, dzc);
+
+	    potl = mfac * p;
+	    potr = mfac * drc;
+	    potz = mfac * dzc;
 	  } else {
 	    get_pot_coefs_safe(0, *expcoef[0], p, drc, dzc,
 			       potd[id], dpotR[id], dpotZ[id]);
