@@ -620,8 +620,7 @@ public:
 
 };
 
-std::shared_ptr<EmpCyl2d::ModelCyl>
-EmpCyl2d::createModel()
+std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
 {
   try {
     // Get model name
