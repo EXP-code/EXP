@@ -511,7 +511,7 @@ class EmpCyl2d::ZangCyl : public EmpCyl2d::MestelCyl
   
 private:
   //! Parameters
-  double vr, mu, nu, ri;
+  double vr, mu, nu, ri, ro;
 
   //! Softening factor
   double asoft = 1.0e-8;
@@ -519,8 +519,8 @@ private:
   //! Ignore inner cut-off for N<0.05
   bool Inner = true;
 
-  //! Taper factor
-  double Tifac;
+  //! Taper factors
+  double Tifac, Tofac;
 
   //! Inner taper function
   double Tinner(double Jp)
@@ -546,7 +546,7 @@ private:
   //! Deriv of outer taper function
   double dTouter(double Jp)
   {
-    double fac = pow(Jp/vr, mu);
+    double fac = pow(Jp/Tofac, mu);
     double fac2 = 1.0 + fac;
     return -nu*fac/Jp/fac2;
   }
@@ -576,6 +576,11 @@ protected:
 	ri = conf["Ri"].as<double>();
       else
 	ri = 1.0;
+
+      if (conf["Ro"]) 
+	ro = conf["Ro"].as<double>();
+      else
+	ro = 10.0;
     }
     catch (YAML::Exception & error) {
       if (myid==0)
@@ -601,8 +606,9 @@ public:
     // Assign the id
     id = "zang";
 
-    // Cache taper factor
+    // Cache taper factors
     Tifac = pow(ri*vr, nu);
+    Tofac = ro*vr;
 
     if (nu<0.05) {
       // Exponent is now for mapping only

@@ -104,7 +104,7 @@ double TaperedMestelDisk::Tinner(double Jp)
 
 double TaperedMestelDisk::Touter(double Jp)
 {
-  return 1.0/(1.0 + pow(Jp/vrot, mu));
+  return 1.0/(1.0 + pow(Jp/Tofac, mu));
 }
 
 double TaperedMestelDisk::dTinner(double Jp)
@@ -121,11 +121,12 @@ double TaperedMestelDisk::dTouter(double Jp)
   return -nu*fac/Jp/fac2;
 }
 
-TaperedMestelDisk::TaperedMestelDisk(double nu, double mu, double Ri,
+TaperedMestelDisk::TaperedMestelDisk(double nu, double mu, double Ri, double Ro,
 				     double VROT, double RMIN, double RMAX)
-  : nu(nu), mu(mu), Ri(Ri), MestelDisk(VROT, RMIN, RMAX)
+  : nu(nu), mu(mu), Ri(Ri), Ro(Ro), MestelDisk(VROT, RMIN, RMAX)
 {
   Tifac = pow(Ri*vrot, nu);
+  Tofac = Ro*vrot;
   ModelID = "TaperedMestelDisk";
 }
       

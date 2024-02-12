@@ -64,14 +64,17 @@ private:
   std::shared_ptr<Linear1d> interp;
 
 protected:
-  //! Taper parameters
+  //! Taper exponents
   double nu, mu;
 
-  //! Inner radius
+  //! Inner taper radius
   double Ri;
 
-  //! Taper factor
-  double Tifac;
+  //! Outer taper radius
+  double Ro;
+
+  //! Taper factors
+  double Tifac, Tofac;
 
   //! Inner taper function
   double Tinner(double Jp);
@@ -88,7 +91,7 @@ protected:
 public:
 
   //! Constructor
-  TaperedMestelDisk(double nu, double mu, double Ri,
+  TaperedMestelDisk(double nu, double mu, double Ri, double Ro,
 		    double VROT = 1.0, 
 		    double RMIN = 1.0e-6, double RMAX = 1.0e6);
       

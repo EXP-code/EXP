@@ -27,7 +27,7 @@ main(int ac, char **av)
   //=====================
 
   int          N;		// Number of particles
-  double       mu, nu, Ri;	// Taper paramters
+  double       mu, nu, Ri, Ro;	// Taper paramters
   double       Rmin, Rmax;      // Radial range
   double       sigma;		// Velocity dispersion
   std::string  bodyfile;	// Output file
@@ -47,16 +47,18 @@ main(int ac, char **av)
     ("m,mu",      "Outer taper exponent (0 for no taper)",
      cxxopts::value<double>(mu)->default_value("2.0"))
     ("i,Ri",      "Inner radius for taper",
-     cxxopts::value<double>(Ri)->default_value("0.1"))
+     cxxopts::value<double>(Ri)->default_value("1.0"))
+    ("o,Ro",      "Outer radius for taper",
+     cxxopts::value<double>(Ro)->default_value("10.0"))
     ("r,Rmin",    "Inner radius for model",
      cxxopts::value<double>(Rmin)->default_value("0.01"))
     ("R,Rmax",    "Outer radius for model",
-     cxxopts::value<double>(Rmax)->default_value("10.0"))
+     cxxopts::value<double>(Rmax)->default_value("100.0"))
     ("S,sigma",   "Radial velocity dispersion",
      cxxopts::value<double>(sigma)->default_value("1.0"))
     ("s,seed",    "Random number seed. Default: use /dev/random",
      cxxopts::value<unsigned>(seed))
-    ("o,file",    "Output body file",
+    ("f,file",    "Output body file",
      cxxopts::value<std::string>(bodyfile)->default_value("zang.bods"))
     ;
 
@@ -100,8 +102,8 @@ main(int ac, char **av)
 
   // Create the model
   //
-  auto model = std::make_shared<TaperedMestelDisk>(nu, mu, Ri, 1.0,
-						   0.1*Rmin, 10.0*Rmax);
+  auto model = std::make_shared<TaperedMestelDisk>(nu, mu, Ri, Ro,
+						   1.0, 0.1*Rmin, 10.0*Rmax);
   model->setup_df(sigma);
 
   // Progress bar
@@ -179,6 +181,10 @@ main(int ac, char **av)
   // Track number of iteration overflows
   int over  = 0;
 
+  // Velocity zeroing
+  //
+  std::vector<std::array<double, 3>> zerovel(nomp);
+
   // Generation loop with OpenMP
   //
 #pragma omp parallel for reduction(+:over)
@@ -226,6 +232,10 @@ main(int ac, char **av)
     vel[n][1] = vr*sin(phi) + vt*cos(phi);
     vel[n][2] = 0.0;
 
+    // Accumulate mean velocity
+    //
+    for (int k=0; k<3; k++) zerovel[tid][k] += vel[n][k];
+
     // Print progress bar
     if (tid==0) ++(*progress);
   }
@@ -234,6 +244,18 @@ main(int ac, char **av)
   // Compute the particle mass
   //
   double mass = (model->get_mass(Rmax) - model->get_mass(Rmin))/N;
+
+  // Reduce the mean velocity
+  //
+  for (int n=1; n<nomp; n++) {
+    for (int k=0; k<3; k++) zerovel[0][k] += zerovel[n][k];
+  }
+  for (int k=0; k<3; k++) zerovel[0][k] /= N;
+  std::cout << "** Velocity center: " << zerovel[0][0] << ", "
+	    << zerovel[0][1] << ", " << zerovel[0][2] << std::endl;
+  
+  if (vm.count("zerovel")==0)
+    for (int k=0; k<3; k++) zerovel[0][k] = 0.0;
 
   std::cout << "** " << over << " particles failed acceptance" << std::endl
 	    << "** Particle mass=" << mass << std::endl;
@@ -245,7 +267,7 @@ main(int ac, char **av)
   for (int n=0; n<N; n++) {
     out << std::setw(18) << mass;
     for (int k=0; k<3; k++) out << std::setw(18) << pos[n][k];
-    for (int k=0; k<3; k++) out << std::setw(18) << vel[n][k];
+    for (int k=0; k<3; k++) out << std::setw(18) << vel[n][k] - zerovel[0][k];
     out << std::endl;
 
     double r2 = 0.0, v2 = 0.0;
