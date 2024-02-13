@@ -1884,7 +1884,7 @@ SLGridSph::SLGridSph(std::string modelname,
   else                  model_file_name = default_model;
   
   if (cachename.size()) sph_cache_name  = cachename;
-  else                  sph_cache_name  = default_cache;
+  else throw std::runtime_error("SLGridSph: you must specify a cachename");
   
   mpi_buf  = 0;
   model    = SphModTblPtr(new SphericalModelTable(model_file_name, DIVERGE, DFAC));
@@ -1907,7 +1907,7 @@ SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
   dfac     = 1;
 
   if (cachename.size()) sph_cache_name  = cachename;
-  else                  sph_cache_name  = default_cache;
+  else throw std::runtime_error("SLGridSph: you must specify a cachename");
 
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, RMAP);
 }

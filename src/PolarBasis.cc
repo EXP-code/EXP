@@ -1445,7 +1445,7 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 
 	  //		m loop
 	  //		------
-	  for (int m=1, moffset=1; m<=Mmax; m++, moffset+=2) {
+	  for (int m=1, moffset=1; m<=std::min(mlim, Mmax); m++, moffset+=2) {
 	    
 	    // Skip m=1 terms?
 	    //

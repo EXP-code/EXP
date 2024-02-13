@@ -79,9 +79,6 @@ protected:
 	      const std::vector<std::vector<Eigen::MatrixXd>>& mat,
 	      Eigen::MatrixXd& ret, bool anti_symmetric=false);
 
-  //! Default cache file name
-  const std::string default_cache = ".biorth_cache";
-
   //! Density target name
   std::string disktype;
 

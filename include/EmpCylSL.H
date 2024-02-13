@@ -225,9 +225,6 @@ protected:
   void setup_eof_grid(void);
   void parityCheck(const std::string& prefix);
 
-  //! The default cache file name
-  const std::string default_cache = ".eof.cache.file";
-
   //! Write HDF5 cache
   void WriteH5Cache();
 

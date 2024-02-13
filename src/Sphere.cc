@@ -36,7 +36,6 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   diverge = 0;
   dfac = 1.0;
   model_file = "SLGridSph.model";
-  cache_file = "SLGridSph.cache";
   tnext = dtime = 0.0;
   recompute  = false;
   plummer    = true;
@@ -54,7 +53,7 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   if (numprocs>1) SLGridSph::mpi = 1;
 
   std::string modelname = model_file;
-  std::string cachename = outdir  + cache_file + "." + runtag;
+  std::string cachename = outdir  + cache_file;
 
   id += ", model=" + modelname;
 
@@ -114,6 +113,7 @@ void Sphere::initialize()
     if (conf["dfac"])      dfac       = conf["dfac"].as<double>();
     if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
     if (conf["cachename"]) cache_file = conf["cachename"].as<std::string>();
+    else throw std::runtime_error("Sphere: you must specify a cachname");
     if (conf["dtime"])     dtime      = conf["dtime"].as<double>();
     if (conf["logr"])      logr       = conf["logr"].as<bool>();
     if (conf["plummer"])   plummer    = conf["plummer"].as<bool>();
@@ -324,7 +324,7 @@ void Sphere::make_model_bin()
 
   // Regenerate Sturm-Liouville grid
   //
-  std::string cachename = outdir  + cache_file + "." + runtag;
+  std::string cachename = outdir  + cache_file;
   ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0, cachename);
 
   // Test for basis consistency (will generate an exception if maximum
@@ -470,7 +470,7 @@ void Sphere::make_model_plummer()
 
   // Regenerate Sturm-Liouville grid
   //
-  std::string cachename = outdir  + cache_file + "." + runtag;
+  std::string cachename = outdir  + cache_file;
   ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numr, Rmin, Rmax, false, 1, 1.0, cachename);
 
   // Test for basis consistency (will generate an exception if maximum

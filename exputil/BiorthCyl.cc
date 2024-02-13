@@ -76,7 +76,7 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     else                     scale = 0.01;
     			                                           
     if (conf["cachename"])   cachename = conf["cachename"].as<std::string>();
-    else                     cachename = default_cache;
+    else throw std::runtime_error("BiorthCyl: you must specify a cachename");
     
     // Add output directory and runtag
     cachename = outdir + cachename;
