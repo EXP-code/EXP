@@ -43,12 +43,12 @@ protected:
 
   YAML::Node conf, diskconf;
 
-  std::string geometry, forceID;
+  std::string geometry, biorth, forceID;
   
   int mmax, nmax, numr, nmaxfid, mmin, mlim, nmin, nlim, knots, NQDHT;
   double rcylmin, rcylmax, scale, acyltbl, acylcut, Ninner, Mouter;
 
-  bool EVEN_M, verbose;
+  bool EVEN_M, verbose, logr;
   
   //@{
   //! Grid parameters

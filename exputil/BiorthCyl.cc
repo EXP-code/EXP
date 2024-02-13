@@ -75,12 +75,6 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
     if (conf["scale"])       scale = conf["scale"].as<double>(); 
     else                     scale = 0.01;
     			                                           
-    if (conf["acyltbl"])     acyltbl = conf["acyltbl"].as<double>(); 
-    else                     acyltbl = 0.6;                         
-    
-    if (conf["acylcut"])     acylcut = conf["acylcut"].as<double>(); 
-    else                     acylcut = 10.0;                         
-    
     if (conf["cachename"])   cachename = conf["cachename"].as<std::string>();
     else                     cachename = default_cache;
     
@@ -122,6 +116,11 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
 
   geometry = "cylinder";
   forceID  = "BiorthCyl";
+
+  // Hardwired for testing.  Could be parameters.
+  //
+  logr   = false;
+  biorth = "bess";
   
   initialize();
 
@@ -164,11 +163,6 @@ void BiorthCyl::initialize()
 
 void BiorthCyl::create_tables()
 {
-  // Hardwired for testing.  Could be variables.
-  //
-  bool logr = false;
-  std::string biorth("bess");
-
   emp = EmpCyl2d(mmax, nmaxfid, nmax, knots, numr,
 		 rcylmin*scale, rcylmax*scale, 
 		 scale, cmapR, logr, diskconf, biorth);
@@ -481,8 +475,6 @@ void BiorthCyl::WriteH5Params(HighFive::File& file)
   file.createAttribute<double>      ("rcylmin",  HighFive::DataSpace::From(rcylmin)).write(rcylmin);
   file.createAttribute<double>      ("rcylmax",  HighFive::DataSpace::From(rcylmax)).write(rcylmax);
   file.createAttribute<double>      ("scale",    HighFive::DataSpace::From(scale)).write(scale);
-  file.createAttribute<double>      ("acyltbl",  HighFive::DataSpace::From(acyltbl)).write(acyltbl);
-  file.createAttribute<double>      ("acylcut",  HighFive::DataSpace::From(acylcut)).write(acylcut);
   file.createAttribute<int>         ("cmapR",    HighFive::DataSpace::From(cmapR)).write(cmapR);
   file.createAttribute<int>         ("cmapZ",    HighFive::DataSpace::From(cmapZ)).write(cmapZ);
 }
@@ -641,7 +633,6 @@ bool BiorthCyl::ReadH5Cache()
     if (not checkDbl(rcylmin,  "rcylmin"))   return false;
     if (not checkDbl(rcylmax,  "rcylmax"))   return false;
     if (not checkDbl(scale,    "scale"))     return false;
-    if (not checkDbl(acyltbl,  "acyltbl"))   return false;
     if (not checkInt(cmapR,    "cmapR"))     return false;
     if (not checkInt(cmapZ,    "cmapZ"))     return false;
 
@@ -654,11 +645,6 @@ bool BiorthCyl::ReadH5Cache()
     if (myid==0)
       std::cerr << "---- BiorthCyl::ReadH5Cache: "
 		<< "read <" << cachename << ">" << std::endl;
-
-    // Hardwired for testing.  Could be variables.
-    //
-    bool logr = false;
-    std::string biorth("bess");
 
     // Create the basis instance
     //
@@ -774,7 +760,6 @@ YAML::Node BiorthCyl::getHeader(const std::string& cachefile)
     node["rcylmin"]  = getDbl("rcylmin");
     node["rcylmax"]  = getDbl("rcylmax");
     node["scale"]    = getDbl("scale");
-    node["acyltbl"]  = getDbl("acyltbl");
     node["cmapR"]    = getInt("cmapR");
     node["cmapZ"]    = getInt("cmapZ");
   }
@@ -818,7 +803,7 @@ std::vector<Eigen::MatrixXd> BiorthCyl::orthoCheck()
   if (not emp()) {
     emp = EmpCyl2d(mmax, nmaxfid, nmax, knots, numr,
 		   rcylmin*scale, rcylmax*scale, scale,
-		   cmapR, false, diskconf, "bess");
+		   cmapR, logr, diskconf, biorth);
   }
 
   return emp.orthoCheck();

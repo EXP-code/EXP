@@ -23,17 +23,17 @@ public:
 
   //@{
   //! Required member functions
-  virtual double get_mass(const double r);
+  virtual double get_mass(const double R);
 
-  virtual double get_density(const double r);
+  virtual double get_density(const double R);
 
-  double get_pot(const double r);
+  double get_pot(const double R);
 
-  double get_dpot(const double r);
+  double get_dpot(const double R);
 
-  double get_dpot2(const double r);
+  double get_dpot2(const double R);
   
-  void get_pot_dpot(const double r, double &ur, double &dur);
+  void get_pot_dpot(const double R, double &ur, double &dur);
   //@}
   
   //@{
@@ -96,7 +96,7 @@ public:
 		    double RMIN = 1.0e-6, double RMAX = 1.0e6);
       
   //! Overloaded density function
-  double get_density(const double r);
+  double get_density(const double R);
 
   //! Overloaded cumulative mass function
   double get_mass(double R);
