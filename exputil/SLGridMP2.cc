@@ -2258,9 +2258,16 @@ bool SLGridSph::ReadH5Cache(void)
     if (not checkInt(cmap,     "cmap"))      return false;
     if (not checkDbl(rmin,     "rmin"))      return false;
     if (not checkDbl(rmax,     "rmax"))      return false;
-    if (not checkDbl(rmap,     "rmapping"))  return false;
     if (not checkInt(diverge,  "diverge"))   return false;
     if (not checkDbl(dfac,     "dfac"))      return false;
+
+    // Backward compatibility for old 'scale' key word
+    //
+    if (h5file.hasAttribute("scale")) {
+      if (not checkDbl(rmap,   "scale"))     return false;
+    } else {
+      if (not checkDbl(rmap,   "rmapping"))  return false;
+    }
 
     // Harmonic order
     //
@@ -2291,8 +2298,9 @@ bool SLGridSph::ReadH5Cache(void)
   } catch (HighFive::Exception& err) {
     if (myid==0)
       std::cerr << "---- SLGridSph::ReadH5Cache: "
-		<< "error opening <" << sph_cache_name
-		<< "> as HDF5 basis cache" << std::endl;
+		<< "error reading <" << sph_cache_name << ">" << std::endl
+		<< "---- SLGridSph::ReadH5Cache: HDF5 error is <" << err.what()
+		<< ">" << std::endl;
   }
 
   return false;
