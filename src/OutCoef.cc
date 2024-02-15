@@ -101,7 +101,7 @@ void OutCoef::Run(int n, int mstep, bool last)
 
   // Skip this sub step
   //
-  if (mstep < std::numeric_limits<int>::max() and mstep % nintsub != 0) return;
+  if (mstep % nintsub != 0) return;
 
   // Check for repeat time
   //
