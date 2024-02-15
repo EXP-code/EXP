@@ -35,6 +35,7 @@ PolarBasis::valid_keys = {
   "scale",
   "rmin",
   "rmax",
+  "Mmax",
   "self_consistent",
   "NO_M0",
   "NO_M1",
@@ -108,12 +109,16 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     if (conf["M0_ONLY"]) M0_only = conf["M0_ONLY"].as<bool>();
     if (conf["M0_BACK"]) M0_back = conf["M0_BACK"].as<bool>();
     
+
     if (conf["ssfrac"]) {
       ssfrac = conf["ssfrac"].as<double>();
       // Check for sane value
       if (ssfrac>0.0 && ssfrac<1.0) subset = true;
     }
 
+    // AxisymmetricBasis only knows about Lmax and Mmax.  These
+    // make sure that they are equivalent.  Mmax is preferred.
+    //
     if (conf["Lmax"] and not conf["Mmax"]) Mmax = Lmax;
     if (conf["Mmax"] and not conf["Lmax"]) Lmax = Mmax;
     if (Lmax != Mmax) Lmax = Mmax;
