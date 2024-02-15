@@ -111,14 +111,14 @@ double TaperedMestelDisk::dTinner(double Jp)
 {
   double fac  = pow(Jp, nu);
   double fac2 = Tifac + fac;
-  return Tifac*nu/Jp/fac2;
+  return nu*fac/Jp/(fac2*fac2);
 }
 
 double TaperedMestelDisk::dTouter(double Jp)
 {
-  double fac = pow(Jp/vrot, mu);
+  double fac = pow(Jp/Tofac, mu);
   double fac2 = 1.0 + fac;
-  return -nu*fac/Jp/fac2;
+  return -mu*fac/Jp/(fac2*fac2);
 }
 
 TaperedMestelDisk::TaperedMestelDisk(double nu, double mu, double Ri, double Ro,

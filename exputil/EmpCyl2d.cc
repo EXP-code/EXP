@@ -511,7 +511,7 @@ class EmpCyl2d::ZangCyl : public EmpCyl2d::MestelCyl
   
 private:
   //! Parameters
-  double vr, mu, nu, ri, ro;
+  double mu, nu, ri, ro;
 
   //! Softening factor
   double asoft = 1.0e-8;
@@ -532,7 +532,7 @@ private:
   //! Outer taper function
   double Touter(double Jp)
   {
-    return 1.0/(1.0 + pow(Jp/vr, mu));
+    return 1.0/(1.0 + pow(Jp/Tofac, mu));
   }
 
   //! Deriv of inner taper function
@@ -540,7 +540,7 @@ private:
   {
     double fac  = pow(Jp, nu);
     double fac2 = Tifac + fac;
-    return Tifac*nu/Jp/fac2;
+    return nu*fac/Jp/(fac2*fac2);
   }
 
   //! Deriv of outer taper function
@@ -548,7 +548,7 @@ private:
   {
     double fac = pow(Jp/Tofac, mu);
     double fac2 = 1.0 + fac;
-    return -nu*fac/Jp/fac2;
+    return -mu*fac/Jp/(fac2*fac2);
   }
 
 protected:
@@ -557,11 +557,6 @@ protected:
   void parse(const YAML::Node& conf)
   {
     try {
-      if (conf["vrot"]) 
-	vrot = conf["vrot"].as<double>();
-      else
-	vrot = 1.0;
-
       if (conf["Ninner"]) 
 	nu = conf["Ninner"].as<double>();
       else
@@ -603,12 +598,13 @@ public:
   {
     // Parse the YAML
     parse(par);
+
     // Assign the id
     id = "zang";
 
     // Cache taper factors
-    Tifac = pow(ri*vr, nu);
-    Tofac = ro*vr;
+    Tifac = pow(ri*vrot, nu);
+    Tofac = ro*vrot;
 
     if (nu<0.05) {
       // Exponent is now for mapping only
@@ -635,7 +631,8 @@ std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
     if (Params["name"])
       name = Params["name"].as<std::string>();
     else
-      throw std::runtime_error("EmpCyl2d::createModel: the 'diskconf' stanza must specify the model 'name'");
+      throw std::runtime_error("EmpCyl2d::createModel: the 'diskconf' "
+			       "stanza must specify the model 'name'");
 
     // Convert ID string to lower case
     //
@@ -906,7 +903,7 @@ void EmpCyl2d::writeBasis(int M, const std::string& filename)
   if (out) {
     out << std::endl << "# EOF basis grid for M=" << M << ":" << std::endl;
 
-    for (int i=0; i<nmax; i++) {
+    for (int i=0; i<numr; i++) {
       out << std::setw(16) << xgrid[i];
       for (int n=0; n<nmax; n++) {
 
