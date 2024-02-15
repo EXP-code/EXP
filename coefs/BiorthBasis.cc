@@ -1458,6 +1458,8 @@ namespace BasisClasses
     //
     try {
       if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
+      if (conf["Lmax"])      mmax       = conf["Lmax"].as<int>(); // Proxy
+      if (conf["Mmax"])      mmax       = conf["Mmax"].as<int>(); // Proxy
       if (conf["mmax"])      mmax       = conf["mmax"].as<int>();
       if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
       
