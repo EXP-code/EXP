@@ -6,16 +6,18 @@
 #include <string>
 #include <cmath>
 
+#include <Eigen/Eigen>
+
 #include <PotRZ.H>		// Hankel computation for potential
 #include <EmpCyl2d.H>		// 2d empirical basis
+#include <gaussQ.H>		// Gauss-Legendre quadrature
 #include <cxxopts.H>
-
 
 int main(int argc, char** argv)
 {
   bool logr = false, cmap = false, ortho = false, plane = false;
   int numr, mmax, nmaxfid, nmax, knots, M, N, nradial, nout;
-  double A, rmin, rmax, O, ZN, ZM, rout;
+  double A, rmin, rmax, rout;
   std::string filename, config, biorth;
 
   // Parse command line
@@ -42,6 +44,7 @@ int main(int argc, char** argv)
     ("debug",      "Check unitarity in QDHT")
     ("full",       "Use full transform rather than grid evaluation")
     ("totforce",   "Compute the total radial force")
+    ("bartest",    "Check expansion against a known quadrupole")
     ("M,harmonic", "Aximuthal harmonic m=0,1,2,3,...",
      cxxopts::value<int>(M)->default_value("0"))
     ("N,nsize",    "Default radial grid size",
@@ -50,12 +53,6 @@ int main(int argc, char** argv)
      cxxopts::value<int>(nradial)->default_value("0"))
     ("A,length",   "characteristic disk scale length",
      cxxopts::value<double>(A)->default_value("1.0"))
-    ("O,outer",    "outer disk truncation",
-     cxxopts::value<double>(O)->default_value("10.0"))
-    ("1,TaperN",   "Inner taper exponent",
-     cxxopts::value<double>(ZN)->default_value("1.0"))
-    ("2,TaperM",   "Outer taper exponent",
-     cxxopts::value<double>(ZM)->default_value("4.0"))
     ("mmax",       "maximum number of angular harmonics in the expansion",
      cxxopts::value<int>(mmax)->default_value("4"))
     ("nmaxfid",    "maximum number of radial basis harmonics for EOF construction",
@@ -113,7 +110,7 @@ int main(int argc, char** argv)
 
   // Parameter vector for the EmpCyl2d models
   //
-  YAML::Node par(config);
+  YAML::Node par = YAML::Load(config);
 
   // Make the class instance
   //
@@ -235,6 +232,8 @@ int main(int argc, char** argv)
       }
     }
   }
+  // END: vertical
+  
 
   if (vm.count("plane")) {
 
@@ -305,6 +304,7 @@ int main(int argc, char** argv)
       }
     }
   }
+  // END: plane
 
   if (vm.count("Sk")) {
 
@@ -339,6 +339,104 @@ int main(int argc, char** argv)
       out << std::endl;
     }
   }
+  // END: Sk
+
+  if (vm.count("bartest")) {
+    double a = 1.0, b = 2.0*A;
+
+    auto pot = [a, b](double r)
+    {
+      return a*r*r*pow(1.0 + r/b, -5.0);
+    };
+
+    auto rho = [a, b](double r)
+    {
+      double x = r/b;
+      return -6.0*a*(1.0 - 3.0*x + x*x)*pow(1.0 + x, -7.0);
+    };
+
+    auto r_to_x = [b](double r)
+    {
+      double y = r/b;
+      return y/(1.0 + y);
+    };
+
+    auto x_to_r = [b](double x)
+    {
+      return b*x/(1.0 - x);
+    };
+
+    auto drdx = [b](double x)
+    {
+      double d = 1.0 - x;
+      return b/(d*d);
+    };
+
+    // Let's set up for quadrature
+    //
+    double xmin = r_to_x(rmin), xmax = r_to_x(rmax);
+    
+    const int num = 400;
+    LegeQuad lq(num);
+
+    // TEST 1: compute inner product against potential
+    // TEST 2: compute inner product against density
+    //
+    Eigen::VectorXd coef1(nmax), coef2(nmax);
+    Eigen::MatrixXd ortho(nmax, nmax);
+
+    coef1.setZero();
+    coef2.setZero();
+    ortho.setZero();
+    
+    for (int i=0; i<num; i++) {
+      double   x = xmin + (xmax - xmin)*lq.knot(i);
+      double   r = x_to_r(x);
+      double jac = (xmax - xmin) * lq.weight(i) * drdx(x) * r * 2.0*M_PI;
+      //
+      for (int n=0; n<nmax; n++) {
+	coef1(n) += jac * pot(r) * emp.get_dens(r, 2, n);
+	coef2(n) += jac * rho(r) * emp.get_potl(r, 2, n);
+	for (int m=0; m<nmax; m++) {
+	  ortho(n, m) += jac*emp.get_dens(r, 2, n) * emp.get_potl(r, 2, m);
+	}
+      }
+    }
+
+      std::cout << "Ortho" << std::endl
+		<< ortho << std::endl << std::endl;
+
+
+    std::cout << "Coefficients" << std::endl;
+    for (int n=0; n<nmax; n++) {
+      std::cout << std::setw(8) << n
+		<< std::setw(16) << coef1[n]
+		<< std::setw(16) << coef2[n]
+		<< std::endl;
+    }
+
+    std::cout << "Reconstruct" << std::endl;
+    const int numR = 100;
+    double dr = (log(rmax) - log(rmin))/numR;
+    for (int i=0; i<numR; i++) {
+      double r = rmin*exp(dr*i), sum1 = 0.0, sum2 = 0.0;
+      for (int n=0; n<nmax; n++) {
+	sum1 += emp.get_potl(r, 2, n)*coef1[n];
+	sum2 += emp.get_potl(r, 2, n)*coef2[n];
+      }
+      auto [p, dp, d] = emp.background(r);
+      std::cout << std::setw(16) << r
+		<< std::setw(16) << pot(r)
+		<< std::setw(16) << p
+		<< std::setw(16) << d
+		<< std::setw(16) << sum1
+		<< std::setw(16) << sum2
+		<< std::endl;
+    }
+
+  }
+  // END: bar test
+  
 
   return 0;
 }
