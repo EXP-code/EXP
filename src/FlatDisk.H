@@ -75,9 +75,12 @@ private:
 #endif
 
   //! Background evaluation
-  virtual void get_pot_background(double r, double z,
-				  double & p, double & dr, double & dz)
-  { ortho->background(r, z, p, dr, dz); dr *= -1.0; dz *= -1.0; }
+  virtual std::tuple<double, double, double>
+  get_pot_background(double r, double z)
+  {
+    auto [p, dr, dz] = ortho->background(r, z);
+    return {p, -dr, -dz};
+  }
 
   void get_dens(double r, double z, Eigen::MatrixXd& p, int tid);
 

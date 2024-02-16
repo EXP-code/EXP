@@ -378,9 +378,8 @@ protected:
 #endif
 
   //! Background evaluation
-  virtual void get_pot_background(double r, double z,
-				  double & p, double & dr, double & dz)
-  { p = dr = dz = 0.0; }
+  virtual std::tuple<double, double, double>
+  get_pot_background(double r, double z) { return {0.0, 0.0, 0.0}; }
 
   //! Thread method for accerlation compuation
   virtual void * determine_acceleration_and_potential_thread(void * arg);

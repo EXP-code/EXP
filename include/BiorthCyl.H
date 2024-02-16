@@ -199,11 +199,10 @@ public:
   void get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs, double r, double z);
 
   //! Background evaluation
-  virtual void background(double r, double z,
-			  double & p, double & dr, double & dz)
+  virtual std::tuple<double, double, double> background(double r, double z)
   {
-    emp.background(r, p, dr);
-    dz = 0.0;
+    auto [p, dr, d] = emp.background(r);
+    return {p, dr, 0.0};
   }
 
   //! Get the table bounds

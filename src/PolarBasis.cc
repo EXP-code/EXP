@@ -726,7 +726,7 @@ void PolarBasis::determine_coefficients_particles(void)
   for (auto & v : expcoef0) { for (auto & u : v) u->setZero(); }
     
   use1 = 0;
-  if (multistep==0) used = 0;
+  if (multistep==0 or (mstep==0 and mlevel==multistep)) used = 0;
     
 #ifdef DEBUG
   cout << "Process " << myid 
@@ -1429,7 +1429,7 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	if (not NO_M0) {
 
 	  if (M0_back) {
-	    get_pot_background(r, zz, p, drc, dzc);
+	    auto [p, drc, dzc] = get_pot_background(r, zz);
 
 	    potl = mfac * p;
 	    potr = mfac * drc;
