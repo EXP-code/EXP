@@ -513,7 +513,7 @@ private:
   //! Parameters
   double mu, nu, ri, ro;
 
-  //! Softening factor
+  //! Softening factor (not currently used)
   double asoft = 1.0e-8;
 
   //! Ignore inner cut-off for N<0.05
