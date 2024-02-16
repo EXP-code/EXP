@@ -42,6 +42,7 @@ PolarBasis::valid_keys = {
   "EVEN_M",
   "M0_ONLY",
   "M0_BACK",
+  "NO_MONO",
   "mlim",
   "ssfrac",
   "playback",
@@ -72,6 +73,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   EVEN_M           = false;
   M0_only          = false;
   M0_back          = false;
+  NO_MONO          = false;
   ssfrac           = 0.0;
   subset           = false;
   coefMaster       = true;
@@ -108,7 +110,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"]. as<bool>();
     if (conf["M0_ONLY"]) M0_only = conf["M0_ONLY"].as<bool>();
     if (conf["M0_BACK"]) M0_back = conf["M0_BACK"].as<bool>();
-    
+    if (conf["NO_MONO"]) NO_MONO = conf["NO_MONO"].as<bool>();
 
     if (conf["ssfrac"]) {
       ssfrac = conf["ssfrac"].as<double>();
@@ -1404,7 +1406,9 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
       constexpr double midpt  = ratmin + 0.5*(1.0 - ratmin);
       constexpr double rsmth  = 0.5*(1.0 - ratmin)/maxerf;
       
-      if (ratio >= 1.0) {
+      if (NO_MONO) {
+	ratio = 0.0;
+      } else if (ratio >= 1.0) {
 	frac  = 0.0;
 	cfrac = 1.0;
       } else if (ratio > ratmin) {
@@ -1414,6 +1418,9 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	frac  = 1.0;
       }
       
+      // TEST ratio override
+      ratio = 0.0;
+
       // Ongrid contribution
       //
       if (ratio < 1.0) {

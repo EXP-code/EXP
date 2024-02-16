@@ -32,7 +32,8 @@ class MixtureBasis;
     @param rmax is the maximum radius of the basis
     @param self_consistent true for updating the the coefficients at time steps
     @param NO_M0 true to omit the m=0 harmonic (default: false)
-    @param NO_M1 true to omint the m=1 harmonic (default: false)
+    @param NO_M1 true to omit the m=1 harmonic (default: false)
+    @param NO_MONO true to omit the monopole off-grid force algorithm (default: false)
     @param EVEN_M true to include only even m harmonics (default: false)
     @param M0_ONLY true to include only the m=0 harmonic (default: false)
     @param M0_BACK true includes fixed m=0 harmonic (default: false)
@@ -401,6 +402,9 @@ protected:
 
   //! Omit monopole
   bool NO_M0;
+
+  //! Omit off-grid force algorithm
+  bool NO_MONO;
 
   //! Flag drop m=1 term
   bool NO_M1;

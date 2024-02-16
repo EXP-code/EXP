@@ -127,7 +127,8 @@ main(int ac, char **av)
   double Kmin = Ktol, Kmax = 1.0 - Ktol;
 
   double Emin = 0.5*Rmin*model->get_dpot(Rmin) + model->get_pot(Rmin);
-  double Emax = 0.5*Rmax*model->get_dpot(Rmax) + model->get_pot(Rmax);
+  // double Emax = 0.5*Rmax*model->get_dpot(Rmax) + model->get_pot(Rmax);
+  double Emax = model->get_pot(Rmax);
 
   // Scan to find the peak df
   //
