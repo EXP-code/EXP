@@ -49,11 +49,11 @@ main(int ac, char **av)
     ("i,Ri",      "Inner radius for taper",
      cxxopts::value<double>(Ri)->default_value("1.0"))
     ("o,Ro",      "Outer radius for taper",
-     cxxopts::value<double>(Ro)->default_value("10.0"))
+     cxxopts::value<double>(Ro)->default_value("20.0"))
     ("r,Rmin",    "Inner radius for model",
-     cxxopts::value<double>(Rmin)->default_value("0.01"))
+     cxxopts::value<double>(Rmin)->default_value("0.001"))
     ("R,Rmax",    "Outer radius for model",
-     cxxopts::value<double>(Rmax)->default_value("100.0"))
+     cxxopts::value<double>(Rmax)->default_value("50.0"))
     ("S,sigma",   "Radial velocity dispersion",
      cxxopts::value<double>(sigma)->default_value("1.0"))
     ("s,seed",    "Random number seed. Default: use /dev/random",
@@ -103,7 +103,7 @@ main(int ac, char **av)
   // Create the model
   //
   auto model = std::make_shared<TaperedMestelDisk>(nu, mu, Ri, Ro,
-						   1.0, 0.1*Rmin, 10.0*Rmax);
+						   1.0, Rmin, Rmax);
   model->setup_df(sigma);
 
   // Progress bar
@@ -131,8 +131,8 @@ main(int ac, char **av)
 
   // Scan to find the peak df
   //
-  const int numE = 400;
-  const int numK = 20;
+  const int numE = 800;
+  const int numK = 40;
   Eigen::VectorXd cumE(numE+1), cumF(numE+1), topF(numE+1);
   double peak = 0.0;
   double dE = (Emax - Emin)/numE, dK = (1.0 - 2.0*Ktol)/numK;
