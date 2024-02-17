@@ -186,11 +186,11 @@ void BiorthCyl::initialize_cuda
 
   // Make the textures
   //
-  for (int n=ndim1; n<ndim; n++) {
+  for (int n=0; n<ndim2; n++) {
 
-    cuda_safe_call(cudaMallocArray(&cuArray[n], &channelDesc, numr), __FILE__, __LINE__, "malloc cuArray");
+    cuda_safe_call(cudaMallocArray(&cuArray[k], &channelDesc, numr), __FILE__, __LINE__, "malloc cuArray");
 
-    cuda_safe_call(cudaMemcpyToArray(cuArray[n], 0, 0, &tt[n-ndim1], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
+    cuda_safe_call(cudaMemcpyToArray(cuArray[k], 0, 0, &tt[n], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
 
     // Specify texture
     //
@@ -198,12 +198,13 @@ void BiorthCyl::initialize_cuda
 
     memset(&resDesc, 0, sizeof(cudaResourceDesc));
     resDesc.resType = cudaResourceTypeArray;
-    resDesc.res.array.array = cuArray[n];
+    resDesc.res.array.array = cuArray[k];
     
     // Create texture object
     //
-    cuda_safe_call(cudaCreateTextureObject(&tex[n], &resDesc, &texDesc1, NULL), __FILE__, __LINE__, "create texture object");
+    cuda_safe_call(cudaCreateTextureObject(&tex[k], &resDesc, &texDesc1, NULL), __FILE__, __LINE__, "create texture object");
 
+    k++;
   }
 
   assert(k == ndim);
