@@ -248,7 +248,7 @@ void PolarBasis::initialize_mapping_constants()
   cuda_safe_call(cudaMemcpyToSymbol(plrM0only, &M0_only,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrM0only");
 
-  cuda_safe_call(cudaMemcpyToSymbol(plrM0only, &M0_back,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+  cuda_safe_call(cudaMemcpyToSymbol(plrM0back, &M0_back,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrM0back");
 
   cuda_safe_call(cudaMemcpyToSymbol(plrNoMono, &NO_MONO,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
