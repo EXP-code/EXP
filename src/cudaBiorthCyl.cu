@@ -150,37 +150,60 @@ void BiorthCyl::initialize_cuda
 
   // Add background arrays
   //
-  std::vector<thrust::host_vector<cuFP_t>> vv(ndim2);
-  for (auto & v : vv) v.resize(numr);
+  std::vector<thrust::host_vector<cuFP_t>> tt(ndim2);
+  for (auto & v : tt) v.resize(numr);
 
   double dx0  = (xmax - xmin)/(numr - 1);
 
   for (int i=0; i<numr; i++) {
     double r = xi_to_r(xmin + dx0*i);
     auto [p, dr, d] = emp.background(r);
-    vv[0][i] = p;
-    vv[1][i] = dr;
+    tt[0][i] = p;
+    tt[1][i] = dr;
   }
 
+  // Allocate CUDA array in device memory (a one-dimension 'channel')
+  //
+#if cuREAL == 4
+  cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float>();
+#else
+  cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<int2>();
+#endif
+
+  // Define the texture parameters
+  //
+  cudaTextureDesc texDesc1;
+
+  memset(&texDesc1, 0, sizeof(cudaTextureDesc));
+  texDesc1.addressMode[0] = cudaAddressModeClamp;
+  texDesc1.filterMode = cudaFilterModePoint;
+  texDesc1.readMode = cudaReadModeElementType;
+  texDesc1.normalizedCoords = 0;
+    
+  // Size of interpolation array
+  //
+  size_t tsize = numr*sizeof(cuFP_t);
+
+  // Make the textures
+  //
   for (int n=ndim1; n<ndim; n++) {
 
-    memset(&texDesc[n], 0, sizeof(cudaTextureDesc));
-    texDesc[n].addressMode[n] = cudaAddressModeClamp;
-    texDesc[n].filterMode = cudaFilterModePoint;
-    texDesc[n].readMode = cudaReadModeElementType;
-    texDesc[n].normalizedCoords = 0;
-    
     cuda_safe_call(cudaMallocArray(&cuArray[n], &channelDesc, numr), __FILE__, __LINE__, "malloc cuArray");
 
     cuda_safe_call(cudaMemcpyToArray(cuArray[n], 0, 0, &tt[n-ndim1], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
 
     // Specify texture
-    memset(&resDesc[n], 0, sizeof(cudaResourceDesc));
-    resDesc[n].resType = cudaResourceTypeArray;
-    resDesc[n].res.array.array = cuArray[n];
+    //
+    cudaResourceDesc resDesc;
+
+    memset(&resDesc, 0, sizeof(cudaResourceDesc));
+    resDesc.resType = cudaResourceTypeArray;
+    resDesc.res.array.array = cuArray[n];
     
-    cuda_safe_call(cudaCreateTextureObject(&tex[n], &resDesc[n], &texDesc[0], NULL), __FILE__, __LINE__, "create texture object");
-    
+    // Create texture object
+    //
+    cuda_safe_call(cudaCreateTextureObject(&tex[n], &resDesc, &texDesc1, NULL), __FILE__, __LINE__, "create texture object");
+
   }
 
   assert(k == ndim);
