@@ -687,49 +687,6 @@ forceKernelPlr6(dArray<cudaParticle> P, dArray<int> I,
 	  if (plrNO_M1  and mm==1         ) continue;
 	  if (plrEVEN_M and (mm/2)*2 != mm) continue;
 
-	  if (plrM0back and mm==0         ) {
-	    int ndim1 = (mmax+1)*nmax;
-
-	    cuFP_t xx = X*plrDxi/plrDx0;
-	    int   ind = floor(xx);
-
-	    if (ind<0) ind = 0;
-	    if (ind>plrNumr-2) ind = plrNumr - 2;
-
-	    cuFP_t a = (cuFP_t)(ind+1) - xx;
-	    cuFP_t b = 1.0 - a;
-
-	    // Do the interpolation for the prefactor potential
-	    //
-#if cuREAL == 4
-	    cuFP_t pp0 =  tex1D<float>(tex._v[ndim1+0], ind  );
-	    cuFP_t pp1 =  tex1D<float>(tex._v[ndim1+0], ind+1);
-	    cuFP_t dp0 = -tex1D<float>(tex._v[ndim1+1], ind  );
-	    cuFP_t dp1 = -tex1D<float>(tex._v[ndim1+1], ind+1);
-
-#else
-	    cuFP_t pp0 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind  ));
-	    cuFP_t pp1 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind+1));
-	    cuFP_t dp0 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind  ));
-	    cuFP_t dp1 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind+1));
-#endif
-	    if (xx<=0.0) {
-	      pp += pp0;
-	      fr += dp0;
-	    } else {
-	      pp += a*pp0 + b*pp1;
-	      fr += a*dp0 + b*dp1;
-	    }
-
-#ifdef TEMP_DEBUG
-	    if (npart < 10) {
-	      printf("background: %12.4e [%12.4e %12.4e] [%12.4e %12.4e]\n",
-		     R, pp, log(R), fr, -1.0/R);
-	    }
-#endif
-	    continue;
-	  }
-
 	  for (int n=0; n<nmax; n++) {
       
 	    cuFP_t fac0 = coef._v[IImn(mm, 'c', n, nmax)];
@@ -1137,7 +1094,9 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t ratio = sqrt( (R2 + zz*zz)/rmax2 );
       cuFP_t mfactor = 1.0, frac = 1.0, cfrac = 0.0;
 
-      if (ratio >= 1.0) {
+      if (plrNoMono) {
+	ratio = 0.0;
+      } if (ratio >= 1.0) {
 	frac  = 0.0;
 	cfrac = 1.0;
       } else if (ratio > ratmin) {
@@ -1206,6 +1165,49 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	  if (plrNO_M0  and mm==0         ) continue;
 	  if (plrNO_M1  and mm==1         ) continue;
 	  if (plrEVEN_M and (mm/2)*2 != mm) continue;
+
+	  if (plrM0back and mm==0         ) {
+	    int ndim1 = (mmax+1)*nmax;
+
+	    cuFP_t xx = X*plrDxi/plrDx0;
+	    int   ind = floor(xx);
+
+	    if (ind<0) ind = 0;
+	    if (ind>plrNumr-2) ind = plrNumr - 2;
+
+	    cuFP_t a = (cuFP_t)(ind+1) - xx;
+	    cuFP_t b = 1.0 - a;
+
+	    // Do the interpolation for the prefactor potential
+	    //
+#if cuREAL == 4
+	    cuFP_t pp0 =  tex1D<float>(tex._v[ndim1+0], ind  );
+	    cuFP_t pp1 =  tex1D<float>(tex._v[ndim1+0], ind+1);
+	    cuFP_t dp0 = -tex1D<float>(tex._v[ndim1+1], ind  );
+	    cuFP_t dp1 = -tex1D<float>(tex._v[ndim1+1], ind+1);
+
+#else
+	    cuFP_t pp0 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind  ));
+	    cuFP_t pp1 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind+1));
+	    cuFP_t dp0 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind  ));
+	    cuFP_t dp1 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind+1));
+#endif
+	    if (xx<=0.0) {
+	      pp += pp0;
+	      fr += dp0;
+	    } else {
+	      pp += a*pp0 + b*pp1;
+	      fr += a*dp0 + b*dp1;
+	    }
+
+#ifdef TEMP_DEBUG
+	    if (npart < 10) {
+	      printf("background: %8d %12.4e [%12.4e %12.4e] [%12.4e %12.4e] [%5.4f %5.4f]\n",
+		     i, R, pp, log(R), fr, -1.0/R, a, b);
+	    }
+#endif
+	    continue;
+	  }
 
 	  if (mm) norm = norm1;
 	  else    norm = norm0;

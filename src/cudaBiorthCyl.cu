@@ -131,16 +131,21 @@ void BiorthCyl::initialize_cuda
 
       cuda_safe_call(cudaMemcpy3D(&copyParams), __FILE__, __LINE__, "Error in copying 3d pitched array");
 
+      // Specify the texture
+      //
       cudaResourceDesc resDesc;
 
       memset(&resDesc, 0, sizeof(cudaResourceDesc));
       resDesc.resType = cudaResourceTypeArray;
       resDesc.res.array.array  = cuArray[k];
 
+      // Create texture object
+      //
       cuda_safe_call
 	(cudaCreateTextureObject(&tex[k], &resDesc, &texDesc, NULL),
 	 __FILE__, __LINE__, "Failure in 2d texture creation");
       
+      // Advance to next array
       k++;
 
     } // radial order loop
@@ -192,7 +197,7 @@ void BiorthCyl::initialize_cuda
 
     cuda_safe_call(cudaMemcpyToArray(cuArray[k], 0, 0, &tt[n], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
 
-    // Specify texture
+    // Specify the texture
     //
     cudaResourceDesc resDesc;
 
@@ -204,10 +209,11 @@ void BiorthCyl::initialize_cuda
     //
     cuda_safe_call(cudaCreateTextureObject(&tex[k], &resDesc, &texDesc1, NULL), __FILE__, __LINE__, "create texture object");
 
+    // Advance to next array
     k++;
   }
 
-  assert(k == ndim);
+  assert(k == ndim);		// Sanity check
 
   cuda_safe_call(cudaFree(d_Interp), __FILE__, __LINE__, "Failure freeing device memory");
 
