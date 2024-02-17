@@ -594,7 +594,7 @@ namespace BasisClasses
     }
 
     // Radial grid spacing
-    double dx = (logxmax - logxmin)/numgrid;
+    double dx = (logxmax - logxmin)/(numgrid-1);
 
     // Basis storage
     Eigen::MatrixXd tabpot, tabden, tabfrc;
@@ -1407,6 +1407,7 @@ namespace BasisClasses
     "EVEN_M",
     "M0_BACK",
     "M0_ONLY",
+    "NO_MONO",
     "diskconf",
     "ssfrac",
     "playback",
@@ -1854,7 +1855,7 @@ namespace BasisClasses
     }
 
     // Radial grid spacing
-    double dx = (logxmax - logxmin)/numgrid;
+    double dx = (logxmax - logxmin)/(numgrid-1);
 
     // Basis storage
     Eigen::MatrixXd tabpot, tabden, tabrfc;
