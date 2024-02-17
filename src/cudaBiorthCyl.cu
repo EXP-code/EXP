@@ -60,7 +60,9 @@ void BiorthCyl::initialize_cuda
 {
   // Number of texture arrays
   //
-  size_t ndim = (mmax+1)*nmax;
+  size_t ndim1 = (mmax+1)*nmax;
+  size_t ndim2 = 2;
+  size_t ndim  = ndim1 + ndim2;
 
   // Interpolation data array
   //
@@ -145,6 +147,41 @@ void BiorthCyl::initialize_cuda
 
   } // harmonic subspace loop
 
+
+  // Add background arrays
+  //
+  std::vector<thrust::host_vector<cuFP_t>> vv(ndim2);
+  for (auto & v : vv) v.resize(numr);
+
+  double dx0  = (xmax - xmin)/(numr - 1);
+
+  for (int i=0; i<numr; i++) {
+    double r = xi_to_r(xmin + dx0*i);
+    auto [p, dr, d] = emp.background(r);
+    vv[0][i] = p;
+    vv[1][i] = dr;
+  }
+
+  for (int n=ndim1; n<ndim; n++) {
+
+    memset(&texDesc[n], 0, sizeof(cudaTextureDesc));
+    texDesc[n].addressMode[n] = cudaAddressModeClamp;
+    texDesc[n].filterMode = cudaFilterModePoint;
+    texDesc[n].readMode = cudaReadModeElementType;
+    texDesc[n].normalizedCoords = 0;
+    
+    cuda_safe_call(cudaMallocArray(&cuArray[n], &channelDesc, numr), __FILE__, __LINE__, "malloc cuArray");
+
+    cuda_safe_call(cudaMemcpyToArray(cuArray[n], 0, 0, &tt[n-ndim1], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
+
+    // Specify texture
+    memset(&resDesc[n], 0, sizeof(cudaResourceDesc));
+    resDesc[n].resType = cudaResourceTypeArray;
+    resDesc[n].res.array.array = cuArray[n];
+    
+    cuda_safe_call(cudaCreateTextureObject(&tex[n], &resDesc[n], &texDesc[0], NULL), __FILE__, __LINE__, "create texture object");
+    
+  }
 
   assert(k == ndim);
 

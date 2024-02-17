@@ -18,13 +18,16 @@ __device__ __constant__
 cuFP_t plrRscale, plrHscale, plrXmin, plrXmax, plrYmin, plrYmax, plrDxi, plrDyi;
 
 __device__ __constant__
+cuFP_t plrDx0;
+
+__device__ __constant__
 cuFP_t plrCen[3], plrBody[9], plrOrig[9];
 
 __device__ __constant__
-int plrNumx, plrNumy, plrCmapR, plrCmapZ, plrOrient;
+int plrNumx, plrNumy, plrCmapR, plrCmapZ, plrOrient, plrNumr;
 
 __device__ __constant__
-bool plrAcov, plrNO_M0, plrNO_M1, plrEVEN_M, plrM0only;
+bool plrAcov, plrNO_M0, plrNO_M1, plrEVEN_M, plrM0only, plrM0back, plrNoMono;
 
 // Index function for sine and cosine coefficients
 //
@@ -75,6 +78,7 @@ void testConstantsPlr()
   printf("   Ymax   = %f\n", plrYmax  );
   printf("   Dxi    = %f\n", plrDxi   );
   printf("   Dyi    = %f\n", plrDyi   );
+  printf("   Dx0    = %f\n", plrDx0   );
   printf("   Numx   = %d\n", plrNumx  );
   printf("   Numy   = %d\n", plrNumy  );
   printf("   CmapR  = %d\n", plrCmapR );
@@ -84,6 +88,8 @@ void testConstantsPlr()
   printf("   NO_M1  = %d\n", plrNO_M1 );
   printf("   EVEN_M = %d\n", plrEVEN_M);
   printf("   M0only = %d\n", plrM0only);
+  printf("   M0back = %d\n", plrM0back);
+  printf("   NoMono = %d\n", plrNoMono);
   printf("-------------------------\n");
 }
 
@@ -241,8 +247,22 @@ void PolarBasis::initialize_mapping_constants()
   cuda_safe_call(cudaMemcpyToSymbol(plrM0only, &M0_only,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrM0only");
 
+  cuda_safe_call(cudaMemcpyToSymbol(plrM0only, &M0_back,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrM0back");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrNoMono, &NO_MONO,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrM0back");
+
   cuda_safe_call(cudaMemcpyToSymbol(plrAcov,   &subsamp,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrAcov");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrNumr,   &f.numr,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrNumr");
+
+  cuFP_t Dx0 = (f.xmax - f.xmin)/(f.numr - 1);
+  cuda_safe_call(cudaMemcpyToSymbol(plrDx0,    &Dx0,      sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrDx0");
+
 }
 
 
@@ -596,7 +616,9 @@ forceKernelPlr6(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t ratio = sqrt( (R2 + zz*zz)/rmax2 );
       cuFP_t mfactor = 1.0, frac = 1.0, cfrac = 0.0;
 
-      if (ratio >= 1.0) {
+      if (plrNoMono) {
+	ratio = 0.0;
+      } else if (ratio >= 1.0) {
 	frac  = 0.0;
 	cfrac = 1.0;
       } else if (ratio > ratmin) {
@@ -663,6 +685,43 @@ forceKernelPlr6(dArray<cudaParticle> P, dArray<int> I,
 	  if (plrNO_M0  and mm==0         ) continue;
 	  if (plrNO_M1  and mm==1         ) continue;
 	  if (plrEVEN_M and (mm/2)*2 != mm) continue;
+
+	  if (plrM0back and mm==0         ) {
+	    int ndim1 = (mmax+1)*nmax;
+
+	    cuFP_t xx = X*plrDxi/plrDx0;
+	    int   ind = floor(xx);
+
+	    if (ind<0) ind = 0;
+	    if (ind>plrNumr-2) ind = plrNumr - 2;
+
+	    cuFP_t a = (cuFP_t)(ind+1) - xx;
+	    cuFP_t b = 1.0 - a;
+
+	    // Do the interpolation for the prefactor potential
+	    //
+#if cuREAL == 4
+	    cuFP_t pp0 =  tex1D<float>(tex._v[ndim1+0], ind  );
+	    cuFP_t pp1 =  tex1D<float>(tex._v[ndim1+0], ind+1);
+	    cuFP_t dp0 = -tex1D<float>(tex._v[ndim1+1], ind  );
+	    cuFP_t dp1 = -tex1D<float>(tex._v[ndim1+1], ind+1);
+
+#else
+	    cuFP_t pp0 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind  ));
+	    cuFP_t pp1 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind+1));
+	    cuFP_t dp0 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind  ));
+	    cuFP_t dp1 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind+1));
+#endif
+	    if (xx<=0.0) {
+	      pp += pp0;
+	      fr += dp0;
+	    } else {
+	      pp += a*pp0 + b*pp1;
+	      pp += a*dp0 + b*dp1;
+	    }
+
+	    continue;
+	  }
 
 	  for (int n=0; n<nmax; n++) {
       
