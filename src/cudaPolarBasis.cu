@@ -82,6 +82,7 @@ void testConstantsPlr()
   printf("   Dx0    = %f\n", plrDx0   );
   printf("   Numx   = %d\n", plrNumx  );
   printf("   Numy   = %d\n", plrNumy  );
+  printf("   Numr   = %d\n", plrNumr  );
   printf("   CmapR  = %d\n", plrCmapR );
   printf("   CmapZ  = %d\n", plrCmapZ );
   printf("   Orient = %d\n", plrOrient);
