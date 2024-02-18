@@ -49,9 +49,6 @@ thrust::host_vector<cuFP_t> returnTestSph
   return f_d;
 }
 
-static std::vector<cudaResourceDesc> resDesc;
-static std::vector<cudaTextureDesc>  texDesc;
-
 struct Element {
   int l;
   double a;

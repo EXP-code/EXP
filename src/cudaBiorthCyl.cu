@@ -53,6 +53,39 @@ thrust::host_vector<cuFP_t> returnTestBioCyl
   return f_d;
 }
 
+__global__
+void testFetchBioCyl1(dArray<cudaTextureObject_t> T, dArray<cuFP_t> f, int l)
+{
+  const int i = blockDim.x * blockIdx.x + threadIdx.x;
+  if (i<f._s) {
+#if cuREAL == 4
+    f._v[i] = tex1D<float>(T._v[l], i);
+#else
+    f._v[i] = int2_as_double(tex1D<int2>(T._v[l], i));
+#endif
+  }
+}
+
+thrust::host_vector<cuFP_t> returnTestBioCyl1
+  (thrust::host_vector<cudaTextureObject_t>& tex, int l, unsigned int N)
+{
+  thrust::device_vector<cudaTextureObject_t> t_d = tex;
+  
+  unsigned int gridSize  = N/BLOCK_SIZE;
+  if (N > gridSize*BLOCK_SIZE) gridSize++;
+
+  thrust::device_vector<cuFP_t> f_d(N);
+
+  testFetchBioCyl1<<<gridSize, BLOCK_SIZE>>>(toKernel(t_d), toKernel(f_d), l);
+
+  cudaDeviceSynchronize();
+
+  return f_d;
+}
+
+static std::vector<cudaResourceDesc> resDesc;
+static std::vector<cudaTextureDesc>  texDesc;
+
 void BiorthCyl::initialize_cuda
 (std::vector<cudaArray_t>& cuArray,
  thrust::host_vector<cudaTextureObject_t>& tex
@@ -64,6 +97,14 @@ void BiorthCyl::initialize_cuda
   size_t ndim2 = 2;
   size_t ndim  = ndim1 + ndim2;
 
+  // Cuda resouce descriptions
+  //
+  resDesc.resize(ndim);
+
+  // Specify texture object parameters
+  //
+  texDesc.resize(ndim);
+
   // Interpolation data array
   //
   cuArray.resize(ndim);
@@ -73,15 +114,6 @@ void BiorthCyl::initialize_cuda
   tex.resize(ndim);
   thrust::fill(tex.begin(), tex.end(), 0);
 
-  cudaTextureDesc texDesc;
-
-  memset(&texDesc, 0, sizeof(texDesc));
-  texDesc.readMode = cudaReadModeElementType;
-  texDesc.filterMode = cudaFilterModePoint;
-  texDesc.addressMode[0] = cudaAddressModeClamp;
-  texDesc.addressMode[1] = cudaAddressModeClamp;
-  texDesc.addressMode[2] = cudaAddressModeClamp;
-  
   // Temporary storage
   //
   cuFP_t *d_Interp;
@@ -95,6 +127,13 @@ void BiorthCyl::initialize_cuda
   for (size_t mm=0; mm<=mmax; mm++) {
 
     for (size_t n=0; n<nmax; n++) {
+
+      memset(&texDesc[k], 0, sizeof(texDesc));
+      texDesc[k].readMode       = cudaReadModeElementType;
+      texDesc[k].filterMode     = cudaFilterModePoint;
+      texDesc[k].addressMode[0] = cudaAddressModeClamp;
+      texDesc[k].addressMode[1] = cudaAddressModeClamp;
+      texDesc[k].addressMode[2] = cudaAddressModeClamp;
 
       // Copy table to flat array
       //
@@ -133,16 +172,14 @@ void BiorthCyl::initialize_cuda
 
       // Specify the texture
       //
-      cudaResourceDesc resDesc;
-
-      memset(&resDesc, 0, sizeof(cudaResourceDesc));
-      resDesc.resType = cudaResourceTypeArray;
-      resDesc.res.array.array  = cuArray[k];
+      memset(&resDesc[k], 0, sizeof(cudaResourceDesc));
+      resDesc[k].resType = cudaResourceTypeArray;
+      resDesc[k].res.array.array  = cuArray[k];
 
       // Create texture object
       //
       cuda_safe_call
-	(cudaCreateTextureObject(&tex[k], &resDesc, &texDesc, NULL),
+	(cudaCreateTextureObject(&tex[k], &resDesc[k], &texDesc[k], NULL),
 	 __FILE__, __LINE__, "Failure in 2d texture creation");
       
       // Advance to next array
@@ -175,16 +212,6 @@ void BiorthCyl::initialize_cuda
   cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<int2>();
 #endif
 
-  // Define the texture parameters
-  //
-  cudaTextureDesc texDesc1;
-
-  memset(&texDesc1, 0, sizeof(cudaTextureDesc));
-  texDesc1.addressMode[0] = cudaAddressModeClamp;
-  texDesc1.filterMode = cudaFilterModePoint;
-  texDesc1.readMode = cudaReadModeElementType;
-  texDesc1.normalizedCoords = 0;
-    
   // Size of interpolation array
   //
   size_t tsize = numr*sizeof(cuFP_t);
@@ -193,21 +220,31 @@ void BiorthCyl::initialize_cuda
   //
   for (int n=0; n<ndim2; n++) {
 
+    // Define the texture parameters
+    //
+    memset(&texDesc[k], 0, sizeof(cudaTextureDesc));
+    texDesc[k].addressMode[0]   = cudaAddressModeClamp;
+    texDesc[k].filterMode       = cudaFilterModePoint;
+    texDesc[k].readMode         = cudaReadModeElementType;
+    texDesc[k].normalizedCoords = 0;
+    
+    // Allocate device memory
+    //
     cuda_safe_call(cudaMallocArray(&cuArray[k], &channelDesc, numr), __FILE__, __LINE__, "malloc cuArray");
 
-    cuda_safe_call(cudaMemcpyToArray(cuArray[k], 0, 0, &tt[n], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
+    // Copy arrays to device
+    //
+    cuda_safe_call(cudaMemcpyToArray(cuArray[k], 0, 0, tt[n].data(), tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
 
     // Specify the texture
     //
-    cudaResourceDesc resDesc;
-
-    memset(&resDesc, 0, sizeof(cudaResourceDesc));
-    resDesc.resType = cudaResourceTypeArray;
-    resDesc.res.array.array = cuArray[k];
+    memset(&resDesc[k], 0, sizeof(cudaResourceDesc));
+    resDesc[k].resType = cudaResourceTypeArray;
+    resDesc[k].res.array.array = cuArray[k];
     
     // Create texture object
     //
-    cuda_safe_call(cudaCreateTextureObject(&tex[k], &resDesc, &texDesc1, NULL), __FILE__, __LINE__, "create texture object");
+    cuda_safe_call(cudaCreateTextureObject(&tex[k], &resDesc[k], &texDesc[k], NULL), __FILE__, __LINE__, "create texture object");
 
     // Advance to next array
     k++;
@@ -220,7 +257,7 @@ void BiorthCyl::initialize_cuda
   // This is for debugging: compare texture table fetches to original
   // tables
   //
-  if (false) {
+  if (false and myid==0) {
     constexpr cuFP_t tol = 10.0*std::numeric_limits<cuFP_t>::epsilon();
 
     struct Element {
@@ -288,4 +325,65 @@ void BiorthCyl::initialize_cuda
 	      << "**Hi [1] : " << hi1->first << " (" << hi1->second.m << ", " << hi1->second.k << ", " << hi1->second.a << ", " << hi1->second.b << ", " << hi1->second.a - hi1->second.b << ")" << std::endl
 	      << "**" << std::endl;
   }
+
+  if (false and myid==0) {
+
+    constexpr cuFP_t tol = 10.0*std::numeric_limits<cuFP_t>::epsilon();
+
+    struct Element {
+      int l;
+      int k;
+      double a;
+      double b;
+    };
+    
+    std::multimap<double, Element> compare;
+    unsigned tot = 0, bad = 0;
+
+    for (int L=0; L<2; L++) {
+
+      std::cout << "**HOST** Texture 1D compare L=" << L << std::endl;
+
+      thrust::host_vector<cuFP_t> xyg = returnTestBioCyl1(tex, ndim1 + L, numr);
+	
+      for (int i=0; i<numr; i++) {
+
+	double a = tt[L][i];
+	double b = xyg[i];
+
+	if (a>1.0e-18) {
+
+	  Element comp = {L, i, a, b};
+	  compare.insert(std::make_pair(fabs((a - b)/a), comp));
+	  
+	  if ( fabs((a - b)/a ) > tol) {
+	    std::cout << std::setw( 5) << L  << std::setw( 8) << i
+		      << std::setw(20) << a  << std::setw(20) << b
+		      << std::setw(20) << (a-b)/a << std::endl;
+	    bad++;
+	  }
+	}
+	tot++;
+      }
+    }
+
+    std::multimap<double, Element>::iterator beg = compare.begin();
+    std::multimap<double, Element>::iterator end = compare.end();
+    std::multimap<double, Element>::iterator lo1=beg, lo9=beg, mid=beg, hi9=end, hi1=end;
+
+    std::advance(lo9, 9);
+    std::advance(mid, compare.size()/2);
+    std::advance(hi1, -1);
+    std::advance(hi9, -10);
+
+    std::cout << "**Found " << bad << "/" << tot << " values > eps" << std::endl
+	      << "**Low[1] : " << lo1->first << " (" << lo1->second.l << ", " << lo1->second.k << ", " << lo1->second.a << ", " << lo1->second.b << ", " << lo1->second.a - lo1->second.b << ")" << std::endl
+	      << "**Low[9] : " << lo9->first << " (" << lo9->second.l << ", " << lo9->second.k << ", " << lo9->second.a << ", " << lo9->second.b << ", " << lo9->second.a - lo9->second.b << ")" << std::endl
+	      << "**Middle : " << mid->first << " (" << mid->second.l << ", " << mid->second.k << ", " << mid->second.a << ", " << mid->second.b << ", " << mid->second.a - mid->second.b << ")" << std::endl
+	      << "**Hi [9] : " << hi9->first << " (" << hi9->second.l << ", " << hi9->second.k << ", " << hi9->second.a << ", " << lo1->second.b << ", " << hi9->second.a - hi9->second.b << ")" << std::endl
+	      << "**Hi [1] : " << hi1->first << " (" << hi1->second.l << ", " << hi1->second.k << ", " << hi1->second.a << ", " << hi1->second.b << ", " << hi1->second.a - hi1->second.b << ")" << std::endl
+	      << "**" << std::endl;
+  }
+
+
 }
