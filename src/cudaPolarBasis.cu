@@ -11,7 +11,6 @@
 // #define BOUNDS_CHECK
 // #define VERBOSE_CTR
 // #define VERBOSE_DBG
-// #define TEMP_DEBUG
 
 // Global symbols for coordinate transformation
 //
@@ -1201,12 +1200,6 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	      fr += a*dp0 + b*dp1;
 	    }
 
-#ifdef TEMP_DEBUG
-	    if (npart < 10) {
-	      printf("background: %8d %12.4e [%12.4e %12.4e] [%12.4e %12.4e] [%5.4f %5.4f]\n",
-		     i, R, pp, log(R), fr, -1.0/R, a, b);
-	    }
-#endif
 	    continue;
 	  }
 
