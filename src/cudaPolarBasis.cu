@@ -1161,119 +1161,127 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 
 	for (int mm=0; mm<=muse; mm++) {
 
-	  if (plrM0only and mm>0          ) continue;
-	  if (plrNO_M0  and mm==0         ) continue;
-	  if (plrNO_M1  and mm==1         ) continue;
-	  if (plrEVEN_M and (mm/2)*2 != mm) continue;
+	  bool compute = true;
 
-	  if (plrM0back and mm==0         ) {
-	    int ndim1 = (mmax+1)*nmax;
+	  if (plrM0only and mm>0          ) compute = false;
+	  if (plrNO_M0  and mm==0         ) compute = false;
+	  if (plrNO_M1  and mm==1         ) compute = false;
+	  if (plrEVEN_M and (mm/2)*2 != mm) compute = false;
 
-	    cuFP_t xx = X*plrDxi/plrDx0;
-	    int   ind = floor(xx);
+	  if (compute) {
 
-	    if (ind<0) ind = 0;
-	    if (ind>plrNumr-2) ind = plrNumr - 2;
+	    if (plrM0back and mm==0) {
+	      int ndim1 = (mmax+1)*nmax;
 
-	    cuFP_t a = (cuFP_t)(ind+1) - xx;
-	    cuFP_t b = 1.0 - a;
+	      cuFP_t xx = X*plrDxi/plrDx0;
+	      int   ind = floor(xx);
 
-	    // Do the interpolation for the prefactor potential
-	    //
-#if cuREAL == 4
-	    cuFP_t pp0 =  tex1D<float>(tex._v[ndim1+0], ind  );
-	    cuFP_t pp1 =  tex1D<float>(tex._v[ndim1+0], ind+1);
-	    cuFP_t dp0 = -tex1D<float>(tex._v[ndim1+1], ind  );
-	    cuFP_t dp1 = -tex1D<float>(tex._v[ndim1+1], ind+1);
+	      if (ind<0) ind = 0;
+	      if (ind>plrNumr-2) ind = plrNumr - 2;
 
-#else
-	    cuFP_t pp0 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind  ));
-	    cuFP_t pp1 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind+1));
-	    cuFP_t dp0 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind  ));
-	    cuFP_t dp1 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind+1));
-#endif
-	    if (xx<=0.0) {
-	      pp += pp0;
-	      fr += dp0;
-	    } else {
-	      pp += a*pp0 + b*pp1;
-	      fr += a*dp0 + b*dp1;
-	    }
+	      cuFP_t a = (cuFP_t)(ind+1) - xx;
+	      cuFP_t b = 1.0 - a;
 
-	  } else {
-
-	    if (mm) norm = norm1;
-	    else    norm = norm0;
-
-	    for (int n=0; n<nmax; n++) {
-      
-	      // Texture table index
+	      // Do the interpolation for the prefactor potential
 	      //
-	      int k = mm*nmax + n;
-	      
-	      cuFP_t potl =
-		(
 #if cuREAL == 4
-		 tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
-		 tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
-		 tex3D<float>(tex._v[k], indX,   indY+1, 0) * c01 +
-		 tex3D<float>(tex._v[k], indX+1, indY+1, 0) * c11 
-#else
-		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 0)) * c00 +
-		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 0)) * c10 +
-		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 0)) * c01 +
-		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 0)) * c11 
-#endif
-		 );
-	    
-	      cuFP_t rfrc =
-		(
-#if cuREAL == 4
-		 tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
-		 tex3D<float>(tex._v[k], indX+1, indY  , 1) * c10 +
-		 tex3D<float>(tex._v[k], indX,   indY+1, 1) * c01 +
-		 tex3D<float>(tex._v[k], indX+1, indY+1, 1) * c11 
-#else
-		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 1)) * c00 +
-		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 1)) * c10 +
-		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 1)) * c01 +
-		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 1)) * c11 
-#endif
-		 );
-      
-	      cuFP_t zfrc =
-		(
-#if cuREAL == 4
-		 tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
-		 tex3D<float>(tex._v[k], indX+1, indY  , 2) * c10 +
-		 tex3D<float>(tex._v[k], indX,   indY+1, 2) * c01 +
-		 tex3D<float>(tex._v[k], indX+1, indY+1, 2) * c11 
-#else
-		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 2)) * c00 +
-		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 2)) * c10 +
-		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 2)) * c01 +
-		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 2)) * c11 
-#endif
-		 );
+	      cuFP_t pp0 =  tex1D<float>(tex._v[ndim1+0], ind  );
+	      cuFP_t pp1 =  tex1D<float>(tex._v[ndim1+0], ind+1);
+	      cuFP_t dp0 = -tex1D<float>(tex._v[ndim1+1], ind  );
+	      cuFP_t dp1 = -tex1D<float>(tex._v[ndim1+1], ind+1);
 
-	      if (zz < 0.0) zfrc *= -1.0;
-	    
-	      // The trigonometric norm with a minus sign for the tabled values:
-	      // -1/sqrt(2*pi) for m==0 or -1/sqrt(pi) for m>0
-	      //
-	      cuFP_t Sfac = -norm;
-	      cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
-	      cuFP_t facS = 0.0;
-	      if (mm>0) {
-		facS = coef._v[IImn(mm, 's', n, nmax)];
+#else
+	      cuFP_t pp0 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind  ));
+	      cuFP_t pp1 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind+1));
+	      cuFP_t dp0 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind  ));
+	      cuFP_t dp1 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind+1));
+#endif
+	      if (xx<=0.0) {
+		pp += pp0;
+		fr += dp0;
+	      } else {
+		pp += a*pp0 + b*pp1;
+		fr += a*dp0 + b*dp1;
 	      }
 	      
-	      pp += potl * ( facC * ccos + facS * ssin) * Sfac;
-	      fr += rfrc * ( facC * ccos + facS * ssin) * Sfac;
-	      fz += zfrc * ( facC * ccos + facS * ssin) * Sfac;
-	      fp += potl * ( facC * ssin - facS * ccos) * Sfac * mm;
+	    } else {
+
+	      if (mm) norm = norm1;
+	      else    norm = norm0;
+
+	      for (int n=0; n<nmax; n++) {
+      
+		// Texture table index
+		//
+		int k = mm*nmax + n;
+	      
+		cuFP_t potl =
+		  (
+#if cuREAL == 4
+		   tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
+		   tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
+		   tex3D<float>(tex._v[k], indX,   indY+1, 0) * c01 +
+		   tex3D<float>(tex._v[k], indX+1, indY+1, 0) * c11 
+#else
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 0)) * c00 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 0)) * c10 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 0)) * c01 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 0)) * c11 
+#endif
+		   );
+	    
+		cuFP_t rfrc =
+		  (
+#if cuREAL == 4
+		   tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
+		   tex3D<float>(tex._v[k], indX+1, indY  , 1) * c10 +
+		   tex3D<float>(tex._v[k], indX,   indY+1, 1) * c01 +
+		   tex3D<float>(tex._v[k], indX+1, indY+1, 1) * c11 
+#else
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 1)) * c00 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 1)) * c10 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 1)) * c01 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 1)) * c11 
+#endif
+		   );
+      
+		cuFP_t zfrc =
+		  (
+#if cuREAL == 4
+		   tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
+		   tex3D<float>(tex._v[k], indX+1, indY  , 2) * c10 +
+		   tex3D<float>(tex._v[k], indX,   indY+1, 2) * c01 +
+		   tex3D<float>(tex._v[k], indX+1, indY+1, 2) * c11 
+#else
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 2)) * c00 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 2)) * c10 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 2)) * c01 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 2)) * c11 
+#endif
+		   );
+
+		if (zz < 0.0) zfrc *= -1.0;
+	    
+		// The trigonometric norm with a minus sign for the tabled values:
+		// -1/sqrt(2*pi) for m==0 or -1/sqrt(pi) for m>0
+		//
+		cuFP_t Sfac = -norm;
+		cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
+		cuFP_t facS = 0.0;
+		if (mm>0) {
+		  facS = coef._v[IImn(mm, 's', n, nmax)];
+		}
+		
+		pp += potl * ( facC * ccos + facS * ssin) * Sfac;
+		fr += rfrc * ( facC * ccos + facS * ssin) * Sfac;
+		fz += zfrc * ( facC * ccos + facS * ssin) * Sfac;
+		fp += potl * ( facC * ssin - facS * ccos) * Sfac * mm;
+	      }
+	      // END: radial-order loop
 	    }
+	    // END: 2-d interpolation block
 	  }
+	  // END: compute block
 	    
 	  // Trig recursion to squeeze avoid internal FP fct call
 	  //
