@@ -1171,8 +1171,12 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	  if (compute) {
 
 	    if (plrM0back and mm==0) {
-	      int ndim1 = (mmax+1)*nmax;
+	      // Offset of 1-d arrays in texture array
+	      //
+	      int offst = (mmax+1)*nmax;
 
+	      // Compute X value for 1-d spacing from 2-d spacing
+	      //
 	      cuFP_t xx = X*plrDxi/plrDx0;
 	      int   ind = floor(xx);
 
@@ -1185,16 +1189,16 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	      // Do the interpolation for the prefactor potential
 	      //
 #if cuREAL == 4
-	      cuFP_t pp0 =  tex1D<float>(tex._v[ndim1+0], ind  );
-	      cuFP_t pp1 =  tex1D<float>(tex._v[ndim1+0], ind+1);
-	      cuFP_t dp0 = -tex1D<float>(tex._v[ndim1+1], ind  );
-	      cuFP_t dp1 = -tex1D<float>(tex._v[ndim1+1], ind+1);
+	      cuFP_t pp0 =  tex1D<float>(tex._v[offst+0], ind  );
+	      cuFP_t pp1 =  tex1D<float>(tex._v[offst+0], ind+1);
+	      cuFP_t dp0 = -tex1D<float>(tex._v[offst+1], ind  );
+	      cuFP_t dp1 = -tex1D<float>(tex._v[offst+1], ind+1);
 
 #else
-	      cuFP_t pp0 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind  ));
-	      cuFP_t pp1 =  int2_as_double(tex1D<int2>(tex._v[ndim1+0], ind+1));
-	      cuFP_t dp0 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind  ));
-	      cuFP_t dp1 = -int2_as_double(tex1D<int2>(tex._v[ndim1+1], ind+1));
+	      cuFP_t pp0 =  int2_as_double(tex1D<int2>(tex._v[offst+0], ind  ));
+	      cuFP_t pp1 =  int2_as_double(tex1D<int2>(tex._v[offst+0], ind+1));
+	      cuFP_t dp0 = -int2_as_double(tex1D<int2>(tex._v[offst+1], ind  ));
+	      cuFP_t dp1 = -int2_as_double(tex1D<int2>(tex._v[offst+1], ind+1));
 #endif
 	      if (xx<=0.0) {
 		pp += pp0;
