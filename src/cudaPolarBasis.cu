@@ -1200,81 +1200,81 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	      fr += a*dp0 + b*dp1;
 	    }
 
-	    continue;
-	  }
+	  } else {
 
-	  if (mm) norm = norm1;
-	  else    norm = norm0;
+	    if (mm) norm = norm1;
+	    else    norm = norm0;
 
-	  for (int n=0; n<nmax; n++) {
+	    for (int n=0; n<nmax; n++) {
       
-	    // Texture table index
-	    //
-	    int k = mm*nmax + n;
-
-	    cuFP_t potl =
-	      (
+	      // Texture table index
+	      //
+	      int k = mm*nmax + n;
+	      
+	      cuFP_t potl =
+		(
 #if cuREAL == 4
-	       tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
-	       tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
-	       tex3D<float>(tex._v[k], indX,   indY+1, 0) * c01 +
-	       tex3D<float>(tex._v[k], indX+1, indY+1, 0) * c11 
+		 tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
+		 tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
+		 tex3D<float>(tex._v[k], indX,   indY+1, 0) * c01 +
+		 tex3D<float>(tex._v[k], indX+1, indY+1, 0) * c11 
 #else
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 0)) * c00 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 0)) * c10 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 0)) * c01 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 0)) * c11 
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 0)) * c00 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 0)) * c10 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 0)) * c01 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 0)) * c11 
 #endif
-	       );
+		 );
 	    
-	    cuFP_t rfrc =
-	      (
+	      cuFP_t rfrc =
+		(
 #if cuREAL == 4
-	       tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
-	       tex3D<float>(tex._v[k], indX+1, indY  , 1) * c10 +
-	       tex3D<float>(tex._v[k], indX,   indY+1, 1) * c01 +
-	       tex3D<float>(tex._v[k], indX+1, indY+1, 1) * c11 
+		 tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
+		 tex3D<float>(tex._v[k], indX+1, indY  , 1) * c10 +
+		 tex3D<float>(tex._v[k], indX,   indY+1, 1) * c01 +
+		 tex3D<float>(tex._v[k], indX+1, indY+1, 1) * c11 
 #else
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 1)) * c00 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 1)) * c10 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 1)) * c01 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 1)) * c11 
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 1)) * c00 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 1)) * c10 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 1)) * c01 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 1)) * c11 
 #endif
-	       );
+		 );
       
-	    cuFP_t zfrc =
-	      (
+	      cuFP_t zfrc =
+		(
 #if cuREAL == 4
-	       tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
-	       tex3D<float>(tex._v[k], indX+1, indY  , 2) * c10 +
-	       tex3D<float>(tex._v[k], indX,   indY+1, 2) * c01 +
-	       tex3D<float>(tex._v[k], indX+1, indY+1, 2) * c11 
+		 tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
+		 tex3D<float>(tex._v[k], indX+1, indY  , 2) * c10 +
+		 tex3D<float>(tex._v[k], indX,   indY+1, 2) * c01 +
+		 tex3D<float>(tex._v[k], indX+1, indY+1, 2) * c11 
 #else
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 2)) * c00 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 2)) * c10 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 2)) * c01 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 2)) * c11 
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 2)) * c00 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 2)) * c10 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 2)) * c01 +
+		 int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 2)) * c11 
 #endif
-	       );
+		 );
 
-	    if (zz < 0.0) zfrc *= -1.0;
+	      if (zz < 0.0) zfrc *= -1.0;
 	    
-	    // The trigonometric norm with a minus sign for the tabled values:
-	    // -1/sqrt(2*pi) for m==0 or -1/sqrt(pi) for m>0
-	    //
-	    cuFP_t Sfac = -norm;
-	    cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
-	    cuFP_t facS = 0.0;
-	    if (mm>0) {
-	      facS = coef._v[IImn(mm, 's', n, nmax)];
+	      // The trigonometric norm with a minus sign for the tabled values:
+	      // -1/sqrt(2*pi) for m==0 or -1/sqrt(pi) for m>0
+	      //
+	      cuFP_t Sfac = -norm;
+	      cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
+	      cuFP_t facS = 0.0;
+	      if (mm>0) {
+		facS = coef._v[IImn(mm, 's', n, nmax)];
+	      }
+	      
+	      pp += potl * ( facC * ccos + facS * ssin) * Sfac;
+	      fr += rfrc * ( facC * ccos + facS * ssin) * Sfac;
+	      fz += zfrc * ( facC * ccos + facS * ssin) * Sfac;
+	      fp += potl * ( facC * ssin - facS * ccos) * Sfac * mm;
 	    }
-
-	    pp += potl * ( facC * ccos + facS * ssin) * Sfac;
-	    fr += rfrc * ( facC * ccos + facS * ssin) * Sfac;
-	    fz += zfrc * ( facC * ccos + facS * ssin) * Sfac;
-	    fp += potl * ( facC * ssin - facS * ccos) * Sfac * mm;
 	  }
-	  
+	    
 	  // Trig recursion to squeeze avoid internal FP fct call
 	  //
 	  cuFP_t cosM = ccos;
