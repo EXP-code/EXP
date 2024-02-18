@@ -100,14 +100,6 @@ protected:
   //! Read the HDF5 cache
   virtual bool ReadH5Cache();
 
-#if HAVE_LIBCUDA==1
-  //@{
-  //! Texture sturctures
-  std::vector<cudaResourceDesc> resDesc;
-  std::vector<cudaTextureDesc>  texDesc;
-  //@}
-#endif
-
 public:
 
   //! Flag for MPI enabled (default: 0=off)

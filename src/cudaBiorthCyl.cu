@@ -83,9 +83,6 @@ thrust::host_vector<cuFP_t> returnTestBioCyl1
   return f_d;
 }
 
-static std::vector<cudaResourceDesc> resDesc;
-static std::vector<cudaTextureDesc>  texDesc;
-
 void BiorthCyl::initialize_cuda
 (std::vector<cudaArray_t>& cuArray,
  thrust::host_vector<cudaTextureObject_t>& tex
@@ -96,14 +93,6 @@ void BiorthCyl::initialize_cuda
   size_t ndim1 = (mmax+1)*nmax;
   size_t ndim2 = 2;
   size_t ndim  = ndim1 + ndim2;
-
-  // Cuda resouce descriptions
-  //
-  resDesc.resize(ndim);
-
-  // Specify texture object parameters
-  //
-  texDesc.resize(ndim);
 
   // Interpolation data array
   //
@@ -128,12 +117,14 @@ void BiorthCyl::initialize_cuda
 
     for (size_t n=0; n<nmax; n++) {
 
-      memset(&texDesc[k], 0, sizeof(texDesc));
-      texDesc[k].readMode       = cudaReadModeElementType;
-      texDesc[k].filterMode     = cudaFilterModePoint;
-      texDesc[k].addressMode[0] = cudaAddressModeClamp;
-      texDesc[k].addressMode[1] = cudaAddressModeClamp;
-      texDesc[k].addressMode[2] = cudaAddressModeClamp;
+      cudaTextureDesc texDesc;
+
+      memset(&texDesc, 0, sizeof(texDesc));
+      texDesc.readMode       = cudaReadModeElementType;
+      texDesc.filterMode     = cudaFilterModePoint;
+      texDesc.addressMode[0] = cudaAddressModeClamp;
+      texDesc.addressMode[1] = cudaAddressModeClamp;
+      texDesc.addressMode[2] = cudaAddressModeClamp;
 
       // Copy table to flat array
       //
@@ -172,14 +163,16 @@ void BiorthCyl::initialize_cuda
 
       // Specify the texture
       //
-      memset(&resDesc[k], 0, sizeof(cudaResourceDesc));
-      resDesc[k].resType = cudaResourceTypeArray;
-      resDesc[k].res.array.array  = cuArray[k];
+      cudaResourceDesc resDesc;
+
+      memset(&resDesc, 0, sizeof(cudaResourceDesc));
+      resDesc.resType = cudaResourceTypeArray;
+      resDesc.res.array.array  = cuArray[k];
 
       // Create texture object
       //
       cuda_safe_call
-	(cudaCreateTextureObject(&tex[k], &resDesc[k], &texDesc[k], NULL),
+	(cudaCreateTextureObject(&tex[k], &resDesc, &texDesc, NULL),
 	 __FILE__, __LINE__, "Failure in 2d texture creation");
       
       // Advance to next array
@@ -222,11 +215,13 @@ void BiorthCyl::initialize_cuda
 
     // Define the texture parameters
     //
-    memset(&texDesc[k], 0, sizeof(cudaTextureDesc));
-    texDesc[k].addressMode[0]   = cudaAddressModeClamp;
-    texDesc[k].filterMode       = cudaFilterModePoint;
-    texDesc[k].readMode         = cudaReadModeElementType;
-    texDesc[k].normalizedCoords = 0;
+    cudaTextureDesc texDesc;
+
+    memset(&texDesc, 0, sizeof(cudaTextureDesc));
+    texDesc.addressMode[0]   = cudaAddressModeClamp;
+    texDesc.filterMode       = cudaFilterModePoint;
+    texDesc.readMode         = cudaReadModeElementType;
+    texDesc.normalizedCoords = 0;
     
     // Allocate device memory
     //
@@ -238,13 +233,15 @@ void BiorthCyl::initialize_cuda
 
     // Specify the texture
     //
-    memset(&resDesc[k], 0, sizeof(cudaResourceDesc));
-    resDesc[k].resType = cudaResourceTypeArray;
-    resDesc[k].res.array.array = cuArray[k];
+    cudaResourceDesc resDesc;
+
+    memset(&resDesc, 0, sizeof(cudaResourceDesc));
+    resDesc.resType = cudaResourceTypeArray;
+    resDesc.res.array.array = cuArray[k];
     
     // Create texture object
     //
-    cuda_safe_call(cudaCreateTextureObject(&tex[k], &resDesc[k], &texDesc[k], NULL), __FILE__, __LINE__, "create texture object");
+    cuda_safe_call(cudaCreateTextureObject(&tex[k], &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
 
     // Advance to next array
     k++;
