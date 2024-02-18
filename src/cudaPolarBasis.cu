@@ -11,7 +11,7 @@
 // #define BOUNDS_CHECK
 // #define VERBOSE_CTR
 // #define VERBOSE_DBG
-#define TEMP_DEBUG
+// #define TEMP_DEBUG
 
 // Global symbols for coordinate transformation
 //
