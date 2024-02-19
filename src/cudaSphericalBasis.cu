@@ -2126,18 +2126,17 @@ void SphericalBasis::multistep_update_cuda()
 
 void SphericalBasis::destroy_cuda()
 {
+  // Deallocate the texture objects
+  //
   for (size_t i=0; i<tex.size(); i++) {
-    std::ostringstream sout;
-
-    sout << "trying to free TextureObject [" << i << "]";
-    cuda_safe_call(cudaDestroyTextureObject(tex[i]),
-		   __FILE__, __LINE__, sout.str());
+    cuda_check_error(cudaDestroyTextureObject(tex[i]),
+		     "cudaDestroyTextureObject", __FILE__, __LINE__);
   }
 
+  // Deallocate the texture data arrays
+  //
   for (size_t i=0; i<cuInterpArray.size(); i++) {
-    std::ostringstream sout;
-    sout << "trying to free cuArray [" << i << "]";
-    cuda_safe_call(cudaFreeArray(cuInterpArray[i]),
-		     __FILE__, __LINE__, sout.str());
+    cuda_check_error(cudaFreeArray(cuInterpArray[i]),
+		     "cudaFreeArray", __FILE__, __LINE__);
   }
 }

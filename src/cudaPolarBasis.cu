@@ -1161,8 +1161,11 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 
 	for (int mm=0; mm<=muse; mm++) {
 
-	  bool compute = true;
+	  bool compute = true;	// Compute the force for this m value
+				// by default
 
+	  // Check restrictions
+	  //
 	  if (plrM0only and mm>0          ) compute = false;
 	  if (plrNO_M0  and mm==0         ) compute = false;
 	  if (plrNO_M1  and mm==1         ) compute = false;
@@ -1170,6 +1173,8 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 
 	  if (compute) {
 
+	    // Use the unperturbed fixed background model for m=0
+	    //
 	    if (plrM0back and mm==0) {
 	      // Offset of 1-d arrays in texture array
 	      //
@@ -1208,7 +1213,10 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 		fr += a*dp0 + b*dp1;
 	      }
 	      
-	    } else {
+	    }
+	    // END: unperturbed fixed background model for m=0
+	    // BEGIN: use basis function expansion
+	    else {
 
 	      if (mm) norm = norm1;
 	      else    norm = norm0;
@@ -1283,7 +1291,7 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 	      }
 	      // END: radial-order loop
 	    }
-	    // END: 2-d interpolation block
+	    // END: basis-function contribution block
 	  }
 	  // END: compute block
 	    
@@ -2627,18 +2635,18 @@ void PolarBasis::multistep_update_cuda()
 
 void PolarBasis::destroy_cuda()
 {
+  // Deallocate textures
+  //
   for (size_t i=0; i<tex.size(); i++) {
-    std::ostringstream sout;
-    sout << "trying to free TextureObject [" << i << "]";
-    cuda_safe_call(cudaDestroyTextureObject(tex[i]),
-		   __FILE__, __LINE__, sout.str());
+    cuda_check_error(cudaDestroyTextureObject(tex[i]),
+		     "cudaDestroyTextureObject",  __FILE__, __LINE__);
   }
 
+  // Deallocate texture data arrays
+  //
   for (size_t i=0; i<cuInterpArray.size(); i++) {
-    std::ostringstream sout;
-    sout << "trying to free cuPitch [" << i << "]";
-    cuda_safe_call(cudaFree(cuInterpArray[i]),
-		     __FILE__, __LINE__, sout.str());
+    cuda_check_error(cudaFreeArray(cuInterpArray[i]),
+		     "cudaFreeArray", __FILE__, __LINE__);
   }
 }
 
