@@ -26,27 +26,32 @@ endif()
 # Required compiler features
 add_compile_options(-D_REENTRANT)
 
+# Only enable this option if building the conda packages
+option(USE_SUBMODULES "Pull submodules from the EXP git distribution." ON)
+
 # Check and enforce that we are a git repository.  Necessary for
 # submodules to work correctly.
+if(USE_SUBMODULES)
 if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
   message(STATUS "Checking that we are a git repository - good")
 else()
   message(STATUS "Checking that we are a git repository - NO")
   message(SEND_ERROR "You need to 'git clone ${CMAKE_PROJECT_HOMEPAGE_URL}'.  Please don't use the zip download.")
 endif()
+endif()
 
 # Build options
 option(ENABLE_NBODY "Enable EXP n-body" ON)
 option(ENABLE_PYEXP "Enable the Python bindings" ON)
-option(ENABLE_PNG "Enable PNG graphics support" FALSE)
-option(ENABLE_CUDA "Enable CUDA" FALSE)
-option(ENABLE_SLURM "Enable SLURM checkpointing support" FALSE)
-option(ENABLE_XDR "Enable RPC/XDR support for Tipsy standard" FALSE)
-option(ENABLE_VTK "Configure VTK if available" FALSE)
-option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
-option(ENABLE_DSMC "Enable DSMC module" FALSE)
+option(ENABLE_PNG "Enable PNG graphics support" OFF)
+option(ENABLE_CUDA "Enable CUDA" OFF)
+option(ENABLE_SLURM "Enable SLURM checkpointing support" OFF)
+option(ENABLE_XDR "Enable RPC/XDR support for Tipsy standard" OFF)
+option(ENABLE_VTK "Configure VTK if available" OFF)
+option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" OFF)
+option(ENABLE_DSMC "Enable DSMC module" OFF)
 option(ENABLE_USER "Enable basic user modules" ON)
-option(ENABLE_SLCHECK "Enable *careful* Sturm-Liouville solutions" TRUE)
+option(ENABLE_SLCHECK "Enable *careful* Sturm-Liouville solutions" ON)
 option(ENABLE_TESTS "Enable build tests for EXP, pyEXP and helpers" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
@@ -69,7 +74,10 @@ find_package(FFTW)
 find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
 find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
-find_package(PNG)
+
+if(ENABLE_PNG)
+  find_package(PNG REQUIRED)
+endif()
 
 # Check for FE
 include(FEENABLE)
@@ -211,14 +219,22 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
-include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+if (USE_SUBMODULES)
+  include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
+# include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+endif()
+
+find_package(yaml-cpp REQUIRED)
 
 # Report to the user
 message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
 
+if (USE_SUBMODULES)
 add_subdirectory(extern/yaml-cpp)
 add_subdirectory(extern/pybind11)
+else()
+
+endif()
 
 # Set options for the HighFive git submodule in extern
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "Do not build the examples")
@@ -226,7 +242,11 @@ set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "Do not build the documentation")
 set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "Do not use Boost in HighFIve")
 set(H5_USE_EIGEN TRUE CACHE BOOL "Eigen3 support in HighFive")
 
-add_subdirectory(extern/HighFive)
+if (USE_SUBMODULES)
+  add_subdirectory(extern/HighFive)
+endif()
+
+find_package(HighFive REQUIRED)
 
 # Configure the remaining native subdirectories
 add_subdirectory(exputil)
@@ -239,7 +259,7 @@ if (ENABLE_PYEXP)
   add_subdirectory(pyEXP)
 endif()
 
-add_subdirectory(extern/user-modules)
+# add_subdirectory(extern/user-modules)
 
 # Build the tests; set ENABLE_TEST=OFF to disable
 if(ENABLE_TESTS)
@@ -253,7 +273,7 @@ message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
 
 
 # Force installation of the yaml-cpp libraries
-install(TARGETS yaml-cpp DESTINATION lib)
+# install(TARGETS yaml-cpp DESTINATION lib)
 
 # Check for doxygen is the user wants web docs
 if (BUILD_DOCS)

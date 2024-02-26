@@ -1,4 +1,5 @@
-find_package (Python3 COMPONENTS Interpreter Development)
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(pybind11 REQUIRED)
 
 # Default build environment
 #
@@ -39,8 +40,9 @@ target_compile_options(pyEXP PUBLIC ${OpenMP_CXX_FLAGS})
 get_target_property(cxxflags pyEXP COMPILE_OPTIONS)
 message("The project has set the following flags: ${cxxflags}")
 
-install(TARGETS pyEXP
-  RUNTIME DESTINATION bin
-  LIBRARY DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages"
-  ARCHIVE DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages")
+# install(TARGETS pyEXP
+#   # RUNTIME DESTINATION bin
+#   # LIBRARY DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages"
+#   # ARCHIVE DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages"
+# )
 
