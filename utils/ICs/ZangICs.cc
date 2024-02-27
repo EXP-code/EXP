@@ -38,7 +38,8 @@ main(int ac, char **av)
 
   options.add_options()
     ("h,help",    "Print this help message")
-    ("z,zerovel", "Zero the mean velocity")
+    ("V,nozerovel", "Do not zero the mean velocity")
+    ("P,nozeropos", "Do not zero the center of mass")
     ("d,debug",   "Print debug grid")
     ("N,number",  "Number of particles to generate",
      cxxopts::value<int>(N)->default_value("100000"))
@@ -182,9 +183,9 @@ main(int ac, char **av)
   // Track number of iteration overflows
   int over  = 0;
 
-  // Velocity zeroing
+  // Position and velocity zeroing
   //
-  std::vector<std::array<double, 3>> zerovel(nomp);
+  std::vector<std::array<double, 3>> zeropos(nomp), zerovel(nomp);
 
   // Generation loop with OpenMP
   //
@@ -233,9 +234,12 @@ main(int ac, char **av)
     vel[n][1] = vr*sin(phi) + vt*cos(phi);
     vel[n][2] = 0.0;
 
-    // Accumulate mean velocity
+    // Accumulate mean position and velocity
     //
-    for (int k=0; k<3; k++) zerovel[tid][k] += vel[n][k];
+    for (int k=0; k<3; k++) {
+      zeropos[tid][k] += pos[n][k];
+      zerovel[tid][k] += vel[n][k];
+    }
 
     // Print progress bar
     if (tid==0) ++(*progress);
@@ -246,16 +250,29 @@ main(int ac, char **av)
   //
   double mass = (model->get_mass(Rmax) - model->get_mass(Rmin))/N;
 
-  // Reduce the mean velocity
+  // Reduce the mean position and velocity
   //
   for (int n=1; n<nomp; n++) {
-    for (int k=0; k<3; k++) zerovel[0][k] += zerovel[n][k];
+    for (int k=0; k<3; k++) {
+      zeropos[0][k] += zeropos[n][k];
+      zerovel[0][k] += zerovel[n][k];
+    }
   }
-  for (int k=0; k<3; k++) zerovel[0][k] /= N;
+  for (int k=0; k<3; k++) {
+    zeropos[0][k] /= N;
+    zerovel[0][k] /= N;
+  }
+
+  std::cout << "** Position center: " << zeropos[0][0] << ", "
+	    << zeropos[0][1] << ", " << zeropos[0][2] << std::endl;
+  
   std::cout << "** Velocity center: " << zerovel[0][0] << ", "
 	    << zerovel[0][1] << ", " << zerovel[0][2] << std::endl;
   
-  if (vm.count("zerovel")==0)
+  if (vm.count("nozeropos"))
+    for (int k=0; k<3; k++) zeropos[0][k] = 0.0;
+
+  if (vm.count("nozerovel"))
     for (int k=0; k<3; k++) zerovel[0][k] = 0.0;
 
   std::cout << "** " << over << " particles failed acceptance" << std::endl
@@ -267,7 +284,7 @@ main(int ac, char **av)
   double ektot = 0.0, clausius = 0.0;
   for (int n=0; n<N; n++) {
     out << std::setw(18) << mass;
-    for (int k=0; k<3; k++) out << std::setw(18) << pos[n][k];
+    for (int k=0; k<3; k++) out << std::setw(18) << pos[n][k] - zeropos[0][k];
     for (int k=0; k<3; k++) out << std::setw(18) << vel[n][k] - zerovel[0][k];
     out << std::endl;
 
