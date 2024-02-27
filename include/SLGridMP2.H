@@ -249,7 +249,7 @@ public:
   SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 	    int lmax, int nmax, int numr, double rmin, double rmax,
 	    bool cache, int Cmap, double RMAP,
-	    std::string cachename="",
+	    std::string cachename=".slgrid_sph_cache",
 	    bool Verbose=false);
 
   //! Constructor (uses file *model_file_name* for file)
@@ -257,7 +257,7 @@ public:
 	    int lmax, int nmax, int numr, double rmin, double rmax,
 	    bool cache, int Cmap, double RMAP, 
 	    int DIVERGE, double DFAC,
-	    std::string cachename="",
+	    std::string cachename=".slgrid_sph_cache",
 	    bool Verbose=false);
 
   //! Destructor

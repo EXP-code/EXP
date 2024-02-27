@@ -15,6 +15,7 @@ FlatDisk::valid_keys = {
   "mmax",
   "numx",
   "numy",
+  "NQDHT",
   "knots",
   "logr",
   "model",

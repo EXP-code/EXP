@@ -113,7 +113,7 @@ void Sphere::initialize()
     if (conf["dfac"])      dfac       = conf["dfac"].as<double>();
     if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
     if (conf["cachename"]) cache_file = conf["cachename"].as<std::string>();
-    else throw std::runtime_error("Sphere: you must specify a cachname");
+    else throw std::runtime_error("Sphere: you must specify a cachename");
     if (conf["dtime"])     dtime      = conf["dtime"].as<double>();
     if (conf["logr"])      logr       = conf["logr"].as<bool>();
     if (conf["plummer"])   plummer    = conf["plummer"].as<bool>();
