@@ -1729,18 +1729,20 @@ namespace BasisClasses
     }
 
     // Get the basis fields
+    //
     ortho->get_dens   (dend[tid],  R, z);
     ortho->get_pot    (potd[tid],  R, z);
     ortho->get_rforce (potR[tid],  R, z);
     ortho->get_zforce (potZ[tid],  R, z);
     
     // m loop
+    //
     for (int m=0, moffset=0; m<=mmax; m++) {
       
-      if (m==0 and NO_M0)        continue;
-      if (m==1 and NO_M1)        continue;
-      if (EVEN_M and m/2*2 != m) continue;
-      if (m>0  and M0_only)      break;
+      if (m==0 and NO_M0)        { moffset++;    continue; }
+      if (m==1 and NO_M1)        { moffset += 2; continue; }
+      if (EVEN_M and m/2*2 != m) { moffset += 2; continue; }
+      if (m>0 and M0_only)       break;
 
       if (m==0) {
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
