@@ -1,0 +1,13 @@
+# Generates the cmake find_package files for EXPutil
+
+set(EXPutil_VERSION ${CMAKE_PROJECT_VERSION})
+
+@PACKAGE_INIT@
+
+if(NOT TARGET EXPutil::EXPutil)
+    include(${CMAKE_CURRENT_LIST_DIR}/EXPutilTargets.cmake)
+endif()
+
+set(EXPutil_LIBRARIES EXPutil::EXPutil)
+
+check_required_components(EXPutil)

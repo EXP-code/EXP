@@ -10,37 +10,9 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Compiler flags.  Not all tested thoroughly...
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  # using Clang
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-  # using GCC
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-  # using intel
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qno-offload")
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-  # using Visual Studio C++
-endif()
-
-# Required compiler features
-add_compile_options(-D_REENTRANT)
-
-# Only enable this option if building the conda packages
-option(USE_SUBMODULES "Pull submodules from the EXP git distribution." ON)
-
-# Check and enforce that we are a git repository.  Necessary for
-# submodules to work correctly.
-if(USE_SUBMODULES)
-if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
-  message(STATUS "Checking that we are a git repository - good")
-else()
-  message(STATUS "Checking that we are a git repository - NO")
-  message(SEND_ERROR "You need to 'git clone ${CMAKE_PROJECT_HOMEPAGE_URL}'.  Please don't use the zip download.")
-endif()
-endif()
-
 # Build options
+option(BUILD_COMMON_LIBRARIES "Build the exputil and expcoefs libraries" ON)
+option(INSTALL_HEADERS "Install headers for exputil and expcoefs" OFF)
 option(ENABLE_NBODY "Enable EXP n-body" ON)
 option(ENABLE_PYEXP "Enable the Python bindings" ON)
 option(ENABLE_PNG "Enable PNG graphics support" OFF)
@@ -55,6 +27,54 @@ option(ENABLE_SLCHECK "Enable *careful* Sturm-Liouville solutions" ON)
 option(ENABLE_TESTS "Enable build tests for EXP, pyEXP and helpers" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
+option(BUILD_UTILS "Build the utility executables" ON)
+option(USE_SUBMODULES "Pull submodules from the EXP git distribution." ON)
+option(ENABLE_COMPILER_WARNINGS "Add extra warnings to compile time" OFF)
+
+if(ENABLE_COMPILER_WARNINGS)
+  set(WARN_OPTIONS
+    $<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang,GNU,Intel>:-Wall>
+    $<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang,GNU>:-Wextra>
+    $<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:GNU>:-Wpedantic>
+    $<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang>:-pedantic>
+  )
+endif()
+
+set(DEFAULT_COMPILER_OPTIONS
+    -D_REENTRANT
+    $<$<CXX_COMPILER_ID:Clang>:-stdlib=libc++>
+    $<$<CXX_COMPILER_ID:Intel>:-qno-offload>
+  )
+
+add_compile_options(${DEFAULT_COMPILER_OPTIONS} ${WARN_OPTIONS})
+
+# # Compiler flags.  Not all tested thoroughly...
+# if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+#   # using Clang
+#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
+# elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+#   # using GCC
+#   add_compile_options(${WARN_OPTIONS})
+# elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
+#   # using intel
+#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qno-offload")
+# elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+#   # using Visual Studio C++
+# endif()
+
+# Required compiler features
+# add_compile_options(-D_REENTRANT)
+
+# Check and enforce that we are a git repository.  Necessary for
+# submodules to work correctly.
+if(USE_SUBMODULES)
+if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
+  message(STATUS "Checking that we are a git repository - good")
+else()
+  message(STATUS "Checking that we are a git repository - NO")
+  message(SEND_ERROR "You need to 'git clone ${CMAKE_PROJECT_HOMEPAGE_URL}'.  Please don't use the zip download.")
+endif()
+endif()
 
 # Set mpirun launcher for CTest
 
@@ -221,7 +241,7 @@ execute_process(
 
 if (USE_SUBMODULES)
   include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
-# include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+  include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
 endif()
 
 find_package(yaml-cpp REQUIRED)
@@ -230,8 +250,8 @@ find_package(yaml-cpp REQUIRED)
 message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
 
 if (USE_SUBMODULES)
-add_subdirectory(extern/yaml-cpp)
-add_subdirectory(extern/pybind11)
+  add_subdirectory(extern/yaml-cpp)
+  add_subdirectory(extern/pybind11)
 else()
 
 endif()
@@ -249,17 +269,26 @@ endif()
 find_package(HighFive REQUIRED)
 
 # Configure the remaining native subdirectories
-add_subdirectory(exputil)
-add_subdirectory(coefs)
+if (BUILD_COMMON_LIBRARIES)
+  add_subdirectory(exputil)
+  add_subdirectory(coefs)
+endif()
+
 if (ENABLE_NBODY)
   add_subdirectory(src)
 endif()
-add_subdirectory(utils)
+
+if (BUILD_UTILS)
+  add_subdirectory(utils)
+endif()
+
 if (ENABLE_PYEXP)
   add_subdirectory(pyEXP)
 endif()
 
-# add_subdirectory(extern/user-modules)
+if (BUILD_USER)
+  add_subdirectory(extern/user-modules)
+endif()
 
 # Build the tests; set ENABLE_TEST=OFF to disable
 if(ENABLE_TESTS)
@@ -268,8 +297,8 @@ if(ENABLE_TESTS)
 endif()
 
 # try to find pybind11 and build wrapper python module
-find_package(Python3 COMPONENTS Interpreter Development)
-message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
+# find_package(Python3 COMPONENTS Interpreter Development)
+# message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
 
 
 # Force installation of the yaml-cpp libraries
@@ -359,5 +388,26 @@ set(CMAKE_CXX_FLAGS_UBSAN
 # to the CMake include path.  This allows for multiple configurations
 # from the same source.
 configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_BINARY_DIR}/config_exp.h)
+configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_BINARY_DIR}/config/config_exp.h)
 include_directories(${PROJECT_BINARY_DIR})
 
+# # Install the headers for development environments
+if (INSTALL_HEADERS)
+# TODO: Replace this globbing with a list of actually public headers
+  add_library(expcommon INTERFACE)
+  file(GLOB expcommon_PUBLIC_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/include "*.[hH]")
+  set_target_properties (expcommon PROPERTIES EXPORT_NAME EXPcommon)
+  set_target_properties (expcommon PROPERTIES PUBLIC_HEADER "${expcommon_PUBLIC_HEADERS}")
+
+  install (TARGETS expcoef
+  EXPORT EXPcoefsTargets
+  LIBRARY DESTINATION lib
+  PUBLIC_HEADER DESTINATION include/expcoefs)
+
+  # Set up cmake configs
+  set(CMAKEPACKAGE_INSTALL_DIR share/EXPcoefs/cmake)
+  install (EXPORT EXPcoefsTargets
+    FILE EXPcoefsTargets.cmake
+    NAMESPACE EXPcoefs::
+    DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
+endif()

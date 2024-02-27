@@ -1,0 +1,10 @@
+# Generates the cmake find_package files for EXPcoef
+set(EXPcoefs_VERSION ${CMAKE_PROJECT_VERSION})
+
+@PACKAGE_INIT@
+
+if(NOT TARGET EXPcoefs::EXPcoefs)
+  include(${CMAKE_CURRENT_LIST_DIR}/EXPcoefsTargets.cmake)
+endif()
+
+check_required_components(EXPcoefs)

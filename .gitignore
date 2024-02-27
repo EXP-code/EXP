@@ -29,3 +29,7 @@ src/user/SLSphere.cc
 # Python generated files
 *.egg-info
 _skbuild
+build.log
+
+# Needed for cmake configs
+!*Config.cmake.in

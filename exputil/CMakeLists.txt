@@ -44,12 +44,17 @@ set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
   ${SLEDGE_SRC} ${PARTICLE_SRC} ${CUDA_SRC})
 
 set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/> ${CMAKE_BINARY_DIR}
-  ${YAML_CPP_INCLUDE_DIR}
-  ${HIGHFIVE_INCLUDE_DIR}
+  # $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+  # $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/> ${CMAKE_BINARY_DIR}
+  ${YAML_CPP_INCLUDE_DIR} ${HIGHFIVE_INCLUDE_DIR}
   ${DEP_INC} ${EIGEN3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS}
   ${FFTW_INCLUDE_DIRS})
+
+set(common_INCLUDE_DIRS_PRIVATE
+    ${CMAKE_BINARY_DIR}/config
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
 # Find libgfortran if it's not in a usual spot
 find_library(GFORTRAN_LIBRARY NAMES gfortran)
@@ -57,7 +62,7 @@ find_library(QUADMATH_LIBRARY NAMES quadmath)
 
 
 set(common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
-  yaml-cpp::yaml-cpp ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
+  ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
   ${FFTW_DOUBLE_LIB} ${GFORTRAN_LIBRARY} ${QUADMATH_LIBRARY})
 
 if(ENABLE_CUDA)
@@ -73,11 +78,40 @@ endif()
 # shared lib
 
 add_library(exputil ${exputil_SOURCES})
+
+# TODO: Replace this globbing with a list of actually public headers
+file(GLOB exputil_PUBLIC_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.[hH]")
 set_target_properties(exputil PROPERTIES OUTPUT_NAME exputil)
+set_target_properties (exputil PROPERTIES EXPORT_NAME EXPutil)
+set_target_properties (exputil PROPERTIES PUBLIC_HEADER "${exputil_PUBLIC_HEADERS}")
+
 target_include_directories(exputil PUBLIC ${common_INCLUDE_DIRS})
+target_include_directories(exputil PRIVATE ${common_INCLUDE_DIRS_PRIVATE})
 target_link_libraries(exputil PUBLIC ${common_LINKLIBS})
 
-install(TARGETS exputil DESTINATION lib)
+install(TARGETS exputil
+  EXPORT EXPutilTargets
+  LIBRARY DESTINATION lib
+  PUBLIC_HEADER DESTINATION include/exputil)
+
+# Set up cmake configs
+set(CMAKEPACKAGE_INSTALL_DIR share/EXPutil/cmake)
+install (EXPORT EXPutilTargets
+  FILE EXPutilTargets.cmake
+  NAMESPACE EXPutil::
+  DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(EXPutilConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/EXPutilConfig.cmake
+  INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+)
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPutilVersion.cmake
+                                 VERSION ${CMAKE_PROJECT_VERSION}
+                                 COMPATIBILITY SameMinorVersion )
+install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPutilConfig.cmake
+               ${CMAKE_CURRENT_BINARY_DIR}/EXPutilVersion.cmake
+        DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
 
 # HDF5 info
 

@@ -24,7 +24,7 @@ private:
   double R, a;
   double f(double x) { return R - (1.0 - (1.0 + x)*exp(-x)); };
   double df(double x){ return -x*exp(-x); };
-  
+
 public:
 
   genE(double a) : a(a) {
@@ -44,7 +44,7 @@ public:
       x += delF;
       if (fabs(delF)<TOL) break;
     }
-  
+
     return {x*a, n};
   }
 };
@@ -87,7 +87,7 @@ int main(int argc, char** argv)
     ("o,filename", "Output filename",
      cxxopts::value<std::string>(filename)->default_value("testof"))
     ;
-  
+
   //===================
   // Parse options
   //===================
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
     return exp(-r/A) *
       0.5*(1.0 + std::erf((rmax - 5.0*delta - r)/delta)) / (A*A);
   };
-  
+
   // Generate the orthogonal function instance
   //
   OrthoFunction ortho(nmax, densfunc, rmin, rmax, scale, 2);
@@ -133,11 +133,11 @@ int main(int argc, char** argv)
   // Output file for grid
   //
   std::ofstream out(filename + ".dat");
-  
+
   // Define some representative limits
   //
   double Rmax = 4.0*A;
-  
+
   // Grid spacing
   //
   if (logr) {
@@ -153,23 +153,24 @@ int main(int argc, char** argv)
     if (logr) R = exp(R);
 
     out << std::setw(18) << R;
-    for (auto v : ortho(R))
-      out << std::setw(18) << v;
+    auto p = ortho(R);
+    for (int i=0; i<nmax; i++)
+      out << std::setw(18) << p[i];
     out << std::endl;
   }
-	
+
   // Check orthogonality for a realized weight distribution
   //
   if (N) {
     genE gen(A);
     std::vector<double> coef(nmax, 0.0);
-  
+
     for (int n=0; n<N; n++) {
       auto [R, m] = gen();	// Generate a point
       auto p = ortho(R);	// Get the orthogonal functions
       for (int i=0; i<nmax; i++) coef[i] += 1.0/N*p[i];
     }
-    
+
     for (int i=0; i<nmax; i++) {
       std::cout << std::setw( 6) << i
 		<< std::setw(18) << coef[i]
