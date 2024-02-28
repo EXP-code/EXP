@@ -1,10 +1,12 @@
 # Generates the cmake find_package files for EXPcoef
-set(EXPcoefs_VERSION ${CMAKE_PROJECT_VERSION})
 
 @PACKAGE_INIT@
 
-if(NOT TARGET EXPcoefs::EXPcoefs)
-  include(${CMAKE_CURRENT_LIST_DIR}/EXPcoefsTargets.cmake)
+if(NOT TARGET EXP::EXPcoefs)
+  include(@PACKAGE_CMAKEPACKAGE_INSTALL_DIR@/EXPcoefsTargets.cmake)
 endif()
+
+set_and_check(EXPcoefs_INCLUDE_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/include/expcoefs)
+set_and_check(EXPcoefs_LIBRARY_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/lib)
 
 check_required_components(EXPcoefs)

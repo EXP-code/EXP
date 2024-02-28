@@ -45,7 +45,7 @@ set(expcoef_SOURCES BasisFactory.cc BiorthBasis.cc FieldBasis.cc
 add_library(expcoef ${expcoef_SOURCES})
 
 # TODO: Replace this globbing with a list of actually public headers
-file(GLOB expcoef_PUBLIC_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.[hH]")
+file(GLOB expcoef_PUBLIC_HEADERS "*.[hH]")
 set_target_properties (expcoef PROPERTIES OUTPUT_NAME expcoef)
 set_target_properties (expcoef PROPERTIES EXPORT_NAME EXPcoefs)
 set_target_properties (expcoef PROPERTIES PUBLIC_HEADER "${expcoef_PUBLIC_HEADERS}")
@@ -63,13 +63,14 @@ install (TARGETS expcoef
 set(CMAKEPACKAGE_INSTALL_DIR share/EXPcoefs/cmake)
 install (EXPORT EXPcoefsTargets
   FILE EXPcoefsTargets.cmake
-  NAMESPACE EXPcoefs::
+  NAMESPACE EXP::
   DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(EXPcoefsConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/EXPcoefsConfig.cmake
   INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+  PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
 )
 
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPcoefsVersion.cmake

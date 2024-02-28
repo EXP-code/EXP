@@ -80,7 +80,7 @@ endif()
 add_library(exputil ${exputil_SOURCES})
 
 # TODO: Replace this globbing with a list of actually public headers
-file(GLOB exputil_PUBLIC_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.[hH]")
+file(GLOB exputil_PUBLIC_HEADERS "*.[hH]")
 set_target_properties(exputil PROPERTIES OUTPUT_NAME exputil)
 set_target_properties (exputil PROPERTIES EXPORT_NAME EXPutil)
 set_target_properties (exputil PROPERTIES PUBLIC_HEADER "${exputil_PUBLIC_HEADERS}")
@@ -98,13 +98,14 @@ install(TARGETS exputil
 set(CMAKEPACKAGE_INSTALL_DIR share/EXPutil/cmake)
 install (EXPORT EXPutilTargets
   FILE EXPutilTargets.cmake
-  NAMESPACE EXPutil::
+  NAMESPACE EXP::
   DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(EXPutilConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/EXPutilConfig.cmake
   INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+  PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
 )
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPutilVersion.cmake
                                  VERSION ${CMAKE_PROJECT_VERSION}

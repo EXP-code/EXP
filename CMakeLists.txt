@@ -395,19 +395,32 @@ include_directories(${PROJECT_BINARY_DIR})
 if (INSTALL_HEADERS)
 # TODO: Replace this globbing with a list of actually public headers
   add_library(expcommon INTERFACE)
-  file(GLOB expcommon_PUBLIC_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/include "*.[hH]")
+  file(GLOB expcommon_PUBLIC_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.[hH]")
   set_target_properties (expcommon PROPERTIES EXPORT_NAME EXPcommon)
   set_target_properties (expcommon PROPERTIES PUBLIC_HEADER "${expcommon_PUBLIC_HEADERS}")
+  message(STATUS "HEADERS=${expcommon_PUBLIC_HEADERS}")
 
-  install (TARGETS expcoef
-  EXPORT EXPcoefsTargets
-  LIBRARY DESTINATION lib
-  PUBLIC_HEADER DESTINATION include/expcoefs)
+  install (TARGETS expcommon
+    EXPORT EXPcommonTargets
+    PUBLIC_HEADER DESTINATION include/expcommon)
 
   # Set up cmake configs
-  set(CMAKEPACKAGE_INSTALL_DIR share/EXPcoefs/cmake)
-  install (EXPORT EXPcoefsTargets
-    FILE EXPcoefsTargets.cmake
-    NAMESPACE EXPcoefs::
+  set(CMAKEPACKAGE_INSTALL_DIR share/EXPcommon/cmake)
+  install (EXPORT EXPcommonTargets
+    FILE EXPcommonTargets.cmake
+    NAMESPACE EXP::
     DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(include/EXPcommonConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonConfig.cmake
+  INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+  PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
+)
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPcommonVersion.cmake
+                                 VERSION ${CMAKE_PROJECT_VERSION}
+                                 COMPATIBILITY SameMinorVersion )
+install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonConfig.cmake
+               ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonVersion.cmake
+        DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
 endif()

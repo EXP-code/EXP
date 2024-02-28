@@ -2,12 +2,13 @@ find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 REQUIRED)
 find_package(EXPutil)
 find_package(EXPcoefs)
-message(STATUS "EXPutil_FOUND=${EXPutil_LIBRARY_DIRS}")
+find_package(EXPcommon)
+message(STATUS "EXPutil_FOUND=${EXPutil_FOUND} ${EXPutil_INCLUDE_DIRS} ${EXPutil_INCLUDE_DIR}")
 
 # Default build environment
 #
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp
-  EXPutil::EXPutil EXPcoefs::EXPcoefs ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+  EXP::EXPutil EXP::EXPcoefs EXP::EXPcommon HighFive ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 if(PNG_FOUND)
   list(APPEND common_LINKLIB PNG::PNG)
@@ -19,9 +20,9 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
   # ${CMAKE_BINARY_DIR}
   ${DEP_INC} ${CMAKE_CURRENT_SOURCE_DIR}
   # ${CMAKE_CURRENT_SOURCE_DIR}/..
-  ${HighFive_SOURCE_DIR}/include
+  # ${HighFive_SOURCE_DIR}/include
   ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR}
-  ${EXPutil_INCLUDE_DIRS} ${EXPcoefs_INCLUDE_DIRS})
+  ${EXPutil_INCLUDE_DIRS} ${EXPcoefs_INCLUDE_DIRS} ${EXPcommon_INCLUDE_DIRS})
 
 set(common_INCLUDE_DIRS_PRIVATE
     ${CMAKE_BINARY_DIR}/config)
@@ -47,17 +48,18 @@ endif()
 
 # Build and configure the installation of the Python bindings
 #
-pybind11_add_module(pyEXP PyWrappers.cc CoefWrappers.cc
+pybind11_add_module(_pyEXP PyWrappers.cc CoefWrappers.cc
   UtilWrappers.cc BasisWrappers.cc FieldWrappers.cc
   ParticleReaderWrappers.cc MSSAWrappers.cc EDMDWrappers.cc)
-target_link_libraries(pyEXP PUBLIC ${common_LINKLIB})
-target_include_directories(pyEXP PUBLIC ${common_INCLUDE})
-target_compile_options(pyEXP PUBLIC ${OpenMP_CXX_FLAGS})
-get_target_property(cxxflags pyEXP COMPILE_OPTIONS)
+target_link_libraries(_pyEXP PUBLIC ${common_LINKLIB})
+target_include_directories(_pyEXP PUBLIC ${common_INCLUDE})
+target_include_directories(_pyEXP PRIVATE ${common_INCLUDE_DIRS_PRIVATE})
+target_compile_options(_pyEXP PUBLIC ${OpenMP_CXX_FLAGS})
+get_target_property(cxxflags _pyEXP COMPILE_OPTIONS)
 message("The project has set the following flags: ${cxxflags}")
 
-install(TARGETS pyEXP LIBRARY DESTINATION pyEXP)
-# install(TARGETS pyEXP
+install(TARGETS _pyEXP LIBRARY DESTINATION pyEXP)
+# install(TARGETS _pyEXP
 #   # RUNTIME DESTINATION bin
 #   # LIBRARY DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages"
 #   # ARCHIVE DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages"

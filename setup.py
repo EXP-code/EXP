@@ -1,9 +1,12 @@
+import os
 import pathlib
 
 from skbuild import setup
 
-# src_root = pathlib.Path(__file__).parent.joinpath("../../../").relative_to(pathlib.Path.cwd())
-src_root = pathlib.Path(__file__).parent.joinpath("../../../").resolve()
+src_root = os.path.relpath(pathlib.Path(__file__).parent.joinpath("../../../").resolve())
+# src_root = pathlib.Path(__file__).parent.joinpath("../../../").resolve()
+print(pathlib.Path(__file__).parent.joinpath("../../../").resolve())
+print(src_root)
 version="7.7.28"
 
 setup(
@@ -16,10 +19,7 @@ setup(
     python_requires=">=3.8",
     install_requires=[
       f"exp-libraries=={version}"    ],
-    package_dir={
-      "pyEXP": str(src_root.joinpath("pyEXP")),
-    },
-    cmake_source_dir=str(src_root),
+    # cmake_source_dir=str(src_root),
     cmake_minimum_required_version="3.21",
     cmake_languages=("C", "CXX", "Fortran"),
     cmake_args=[

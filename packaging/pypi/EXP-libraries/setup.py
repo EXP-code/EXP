@@ -23,6 +23,7 @@ setup(
     cmake_languages=("C", "CXX", "Fortran"),
     cmake_args=[
       "-DCMAKE_CXX_STANDARD=17",
+      "-DINSTALL_HEADERS=ON",
       "-DENABLE_NBODY=OFF",
       "-DENABLE_PYEXP=OFF",
       "-DBUILD_UTILS=OFF",

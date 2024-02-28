@@ -1,0 +1,11 @@
+# Generates the cmake find_package files for EXPutil
+
+@PACKAGE_INIT@
+
+if(NOT TARGET EXP::EXPcommon)
+    include(@PACKAGE_CMAKEPACKAGE_INSTALL_DIR@/EXPcommonTargets.cmake)
+endif()
+
+set_and_check(EXPcommon_INCLUDE_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/include/expcommon)
+
+check_required_components(EXPcommon)
