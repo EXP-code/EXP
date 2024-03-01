@@ -609,7 +609,9 @@ void YAML_parse_args(int argc, char** argv)
 
       if (done) {
 	MPI_Finalize();
-	exit(EXIT_SUCCESS);
+	throw EXPException("YAML configuration error",
+			   "parsing failure, check your YAML config for syntax?",
+			   __FILE__, __LINE__);
       }
     }
 
