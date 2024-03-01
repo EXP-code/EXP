@@ -32,9 +32,11 @@ class MixtureBasis;
     @param rmax is the maximum radius of the basis
     @param self_consistent true for updating the the coefficients at time steps
     @param NO_M0 true to omit the m=0 harmonic (default: false)
-    @param NO_M1 true to omint the m=1 harmonic (default: false)
+    @param NO_M1 true to omit the m=1 harmonic (default: false)
+    @param NO_MONO true to omit the monopole off-grid force algorithm (default: false)
     @param EVEN_M true to include only even m harmonics (default: false)
     @param M0_ONLY true to include only the m=0 harmonic (default: false)
+    @param M0_BACK true includes fixed m=0 harmonic (default: false)
     @param ssfrac set > 0.0 to compute a fraction of particles only
     @param playback true to replay from a coefficient file
     @param coefMaster true to have only the root node read and distribute the coefficients
@@ -265,9 +267,9 @@ protected:
     
     std::vector<thrust::device_vector<cuFP_t>> T_covr;
 
-    void resize_coefs(int nmax, int Lmax, int N, int gridSize, int stride,
+    void resize_coefs(int nmax, int Mmax, int N, int gridSize, int stride,
 		      int sampT, bool pca, bool pcaeof, bool subsamp);
-    void resize_acc  (int Lmax, int Nthread);
+    void resize_acc  (int Mmax, int Nthread);
   };
 
   double get_coef(int m, int n, char c)
@@ -376,6 +378,10 @@ protected:
 
 #endif
 
+  //! Background evaluation
+  virtual std::tuple<double, double, double>
+  get_pot_background(double r, double z) { return {0.0, 0.0, 0.0}; }
+
   //! Thread method for accerlation compuation
   virtual void * determine_acceleration_and_potential_thread(void * arg);
 
@@ -394,8 +400,11 @@ protected:
   //! Flag self_consitency
   bool self_consistent;
 
-  //! Flag fixed monopole
+  //! Omit monopole
   bool NO_M0;
+
+  //! Omit off-grid force algorithm
+  bool NO_MONO;
 
   //! Flag drop m=1 term
   bool NO_M1;
@@ -405,6 +414,9 @@ protected:
 
   //! Use axisymmetric terms
   bool M0_only;
+
+  //! Flag fixed monopole
+  bool M0_back;
 
   //! Expected coefficient values for RMS noise computation
   Eigen::VectorXd meanC;

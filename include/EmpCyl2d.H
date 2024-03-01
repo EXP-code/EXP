@@ -5,12 +5,14 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <array>
 #include <tuple>
 
 #include <Eigen/Eigen>
 #include <Eigen/Eigenvalues>
 #include <gaussQ.H>
 
+#include <yaml-cpp/yaml.h>	// Parameters parsing
 #include <config_exp.h>		// For config macros
 
 // For reading and writing cache file
@@ -26,13 +28,14 @@
 class EmpCyl2d
 {
 public:
+
   //! A two-dimensional disk model for computing the EOF
   class ModelCyl
   {
   protected:
 
-    double acyl;
     std::string id;
+    virtual void parse(const YAML::Node&) = 0;
 
   public:
 
@@ -45,9 +48,12 @@ public:
 
 protected:
 
-  double acyl, rmin, rmax, scale;
+  //! Contains parameter database
+  YAML::Node Params;
+
+  double rmin, rmax, scale;
   double xmin, xmax, dxi;
-  int mmax, nmax, numr, knots;
+  int mmax, nmaxfid, numr, knots, nmax;
   std::string model, biorth;
   bool cmap, logr, basis_test, configured;
 
@@ -65,7 +71,7 @@ protected:
 
     //! Basis creation factory
     static std::shared_ptr<Basis2d>
-    createBasis(int mmax, int nmax, double rmax, const std::string& type);
+    createBasis(int mmax, int nmaxfid, double rmax, const std::string& type);
 
     //@{
     //! Required basis-function members
@@ -82,12 +88,12 @@ protected:
   std::shared_ptr<ModelCyl> disk;
   std::shared_ptr<Basis2d>  basis;
 
-  static std::shared_ptr<ModelCyl>
-  createModel(const std::string type, double A);
+  std::shared_ptr<ModelCyl> createModel();
 
   class ExponCyl;
   class MestelCyl;
   class KuzminCyl;
+  class ZangCyl;
 
   //! Map the radius
   class Mapping
@@ -142,15 +148,15 @@ public:
   EmpCyl2d() : configured(false) {}
 
   //! Constructor
-  EmpCyl2d(int mmax, int nmax, int knots, int numr,
-	   double rmin, double rmax, double A, double scale,
-	   bool cmap, bool logr, const std::string model,
+  EmpCyl2d(int mmax, int nmaxfid, int nmax, int knots, int numr,
+	   double rmin, double rmax, double scale, bool cmap, bool logr,
+	   const YAML::Node& P,
 	   const std::string biorth, const std::string cache="");
   
   //! Constructor with user-supplied target model
-  EmpCyl2d(int mmax, int nmax, int knots, int numr,
-	   double rmin, double rmax, double A, double scale,
-	   bool cmap, bool logr, std::shared_ptr<ModelCyl> disk,
+  EmpCyl2d(int mmax, int nmaxfid, int nmax, int knots, int numr,
+	   double rmin, double rmax, double scale, bool cmap, bool logr,
+	   std::shared_ptr<ModelCyl> disk,
 	   const std::string biorth, const std::string cache="");
   
   //! Use underlying basis for testing?  Default: false.
@@ -198,6 +204,20 @@ public:
 
   //! Check for configuration
   bool operator()() { return configured; }
+
+  //@{
+  //! Background evaluation
+  void background(double r, double & p, double & dr)
+  {
+    p  = disk->pot(r);
+    dr = disk->dpot(r);
+  }
+
+  std::tuple<double, double, double> background(double r)
+  {
+    return {disk->pot(r), disk->dpot(r), disk->dens(r)};
+  }
+  //@}
 };
 
 

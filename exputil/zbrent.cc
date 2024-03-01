@@ -1,3 +1,4 @@
+#include <functional>
 #include <stdexcept>
 #include <iostream>
 #include <iomanip>
@@ -7,10 +8,10 @@
 #include <numerical.H>
 
 #define ITMAX 100
-// #define EPS 3.0e-8
 #define EPS 1.0e-16
 
-double zbrent(std::function<double(double)> func, double x1, double x2, double tol)
+double zbrent(std::function<double(double)> func,
+	      double x1, double x2, double tol)
 {
   int iter;
   double a=x1,b=x2,c,d,e,min1,min2;
@@ -18,7 +19,7 @@ double zbrent(std::function<double(double)> func, double x1, double x2, double t
   
   if (fb*fa > 0.0) {
     std::ostringstream str;
-    str << "Root must be bracketed in ZBRENT:"
+    str << "root must be bracketed in ZBRENT:"
 	<< "  f(" << a << ")=" << fa
 	<< ", f(" << b << ")=" << fb;
     throw std::runtime_error(str.str());

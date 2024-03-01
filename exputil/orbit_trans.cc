@@ -12,15 +12,51 @@
 #include <orbit.H>
 #include <biorth.H>
 
-				// Global variables
-static AxiSymModPtr mm;
-static double EE, JJ, KK;
-static double ap, am, sp, sm;
-
+int    SphericalOrbit::Nseg = 40;     // Number of trial segments for root finding 
 double SphericalOrbit::tol = 1.0e-8;  // root finder tolerance
 double SphericalOrbit::ZFRAC = 0.001; // fraction below minimum grid for tp search
 double SphericalOrbit::RMAXF = 3.0;
 double SphericalOrbit::tolnr = 1.0e-10;	// r_apo location using Newton-Raphson refinement
+
+std::tuple<double, double, bool> SphericalOrbit::search
+(std::function<double(double)> func, double rmin, double rmax)
+{
+  bool use_log = false;
+  if (rmin > 0.0) {
+    use_log = true;
+    rmin = log(rmin);
+    rmax = log(rmax);
+  }
+  
+  double dx = (rmax - rmin)/Nseg;
+  bool cond = false;
+  
+  // Loop variables
+  double xend = rmin, xbeg, ylst;
+  double ycur = func(use_log ? exp(xend) : xend);
+
+  // Now, increment the end point and test for sign change in the
+  // interval
+  for (int n=1; n<=Nseg; n++) {
+    xbeg = xend;
+    ylst = ycur;
+    xend += dx;
+    ycur = func(use_log ? exp(xend) : xend);
+
+    // Found an interval, return it
+    if (ycur*ylst <= 0.0) {
+      cond = true;
+      break;
+    }
+  }
+  
+  if (use_log) {		// Scale back to linear
+    xbeg = exp(xbeg);
+    xend = exp(xend);
+  }
+				// Done!
+  return std::tuple<double, double, bool>(xbeg, xend, cond);
+}
 
 void SphericalOrbit::compute_freq(void)
 {
@@ -30,86 +66,125 @@ void SphericalOrbit::compute_freq(void)
   double tmp2;
 #endif
   int i;
-  double Ecirc(double), denom(double);
-
-  mm = model;
-  EE = energy;
-  KK = kappa;
 
   //  Find turning points
-
+  //
   double xmin, xmax;
   xmin = ZFRAC*model->get_min_radius();
   xmax = model->get_max_radius();
 
-  if ( Ecirc(xmin)*Ecirc(xmax) < 0.0) {
-    try {
-      r_circ = zbrent(Ecirc, xmin, xmax, tol);
+  // Functor whose zero locates radius of circular orbit with energy EE
+  //
+  auto Ecirc = [&](double r)
+  {
+    double ur, dudr;
+    model->get_pot_dpot(r, ur, dudr);
+    return  energy - 0.5*r*dudr - ur;
+  };
+
+  // New strategy: break into Nseg segments to find good starting
+  // points
+  //
+  {
+    auto [xbeg, xend, cond] = search(Ecirc, xmin, xmax);
+
+    if ( Ecirc(xbeg)*Ecirc(xend) < 0.0) {
+      try {
+	r_circ = zbrent(Ecirc, xbeg, xend, tol);
+      }
+      catch (const std::exception& error) {
+	std::ostringstream mesg;
+	mesg << "SphericalOrbit::compute_freq: " << error.what() << std::endl
+	     << "SphericalOrbit::compute_freq @ r_circ: model=" 
+	     << model->ModelID           << std::endl
+	     << "** energy="   << energy << std::endl
+	     << "** kappa="    << kappa  << std::endl
+	     << "** xmin="     << xbeg   << std::endl
+	     << "** xmax="     << xend   << std::endl
+	     << "** f(xmin)="  << Ecirc(xbeg) << std::endl
+	     << "** f(xmax)="  << Ecirc(xend) << std::endl
+	     << "** cond="     << std::boolalpha << cond << std::endl;
+	throw std::runtime_error(mesg.str());
+      }
     }
-    catch (const std::exception& error) {
-      std::ostringstream mesg;
-      mesg << "SphericalOrbit::compute_freq: " << error.what() << std::endl
-	   << "SphericalOrbit::compute_freq @ r_circ: model=" 
-	   << model->ModelID         << endl
-	   << " energy="   << energy << endl
-	   << " kappa="    << kappa  << endl
-	   << " xmin="     << xmin   << endl
-	   << " xmax="     << xmax   << endl;
-      throw std::runtime_error(mesg.str());
+    else {		  // Circular radius outside mass distribution
+      r_circ = -0.5*model->get_mass(model->get_max_radius())/energy;
+      if (r_circ < model->get_min_radius()) {
+	r_circ = model->get_min_radius();
+      }
+      /*
+	std::string message("SphericalOrbit::compute_freq warning: Circular radius outside mass distribution");
+	throw std::runtime_error(message);
+      */
     }
-  }
-  else {		  // Circular radius outside mass distribution
-    r_circ = -0.5*model->get_mass(model->get_max_radius())/EE;
-    if (r_circ < model->get_min_radius()) {
-      r_circ = model->get_min_radius();
-    }
-    std::string message("SphericalOrbit::compute_freq warning: Circular radius outside mass distribution");
-    throw std::runtime_error(message);
   }
 
   dudr = model->get_dpot(r_circ);
   if (dudr>0.0) jmax = sqrt(r_circ*r_circ*r_circ*dudr);
   else          jmax = 0.0;
 
-  JJ = jmax*kappa;
+  // Functor whose zero locates turning points for orbit (EE,JJ) 
+  //
+  auto denom = [&](double r)
+  {
+    double ur = model->get_pot(r);
+    double JJ = jmax*kappa;
+    return 2.0*(energy-ur)*r*r - JJ*JJ;
+  };
 
   xmin = r_circ;
   xmax = model->get_max_radius();
 #ifdef DEBUG
   bool used_asymp = false;
 #endif
-  if ( denom(xmin)*denom(xmax) < 0.0) {
-    try {
-      r_apo = zbrent(denom, xmin, xmax, tol);
-    }
-    catch (const std::exception& error) {
-      std::ostringstream mesg;
-      mesg << "SphericalOrbit::compute_freq: " << error.what() << std::endl
-	   << "SphericalOrbit::compute_freq @ r_apo[1]: model=" 
-	   << model->ModelID        << endl
-	   << " energy=" << energy  << endl
-	   << " kappa="  << kappa   << endl
-	   << " xmin="  << xmin     << endl
-	   << " xmax="  << xmax     << endl;
-      throw std::runtime_error(mesg.str());
+
+  {
+    auto [xbeg, xend, cond] = search(denom, xmin, xmax);
+
+    if ( denom(xbeg)*denom(xend) < 0.0) {
+      try {
+	r_apo = zbrent(denom, xbeg, xend, tol);
+      }
+      catch (const std::exception& error) {
+	std::ostringstream mesg;
+	mesg << "SphericalOrbit::compute_freq: " << error.what() << std::endl
+	     << "SphericalOrbit::compute_freq @ r_apo[1]: model=" 
+	     << model->ModelID          << std::endl
+	     << "** energy=" << energy  << std::endl
+	     << "** kappa="  << kappa   << std::endl
+	     << "** energy=" << energy  << std::endl
+	     << "** kappa="  << kappa   << std::endl
+	     << "** J="      << kappa*jmax << std::endl
+	     << "** rmin="   << xbeg    << std::endl
+	     << "** rmax="   << xend    << std::endl
+	     << "** cond="   << std::boolalpha << cond << std::endl;
+
+	throw std::runtime_error(mesg.str());
+      }
     }
   }
+  
   if (r_circ < model->get_max_radius()) {
-    if (denom(xmin)*denom(RMAXF*xmax) < 0.0) {
+
+    auto [xbeg, xend, cond] = search(denom, r_circ, RMAXF*xmax);
+
+    if (denom(xbeg)*denom(xend) < 0.0) {
       try {
-	r_apo = zbrent(denom, xmin, RMAXF*xmax, tol);
+	r_apo = zbrent(denom, xbeg, xend, tol);
       }
       catch (const std::exception& error) {
 	std::ostringstream mesg;
 	mesg << "SphericalOrbit::compute_freq: " << error.what() << std::endl
 	     << "SphericalOrbit::compute_freq @ r_apo[2]: model=" 
-	     << model->ModelID        << endl
-	     << " energy=" << energy  << endl
-	     << " pot(max)=" << model->get_pot(xmax) << endl
-	     << " kappa="  << kappa   << endl
-	     << " xmin="   << xmin    << endl
-	     << " xmax="   << xmax*RMAXF << endl
-	     << " rc check=" << energy - model->get_pot(r_circ) - jmax*jmax/(2.0*r_circ*r_circ) << endl;
+	     << model->ModelID            << std::endl
+	     << "** energy="   << energy  << std::endl
+	     << "** pot(max)=" << model->get_pot(xend) << std::endl
+	     << "** kappa="    << kappa   << std::endl
+	     << "** J="        << kappa*jmax << std::endl
+	     << "** xmin="     << xbeg    << std::endl
+	     << "** xmax="     << xend    << std::endl
+	     << "** cond="     << std::boolalpha << cond << std::endl
+	     << "** rc check=" << energy - model->get_pot(r_circ) - jmax*jmax/(2.0*r_circ*r_circ) << std::endl;
 	throw std::runtime_error(mesg.str());
       }
     } else {
@@ -117,12 +192,13 @@ void SphericalOrbit::compute_freq(void)
     }
   }
   else {	 		// Circular radius outside mass distribution
-    double r0 = -0.5*model->get_mass(model->get_max_radius())/EE;
-    r_apo = r0 + sqrt(r0*r0 - 0.5*JJ*JJ/EE);
+    double JJ = kappa*jmax;
+    double r0 = -0.5*model->get_mass(model->get_max_radius())/energy;
+    r_apo = r0 + sqrt(r0*r0 - 0.5*JJ*JJ/energy);
 				// Newton-Raphson refinement (slow . . .)
     double f, df;
     for (int i=0; i<200; i++) {
-      f = 2.0*(EE - model->get_pot(r_apo)) - JJ*JJ/(r_apo*r_apo);
+      f = 2.0*(energy - model->get_pot(r_apo)) - JJ*JJ/(r_apo*r_apo);
       if (fabs(f)<tolnr) break;
       df = -2.0*model->get_dpot(r_apo) + JJ*JJ/(r_apo*r_apo*r_apo);
       r_apo += -f/df;
@@ -138,33 +214,44 @@ void SphericalOrbit::compute_freq(void)
 #endif
   }
 
-  if (denom(ZFRAC*model->get_min_radius())*denom(r_circ) >= 0.0) {
-    r_peri = 0.99*ZFRAC*model->get_min_radius();
-  }
-  else {
-    try {
-      r_peri = zbrent(denom, ZFRAC*model->get_min_radius(), r_circ, tol);
-    }
-    catch (const std::exception& error) {
-      std::ostringstream mesg;
-      mesg << "SphericalOrbit::compute_freq: " << error.what() << std::endl
-	   << "SphericalOrbit::compute_freq @ r_peri: model=" << model->ModelID
-	   << " energy=" << energy
-	   << " kappa="  << kappa
-	   << " xmin="  << ZFRAC*model->get_min_radius()
-	   << " xmax="  << r_circ << endl;
-      throw std::runtime_error(mesg.str());
+  {
+    auto [xbeg, xend, cond] = search(denom, ZFRAC*model->get_min_radius(), r_circ);
+
+    if (not cond) {
+      // Assume peri is inside the range
+      r_peri = 0.99*ZFRAC*model->get_min_radius();
+
+    } else {
+      // Find the peri from the bounded interval
+      try {
+	r_peri = zbrent(denom, 0.999*xbeg, 1.001*xend, tol);
+      }
+      catch (const std::exception& error) {
+	std::ostringstream mesg;
+	mesg << "SphericalOrbit::compute_freq: " << error.what() << std::endl
+	     << "SphericalOrbit::compute_freq @ r_peri: model=" << model->ModelID
+	     << std::endl
+	     << "** energy=" << energy     << std::endl
+	     << "** kappa="  << kappa      << std::endl
+	     << "** J="      << kappa*jmax << std::endl
+	     << "** rmin="   << xbeg       << std::endl
+	     << "** rmax="   << xend       << std::endl
+	     << "** cond="   << std::boolalpha << cond << std::endl;
+	
+	throw std::runtime_error(mesg.str());
+      }
     }
   }
 
   //  Ok, prepare to do freq. integrals 
-
+  //
   ap = 0.5*(r_apo + r_peri);
   am = 0.5*(r_apo - r_peri);
   sp = ap/(r_apo*r_peri);
   sm = am/(r_apo*r_peri);
 
   // Do using centered rectangle technique 
+  //
   accum0 = 0.0;
   accum1 = 0.0;
   accum2 = 0.0;
@@ -251,26 +338,8 @@ void SphericalOrbit::compute_freq(void)
 #undef FRECS
 #undef tol
 
-// Function to iteratively locate radius of circular orbit with energy EE 
-double Ecirc(double r)
-{
-  double ur, dudr, dif;
-		
-  mm->get_pot_dpot(r, ur, dudr);
-  dif =  EE - 0.5*r*dudr - ur;
-  return(dif);
-}
-
-// Function to iteratively locate turning points for orbit (EE,JJ) 
-
-double denom(double r)
-{
-  double ur = mm->get_pot(r);
-  return 2.0*(EE-ur)*r*r - JJ*JJ;
-}
-
 // for testing---frequencies in the epicyclic approx 
-
+//
 void SphericalOrbit::compute_freq_epi(void)
 {
   double d2udr2;
@@ -285,14 +354,13 @@ void SphericalOrbit::compute_freq_epi(void)
 }
 
 extern 
-double  rombe2(double a, double b, double (*f) (double), int n);
+double  rombe2(double a, double b, std::function<double(double)>, int n);
 
 double dtp, dtm;
 
 void SphericalOrbit::compute_angles(void)
 {
   double accum1,accum2,r, s, t, sl, tl;
-  double fw1(double t), ff(double t);
   int i;
 
   l1s = l2s = 0;
@@ -313,11 +381,9 @@ void SphericalOrbit::compute_angles(void)
   }
 
   
+  double JJ = kappa * jmax;
+
   if (freq_defined) {
-    mm = model;
-    EE = energy;
-    KK = kappa;
-    JJ = jmax*kappa;
     ap = 0.5*(r_apo + r_peri);
     am = 0.5*(r_apo - r_peri);
     sp = ap/(r_apo*r_peri);
@@ -326,6 +392,43 @@ void SphericalOrbit::compute_angles(void)
   else
     compute_freq();
 
+
+  const double tol = 1.0e-8;       // tolerance for radicand 
+
+  auto fw1 = [&](double t)
+  {
+    double r  = ap + am*sin(t);
+    double ur = model->get_pot(r);
+    double radcand = 2.0*(energy-ur)-JJ*JJ/(r*r);
+
+    if (radcand < tol) {
+      // values near turning points 
+      double sgn = 1.0;
+      if (t<0) sgn = -1.0;
+      r = ap + sgn*am;
+      double dudr = model->get_dpot(r);
+      return sqrt( am*sgn/(dudr-JJ*JJ/(r*r*r)) );
+    }
+    return am*cos(t)/sqrt(radcand);
+  };
+
+  auto ff = [&](double t)
+  {
+    double s = sp + sm*sin(t);
+    double ur = model->get_pot(1.0/s);
+    double radcand = 2.0*(energy-ur) - JJ*JJ*s*s;
+
+    if (radcand < tol) {
+      // values near turning points 
+      double sgn = 1.0;
+      if (t<0) sgn = -1.0;
+      s = sp + sgn*sm;
+      double dudr = model->get_dpot(1.0/s);
+      return sqrt( -sm*s*s*sgn/(dudr-JJ*JJ*s*s*s) );
+    }
+    return sm*cos(t)/sqrt(radcand);
+  };
+
   accum1 = 0.0;
   accum2 = 0.0;
   tl = -0.5*M_PI;
@@ -333,9 +436,9 @@ void SphericalOrbit::compute_angles(void)
   for (int i=0; i<recs; i++) {
     t = dtp + dtm*Gkn.knot(i);
     r = ap + am*sin(t);
-    accum1 += rombe2(tl,t,fw1,nbsct);
+    accum1 += rombe2(tl, t, fw1, nbsct);
     s = asin((1.0/r - sp)/sm);
-    accum2 += rombe2(sl,s,ff, nbsct);
+    accum2 += rombe2(sl, s, ff, nbsct);
 
     angle_grid.t(0, i) = t;
     angle_grid.w1(0, i) = freq[0]*accum1;
@@ -367,57 +470,12 @@ void SphericalOrbit::compute_angles(void)
   angle_defined = true;
 }
 
-#define tol 1.0e-8       // tolerance for radicand 
-
-double fw1(double t)
-{
-  double r, ur, dudr, radcand, sgn;
-
-  r = ap + am*sin(t);
-  ur = mm->get_pot(r);
-  radcand = 2.0*(EE-ur)-JJ*JJ/(r*r);
-
-  if (radcand < tol) {
-  // values near turning points 
-    if (t<0)
-      sgn = -1.0;
-    else
-      sgn = 1.0;
-    r = ap+sgn*am;
-    dudr = mm->get_dpot(r);
-    return sqrt( am*sgn/(dudr-JJ*JJ/(r*r*r)) );
-  }
-  return am*cos(t)/sqrt(radcand);
-}
-
-double ff(double t)
-{
-  double s, ur, dudr, radcand, sgn;
-
-  s = sp + sm*sin(t);
-  ur = mm->get_pot(1.0/s);
-  radcand = 2.0*(EE-ur) - JJ*JJ*s*s;
-
-  if (radcand < tol) {
-  // values near turning points 
-    if (t<0)
-      sgn = -1.0;
-    else
-      sgn = 1.0;
-    s = sp+sgn*sm;
-    dudr = mm->get_dpot(1.0/s);
-    return sqrt( -sm*s*s*sgn/(dudr-JJ*JJ*s*s*s) );
-  }
-  return sm*cos(t)/sqrt(radcand);
-}
-
 //
 // epicyclic test 
 //
 void SphericalOrbit::compute_angles_epi(void)
 {
   double r,t,a,a2,fac,ur;
-  double Jcirc(double r);
   int i;
 
   angle_grid.t.    resize(2, recs);
@@ -435,17 +493,11 @@ void SphericalOrbit::compute_angles_epi(void)
     Gkn = LegeQuad(recs);
   }
 
-  if (freq_defined) {
-    mm = model;
-    EE = energy;
-    KK = kappa;
-  }
-  else
-    compute_freq_epi();
+  if (not freq_defined) compute_freq_epi();
 
-  JJ = jmax*kappa;
-  ur = mm->get_pot(r_circ);
-  a2 = 2.0*(EE-0.5*JJ*JJ/(r_circ*r_circ)-ur)/(freq[0]*freq[0]);
+  double JJ = jmax*kappa;
+  ur = model->get_pot(r_circ);
+  a2 = 2.0*(energy-0.5*JJ*JJ/(r_circ*r_circ)-ur)/(freq[0]*freq[0]);
   a = sqrt(a2);
 
   for (int i=0; i<recs; i++) {
@@ -479,11 +531,6 @@ void SphericalOrbit::compute_angles_epi(void)
 }
 
 
-double Jcirc(double r)
-{
-  double dudr = mm->get_dpot(r);
-  return (JJ*JJ - r*r*r*dudr);
-}
 #undef tol
 
 

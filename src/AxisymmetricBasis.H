@@ -9,7 +9,7 @@
 
   @param Lmax  is the maximum spherical harmonic order
 
-  @param Mmax  is the maximum spherical harmonic order
+  @param Mmax  is the maximum cylindrical harmonic order
 
   @param nmax  is the maximum radial order
 

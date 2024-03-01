@@ -99,7 +99,6 @@ EmpCylSL::EmpCylSL()
   Nodd       = 0;
   minSNR     = std::numeric_limits<double>::max();
   maxSNR     = 0.0;
-  cachefile  = default_cache;
 
   // Initial allocation; set to false
   //
@@ -142,7 +141,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 {
   // Use default name?
   if (cachename.size()) cachefile = cachename;
-  else                  cachefile = default_cache;
+  else throw std::runtime_error("EmpCylSL: you must specify a cachename");
 
   // Sanity check
   if (lmax <= mmax) {
@@ -227,6 +226,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
 {
   // Reset cache file name
   if (cachename.size()) cachefile = cachename;
+  else throw std::runtime_error("EmpCylSL:reset: you must specify a cachename");
 
   // Option sanity check
   if (lmax <= mmax) {
@@ -825,6 +825,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachename)
   // Option to reset cache file name
   //
   if (cachename.size()) cachefile = cachename;
+  else throw std::runtime_error("EmpCylSL::cache_grid: you must specify a cachename");
+
 
   if (readwrite) {
     
@@ -3094,7 +3096,7 @@ void EmpCylSL::make_eof(void)
 
   // Cache table for restarts
   //
-  if (myid==0) cache_grid(1);
+  if (myid==0) cache_grid(1, cachefile);
   
   // Basis complete but still need to compute coefficients
   //

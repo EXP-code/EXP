@@ -27,7 +27,7 @@ main(int argc, char **argv)
 
   std::string eof, tag;
   double rmax, zmax;
-  int nout, mmax, norder;
+  int nout, mmax, norder, nodd;
 
   cxxopts::Options options(argv[0], "Dump the entire disk orthgonal function file in ascii");
 
@@ -45,6 +45,8 @@ main(int argc, char **argv)
      cxxopts::value<int>(mmax)->default_value("6"))
     ("n,nmax", "maximum radial order",
      cxxopts::value<int>(norder)->default_value("18"))
+    ("nodd",   "number of vertically antisymmtric functions",
+     cxxopts::value<int>(nodd)->default_value("6"))
     ("N,nout", "number of grid points in each dimension",
      cxxopts::value<int>(nout)->default_value("40"))
     ;
@@ -83,7 +85,7 @@ main(int argc, char **argv)
   double acyl = 0.01;
   double hcyl = 0.001;
 
-  EmpCylSL test(nmax, lmax, mmax, nord, acyl, hcyl);
+  EmpCylSL test(nmax, lmax, mmax, nord, acyl, hcyl, nodd, eof);
 
   test.read_eof_file(eof);
 

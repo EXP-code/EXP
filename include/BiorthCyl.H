@@ -41,14 +41,14 @@ class BiorthCyl
 
 protected:
 
-  YAML::Node conf;
+  YAML::Node conf, diskconf;
 
-  std::string geometry, forceID;
+  std::string geometry, biorth, forceID;
   
   int mmax, nmax, numr, nmaxfid, mmin, mlim, nmin, nlim, knots, NQDHT;
-  double rcylmin, rcylmax, scale, acyltbl;
+  double rcylmin, rcylmax, scale, acyltbl, acylcut, Ninner, Mouter;
 
-  bool EVEN_M, verbose;
+  bool EVEN_M, verbose, logr;
   
   //@{
   //! Grid parameters
@@ -79,8 +79,8 @@ protected:
 	      const std::vector<std::vector<Eigen::MatrixXd>>& mat,
 	      Eigen::MatrixXd& ret, bool anti_symmetric=false);
 
-  //! Default cache file name
-  const std::string default_cache = ".biorth_cache";
+  //! Density target name
+  std::string disktype;
 
   //! Active cache file name
   std::string cachename;
@@ -197,6 +197,13 @@ public:
 
   //! Evaluate all orders in matrices; for n-body
   void get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs, double r, double z);
+
+  //! Background evaluation
+  virtual std::tuple<double, double, double> background(double r, double z)
+  {
+    auto [p, dr, d] = emp.background(r);
+    return {p, dr, 0.0};
+  }
 
   //! Get the table bounds
   double getRtable() { return rcylmax*scale; }

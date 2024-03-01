@@ -484,8 +484,21 @@ void cuda_compute_levels()
 
       // Make thrust do device copy
       //
-      float minT = *(thrust::min_element(c->minDT.begin(), c->minDT.end()));
-      float maxT = *(thrust::max_element(c->maxDT.begin(), c->maxDT.end()));
+      thrust::host_vector<float> minDT = c->minDT;
+      thrust::host_vector<float> maxDT = c->maxDT;
+
+      // Note: could not manage to do this on the device.  So resorted
+      // to copying the block results and doing the reduction on the
+      // host.  I assumed that I would be able to do something like
+      // this:
+      // 
+      // float minT = *(thrust::min_element(c->minDT.begin(), c->minDT.end()));
+      // float maxT = *(thrust::max_element(c->maxDT.begin(), c->maxDT.end()));
+      //
+      // It seems to work, but the compute-sanitizer is not happy.
+
+      float minT = *(thrust::min_element(minDT.begin(), minDT.end()));
+      float maxT = *(thrust::max_element(maxDT.begin(), maxDT.end()));
 	
       if (minT<mindt) mindt = minT;
       if (maxT>maxdt) maxdt = maxT;
