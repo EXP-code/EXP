@@ -1,6 +1,7 @@
 #ifndef _orbit_H
 #define _orbit_H
 
+#include <functional>
 #include <memory>
 #include <Eigen/Eigen>
 #include <gaussQ.H>
@@ -59,6 +60,7 @@ private:
   double r_peri;
   double r_apo;
   double r_circ;
+  double ap, am, sp, sm;
 
   std::shared_ptr<AxiSymModel>  model;
   std::shared_ptr<AxiSymBiorth> biorth;
@@ -82,7 +84,12 @@ private:
 
   GaussQuad Gkn;
 
+  std::tuple<double, double, bool> search
+  (std::function<double(double)> func, double rmin, double rmax);
+  
 public:
+
+  static int    Nseg;           // Number of trial segments for root finding 
 
   static double RMAXF;		// Factors of model rmax for upper 
 				// turning point search [default=3.0]

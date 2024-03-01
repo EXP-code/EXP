@@ -201,10 +201,8 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   EmpCylSL::logarithmic = logarithmic;
   EmpCylSL::VFLAG       = vflag;
 
-  // EOF default file name override.  Default uses runtag suffix as
-  // above.  Override file must exist if explicitly specified.
-  //
-  if (cachename.size()==0) cachename = outdir + ".eof.cache." + runtag;
+  if (cachename.size()==0)
+    throw std::runtime_error("EmpCylSL: you must specify a cachename");
 
   // Make the empirical orthogonal basis instance
   //

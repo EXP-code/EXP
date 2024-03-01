@@ -18,13 +18,16 @@ __device__ __constant__
 cuFP_t plrRscale, plrHscale, plrXmin, plrXmax, plrYmin, plrYmax, plrDxi, plrDyi;
 
 __device__ __constant__
+cuFP_t plrDx0;
+
+__device__ __constant__
 cuFP_t plrCen[3], plrBody[9], plrOrig[9];
 
 __device__ __constant__
-int plrNumx, plrNumy, plrCmapR, plrCmapZ, plrOrient;
+int plrNumx, plrNumy, plrCmapR, plrCmapZ, plrOrient, plrNumr;
 
 __device__ __constant__
-bool plrAcov, plrNO_M0, plrNO_M1, plrEVEN_M, plrM0only;
+bool plrAcov, plrNO_M0, plrNO_M1, plrEVEN_M, plrM0only, plrM0back, plrNoMono;
 
 // Index function for sine and cosine coefficients
 //
@@ -75,8 +78,10 @@ void testConstantsPlr()
   printf("   Ymax   = %f\n", plrYmax  );
   printf("   Dxi    = %f\n", plrDxi   );
   printf("   Dyi    = %f\n", plrDyi   );
+  printf("   Dx0    = %f\n", plrDx0   );
   printf("   Numx   = %d\n", plrNumx  );
   printf("   Numy   = %d\n", plrNumy  );
+  printf("   Numr   = %d\n", plrNumr  );
   printf("   CmapR  = %d\n", plrCmapR );
   printf("   CmapZ  = %d\n", plrCmapZ );
   printf("   Orient = %d\n", plrOrient);
@@ -84,6 +89,8 @@ void testConstantsPlr()
   printf("   NO_M1  = %d\n", plrNO_M1 );
   printf("   EVEN_M = %d\n", plrEVEN_M);
   printf("   M0only = %d\n", plrM0only);
+  printf("   M0back = %d\n", plrM0back);
+  printf("   NoMono = %d\n", plrNoMono);
   printf("-------------------------\n");
 }
 
@@ -241,8 +248,22 @@ void PolarBasis::initialize_mapping_constants()
   cuda_safe_call(cudaMemcpyToSymbol(plrM0only, &M0_only,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrM0only");
 
+  cuda_safe_call(cudaMemcpyToSymbol(plrM0back, &M0_back,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrM0back");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrNoMono, &NO_MONO,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrM0back");
+
   cuda_safe_call(cudaMemcpyToSymbol(plrAcov,   &subsamp,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrAcov");
+
+  cuda_safe_call(cudaMemcpyToSymbol(plrNumr,   &f.numr,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrNumr");
+
+  cuFP_t Dx0 = (f.xmax - f.xmin)/(f.numr - 1);
+  cuda_safe_call(cudaMemcpyToSymbol(plrDx0,    &Dx0,      sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrDx0");
+
 }
 
 
@@ -596,7 +617,9 @@ forceKernelPlr6(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t ratio = sqrt( (R2 + zz*zz)/rmax2 );
       cuFP_t mfactor = 1.0, frac = 1.0, cfrac = 0.0;
 
-      if (ratio >= 1.0) {
+      if (plrNoMono) {
+	ratio = 0.0;
+      } else if (ratio >= 1.0) {
 	frac  = 0.0;
 	cfrac = 1.0;
       } else if (ratio > ratmin) {
@@ -1071,7 +1094,9 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t ratio = sqrt( (R2 + zz*zz)/rmax2 );
       cuFP_t mfactor = 1.0, frac = 1.0, cfrac = 0.0;
 
-      if (ratio >= 1.0) {
+      if (plrNoMono) {
+	ratio = 0.0;
+      } if (ratio >= 1.0) {
 	frac  = 0.0;
 	cfrac = 1.0;
       } else if (ratio > ratmin) {
@@ -1136,83 +1161,140 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 
 	for (int mm=0; mm<=muse; mm++) {
 
-	  if (plrM0only and mm>0          ) continue;
-	  if (plrNO_M0  and mm==0         ) continue;
-	  if (plrNO_M1  and mm==1         ) continue;
-	  if (plrEVEN_M and (mm/2)*2 != mm) continue;
+	  bool compute = true;	// Compute the force for this m value
+				// by default
 
-	  if (mm) norm = norm1;
-	  else    norm = norm0;
+	  // Check restrictions
+	  //
+	  if (plrM0only and mm>0          ) compute = false;
+	  if (plrNO_M0  and mm==0         ) compute = false;
+	  if (plrNO_M1  and mm==1         ) compute = false;
+	  if (plrEVEN_M and (mm/2)*2 != mm) compute = false;
 
-	  for (int n=0; n<nmax; n++) {
-      
-	    // Texture table index
+	  if (compute) {
+
+	    // Use the unperturbed fixed background model for m=0
 	    //
-	    int k = mm*nmax + n;
+	    if (plrM0back and mm==0) {
+	      // Offset of 1-d arrays in texture array
+	      //
+	      int offst = (mmax+1)*nmax;
 
-	    cuFP_t potl =
-	      (
-#if cuREAL == 4
-	       tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
-	       tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
-	       tex3D<float>(tex._v[k], indX,   indY+1, 0) * c01 +
-	       tex3D<float>(tex._v[k], indX+1, indY+1, 0) * c11 
-#else
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 0)) * c00 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 0)) * c10 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 0)) * c01 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 0)) * c11 
-#endif
-	       );
-	    
-	    cuFP_t rfrc =
-	      (
-#if cuREAL == 4
-	       tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
-	       tex3D<float>(tex._v[k], indX+1, indY  , 1) * c10 +
-	       tex3D<float>(tex._v[k], indX,   indY+1, 1) * c01 +
-	       tex3D<float>(tex._v[k], indX+1, indY+1, 1) * c11 
-#else
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 1)) * c00 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 1)) * c10 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 1)) * c01 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 1)) * c11 
-#endif
-	       );
-      
-	    cuFP_t zfrc =
-	      (
-#if cuREAL == 4
-	       tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
-	       tex3D<float>(tex._v[k], indX+1, indY  , 2) * c10 +
-	       tex3D<float>(tex._v[k], indX,   indY+1, 2) * c01 +
-	       tex3D<float>(tex._v[k], indX+1, indY+1, 2) * c11 
-#else
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 2)) * c00 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 2)) * c10 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 2)) * c01 +
-	       int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 2)) * c11 
-#endif
-	       );
+	      // Compute X value for 1-d spacing from 2-d spacing
+	      //
+	      cuFP_t xx = X*plrDxi/plrDx0;
+	      int   ind = floor(xx);
 
-	    if (zz < 0.0) zfrc *= -1.0;
-	    
-	    // The trigonometric norm with a minus sign for the tabled values:
-	    // -1/sqrt(2*pi) for m==0 or -1/sqrt(pi) for m>0
-	    //
-	    cuFP_t Sfac = -norm;
-	    cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
-	    cuFP_t facS = 0.0;
-	    if (mm>0) {
-	      facS = coef._v[IImn(mm, 's', n, nmax)];
+	      if (ind<0) ind = 0;
+	      if (ind>plrNumr-2) ind = plrNumr - 2;
+
+	      cuFP_t a = (cuFP_t)(ind+1) - xx;
+	      cuFP_t b = 1.0 - a;
+
+	      // Do the interpolation for the prefactor potential
+	      //
+#if cuREAL == 4
+	      cuFP_t pp0 =  tex1D<float>(tex._v[offst+0], ind  );
+	      cuFP_t pp1 =  tex1D<float>(tex._v[offst+0], ind+1);
+	      cuFP_t dp0 = -tex1D<float>(tex._v[offst+1], ind  );
+	      cuFP_t dp1 = -tex1D<float>(tex._v[offst+1], ind+1);
+
+#else
+	      cuFP_t pp0 =  int2_as_double(tex1D<int2>(tex._v[offst+0], ind  ));
+	      cuFP_t pp1 =  int2_as_double(tex1D<int2>(tex._v[offst+0], ind+1));
+	      cuFP_t dp0 = -int2_as_double(tex1D<int2>(tex._v[offst+1], ind  ));
+	      cuFP_t dp1 = -int2_as_double(tex1D<int2>(tex._v[offst+1], ind+1));
+#endif
+	      if (xx<=0.0) {
+		pp += pp0;
+		fr += dp0;
+	      } else {
+		pp += a*pp0 + b*pp1;
+		fr += a*dp0 + b*dp1;
+	      }
+	      
 	    }
+	    // END: unperturbed fixed background model for m=0
+	    // BEGIN: use basis function expansion
+	    else {
 
-	    pp += potl * ( facC * ccos + facS * ssin) * Sfac;
-	    fr += rfrc * ( facC * ccos + facS * ssin) * Sfac;
-	    fz += zfrc * ( facC * ccos + facS * ssin) * Sfac;
-	    fp += potl * ( facC * ssin - facS * ccos) * Sfac * mm;
+	      if (mm) norm = norm1;
+	      else    norm = norm0;
+
+	      for (int n=0; n<nmax; n++) {
+      
+		// Texture table index
+		//
+		int k = mm*nmax + n;
+	      
+		cuFP_t potl =
+		  (
+#if cuREAL == 4
+		   tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
+		   tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
+		   tex3D<float>(tex._v[k], indX,   indY+1, 0) * c01 +
+		   tex3D<float>(tex._v[k], indX+1, indY+1, 0) * c11 
+#else
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 0)) * c00 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 0)) * c10 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 0)) * c01 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 0)) * c11 
+#endif
+		   );
+	    
+		cuFP_t rfrc =
+		  (
+#if cuREAL == 4
+		   tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
+		   tex3D<float>(tex._v[k], indX+1, indY  , 1) * c10 +
+		   tex3D<float>(tex._v[k], indX,   indY+1, 1) * c01 +
+		   tex3D<float>(tex._v[k], indX+1, indY+1, 1) * c11 
+#else
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 1)) * c00 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 1)) * c10 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 1)) * c01 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 1)) * c11 
+#endif
+		   );
+      
+		cuFP_t zfrc =
+		  (
+#if cuREAL == 4
+		   tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
+		   tex3D<float>(tex._v[k], indX+1, indY  , 2) * c10 +
+		   tex3D<float>(tex._v[k], indX,   indY+1, 2) * c01 +
+		   tex3D<float>(tex._v[k], indX+1, indY+1, 2) * c11 
+#else
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY  , 2)) * c00 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY  , 2)) * c10 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX,   indY+1, 2)) * c01 +
+		   int2_as_double(tex3D<int2>(tex._v[k], indX+1, indY+1, 2)) * c11 
+#endif
+		   );
+
+		if (zz < 0.0) zfrc *= -1.0;
+	    
+		// The trigonometric norm with a minus sign for the tabled values:
+		// -1/sqrt(2*pi) for m==0 or -1/sqrt(pi) for m>0
+		//
+		cuFP_t Sfac = -norm;
+		cuFP_t facC = coef._v[IImn(mm, 'c', n, nmax)];
+		cuFP_t facS = 0.0;
+		if (mm>0) {
+		  facS = coef._v[IImn(mm, 's', n, nmax)];
+		}
+		
+		pp += potl * ( facC * ccos + facS * ssin) * Sfac;
+		fr += rfrc * ( facC * ccos + facS * ssin) * Sfac;
+		fz += zfrc * ( facC * ccos + facS * ssin) * Sfac;
+		fp += potl * ( facC * ssin - facS * ccos) * Sfac * mm;
+	      }
+	      // END: radial-order loop
+	    }
+	    // END: basis-function contribution block
 	  }
-	  
+	  // END: compute block
+	    
 	  // Trig recursion to squeeze avoid internal FP fct call
 	  //
 	  cuFP_t cosM = ccos;
@@ -2553,18 +2635,18 @@ void PolarBasis::multistep_update_cuda()
 
 void PolarBasis::destroy_cuda()
 {
+  // Deallocate textures
+  //
   for (size_t i=0; i<tex.size(); i++) {
-    std::ostringstream sout;
-    sout << "trying to free TextureObject [" << i << "]";
-    cuda_safe_call(cudaDestroyTextureObject(tex[i]),
-		   __FILE__, __LINE__, sout.str());
+    cuda_check_error(cudaDestroyTextureObject(tex[i]),
+		     "cudaDestroyTextureObject",  __FILE__, __LINE__);
   }
 
+  // Deallocate texture data arrays
+  //
   for (size_t i=0; i<cuInterpArray.size(); i++) {
-    std::ostringstream sout;
-    sout << "trying to free cuPitch [" << i << "]";
-    cuda_safe_call(cudaFree(cuInterpArray[i]),
-		     __FILE__, __LINE__, sout.str());
+    cuda_check_error(cudaFreeArray(cuInterpArray[i]),
+		     "cudaFreeArray", __FILE__, __LINE__);
   }
 }
 

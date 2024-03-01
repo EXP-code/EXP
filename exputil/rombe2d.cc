@@ -1,7 +1,6 @@
+#include <functional>
 #include <cstdlib>
 #include <cmath>
-
-using namespace std;
 
 /*
 *	Computes integral using Simpson's rule with Romberg's
@@ -23,7 +22,7 @@ using namespace std;
 #define		NROMB 12
 #define         DMACH 1.0e-8
 
-double	rombe2(double a, double b, double (*f) (double), int n)
+double	rombe2(double a, double b, std::function<double(double)> f, int n)
 {
   double		t[NROMB],xmesh,d,ends,x2,x4;
   int			nmax,num,i,j,k,index;
@@ -32,9 +31,9 @@ double	rombe2(double a, double b, double (*f) (double), int n)
   xmesh = (b-a)/nmax;
   
   d = (b-a)/2.0;
-  ends = (*f)(a) + (*f)(b);
+  ends = f(a) + f(b);
   num = nmax/2;
-  x2 = (*f)(a+xmesh*num);
+  x2 = f(a+xmesh*num);
   t[0] = d*(ends+4.0*x2)/3.0;
   for(i=2; i<=n; i++)
     {
@@ -43,7 +42,7 @@ double	rombe2(double a, double b, double (*f) (double), int n)
       index = num/2;
       for(j=1; j<=nmax/num; j++)
 	{
-	  x4 = x4 + (*f)(a+xmesh*index);
+	  x4 = x4 + f(a+xmesh*index);
 	  index = index + num;
 	}
       t[i-1] = d*(ends+2.0*x2+4.0*x4)/3.0;

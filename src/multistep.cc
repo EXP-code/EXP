@@ -35,16 +35,16 @@ struct thrd_pass_sync
 //
 // Count offgrid particles in the threads
 //
-static map< Component*, vector<unsigned> > offlo1, offhi1;
-static vector< double > mindt1;
-static vector< double > maxdt1;
-static vector< double > adjtm1;
-static vector< double > adjtm2;
-static vector< unsigned> numsw;
-static vector< unsigned> numtt;
+static map< Component*, std::vector<unsigned> > offlo1, offhi1;
+static std::vector< double > mindt1;
+static std::vector< double > maxdt1;
+static std::vector< double > adjtm1;
+static std::vector< double > adjtm2;
+static std::vector< unsigned> numsw;
+static std::vector< unsigned> numtt;
 
 // Type counter
-static vector< vector< vector<unsigned> > > tmdt;
+static std::vector< std::vector< std::vector<unsigned> > > tmdt;
 
 //
 // The threaded routine
@@ -225,10 +225,8 @@ void * adjust_multistep_level_thread(void *ptr)
     }
   }
 
-  if (VERBOSE>0) {
-    offlo1[c][id] += offlo;
-    offhi1[c][id] += offhi;
-  }
+  offlo1[c][id] += offlo;
+  offhi1[c][id] += offhi;
   
   finish0 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double, std::micro> duration = finish0 - start0;
@@ -388,22 +386,19 @@ void adjust_multistep_level()
   //
   // Preliminary data structure and thread creation
   //
-  mindt1 = vector< double > (nthrds,  1.0e20);
-  maxdt1 = vector< double > (nthrds, -1.0e20);
-  adjtm1 = vector< double > (nthrds, 0.0);
-  adjtm2 = vector< double > (nthrds, 0.0);
-  numsw  = vector< unsigned > (nthrds, 0);
-  numtt  = vector< unsigned > (nthrds, 0);
+  mindt1 = std::vector< double > (nthrds,  1.0e20);
+  maxdt1 = std::vector< double > (nthrds, -1.0e20);
+  adjtm1 = std::vector< double > (nthrds, 0.0);
+  adjtm2 = std::vector< double > (nthrds, 0.0);
+  numsw  = std::vector< unsigned > (nthrds, 0);
+  numtt  = std::vector< unsigned > (nthrds, 0);
 
-  if (VERBOSE>0) {
+  if (offhi1.size()==0 || mdrft==Mstep) {
 
-    if (offhi1.size()==0 || mdrft==Mstep) {
-
-      for (auto c : comp->components) {
-	for (int n=0; n<nthrds; n++) {
-	  offhi1[c] = vector<unsigned>(nthrds, 0);
-	  offlo1[c] = vector<unsigned>(nthrds, 0);
-	}
+    for (auto c : comp->components) {
+      for (int n=0; n<nthrds; n++) {
+	offhi1[c] = std::vector<unsigned>(nthrds, 0);
+	offlo1[c] = std::vector<unsigned>(nthrds, 0);
       }
     }
   }
@@ -428,10 +423,10 @@ void adjust_multistep_level()
   
 
   if (tmdt.size() == 0) {
-    tmdt = vector< vector< vector<unsigned> > >(nthrds);
+    tmdt = std::vector< std::vector< std::vector<unsigned> > >(nthrds);
     for (int n=0; n<nthrds; n++) {
-      tmdt[n] = vector< vector<unsigned> >(multistep+1);
-      for (int k=0; k<=multistep; k++) tmdt[n][k] = vector<unsigned>(mdtDim);
+      tmdt[n] = std::vector< std::vector<unsigned> >(multistep+1);
+      for (int k=0; k<=multistep; k++) tmdt[n][k] = std::vector<unsigned>(mdtDim);
     }
   }
 
@@ -641,9 +636,9 @@ void initialize_multistep()
   for (int n=1; n<=multistep; n++) mintvl.push_back(mintvl.back()/2);
 
 				// Set up the step-level bool array
-  mactive.push_back(vector<bool>(multistep+1, true));
+  mactive.push_back(std::vector<bool>(multistep+1, true));
   for (int ms=1; ms<=Mstep; ms++)
-    mactive.push_back(vector<bool>(multistep+1, false));
+    mactive.push_back(std::vector<bool>(multistep+1, false));
 
 				// Find and save the active levels at each step
   for (int ms=1; ms<=Mstep; ms++) {
@@ -653,7 +648,7 @@ void initialize_multistep()
     }
   }
 
-  mfirst = vector<int>(Mstep+1);
+  mfirst = std::vector<int>(Mstep+1);
 				// Lowest active level at each step
   for (int ms=0; ms<=Mstep; ms++) {
     for (int mlevel=0; mlevel<=multistep; mlevel++) {

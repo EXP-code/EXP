@@ -35,11 +35,14 @@ PolarBasis::valid_keys = {
   "scale",
   "rmin",
   "rmax",
+  "Mmax",
   "self_consistent",
   "NO_M0",
   "NO_M1",
   "EVEN_M",
   "M0_ONLY",
+  "M0_BACK",
+  "NO_MONO",
   "mlim",
   "ssfrac",
   "playback",
@@ -69,6 +72,8 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   NO_M1            = false;
   EVEN_M           = false;
   M0_only          = false;
+  M0_back          = false;
+  NO_MONO          = false;
   ssfrac           = 0.0;
   subset           = false;
   coefMaster       = true;
@@ -104,13 +109,18 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     if (conf["NO_M1"])   NO_M1   = conf["NO_M1"].  as<bool>();
     if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"]. as<bool>();
     if (conf["M0_ONLY"]) M0_only = conf["M0_ONLY"].as<bool>();
-    
+    if (conf["M0_BACK"]) M0_back = conf["M0_BACK"].as<bool>();
+    if (conf["NO_MONO"]) NO_MONO = conf["NO_MONO"].as<bool>();
+
     if (conf["ssfrac"]) {
       ssfrac = conf["ssfrac"].as<double>();
       // Check for sane value
       if (ssfrac>0.0 && ssfrac<1.0) subset = true;
     }
 
+    // AxisymmetricBasis only knows about Lmax and Mmax.  These
+    // make sure that they are equivalent.  Mmax is preferred.
+    //
     if (conf["Lmax"] and not conf["Mmax"]) Mmax = Lmax;
     if (conf["Mmax"] and not conf["Lmax"]) Lmax = Mmax;
     if (Lmax != Mmax) Lmax = Mmax;
@@ -718,7 +728,7 @@ void PolarBasis::determine_coefficients_particles(void)
   for (auto & v : expcoef0) { for (auto & u : v) u->setZero(); }
     
   use1 = 0;
-  if (multistep==0) used = 0;
+  if (multistep==0 or (mstep==0 and mlevel==multistep)) used = 0;
     
 #ifdef DEBUG
   cout << "Process " << myid 
@@ -1396,7 +1406,9 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
       constexpr double midpt  = ratmin + 0.5*(1.0 - ratmin);
       constexpr double rsmth  = 0.5*(1.0 - ratmin)/maxerf;
       
-      if (ratio >= 1.0) {
+      if (NO_MONO) {
+	ratio = 0.0;
+      } else if (ratio >= 1.0) {
 	frac  = 0.0;
 	cfrac = 1.0;
       } else if (ratio > ratmin) {
@@ -1406,6 +1418,9 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	frac  = 1.0;
       }
       
+      // TEST ratio override
+      ratio = 0.0;
+
       // Ongrid contribution
       //
       if (ratio < 1.0) {
@@ -1419,11 +1434,21 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	// Add m=0 force contribution
 	//
 	if (not NO_M0) {
-	  get_pot_coefs_safe(0, *expcoef[0], p, drc, dzc, potd[id], dpotR[id], dpotZ[id]);
 
-	  potl = mfac*norm0 * p;
-	  potr = mfac*norm0 * drc;
-	  potz = mfac*norm0 * dzc;
+	  if (M0_back) {
+	    auto [p, drc, dzc] = get_pot_background(r, zz);
+
+	    potl = mfac * p;
+	    potr = mfac * drc;
+	    potz = mfac * dzc;
+	  } else {
+	    get_pot_coefs_safe(0, *expcoef[0], p, drc, dzc,
+			       potd[id], dpotR[id], dpotZ[id]);
+
+	    potl = mfac*norm0 * p;
+	    potr = mfac*norm0 * drc;
+	    potz = mfac*norm0 * dzc;
+	  }
 	}
 	
 	// Asymmetric terms?
@@ -1432,7 +1457,7 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 
 	  //		m loop
 	  //		------
-	  for (int m=1, moffset=1; m<=Mmax; m++, moffset+=2) {
+	  for (int m=1, moffset=1; m<=std::min(mlim, Mmax); m++, moffset+=2) {
 	    
 	    // Skip m=1 terms?
 	    //

@@ -49,9 +49,6 @@ thrust::host_vector<cuFP_t> returnTestSph
   return f_d;
 }
 
-static std::vector<cudaResourceDesc> resDesc;
-static std::vector<cudaTextureDesc>  texDesc;
-
 struct Element {
   int l;
   double a;
@@ -86,18 +83,17 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   tex.resize(ndim);
   thrust::fill(tex.begin(), tex.end(), 0);
 
-  // cudaResourceDesc resDesc;
-  resDesc.resize(ndim);
+  // std::vector<cudaResourceDesc> resDesc;
+  // std::vector<cudaTextureDesc>  texDesc;
 
-  // Specify texture object parameters
-  //
-  texDesc.resize(ndim);
 
-  memset(&texDesc[0], 0, sizeof(cudaTextureDesc));
-  texDesc[0].addressMode[0] = cudaAddressModeClamp;
-  texDesc[0].filterMode = cudaFilterModePoint;
-  texDesc[0].readMode = cudaReadModeElementType;
-  texDesc[0].normalizedCoords = 0;
+  cudaTextureDesc texDesc;
+
+  memset(&texDesc, 0, sizeof(cudaTextureDesc));
+  texDesc.addressMode[0] = cudaAddressModeClamp;
+  texDesc.filterMode = cudaFilterModePoint;
+  texDesc.readMode = cudaReadModeElementType;
+  texDesc.normalizedCoords = 0;
 
   thrust::host_vector<cuFP_t> tt(numr);
 
@@ -110,11 +106,13 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   cuda_safe_call(cudaMemcpyToArray(cuArray[0], 0, 0, &tt[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
 
   // Specify texture
-  memset(&resDesc[0], 0, sizeof(cudaResourceDesc));
-  resDesc[0].resType = cudaResourceTypeArray;
-  resDesc[0].res.array.array = cuArray[0];
+  cudaResourceDesc resDesc;
 
-  cuda_safe_call(cudaCreateTextureObject(&tex[0], &resDesc[0], &texDesc[0], NULL), __FILE__, __LINE__, "create texture object");
+  memset(&resDesc, 0, sizeof(cudaResourceDesc));
+  resDesc.resType = cudaResourceTypeArray;
+  resDesc.res.array.array = cuArray[0];
+
+  cuda_safe_call(cudaCreateTextureObject(&tex[0], &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
 
   for (int l=0; l<=lmax; l++) {
     for (int n=0; n<nmax; n++) {
@@ -129,17 +127,21 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
       cuda_safe_call(cudaMemcpyToArray(cuArray[i], 0, 0, &tt[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
       
       // Specify texture
-      memset(&resDesc[i], 0, sizeof(cudaResourceDesc));
-      resDesc[i].resType = cudaResourceTypeArray;
-      resDesc[i].res.array.array = cuArray[i];
+      cudaResourceDesc resDesc;
 
-      memset(&texDesc[i], 0, sizeof(cudaTextureDesc));
-      texDesc[i].addressMode[0] = cudaAddressModeClamp;
-      texDesc[i].filterMode = cudaFilterModePoint;
-      texDesc[i].readMode = cudaReadModeElementType;
-      texDesc[i].normalizedCoords = 0;
+      memset(&resDesc, 0, sizeof(cudaResourceDesc));
+      resDesc.resType = cudaResourceTypeArray;
+      resDesc.res.array.array = cuArray[i];
 
-      cuda_safe_call(cudaCreateTextureObject(&tex[i], &resDesc[i], &texDesc[i], NULL), __FILE__, __LINE__, "create texture object");
+      cudaTextureDesc texDesc;
+
+      memset(&texDesc, 0, sizeof(cudaTextureDesc));
+      texDesc.addressMode[0] = cudaAddressModeClamp;
+      texDesc.filterMode = cudaFilterModePoint;
+      texDesc.readMode = cudaReadModeElementType;
+      texDesc.normalizedCoords = 0;
+
+      cuda_safe_call(cudaCreateTextureObject(&tex[i], &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
     }
   }
 

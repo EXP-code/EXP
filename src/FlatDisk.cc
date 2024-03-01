@@ -12,14 +12,15 @@ FlatDisk::valid_keys = {
   "numr",
   "rcylmin",
   "rcylmax",
-  "acyltbl",
   "mmax",
   "numx",
   "numy",
+  "NQDHT",
   "knots",
   "logr",
   "model",
   "biorth",
+  "diskconf",
   "cachename"
 };
 
@@ -30,7 +31,6 @@ FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 				// Defaults
   knots      = 40;
   numr       = 2000;
-  acyltbl    = 1.0;
   rcylmin    = 0.0;
   rcylmax    = 10.0;
   logr       = false;
@@ -46,7 +46,6 @@ FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
     std::cout << "---- FlatDisk parameters: "
 	      << std::endl << sep << "lmax="        << Lmax
 	      << std::endl << sep << "nmax="        << nmax
-	      << std::endl << sep << "acyltbl="     << acyltbl
 	      << std::endl << sep << "rcylmin="     << rcylmin
 	      << std::endl << sep << "rcylmax="     << rcylmax
 	      << std::endl << sep << "logr="        << std::boolalpha << logr
@@ -72,7 +71,6 @@ void FlatDisk::initialize()
   // Assign values from YAML
   //
   try {
-    if (conf["acyltbl"])   acyltbl    = conf["acyltbl"].as<double>();
     if (conf["rcylmin"])   rcylmin    = conf["rcylmin"].as<double>();
     if (conf["rcylmax"])   rcylmax    = conf["rcylmax"].as<double>();
     if (conf["mmax"])      mmax       = conf["mmax"].as<int>();

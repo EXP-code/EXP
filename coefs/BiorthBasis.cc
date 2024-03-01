@@ -594,7 +594,7 @@ namespace BasisClasses
     }
 
     // Radial grid spacing
-    double dx = (logxmax - logxmin)/numgrid;
+    double dx = (logxmax - logxmin)/(numgrid-1);
 
     // Basis storage
     Eigen::MatrixXd tabpot, tabden, tabfrc;
@@ -1394,6 +1394,7 @@ namespace BasisClasses
     "numx",
     "numy",
     "numr",
+    "NQDHT",
     "knots",
     "logr",
     "model",
@@ -1405,7 +1406,10 @@ namespace BasisClasses
     "NO_M0",
     "NO_M1",
     "EVEN_M",
+    "M0_BACK",
     "M0_ONLY",
+    "NO_MONO",
+    "diskconf",
     "ssfrac",
     "playback",
     "coefMaster",
@@ -1413,6 +1417,7 @@ namespace BasisClasses
     "Mmax",
     "nmax",
     "mmax",
+    "mlim",
     "dof",
     "subsamp",
     "samplesz",
@@ -1456,6 +1461,8 @@ namespace BasisClasses
     //
     try {
       if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
+      if (conf["Lmax"])      mmax       = conf["Lmax"].as<int>(); // Proxy
+      if (conf["Mmax"])      mmax       = conf["Mmax"].as<int>(); // Proxy
       if (conf["mmax"])      mmax       = conf["mmax"].as<int>();
       if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
       
@@ -1722,18 +1729,20 @@ namespace BasisClasses
     }
 
     // Get the basis fields
+    //
     ortho->get_dens   (dend[tid],  R, z);
     ortho->get_pot    (potd[tid],  R, z);
     ortho->get_rforce (potR[tid],  R, z);
     ortho->get_zforce (potZ[tid],  R, z);
     
     // m loop
+    //
     for (int m=0, moffset=0; m<=mmax; m++) {
       
-      if (m==0 and NO_M0)        continue;
-      if (m==1 and NO_M1)        continue;
-      if (EVEN_M and m/2*2 != m) continue;
-      if (m>0  and M0_only)      break;
+      if (m==0 and NO_M0)        { moffset++;    continue; }
+      if (m==1 and NO_M1)        { moffset += 2; continue; }
+      if (EVEN_M and m/2*2 != m) { moffset += 2; continue; }
+      if (m>0 and M0_only)       break;
 
       if (m==0) {
 	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
@@ -1850,7 +1859,7 @@ namespace BasisClasses
     }
 
     // Radial grid spacing
-    double dx = (logxmax - logxmin)/numgrid;
+    double dx = (logxmax - logxmin)/(numgrid-1);
 
     // Basis storage
     Eigen::MatrixXd tabpot, tabden, tabrfc;

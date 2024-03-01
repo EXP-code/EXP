@@ -336,12 +336,40 @@ class EmpCyl2d::ExponCyl : public EmpCyl2d::ModelCyl
 
 private:
 
-  double sigma0;
+  double acyl, sigma0;
+
+  // Assign values from YAML
+  //
+  void parse(const YAML::Node& conf)
+  {
+    try {
+      if (conf["acyl"]) 
+	acyl = conf["acyl"].as<double>();
+      else
+	acyl = 1.0;
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0)
+	std::cout << "Error parsing parameters in EmpCyl2d::ExponCyl: "
+		  << error.what() << std::endl
+		  << std::string(60, '-') << std::endl
+		  << "Config node"        << std::endl
+		  << std::string(60, '-') << std::endl
+		  << conf                 << std::endl
+		  << std::string(60, '-') << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
 
 public:
 
-  ExponCyl(double scl)
-  { acyl = scl; sigma0 = 0.5/(M_PI*acyl*acyl); id = "expon"; }
+  ExponCyl(const YAML::Node& par)
+  {
+    parse(par);
+    sigma0 = 0.5/(M_PI*acyl*acyl);
+    id = "expon";
+  }
 
   double pot(double r) {
     double y = 0.5 * r / acyl;
@@ -365,9 +393,41 @@ public:
 
 class EmpCyl2d::KuzminCyl : public EmpCyl2d::ModelCyl
 {
+private:
+
+  double acyl;
+
+  // Assign values from YAML
+  //
+  void parse(const YAML::Node& conf)
+  {
+    try {
+      if (conf["acyl"]) 
+	acyl = conf["acyl"].as<double>();
+      else
+	acyl = 1.0;
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0)
+	std::cout << "Error parsing parameters in EmpCyl2d::KuzminCyl: "
+		  << error.what() << std::endl
+		  << std::string(60, '-') << std::endl
+		  << "Config node"        << std::endl
+		  << std::string(60, '-') << std::endl
+		  << conf                 << std::endl
+		  << std::string(60, '-') << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
+
 public:
   
-  KuzminCyl(double scl) { acyl = scl; id = "kuzmin"; }
+  KuzminCyl(const YAML::Node& par)
+  {
+    parse(par);
+    id = "kuzmin";
+  }
 
   double pot(double R) {
     double a2 = acyl * acyl;
@@ -392,63 +452,247 @@ public:
 
 class EmpCyl2d::MestelCyl : public EmpCyl2d::ModelCyl
 {
+protected:
+
+  double vrot, rot;
+
+  // Assign values from YAML
+  //
+  void parse(const YAML::Node& conf)
+  {
+    try {
+      if (conf["vrot"]) 
+	vrot = conf["vrot"].as<double>();
+      else
+	vrot = 1.0;
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0)
+	std::cout << "Error parsing parameters in EmpCyl2d::MestelCyl: "
+		  << error.what() << std::endl
+		  << std::string(60, '-') << std::endl
+		  << "Config node"        << std::endl
+		  << std::string(60, '-') << std::endl
+		  << conf                 << std::endl
+		  << std::string(60, '-') << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
+
 public:
   
-  MestelCyl(double scl) { acyl = scl;  id = "mestel"; }
-
-  double pot(double R) {
-    return M_PI/(2.0*acyl)*log(0.5*R/acyl);
+  MestelCyl(const YAML::Node& par)
+  {
+    parse(par);
+    rot = vrot*vrot;
+    id = "mestel";
   }
 
-  double dpot(double R) {
-    double a2 = acyl * acyl;
-    double fac = sqrt(1.0 + R*R/a2);
-    return M_PI/(2.0*acyl*R);
+  virtual double pot(double R) {
+    if (R>0.0) return rot*log(R);
+    else throw std::runtime_error("MestelCyl::pot: R<=0");
   }
 
-  double dens(double R) {
-    if (R>acyl)
-      return 0.0;
-    else
-      return 4.0*M_PI/(2.0*M_PI*acyl*R)*acos(R/acyl);
-      //     ^
-      //     |
-      // This 4pi from Poisson's eqn
+  virtual double dpot(double R) {
+    if (R>0.0) return rot/R;
+    else throw std::runtime_error("MestelCyl::dpot: R<=0");
+  }
+
+  virtual double dens(double R) {
+    if (R>0.0) return rot/(2.0*M_PI*R);
+    else throw std::runtime_error("MestelCyl::dens: R<=0");
   }
 };
 
 
-std::shared_ptr<EmpCyl2d::ModelCyl>
-EmpCyl2d::createModel(const std::string type, double acyl)
+class EmpCyl2d::ZangCyl : public EmpCyl2d::MestelCyl
 {
-  // Convert ID string to lower case
-  //
-  std::string data(type);
-  std::transform(data.begin(), data.end(), data.begin(),
-		 [](unsigned char c){ return std::tolower(c); });
+  
+private:
+  //! Parameters
+  double mu, nu, ri, ro;
 
-  if (data.find("kuzmin") != std::string::npos) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::ModelCyl: Making a Kuzmin disk" << std::endl;
-    return std::make_shared<KuzminCyl>(acyl);
+  //! Softening factor (not currently used)
+  double asoft = 1.0e-8;
+
+  //! Ignore inner cut-off for N<0.05
+  bool Inner = true;
+
+  //! Taper factors
+  double Tifac, Tofac;
+
+  //! Inner taper function
+  double Tinner(double Jp)
+  {
+    double fac = pow(Jp, nu);
+    return fac/(Tifac + fac);
   }
 
-  if (data.find("mestel") != std::string::npos) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::ModelCyl: Making a finite Mestel disk" << std::endl;
-    return std::make_shared<MestelCyl>(acyl);
+  //! Outer taper function
+  double Touter(double Jp)
+  {
+    return 1.0/(1.0 + pow(Jp/Tofac, mu));
   }
 
-  if (data.find("expon") != std::string::npos) {
-    if (myid==0)
-      std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk" << std::endl;
-    return std::make_shared<ExponCyl>(acyl);
+  //! Deriv of inner taper function
+  double dTinner(double Jp)
+  {
+    double fac  = pow(Jp, nu);
+    double fac2 = Tifac + fac;
+    return nu*fac/Jp/(fac2*fac2);
+  }
+
+  //! Deriv of outer taper function
+  double dTouter(double Jp)
+  {
+    double fac = pow(Jp/Tofac, mu);
+    double fac2 = 1.0 + fac;
+    return -mu*fac/Jp/(fac2*fac2);
+  }
+
+protected:
+
+  //! Assign values from YAML
+  void parse(const YAML::Node& conf)
+  {
+    try {
+      if (conf["Ninner"]) 
+	nu = conf["Ninner"].as<double>();
+      else
+	nu = 2.0;
+
+      if (conf["Mouter"]) 
+	mu = conf["Mouter"].as<double>();
+      else
+	mu = 2.0;
+
+      if (conf["Ri"]) 
+	ri = conf["Ri"].as<double>();
+      else
+	ri = 1.0;
+
+      if (conf["Ro"]) 
+	ro = conf["Ro"].as<double>();
+      else
+	ro = 10.0;
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0)
+	std::cout << "Error parsing parameters in EmpCyl2d::ZangCyl: "
+		  << error.what() << std::endl
+		  << std::string(60, '-') << std::endl
+		  << "Config node"        << std::endl
+		  << std::string(60, '-') << std::endl
+		  << conf                 << std::endl
+		  << std::string(60, '-') << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
+
+public:
+  
+  //! Constructor
+  ZangCyl(const YAML::Node& par) : MestelCyl(par)
+  {
+    // Parse the YAML
+    parse(par);
+
+    // Assign the id
+    id = "zang";
+
+    // Cache taper factors
+    Tifac = pow(ri*vrot, nu);
+    Tofac = ro*vrot;
+
+    if (nu<0.05) {
+      // Exponent is now for mapping only
+      Inner = false;
+    }
+  }
+
+  //! Surface density
+  double dens(double R)
+  {
+    double ret = MestelCyl::dens(R) * Touter(R);
+    if (Inner) ret *= Tinner(R);
+    return ret;
+  }
+
+};
+
+std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
+{
+  try {
+    // Get model name
+    //
+    std::string name;
+    if (Params["name"])
+      name = Params["name"].as<std::string>();
+    else
+      throw std::runtime_error("EmpCyl2d::createModel: the 'diskconf' "
+			       "stanza must specify the model 'name'");
+
+    // Convert ID string to lower case
+    //
+    std::transform(name.begin(), name.end(), name.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+
+  if (name.find("kuzmin") != std::string::npos) {
+    if (myid==0) {
+      std::cout << "---- EmpCyl2d::ModelCyl: Making a Kuzmin disk";
+      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      std::cout << std::endl;
+    }
+    return std::make_shared<KuzminCyl>(Params["parameters"]);
+  }
+
+  if (name.find("mestel") != std::string::npos) {
+    if (myid==0) {
+      std::cout << "---- EmpCyl2d::ModelCyl: Making a finite Mestel disk";
+      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      std::cout << std::endl;
+    }
+    return std::make_shared<MestelCyl>(Params["parameters"]);
+  }
+
+  if (name.find("zang") != std::string::npos) {
+    if (myid==0) {
+      std::cout << "---- EmpCyl2d::ModelCyl: Making a double-tapered Zang";
+      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      std::cout << std::endl;
+    }
+    return std::make_shared<ZangCyl>(Params["parameters"]);
+  }
+
+  if (name.find("expon") != std::string::npos) {
+    if (myid==0) {
+      std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk";
+      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      std::cout << std::endl;
+    }
+    return std::make_shared<ExponCyl>(Params["parameters"]);
   }
 
   // Default if nothing else matches
   if (myid==0)
-    std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk [Default]" << std::endl;
-  return std::make_shared<ExponCyl>(acyl);
+    std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk [Default]"
+	      << std::endl;
+  return std::make_shared<ExponCyl>(Params["parameters"]);
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0)
+      std::cout << "Error parsing parameters in EmpCyl2d::modelCreate: "
+		<< error.what() << std::endl
+		<< std::string(60, '-') << std::endl
+		<< "Config node"        << std::endl
+		<< std::string(60, '-') << std::endl
+		<< Params               << std::endl
+		<< std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 
@@ -516,47 +760,51 @@ const std::string EmpCyl2d::default_cache_name = ".eof_cache_2d";
 
 // The main constructor
 //
-EmpCyl2d::EmpCyl2d(int mmax, int nmax, int knots, int numr,
-		   double rmin, double rmax, double A, double scale,
-		   bool cmap, bool logr,
-		   const std::string model, const std::string biorth,
-		   const std::string cache) :
-  mmax(mmax), nmax(nmax), knots(knots), numr(numr),
-  rmin(rmin), rmax(rmax), acyl(A), scale(scale), cmap(cmap), logr(logr),
-  model(model), biorth(biorth), cache_name_2d(cache)
+EmpCyl2d::EmpCyl2d
+(int mmax, int nmaxfid, int nmax, int knots, int numr,
+ double rmin, double rmax, double scale, bool cmap, bool logr,
+ const YAML::Node& par,
+ const std::string biorth, const std::string cache) :
+  mmax(mmax), nmaxfid(nmaxfid), nmax(nmax), knots(knots), numr(numr),
+  rmin(rmin), rmax(rmax), scale(scale), cmap(cmap), logr(logr),
+  Params(par), biorth(biorth), cache_name_2d(cache)
 {
   if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
 
-  disk  = createModel(model, acyl);
-  basis = Basis2d::createBasis(mmax, nmax, rmax, biorth);
+  disk  = createModel();
+  basis = Basis2d::createBasis(mmax, nmaxfid, rmax, biorth);
 
   basis_test = false;
 
   if (not ReadH5Cache()) create_tables();
 
   configured = true;
+
+  nmax = std::min<int>(nmax, nmaxfid);
 }
 
 
-EmpCyl2d::EmpCyl2d(int mmax, int nmax, int knots, int numr,
-		   double rmin, double rmax, double A, double scale,
-		   bool cmap, bool logr,
-		   std::shared_ptr<EmpCyl2d::ModelCyl> disk,
-		   const std::string biorth, const std::string cache) :
-  mmax(mmax), nmax(nmax), knots(knots), numr(numr),
-  rmin(rmin), rmax(rmax), acyl(A), scale(scale), cmap(cmap), logr(logr),
+EmpCyl2d::EmpCyl2d
+(int mmax, int nmaxfid, int nmax, int knots, int numr,
+ double rmin, double rmax, double scale, bool cmap, bool logr,
+ std::shared_ptr<EmpCyl2d::ModelCyl> disk,
+ const std::string biorth, const std::string cache) :
+  mmax(mmax), nmaxfid(nmaxfid), nmax(nmax), knots(knots), numr(numr),
+  rmin(rmin), rmax(rmax), scale(scale), cmap(cmap), logr(logr),
   disk(disk), biorth(biorth), cache_name_2d(cache)
 {
   if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
 
   model = disk->ID();
-  basis = Basis2d::createBasis(mmax, nmax, rmax, biorth);
+  basis = Basis2d::createBasis(mmax, nmaxfid, rmax, biorth);
 
   basis_test = false;
 
   if (not ReadH5Cache()) create_tables();
 
   configured = true;
+
+  nmax = std::min<int>(nmax, nmaxfid);
 }
 
 
@@ -571,7 +819,7 @@ void EmpCyl2d::create_tables()
   dpot_array.resize(mmax+1);
   rot_matrix.resize(mmax+1);
 
-  Eigen::MatrixXd D(nmax, nmax);
+  Eigen::MatrixXd D(nmaxfid, nmaxfid);
 
   for (int m=0; m<=mmax; m++) {
 
@@ -587,8 +835,8 @@ void EmpCyl2d::create_tables()
       double rr  = map.xi_to_r(xx);
       double fac = lw.weight(k) * rr / map.d_xi_to_r(xx) * (ximax - ximin);
     
-      for (int j=0; j<nmax; j++) {
-	for (int l=0; l<nmax; l++) {
+      for (int j=0; j<nmaxfid; j++) {
+	for (int l=0; l<nmaxfid; l++) {
 	  D(j, l) += fac * disk->dens(rr) *
 	    basis->potl(m, j, rr) * basis->potl(m, l, rr)
 	    / sqrt(basis->norm(j, m)*basis->norm(l, m));
@@ -613,7 +861,7 @@ void EmpCyl2d::create_tables()
     }
     double dr = (lrmax - lrmin)/(numr - 1), r;
 
-    Eigen::VectorXd pot(nmax), den(nmax), dph(nmax);
+    Eigen::VectorXd pot(nmaxfid), den(nmaxfid), dph(nmaxfid);
 
     potl_array[m].resize(numr, nmax);
     dens_array[m].resize(numr, nmax);
@@ -627,7 +875,7 @@ void EmpCyl2d::create_tables()
       if (logr) r = exp(r);
       if (m==0) xgrid[i] = r;
 
-      for (int n=0; n<nmax; n++) {
+      for (int n=0; n<nmaxfid; n++) {
 	pot(n) = basis->potl(m, n, r) / sqrt(basis->norm(n, m));
 	den(n) = basis->dens(m, n, r) / sqrt(basis->norm(n, m));
 	dph(n) = basis->dpot(m, n, r) / sqrt(basis->norm(n, m));
@@ -759,10 +1007,15 @@ void EmpCyl2d::WriteH5Cache()
     if (logr) ilogr = 1;
     if (cmap) icmap = 1;
 
+    // Serialize the config and make a string
+    YAML::Emitter y; y << Params;
+    std::string params(y.c_str());
+
     // Parameters
     //
     file.createAttribute<int>        ("mmax",   HighFive::DataSpace::From(mmax)).  write(mmax);
-    file.createAttribute<int>        ("nmax",   HighFive::DataSpace::From(nmax)).  write(nmax);
+    file.createAttribute<int>        ("nmaxfid",   HighFive::DataSpace::From(nmaxfid)).  write(nmaxfid);
+    file.createAttribute<int>        ("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
     file.createAttribute<int>        ("numr",   HighFive::DataSpace::From(numr)).  write(numr);
     file.createAttribute<int>        ("knots",  HighFive::DataSpace::From(knots)). write(knots);
     file.createAttribute<int>        ("ilogr",  HighFive::DataSpace::From(ilogr)). write(ilogr);
@@ -770,7 +1023,7 @@ void EmpCyl2d::WriteH5Cache()
     file.createAttribute<double>     ("rmin",   HighFive::DataSpace::From(rmin)).  write(rmin);
     file.createAttribute<double>     ("rmax",   HighFive::DataSpace::From(rmax)).  write(rmax);
     file.createAttribute<double>     ("scale",  HighFive::DataSpace::From(scale)). write(scale);
-    file.createAttribute<double>     ("acyl",   HighFive::DataSpace::From(acyl)).  write(acyl);
+    file.createAttribute<std::string>("params", HighFive::DataSpace::From(params)).write(params);
     file.createAttribute<std::string>("model",  HighFive::DataSpace::From(model)). write(model);
     file.createAttribute<std::string>("biorth", HighFive::DataSpace::From(biorth)).write(biorth);
       
@@ -830,13 +1083,19 @@ bool EmpCyl2d::ReadH5Cache()
       if (value.compare(v)==0) return true; return false;
     };
 
+    //
+
+    // Serialize the config and make a string for checking
+    YAML::Emitter y; y << Params;
+    std::string params(y.c_str());
+
     // Workaround for lack of HighFive boolean support
     int ilogr = 0, icmap = 0;
     if (logr) ilogr = 1;
     if (cmap) icmap = 1;
     
     if (not checkInt(mmax,     "mmax"))      return false;
-    if (not checkInt(nmax,     "nmax"))      return false;
+    if (not checkInt(nmaxfid,  "nmaxfid"))   return false;
     if (not checkInt(nmax,     "nmax"))      return false;
     if (not checkInt(numr,     "numr"))      return false;
     if (not checkInt(knots,    "knots"))     return false;
@@ -845,9 +1104,9 @@ bool EmpCyl2d::ReadH5Cache()
     if (not checkDbl(rmin,     "rmin"))      return false;
     if (not checkDbl(rmax,     "rmax"))      return false;
     if (not checkDbl(scale,    "scale"))     return false;
-    if (not checkDbl(acyl,     "acyl"))      return false;
+    if (not checkStr(params,   "params"))    return false;
     if (not checkStr(model,    "model"))     return false;
-    if (not checkStr(biorth,  "biorth"))     return false;
+    if (not checkStr(biorth,   "biorth"))    return false;
 
     // Arrays
     //
@@ -1019,7 +1278,7 @@ void EmpCyl2d::checkCoefs()
   if (myid) return;
 
   Mapping  map(scale, cmap);
-  auto     disk = createModel(model, acyl);
+  auto     disk = createModel();
   LegeQuad lw(knots);
 
   Eigen::VectorXd coefs(nmax), coef0(nmax);
