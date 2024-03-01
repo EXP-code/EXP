@@ -85,6 +85,7 @@ if(ENABLE_NBODY)
               ${PYTHON_EXECUTABLE} readCoefs.py
               WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
      set_tests_properties(pyEXPCoefReadTest PROPERTIES DEPENDS makeNbodyTest)
+     set_tests_properties(pyEXPCoefReadTest PROPERTIES LABELS "long")
   endif()
 
   # A separate test to remove the generated files if they all exist;
@@ -136,7 +137,7 @@ if(ENABLE_NBODY)
   # Set labels for pyEXP tests
   set_tests_properties(expExecuteTest PROPERTIES LABELS "quick")
   set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW
-  pyEXPCoefReadTest removeTempFiles expCubeTest removeCubeFiles
+  removeTempFiles expCubeTest removeCubeFiles
   PROPERTIES LABELS "long")
 
 endif()
