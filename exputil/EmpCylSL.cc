@@ -3096,7 +3096,7 @@ void EmpCylSL::make_eof(void)
 
   // Cache table for restarts
   //
-  if (myid==0) cache_grid(1);
+  if (myid==0) cache_grid(1, cachefile);
   
   // Basis complete but still need to compute coefficients
   //
