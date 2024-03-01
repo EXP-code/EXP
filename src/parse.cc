@@ -530,7 +530,8 @@ void YAML_parse_args(int argc, char** argv)
     MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     if (done) {
-      throw EXPException("Clean exit", "done", __FILE__, __LINE__);
+      MPI_Finalize();
+      exit(0);
     }
 
     // If config file is not specified, use first trailing, unmatched
@@ -616,6 +617,10 @@ void YAML_parse_args(int argc, char** argv)
       MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
       if (done) {
+	if (i==0) {
+	  MPI_Finalize();
+	  exit(0);
+	}
 	throw EXPException("Configuration error in main process",
 			   "exiting",
 			   __FILE__, __LINE__);
