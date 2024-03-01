@@ -71,8 +71,8 @@ void initialize(void)
 			   << std::string(60, '-') << std::endl
 			   << parse                << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw EXPException("YAML configuration error", "Error parsing Global stanza",
+		       __FILE__, __LINE__);
   }
 
   if (_G) {
@@ -290,8 +290,8 @@ void initialize(void)
 
       MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
       if (nOK) {
-	MPI_Finalize();
-	exit(10);
+	throw EXPException("Configuration error", "error opening outdir",
+			   __FILE__, __LINE__);
       }
 
     }
@@ -327,8 +327,8 @@ void initialize(void)
     MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     if (!iok) {
-      MPI_Finalize();
-      exit(11);
+      throw EXPException("Configuration error", "error creating files in outdir",
+			 __FILE__, __LINE__);
     }
 
   }
@@ -382,8 +382,8 @@ void update_parm()
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error updating parameters in parse.update_parm: "
 			   << error.what() << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw EXPException("Configuration error", "error updating YAML config",
+		       __FILE__, __LINE__);
   }
 }
 
@@ -404,8 +404,8 @@ void write_parm(void)
   
   MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (nOK) {
-    MPI_Finalize();
-    exit(102);
+    throw EXPException("Configuration error", "error writing YAML config",
+		       __FILE__, __LINE__);
   }
 
   if (myid!=0) return;
@@ -502,8 +502,8 @@ void YAML_parse_args(int argc, char** argv)
       vm = options.parse(argc, argv);
     } catch (cxxopts::OptionException& e) {
       std::cout << "Option error: " << e.what() << std::endl;
-      MPI_Finalize();
-      exit(-1);
+      throw EXPException("cxxopts error", "error parsing options",
+			 __FILE__, __LINE__);
     }
 
     if (vm.count("help")) {
@@ -530,8 +530,7 @@ void YAML_parse_args(int argc, char** argv)
     MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     if (done) {
-      MPI_Finalize();
-      exit(EXIT_SUCCESS);
+      throw EXPException("Clean exit", "done", __FILE__, __LINE__);
     }
 
     // If config file is not specified, use first trailing, unmatched
@@ -573,8 +572,9 @@ void YAML_parse_args(int argc, char** argv)
     MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
     
     if (done) {
-      MPI_Finalize();
-      exit(EXIT_SUCCESS);
+      throw EXPException("Configuration error",
+			 "error opening YAML configuration file",
+			 __FILE__, __LINE__);
     }
     
     try {
@@ -589,6 +589,14 @@ void YAML_parse_args(int argc, char** argv)
     // Termination check #3
     //
     MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Exit if done
+    //
+    if (done) {
+      throw EXPException("YAML configuration error",
+			 "parsing failure, check your YAML config for syntax?",
+			 __FILE__, __LINE__);
+    }
 
     // The current YAML structure will now be serialized and broadcast
     // to all processes
@@ -608,13 +616,12 @@ void YAML_parse_args(int argc, char** argv)
       MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
       if (done) {
-	MPI_Finalize();
-	throw EXPException("YAML configuration error",
-			   "parsing failure, check your YAML config for syntax?",
+	throw EXPException("Configuration error in main process",
+			   "exiting",
 			   __FILE__, __LINE__);
       }
     }
-
+    
     // Receive the YAML serialized length
     //
     int line_size;
