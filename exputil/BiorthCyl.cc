@@ -40,7 +40,7 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
                              mmax = conf["Lmax"].as<int>();
     
     if (conf["nmaxfid"])     nmaxfid = conf["nmaxfid"].as<int>();
-    else                     nmaxfid = 40;
+    else                     nmaxfid = 256;
 
     if (conf["nmax"])        nmax = conf["nmax"].as<int>();    
     else                     nmax = nmaxfid;			       
