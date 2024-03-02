@@ -1,0 +1,51 @@
+{% set name = "EXP-libraries" %}
+{% set version = "7.7.28" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: file:///home/georgia/Projects/umass/unity/user_support/test/EXP-libraries-7.7.28.tar.gz
+  sha256: 361cfd1fa6e7ccd4bee265f73809aa845959ebcc0933bdc063ff7610bbccbf92
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - {{ compiler('fortran') }}
+    - {{ mpi }}-mpicc
+    - {{ mpi }}-mpicxx
+    - {{ mpi }}-mpifort
+    - setuptools >=42
+    - scikit-build >=0.13
+    - cmake >=3.21
+    - ninja
+    - pip
+    - eigen
+    - highfive
+  host:
+    - {{ mpi }}
+    - hdf5 >=1.8.20
+    - boost-cpp
+    - fftw
+    - libtirpc # [linux-64]
+    - yaml-cpp
+  run:
+    - {{ mpi }}
+    - hdf5 >=1.8.20
+    - boost-cpp
+    - fftw
+
+about:
+  summary: Nbody EXPansion Code - Libraries
+  license: GPL-3.0 AND MIT
+  license_file:
+    - LICENSE
+
+extra:
+  recipe-maintainers:
+    - georgiastuart

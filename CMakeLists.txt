@@ -13,6 +13,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Build options
 option(BUILD_COMMON_LIBRARIES "Build the exputil and expcoefs libraries" ON)
 option(INSTALL_HEADERS "Install headers for exputil and expcoefs" OFF)
+option(INSTALL_CMAKE_FIND "Installs the Cmake find_package helpers" OFF)
 option(ENABLE_NBODY "Enable EXP n-body" ON)
 option(ENABLE_PYEXP "Enable the Python bindings" ON)
 option(ENABLE_PNG "Enable PNG graphics support" OFF)
@@ -404,23 +405,25 @@ if (INSTALL_HEADERS)
     EXPORT EXPcommonTargets
     PUBLIC_HEADER DESTINATION include/expcommon)
 
-  # Set up cmake configs
-  set(CMAKEPACKAGE_INSTALL_DIR share/EXPcommon/cmake)
-  install (EXPORT EXPcommonTargets
-    FILE EXPcommonTargets.cmake
-    NAMESPACE EXP::
-    DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
+  if (INSTALL_CMAKE_FIND)
+    # Set up cmake configs
+    set(CMAKEPACKAGE_INSTALL_DIR share/EXPcommon/cmake)
+    install (EXPORT EXPcommonTargets
+      FILE EXPcommonTargets.cmake
+      NAMESPACE EXP::
+      DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
 
-include(CMakePackageConfigHelpers)
-configure_package_config_file(include/EXPcommonConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonConfig.cmake
-  INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
-  PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
-)
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPcommonVersion.cmake
-                                 VERSION ${CMAKE_PROJECT_VERSION}
-                                 COMPATIBILITY SameMinorVersion )
-install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonConfig.cmake
-               ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonVersion.cmake
-        DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
+    include(CMakePackageConfigHelpers)
+    configure_package_config_file(include/EXPcommonConfig.cmake.in
+      ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonConfig.cmake
+      INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+      PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
+    )
+    write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPcommonVersion.cmake
+                                    VERSION ${CMAKE_PROJECT_VERSION}
+                                    COMPATIBILITY SameMinorVersion )
+    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonConfig.cmake
+                  ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonVersion.cmake
+            DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
+  endif()
 endif()

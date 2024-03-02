@@ -6,7 +6,7 @@
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
-#include "src/coef.H"
+#include "coef.H"
 
 struct CylCoefs
 {

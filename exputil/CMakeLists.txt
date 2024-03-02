@@ -94,25 +94,27 @@ install(TARGETS exputil
   LIBRARY DESTINATION lib
   PUBLIC_HEADER DESTINATION include/exputil)
 
-# Set up cmake configs
-set(CMAKEPACKAGE_INSTALL_DIR share/EXPutil/cmake)
-install (EXPORT EXPutilTargets
-  FILE EXPutilTargets.cmake
-  NAMESPACE EXP::
-  DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
+if (INSTALL_CMAKE_FIND)
+  # Set up cmake configs
+  set(CMAKEPACKAGE_INSTALL_DIR share/EXPutil/cmake)
+  install (EXPORT EXPutilTargets
+    FILE EXPutilTargets.cmake
+    NAMESPACE EXP::
+    DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
 
-include(CMakePackageConfigHelpers)
-configure_package_config_file(EXPutilConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/EXPutilConfig.cmake
-  INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
-  PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
-)
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPutilVersion.cmake
-                                 VERSION ${CMAKE_PROJECT_VERSION}
-                                 COMPATIBILITY SameMinorVersion )
-install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPutilConfig.cmake
-               ${CMAKE_CURRENT_BINARY_DIR}/EXPutilVersion.cmake
-        DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
+  include(CMakePackageConfigHelpers)
+  configure_package_config_file(EXPutilConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/EXPutilConfig.cmake
+    INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+    PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
+  )
+  write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPutilVersion.cmake
+                                  VERSION ${CMAKE_PROJECT_VERSION}
+                                  COMPATIBILITY SameMinorVersion )
+  install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPutilConfig.cmake
+                ${CMAKE_CURRENT_BINARY_DIR}/EXPutilVersion.cmake
+          DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
+endif()
 
 # HDF5 info
 

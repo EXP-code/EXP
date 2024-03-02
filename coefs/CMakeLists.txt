@@ -1,5 +1,3 @@
-set(bin_PROGRAMS nativetoh5 h5compare viewcoefs h5power makecoefs testread)
-
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
@@ -54,36 +52,11 @@ target_include_directories(expcoef PUBLIC ${common_INCLUDE})
 target_include_directories(expcoef PRIVATE ${common_INCLUDE_DIRS_PRIVATE})
 target_link_libraries(expcoef PUBLIC ${common_LINKLIB})
 
-install (TARGETS expcoef
-  EXPORT EXPcoefsTargets
-  LIBRARY DESTINATION lib
-  PUBLIC_HEADER DESTINATION include/expcoefs)
-
-# Set up cmake configs
-set(CMAKEPACKAGE_INSTALL_DIR share/EXPcoefs/cmake)
-install (EXPORT EXPcoefsTargets
-  FILE EXPcoefsTargets.cmake
-  NAMESPACE EXP::
-  DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
-
-include(CMakePackageConfigHelpers)
-configure_package_config_file(EXPcoefsConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/EXPcoefsConfig.cmake
-  INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
-  PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
-)
-
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPcoefsVersion.cmake
-                                 VERSION ${CMAKE_PROJECT_VERSION}
-                                 COMPATIBILITY SameMinorVersion )
-
-install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPcoefsConfig.cmake
-               ${CMAKE_CURRENT_BINARY_DIR}/EXPcoefsVersion.cmake
-        DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
-
 # Configure and build the test routines
 #
 if (ENABLE_TESTS)
+  set(bin_PROGRAMS nativetoh5 h5compare viewcoefs h5power makecoefs testread)
+
   add_executable(nativetoh5 coefstoh5.cc)
   add_executable(h5compare  h5compare.cc)
   add_executable(viewcoefs  viewcoefs.cc)
@@ -96,6 +69,34 @@ if (ENABLE_TESTS)
     target_include_directories(${program} PUBLIC ${common_INCLUDE})
     target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
   endforeach()
+endif()
 
-  install(TARGETS ${bin_PROGRAMS} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install (TARGETS expcoef
+  EXPORT EXPcoefsTargets
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  PUBLIC_HEADER DESTINATION include/expcoefs)
+
+if (INSTALL_CMAKE_FIND)
+  # Set up cmake configs
+  set(CMAKEPACKAGE_INSTALL_DIR share/EXPcoefs/cmake)
+  install (EXPORT EXPcoefsTargets
+    FILE EXPcoefsTargets.cmake
+    NAMESPACE EXP::
+    DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
+
+  include(CMakePackageConfigHelpers)
+  configure_package_config_file(EXPcoefsConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/EXPcoefsConfig.cmake
+    INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+    PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
+  )
+
+  write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPcoefsVersion.cmake
+                                  VERSION ${CMAKE_PROJECT_VERSION}
+                                  COMPATIBILITY SameMinorVersion )
+
+  install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPcoefsConfig.cmake
+                ${CMAKE_CURRENT_BINARY_DIR}/EXPcoefsVersion.cmake
+          DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
 endif()
