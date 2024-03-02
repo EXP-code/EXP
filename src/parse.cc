@@ -509,7 +509,7 @@ void YAML_parse_args(int argc, char** argv)
     if (vm.count("help")) {
       std::cout << options.help() << std::endl
 		<< "* The YAML config may be appended to the command line without flags" << std::endl
-		<< "* See EXP/doc/html/index.html for extensive documentation" << std::endl
+		<< "* See https://exp-docs.readthedocs.io for extensive documentation" << std::endl
 		<< std::endl << std::endl;
       done = 1;
     }
