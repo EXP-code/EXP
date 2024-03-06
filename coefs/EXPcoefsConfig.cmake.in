@@ -8,5 +8,6 @@ endif()
 
 set_and_check(EXPcoefs_INCLUDE_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/include/expcoefs)
 set_and_check(EXPcoefs_LIBRARY_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/lib)
+set_and_check(EXPcoefs_LIBRARIES @PACKAGE_CMAKE_INSTALL_PREFIX@/lib/libexpcoef.so)
 
 check_required_components(EXPcoefs)

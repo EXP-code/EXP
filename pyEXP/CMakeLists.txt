@@ -1,4 +1,4 @@
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 COMPONENTS Development REQUIRED)
 find_package(pybind11 REQUIRED)
 find_package(EXPutil)
 find_package(EXPcoefs)
@@ -7,20 +7,23 @@ message(STATUS "EXPutil_FOUND=${EXPutil_FOUND} ${EXPutil_INCLUDE_DIRS} ${EXPutil
 
 # Default build environment
 #
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp
-  EXP::EXPutil EXP::EXPcoefs EXP::EXPcommon HighFive ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+# set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp
+#   EXP::EXPutil EXP::EXPcoefs EXP::EXPcommon HighFive ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+set(common_LINKLIB ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
+  # ${YAML_CPP_LIBRARIES} # Not directly used in pyexp
+  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
+  $<IF:$<BOOL:${EXPutil_LIBRARIES}>,${EXPutil_LIBRARIES},exputil>
+  $<IF:$<BOOL:${EXPcoefs_LIBRARIES}>,${EXPcoefs_LIBRARIES},expcoef>
+  $<$<BOOL:${HighFive_FOUND}>:HighFive>)
+  # $<$<BOOL:${PNG_FOUND}>:${PNG_LIBRARIES}>)
 
-if(PNG_FOUND)
-  list(APPEND common_LINKLIB PNG::PNG)
-endif()
+
+# if(PNG_FOUND)
+#   list(APPEND common_LINKLIB PNG::PNG)
+# endif()
 
 set(common_INCLUDE $<INSTALL_INTERFACE:include>
-  # $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-  # $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
-  # ${CMAKE_BINARY_DIR}
   ${DEP_INC} ${CMAKE_CURRENT_SOURCE_DIR}
-  # ${CMAKE_CURRENT_SOURCE_DIR}/..
-  # ${HighFive_SOURCE_DIR}/include
   ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR}
   ${EXPutil_INCLUDE_DIRS} ${EXPcoefs_INCLUDE_DIRS} ${EXPcommon_INCLUDE_DIRS})
 
@@ -42,9 +45,10 @@ if(SLURM_FOUND)
   list(APPEND common_LINKLIB ${SLURM_LIBRARY})
 endif()
 
-if(ENABLE_XDR AND TIRPC_FOUND)
-  list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
-endif()
+# Not used in pyEXP
+# if(ENABLE_XDR AND TIRPC_FOUND)
+#   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
+# endif()
 
 # Build and configure the installation of the Python bindings
 #

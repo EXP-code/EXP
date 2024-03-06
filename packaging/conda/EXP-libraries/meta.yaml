@@ -6,8 +6,8 @@ package:
   version: {{ version }}
 
 source:
-  url: file:///home/georgia/Projects/umass/unity/user_support/test/EXP-libraries-7.7.28.tar.gz
-  sha256: 361cfd1fa6e7ccd4bee265f73809aa845959ebcc0933bdc063ff7610bbccbf92
+  url: file:///home/georgia/Projects/umass/unity/user_support/martin_exp/packaging/pypi/EXP-libraries/dist/EXP-libraries-7.7.28.tar.gz
+  sha256: d78245eff4071afb7639e3f81d155ae21f501848e1e492708732e7854a4c1970
 
 build:
   number: 0
@@ -34,11 +34,17 @@ requirements:
     - fftw
     - libtirpc # [linux-64]
     - yaml-cpp
+    - zlib
+    - libpng
   run:
     - {{ mpi }}
+    - _openmp_mutex
     - hdf5 >=1.8.20
     - boost-cpp
     - fftw
+    - libtirpc # [linux-64]
+    - yaml-cpp
+    - libpng
 
 about:
   summary: Nbody EXPansion Code - Libraries

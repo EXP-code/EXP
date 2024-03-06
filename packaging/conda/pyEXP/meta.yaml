@@ -1,4 +1,4 @@
-{% set name = "EXP-libraries" %}
+{% set name = "pyEXP" %}
 {% set version = "7.7.28" %}
 
 package:
@@ -6,15 +6,15 @@ package:
   version: {{ version }}
 
 source:
-  url: file:///home/georgia/Projects/umass/unity/user_support/test/EXP-libraries-7.7.28.tar.gz
-  sha256: 60fb2612194773bbace3e083098a666b9cebb966b2fe5ca8dc74e8174a828179
+  url: file:///home/georgia/Projects/umass/unity/user_support/martin_exp/packaging/pypi/pyEXP/dist/pyEXP-7.7.28.tar.gz
+  sha256: 63564ac26c59b1b5b90e823a514c215f5bf829eddc434d3c880251084cd59bd0
 
 build:
-  script: python -m pip install . -vv --no-deps --no-build-isolation
   number: 0
 
 requirements:
   build:
+    - python
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - {{ compiler('fortran') }}
@@ -26,19 +26,31 @@ requirements:
     - cmake >=3.21
     - ninja
     - pip
+    - pybind11
     - eigen
-    - highfive
+    - highfive ==2.4.1
   host:
+    - python
     - {{ mpi }}
     - hdf5 >=1.8.20
     - boost-cpp
-    - fftw
+    # - fftw
+    # - libtirpc # [linux-64]
+    # - yaml-cpp
+    # - zlib
+    # - libpng
+    - exp-libraries =={{ version }}
   run:
+    - python
     - {{ mpi }}
+    # - _openmp_mutex
     - hdf5 >=1.8.20
     - boost-cpp
-    - fftw
-
+    # - fftw
+    # - libtirpc # [linux-64]
+    # - yaml-cpp
+    # - libpng
+    - exp-libraries =={{ version }}
 about:
   summary: Nbody EXPansion Code - Libraries
   license: GPL-3.0 AND MIT

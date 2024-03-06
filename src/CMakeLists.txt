@@ -1,3 +1,6 @@
+find_package(EXPutil)
+find_package(EXPcoefs)
+find_package(EXPcommon)
 
 set(CUDA_SRC)
 if (ENABLE_CUDA)
@@ -23,15 +26,31 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   GravKernel.cc ${CUDA_SRC} CenterFile.cc PolarBasis.cc FlatDisk.cc
   signals.cc)
 
-set(common_INCLUDE_DIRS
-  $<INSTALL_INTERFACE:include>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/pyEXP/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
-  ${CMAKE_BINARY_DIR} ${DEP_INC}
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${EIGEN3_INCLUDE_DIR})
+set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
+  ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR}
+  ${EXPutil_INCLUDE_DIRS} ${EXPcoefs_INCLUDE_DIRS} ${EXPcommon_INCLUDE_DIRS})
+
+set(common_INCLUDE_DIRS_PRIVATE
+    ${CMAKE_BINARY_DIR}/config
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+
+if (NOT (EXPutil_FOUND AND EXPcoefs_FOUND))
+  list(APPEND common_INCLUDE_DIRS_PRIVATE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+endif()
+
+# set(common_INCLUDE_DIRS
+#   $<INSTALL_INTERFACE:include>
+#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/pyEXP/>
+#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>
+#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
+#   ${CMAKE_BINARY_DIR} ${DEP_INC}
+#   ${CMAKE_CURRENT_SOURCE_DIR}
+#   ${EIGEN3_INCLUDE_DIR})
 
 set(DSMC_LIBS)
 if (ENABLE_DSMC)
@@ -39,11 +58,14 @@ if (ENABLE_DSMC)
   list(APPEND DSMC_LIBS expdsmc)
 endif()
 
-set(common_LINKLIB ${DSMC_LIBS} exputil expcoef OpenMP::OpenMP_CXX
-  MPI::MPI_CXX yaml-cpp::yaml-cpp ${VTK_LIBRARIES})
+set(common_LINKLIB ${DSMC_LIBS}
+  $<IF:$<BOOL:${EXPutil_LIBRARIES}>,${EXPutil_LIBRARIES},exputil>
+  $<IF:$<BOOL:${EXPcoefs_LIBRARIES}>,${EXPcoefs_LIBRARIES},expcoef>
+  ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
+  ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES})
 
 if(PNG_FOUND)
-  list(APPEND common_LINKLIB PNG::PNG)
+  list(APPEND common_LINKLIB ${PNG_LIBRARIES})
 endif()
 
 if(ENABLE_CUDA)
@@ -61,7 +83,9 @@ endif()
 
 add_library(EXPlib ${exp_SOURCES})
 set_target_properties(EXPlib PROPERTIES OUTPUT_NAME EXPlib)
+set_target_properties (EXPlib PROPERTIES EXPORT_NAME EXPnbody)
 target_include_directories(EXPlib PUBLIC ${common_INCLUDE_DIRS})
+target_include_directories(EXPlib PRIVATE ${common_INCLUDE_DIRS_PRIVATE})
 target_link_libraries(EXPlib PUBLIC ${common_LINKLIB})
 
 if (ENABLE_USER)
@@ -70,7 +94,33 @@ endif()
 
 add_executable(exp expand.cc)
 target_include_directories(exp PUBLIC ${common_INCLUDE_DIRS})
+target_include_directories(exp PRIVATE ${common_INCLUDE_DIRS_PRIVATE})
 target_link_libraries(exp PUBLIC ${common_LINKLIB} EXPlib)
 
-install(TARGETS EXPlib DESTINATION lib)
-install(TARGETS exp DESTINATION bin)
+install(TARGETS EXPlib exp
+  EXPORT EXPnbodyTargets
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  PUBLIC_HEADER DESTINATION include/exputil)
+
+if (INSTALL_CMAKE_FIND)
+  # Set up cmake configs
+  set(CMAKEPACKAGE_INSTALL_DIR share/EXPnbody/cmake)
+  install (EXPORT EXPnbodyTargets
+    FILE EXPnbodyTargets.cmake
+    NAMESPACE EXP::
+    DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
+
+  include(CMakePackageConfigHelpers)
+  configure_package_config_file(EXPnbodyConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/EXPnbodyConfig.cmake
+    INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+    PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
+  )
+  write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPnbodyVersion.cmake
+                                  VERSION ${CMAKE_PROJECT_VERSION}
+                                  COMPATIBILITY SameMinorVersion )
+  install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPnbodyConfig.cmake
+                ${CMAKE_CURRENT_BINARY_DIR}/EXPnbodyVersion.cmake
+          DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
+endif()

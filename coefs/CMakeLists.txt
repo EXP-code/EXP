@@ -1,24 +1,21 @@
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
-  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
-
-if(PNG_FOUND)
-  list(APPEND common_LINKLIB PNG::PNG)
-endif()
+set(common_LINKLIB ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
+  ${YAML_CPP_LIBRARIES} $<$<NOT:$<BOOL:${EXPutil_LIBRARIES}>>:exputil>
+  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
+  $<BOOL:${HighFive_FOUND}>:HighFive>)
 
 set(common_INCLUDE $<INSTALL_INTERFACE:include>
-  # $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-  # $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/> ${CMAKE_BINARY_DIR}
-  ${DEP_INC}
-  # ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/..
-  # ${CMAKE_BINARY_DIR}/config
-  ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${FFTW_INCLUDE_DIRS})
+  ${DEP_INC} ${HDF5_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR} ${FFTW_INCLUDE_DIRS})
 
 set(common_INCLUDE_DIRS_PRIVATE
     ${CMAKE_BINARY_DIR}/config
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${HighFive_SOURCE_DIR}/include
-    )
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/>
+    ${CMAKE_CURRENT_SOURCE_DIR})
+
+if(PNG_FOUND)
+  list(APPEND common_LINKLIB ${PNG_LIBRARIES})
+endif()
 
 if(ENABLE_CUDA)
   list(APPEND common_INCLUDE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
@@ -29,13 +26,13 @@ if(SLURM_FOUND)
   list(APPEND common_LINKLIB ${SLURM_LIBRARY})
 endif()
 
-if(ENABLE_XDR AND TIRPC_FOUND)
-  list(APPEND common_INCLUDE ${TIRPC_INCLUDE_DIRS})
-  list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
-endif()
+# Appears to be an overlinker here...
+# if(ENABLE_XDR AND TIRPC_FOUND)
+#   list(APPEND common_INCLUDE ${TIRPC_INCLUDE_DIRS})
+#   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
+# endif()
 
 # Make the expcoef shared library
-#
 set(expcoef_SOURCES BasisFactory.cc BiorthBasis.cc FieldBasis.cc
   CoefContainer.cc CoefStruct.cc FieldGenerator.cc expMSSA.cc
   Coefficients.cc KMeans.cc Centering.cc ParticleIterator.cc

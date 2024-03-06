@@ -93,11 +93,10 @@ find_package(Boost COMPONENTS serialization)
 find_package(OpenMP)
 find_package(FFTW)
 find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
-find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
 
 if(ENABLE_PNG)
-  find_package(PNG REQUIRED)
+  find_package(PNG REQUIRED )
 endif()
 
 # Check for FE
@@ -197,6 +196,7 @@ endif()
 
 # Only include RPC support if the installer wants XDR
 if(ENABLE_XDR)
+  find_package(TIRPC)	       # Check for alternative Sun rpc support
   if(TIRPC_FOUND OR HAVE_RPC_TYPES)
     set(HAVE_XDR TRUE CACHE BOOL "We have an XDR implementation")
     message(STATUS "We have an XDR implementation; Tipsy standard files will be supported.")
@@ -265,9 +265,9 @@ set(H5_USE_EIGEN TRUE CACHE BOOL "Eigen3 support in HighFive")
 
 if (USE_SUBMODULES)
   add_subdirectory(extern/HighFive)
+else ()
+  find_package(HighFive REQUIRED)
 endif()
-
-find_package(HighFive REQUIRED)
 
 # Configure the remaining native subdirectories
 if (BUILD_COMMON_LIBRARIES)

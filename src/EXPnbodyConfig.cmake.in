@@ -1,0 +1,13 @@
+# Generates the cmake find_package files for EXPnbody
+
+@PACKAGE_INIT@
+
+if(NOT TARGET EXP::EXPnbody)
+    include(@PACKAGE_CMAKEPACKAGE_INSTALL_DIR@/EXPnbodyTargets.cmake)
+endif()
+
+set_and_check(EXPnbody_INCLUDE_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/include/expnbody)
+set_and_check(EXPnbody_LIBRARY_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/lib)
+set_and_check(EXPnbody_LIBRARIES @PACKAGE_CMAKE_INSTALL_PREFIX@/lib/libexpnbody.so)
+
+check_required_components(EXPnbody)

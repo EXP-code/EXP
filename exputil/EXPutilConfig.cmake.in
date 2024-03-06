@@ -8,5 +8,6 @@ endif()
 
 set_and_check(EXPutil_INCLUDE_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/include/exputil)
 set_and_check(EXPutil_LIBRARY_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/lib)
+set_and_check(EXPutil_LIBRARIES @PACKAGE_CMAKE_INSTALL_PREFIX@/lib/libexputil.so)
 
 check_required_components(EXPutil)

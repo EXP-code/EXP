@@ -78,28 +78,23 @@ CopyAndSdist.file_list = [
 # Directories
 CopyAndSdist.directory_list = [
   'cmake',
-  'coefs',
-  'exputil',
-  'extern/rapidxml',
-  'extern/png++',
-  # ['extern/HighFive/include/highfive', 'extern/highfive'],
-  'include'
+  'src',
+  'extern/png++'
 ]
 
 # Install specifications
 
 setup(
-    name="EXP-libraries",
+    name="EXP-nbody",
     version="7.7.28",
-    description="Nbody EXPansion Code - Libraries",
+    description="Nbody EXPansion Code - Nbody",
     author="",
     license="GPL-3.0",
-    packages=["EXP-libexputil", "EXP-libexpcoefs"],
+    packages=["EXP-nbody"],
     python_requires=">=3.8",
     package_dir={
-      "EXP-libexputil": "exputil",
-      "EXP-libexpcoefs": "coefs"
-      },
+      "EXP-nbody": "src"
+    },
     cmdclass={
       "sdist": CopyAndSdist,
     },
@@ -108,9 +103,10 @@ setup(
     cmake_languages=("C", "CXX", "Fortran"),
     cmake_args=[
       "-DCMAKE_CXX_STANDARD=17",
-      "-DINSTALL_HEADERS=ON",
+      "-DINSTALL_HEADERS=OFF",
+      "-DBUILD_COMMON_LIBRARIES=OFF",
       "-DINSTALL_CMAKE_FIND=ON",
-      "-DENABLE_NBODY=OFF",
+      "-DENABLE_NBODY=ON",
       "-DENABLE_PYEXP=OFF",
       "-DBUILD_UTILS=OFF",
       "-DUSE_SUBMODULES=OFF",
@@ -118,6 +114,7 @@ setup(
       "-DENABLE_USER=OFF",
       "-DENABLE_TESTS=OFF",
       "-DENABLE_XDR=ON",
+      "-DENABLE_DSMC=OFF", # missing from extern so need clarification on what dependency it needs
       "-DCMAKE_BUILD_TYPE=RELEASE"
     ]
     # extras_require={
