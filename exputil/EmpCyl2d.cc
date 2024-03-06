@@ -357,8 +357,7 @@ private:
 		  << std::string(60, '-') << std::endl
 		  << conf                 << std::endl
 		  << std::string(60, '-') << std::endl;
-      MPI_Finalize();
-      exit(-1);
+      throw std::runtime_error("EmpCyl2d::ExponCyl: error parsing YAML config");
     }
   }
 
@@ -416,8 +415,7 @@ private:
 		  << std::string(60, '-') << std::endl
 		  << conf                 << std::endl
 		  << std::string(60, '-') << std::endl;
-      MPI_Finalize();
-      exit(-1);
+      throw std::runtime_error("EmpCyl2d::KuzminCyl: error parsing YAML config");
     }
   }
 
@@ -475,8 +473,7 @@ protected:
 		  << std::string(60, '-') << std::endl
 		  << conf                 << std::endl
 		  << std::string(60, '-') << std::endl;
-      MPI_Finalize();
-      exit(-1);
+      throw std::runtime_error("EmpCyl2d::MestelCyl: error parsing YAML config");
     }
   }
 
@@ -586,8 +583,7 @@ protected:
 		  << std::string(60, '-') << std::endl
 		  << conf                 << std::endl
 		  << std::string(60, '-') << std::endl;
-      MPI_Finalize();
-      exit(-1);
+      throw std::runtime_error("EmpCyl2d::ZangCyl: error parsing YAML config");
     }
   }
 
@@ -690,8 +686,7 @@ std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
 		<< std::string(60, '-') << std::endl
 		<< Params               << std::endl
 		<< std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("EmpCyl2d::createModel: error parsing YAML config");
   }
 }
 

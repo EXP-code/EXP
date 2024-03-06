@@ -48,7 +48,7 @@ protected:
   int mmax, nmax, numr, nmaxfid, mmin, mlim, nmin, nlim, knots, NQDHT;
   double rcylmin, rcylmax, scale, acyltbl, acylcut, Ninner, Mouter;
 
-  bool EVEN_M, verbose, logr;
+  bool EVEN_M, verbose, logr, use_mpi;
   
   //@{
   //! Grid parameters
