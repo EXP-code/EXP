@@ -90,13 +90,13 @@ namespace BasisClasses
   }
 
   SphericalSL::SphericalSL(const YAML::Node& CONF) :
-    BiorthBasis(CONF, "SphericalSL")
+    BiorthBasis(CONF, "sphereSL")
   {
     initialize();
   }
 
   SphericalSL::SphericalSL(const std::string& confstr) :
-    BiorthBasis(confstr, "SphericalSL")
+    BiorthBasis(confstr, "sphereSL")
   {
     initialize();
   }
@@ -826,13 +826,13 @@ namespace BasisClasses
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
-    BiorthBasis(CONF, "Cylindrical")
+    BiorthBasis(CONF, "cylinder")
   {
     initialize();
   }
 
   Cylindrical::Cylindrical(const std::string& confstr) :
-    BiorthBasis(confstr, "Cylindrical")
+    BiorthBasis(confstr, "cylinder")
   {
     initialize();
   }
@@ -1428,12 +1428,14 @@ namespace BasisClasses
     "cachename"
   };
 
-  FlatDisk::FlatDisk(const YAML::Node& CONF) : BiorthBasis(CONF)
+  FlatDisk::FlatDisk(const YAML::Node& CONF) :
+    BiorthBasis(CONF, "flatdisk")
   {
     initialize();
   }
 
-  FlatDisk::FlatDisk(const std::string& confstr) : BiorthBasis(confstr)
+  FlatDisk::FlatDisk(const std::string& confstr) :
+    BiorthBasis(confstr, "flatdisk")
   {
     initialize();
   }
@@ -1895,12 +1897,12 @@ namespace BasisClasses
     "method"
   };
 
-  Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF, "Cube")
+  Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF, "cube")
   {
     initialize();
   }
 
-  Cube::Cube(const std::string& confstr) : BiorthBasis(confstr, "Cube")
+  Cube::Cube(const std::string& confstr) : BiorthBasis(confstr, "cube")
   {
     initialize();
   }
@@ -2198,6 +2200,8 @@ namespace BasisClasses
       coef = std::make_shared<CoefClasses::CylStruct>();
     else if (name.compare("flatdisk") == 0)
       coef = std::make_shared<CoefClasses::CylStruct>();
+    else if (name.compare("cube") == 0)
+      coef = std::make_shared<CoefClasses::CubeStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
@@ -2279,7 +2283,8 @@ namespace BasisClasses
   }
 
   // Accumulate coefficient contributions from arrays
-  void BiorthBasis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin)
+  void BiorthBasis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p,
+				 bool RoundRobin, bool PosVelRows)
   {
     // Sanity check: is coefficient instance created?  This is not
     // foolproof.  It is really up the user to make sure that a call
@@ -2294,11 +2299,7 @@ namespace BasisClasses
 
     std::vector<double> p1(3), v1(3, 0);
 
-    if (p.rows() < 10 and p.cols() > p.rows()) {
-      std::cout << "Basis::addFromArray: interpreting your "
-		<< p.rows() << "X" << p.cols() << " input array as "
-		<< p.cols() << "X" << p.rows() << "." << std::endl;
-
+    if (PosVelRows) {
       if (p.rows()<3) {
 	std::ostringstream msg;
 	msg << "Basis::addFromArray: you must pass a position array with at "
@@ -2308,7 +2309,7 @@ namespace BasisClasses
 
       for (int n=0; n<p.cols(); n++) {
 
-	if (n % numprocs==myid or not roundrobin) {
+	if (n % numprocs==myid or not RoundRobin) {
 
 	  bool use = true;
 	  if (ftor) {
@@ -2336,7 +2337,7 @@ namespace BasisClasses
 
       for (int n=0; n<p.rows(); n++) {
 
-	if (n % numprocs==myid or not roundrobin) {
+	if (n % numprocs==myid or not RoundRobin) {
 
 	  bool use = true;
 	  if (ftor) {
@@ -2367,10 +2368,10 @@ namespace BasisClasses
   //
   CoefClasses::CoefStrPtr BiorthBasis::createFromArray
   (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
-   bool roundrobin)
+   bool RoundRobin, bool PosVelRows)
   {
     initFromArray(ctr);
-    addFromArray(m, p, roundrobin);
+    addFromArray(m, p, RoundRobin, PosVelRows);
     return makeFromArray(time);
   }
 

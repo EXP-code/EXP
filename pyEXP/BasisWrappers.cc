@@ -277,8 +277,8 @@ void BasisFactoryClasses(py::module &m)
     }
 
     virtual void
-    addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin);
+    addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin, bool posvelrows) override {
+PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
     }
   };
 
@@ -676,9 +676,11 @@ void BasisFactoryClasses(py::module &m)
       )
     .def("createFromArray",
 	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& ps,
-	    double time, std::vector<double> center, bool roundrobin)
+	    double time, std::vector<double> center,
+	    bool roundrobin, bool posvelrows)
 	 {
-	   return A.createFromArray(mass, ps, time, center, roundrobin);
+	   return A.createFromArray(mass, ps, time, center,
+				    roundrobin, posvelrows);
 	 },
 	 R"(
          Generate the coefficients from a mass and position array or,
@@ -694,7 +696,12 @@ void BasisFactoryClasses(py::module &m)
          roundrobin : bool
              the particles will be accumulated for each process 
              round-robin style with MPI by default.  This may be 
-             disabled with 'roundrobin=false'.
+             disabled with 'roundrobin=False'.
+         posvelrows : bool
+             positions (and optionally velocities) will be packed
+             in rows instead of columns.  This accommodates the numpy
+             construction [xpos, ypos, zpos] where xpos, ypos, zpos are
+             arrays.  Defaults to True.
 
          Returns
          -------
@@ -709,7 +716,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0),
-	 py::arg("roundrobin") = true)
+	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
     .def("makeFromArray",
 	 [](BasisClasses::Basis& A, double time)
 	 {
@@ -801,9 +808,11 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("createFromArray",
 	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
-	    double time, std::vector<double> center, bool roundrobin)
+	    double time, std::vector<double> center,
+	    bool roundrobin, bool posvelrows)
 	 {
-	   return A.createFromArray(mass, pos, time, center, roundrobin);
+	   return A.createFromArray(mass, pos, time, center,
+				    roundrobin, posvelrows);
 	 },
 	 R"(
          Generate the coefficients from a mass and position array,
@@ -819,6 +828,11 @@ void BasisFactoryClasses(py::module &m)
              the particles will be accumulated for each process 
              round-robin style with MPI by default.  This may be 
              disabled with 'roundrobin=false'.
+         posvelrows : bool
+             positions (and optionally velocities) will be packed
+             in rows instead of columns.  This accommodates the numpy
+             construction [xpos, ypos, zpos] where xpos, ypos, zpos are
+             arrays.  Defaults to True.
 
          Returns
          -------
@@ -833,7 +847,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0),
-	 py::arg("roundrobin") = true)
+	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
     .def("initFromArray",
 	 [](BasisClasses::BiorthBasis& A, std::vector<double> center)
 	 {

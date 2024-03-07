@@ -540,7 +540,8 @@ namespace BasisClasses
   }
 
   // Accumulate coefficient contributions from arrays
-  void FieldBasis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin)
+  void FieldBasis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p,
+				bool roundrobin, bool posvelrows)
   {
     // Sanity check: is coefficient instance created?  This is not
     // foolproof.  It is really up the user to make sure that a call
@@ -555,12 +556,10 @@ namespace BasisClasses
 
     std::vector<double> p1(3), v1(3);
 
-    if (p.rows() < 10 and p.cols() > p.rows()) {
-      std::cout << "Basis::addFromArray: interpreting your "
-		<< p.rows() << "X" << p.cols() << " input array as "
-		<< p.cols() << "X" << p.rows() << "." << std::endl;
+    if (posvelrows) {
 
       if (p.rows()<6) {
+
 	std::ostringstream msg;
 	msg << "Basis::addFromArray: you must pass a position array with at "
 	  "least three six for x, y, z, u, v, w.  Yours has " << p.rows() << ".";
