@@ -1140,8 +1140,52 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
         dict({tag: value},...)
             cache parameters
         )",
-	py::arg("cachefile"));
+	py::arg("cachefile"))
+      .def_static("I", [](int l, int m)
+      {
+	if (l<0) throw std::runtime_error("l must be greater than 0");
+	if (m<0) throw std::runtime_error("m must be greater than 0");
+	if (abs(m)>l) throw std::runtime_error("m must be less than or equal to l");
+	return (l * (l + 1) / 2) + m;
+      },
+	R"(
+        Calculate the index of a spherical harmonic element given the angular numbers l and m .
 
+        Parameters
+        ----------
+        l : int
+            spherical harmonic order l
+        m : int
+            azimuthal order m
+
+        Returns
+        -------
+        I : int
+            index array packing index
+      )",
+	py::arg("l"), py::arg("m"))
+      .def_static("invI", [](int I)
+      {
+	if (I<0) std::runtime_error("I must be an interger greater than or equal to 0");
+	int l = std::floor(0.5*(-1.0 + std::sqrt(1.0 + 8.0 * I)));
+	int m = I - int(l * (l + 1) / 2);
+	return std::tuple<int, int>(l, m);
+      },
+	R"(
+        Calculate the spherical harmonic indices l and m from the coefficient array packing index I
+
+        Parameters
+        ----------
+        I : int
+            the spherical coefficient array index
+
+        Returns
+        -------
+        (l, m) : tuple
+            the harmonic indices (l, m).
+      )", py::arg("I"));
+
+  
   py::class_<BasisClasses::Cylindrical, std::shared_ptr<BasisClasses::Cylindrical>, PyCylindrical, BasisClasses::BiorthBasis>(m, "Cylindrical")
     .def(py::init<const std::string&>(),
 	 R"(
