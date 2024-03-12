@@ -79,8 +79,7 @@ void OutCHKPTQ::initialize()
 			   << std::string(60, '-') << std::endl
 			   << Output::conf         << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("OutCHKPTQ::initialize: error in parsing YAML");
   }
 }
 
@@ -236,8 +235,7 @@ void OutCHKPTQ::Run(int n, int mstep, bool last)
   
   MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (nOK) {
-    MPI_Finalize();
-    exit(33);
+    throw std::runtime_error("OutCHKPTQ::Run: error in I/O");
   }
 
   int count = 0;
@@ -285,8 +283,7 @@ void OutCHKPTQ::Run(int n, int mstep, bool last)
     MPI_Allreduce(&nOK, &sumOK, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     if (sumOK) {
-      MPI_Finalize();
-      exit(35);
+      throw std::runtime_error("OutCHKPTQ::Run: error in I/O");
     }
   }
 

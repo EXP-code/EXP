@@ -207,8 +207,7 @@ namespace BasisClasses
 			     << std::string(60, '-') << std::endl
 			     << conf                 << std::endl
 			     << std::string(60, '-') << std::endl;
-      if (use_mpi) MPI_Finalize();
-      exit(-1);
+      throw std::runtime_error("FieldBasis::initialize: error parsing YAML");
     }
   }
 

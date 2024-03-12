@@ -136,8 +136,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	if (not test) {
 	  std::cerr << "PolarBasis: process " << myid << " cannot open <"
 		    << file << "> for reading" << std::endl;
-	  MPI_Finalize();
-	  exit(-1);
+	  throw std::runtime_error("PolarBasis: file open error");
 	}
       }
 
@@ -159,8 +158,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		    << "] does not match specification [" << nmax << "]"
 		    << std::endl;
 	}
-	MPI_Finalize();
-	exit(-1);
+	throw std::runtime_error("PolarBasis: parameter mismatch");
       }
 
       if (playback->mmax() != Mmax) {
@@ -169,8 +167,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		    << "] does not match specification [" << Mmax << "]"
 		    << std::endl;
 	}
-	MPI_Finalize();
-	exit(-1);
+	throw std::runtime_error("PolarBasis: parameter mismatch");
       }
 
       play_back = true;
@@ -197,8 +194,7 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("PolarBasis: error parsing YAML");
   }
 
   if (nthrds<1) nthrds=1;

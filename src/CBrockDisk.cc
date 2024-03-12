@@ -135,8 +135,7 @@ void CBrockDisk::initialize(void)
 	if (not test) {
 	  std::cerr << "CBrockDisk: process " << myid << " cannot open <"
 		    << file << "> for reading" << std::endl;
-	  MPI_Finalize();
-	  exit(-1);
+	  throw std::runtime_error("CBrockDisk: file open error");
 	}
       }
 
@@ -148,8 +147,7 @@ void CBrockDisk::initialize(void)
 		    << "] does not match specification [" << nmax << "]"
 		    << std::endl;
 	}
-	MPI_Finalize();
-	exit(-1);
+	throw std::runtime_error("CBrockDisk: parameter mismatch");
       }
 
       if (playback->Lmax != Lmax) {
@@ -158,8 +156,7 @@ void CBrockDisk::initialize(void)
 		    << "] does not match specification [" << Lmax << "]"
 		    << std::endl;
 	}
-	MPI_Finalize();
-	exit(-1);
+	throw std::runtime_error("CBrockDisk: parameter mismatch");
       }
 
       play_back = true;
@@ -187,8 +184,7 @@ void CBrockDisk::initialize(void)
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("CBrockDisk: error parsing YAML");
   }
 
 }

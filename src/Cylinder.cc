@@ -226,8 +226,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 			   << std::string(60, '-') << std::endl
 			   << conf
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("Cylinder: error in parsing tk_type");
   }
 
   
@@ -265,8 +264,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
     MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
     if (nOK)  {
-      MPI_Finalize();
-      exit(12);
+      throw std::runtime_error("Cylinder: error initializing from parameters");
     } 
 
     // Attempt to read EOF file from cache on restart
@@ -291,8 +289,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
       if (myid==0) 
 	std::cerr << "Cylinder: can not read cache file on restart ... aborting"
 		  << std::endl;
-      MPI_Finalize();
-      exit(13);
+      throw std::runtime_error("Cylinder: error reading cache");
     }
 
     // Genererate eof if needed
@@ -482,8 +479,7 @@ void Cylinder::initialize()
 	if (not test) {
 	  std::cerr << "Cylinder: process " << myid << " cannot open <"
 		    << file << "> for reading" << std::endl;
-	  MPI_Finalize();
-	  exit(-1);
+	  throw std::runtime_error("Cylinder: error reading playback file");
 	}
       }
 
@@ -510,8 +506,7 @@ void Cylinder::initialize()
 		    << "] does not match specification [" << mmax << "]"
 		    << std::endl;
 	}
-	MPI_Finalize();
-	exit(-1);
+	throw std::runtime_error("Cylinder: parameter mismatch");
       }
 
       P.resize(mmax+1, nmax);
@@ -545,8 +540,7 @@ void Cylinder::initialize()
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("Cylinder::initialize: error parsing YAML");
   }
 }
 
@@ -876,8 +870,7 @@ void Cylinder::determine_coefficients_particles(void)
       if (restart && !cache_ok) {
 	if (myid==0) 
 	  std::cerr << "Cylinder: can not read cache file on restart" << endl;
-	MPI_Finalize();
-	exit(-1);
+	throw std::runtime_error("Cylinder: cache read error");
       }
     }
 

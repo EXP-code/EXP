@@ -113,7 +113,7 @@ void ShearSL::initialize()
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
+    throw std::runtime_error("ShearSL::initialze: error parsing YAML");
     exit(-1);
   }
 }
