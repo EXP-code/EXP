@@ -1147,8 +1147,7 @@ namespace BasisClasses
 			       << mtype << ">, valid types are: "
 			       << "Exponential, Gaussian, Plummer, Power "
 			       << "(not case sensitive)" << std::endl;
-	if (use_mpi) MPI_Finalize();
-	return;
+	throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
       }
 
       // Convert dtype string to lower case
@@ -1172,8 +1171,7 @@ namespace BasisClasses
 	  for (auto v : dtlookup) std::cout << v.first << " ";
 	  std::cout << std::endl;
 	}
-	if (use_mpi) MPI_Finalize();
-	return;
+	throw std::runtime_error("Cylindrical::initialize: invalid DiskType");
       }
 
       // Use these user models to deproject for the EOF spherical basis
@@ -1303,7 +1301,14 @@ namespace BasisClasses
 
     Eigen::VectorXd cos1(nmax), sin1(nmax);
 
-    cf->store((mmax+1)*nmax);
+    // Initialize the values
+    cos1.setZero();
+    sin1.setZero();
+
+    // Allocate the coefficient storage
+    cf->store.resize((mmax+1)*nmax);
+
+    // Create a new instance
     cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
       (cf->store.data(), mmax+1, nmax);
 
