@@ -787,6 +787,10 @@ namespace CoefClasses
       Eigen::MatrixXcd in(Mmax+1, Nmax);
       stanza.getDataSet("coefficients").read(in);
       
+      // Work around for previous unitiaized data bug; enforces real data
+      //
+      for (int n=0; n<Nmax; n++) in(0, n) = std::real(in(0, n));
+
       // Pack the data into the coefficient variable
       //
       auto coef = std::make_shared<CylStruct>();
