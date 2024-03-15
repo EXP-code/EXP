@@ -504,24 +504,18 @@ main(int argc, char** argv)
     exit(0);
   }
   catch (std::runtime_error& e) {
-    std::cerr << "Process " << myid << ": std exception" << std::endl
-	      << e.what() << std::endl;
+    std::cerr << "Process " << myid << ": std exception" << std::endl;
+    if (myid==0) std::cerr << e.what() << std::endl;
     if (VERBOSE>4) print_trace(std::cerr, 0, 0);
     sleep(5);
     std::cerr << std::flush;
-
-    // Try to force all process to exit!
-    MPI_Abort(MPI_COMM_WORLD, 0);
   }
   catch (std::string& msg) {
-    std::cerr << "Process " << myid << ": str exception" << std::endl
-	      << msg << std::endl;
+    std::cerr << "Process " << myid << ": str exception" << std::endl;
+    if (myid==0) std::cerr << msg << std::endl;
     sleep(5);
     if (VERBOSE>4) print_trace(std::cerr, 0, 0);
     std::cerr << std::flush;
-
-    // Try to force all process to exit!
-    MPI_Abort(MPI_COMM_WORLD, 0);
   }
 
   //=============
