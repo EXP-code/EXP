@@ -82,6 +82,7 @@ Cylinder::valid_keys = {
   "cachename",
   "eof_file",
   "override",
+  "create",
   "samplesz",
   "rnum",
   "pnum",
@@ -177,7 +178,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   coefMaster      = true;
   lastPlayTime    = -std::numeric_limits<double>::max();
   EVEN_M          = false;
-  eof_over        = false;
+  create          = false;
   cachename       = "";
 #if HAVE_LIBCUDA==1
   cuda_aware      = true;
@@ -252,10 +253,10 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	if (myid==0) {		// Diagnostic output . . .
 	  std::cerr << "Cylinder: can not read explicitly specified EOF file <"
 		    << cachename << ">" << std::endl;
-	  if (eof_over) {
-	    std::cerr << "Cylinder: override specified . . ." << std::endl;
+	  if (create) {
+	    std::cerr << "Cylinder: new cache requested . . ." << std::endl;
 	  } else {
-	    std::cerr << "Cylinder: shamelessly aborting . . ." << std::endl;
+	    std::cerr << "Cylinder: aborting. Set 'create' to build a new cache." << std::endl;
 	    nOK = 1;
 	  }
 	}
@@ -330,7 +331,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		<< std::endl << sep << "npca0="       << npca0
 		<< std::endl << sep << "pcadiag="     << pcadiag
 		<< std::endl << sep << "cachename="   << cachename
-		<< std::endl << sep << "override="    << std::boolalpha << eof_over
+		<< std::endl << sep << "create="      << std::boolalpha << create
 		<< std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 		<< std::endl << sep << "logarithmic=" << logarithmic
 		<< std::endl << sep << "vflag="       << vflag
@@ -359,7 +360,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << std::endl << sep << "npca0="       << npca0
 	      << std::endl << sep << "pcadiag="     << pcadiag
 	      << std::endl << sep << "cachename="   << cachename
-	      << std::endl << sep << "override="    << std::boolalpha << eof_over
+	      << std::endl << sep << "create="      << std::boolalpha << create
 	      << std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 	      << std::endl << sep << "logarithmic=" << logarithmic
 	      << std::endl << sep << "vflag="       << vflag
@@ -423,9 +424,10 @@ void Cylinder::initialize()
     if (conf["npca"      ])       npca  = conf["npca"      ].as<int>();
     if (conf["npca0"     ])      npca0  = conf["npca0"     ].as<int>();
     if (conf["nvtk"      ])       nvtk  = conf["nvtk"      ].as<int>();
-    if (conf["cachename" ])   cachename = conf["cachename" ].as<std::string>();
-    if (conf["eof_file"  ])   cachename = conf["eof_file"  ].as<std::string>();
-    if (conf["override"  ])   eof_over  = conf["override"  ].as<bool>();
+    if (conf["cachename" ])  cachename  = conf["cachename" ].as<std::string>();
+    if (conf["eof_file"  ])  cachename  = conf["eof_file"  ].as<std::string>();
+    if (conf["create"    ])     create  = conf["create"    ].as<bool>();
+    if (conf["override"  ])     create  = conf["override"  ].as<bool>();
     if (conf["samplesz"  ])   defSampT  = conf["samplesz"  ].as<int>();
     
     if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
@@ -451,6 +453,14 @@ void Cylinder::initialize()
       if (myid==0)
 	std::cout << "Cylinder: parameter 'density' is deprecated. "
 		  << "The density field will be computed regardless."
+		  << std::endl;
+    }
+
+    // Deprecation warning
+    if (conf["override"]) {
+      if (myid==0)
+	std::cout << "Cylinder: parameter 'override' is deprecated. "
+		  << "Please use 'create' instead."
 		  << std::endl;
     }
 

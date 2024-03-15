@@ -62,7 +62,7 @@ class MixtureBasis;
 
     @param cachename is the name of the basis cache file
 
-    @param override boolean ignores the specificed cache file name and performes a recomputation
+    @param create boolean ignores the specificed cache file name and performes a recomputation
 
     @param samplesz is the default particle number in PCA subsampling partitions (default is 1).  The value 0 sets the sample size to sqrt(N).
 
@@ -134,7 +134,7 @@ private:
   double hcyl, hexp, snr, rem;
   int nmax, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
   std::string cachename;
-  bool self_consistent, logarithmic, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
+  bool self_consistent, logarithmic, pcavar, pcainit, pcavtk, pcadiag, pcaeof, create;
   bool try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
