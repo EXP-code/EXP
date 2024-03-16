@@ -82,7 +82,6 @@ Cylinder::valid_keys = {
   "cachename",
   "eof_file",
   "override",
-  "create",
   "samplesz",
   "rnum",
   "pnum",
@@ -178,7 +177,6 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   coefMaster      = true;
   lastPlayTime    = -std::numeric_limits<double>::max();
   EVEN_M          = false;
-  create          = false;
   cachename       = "";
 #if HAVE_LIBCUDA==1
   cuda_aware      = true;
@@ -245,20 +243,31 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     // whether first time or restart.  Aborts if overridden cache is
     // not found.
     //
-    if (cachename.size()>0) {
+    if (std::filesystem::exists(cachename)) {
 
       cache_ok = ortho->read_cache();
       
+      // If new cache is requested, backup existing cache
       if (!cache_ok) {
-	if (myid==0) {		// Diagnostic output . . .
-	  std::cerr << "Cylinder: can not read explicitly specified EOF file <"
-		    << cachename << ">" << std::endl;
-	  if (create) {
+	  
+	// Backup name for existing file
+	string backupfile = cachename + ".bak";
+	
+	try {
+	  std::filesystem::rename(cachename, backupfile);
+	  if (myid==0)
+	    std::cout << "---- Cylinder: parameter mismatch.  Renaming <"
+		      << cachename << "> to <" << backupfile << "> and "
+		      << "recreating the basis" << std::endl;
+	} catch (const std::filesystem::filesystem_error& e) {
+	  if (myid==0) {
 	    std::cerr << "Cylinder: new cache requested . . ." << std::endl;
-	  } else {
-	    std::cerr << "Cylinder: aborting. Set 'create' to build a new cache." << std::endl;
-	    nOK = 1;
+	    std::cerr << "Cylinder: error creating backup file <"
+		      << backupfile << "> from <" << cachename
+		      << ">, message: " << e.code().message()
+		      << std::endl;
 	  }
+	  nOK = 1;
 	}
       }
     }
@@ -268,34 +277,17 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
       throw std::runtime_error("Cylinder: error initializing from parameters");
     } 
 
-    // Attempt to read EOF file from cache on restart
-    //
-    if (try_cache || restart) {
-
-      cache_ok = ortho->read_cache();
-
-      // Diagnostic output . . .
-      //
-      if (!cache_ok and myid==0)
-	std::cerr << "Cylinder: can not read EOF file <"
-		  << cachename << ">" << std::endl
-		  << "Cylinder: will attempt to generate EOF file, "
-		  << "this will take some time (e.g. hours) . . ."
-		  << std::endl;
-    }
-
-    // On restart, abort if the cache is gone
-    //
-    if (restart && !cache_ok) {
-      if (myid==0) 
-	std::cerr << "Cylinder: can not read cache file on restart ... aborting"
-		  << std::endl;
-      throw std::runtime_error("Cylinder: error reading cache");
-    }
-
     // Genererate eof if needed
     //
-    if (!cache_ok) ortho->generate_eof(rnum, pnum, tnum, dcond);
+    if (!cache_ok) {
+
+      if (myid==0)
+	std::cout << "---- Cylinder: generating the EOF basis file . . . "
+		  << "this step will take many minutes."
+		  << std::endl;
+      
+      ortho->generate_eof(rnum, pnum, tnum, dcond);
+    }
 
     firstime = false;
   }
@@ -331,7 +323,6 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		<< std::endl << sep << "npca0="       << npca0
 		<< std::endl << sep << "pcadiag="     << pcadiag
 		<< std::endl << sep << "cachename="   << cachename
-		<< std::endl << sep << "create="      << std::boolalpha << create
 		<< std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 		<< std::endl << sep << "logarithmic=" << logarithmic
 		<< std::endl << sep << "vflag="       << vflag
@@ -360,7 +351,6 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << std::endl << sep << "npca0="       << npca0
 	      << std::endl << sep << "pcadiag="     << pcadiag
 	      << std::endl << sep << "cachename="   << cachename
-	      << std::endl << sep << "create="      << std::boolalpha << create
 	      << std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 	      << std::endl << sep << "logarithmic=" << logarithmic
 	      << std::endl << sep << "vflag="       << vflag
@@ -426,8 +416,6 @@ void Cylinder::initialize()
     if (conf["nvtk"      ])       nvtk  = conf["nvtk"      ].as<int>();
     if (conf["cachename" ])  cachename  = conf["cachename" ].as<std::string>();
     if (conf["eof_file"  ])  cachename  = conf["eof_file"  ].as<std::string>();
-    if (conf["create"    ])     create  = conf["create"    ].as<bool>();
-    if (conf["override"  ])     create  = conf["override"  ].as<bool>();
     if (conf["samplesz"  ])   defSampT  = conf["samplesz"  ].as<int>();
     
     if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
@@ -451,7 +439,7 @@ void Cylinder::initialize()
     // Deprecation warning
     if (conf["density"]) {
       if (myid==0)
-	std::cout << "Cylinder: parameter 'density' is deprecated. "
+	std::cout << "---- Cylinder: parameter 'density' is deprecated. "
 		  << "The density field will be computed regardless."
 		  << std::endl;
     }
@@ -459,15 +447,15 @@ void Cylinder::initialize()
     // Deprecation warning
     if (conf["override"]) {
       if (myid==0)
-	std::cout << "Cylinder: parameter 'override' is deprecated. "
-		  << "Please use 'create' instead."
+	std::cout << "---- Cylinder: parameter 'override' is deprecated. "
+		  << "Basis will be recomputed if needed automatically."
 		  << std::endl;
     }
 
     // Deprecation warning
     if (conf["eof_file"]) {
       if (myid==0)
-	std::cout << "Cylinder: parameter 'eof_file' is deprecated. "
+	std::cout << "---- Cylinder: parameter 'eof_file' is deprecated. "
 		  << "and will be removed in a future release. Please "
 		  << "use 'cachename' instead."
 		  << std::endl;

@@ -62,8 +62,6 @@ class MixtureBasis;
 
     @param cachename is the name of the basis cache file
 
-    @param create boolean ignores the specificed cache file name and performes a recomputation
-
     @param samplesz is the default particle number in PCA subsampling partitions (default is 1).  The value 0 sets the sample size to sqrt(N).
 
     @param rnum if the size of the radial quadrature grid for analytic EOF computation
@@ -134,7 +132,7 @@ private:
   double hcyl, hexp, snr, rem;
   int nmax, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
   std::string cachename;
-  bool self_consistent, logarithmic, pcavar, pcainit, pcavtk, pcadiag, pcaeof, create;
+  bool self_consistent, logarithmic, pcavar, pcainit, pcavtk, pcadiag, pcaeof;
   bool try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
@@ -341,7 +339,7 @@ public:
   //! \param npca0 is the first step for Hall coefficient computaton 
   //! \param nvtk is the number of step VTK output 
   //! \param pcadiag set to true enables PCA output diagnostics (default: false)
-  //! \param cachename is an override for the default EOF cache file name
+  //! \param cachename is the file for the EOF basis
   //! \param vflag sets verbosity (see EmpCylSL.cc)
   //! \param rnum is the number of Legendre radial knots for numerical basis computation
   //! \param pnum is the number of azimuthal knots for numerical basis computation
