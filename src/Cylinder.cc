@@ -88,6 +88,7 @@ Cylinder::valid_keys = {
   "tnum",
   "ashift",
   "expcond",
+  "precond",
   "logr",
   "pcavar",
   "pcaeof",
@@ -158,7 +159,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   rem             = -1.0;
   self_consistent = true;
   firstime        = true;
-  expcond         = true;
+  precond         = true;
   cmapR           = 1;
   cmapZ           = 1;
   logarithmic     = false;
@@ -231,7 +232,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   
   // Cache file reading or generation
   //
-  if (expcond) {
+  if (precond) {
 
     // Set parameters for external dcond function
     //
@@ -282,13 +283,18 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	} 
       }
     }
+    else {
+      if (myid==0)
+	std::cout << "---- Cylinder: can't find the EOF basis file <"
+		  << cachename << ">" << std::endl;
+    }
 
     // Genererate eof if needed
     //
     if (!cache_ok) {
 
       if (myid==0)
-	std::cout << "---- Cylinder: generating the EOF basis file . . . "
+	std::cout << "---- Cylinder: generating the EOF basis file; "
 		  << "this step will take many minutes."
 		  << std::endl;
       
@@ -321,7 +327,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		<< std::endl << sep << "rcylmax="     << rcylmax
 		<< std::endl << sep << "acyl="        << acyl
 		<< std::endl << sep << "hcyl="        << hcyl
-		<< std::endl << sep << "expcond="     << expcond
+		<< std::endl << sep << "precond="     << precond
 		<< std::endl << sep << "pcavar="      << pcavar
 		<< std::endl << sep << "pcaeof="      << pcaeof
 		<< std::endl << sep << "nvtk="        << nvtk
@@ -349,7 +355,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << std::endl << sep << "rcylmax="     << rcylmax
 	      << std::endl << sep << "acyl="        << acyl
 	      << std::endl << sep << "hcyl="        << hcyl
-	      << std::endl << sep << "expcond="     << expcond
+	      << std::endl << sep << "precond="     << precond
 	      << std::endl << sep << "pcavar="      << pcavar
 	      << std::endl << sep << "pcaeof="      << pcaeof
 	      << std::endl << sep << "nvtk="        << nvtk
@@ -428,7 +434,8 @@ void Cylinder::initialize()
     if (conf["pnum"      ])       pnum  = conf["pnum"      ].as<int>();
     if (conf["tnum"      ])       tnum  = conf["tnum"      ].as<int>();
     if (conf["ashift"    ])     ashift  = conf["ashift"    ].as<double>();
-    if (conf["expcond"   ])    expcond  = conf["expcond"   ].as<bool>();
+    if (conf["expcond"   ])    precond  = conf["expcond"   ].as<bool>();
+    if (conf["precond"   ])    precond  = conf["precond"   ].as<bool>();
     if (conf["logr"      ]) logarithmic = conf["logr"      ].as<bool>();
     if (conf["pcavar"    ])     pcavar  = conf["pcavar"    ].as<bool>();
     if (conf["pcaeof"    ])     pcaeof  = conf["pcaeof"    ].as<bool>();
@@ -442,6 +449,15 @@ void Cylinder::initialize()
     if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
+    // Deprecation warning
+    if (conf["expcond"]) {
+      if (myid==0)
+	std::cout << "---- Cylinder: parameter 'expcond' is deprecated. "
+		  << "It has been renamed to 'precond'. The old parameter "
+		  << "will be removed in a later release."
+		  << std::endl;
+    }
+
     // Deprecation warning
     if (conf["density"]) {
       if (myid==0)
@@ -600,7 +616,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   //=======================
 
 				// No recomputation ever if the
-  if (!expcond) {		// basis has been precondtioned
+  if (!precond) {		// basis has been precondtioned
 
 				// Only do this check only once per
 				// multistep; might as well be at 
@@ -864,7 +880,7 @@ void Cylinder::determine_coefficients_particles(void)
 
   if (!self_consistent && !firstime_coef && !initializing) return;
 
-  if (!expcond && firstime) {
+  if (!precond && firstime) {
 				// Try to read cache
     bool cache_ok = false;
     if (try_cache || restart) {
@@ -1016,7 +1032,7 @@ void Cylinder::determine_coefficients_particles(void)
   // Dump basis on first call
   //=========================
 
-  if ( dump_basis and (this_step==0 || (expcond and ncompcyl==0) )
+  if ( dump_basis and (this_step==0 || (precond and ncompcyl==0) )
        && ortho->coefs_made_all() && !initializing) {
 
     if (myid == 0 and multistep==0 || mstep==0) {

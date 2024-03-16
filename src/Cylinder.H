@@ -72,7 +72,7 @@ class MixtureBasis;
 
     @param ashift offsets the center of the analytic model for basis function computation
 
-    @param expcond boolean true turns on analytic basis function preconditioning (default: true)
+    @param precond boolean true turns on analytic basis function preconditioning (default: true)
 
     @param logr boolean turns on logarithmic radial basis gridding in EmpCylSL
 
@@ -109,7 +109,7 @@ class Cylinder : public Basis
 {
 private:
 
-  bool expcond, EVEN_M, subsamp;
+  bool precond, EVEN_M, subsamp;
   int rnum, pnum, tnum;
   double ashift;
   unsigned int vflag;
@@ -346,7 +346,7 @@ public:
   //! \param tnum is the number of Legendre polar knots for numerical basis computation
   //! \param ashift is the shift applied in the x-axis relative to the original for basis conditioning
   //! \param self_consistent set to false for fixed potential
-  //! \param expcond set to true for analytic basis function conditioning (default: true)
+  //! \param precond set to true for analytic basis function conditioning (default: true)
   //! \param logr tabulate basis in logarithmic coordinates (default: false)
   //! \param pcavar set to true for real-time Hall analysis (default: false)
   //! \param samplesz is the default particle number in PCA subsampling partitions (default is 1).  The value 0 sets the sample size to sqrt(N).
