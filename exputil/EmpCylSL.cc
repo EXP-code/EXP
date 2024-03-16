@@ -146,9 +146,9 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   // Sanity check
   if (lmax <= mmax) {
     if (myid==0) {
-      std::cout << "EmpCylSL: lmax must be greater than mmax for consistency"
+      std::cout << "---- EmpCylSL: lmax must be greater than mmax for consistency"
 		<< std::endl
-		<< "EmpCylSL: setting lmax=" << mmax + 1
+		<< "---- EmpCylSL: setting lmax=" << mmax + 1
 		<< " but you probably want lmax >> mmax"
 		<< std::endl;
     }
@@ -231,9 +231,9 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   // Option sanity check
   if (lmax <= mmax) {
     if (myid==0) {
-      std::cout << "EmpCylSL: lmax must be greater than mmax for consistency"
+      std::cout << "---- EmpCylSL: lmax must be greater than mmax for consistency"
 		<< std::endl
-		<< "EmpCylSL: setting lmax=" << mmax + 1
+		<< "---- EmpCylSL: setting lmax=" << mmax + 1
 		<< " but you probably want lmax >> mmax"
 		<< std::endl;
     }
@@ -502,7 +502,7 @@ SphModTblPtr EmpCylSL::make_sl()
 				// Debug sanity check
 				// ------------------------------------------
   if (myid==0) {
-    std::cout << "EmpCylSL::make_sl(): making SLGridSph with <"
+    std::cout << "---- EmpCylSL::make_sl(): making SLGridSph with <"
 	      << EmpModelLabs[mtype] << "> model" << std::endl;
   }
 
@@ -7108,7 +7108,7 @@ bool EmpCylSL::ReadH5Cache()
     {
       std::string v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
       if (value.compare(v)==0) return true;
-      std::cout << "--- EmpCylSL cache parameter " << name << ": wanted "
+      std::cout << "---- EmpCylSL cache parameter " << name << ": wanted "
 		<< value << " found " << v << std::endl;
       return false;
     };
