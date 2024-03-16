@@ -229,8 +229,12 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   }
 
   
+  // Cache file reading or generation
+  //
   if (expcond) {
-				// Set parameters for external dcond function
+
+    // Set parameters for external dcond function
+    //
     EXPSCALE = acyl;
     HSCALE   = hcyl;
     ASHIFT   = ashift;
@@ -239,43 +243,45 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     bool cache_ok = false;
     int  nOK      = 0;
 
-    // Attempt to read EOF file from cache with override.  Will work
-    // whether first time or restart.  Aborts if overridden cache is
-    // not found.
+    // Attempt to read EOF file from cache
     //
     if (std::filesystem::exists(cachename)) {
 
       cache_ok = ortho->read_cache();
       
-      // If new cache is requested, backup existing cache
+      // If new cache is requested, backup existing basis file
+      //
       if (!cache_ok) {
 	  
 	// Backup name for existing file
 	string backupfile = cachename + ".bak";
 	
-	try {
-	  std::filesystem::rename(cachename, backupfile);
-	  if (myid==0)
+	// Only root process renames
+	if (myid==0) {
+	  try {
+	    std::filesystem::rename(cachename, backupfile);
 	    std::cout << "---- Cylinder: parameter mismatch.  Renaming <"
 		      << cachename << "> to <" << backupfile << "> and "
 		      << "recreating the basis" << std::endl;
-	} catch (const std::filesystem::filesystem_error& e) {
-	  if (myid==0) {
-	    std::cerr << "Cylinder: new cache requested . . ." << std::endl;
-	    std::cerr << "Cylinder: error creating backup file <"
-		      << backupfile << "> from <" << cachename
-		      << ">, message: " << e.code().message()
+	  } catch (const std::filesystem::filesystem_error& e) {
+	    std::cerr << "Cylinder: new cache requested but "
+		      << "error creating backup file <" << backupfile
+		      << "> from <" << cachename << ">, message: "
+		      << e.code().message()
 		      << std::endl;
+	    // Set termination flag
+	    nOK = 1;
 	  }
-	  nOK = 1;
 	}
+	
+	// Broadcast termination request to all processes
+	//
+	MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+	if (nOK)  {
+	  throw std::runtime_error("Cylinder: error initializing from parameters");
+	} 
       }
     }
-
-    MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-    if (nOK)  {
-      throw std::runtime_error("Cylinder: error initializing from parameters");
-    } 
 
     // Genererate eof if needed
     //

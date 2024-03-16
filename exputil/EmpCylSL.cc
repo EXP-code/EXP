@@ -499,13 +499,12 @@ SphModTblPtr EmpCylSL::make_sl()
   std::vector<double> pw(number);
 
 				// ------------------------------------------
-				// Debug sanity check
+				// Log file output
 				// ------------------------------------------
   if (myid==0) {
     std::cout << "---- EmpCylSL::make_sl(): making SLGridSph with <"
 	      << EmpModelLabs[mtype] << "> model" << std::endl;
   }
-
 				// ------------------------------------------
 				// Make radial, density and mass array
 				// ------------------------------------------

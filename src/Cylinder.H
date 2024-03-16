@@ -72,7 +72,7 @@ class MixtureBasis;
 
     @param ashift offsets the center of the analytic model for basis function computation
 
-    @param expcond boolean true turns on basis function reconditioning
+    @param expcond boolean true turns on analytic basis function preconditioning (default: true)
 
     @param logr boolean turns on logarithmic radial basis gridding in EmpCylSL
 
