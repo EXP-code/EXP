@@ -2205,9 +2205,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
     // Diagnostic timing output for MPI process loop
     //
-    if (VFLAG & 16 && myid==0) {
-      ++(*progress);
-    }    
+    if (progress) ++(*progress);
 
     if (cntr++ % numprocs != myid) continue;
 
