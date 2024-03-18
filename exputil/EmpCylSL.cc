@@ -2192,7 +2192,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 #endif
 
   std::shared_ptr<progress::progress_display> progress;
-  if (VFLAG & 16 && myid==0) {
+  if (VFLAG & 8 && myid==0) {
     std::cout << std::endl << "Quadrature loop progress" << std::endl;
     progress = std::make_shared<progress::progress_display>(numr);
   }
@@ -2418,7 +2418,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   } // *** r quadrature loop
   
-  if (VFLAG & 16) {
+  if (VFLAG & 8) {
     auto t = timer.stop();
     if (myid==0) {
       std::cout << std::endl
@@ -2451,7 +2451,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   //
   make_eof();
 
-  if (VFLAG & 16) {
+  if (VFLAG & 8) {
     cout << "Process " << setw(4) << myid << ": completed basis in " 
 	 << timer.stop() << " seconds"
 	 << endl;

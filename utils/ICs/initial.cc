@@ -443,15 +443,15 @@ main(int ac, char **av)
      cxxopts::value<int>(NMAXLIM)->default_value("10000"))
     ("NUMDF", "Number of knots in Eddington inversion grid",
      cxxopts::value<int>(NUMDF)->default_value("1000"))
-    ("VFLAG", "",
-     cxxopts::value<int>(VFLAG)->default_value("31"))
-    ("DFLAG", "",
-     cxxopts::value<int>(DFLAG)->default_value("31"))
+    ("VFLAG", "Debug bit flags for EmpCylSL. Default is EOF timing only. Set to zero for quiet.",
+     cxxopts::value<int>(VFLAG)->default_value("8"))
+    ("DFLAG", "Debug bit flags for DiskHalo. Default is 0=quiet. 1=internal values, 2=model files, 4=dispersion/epicyclic files, 8=oab errors",
+     cxxopts::value<int>(DFLAG)->default_value("0"))
     ("expcond", "",
-     cxxopts::value<bool>(expcond)->default_value("false"))
+     cxxopts::value<bool>(expcond)->default_value("true"))
     ("report", "",
      cxxopts::value<bool>(report)->default_value("false"))
-    ("ignore", "",
+    ("ignore", "Ignore the specified EOF cache file even if it exists",
      cxxopts::value<bool>(ignore)->default_value("false"))
     ("evolved", "",
      cxxopts::value<bool>(evolved)->default_value("false"))
@@ -492,7 +492,7 @@ main(int ac, char **av)
     ("NHT", "",
      cxxopts::value<int>(NHT)->default_value("800"))
     ("NDP", "",
-     cxxopts::value<int>(NDP)->default_value("800"))
+     cxxopts::value<int>(NDP)->default_value("8"))
     ("NUMR", "Size of radial grid for Spherical SL",
      cxxopts::value<int>(NUMR)->default_value("2000"))
     ("SHFAC", "",
@@ -508,7 +508,7 @@ main(int ac, char **av)
     ("ToomreQ", "Toomre Q parameter for the disk",
      cxxopts::value<double>(ToomreQ)->default_value("1.4"))
     ("RMIN", "Minimum halo radius",
-     cxxopts::value<double>(RMIN)->default_value("0.005"))
+     cxxopts::value<double>(RMIN)->default_value("0.001"))
     ("RCYLMIN", "Minimum disk radius",
      cxxopts::value<double>(RCYLMIN)->default_value("0.001"))
     ("RCYLMAX", "Maximum disk radius, in units of ASCALE",
@@ -569,8 +569,8 @@ main(int ac, char **av)
      cxxopts::value<std::string>(centerfile))
     ("runtag", "Prefix for output files",
      cxxopts::value<std::string>(runtag)->default_value("gendisk"))
-    ("suffix", "Suffix for output files",
-     cxxopts::value<std::string>(suffix)->default_value("diag"))
+    ("suffix", "Suffix for output files (none by default)",
+     cxxopts::value<std::string>(suffix))
     ("threads", "Number of threads to run",
      cxxopts::value<int>(nthrds)->default_value("1"))
     ("allow", "Allow multimass algorithm to generature negative masses for testing")
