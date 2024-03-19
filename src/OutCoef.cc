@@ -64,7 +64,7 @@ void OutCoef::initialize()
 
     if (conf["filename"])
       {
-	filename = conf["filename"].as<std::string>();
+	filename = outdir + conf["filename"].as<std::string>();
       }
     else
       {
