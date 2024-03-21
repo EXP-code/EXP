@@ -35,11 +35,11 @@ set(common_INCLUDE_DIRS
 
 set(DSMC_LIBS)
 if (ENABLE_DSMC)
-  add_subdirectory(${PROJECT_SOURCE_DIR}/extern/DSMC/src DSMC)
+  # add_subdirectory(${PROJECT_SOURCE_DIR}/extern/DSMC/src DSMC)
   list(APPEND DSMC_LIBS expdsmc)
 endif()
 
-set(common_LINKLIB ${DSMC_LIBS} exputil expcoef OpenMP::OpenMP_CXX
+set(common_LINKLIB ${DSMC_LIBS} exputil expui OpenMP::OpenMP_CXX
   MPI::MPI_CXX yaml-cpp ${VTK_LIBRARIES})
 
 if(PNG_FOUND)

@@ -1,7 +1,7 @@
 
 set(bin_PROGRAMS testBarrier expyaml)
 
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX expcoef exputil
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX expui exputil
   yaml-cpp ${VTK_LIBRARIES})
 
 if(PNG_FOUND)

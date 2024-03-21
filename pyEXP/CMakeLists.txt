@@ -33,7 +33,7 @@ endif()
 pybind11_add_module(pyEXP PyWrappers.cc CoefWrappers.cc
   UtilWrappers.cc BasisWrappers.cc FieldWrappers.cc
   ParticleReaderWrappers.cc MSSAWrappers.cc EDMDWrappers.cc)
-target_link_libraries(pyEXP PUBLIC expcoef exputil ${common_LINKLIB})
+target_link_libraries(pyEXP PUBLIC expui exputil ${common_LINKLIB})
 target_include_directories(pyEXP PUBLIC ${common_INCLUDE})
 target_compile_options(pyEXP PUBLIC ${OpenMP_CXX_FLAGS})
 get_target_property(cxxflags pyEXP COMPILE_OPTIONS)

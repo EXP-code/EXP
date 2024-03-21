@@ -226,7 +226,7 @@ add_subdirectory(extern/HighFive)
 
 # Configure the remaining native subdirectories
 add_subdirectory(exputil)
-add_subdirectory(coefs)
+add_subdirectory(expui)
 if (ENABLE_NBODY)
   add_subdirectory(src)
 endif()
@@ -236,6 +236,10 @@ if (ENABLE_PYEXP)
 endif()
 
 add_subdirectory(extern/user-modules)
+
+if (ENABLE_DSMC)
+  add_subdirectory(extern/DSMC/src)
+endif()
 
 # Build the tests; set ENABLE_TEST=OFF to disable
 if(ENABLE_TESTS)
