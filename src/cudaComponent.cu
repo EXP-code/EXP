@@ -1057,7 +1057,7 @@ void Component::print_level_lists_cuda(double T)
     if (tot) {
 
       std::ostringstream ofil;
-      ofil << runtag << ".levels";
+      ofil << outdir << runtag << ".levels";
       std::ofstream out(ofil.str().c_str(), ios::app);
 
       int sum=0;
