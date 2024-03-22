@@ -1566,6 +1566,9 @@ namespace MSSA {
     //
     if (params["Traj"]) trajectory = params["Traj"].as<bool>();
 
+    std::cout << "Trajectory is " << std::boolalpha << trajectory
+	      << std::endl;
+
     // Eigen OpenMP reporting
     //
     static bool firstTime = true;
