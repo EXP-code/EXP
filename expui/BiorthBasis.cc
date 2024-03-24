@@ -74,6 +74,7 @@ namespace BasisClasses
       labels.push_back("rad force");
       labels.push_back("ver force");
       labels.push_back("azi force");
+      if (midplane) labels.push_back("midplane");
     } else if (ctype == Coord::Cartesian) {
       labels.push_back("x force");
       labels.push_back("y force");
@@ -822,7 +823,8 @@ namespace BasisClasses
     "self_consistent",
     "playback",
     "coefCompute",
-    "coefMaster"
+    "coefMaster",
+    "midplane"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
@@ -1035,6 +1037,7 @@ namespace BasisClasses
       if (conf["mtype"     ])       mtype = conf["mtype"     ].as<std::string>();
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
+      if (conf["midplane"  ])    midplane = conf["midplane"  ].as<bool>();
 
       // Deprecation warning
       if (conf["density"   ]) {
@@ -1269,14 +1272,22 @@ namespace BasisClasses
   // Evaluate in cylindrical coordinates
   std::vector<double> Cylindrical::cyl_eval(double R, double z, double phi)
   {
-    double tdens0, tdens, tpotl0, tpotl, tpotR, tpotz, tpotp;
+    double tdens0, tdens, tpotl0, tpotl, tpotR, tpotz, tpotp, height;
 
     sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
 
-    return
-      {tdens0, tdens - tdens0, tdens,
-       tpotl0, tpotl - tpotl0, tpotl, tpotR, tpotz, tpotp};
+    if (midplane) {
+      height = sl->accumulated_midplane_eval(R, -4.0*hcyl, 4.0*hcyl, phi);
+
+      return
+	{tdens0, tdens - tdens0, tdens,
+	 tpotl0, tpotl - tpotl0, tpotl, tpotR, tpotz, tpotp, height};
+    } else {
+      return
+	{tdens0, tdens - tdens0, tdens,
+	 tpotl0, tpotl - tpotl0, tpotl, tpotR, tpotz, tpotp};
+    }
   }
   
   void Cylindrical::accumulate(double x, double y, double z, double mass)

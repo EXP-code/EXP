@@ -5154,6 +5154,56 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
 
 
   
+double EmpCylSL::accumulated_midplane_eval(double r, double zmin, double zmax,
+					   double phi, int num)
+{
+  if (!coefs_made_all()) {
+    if (VFLAG>3) 
+      std::cerr << "Process " << myid << ": in EmpCylSL::accumlated_midplane_eval, "
+		<< "calling make_coefficients()" << std::endl;
+    make_coefficients();
+  }
+
+  std::vector<double> tdens(num);
+  double dz = (zmax - zmin)/(num - 1), d0;
+
+  // Compute density in a column
+  //
+  for (int k=0; k<num; k++) {
+    double z = zmin + dz*k;
+    tdens[k] = accumulated_dens_eval(r, z, phi, d0);
+  }
+
+  // Scan for peak
+  //
+  double pval = tdens[0];
+  int kpeak = 0;
+  for (int k=1; k<num; k++) {
+    if (pval < tdens[k]) {
+      pval = tdens[k];
+      kpeak = k;
+    }
+  }
+
+  // If k is at a boundary, return boundary value, otherwise compute
+  // the quadratic fit
+  //
+  if (kpeak==0 or kpeak==num-1) {
+    // Peak outside interval
+    return pval;
+  } else {
+    // Found a peak
+    double a = zmin + dz*(kpeak-1), fa = tdens[kpeak-1];
+    double b = a + dz, fb = tdens[kpeak];
+    double c = b + dz, fc = tdens[kpeak+1];
+    double denom = fa - 2.0*fb + fc; // Sanity: if we have a peak,
+				     // then 'denom' should cannot be
+				     // zero
+    if (fabs(denom)<1.0e-16) return b; 
+    else return ( (b + c)*fa*0.5 - (a + c)*fb + (a + b)*fc*0.5 ) / denom;
+  }
+}
+
 void EmpCylSL::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
 		       double r, double z)
 {
