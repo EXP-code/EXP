@@ -823,8 +823,7 @@ namespace BasisClasses
     "self_consistent",
     "playback",
     "coefCompute",
-    "coefMaster",
-    "midplane"
+    "coefMaster"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
@@ -1037,7 +1036,6 @@ namespace BasisClasses
       if (conf["mtype"     ])       mtype = conf["mtype"     ].as<std::string>();
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
-      if (conf["midplane"  ])    midplane = conf["midplane"  ].as<bool>();
 
       // Deprecation warning
       if (conf["density"   ]) {
@@ -1278,7 +1276,7 @@ namespace BasisClasses
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
 
     if (midplane) {
-      height = sl->accumulated_midplane_eval(R, -4.0*hcyl, 4.0*hcyl, phi);
+      height = sl->accumulated_midplane_eval(R, -colh*hcyl, colh*hcyl, phi);
 
       return
 	{tdens0, tdens - tdens0, tdens,

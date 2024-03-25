@@ -25,7 +25,13 @@ namespace Field
     void check_times(CoefClasses::CoefsPtr coefs);
     
     //! Using MPI
-    bool use_mpi;
+    bool use_mpi = false;
+
+    //! Perform midplane evaluation
+    bool midplane = false;
+
+    //! Midplane search height
+    double colheight = 4.0;
 
   public:
     
@@ -107,6 +113,14 @@ namespace Field
 		      const std::string prefix, const std::string outdir=".");
     //@}
     
+    //! Turn on/off midplane evaluation (only effective for disk basis
+    //! and slices)
+    void setMidplane(bool value) { midplane = value; }
+
+    //! Height above/below the plane for midplane search in disk scale
+    //! lengths
+    void setColumnHeight(double value) { colheight = value; }
+
   };
 
 }

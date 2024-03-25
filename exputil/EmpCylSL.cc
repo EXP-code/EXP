@@ -5165,12 +5165,12 @@ double EmpCylSL::accumulated_midplane_eval(double r, double zmin, double zmax,
   }
 
   std::vector<double> tdens(num);
-  double dz = (zmax - zmin)/(num - 1), d0;
+  double dz = (zmax - zmin)/(num - 1);
 
   // Compute density in a column
   //
   for (int k=0; k<num; k++) {
-    double z = zmin + dz*k;
+    double z = zmin + dz*k, d0;
     tdens[k] = accumulated_dens_eval(r, z, phi, d0);
   }
 
@@ -5193,14 +5193,15 @@ double EmpCylSL::accumulated_midplane_eval(double r, double zmin, double zmax,
     return pval;
   } else {
     // Found a peak
-    double a = zmin + dz*(kpeak-1), fa = tdens[kpeak-1];
-    double b = a + dz, fb = tdens[kpeak];
-    double c = b + dz, fc = tdens[kpeak+1];
-    double denom = fa - 2.0*fb + fc; // Sanity: if we have a peak,
-				     // then 'denom' should cannot be
-				     // zero
-    if (fabs(denom)<1.0e-16) return b; 
-    else return ( (b + c)*fa*0.5 - (a + c)*fb + (a + b)*fc*0.5 ) / denom;
+    double z0 = zmin + dz*kpeak;
+    double f[] = {tdens[kpeak-1], tdens[kpeak], tdens[kpeak+1]};
+
+    // Sanity: if we have a peak, then 'denom' should cannot be zero
+    double denom = f[0] - 2.0*f[1] + f[2]; 
+    if (fabs(denom)<1.0e-16) return z0;
+
+    // Quadratic solution
+    return ( (2*z0+dz)*f[0]*0.5 - 2*z0*f[1] + (2*z0-dz)*f[2]*0.5 ) / denom;
   }
 }
 

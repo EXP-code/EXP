@@ -74,9 +74,6 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() = 0;
 
-    //! Turn on midplane evaluation
-    bool midplane = false;
-
   public:
     
     //! Constructor from YAML node

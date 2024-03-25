@@ -293,6 +293,11 @@ namespace Field
   FieldGenerator::slices(BasisClasses::BasisPtr basis,
 			 CoefClasses::CoefsPtr coefs)
   {
+    // Set midplane evaluation parameters
+    //
+    basis->setMidplane(midplane);
+    basis->setColumnHeight(colheight);
+
     // Check
     //
     check_times(coefs);
@@ -461,6 +466,9 @@ namespace Field
 	}
       }
     }
+
+    // Toggle off midplane evaluation
+    basis->setMidplane(false);
 
     return ret;
   }
