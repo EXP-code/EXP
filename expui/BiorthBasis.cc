@@ -1898,6 +1898,418 @@ namespace BasisClasses
   }
 
   const std::set<std::string>
+  Slab::valid_keys = {
+    "nmaxx",
+    "nmaxy",
+    "nmaxz",
+    "nminx",
+    "nminy",
+    "hslab",
+    "zmax",
+    "knots",
+    "verbose",
+    "check",
+    "method"
+  };
+
+  Slab::Slab(const YAML::Node& CONF) : BiorthBasis(CONF, "slab")
+  {
+    initialize();
+  }
+
+  Slab::Slab(const std::string& confstr) : BiorthBasis(confstr, "slab")
+  {
+    initialize();
+  }
+
+  void Slab::initialize()
+  {
+    nminx = std::numeric_limits<int>::max();
+    nminy = std::numeric_limits<int>::max();
+
+    nmaxx = 6;
+    nmaxy = 6;
+    nmaxz = 6;
+
+    knots = 40;
+
+    // Check orthogonality (false by default because of its long
+    // runtime and very low utility)
+    //
+    bool check = false;
+
+    // Check for unmatched keys
+    //
+    auto unmatched = YamlCheck(conf, valid_keys);
+    if (unmatched.size())
+      throw YamlConfigError("Basis::Basis::Slab", "parameter", unmatched, __FILE__, __LINE__);
+    
+    // Default cachename, empty by default
+    //
+    std::string cachename;
+
+    // Assign values from YAML
+    //
+    try {
+      if (conf["nminx"])      nminx = conf["nminx"].as<int>();
+      if (conf["nminy"])      nminy = conf["nminy"].as<int>();
+      
+      if (conf["nmaxx"])      nmaxx = conf["nmaxx"].as<int>();
+      if (conf["nmaxy"])      nmaxy = conf["nmaxy"].as<int>();
+      if (conf["nmaxz"])      nmaxz = conf["nmaxz"].as<int>();
+      
+      if (conf["hslab"])      hslab = conf["hslab"].as<double>();
+      if (conf["zmax "])      zmax  = conf["zmax" ].as<double>();
+
+      if (conf["knots"])      knots = conf["knots"].as<int>();
+
+      if (conf["check"])      check = conf["check"].as<bool>();
+    } 
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing parameter stanza for <"
+			     << name << ">: "
+			     << error.what() << std::endl
+			     << std::string(60, '-') << std::endl
+			     << conf                 << std::endl
+			     << std::string(60, '-') << std::endl;
+      
+      throw std::runtime_error("Slab: error parsing YAML");
+    }
+    
+    // Finally, make the basis
+    //
+    SLGridSlab::mpi = 1;
+    SLGridSlab::ZBEG = 0.0;
+    SLGridSlab::ZEND = 0.1;
+    SLGridSlab::H = hslab;
+  
+    int nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
+
+    ortho = std::make_shared<SLGridSlab>(nnmax, nmaxz, NGRID, zmax);
+
+    // Orthogonality sanity check
+    //
+    if (check) orthoTest();
+
+    // Get max threads
+    //
+    int nthrds = omp_get_max_threads();
+
+    imx = 2*nmaxx + 1;
+    imy = 2*nmaxy + 1;
+    imz = nmaxz;
+
+    expcoef.resize(imx, imy, imz);
+    expcoef.setZero();
+      
+    used = 0;
+
+    // Set cartesian coordindates
+    //
+    coordinates = Coord::Cartesian;
+  }
+  
+  void Slab::reset_coefs(void)
+  {
+    expcoef.setZero();
+    totalMass = 0.0;
+    used = 0;
+  }
+  
+  
+  void Slab::load_coefs(CoefClasses::CoefStrPtr coef, double time)
+  {
+    auto cf = dynamic_cast<CoefClasses::SlabStruct*>(coef.get());
+
+    cf->nmaxx   = nmaxx;
+    cf->nmaxy   = nmaxy;
+    cf->nmaxz   = nmaxz;
+    cf->time    = time;
+
+    cf->allocate();
+
+    *cf->coefs = expcoef;
+  }
+
+  void Slab::set_coefs(CoefClasses::CoefStrPtr coef)
+  {
+    // Sanity check on derived class type
+    //
+    if (typeid(*coef) != typeid(CoefClasses::SlabStruct))
+      throw std::runtime_error("Slab::set_coefs: you must pass a CoefClasses::SlabStruct");
+
+    // Sanity check on dimensionality
+    //
+    {
+      auto cc = dynamic_cast<CoefClasses::SlabStruct*>(coef.get());
+      auto d  = cc->coefs->dimensions();
+      if (d[0] != 2*nmaxx+1 or d[1] != 2*nmaxy+1 or d[2] != 2*nmaxz+1) {
+	std::ostringstream sout;
+	sout << "Slab::set_coefs: the basis has (2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1)=("
+	     << 2*nmaxx+1 << ", " 
+	     << 2*nmaxy+1 << ", " 
+	     << 2*nmaxz+1
+	     << "). The coef structure has dimension=("
+	     << d[0] << ", " << d[1] << ", " << d[2] << ")";
+	  
+	throw std::runtime_error(sout.str());
+      }
+    }
+    
+    auto cf = dynamic_cast<CoefClasses::SlabStruct*>(coef.get());
+    expcoef = *cf->coefs;
+
+    coefctr = {0.0, 0.0, 0.0};
+  }
+
+  void Slab::accumulate(double x, double y, double z, double mass)
+  {
+    // Truncate to slab with sides in [0,1]
+    if (x<0.0)
+      x += std::floor(-x) + 1.0;
+    else
+      x -= std::floor( x);
+    
+    if (y<0.0)
+      y += std::floor(-y) + 1.0;
+    else
+      y -= std::floor( y);
+    
+    // Recursion multipliers
+    Eigen::Vector3cd step
+      {std::exp(-kfac*x), std::exp(-kfac*y), std::exp(-kfac*z)};
+    
+    // Initial values for recursion
+    Eigen::Vector3cd init
+      {std::exp(-kfac*(x*nmaxx)),
+       std::exp(-kfac*(y*nmaxy)),
+       std::exp(-kfac*(z*nmaxz))};
+    
+    Eigen::Vector3cd curr(init);
+    for (int ix=0; ix<=2*nmaxx; ix++, curr(0)*=step(0)) {
+      curr(1) = init(1);
+      for (int iy=0; iy<=2*nmaxy; iy++, curr(1)*=step(1)) {
+	curr(2) = init(2);
+	for (int iz=0; iz<=2*nmaxz; iz++, curr(2)*=step(2)) {
+	  
+	  // Compute wavenumber; recall that the coefficients are
+	  // stored as: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+	  //
+	  int ii = ix-nmaxx;
+	  int jj = iy-nmaxy;
+	  int kk = iz-nmaxz;
+
+	  // Normalization
+	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
+
+	  expcoef(ix, iy, iz) += - mass * curr(0)*curr(1)*curr(2) * norm;
+	}
+      }
+    }
+
+    int ix, iy, iz;		// Loop indices
+
+				// Recursion multipliers
+    std::complex<double> stepx = exp(-kfac*x), facx;
+    std::complex<double> stepy = exp(-kfac*y), facy;
+   
+				// Initial values
+    std::complex<double> startx = exp(static_cast<double>(nmaxx)*kfac*x);
+    std::complex<double> starty = exp(static_cast<double>(nmaxy)*kfac*y);
+    
+    Eigen::VectorXd zpot(nmaxz);
+
+    for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+      
+      int ii = ix - nmaxx;
+      int iix = abs(ii);
+      
+      for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+	
+	int jj = iy - nmaxy;
+	int iiy = abs(jj);
+	
+	if (iix > nmaxx) {
+	  std::cerr << "Out of bounds: iix=" << ii << std::endl;
+	}
+	if (iiy > nmaxy) {
+	  std::cerr << "Out of bounds: iiy=" << jj << std::endl;
+	}
+	
+	if (iix>=iiy)
+	  ortho->get_pot(zpot, z, iix, iiy);
+	else
+	  ortho->get_pot(zpot, z, iiy, iix);
+
+
+	for (iz=0; iz<imz; iz++) {
+
+	                       // +--- density in orthogonal series
+                               // |    is 4.0*M_PI rho
+                               // v
+	  expcoef(ix, iy, iz) += -4.0*M_PI*mass*facx*facy*zpot[iz];
+	}
+      }
+    }
+  }
+  
+  void Slab::make_coefs()
+  {
+    if (use_mpi) {
+      
+      MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
+		    MPI_SUM, MPI_COMM_WORLD);
+      
+      MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(), MPI_DOUBLE_COMPLEX,
+		    MPI_SUM, MPI_COMM_WORLD);
+    }
+  }
+  
+  std::tuple<double, double, double, double, double>
+  Slab::eval(double x, double y, double z)
+  {
+    // Loop indices
+    //
+    int ix, iy, iz;
+
+    // Working values
+    //
+    std::complex<double> facx, facy, fac, facf, facd;
+    const std::complex<double> I(0.0, 1.0);
+    const double dfac = 2.0*M_PI;
+
+    // Return values
+    //
+    std::complex<double> accx(0.0), accy(0.0), accz(0.0), potl(0.0), dens(0.0);
+    
+    // Recursion multipliers
+    //
+    std::complex<double> stepx = exp(kfac*x);
+    std::complex<double> stepy = exp(kfac*y);
+
+    // Initial values (note sign change)
+    //
+    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x);
+    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y);
+    
+    Eigen::VectorXd vpot(nmaxz), vfrc(nmaxz), vden(nmaxz);
+
+    for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+      
+				// Compute wavenumber; recall that the
+				// coefficients are stored as follows:
+				// -nmax,-nmax+1,...,0,...,nmax-1,nmax
+      int ii = ix - nmaxx;
+      int iix = abs(ii);
+      
+      for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+	
+	int jj = iy - nmaxy;
+	int iiy = abs(jj);
+	
+	if (iix > nmaxx) {
+	  std::cerr << "Out of bounds: ii=" << ii << std::endl;
+	}
+	if (iiy > nmaxy) {
+	  std::cerr << "Out of bounds: jj=" << jj << std::endl;
+	}
+	
+	if (iix>=iiy) {
+	  ortho->get_pot  (vpot, z, iix, iiy);
+	  ortho->get_force(vfrc, z, iix, iiy);
+	  ortho->get_dens (vden, z, iix, iiy);
+	}
+	else {
+	  ortho->get_pot  (vpot, z, iiy, iix);
+	  ortho->get_force(vfrc, z, iiy, iix);
+	  ortho->get_dens (vden, z, iiy, iix);
+	}
+
+	
+	for (int iz=0; iz<imz; iz++) {
+	  
+	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz);
+	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz);
+	  facd = facx*facy*vden[iz]*expcoef(ix, iy, iz);
+	  
+				// Limit to minimum wave number
+	  
+	  if (abs(ii)<nminx || abs(jj)<nminy) continue;
+	  
+	  potl +=  fac;
+	  dens +=  facd;
+	  accx += -dfac*ii*I*fac;
+	  accy += -dfac*jj*I*fac;
+	  accz += -facf;
+	  
+	}
+      }
+    }
+
+    return {potl.real(), dens.real(), accx.real(), accy.real(), accz.real()};
+  }
+
+
+
+  std::vector<double> Slab::crt_eval(double x, double y, double z)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    auto [pot, den, frcx, frcy, frcz] = eval(x, y, z);
+
+    return {0, den, 0, pot, frcx, frcy, frcz};
+  }
+
+  std::vector<double> Slab::cyl_eval(double R, double z, double phi)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Cartesian from Cylindrical coordinates
+    double x = R*cos(phi), y = R*sin(phi);
+
+    auto [pot, den, frcx, frcy, frcz] = eval(x, y, z);
+
+    double potR =  frcx*cos(phi) + frcy*sin(phi);
+    double potp = -frcx*sin(phi) + frcy*cos(phi);
+    double potz =  frcz;
+
+    potR *= -1;
+    potp *= -1;
+    potz *= -1;
+
+    return {0, den, den, 0, pot, pot, potR, potz, potp};
+  }
+
+  std::vector<double> Slab::sph_eval(double r, double costh, double phi)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Spherical from Cylindrical coordinates
+    double sinth = sqrt(fabs(1.0 - costh*costh));
+    double x = r*cos(phi)*sinth, y = r*sin(phi)*sinth, z = r*costh;
+
+    auto [pot, den, frcx, frcy, frcz] = eval(x, y, z);
+
+    double potr =  frcx*cos(phi)*sinth + frcy*sin(phi)*sinth + frcz*costh;
+    double pott =  frcx*cos(phi)*costh + frcy*sin(phi)*costh - frcz*sinth;
+    double potp = -frcx*sin(phi)       + frcy*cos(phi);
+
+    potr *= -1;
+    pott *= -1;
+    potp *= -1;
+    
+    return {0, den, den, 0, pot, pot, potr, pott, potp};
+  }
+
+  std::vector<Eigen::MatrixXd> Slab::orthoCheck()
+  {
+    return ortho->orthoCheck();
+  }
+  
+  const std::set<std::string>
   Cube::valid_keys = {
     "nminx",
     "nminy",

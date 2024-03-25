@@ -512,6 +512,10 @@ public:
   */
   void get_force(Eigen::MatrixXd& tab, double x, int which=1);
 
+  //! Compute the orthogonality of the basis by returning inner
+  //! produce matrices
+  std::vector<Eigen::MatrixXd> orthoCheck(int knots=40);
+
   //@}
 };
 

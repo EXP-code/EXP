@@ -482,6 +482,137 @@ namespace CoefClasses
   };
   
 
+  /** Derived class for slab coefficients */
+  class SlabCoefs : public Coefs
+  {
+  protected:
+    //! 3d coefficient data type
+    typedef
+    Eigen::Tensor<std::complex<double>, 3> Eigen3d;
+
+    //! Data
+    Eigen3d dat;
+
+    //! Parameters
+    int NmaxX, NmaxY, NmaxZ;
+
+    //! The coefficient DB
+    std::map<double, SlabStrPtr> coefs;
+
+    //! Read the coefficients
+    virtual void readNativeCoefs(const std::string& file,
+				 int stride, double tmin, double tmax);
+
+    //! Get the YAML config
+    virtual std::string getYAML();
+    
+    //! Write parameter attributes
+    virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Write coefficient data in H5
+    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
+    
+  public:
+    
+    //! Constructor
+    SlabCoefs(bool verbose=false) : Coefs("slab", verbose) {}
+    
+    //! H5 constructor
+    SlabCoefs(HighFive::File& file, int stride=1,
+	     double tmin=-std::numeric_limits<double>::max(),
+	     double tmax= std::numeric_limits<double>::max(),
+	     bool verbose=false);
+    
+    //! Copy constructor
+    SlabCoefs(SlabCoefs& p) : Coefs(p) { coefs = p.coefs; }
+
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
+
+    //! Add a coefficient structure to the container
+    virtual void add(CoefStrPtr coef);
+
+    //! Get coefficient matrix at given time
+    virtual Eigen::VectorXcd& getData(double time);
+    
+    //! Native version
+    virtual Eigen3d& getTensor(double time);
+    
+    //! Set coefficient matrix at given time
+    virtual void setData(double time, const Eigen::VectorXcd& dat);
+
+    //! Native version
+    virtual void setTensor(double time, const Eigen3d& dat);
+    
+    //! Interpolate coefficient tensor at given time
+    std::tuple<Eigen::Tensor<std::complex<double>, 3>&, bool>
+    interpolate(double time)
+    {
+      auto ret = Coefs::interpolate(time);
+      dat = Eigen::TensorMap<Eigen3d>(std::get<0>(ret).data(), NmaxX, NmaxY, NmaxZ); 
+      return {dat, std::get<1>(ret)};
+    }
+
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[roundTime(time)]; }
+
+
+    //! Dump to ascii list for testing
+    void dump(int nmaxx, int nmaxy, int nmaxz);
+    
+    //! Get list of coefficient times
+    virtual std::vector<double> Times()
+    {
+      times.clear();
+      for (auto t : coefs) times.push_back(t.first);
+      return times;
+    }
+    
+    //! Get all coefficients indexed in time
+    Eigen::Tensor<std::complex<double>, 4> getAllCoefs();
+
+    /** Get power for the coefficient DB as a function of harmonic
+	index by dimension: x, y, z specified as a quoted char */
+    Eigen::MatrixXd& Power
+    (char d, int min=0, int max=std::numeric_limits<int>::max());
+
+    /** Get power for the coefficient DB as a function of harmonic
+	index.  Time as rows, harmonics as columns.  'x' dimension by
+	default.
+
+	@param min is the minimum radial order
+	@param max is the maximum radial order
+    */
+    Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max())
+    { return Power('x', min, max); }
+
+    //! Make a list of all index keys 
+    virtual std::vector<Key> makeKeys();
+    virtual std::vector<Key> makeKeys(Key k) { return makeKeys(); }
+
+    //! Compare two collections of stanzas (this is for testing only)
+    virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects
+    virtual std::shared_ptr<Coefs> deepcopy();
+
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+    }
+
+    //! Get nmax
+    double nmax(char d) const {
+      if (d=='x') return NmaxX;
+      if (d=='y') return NmaxY;
+      if (d=='z') return NmaxZ;
+      throw std::runtime_error("SlabCoefs: error in nmax accessor");
+    }
+  };
+  
+
   /** Derived class for cube coefficients */
   class CubeCoefs : public Coefs
   {

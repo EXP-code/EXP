@@ -5223,6 +5223,46 @@ void SLGridSlab::mpi_unpack_table(void)
 		  MPI_DOUBLE, MPI_COMM_WORLD);
 }
 
+std::vector<Eigen::MatrixXd> SLGridSlab::orthoCheck(int num)
+{
+  // Gauss-Legendre knots and weights
+  LegeQuad lw(num);
+
+  // Get the scaled coordinate limits
+  double ximin = z_to_xi(-zmax);
+  double ximax = z_to_xi( zmax);
+
+  // Initialize the return matrices
+  std::vector<Eigen::MatrixXd> ret((numk+1)*(numk+2)/2);
+  for (auto & v : ret) {
+    v.resize(numz, numz);
+    v.setZero();
+  }
+
+  
+  Eigen::VectorXd vpot(numz), vden(numz);
+
+#pragma omp parallel for
+  for (int i=0; i<num; i++) {
+    double x = ximin + (ximax - ximin)*lw.knot(i);
+	    
+    int indx = 0;
+    for (int kx=0; kx<=numk; kx++) {
+      for (int ky=0; ky<=kx; ky++, indx++) {
+	
+	get_pot (vpot, x, kx, ky);	
+	get_dens(vden, x, kx, ky);
+	
+	for (int n1=0; n1<numz; n1++)
+	  for (int n2=0; n2<numz; n2++)
+	    ret[indx](n1, n2) += vpot(n1)*vden(n2)*d_xi_to_z(x)
+	      *(ximax - ximin)*lw.weight(i);
+      }
+    }
+  }
+  
+  return ret;
+}
 
 //======================================================================
 //======================================================================

@@ -2,6 +2,11 @@
 #define _SlabSL_H
 
 #include <complex>
+
+#include <Eigen/Eigen>
+#include <unsupported/Eigen/CXX11/Tensor>
+
+#include <Coefficients.H>
 #include <SLGridMP2.H>
 #include <biorth1d.H>
 #include <PotAccel.H>
@@ -24,10 +29,13 @@ struct SlabSLCoefHeader {
 
 private:
 
-  SLGridSlab *grid;
+  std::shared_ptr<SLGridSlab> grid;
 
-  std::vector<Eigen::VectorXcd> expccof;
-  std::vector<std::vector<OneDTrig>> trig;
+  //! Coefficients are a 3-tensor
+  using coefType = Eigen::Tensor<std::complex<double>, 3>;
+
+  //! Current coefficient tensor
+  std::vector<coefType> expccof;
 
   int nminx, nminy;
   int nmaxx, nmaxy, nmaxz;
@@ -53,6 +61,9 @@ private:
   void * determine_coefficients_thread(void * arg);
   void * determine_acceleration_and_potential_thread(void * arg);
 
+  //! Coefficient container instance for writing HDF5
+  CoefClasses::SlabCoefs slabCoefs;
+
   // Biorth ID
   static const int ID=1;
 
@@ -74,6 +85,9 @@ public:
 
   //! Destructor
   virtual ~SlabSL();
+
+  //! Coefficient output
+  void dump_coefs_h5(const std::string& file);
 
   //! Print coefficients to output stream
   void dump_coefs(ostream& out);

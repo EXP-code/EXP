@@ -1,8 +1,7 @@
+#include <filesystem>
 #include <cmath>
 
 #include "expand.H"
-
-#include <biorth1d.H>
 
 #include <SlabSL.H>
 
@@ -36,7 +35,7 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   
   int nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
-  grid = new SLGridSlab(nnmax, nmaxz, NGRID, zmax);
+  grid = std::make_shared<SLGridSlab>(nnmax, nmaxz, NGRID, zmax);
 
   imx = 1+2*nmaxx;
   imy = 1+2*nmaxy;
@@ -44,7 +43,7 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   jmax = imx*imy*imz;
 
   expccof.resize(nthrds);
-  for (auto & v : expccof) v.resize(jmax);
+  for (auto & v : expccof) v.resize(imx, imy, imz);
     
   dfac = 2.0*M_PI;
   kfac = std::complex<double>(0.0, dfac);
@@ -60,7 +59,7 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 
 SlabSL::~SlabSL()
 {
-  delete grid;
+  // Nothing
 }
 
 void SlabSL::initialize()
@@ -108,11 +107,12 @@ void SlabSL::determine_coefficients(void)
 
   exp_thread_fork(true);
 
-  int used1 = 0;
+  int used1 = 0, rank = expccof[0].size();
   used = 0;
   for (int i=1; i<nthrds; i++) {
     used1 += use[i];
-    for (int j=0; j<jmax; j++) expccof[0][j] += expccof[i][j];
+    
+    for (int j=0; j<rank; j++) expccof[0].data()[j] += expccof[i].data()[j];
   }
   
   MPI_Allreduce ( &used1, &used,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -188,13 +188,10 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 
 
 	for (iz=0; iz<imz; iz++) {
-
-	  indx = imz*(iy + imy*ix) + iz;
-
-                              // |--- density in orthogonal series
-                              // |    is 4.0*M_PI rho
-                              // v
-	  expccof[id][indx] += -4.0*M_PI*cC->Mass(i)*adb*
+	                           // +--- density in orthogonal series
+                                   // |    is 4.0*M_PI rho
+                                   // v
+	  expccof[id](ix, iy, iz) += -4.0*M_PI*cC->Mass(i)*adb*
 	    facx*facy*zpot[id][iz+1];
 	}
       }
@@ -215,7 +212,7 @@ void SlabSL::get_acceleration_and_potential(Component* C)
 
 void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 {
-  int ix, iy, iz, iix, iiy, ii, jj, indx;
+  int ix, iy, iz, iix, iiy, ii, jj;
   std::complex<double> fac, startx, starty, facx, facy, potl, facf;
   std::complex<double> stepx, stepy;
   std::complex<double> accx, accy, accz;
@@ -272,10 +269,8 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	
 	for (iz=0; iz<imz; iz++) {
 	  
-	  indx = imz*(iy + imy*ix) + iz;
-	  
-	  fac  = facx*facy*zpot[id][iz+1]*expccof[0][indx];
-	  facf = facx*facy*zfrc[id][iz+1]*expccof[0][indx];
+	  fac  = facx*facy*zpot[id][iz+1]*expccof[0](ix, iy, iz);
+	  facf = facx*facy*zfrc[id][iz+1]*expccof[0](ix, iy, iz);
 	  
 				// Limit to minimum wave number
 	  
@@ -299,6 +294,48 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 
   return (NULL);
 }
+
+void SlabSL::dump_coefs_h5(const std::string& file)
+{
+  // Add the current coefficients
+  auto cur = std::make_shared<CoefClasses::SlabStruct>();
+
+  cur->time     = tnow;
+  cur->geom     = geoname[geometry];
+  cur->id       = id;
+  cur->time     = tnow;
+  cur->nmaxx    = nmaxx;
+  cur->nmaxy    = nmaxy;
+  cur->nmaxz    = nmaxz;
+
+  cur->allocate();		// Set the storage and copy the
+				// coefficients through the map
+  *cur->coefs   = expccof[0];
+
+  // Check if file exists
+  //
+  if (std::filesystem::exists(file)) {
+    slabCoefs.clear();
+    slabCoefs.add(cur);
+    slabCoefs.ExtendH5Coefs(file);
+  }
+  // Otherwise, extend the existing HDF5 file
+  //
+  else {
+    // Copy the YAML config.  We only need this on the first call.
+    std::ostringstream sout; sout << conf;
+    cur->buf = sout.str();	// Copy to CoefStruct buffer
+
+    // Add the name attribute.  We only need this on the first call.
+    slabCoefs.setName(component->name);
+
+    // And the new coefficients and write the new HDF5
+    slabCoefs.clear();
+    slabCoefs.add(cur);
+    slabCoefs.WriteH5Coefs(file);
+  }
+}
+
 
 void SlabSL::dump_coefs(ostream& out)
 {

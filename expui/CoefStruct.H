@@ -166,6 +166,9 @@ namespace CoefClasses
     //! Angular and radial dimension
     int nmaxx, nmaxy, nmaxz;
     
+    //! Basis dimensions
+    int nx, ny, nz, dim;
+
     //! Constructor
     SlabStruct() : nmaxx(0), nmaxy(0), nmaxz(0)
     { geom = "slab"; }
@@ -182,8 +185,11 @@ namespace CoefClasses
     //! Allocate storage arrays
     void allocate()
     {
-      store.resize(nmaxx*nmaxy*nmaxz);
-      coefs = std::make_shared<coefType>(store.data(), nmaxx, nmaxy, nmaxz);
+      nx = 2*nmaxx + 1;
+      ny = 2*nmaxy + 1;
+      nz = nmaxz;
+      store.resize(nx*ny*nz);
+      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
     }
 
 
@@ -191,9 +197,14 @@ namespace CoefClasses
     void assign(const Eigen::Tensor<std::complex<double>, 3>& dat)
     {
       const auto& d = dat.dimensions();
-      nmaxx = d[0];
-      nmaxy = d[1];
-      nmaxz = d[2];
+      nx = d[0];
+      ny = d[1];
+      nz = d[2];
+
+      nmaxx = (nx - 1)/2;
+      nmaxy = (ny - 1)/2;
+      nmaxz = nz;
+
       allocate();
       *coefs = dat;
     }
