@@ -1768,7 +1768,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
       in->read((char*)&number, sizeof(int));
     } catch (...) {
       std::ostringstream sout;
-      sout << "Error reading magic info and file count from master";
+      sout << "Error reading magic info and file count from root";
       throw GenericError(sout.str(), __FILE__, __LINE__, 1010, true);
     }
 
@@ -2116,7 +2116,7 @@ PartPtr * Component::get_particles(int* number)
 	for (auto it=itb; it!=ite; it++) pbuf[icount++] = it->second;
 
 #ifdef DEBUG
-	std::cout << "get_particles: master loaded " 
+	std::cout << "get_particles: root loaded " 
 		  << icount << " of its own particles"
 		  << ", beg=" << beg << ", iend=" << end
 		  << ", dist=" << std::distance(itb, ite)
@@ -2133,7 +2133,7 @@ PartPtr * Component::get_particles(int* number)
       while (PartPtr part=pf->RecvParticle()) pbuf[icount++] = part;
 #ifdef DEBUG
       std::cout << "Process " << myid 
-	   << ": received " << icount << " particles from Slave " << node
+	   << ": received " << icount << " particles from Worker " << node
 		<< ", expected " << number << ", total=" << totals[node]
 		<< std::endl << std::flush;
 #endif    
@@ -2145,7 +2145,7 @@ PartPtr * Component::get_particles(int* number)
       curcount++;
       counter++;
     }
-				// Nodes send particles to master
+				// Nodes send particles to root
   } else if (myid == node) {
       
     auto itb = particles.begin();
@@ -2163,7 +2163,7 @@ PartPtr * Component::get_particles(int* number)
 
 #ifdef DEBUG
       std::cout << "Process " << myid 
-		<< ": sent " << icount << " particles from Slave " << node
+		<< ": sent " << icount << " particles from Worker " << node
 		<< std::endl << std::flush;
 #endif    
   }
@@ -3353,7 +3353,7 @@ int Component::round_up(double dnumb)
 
 void Component::setup_distribution(void)
 {
-				// Needed for both master and slaves
+				// Needed for both root and workers
   nbodies_index = vector<unsigned int>(numprocs);
   nbodies_table = vector<unsigned int>(numprocs);
 
