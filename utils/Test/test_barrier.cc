@@ -56,7 +56,7 @@ int main(int argc, char **argv)
   // MPI preliminaries
   //--------------------------------------------------
 
-  int numprocs, slaves, myid, proc_namelen;
+  int numprocs, myid, proc_namelen;
   char processor_name[MPI_MAX_PROCESSOR_NAME];
 
   MPI_Init(&argc, &argv);

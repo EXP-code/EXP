@@ -173,8 +173,8 @@ main(int argc, char** argv)
   char hdbuffer[hdbufsize];
   bool final_cmd = false;
 
-  int *nslaves, n, retdir, retdir0;
-  MPI_Group world_group, slave_group;
+  int *nworkers, n, retdir, retdir0;
+  MPI_Group world_group, worker_group;
   MPI_Errhandler errhandler;
 
   //===================
@@ -192,23 +192,23 @@ main(int argc, char** argv)
     MPI_Comm_set_errhandler(MPI_COMM_WORLD, errhandler);
   }
 
-				// Make SLAVE group 
-#ifdef SLAVE_GROUP
-  slaves = numprocs - 1;
+				// Make WORKER group 
+#ifdef WORKER_GROUP
+  workers = numprocs - 1;
   MPI_Comm_group(MPI_COMM_WORLD, &world_group);
-  nslaves = new int [slaves];
-  if (!nslaves) {
-    cerr << "main: problem allocating <nslaves>\n";
+  nworkers = new int [workers];
+  if (!nworkers) {
+    cerr << "main: problem allocating <nworkers>\n";
     MPI_Finalize();
     exit(10);
   }
-  for (n=1; n<numprocs; n++) nslaves[n-1] = n;
-  MPI_Group_incl(world_group, slaves, nslaves, &slave_group);
-  MPI_Comm_create(MPI_COMM_WORLD, slave_group, &MPI_COMM_SLAVE);
-  delete [] nslaves;
+  for (n=1; n<numprocs; n++) nworkers[n-1] = n;
+  MPI_Group_incl(world_group, workers, nworkers, &worker_group);
+  MPI_Comm_create(MPI_COMM_WORLD, worker_group, &MPI_COMM_WORKER);
+  delete [] nworkers;
 
   // Debug id 
-  MPI_Group_rank ( slave_group, &n );
+  MPI_Group_rank ( worker_group, &n );
   if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl
 		     << setfill(' ')
 		     << "Process " << setw(4) << right << myid 
@@ -222,7 +222,7 @@ main(int argc, char** argv)
     if (myid==j) cerr << "Process " << setw(4) << right << myid 
 		      << " on " << processor_name
 		      << "   pid=" << getpid()
-		      << "   rank in SLAVE: " << j << "\t Ready to go!\n";
+		      << "   rank in WORKER: " << j << "\t Ready to go!\n";
     MPI_Barrier(MPI_COMM_WORLD);
   }
   if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl

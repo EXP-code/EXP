@@ -223,7 +223,7 @@ int main(int argc, char** argv)
   //                                                                    |
   // Turn on diagnostic output in SL creation---------------------------+
 
-				// Slaves exit
+				// Workers exit
   if (use_mpi && myid>0) {
     MPI_Finalize();
     exit(0);
