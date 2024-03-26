@@ -1454,11 +1454,11 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
          Parameters
          ----------
          YAMLstring : str
-             The YAML configuration for the periodic cube basis.  The coordinates
-             are the unit square in x, y with origin at (0, 0) and maximum extent (1, 1)
-             and maximum vertical extent of -zZmax to zmax.
-             The default  parameters will wave numbers between [-6,...,6] in each
-             dimension.
+             The YAML configuration for the Slab basis. The coordinates are the
+             unit square in x, y with origin at (0, 0) and maximum extent (1, 1)
+             and maximum vertical extent of -zmax to zmax. The default 
+             parameters are wave numbers between [-6,...,6] in x, y, and order 6
+             for the vertical basis.
 
          Returns
          -------
