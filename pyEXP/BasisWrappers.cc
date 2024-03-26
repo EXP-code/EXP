@@ -23,7 +23,7 @@ void BasisFactoryClasses(py::module &m)
     forces and, together with the FieldGenerator, surfaces and fields for
     visualization.
 
-    Six bases are currently implemented:
+    Seven bases are currently implemented:
 
      1. SphericalSL, the Sturm-Liouiville spherical basis;
 
@@ -32,13 +32,17 @@ void BasisFactoryClasses(py::module &m)
 
      3. FlatDisk, an EOF rotation of the finite Bessel basis; and
 
-     4. Cube, a periodic cube basis whose functions are the Cartesian
+     4. Slab, a biorthogonal basis for a slab geometry with a finite
+        finite vertical extent.  The basis is constructed from direct
+        solution of the Sturm-Liouville equation.
+
+     5. Cube, a periodic cube basis whose functions are the Cartesian
         eigenfunctions of the Cartesian Laplacian: sines and cosines.
 
-     5. FieldBasis, for computing user-provided quantities from a
+     6. FieldBasis, for computing user-provided quantities from a
         phase-space snapshot.
 
-     6. VelocityBasis, for computing the mean field velocity fields from
+     7. VelocityBasis, for computing the mean field velocity fields from
         a phase-space snapshot.  This is a specialized version of FieldBasis.
 
     Each of these bases take a YAML configuration file as input. These parameter
@@ -152,9 +156,11 @@ void BasisFactoryClasses(py::module &m)
 
      3. FlatDisk uses cylindrical coordinates
 
-     4. Cube uses Cartesian coordinates
+     4. Slab uses Cartesian coordinates
 
-     5. FieldBasis and VelocityBasis provides two natural geometries for
+     5. Cube uses Cartesian coordinates
+
+     6. FieldBasis and VelocityBasis provides two natural geometries for
         field evaluation: a two-dimensional (dof=2) polar disk and a
         three-dimensional (dof=3) spherical geometry that are chosen using
         the 'dof' parameter.  These use cylindrical and spherical
@@ -555,6 +561,74 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
   };
 
 
+  class PySlab : public Slab
+  {
+  protected:
+
+    std::vector<double> sph_eval(double r, double costh, double phi) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Slab, sph_eval, r, costh, phi);
+    }
+    
+
+    std::vector<double> cyl_eval(double R, double z, double phi) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Slab, cyl_eval, R, z, phi);
+    }
+    
+    std::vector<double> crt_eval(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Slab, crt_eval, x, y, z);
+    }
+    
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override
+    {
+      PYBIND11_OVERRIDE(void, Slab, load_coefs, coefs, time);
+    }
+    
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override
+    {
+      PYBIND11_OVERRIDE(void, Slab, set_coefs, coefs);
+    }
+
+    const std::string classname() override
+    {
+      PYBIND11_OVERRIDE(std::string, Slab, classname);
+    }
+
+    const std::string harmonic() override
+    {
+      PYBIND11_OVERRIDE(std::string, Slab, harmonic);
+    }
+
+  public:
+
+    // Inherit the constructors
+    using Slab::Slab;
+
+    std::vector<double> getFields(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Slab, getFields, x, y, z);
+    }
+
+    void accumulate(double x, double y, double z, double mass) override
+    {
+      PYBIND11_OVERRIDE(void, Slab, accumulate, x, y, z, mass);
+    }
+
+    void reset_coefs(void) override
+    {
+      PYBIND11_OVERRIDE(void, Slab, reset_coefs,);
+    }
+
+    void make_coefs(void) override
+    {
+      PYBIND11_OVERRIDE(void, Slab, make_coefs,);
+    }
+
+  };
+
+
   class PyCube : public Cube
   {
   protected:
@@ -638,7 +712,7 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
 
   py::class_<BasisClasses::Basis, std::shared_ptr<BasisClasses::Basis>, PyBasis>
     (m, "Basis")
-    .def("factory",            &BasisClasses::BiorthBasis::factory_string,
+    .def("factory", &BasisClasses::BiorthBasis::factory_string,
 	 R"(
          Generate a basis from a YAML configuration supplied as a string
 
@@ -969,9 +1043,10 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
          Set the coordinate system for force evaluations.  The natural 
          coordinates for the basis class are the default; spherical
          coordinates for SphericalSL, cylindrical coordinates for
-         Cylindrical and FlatDisk, and Cartesian coordinates for Cube.
-         This member function can be used to override the default.  The
-         available coorindates are: 'spherical', 'cylindrical', 'cartesian'.
+         Cylindrical and FlatDisk, and Cartesian coordinates for the Slab
+         and Cube. This member function can be used to override the default.  
+         The available coorindates are: 'spherical', 'cylindrical', 
+         'cartesian'.
 
          Parameters
          ----------
@@ -1371,6 +1446,50 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
       )",
       py::arg("cachefile"));
 
+  py::class_<BasisClasses::Slab, std::shared_ptr<BasisClasses::Slab>, PySlab, BasisClasses::BiorthBasis>(m, "Slab")
+    .def(py::init<const std::string&>(),
+	 R"(
+         Create a slab basis, periodic on the unit square and finite in vertical extent
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the periodic cube basis.  The coordinates
+             are the unit square in x, y with origin at (0, 0) and maximum extent (1, 1)
+             and maximum vertical extent of -zZmax to zmax.
+             The default  parameters will wave numbers between [-6,...,6] in each
+             dimension.
+
+         Returns
+         -------
+         Cube
+             the new instance
+         )", py::arg("YAMLstring"))
+    .def("orthoCheck", [](BasisClasses::Cube& A)
+    {
+      return A.orthoCheck();
+    },
+      R"(
+      Check orthgonality of basis functions by quadrature
+
+      Inner-product matrix of indexed by flattened wave number (nx, ny, nz) where
+      each of nx is in [-nmaxx, nmaxx], ny is in [-nmaxy, nmaxy] and nz is in 
+      [0, nmaxz-1].  This is an analytic basis so the orthogonality matrix is not a 
+      check of any numerical computation other than the quadrature itself.  It is 
+      included for completeness.
+
+      Parameters
+      ----------
+      None
+
+      Returns
+      -------
+      numpy.ndarray
+          list of numpy.ndarrays
+      )"
+      );
+
+
   py::class_<BasisClasses::Cube, std::shared_ptr<BasisClasses::Cube>, PyCube, BasisClasses::BiorthBasis>(m, "Cube")
     .def(py::init<const std::string&>(),
 	 R"(
@@ -1400,8 +1519,8 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
       each of nx is in [-nmaxx, nmaxx], and so on for ny and nz.  Each dimension 
       has dx=2*nmaxx+1 wave numbers and similarly for dy and dz.  The index into the
       array is index=(nx+nmaxx)*dx*dy + (ny+nmaxy)*dy + (nz+nmaxz).   This is an 
-      analyic basis so the orthogonality matrix is not a check of andy numerical
-      computation other than the quadature itself.  It is included for completeness.
+      analyic basis so the orthogonality matrix is not a check of any numerical
+      computation other than the quadrature itself.  It is included for completeness.
 
       Parameters
       ----------

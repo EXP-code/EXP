@@ -18,6 +18,7 @@ class SlabSL : public PotAccel
 {
 
 //! Header structure for Sturm-Liouville slab expansion
+//! Used for deprecated native coefficient files
 struct SlabSLCoefHeader {
   double time;
   double zmax;
@@ -49,7 +50,7 @@ private:
 
   SlabSLCoefHeader coefheader;
 
-  int NGRID;
+  int NGRID = 100;
 
   // Usual evaluation interface
 

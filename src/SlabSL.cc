@@ -19,7 +19,6 @@ SlabSL::valid_keys = {
 SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Slab (Sturm-Liouville)";
-  NGRID = 100;
   nminx = nminy = 0;
   nmaxx = nmaxy = nmaxz = 10;
   zmax = 10.0;
@@ -37,9 +36,9 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 
   grid = std::make_shared<SLGridSlab>(nnmax, nmaxz, NGRID, zmax);
 
-  imx = 1+2*nmaxx;
-  imy = 1+2*nmaxy;
-  imz = nmaxz;
+  imx  = 1+2*nmaxx;
+  imy  = 1+2*nmaxy;
+  imz  = nmaxz;
   jmax = imx*imy*imz;
 
   expccof.resize(nthrds);
@@ -48,8 +47,6 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   dfac = 2.0*M_PI;
   kfac = std::complex<double>(0.0, dfac);
     
-  nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
-
   zpot.resize(nthrds);
   zfrc.resize(nthrds);
 
@@ -124,7 +121,7 @@ void SlabSL::determine_coefficients(void)
 
 void * SlabSL::determine_coefficients_thread(void * arg)
 {
-  int ix, iy, iz, iix, iiy, ii, jj, indx;
+  int ix, iy, iz, iix, iiy;
 
   std::complex<double> startx, starty, facx, facy;
   std::complex<double> stepx, stepy;
@@ -134,7 +131,6 @@ void * SlabSL::determine_coefficients_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   double adb = cC->Adiabatic();
-  double zz;
 
   for (int i=nbeg; i<nend; i++) {
     
@@ -164,22 +160,22 @@ void * SlabSL::determine_coefficients_thread(void * arg)
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
-      ii = ix - nmaxx;
-      iix = abs(ii);
+      int ii = ix - nmaxx;
+      int iix = abs(ii);
       
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	
-	jj = iy - nmaxy;
-	iiy = abs(jj);
+	int jj = iy - nmaxy;
+	int iiy = abs(jj);
 	
 	if (iix > nmaxx) {
-	  cerr << "Out of bounds: iix=" << ii << endl;
+	  std::cerr << "Out of bounds: iix=" << ii << std::endl;
 	}
 	if (iiy > nmaxy) {
-	  cerr << "Out of bounds: iiy=" << jj << endl;
+	  std::cerr << "Out of bounds: iiy=" << jj << std::endl;
 	}
 	
-	zz = cC->Pos(i, 2, Component::Centered);
+	double zz = cC->Pos(i, 2, Component::Centered);
 
 	if (iix>=iiy)
 	  grid->get_pot(zpot[id], zz, iix, iiy);
@@ -187,7 +183,7 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 	  grid->get_pot(zpot[id], zz, iiy, iix);
 
 
-	for (iz=0; iz<imz; iz++) {
+	for (int iz=0; iz<imz; iz++) {
 	                           // +--- density in orthogonal series
                                    // |    is 4.0*M_PI rho
                                    // v
@@ -212,50 +208,48 @@ void SlabSL::get_acceleration_and_potential(Component* C)
 
 void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 {
-  int ix, iy, iz, iix, iiy, ii, jj;
-  std::complex<double> fac, startx, starty, facx, facy, potl, facf;
-  std::complex<double> stepx, stepy;
+  int ix, iy;
+  std::complex<double> fac, facx, facy, potl, facf;
   std::complex<double> accx, accy, accz;
 
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
-  double zz;
 
   for (int i=nbeg; i<nend; i++) {
     
     accx = accy = accz = potl = 0.0;
     
 				// Recursion multipliers
-    stepx = exp(kfac*cC->Pos(i, 0));
-    stepy = exp(kfac*cC->Pos(i, 1));
+    std::complex<double> stepx = exp(kfac*cC->Pos(i, 0));
+    std::complex<double> stepy = exp(kfac*cC->Pos(i, 1));
 
 				// Initial values (note sign change)
-    startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
-    starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
+    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
+    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
 				// Compute wavenumber; recall that the
 				// coefficients are stored as follows:
 				// -nmax,-nmax+1,...,0,...,nmax-1,nmax
-      ii = ix - nmaxx;
-      iix = abs(ii);
+      int ii = ix - nmaxx;
+      int iix = abs(ii);
       
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	
-	jj = iy - nmaxy;
-	iiy = abs(jj);
+	int jj = iy - nmaxy;
+	int iiy = abs(jj);
 	
 	if (iix > nmaxx) {
-	  cerr << "Out of bounds: ii=" << ii << endl;
+	  std::cerr << "Out of bounds: ii=" << ii << std::endl;
 	}
 	if (iiy > nmaxy) {
-	  cerr << "Out of bounds: jj=" << jj << endl;
+	  std::cerr << "Out of bounds: jj=" << jj << std::endl;
 	}
 	
-	zz = cC->Pos(i, 2, Component::Centered);
+	double zz = cC->Pos(i, 2, Component::Centered);
 
 	if (iix>=iiy) {
 	  grid->get_pot  (zpot[id], zz, iix, iiy);
@@ -267,7 +261,7 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	}
 
 	
-	for (iz=0; iz<imz; iz++) {
+	for (int iz=0; iz<imz; iz++) {
 	  
 	  fac  = facx*facy*zpot[id][iz+1]*expccof[0](ix, iy, iz);
 	  facf = facx*facy*zfrc[id][iz+1]*expccof[0](ix, iy, iz);
