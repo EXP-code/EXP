@@ -3675,7 +3675,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	    MPI_Recv(&bad, 1, MPI_INT, MPI_ANY_TAG, 10,
 		     MPI_COMM_WORLD, &status);
 	    totbad += bad;
-				// Get sledge comptuation result
+				// Get sledge computation result
 	    int retid = status.MPI_SOURCE;
 	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
 		     MPI_COMM_WORLD, &status);
@@ -4059,8 +4059,11 @@ SLGridSlab::~SLGridSlab()
 }
 
 				// Members
+// #define TANH_MAP 1
+// #define SECH_MAP 1
 
-/*
+#if defined(TANH_MAP)
+
 double SLGridSlab::z_to_xi(double z)
 {
   return tanh(z/H);
@@ -4075,10 +4078,9 @@ double SLGridSlab::d_xi_to_z(double xi)
 {
   return H/(1.0 - xi*xi);
 }
-*/
 
+#elif defined (SECH_MAP)
 
-/*
 double SLGridSlab::z_to_xi(double z)
 {
   return z/sqrt(z*z + H*H);
@@ -4091,10 +4093,10 @@ double SLGridSlab::xi_to_z(double xi)
 
 double SLGridSlab::d_xi_to_z(double xi)
 {
-  return pow(1.0 - xi*xi, 1.5)/H;
+  return H/pow(1.0 - xi*xi, 1.5);
 }
-*/
 
+#else
 				// Simple cartesian coordinates seem
 				// to work best here; this transformation
 				// is the identity . . . 
@@ -4114,6 +4116,7 @@ double SLGridSlab::d_xi_to_z(double xi)
   return 1.0;
 }
 
+#endif
 
 
 double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
@@ -5108,11 +5111,11 @@ void SLGridSlab::compute_table_worker(void)
     //
     N = nmax - N;
 
-    for (int i=0; i<N; i++) table.ev[i*2+2] = ev[i];
+    for (int i=0; i<N; i++) table.ev[i*2+1] = ev[i];
 
     for (int i=0; i<numz; i++) {
       for (int j=0; j<N; j++) 
-	table.ef(j*2+2, i) = ef[j*NUM+i];
+	table.ef(j*2+1, i) = ef[j*NUM+i];
     }
 
 				// Correct for symmetrizing
@@ -5235,27 +5238,31 @@ std::vector<Eigen::MatrixXd> SLGridSlab::orthoCheck(int num)
   // Initialize the return matrices
   std::vector<Eigen::MatrixXd> ret((numk+1)*(numk+2)/2);
   for (auto & v : ret) {
-    v.resize(numz, numz);
+    v.resize(nmax, nmax);
     v.setZero();
   }
 
-  
-  Eigen::VectorXd vpot(numz), vden(numz);
+  int nthrds = omp_get_max_threads();
+  std::vector<Eigen::VectorXd> vpot(nthrds), vden(nthrds);
+  for (auto & v : vpot) v.resize(nmax);
+  for (auto & v : vden) v.resize(nmax);
 
 #pragma omp parallel for
   for (int i=0; i<num; i++) {
+    int tid = omp_get_thread_num();
     double x = ximin + (ximax - ximin)*lw.knot(i);
 	    
     int indx = 0;
     for (int kx=0; kx<=numk; kx++) {
       for (int ky=0; ky<=kx; ky++, indx++) {
 	
-	get_pot (vpot, x, kx, ky);	
-	get_dens(vden, x, kx, ky);
+	get_pot (vpot[tid], x, kx, ky);	
+	get_dens(vden[tid], x, kx, ky);
 	
-	for (int n1=0; n1<numz; n1++)
-	  for (int n2=0; n2<numz; n2++)
-	    ret[indx](n1, n2) += vpot(n1)*vden(n2)*d_xi_to_z(x)
+	for (int n1=0; n1<nmax; n1++)
+	  for (int n2=0; n2<nmax; n2++)
+#pragma omp critical
+	    ret[indx](n1, n2) += -vpot[tid](n1)*vden[tid](n2)/d_xi_to_z(x)
 	      *(ximax - ximin)*lw.weight(i);
       }
     }

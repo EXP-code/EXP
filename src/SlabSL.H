@@ -50,7 +50,11 @@ private:
 
   SlabSLCoefHeader coefheader;
 
-  int NGRID = 100;
+  //! Default number of grid points for SLGridSlab
+  int ngrid = 1000;
+
+  //! Default slab type (must be "isothermal", "parabolic", or "constant")
+  std::string type = "isothermal";
 
   // Usual evaluation interface
 

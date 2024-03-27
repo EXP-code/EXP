@@ -13,28 +13,73 @@ SlabSL::valid_keys = {
   "nminx",
   "nminy",
   "hslab",
-  "zmax"
+  "zmax",
+  "ngrid",
+  "type"
 };
 
 SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Slab (Sturm-Liouville)";
   nminx = nminy = 0;
-  nmaxx = nmaxy = nmaxz = 10;
-  zmax = 10.0;
-  hslab = 0.2;
+  nmaxx = nmaxy = nmaxz = 6;
+  zmax      = 10.0;
+  hslab     = 0.2;
   coef_dump = true;
 
   initialize();
 
-  SLGridSlab::mpi = 1;
+  SLGridSlab::mpi  = 1;
   SLGridSlab::ZBEG = 0.0;
   SLGridSlab::ZEND = 0.1;
-  SLGridSlab::H = hslab;
+  SLGridSlab::H    = hslab;
   
   int nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
-  grid = std::make_shared<SLGridSlab>(nnmax, nmaxz, NGRID, zmax);
+  grid = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, type);
+
+  // Test for basis consistency (will generate an exception if maximum
+  // error is out of tolerance)
+  //
+  double worst = 0.0, diff = 0.0;
+  int kxw = 0, kyw = 0;
+  auto test = grid->orthoCheck(10000);
+  for (int kx=0, indx=0; kx<=nnmax; kx++) {
+    for (int ky=0; ky<=kx; ky++, indx++) {
+      for (int n1=0; n1<nmaxz; n1++) {
+	for (int n2=0; n2<nmaxz; n2++) {
+	  if (n1==n2) diff = fabs(test[indx](n1, n2) - 1.0);
+	  else diff = fabs(test[indx](n1, n2));
+	  if (diff > worst) {
+	    worst = diff;
+	    kxw = kx;
+	    kyw = ky;
+	  }
+	}
+      }
+    }
+  }
+	  
+  if (true) {
+    std::ofstream tmp("SlabSL.ortho");
+    for (int kx=0, indx=0; kx<=nnmax; kx++) {
+      for (int ky=0; ky<=kx; ky++, indx++) {
+	tmp << "---- kx=" << kx << "  ky=" << ky << std::endl
+	    << test[indx] << std::endl;
+      }
+    }
+  }
+
+  if (worst > __EXP__::orthoTol) {
+    if (myid==0)
+      std::cout << "SlabSL: orthogonality failure, worst=" << worst
+		<< " at (" << kxw << ", " << kyw << ")" << std::endl;
+    throw std::runtime_error("SlabSL: biorthogonal sanity check");
+  } else {
+    if (myid==0)
+      std::cout << "---- SlabSL: biorthogonal check passed, worst="
+		<< worst << std::endl;
+  }
 
   imx  = 1+2*nmaxx;
   imy  = 1+2*nmaxy;
@@ -73,8 +118,10 @@ void SlabSL::initialize()
     if (conf["nmaxz"])          nmaxz       = conf["nmaxz"].as<int>();
     if (conf["nminx"])          nminx       = conf["nminx"].as<int>();
     if (conf["nminy"])          nminy       = conf["nminy"].as<int>();
+    if (conf["ngrid"])          ngrid       = conf["ngrid"].as<int>();
     if (conf["hslab"])          hslab       = conf["hslab"].as<double>();
-    if (conf["zmax"])           zmax        = conf["zmax"].as<double>();
+    if (conf["zmax" ])          zmax        = conf["zmax" ].as<double>();
+    if (conf["type" ])          type        = conf["type" ].as<std::string>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in SlabSL: "
@@ -132,8 +179,14 @@ void * SlabSL::determine_coefficients_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
   double adb = cC->Adiabatic();
 
-  for (int i=nbeg; i<nend; i++) {
-    
+  PartMapItr it = cC->Particles().begin();
+  unsigned long i;
+
+  for (int q=0; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
+
+    i = it->first;
+    it++;
 				// Increment particle counter
     use[id]++;
 
@@ -188,7 +241,7 @@ void * SlabSL::determine_coefficients_thread(void * arg)
                                    // |    is 4.0*M_PI rho
                                    // v
 	  expccof[id](ix, iy, iz) += -4.0*M_PI*cC->Mass(i)*adb*
-	    facx*facy*zpot[id][iz+1];
+	    facx*facy*zpot[id][iz];
 	}
       }
     }
@@ -217,8 +270,14 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  for (int i=nbeg; i<nend; i++) {
+  PartMapItr it = cC->Particles().begin();
+  unsigned long i;
+
+  for (int q=0; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
     
+    i = it->first; it++;
+
     accx = accy = accz = potl = 0.0;
     
 				// Recursion multipliers
@@ -263,8 +322,8 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	
 	for (int iz=0; iz<imz; iz++) {
 	  
-	  fac  = facx*facy*zpot[id][iz+1]*expccof[0](ix, iy, iz);
-	  facf = facx*facy*zfrc[id][iz+1]*expccof[0](ix, iy, iz);
+	  fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz);
+	  facf = facx*facy*zfrc[id][iz]*expccof[0](ix, iy, iz);
 	  
 				// Limit to minimum wave number
 	  
