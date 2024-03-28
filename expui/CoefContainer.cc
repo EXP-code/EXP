@@ -55,6 +55,9 @@ namespace MSSA
     else if (dynamic_cast<CoefClasses::CylCoefs*>(coefs.get())) {
       unpack_cylinder();
     }
+    else if (dynamic_cast<CoefClasses::SlabCoefs*>(coefs.get())) {
+      unpack_slab();
+    }
     else if (dynamic_cast<CoefClasses::CubeCoefs*>(coefs.get())) {
       unpack_cube();
     }
@@ -62,7 +65,7 @@ namespace MSSA
       unpack_table();
     }
     else {
-      throw std::runtime_error("CoefDB::pack_channels(): can not reflect coefficient type");
+      throw std::runtime_error("CoefDB::unpack_channels(): can not reflect coefficient type");
     }
 
     return coefs;
@@ -87,6 +90,10 @@ namespace MSSA
       pack_sphere();
     else if (dynamic_cast<CoefClasses::CylCoefs*>(coefs.get()))
       pack_cylinder();
+    else if (dynamic_cast<CoefClasses::SlabCoefs*>(coefs.get()))
+      pack_slab();
+    else if (dynamic_cast<CoefClasses::CubeCoefs*>(coefs.get()))
+      pack_cube();
     else if (dynamic_cast<CoefClasses::TableData*>(coefs.get()))
       pack_table();
     else {
@@ -303,6 +310,87 @@ namespace MSSA
     // END time loop
   }
   
+  void CoefDB::pack_slab()
+  {
+    auto cur = dynamic_cast<CoefClasses::SlabCoefs*>(coefs.get());
+
+    times = cur->Times();
+    complexKey = true;
+
+    auto cf = dynamic_cast<CoefClasses::SlabStruct*>( cur->getCoefStruct(times[0]).get() );
+
+    int nmaxx   = cf->nmaxx;
+    int nmaxy   = cf->nmaxy;
+    int nmaxz   = cf->nmaxz;
+    int ntimes  = times.size();
+
+    // Make extended key list
+    //
+    keys.clear();
+    for (auto k : keys0) {
+      // Sanity check rank
+      //
+      if (k.size() != 3) {
+	std::ostringstream sout;
+	sout << "CoefDB::pack_slab: key vector should have rank 3; "
+	     << "found rank " << k.size() << " instead";
+	throw std::runtime_error(sout.str());
+      }
+      // Sanity check values
+      //
+      else if (k[0] <= 2*nmaxx and k[0] >= 0 and
+	       k[1] <= 2*nmaxy and k[1] >= 0 and
+	       k[2] <  nmaxz   and k[2] >= 0 ) {
+	
+	auto v = k;
+	v.push_back(0);
+	keys.push_back(v);
+	data[v].resize(ntimes);
+
+	v[3] = 1;
+	keys.push_back(v);
+	data[v].resize(ntimes);
+      }
+      else {
+	throw std::runtime_error("CoefDB::pack_slab: key is out of bounds");
+      }
+    }
+
+    bkeys.clear();
+    for (auto k : bkeys0) {
+      // Sanity check values
+      //
+      if (k[0] <= 2*nmaxx and k[0] >= 0 and
+	  k[1] <= 2*nmaxy and k[1] >= 0 and
+	  k[2] <  nmaxz   and k[2] >= 0 ) {
+	
+	auto v = k;
+	v.push_back(0);
+	keys.push_back(v);
+	data[v].resize(ntimes);
+
+	v[3] = 1;
+	keys.push_back(v);
+	data[v].resize(ntimes);
+      }
+    }
+
+    for (int t=0; t<ntimes; t++) {
+      cf = dynamic_cast<CoefClasses::SlabStruct*>( cur->getCoefStruct(times[t]).get() );
+      for (auto k : keys)  {
+	auto c = (*cf->coefs)(k[0], k[1], k[2]);
+	if (k[3]) data[k][t] = c.imag();
+	else      data[k][t] = c.real();
+      }
+
+      for (auto k : bkeys)  {
+	auto c = (*cf->coefs)(k[0], k[1], k[2]);
+	if (k[3]) data[k][t] = c.imag();
+	else      data[k][t] = c.real();
+      }
+    }
+  }
+
   void CoefDB::pack_cube()
   {
     auto cur = dynamic_cast<CoefClasses::CubeCoefs*>(coefs.get());
@@ -384,6 +472,24 @@ namespace MSSA
     }
   }
 
+  void CoefDB::unpack_slab()
+  {
+    for (int i=0; i<times.size(); i++) {
+
+      auto cf = dynamic_cast<CoefClasses::SlabStruct*>( coefs->getCoefStruct(times[i]).get() );
+      
+      for (auto k : keys0) {
+	auto c = k, s = k;
+	c.push_back(0);
+	s.push_back(1);
+
+	(*cf->coefs)(k[0], k[1], k[2]) = {data[c][i], data[s][i]};
+      }
+      // END key loop
+    }
+    // END time loop
+  }
+  
   void CoefDB::unpack_cube()
   {
     for (int i=0; i<times.size(); i++) {

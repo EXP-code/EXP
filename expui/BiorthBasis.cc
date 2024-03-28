@@ -2262,7 +2262,7 @@ namespace BasisClasses
 
     auto [pot, den, frcx, frcy, frcz] = eval(x, y, z);
 
-    return {0, den, 0, pot, frcx, frcy, frcz};
+    return {0, den, den, 0, pot, pot, frcx, frcy, frcz};
   }
 
   std::vector<double> Slab::cyl_eval(double R, double z, double phi)

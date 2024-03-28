@@ -17,7 +17,7 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   Output.cc externalShock.cc CylEXP.cc generateRelaxation.cc
   HaloBulge.cc incpos.cc incvel.cc ComponentContainer.cc OutAscii.cc
   OutMulti.cc OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc
-  OutVel.cc OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc step.cc
+  OutVel.cc OutCoef.cc multistep.cc parse.cc SlabSL.cc step.cc
   tidalField.cc ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
   ParticleFerry.cc pCell.cc chkSlurm.c chkTimer.cc pHOT.cc
   GravKernel.cc ${CUDA_SRC} CenterFile.cc PolarBasis.cc FlatDisk.cc
