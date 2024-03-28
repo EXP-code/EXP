@@ -188,7 +188,8 @@ namespace CoefClasses
       nx = 2*nmaxx + 1;
       ny = 2*nmaxy + 1;
       nz = nmaxz;
-      store.resize(nx*ny*nz);
+      dim = nx * ny * nz;
+      store.resize(dim);
       coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
     }
 

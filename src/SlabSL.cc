@@ -168,7 +168,7 @@ void SlabSL::determine_coefficients(void)
 
 void * SlabSL::determine_coefficients_thread(void * arg)
 {
-  int ix, iy, iz, iix, iiy;
+  int ix, iy;
 
   std::complex<double> startx, starty, facx, facy;
   std::complex<double> stepx, stepy;
@@ -180,12 +180,11 @@ void * SlabSL::determine_coefficients_thread(void * arg)
   double adb = cC->Adiabatic();
 
   PartMapItr it = cC->Particles().begin();
-  unsigned long i;
 
   for (int q=0; q<nbeg; q++) it++;
   for (int q=nbeg; q<nend; q++) {
 
-    i = it->first;
+    unsigned long i = it->first;
     it++;
 				// Increment particle counter
     use[id]++;
@@ -264,6 +263,7 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
   int ix, iy;
   std::complex<double> fac, facx, facy, potl, facf;
   std::complex<double> accx, accy, accz;
+  const std::complex<double> I(0.0, 1.0);
 
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
@@ -271,12 +271,11 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
 
   PartMapItr it = cC->Particles().begin();
-  unsigned long i;
 
   for (int q=0; q<nbeg; q++) it++;
   for (int q=nbeg; q<nend; q++) {
     
-    i = it->first; it++;
+    unsigned long i = it->first; it++;
 
     accx = accy = accz = potl = 0.0;
     
@@ -331,10 +330,9 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	  
 	  potl += fac;
 	  
-	  accx += -dfac*ii*std::complex<double>(0.0,1.0)*fac;
-	  accy += -dfac*jj*std::complex<double>(0.0,1.0)*fac;
+	  accx += -kfac*static_cast<double>(ii)*fac;
+	  accy += -kfac*static_cast<double>(jj)*fac;
 	  accz += -facf;
-	  
 	}
       }
     }

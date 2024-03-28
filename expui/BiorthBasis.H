@@ -608,7 +608,10 @@ namespace BasisClasses
     int knots;
 
     //! SLGridSlab mesh size
-    int NGRID = 100;
+    int ngrid = 1000;
+
+    //! Target model type for SLGridSlab
+    std::string type = "isothermal";
 
     //! Scale height for slab
     double hslab;

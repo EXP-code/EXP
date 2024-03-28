@@ -1180,7 +1180,7 @@ namespace CoefClasses
       Eigen::VectorXcd in;
       stanza.getDataSet("coefficients").read(in);
       
-      Eigen::TensorMap<Eigen3d> dat(in.data(), 2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1);
+      Eigen::TensorMap<Eigen3d> dat(in.data(), 2*NmaxX+1, 2*NmaxY+1, NmaxZ);
 
       // Pack the data into the coefficient variable
       //
@@ -2094,6 +2094,8 @@ namespace CoefClasses
 	    coefs = std::make_shared<SphCoefs>(h5file, stride, tmin, tmax);
 	  } else if (geometry.compare("cylinder")==0) {
 	    coefs = std::make_shared<CylCoefs>(h5file, stride, tmin, tmax);
+	  } else if (geometry.compare("slab")==0) {
+	    coefs = std::make_shared<SlabCoefs>(h5file, stride, tmin, tmax);
 	  } else if (geometry.compare("cube")==0) {
 	    coefs = std::make_shared<CubeCoefs>(h5file, stride, tmin, tmax);
 	  } else if (geometry.compare("table")==0) {

@@ -280,7 +280,7 @@ namespace BasisClasses
     int ldim = (lmax+1)*(lmax+2)/2;
 
     // Allocate the coefficient storage
-    cf->store.resize((lmax+1)*(lmax+2)/2, nmax);
+    cf->store.resize((lmax+1)*(lmax+2)/2*nmax);
 
     // Make the coefficient map
     cf->coefs = std::make_shared<CoefClasses::SphStruct::coefType>
@@ -1906,6 +1906,8 @@ namespace BasisClasses
     "nminy",
     "hslab",
     "zmax",
+    "ngrid",
+    "type",
     "knots",
     "verbose",
     "check",
@@ -1924,8 +1926,8 @@ namespace BasisClasses
 
   void Slab::initialize()
   {
-    nminx = std::numeric_limits<int>::max();
-    nminy = std::numeric_limits<int>::max();
+    nminx = 0;
+    nminy = 0;
 
     nmaxx = 6;
     nmaxy = 6;
@@ -1959,7 +1961,9 @@ namespace BasisClasses
       if (conf["nmaxz"])      nmaxz = conf["nmaxz"].as<int>();
       
       if (conf["hslab"])      hslab = conf["hslab"].as<double>();
-      if (conf["zmax "])      zmax  = conf["zmax" ].as<double>();
+      if (conf["zmax" ])      zmax  = conf["zmax" ].as<double>();
+      if (conf["ngrid"])      ngrid = conf["ngrid"].as<int>();
+      if (conf["type" ])      type  = conf["type" ].as<std::string>();
 
       if (conf["knots"])      knots = conf["knots"].as<int>();
 
@@ -1978,14 +1982,14 @@ namespace BasisClasses
     
     // Finally, make the basis
     //
-    SLGridSlab::mpi = 1;
+    SLGridSlab::mpi = 0;
     SLGridSlab::ZBEG = 0.0;
     SLGridSlab::ZEND = 0.1;
     SLGridSlab::H = hslab;
   
     int nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
-    ortho = std::make_shared<SLGridSlab>(nnmax, nmaxz, NGRID, zmax);
+    ortho = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, type);
 
     // Orthogonality sanity check
     //
@@ -2043,12 +2047,12 @@ namespace BasisClasses
     {
       auto cc = dynamic_cast<CoefClasses::SlabStruct*>(coef.get());
       auto d  = cc->coefs->dimensions();
-      if (d[0] != 2*nmaxx+1 or d[1] != 2*nmaxy+1 or d[2] != 2*nmaxz+1) {
+      if (d[0] != 2*nmaxx+1 or d[1] != 2*nmaxy+1 or d[2] != nmaxz) {
 	std::ostringstream sout;
-	sout << "Slab::set_coefs: the basis has (2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1)=("
+	sout << "Slab::set_coefs: the basis has (2*nmaxx+1, 2*nmaxy+1, nmaxz)=("
 	     << 2*nmaxx+1 << ", " 
 	     << 2*nmaxy+1 << ", " 
-	     << 2*nmaxz+1
+	     << nmaxz
 	     << "). The coef structure has dimension=("
 	     << d[0] << ", " << d[1] << ", " << d[2] << ")";
 	  
@@ -2721,6 +2725,32 @@ namespace BasisClasses
 	"Basis::addFromArray: you must initialize coefficient accumulation "
 	"with a call to Basis::initFromArray()";
       throw std::runtime_error(msg);
+    }
+
+    // Assume position arrays in rows by default
+    //
+    int rows = p.rows();
+    int cols = p.cols(); 
+
+    bool ambiguous = false;
+
+    if (cols==3 or cols==6) {
+      if (rows>cols or rows != 6 or rows != 3) PosVelRows = false;
+      else ambiguous = true;
+    }
+
+    if (rows==3 or rows==6) {
+      if (cols>rows or cols != 6 or cols != 3) PosVelRows = true;
+      else ambiguous = true;
+    }
+
+    if (ambiguous and myid==0) {
+      std::cout << "---- BiorthBasis::addFromArray: dimension deduction "
+		<< "is ambiguous.  Assuming that ";
+      if (PosVelRows) std::cout << "positions are in rows" << std::endl;
+      else std::cout << "positions are in columns" << std::endl;
+      std::cout << "---- BiorthBasis::addFromArray: reset 'posvelrows' flag "
+		<< "if this assumption is wrong." << std::endl;
     }
 
     std::vector<double> p1(3), v1(3, 0);
