@@ -279,7 +279,7 @@ namespace BasisClasses
     int ldim = (lmax+1)*(lmax+2)/2;
 
     // Allocate the coefficient storage
-    cf->store.resize((lmax+1)*(lmax+2)/2, nmax);
+    cf->store.resize((lmax+1)*(lmax+2)/2*nmax);
 
     // Make the coefficient map
     cf->coefs = std::make_shared<CoefClasses::SphStruct::coefType>
@@ -2300,6 +2300,32 @@ namespace BasisClasses
 	"Basis::addFromArray: you must initialize coefficient accumulation "
 	"with a call to Basis::initFromArray()";
       throw std::runtime_error(msg);
+    }
+
+    // Assume position arrays in rows by default
+    //
+    int rows = p.rows();
+    int cols = p.cols(); 
+
+    bool ambiguous = false;
+
+    if (cols==3 or cols==6) {
+      if (rows>cols or rows != 6 or rows != 3) PosVelRows = false;
+      else ambiguous = true;
+    }
+
+    if (rows==3 or rows==6) {
+      if (cols>rows or cols != 6 or cols != 3) PosVelRows = true;
+      else ambiguous = true;
+    }
+
+    if (ambiguous and myid==0) {
+      std::cout << "---- BiorthBasis::addFromArray: dimension deduction "
+		<< "is ambiguous.  Assuming that ";
+      if (PosVelRows) std::cout << "positions are in rows" << std::endl;
+      else std::cout << "positions are in columns" << std::endl;
+      std::cout << "---- BiorthBasis::addFromArray: reset 'posvelrows' flag "
+		<< "if this assumption is wrong." << std::endl;
     }
 
     std::vector<double> p1(3), v1(3, 0);
