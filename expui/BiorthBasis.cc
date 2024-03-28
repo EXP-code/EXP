@@ -2735,12 +2735,12 @@ namespace BasisClasses
     bool ambiguous = false;
 
     if (cols==3 or cols==6) {
-      if (rows>cols or rows != 6 or rows != 3) PosVelRows = false;
+      if (rows != 3 and rows != 6) PosVelRows = false;
       else ambiguous = true;
     }
 
     if (rows==3 or rows==6) {
-      if (cols>rows or cols != 6 or cols != 3) PosVelRows = true;
+      if (cols != 3 and cols != 6) PosVelRows = true;
       else ambiguous = true;
     }
 
