@@ -1850,8 +1850,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
   tbdbg   = VERBOSE;
 
-  init_table();
+  // This should be controlled by a parameter...
+  mM      = CoordMap::factory(CoordMapTypes::Sech, H);
 
+  init_table();
 
   if (tbdbg) {
     if (mpi)
@@ -2317,66 +2319,20 @@ SLGridSlab::~SLGridSlab()
   delete [] table;
 }
 
-				// Members
-// #define TANH_MAP 1
-// #define SECH_MAP 1
+// Coordinate transformation member functions for tanh map
+double SLGridSlab::TanhMap::z_to_xi  (double z)  { return tanh(z/H);       }
+double SLGridSlab::TanhMap::xi_to_z  (double xi) { return H*atanh(xi);     }
+double SLGridSlab::TanhMap::d_xi_to_z(double xi) { return (1.0 - xi*xi)/H; }
 
-#if defined(TANH_MAP)
+// Coordinate transformation member functions for sech map
+double SLGridSlab::SechMap::z_to_xi  (double z)  { return z/sqrt(z*z + H*H); }
+double SLGridSlab::SechMap::xi_to_z  (double xi) { return xi*H/sqrt(1.0 - xi*xi); }
+double SLGridSlab::SechMap::d_xi_to_z(double xi) { return pow(1.0 - xi*xi, 1.5)/H; }
 
-double SLGridSlab::z_to_xi(double z)
-{
-  return tanh(z/H);
-}
-    
-double SLGridSlab::xi_to_z(double xi)
-{
-  return H*atanh(xi);
-}
-
-double SLGridSlab::d_xi_to_z(double xi)
-{
-  return H/(1.0 - xi*xi);
-}
-
-#elif defined (SECH_MAP)
-
-double SLGridSlab::z_to_xi(double z)
-{
-  return z/sqrt(z*z + H*H);
-}
-    
-double SLGridSlab::xi_to_z(double xi)
-{
-  return xi*H/sqrt(1.0 - xi*xi);
-}
-
-double SLGridSlab::d_xi_to_z(double xi)
-{
-  return H/pow(1.0 - xi*xi, 1.5);
-}
-
-#else
-				// Simple cartesian coordinates seem
-				// to work best here; this transformation
-				// is the identity . . . 
-
-double SLGridSlab::z_to_xi(double z)
-{
-  return z;
-}
-
-double SLGridSlab::xi_to_z(double xi)
-{
-  return xi;
-}
-
-double SLGridSlab::d_xi_to_z(double xi)
-{
-  return 1.0;
-}
-
-#endif
-
+// Coordinate transformation member functions for linear map
+double SLGridSlab::LinearMap::z_to_xi(double z)    { return z;   }
+double SLGridSlab::LinearMap::xi_to_z(double xi)   { return xi;  }
+double SLGridSlab::LinearMap::d_xi_to_z(double xi) { return 1.0; }
 
 double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
 {
@@ -2387,8 +2343,8 @@ double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
   if (x<0 && 2*(n/2)!=n) sign=-1;
   x = fabs(x);
 
-  if (which)
-    x = z_to_xi(x);
+  if (which)			// Convert from z to x
+    x = mM->z_to_xi(x);
 
   if (ky > kx) {
     hold = ky;
@@ -2410,7 +2366,7 @@ double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
     sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign;
 #else
   return (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
-    sqrt(table[kx][ky].ev[n]) * slab->pot(xi_to_z(x)) * sign;
+    sqrt(table[kx][ky].ev[n]) * slab->pot(mM->xi_to_z(x)) * sign;
 #endif
 }
 
@@ -2423,8 +2379,8 @@ double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
   if (x<0 && 2*(n/2)!=n) sign=-1;
   x = fabs(x);
   
-  if (which)
-    x = z_to_xi(x);
+  if (which)			// Convert from z to x
+    x = mM->z_to_xi(x);
 
   if (ky > kx) {
     hold = ky;
@@ -2445,7 +2401,7 @@ double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
     sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign;
 #else
   return (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1)) *
-    sqrt(table[kx][ky].ev[n]) * slab->dens(xi_to_z(x)) * sign;
+    sqrt(table[kx][ky].ev[n]) * slab->dens(mM->xi_to_z(x)) * sign;
 #endif
 
 }
@@ -2458,8 +2414,8 @@ double SLGridSlab::get_force(double x, int kx, int ky, int n, int which)
   if (x<0 && 2*(n/2)==n) sign = -1;
   x = fabs(x);
 
-  if (which)
-    x = z_to_xi(x);
+  if (which)			// Convert from z to x
+    x = mM->z_to_xi(x);
 
   if (ky > kx) {
     hold = ky;
@@ -2480,7 +2436,7 @@ double SLGridSlab::get_force(double x, int kx, int ky, int n, int which)
 				// Point  0: indx
 				// Point  1: indx+1
 
-  return d_xi_to_z(x)/dxi * (
+  return mM->d_xi_to_z(x)/dxi * (
 			     (p - 0.5)*table[kx][ky].ef(n, indx-1)*p0[indx-1]
 			     -2.0*p*table[kx][ky].ef(n, indx)*p0[indx]
 			     + (p + 0.5)*table[kx][ky].ef(n, indx+1)*p0[indx+1]
@@ -2494,8 +2450,8 @@ void SLGridSlab::get_pot(Eigen::MatrixXd& mat, double x, int which)
   if (x<0) sign = -1;
   x = fabs(x);
   
-  if (which)
-    x = z_to_xi(x);
+  if (which)			// Convert from z to x
+    x = mM->z_to_xi(x);
 
   int ktot = (numk+1)*(numk+2)/2;
   mat.resize(ktot+1, nmax);
@@ -2519,7 +2475,7 @@ void SLGridSlab::get_pot(Eigen::MatrixXd& mat, double x, int which)
 	  sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign2;
 #else
 	mat(l, n) = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
-	  sqrt(table[kx][ky].ev[n]) * slab->pot(xi_to_z(x)) * sign2;
+	  sqrt(table[kx][ky].ev[n]) * slab->pot(mM->xi_to_z(x)) * sign2;
 #endif
 	sign2 *= sign;
       }
@@ -2536,8 +2492,8 @@ void SLGridSlab::get_dens(Eigen::MatrixXd& mat, double x, int which)
   if (x<0) sign = -1;
   x = fabs(x);
   
-  if (which)
-    x = z_to_xi(x);
+  if (which)			// Convert from z to x
+    x = mM->z_to_xi(x);
 
   int ktot = (numk+1)*(numk+2)/2;
   mat.resize(ktot+1, nmax);
@@ -2559,7 +2515,7 @@ void SLGridSlab::get_dens(Eigen::MatrixXd& mat, double x, int which)
 	  sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign2;
 #else
 	mat(l, n) = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))*
-	  sqrt(table[kx][ky].ev[n]) * slab->dens(xi_to_z(x)) * sign2;
+	  sqrt(table[kx][ky].ev[n]) * slab->dens(mM->xi_to_z(x)) * sign2;
 #endif
 	sign2 *= sign;
       }
@@ -2576,8 +2532,8 @@ void SLGridSlab::get_force(Eigen::MatrixXd& mat, double x, int which)
   if (x<0) sign = -1;
   x = fabs(x);
   
-  if (which)
-    x = z_to_xi(x);
+  if (which)			// Convert from z to x
+    x = mM->z_to_xi(x);
 
   int ktot = (numk+1)*(numk+2)/2;
   mat.resize(ktot+1, nmax);
@@ -2588,7 +2544,7 @@ void SLGridSlab::get_force(Eigen::MatrixXd& mat, double x, int which)
 
 
   double p = (x - xi[indx])/dxi;
-  double fac = d_xi_to_z(x)/dxi;
+  double fac = mM->d_xi_to_z(x)/dxi;
 
   int l=0;
   for (int kx=0; kx<=numk; kx++) {
@@ -2617,8 +2573,8 @@ void SLGridSlab::get_pot(Eigen::VectorXd& vec, double x, int kx, int ky, int whi
   if (x<0) sign = -1;
   x = fabs(x);
   
-  if (which)
-    x = z_to_xi(x);
+  if (which)			// Convert from z to x
+    x = mM->z_to_xi(x);
 
   if (ky > kx) {
     hold = ky;
@@ -2643,7 +2599,7 @@ void SLGridSlab::get_pot(Eigen::VectorXd& vec, double x, int kx, int ky, int whi
       sqrt(table[kx][ky].ev[n]) * (x1*p0[indx] + x2*p0[indx+1]) * sign2;
 #else
     vec[n] = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))/
-      sqrt(table[kx][ky].ev[n]) * slab->pot(xi_to_z(x)) * sign2;
+      sqrt(table[kx][ky].ev[n]) * slab->pot(mM->xi_to_z(x)) * sign2;
 #endif
     sign2 *= sign;
   }
@@ -2657,8 +2613,8 @@ void SLGridSlab::get_dens(Eigen::VectorXd& vec, double x, int kx, int ky, int wh
   if (x<0) sign = -1;
   x = fabs(x);
   
-  if (which)
-    x = z_to_xi(x);
+  if (which)			// Convert from z to x
+    x = mM->z_to_xi(x);
 
   vec.resize(nmax);
 
@@ -2677,7 +2633,7 @@ void SLGridSlab::get_dens(Eigen::VectorXd& vec, double x, int kx, int ky, int wh
       sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign2;
 #else
     vec[n] = (x1*table[kx][ky].ef(n, indx) + x2*table[kx][ky].ef(n, indx+1))*
-      sqrt(table[kx][ky].ev[n]) * slab->dens(xi_to_z(x)) * sign2;
+      sqrt(table[kx][ky].ev[n]) * slab->dens(mM->xi_to_z(x)) * sign2;
 #endif
     sign2 *= sign;
   }
@@ -2693,8 +2649,8 @@ void SLGridSlab::get_force(Eigen::VectorXd& vec, double x, int kx, int ky, int w
   if (x<0) sign = -1;
   x = fabs(x);
   
-  if (which)
-    x = z_to_xi(x);
+  if (which)			// Convert from z to x
+    x = mM->z_to_xi(x);
 
   if (ky > kx) {
     hold = ky;
@@ -2710,7 +2666,7 @@ void SLGridSlab::get_force(Eigen::VectorXd& vec, double x, int kx, int ky, int w
 
 
   double p = (x - xi[indx])/dxi;
-  double fac = d_xi_to_z(x)/dxi;
+  double fac = mM->d_xi_to_z(x)/dxi;
 
   sign2 = sign;
   for (int n=0; n<nmax; n++) {
@@ -3042,14 +2998,14 @@ void SLGridSlab::init_table(void)
   p0.resize(numz);
   d0.resize(numz);
 
-  xmin = z_to_xi( ZBEG);
-  xmax = z_to_xi( zmax);
+  xmin = mM->z_to_xi( ZBEG);
+  xmax = mM->z_to_xi( zmax);
   dxi = (xmax-xmin)/(numz-1);
 
 
   for (int i=0; i<numz; i++) {
     xi[i] = xmin + dxi*i;
-    z[i]  = xi_to_z(xi[i]);
+    z[i]  = mM->xi_to_z(xi[i]);
     p0[i] = slab->pot(z[i]);
     d0[i] = slab->dens(z[i]);
   }
@@ -3485,14 +3441,32 @@ void SLGridSlab::mpi_unpack_table(void)
 		  MPI_DOUBLE, MPI_COMM_WORLD);
 }
 
+std::unique_ptr<SLGridSlab::CoordMap> SLGridSlab::CoordMap::factory
+(CoordMapTypes type, double H)
+{
+  if (type == CoordMapTypes::Tanh) {
+    return std::make_unique<TanhMap>(H);
+  }
+  else if (type == CoordMapTypes::Sech) {
+    return std::make_unique<SechMap>(H);
+  }
+  else if (type == CoordMapTypes::Linear) {
+    return std::make_unique<LinearMap>(H);
+  }
+  else {
+    throw std::runtime_error("CoordMap::factory: invalid map type");
+  }
+}
+
+
 std::vector<Eigen::MatrixXd> SLGridSlab::orthoCheck(int num)
 {
   // Gauss-Legendre knots and weights
   LegeQuad lw(num);
 
   // Get the scaled coordinate limits
-  double ximin = z_to_xi(-zmax);
-  double ximax = z_to_xi( zmax);
+  double ximin = mM->z_to_xi(-zmax);
+  double ximax = mM->z_to_xi( zmax);
 
   // Initialize the return matrices
   std::vector<Eigen::MatrixXd> ret((numk+1)*(numk+2)/2);
@@ -3515,13 +3489,13 @@ std::vector<Eigen::MatrixXd> SLGridSlab::orthoCheck(int num)
     for (int kx=0; kx<=numk; kx++) {
       for (int ky=0; ky<=kx; ky++, indx++) {
 	
-	get_pot (vpot[tid], x, kx, ky);	
-	get_dens(vden[tid], x, kx, ky);
+	get_pot (vpot[tid], x, kx, ky, 0);	
+	get_dens(vden[tid], x, kx, ky, 0);
 	
 	for (int n1=0; n1<nmax; n1++)
 	  for (int n2=0; n2<nmax; n2++)
 #pragma omp critical
-	    ret[indx](n1, n2) += -vpot[tid](n1)*vden[tid](n2)/d_xi_to_z(x)
+	    ret[indx](n1, n2) += -vpot[tid](n1)*vden[tid](n2)/mM->d_xi_to_z(x)
 	      *(ximax - ximin)*lw.weight(i);
       }
     }

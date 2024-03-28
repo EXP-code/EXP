@@ -284,6 +284,71 @@ private:
   //! For deep debugging
   bool tbdbg;
 
+  //@{
+
+  //! This defines a class providing selectable maps from the infinite
+  //! to finite interval
+  enum CoordMapTypes {Tanh, Sech, Linear};
+
+  //! The base class for all coordinate maps
+  class CoordMap
+  {
+  protected:
+    //! Scale parameter
+    double H;
+
+  public:
+    //! Constructor
+    CoordMap(double H) : H(H) {}
+  
+    //! Convert from vertical to mapped coordinate
+    virtual double z_to_xi  (double z) = 0;
+
+    //! Convert from mapped coordinate back to vertical
+    virtual double xi_to_z  (double z) = 0;
+
+    //! Jacobian of the transformation
+    virtual double d_xi_to_z(double z) = 0;
+
+    //! Coordinate map factory
+    static std::unique_ptr<CoordMap> factory
+    (CoordMapTypes type, double H);
+  };
+
+
+  //! x = tanh(z/H)
+  class TanhMap : public CoordMap
+  {
+  public:
+    TanhMap(double H) : CoordMap(H) {}
+    virtual double z_to_xi  (double z);
+    virtual double xi_to_z  (double z);
+    virtual double d_xi_to_z(double z);
+  };
+
+  //! x = z/sqrt(z^2 + H^2)
+  class SechMap : public CoordMap
+  {
+  public:
+    SechMap(double H) : CoordMap(H) {}
+    virtual double z_to_xi  (double z);
+    virtual double xi_to_z  (double z);
+    virtual double d_xi_to_z(double z);
+  };
+
+  //! x = z
+  class LinearMap : public CoordMap
+  {
+  public:
+    LinearMap(double H) : CoordMap(H) {}
+    virtual double z_to_xi  (double z);
+    virtual double xi_to_z  (double z);
+    virtual double d_xi_to_z(double z);
+  };
+
+  //! The current map created by the SLGridSlab constructor
+  std::unique_ptr<CoordMap> mM;
+
 public:
 
   //! Global MPI flag, default: 0=off
@@ -320,13 +385,13 @@ public:
   double eigenvalue(int kx, int ky, int n) {return table[kx][ky].ev[n];}
 
   //! Map from vertical coordinate to dimensionless coordinate
-  double z_to_xi(double z);
+  double z_to_xi(double z)   { return mM->z_to_xi(z); }
 
   //! Map from dimensionless coordinate to vertical coordinate
-  double xi_to_z(double x);
+  double xi_to_z(double x)   { return mM->xi_to_z(x); }
 
   //! Jacobian of coordinate mapping
-  double d_xi_to_z(double x);
+  double d_xi_to_z(double x) { return mM->d_xi_to_z(x); }
 
   //! Get potential for dimensionless coord with given wave numbers and index
   double get_pot(double x, int kx, int ky, int n, int which=1);
