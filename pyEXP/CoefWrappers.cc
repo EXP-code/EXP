@@ -1517,7 +1517,31 @@ void CoefficientClasses(py::module &m) {
          -------
          numpy.ndarray
              4-dimensional numpy array containing the slab coefficients
-         )");
+         )")
+    .def("PowerDim",
+	 [](CoefClasses::SlabCoefs& A, std::string d, int min, int max)
+	 {
+	   return A.Power(d[0], min, max);
+	 },
+	 R"(
+         Get power for the coefficient DB as a function of harmonic index for a
+         given dimension.  This Power() member is equivalent to PowerDim('x').
+
+         Parameters
+         ----------
+         d    : char
+            dimension for power summary; one of 'x', 'y', or 'z'
+         min  : int
+            minimum index along requested dimension (default=0)
+         max  : int
+            maximum index along requested dimension (default=max int)
+
+         Returns
+         -------
+         numpy.ndarray
+             2-dimensional numpy array containing the power
+         )", py::arg("d"), py::arg("min")=0,
+	 py::arg("max")=std::numeric_limits<int>::max());
 
 
   py::class_<CoefClasses::CubeCoefs, std::shared_ptr<CoefClasses::CubeCoefs>, PyCubeCoefs, CoefClasses::Coefs>
@@ -1587,7 +1611,31 @@ void CoefficientClasses(py::module &m) {
          -------
          numpy.ndarray
              4-dimensional numpy array containing the cube coefficients
-         )");
+         )")
+    .def("PowerDim",
+	 [](CoefClasses::CubeCoefs& A, std::string d, int min, int max)
+	 {
+	   return A.Power(d[0], min, max);
+	 },
+	 R"(
+         Get power for the coefficient DB as a function of harmonic index for a
+         given dimension.  This Power() member is equivalent to PowerDim('x').
+
+         Parameters
+         ----------
+         d    : char
+            dimension for power summary; one of 'x', 'y', or 'z'
+         min  : int
+            minimum index along requested dimension (default=0)
+         max  : int
+            maximum index along requested dimension (default=max int)
+
+         Returns
+         -------
+         numpy.ndarray
+             2-dimensional numpy array containing the power
+         )", py::arg("d"), py::arg("min")=0,
+	 py::arg("max")=std::numeric_limits<int>::max());
 
   py::class_<CoefClasses::TableData, std::shared_ptr<CoefClasses::TableData>, PyTableData, CoefClasses::Coefs>
     (m, "TableData", "Container for simple data tables with multiple columns")

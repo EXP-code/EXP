@@ -1850,7 +1850,8 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
   tbdbg   = VERBOSE;
 
-  // This should be controlled by a parameter...
+  // This could be controlled by a parameter...at this point is a
+  // fixed tuning.
   mM      = CoordMap::factory(CoordMapTypes::Sech, H);
 
   init_table();
