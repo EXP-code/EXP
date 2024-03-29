@@ -78,6 +78,9 @@ private:
 
   //@{
 
+  //! Working device vectors
+  thrust::device_vector<cudaTextureObject_t> t_d;
+
   //! Helper struct to hold device data
   struct cudaStorage
   {
@@ -93,7 +96,7 @@ private:
   cudaStorage cuS;
 
   //! Only initialize once
-  bool initialize_cuda_cube;
+  bool initialize_cuda_slab = false;
 
   //! Initialize the cuda streams
   void cuda_initialize();
@@ -119,6 +122,35 @@ private:
 
   void * determine_coefficients_thread(void * arg);
   void * determine_acceleration_and_potential_thread(void * arg);
+
+  /** Extrapolate and sum coefficents per multistep level to get
+      a complete set of coefficients for force evaluation at an
+      intermediate time step
+  */
+  void compute_multistep_coefficients();
+
+  //! For updating levels
+  //@{
+  std::vector< std::vector<coefType> > differ1;
+  std::vector< std::complex<double> > pack, unpack;
+  //@}
+
+  //@{
+  //! Interpolation arrays
+  using coefTypePtr = std::shared_ptr<coefType>;
+  std::vector<coefTypePtr> expcoefN;
+  std::vector<coefTypePtr> expcoefL;
+  //@}
+
+  /** Update the multi time step coefficient table when moving particle 
+      <code>i</code> from level <code>cur</code> to level 
+      <code>next</code>
+  */
+  //@{
+  virtual void multistep_update_begin();
+  virtual void multistep_update(int cur, int next, Component* c, int i, int id);
+  virtual void multistep_update_finish();
+  //@}
 
   //! Coefficient container instance for writing HDF5
   CoefClasses::SlabCoefs slabCoefs;

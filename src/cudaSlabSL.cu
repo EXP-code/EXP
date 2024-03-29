@@ -25,13 +25,14 @@
 // Global symbols for slab construction
 //
 __device__ __constant__
-int slabNumX, slabNumY, slabNumZ, slabNX, slabNY, slabNZ, slabNdim;
+int slabNumX, slabNumY, slabNumZ, slabNX, slabNY, slabNZ, slabNdim, slabNum;
+
 
 __device__ __constant__
 int slabCmap;
 
 __device__ __constant__
-cuFP_t slabDfac, SlabHscl, slabXmin, slabXmax, slabDxi;
+cuFP_t slabDfac, slabHscl, slabXmin, slabXmax, slabDxi;
 
 // Alias for Thrust complex type to make this code more readable
 //
@@ -40,18 +41,18 @@ using CmplxT = thrust::complex<cuFP_t>;
 // Index functions for coefficients based on Eigen Tensor packing order
 //
 __device__
-int Index(int i, int j, int k)
+int slabIndex(int i, int j, int k)
 {
   i += slabNumX;
   j += slabNumY;
-  k += slabNumZ;
   return k*slabNX*slabNY + j*slabNX + i;
 }
 
+/*
 // Index function for modulus coefficients
 //
 __device__
-thrust::tuple<int, int, int> TensorIndices(int indx)
+thrust::tuple<int, int, int> slabTensorIndices(int indx)
 {
   int k = indx/(slabNX*slabNY);
   int j = (indx - k*slabNX*slabNY)/slabNX;
@@ -61,7 +62,7 @@ thrust::tuple<int, int, int> TensorIndices(int indx)
 }
 
 __device__
-thrust::tuple<int, int, int> WaveNumbers(int indx)
+thrust::tuple<int, int, int> slabWaveNumbers(int indx)
 {
   int k = indx/(slabNX*slabNY);
   int j = (indx - k*slabNX*slabNY)/slabNX;
@@ -69,7 +70,7 @@ thrust::tuple<int, int, int> WaveNumbers(int indx)
 
   return {i-slabNumX, j-slabNumY, k};
 }
-
+*/
 
 __global__
 void testConstantsSlab()
@@ -87,6 +88,9 @@ void testConstantsSlab()
   printf("   Dfac   = %e\n", slabDfac );
   printf("   Hscl   = %e\n", slabHscl );
   printf("   Cmap   = %d\n", slabCmap );
+  printf("   Xmin   = %e\n", slabXmin );
+  printf("   Xmax   = %e\n", slabXmax );
+  printf("   Dxi    = %e\n", slabDxi  );
   printf("-------------------------\n");
 }
 
@@ -106,17 +110,17 @@ void testFetchSlab(dArray<cudaTextureObject_t> T, dArray<cuFP_t> f,
 
 thrust::host_vector<cuFP_t> returnTestSlab
 (thrust::host_vector<cudaTextureObject_t>& tex,
- int l, int j, int nmax, int numr)
+ int l, int j, int nmax, int numz)
 {
   thrust::device_vector<cudaTextureObject_t> t_d = tex;
   
-  unsigned int gridSize  = numr/BLOCK_SIZE;
-  if (numr > gridSize*BLOCK_SIZE) gridSize++;
+  unsigned int gridSize  = numz/BLOCK_SIZE;
+  if (numz > gridSize*BLOCK_SIZE) gridSize++;
   
-  thrust::device_vector<cuFP_t> f_d(numr);
+  thrust::device_vector<cuFP_t> f_d(numz);
 
-  testFetchSph<<<gridSize, BLOCK_SIZE>>>(toKernel(t_d), toKernel(f_d),
-					 l, j, nmax, numr);
+  testFetchSlab<<<gridSize, BLOCK_SIZE>>>(toKernel(t_d), toKernel(f_d),
+					 l, j, nmax, numz);
 
   cudaDeviceSynchronize();
 
@@ -128,9 +132,9 @@ cuFP_t cu_z_to_xi(cuFP_t z)
 {
   cuFP_t ret;
 
-  if (sphCmap==0) {
+  if (slabCmap==0) {
     ret = tanh(z/slabHscl);
-  } else if (sphCmap==1) {
+  } else if (slabCmap==1) {
     ret = z/sqrt(z*z + slabHscl*slabHscl);
   } else {
     ret = z;
@@ -144,9 +148,9 @@ cuFP_t cu_xi_to_z(cuFP_t xi)
 {
   cuFP_t ret;
 
-  if (sphCmap==0) {
+  if (slabCmap==0) {
     ret = slabHscl*atanh(xi);
-  } else if (sphCmap==1) {
+  } else if (slabCmap==1) {
     ret = xi*slabHscl/sqrt(1.0 - xi*xi);
   } else {
     ret = xi;
@@ -156,14 +160,14 @@ cuFP_t cu_xi_to_z(cuFP_t xi)
 }
 
 __device__
-cuFP_t cu_d_xi_to_r(cuFP_t xi)
+cuFP_t cu_d_xi_to_z(cuFP_t xi)
 {
   cuFP_t ret;
 
-  if (sphCmap==0) {
-    ret = (1.0 - xi*xi)/SlabHscl;
-  } else if (sphCmap==1) {
-    ret = pow(1.0 - xi*xi, 1.5)/SlabHscl;
+  if (slabCmap==0) {
+    ret = (1.0 - xi*xi)/slabHscl;
+  } else if (slabCmap==1) {
+    ret = pow(1.0 - xi*xi, 1.5)/slabHscl;
   } else {
     ret = 1.0;
   }
@@ -175,36 +179,16 @@ cuFP_t cu_d_xi_to_r(cuFP_t xi)
 //
 void SlabSL::cuda_initialize()
 {
-  // Default
-  //
-  byPlanes = true;
-  
-  // Make method string lower case
-  //
-  std::transform(cuMethod.begin(), cuMethod.end(), cuMethod.begin(),
-                 [](unsigned char c){ return std::tolower(c); });
-
-  // Parse cuMethods variable
-  //
-  // All dimensions at once
-  //
-  if (cuMethod.find("all")    != std::string::npos) byPlanes = false;
-  if (cuMethod.find("full")   != std::string::npos) byPlanes = false;
-  if (cuMethod.find("2d")     != std::string::npos) byPlanes = false;
-  //
-  // Only one dimension at a time
-  //
-  if (cuMethod.find("axes")   != std::string::npos) byPlanes = true;
-  if (cuMethod.find("1d")     != std::string::npos) byPlanes = true;
-
-  std::cout << "---- SlabSL::cuda_initialize: byPlanes="
-	    << std::boolalpha << byPlanes << std::endl;
+  // Nothing
 }
 
 // Copy constants to device
 //
 void SlabSL::initialize_constants()
 {
+  auto f = grid->getCudaMappingConstants();
+  cuFP_t z;
+
   cuda_safe_call(cudaMemcpyToSymbol(slabNumX, &nmaxx, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabNumX");
@@ -229,9 +213,13 @@ void SlabSL::initialize_constants()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabNZ");
 
-  cuda_safe_call(cudaMemcpyToSymbol(slabNdim, &osize, sizeof(int),
+  cuda_safe_call(cudaMemcpyToSymbol(slabNdim, &jmax, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabNdim");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabNum, &f.numr, sizeof(int),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabNum");
 
   int Cmap = 0;
 
@@ -239,22 +227,31 @@ void SlabSL::initialize_constants()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabCmap");
 
-  cuFP_t dfac = 2.0*M_PI;
-
-  cuda_safe_call(cudaMemcpyToSymbol(slabDfac, &dfac, sizeof(cuFP_t),
+  cuda_safe_call(cudaMemcpyToSymbol(slabDfac, &(z=2.0*M_PI), sizeof(cuFP_t),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabDfac");
 
-  dfac = H;
-
-  cuda_safe_call(cudaMemcpyToSymbol(slabHscl, &dfac, sizeof(cuFP_t),
+  cuda_safe_call(cudaMemcpyToSymbol(slabHscl, &(z=SLGridSlab::H), sizeof(cuFP_t),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabHscl");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabXmin, &(z=f.xmin), sizeof(cuFP_t),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabXmin");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabXmax, &(z=f.xmax), sizeof(cuFP_t),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabXmax");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabDxi, &(z=f.dxi), sizeof(cuFP_t),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabDxi");
 }
+
 
 __global__ void coefKernelSlab
 (dArray<cudaParticle> P, dArray<int> I, dArray<CmplxT> coef,
- int stride, PII lohi)
+ dArray<cudaTextureObject_t> tex, int stride, PII lohi)
 {
   // Thread ID
   //
@@ -287,7 +284,7 @@ __global__ void coefKernelSlab
 	if (pos[k]<0.0)
 	  pos[k] += floor(-pos[k]) + 1.0;
 	else
-	  pos[k] += -floor(pos[key_functor]);
+	  pos[k] += -floor(pos[k]);
       }
     
       // Wave number loop
@@ -302,25 +299,24 @@ __global__ void coefKernelSlab
       
       // Vertical interpolation
       //
-      cuFP_t  x = cu_z_to_zi(pos[2]);
+      cuFP_t  x = cu_z_to_xi(pos[2]);
       cuFP_t xi = (x - slabXmin)/slabDxi;
-      cuFP_t dx = dx = cu_d_xi_to_z(xi)/slabDxi;
 
       int ind   = floor(xi);
       int in0   = ind;
 
       if (in0 < 0) in0 = 0;
-      if (in0 > slabNumz-2) in0 = slabNumz - 2;
+      if (in0 > slabNum-2) in0 = slabNum - 2;
 
       if (ind < 1) ind = 1;
-      if (ind > slabNumz-2) ind = slabNumz - 2;
+      if (ind > slabNum-2) ind = slabNum - 2;
 
       cuFP_t  a = (cuFP_t)(in0+1) - xi;
       cuFP_t  b = 1.0 - a;
 
       // Flip sign for antisymmetric basis functions
-      int sign=1;
-      if (x<0 && 2*(n/2)!=n) sign=-1;
+      int sign = 1;
+      if (x<0 && 2*(n/2)!=n) sign = -1;
 
 
       // Will contain the incremented basis
@@ -343,11 +339,11 @@ __global__ void coefKernelSlab
 
 	    cuFP_t p0 =
 #if cuREAL == 4
-	      a*tex1D<float>(tex._v[0], ind  ) +
-	    b*tex1D<float>(tex._v[0], ind+1) ;
+              a*tex1D<float>(tex._v[0], ind  ) +
+              b*tex1D<float>(tex._v[0], ind+1) ;
 #else
- 	    a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
-	    b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
+              a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
+              b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
 #endif
 	    int k = 1 + kx*(kx+1)/2*(slabNumY+1) + n;
 
@@ -364,13 +360,12 @@ __global__ void coefKernelSlab
 #endif
 			) * p0 * sign;
 	  
-	    coef._v[Index(ii, jj, n)] = -2.0*slabDfac * X * Y * v * mass;
+	    coef._v[slabIndex(ii, jj, n)] = -2.0*slabDfac * X * Y * v * mm;
 
 	  }
 	}
       }
       // END: wave number loop
-#endif
     }
     // END: particle index limit
   }
@@ -380,7 +375,7 @@ __global__ void coefKernelSlab
 
 __global__ void
 forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
-		dArray<CmplxT> coef, int stride, PII lohi)
+		dArray<CmplxT> coef, dArray<cudaTextureObject_t> tex, int stride, PII lohi)
 {
   // Thread ID
   //
@@ -401,7 +396,6 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
       CmplxT acc[3] = {0.0, 0.0, 0.0}, pot = 0.0, fac, facf;
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
       cuFP_t mm = p.mass;
-      int ind[3];
 
       // Wave number loop
       //
@@ -414,18 +408,18 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 
       // Vertical interpolation
       //
-      cuFP_t  x = cu_z_to_zi(pos[2]);
+      cuFP_t  x = cu_z_to_xi(pos[2]);
       cuFP_t xi = (x - slabXmin)/slabDxi;
-      cuFP_t dx = dx = cu_d_xi_to_z(xi)/slabDxi;
+      cuFP_t dx = cu_d_xi_to_z(xi)/slabDxi;
 
       int ind   = floor(xi);
       int in0   = ind;
 
       if (in0 < 0) in0 = 0;
-      if (in0 > slabNumz-2) in0 = slabNumz - 2;
+      if (in0 > slabNum-2) in0 = slabNum - 2;
 
       if (ind < 1) ind = 1;
-      if (ind > slabNumz-2) ind = slabNumz - 2;
+      if (ind > slabNum-2) ind = slabNum - 2;
 
       cuFP_t  a = (cuFP_t)(in0+1) - xi;
       cuFP_t  b = 1.0 - a;
@@ -435,16 +429,15 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 
       int jn0 = floor(xi);
       if (jn0 < 1) jn0 = 1;
-      if (jn0 > slabNumz-2) jn0 = slabNumz - 2;
+      if (jn0 > slabNum-2) jn0 = slabNum - 2;
 
-      double p = (x - xi[jn0])/dxi;
+      cuFP_t s = (x - slabXmin - slabDxi*jn0)/slabDxi;
 
       // Flip sign for antisymmetric basis functions
-      int sign=1;
-      if (pos[2]<0 && 2*(n/2)!=n) sign=-1;
+      int sign = 1;
+      if (pos[2]<0 && 2*(n/2)!=n) sign = -1;
 
       CmplxT X, Y;		// Will contain the incremented basis
-      CmplxT fac, facf;
 
       X = cx;			// Assign the min X wavenumber
       for (int ii=-slabNumX; ii<=slabNumX; ii++, X*=sx) {
@@ -461,7 +454,9 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
               a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
               b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
 #endif
-	      int k = 1 + kx*(kx+1)/2*(slabNumY+1) + n;
+	      int kx = ii + slabNumX;
+	      int ky = jj + slabNumY;
+	      int k  = 1 + kx*(kx+1)/2*(slabNumY+1) + n;
 
 #ifdef BOUNDS_CHECK
 	      if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -478,21 +473,21 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 	  
 	      cuFP_t f = (
 #if cuREAL == 4
-			  (p - 0.5)*tex1D<float>(tex._v[k], jnd-1)*tex1D<float>(tex._v[0], jnd-1)
-			  -2.0*tex1D<float>(tex._v[k], jnd)*tex1D<float>(tex._v[0], jnd) +
-			  (p + 0.5)**tex1D<float>(tex._v[k], jnd+1)*tex1D<float>(tex._v[0], jnd+1)
+			  (s - 0.5)*tex1D<float>(tex._v[k], jn0-1)*tex1D<float>(tex._v[0], jn0-1)
+			  -2.0*tex1D<float>(tex._v[k], jnd)*tex1D<float>(tex._v[0], jn0) +
+			  (s + 0.5)*tex1D<float>(tex._v[k], jn0+1)*tex1D<float>(tex._v[0], jn0+1)
 #else
-			  (p - 0.5)*int2_as_double(tex1D<int2>(tex._v[k], jnd-1))*
-			  int2_as_double(tex1D<int2>(tex._v[0], jnd-1))
-			  -2.0*int2_as_double(tex1D<int2>(tex._v[k], jnd))*
-			  int2_as_double(tex1D<int2>(tex._v[0], jnd)) + 
-			  (p + 0.5)*int2_as_double(tex1D<int2>(tex._v[k], jnd+1))*
-			  int2_as_double(tex1D<int2>(tex._v[0], jnd+1))
+			  (s - 0.5)*int2_as_double(tex1D<int2>(tex._v[k], jn0-1))*
+			  int2_as_double(tex1D<int2>(tex._v[0], jn0-1))
+			  -2.0*int2_as_double(tex1D<int2>(tex._v[k], jn0))*
+			  int2_as_double(tex1D<int2>(tex._v[0], jn0)) + 
+			  (s + 0.5)*int2_as_double(tex1D<int2>(tex._v[k], jn0+1))*
+			  int2_as_double(tex1D<int2>(tex._v[0], jn0+1))
 #endif
-			  ) * sign;
+			  ) * sign * dx;
 
-	      fac  = X * Y * v * coef._v[Index(ii, jj, n)];
-	      facf = X * Y * f * coef._v[Index(ii, jj, n)];
+	      fac  = X * Y * v * coef._v[slabIndex(ii, jj, n)];
+	      facf = X * Y * f * coef._v[slabIndex(ii, jj, n)];
 
 	      acc[0] += CmplxT(0.0, -slabDfac*ii) * fac;
 	      acc[1] += CmplxT(0.0, -slabDfac*jj) * fac;
@@ -503,7 +498,7 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 	// END: y wave number loop
       }
       // END: x wavenumber loop
-#endif
+
       // Particle assignment
       //
       p.pot = pot.real();
@@ -546,7 +541,7 @@ void SlabSL::cuda_zero_coefs()
 {
   auto cr = component->cuStream;
   
-  cuS.df_coef.resize(osize);
+  cuS.df_coef.resize(jmax);
     
   // Zero output array
   //
@@ -577,7 +572,7 @@ void SlabSL::determine_coefficients_cuda()
 
   // This will stay fixed for the entire run
   //
-  host_coefs.resize(osize);
+  host_coefs.resize(jmax);
 
   // Get the stream for this component
   //
@@ -665,107 +660,52 @@ void SlabSL::determine_coefficients_cuda()
     //
     int sMemSize = BLOCK_SIZE * sizeof(CmplxT);
     
-    if (byPlanes) {
-
-      // Adjust cached storage, if necessary
-      //
-      cuS.resize_coefs(N, imx, gridSize, stride);
+    // Adjust cached storage, if necessary
+    //
+    cuS.resize_coefs(N, jmax, gridSize, stride);
     
-      // Compute the coefficient contribution for each order
-      //
-      auto beg  = cuS.df_coef.begin();
-
-      for (int kk=-nmaxz; kk<=nmaxz; kk++) {
-
-	for (int jj=-nmaxy; jj<=nmaxy; jj++) {
-	
-	  coefKernelSlabX<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-	    (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-	     toKernel(cuS.dN_coef), jj, kk, stride, cur);
-      
-	  // Begin the reduction by blocks [perhaps this should use a
-	  // stride?]
-	  //
-	  unsigned int gridSize1 = N/BLOCK_SIZE;
-	  if (N > gridSize1*BLOCK_SIZE) gridSize1++;
-
-	  reduceSum<CmplxT, BLOCK_SIZE>
-	    <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
-	    (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), imx, N);
-      
-	  // Finish the reduction for this order in parallel
-	  //
-	  thrust::counting_iterator<int> index_begin(0);
-	  thrust::counting_iterator<int> index_end(gridSize1*imx);
-      
-	  // The key_functor indexes the sum reduced series by array index
-	  //
-	  thrust::reduce_by_key
-	    (
-	     thrust::cuda::par.on(cs->stream),
-	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
-	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-	     cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
-	     );
-      
-	  thrust::transform(thrust::cuda::par.on(cs->stream),
-			    cuS.dw_coef.begin(), cuS.dw_coef.end(),
-			    beg, beg, thrust::plus<CmplxT>());
-	  
-	  thrust::advance(beg, imx);
-	}
-	// END: y wave number loop
-      }
-      // END: z wave number loop
-      
-    } else {
-
-      // Adjust cached storage, if necessary
-      //
-      cuS.resize_coefs(N, osize, gridSize, stride);
+    // Compute the coefficient contribution for each order
+    //
+    auto beg  = cuS.df_coef.begin();
     
-      // Compute the coefficient contribution for each order
-      //
-      auto beg  = cuS.df_coef.begin();
+    coefKernelSlab<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+      (toKernel(cs->cuda_particles), toKernel(cs->indx1),
+       toKernel(cuS.dN_coef), toKernel(t_d) ,stride, cur);
+      
+    // Begin the reduction by blocks [perhaps this should use a
+    // stride?]
+    //
+    unsigned int gridSize1 = N/BLOCK_SIZE;
+    if (N > gridSize1*BLOCK_SIZE) gridSize1++;
 
-      coefKernelSlab<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-	(toKernel(cs->cuda_particles), toKernel(cs->indx1),
-	 toKernel(cuS.dN_coef), stride, cur);
-      
-      // Begin the reduction by blocks [perhaps this should use a
-      // stride?]
-      //
-      unsigned int gridSize1 = N/BLOCK_SIZE;
-      if (N > gridSize1*BLOCK_SIZE) gridSize1++;
-
-      reduceSum<CmplxT, BLOCK_SIZE>
-	<<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
-	(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
-      
-      // Finish the reduction for this order in parallel
-      //
-      thrust::counting_iterator<int> index_begin(0);
-      thrust::counting_iterator<int> index_end(gridSize1*osize);
-      
-      // The key_functor indexes the sum reduced series by array index
-      //
-      thrust::reduce_by_key
-	(
-	 thrust::cuda::par.on(cs->stream),
-	 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
-	 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-	 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
+    reduceSum<CmplxT, BLOCK_SIZE>
+      <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+      (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), jmax, N);
+    
+    // Finish the reduction for this order in parallel
+    //
+    thrust::counting_iterator<int> index_begin(0);
+    thrust::counting_iterator<int> index_end(gridSize1*jmax);
+    
+    // The key_functor indexes the sum reduced series by array index
+    //
+    thrust::reduce_by_key
+      (
+       thrust::cuda::par.on(cs->stream),
+       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+       cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
        );
       
-      thrust::transform(thrust::cuda::par.on(cs->stream),
-			cuS.dw_coef.begin(), cuS.dw_coef.end(),
-			beg, beg, thrust::plus<CmplxT>());
-      
-      thrust::advance(beg, osize);
-    }
-
-    use1 += N;			// Increment particle count
+    thrust::transform(thrust::cuda::par.on(cs->stream),
+		      cuS.dw_coef.begin(), cuS.dw_coef.end(),
+		      beg, beg, thrust::plus<CmplxT>());
+    
+    thrust::advance(beg, jmax);
   }
+
+  // use1 += N;			// Increment particle count
+
 
   // Accumulate the coefficients from the device to the host
   //
@@ -800,13 +740,13 @@ void SlabSL::determine_coefficients_cuda()
 	      << std::setw(20) << "rel diff"
 	      << std::endl;
     
-    auto cmax = std::max_element(host_coefs.begin(), host_coefs.begin()+osize,
+    auto cmax = std::max_element(host_coefs.begin(), host_coefs.begin()+jmax,
 				 LessAbs<CmplxT>());
 
-    for (int n=0; n<osize; n++) {
+    for (int n=0; n<jmax; n++) {
       auto [i, j, k] = indices(n);
       auto a = static_cast<std::complex<double>>(host_coefs[n]);
-      auto b = expcoef[0](i, j, k);
+      auto b = expccof[0](i, j, k);
       auto c = std::abs(a - b);
       std::cout << std::setw(4)  << i-nmaxx
 		<< std::setw(4)  << j-nmaxy
@@ -830,7 +770,7 @@ void SlabSL::determine_coefficients_cuda()
     coefType test;
     if (myid==0) test.resize(2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1);
 
-    MPI_Reduce (thrust::raw_pointer_cast(&host_coefs[0]), test.data(), osize,
+    MPI_Reduce (thrust::raw_pointer_cast(&host_coefs[0]), test.data(), jmax,
 		MPI_DOUBLE_COMPLEX, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid==0) {
@@ -853,7 +793,7 @@ void SlabSL::determine_coefficients_cuda()
 	    << std::endl;
 	
 
-	for (int n=0; n<osize; n++) {
+	for (int n=0; n<jmax; n++) {
 	  auto [i, j, k] = indices(n);
 	  auto a = test(i, j, k);
 	  out << std::setw(4)  << i-nmaxx
@@ -878,7 +818,7 @@ void SlabSL::determine_coefficients_cuda()
     coefType test;
     if (myid==0) test.resize(2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1);
 
-    MPI_Reduce (thrust::raw_pointer_cast(&host_coefs[0]), test.data(), osize,
+    MPI_Reduce (thrust::raw_pointer_cast(&host_coefs[0]), test.data(), jmax,
 		MPI_DOUBLE_COMPLEX, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid==0) {
@@ -889,7 +829,7 @@ void SlabSL::determine_coefficients_cuda()
       if (out) {
 	std::multimap<double, int> biggest;
 
-	for (int n=0; n<osize; n++)
+	for (int n=0; n<jmax; n++)
 	  biggest.insert({std::abs(test.data()[n]), n});
 
 	out << std::string(3*4+3*20, '-') << std::endl
@@ -950,11 +890,11 @@ void SlabSL::determine_coefficients_cuda()
     if (out) {
 
       // m loop
-      for (int n=0; n<osize; n++) {
+      for (int n=0; n<jmax; n++) {
 	
 	std::tie(elem.i, elem.j, elem.k) = indices(n);
 
-	elem.d = expcoef[0](elem.i, elem.j, elem.k);
+	elem.d = expccof[0](elem.i, elem.j, elem.k);
 	elem.f = static_cast<std::complex<double>>(host_coefs[n]);
 	  
 	double test = std::abs(elem.d - elem.f);
@@ -1073,18 +1013,18 @@ void SlabSL::determine_acceleration_cuda()
       
     forceKernelSlab<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-       toKernel(dev_coefs), stride, lohi);
+       toKernel(dev_coefs), toKernel(t_d), stride, lohi);
   }
 }
 
 void SlabSL::HtoD_coefs()
 {
   // Check size
-  host_coefs.resize(osize);
+  host_coefs.resize(jmax);
 
   // Copy from Slab
   for (int i=0; i<host_coefs.size(); i++)
-    host_coefs[i] = expcoef[0].data()[i];
+    host_coefs[i] = expccof[0].data()[i];
 
   // Copy to device
   dev_coefs = host_coefs;
@@ -1094,8 +1034,8 @@ void SlabSL::HtoD_coefs()
 void SlabSL::DtoH_coefs(unsigned M)
 {
   // Copy from host device to Slab
-  for (int i=0; i<expcoef[0].size(); i++)
-    expcoef[0].data()[i] = host_coefs[i];
+  for (int i=0; i<expccof[0].size(); i++)
+    expccof[0].data()[i] = host_coefs[i];
 }
 
 void SlabSL::multistep_update_cuda()
@@ -1164,106 +1104,47 @@ void SlabSL::multistep_update_cuda()
 	//
 	int sMemSize = BLOCK_SIZE * sizeof(CmplxT);
 
-	if (byPlanes) {
-	  // Adjust cached storage, if necessary
-	  //
-	  cuS.resize_coefs(N, imx, gridSize, stride);
+	// Adjust cached storage, if necessary
+	//
+	cuS.resize_coefs(N, jmax, gridSize, stride);
 	
-	  // Compute the coefficient contribution for each order
-	  //
-	  auto beg  = cuS.df_coef.begin();
-
-	  for (int kk=-nmaxz; kk<=nmaxz; kk++) {
-	    
-	    for (int jj=-nmaxy; jj<=nmaxy; jj++) {
-
-	      // Do the work!
-	      //
-	      coefKernelSlabX<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-		(toKernel(cs->cuda_particles), toKernel(cs->indx1),
-		 toKernel(cuS.dN_coef), jj, kk, stride, cur);
-      
-	      unsigned int gridSize1 = N/BLOCK_SIZE;
-	      if (N > gridSize1*BLOCK_SIZE) gridSize1++;
-	  
-	      reduceSum<CmplxT, BLOCK_SIZE>
-		<<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
-		(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), imx, N);
-	  
-	      // Finish the reduction for this order in parallel
-	      //
-	      thrust::counting_iterator<int> index_begin(0);
-	      thrust::counting_iterator<int> index_end(gridSize1*imx);
-	      
-	      // The key_functor indexes the sum reduced series by array index
-	      //
-	      thrust::reduce_by_key
-		(
-		 thrust::cuda::par.on(cs->stream),
-		 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
-		 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-		 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
-		 );
-
-	      thrust::transform(thrust::cuda::par.on(cs->stream),
-				cuS.dw_coef.begin(), cuS.dw_coef.end(),
-				beg, beg, thrust::plus<CmplxT>());
-	  
-	      thrust::advance(beg, imx);
-	    }
-	    // END: z wave numbers
-	  }
-	  // END: y wave numbers
-	}
-	// END: bunch by planes
-	else {
-	  // Adjust cached storage, if necessary
-	  //
-	  cuS.resize_coefs(N, osize, gridSize, stride);
+	// Compute the coefficient contribution for each order
+	//
+	auto beg  = cuS.df_coef.begin();
 	
-	  // Shared memory size for the reduction
-	  //
-	  int sMemSize = BLOCK_SIZE * sizeof(CmplxT);
-    
-	  // Compute the coefficient contribution for each order
-	  //
-	  auto beg  = cuS.df_coef.begin();
-
-	  // Do the work!
-	  //
-	  coefKernelSlab<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-	    (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-	     toKernel(cuS.dN_coef), stride, cur);
-      
-	  unsigned int gridSize1 = N/BLOCK_SIZE;
-	  if (N > gridSize1*BLOCK_SIZE) gridSize1++;
-	  
-	  reduceSum<CmplxT, BLOCK_SIZE>
-	    <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
-	    (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
-	  
-	  // Finish the reduction for this order in parallel
-	  //
-	  thrust::counting_iterator<int> index_begin(0);
-	  thrust::counting_iterator<int> index_end(gridSize1*osize);
-	  
-	  // The key_functor indexes the sum reduced series by array index
-	  //
-	  thrust::reduce_by_key
-	    (
-	     thrust::cuda::par.on(cs->stream),
-	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
-	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-	     cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
-	     );
-
-	  thrust::transform(thrust::cuda::par.on(cs->stream),
-			    cuS.dw_coef.begin(), cuS.dw_coef.end(),
-			    beg, beg, thrust::plus<CmplxT>());
-	  
-	  thrust::advance(beg, osize);
-	}
-	// END: all wave numbers at once
+	// Do the work!
+	//
+	coefKernelSlab<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+	  (toKernel(cs->cuda_particles), toKernel(cs->indx1),
+	   toKernel(cuS.dN_coef), toKernel(t_d), stride, cur);
+	
+	unsigned int gridSize1 = N/BLOCK_SIZE;
+	if (N > gridSize1*BLOCK_SIZE) gridSize1++;
+	
+	reduceSum<CmplxT, BLOCK_SIZE>
+	  <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+	  (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), jmax, N);
+	
+	// Finish the reduction for this order in parallel
+	//
+	thrust::counting_iterator<int> index_begin(0);
+	thrust::counting_iterator<int> index_end(gridSize1*jmax);
+	
+	// The key_functor indexes the sum reduced series by array index
+	//
+	thrust::reduce_by_key
+	  (
+	   thrust::cuda::par.on(cs->stream),
+	   thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	   thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+	   cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
+	   );
+	
+	thrust::transform(thrust::cuda::par.on(cs->stream),
+			  cuS.dw_coef.begin(), cuS.dw_coef.end(),
+			  beg, beg, thrust::plus<CmplxT>());
+	
+	thrust::advance(beg, jmax);
       }
       // END: bunches
 
@@ -1274,7 +1155,7 @@ void SlabSL::multistep_update_cuda()
       // Decrement current level and increment new level using the
       // Slab update matricies
       //
-      for (int i=0; i<osize; i++) {
+      for (int i=0; i<jmax; i++) {
 	std::complex<double> val = ret[i];
 	differ1[0][olev].data()[i] -= val;
 	differ1[0][nlev].data()[i] += val;

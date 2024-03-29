@@ -107,6 +107,34 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 
   for (auto & v : zpot) v.resize(nmaxz);
   for (auto & v : zfrc) v.resize(nmaxz);
+
+  // Allocate coefficient matrix (one for each multistep level)
+  // and zero-out contents
+  //
+  differ1 = std::vector< std::vector<coefType> >(nthrds);
+  for (int n=0; n<nthrds; n++) {
+    differ1[n].resize(multistep+1);
+    for (int i=0; i<=multistep; i++)
+      differ1[n][i].resize(imx, imy, imz);
+  }
+
+  // MPI buffer space (including multistep arrays)
+  //
+  unsigned sz = (multistep+1)*jmax;
+  pack  .resize(sz);
+  unpack.resize(sz);
+
+  // Coefficient evaluation times
+  // 
+  expcoefN.resize(multistep+1);
+  expcoefL.resize(multistep+1);
+  for (int i=0; i<=multistep; i++) {
+    expcoefN[i] = std::make_shared<coefType>(imx, imy, imz);
+    expcoefL[i] = std::make_shared<coefType>(imx, imy, imz);
+    expcoefN[i] -> setZero();
+    expcoefL[i] -> setZero();
+  }
+    
 }
 
 SlabSL::~SlabSL()
@@ -160,6 +188,20 @@ void SlabSL::determine_coefficients(void)
     expccof[i].setZero();
   }
 
+  // Swap interpolation arrays
+  //
+  if (multistep) {
+
+    auto p = expcoefL[mlevel];
+  
+    expcoefL[mlevel] = expcoefN[mlevel];
+    expcoefN[mlevel] = p;
+  
+    // Clean arrays for current level
+    //
+    expcoefN[mlevel]->setZero();
+  }
+
 #if HAVE_LIBCUDA==1
   (*barrier)("SlabSL::entering cuda coefficients", __FILE__, __LINE__);
   if (component->cudaDevice>=0 and use_cuda) {
@@ -188,8 +230,22 @@ void SlabSL::determine_coefficients(void)
   
   MPI_Allreduce ( &used1, &used,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-  MPI_Allreduce( MPI_IN_PLACE, expccof[0].data(), expccof[0].size(),
-		 MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+  if (multistep) {
+
+    MPI_Allreduce( expccof[0].data(), expcoefN[mlevel]->data(),
+		   expccof[0].size(),
+		   MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+  } else {
+    
+    MPI_Allreduce( MPI_IN_PLACE, expccof[0].data(), expccof[0].size(),
+		   MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+  }
+
+  // Last level?
+  //
+  if (multistep and mlevel==multistep) {
+     compute_multistep_coefficients();
+  }
 
 #if HAVE_LIBCUDA==1
   cuda_initialize();
@@ -282,7 +338,6 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 void SlabSL::get_acceleration_and_potential(Component* C)
 {
   cC = C;
-
 
   MPL_start_timer();
 
@@ -459,5 +514,153 @@ void SlabSL::dump_coefs(ostream& out)
   out.write((char *)&coefheader, sizeof(SlabSLCoefHeader));
   out.write((char *)expccof[0].data(),
 	    expccof[0].size()*sizeof(std::complex<double>));
+}
+
+void SlabSL::multistep_update_begin()
+{
+  if (play_back and not play_cnew) return;
+
+				// Clear the update matricies
+  for (int n=0; n<nthrds; n++) {
+    for (int M=mfirst[mdrft]; M<=multistep; M++) differ1[n][M].setZero();
+  }
+}
+
+void SlabSL::multistep_update_finish()
+{
+  if (play_back and not play_cnew) return;
+
+  // Combine the update matricies from all nodes
+  //
+  unsigned sz = (multistep - mfirst[mdrft] + 1)*jmax;
+
+  // Zero the buffer space
+  //
+  std::fill(pack.begin(), pack.begin() + sz, 0.0);
+
+  // Pack the difference matrices
+  //
+  for (int M=mfirst[mdrft]; M<=multistep; M++) {
+
+    unsigned offset = (M - mfirst[mdrft])*jmax;
+
+    for (int i=0; i<jmax; i++)
+      for (int n=0; n<nthrds; n++) {
+	pack[offset + i] += differ1[n][M].data()[i];
+      }
+  }
+
+  MPI_Allreduce (pack.data(), unpack.data(), sz, 
+		 MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+  
+  // Update the local coefficients
+  //
+  for (int M=mfirst[mdrft]; M<=multistep; M++) {
+
+    unsigned offset = (M - mfirst[mdrft])*jmax;
+
+    for (int i=0; i<jmax; i++)
+      expcoefN[M]->data()[i] += unpack[offset+i];
+  }
+}
+
+void SlabSL::multistep_update(int from, int to, Component *c, int i, int id)
+{
+  if (play_back and not play_cnew) return;
+  if (c->freeze(i)) return;
+
+  double mass = c->Mass(i) * component->Adiabatic();
+
+  double x = c->Pos(i, 0);
+  double y = c->Pos(i, 1);
+  double z = c->Pos(i, 2);
+  
+  // Only compute for points inside the unit cube
+  //
+  if (x<0.0 or x>1.0) return;
+  if (y<0.0 or y>1.0) return;
+  if (z<0.0 or z>1.0) return;
+    
+  // Recursion multipliers
+  std::complex<double> stepx = std::exp(-kfac*x);
+  std::complex<double> stepy = std::exp(-kfac*y);
+  std::complex<double> stepz = std::exp(-kfac*z);
+    
+  // Initial values for recursion
+  std::complex<double> startx = std::exp(kfac*(x*nmaxx));
+  std::complex<double> starty = std::exp(kfac*(y*nmaxy));
+  std::complex<double> startz = std::exp(kfac*(z*nmaxz));
+  
+  std::complex<double> facx, facy, facz;
+  int ix, iy, iz;
+
+  for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+    for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+      for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
+	
+	// Compute wavenumber; recall that the coefficients are
+	// stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+	//
+	int ii = ix-nmaxx;
+	int jj = iy-nmaxy;
+	int kk = iz-nmaxz;
+	
+	// Normalization
+	double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
+	
+	std::complex<double> val = -mass*facx*facy*facz*norm;
+
+	differ1[id][from](ix, iy, iz) -= val;
+	differ1[id][  to](ix, iy, iz) += val;
+      }
+    }
+  }
+}
+
+void SlabSL::compute_multistep_coefficients()
+{
+  if (play_back and not play_cnew) return;
+
+  // Clean coefficient matrix
+  // 
+  expccof[0].setZero();
+    
+  // Interpolate to get coefficients above
+  // 
+  for (int M=0; M<mfirst[mdrft]; M++) {
+    
+    double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
+    double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
+
+    double b = numer/denom;	// Interpolation weights
+    double a = 1.0 - b;
+
+    for (int i=0; i<jmax; i++) {
+      expccof[0].data()[i] +=
+	a*expcoefL[M]->data()[i] + b*expcoefN[M]->data()[i] ;
+    }
+    
+    // Sanity debug check
+    // 
+    if (a<0.0 && a>1.0) {
+      std::cout << "Process " << myid
+		<< ": interpolation error in multistep [a]" 
+		<< std::endl;
+    }
+    if (b<0.0 && b>1.0) {
+      std::cout << "Process " << myid
+		<< ": interpolation error in multistep [b]" 
+		<< std::endl;
+    }
+  }
+
+  // Add coefficients at or below this level
+  // 
+  for (int M=mfirst[mdrft]; M<=multistep; M++) {
+
+    for (int i=0; i<jmax; i++) {
+      expccof[0].data()[i] += expcoefN[M]->data()[i];
+    }
+  }
 }
 
