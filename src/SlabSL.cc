@@ -18,6 +18,12 @@ SlabSL::valid_keys = {
   "type"
 };
 
+//@{
+//! These are for testing exclusively (should be set false for production)
+static bool cudaAccumOverride = false;
+static bool cudaAccelOverride = false;
+//@}
+
 SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Slab (Sturm-Liouville)";
@@ -26,6 +32,10 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   zmax      = 10.0;
   hslab     = 0.2;
   coef_dump = true;
+
+#if HAVE_LIBCUDA==1
+  cuda_aware = true;
+#endif
 
   initialize();
 
@@ -101,7 +111,9 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 
 SlabSL::~SlabSL()
 {
-  // Nothing
+#if HAVE_LIBCUDA==1
+  if (component->cudaDevice>=0) destroy_cuda();
+#endif
 }
 
 void SlabSL::initialize()
@@ -137,10 +149,9 @@ void SlabSL::initialize()
 
 void SlabSL::determine_coefficients(void)
 {
-				//  Coefficients are ordered as follows:
-				//  n=-nmax,-nmax+1,...,0,...,nmax-1,nmax
-				//  in a single array for each dimension
-				//  with z dimension changing most rapidly
+  //  Coefficients are ordered as follows:
+  //  n=-nmax,-nmax+1,...,0,...,nmax-1,nmax in a single array for each
+  //  dimension with z dimension changing most rapidly
 
   // Clean 
 
@@ -149,7 +160,23 @@ void SlabSL::determine_coefficients(void)
     expccof[i].setZero();
   }
 
+#if HAVE_LIBCUDA==1
+  (*barrier)("SlabSL::entering cuda coefficients", __FILE__, __LINE__);
+  if (component->cudaDevice>=0 and use_cuda) {
+    if (cudaAccumOverride) {
+      component->CudaToParticles();
+      exp_thread_fork(true);
+    } else {
+      determine_coefficients_cuda();
+      DtoH_coefs(mlevel);
+    }
+  } else {
+    exp_thread_fork(true);
+  }
+  (*barrier)("SlabSL::exiting cuda coefficients", __FILE__, __LINE__);
+#else
   exp_thread_fork(true);
+#endif
 
   int used1 = 0, rank = expccof[0].size();
   used = 0;
@@ -164,6 +191,9 @@ void SlabSL::determine_coefficients(void)
   MPI_Allreduce( MPI_IN_PLACE, expccof[0].data(), expccof[0].size(),
 		 MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 
+#if HAVE_LIBCUDA==1
+  cuda_initialize();
+#endif
 }
 
 void * SlabSL::determine_coefficients_thread(void * arg)
@@ -253,8 +283,35 @@ void SlabSL::get_acceleration_and_potential(Component* C)
 {
   cC = C;
 
+
   MPL_start_timer();
+
+#if HAVE_LIBCUDA==1
+  if (use_cuda and cC->cudaDevice>=0 and cC->force->cudaAware()) {
+    if (cudaAccelOverride) {
+      cC->CudaToParticles();
+      exp_thread_fork(false);
+      cC->ParticlesToCuda();
+    } else {
+      // Copy coefficients from this component to device
+      //
+      HtoD_coefs();
+      //
+      // Do the force computation
+      //
+      determine_acceleration_cuda();
+    }
+  } else {
+
+    exp_thread_fork(false);
+
+  }
+#else
+
   exp_thread_fork(false);
+
+#endif
+
   MPL_stop_timer();
 }
 

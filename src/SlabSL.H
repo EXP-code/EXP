@@ -11,6 +11,12 @@
 #include <biorth1d.H>
 #include <PotAccel.H>
 
+#if HAVE_LIBCUDA==1
+#include <thrust/complex.h>
+#include <cudaParticle.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
+
 /*! This routine computes the potential, acceleration and density
   using expansion periodic in X & Y and outgoing vacuum boundary
   condtions in Z */
@@ -49,6 +55,54 @@ private:
   std::vector<Eigen::VectorXd> zfrc, zpot;
 
   SlabSLCoefHeader coefheader;
+
+#if HAVE_LIBCUDA==1
+  virtual void determine_coefficients_cuda();
+  virtual void determine_acceleration_cuda();
+  virtual void multistep_update_cuda();
+
+  thrust::host_vector<thrust::complex<cuFP_t>> host_coefs;
+  thrust::device_vector<thrust::complex<cuFP_t>> dev_coefs;
+
+  //! Move coefficients from host to device
+  virtual void HtoD_coefs();
+
+  //! Move coefficients from device to host
+  virtual void DtoH_coefs(unsigned);
+
+  //! Assign constants on the device
+  virtual void initialize_constants();
+
+  //! Deallocate storage
+  virtual void destroy_cuda();
+
+  //@{
+
+  //! Helper struct to hold device data
+  struct cudaStorage
+  {
+    thrust::device_vector<thrust::complex<cuFP_t>> dN_coef;
+    thrust::device_vector<thrust::complex<cuFP_t>> dc_coef;
+    thrust::device_vector<thrust::complex<cuFP_t>> dw_coef;
+    thrust::device_vector<thrust::complex<cuFP_t>> df_coef;
+
+    void resize_coefs(int N, int osize, int gridSize, int stride);
+  };
+
+  //! A storage instance
+  cudaStorage cuS;
+
+  //! Only initialize once
+  bool initialize_cuda_cube;
+
+  //! Initialize the cuda streams
+  void cuda_initialize();
+
+  //! Zero the coefficient output vectors
+  void cuda_zero_coefs();
+  //@}
+
+#endif
 
   //! Default number of grid points for SLGridSlab
   int ngrid = 1000;

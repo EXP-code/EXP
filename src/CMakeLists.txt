@@ -4,7 +4,7 @@ if (ENABLE_CUDA)
   list(APPEND CUDA_SRC cudaPolarBasis.cu cudaSphericalBasis.cu
     cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc
     cudaHOT.cu cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu
-    cudaOrient.cu cudaBiorthCyl.cu cudaCube.cu)
+    cudaOrient.cu cudaBiorthCyl.cu cudaCube.cu cudaSlabSL.cu)
 endif()
 
 set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc

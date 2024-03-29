@@ -436,6 +436,31 @@ public:
   std::vector<Eigen::MatrixXd> orthoCheck(int knots=40);
 
   //@}
+
+#if HAVE_LIBCUDA==1
+  void initialize_cuda(std::vector<cudaArray_t>& cuArray,
+		       thrust::host_vector<cudaTextureObject_t>& tex);
+
+  virtual cudaMappingConstants getCudaMappingConstants()
+  {
+    cudaMappingConstants ret;
+
+    ret.hscale = H;
+    ret.xmin   = xmin;
+    ret.xmax   = xmax;
+    ret.ymin   = 0.0;
+    ret.ymax   = 0.0;
+    ret.numr   = numz;
+    ret.numx   = 0;
+    ret.numy   = 0;
+    ret.dxi    = dxi;
+    ret.dyi    = 0.0;
+
+    return ret;
+  }
+
+#endif
+
 };
 
 
