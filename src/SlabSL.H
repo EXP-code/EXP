@@ -81,6 +81,10 @@ private:
   //! Working device vectors
   thrust::device_vector<cudaTextureObject_t> t_d;
 
+  //! Host vectors
+  std::vector<cudaArray_t> cuInterpArray;
+  thrust::host_vector<cudaTextureObject_t> tex;
+
   //! Helper struct to hold device data
   struct cudaStorage
   {
@@ -96,10 +100,16 @@ private:
   cudaStorage cuS;
 
   //! Only initialize once
-  bool initialize_cuda_slab = false;
+  bool initialize_cuda_slab = true;
+
+  //! Initialize cuda extra
+  void cuda_initialize();
 
   //! Initialize the cuda streams
-  void cuda_initialize();
+  void initialize_cuda()
+  {
+    grid->initialize_cuda(cuInterpArray, tex);
+  }
 
   //! Zero the coefficient output vectors
   void cuda_zero_coefs();
