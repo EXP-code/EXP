@@ -2,14 +2,6 @@
 
 #include <thrust/tuple.h>
 
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <thrust/host_vector.h>
-#if CUDART_VERSION < 12000
-#include <thrust/system/cuda/experimental/pinned_allocator.h>
-#endif
-
-#include <cudaUtil.cuH>
 #include <cudaReduce.cuH>
 #include <Component.H>
 #include <SlabSL.H>
@@ -79,7 +71,7 @@ void testConstantsSlab()
   printf("   Ndim   = %d\n", slabNdim );
   printf("   Numx   = %d\n", slabNumX );
   printf("   Numy   = %d\n", slabNumY );
-  printf("   Numy   = %d\n", slabNumZ );
+  printf("   Numz   = %d\n", slabNumZ );
   printf("   Nx     = %d\n", slabNX   );
   printf("   Ny     = %d\n", slabNY   );
   printf("   Nz     = %d\n", slabNZ   );
@@ -338,16 +330,16 @@ __global__ void coefKernelSlab
 
 	Y = cy;			// Assign the min Y wavenumber conjugate
 
-	int kx = abs(ii);
+	int kx = abs(ii);	// X index into texture array
 
 	for (int jj=-slabNumY; jj<=slabNumY; jj++, Y*=sy) {
 
-	  int ky = abs(jj);
+	  int ky = abs(jj);	// Y index into texture array
 
 				// The vertical basis iteration
 	  for (int n=0; n<slabNumZ; n++) {
 
-	    int k = 1 + kx*(kx+1)/2*(slabNumY+1) + n;
+	    int k = 1 + (kx*(kx+1)/2 + ky)*slabNumZ + n;
 
 #ifdef BOUNDS_CHECK
 	    if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -451,15 +443,22 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
       CmplxT X, Y;		// Will contain the incremented basis
 
       X = cx;			// Assign the min X wavenumber
+
       for (int ii=-slabNumX; ii<=slabNumX; ii++, X*=sx) {
+
 	Y = cy;			// Assign the min Y wavenumber
+
+	int kx = abs(ii);	// X index into texture array
+
 	for (int jj=-slabNumY; jj<=slabNumY; jj++, Y*=sy) {
+
+	  int ky = abs(jj);	// Y index into texture array
+	  
+	  int offset = 1 + (kx*(kx+1)/2 + ky)*slabNumZ;
 
 	  for (int n=0; n<slabNumZ; n++) {
 
-	      int kx = ii + slabNumX;
-	      int ky = jj + slabNumY;
-	      int k  = 1 + kx*(kx+1)/2*(slabNumY+1) + n;
+	    int k = offset + n;
 
 #ifdef BOUNDS_CHECK
 	      if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -560,12 +559,15 @@ void SlabSL::determine_coefficients_cuda()
   if (initialize_cuda_slab) {
     initialize_cuda();
     initialize_cuda_slab = false;
+
+    // Copy coordinate mapping
+    //
+    initialize_constants();
+    
+    // Copy texture objects to device
+    //
+    t_d = tex;
   }
-
-  // Copy coordinate mapping
-  //
-  initialize_constants();
-
 
   std::cout << std::scientific;
 
