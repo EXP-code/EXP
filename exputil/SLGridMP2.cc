@@ -145,7 +145,6 @@ SLGridSph::SLGridSph(std::string modelname,
   if (cachename.size()) sph_cache_name  = cachename;
   else throw std::runtime_error("SLGridSph: you must specify a cachename");
   
-  mpi_buf  = 0;
   model    = SphModTblPtr(new SphericalModelTable(model_file_name, DIVERGE, DFAC));
   tbdbg    = VERBOSE;
   diverge  = DIVERGE;
@@ -159,7 +158,6 @@ SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 		     bool CACHE, int CMAP, double RMAP,
 		     std::string cachename, bool VERBOSE)
 {
-  mpi_buf  = 0;
   model    = mod;
   tbdbg    = VERBOSE;
   diverge  = 0;
@@ -231,7 +229,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
     //
     if (mpi) {
 
-      table =  new TableSph [lmax+1];
+      table = table_ptr_1D(new TableSph [lmax+1]);
       
       mpi_setup();
       
@@ -246,7 +244,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
 	for (l=0; l<=lmax; l++) {
 
-	  MPI_Bcast(mpi_buf, mpi_bufsz, MPI_PACKED, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(&mpi_buf[0], mpi_bufsz, MPI_PACKED, 0, MPI_COMM_WORLD);
     
 	  mpi_unpack_table();      
 	}
@@ -293,10 +291,10 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 		     MPI_COMM_WORLD, &status);
 	    totbad += bad;
 	    int retid = status.MPI_SOURCE;
-	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+	    MPI_Recv(&mpi_buf[0], mpi_bufsz, MPI_PACKED, retid, 11,
 		     MPI_COMM_WORLD, &status);
 #else
-	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
+	    MPI_Recv(&mpi_buf[0], mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		     MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 	    
 	    int retid = status.MPI_SOURCE;
@@ -333,10 +331,10 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	  totbad += bad;
 
 	  int retid = status.MPI_SOURCE;
-	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+	  MPI_Recv(&mpi_buf[0], mpi_bufsz, MPI_PACKED, retid, 11,
 		   MPI_COMM_WORLD, &status);
 #else
-	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 11,
+	  MPI_Recv(&mpi_buf[0], mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 11,
 		   MPI_COMM_WORLD, &status);
 	  
 #endif
@@ -361,7 +359,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	for (l=0; l<=lmax; l++) {
 	  int position = mpi_pack_table(&table[l], l);
 
-	  MPI_Bcast(mpi_buf, position, MPI_PACKED, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(&mpi_buf[0], position, MPI_PACKED, 0, MPI_COMM_WORLD);
 	}
 
       }
@@ -395,7 +393,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
     // END MPI stanza, BEGIN single-process stanza
     else {
 
-      table =  new TableSph [lmax+1];
+      table = table_ptr_1D(new TableSph [lmax+1]);
 
       for (l=0; l<=lmax; l++) {
 	if (tbdbg) std::cerr << "Begin [" << l << "] . . ." << std::endl;
@@ -534,7 +532,7 @@ bool SLGridSph::ReadH5Cache(void)
 
     // Create table instances
     //
-    table = new TableSph [lmax+1];
+    table = table_ptr_1D(new TableSph [lmax+1]);
 
     for (int l=0; l<=lmax; l++) {
       std::ostringstream sout;
@@ -646,8 +644,7 @@ void SLGridSph::WriteH5Cache(void)
 
 SLGridSph::~SLGridSph()
 {
-  delete [] table;
-  delete [] mpi_buf;
+  // Nothing
 }
 
 				// Members
@@ -1488,7 +1485,7 @@ void SLGridSph::compute_table_worker(void)
 #endif
     // Send sledge comptuation to root
     int position = mpi_pack_table(&table, L);
-    MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
+    MPI_Send(&mpi_buf[0], position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
     if (tbdbg)
       std::cout << "Worker " <<  mpi_myid << ": send to root l = " << L << "" << std::endl;
@@ -1524,7 +1521,7 @@ void SLGridSph::mpi_setup(void)
     nmax*buf2 +			// ev
     nmax*numr*buf2 ;		// ef
 
-  mpi_buf = new char [mpi_bufsz];
+  mpi_buf = std::shared_ptr<char[]>(new char [mpi_bufsz]);
 }
 
 
@@ -1532,16 +1529,16 @@ int SLGridSph::mpi_pack_table(struct TableSph* table, int l)
 {
   int position = 0;
 
-  MPI_Pack( &l, 1, MPI_INT, mpi_buf, mpi_bufsz, 
+  MPI_Pack( &l, 1, MPI_INT, &mpi_buf[0], mpi_bufsz, 
 	    &position, MPI_COMM_WORLD);
 
   for (int j=0; j<nmax; j++)
-    MPI_Pack( &table->ev[j], 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
+    MPI_Pack( &table->ev[j], 1, MPI_DOUBLE, &mpi_buf[0], mpi_bufsz, 
 	      &position, MPI_COMM_WORLD);
 
   for (int j=0; j<nmax; j++)
     for (int i=0; i<numr; i++)
-      MPI_Pack( &table->ef(j, i), 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
+      MPI_Pack( &table->ef(j, i), 1, MPI_DOUBLE, &mpi_buf[0], mpi_bufsz, 
 		&position, MPI_COMM_WORLD);
 
   return position;
@@ -1560,7 +1557,7 @@ void SLGridSph::mpi_unpack_table(void)
   
   int retid = status.MPI_SOURCE;
 
-  MPI_Unpack( mpi_buf, length, &position, &l, 1, MPI_INT,
+  MPI_Unpack( &mpi_buf[0], length, &position, &l, 1, MPI_INT,
 	      MPI_COMM_WORLD);
 
   if (tbdbg)
@@ -1573,12 +1570,12 @@ void SLGridSph::mpi_unpack_table(void)
   table[l].ef.resize(nmax, numr);
 
   for (int j=0; j<nmax; j++)
-    MPI_Unpack( mpi_buf, length, &position, &table[l].ev[j], 1, MPI_DOUBLE,
+    MPI_Unpack( &mpi_buf[0], length, &position, &table[l].ev[j], 1, MPI_DOUBLE,
 		MPI_COMM_WORLD);
 
   for (int j=0; j<nmax; j++)
     for (int i=0; i<numr; i++)
-      MPI_Unpack( mpi_buf, length, &position, &table[l].ef(j, i), 1, 
+      MPI_Unpack( &mpi_buf[0], length, &position, &table[l].ef(j, i), 1, 
 		  MPI_DOUBLE, MPI_COMM_WORLD);
 }
 
@@ -1833,25 +1830,25 @@ void SLGridSlab::bomb(string oops)
 				// Constructors
 
 SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
-		       const std::string type, bool VERBOSE)
+		       const std::string TYPE, bool VERBOSE)
 {
   int kx, ky;
 
   numk = NUMK;
   nmax = NMAX;
   numz = NUMZ;
+  type = TYPE;
 
   zmax = ZMAX;
 
   slab  = SlabModel::createModel(type);
 
-  poffset = 0.0;
   poffset = slab->pot((1.0+ZEND)*zmax);
 
   tbdbg   = VERBOSE;
 
-  // This could be controlled by a parameter...at this point is a
-  // fixed tuning.
+  // This could be controlled by a parameter...but at this point, this
+  // is a fixed tuning.
   mM      = CoordMap::factory(CoordMapTypes::Sech, H);
 
   init_table();
@@ -1863,9 +1860,9 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
       std::cout << "Process " << myid << ": MPI is off!" << std::endl;
   }
 
-  table =  new TableSlab* [numk+1];
+  table = table_ptr_2D(new table_ptr_1D [numk+1]);
   for (kx=0; kx<=numk; kx++)
-    table[kx] =  new TableSlab [kx+1];
+    table[kx] = table_ptr_1D(new TableSlab [kx+1]);
 
   if (mpi) {
 
@@ -1883,7 +1880,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
       for (kx=0; kx<=numk; kx++) {
 	for (ky=0; ky<=kx; ky++) {
-	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, 0,
+	  MPI_Recv(&mpi_buf[0], mpi_bufsz, MPI_PACKED, 0,
 		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
     
 	  mpi_unpack_table();      
@@ -1896,7 +1893,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
       int worker = 0;
       int request_id = 1;
 
-      if (!read_cached_table()) {
+      if (!ReadH5Cache()) {
 
 	kx = 0;
 	ky = 0;
@@ -1939,10 +1936,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	    totbad += bad;
 				// Get sledge computation result
 	    int retid = status.MPI_SOURCE;
-	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+	    MPI_Recv(&mpi_buf[0], mpi_bufsz, MPI_PACKED, retid, 11,
 		     MPI_COMM_WORLD, &status);
 #else
-	    MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
+	    MPI_Recv(&mpi_buf[0], mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 
 		     MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 	    
 	    int retid = status.MPI_SOURCE;
@@ -1986,10 +1983,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	  totbad += bad;
 	  // Get sledge computation result
 	  int retid = status.MPI_SOURCE;
-	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, retid, 11,
+	  MPI_Recv(&mpi_buf[0], mpi_bufsz, MPI_PACKED, retid, 11,
 		   MPI_COMM_WORLD, &status);
 #else
-	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 11,
+	  MPI_Recv(&mpi_buf[0], mpi_bufsz, MPI_PACKED, MPI_ANY_SOURCE, 11,
 		   MPI_COMM_WORLD, &status);
 #endif
 	  mpi_unpack_table();      
@@ -1997,7 +1994,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	  worker--;
 	}
 
-	if (cache) write_cached_table();
+	if (cache) WriteH5Cache();
 
       }
 
@@ -2018,7 +2015,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	for (ky=0; ky<=kx; ky++) {
 	  int position = mpi_pack_table(&table[kx][ky], kx, ky);
 	  for (worker=1; worker < mpi_numprocs; worker++)
-	    MPI_Send(mpi_buf, position, MPI_PACKED, worker, 11, MPI_COMM_WORLD);
+	    MPI_Send(&mpi_buf[0], position, MPI_PACKED, worker, 11, MPI_COMM_WORLD);
 	}
       }
 
@@ -2050,7 +2047,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
   }
   else {
 
-    if (!read_cached_table()) {
+    if (!ReadH5Cache()) {
 
       for (kx=0; kx<=numk; kx++) {
 	for (ky=0; ky<=kx; ky++) {
@@ -2061,7 +2058,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 	}
       }
 
-      if (cache) write_cached_table();
+      if (cache) WriteH5Cache();
     }
   }
 
@@ -2072,252 +2069,201 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
 const string slab_cache_name = ".slgrid_slab_cache";
 
-int SLGridSlab::read_cached_table(void)
+
+bool SLGridSlab::ReadH5Cache(void)
 {
-  if (!cache) return 0;
+  if (!cache) return false;
 
-  std::ifstream in(slab_cache_name);
-  if (!in) return 0;
-
-  int NUMK, NMAX, NUMZ;
-  double ZMAX, HH, LL, zbeg, zend;
-  std::string MODEL;
-
-  if (myid==0)
-    std::cout << "---- SLGridSlab::read_cached_table: trying to read cached table . . ."
-	      << std::endl;
-
-
-  // Attempt to read magic number
+  // First attempt to read the file
   //
-  unsigned int tmagic;
-  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
-
-  if (tmagic == hmagic) {
-
-    // YAML size
+  try {
+    // Silence the HDF5 error stack
     //
-    unsigned ssize;
-    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
-
-    // Make and read char buffer
+    HighFive::SilenceHDF5 quiet;
+    
+    // Try opening the file as HDF5
     //
-    auto buf = std::make_unique<char[]>(ssize+1);
-    in.read(buf.get(), ssize);
-    buf[ssize] = 0;		// Null terminate
+    HighFive::File h5file(slab_cache_name, HighFive::File::ReadOnly);
     
-    YAML::Node node;
-    
-    try {
-      node = YAML::Load(buf.get());
-    }
-    catch (YAML::Exception& error) {
-      std::ostringstream sout;
-      sout << "YAML: error parsing <" << buf.get() << "> "
-	   << "in " << __FILE__ << ":" << __LINE__ << std::endl
-	   << "YAML error: " << error.what();
-      throw GenericError(sout.str(), __FILE__, __LINE__, 1042, false);
-    }
-    
-    // Get parameters
+    // Try checking the rest of the parameters before reading arrays
     //
-    NUMK     = node["numk"   ].as<int>();
-    NMAX     = node["nmax"   ].as<int>();
-    NUMZ     = node["numz"   ].as<int>();
-    ZMAX     = node["zmax"   ].as<double>();
-    HH       = node["H"      ].as<double>();
-    LL       = node["L"      ].as<double>();
-    zbeg     = node["ZBEG"   ].as<double>();
-    zend     = node["ZEND"   ].as<double>();
-    MODEL    = node["model"  ].as<std::string>();
+    auto checkInt = [&h5file](int value, std::string name)
+    {
+      int v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
+      if (value == v) return true;
+      if (myid==0)
+	std::cout << "---- SLGridSlab::ReadH5Cache: "
+		  << "parameter " << name << ": wanted " << value
+		  << " found " << v << std::endl;
+      return false;
+    };
 
-  } else {
-    std::cout << "---- SLGridSlab: bad magic number in cache file" << std::endl;
-    return 0;
-  }
-    
+    auto checkDbl = [&h5file](double value, std::string name)
+    {
+      double v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
+      if (fabs(value - v) < 1.0e-16) return true;
+      if (myid==0)
+	std::cout << "---- SLGridSlab::ReadH5Cache: "
+		  << "parameter " << name << ": wanted " << value
+		  << " found " << v << std::endl;
+      return false;
+    };
 
-  if (NUMK!=numk) {
-    if (myid==0)
-      std::cout << "---- SLGridSlab::read_cached_table: found numk=" << NUMK
-		<< " wanted " << numk << std::endl;
-    return 0;
-  }
+    auto checkStr = [&h5file](std::string value, std::string name)
+    {
+      std::string v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
+      if (value.compare(v)==0) return true;
+      if (myid==0)
+	std::cout << "---- SLGridSlab::ReadH5Cache: "
+		  << "parameter " << name << ": wanted " << value
+		  << " found " << v << std::endl;
+      return false;
+    };
 
-  if (NMAX!=nmax) {
-    if (myid==0)
-      std::cout << "---- SLGridSlab::read_cached_table: found nmax=" << NMAX
-		<< " wanted " << nmax << std::endl;
-    return 0;
-  }
+    // For cache ID
+    //
+    std::string geometry("slab"), forceID("SLGridSlab");
 
-  if (NUMZ!=numz) {
-    if (myid==0)
-      std::cout << "---- SLGridSlab::read_cached_table: found numz=" << NUMZ
-		<< " wanted " << numz << std::endl;
-    return 0;
-  }
+    // ID check
+    //
+    if (not checkStr(geometry, "geometry"))  return false;
+    if (not checkStr(forceID,  "forceID"))   return false;
 
-  if (ZMAX!=zmax) {
-    if (myid==0)
-      std::cout << "---- SLGridSlab::read_cached_table: found zmax=" << ZMAX
-		<< " wanted " << zmax << std::endl;
-    return 0;
-  }
+    // Parameter check
+    //
+    if (not checkStr(type,     "type"))      return false;
+    if (not checkInt(numk,     "numk"))      return false;
+    if (not checkInt(nmax,     "nmax"))      return false;
+    if (not checkInt(numz,     "numz"))      return false;
+    if (not checkDbl(H,        "H"))         return false;
+    if (not checkDbl(L,        "L"))         return false;
+    if (not checkDbl(zmax,     "zmax"))      return false;
+    if (not checkDbl(ZBEG,     "ZBEG"))      return false;
+    if (not checkDbl(ZEND,     "ZEND"))      return false;
 
-  if (HH!=H) {
-    if (myid==0)
-      std::cout << "---- SLGridSlab::read_cached_table: found H=" << HH
-		<< " wanted " << H << std::endl;
-    return 0;
-  }
+    // Harmonic order
+    //
+    auto harmonic = h5file.getGroup("Harmonic");
 
-  if (LL!=L) {
-    if (myid==0)
-      std::cout << "---- SLGridSlab::read_cached_table: found L=" << LL
-		<< " wanted " << L << std::endl;
-    return 0;
-  }
+    // Create table instances
+    //
 
-  if (zbeg!=ZBEG) {
-    if (myid==0)
-      std::cout << "---- SLGridSlab::read_cached_table: found ZBEG=" << ZBEG
-		<< " wanted " << zbeg << std::endl;
-    return 0;
-  }
+    table = table_ptr_2D(new table_ptr_1D [numk+1]);
+    for (int kx=0; kx<=numk; kx++)
+      table[kx] = table_ptr_1D(new TableSlab [kx+1]);
 
-  if (zend!=ZEND) {
-    if (myid==0)
-      std::cout << "---- SLGridSlab::read_cached_table: found ZEND=" << ZEND
-		<< " wanted " << zend << std::endl;
-    return 0;
-  }
-
-  if (MODEL!=slab->ID()) {
-    if (myid==0)
-      std::cout << "---- SLGridSlab::read_cached_table: found ID=" << MODEL
-		<< " wanted " << slab->ID() << std::endl;
-    return 0;
-  }
-
-  for (int kx=0; kx<=numk; kx++) {
-    for (int ky=0; ky<=kx; ky++) {
-
-      in.read((char *)&table[kx][ky].kx, sizeof(int));
-      in.read((char *)&table[kx][ky].ky, sizeof(int));
-
-				// Double check
-      if (table[kx][ky].kx != kx) {
-	if (myid==0)
-	  std::cerr << "SLGridSlab: error reading <" << slab_cache_name << ">"
-		    << std::endl
-		    << "SLGridSlab: kx: read value (" << table[kx][ky].kx 
-		    << ") != internal value (" << kx << ")" << std::endl;
-	return 0;
-      }
-      if (table[kx][ky].ky != ky) {
-	if (myid==0) 
-	  std::cerr << "SLGridSlab: error reading <" << slab_cache_name << ">"
-		    << std::endl
-		    << "SLGridSlab: ky: read value (" << table[kx][ky].ky 
-		    << ") != internal value (" << ky << ")" << std::endl;
-	return 0;
-      }
-
-      table[kx][ky].ev.resize(nmax);
-      table[kx][ky].ef.resize(nmax, numz);
-
-      for (int j=0; j<nmax; j++)
-	in.read((char *)&table[kx][ky].ev[j], sizeof(double));
+    for (int kx=0; kx<=numk; kx++) {
+      for (int ky=0; ky<=kx; ky++) {
+	std::ostringstream sout;
+	sout << kx << " " << ky;
+	auto arrays = harmonic.getGroup(sout.str());
       
-#ifdef DEBUG_NAN
-      check_vector_values_SL(table[kx][ky].ev);
-#endif
-
-      for (int j=0; j<nmax; j++) {
-	for (int i=0; i<numz; i++)
-	  in.read((char *)&table[kx][ky].ef(j, i), sizeof(double));
-#ifdef DEBUG_NAN
-	check_vector_values_SL(table[kx][ky].ef[j]);
-#endif
+	arrays.getDataSet("ev").read(table[kx][ky].ev);
+	arrays.getDataSet("ef").read(table[kx][ky].ef);
       }
     }
+    
+    if (myid==0)
+      std::cout << "---- SLGridSlab::ReadH5Cache: "
+		<< "successfully read basis cache <" << slab_cache_name
+		<< ">" << std::endl;
+
+    return true;
+    
+  } catch (HighFive::Exception& err) {
+    if (myid==0)
+      std::cerr << "---- SLGridSlab::ReadH5Cache: "
+		<< "error reading <" << slab_cache_name << ">" << std::endl
+		<< "---- SLGridSlab::ReadH5Cache: HDF5 error is <" << err.what()
+		<< ">" << std::endl;
   }
 
-  if (myid==0)
-    std::cout << "---- SLGridSlab::read_cached_table: Success!!" << std::endl;
-
-  return 1;
+  return false;
 }
 
 
-void SLGridSlab::write_cached_table(void)
+
+void SLGridSlab::WriteH5Cache(void)
 {
-  std::ofstream out(slab_cache_name);
-  if (!out) {
-    std::cerr << "SLGridSlab: error writing <" << slab_cache_name << ">" << std::endl;
-    return;
-  }
+  if (myid) return;
 
-  // This is a node of simple {key: value} pairs.  More general
-  // content can be added as needed.
-  YAML::Node node;
+  try {
 
-  node["numk"   ] = numk;
-  node["nmax"   ] = nmax;
-  node["numz"   ] = numz;
-  node["zmax"   ] = zmax;
-  node["H"      ] = H;
-  node["L"      ] = L;
-  node["ZBEG"   ] = ZBEG;
-  node["ZEND"   ] = ZEND;
-  node["model"  ] = slab->ID();
-    
-  // Serialize the node
-  //
-  YAML::Emitter y; y << node;
-  
-  // Get the size of the string
-  //
-  unsigned int hsize = strlen(y.c_str());
-  
-  // Write magic #
-  //
-  out.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
-
-  // Write YAML string size
-  //
-  out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
-  
-  // Write YAML string
-  //
-  out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
-
-
-  for (int kx=0; kx<=numk; kx++) {
-    for (int ky=0; ky<=kx; ky++) {
-
-      out.write((char *)&table[kx][ky].kx, sizeof(int));
-      out.write((char *)&table[kx][ky].ky, sizeof(int));
-
-      for (int j=0; j<nmax; j++)
-	out.write((char *)&table[kx][ky].ev[j], sizeof(double));
-
-      for (int j=0; j<nmax; j++)
-	for (int i=0; i<numz; i++)
-	  out.write((char *)&table[kx][ky].ef(j, i), sizeof(double));
+    // Check for new HDF5 file
+    if (std::filesystem::exists(slab_cache_name)) {
+      if (myid==0)
+	std::cout << "---- SLGridSlab::WriteH5Cache cache file <"
+		  << slab_cache_name << "> exists" << std::endl;
+      try {
+	std::filesystem::rename(slab_cache_name, slab_cache_name + ".bak");
+      }
+      catch(std::filesystem::filesystem_error const& ex) {
+	std::ostringstream sout;
+        sout << "---- SLGridSlab::WriteH5Cache write error: "
+	     << "what():  " << ex.what()  << std::endl
+	     << "path1(): " << ex.path1() << std::endl
+	     << "path2(): " << ex.path2();
+	throw GenericError(sout.str(), __FILE__, __LINE__, 12, true);
+      }
+      
+      if (myid==0)
+	std::cout << "---- SLGridSlab::WriteH5Cache: existing file backed up to <"
+		  << slab_cache_name + ".bak>" << std::endl;
     }
-  }
+    
+    // Create a new hdf5 file
+    //
+    HighFive::File file(slab_cache_name,
+			HighFive::File::ReadWrite | HighFive::File::Create);
+    
+    // For cache ID
+    //
+    std::string geometry("slab"), forceID("SLGridSlab");
 
-  std::cout << "---- SLGridSlab::write_cached_table: done!!" << std::endl;
+    file.createAttribute<std::string>("geometry",  HighFive::DataSpace::From(geometry)).write(geometry);
+    file.createAttribute<std::string>("forceID",   HighFive::DataSpace::From(forceID)).write(forceID);
+      
+    // Write parameters
+    //
+    file.createAttribute<std::string> ("type",     HighFive::DataSpace::From(type)).write(type);
+    file.createAttribute<int>         ("numk",     HighFive::DataSpace::From(numk)).write(numk);
+    file.createAttribute<int>         ("nmax",     HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<int>         ("numz",     HighFive::DataSpace::From(numz)).write(numz);
+    file.createAttribute<double>      ("H",        HighFive::DataSpace::From(H)).write(H);
+    file.createAttribute<double>      ("L",        HighFive::DataSpace::From(L)).write(L);
+    file.createAttribute<double>      ("zmax",     HighFive::DataSpace::From(ZBEG)).write(zmax);
+    file.createAttribute<double>      ("ZBEG",     HighFive::DataSpace::From(ZBEG)).write(ZBEG);
+    file.createAttribute<double>      ("ZEND",     HighFive::DataSpace::From(ZEND)).write(ZEND);
+      
+    // Harmonic order (for h5dump readability)
+    //
+    auto harmonic = file.createGroup("Harmonic");
+
+    for (int kx=0; kx<=numk; kx++) {
+      for (int ky=0; ky<=kx; ky++) {
+	std::ostringstream sout;
+	sout << kx << " " << ky;
+	auto arrays = harmonic.createGroup(sout.str());
+      
+	arrays.createDataSet("ev",   table[kx][ky].ev);
+	arrays.createDataSet("ef",   table[kx][ky].ef);
+      }
+    }
+    
+  } catch (HighFive::Exception& err) {
+    std::cerr << err.what() << std::endl;
+  }
+    
+  std::cout << "---- SLGridSlab::WriteH5Cache: "
+	    << "wrote <" << slab_cache_name << ">" << std::endl;
+  
   return ;
 }
 
 
 SLGridSlab::~SLGridSlab()
 {
-  for (int kx=0; kx<=numk; kx++) delete [] table[kx];
-  delete [] table;
+  // Nothing
 }
 
 // Coordinate transformation member functions for tanh map
@@ -3344,7 +3290,7 @@ void SLGridSlab::compute_table_worker(void)
     MPI_Send(&bad, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
 #endif
     int position = mpi_pack_table(&table, KX, KY);
-    MPI_Send(mpi_buf, position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
+    MPI_Send(&mpi_buf[0], position, MPI_PACKED, 0, 11, MPI_COMM_WORLD);
 
     if (tbdbg)
       std::cout << "Worker " << mpi_myid << ": sent to root Kx, Ky = "
@@ -3380,7 +3326,7 @@ void SLGridSlab::mpi_setup(void)
     nmax*buf2 +			// ev
     nmax*numz*buf2 ;		// ef
 
-  mpi_buf = new char [mpi_bufsz];
+  mpi_buf = std::shared_ptr<char[]>(new char [mpi_bufsz]);
 }
 
 
@@ -3388,19 +3334,19 @@ int SLGridSlab::mpi_pack_table(struct TableSlab* table, int kx, int ky)
 {
   int position = 0;
 
-  MPI_Pack( &kx, 1, MPI_INT, mpi_buf, mpi_bufsz, 
+  MPI_Pack( &kx, 1, MPI_INT, &mpi_buf[0], mpi_bufsz, 
 	    &position, MPI_COMM_WORLD);
 
-  MPI_Pack( &ky, 1, MPI_INT, mpi_buf, mpi_bufsz, 
+  MPI_Pack( &ky, 1, MPI_INT, &mpi_buf[0], mpi_bufsz, 
 	    &position, MPI_COMM_WORLD);
 
   for (int j=0; j<nmax; j++)
-    MPI_Pack( &table->ev[j], 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
+    MPI_Pack( &table->ev[j], 1, MPI_DOUBLE, &mpi_buf[0], mpi_bufsz, 
 	      &position, MPI_COMM_WORLD);
 
   for (int j=0; j<nmax; j++)
     for (int i=0; i<numz; i++) {
-      MPI_Pack( &table->ef(j, i), 1, MPI_DOUBLE, mpi_buf, mpi_bufsz, 
+      MPI_Pack( &table->ef(j, i), 1, MPI_DOUBLE, &mpi_buf[0], mpi_bufsz, 
 		&position, MPI_COMM_WORLD);
     }
 
@@ -3417,10 +3363,10 @@ void SLGridSlab::mpi_unpack_table(void)
   MPI_Get_count( &status, MPI_PACKED, &length);
 
 
-  MPI_Unpack( mpi_buf, length, &position, &kx, 1, MPI_INT,
+  MPI_Unpack( &mpi_buf[0], length, &position, &kx, 1, MPI_INT,
 	      MPI_COMM_WORLD);
 
-  MPI_Unpack( mpi_buf, length, &position, &ky, 1, MPI_INT,
+  MPI_Unpack( &mpi_buf[0], length, &position, &ky, 1, MPI_INT,
 	      MPI_COMM_WORLD);
 
   if (tbdbg)
@@ -3433,12 +3379,12 @@ void SLGridSlab::mpi_unpack_table(void)
   table[kx][ky].ef.resize(nmax, numz);
 
   for (int j=0; j<nmax; j++)
-    MPI_Unpack( mpi_buf, length, &position, &table[kx][ky].ev[j], 1, MPI_DOUBLE,
+    MPI_Unpack( &mpi_buf[0], length, &position, &table[kx][ky].ev[j], 1, MPI_DOUBLE,
 		MPI_COMM_WORLD);
 
   for (int j=0; j<nmax; j++)
     for (int i=0; i<numz; i++)
-      MPI_Unpack( mpi_buf, length, &position, &table[kx][ky].ef(j, i), 1, 
+      MPI_Unpack( &mpi_buf[0], length, &position, &table[kx][ky].ef(j, i), 1, 
 		  MPI_DOUBLE, MPI_COMM_WORLD);
 }
 

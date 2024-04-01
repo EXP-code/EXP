@@ -42,7 +42,7 @@ private:
   using coefType = Eigen::Tensor<std::complex<double>, 3>;
 
   //! Current coefficient tensor
-  std::vector<coefType> expccof;
+  std::vector<coefType> expccof, expccofP;
 
   int nminx, nminy;
   int nmaxx, nmaxy, nmaxz;
@@ -113,15 +113,32 @@ private:
   //! Default slab type (must be "isothermal", "parabolic", or "constant")
   std::string type = "isothermal";
 
-  // Usual evaluation interface
-
+  //@{
+  //! Usual evaluation interface
   void determine_coefficients(void);
   void get_acceleration_and_potential(Component*);
+  //@}
 
-  // Threading
+  //! Swap coefficients
+  void swap_coefs(std::vector<coefType>& from, std::vector<coefType>& to)
+  {
+    if (from.size() != to.size()) {
+      std::ostringstream sout;
+      sout << "swap_coefs: size(from)=" << from.size() << " != "
+	   << "size(to)=" << to.size();
+      throw std::runtime_error(sout.str());
+    }
 
+    std::vector<coefType> tmp(from);
+    from = to;
+    to   = tmp;
+  }
+
+  //@{
+  //! Threading
   void * determine_coefficients_thread(void * arg);
   void * determine_acceleration_and_potential_thread(void * arg);
+  //@}
 
   /** Extrapolate and sum coefficents per multistep level to get
       a complete set of coefficients for force evaluation at an
@@ -138,8 +155,8 @@ private:
   //@{
   //! Interpolation arrays
   using coefTypePtr = std::shared_ptr<coefType>;
-  std::vector<coefTypePtr> expcoefN;
-  std::vector<coefTypePtr> expcoefL;
+  std::vector<coefTypePtr> expccofN;
+  std::vector<coefTypePtr> expccofL;
   //@}
 
   /** Update the multi time step coefficient table when moving particle 
@@ -169,7 +186,7 @@ protected:
 public:
 
   //! Id string
-  string id;
+  std::string id;
 
   //! Constructor
   SlabSL(Component* c0, const YAML::Node& conf);
@@ -179,9 +196,6 @@ public:
 
   //! Coefficient output
   void dump_coefs_h5(const std::string& file);
-
-  //! Print coefficients to output stream
-  void dump_coefs(ostream& out);
 };
 
 

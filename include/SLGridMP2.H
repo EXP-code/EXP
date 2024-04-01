@@ -43,7 +43,9 @@ private:
   Eigen::VectorXd p0;
   Eigen::VectorXd d0;
 
-  TableSph* table;
+  // Use shared pointers to avoid copying and memory leaks
+  using table_ptr_1D = std::shared_ptr<TableSph[]>;
+  table_ptr_1D table;
 
   void initialize(int LMAX, int NMAX, int NUMR,
 		  double RMIN, double RMAX, 
@@ -61,7 +63,7 @@ private:
 
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
-  char *mpi_buf;
+  std::shared_ptr<char []> mpi_buf;
 
   void bomb(string oops);
 
@@ -82,9 +84,6 @@ private:
 
   //! Cache file name
   std::string sph_cache_name;
-
-  //! Basis magic number
-  inline static const unsigned int hmagic = 0xc0a56a1;
 
   //! Write HDF5 cache
   void WriteH5Cache();
@@ -258,7 +257,11 @@ private:
   Eigen::VectorXd p0;
   Eigen::VectorXd d0;
 
-  TableSlab** table;
+  // Use shared pointers to avoid copying and memory leaks
+  using table_ptr_1D = std::shared_ptr<TableSlab[]>;
+  using table_ptr_2D = std::shared_ptr<table_ptr_1D[]>;
+
+  table_ptr_2D table;
 
   void init_table(void);
   void compute_table(TableSlab* table, int kx, int ky);
@@ -269,15 +272,13 @@ private:
   void mpi_setup(void);
   void mpi_unpack_table(void);
   int  mpi_pack_table(TableSlab* table, int kx, int ky);
-  int  read_cached_table(void);
-  void write_cached_table(void);
-
-  //! Basis magic number
-  inline static const unsigned int hmagic = 0xc0a56a3;
+  bool ReadH5Cache(void);
+  void WriteH5Cache(void);
 
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
-  char *mpi_buf;
+
+  std::shared_ptr<char[]> mpi_buf;
 
   void bomb(string oops);
 
@@ -345,6 +346,9 @@ private:
     virtual double xi_to_z  (double z);
     virtual double d_xi_to_z(double z);
   };
+
+  //! Model type
+  std::string type;
 
   //! The current map created by the SLGridSlab constructor
   std::unique_ptr<CoordMap> mM;

@@ -1,6 +1,6 @@
 
 set(bin_PROGRAMS slcheck slshift orthochk diskpot qtest eoftest
-  oftest)
+  oftest slabchk)
 		
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES})
@@ -23,6 +23,7 @@ set(common_INCLUDE
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 add_executable(slcheck slcheck.cc)
+add_executable(slabchk slabchk.cc Model1d.cc)
 add_executable(slshift slshift.cc SLSphere.cc)
 add_executable(orthochk orthochk.cc)
 add_executable(diskpot diskpot.cc CylindricalDisk.cc SLSphere.cc)

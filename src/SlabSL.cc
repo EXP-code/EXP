@@ -91,10 +91,10 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 		<< worst << std::endl;
   }
 
-  imx  = 1+2*nmaxx;
-  imy  = 1+2*nmaxy;
-  imz  = nmaxz;
-  jmax = imx*imy*imz;
+  imx  = 1 + 2*nmaxx;		// Number of x wavenumber
+  imy  = 1 + 2*nmaxy;		// Number of y wavenumbers
+  imz  = nmaxz;			// Number of vertical functions
+  jmax = imx * imy * imz;	// Total storage in tensor
 
   expccof.resize(nthrds);
   for (auto & v : expccof) v.resize(imx, imy, imz);
@@ -108,8 +108,8 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   for (auto & v : zpot) v.resize(nmaxz);
   for (auto & v : zfrc) v.resize(nmaxz);
 
-  // Allocate coefficient matrix (one for each multistep level)
-  // and zero-out contents
+  // Allocate coefficient tensor (one for each multistep level) and
+  // zero-out contents
   //
   differ1 = std::vector< std::vector<coefType> >(nthrds);
   for (int n=0; n<nthrds; n++) {
@@ -126,13 +126,13 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 
   // Coefficient evaluation times
   // 
-  expcoefN.resize(multistep+1);
-  expcoefL.resize(multistep+1);
+  expccofN.resize(multistep+1);
+  expccofL.resize(multistep+1);
   for (int i=0; i<=multistep; i++) {
-    expcoefN[i] = std::make_shared<coefType>(imx, imy, imz);
-    expcoefL[i] = std::make_shared<coefType>(imx, imy, imz);
-    expcoefN[i] -> setZero();
-    expcoefL[i] -> setZero();
+    expccofN[i] = std::make_shared<coefType>(imx, imy, imz);
+    expccofL[i] = std::make_shared<coefType>(imx, imy, imz);
+    expccofN[i] -> setZero();
+    expccofL[i] -> setZero();
   }
     
 }
@@ -173,6 +173,10 @@ void SlabSL::initialize()
 			   << std::string(60, '-') << std::endl;
     throw std::runtime_error("SlabSL::initialze: error parsing YAML");
   }
+
+#if HAVE_LIBCUDA==1
+  cuda_initialize();
+#endif
 }
 
 void SlabSL::determine_coefficients(void)
@@ -192,14 +196,14 @@ void SlabSL::determine_coefficients(void)
   //
   if (multistep) {
 
-    auto p = expcoefL[mlevel];
+    auto p = expccofL[mlevel];
   
-    expcoefL[mlevel] = expcoefN[mlevel];
-    expcoefN[mlevel] = p;
+    expccofL[mlevel] = expccofN[mlevel];
+    expccofN[mlevel] = p;
   
     // Clean arrays for current level
     //
-    expcoefN[mlevel]->setZero();
+    expccofN[mlevel]->setZero();
   }
 
 #if HAVE_LIBCUDA==1
@@ -232,7 +236,7 @@ void SlabSL::determine_coefficients(void)
 
   if (multistep) {
 
-    MPI_Allreduce( expccof[0].data(), expcoefN[mlevel]->data(),
+    MPI_Allreduce( expccof[0].data(), expccofN[mlevel]->data(),
 		   expccof[0].size(),
 		   MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
   } else {
@@ -247,9 +251,6 @@ void SlabSL::determine_coefficients(void)
      compute_multistep_coefficients();
   }
 
-#if HAVE_LIBCUDA==1
-  cuda_initialize();
-#endif
 }
 
 void * SlabSL::determine_coefficients_thread(void * arg)
@@ -259,33 +260,30 @@ void * SlabSL::determine_coefficients_thread(void * arg)
   std::complex<double> startx, starty, facx, facy;
   std::complex<double> stepx, stepy;
 
-  unsigned nbodies = cC->Number();
+  unsigned nbodies = component->levlist[mlevel].size();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   double adb = cC->Adiabatic();
 
-  PartMapItr it = cC->Particles().begin();
-
-  for (int q=0; q<nbeg; q++) it++;
   for (int q=nbeg; q<nend; q++) {
 
-    unsigned long i = it->first;
-    it++;
+    int i = component->levlist[mlevel][q];
+
 				// Increment particle counter
     use[id]++;
 
 				// Truncate to box with sides in [0,1]
     
     if (cC->Pos(i, 0)<0.0)
-      cC->AddPos(i, 0, (double)((int)fabs(cC->Pos(i, 0))) + 1.0 );
+      cC->AddPos(i, 0, floor(-cC->Pos(i, 0)) + 1.0 );
     else
-      cC->AddPos(i, 0, -(double)((int)cC->Pos(i, 0)) );
+      cC->AddPos(i, 0, -floor(cC->Pos(i, 0)) );
     
     if (cC->Pos(i, 1)<0.0)
-      cC->AddPos(i, 1, (double)((int)fabs(cC->Pos(i, 1))) + 1.0 );
+      cC->AddPos(i, 1, floor(-cC->Pos(i, 1)) + 1.0 );
     else
-      cC->AddPos(i, 1, -(double)((int)cC->Pos(i, 1)) );
+      cC->AddPos(i, 1, -floor(cC->Pos(i, 1)) );
     
 
 				// Recursion multipliers
@@ -296,14 +294,16 @@ void * SlabSL::determine_coefficients_thread(void * arg)
     startx = exp(static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
     starty = exp(static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
     
+    double zz = cC->Pos(i, 2), mm = -4.0*M_PI * cC->Mass(i) * adb;
+
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
-      int ii = ix - nmaxx;
+      int ii  = ix - nmaxx;
       int iix = abs(ii);
       
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	
-	int jj = iy - nmaxy;
+	int jj  = iy - nmaxy;
 	int iiy = abs(jj);
 	
 	if (iix > nmaxx) {
@@ -313,21 +313,14 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 	  std::cerr << "Out of bounds: iiy=" << jj << std::endl;
 	}
 	
-	double zz = cC->Pos(i, 2, Component::Centered);
-
 	if (iix>=iiy)
 	  grid->get_pot(zpot[id], zz, iix, iiy);
 	else
 	  grid->get_pot(zpot[id], zz, iiy, iix);
 
+	for (int iz=0; iz<imz; iz++)
+	  expccof[id](ix, iy, iz) += mm*facx*facy*zpot[id][iz];
 
-	for (int iz=0; iz<imz; iz++) {
-	                           // +--- density in orthogonal series
-                                   // |    is 4.0*M_PI rho
-                                   // v
-	  expccof[id](ix, iy, iz) += -4.0*M_PI*cC->Mass(i)*adb*
-	    facx*facy*zpot[id][iz];
-	}
       }
     }
   }
@@ -337,9 +330,22 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 
 void SlabSL::get_acceleration_and_potential(Component* C)
 {
-  cC = C;
+  cC = C;			// "Register" component
+  nbodies = cC->Number();	// And compute number of bodies
 
   MPL_start_timer();
+
+  if (play_back) {
+    swap_coefs(expccofP, expccof);
+  }
+
+  if (use_external == false) {
+
+    if (multistep && initializing) {
+      compute_multistep_coefficients();
+    }
+
+  }
 
 #if HAVE_LIBCUDA==1
   if (use_cuda and cC->cudaDevice>=0 and cC->force->cudaAware()) {
@@ -367,6 +373,10 @@ void SlabSL::get_acceleration_and_potential(Component* C)
 
 #endif
 
+  if (play_back) {
+    swap_coefs(expccof, expccofP);
+  }
+
   MPL_stop_timer();
 }
 
@@ -382,77 +392,88 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  PartMapItr it = cC->Particles().begin();
+  // If we are multistepping, compute accel only at or above <mlevel>
+  //
+  for (int lev=mlevel; lev<=multistep; lev++) {
 
-  for (int q=0; q<nbeg; q++) it++;
-  for (int q=nbeg; q<nend; q++) {
-    
-    unsigned long i = it->first; it++;
+    unsigned nbodies = cC->levlist[lev].size();
 
-    accx = accy = accz = potl = 0.0;
-    
-				// Recursion multipliers
-    std::complex<double> stepx = exp(kfac*cC->Pos(i, 0));
-    std::complex<double> stepy = exp(kfac*cC->Pos(i, 1));
+    if (nbodies==0) continue;
 
-				// Initial values (note sign change)
-    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
-    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
+    int nbeg = nbodies*(id  )/nthrds;
+    int nend = nbodies*(id+1)/nthrds;
+
+    for (int q=nbeg; q<nend; q++) {
+
+      int i = cC->levlist[lev][q];
+
+      accx = accy = accz = potl = 0.0;
     
-    for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+      // Recursion multipliers
+      //
+      std::complex<double> stepx = exp(kfac*cC->Pos(i, 0));
+      std::complex<double> stepy = exp(kfac*cC->Pos(i, 1));
+
+      // Initial values (note sign change)
+      //
+      std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
+      std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
+    
+      // Compute wavenumber; recall that the coefficients are stored
+      // as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+      //
+      for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+	
+	int ii = ix - nmaxx;
+	int iix = abs(ii);
       
-				// Compute wavenumber; recall that the
-				// coefficients are stored as follows:
-				// -nmax,-nmax+1,...,0,...,nmax-1,nmax
-      int ii = ix - nmaxx;
-      int iix = abs(ii);
-      
-      for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+	for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	
-	int jj = iy - nmaxy;
-	int iiy = abs(jj);
+	  int jj = iy - nmaxy;
+	  int iiy = abs(jj);
 	
-	if (iix > nmaxx) {
-	  std::cerr << "Out of bounds: ii=" << ii << std::endl;
-	}
-	if (iiy > nmaxy) {
-	  std::cerr << "Out of bounds: jj=" << jj << std::endl;
-	}
-	
-	double zz = cC->Pos(i, 2, Component::Centered);
-
-	if (iix>=iiy) {
-	  grid->get_pot  (zpot[id], zz, iix, iiy);
-	  grid->get_force(zfrc[id], zz, iix, iiy);
-	}
-	else {
-	  grid->get_pot  (zpot[id], zz, iiy, iix);
-	  grid->get_force(zfrc[id], zz, iiy, iix);
-	}
-
-	
-	for (int iz=0; iz<imz; iz++) {
+	  if (iix > nmaxx) {
+	    std::cerr << "Out of bounds: ii=" << ii << std::endl;
+	  }
+	  if (iiy > nmaxy) {
+	    std::cerr << "Out of bounds: jj=" << jj << std::endl;
+	  }
 	  
-	  fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz);
-	  facf = facx*facy*zfrc[id][iz]*expccof[0](ix, iy, iz);
+	  double zz = cC->Pos(i, 2);
+	  
+	  if (iix>=iiy) {
+	    grid->get_pot  (zpot[id], zz, iix, iiy);
+	    grid->get_force(zfrc[id], zz, iix, iiy);
+	  }
+	  else {
+	    grid->get_pot  (zpot[id], zz, iiy, iix);
+	    grid->get_force(zfrc[id], zz, iiy, iix);
+	  }
+
+	
+	  for (int iz=0; iz<imz; iz++) {
+	  
+	    fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz);
+	    facf = facx*facy*zfrc[id][iz]*expccof[0](ix, iy, iz);
 	  
 				// Limit to minimum wave number
 	  
-	  if (abs(ii)<nminx || abs(jj)<nminy) continue;
+	    if (abs(ii)<nminx || abs(jj)<nminy) continue;
 	  
-	  potl += fac;
+	    potl += fac;
 	  
-	  accx += -kfac*static_cast<double>(ii)*fac;
-	  accy += -kfac*static_cast<double>(jj)*fac;
-	  accz += -facf;
+	    accx += -kfac*static_cast<double>(ii)*fac;
+	    accy += -kfac*static_cast<double>(jj)*fac;
+	    accz += -facf;
+	  }
 	}
       }
+      
+      cC->AddAcc(i, 0, accx.real());
+      cC->AddAcc(i, 1, accy.real());
+      cC->AddAcc(i, 2, accz.real());
+      cC->AddPot(i, potl.real());
     }
-    
-    cC->AddAcc(i, 0, accx.real());
-    cC->AddAcc(i, 1, accy.real());
-    cC->AddAcc(i, 2, accz.real());
-    cC->AddPot(i, potl.real());
   }
 
   return (NULL);
@@ -499,23 +520,6 @@ void SlabSL::dump_coefs_h5(const std::string& file)
   }
 }
 
-
-void SlabSL::dump_coefs(ostream& out)
-{
-  coefheader.time = tnow;
-  coefheader.zmax = zmax;
-  coefheader.h = hslab;
-  coefheader.type = ID;
-  coefheader.nmaxx = nmaxx;
-  coefheader.nmaxy = nmaxy;
-  coefheader.nmaxz = nmaxz;
-  coefheader.jmax = (1+2*nmaxx)*(1+2*nmaxy)*nmaxz;
-  
-  out.write((char *)&coefheader, sizeof(SlabSLCoefHeader));
-  out.write((char *)expccof[0].data(),
-	    expccof[0].size()*sizeof(std::complex<double>));
-}
-
 void SlabSL::multistep_update_begin()
 {
   if (play_back and not play_cnew) return;
@@ -560,7 +564,7 @@ void SlabSL::multistep_update_finish()
     unsigned offset = (M - mfirst[mdrft])*jmax;
 
     for (int i=0; i<jmax; i++)
-      expcoefN[M]->data()[i] += unpack[offset+i];
+      expccofN[M]->data()[i] += unpack[offset+i];
   }
 }
 
@@ -569,52 +573,53 @@ void SlabSL::multistep_update(int from, int to, Component *c, int i, int id)
   if (play_back and not play_cnew) return;
   if (c->freeze(i)) return;
 
-  double mass = c->Mass(i) * component->Adiabatic();
+  double mass = -4.0 * M_PI * c->Mass(i) * component->Adiabatic();
 
   double x = c->Pos(i, 0);
   double y = c->Pos(i, 1);
   double z = c->Pos(i, 2);
   
-  // Only compute for points inside the unit cube
-  //
-  if (x<0.0 or x>1.0) return;
-  if (y<0.0 or y>1.0) return;
-  if (z<0.0 or z>1.0) return;
+  if (x<0.0)  x += floor(x) + 1.0;
+  else        x -= floor(x);
+
+  if (y<0.0)  y += floor(y) + 1.0;
+  else        y -= floor(y);
     
   // Recursion multipliers
   std::complex<double> stepx = std::exp(-kfac*x);
   std::complex<double> stepy = std::exp(-kfac*y);
-  std::complex<double> stepz = std::exp(-kfac*z);
     
   // Initial values for recursion
   std::complex<double> startx = std::exp(kfac*(x*nmaxx));
   std::complex<double> starty = std::exp(kfac*(y*nmaxy));
-  std::complex<double> startz = std::exp(kfac*(z*nmaxz));
   
   std::complex<double> facx, facy, facz;
-  int ix, iy, iz;
+  int ix, iy;
 
   for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
-    for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
-      for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
-	
-	// Compute wavenumber; recall that the coefficients are
-	// stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
-	//
-	int ii = ix-nmaxx;
-	int jj = iy-nmaxy;
-	int kk = iz-nmaxz;
-	
-	// Normalization
-	double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
-	
-	std::complex<double> val = -mass*facx*facy*facz*norm;
 
+    int ii  = ix - nmaxx;
+    int iix = abs(ii);
+
+    for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+	
+      int jj  = iy - nmaxy;
+      int iiy = abs(jj);
+	
+      if (iix>=iiy) grid->get_pot(zpot[id], z, iix, iiy);
+      else          grid->get_pot(zpot[id], z, iiy, iix);
+
+      for (int iz = 0; iz<imz; iz++) {
+	std::complex<double> val = mass*facx*facy*zpot[id][iz];
+	
 	differ1[id][from](ix, iy, iz) -= val;
 	differ1[id][  to](ix, iy, iz) += val;
       }
+      // END: vertical loop
     }
+    // END: y horizontal loop
   }
+  // END: x horizontal loop
 }
 
 void SlabSL::compute_multistep_coefficients()
@@ -637,7 +642,7 @@ void SlabSL::compute_multistep_coefficients()
 
     for (int i=0; i<jmax; i++) {
       expccof[0].data()[i] +=
-	a*expcoefL[M]->data()[i] + b*expcoefN[M]->data()[i] ;
+	a*expccofL[M]->data()[i] + b*expccofN[M]->data()[i] ;
     }
     
     // Sanity debug check
@@ -659,8 +664,7 @@ void SlabSL::compute_multistep_coefficients()
   for (int M=mfirst[mdrft]; M<=multistep; M++) {
 
     for (int i=0; i<jmax; i++) {
-      expccof[0].data()[i] += expcoefN[M]->data()[i];
+      expccof[0].data()[i] += expccofN[M]->data()[i];
     }
   }
 }
-

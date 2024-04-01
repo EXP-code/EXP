@@ -1365,6 +1365,11 @@ namespace CoefClasses
       int nmaxY = coefs.begin()->second->nmaxy;
       int nmaxZ = coefs.begin()->second->nmaxz;
       
+      // Internal sanity check
+      assert(nmaxX == NmaxX && "nmaxX <==> NmaxX mismatch");
+      assert(nmaxY == NmaxY && "nmaxY <==> NmaxY mismatch");
+      assert(nmaxZ == NmaxZ && "nmaxZ <==> NmaxZ mismatch");
+
       int dim = 0;
       if (d == 'x')
 	dim  = 2*nmaxX + 1;
@@ -1393,7 +1398,7 @@ namespace CoefClasses
 	} else if (d=='y') {
 	  for (int iy=0; iy<=2*NmaxY; iy++) {
 	    double val(0.0);
-	    for (int ix=0; iy<=2*NmaxX; ix++) {
+	    for (int ix=0; ix<=2*NmaxX; ix++) {
 	      if (abs(ix - nmaxX) < min) continue;
 	      for (int iz=0; iz<NmaxZ; iz++) {
 		if (abs(iz - nmaxZ) < min) continue;

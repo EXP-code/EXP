@@ -48,7 +48,6 @@ int slabIndex(int i, int j, int k)
   return k*slabNX*slabNY + j*slabNX + i;
 }
 
-/*
 // Index function for modulus coefficients
 //
 __device__
@@ -70,7 +69,6 @@ thrust::tuple<int, int, int> slabWaveNumbers(int indx)
 
   return {i-slabNumX, j-slabNumY, k};
 }
-*/
 
 __global__
 void testConstantsSlab()
@@ -96,21 +94,22 @@ void testConstantsSlab()
 
 __global__
 void testFetchSlab(dArray<cudaTextureObject_t> T, dArray<cuFP_t> f,
-		  int l, int j, int nmax, int numr)
+		   int kx, int ky, int j, int nmax, int numz)
 {
   const int n = blockDim.x * blockIdx.x + threadIdx.x;
-  const int k = l*nmax + 1;
+  const int l = 1 + kx*(kx+1)/2*(slabNumY+1) + j;
+
 #if cuREAL == 4
-  if (n < numr) f._v[n] = tex1D<float>(T._v[k+j], n);
+  if (n < numz) f._v[n] = tex1D<float>(T._v[l], n);
 #else
-  if (n < numr) f._v[n] = int2_as_double(tex1D<int2>(T._v[k+j], n));
+  if (n < numz) f._v[n] = int2_as_double(tex1D<int2>(T._v[l], n));
 #endif
 }
 
 
 thrust::host_vector<cuFP_t> returnTestSlab
 (thrust::host_vector<cudaTextureObject_t>& tex,
- int l, int j, int nmax, int numz)
+ int kx, int ky, int j, int nmax, int numz)
 {
   thrust::device_vector<cudaTextureObject_t> t_d = tex;
   
@@ -120,7 +119,7 @@ thrust::host_vector<cuFP_t> returnTestSlab
   thrust::device_vector<cuFP_t> f_d(numz);
 
   testFetchSlab<<<gridSize, BLOCK_SIZE>>>(toKernel(t_d), toKernel(f_d),
-					 l, j, nmax, numz);
+					  kx, ky, j, nmax, numz);
 
   cudaDeviceSynchronize();
 
@@ -315,9 +314,19 @@ __global__ void coefKernelSlab
       cuFP_t  b = 1.0 - a;
 
       // Flip sign for antisymmetric basis functions
+      //
       int sign = 1;
       if (x<0 && 2*(n/2)!=n) sign = -1;
 
+
+      cuFP_t p0 =
+#if cuREAL == 4
+        a*tex1D<float>(tex._v[0], ind  ) +
+        b*tex1D<float>(tex._v[0], ind+1) ;
+#else
+        a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
+        b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
+#endif
 
       // Will contain the incremented basis
       //
@@ -335,16 +344,9 @@ __global__ void coefKernelSlab
 
 	  int ky = abs(jj);
 
+				// The vertical basis iteration
 	  for (int n=0; n<slabNumZ; n++) {
 
-	    cuFP_t p0 =
-#if cuREAL == 4
-              a*tex1D<float>(tex._v[0], ind  ) +
-              b*tex1D<float>(tex._v[0], ind+1) ;
-#else
-              a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
-              b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
-#endif
 	    int k = 1 + kx*(kx+1)/2*(slabNumY+1) + n;
 
 #ifdef BOUNDS_CHECK
@@ -433,6 +435,15 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 
       cuFP_t s = (x - slabXmin - slabDxi*jn0)/slabDxi;
 
+      cuFP_t p0 =
+#if cuREAL == 4
+        a*tex1D<float>(tex._v[0], ind  ) +
+        b*tex1D<float>(tex._v[0], ind+1) ;
+#else
+        a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
+        b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
+#endif
+
       // Flip sign for antisymmetric basis functions
       int sign = 1;
       if (pos[2]<0 && 2*(n/2)!=n) sign = -1;
@@ -446,14 +457,6 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 
 	  for (int n=0; n<slabNumZ; n++) {
 
-	    cuFP_t p0 =
-#if cuREAL == 4
-              a*tex1D<float>(tex._v[0], ind  ) +
-              b*tex1D<float>(tex._v[0], ind+1) ;
-#else
-              a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
-              b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
-#endif
 	      int kx = ii + slabNumX;
 	      int ky = jj + slabNumY;
 	      int k  = 1 + kx*(kx+1)/2*(slabNumY+1) + n;
@@ -750,7 +753,7 @@ void SlabSL::determine_coefficients_cuda()
       auto c = std::abs(a - b);
       std::cout << std::setw(4)  << i-nmaxx
 		<< std::setw(4)  << j-nmaxy
-		<< std::setw(4)  << k-nmaxz
+		<< std::setw(4)  << k
 		<< std::setw(20) << a
 		<< std::setw(20) << b
 		<< std::setw(20) << c
@@ -768,7 +771,7 @@ void SlabSL::determine_coefficients_cuda()
   if (false) {
 
     coefType test;
-    if (myid==0) test.resize(2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1);
+    if (myid==0) test.resize(2*nmaxx+1, 2*nmaxy+1, nmaxz);
 
     MPI_Reduce (thrust::raw_pointer_cast(&host_coefs[0]), test.data(), jmax,
 		MPI_DOUBLE_COMPLEX, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -798,7 +801,7 @@ void SlabSL::determine_coefficients_cuda()
 	  auto a = test(i, j, k);
 	  out << std::setw(4)  << i-nmaxx
 	      << std::setw(4)  << j-nmaxy
-	      << std::setw(4)  << k-nmaxz
+	      << std::setw(4)  << k
 	      << std::setw(20) << std::real(a)
 	      << std::setw(20) << std::imag(a)
 	      << std::setw(20) << std::abs(a)
@@ -816,7 +819,7 @@ void SlabSL::determine_coefficients_cuda()
   if (false) {
 
     coefType test;
-    if (myid==0) test.resize(2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1);
+    if (myid==0) test.resize(2*nmaxx+1, 2*nmaxy+1, nmaxz);
 
     MPI_Reduce (thrust::raw_pointer_cast(&host_coefs[0]), test.data(), jmax,
 		MPI_DOUBLE_COMPLEX, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -852,7 +855,7 @@ void SlabSL::determine_coefficients_cuda()
 
 	  out << std::setw(4)  << i-nmaxx
 	      << std::setw(4)  << j-nmaxy
-	      << std::setw(4)  << k-nmaxz
+	      << std::setw(4)  << k
 	      << std::setw(20) << std::real(a)
 	      << std::setw(20) << std::imag(a)
 	      << std::setw(20) << std::abs(a)
@@ -904,7 +907,7 @@ void SlabSL::determine_coefficients_cuda()
 	
 	out << std::setw( 5) << elem.i - nmaxx
 	    << std::setw( 5) << elem.j - nmaxy
-	    << std::setw( 5) << elem.k - nmaxz
+	    << std::setw( 5) << elem.k
 	    << std::setw( 5) << n
 	    << std::setw(20) << elem.d
 	    << std::setw(20) << elem.f

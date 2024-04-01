@@ -32,6 +32,8 @@ Cheby1d &Cheby1d::operator=(const Cheby1d &p)
   c = p.c;
   c1 = p.c1;
   c2 = p.c2;
+  xmin = p.xmin;
+  xmax = p.xmax;
   defined = p.defined;
   return *this;
 }
@@ -146,6 +148,9 @@ void Cheby1d::new_func(std::function<double(double)> func,
 void Cheby1d::new_data(std::vector<double>& X, std::vector<double>& Y, int N)
 {
   double y, sum, fac, bpa, bma;
+
+  xmin = X.front();
+  xmax = X.back();
 
   std::vector<double> f(n);
 
