@@ -388,12 +388,12 @@ public:
 
   //@{
   //! Evaluate the profile at a particular radius
-  virtual double get_mass(const double) override;
-  virtual double get_density(const double) override;
-  virtual double get_pot(const double) override;
-  virtual double get_dpot(const double) override;
-  virtual double get_dpot2(const double) override;
-  virtual void   get_pot_dpot(const double, double&, double&) override;
+  virtual double get_mass(const double);
+  virtual double get_density(const double);
+  virtual double get_pot(const double);
+  virtual double get_dpot(const double);
+  virtual double get_dpot2(const double);
+  virtual void   get_pot_dpot(const double, double&, double&);
   //@}
   
   //@{
