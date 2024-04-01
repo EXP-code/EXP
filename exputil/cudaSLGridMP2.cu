@@ -245,7 +245,7 @@ thrust::host_vector<cuFP_t> returnTestSlab
   
   thrust::device_vector<cuFP_t> f_d(numz);
 
-  int l = kx*(kx+1)/2*numk + ky;
+  int l = kx*(kx+1)/2 + ky;
 
   testFetchSlab<<<gridSize, BLOCK_SIZE>>>(toKernel(t_d), toKernel(f_d),
 					  l, j, nmax, numz);
@@ -344,8 +344,11 @@ void SLGridSlab::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 	
 	cuda_safe_call(cudaCreateTextureObject(&tex[i], &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
       }
+      // vertical loop
     }
+    // y axis loop
   }
+  // x axis loop
 
   // This is for debugging: compare texture table fetches to original
   // tables
@@ -356,6 +359,7 @@ void SLGridSlab::initialize_cuda(std::vector<cudaArray_t>& cuArray,
     struct Element {
       int kx;
       int ky;
+      int j;
       double a;
       double b;
     };
@@ -378,14 +382,16 @@ void SLGridSlab::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 	    cuFP_t b = ret[i];
 	    if (a>1.0e-18) {
 
-	      Element comp = {kx, ky, a, b};
+	      Element comp = {kx, ky, j, a, b};
 	      compare.insert(std::make_pair(fabs((a - b)/a), comp));
 
-	      if ( fabs((a - b)/a ) > tol) {
+	      double test = (a - b)/a;
+
+	      if ( fabs(test) > tol) {
 		std::cout << std::setw( 5) << kx << std::setw( 5) << ky
 			  << std::setw( 5) << j  << std::setw( 5) << i
 			  << std::setw(20) << a
-			  << std::setw(20) << (a-b)/a << std::endl;
+			  << std::setw(20) << test << std::endl;
 		bad++;
 	      }
 	    }
@@ -406,11 +412,11 @@ void SLGridSlab::initialize_cuda(std::vector<cudaArray_t>& cuArray,
     std::advance(hi9, -10);
 
     std::cout << "**Found " << bad << "/" << tot << " values > eps" << std::endl
-	      << "**Low[1] : " << lo1->first << " (" << lo1->second.kx << ", " << lo1->second.ky << ", " << lo1->second.a << ", " << lo1->second.b << ", " << lo1->second.a - lo1->second.b << ")" << std::endl
-	      << "**Low[9] : " << lo9->first << " (" << lo9->second.kx << ", " << lo9->second.ky << ", " << lo9->second.a << ", " << lo9->second.b << ", " << lo9->second.a - lo9->second.b << ")" << std::endl
-	      << "**Middle : " << mid->first << " (" << mid->second.kx << ", " << mid->second.ky << ", " << mid->second.a << ", " << mid->second.b << ", " << mid->second.a - mid->second.b << ")" << std::endl
-	      << "**Hi [9] : " << hi9->first << " (" << hi9->second.kx << ", " << hi9->second.ky << ", " << hi9->second.a << ", " << hi9->second.b << ", " << hi9->second.a - hi9->second.b << ")" << std::endl
-	      << "**Hi [1] : " << hi1->first << " (" << hi1->second.kx << ", " << hi1->second.ky << ", " << hi1->second.a << ", " << hi1->second.b << ", " << hi1->second.a - hi1->second.b << ")" << std::endl
+	      << "**Low[1] : " << lo1->first << " (" << lo1->second.kx << ", " << lo1->second.ky << ", " << lo1->second.j << ", " << lo1->second.a << ", " << lo1->second.b << ", " << lo1->second.a - lo1->second.b << ")" << std::endl
+	      << "**Low[9] : " << lo9->first << " (" << lo9->second.kx << ", " << lo9->second.ky << ", " << lo9->second.j << ", " << lo9->second.a << ", " << lo9->second.b << ", " << lo9->second.a - lo9->second.b << ")" << std::endl
+	      << "**Middle : " << mid->first << " (" << mid->second.kx << ", " << mid->second.ky << ", " << mid->second.j << ", " << mid->second.a << ", " << mid->second.b << ", " << mid->second.a - mid->second.b << ")" << std::endl
+	      << "**Hi [9] : " << hi9->first << " (" << hi9->second.kx << ", " << hi9->second.ky << ", " << hi9->second.j << ", " << hi9->second.a << ", " << hi9->second.b << ", " << hi9->second.a - hi9->second.b << ")" << std::endl
+	      << "**Hi [1] : " << hi1->first << " (" << hi1->second.kx << ", " << hi1->second.ky << ", " << hi1->second.j << ", " << hi1->second.a << ", " << hi1->second.b << ", " << hi1->second.a - hi1->second.b << ")" << std::endl
 	      << "**" << std::endl;
   }
 
