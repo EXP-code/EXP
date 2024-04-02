@@ -2,7 +2,7 @@
  *  Description:
  *  -----------
  *
- *  Generate sech^2 slab in a unit sqaure
+ *  Generate slab initial conditions in a unit sqaure
  *
  *
  *  Call sequence:
@@ -49,7 +49,6 @@ main(int argc, char **argv)
   double Dratio, Hratio, R, Hmax, DispX, DispZ, fJ;
   std::string outfile, config, modfile, modelType;
   bool Mu;
-
 
   // Parse command line
   //
