@@ -19,7 +19,6 @@
 __device__ __constant__
 int slabNumX, slabNumY, slabNumZ, slabNX, slabNY, slabNZ, slabNdim, slabNum;
 
-
 __device__ __constant__
 int slabCmap;
 
@@ -40,7 +39,8 @@ int slabIndex(int i, int j, int k)
   return k*slabNX*slabNY + j*slabNX + i;
 }
 
-// Index function for modulus coefficients
+// Index function for modulus coefficients.  This handles the
+// eigen::tensor packing order
 //
 __device__
 thrust::tuple<int, int, int> slabTensorIndices(int indx)
@@ -92,9 +92,10 @@ void testFetchSlab(dArray<cudaTextureObject_t> T, dArray<cuFP_t> f,
   const int l = 1 + kx*(kx+1)/2*(slabNumY+1) + j;
 
 #if cuREAL == 4
-  if (n < numz) f._v[n] = tex1D<float>(T._v[l], n);
+  if (n < numz) f._v[n] = tex1D<float>(T._v[l], n)*tex1D<float(T._v[0], n);
 #else
-  if (n < numz) f._v[n] = int2_as_double(tex1D<int2>(T._v[l], n));
+  if (n < numz) f._v[n] = int2_as_double(tex1D<int2>(T._v[l], n)) *
+		  int2_as_double(tex1D<int2>(T._v[0], n));
 #endif
 }
 
@@ -212,7 +213,8 @@ void SlabSL::initialize_constants()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabNum");
 
-  int Cmap = 0;
+  // Sech map
+  int Cmap = 1;
 
   cuda_safe_call(cudaMemcpyToSymbol(slabCmap, &Cmap, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
@@ -259,15 +261,13 @@ __global__ void coefKernelSlab
     if (npart < lohi.second) {	// Check that particle index is in
 				// range for consistency with other
 				// kernels
-
 #ifdef BOUNDS_CHECK
       if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
       cudaParticle & p = P._v[I._v[npart]];
       
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
-      cuFP_t mm     = p.mass;
-
+      cuFP_t mm     = - p.mass * 2.0*slabDfac;
 
       // Restore particles to the unit slab
       //
@@ -290,34 +290,26 @@ __global__ void coefKernelSlab
       
       // Vertical interpolation
       //
-      cuFP_t  x = cu_z_to_xi(pos[2]);
+      cuFP_t  x = cu_z_to_xi(fabs(pos[2]));
       cuFP_t xi = (x - slabXmin)/slabDxi;
 
-      int ind   = floor(xi);
-      int in0   = ind;
+      int in0   = floor(xi);
 
+      // For linear interpolation
+      //
       if (in0 < 0) in0 = 0;
       if (in0 > slabNum-2) in0 = slabNum - 2;
-
-      if (ind < 1) ind = 1;
-      if (ind > slabNum-2) ind = slabNum - 2;
 
       cuFP_t  a = (cuFP_t)(in0+1) - xi;
       cuFP_t  b = 1.0 - a;
 
-      // Flip sign for antisymmetric basis functions
-      //
-      int sign = 1;
-      if (x<0 && 2*(n/2)!=n) sign = -1;
-
-
       cuFP_t p0 =
 #if cuREAL == 4
-        a*tex1D<float>(tex._v[0], ind  ) +
-        b*tex1D<float>(tex._v[0], ind+1) ;
+        a*tex1D<float>(tex._v[0], in0  ) +
+        b*tex1D<float>(tex._v[0], in0+1) ;
 #else
-        a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
-        b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
+        a*int2_as_double(tex1D<int2>(tex._v[0], in0  )) +
+        b*int2_as_double(tex1D<int2>(tex._v[0], in0+1)) ;
 #endif
 
       // Will contain the incremented basis
@@ -336,26 +328,32 @@ __global__ void coefKernelSlab
 
 	  int ky = abs(jj);	// Y index into texture array
 
+	  int offset = 1 + (kx*(kx+1)/2 + ky)*slabNumZ;
+
 				// The vertical basis iteration
 	  for (int n=0; n<slabNumZ; n++) {
 
-	    int k = 1 + (kx*(kx+1)/2 + ky)*slabNumZ + n;
+	    // Flip sign for antisymmetric basis functions
+	    //
+	    int sign = 1;
+	    if (pos[2]<0 && 2*(n/2)!=n) sign = -1;
+
+	    int k = offset + n;
 
 #ifdef BOUNDS_CHECK
 	    if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
 	    cuFP_t v = (
 #if cuREAL == 4
-			a*tex1D<float>(tex._v[k], ind  ) +
-			b*tex1D<float>(tex._v[k], ind+1)
+			a*tex1D<float>(tex._v[k], in0  ) +
+			b*tex1D<float>(tex._v[k], in0+1)
 #else
-			a*int2_as_double(tex1D<int2>(tex._v[k], ind  )) +
-			b*int2_as_double(tex1D<int2>(tex._v[k], ind+1))
+			a*int2_as_double(tex1D<int2>(tex._v[k], in0  )) +
+			b*int2_as_double(tex1D<int2>(tex._v[k], in0+1))
 #endif
 			) * p0 * sign;
 	  
-	    coef._v[slabIndex(ii, jj, n)] = -2.0*slabDfac * X * Y * v * mm;
-
+	    coef._v[slabIndex(ii, jj, n)*N+i] = X * Y * v * mm;
 	  }
 	}
       }
@@ -397,30 +395,28 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
       const auto yy = CmplxT(0.0, slabDfac*pos[1]);
 
       // Recursion increments and initial values
+      //
       const auto sx = thrust::exp(xx), cx = thrust::exp(-xx*slabNumX);
       const auto sy = thrust::exp(yy), cy = thrust::exp(-yy*slabNumY);
 
       // Vertical interpolation
       //
-      cuFP_t  x = cu_z_to_xi(pos[2]);
+      cuFP_t  x = cu_z_to_xi(fabs(pos[2]));
+      cuFP_t dx = cu_d_xi_to_z(x)/slabDxi;
       cuFP_t xi = (x - slabXmin)/slabDxi;
-      cuFP_t dx = cu_d_xi_to_z(xi)/slabDxi;
 
-      int ind   = floor(xi);
-      int in0   = ind;
+      int in0   = floor(xi);
 
+      // For linear interpolation
+      //
       if (in0 < 0) in0 = 0;
       if (in0 > slabNum-2) in0 = slabNum - 2;
-
-      if (ind < 1) ind = 1;
-      if (ind > slabNum-2) ind = slabNum - 2;
 
       cuFP_t  a = (cuFP_t)(in0+1) - xi;
       cuFP_t  b = 1.0 - a;
       
-
       // For 3-pt formula
-
+      //
       int jn0 = floor(xi);
       if (jn0 < 1) jn0 = 1;
       if (jn0 > slabNum-2) jn0 = slabNum - 2;
@@ -429,16 +425,12 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 
       cuFP_t p0 =
 #if cuREAL == 4
-        a*tex1D<float>(tex._v[0], ind  ) +
-        b*tex1D<float>(tex._v[0], ind+1) ;
+        a*tex1D<float>(tex._v[0], in0  ) +
+        b*tex1D<float>(tex._v[0], in0+1) ;
 #else
-        a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
-        b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
+        a*int2_as_double(tex1D<int2>(tex._v[0], in0  )) +
+        b*int2_as_double(tex1D<int2>(tex._v[0], in0+1)) ;
 #endif
-
-      // Flip sign for antisymmetric basis functions
-      int sign = 1;
-      if (pos[2]<0 && 2*(n/2)!=n) sign = -1;
 
       CmplxT X, Y;		// Will contain the incremented basis
 
@@ -458,6 +450,11 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 
 	  for (int n=0; n<slabNumZ; n++) {
 
+	    // Flip sign for antisymmetric basis functions
+	    //
+	    int sign = 1;
+	    if (pos[2]<0 && 2*(n/2)==n) sign = -1;
+
 	    int k = offset + n;
 
 #ifdef BOUNDS_CHECK
@@ -465,32 +462,30 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 #endif
 	      cuFP_t v = (
 #if cuREAL == 4
-			  a*tex1D<float>(tex._v[k], ind  ) +
-			  b*tex1D<float>(tex._v[k], ind+1)
+			  a*tex1D<float>(tex._v[k], in0  ) +
+			  b*tex1D<float>(tex._v[k], in0+1)
 #else
-			  a*int2_as_double(tex1D<int2>(tex._v[k], ind  )) +
-			  b*int2_as_double(tex1D<int2>(tex._v[k], ind+1))
+			  a*int2_as_double(tex1D<int2>(tex._v[k], in0  )) +
+			  b*int2_as_double(tex1D<int2>(tex._v[k], in0+1))
 #endif
 			  ) * p0 * sign;
 	  
 	      cuFP_t f = (
 #if cuREAL == 4
-			  (s - 0.5)*tex1D<float>(tex._v[k], jn0-1)*tex1D<float>(tex._v[0], jn0-1)
-			  -2.0*tex1D<float>(tex._v[k], jnd)*tex1D<float>(tex._v[0], jn0) +
-			  (s + 0.5)*tex1D<float>(tex._v[k], jn0+1)*tex1D<float>(tex._v[0], jn0+1)
+			  (s - 0.5)*tex1D<float>(tex._v[k], jn0-1) * tex1D<float>(tex._v[0], jn0-1)
+			  -2.0*s*tex1D<float>(tex._v[k], jn0) * tex1D<float>(tex._v[0], jn0) +
+			  (s + 0.5)*tex1D<float>(tex._v[k], jn0+1) * tex1D<float>(tex._v[0], jn0+1)
 #else
-			  (s - 0.5)*int2_as_double(tex1D<int2>(tex._v[k], jn0-1))*
-			  int2_as_double(tex1D<int2>(tex._v[0], jn0-1))
-			  -2.0*int2_as_double(tex1D<int2>(tex._v[k], jn0))*
-			  int2_as_double(tex1D<int2>(tex._v[0], jn0)) + 
-			  (s + 0.5)*int2_as_double(tex1D<int2>(tex._v[k], jn0+1))*
-			  int2_as_double(tex1D<int2>(tex._v[0], jn0+1))
+			  (s - 0.5)*int2_as_double(tex1D<int2>(tex._v[k], jn0-1)) * int2_as_double(tex1D<int2>(tex._v[0], jn0-1))
+			  -2.0*s*int2_as_double(tex1D<int2>(tex._v[k], jn0)) * int2_as_double(tex1D<int2>(tex._v[0], jn0)) + 
+			  (s + 0.5)*int2_as_double(tex1D<int2>(tex._v[k], jn0+1)) * int2_as_double(tex1D<int2>(tex._v[0], jn0+1))
 #endif
 			  ) * sign * dx;
 
 	      fac  = X * Y * v * coef._v[slabIndex(ii, jj, n)];
 	      facf = X * Y * f * coef._v[slabIndex(ii, jj, n)];
 
+	      pot    += fac;
 	      acc[0] += CmplxT(0.0, -slabDfac*ii) * fac;
 	      acc[1] += CmplxT(0.0, -slabDfac*jj) * fac;
 	      acc[2] += -facf;
@@ -503,8 +498,8 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 
       // Particle assignment
       //
-      p.pot = pot.real();
-      for (int k=0; k<3; k++) p.acc[k] = acc[k].real();
+      p.pot += pot.real();
+      for (int k=0; k<3; k++) p.acc[k] += acc[k].real();
     }
     // END: particle index limit
   }
@@ -592,8 +587,32 @@ void SlabSL::determine_coefficients_cuda()
     cudaDeviceSynchronize();
     cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);
     firstime = false;
+
+    // Test the texture retrieval for the potential basis
+    if (false) {
+      std::vector<thrust::host_vector<cuFP_t>> test;
+
+      for (int n=0; n<nmaxz; n++) 
+	test.push_back(returnTestSlab(tex, 0, 0, n, nmaxz, ngrid));
+
+      auto f = grid->getCudaMappingConstants();
+      auto h = SLGridSlab::H;
+      auto x_to_z = [h](double x)
+      {
+	return x*h/sqrt(1.0 - x*x);
+      };
+      
+      std::ofstream out("test.me");
+      if (out) {
+	for (int i=0; i<ngrid; i++) {
+	  out << std::setw(18) << x_to_z(f.xmin+f.dxi*i);
+	  for (int n=0; n<nmaxz; n++)
+	    out << std::setw(18) << test[n][i];
+	  out << std::endl;
+	}
+      }
+    }
   }
-  
   // Zero counter and coefficients
   //
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
@@ -675,7 +694,7 @@ void SlabSL::determine_coefficients_cuda()
     
     coefKernelSlab<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-       toKernel(cuS.dN_coef), toKernel(t_d) ,stride, cur);
+       toKernel(cuS.dN_coef), toKernel(t_d), stride, cur);
       
     // Begin the reduction by blocks [perhaps this should use a
     // stride?]
@@ -705,7 +724,7 @@ void SlabSL::determine_coefficients_cuda()
     thrust::transform(thrust::cuda::par.on(cs->stream),
 		      cuS.dw_coef.begin(), cuS.dw_coef.end(),
 		      beg, beg, thrust::plus<CmplxT>());
-    
+
     thrust::advance(beg, jmax);
   }
 
