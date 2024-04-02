@@ -1982,10 +1982,10 @@ namespace BasisClasses
     
     // Finally, make the basis
     //
-    SLGridSlab::mpi = 0;
+    SLGridSlab::mpi  = 0;
     SLGridSlab::ZBEG = 0.0;
     SLGridSlab::ZEND = 0.1;
-    SLGridSlab::H = hslab;
+    SLGridSlab::H    = hslab;
   
     int nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
@@ -1999,10 +1999,12 @@ namespace BasisClasses
     //
     int nthrds = omp_get_max_threads();
 
-    imx = 2*nmaxx + 1;
-    imy = 2*nmaxy + 1;
-    imz = nmaxz;
+    imx = 2*nmaxx + 1;		// x wave numbers
+    imy = 2*nmaxy + 1;		// y wave numbers
+    imz = nmaxz;		// z basis count
 
+    // Coefficient tensor
+    //
     expcoef.resize(imx, imy, imz);
     expcoef.setZero();
       
@@ -2079,57 +2081,31 @@ namespace BasisClasses
     else
       y -= std::floor( y);
     
+    used++;
+
+    // Storage for basis evaluation
+    Eigen::VectorXd zpot(nmaxz);
+
+    // Loop indices
+    int ix, iy;
+
     // Recursion multipliers
-    Eigen::Vector3cd step
-      {std::exp(-kfac*x), std::exp(-kfac*y), std::exp(-kfac*z)};
-    
-    // Initial values for recursion
-    Eigen::Vector3cd init
-      {std::exp(-kfac*(x*nmaxx)),
-       std::exp(-kfac*(y*nmaxy)),
-       std::exp(-kfac*(z*nmaxz))};
-    
-    Eigen::Vector3cd curr(init);
-    for (int ix=0; ix<=2*nmaxx; ix++, curr(0)*=step(0)) {
-      curr(1) = init(1);
-      for (int iy=0; iy<=2*nmaxy; iy++, curr(1)*=step(1)) {
-	curr(2) = init(2);
-	for (int iz=0; iz<=2*nmaxz; iz++, curr(2)*=step(2)) {
-	  
-	  // Compute wavenumber; recall that the coefficients are
-	  // stored as: -nmax,-nmax+1,...,0,...,nmax-1,nmax
-	  //
-	  int ii = ix-nmaxx;
-	  int jj = iy-nmaxy;
-	  int kk = iz-nmaxz;
-
-	  // Normalization
-	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
-
-	  expcoef(ix, iy, iz) += - mass * curr(0)*curr(1)*curr(2) * norm;
-	}
-      }
-    }
-
-    int ix, iy, iz;		// Loop indices
-
-				// Recursion multipliers
     std::complex<double> stepx = exp(-kfac*x), facx;
     std::complex<double> stepy = exp(-kfac*y), facy;
    
-				// Initial values
+    // Initial values
     std::complex<double> startx = exp(static_cast<double>(nmaxx)*kfac*x);
     std::complex<double> starty = exp(static_cast<double>(nmaxy)*kfac*y);
     
-    Eigen::VectorXd zpot(nmaxz);
-
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
+      // Wave number
       int ii = ix - nmaxx;
       int iix = abs(ii);
       
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	
+	// Wave number
 	int jj = iy - nmaxy;
 	int iiy = abs(jj);
 	
@@ -2140,14 +2116,13 @@ namespace BasisClasses
 	  std::cerr << "Out of bounds: iiy=" << jj << std::endl;
 	}
 	
+	// Evaluate basis
 	if (iix>=iiy)
 	  ortho->get_pot(zpot, z, iix, iiy);
 	else
 	  ortho->get_pot(zpot, z, iiy, iix);
 
-
-	for (iz=0; iz<imz; iz++) {
-
+	for (int iz=0; iz<imz; iz++) {
 	                       // +--- density in orthogonal series
                                // |    is 4.0*M_PI rho
                                // v
@@ -2179,8 +2154,6 @@ namespace BasisClasses
     // Working values
     //
     std::complex<double> facx, facy, fac, facf, facd;
-    const std::complex<double> I(0.0, 1.0);
-    const double dfac = 2.0*M_PI;
 
     // Return values
     //
@@ -2200,9 +2173,9 @@ namespace BasisClasses
 
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
-				// Compute wavenumber; recall that the
-				// coefficients are stored as follows:
-				// -nmax,-nmax+1,...,0,...,nmax-1,nmax
+      // Compute wavenumber; recall that the coefficients are stored
+      // as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+      //
       int ii = ix - nmaxx;
       int iix = abs(ii);
       
@@ -2236,14 +2209,14 @@ namespace BasisClasses
 	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz);
 	  facd = facx*facy*vden[iz]*expcoef(ix, iy, iz);
 	  
-				// Limit to minimum wave number
-	  
+	  // Limit to minimum wave number
+	  //
 	  if (abs(ii)<nminx || abs(jj)<nminy) continue;
 	  
 	  potl +=  fac;
 	  dens +=  facd;
-	  accx += -dfac*ii*I*fac;
-	  accy += -dfac*jj*I*fac;
+	  accx += -kfac*static_cast<double>(ii)*fac;
+	  accy += -kfac*static_cast<double>(jj)*fac;
 	  accz += -facf;
 	  
 	}
