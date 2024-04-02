@@ -2629,20 +2629,17 @@ void SLGridSlab::get_force(Eigen::VectorXd& vec, double x, int kx, int ky, int w
 
 void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 {
-
-  double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6]  = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
-  int VERBOSE=0;
-  integer NUM, N;
-  logical type[8] = {1, 0, 0, 0, 1, 0, 0, 0};
+  double cons[8]    = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ZBEG, zmax};
+  double tol[6]     = {1.0e-6, 1.0e-7, 1.0e-6,1.0e-7, 1.0e-6,1.0e-7};
+  logical type[8]   = {1, 0, 0, 0, 1, 0, 0, 0};
   logical endfin[2] = {1, 1};
-  
+  integer NUM, N;
+  int VERBOSE=0;
+
 #ifdef DEBUG_SLEDGE
   if (myid==0) VERBOSE = SLEDGE_VERBOSE;
 #endif
 
-  cons[6] =  ZBEG;
-  cons[7] =  zmax;
   NUM = numz;
 				// Divide total functions into symmetric
 				// and antisymmetric (keeping equal number
@@ -2962,14 +2959,12 @@ void SLGridSlab::init_table(void)
 
 void SLGridSlab::compute_table_worker(void)
 {
-  //  double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  //  double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
+  double tol[6]     = {1.0e-6,1.0e-7,  1.0e-6,1.0e-7,  1.0e-6,1.0e-7};
+  logical type[8]   = {1, 0, 0, 0, 1, 0, 0, 0};
+  logical endfin[2] = {1, 1};
   double cons[8];
-  double tol[6] = {1.0e-6,1.0e-7,  1.0e-6,1.0e-7,  1.0e-6,1.0e-7};
   int VERBOSE=0;
   integer NUM;
-  logical type[8] = {1, 0, 0, 0, 1, 0, 0, 0};
-  logical endfin[2] = {1, 1};
   
   struct TableSlab table;
   int KX, KY, N;
