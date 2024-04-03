@@ -2819,7 +2819,6 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
     }
   }
 
-
 				// Odd BC, Inner zero value
   cons[0] = 1.0;
   cons[2] = 0.0;
@@ -3188,7 +3187,7 @@ void SLGridSlab::compute_table_worker(void)
   
       for (int i=0; i<numz; i++) {
 	for (int j=0; j<N; j++) 
-	  table.ef(j*2+1, i) = ef[j*NUM+i] * sgn(j);
+	  table.ef(j*2, i) = ef[j*NUM+i] * sgn(j);
       }
     }
 
