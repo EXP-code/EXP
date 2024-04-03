@@ -2798,9 +2798,14 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
     }
   }
 
-				// Load table
 
+  // Allocate memory for table
+  //
   table->ev.resize(nmax);
+  table->ef.resize(nmax, numz);
+
+  // Load table
+  //
   for (int i=0; i<N; i++) table->ev[i*2] = ev[i];
 
   // Choose sign conventions for the ef table
@@ -2812,7 +2817,6 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
       if (ef[j*NUM+nfid]<0.0) sgn(j) = -1;
     }
   
-    table->ef.resize(nmax, numz);
     for (int i=0; i<numz; i++) {
       for (int j=0; j<N; j++) 
 	table->ef(j*2, i) = ef[j*NUM+i] * sgn(j);
@@ -3171,9 +3175,14 @@ void SLGridSlab::compute_table_worker(void)
       }
   
     }
-				// Load table
 
+    // Allocate memory for table (even and odd)
+    //
     table.ev.resize(nmax);
+    table.ef.resize(nmax, numz);
+    
+    // Load table (even)
+    //
     for (int i=0; i<N; i++) table.ev[i*2] = ev[i];
 
     // Choose sign conventions for the ef table
@@ -3291,7 +3300,7 @@ void SLGridSlab::compute_table_worker(void)
       }
     }
   
-    // Load table
+    // Load table (odd)
     //
     N = nmax - N;
 
