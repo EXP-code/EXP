@@ -2806,10 +2806,10 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   // Choose sign conventions for the ef table
   //
   {
-    int nfid = std::min<int>(nevsign, NUM/2) - 1;
+    int nfid = std::min<int>(nevsign, NUM) - 1;
     Eigen::VectorXi sgn = Eigen::VectorXi::Ones(N);
     for (int j=0; j<N; j++) {
-      if (ef[j*NUM+NUM/2+nfid]<0.0) sgn(j) = -1;
+      if (ef[j*NUM+nfid]<0.0) sgn(j) = -1;
     }
   
     table->ef.resize(nmax, numz);
@@ -2927,10 +2927,10 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   // Choose sign conventions for the ef table
   //
   {
-    int nfid = std::min<int>(nevsign, NUM/2) - 1;
+    int nfid = std::min<int>(nevsign, NUM) - 1;
     Eigen::VectorXi sgn = Eigen::VectorXi::Ones(N);
     for (int j=0; j<N; j++) {
-      if (ef[j*NUM+NUM/2+nfid]<0.0) sgn(j) = -1;
+      if (ef[j*NUM+nfid]<0.0) sgn(j) = -1;
     }
   
     for (int i=0; i<numz; i++) {
