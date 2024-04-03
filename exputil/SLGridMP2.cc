@@ -3177,12 +3177,20 @@ void SLGridSlab::compute_table_worker(void)
     table.ev.resize(nmax);
     for (int i=0; i<N; i++) table.ev[i*2] = ev[i];
 
-    table.ef.resize(nmax, numz);
-    for (int i=0; i<numz; i++) {
-      for (int j=0; j<N; j++) 
-	table.ef(j*2, i) = ef[j*NUM+i];
+    // Choose sign conventions for the ef table
+    //
+    {
+      int nfid = std::min<int>(nevsign, NUM) - 1;
+      Eigen::VectorXi sgn = Eigen::VectorXi::Ones(N);
+      for (int j=0; j<N; j++) {
+	if (ef[j*NUM+nfid]<0.0) sgn(j) = -1;
+      }
+  
+      for (int i=0; i<numz; i++) {
+	for (int j=0; j<N; j++) 
+	  table.ef(j*2+1, i) = ef[j*NUM+i] * sgn(j);
+      }
     }
-
 
 				// Odd BC, inner zero value
     cons[0] = 1.0;
@@ -3290,9 +3298,19 @@ void SLGridSlab::compute_table_worker(void)
 
     for (int i=0; i<N; i++) table.ev[i*2+1] = ev[i];
 
-    for (int i=0; i<numz; i++) {
-      for (int j=0; j<N; j++) 
-	table.ef(j*2+1, i) = ef[j*NUM+i];
+    // Choose sign conventions for the ef table
+    //
+    {
+      int nfid = std::min<int>(nevsign, NUM) - 1;
+      Eigen::VectorXi sgn = Eigen::VectorXi::Ones(N);
+      for (int j=0; j<N; j++) {
+	if (ef[j*NUM+nfid]<0.0) sgn(j) = -1;
+      }
+  
+      for (int i=0; i<numz; i++) {
+	for (int j=0; j<N; j++) 
+	  table.ef(j*2+1, i) = ef[j*NUM+i] * sgn(j);
+      }
     }
 
 				// Correct for symmetrizing
