@@ -277,8 +277,8 @@ void BasisFactoryClasses(py::module &m)
     }
 
     virtual void
-    addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin);
+    addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin, bool posvelrows) override {
+PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
     }
   };
 
@@ -676,9 +676,11 @@ void BasisFactoryClasses(py::module &m)
       )
     .def("createFromArray",
 	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& ps,
-	    double time, std::vector<double> center, bool roundrobin)
+	    double time, std::vector<double> center,
+	    bool roundrobin, bool posvelrows)
 	 {
-	   return A.createFromArray(mass, ps, time, center, roundrobin);
+	   return A.createFromArray(mass, ps, time, center,
+				    roundrobin, posvelrows);
 	 },
 	 R"(
          Generate the coefficients from a mass and position array or,
@@ -694,7 +696,12 @@ void BasisFactoryClasses(py::module &m)
          roundrobin : bool
              the particles will be accumulated for each process 
              round-robin style with MPI by default.  This may be 
-             disabled with 'roundrobin=false'.
+             disabled with 'roundrobin=False'.
+         posvelrows : bool
+             positions (and optionally velocities) will be packed
+             in rows instead of columns.  This accommodates the numpy
+             construction [xpos, ypos, zpos] where xpos, ypos, zpos are
+             arrays.  Defaults to True.
 
          Returns
          -------
@@ -709,7 +716,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0),
-	 py::arg("roundrobin") = true)
+	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
     .def("makeFromArray",
 	 [](BasisClasses::Basis& A, double time)
 	 {
@@ -801,9 +808,11 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("createFromArray",
 	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
-	    double time, std::vector<double> center, bool roundrobin)
+	    double time, std::vector<double> center,
+	    bool roundrobin, bool posvelrows)
 	 {
-	   return A.createFromArray(mass, pos, time, center, roundrobin);
+	   return A.createFromArray(mass, pos, time, center,
+				    roundrobin, posvelrows);
 	 },
 	 R"(
          Generate the coefficients from a mass and position array,
@@ -819,6 +828,11 @@ void BasisFactoryClasses(py::module &m)
              the particles will be accumulated for each process 
              round-robin style with MPI by default.  This may be 
              disabled with 'roundrobin=false'.
+         posvelrows : bool
+             positions (and optionally velocities) will be packed
+             in rows instead of columns.  This accommodates the numpy
+             construction [xpos, ypos, zpos] where xpos, ypos, zpos are
+             arrays.  Defaults to True.
 
          Returns
          -------
@@ -833,7 +847,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0),
-	 py::arg("roundrobin") = true)
+	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
     .def("initFromArray",
 	 [](BasisClasses::BiorthBasis& A, std::vector<double> center)
 	 {
@@ -1126,8 +1140,52 @@ void BasisFactoryClasses(py::module &m)
         dict({tag: value},...)
             cache parameters
         )",
-	py::arg("cachefile"));
+	py::arg("cachefile"))
+      .def_static("I", [](int l, int m)
+      {
+	if (l<0) throw std::runtime_error("l must be greater than 0");
+	if (m<0) throw std::runtime_error("m must be greater than 0");
+	if (abs(m)>l) throw std::runtime_error("m must be less than or equal to l");
+	return (l * (l + 1) / 2) + m;
+      },
+	R"(
+        Calculate the index of a spherical harmonic element given the angular numbers l and m .
 
+        Parameters
+        ----------
+        l : int
+            spherical harmonic order l
+        m : int
+            azimuthal order m
+
+        Returns
+        -------
+        I : int
+            index array packing index
+      )",
+	py::arg("l"), py::arg("m"))
+      .def_static("invI", [](int I)
+      {
+	if (I<0) std::runtime_error("I must be an interger greater than or equal to 0");
+	int l = std::floor(0.5*(-1.0 + std::sqrt(1.0 + 8.0 * I)));
+	int m = I - int(l * (l + 1) / 2);
+	return std::tuple<int, int>(l, m);
+      },
+	R"(
+        Calculate the spherical harmonic indices l and m from the coefficient array packing index I
+
+        Parameters
+        ----------
+        I : int
+            the spherical coefficient array index
+
+        Returns
+        -------
+        (l, m) : tuple
+            the harmonic indices (l, m).
+      )", py::arg("I"));
+
+  
   py::class_<BasisClasses::Cylindrical, std::shared_ptr<BasisClasses::Cylindrical>, PyCylindrical, BasisClasses::BiorthBasis>(m, "Cylindrical")
     .def(py::init<const std::string&>(),
 	 R"(

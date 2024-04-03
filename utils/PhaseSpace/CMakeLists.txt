@@ -13,7 +13,7 @@ if(HAVE_XDR)
   list(APPEND bin_PROGRAMS tipstd2psp)
 endif()
 
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp expcoef
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp expui
   exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES})
 
 if(PNG_FOUND)

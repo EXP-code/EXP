@@ -146,9 +146,9 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   // Sanity check
   if (lmax <= mmax) {
     if (myid==0) {
-      std::cout << "EmpCylSL: lmax must be greater than mmax for consistency"
+      std::cout << "---- EmpCylSL: lmax must be greater than mmax for consistency"
 		<< std::endl
-		<< "EmpCylSL: setting lmax=" << mmax + 1
+		<< "---- EmpCylSL: setting lmax=" << mmax + 1
 		<< " but you probably want lmax >> mmax"
 		<< std::endl;
     }
@@ -231,9 +231,9 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   // Option sanity check
   if (lmax <= mmax) {
     if (myid==0) {
-      std::cout << "EmpCylSL: lmax must be greater than mmax for consistency"
+      std::cout << "---- EmpCylSL: lmax must be greater than mmax for consistency"
 		<< std::endl
-		<< "EmpCylSL: setting lmax=" << mmax + 1
+		<< "---- EmpCylSL: setting lmax=" << mmax + 1
 		<< " but you probably want lmax >> mmax"
 		<< std::endl;
     }
@@ -499,13 +499,12 @@ SphModTblPtr EmpCylSL::make_sl()
   std::vector<double> pw(number);
 
 				// ------------------------------------------
-				// Debug sanity check
+				// Log file output
 				// ------------------------------------------
   if (myid==0) {
-    std::cout << "EmpCylSL::make_sl(): making SLGridSph with <"
+    std::cout << "---- EmpCylSL::make_sl(): making SLGridSph with <"
 	      << EmpModelLabs[mtype] << "> model" << std::endl;
   }
-
 				// ------------------------------------------
 				// Make radial, density and mass array
 				// ------------------------------------------
@@ -2193,7 +2192,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 #endif
 
   std::shared_ptr<progress::progress_display> progress;
-  if (VFLAG & 16 && myid==0) {
+  if (VFLAG & 8 && myid==0) {
     std::cout << std::endl << "Quadrature loop progress" << std::endl;
     progress = std::make_shared<progress::progress_display>(numr);
   }
@@ -2206,9 +2205,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
     // Diagnostic timing output for MPI process loop
     //
-    if (VFLAG & 16 && myid==0) {
-      ++(*progress);
-    }    
+    if (progress) ++(*progress);
 
     if (cntr++ % numprocs != myid) continue;
 
@@ -2419,7 +2416,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   } // *** r quadrature loop
   
-  if (VFLAG & 16) {
+  if (VFLAG & 8) {
     auto t = timer.stop();
     if (myid==0) {
       std::cout << std::endl
@@ -2452,7 +2449,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   //
   make_eof();
 
-  if (VFLAG & 16) {
+  if (VFLAG & 8) {
     cout << "Process " << setw(4) << myid << ": completed basis in " 
 	 << timer.stop() << " seconds"
 	 << endl;
@@ -7108,7 +7105,7 @@ bool EmpCylSL::ReadH5Cache()
     {
       std::string v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
       if (value.compare(v)==0) return true;
-      std::cout << "--- EmpCylSL cache parameter " << name << ": wanted "
+      std::cout << "---- EmpCylSL cache parameter " << name << ": wanted "
 		<< value << " found " << v << std::endl;
       return false;
     };

@@ -29,18 +29,18 @@ if(ENABLE_XDR AND TIRPC_FOUND)
   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
 endif()
 
-# Make the expcoef shared library
+# Make the expui shared library
 #
-set(expcoef_SOURCES BasisFactory.cc BiorthBasis.cc FieldBasis.cc
+set(expui_SOURCES BasisFactory.cc BiorthBasis.cc FieldBasis.cc
   CoefContainer.cc CoefStruct.cc FieldGenerator.cc expMSSA.cc
   Coefficients.cc KMeans.cc Centering.cc ParticleIterator.cc
   Koopman.cc)
-add_library(expcoef ${expcoef_SOURCES})
-set_target_properties(expcoef PROPERTIES OUTPUT_NAME expcoef)
-target_include_directories(expcoef PUBLIC ${common_INCLUDE})
-target_link_libraries(expcoef PUBLIC ${common_LINKLIB})
+add_library(expui ${expui_SOURCES})
+set_target_properties(expui PROPERTIES OUTPUT_NAME expui)
+target_include_directories(expui PUBLIC ${common_INCLUDE})
+target_link_libraries(expui PUBLIC ${common_LINKLIB})
 
-install(TARGETS expcoef DESTINATION lib)
+install(TARGETS expui DESTINATION lib)
 
 # Configure and build the test routines
 #
@@ -52,7 +52,7 @@ add_executable(makecoefs  makecoefs.cc)
 add_executable(testread   testread.cc)
 
 foreach(program ${bin_PROGRAMS})
-  target_link_libraries(${program} expcoef exputil ${common_LINKLIB})
+  target_link_libraries(${program} expui exputil ${common_LINKLIB})
   target_include_directories(${program} PUBLIC ${common_INCLUDE})
   target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
   install(TARGETS ${program} DESTINATION bin)

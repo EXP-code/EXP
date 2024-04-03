@@ -62,8 +62,7 @@ namespace PR {
       if (!file.is_open())
       {
 	std::cerr << "Error opening file: " << f << std::endl;
-	if (use_mpi) MPI_Finalize();
-	exit(1);
+	throw std::runtime_error("GadgetNative::getNumbers: open file error");
       }
       
       // read in file data

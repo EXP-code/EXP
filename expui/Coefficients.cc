@@ -743,6 +743,8 @@ namespace CoefClasses
   void SphCoefs::add(CoefStrPtr coef)
   {
     auto p = std::dynamic_pointer_cast<SphStruct>(coef);
+    if (not p) throw std::runtime_error("SphCoefs::add: Null coefficient structure, nothing added!");
+
     Lmax = p->lmax;
     Nmax = p->nmax;
     coefs[roundTime(coef->time)] = p;
@@ -787,6 +789,10 @@ namespace CoefClasses
       Eigen::MatrixXcd in(Mmax+1, Nmax);
       stanza.getDataSet("coefficients").read(in);
       
+      // Work around for previous unitiaized data bug; enforces real data
+      //
+      for (int n=0; n<Nmax; n++) in(0, n) = std::real(in(0, n));
+
       // Pack the data into the coefficient variable
       //
       auto coef = std::make_shared<CylStruct>();
@@ -1949,6 +1955,8 @@ namespace CoefClasses
   void CylCoefs::add(CoefStrPtr coef)
   {
     auto p = std::dynamic_pointer_cast<CylStruct>(coef);
+    if (not p) throw std::runtime_error("CylCoefs::add: Null coefficient structure, nothing added!");
+
     Mmax = p->mmax;
     Nmax = p->nmax;
     coefs[roundTime(coef->time)] = p;
@@ -1957,6 +1965,8 @@ namespace CoefClasses
   void CubeCoefs::add(CoefStrPtr coef)
   {
     auto p = std::dynamic_pointer_cast<CubeStruct>(coef);
+    if (not p) throw std::runtime_error("CubeCoefs::add: Null coefficient structure, nothing added!");
+
     NmaxX = p->nmaxx;
     NmaxY = p->nmaxy;
     NmaxZ = p->nmaxz;
@@ -1965,7 +1975,10 @@ namespace CoefClasses
 
   void TableData::add(CoefStrPtr coef)
   {
-    coefs[roundTime(coef->time)] = std::dynamic_pointer_cast<TblStruct>(coef);
+    auto p = std::dynamic_pointer_cast<TblStruct>(coef);
+    if (not p) throw std::runtime_error("TableData::add: Null coefficient structure, nothing added!");
+
+    coefs[roundTime(coef->time)] = p;
   }
 
 
@@ -1981,6 +1994,8 @@ namespace CoefClasses
   void CylFldCoefs::add(CoefStrPtr coef)
   {
     auto p = std::dynamic_pointer_cast<CylFldStruct>(coef);
+    if (not p) throw std::runtime_error("CylFldCoefs::add: Null coefficient structure, nothing added!");
+
     Nfld = p->nfld;
     Mmax = p->mmax;
     Nmax = p->nmax;

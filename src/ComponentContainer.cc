@@ -161,8 +161,7 @@ void ComponentContainer::initialize(void)
       if (myid==0)
 	std::cerr << "I did not find any components; quitting . . ."
 		  << std::endl;
-      MPI_Finalize();
-      exit(-1);
+      throw std::runtime_error("ComponentContainer::initialize: no components?");
     }
 
     // Test of reassignment
@@ -219,8 +218,7 @@ void ComponentContainer::initialize(void)
     }
 
     if (not interOkay) {
-      MPI_Finalize();
-      exit(-11);
+      throw std::runtime_error("ComponentContainer::initialize: interaction list error");
     }
   }
 

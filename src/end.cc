@@ -26,13 +26,13 @@ void clean_up(void)
 		     << "Process " << setw(4) << right << myid 
 		     << " on " << processor_name
 		     << "   pid=" << getpid()
-		     << "   MASTER NODE\t Exiting EXP\n";
+		     << "   ROOT NODE\t Exiting EXP\n";
   MPI_Barrier(MPI_COMM_WORLD);
   for (int j=1; j<numprocs; j++) {
     if (myid==j) cerr << "Process " << setw(4) << right << myid 
 		      << " on " << processor_name
 		      << "   pid=" << getpid()
-		      << "   rank in SLAVE: " << j << "\t Exiting EXP\n";
+		      << "   rank in WORKER: " << j << "\t Exiting EXP\n";
     MPI_Barrier(MPI_COMM_WORLD);
   }
 

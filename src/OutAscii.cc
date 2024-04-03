@@ -45,8 +45,7 @@ OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
       if (myid==0) 
 	std::cerr << "Process " << myid << ": can't find desired component <"
 		  << name << ">" << std::endl;
-      MPI_Finalize();
-      exit(35);
+      throw std::runtime_error("OutAscii: missing component");
     }
   }
   else
@@ -88,8 +87,7 @@ void OutAscii::initialize()
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("OutAscii::initialize: error in parsing YAML");
   }
 				// Determine last file
 
@@ -155,8 +153,7 @@ void OutAscii::Run(int n, int mstep, bool last)
   //
   MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (nOK) {
-    MPI_Finalize();
-    exit(33);
+    throw std::runtime_error("OutAscii::Run: I/O error");
   }
 
   // Update total particle number

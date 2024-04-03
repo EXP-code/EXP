@@ -88,6 +88,7 @@ Cylinder::valid_keys = {
   "tnum",
   "ashift",
   "expcond",
+  "precond",
   "logr",
   "pcavar",
   "pcaeof",
@@ -158,7 +159,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   rem             = -1.0;
   self_consistent = true;
   firstime        = true;
-  expcond         = true;
+  precond         = true;
   cmapR           = 1;
   cmapZ           = 1;
   logarithmic     = false;
@@ -177,7 +178,6 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   coefMaster      = true;
   lastPlayTime    = -std::numeric_limits<double>::max();
   EVEN_M          = false;
-  eof_over        = false;
   cachename       = "";
 #if HAVE_LIBCUDA==1
   cuda_aware      = true;
@@ -226,13 +226,16 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 			   << std::string(60, '-') << std::endl
 			   << conf
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("Cylinder: error in parsing tk_type");
   }
 
   
-  if (expcond) {
-				// Set parameters for external dcond function
+  // Cache file reading or generation
+  //
+  if (precond) {
+
+    // Set parameters for external dcond function
+    //
     EXPSCALE = acyl;
     HSCALE   = hcyl;
     ASHIFT   = ashift;
@@ -241,63 +244,62 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     bool cache_ok = false;
     int  nOK      = 0;
 
-    // Attempt to read EOF file from cache with override.  Will work
-    // whether first time or restart.  Aborts if overridden cache is
-    // not found.
+    // Attempt to read EOF file from cache
     //
-    if (cachename.size()>0) {
+    if (std::filesystem::exists(cachename)) {
 
       cache_ok = ortho->read_cache();
       
+      // If new cache is requested, backup existing basis file
+      //
       if (!cache_ok) {
-	if (myid==0) {		// Diagnostic output . . .
-	  std::cerr << "Cylinder: can not read explicitly specified EOF file <"
-		    << cachename << ">" << std::endl;
-	  if (eof_over) {
-	    std::cerr << "Cylinder: override specified . . ." << std::endl;
-	  } else {
-	    std::cerr << "Cylinder: shamelessly aborting . . ." << std::endl;
+	  
+	// Backup name for existing file
+	string backupfile = cachename + ".bak";
+	
+	// Only root process renames
+	if (myid==0) {
+	  try {
+	    std::filesystem::rename(cachename, backupfile);
+	    std::cout << "---- Cylinder: parameter mismatch.  Renaming <"
+		      << cachename << "> to <" << backupfile << "> and "
+		      << "recreating the basis" << std::endl;
+	  } catch (const std::filesystem::filesystem_error& e) {
+	    std::cerr << "Cylinder: new cache requested but "
+		      << "error creating backup file <" << backupfile
+		      << "> from <" << cachename << ">, message: "
+		      << e.code().message()
+		      << std::endl;
+	    // Set termination flag
 	    nOK = 1;
 	  }
 	}
+	
+	// Broadcast termination request to all processes
+	//
+	MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+	if (nOK)  {
+	  throw std::runtime_error("Cylinder: error initializing from parameters");
+	} 
       }
     }
-
-    MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-    if (nOK)  {
-      MPI_Finalize();
-      exit(12);
-    } 
-
-    // Attempt to read EOF file from cache on restart
-    //
-    if (try_cache || restart) {
-
-      cache_ok = ortho->read_cache();
-
-      // Diagnostic output . . .
-      //
-      if (!cache_ok and myid==0)
-	std::cerr << "Cylinder: can not read EOF file <"
-		  << cachename << ">" << std::endl
-		  << "Cylinder: will attempt to generate EOF file, "
-		  << "this will take some time (e.g. hours) . . ."
-		  << std::endl;
-    }
-
-    // On restart, abort if the cache is gone
-    //
-    if (restart && !cache_ok) {
-      if (myid==0) 
-	std::cerr << "Cylinder: can not read cache file on restart ... aborting"
-		  << std::endl;
-      MPI_Finalize();
-      exit(13);
+    else {
+      if (myid==0)
+	std::cout << "---- Cylinder: can't find the EOF basis file <"
+		  << cachename << ">" << std::endl;
     }
 
     // Genererate eof if needed
     //
-    if (!cache_ok) ortho->generate_eof(rnum, pnum, tnum, dcond);
+    if (!cache_ok) {
+
+      if (myid==0)
+	std::cout << "---- Cylinder: generating the EOF basis file; "
+		  << "this step will take many minutes."
+		  << std::endl;
+      
+      ortho->generate_eof(rnum, pnum, tnum, dcond);
+    }
 
     firstime = false;
   }
@@ -325,7 +327,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		<< std::endl << sep << "rcylmax="     << rcylmax
 		<< std::endl << sep << "acyl="        << acyl
 		<< std::endl << sep << "hcyl="        << hcyl
-		<< std::endl << sep << "expcond="     << expcond
+		<< std::endl << sep << "precond="     << precond
 		<< std::endl << sep << "pcavar="      << pcavar
 		<< std::endl << sep << "pcaeof="      << pcaeof
 		<< std::endl << sep << "nvtk="        << nvtk
@@ -333,7 +335,6 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		<< std::endl << sep << "npca0="       << npca0
 		<< std::endl << sep << "pcadiag="     << pcadiag
 		<< std::endl << sep << "cachename="   << cachename
-		<< std::endl << sep << "override="    << std::boolalpha << eof_over
 		<< std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 		<< std::endl << sep << "logarithmic=" << logarithmic
 		<< std::endl << sep << "vflag="       << vflag
@@ -354,7 +355,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << std::endl << sep << "rcylmax="     << rcylmax
 	      << std::endl << sep << "acyl="        << acyl
 	      << std::endl << sep << "hcyl="        << hcyl
-	      << std::endl << sep << "expcond="     << expcond
+	      << std::endl << sep << "precond="     << precond
 	      << std::endl << sep << "pcavar="      << pcavar
 	      << std::endl << sep << "pcaeof="      << pcaeof
 	      << std::endl << sep << "nvtk="        << nvtk
@@ -362,7 +363,6 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << std::endl << sep << "npca0="       << npca0
 	      << std::endl << sep << "pcadiag="     << pcadiag
 	      << std::endl << sep << "cachename="   << cachename
-	      << std::endl << sep << "override="    << std::boolalpha << eof_over
 	      << std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 	      << std::endl << sep << "logarithmic=" << logarithmic
 	      << std::endl << sep << "vflag="       << vflag
@@ -426,16 +426,16 @@ void Cylinder::initialize()
     if (conf["npca"      ])       npca  = conf["npca"      ].as<int>();
     if (conf["npca0"     ])      npca0  = conf["npca0"     ].as<int>();
     if (conf["nvtk"      ])       nvtk  = conf["nvtk"      ].as<int>();
-    if (conf["cachename" ])   cachename = conf["cachename" ].as<std::string>();
-    if (conf["eof_file"  ])   cachename = conf["eof_file"  ].as<std::string>();
-    if (conf["override"  ])   eof_over  = conf["override"  ].as<bool>();
+    if (conf["cachename" ])  cachename  = conf["cachename" ].as<std::string>();
+    if (conf["eof_file"  ])  cachename  = conf["eof_file"  ].as<std::string>();
     if (conf["samplesz"  ])   defSampT  = conf["samplesz"  ].as<int>();
     
     if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
     if (conf["pnum"      ])       pnum  = conf["pnum"      ].as<int>();
     if (conf["tnum"      ])       tnum  = conf["tnum"      ].as<int>();
     if (conf["ashift"    ])     ashift  = conf["ashift"    ].as<double>();
-    if (conf["expcond"   ])    expcond  = conf["expcond"   ].as<bool>();
+    if (conf["expcond"   ])    precond  = conf["expcond"   ].as<bool>();
+    if (conf["precond"   ])    precond  = conf["precond"   ].as<bool>();
     if (conf["logr"      ]) logarithmic = conf["logr"      ].as<bool>();
     if (conf["pcavar"    ])     pcavar  = conf["pcavar"    ].as<bool>();
     if (conf["pcaeof"    ])     pcaeof  = conf["pcaeof"    ].as<bool>();
@@ -450,17 +450,34 @@ void Cylinder::initialize()
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
     // Deprecation warning
+    if (conf["expcond"]) {
+      if (myid==0)
+	std::cout << "---- Cylinder: parameter 'expcond' is deprecated. "
+		  << "It has been renamed to 'precond'. The old parameter "
+		  << "will be removed in a later release."
+		  << std::endl;
+    }
+
+    // Deprecation warning
     if (conf["density"]) {
       if (myid==0)
-	std::cout << "Cylinder: parameter 'density' is deprecated. "
+	std::cout << "---- Cylinder: parameter 'density' is deprecated. "
 		  << "The density field will be computed regardless."
+		  << std::endl;
+    }
+
+    // Deprecation warning
+    if (conf["override"]) {
+      if (myid==0)
+	std::cout << "---- Cylinder: parameter 'override' is deprecated. "
+		  << "Basis will be recomputed if needed automatically."
 		  << std::endl;
     }
 
     // Deprecation warning
     if (conf["eof_file"]) {
       if (myid==0)
-	std::cout << "Cylinder: parameter 'eof_file' is deprecated. "
+	std::cout << "---- Cylinder: parameter 'eof_file' is deprecated. "
 		  << "and will be removed in a future release. Please "
 		  << "use 'cachename' instead."
 		  << std::endl;
@@ -482,8 +499,7 @@ void Cylinder::initialize()
 	if (not test) {
 	  std::cerr << "Cylinder: process " << myid << " cannot open <"
 		    << file << "> for reading" << std::endl;
-	  MPI_Finalize();
-	  exit(-1);
+	  throw std::runtime_error("Cylinder: error reading playback file");
 	}
       }
 
@@ -510,8 +526,7 @@ void Cylinder::initialize()
 		    << "] does not match specification [" << mmax << "]"
 		    << std::endl;
 	}
-	MPI_Finalize();
-	exit(-1);
+	throw std::runtime_error("Cylinder: parameter mismatch");
       }
 
       P.resize(mmax+1, nmax);
@@ -545,8 +560,7 @@ void Cylinder::initialize()
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("Cylinder::initialize: error parsing YAML");
   }
 }
 
@@ -602,7 +616,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   //=======================
 
 				// No recomputation ever if the
-  if (!expcond) {		// basis has been precondtioned
+  if (!precond) {		// basis has been precondtioned
 
 				// Only do this check only once per
 				// multistep; might as well be at 
@@ -866,7 +880,7 @@ void Cylinder::determine_coefficients_particles(void)
 
   if (!self_consistent && !firstime_coef && !initializing) return;
 
-  if (!expcond && firstime) {
+  if (!precond && firstime) {
 				// Try to read cache
     bool cache_ok = false;
     if (try_cache || restart) {
@@ -876,8 +890,7 @@ void Cylinder::determine_coefficients_particles(void)
       if (restart && !cache_ok) {
 	if (myid==0) 
 	  std::cerr << "Cylinder: can not read cache file on restart" << endl;
-	MPI_Finalize();
-	exit(-1);
+	throw std::runtime_error("Cylinder: cache read error");
       }
     }
 
@@ -1019,7 +1032,7 @@ void Cylinder::determine_coefficients_particles(void)
   // Dump basis on first call
   //=========================
 
-  if ( dump_basis and (this_step==0 || (expcond and ncompcyl==0) )
+  if ( dump_basis and (this_step==0 || (precond and ncompcyl==0) )
        && ortho->coefs_made_all() && !initializing) {
 
     if (myid == 0 and multistep==0 || mstep==0) {

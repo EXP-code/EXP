@@ -118,8 +118,7 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
 			   << std::string(60, '-') << std::endl
 			   << conf
 			   << std::string(60, '-') << std::endl;
-    if (use_mpi) MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("BiorthCyl: YAML parsing error");
   }
 
   geometry = "cylinder";

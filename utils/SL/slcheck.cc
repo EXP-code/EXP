@@ -124,7 +124,7 @@ int main(int argc, char** argv)
     }
     bad = true;
   }
-				// Slaves exit
+				// Workers exit
   if (use_mpi && myid>0) {
     MPI_Finalize();
     exit(0);

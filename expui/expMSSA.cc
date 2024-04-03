@@ -234,11 +234,24 @@ namespace MSSA {
 
     Eigen::MatrixXd cov;
     double Scale;
-    int rank;
+    int rank, srank=0;
 
-    // Covariance is the default
+    // Ensure a reasonable rank for RedSVD
     //
-    if (params["Traj"]) {
+    if (not params["Jacobi"] and not params["BDCSVD"]) {
+      srank = std::min<int>(
+			    {static_cast<int>(Y.cols()),
+			     static_cast<int>(Y.rows())}
+			    );
+      if (params["rank"])
+	srank = std::min<int>({srank, params["rank"].as<int>()});
+
+      npc = std::min<int>(npc, srank);
+    }
+
+    // Trajectory is the default
+    //
+    if (trajectory) {
 
       // Deduce the maximum rank of the trajectory matrix Y
       //
@@ -267,7 +280,7 @@ namespace MSSA {
 
     // Only write covariance matrix on request
     //
-    if (not params["Traj"] and params["writeCov"]) {
+    if (not trajectory and params["writeCov"]) {
       std::string filename = prefix + ".cov";
       std::ofstream out(filename);
       out << cov;
@@ -278,7 +291,7 @@ namespace MSSA {
     //
     if (params["Jacobi"]) {
       // -->Using Jacobi
-      if (params["Traj"]) {	// Trajectory matrix
+      if (trajectory) {	// Trajectory matrix
 	auto YY = Y/Scale;
 	Eigen::JacobiSVD<Eigen::MatrixXd>
 	  svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -293,7 +306,7 @@ namespace MSSA {
       }
     } else if (params["BDCSVD"]) {
       // -->Using BDC
-      if (params["Traj"]) {	// Trajectory matrix
+      if (trajectory) {	// Trajectory matrix
 	auto YY = Y/Scale;
 	Eigen::BDCSVD<Eigen::MatrixXd>
 	  svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -309,19 +322,19 @@ namespace MSSA {
     } else {
       // -->Use Random approximation algorithm from Halko, Martinsson,
       //    and Tropp
-      if (params["Traj"]) {	// Trajectory matrix
+      if (trajectory) {	// Trajectory matrix
 	auto YY = Y/Scale;
-	RedSVD::RedSVD<Eigen::MatrixXd> svd(YY, rank);
+	RedSVD::RedSVD<Eigen::MatrixXd> svd(YY, srank);
 	S = svd.singularValues();
 	U = svd.matrixV();
       }
       else {			// Covariance matrix
 	if (params["RedSym"]) {
-	  RedSVD::RedSymEigen<Eigen::MatrixXd> eigen(cov, rank);
+	  RedSVD::RedSymEigen<Eigen::MatrixXd> eigen(cov, srank);
 	  S = eigen.eigenvalues().reverse();
 	  U = eigen.eigenvectors().rowwise().reverse();
 	} else {
-	  RedSVD::RedSVD<Eigen::MatrixXd> svd(cov, rank);
+	  RedSVD::RedSVD<Eigen::MatrixXd> svd(cov, srank);
 	  S = svd.singularValues();
 	  U = svd.matrixU();
 	}
@@ -331,10 +344,13 @@ namespace MSSA {
     std::cout << "shape U = " << U.rows() << " x "
 	      << U.cols() << std::endl;
 
+    std::cout << "shape Y = " << Y.rows() << " x "
+	      << Y.cols() << std::endl;
+
     // Rescale the SVD factorization by the Frobenius norm
     //
     S *= Scale;
-    if (params["Traj"]) {
+    if (trajectory) {
       for (int i=0; i<S.size(); i++) S(i) = S(i)*S(i)/numK;
     }
 
@@ -1232,6 +1248,7 @@ namespace MSSA {
     "BDCSVD",
     "Traj",
     "RedSym",
+    "rank",
     "allchan",
     "distance",
     "flip",
@@ -1528,7 +1545,7 @@ namespace MSSA {
 
   }
 
-  expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC)
+  expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC), trajectory(true)
   {
     // Parse the YAML string
     //
@@ -1544,6 +1561,13 @@ namespace MSSA {
     else
       type = TrendType::perChannel;
 
+
+    // Set the SVD strategy for mSSA
+    //
+    if (params["Traj"]) trajectory = params["Traj"].as<bool>();
+
+    std::cout << "Trajectory is " << std::boolalpha << trajectory
+	      << std::endl;
 
     // Eigen OpenMP reporting
     //

@@ -55,8 +55,7 @@ void ExternalCollection::initialize()
 			   << std::string(60, '-') << std::endl
 			   << parse                << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("ExternalCollection: error in parsing YAML");
   }
 
   if (ext.IsSequence()) {

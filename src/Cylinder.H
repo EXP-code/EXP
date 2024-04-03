@@ -62,8 +62,6 @@ class MixtureBasis;
 
     @param cachename is the name of the basis cache file
 
-    @param override boolean ignores the specificed cache file name and performes a recomputation
-
     @param samplesz is the default particle number in PCA subsampling partitions (default is 1).  The value 0 sets the sample size to sqrt(N).
 
     @param rnum if the size of the radial quadrature grid for analytic EOF computation
@@ -74,7 +72,7 @@ class MixtureBasis;
 
     @param ashift offsets the center of the analytic model for basis function computation
 
-    @param expcond boolean true turns on basis function reconditioning
+    @param precond boolean true turns on analytic basis function preconditioning (default: true)
 
     @param logr boolean turns on logarithmic radial basis gridding in EmpCylSL
 
@@ -111,7 +109,7 @@ class Cylinder : public Basis
 {
 private:
 
-  bool expcond, EVEN_M, subsamp;
+  bool precond, EVEN_M, subsamp;
   int rnum, pnum, tnum;
   double ashift;
   unsigned int vflag;
@@ -134,7 +132,7 @@ private:
   double hcyl, hexp, snr, rem;
   int nmax, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
   std::string cachename;
-  bool self_consistent, logarithmic, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
+  bool self_consistent, logarithmic, pcavar, pcainit, pcavtk, pcadiag, pcaeof;
   bool try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
@@ -341,14 +339,14 @@ public:
   //! \param npca0 is the first step for Hall coefficient computaton 
   //! \param nvtk is the number of step VTK output 
   //! \param pcadiag set to true enables PCA output diagnostics (default: false)
-  //! \param cachename is an override for the default EOF cache file name
+  //! \param cachename is the file for the EOF basis
   //! \param vflag sets verbosity (see EmpCylSL.cc)
   //! \param rnum is the number of Legendre radial knots for numerical basis computation
   //! \param pnum is the number of azimuthal knots for numerical basis computation
   //! \param tnum is the number of Legendre polar knots for numerical basis computation
   //! \param ashift is the shift applied in the x-axis relative to the original for basis conditioning
   //! \param self_consistent set to false for fixed potential
-  //! \param expcond set to true for analytic basis function conditioning (default: true)
+  //! \param precond set to true for analytic basis function conditioning (default: true)
   //! \param logr tabulate basis in logarithmic coordinates (default: false)
   //! \param pcavar set to true for real-time Hall analysis (default: false)
   //! \param samplesz is the default particle number in PCA subsampling partitions (default is 1).  The value 0 sets the sample size to sqrt(N).

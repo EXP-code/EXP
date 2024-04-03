@@ -85,8 +85,7 @@ void OutCHKPT::initialize()
 			   << std::string(60, '-') << std::endl
 			   << Output::conf         << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("OutCHKPT::initialize: error in parsing YAML");
   }
 }
 
@@ -186,8 +185,7 @@ void OutCHKPT::Run(int n, int mstep, bool last)
     MPI_Allreduce(&nOK, &badCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     if (badCount) {
-      MPI_Finalize();
-      exit(33);
+      throw std::runtime_error("OutCHKPT::Run: error in I/O");
     }
 
     MPI_Info_free(&info);
@@ -287,8 +285,7 @@ void OutCHKPT::Run(int n, int mstep, bool last)
     
     MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
     if (nOK) {
-      MPI_Finalize();
-      exit(33);
+      throw std::runtime_error("OutCHKPT::Run: error in I/O");
     }
 
     for (auto c : comp->components) {

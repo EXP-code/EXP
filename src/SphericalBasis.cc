@@ -145,8 +145,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 	if (not test) {
 	  std::cerr << "SphericalBasis: process " << myid << " cannot open <"
 		    << file << "> for reading" << std::endl;
-	  MPI_Finalize();
-	  exit(-1);
+	  throw std::runtime_error("SphericalBasis: file error");
 	}
       }
 
@@ -168,8 +167,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 		    << "] does not match specification [" << nmax << "]"
 		    << std::endl;
 	}
-	MPI_Finalize();
-	exit(-1);
+	throw std::runtime_error("SphericalBasis: parameter mismatch");
       }
 
       if (playback->lmax() != Lmax) {
@@ -178,8 +176,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 		    << "] does not match specification [" << Lmax << "]"
 		    << std::endl;
 	}
-	MPI_Finalize();
-	exit(-1);
+	throw std::runtime_error("SphericalBasis: parameter mismatch");
       }
 
       play_back = true;
@@ -210,8 +207,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("SphericalBasis: error parsing YAML");
   }
 
   if (nthrds<1) nthrds=1;

@@ -90,13 +90,13 @@ namespace BasisClasses
   }
 
   SphericalSL::SphericalSL(const YAML::Node& CONF) :
-    BiorthBasis(CONF, "SphericalSL")
+    BiorthBasis(CONF, "sphereSL")
   {
     initialize();
   }
 
   SphericalSL::SphericalSL(const std::string& confstr) :
-    BiorthBasis(confstr, "SphericalSL")
+    BiorthBasis(confstr, "sphereSL")
   {
     initialize();
   }
@@ -279,7 +279,7 @@ namespace BasisClasses
     int ldim = (lmax+1)*(lmax+2)/2;
 
     // Allocate the coefficient storage
-    cf->store.resize((lmax+1)*(lmax+2)/2, nmax);
+    cf->store.resize((lmax+1)*(lmax+2)/2*nmax);
 
     // Make the coefficient map
     cf->coefs = std::make_shared<CoefClasses::SphStruct::coefType>
@@ -826,13 +826,13 @@ namespace BasisClasses
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
-    BiorthBasis(CONF, "Cylindrical")
+    BiorthBasis(CONF, "cylinder")
   {
     initialize();
   }
 
   Cylindrical::Cylindrical(const std::string& confstr) :
-    BiorthBasis(confstr, "Cylindrical")
+    BiorthBasis(confstr, "cylinder")
   {
     initialize();
   }
@@ -1147,8 +1147,7 @@ namespace BasisClasses
 			       << mtype << ">, valid types are: "
 			       << "Exponential, Gaussian, Plummer, Power "
 			       << "(not case sensitive)" << std::endl;
-	if (use_mpi) MPI_Finalize();
-	return;
+	throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
       }
 
       // Convert dtype string to lower case
@@ -1172,8 +1171,7 @@ namespace BasisClasses
 	  for (auto v : dtlookup) std::cout << v.first << " ";
 	  std::cout << std::endl;
 	}
-	if (use_mpi) MPI_Finalize();
-	return;
+	throw std::runtime_error("Cylindrical::initialize: invalid DiskType");
       }
 
       // Use these user models to deproject for the EOF spherical basis
@@ -1303,7 +1301,14 @@ namespace BasisClasses
 
     Eigen::VectorXd cos1(nmax), sin1(nmax);
 
-    cf->store((mmax+1)*nmax);
+    // Initialize the values
+    cos1.setZero();
+    sin1.setZero();
+
+    // Allocate the coefficient storage
+    cf->store.resize((mmax+1)*nmax);
+
+    // Create a new instance
     cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
       (cf->store.data(), mmax+1, nmax);
 
@@ -1428,12 +1433,14 @@ namespace BasisClasses
     "cachename"
   };
 
-  FlatDisk::FlatDisk(const YAML::Node& CONF) : BiorthBasis(CONF)
+  FlatDisk::FlatDisk(const YAML::Node& CONF) :
+    BiorthBasis(CONF, "flatdisk")
   {
     initialize();
   }
 
-  FlatDisk::FlatDisk(const std::string& confstr) : BiorthBasis(confstr)
+  FlatDisk::FlatDisk(const std::string& confstr) :
+    BiorthBasis(confstr, "flatdisk")
   {
     initialize();
   }
@@ -1895,12 +1902,12 @@ namespace BasisClasses
     "method"
   };
 
-  Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF, "Cube")
+  Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF, "cube")
   {
     initialize();
   }
 
-  Cube::Cube(const std::string& confstr) : BiorthBasis(confstr, "Cube")
+  Cube::Cube(const std::string& confstr) : BiorthBasis(confstr, "cube")
   {
     initialize();
   }
@@ -2198,6 +2205,8 @@ namespace BasisClasses
       coef = std::make_shared<CoefClasses::CylStruct>();
     else if (name.compare("flatdisk") == 0)
       coef = std::make_shared<CoefClasses::CylStruct>();
+    else if (name.compare("cube") == 0)
+      coef = std::make_shared<CoefClasses::CubeStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
@@ -2279,7 +2288,8 @@ namespace BasisClasses
   }
 
   // Accumulate coefficient contributions from arrays
-  void BiorthBasis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin)
+  void BiorthBasis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p,
+				 bool RoundRobin, bool PosVelRows)
   {
     // Sanity check: is coefficient instance created?  This is not
     // foolproof.  It is really up the user to make sure that a call
@@ -2292,13 +2302,35 @@ namespace BasisClasses
       throw std::runtime_error(msg);
     }
 
+    // Assume position arrays in rows by default
+    //
+    int rows = p.rows();
+    int cols = p.cols(); 
+
+    bool ambiguous = false;
+
+    if (cols==3 or cols==6) {
+      if (rows != 3 and rows != 6) PosVelRows = false;
+      else ambiguous = true;
+    }
+
+    if (rows==3 or rows==6) {
+      if (cols != 3 and cols != 6) PosVelRows = true;
+      else ambiguous = true;
+    }
+
+    if (ambiguous and myid==0) {
+      std::cout << "---- BiorthBasis::addFromArray: dimension deduction "
+		<< "is ambiguous.  Assuming that ";
+      if (PosVelRows) std::cout << "positions are in rows" << std::endl;
+      else std::cout << "positions are in columns" << std::endl;
+      std::cout << "---- BiorthBasis::addFromArray: reset 'posvelrows' flag "
+		<< "if this assumption is wrong." << std::endl;
+    }
+
     std::vector<double> p1(3), v1(3, 0);
 
-    if (p.rows() < 10 and p.cols() > p.rows()) {
-      std::cout << "Basis::addFromArray: interpreting your "
-		<< p.rows() << "X" << p.cols() << " input array as "
-		<< p.cols() << "X" << p.rows() << "." << std::endl;
-
+    if (PosVelRows) {
       if (p.rows()<3) {
 	std::ostringstream msg;
 	msg << "Basis::addFromArray: you must pass a position array with at "
@@ -2308,7 +2340,7 @@ namespace BasisClasses
 
       for (int n=0; n<p.cols(); n++) {
 
-	if (n % numprocs==myid or not roundrobin) {
+	if (n % numprocs==myid or not RoundRobin) {
 
 	  bool use = true;
 	  if (ftor) {
@@ -2336,7 +2368,7 @@ namespace BasisClasses
 
       for (int n=0; n<p.rows(); n++) {
 
-	if (n % numprocs==myid or not roundrobin) {
+	if (n % numprocs==myid or not RoundRobin) {
 
 	  bool use = true;
 	  if (ftor) {
@@ -2367,10 +2399,10 @@ namespace BasisClasses
   //
   CoefClasses::CoefStrPtr BiorthBasis::createFromArray
   (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
-   bool roundrobin)
+   bool RoundRobin, bool PosVelRows)
   {
     initFromArray(ctr);
-    addFromArray(m, p, roundrobin);
+    addFromArray(m, p, RoundRobin, PosVelRows);
     return makeFromArray(time);
   }
 

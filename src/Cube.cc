@@ -123,8 +123,7 @@ void Cube::initialize(void)
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("Cube::initialize: error parsing YAML");
   }
 
 #if HAVE_LIBCUDA==1

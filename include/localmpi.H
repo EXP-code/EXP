@@ -12,9 +12,9 @@
 #include <iomanip>
 #include <string>
 
-extern MPI_Comm MPI_COMM_SLAVE;
-extern MPI_Group world_group, slave_group;
-extern int numprocs, slaves, myid, proc_namelen;
+extern MPI_Comm MPI_COMM_WORKER;
+extern MPI_Group world_group, worker_group;
+extern int numprocs, workers, myid, proc_namelen;
 extern char processor_name[MPI_MAX_PROCESSOR_NAME];
 extern std::ofstream mpi_debug;
 

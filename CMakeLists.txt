@@ -63,7 +63,6 @@ set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 # Package support
 
 find_package(MPI REQUIRED COMPONENTS C CXX)
-find_package(Boost COMPONENTS serialization)
 find_package(OpenMP)
 find_package(FFTW)
 find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
@@ -151,9 +150,6 @@ if(PNG_FOUND AND ENABLE_PNG)
   set(HAVE_LIBPNGPP TRUE)
 endif()
 if(ENABLE_DSMC)
-  if(NOT BOOST_FOUND)
-    message(SEND_ERROR "You need Boost to compile DSMC")
-  endif()
   set(DSMC_ENABLED 1)
 endif()
 if(ENABLE_CUDA_SINGLE)
@@ -230,7 +226,7 @@ add_subdirectory(extern/HighFive)
 
 # Configure the remaining native subdirectories
 add_subdirectory(exputil)
-add_subdirectory(coefs)
+add_subdirectory(expui)
 if (ENABLE_NBODY)
   add_subdirectory(src)
 endif()
@@ -240,6 +236,10 @@ if (ENABLE_PYEXP)
 endif()
 
 add_subdirectory(extern/user-modules)
+
+if (ENABLE_DSMC)
+  add_subdirectory(extern/DSMC/src)
+endif()
 
 # Build the tests; set ENABLE_TEST=OFF to disable
 if(ENABLE_TESTS)
