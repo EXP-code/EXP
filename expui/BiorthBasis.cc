@@ -2281,6 +2281,68 @@ namespace BasisClasses
     return {0, den, den, 0, pot, pot, potr, pott, potp};
   }
 
+
+  Slab::BasisArray Slab::getBasis
+  (double zmin, double zmax, int numgrid)
+  {
+    // Assign storage for returned basis array.  The Maximum
+    // wavenumber for the SLGridSlab is the maximum of the X and Y
+    // wavenumbers.
+    int nnmax = std::max<int>(nmaxx, nmaxy);
+
+    BasisArray ret (nnmax+1);	// X wavenumbers
+    for (auto & v1 : ret) {
+      v1.resize(nnmax+1);	// Y wavenumbers
+
+      for (auto & v2 : v1) {
+	v2.resize(nmaxz);	// Z basis
+
+	for (auto & u : v2) {
+	  u["potential"].resize(numgrid); // Potential
+	  u["density"  ].resize(numgrid); // Density
+	  u["zforce"   ].resize(numgrid); // Vertical force
+	}
+      }
+    }
+
+    // Vertical grid spacing
+    double dz = (zmax - zmin)/(numgrid-1);
+
+    // Basis evaluation storage
+    Eigen::VectorXd vpot(nmaxz), vfrc(nmaxz), vden(nmaxz);
+
+    // Construct the tensor
+    for (int ix=0; ix<=nnmax; ix++) {
+      
+      for (int iy=0; iy<=nmaxx; iy++) {
+      
+	for (int i=0; i<numgrid; i++) {
+
+	  double z = zmin + dz*i;
+
+	  if (ix>=iy) {
+	    ortho->get_pot  (vpot, z, ix, iy);
+	    ortho->get_force(vfrc, z, ix, iy);
+	    ortho->get_dens (vden, z, ix, iy);
+	  } else {
+	    ortho->get_pot  (vpot, z, iy, ix);
+	    ortho->get_force(vfrc, z, iy, ix);
+	    ortho->get_dens (vden, z, iy, ix);
+	  }
+
+	  for (int n=0; n<nmaxz; n++){
+	    ret[ix][iy][n]["potential"](i) = vpot(n);
+	    ret[ix][iy][n]["density"  ](i) = vden(n);
+	    ret[ix][iy][n]["zforce"   ](i) = vfrc(n);
+	  }
+	}
+      }
+    }
+    
+    // Return the tensor
+    return ret;
+  }
+
   std::vector<Eigen::MatrixXd> Slab::orthoCheck()
   {
     return ortho->orthoCheck();

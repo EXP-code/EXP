@@ -1465,6 +1465,45 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
          Cube
              the new instance
          )", py::arg("YAMLstring"))
+    .def("getBasis", &BasisClasses::Slab::getBasis,
+	 R"(
+         Get basis functions
+
+	 Evaluate the potential-density basis functions on a linearly spaced grid for 
+         inspection. The structure is a three-dimensional grid of dimension (nmaxx+1) by 
+         (nmaxy+1) by (nmaxz) each pointing to a dictionary of 1-d arrays ('potential',
+	 'density', 'rforce') of dimension numz.
+
+         Parameters
+         ----------
+         zmin : float, default=-1.0
+             minimum height
+         zmax : float, default=1.0
+             maximum height
+         numz : int, default=400
+             number of equally spaced output points
+
+         Returns
+         -------
+         list(list(dict))
+               dictionaries of basis functions as lists indexed by nx, ny, nz
+
+         Example
+         -------
+         To plot the nx=ny=0 basis functions, you might use the following code:
+
+         >>> mat = slab_basis.getBasis(-0.5, 0.5, 200)
+         >>> z = np.linspace(-0.5, 0.5, 200)
+         >>> for n in range(len(mat[0][0])):
+         >>> plt.plot(z, mat[0][0][n]['potential'], label=str(n))
+         >>> plt.legend()
+         >>> plt.xlabel('z')
+         >>> plt.ylabel('potential')
+         >>> plt.show()
+         )",
+	 py::arg("zmin")=-1.0,
+	 py::arg("zmax")=1.0,
+	 py::arg("numz")=400)
     .def("orthoCheck", [](BasisClasses::Cube& A)
     {
       return A.orthoCheck();

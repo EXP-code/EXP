@@ -585,7 +585,7 @@ namespace BasisClasses
   public:
     
     using BasisMap   = std::map<std::string, Eigen::VectorXd>;
-    using BasisArray = std::vector<std::vector<BasisMap>>;
+    using BasisArray = std::vector<std::vector<std::vector<BasisMap>>>;
 
   private:
     
@@ -689,6 +689,12 @@ namespace BasisClasses
     //! Return current maximum harmonic order in expansion
     Eigen::Vector3i getNmax() { return {nmaxx, nmaxy, nmaxz}; }
     
+    //! Return potential-density pair of a vector of a vector of 1d
+    //! basis-function grids for the SL slab, linearly spaced
+    //! between [zmin, zmax]
+    BasisArray getBasis
+    (double zmin=-1.0, double zmax=0.5, int numgrid=2000);
+
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
     std::vector<Eigen::MatrixXd> orthoCheck();
