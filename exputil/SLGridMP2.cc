@@ -1224,7 +1224,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 
   // Choose sign conventions for the ef table
   //
-  int nfid = std::min<int>(nevsign, N) - 1;
+  int nfid = std::min<int>(nevsign, NUM) - 1;
   Eigen::VectorXi sgn = Eigen::VectorXi::Ones(N);
   for (int j=0; j<N; j++) {
     if (ef[j*NUM+nfid]<0.0) sgn(j) = -1;
@@ -1465,7 +1465,7 @@ void SLGridSph::compute_table_worker(void)
 
     // Choose sign conventions for the ef table
     //
-    int nfid = std::min<int>(nevsign, N) - 1;
+    int nfid = std::min<int>(nevsign, NUM) - 1;
     Eigen::VectorXi sgn = Eigen::VectorXi::Ones(N);
     for (int j=0; j<N; j++) {
       if (ef[j*NUM+nfid]<0.0) sgn(j) = -1;
@@ -2803,10 +2803,20 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   table->ev.resize(nmax);
   for (int i=0; i<N; i++) table->ev[i*2] = ev[i];
 
-  table->ef.resize(nmax, numz);
-  for (int i=0; i<numz; i++) {
-    for (int j=0; j<N; j++) 
-      table->ef(j*2, i) = ef[j*NUM+i];
+  // Choose sign conventions for the ef table
+  //
+  {
+    int nfid = std::min<int>(nevsign, NUM/2) - 1;
+    Eigen::VectorXi sgn = Eigen::VectorXi::Ones(N);
+    for (int j=0; j<N; j++) {
+      if (ef[j*NUM+NUM/2+nfid]<0.0) sgn(j) = -1;
+    }
+  
+    table->ef.resize(nmax, numz);
+    for (int i=0; i<numz; i++) {
+      for (int j=0; j<N; j++) 
+	table->ef(j*2, i) = ef[j*NUM+i] * sgn(j);
+    }
   }
 
 
@@ -2914,9 +2924,19 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 
   for (int i=0; i<N; i++) table->ev[i*2+1] = ev[i];
 
-  for (int i=0; i<numz; i++) {
-    for (int j=0; j<N; j++) 
-      table->ef(j*2+1, i) = ef[j*NUM+i];
+  // Choose sign conventions for the ef table
+  //
+  {
+    int nfid = std::min<int>(nevsign, NUM/2) - 1;
+    Eigen::VectorXi sgn = Eigen::VectorXi::Ones(N);
+    for (int j=0; j<N; j++) {
+      if (ef[j*NUM+NUM/2+nfid]<0.0) sgn(j) = -1;
+    }
+  
+    for (int i=0; i<numz; i++) {
+      for (int j=0; j<N; j++) 
+	table->ef(j*2+1, i) = ef[j*NUM+i] * sgn(j);
+    }
   }
 
 				// Correct for symmetrizing
