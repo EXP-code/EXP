@@ -5,7 +5,7 @@
 
 #include "global.H"
 #include "ParticleFerry.H"
-#include "pHOT.H"
+// #include "pHOT.H"
 
 // #define DEBUG
 
@@ -452,3 +452,4 @@ void ParticleFerry::bufferKeyCheck()
 
   return;
 }
+
