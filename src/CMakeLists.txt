@@ -3,8 +3,8 @@ set(CUDA_SRC)
 if (ENABLE_CUDA)
   list(APPEND CUDA_SRC cudaPolarBasis.cu cudaSphericalBasis.cu
     cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc
-    cudaHOT.cu cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu
-    cudaOrient.cu cudaBiorthCyl.cu cudaCube.cu)
+    cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu cudaOrient.cu
+    cudaBiorthCyl.cu cudaCube.cu)
 endif()
 
 set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
@@ -19,28 +19,20 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   OutMulti.cc OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc
   OutVel.cc OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc step.cc
   tidalField.cc ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
-  ParticleFerry.cc pCell.cc chkSlurm.c chkTimer.cc pHOT.cc
-  GravKernel.cc ${CUDA_SRC} CenterFile.cc PolarBasis.cc FlatDisk.cc
-  signals.cc)
+  ParticleFerry.cc chkSlurm.c chkTimer.cc GravKernel.cc ${CUDA_SRC}
+  CenterFile.cc PolarBasis.cc FlatDisk.cc signals.cc)
 
 set(common_INCLUDE_DIRS 
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/pyEXP/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${EIGEN3_INCLUDE_DIR})
 
-set(DSMC_LIBS)
-if (ENABLE_DSMC)
-  # add_subdirectory(${PROJECT_SOURCE_DIR}/extern/DSMC/src DSMC)
-  list(APPEND DSMC_LIBS expdsmc)
-endif()
-
-set(common_LINKLIB ${DSMC_LIBS} exputil expui OpenMP::OpenMP_CXX
-  MPI::MPI_CXX yaml-cpp ${VTK_LIBRARIES})
+set(common_LINKLIB exputil expui OpenMP::OpenMP_CXX MPI::MPI_CXX
+  yaml-cpp ${VTK_LIBRARIES})
 
 if(PNG_FOUND)
   list(APPEND common_LINKLIB PNG::PNG)
