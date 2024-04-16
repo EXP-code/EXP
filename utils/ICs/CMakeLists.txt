@@ -27,16 +27,6 @@ set(common_INCLUDE
   ${CMAKE_CURRENT_SOURCE_DIR}/..
   ${HDF5_INCLUDE_DIRS})
 
-if(ENABLE_DSMC)
-  list(APPEND bin_PROGRAMS makeIon phIon phConv)
-  list(APPEND common_INCLUDE
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>)
-  add_executable(makeIon makeIonIC.cc
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src/atomic_constants.cc>)
-  add_executable(phIon ph_ion.cc)
-  add_executable(phConv ph_conv.cc)
-endif()
-
 add_executable(shrinkics shrinkics.cc)
 
 add_executable(gensph gensph.cc SphericalSL.cc EllipForce.cc

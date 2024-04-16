@@ -22,7 +22,6 @@
 #include <Shells.H>
 #include <NoForce.H>
 #include <Orient.H>
-#include <pHOT.H>
 #include <YamlCheck.H>
 
 #include "expand.H"
@@ -263,8 +262,6 @@ Component::Component(YAML::Node& CONF)
   coa_lev     = vector<double>(3*(multistep+1), 0);
   com_mas     = vector<double>(multistep+1, 0);
 
-  tree = 0;
-
   pbuf.resize(PFbufsz);
 
   // Enter unset defaults in YAML conf
@@ -364,19 +361,6 @@ void Component::set_default_values()
   if (!cconf["noswitch"])        cconf["noswitch"]    = noswitch;
   if (!cconf["freezeL"])         cconf["freezeL"]     = freezeLev;
   if (!cconf["dtreset"])         cconf["dtreset"]     = dtreset;
-}
-
-
-void Component::HOTcreate(std::set<speciesKey> spec_list)
-{
-  delete tree;
-  tree = new pHOT(this, spec_list);
-}
-
-
-void Component::HOTdelete()
-{
-  delete tree;
 }
 
 
@@ -786,8 +770,6 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   com_mas     = std::vector<double>(   multistep+1,  0);
 
   reset_level_lists();
-
-  tree = 0;
 
   pbuf.resize(PFbufsz);
 }
@@ -1272,8 +1254,6 @@ Component::~Component(void)
   delete [] com0;
   delete [] cov0;
   delete [] acc0;
-
-  delete tree;
 }
 
 void Component::read_bodies_and_distribute_ascii(void)
@@ -3965,3 +3945,12 @@ void Component::DestroyPart(PartPtr p)
   nbodies--;
   modified++;
 }
+
+void Component::AddPart(PartPtr p)
+{
+  particles[p->indx] = p;
+
+  // Refresh size of local particle list
+  nbodies = particles.size();
+}
+
