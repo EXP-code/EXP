@@ -21,14 +21,11 @@ private:
 
   unsigned bufpos, ibufcount, itotcount;
   unsigned _to, _from, _total;
-  unsigned pk_lo, pk_hi;
-  unsigned long key_lo, key_hi;
 
   int keypos, treepos, idxpos;
 
   void BufferSend();
   void BufferRecv();
-  void bufferKeyCheck();	// For debugging
 
   //! Determine size of buffer needed
   void particleBufInit();
