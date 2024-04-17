@@ -46,6 +46,31 @@ public:
     virtual std::string ID() { return id; }
   };
 
+  //! Map the radius
+  class Mapping
+  {
+  protected:
+    bool cmap;
+    double scale;
+    
+  public:
+    
+    //! Null constructor (for copy construct)
+    Mapping() {}
+
+    //! Main constructor
+    Mapping(double scale, bool cmap) : scale(scale), cmap(cmap) {}
+
+    //! From semi-infinite radius to [-1, 1]
+    double r_to_xi(double r);
+
+    //! From [-1, 1] to semi-infinite radius
+    double xi_to_r(double xi);
+
+    //! Jacobian
+    double d_xi_to_r(double xi);
+  };
+
 protected:
 
   //! Contains parameter database
@@ -94,31 +119,6 @@ protected:
   class MestelCyl;
   class KuzminCyl;
   class ZangCyl;
-
-  //! Map the radius
-  class Mapping
-  {
-  protected:
-    bool cmap;
-    double scale;
-    
-  public:
-    
-    //! Null constructor (for copy construct)
-    Mapping() {}
-
-    //! Main constructor
-    Mapping(double scale, bool cmap) : scale(scale), cmap(cmap) {}
-
-    //! From semi-infinite radius to [-1, 1]
-    double r_to_xi(double r);
-
-    //! From [-1, 1] to semi-infinite radius
-    double xi_to_r(double xi);
-
-    //! Jacobian
-    double d_xi_to_r(double xi);
-  };
 
   //! Mapping instance
   Mapping map;
@@ -218,6 +218,9 @@ public:
     return {disk->pot(r), disk->dpot(r), disk->dens(r)};
   }
   //@}
+
+  //! Get coordinate mapping object
+  Mapping getMapping() { return map; }
 };
 
 
