@@ -211,6 +211,12 @@ public:
   //! For pyEXP
   std::vector<Eigen::MatrixXd> orthoCheck();
 
+  //! Get table range bounds
+  double getXmin() { return xmin; }
+  double getXmax() { return xmax; }
+  double getYmin() { return ymin; }
+  double getYmax() { return ymax; }
+
 };
 
 #endif
