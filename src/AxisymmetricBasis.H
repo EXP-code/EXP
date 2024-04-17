@@ -190,6 +190,18 @@ public:
   //! Set tk_type from string
   TKType setTK(const std::string& tk);
 
+  //! Access coefficients
+  VectorP getCoefs(int l) const { return expcoef[l]; }
+
+  //@{
+  //! Get angular order
+  int getLmax() { return Lmax; }
+  int getMmax() { return Mmax; }
+  //@{
+
+  //! Get radial order
+  int getNmax() { return nmax; }
+
 private:
 
   int    Ldim, L0;
