@@ -169,18 +169,6 @@ void ParticleFerry::particlePack(PartPtr in, char* buffer)
   memcpy(&buffer[pos], &in->key, sizeof(unsigned long));
   pos += sizeof(unsigned long);
 
-  // Sanity check
-  //
-  if (in->tree > 0) {
-    if ( (in->tree < pk_lo) || (in->tree >= pk_hi) ) {
-      cout << "Error!! [5], id=" << myid 
-	   << ": tree=" << in->tree
-	   << " seq=" << in->indx
-	   << " (x, y, z)={" << in->pos[0] << ", " << in->pos[1]
-	   << ", " << in->pos[2]
-	   << endl;
-    }
-  }
 }
 
 // Unpack the buffer into the supplied particle.  Buffer is supplied
@@ -266,19 +254,6 @@ void ParticleFerry::particleUnpack(PartPtr out, char* buffer)
   //
   memcpy(&out->key, &buffer[pos], sizeof(unsigned long));
   pos += sizeof(unsigned long);
-
-  // Sanity check
-  //
-  if (out->tree > 0) {
-    if ( (out->tree < pk_lo) || (out->tree >= pk_hi) ) {
-      cout << "Error!! [4], id=" << myid 
-	   << ": tree=" << out->tree
-	   << " seq=" << out->indx
-	   << " (x, y, z)={" << out->pos[0] << ", " << out->pos[1]
-	   << ", " << out->pos[2]
-	   << endl;
-    }
-  }
 
 }
 
