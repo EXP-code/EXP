@@ -6099,7 +6099,7 @@ double EmpCylSL::r_to_xi(double r)
   if (CMAPR>0) {
     if (r<0.0) {
       ostringstream msg;
-      msg << "radius=" << r << " < 0! [mapped]";
+      msg << "EmpCylSL: radius=" << r << " < 0! [mapped]";
       throw GenericError(msg.str(), __FILE__, __LINE__, 1040, true);
     }
     return (r/ASCALE - 1.0)/(r/ASCALE + 1.0);
