@@ -96,8 +96,6 @@ void initialize(void)
     if (_G["time"])          tnow       = _G["time"].as<double>();
     if (_G["dtime"])         dtime      = _G["dtime"].as<double>();
     if (_G["maxMindt"])      max_mindt  = _G["maxMindt"].as<double>();
-    if (_G["nbits"])         nbits      = _G["nbits"].as<int>();
-    if (_G["pkbits"])        pkbits     = _G["pkbits"].as<int>();
     if (_G["PFbufsz"])       PFbufsz    = _G["PFbufsz"].as<int>();
     if (_G["NICE"])          NICE       = _G["NICE"].as<int>();
     if (_G["VERBOSE"])       VERBOSE    = _G["VERBOSE"].as<int>();
@@ -349,8 +347,6 @@ void update_parm()
     
     if (not conf["time"])          conf["time"]        = tnow;
     if (not conf["dtime"])         conf["dtime"]       = dtime;
-    if (not conf["nbits"])         conf["nbits"]       = nbits;
-    if (not conf["pkbits"])        conf["pkbits"]      = pkbits;
     if (not conf["PFbufsz"])       conf["PFbufsz"]     = PFbufsz;
     if (not conf["NICE"])          conf["NICE"]        = NICE;
     if (not conf["VERBOSE"])       conf["VERBOSE"]     = VERBOSE;
