@@ -133,20 +133,20 @@ public:
   double d_yi_to_z(double y);
   
   //! Get potential for dimensionless coord with harmonic order m and radial orer n
-  double get_pot(double r, double z, int m, int n)
-  { return interp(m, n, r, z, pot); }
+  double get_pot(double x, double y, int m, int n)
+  { return interp(m, n, xi_to_r(x), yi_to_z(y), pot); }
 
   //! Get density for dimensionless coord with harmonic order l and radial orer n  
-  double get_dens(double r, double z, int m, int n)
-  { return interp(m, n, r, z, dens); }
+  double get_dens(double x, double y, int m, int n)
+  { return interp(m, n, xi_to_r(x), yi_to_z(y), dens); }
 
   //! Get radial force for dimensionless coord with harmonic order l and radial orer n
-  double get_rforce(double r, double z, int m, int n)
-  { return interp(m, n, r, z, rforce); }
+  double get_rforce(double x, double y, int m, int n)
+  { return interp(m, n, xi_to_r(x), yi_to_z(y), rforce); }
 
   //! Get radial force for dimensionless coord with harmonic order l and radial orer n
-  double get_zforce(double r, double z, int m, int n)
-  { return interp(m, n, r, z, zforce, true); }
+  double get_zforce(double x, double y, int m, int n)
+  { return interp(m, n, xi_to_r(x), yi_to_z(y), zforce, true); }
 
   //! Get potential for dimensionless coord with harmonic order m and radial orer n
   void get_pot(Eigen::MatrixXd& p, double r, double z)
