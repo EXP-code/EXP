@@ -61,12 +61,6 @@ extern int nbalance;
 //! Load balancing threshold (larger difference initiates balancing)
 extern double dbthresh;
 
-//! Number of bits per dimension for hash key
-extern unsigned nbits;
-
-//! Number of bits per dimension for partition
-extern unsigned pkbits;
-
 //! Particle ferry buffer size
 extern unsigned PFbufsz;
 
