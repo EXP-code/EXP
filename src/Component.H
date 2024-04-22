@@ -24,8 +24,6 @@
 #endif
 
 
-class pHOT;
-
 //! Structure used to sort old & new indices for load balancing
 struct loadb_datum
 {
@@ -191,7 +189,6 @@ class Component
   friend class ScatterMFP;
   friend class OrbTrace;
   friend class ComponentContainer;
-  friend class pHOT;
 
 private:
 
@@ -305,9 +302,6 @@ protected:
 
   //! Points to associated particles using sequence number
   PartMap particles;
-
-  //! Oct tree
-  pHOT *tree;
 
   //! Level occupation output
   int nlevel;
@@ -638,7 +632,7 @@ public:
     return particles;
   }
 
-  //! Access to particle
+  //! Access to particle as a pointer
   Particle *Part(unsigned long i) {
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
@@ -647,15 +641,43 @@ public:
     return tp->second.get();
   }
 
+  //! Access to particle via the shared pointer
+  PartPtr partPtr(unsigned long i) {
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+    }
+    return tp->second;
+  }
+
+  //! Check if particle index is in the component
+  bool partExists(unsigned long i) {
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      return false;
+    }
+    return true;
+  }
+
   //! Generate new particle: this adds a new particle and returns a
   //! pointer to the same particle.  It is the caller's responsbility
   //! to populate the phase space and particle attributes with sane
   //! values.
   Particle *GetNewPart();
 
+  //! Add a particle to the component
+  void AddPart(PartPtr p);
+
   //! Remove a particle from the component
   void DestroyPart(PartPtr p);
 
+  //! Erase a particle with no level list check
+  void ErasePart(PartPtr p)
+  {
+    particles.erase(p->indx);
+    nbodies = particles.size();
+  }
+  
   //! Particle vector size
   unsigned Number() {
     return particles.size();
@@ -895,20 +917,11 @@ public:
   //! Print out the level lists to stdout for diagnostic purposes
   void print_level_lists(double T);
 
-  //! Temporary access to tree (until I figure out what is really needed)
-  pHOT* Tree() { return tree; }
-
   //! Running clock on the current potential/force evaluation
   Timer time_so_far;
 
   //! Time in potential/force computation so far
   double get_time_sofar() { return time_so_far.getTime(); }
-
-  //! Create a hashed octree for this component
-  void HOTcreate(std::set<speciesKey> spec_list);
-
-  //! Delete the hashed octree for this component
-  void HOTdelete();
 
   //! Check for indexing
   inline bool Indexing() { return indexing; }

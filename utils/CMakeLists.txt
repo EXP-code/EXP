@@ -1,5 +1,4 @@
 add_subdirectory(Analysis)
-add_subdirectory(Cooling)
 add_subdirectory(ICs)
 add_subdirectory(PhaseSpace)
 add_subdirectory(SL)
