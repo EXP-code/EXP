@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21) # Needed for CUDA, MPI, and CTest features
 
 project(
   EXP
-  VERSION "7.7.29"
+  VERSION "7.7.30"
   HOMEPAGE_URL https://github.com/EXP-code/EXP
   LANGUAGES C CXX Fortran)
 
