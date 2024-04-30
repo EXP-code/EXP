@@ -218,7 +218,7 @@ set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "Do not build the documentation")
 set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "Do not use Boost in HighFIve")
 set(H5_USE_EIGEN TRUE CACHE BOOL "Eigen3 support in HighFive")
 
-add_subdirectory(extern/HighFive)
+add_subdirectory(extern/HighFive EXCLUDE_FROM_ALL)
 
 # Configure the remaining native subdirectories
 add_subdirectory(exputil)
