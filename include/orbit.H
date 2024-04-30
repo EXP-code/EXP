@@ -69,6 +69,7 @@ private:
   void compute_action(void) { compute_freq(); }
   void compute_freq(void);
   void compute_angles(void);
+  void compute_angles_old(void);
   void compute_freq_epi(void);
   void compute_angles_epi(void);
   void compute_biorth(void);
