@@ -267,7 +267,7 @@ double BiorthCyl::r_to_xi(double r)
   if (cmapR>0) {
     if (r<0.0) {
       ostringstream msg;
-      msg << "radius=" << r << " < 0! [mapped]";
+      msg << "BiorthCyl: radius=" << r << " < 0! [mapped]";
       throw GenericError(msg.str(), __FILE__, __LINE__, 2040, true);
     }
     return (r/scale - 1.0)/(r/scale + 1.0);

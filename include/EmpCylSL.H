@@ -659,6 +659,9 @@ public:
   //! Evaluate density field
   double accumulated_dens_eval(double r, double z, double phi, double& d0);
 
+  //! Evaluate peak density height within two limits
+  double accumulated_midplane_eval(double r, double zmin, double zmax, double phi, int num=40);
+
   /** Extrapolate and sum coefficents per multistep level to get
       a complete set of coefficients for force evaluation at an
       intermediate time step

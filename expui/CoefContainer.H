@@ -100,10 +100,15 @@ namespace MSSA
     //@}
 
     //@{
-    //! Cylindrical coefficients
+    //! Slab coefficients
+    void pack_slab();
+    void unpack_slab();
+    //@}
+
+    //@{
+    //! Cube coefficients
     void pack_cube();
     void unpack_cube();
-    void restore_background_cube();
     //@}
 
     //@{

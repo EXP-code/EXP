@@ -181,6 +181,9 @@ namespace BasisClasses
       else if ( !name.compare("flatdisk") ) {
 	basis = std::make_shared<FlatDisk>(conf);
       }
+      else if ( !name.compare("slabSL") ) {
+	basis = std::make_shared<Slab>(conf);
+      }
       else if ( !name.compare("cube") ) {
 	basis = std::make_shared<Cube>(conf);
       }
@@ -193,7 +196,7 @@ namespace BasisClasses
       else {
 	std::string msg("I don't know about the basis named: ");
 	msg += name;
-	msg += ". Known types are currently 'sphereSL', 'cylinder' and 'flatdisk'";
+	msg += ". Known types are currently 'sphereSL', 'cylinder', 'flatdisk', 'slabSL', 'field', and 'velocity'";
 	throw std::runtime_error(msg);
       }
     }

@@ -2,7 +2,7 @@
 set(bin_PROGRAMS shrinkics gensph gendisk gendisk2d gsphere pstmod
   empinfo empdump eofbasis eofcomp testcoefs testcoefs2 testdeval
   forcetest hdf52accel forcetest2 cylcache modelfit test2d addsphmod
-  cubeics zangics)
+  cubeics zangics slabics)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
@@ -79,6 +79,8 @@ add_executable(addsphmod addsphmod.cc AddSpheres.cc)
 add_executable(cubeics cubeICs.cc)
 
 add_executable(zangics ZangICs.cc)
+
+add_executable(slabics genslab.cc massmodel1d.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})

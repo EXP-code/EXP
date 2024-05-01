@@ -116,6 +116,26 @@ void FieldGeneratorClasses(py::module &m) {
 	py::arg("times"), py::arg("lower"), py::arg("upper"),
 	py::arg("gridsize"));
 
+  f.def("setMidplane", &Field::FieldGenerator::setMidplane,
+	R"(
+        Set the field generator to generate midplane fields
+
+        Parameters
+        ----------
+        on : bool
+           True to generate midplane fields
+        )", py::arg("on"));
+
+  f.def("setColumnHeight", &Field::FieldGenerator::setColumnHeight,
+	R"(
+        Set the column extent for midplane position search
+
+        Parameters
+        ----------
+        colheight : double
+           Number of scale heights above and below plane for search
+        )", py::arg("colheight"));
+
   f.def("slices", &Field::FieldGenerator::slices,
 	R"(
         Return a dictionary of grids (2d numpy arrays) indexed by time and field type

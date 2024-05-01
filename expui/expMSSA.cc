@@ -1657,7 +1657,9 @@ namespace MSSA {
 	}
       }
     } else {
-      // the default detrending, by mean and variance, type = TrendType::perChannel
+      // the default detrending, by mean and variance, type =
+      // TrendType::perChannel
+      //
       for (auto & u : mean) {
 	Key k = u.first;
 	//--------------

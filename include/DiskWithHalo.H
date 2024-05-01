@@ -66,6 +66,15 @@ public:
     dur = dur1 + dur2;
   }
   
+  double get_mass(const double x1, const double x2, const double x3)
+  { return get_mass(sqrt(x1*x1 + x2*x2 + x3*x3)); }
+  
+  double get_density(const double x1, const double x2, const double x3)
+  { return get_density(sqrt(x1*x1 + x2*x2 + x3*x3)); }
+  
+  double get_pot(const double x1, const double x2, const double x3)
+  { return get_pot(sqrt(x1*x1 + x2*x2 + x3*x3)); }
+
   // Addiional member functions
 
   double get_min_radius(void) override

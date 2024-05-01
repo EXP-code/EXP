@@ -321,7 +321,8 @@ void SphericalOrbit::compute_freq(void)
       warn(rname, msg.str());
     }
 #endif
-    accum2 += cost/sqrt(2.0*(energy-ur) - (jmax*jmax*kappa*kappa*s*s));
+    double denom = 2.0*(energy-ur) - jmax*jmax*kappa*kappa*s*s;
+    if (denom>0.0) accum2 += cost/sqrt(denom);
   }
   
   freq[0] = M_PI/(am*accum1*dt);
@@ -359,6 +360,164 @@ double  rombe2(double a, double b, std::function<double(double)>, int n);
 double dtp, dtm;
 
 void SphericalOrbit::compute_angles(void)
+{
+  l1s = l2s = 0;
+
+  angle_grid.t.    resize(2, recs);
+  angle_grid.w1.   resize(2, recs);
+  angle_grid.dw1dt.resize(2, recs);
+  angle_grid.f.    resize(2, recs);
+  angle_grid.r.    resize(2, recs);
+  
+  if (Gkn.n == 0) {
+    Gkn = LegeQuad(recs);
+    dtp = -0.5*M_PI;
+    dtm = M_PI;
+  } 
+  else if (Gkn.n != recs) {
+    Gkn = LegeQuad(recs);
+  }
+
+  double JJ = kappa * jmax;
+
+  if (freq_defined) {
+    ap = 0.5*(r_apo + r_peri);
+    am = 0.5*(r_apo - r_peri);
+    sp = ap/(r_apo*r_peri);
+    sm = am/(r_apo*r_peri);
+  }
+  else
+    compute_freq();
+
+
+  const double tol = 1.0e-8;       // tolerance for radicand 
+
+  auto fw1 = [&](double t)
+  {
+    double r  = ap + am*sin(t);
+    double ur = model->get_pot(r);
+    double radcand = 2.0*(energy-ur)-JJ*JJ/(r*r);
+
+    double eps1 = fabs( 0.5*M_PI + t);
+    double eps2 = fabs(-0.5*M_PI + t);
+
+    if (radcand < tol or eps1<1.0e-3 or eps2<1.0e-3) {
+      // value near pericenter
+      if (t<0) {
+	radcand = fabs(JJ*JJ/(r_peri*r_peri*r_peri) - model->get_dpot(r_peri));
+	// radcand = JJ*JJ/(r_peri*r_peri*r_peri) - model->get_dpot(r_peri);
+	if (radcand < 0.0) {
+	  std::ostringstream sout;
+	  sout << "fw1: impossible radicand with t=" << t;
+	  throw std::runtime_error(sout.str());
+	}
+	return sqrt(am/radcand);
+      }
+      // value near apocenter
+      else {
+	radcand = fabs(model->get_dpot(r_apo) - JJ*JJ/(r_apo*r_apo*r_apo));
+	// radcand = model->get_dpot(r_apo) - JJ*JJ/(r_apo*r_apo*r_apo);
+	if (radcand < 0.0) {
+	  std::ostringstream sout;
+	  sout << "fw1: impossible radicand with t=" << t;
+	  throw std::runtime_error(sout.str());
+	}
+	return sqrt(am/radcand);
+      }
+    }
+
+    return am*cos(t)/sqrt(radcand);
+  };
+
+  auto ff = [&](double t)
+  {
+    double s = sp + sm*sin(t);
+    double ur = model->get_pot(1.0/s);
+    double radcand = 2.0*(energy-ur) - JJ*JJ*s*s;
+
+    double eps1 = fabs( 0.5*M_PI + t);
+    double eps2 = fabs(-0.5*M_PI + t);
+
+    if (radcand < tol or eps1<1.0e-3 or eps2<1.0e-3) {
+      // value near apocenter
+      if (t<0) {
+	radcand = fabs(model->get_dpot(r_apo) - JJ*JJ/(r_apo*r_apo*r_apo));
+	// radcand = model->get_dpot(r_apo) - JJ*JJ/(r_apo*r_apo*r_apo);
+	if (radcand < 0.0) {
+	  std::ostringstream sout;
+	  sout << "ff: impossible radicand with t=" << t;
+	  throw std::runtime_error(sout.str());
+	}
+	return sqrt(sm/radcand)/r_apo;
+      }
+      // value near pericenter
+      else {
+	radcand = fabs(JJ*JJ/(r_peri*r_peri*r_peri) - model->get_dpot(r_peri));
+	// radcand = JJ*JJ/(r_peri*r_peri*r_peri) - model->get_dpot(r_peri);
+	if (radcand < 0.0) {
+	  std::ostringstream sout;
+	  sout << "ff: impossible radicand with t=" << t;
+	  throw std::runtime_error(sout.str());
+	}
+	return sqrt(sm/radcand)/r_peri;
+      }
+    }
+
+    return sm*cos(t)/sqrt(radcand);
+  };
+
+  double accum1 = 0.0;
+  double accum2 = 0.0;
+  double tl = -0.5*M_PI;
+  double sl =  0.5*M_PI;
+
+  for (int i=0; i<recs; i++) {
+    double t = dtp + dtm*i/(recs-1);
+    double r = ap + am*sin(t);
+
+    if (i>0) accum1 += rombe2(tl, t, fw1, nbsct);
+
+    double arg = (1.0/r - sp)/sm, s;
+
+    if (arg>1.0)       s =  0.5*M_PI;
+    else if (arg<-1.0) s = -0.5*M_PI;
+    else               s = asin((1.0/r - sp)/sm);
+
+    if (i>0) accum2 += rombe2(sl, s, ff, nbsct);
+
+    angle_grid.t(0, i)     = t;
+    angle_grid.w1(0, i)    = freq[0]*accum1;
+    angle_grid.dw1dt(0, i) = freq[0]*fw1(t);
+    angle_grid.f(0, i)     = freq[1]*accum1 + JJ*accum2;
+    angle_grid.r(0, i)     = r;
+
+    tl = t;
+    sl = s;
+  }
+
+
+  Eigen::VectorXd work(angle_grid.t.row(0).size());
+  
+  const double bc = 1.0e30;
+
+  Spline(angle_grid.w1.row(0), angle_grid.t.row(0),     bc, bc, work);
+  angle_grid.t.row(1) = work;
+
+  Spline(angle_grid.w1.row(0), angle_grid.dw1dt.row(0), bc, bc, work);
+  angle_grid.dw1dt.row(1) = work;
+
+  Spline(angle_grid.w1.row(0), angle_grid.f.row(0),     bc, bc, work);
+  angle_grid.f.row(1) = work;
+
+  Spline(angle_grid.w1.row(0), angle_grid.r.row(0),     bc, bc, work);
+  angle_grid.r.row(1) = work;
+
+  angle_grid.num = recs;
+
+  angle_defined = true;
+}
+
+void SphericalOrbit::compute_angles_old(void)
 {
   double accum1,accum2,r, s, t, sl, tl;
   int i;
@@ -401,14 +560,34 @@ void SphericalOrbit::compute_angles(void)
     double ur = model->get_pot(r);
     double radcand = 2.0*(energy-ur)-JJ*JJ/(r*r);
 
-    if (radcand < tol) {
-      // values near turning points 
-      double sgn = 1.0;
-      if (t<0) sgn = -1.0;
-      r = ap + sgn*am;
-      double dudr = model->get_dpot(r);
-      return sqrt( am*sgn/(dudr-JJ*JJ/(r*r*r)) );
+    double eps1 = fabs( 0.5*M_PI + t);
+    double eps2 = fabs(-0.5*M_PI + t);
+
+    if (radcand < tol or eps1<1.0e-3 or eps2<1.0e-3) {
+      // value near pericenter
+      if (t<0) {
+	radcand = fabs(JJ*JJ/(r_peri*r_peri*r_peri) - model->get_dpot(r_peri));
+	// radcand = JJ*JJ/(r_peri*r_peri*r_peri) - model->get_dpot(r_peri);
+	if (radcand < 0.0) {
+	  std::ostringstream sout;
+	  sout << "fw1: impossible radicand with t=" << t;
+	  throw std::runtime_error(sout.str());
+	}
+	return sqrt(am/radcand);
+      }
+      // value near apocenter
+      else {
+	radcand = fabs(model->get_dpot(r_apo) - JJ*JJ/(r_apo*r_apo*r_apo));
+	// radcand = model->get_dpot(r_apo) - JJ*JJ/(r_apo*r_apo*r_apo);
+	if (radcand < 0.0) {
+	  std::ostringstream sout;
+	  sout << "fw1: impossible radicand with t=" << t;
+	  throw std::runtime_error(sout.str());
+	}
+	return sqrt(am/radcand);
+      }
     }
+
     return am*cos(t)/sqrt(radcand);
   };
 
@@ -418,14 +597,34 @@ void SphericalOrbit::compute_angles(void)
     double ur = model->get_pot(1.0/s);
     double radcand = 2.0*(energy-ur) - JJ*JJ*s*s;
 
-    if (radcand < tol) {
-      // values near turning points 
-      double sgn = 1.0;
-      if (t<0) sgn = -1.0;
-      s = sp + sgn*sm;
-      double dudr = model->get_dpot(1.0/s);
-      return sqrt( -sm*s*s*sgn/(dudr-JJ*JJ*s*s*s) );
+    double eps1 = fabs( 0.5*M_PI + t);
+    double eps2 = fabs(-0.5*M_PI + t);
+
+    if (radcand < tol or eps1<1.0e-3 or eps2<1.0e-3) {
+      // value near apocenter
+      if (t<0) {
+	radcand = fabs(model->get_dpot(r_apo) - JJ*JJ/(r_apo*r_apo*r_apo));
+	// radcand = model->get_dpot(r_apo) - JJ*JJ/(r_apo*r_apo*r_apo);
+	if (radcand < 0.0) {
+	  std::ostringstream sout;
+	  sout << "ff: impossible radicand with t=" << t;
+	  throw std::runtime_error(sout.str());
+	}
+	return sqrt(sm/radcand)/r_apo;
+      }
+      // value near pericenter
+      else {
+	radcand = fabs(JJ*JJ/(r_peri*r_peri*r_peri) - model->get_dpot(r_peri));
+	// radcand = JJ*JJ/(r_peri*r_peri*r_peri) - model->get_dpot(r_peri);
+	if (radcand < 0.0) {
+	  std::ostringstream sout;
+	  sout << "ff: impossible radicand with t=" << t;
+	  throw std::runtime_error(sout.str());
+	}
+	return sqrt(sm/radcand)/r_peri;
+      }
     }
+
     return sm*cos(t)/sqrt(radcand);
   };
 

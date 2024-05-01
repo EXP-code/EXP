@@ -30,7 +30,7 @@ using CmplxT = thrust::complex<cuFP_t>;
 // Index functions for coefficients based on Eigen Tensor packing order
 //
 __device__
-int Index(int i, int j, int k)
+int cubeIndex(int i, int j, int k)
 {
   i += cubeNumX;
   j += cubeNumY;
@@ -38,6 +38,7 @@ int Index(int i, int j, int k)
   return k*cubeNX*cubeNY + j*cubeNX + i;
 }
 
+/*
 // Index function for modulus coefficients
 //
 __device__
@@ -49,9 +50,10 @@ thrust::tuple<int, int, int> TensorIndices(int indx)
 
   return {i, j, k};
 }
+*/
 
 __device__
-thrust::tuple<int, int, int> WaveNumbers(int indx)
+thrust::tuple<int, int, int> cubeWaveNumbers(int indx)
 {
   int k = indx/(cubeNX*cubeNY);
   int j = (indx - k*cubeNX*cubeNY)/cubeNX;
@@ -59,7 +61,6 @@ thrust::tuple<int, int, int> WaveNumbers(int indx)
 
   return {i-cubeNumX, j-cubeNumY, k-cubeNumZ};
 }
-
 
 __global__
 void testConstantsCube()
@@ -192,7 +193,7 @@ __global__ void coefKernelCube
 
 	  // Get the wave numbers
 	  int ii, jj, kk;
-	  thrust::tie(ii, jj, kk) = WaveNumbers(s);
+	  thrust::tie(ii, jj, kk) = cubeWaveNumbers(s);
 
 	  // Skip the constant term and the divide by zero
 	  //
@@ -227,7 +228,7 @@ __global__ void coefKernelCube
 	      int l2 = ii*ii + jj*jj + kk*kk;
 	      if (l2) {		// Only compute for non-zero l-index
 		cuFP_t norm = -mm/sqrt(M_PI*l2);
-		coef._v[Index(ii, jj, kk)*N + i] = X*Y*Z*norm;
+		coef._v[cubeIndex(ii, jj, kk)*N + i] = X*Y*Z*norm;
 	      }
 	    }
 	  }
@@ -361,7 +362,7 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
       //
       for (int s=0; s<cubeNdim; s++) {
 
-	thrust::tie(ind[0], ind[1], ind[2]) = WaveNumbers(s);
+	thrust::tie(ind[0], ind[1], ind[2]) = cubeWaveNumbers(s);
 
 	// Exponent and normalization
 	//
@@ -409,7 +410,7 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
 	    int l2 = ii*ii + jj*jj + kk*kk;
 	    if (l2) {		// Only compute the non-constant terms
 	      cuFP_t norm  = 1.0/sqrt(M_PI*l2);
-	      auto pfac = coef._v[Index(ii, jj, kk)] * X*Y*Z*norm;
+	      auto pfac = coef._v[cubeIndex(ii, jj, kk)] * X*Y*Z*norm;
 
 	      pot    += pfac;	// Potential and force vector
 	      acc[0] += CmplxT(0.0, -cubeDfac*ii) * pfac;

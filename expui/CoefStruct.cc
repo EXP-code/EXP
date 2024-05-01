@@ -38,6 +38,18 @@ namespace CoefClasses
       throw std::runtime_error("SphStruct::create: nmax must be >0");
   }
 
+  void SlabStruct::create()
+  {
+    if (nmaxx>=0 and nmaxy>=0 and nmaxz>0) {
+      nx = 2*nmaxx + 1;
+      ny = 2*nmaxy + 1;
+      nz = nmaxz;
+      dim = nx * ny * nz;
+      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
+    } else
+      throw std::runtime_error("SlabStruct::create: all dimensions must be >=0");
+  }
+
   void CubeStruct::create()
   {
     if (nmaxx>0 and nmaxy>0 and nmaxz>0) {
@@ -105,6 +117,26 @@ namespace CoefClasses
     ret->nmax   = nmax;
     ret->scale  = scale;
     ret->normed = normed;
+
+    return ret;
+  }
+
+  std::shared_ptr<CoefStruct> SlabStruct::deepcopy()
+  {
+    auto ret = std::make_shared<SlabStruct>();
+
+    copyfields(ret);
+
+    assert(("SlabStruct::deepcopy dimension mismatch", dim == store.size()));
+
+    ret->coefs  = std::make_shared<coefType>(ret->store.data(), nx, ny, nz);
+    ret->nmaxx  = nmaxx;
+    ret->nmaxy  = nmaxy;
+    ret->nmaxz  = nmaxz;
+    ret->nx     = nx;
+    ret->ny     = ny;
+    ret->nz     = nz;
+    ret->dim    = dim;
 
     return ret;
   }
@@ -433,6 +465,13 @@ namespace CoefClasses
     
     return true;
   }
+
+  bool SlabStruct::read(std::istream& in, bool exp_type, bool verbose)
+  {
+    std::cout << "SlabStruct: no native coefficient format for this class" << std::endl;
+    return false;
+  }
+  
 
   bool CubeStruct::read(std::istream& in, bool exp_type, bool verbose)
   {

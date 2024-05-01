@@ -4,7 +4,7 @@ if (ENABLE_CUDA)
   list(APPEND CUDA_SRC cudaPolarBasis.cu cudaSphericalBasis.cu
     cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc
     cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu cudaOrient.cu
-    cudaBiorthCyl.cu cudaCube.cu)
+    cudaBiorthCyl.cu cudaCube.cu cudaSlabSL.cu)
 endif()
 
 set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
@@ -17,7 +17,7 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   Output.cc externalShock.cc CylEXP.cc generateRelaxation.cc
   HaloBulge.cc incpos.cc incvel.cc ComponentContainer.cc OutAscii.cc
   OutMulti.cc OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc
-  OutVel.cc OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc step.cc
+  OutVel.cc OutCoef.cc multistep.cc parse.cc SlabSL.cc step.cc
   tidalField.cc ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
   ParticleFerry.cc chkSlurm.c chkTimer.cc GravKernel.cc ${CUDA_SRC}
   CenterFile.cc PolarBasis.cc FlatDisk.cc signals.cc)

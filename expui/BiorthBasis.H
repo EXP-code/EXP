@@ -2,6 +2,8 @@
 #define _BiorthBasis_H
 
 #include <functional>
+#include <tuple>
+
 #include <Eigen/Eigen>
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
@@ -571,6 +573,152 @@ namespace BasisClasses
       std::cout << "Cylindrical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
+  };
+  
+  /**
+     Uses the SLGridSlab basis to evaluate expansion coeffients and
+     provide potential and density basis fields
+  */
+  class Slab : public BiorthBasis
+  {
+
+  public:
+    
+    using BasisMap   = std::map<std::string, Eigen::VectorXd>;
+    using BasisArray = std::vector<std::vector<std::vector<BasisMap>>>;
+
+  private:
+    
+    //! Wave function constant
+    static constexpr std::complex<double> kfac{0.0, 2.0*M_PI};
+
+    //! Initialization helper
+    void initialize();
+
+    //! Orthogonal basis instance
+    std::shared_ptr<SLGridSlab> ortho;
+    
+    //! Minimum expansion order for restriction
+    int nminx, nminy, nminz;
+
+    //! Maximum expansion order for construction
+    int nmaxx, nmaxy, nmaxz, imx, imy, imz;
+
+    //! Number of integration knots for orthogonal check
+    int knots;
+
+    //! SLGridSlab mesh size
+    int ngrid = 1000;
+
+    //! Target model type for SLGridSlab
+    std::string type = "isothermal";
+
+    //! Scale height for slab
+    double hslab;
+
+    //! Upper vertical bound for slab
+    double zmax;
+
+    //! Number of particles used to compute grid
+    unsigned used;
+  
+    using coefType = Eigen::Tensor<std::complex<double>, 3>;
+
+    coefType expcoef;
+    
+    //! Notal mass on grid
+    double totalMass;
+
+    //! Number of particles
+    int npart;
+    
+  protected:
+
+    //! Evaluate basis in Cartesian coordinates
+    virtual std::vector<double>
+    crt_eval(double x, double y, double z);
+    
+    //! Evaluate basis in spherical coordinates.  Conversion from the
+    //! Cartesian evaluation above.
+    virtual std::vector<double>
+    sph_eval(double r, double costh, double phi);
+    
+    //! Evaluate basis in cylindrical coordinates
+    virtual std::vector<double>
+    cyl_eval(double r, double z, double phi);
+
+    //! Load coefficients into the new CoefStruct
+    virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
+
+    //! Set coefficients
+    virtual void set_coefs(CoefClasses::CoefStrPtr coefs);
+
+    //! Valid keys for YAML configurations
+    static const std::set<std::string> valid_keys;
+
+    //! Return readable class name
+    virtual const std::string classname() { return "Slab";}
+
+    //! Readable index name
+    virtual const std::string harmonic()  { return "n";}
+
+    //! Evaluate field
+    std::tuple<double, double, double, double, double>
+    eval(double x, double y, double z);
+
+  public:
+    
+    //! Constructor from YAML node
+    Slab(const YAML::Node& conf);
+    
+    //! Constructor from YAML string
+    Slab(const std::string& confstr);
+    
+    //! Destructor
+    virtual ~Slab(void) {}
+    
+    //! Zero out coefficients to prepare for a new expansion
+    void reset_coefs(void);
+    
+    //! Make coefficients after accumulation
+    void make_coefs(void);
+    
+    //! Accumulate new coefficients
+    virtual void accumulate(double x, double y, double z, double mass);
+    
+    //! Return current maximum harmonic order in expansion
+    Eigen::Vector3i getNmax() { return {nmaxx, nmaxy, nmaxz}; }
+    
+    //! Return potential-density pair of a vector of a vector of 1d
+    //! basis-function grids for the SL slab, linearly spaced
+    //! between [zmin, zmax]
+    BasisArray getBasis
+    (double zmin=-1.0, double zmax=0.5, int numgrid=2000);
+
+    //! Compute the orthogonality of the basis by returning inner
+    //! produce matrices
+    std::vector<Eigen::MatrixXd> orthoCheck();
+
+    //! Biorthogonality sanity check
+    bool orthoTest()
+    {
+      auto ret = orthoCheck();
+      double worst = 0.0;
+      for (auto c : ret) {
+	for (int n1=0; n1<c.rows(); n1++) {
+	  for (int n2=0; n2<c.cols(); n2++) {
+	    double val = std::abs(c(n1, n2));
+	    if (n1==n2) val = std::fabs(val - 1.0);
+	    worst = std::max<double>(val, worst);
+	  }
+	}
+      }
+	
+      std::cout << "Slab::orthoTest: worst=" << worst << std::endl;
+      if (worst > __EXP__::orthoTol) return false;
+      return true;
+    }
+
   };
   
   /**

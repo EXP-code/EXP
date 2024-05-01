@@ -117,6 +117,11 @@ namespace BasisClasses
     //! Get field labels
     virtual std::vector<std::string> getFieldLabels(const Coord ctype) = 0;
 
+    //! Turn on midplane evaluation
+    bool midplane = false;
+
+    //! Midplane escursion parameter
+    double colh = 4.0;
 
   public:
     
@@ -219,6 +224,13 @@ namespace BasisClasses
 
     //! Clear the particle selector callback
     void clrSelector() { ftor = nullptr; }
+
+    //! Turn on/off midplane evaluation (only effective for disk basis)
+    void setMidplane(bool value) { midplane = value; }
+
+    //! Height above/below the plane for midplane search in disk scale
+    //! lengths
+    void setColumnHeight(double value) { colh = value; }
   };
   
   using BasisPtr = std::shared_ptr<Basis>;
