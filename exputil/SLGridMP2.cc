@@ -541,8 +541,8 @@ bool SLGridSph::ReadH5Cache(void)
       
       // Table arrays will be allocated
       //
-      arrays.getDataSet("ev").read(table[l].ev);
-      arrays.getDataSet("ef").read(table[l].ef);
+      arrays.getDataSet("ev").read<Eigen::VectorXd>(table[l].ev);
+      arrays.getDataSet("ef").read<Eigen::MatrixXd>(table[l].ef);
     }
     
     if (myid==0)
