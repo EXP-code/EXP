@@ -531,15 +531,15 @@ namespace BasisClasses
     double potlfac = 1.0/scale;
     
     return
-      {den0 * densfac,
-       den1 * densfac,
-       (den0 + den1) * densfac,
-       pot0 * potlfac,
-       pot1 * potlfac,
-       (pot0 + pot1) * densfac,
-       potr * (-potlfac)/scale,
-       pott * (-potlfac),
-       potp * (-potlfac)};
+      {den0 * densfac,		// 0
+       den1 * densfac,		// 1
+       (den0 + den1) * densfac,	// 2
+       pot0 * potlfac,		// 3
+       pot1 * potlfac,		// 4
+       (pot0 + pot1) * densfac,	// 5
+       potr * (-potlfac)/scale,	// 6
+       pott * (-potlfac),	// 7
+       potp * (-potlfac)};	// 8
     //         ^
     //         |
     // Return force not potential gradient
@@ -554,10 +554,10 @@ namespace BasisClasses
     
     auto v = sph_eval(r, costh, phi);
     
-    double potR = v[4]*sinth + v[5]*costh;
-    double potz = v[4]*costh - v[5]*sinth;
+    double potR = v[6]*sinth + v[7]*costh;
+    double potz = v[6]*costh - v[7]*sinth;
 
-    return {v[0], v[1], v[2], v[3], potR, potz, v[6]};
+    return {v[0], v[1], v[2], v[3], v[4], v[5], potR, potz, v[8]};
   }
 
 
@@ -571,12 +571,10 @@ namespace BasisClasses
 
     auto v = cyl_eval(R, z, phi);
 
-    //tdens0, tdens, tpotl0, tpotl, tpotR, tpotz, tpotp
+    double tpotx = v[6]*x/R - v[8]*y/R ;
+    double tpoty = v[6]*y/R + v[8]*x/R ;
     
-    double tpotx = v[4]*x/R - v[6]*y/R ;
-    double tpoty = v[4]*y/R + v[6]*x/R ;
-    
-    return {v[0], v[1], v[2], v[3], tpotx, tpoty, v[5]};
+    return {v[0], v[1], v[2], v[3], v[4], v[5], tpotx, tpoty, v[7]};
   }
   
 
@@ -1277,14 +1275,15 @@ namespace BasisClasses
 
     if (midplane) {
       height = sl->accumulated_midplane_eval(R, -colh*hcyl, colh*hcyl, phi);
-
       return
 	{tdens0, tdens - tdens0, tdens,
-	 tpotl0, tpotl - tpotl0, tpotl, tpotR, tpotz, tpotp, height};
+	 tpotl0, tpotl - tpotl0, tpotl,
+	 tpotR, tpotz, tpotp, height};
     } else {
       return
 	{tdens0, tdens - tdens0, tdens,
-	 tpotl0, tpotl - tpotl0, tpotl, tpotR, tpotz, tpotp};
+	 tpotl0, tpotl - tpotl0, tpotl,
+	 tpotR, tpotz, tpotp};
     }
   }
   
@@ -1741,7 +1740,7 @@ namespace BasisClasses
       rpot = -totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
       zpot = -totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
       
-      return {den0, den1, pot0, pot1, rpot, zpot, ppot};
+      return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
     }
 
     // Get the basis fields
@@ -1827,16 +1826,16 @@ namespace BasisClasses
     // Cylindrical coords
     //
     double sinth = sqrt(fabs(1.0 - costh*costh));
-    double R = r*sinth, z = r*costh, potR, potz;
+    double R = r*sinth, z = r*costh;
 
     auto v = cyl_eval(R, z, phi);
   
     // Spherical force element converstion
     //
-    double potr = potR*sinth + potz*costh;
-    double pott = potR*costh - potz*sinth;
+    double potr = v[6]*sinth + v[7]*costh;
+    double pott = v[6]*costh - v[7]*sinth;
 
-    return {v[0], v[1], v[2], v[3], potr, pott, v[6]};
+    return {v[0], v[1], v[2], v[3], v[4], v[5], potr, pott, v[8]};
   }
 
   std::vector<double> FlatDisk::crt_eval(double x, double y, double z)
@@ -1848,10 +1847,10 @@ namespace BasisClasses
 
     auto v = cyl_eval(R, z, phi);
 
-    double potx = v[4]*x/R - v[6]*y/R;
-    double poty = v[4]*y/R + v[6]*x/R;
+    double potx = v[4]*x/R - v[8]*y/R;
+    double poty = v[4]*y/R + v[8]*x/R;
 
-    return {v[0], v[1], v[2], v[3], potx, poty, v[5]};
+    return {v[0], v[1], v[2], v[3], v[4], v[5], potx, poty, v[7]};
   }
 
   std::vector<Eigen::MatrixXd> FlatDisk::orthoCheck()
@@ -2582,7 +2581,7 @@ namespace BasisClasses
     double frcy = -frc(1).real();
     double frcz = -frc(2).real();
 
-    return {0, den1, 0, pot1, frcx, frcy, frcz};
+    return {0, den1, den1, 0, pot1, pot1, frcx, frcy, frcz};
   }
 
   std::vector<double> Cube::cyl_eval(double R, double z, double phi)
