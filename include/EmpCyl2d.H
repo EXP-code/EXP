@@ -17,10 +17,8 @@
 
 // For reading and writing cache file
 //
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 /**
    A class that implements most of the members for an Exp force routine

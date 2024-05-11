@@ -26,11 +26,8 @@
 
 // For reading and writing HDF5 cache files
 //
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
-
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 #ifdef HAVE_OMP_H
 #include <omp.h>		// For multithreading basis construction
@@ -7244,10 +7241,10 @@ bool EmpCylSL::ReadH5Cache()
 	sout << n;
 	auto order = harmonic.getGroup(sout.str());
       
-	order.getDataSet("potC")   .read(potC   [m][n]);
-	order.getDataSet("rforceC").read(rforceC[m][n]);
-	order.getDataSet("zforceC").read(zforceC[m][n]);
-	order.getDataSet("densC")  .read(densC[m][n]);
+	potC   [m][n] = order.getDataSet("potC")   .read<Eigen::MatrixXd>();
+	rforceC[m][n] = order.getDataSet("rforceC").read<Eigen::MatrixXd>();
+	zforceC[m][n] = order.getDataSet("zforceC").read<Eigen::MatrixXd>();
+	densC  [m][n] = order.getDataSet("densC")  .read<Eigen::MatrixXd>();
       }
     }
 
@@ -7267,10 +7264,10 @@ bool EmpCylSL::ReadH5Cache()
 	sout << n;
 	auto order = harmonic.getGroup(sout.str());
       
-	order.getDataSet("potS")   .read(potS   [m][n]);
-	order.getDataSet("rforceS").read(rforceS[m][n]);
-	order.getDataSet("zforceS").read(zforceS[m][n]);
-	order.getDataSet("densS")  .read(densS[m][n]);
+	potS   [m][n] = order.getDataSet("potS")   .read<Eigen::MatrixXd>();
+	rforceS[m][n] = order.getDataSet("rforceS").read<Eigen::MatrixXd>();
+	zforceS[m][n] = order.getDataSet("zforceS").read<Eigen::MatrixXd>();
+	densS  [m][n] = order.getDataSet("densS")  .read<Eigen::MatrixXd>();
       }
     }
 

@@ -1146,10 +1146,10 @@ bool EmpCyl2d::ReadH5Cache()
       sout << m;
       auto harmonic = file.getGroup(sout.str());
       
-      harmonic.getDataSet("potl").read(potl_array[m]);
-      harmonic.getDataSet("dens").read(dens_array[m]);
-      harmonic.getDataSet("dpot").read(dpot_array[m]);
-      harmonic.getDataSet("rot" ).read(rot_matrix[m]);
+      potl_array[m] = harmonic.getDataSet("potl").read<Eigen::MatrixXd>();
+      dens_array[m] = harmonic.getDataSet("dens").read<Eigen::MatrixXd>();
+      dpot_array[m] = harmonic.getDataSet("dpot").read<Eigen::MatrixXd>();
+      rot_matrix[m] = harmonic.getDataSet("rot" ).read<Eigen::MatrixXd>();
     }
 
   } catch (HighFive::Exception& err) {

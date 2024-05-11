@@ -1513,10 +1513,10 @@ namespace MSSA {
 
       auto analysis = h5file.getGroup("mssa_analysis");
 
-      analysis.getDataSet("Y" ).read(Y );
-      analysis.getDataSet("S" ).read(S );
-      analysis.getDataSet("U" ).read(U );
-      analysis.getDataSet("PC").read(PC);
+      Y  = analysis.getDataSet("Y" ).read<Eigen::MatrixXd>();
+      S  = analysis.getDataSet("S" ).read<Eigen::VectorXd>();
+      U  = analysis.getDataSet("U" ).read<Eigen::MatrixXd>();
+      PC = analysis.getDataSet("PC").read<Eigen::MatrixXd>();
 
       numK = numT - numW + 1;	// Recompute numK, needed for
 				// reconstruction

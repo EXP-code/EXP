@@ -504,7 +504,7 @@ void BiorthCyl::WriteH5Arrays(HighFive::Group& harmonic)
       sout << n;
       auto arrays = order.createGroup(sout.str());
 
-      HighFive::DataSet ds1 = arrays.createDataSet("density",   dens  [m][n]);
+      HighFive::DataSet ds1 = arrays.createDataSet<Eigen::MatrixXd>("density",   dens  [m][n]);
       HighFive::DataSet ds2 = arrays.createDataSet("potential", pot   [m][n]);
       HighFive::DataSet ds3 = arrays.createDataSet("rforce",    rforce[m][n]);
       HighFive::DataSet ds4 = arrays.createDataSet("zforce",    zforce[m][n]);

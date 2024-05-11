@@ -116,9 +116,7 @@ namespace CoefClasses
 
       if (Time < Tmin or Time > Tmax) continue;
 
-      int ldim = (Lmax+1)*(Lmax+2)/2;
-      Eigen::MatrixXcd in(ldim, Nmax);
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
       
       // Pack the data into the coefficient variable
       //
@@ -286,8 +284,7 @@ namespace CoefClasses
       std::array<long int, 3> shape;
       stanza.getAttribute("shape").read(shape);
 
-      Eigen::VectorXcd in(shape[0]*shape[1]*shape[2]);
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::VectorXcd>();
       
       // Pack the data into the coefficient variable
       //
@@ -378,8 +375,7 @@ namespace CoefClasses
       std::array<long int, 3> shape;
       stanza.getAttribute("shape").read(shape);
 
-      Eigen::VectorXcd in(shape[0]*shape[1]*shape[2]);
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::VectorXcd>();
       
       // Pack the data into the coefficient variable
       //

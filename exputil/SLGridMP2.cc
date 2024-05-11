@@ -30,10 +30,8 @@
 
 // For reading and writing cache file
 //
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 // For fortran call
 // (This should work both 32-bit and 64-bit . . . )
