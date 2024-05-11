@@ -506,6 +506,18 @@ bool SLGridSph::ReadH5Cache(void)
     if (not checkStr(geometry, "geometry"))  return false;
     if (not checkStr(forceID,  "forceID"))   return false;
 
+    // Version check
+    //
+    if (h5file.hasAttribute("Version")) {
+      if (not checkStr(Version, "Version"))  return false;
+    } else {
+      if (myid==0)
+	std::cout << "---- SLGridSph::ReadH5Cache: "
+		  << "recomputing cache for HighFive API change"
+		  << std::endl;
+      return false;
+    }
+
     // Parameter check
     //
     if (not checkStr(modl,     "model"))     return false;
@@ -604,6 +616,7 @@ void SLGridSph::WriteH5Cache(void)
 
     file.createAttribute<std::string>("geometry",  HighFive::DataSpace::From(geometry)).write(geometry);
     file.createAttribute<std::string>("forceID",   HighFive::DataSpace::From(forceID)).write(forceID);
+    file.createAttribute<std::string>("Version",   HighFive::DataSpace::From(Version)).write(Version);
       
     // Write parameters
     //

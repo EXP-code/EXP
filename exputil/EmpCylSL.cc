@@ -7040,7 +7040,8 @@ void EmpCylSL::WriteH5Cache()
     std::string model = EmpModelLabs[mtype];
 
     file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
-    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
+    file.createAttribute<std::string>("forceID",  HighFive::DataSpace::From(forceID)).write(forceID);
+    file.createAttribute<std::string>("Version",  HighFive::DataSpace::From(Version)).write(Version);
       
     // Write the specific parameters
     //
@@ -7160,6 +7161,18 @@ bool EmpCylSL::ReadH5Cache()
 		<< value << " found " << v << std::endl;
       return false;
     };
+
+    // Version check
+    //
+    if (file.hasAttribute("Version")) {
+      if (not checkStr(Version, "Version"))  return false;
+    } else {
+      if (myid==0)
+	std::cout << "---- EmpCylSL::ReadH5Cache: "
+		  << "recomputing cache for HighFive API change"
+		  << std::endl;
+      return false;
+    }
 
     if (not checkStr(geometry, "geometry"))  return false;
     if (not checkStr(forceID,  "forceID"))   return false;

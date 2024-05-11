@@ -27,6 +27,9 @@
 #include <libvars.H>
 using namespace __EXP__;	// For reference to n-body globals
 
+// Cache version
+std::string BiorthCyl::Version = "1.0";
+
 // Constructor
 BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
 {
@@ -547,6 +550,10 @@ void BiorthCyl::WriteH5Cache()
     //
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
       
+    // Cache version
+    //
+    file.createAttribute<std::string>("Version",  HighFive::DataSpace::From(Version)).write(Version);
+
     // Stash the basis configuration (this is not yet implemented in EXP)
     //
     std::ostringstream sout; sout << conf;
@@ -630,6 +637,18 @@ bool BiorthCyl::ReadH5Cache()
     //
     if (not checkStr(geometry, "geometry"))  return false;
     if (not checkStr(forceID,  "forceID"))   return false;
+
+    // Version check
+    //
+    if (h5file.hasAttribute("Version")) {
+      if (not checkStr(Version, "Version"))  return false;
+    } else {
+      if (myid==0)
+	std::cout << "---- BiorthCyl::ReadH5Cache: "
+		  << "recomputing cache for HighFive API change"
+		  << std::endl;
+      return false;
+    }
 
     // Parameter check
     //

@@ -997,6 +997,8 @@ void EmpCyl2d::WriteH5Cache()
     //
     HighFive::File file(cache_name_2d, HighFive::File::Overwrite);
     
+
+
     // Workaround for lack of HighFive boolean support
     int ilogr = 0, icmap = 0;
     if (logr) ilogr = 1;
@@ -1008,19 +1010,20 @@ void EmpCyl2d::WriteH5Cache()
 
     // Parameters
     //
-    file.createAttribute<int>        ("mmax",   HighFive::DataSpace::From(mmax)).  write(mmax);
-    file.createAttribute<int>        ("nmaxfid",   HighFive::DataSpace::From(nmaxfid)).  write(nmaxfid);
-    file.createAttribute<int>        ("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
-    file.createAttribute<int>        ("numr",   HighFive::DataSpace::From(numr)).  write(numr);
-    file.createAttribute<int>        ("knots",  HighFive::DataSpace::From(knots)). write(knots);
-    file.createAttribute<int>        ("ilogr",  HighFive::DataSpace::From(ilogr)). write(ilogr);
-    file.createAttribute<int>        ("icmap",  HighFive::DataSpace::From(icmap)). write(icmap);
-    file.createAttribute<double>     ("rmin",   HighFive::DataSpace::From(rmin)).  write(rmin);
-    file.createAttribute<double>     ("rmax",   HighFive::DataSpace::From(rmax)).  write(rmax);
-    file.createAttribute<double>     ("scale",  HighFive::DataSpace::From(scale)). write(scale);
-    file.createAttribute<std::string>("params", HighFive::DataSpace::From(params)).write(params);
-    file.createAttribute<std::string>("model",  HighFive::DataSpace::From(model)). write(model);
-    file.createAttribute<std::string>("biorth", HighFive::DataSpace::From(biorth)).write(biorth);
+    file.createAttribute<std::string>("Version",   HighFive::DataSpace::From(Version)).write(Version);
+    file.createAttribute<int>        ("mmax",      HighFive::DataSpace::From(mmax)).   write(mmax);
+    file.createAttribute<int>        ("nmaxfid",   HighFive::DataSpace::From(nmaxfid)).write(nmaxfid);
+    file.createAttribute<int>        ("nmax",      HighFive::DataSpace::From(nmax)).   write(nmax);
+    file.createAttribute<int>        ("numr",      HighFive::DataSpace::From(numr)).   write(numr);
+    file.createAttribute<int>        ("knots",     HighFive::DataSpace::From(knots)).  write(knots);
+    file.createAttribute<int>        ("ilogr",     HighFive::DataSpace::From(ilogr)).  write(ilogr);
+    file.createAttribute<int>        ("icmap",     HighFive::DataSpace::From(icmap)).  write(icmap);
+    file.createAttribute<double>     ("rmin",      HighFive::DataSpace::From(rmin)).   write(rmin);
+    file.createAttribute<double>     ("rmax",      HighFive::DataSpace::From(rmax)).   write(rmax);
+    file.createAttribute<double>     ("scale",     HighFive::DataSpace::From(scale)).  write(scale);
+    file.createAttribute<std::string>("params",    HighFive::DataSpace::From(params)). write(params);
+    file.createAttribute<std::string>("model",     HighFive::DataSpace::From(model)).  write(model);
+    file.createAttribute<std::string>("biorth",    HighFive::DataSpace::From(biorth)). write(biorth);
       
     // Arrays
     //
@@ -1079,6 +1082,18 @@ bool EmpCyl2d::ReadH5Cache()
     };
 
     //
+
+    // Version check
+    //
+    if (file.hasAttribute("Version")) {
+      if (not checkStr(Version, "Version"))  return false;
+    } else {
+      if (myid==0)
+	std::cout << "---- EmpCyl2d::ReadH5Cache: "
+		  << "recomputing cache for HighFive API change"
+		  << std::endl;
+      return false;
+    }
 
     // Serialize the config and make a string for checking
     YAML::Emitter y; y << Params;

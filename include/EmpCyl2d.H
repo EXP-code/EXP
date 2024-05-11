@@ -127,6 +127,9 @@ protected:
   bool ReadH5Cache();
   void WriteH5Cache();
 
+  //! Cache versioning
+  inline static const std::string Version = "1.0";
+
   //! Basis magic number
   inline static const unsigned int hmagic = 0xc0a57a1;
   
