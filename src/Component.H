@@ -50,15 +50,6 @@ struct loadb_datum
   \par bessel 
   %Bessel function basis, see Bessel 
 
-  \par c_brock 
-  Clutton-Brock's spherical basis, see CBrock
-
-  \par c_brock_disk 
-  Clutton-Brock's two-dimensional disk basis, see CBrockDisk
-
-  \par hernq 
-  %Hernquist's spherical basis, see Hernquist
-
   \par sphereSL 
   Weinberg's adaptive spherical basis derived by numerical solution to the Sturm-Liouville equation, see Sphere
 

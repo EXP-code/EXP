@@ -9,9 +9,6 @@
 
 #include <Component.H>
 #include <Bessel.H>
-#include <CBrock.H>
-#include <CBrockDisk.H>
-#include <Hernquist.H>
 #include <Sphere.H>
 #include <EJcom.H>
 #include <Cylinder.H>
@@ -867,15 +864,6 @@ void Component::configure(void)
   //
   if ( !id.compare("bessel") ) {
     force = new Bessel(this, fconf);
-  }
-  else if ( !id.compare("c_brock") ) {
-    force = new CBrock(this, fconf);
-  }
-  else if ( !id.compare("c_brock_disk") ) {
-    force = new CBrockDisk(this, fconf);
-  }
-  else if ( !id.compare("hernq") ) {
-    force = new Hernquist(this, fconf);
   }
   else if ( !id.compare("sphereSL") ) {
     force = new Sphere(this, fconf);

@@ -3,11 +3,8 @@
 
 #include <SLGridMP2.H>
 
-#include <CBrock.H>
 #include <Sphere.H>
 #include <Bessel.H>
-#include <CBrockDisk.H>
-#include <Hernquist.H>
 #include <Cylinder.H>
 
 class MixtureBasis;
@@ -31,8 +28,7 @@ class MixtureBasis;
 
     \param basis is the name of the force method to use for the
     two-center expansion.  Available types are: "bessel" (Bessel),
-    "c_brock" (CBrock), "c_brock_disk" (CBrockDisk), "hernq"
-    (Hernquist), "sphereSL" (Sphere), "cylinder" (Cylinder).
+    "sphereSL" (Sphere), "cylinder" (Cylinder).
 */
 class TwoCenter : public PotAccel
 {
