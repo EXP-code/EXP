@@ -56,7 +56,7 @@ private:
     Eigen::VectorXd a;
 
     Roots(int L, int nmax) : l(L), n(nmax) {
-      a = sbessjz(l-1, n);
+      a = sbessjz(l, n);
     }
 
     ~Roots() {}
