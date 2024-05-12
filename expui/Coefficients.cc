@@ -12,10 +12,8 @@
 #include <Eigen/Dense>
 #include <yaml-cpp/yaml.h>
 
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 #include <Coefficients.H>
 
@@ -802,8 +800,7 @@ namespace CoefClasses
 
       if (Time < Tmin or Time > Tmax) continue;
 
-      Eigen::MatrixXcd in(Mmax+1, Nmax);
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
       
       // Work around for previous unitiaized data bug; enforces real data
       //
@@ -1173,8 +1170,7 @@ namespace CoefClasses
 
       if (Time < Tmin or Time > Tmax) continue;
 
-      Eigen::VectorXcd in;
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::VectorXcd>();
       
       Eigen::TensorMap<Eigen3d> dat(in.data(), 2*NmaxX+1, 2*NmaxY+1, NmaxZ);
 
@@ -1526,8 +1522,7 @@ namespace CoefClasses
 
       if (Time < Tmin or Time > Tmax) continue;
 
-      Eigen::VectorXcd in;
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::VectorXcd>();
       
       Eigen::TensorMap<Eigen3d> dat(in.data(), 2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1);
 

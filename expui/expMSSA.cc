@@ -24,10 +24,8 @@
 
 #include <Eigen/Dense>
 
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 /* For debugging
    #undef eigen_assert
@@ -1532,7 +1530,7 @@ namespace MSSA {
 	for (int n=0; n<keylist.size(); n++) {
 	  std::ostringstream scnt;
 	  scnt << "RC_" << n;
-	  recon.getDataSet(scnt.str()).read(RC[keylist[n]]);
+	  RC[keylist[n]] = recon.getDataSet(scnt.str()).read<Eigen::MatrixXd>();
 	}
 
 	reconstructed = true;
