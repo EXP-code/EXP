@@ -187,6 +187,19 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+# Git submodule updates
+execute_process(
+  COMMAND git submodule update --init --recursive
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  RESULT_VARIABLE GIT_SUBMOD_RESULT
+)
+
+if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+   message(FATAL_ERROR "git submodule update --init --recursive failed ${GIT_SUBMOD_RESULT}, please checkout submodules")
+else()
+   message(STATUS "Submodules updated successfully - good")
+endif()
+
 # Get the latest abbreviated commit hash of the working branch
 execute_process(
   COMMAND git rev-parse HEAD
