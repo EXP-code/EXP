@@ -6,7 +6,34 @@
 #include <Bessel.H>
 #include <EXPmath.H>
 
-int Bessel::RNUM = 1000;
+const std::set<std::string>
+Bessel::valid_keys = {
+  "rnum"
+};
+
+void Bessel::initialize()
+{
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
+  try {
+    if (conf["rnum"])      RNUM       = conf["rnum"].as<int>();
+    else                   RNUM       = 1000;
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in Sphere: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    throw std::runtime_error("Sphere::initialze: error parsing YAML");
+  }
+}
 
 Bessel::Bessel(Component* c0, const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(c0, conf, m)
 {

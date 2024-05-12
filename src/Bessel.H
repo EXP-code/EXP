@@ -17,6 +17,8 @@ class Bessel : public SphericalBasis
 
 private:
 
+  //@{
+  //! Required members for Spherical Basis
   void get_pot_coefs(int l, double *coef, double *p, double *dp);
   void get_pot_coefs_safe(int l, double *coef, double *p, double *dp,
 			      double **potd1, double **dpot1);
@@ -26,8 +28,10 @@ private:
   void get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid);
   void get_potl_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, Eigen::MatrixXd& d,int tid);
   double get_dens(double r, int l, double *coef);
+  //@}
 
-  void initialize() {}
+  //! Initialize parameters from YAML
+  void initialize();
 
   bool firstime_coef;
   bool firstime_accel;
@@ -41,9 +45,12 @@ private:
     int nmax;
   };
   
+  //@{
+  //! Grid storage and parameters
   std::vector<RGrid> dens_grid, potl_grid;
   Eigen::VectorXd r_grid;
   double r_grid_del;
+  //@}
 
   //! Cache roots for spherical Bessel functions
   class Roots
@@ -62,21 +69,26 @@ private:
     ~Roots() {}
   };
 
+  //! Root database isntance
   std::shared_ptr<Roots> p;
 
+  //@{
+  //! Density and potential members
   double dens(double r, int n);
   double potl(double r, int n);
+  //@}
 
+  //! Make the density and potential grid
   void make_grid(double rmin, double rmax, int lmax, int nmax);
   
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
 
+  //! Number of entries in the fixed table
+  int RNUM;
+
 public:
   
-  //! Number of entries in fixed table (static variable)
-  static int RNUM;
-
   //! Constructor
   Bessel(Component* c0, const YAML::Node& conf, MixtureBasis* m=0);
 
