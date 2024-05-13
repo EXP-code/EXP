@@ -82,8 +82,6 @@ void BiorthBess::get_dens(double r, Eigen::MatrixXd& p)
 	aa*dens_grid[l].rw2(n, klo) + bb*dens_grid[l].rw2(n, khi);
     }
   }
-
-  p *= -1.0;
 }
 
 
@@ -111,8 +109,6 @@ void BiorthBess::get_potl_dens(double r, Eigen::MatrixXd& p, Eigen::MatrixXd& d)
 	aa*dens_grid[l].rw2(n, klo) + bb*dens_grid[l].rw2(n, khi);
     }
   }
-
-  d *= -1.0;
 }
 
 double BiorthBess::dens(double r, int n)
