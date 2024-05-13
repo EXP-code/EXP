@@ -51,7 +51,7 @@ Bessel::Bessel(Component* c0, const YAML::Node& conf, MixtureBasis* m) : Spheric
 void Bessel::get_dpotl(int lmax, int nmax, double r, 
 		       Eigen::MatrixXd& p, Eigen::MatrixXd& dp, int tid)
 {
-  int klo = (int)( (r-r_grid[1])/r_grid_del ) + 1;
+  int klo = (int)( (r-r_grid[0])/r_grid_del );
   if (klo < 0) klo = 0;
   if (klo > RNUM - 2) klo = RNUM - 2;
   int khi = klo + 1;
@@ -76,7 +76,7 @@ void Bessel::get_dpotl(int lmax, int nmax, double r,
 
 void Bessel::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
-  int klo = (int)( (r-r_grid[1])/r_grid_del ) + 1;
+  int klo = (int)( (r-r_grid[0])/r_grid_del );
   if (klo < 0) klo = 0;
   if (klo > RNUM - 2) klo = RNUM - 2;
   int khi = klo + 1;
@@ -97,7 +97,7 @@ void Bessel::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 
 void Bessel::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
-  int klo = (int)( (r-r_grid[1])/r_grid_del ) + 1;
+  int klo = (int)( (r-r_grid[0])/r_grid_del );
   if (klo < 0) klo = 0;
   if (klo > RNUM - 2) klo = RNUM - 2;
   int khi = klo + 1;
@@ -120,7 +120,7 @@ void Bessel::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 void Bessel::get_potl_dens(int lmax, int nmax, double r, 
 			   Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid)
 {
-  int klo = (int)( (r-r_grid[1])/r_grid_del ) + 1;
+  int klo = (int)( (r-r_grid[0])/r_grid_del );
   if (klo < 0) klo = 0;
   if (klo > RNUM - 2) klo = RNUM - 2;
   int khi = klo + 1;

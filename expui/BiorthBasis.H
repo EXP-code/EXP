@@ -10,6 +10,7 @@
 
 #include <ParticleReader.H>
 #include <Coefficients.H>
+#include <BiorthBess.H>
 #include <BasisFactory.H>
 #include <BiorthCube.H>
 #include <SLGridMP2.H>
@@ -59,7 +60,6 @@ namespace BasisClasses
     //! Evaluate fields in spherical coordinates in centered coordinate system
     virtual std::vector<double>
     sph_eval(double r, double costh, double phi) = 0;
-
 
     //! Evaluate fields in cylindrical coordinates in centered coordinate system
     virtual std::vector<double>
@@ -164,10 +164,10 @@ namespace BasisClasses
   };
   
   /**
-     Uses SLGridSph basis to evaluate expansion coeffients and provide
-     potential and density basis fields
+     An abstract spherical basis to evaluate expansion coeffients and
+     provide potential and density basis fields
   */
-  class SphericalSL : public BiorthBasis
+  class Spherical : public BiorthBasis
   {
     
   public:
@@ -175,45 +175,13 @@ namespace BasisClasses
     using BasisMap   = std::map<std::string, Eigen::VectorXd>;
     using BasisArray = std::vector<std::vector<BasisMap>>;
 
-  private:
+  protected:
     
     //! Helper for constructor
     void initialize();
 
-    std::shared_ptr<SLGridSph> sl;
-    std::shared_ptr<SphericalModelTable> mod;
-    
-    std::string model_file;
-    int lmax, nmax, cmap, numr;
-    double rmin, rmax, rmap;
-    
-    bool NO_L0, NO_L1, EVEN_L, EVEN_M, M0_only;
-    
-    std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
-    std::vector<Eigen::MatrixXd> legs, dlegs, d2legs;
-    
-    Eigen::MatrixXd factorial;
-    Eigen::MatrixXd expcoef;
-    double scale;
-    int N1, N2;
-    int used;
-    
-    using matT = std::vector<Eigen::MatrixXd>;
-    using vecT = std::vector<Eigen::VectorXd>;
-    
-    double totalMass;
-    int npart;
-    
-    Eigen::VectorXd work;
-    
-    //! For coefficient writing
-    typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
-    EigenColMajor;
-    
-  protected:
-
-    //! Load coefficients into the new CoefStruct
-    virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
+    //! Load coefficients for a particular time
+    virtual void load_coefs(CoefClasses::CoefStrPtr coef, double time);
 
     //! Set coefficients
     virtual void set_coefs(CoefClasses::CoefStrPtr coefs);
@@ -222,7 +190,7 @@ namespace BasisClasses
     static const std::set<std::string> valid_keys;
 
     //! Return readable class name
-    virtual const std::string classname() { return "SphericalSL";}
+    virtual const std::string classname() { return "Spherical";}
 
     //! Subspace index
     virtual const std::string harmonic() { return "l";}
@@ -239,16 +207,60 @@ namespace BasisClasses
     virtual std::vector<double>
     cyl_eval(double R, double z, double phi);
 
+    //@{
+    //! Required basis members
+
+    //! Get potential
+    virtual void get_pot(Eigen::MatrixXd& tab, double x) = 0;
+
+    //! Get density
+    virtual void get_dens(Eigen::MatrixXd& tab, double x) = 0;
+
+    //! Get force
+    virtual void get_force(Eigen::MatrixXd& tab, double x) = 0;
+
+    //@}
+
+    //@{
+    //! Internal parameters and storage
+    int lmax, nmax, cmap, numr;
+    double rmin, rmax, rmap;
+    
+    bool NO_L0, NO_L1, EVEN_L, EVEN_M, M0_only;
+
+    std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
+    std::vector<Eigen::MatrixXd> legs, dlegs, d2legs;
+
+    Eigen::MatrixXd factorial;
+    Eigen::MatrixXd expcoef;
+    double scale;
+    int N1, N2;
+    int used;
+
+    using matT = std::vector<Eigen::MatrixXd>;
+    using vecT = std::vector<Eigen::VectorXd>;
+
+    double totalMass;
+    int npart;
+    
+    Eigen::VectorXd work;
+    
+    //! For coefficient writing
+    typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
+    EigenColMajor;
+
+    //@}
+
   public:
     
     //! Constructor from YAML node
-    SphericalSL(const YAML::Node& conf);
+    Spherical(const YAML::Node& conf, const std::string& forceID);
     
     //! Constructor from YAML string
-    SphericalSL(const std::string& confstr);
+    Spherical(const std::string& confstr, const std::string& forceID);
     
     //! Destructor
-    virtual ~SphericalSL(void) {}
+    virtual ~Spherical(void) {}
     
     //! Print and return the cache parameters
     static std::map<std::string, std::string>
@@ -276,29 +288,134 @@ namespace BasisClasses
     int getNmax() { return nmax; }
 
     //! Return potential-density pair of a vector of a vector of 1d
-    //! basis-function grids for SphericalSL, logarithmically spaced
-    //! between [logxmin, logxmax] (base 10).
-    BasisArray getBasis
-    (double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
+    //! basis-function grids for Spherical [rmin, rmax]
+    virtual BasisArray getBasis
+    (double rmin=0.0, double rax=1.0, int numgrid=2000);
 
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
-    std::vector<Eigen::MatrixXd> orthoCheck(int knots=40)
-    {
-      return sl->orthoCheck(knots);
-    }
+    virtual std::vector<Eigen::MatrixXd> orthoCheck(int knots) = 0;
 
     //! Biorthogonality sanity check
     bool orthoTest(int knots=100)
     {
-      auto [ret, worst, lworst] = orthoCompute(sl->orthoCheck(knots));
+      auto [ret, worst, lworst] = orthoCompute(orthoCheck(knots));
       // For the CTest log
-      std::cout << "SphericalSL::orthoTest: worst=" << worst << std::endl;
+      std::cout << "Spherical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
 
   };
+
+  /**
+     Uses SLGridSph basis to evaluate expansion coeffients and provide
+     potential and density basis fields
+  */
+  class SphericalSL : public Spherical
+  {
+    
+  protected:
+    
+    //! Helper for constructor
+    void initialize();
+
+    static const std::set<std::string> valid_keys;
+
+    std::shared_ptr<SLGridSph> sl;
+    std::shared_ptr<SphericalModelTable> mod;
+    
+    std::string model_file;
+    
+    //! Return readable class name
+    const std::string classname() { return "SphericalSL";}
+
+    // Get potential
+    void get_pot(Eigen::MatrixXd& tab, double r)
+    { sl->get_pot(tab, r); }
+
+    // Get density
+    void get_dens(Eigen::MatrixXd& tab, double r)
+    { sl->get_dens(tab, r); }
+
+    // Get force
+    void get_force(Eigen::MatrixXd& tab, double r)
+    { sl->get_force(tab, r); }
+
+  public:
+    
+    //! Constructor from YAML node
+    SphericalSL(const YAML::Node& conf);
+    
+    //! Constructor from YAML string
+    SphericalSL(const std::string& confstr);
+    
+    //! Destructor
+    virtual ~SphericalSL(void) {}
+    
+    //! Return potential-density pair of a vector of a vector of 1d
+    //! basis-function grids for SphericalSL, logarithmically spaced
+    //! between [logxmin, logxmax] (base 10).
+    BasisArray getBasis(double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
+
+    //! Compute the orthogonality of the basis by returning inner
+    //! produce matrices
+    std::vector<Eigen::MatrixXd> orthoCheck(int knots=40)
+    { return sl->orthoCheck(knots); }
+  };
   
+  /**
+     Uses Bessel basis to evaluate expansion coeffients and provide
+     potential and density basis fields
+  */
+  class Bessel : public Spherical
+  {
+    
+  protected:
+    
+    //! Helper for constructor
+    void initialize();
+
+    static const std::set<std::string> valid_keys;
+
+    //! Return readable class name
+    const std::string classname() { return "Bessel";}
+
+    //! Grid size for Bessel function table
+    int rnum = 2000;
+
+    //! Biorthgonal Bessel function generator
+    std::shared_ptr<BiorthBess> bess;
+    
+    // Get potential
+    void get_pot(Eigen::MatrixXd& tab, double r)
+    { bess->get_potl(r, tab); }
+
+    // Get density
+    void get_dens(Eigen::MatrixXd& tab, double r)
+    { bess->get_dens(r, tab); }
+
+    // Get force
+    void get_force(Eigen::MatrixXd& tab, double r)
+    { bess->get_dpotl(r, tab); }
+
+  public:
+    
+    //! Constructor from YAML node
+    Bessel(const YAML::Node& conf);
+    
+    //! Constructor from YAML string
+    Bessel(const std::string& confstr);
+    
+    //! Destructor
+    virtual ~Bessel(void) {}
+
+    //! Compute the orthogonality of the basis by returning inner
+    //! produce matrices
+    std::vector<Eigen::MatrixXd> orthoCheck(int knots=40)
+    { return bess->orthoCheck(knots); }
+  };
+  
+
   /**
      Uses the BiorthCyl basis to evaluate expansion coeffients and
      provide potential and density basis fields
@@ -408,8 +525,7 @@ namespace BasisClasses
     //! Return a vector of a vector of 1d basis-function grids for
     //! FlatDisk, logarithmically spaced between [logxmin, logxmax]
     //! (base 10).
-    BasisArray getBasis
-    (double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
+    BasisArray getBasis(double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
 
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
