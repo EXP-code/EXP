@@ -316,7 +316,8 @@ void Sphere::make_model_bin()
   //
   if (myid==0) {
     static int cnt = 0;
-    std::ostringstream sout; sout << "SphereMassModel." << cnt++;
+    std::ostringstream sout;
+    sout << runtag << ".SphereMassModel." << cnt++;
     std::ofstream dbg(sout.str());
     if (dbg.good()) {
       for (int i=0; i<numR; i++)
@@ -337,6 +338,11 @@ void Sphere::make_model_bin()
   // Regenerate Sturm-Liouville grid
   //
   std::string cachename = outdir  + cache_file;
+  
+  if (logR) {
+    Rmin = exp(Rmin);
+    Rmax = exp(Rmax);
+  }
   ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0, cachename);
 
   // Test for basis consistency (will generate an exception if maximum
