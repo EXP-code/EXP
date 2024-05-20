@@ -1085,17 +1085,21 @@ namespace CoefClasses
 	  node = YAML::Load(getYAML());
 	}
 	catch (const std::runtime_error& error) {
-	  std::cout << "CylCoefs::EvenOddPower: found a problem while loading "
-		    << "the YAML config" << std::endl;
-	  throw;
+	  throw std::runtime_error
+	    (
+	     "CylCoefs::EvenOddPower: found a problem while loading the "
+	     "YAML config"
+	     );
 	}
 
 	if (node["ncylodd"]) nodd = node["ncylodd"].as<int>();
 	else {
-	  std::cout << "CylCoefs::EvenOddPower: ncylodd is not in the YAML "
-		    << "config stanza.  Please specify this explicitly as "
-		    << "the first argument to EvenOddPower()" << std::endl;
-	  throw;
+	  throw std::runtime_error
+	    (
+	    "CylCoefs::EvenOddPower: ncylodd is not in the YAML config "
+	    "stanza.  Please specify this explicitly as the first argument "
+	    "to EvenOddPower()"
+	     );
 	}
       }
 
