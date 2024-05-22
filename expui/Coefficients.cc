@@ -795,7 +795,7 @@ namespace CoefClasses
     file.getDataSet  ("count"  ).read(count );
     
     bool H5back = true;
-    if (file.hasAttribute("Version")) H5back = false;
+    if (file.hasAttribute("CoefficientOutputVersion")) H5back = false;
 
     // Open the snapshot group
     //
