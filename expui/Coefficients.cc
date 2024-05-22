@@ -821,7 +821,7 @@ namespace CoefClasses
       if (Time < Tmin or Time > Tmax) continue;
 
       auto in = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
-
+     // If an older version of the coefficients and backwards compatibility is desired, re-order the coefficients to match the cache.
       if (H5back and H5BackCompat) {
 
 	auto in2 = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
