@@ -20,8 +20,6 @@
 namespace CoefClasses
 {
   
-  bool Coefs::H5BackCompat = true;
-
   void Coefs::copyfields(std::shared_ptr<Coefs> p)
   {
     // These variables will copy data, not pointers
@@ -93,8 +91,11 @@ namespace CoefClasses
     file.getAttribute("geometry").read(geometry);
     file.getAttribute("forceID" ).read(forceID );
     
+    // Look for Coef output version to toggle backward compatibility
+    // with legacy storage order
+    //
     bool H5back = true;
-    if (file.hasAttribute("Version")) H5back = false;
+    if (file.hasAttribute("CoefficientOutputVersion")) H5back = false;
 
     // Open the snapshot group
     //
@@ -121,7 +122,10 @@ namespace CoefClasses
 
       auto in = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
 
-      if (H5back and H5BackCompat) {
+      // If we have a legacy set of coefficients, re-order the
+      // coefficients to match the new HighFive/Eigen ordering
+      //
+      if (H5back) {
 
 	auto in2 = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
 	in2.transposeInPlace();
@@ -794,6 +798,9 @@ namespace CoefClasses
     file.getAttribute("config" ).read(config);
     file.getDataSet  ("count"  ).read(count );
     
+    // Look for Coef output version to toggle backward compatibility
+    // with legacy storage order
+    //
     bool H5back = true;
     if (file.hasAttribute("CoefficientOutputVersion")) H5back = false;
 
@@ -821,8 +828,11 @@ namespace CoefClasses
       if (Time < Tmin or Time > Tmax) continue;
 
       auto in = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
-     // If an older version of the coefficients and backwards compatibility is desired, re-order the coefficients to match the cache.
-      if (H5back and H5BackCompat) {
+
+      // If we have a legacy set of coefficients, re-order the
+      // coefficients to match the new HighFive/Eigen ordering
+      //
+      if (H5back) {
 
 	auto in2 = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
 	in2.transposeInPlace();

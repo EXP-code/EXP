@@ -867,19 +867,6 @@ void CoefficientClasses(py::module &m) {
          are found at the requested time
          )",
          py::arg("time"))
-    .def("newH5",
-	 &CoefClasses::Coefs::setNewH5,
-	 R"(
-         Override backwards compatibility flag for HighFive API change
-
-         Parameters
-         ----------
-         None
-
-         Returns
-         -------
-         None
-         )")
     .def("setData",
          &CoefClasses::Coefs::setData,
          R"(
