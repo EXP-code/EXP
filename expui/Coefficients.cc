@@ -20,6 +20,8 @@
 namespace CoefClasses
 {
   
+  bool Coefs::H5BackCompat = true;
+
   void Coefs::copyfields(std::shared_ptr<Coefs> p)
   {
     // These variables will copy data, not pointers
@@ -91,6 +93,9 @@ namespace CoefClasses
     file.getAttribute("geometry").read(geometry);
     file.getAttribute("forceID" ).read(forceID );
     
+    bool H5back = true;
+    if (file.hasAttribute("Version")) H5back = false;
+
     // Open the snapshot group
     //
     auto snaps = file.getGroup("snapshots");
@@ -115,6 +120,18 @@ namespace CoefClasses
       if (Time < Tmin or Time > Tmax) continue;
 
       auto in = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
+
+      if (H5back and H5BackCompat) {
+
+	auto in2 = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
+	in2.transposeInPlace();
+    
+	for (size_t c=0, n=0; c<in.cols(); c++) {
+	  for (size_t r=0, n=0; r<in.rows(); r++) {
+	    in(r, c) = in2.data()[n++];
+	  }
+	}
+      }
       
       // Pack the data into the coefficient variable
       //
@@ -777,6 +794,9 @@ namespace CoefClasses
     file.getAttribute("config" ).read(config);
     file.getDataSet  ("count"  ).read(count );
     
+    bool H5back = true;
+    if (file.hasAttribute("Version")) H5back = false;
+
     // Open the snapshot group
     //
     auto snaps = file.getGroup("snapshots");
@@ -801,6 +821,18 @@ namespace CoefClasses
       if (Time < Tmin or Time > Tmax) continue;
 
       auto in = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
+
+      if (H5back and H5BackCompat) {
+
+	auto in2 = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
+	in2.transposeInPlace();
+    
+	for (size_t c=0, n=0; c<in.cols(); c++) {
+	  for (size_t r=0; r<in.rows(); r++) {
+	    in(r, c) = in2.data()[n++];
+	  }
+	}
+      }
       
       // Work around for previous unitiaized data bug; enforces real data
       //
@@ -2253,6 +2285,10 @@ namespace CoefClasses
 			  HighFive::File::ReadWrite |
 			  HighFive::File::Create);
       
+      // Write the Version string
+      //
+      file.createAttribute<std::string>("Version", HighFive::DataSpace::From(Version)).write(Version);
+
       // We write the coefficient file geometry
       //
       file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);

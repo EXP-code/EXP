@@ -54,6 +54,9 @@ namespace CoefClasses
     //! Verbose debugging output
     bool verbose;
     
+    //! Backward compatibility flag for HighFive
+    static bool H5BackCompat;
+
     //! Time vector
     std::vector<double> times;
 
@@ -64,6 +67,9 @@ namespace CoefClasses
     //! Get the YAML config for the basis (to be implemented by EXP)
     virtual std::string getYAML() = 0;
     
+    //! Coefficient file versioning
+    inline static const std::string Version = "1.0";
+
     //! Write parameter attributes (needed for derived classes)
     virtual void WriteH5Params(HighFive::File& file) = 0;
     
@@ -194,6 +200,9 @@ namespace CoefClasses
 
     //! Set maximum grid interpolation offset
     void setDeltaT(double dT) { deltaT = dT; }
+
+    //! Override backward compatibility for HighFive
+    static void setNewH5() { H5BackCompat = false; }
 
     class CoefsError : public std::runtime_error
     {
