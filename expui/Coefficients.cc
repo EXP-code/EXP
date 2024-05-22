@@ -2287,7 +2287,7 @@ namespace CoefClasses
       
       // Write the Version string
       //
-      file.createAttribute<std::string>("Version", HighFive::DataSpace::From(Version)).write(Version);
+      file.createAttribute<std::string>("CoefficientOutputVersion", HighFive::DataSpace::From(CoefficientOutputVersion)).write(CoefficientOutputVersion);
 
       // We write the coefficient file geometry
       //
