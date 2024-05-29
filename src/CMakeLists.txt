@@ -7,9 +7,9 @@ if (ENABLE_CUDA)
     cudaBiorthCyl.cu cudaCube.cu cudaSlabSL.cu)
 endif()
 
-set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
-  CBrockDisk.cc Cube.cc Cylinder.cc ExternalCollection.cc
-  ExternalForce.cc Hernquist.cc Orient.cc PotAccel.cc ScatterMFP.cc
+set(exp_SOURCES Basis.cc Bessel.cc Component.cc
+  Cube.cc Cylinder.cc ExternalCollection.cc
+  ExternalForce.cc Orient.cc PotAccel.cc ScatterMFP.cc
   PeriodicBC.cc SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc
   TwoDCoefs.cc TwoCenter.cc EJcom.cc global.cc begin.cc ddplgndr.cc
   Direct.cc Shells.cc NoForce.cc end.cc OutputContainer.cc OutPS.cc

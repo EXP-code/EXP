@@ -1302,7 +1302,7 @@ void CoefficientClasses(py::module &m) {
          configuration. If in doubt, use the default.
          )",
 	 py::arg("nodd")=-1, py::arg("min")=0,
-	 py::arg("max") = std::numeric_limits<double>::max());
+	 py::arg("max")=std::numeric_limits<int>::max());
 
 
   py::class_<CoefClasses::SphFldCoefs, std::shared_ptr<CoefClasses::SphFldCoefs>, CoefClasses::Coefs>

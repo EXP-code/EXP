@@ -20,29 +20,32 @@ void BasisFactoryClasses(py::module &m)
     This module provides a factory class that will create biorthogonal
     bases from input YAML configuration files.  Each basis can then be
     used to compute coefficients, provide field quantities such as
-    forces and, together with the FieldGenerator, surfaces and fields for
-    visualization.
+    forces and, together with the FieldGenerator, surfaces and fields
+    for visualization.
 
-    Seven bases are currently implemented:
+    Eight bases are currently implemented:
 
      1. SphericalSL, the Sturm-Liouiville spherical basis;
 
-     2. Cylindrical, created created by computing empirical orthogonal functions
+     2. Bessel, the classic spherical biorthogonal constructed from
+        the eigenfunctions of the spherical Laplacian;
+
+     3. Cylindrical, created created by computing empirical orthogonal functions
         over a densely sampled SphericalSL basis;
 
-     3. FlatDisk, an EOF rotation of the finite Bessel basis; and
+     4. FlatDisk, an EOF rotation of the finite Bessel basis; and
 
-     4. Slab, a biorthogonal basis for a slab geometry with a finite
+     5. Slab, a biorthogonal basis for a slab geometry with a finite
         finite vertical extent.  The basis is constructed from direct
         solution of the Sturm-Liouville equation.
 
-     5. Cube, a periodic cube basis whose functions are the Cartesian
+     6. Cube, a periodic cube basis whose functions are the Cartesian
         eigenfunctions of the Cartesian Laplacian: sines and cosines.
 
-     6. FieldBasis, for computing user-provided quantities from a
+     7. FieldBasis, for computing user-provided quantities from a
         phase-space snapshot.
 
-     7. VelocityBasis, for computing the mean field velocity fields from
+     8. VelocityBasis, for computing the mean field velocity fields from
         a phase-space snapshot.  This is a specialized version of FieldBasis.
 
     Each of these bases take a YAML configuration file as input. These parameter
@@ -284,7 +287,7 @@ void BasisFactoryClasses(py::module &m)
 
     virtual void
     addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin, bool posvelrows) override {
-PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
+      PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
     }
   };
 
@@ -409,48 +412,66 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
 
   };
 
-  class PySphericalSL : public SphericalSL
+  class PySpherical : public Spherical
   {
   protected:
 
     void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
-      PYBIND11_OVERRIDE(void, SphericalSL, load_coefs, coefs, time);
+      PYBIND11_OVERRIDE(void, Spherical, load_coefs, coefs, time);
     }
     
     void set_coefs(CoefClasses::CoefStrPtr coefs) override {
-      PYBIND11_OVERRIDE(void, SphericalSL, set_coefs, coefs);
+      PYBIND11_OVERRIDE(void, Spherical, set_coefs, coefs);
     }
 
     const std::string classname() override {
-      PYBIND11_OVERRIDE(std::string, SphericalSL, classname);
+      PYBIND11_OVERRIDE(std::string, Spherical, classname);
     }
 
     const std::string harmonic() override {
-      PYBIND11_OVERRIDE(std::string, SphericalSL, harmonic);
+      PYBIND11_OVERRIDE(std::string, Spherical, harmonic);
     }
+
+    void get_pot(Eigen::MatrixXd& tab, double x) override {
+      PYBIND11_OVERRIDE_PURE(void, Spherical, get_pot, tab, x);
+    }
+    
+    void get_dens(Eigen::MatrixXd& tab, double x) override {
+      PYBIND11_OVERRIDE_PURE(void, Spherical, get_dens, tab, x);
+    }
+
+    void get_force(Eigen::MatrixXd& tab, double x) override {
+      PYBIND11_OVERRIDE_PURE(void, Spherical, get_force, tab, x);
+    }
+
 
   public:
 
     // Inherit the constructors
-    using SphericalSL::SphericalSL;
+    using Spherical::Spherical;
 
     std::vector<double> getFields(double x, double y, double z) override {
-      PYBIND11_OVERRIDE(std::vector<double>, SphericalSL, getFields, x, y, z);
+      PYBIND11_OVERRIDE(std::vector<double>, Spherical, getFields, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
-      PYBIND11_OVERRIDE(void, SphericalSL, accumulate, x, y, z, mass);
+      PYBIND11_OVERRIDE(void, Spherical, accumulate, x, y, z, mass);
     }
 
     void reset_coefs(void) override {
-      PYBIND11_OVERRIDE(void, SphericalSL, reset_coefs,);
+      PYBIND11_OVERRIDE(void, Spherical, reset_coefs,);
     }
 
     void make_coefs(void) override {
-      PYBIND11_OVERRIDE(void, SphericalSL, make_coefs,);
+      PYBIND11_OVERRIDE(void, Spherical, make_coefs,);
+    }
+
+    std::vector<Eigen::MatrixXd> orthoCheck(int knots) override {
+      PYBIND11_OVERRIDE_PURE(std::vector<Eigen::MatrixXd>, Spherical, orthoCheck, knots);
     }
 
   };
+
 
   class PyCylindrical : public Cylindrical
   {
@@ -809,7 +830,7 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
 
          Returns
          -------
-         CoefStructure
+         CoefStruct
              the coefficient structure created from the particles
 
          See also
@@ -1042,7 +1063,7 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
          R"(
          Set the coordinate system for force evaluations.  The natural 
          coordinates for the basis class are the default; spherical
-         coordinates for SphericalSL, cylindrical coordinates for
+         coordinates for SphericalSL and Bessel, cylindrical coordinates for
          Cylindrical and FlatDisk, and Cartesian coordinates for the Slab
          and Cube. This member function can be used to override the default.  
          The available coorindates are: 'spherical', 'cylindrical', 
@@ -1131,136 +1152,6 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
          None
          )", py::arg("coefs"));
 
-    py::class_<BasisClasses::SphericalSL, std::shared_ptr<BasisClasses::SphericalSL>, PySphericalSL, BasisClasses::BiorthBasis>(m, "SphericalSL")
-      .def(py::init<const std::string&>(),
-	 R"(
-         Create a spherical Sturm-Liouville basis
-
-         Parameters
-         ----------
-         YAMLstring : str
-             The YAML configuration for the spherical basis
-
-         Returns
-         -------
-         SphericalSL
-              the new instance
-         )", py::arg("YAMLstring"))
-
-      .def("getBasis", &BasisClasses::SphericalSL::getBasis,
-	   R"(
-           Get basis functions
-
-	   Evaluate the potential-density basis functions on a logarithmically
-	   spaced grid for inspection. The structure is a two-grid of dimension
-	   lmax by nmax each pointing to a dictionary of 1-d arrays ('potential',
-	   'density', 'rforce') of dimension numr.
-
-           Parameters
-           ----------
-           logxmin : float, default=-3.0
-                minimum mapped radius in log10 units
-           logxmax : float, default=0.5
-                maximum mapped radius in log10 units
-           numr : int, default=400
-                number of equally spaced output points
-
-           Returns
-           -------
-           list(list(dict))
-               dictionaries of basis functions as lists indexed by l, n
-           )",
-	   py::arg("logxmin")=-3.0,
-	   py::arg("logxmax")=0.5,
-	   py::arg("numr")=400)
-      // The following member needs to be a lambda capture because
-      // orthoCheck is not in the base class and needs to have
-      // different parameters depending on the basis type.  Here the
-      // user can and will often need to specify a quadrature value.
-      .def("orthoCheck", [](BasisClasses::SphericalSL& A, int knots)
-      {
-	return A.orthoCheck(knots);
-      },
-	R"(
-        Check orthgonality of basis functions by quadrature
-
-        Inner-product matrix of Sturm-Liouville solutions indexed by
-        harmonic order used to assess fidelity.
-
-        Parameters
-        ----------
-        knots : int, default=40
-            Number of quadrature knots
-
-        Returns
-        -------
-        list(numpy.ndarray)
-	    list of numpy.ndarrays from [0, ... , Lmax]
-        )",
-	py::arg("knots")=40)
-      .def_static("cacheInfo", [](std::string cachefile)
-      {
-	return BasisClasses::SphericalSL::cacheInfo(cachefile);
-      },
-	R"(
-        Report the parameters in a basis cache file and return a dictionary
-
-        Parameters
-        ----------
-        cachefile : str
-            name of cache file
-
-        Returns
-        -------
-        dict({tag: value},...)
-            cache parameters
-        )",
-	py::arg("cachefile"))
-      .def_static("I", [](int l, int m)
-      {
-	if (l<0) throw std::runtime_error("l must be greater than 0");
-	if (m<0) throw std::runtime_error("m must be greater than 0");
-	if (abs(m)>l) throw std::runtime_error("m must be less than or equal to l");
-	return (l * (l + 1) / 2) + m;
-      },
-	R"(
-        Calculate the index of a spherical harmonic element given the angular numbers l and m .
-
-        Parameters
-        ----------
-        l : int
-            spherical harmonic order l
-        m : int
-            azimuthal order m
-
-        Returns
-        -------
-        I : int
-            index array packing index
-      )",
-	py::arg("l"), py::arg("m"))
-      .def_static("invI", [](int I)
-      {
-	if (I<0) std::runtime_error("I must be an interger greater than or equal to 0");
-	int l = std::floor(0.5*(-1.0 + std::sqrt(1.0 + 8.0 * I)));
-	int m = I - int(l * (l + 1) / 2);
-	return std::tuple<int, int>(l, m);
-      },
-	R"(
-        Calculate the spherical harmonic indices l and m from the coefficient array packing index I
-
-        Parameters
-        ----------
-        I : int
-            the spherical coefficient array index
-
-        Returns
-        -------
-        (l, m) : tuple
-            the harmonic indices (l, m).
-      )", py::arg("I"));
-
-  
   py::class_<BasisClasses::Cylindrical, std::shared_ptr<BasisClasses::Cylindrical>, PyCylindrical, BasisClasses::BiorthBasis>(m, "Cylindrical")
     .def(py::init<const std::string&>(),
 	 R"(
@@ -1357,6 +1248,247 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
           cache parameters
       )",
       py::arg("cachefile"));
+
+    py::class_<BasisClasses::Spherical, std::shared_ptr<BasisClasses::Spherical>, PySpherical, BasisClasses::BiorthBasis>(m, "Spherical")
+      .def(py::init<const std::string&, const std::string&>(),
+	 R"(
+         Create a spherical basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the spherical basis
+         ForceID : str
+             The string identifier for this force type
+
+         Returns
+         -------
+         Spherical
+              the new instance
+         )", py::arg("YAMLstring"), py::arg("ForceID"))
+      .def("getBasis", &BasisClasses::Spherical::getBasis,
+	   R"(
+           Get basis functions
+
+	   Evaluate the potential-density basis functions on a linearly
+	   spaced grid for inspection. The structure is a two-grid of dimension
+	   lmax by nmax each pointing to a dictionary of 1-d arrays ('potential',
+	   'density', 'rforce') of dimension numr.
+
+           Parameters
+           ----------
+           rmin : float, default=0.0
+                minimum radius
+           rmax : float, default=1.0
+                maximum radius
+           numr : int, default=400
+                number of equally spaced output points
+
+           Returns
+           -------
+           list(list(dict))
+               dictionaries of basis functions as lists indexed by l, n
+           )",
+	   py::arg("rmin")=0.0,
+	   py::arg("rmax")=1.0,
+	   py::arg("numr")=400)
+      // The following member needs to be a lambda capture because
+      // orthoCheck is not in the base class and needs to have
+      // different parameters depending on the basis type.  Here the
+      // user can and will often need to specify a quadrature value.
+      .def("orthoCheck", [](BasisClasses::Spherical& A, int knots)
+      {
+	return A.orthoCheck(knots);
+      },
+	R"(
+        Check orthgonality of basis functions by quadrature
+
+        Inner-product matrix of Sturm-Liouville solutions indexed by
+        harmonic order used to assess fidelity.
+
+        Parameters
+        ----------
+        knots : int, default=40
+            Number of quadrature knots
+
+        Returns
+        -------
+        list(numpy.ndarray)
+	    list of numpy.ndarrays from [0, ... , Lmax]
+        )",
+	py::arg("knots")=40)
+      .def_static("cacheInfo", [](std::string cachefile)
+      {
+	return BasisClasses::Spherical::cacheInfo(cachefile);
+      },
+	R"(
+        Report the parameters in a basis cache file and return a dictionary
+
+        Parameters
+        ----------
+        cachefile : str
+            name of cache file
+
+        Returns
+        -------
+        dict({tag: value},...)
+            cache parameters
+        )",
+	py::arg("cachefile"))
+      .def_static("I", [](int l, int m)
+      {
+	if (l<0) throw std::runtime_error("l must be greater than 0");
+	if (m<0) throw std::runtime_error("m must be greater than 0");
+	if (abs(m)>l) throw std::runtime_error("m must be less than or equal to l");
+	return (l * (l + 1) / 2) + m;
+      },
+	R"(
+        Calculate the index of a spherical harmonic element given the angular numbers l and m .
+
+        Parameters
+        ----------
+        l : int
+            spherical harmonic order l
+        m : int
+            azimuthal order m
+
+        Returns
+        -------
+        I : int
+            index array packing index
+      )",
+	py::arg("l"), py::arg("m"))
+      .def_static("invI", [](int I)
+      {
+	if (I<0) std::runtime_error("I must be an interger greater than or equal to 0");
+	int l = std::floor(0.5*(-1.0 + std::sqrt(1.0 + 8.0 * I)));
+	int m = I - int(l * (l + 1) / 2);
+	return std::tuple<int, int>(l, m);
+      },
+	R"(
+        Calculate the spherical harmonic indices l and m from the coefficient array packing index I
+
+        Parameters
+        ----------
+        I : int
+            the spherical coefficient array index
+
+        Returns
+        -------
+        (l, m) : tuple
+            the harmonic indices (l, m).
+      )", py::arg("I"));
+
+  
+    py::class_<BasisClasses::SphericalSL, std::shared_ptr<BasisClasses::SphericalSL>, BasisClasses::Spherical>(m, "SphericalSL")
+      .def(py::init<const std::string&>(),
+	 R"(
+         Create a spherical Sturm-Liouville basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the spherical basis
+
+         Returns
+         -------
+         SphericalSL
+              the new instance
+         )", py::arg("YAMLstring"))
+
+      .def("getBasis", &BasisClasses::SphericalSL::getBasis,
+	   R"(
+           Get basis functions
+
+	   Evaluate the potential-density basis functions on a logarithmically
+	   spaced grid for inspection. The structure is a two-grid of dimension
+	   lmax by nmax each pointing to a dictionary of 1-d arrays ('potential',
+	   'density', 'rforce') of dimension numr.
+
+           Parameters
+           ----------
+           logxmin : float, default=-3.0
+                minimum mapped radius in log10 units
+           logxmax : float, default=0.5
+                maximum mapped radius in log10 units
+           numr : int, default=400
+                number of equally spaced output points
+
+           Returns
+           -------
+           list(list(dict))
+               dictionaries of basis functions as lists indexed by l, n
+           )",
+	   py::arg("logxmin")=-3.0,
+	   py::arg("logxmax")=0.5,
+	   py::arg("numr")=400)
+      // The following member needs to be a lambda capture because
+      // orthoCheck is not in the base class and needs to have
+      // different parameters depending on the basis type.  Here the
+      // user can and will often need to specify a quadrature value.
+      .def("orthoCheck", [](BasisClasses::SphericalSL& A, int knots)
+      {
+	return A.orthoCheck(knots);
+      },
+	R"(
+        Check orthgonality of basis functions by quadrature
+
+        Inner-product matrix of Sturm-Liouville solutions indexed by
+        harmonic order used to assess fidelity.
+
+        Parameters
+        ----------
+        knots : int, default=40
+            Number of quadrature knots
+
+        Returns
+        -------
+        list(numpy.ndarray)
+	    list of numpy.ndarrays from [0, ... , Lmax]
+        )",
+	py::arg("knots")=40);
+
+  
+    py::class_<BasisClasses::Bessel, std::shared_ptr<BasisClasses::Bessel>, BasisClasses::Spherical>(m, "Bessel")
+      .def(py::init<const std::string&>(),
+	 R"(
+         Create a spherical Bessel-function basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the spherical Bessel-function basis
+
+         Returns
+         -------
+         Bessel
+              the new instance
+         )", py::arg("YAMLstring"))
+      // The following member needs to be a lambda capture because
+      // orthoCheck is not in the base class and needs to have
+      // different parameters depending on the basis type.  Here the
+      // user can and will often need to specify a quadrature value.
+      .def("orthoCheck", [](BasisClasses::Bessel& A, int knots)
+      {
+	return A.orthoCheck(knots);
+      },
+	R"(
+        Check orthgonality of basis functions by quadrature
+
+        Inner-product matrix of Sturm-Liouville solutions indexed by
+        harmonic order used to assess fidelity.
+
+        Parameters
+        ----------
+        knots : int, default=40
+            Number of quadrature knots
+
+        Returns
+        -------
+        list(numpy.ndarray)
+	    list of numpy.ndarrays from [0, ... , Lmax]
+        )",
+	py::arg("knots")=40);
 
   py::class_<BasisClasses::FlatDisk, std::shared_ptr<BasisClasses::FlatDisk>, PyFlatDisk, BasisClasses::BiorthBasis>(m, "FlatDisk")
     .def(py::init<const std::string&>(),
@@ -1714,7 +1846,7 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
 
          Returns
          -------
-         CoefStructure
+         CoefStruct
              the coefficient structure created from the particles
 
          See also
@@ -1920,5 +2052,4 @@ PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
 	py::arg("tinit"), py::arg("tfinal"), py::arg("h"),
 	py::arg("ps"), py::arg("basiscoef"), py::arg("func"),
 	py::arg("nout")=std::numeric_limits<int>::max());
-
 }

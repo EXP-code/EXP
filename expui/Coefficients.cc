@@ -12,10 +12,8 @@
 #include <Eigen/Dense>
 #include <yaml-cpp/yaml.h>
 
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 #include <Coefficients.H>
 
@@ -93,6 +91,12 @@ namespace CoefClasses
     file.getAttribute("geometry").read(geometry);
     file.getAttribute("forceID" ).read(forceID );
     
+    // Look for Coef output version to toggle backward compatibility
+    // with legacy storage order
+    //
+    bool H5back = true;
+    if (file.hasAttribute("CoefficientOutputVersion")) H5back = false;
+
     // Open the snapshot group
     //
     auto snaps = file.getGroup("snapshots");
@@ -116,9 +120,22 @@ namespace CoefClasses
 
       if (Time < Tmin or Time > Tmax) continue;
 
-      int ldim = (Lmax+1)*(Lmax+2)/2;
-      Eigen::MatrixXcd in(ldim, Nmax);
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
+
+      // If we have a legacy set of coefficients, re-order the
+      // coefficients to match the new HighFive/Eigen ordering
+      //
+      if (H5back) {
+
+	auto in2 = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
+	in2.transposeInPlace();
+    
+	for (size_t c=0, n=0; c<in.cols(); c++) {
+	  for (size_t r=0, n=0; r<in.rows(); r++) {
+	    in(r, c) = in2.data()[n++];
+	  }
+	}
+      }
       
       // Pack the data into the coefficient variable
       //
@@ -286,8 +303,7 @@ namespace CoefClasses
       std::array<long int, 3> shape;
       stanza.getAttribute("shape").read(shape);
 
-      Eigen::VectorXcd in(shape[0]*shape[1]*shape[2]);
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::VectorXcd>();
       
       // Pack the data into the coefficient variable
       //
@@ -378,8 +394,7 @@ namespace CoefClasses
       std::array<long int, 3> shape;
       stanza.getAttribute("shape").read(shape);
 
-      Eigen::VectorXcd in(shape[0]*shape[1]*shape[2]);
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::VectorXcd>();
       
       // Pack the data into the coefficient variable
       //
@@ -783,6 +798,12 @@ namespace CoefClasses
     file.getAttribute("config" ).read(config);
     file.getDataSet  ("count"  ).read(count );
     
+    // Look for Coef output version to toggle backward compatibility
+    // with legacy storage order
+    //
+    bool H5back = true;
+    if (file.hasAttribute("CoefficientOutputVersion")) H5back = false;
+
     // Open the snapshot group
     //
     auto snaps = file.getGroup("snapshots");
@@ -806,8 +827,22 @@ namespace CoefClasses
 
       if (Time < Tmin or Time > Tmax) continue;
 
-      Eigen::MatrixXcd in(Mmax+1, Nmax);
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
+
+      // If we have a legacy set of coefficients, re-order the
+      // coefficients to match the new HighFive/Eigen ordering
+      //
+      if (H5back) {
+
+	auto in2 = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
+	in2.transposeInPlace();
+    
+	for (size_t c=0, n=0; c<in.cols(); c++) {
+	  for (size_t r=0; r<in.rows(); r++) {
+	    in(r, c) = in2.data()[n++];
+	  }
+	}
+      }
       
       // Work around for previous unitiaized data bug; enforces real data
       //
@@ -1092,17 +1127,21 @@ namespace CoefClasses
 	  node = YAML::Load(getYAML());
 	}
 	catch (const std::runtime_error& error) {
-	  std::cout << "CylCoefs::EvenOddPower: found a problem while loading "
-		    << "the YAML config" << std::endl;
-	  throw;
+	  throw std::runtime_error
+	    (
+	     "CylCoefs::EvenOddPower: found a problem while loading the "
+	     "YAML config"
+	     );
 	}
 
 	if (node["ncylodd"]) nodd = node["ncylodd"].as<int>();
 	else {
-	  std::cout << "CylCoefs::EvenOddPower: ncylodd is not in the YAML "
-		    << "config stanza.  Please specify this explicitly as "
-		    << "the first argument to EvenOddPower()" << std::endl;
-	  throw;
+	  throw std::runtime_error
+	    (
+	    "CylCoefs::EvenOddPower: ncylodd is not in the YAML config "
+	    "stanza.  Please specify this explicitly as the first argument "
+	    "to EvenOddPower()"
+	     );
 	}
       }
 
@@ -1177,8 +1216,7 @@ namespace CoefClasses
 
       if (Time < Tmin or Time > Tmax) continue;
 
-      Eigen::VectorXcd in;
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::VectorXcd>();
       
       Eigen::TensorMap<Eigen3d> dat(in.data(), 2*NmaxX+1, 2*NmaxY+1, NmaxZ);
 
@@ -1530,8 +1568,7 @@ namespace CoefClasses
 
       if (Time < Tmin or Time > Tmax) continue;
 
-      Eigen::VectorXcd in;
-      stanza.getDataSet("coefficients").read(in);
+      auto in = stanza.getDataSet("coefficients").read<Eigen::VectorXcd>();
       
       Eigen::TensorMap<Eigen3d> dat(in.data(), 2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1);
 
@@ -2258,6 +2295,10 @@ namespace CoefClasses
 			  HighFive::File::ReadWrite |
 			  HighFive::File::Create);
       
+      // Write the Version string
+      //
+      file.createAttribute<std::string>("CoefficientOutputVersion", HighFive::DataSpace::From(CoefficientOutputVersion)).write(CoefficientOutputVersion);
+
       // We write the coefficient file geometry
       //
       file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);

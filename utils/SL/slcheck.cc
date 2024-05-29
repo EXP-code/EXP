@@ -15,8 +15,8 @@
 
 int main(int argc, char** argv)
 {
-  bool use_mpi, use_logr;
-  double rmin, rmax, rs, dfac;
+  bool use_mpi, use_logr, diag;
+  double rmin, rmax, rmapping, dfac;
   int numr, cmap, diverge, Lmax, nmax;
   string filename, cachefile;
 
@@ -27,43 +27,38 @@ int main(int argc, char** argv)
   cxxopts::Options options(argv[0], "Check the consistency a spherical SL basis");
 
   options.add_options()
-   ("h,help", "Print this help message")
-   ("mpi", "using parallel computation",
+    ("h,help", "Print this help message")
+    ("d,diag", "Turn on Sledge diagnostics for SL computation",
+     cxxopts::value<bool>(diag)->default_value("false"))
+    ("mpi", "using parallel computation",
      cxxopts::value<bool>(use_mpi)->default_value("false"))
-   ("logr", "logarithmic spacing for orthogonality check",
+    ("logr", "logarithmic spacing for orthogonality check",
      cxxopts::value<bool>(use_logr)->default_value("false"))
-   ("cmap", "coordinates in SphereSL: use mapped (1) or linear(0) coordinates",
+    ("cmap", "coordinates in SphereSL: use mapped (1) or linear(0) coordinates",
      cxxopts::value<int>(cmap)->default_value("1"))
-   ("Lmax", "maximum number of angular harmonics in the expansion",
+    ("Lmax", "maximum number of angular harmonics in the expansion",
      cxxopts::value<int>(Lmax)->default_value("2"))
-   ("nmax", "maximum number of radial harmonics in the expansion",
+    ("nmax", "maximum number of radial harmonics in the expansion",
      cxxopts::value<int>(nmax)->default_value("10"))
-   ("numr", "radial knots for the SL grid",
+    ("numr", "radial knots for the SL grid",
      cxxopts::value<int>(numr)->default_value("1000"))
-   ("rmin", "minimum radius for the SL grid",
+    ("rmin", "minimum radius for the SL grid",
      cxxopts::value<double>(rmin)->default_value("-1.0"))
-   ("rmax", "maximum radius for the SL grid",
+    ("rmax", "maximum radius for the SL grid",
      cxxopts::value<double>(rmax)->default_value("-1.0"))
-   ("rs", "cmap scale factor",
-     cxxopts::value<double>(rs)->default_value("0.067"))
-   ("diverge", "cusp divergence for spherical model",
+    ("rmapping", "cmap scale factor",
+     cxxopts::value<double>(rmapping)->default_value("0.067"))
+    ("diverge", "cusp divergence for spherical model",
      cxxopts::value<int>(diverge)->default_value("0"))
-   ("dfac", "cusp divergence exponent for spherical model",
+    ("dfac", "cusp divergence exponent for spherical model",
      cxxopts::value<double>(dfac)->default_value("1.0"))
-   ("filename", "model file",
+    ("filename", "model file",
      cxxopts::value<string>(filename)->default_value("SLGridSph.model"))
-   ("cache", "cache file",
+    ("cache", "cache file",
      cxxopts::value<string>(cachefile)->default_value(".slgrid_sph_cache"))
     ;
 
   
-  //===================
-  // MPI preliminaries 
-  //===================
-  if (use_mpi) {
-    local_init_mpi(argc, argv);
-  }
-
   //===================
   // Parse options
   //===================
@@ -76,6 +71,13 @@ int main(int argc, char** argv)
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     if (use_mpi) MPI_Finalize();
     return 2;
+  }
+
+  //===================
+  // MPI preliminaries 
+  //===================
+  if (use_mpi) {
+    local_init_mpi(argc, argv);
   }
 
   // Print help message and exit
@@ -109,14 +111,14 @@ int main(int argc, char** argv)
   //
   try {
     ortho = std::make_shared<SLGridSph>(filename, Lmax, nmax, numr, rmin, rmax, 
-					   true, cmap, rs, 0, 1.0, cachefile, false);
-    //                                     ^               ^                  ^
-    //                                     |               |                  |
-    // Use cache file----------------------+               |                  |
-    //                                                     |                  |
-    // Cusp extrapolation----------------------------------+                  |
-    //                                                                        |
-    // Turn on diagnostic output in SL creation-------------------------------+
+					   true, cmap, rmapping, 0, 1.0, cachefile, diag);
+    //                                     ^                     ^                  ^
+    //                                     |                     |                  |
+    // Use cache file----------------------+                     |                  |
+    //                                                           |                  |
+    // Cusp extrapolation----------------------------------------+                  |
+    //                                                                              |
+    // Turn on diagnostic output in SL creation-------------------------------------+
   }
   catch (const EXPException& err) {
     if (myid==0) {
@@ -131,7 +133,7 @@ int main(int argc, char** argv)
   }
 
   if (bad) {
-    MPI_Finalize();
+    if (use_mpi) MPI_Finalize();
     exit(0);
   }
 				// Do what?
