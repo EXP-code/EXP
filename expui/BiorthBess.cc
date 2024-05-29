@@ -1,55 +1,19 @@
-#include "expand.H"
-
-#include <cmath>
-
-#include <interp.H>
-#include <Bessel.H>
+#include <BiorthBess.H>
 #include <EXPmath.H>
+#include <EXPException.H>
+#include <interp.H>
+#include <gaussQ.H>
 
-const std::set<std::string>
-Bessel::valid_keys = {
-  "rnum"
-};
 
-void Bessel::initialize()
+BiorthBess::BiorthBess(double rmax, int lmax, int nmax, int RNUM) :
+  rmax(rmax), lmax(lmax), nmax(nmax), RNUM(RNUM)
 {
-  // Remove matched keys
-  //
-  for (auto v : valid_keys) current_keys.erase(v);
-  
-  // Assign values from YAML
-  //
-  try {
-    if (conf["rnum"])      RNUM       = conf["rnum"].as<int>();
-    else                   RNUM       = 1000;
-  }
-  catch (YAML::Exception & error) {
-    if (myid==0) std::cout << "Error parsing parameters in Sphere: "
-			   << error.what() << std::endl
-			   << std::string(60, '-') << std::endl
-			   << "Config node"        << std::endl
-			   << std::string(60, '-') << std::endl
-			   << conf                 << std::endl
-			   << std::string(60, '-') << std::endl;
-    throw std::runtime_error("Sphere::initialze: error parsing YAML");
-  }
-}
-
-Bessel::Bessel(Component* c0, const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(c0, conf, m)
-{
-  id = "BesselForce";
-  initialize();
-
   // Initialize radial grids
-
-  make_grid(0, rmax, Lmax, nmax);
-
-  setup();
+  make_grid();
 }
 
 // Get potential functions by from table
-void Bessel::get_dpotl(int lmax, int nmax, double r, 
-		       Eigen::MatrixXd& p, Eigen::MatrixXd& dp, int tid)
+void BiorthBess::get_dpotl(double r, Eigen::MatrixXd& p)
 {
   int klo = (int)( (r-r_grid[0])/r_grid_del );
   if (klo < 0) klo = 0;
@@ -64,17 +28,17 @@ void Bessel::get_dpotl(int lmax, int nmax, double r,
   double aaa = -(3.0*a*a - 1.0)*r_grid_del/6.0;
   double bbb =  (3.0*b*b - 1.0)*r_grid_del/6.0;
 
+  p.resize(lmax+1, nmax);
+
   for (int l=0; l<=lmax; l++) {
     for (int n=0; n<nmax; n++) {
-      p(l, n) = a*potl_grid[l].rw(n, klo) + b*potl_grid[l].rw(n, khi) +
-	aa*potl_grid[l].rw2(n, klo) + bb*potl_grid[l].rw2(n, khi);
-      dp(l, n) = (-potl_grid[l].rw(n, klo)+potl_grid[l].rw(n, khi))/r_grid_del+
+      p(l, n) = (-potl_grid[l].rw(n, klo)+potl_grid[l].rw(n, khi))/r_grid_del+
 	aaa*potl_grid[l].rw2(n, klo) + bbb*potl_grid[l].rw2(n, khi);
     }
   }
 }
 
-void Bessel::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
+void BiorthBess::get_potl(double r, Eigen::MatrixXd& p)
 {
   int klo = (int)( (r-r_grid[0])/r_grid_del );
   if (klo < 0) klo = 0;
@@ -86,6 +50,8 @@ void Bessel::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 
   double aa = a*(a*a-1.0)*r_grid_del*r_grid_del/6.0;
   double bb = b*(b*b-1.0)*r_grid_del*r_grid_del/6.0;
+
+  p.resize(lmax+1, nmax);
 
   for (int l=0; l<=lmax; l++) {
     for (int n=0; n<nmax; n++) {
@@ -95,7 +61,7 @@ void Bessel::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
   }
 }
 
-void Bessel::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
+void BiorthBess::get_dens(double r, Eigen::MatrixXd& p)
 {
   int klo = (int)( (r-r_grid[0])/r_grid_del );
   if (klo < 0) klo = 0;
@@ -107,6 +73,8 @@ void Bessel::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 
   double aa = a*(a*a-1.0)*r_grid_del*r_grid_del/6.0;
   double bb = b*(b*b-1.0)*r_grid_del*r_grid_del/6.0;
+
+  p.resize(lmax+1, nmax);
 
   for (int l=0; l<=lmax; l++) {
     for (int n=0; n<nmax; n++) {
@@ -117,8 +85,7 @@ void Bessel::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 }
 
 
-void Bessel::get_potl_dens(int lmax, int nmax, double r, 
-			   Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid)
+void BiorthBess::get_potl_dens(double r, Eigen::MatrixXd& p, Eigen::MatrixXd& d)
 {
   int klo = (int)( (r-r_grid[0])/r_grid_del );
   if (klo < 0) klo = 0;
@@ -130,6 +97,9 @@ void Bessel::get_potl_dens(int lmax, int nmax, double r,
 
   double aa = a*(a*a-1.0)*r_grid_del*r_grid_del/6.0;
   double bb = b*(b*b-1.0)*r_grid_del*r_grid_del/6.0;
+
+  p.resize(lmax+1, nmax);
+  d.resize(lmax+1, nmax);
 
   for (int l=0; l<=lmax; l++) {
     for (int n=0; n<nmax; n++) {
@@ -141,7 +111,7 @@ void Bessel::get_potl_dens(int lmax, int nmax, double r,
   }
 }
 
-double Bessel::dens(double r, int n)
+double BiorthBess::dens(double r, int n)
 {
   double alpha;
 
@@ -153,7 +123,7 @@ double Bessel::dens(double r, int n)
     EXPmath::sph_bessel(p->l, alpha*r/rmax);
 }
 
-double Bessel::potl(double r, int n)
+double BiorthBess::potl(double r, int n)
 {
   double alpha;
 
@@ -165,7 +135,7 @@ double Bessel::potl(double r, int n)
     EXPmath::sph_bessel(p->l,alpha*r/rmax);
 }
 
-void Bessel::make_grid(double rmin, double rmax, int lmax, int nmax)
+void BiorthBess::make_grid()
 {
   
   potl_grid.resize(lmax+1);
@@ -229,3 +199,49 @@ void Bessel::make_grid(double rmin, double rmax, int lmax, int nmax)
   
 }
 
+std::vector<Eigen::MatrixXd> BiorthBess::orthoCheck(int num)
+{
+  // Allocate storage
+  //
+  std::vector<Eigen::MatrixXd> one(lmax+1);
+  for (auto & u : one) {
+    u.resize(nmax, nmax);
+    u.setZero();
+  }
+
+  // Number of knots
+  //
+  LegeQuad wk(num);
+  
+  // Radial range
+  //
+  double dr = rmax - rmin;
+
+  Eigen::MatrixXd p(lmax+1, nmax), d(lmax+1, nmax);
+
+
+  // Biorthogonal integral loop
+  //
+  for (int i=0; i<num; i++) {
+
+    double r = rmin + dr*wk.knot(i);
+    double w = dr*wk.weight(i) * r * r;
+
+    // Evaluate basis at radius r
+    //
+    get_potl(r, p);
+    get_dens(r, d);
+
+    // Contribution to the integrand
+    //
+    for (int L=0, cnt=0; L<=lmax; L++) {
+      for (int n1=0; n1<nmax; n1++) {
+	for (int n2=0; n2<nmax; n2++, cnt++) {
+	  one[L](n1, n2) += w * p(L, n1) * d(L, n2);
+	}
+      }
+    }
+  }
+
+  return one;
+}

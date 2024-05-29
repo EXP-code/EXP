@@ -1093,6 +1093,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
       ibeg[n] = dN*n;
       iend[n] = dN*(n+1);
     }
+    iend[numprocs-1] = gen_N;
 
     std::vector<double> gen_emax(gen_N, 0.0), gen_vmax(gen_N, 0.0);
 

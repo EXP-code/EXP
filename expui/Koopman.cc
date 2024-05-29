@@ -31,10 +31,8 @@
 
 #include <Eigen/Dense>
 
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 /* For debugging
    #undef eigen_assert
@@ -795,15 +793,15 @@ namespace MSSA {
 
       auto analysis = h5file.getGroup("koopman_analysis");
 
-      analysis.getDataSet("Phi").read(Phi);
-      analysis.getDataSet("X0" ).read(X0 );
-      analysis.getDataSet("X1" ).read(X1 );
-      analysis.getDataSet("U"  ).read(U  );
-      analysis.getDataSet("V"  ).read(V  );
-      analysis.getDataSet("A"  ).read(A  );
-      analysis.getDataSet("L"  ).read(L  );
-      analysis.getDataSet("W"  ).read(W  );
-      analysis.getDataSet("Y"  ).read(Y  );
+      Phi = analysis.getDataSet("Phi").read<Eigen::MatrixXcd>();
+      X0  = analysis.getDataSet("X0" ).read<Eigen::MatrixXd >();
+      X1  = analysis.getDataSet("X1" ).read<Eigen::MatrixXd >();
+      U   = analysis.getDataSet("U"  ).read<Eigen::MatrixXd >();
+      V   = analysis.getDataSet("V"  ).read<Eigen::MatrixXd >();
+      A   = analysis.getDataSet("A"  ).read<Eigen::MatrixXd >();
+      L   = analysis.getDataSet("L"  ).read<Eigen::VectorXcd>();
+      W   = analysis.getDataSet("W"  ).read<Eigen::MatrixXcd>();
+      Y   = analysis.getDataSet("Y"  ).read<Eigen::MatrixXd >();
 
       computed = true;
 

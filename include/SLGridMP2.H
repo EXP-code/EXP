@@ -91,6 +91,9 @@ private:
   //! Read HDF5 cache
   bool ReadH5Cache();
 
+  //! Cache versioning
+  inline static const std::string Version = "1.0";
+
 public:
 
   //! Flag for MPI enabled (default: 0=off)

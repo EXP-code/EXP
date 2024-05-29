@@ -14,7 +14,7 @@
 namespace BasisClasses
 {
   const std::set<std::string>
-  SphericalSL::valid_keys = {
+  Spherical::valid_keys = {
     "rmapping",
     "cmap",
     "Lmax",
@@ -32,7 +32,6 @@ namespace BasisClasses
     "tkcum",
     "tk_type",
     "nmax",
-    "modelname",
     "scale",
     "rmin",
     "rmax",
@@ -59,7 +58,9 @@ namespace BasisClasses
     "logr",
     "plummer",
     "self_consistent",
-    "cachename"
+    "cachename",
+    "modelname",
+    "rnum"
   };
 
   std::vector<std::string> BiorthBasis::getFieldLabels(const Coord ctype)
@@ -90,19 +91,39 @@ namespace BasisClasses
     return labels;
   }
 
-  SphericalSL::SphericalSL(const YAML::Node& CONF) :
-    BiorthBasis(CONF, "sphereSL")
+  Spherical::Spherical(const YAML::Node& CONF, const std::string& forceID) :
+    BiorthBasis(CONF, forceID)
   {
     initialize();
   }
 
-  SphericalSL::SphericalSL(const std::string& confstr) :
-    BiorthBasis(confstr, "sphereSL")
+  Spherical::Spherical(const std::string& confstr, const std::string& forceID) :
+    BiorthBasis(confstr, forceID)
   {
     initialize();
   }
 
-  void SphericalSL::initialize()
+  SphericalSL::SphericalSL(const YAML::Node& CONF) : Spherical(CONF, "sphereSL")
+  {
+    initialize();
+  }
+
+  SphericalSL::SphericalSL(const std::string& confstr) : Spherical(confstr, "sphereSL")
+  {
+    initialize();
+  }
+
+  Bessel::Bessel(const YAML::Node& CONF) :  Spherical(CONF, "Bessel")
+  {
+    initialize();
+  }
+
+  Bessel::Bessel(const std::string& confstr) : Spherical(confstr, "Bessel")
+  {
+    initialize();
+  }
+
+  void Spherical::initialize()
   {
 
     // Assign some defaults
@@ -110,27 +131,17 @@ namespace BasisClasses
     cmap       = 1;
     lmax       = 6;
     nmax       = 18;
-    model_file = "SLGridSph.model";
     
     // Check for unmatched keys
     //
     auto unmatched = YamlCheck(conf, valid_keys);
     if (unmatched.size())
-      throw YamlConfigError("Basis::Basis::SphericalSL", "parameter", unmatched, __FILE__, __LINE__);
+      throw YamlConfigError("Basis::Basis::Spherical", "parameter", unmatched, __FILE__, __LINE__);
     
-    // Default cachename, empty by default
-    //
-    std::string cachename;
-
-    // Assign values from YAML
-    //
-    double rmap = 1.0;
-
     try {
       if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
       if (conf["Lmax"])      lmax       = conf["Lmax"].as<int>();
       if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
-      if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
       
       if (conf["rmapping"]) 
 	rmap = conf["rmapping"].as<double>();
@@ -168,7 +179,75 @@ namespace BasisClasses
       if (conf["EVEN_L"])    EVEN_L    = conf["EVEN_L"].as<bool>();
       if (conf["EVEN_M"])    EVEN_M    = conf["EVEN_M"].as<bool>();
       if (conf["M0_ONLY"])   M0_only   = conf["M0_ONLY"].as<bool>();
-      if (conf["cachename"]) cachename = conf["cachename"].as<std::string>();
+    } 
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing parameter stanza for <"
+			     << name << ">: "
+			     << error.what() << std::endl
+			     << std::string(60, '-') << std::endl
+			     << conf                 << std::endl
+			     << std::string(60, '-') << std::endl;
+      
+      throw std::runtime_error("Spherical: error parsing YAML");
+    }
+
+    // Number of possible threads
+    int nthrds = omp_get_max_threads();
+    
+    potd.resize(nthrds);
+    dpot.resize(nthrds);
+    dpt2.resize(nthrds);
+    dend.resize(nthrds);
+    
+    legs  .resize(nthrds);
+    dlegs .resize(nthrds);
+    d2legs.resize(nthrds);
+
+    for (auto & v : potd) v.resize(lmax+1, nmax);
+    for (auto & v : dpot) v.resize(lmax+1, nmax);
+    for (auto & v : dpt2) v.resize(lmax+1, nmax);
+    for (auto & v : dend) v.resize(lmax+1, nmax);
+
+    for (auto & v : legs  ) v.resize(lmax+1, lmax+1);
+    for (auto & v : dlegs ) v.resize(lmax+1, lmax+1);
+    for (auto & v : d2legs) v.resize(lmax+1, lmax+1);
+
+    expcoef.resize((lmax+1)*(lmax+1), nmax);
+    expcoef.setZero();
+      
+    work.resize(nmax);
+      
+    factorial.resize(lmax+1, lmax+1);
+      
+    for (int l=0; l<=lmax; l++) {
+      for (int m=0; m<=l; m++) {
+	factorial(l, m) = sqrt( (0.5*l+0.25)/M_PI * 
+				exp(lgamma(1.0+l-m) - lgamma(1.0+l+m)) );
+	if (m != 0) factorial(l, m) *= M_SQRT2;
+      }
+    }
+
+    used = 0;
+
+    // Set spherical coordindates
+    //
+    coordinates = Coord::Spherical;
+  }
+  
+  void SphericalSL::initialize()
+  {
+
+    // Assign some defaults
+    //
+    model_file = "SLGridSph.model";
+    
+    // Default cachename, empty by default
+    //
+    std::string cachename;
+
+    try {
+      if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
+      if (conf["cachename"]) cachename  = conf["cachename"].as<std::string>();
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -214,51 +293,35 @@ namespace BasisClasses
     
     // Test basis for consistency
     orthoTest(200);
-
-    // Number of possible threads
-    int nthrds = omp_get_max_threads();
-    
-    potd.resize(nthrds);
-    dpot.resize(nthrds);
-    dpt2.resize(nthrds);
-    dend.resize(nthrds);
-    
-    legs  .resize(nthrds);
-    dlegs .resize(nthrds);
-    d2legs.resize(nthrds);
-
-    for (auto & v : potd) v.resize(lmax+1, nmax);
-    for (auto & v : dpot) v.resize(lmax+1, nmax);
-    for (auto & v : dpt2) v.resize(lmax+1, nmax);
-    for (auto & v : dend) v.resize(lmax+1, nmax);
-
-    for (auto & v : legs  ) v.resize(lmax+1, lmax+1);
-    for (auto & v : dlegs ) v.resize(lmax+1, lmax+1);
-    for (auto & v : d2legs) v.resize(lmax+1, lmax+1);
-
-    expcoef.resize((lmax+1)*(lmax+1), nmax);
-    expcoef.setZero();
-      
-    work.resize(nmax);
-      
-    factorial.resize(lmax+1, lmax+1);
-      
-    for (int l=0; l<=lmax; l++) {
-      for (int m=0; m<=l; m++) {
-	factorial(l, m) = sqrt( (0.5*l+0.25)/M_PI * 
-				exp(lgamma(1.0+l-m) - lgamma(1.0+l+m)) );
-	if (m != 0) factorial(l, m) *= M_SQRT2;
-      }
-    }
-
-    used = 0;
-
-    // Set spherical coordindates
-    //
-    coordinates = Coord::Spherical;
   }
   
-  void SphericalSL::reset_coefs(void)
+  void Bessel::initialize()
+  {
+    try {
+      if (conf["rnum"])
+	rnum = conf["rnum"].as<int>();
+      else
+	rnum = 2000;
+    } 
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing parameter stanza for <"
+			     << name << ">: "
+			     << error.what() << std::endl
+			     << std::string(60, '-') << std::endl
+			     << conf                 << std::endl
+			     << std::string(60, '-') << std::endl;
+      
+      throw std::runtime_error("SphericalSL: error parsing YAML");
+    }
+    
+    // Finally, make the Sturm-Lioville basis...
+    bess = std::make_shared<BiorthBess>(rmax, lmax, nmax, rnum);
+
+    // Test basis for consistency
+    orthoTest(200);
+  }
+  
+  void Spherical::reset_coefs(void)
   {
     if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
     totalMass = 0.0;
@@ -266,7 +329,7 @@ namespace BasisClasses
   }
   
   
-  void SphericalSL::load_coefs(CoefClasses::CoefStrPtr coef, double time)
+  void Spherical::load_coefs(CoefClasses::CoefStrPtr coef, double time)
   {
     CoefClasses::SphStruct* cf = dynamic_cast<CoefClasses::SphStruct*>(coef.get());
 
@@ -301,12 +364,12 @@ namespace BasisClasses
     }
   }
 
-  void SphericalSL::set_coefs(CoefClasses::CoefStrPtr coef)
+  void Spherical::set_coefs(CoefClasses::CoefStrPtr coef)
   {
     // Sanity check on derived class type
     //
     if (typeid(*coef) != typeid(CoefClasses::SphStruct))
-      throw std::runtime_error("SphericalSL::set_coefs: you must pass a CoefClasses::SphStruct");
+      throw std::runtime_error("Spherical::set_coefs: you must pass a CoefClasses::SphStruct");
 
     // Sanity check on dimensionality
     //
@@ -318,7 +381,7 @@ namespace BasisClasses
       int rexp = (lmax+1)*(lmax+2)/2;
       if (rows != rexp or cols != nmax) {
 	std::ostringstream sout;
-	sout << "SphericalSL::set_coefs: the basis has (lmax, nmax)=("
+	sout << "Spherical::set_coefs: the basis has (lmax, nmax)=("
 	     << lmax << ", " << nmax
 	     << ") and the dimensions must be (rows, cols)=("
 	     << rexp << ", " << nmax
@@ -357,7 +420,7 @@ namespace BasisClasses
       coefctr = {0.0, 0.0, 0.0};
   }
 
-  void SphericalSL::accumulate(double x, double y, double z, double mass)
+  void Spherical::accumulate(double x, double y, double z, double mass)
   {
     double fac, fac1, fac2, fac4;
     double norm = -4.0*M_PI;
@@ -381,7 +444,7 @@ namespace BasisClasses
     used++;
     totalMass += mass;
     
-    sl->get_pot(potd[tid], rs);
+    get_pot(potd[tid], rs);
     
     legendre_R(lmax, costh, legs[tid]);
     
@@ -420,7 +483,7 @@ namespace BasisClasses
     
   }
   
-  void SphericalSL::make_coefs()
+  void Spherical::make_coefs()
   {
     if (use_mpi) {
       
@@ -437,7 +500,7 @@ namespace BasisClasses
   }
   
   std::vector<double>
-  SphericalSL::sph_eval(double r, double costh, double phi)
+  Spherical::sph_eval(double r, double costh, double phi)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -447,9 +510,9 @@ namespace BasisClasses
     
     fac1 = factorial(0, 0);
     
-    sl->get_dens (dend[tid], r/scale);
-    sl->get_pot  (potd[tid], r/scale);
-    sl->get_force(dpot[tid], r/scale);
+    get_dens (dend[tid], r/scale);
+    get_pot  (potd[tid], r/scale);
+    get_force(dpot[tid], r/scale);
     
     legendre_R(lmax, costh, legs[tid], dlegs[tid]);
     
@@ -531,15 +594,15 @@ namespace BasisClasses
     double potlfac = 1.0/scale;
     
     return
-      {den0 * densfac,
-       den1 * densfac,
-       (den0 + den1) * densfac,
-       pot0 * potlfac,
-       pot1 * potlfac,
-       (pot0 + pot1) * densfac,
-       potr * (-potlfac)/scale,
-       pott * (-potlfac),
-       potp * (-potlfac)};
+      {den0 * densfac,		// 0
+       den1 * densfac,		// 1
+       (den0 + den1) * densfac,	// 2
+       pot0 * potlfac,		// 3
+       pot1 * potlfac,		// 4
+       (pot0 + pot1) * densfac,	// 5
+       potr * (-potlfac)/scale,	// 6
+       pott * (-potlfac),	// 7
+       potp * (-potlfac)};	// 8
     //         ^
     //         |
     // Return force not potential gradient
@@ -547,23 +610,23 @@ namespace BasisClasses
 
 
   std::vector<double>
-  SphericalSL::cyl_eval(double R, double z, double phi)
+  Spherical::cyl_eval(double R, double z, double phi)
   {
     double r = sqrt(R*R + z*z) + 1.0e-18;
     double costh = z/r, sinth = R/r;
     
     auto v = sph_eval(r, costh, phi);
     
-    double potR = v[4]*sinth + v[5]*costh;
-    double potz = v[4]*costh - v[5]*sinth;
+    double potR = v[6]*sinth + v[7]*costh;
+    double potz = v[6]*costh - v[7]*sinth;
 
-    return {v[0], v[1], v[2], v[3], potR, potz, v[6]};
+    return {v[0], v[1], v[2], v[3], v[4], v[5], potR, potz, v[8]};
   }
 
 
   // Evaluate in cartesian coordinates
   std::vector<double>
-  SphericalSL::crt_eval
+  Spherical::crt_eval
   (double x, double y, double z)
   {
     double R = sqrt(x*x + y*y);
@@ -571,16 +634,14 @@ namespace BasisClasses
 
     auto v = cyl_eval(R, z, phi);
 
-    //tdens0, tdens, tpotl0, tpotl, tpotR, tpotz, tpotp
+    double tpotx = v[6]*x/R - v[8]*y/R ;
+    double tpoty = v[6]*y/R + v[8]*x/R ;
     
-    double tpotx = v[4]*x/R - v[6]*y/R ;
-    double tpoty = v[4]*y/R + v[6]*x/R ;
-    
-    return {v[0], v[1], v[2], v[3], tpotx, tpoty, v[5]};
+    return {v[0], v[1], v[2], v[3], v[4], v[5], tpotx, tpoty, v[7]};
   }
   
 
-  SphericalSL::BasisArray SphericalSL::getBasis
+  Spherical::BasisArray SphericalSL::getBasis
   (double logxmin, double logxmax, int numgrid)
   {
     // Assing return storage
@@ -601,9 +662,9 @@ namespace BasisClasses
     Eigen::MatrixXd tabpot, tabden, tabfrc;
 
     for (int i=0; i<numgrid; i++) {
-      sl->get_pot  (tabpot, pow(10.0, logxmin + dx*i));
-      sl->get_dens (tabden, pow(10.0, logxmin + dx*i));
-      sl->get_force(tabfrc, pow(10.0, logxmin + dx*i));
+      get_pot  (tabpot, pow(10.0, logxmin + dx*i));
+      get_dens (tabden, pow(10.0, logxmin + dx*i));
+      get_force(tabfrc, pow(10.0, logxmin + dx*i));
       for (int l=0; l<=lmax; l++) {
 	for (int n=0; n<nmax;n++){
 	  ret[l][n]["potential"](i) = tabpot(l, n);
@@ -615,6 +676,43 @@ namespace BasisClasses
     
     return ret;
   }
+
+  Spherical::BasisArray Spherical::getBasis
+  (double rmin, double rmax, int numgrid)
+  {
+    // Assing return storage
+    BasisArray ret (lmax+1);
+    for (auto & v : ret) {
+      v.resize(nmax);
+      for (auto & u : v) {
+	u["potential"].resize(numgrid); // Potential
+	u["density"  ].resize(numgrid); // Density
+	u["rforce"   ].resize(numgrid); // Radial force
+      }
+    }
+
+    // Radial grid spacing
+    double dr = (rmax - rmin)/(numgrid-1);
+
+    // Basis storage
+    Eigen::MatrixXd tabpot, tabden, tabfrc;
+
+    for (int i=0; i<numgrid; i++) {
+      get_pot  (tabpot, rmin + dr*i);
+      get_dens (tabden, rmin + dr*i);
+      get_force(tabfrc, rmin + dr*i);
+      for (int l=0; l<=lmax; l++) {
+	for (int n=0; n<nmax;n++){
+	  ret[l][n]["potential"](i) = tabpot(l, n);
+	  ret[l][n]["density"  ](i) = tabden(l, n);
+	  ret[l][n]["rforce"   ](i) = tabfrc(l, n);
+	}
+      }
+    }
+    
+    return ret;
+  }
+
 
 #define MINEPS 1.0e-10
   
@@ -1277,14 +1375,15 @@ namespace BasisClasses
 
     if (midplane) {
       height = sl->accumulated_midplane_eval(R, -colh*hcyl, colh*hcyl, phi);
-
       return
 	{tdens0, tdens - tdens0, tdens,
-	 tpotl0, tpotl - tpotl0, tpotl, tpotR, tpotz, tpotp, height};
+	 tpotl0, tpotl - tpotl0, tpotl,
+	 tpotR, tpotz, tpotp, height};
     } else {
       return
 	{tdens0, tdens - tdens0, tdens,
-	 tpotl0, tpotl - tpotl0, tpotl, tpotR, tpotz, tpotp};
+	 tpotl0, tpotl - tpotl0, tpotl,
+	 tpotR, tpotz, tpotp};
     }
   }
   
@@ -1741,7 +1840,7 @@ namespace BasisClasses
       rpot = -totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
       zpot = -totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
       
-      return {den0, den1, pot0, pot1, rpot, zpot, ppot};
+      return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
     }
 
     // Get the basis fields
@@ -1827,16 +1926,16 @@ namespace BasisClasses
     // Cylindrical coords
     //
     double sinth = sqrt(fabs(1.0 - costh*costh));
-    double R = r*sinth, z = r*costh, potR, potz;
+    double R = r*sinth, z = r*costh;
 
     auto v = cyl_eval(R, z, phi);
   
     // Spherical force element converstion
     //
-    double potr = potR*sinth + potz*costh;
-    double pott = potR*costh - potz*sinth;
+    double potr = v[6]*sinth + v[7]*costh;
+    double pott = v[6]*costh - v[7]*sinth;
 
-    return {v[0], v[1], v[2], v[3], potr, pott, v[6]};
+    return {v[0], v[1], v[2], v[3], v[4], v[5], potr, pott, v[8]};
   }
 
   std::vector<double> FlatDisk::crt_eval(double x, double y, double z)
@@ -1848,10 +1947,10 @@ namespace BasisClasses
 
     auto v = cyl_eval(R, z, phi);
 
-    double potx = v[4]*x/R - v[6]*y/R;
-    double poty = v[4]*y/R + v[6]*x/R;
+    double potx = v[4]*x/R - v[8]*y/R;
+    double poty = v[4]*y/R + v[8]*x/R;
 
-    return {v[0], v[1], v[2], v[3], potx, poty, v[5]};
+    return {v[0], v[1], v[2], v[3], v[4], v[5], potx, poty, v[7]};
   }
 
   std::vector<Eigen::MatrixXd> FlatDisk::orthoCheck()
@@ -2582,7 +2681,7 @@ namespace BasisClasses
     double frcy = -frc(1).real();
     double frcz = -frc(2).real();
 
-    return {0, den1, 0, pot1, frcx, frcy, frcz};
+    return {0, den1, den1, 0, pot1, pot1, frcx, frcy, frcz};
   }
 
   std::vector<double> Cube::cyl_eval(double R, double z, double phi)

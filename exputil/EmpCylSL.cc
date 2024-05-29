@@ -26,11 +26,8 @@
 
 // For reading and writing HDF5 cache files
 //
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
-
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 #ifdef HAVE_OMP_H
 #include <omp.h>		// For multithreading basis construction
@@ -7040,7 +7037,8 @@ void EmpCylSL::WriteH5Cache()
     std::string model = EmpModelLabs[mtype];
 
     file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
-    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
+    file.createAttribute<std::string>("forceID",  HighFive::DataSpace::From(forceID)).write(forceID);
+    file.createAttribute<std::string>("Version",  HighFive::DataSpace::From(Version)).write(Version);
       
     // Write the specific parameters
     //
@@ -7161,6 +7159,18 @@ bool EmpCylSL::ReadH5Cache()
       return false;
     };
 
+    // Version check
+    //
+    if (file.hasAttribute("Version")) {
+      if (not checkStr(Version, "Version"))  return false;
+    } else {
+      if (myid==0)
+	std::cout << "---- EmpCylSL::ReadH5Cache: "
+		  << "recomputing cache for HighFive API change"
+		  << std::endl;
+      return false;
+    }
+
     if (not checkStr(geometry, "geometry"))  return false;
     if (not checkStr(forceID,  "forceID"))   return false;
     if (not checkInt(MMAX,     "mmax"))      return false;
@@ -7231,10 +7241,10 @@ bool EmpCylSL::ReadH5Cache()
 	sout << n;
 	auto order = harmonic.getGroup(sout.str());
       
-	order.getDataSet("potC")   .read(potC   [m][n]);
-	order.getDataSet("rforceC").read(rforceC[m][n]);
-	order.getDataSet("zforceC").read(zforceC[m][n]);
-	order.getDataSet("densC")  .read(densC[m][n]);
+	potC   [m][n] = order.getDataSet("potC")   .read<Eigen::MatrixXd>();
+	rforceC[m][n] = order.getDataSet("rforceC").read<Eigen::MatrixXd>();
+	zforceC[m][n] = order.getDataSet("zforceC").read<Eigen::MatrixXd>();
+	densC  [m][n] = order.getDataSet("densC")  .read<Eigen::MatrixXd>();
       }
     }
 
@@ -7254,10 +7264,10 @@ bool EmpCylSL::ReadH5Cache()
 	sout << n;
 	auto order = harmonic.getGroup(sout.str());
       
-	order.getDataSet("potS")   .read(potS   [m][n]);
-	order.getDataSet("rforceS").read(rforceS[m][n]);
-	order.getDataSet("zforceS").read(zforceS[m][n]);
-	order.getDataSet("densS")  .read(densS[m][n]);
+	potS   [m][n] = order.getDataSet("potS")   .read<Eigen::MatrixXd>();
+	rforceS[m][n] = order.getDataSet("rforceS").read<Eigen::MatrixXd>();
+	zforceS[m][n] = order.getDataSet("zforceS").read<Eigen::MatrixXd>();
+	densS  [m][n] = order.getDataSet("densS")  .read<Eigen::MatrixXd>();
       }
     }
 

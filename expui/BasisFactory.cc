@@ -175,6 +175,9 @@ namespace BasisClasses
       if ( !name.compare("sphereSL") ) {
 	basis = std::make_shared<SphericalSL>(conf);
       }
+      else if ( !name.compare("bessel") ) {
+	basis = std::make_shared<Bessel>(conf);
+      }
       else if ( !name.compare("cylinder") ) {
 	basis = std::make_shared<Cylindrical>(conf);
       }

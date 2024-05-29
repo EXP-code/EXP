@@ -340,6 +340,9 @@ void do_step(int n)
 				// Stop the total step timer
   if (step_timing) timer_tot.stop();
 
+  if (VERBOSE==2 and myid==0) 	// Time step marker
+    std::cout << std::endl << ">>>" << this_step << "<<<" << std::endl;
+
 				// Timer output
   if (step_timing && this_step!=0 && (this_step % tskip) == 0) {
     if (myid==0) {

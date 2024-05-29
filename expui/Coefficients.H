@@ -64,6 +64,9 @@ namespace CoefClasses
     //! Get the YAML config for the basis (to be implemented by EXP)
     virtual std::string getYAML() = 0;
     
+    //! Coefficient file versioning
+    inline static const std::string CoefficientOutputVersion = "1.0";
+
     //! Write parameter attributes (needed for derived classes)
     virtual void WriteH5Params(HighFive::File& file) = 0;
     

@@ -93,7 +93,7 @@ namespace Field
     // Compute the probe length
     //
     std::vector<double> dd(3);
-    for (int k=0; k<3; k++) dd[k] = (end[k] - beg[k])/num;
+    for (int k=0; k<3; k++) dd[k] = (end[k] - beg[k])/(num-1);
     double dlen = sqrt(dd[0]*dd[0] + dd[1]*dd[1] + dd[2]*dd[2]);
 
     for (int icnt=0; icnt<times.size(); icnt++) {

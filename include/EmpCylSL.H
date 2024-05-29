@@ -231,6 +231,9 @@ protected:
   //! Read HDF5 cache
   bool ReadH5Cache();
 
+  //! Cache versioning
+  inline static const std::string Version = "1.0";
+
   //! The cache file name
   std::string cachefile;
 				// 1=write, 0=read

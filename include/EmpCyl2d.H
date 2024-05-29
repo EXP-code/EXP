@@ -17,10 +17,8 @@
 
 // For reading and writing cache file
 //
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 /**
    A class that implements most of the members for an Exp force routine
@@ -126,6 +124,9 @@ protected:
   void create_tables();
   bool ReadH5Cache();
   void WriteH5Cache();
+
+  //! Cache versioning
+  inline static const std::string Version = "1.0";
 
   //! Basis magic number
   inline static const unsigned int hmagic = 0xc0a57a1;
