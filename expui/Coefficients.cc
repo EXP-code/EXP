@@ -509,7 +509,7 @@ namespace CoefClasses
     ret.resize((Lmax+1)*(Lmax+2)/2, Nmax, ntim);
 
     for (int t=0; t<ntim; t++) {
-      auto & cof = *(coefs[times[t]]->coefs);
+      auto & cof = *(coefs[roundTime(times[t])]->coefs);
       for (int l=0; l<(Lmax+2)*(Lmax+1)/2; l++) {
 	for (int n=0; n<Nmax; n++) {
 	  ret(l, n, t) = cof(l, n);
@@ -932,7 +932,7 @@ namespace CoefClasses
     ret.resize(Mmax+1, Nmax, ntim);
     
     for (int t=0; t<ntim; t++) {
-      auto & cof = *coefs[times[t]]->coefs;
+      auto & cof = *coefs[roundTime(times[t])]->coefs;
       for (int m=0; m<Mmax+1; m++) {
 	for (int n=0; n<Nmax; n++) {
 	  ret(m, n, t) = cof(m, n);
@@ -1302,7 +1302,7 @@ namespace CoefClasses
     ret.resize(2*NmaxX+1, 2*NmaxY+1, NmaxZ, ntim);
     
     for (int t=0; t<ntim; t++) {
-      auto cof = coefs[times[t]];
+      auto cof = coefs[roundTime(times[t])];
       for (int ix=0; ix<=2*NmaxX; ix++) {
 	for (int iy=0; iy<=2*NmaxY; iy++) {
 	  for (int iz=0; iz<NmaxZ; iz++) {
@@ -1654,7 +1654,7 @@ namespace CoefClasses
     ret.resize(2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1, ntim);
     
     for (int t=0; t<ntim; t++) {
-      auto cof = coefs[times[t]];
+      auto cof = coefs[roundTime(times[t])];
       for (int ix=0; ix<=2*NmaxX; ix++) {
 	for (int iy=0; iy<=2*NmaxY; iy++) {
 	  for (int iz=0; iz<=2*NmaxZ; iz++) {
@@ -2095,7 +2095,7 @@ namespace CoefClasses
     ret.resize(cols, ntim);
     
     for (int t=0; t<ntim; t++) {
-      auto cof = coefs[times[t]];
+      auto cof = coefs[roundTime(times[t])];
       for (int c=0; c<cols; c++) {
 	ret(c, t) = (*cof->coefs)(c).real();
       }
@@ -2498,7 +2498,7 @@ namespace CoefClasses
     ret.resize(Nfld, (Lmax+1)*(Lmax+2)/2, Nmax, ntim);
 
     for (int t=0; t<ntim; t++) {
-      auto & cof = *(coefs[times[t]]->coefs);
+      auto & cof = *(coefs[roundTime(times[t])]->coefs);
       for (int i=0; i<4; i++) {
 	for (int l=0; l<(Lmax+2)*(Lmax+1)/2; l++) {
 	  for (int n=0; n<Nmax; n++) {
@@ -2937,7 +2937,7 @@ namespace CoefClasses
     ret.resize(Nfld, Mmax+1, Nmax, ntim);
 
     for (int t=0; t<ntim; t++) {
-      auto & cof = *(coefs[times[t]]->coefs);
+      auto & cof = *(coefs[roundTime(times[t])]->coefs);
       for (int i=0; i<Nfld; i++) {
 	for (int m=0; m<=Mmax; m++) {
 	  for (int n=0; n<Nmax; n++) {
