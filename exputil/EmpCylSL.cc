@@ -216,6 +216,122 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   maxSNR       = 0.0;
 }
 
+template <typename U>
+U getH5(std::string name, HighFive::File& file)
+{
+  if (file.hasAttribute(name)) {
+    U v; 
+    HighFive::Attribute vv = file.getAttribute(name);
+    vv.read(v);
+    return v;
+  } else {
+    std::ostringstream sout;
+    sout << "EmpCylSL: could not find <" << name << ">";
+    throw std::runtime_error(sout.str());
+  }
+}
+
+EmpCylSL::EmpCylSL(int mlim, std::string cachename)
+{
+  // Use default name?
+  //
+  if (cachename.size()==0)
+    throw std::runtime_error("EmpCylSL: you must specify a cachename");
+
+  // Open and read the cache file to get the needed input parameters
+  //
+  
+  try {
+    // Silence the HDF5 error stack
+    //
+    HighFive::SilenceHDF5 quiet;
+    
+    // Open the hdf5 file
+    //
+    HighFive::File file(cachefile, HighFive::File::ReadOnly);
+    
+    // For basis ID
+    std::string forceID("Cylinder"), geometry("cylinder");
+    std::string model = EmpModelLabs[mtype];
+      
+    // Version check
+    //
+    if (file.hasAttribute("Version")) {
+      auto ver = getH5<std::string>(std::string("Version"), file);
+      if (ver.compare(Version))
+	throw std::runtime_error("EmpCylSL: version mismatch");
+    } else {
+      throw std::runtime_error("EmpCylSL: outdated cache");
+    }
+
+    NMAX    = getH5<int>("nmaxfid", file);
+    MMAX    = getH5<int>("mmax",    file);
+    LMAX    = getH5<int>("lmax",    file);
+    NORDER  = getH5<int>("nmax",    file);
+    MMIN    = 0;
+    MLIM    = std::min<int>(mlim, MMAX);
+    NMIN    = 0;
+    NLIM    = std::numeric_limits<int>::max();
+    Neven   = getH5<int>("neven",   file);
+    Nodd    = getH5<int>("nodd",    file);
+    ASCALE  = getH5<double>("ascl", file);
+    HSCALE  = getH5<double>("hscl", file);
+  }
+  catch (YAML::Exception& error) {
+    std::ostringstream sout;
+    sout << "EmpCylSL::getHeader: invalid cache file <" << cachefile << ">. ";
+    sout << "YAML error in getHeader: " << error.what() << std::endl;
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
+  }
+
+  // Set EvenOdd if values seem sane
+  //
+  EvenOdd = false;
+  if (Nodd>=0 and Nodd<=NORDER and Nodd+Neven==NORDER) {
+    EvenOdd  = true;
+  }
+    
+  pfac     = 1.0/sqrt(ASCALE);
+  ffac     = pfac/ASCALE;
+  dfac     = ffac/ASCALE;
+  
+  EVEN_M   = false;
+
+  // Check whether MPI is initialized
+  //
+  int flag;
+  MPI_Initialized(&flag);
+  if (flag) use_mpi = true;
+  else      use_mpi = false;
+  
+  // Enable MPI code in SLGridSph
+  //
+  if (use_mpi and numprocs>1) SLGridSph::mpi = 1;
+  
+  // Choose table dimension
+  //
+  MPItable = 4;
+    
+  // Initialize storage and values
+  //
+  coefs_made.resize(multistep+1);
+  std::fill(coefs_made.begin(), coefs_made.end(), false);
+  
+  eof_made   = false;
+  
+  sampT        = 1;
+  defSampT     = 1;
+  tk_type      = None;
+  
+  cylmass      = 0.0;
+  cylmass1     = std::vector<double>(nthrds);
+  cylmass_made = false;
+  
+  hallfile     = "";
+  minSNR       = std::numeric_limits<double>::max();
+  maxSNR       = 0.0;
+}
+
 
 void EmpCylSL::reset(int numr, int lmax, int mmax, int nord, 
 		     double ascale, double hscale, int nodd,
@@ -815,7 +931,7 @@ std::string compare_out(std::string str, U one, U two)
   return sout.str();
 }
 
-int EmpCylSL::cache_grid(int readwrite, string cachename)
+int EmpCylSL::cache_grid(int readwrite, std::string cachename)
 {
 
   // Option to reset cache file name
