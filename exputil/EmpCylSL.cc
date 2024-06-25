@@ -248,7 +248,7 @@ EmpCylSL::EmpCylSL(int mlim, std::string cachename)
     
     // Open the hdf5 file
     //
-    HighFive::File file(cachefile, HighFive::File::ReadOnly);
+    HighFive::File file(cachename, HighFive::File::ReadOnly);
     
     // For basis ID
     std::string forceID("Cylinder"), geometry("cylinder");
@@ -266,7 +266,7 @@ EmpCylSL::EmpCylSL(int mlim, std::string cachename)
 
     NMAX    = getH5<int>("nmaxfid", file);
     MMAX    = getH5<int>("mmax",    file);
-    LMAX    = getH5<int>("lmax",    file);
+    LMAX    = getH5<int>("lmaxfid", file);
     NORDER  = getH5<int>("nmax",    file);
     MMIN    = 0;
     MLIM    = std::min<int>(mlim, MMAX);
