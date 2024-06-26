@@ -238,6 +238,8 @@ EmpCylSL::EmpCylSL(int mlim, std::string cachename)
   if (cachename.size()==0)
     throw std::runtime_error("EmpCylSL: you must specify a cachename");
 
+  cachefile = cachename;
+
   // Open and read the cache file to get the needed input parameters
   //
   
@@ -331,7 +333,7 @@ EmpCylSL::EmpCylSL(int mlim, std::string cachename)
   minSNR       = std::numeric_limits<double>::max();
   maxSNR       = 0.0;
 
-  setup_accumulation();
+  read_cache();
 }
 
 
