@@ -330,6 +330,8 @@ EmpCylSL::EmpCylSL(int mlim, std::string cachename)
   hallfile     = "";
   minSNR       = std::numeric_limits<double>::max();
   maxSNR       = 0.0;
+
+  setup_accumulation();
 }
 
 
