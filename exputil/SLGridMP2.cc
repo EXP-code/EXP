@@ -168,6 +168,42 @@ SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 }
 
 
+SLGridSph::SLGridSph(std::string cachename)
+{
+  if (cachename.size()) sph_cache_name  = cachename;
+  else throw std::runtime_error("SLGridSph: you must specify a cachename");
+
+  tbdbg = false;
+
+  int LMAX, NMAX, NUMR, CMAP, DIVERGE=0;
+  double RMIN, RMAX, RMAP, DFAC=1.0;
+
+  try {
+    
+    auto node = getHeader(cachename);
+
+    LMAX  = node["lmax"].as<int>();
+    NMAX  = node["nmax"].as<int>();
+    NUMR  = node["numr"].as<int>();
+    CMAP  = node["cmap"].as<int>();
+    RMIN  = node["rmin"].as<double>();
+    RMAX  = node["rmax"].as<double>();
+    RMAP  = node["rmapping"].as<double>();
+
+    model_file_name = node["model"].as<std::string>();
+    model = SphModTblPtr(new SphericalModelTable(model_file_name, diverge, dfac));
+  }
+  catch (YAML::Exception& error) {
+    std::ostringstream sout;
+    sout << "SLGridMP2: error parsing parameters from getHeader: "
+	 << error.what();
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1039, false);
+  }
+
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, false, CMAP, RMAP);
+}
+
+
 std::map<std::string, std::string>
 SLGridSph::cacheInfo(const std::string& cachefile, bool verbose)
 {

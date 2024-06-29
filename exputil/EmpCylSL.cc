@@ -270,6 +270,8 @@ EmpCylSL::EmpCylSL(int mlim, std::string cachename)
     MMAX    = getH5<int>("mmax",    file);
     LMAX    = getH5<int>("lmaxfid", file);
     NORDER  = getH5<int>("nmax",    file);
+    CMAPR   = getH5<int>("cmapr",   file);
+    CMAPZ   = getH5<int>("cmapz",   file);
     MMIN    = 0;
     MLIM    = std::min<int>(mlim, MMAX);
     NMIN    = 0;

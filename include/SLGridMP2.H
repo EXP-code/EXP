@@ -116,6 +116,10 @@ public:
 	    std::string cachename=".slgrid_sph_cache",
 	    bool Verbose=false);
 
+  //! Constructor (from cache file)
+  SLGridSph(std::string cachename);
+
+
   //! Destructor
   virtual ~SLGridSph();
 
@@ -216,6 +220,11 @@ public:
   double getRmax() { return rmax; }
   //@}
 
+  //@{
+  //! Get expansion limits
+  int getLmax() { return lmax; }
+  int getNmax() { return nmax; }
+  //@}
 };
 
 
