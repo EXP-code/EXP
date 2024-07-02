@@ -4,6 +4,7 @@
 // Valid key list for Disk2d including BiorthCyl keys
 //
 std::set<std::string> Disk2d::valid_keys = {
+  "diskconf",
   "acyltbl",
   "rcylmin",
   "rcylmax",
