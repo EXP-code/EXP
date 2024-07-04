@@ -1339,7 +1339,7 @@ namespace MSSA {
       // Save trend state
       //
       int trend = static_cast<std::underlying_type<TrendType>::type>(type);
-      file.createAttribute<bool>("trendType", HighFive::DataSpace::From(trend)).write(trend);
+      file.createAttribute<int>("trendType", HighFive::DataSpace::From(trend)).write(trend);
 
       // Save the key list
       //
