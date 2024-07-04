@@ -304,15 +304,15 @@ namespace BasisClasses
       
       (*coefs[tid])(0, 0, 0) += mass*p(0);
 
-      for (int l=0, k=0; l<=lmax; l++) {
-	for (int m=0; m<=l; m++, k++) {
+      for (int l=0, lm=0; l<=lmax; l++) {
+	for (int m=0; m<=l; m++, lm++) {
 	  std::complex<double> P =
 	    std::exp(I*(phi*m))*Ylm01(l, m)*plgndr(l, m, cth);
 	
 	  for (int n=0; n<nmax; n++) {
-	    (*coefs[tid])(1, m, n) += mass*P*p(n);
+	    (*coefs[tid])(1, lm, n) += mass*P*p(n);
 	    for (int k=0; k<vec.size(); k++)
-	      (*coefs[tid])(k+2, m, n) += mass*P*p(n)*vec[k];
+	      (*coefs[tid])(k+2, lm, n) += mass*P*p(n)*vec[k];
 	  }
 	}
       }

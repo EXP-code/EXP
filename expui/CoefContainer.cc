@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <fstream>
 #include <cctype>
+#include <typeinfo>
 
 #include <yaml-cpp/yaml.h>
 
@@ -64,6 +65,12 @@ namespace MSSA
     else if (dynamic_cast<CoefClasses::TableData*>(coefs.get())) {
       unpack_table();
     }
+    else if (dynamic_cast<CoefClasses::SphFldCoefs*>(coefs.get())) {
+      unpack_sphfld();
+    }
+    else if (dynamic_cast<CoefClasses::CylFldCoefs*>(coefs.get())) {
+      unpack_cylfld();
+    }
     else {
       throw std::runtime_error("CoefDB::unpack_channels(): can not reflect coefficient type");
     }
@@ -79,6 +86,10 @@ namespace MSSA
       restore_background_cylinder();
     else if (dynamic_cast<CoefClasses::TableData*>(coefs.get()))
       { } // Do nothing
+    else if (dynamic_cast<CoefClasses::SphFldCoefs*>(coefs.get()))
+      { } // Do nothing
+    else if (dynamic_cast<CoefClasses::CylFldCoefs*>(coefs.get()))
+      { } // Do nothing
     else {
       throw std::runtime_error("CoefDB::background(): can not reflect coefficient type");
     }
@@ -86,6 +97,8 @@ namespace MSSA
 
   void CoefDB::pack_channels()
   {
+    std::cout << "Type: " << typeid(*coefs.get()).name() << std::endl;
+
     if (dynamic_cast<CoefClasses::SphCoefs*>(coefs.get()))
       pack_sphere();
     else if (dynamic_cast<CoefClasses::CylCoefs*>(coefs.get()))
@@ -96,6 +109,10 @@ namespace MSSA
       pack_cube();
     else if (dynamic_cast<CoefClasses::TableData*>(coefs.get()))
       pack_table();
+    else if (dynamic_cast<CoefClasses::SphFldCoefs*>(coefs.get()))
+      pack_sphfld();
+    else if (dynamic_cast<CoefClasses::CylFldCoefs*>(coefs.get()))
+      pack_cylfld();
     else {
       throw std::runtime_error("CoefDB::pack_channels(): can not reflect coefficient type");
     }
@@ -195,6 +212,85 @@ namespace MSSA
 
 	if (m==0) (*cf->coefs)(m, n) = {data[c][i], 0.0};
 	else      (*cf->coefs)(m, n) = {data[c][i], data[s][i]};
+      }
+      // END key loop
+    }
+    // END time loop
+  }
+
+  void CoefDB::pack_cylfld()
+  {
+    auto cur = dynamic_cast<CoefClasses::CylFldCoefs*>(coefs.get());
+
+    times = cur->Times();
+    complexKey = true;
+
+    auto cf = dynamic_cast<CoefClasses::CylFldStruct*>( cur->getCoefStruct(times[0]).get() );
+
+    int nfld = cf->nfld;
+    int mmax = cf->mmax;
+    int nmax = cf->nmax;
+    int ntimes = times.size();
+    
+    // Promote desired keys into c/s pairs
+    //
+    keys.clear();
+    for (auto v : keys0) {
+      // Sanity check rank
+      //
+      if (v.size() != 3) {
+	std::ostringstream sout;
+	sout << "CoefDB::pack_cylfld: key vector should have rank 3; "
+	     << "found rank " << v.size() << " instead";
+	throw std::runtime_error(sout.str());
+      }
+      // Sanity check values
+      //
+      else if (v[0] >= 0 and v[0] <  nfld and
+	       v[1] >= 0 and v[1] <= mmax and
+	       v[2] >= 0 and v[2] <= nmax ) {
+	auto c = v, s = v;
+	c.push_back(0);
+	s.push_back(1);
+	keys.push_back(c);
+	if (v[0]) keys.push_back(s);
+      } else {
+	throw std::runtime_error("CoefDB::pack_cylfld: key is out of bounds");
+      }
+    }
+
+    bkeys.clear();		// No background fields
+
+    // Only pack the keys in the list
+    //
+    for (auto k : keys) {
+      data[k].resize(ntimes);
+    }
+
+    for (int t=0; t<ntimes; t++) {
+      cf = dynamic_cast<CoefClasses::CylFldStruct*>( cur->getCoefStruct(times[t]).get() );
+      for (auto k : keys) {
+	if (k[3]==0)
+	  data[k][t] = (*cf->coefs)(k[0], k[1], k[2]).real();
+	else
+	  data[k][t] = (*cf->coefs)(k[0], k[1], k[3]).imag();
+      }
+    }
+  }
+
+  void CoefDB::unpack_cylfld()
+  {
+    for (int i=0; i<times.size(); i++) {
+      auto cf = dynamic_cast<CoefClasses::CylFldStruct*>( coefs->getCoefStruct(times[i]).get() );
+      
+      for (auto k : keys0) {
+	auto c = k, s = k;
+	c.push_back(0); s.push_back(1);
+
+	int f = k[1], m = k[1], n = k[2];
+
+	if (m==0) (*cf->coefs)(f, m, n) = {data[c][i], 0.0};
+	else      (*cf->coefs)(f, m, n) = {data[c][i], data[s][i]};
       }
       // END key loop
     }
@@ -304,6 +400,92 @@ namespace MSSA
 
 	if (m==0) (*cf->coefs)(I(k), n) = {data[c][i], 0.0       };
 	else      (*cf->coefs)(I(k), n) = {data[c][i], data[s][i]};
+      }
+      // END key loop
+    }
+    // END time loop
+  }
+
+  void CoefDB::pack_sphfld()
+  {
+    auto cur = dynamic_cast<CoefClasses::SphFldCoefs*>(coefs.get());
+
+    times = cur->Times();
+    complexKey = true;
+
+    auto cf = dynamic_cast<CoefClasses::SphFldStruct*>( cur->getCoefStruct(times[0]).get() );
+
+    int nfld   = cf->nfld;
+    int lmax   = cf->lmax;
+    int nmax   = cf->nmax;
+    int ntimes = times.size();
+    
+    // Make extended key list
+    //
+    keys.clear();
+    for (auto k : keys0) {
+      // Sanity check rank
+      //
+      if (k.size() != 4) {
+	std::ostringstream sout;
+	sout << "CoefDB::pack_sphfld: key vector should have rank 4; "
+	     << "found rank " << k.size() << " instead";
+	throw std::runtime_error(sout.str());
+      }
+      // Sanity check values
+      //
+      else if (k[0] <  nfld and k[0] >= 0 and
+	       k[1] <= lmax and k[1] >= 0 and
+	       k[2] <= k[1] and k[2] >= 0 and
+	       k[3] <= nmax and k[3] >= 0 ) {
+	
+	auto v = k;
+	v.push_back(0);
+	keys.push_back(v);
+	data[v].resize(ntimes);
+
+	if (k[2]>0) {
+	  v[4] = 1;
+	  keys.push_back(v);
+	  data[v].resize(ntimes);
+	}
+      }
+      else {
+	throw std::runtime_error("CoefDB::pack_sphfld: key is out of bounds");
+      }
+    }
+
+    bkeys.clear();		// No background for field quantities
+
+    auto I = [](const Key& k) { return k[1]*(k[1]+1)/2 + k[2]; };
+
+    for (int t=0; t<ntimes; t++) {
+      cf = dynamic_cast<CoefClasses::SphFldStruct*>( cur->getCoefStruct(times[t]).get() );
+      for (auto k : keys)  {
+	auto c = (*cf->coefs)(k[0], I(k), k[3]);
+	data[k][t] = c.real();
+	if (k[4]) data[k][t] = c.imag();
+      }
+    }
+  }
+
+  void CoefDB::unpack_sphfld()
+  {
+    auto I = [](const Key& k) { return k[1]*(k[1]+1)/2 + k[2]; };
+
+    for (int i=0; i<times.size(); i++) {
+
+      auto cf = dynamic_cast<CoefClasses::SphFldStruct*>( coefs->getCoefStruct(times[i]).get() );
+      
+      for (auto k : keys0) {
+	auto c = k, s = k;
+	c.push_back(0);
+	s.push_back(1);
+
+	int f = k[0], l = k[1], m = k[2], n = k[3];
+
+	if (m==0) (*cf->coefs)(f, I(k), n) = {data[c][i], 0.0       };
+	else      (*cf->coefs)(f, I(k), n) = {data[c][i], data[s][i]};
       }
       // END key loop
     }
