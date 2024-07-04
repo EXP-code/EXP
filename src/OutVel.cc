@@ -62,7 +62,10 @@ OutVel::OutVel(const YAML::Node& conf) : Output(conf)
 
   // Create the basis
   //
-  basis = std::make_shared<BasisClasses::VelocityBasis>(conf);
+  YAML::Node node;
+  node["parameters"] = conf;
+
+  basis = std::make_shared<BasisClasses::VelocityBasis>(node);
 
   // Create the coefficient container based on the dimensionality.
   // Currently, these are spherical and polar grids.
