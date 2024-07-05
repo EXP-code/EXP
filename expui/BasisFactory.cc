@@ -84,6 +84,8 @@ namespace BasisClasses
     //
     try {
       conf = node["parameters"];
+      YAML::Emitter y; y << conf;
+      std::cout << "YAML in Basis: " << y.c_str() << std::endl;
     }
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing Basis parameters for <"

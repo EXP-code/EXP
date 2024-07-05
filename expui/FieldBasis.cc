@@ -11,16 +11,23 @@
 #include <cfenv>
 #endif
 
-extern double Ylm01(int ll, int mm);
 extern double plgndr(int l, int m, double x);
+
+static double Ylm(int l, int m)
+{
+  m = abs(m);
+  return sqrt( (2.0*l+1)/(4.0*M_PI) ) *
+    exp(0.5*(lgamma(1.0+l-m) - lgamma(1.0+l+m)));
+}
+
 
 namespace BasisClasses
 {
   const std::set<std::string>
   FieldBasis::valid_keys = {
-    "filename",
+    "modelname",
     "dof",
-    "scale",
+    "rmapping",
     "rmin",
     "rmax",
     "ascl",
@@ -60,18 +67,18 @@ namespace BasisClasses
   //
   void FieldBasis::configure()
   {
-    nfld     = 2;		// Weight and density fields by default
-    lmax     = 4;
-    nmax     = 10;
-    rmin     = 1.0e-4;
-    rmax     = 2.0;
-    ascl     = 0.01;
-    delta    = 0.005;
-    scale    = 0.05;
-    dof      = 3;
-    model    = "file";
-    name     = "field";
-    filename = "SLGridSph.model";
+    nfld      = 2;		// Weight and density fields by default
+    lmax      = 4;
+    nmax      = 10;
+    rmin      = 1.0e-4;
+    rmax      = 2.0;
+    ascl      = 0.01;
+    delta     = 0.005;
+    rmapping  = 0.05;
+    dof       = 3;
+    model     = "file";
+    name      = "field";
+    modelname = "SLGridSph.model";
 
     initialize();
 
@@ -111,8 +118,8 @@ namespace BasisClasses
     //
     if (model == "file") {
       std::vector<double> r, d;
-      std::ifstream in(filename);
-      if (not in) throw std::runtime_error("Error opening file: " + filename);
+      std::ifstream in(modelname);
+      if (not in) throw std::runtime_error("Error opening file: " + modelname);
     
       std::string line;
       while (std::getline(in, line)) {
@@ -156,13 +163,28 @@ namespace BasisClasses
     
     // Generate the orthogonal function instance
     //
-    ortho = std::make_shared<OrthoFunction>(nmax, densfunc, rmin, rmax, scale, dof);
+    ortho = std::make_shared<OrthoFunction>(nmax, densfunc, rmin, rmax, rmapping, dof);
 
     // Initialize fieldlabels
     //
     fieldLabels.clear();
     fieldLabels.push_back("weight");
     fieldLabels.push_back("density");
+
+    // Debug
+    //
+    if (true) {
+      auto tst = ortho->testOrtho();
+      double worst = 0.0;
+      for (int i=0; i<tst.rows(); i++) {
+	for (int j=0; j<tst.rows(); j++) {
+	  if (i==j) worst = std::max<double>(worst, fabs(1.0 - tst(i, j)));
+	  else      worst = std::max<double>(worst, fabs(tst(i, j)));
+	}
+      }
+      if (myid==0)
+	std::cout << "FieldBasis: ortho test worst <" << worst << ">" << std::endl;
+    }
   }
 
   void FieldBasis::allocateStore() 
@@ -187,17 +209,17 @@ namespace BasisClasses
     // Assign values from YAML
     //
     try {
-      if (conf["filename"])	filename = conf["filename"].as<std::string>();
-      if (conf["nfld"    ])     nfld     = conf["nfld"    ].as<int>();
-      if (conf["lmax"    ])     lmax     = conf["lmax"    ].as<int>();
-      if (conf["nmax"    ])     nmax     = conf["nmax"    ].as<int>();
-      if (conf["dof"     ])     dof      = conf["dof"     ].as<int>();
-      if (conf["rmin"    ])     rmin     = conf["rmin"    ].as<double>();
-      if (conf["rmax"    ])     rmax     = conf["rmax"    ].as<double>();
-      if (conf["ascl"    ])     ascl     = conf["ascl"    ].as<double>();
-      if (conf["delta"   ])     delta    = conf["delta"   ].as<double>();
-      if (conf["scale"   ])     scale    = conf["scale"   ].as<double>();
-      if (conf["model"   ])     model    = conf["model"   ].as<std::string>();
+      if (conf["modelname"])	modelname = conf["modelname"].as<std::string>();
+      if (conf["model"    ])    model     = conf["model"    ].as<std::string>();
+      if (conf["nfld"     ])    nfld      = conf["nfld"     ].as<int>();
+      if (conf["lmax"     ])    lmax      = conf["lmax"     ].as<int>();
+      if (conf["nmax"     ])    nmax      = conf["nmax"     ].as<int>();
+      if (conf["dof"      ])    dof       = conf["dof"      ].as<int>();
+      if (conf["rmin"     ])    rmin      = conf["rmin"     ].as<double>();
+      if (conf["rmax"     ])    rmax      = conf["rmax"     ].as<double>();
+      if (conf["ascl"     ])    ascl      = conf["ascl"     ].as<double>();
+      if (conf["delta"    ])    delta     = conf["delta"    ].as<double>();
+      if (conf["rmapping" ])    rmapping  = conf["rmapping" ].as<double>();
     }
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameters in FieldBasis: "
@@ -291,7 +313,7 @@ namespace BasisClasses
 
       for (int m=0; m<=lmax; m++) {
 	
-	std::complex<double> P = std::exp(I*(phi*m));
+	std::complex<double> P = std::exp(-I*(phi*m));
 	
 	for (int n=0; n<nmax; n++) {
 
@@ -309,11 +331,17 @@ namespace BasisClasses
       (*coefs[tid])(0, 0, 0) += mass*p(0);
 
       for (int l=0, lm=0; l<=lmax; l++) {
+
+	double s = 1.0;
+
 	for (int m=0; m<=l; m++, lm++) {
 	  
+	  // Spherical harmonic value
 	  std::complex<double> P =
-	    std::exp(I*(phi*m))*Ylm01(l, m)*plgndr(l, m, cth);
-	
+	    std::exp(-I*(phi*m))*Ylm(l, m)*plgndr(l, m, cth) * s;
+
+	  s *= -1.0;		// Flip sign for next evaluation
+
 	  for (int n=0; n<nmax; n++) {
 
 	    (*coefs[tid])(1, lm, n) += mass*P*p(n);
@@ -394,8 +422,10 @@ namespace BasisClasses
       auto p = (*ortho)(r*sqrt(fabs(1.0 - costh*costh)));
       for (int i=0; i<nfld; i++) {
 	for (int m=0; m<=lmax; m++) {
+	  double fac = m>0 ? 2.0 : 1.0;
 	  for (int n=0; n<nmax; n++) {
-	    ret[i] += std::real((*coefs[0])(i, m, n)*exp(I*(phi*m)))*p[n];
+	    ret[i] += fac *
+	      std::real((*coefs[0])(i, m, n)*exp(I*(phi*m)))*p[n];
 	  }
 	}
       }
@@ -406,9 +436,10 @@ namespace BasisClasses
       for (int i=0; i<nfld; i++) {
 	for (int l=0, L=0; l<=lmax; l++) {
 	  for (int m=0; m<=l; m++, L++) {
+	    double fac = m>0 ? 2.0 : 1.0;
 	    for (int n=0; n<nmax; n++) {
 	      ret[i] += std::real((*coefs[0])(i, L, n)*exp(I*(phi*m)))*p[n]*
-		Ylm01(l, m)*plgndr(l, m, costh);
+		Ylm(l, m)*plgndr(l, m, costh) * fac;
 	    }
 	  }
 	}
@@ -724,6 +755,10 @@ namespace BasisClasses
   VelocityBasis::VelocityBasis(const YAML::Node& conf) :
     FieldBasis(conf, "VelocityBasis")
   {
+    YAML::Emitter y; y << conf;
+    std::cout << "YAML configuration in VelocityBasis: "
+	      << y.c_str() << std::endl;
+
     name = "velocity";
     assignFunc();
   }
