@@ -755,10 +755,6 @@ namespace BasisClasses
   VelocityBasis::VelocityBasis(const YAML::Node& conf) :
     FieldBasis(conf, "VelocityBasis")
   {
-    YAML::Emitter y; y << conf;
-    std::cout << "YAML configuration in VelocityBasis: "
-	      << y.c_str() << std::endl;
-
     name = "velocity";
     assignFunc();
   }
