@@ -72,7 +72,7 @@ namespace MSSA
       unpack_cylfld();
     }
     else {
-      throw std::runtime_error("CoefDB::unpack_channels(): can not reflect coefficient type");
+      throw std::runtime_error(std::string("CoefDB::unpack_channels(): can not reflect coefficient type=") + typeid(*coefs.get()).name());
     }
 
     return coefs;
@@ -91,14 +91,12 @@ namespace MSSA
     else if (dynamic_cast<CoefClasses::CylFldCoefs*>(coefs.get()))
       { } // Do nothing
     else {
-      throw std::runtime_error("CoefDB::background(): can not reflect coefficient type");
+      throw std::runtime_error(std::string("CoefDB::background(): can not reflect coefficient type=") + typeid(*coefs.get()).name());
     }
   }
 
   void CoefDB::pack_channels()
   {
-    std::cout << "Type: " << typeid(*coefs.get()).name() << std::endl;
-
     if (dynamic_cast<CoefClasses::SphCoefs*>(coefs.get()))
       pack_sphere();
     else if (dynamic_cast<CoefClasses::CylCoefs*>(coefs.get()))
@@ -114,7 +112,7 @@ namespace MSSA
     else if (dynamic_cast<CoefClasses::CylFldCoefs*>(coefs.get()))
       pack_cylfld();
     else {
-      throw std::runtime_error("CoefDB::pack_channels(): can not reflect coefficient type");
+      throw std::runtime_error(std::string("CoefDB::pack_channels(): can not reflect coefficient type=") + typeid(*coefs.get()).name());
     }
   }
 
@@ -125,7 +123,8 @@ namespace MSSA
     times = cur->Times();
     complexKey = true;
 
-    auto cf = dynamic_cast<CoefClasses::CylStruct*>( cur->getCoefStruct(times[0]).get() );
+    auto cf = dynamic_cast<CoefClasses::CylStruct*>
+      ( cur->getCoefStruct(times[0]).get() );
 
     int mmax = cf->mmax;
     int nmax = cf->nmax;
@@ -182,7 +181,9 @@ namespace MSSA
     }
 
     for (int t=0; t<ntimes; t++) {
-      cf = dynamic_cast<CoefClasses::CylStruct*>( cur->getCoefStruct(times[t]).get() );
+      cf = dynamic_cast<CoefClasses::CylStruct*>
+	( cur->getCoefStruct(times[t]).get() );
+
       for (auto k : keys) {
 	if (k[2]==0)
 	  data[k][t] = (*cf->coefs)(k[0], k[1]).real();
@@ -202,7 +203,8 @@ namespace MSSA
   void CoefDB::unpack_cylinder()
   {
     for (int i=0; i<times.size(); i++) {
-      auto cf = dynamic_cast<CoefClasses::CylStruct*>( coefs->getCoefStruct(times[i]).get() );
+      auto cf = dynamic_cast<CoefClasses::CylStruct*>
+	( coefs->getCoefStruct(times[i]).get() );
       
       for (auto k : keys0) {
 	auto c = k, s = k;
@@ -225,7 +227,8 @@ namespace MSSA
     times = cur->Times();
     complexKey = true;
 
-    auto cf = dynamic_cast<CoefClasses::CylFldStruct*>( cur->getCoefStruct(times[0]).get() );
+    auto cf = dynamic_cast<CoefClasses::CylFldStruct*>
+      ( cur->getCoefStruct(times[0]).get() );
 
     int nfld = cf->nfld;
     int mmax = cf->mmax;
@@ -268,7 +271,9 @@ namespace MSSA
     }
 
     for (int t=0; t<ntimes; t++) {
-      cf = dynamic_cast<CoefClasses::CylFldStruct*>( cur->getCoefStruct(times[t]).get() );
+      cf = dynamic_cast<CoefClasses::CylFldStruct*>
+	( cur->getCoefStruct(times[t]).get() );
+
       for (auto k : keys) {
 	if (k[3]==0)
 	  data[k][t] = (*cf->coefs)(k[0], k[1], k[2]).real();
@@ -281,7 +286,8 @@ namespace MSSA
   void CoefDB::unpack_cylfld()
   {
     for (int i=0; i<times.size(); i++) {
-      auto cf = dynamic_cast<CoefClasses::CylFldStruct*>( coefs->getCoefStruct(times[i]).get() );
+      auto cf = dynamic_cast<CoefClasses::CylFldStruct*>
+	( coefs->getCoefStruct(times[i]).get() );
       
       for (auto k : keys0) {
 	auto c = k, s = k;
@@ -304,7 +310,8 @@ namespace MSSA
     times = cur->Times();
     complexKey = true;
 
-    auto cf = dynamic_cast<CoefClasses::SphStruct*>( cur->getCoefStruct(times[0]).get() );
+    auto cf = dynamic_cast<CoefClasses::SphStruct*>
+      ( cur->getCoefStruct(times[0]).get() );
 
     int lmax   = cf->lmax;
     int nmax   = cf->nmax;
@@ -368,7 +375,9 @@ namespace MSSA
     auto I = [](const Key& k) { return k[0]*(k[0]+1)/2 + k[1]; };
 
     for (int t=0; t<ntimes; t++) {
-      cf = dynamic_cast<CoefClasses::SphStruct*>( cur->getCoefStruct(times[t]).get() );
+      cf = dynamic_cast<CoefClasses::SphStruct*>
+	( cur->getCoefStruct(times[t]).get() );
+
       for (auto k : keys)  {
 	auto c = (*cf->coefs)(I(k), k[2]);
 	data[k][t] = c.real();
@@ -389,7 +398,8 @@ namespace MSSA
 
     for (int i=0; i<times.size(); i++) {
 
-      auto cf = dynamic_cast<CoefClasses::SphStruct*>( coefs->getCoefStruct(times[i]).get() );
+      auto cf = dynamic_cast<CoefClasses::SphStruct*>
+	( coefs->getCoefStruct(times[i]).get() );
       
       for (auto k : keys0) {
 	auto c = k, s = k;
@@ -413,7 +423,8 @@ namespace MSSA
     times = cur->Times();
     complexKey = true;
 
-    auto cf = dynamic_cast<CoefClasses::SphFldStruct*>( cur->getCoefStruct(times[0]).get() );
+    auto cf = dynamic_cast<CoefClasses::SphFldStruct*>
+      ( cur->getCoefStruct(times[0]).get() );
 
     int nfld   = cf->nfld;
     int lmax   = cf->lmax;
@@ -437,7 +448,7 @@ namespace MSSA
       else if (k[0] <  nfld and k[0] >= 0 and
 	       k[1] <= lmax and k[1] >= 0 and
 	       k[2] <= k[1] and k[2] >= 0 and
-	       k[3] <= nmax and k[3] >= 0 ) {
+	       k[3] <  nmax and k[3] >= 0 ) {
 	
 	auto v = k;
 	v.push_back(0);
@@ -460,7 +471,10 @@ namespace MSSA
     auto I = [](const Key& k) { return k[1]*(k[1]+1)/2 + k[2]; };
 
     for (int t=0; t<ntimes; t++) {
-      cf = dynamic_cast<CoefClasses::SphFldStruct*>( cur->getCoefStruct(times[t]).get() );
+
+      cf = dynamic_cast<CoefClasses::SphFldStruct*>
+	( cur->getCoefStruct(times[t]).get() );
+
       for (auto k : keys)  {
 	auto c = (*cf->coefs)(k[0], I(k), k[3]);
 	data[k][t] = c.real();
@@ -475,10 +489,13 @@ namespace MSSA
 
     for (int i=0; i<times.size(); i++) {
 
-      auto cf = dynamic_cast<CoefClasses::SphFldStruct*>( coefs->getCoefStruct(times[i]).get() );
+      auto cf = dynamic_cast<CoefClasses::SphFldStruct*>
+	( coefs->getCoefStruct(times[i]).get() );
       
       for (auto k : keys0) {
+
 	auto c = k, s = k;
+
 	c.push_back(0);
 	s.push_back(1);
 
@@ -499,7 +516,8 @@ namespace MSSA
     times = cur->Times();
     complexKey = true;
 
-    auto cf = dynamic_cast<CoefClasses::SlabStruct*>( cur->getCoefStruct(times[0]).get() );
+    auto cf = dynamic_cast<CoefClasses::SlabStruct*>
+      ( cur->getCoefStruct(times[0]).get() );
 
     int nmaxx   = cf->nmaxx;
     int nmaxy   = cf->nmaxy;
@@ -558,7 +576,9 @@ namespace MSSA
     }
 
     for (int t=0; t<ntimes; t++) {
-      cf = dynamic_cast<CoefClasses::SlabStruct*>( cur->getCoefStruct(times[t]).get() );
+      cf = dynamic_cast<CoefClasses::SlabStruct*>
+	( cur->getCoefStruct(times[t]).get() );
+
       for (auto k : keys)  {
 	auto c = (*cf->coefs)(k[0], k[1], k[2]);
 	if (k[3]) data[k][t] = c.imag();
@@ -580,7 +600,8 @@ namespace MSSA
     times = cur->Times();
     complexKey = true;
 
-    auto cf = dynamic_cast<CoefClasses::CubeStruct*>( cur->getCoefStruct(times[0]).get() );
+    auto cf = dynamic_cast<CoefClasses::CubeStruct*>
+      ( cur->getCoefStruct(times[0]).get() );
 
     int nmaxx   = cf->nmaxx;
     int nmaxy   = cf->nmaxy;
@@ -639,7 +660,9 @@ namespace MSSA
     }
 
     for (int t=0; t<ntimes; t++) {
-      cf = dynamic_cast<CoefClasses::CubeStruct*>( cur->getCoefStruct(times[t]).get() );
+      cf = dynamic_cast<CoefClasses::CubeStruct*>
+	( cur->getCoefStruct(times[t]).get() );
+
       for (auto k : keys)  {
 	auto c = (*cf->coefs)(k[0], k[1], k[2]);
 	if (k[3]) data[k][t] = c.imag();
@@ -658,7 +681,8 @@ namespace MSSA
   {
     for (int i=0; i<times.size(); i++) {
 
-      auto cf = dynamic_cast<CoefClasses::SlabStruct*>( coefs->getCoefStruct(times[i]).get() );
+      auto cf = dynamic_cast<CoefClasses::SlabStruct*>
+	( coefs->getCoefStruct(times[i]).get() );
       
       for (auto k : keys0) {
 	auto c = k, s = k;
@@ -676,7 +700,8 @@ namespace MSSA
   {
     for (int i=0; i<times.size(); i++) {
 
-      auto cf = dynamic_cast<CoefClasses::CubeStruct*>( coefs->getCoefStruct(times[i]).get() );
+      auto cf = dynamic_cast<CoefClasses::CubeStruct*>
+	( coefs->getCoefStruct(times[i]).get() );
       
       for (auto k : keys0) {
 	auto c = k, s = k;
@@ -697,7 +722,8 @@ namespace MSSA
     times = cur->Times();
     complexKey = false;
 
-    auto cf = dynamic_cast<CoefClasses::TblStruct*>( cur->getCoefStruct(times[0]).get() );
+    auto cf = dynamic_cast<CoefClasses::TblStruct*>
+      ( cur->getCoefStruct(times[0]).get() );
 
     int cols    = cf->cols;
     int ntimes  = times.size();
@@ -734,7 +760,9 @@ namespace MSSA
       for (unsigned c=0; c<cols; c++) {
 	Key key = {c};
 
-	cf = dynamic_cast<CoefClasses::TblStruct*>( cur->getCoefStruct(times[t]).get() );
+	cf = dynamic_cast<CoefClasses::TblStruct*>
+	  ( cur->getCoefStruct(times[t]).get() );
+
 	data[key][t] = (*cf->coefs)(c).real();
       }
     }
@@ -744,7 +772,8 @@ namespace MSSA
   {
     for (int i=0; i<times.size(); i++) {
 
-      auto cf = dynamic_cast<CoefClasses::TblStruct*>( coefs->getCoefStruct(times[i]).get() );
+      auto cf = dynamic_cast<CoefClasses::TblStruct*>
+	( coefs->getCoefStruct(times[i]).get() );
 
       int cols = cf->cols;
 
@@ -862,6 +891,7 @@ namespace MSSA
     auto I = [](const Key& k) { return k[0]*(k[0]+1)/2 + k[1]; };
 
     for (int t=0; t<times.size(); t++) {
+
       // Cast the coefficient class to spherical
       auto cf = dynamic_cast<CoefClasses::SphStruct*>
 	(cur->getCoefStruct(times[t]).get());
@@ -882,6 +912,7 @@ namespace MSSA
     auto cur = dynamic_cast<CoefClasses::CylCoefs*>(coefs.get());
 
     for (int t=0; t<times.size(); t++) {
+
       // Cast the coefficient class to cylindrical
       auto cf = dynamic_cast<CoefClasses::CylStruct*>
 	(cur->getCoefStruct(times[t]).get());
