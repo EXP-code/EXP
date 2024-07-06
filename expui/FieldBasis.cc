@@ -182,8 +182,10 @@ namespace BasisClasses
 	  else      worst = std::max<double>(worst, fabs(tst(i, j)));
 	}
       }
-      if (myid==0)
-	std::cout << "FieldBasis: ortho test worst <" << worst << ">" << std::endl;
+      if (myid==0) {
+	std::cout << "FieldBasis::orthoTest: worst=" << worst << std::endl;
+	ortho->dumpOrtho("fieldbasis_ortho.dump");
+      }
     }
   }
 
@@ -276,9 +278,33 @@ namespace BasisClasses
     if (dof==2) {
       auto p = dynamic_cast<CoefClasses::CylFldStruct*>(c.get());
       coefs[0] = p->coefs;
+      store[0] = p->store;
+
+      // Sanity test dimensions
+      if (nfld!=p->nfld || lmax!=p->mmax || nmax!=p->nmax) {
+	std::ostringstream serr;
+	serr << "FieldBasis::set_coefs: dimension error! "
+	     << " nfld [" << nfld << "!= " << p->nfld << "]"
+	     << " mmax [" << lmax << "!= " << p->mmax << "]"
+	     << " nmax [" << nmax << "!= " << p->nmax << "]";
+	throw std::runtime_error(serr.str());
+      }
+
     } else {
       auto p = dynamic_cast<CoefClasses::SphFldStruct*>(c.get());
       coefs[0] = p->coefs;
+      store[0] = p->store;
+
+      // Sanity test dimensions
+      if (nfld!=p->nfld || lmax!=p->lmax || nmax!=p->nmax) {
+	std::ostringstream serr;
+	serr << "FieldBasis::set_coefs: dimension error! "
+	     << " nfld [" << nfld << "!= " << p->nfld << "]"
+	     << " lmax [" << lmax << "!= " << p->lmax << "]"
+	     << " nmax [" << nmax << "!= " << p->nmax << "]";
+	throw std::runtime_error(serr.str());
+      }
+
     }
   }
 
@@ -287,6 +313,8 @@ namespace BasisClasses
 			      double u, double v, double w)
   {
     constexpr std::complex<double> I(0, 1);
+    constexpr double fac0 = 1.0/sqrt(4*M_PI);
+
     int tid = omp_get_thread_num();
     PS3 pos{x, y, z}, vel{u, v, w};
 
@@ -309,7 +337,7 @@ namespace BasisClasses
       
       auto p = (*ortho)(R);
     
-      (*coefs[tid])(0, 0, 0) += mass*p(0);
+      (*coefs[tid])(0, 0, 0) += mass*p(0)*fac0;
 
       for (int m=0; m<=lmax; m++) {
 	
@@ -431,6 +459,20 @@ namespace BasisClasses
       }
       return ret;
     } else {
+      static bool firstime = true;
+      if (firstime) {
+	int tid = omp_get_thread_num();
+	std::ostringstream file;
+	file << "field.bin." << tid;
+	std::ofstream fout(file.str());
+	const auto& d = coefs[0]->dimensions();
+	fout << "Dim size: " << d.size();
+	for (int i=0; i<d.size(); i++) fout << ", dim " << i << ": " << d[i];
+	fout << std::endl;
+	for (auto v : store[0]) fout << v << std::endl;
+	firstime = false;
+      }
+
       std::vector<double> ret(nfld, 0);
       auto p = (*ortho)(r);
       for (int i=0; i<nfld; i++) {
