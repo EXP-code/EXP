@@ -50,6 +50,13 @@ namespace MSSA
     //! Right singular vectors
     Eigen::MatrixXd U;
 
+    //@{
+    //! Koopman modes
+    Eigen::VectorXcd L;
+    Eigen::MatrixXcd Phi;
+    int window;
+    //@}
+
     //! Parameters
     //@{
     bool flip, verbose, powerf;
@@ -279,6 +286,13 @@ namespace MSSA
       for (auto v : mean) ret.push_back(v.first);
       return ret;
     }
+
+    //! Estimate Koopman modes from the trajectory eigenvectors
+    std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>
+    getKoopmanModes(const double tol, int window, bool debug);
+
+    //! Return the reconstructed Koopman modes
+    std::map<std::string, CoefClasses::CoefsPtr> getReconstructedKoopman(int mode);
 
   };
 
