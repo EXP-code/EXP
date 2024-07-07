@@ -1,3 +1,4 @@
+#include <fstream>
 #include <OrthoFunction.H>
 
 OrthoFunction::OrthoFunction
@@ -91,6 +92,32 @@ Eigen::MatrixXd OrthoFunction::testOrtho()
   }
 
   return ret;
+}
+
+void OrthoFunction::dumpOrtho(const std::string& filename)
+{
+  std::ofstream fout(filename);
+
+  if (fout) {
+    fout << "# OrthoFunction dump" << std::endl;
+
+    const int number = 1000;
+
+    for (int i=0; i<number; i++) {
+      // Coordinate transformation
+      //
+      double x = xmin + dx*i/(number-1);
+      double r = x_to_r(x);
+      double y = 2.0*r/scale; if (segment) y = x;
+
+      // Evaluate polynomial
+      //
+      Eigen::VectorXd p = poly_eval(y, nmax) * W(r);
+      fout << std::setw(16) << r;
+      for (int n=0; n<nmax; n++) fout << std::setw(16) << p(n);
+      fout << std::endl;
+    }
+  }
 }
 
 Eigen::VectorXd OrthoFunction::operator()(double r)

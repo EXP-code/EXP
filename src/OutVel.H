@@ -21,7 +21,7 @@
 
 /** Dump velocity flow coefficients at each interval
     
-    @param filename of the coefficient file
+    @param modelname is the file specifying the density model
 
     @param name of the component to dump
   
@@ -33,7 +33,7 @@
 
     @param nmax is the maximum radial order
 
-    @param scale is the scale parameter for the density field
+    @param rmapping is the coordinate mapping parameter for the expansion
 
     @param rmin is the minimum radius for the density field
 
@@ -50,7 +50,7 @@ class OutVel : public Output
 
 private:
 
-  std::string filename, model, outfile;
+  std::string modelname, model, outfile;
   double prev = -std::numeric_limits<double>::max();
   Component *tcomp;
   CoefClasses::CoefsPtr coefs;

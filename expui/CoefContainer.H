@@ -91,12 +91,25 @@ namespace MSSA
     void pack_sphere();
     void unpack_sphere();
     void restore_background_sphere();
+    //@}
 
     //@{
     //! Cylindrical coefficients
     void pack_cylinder();
     void unpack_cylinder();
     void restore_background_cylinder();
+    //@}
+
+    //@{
+    //! Spherical field coefficients
+    void pack_sphfld();
+    void unpack_sphfld();
+    //@}
+
+    //@{
+    //! Cylindrical coefficients
+    void pack_cylfld();
+    void unpack_cylfld();
     //@}
 
     //@{

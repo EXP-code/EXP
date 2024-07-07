@@ -53,9 +53,9 @@ namespace BasisClasses
   
     //@{
     //! Parameters
-    std::string model, filename;
+    std::string model, modelname;
     int lmax, nmax;
-    double rmin, rmax, ascl, scale, delta;
+    double rmin, rmax, ascl, rmapping, delta;
     //@}
 
     //@{
@@ -116,8 +116,8 @@ namespace BasisClasses
     //! Register phase-space functionoid
     void addPSFunction(PSFunction func, std::vector<std::string>& labels);
 
-    //! Prescaling factor
-    void set_scale(const double scl) { scale = scl; }
+    //! Coordinate mapping factor
+    void set_scale(const double scl) { rmapping = scl; }
     
     //! Zero out coefficients to prepare for a new expansion
     void reset_coefs(void);

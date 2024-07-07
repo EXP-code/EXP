@@ -9,12 +9,12 @@
 
 const std::set<std::string>
 OutVel::valid_keys = {
-  "filename",
+  "modelname",
   "nint",
   "nintsub",
   "name",
   "dof",
-  "scale",
+  "rmapping",
   "rmin",
   "rmax",
   "ascl",
@@ -97,7 +97,7 @@ void OutVel::initialize()
       model    = conf["model"].as<std::string>();
     else {
       std::string message = "OutVel: no model specified. Please specify "
-	"either 'file' with the model 'filename' or 'expon' for the\n"
+	"either 'file' with the model 'modelname' or 'expon' for the\n"
 	"exponential disk model (i.e. Laguerre polynomials)";
       throw std::runtime_error(message);
     }
@@ -119,7 +119,7 @@ void OutVel::initialize()
       throw std::runtime_error(message);
     }
 
-    if (conf["filename"]) filename = conf["filename"].as<std::string>();
+    if (conf["modelname"]) modelname = conf["modelname"].as<std::string>();
 
   }
   catch (YAML::Exception & error) {
