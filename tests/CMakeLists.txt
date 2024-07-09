@@ -92,14 +92,14 @@ if(ENABLE_NBODY)
   # perhaps there is a better way?
   add_test(NAME removeTempFiles
     COMMAND ${CMAKE_COMMAND} -E remove
-    config.run0.yml current.processor.rates.run0 new.bods new.bods.0
+    config.run0.yml current.processor.rates.run0 new.bods
     OUTLOG.run0 run0.levels SLGridSph.cache.run0 test.grid
     'outcoef.dark halo.run0'
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Remove the temporary files
   set_tests_properties(removeTempFiles PROPERTIES DEPENDS expNbodyCheck2TW
-    REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;new.bods.0;OUTLOG.run0;run0.levels;SLGridSph.cache.run0;test.grid;"
+    REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;run0.levels;SLGridSph.cache.run0;test.grid;"
     )
 
   # Makes some cube ICs using utils/ICs/cubeics
@@ -137,7 +137,7 @@ if(ENABLE_NBODY)
   # Set labels for pyEXP tests
   set_tests_properties(expExecuteTest PROPERTIES LABELS "quick")
   set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW
-  removeTempFiles expCubeTest removeCubeFiles
+  removeTempFiles makeCubeICTest expCubeTest removeCubeFiles
   PROPERTIES LABELS "long")
 
 endif()
