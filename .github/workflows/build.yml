@@ -8,7 +8,7 @@ on:
     branches:
       - main
 jobs:
-  pyexp:
+  exp:
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -31,14 +31,14 @@ jobs:
           git submodule update --init --recursive
           mkdir -p build/install
 
-      - name: Compile pyEXP
+      - name: Compile EXP
         if: runner.os == 'Linux'
         env:
           CC: ${{ matrix.cc }}
         working-directory: ./build
         run: >-
           cmake
-          -DENABLE_NBODY=NO
+          -DENABLE_NBODY=YES
           -DENABLE_PYEXP=YES
           -DCMAKE_BUILD_TYPE=Release
           -DEigen3_DIR=/usr/include/eigen3/share/eigen3/cmake
@@ -50,46 +50,8 @@ jobs:
         working-directory: ./build
         run: make -j 2
 
-  # -----------------------------------------------------------------------------------
-
-  exp:
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        cc: [gcc, mpicc]
-
-    name: "Test Full EXP Build"
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install core dependencies - ubuntu
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libeigen3-dev libfftw3-dev libhdf5-dev libopenmpi-dev
-
-      - name: Setup submodule and build
-        run: |
-          git submodule update --init --recursive
-          mkdir -p build/install
-
-      - name: Compile Full EXP - Linux
-        if: runner.os == 'Linux'
-        env:
-          CC: ${{ matrix.cc }}
+      - name: CTest
         working-directory: ./build
-        run: >-
-          cmake
-          -DENABLE_NBODY=YES
-          -DENABLE_PYEXP=NO
-          -DCMAKE_BUILD_TYPE=Release
-          -DEigen3_DIR=/usr/include/eigen3/share/eigen3/cmake
-          -DCMAKE_INSTALL_PREFIX=./install
-          -Wno-dev
-          ..
+        run: ctest -j 2 -L quick
+        
 
-      - name: Make
-        working-directory: ./build
-        run: make -j 2
