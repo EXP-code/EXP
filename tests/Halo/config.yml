@@ -26,7 +26,7 @@ Global:
 # Each indented stanza beginning with '-' is a component
 # ------------------------------------------------------------------------
 Components:
-  - name       : dark halo
+  - name       : halo
     parameters : {nlevel: 1, indexing: true}
     bodyfile   : new.bods
     force :
@@ -49,7 +49,7 @@ Output:
   - id : outlog
     parameters : {nint: 10}
   - id : outcoef
-    parameters : {nint: 1, name: dark halo}
+    parameters : {nint: 1, name: halo}
 
 # ------------------------------------------------------------------------
 # This is a sequence of external forces

@@ -94,7 +94,7 @@ if(ENABLE_NBODY)
     COMMAND ${CMAKE_COMMAND} -E remove
     config.run0.yml current.processor.rates.run0 new.bods
     OUTLOG.run0 run0.levels SLGridSph.cache.run0 test.grid
-    'outcoef.dark halo.run0'
+    outcoef.halo.run0
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Remove the temporary files
