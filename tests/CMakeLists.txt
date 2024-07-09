@@ -94,12 +94,12 @@ if(ENABLE_NBODY)
     COMMAND ${CMAKE_COMMAND} -E remove
     config.run0.yml current.processor.rates.run0 new.bods
     OUTLOG.run0 run0.levels SLGridSph.cache.run0 test.grid
-    outcoef.halo.run0
+    outcoef.halo.run0 halo.cache
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Remove the temporary files
   set_tests_properties(removeTempFiles PROPERTIES DEPENDS expNbodyCheck2TW
-    REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;run0.levels;SLGridSph.cache.run0;test.grid;"
+    REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;run0.levels;halo.cache;test.grid;"
     )
 
   # Makes some cube ICs using utils/ICs/cubeics
