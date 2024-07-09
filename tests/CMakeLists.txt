@@ -30,14 +30,14 @@ if(ENABLE_PYEXP)
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   add_test(NAME removeCylCache
-    COMMAND ${CMAKE_COMMAND} -E remove .eof.cache.run0t test_adddisk_sl.0
+    COMMAND ${CMAKE_COMMAND} -E remove .eof.cache.run0t
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Disk)
 
   set_tests_properties(removeSphCache PROPERTIES DEPENDS pyexpSphBasisTest
     REQUIRED_FILES ".slgrid_sph_cache")
 
   set_tests_properties(removeCylCache PROPERTIES DEPENDS pyexpCylBasisTest
-    REQUIRED_FILES ".eof.cache.run0t;test_adddisk_sl.0")
+    REQUIRED_FILES ".eof.cache.run0t") 
 
   # Other tests for pyEXP go here ...
   
@@ -56,7 +56,7 @@ if(ENABLE_NBODY)
 
   # Makes some spherical ICs using utils/ICs/gensph
   add_test(NAME makeICTest
-    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 1000 -i SLGridSph.model
+    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 10000 -i SLGridSph.model
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Runs those ICs using exp

@@ -8,9 +8,9 @@
 # ------------------------------------------------------------------------
 Global:
   nthrds     : 1
-  dtime      : 0.005
+  dtime      : 0.002
   runtag     : run0
-  nsteps     : 200
+  nsteps     : 500
   multistep  : 4
   dynfracV   : 0.01
   dynfracA   : 0.03
@@ -40,6 +40,7 @@ Components:
         rmapping : 0.0667
         self_consistent: true
         modelname: SLGridSph.model
+        cachename: SLGridSph.cache.run0
 
 # ------------------------------------------------------------------------
 # This is a sequence of outputs
