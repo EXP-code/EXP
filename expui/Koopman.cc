@@ -194,7 +194,7 @@ namespace MSSA {
       Eigen::VectorXcd B  = Phi.inverse() * xx;
       Eigen::MatrixXcd LL = I.asDiagonal();
 	
-      // Propate the solution with the operator
+      // Propagate the solution using the approximate Koopman operator
       //
       for (int i=0; i<numT; i++) {
 	Y.row(i) = (Phi*LL*B).real();

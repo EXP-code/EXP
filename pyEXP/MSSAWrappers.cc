@@ -326,7 +326,6 @@ void MSSAtoolkitClasses(py::module &m) {
         dict({id: Coefs},...)
              reconstructed time series in the original coefficient form
 
-
         Notes
         -----
         The reconstructed data will overwrite the memory of the original coefficient 
@@ -541,7 +540,6 @@ void MSSAtoolkitClasses(py::module &m) {
         float
 	    power value
 	)");
-
 
   f.def("getRC", &expMSSA::getRC,
 	R"(

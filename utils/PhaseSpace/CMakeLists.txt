@@ -14,7 +14,7 @@ if(HAVE_XDR)
 endif()
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp expui
-  exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES})
+  exputil ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES})
 
 if(PNG_FOUND)
   list(APPEND common_LINKLIB PNG::PNG)

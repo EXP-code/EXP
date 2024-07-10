@@ -100,6 +100,9 @@ public:
 
   //! Test orthogonality
   Eigen::MatrixXd testOrtho();
+
+  //! Dump the orthogonal function table
+  void dumpOrtho(const std::string& filename);
 };
 
 

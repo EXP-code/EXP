@@ -809,6 +809,7 @@ main(int argc, char **argv)
   if (myid==0) {
     std::ostringstream sout;
     sout << "cat " << OUTPS << ".* > " << OUTPS;
+    sout << "; rm " << OUTPS << ".*";
     int ret = system(sout.str().c_str());
   }
 

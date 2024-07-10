@@ -5,7 +5,8 @@ set(bin_PROGRAMS shrinkics gensph gendisk gendisk2d gsphere pstmod
   cubeics zangics slabics)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
-  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
+  ${HDF5_CXX_LIBRARIES})
 
 if(ENABLE_CUDA)
   list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)

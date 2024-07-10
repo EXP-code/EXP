@@ -1339,7 +1339,7 @@ namespace MSSA {
       // Save trend state
       //
       int trend = static_cast<std::underlying_type<TrendType>::type>(type);
-      file.createAttribute<bool>("trendType", HighFive::DataSpace::From(trend)).write(trend);
+      file.createAttribute<int>("trendType", HighFive::DataSpace::From(trend)).write(trend);
 
       // Save the key list
       //
@@ -1536,7 +1536,18 @@ namespace MSSA {
 	reconstructed = true;
       }
 
-    } catch (HighFive::Exception& err) {
+    } catch (HighFive::Exception& err) {    // Number of channels
+    //
+    nkeys = mean.size();
+
+    // Make sure parameters are sane
+    //
+    if (numW<=0) numW = numT/2;
+    if (numW > numT/2) numW = numT/2;
+
+    numK = numT - numW + 1;
+
+
       std::cerr << "**** Error opening or reading H5 file ****" << std::endl;
       throw;
     }
@@ -1564,8 +1575,8 @@ namespace MSSA {
     //
     if (params["Traj"]) trajectory = params["Traj"].as<bool>();
 
-    std::cout << "Trajectory is " << std::boolalpha << trajectory
-	      << std::endl;
+    // std::cout << "Trajectory is " << std::boolalpha << trajectory
+    // << std::endl;
 
     // Eigen OpenMP reporting
     //

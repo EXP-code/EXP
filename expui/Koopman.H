@@ -119,7 +119,7 @@ namespace MSSA
       return L;
     }
 
-    //! Return the EDMD modes
+    //! Return the EDMD modes, an approximation to the Koopman eigenfunctions
     Eigen::MatrixXcd getModes()
     {
       if (not computed) koopman_analysis();

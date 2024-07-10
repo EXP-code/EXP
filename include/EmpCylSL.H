@@ -501,6 +501,9 @@ public:
 	   double ascale, double hscale, int Nodd,
 	   std::string cachename);
 
+  //! Construct from cache file
+  EmpCylSL(int mlim, const std::string cache);
+
   //! Destructor
   ~EmpCylSL(void);
 
