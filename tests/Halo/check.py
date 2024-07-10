@@ -2,9 +2,10 @@
 file = open("OUTLOG.run0")
 
 n = 0                           # Count lines
-mean = 0.0                      # Accumulate 2T/VC valkues
+mean = 0.0                      # Accumulate 2T/VC values
 
 # Open the output log file
+#
 while (line := file.readline()) != "":
     if n >= 6:                  # Skip the header stuff
         v = [float(x) for x in line.split('|')]
@@ -14,6 +15,7 @@ while (line := file.readline()) != "":
 if n>6: mean /= n-6             # Sanity check
 
 # Check closeness to 1.0
+#
 if (mean-1.0)*(mean-1.0) > 0.003:
     exit(1)
 else:
