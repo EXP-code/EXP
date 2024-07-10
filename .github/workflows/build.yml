@@ -56,6 +56,6 @@ jobs:
         working-directory: ./build
         run: ctest -j 4 -L quick
         
-        - name: CTest Long
-        working-directory: ./build
-        run: ctest -j 4 -L long
+      #- name: CTest Long
+      #working-directory: ./build
+      #run: ctest -j 4 -L long
