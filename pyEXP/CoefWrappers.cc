@@ -1321,7 +1321,12 @@ void CoefficientClasses(py::module &m) {
          SphFldCoefs instance
          )")
     .def("__call__",
-	 &CoefClasses::SphFldCoefs::getMatrix,
+	 [](CoefClasses::SphFldCoefs& A, double t)
+	 {
+	   Eigen::Tensor<std::complex<double>, 3> M = A.getMatrix(t);
+	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
+	   return ret;
+	 },
          R"(
          Return the coefficient tensor for the desired time.
 
@@ -1342,7 +1347,12 @@ void CoefficientClasses(py::module &m) {
          )",
          py::arg("time"))
     .def("setMatrix",
-	 &CoefClasses::SphFldCoefs::setMatrix,
+	 [](CoefClasses::SphFldCoefs& A, double t,
+	    py::array_t<std::complex<double>> array)
+	 {
+	   auto M = make_tensor3<std::complex<double>>(array);
+	   A.setMatrix(t, M);
+	 },
          R"(
          Enter and/or rewrite the coefficient tensor at the provided time
 
@@ -1350,8 +1360,8 @@ void CoefficientClasses(py::module &m) {
          ----------
          time : float
              snapshot time corresponding to the the coefficient matrix
-             mat : numpy.ndarray
-                 the new coefficient array.
+         mat : numpy.ndarray
+             the new coefficient array.
 
          Returns
          -------
@@ -1396,7 +1406,12 @@ void CoefficientClasses(py::module &m) {
          CylFldCoefs instance
          )")
     .def("__call__",
-	 &CoefClasses::CylFldCoefs::getMatrix,
+	 [](CoefClasses::CylFldCoefs& A, double t)
+	 {
+	   Eigen::Tensor<std::complex<double>, 3> M = A.getMatrix(t);
+	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
+	   return ret;
+	 },
          R"(
          Return the coefficient tensor for the desired time.
 
@@ -1417,7 +1432,12 @@ void CoefficientClasses(py::module &m) {
          )",
          py::arg("time"))
     .def("setMatrix",
-	 &CoefClasses::CylFldCoefs::setMatrix,
+	 [](CoefClasses::CylFldCoefs& A, double t,
+	    py::array_t<std::complex<double>> array)
+	 {
+	   auto M = make_tensor3<std::complex<double>>(array);
+	   A.setMatrix(t, M);
+	 },
          R"(
          Enter and/or rewrite the coefficient tensor at the provided time
 
@@ -1425,8 +1445,8 @@ void CoefficientClasses(py::module &m) {
          ----------
          time : float
              snapshot time corresponding to the the coefficient matrix
-             mat : numpy.ndarray
-                 the new coefficient array.
+         mat : numpy.ndarray
+             the new coefficient array.
 
          Returns
          -------
