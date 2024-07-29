@@ -313,7 +313,7 @@ namespace BasisClasses
 			      double u, double v, double w)
   {
     constexpr std::complex<double> I(0, 1);
-    constexpr double fac0 = 1.0/sqrt(4*M_PI);
+    constexpr double fac0 = 0.25*M_2_SQRTPI;
 
     int tid = omp_get_thread_num();
     PS3 pos{x, y, z}, vel{u, v, w};
