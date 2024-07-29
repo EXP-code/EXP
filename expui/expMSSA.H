@@ -51,7 +51,7 @@ namespace MSSA
     Eigen::MatrixXd U;
 
     //@{
-    //! Koopman modes
+    //! Koopman modes with Hankel matrices
     Eigen::VectorXcd L;
     Eigen::MatrixXcd Phi;
     int window;
