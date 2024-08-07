@@ -1,3 +1,5 @@
+#define TESTING
+
 //
 // EDMD (Koopman theory) for EXP coefficients
 //
@@ -70,26 +72,73 @@ namespace MSSA {
 
 
   //! RKHS kernel
-  double KoopmanRKHS::kernel(const Eigen::VectorXd& x, const Eigen::VectorXd& y)
+  double KoopmanRKHS::kernel(const Eigen::VectorXd& x,
+			     const Eigen::VectorXd& y)
   {
     if (rkhs == RKHS::Polynomial) {
       double prod = x.adjoint()*y;
       return pow(1.0 + prod/(d*d), alpha);
     } else if (rkhs == RKHS::Exponential) {
       double prod = x.adjoint()*y;
-      return exp(mu*prod);
+      return exp(prod/(d*d));
     } else if (rkhs == RKHS::Gaussian) {
-      auto diff = x - y;
+      Eigen::VectorXd diff = x - y;
       double prod = diff.adjoint()*diff;
-      return exp(-prod/(sigma*sigma));
+      return exp(-prod/(d*d));
     } else {
       throw std::runtime_error("KoopmanRKHS: Unknown kernel type");
     }
   }
 
+  // Structure for sorting complex numbers and retrieving a permutation index
+  using complex_elem = std::pair<std::complex<double>, int>;
+  bool complex_comparator(const complex_elem &lhs, const complex_elem &rhs)
+  {
+    auto a = lhs.first;
+    auto b = rhs.first;
+
+    double abs_a = std::abs(a);
+    double abs_b = std::abs(b);
+
+    if (abs_a == abs_b) {
+      if (std::real(a) == std::real(b))
+	return std::imag(a) < std::imag(b);
+      else
+	return std::real(a) < std::real(b);
+    } else {
+      return abs_a < abs_b;
+    }
+  }
+
+  void matrix_print(std::ostream& out, const Eigen::MatrixXcd& M)
+  {
+    for (int i=0; i<M.rows(); i++) {
+      for (int j=0; j<M.cols(); j++) {
+	out << "(" << std::setw(8) << std::fixed << std::setprecision(3) << M(i, j).real()
+	    << "," << std::setw(8) << std::fixed << std::setprecision(3) << M(i, j).imag() << ") ";
+      }
+      out << std::endl;
+    }
+  }
+
+  void matrix_idtest(std::ostream& out, const Eigen::MatrixXcd& M)
+  {
+    double max_diag = 0.0, max_offd = 0.0;
+    for (int i=0; i<M.rows(); i++) {
+      for (int j=0; j<M.cols(); j++) {
+	if (i==j) max_diag = std::max(max_diag, std::abs(M(i, j)-1.0));
+	else      max_offd = std::max(max_offd, std::abs(M(i, j)    ));
+      }
+    }
+    out << std::string(70, '-') << std::endl;
+    out << "diag diff=" << max_diag << " offd diff=" << max_offd << std::endl;
+    out << std::string(70, '-') << std::endl;
+  }
+
+
   // Algorithm 3 from Williams, Rowley, Kevrekidis
   //
-  void KoopmanRKHS::koopman_analysis()
+  void KoopmanRKHS::analysis()
   {
     // Number of channels
     //
@@ -98,35 +147,61 @@ namespace MSSA {
 
     numT = data[keys[0]].size();
 
+    // Grammian and action matrices
     G.resize(numT, numT);
     A.resize(numT, numT);
+
+    // Data matrix (rows = time, columns = keys)
     X.resize(numT, nkeys);
     
     for (int k=0; k<nkeys; k++) {
       for (int i=0; i<numT; i++) X(i, k) = data[keys[k]][i];
     }
-      
 
+    // Flow data
     Eigen::VectorXd Y(nkeys);
 
+    // Time step
     double DT = coefDB.times[1] - coefDB.times[0];
 
     // Compute Grammian and action matrices
     for (int i=0; i<numT; i++) {
-      for (int j=0; j<numT; j++) {
-	
-	for (int k=0; k<nkeys; k++) {
-	  if (j==0) {
-	    Y(k) = (data[keys[k]][1] - data[keys[k]][0])/DT;
-	  } else if (j==numT-1) {
-	    Y(k) = (data[keys[k]][numT-1] - data[keys[k]][numT-2])/DT;
-	  } else {
-	    Y(k) = (data[keys[k]][j+1] - data[keys[k]][j-1])/(2.0*DT);
+
+      for (int k=0; k<nkeys; k++) {
+	if (i==0) {
+	  Y(k) = (data[keys[k]][1] - data[keys[k]][0])/DT;
+	} else if (i==numT-1) {
+	  Y(k) = (data[keys[k]][numT-1] - data[keys[k]][numT-2])/DT;
+	} else {
+	  Y(k) = (data[keys[k]][i+1] - data[keys[k]][i-1])/(2.0*DT);
+	}
+      }
+
+      if (testF) {
+	if (oscil) {
+	  for (int l=0; l<nkeys/4; l++) {
+	    double x0 = data[keys[0+4*l]][i];
+	    double y0 = data[keys[1+4*l]][i];
+	    double x1 = data[keys[2+4*l]][i];
+	    double y1 = data[keys[3+4*l]][i];
+	    Y(0+4*l) = -lam * y0;
+	    Y(1+4*l) =  lam * x0;
+	    Y(2+4*l) = -mu * y1 + c*(x0*x0 - y0*y0);
+	    Y(3+4*l) =  mu * x1 + 2.0*c*x0*y0;
+	  }
+	} else {
+	  for (int l=0; l<nkeys/2; l++) {
+	    double x0 = data[keys[0+2*l]][i];
+	    double x1 = data[keys[1+2*l]][i];
+	    Y(0+2*l) = lam * x0;
+	    Y(1+2*l) = mu  * x1 + c * x0 * x0;
 	  }
 	}
+      }
 	
+      for (int j=0; j<numT; j++) {
 	G(i, j) = kernel(X.row(i), X.row(j));
-	A(i, j) = kernel(X.row(i), Y);
+	A(i, j) = kernel(Y, X.row(j));
       }
     }
 
@@ -134,7 +209,7 @@ namespace MSSA {
     //
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(G);
     if (eigensolver.info() != Eigen::Success) {
-      throw std::runtime_error("KoopmanRKHS: Eigen solver failed");
+      throw std::runtime_error("KoopmanRKHS: Eigensolver for Grammian failed");
     }
     S2 = eigensolver.eigenvalues();
     Q  = eigensolver.eigenvectors();
@@ -143,12 +218,13 @@ namespace MSSA {
     //
     SP.resize(S2.size());
     double TOL = S2(S2.size()-1) * tol;
+    TOL = tol;
     int nev = 0;
     for (int n=0; n<S2.size(); n++) {
       if (S2(n) < TOL) {
 	SP(n) = 0.0;
       } else {
-	SP(n) = 1.0 / S2(n);
+	SP(n) = 1.0 / sqrt(S2(n));
 	nev++;
       }
     }
@@ -157,27 +233,181 @@ namespace MSSA {
     //
     K = (SP.asDiagonal() * Q.transpose()) * A * (Q * SP.asDiagonal());
 
-    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver2(K), eigensolver3(K.transpose());
-    SR = eigensolver2.eigenvalues();
-    V  = eigensolver2.eigenvectors();
-    SL = eigensolver3.eigenvalues();
-    U  = eigensolver3.eigenvectors();
+    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver2(K);
+    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver3(K.adjoint());
 
-    Xi = (U.transpose()*SP.asDiagonal()*Q.transpose()*X).transpose();
+    // Right and left eigenvectors
+    //
+    Eigen::VectorXcd SR2 = eigensolver2.eigenvalues().conjugate();
+    Eigen::MatrixXcd V2  = eigensolver2.eigenvectors();
+
+    Eigen::VectorXcd SL2 = eigensolver3.eigenvalues();
+    Eigen::MatrixXcd U2  = eigensolver3.eigenvectors();
+
+    U  = U2;
+    V  = V2;
+
+    SL = SL2;
+    SR = SR2;
+
+    {
+      std::vector<complex_elem> v(SR2.size());
+      for (int i=0; i<SR2.size(); i++) v[i] = complex_elem(SR2(i), i);
+      std::sort(v.begin(), v.end(), complex_comparator);
+      for (int i=0; i<SR2.size(); i++) {
+	V.col(i) = V2.col(v[i].second);
+	SR(i)    = SR2(v[i].second);
+      }
+
+      std::vector<complex_elem> u(SL2.size());
+      for (int i=0; i<SL2.size(); i++) u[i] = complex_elem(SL2(i), i);
+      std::sort(u.begin(), u.end(), complex_comparator);
+      for (int i=0; i<SL2.size(); i++) {
+	U.col(i) = U2.col(u[i].second);
+	SL(i)    = SL2(u[i].second);
+      }
+    }
+
+#ifdef TESTING
+    std::ofstream file("testing.dat");
+    if (file) {
+      file << std::string(70, '-') << std::endl;
+      file << "---- Left/right eigenvalues difference" << std::endl;
+      file << std::string(70, '-') << std::endl;
+      for (int i=0; i<SL.size(); i++)
+	file << std::setw(5) << i
+	     << " " << std::setw(18) << std::abs(SL(i) - SR(i))
+	     << " " << SL(i)
+	     << " " << SR(i)
+	     << std::endl;
+      file << std::string(70, '-') << std::endl;
+      file << std::string(70, '-') << std::endl;
+      file << "---- L/R eigenvector test" << std::endl;
+      file << std::string(70, '-') << std::endl;
+      matrix_print(file, U.adjoint()*V);
+      file << std::string(70, '-') << std::endl;
+    }
+#endif
+
+#ifdef TESTING
+    if (file) {
+      file << "---- Swapped left eigenvalues" << std::endl;
+      file << std::string(70, '-') << std::endl;
+      for (int i=0; i<SL.size(); i++)
+	file << std::setw(5) << i
+	     << " " << std::setw(18) << std::abs(SL(i))
+	     << " " << std::setw(18) << std::abs(SR(i))
+	     << std::endl;
+      file << std::string(70, '-') << std::endl;
+      file << "---- Left normalization" << std::endl;
+      file << std::string(70, '-') << std::endl;
+    } else {
+      std::cerr << "ERROR: Could not open testing.dat" << std::endl;
+    }
+#endif
+
+    // Normalize left eigenvectors
+    for (int i=0; i<U.rows(); i++) {
+      auto nrm = U.adjoint().row(i) * V.col(i);
+#ifdef TESTING
+      if (file) file << std::setw(5) << i << ": " << nrm << std::endl;
+#endif
+      U.col(i) /= std::conj(nrm(0));
+    }
+
+#ifdef TESTING
+    if (file) {
+      file << std::string(70, '-') << std::endl;
+      file << "---- Action matrix" << std::endl;
+      file << "---- min/max = " << A.minCoeff() << "/" << A.maxCoeff() << std::endl;
+      file << std::string(70, '-') << std::endl;
+      file << A << std::endl;
+      file << std::string(70, '-') << std::endl;
+      file << "---- Grammian eigenvalues" << std::endl;
+      file << std::string(70, '-') << std::endl;
+      for (int i=0; i<S2.size(); i++) {
+	file << std::setw(5) << i
+		  << std::setw(18) << S2(i)
+		  << std::setw(18) << SP(i) << std::endl;
+      }
+      file << std::string(70, '-') << std::endl;
+      file << "---- Postnorm right/left eigenvector test" << std::endl;
+      file << std::string(70, '-') << std::endl;
+      matrix_print(file, U.adjoint()*V);
+      matrix_idtest(file, U.adjoint()*V);
+      file << std::string(70, '-') << std::endl;
+    }
+#endif
+
+    Xi = (U.adjoint()*SP.asDiagonal()*Q.transpose()*X).transpose();
 
     computed = true;
     reconstructed = false;
-  }
+    }
 
   const std::set<std::string>
   KoopmanRKHS::valid_keys = {
     "d",
     "alpha",
-    "mu",
-    "sigma",
+    "oscil", "testF", "lam", "mu", "c",
+    "kernel",
     "verbose",
     "output"
   };
+
+  template <typename Derived>
+  std::string get_shape(const Eigen::EigenBase<Derived>& x)
+  {
+    std::ostringstream oss;
+    oss  << "(" << x.rows() << ", " << x.cols() << ")";
+    return oss.str();
+  }
+
+  Eigen::VectorXcd KoopmanRKHS::modeEval(int index, const Eigen::VectorXd& x)
+  {
+    if (not computed) analysis();
+    
+    Eigen::VectorXcd ret(nkeys);
+    ret.setZero();
+
+    if (index>=0 and index < numT) {
+      Eigen::VectorXd Y(numT);
+      for (int j=0; j<numT; j++) Y(j) = kernel(x, X.row(j));
+
+      std::complex<double> Psi = Y.adjoint()*Q*SP.asDiagonal()*V.col(index);
+
+      ret = Xi.col(index)*Psi;
+    }
+
+    return ret;
+  }
+
+  std::complex<double> KoopmanRKHS::evecEval(int index, const Eigen::VectorXd& x)
+  {
+    if (not computed) analysis();
+    
+    static bool first = true;
+    if (first) {
+      std::ofstream test("test.data");
+      test << "Q"  << std::endl << Q  << std::endl;
+      test << "SP" << std::endl << SP << std::endl;
+      test << "V"  << std::endl << V  << std::endl;
+      first = false;
+    }
+
+    std::complex<double> ret(0.0);
+
+    if (index>=0 and index < numT) {
+      Eigen::VectorXd Y(numT);
+      for (int j=0; j<numT; j++) {
+	Y(j) = kernel(x, X.row(j));
+      }
+
+      ret = Y.adjoint()*Q*SP.asDiagonal()*V.col(index);
+    }
+
+    return ret;
+  }
 
   void KoopmanRKHS::assignParameters(const std::string flags)
   {
@@ -185,8 +415,6 @@ namespace MSSA {
     //
     d        = 1.0;
     alpha    = 10.0;
-    mu       = 1.0;
-    sigma    = 1.0;
     verbose  = false;
 
     // Parse the parameters database
@@ -210,14 +438,41 @@ namespace MSSA {
 
       // Top level parameter flags
       //
-      d        = double(params["d"      ].as<double>());
-      alpha    = double(params["alpha"  ].as<double>());
-      mu       = double(params["mu"     ].as<double>());
-      sigma    = double(params["sigma"  ].as<double>());
-      verbose  = bool  (params["verbose"]);
+      if (params["d"])
+	d  = double(params["d"].as<double>());
 
-      if (params["output"] ) prefix = params["output"].as<std::string>();
-      else                   prefix = "exp_rkhs";
+      if (params["lam"])
+	lam = double(params["lam"].as<double>());
+
+      if (params["mu"])
+	mu = double(params["mu"].as<double>());
+
+      if (params["c"])
+	c = double(params["c"].as<double>());
+
+      if (params["oscil"])
+	oscil = bool(params["oscil"].as<bool>());
+
+      if (params["testF"])
+	testF = bool(params["testF"].as<bool>());
+
+      if (params["alpha"])
+	alpha = double(params["alpha"].as<double>());
+
+      if (params["kernel"]) {
+	std::string type = params["kernel"].as<std::string>();
+	if (RKHS_values.find(type) != RKHS_values.end())
+	  rkhs = RKHS_values[type];
+	else
+	  throw std::runtime_error("KoopmanRKHS: kernel type [" + type +
+				   "] not found");
+      }
+      
+      if (params["verbose"])
+	verbose  = bool(params["verbose"]);
+
+      if (params["output"]) prefix = params["output"].as<std::string>();
+      else                  prefix = "exp_rkhs";
 
     }
     catch (const YAML::ParserException& e) {
@@ -430,7 +685,7 @@ namespace MSSA {
 
   }
 
-  KoopmanRKHS::KoopmanRKHS(const mssaConfig& config, const std::string flags)
+  KoopmanRKHS::KoopmanRKHS(const mssaConfig& config, double tol, const std::string flags) : tol(tol)
   {
     // Parse the YAML string
     //

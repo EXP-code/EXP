@@ -130,7 +130,8 @@ void EDMDtoolkitClasses(py::module &m) {
 
   using namespace MSSA;
 
-  py::class_<MSSA::Koopman, std::shared_ptr<MSSA::Koopman>> f(m, "Koopman");
+  py::class_<MSSA::Koopman, std::shared_ptr<MSSA::Koopman>>
+    f(m, "Koopman");
 
   f.def(py::init<const mssaConfig&, int, const std::string>(),
 	R"(
@@ -294,22 +295,25 @@ void EDMDtoolkitClasses(py::module &m) {
         Koopman
         )");
 
-  py::class_<MSSA::KoopmanRKHS, std::shared_ptr<MSSA::KoopmanRKHS>> g(m, "KoopmanRKHS");
+  py::class_<MSSA::KoopmanRKHS, std::shared_ptr<MSSA::KoopmanRKHS>>
+    g(m, "KoopmanRKHS");
 
-  g.def(py::init<const mssaConfig&, const std::string>(),
+  g.def(py::init<const mssaConfig&, double, const std::string>(),
 	R"(
         Koopman RKHS operator approximatation class
 
         Parameters
         ----------
         config : mssaConfig
-	     the input database of components
+	    the input database of components
+        tol : double
+            tolerance for eigenvalue decomposition
 	flag : str
             YAML stanza of parameter values
 
         Returns
         -------
-        Koopman instance
+        Koopman RKHS instance
 
         Notes
         -----
@@ -326,11 +330,12 @@ void EDMDtoolkitClasses(py::module &m) {
         spherical harmonics basis parameters.
         )",
 	py::arg("config"),
+	py::arg("tol"),
 	py::arg("flags") = "");
 
   g.def("eigenvalues", &KoopmanRKHS::eigenvalues,
 	R"(
-        Vector of eigenvalues from the EDMD analysis. 
+        Vector of eigenvalues from the EDMD RKHS analysis. 
 
         Returns
         -------
@@ -346,7 +351,7 @@ void EDMDtoolkitClasses(py::module &m) {
 
   g.def("saveState", &KoopmanRKHS::saveState,
 	R"(
-        Save current EDMD state to an HDF5 file with the given prefix
+        Save current EDMD RKHS state to an HDF5 file with the given prefix
 
         Parameters
         ----------
@@ -360,7 +365,7 @@ void EDMDtoolkitClasses(py::module &m) {
 
   g.def("restoreState", &KoopmanRKHS::restoreState,
 	R"(
-        Restore current EDMD state from an HDF5 file
+        Restore current EDMD RKHS state from an HDF5 file
 
         Parameters
         ----------
@@ -369,25 +374,70 @@ void EDMDtoolkitClasses(py::module &m) {
 
         Notes
         -----
-	The Koopman instance must be constructed with the same data and parameters
-        as the saved state.  The restoreState routine will check for the same 
-        data dimension and trend state but can not sure	complete consistency.
+	The Koopman RKHS instance must be constructed with the same data and
+        parameters as the saved state.  The restoreState routine will check
+        for the same data dimension and trend state but can not sure
+        complete consistency.
         )", py::arg("prefix"));
 
   g.def("getModes", &KoopmanRKHS::getModes,
 	R"(
-        Access to detrended reconstructed channel series.
+        Get the RKHS mode coefficients for all triples
 
         Returns
         -------
         numpy.ndarray
-            the EDMD modes
+            the RKHS mode coefficients
 
         See also
         --------
         Use in conjunction with 'contributions' to visualize the support 
-        from each EDMD mode to the coefficient series.
+        from each EDMD RKHS mode to the coefficient series.
         )");
+
+  g.def("modeEval", &KoopmanRKHS::modeEval,
+	R"(
+        Evaluate the contribution from the index triple
+
+        Parameters
+        ----------
+        index : int
+            the triple index in eigenvalue order
+        value : ndarray
+            the input point
+
+        Returns
+        -------
+        numpy.ndarray
+            the contribution to the trajectory from the indexed triple
+
+        See also
+        --------
+        Use in conjunction with 'contributions' to visualize the support 
+        from each EDMD RKHS mode to the coefficient series.
+        )", py::arg("index"), py::arg("value"));
+
+  g.def("evecEval", &KoopmanRKHS::evecEval,
+	R"(
+        Evaluate the Koopman eigenfunction with given index
+
+        Parameters
+        ----------
+        index : int
+            the triple index in eigenvalue order
+        value : ndarray
+            the input point
+
+        Returns
+        -------
+        numpy.ndarray
+            the Koopman eigenfunction
+
+        See also
+        --------
+        Use in conjunction with 'contributions' to visualize the support 
+        from each EDMD RKHS mode to the coefficient series.
+        )", py::arg("index"), py::arg("value"));
 
   g.def("getAllKeys", &KoopmanRKHS::getAllKeys,
 	R"(
@@ -400,7 +450,7 @@ void EDMDtoolkitClasses(py::module &m) {
 
         See also
         --------
-        Koopman
+        KoopmanRKHS
         )");
 
 }

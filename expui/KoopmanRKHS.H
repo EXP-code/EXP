@@ -46,9 +46,16 @@ namespace MSSA
     YAML::Node params;
 
     //! Primary Koopman analysis
-    void koopman_analysis();
+    void analysis();
 
     bool computed, reconstructed;
+
+    //@{
+    //! Test stuff
+    double lam=0.9, mu=0.5, c=0.0;
+    bool oscil = true, testF = true;
+    //@}
+    
 
     //! EDMD modes
     Eigen::MatrixXcd Xi;
@@ -94,13 +101,14 @@ namespace MSSA
     static const std::set<std::string> valid_keys;
 
     //! RKHS parameters
-    double d, alpha, mu, sigma;
+    double d, alpha;
 
     //! RKHS type
     RKHS rkhs = RKHS::Polynomial;
 
     //! RKHS kernel
-    double kernel(const Eigen::VectorXd& x, const Eigen::VectorXd& y);
+    double kernel(const Eigen::VectorXd& x,
+		  const Eigen::VectorXd& y);
 
   public:
 
@@ -129,7 +137,7 @@ namespace MSSA
 	E.g. harmonic and radial indicies for spherical and
 	cylindrical bases.
     */
-    KoopmanRKHS(const mssaConfig& spec, const std::string flags="");
+    KoopmanRKHS(const mssaConfig& spec, double tol, const std::string flags="");
 
     //! Destructor
     virtual ~KoopmanRKHS() {}
@@ -137,16 +145,22 @@ namespace MSSA
     //! Get the eigenvalues
     Eigen::VectorXcd eigenvalues()
     {
-      if (not computed) koopman_analysis();
+      if (not computed) analysis();
       return SR;
     }
 
-    //! Return the EDMD modes, an approximation to the Koopman eigenfunctions
+    //! Return the Koopman modes, the coefficients to the eigenfunctions
     Eigen::MatrixXcd getModes()
     {
-      if (not computed) koopman_analysis();
+      if (not computed) analysis();
       return Xi;
     }
+
+    //! Evaluate the contribution from the indexed triple
+    Eigen::VectorXcd modeEval(int index, const Eigen::VectorXd& x);
+
+    //! Return the eigenfunction
+    std::complex<double> evecEval(int index, const Eigen::VectorXd& x);
 
     //! Save current MSSA state to an HDF5 file with the given prefix
     void saveState(const std::string& prefix);
@@ -162,7 +176,6 @@ namespace MSSA
       return ret;
     }
   };
-
 
 }
 // END namespace MSSA
