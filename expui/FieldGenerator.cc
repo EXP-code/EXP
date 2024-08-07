@@ -41,6 +41,33 @@ namespace Field
     }
   }
   
+  FieldGenerator::FieldGenerator(const std::vector<double> &time,
+				 const Eigen::MatrixXd     &mesh) :
+    
+    times(time), mesh(mesh)
+  {
+    // Sanity check on mesh
+    //
+    if (mesh.cols() != 3)
+      throw std::runtime_error("FieldGenerator: bad mesh specification. The mesh must be an Nx3 array where the columns are Cartesian points");
+
+    // Check whether MPI is initialized
+    //
+    int flag;
+    MPI_Initialized(&flag);
+    if (flag) use_mpi = true;
+    else      use_mpi = false;
+
+    
+    // Fall back sanity (works for me but this needs to be fixed
+    // generally)
+    //
+    if (use_mpi) {
+      MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+      MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    }
+  }
+  
   void FieldGenerator::check_times(CoefClasses::CoefsPtr coefs)
   {
     std::vector<double> ctimes = coefs->Times();
@@ -867,5 +894,156 @@ namespace Field
   }
   // END histogram1d
 
+  std::map<double, std::map<std::string, Eigen::VectorXf>>
+  FieldGenerator::points(BasisClasses::BasisPtr basis,
+			 CoefClasses::CoefsPtr coefs)
+  {
+    // Sanity check on mesh
+    //
+    if (mesh.size() == 0)
+      throw std::runtime_error("FieldGenerator::points: bad mesh specification.  Did you call the mesh constructor?");
+
+    // Set midplane evaluation parameters
+    //
+    basis->setMidplane(midplane);
+    basis->setColumnHeight(colheight);
+
+    // Check
+    //
+    check_times(coefs);
+
+    std::map<double, std::map<std::string, Eigen::VectorXf>> ret;
+
+    // Now get the desired coordinate type
+    //
+    auto ctype = basis->coordinates;
+
+    // Field labels (force field labels added below)
+    //
+    auto labels = basis->getFieldLabels(ctype);
+
+    int ncnt = 0;		// Process counter for MPI
+
+    std::map<std::string, Eigen::VectorXf> frame;
+    for (auto label : labels) {
+      frame[label].resize(mesh.rows());
+    }	
+
+    for (auto T : times) {
+
+      if (ncnt++ % numprocs > 0) continue;
+
+      if (not coefs->getCoefStruct(T)) {
+	std::cout << "Could not find time=" << T << ", continuing" << std::endl;
+	continue;
+      }
+
+      basis->set_coefs(coefs->getCoefStruct(T));
+
+#pragma omp parallel for
+      for (int k=0; k<mesh.rows(); k++) {
+
+	// Cartesian to spherical for all_eval
+	//
+	double x = mesh(k, 0);
+	double y = mesh(k, 1);
+	double z = mesh(k, 2);
+
+	// Coordinate values
+	double r, costh, phi, R;
+
+	// Return values
+	double p0, p1, d0, d1, f1, f2, f3;
+	std::vector<double> v;
+
+	if (ctype == BasisClasses::Basis::Coord::Spherical) {
+	  r     = sqrt(x*x + y*y + z*z) + 1.0e-18;
+	  costh = z/r;
+	  phi   = atan2(y, x);
+	  v = (*basis)(r, costh, phi, ctype);
+	} else if (ctype == BasisClasses::Basis::Coord::Cylindrical) {
+	  R     = sqrt(x*x + y*y) + 1.0e-18;
+	  phi   = atan2(y, x);
+	  v = (*basis)(R, z, phi, ctype);
+	} else {
+	  v = (*basis)(x, y, z, BasisClasses::Basis::Coord::Cartesian);
+	}
+	
+	// Pack the frame structure
+	//
+	for (int n=0; n<labels.size(); n++)
+	  frame[labels[n]](k) = v[n];
+      }
+
+      ret[T] = frame;
+    }
+
+    if (use_mpi) {
+      
+      std::vector<char> bf(9);
+
+      for (int n=1; n<numprocs; n++) {
+
+	if (myid==n) {
+	  int sz = ret.size();
+	  MPI_Send(&sz, 1, MPI_INT, 0, 102, MPI_COMM_WORLD);
+	  for (auto & v : ret) {
+	    MPI_Send(&v.first, 1, MPI_DOUBLE, 0, 103, MPI_COMM_WORLD);
+	    int fsz = v.second.size();
+	    MPI_Send(&fsz, 1, MPI_INT, 0, 104, MPI_COMM_WORLD);
+	    
+	    for (auto & f : v.second) {
+	      MPI_Send(f.first.c_str(), f.first.length(), MPI_CHAR, 0, 105,
+		       MPI_COMM_WORLD);
+	      
+	      MPI_Send(f.second.data(), f.second.size(),
+		       MPI_FLOAT, 0, 106, MPI_COMM_WORLD);
+	    }
+	  }
+	}
+
+	if (myid==0) {
+	  MPI_Status status;
+	  int sz, fsz, l;
+	  double T;
+
+	  MPI_Recv(&sz, 1, MPI_INT, n, 102, MPI_COMM_WORLD, &status);
+	  for (int i=0; i<sz; i++) {
+	    MPI_Recv(&T, 1, MPI_DOUBLE, n, 103, MPI_COMM_WORLD, &status);
+	    MPI_Recv(&fsz, 1, MPI_INT, n, 104, MPI_COMM_WORLD, &status);
+	    
+	    for (int j=0; j<fsz; j++) {
+	      // Get the field name
+	      //
+	      MPI_Probe(n, 105, MPI_COMM_WORLD, &status);
+	      MPI_Get_count(&status, MPI_CHAR, &l);
+	      MPI_Recv(bf.data(), l, MPI_CHAR, n, 105, MPI_COMM_WORLD, &status);
+	      std::string s(bf.data(), l);
+	      
+	      // Sanity check
+	      //
+	      if (frame.find(s) == frame.end()) {
+		std::cerr << "Error finding <" << s << "> in field map"
+			  << std::endl;
+	      }
+
+	      // Get the data
+	      //
+	      MPI_Recv(frame[s].data(), frame[s].size(), MPI_FLOAT, n, 106,
+		       MPI_COMM_WORLD, &status);
+	    }
+	    
+	    ret[T] = frame;
+	  }
+	}
+      }
+    }
+
+    // Toggle off midplane evaluation
+    basis->setMidplane(false);
+
+    return ret;
+  }
+  
 }
 // END namespace Field
