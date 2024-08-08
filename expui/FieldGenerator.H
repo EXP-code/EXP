@@ -20,6 +20,7 @@ namespace Field
     
     std::vector<double> times, pmin, pmax;
     std::vector<int>    grid;
+    Eigen::MatrixXd     mesh;
     
     //! Sanity check time vector with coefficient DB
     void check_times(CoefClasses::CoefsPtr coefs);
@@ -35,11 +36,31 @@ namespace Field
 
   public:
     
-    //! Constructor
+    //! Constructor for a rectangular grid
     FieldGenerator(const std::vector<double> &time,
 		   const std::vector<double> &pmin,
 		   const std::vector<double> &pmax,
 		   const std::vector<int>    &grid);
+
+    //! Constructor for an arbitrary point mesh.  The mesh should be
+    //! an Nx3 array
+    FieldGenerator(const std::vector<double> &time,
+		   const Eigen::MatrixXd     &mesh);
+
+    /** Get field quantities at user defined points
+
+	For example:
+	.
+	.
+	// Generate the fields for all coefficients in 'coefs'
+	auto db = points(basis, coefs);
+
+	// Get fields evaluated at Time=3.14 and for all points in
+	// your supplied mesh for density ("dens")
+	Eigen::MatrixXf points = db["3.14"]["dens"];
+    */
+    std::map<double, std::map<std::string, Eigen::VectorXf>>
+    points(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs);
 
     /** Get a field slices as a map in time and type
 
