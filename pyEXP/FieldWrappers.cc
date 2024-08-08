@@ -24,22 +24,24 @@ void FieldGeneratorClasses(py::module &m) {
     a list of upper bounds, and a list of knots per dimension.  These
     lists all have rank 3 for (x, y, z).  For a two-dimensional surface,
     one of the knot array values must be zero.  The member functions
-    lines, slices and volumes, called with the basis and coefficient
-    objects, return a numpy.ndarray containing the field evaluations.
-    Each of these functions returns a dictionary of times to a dictionary
-    of field names to numpy.ndarrays at each time.  There are also members
-    which will write these generated fields to files. The linear probe
-    members, 'lines' and 'file_lines', evaluate 'num' field points along
-    a user-specified segment between the 3d points 'beg' and 'end'.  See
-    help(pyEXP.basis) and help(pyEXP.coefs) for info on the basis and
-    coefficient objects.
+    lines, slices, an arbitrary point-set, and volumes, called with the
+    basis and coefficient objects, return a numpy.ndarray containing the
+    field evaluations.  Each of these functions returns a dictionary of
+    times to a dictionary of field names to numpy.ndarrays at each time.
+    There are also members which will write these generated fields to files.
+    The linear probe members, 'lines' and 'file_lines', evaluate 'num'
+    field points along a user-specified segment between the 3d points 'beg'
+    and 'end'.  See help(pyEXP.basis) and help(pyEXP.coefs) for info on
+    the basis and coefficient objects.
 
     Data packing
     ------------
     All slices and volumes are returned as numpy.ndarrays in row-major
     order.  That is, the first index is x, the second is y, and the
     third is z.  The ranks are specified by the 'gridsize' array with
-    (nx, ny, nz) as input to the FieldGenerator constructor.
+    (nx, ny, nz) as input to the FieldGenerator constructor.  A point
+    mesh is rows of (x, y, z) Cartesian coordinates.  The output field
+    values returned by points is in the same order as the input array.
 
     Coordinate systems
     ------------------
@@ -116,6 +118,24 @@ void FieldGeneratorClasses(py::module &m) {
 	py::arg("times"), py::arg("lower"), py::arg("upper"),
 	py::arg("gridsize"));
 
+  f.def(py::init<const std::vector<double>, const Eigen::MatrixXd>(),
+	R"(
+        Create fields for given times and and provided point set
+
+        Parameters
+        ----------
+        times : list(float,...)
+            list of evaluation times
+        mesh : ndarray of Nx3 floats
+            point set (x, y, z) for field evaluation
+
+        Returns
+        -------
+        FieldGenerator
+            new object
+        )",
+	py::arg("times"), py::arg("mesh"));
+
   f.def("setMidplane", &Field::FieldGenerator::setMidplane,
 	R"(
         Set the field generator to generate midplane fields
@@ -160,6 +180,38 @@ void FieldGeneratorClasses(py::module &m) {
 
         See also
         --------
+        points : generate fields at an array of mesh points
+        lines : generate fields along a line given by its end points
+        volumes : generate fields in volume given by the initializtion grid
+       )", py::arg("basis"), py::arg("coefs"));
+  
+  f.def("points", &Field::FieldGenerator::points,
+	R"(
+        Return a dictionary of arrays (1d numpy arrays) indexed by time
+        and field type corresponding to the mesh points
+
+        Parameters
+        ----------
+        basis : Basis
+            basis instance of any geometry; geometry will be deduced by the generator
+        coefs : Coefs
+            coefficient container instance
+
+        Returns
+        -------
+        dict({time: {field-name: numpy.ndarray})
+            dictionary of times, field names, and data arrays
+
+        Notes
+        -----
+        Each data array in the dictionary is a 1-dimensional array with the
+        same order as the mesh points in the constructor
+        routines.
+
+        See also
+        --------
+        slices : generate fields in a surface slice given by the
+                 initializtion grid
         lines : generate fields along a line given by its end points
         volumes : generate fields in volume given by the initializtion grid
        )", py::arg("basis"), py::arg("coefs"));
@@ -196,7 +248,9 @@ void FieldGeneratorClasses(py::module &m) {
 
         See also
         --------
-        slices : generate fields in a surface slice given by the initializtion grid
+        points : generate fields at an array of mesh points
+        slices : generate fields in a surface slice given by the
+                 initializtion grid
         volumes : generate fields in volume given by the initializtion grid
         )",
 	py::arg("basis"), py::arg("coefs"),
@@ -281,7 +335,9 @@ void FieldGeneratorClasses(py::module &m) {
 
         See also
         --------
-        slices : generate fields in a surface slice given by the initializtion grid
+        points : generate fields at an array of mesh points
+        slices : generate fields in a surface slice given by the
+                 initializtion grid
         volumes : generate fields in volume given by the initializtion grid
         lines : generate fields along a line given by its end points
         )", 
@@ -314,7 +370,9 @@ void FieldGeneratorClasses(py::module &m) {
 
         See also
         --------
-        slices : generate fields in a surface slice given by the initializtion grid
+        points : generate fields at an array of mesh points
+        slices : generate fields in a surface slice given by the
+                 initializtion grid
         volumes : generate fields in volume given by the initializtion grid
         lines : generate fields along a line given by its end points
         )",
@@ -357,6 +415,8 @@ void FieldGeneratorClasses(py::module &m) {
 
         See also
         --------
+        points : generate fields at an array of mesh points
+
         lines : generate fields along a line given by its end points
         slices : generate fields in a slice given by the initializtion grid
         )");
