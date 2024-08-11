@@ -121,7 +121,7 @@ namespace MSSA {
     }
   }
 
-  void matrix_idtest(std::ostream& out, const Eigen::MatrixXcd& M)
+  bool matrix_idtest(std::ostream& out, const Eigen::MatrixXcd& M)
   {
     double max_diag = 0.0, max_offd = 0.0;
     for (int i=0; i<M.rows(); i++) {
@@ -130,9 +130,12 @@ namespace MSSA {
 	else      max_offd = std::max(max_offd, std::abs(M(i, j)    ));
       }
     }
-    out << std::string(70, '-') << std::endl;
+    out << std::string(70, '-') << std::endl << std::setprecision(6);
     out << "diag diff=" << max_diag << " offd diff=" << max_offd << std::endl;
     out << std::string(70, '-') << std::endl;
+
+    if (max_diag>1.0e-3 or max_offd>1.0e-3) return true;
+    return false;
   }
 
 
@@ -178,7 +181,35 @@ namespace MSSA {
       }
 
       if (testF) {
-	if (oscil) {
+	if (plummer) {
+	  if (radial) {
+	    for (int l=0; l<nkeys/4; l++) {
+	      double r  = data[keys[0+4*l]][i];
+	      double pr = data[keys[2+4*l]][i];
+	      double L  = data[keys[3+4*l]][i];
+
+	      Y(0+4*l) = pr;
+	      Y(1+4*l) = L/(r*r);
+	      Y(2+4*l) = -r*pow(1.0+r*r, -1.5)/tscale;
+	      Y(3+4*l) = 0.0;
+	    }
+	  } else {
+	    for (int l=0; l<nkeys/4; l++) {
+	      double x = data[keys[0+4*l]][i];
+	      double y = data[keys[1+4*l]][i];
+	      double u = data[keys[2+4*l]][i];
+	      double v = data[keys[3+4*l]][i];
+	      
+	      double r = sqrt(x*x + y*y);
+	      double dphi = -r*pow(1.0+r*r, -1.5)/tscale;
+	      
+	      Y(0+4*l) = u;
+	      Y(1+4*l) = v;
+	      Y(2+4*l) = dphi*x/r;
+	      Y(3+4*l) = dphi*y/r;
+	    }
+	  }
+	} else if (oscil) {
 	  for (int l=0; l<nkeys/4; l++) {
 	    double x0 = data[keys[0+4*l]][i];
 	    double y0 = data[keys[1+4*l]][i];
@@ -238,10 +269,10 @@ namespace MSSA {
 
     // Right and left eigenvectors
     //
-    Eigen::VectorXcd SR2 = eigensolver2.eigenvalues().conjugate();
+    Eigen::VectorXcd SR2 = eigensolver2.eigenvalues();
     Eigen::MatrixXcd V2  = eigensolver2.eigenvectors();
 
-    Eigen::VectorXcd SL2 = eigensolver3.eigenvalues();
+    Eigen::VectorXcd SL2 = eigensolver3.eigenvalues().conjugate();
     Eigen::MatrixXcd U2  = eigensolver3.eigenvectors();
 
     U  = U2;
@@ -250,7 +281,11 @@ namespace MSSA {
     SL = SL2;
     SR = SR2;
 
+    // Reorder to match eigenvalues in left and right eigenvectors
+    // using a comparison functor which sorts by magnitude, real
+    // value, and imaginary value by precidence
     {
+      // Right eigenvectors
       std::vector<complex_elem> v(SR2.size());
       for (int i=0; i<SR2.size(); i++) v[i] = complex_elem(SR2(i), i);
       std::sort(v.begin(), v.end(), complex_comparator);
@@ -259,6 +294,7 @@ namespace MSSA {
 	SR(i)    = SR2(v[i].second);
       }
 
+      // Left eigenvectors
       std::vector<complex_elem> u(SL2.size());
       for (int i=0; i<SL2.size(); i++) u[i] = complex_elem(SL2(i), i);
       std::sort(u.begin(), u.end(), complex_comparator);
@@ -333,15 +369,17 @@ namespace MSSA {
       file << std::string(70, '-') << std::endl;
       file << "---- Postnorm right/left eigenvector test" << std::endl;
       file << std::string(70, '-') << std::endl;
-      matrix_print(file, U.adjoint()*V);
-      matrix_idtest(file, U.adjoint()*V);
+      if (matrix_idtest(file, U.adjoint()*V)) {
+	file << std::string(70, '-') << std::endl;
+	matrix_print(file, U.adjoint()*V);
+      }
       file << std::string(70, '-') << std::endl;
     }
 #endif
 
     Xi = (U.adjoint()*SP.asDiagonal()*Q.transpose()*X).transpose();
 
-    computed = true;
+    computed      = true;
     reconstructed = false;
     }
 
@@ -349,7 +387,7 @@ namespace MSSA {
   KoopmanRKHS::valid_keys = {
     "d",
     "alpha",
-    "oscil", "testF", "lam", "mu", "c",
+    "plummer", "radial", "oscil", "testF", "lam", "mu", "c", "tscale",
     "kernel",
     "verbose",
     "output"
@@ -374,7 +412,7 @@ namespace MSSA {
       Eigen::VectorXd Y(numT);
       for (int j=0; j<numT; j++) Y(j) = kernel(x, X.row(j));
 
-      std::complex<double> Psi = Y.adjoint()*Q*SP.asDiagonal()*V.col(index);
+      std::complex<double> Psi = Y.transpose()*Q*SP.asDiagonal()*V.col(index);
 
       ret = Xi.col(index)*Psi;
     }
@@ -403,7 +441,7 @@ namespace MSSA {
 	Y(j) = kernel(x, X.row(j));
       }
 
-      ret = Y.adjoint()*Q*SP.asDiagonal()*V.col(index);
+      ret = Y.transpose()*Q*SP.asDiagonal()*V.col(index);
     }
 
     return ret;
@@ -449,6 +487,15 @@ namespace MSSA {
 
       if (params["c"])
 	c = double(params["c"].as<double>());
+
+      if (params["plummer"])
+	plummer = bool(params["plummer"].as<bool>());
+
+      if (params["radial"])
+	radial = bool(params["radial"].as<bool>());
+
+      if (params["tscale"])
+	tscale = double(params["tscale"].as<double>());
 
       if (params["oscil"])
 	oscil = bool(params["oscil"].as<bool>());

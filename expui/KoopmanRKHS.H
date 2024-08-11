@@ -52,8 +52,8 @@ namespace MSSA
 
     //@{
     //! Test stuff
-    double lam=0.9, mu=0.5, c=0.0;
-    bool oscil = true, testF = true;
+    double lam=0.9, mu=0.5, c=0.0, tscale=1.0;
+    bool plummer = true, radial = false, oscil = false, testF = true;
     //@}
     
 
