@@ -181,7 +181,24 @@ namespace MSSA {
       }
 
       if (testF) {
-	if (plummer) {
+	if (kepler) {
+	  for (int l=0; l<nkeys/4; l++) {
+	    double x = data[keys[0+4*l]][i];
+	    double y = data[keys[1+4*l]][i];
+	    double u = data[keys[2+4*l]][i];
+	    double v = data[keys[3+4*l]][i];
+	      
+	    double r2 = x*x + y*y;
+	    double r  = sqrt(r2);
+	    double dp = -1.0/r2;
+	      
+	    Y(0+4*l) = u;
+	    Y(1+4*l) = v;
+	    Y(2+4*l) = dp*x/r;
+	    Y(3+4*l) = dp*y/r;
+	  }
+	}
+	else if (plummer) {
 	  if (radial) {
 	    for (int l=0; l<nkeys/4; l++) {
 	      double r  = data[keys[0+4*l]][i];
@@ -387,7 +404,7 @@ namespace MSSA {
   KoopmanRKHS::valid_keys = {
     "d",
     "alpha",
-    "plummer", "radial", "oscil", "testF", "lam", "mu", "c", "tscale",
+    "kepler", "plummer", "radial", "oscil", "testF", "lam", "mu", "c", "tscale",
     "kernel",
     "verbose",
     "output"
@@ -487,6 +504,9 @@ namespace MSSA {
 
       if (params["c"])
 	c = double(params["c"].as<double>());
+
+      if (params["kepler"])
+	kepler = bool(params["kepler"].as<bool>());
 
       if (params["plummer"])
 	plummer = bool(params["plummer"].as<bool>());
