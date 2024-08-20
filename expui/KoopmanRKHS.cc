@@ -10,7 +10,7 @@
 // trajectory matrix rather than covariance matrix analysis may lead
 // to large errors in eigenvectors.
 //
-// The implementation here follows:
+// The implementation here is based on the
 //
 // M. O. Williams, C. W. Rowley, I. G. Kevrekidis, 2015, "A
 // kernel-based method for data-driven Koopman spectral analysis",
@@ -54,8 +54,11 @@
 namespace MSSA {
 
   // Helper ostream manipulator for debug coefficient key info
+  //
   std::ostream& operator<< (std::ostream& out, const std::vector<unsigned>& t);
 
+  // Get RKHS name from enum
+  //
   std::map<KoopmanRKHS::RKHS, std::string> KoopmanRKHS::RKHS_names =
     {
       {KoopmanRKHS::RKHS::Polynomial,  "Polynomial" },
@@ -63,6 +66,8 @@ namespace MSSA {
       {KoopmanRKHS::RKHS::Gaussian,    "Gaussian"   }
     };
 
+  // Get RKHS enum from name
+  //
   std::map<std::string, KoopmanRKHS::RKHS> KoopmanRKHS::RKHS_values =
     {
       {"Polynomial",  KoopmanRKHS::RKHS::Polynomial },
@@ -71,7 +76,8 @@ namespace MSSA {
     };
 
 
-  //! RKHS kernel
+  // RKHS kernel
+  //
   double KoopmanRKHS::kernel(const Eigen::VectorXd& x,
 			     const Eigen::VectorXd& y)
   {
@@ -91,6 +97,7 @@ namespace MSSA {
   }
 
   // Structure for sorting complex numbers and retrieving a permutation index
+  //
   using complex_elem = std::pair<std::complex<double>, int>;
   bool complex_comparator(const complex_elem &lhs, const complex_elem &rhs)
   {
@@ -100,6 +107,11 @@ namespace MSSA {
     double abs_a = std::abs(a);
     double abs_b = std::abs(b);
 
+    // Three step sort:
+    // (1) By modulus
+    // (2) By real value
+    // (3) By imag value
+    //
     if (abs_a == abs_b) {
       if (std::real(a) == std::real(b))
 	return std::imag(a) < std::imag(b);
@@ -110,6 +122,8 @@ namespace MSSA {
     }
   }
 
+  // Fixed-width matrix element printing
+  //
   void matrix_print(std::ostream& out, const Eigen::MatrixXcd& M)
   {
     for (int i=0; i<M.rows(); i++) {
@@ -121,6 +135,8 @@ namespace MSSA {
     }
   }
 
+  // Check for similarity to the identity matrix
+  //
   bool matrix_idtest(std::ostream& out, const Eigen::MatrixXcd& M)
   {
     double max_diag = 0.0, max_offd = 0.0;
@@ -130,7 +146,7 @@ namespace MSSA {
 	else      max_offd = std::max(max_offd, std::abs(M(i, j)    ));
       }
     }
-    out << std::string(70, '-') << std::endl << std::setprecision(6);
+    out << std::string(70, '-') << std::endl << std::setprecision(8);
     out << "diag diff=" << max_diag << " offd diff=" << max_offd << std::endl;
     out << std::string(70, '-') << std::endl;
 
@@ -148,28 +164,36 @@ namespace MSSA {
     auto keys = getAllKeys();
     nkeys = keys.size();
 
+    // The number of time points
+    //
     numT = data[keys[0]].size();
 
-    // Grammian and action matrices
-    G.resize(numT, numT);
-    A.resize(numT, numT);
+    // Get storage for Grammian and action matrices
+    //
+    G.resize(numT, numT);	// eq. 16
+    A.resize(numT, numT);	// eq. 16
 
-    // Data matrix (rows = time, columns = keys)
+    // Get storage data matrix (rows = time, columns = keys)
+    // eq. 20
     X.resize(numT, nkeys);
     
     for (int k=0; k<nkeys; k++) {
       for (int i=0; i<numT; i++) X(i, k) = data[keys[k]][i];
     }
 
-    // Flow data
+    // Flow data channels
+    //
     Eigen::VectorXd Y(nkeys);
 
     // Time step
+    //
     double DT = coefDB.times[1] - coefDB.times[0];
 
     // Compute Grammian and action matrices
+    //
     for (int i=0; i<numT; i++) {
 
+      // Compute flow field by finite difference
       for (int k=0; k<nkeys; k++) {
 	if (i==0) {
 	  Y(k) = (data[keys[k]][1] - data[keys[k]][0])/DT;
@@ -180,7 +204,10 @@ namespace MSSA {
 	}
       }
 
+      // Compute flow exactly for some test examples
+      //
       if (testF) {
+
 	if (kepler) {
 	  for (int l=0; l<nkeys/4; l++) {
 	    double x = data[keys[0+4*l]][i];
@@ -262,12 +289,14 @@ namespace MSSA {
     S2 = eigensolver.eigenvalues();
     Q  = eigensolver.eigenvectors();
     
-    // Find inversion tolerance condition
+    // Find inversion tolerance condition (Eigen eigenvalues returned
+    // in increasing order)
     //
-    SP.resize(S2.size());
+    SP.resize(S2.size());	// This will be the Penrose
+				// pseudoinverse
     double TOL = S2(S2.size()-1) * tol;
     TOL = tol;
-    int nev = 0;
+    int nev = 0;		// Cache the number of non-zero EVs
     for (int n=0; n<S2.size(); n++) {
       if (S2(n) < TOL) {
 	SP(n) = 0.0;
@@ -277,21 +306,25 @@ namespace MSSA {
       }
     }
 
-    // Get Koopman operator estimate
+    // Get Koopman operator estimate (eq. 11)
     //
     K = (SP.asDiagonal() * Q.transpose()) * A * (Q * SP.asDiagonal());
 
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver2(K);
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver3(K.adjoint());
 
-    // Right and left eigenvectors
+    // Right eigenvectors of K
     //
     Eigen::VectorXcd SR2 = eigensolver2.eigenvalues();
     Eigen::MatrixXcd V2  = eigensolver2.eigenvectors();
 
+    // Left eigenvectors of K
+    //
     Eigen::VectorXcd SL2 = eigensolver3.eigenvalues().conjugate();
     Eigen::MatrixXcd U2  = eigensolver3.eigenvectors();
 
+    // Assign to class data members
+    //
     U  = U2;
     V  = V2;
 
@@ -299,8 +332,8 @@ namespace MSSA {
     SR = SR2;
 
     // Reorder to match eigenvalues in left and right eigenvectors
-    // using a comparison functor which sorts by magnitude, real
-    // value, and imaginary value by precidence
+    // using a comparison functor which sorts by magnitude (modulus),
+    // real value, and imaginary value by precedence
     {
       // Right eigenvectors
       std::vector<complex_elem> v(SR2.size());
@@ -394,6 +427,8 @@ namespace MSSA {
     }
 #endif
 
+    // The Koopman modes from eq. 22
+    //
     Xi = (U.adjoint()*SP.asDiagonal()*Q.transpose()*X).transpose();
 
     computed      = true;
