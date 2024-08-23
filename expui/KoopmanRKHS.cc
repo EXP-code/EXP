@@ -289,14 +289,14 @@ namespace MSSA {
     S2 = eigensolver.eigenvalues();
     Q  = eigensolver.eigenvectors();
     
-    // Find inversion tolerance condition (Eigen eigenvalues returned
-    // in increasing order)
+    // Find inversion tolerance condition (Eigen's eigenvalues
+    // returned in increasing order)
     //
     SP.resize(S2.size());	// This will be the Penrose
 				// pseudoinverse
     double TOL = S2(S2.size()-1) * tol;
     TOL = tol;
-    int nev = 0;		// Cache the number of non-zero EVs
+    nev = 0;			// Cache the number of non-zero EVs
     for (int n=0; n<S2.size(); n++) {
       if (S2(n) < TOL) {
 	SP(n) = 0.0;
@@ -678,11 +678,10 @@ namespace MSSA {
 
       // Read and check parameters
       //
-      int nTime, nKeys, nEV;
+      int nTime, nKeys;
 
       h5file.getAttribute("numT" ).read(nTime);
       h5file.getAttribute("nKeys").read(nKeys);
-      h5file.getAttribute("nEV"  ).read(nEV  );
 
       // Number of channels
       //
@@ -702,14 +701,6 @@ namespace MSSA {
 	std::ostringstream sout;
 	sout << "KoopmanRKHS::restoreState: saved state has nkeys="
 	     << nKeys << " but KoopmanRKHS expects nkeys=" << nkeys
-	     << ".\nCan't restore KoopmanRKHS state!";
-	throw std::runtime_error(sout.str());
-      }
-
-      if (nEV != nev) {
-	std::ostringstream sout;
-	sout << "KoopmanRKHS::restoreState: saved state has nEV="
-	     << nEV << " but KoopmanRKHS expects nEV=" << nev
 	     << ".\nCan't restore KoopmanRKHS state!";
 	throw std::runtime_error(sout.str());
       }
