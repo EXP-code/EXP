@@ -298,7 +298,7 @@ void EDMDtoolkitClasses(py::module &m) {
   py::class_<MSSA::KoopmanRKHS, std::shared_ptr<MSSA::KoopmanRKHS>>
     g(m, "KoopmanRKHS");
 
-  g.def(py::init<const mssaConfig&, double, const std::string>(),
+  g.def(py::init<const mssaConfig&, double, int, const std::string>(),
 	R"(
         Koopman RKHS operator approximatation class
 
@@ -308,6 +308,8 @@ void EDMDtoolkitClasses(py::module &m) {
 	    the input database of components
         tol : double
             tolerance for eigenvalue decomposition
+        count : int
+            top count of eigenvalues
 	flag : str
             YAML stanza of parameter values
 
@@ -331,6 +333,7 @@ void EDMDtoolkitClasses(py::module &m) {
         )",
 	py::arg("config"),
 	py::arg("tol"),
+	py::arg("count"),
 	py::arg("flags") = "");
 
   g.def("eigenvalues", &KoopmanRKHS::eigenvalues,

@@ -54,7 +54,7 @@ namespace MSSA
     //! Test stuff
     double lam=0.9, mu=0.5, c=0.0, tscale=1.0;
     bool kepler = true, plummer = false, radial = false, oscil = false;
-    bool testF = true;
+    bool testF = true, use_red = true;
     //@}
     
 
@@ -66,6 +66,9 @@ namespace MSSA
 
     //! Eigenvalue tolerance
     double tol = 1.0e-6;
+
+    //! Max eigenvalue count
+    int evCount = 100;
 
     //! Eigenvalues values
     Eigen::VectorXd S2, SP;
@@ -138,7 +141,7 @@ namespace MSSA
 	E.g. harmonic and radial indicies for spherical and
 	cylindrical bases.
     */
-    KoopmanRKHS(const mssaConfig& spec, double tol, const std::string flags="");
+    KoopmanRKHS(const mssaConfig& spec, double tol, int count, const std::string flags="");
 
     //! Destructor
     virtual ~KoopmanRKHS() {}

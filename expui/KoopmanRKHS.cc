@@ -1,5 +1,4 @@
 #define TESTING
-
 //
 // EDMD (Koopman theory) for EXP coefficients
 //
@@ -282,29 +281,46 @@ namespace MSSA {
 
     // Perform eigenanalysis of Grammian matrix (pos def)
     //
-    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(G);
-    if (eigensolver.info() != Eigen::Success) {
-      throw std::runtime_error("KoopmanRKHS: Eigensolver for Grammian failed");
+    if (use_red) {
+      RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver(G, evCount);
+      S2 = eigensolver.eigenvalues();
+      Q  = eigensolver.eigenvectors();
+    } else {
+      Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(G);
+      if (eigensolver.info() != Eigen::Success) {
+	throw std::runtime_error("KoopmanRKHS: Eigensolver for Grammian failed");
+      }
+      S2 = eigensolver.eigenvalues();
+      Q  = eigensolver.eigenvectors();
     }
-    S2 = eigensolver.eigenvalues();
-    Q  = eigensolver.eigenvectors();
     
     // Find inversion tolerance condition (Eigen's eigenvalues
     // returned in increasing order)
     //
+    Eigen::MatrixXd cumS(S2);
+    for (int n=cumS.size()-2; n>=0; n--) cumS(n) += cumS(n+1);
+    bool firstNZ = true;
+
     SP.resize(S2.size());	// This will be the Penrose
 				// pseudoinverse
     double TOL = S2(S2.size()-1) * tol;
     TOL = tol;
     nev = 0;			// Cache the number of non-zero EVs
-    for (int n=0; n<S2.size(); n++) {
+    for (int n=std::max<int>(0, S2.size()-evCount); n<S2.size(); n++) {
       if (S2(n) < TOL) {
 	SP(n) = 0.0;
       } else {
+	if (firstNZ) {
+	  std::cout << "Koopman::analysis(): cumulation fraction="
+		    << cumS(n) / cumS(0)
+		    << " [" << (cumS(0) - cumS(n))/cumS(0) << "]" << std::endl;
+	  firstNZ = false;
+	}
 	SP(n) = 1.0 / sqrt(S2(n));
 	nev++;
       }
     }
+    std::cout << "Koopman::analysis(): found " << nev << " non-zero eigenvalues" << std::endl;
 
     // Get Koopman operator estimate (eq. 11)
     //
@@ -439,7 +455,7 @@ namespace MSSA {
   KoopmanRKHS::valid_keys = {
     "d",
     "alpha",
-    "kepler", "plummer", "radial", "oscil", "testF", "lam", "mu", "c", "tscale",
+    "kepler", "plummer", "radial", "oscil", "testF", "use_red", "lam", "mu", "c", "tscale",
     "kernel",
     "verbose",
     "output"
@@ -557,6 +573,9 @@ namespace MSSA {
 
       if (params["testF"])
 	testF = bool(params["testF"].as<bool>());
+
+      if (params["use_red"])
+	use_red = bool(params["use_red"].as<bool>());
 
       if (params["alpha"])
 	alpha = double(params["alpha"].as<double>());
@@ -778,7 +797,8 @@ namespace MSSA {
 
   }
 
-  KoopmanRKHS::KoopmanRKHS(const mssaConfig& config, double tol, const std::string flags) : tol(tol)
+  KoopmanRKHS::KoopmanRKHS(const mssaConfig& config, double tol, int count,
+			   const std::string flags) : tol(tol), evCount(count)
   {
     // Parse the YAML string
     //
