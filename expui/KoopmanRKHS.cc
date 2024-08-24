@@ -312,7 +312,8 @@ namespace MSSA {
       } else {
 	if (firstNZ) {
 	  std::cout << "Koopman::analysis(): cumulation fraction="
-		    << cumS(n) / cumS(0)
+		    << std::setprecision(10) << cumS(n) / cumS(0)
+		    << std::scientific << std::setprecision(6)
 		    << " [" << (cumS(0) - cumS(n))/cumS(0) << "]" << std::endl;
 	  firstNZ = false;
 	}
