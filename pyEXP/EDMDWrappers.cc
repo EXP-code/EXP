@@ -4,6 +4,7 @@
 
 #include <Koopman.H>
 #include <KoopmanRKHS.H>
+#include <LiouvilleRKHS.H>
 
 namespace py = pybind11;
 #include <TensorToArray.H>
@@ -454,6 +455,167 @@ void EDMDtoolkitClasses(py::module &m) {
         See also
         --------
         KoopmanRKHS
+        )");
+
+  py::class_<MSSA::LiouvilleRKHS, std::shared_ptr<MSSA::LiouvilleRKHS>>
+    h(m, "LiouvilleRKHS");
+
+  h.def(py::init<const mssaConfig&, double, int, const std::string>(),
+	R"(
+        Liouville RKHS operator approximatation class
+
+        Parameters
+        ----------
+        config : mssaConfig
+	    the input database of components
+        tol : double
+            tolerance for eigenvalue decomposition
+        count : int
+            top count of eigenvalues
+	flag : str
+            YAML stanza of parameter values
+
+        Returns
+        -------
+        Liouville RKHS instance
+
+        Notes
+        -----
+        The configuration should be in the format:
+
+        {'example': (coefs, keylst, [])}
+
+        where keylst is a list of selected PCs.  With a SphericalBasis
+        for example, the keylst should have the format:
+
+        [[l1, m1, n1], [l2, m2, n2], ...]
+
+        Each sublist represents a PC, where l, m, and n are the 
+        spherical harmonics basis parameters.
+        )",
+	py::arg("config"),
+	py::arg("tol"),
+	py::arg("count"),
+	py::arg("flags") = "");
+
+  h.def("eigenvalues", &LiouvilleRKHS::eigenvalues,
+	R"(
+        Vector of eigenvalues from the EDMD RKHS analysis. 
+
+        Returns
+        -------
+        numpy.ndarray
+            the vector of eigenvalues
+
+        Notes
+        -----
+        Note that these eigenvalues are complex.  It may be helpful 
+        to separate the magnitude and phase using Numpy's 'absolute' 
+        and 'angle' functions.
+       )");
+
+  h.def("saveState", &LiouvilleRKHS::saveState,
+	R"(
+        Save current EDMD RKHS state to an HDF5 file with the given prefix
+
+        Parameters
+        ----------
+        prefix : str
+            output filename prefix
+
+        Returns
+        -------
+        None
+        )", py::arg("prefix"));
+
+  h.def("restoreState", &LiouvilleRKHS::restoreState,
+	R"(
+        Restore current EDMD RKHS state from an HDF5 file
+
+        Parameters
+        ----------
+        prefix : str
+            input filename prefix
+
+        Notes
+        -----
+	The Liouville RKHS instance must be constructed with the same data and
+        parameters as the saved state.  The restoreState routine will check
+        for the same data dimension and trend state but can not sure
+        complete consistency.
+        )", py::arg("prefix"));
+
+  h.def("getModes", &LiouvilleRKHS::getModes,
+	R"(
+        Get the RKHS mode coefficients for all triples
+
+        Returns
+        -------
+        numpy.ndarray
+            the RKHS mode coefficients
+
+        See also
+        --------
+        Use in conjunction with 'contributions' to visualize the support 
+        from each EDMD RKHS mode to the coefficient series.
+        )");
+
+  h.def("modeEval", &LiouvilleRKHS::modeEval,
+	R"(
+        Evaluate the contribution from the index triple
+
+        Parameters
+        ----------
+        index : int
+            the triple index in eigenvalue order
+        value : ndarray
+            the input point
+
+        Returns
+        -------
+        numpy.ndarray
+            the contribution to the trajectory from the indexed triple
+
+        See also
+        --------
+        Use in conjunction with 'contributions' to visualize the support 
+        from each EDMD RKHS mode to the coefficient series.
+        )", py::arg("index"), py::arg("value"));
+
+  h.def("evecEval", &LiouvilleRKHS::evecEval,
+	R"(
+        Evaluate the Liouville eigenfunction with given index
+
+        Parameters
+        ----------
+        index : int
+            the triple index in eigenvalue order
+        value : ndarray
+            the input point
+
+        Returns
+        -------
+        numpy.ndarray
+            the Liouville eigenfunction
+
+        See also
+        --------
+        Use in conjunction with 'contributions' to visualize the support 
+        from each EDMD RKHS mode to the coefficient series.
+        )", py::arg("index"), py::arg("value"));
+
+  h.def("getAllKeys", &LiouvilleRKHS::getAllKeys,
+	R"(
+        Provides a list of all internal channel keys (for reference)
+
+        Returns
+        -------
+        list(Key)
+            list of keys in the format described in config file
+
+        See also
+        --------
+        LiouvilleRKHS
         )");
 
 }

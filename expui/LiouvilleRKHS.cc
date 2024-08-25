@@ -1,6 +1,6 @@
 #define TESTING
 //
-// EDMD (Koopman theory) for EXP coefficients
+// EDMD (Liouville occupuation kernel version) for EXP coefficients
 //
 // Uses fixed-rank approximation for the SVD to save time and space.
 // Uses the approximate SVD randomized algorithm from Halko,
@@ -11,9 +11,9 @@
 //
 // The implementation here is based on the
 //
-// M. O. Williams, C. W. Rowley, I. G. Kevrekidis, 2015, "A
-// kernel-based method for data-driven Koopman spectral analysis",
-// Journal of Computational Dynamics, 2 (2), 247-265
+// Joel A. Rosenfeld and Rushikesh Kamalapurkar, "Singular Dynamic
+// Mode Decomposition", 2023, SIAM J. Appl. Dynamical Systems,
+// Vol. 22, No. 3, pp 2357-2381
 //
 
 #include <filesystem>
@@ -42,7 +42,7 @@
 
 #include <omp.h>
 
-#include <KoopmanRKHS.H>
+#include <LiouvilleRKHS.H>
 
 #include <RedSVD.H>
 #include <YamlConfig.H>
@@ -58,40 +58,43 @@ namespace MSSA {
 
   // Get RKHS name from enum
   //
-  std::map<KoopmanRKHS::RKHS, std::string> KoopmanRKHS::RKHS_names =
+  std::map<LiouvilleRKHS::RKHS, std::string> LiouvilleRKHS::RKHS_names =
     {
-      {KoopmanRKHS::RKHS::Polynomial,  "Polynomial" },
-      {KoopmanRKHS::RKHS::Exponential, "Exponential"},
-      {KoopmanRKHS::RKHS::Gaussian,    "Gaussian"   }
+      {LiouvilleRKHS::RKHS::Polynomial,  "Polynomial" },
+      {LiouvilleRKHS::RKHS::Exponential, "Exponential"},
+      {LiouvilleRKHS::RKHS::Gaussian,    "Gaussian"   }
     };
 
   // Get RKHS enum from name
   //
-  std::map<std::string, KoopmanRKHS::RKHS> KoopmanRKHS::RKHS_values =
+  std::map<std::string, LiouvilleRKHS::RKHS> LiouvilleRKHS::RKHS_values =
     {
-      {"Polynomial",  KoopmanRKHS::RKHS::Polynomial },
-      {"Exponential", KoopmanRKHS::RKHS::Exponential},
-      {"Gaussian",    KoopmanRKHS::RKHS::Gaussian   }
+      {"Polynomial",  LiouvilleRKHS::RKHS::Polynomial },
+      {"Exponential", LiouvilleRKHS::RKHS::Exponential},
+      {"Gaussian",    LiouvilleRKHS::RKHS::Gaussian   }
     };
 
 
   // RKHS kernel
   //
-  double KoopmanRKHS::kernel(const Eigen::VectorXd& x,
-			     const Eigen::VectorXd& y)
+  double LiouvilleRKHS::kernel(const Eigen::VectorXd& x,
+			       const Eigen::VectorXd& y,
+			       double mu)
   {
+    double D2 = d*d/(mu*mu);
+
     if (rkhs == RKHS::Polynomial) {
       double prod = x.adjoint()*y;
-      return pow(1.0 + prod/(d*d), alpha);
+      return pow(1.0 + prod/D2, alpha);
     } else if (rkhs == RKHS::Exponential) {
       double prod = x.adjoint()*y;
-      return exp(prod/(d*d));
+      return exp(prod/D2);
     } else if (rkhs == RKHS::Gaussian) {
       Eigen::VectorXd diff = x - y;
       double prod = diff.adjoint()*diff;
-      return exp(-prod/(d*d));
+      return exp(-prod/D2);
     } else {
-      throw std::runtime_error("KoopmanRKHS: Unknown kernel type");
+      throw std::runtime_error("LiouvilleRKHS: Unknown kernel type");
     }
   }
 
@@ -156,10 +159,119 @@ namespace MSSA {
     return false;
   }
 
+  // Compute G matrix for RKHS space defined by mu value
+  Eigen::MatrixXd LiouvilleRKHS::computeGrammian(double mu, double rat)
+  {
+    // Use Simpson's rule quadrature
+    
+    // Number of trajectories
+    //
+    auto keys = getAllKeys();
+    traj = keys.size();
+    
+    // Check for odd number of times for Simpson's 1/3 rule
+    //
+    int nt = numT;
+    if (nt/2*2 == nt) nt -= 1;
 
-  // Algorithm 3 from Williams, Rowley, Kevrekidis
+    // Allocate Grammian matrix and set to zero
+    //
+    Eigen::MatrixXd G(traj, traj);
+    int f1, f2;
+
+    for (int i=0; i<traj; i++) {
+      for (int j=0; j<traj; j++) {
+
+	G(i, j) = 0.0;
+
+	for (int t1=0; t1<nt; t1++) {
+
+	  if (t1 == 0 or t1 == nt-1) f1 = 1;
+	  else {
+	    if (t1 == 1) f1 = 4;
+	    if (t1 == 4) f1 = 2;
+	  }
+
+	  double inner = 0.0;
+	  for (int t2=0; t2<nt; t2++) {
+	    
+	    if (t2 == 0 or t2 == nt-1) f2 = 1;
+	    else {
+	      if (t2 == 1) f2 = 4;
+	      if (t2 == 4) f2 = 2;
+	    }
+
+	    auto x1 = data[t1].row(keys[i])*rat;
+	    auto x2 = data[t2].row(keys[j])*rat;
+	    inner += kernel(data[t1].row(keys[i])*rat, data[t2].row(keys[j])*rat, mu) * f2;
+	  }
+
+	  G(i, j) += inner*f1;
+	}
+      }
+    }
+
+    // Time step factor
+    //
+    double SF = (coefDB.times[1] - coefDB.times[0])/3.0;
+
+    return G*SF*SF;
+  }
+
+  // Compute G matrix for RKHS space defined by mu value
+  Eigen::MatrixXd LiouvilleRKHS::computeGammaDiff(double mu)
+  {
+    // Use Simpson's rule quadrature
+    
+    // Number of trajectories
+    //
+    auto keys = getAllKeys();
+    traj = keys.size();
+    
+    // Check for odd number of times for Simpson's 1/3 rule
+    //
+    int nt = numT;
+    if (nt/2*2 == nt) nt -= 1;
+
+    // Allocate Grammian matrix and set to zero
+    //
+    Eigen::MatrixXd A(traj, traj);
+    int f;
+
+    for (int i=0; i<traj; i++) {
+      for (int j=0; j<traj; j++) {
+
+	A(i, j) = 0.0;
+
+	double sumT = 0.0, sum0 = 0.0;
+
+	for (int t=0; t<nt; t++) {
+
+	  if (t == 0 or t == nt-1) f = 1;
+	  else {
+	    if (t == 1) f = 4;
+	    if (t == 4) f = 2;
+	  }
+
+	  sum0 += kernel(data[0   ].row(keys[i]), data[t].row(keys[j]), mu) * f;
+	  sumT += kernel(data[nt-1].row(keys[i]), data[t].row(keys[j]), mu) * f;
+	}
+
+	A(i, j) += sumT - sum0;
+      }
+    }
+
+    // Time step factor
+    //
+    double SF = (coefDB.times[1] - coefDB.times[0])/3.0;
+
+    return A * SF;
+  }
+
+
+  // Algorithm 7.1 from Rosenfeld and Kamalapurkhar
   //
-  void KoopmanRKHS::analysis()
+  void LiouvilleRKHS::analysis()
   {
     // Number of channels
     //
@@ -170,209 +282,84 @@ namespace MSSA {
     //
     numT = data[keys[0]].size();
 
-    // Get storage for Grammian and action matrices
+    // Get Grammian matrices
     //
-    G.resize(numT, numT);	// eq. 16
-    A.resize(numT, numT);	// eq. 16
-
-    // Get storage data matrix (rows = time, columns = keys)
-    // eq. 20
-    X.resize(numT, nkeys);
-    
-    for (int k=0; k<nkeys; k++) {
-      for (int i=0; i<numT; i++) X(i, k) = data[keys[k]][i];
-    }
-
-    // Flow data channels
-    //
-    Eigen::VectorXd Y(nkeys);
-
-    // Time step
-    //
-    double DT = coefDB.times[1] - coefDB.times[0];
-
-    // Compute Grammian and action matrices
-    //
-    for (int i=0; i<numT; i++) {
-
-      // Compute flow field by finite difference
-      for (int k=0; k<nkeys; k++) {
-	if (i==0) {
-	  Y(k) = (data[keys[k]][1] - data[keys[k]][0])/DT;
-	} else if (i==numT-1) {
-	  Y(k) = (data[keys[k]][numT-1] - data[keys[k]][numT-2])/DT;
-	} else {
-	  Y(k) = (data[keys[k]][i+1] - data[keys[k]][i-1])/(2.0*DT);
-	}
-      }
-
-      // Compute flow exactly for some test examples
-      //
-      if (testF) {
-
-	if (kepler) {
-	  for (int l=0; l<nkeys/4; l++) {
-	    double x = data[keys[0+4*l]][i];
-	    double y = data[keys[1+4*l]][i];
-	    double u = data[keys[2+4*l]][i];
-	    double v = data[keys[3+4*l]][i];
-	      
-	    double r2 = x*x + y*y;
-	    double r  = sqrt(r2);
-	    double dp = -1.0/r2;
-	      
-	    Y(0+4*l) = u;
-	    Y(1+4*l) = v;
-	    Y(2+4*l) = dp*x/r;
-	    Y(3+4*l) = dp*y/r;
-	  }
-	}
-	else if (plummer) {
-	  if (radial) {
-	    for (int l=0; l<nkeys/4; l++) {
-	      double r  = data[keys[0+4*l]][i];
-	      double pr = data[keys[2+4*l]][i];
-	      double L  = data[keys[3+4*l]][i];
-
-	      Y(0+4*l) = pr;
-	      Y(1+4*l) = L/(r*r);
-	      Y(2+4*l) = -r*pow(1.0+r*r, -1.5)/tscale;
-	      Y(3+4*l) = 0.0;
-	    }
-	  } else {
-	    for (int l=0; l<nkeys/4; l++) {
-	      double x = data[keys[0+4*l]][i];
-	      double y = data[keys[1+4*l]][i];
-	      double u = data[keys[2+4*l]][i];
-	      double v = data[keys[3+4*l]][i];
-	      
-	      double r = sqrt(x*x + y*y);
-	      double dphi = -r*pow(1.0+r*r, -1.5)/tscale;
-	      
-	      Y(0+4*l) = u;
-	      Y(1+4*l) = v;
-	      Y(2+4*l) = dphi*x/r;
-	      Y(3+4*l) = dphi*y/r;
-	    }
-	  }
-	} else if (oscil) {
-	  for (int l=0; l<nkeys/4; l++) {
-	    double x0 = data[keys[0+4*l]][i];
-	    double y0 = data[keys[1+4*l]][i];
-	    double x1 = data[keys[2+4*l]][i];
-	    double y1 = data[keys[3+4*l]][i];
-	    Y(0+4*l) = -lam * y0;
-	    Y(1+4*l) =  lam * x0;
-	    Y(2+4*l) = -mu * y1 + c*(x0*x0 - y0*y0);
-	    Y(3+4*l) =  mu * x1 + 2.0*c*x0*y0;
-	  }
-	} else {
-	  for (int l=0; l<nkeys/2; l++) {
-	    double x0 = data[keys[0+2*l]][i];
-	    double x1 = data[keys[1+2*l]][i];
-	    Y(0+2*l) = lam * x0;
-	    Y(1+2*l) = mu  * x1 + c * x0 * x0;
-	  }
-	}
-      }
-	
-      for (int j=0; j<numT; j++) {
-	G(i, j) = kernel(X.row(i), X.row(j));
-	A(i, j) = kernel(Y, X.row(j));
-      }
-    }
+    G1 = computeGrammian(mu1);
+    G2 = computeGrammian(mu2);
+    G3 = computeGrammian(mu2, mu1/mu2);
+    A  = computeGammaDiff(mu1);
 
     // Perform eigenanalysis of Grammian matrix (pos def)
     //
     if (use_red) {
-      RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver(G, evCount);
-      S2 = eigensolver.eigenvalues();
-      Q  = eigensolver.eigenvectors();
+      RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver1(G2, evCount);
+      S2 = eigensolver1.eigenvalues();
+      Q3 = eigensolver1.eigenvectors();
+
+      RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver2(G3, evCount);
+      S3 = eigensolver2.eigenvalues();
+      Q3 = eigensolver2.eigenvectors();
     } else {
-      Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(G);
-      if (eigensolver.info() != Eigen::Success) {
-	throw std::runtime_error("KoopmanRKHS: Eigensolver for Grammian failed");
+      Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver1(G2);
+      if (eigensolver1.info() != Eigen::Success) {
+	throw std::runtime_error("LiouvilleRKHS: Eigensolver for Grammian 2 failed");
       }
-      S2 = eigensolver.eigenvalues();
-      Q  = eigensolver.eigenvectors();
+      S2 = eigensolver1.eigenvalues();
+      Q2 = eigensolver1.eigenvectors();
+
+      Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver2(G3);
+      if (eigensolver2.info() != Eigen::Success) {
+	throw std::runtime_error("LiouvilleRKHS: Eigensolver for Grammian 2 failed");
+      }
+      S3 = eigensolver2.eigenvalues();
+      Q3 = eigensolver2.eigenvectors();
     }
     
-    // Find inversion tolerance condition (Eigen's eigenvalues
-    // returned in increasing order)
+    // Compute pseudoinvese of G2
     //
-    Eigen::MatrixXd cumS(S2);
-    for (int n=cumS.size()-2; n>=0; n--) cumS(n) += cumS(n+1);
-    bool firstNZ = true;
+    Eigen::MatrixXd G2inv(traj, traj);
+    Eigen::Vectorxd S2inv(traj);
 
-    SP.resize(S2.size());	// This will be the Penrose
-				// pseudoinverse
-    double TOL = S2(S2.size()-1) * tol;
-    TOL = tol;
-    nev = 0;			// Cache the number of non-zero EVs
     for (int n=std::max<int>(0, S2.size()-evCount); n<S2.size(); n++) {
       if (S2(n) < TOL) {
-	SP(n) = 0.0;
+	S2inv(n) = 0.0;
       } else {
-	if (firstNZ) {
-	  std::cout << "Koopman::analysis(): cumulation fraction="
-		    << std::setprecision(10) << cumS(n) / cumS(0)
-		    << std::scientific << std::setprecision(6)
-		    << " [" << (cumS(0) - cumS(n))/cumS(0) << "]" << std::endl;
-	  firstNZ = false;
-	}
-	SP(n) = 1.0 / sqrt(S2(n));
-	nev++;
+	S2inv(n) = 1.0 / S2(n);
       }
     }
-    std::cout << "Koopman::analysis(): found " << nev << " non-zero eigenvalues" << std::endl;
 
-    // Get Koopman operator estimate (eq. 11)
+    // Compute pseudoinvese of G3
     //
-    K = (SP.asDiagonal() * Q.transpose()) * A * (Q * SP.asDiagonal());
+    Eigen::MatrixXd G3inv(traj, traj);
+    Eigen::Vectorxd S3inv(traj);
 
-    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver2(K);
-    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver3(K.adjoint());
-
-    // Right eigenvectors of K
-    //
-    Eigen::VectorXcd SR2 = eigensolver2.eigenvalues();
-    Eigen::MatrixXcd V2  = eigensolver2.eigenvectors();
-
-    // Left eigenvectors of K
-    //
-    Eigen::VectorXcd SL2 = eigensolver3.eigenvalues().conjugate();
-    Eigen::MatrixXcd U2  = eigensolver3.eigenvectors();
-
-    // Assign to class data members
-    //
-    U  = U2;
-    V  = V2;
-
-    SL = SL2;
-    SR = SR2;
-
-    // Reorder to match eigenvalues in left and right eigenvectors
-    // using a comparison functor which sorts by magnitude (modulus),
-    // real value, and imaginary value by precedence
-    {
-      // Right eigenvectors
-      std::vector<complex_elem> v(SR2.size());
-      for (int i=0; i<SR2.size(); i++) v[i] = complex_elem(SR2(i), i);
-      std::sort(v.begin(), v.end(), complex_comparator);
-      for (int i=0; i<SR2.size(); i++) {
-	V.col(i) = V2.col(v[i].second);
-	SR(i)    = SR2(v[i].second);
-      }
-
-      // Left eigenvectors
-      std::vector<complex_elem> u(SL2.size());
-      for (int i=0; i<SL2.size(); i++) u[i] = complex_elem(SL2(i), i);
-      std::sort(u.begin(), u.end(), complex_comparator);
-      for (int i=0; i<SL2.size(); i++) {
-	U.col(i) = U2.col(u[i].second);
-	SL(i)    = SL2(u[i].second);
+    for (int n=std::max<int>(0, S3.size()-evCount); n<S3.size(); n++) {
+      if (S3(n) < TOL) {
+	S3inv(n) = 0.0;
+      } else {
+	S3inv(n) = 1.0 / S3(n);
       }
     }
+
+    Eigen::MatrixXd PPG = Q2.transpose()*S2inv.asDiagonal()*Q2 *G1 *
+      Q3.tranpose()*S3inv.asDiagonal*Q3 * A;
+
+
+    // Perform eigenanalysis for PPG
+    //
+    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(PPG);
+
+    // Eigenvalues and eigenvectors of PPG
+    //
+    Eigen::VectorXcd lam = eigensolver.eigenvalues();
+    Eigen::MatrixXcd V   = eigensolver.eigenvectors();
+
+    // Use equation 7.2 to compute eigenfunctions
+    //
+
+
+    // Use equation 7.3 to compute modes
+    //
 
 #ifdef TESTING
     std::ofstream file("testing.dat");
@@ -447,7 +434,7 @@ namespace MSSA {
     }
 #endif
 
-    // The Koopman modes from eq. 22
+    // The Liouville modes from eq. 22
     //
     Xi = (U.adjoint()*SP.asDiagonal()*Q.transpose()*X).transpose();
 
@@ -456,10 +443,13 @@ namespace MSSA {
     }
 
   const std::set<std::string>
-  KoopmanRKHS::valid_keys = {
+  LiouvilleRKHS::valid_keys = {
+    "mu1",
+    "mu2"
+    "eps",
     "d",
     "alpha",
-    "kepler", "plummer", "radial", "oscil", "testF", "use_red", "lam", "mu", "c", "tscale",
+    "use_red",
     "kernel",
     "verbose",
     "output"
@@ -473,7 +463,7 @@ namespace MSSA {
     return oss.str();
   }
 
-  Eigen::VectorXcd KoopmanRKHS::modeEval(int index, const Eigen::VectorXd& x)
+  Eigen::VectorXcd LiouvilleRKHS::modeEval(int index, const Eigen::VectorXd& x)
   {
     if (not computed) analysis();
     
@@ -492,7 +482,7 @@ namespace MSSA {
     return ret;
   }
 
-  std::complex<double> KoopmanRKHS::evecEval(int index, const Eigen::VectorXd& x)
+  std::complex<double> LiouvilleRKHS::evecEval(int index, const Eigen::VectorXd& x)
   {
     if (not computed) analysis();
     
@@ -519,7 +509,7 @@ namespace MSSA {
     return ret;
   }
 
-  void KoopmanRKHS::assignParameters(const std::string flags)
+  void LiouvilleRKHS::assignParameters(const std::string flags)
   {
     // Default parameter values
     //
@@ -539,7 +529,7 @@ namespace MSSA {
       //
       auto unmatched = YamlCheck(params, valid_keys);
       if (unmatched.size())
-	throw YamlConfigError("MSSA::KoopmanRKHS", "parameter", unmatched, __FILE__, __LINE__);
+	throw YamlConfigError("MSSA::LiouvilleRKHS", "parameter", unmatched, __FILE__, __LINE__);
 
       // Compute flags
       //
@@ -551,32 +541,14 @@ namespace MSSA {
       if (params["d"])
 	d  = double(params["d"].as<double>());
 
-      if (params["lam"])
-	lam = double(params["lam"].as<double>());
+      if (params["eps"])
+	eps = double(params["eps"].as<double>());
 
-      if (params["mu"])
-	mu = double(params["mu"].as<double>());
+      if (params["mu1"])
+	mu1 = double(params["mu1"].as<double>());
 
-      if (params["c"])
-	c = double(params["c"].as<double>());
-
-      if (params["kepler"])
-	kepler = bool(params["kepler"].as<bool>());
-
-      if (params["plummer"])
-	plummer = bool(params["plummer"].as<bool>());
-
-      if (params["radial"])
-	radial = bool(params["radial"].as<bool>());
-
-      if (params["tscale"])
-	tscale = double(params["tscale"].as<double>());
-
-      if (params["oscil"])
-	oscil = bool(params["oscil"].as<bool>());
-
-      if (params["testF"])
-	testF = bool(params["testF"].as<bool>());
+      if (params["mu2"])
+	mu2 = double(params["mu2"].as<double>());
 
       if (params["use_red"])
 	use_red = bool(params["use_red"].as<bool>());
@@ -589,7 +561,7 @@ namespace MSSA {
 	if (RKHS_values.find(type) != RKHS_values.end())
 	  rkhs = RKHS_values[type];
 	else
-	  throw std::runtime_error("KoopmanRKHS: kernel type [" + type +
+	  throw std::runtime_error("LiouvilleRKHS: kernel type [" + type +
 				   "] not found");
       }
       
@@ -601,7 +573,7 @@ namespace MSSA {
 
     }
     catch (const YAML::ParserException& e) {
-      std::cout << "KoopmanRKHS::assignParameters, parsing error=" << e.what()
+      std::cout << "LiouvilleRKHS::assignParameters, parsing error=" << e.what()
 		<< std::endl;
       throw;
     }
@@ -609,13 +581,13 @@ namespace MSSA {
 
 
   // Save current KOOPMAN state to an HDF5 file with the given prefix
-  void KoopmanRKHS::saveState(const std::string& prefix)
+  void LiouvilleRKHS::saveState(const std::string& prefix)
   {
     if (not computed) return;	// No point in saving anything
 
     if (std::filesystem::exists(prefix + "_rkhs.h5")) {
       std::ostringstream sout;
-      sout << "KoopmanRKHS::saveState: the file <" <<  prefix + "_edmd.h5"
+      sout << "LiouvilleRKHS::saveState: the file <" <<  prefix + "_edmd.h5"
 	   << "> already exists.\nPlease delete this file or choose a "
 	   << "different file name";
       throw std::runtime_error(sout.str());
@@ -688,7 +660,7 @@ namespace MSSA {
   }
 
   // Restore current KOOPMAN state to an HDF5 file with the given prefix
-  void KoopmanRKHS::restoreState(const std::string& prefix)
+  void LiouvilleRKHS::restoreState(const std::string& prefix)
   {
     try {
       // Silence the HDF5 error stack
@@ -714,17 +686,17 @@ namespace MSSA {
       //
       if (nTime != numT) {
 	std::ostringstream sout;
-	sout << "KoopmanRKHS::restoreState: saved state has numT="
-	     << nTime << " but KoopmanRKHS expects numT=" << numT
-	     << ".\nCan't restore KoopmanRKHS state!";
+	sout << "LiouvilleRKHS::restoreState: saved state has numT="
+	     << nTime << " but LiouvilleRKHS expects numT=" << numT
+	     << ".\nCan't restore LiouvilleRKHS state!";
 	throw std::runtime_error(sout.str());
       }
 
       if (nKeys != nkeys) {
 	std::ostringstream sout;
-	sout << "KoopmanRKHS::restoreState: saved state has nkeys="
-	     << nKeys << " but KoopmanRKHS expects nkeys=" << nkeys
-	     << ".\nCan't restore KoopmanRKHS state!";
+	sout << "LiouvilleRKHS::restoreState: saved state has nkeys="
+	     << nKeys << " but LiouvilleRKHS expects nkeys=" << nkeys
+	     << ".\nCan't restore LiouvilleRKHS state!";
 	throw std::runtime_error(sout.str());
       }
 
@@ -756,8 +728,8 @@ namespace MSSA {
 
       if (bad) {
 	std::ostringstream sout;
-	sout << "KoopmanRKHS::restoreState: keylist mismatch." << std::endl
-	     << "Can't restore KoopmanRKHS state! Wanted keylist: ";
+	sout << "LiouvilleRKHS::restoreState: keylist mismatch." << std::endl
+	     << "Can't restore LiouvilleRKHS state! Wanted keylist: ";
 	for (auto v : data) {
 	  sout << "[";
 	  for (auto u : v.first) sout << u << ' ';
@@ -801,7 +773,7 @@ namespace MSSA {
 
   }
 
-  KoopmanRKHS::KoopmanRKHS(const mssaConfig& config, double tol, int count,
+  LiouvilleRKHS::LiouvilleRKHS(const mssaConfig& config, double tol, int count,
 			   const std::string flags) : tol(tol), evCount(count)
   {
     // Parse the YAML string
@@ -832,7 +804,7 @@ namespace MSSA {
     computed      = false;
     reconstructed = false;
   }
-  // END KoopmanRKHS constructor
+  // END LiouvilleRKHS constructor
 
 }
 // END namespace MSSA
