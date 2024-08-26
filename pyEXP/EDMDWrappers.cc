@@ -580,7 +580,7 @@ void EDMDtoolkitClasses(py::module &m) {
         --------
         Use in conjunction with 'contributions' to visualize the support 
         from each EDMD RKHS mode to the coefficient series.
-        )", py::arg("index"), py::arg("value"));
+        )", py::arg("v"));
 
   h.def("evecEval", &LiouvilleRKHS::evecEval,
 	R"(
@@ -602,7 +602,26 @@ void EDMDtoolkitClasses(py::module &m) {
         --------
         Use in conjunction with 'contributions' to visualize the support 
         from each EDMD RKHS mode to the coefficient series.
-        )", py::arg("index"), py::arg("value"));
+        )", py::arg("index"), py::arg("v"));
+
+  h.def("basisEval", &LiouvilleRKHS::basisEval,
+	R"(
+        Return the Liouville basis function
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        numpy.ndarray
+            the Liouville eigenbasis
+
+        See also
+        --------
+        Use in conjunction with 'contributions' to visualize the support 
+        from each EDMD RKHS mode to the coefficient series.
+        )");
 
   h.def("getAllKeys", &LiouvilleRKHS::getAllKeys,
 	R"(

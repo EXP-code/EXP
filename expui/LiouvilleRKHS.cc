@@ -201,9 +201,9 @@ namespace MSSA {
 	      if (t2 == 4) f2 = 2;
 	    }
 
-	    auto x1 = data[t1].row(keys[i])*rat;
-	    auto x2 = data[t2].row(keys[j])*rat;
-	    inner += kernel(data[t1].row(keys[i])*rat, data[t2].row(keys[j])*rat, mu) * f2;
+	    auto x1 = data[keys[i]].row(t1)*rat;
+	    auto x2 = data[keys[j]].row(t2)*rat;
+	    inner += kernel(x1, x2, mu) * f2;
 	  }
 
 	  G(i, j) += inner*f1;
@@ -253,8 +253,8 @@ namespace MSSA {
 	    if (t == 4) f = 2;
 	  }
 
-	  sum0 += kernel(data[0   ].row(keys[i]), data[t].row(keys[j]), mu) * f;
-	  sumT += kernel(data[nt-1].row(keys[i]), data[t].row(keys[j]), mu) * f;
+	  sum0 += kernel(data[keys[i]].row(0   ), data[keys[j]].row(t), mu) * f;
+	  sumT += kernel(data[keys[i]].row(nt-1), data[keys[j]].row(t), mu) * f;
 	}
 
 	A(i, j) += sumT - sum0;
@@ -266,6 +266,53 @@ namespace MSSA {
     double SF = (coefDB.times[1] - coefDB.times[0])/3.0;
 
     return A * SF;
+  }
+
+
+  // Compute gamma vector for RKHS space defined by mu value
+  Eigen::VectorXd LiouvilleRKHS::computeGamma
+  (const Eigen::VectorXd& x, double mu)
+  {
+    // Use Simpson's rule quadrature
+    
+    // Number of trajectories
+    //
+    auto keys = getAllKeys();
+    traj = keys.size();
+    
+    // Check for odd number of times for Simpson's 1/3 rule
+    //
+    int nt = numT;
+    if (nt/2*2 == nt) nt -= 1;
+
+    // Allocate return vector and set to zero
+    //
+    Eigen::VectorXd g(traj);
+    int f;
+
+    for (int i=0; i<traj; i++) {
+
+      g(i) = 0.0;
+
+      double sum = 0.0;
+
+      for (int t=0; t<nt; t++) {
+	
+	if (t == 0 or t == nt-1) f = 1;
+	else {
+	  if (t == 1) f = 4;
+	  if (t == 4) f = 2;
+	}
+	
+	g(i) += kernel(x, data[keys[i]].row(t), mu) * f;
+      }
+    }
+
+    // Time step factor
+    //
+    double SF = (coefDB.times[1] - coefDB.times[0])/3.0;
+
+    return g * SF;
   }
 
 
@@ -318,7 +365,9 @@ namespace MSSA {
     // Compute pseudoinvese of G2
     //
     Eigen::MatrixXd G2inv(traj, traj);
-    Eigen::Vectorxd S2inv(traj);
+    Eigen::VectorXd S2inv(traj);
+
+    double TOL = S2(S2.size()-1) * tol;
 
     for (int n=std::max<int>(0, S2.size()-evCount); n<S2.size(); n++) {
       if (S2(n) < TOL) {
@@ -331,7 +380,9 @@ namespace MSSA {
     // Compute pseudoinvese of G3
     //
     Eigen::MatrixXd G3inv(traj, traj);
-    Eigen::Vectorxd S3inv(traj);
+    Eigen::VectorXd S3inv(traj);
+
+    TOL = S3(S3.size()-1) * tol;
 
     for (int n=std::max<int>(0, S3.size()-evCount); n<S3.size(); n++) {
       if (S3(n) < TOL) {
@@ -341,8 +392,8 @@ namespace MSSA {
       }
     }
 
-    Eigen::MatrixXd PPG = Q2.transpose()*S2inv.asDiagonal()*Q2 *G1 *
-      Q3.tranpose()*S3inv.asDiagonal*Q3 * A;
+    Eigen::MatrixXd PPG = (Q2.transpose()*S2inv.asDiagonal()*Q2) *G1 *
+      (Q3.transpose()*S3inv.asDiagonal()*Q3) * A;
 
 
     // Perform eigenanalysis for PPG
@@ -354,89 +405,13 @@ namespace MSSA {
     Eigen::VectorXcd lam = eigensolver.eigenvalues();
     Eigen::MatrixXcd V   = eigensolver.eigenvectors();
 
-    // Use equation 7.2 to compute eigenfunctions
+    // Compute the normalized eigenbasis
     //
-
-
-    // Use equation 7.3 to compute modes
-    //
-
-#ifdef TESTING
-    std::ofstream file("testing.dat");
-    if (file) {
-      file << std::string(70, '-') << std::endl;
-      file << "---- Left/right eigenvalues difference" << std::endl;
-      file << std::string(70, '-') << std::endl;
-      for (int i=0; i<SL.size(); i++)
-	file << std::setw(5) << i
-	     << " " << std::setw(18) << std::abs(SL(i) - SR(i))
-	     << " " << SL(i)
-	     << " " << SR(i)
-	     << std::endl;
-      file << std::string(70, '-') << std::endl;
-      file << std::string(70, '-') << std::endl;
-      file << "---- L/R eigenvector test" << std::endl;
-      file << std::string(70, '-') << std::endl;
-      matrix_print(file, U.adjoint()*V);
-      file << std::string(70, '-') << std::endl;
+    Eigen::MatrixXcd Vbar(V);
+    for (int i=0; i<V.cols(); i++) {
+      auto dp = V.col(i).dot(Eigen::MatrixXcd(G3) * V.col(i));
+      Vbar.col(i) /= sqrt(dp.real());
     }
-#endif
-
-#ifdef TESTING
-    if (file) {
-      file << "---- Swapped left eigenvalues" << std::endl;
-      file << std::string(70, '-') << std::endl;
-      for (int i=0; i<SL.size(); i++)
-	file << std::setw(5) << i
-	     << " " << std::setw(18) << std::abs(SL(i))
-	     << " " << std::setw(18) << std::abs(SR(i))
-	     << std::endl;
-      file << std::string(70, '-') << std::endl;
-      file << "---- Left normalization" << std::endl;
-      file << std::string(70, '-') << std::endl;
-    } else {
-      std::cerr << "ERROR: Could not open testing.dat" << std::endl;
-    }
-#endif
-
-    // Normalize left eigenvectors
-    for (int i=0; i<U.rows(); i++) {
-      auto nrm = U.adjoint().row(i) * V.col(i);
-#ifdef TESTING
-      if (file) file << std::setw(5) << i << ": " << nrm << std::endl;
-#endif
-      U.col(i) /= std::conj(nrm(0));
-    }
-
-#ifdef TESTING
-    if (file) {
-      file << std::string(70, '-') << std::endl;
-      file << "---- Action matrix" << std::endl;
-      file << "---- min/max = " << A.minCoeff() << "/" << A.maxCoeff() << std::endl;
-      file << std::string(70, '-') << std::endl;
-      file << A << std::endl;
-      file << std::string(70, '-') << std::endl;
-      file << "---- Grammian eigenvalues" << std::endl;
-      file << std::string(70, '-') << std::endl;
-      for (int i=0; i<S2.size(); i++) {
-	file << std::setw(5) << i
-		  << std::setw(18) << S2(i)
-		  << std::setw(18) << SP(i) << std::endl;
-      }
-      file << std::string(70, '-') << std::endl;
-      file << "---- Postnorm right/left eigenvector test" << std::endl;
-      file << std::string(70, '-') << std::endl;
-      if (matrix_idtest(file, U.adjoint()*V)) {
-	file << std::string(70, '-') << std::endl;
-	matrix_print(file, U.adjoint()*V);
-      }
-      file << std::string(70, '-') << std::endl;
-    }
-#endif
-
-    // The Liouville modes from eq. 22
-    //
-    Xi = (U.adjoint()*SP.asDiagonal()*Q.transpose()*X).transpose();
 
     computed      = true;
     reconstructed = false;
@@ -463,50 +438,29 @@ namespace MSSA {
     return oss.str();
   }
 
-  Eigen::VectorXcd LiouvilleRKHS::modeEval(int index, const Eigen::VectorXd& x)
+  Eigen::VectorXcd LiouvilleRKHS::modeEval(const Eigen::VectorXd& x)
   {
     if (not computed) analysis();
     
-    Eigen::VectorXcd ret(nkeys);
-    ret.setZero();
-
-    if (index>=0 and index < numT) {
-      Eigen::VectorXd Y(numT);
-      for (int j=0; j<numT; j++) Y(j) = kernel(x, X.row(j));
-
-      std::complex<double> Psi = Y.transpose()*Q*SP.asDiagonal()*V.col(index);
-
-      ret = Xi.col(index)*Psi;
-    }
-
-    return ret;
+    return Vbar.transpose()*computeGamma(x, mu1);
   }
 
-  std::complex<double> LiouvilleRKHS::evecEval(int index, const Eigen::VectorXd& x)
+  Eigen::MatrixXcd LiouvilleRKHS::basisEval()
   {
     if (not computed) analysis();
     
-    static bool first = true;
-    if (first) {
-      std::ofstream test("test.data");
-      test << "Q"  << std::endl << Q  << std::endl;
-      test << "SP" << std::endl << SP << std::endl;
-      test << "V"  << std::endl << V  << std::endl;
-      first = false;
+    Eigen::MatrixXcd ret(traj, traj);
+
+    for (unsigned m=0; m<traj; m++) {
+      Key key{m};
+      Eigen::VectorXd x = data[key].row(0);
+      ret.row(m) = modeEval(x).transpose();
     }
 
-    std::complex<double> ret(0.0);
+    auto invnorm = (Vbar.transpose() * G3 * Vbar).inverse();
+    
 
-    if (index>=0 and index < numT) {
-      Eigen::VectorXd Y(numT);
-      for (int j=0; j<numT; j++) {
-	Y(j) = kernel(x, X.row(j));
-      }
-
-      ret = Y.transpose()*Q*SP.asDiagonal()*V.col(index);
-    }
-
-    return ret;
+    return invnorm * Vbar.transpose() * ret;
   }
 
   void LiouvilleRKHS::assignParameters(const std::string flags)
@@ -612,6 +566,18 @@ namespace MSSA {
       //
       file.createAttribute<int>("nEV", HighFive::DataSpace::From(nev)).write(nev);
 
+      // Hilbert space domain parameter
+      //
+      file.createAttribute<double>("mu1", HighFive::DataSpace::From(mu1)).write(mu1);
+
+      // Hilbert space range parameter
+      //
+      file.createAttribute<double>("mu2", HighFive::DataSpace::From(mu2)).write(mu2);
+
+      // Regularization parameter
+      //
+      file.createAttribute<double>("eps", HighFive::DataSpace::From(eps)).write(eps);
+
       // Save the key list
       //
       std::vector<Key> keylist;
@@ -640,19 +606,19 @@ namespace MSSA {
       HighFive::Group analysis = file.createGroup("koopmanRKHS_analysis");
 
       analysis.createDataSet("rkhs",  RKHS_names[rkhs]);
-      analysis.createDataSet("Xi",    Xi );
-      analysis.createDataSet("G",     G  );
-      analysis.createDataSet("A",     A  );
-      analysis.createDataSet("X",     X  );
-      analysis.createDataSet("S2",    S2 );
-      analysis.createDataSet("SP",    SP );
-      analysis.createDataSet("SR",    SR );
-      analysis.createDataSet("SL",    SL );
-      analysis.createDataSet("Q",     Q  );
-      analysis.createDataSet("K",     K  );
-      analysis.createDataSet("U",     U  );
-      analysis.createDataSet("V",     V  );
-      analysis.createDataSet("nEV",   nev);
+      analysis.createDataSet("G1",    G1  );
+      analysis.createDataSet("G2",    G2  );
+      analysis.createDataSet("G3",    G3  );
+      analysis.createDataSet("A",     A   );
+      analysis.createDataSet("Vbar",  Vbar);
+      analysis.createDataSet("L",     L   );
+      analysis.createDataSet("Xi",    Xi  );
+      analysis.createDataSet("Phi",   Phi );
+      analysis.createDataSet("S2",    S2  );
+      analysis.createDataSet("S3",    S3  );
+      analysis.createDataSet("Q2",    Q2  );
+      analysis.createDataSet("Q3",    Q3  );
+
 
     } catch (HighFive::Exception& err) {
       std::cerr << err.what() << std::endl;
@@ -674,9 +640,14 @@ namespace MSSA {
       // Read and check parameters
       //
       int nTime, nKeys;
+      double MU1, MU2, EPS;
 
       h5file.getAttribute("numT" ).read(nTime);
       h5file.getAttribute("nKeys").read(nKeys);
+      h5file.getAttribute("nEV"  ).read(nev  );
+      h5file.getAttribute("mu1"  ).read(MU1  );
+      h5file.getAttribute("mu2"  ).read(MU2  );
+      h5file.getAttribute("eps"  ).read(EPS  );
 
       // Number of channels
       //
@@ -696,6 +667,38 @@ namespace MSSA {
 	std::ostringstream sout;
 	sout << "LiouvilleRKHS::restoreState: saved state has nkeys="
 	     << nKeys << " but LiouvilleRKHS expects nkeys=" << nkeys
+	     << ".\nCan't restore LiouvilleRKHS state!";
+	throw std::runtime_error(sout.str());
+      }
+
+      if (nKeys != nkeys) {
+	std::ostringstream sout;
+	sout << "LiouvilleRKHS::restoreState: saved state has nkeys="
+	     << nKeys << " but LiouvilleRKHS expects nkeys=" << nkeys
+	     << ".\nCan't restore LiouvilleRKHS state!";
+	throw std::runtime_error(sout.str());
+      }
+
+      if (fabs(mu1-MU1) > 1.0e-12) {
+	std::ostringstream sout;
+	sout << "LiouvilleRKHS::restoreState: saved state has mu1="
+	     << MU1 << " but LiouvilleRKHS expects mu1=" << mu1
+	     << ".\nCan't restore LiouvilleRKHS state!";
+	throw std::runtime_error(sout.str());
+      }
+
+      if (fabs(mu2-MU2) > 1.0e-12) {
+	std::ostringstream sout;
+	sout << "LiouvilleRKHS::restoreState: saved state has mu2="
+	     << MU2 << " but LiouvilleRKHS expects mu2=" << mu2
+	     << ".\nCan't restore LiouvilleRKHS state!";
+	throw std::runtime_error(sout.str());
+      }
+
+      if (fabs(eps-EPS) > 1.0e-18) {
+	std::ostringstream sout;
+	sout << "LiouvilleRKHS::restoreState: saved state has eps="
+	     << EPS << " but LiouvilleRKHS expects eps=" << eps
 	     << ".\nCan't restore LiouvilleRKHS state!";
 	throw std::runtime_error(sout.str());
       }
@@ -750,19 +753,18 @@ namespace MSSA {
       std::string type = analysis.getDataSet("rkhs").read<std::string>();
       rkhs = RKHS_values[type];
 
-      Xi  = analysis.getDataSet("Xi" ).read<Eigen::MatrixXd>();
-      G   = analysis.getDataSet("G"  ).read<Eigen::MatrixXd >();
-      A   = analysis.getDataSet("A"  ).read<Eigen::MatrixXd >();
-      X   = analysis.getDataSet("X"  ).read<Eigen::MatrixXd >();
-      S2  = analysis.getDataSet("S2" ).read<Eigen::VectorXd >();
-      SP  = analysis.getDataSet("SP" ).read<Eigen::VectorXd >();
-      SR  = analysis.getDataSet("SR" ).read<Eigen::VectorXd >();
-      SL  = analysis.getDataSet("SL" ).read<Eigen::VectorXd >();
-      Q   = analysis.getDataSet("Q"  ).read<Eigen::MatrixXd >();
-      K   = analysis.getDataSet("K"  ).read<Eigen::MatrixXd >();
-      U   = analysis.getDataSet("U"  ).read<Eigen::MatrixXcd>();
-      V   = analysis.getDataSet("V"  ).read<Eigen::MatrixXcd>();
-      nev = analysis.getDataSet("nev").read<int>();
+      G1   = analysis.getDataSet("G1"  ).read<Eigen::MatrixXd >();   
+      G2   = analysis.getDataSet("G2"  ).read<Eigen::MatrixXd >();   
+      G3   = analysis.getDataSet("G3"  ).read<Eigen::MatrixXd >();   
+      A    = analysis.getDataSet("A"   ).read<Eigen::MatrixXd >();   
+      Vbar = analysis.getDataSet("Vbar").read<Eigen::MatrixXcd>(); 
+      L    = analysis.getDataSet("L"   ).read<Eigen::VectorXcd>();  
+      Xi   = analysis.getDataSet("Xi"  ).read<Eigen::MatrixXcd>();   
+      Phi  = analysis.getDataSet("Phi" ).read<Eigen::MatrixXcd>(); 
+      S2   = analysis.getDataSet("S2"  ).read<Eigen::VectorXd >();   
+      S3   = analysis.getDataSet("S3"  ).read<Eigen::VectorXd >();   
+      Q2   = analysis.getDataSet("Q2"  ).read<Eigen::MatrixXd >();   
+      Q3   = analysis.getDataSet("Q3"  ).read<Eigen::MatrixXd >();   
 
       computed = true;
 
@@ -793,14 +795,40 @@ namespace MSSA {
     //
     coefDB = CoefContainer(config, flags);
 
+    // Number of snapshots
+    //
     numT = coefDB.times.size();
 
-    // Generate all the channels
+    // Database names; there should only be one
+    //
+    auto names = coefDB.getNames();
+
+    // Get coefficients for this database
+    //
+    auto coefs = coefDB.getCoefs(names[0]);
+
+    // Get the first coefficient set for parameter reflection
+    //
+    auto cf = std::dynamic_pointer_cast<CoefClasses::TrajStruct>
+      (coefs->getCoefStruct(coefDB.times[0]));
+
+    traj = cf->traj;
+    rank = cf->rank;
+
+    // Generate data store
+    //
+    auto keys = coefDB.getKeys(); // For future generalization...
+
+    // Allocate storage
     //
     for (auto key : coefDB.getKeys()) {
-      data[key] = coefDB.getData(key);
+      data[key].resize(numT, rank);
+      auto v = coefDB.getData(key);
+      for (int t=0; t<numT; t++) {
+	for (int n=0; n<rank; n++) data[key](t, n) = v[t*rank + n];
+      }
     }
-
+    
     computed      = false;
     reconstructed = false;
   }

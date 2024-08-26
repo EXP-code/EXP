@@ -33,7 +33,7 @@ namespace MSSA
 
     //@{
     //! Repacked stream data for eDMD
-    std::map<Key, std::vector<double>, mSSAkeyCompare > data;
+    std::map<Key, Eigen::MatrixXd, mSSAkeyCompare > data;
     //@}
 
     //! Coefficient container
@@ -54,6 +54,9 @@ namespace MSSA
     //! Compute occupation-kernel difference matrix
     Eigen::MatrixXd computeGammaDiff(double mu);
 
+    //! Compute occupation-kernel vector
+    Eigen::VectorXd computeGamma(const Eigen::VectorXd& x, double mu);
+
     bool computed, reconstructed;
 
     //@{
@@ -67,6 +70,9 @@ namespace MSSA
 
     //! Occupation matrix
     Eigen::MatrixXd A;
+
+    //! Normalized eigenbasis
+    Eigen::MatrixXcd Vbar;
 
     //! Eigenvectors
     Eigen::VectorXcd L;
@@ -101,6 +107,12 @@ namespace MSSA
 
     //! Number of trajectories
     int traj;
+
+    //! Number of active trajectories
+    int nkeys;
+
+    //! Phase-space rank
+    int rank;
 
     //! Number of points in the time series
     int numT;
@@ -166,7 +178,10 @@ namespace MSSA
     }
 
     //! Evaluate the contribution from the indexed triple
-    Eigen::VectorXcd modeEval(int index, const Eigen::VectorXd& x);
+    Eigen::VectorXcd modeEval(const Eigen::VectorXd& x);
+
+    //! Evaluate the eigenbasis
+    Eigen::MatrixXcd basisEval();
 
     //! Return the eigenfunction
     std::complex<double> evecEval(int index, const Eigen::VectorXd& x);
