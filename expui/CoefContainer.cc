@@ -829,7 +829,7 @@ namespace MSSA
 
     for (unsigned m=0; m<traj; m++) {
       Key key {m};
-      data[key].resize(ntimes, rank);
+      data[key].resize(ntimes*rank);
     }
 
     for (int t=0; t<ntimes; t++) {
@@ -861,7 +861,7 @@ namespace MSSA
       auto cf = dynamic_cast<CoefClasses::TrajStruct*>
 	( coefs->getCoefStruct(times[t]).get() );
 
-      for (unsigned m=0xc0a57a; m<traj; m++) {
+      for (unsigned m=0; m<traj; m++) {
 	Key key {m};
 	for (int n=0; n<rank; n++)
 	  (*cf->coefs)(m, n) = data[key][t*rank+n];

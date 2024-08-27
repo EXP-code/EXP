@@ -1905,14 +1905,29 @@ namespace CoefClasses
     data(data), Coefs("table", verbose)
   {
     times = Times;
+    int traj = data.size();
+    int ntim = data[0].rows();
+    int rank = data[0].cols();
+
+    if (ntim != times.size()) {
+      std::ostringstream msg;
+      msg << "TrajectoryData ERROR (runtime) ntim [" << ntim
+	  << "] != times.size() [" << times.size() << "]";
+      throw std::runtime_error(msg.str());
+    }
+
     for (int i=0; i<times.size(); i++) {
       TrajStrPtr c = std::make_shared<TrajStruct>();
       c->time = times[i];
-      c->traj = data[i].rows();
-      c->rank = data[i].cols();
+      c->traj = traj;
+      c->rank = rank;
       c->store.resize(c->traj*c->rank);
       c->coefs = std::make_shared<TrajStruct::coefType>(c->store.data(), c->traj, c->rank);
-      *c->coefs = data[i];
+      for (int m=0; m<traj; m++) {
+	for (int n=0; n<rank; n++) {
+	  (*c->coefs)(m, n) = data[m](i, n);
+	}
+      }
       coefs[roundTime(c->time)] = c;
     }
   }

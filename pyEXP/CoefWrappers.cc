@@ -597,6 +597,84 @@ void CoefficientClasses(py::module &m) {
 
   };
 
+  class PyTrajectoryData : public TrajectoryData
+  {
+  protected:
+    void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
+      PYBIND11_OVERRIDE(void, TrajectoryData, readNativeCoefs, file, stride, tmin, tmax);
+    }
+
+    std::string getYAML() override {
+      PYBIND11_OVERRIDE(std::string, TrajectoryData, getYAML,);
+    }
+
+    void WriteH5Params(HighFive::File& file) override {
+      PYBIND11_OVERRIDE(void, TrajectoryData, WriteH5Params, file);
+    }
+
+    unsigned WriteH5Times(HighFive::Group& group, unsigned count) override {
+      PYBIND11_OVERRIDE(unsigned, TrajectoryData, WriteH5Times, group, count);
+    }
+
+  public:
+    // Inherit the constructors
+    using TrajectoryData::TrajectoryData;
+
+    Eigen::VectorXcd& getData(double time) override {
+      PYBIND11_OVERRIDE(Eigen::VectorXcd&, TrajectoryData, getData, time);
+    }
+
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE(void, TrajectoryData, setData, time, array);
+    }
+
+    std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
+      PYBIND11_OVERRIDE(std::shared_ptr<CoefStruct>, TrajectoryData, getCoefStruct,
+			time);
+    }
+
+    std::vector<double> Times() override {
+      PYBIND11_OVERRIDE(std::vector<double>, TrajectoryData, Times,);
+    }
+
+    void WriteH5Coefs(const std::string& prefix) override {
+      PYBIND11_OVERRIDE(void, TrajectoryData, WriteH5Coefs, prefix);
+    }
+
+    void ExtendH5Coefs(const std::string& prefix) override {
+      PYBIND11_OVERRIDE(void, TrajectoryData, ExtendH5Coefs, prefix);
+    }
+
+    Eigen::MatrixXd& Power(int min, int max) override {
+      PYBIND11_OVERRIDE(Eigen::MatrixXd&, TrajectoryData, Power, min, max);
+    }
+
+    bool CompareStanzas(std::shared_ptr<Coefs> check) override {
+      PYBIND11_OVERRIDE(bool, TrajectoryData, CompareStanzas, check);
+    }
+
+    void clear() override {
+      PYBIND11_OVERRIDE(void, TrajectoryData, clear,);
+    }
+
+    void add(CoefStrPtr coef) override {
+      PYBIND11_OVERRIDE(void, TrajectoryData, add, coef);
+    }
+
+    std::vector<Key> makeKeys(Key k) override {
+      PYBIND11_OVERRIDE(std::vector<Key>, TrajectoryData, makeKeys, k);
+    }
+
+    std::shared_ptr<Coefs> deepcopy() override {
+      PYBIND11_OVERRIDE(std::shared_ptr<Coefs>, TrajectoryData, deepcopy,);
+    }
+
+    void zerodata() override {
+      PYBIND11_OVERRIDE(void, TrajectoryData, zerodata,);
+    }
+
+  };
+
   py::class_<CoefClasses::CoefStruct, std::shared_ptr<CoefClasses::CoefStruct>, PyCoefStruct>
     (m, "CoefStruct")
     .def(py::init<>(),
@@ -1698,6 +1776,76 @@ void CoefficientClasses(py::module &m) {
          TableData instance
          )", py::arg("time"), py::arg("array"), py::arg("verbose")=true)
     .def("getAllCoefs",    &CoefClasses::TableData::getAllCoefs,
+	 R"(
+         Return a 2-dimensional ndarray indexed by column and time
+
+         Returns
+         -------
+         numpy.ndarray
+             2-dimensional numpy array containing the data table
+         )");
+
+  py::class_<CoefClasses::TrajectoryData, std::shared_ptr<CoefClasses::TrajectoryData>, PyTrajectoryData, CoefClasses::Coefs>
+    (m, "TrajectoryData", "Container for trajectory/orbit data")
+    .def(py::init<bool>(),
+	 R"(
+         Construct a null TrajectoryData object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         TrajectoryData instance
+         )", py::arg("verbose")=true)
+    .def(py::init<std::string&>(),
+	 R"(
+         Construct a TrajectoryData object from a data file
+
+         Parameters
+         ----------
+         type : str
+             ascii table data file
+
+         Returns
+         -------
+         TrajectoryData instance
+         )")
+    .def(py::init<std::string&, bool>(),
+	 R"(
+         Construct a TrajectoryData object from a data file
+
+         Parameters
+         ----------
+         type : str
+             ascii table data file
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         TrajectoryData instance
+         )", py::arg("filename"), py::arg("verbose")=true)
+    .def(py::init<std::vector<double>&, std::vector<Eigen::MatrixXd>&, bool>(),
+	 R"(
+         Construct a TrajectoryData object from data arrays
+
+         Parameters
+         ----------
+         time : ndarray
+             time data
+         array : ndarray
+             data columns
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         TrajectoryData instance
+         )", py::arg("time"), py::arg("array"), py::arg("verbose")=true)
+    .def("getAllCoefs",    &CoefClasses::TrajectoryData::getAllCoefs,
 	 R"(
          Return a 2-dimensional ndarray indexed by column and time
 

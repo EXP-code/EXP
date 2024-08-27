@@ -327,7 +327,8 @@ namespace MSSA {
 
     // The number of time points
     //
-    numT = data[keys[0]].size();
+    numT = data[keys[0]].rows();
+    rank = data[keys[0]].cols();
 
     // Get Grammian matrices
     //
@@ -341,7 +342,7 @@ namespace MSSA {
     if (use_red) {
       RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver1(G2, evCount);
       S2 = eigensolver1.eigenvalues();
-      Q3 = eigensolver1.eigenvectors();
+      Q2 = eigensolver1.eigenvectors();
 
       RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver2(G3, evCount);
       S3 = eigensolver2.eigenvalues();
@@ -415,12 +416,48 @@ namespace MSSA {
 
     computed      = true;
     reconstructed = false;
+
+#ifdef TESTING
+    std::ofstream fout("LiouvilleTest.dat");
+    if (fout) {
+      auto header = [&fout] (const std::string& label) {
+	fout << std::string(80, '-') << std::endl
+	     << "---- " << label << std::endl
+	     << std::string(80, '-') << std::endl;
+      };
+
+      header("Parameters"); fout << "Traj=" << traj << " Rank=" << rank << " Ntimes=" << numT << std::endl;
+      header("Grammian 1"); fout << G1 << std::endl;
+      header("Grammian 2"); fout << G2 << std::endl;
+      header("Grammian 3"); fout << G3 << std::endl;
+      header("Occ kernel"); fout << A  << std::endl;
+      header("Grammian 2 SV"); fout << S2 << std::endl;
+      header("Grammian 3 SV"); fout << S3 << std::endl;
+      header("PPG"); fout << PPG << std::endl;
+      header("Lambda"); fout << lam << std::endl;
+      header("Vbar"); fout << Vbar << std::endl;
+      header("Is PPG symmetric?");
+      {
+	Eigen::MatrixXd diff = PPG - PPG.transpose();
+	double cmin =  std::numeric_limits<double>::infinity();
+	double cmax = -std::numeric_limits<double>::infinity();
+	auto d = diff.data();
+	for (int i=0; i<diff.size(); i++) {
+	  cmin = std::min(cmin, d[i]);
+	  cmax = std::max(cmax, d[i]);
+	}
+	fout << "Min: " << cmin << " Max: " << cmax << std::endl;
+      }
+    } else {
+      std::cerr << "LiouvilleRKHS: Failed to open output file" << std::endl;
     }
+#endif
+  }
 
   const std::set<std::string>
   LiouvilleRKHS::valid_keys = {
     "mu1",
-    "mu2"
+    "mu2",
     "eps",
     "d",
     "alpha",
@@ -436,6 +473,12 @@ namespace MSSA {
     std::ostringstream oss;
     oss  << "(" << x.rows() << ", " << x.cols() << ")";
     return oss.str();
+  }
+
+  std::complex<double> LiouvilleRKHS::evecEval
+  (int index, const Eigen::VectorXd& x)
+  {
+    return Vbar.col(index).adjoint() * computeGamma(x, mu1);
   }
 
   Eigen::VectorXcd LiouvilleRKHS::modeEval(const Eigen::VectorXd& x)
@@ -819,7 +862,7 @@ namespace MSSA {
     //
     auto keys = coefDB.getKeys(); // For future generalization...
 
-    // Allocate storage
+    // Allocate storage and reorder coefficients
     //
     for (auto key : coefDB.getKeys()) {
       data[key].resize(numT, rank);
