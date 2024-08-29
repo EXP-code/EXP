@@ -25,9 +25,20 @@ namespace MSSA
       Gaussian
     };
    
-    //! For type reflection and parsing
+    //! Analysis method
+    enum class Method
+    {
+      Singular,
+      Eigenfunction
+    };
+   
+    //! For RKHS type reflection and parsing
     static std::map<RKHS, std::string> RKHS_names;
     static std::map<std::string, RKHS> RKHS_values;
+
+    //! For method type reflection and parsing
+    static std::map<Method, std::string> Method_names;
+    static std::map<std::string, Method> Method_values;
 
   protected:
 
@@ -45,8 +56,28 @@ namespace MSSA
     //! Parameter database
     YAML::Node params;
 
-    //! Primary Koopman/Liouville analysis
-    void analysis();
+    //! Method
+    Method method = Method::Eigenfunction;
+
+    //! Primary Liouville analysis
+    void analysis()
+    {
+      switch (method)
+	{
+	case Method::Singular:
+	  singular_analysis();
+	  break;
+	case Method::Eigenfunction:
+	  eigenfunction_analysis();
+	  break;
+	}
+    }
+
+    //! Singular Louville analysis
+    void singular_analysis();
+
+    //! Eigenfunction Liouville analysis
+    void eigenfunction_analysis();
 
     //! Compute G matrix for RKHS space defined by mu value
     Eigen::MatrixXd computeGrammian(double mu, double rat=1.0);
@@ -56,6 +87,12 @@ namespace MSSA
 
     //! Compute occupation-kernel vector
     Eigen::VectorXd computeGamma(const Eigen::VectorXd& x, double mu);
+
+    //! Compute singular Liouville RKHS matrix
+    Eigen::MatrixXd computeGramGamma(double mu);
+
+    //! Compute singular Liouville trajectory matrix
+    Eigen::MatrixXd trajectory();
 
     bool computed, reconstructed;
 
@@ -74,8 +111,11 @@ namespace MSSA
     //! Occupation kernel matrix
     Eigen::MatrixXd O;
 
-    //! Liouville modes
+    //! Liouville modes for eigenfunction method
     Eigen::MatrixXcd Xi;
+
+    //! Liouville modes for singular method
+    Eigen::MatrixXd Xh;
 
     //! Eigenbasis
     Eigen::MatrixXcd V;
@@ -99,10 +139,16 @@ namespace MSSA
     int evCount = 100;
 
     //! Eigenvalues values
-    Eigen::VectorXd S2, S3;
+    Eigen::VectorXd S1, S2, S3;
 
     //! Eigenvectors
-    Eigen::MatrixXd Q2, Q3;
+    Eigen::MatrixXd Q1, Q2, Q3;
+
+    //@{
+    //! SVD vectors and normalizations
+    Eigen::MatrixXd UU, VV, V0, Vt;
+    Eigen::VectorXd SS, Dq, Dp;
+    //@}
 
     //! Parameters
     //@{
@@ -179,13 +225,20 @@ namespace MSSA
     Eigen::VectorXcd eigenvalues()
     {
       if (not computed) analysis();
-      return L;
+      if (method == Method::Eigenfunction)
+	return L;
+      else
+	return Eigen::VectorXcd(SS);
     }
 
     //! Return the Liouville modes, the coefficients to the eigenfunctions
     Eigen::MatrixXcd modeEval()
     {
+      if (method != Method::Eigenfunction)
+	throw std::runtime_error("LiouvilleRKHS::modeEval is only for the Eigenfunction method");
+      
       if (not computed) analysis();
+
       return Xi;
     }
 
@@ -205,6 +258,21 @@ namespace MSSA
       for (auto v : data) ret.push_back(v.first);
       return ret;
     }
+
+    //! Switch method: Singular or Eigenfunction
+    void setMethod(const std::string& method_name)
+    {
+      auto it = Method_values.find(method_name);
+      if (it != Method_values.end()) method = it->second;
+      else throw std::runtime_error("LiouvilleRKHS::setMethod: unknown method <" + method_name + ">.  Expecting <Singular> or <Eigenfunction>");
+    }
+
+    //! Flow vector evaluated at a point
+    Eigen::VectorXd flow(const Eigen::VectorXd& x);
+
+    //! Compute trajectory for an initial state using RK4 (for singular method only)
+    Eigen::VectorXd computeTrajectory(const Eigen::VectorXd& x);
+
   };
 
 }

@@ -75,6 +75,23 @@ namespace MSSA {
     };
 
 
+  // Get Method name from enum
+  //
+  std::map<LiouvilleRKHS::Method, std::string> LiouvilleRKHS::Method_names =
+    {
+      {LiouvilleRKHS::Method::Singular,      "Singular" },
+      {LiouvilleRKHS::Method::Eigenfunction, "Eigenfunction"}
+    };
+
+  // Get RKHS enum from name
+  //
+  std::map<std::string, LiouvilleRKHS::Method> LiouvilleRKHS::Method_values =
+    {
+      {"Singular",      LiouvilleRKHS::Method::Singular   },
+      {"Eigenfunction", LiouvilleRKHS::Method::Eigenfunction}
+    };
+
+
   // RKHS kernel
   //
   double LiouvilleRKHS::kernel(const Eigen::VectorXd& x,
@@ -265,6 +282,37 @@ namespace MSSA {
     return A * SF;
   }
 
+  // Compute G matrix for RKHS space defined by mu value
+  Eigen::MatrixXd LiouvilleRKHS::computeGramGamma(double mu)
+  {
+    // Number of trajectories
+    //
+    auto keys = getAllKeys();
+    if (traj != keys.size())
+      throw std::runtime_error("LiouvilleRKHS::computeGammaDiff: "
+			       "number of trajectories does not match");
+    
+    // Allocate Grammian matrix and set to zero
+    //
+    Eigen::MatrixXd A(traj, traj);
+
+    int lT = numT - 1;
+
+    for (int i=0; i<traj; i++) {
+      for (int j=i; j<traj; j++) {
+	A(i, j) =
+	  kernel(data[keys[i]].row(lT), data[keys[j]].row(lT), mu) +
+	  kernel(data[keys[i]].row(0 ), data[keys[j]].row(0 ), mu) -
+	  kernel(data[keys[i]].row(0 ), data[keys[j]].row(lT), mu) -
+	  kernel(data[keys[i]].row(lT), data[keys[j]].row(0 ), mu) ;
+
+	if (i != j) A(j, i) = A(i, j); // Matrix is symmetric
+      }
+    }
+    
+    return A;
+  }
+
 
   // Compute gamma vector for RKHS space defined by mu value
   Eigen::VectorXd LiouvilleRKHS::computeGamma
@@ -348,10 +396,212 @@ namespace MSSA {
     return g * SF;
   }
 
+  // Compute trajectory matrix
+  Eigen::MatrixXd LiouvilleRKHS::trajectory()
+  {
+    // Number of trajectories
+    //
+    auto keys = getAllKeys();
+
+    if (traj != keys.size())
+      throw std::runtime_error("LiouvilleRKHS::trajectory: "
+			       "number of trajectories does not match");
+
+    Eigen::MatrixXd g(traj, rank);
+    g.setZero();
+    
+    int nT = numT - 1;
+
+    for (int i=0; i<traj; i++)
+      g.row(i) = data[keys[i]].row(nT) - data[keys[i]].row(0);
+
+    return g;
+  }
+
+
+  // Algorithm 6.1 from Rosenfeld and Kamalapurkhar
+  //
+  void LiouvilleRKHS::singular_analysis()
+  {
+    // Number of channels
+    //
+    auto keys = getAllKeys();
+    nkeys = keys.size();
+
+    // The number of time points
+    //
+    numT = data[keys[0]].rows();
+    rank = data[keys[0]].cols();
+
+    // Get Grammian matrices
+    //
+    G1 = computeGramGamma(mu1);
+    G2 = computeGrammian(mu2);
+
+    // For regularization
+    //
+    auto R = Eigen::MatrixXd::Identity(traj, traj) * eps;
+
+    // Perform eigenanalysis of Grammian matrix (pos def)
+    //
+    if (use_red) {
+      RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver1(G1 + R, evCount);
+      S1 = eigensolver1.eigenvalues();
+      Q1 = eigensolver1.eigenvectors();
+
+      RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver2(G2 + R, evCount);
+      S2 = eigensolver2.eigenvalues();
+      Q2 = eigensolver2.eigenvectors();
+    } else {
+      Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver1(G1 + R);
+      if (eigensolver1.info() != Eigen::Success) {
+	throw std::runtime_error("LiouvilleRKHS: Eigensolver for Grammian 1 failed");
+      }
+      S1 = eigensolver1.eigenvalues();
+      Q1 = eigensolver1.eigenvectors();
+
+      Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver2(G2 + R);
+      if (eigensolver2.info() != Eigen::Success) {
+	throw std::runtime_error("LiouvilleRKHS: Eigensolver for Grammian 2 failed");
+      }
+      S2 = eigensolver2.eigenvalues();
+      Q2 = eigensolver2.eigenvectors();
+    }
+    
+    // Compute the normalized bases
+    //
+    Eigen::VectorXd D(traj), Dt(traj);
+
+    for (int i=0; i<Q1.cols(); i++) {
+      auto dp = Q1.col(i).dot(G1 * Q1.col(i));
+      D(i) = 1.0/sqrt(dp);
+    }
+
+    for (int i=0; i<Q2.cols(); i++) {
+      auto dp = Q2.col(i).dot(G2 * Q2.col(i));
+      Dt(i) = 1.0/sqrt(dp);
+    }
+
+    V0 = Q1 * D .asDiagonal();
+    Vt = Q2 * Dt.asDiagonal();
+    
+
+    Eigen::MatrixXd Gq = Vt.transpose() * G2 * Vt;
+    Eigen::MatrixXd Gp = V0.transpose() * G1 * V0;
+
+    // Compute SVD of PP
+    //
+    auto PP = V0.inverse() * Vt;
+
+    if (use_red) {
+      RedSVD::RedSVD<Eigen::MatrixXd> svd(PP, evCount);
+      UU = svd.matrixU();
+      SS = svd.singularValues();
+      VV = svd.matrixV();
+    } else {
+      Eigen::BDCSVD<Eigen::MatrixXd>
+	svd(PP, Eigen::ComputeThinU | Eigen::ComputeThinV);
+      if (svd.info() != Eigen::Success) {
+	throw std::runtime_error("LiouvilleRKHS::singular_compute: SVD failure");
+      }
+      UU = svd.matrixU();
+      SS = svd.singularValues();
+      VV = svd.matrixV();
+    }
+
+    // Compute the projection of the state into the eigenbasis
+    //
+    Dp.resize(traj);
+    Dq.resize(traj);
+
+    for (int i=0; i<traj; i++) {
+      auto dp = UU.col(i).dot(Gp * UU.col(i));
+      Dp(i) = 1.0/sqrt(dp);
+    }
+    for (int i=0; i<traj; i++) {
+      auto dp = VV.col(i).dot(Gq * VV.col(i));
+      Dq(i) = 1.0/sqrt(dp);
+    }
+    
+    Eigen::MatrixXd T = trajectory();
+
+    Xh   = Dp.asDiagonal() * UU.transpose() * V0.transpose() * T;
+
+    computed      = true;
+    reconstructed = false;
+
+#ifdef TESTING
+    std::ofstream fout("LiouvilleTest.S");
+    if (fout) {
+      auto header = [&fout] (const std::string& label) {
+	fout << std::string(80, '-') << std::endl
+	     << "---- " << label << std::endl
+	     << std::string(80, '-') << std::endl;
+      };
+
+      auto symcheck = [&fout] (const Eigen::MatrixXd& A) {
+	Eigen::MatrixXd diff = A - A.transpose();
+	double cmin =  std::numeric_limits<double>::infinity();
+	double cmax = -std::numeric_limits<double>::infinity();
+	auto d = diff.data();
+	for (int i=0; i<diff.size(); i++) {
+	  cmin = std::min(cmin, d[i]);
+	  cmax = std::max(cmax, d[i]);
+	}
+	fout << "Min: " << cmin << " Max: " << cmax << std::endl;
+	if (fabs(cmin) < 1e-10 and fabs(cmax) < 1e-10)
+	  fout << "SYMMETRIC" << std::endl;
+	else
+	  fout << "NOT symmetric" << std::endl;
+      };
+
+      auto zerocheck = [&fout](const Eigen::MatrixXcd& M)
+      {
+	double maxval = 0.0;
+	for (int i=0; i<M.rows(); i++) {
+	  for (int j=0; j<M.cols(); j++) {
+	    maxval = std::max(maxval, std::abs(M(i, j)));
+	  }
+	}
+	fout << "max value=" << maxval << std::endl;
+	if (maxval < 1e-10)
+	  fout << "ZERO" << std::endl;
+	else
+	  fout << "NOT zero" << std::endl;
+      };
+
+      header("Parameters");    fout << "Traj=" << traj
+				    << " Rank=" << rank
+				    << " Ntimes=" << numT
+				    << " method=" << Method_names[method]
+				    << std::endl;
+
+      header("Grammian 1");    fout << G1   << std::endl;
+      header("Grammian 2");    fout << G2   << std::endl;
+      header("Grammian SV 1"); fout << S1   << std::endl;
+      header("Grammian SV 2"); fout << S2   << std::endl;
+      header("Traj kernel");   fout << T    << std::endl;
+      header("PP");            fout << PP   << std::endl;
+      header("S");             fout << SS   << std::endl;
+      header("U");             fout << UU   << std::endl;
+      header("V");             fout << VV   << std::endl;
+      header("Dq");            fout << Dq   << std::endl;
+      header("Dp");            fout << Dp   << std::endl;
+      header("Xh"  );          fout << Xh   << std::endl;
+
+      header("Is G1 symmetric? Expect YES" ); symcheck(G1  );
+      header("Is G2 symmetric? Expect YES" ); symcheck(G2  );
+      header("Is TT symmetric? Expect NO"  ); symcheck(T   );
+      header("Is PP symmetric? Expect NO"  ); symcheck(PP  );
+    } else {
+      std::cerr << "LiouvilleRKHS: Failed to open output file" << std::endl;
+    }
+#endif
+  }
 
   // Algorithm 7.1 from Rosenfeld and Kamalapurkhar
   //
-  void LiouvilleRKHS::analysis()
+  void LiouvilleRKHS::eigenfunction_analysis()
   {
     // Number of channels
     //
@@ -430,15 +680,15 @@ namespace MSSA {
       }
     }
 
-    Eigen::MatrixXd PPG = (Q3*S3inv.asDiagonal()*Q3.transpose()) * G1 *
+    Eigen::MatrixXd PP = (Q3*S3inv.asDiagonal()*Q3.transpose()) * G1 *
       (Q2*S2inv.asDiagonal()*Q2.transpose()) * A;
 
 
-    // Perform eigenanalysis for PPG
+    // Perform eigenanalysis for PP
     //
-    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(PPG);
+    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(PP);
 
-    // Eigenvalues and eigenvectors of PPG
+    // Eigenvalues and eigenvectors of PP
     //
     L = eigensolver.eigenvalues();
     V = eigensolver.eigenvectors();
@@ -463,7 +713,7 @@ namespace MSSA {
     reconstructed = false;
 
 #ifdef TESTING
-    std::ofstream fout("LiouvilleTest.dat");
+    std::ofstream fout("LiouvilleTest.E");
     if (fout) {
       auto header = [&fout] (const std::string& label) {
 	fout << std::string(80, '-') << std::endl
@@ -504,7 +754,9 @@ namespace MSSA {
 
       header("Parameters");    fout << "Traj=" << traj
 				    << " Rank=" << rank
-				    << " Ntimes=" << numT << std::endl;
+				    << " Ntimes=" << numT
+				    << " method=" << Method_names[method]
+				    << std::endl;
 
       header("Grammian 1");    fout << G1   << std::endl;
       header("Grammian 2");    fout << G2   << std::endl;
@@ -512,7 +764,7 @@ namespace MSSA {
       header("Occ kernel");    fout << A    << std::endl;
       header("Grammian 2 SV"); fout << S2   << std::endl;
       header("Grammian 3 SV"); fout << S3   << std::endl;
-      header("PPG");           fout << PPG  << std::endl;
+      header("PP");            fout << PP   << std::endl;
       header("Lambda");        fout << L    << std::endl;
       header("V");             fout << V    << std::endl;
       header("Vbar");          fout << Vbar << std::endl;
@@ -530,15 +782,61 @@ namespace MSSA {
       header("Is G2 symmetric? Expect YES" ); symcheck(G2 );
       header("Is G3 symmetric? Expect YES" ); symcheck(G3 );
       header("Is A symmetric?  Expect NO"  ); symcheck(A  );
-      header("Is PPG symmetric?  Expect NO"); symcheck(PPG);
+      header("Is PP symmetric? Expect NO"  ); symcheck(PP );
 
       header("Good eigenanalysis? Expect YES");
-      zerocheck(V*L.asDiagonal()*V.inverse() - PPG);
+      zerocheck(V*L.asDiagonal()*V.inverse() - PP);
     } else {
       std::cerr << "LiouvilleRKHS: Failed to open output file" << std::endl;
     }
 #endif
   }
+
+  Eigen::VectorXd LiouvilleRKHS::flow(const Eigen::VectorXd& x)
+  {
+    if (method != Method::Singular)
+      throw std::runtime_error("LiouvilleRKHS::flow is only for the Singular method");
+
+    Eigen::VectorXd Psi = Dq.asDiagonal() * VV.transpose() * Vt.transpose() *
+      computeGamma(x, mu1);
+    
+    return SS.asDiagonal() * Xh * Psi;
+  }
+
+  Eigen::VectorXd LiouvilleRKHS::computeTrajectory(const Eigen::VectorXd& x)
+  {
+    if (method != Method::Singular)
+      throw std::runtime_error("LiouvilleRKHS::computeTrajectory is only for the Singular method");
+
+    //! Define an ODE integrator (RK4)
+    auto ODE = [this](const Eigen::VectorXd& x, double t, double h)
+    {
+      auto k1 = h * flow(x         );
+      auto k2 = h * flow(x + 0.5*k1);
+      auto k3 = h * flow(x + 0.5*k2);
+      auto k4 = h * flow(x + k3    );
+
+      auto y = x + (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
+
+      return std::tuple<Eigen::VectorXd, double>(y, t + h);
+    };
+
+    double dt = coefDB.times[1] - coefDB.times[0];
+
+    Eigen::MatrixXd ret(numT, rank);
+    double t = coefDB.times[0];
+
+    Eigen::VectorXd y = x;
+    ret.row(0) = y;
+
+    for (int i=1; i<numT; i++) {
+      std::tie(y, t) = ODE(y, t, dt);
+      ret.row(i) = y;
+    }
+    
+    return ret;
+  }
+
 
   const std::set<std::string>
   LiouvilleRKHS::valid_keys = {
@@ -549,6 +847,7 @@ namespace MSSA {
     "alpha",
     "use_red",
     "kernel",
+    "method",
     "verbose",
     "output"
   };
@@ -563,6 +862,9 @@ namespace MSSA {
 
   Eigen::VectorXcd LiouvilleRKHS::evecEval(const Eigen::VectorXd& x)
   {
+    if (method != Method::Eigenfunction)
+      throw std::runtime_error("LiouvilleRKHS::evecEval is only for the Eigenfunction method");
+
     if (not computed) analysis();
 
     return Vbar.transpose() * computeGamma(x, mu1);
@@ -621,6 +923,15 @@ namespace MSSA {
 	  rkhs = RKHS_values[type];
 	else
 	  throw std::runtime_error("LiouvilleRKHS: kernel type [" + type +
+				   "] not found");
+      }
+      
+      if (params["method"]) {
+	std::string type = params["method"].as<std::string>();
+	if (Method_values.find(type) != Method_values.end())
+	  method = Method_values[type];
+	else
+	  throw std::runtime_error("LiouvilleRKHS: method type [" + type +
 				   "] not found");
       }
       
@@ -683,6 +994,11 @@ namespace MSSA {
       //
       file.createAttribute<double>("eps", HighFive::DataSpace::From(eps)).write(eps);
 
+      // The algorithm method
+      //
+      std::string mthd = Method_names[method];
+      file.createAttribute<std::string>("method", HighFive::DataSpace::From(mthd)).write(mthd);
+
       // Save the key list
       //
       std::vector<Key> keylist;
@@ -710,20 +1026,38 @@ namespace MSSA {
       //
       HighFive::Group analysis = file.createGroup("koopmanRKHS_analysis");
 
-      analysis.createDataSet("rkhs",  RKHS_names[rkhs]);
-      analysis.createDataSet("G1",    G1  );
-      analysis.createDataSet("G2",    G2  );
-      analysis.createDataSet("G3",    G3  );
-      analysis.createDataSet("A",     A   );
-      analysis.createDataSet("Vbar",  Vbar);
-      analysis.createDataSet("L",     L   );
-      analysis.createDataSet("Xi",    Xi  );
-      analysis.createDataSet("Phi",   Phi );
-      analysis.createDataSet("S2",    S2  );
-      analysis.createDataSet("S3",    S3  );
-      analysis.createDataSet("Q2",    Q2  );
-      analysis.createDataSet("Q3",    Q3  );
+      if (method == Method::Eigenfunction) {
 
+	analysis.createDataSet("rkhs",  RKHS_names[rkhs]);
+	analysis.createDataSet("G1",    G1  );
+	analysis.createDataSet("G2",    G2  );
+	analysis.createDataSet("G3",    G3  );
+	analysis.createDataSet("A",     A   );
+	analysis.createDataSet("Vbar",  Vbar);
+	analysis.createDataSet("L",     L   );
+	analysis.createDataSet("Xi",    Xi  );
+	analysis.createDataSet("Phi",   Phi );
+	analysis.createDataSet("S2",    S2  );
+	analysis.createDataSet("S3",    S3  );
+	analysis.createDataSet("Q2",    Q2  );
+	analysis.createDataSet("Q3",    Q3  );
+      } else {
+	analysis.createDataSet("rkhs",  RKHS_names[rkhs]);
+	analysis.createDataSet("G1",    G1  );
+	analysis.createDataSet("G2",    G2  );
+	analysis.createDataSet("S1",    S1  );
+	analysis.createDataSet("S2",    S2  );
+	analysis.createDataSet("Q1",    Q1  );
+	analysis.createDataSet("Q2",    Q2  );
+	analysis.createDataSet("V0",    V0  );
+	analysis.createDataSet("Vt",    Vt  );
+	analysis.createDataSet("U",     UU  );
+	analysis.createDataSet("V",     VV  );
+	analysis.createDataSet("S",     SS  );
+	analysis.createDataSet("Dp",    Dp  );
+	analysis.createDataSet("Dq",    Dq  );
+	analysis.createDataSet("Xh",    Xh  );
+      }
 
     } catch (HighFive::Exception& err) {
       std::cerr << err.what() << std::endl;
@@ -746,13 +1080,16 @@ namespace MSSA {
       //
       int nTime, nKeys;
       double MU1, MU2, EPS;
+      std::string mthd;
 
-      h5file.getAttribute("numT" ).read(nTime);
-      h5file.getAttribute("nKeys").read(nKeys);
-      h5file.getAttribute("nEV"  ).read(nev  );
-      h5file.getAttribute("mu1"  ).read(MU1  );
-      h5file.getAttribute("mu2"  ).read(MU2  );
-      h5file.getAttribute("eps"  ).read(EPS  );
+      h5file.getAttribute("numT"  ).read(nTime);
+      h5file.getAttribute("nKeys" ).read(nKeys);
+      h5file.getAttribute("nEV"   ).read(nev  );
+      h5file.getAttribute("mu1"   ).read(MU1  );
+      h5file.getAttribute("mu2"   ).read(MU2  );
+      h5file.getAttribute("eps"   ).read(EPS  );
+      h5file.getAttribute("method").read(mthd);
+
 
       // Number of channels
       //
@@ -808,6 +1145,14 @@ namespace MSSA {
 	throw std::runtime_error(sout.str());
       }
 
+      if (Method_values[mthd] != method) {
+	std::ostringstream sout;
+	sout << "LiouvilleRKHS::restoreState: saved state has method="
+	     << mthd << " but LiouvilleRKHS expects method=" << Method_names[method]
+	     << ".\nCan't restore LiouvilleRKHS state!";
+	throw std::runtime_error(sout.str());
+      }
+
       std::vector<Key> keylist;
       h5file.getDataSet("keylist").read(keylist);
 
@@ -858,18 +1203,39 @@ namespace MSSA {
       std::string type = analysis.getDataSet("rkhs").read<std::string>();
       rkhs = RKHS_values[type];
 
-      G1   = analysis.getDataSet("G1"  ).read<Eigen::MatrixXd >();   
-      G2   = analysis.getDataSet("G2"  ).read<Eigen::MatrixXd >();   
-      G3   = analysis.getDataSet("G3"  ).read<Eigen::MatrixXd >();   
-      A    = analysis.getDataSet("A"   ).read<Eigen::MatrixXd >();   
-      Vbar = analysis.getDataSet("Vbar").read<Eigen::MatrixXcd>(); 
-      L    = analysis.getDataSet("L"   ).read<Eigen::VectorXcd>();  
-      Xi   = analysis.getDataSet("Xi"  ).read<Eigen::MatrixXcd>();   
-      Phi  = analysis.getDataSet("Phi" ).read<Eigen::MatrixXcd>(); 
-      S2   = analysis.getDataSet("S2"  ).read<Eigen::VectorXd >();   
-      S3   = analysis.getDataSet("S3"  ).read<Eigen::VectorXd >();   
-      Q2   = analysis.getDataSet("Q2"  ).read<Eigen::MatrixXd >();   
-      Q3   = analysis.getDataSet("Q3"  ).read<Eigen::MatrixXd >();   
+      if (method == Method::Eigenfunction) {
+
+	G1   = analysis.getDataSet("G1"  ).read<Eigen::MatrixXd >();   
+	G2   = analysis.getDataSet("G2"  ).read<Eigen::MatrixXd >();   
+	G3   = analysis.getDataSet("G3"  ).read<Eigen::MatrixXd >();   
+	A    = analysis.getDataSet("A"   ).read<Eigen::MatrixXd >();   
+	Vbar = analysis.getDataSet("Vbar").read<Eigen::MatrixXcd>(); 
+	L    = analysis.getDataSet("L"   ).read<Eigen::VectorXcd>();  
+	Xi   = analysis.getDataSet("Xi"  ).read<Eigen::MatrixXcd>();   
+	Phi  = analysis.getDataSet("Phi" ).read<Eigen::MatrixXcd>(); 
+	S2   = analysis.getDataSet("S2"  ).read<Eigen::VectorXd >();   
+	S3   = analysis.getDataSet("S3"  ).read<Eigen::VectorXd >();   
+	Q2   = analysis.getDataSet("Q2"  ).read<Eigen::MatrixXd >();   
+	Q3   = analysis.getDataSet("Q3"  ).read<Eigen::MatrixXd >();   
+
+      } else {
+
+	G1   = analysis.getDataSet("G1"  ).read<Eigen::MatrixXd>();
+	G2   = analysis.getDataSet("G2"  ).read<Eigen::MatrixXd>();
+	S1   = analysis.getDataSet("S1"  ).read<Eigen::VectorXd>();
+	S2   = analysis.getDataSet("S2"  ).read<Eigen::VectorXd>();
+	Q1   = analysis.getDataSet("Q1"  ).read<Eigen::MatrixXd>();
+	Q2   = analysis.getDataSet("Q2"  ).read<Eigen::MatrixXd>();
+	V0   = analysis.getDataSet("V0"  ).read<Eigen::MatrixXd>();
+	Vt   = analysis.getDataSet("Vt"  ).read<Eigen::MatrixXd>();
+	UU   = analysis.getDataSet("U"   ).read<Eigen::MatrixXd>();
+	VV   = analysis.getDataSet("V"   ).read<Eigen::MatrixXd>();
+	SS   = analysis.getDataSet("S"   ).read<Eigen::VectorXd>();
+	Dp   = analysis.getDataSet("Dp"  ).read<Eigen::VectorXd>();
+	Dq   = analysis.getDataSet("Dq"  ).read<Eigen::VectorXd>();
+	Xh   = analysis.getDataSet("Xh"  ).read<Eigen::MatrixXd>();
+
+      }
 
       computed = true;
 

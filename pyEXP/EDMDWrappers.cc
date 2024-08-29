@@ -580,6 +580,26 @@ void EDMDtoolkitClasses(py::module &m) {
         from each EDMD RKHS mode to the coefficient series.
         )", py::arg("v"));
 
+  h.def("computeTrajectory", &LiouvilleRKHS::computeTrajectory,
+	R"(
+        Compute the prediction of the trajectory for singular Liouville
+
+        Parameters
+        ----------
+        value : ndarray
+            the input point
+
+        Returns
+        -------
+        numpy.ndarray
+            the Liouville eigenfunction
+
+        See also
+        --------
+        Use in conjunction with 'contributions' to visualize the support 
+        from each EDMD RKHS mode to the coefficient series.
+        )", py::arg("v"));
+
   h.def("getAllKeys", &LiouvilleRKHS::getAllKeys,
 	R"(
         Provides a list of all internal channel keys (for reference)
