@@ -68,8 +68,17 @@ namespace MSSA
     //! DMD state matrices
     Eigen::MatrixXd G1, G2, G3;
 
-    //! Occupation matrix
+    //! Occupation RKHS matrix
     Eigen::MatrixXd A;
+
+    //! Occupation kernel matrix
+    Eigen::MatrixXd O;
+
+    //! Liouville modes
+    Eigen::MatrixXcd Xi;
+
+    //! Eigenbasis
+    Eigen::MatrixXcd V;
 
     //! Normalized eigenbasis
     Eigen::MatrixXcd Vbar;
@@ -77,8 +86,8 @@ namespace MSSA
     //! Eigenvectors
     Eigen::VectorXcd L;
 
-    //! Eigenfunctions
-    Eigen::MatrixXcd Xi;
+    //! For projection of initial state into eigenfunctions
+    Eigen::MatrixXcd Ginv;
 
     //! EDMD modes
     Eigen::MatrixXcd Phi;
@@ -131,6 +140,9 @@ namespace MSSA
 		  const Eigen::VectorXd& y,
 		  double mu);
 
+    //! Occupation kernel matrix
+    Eigen::MatrixXd occupation();
+
   public:
 
     /** Constructor
@@ -171,20 +183,14 @@ namespace MSSA
     }
 
     //! Return the Liouville modes, the coefficients to the eigenfunctions
-    Eigen::MatrixXcd getModes()
+    Eigen::MatrixXcd modeEval()
     {
       if (not computed) analysis();
       return Xi;
     }
 
-    //! Evaluate the contribution from the indexed triple
-    Eigen::VectorXcd modeEval(const Eigen::VectorXd& x);
-
-    //! Evaluate the eigenbasis
-    Eigen::MatrixXcd basisEval();
-
-    //! Return the eigenfunction
-    std::complex<double> evecEval(int index, const Eigen::VectorXd& x);
+    //! Return the eigenfunctions
+    Eigen::VectorXcd evecEval(const Eigen::VectorXd& x);
 
     //! Save current MSSA state to an HDF5 file with the given prefix
     void saveState(const std::string& prefix);

@@ -545,7 +545,7 @@ void EDMDtoolkitClasses(py::module &m) {
         complete consistency.
         )", py::arg("prefix"));
 
-  h.def("getModes", &LiouvilleRKHS::getModes,
+  h.def("modeEval", &LiouvilleRKHS::modeEval,
 	R"(
         Get the RKHS mode coefficients for all triples
 
@@ -560,36 +560,12 @@ void EDMDtoolkitClasses(py::module &m) {
         from each EDMD RKHS mode to the coefficient series.
         )");
 
-  h.def("modeEval", &LiouvilleRKHS::modeEval,
-	R"(
-        Evaluate the contribution from the index triple
-
-        Parameters
-        ----------
-        index : int
-            the triple index in eigenvalue order
-        value : ndarray
-            the input point
-
-        Returns
-        -------
-        numpy.ndarray
-            the contribution to the trajectory from the indexed triple
-
-        See also
-        --------
-        Use in conjunction with 'contributions' to visualize the support 
-        from each EDMD RKHS mode to the coefficient series.
-        )", py::arg("v"));
-
   h.def("evecEval", &LiouvilleRKHS::evecEval,
 	R"(
         Evaluate the Liouville eigenfunction with given index
 
         Parameters
         ----------
-        index : int
-            the triple index in eigenvalue order
         value : ndarray
             the input point
 
@@ -602,26 +578,7 @@ void EDMDtoolkitClasses(py::module &m) {
         --------
         Use in conjunction with 'contributions' to visualize the support 
         from each EDMD RKHS mode to the coefficient series.
-        )", py::arg("index"), py::arg("v"));
-
-  h.def("basisEval", &LiouvilleRKHS::basisEval,
-	R"(
-        Return the Liouville basis function
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        numpy.ndarray
-            the Liouville eigenbasis
-
-        See also
-        --------
-        Use in conjunction with 'contributions' to visualize the support 
-        from each EDMD RKHS mode to the coefficient series.
-        )");
+        )", py::arg("v"));
 
   h.def("getAllKeys", &LiouvilleRKHS::getAllKeys,
 	R"(

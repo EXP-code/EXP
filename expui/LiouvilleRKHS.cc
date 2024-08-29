@@ -167,17 +167,19 @@ namespace MSSA {
     // Number of trajectories
     //
     auto keys = getAllKeys();
-    traj = keys.size();
+
+    if (keys.size() != traj)
+      throw std::runtime_error("LiouvilleRKHS::computeGrammian: "
+			       "number of trajectories does not match");
     
     // Check for odd number of times for Simpson's 1/3 rule
     //
-    int nt = numT;
-    if (nt/2*2 == nt) nt -= 1;
+    int nt = numT, f1, f2;
+    if (nt % 2 == 0) nt -= 1;
 
     // Allocate Grammian matrix and set to zero
     //
     Eigen::MatrixXd G(traj, traj);
-    int f1, f2;
 
     for (int i=0; i<traj; i++) {
       for (int j=0; j<traj; j++) {
@@ -186,27 +188,23 @@ namespace MSSA {
 
 	for (int t1=0; t1<nt; t1++) {
 
-	  if (t1 == 0 or t1 == nt-1) f1 = 1;
-	  else {
-	    if (t1 == 1) f1 = 4;
-	    if (t1 == 4) f1 = 2;
-	  }
+	  if (t1 == 0 or t1 == nt-1) f1 = 1; // End points
+	  else if (t1 % 2) f1 = 2;	     // Odd interior point
+	  else f1 = 4;			     // Even interior point
 
 	  double inner = 0.0;
 	  for (int t2=0; t2<nt; t2++) {
-	    
+
 	    if (t2 == 0 or t2 == nt-1) f2 = 1;
-	    else {
-	      if (t2 == 1) f2 = 4;
-	      if (t2 == 4) f2 = 2;
-	    }
+	    else if (t2 % 2) f2 = 2;
+	    else f2 = 4;
 
 	    auto x1 = data[keys[i]].row(t1)*rat;
 	    auto x2 = data[keys[j]].row(t2)*rat;
 	    inner += kernel(x1, x2, mu) * f2;
 	  }
 
-	  G(i, j) += inner*f1;
+	  G(i, j) += inner * f1;
 	}
       }
     }
@@ -226,17 +224,18 @@ namespace MSSA {
     // Number of trajectories
     //
     auto keys = getAllKeys();
-    traj = keys.size();
+    if (traj != keys.size())
+      throw std::runtime_error("LiouvilleRKHS::computeGammaDiff: "
+			       "number of trajectories does not match");
     
     // Check for odd number of times for Simpson's 1/3 rule
     //
-    int nt = numT;
-    if (nt/2*2 == nt) nt -= 1;
+    int nt = numT, f;
+    if (nt % 2 == 0) nt -= 1;
 
     // Allocate Grammian matrix and set to zero
     //
     Eigen::MatrixXd A(traj, traj);
-    int f;
 
     for (int i=0; i<traj; i++) {
       for (int j=0; j<traj; j++) {
@@ -247,11 +246,9 @@ namespace MSSA {
 
 	for (int t=0; t<nt; t++) {
 
-	  if (t == 0 or t == nt-1) f = 1;
-	  else {
-	    if (t == 1) f = 4;
-	    if (t == 4) f = 2;
-	  }
+	  if (t == 0 or t == nt-1) f = 1; // End points
+	  else if (t % 2) f = 2;	  // Odd interior point
+	  else f = 4;			  // Even interior point
 
 	  sum0 += kernel(data[keys[i]].row(0   ), data[keys[j]].row(t), mu) * f;
 	  sumT += kernel(data[keys[i]].row(nt-1), data[keys[j]].row(t), mu) * f;
@@ -275,37 +272,73 @@ namespace MSSA {
   {
     // Use Simpson's rule quadrature
     
-    // Number of trajectories
-    //
     auto keys = getAllKeys();
-    traj = keys.size();
+    if (traj != keys.size())
+      throw std::runtime_error("LiouvilleRKHS::computeGamma: "
+			       "number of trajectories does not match");
     
     // Check for odd number of times for Simpson's 1/3 rule
     //
-    int nt = numT;
-    if (nt/2*2 == nt) nt -= 1;
+    int nt = numT, f;
+    if (nt % 2 == 0) nt -= 1;
 
-    // Allocate return vector and set to zero
+    // Allocate return vector
     //
     Eigen::VectorXd g(traj);
-    int f;
 
     for (int i=0; i<traj; i++) {
 
       g(i) = 0.0;
 
-      double sum = 0.0;
-
       for (int t=0; t<nt; t++) {
 	
-	if (t == 0 or t == nt-1) f = 1;
-	else {
-	  if (t == 1) f = 4;
-	  if (t == 4) f = 2;
-	}
+	if (t == 0 or t == nt-1) f = 1; // End points
+	else if (t % 2) f = 2;		// Odd interior point
+	else f = 4;			// Even interior point
 	
 	g(i) += kernel(x, data[keys[i]].row(t), mu) * f;
       }
+    }
+
+    // Time step factor
+    //
+    double SF = (coefDB.times[1] - coefDB.times[0])/3.0;
+
+    return g * SF;
+  }
+
+
+  // Compute occupation kernel matrix
+  Eigen::MatrixXd LiouvilleRKHS::occupation()
+  {
+    // Use Simpson's rule quadrature
+    
+    // Number of trajectories
+    //
+    auto keys = getAllKeys();
+
+    if (traj != keys.size())
+      throw std::runtime_error("LiouvilleRKHS::occupation: "
+			       "number of trajectories does not match");
+
+    // Check for odd number of times for Simpson's 1/3 rule
+    //
+    int nt = numT, f;
+    if (nt % 2 == 0) nt -= 1;
+
+    // Allocate return vector and set to zero
+    //
+    Eigen::MatrixXd g(traj, rank);
+    g.setZero();
+    
+    for (int t=0; t<nt; t++) {
+	
+      if (t == 0 or t == nt-1) f = 1; // End points
+      else if (t % 2) f = 2;	      // Odd interior point
+      else f = 4;		      // Even interior point
+      
+      for (int i=0; i<traj; i++)
+	g.row(i) += data[keys[i]].row(t) * f;
     }
 
     // Time step factor
@@ -337,25 +370,29 @@ namespace MSSA {
     G3 = computeGrammian(mu2, mu1/mu2);
     A  = computeGammaDiff(mu1);
 
+    // For regularization
+    //
+    auto R = Eigen::MatrixXd::Identity(traj, traj) * eps;
+
     // Perform eigenanalysis of Grammian matrix (pos def)
     //
     if (use_red) {
-      RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver1(G2, evCount);
+      RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver1(G2 + R, evCount);
       S2 = eigensolver1.eigenvalues();
       Q2 = eigensolver1.eigenvectors();
 
-      RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver2(G3, evCount);
+      RedSVD::RedSymEigen<Eigen::MatrixXd> eigensolver2(G3 + R, evCount);
       S3 = eigensolver2.eigenvalues();
       Q3 = eigensolver2.eigenvectors();
     } else {
-      Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver1(G2);
+      Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver1(G2 + R);
       if (eigensolver1.info() != Eigen::Success) {
 	throw std::runtime_error("LiouvilleRKHS: Eigensolver for Grammian 2 failed");
       }
       S2 = eigensolver1.eigenvalues();
       Q2 = eigensolver1.eigenvectors();
 
-      Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver2(G3);
+      Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver2(G3 + R);
       if (eigensolver2.info() != Eigen::Success) {
 	throw std::runtime_error("LiouvilleRKHS: Eigensolver for Grammian 2 failed");
       }
@@ -393,8 +430,8 @@ namespace MSSA {
       }
     }
 
-    Eigen::MatrixXd PPG = (Q2.transpose()*S2inv.asDiagonal()*Q2) *G1 *
-      (Q3.transpose()*S3inv.asDiagonal()*Q3) * A;
+    Eigen::MatrixXd PPG = (Q3*S3inv.asDiagonal()*Q3.transpose()) * G1 *
+      (Q2*S2inv.asDiagonal()*Q2.transpose()) * A;
 
 
     // Perform eigenanalysis for PPG
@@ -403,16 +440,24 @@ namespace MSSA {
 
     // Eigenvalues and eigenvectors of PPG
     //
-    Eigen::VectorXcd lam = eigensolver.eigenvalues();
-    Eigen::MatrixXcd V   = eigensolver.eigenvectors();
+    L = eigensolver.eigenvalues();
+    V = eigensolver.eigenvectors();
 
     // Compute the normalized eigenbasis
     //
-    Eigen::MatrixXcd Vbar(V);
+    Vbar = V;
     for (int i=0; i<V.cols(); i++) {
       auto dp = V.col(i).dot(Eigen::MatrixXcd(G3) * V.col(i));
       Vbar.col(i) /= sqrt(dp.real());
     }
+
+    // Compute the projection of the state into the eigenbasis
+    //
+    O    = occupation();
+    Ginv = (Vbar.transpose() * G3 * Vbar).inverse();
+    Xi   = Ginv * Vbar.transpose() * O;
+    // Ginv = (Vbar.adjoint() * G3 * Vbar).inverse();
+    // Xi   = Ginv * Vbar.adjoint() * O;
 
     computed      = true;
     reconstructed = false;
@@ -426,19 +471,8 @@ namespace MSSA {
 	     << std::string(80, '-') << std::endl;
       };
 
-      header("Parameters"); fout << "Traj=" << traj << " Rank=" << rank << " Ntimes=" << numT << std::endl;
-      header("Grammian 1"); fout << G1 << std::endl;
-      header("Grammian 2"); fout << G2 << std::endl;
-      header("Grammian 3"); fout << G3 << std::endl;
-      header("Occ kernel"); fout << A  << std::endl;
-      header("Grammian 2 SV"); fout << S2 << std::endl;
-      header("Grammian 3 SV"); fout << S3 << std::endl;
-      header("PPG"); fout << PPG << std::endl;
-      header("Lambda"); fout << lam << std::endl;
-      header("Vbar"); fout << Vbar << std::endl;
-      header("Is PPG symmetric?");
-      {
-	Eigen::MatrixXd diff = PPG - PPG.transpose();
+      auto symcheck = [&fout] (const Eigen::MatrixXd& A) {
+	Eigen::MatrixXd diff = A - A.transpose();
 	double cmin =  std::numeric_limits<double>::infinity();
 	double cmax = -std::numeric_limits<double>::infinity();
 	auto d = diff.data();
@@ -447,7 +481,59 @@ namespace MSSA {
 	  cmax = std::max(cmax, d[i]);
 	}
 	fout << "Min: " << cmin << " Max: " << cmax << std::endl;
-      }
+	if (fabs(cmin) < 1e-10 and fabs(cmax) < 1e-10)
+	  fout << "SYMMETRIC" << std::endl;
+	else
+	  fout << "NOT symmetric" << std::endl;
+      };
+
+      auto zerocheck = [&fout](const Eigen::MatrixXcd& M)
+      {
+	double maxval = 0.0;
+	for (int i=0; i<M.rows(); i++) {
+	  for (int j=0; j<M.cols(); j++) {
+	    maxval = std::max(maxval, std::abs(M(i, j)));
+	  }
+	}
+	fout << "max value=" << maxval << std::endl;
+	if (maxval < 1e-10)
+	  fout << "ZERO" << std::endl;
+	else
+	  fout << "NOT zero" << std::endl;
+      };
+
+      header("Parameters");    fout << "Traj=" << traj
+				    << " Rank=" << rank
+				    << " Ntimes=" << numT << std::endl;
+
+      header("Grammian 1");    fout << G1   << std::endl;
+      header("Grammian 2");    fout << G2   << std::endl;
+      header("Grammian 3");    fout << G3   << std::endl;
+      header("Occ kernel");    fout << A    << std::endl;
+      header("Grammian 2 SV"); fout << S2   << std::endl;
+      header("Grammian 3 SV"); fout << S3   << std::endl;
+      header("PPG");           fout << PPG  << std::endl;
+      header("Lambda");        fout << L    << std::endl;
+      header("V");             fout << V    << std::endl;
+      header("Vbar");          fout << Vbar << std::endl;
+      header("Ginv");          fout << Ginv << std::endl;
+      header("O"   );          fout << O    << std::endl;
+      header("Xi"  );          fout << Xi   << std::endl;
+
+      auto tst1 = Vbar.transpose() * G3 * Vbar;
+      auto tst2 = Vbar.adjoint()   * G3 * Vbar;
+
+      header("Gram Vbar");     fout << tst1 << std::endl;
+      header("Gram Vbar 2");   fout << tst2 << std::endl;
+
+      header("Is G1 symmetric? Expect YES" ); symcheck(G1 );
+      header("Is G2 symmetric? Expect YES" ); symcheck(G2 );
+      header("Is G3 symmetric? Expect YES" ); symcheck(G3 );
+      header("Is A symmetric?  Expect NO"  ); symcheck(A  );
+      header("Is PPG symmetric?  Expect NO"); symcheck(PPG);
+
+      header("Good eigenanalysis? Expect YES");
+      zerocheck(V*L.asDiagonal()*V.inverse() - PPG);
     } else {
       std::cerr << "LiouvilleRKHS: Failed to open output file" << std::endl;
     }
@@ -475,35 +561,11 @@ namespace MSSA {
     return oss.str();
   }
 
-  std::complex<double> LiouvilleRKHS::evecEval
-  (int index, const Eigen::VectorXd& x)
-  {
-    return Vbar.col(index).adjoint() * computeGamma(x, mu1);
-  }
-
-  Eigen::VectorXcd LiouvilleRKHS::modeEval(const Eigen::VectorXd& x)
+  Eigen::VectorXcd LiouvilleRKHS::evecEval(const Eigen::VectorXd& x)
   {
     if (not computed) analysis();
-    
-    return Vbar.transpose()*computeGamma(x, mu1);
-  }
 
-  Eigen::MatrixXcd LiouvilleRKHS::basisEval()
-  {
-    if (not computed) analysis();
-    
-    Eigen::MatrixXcd ret(traj, traj);
-
-    for (unsigned m=0; m<traj; m++) {
-      Key key{m};
-      Eigen::VectorXd x = data[key].row(0);
-      ret.row(m) = modeEval(x).transpose();
-    }
-
-    auto invnorm = (Vbar.transpose() * G3 * Vbar).inverse();
-    
-
-    return invnorm * Vbar.transpose() * ret;
+    return Vbar.transpose() * computeGamma(x, mu1);
   }
 
   void LiouvilleRKHS::assignParameters(const std::string flags)
