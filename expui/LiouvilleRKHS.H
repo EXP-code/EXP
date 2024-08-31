@@ -10,7 +10,10 @@ namespace MSSA
 {
   /**
      Class for eDMD processing of trajectories using Liouville opertor
-     RKHS
+     RKHS.  This implements both Algorithms 6.1 and 7.1 from the paper
+     by Joel A. Rosenfeld and Rushikesh Kamalapurkar, "Singular
+     Dynamic Mode Decomposition", 2023, SIAM J. Appl. Dynamical
+     Systems, Vol. 22, No. 3, pp 2357-2381.
   */
   class LiouvilleRKHS
   {
@@ -271,7 +274,7 @@ namespace MSSA
     Eigen::VectorXd flow(const Eigen::VectorXd& x);
 
     //! Compute trajectory for an initial state using RK4 (for singular method only)
-    Eigen::VectorXd computeTrajectory(const Eigen::VectorXd& x);
+    Eigen::MatrixXd computeTrajectory(const Eigen::VectorXd& x, double h);
 
   };
 

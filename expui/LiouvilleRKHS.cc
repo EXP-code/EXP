@@ -34,6 +34,8 @@
 #include <highfive/highfive.hpp>
 #include <highfive/eigen.hpp>
 
+#include <omp.h>
+
 /* For debugging
    #undef eigen_assert
    #define eigen_assert(x)						\
@@ -198,7 +200,39 @@ namespace MSSA {
     //
     Eigen::MatrixXd G(traj, traj);
 
+#pragma omp parallel for collapse(2)
     for (int i=0; i<traj; i++) {
+
+      for (int j=0; j<traj; j++) {
+
+	G(i, j) = 0.0;
+
+	for (int t1=0; t1<nt; t1++) {
+
+	  int f1 = 4;			   // Even interior point
+	  if (t1 == 0 or t1 == nt-1) f1 = 1; // End points
+	  else if (t1 % 2) f1 = 2;	   // Odd interior point
+	
+	  double inner = 0.0;
+	  for (int t2=0; t2<nt; t2++) {
+	  
+	    int f2 = 4;
+	    if (t2 == 0 or t2 == nt-1) f2 = 1;
+	    else if (t2 % 2) f2 = 2;
+	  
+	    auto x1 = data[keys[i]].row(t1)*rat;
+	    auto x2 = data[keys[j]].row(t2)*rat;
+	    inner += kernel(x1, x2, mu) * f2;
+	  }
+	
+	G(i, j) += inner * f1;
+	}
+      }
+    }
+
+    /*
+    for (int i=0; i<traj; i++) {
+
       for (int j=0; j<traj; j++) {
 
 	G(i, j) = 0.0;
@@ -208,24 +242,25 @@ namespace MSSA {
 	  if (t1 == 0 or t1 == nt-1) f1 = 1; // End points
 	  else if (t1 % 2) f1 = 2;	     // Odd interior point
 	  else f1 = 4;			     // Even interior point
-
+	  
 	  double inner = 0.0;
 	  for (int t2=0; t2<nt; t2++) {
-
+	    
 	    if (t2 == 0 or t2 == nt-1) f2 = 1;
 	    else if (t2 % 2) f2 = 2;
 	    else f2 = 4;
-
+	    
 	    auto x1 = data[keys[i]].row(t1)*rat;
 	    auto x2 = data[keys[j]].row(t2)*rat;
 	    inner += kernel(x1, x2, mu) * f2;
 	  }
-
+	  
 	  G(i, j) += inner * f1;
 	}
       }
     }
-
+    */
+      
     // Time step factor
     //
     double SF = (coefDB.times[1] - coefDB.times[0])/3.0;
@@ -254,19 +289,22 @@ namespace MSSA {
     //
     Eigen::MatrixXd A(traj, traj);
 
+#pragma omp parallel for collapse(2)
     for (int i=0; i<traj; i++) {
+
       for (int j=0; j<traj; j++) {
+
 
 	A(i, j) = 0.0;
 
 	double sumT = 0.0, sum0 = 0.0;
-
+	
 	for (int t=0; t<nt; t++) {
-
+	
+	  int  f = 4;			  // Even interior point
 	  if (t == 0 or t == nt-1) f = 1; // End points
 	  else if (t % 2) f = 2;	  // Odd interior point
-	  else f = 4;			  // Even interior point
-
+	
 	  sum0 += kernel(data[keys[i]].row(0   ), data[keys[j]].row(t), mu) * f;
 	  sumT += kernel(data[keys[i]].row(nt-1), data[keys[j]].row(t), mu) * f;
 	}
@@ -274,6 +312,30 @@ namespace MSSA {
 	A(i, j) += sumT - sum0;
       }
     }
+
+    /*
+    for (int i=0; i<traj; i++) {
+
+      for (int j=0; j<traj; j++) {
+	      
+	A(i, j) = 0.0;
+
+	double sumT = 0.0, sum0 = 0.0;
+	
+	for (int t=0; t<nt; t++) {
+	  
+	  if (t == 0 or t == nt-1) f = 1; // End points
+	  else if (t % 2) f = 2;		// Odd interior point
+	  else f = 4;			// Even interior point
+	  
+	  sum0 += kernel(data[keys[i]].row(0   ), data[keys[j]].row(t), mu) * f;
+	  sumT += kernel(data[keys[i]].row(nt-1), data[keys[j]].row(t), mu) * f;
+	}
+	
+	A(i, j) += sumT - sum0;
+      }
+    }
+    */
 
     // Time step factor
     //
@@ -298,6 +360,24 @@ namespace MSSA {
 
     int lT = numT - 1;
 
+#pragma omp parallel for
+    for (int k=0; k<traj*(traj+1)/2; k++) {
+    
+      // This computes indices for i=[0, traj) j=[i, traj)
+      //
+      int i = floor( (sqrt(1.0 + 8.0*k) - 1.0)/2.0 );
+      int j = k - i*(i+1)/2;
+
+      A(i, j) =
+	kernel(data[keys[i]].row(lT), data[keys[j]].row(lT), mu) +
+	kernel(data[keys[i]].row(0 ), data[keys[j]].row(0 ), mu) -
+	kernel(data[keys[i]].row(0 ), data[keys[j]].row(lT), mu) -
+	kernel(data[keys[i]].row(lT), data[keys[j]].row(0 ), mu) ;
+      
+      if (i != j) A(j, i) = A(i, j); // Matrix is symmetric
+    }
+
+    /*
     for (int i=0; i<traj; i++) {
       for (int j=i; j<traj; j++) {
 	A(i, j) =
@@ -309,7 +389,8 @@ namespace MSSA {
 	if (i != j) A(j, i) = A(i, j); // Matrix is symmetric
       }
     }
-    
+    */
+
     return A;
   }
 
@@ -327,22 +408,23 @@ namespace MSSA {
     
     // Check for odd number of times for Simpson's 1/3 rule
     //
-    int nt = numT, f;
+    int nt = numT;
     if (nt % 2 == 0) nt -= 1;
 
     // Allocate return vector
     //
     Eigen::VectorXd g(traj);
 
+#pragma omp parallel for
     for (int i=0; i<traj; i++) {
 
       g(i) = 0.0;
 
       for (int t=0; t<nt; t++) {
 	
+	int f = 4;			// Even interior point
 	if (t == 0 or t == nt-1) f = 1; // End points
 	else if (t % 2) f = 2;		// Odd interior point
-	else f = 4;			// Even interior point
 	
 	g(i) += kernel(x, data[keys[i]].row(t), mu) * f;
       }
@@ -385,8 +467,10 @@ namespace MSSA {
       else if (t % 2) f = 2;	      // Odd interior point
       else f = 4;		      // Even interior point
       
-      for (int i=0; i<traj; i++)
+#pragma omp parallel for
+      for (int i=0; i<traj; i++) {
 	g.row(i) += data[keys[i]].row(t) * f;
+      }
     }
 
     // Time step factor
@@ -514,10 +598,13 @@ namespace MSSA {
     Dp.resize(traj);
     Dq.resize(traj);
 
+#pragma omp parallel for
     for (int i=0; i<traj; i++) {
       auto dp = UU.col(i).dot(Gp * UU.col(i));
       Dp(i) = 1.0/sqrt(dp);
     }
+
+#pragma omp parallel for
     for (int i=0; i<traj; i++) {
       auto dp = VV.col(i).dot(Gq * VV.col(i));
       Dq(i) = 1.0/sqrt(dp);
@@ -591,7 +678,6 @@ namespace MSSA {
 
       header("Is G1 symmetric? Expect YES" ); symcheck(G1  );
       header("Is G2 symmetric? Expect YES" ); symcheck(G2  );
-      header("Is TT symmetric? Expect NO"  ); symcheck(T   );
       header("Is PP symmetric? Expect NO"  ); symcheck(PP  );
     } else {
       std::cerr << "LiouvilleRKHS: Failed to open output file" << std::endl;
@@ -795,42 +881,63 @@ namespace MSSA {
   Eigen::VectorXd LiouvilleRKHS::flow(const Eigen::VectorXd& x)
   {
     if (method != Method::Singular)
-      throw std::runtime_error("LiouvilleRKHS::flow is only for the Singular method");
+      throw std::runtime_error("LiouvilleRKHS::flow is defined for the Singular method only");
 
-    Eigen::VectorXd Psi = Dq.asDiagonal() * VV.transpose() * Vt.transpose() *
+    Eigen::VectorXd Psi = Dq.asDiagonal()*VV.transpose()*Vt.transpose() *
       computeGamma(x, mu1);
     
-    return SS.asDiagonal() * Xh * Psi;
+    return Xh.transpose() * SS.asDiagonal() * Psi;
   }
 
-  Eigen::VectorXd LiouvilleRKHS::computeTrajectory(const Eigen::VectorXd& x)
+  Eigen::MatrixXd LiouvilleRKHS::computeTrajectory
+  (const Eigen::VectorXd& x, double h)
   {
     if (method != Method::Singular)
-      throw std::runtime_error("LiouvilleRKHS::computeTrajectory is only for the Singular method");
+      throw std::runtime_error("LiouvilleRKHS::computeTrajectory only makes sense for the Singular method");
 
-    //! Define an ODE integrator (RK4)
-    auto ODE = [this](const Eigen::VectorXd& x, double t, double h)
+    // Define an ODE integrator for a time-independent flow (RK4 for now)
+    auto ODE = [this](const Eigen::VectorXd& x, double t, double h, int substeps)
     {
-      auto k1 = h * flow(x         );
-      auto k2 = h * flow(x + 0.5*k1);
-      auto k3 = h * flow(x + 0.5*k2);
-      auto k4 = h * flow(x + k3    );
+      double hh = h/substeps;
+      Eigen::VectorXd y  = x;
 
-      auto y = x + (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
+      for (int i=0; i<substeps; i++) {
+
+	Eigen::VectorXd k1 = hh * this->flow(y         );
+	Eigen::VectorXd k2 = hh * this->flow(y + 0.5*k1);
+	Eigen::VectorXd k3 = hh * this->flow(y + 0.5*k2);
+	Eigen::VectorXd k4 = hh * this->flow(y + k3    );
+	
+	y += (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
+      }
 
       return std::tuple<Eigen::VectorXd, double>(y, t + h);
     };
 
+#ifdef TESTING
+    std::cout << "Computing trajectory with " << numT << " X " << rank
+	      << " array" << std::endl;
+#endif
+    
+    // An array to contain the returned trajectory
+    Eigen::MatrixXd ret(numT, rank);
+
+    // Compute the time step
     double dt = coefDB.times[1] - coefDB.times[0];
 
-    Eigen::MatrixXd ret(numT, rank);
+    // Compute the substep number
+    int substeps = std::max<int>(1, floor(dt/h));
+
+    // Initial time
     double t = coefDB.times[0];
 
+    // Initial state vector
     Eigen::VectorXd y = x;
     ret.row(0) = y;
 
+    // Integrate the flow
     for (int i=1; i<numT; i++) {
-      std::tie(y, t) = ODE(y, t, dt);
+      std::tie(y, t) = ODE(y, t, dt, substeps);
       ret.row(i) = y;
     }
     
@@ -863,7 +970,7 @@ namespace MSSA {
   Eigen::VectorXcd LiouvilleRKHS::evecEval(const Eigen::VectorXd& x)
   {
     if (method != Method::Eigenfunction)
-      throw std::runtime_error("LiouvilleRKHS::evecEval is only for the Eigenfunction method");
+      throw std::runtime_error("LiouvilleRKHS::evecEval make sense for the Eigenfunction method only");
 
     if (not computed) analysis();
 

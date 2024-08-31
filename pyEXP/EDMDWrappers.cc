@@ -588,6 +588,8 @@ void EDMDtoolkitClasses(py::module &m) {
         ----------
         value : ndarray
             the input point
+        h : double
+            internal integration step
 
         Returns
         -------
@@ -598,7 +600,7 @@ void EDMDtoolkitClasses(py::module &m) {
         --------
         Use in conjunction with 'contributions' to visualize the support 
         from each EDMD RKHS mode to the coefficient series.
-        )", py::arg("v"));
+        )", py::arg("v"), py::arg("h"));
 
   h.def("getAllKeys", &LiouvilleRKHS::getAllKeys,
 	R"(
