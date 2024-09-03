@@ -554,21 +554,23 @@ namespace MSSA {
     
     // Compute the normalized bases
     //
-    Eigen::VectorXd D(traj), Dt(traj);
+    Eigen::VectorXd D0(traj), Dt(traj), D1(traj), D2(traj);
 
-    for (int i=0; i<Q1.cols(); i++) {
-      auto dp = Q1.col(i).dot(G1 * Q1.col(i));
-      D(i) = 1.0/sqrt(dp);
+    for (int i=0; i<traj; i++) {
+      D1(i) = Q1.col(i).dot(G1 * Q1.col(i));
+      D2(i) = Q2.col(i).dot(G2 * Q2.col(i));
     }
 
-    for (int i=0; i<Q2.cols(); i++) {
-      auto dp = Q2.col(i).dot(G2 * Q2.col(i));
-      Dt(i) = 1.0/sqrt(dp);
+    D0.setZero();
+    Dt.setZero();
+
+    for (int i=0; i<traj; i++) {
+      if (D1(i) > 0.0) D0(i) = 1.0/sqrt(D1(i));
+      if (D2(i) > 0.0) Dt(i) = 1.0/sqrt(D2(i));
     }
 
-    V0 = Q1 * D .asDiagonal();
+    V0 = Q1 * D0.asDiagonal();
     Vt = Q2 * Dt.asDiagonal();
-    
 
     Eigen::MatrixXd Gq = Vt.transpose() * G2 * Vt;
     Eigen::MatrixXd Gp = V0.transpose() * G1 * V0;
@@ -663,10 +665,18 @@ namespace MSSA {
 				    << " method=" << Method_names[method]
 				    << std::endl;
 
-      header("Grammian 1");    fout << G1   << std::endl;
-      header("Grammian 2");    fout << G2   << std::endl;
-      header("Grammian SV 1"); fout << S1   << std::endl;
-      header("Grammian SV 2"); fout << S2   << std::endl;
+      header("G1");            fout << G1   << std::endl;
+      header("G2");            fout << G2   << std::endl;
+      header("G1 SV");         fout << S1   << std::endl;
+      header("G2 SV");         fout << S2   << std::endl;
+      header("Q1");            fout << Q1   << std::endl;
+      header("Q2");            fout << Q2   << std::endl;
+      header("D0");            fout << D0   << std::endl;
+      header("Dt");            fout << Dt   << std::endl;
+      header("D1");            fout << D1   << std::endl;
+      header("D2");            fout << D2   << std::endl;
+      header("V0");            fout << V0   << std::endl;
+      header("Vt");            fout << Vt   << std::endl;
       header("Traj kernel");   fout << T    << std::endl;
       header("PP");            fout << PP   << std::endl;
       header("S");             fout << SS   << std::endl;
@@ -1156,8 +1166,6 @@ namespace MSSA {
 	analysis.createDataSet("S2",    S2  );
 	analysis.createDataSet("Q1",    Q1  );
 	analysis.createDataSet("Q2",    Q2  );
-	analysis.createDataSet("V0",    V0  );
-	analysis.createDataSet("Vt",    Vt  );
 	analysis.createDataSet("U",     UU  );
 	analysis.createDataSet("V",     VV  );
 	analysis.createDataSet("S",     SS  );
