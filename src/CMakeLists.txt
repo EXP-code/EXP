@@ -61,6 +61,7 @@ endif()
 set(common_LINKLIB ${DSMC_LIBS}
   $<IF:$<BOOL:${EXPutil_LIBRARIES}>,${EXPutil_LIBRARIES},exputil>
   $<IF:$<BOOL:${EXPcoefs_LIBRARIES}>,${EXPcoefs_LIBRARIES},expcoef>
+  $<BOOL:${HighFive_FOUND}>:HighFive>
   ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
   ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES})
 

@@ -1,4 +1,4 @@
-{% set name = "EXP-libraries" %}
+{% set name = "EXP-nbody" %}
 {% set version = "7.7.28" %}
 
 package:
@@ -6,8 +6,8 @@ package:
   version: {{ version }}
 
 source:
-  url: file:///home/georgia/Projects/umass/unity/user_support/martin_exp/packaging/pypi/EXP-libraries/dist/EXP-libraries-7.7.28.tar.gz
-  sha256: 7edc7f0b3b8d648c436666f873316c02190ad37b57ca3fd5373d33b924e494b8
+  url: file:///home/georgia/Projects/umass/unity/user_support/martin_exp/packaging/pypi/EXP-nbody/dist/EXP-nbody-7.7.28.tar.gz
+  sha256: 85efc71e353b096566b24626762a68eaa45a507c4d799db94016b4f4c678571f
 
 build:
   number: 0
@@ -36,6 +36,7 @@ requirements:
     - yaml-cpp
     - zlib
     - libpng
+    - exp-libraries
   run:
     - {{ mpi }}
     - _openmp_mutex
@@ -45,9 +46,10 @@ requirements:
     - libtirpc # [linux-64]
     - yaml-cpp
     - libpng
+    - exp-libraries
 
 about:
-  summary: Nbody EXPansion Code - Libraries
+  summary: Nbody EXPansion Code - Nbody
   license: GPL-3.0 AND MIT
   license_file:
     - LICENSE
