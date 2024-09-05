@@ -1,19 +1,21 @@
-set(bin_PROGRAMS nativetoh5 h5compare viewcoefs h5power makecoefs testread)
-
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
-  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
-
-if(PNG_FOUND)
-  list(APPEND common_LINKLIB PNG::PNG)
-endif()
+set(common_LINKLIB ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
+  ${YAML_CPP_LIBRARIES} $<$<NOT:$<BOOL:${EXPutil_LIBRARIES}>>:exputil>
+  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
+  $<$<BOOL:${HighFive_FOUND}>:HighFive>)
 
 set(common_INCLUDE $<INSTALL_INTERFACE:include>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
-  ${CMAKE_BINARY_DIR} ${DEP_INC} ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/.. ${HighFive_SOURCE_DIR}/include
-  ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${FFTW_INCLUDE_DIRS})
+  ${DEP_INC} ${HDF5_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR} ${FFTW_INCLUDE_DIRS})
 
+set(common_INCLUDE_DIRS_PRIVATE
+    ${CMAKE_BINARY_DIR}/config
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/>
+    ${CMAKE_CURRENT_SOURCE_DIR})
+
+if(PNG_FOUND)
+  list(APPEND common_LINKLIB ${PNG_LIBRARIES})
+endif()
 
 if(ENABLE_CUDA)
   list(APPEND common_INCLUDE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
@@ -24,36 +26,74 @@ if(SLURM_FOUND)
   list(APPEND common_LINKLIB ${SLURM_LIBRARY})
 endif()
 
-if(ENABLE_XDR AND TIRPC_FOUND)
-  list(APPEND common_INCLUDE ${TIRPC_INCLUDE_DIRS})
-  list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
-endif()
+# Appears to be an overlinker here...
+# if(ENABLE_XDR AND TIRPC_FOUND)
+#   list(APPEND common_INCLUDE ${TIRPC_INCLUDE_DIRS})
+#   list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
+# endif()
 
 # Make the expui shared library
-#
 set(expui_SOURCES BasisFactory.cc BiorthBasis.cc FieldBasis.cc
   CoefContainer.cc CoefStruct.cc FieldGenerator.cc expMSSA.cc
   Coefficients.cc KMeans.cc Centering.cc ParticleIterator.cc
-  Koopman.cc BiorthBess.cc)
+  Koopman.cc)
 add_library(expui ${expui_SOURCES})
-set_target_properties(expui PROPERTIES OUTPUT_NAME expui)
-target_include_directories(expui PUBLIC ${common_INCLUDE})
-target_link_libraries(expui PUBLIC ${common_LINKLIB})
 
-install(TARGETS expui DESTINATION lib)
+# TODO: Replace this globbing with a list of actually public headers
+file(GLOB expui_PUBLIC_HEADERS "*.[hH]")
+set_target_properties (expui PROPERTIES OUTPUT_NAME expui)
+set_target_properties (expui PROPERTIES EXPORT_NAME EXPui)
+set_target_properties (expui PROPERTIES PUBLIC_HEADER "${expui_PUBLIC_HEADERS}")
+
+target_include_directories(expui PUBLIC ${common_INCLUDE})
+target_include_directories(expui PRIVATE ${common_INCLUDE_DIRS_PRIVATE})
+target_link_libraries(expui PUBLIC ${common_LINKLIB})
 
 # Configure and build the test routines
 #
-add_executable(nativetoh5 coefstoh5.cc)
-add_executable(h5compare  h5compare.cc)
-add_executable(viewcoefs  viewcoefs.cc)
-add_executable(h5power    h5power.cc)
-add_executable(makecoefs  makecoefs.cc)
-add_executable(testread   testread.cc)
+if (ENABLE_TESTS)
+  set(bin_PROGRAMS nativetoh5 h5compare viewcoefs h5power makecoefs testread)
 
-foreach(program ${bin_PROGRAMS})
-  target_link_libraries(${program} expui exputil ${common_LINKLIB})
-  target_include_directories(${program} PUBLIC ${common_INCLUDE})
-  target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
-  install(TARGETS ${program} DESTINATION bin)
-endforeach()
+  add_executable(nativetoh5 coefstoh5.cc)
+  add_executable(h5compare  h5compare.cc)
+  add_executable(viewcoefs  viewcoefs.cc)
+  add_executable(h5power    h5power.cc)
+  add_executable(makecoefs  makecoefs.cc)
+  add_executable(testread   testread.cc)
+
+  foreach(program ${bin_PROGRAMS})
+    target_link_libraries(${program} expui exputil ${common_LINKLIB})
+    target_include_directories(${program} PUBLIC ${common_INCLUDE})
+    target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
+  endforeach()
+endif()
+
+install (TARGETS expui
+  EXPORT EXPuiTargets
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  PUBLIC_HEADER DESTINATION include/expui)
+
+if (INSTALL_CMAKE_FIND)
+  # Set up cmake configs
+  set(CMAKEPACKAGE_INSTALL_DIR share/EXPui/cmake)
+  install (EXPORT EXPuiTargets
+    FILE EXPuiTargets.cmake
+    NAMESPACE EXP::
+    DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
+
+  include(CMakePackageConfigHelpers)
+  configure_package_config_file(EXPuiConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/EXPuiConfig.cmake
+    INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+    PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
+  )
+
+  write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPuiVersion.cmake
+                                  VERSION ${CMAKE_PROJECT_VERSION}
+                                  COMPATIBILITY SameMinorVersion )
+
+  install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPuiConfig.cmake
+                ${CMAKE_CURRENT_BINARY_DIR}/EXPuiVersion.cmake
+          DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
+endif()

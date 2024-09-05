@@ -9,3 +9,5 @@ This package requires...
 - Eigen3
 - HighFive
 - yaml-cpp
+- png
+- zlib

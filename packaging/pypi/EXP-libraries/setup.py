@@ -1,6 +1,6 @@
 from skbuild import setup
 
-version="7.7.28"
+version="7.7.99"
 
 # Setup for the CopyAndSdist subclass
 
@@ -78,7 +78,7 @@ CopyAndSdist.file_list = [
 # Directories
 CopyAndSdist.directory_list = [
   'cmake',
-  'coefs',
+  'expui',
   'exputil',
   'extern/rapidxml',
   'extern/png++',
@@ -90,15 +90,15 @@ CopyAndSdist.directory_list = [
 
 setup(
     name="EXP-libraries",
-    version="7.7.28",
+    version=version,
     description="Nbody EXPansion Code - Libraries",
     author="",
     license="GPL-3.0",
-    packages=["EXP-libexputil", "EXP-libexpcoefs"],
+    packages=["EXP-libexputil", "EXP-libexpui"],
     python_requires=">=3.8",
     package_dir={
       "EXP-libexputil": "exputil",
-      "EXP-libexpcoefs": "coefs"
+      "EXP-libexpui": "expui"
       },
     cmdclass={
       "sdist": CopyAndSdist,

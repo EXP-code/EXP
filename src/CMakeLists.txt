@@ -1,5 +1,5 @@
 find_package(EXPutil)
-find_package(EXPcoefs)
+find_package(EXPui)
 find_package(EXPcommon)
 
 set(CUDA_SRC)
@@ -27,14 +27,14 @@ set(exp_SOURCES Basis.cc Bessel.cc Component.cc
 
 set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR}
-  ${EXPutil_INCLUDE_DIRS} ${EXPcoefs_INCLUDE_DIRS} ${EXPcommon_INCLUDE_DIRS})
+  ${EXPutil_INCLUDE_DIRS} ${EXPui_INCLUDE_DIRS} ${EXPcommon_INCLUDE_DIRS})
 
 set(common_INCLUDE_DIRS_PRIVATE
     ${CMAKE_BINARY_DIR}/config
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
-if (NOT (EXPutil_FOUND AND EXPcoefs_FOUND))
+if (NOT (EXPutil_FOUND AND EXPui_FOUND))
   list(APPEND common_INCLUDE_DIRS_PRIVATE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
@@ -59,8 +59,8 @@ endif()
 
 set(common_LINKLIB ${DSMC_LIBS}
   $<IF:$<BOOL:${EXPutil_LIBRARIES}>,${EXPutil_LIBRARIES},exputil>
-  $<IF:$<BOOL:${EXPcoefs_LIBRARIES}>,${EXPcoefs_LIBRARIES},expcoef>
-  $<BOOL:${HighFive_FOUND}>:HighFive>
+  $<IF:$<BOOL:${EXPui_LIBRARIES}>,${EXPui_LIBRARIES},expui>
+  $<$<BOOL:${HighFive_FOUND}>:HighFive>
   ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
   ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES})
 

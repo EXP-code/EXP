@@ -218,6 +218,7 @@ execute_process(
 )
 
 # Git submodule updates
+if(USE_SUBMODULES)
 execute_process(
   COMMAND git submodule update --init --recursive
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -228,6 +229,7 @@ if(NOT GIT_SUBMOD_RESULT EQUAL "0")
    message(FATAL_ERROR "git submodule update --init --recursive failed ${GIT_SUBMOD_RESULT}, please checkout submodules")
 else()
    message(STATUS "Submodules updated successfully - good")
+endif()
 endif()
 
 # Get the latest abbreviated commit hash of the working branch
@@ -247,20 +249,13 @@ execute_process(
 )
 
 if (USE_SUBMODULES)
+  message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
   include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
   include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
-endif()
-
-find_package(yaml-cpp REQUIRED)
-
-# Report to the user
-message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
-
-if (USE_SUBMODULES)
   add_subdirectory(extern/yaml-cpp)
   add_subdirectory(extern/pybind11)
 else()
-
+  find_package(yaml-cpp REQUIRED)
 endif()
 
 # Set options for the HighFive git submodule in extern
@@ -279,7 +274,6 @@ endif()
 # Configure the remaining native subdirectories
 if (BUILD_COMMON_LIBRARIES)
   add_subdirectory(exputil)
-  add_subdirectory(coefs)
   add_subdirectory(expui)
 endif()
 

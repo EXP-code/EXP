@@ -1,6 +1,6 @@
 from skbuild import setup
 
-version="7.7.28"
+version="7.7.99"
 
 # Setup for the CopyAndSdist subclass
 
@@ -86,7 +86,7 @@ CopyAndSdist.directory_list = [
 
 setup(
     name="EXP-nbody",
-    version="7.7.28",
+    version=version,
     description="Nbody EXPansion Code - Nbody",
     author="",
     license="GPL-3.0",
