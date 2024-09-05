@@ -5,7 +5,7 @@
 
 #include "global.H"
 #include "ParticleFerry.H"
-#include "pHOT.H"
+// #include "pHOT.H"
 
 // #define DEBUG
 
@@ -169,18 +169,6 @@ void ParticleFerry::particlePack(PartPtr in, char* buffer)
   memcpy(&buffer[pos], &in->key, sizeof(unsigned long));
   pos += sizeof(unsigned long);
 
-  // Sanity check
-  //
-  if (in->tree > 0) {
-    if ( (in->tree < pk_lo) || (in->tree >= pk_hi) ) {
-      cout << "Error!! [5], id=" << myid 
-	   << ": tree=" << in->tree
-	   << " seq=" << in->indx
-	   << " (x, y, z)={" << in->pos[0] << ", " << in->pos[1]
-	   << ", " << in->pos[2]
-	   << endl;
-    }
-  }
 }
 
 // Unpack the buffer into the supplied particle.  Buffer is supplied
@@ -267,19 +255,6 @@ void ParticleFerry::particleUnpack(PartPtr out, char* buffer)
   memcpy(&out->key, &buffer[pos], sizeof(unsigned long));
   pos += sizeof(unsigned long);
 
-  // Sanity check
-  //
-  if (out->tree > 0) {
-    if ( (out->tree < pk_lo) || (out->tree >= pk_hi) ) {
-      cout << "Error!! [4], id=" << myid 
-	   << ": tree=" << out->tree
-	   << " seq=" << out->indx
-	   << " (x, y, z)={" << out->pos[0] << ", " << out->pos[1]
-	   << ", " << out->pos[2]
-	   << endl;
-    }
-  }
-
 }
 
 // Constructor
@@ -295,18 +270,6 @@ ParticleFerry::ParticleFerry(int nimax, int ndmax) : nimax(nimax), ndmax(ndmax)
 
   bufpos    = 0;
   ibufcount = 0;
-
-
-				// These are for key value sanity
-				// checks
-  pk_lo = 1u << (3*pkbits);
-  pk_hi = 1u << (3*pkbits+1);
-
-  key_lo = 1u;
-  key_lo <<= (3*nbits);
-  key_hi = 1u;
-  key_hi <<= (3*nbits+1);
-
 }
 
 // Destructor
@@ -409,46 +372,4 @@ void ParticleFerry::BufferRecv()
   cout << "ParticleFerry: process " << myid  << " recv, tot=" << itotcount-1+ibufcount << endl;
   bufferKeyCheck();
 #endif
-}
-
-
-void ParticleFerry::bufferKeyCheck()
-{
-				// Sanity check for pHOT keys
-  unsigned long minkey = 1u;
-  minkey <<= sizeof(unsigned long)*8 - 1;
-  unsigned long maxkey = 0u;
-  unsigned err0 = 0;
-  for (unsigned n=0; n<ibufcount; n++) {
-    unsigned long key; memcpy(&key, &buf[n*bufsiz+keypos], sizeof(unsigned long));
-    minkey = min<unsigned long>(minkey, key);
-    maxkey = max<unsigned long>(maxkey, key);
-    if ((key < key_lo || key >= key_hi) && key > 0u) err0++;
-  }
-
-  unsigned maxpexp = 1u;
-  maxpexp <<= (3*pkbits);
-  unsigned minpkey = 1u;
-  minpkey <<= (32 - 1);
-  unsigned maxpkey = 0u;
-  unsigned err1 = 0;
-  for (unsigned n=0; n<ibufcount; n++) {
-    unsigned tree; memcpy(&tree, &buf[n*bufsiz+treepos], sizeof(unsigned));
-    minpkey = min<unsigned>(minpkey, tree);
-    maxpkey = max<unsigned>(maxpkey, tree);
-    if ((tree < pk_lo || tree >= pk_hi) && tree > 0u) err1++;
-  }
-
-  unsigned wid = 3*nbits/4 + 3;
-
-  if (err0)
-    cerr << "ParticleFerry: Key err=" << err0 << endl << hex
-	 << "ParticleFerry: min key=" << right << setw(wid) << minkey << endl 
-	 << "ParticleFerry: max key=" << right << setw(wid) << maxkey << endl;
-  if (err1)
-    cout << "ParticleFerry: Cel err=" << dec << err1 << endl
-	 << "ParticleFerry: min cel=" << right << setw(12) << minpkey << endl 
-	 << "ParticleFerry: max cel=" << right << setw(12) << maxpkey << endl;
-
-  return;
 }

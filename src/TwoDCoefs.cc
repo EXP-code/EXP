@@ -115,16 +115,14 @@ TwoDCoefs::TwoDCoefs(const std::string& file, unsigned stride)
 	std::cout << "TwoDCoefs: [" << myid << "] "
 		  << "coefficient stanza rank mismatch: lmax=" << v->Lmax
 		  << ", expected " << Lmax << std::endl;
-	MPI_Finalize();
-	exit(-31);
+	throw std::runtime_error("TwoDCoefs: rank error");
       }
 
       if (nmax != v->nmax) {
 	std::cout << "TwoDCoefs: [" << myid << "] "
 		  << "coefficient stanza rank mismatch: nmax=" << v->nmax
 		  << ", expected " << nmax << std::endl;
-	MPI_Finalize();
-	exit(-32);
+	throw std::runtime_error("TwoDCoefs: rank error");
       }
     } 
     

@@ -92,8 +92,7 @@ AxisymmetricBasis:: AxisymmetricBasis(Component* c0, const YAML::Node& conf) :
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("AxisymmetricBasis: error parsing YAML");
   }
 
 

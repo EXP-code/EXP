@@ -11,9 +11,9 @@
 //
 // MPI variables
 //
-MPI_Comm MPI_COMM_SLAVE;
-MPI_Group world_group, slave_group;
-int numprocs=1, slaves, myid=0, proc_namelen;
+MPI_Comm MPI_COMM_WORKER;
+MPI_Group world_group, worker_group;
+int numprocs=1, workers, myid=0, proc_namelen;
 char processor_name[MPI_MAX_PROCESSOR_NAME];
 std::ofstream mpi_debug;
 
@@ -29,18 +29,18 @@ void local_init_mpi(int argc, char **argv)
   MPI_Get_processor_name(processor_name, &proc_namelen);
 
   //=========================
-  // Make SLAVE communicator
+  // Make WORKER communicator
   //=========================
 
-  slaves = numprocs - 1;
+  workers = numprocs - 1;
 
-  if (slaves) {
+  if (workers) {
     MPI_Comm_group(MPI_COMM_WORLD, &world_group);
-    std::vector<int> nslaves (slaves);
+    std::vector<int> nworkers (workers);
 
-    for (int n=1; n<numprocs; n++) nslaves[n-1] = n;
-    MPI_Group_incl(world_group, slaves, &nslaves[0], &slave_group);
-    MPI_Comm_create(MPI_COMM_WORLD, slave_group, &MPI_COMM_SLAVE);
+    for (int n=1; n<numprocs; n++) nworkers[n-1] = n;
+    MPI_Group_incl(world_group, workers, &nworkers[0], &worker_group);
+    MPI_Comm_create(MPI_COMM_WORLD, worker_group, &MPI_COMM_WORKER);
   }
 
   //=========================
@@ -68,7 +68,7 @@ void local_init_mpi(int argc, char **argv)
 		<< " | " << std::setw(8)  << getpid();
       
       if (n) {
-	int m; MPI_Group_rank ( slave_group, &m );
+	int m; MPI_Group_rank ( worker_group, &m );
 	std::cout << " | " << std::setw(10) << "WORKER " << m << std::endl;
       } else {
 	std::cout << " | " << std::setw(10) << "ROOT" << std::endl;

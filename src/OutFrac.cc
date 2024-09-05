@@ -36,16 +36,14 @@ OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
     if (myid==0) {
       std::cerr << "OutFrac: no component to trace\n";
     }
-    MPI_Finalize();
-    exit(112);
+    throw std::runtime_error("OutFrac: missing component");
   }
 
   if (numQuant==0) {
     if (myid==0) {
       std::cerr << "OutFrac: no quantiles defined!\n";
     }
-    MPI_Finalize();
-    exit(113);
+    throw std::runtime_error("OutFrac: missing quantiles");
   }
   else if (myid==0)
     std::cout << "OutFrac: using " << numQuant << " quantiles\n";
@@ -183,8 +181,7 @@ void OutFrac::initialize()
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("OutFrac::initialize: error parsing YAML");
   }
 
 }

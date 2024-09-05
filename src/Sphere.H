@@ -92,6 +92,7 @@ private:
   double tnext, dtime;
   int    numr;
   int    nums;
+  int    noff;
   int    cmap;
   int    diverge;
   double dfac;

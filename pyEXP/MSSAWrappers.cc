@@ -63,31 +63,38 @@ void MSSAtoolkitClasses(py::module &m) {
     "construct these simple YAML configurations on the fly. A simple example\n"
     "is also given below.  The boolean parameters are listed below by my\n"
     "guess of their usefulness to most people:\n\n"
-    "  verbose: false        Whether there is report or not\n"
+    "  verbose: false        Report on internal progress for debugging only\n"
     "  noMean: false         If true, do not subtract the mean when\n"
-    "                        reading in channels. Valid only for totPow\n"
+    "                        reading in channels. Used only for totPow\n"
     "                        detrending method.\n"
     "  writeCov: true        Write the covariance matrix to a file for\n"
     "                        diagnostics since this is not directly\n"
-    "                        available from the interface\n"
+    "                        available from the interface. Used only if\n"
+    "                        Traj: false.\n"
     "  Jacobi: true          Use the Jacobi SVD rather than the Random\n"
     "                        approximation algorithm from Halko, Martinsson,\n"
     "                        and Tropp (RedSVD). This is quite accurate but\n"
     "                        _very_ slow\n"
-    "  BDCSVD: true          Use the Binary Divide and Conquer SVD rather\n"
+    "  BDCSVD: true          Use the Bidiagonal Divide and Conquer SVD\n"
     "                        rather than RedSVD; this is faster and more\n"
-    "                        accurate than the default RedSVD but slower\n"
+    "                        accurate than the default RedSVD but slower.\n"
     "  Traj: true            Perform the SVD of the trajectory matrix\n"
-    "                        rather than the more computationally SVD\n"
-    "                        of the trajectory matrix.  Do not use this\n"
-    "                        with the default RedSVD algorithm.  Use either\n"
-    "                        either Jacobi or BDCSVD for accuracy.\n"
+    "                        rather than the more computationally intensive\n"
+    "                        but more stable SVD of the covariance matrix.\n"
+    "                        Set to false to get standard covariance SVD.\n"
+    "                        In practice, 'Traj: true' is sufficiently\n"
+    "                        accurate for all PC orders that are typically\n"
+    "                        found to have dynamical signal.\n"
+    "  rank: 100             The default rank for the randomized matrix SVD.\n"
+    "                        The default value will give decent accuracy with\n"
+    "                        small computational overhead and will be a good\n"
+    "                        choice for most applications.\n"
     "  RedSym: true          Use the randomized symmetric eigenvalue solver\n"
-    "                        RedSym rather rather than RedSVD. The main use\n"
-    "                        for these various SVD algorithm toggles is for\n"
-    "                        checking the accuracy of the default randomized\n"
-    "                        matrix methods.\n"
-    "  allchan: true         Perform k-mean clustering analysis using all\n"
+    "                        RedSym rather rather than RedSVD for the co-\n"
+    "                        variance matrix SVD (Traj: false). The main use\n"
+    "                        for this is checking the accuracy of the default\n"
+    "                        randomized matrix methods.\n"
+    "  allchan: true         Perform k-means clustering analysis using all\n"
     "                        channels simultaneously\n"
     "  distance: true        Compute w-correlation matrix PNG images using\n"
     "                        w-distance rather than correlation\n"
@@ -319,7 +326,6 @@ void MSSAtoolkitClasses(py::module &m) {
         dict({id: Coefs},...)
              reconstructed time series in the original coefficient form
 
-
         Notes
         -----
         The reconstructed data will overwrite the memory of the original coefficient 
@@ -534,7 +540,6 @@ void MSSAtoolkitClasses(py::module &m) {
         float
 	    power value
 	)");
-
 
   f.def("getRC", &expMSSA::getRC,
 	R"(

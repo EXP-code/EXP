@@ -23,8 +23,7 @@ CenterFile::CenterFile(const YAML::Node& conf)
 		<< std::string(60, '-') << std::endl
 		<< conf                 << std::endl
 		<< std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("CenterFile: missing <file> parameter");
   }
 
   try {
@@ -39,8 +38,7 @@ CenterFile::CenterFile(const YAML::Node& conf)
 		<< std::string(60, '-') << std::endl
 		<< conf
 		<< std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-2);
+    throw std::runtime_error("CenterFile: bad center <type>");
   }
   
   // Convert type to upper case
@@ -58,8 +56,7 @@ CenterFile::CenterFile(const YAML::Node& conf)
 		<< "fouund <" << type << "> but expected either "
 		<< "'COM' or 'EJ'" << std::endl
 		<< std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-3);
+    throw std::runtime_error("CenterFile: error parsing type");
   }
 
   // Open input file
@@ -98,8 +95,7 @@ CenterFile::CenterFile(const YAML::Node& conf)
       std::cout << "CenterFile error opening center file <" << name << ">"
 		<< std::endl
 		<< std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-4);
+    throw std::runtime_error("CenterFile: error opening file");
   }
 
   // Some chatty output
@@ -123,8 +119,7 @@ std::array<double, 3> CenterFile::operator()(double T)
       std::cout << "CenterFile range error: T="
 		<< T << " is off grid"<< std::endl
 		<< std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-5);
+    throw std::runtime_error("CenterFile::operator(): range error");
   }
   
   // Check limiting cases

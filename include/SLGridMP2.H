@@ -23,152 +23,6 @@ using namespace __EXP__;
 #include <cudaMappingConstants.cuH>
 #endif
 
-//! Target density models for thin disks
-class CylModel
-{
-protected:
-  //! For cache identification
-  std::string id;
-
-public:
-
-  //! Factory constructor
-  static std::shared_ptr<CylModel> createModel(const std::string type);
-
-  //! Return the potential
-  virtual double pot(double r) = 0;
-
-  //! Return the derivative of the potential
-  virtual double dpot(double r) = 0;
-
-  //! Return the surface density
-  virtual double dens(double r) = 0;
-
-  //! Get model ID
-  std::string ID() const { return id; }
-};
-
-//! Cylindrical SL grid class
-class SLGridCyl
-{
-
-private:
-  
-  int mmax, nmax, numr, numk;
-  double rmin, rmax, l;
-
-  int cmap;
-  double rmap;
-
-  double dk;
-
-  double xmin, xmax, dxi;
-
-  Eigen::VectorXd kv;
-  Eigen::VectorXd r;
-  Eigen::VectorXd xi;
-  Eigen::VectorXd p0;
-  Eigen::VectorXd d0;
-
-  TableCyl** table;
-
-  void init_table(void);
-  void compute_table(TableCyl* table, int M, int K);
-  void compute_table_worker(void);
-  int  read_cached_table(void);
-  void write_cached_table(void);
-
-  //! Basis magic number
-  inline static const unsigned int hmagic = 0xc0a56a2;
-
-				// Local MPI stuff
-  void mpi_setup(void);
-  void mpi_unpack_table(void);
-  int  mpi_pack_table(TableCyl* table, int m, int k);
-
-  int mpi_myid, mpi_numprocs;
-  int mpi_bufsz;
-  char *mpi_buf;
-
-  void bomb(string oops);
-
-  //! Use basis cache
-  bool cache;		
-
-  //! For deep debugging
-  bool tbdbg;
-
-public:
-
-  //! Global MPI indicator, default: 0=off
-  static int mpi;
-
-  //! Exponential scale length, default: 1.0
-  static double A;		
-
-  //! Constructor
-  SLGridCyl(int mmax, int nmax, int numr, int numk, double rmin, double rmax,
-	    double l, bool cache, int Cmap, double RMAP,
-	    const std::string type, bool Verbose=false);
-
-  //! Destructor
-  ~SLGridCyl();
-
-				// Members
-
-  //! Return eigenvalue for given order
-  double eigenvalue(int m, int k, int n) {return table[m][k].ev[n];}
-
-  //! Dimensional to dimensionless coordinate mapping
-  double r_to_xi(double r);
-
-  //! Dimensionless to dimensional coordinate mapping
-  double xi_to_r(double x);
-
-  //! Jacobian of dimensionless mapping
-  double d_xi_to_r(double x);
-
-  //! Get potential basis value
-  double get_pot(double x, int m, int n, int k, int which=1);
-
-  //! Get density basis value
-  double get_dens(double x, int m, int n, int k, int which=1);
-
-  //! Get force basis value
-  double get_force(double x, int m, int n, int k, int which=1);
-
-  //! Fill vector with desired potential basis 
-  void get_pot(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
-
-  //! Fill vector with desired density basis 
-  void get_dens(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
-
-  //! Fill vector with desired force basis 
-  void get_force(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
-
-  //! Fill Matrix with desired potential basis 
-  void get_pot(Eigen::MatrixXd& tab, double x, int m, int which=1);
-
-#if HAVE_LIBCUDA==1
-  void get_pot_cuda(float* tab, double x, int m, int which=1);
-#endif
-
-  //! Fill Matrix with desired potential basis 
-  void get_dens(Eigen::MatrixXd& tab, double x, int m, int which=1);
-
-  //! Fill Matrix with desired potential basis 
-  void get_force(Eigen::MatrixXd& tab, double x, int m, int which=1);
-
-  //! Fill Matricies with desired potential basis 
-  void get_pot(Eigen::MatrixXd* tab, double x, int mMin, int mMax, int which=1);
-
-  //! Fill Matricies with desired density basis 
-  void get_dens(Eigen::MatrixXd* tab, double x, int mMin, int mMax, int which=1);
-  //! Fill Matricies with desired force basis 
-  void get_force(Eigen::MatrixXd* tab, double x, int mMin, int mMax, int which=1);
-
-};
-
 
 //!! Spherical SL grid class
 class SLGridSph
@@ -189,7 +43,9 @@ private:
   Eigen::VectorXd p0;
   Eigen::VectorXd d0;
 
-  TableSph* table;
+  // Use shared pointers to avoid copying and memory leaks
+  using table_ptr_1D = std::shared_ptr<TableSph[]>;
+  table_ptr_1D table;
 
   void initialize(int LMAX, int NMAX, int NUMR,
 		  double RMIN, double RMAX, 
@@ -207,7 +63,7 @@ private:
 
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
-  char *mpi_buf;
+  std::shared_ptr<char []> mpi_buf;
 
   void bomb(string oops);
 
@@ -229,14 +85,14 @@ private:
   //! Cache file name
   std::string sph_cache_name;
 
-  //! Basis magic number
-  inline static const unsigned int hmagic = 0xc0a56a1;
-
   //! Write HDF5 cache
   void WriteH5Cache();
 
   //! Read HDF5 cache
   bool ReadH5Cache();
+
+  //! Cache versioning
+  inline static const std::string Version = "1.0";
 
 public:
 
@@ -259,6 +115,10 @@ public:
 	    int DIVERGE, double DFAC,
 	    std::string cachename=".slgrid_sph_cache",
 	    bool Verbose=false);
+
+  //! Constructor (from cache file)
+  SLGridSph(std::string cachename);
+
 
   //! Destructor
   virtual ~SLGridSph();
@@ -360,6 +220,11 @@ public:
   double getRmax() { return rmax; }
   //@}
 
+  //@{
+  //! Get expansion limits
+  int getLmax() { return lmax; }
+  int getNmax() { return nmax; }
+  //@}
 };
 
 
@@ -404,7 +269,11 @@ private:
   Eigen::VectorXd p0;
   Eigen::VectorXd d0;
 
-  TableSlab** table;
+  // Use shared pointers to avoid copying and memory leaks
+  using table_ptr_1D = std::shared_ptr<TableSlab[]>;
+  using table_ptr_2D = std::shared_ptr<table_ptr_1D[]>;
+
+  table_ptr_2D table;
 
   void init_table(void);
   void compute_table(TableSlab* table, int kx, int ky);
@@ -415,20 +284,86 @@ private:
   void mpi_setup(void);
   void mpi_unpack_table(void);
   int  mpi_pack_table(TableSlab* table, int kx, int ky);
-  int  read_cached_table(void);
-  void write_cached_table(void);
-
-  //! Basis magic number
-  inline static const unsigned int hmagic = 0xc0a56a3;
+  bool ReadH5Cache(void);
+  void WriteH5Cache(void);
 
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
-  char *mpi_buf;
+
+  std::shared_ptr<char[]> mpi_buf;
 
   void bomb(string oops);
 
   //! For deep debugging
   bool tbdbg;
+
+  //@{
+
+  //! This defines a class providing selectable maps from the infinite
+  //! to finite interval
+  enum CoordMapTypes {Tanh, Sech, Linear};
+
+  //! The base class for all coordinate maps
+  class CoordMap
+  {
+  protected:
+    //! Scale parameter
+    double H;
+
+  public:
+    //! Constructor
+    CoordMap(double H) : H(H) {}
+  
+    //! Convert from vertical to mapped coordinate
+    virtual double z_to_xi  (double z) = 0;
+
+    //! Convert from mapped coordinate back to vertical
+    virtual double xi_to_z  (double z) = 0;
+
+    //! Jacobian of the transformation
+    virtual double d_xi_to_z(double z) = 0;
+
+    //! Coordinate map factory
+    static std::unique_ptr<CoordMap> factory
+    (CoordMapTypes type, double H);
+  };
+
+
+  //! x = tanh(z/H)
+  class TanhMap : public CoordMap
+  {
+  public:
+    TanhMap(double H) : CoordMap(H) {}
+    virtual double z_to_xi  (double z);
+    virtual double xi_to_z  (double z);
+    virtual double d_xi_to_z(double z);
+  };
+
+  //! x = z/sqrt(z^2 + H^2)
+  class SechMap : public CoordMap
+  {
+  public:
+    SechMap(double H) : CoordMap(H) {}
+    virtual double z_to_xi  (double z);
+    virtual double xi_to_z  (double z);
+    virtual double d_xi_to_z(double z);
+  };
+
+  //! x = z
+  class LinearMap : public CoordMap
+  {
+  public:
+    LinearMap(double H) : CoordMap(H) {}
+    virtual double z_to_xi  (double z);
+    virtual double xi_to_z  (double z);
+    virtual double d_xi_to_z(double z);
+  };
+
+  //! Model type
+  std::string type;
+
+  //! The current map created by the SLGridSlab constructor
+  std::unique_ptr<CoordMap> mM;
 
 public:
 
@@ -466,13 +401,13 @@ public:
   double eigenvalue(int kx, int ky, int n) {return table[kx][ky].ev[n];}
 
   //! Map from vertical coordinate to dimensionless coordinate
-  double z_to_xi(double z);
+  double z_to_xi(double z)   { return mM->z_to_xi(z); }
 
   //! Map from dimensionless coordinate to vertical coordinate
-  double xi_to_z(double x);
+  double xi_to_z(double x)   { return mM->xi_to_z(x); }
 
   //! Jacobian of coordinate mapping
-  double d_xi_to_z(double x);
+  double d_xi_to_z(double x) { return mM->d_xi_to_z(x); }
 
   //! Get potential for dimensionless coord with given wave numbers and index
   double get_pot(double x, int kx, int ky, int n, int which=1);
@@ -512,7 +447,36 @@ public:
   */
   void get_force(Eigen::MatrixXd& tab, double x, int which=1);
 
+  //! Compute the orthogonality of the basis by returning inner
+  //! produce matrices
+  std::vector<Eigen::MatrixXd> orthoCheck(int knots=40);
+
   //@}
+
+#if HAVE_LIBCUDA==1
+  void initialize_cuda(std::vector<cudaArray_t>& cuArray,
+		       thrust::host_vector<cudaTextureObject_t>& tex);
+
+  virtual cudaMappingConstants getCudaMappingConstants()
+  {
+    cudaMappingConstants ret;
+
+    ret.hscale = H;
+    ret.xmin   = xmin;
+    ret.xmax   = xmax;
+    ret.ymin   = 0.0;
+    ret.ymax   = 0.0;
+    ret.numr   = numz;
+    ret.numx   = 0;
+    ret.numy   = 0;
+    ret.dxi    = dxi;
+    ret.dyi    = 0.0;
+
+    return ret;
+  }
+
+#endif
+
 };
 
 

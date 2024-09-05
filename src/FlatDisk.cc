@@ -15,6 +15,7 @@ FlatDisk::valid_keys = {
   "mmax",
   "numx",
   "numy",
+  "NQDHT",
   "knots",
   "logr",
   "model",
@@ -89,8 +90,7 @@ void FlatDisk::initialize()
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("FlatDisk::initialize: error in parsing YAML");
   }
 
   // Create the BiorthCyl instance

@@ -63,8 +63,7 @@ BiorthCube::BiorthCube(const YAML::Node& conf) : conf(conf)
 			   << std::string(60, '-') << std::endl
 			   << conf
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("BiorthCube: YAML parsing error");
   }
 
   geometry = "cube";

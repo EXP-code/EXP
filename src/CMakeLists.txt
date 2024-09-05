@@ -6,13 +6,13 @@ set(CUDA_SRC)
 if (ENABLE_CUDA)
   list(APPEND CUDA_SRC cudaPolarBasis.cu cudaSphericalBasis.cu
     cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc
-    cudaHOT.cu cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu
-    cudaOrient.cu cudaBiorthCyl.cu cudaCube.cu)
+    cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu cudaOrient.cu
+    cudaBiorthCyl.cu cudaCube.cu cudaSlabSL.cu)
 endif()
 
-set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
-  CBrockDisk.cc Cube.cc Cylinder.cc ExternalCollection.cc
-  ExternalForce.cc Hernquist.cc Orient.cc PotAccel.cc ScatterMFP.cc
+set(exp_SOURCES Basis.cc Bessel.cc Component.cc
+  Cube.cc Cylinder.cc ExternalCollection.cc
+  ExternalForce.cc Orient.cc PotAccel.cc ScatterMFP.cc
   PeriodicBC.cc SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc
   TwoDCoefs.cc TwoCenter.cc EJcom.cc global.cc begin.cc ddplgndr.cc
   Direct.cc Shells.cc NoForce.cc end.cc OutputContainer.cc OutPS.cc
@@ -20,11 +20,10 @@ set(exp_SOURCES Basis.cc Bessel.cc CBrock.cc Component.cc
   Output.cc externalShock.cc CylEXP.cc generateRelaxation.cc
   HaloBulge.cc incpos.cc incvel.cc ComponentContainer.cc OutAscii.cc
   OutMulti.cc OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc
-  OutVel.cc OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc step.cc
+  OutVel.cc OutCoef.cc multistep.cc parse.cc SlabSL.cc step.cc
   tidalField.cc ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
-  ParticleFerry.cc pCell.cc chkSlurm.c chkTimer.cc pHOT.cc
-  GravKernel.cc ${CUDA_SRC} CenterFile.cc PolarBasis.cc FlatDisk.cc
-  signals.cc)
+  ParticleFerry.cc chkSlurm.c chkTimer.cc GravKernel.cc ${CUDA_SRC}
+  CenterFile.cc PolarBasis.cc FlatDisk.cc signals.cc)
 
 set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR}

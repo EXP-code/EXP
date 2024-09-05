@@ -388,12 +388,21 @@ public:
 
   //@{
   //! Evaluate the profile at a particular radius
-  virtual double get_mass(const double) override;
-  virtual double get_density(const double) override;
-  virtual double get_pot(const double) override;
-  virtual double get_dpot(const double) override;
-  virtual double get_dpot2(const double) override;
-  virtual void   get_pot_dpot(const double, double&, double&) override;
+  virtual double get_mass(const double);
+  virtual double get_density(const double);
+  virtual double get_pot(const double);
+  virtual double get_dpot(const double);
+  virtual double get_dpot2(const double);
+  virtual void   get_pot_dpot(const double, double&, double&);
+
+  double get_mass(const double x1, const double x2, const double x3)
+  { return get_mass(sqrt(x1*x1 + x2*x2 + x3*x3)); }
+  
+  double get_density(const double x1, const double x2, const double x3)
+  { return get_density(sqrt(x1*x1 + x2*x2 + x3*x3)); }
+  
+  double get_pot(const double x1, const double x2, const double x3)
+  { return get_pot(sqrt(x1*x1 + x2*x2 + x3*x3)); }
   //@}
   
   //@{
@@ -401,8 +410,8 @@ public:
   int get_num_param(void) { return num_params; }
   double get_param(int i) { return params[i]; }
 
-  double get_min_radius(void) override { return mass.x[0]; }
-  double get_max_radius(void) override { return mass.x[mass.num-1]; }
+  double get_min_radius(void) { return mass.x[0]; }
+  double get_max_radius(void) { return mass.x[mass.num-1]; }
   int grid_size(void) { return num; }
   void print_model(const std::string& name);
   void print_model_eval(const std::string& name, int number);
@@ -417,10 +426,10 @@ public:
 
   //@{
   //! Evaluate the distribution function
-  double distf(double E, double L) override;
-  double dfde(double E, double L) override;
-  double dfdl(double E, double L) override;
-  double d2fde2(double E, double L) override;
+  double distf(double E, double L);
+  double dfde(double E, double L);
+  double dfdl(double E, double L);
+  double d2fde2(double E, double L);
   //@}
 };
 
@@ -448,44 +457,53 @@ public:
 
   //@{
   //! Evaluate the profile at a radial point
-  virtual double get_mass(const double r) override
+  virtual double get_mass(const double r)
   { return real->get_mass(r); }
 
-  virtual double get_density(const double r) override
+  virtual double get_density(const double r)
   { return real->get_density(r); }
   
-  virtual double get_pot(const double r) override
+  virtual double get_pot(const double r)
   { return real->get_pot(r); }
 
-  virtual double get_dpot(const double r)  override
+  virtual double get_dpot(const double r)
   { return real->get_dpot(r); }
 
-  virtual double get_dpot2(const double r)  override
+  virtual double get_dpot2(const double r)
   { return real->get_dpot2(r); }
 
-  virtual void get_pot_dpot(const double r, double& p, double& dp) override
+  virtual void get_pot_dpot(const double r, double& p, double& dp)
   { real->get_pot_dpot(r, p, dp); }
+
+  double get_mass(const double x1, const double x2, const double x3)
+  { return get_mass(sqrt(x1*x1 + x2*x2 + x3*x3)); }
+  
+  double get_density(const double x1, const double x2, const double x3)
+  { return get_density(sqrt(x1*x1 + x2*x2 + x3*x3)); }
+  
+  double get_pot(const double x1, const double x2, const double x3)
+  { return get_pot(sqrt(x1*x1 + x2*x2 + x3*x3)); }
   //@}
   
   //@{
   //! Additional member functions
-  double get_min_radius(void) override { return real->get_min_radius(); }
-  double get_max_radius(void) override { return real->get_max_radius(); }
+  double get_min_radius(void) { return real->get_min_radius(); }
+  double get_max_radius(void) { return real->get_max_radius(); }
   //@}
 
   //@{
   //! Evaluate distribution function and its partial derivatives
-  double distf(double E, double L) override { return real->distf(E, L);  }
-  double dfde (double E, double L) override { return real->dfde(E, L);   }
-  double dfdl (double E, double L) override { return real->dfdl(E, L);   }
-  double d2fde2(double E, double L) override { return real->d2fde2(E, L); }
+  double distf(double E, double L)  { return real->distf(E, L);  }
+  double dfde (double E, double L)  { return real->dfde(E, L);   }
+  double dfdl (double E, double L)  { return real->dfdl(E, L);   }
+  double d2fde2(double E, double L) { return real->d2fde2(E, L); }
   //@}
 
   //@{
   //! Overloaded to provide mass distribution from Real and Number distribution from Fake
-  Eigen::VectorXd gen_point(int& ierr) override;
-  Eigen::VectorXd gen_point(double r, int& ierr) override;
-  Eigen::VectorXd gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr) override;
+  Eigen::VectorXd gen_point(int& ierr);
+  Eigen::VectorXd gen_point(double r, int& ierr);
+  Eigen::VectorXd gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr);
   //@}
 
 

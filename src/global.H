@@ -61,12 +61,6 @@ extern int nbalance;
 //! Load balancing threshold (larger difference initiates balancing)
 extern double dbthresh;
 
-//! Number of bits per dimension for hash key
-extern unsigned nbits;
-
-//! Number of bits per dimension for partition
-extern unsigned pkbits;
-
 //! Particle ferry buffer size
 extern unsigned PFbufsz;
 
@@ -246,8 +240,8 @@ extern int dump_signal0;
 //! Used to flag separate behavior on inintialization (unused)
 extern int is_init;
 
-//! Internally defined slave communicator
-extern MPI_Comm MPI_COMM_SLAVE;
+//! Internally defined worker communicator
+extern MPI_Comm MPI_COMM_WORKER;
 
 //! List of host names and ranks
 extern std::map<std::string, std::vector<int> > nameMap;

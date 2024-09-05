@@ -21,10 +21,6 @@
 #include <PeriodicBC.H>
 #include <HaloBulge.H>
 
-#if DSMC_ENABLED>0
-#include <TreeDSMC.H>
-#endif
-
 ExternalCollection::ExternalCollection(void)
 {
 				// Do nothing
@@ -55,8 +51,7 @@ void ExternalCollection::initialize()
 			   << std::string(60, '-') << std::endl
 			   << parse                << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("ExternalCollection: error in parsing YAML");
   }
 
   if (ext.IsSequence()) {
@@ -89,11 +84,6 @@ void ExternalCollection::initialize()
 
 	force_list.insert(force_list.end(), new PeriodicBC(node));
       
-#if DSMC_ENABLED>0
-      else if ( !name.compare("TreeDSMC") )
-	
-	force_list.insert(force_list.end(), new TreeDSMC(node));
-#endif
       else if ( !name.compare("HaloBulge") )
 	
 	force_list.insert(force_list.end(), new HaloBulge(node));

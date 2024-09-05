@@ -68,8 +68,7 @@ void OutPS::initialize()
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("OutPS::initialize: error parsing YAML");
   }
 
 }

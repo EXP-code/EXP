@@ -24,9 +24,8 @@ void CoefficientClasses(py::module &m) {
     and metadata specific to each geometry. There are three groups of
     CoefStruct derived classes for biorthogonal basis coefficients,
     field data coeffients, and auxiliary table data. The biorthogonal
-    classes are spherical (SphStruct), cylindrical (CylStruct), and
-    cube (CubeStruct). EXP also knows about slabs.  These may be added
-    in a future release if there is a need.  The field classes
+    classes are spherical (SphStruct), cylindrical (CylStruct), slab
+    (SlabStruct), and cube (CubeStruct).  The field classes
     cylindrical (CylFldStruct), and spherical (SphFldStruct).  The
     table data is stored in TblStruct.
 
@@ -41,25 +40,26 @@ void CoefficientClasses(py::module &m) {
     array.  The dimen- sions are:
      1. (lmax, nmax) for SphStruct
      2. (mmax, nmax) for a CylStruct
-     3. (nmaxx, nmaxy, nmaxz) for a CubeStruct
-     4. (nfld, lmax, nmax) for a SphFldStruct
-     5. (nfld, mmax, nmax) for a CylFldStruct
-     6. (cols) for a TblStruct.
+     3. (nmaxx, nmaxy, nmaxz) for a SlabStruct
+     4. (nmaxx, nmaxy, nmaxz) for a CubeStruct
+     5. (nfld, lmax, nmax) for a SphFldStruct
+     6. (nfld, mmax, nmax) for a CylFldStruct
+     7. (cols) for a TblStruct.
 
     Coefs
     -----
     The base class, 'Coefs', provides a factory reader that will
     create one of the derived coefficient classes, SphCoefs, CylCoefs,
-    CubeCoefs, TblCoefs, SphFldCoefs, and CylFldCoefs, deducing the
-    type from the input file. The input files may be EXP native or
-    HDF5 cofficient files.  Only biorthgonal basis coefficients have a
-    native EXP type.  The Basis factory, Basis::createCoefficients,
-    will create set of coefficients from phase-space snapshots.  See
-    help(pyEXP.basis). Files which are not recognized as EXP
-    coefficient files are assumed to be data files and are parsed by
-    the TblCoefs class. The first column in data tables is interpreted
-    as time and each successive column is interpreted as a new data
-    field.
+    SlabCoefs, CubeCoefs, TblCoefs, SphFldCoefs, and CylFldCoefs,
+    deducing the type from the input file. The input files may be EXP
+    native or HDF5 cofficient files.  Only biorthgonal basis
+    coefficients have a native EXP type.  The Basis factory,
+    Basis::createCoefficients, will create set of coefficients from
+    phase-space snapshots.  See help(pyEXP.basis). Files which are not
+    recognized as EXP coefficient files are assumed to be data files
+    and are parsed by the TblCoefs class. The first column in data
+    tables is interpreted as time and each successive column is
+    interpreted as a new data field.
 
     Once created, you may get a list of times, get the total
     gravitational power from biothogonal basis coefficients and
@@ -361,6 +361,85 @@ void CoefficientClasses(py::module &m) {
 
   };
 
+  class PySlabCoefs : public SlabCoefs
+  {
+  protected:
+    void readNativeCoefs(const std::string& file, int stride, double tmin, double tmax) override {
+      PYBIND11_OVERRIDE(void, SlabCoefs, readNativeCoefs, file, stride, tmin, tmax);
+    }
+
+    std::string getYAML() override {
+      PYBIND11_OVERRIDE(std::string, SlabCoefs, getYAML,);
+    }
+
+    void WriteH5Params(HighFive::File& file) override {
+      PYBIND11_OVERRIDE(void, SlabCoefs, WriteH5Params, file);
+    }
+
+    unsigned WriteH5Times(HighFive::Group& group, unsigned count) override {
+      PYBIND11_OVERRIDE(unsigned, SlabCoefs, WriteH5Times, group, count);
+    }
+
+  public:
+    // Inherit the constructors
+    using SlabCoefs::SlabCoefs;
+
+    Eigen::VectorXcd& getData(double time) override {
+      PYBIND11_OVERRIDE(Eigen::VectorXcd&, SlabCoefs, getData, time);
+    }
+
+    void setData(double time, const Eigen::VectorXcd& array) override {
+      PYBIND11_OVERRIDE(void, SlabCoefs, setData, time, array);
+    }
+
+    std::shared_ptr<CoefStruct> getCoefStruct(double time) override {
+      PYBIND11_OVERRIDE(std::shared_ptr<CoefStruct>, SlabCoefs, getCoefStruct,
+			time);
+    }
+
+    std::vector<double> Times() override {
+      PYBIND11_OVERRIDE(std::vector<double>, SlabCoefs, Times,);
+    }
+
+    void WriteH5Coefs(const std::string& prefix) override {
+      PYBIND11_OVERRIDE(void, SlabCoefs, WriteH5Coefs, prefix);
+    }
+
+    void ExtendH5Coefs(const std::string& prefix) override {
+      PYBIND11_OVERRIDE(void, SlabCoefs, ExtendH5Coefs, prefix);
+    }
+
+    Eigen::MatrixXd& Power(int min, int max) override {
+      PYBIND11_OVERRIDE(Eigen::MatrixXd&, SlabCoefs, Power, min, max);
+    }
+
+    bool CompareStanzas(std::shared_ptr<Coefs> check) override {
+      PYBIND11_OVERRIDE(bool, SlabCoefs, CompareStanzas, check);
+    }
+
+    void clear() override {
+      PYBIND11_OVERRIDE(void, SlabCoefs,	clear,);
+    }
+
+    void add(CoefStrPtr coef) override {
+      PYBIND11_OVERRIDE(void, SlabCoefs,	add, coef);
+    }
+
+    std::vector<Key> makeKeys(Key k) override {
+      PYBIND11_OVERRIDE(std::vector<Key>, SlabCoefs, makeKeys, k);
+    }
+
+    std::shared_ptr<Coefs> deepcopy() override {
+      PYBIND11_OVERRIDE(std::shared_ptr<Coefs>, SlabCoefs, deepcopy,);
+    }
+
+    void zerodata() override {
+      PYBIND11_OVERRIDE(void, SlabCoefs, zerodata,);
+    }
+
+
+  };
+
   class PyCubeCoefs : public CubeCoefs
   {
   protected:
@@ -633,6 +712,28 @@ void CoefficientClasses(py::module &m) {
         Returns
         -------
         None
+        )");
+
+  py::class_<CoefClasses::SlabStruct, std::shared_ptr<CoefClasses::SlabStruct>, CoefStruct>
+    (m, "SlabStruct")
+    .def(py::init<>(), "Slab coefficient data structure object")
+    .def("assign", &SlabStruct::assign,
+	      R"(
+        Assign a coefficient matrix to CoefStruct.
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray, complex
+             complex-valued NumPy tensor of coefficient values
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        The dimensions are inferred from the 3-dimensional NumPy array
+        (tensor)
         )");
 
   py::class_<CoefClasses::CubeStruct, std::shared_ptr<CoefClasses::CubeStruct>, CoefStruct>
@@ -1201,7 +1302,7 @@ void CoefficientClasses(py::module &m) {
          configuration. If in doubt, use the default.
          )",
 	 py::arg("nodd")=-1, py::arg("min")=0,
-	 py::arg("max") = std::numeric_limits<double>::max());
+	 py::arg("max")=std::numeric_limits<int>::max());
 
 
   py::class_<CoefClasses::SphFldCoefs, std::shared_ptr<CoefClasses::SphFldCoefs>, CoefClasses::Coefs>
@@ -1220,7 +1321,12 @@ void CoefficientClasses(py::module &m) {
          SphFldCoefs instance
          )")
     .def("__call__",
-	 &CoefClasses::SphFldCoefs::getMatrix,
+	 [](CoefClasses::SphFldCoefs& A, double t)
+	 {
+	   Eigen::Tensor<std::complex<double>, 3> M = A.getMatrix(t);
+	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
+	   return ret;
+	 },
          R"(
          Return the coefficient tensor for the desired time.
 
@@ -1241,7 +1347,12 @@ void CoefficientClasses(py::module &m) {
          )",
          py::arg("time"))
     .def("setMatrix",
-	 &CoefClasses::SphFldCoefs::setMatrix,
+	 [](CoefClasses::SphFldCoefs& A, double t,
+	    py::array_t<std::complex<double>> array)
+	 {
+	   auto M = make_tensor3<std::complex<double>>(array);
+	   A.setMatrix(t, M);
+	 },
          R"(
          Enter and/or rewrite the coefficient tensor at the provided time
 
@@ -1249,8 +1360,8 @@ void CoefficientClasses(py::module &m) {
          ----------
          time : float
              snapshot time corresponding to the the coefficient matrix
-             mat : numpy.ndarray
-                 the new coefficient array.
+         mat : numpy.ndarray
+             the new coefficient array.
 
          Returns
          -------
@@ -1295,7 +1406,12 @@ void CoefficientClasses(py::module &m) {
          CylFldCoefs instance
          )")
     .def("__call__",
-	 &CoefClasses::CylFldCoefs::getMatrix,
+	 [](CoefClasses::CylFldCoefs& A, double t)
+	 {
+	   Eigen::Tensor<std::complex<double>, 3> M = A.getMatrix(t);
+	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
+	   return ret;
+	 },
          R"(
          Return the coefficient tensor for the desired time.
 
@@ -1316,7 +1432,12 @@ void CoefficientClasses(py::module &m) {
          )",
          py::arg("time"))
     .def("setMatrix",
-	 &CoefClasses::CylFldCoefs::setMatrix,
+	 [](CoefClasses::CylFldCoefs& A, double t,
+	    py::array_t<std::complex<double>> array)
+	 {
+	   auto M = make_tensor3<std::complex<double>>(array);
+	   A.setMatrix(t, M);
+	 },
          R"(
          Enter and/or rewrite the coefficient tensor at the provided time
 
@@ -1324,8 +1445,8 @@ void CoefficientClasses(py::module &m) {
          ----------
          time : float
              snapshot time corresponding to the the coefficient matrix
-             mat : numpy.ndarray
-                 the new coefficient array.
+         mat : numpy.ndarray
+             the new coefficient array.
 
          Returns
          -------
@@ -1347,6 +1468,101 @@ void CoefficientClasses(py::module &m) {
         numpy.ndarray
             4-dimensional numpy array containing the spherical coefficients
         )");
+
+
+  py::class_<CoefClasses::SlabCoefs, std::shared_ptr<CoefClasses::SlabCoefs>, PySlabCoefs, CoefClasses::Coefs>
+    (m, "SlabCoefs", "Container for cube coefficients")
+    .def(py::init<bool>(),
+	       R"(
+         Construct a null SlabCoefs object
+
+         Parameters
+         ----------
+         verbose : bool
+             display verbose information.
+
+         Returns
+         -------
+         SlabCoefs instance
+         )")
+    .def("__call__",
+	 &CoefClasses::SlabCoefs::getTensor,
+         R"(
+         Return the coefficient tensor for the desired time.
+
+         Parameters
+         ----------
+         time : float
+             the desired time
+
+         Returns
+         -------
+         numpy.ndarray
+             the coefficient Matrix at the requested time
+
+         Notes
+         -----
+         This operator will return the 0-rank tensor if no
+         coefficients are found at the requested time
+         )",
+         py::arg("time"))
+    .def("setTensor",
+	 &CoefClasses::SlabCoefs::setTensor,
+         R"(
+         Enter and/or rewrite the coefficient tensor at the provided time
+
+         Parameters
+         ----------
+         time : float
+             snapshot time corresponding to the the coefficient tensor
+             mat : numpy.ndarray
+                 the new coefficient array.
+
+         Returns
+         -------
+         None
+         )",
+         py::arg("time"), py::arg("tensor"))
+    .def("getAllCoefs",
+	 [](CoefClasses::SlabCoefs& A)
+	 {
+	   auto M = A.getAllCoefs(); // Need a copy here
+	   py::array_t<std::complex<double>> ret = make_ndarray4<std::complex<double>>(M);
+	   return ret;
+	 },
+	 R"(
+         Provide a 4-dimensional ndarray indexed by nx, ny, nz, and time indices.
+
+         Returns
+         -------
+         numpy.ndarray
+             4-dimensional numpy array containing the slab coefficients
+         )")
+    .def("PowerDim",
+	 [](CoefClasses::SlabCoefs& A, std::string d, int min, int max)
+	 {
+	   return A.Power(d[0], min, max);
+	 },
+	 R"(
+         Get power for the coefficient DB as a function of harmonic index for a
+         given dimension.  This Power() member is equivalent to PowerDim('x').
+
+         Parameters
+         ----------
+         d    : char
+            dimension for power summary; one of 'x', 'y', or 'z'
+         min  : int
+            minimum index along requested dimension (default=0)
+         max  : int
+            maximum index along requested dimension (default=max int)
+
+         Returns
+         -------
+         numpy.ndarray
+             2-dimensional numpy array containing the power
+         )", py::arg("d"), py::arg("min")=0,
+	 py::arg("max")=std::numeric_limits<int>::max());
+
 
   py::class_<CoefClasses::CubeCoefs, std::shared_ptr<CoefClasses::CubeCoefs>, PyCubeCoefs, CoefClasses::Coefs>
     (m, "CubeCoefs", "Container for cube coefficients")
@@ -1414,8 +1630,32 @@ void CoefficientClasses(py::module &m) {
          Returns
          -------
          numpy.ndarray
-             4-dimensional numpy array containing the cylindrical coefficients
-         )");
+             4-dimensional numpy array containing the cube coefficients
+         )")
+    .def("PowerDim",
+	 [](CoefClasses::CubeCoefs& A, std::string d, int min, int max)
+	 {
+	   return A.Power(d[0], min, max);
+	 },
+	 R"(
+         Get power for the coefficient DB as a function of harmonic index for a
+         given dimension.  This Power() member is equivalent to PowerDim('x').
+
+         Parameters
+         ----------
+         d    : char
+            dimension for power summary; one of 'x', 'y', or 'z'
+         min  : int
+            minimum index along requested dimension (default=0)
+         max  : int
+            maximum index along requested dimension (default=max int)
+
+         Returns
+         -------
+         numpy.ndarray
+             2-dimensional numpy array containing the power
+         )", py::arg("d"), py::arg("min")=0,
+	 py::arg("max")=std::numeric_limits<int>::max());
 
   py::class_<CoefClasses::TableData, std::shared_ptr<CoefClasses::TableData>, PyTableData, CoefClasses::Coefs>
     (m, "TableData", "Container for simple data tables with multiple columns")

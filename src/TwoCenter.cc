@@ -49,18 +49,6 @@ TwoCenter::TwoCenter(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
     exp_in  = new Bessel(c0, conf, mix_in );
     exp_out = new Bessel(c0, conf, mix_out);
   }
-  else if ( !basis.compare("c_brock") ) {
-    exp_in  = new CBrock(c0, conf, mix_in );
-    exp_out = new CBrock(c0, conf, mix_out);
-  }
-  else if ( !basis.compare("c_brock_disk") ) {
-    exp_in  = new CBrockDisk(c0, conf, mix_in );
-    exp_out = new CBrockDisk(c0, conf, mix_out);
-  }
-  else if ( !basis.compare("hernq") ) {
-    exp_in  = new Hernquist(c0, conf, mix_in );
-    exp_out = new Hernquist(c0, conf, mix_out);
-  }
   else if ( !basis.compare("sphereSL") ) {
     exp_in  = new Sphere(c0, conf, mix_in );
     exp_out = new Sphere(c0, conf, mix_out);
@@ -101,8 +89,7 @@ void TwoCenter::initialize()
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("TwoCenter::initialze: error parsing YAML");
   }
 }
 

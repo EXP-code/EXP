@@ -1,14 +1,22 @@
-import numpy as np
+# Open the output log file
+file = open("OUTLOG.run0")
 
-# Read the output log file
-data = np.loadtxt("OUTLOG.run0", skiprows=6, delimiter="|")
+n = 0                           # Count lines
+mean = 0.0                      # Accumulate 2T/VC values
 
-# Column 16 is -2T/VC.  The mean should be 1 with a std dev < 0.03
-mean = np.mean(data[:,16])
-stdv = np.std (data[:,16])
+# Open the output log file
+#
+while (line := file.readline()) != "":
+    if n >= 6:                  # Skip the header stuff
+        v = [float(x) for x in line.split('|')]
+        mean += v[16]           # This is the 2T/VC column
+    n = n + 1                   # Count lines
 
-# If the values are within 3 sigma, assume that the simulation worked
-if np.abs(mean - 1.0) > 3.0*stdv:
+if n>6: mean /= n-6             # Sanity check
+
+# Check closeness to 1.0
+#
+if (mean-1.0)*(mean-1.0) > 0.003:
     exit(1)
 else:
     exit(0)

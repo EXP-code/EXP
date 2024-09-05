@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21) # Needed for CUDA, MPI, and CTest features
 
 project(
   EXP
-  VERSION "7.7.28"
+  VERSION "7.7.99"
   HOMEPAGE_URL https://github.com/EXP-code/EXP
   LANGUAGES C CXX Fortran)
 
@@ -89,7 +89,6 @@ set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 # Package support
 
 find_package(MPI REQUIRED COMPONENTS C CXX)
-find_package(Boost COMPONENTS serialization)
 find_package(OpenMP)
 find_package(FFTW)
 find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
@@ -178,12 +177,6 @@ endif()
 if(PNG_FOUND AND ENABLE_PNG)
   set(HAVE_LIBPNGPP TRUE)
 endif()
-if(ENABLE_DSMC)
-  if(NOT BOOST_FOUND)
-    message(SEND_ERROR "You need Boost to compile DSMC")
-  endif()
-  set(DSMC_ENABLED 1)
-endif()
 if(ENABLE_CUDA_SINGLE)
   add_compile_definitions(O_SINGLE=1)
 endif()
@@ -224,6 +217,19 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+# Git submodule updates
+execute_process(
+  COMMAND git submodule update --init --recursive
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  RESULT_VARIABLE GIT_SUBMOD_RESULT
+)
+
+if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+   message(FATAL_ERROR "git submodule update --init --recursive failed ${GIT_SUBMOD_RESULT}, please checkout submodules")
+else()
+   message(STATUS "Submodules updated successfully - good")
+endif()
+
 # Get the latest abbreviated commit hash of the working branch
 execute_process(
   COMMAND git rev-parse HEAD
@@ -260,11 +266,12 @@ endif()
 # Set options for the HighFive git submodule in extern
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "Do not build the examples")
 set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "Do not build the documentation")
-set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "Do not use Boost in HighFIve")
+set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "Do not use Boost in HighFive")
+set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "Turn off internal testing for HighFIve")
 set(H5_USE_EIGEN TRUE CACHE BOOL "Eigen3 support in HighFive")
 
 if (USE_SUBMODULES)
-  add_subdirectory(extern/HighFive)
+  add_subdirectory(extern/HighFive EXCLUDE_FROM_ALL)
 else ()
   find_package(HighFive REQUIRED)
 endif()
@@ -273,6 +280,7 @@ endif()
 if (BUILD_COMMON_LIBRARIES)
   add_subdirectory(exputil)
   add_subdirectory(coefs)
+  add_subdirectory(expui)
 endif()
 
 if (ENABLE_NBODY)

@@ -26,11 +26,8 @@
 
 // For reading and writing HDF5 cache files
 //
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
-
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 #ifdef HAVE_OMP_H
 #include <omp.h>		// For multithreading basis construction
@@ -146,9 +143,9 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   // Sanity check
   if (lmax <= mmax) {
     if (myid==0) {
-      std::cout << "EmpCylSL: lmax must be greater than mmax for consistency"
+      std::cout << "---- EmpCylSL: lmax must be greater than mmax for consistency"
 		<< std::endl
-		<< "EmpCylSL: setting lmax=" << mmax + 1
+		<< "---- EmpCylSL: setting lmax=" << mmax + 1
 		<< " but you probably want lmax >> mmax"
 		<< std::endl;
     }
@@ -219,6 +216,128 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   maxSNR       = 0.0;
 }
 
+template <typename U>
+U getH5(std::string name, HighFive::File& file)
+{
+  if (file.hasAttribute(name)) {
+    U v; 
+    HighFive::Attribute vv = file.getAttribute(name);
+    vv.read(v);
+    return v;
+  } else {
+    std::ostringstream sout;
+    sout << "EmpCylSL: could not find <" << name << ">";
+    throw std::runtime_error(sout.str());
+  }
+}
+
+EmpCylSL::EmpCylSL(int mlim, std::string cachename)
+{
+  // Use default name?
+  //
+  if (cachename.size()==0)
+    throw std::runtime_error("EmpCylSL: you must specify a cachename");
+
+  cachefile = cachename;
+
+  // Open and read the cache file to get the needed input parameters
+  //
+  
+  try {
+    // Silence the HDF5 error stack
+    //
+    HighFive::SilenceHDF5 quiet;
+    
+    // Open the hdf5 file
+    //
+    HighFive::File file(cachename, HighFive::File::ReadOnly);
+    
+    // For basis ID
+    std::string forceID("Cylinder"), geometry("cylinder");
+    std::string model = EmpModelLabs[mtype];
+      
+    // Version check
+    //
+    if (file.hasAttribute("Version")) {
+      auto ver = getH5<std::string>(std::string("Version"), file);
+      if (ver.compare(Version))
+	throw std::runtime_error("EmpCylSL: version mismatch");
+    } else {
+      throw std::runtime_error("EmpCylSL: outdated cache");
+    }
+
+    NMAX    = getH5<int>("nmaxfid", file);
+    MMAX    = getH5<int>("mmax",    file);
+    LMAX    = getH5<int>("lmaxfid", file);
+    NORDER  = getH5<int>("nmax",    file);
+    CMAPR   = getH5<int>("cmapr",   file);
+    CMAPZ   = getH5<int>("cmapz",   file);
+    MMIN    = 0;
+    MLIM    = std::min<int>(mlim, MMAX);
+    NMIN    = 0;
+    NLIM    = std::numeric_limits<int>::max();
+    Neven   = getH5<int>("neven",   file);
+    Nodd    = getH5<int>("nodd",    file);
+    ASCALE  = getH5<double>("ascl", file);
+    HSCALE  = getH5<double>("hscl", file);
+  }
+  catch (YAML::Exception& error) {
+    std::ostringstream sout;
+    sout << "EmpCylSL::getHeader: invalid cache file <" << cachefile << ">. ";
+    sout << "YAML error in getHeader: " << error.what() << std::endl;
+    throw GenericError(sout.str(), __FILE__, __LINE__, 1038, false);
+  }
+
+  // Set EvenOdd if values seem sane
+  //
+  EvenOdd = false;
+  if (Nodd>=0 and Nodd<=NORDER and Nodd+Neven==NORDER) {
+    EvenOdd  = true;
+  }
+    
+  pfac     = 1.0/sqrt(ASCALE);
+  ffac     = pfac/ASCALE;
+  dfac     = ffac/ASCALE;
+  
+  EVEN_M   = false;
+
+  // Check whether MPI is initialized
+  //
+  int flag;
+  MPI_Initialized(&flag);
+  if (flag) use_mpi = true;
+  else      use_mpi = false;
+  
+  // Enable MPI code in SLGridSph
+  //
+  if (use_mpi and numprocs>1) SLGridSph::mpi = 1;
+  
+  // Choose table dimension
+  //
+  MPItable = 4;
+    
+  // Initialize storage and values
+  //
+  coefs_made.resize(multistep+1);
+  std::fill(coefs_made.begin(), coefs_made.end(), false);
+  
+  eof_made   = false;
+  
+  sampT        = 1;
+  defSampT     = 1;
+  tk_type      = None;
+  
+  cylmass      = 0.0;
+  cylmass1     = std::vector<double>(nthrds);
+  cylmass_made = false;
+  
+  hallfile     = "";
+  minSNR       = std::numeric_limits<double>::max();
+  maxSNR       = 0.0;
+
+  read_cache();
+}
+
 
 void EmpCylSL::reset(int numr, int lmax, int mmax, int nord, 
 		     double ascale, double hscale, int nodd,
@@ -231,9 +350,9 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   // Option sanity check
   if (lmax <= mmax) {
     if (myid==0) {
-      std::cout << "EmpCylSL: lmax must be greater than mmax for consistency"
+      std::cout << "---- EmpCylSL: lmax must be greater than mmax for consistency"
 		<< std::endl
-		<< "EmpCylSL: setting lmax=" << mmax + 1
+		<< "---- EmpCylSL: setting lmax=" << mmax + 1
 		<< " but you probably want lmax >> mmax"
 		<< std::endl;
     }
@@ -499,13 +618,12 @@ SphModTblPtr EmpCylSL::make_sl()
   std::vector<double> pw(number);
 
 				// ------------------------------------------
-				// Debug sanity check
+				// Log file output
 				// ------------------------------------------
   if (myid==0) {
-    std::cout << "EmpCylSL::make_sl(): making SLGridSph with <"
+    std::cout << "---- EmpCylSL::make_sl(): making SLGridSph with <"
 	      << EmpModelLabs[mtype] << "> model" << std::endl;
   }
-
 				// ------------------------------------------
 				// Make radial, density and mass array
 				// ------------------------------------------
@@ -819,7 +937,7 @@ std::string compare_out(std::string str, U one, U two)
   return sout.str();
 }
 
-int EmpCylSL::cache_grid(int readwrite, string cachename)
+int EmpCylSL::cache_grid(int readwrite, std::string cachename)
 {
 
   // Option to reset cache file name
@@ -2193,7 +2311,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 #endif
 
   std::shared_ptr<progress::progress_display> progress;
-  if (VFLAG & 16 && myid==0) {
+  if (VFLAG & 8 && myid==0) {
     std::cout << std::endl << "Quadrature loop progress" << std::endl;
     progress = std::make_shared<progress::progress_display>(numr);
   }
@@ -2206,9 +2324,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
     // Diagnostic timing output for MPI process loop
     //
-    if (VFLAG & 16 && myid==0) {
-      ++(*progress);
-    }    
+    if (progress) ++(*progress);
 
     if (cntr++ % numprocs != myid) continue;
 
@@ -2419,7 +2535,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   } // *** r quadrature loop
   
-  if (VFLAG & 16) {
+  if (VFLAG & 8) {
     auto t = timer.stop();
     if (myid==0) {
       std::cout << std::endl
@@ -2452,7 +2568,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   //
   make_eof();
 
-  if (VFLAG & 16) {
+  if (VFLAG & 8) {
     cout << "Process " << setw(4) << myid << ": completed basis in " 
 	 << timer.stop() << " seconds"
 	 << endl;
@@ -3096,7 +3212,7 @@ void EmpCylSL::make_eof(void)
 
   // Cache table for restarts
   //
-  if (myid==0) cache_grid(1);
+  if (myid==0) cache_grid(1, cachefile);
   
   // Basis complete but still need to compute coefficients
   //
@@ -5157,6 +5273,57 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
 
 
   
+double EmpCylSL::accumulated_midplane_eval(double r, double zmin, double zmax,
+					   double phi, int num)
+{
+  if (!coefs_made_all()) {
+    if (VFLAG>3) 
+      std::cerr << "Process " << myid << ": in EmpCylSL::accumlated_midplane_eval, "
+		<< "calling make_coefficients()" << std::endl;
+    make_coefficients();
+  }
+
+  std::vector<double> tdens(num);
+  double dz = (zmax - zmin)/(num - 1);
+
+  // Compute density in a column
+  //
+  for (int k=0; k<num; k++) {
+    double z = zmin + dz*k, d0;
+    tdens[k] = accumulated_dens_eval(r, z, phi, d0);
+  }
+
+  // Scan for peak
+  //
+  double pval = tdens[0];
+  int kpeak = 0;
+  for (int k=1; k<num; k++) {
+    if (pval < tdens[k]) {
+      pval = tdens[k];
+      kpeak = k;
+    }
+  }
+
+  // If k is at a boundary, return boundary value, otherwise compute
+  // the quadratic fit
+  //
+  if (kpeak==0 or kpeak==num-1) {
+    // Peak outside interval
+    return pval;
+  } else {
+    // Found a peak
+    double z0 = zmin + dz*kpeak;
+    double f[] = {tdens[kpeak-1], tdens[kpeak], tdens[kpeak+1]};
+
+    // Sanity: if we have a peak, then 'denom' should cannot be zero
+    double denom = f[0] - 2.0*f[1] + f[2]; 
+    if (fabs(denom)<1.0e-16) return z0;
+
+    // Quadratic solution
+    return ( (2*z0+dz)*f[0]*0.5 - 2*z0*f[1] + (2*z0-dz)*f[2]*0.5 ) / denom;
+  }
+}
+
 void EmpCylSL::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
 		       double r, double z)
 {
@@ -6051,7 +6218,7 @@ double EmpCylSL::r_to_xi(double r)
   if (CMAPR>0) {
     if (r<0.0) {
       ostringstream msg;
-      msg << "radius=" << r << " < 0! [mapped]";
+      msg << "EmpCylSL: radius=" << r << " < 0! [mapped]";
       throw GenericError(msg.str(), __FILE__, __LINE__, 1040, true);
     }
     return (r/ASCALE - 1.0)/(r/ASCALE + 1.0);
@@ -6992,7 +7159,8 @@ void EmpCylSL::WriteH5Cache()
     std::string model = EmpModelLabs[mtype];
 
     file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
-    file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
+    file.createAttribute<std::string>("forceID",  HighFive::DataSpace::From(forceID)).write(forceID);
+    file.createAttribute<std::string>("Version",  HighFive::DataSpace::From(Version)).write(Version);
       
     // Write the specific parameters
     //
@@ -7108,10 +7276,22 @@ bool EmpCylSL::ReadH5Cache()
     {
       std::string v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
       if (value.compare(v)==0) return true;
-      std::cout << "--- EmpCylSL cache parameter " << name << ": wanted "
+      std::cout << "---- EmpCylSL cache parameter " << name << ": wanted "
 		<< value << " found " << v << std::endl;
       return false;
     };
+
+    // Version check
+    //
+    if (file.hasAttribute("Version")) {
+      if (not checkStr(Version, "Version"))  return false;
+    } else {
+      if (myid==0)
+	std::cout << "---- EmpCylSL::ReadH5Cache: "
+		  << "recomputing cache for HighFive API change"
+		  << std::endl;
+      return false;
+    }
 
     if (not checkStr(geometry, "geometry"))  return false;
     if (not checkStr(forceID,  "forceID"))   return false;
@@ -7183,10 +7363,10 @@ bool EmpCylSL::ReadH5Cache()
 	sout << n;
 	auto order = harmonic.getGroup(sout.str());
       
-	order.getDataSet("potC")   .read(potC   [m][n]);
-	order.getDataSet("rforceC").read(rforceC[m][n]);
-	order.getDataSet("zforceC").read(zforceC[m][n]);
-	order.getDataSet("densC")  .read(densC[m][n]);
+	potC   [m][n] = order.getDataSet("potC")   .read<Eigen::MatrixXd>();
+	rforceC[m][n] = order.getDataSet("rforceC").read<Eigen::MatrixXd>();
+	zforceC[m][n] = order.getDataSet("zforceC").read<Eigen::MatrixXd>();
+	densC  [m][n] = order.getDataSet("densC")  .read<Eigen::MatrixXd>();
       }
     }
 
@@ -7206,10 +7386,10 @@ bool EmpCylSL::ReadH5Cache()
 	sout << n;
 	auto order = harmonic.getGroup(sout.str());
       
-	order.getDataSet("potS")   .read(potS   [m][n]);
-	order.getDataSet("rforceS").read(rforceS[m][n]);
-	order.getDataSet("zforceS").read(zforceS[m][n]);
-	order.getDataSet("densS")  .read(densS[m][n]);
+	potS   [m][n] = order.getDataSet("potS")   .read<Eigen::MatrixXd>();
+	rforceS[m][n] = order.getDataSet("rforceS").read<Eigen::MatrixXd>();
+	zforceS[m][n] = order.getDataSet("zforceS").read<Eigen::MatrixXd>();
+	densS  [m][n] = order.getDataSet("densS")  .read<Eigen::MatrixXd>();
       }
     }
 

@@ -9,21 +9,16 @@
 
 #include <Component.H>
 #include <Bessel.H>
-#include <CBrock.H>
-#include <CBrockDisk.H>
-#include <Hernquist.H>
 #include <Sphere.H>
 #include <EJcom.H>
 #include <Cylinder.H>
 #include <FlatDisk.H>
 #include <Cube.H>
-#include <Slab.H>
 #include <SlabSL.H>
 #include <Direct.H>
 #include <Shells.H>
 #include <NoForce.H>
 #include <Orient.H>
-#include <pHOT.H>
 #include <YamlCheck.H>
 
 #include "expand.H"
@@ -123,9 +118,7 @@ Component::Component(YAML::Node& CONF)
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("Component: error parsing <name>");
   }
 
   try {
@@ -141,8 +134,7 @@ Component::Component(YAML::Node& CONF)
 			   << conf
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(-2);
+    throw std::runtime_error("Component: error parsing <parameters>");
   }
   
   pfile = conf["bodyfile"].as<std::string>();
@@ -161,8 +153,7 @@ Component::Component(YAML::Node& CONF)
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(-3);
+    throw std::runtime_error("Component: error parsing <force>");
   }
 
   // Check for unmatched keys
@@ -186,8 +177,7 @@ Component::Component(YAML::Node& CONF)
 			   << force                << std::endl
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(-4);
+    throw std::runtime_error("Component: error parsing force <parameters>");
   }
 
   EJ          = 0;
@@ -268,8 +258,6 @@ Component::Component(YAML::Node& CONF)
   cov_lev     = vector<double>(3*(multistep+1), 0);
   coa_lev     = vector<double>(3*(multistep+1), 0);
   com_mas     = vector<double>(multistep+1, 0);
-
-  tree = 0;
 
   pbuf.resize(PFbufsz);
 
@@ -370,19 +358,6 @@ void Component::set_default_values()
   if (!cconf["noswitch"])        cconf["noswitch"]    = noswitch;
   if (!cconf["freezeL"])         cconf["freezeL"]     = freezeLev;
   if (!cconf["dtreset"])         cconf["dtreset"]     = dtreset;
-}
-
-
-void Component::HOTcreate(std::set<speciesKey> spec_list)
-{
-  delete tree;
-  tree = new pHOT(this, spec_list);
-}
-
-
-void Component::HOTdelete()
-{
-  delete tree;
 }
 
 
@@ -646,8 +621,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(-5);
+    throw std::runtime_error("Component: error parsing component <name>");
   }
 
   try {
@@ -663,8 +637,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << conf
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(-6);
+    throw std::runtime_error("Component: error parsing <parameters>");
   }
   
   pfile = conf["bodyfile"].as<std::string>();
@@ -683,8 +656,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(-7);
+    throw std::runtime_error("Component: error parsing <force>");
   }
 
   id = cforce["id"].as<std::string>();
@@ -702,8 +674,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << cforce                << std::endl
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(-8);
+    throw std::runtime_error("Component: error parsing force <parameters>");
   }
 
   // Defaults
@@ -797,8 +768,6 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 
   reset_level_lists();
 
-  tree = 0;
-
   pbuf.resize(PFbufsz);
 }
 
@@ -887,8 +856,7 @@ void Component::configure(void)
 			   << cconf                << std::endl
 			   << std::string(60, '-') << std::endl;
 
-    MPI_Finalize();
-    exit(-9);
+    throw std::runtime_error("Component: error parsing YAML");
   }
 
 
@@ -896,15 +864,6 @@ void Component::configure(void)
   //
   if ( !id.compare("bessel") ) {
     force = new Bessel(this, fconf);
-  }
-  else if ( !id.compare("c_brock") ) {
-    force = new CBrock(this, fconf);
-  }
-  else if ( !id.compare("c_brock_disk") ) {
-    force = new CBrockDisk(this, fconf);
-  }
-  else if ( !id.compare("hernq") ) {
-    force = new Hernquist(this, fconf);
   }
   else if ( !id.compare("sphereSL") ) {
     force = new Sphere(this, fconf);
@@ -914,9 +873,6 @@ void Component::configure(void)
   }
   else if ( !id.compare("cube") ) {
     force = new Cube(this, fconf);
-  }
-  else if ( !id.compare("slab") ) {
-    force = new Slab(this, fconf);
   }
   else if ( !id.compare("slabSL") ) {
     force = new SlabSL(this, fconf);
@@ -1286,8 +1242,6 @@ Component::~Component(void)
   delete [] com0;
   delete [] cov0;
   delete [] acc0;
-
-  delete tree;
 }
 
 void Component::read_bodies_and_distribute_ascii(void)
@@ -1545,8 +1499,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 	std::cerr << "YAML: error parsing <" << info.get() << "> "
 		  << "in " << __FILE__ << ":" << __LINE__ << std::endl
 		  << "YAML error: " << error.what() << std::endl;
-      MPI_Finalize();
-      exit(-10);
+      throw std::runtime_error("Component::read_bodies_and_distribute: error parsing YAML on load");
     }
 
     try {
@@ -1562,8 +1515,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 			     << std::string(60, '-') << std::endl
 			     << config               << std::endl
 			     << std::string(60, '-') << std::endl;
-      MPI_Finalize();
-      exit(-11);
+      throw std::runtime_error("Component::read_bodies_and_distribute: error parsing YAML in PSP");
     }
 
     YAML::Node force;
@@ -1582,8 +1534,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 			     << config               << std::endl
 			     << std::string(60, '-') << std::endl;
       
-      MPI_Finalize();
-      exit(-12);
+      throw std::runtime_error("Component::read_bodies_and_distribute: error parsing force stanza");
     }
 
     // Assign local conf
@@ -1781,7 +1732,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
       in->read((char*)&number, sizeof(int));
     } catch (...) {
       std::ostringstream sout;
-      sout << "Error reading magic info and file count from master";
+      sout << "Error reading magic info and file count from root";
       throw GenericError(sout.str(), __FILE__, __LINE__, 1010, true);
     }
 
@@ -2129,7 +2080,7 @@ PartPtr * Component::get_particles(int* number)
 	for (auto it=itb; it!=ite; it++) pbuf[icount++] = it->second;
 
 #ifdef DEBUG
-	std::cout << "get_particles: master loaded " 
+	std::cout << "get_particles: root loaded " 
 		  << icount << " of its own particles"
 		  << ", beg=" << beg << ", iend=" << end
 		  << ", dist=" << std::distance(itb, ite)
@@ -2146,7 +2097,7 @@ PartPtr * Component::get_particles(int* number)
       while (PartPtr part=pf->RecvParticle()) pbuf[icount++] = part;
 #ifdef DEBUG
       std::cout << "Process " << myid 
-	   << ": received " << icount << " particles from Slave " << node
+	   << ": received " << icount << " particles from Worker " << node
 		<< ", expected " << number << ", total=" << totals[node]
 		<< std::endl << std::flush;
 #endif    
@@ -2158,7 +2109,7 @@ PartPtr * Component::get_particles(int* number)
       curcount++;
       counter++;
     }
-				// Nodes send particles to master
+				// Nodes send particles to root
   } else if (myid == node) {
       
     auto itb = particles.begin();
@@ -2176,7 +2127,7 @@ PartPtr * Component::get_particles(int* number)
 
 #ifdef DEBUG
       std::cout << "Process " << myid 
-		<< ": sent " << icount << " particles from Slave " << node
+		<< ": sent " << icount << " particles from Worker " << node
 		<< std::endl << std::flush;
 #endif    
   }
@@ -3366,7 +3317,7 @@ int Component::round_up(double dnumb)
 
 void Component::setup_distribution(void)
 {
-				// Needed for both master and slaves
+				// Needed for both root and workers
   nbodies_index = vector<unsigned int>(numprocs);
   nbodies_table = vector<unsigned int>(numprocs);
 
@@ -3982,3 +3933,12 @@ void Component::DestroyPart(PartPtr p)
   nbodies--;
   modified++;
 }
+
+void Component::AddPart(PartPtr p)
+{
+  particles[p->indx] = p;
+
+  // Refresh size of local particle list
+  nbodies = particles.size();
+}
+

@@ -76,7 +76,7 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
   int in_ok;
   std::vector<double> in1(4), in2(4);
 
-  if (myid==0) {		// Master does the reading
+  if (myid==0) {		// Root does the reading
 
     ifstream in(logfile.c_str());
     
@@ -115,7 +115,7 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
       double time;
       int tused;
 
-      in_ok = 1;		// Signal slave: OK
+      in_ok = 1;		// Signal worker: OK
 	
       MPI_Bcast(&in_ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -176,12 +176,12 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
       if (restart)
       cout << "  -- Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
 
-      cout << "  -- Orient: axis master (cache size=" << sumsA.size() << "): " 
+      cout << "  -- Orient: axis root (cache size=" << sumsA.size() << "): " 
 	   << axis[0] << ", "
 	   << axis[1] << ", "
 	   << axis[2] << endl;
       
-      cout << "  -- Orient: center master (cache size=" << sumsC.size() << "): " 
+      cout << "  -- Orient: center root (cache size=" << sumsC.size() << "): " 
 	   << center[0] << ", "
 	   << center[1] << ", "
 	   << center[2] << endl;
@@ -212,7 +212,7 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
     } else {
 	
-      in_ok = 0;		// Signal slave: NO VALUES
+      in_ok = 0;		// Signal worker: NO VALUES
 	
       MPI_Bcast(&in_ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -261,7 +261,7 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
     
   } else {
 
-				// Get state from Master
+				// Get state from Root
 
     MPI_Bcast(&in_ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
 

@@ -283,8 +283,8 @@ protected:
 
   //! For updating levels
   //@{
-  vector< vector<Eigen::MatrixXd> > differ1;
-  vector< double > pack, unpack;
+  std::vector< std::vector<Eigen::MatrixXd> > differ1;
+  std::vector< double > pack, unpack;
   //@}
 
   /** Dump current coefficients (all multistep levels)

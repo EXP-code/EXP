@@ -27,11 +27,7 @@ OutCalbr::OutCalbr(const YAML::Node& conf) : Output(conf)
   initialize();
 
   if (!tcomp) {
-    if (myid==0) {
-      std::cerr << "OutCalbr: no component to trace\n";
-    }
-    MPI_Finalize();
-    exit(112);
+    throw std::runtime_error("OutCalbr: no component to trace");
   }
 }
 
@@ -176,8 +172,7 @@ void OutCalbr::initialize()
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("OutCalbr::initialize: error parsing YAML");
   }
 }
 

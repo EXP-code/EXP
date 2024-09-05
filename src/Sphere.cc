@@ -14,6 +14,7 @@ Sphere::valid_keys = {
   "rmapping",
   "numr",
   "nums",
+  "noff",
   "cmap",
   "diverge",
   "dfac",
@@ -32,6 +33,7 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   rmap = 0.067*rmax;
   numr = 2000;
   nums = 2000;
+  noff = 32;
   cmap = 1;
   diverge = 0;
   dfac = 1.0;
@@ -108,6 +110,7 @@ void Sphere::initialize()
     if (conf["rmapping"])  rmap       = conf["rmapping"].as<double>();
     if (conf["numr"])      numr       = conf["numr"].as<int>();
     if (conf["nums"])      nums       = conf["nums"].as<int>();
+    if (conf["noff"])      noff       = conf["noff"].as<int>();
     if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
     if (conf["diverge"])   diverge    = conf["diverge"].as<int>();
     if (conf["dfac"])      dfac       = conf["dfac"].as<double>();
@@ -126,8 +129,7 @@ void Sphere::initialize()
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("Sphere::initialze: error parsing YAML");
   }
 }
 
@@ -252,8 +254,18 @@ void Sphere::make_model_bin()
   // Make mass array
   //
   int    numR = std::min<int>(sqrt(Ntot), nums);
-  double Rmin = std::max<double>(RM.begin()->first, rmin);
-  double Rmax = RM.rbegin()->first;
+
+  // Compute offsets into mass array for bin edges
+  //
+  int   nstep = std::max<int>(noff, std::floor(0.5*Ntot/numR));
+
+  auto   ibeg = RM.begin();
+  auto   iend = RM.rbegin();
+  std::advance(ibeg, nstep);
+  std::advance(iend, nstep);
+
+  double Rmin = std::max<double>(ibeg->first, rmin);
+  double Rmax = iend->first;
   bool   logR = false;
 
   if (logr and Rmin>0.0) {
@@ -304,7 +316,8 @@ void Sphere::make_model_bin()
   //
   if (myid==0) {
     static int cnt = 0;
-    std::ostringstream sout; sout << "SphereMassModel." << cnt++;
+    std::ostringstream sout;
+    sout << runtag << ".SphereMassModel." << cnt++;
     std::ofstream dbg(sout.str());
     if (dbg.good()) {
       for (int i=0; i<numR; i++)
@@ -325,6 +338,11 @@ void Sphere::make_model_bin()
   // Regenerate Sturm-Liouville grid
   //
   std::string cachename = outdir  + cache_file;
+  
+  if (logR) {
+    Rmin = exp(Rmin);
+    Rmax = exp(Rmax);
+  }
   ortho = std::make_shared<SLGridSph>(mod, Lmax, nmax, numR, Rmin, Rmax, false, 1, 1.0, cachename);
 
   // Test for basis consistency (will generate an exception if maximum

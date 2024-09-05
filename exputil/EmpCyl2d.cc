@@ -357,8 +357,7 @@ private:
 		  << std::string(60, '-') << std::endl
 		  << conf                 << std::endl
 		  << std::string(60, '-') << std::endl;
-      MPI_Finalize();
-      exit(-1);
+      throw std::runtime_error("EmpCyl2d::ExponCyl: error parsing YAML config");
     }
   }
 
@@ -416,8 +415,7 @@ private:
 		  << std::string(60, '-') << std::endl
 		  << conf                 << std::endl
 		  << std::string(60, '-') << std::endl;
-      MPI_Finalize();
-      exit(-1);
+      throw std::runtime_error("EmpCyl2d::KuzminCyl: error parsing YAML config");
     }
   }
 
@@ -475,8 +473,7 @@ protected:
 		  << std::string(60, '-') << std::endl
 		  << conf                 << std::endl
 		  << std::string(60, '-') << std::endl;
-      MPI_Finalize();
-      exit(-1);
+      throw std::runtime_error("EmpCyl2d::MestelCyl: error parsing YAML config");
     }
   }
 
@@ -586,8 +583,7 @@ protected:
 		  << std::string(60, '-') << std::endl
 		  << conf                 << std::endl
 		  << std::string(60, '-') << std::endl;
-      MPI_Finalize();
-      exit(-1);
+      throw std::runtime_error("EmpCyl2d::ZangCyl: error parsing YAML config");
     }
   }
 
@@ -690,8 +686,7 @@ std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
 		<< std::string(60, '-') << std::endl
 		<< Params               << std::endl
 		<< std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("EmpCyl2d::createModel: error parsing YAML config");
   }
 }
 
@@ -1002,6 +997,8 @@ void EmpCyl2d::WriteH5Cache()
     //
     HighFive::File file(cache_name_2d, HighFive::File::Overwrite);
     
+
+
     // Workaround for lack of HighFive boolean support
     int ilogr = 0, icmap = 0;
     if (logr) ilogr = 1;
@@ -1013,19 +1010,20 @@ void EmpCyl2d::WriteH5Cache()
 
     // Parameters
     //
-    file.createAttribute<int>        ("mmax",   HighFive::DataSpace::From(mmax)).  write(mmax);
-    file.createAttribute<int>        ("nmaxfid",   HighFive::DataSpace::From(nmaxfid)).  write(nmaxfid);
-    file.createAttribute<int>        ("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
-    file.createAttribute<int>        ("numr",   HighFive::DataSpace::From(numr)).  write(numr);
-    file.createAttribute<int>        ("knots",  HighFive::DataSpace::From(knots)). write(knots);
-    file.createAttribute<int>        ("ilogr",  HighFive::DataSpace::From(ilogr)). write(ilogr);
-    file.createAttribute<int>        ("icmap",  HighFive::DataSpace::From(icmap)). write(icmap);
-    file.createAttribute<double>     ("rmin",   HighFive::DataSpace::From(rmin)).  write(rmin);
-    file.createAttribute<double>     ("rmax",   HighFive::DataSpace::From(rmax)).  write(rmax);
-    file.createAttribute<double>     ("scale",  HighFive::DataSpace::From(scale)). write(scale);
-    file.createAttribute<std::string>("params", HighFive::DataSpace::From(params)).write(params);
-    file.createAttribute<std::string>("model",  HighFive::DataSpace::From(model)). write(model);
-    file.createAttribute<std::string>("biorth", HighFive::DataSpace::From(biorth)).write(biorth);
+    file.createAttribute<std::string>("Version",   HighFive::DataSpace::From(Version)).write(Version);
+    file.createAttribute<int>        ("mmax",      HighFive::DataSpace::From(mmax)).   write(mmax);
+    file.createAttribute<int>        ("nmaxfid",   HighFive::DataSpace::From(nmaxfid)).write(nmaxfid);
+    file.createAttribute<int>        ("nmax",      HighFive::DataSpace::From(nmax)).   write(nmax);
+    file.createAttribute<int>        ("numr",      HighFive::DataSpace::From(numr)).   write(numr);
+    file.createAttribute<int>        ("knots",     HighFive::DataSpace::From(knots)).  write(knots);
+    file.createAttribute<int>        ("ilogr",     HighFive::DataSpace::From(ilogr)).  write(ilogr);
+    file.createAttribute<int>        ("icmap",     HighFive::DataSpace::From(icmap)).  write(icmap);
+    file.createAttribute<double>     ("rmin",      HighFive::DataSpace::From(rmin)).   write(rmin);
+    file.createAttribute<double>     ("rmax",      HighFive::DataSpace::From(rmax)).   write(rmax);
+    file.createAttribute<double>     ("scale",     HighFive::DataSpace::From(scale)).  write(scale);
+    file.createAttribute<std::string>("params",    HighFive::DataSpace::From(params)). write(params);
+    file.createAttribute<std::string>("model",     HighFive::DataSpace::From(model)).  write(model);
+    file.createAttribute<std::string>("biorth",    HighFive::DataSpace::From(biorth)). write(biorth);
       
     // Arrays
     //
@@ -1085,6 +1083,18 @@ bool EmpCyl2d::ReadH5Cache()
 
     //
 
+    // Version check
+    //
+    if (file.hasAttribute("Version")) {
+      if (not checkStr(Version, "Version"))  return false;
+    } else {
+      if (myid==0)
+	std::cout << "---- EmpCyl2d::ReadH5Cache: "
+		  << "recomputing cache for HighFive API change"
+		  << std::endl;
+      return false;
+    }
+
     // Serialize the config and make a string for checking
     YAML::Emitter y; y << Params;
     std::string params(y.c_str());
@@ -1136,10 +1146,10 @@ bool EmpCyl2d::ReadH5Cache()
       sout << m;
       auto harmonic = file.getGroup(sout.str());
       
-      harmonic.getDataSet("potl").read(potl_array[m]);
-      harmonic.getDataSet("dens").read(dens_array[m]);
-      harmonic.getDataSet("dpot").read(dpot_array[m]);
-      harmonic.getDataSet("rot" ).read(rot_matrix[m]);
+      potl_array[m] = harmonic.getDataSet("potl").read<Eigen::MatrixXd>();
+      dens_array[m] = harmonic.getDataSet("dens").read<Eigen::MatrixXd>();
+      dpot_array[m] = harmonic.getDataSet("dpot").read<Eigen::MatrixXd>();
+      rot_matrix[m] = harmonic.getDataSet("rot" ).read<Eigen::MatrixXd>();
     }
 
   } catch (HighFive::Exception& err) {

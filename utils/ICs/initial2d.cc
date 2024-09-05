@@ -561,6 +561,8 @@ main(int ac, char **av)
   // Create YAML db
 
   YAML::Emitter yml;
+
+  // Begin the configuration map
   yml << YAML::BeginMap;
   yml << YAML::Key << "acyltbl"   << YAML::Value << ACYL;
   yml << YAML::Key << "rcylmin"   << YAML::Value << RCYLMIN;
@@ -578,6 +580,17 @@ main(int ac, char **av)
   yml << YAML::Key << "cachename" << YAML::Value << cachefile;
   if (vm.count("report"))
     yml << YAML::Key << "verbose" << YAML::Value << true;
+
+  // Build the diskconf stanza
+  yml << YAML::Key << "diskconf"  << YAML::BeginMap
+      << YAML::Key << "name"      << YAML::Value << "expon"
+      << YAML::Key << "parameters"
+      << YAML::BeginMap
+      << YAML::Key << "aexp"      << YAML::Value << ACYL
+      << YAML::EndMap
+      << YAML::EndMap;
+
+  // End the configuration map
   yml << YAML::EndMap;
 
                                 // Create expansion only if needed . . .

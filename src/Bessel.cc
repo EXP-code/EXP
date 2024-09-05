@@ -6,7 +6,34 @@
 #include <Bessel.H>
 #include <EXPmath.H>
 
-int Bessel::RNUM = 1000;
+const std::set<std::string>
+Bessel::valid_keys = {
+  "rnum"
+};
+
+void Bessel::initialize()
+{
+  // Remove matched keys
+  //
+  for (auto v : valid_keys) current_keys.erase(v);
+  
+  // Assign values from YAML
+  //
+  try {
+    if (conf["rnum"])      RNUM       = conf["rnum"].as<int>();
+    else                   RNUM       = 1000;
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in Sphere: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    throw std::runtime_error("Sphere::initialze: error parsing YAML");
+  }
+}
 
 Bessel::Bessel(Component* c0, const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(c0, conf, m)
 {
@@ -24,24 +51,20 @@ Bessel::Bessel(Component* c0, const YAML::Node& conf, MixtureBasis* m) : Spheric
 void Bessel::get_dpotl(int lmax, int nmax, double r, 
 		       Eigen::MatrixXd& p, Eigen::MatrixXd& dp, int tid)
 {
-  double a,aa,aaa,b,bb,bbb;
-  int klo, khi;
-  int l, n;
+  int klo = (int)( (r-r_grid[0])/r_grid_del );
+  if (klo < 0) klo = 0;
+  if (klo > RNUM - 2) klo = RNUM - 2;
+  int khi = klo + 1;
 
-  klo = (int)( (r-r_grid[1])/r_grid_del ) + 1;
-  if (klo < 1) klo = 1;
-  if (klo >= RNUM) klo = RNUM - 1;
-  khi = klo + 1;
+  double a = (r_grid[khi] - r)/r_grid_del;
+  double b = (r - r_grid[klo])/r_grid_del;
+  
+  double aa = a*(a*a-1.0)*r_grid_del*r_grid_del/6.0;
+  double bb = b*(b*b-1.0)*r_grid_del*r_grid_del/6.0;
+  double aaa = -(3.0*a*a - 1.0)*r_grid_del/6.0;
+  double bbb =  (3.0*b*b - 1.0)*r_grid_del/6.0;
 
-  a = (r_grid[khi] - r)/r_grid_del;
-  b = (r - r_grid[klo])/r_grid_del;
-
-  aa = a*(a*a-1.0)*r_grid_del*r_grid_del/6.0;
-  bb = b*(b*b-1.0)*r_grid_del*r_grid_del/6.0;
-  aaa = -(3.0*a*a - 1.0)*r_grid_del/6.0;
-  bbb =  (3.0*b*b - 1.0)*r_grid_del/6.0;
-
-  for (l=0; l<=lmax; l++) {
+  for (int l=0; l<=lmax; l++) {
     for (int n=0; n<nmax; n++) {
       p(l, n) = a*potl_grid[l].rw(n, klo) + b*potl_grid[l].rw(n, khi) +
 	aa*potl_grid[l].rw2(n, klo) + bb*potl_grid[l].rw2(n, khi);
@@ -49,24 +72,20 @@ void Bessel::get_dpotl(int lmax, int nmax, double r,
 	aaa*potl_grid[l].rw2(n, klo) + bbb*potl_grid[l].rw2(n, khi);
     }
   }
-
 }
 
 void Bessel::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
-  double a,aa,b,bb;
-  int klo, khi;
+  int klo = (int)( (r-r_grid[0])/r_grid_del );
+  if (klo < 0) klo = 0;
+  if (klo > RNUM - 2) klo = RNUM - 2;
+  int khi = klo + 1;
 
-  klo = (int)( (r-r_grid[1])/r_grid_del ) + 1;
-  if (klo < 1) klo = 1;
-  if (klo >= RNUM) klo = RNUM - 1;
-  khi = klo + 1;
+  double a = (r_grid[khi] - r)/r_grid_del;
+  double b = (r - r_grid[klo])/r_grid_del;
 
-  a = (r_grid[khi] - r)/r_grid_del;
-  b = (r - r_grid[klo])/r_grid_del;
-
-  aa = a*(a*a-1.0)*r_grid_del*r_grid_del/6.0;
-  bb = b*(b*b-1.0)*r_grid_del*r_grid_del/6.0;
+  double aa = a*(a*a-1.0)*r_grid_del*r_grid_del/6.0;
+  double bb = b*(b*b-1.0)*r_grid_del*r_grid_del/6.0;
 
   for (int l=0; l<=lmax; l++) {
     for (int n=0; n<nmax; n++) {
@@ -78,22 +97,19 @@ void Bessel::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 
 void Bessel::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
-  double a, aa, b, bb;
-  int klo, khi;
+  int klo = (int)( (r-r_grid[0])/r_grid_del );
+  if (klo < 0) klo = 0;
+  if (klo > RNUM - 2) klo = RNUM - 2;
+  int khi = klo + 1;
 
-  klo = (int)( (r-r_grid[1])/r_grid_del ) + 1;
-  if (klo < 1) klo = 1;
-  if (klo >= RNUM) klo = RNUM - 1;
-  khi = klo + 1;
+  double a = (r_grid[khi] - r)/r_grid_del;
+  double b = (r - r_grid[klo])/r_grid_del;
 
-  a = (r_grid[khi] - r)/r_grid_del;
-  b = (r - r_grid[klo])/r_grid_del;
-
-  aa = a*(a*a-1.0)*r_grid_del*r_grid_del/6.0;
-  bb = b*(b*b-1.0)*r_grid_del*r_grid_del/6.0;
+  double aa = a*(a*a-1.0)*r_grid_del*r_grid_del/6.0;
+  double bb = b*(b*b-1.0)*r_grid_del*r_grid_del/6.0;
 
   for (int l=0; l<=lmax; l++) {
-    for (int n=1; n<=nmax; n++) {
+    for (int n=0; n<nmax; n++) {
       p(l, n) = a*dens_grid[l].rw(n, klo) + b*dens_grid[l].rw(n, khi) +
 	aa*dens_grid[l].rw2(n, klo) + bb*dens_grid[l].rw2(n, khi);
     }
@@ -104,19 +120,16 @@ void Bessel::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 void Bessel::get_potl_dens(int lmax, int nmax, double r, 
 			   Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid)
 {
-  double a,aa,b,bb;
-  int klo, khi;
+  int klo = (int)( (r-r_grid[0])/r_grid_del );
+  if (klo < 0) klo = 0;
+  if (klo > RNUM - 2) klo = RNUM - 2;
+  int khi = klo + 1;
 
-  klo = (int)( (r-r_grid[1])/r_grid_del ) + 1;
-  if (klo < 1) klo = 1;
-  if (klo >= RNUM) klo = RNUM - 1;
-  khi = klo + 1;
+  double a = (r_grid[khi] - r)/r_grid_del;
+  double b = (r - r_grid[klo])/r_grid_del;
 
-  a = (r_grid[khi] - r)/r_grid_del;
-  b = (r - r_grid[klo])/r_grid_del;
-
-  aa = a*(a*a-1.0)*r_grid_del*r_grid_del/6.0;
-  bb = b*(b*b-1.0)*r_grid_del*r_grid_del/6.0;
+  double aa = a*(a*a-1.0)*r_grid_del*r_grid_del/6.0;
+  double bb = b*(b*b-1.0)*r_grid_del*r_grid_del/6.0;
 
   for (int l=0; l<=lmax; l++) {
     for (int n=0; n<nmax; n++) {
@@ -136,7 +149,7 @@ double Bessel::dens(double r, int n)
     throw GenericError("Routine dens() called with n out of bounds", __FILE__, __LINE__, 1001, true);
 
   alpha = p->a[n];
-  return alpha*M_SQRT2/fabs(EXPmath::sph_bessel(p->l, alpha)) * pow(rmax,-2.5) *
+  return alpha*M_SQRT2/fabs(EXPmath::sph_bessel(p->l+1, alpha)) * pow(rmax,-2.5) *
     EXPmath::sph_bessel(p->l, alpha*r/rmax);
 }
 
@@ -148,7 +161,7 @@ double Bessel::potl(double r, int n)
     throw GenericError("Routine potl() called with n out of bounds", __FILE__, __LINE__, 1002, true);
 
   alpha = p->a[n];
-  return M_SQRT2/fabs(alpha*EXPmath::sph_bessel(p->l,alpha)) * pow(rmax,-0.5) *
+  return M_SQRT2/fabs(alpha*EXPmath::sph_bessel(p->l+1,alpha)) * pow(rmax,-0.5) *
     EXPmath::sph_bessel(p->l,alpha*r/rmax);
 }
 
@@ -174,9 +187,9 @@ void Bessel::make_grid(double rmin, double rmax, int lmax, int nmax)
 
     for (int n=0; n<nmax; n++) {
       r = 0.0;
-      for (int ir=1; ir<=RNUM; ir++, r+=r_grid_del) {
-	potl_grid[l].rw(n, ir) = potl(r, n+1);
-	dens_grid[l].rw(n, ir) = dens(r, n+1);
+      for (int ir=0; ir<RNUM; ir++, r+=r_grid_del) {
+	potl_grid[l].rw(n, ir) = potl(r, n);
+	dens_grid[l].rw(n, ir) = dens(r, n);
       }
       
       {
@@ -200,12 +213,12 @@ void Bessel::make_grid(double rmin, double rmax, int lmax, int nmax)
 
   // check table
 
-  for (int ir=1; ir<=RNUM; ir++) assert(!std::isnan(r_grid[ir]));
+  for (int ir=0; ir<RNUM; ir++) assert(!std::isnan(r_grid[ir]));
   for (int l=0; l<=lmax; l++) {
     assert(!std::isnan(potl_grid[l].nmax));
     assert(!std::isnan(dens_grid[l].nmax));
-    for (int n=1; n<=nmax; n++) {
-      for (int ir=1; ir<=RNUM; ir++) {
+    for (int n=0; n<nmax; n++) {
+      for (int ir=0; ir<RNUM; ir++) {
 	assert(!std::isnan(potl_grid[l].rw (n, ir)));
 	assert(!std::isnan(potl_grid[l].rw2(n, ir)));
 	assert(!std::isnan(dens_grid[l].rw (n, ir)));

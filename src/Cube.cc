@@ -48,10 +48,10 @@ Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 
   // Cache computed paramters
   //
-  imx   = 1+2*nmaxx;
-  imy   = 1+2*nmaxy;
-  imz   = 1+2*nmaxz;
-  osize = imx * imy * imz;
+  imx   = 1 + 2*nmaxx;		// number of x wave numbers
+  imy   = 1 + 2*nmaxy;		// number of x wave numbers
+  imz   = 1 + 2*nmaxz;		// number of x wave numbers
+  osize = imx * imy * imz;	// total number of coefficients
 
   // Allocate storage
   //
@@ -123,8 +123,7 @@ void Cube::initialize(void)
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("Cube::initialize: error parsing YAML");
   }
 
 #if HAVE_LIBCUDA==1
@@ -134,74 +133,80 @@ void Cube::initialize(void)
 
 void * Cube::determine_coefficients_thread(void * arg)
 {
-  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
-  int nbeg = nbodies*id/nthrds;
-  int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
 
   use[id] = 0;
 
-  PartMapItr it = cC->Particles().begin();
-  unsigned long i;
+  // If we are multistepping, compute accel only at or above <mlevel>
+  //
+  for (int lev=mlevel; lev<=multistep; lev++) {
 
-  for (int q=0; q<nbeg; q++) it++;
-  for (int q=nbeg; q<nend; q++) {
+    unsigned nbodies = cC->levlist[lev].size();
 
-    i = it->first;
-    it++;
+    if (nbodies==0) continue;
 
-    use[id]++;
-    double mass = cC->Mass(i) * adb;
+    int nbeg = nbodies*(id  )/nthrds;
+    int nend = nbodies*(id+1)/nthrds;
 
-    // Get position
-    //
-    double x = cC->Pos(i, 0);
-    double y = cC->Pos(i, 1);
-    double z = cC->Pos(i, 2);
+    for (int q=nbeg; q<nend; q++) {
 
-    // Only compute for points inside the unit cube
-    //
-    if (x<0.0 or x>1.0) continue;
-    if (y<0.0 or y>1.0) continue;
-    if (z<0.0 or z>1.0) continue;
-    
-    // Recursion multipliers
-    //
-    std::complex<double> stepx = std::exp(-kfac*x);
-    std::complex<double> stepy = std::exp(-kfac*y);
-    std::complex<double> stepz = std::exp(-kfac*z);
-    
-    // Initial values for recursion
-    //
-    std::complex<double> startx = std::exp(kfac*(x*nmaxx));
-    std::complex<double> starty = std::exp(kfac*(y*nmaxy));
-    std::complex<double> startz = std::exp(kfac*(z*nmaxz));
-    
-    std::complex<double> facx, facy, facz;
-    int ix, iy, iz;
+      int i = cC->levlist[lev][q];
 
-    for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
-      for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
-	for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
-	  
-	  // Compute wavenumber; the coefficients are stored as:
-	  // -nmax,-nmax+1,...,0,...,nmax-1,nmax
-	  //
-	  int ii = ix-nmaxx;
-	  int jj = iy-nmaxy;
-	  int kk = iz-nmaxz;
+      use[id]++;
+      double mass = cC->Mass(i) * adb;
 
-	  if (ii==0 and jj==0 and kk==0) continue;
+      // Get position
+      //
+      double x = cC->Pos(i, 0);
+      double y = cC->Pos(i, 1);
+      double z = cC->Pos(i, 2);
 
-	  // Normalization
-	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
+      // Only compute for points inside the unit cube
+      //
+      if (x<0.0 or x>1.0) continue;
+      if (y<0.0 or y>1.0) continue;
+      if (z<0.0 or z>1.0) continue;
+      
+      // Recursion multipliers
+      //
+      std::complex<double> stepx = std::exp(-kfac*x);
+      std::complex<double> stepy = std::exp(-kfac*y);
+      std::complex<double> stepz = std::exp(-kfac*z);
+      
+      // Initial values for recursion
+      //
+      std::complex<double> startx = std::exp(kfac*(x*nmaxx));
+      std::complex<double> starty = std::exp(kfac*(y*nmaxy));
+      std::complex<double> startz = std::exp(kfac*(z*nmaxz));
+      
+      std::complex<double> facx, facy, facz;
+      int ix, iy, iz;
 
-	  expcoef[id](ix, iy, iz) += - mass * facx * facy * facz * norm;
+      for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+	for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+	  for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
+	    
+	    // Compute wavenumber; the coefficients are stored as:
+	    // -nmax,-nmax+1,...,0,...,nmax-1,nmax
+	    //
+	    int ii = ix-nmaxx;
+	    int jj = iy-nmaxy;
+	    int kk = iz-nmaxz;
+	    
+	    if (ii==0 and jj==0 and kk==0) continue;
+	    
+	    // Normalization
+	    double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
+	    
+	    expcoef[id](ix, iy, iz) += - mass * facx * facy * facz * norm;
+	  }
 	}
       }
     }
+    // END: particle loop
   }
+  // END: level loop
     
   return (NULL);
 }
@@ -608,12 +613,12 @@ void Cube::multistep_update(int from, int to, Component *c, int i, int id)
 	// Compute wavenumber; recall that the coefficients are
 	// stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
 	//
-	int ii = ix-nmaxx;
-	int jj = iy-nmaxy;
-	int kk = iz-nmaxz;
+	int ii = ix - nmaxx;
+	int jj = iy - nmaxy;
+	int kk = iz - nmaxz;
 	
 	// Normalization
-	double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
+	double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 	
 	std::complex<double> val = -mass*facx*facy*facz*norm;
 

@@ -40,10 +40,20 @@ class Interp1d
 {
 public:
 
+  //! Destructor
   virtual ~Interp1d() = 0;
+
+  //! Evaluate the interpolant
   virtual double eval(const double& x) = 0;
+
+  //! Evaluate first derivative
   virtual double deriv(const double& x) = 0;
 
+  //@{
+  //! Data limits
+  virtual double xlo() = 0;
+  virtual double xhi() = 0;
+  //@}
 };
 
 class Spline1d : public Interp1d
@@ -55,17 +65,37 @@ private:
 
 public:
 
+  //! Null constructor
   Spline1d();
+
+  //! Consruct with Eigen input. d1 and d2 are 2nd derivative BCs
   Spline1d(const Eigen::VectorXd &x, const Eigen::VectorXd &y, 
 	   double d1=-1.0e30, double d2=-1.0e30);
+
+  //! Consruct with std::vector input. d1 and d2 are 2nd derivative BCs
   Spline1d(const std::vector<double> &x, const std::vector<double> &y, 
 	   double d1=-1.0e30, double d2=-1.0e30);
+
+  //! Copy constructor
   Spline1d &operator=(const Spline1d &);
+
+  //! Destructor
   ~Spline1d();
 
+  //! Evaluate the interpolant
   double eval(const double& x);
+
+  //! Evaluate the interpolant and its first derivative
   void eval(const double& x, double& val, double& deriv);
+
+  //! Evaluate first derivative
   double deriv(const double& x);
+
+  //@{
+  //! Data limits
+  double xlo() { return x(0); }
+  double xhi() { return x(x.size()-1); }
+  //@}
 };
 
 
@@ -74,7 +104,7 @@ class Cheby1d : public Interp1d
 private:
 
   int n;
-  double a, b;
+  double a, b, xmin=0, xmax=0;
   std::vector<double> c;
   std::vector<double> c1;
   std::vector<double> c2;
@@ -88,29 +118,53 @@ private:
 
 public:
 
+  //! Null constructor
   Cheby1d();
+
+  //! Construct with Eigen input (N is Chebyshev order)
   Cheby1d(const double A, const double B, 
 	  const Eigen::VectorXd &x, const Eigen::VectorXd &y, int N);
+
+  //! Construct with std::vector input (N is Chebyshev order)
   Cheby1d(const double A, const double B, 
 	  std::vector<double> &x, std::vector<double> &y, int N);
+
+  //! Construct with Eigen input (N is Chebyshev order) using data limits
   Cheby1d(const Eigen::VectorXd &x, const Eigen::VectorXd &y, int N);
+
+  //! Construct with std::vector  input (N is Chebyshev order) using data limits
   Cheby1d(std::vector<double> &x, std::vector<double> &y, int N);
+
+  //! Copy constructor
   Cheby1d &operator=(const Cheby1d &);
+
+  //! Destructor
   ~Cheby1d();
 
+  //! Evaluate the interpolant
   double eval(const double& x)
   {if (defined) return chebev(x, c);  else bomb("no data!"); return 0.0;}
+
+  //! Evaluate first derivative
   double deriv(const double& x)
   {if (defined) return chebev(x, c1); else bomb("no data!"); return 0.0;}
+
+  //! Evaluate integral of interpolant
   double integral(const double& x)
   {if (defined) return chebint(x);    else bomb("no data!"); return 0.0;}
 
 				// New member functions
 
+  //! Update the data limits
   void new_limits(double A, double B);
+
+  //! Generate interpolant from a function
   void new_func(std::function<double(double)> func, double A, double B, int N);
+
+  //! Update the data
   void new_data(std::vector<double> &X, std::vector<double> &Y, int N);
 
+  //! Evaluate the interpolant and its first derivative
   void eval(const double& x, double& val, double& deriv) {
     if (defined) {
       val = chebev(x, c); 
@@ -121,9 +175,18 @@ public:
     }
   }
 
+  //! Evaluate the second derivative
   double deriv2(const double& x)
   {if (defined) return chebev(x, c1); else bomb("no data!"); return 0.0;}
+
+  //! Handle error
   void bomb(const char *, ...);
+
+  //@{
+  //! Data limits
+  double xlo() { return xmin; }
+  double xhi() { return xmax; }
+  //@}
 };
 
 
@@ -136,17 +199,36 @@ private:
 
 public:
 
+  //! Null constructor
   Linear1d();
+
+  //! Construct from Eigen input
   Linear1d(const Eigen::VectorXd &x, const Eigen::VectorXd &y);
+
+  //! Construct from std::vector input
   Linear1d(const std::vector<double> &x, const std::vector<double> &y);
+
+  //! Copy constructor
   Linear1d &operator=(const Linear1d &);
+
+  //! Destructor
   ~Linear1d();
 
+  //! Evaluate the interpolant
   double eval(const double& x);
+
+  //! Evaluate first derivative
   double deriv(const double& x);
+
+  //@{
+  //! Data limits
+  double xlo() { return x(0); }
+  double xhi() { return x(x.size()-1); }
+  //@}
 };
 
 
+//! Two dimensional spline interpolator
 class Spline2d
 {
 private:
@@ -158,10 +240,16 @@ private:
 public:
   static double DERIV;
 
+  //! Null constructor
   Spline2d(void);
+
+  //! Construct from Eigen input
   Spline2d(const Eigen::VectorXd &x, const Eigen::VectorXd &y, const Eigen::MatrixXd &mat);
+
+  //! Copy constructor
   Spline2d &operator=(const Spline2d &);
 
+  //! Evaluate the interpolant
   double eval(const double& x, const double& y);
 };
 

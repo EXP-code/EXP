@@ -27,9 +27,20 @@
 #include <libvars.H>
 using namespace __EXP__;	// For reference to n-body globals
 
+// Cache version
+std::string BiorthCyl::Version = "1.0";
+
 // Constructor
 BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
 {
+  // Check whether MPI is initialized.  Use flag to suppress MPI calls
+  // if MPI is not active.
+  //
+  int flag;
+  MPI_Initialized(&flag);
+  if (flag) use_mpi = true;
+  else      use_mpi = false;
+
   // Read and assign parameters
   //
   try {
@@ -40,7 +51,7 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
                              mmax = conf["Lmax"].as<int>();
     
     if (conf["nmaxfid"])     nmaxfid = conf["nmaxfid"].as<int>();
-    else                     nmaxfid = 40;
+    else                     nmaxfid = 256;
 
     if (conf["nmax"])        nmax = conf["nmax"].as<int>();    
     else                     nmax = nmaxfid;			       
@@ -110,8 +121,7 @@ BiorthCyl::BiorthCyl(const YAML::Node& conf) : conf(conf)
 			   << std::string(60, '-') << std::endl
 			   << conf
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("BiorthCyl: YAML parsing error");
   }
 
   geometry = "cylinder";
@@ -231,16 +241,18 @@ void BiorthCyl::create_tables()
 
   if (verbose and myid==0) std::cout << std::endl;
 
-  for (int m=0; m<=mmax; m++) {
-    for (int n=0; n<nmax; n++) {
-      MPI_Allreduce(MPI_IN_PLACE, dens  [m][n].data(), numx*numy,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(MPI_IN_PLACE, pot   [m][n].data(), numx*numy,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(MPI_IN_PLACE, rforce[m][n].data(), numx*numy,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(MPI_IN_PLACE, zforce[m][n].data(), numx*numy,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  if (use_mpi) {
+    for (int m=0; m<=mmax; m++) {
+      for (int n=0; n<nmax; n++) {
+	MPI_Allreduce(MPI_IN_PLACE, dens  [m][n].data(), numx*numy,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(MPI_IN_PLACE, pot   [m][n].data(), numx*numy,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(MPI_IN_PLACE, rforce[m][n].data(), numx*numy,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(MPI_IN_PLACE, zforce[m][n].data(), numx*numy,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      }
     }
   }
 
@@ -258,7 +270,7 @@ double BiorthCyl::r_to_xi(double r)
   if (cmapR>0) {
     if (r<0.0) {
       ostringstream msg;
-      msg << "radius=" << r << " < 0! [mapped]";
+      msg << "BiorthCyl: radius=" << r << " < 0! [mapped]";
       throw GenericError(msg.str(), __FILE__, __LINE__, 2040, true);
     }
     return (r/scale - 1.0)/(r/scale + 1.0);
@@ -492,7 +504,7 @@ void BiorthCyl::WriteH5Arrays(HighFive::Group& harmonic)
       sout << n;
       auto arrays = order.createGroup(sout.str());
 
-      HighFive::DataSet ds1 = arrays.createDataSet("density",   dens  [m][n]);
+      HighFive::DataSet ds1 = arrays.createDataSet<Eigen::MatrixXd>("density",   dens  [m][n]);
       HighFive::DataSet ds2 = arrays.createDataSet("potential", pot   [m][n]);
       HighFive::DataSet ds3 = arrays.createDataSet("rforce",    rforce[m][n]);
       HighFive::DataSet ds4 = arrays.createDataSet("zforce",    zforce[m][n]);
@@ -538,6 +550,10 @@ void BiorthCyl::WriteH5Cache()
     //
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
       
+    // Cache version
+    //
+    file.createAttribute<std::string>("Version",  HighFive::DataSpace::From(Version)).write(Version);
+
     // Stash the basis configuration (this is not yet implemented in EXP)
     //
     std::ostringstream sout; sout << conf;
@@ -595,7 +611,7 @@ bool BiorthCyl::ReadH5Cache()
       double v; HighFive::Attribute vv = h5file.getAttribute(name); vv.read(v);
       if (fabs(value - v) < 1.0e-16) return true;
       else {
-	if (myid==0) std::cout << "---- BiortyCyl::ReadH5Cache: wanted "
+	if (myid==0) std::cout << "---- BiorthCyl::ReadH5Cache: wanted "
 			       << name << "=" << value
 			       << " but found "
 			       << name << "=" << v << std::endl;
@@ -621,6 +637,18 @@ bool BiorthCyl::ReadH5Cache()
     //
     if (not checkStr(geometry, "geometry"))  return false;
     if (not checkStr(forceID,  "forceID"))   return false;
+
+    // Version check
+    //
+    if (h5file.hasAttribute("Version")) {
+      if (not checkStr(Version, "Version"))  return false;
+    } else {
+      if (myid==0)
+	std::cout << "---- BiorthCyl::ReadH5Cache: "
+		  << "recomputing cache for HighFive API change"
+		  << std::endl;
+      return false;
+    }
 
     // Parameter check
     //

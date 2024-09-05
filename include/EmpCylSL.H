@@ -231,11 +231,14 @@ protected:
   //! Read HDF5 cache
   bool ReadH5Cache();
 
+  //! Cache versioning
+  inline static const std::string Version = "1.0";
+
   //! The cache file name
   std::string cachefile;
 				// 1=write, 0=read
 				// return: 0=failure
-  int    cache_grid(int, string file="");		
+  int    cache_grid(int, std::string file);		
   double integral(int, int, int, int);
   void   get_pot(Eigen::MatrixXd&, Eigen::MatrixXd&, double, double);
   double massR(double R);
@@ -495,8 +498,11 @@ public:
       
    */
   EmpCylSL(int numr, int lmax, int mmax, int nord,
-	   double ascale, double hscale, int Nodd=-1,
-	   std::string cachename="");
+	   double ascale, double hscale, int Nodd,
+	   std::string cachename);
+
+  //! Construct from cache file
+  EmpCylSL(int mlim, const std::string cache);
 
   //! Destructor
   ~EmpCylSL(void);
@@ -504,16 +510,16 @@ public:
   //! Reconstruct basis with new parameters
   void reset(int numr, int lmax, int mmax, int nord,
 	     double ascale, double hscale, int Nodd,
-	     std::string cachename="");
+	     std::string cachename);
 
   //! Read EOF basis header from saved file
-  int read_eof_header(const string& eof_file);
+  int read_eof_header(const std::string& eof_file);
 
   //! Read EOF basis from saved file
-  int read_eof_file(const string& eof_file);
+  int read_eof_file(const std::string& eof_file);
 
   //! Dump the EOF basis in ascii format
-  void dump_eof_file(const string& eof_file, const string& dump_file);
+  void dump_eof_file(const std::string& eof_file, const std::string& dump_file);
 
   //! Read basis from cache file
   int read_cache(void);
@@ -659,6 +665,9 @@ public:
   //! Evaluate density field
   double accumulated_dens_eval(double r, double z, double phi, double& d0);
 
+  //! Evaluate peak density height within two limits
+  double accumulated_midplane_eval(double r, double zmin, double zmax, double phi, int num=40);
+
   /** Extrapolate and sum coefficents per multistep level to get
       a complete set of coefficients for force evaluation at an
       intermediate time step
@@ -694,26 +703,26 @@ public:
   void dump_coefs_binary(std::ostream& out, double time);
 
   //! Plot basis
-  void dump_basis(const string& name, int step, double Rmax=-1.0);
+  void dump_basis(const std::string& name, int step, double Rmax=-1.0);
 
   //! Plot full fields for debugging
-  void dump_images(const string& OUTFILE,
+  void dump_images(const std::string& OUTFILE,
 		   double XYOUT, double ZOUT, int OUTR, int OUTZ,
 		   bool logscale);
 
   //! Plot basis images for debugging
-  void dump_images_basis(const string& OUTFILE,
+  void dump_images_basis(const std::string& OUTFILE,
 			 double XYOUT, double ZOUT, 
 			 int OUTR, int OUTZ, bool logscale,
 			 int M1, int M2, int N1, int N2);
 
   //! Plot PCA basis images for debugging
-  void dump_images_basis_pca(const string& runtag,
+  void dump_images_basis_pca(const std::string& runtag,
 			     double XYOUT, double ZOUT, 
 			     int OUTR, int OUTZ, int M, int N, int cnt);
 
   //! Plot EOF basis images for debugging
-  void dump_images_basis_eof(const string& runtag,
+  void dump_images_basis_eof(const std::string& runtag,
 			     double XYOUT, double ZOUT, 
 			     int OUTR, int OUTZ, int M, int N, int cnt,
 			     const Eigen::VectorXd& tp);
@@ -760,7 +769,7 @@ public:
 
   //! Set file name for EOF analysis and sample size for subsample
   //! computation
-  inline void setHall(string file, unsigned tot)
+  inline void setHall(std::string file, unsigned tot)
   {
     hallfile = file;
     nbodstot = tot;
@@ -771,14 +780,14 @@ public:
 
       if (PCAVAR) {
 
-	const string types[] =
+	const std::string types[] =
 	  {
 	   "Hall",
 	   "Truncate",
 	   "None"
 	  };
 	
-	const string desc[] =
+	const std::string desc[] =
 	  {
 	   "Compute the S/N but do not modify coefficients",
 	   "Tapered signal-to-noise power defined by Hall",

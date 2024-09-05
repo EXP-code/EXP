@@ -30,14 +30,14 @@ if(ENABLE_PYEXP)
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   add_test(NAME removeCylCache
-    COMMAND ${CMAKE_COMMAND} -E remove .eof.cache.run0t test_adddisk_sl.0
+    COMMAND ${CMAKE_COMMAND} -E remove .eof.cache.run0t
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Disk)
 
   set_tests_properties(removeSphCache PROPERTIES DEPENDS pyexpSphBasisTest
     REQUIRED_FILES ".slgrid_sph_cache")
 
   set_tests_properties(removeCylCache PROPERTIES DEPENDS pyexpCylBasisTest
-    REQUIRED_FILES ".eof.cache.run0t;test_adddisk_sl.0")
+    REQUIRED_FILES ".eof.cache.run0t") 
 
   # Other tests for pyEXP go here ...
   
@@ -56,7 +56,7 @@ if(ENABLE_NBODY)
 
   # Makes some spherical ICs using utils/ICs/gensph
   add_test(NAME makeICTest
-    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 1000 -i SLGridSph.model
+    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 10000 -i SLGridSph.model
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Runs those ICs using exp
@@ -85,20 +85,21 @@ if(ENABLE_NBODY)
               ${PYTHON_EXECUTABLE} readCoefs.py
               WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
      set_tests_properties(pyEXPCoefReadTest PROPERTIES DEPENDS makeNbodyTest)
+     set_tests_properties(pyEXPCoefReadTest PROPERTIES LABELS "long")
   endif()
 
   # A separate test to remove the generated files if they all exist;
   # perhaps there is a better way?
   add_test(NAME removeTempFiles
     COMMAND ${CMAKE_COMMAND} -E remove
-    config.run0.yml current.processor.rates.run0 new.bods new.bods.0
+    config.run0.yml current.processor.rates.run0 new.bods
     OUTLOG.run0 run0.levels SLGridSph.cache.run0 test.grid
-    'outcoef.dark halo.run0'
+    outcoef.halo.run0 SLGridSph.cache.run0
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Remove the temporary files
   set_tests_properties(removeTempFiles PROPERTIES DEPENDS expNbodyCheck2TW
-    REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;new.bods.0;OUTLOG.run0;run0.levels;SLGridSph.cache.run0;test.grid;"
+    REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;run0.levels;SLGridSph.cache.run0;test.grid;"
     )
 
   # Makes some cube ICs using utils/ICs/cubeics
@@ -136,7 +137,7 @@ if(ENABLE_NBODY)
   # Set labels for pyEXP tests
   set_tests_properties(expExecuteTest PROPERTIES LABELS "quick")
   set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW
-  pyEXPCoefReadTest removeTempFiles expCubeTest removeCubeFiles
+  removeTempFiles makeCubeICTest expCubeTest removeCubeFiles
   PROPERTIES LABELS "long")
 
 endif()

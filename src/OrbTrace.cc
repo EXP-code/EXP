@@ -248,8 +248,7 @@ void OrbTrace::initialize()
 			   << std::string(60, '-') << std::endl
 			   << conf                 << std::endl
 			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
+    throw std::runtime_error("OrbTrace::initialize: error in parsing YAML");
   }
 }
 
