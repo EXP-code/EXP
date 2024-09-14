@@ -193,6 +193,7 @@ namespace MSSA {
 
     // Compute Grammian and action matrices
     //
+#pragma parallel for
     for (int i=0; i<numT; i++) {
 
       // Compute flow field by finite difference
