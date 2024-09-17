@@ -258,11 +258,6 @@ else ()
   find_package(HighFive REQUIRED)
 endif()
 
-# Install the headers for development environments
-if (INSTALL_HEADERS)
-  add_subdirectory(include)
-endif()
-
 # Configure the remaining native subdirectories
 if (BUILD_COMMON_LIBRARIES)
   add_subdirectory(exputil)

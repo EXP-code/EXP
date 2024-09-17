@@ -52,15 +52,10 @@ set(common_INCLUDE_PRIVATE
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/extern/>
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/>)
 
-# Find libgfortran if it's not in a usual spot
-find_library(GFORTRAN_LIBRARY NAMES gfortran)
-find_library(QUADMATH_LIBRARY NAMES quadmath)
-
-
 set(common_LINKLIBS
   ${DEP_LIB} ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
   ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
-  ${FFTW_DOUBLE_LIB} ${GFORTRAN_LIBRARY} ${QUADMATH_LIBRARY}
+  ${FFTW_DOUBLE_LIB} 
   $<$<BOOL:${HighFive_FOUND}>:HighFive>)
 
 if(ENABLE_CUDA)
