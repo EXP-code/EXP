@@ -44,8 +44,6 @@
 
 #include <KMeans.H>
 
-#include <Koopman.H>
-
 #include <RedSVD.H>
 #include <YamlConfig.H>
 #include <YamlCheck.H>

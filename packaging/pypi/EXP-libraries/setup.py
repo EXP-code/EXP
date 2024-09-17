@@ -73,8 +73,8 @@ CopyAndSdist.file_list = [
   'LICENSE',
   'NEWS',
   'README.md',
-  # ['extern/HighFive/LICENSE', 'extern/highfive/LICENSE'],
 ]
+
 # Directories
 CopyAndSdist.directory_list = [
   'cmake',
@@ -82,7 +82,6 @@ CopyAndSdist.directory_list = [
   'exputil',
   'extern/rapidxml',
   'extern/png++',
-  # ['extern/HighFive/include/highfive', 'extern/highfive'],
   'include'
 ]
 
@@ -109,16 +108,18 @@ setup(
     cmake_args=[
       "-DCMAKE_CXX_STANDARD=17",
       "-DINSTALL_HEADERS=ON",
+      "-DBUILD_COMMON_LIBRARIES=ON",
       "-DINSTALL_CMAKE_FIND=ON",
       "-DENABLE_NBODY=OFF",
       "-DENABLE_PYEXP=OFF",
       "-DBUILD_UTILS=OFF",
       "-DUSE_SUBMODULES=OFF",
-      "-DENABLE_PNG=ON",
+      "-DENABLE_PNG=OFF", # png++ is only compatible with libpng 1.2.X - defunct
       "-DENABLE_USER=OFF",
       "-DENABLE_TESTS=OFF",
       "-DENABLE_XDR=ON",
-      "-DCMAKE_BUILD_TYPE=RELEASE"
+      "-DENABLE_DSMC=OFF",
+      "-DCMAKE_BUILD_TYPE=RELEASE",
     ]
     # extras_require={
     #   "cuda": []

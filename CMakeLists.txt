@@ -34,10 +34,10 @@ option(ENABLE_COMPILER_WARNINGS "Add extra warnings to compile time" OFF)
 
 if(ENABLE_COMPILER_WARNINGS)
   set(WARN_OPTIONS
-    $<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang,GNU,Intel>:-Wall>
-    $<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang,GNU>:-Wextra>
-    $<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:GNU>:-Wpedantic>
-    $<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang>:-pedantic>
+    $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang,GNU,Intel>>:-Wall>
+    $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang,GNU>>:-Wextra>
+    $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:GNU>>:-Wpedantic>
+    $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang>>:-pedantic>
   )
 endif()
 
@@ -49,23 +49,7 @@ set(DEFAULT_COMPILER_OPTIONS
 
 add_compile_options(${DEFAULT_COMPILER_OPTIONS} ${WARN_OPTIONS})
 
-# # Compiler flags.  Not all tested thoroughly...
-# if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-#   # using Clang
-#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
-# elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-#   # using GCC
-#   add_compile_options(${WARN_OPTIONS})
-# elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-#   # using intel
-#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qno-offload")
-# elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-#   # using Visual Studio C++
-# endif()
-
-# Required compiler features
-# add_compile_options(-D_REENTRANT)
-
+# If USE_SUBMODULES is ON
 # Check and enforce that we are a git repository.  Necessary for
 # submodules to work correctly.
 if(USE_SUBMODULES)
@@ -78,16 +62,13 @@ endif()
 endif()
 
 # Set mpirun launcher for CTest
-
 set(EXP_MPI_LAUNCH "mpirun" CACHE STRING "Command to run an MPI application (for unit tests only)")
 
 # Find newest version if multiple versions are available
-
 set(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
 set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 
 # Package support
-
 find_package(MPI REQUIRED COMPONENTS C CXX)
 find_package(OpenMP)
 find_package(FFTW)
@@ -95,7 +76,7 @@ find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 if(ENABLE_PNG)
-  find_package(PNG REQUIRED )
+  find_package(PNG REQUIRED)
 endif()
 
 # Check for FE
@@ -209,36 +190,36 @@ set(CUDA_EXP_DATTRIB "4" CACHE STRING
   "Number of real particle attributes for Cuda particle structure")
 add_compile_definitions(DATTRIB_CUDA=${CUDA_EXP_DATTRIB})
 
-# Get the current working branch
-execute_process(
-  COMMAND git rev-parse --abbrev-ref HEAD
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_BRANCH
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
 # Git submodule updates
 if(USE_SUBMODULES)
-execute_process(
-  COMMAND git submodule update --init --recursive
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  RESULT_VARIABLE GIT_SUBMOD_RESULT
-)
+  # Get the current working branch
+  execute_process(
+    COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
 
-if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-   message(FATAL_ERROR "git submodule update --init --recursive failed ${GIT_SUBMOD_RESULT}, please checkout submodules")
-else()
-   message(STATUS "Submodules updated successfully - good")
-endif()
-endif()
+  execute_process(
+    COMMAND git submodule update --init --recursive
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE GIT_SUBMOD_RESULT
+  )
 
-# Get the latest abbreviated commit hash of the working branch
-execute_process(
-  COMMAND git rev-parse HEAD
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_COMMIT
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+  if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+    message(FATAL_ERROR "git submodule update --init --recursive failed ${GIT_SUBMOD_RESULT}, please checkout submodules")
+  else()
+    message(STATUS "Submodules updated successfully - good")
+  endif()
+
+  # Get the latest abbreviated commit hash of the working branch
+  execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+endif()
 
 # Get the build date
 execute_process(
@@ -251,9 +232,7 @@ execute_process(
 if (USE_SUBMODULES)
   message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
   include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
-  include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
   add_subdirectory(extern/yaml-cpp)
-  add_subdirectory(extern/pybind11)
 else()
   find_package(yaml-cpp REQUIRED)
 endif()
@@ -269,6 +248,11 @@ if (USE_SUBMODULES)
   add_subdirectory(extern/HighFive EXCLUDE_FROM_ALL)
 else ()
   find_package(HighFive REQUIRED)
+endif()
+
+# Install the headers for development environments
+if (INSTALL_HEADERS)
+  add_subdirectory(include)
 endif()
 
 # Configure the remaining native subdirectories
@@ -387,45 +371,6 @@ set(CMAKE_CXX_FLAGS_UBSAN
   CACHE STRING "Flags used by the C++ compiler during UndefinedBehaviourSanitizer builds."
   FORCE)
 
-# Make the config_exp.h file in the build directory, add the build dir
-# to the CMake include path.  This allows for multiple configurations
-# from the same source.
-configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_BINARY_DIR}/config_exp.h)
-configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_BINARY_DIR}/config/config_exp.h)
-include_directories(${PROJECT_BINARY_DIR})
-
-# # Install the headers for development environments
-if (INSTALL_HEADERS)
-# TODO: Replace this globbing with a list of actually public headers
-  add_library(expcommon INTERFACE)
-  file(GLOB expcommon_PUBLIC_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.[hH]")
-  set_target_properties (expcommon PROPERTIES EXPORT_NAME EXPcommon)
-  set_target_properties (expcommon PROPERTIES PUBLIC_HEADER "${expcommon_PUBLIC_HEADERS}")
-  message(STATUS "HEADERS=${expcommon_PUBLIC_HEADERS}")
-
-  install (TARGETS expcommon
-    EXPORT EXPcommonTargets
-    PUBLIC_HEADER DESTINATION include/expcommon)
-
-  if (INSTALL_CMAKE_FIND)
-    # Set up cmake configs
-    set(CMAKEPACKAGE_INSTALL_DIR share/EXPcommon/cmake)
-    install (EXPORT EXPcommonTargets
-      FILE EXPcommonTargets.cmake
-      NAMESPACE EXP::
-      DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
-
-    include(CMakePackageConfigHelpers)
-    configure_package_config_file(include/EXPcommonConfig.cmake.in
-      ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonConfig.cmake
-      INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
-      PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
-    )
-    write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPcommonVersion.cmake
-                                    VERSION ${CMAKE_PROJECT_VERSION}
-                                    COMPATIBILITY SameMinorVersion )
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonConfig.cmake
-                  ${CMAKE_CURRENT_BINARY_DIR}/EXPcommonVersion.cmake
-            DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
-  endif()
-endif()
+# Make the config_exp.h file in the build directory, 
+# to be added to the private include path by modules
+configure_file(config_cmake.h_in config/config_exp.h)

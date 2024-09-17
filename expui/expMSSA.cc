@@ -37,8 +37,6 @@
 
 #include <KMeans.H>
 
-#include <expMSSA.H>
-
 #include <RedSVD.H>
 #include <YamlConfig.H>
 #include <YamlCheck.H>

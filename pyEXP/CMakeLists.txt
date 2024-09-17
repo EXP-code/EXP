@@ -1,5 +1,12 @@
 find_package(Python3 COMPONENTS Development REQUIRED)
-find_package(pybind11 REQUIRED)
+
+if (USE_SUBMODULES)
+  message("Configuring pybind11 for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
+  include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+  add_subdirectory(extern/pybind11)
+else()
+  find_package(pybind11 REQUIRED)
+endif()
 find_package(EXPutil)
 find_package(EXPui)
 find_package(EXPcommon)

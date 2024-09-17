@@ -13,7 +13,10 @@ dependencies:
   - scikit-build
   - gcc=13.2.0
   - gfortran=13.2.0
-  - libpng
+  # - libpng # Conda only supplies libpng 1.6 - EXP requires 1.2
   - libtirpc
   - zlib
   - gxx=13.2.0
+  - libgomp=13.2.0
+  - libgcc-ng=13.2.0
+  - libgfortran-ng=13.2.0
