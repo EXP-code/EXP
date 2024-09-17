@@ -376,5 +376,5 @@ set(CMAKE_CXX_FLAGS_UBSAN
 
 # Make the config_exp.h file in the build directory, 
 # to be added to the private include path by modules
-configure_file(config_cmake.h_in ${PROJECT_BINARY_DIR}/config/config_exp.h)
-include_directories(${PROJECT_BINARY_DIR}/config)
+configure_file(config_cmake.h_in config/config_exp.h)
+include_directories($<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/config/>)
