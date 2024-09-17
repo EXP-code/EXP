@@ -21,7 +21,7 @@ set(common_INCLUDE_PRIVATE
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/config/>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
-find_package(EXPutil)
+find_package(EXPutil QUIET)
 
 if(EXPutil_FOUND)
   list(APPEND common_LINKLIBS EXP::EXPutil)

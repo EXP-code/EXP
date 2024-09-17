@@ -1,11 +1,11 @@
 find_package(Python3 REQUIRED)
-find_package(PythonExtensions)
+find_package(PythonExtensions QUIET)
 
 
 if (USE_SUBMODULES)
   message("Configuring pybind11 for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
-  add_subdirectory(${PROJECT_SOURCE_DIR}/extern/pybind11)
-  include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+  add_subdirectory(../extern/pybind11)
+  include_directories(../extern/pybind11/include)
 else()
   find_package(pybind11 CONFIG REQUIRED)
 endif()
@@ -23,7 +23,7 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
 set(common_INCLUDE_PRIVATE
     ${CMAKE_BINARY_DIR}/config)
 
-find_package(EXPutil)
+find_package(EXPutil QUIET)
 if(EXPutil_FOUND)
   list(APPEND common_LINKLIBS EXP::EXPutil)
   list(APPEND common_INCLUDE ${EXPutil_INCLUDE_DIRS})
@@ -32,7 +32,7 @@ else()
   list(APPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>)
 endif()
 
-find_package(EXPui)
+find_package(EXPui QUIET)
 if(EXPui_FOUND)
   list(APPEND common_LINKLIBS EXP::EXPui)
   list(APPEND common_INCLUDE ${EXPui_INCLUDE_DIRS})

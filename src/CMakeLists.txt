@@ -45,7 +45,7 @@ set(common_LINKLIBS
   ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
   ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES})
 
-find_package(EXPutil)
+find_package(EXPutil QUIET)
 if(EXPutil_FOUND)
   list(APPEND common_LINKLIBS EXP::EXPutil)
   list(APPEND common_INCLUDE ${EXPutil_INCLUDE_DIRS})
@@ -54,7 +54,7 @@ else()
   list(APPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>)
 endif()
 
-find_package(EXPui)
+find_package(EXPui QUIET)
 if(EXPui_FOUND)
   list(APPEND common_LINKLIBS EXP::EXPui)
   list(APPEND common_INCLUDE ${EXPui_INCLUDE_DIRS})
