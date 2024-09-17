@@ -1,22 +1,3 @@
-find_package(EXPutil)
-find_package(EXPui)
-
-if(EXPutil_FOUND)
-  set(EXPUTIL EXP::EXPutil)
-  set(EXPUTIL_INCLUDE ${EXPutil_INCLUDE_DIRS})
-else()
-  set(EXPUTIL exputil) #internal name
-  set(EXPUTIL_INCLUDE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/exputil/>)
-endif()
-
-if(EXPui_FOUND)
-  set(EXPUI EXP::EXPui)
-  set(EXPUI_INCLUDE ${EXPui_INCLUDE_DIRS})
-else()
-  set(EXPUI expui) #internal name
-  set(EXPUI_INCLUDE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/expui/>)
-endif()
-
 set(CUDA_SRC)
 if (ENABLE_CUDA)
   list(APPEND CUDA_SRC cudaPolarBasis.cu cudaSphericalBasis.cu
@@ -40,66 +21,6 @@ set(exp_SOURCES Basis.cc Bessel.cc Component.cc
   ParticleFerry.cc chkSlurm.c chkTimer.cc GravKernel.cc ${CUDA_SRC}
   CenterFile.cc PolarBasis.cc FlatDisk.cc signals.cc)
 
-# set(exp_HEADERS AxisymmetricBasis.H
-# Basis.H
-# Bessel.H
-# Component.H
-# ComponentContainer.H
-# Cube.H
-# CylEXP.H
-# Cylinder.H
-# Direct.H
-# EJcom.H
-# EnumBitset.H
-# ExternalCollection.H
-# ExternalForce.H
-# FlatDisk.H
-# GravKernel.H
-# HaloBulge.H
-# MixtureBasis.H
-# NVTX.H
-# NoForce.H
-# OrbTrace.H
-# Orient.H
-# OutAscii.H
-# OutCHKPT.H
-# OutCHKPTQ.H
-# OutCalbr.H
-# OutCoef.H
-# OutDiag.H
-# OutFrac.H
-# OutLog.H
-# OutMulti.H
-# OutPS.H
-# OutPSN.H
-# OutPSP.H
-# OutPSQ.H
-# OutPSR.H
-# OutRelaxation.H
-# OutVel.H
-# Output.H
-# OutputContainer.H
-# ParticleFerry.H
-# PeriodicBC.H
-# PolarBasis.H
-# PotAccel.H
-# ScatterMFP.H
-# Shells.H
-# SlabSL.H
-# Sphere.H
-# SphericalBasis.H
-# StatsMPI.H
-# TwoCenter.H
-# TwoDCoefs.H
-# chkTimer.H
-# coef.H
-# expand.H
-# externalShock.H
-# generateRelaxation.H
-# global.H
-# global_key_set.H
-# tidalField.H)
-
 set(common_INCLUDE 
   $<INSTALL_INTERFACE:include/exputil>
   ${EXPUTIL_INCLUDE} 
@@ -110,22 +31,6 @@ set(common_INCLUDE_PRIVATE
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/config/>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
-
-# if (NOT (EXPutil_FOUND AND EXPui_FOUND))
-#   list(APPEND common_INCLUDE_PRIVATE
-
-#     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
-# endif()
-
-# set(common_INCLUDE
-#   $<INSTALL_INTERFACE:include>
-#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/pyEXP/>
-#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>
-#   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
-#   ${CMAKE_BINARY_DIR} ${DEP_INC}
-#   ${CMAKE_CURRENT_SOURCE_DIR}
-#   ${EIGEN3_INCLUDE_DIR})
 
 set(DSMC_LIBS)
 if (ENABLE_DSMC)
@@ -139,6 +44,24 @@ set(common_LINKLIBS
   $<$<BOOL:${HighFive_FOUND}>:HighFive>
   ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
   ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES})
+
+find_package(EXPutil)
+if(EXPutil_FOUND)
+  list(APPEND common_LINKLIBS EXP::EXPutil)
+  list(APPEND common_INCLUDE ${EXPutil_INCLUDE_DIRS})
+else()
+  list(APPEND common_LINKLIBS exputil) #internal name
+  list(APPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>)
+endif()
+
+find_package(EXPui)
+if(EXPui_FOUND)
+  list(APPEND common_LINKLIBS EXP::EXPui)
+  list(APPEND common_INCLUDE ${EXPui_INCLUDE_DIRS})
+else()
+  list(APPEND common_LINKLIBS expui) #internal name
+  list(APPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/expui/>)
+endif()
 
 if(PNG_FOUND)
   list(APPEND common_LINKLIBS PNG::PNG)

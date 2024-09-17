@@ -1,6 +1,6 @@
 from skbuild import setup
 
-version="7.7.28"
+version="7.7.99"
 
 # Setup for the CopyAndSdist subclass
 
@@ -73,17 +73,11 @@ CopyAndSdist.file_list = [
   'LICENSE',
   'NEWS',
   'README.md',
-  # ['extern/HighFive/LICENSE', 'extern/highfive/LICENSE'],
 ]
+
 # Directories
 CopyAndSdist.directory_list = [
   'cmake',
-  # 'coefs',
-  # 'exputil',
-  # 'extern/rapidxml',
-  # 'extern/png++',
-  # ['extern/HighFive/include/highfive', 'extern/highfive'],
-  # 'include',
   'pyEXP'
 ]
 
@@ -92,11 +86,14 @@ CopyAndSdist.directory_list = [
 setup(
     name="pyEXP",
     version=version,
-    description="Nbody EXPansion Code - Libraries",
+    description="Nbody EXPansion Code - pyEXP",
     author="",
     license="GPL-3.0",
     packages=["pyEXP"],
     python_requires=">=3.8",
+    package_dir={
+      "pyEXP": "pyEXP"
+    },
     cmdclass={
       "sdist": CopyAndSdist,
     },
@@ -116,6 +113,7 @@ setup(
       "-DENABLE_USER=OFF",
       "-DENABLE_TESTS=OFF",
       "-DENABLE_XDR=ON",
+      "-DENABLE_DSMC=OFF", # missing from extern so need clarification on what dependency it needs
       "-DCMAKE_BUILD_TYPE=RELEASE"
     ]
 )

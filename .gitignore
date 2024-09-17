@@ -30,6 +30,7 @@ src/user/SLSphere.cc
 *.egg-info
 _skbuild
 build.log
+__pycache__
 
 # Needed for cmake configs
 !*Config.cmake.in

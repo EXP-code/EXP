@@ -8,6 +8,7 @@ dependencies:
   - fftw
   - hdf5=1.14
   - highfive
+  - pybind11
   - openmpi
   - yaml-cpp
   - scikit-build

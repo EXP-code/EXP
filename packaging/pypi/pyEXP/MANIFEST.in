@@ -1,0 +1,6 @@
+graft .
+exclude MANIFEST.in
+exclude .gitignore
+prune _skbuild
+prune dist
+prune __pycache__
