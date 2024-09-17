@@ -1,15 +1,6 @@
 find_package(Python3 REQUIRED)
 find_package(PythonExtensions QUIET)
 
-
-if (USE_SUBMODULES)
-  message("Configuring pybind11 for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
-  add_subdirectory(../extern/pybind11)
-  include_directories(../extern/pybind11/include)
-else()
-  find_package(pybind11 CONFIG REQUIRED)
-endif()
-
 # Default build environment
 set(common_LINKLIBS ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}

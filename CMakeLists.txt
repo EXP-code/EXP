@@ -237,6 +237,14 @@ else()
   find_package(yaml-cpp REQUIRED)
 endif()
 
+if (USE_SUBMODULES AND ENABLE_PYEXP)
+  message("Configuring pybind11 for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
+  add_subdirectory(extern/pybind11)
+  include_directories${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+else()
+  find_package(pybind11 CONFIG REQUIRED)
+endif()
+
 # Set options for the HighFive git submodule in extern
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "Do not build the examples")
 set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "Do not build the documentation")
