@@ -21,6 +21,12 @@ set(common_INCLUDE_PRIVATE
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/config/>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
+if(USE_SUBMODULES)
+  list(APPEND common_INCLUDE_PRIVATE 
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>)
+endif()
+
 find_package(EXPutil QUIET)
 
 if(EXPutil_FOUND)
