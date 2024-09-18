@@ -8,6 +8,7 @@ add_library(expui ${expui_SOURCES})
 add_dependencies(expui exputil)
 
 set(common_LINKLIBS ${DEP_LIB} ${OpenMP_CXX_LIBRARIES} 
+  ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}
   ${MPI_CXX_LIBRARIES}
   ${YAML_CPP_LIBRARIES} ${EXPUTIL}
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
