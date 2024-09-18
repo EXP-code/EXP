@@ -39,13 +39,14 @@ if (ENABLE_DSMC)
 endif()
 
 set(common_LINKLIBS
-  ${EXPUTIL} ${EXPUI}
-  ${DSMC_LIBS}
+  ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}
+  ${DSMC_LIBS} ${DEP_LIB} 
   $<$<BOOL:${HighFive_FOUND}>:HighFive>
   ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
-  ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES})
+  ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES}
+  ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
-find_package(EXPutil QUIET)
+find_package(EXPutil)
 if(EXPutil_FOUND)
   list(APPEND common_LINKLIBS EXP::EXPutil)
   list(APPEND common_INCLUDE ${EXPutil_INCLUDE_DIRS})
@@ -79,6 +80,7 @@ if(SLURM_FOUND)
 endif()
 
 if(ENABLE_XDR AND TIRPC_FOUND)
+  list(APPEND common_INCLUDE ${TIRPC_INCLUDE_DIRS})
   list(APPEND common_LINKLIBS ${TIRPC_LIBRARY})
 endif()
 

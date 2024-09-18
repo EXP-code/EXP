@@ -120,6 +120,7 @@ setup(
       "-DENABLE_XDR=ON",
       "-DENABLE_DSMC=OFF",
       "-DCMAKE_BUILD_TYPE=RELEASE",
+      "-Wno-dev"
     ]
     # extras_require={
     #   "cuda": []

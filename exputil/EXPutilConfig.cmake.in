@@ -11,3 +11,5 @@ set_and_check(EXPutil_LIBRARY_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/lib)
 set_and_check(EXPutil_LIBRARIES @PACKAGE_CMAKE_INSTALL_PREFIX@/lib/libexputil.so)
 
 check_required_components(EXPutil)
+
+find_package_message(EXPutil "Found EXPutil: ${EXPutil_LIBRARIES}" "[${EXPutil_LIBRARIES}][${EXPutil_INCLUDE_DIRS}]")

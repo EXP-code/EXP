@@ -91,6 +91,9 @@ setup(
     license="GPL-3.0",
     packages=["EXP-nbody"],
     python_requires=">=3.8",
+    install_requires=[
+      'exp-libraries'
+    ],
     package_dir={
       "EXP-nbody": "src"
     },
@@ -115,6 +118,7 @@ setup(
       "-DENABLE_XDR=ON",
       "-DENABLE_DSMC=OFF", # missing from extern so need clarification on what dependency it needs
       "-DCMAKE_BUILD_TYPE=RELEASE",
+      "-Wno-dev"
     ]
     # extras_require={
     #   "cuda": []

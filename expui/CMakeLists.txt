@@ -7,7 +7,8 @@ set(expui_SOURCES BasisFactory.cc BiorthBasis.cc BiorthBess.cc FieldBasis.cc
 add_library(expui ${expui_SOURCES})
 add_dependencies(expui exputil)
 
-set(common_LINKLIBS ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
+set(common_LINKLIBS ${DEP_LIB} ${OpenMP_CXX_LIBRARIES} 
+  ${MPI_CXX_LIBRARIES}
   ${YAML_CPP_LIBRARIES} ${EXPUTIL}
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
   $<$<BOOL:${HighFive_FOUND}>:HighFive>)
@@ -25,17 +26,17 @@ if(USE_SUBMODULES)
   list(APPEND common_INCLUDE_PRIVATE 
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>)
+  list(APPEND common_LINKLIBS yaml-cpp)
 endif()
 
 find_package(EXPutil QUIET)
 
 if(EXPutil_FOUND)
-  list(APPEND common_LINKLIBS EXP::EXPutil)
-  list(APPEND common_INCLUDE ${EXPutil_INCLUDE_DIRS})
+  list(PREPEND common_LINKLIBS EXP::EXPutil)
+  list(PREPEND common_INCLUDE ${EXPutil_INCLUDE_DIRS})
 else()
-  list(APPEND common_LINKLIBS exputil) #internal name
-  list(APPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>)
-  list(APPEND common_INCLUDE_PRIVATE $<INSTALL_INTERFACE:include/expui>)
+  list(PREPEND common_LINKLIBS exputil) #internal name
+  list(PREPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>)
 endif()
 
 if(PNG_FOUND AND ENABLE_PNG)
@@ -76,7 +77,7 @@ if (ENABLE_TESTS)
   add_executable(testread   testread.cc)
 
   foreach(program ${bin_PROGRAMS})
-    target_link_libraries(${program} PUBLIC expui ${EXPUTIL} ${common_LINKLIBS})
+    target_link_libraries(${program} PUBLIC expui ${common_LINKLIBS})
     target_include_directories(${program} PUBLIC ${common_INCLUDE})
     target_include_directories(${program} PRIVATE ${common_INCLUDE_PRIVATE})
     target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
