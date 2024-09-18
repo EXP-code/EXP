@@ -32,6 +32,13 @@ else()
   list(APPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/expui/>)
 endif()
 
+if(USE_SUBMODULES)
+  list(APPEND common_INCLUDE_PRIVATE 
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>)
+  list(APPEND common_LINKLIBS yaml-cpp)
+endif()
+
 if(ENABLE_CUDA)
   list(APPEND common_LINKLIBS CUDA::cudart CUDA::nvToolsExt)
 endif()

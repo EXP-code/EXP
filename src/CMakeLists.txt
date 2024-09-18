@@ -64,6 +64,13 @@ else()
   list(APPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/expui/>)
 endif()
 
+if(USE_SUBMODULES)
+  list(APPEND common_INCLUDE_PRIVATE 
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>)
+  list(APPEND common_LINKLIBS yaml-cpp)
+endif()
+
 if(PNG_FOUND)
   list(APPEND common_LINKLIBS PNG::PNG)
   list(APPEND common_INCLUDE ${PNG_INCLUDE_DIRS})
