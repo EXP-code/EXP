@@ -6,21 +6,21 @@ if(ENABLE_PYEXP)
   # Check that pyEXP can be loaded; does not execute anything
   add_test(NAME pyexpLoadTest
     COMMAND ${CMAKE_COMMAND} -E env
-    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+    PYTHONPATH=${CMAKE_BINARY_DIR}:$ENV{PYTHONPATH}
     ${PYTHON_EXECUTABLE} import.py
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
   
   # Make a spherical basis using pyEXP
   add_test(NAME pyexpSphBasisTest
     COMMAND ${CMAKE_COMMAND} -E env
-    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+    PYTHONPATH=${CMAKE_BINARY_DIR}:$ENV{PYTHONPATH}
     ${PYTHON_EXECUTABLE} sph_basis.py
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
 
   # Make a cylindrical basis using pyEXP
   add_test(NAME pyexpCylBasisTest
     COMMAND ${CMAKE_COMMAND} -E env
-    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+    PYTHONPATH=${CMAKE_BINARY_DIR}:$ENV{PYTHONPATH}
     ${PYTHON_EXECUTABLE} cyl_basis.py
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Disk")
 
@@ -52,16 +52,16 @@ endif()
 if(ENABLE_NBODY)
   # Check that exp executes; does not test any functionality
   add_test(NAME expExecuteTest
-    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp -v)
+    COMMAND ${EXP_MPI_LAUNCH} -- ${CMAKE_BINARY_DIR}/src/exp -v)
 
   # Makes some spherical ICs using utils/ICs/gensph
   add_test(NAME makeICTest
-    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 10000 -i SLGridSph.model
+    COMMAND ${EXP_MPI_LAUNCH} -- ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 10000 -i SLGridSph.model
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   # Runs those ICs using exp
   add_test(NAME expNbodyTest
-    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp config.yml
+    COMMAND ${EXP_MPI_LAUNCH} -- ${CMAKE_BINARY_DIR}/src/exp config.yml
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
   set_tests_properties(expNbodyTest PROPERTIES DEPENDS makeICTest)
@@ -69,7 +69,7 @@ if(ENABLE_NBODY)
   # Check OUTLOG file for a sane 2T/W mean and stdv
   add_test(NAME expNbodyCheck2TW
     COMMAND ${CMAKE_COMMAND} -E env
-    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+    PYTHONPATH=${CMAKE_BINARY_DIR}:$ENV{PYTHONPATH}
     ${PYTHON_EXECUTABLE} check.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
@@ -81,7 +81,7 @@ if(ENABLE_NBODY)
      # Read coefficient file with pyEXP
      add_test(NAME pyEXPCoefReadTest
               COMMAND ${CMAKE_COMMAND} -E env
-              PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+              PYTHONPATH=${CMAKE_BINARY_DIR}:$ENV{PYTHONPATH}
               ${PYTHON_EXECUTABLE} readCoefs.py
               WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
      set_tests_properties(pyEXPCoefReadTest PROPERTIES DEPENDS makeNbodyTest)
@@ -104,12 +104,12 @@ if(ENABLE_NBODY)
 
   # Makes some cube ICs using utils/ICs/cubeics
   add_test(NAME makeCubeICTest
-    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/cubeics -N 4000 -z -d 2,2,2
+    COMMAND ${EXP_MPI_LAUNCH} -- ${CMAKE_BINARY_DIR}/utils/ICs/cubeics -N 4000 -z -d 2,2,2
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
 
   # Runs those ICs using exp
   add_test(NAME expCubeTest
-    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp
+    COMMAND ${EXP_MPI_LAUNCH} -- ${CMAKE_BINARY_DIR}/src/exp
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
 
   set_tests_properties(expCubeTest PROPERTIES DEPENDS makeCubeICTest)
@@ -117,7 +117,7 @@ if(ENABLE_NBODY)
   # Check OUTLOG file for mean position
   add_test(NAME expCubeCheckPos
     COMMAND ${CMAKE_COMMAND} -E env
-    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+    PYTHONPATH=${CMAKE_BINARY_DIR}:$ENV{PYTHONPATH}
     ${PYTHON_EXECUTABLE} check.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
 

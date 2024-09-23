@@ -1,6 +1,9 @@
 find_package(Python3 REQUIRED)
 find_package(PythonExtensions QUIET)
 
+# Copy Python init file to build directory
+configure_file(__init__.py __init__.py COPYONLY)
+
 # Default build environment
 set(common_LINKLIBS ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
@@ -58,10 +61,12 @@ target_compile_options(_pyEXP PUBLIC ${OpenMP_CXX_FLAGS})
 
 if(PYTHON_RELATIVE_SITE_PACKAGES_DIR)
   install(TARGETS _pyEXP DESTINATION ${PYTHON_RELATIVE_SITE_PACKAGES_DIR}/pyEXP)
+  install(FILES "__init__.py" DESTINATION ${PYTHON_RELATIVE_SITE_PACKAGES_DIR}/pyEXP)
 else()
   install(TARGETS _pyEXP
     RUNTIME DESTINATION bin
-    LIBRARY DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages"
-    ARCHIVE DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages")
+    LIBRARY DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages/pyEXP"
+    ARCHIVE DESTINATION "lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages/pyEXP")
+  install(FILES "__init__.py" DESTINATION  lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages/pyEXP)
 endif()
 

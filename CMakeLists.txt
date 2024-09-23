@@ -241,7 +241,7 @@ if (USE_SUBMODULES AND ENABLE_PYEXP)
   message("Configuring pybind11 for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
   add_subdirectory(extern/pybind11)
   include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
-else()
+elseif(ENABLE_PYEXP)
   find_package(pybind11 CONFIG REQUIRED)
 endif()
 
