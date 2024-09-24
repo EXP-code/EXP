@@ -7,7 +7,7 @@ dependencies:
   - eigen=3
   - fftw
   - hdf5=1.14
-  - highfive
+  # - highfive # conda version is too old
   - pybind11
   - openmpi
   - yaml-cpp

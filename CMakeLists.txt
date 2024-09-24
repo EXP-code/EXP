@@ -10,6 +10,9 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Search extern first
+list(PREPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/extern )
+
 # Build options
 option(BUILD_COMMON_LIBRARIES "Build the exputil and expcoefs libraries" ON)
 option(INSTALL_HEADERS "Install headers for exputil and expcoefs" OFF)
@@ -252,11 +255,16 @@ set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "Do not use Boost in HighFive")
 set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "Turn off internal testing for HighFIve")
 set(H5_USE_EIGEN TRUE CACHE BOOL "Eigen3 support in HighFive")
 
-if (USE_SUBMODULES)
+find_package(HighFive 3)
+
+if (NOT HighFive_FOUND)
   add_subdirectory(extern/HighFive EXCLUDE_FROM_ALL)
-else ()
-  find_package(HighFive REQUIRED)
 endif()
+
+# if (USE_SUBMODULES)
+# else ()
+#   find_package(HighFive REQUIRED)
+# endif()
 
 # Configure the remaining native subdirectories
 if (BUILD_COMMON_LIBRARIES)
@@ -276,7 +284,7 @@ if (ENABLE_PYEXP)
   add_subdirectory(pyEXP)
 endif()
 
-if (BUILD_USER)
+if (ENABLE_USER)
   add_subdirectory(extern/user-modules)
 endif()
 

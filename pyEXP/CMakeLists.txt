@@ -7,7 +7,7 @@ configure_file(__init__.py __init__.py COPYONLY)
 # Default build environment
 set(common_LINKLIBS ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
-  $<$<BOOL:${HighFive_FOUND}>:HighFive>)
+  HighFive)
 
 set(common_INCLUDE $<INSTALL_INTERFACE:include>
   ${DEP_INC} ${CMAKE_CURRENT_SOURCE_DIR}
@@ -37,8 +37,7 @@ endif()
 
 if(USE_SUBMODULES)
   list(APPEND common_INCLUDE_PRIVATE 
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>)
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>)
   list(APPEND common_LINKLIBS yaml-cpp)
 endif()
 

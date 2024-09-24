@@ -55,13 +55,17 @@ set(common_INCLUDE_PRIVATE
 set(common_LINKLIBS
   ${DEP_LIB} ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
   ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
-  ${FFTW_DOUBLE_LIB} 
-  $<$<BOOL:${HighFive_FOUND}>:HighFive>)
+  ${FFTW_DOUBLE_LIB} HighFive)
+
+# if(HighFive_FOUND)
+#   list(APPEND common_LINKLIBS HighFive)
+# else()
+#   list(APPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>)
+# endif()
 
 if(USE_SUBMODULES)
   list(APPEND common_INCLUDE_PRIVATE 
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>)
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>)
   list(APPEND common_LINKLIBS yaml-cpp)
 endif()
 
@@ -103,6 +107,9 @@ install(TARGETS exputil
 
 install (DIRECTORY $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/png++>
   DESTINATION include/exputil)
+
+# install (DIRECTORY $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include/highfive>
+#   DESTINATION include/exputil)
 
 install (DIRECTORY $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/rapidxml>
   DESTINATION include/exputil)

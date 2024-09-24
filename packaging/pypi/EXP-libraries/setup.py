@@ -73,6 +73,9 @@ CopyAndSdist.file_list = [
   'LICENSE',
   'NEWS',
   'README.md',
+  'extern/HighFive/LICENSE',
+  'extern/HighFive/README.md',
+  'extern/HighFive/CMakeLists.txt',
 ]
 
 # Directories
@@ -82,7 +85,9 @@ CopyAndSdist.directory_list = [
   'exputil',
   'extern/rapidxml',
   'extern/png++',
-  'include'
+  'extern/HighFive/include',
+  'extern/HighFive/cmake',
+  'include',
 ]
 
 # Install specifications

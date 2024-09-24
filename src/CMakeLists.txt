@@ -41,7 +41,7 @@ endif()
 set(common_LINKLIBS
   ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}
   ${DSMC_LIBS} ${DEP_LIB} 
-  $<$<BOOL:${HighFive_FOUND}>:HighFive>
+  HighFive
   ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
   ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES}
   ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
@@ -66,8 +66,7 @@ endif()
 
 if(USE_SUBMODULES)
   list(APPEND common_INCLUDE_PRIVATE 
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>)
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>)
   list(APPEND common_LINKLIBS yaml-cpp)
 endif()
 
