@@ -126,13 +126,17 @@ void ParticleFerry::particlePack(PartPtr in, char* buffer)
 
   // std::vector<int> iattrib
   //
-  memcpy(&buffer[pos], &in->iattrib[0], nimax*sizeof(int));
-  pos += sizeof(int)*nimax;
+  if (nimax) {
+    memcpy(&buffer[pos], &in->iattrib[0], nimax*sizeof(int));
+    pos += sizeof(int)*nimax;
+  }
 
   // std::vector<double> dattrib
   //
-  memcpy(&buffer[pos], &in->dattrib[0], ndmax*sizeof(double));
-  pos += sizeof(double)*ndmax;
+  if (ndmax) {
+    memcpy(&buffer[pos], &in->dattrib[0], ndmax*sizeof(double));
+    pos += sizeof(double)*ndmax;
+  }
 
   // unsigned level
   //
@@ -210,15 +214,19 @@ void ParticleFerry::particleUnpack(PartPtr out, char* buffer)
 
   // std::vector<int> iattrib
   //
-  out->iattrib.resize(nimax);
-  memcpy(&out->iattrib[0], &buffer[pos], nimax*sizeof(int));
-  pos += sizeof(int)*nimax;
+  if (nimax) {
+    out->iattrib.resize(nimax);
+    memcpy(&out->iattrib[0], &buffer[pos], nimax*sizeof(int));
+    pos += sizeof(int)*nimax;
+  }
 
   // std::vector<double> dattrib
   //
-  out->dattrib.resize(ndmax);
-  memcpy(&out->dattrib[0], &buffer[pos], ndmax*sizeof(double));
-  pos += sizeof(double)*ndmax;
+  if (ndmax) {
+    out->dattrib.resize(ndmax);
+    memcpy(&out->dattrib[0], &buffer[pos], ndmax*sizeof(double));
+    pos += sizeof(double)*ndmax;
+  }
 
   // unsigned level
   //
