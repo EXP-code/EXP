@@ -638,7 +638,7 @@ std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
   if (name.find("kuzmin") != std::string::npos) {
     if (myid==0) {
       std::cout << "---- EmpCyl2d::ModelCyl: Making a Kuzmin disk";
-      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      if (Params["parameters"]) std::cout << " with" << std::endl << Params["parameters"];
       std::cout << std::endl;
     }
     return std::make_shared<KuzminCyl>(Params["parameters"]);
@@ -647,7 +647,7 @@ std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
   if (name.find("mestel") != std::string::npos) {
     if (myid==0) {
       std::cout << "---- EmpCyl2d::ModelCyl: Making a finite Mestel disk";
-      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      if (Params["parameters"]) std::cout << " with" << std::endl << Params["parameters"];
       std::cout << std::endl;
     }
     return std::make_shared<MestelCyl>(Params["parameters"]);
@@ -656,7 +656,9 @@ std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
   if (name.find("zang") != std::string::npos) {
     if (myid==0) {
       std::cout << "---- EmpCyl2d::ModelCyl: Making a double-tapered Zang";
-      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      YAML::Emitter out;
+      out << YAML::Flow << Params["parameters"];
+      if (Params["parameters"]) std::cout << " with " << out.c_str();
       std::cout << std::endl;
     }
     return std::make_shared<ZangCyl>(Params["parameters"]);
@@ -665,7 +667,7 @@ std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
   if (name.find("expon") != std::string::npos) {
     if (myid==0) {
       std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk";
-      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      if (Params["parameters"]) std::cout << " with" << std::endl << Params["parameters"];
       std::cout << std::endl;
     }
     return std::make_shared<ExponCyl>(Params["parameters"]);
@@ -834,7 +836,7 @@ void EmpCyl2d::create_tables()
 	for (int l=0; l<nmaxfid; l++) {
 	  D(j, l) += fac * disk->dens(rr) *
 	    basis->potl(m, j, rr) * basis->potl(m, l, rr)
-	    / sqrt(basis->norm(j, m)*basis->norm(l, m));
+	    / sqrt(basis->norm(j, m)*basis->norm(l, m)*4.0);
 	}
       }
     }
@@ -871,9 +873,9 @@ void EmpCyl2d::create_tables()
       if (m==0) xgrid[i] = r;
 
       for (int n=0; n<nmaxfid; n++) {
-	pot(n) = basis->potl(m, n, r) / sqrt(basis->norm(n, m));
-	den(n) = basis->dens(m, n, r) / sqrt(basis->norm(n, m));
-	dph(n) = basis->dpot(m, n, r) / sqrt(basis->norm(n, m));
+	pot(n) = basis->potl(m, n, r) / sqrt(basis->norm(n, m)*0.5);
+	den(n) = basis->dens(m, n, r) / sqrt(basis->norm(n, m)*2.0);
+	dph(n) = basis->dpot(m, n, r) / sqrt(basis->norm(n, m)*0.5);
       }
       
       pot = U.transpose() * pot;
@@ -1201,7 +1203,7 @@ double EmpCyl2d::get_potl(double r, int M, int N)
   checkMN(M, N, "get_potl");
 
   if (basis_test) {
-    return basis->potl(M, N, r)/sqrt(basis->norm(N, M));
+    return basis->potl(M, N, r)/sqrt(basis->norm(N, M)*0.5);
   }
 
   int lo, hi;
@@ -1216,7 +1218,7 @@ double EmpCyl2d::get_dens(double r, int M, int N)
   checkMN(M, N, "get_dens");
 
   if (basis_test) {
-    return basis->dens(M, N, r)/sqrt(basis->norm(N, M));
+    return basis->dens(M, N, r)/sqrt(basis->norm(N, M)*2.0);
   }
 
   int lo, hi;
@@ -1231,7 +1233,7 @@ double EmpCyl2d::get_dpot(double r, int M, int N)
   checkMN(M, N, "get_dpot");
 
   if (basis_test) {
-    return basis->dpot(M, N, r)/sqrt(basis->norm(N, M));
+    return basis->dpot(M, N, r)/sqrt(basis->norm(N, M)*0.5);
   }
 
   int lo, hi;
@@ -1305,7 +1307,7 @@ void EmpCyl2d::checkCoefs()
     
       for (int j=0; j<nmax; j++) {
 	coefs(j) += fac * disk->dens(rr) * get_potl(rr, 0, j);
-	coef0(j) += fac * disk->dens(rr) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0));
+	coef0(j) += fac * disk->dens(rr) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0)*0.5);
       }
   }
 
@@ -1329,8 +1331,8 @@ void EmpCyl2d::checkCoefs()
     for (int j=0; j<nmax; j++) {
       uu += coefs(j) * get_potl(rr, 0, j);
       vv += coefs(j) * get_dens(rr, 0, j);
-      yy += coef0(j) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0));
-      zz += coef0(j) * basis->dens(0, j, rr) / sqrt(basis->norm(j, 0));
+      yy += coef0(j) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0)*0.5);
+      zz += coef0(j) * basis->dens(0, j, rr) / sqrt(basis->norm(j, 0)*2.0);
     }
 
     std::cout << std::setw(16) << rr
