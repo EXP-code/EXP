@@ -12,8 +12,8 @@
 #define   CONFLUENT 1
 #define NOCONFLUENT 0
 
-extern void GaussMaster();
-extern void GaussCheck();
+extern void GaussMaster(int, double, double, int, double[], double[]);
+extern void GaussCheck(double);
 
 /* ARGUMENT LISTS:
 

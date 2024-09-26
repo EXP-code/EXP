@@ -514,7 +514,8 @@ namespace MSSA {
 	Y(j) = kernel(x, X.row(j));
       }
 
-      ret = Y.transpose()*Q*SP.asDiagonal()*V.col(index);
+      Eigen::VectorXcd MM = Y.transpose()*Q*SP.asDiagonal();
+      ret = MM.dot(V.col(index));
     }
 
     return ret;
