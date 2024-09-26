@@ -155,7 +155,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(Eigen::VectorXcd&, Coefs, getData, time);
     }
 
-    void setData(double time, const Eigen::VectorXcd& array) override {
+    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
       PYBIND11_OVERRIDE_PURE(void, Coefs, setData, time, array);
     }
 
@@ -231,7 +231,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, SphCoefs, getData, time);
     }
 
-    void setData(double time, const Eigen::VectorXcd& array) override {
+    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
       PYBIND11_OVERRIDE(void, SphCoefs, setData, time, array);
     }
 
@@ -310,7 +310,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, CylCoefs, getData, time);
     }
 
-    void setData(double time, const Eigen::VectorXcd& array) override {
+    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
       PYBIND11_OVERRIDE(void, CylCoefs, setData, time, array);
     }
 
@@ -388,7 +388,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, SlabCoefs, getData, time);
     }
 
-    void setData(double time, const Eigen::VectorXcd& array) override {
+    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
       PYBIND11_OVERRIDE(void, SlabCoefs, setData, time, array);
     }
 
@@ -467,7 +467,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, CubeCoefs, getData, time);
     }
 
-    void setData(double time, const Eigen::VectorXcd& array) override {
+    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
       PYBIND11_OVERRIDE(void, CubeCoefs, setData, time, array);
     }
 
@@ -546,7 +546,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, TableData, getData, time);
     }
 
-    void setData(double time, const Eigen::VectorXcd& array) override {
+    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
       PYBIND11_OVERRIDE(void, TableData, setData, time, array);
     }
 
