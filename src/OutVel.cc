@@ -39,7 +39,7 @@ OutVel::OutVel(const YAML::Node& conf) : Output(conf)
 
   // Target output file
   //
-  outfile = "velcoef." +  tcomp->name + "." + runtag;
+  outfile = outdir + "velcoef." +  tcomp->name + "." + runtag;
 
   // Check for valid model type
   //
