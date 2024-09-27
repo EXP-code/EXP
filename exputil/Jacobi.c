@@ -20,10 +20,7 @@
 
 #define sqr(x) ((x)*(x))
 
-void Jacobi(n, alpha, beta, abscis, weight)
-int n;
-double alpha, beta;
-double abscis[], weight[];
+void Jacobi(int n, double alpha, double beta, double abscis[], double weight[])
 {
     int k;
 
@@ -34,10 +31,7 @@ double abscis[], weight[];
 }
 
 
-void Radau_Jacobi(n, alpha, beta, abscis, weight, leftw)
-int n;
-double alpha, beta;
-double abscis[], weight[], *leftw;
+void Radau_Jacobi(int n, double alpha, double beta, double abscis[], double weight[], double* leftw)
 {
     int k;
     double temp;
@@ -62,10 +56,7 @@ double abscis[], weight[], *leftw;
 };
 
 
-void Lobatto_Jacobi(n, alpha, beta, abscis, weight, leftw, rightw)
-int n;
-double alpha, beta;
-double abscis[], weight[], *leftw, *rightw;
+void Lobatto_Jacobi(int n, double alpha, double beta, double abscis[], double weight[], double* leftw, double* rightw)
 {
     int k;
     double temp1, temp2;
