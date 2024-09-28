@@ -917,7 +917,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      str << "CylCoefs::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -1273,7 +1273,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      str << "CylCoefs::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -1288,7 +1288,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      str << "SlabCoefs::setTensor: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->allocate();	// Assign storage for the flattened tensor
@@ -1625,7 +1625,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      str << "CubeCoefs::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -1640,7 +1640,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      str << "CubeCoefs::setTensor: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->allocate();	// Assign storage for the flattened tensor
@@ -2013,7 +2013,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "TrajectoryData::setMatrix: requested time=" << time << " not found";
+      str << "TrajectoryData::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -2259,7 +2259,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "TableData::setMatrix: requested time=" << time << " not found";
+      str << "TableData::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -2757,7 +2757,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "SphVelCoefs::setMatrix: requested time=" << time << " not found";
+      str << "SphFldCoefs::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -2772,7 +2772,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "SphVelCoefs::setMatrix: requested time=" << time << " not found";
+      str << "SphFldCoefs::setMatrix: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->allocate();
