@@ -1399,7 +1399,12 @@ void CoefficientClasses(py::module &m) {
          SphFldCoefs instance
          )")
     .def("__call__",
-	 &CoefClasses::SphFldCoefs::getMatrix,
+	 [](CoefClasses::SphFldCoefs& A, double time)
+	 {
+	   // Need a copy here
+	   auto M = A.getMatrix(time);
+	   return make_ndarray<std::complex<double>>(M);
+	 },
          R"(
          Return the coefficient tensor for the desired time.
 
@@ -1420,7 +1425,12 @@ void CoefficientClasses(py::module &m) {
          )",
          py::arg("time"))
     .def("setMatrix",
-	 &CoefClasses::SphFldCoefs::setMatrix,
+	 [](CoefClasses::SphFldCoefs& A, double time,
+	    py::array_t<std::complex<double>> mat)
+	 {
+	   auto M = createTensor<std::complex<double>>(mat);
+	   A.setMatrix(time, M);
+	 },
          R"(
          Enter and/or rewrite the coefficient tensor at the provided time
 
@@ -1474,7 +1484,11 @@ void CoefficientClasses(py::module &m) {
          CylFldCoefs instance
          )")
     .def("__call__",
-	 &CoefClasses::CylFldCoefs::getMatrix,
+	 [](CoefClasses::CylFldCoefs& A, double time)
+	 {
+	   auto M = A.getMatrix(time); // Need a copy here
+	   return make_ndarray<std::complex<double>>(M);
+	 },
          R"(
          Return the coefficient tensor for the desired time.
 
@@ -1495,7 +1509,12 @@ void CoefficientClasses(py::module &m) {
          )",
          py::arg("time"))
     .def("setMatrix",
-	 &CoefClasses::CylFldCoefs::setMatrix,
+	 [](CoefClasses::CylFldCoefs& A, double time,
+	    py::array_t<std::complex<double>> mat)
+	 {
+	   auto M = createTensor<std::complex<double>>(mat);
+	   A.setMatrix(time, M);
+	 },
          R"(
          Enter and/or rewrite the coefficient tensor at the provided time
 

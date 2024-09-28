@@ -53,4 +53,30 @@ py::array_t<T> make_ndarray4(Eigen::Tensor<T, 4>& mat)
      );
 }
 
+template <typename T>
+Eigen::Tensor<T, 3> createTensor(py::array_t<T>& in)
+{
+  // Request a buffer descriptor from Python
+  pybind11::buffer_info buffer_info = in.request();
+
+  // Extract the data 
+  T *data = static_cast<T *>(buffer_info.ptr);
+
+  // Get the data shape
+  std::vector<ssize_t> shape = buffer_info.shape;
+
+  // Reorder the data to satisfy the col-major Eigen::Tensor ordering
+  //
+  Eigen::Tensor<T, 3> tensor(shape[0], shape[1], shape[2]);
+  for (int i=0, c=0; i<shape[0]; i++) {
+    for (int j=0; j<shape[1]; j++) {
+      for (int k=0; k<shape[2]; k++, c++) {
+	tensor(i, j, k) = data[c];
+      }
+    }
+  }
+
+  return tensor;
+}
+
 #endif

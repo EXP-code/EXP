@@ -495,7 +495,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "SphCoefs::setMatrix: requested time=" << time << " not found";
+      str << "SphCoefs::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -2735,7 +2735,7 @@ namespace CoefClasses
     return arr;
   }
   
-  SphFldStruct::coefType & SphFldCoefs::getMatrix(double time)
+  SphFldStruct::dataType SphFldCoefs::getMatrix(double time)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -2766,7 +2766,7 @@ namespace CoefClasses
     }
   }
   
-  void SphFldCoefs::setMatrix(double time, const SphFldStruct::coefType& dat)
+  void SphFldCoefs::setMatrix(double time, SphFldStruct::dataType& dat)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -3175,7 +3175,7 @@ namespace CoefClasses
     return arr;
   }
   
-  CylFldStruct::coefType & CylFldCoefs::getMatrix(double time)
+  CylFldStruct::dataType CylFldCoefs::getMatrix(double time)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -3205,7 +3205,7 @@ namespace CoefClasses
     }
   }
   
-  void CylFldCoefs::setMatrix(double time, const CylFldStruct::coefType& dat)
+  void CylFldCoefs::setMatrix(double time, CylFldStruct::dataType& dat)
   {
     auto it = coefs.find(roundTime(time));
 

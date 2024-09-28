@@ -1015,13 +1015,13 @@ namespace CoefClasses
     virtual Eigen::VectorXcd& getData(double time);
     
     //! Operator for pyEXP
-    SphFldStruct::coefType& getMatrix(double time);
+    SphFldStruct::dataType getMatrix(double time);
 
     //! Set coefficient matrix at given time
     virtual void setData(double time, Eigen::Ref<Eigen::VectorXcd> arr);
 
     //! Natural data setter for pyEXP
-    void setMatrix(double time, const SphFldStruct::coefType& mat);
+    void setMatrix(double time, SphFldStruct::dataType& mat);
 
     //! Interpolate coefficient matrix at given time
     std::tuple<SphFldStruct::coefType&, bool> interpolate(double time)
@@ -1142,13 +1142,13 @@ namespace CoefClasses
     virtual Eigen::VectorXcd& getData(double time);
     
     //! Operator for pyEXP
-    CylFldStruct::coefType & getMatrix(double time);
+    CylFldStruct::dataType getMatrix(double time);
 
     //! Set coefficient matrix at given time
     virtual void setData(double time, Eigen::Ref<Eigen::VectorXcd> arr);
 
     //! Natural data setter for pyEXP
-    void setMatrix(double time, const CylFldStruct::coefType& mat);
+    void setMatrix(double time, CylFldStruct::dataType& mat);
 
     //! Interpolate coefficient matrix at given time
     std::tuple<CylFldStruct::coefType&, bool> interpolate(double time)
