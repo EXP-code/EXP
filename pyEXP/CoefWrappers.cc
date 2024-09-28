@@ -155,7 +155,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(Eigen::VectorXcd&, Coefs, getData, time);
     }
 
-    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
+    void setData(double time, Eigen::VectorXcd& array) override {
       PYBIND11_OVERRIDE_PURE(void, Coefs, setData, time, array);
     }
 
@@ -231,7 +231,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, SphCoefs, getData, time);
     }
 
-    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
+    void setData(double time, Eigen::VectorXcd& array) override {
       PYBIND11_OVERRIDE(void, SphCoefs, setData, time, array);
     }
 
@@ -310,7 +310,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, CylCoefs, getData, time);
     }
 
-    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
+    void setData(double time, Eigen::VectorXcd& array) override {
       PYBIND11_OVERRIDE(void, CylCoefs, setData, time, array);
     }
 
@@ -388,7 +388,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, SlabCoefs, getData, time);
     }
 
-    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
+    void setData(double time, Eigen::VectorXcd& array) override {
       PYBIND11_OVERRIDE(void, SlabCoefs, setData, time, array);
     }
 
@@ -467,7 +467,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, CubeCoefs, getData, time);
     }
 
-    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
+    void setData(double time, Eigen::VectorXcd& array) override {
       PYBIND11_OVERRIDE(void, CubeCoefs, setData, time, array);
     }
 
@@ -546,7 +546,7 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(Eigen::VectorXcd&, TableData, getData, time);
     }
 
-    void setData(double time, Eigen::Ref<Eigen::VectorXcd> array) override {
+    void setData(double time, Eigen::VectorXcd& array) override {
       PYBIND11_OVERRIDE(void, TableData, setData, time, array);
     }
 
@@ -1185,7 +1185,7 @@ void CoefficientClasses(py::module &m) {
 	 [](CoefClasses::SphCoefs& A)
 	 {
 	   auto M = A.getAllCoefs(); // Need a copy here
-	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
+	   py::array_t<std::complex<double>> ret = make_ndarray3<std::complex<double>>(M);
 	   return ret;
 	 },
 	 R"(
@@ -1260,7 +1260,7 @@ void CoefficientClasses(py::module &m) {
 	 [](CoefClasses::CylCoefs& A)
 	 {
 	   auto M = A.getAllCoefs(); // Need a copy here
-	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
+	   py::array_t<std::complex<double>> ret = make_ndarray3<std::complex<double>>(M);
 	   return ret;
 	 },
 	 R"(
@@ -1321,11 +1321,11 @@ void CoefficientClasses(py::module &m) {
          SphFldCoefs instance
          )")
     .def("__call__",
-	 [](CoefClasses::SphFldCoefs& A, double t)
+	 [](CoefClasses::SphFldCoefs& A, double time)
 	 {
-	   Eigen::Tensor<std::complex<double>, 3> M = A.getMatrix(t);
-	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
-	   return ret;
+	   // Need a copy here
+	   auto M = A.getMatrix(time);
+	   return make_ndarray3<std::complex<double>>(M);
 	 },
          R"(
          Return the coefficient tensor for the desired time.
@@ -1347,11 +1347,11 @@ void CoefficientClasses(py::module &m) {
          )",
          py::arg("time"))
     .def("setMatrix",
-	 [](CoefClasses::SphFldCoefs& A, double t,
-	    py::array_t<std::complex<double>> array)
+	 [](CoefClasses::SphFldCoefs& A, double time,
+	    py::array_t<std::complex<double>> mat)
 	 {
-	   auto M = make_tensor3<std::complex<double>>(array);
-	   A.setMatrix(t, M);
+	   auto M = make_tensor3<std::complex<double>>(mat);
+	   A.setMatrix(time, M);
 	 },
          R"(
          Enter and/or rewrite the coefficient tensor at the provided time
@@ -1406,11 +1406,10 @@ void CoefficientClasses(py::module &m) {
          CylFldCoefs instance
          )")
     .def("__call__",
-	 [](CoefClasses::CylFldCoefs& A, double t)
+	 [](CoefClasses::CylFldCoefs& A, double time)
 	 {
-	   Eigen::Tensor<std::complex<double>, 3> M = A.getMatrix(t);
-	   py::array_t<std::complex<double>> ret = make_ndarray<std::complex<double>>(M);
-	   return ret;
+	   auto M = A.getMatrix(time); // Need a copy here
+	   return make_ndarray3<std::complex<double>>(M);
 	 },
          R"(
          Return the coefficient tensor for the desired time.
@@ -1432,11 +1431,11 @@ void CoefficientClasses(py::module &m) {
          )",
          py::arg("time"))
     .def("setMatrix",
-	 [](CoefClasses::CylFldCoefs& A, double t,
-	    py::array_t<std::complex<double>> array)
+	 [](CoefClasses::CylFldCoefs& A, double time,
+	    py::array_t<std::complex<double>> mat)
 	 {
-	   auto M = make_tensor3<std::complex<double>>(array);
-	   A.setMatrix(t, M);
+	   auto M = make_tensor3<std::complex<double>>(mat);
+	   A.setMatrix(time, M);
 	 },
          R"(
          Enter and/or rewrite the coefficient tensor at the provided time
