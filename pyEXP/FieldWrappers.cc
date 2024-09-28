@@ -196,7 +196,8 @@ void FieldGeneratorClasses(py::module &m) {
 
         See also
         --------
-        slices : generate fields in a surface slice given by the initializtion grid
+        slices : generate fields in a surface slice given by the
+                 initializtion grid
         volumes : generate fields in volume given by the initializtion grid
         )",
 	py::arg("basis"), py::arg("coefs"),
@@ -281,7 +282,8 @@ void FieldGeneratorClasses(py::module &m) {
 
         See also
         --------
-        slices : generate fields in a surface slice given by the initializtion grid
+        slices : generate fields in a surface slice given by the
+                 initializtion grid
         volumes : generate fields in volume given by the initializtion grid
         lines : generate fields along a line given by its end points
         )", 
@@ -314,7 +316,8 @@ void FieldGeneratorClasses(py::module &m) {
 
         See also
         --------
-        slices : generate fields in a surface slice given by the initializtion grid
+        slices : generate fields in a surface slice given by the
+                 initializtion grid
         volumes : generate fields in volume given by the initializtion grid
         lines : generate fields along a line given by its end points
         )",
@@ -329,7 +332,7 @@ void FieldGeneratorClasses(py::module &m) {
     auto vols = A.volumes(basis, coefs);
     for (auto & v : vols) {
       for (auto & u : v.second) {
-	ret[v.first][u.first] = make_ndarray<float>(u.second);
+	ret[v.first][u.first] = make_ndarray3<float>(u.second);
       }
     }
 

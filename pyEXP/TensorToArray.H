@@ -3,7 +3,7 @@
 
 //! Helper function that maps the Eigen::Tensor<T, 3> into an numpy.ndarray
 template <typename T>
-py::array_t<T> make_ndarray(Eigen::Tensor<T, 3>& mat)
+py::array_t<T> make_ndarray3(Eigen::Tensor<T, 3>& mat)
 {
   // Get the tensor dimenions
   auto dims = mat.dimensions();
@@ -26,38 +26,6 @@ py::array_t<T> make_ndarray(Eigen::Tensor<T, 3>& mat)
      mat.data()
      );
 }
-
-template <typename T>
-Eigen::Tensor<T, 3> make_tensor3(py::array_t<T> array)
-{
-  // Request a buffer descriptor from Python
-  py::buffer_info buffer_info = array.request();
-
-  // Get the array dimenions
-  T *data = static_cast<T *>(buffer_info.ptr);
-  std::vector<ssize_t> shape = buffer_info.shape;
-
-  // Check rank
-  if (shape.size() != 3) {
-    std::ostringstream sout;
-    sout << "make_tensor3: tensor rank must be 3, found "
-	 << shape.size();
-    throw std::runtime_error(sout.str());
-  }
-
-  // Build result tensor with col-major ordering
-  Eigen::Tensor<T, 3> tensor(shape[0], shape[1], shape[2]);
-  for (int i=0, l=0; i < shape[0]; i++) {
-    for (int j=0; j < shape[1]; j++) {
-      for (int k=0; k < shape[2]; k++) {
-	tensor(i, j, k) = data[l++];
-      }
-    }
-  }
-
-  return tensor;
-}
-
 
 //! Helper function that maps the Eigen::Tensor<T, 4> into an numpy.ndarray
 template <typename T>
@@ -83,6 +51,40 @@ py::array_t<T> make_ndarray4(Eigen::Tensor<T, 4>& mat)
      // the data pointer
      mat.data()
      );
+}
+
+template <typename T>
+Eigen::Tensor<T, 3> make_tensor3(py::array_t<T>& in)
+{
+  // Request a buffer descriptor from Python
+  py::buffer_info buffer_info = in.request();
+
+  // Extract the data 
+  T *data = static_cast<T *>(buffer_info.ptr);
+
+  // Get the data shape
+  std::vector<ssize_t> shape = buffer_info.shape;
+
+  // Check rank
+  if (shape.size() != 3) {
+    std::ostringstream sout;
+    sout << "make_tensor3: tensor rank must be 3, found "
+	 << shape.size();
+    throw std::runtime_error(sout.str());
+  }
+
+  // Reorder the data to satisfy the col-major Eigen::Tensor ordering
+  //
+  Eigen::Tensor<T, 3> tensor(shape[0], shape[1], shape[2]);
+  for (int i=0, c=0; i < shape[0]; i++) {
+    for (int j=0; j < shape[1]; j++) {
+      for (int k=0; k < shape[2]; k++, c++) {
+	tensor(i, j, k) = data[c];
+      }
+    }
+  }
+
+  return tensor;
 }
 
 template <typename T>
