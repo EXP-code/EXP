@@ -599,7 +599,7 @@ namespace BasisClasses
        (den0 + den1) * densfac,	// 2
        pot0 * potlfac,		// 3
        pot1 * potlfac,		// 4
-       (pot0 + pot1) * densfac,	// 5
+       (pot0 + pot1) * potlfac,	// 5
        potr * (-potlfac)/scale,	// 6
        pott * (-potlfac),	// 7
        potp * (-potlfac)};	// 8
