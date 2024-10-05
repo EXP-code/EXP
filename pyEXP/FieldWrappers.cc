@@ -387,7 +387,7 @@ void FieldGeneratorClasses(py::module &m) {
     auto vols = A.volumes(basis, coefs);
     for (auto & v : vols) {
       for (auto & u : v.second) {
-	ret[v.first][u.first] = make_ndarray<float>(u.second);
+	ret[v.first][u.first] = make_ndarray3<float>(u.second);
       }
     }
 
