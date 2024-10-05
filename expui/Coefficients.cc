@@ -2745,7 +2745,7 @@ namespace CoefClasses
       arr = it->second->store;
       int ldim = (Lmax+1)*(Lmax+2)/2;
       mat = std::make_shared<SphFldStruct::coefType>
-	(arr.data(), 4, ldim, Nmax); 
+	(arr.data(), Nfld, ldim, Nmax); 
     }
     
     return *mat;
@@ -3184,7 +3184,7 @@ namespace CoefClasses
     } else {
       arr = it->second->store;
       int mdim = Mmax + 1;
-      mat = std::make_shared<CylFldStruct::coefType>(arr.data(), 3, mdim, Nmax); 
+      mat = std::make_shared<CylFldStruct::coefType>(arr.data(), Nfld, mdim, Nmax); 
     }
     
     return *mat;
