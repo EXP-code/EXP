@@ -1,0 +1,5 @@
+*
+!pyproject.toml
+!setup.py
+!.gitignore
+!MANIFEST.in

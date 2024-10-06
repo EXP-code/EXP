@@ -1,7 +1,7 @@
 
 set(bin_PROGRAMS slcheck slshift orthochk diskpot qtest eoftest
   oftest slabchk)
-		
+
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES})
 
@@ -16,6 +16,7 @@ endif()
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/DSMC/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}

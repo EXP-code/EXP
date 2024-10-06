@@ -1,0 +1,6 @@
+*
+!pyproject.toml
+!setup.py
+!MANIFEST.in
+!.gitignore
+!README_explib.md

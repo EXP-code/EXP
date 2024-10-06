@@ -1,0 +1,13 @@
+python:
+  - 3.8
+
+mpi:
+  - openmpi
+  # - mpich
+
+target_platform:
+  # - linux-64
+  # - linux-aarch64
+  # - linux-ppc64le
+  # - osx-64
+  - osx-arm64

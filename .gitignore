@@ -25,3 +25,12 @@ src/exp
 src/user/CylindricalDisk.cc
 src/user/EllipsoidForce.cc
 src/user/SLSphere.cc
+
+# Python generated files
+*.egg-info
+_skbuild
+build.log
+__pycache__
+
+# Needed for cmake configs
+!*Config.cmake.in

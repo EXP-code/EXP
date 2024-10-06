@@ -1,0 +1,17 @@
+# Generates the cmake find_package files for EXPui
+
+@PACKAGE_INIT@
+
+if(NOT TARGET EXP::EXPui)
+  include(@PACKAGE_CMAKEPACKAGE_INSTALL_DIR@/EXPuiTargets.cmake)
+endif()
+
+set_and_check(EXPui_INCLUDE_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/include/expui)
+set_and_check(EXPui_LIBRARY_DIRS @PACKAGE_CMAKE_INSTALL_PREFIX@/lib)
+set_and_check(EXPui_LIBRARIES @PACKAGE_CMAKE_INSTALL_PREFIX@/lib/libexpui.so)
+
+check_required_components(EXPui)
+
+if (EXPui_FOUND)
+    find_package_message(EXPui "Found EXPui: ${EXPui_LIBRARIES}" "[${EXPui_LIBRARIES}][${EXPui_INCLUDE_DIRS}]")
+endif()

@@ -5,7 +5,7 @@ set(bin_PROGRAMS diskcoef halocoef diskcoef diskprof haloprof slabprof
   pcatest readcoefsD readcoefsH sphprof pspxvalH pspxvalH2 pspxvalD
   pspxvalD2 pspKLH pspKLD diskeof yaml_diff kdtest)
 
-set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
+set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp::yaml-cpp exputil
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 if(PNG_FOUND)
@@ -32,7 +32,7 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
 
 add_executable(diskcoef    diskprof_coef.cc)
 add_executable(halocoef    haloprof_coef.cc SphSL.cc)
-add_executable(diskprof    diskprof.cc)	    
+add_executable(diskprof    diskprof.cc)
 add_executable(haloprof    haloprof.cc SphSL.cc)
 add_executable(slabprof    slabprof.cc)
 add_executable(psphisto    psphisto.cc)

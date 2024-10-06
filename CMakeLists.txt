@@ -10,64 +10,77 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Compiler flags.  Not all tested thoroughly...
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  # using Clang
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-  # using GCC
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-  # using intel
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qno-offload")
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-  # using Visual Studio C++
+# Search extern first
+list(PREPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/extern )
+
+# Build options
+option(BUILD_COMMON_LIBRARIES "Build the exputil and expcoefs libraries" ON)
+option(INSTALL_HEADERS "Install headers for exputil and expcoefs" OFF)
+option(INSTALL_CMAKE_FIND "Installs the Cmake find_package helpers" OFF)
+option(ENABLE_NBODY "Enable EXP n-body" ON)
+option(ENABLE_PYEXP "Enable the Python bindings" ON)
+option(ENABLE_PNG "Enable PNG graphics support" OFF)
+option(ENABLE_CUDA "Enable CUDA" OFF)
+option(ENABLE_SLURM "Enable SLURM checkpointing support" OFF)
+option(ENABLE_XDR "Enable RPC/XDR support for Tipsy standard" OFF)
+option(ENABLE_VTK "Configure VTK if available" OFF)
+option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" OFF)
+option(ENABLE_DSMC "Enable DSMC module" OFF)
+option(ENABLE_USER "Enable basic user modules" ON)
+option(ENABLE_SLCHECK "Enable *careful* Sturm-Liouville solutions" ON)
+option(ENABLE_TESTS "Enable build tests for EXP, pyEXP and helpers" ON)
+option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+option(BUILD_DOCS "Build documentation" OFF)
+option(BUILD_UTILS "Build the utility executables" ON)
+option(USE_SUBMODULES "Pull submodules from the EXP git distribution." ON)
+option(ENABLE_COMPILER_WARNINGS "Add extra warnings to compile time" OFF)
+
+if(ENABLE_COMPILER_WARNINGS)
+  set(WARN_OPTIONS
+    $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang,GNU,Intel>>:-Wall>
+    $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang,GNU>>:-Wextra>
+    $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:GNU>>:-Wpedantic>
+    $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang>>:-pedantic>
+  )
 endif()
 
-# Required compiler features
-add_compile_options(-D_REENTRANT)
+set(DEFAULT_COMPILER_OPTIONS
+    -D_REENTRANT
+    $<$<CXX_COMPILER_ID:Clang>:-stdlib=libc++>
+    $<$<CXX_COMPILER_ID:Intel>:-qno-offload>
+  )
 
+add_compile_options(${DEFAULT_COMPILER_OPTIONS} ${WARN_OPTIONS})
+
+# If USE_SUBMODULES is ON
 # Check and enforce that we are a git repository.  Necessary for
 # submodules to work correctly.
+if(USE_SUBMODULES)
 if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
   message(STATUS "Checking that we are a git repository - good")
 else()
   message(STATUS "Checking that we are a git repository - NO")
   message(SEND_ERROR "You need to 'git clone ${CMAKE_PROJECT_HOMEPAGE_URL}'.  Please don't use the zip download.")
 endif()
-
-# Build options
-option(ENABLE_NBODY "Enable EXP n-body" ON)
-option(ENABLE_PYEXP "Enable the Python bindings" ON)
-option(ENABLE_PNG "Enable PNG graphics support" FALSE)
-option(ENABLE_CUDA "Enable CUDA" FALSE)
-option(ENABLE_SLURM "Enable SLURM checkpointing support" FALSE)
-option(ENABLE_XDR "Enable RPC/XDR support for Tipsy standard" FALSE)
-option(ENABLE_VTK "Configure VTK if available" FALSE)
-option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
-option(ENABLE_USER "Enable basic user modules" ON)
-option(ENABLE_SLCHECK "Enable *careful* Sturm-Liouville solutions" TRUE)
-option(ENABLE_TESTS "Enable build tests for EXP, pyEXP and helpers" ON)
-option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
-option(BUILD_DOCS "Build documentation" OFF)
+endif()
 
 # Set mpirun launcher for CTest
-
 set(EXP_MPI_LAUNCH "mpirun" CACHE STRING "Command to run an MPI application (for unit tests only)")
 
 # Find newest version if multiple versions are available
-
 set(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
 set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 
 # Package support
-
 find_package(MPI REQUIRED COMPONENTS C CXX)
 find_package(OpenMP)
 find_package(FFTW)
 find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
-find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
-find_package(PNG)
+
+if(ENABLE_PNG)
+  find_package(PNG REQUIRED)
+endif()
 
 # Check for FE
 include(FEENABLE)
@@ -160,6 +173,7 @@ endif()
 
 # Only include RPC support if the installer wants XDR
 if(ENABLE_XDR)
+  find_package(TIRPC)	       # Check for alternative Sun rpc support
   if(TIRPC_FOUND OR HAVE_RPC_TYPES)
     set(HAVE_XDR TRUE CACHE BOOL "We have an XDR implementation")
     message(STATUS "We have an XDR implementation; Tipsy standard files will be supported.")
@@ -179,34 +193,36 @@ set(CUDA_EXP_DATTRIB "4" CACHE STRING
   "Number of real particle attributes for Cuda particle structure")
 add_compile_definitions(DATTRIB_CUDA=${CUDA_EXP_DATTRIB})
 
-# Get the current working branch
-execute_process(
-  COMMAND git rev-parse --abbrev-ref HEAD
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_BRANCH
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
 # Git submodule updates
-execute_process(
-  COMMAND git submodule update --init --recursive
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  RESULT_VARIABLE GIT_SUBMOD_RESULT
-)
+if(USE_SUBMODULES)
+  # Get the current working branch
+  execute_process(
+    COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
 
-if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-   message(FATAL_ERROR "git submodule update --init --recursive failed ${GIT_SUBMOD_RESULT}, please checkout submodules")
-else()
-   message(STATUS "Submodules updated successfully - good")
+  execute_process(
+    COMMAND git submodule update --init --recursive
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE GIT_SUBMOD_RESULT
+  )
+
+  if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+    message(FATAL_ERROR "git submodule update --init --recursive failed ${GIT_SUBMOD_RESULT}, please checkout submodules")
+  else()
+    message(STATUS "Submodules updated successfully - good")
+  endif()
+
+  # Get the latest abbreviated commit hash of the working branch
+  execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
 endif()
-
-# Get the latest abbreviated commit hash of the working branch
-execute_process(
-  COMMAND git rev-parse HEAD
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_COMMIT
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
 
 # Get the build date
 execute_process(
@@ -216,14 +232,21 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
-include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+if (USE_SUBMODULES)
+  message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
+  include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
+  add_subdirectory(extern/yaml-cpp)
+else()
+  find_package(yaml-cpp REQUIRED)
+endif()
 
-# Report to the user
-message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
-
-add_subdirectory(extern/yaml-cpp)
-add_subdirectory(extern/pybind11)
+if (USE_SUBMODULES AND ENABLE_PYEXP)
+  message("Configuring pybind11 for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
+  add_subdirectory(extern/pybind11)
+  include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+elseif(ENABLE_PYEXP)
+  find_package(pybind11 CONFIG REQUIRED)
+endif()
 
 # Set options for the HighFive git submodule in extern
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "Do not build the examples")
@@ -232,20 +255,33 @@ set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "Do not use Boost in HighFive")
 set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "Turn off internal testing for HighFIve")
 set(H5_USE_EIGEN TRUE CACHE BOOL "Eigen3 support in HighFive")
 
-add_subdirectory(extern/HighFive EXCLUDE_FROM_ALL)
+find_package(HighFive 3)
+
+if (NOT HighFive_FOUND)
+  add_subdirectory(extern/HighFive EXCLUDE_FROM_ALL)
+endif()
 
 # Configure the remaining native subdirectories
-add_subdirectory(exputil)
-add_subdirectory(expui)
+if (BUILD_COMMON_LIBRARIES)
+  add_subdirectory(exputil)
+  add_subdirectory(expui)
+endif()
+
 if (ENABLE_NBODY)
   add_subdirectory(src)
 endif()
-add_subdirectory(utils)
+
+if (BUILD_UTILS)
+  add_subdirectory(utils)
+endif()
+
 if (ENABLE_PYEXP)
   add_subdirectory(pyEXP)
 endif()
 
-add_subdirectory(extern/user-modules)
+if (ENABLE_USER)
+  add_subdirectory(extern/user-modules)
+endif()
 
 # Build the tests; set ENABLE_TEST=OFF to disable
 if(ENABLE_TESTS)
@@ -254,12 +290,12 @@ if(ENABLE_TESTS)
 endif()
 
 # try to find pybind11 and build wrapper python module
-find_package(Python3 COMPONENTS Interpreter Development)
-message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
+# find_package(Python3 COMPONENTS Interpreter Development)
+# message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
 
 
 # Force installation of the yaml-cpp libraries
-install(TARGETS yaml-cpp DESTINATION lib)
+# install(TARGETS yaml-cpp DESTINATION lib)
 
 # Check for doxygen is the user wants web docs
 if (BUILD_DOCS)
@@ -341,9 +377,7 @@ set(CMAKE_CXX_FLAGS_UBSAN
   CACHE STRING "Flags used by the C++ compiler during UndefinedBehaviourSanitizer builds."
   FORCE)
 
-# Make the config_exp.h file in the build directory, add the build dir
-# to the CMake include path.  This allows for multiple configurations
-# from the same source.
-configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_BINARY_DIR}/config_exp.h)
-include_directories(${PROJECT_BINARY_DIR})
-
+# Make the config_exp.h file in the build directory, 
+# to be added to the private include path by modules
+configure_file(config_cmake.h_in ${CMAKE_BINARY_DIR}/config/config_exp.h)
+configure_file(config_cmake.h_in ${CMAKE_BINARY_DIR}/config_exp.h)

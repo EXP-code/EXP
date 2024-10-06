@@ -1,0 +1,57 @@
+{% set name = "EXP-libraries" %}
+{% set version = "7.7.28" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: file:///home/georgia/Projects/umass/unity/user_support/martin_exp/packaging/pypi/EXP-libraries/dist/EXP-libraries-7.7.28.tar.gz
+  sha256: 7edc7f0b3b8d648c436666f873316c02190ad37b57ca3fd5373d33b924e494b8
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - {{ compiler('fortran') }}
+    - {{ mpi }}-mpicc
+    - {{ mpi }}-mpicxx
+    - {{ mpi }}-mpifort
+    - setuptools >=42
+    - scikit-build >=0.13
+    - cmake >=3.21
+    - ninja
+    - pip
+    - eigen
+    - highfive
+  host:
+    - {{ mpi }}
+    - hdf5 >=1.8.20
+    - boost-cpp
+    - fftw
+    - libtirpc # [linux-64]
+    - yaml-cpp
+    - zlib
+    - libpng
+  run:
+    - {{ mpi }}
+    - _openmp_mutex
+    - hdf5 >=1.8.20
+    - boost-cpp
+    - fftw
+    - libtirpc # [linux-64]
+    - yaml-cpp
+    - libpng
+
+about:
+  summary: Nbody EXPansion Code - Libraries
+  license: GPL-3.0 AND MIT
+  license_file:
+    - LICENSE
+
+extra:
+  recipe-maintainers:
+    - georgiastuart

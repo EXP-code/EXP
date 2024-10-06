@@ -14,7 +14,7 @@ extern void FieldGeneratorClasses(py::module &m);
 extern void ParticleReaderClasses(py::module &m);
 extern void UtilityClasses       (py::module &m);
 
-PYBIND11_MODULE(pyEXP, m)
+PYBIND11_MODULE(_pyEXP, m)
 {
   m.doc() =
     "pyEXP\n"
@@ -99,7 +99,7 @@ PYBIND11_MODULE(pyEXP, m)
     "dynamical features in simulations that are hard to find `by eye'.\n\n"
     "Please send comments, suggestions, and particularly good cookies to:\n"
     "mdw@umass.edu (Martin Weinberg)\n\n";
-  
+
   auto mod_coefs = m.def_submodule("coefs",
 				   "Classes for reading, passing and "
 				   "manipulating coefficient sets");
@@ -121,11 +121,11 @@ PYBIND11_MODULE(pyEXP, m)
   auto mod_mssa = m.def_submodule("mssa", "Tools to apply Multivariate Singular "
 				  "Spectrum Analysis (MSSA) to the coefficients "
 				  "computed using the 'basis' classes");
-  
+
   auto mod_edmd = m.def_submodule("edmd", "Tools to apply extended Dynamical Mode "
 				  "Decomposition to the coefficients computed using "
 				  "the 'basis' classes");
-  
+
   auto mod_util = m.def_submodule("util", "Miscellaneous tools that support the "
 				  "others.  Currently these contain several "
 				  "centering algorithms.");

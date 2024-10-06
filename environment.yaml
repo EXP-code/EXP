@@ -1,0 +1,23 @@
+name: exp
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - boost
+  - eigen=3
+  - fftw
+  - hdf5=1.14
+  # - highfive # conda version is too old
+  - pybind11
+  - openmpi
+  - yaml-cpp
+  - scikit-build
+  - gcc=13.2.0
+  - gfortran=13.2.0
+  # - libpng # Conda only supplies libpng 1.6 - EXP requires 1.2
+  - libtirpc
+  - zlib
+  - gxx=13.2.0
+  - libgomp=13.2.0
+  - libgcc-ng=13.2.0
+  - libgfortran-ng=13.2.0

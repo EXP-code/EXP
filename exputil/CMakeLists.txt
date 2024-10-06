@@ -1,4 +1,3 @@
-
 set(ODE_SRC rk4.cc bs.cc odesolve.cc)
 set(SYMP_SRC sia4.cc)
 set(ROOT_SRC rtbis.cc rtsafe.cc brent.cc zbrent.cc mnbrak.cc zbrak.cc zbrac.cc)
@@ -43,37 +42,96 @@ set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
   ${QPDISTF_SRC} ${BESSEL_SRC} ${OPTIMIZATION_SRC}
   ${SLEDGE_SRC} ${PARTICLE_SRC} ${CUDA_SRC})
 
-set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/> ${CMAKE_BINARY_DIR}
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>
-  ${DEP_INC} ${EIGEN3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS}
-  ${FFTW_INCLUDE_DIRS})
+set(common_INCLUDE 
+  $<INSTALL_INTERFACE:include/exputil>
+  ${YAML_CPP_INCLUDE_DIR} ${DEP_INC} ${EIGEN3_INCLUDE_DIR}
+  ${HDF5_INCLUDE_DIRS} ${FFTW_INCLUDE_DIRS})
 
-set(common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
-  yaml-cpp ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
-  ${FFTW_DOUBLE_LIB})
+set(common_INCLUDE_PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/config/>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/extern/>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/>)
+
+set(common_LINKLIBS
+  ${DEP_LIB} ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
+  ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
+  ${FFTW_DOUBLE_LIB} HighFive)
+
+# if(HighFive_FOUND)
+#   list(APPEND common_LINKLIBS HighFive)
+# else()
+#   list(APPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include>)
+# endif()
+
+if(USE_SUBMODULES)
+  list(APPEND common_INCLUDE_PRIVATE 
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>)
+  list(APPEND common_LINKLIBS yaml-cpp)
+endif()
 
 if(ENABLE_CUDA)
-  list(APPEND common_INCLUDE_DIRS ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
-  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
+  list(APPEND common_INCLUDE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
+  list(APPEND common_LINKLIBS CUDA::cudart CUDA::nvToolsExt)
 endif()
 
 if(ENABLE_XDR AND TIRPC_FOUND)
-  list(APPEND common_INCLUDE_DIRS ${TIRPC_INCLUDE_DIRS})
-  list(APPEND common_LINKLIB ${TIRPC_LIBRARIES})
+  list(APPEND common_INCLUDE ${TIRPC_INCLUDE_DIRS})
+  list(APPEND common_LINKLIBS ${TIRPC_LIBRARIES})
 endif()
 
-# shared lib
+if(PNG_FOUND AND ENABLE_PNG)
+  list(APPEND common_LINKLIBS PNG::PNG)
+  list(APPEND common_INCLUDE ${PNG_INCLUDE_DIRS})
+  add_definitions(${PNG_DEFINITIONS})
+endif()
 
-add_library(exputil ${exputil_SOURCES})
-set_target_properties(exputil PROPERTIES OUTPUT_NAME exputil)
-target_include_directories(exputil PUBLIC ${common_INCLUDE_DIRS})
+# TODO: Replace this globbing with a list of actually public headers
+file(GLOB exputil_PUBLIC_HEADERS "../include/*.[hH]")
+
+# shared lib
+add_library(exputil ${exputil_SOURCES} ${exputil_PUBLIC_HEADERS})
+
+set_target_properties(exputil PROPERTIES 
+  OUTPUT_NAME exputil
+  EXPORT_NAME EXPutil
+  PUBLIC_HEADER "${exputil_PUBLIC_HEADERS}")
+
+target_include_directories(exputil PUBLIC ${common_INCLUDE})
+target_include_directories(exputil PRIVATE ${common_INCLUDE_PRIVATE})
 target_link_libraries(exputil PUBLIC ${common_LINKLIBS})
 
-install(TARGETS exputil DESTINATION lib)
+install(TARGETS exputil
+  EXPORT EXPutilTargets
+  LIBRARY DESTINATION lib
+  PUBLIC_HEADER DESTINATION include/exputil)
 
-# HDF5 info
+install (DIRECTORY $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/png++>
+  DESTINATION include/exputil)
 
-message(STATUS "HDF5 include dirs: ${HDF5_INCLUDE_DIRS}")
+# install (DIRECTORY $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/HighFive/include/highfive>
+#   DESTINATION include/exputil)
+
+install (DIRECTORY $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/rapidxml>
+  DESTINATION include/exputil)
+
+if (INSTALL_CMAKE_FIND)
+  # Set up cmake configs
+  set(CMAKEPACKAGE_INSTALL_DIR share/EXPutil/cmake)
+  install (EXPORT EXPutilTargets
+    FILE EXPutilTargets.cmake
+    NAMESPACE EXP::
+    DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
+
+  include(CMakePackageConfigHelpers)
+  configure_package_config_file(EXPutilConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/EXPutilConfig.cmake
+    INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+    PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
+    )
+  write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPutilVersion.cmake
+                                  VERSION ${CMAKE_PROJECT_VERSION}
+                                  COMPATIBILITY SameMinorVersion )
+  install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPutilConfig.cmake
+                ${CMAKE_CURRENT_BINARY_DIR}/EXPutilVersion.cmake
+          DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
+endif()

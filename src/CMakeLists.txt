@@ -1,4 +1,3 @@
-
 set(CUDA_SRC)
 if (ENABLE_CUDA)
   list(APPEND CUDA_SRC cudaPolarBasis.cu cudaSphericalBasis.cu
@@ -22,47 +21,118 @@ set(exp_SOURCES Basis.cc Bessel.cc Component.cc
   ParticleFerry.cc chkSlurm.c chkTimer.cc GravKernel.cc ${CUDA_SRC}
   CenterFile.cc PolarBasis.cc FlatDisk.cc signals.cc)
 
-set(common_INCLUDE_DIRS 
-  $<INSTALL_INTERFACE:include>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/pyEXP/>
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>
-  ${CMAKE_BINARY_DIR} ${DEP_INC}
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${EIGEN3_INCLUDE_DIR})
+set(common_INCLUDE 
+  $<INSTALL_INTERFACE:include/exputil>
+  ${EXPUTIL_INCLUDE} 
+  ${EXPUI_INCLUDE}
+  ${HDF5_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
 
-set(common_LINKLIB exputil expui OpenMP::OpenMP_CXX MPI::MPI_CXX
-  yaml-cpp ${VTK_LIBRARIES})
+set(common_INCLUDE_PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/config/>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+
+set(DSMC_LIBS)
+if (ENABLE_DSMC)
+  add_subdirectory(${PROJECT_SOURCE_DIR}/extern/DSMC/src DSMC)
+  list(APPEND DSMC_LIBS expdsmc)
+endif()
+
+set(common_LINKLIBS
+  ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}
+  ${DSMC_LIBS} ${DEP_LIB} 
+  HighFive
+  ${OpenMP_CXX_LIBRARIES} ${MPI_CXX_LIBRARIES}
+  ${YAML_CPP_LIBRARIES} ${VTK_LIBRARIES}
+  ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+
+find_package(EXPutil)
+if(EXPutil_FOUND)
+  list(APPEND common_LINKLIBS EXP::EXPutil)
+  list(APPEND common_INCLUDE ${EXPutil_INCLUDE_DIRS})
+else()
+  list(APPEND common_LINKLIBS exputil) #internal name
+  list(APPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>)
+endif()
+
+find_package(EXPui QUIET)
+if(EXPui_FOUND)
+  list(APPEND common_LINKLIBS EXP::EXPui)
+  list(APPEND common_INCLUDE ${EXPui_INCLUDE_DIRS})
+else()
+  list(APPEND common_LINKLIBS expui) #internal name
+  list(APPEND common_INCLUDE_PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/expui/>)
+endif()
+
+if(USE_SUBMODULES)
+  list(APPEND common_INCLUDE_PRIVATE 
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include>)
+  list(APPEND common_LINKLIBS yaml-cpp)
+endif()
 
 if(PNG_FOUND)
-  list(APPEND common_LINKLIB PNG::PNG)
+  list(APPEND common_LINKLIBS PNG::PNG)
+  list(APPEND common_INCLUDE ${PNG_INCLUDE_DIRS})
+  add_definitions(${PNG_DEFINITIONS})
 endif()
 
 if(ENABLE_CUDA)
-  list(APPEND common_INCLUDE_DIRS ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
-  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
+  list(APPEND common_INCLUDE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
+  list(APPEND common_LINKLIBS CUDA::cudart CUDA::nvToolsExt)
 endif()
 
 if(SLURM_FOUND)
-  list(APPEND common_LINKLIB ${SLURM_LIBRARY})
+  list(APPEND common_LINKLIBS ${SLURM_LIBRARY})
 endif()
 
 if(ENABLE_XDR AND TIRPC_FOUND)
-  list(APPEND common_LINKLIB ${TIRPC_LIBRARY})
+  list(APPEND common_INCLUDE ${TIRPC_INCLUDE_DIRS})
+  list(APPEND common_LINKLIBS ${TIRPC_LIBRARY})
 endif()
 
+
 add_library(EXPlib ${exp_SOURCES})
+
 set_target_properties(EXPlib PROPERTIES OUTPUT_NAME EXPlib)
-target_include_directories(EXPlib PUBLIC ${common_INCLUDE_DIRS})
-target_link_libraries(EXPlib PUBLIC ${common_LINKLIB})
+set_target_properties (EXPlib PROPERTIES EXPORT_NAME EXPnbody)
+target_include_directories(EXPlib PUBLIC ${common_INCLUDE})
+target_include_directories(EXPlib PRIVATE ${common_INCLUDE_PRIVATE})
+target_link_libraries(EXPlib PUBLIC ${common_LINKLIBS})
 
 if (ENABLE_USER)
   add_subdirectory(user)
 endif()
 
-add_executable(exp expand.cc)
-target_include_directories(exp PUBLIC ${common_INCLUDE_DIRS})
-target_link_libraries(exp PUBLIC ${common_LINKLIB} EXPlib)
+add_executable(exp expand.cc expand.H)
+target_include_directories(exp PRIVATE ${common_INCLUDE_PRIVATE})
+target_include_directories(exp PUBLIC ${common_INCLUDE})
+target_link_libraries(exp PUBLIC EXPlib ${common_LINKLIBS})
+target_compile_options(exp PUBLIC ${OpenMP_CXX_FLAGS})
 
-install(TARGETS EXPlib DESTINATION lib)
-install(TARGETS exp DESTINATION bin)
+install(TARGETS EXPlib exp
+  EXPORT EXPnbodyTargets
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  PUBLIC_HEADER DESTINATION include/exputil)
+
+if (INSTALL_CMAKE_FIND)
+  # Set up cmake configs
+  set(CMAKEPACKAGE_INSTALL_DIR share/EXPnbody/cmake)
+  install (EXPORT EXPnbodyTargets
+    FILE EXPnbodyTargets.cmake
+    NAMESPACE EXP::
+    DESTINATION ${CMAKEPACKAGE_INSTALL_DIR})
+
+  include(CMakePackageConfigHelpers)
+  configure_package_config_file(EXPnbodyConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/EXPnbodyConfig.cmake
+    INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+    PATH_VARS CMAKEPACKAGE_INSTALL_DIR CMAKE_INSTALL_PREFIX
+  )
+  write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/EXPnbodyVersion.cmake
+                                  VERSION ${CMAKE_PROJECT_VERSION}
+                                  COMPATIBILITY SameMinorVersion )
+  install (FILES ${CMAKE_CURRENT_BINARY_DIR}/EXPnbodyConfig.cmake
+                ${CMAKE_CURRENT_BINARY_DIR}/EXPnbodyVersion.cmake
+          DESTINATION ${CMAKEPACKAGE_INSTALL_DIR} )
+endif()
