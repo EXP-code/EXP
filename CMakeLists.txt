@@ -261,11 +261,6 @@ if (NOT HighFive_FOUND)
   add_subdirectory(extern/HighFive EXCLUDE_FROM_ALL)
 endif()
 
-# if (USE_SUBMODULES)
-# else ()
-#   find_package(HighFive REQUIRED)
-# endif()
-
 # Configure the remaining native subdirectories
 if (BUILD_COMMON_LIBRARIES)
   add_subdirectory(exputil)
