@@ -43,6 +43,7 @@ RUN apt-get update -y && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         cmake \
         git \
+	unzip \
         libeigen3-dev \
         libfftw3-dev \
         libhdf5-103 \
@@ -57,7 +58,7 @@ RUN apt-get update -y && \
     rm -rf /var/lib/apt/lists/*
 
 # git@github.com:EXP-code/EXP.git
-RUN mkdir -p /var/tmp && cd /var/tmp && git clone --depth=1 git://github.com/EXP-code/EXP.git EXP && cd - && \
+RUN mkdir -p /var/tmp && cd /var/tmp && export GIT_SSL_NO_VERIFY=1 && git clone https://github.com/EXP-code/EXP EXP && cd - && \
     cd /var/tmp/EXP && \
     git config --global --add safe.directory /var/tmp/EXP && \
     git config --global --add safe.directory /var/tmp/EXP/extern/HighFive && \
@@ -65,7 +66,7 @@ RUN mkdir -p /var/tmp && cd /var/tmp && git clone --depth=1 git://github.com/EXP
     git config --global --add safe.directory /var/tmp/EXP/extern/yaml-cpp && \
     git config --global --add safe.directory /var/tmp/EXP/extern/HighFive/deps/catch2 && \
     mkdir -p /usr/local/EXP/doc && \
-    cp -a /var/tmp/EXP/sphinx/* /usr/local/EXP/doc && \
+    # cp -a /var/tmp/EXP/sphinx/* /usr/local/EXP/doc && \
     mkdir -p /var/tmp/EXP/build && cd /var/tmp/EXP/build && cmake -DCMAKE_INSTALL_PREFIX=/usr/local/EXP -D CMAKE_BUILD_TYPE=Release -D ENABLE_CUDA=NO -D ENABLE_USER=YES -D ENABLE_SLURM=NO -D ENABLE_PNG=NO -D ENABLE_VTK=NO -D FFTW_INCLUDE_DIRS=/usr/include/fftw3 -D Eigen3_DIR=/usr/share/eigen3/cmake -D CMAKE_INSTALL_PREFIX=/usr/local/EXP /var/tmp/EXP && \
     cmake --build /var/tmp/EXP/build --target all -- -j$(nproc) && \
     cmake --build /var/tmp/EXP/build --target install -- -j$(nproc) && \
