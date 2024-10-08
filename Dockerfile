@@ -56,8 +56,8 @@ RUN apt-get update -y && \
         wget && \
     rm -rf /var/lib/apt/lists/*
 
-# https://github.com/EXP-code/EXP.git
-RUN mkdir -p /var/tmp && cd /var/tmp && git clone --depth=1 https://github.com/EXP-code/EXP.git EXP && cd - && \
+# git@github.com:EXP-code/EXP.git
+RUN mkdir -p /var/tmp && cd /var/tmp && git clone --depth=1 git://github.com/EXP-code/EXP.git EXP && cd - && \
     cd /var/tmp/EXP && \
     git config --global --add safe.directory /var/tmp/EXP && \
     git config --global --add safe.directory /var/tmp/EXP/extern/HighFive && \
@@ -87,6 +87,7 @@ RUN apt-get update -y && \
         libgomp1 && \
     rm -rf /var/lib/apt/lists/*
 
+# git@github.com:EXP-code/EXP.git
 COPY --from=devel /usr/local/EXP /usr/local/EXP
 ENV LD_LIBRARY_PATH=/usr/local/EXP/lib \
     LIBRARY_PATH=/usr/local/EXP/lib \
@@ -146,3 +147,22 @@ RUN apt-get update -y && \
     rm -rf /var/lib/apt/lists/*
 RUN pip3 --no-cache-dir install --upgrade pip && \
     pip3 --no-cache-dir install numpy scipy matplotlib jupyter h5py mpi4py PyYAML k3d pandas astropy gala galpy pynbody jupyterlab ipyparallel
+
+# Add a user with a home directory
+
+ARG NB_USER=jovyan
+ARG NB_UID=1000
+ENV USER ${NB_USER}
+ENV NB_UID ${NB_UID}
+ENV HOME /home/${NB_USER}
+
+RUN adduser --disabled-password \
+    --gecos "Default user" \
+    --uid ${NB_UID} \
+    ${NB_USER}
+    
+# Make sure the contents of our repo are in ${HOME}
+# COPY . ${HOME}
+USER root
+RUN chown -R ${NB_UID} ${HOME}
+USER ${NB_USER}
