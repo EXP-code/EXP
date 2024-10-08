@@ -56,9 +56,8 @@ RUN apt-get update -y && \
         wget && \
     rm -rf /var/lib/apt/lists/*
 
-# EXP.tar.gz
-COPY EXP.tar.gz /var/tmp/EXP.tar.gz
-RUN mkdir -p /var/tmp && tar -x -f /var/tmp/EXP.tar.gz -C /var/tmp -z && \
+# https://github.com/EXP-code/EXP.git
+RUN mkdir -p /var/tmp && cd /var/tmp && git clone --depth=1 https://github.com/EXP-code/EXP.git EXP && cd - && \
     cd /var/tmp/EXP && \
     git config --global --add safe.directory /var/tmp/EXP && \
     git config --global --add safe.directory /var/tmp/EXP/extern/HighFive && \
@@ -70,7 +69,7 @@ RUN mkdir -p /var/tmp && tar -x -f /var/tmp/EXP.tar.gz -C /var/tmp -z && \
     mkdir -p /var/tmp/EXP/build && cd /var/tmp/EXP/build && cmake -DCMAKE_INSTALL_PREFIX=/usr/local/EXP -D CMAKE_BUILD_TYPE=Release -D ENABLE_CUDA=NO -D ENABLE_USER=YES -D ENABLE_SLURM=NO -D ENABLE_PNG=NO -D ENABLE_VTK=NO -D FFTW_INCLUDE_DIRS=/usr/include/fftw3 -D Eigen3_DIR=/usr/share/eigen3/cmake -D CMAKE_INSTALL_PREFIX=/usr/local/EXP /var/tmp/EXP && \
     cmake --build /var/tmp/EXP/build --target all -- -j$(nproc) && \
     cmake --build /var/tmp/EXP/build --target install -- -j$(nproc) && \
-    rm -rf /var/tmp/EXP /var/tmp/EXP.tar.gz
+    rm -rf /var/tmp/EXP
 
 FROM ubuntu:22.04
 
@@ -147,22 +146,3 @@ RUN apt-get update -y && \
     rm -rf /var/lib/apt/lists/*
 RUN pip3 --no-cache-dir install --upgrade pip && \
     pip3 --no-cache-dir install numpy scipy matplotlib jupyter h5py mpi4py PyYAML k3d pandas astropy gala galpy pynbody jupyterlab ipyparallel
-
-# Add a user with a home directory
-
-ARG NB_USER=jovyan
-ARG NB_UID=1000
-ENV USER ${NB_USER}
-ENV NB_UID ${NB_UID}
-ENV HOME /home/${NB_USER}
-
-RUN adduser --disabled-password \
-    --gecos "Default user" \
-    --uid ${NB_UID} \
-    ${NB_USER}
-    
-# Make sure the contents of our repo are in ${HOME}
-# COPY . ${HOME}
-USER root
-RUN chown -R ${NB_UID} ${HOME}
-USER ${NB_USER}
