@@ -203,9 +203,12 @@ protected:
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();
 
-  thrust::host_vector<cuFP_t> host_coefs, host_massT;
-  thrust::device_vector<cuFP_t> dev_coefs;
-  std::vector<thrust::host_vector<cuFP_t>> host_coefsT, host_covarT;
+  // thrust::host_vector<cuFP_t> host_coefs, host_massT;
+  // thrust::device_vector<cuFP_t> dev_coefs;
+  // std::vector<thrust::host_vector<cuFP_t>> host_coefsT, host_covarT;
+  std::any host_coefs, host_massT;
+  std::any dev_coefs;
+  std::any host_coefsT, host_covarT;
   cuFP_t host_mass_tot;
 
   virtual void HtoD_coefs();
@@ -215,7 +218,7 @@ protected:
   void coef_cuda_compare();
 
   std::vector<cudaArray_t> cuInterpArray;
-  thrust::host_vector<cudaTextureObject_t> tex;
+  std::vector<cudaTextureObject_t> tex;
 
   virtual void initialize_cuda() {}
 
@@ -248,11 +251,13 @@ protected:
 
   //@{
   //! Working device vectors
-  thrust::device_vector<cudaTextureObject_t> t_d;
+  // thrust::device_vector<cudaTextureObject_t> t_d;
+  std::any t_d;
 
   //! Helper struct to hold device data
   struct cudaStorage
   {
+    /*
     thrust::device_vector<cuFP_t> dN_coef;
     thrust::device_vector<cuFP_t> dc_coef;
     thrust::device_vector<cuFP_t> dw_coef;
@@ -266,6 +271,21 @@ protected:
     thrust::device_vector<int   > iX_d, iY_d;
     
     std::vector<thrust::device_vector<cuFP_t>> T_covr;
+    */
+
+    std::any dN_coef;
+    std::any dc_coef;
+    std::any dw_coef;
+    std::any df_coef;
+    std::any dN_tvar;
+    std::any dW_tvar;
+    std::any dc_tvar;
+    std::any dw_tvar;
+    std::any df_tvar;
+    std::any m_d, u_d, X_d, Y_d, a_d, p_d;
+    std::any iX_d, iY_d;
+    
+    std::vector<std::any> T_covr;
 
     void resize_coefs(int nmax, int Mmax, int N, int gridSize, int stride,
 		      int sampT, bool pca, bool pcaeof, bool subsamp);

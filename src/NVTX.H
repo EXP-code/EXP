@@ -7,7 +7,7 @@
 
 #if HAVE_LIBCUDA==1
 
-#include <nvToolsExt.h>
+#include <nvtx3/nvToolsExt.h>
 
 class nvTracer {
 private:

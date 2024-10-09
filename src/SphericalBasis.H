@@ -133,7 +133,8 @@ protected:
   void coef_cuda_compare();
 
   std::vector<cudaArray_t> cuInterpArray;
-  thrust::host_vector<cudaTextureObject_t> tex;
+  // thrust::host_vector<cudaTextureObject_t> tex;
+  std::any tex;
 
   virtual void initialize_cuda() {}
 
@@ -171,6 +172,19 @@ protected:
   //! Helper struct to hold device data
   struct cudaStorage
   {
+    /*
+    thrust::device_vector<cuFP_t> dN_coef;
+    thrust::device_vector<cuFP_t> dc_coef;
+    thrust::device_vector<cuFP_t> dw_coef;
+    thrust::device_vector<cuFP_t> df_coef;
+    thrust::device_vector<cuFP_t> dN_tvar;
+    thrust::device_vector<cuFP_t> dW_tvar;
+    thrust::device_vector<cuFP_t> dc_tvar;
+    thrust::device_vector<cuFP_t> dw_tvar;
+    thrust::device_vector<cuFP_t> df_tvar;
+    thrust::device_vector<cuFP_t> plm1_d, plm2_d, r_d, m_d, u_d, a_d, p_d;
+    thrust::device_vector<int   > i_d;
+    */
     thrust::device_vector<cuFP_t> dN_coef;
     thrust::device_vector<cuFP_t> dc_coef;
     thrust::device_vector<cuFP_t> dw_coef;

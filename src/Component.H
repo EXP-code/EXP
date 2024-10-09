@@ -1,10 +1,12 @@
 #ifndef _Component_H
 #define _Component_H
 
-#include <mpi.h>
 #include <utility>
+#include <any>
 
 #include <yaml-cpp/yaml.h>
+
+#include <mpi.h>
 
 #include <EXPException.H>
 #include <global.H>
@@ -933,11 +935,12 @@ public:
   //! Index of the device to use (-1 means ignore)
   int cudaDevice;
 
-  typedef thrust::host_vector<cudaParticle> hostPartType;
-  typedef thrust::host_vector<cudaParticle>::iterator hostPartItr;
+  // typedef thrust::host_vector<cudaParticle> hostPartType;
+  // typedef thrust::host_vector<cudaParticle>::iterator hostPartItr;
 
   //! Cuda particles in host memory
-  hostPartType host_particles;
+  // hostPartType host_particles;
+  std::any host_particles;
 
   //! The cuda particles in CUDA device memory
   //@{
@@ -953,10 +956,12 @@ public:
     unsigned instance, id;
 
     //! Host particle beginning and ending iterator
-    hostPartItr first, last;
+    // hostPartItr first, last;
+    std::any first, last;
 
     //! Device particles
-    thrust::device_vector<cudaParticle> cuda_particles;
+    // thrust::device_vector<cudaParticle> cuda_particles;
+    std::any cuda_particles;
 
     //! Level list
     thrust::device_vector<int> levList;
@@ -1006,7 +1011,8 @@ public:
   }
 
   //! Copy cuda device particles for this component back Component C
-  void CudaToParticles(hostPartItr beg, hostPartItr end);
+  // void CudaToParticles(hostPartItr beg, hostPartItr end);
+  void CudaToParticles(std::any beg, std::any end);
 
   //! Copy from device and convert to host particles
   void CudaToParticles()

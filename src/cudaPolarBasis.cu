@@ -1,4 +1,5 @@
 // -*- C++ -*-
+#include <limits>
 
 #include <Component.H>
 #include <PolarBasis.H>
@@ -19,6 +20,9 @@ cuFP_t plrRscale, plrHscale, plrXmin, plrXmax, plrYmin, plrYmax, plrDxi, plrDyi;
 
 __device__ __constant__
 cuFP_t plrDx0;
+
+__device__ __constant__
+cuFP_t plrFLT_MIN;
 
 __device__ __constant__
 cuFP_t plrCen[3], plrBody[9], plrOrig[9];
@@ -146,7 +150,7 @@ cuFP_t cu_z_to_y_plr(cuFP_t z)
   cuFP_t ret;
 
   if (plrCmapZ==1)
-    ret = z/(fabs(z)+FLT_MIN)*asinh(fabs(z/plrHscale));
+    ret = z/(fabs(z)+plrFLT_MIN)*asinh(fabs(z/plrHscale));
   else if (plrCmapZ==2)
     return z/sqrt(z*z + plrHscale*plrHscale);
   else
@@ -264,6 +268,10 @@ void PolarBasis::initialize_mapping_constants()
   cuda_safe_call(cudaMemcpyToSymbol(plrDx0,    &Dx0,      sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying plrDx0");
 
+
+  cuFP_t fmin = std::numeric_limits<float>::min();
+  cuda_safe_call(cudaMemcpyToSymbol(plrFLT_MIN, &fmin,    sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying plrFLT_MIN");
 }
 
 
@@ -2414,7 +2422,7 @@ void PolarBasis::DtoH_coefs(unsigned M)
   for (int m=0; m<=Mmax; m++) {
     
     // n loop
-    //
+    //cd ..
     for (int n=0; n<nmax; n++) {
       set_coef(M, m, n, 'c') = host_coefs[IImn(m, 'c', n, nmax)];
       if (m>0) set_coef(M, m, n, 's') = host_coefs[IImn(m, 's', n, nmax)];

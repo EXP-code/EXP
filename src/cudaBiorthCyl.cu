@@ -84,8 +84,7 @@ thrust::host_vector<cuFP_t> returnTestBioCyl1
 }
 
 void BiorthCyl::initialize_cuda
-(std::vector<cudaArray_t>& cuArray,
- thrust::host_vector<cudaTextureObject_t>& tex
+(std::vector<cudaArray_t>& cuArray, std::any tex0
  )
 {
   // Number of texture arrays
@@ -100,8 +99,11 @@ void BiorthCyl::initialize_cuda
 
   // Create texture objects
   //
-  tex.resize(ndim);
-  thrust::fill(tex.begin(), tex.end(), 0);
+  thrust::host_vector<cudaArray_t>* tex =
+    std::any_cast<thrust::host_vector<cudaArray_t>*>(tex0);
+  
+  tex->resize(ndim);
+  thrust::fill(tex->begin(), tex->end(), 0);
 
   // Temporary storage
   //
@@ -172,7 +174,7 @@ void BiorthCyl::initialize_cuda
       // Create texture object
       //
       cuda_safe_call
-	(cudaCreateTextureObject(&tex[k], &resDesc, &texDesc, NULL),
+	(cudaCreateTextureObject(&(*tex)[k], &resDesc, &texDesc, NULL),
 	 __FILE__, __LINE__, "Failure in 2d texture creation");
       
       // Advance to next array

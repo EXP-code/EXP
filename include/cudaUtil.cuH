@@ -240,6 +240,17 @@ dArray<T> toKernel(thrust::device_vector<T>& dev)
 }
 
 // Template function to convert device_vector to structure for passing
+// from host to device in a cuda kernel for thrust ABI workaround
+//
+template <typename T>
+dArray<T> toKernelAny(std::any any_vec)
+{
+  thrust::device_vector<T>* dev =
+    std::any_cast<thrust::device_vector<T>*>(any_vec);
+  return {thrust::raw_pointer_cast(&(*dev)[0]), dev.size()};
+}
+
+// Template function to convert device_vector to structure for passing
 // from host to device in a cuda kernel
 //
 template <typename T>

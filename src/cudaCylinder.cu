@@ -1,4 +1,5 @@
 // -*- C++ -*-
+#include <limits>
 
 #include <Component.H>
 #include <Cylinder.H>
@@ -15,7 +16,7 @@
 // Global symbols for coordinate transformation
 //
 __device__ __constant__
-cuFP_t cylRscale, cylHscale, cylXmin, cylXmax, cylYmin, cylYmax, cylDxi, cylDyi, cylCen[3], cylBody[9], cylOrig[9];
+cuFP_t cylRscale, cylHscale, cylXmin, cylXmax, cylYmin, cylYmax, cylDxi, cylDyi, cylCen[3], cylBody[9], cylOrig[9], cylFLT_MIN;
 
 __device__ __constant__
 int cylNumx, cylNumy, cylCmapR, cylCmapZ, cylOrient;
@@ -131,7 +132,7 @@ cuFP_t cu_z_to_y_cyl(cuFP_t z)
   cuFP_t ret;
 
   if (cylCmapZ==1)
-    ret = z/(fabs(z)+FLT_MIN)*asinh(fabs(z/cylHscale));
+    ret = z/(fabs(z)+cylFLT_MIN)*asinh(fabs(z/cylHscale));
   else if (cylCmapZ==2)
     return z/sqrt(z*z + cylHscale*cylHscale);
   else
@@ -223,6 +224,10 @@ void Cylinder::initialize_mapping_constants()
 
   cuda_safe_call(cudaMemcpyToSymbol(cylAcov,   &subsamp,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cylAcov");
+
+  cuFP_t fmin = std::numeric_limits<float>::min();
+  cuda_safe_call(cudaMemcpyToSymbol(cylFLT_MIN, &fmin,    sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cylFLT_MIN");
 }
 
 
