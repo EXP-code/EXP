@@ -163,7 +163,9 @@ RUN adduser --disabled-password \
     ${NB_USER}
     
 # Make sure the contents of our repo are in ${HOME}
-# COPY . ${HOME}
+RUN cd ${HOME} && export GIT_SSL_NO_VERIFY=1 && \
+    git clone https://github.com/EXP-code/EXP-examples EXP-examples && \
+    git clone https://github.com/EXP-code/pyEXP-examples pyEXP-examples
 USER root
 RUN chown -R ${NB_UID} ${HOME}
 USER ${NB_USER}
