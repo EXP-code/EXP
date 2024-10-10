@@ -91,7 +91,7 @@ endif()
 
 # Optional CUDA support
 if(ENABLE_CUDA)
-  enable_language(CUDA)
+  # enable_language(CUDA)
   find_package(CUDAToolkit REQUIRED)
   message(STATUS "Using CUDA architectures ${CMAKE_CUDA_ARCHITECTURES} by default.  Please set the CUDAARCHS environment variable to override this.")
   set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -w"
