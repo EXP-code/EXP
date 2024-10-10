@@ -1360,7 +1360,7 @@ void SphericalBasis::determine_acceleration_cuda()
     // Do the work
     //
     forceKernel<<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
-      (toKernel(cr->cuda_particles), toKernel(cr->indx1),
+      (toKernel<(cr->cuda_particles), toKernel(cr->indx1),
        toKernel(dev_coefs), toKernel(t_d),
        toKernel(cuS.plm1_d), toKernel(cuS.plm2_d),
        stride, Lmax, nmax, lohi, rmax);

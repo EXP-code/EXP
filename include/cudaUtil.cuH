@@ -8,6 +8,7 @@
 
 #include <sstream>
 #include <string>
+#include <any>
 
 #include <mpi.h>
 
@@ -245,9 +246,12 @@ dArray<T> toKernel(thrust::device_vector<T>& dev)
 template <typename T>
 dArray<T> toKernelAny(std::any any_vec)
 {
+  // Convert from std::any
   thrust::device_vector<T>* dev =
     std::any_cast<thrust::device_vector<T>*>(any_vec);
-  return {thrust::raw_pointer_cast(&(*dev)[0]), dev.size()};
+
+  // Get the raw pointers for cuda kernel
+  return {thrust::raw_pointer_cast(&(*dev)[0]), dev->size()};
 }
 
 // Template function to convert device_vector to structure for passing

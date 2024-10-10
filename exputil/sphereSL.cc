@@ -1,5 +1,6 @@
-#include <stdlib.h>
+#include <cstdlib>
 #include <iomanip>
+
 #include <sphereSL.H>
 
 
