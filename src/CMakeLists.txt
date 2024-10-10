@@ -23,7 +23,7 @@ if (ENABLE_CUDA)
     Cube.cc Cylinder.cc ExternalForce.cc NVTX.cc OrbTrace.cc Orient.cc
     OutAscii.cc OutCHKPT.cc OutCHKPTQ.cc OutCalbr.cc OutFrac.cc
     OutLog.cc OutPS.cc OutPSN.cc OutPSP.cc OutPSQ.cc OutPSR.cc
-    OutputContainer.cc PolarBasis.cc PotAccel.cc SlabSL.cc
+    OutputContainer.cc PolarBasis.cc PotAccel.cc SlabSL.cc Sphere.cc
     SphericalBasis.cc begin.cc incpos.cc incvel.cc step.cc
     PROPERTIES LANGUAGE CUDA)
 
