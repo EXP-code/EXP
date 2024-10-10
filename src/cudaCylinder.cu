@@ -3,6 +3,7 @@
 #include <Component.H>
 #include <Cylinder.H>
 #include <cudaReduce.cuH>
+#include <float.h>
 #include "expand.H"
 
 // Define for debugging

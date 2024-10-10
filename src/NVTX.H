@@ -5,9 +5,13 @@
 
 #include <config_exp.h>
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
 
+#if __CUDACC_VER_MAJOR__ < 12
 #include <nvToolsExt.h>
+#else
+#include <nvtx3/nvToolsExt.h>
+#endif 
 
 class nvTracer {
 private:

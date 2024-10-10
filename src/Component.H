@@ -19,7 +19,7 @@
 
 #include <config_exp.h>
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
 #include <cudaParticle.cuH>  
 #endif
 
@@ -569,7 +569,7 @@ public:
   //! Compute center of mass and center of velocity (CPU version)
   void fix_positions_cpu(unsigned mlevel=0);
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
   //! Compute center of mass and center of velocity (GPU version)
   void fix_positions_cuda(unsigned mlevel=0);
 #endif
@@ -577,7 +577,7 @@ public:
   //! Compute center of mass and center of velocity
   void fix_positions(unsigned mlevel=0)
   {
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
     if (use_cuda) fix_positions_cuda(mlevel);
     else
 #endif
@@ -926,7 +926,7 @@ public:
   //! Compute level from minimum requested time step from last master step
   inline bool DTreset()  { return dtreset;  }
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
   //@{
   //! CUDA utilities for handling host <===> device exchange
 

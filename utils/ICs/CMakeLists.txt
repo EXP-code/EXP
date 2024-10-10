@@ -9,7 +9,12 @@ set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${HDF5_CXX_LIBRARIES})
 
 if(ENABLE_CUDA)
-  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
+  list(APPEND common_LINKLIB CUDA::cudart)
+  if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12)
+    list(APPEND common_LINKLIB CUDA::nvtx3)
+  else ()
+    list(APPEND common_LINKLIB  CUDA::nvToolsExt)
+  endif ()
 endif()
 
 if(ENABLE_XDR AND TIRPC_FOUND)

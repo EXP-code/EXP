@@ -56,8 +56,12 @@ set(common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
   ${FFTW_DOUBLE_LIB})
 
 if(ENABLE_CUDA)
-  list(APPEND common_INCLUDE_DIRS ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
-  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
+  list(APPEND common_LINKLIB CUDA::cudart)
+  if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12)
+    list(APPEND common_LINKLIB CUDA::nvtx3)
+  else ()
+    list(APPEND common_LINKLIB CUDA::nvToolsExt)
+  endif ()
 endif()
 
 if(ENABLE_XDR AND TIRPC_FOUND)

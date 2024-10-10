@@ -1,4 +1,4 @@
-#include <NVTX.H>
+#include "NVTX.H"
 
 #if HAVE_LIBCUDA==1
 

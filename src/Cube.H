@@ -12,7 +12,7 @@
 #include <Coefficients.H>
 #include <PotAccel.H>
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
 #include <thrust/complex.h>
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
@@ -41,7 +41,7 @@ private:
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
   virtual void determine_coefficients_cuda();
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();
@@ -135,7 +135,7 @@ private:
 	std::cout << std::string(60, '=') << std::endl;
 	std::cout << "Time in CPU: "
 		  << duration0.count()-duration1.count() << std::endl;
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
 	if (c->cC->cudaDevice>=0) {
 	  std::cout << "Time in GPU: " << duration1.count() << std::endl;
 	}

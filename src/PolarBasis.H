@@ -12,7 +12,7 @@
 
 #include <config_exp.h>
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
@@ -198,7 +198,7 @@ protected:
   virtual double getRtable() = 0;
 
   //! CUDA method for coefficient accumulation
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
   virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();
