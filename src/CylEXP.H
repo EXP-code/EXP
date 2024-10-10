@@ -5,7 +5,7 @@
 #include <expand.H>
 #include <EmpCylSL.H>
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif

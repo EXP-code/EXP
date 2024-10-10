@@ -9,7 +9,7 @@
 
 typedef std::shared_ptr<BiorthCyl> CylPtr;
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
 #include <cudaUtil.cuH>
 #endif
 
@@ -61,7 +61,7 @@ private:
 
   virtual double getRtable() { return ortho->getRtable(); }
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
   virtual void initialize_cuda()
   {
     sampT = floor(sqrt(component->CurTotal()));

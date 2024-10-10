@@ -10,11 +10,10 @@
 
 #include <config_exp.h>
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
-#include <NVTX.H>
 
 #include <CoefContainer.H>
 
@@ -155,15 +154,7 @@ private:
       a complete set of coefficients for force evaluation at an
       intermediate time step
   */
-  void compute_multistep_coefficients() 
-  {
-    if (play_back and not play_cnew) return;
-    
-    nvTracerPtr tPtr;
-    if (cuda_prof)
-      tPtr = nvTracerPtr(new nvTracer("Cylinder::compute_multistep_coefficients"));
-    ortho->compute_multistep_coefficients(mfirst[mstep]);
-  }
+  void compute_multistep_coefficients();
 
   //! Reset used particle counter and mass registers
   virtual void multistep_reset();
@@ -180,7 +171,7 @@ protected:
   int sampT, defSampT;
 
   //! CUDA method for coefficient accumulation
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
   virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();

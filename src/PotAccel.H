@@ -195,7 +195,7 @@ public:
   //! Execute to finish level shifts for particles
   virtual void multistep_update_finish() {}
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA==1 && defined (__NVCC__)
   //! Cuda implementation of level shifts
   virtual void multistep_update_cuda() {}
 #endif

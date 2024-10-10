@@ -16,8 +16,12 @@ set(common_INCLUDE $<INSTALL_INTERFACE:include>
 
 
 if(ENABLE_CUDA)
-  list(APPEND common_INCLUDE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
-  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
+  list(APPEND common_LINKLIB CUDA::cudart)
+  if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12)
+    list(APPEND common_LINKLIB CUDA::nvtx3)
+  else ()
+    list(APPEND common_LINKLIB CUDA::nvToolsExt)
+  endif ()
 endif()
 
 if(SLURM_FOUND)

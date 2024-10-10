@@ -12,6 +12,7 @@
 #include <MixtureBasis.H>
 #include <Timer.H>
 #include <exputils.H>
+#include <NVTX.H>
 
 Timer timer_debug;
 
@@ -1657,6 +1658,16 @@ void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 #ifdef CYL_UPDATE_TABLE
   occt[from][to]++;
 #endif
+}
+
+void Cylinder::compute_multistep_coefficients() 
+{
+  if (play_back and not play_cnew) return;
+  
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("Cylinder::compute_multistep_coefficients"));
+  ortho->compute_multistep_coefficients(mfirst[mstep]);
 }
 
 

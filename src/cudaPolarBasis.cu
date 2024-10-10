@@ -3,6 +3,7 @@
 #include <Component.H>
 #include <PolarBasis.H>
 #include <cudaReduce.cuH>
+#include <float.h>
 #include "expand.H"
 
 // Define for debugging
