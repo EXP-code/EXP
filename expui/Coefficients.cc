@@ -489,13 +489,13 @@ namespace CoefClasses
     return mat;
   }
   
-  void SphCoefs::setData(double time, Eigen::Ref<Eigen::VectorXcd> dat)
+  void SphCoefs::setData(double time, Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "SphCoefs::setMatrix: requested time=" << time << " not found";
+      str << "SphCoefs::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -504,7 +504,7 @@ namespace CoefClasses
     }
   }
   
-  void SphCoefs::setMatrix(double time, Eigen::Ref<Eigen::MatrixXcd> dat)
+  void SphCoefs::setMatrix(double time, Eigen::MatrixXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -911,13 +911,13 @@ namespace CoefClasses
     return mat;
   }
   
-  void CylCoefs::setData(double time, Eigen::Ref<Eigen::VectorXcd> dat)
+  void CylCoefs::setData(double time, Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      str << "CylCoefs::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -926,7 +926,7 @@ namespace CoefClasses
     }
   }
 
-  void CylCoefs::setMatrix(double time, Eigen::Ref<Eigen::MatrixXcd> dat)
+  void CylCoefs::setMatrix(double time, Eigen::MatrixXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -1267,13 +1267,13 @@ namespace CoefClasses
     return arr;
   }
 
-  void SlabCoefs::setData(double time, Eigen::Ref<Eigen::VectorXcd> dat)
+  void SlabCoefs::setData(double time, Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      str << "CylCoefs::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -1288,7 +1288,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      str << "SlabCoefs::setTensor: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->allocate();	// Assign storage for the flattened tensor
@@ -1619,13 +1619,13 @@ namespace CoefClasses
     return arr;
   }
 
-  void CubeCoefs::setData(double time, Eigen::Ref<Eigen::VectorXcd> dat)
+  void CubeCoefs::setData(double time, Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      str << "CubeCoefs::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -1640,7 +1640,7 @@ namespace CoefClasses
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "CylCoefs::setMatrix: requested time=" << time << " not found";
+      str << "CubeCoefs::setTensor: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->allocate();	// Assign storage for the flattened tensor
@@ -2007,13 +2007,13 @@ namespace CoefClasses
     return arr;
   }
   
-  void TrajectoryData::setData(double time, Eigen::Ref<Eigen::VectorXcd> dat)
+  void TrajectoryData::setData(double time, Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "TrajectoryData::setMatrix: requested time=" << time << " not found";
+      str << "TrajectoryData::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -2253,13 +2253,13 @@ namespace CoefClasses
     return arr;
   }
   
-  void TableData::setData(double time, Eigen::Ref<Eigen::VectorXcd> dat)
+  void TableData::setData(double time, Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "TableData::setMatrix: requested time=" << time << " not found";
+      str << "TableData::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -2735,7 +2735,7 @@ namespace CoefClasses
     return arr;
   }
   
-  SphFldStruct::coefType & SphFldCoefs::getMatrix(double time)
+  SphFldStruct::dataType SphFldCoefs::getMatrix(double time)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -2745,19 +2745,19 @@ namespace CoefClasses
       arr = it->second->store;
       int ldim = (Lmax+1)*(Lmax+2)/2;
       mat = std::make_shared<SphFldStruct::coefType>
-	(arr.data(), 4, ldim, Nmax); 
+	(arr.data(), Nfld, ldim, Nmax); 
     }
     
     return *mat;
   }
   
-  void SphFldCoefs::setData(double time, Eigen::Ref<Eigen::VectorXcd> dat)
+  void SphFldCoefs::setData(double time, Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "SphVelCoefs::setMatrix: requested time=" << time << " not found";
+      str << "SphFldCoefs::setData: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
@@ -2766,13 +2766,13 @@ namespace CoefClasses
     }
   }
   
-  void SphFldCoefs::setMatrix(double time, const SphFldStruct::coefType& dat)
+  void SphFldCoefs::setMatrix(double time, SphFldStruct::dataType& dat)
   {
     auto it = coefs.find(roundTime(time));
 
     if (it == coefs.end()) {
       std::ostringstream str;
-      str << "SphVelCoefs::setMatrix: requested time=" << time << " not found";
+      str << "SphFldCoefs::setMatrix: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
       it->second->allocate();
@@ -3175,7 +3175,7 @@ namespace CoefClasses
     return arr;
   }
   
-  CylFldStruct::coefType & CylFldCoefs::getMatrix(double time)
+  CylFldStruct::dataType CylFldCoefs::getMatrix(double time)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -3184,13 +3184,13 @@ namespace CoefClasses
     } else {
       arr = it->second->store;
       int mdim = Mmax + 1;
-      mat = std::make_shared<CylFldStruct::coefType>(arr.data(), 3, mdim, Nmax); 
+      mat = std::make_shared<CylFldStruct::coefType>(arr.data(), Nfld, mdim, Nmax); 
     }
     
     return *mat;
   }
   
-  void CylFldCoefs::setData(double time, Eigen::Ref<Eigen::VectorXcd> dat)
+  void CylFldCoefs::setData(double time, Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
 
@@ -3205,7 +3205,7 @@ namespace CoefClasses
     }
   }
   
-  void CylFldCoefs::setMatrix(double time, const CylFldStruct::coefType& dat)
+  void CylFldCoefs::setMatrix(double time, CylFldStruct::dataType& dat)
   {
     auto it = coefs.find(roundTime(time));
 
