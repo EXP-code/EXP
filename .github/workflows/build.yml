@@ -54,7 +54,7 @@ jobs:
 
       - name: CTest Quick
         working-directory: ./build
-        run: ctest -L quick
+        run: ctest --output-on-failure -L quick
         
       #- name: CTest Long
       #working-directory: ./build
