@@ -14,15 +14,18 @@ parameters :
   Lmax: 2
   nmax: 10
   rmapping : 0.0667
-  self_consistent: true
   modelname: SLGridSph.model
   cachename: SLGridSph.cache.run0
 ...
 """
 
+print("---- about to create basis")
+
 # Construct the basis instances
 #
 basis = pyEXP.basis.Basis.factory(config)
+
+print("---- created basis")
 
 # Make some fake body data
 #
