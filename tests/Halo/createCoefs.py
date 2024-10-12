@@ -1,5 +1,6 @@
 import os
 import pyEXP
+import random
 import numpy as np
 
 # Make the halo basis config
@@ -23,24 +24,50 @@ parameters :
 #
 basis = pyEXP.basis.Basis.factory(config)
 
-# Open the file and read the array.  The file was generated using
-# psp2ascii.
+# Make some fake body data
 #
-bodyfile = 'new.bods'
-if not os.path.exists(bodyfile):
-    print('Body file <{}> does not exist'.format(bodyfile))
-    exit(1)
-
-data = np.loadtxt(bodyfile, skiprows=1, usecols=(1, 2, 3, 4))
-print(data.shape)
 
 # Call the basis to generate coefficients
 #
-coef = basis.createFromArray(data[:,0], data[:,1:4], time=3.0)
+mass = []
+xpos = []
+ypos = []
+zpos = []
+
+for i in range(0,100):
+    mass.append(0.001)
+    xpos.append(random.random()*2.0 - 1.0)
+    ypos.append(random.random()*2.0 - 1.0)
+    zpos.append(random.random()*2.0 - 1.0)
+
+print("---- createFromArray usings lists")
+coef1 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.0)
+
+mass  = np.array(mass)
+data  = np.array([xpos, ypos, zpos])
+
+print("---- createFromArray usings numpy arrays converted from lists")
+coef2 = basis.createFromArray(mass, data, time=3.1)
+
+mass = np.ones(1000) * 1.0e6
+xpos = np.random.normal(0.0, 1.0, 1000)
+ypos = np.random.normal(0.0, 1.0, 1000)
+zpos = np.random.normal(0.0, 1.0, 1000)
+
+print("---- createFromArray using a list of numpy arrays")
+coef3 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.2)
+
+data  = np.array([xpos, ypos, zpos])
+
+print("---- createFromArray usings pure numpy arrays")
+coef4 = basis.createFromArray(mass, data, time=3.3)
 
 # Add the coefficient structure coefficient structure
 coefs = pyEXP.coefs.SphCoefs(True)
-coefs.add(coef)
+coefs.add(coef1)
+coefs.add(coef2)
+coefs.add(coef3)
+coefs.add(coef4)
 print("Times:", coefs.Times())
 
 exit(0)
