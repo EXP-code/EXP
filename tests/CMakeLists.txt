@@ -1,5 +1,7 @@
 include(CTest)
 
+set(CTEST_OUTPUT_ON_FAILURE ON)
+
 # Is EXP configured for pyEXP? If yes, run pyEXP tests...
 #
 if(ENABLE_PYEXP)
