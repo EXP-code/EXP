@@ -34,7 +34,8 @@ xpos = []
 ypos = []
 zpos = []
 
-for i in range(0,100):
+print("---- creating list data")
+for i in range(0, 100):
     mass.append(0.001)
     xpos.append(random.random()*2.0 - 1.0)
     ypos.append(random.random()*2.0 - 1.0)
