@@ -70,4 +70,4 @@ coefs.add(coef3)
 coefs.add(coef4)
 print("Times:", coefs.Times())
 
-exit(1)
+exit(0)
