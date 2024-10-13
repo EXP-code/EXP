@@ -47,8 +47,6 @@ for i in range(0, 100):
 print("---- createFromArray usings lists")
 coef1 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.0)
 
-exit(0)
-
 mass  = np.array(mass)
 data  = np.array([xpos, ypos, zpos])
 
@@ -62,6 +60,8 @@ zpos = np.random.normal(0.0, 1.0, 1000)
 
 print("---- createFromArray using a list of numpy arrays")
 coef3 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.2)
+
+exit(0)
 
 data  = np.array([xpos, ypos, zpos])
 
