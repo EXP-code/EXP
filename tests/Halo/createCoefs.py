@@ -27,6 +27,8 @@ basis = pyEXP.basis.Basis.factory(config)
 
 print("---- created basis")
 
+exit(0)
+
 # Make some fake body data
 #
 
