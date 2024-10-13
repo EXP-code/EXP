@@ -32,32 +32,34 @@ print("---- created basis")
 
 # Call the basis to generate coefficients
 #
-mass = []
-xpos = []
-ypos = []
-zpos = []
+mass1 = []
+xpos1 = []
+ypos1 = []
+zpos1 = []
 
 print("---- creating list data")
 for i in range(0, 100):
-    mass.append(0.001)
-    xpos.append(random.random()*2.0 - 1.0)
-    ypos.append(random.random()*2.0 - 1.0)
-    zpos.append(random.random()*2.0 - 1.0)
+    mass1.append(0.001)
+    xpos1.append(random.random()*2.0 - 1.0)
+    ypos1.append(random.random()*2.0 - 1.0)
+    zpos1.append(random.random()*2.0 - 1.0)
 
 print("---- createFromArray usings lists")
-coef1 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.0)
+coef1 = basis.createFromArray(mass1, [xpos1, ypos1, zpos1], time=3.0)
 
 coefs = pyEXP.coefs.SphCoefs(True)
 coefs.add(coef1)
 
-print("Times:", coefs.Times())
-exit(0) # TEST END
-
-mass  = np.array(mass)
-data  = np.array([xpos, ypos, zpos])
+mass2 = np.array(mass1)
+data2 = np.array([xpos1, ypos1, zpos1])
 
 print("---- createFromArray usings numpy arrays converted from lists")
-coef2 = basis.createFromArray(mass, data, time=3.1)
+coef2 = basis.createFromArray(mass2, data2, time=3.1)
+
+coefs.add(coef2)
+
+print("Times:", coefs.Times())
+exit(0) # TEST END
 
 mass = np.ones(1000) * 1.0e6
 xpos = np.random.normal(0.0, 1.0, 1000)
