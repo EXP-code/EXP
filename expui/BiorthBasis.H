@@ -97,7 +97,7 @@ namespace BasisClasses
     //! Generate coeffients from an array and optional center location
     //! for the expansion
     CoefClasses::CoefStrPtr createFromArray
-    (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
+    (Eigen::VectorXd m, RowMatrixXd p, double time=0.0,
      std::vector<double> center={0.0, 0.0, 0.0},
      bool roundrobin=true, bool posvelrows=false);
     
@@ -113,7 +113,7 @@ namespace BasisClasses
     //! Initialize accumulating coefficients from arrays.  This is
     //! called once to initialize the accumulation.
     void addFromArray
-    (Eigen::VectorXd& m, RowMatrixXd& p,
+    (Eigen::VectorXd m, RowMatrixXd p,
      bool roundrobin=true, bool posvelrows=false);
     
     //! Create and the coefficients from the array accumulation with the

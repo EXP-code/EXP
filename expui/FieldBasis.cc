@@ -619,7 +619,7 @@ namespace BasisClasses
   }
 
   // Accumulate coefficient contributions from arrays
-  void FieldBasis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p,
+  void FieldBasis::addFromArray(Eigen::VectorXd m, RowMatrixXd p,
 				bool roundrobin, bool posvelrows)
   {
     // Sanity check: is coefficient instance created?  This is not

@@ -146,7 +146,7 @@ namespace BasisClasses
     //! Initialize accumulating coefficients from arrays.  This is
     //! called once to initialize the accumulation.
     void addFromArray
-    (Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin=true, bool posvelrows=false);
+    (Eigen::VectorXd m, RowMatrixXd p, bool roundrobin=true, bool posvelrows=false);
     
     //! Accumulate new coefficients
     virtual void accumulate(double mass,

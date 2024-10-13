@@ -35,50 +35,54 @@ print("---- created coefficients")
 
 # Call the basis to generate coefficients
 #
-mass1 = []
-xpos1 = []
-ypos1 = []
-zpos1 = []
+mass = []
+xpos = []
+ypos = []
+zpos = []
 
 print("---- creating list data")
 for i in range(0, 100):
-    mass1.append(0.001)
-    xpos1.append(random.random()*2.0 - 1.0)
-    ypos1.append(random.random()*2.0 - 1.0)
-    zpos1.append(random.random()*2.0 - 1.0)
+    mass.append(0.01)
+    xpos.append(random.random()*2.0 - 1.0)
+    ypos.append(random.random()*2.0 - 1.0)
+    zpos.append(random.random()*2.0 - 1.0)
 
 print("---- createFromArray usings lists")
-coef1 = basis.createFromArray(mass1, [xpos1, ypos1, zpos1], time=3.0)
+coef1 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.0)
 
 coefs.add(coef1)
 
 print("---- creating array data from list data")
 
-mass2 = np.array(mass1)
-data2 = np.array([xpos1, ypos1, zpos1])
+# Note: this overwrites mass and data variables.  But data is now
+# passed by rference so pybind11 should have copies and not break the
+# references though garbage collection on the Python side
+#
+mass = np.array(mass)
+data = np.array([xpos, ypos, zpos])
 
 print("---- createFromArray usings numpy arrays converted from lists")
-coef2 = basis.createFromArray(mass2, data2, time=3.1)
+coef2 = basis.createFromArray(mass, data, time=3.1)
 
 coefs.add(coef2)
 
 print("---- creating array data from list of numpy arrays")
 
-mass3 = np.ones(1000) * 1.0e6
-xpos3 = np.random.normal(0.0, 1.0, 1000)
-ypos3 = np.random.normal(0.0, 1.0, 1000)
-zpos3 = np.random.normal(0.0, 1.0, 1000)
+mass = np.ones(100) * 1.0e-02
+xpos = np.random.normal(0.0, 1.0, 100)
+ypos = np.random.normal(0.0, 1.0, 100)
+zpos = np.random.normal(0.0, 1.0, 100)
 
 print("---- createFromArray using a list of numpy arrays")
-coef3 = basis.createFromArray(mass3, [xpos3, ypos3, zpos3], time=3.2)
+coef3 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.2)
 
 coefs.add(coef3)
 
-data4  = np.array([xpos3, ypos3, zpos3])
-print("---- position data shape is:", data4.shape)
+data  = np.array([xpos, ypos, zpos])
+print("---- position data shape is:", data.shape)
 
 print("---- createFromArray usings pure numpy arrays")
-coef4 = basis.createFromArray(mass3, data4, time=3.3)
+coef4 = basis.createFromArray(mass, data, time=3.3)
 
 coefs.add(coef4)
 
