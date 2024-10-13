@@ -37,6 +37,8 @@ print("---- created coefficients")
 
 time.sleep(1)
 
+exit(0)
+
 # Call the basis to generate coefficients
 #
 mass = []
