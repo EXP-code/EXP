@@ -47,8 +47,6 @@ for i in range(0, 100):
 print("---- createFromArray usings lists")
 coef1 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.0)
 
-exit(0)
-
 mass  = np.array(mass)
 data  = np.array([xpos, ypos, zpos])
 
