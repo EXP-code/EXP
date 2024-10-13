@@ -67,6 +67,7 @@ print("---- createFromArray usings pure numpy arrays")
 coef4 = basis.createFromArray(mass, data, time=3.3)
 
 # Add the coefficient structure coefficient structure
+#
 coefs = pyEXP.coefs.SphCoefs(True)
 coefs.add(coef1)
 coefs.add(coef2)
