@@ -52,6 +52,10 @@ coef1 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.0)
 
 coefs.add(coef1)
 
+print("Times:", coefs.Times())
+
+exit(0)
+
 print("---- creating array data from list data")
 
 # Note: this overwrites mass and data variables.  But data is now
