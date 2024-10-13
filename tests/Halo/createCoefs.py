@@ -44,10 +44,10 @@ for i in range(0, 100):
     ypos.append(random.random()*2.0 - 1.0)
     zpos.append(random.random()*2.0 - 1.0)
 
-exit(0)
-
 print("---- createFromArray usings lists")
 coef1 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.0)
+
+exit(0)
 
 mass  = np.array(mass)
 data  = np.array([xpos, ypos, zpos])
