@@ -55,25 +55,25 @@ coef1 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.0)
 
 # exit(0)
 
-mass = np.ones(1000) * 1.0e6
-xpos = np.random.normal(0.0, 1.0, 1000)
-ypos = np.random.normal(0.0, 1.0, 1000)
-zpos = np.random.normal(0.0, 1.0, 1000)
+# mass = np.ones(1000) * 1.0e6
+# xpos = np.random.normal(0.0, 1.0, 1000)
+# ypos = np.random.normal(0.0, 1.0, 1000)
+# zpos = np.random.normal(0.0, 1.0, 1000)
 
-print("---- createFromArray using a list of numpy arrays")
-coef3 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.2)
+# print("---- createFromArray using a list of numpy arrays")
+# coef3 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.2)
 
-data  = np.array([xpos, ypos, zpos])
+# data  = np.array([xpos, ypos, zpos])
 
-print("---- createFromArray usings pure numpy arrays")
-coef4 = basis.createFromArray(mass, data, time=3.3)
+# print("---- createFromArray usings pure numpy arrays")
+# coef4 = basis.createFromArray(mass, data, time=3.3)
 
 # Add the coefficient structure coefficient structure
 coefs = pyEXP.coefs.SphCoefs(True)
 coefs.add(coef1)
 # coefs.add(coef2)
-coefs.add(coef3)
-coefs.add(coef4)
+# coefs.add(coef3)
+# coefs.add(coef4)
 print("Times:", coefs.Times())
 
 exit(0)
