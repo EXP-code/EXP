@@ -53,6 +53,8 @@ data  = np.array([xpos, ypos, zpos])
 print("---- createFromArray usings numpy arrays converted from lists")
 coef2 = basis.createFromArray(mass, data, time=3.1)
 
+exit(0)
+
 mass = np.ones(1000) * 1.0e6
 xpos = np.random.normal(0.0, 1.0, 1000)
 ypos = np.random.normal(0.0, 1.0, 1000)
@@ -60,8 +62,6 @@ zpos = np.random.normal(0.0, 1.0, 1000)
 
 print("---- createFromArray using a list of numpy arrays")
 coef3 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.2)
-
-exit(0)
 
 data  = np.array([xpos, ypos, zpos])
 
