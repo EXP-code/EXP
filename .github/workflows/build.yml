@@ -25,7 +25,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libeigen3-dev libfftw3-dev libhdf5-dev libopenmpi-dev cmake gdb python3-dev libpython3-dev
+          sudo apt-get install -y build-essential libeigen3-dev libfftw3-dev libhdf5-dev libopenmpi-dev
           sudo pip install numpy
 
 
@@ -43,7 +43,7 @@ jobs:
           cmake
           -DENABLE_NBODY=YES
           -DENABLE_PYEXP=YES
-          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_BUILD_TYPE=Release
           -DEigen3_DIR=/usr/include/eigen3/share/eigen3/cmake
           -DCMAKE_INSTALL_PREFIX=./install
           -Wno-dev
@@ -59,4 +59,4 @@ jobs:
         
       #- name: CTest Long
       #working-directory: ./build
-      #run: ctest -L long
+      #run: ctest --output-on-failure -L long
