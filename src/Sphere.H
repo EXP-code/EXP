@@ -9,7 +9,7 @@
 
 typedef std::shared_ptr<SLGridSph> SLGridSphPtr;
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
 #endif
 
@@ -68,7 +68,7 @@ private:
   void make_model_bin();
   void make_model_plummer();
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
   virtual void initialize_cuda()
   {
     ortho->initialize_cuda(cuInterpArray, tex);

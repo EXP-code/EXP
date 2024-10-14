@@ -51,14 +51,15 @@ set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   ${DEP_INC} ${EIGEN3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS}
   ${FFTW_INCLUDE_DIRS})
 
-set(common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
+set(common_LINKLIB ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
   yaml-cpp ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
   ${FFTW_DOUBLE_LIB})
 
 if(ENABLE_CUDA)
-  list(APPEND common_LINKLIB CUDA::cudart)
+  list(APPEND common_LINKLIB CUDA::toolkit CUDA::cudart)
   if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12)
     list(APPEND common_LINKLIB CUDA::nvtx3)
+    set_source_files_properties(${BIORTH_SRC} ${PARTICLE_SRC} PROPERTIES LANGUAGE CUDA)
   else ()
     list(APPEND common_LINKLIB CUDA::nvToolsExt)
   endif ()
@@ -74,7 +75,7 @@ endif()
 add_library(exputil ${exputil_SOURCES})
 set_target_properties(exputil PROPERTIES OUTPUT_NAME exputil)
 target_include_directories(exputil PUBLIC ${common_INCLUDE_DIRS})
-target_link_libraries(exputil PUBLIC ${common_LINKLIBS})
+target_link_libraries(exputil PUBLIC ${common_LINKLIB})
 
 install(TARGETS exputil DESTINATION lib)
 

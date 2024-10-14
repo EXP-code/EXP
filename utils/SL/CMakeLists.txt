@@ -6,7 +6,7 @@ set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES})
 
 if(ENABLE_CUDA)
-  list(APPEND common_LINKLIB CUDA::cudart)
+  list(APPEND common_LINKLIB CUDA::toolkit CUDA::cudart)
   if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12)
     list(APPEND common_LINKLIB CUDA::nvtx3)
   else ()

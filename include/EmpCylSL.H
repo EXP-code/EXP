@@ -21,7 +21,7 @@
 #include <SLGridMP2.H>
 #include <coef.H>
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
@@ -924,7 +924,7 @@ public:
   //! Check orthogonality for basis (pyEXP style)
   std::vector<Eigen::MatrixXd> orthoCheck();
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
   cudaMappingConstants getCudaMappingConstants();
 
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,

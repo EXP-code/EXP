@@ -16,7 +16,7 @@
 #include <massmodel.H>
 #include <yaml-cpp/yaml.h>
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
@@ -28,7 +28,7 @@
 #include <highfive/H5DataSpace.hpp>
 #include <highfive/H5Attribute.hpp>
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif

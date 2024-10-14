@@ -9,11 +9,11 @@ set (common_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-set (common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
+set (common_LINKLIB ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
   exputil EXPlib yaml-cpp)
 
 if(ENABLE_CUDA)
-  list(APPEND common_LINKLIB CUDA::cudart)
+  list(APPEND common_LINKLIB CUDA::toolkit CUDA::cudart)
   if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12)
     list(APPEND common_LINKLIB CUDA::nvtx3)
   else ()
@@ -40,7 +40,7 @@ foreach(mlib ${USER_MODULES})
   add_library(${mlib} ${${mlib}_SRC})
   set_target_properties(${mlib} PROPERTIES OUTPUT_NAME ${mlib})
   target_include_directories(${mlib} PUBLIC ${common_INCLUDE_DIRS})
-  target_link_libraries(${mlib} PUBLIC ${common_LINKLIBS})
+  target_link_libraries(${mlib} PUBLIC ${common_LINKLIB})
   install(TARGETS ${mlib} DESTINATION lib/user)
 endforeach()
 
