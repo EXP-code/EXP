@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 #ifndef _Orient_H
 #define _Orient_H
 
