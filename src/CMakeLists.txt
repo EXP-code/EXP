@@ -18,15 +18,6 @@ if (ENABLE_CUDA)
     cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc
     cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu cudaOrient.cu
     cudaBiorthCyl.cu cudaCube.cu cudaSlabSL.cu)
-
-  set_source_files_properties(Component.cc ComponentContainer.cc
-    Cube.cc Cylinder.cc ExternalForce.cc NVTX.cc OrbTrace.cc Orient.cc
-    OutAscii.cc OutCHKPT.cc OutCHKPTQ.cc OutCalbr.cc OutFrac.cc
-    OutLog.cc OutPS.cc OutPSN.cc OutPSP.cc OutPSQ.cc OutPSR.cc
-    OutputContainer.cc PolarBasis.cc PotAccel.cc SlabSL.cc Sphere.cc
-    SphericalBasis.cc begin.cc incpos.cc incvel.cc step.cc
-    PROPERTIES LANGUAGE CUDA)
-
 endif()
 
 set(common_INCLUDE_DIRS 
@@ -46,9 +37,10 @@ if(PNG_FOUND)
 endif()
 
 if(ENABLE_CUDA)
-  list(APPEND common_LINKLIB CUDA::cudart)
+  list(APPEND common_LINKLIB CUDA::toolkit CUDA::cudart)
   if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12)
     list(APPEND common_LINKLIB CUDA::nvtx3)
+    set_source_files_properties(${exp_SOURCES} PROPERTIES LANGUAGE CUDA)
   else ()
     list(APPEND common_LINKLIB CUDA::nvToolsExt)
   endif ()
@@ -74,6 +66,10 @@ endif()
 add_executable(exp expand.cc)
 target_include_directories(exp PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(exp PUBLIC ${common_LINKLIB} EXPlib)
+
+if (ENABLE_CUDA)
+  set_target_properties(exp PROPERTIES LINKER_LANGUAGE CUDA)
+endif ()
 
 install(TARGETS EXPlib DESTINATION lib)
 install(TARGETS exp DESTINATION bin)

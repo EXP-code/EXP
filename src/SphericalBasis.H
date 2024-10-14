@@ -12,7 +12,7 @@
 
 #include <config_exp.h>
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
@@ -117,7 +117,7 @@ protected:
   virtual void determine_coefficients_playback(void);
 
   //! CUDA method for coefficient accumulation
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();

@@ -18,7 +18,7 @@
 #include <libvars.H>
 using namespace __EXP__;
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
@@ -167,7 +167,7 @@ public:
   //! produce matrices
   std::vector<Eigen::MatrixXd> orthoCheck(int knots=40);
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);
 
@@ -453,7 +453,7 @@ public:
 
   //@}
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);
 

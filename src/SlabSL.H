@@ -11,7 +11,7 @@
 #include <biorth1d.H>
 #include <PotAccel.H>
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
 #include <thrust/complex.h>
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
@@ -56,7 +56,7 @@ private:
 
   SlabSLCoefHeader coefheader;
 
-#if HAVE_LIBCUDA==1 && defined (__NVCC__)
+#if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda();
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();
