@@ -286,7 +286,7 @@ void BasisFactoryClasses(py::module &m)
     }
 
     virtual void
-    addFromArray(Eigen::VectorXd m, RowMatrixXd p, bool roundrobin, bool posvelrows) override {
+    addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin, bool posvelrows) override {
       PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
     }
   };
@@ -973,7 +973,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("addFromArray",
-	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd mass, RowMatrixXd pos)
+	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos)
 	 {
 	   return A.addFromArray(mass, pos);
 	 },
@@ -1804,7 +1804,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("center") = std::vector<double>(3, 0.0))
     .def("addFromArray",
-	 [](BasisClasses::FieldBasis& A, Eigen::VectorXd mass, RowMatrixXd ps)
+	 [](BasisClasses::FieldBasis& A, Eigen::VectorXd& mass, RowMatrixXd& ps)
 	 {
 	   return A.addFromArray(mass, ps);
 	 },

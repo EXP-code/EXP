@@ -111,7 +111,7 @@ namespace CoefClasses
     virtual Eigen::VectorXcd& getData(double time) = 0;
 
     //! Set coefficient store at given time to the provided matrix
-    virtual void setData(double time, Eigen::VectorXcd data) = 0;
+    virtual void setData(double time, Eigen::VectorXcd& data) = 0;
 
     //! Interpolate coefficient matrix at given time
     std::tuple<Eigen::VectorXcd&, bool> interpolate(double time);
@@ -273,10 +273,10 @@ namespace CoefClasses
     Eigen::MatrixXcd& getMatrix(double time);
 
     //! Set coefficient matrix at given time
-    virtual void setData(double time, Eigen::VectorXcd arr);
+    virtual void setData(double time, Eigen::VectorXcd& arr);
 
     //! Natural data setter for pyEXP
-    void setMatrix(double time, Eigen::MatrixXcd mat);
+    void setMatrix(double time, Eigen::MatrixXcd& mat);
 
     //! Interpolate coefficient matrix at given time
     std::tuple<Eigen::MatrixXcd&, bool> interpolate(double time)
@@ -411,10 +411,10 @@ namespace CoefClasses
     Eigen::MatrixXcd& getMatrix(double time);
     
     //! Set coefficient matrix at given time
-    virtual void setData(double time, Eigen::VectorXcd arr);
+    virtual void setData(double time, Eigen::VectorXcd& arr);
     
     //! For pyEXP
-    void setMatrix(double time, Eigen::MatrixXcd arr);
+    void setMatrix(double time, Eigen::MatrixXcd& arr);
     
     //! Interpolate coefficient matrix at given time
     std::tuple<Eigen::MatrixXcd&, bool> interpolate(double time)
@@ -542,10 +542,10 @@ namespace CoefClasses
     virtual Eigen3d& getTensor(double time);
     
     //! Set coefficient matrix at given time
-    virtual void setData(double time, Eigen::VectorXcd dat);
+    virtual void setData(double time, Eigen::VectorXcd& dat);
 
     //! Native version
-    virtual void setTensor(double time, const Eigen3d dat);
+    virtual void setTensor(double time, const Eigen3d& dat);
     
     //! Interpolate coefficient tensor at given time
     std::tuple<Eigen::Tensor<std::complex<double>, 3>&, bool>
@@ -673,10 +673,10 @@ namespace CoefClasses
     virtual Eigen3d& getTensor(double time);
     
     //! Set coefficient matrix at given time
-    virtual void setData(double time, Eigen::VectorXcd dat);
+    virtual void setData(double time, Eigen::VectorXcd& dat);
 
     //! Native version
-    virtual void setTensor(double time, const Eigen3d dat);
+    virtual void setTensor(double time, const Eigen3d& dat);
     
     //! Interpolate coefficient tensor at given time
     std::tuple<Eigen::Tensor<std::complex<double>, 3>&, bool>
@@ -810,9 +810,9 @@ namespace CoefClasses
     /** Set coefficient matrix at given time.  This is for pybind11,
 	since the operator() will not allow lvalue assignment, it
 	seems. */
-    virtual void setData(double time, Eigen::VectorXcd arr);
+    virtual void setData(double time, Eigen::VectorXcd& arr);
 
-    void setArray(double time, Eigen::VectorXcd arr)
+    void setArray(double time, Eigen::VectorXcd& arr)
     { setData(time, arr); }
 
     //! Get coefficient structure at a given time
@@ -915,10 +915,10 @@ namespace CoefClasses
     SphFldStruct::dataType getMatrix(double time);
 
     //! Set coefficient matrix at given time
-    virtual void setData(double time, Eigen::VectorXcd arr);
+    virtual void setData(double time, Eigen::VectorXcd& arr);
 
     //! Natural data setter for pyEXP
-    void setMatrix(double time, SphFldStruct::dataType mat);
+    void setMatrix(double time, SphFldStruct::dataType& mat);
 
     //! Interpolate coefficient matrix at given time
     std::tuple<SphFldStruct::coefType&, bool> interpolate(double time)
@@ -1042,10 +1042,10 @@ namespace CoefClasses
     CylFldStruct::dataType getMatrix(double time);
 
     //! Set coefficient matrix at given time
-    virtual void setData(double time, Eigen::VectorXcd arr);
+    virtual void setData(double time, Eigen::VectorXcd& arr);
 
     //! Natural data setter for pyEXP
-    void setMatrix(double time, CylFldStruct::dataType mat);
+    void setMatrix(double time, CylFldStruct::dataType& mat);
 
     //! Interpolate coefficient matrix at given time
     std::tuple<CylFldStruct::coefType&, bool> interpolate(double time)

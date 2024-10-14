@@ -1,4 +1,4 @@
-import os, time
+import os
 import pyEXP
 import random
 import numpy as np
@@ -27,15 +27,11 @@ basis = pyEXP.basis.Basis.factory(config)
 
 print("---- created basis")
 
-time.sleep(1)
-
 # Create a coefficient structure
 #
 coefs = pyEXP.coefs.SphCoefs(True)
 
 print("---- created coefficients")
-
-time.sleep(1)
 
 # Call the basis to generate coefficients
 #
@@ -52,14 +48,12 @@ for i in range(0, 100):
     zpos.append(random.random()*2.0 - 1.0)
 
 print("---- createFromArray usings lists")
-time.sleep(1)
+
 coef1 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.0)
-time.sleep(1)
+
 coefs.add(coef1)
 
 print("Times:", coefs.Times())
-
-exit(0)
 
 print("---- creating array data from list data")
 

@@ -2847,7 +2847,7 @@ namespace BasisClasses
   }
 
   // Accumulate coefficient contributions from arrays
-  void BiorthBasis::addFromArray(Eigen::VectorXd m, RowMatrixXd p,
+  void BiorthBasis::addFromArray(Eigen::VectorXd& m, RowMatrixXd& p,
 				 bool RoundRobin, bool PosVelRows)
   {
     // Sanity check: is coefficient instance created?  This is not
@@ -2957,7 +2957,7 @@ namespace BasisClasses
   // Generate coefficients from a phase-space table
   //
   CoefClasses::CoefStrPtr BiorthBasis::createFromArray
-  (Eigen::VectorXd m, RowMatrixXd p, double time, std::vector<double> ctr,
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
    bool RoundRobin, bool PosVelRows)
   {
     initFromArray(ctr);
