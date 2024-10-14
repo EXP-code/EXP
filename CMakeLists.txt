@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21) # Needed for CUDA, MPI, and CTest features
+cmake_minimum_required(VERSION 3.25) # Needed for CUDA, MPI, and CTest features
 
 project(
   EXP
