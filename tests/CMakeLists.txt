@@ -100,7 +100,7 @@ if(ENABLE_NBODY)
               PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
               ${PYTHON_EXECUTABLE} createCoefs.py
               WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
-     set_tests_properties(pyEXPCoefCreateTest PROPERTIES LABELS "long")
+     set_tests_properties(pyEXPCoefCreateTest PROPERTIES LABELS "quick")
   endif()
 
   # A separate test to remove the generated files if they all exist;
