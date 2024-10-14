@@ -12,14 +12,14 @@ jobs:
   exp:
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        cc: [gcc]
+        os: [ubuntu-latest, ubuntu-22.04]
+        cc: [gcc, mpicc]
 
     name: "Test pyEXP Build"
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install core dependencies - ubuntu
         if: runner.os == 'Linux'
@@ -27,6 +27,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libeigen3-dev libfftw3-dev libhdf5-dev libopenmpi-dev
           sudo pip install numpy
+
 
       - name: Setup submodule and build
         run: |
