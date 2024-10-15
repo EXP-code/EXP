@@ -13,11 +13,16 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, ubuntu-22.04]
+        cc: [gcc, clang]
+        cxx: [g++, clang++]
         include:
+          - cxx: clang++
+            cxxflags: -stdlib=libstdc++
+        exclude:
           - cc: gcc
-            cxx: g++
-          - cc: clang
             cxx: clang++
+          - cc: clang
+            cxx: g++
 
     name: "Test pyEXP Build"
     runs-on: ${{ matrix.os }}
@@ -51,6 +56,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DEigen3_DIR=/usr/include/eigen3/share/eigen3/cmake
           -DCMAKE_INSTALL_PREFIX=./install
+          -DCMAKE_CXX_FLAGS=${{ matrix.cxxflags }}
           -Wno-dev
           ..
 
