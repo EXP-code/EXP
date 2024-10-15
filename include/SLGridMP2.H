@@ -314,6 +314,9 @@ private:
     //! Constructor
     CoordMap(double H) : H(H) {}
   
+    //! Destructor
+    virtual ~CoordMap() {}
+
     //! Convert from vertical to mapped coordinate
     virtual double z_to_xi  (double z) = 0;
 

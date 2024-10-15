@@ -188,13 +188,13 @@ public:
   virtual double get_dpot2(const double) = 0;
   virtual void get_pot_dpot(const double, double&, double&) = 0;
   
-  double get_mass(const double x1, const double x2, const double x3)
+  double get_mass(const double x1, const double x2, const double x3) override
   { return get_mass(sqrt(x1*x1 + x2*x2 + x3*x3)); }
   
-  double get_density(const double x1, const double x2, const double x3)
+  double get_density(const double x1, const double x2, const double x3) override
   { return get_density(sqrt(x1*x1 + x2*x2 + x3*x3)); }
   
-  double get_pot(const double x1, const double x2, const double x3)
+  double get_pot(const double x1, const double x2, const double x3) override
   { return get_pot(sqrt(x1*x1 + x2*x2 + x3*x3)); }
   //@}
   

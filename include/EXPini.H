@@ -87,8 +87,9 @@ cxxopts::ParseResult LoadConfig(cxxopts::Options& options,
 {
   YAML::Node conf = YAML::LoadFile(config);
 
-  int count = conf.size()*2+1, cnt = 1;
+  const int count = conf.size()*2+1;
   char* data[count];
+  int cnt = 1;
 
   data[0] = new char [11];
   strcpy(data[0], "LoadConfig"); // Emulate the caller name
