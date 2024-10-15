@@ -13,7 +13,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, ubuntu-22.04]
-        cc: [gcc, mpicc]
+        c_compiler: [gcc, clang]
+        cpp_compiler: [g++, clang++]
+        include:
+          - c_compiler: gcc
+            cpp_compiler: g++
+          - c_compiler: clang
+            cpp_compiler: clang++
 
     name: "Test pyEXP Build"
     runs-on: ${{ matrix.os }}
