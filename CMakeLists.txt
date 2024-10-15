@@ -13,7 +13,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Compiler flags.  Not all tested thoroughly...
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # using Clang
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   # using GCC
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
