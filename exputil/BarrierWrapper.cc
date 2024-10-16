@@ -101,12 +101,13 @@ void BarrierWrapper::light_operator(const string& label,
 
 				// Compare adjacent strings in the list
     if (localid==0) {
-      char tmp[cbufsz];		// Working buffer
+				// Working buffer
+      auto tmp = std::make_unique<char[]>(cbufsz);
       bool firstime   = true;
-      string one, two = strncpy(tmp, &bufferT[0], cbufsz);
+      string one, two = strncpy(tmp.get(), &bufferT[0], cbufsz);
       for (int n=1; n<commsize; n++) {
 	one = two;
-	two = strncpy(tmp, &bufferT[cbufsz*n], cbufsz);
+	two = strncpy(tmp.get(), &bufferT[cbufsz*n], cbufsz);
 	if (one.compare(two) != 0) {
 	  if (firstime) {
 	    cout << std::string(60,'-') << std::endl << left

@@ -15,8 +15,10 @@
    Translation of module Laguerre (export).
 */
 
-extern void Laguerre();
-extern void Radau_Laguerre();
+extern void Laguerre(int n, double alpha, double abscis[], double weight[]);
+
+extern void Radau_Laguerre(int n, double alpha,
+			   double abscis[], double weight[], double* leftw);
 
 /* 
    ARGUMENT LISTS:

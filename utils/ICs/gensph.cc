@@ -355,13 +355,13 @@ main(int argc, char **argv)
 #ifdef HAVE_FFTW
     if (SMOOTH>0.0) {
 
-      double a[NUMR], b[NUMR], c[NUMR];
-      fftw_complex A[NUMR], B[NUMR], C[NUMR];
+      std::vector<double> a(NUMR), b(NUMR), c(NUMR);
+      std::vector<fftw_complex> A(NUMR), B(NUMR), C(NUMR);
       fftw_plan pa, pb, pinv;
 
-      pa   = fftw_plan_dft_r2c_1d(NUMR, a, A, FFTW_ESTIMATE);
-      pb   = fftw_plan_dft_r2c_1d(NUMR, b, B, FFTW_ESTIMATE);
-      pinv = fftw_plan_dft_c2r_1d(NUMR, C, c, FFTW_ESTIMATE);
+      pa   = fftw_plan_dft_r2c_1d(NUMR, a.data(), A.data(), FFTW_ESTIMATE);
+      pb   = fftw_plan_dft_r2c_1d(NUMR, b.data(), B.data(), FFTW_ESTIMATE);
+      pinv = fftw_plan_dft_c2r_1d(NUMR, C.data(), c.data(), FFTW_ESTIMATE);
 
       double xmin=rmin, xmax=rmax;
 
@@ -370,7 +370,7 @@ main(int argc, char **argv)
       double scale = dk / NUMR;
       int indx;
 
-      ofstream tin, tout;
+      std::ofstream tin, tout;
 
       if (myid==0) {
 	tin.open("ebar_fft.input");
@@ -414,7 +414,7 @@ main(int argc, char **argv)
       // ...
 
       double mbar=-1.0;
-      vector<double> rr(NUMR), mm(NUMR);
+      std::vector<double> rr(NUMR), mm(NUMR);
       double fac;
 
       for (int i=0; i<NUMR; i++) {

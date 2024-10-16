@@ -368,7 +368,7 @@ namespace BasisClasses
   {
     // Sanity check on derived class type
     //
-    if (typeid(*coef) != typeid(CoefClasses::SphStruct))
+    if (typeid(coef.get()) != typeid(CoefClasses::SphStruct*))
       throw std::runtime_error("Spherical::set_coefs: you must pass a CoefClasses::SphStruct");
 
     // Sanity check on dimensionality
@@ -1431,7 +1431,7 @@ namespace BasisClasses
 
   void Cylindrical::set_coefs(CoefClasses::CoefStrPtr coef)
   {
-    if (typeid(*coef) != typeid(CoefClasses::CylStruct))
+    if (typeid(coef.get()) != typeid(CoefClasses::CylStruct*))
       throw std::runtime_error("Cylindrical::set_coefs: you must pass a CoefClasses::CylStruct");
 
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
@@ -1708,7 +1708,7 @@ namespace BasisClasses
   {
     // Sanity check on derived class type
     //
-    if (typeid(*coef) != typeid(CoefClasses::CylStruct))
+    if (typeid(coef.get()) != typeid(CoefClasses::CylStruct*))
       throw std::runtime_error("FlatDisk::set_coefs: you must pass a CoefClasses::CylStruct");
 
     // Sanity check on dimensionality
@@ -2140,7 +2140,7 @@ namespace BasisClasses
   {
     // Sanity check on derived class type
     //
-    if (typeid(*coef) != typeid(CoefClasses::SlabStruct))
+    if (typeid(coef) != typeid(CoefClasses::SlabStruct*))
       throw std::runtime_error("Slab::set_coefs: you must pass a CoefClasses::SlabStruct");
 
     // Sanity check on dimensionality
@@ -2572,7 +2572,7 @@ namespace BasisClasses
   {
     // Sanity check on derived class type
     //
-    if (typeid(*coef) != typeid(CoefClasses::CubeStruct))
+    if (typeid(coef.get()) != typeid(CoefClasses::CubeStruct*))
       throw std::runtime_error("Cube::set_coefs: you must pass a CoefClasses::CubeStruct");
 
     // Sanity check on dimensionality

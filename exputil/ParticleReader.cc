@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <memory>
 #include <numeric>
 #include <string>
 #include <vector>
@@ -530,11 +531,11 @@ namespace PR {
 	    
 	    int rank = dataspace.getSimpleExtentNdims();
 	    
-	    hsize_t dims[rank];
+	    auto dims = std::make_unique<hsize_t[]>(rank);
 	    
-	    int ndims = dataspace.getSimpleExtentDims(dims, NULL);
+	    int ndims = dataspace.getSimpleExtentDims(dims.get(), NULL);
 	    
-	    H5::DataSpace mspace(rank, dims);
+	    H5::DataSpace mspace(rank, dims.get());
 	    
 	    std::vector<float> masses(dims[0]);
 	    dataset.read(&masses[0], H5::PredType::NATIVE_FLOAT, mspace, dataspace );
@@ -569,11 +570,11 @@ namespace PR {
 	  
 	  int rank = dataspace.getSimpleExtentNdims();
 	  
-	  hsize_t dims[rank];
+	  auto dims = std::make_unique<hsize_t[]>(rank);
 	  
-	  int ndims = dataspace.getSimpleExtentDims( dims, NULL);
+	  int ndims = dataspace.getSimpleExtentDims( dims.get(), NULL);
 	  
-	  H5::DataSpace mspace(rank, dims);
+	  H5::DataSpace mspace(rank, dims.get());
 	  
 	  std::vector<unsigned> seq(dims[0]);
 	  dataset.read(&seq[0], H5::PredType::NATIVE_UINT32, mspace, dataspace );

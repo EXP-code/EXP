@@ -171,9 +171,9 @@ main(int argc, char **argv)
       char *c = const_cast<char*>(files[n].c_str());
       MPI_Bcast(c, sz+1, MPI_CHAR, 0, MPI_COMM_WORLD);
     } else {
-      char l[sz+1];
-      MPI_Bcast(&l[0], sz+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-      files.push_back(l);
+      auto l = std::make_unique<char[]>(sz+1);
+      MPI_Bcast(l.get(), sz+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+      files.push_back(l.get());
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }

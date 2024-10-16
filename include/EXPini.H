@@ -88,7 +88,7 @@ cxxopts::ParseResult LoadConfig(cxxopts::Options& options,
   YAML::Node conf = YAML::LoadFile(config);
 
   const int count = conf.size()*2+1;
-  char* data[count];
+  std::vector<char*> data(count);
   int cnt = 1;
 
   data[0] = new char [11];
@@ -131,7 +131,7 @@ cxxopts::ParseResult LoadConfig(cxxopts::Options& options,
   
   auto vm = options.parse(cnt, &data[0]);
 
-  for (int i=0; i<cnt; i++) delete [] data[i];
+  for (auto & v : data) delete [] v;
 
   return vm;
 }

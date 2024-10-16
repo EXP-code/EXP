@@ -5875,7 +5875,7 @@ void EmpCylSL::dump_images(const string& OUTFILE,
   //============
   // Open files
   //============
-  std::ofstream out[Number];
+  auto out = std::make_unique<std::ofstream[]>(Number);
   for (int j=0; j<Number; j++) {
     Name = OUTFILE + Types[j] + ".eof_recon";
     out[j].open(Name.c_str());
