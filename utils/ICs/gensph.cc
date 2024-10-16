@@ -57,6 +57,7 @@ using namespace __EXP__;
 #include <config_exp.h>
 
 #ifdef HAVE_FFTW
+#include <complex>
 #include <fftw3.h>
 #endif
 
@@ -356,12 +357,20 @@ main(int argc, char **argv)
     if (SMOOTH>0.0) {
 
       std::vector<double> a(NUMR), b(NUMR), c(NUMR);
-      std::vector<fftw_complex> A(NUMR), B(NUMR), C(NUMR);
+      std::vector<std::complex<double>> A(NUMR), B(NUMR), C(NUMR);
       fftw_plan pa, pb, pinv;
 
-      pa   = fftw_plan_dft_r2c_1d(NUMR, a.data(), A.data(), FFTW_ESTIMATE);
-      pb   = fftw_plan_dft_r2c_1d(NUMR, b.data(), B.data(), FFTW_ESTIMATE);
-      pinv = fftw_plan_dft_c2r_1d(NUMR, C.data(), c.data(), FFTW_ESTIMATE);
+      pa   = fftw_plan_dft_r2c_1d(NUMR, a.data(),
+				  reinterpret_cast<fftw_complex*>(A.data()),
+				  FFTW_ESTIMATE);
+
+      pb   = fftw_plan_dft_r2c_1d(NUMR, b.data(),
+				  reinterpret_cast<fftw_complex*>(B.data()),
+				  FFTW_ESTIMATE);
+
+      pinv = fftw_plan_dft_c2r_1d(NUMR,
+				  reinterpret_cast<fftw_complex*>(C.data()),
+				  c.data(), FFTW_ESTIMATE);
 
       double xmin=rmin, xmax=rmax;
 
@@ -403,8 +412,7 @@ main(int argc, char **argv)
       fftw_execute(pb);
 
       for (int i=0; i<NUMR; i++) {
-	C[i][0] = (A[i][0] * B[i][0] - A[i][1] * B[i][1]) * scale;
-	C[i][1] = (A[i][0] * B[i][1] + A[i][1] * B[i][0]) * scale;
+	C[i] = A[i] * B[i] * scale;
       }
 
       // inverse transform to get c, the convolution of a and b;
