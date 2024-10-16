@@ -13,7 +13,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Compiler flags.  Not all tested thoroughly...
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # using Clang
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   # using GCC
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
@@ -63,7 +62,7 @@ set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 
 find_package(MPI REQUIRED COMPONENTS C CXX)
 find_package(OpenMP)
-find_package(FFTW)
+find_package(FFTW REQUIRED)
 find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
 find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)

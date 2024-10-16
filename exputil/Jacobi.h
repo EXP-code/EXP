@@ -15,10 +15,15 @@
    Translation of module Jacobi (export).
 */
 
+extern void Jacobi(int n, double alpha, double beta,
+		   double abscis[], double weight[]);
 
-extern void Jacobi();
-extern void Radau_Jacobi();
-extern void Lobatto_Jacobi();
+extern void Radau_Jacobi(int n, double alpha, double beta,
+			 double abscis[], double weight[], double *leftw);
+
+extern void Lobatto_Jacobi(int n, double alpha, double beta,
+			   double abscis[], double weight[],
+			   double* leftw, double* rightw);
 
 /* ARGUMENT LISTS:
    void Jacobi(n, alpha, beta, abscis, weight)

@@ -26,19 +26,18 @@
 /*
    Forward declaration for function QQp:
 */
-static int QQp();
+static int QQp(double, double*, double*);
 
 /*
    Function to test a real value for exceeding -1,
    and quit on an error if condition not met.
 */
-void GaussCheck(value)
-double value;
+void GaussCheck(double value)
 {
-    if (value <= (-1.0)) {
-	fprintf(stderr, "Gauss package: parameter out of range: %g\n", value);
-	exit(1);
-    }
+  if (value <= (-1.0)) {
+    fprintf(stderr, "Gauss package: parameter out of range: %g\n", value);
+    exit(1);
+  }
 }
 
 
@@ -54,11 +53,8 @@ static int n1;
 /*
    The workhorse.
 */
-void GaussMaster(n, alpha, beta, conflag, abscis, weight)
-int n;
-double alpha, beta;
-int conflag;
-double abscis[], weight[];
+void GaussMaster(int n, double alpha, double beta, int conflag,
+		 double abscis[], double weight[])
 {
 #define FALSE 0
 #define  TRUE 1

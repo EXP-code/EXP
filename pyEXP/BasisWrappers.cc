@@ -2014,7 +2014,7 @@ void BasisFactoryClasses(py::module &m)
 	  std::tie(T, O) =
 	    BasisClasses::IntegrateOrbits(tinit, tfinal, h, ps, bfe, F, stride);
 
-	  py::array_t<float> ret = make_ndarray<float>(O);
+	  py::array_t<float> ret = make_ndarray3<float>(O);
 	  return std::tuple<Eigen::VectorXd, py::array_t<float>>(T, ret);
 	},
 	R"(

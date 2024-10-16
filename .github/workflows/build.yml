@@ -12,21 +12,29 @@ jobs:
   exp:
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        cc: [gcc]
+        os: [ubuntu-24.04, ubuntu-22.04]
+        cc: [gcc, clang]
+        cxx: [g++, clang++]
+        include:
+          - cxx: clang++
+            cxxflags: -stdlib=libstdc++
+        exclude:
+          - cc: gcc
+            cxx: clang++
+          - cc: clang
+            cxx: g++
 
     name: "Test pyEXP Build"
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install core dependencies - ubuntu
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libeigen3-dev libfftw3-dev libhdf5-dev libopenmpi-dev
-          sudo pip install numpy
+          sudo apt-get install -y build-essential libeigen3-dev libfftw3-dev libhdf5-dev libopenmpi-dev libomp-dev python3-numpy
 
       - name: Setup submodule and build
         run: |
@@ -37,6 +45,7 @@ jobs:
         if: runner.os == 'Linux'
         env:
           CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
         working-directory: ./build
         run: >-
           cmake
@@ -45,6 +54,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DEigen3_DIR=/usr/include/eigen3/share/eigen3/cmake
           -DCMAKE_INSTALL_PREFIX=./install
+          -DCMAKE_CXX_FLAGS=${{ matrix.cxxflags }}
           -Wno-dev
           ..
 
@@ -58,4 +68,4 @@ jobs:
         
       #- name: CTest Long
       #working-directory: ./build
-      #run: ctest -L long
+      #run: ctest --output-on-failure -L long

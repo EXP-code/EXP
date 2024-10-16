@@ -15,9 +15,12 @@
    Translation of module Hermite (export).
 */
 
-extern void Odd_Hermite();
-extern void Even_Hermite();
-extern void Hermite();
+extern void Odd_Hermite(int n, double alpha, double abscis[], double weight[],
+			double* w0);
+
+extern void Even_Hermite(int n, double alpha, double abscis[], double weight[]);
+
+extern void Hermite(int n, double alpha, double abscis[], double weight[]);
 
 /* ARGUMENT LISTS:
    

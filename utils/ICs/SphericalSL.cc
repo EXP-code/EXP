@@ -245,7 +245,7 @@ void SphericalSL::compute_coefficients_single(vector<Particle> &part)
 
 void SphericalSL::compute_coefficients_thread(vector<Particle>& part)
 {
-  std::thread t[nthrds];
+  std::vector<std::thread> t(nthrds);
  
   // Launch the threads
   for (int id=0; id<nthrds; ++id) {

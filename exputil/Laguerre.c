@@ -15,18 +15,15 @@
 #include "GaussCore.h"
 #include "Laguerre.h"
 
-void Laguerre(n, alpha, abscis, weight)
-int n;
-double alpha, abscis[], weight[];
+void Laguerre(int n, double alpha, double abscis[], double weight[])
 {
     GaussCheck(alpha);
     GaussMaster(n, alpha, 0.0, CONFLUENT, abscis, weight);
 };
 
 
-void Radau_Laguerre(n, alpha, abscis, weight, leftw)
-int n;
-double alpha, abscis[], weight[], *leftw;
+void Radau_Laguerre(int n, double alpha, double abscis[], double weight[],
+		    double* leftw)
 {
     int k;
     double temp;
