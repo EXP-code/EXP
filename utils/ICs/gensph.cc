@@ -356,12 +356,17 @@ main(int argc, char **argv)
     if (SMOOTH>0.0) {
 
       std::vector<double> a(NUMR), b(NUMR), c(NUMR);
-      std::vector<fftw_complex> A(NUMR), B(NUMR), C(NUMR);
+
+      // Custom fix for MacOS compile: declare explicit vectors for complex numbers
+      // see handling below
+      std::vector<double> A(2 * NUMR), B(2 * NUMR), C(2 * NUMR);
+
       fftw_plan pa, pb, pinv;
 
-      pa   = fftw_plan_dft_r2c_1d(NUMR, a.data(), A.data(), FFTW_ESTIMATE);
-      pb   = fftw_plan_dft_r2c_1d(NUMR, b.data(), B.data(), FFTW_ESTIMATE);
-      pinv = fftw_plan_dft_c2r_1d(NUMR, C.data(), c.data(), FFTW_ESTIMATE);
+      // more MacOS fixes with explicit casts
+      pa   = fftw_plan_dft_r2c_1d(NUMR, a.data(), reinterpret_cast<fftw_complex*>(A.data()), FFTW_ESTIMATE);
+      pb   = fftw_plan_dft_r2c_1d(NUMR, b.data(), reinterpret_cast<fftw_complex*>(B.data()), FFTW_ESTIMATE);
+      pinv = fftw_plan_dft_c2r_1d(NUMR, reinterpret_cast<fftw_complex*>(C.data()), c.data(), FFTW_ESTIMATE);
 
       double xmin=rmin, xmax=rmax;
 
@@ -402,9 +407,15 @@ main(int argc, char **argv)
       fftw_execute(pa);
       fftw_execute(pb);
 
-      for (int i=0; i<NUMR; i++) {
-	C[i][0] = (A[i][0] * B[i][0] - A[i][1] * B[i][1]) * scale;
-	C[i][1] = (A[i][0] * B[i][1] + A[i][1] * B[i][0]) * scale;
+      // Perform the complex multiplication and scaling: explicit for MacOS compile
+      for (int i = 0; i < NUMR; i++) {
+          double A_real = A[2 * i];
+          double A_imag = A[2 * i + 1];
+          double B_real = B[2 * i];
+          double B_imag = B[2 * i + 1];
+
+          C[2 * i]     = (A_real * B_real - A_imag * B_imag) * scale;  // Real part of C[i]
+          C[2 * i + 1] = (A_real * B_imag + A_imag * B_real) * scale;  // Imaginary part of C[i]
       }
 
       // inverse transform to get c, the convolution of a and b;
