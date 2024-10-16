@@ -34,8 +34,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libeigen3-dev libfftw3-dev libhdf5-dev libopenmpi-dev libomp-dev
-          sudo pip install numpy
+          sudo apt-get install -y build-essential libeigen3-dev libfftw3-dev libhdf5-dev libopenmpi-dev libomp-dev python3-numpy
 
 
       - name: Setup submodule and build
