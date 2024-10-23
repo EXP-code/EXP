@@ -7,7 +7,11 @@
 
 #if HAVE_LIBCUDA==1
 
+#if __CUDACC_VER_MAJOR__ < 12
 #include <nvToolsExt.h>
+#else
+#include <nvtx3/nvToolsExt.h>
+#endif 
 
 class nvTracer {
 private:
