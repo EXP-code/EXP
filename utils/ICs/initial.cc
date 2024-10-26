@@ -398,7 +398,7 @@ main(int ac, char **av)
     ("LMAX", "Harmonic order for halo expansion",
      cxxopts::value<int>(LMAX)->default_value("18"))
     ("LMAXFID", "Harmonic order for EOF spherical model",
-     cxxopts::value<int>(LMAXFID)->default_value("128"))
+     cxxopts::value<int>(LMAXFID)->default_value("72"))
     ("NMAXFID", "Radial order for EOF spherical model",
      cxxopts::value<int>(NMAXFID)->default_value("64"))
     ("MMAX", "Aximuthal order for Cylindrical expansion",

@@ -1031,7 +1031,7 @@ namespace BasisClasses
     nmax        = 18;
     mmax        = 6;
     mlim        = std::numeric_limits<int>::max();
-    lmaxfid     = 128;
+    lmaxfid     = 72;
     nmaxfid     = 64;
     ncylnx      = 256;
     ncylny      = 128;
