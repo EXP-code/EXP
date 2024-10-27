@@ -5,7 +5,7 @@
 #include <EXPException.H>
 #include <interp.H>
 #include <gaussQ.H>
-
+#include <cassert>
 
 BiorthBess::BiorthBess(double rmax, int lmax, int nmax, int RNUM) :
   rmax(rmax), lmax(lmax), nmax(nmax), RNUM(RNUM)

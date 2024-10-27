@@ -873,9 +873,15 @@ void EmpCyl2d::create_tables()
       if (m==0) xgrid[i] = r;
 
       for (int n=0; n<nmaxfid; n++) {
+<<<<<<< Updated upstream
 	pot(n) = basis->potl(m, n, r) / sqrt(basis->norm(n, m)*0.5);
 	den(n) = basis->dens(m, n, r) / sqrt(basis->norm(n, m)*2.0);
 	dph(n) = basis->dpot(m, n, r) / sqrt(basis->norm(n, m)*0.5);
+=======
+	pot(n) = basis->potl(m, n, r) / sqrt(basis->norm(n, m)*0.5/M_PI);
+	den(n) = basis->dens(m, n, r) / sqrt(basis->norm(n, m)*2.0*M_PI);
+	dph(n) = basis->dpot(m, n, r) / sqrt(basis->norm(n, m)*0.5/M_PI);
+>>>>>>> Stashed changes
       }
       
       pot = U.transpose() * pot;
@@ -1203,7 +1209,11 @@ double EmpCyl2d::get_potl(double r, int M, int N)
   checkMN(M, N, "get_potl");
 
   if (basis_test) {
+<<<<<<< Updated upstream
     return basis->potl(M, N, r)/sqrt(basis->norm(N, M)*0.5);
+=======
+    return basis->potl(M, N, r)/sqrt(basis->norm(N, M)*0.5/M_PI);
+>>>>>>> Stashed changes
   }
 
   int lo, hi;
@@ -1218,7 +1228,11 @@ double EmpCyl2d::get_dens(double r, int M, int N)
   checkMN(M, N, "get_dens");
 
   if (basis_test) {
+<<<<<<< Updated upstream
     return basis->dens(M, N, r)/sqrt(basis->norm(N, M)*2.0);
+=======
+    return basis->dens(M, N, r)/sqrt(basis->norm(N, M)*2.0*M_PI);
+>>>>>>> Stashed changes
   }
 
   int lo, hi;
@@ -1233,7 +1247,11 @@ double EmpCyl2d::get_dpot(double r, int M, int N)
   checkMN(M, N, "get_dpot");
 
   if (basis_test) {
+<<<<<<< Updated upstream
     return basis->dpot(M, N, r)/sqrt(basis->norm(N, M)*0.5);
+=======
+    return basis->dpot(M, N, r)/sqrt(basis->norm(N, M)*2.0*M_PI);
+>>>>>>> Stashed changes
   }
 
   int lo, hi;
@@ -1307,7 +1325,11 @@ void EmpCyl2d::checkCoefs()
     
       for (int j=0; j<nmax; j++) {
 	coefs(j) += fac * disk->dens(rr) * get_potl(rr, 0, j);
+<<<<<<< Updated upstream
 	coef0(j) += fac * disk->dens(rr) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0)*0.5);
+=======
+	coef0(j) += fac * disk->dens(rr) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0)*2.0*M_PI);
+>>>>>>> Stashed changes
       }
   }
 
@@ -1331,8 +1353,13 @@ void EmpCyl2d::checkCoefs()
     for (int j=0; j<nmax; j++) {
       uu += coefs(j) * get_potl(rr, 0, j);
       vv += coefs(j) * get_dens(rr, 0, j);
+<<<<<<< Updated upstream
       yy += coef0(j) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0)*0.5);
       zz += coef0(j) * basis->dens(0, j, rr) / sqrt(basis->norm(j, 0)*2.0);
+=======
+      yy += coef0(j) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0)*2.0*M_PI);
+      zz += coef0(j) * basis->dens(0, j, rr) / sqrt(basis->norm(j, 0)*0.5/M_PI);
+>>>>>>> Stashed changes
     }
 
     std::cout << std::setw(16) << rr
