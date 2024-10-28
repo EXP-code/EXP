@@ -23,7 +23,8 @@
 */
 #define odd(n) ((unsigned)(n) & 01)
 
-void Odd_Hermite(int n, double alpha, double abscis[], double weight[], double* w0)
+void Odd_Hermite(int n, double alpha, double abscis[], double weight[],
+		 double* w0)
 {
     int k;
 

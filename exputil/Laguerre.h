@@ -17,7 +17,8 @@
 
 extern void Laguerre(int n, double alpha, double abscis[], double weight[]);
 
-extern void Radau_Laguerre(int n, double alpha, double abscis[], double weight[], double* leftw);
+extern void Radau_Laguerre(int n, double alpha,
+			   double abscis[], double weight[], double* leftw);
 
 /* 
    ARGUMENT LISTS:

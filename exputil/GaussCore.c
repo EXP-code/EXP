@@ -34,10 +34,10 @@ static int QQp(double, double*, double*);
 */
 void GaussCheck(double value)
 {
-    if (value <= (-1.0)) {
-	fprintf(stderr, "Gauss package: parameter out of range: %g\n", value);
-	exit(1);
-    }
+  if (value <= (-1.0)) {
+    fprintf(stderr, "Gauss package: parameter out of range: %g\n", value);
+    exit(1);
+  }
 }
 
 
@@ -53,7 +53,8 @@ static int n1;
 /*
    The workhorse.
 */
-void GaussMaster(int n, double alpha, double beta, int conflag, double abscis[], double weight[])
+void GaussMaster(int n, double alpha, double beta, int conflag,
+		 double abscis[], double weight[])
 {
 #define FALSE 0
 #define  TRUE 1

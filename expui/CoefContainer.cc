@@ -72,7 +72,7 @@ namespace MSSA
       unpack_cylfld();
     }
     else {
-      throw std::runtime_error(std::string("CoefDB::unpack_channels(): can not reflect coefficient type=") + typeid(*coefs.get()).name());
+      throw std::runtime_error(std::string("CoefDB::unpack_channels(): can not reflect coefficient type=") + typeid(coefs.get()).name());
     }
 
     return coefs;
@@ -91,7 +91,7 @@ namespace MSSA
     else if (dynamic_cast<CoefClasses::CylFldCoefs*>(coefs.get()))
       { } // Do nothing
     else {
-      throw std::runtime_error(std::string("CoefDB::background(): can not reflect coefficient type=") + typeid(*coefs.get()).name());
+      throw std::runtime_error(std::string("CoefDB::background(): can not reflect coefficient type=") + typeid(coefs.get()).name());
     }
   }
 
@@ -114,7 +114,7 @@ namespace MSSA
     else if (dynamic_cast<CoefClasses::CylFldCoefs*>(coefs.get()))
       pack_cylfld();
     else {
-      throw std::runtime_error(std::string("CoefDB::pack_channels(): can not reflect coefficient type=") + typeid(*coefs.get()).name());
+      throw std::runtime_error(std::string("CoefDB::pack_channels(): can not reflect coefficient type=") + typeid(coefs.get()).name());
     }
   }
 

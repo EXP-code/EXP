@@ -22,7 +22,8 @@ void Laguerre(int n, double alpha, double abscis[], double weight[])
 };
 
 
-void Radau_Laguerre(int n, double alpha, double abscis[], double weight[], double* leftw)
+void Radau_Laguerre(int n, double alpha, double abscis[], double weight[],
+		    double* leftw)
 {
     int k;
     double temp;

@@ -335,7 +335,10 @@ void FieldGeneratorClasses(py::module &m) {
 
         See also
         --------
+<<<<<<< HEAD
+=======
         points : generate fields at an array of mesh points
+>>>>>>> pointMesh
         slices : generate fields in a surface slice given by the
                  initializtion grid
         volumes : generate fields in volume given by the initializtion grid
@@ -370,7 +373,10 @@ void FieldGeneratorClasses(py::module &m) {
 
         See also
         --------
+<<<<<<< HEAD
+=======
         points : generate fields at an array of mesh points
+>>>>>>> pointMesh
         slices : generate fields in a surface slice given by the
                  initializtion grid
         volumes : generate fields in volume given by the initializtion grid

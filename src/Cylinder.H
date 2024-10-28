@@ -14,7 +14,6 @@
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
-#include <NVTX.H>
 
 #include <CoefContainer.H>
 
@@ -155,15 +154,7 @@ private:
       a complete set of coefficients for force evaluation at an
       intermediate time step
   */
-  void compute_multistep_coefficients() 
-  {
-    if (play_back and not play_cnew) return;
-    
-    nvTracerPtr tPtr;
-    if (cuda_prof)
-      tPtr = nvTracerPtr(new nvTracer("Cylinder::compute_multistep_coefficients"));
-    ortho->compute_multistep_coefficients(mfirst[mstep]);
-  }
+  void compute_multistep_coefficients();
 
   //! Reset used particle counter and mass registers
   virtual void multistep_reset();

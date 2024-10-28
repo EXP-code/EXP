@@ -185,15 +185,15 @@ main(int argc, char **argv)
 
       double val;
       static int buf_size = 1024;
-      char buf[buf_size];
+      auto buf = std::make_unique<char[]>(buf_size);
       
       std::vector<double> or_time, or_c[3];
 
       while (!in.eof()) {
-	in.getline(buf, buf_size);
+	in.getline(buf.get(), buf_size);
 	if (in.eof()) break;
 	
-	istringstream ins(buf);
+	istringstream ins(buf.get());
 	ins >> val;
 	or_time.push_back(val);
 	for (int k=0; k<5; k++) ins >> val;

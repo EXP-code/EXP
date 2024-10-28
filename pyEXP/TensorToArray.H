@@ -27,7 +27,6 @@ py::array_t<T> make_ndarray3(Eigen::Tensor<T, 3>& mat)
      );
 }
 
-
 //! Helper function that maps the Eigen::Tensor<T, 4> into an numpy.ndarray
 template <typename T>
 py::array_t<T> make_ndarray4(Eigen::Tensor<T, 4>& mat)

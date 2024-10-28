@@ -1,12 +1,3 @@
-
-set(CUDA_SRC)
-if (ENABLE_CUDA)
-  list(APPEND CUDA_SRC cudaPolarBasis.cu cudaSphericalBasis.cu
-    cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc
-    cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu cudaOrient.cu
-    cudaBiorthCyl.cu cudaCube.cu cudaSlabSL.cu)
-endif()
-
 set(exp_SOURCES Basis.cc Bessel.cc Component.cc
   Cube.cc Cylinder.cc ExternalCollection.cc
   ExternalForce.cc Orient.cc PotAccel.cc ScatterMFP.cc
@@ -19,8 +10,15 @@ set(exp_SOURCES Basis.cc Bessel.cc Component.cc
   OutMulti.cc OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc
   OutVel.cc OutCoef.cc multistep.cc parse.cc SlabSL.cc step.cc
   tidalField.cc ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
-  ParticleFerry.cc chkSlurm.c chkTimer.cc GravKernel.cc ${CUDA_SRC}
+  ParticleFerry.cc chkSlurm.c chkTimer.cc GravKernel.cc
   CenterFile.cc PolarBasis.cc FlatDisk.cc signals.cc)
+
+if (ENABLE_CUDA)
+  list(APPEND exp_SOURCES cudaPolarBasis.cu cudaSphericalBasis.cu
+    cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc
+    cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu cudaOrient.cu
+    cudaBiorthCyl.cu cudaCube.cu cudaSlabSL.cu)
+endif()
 
 set(common_INCLUDE_DIRS 
   $<INSTALL_INTERFACE:include>
@@ -39,8 +37,13 @@ if(PNG_FOUND)
 endif()
 
 if(ENABLE_CUDA)
-  list(APPEND common_INCLUDE_DIRS ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
-  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
+  list(APPEND common_LINKLIB CUDA::toolkit CUDA::cudart)
+  if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12)
+    list(APPEND common_LINKLIB CUDA::nvtx3)
+    set_source_files_properties(${exp_SOURCES} PROPERTIES LANGUAGE CUDA)
+  else ()
+    list(APPEND common_LINKLIB CUDA::nvToolsExt)
+  endif ()
 endif()
 
 if(SLURM_FOUND)
@@ -63,6 +66,10 @@ endif()
 add_executable(exp expand.cc)
 target_include_directories(exp PUBLIC ${common_INCLUDE_DIRS})
 target_link_libraries(exp PUBLIC ${common_LINKLIB} EXPlib)
+
+if (ENABLE_CUDA)
+  set_target_properties(exp PROPERTIES LINKER_LANGUAGE CUDA)
+endif ()
 
 install(TARGETS EXPlib DESTINATION lib)
 install(TARGETS exp DESTINATION bin)

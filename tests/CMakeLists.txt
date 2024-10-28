@@ -1,5 +1,7 @@
 include(CTest)
 
+set(CTEST_OUTPUT_ON_FAILURE ON)
+
 # Is EXP configured for pyEXP? If yes, run pyEXP tests...
 #
 if(ENABLE_PYEXP)
@@ -73,10 +75,10 @@ if(ENABLE_NBODY)
     ${PYTHON_EXECUTABLE} check.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
-  set_tests_properties(expNbodyCheck2TW PROPERTIES DEPENDS makeNbodyTest)
+  set_tests_properties(expNbodyCheck2TW PROPERTIES DEPENDS expNbodyTest LABELS "long")
 
   # This adds a coefficient read test using pyEXP only if
-  # makeNbodyTest is run and pyEXP has been built
+  # expNbodyTest is run and pyEXP has been built
   if(ENABLE_PYEXP)
      # Read coefficient file with pyEXP
      add_test(NAME pyEXPCoefReadTest
@@ -84,8 +86,21 @@ if(ENABLE_NBODY)
               PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
               ${PYTHON_EXECUTABLE} readCoefs.py
               WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
-     set_tests_properties(pyEXPCoefReadTest PROPERTIES DEPENDS makeNbodyTest)
-     set_tests_properties(pyEXPCoefReadTest PROPERTIES LABELS "long")
+     set_tests_properties(pyEXPCoefReadTest PROPERTIES DEPENDS expNbodyTest LABELS "long")
+
+     add_test(NAME pyEXPCoefMatrixTest
+              COMMAND ${CMAKE_COMMAND} -E env
+              PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+              ${PYTHON_EXECUTABLE} changeCoefs.py
+              WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
+     set_tests_properties(pyEXPCoefMatrixTest PROPERTIES DEPENDS expNbodyTest LABELS "long")
+
+     add_test(NAME pyEXPCoefCreateTest
+              COMMAND ${CMAKE_COMMAND} -E env
+              PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+              ${PYTHON_EXECUTABLE} createCoefs.py
+              WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
+     set_tests_properties(pyEXPCoefCreateTest PROPERTIES LABELS "quick")
   endif()
 
   # A separate test to remove the generated files if they all exist;

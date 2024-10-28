@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21) # Needed for CUDA, MPI, and CTest features
+cmake_minimum_required(VERSION 3.25) # Needed for CUDA, MPI, and CTest features
 
 project(
   EXP
@@ -73,7 +73,7 @@ set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 
 find_package(MPI REQUIRED COMPONENTS C CXX)
 find_package(OpenMP)
-find_package(FFTW)
+find_package(FFTW REQUIRED)
 find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
 find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
@@ -132,6 +132,9 @@ if(OpenMP_FOUND)
   OPTION (USE_OpenMP "Use OpenMP" ON)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  if(ENABLE_CUDA)
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler='${OpenMP_CXX_FLAGS}'")
+  endif()
 endif()
 # Slurm support
 if(SLURM_FOUND)

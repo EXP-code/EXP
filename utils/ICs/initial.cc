@@ -360,7 +360,7 @@ main(int ac, char **av)
   double       RMIN, RCYLMIN, RCYLMAX, SCSPH, RSPHSL, DMFAC, RFACTOR, SHFAC;
   double       X0, Y0, Z0, U0, V0, W0;
   int          RNUM, PNUM, TNUM, VFLAG, DFLAG;
-  bool         expcond, LOGR, CHEBY, SELECT, DUMPCOEF;
+  bool         expcond, LOGR, CHEBY, DUMPCOEF;
   int          CMAPR, CMAPZ, NCHEB, TCHEB, CMTYPE, NDR, NDZ, NHR, NHT, NDP;
   int          LMAX, NMAXH, NMAXD, MMAX, NUMX, NUMY, NOUT, NMAXLIM, NODD, DF;
   int          DIVERGE, DIVERGE2, SEED, itmax;
@@ -368,7 +368,7 @@ main(int ac, char **av)
   double       PPower, R_DF, DR_DF;
   double       Hratio, scale_height, scale_length, scale_lenfkN;
   double       disk_mass, gas_mass, gscal_length, ToomreQ, Temp, Tmin;
-  bool         const_height, images, multi, SVD, basis, zeropos, zerovel;
+  bool         const_height, images, multi, basis, zeropos, zerovel;
   bool         report, ignore, evolved, diskmodel;
   int          nhalo, ndisk, ngas, ngparam;
   std::string  hbods, dbods, gbods, suffix, centerfile, halofile1, halofile2;
@@ -870,7 +870,6 @@ main(int ac, char **av)
   EmpCylSL::CMAPZ       = CMAPZ;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
-  EmpCylSL::PCAVAR      = SELECT;
 
                                 // Create expansion only if needed . . .
   std::shared_ptr<EmpCylSL> expandd;

@@ -12,9 +12,11 @@ TransformFFT::TransformFFT(double DR, std::vector<double>& Y)
   dk = 2.0*M_PI/dr/N;
 
   in = Y;
-  out = new fftw_complex [N/2+1];
+  out.resize(N/2+1);
   
-  p = fftw_plan_dft_r2c_1d(N, in.data(), out, FFTW_ESTIMATE);
+  p = fftw_plan_dft_r2c_1d(N, in.data(),
+			   reinterpret_cast<fftw_complex*>(out.data()),
+			   FFTW_ESTIMATE);
 
   fftw_execute(p);
 }
@@ -30,9 +32,11 @@ TransformFFT::TransformFFT(double DR, Eigen::VectorXd& Y)
   in.resize(N);
   for (int j=0; j<N; j++) in[j] = Y[j];
 
-  out = new fftw_complex [N/2+1];
+  out.resize(N/2+1);
   
-  p = fftw_plan_dft_r2c_1d(N, in.data(), out, FFTW_ESTIMATE);
+  p = fftw_plan_dft_r2c_1d(N, in.data(),
+			   reinterpret_cast<fftw_complex*>(out.data()),
+			   FFTW_ESTIMATE);
 
   
   fftw_execute(p);
@@ -41,7 +45,6 @@ TransformFFT::TransformFFT(double DR, Eigen::VectorXd& Y)
 
 TransformFFT::~TransformFFT()
 {
-  delete [] out;
   fftw_destroy_plan(p);
 }
 
@@ -53,15 +56,15 @@ void TransformFFT::Power(Eigen::VectorXd& F, Eigen::VectorXd& P)
   double d2 = dr*dr;
 
   F(0) = 0.0;
-  P(0) = d2 * (out[0][0]*out[0][0] + out[0][1]*out[0][1]);
+  P(0) = d2 * std::norm(out[0]);
 
   for (int j=1; j<N/2; j++) {
     F(j) = dk * j;
-    P(j) = d2 * (out[j][0]*out[j][0] + out[j][1]*out[j][1]) * 2.0;
+    P(j) = d2 * std::norm(out[j]) * 2.0;
   }
   
   F(N/2) = dk * N/2;
-  P(N/2) = d2 * (out[N/2][0]*out[N/2][0] + out[N/2][1]*out[N/2][1]);
+  P(N/2) = d2 * std::norm(out[N/2]);
 }
 
 void TransformFFT::Power(std::vector<double>& F, std::vector<double>& P)
@@ -72,15 +75,15 @@ void TransformFFT::Power(std::vector<double>& F, std::vector<double>& P)
   double d2 = dr*dr;
 
   F[0] = 0.0;
-  P[0] = d2 * ( out[0][0]*out[0][0] + out[0][1]*out[0][1] );
+  P[0] = d2 * std::norm(out[0]);
 
   for (int j=1; j<N/2; j++) {
     F[j] = dk * j;
-    P[j] = d2 * out[j][0]*out[j][0] + out[j][1]*out[j][1] * 2.0;
+    P[j] = d2 * std::norm(out[j]) * 2.0;
   }
   
   F[N/2] = dk * N/2;
-  P[N/2] = d2 * (out[N/2][0]*out[N/2][0] + out[N/2][1]*out[N/2][1]);
+  P[N/2] = d2 * std::norm(out[N/2]);
 }
 
 
@@ -91,7 +94,7 @@ void TransformFFT::Inverse(Eigen::VectorXd& F, Eigen::VectorXcd& W)
 
   for (int j=0; j<N/2+1; j++) {
     F[j] = dk*j;
-    W[j] = std::complex<double>(out[j][0], out[j][1]) * dr;
+    W[j] = out[j] * dr;
   }
   
 }
@@ -105,8 +108,8 @@ void TransformFFT::Inverse(std::vector<double>& F,
 
   for (int j=0; j<N/2+1; j++) {
     F[j] = dk*j;
-    Wr[j] = out[j][0] * dr;
-    Wi[j] = out[j][1] * dr;
+    Wr[j] = std::real(out[j]) * dr;
+    Wi[j] = std::imag(out[j]) * dr;
   }
 }
 

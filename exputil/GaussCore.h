@@ -12,8 +12,10 @@
 #define   CONFLUENT 1
 #define NOCONFLUENT 0
 
-extern void GaussMaster(int, double, double, int, double[], double[]);
-extern void GaussCheck(double);
+extern void GaussMaster(int n, double alpha, double beta, int conflag,
+			double abscis[], double weight[]);
+
+extern void GaussCheck(double value);
 
 /* ARGUMENT LISTS:
 

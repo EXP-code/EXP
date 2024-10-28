@@ -2,11 +2,12 @@
 #ifndef _TransformFFT_h
 #define _TransformFFT_h
 
+#include <complex>
+#include <vector>
+
 #include <Eigen/Dense>
 #include <fftw3.h>
 
-#include <complex>
-#include <vector>
 
 class TransformFFT
 {
@@ -15,7 +16,7 @@ class TransformFFT
 
   fftw_plan p;
   std::vector<double> in;
-  fftw_complex* out;
+  std::vector<std::complex<double>> out;
 
  public:
   
