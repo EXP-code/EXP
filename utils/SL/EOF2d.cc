@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 {
   bool logr = false, cmap = false, ortho = false, plane = false;
   int numr, mmax, nmaxfid, nmax, knots, M, N, nradial, nout;
-  double A, rmin, rmax, rout;
+  double scale, rmin, rmax, rout;
   std::string filename, config, biorth;
 
   // Parse command line
@@ -51,8 +51,8 @@ int main(int argc, char** argv)
      cxxopts::value<int>(N)->default_value("256"))
     ("n,nradial",  "Radial order for vertical potential output",
      cxxopts::value<int>(nradial)->default_value("0"))
-    ("A,length",   "characteristic disk scale length",
-     cxxopts::value<double>(A)->default_value("1.0"))
+    ("s,length",   "characteristic disk scale length for mapping",
+     cxxopts::value<double>(scale)->default_value("1.0"))
     ("mmax",       "maximum number of angular harmonics in the expansion",
      cxxopts::value<int>(mmax)->default_value("4"))
     ("nmaxfid",    "maximum number of radial basis harmonics for EOF construction",
@@ -60,13 +60,13 @@ int main(int argc, char** argv)
     ("nmax",       "maximum number of radial harmonics in the expansion",
      cxxopts::value<int>(nmax)->default_value("10"))
     ("numr",       "radial knots for the SL grid",
-     cxxopts::value<int>(numr)->default_value("4000"))
+     cxxopts::value<int>(numr)->default_value("8000"))
     ("r,rmin",     "minimum radius for the SL grid",
      cxxopts::value<double>(rmin)->default_value("0.0001"))
     ("R,rmax",     "maximum radius for the SL grid",
      cxxopts::value<double>(rmax)->default_value("20.0"))
     ("knots",      "Number of Legendre integration knots",
-     cxxopts::value<int>(knots)->default_value("200"))
+     cxxopts::value<int>(knots)->default_value("1000"))
     ("rout",       "Outer radius for evaluation",
      cxxopts::value<double>(rout)->default_value("10.0"))
     ("nout",       "number of points in the output grid per side",
@@ -114,7 +114,7 @@ int main(int argc, char** argv)
 
   // Make the class instance
   //
-  EmpCyl2d emp(mmax, nmaxfid, nmax, knots, numr, rmin, rmax, A, cmap, logr,
+  EmpCyl2d emp(mmax, nmaxfid, nmax, knots, numr, rmin, rmax, scale, cmap, logr,
 	       par, biorth);
 
   if (vm.count("basis")) emp.basisTest(true);
@@ -253,9 +253,8 @@ int main(int argc, char** argv)
       for (int n=0; n<nmax; n++) {
 	// Set the functor using a lambda
 	//
-	auto dens = [&emp, M, n](double R) { return
-	    emp.get_dens(R, M, n);
-	};
+	auto dens = [&emp, M, n](double R)
+	{ return emp.get_dens(R, M, n); };
       
 	std::tie(r, p) = pot(0.0, dens);
 	outP.row(n) = p;
@@ -342,7 +341,7 @@ int main(int argc, char** argv)
   // END: Sk
 
   if (vm.count("bartest")) {
-    double a = 1.0, b = 2.0*A;
+    double a = 1.0, b = 2.0*scale;
 
     auto pot = [a, b](double r)
     {

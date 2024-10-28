@@ -14,7 +14,7 @@ set (common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
 
 if(ENABLE_CUDA)
   list(APPEND common_INCLUDE_DIRS ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CUDAToolkit_INCLUDE_DIRS})
-  list(APPEND common_LINKLIB CUDA::cudart CUDA::nvToolsExt)
+  list(APPEND common_LINKLIBS CUDA::cudart CUDA::nvToolsExt)
 endif()
 
 set(user_SRC      UserTest.cc)
@@ -25,8 +25,8 @@ set(halo_SRC      UserHalo.cc)
 set(mndisk_SRC    UserMNdisk.cc)
 set(mwgala_SRC    UserMW.cc)
 
-if (ENABLE_CUDA)
-  set(cudatest_Src UserTestCuda.cc cudaUserTest.cu)
+if(ENABLE_CUDA)
+  set(cudatest_SRC UserTestCuda.cc cudaUserTest.cu)
 endif()
 
 foreach(mlib ${USER_MODULES})
