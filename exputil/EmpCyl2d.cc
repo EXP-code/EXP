@@ -873,9 +873,9 @@ void EmpCyl2d::create_tables()
       if (m==0) xgrid[i] = r;
 
       for (int n=0; n<nmaxfid; n++) {
-	pot(n) = basis->potl(m, n, r) / sqrt(basis->norm(n, m));
-	den(n) = basis->dens(m, n, r) / sqrt(basis->norm(n, m));
-	dph(n) = basis->dpot(m, n, r) / sqrt(basis->norm(n, m));
+	pot(n) = basis->potl(m, n, r) / sqrt(basis->norm(n, m)*0.5/M_PI);
+	den(n) = basis->dens(m, n, r) / sqrt(basis->norm(n, m)*2.0*M_PI);
+	dph(n) = basis->dpot(m, n, r) / sqrt(basis->norm(n, m)*0.5/M_PI);
       }
       
       pot = U.transpose() * pot;
@@ -1203,7 +1203,7 @@ double EmpCyl2d::get_potl(double r, int M, int N)
   checkMN(M, N, "get_potl");
 
   if (basis_test) {
-    return basis->potl(M, N, r)/sqrt(basis->norm(N, M));
+    return basis->potl(M, N, r)/sqrt(basis->norm(N, M)*0.5/M_PI);
   }
 
   int lo, hi;
@@ -1218,7 +1218,7 @@ double EmpCyl2d::get_dens(double r, int M, int N)
   checkMN(M, N, "get_dens");
 
   if (basis_test) {
-    return basis->dens(M, N, r)/sqrt(basis->norm(N, M));
+    return basis->dens(M, N, r)/sqrt(basis->norm(N, M)*2.0*M_PI);
   }
 
   int lo, hi;
@@ -1233,7 +1233,7 @@ double EmpCyl2d::get_dpot(double r, int M, int N)
   checkMN(M, N, "get_dpot");
 
   if (basis_test) {
-    return basis->dpot(M, N, r)/sqrt(basis->norm(N, M));
+    return basis->dpot(M, N, r)/sqrt(basis->norm(N, M)*2.0*M_PI);
   }
 
   int lo, hi;
@@ -1307,7 +1307,7 @@ void EmpCyl2d::checkCoefs()
     
       for (int j=0; j<nmax; j++) {
 	coefs(j) += fac * disk->dens(rr) * get_potl(rr, 0, j);
-	coef0(j) += fac * disk->dens(rr) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0));
+	coef0(j) += fac * disk->dens(rr) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0)*0.5/M_PI);
       }
   }
 
@@ -1331,8 +1331,8 @@ void EmpCyl2d::checkCoefs()
     for (int j=0; j<nmax; j++) {
       uu += coefs(j) * get_potl(rr, 0, j);
       vv += coefs(j) * get_dens(rr, 0, j);
-      yy += coef0(j) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0));
-      zz += coef0(j) * basis->dens(0, j, rr) / sqrt(basis->norm(j, 0));
+      yy += coef0(j) * basis->potl(0, j, rr) / sqrt(basis->norm(j, 0)*0.5/M_PI);
+      zz += coef0(j) * basis->dens(0, j, rr) / sqrt(basis->norm(j, 0)*2.0*M_PI);
     }
 
     std::cout << std::setw(16) << rr
