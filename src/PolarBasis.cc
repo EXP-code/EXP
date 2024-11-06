@@ -401,8 +401,8 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 {
   // For biorthogonal density component and normalization
   // 
-  constexpr double norm0 = 2.0*M_PI * 0.5*M_2_SQRTPI/M_SQRT2;
-  constexpr double norm1 = 2.0*M_PI * 0.5*M_2_SQRTPI;
+  constexpr double norm0 = 0.5*M_2_SQRTPI/M_SQRT2;
+  constexpr double norm1 = 0.5*M_2_SQRTPI;
 
   double r, r2, facL=1.0, fac1, fac2, phi, mass;
   double xx, yy, zz;
@@ -1044,8 +1044,8 @@ void PolarBasis::multistep_update(int from, int to, Component *c, int i, int id)
 
   // For biorthogonal density component and normalization
   // 
-  constexpr double norm0 = 2.0*M_PI * 0.5*M_2_SQRTPI/M_SQRT2;
-  constexpr double norm1 = 2.0*M_PI * 0.5*M_2_SQRTPI;
+  constexpr double norm0 = 0.5*M_2_SQRTPI/M_SQRT2;
+  constexpr double norm1 = 0.5*M_2_SQRTPI;
 
   double mass = c->Mass(i) * component->Adiabatic();
 
