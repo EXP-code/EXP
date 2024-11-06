@@ -8,10 +8,10 @@ set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc # Hankel.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc stack.cc
   localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc QDHT.cc
   YamlCheck.cc parseVersionString.cc EXPmath.cc laguerre_polynomial.cpp
-  YamlConfig.cc orthoTest.cc OrthoFunction.cc)
+  YamlConfig.cc orthoTest.cc OrthoFunction.cc VtkGrid.cc)
 
 if(HAVE_VTK)
-  list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)
+  list(APPEND UTIL_SRC VtkPCA.cc)
 endif()
 
 set(OPTIMIZATION_SRC SimAnn.cc)
@@ -51,13 +51,9 @@ set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   ${DEP_INC} ${EIGEN3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS}
   ${FFTW_INCLUDE_DIRS})
 
-# set(common_LINKLIBS ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
-#   yaml-cpp ${VTK_LIBRARIES} ${HDF5_CXX_LIBRARIES} ${HDF5_LIBRARIES}
-#   ${HDF5_HL_LIBRARIES} ${FFTW_DOUBLE_LIB})
-
-set(common_LINKLIB ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
-  yaml-cpp ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
-  ${FFTW_DOUBLE_LIB})
+set(common_LINKLIB ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp
+  ${VTK_LIBRARIES} ${HDF5_CXX_LIBRARIES} ${HDF5_LIBRARIES}
+  ${HDF5_HL_LIBRARIES} ${FFTW_DOUBLE_LIB})
 
 if(ENABLE_CUDA)
   list(APPEND common_LINKLIB CUDA::toolkit CUDA::cudart)
