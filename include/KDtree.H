@@ -354,10 +354,10 @@ namespace KDtree
       double wgt = 0.0;		// Sum weights
       for (auto b : best_) wgt += b.second->point_.mass();
 
-#if __GNUC__ > 6
+#if __GNUC__ > 6 or defined(__clang__)
       return {best_.begin()->second->point_, wgt, std::sqrt(best_.rbegin()->first), best_};
 #else
-      std::tuple<point_type, double, double> ret;
+      std::tuple<point_type, double, double, cache> ret;
       std::get<0>(ret) = best_.begin()->second->point_;
       std::get<1>(ret) = wgt;
       std::get<2>(ret) = std::sqrt(best_.rbegin()->first);
