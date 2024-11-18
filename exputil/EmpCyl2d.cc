@@ -769,6 +769,7 @@ EmpCyl2d::EmpCyl2d
   if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
 
   disk  = createModel();
+  model = disk->ID();
   basis = Basis2d::createBasis(mmax, nmaxfid, rmax, biorth);
 
   basis_test = false;
