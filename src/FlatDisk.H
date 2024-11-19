@@ -74,14 +74,18 @@ private:
   }
 #endif
 
+  //! Background instance
+  using Disk2d = std::shared_ptr<EmpCyl2d::ModelCyl>;
+  Disk2d disk;
+
+  //! Set background from YAML
+  void setBackground();
+
   //! Background evaluation
   virtual std::tuple<double, double, double>
   get_pot_background(double r, double z)
-  {
-    auto [p, dr, dz] = ortho->background(r, z);
-    return {p, -dr, -dz};
-  }
-
+  { return {disk->pot(r), -disk->dpot(r), 0.0}; }
+  
   void get_dens(double r, double z, Eigen::MatrixXd& p, int tid);
 
   void get_potl_dens(double r, double z,
@@ -98,6 +102,8 @@ private:
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  bool   dump_basis;
 
 protected:
 

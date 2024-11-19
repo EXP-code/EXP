@@ -201,13 +201,6 @@ public:
   //! Evaluate all orders in matrices; for n-body
   void get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs, double r, double z);
 
-  //! Background evaluation
-  virtual std::tuple<double, double, double> background(double r, double z)
-  {
-    auto [p, dr, d] = emp.background(r);
-    return {p, dr, 0.0};
-  }
-
   //! Get the table bounds
   double getRtable() { return rcylmax*scale; }
 
@@ -220,6 +213,14 @@ public:
   double getYmin() { return ymin; }
   double getYmax() { return ymax; }
 
+  //! Dump the basis for plotting
+  void dump_basis(const string& name);
+
+  //! Get model name
+  const std::string getModelName() { return emp.getModelName(); }
+
+  //! Get biorthogonal function base name
+  const std::string getBiorthName() { return emp.getBiorthName(); }
 };
 
 #endif

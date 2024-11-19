@@ -836,3 +836,38 @@ std::vector<Eigen::MatrixXd> BiorthCyl::orthoCheck()
 
   return emp.orthoCheck();
 }
+
+
+void BiorthCyl::dump_basis(const string& name)
+{
+  const int num = 1000;
+  double rmin  = emp.getRmin();
+  double rmax  = emp.getRmax();
+  double r, dr = rmax/(num-1);
+  
+  std::ofstream out;
+
+  for (int m=0; m<=mmax; m++) {
+
+    std::ostringstream ins;
+    ins << name << ".biorthcyl." << m;
+    out.open(ins.str().c_str());
+    
+    // Ok, write data
+
+    for (int j=0; j<num; j++) {
+	  
+      r = dr*j;
+      out << std::setw(15) << r;
+      
+      for (int n=0; n<nmax; n++) {
+	out << std::setw(15) << emp.get_potl(r, m, n)
+	    << std::setw(15) << emp.get_dens(r, m, n)
+	    << std::setw(15) << emp.get_dpot(r, m, n);
+      }
+      out << std::endl;
+    }
+
+    out.close();
+  }
+}

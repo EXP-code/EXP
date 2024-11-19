@@ -423,11 +423,9 @@ int main(int argc, char** argv)
 	sum1 += emp.get_potl(r, 2, n)*coef1[n];
 	sum2 += emp.get_potl(r, 2, n)*coef2[n];
       }
-      auto [p, dp, d] = emp.background(r);
+
       std::cout << std::setw(16) << r
 		<< std::setw(16) << pot(r)
-		<< std::setw(16) << p
-		<< std::setw(16) << d
 		<< std::setw(16) << sum1
 		<< std::setw(16) << sum2
 		<< std::endl;
