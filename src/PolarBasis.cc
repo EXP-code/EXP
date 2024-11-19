@@ -1432,7 +1432,7 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 	if (not NO_M0) {
 
 	  if (M0_back) {
-	    auto [p, drc, dzc] = get_pot_background(r, zz);
+	    auto [p, drc, dzc] = background(r, zz);
 
 	    potl = mfac * p;
 	    potr = mfac * drc;

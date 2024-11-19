@@ -84,7 +84,8 @@ thrust::host_vector<cuFP_t> returnTestBioCyl1
 }
 
 void BiorthCyl::initialize_cuda
-(std::vector<cudaArray_t>& cuArray,
+(std::shared_ptr<EmpCyl2d::ModelCyl> disk,
+ std::vector<cudaArray_t>& cuArray,
  thrust::host_vector<cudaTextureObject_t>& tex
  )
 {
@@ -192,7 +193,7 @@ void BiorthCyl::initialize_cuda
 
   for (int i=0; i<numr; i++) {
     double r = xi_to_r(xmin + dx0*i);
-    auto [p, dr, d] = emp.background(r);
+    auto [p, dr, d] = disk->background(r);
     tt[0][i] = p;
     tt[1][i] = dr;
   }

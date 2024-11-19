@@ -173,7 +173,8 @@ public:
   cacheInfo(const std::string& cachefile, bool verbose=true);
 
 #if HAVE_LIBCUDA==1
-  void initialize_cuda(std::vector<cudaArray_t>& cuArray,
+  void initialize_cuda(std::shared_ptr<EmpCyl2d::ModelCyl> disk,
+		       std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);
 
   virtual cudaMappingConstants getCudaMappingConstants()

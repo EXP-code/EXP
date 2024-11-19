@@ -65,7 +65,7 @@ private:
   virtual void initialize_cuda()
   {
     sampT = floor(sqrt(component->CurTotal()));
-    ortho->initialize_cuda(cuInterpArray, tex);
+    ortho->initialize_cuda(disk, cuInterpArray, tex);
   }
 
   virtual cudaMappingConstants getCudaMappingConstants()
@@ -83,7 +83,7 @@ private:
 
   //! Background evaluation
   virtual std::tuple<double, double, double>
-  get_pot_background(double r, double z)
+  background(double r, double z)
   { return {disk->pot(r), -disk->dpot(r), 0.0}; }
   
   void get_dens(double r, double z, Eigen::MatrixXd& p, int tid);
