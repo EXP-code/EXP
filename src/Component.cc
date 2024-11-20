@@ -13,6 +13,7 @@
 #include <EJcom.H>
 #include <Cylinder.H>
 #include <FlatDisk.H>
+#include <CBDisk.H>
 #include <Cube.H>
 #include <SlabSL.H>
 #include <Direct.H>
@@ -882,6 +883,9 @@ void Component::configure(void)
   }
   else if ( !id.compare("flatdisk") ) {
     force = new FlatDisk(this, fconf);
+  }
+  else if ( !id.compare("CBDisk") ) {
+    force = new CBDisk(this, fconf);
   }
   else if ( !id.compare("direct") ) {
     force = new Direct(this, fconf);

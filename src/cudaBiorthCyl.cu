@@ -193,8 +193,8 @@ void BiorthCyl::initialize_cuda
 
   for (int i=0; i<numr; i++) {
     double r = xi_to_r(xmin + dx0*i);
-    tt[0][i] =  disk->pot(r);
-    tt[1][i] = -disk->dpot(r);
+    tt[0][i] = disk->pot(r);
+    tt[1][i] = disk->dpot(r);
   }
 
   // Allocate CUDA array in device memory (a one-dimension 'channel')

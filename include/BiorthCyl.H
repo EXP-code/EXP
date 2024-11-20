@@ -173,6 +173,8 @@ public:
   cacheInfo(const std::string& cachefile, bool verbose=true);
 
 #if HAVE_LIBCUDA==1
+  //! Initialize CUDA arrays.  'disk' is the model object for the
+  //! background m=0 potential and radial force
   void initialize_cuda(std::shared_ptr<EmpCyl2d::ModelCyl> disk,
 		       std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);

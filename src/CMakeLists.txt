@@ -1,16 +1,16 @@
 set(exp_SOURCES Basis.cc Bessel.cc Component.cc
-  Cube.cc Cylinder.cc ExternalCollection.cc
+  Cube.cc Cylinder.cc ExternalCollection.cc CBDisk.cc
   ExternalForce.cc Orient.cc PotAccel.cc ScatterMFP.cc
   PeriodicBC.cc SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc
   TwoDCoefs.cc TwoCenter.cc EJcom.cc global.cc begin.cc ddplgndr.cc
   Direct.cc Shells.cc NoForce.cc end.cc OutputContainer.cc OutPS.cc
   OutPSQ.cc OutPSN.cc OutPSP.cc OutPSR.cc OutCHKPT.cc OutCHKPTQ.cc
-  Output.cc externalShock.cc CylEXP.cc generateRelaxation.cc
+  Output.cc externalShock.cc CylEXP.cc generateRelaxation.cc 
   HaloBulge.cc incpos.cc incvel.cc ComponentContainer.cc OutAscii.cc
   OutMulti.cc OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc
   OutVel.cc OutCoef.cc multistep.cc parse.cc SlabSL.cc step.cc
   tidalField.cc ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
-  ParticleFerry.cc chkSlurm.c chkTimer.cc GravKernel.cc
+  ParticleFerry.cc chkSlurm.c chkTimer.cc GravKernel.cc 
   CenterFile.cc PolarBasis.cc FlatDisk.cc signals.cc)
 
 if (ENABLE_CUDA)
