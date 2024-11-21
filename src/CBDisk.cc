@@ -20,6 +20,7 @@ CBDisk::CBDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   PolarBasis(c0, conf, m)
 {
   id = "CBDisk";
+  is_flat = true;
 
   // Radial scale factor/softening radius
   //
