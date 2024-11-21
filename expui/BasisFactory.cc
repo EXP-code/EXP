@@ -184,6 +184,9 @@ namespace BasisClasses
       else if ( !name.compare("flatdisk") ) {
 	basis = std::make_shared<FlatDisk>(conf);
       }
+      else if ( !name.compare("CBDisk") ) {
+	basis = std::make_shared<CBDisk>(conf);
+      }
       else if ( !name.compare("slabSL") ) {
 	basis = std::make_shared<Slab>(conf);
       }

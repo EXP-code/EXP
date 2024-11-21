@@ -430,7 +430,9 @@ void CBDisk::orthoCheck()
 
   }
 
-  std::cout << std::endl
+  std::cout << hh << std::endl
+	    << hh << "Orthogonality check" << std::endl
+	    << hh << std::endl
 	    << hh << "--------------" << std::endl
 	    << hh << "Direct test"    << std::endl
 	    << hh << "--------------" << std::endl
@@ -488,7 +490,7 @@ void CBDisk::orthoCheck()
 	    << hh << std::setw(6) << "-" << std::setw(16) << "-----" << std::endl;
   for (int m=0; m<=mmax; m++)
     std::cout << hh << std::setw(6) << m << std::setw(16) << worst(m) << std::endl;
-  std::cout << std::endl;
+  std::cout << hh << std::endl;
 
   const int numr = 10;
   double dR = 3.0*scale/numr, dH = 0.01*scale;
