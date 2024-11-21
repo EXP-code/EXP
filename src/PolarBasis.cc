@@ -401,8 +401,20 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 {
   // For biorthogonal density component and normalization
   // 
-  constexpr double norm0 = 1.0;
-  constexpr double norm1 = M_SQRT2;
+  constexpr double norm0_3d = 2.0*M_PI * 0.5*M_2_SQRTPI/M_SQRT2;
+  constexpr double norm1_3d = 2.0*M_PI * 0.5*M_2_SQRTPI;
+
+  constexpr double norm0_2d = 1.0;
+  constexpr double norm1_2d = M_SQRT2;
+
+  double norm0, norm1;
+  if (is_flat) {
+    norm0 = norm0_2d;
+    norm1 = norm1_2d;
+  } else {
+    norm0 = norm0_3d;
+    norm1 = norm1_3d;
+  }
 
   double r, r2, facL=1.0, fac1, fac2, phi, mass;
   double xx, yy, zz;
@@ -1044,8 +1056,20 @@ void PolarBasis::multistep_update(int from, int to, Component *c, int i, int id)
 
   // For biorthogonal density component and normalization
   // 
-  constexpr double norm0 = 1.0;
-  constexpr double norm1 = M_SQRT2;
+  constexpr double norm0_3d = 2.0*M_PI * 0.5*M_2_SQRTPI/M_SQRT2;
+  constexpr double norm1_3d = 2.0*M_PI * 0.5*M_2_SQRTPI;
+
+  constexpr double norm0_2d = 1.0;
+  constexpr double norm1_2d = M_SQRT2;
+
+  double norm0, norm1;
+  if (is_flat) {
+    norm0 = norm0_2d;
+    norm1 = norm1_2d;
+  } else {
+    norm0 = norm0_3d;
+    norm1 = norm1_3d;
+  }
 
   double mass = c->Mass(i) * component->Adiabatic();
 
@@ -1323,8 +1347,20 @@ void PolarBasis::compute_multistep_coefficients()
 
 void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
 {
-  constexpr double norm0 = 1.0;
-  constexpr double norm1 = M_SQRT2;
+  constexpr double norm0_3d = 0.5*M_2_SQRTPI/M_SQRT2;
+  constexpr double norm1_3d = 0.5*M_2_SQRTPI;
+
+  constexpr double norm0_2d = 1.0;
+  constexpr double norm1_2d = M_SQRT2;
+
+  double norm0, norm1;
+  if (is_flat) {
+    norm0 = norm0_2d;
+    norm1 = norm1_2d;
+  } else {
+    norm0 = norm0_3d;
+    norm1 = norm1_3d;
+  }
 
   double r, r0=0.0, phi;
   double potr, potz, potl, potp, p, pc, drc, drs, dzc, dzs, ps, dfacp, facdp;
