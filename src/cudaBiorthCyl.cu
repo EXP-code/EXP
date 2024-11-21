@@ -187,14 +187,19 @@ void BiorthCyl::initialize_cuda
   // Add background arrays
   //
   std::vector<thrust::host_vector<cuFP_t>> tt(ndim2);
-  for (auto & v : tt) v.resize(numr);
+  for (auto & v : tt) {
+    v.resize(numr);
+    thrust::fill(v.begin(), v.end(), 0.0);
+  }
 
-  double dx0  = (xmax - xmin)/(numr - 1);
+  if (disk) {
+    double dx0  = (xmax - xmin)/(numr - 1);
 
-  for (int i=0; i<numr; i++) {
-    double r = xi_to_r(xmin + dx0*i);
-    tt[0][i] = disk->pot(r);
-    tt[1][i] = disk->dpot(r);
+    for (int i=0; i<numr; i++) {
+      double r = xi_to_r(xmin + dx0*i);
+      tt[0][i] = disk->pot(r);
+      tt[1][i] = disk->dpot(r);
+    }
   }
 
   // Allocate CUDA array in device memory (a one-dimension 'channel')
