@@ -45,6 +45,12 @@ CBDisk::CBDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   }
 
   setup();
+
+  // Potential, force, and density scaling
+  //
+  fac1 = pow(scale, -0.5);
+  fac2 = pow(scale, -1.5);
+
   if (myid==0) orthoCheck();
 }
 
@@ -178,8 +184,8 @@ void CBDisk::get_dpotl(double r, double z,
 
   for (int m=0; m<=mmax; m++) {	// Pack the array
     for (int j=0; j<nmax; j++) {
-      pot(m, j) = potl(j, m, R) / scale;
-      dpr(m, j) = dpot(j, m, R) / (scale*scale);
+      pot(m, j) = potl(j, m, R) * fac1;
+      dpr(m, j) = -dpot(j, m, R) * fac1 / scale;
     }
   }
 }
@@ -192,7 +198,7 @@ void CBDisk::get_potl(double r, double z, Eigen::MatrixXd& p, int tid)
 
   for (int m=0; m<=mmax; m++) {	// Pack the array
     for (int j=0; j<nmax; j++)
-      p(m, j) = potl(j, m, R)/ scale;
+      p(m, j) = potl(j, m, R) * fac1;
   }
 }
 
@@ -204,7 +210,7 @@ void CBDisk::get_dens(double r, double z, Eigen::MatrixXd& p, int tid)
 
   for (int m=0; m<=mmax; m++) {	// Pack the array
     for (int j=0; j<nmax; j++)
-      p(m, j) = dens(j, m, R) * scale*scale;
+      p(m, j) = dens(j, m, R) * fac2;
   }
 }
 
@@ -215,12 +221,12 @@ void CBDisk::get_potl_dens(double r, double z,
   p.resize(mmax+1, nmax);	// Resize the return arrays
   d.resize(mmax+1, nmax);
 
-  double R = r/scale;
+  double R = r/scale, facp = pow(scale, -0.5), facd = pow(scale, -1.5);
 
   for (int m=0; m<=mmax; m++) {	// Pack the array
     for (int j=0; j<nmax; j++) {
-      p(m, j) = potl(j, m, R) / scale;
-      d(m, j) = dens(j, m, R) * scale*scale;
+      p(m, j) = potl(j, m, R) * facp;
+      d(m, j) = dens(j, m, R) * facd;
     }
   }
 }
@@ -391,32 +397,40 @@ void CBDisk::orthoCheck()
   const int num = 4000;
   LegeQuad lq(num);
 
-  Eigen::MatrixXd ortho(nmax, nmax);
+  std::vector<Eigen::MatrixXd> ortho(mmax+1);
   Eigen::VectorXd worst(mmax+1);
+  Eigen::MatrixXd vpot(mmax+1, nmax), vden(mmax+1, nmax);
 
   double Rmax = scale*100.0;
 
-
-  // Direct test
-  //
   worst.setZero();
 
-  for (int m=0; m<=mmax; m++) {
+  // Allocate result matrices
+  //
+  for (auto & v : ortho) {
+    v.resize(nmax, nmax);
+    v.setZero();
+  }
 
-    ortho.setZero();
+  for (int i=0; i<num; i++) {
+    double r = lq.knot(i) * Rmax, fac = lq.weight(i) * Rmax;
 
-    for (int i=0; i<num; i++) {
-      double r = lq.knot(i) * Rmax, fac = lq.weight(i) * Rmax;
+    get_potl(r, 0.0, vpot, 0);
+    get_dens(r, 0.0, vden, 0);
+
+    for (int m=0; m<=mmax; m++) {
       for (int j=0; j<nmax; j++) {
 	for (int k=0; k<nmax; k++) {
-	  ortho(j, k) += fac * potl(j, m, r) * dens(k, m, r) * r * 2.0*M_PI;
+	  ortho[m](j, k) += fac * vpot(m, j) * vden(m, k) * r * 2.0*M_PI;
 	}
       }
     }
+  }
 
+  for (int m=0; m<=mmax; m++) {
     for (int j=0; j<nmax; j++) {
       for (int k=0; k<nmax; k++) {
-	double test = ortho(j, k);
+	double test = ortho[m](j, k);
 	if (j==k) test -= 1.0;
 	if (fabs(test) > worst(m)) worst(m) = fabs(test);
       }
@@ -424,9 +438,9 @@ void CBDisk::orthoCheck()
 
     if (worst(m) > tol) {
       std::ostringstream sout;
-      sout << "CBDisk.ortho." << m << ".direct";
+      sout << "CBDisk.ortho." << m ;
       std::ofstream out(sout.str());
-      if (out) out << ortho << std::endl;
+      if (out) out << ortho[m] << std::endl;
     }
 
   }
@@ -434,64 +448,12 @@ void CBDisk::orthoCheck()
   std::cout << hh << std::endl
 	    << hh << "Orthogonality check" << std::endl
 	    << hh << std::endl
-	    << hh << "--------------" << std::endl
-	    << hh << "Direct test"    << std::endl
-	    << hh << "--------------" << std::endl
 	    << hh << std::setw(6) << "m" << std::setw(16) << "worst" << std::endl
 	    << hh << std::setw(6) << "-" << std::setw(16) << "-----" << std::endl;
 
   for (int m=0; m<=mmax; m++)
     std::cout << hh << std::setw(6) << m << std::setw(16) << worst(m) << std::endl;
   std::cout << std::endl;
-
-
-  // Recursion test
-  //
-  worst.setZero();
-
-  for (int m=0; m<=mmax; m++) {
-
-    ortho.setZero();
-
-    for (int i=0; i<num; i++) {
-      double r = lq.knot(i) * Rmax, fac = lq.weight(i) * Rmax;
-      Eigen::VectorXd vpot, vden;
-      
-      potl(m, r, vpot);
-      dens(m, r, vden);
-
-      for (int j=0; j<nmax; j++) {
-	for (int k=0; k<nmax; k++) {
-	  ortho(j, k) += fac * vpot(j) * vden(k) * r * 2.0*M_PI;
-	}
-      }
-    }
-
-    for (int j=0; j<nmax; j++) {
-      for (int k=0; k<nmax; k++) {
-	double test = ortho(j, k);
-	if (j==k) test -= 1.0;
-	if (fabs(test) > worst(m)) worst(m) = fabs(test);
-      }
-    }
-
-    if (worst(m) > tol) {
-      std::ostringstream sout;
-      sout << "CBDisk.ortho." << m << ".recurse";
-      std::ofstream out(sout.str());
-      if (out) out << ortho << std::endl;
-    }
-
-  }
-  
-  std::cout << hh << "--------------" << std::endl
-	    << hh << "Recursion test" << std::endl
-	    << hh << "--------------" << std::endl
-	    << hh << std::setw(6) << "m" << std::setw(16) << "worst" << std::endl
-	    << hh << std::setw(6) << "-" << std::setw(16) << "-----" << std::endl;
-  for (int m=0; m<=mmax; m++)
-    std::cout << hh << std::setw(6) << m << std::setw(16) << worst(m) << std::endl;
-  std::cout << hh << std::endl;
 
   const int numr = 10;
   double dR = 3.0*scale/numr, dH = 0.01*scale;
@@ -503,9 +465,9 @@ void CBDisk::orthoCheck()
       out << std::setw(4) << m << std::setw(16) << r;
 
       for (int j=0; j<std::min(nmax, 4); j++) {
-	double pp = potl(j, m, r+dH), pm = potl(j, m, r-dH);
-	out << std::setw(16) << (pp - pm)*0.5/dH
-	    << std::setw(16) << dpot(j, m, r);
+	double pp = potl(j, m, (r+dH)/scale), pm = potl(j, m, (r-dH)/scale);
+	out << std::setw(16) << (pp - pm)*0.5/dH/scale
+	    << std::setw(16) << dpot(j, m, r/scale)/scale/scale;
       }
       out << std::endl;
     }

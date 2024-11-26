@@ -57,10 +57,15 @@ private:
   void get_potl_dens(double r, double z,
 		     Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid);
 
-				// Parameters
+  //@{
+  //! Parameters
   double scale;
   int    mmax;
   string model;
+  //@}
+
+  //! Potential, force, and density scale factors
+  double fac1, fac2;
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
