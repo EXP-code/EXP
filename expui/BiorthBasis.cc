@@ -2086,6 +2086,11 @@ namespace BasisClasses
     //
     if (not conf["scale"])   conf["scale"]   = 1.0;
 
+    // Potential, force, and density scaling
+    //
+    fac1 = pow(scale, -0.5);
+    fac2 = pow(scale, -1.5);
+
     // Orthogonality sanity check
     //
     orthoTest();
@@ -2122,9 +2127,10 @@ namespace BasisClasses
     tab.resize(mmax+1, nmax);
     Eigen::VectorXd a(nmax);
     for (int m=0; m<=mmax; m++) {
-      potl(m, r, a);
+      potl(m, r/scale, a);
       tab.row(m) = a;
     }
+    tab *= fac1;
   }
 
   // Get density
@@ -2133,9 +2139,10 @@ namespace BasisClasses
     tab.resize(mmax+1, nmax);
     Eigen::VectorXd a(nmax);
     for (int m=0; m<=mmax; m++) {
-      dens(m, r, a);
+      dens(m, r/scale, a);
       tab.row(m) = a;
     }
+    tab *= fac2;
   }
 
   // Get force
@@ -2144,9 +2151,10 @@ namespace BasisClasses
     tab.resize(mmax+1, nmax);
     Eigen::VectorXd a(nmax);
     for (int m=0; m<=mmax; m++) {
-      dpot(m, r, a);
+      dpot(m, r/scale, a);
       tab.row(m) = a;
     }
+    tab *= fac1/scale;
   }
 
   //  Routines for computing biorthonormal pairs based on 
@@ -2342,16 +2350,28 @@ namespace BasisClasses
 	double r = lq.knot(i) * Rmax, fac = lq.weight(i) * Rmax;
 	Eigen::VectorXd vpot, vden;
       
-	potl(m, r, vpot);
-	dens(m, r, vden);
+	potl(m, r/scale, vpot);
+	dens(m, r/scale, vden);
 
 	for (int j=0; j<nmax; j++) {
 	  for (int k=0; k<nmax; k++) {
-	    ret[m](j, k) += fac * vpot(j) * vden(k) * r * 2.0*M_PI;
+	    ret[m](j, k) += fac * vpot(j) * vden(k) * r * 2.0*M_PI * fac1*fac2;
 	  }
 	}
       }
     }
+
+    // DEBUG
+    std::ofstream out("orthoCheck.dat");
+    out << "scale=" << scale << " fac1=" << fac1 << " fac2=" << fac2 << std::endl;
+    for (int m=0; m<=mmax; m++) {
+      out << std::string(80, '-') << std::endl
+	  << "---- m=" << m       << std::endl
+	  << std::string(80, '-') << std::endl
+	  << ret[m]               << std::endl
+	  << std::string(80, '-') << std::endl << std::endl;
+    }
+    // END DEBUG
 
     return ret;
   }
@@ -2443,8 +2463,8 @@ namespace BasisClasses
   {
     // Normalization factors
     //
-    constexpr double norm0 = 2.0*M_PI * 0.5*M_2_SQRTPI/M_SQRT2;
-    constexpr double norm1 = 2.0*M_PI * 0.5*M_2_SQRTPI;
+    constexpr double norm0 = 1.0;
+    constexpr double norm1 = M_SQRT2;
 
     //======================
     // Compute coefficients 

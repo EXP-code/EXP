@@ -607,6 +607,9 @@ namespace BasisClasses
     void dens(const int m, const double r, Eigen::VectorXd& a);
     //@}
 
+    //! Potential, force, and density scaling
+    double fac1, fac2;
+
   protected:
 
     //! Evaluate basis in cylindrical coordinates
