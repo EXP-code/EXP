@@ -221,12 +221,12 @@ void CBDisk::get_potl_dens(double r, double z,
   p.resize(mmax+1, nmax);	// Resize the return arrays
   d.resize(mmax+1, nmax);
 
-  double R = r/scale, facp = pow(scale, -0.5), facd = pow(scale, -1.5);
+  double R = r/scale;
 
   for (int m=0; m<=mmax; m++) {	// Pack the array
     for (int j=0; j<nmax; j++) {
-      p(m, j) = potl(j, m, R) * facp;
-      d(m, j) = dens(j, m, R) * facd;
+      p(m, j) = potl(j, m, R) * fac1;
+      d(m, j) = dens(j, m, R) * fac2;
     }
   }
 }
