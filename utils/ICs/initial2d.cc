@@ -208,6 +208,7 @@ main(int ac, char **av)
   int          nhalo, ndisk;
   std::string  hbods, dbods, suffix, centerfile, halofile1, halofile2;
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
+  std::string  diskconf;
 
   const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
 
@@ -370,6 +371,8 @@ main(int ac, char **av)
      cxxopts::value<int>(M)->default_value("2"))
     ("pert", "For testing a quadrupole distribution using test2d",
      cxxopts::value<double>(pert)->default_value("0.0"))
+    ("diskconf", "Custom disk configuration file for basis construction",
+     cxxopts::value<std::string>(diskconf))
     ("allow", "Allow multimass algorithm to generature negative masses for testing")
     ("nomono", "Allow non-monotonic mass interpolation")
     ("report", "Print out progress in BiorthCyl table evaluation")
@@ -582,16 +585,30 @@ main(int ac, char **av)
     yml << YAML::Key << "verbose" << YAML::Value << true;
 
   // Build the diskconf stanza
-  yml << YAML::Key << "diskconf"  << YAML::BeginMap
-      << YAML::Key << "name"      << YAML::Value << "expon"
-      << YAML::Key << "parameters"
-      << YAML::BeginMap
-      << YAML::Key << "aexp"      << YAML::Value << ACYL
-      << YAML::EndMap
-      << YAML::EndMap;
+  yml << YAML::Key << "diskconf";
+  if (vm.count("diskconf")) {
+    YAML::Node node = YAML::Load(vm["diskconf"].as<std::string>());
+    yml << YAML::Value << node;
+  }
+  else {
+    // Begin the map
+    yml << YAML::BeginMap
+	<< YAML::Key << "name"      << YAML::Value << "expon"
+	<< YAML::Key << "parameters"
+	<< YAML::BeginMap
+	<< YAML::Key << "aexp"      << YAML::Value << ACYL
+	<< YAML::EndMap
+	<< YAML::EndMap;
+    // End the configuration map
+    yml << YAML::EndMap;
+  }
 
-  // End the configuration map
-  yml << YAML::EndMap;
+  // TEST
+  std::cout << std::string(80, '-') << std::endl
+	    << "Test output" << std::endl
+	    << std::string(80, '-') << std::endl
+	    <<  yml.c_str()         << std::endl
+	    << std::string(80, '-') << std::endl;
 
                                 // Create expansion only if needed . . .
   std::shared_ptr<Disk2d> expandd;
