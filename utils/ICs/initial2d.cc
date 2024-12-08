@@ -364,7 +364,7 @@ main(int ac, char **av)
     ("centerfile", "File containing phase-space center",
      cxxopts::value<std::string>(centerfile))
     ("suffix", "Suffix for output files",
-     cxxopts::value<std::string>(suffix)->default_value("diag"))
+     cxxopts::value<std::string>(suffix))
     ("threads", "Number of threads to run",
      cxxopts::value<int>(nthrds)->default_value("1"))
     ("M,MP", "For testing an m>0 harmonic distribution using test2d",
