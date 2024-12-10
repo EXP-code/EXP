@@ -76,6 +76,7 @@ find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
 find_package(TIRPC)	       # Check for alternative Sun rpc support
 find_package(Eigen3 REQUIRED)
 find_package(PNG)
+find_package(Git)
 
 # Check for FE
 include(FEENABLE)
@@ -192,7 +193,7 @@ add_compile_definitions(DATTRIB_CUDA=${CUDA_EXP_DATTRIB})
 
 # Get the current working branch
 execute_process(
-  COMMAND git rev-parse --abbrev-ref HEAD
+  COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   OUTPUT_VARIABLE GIT_BRANCH
   OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -200,7 +201,7 @@ execute_process(
 
 # Git submodule updates
 execute_process(
-  COMMAND git submodule update --init --recursive
+  COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   RESULT_VARIABLE GIT_SUBMOD_RESULT
 )
@@ -213,7 +214,7 @@ endif()
 
 # Get the latest abbreviated commit hash of the working branch
 execute_process(
-  COMMAND git rev-parse HEAD
+  COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   OUTPUT_VARIABLE GIT_COMMIT
   OUTPUT_STRIP_TRAILING_WHITESPACE
