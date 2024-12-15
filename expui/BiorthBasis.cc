@@ -3147,9 +3147,9 @@ namespace BasisClasses
 
   std::tuple<Eigen::VectorXd, Eigen::Tensor<float, 3>>
   IntegrateOrbits
-  (double tinit, double tfinal, double h,
+  (double tinit, double tfinal,
    Eigen::MatrixXd ps, std::vector<BasisCoef> bfe, AccelFunctor F,
-   int nout)
+   std::optional<double> h, std::optional<int> nout)
   {
     int rows = ps.rows();
     int cols = ps.cols();
@@ -3169,37 +3169,70 @@ namespace BasisClasses
 
     // Sanity check
     //
-    if ( (tfinal - tinit)/h >
+    if (h.has_value()){
+      if (*h <= 0.){
+        std::ostringstream sout;
+        sout << "BasicFactor::IntegrateOrbits: unreasonal input";
+        throw std::runtime_error(sout.str());
+      }
+    }
+    if (nout.has_value()){
+      if (*nout < 2){
+        std::ostringstream sout;
+        sout << "BasicFactor::IntegrateOrbits: unreasonal input";
+        throw std::runtime_error(sout.str());
+      }
+    }
+    if ( (tfinal - tinit)/ *h >
 	 static_cast<double>(std::numeric_limits<int>::max()) )
       {
-	std::cout << "BasicFactor::IntegrateOrbits: step size is too small or "
+    std::ostringstream sout;
+	sout << "BasicFactor::IntegrateOrbits: step size is too small or "
 		  << "time interval is too large.\n";
-	// Return empty data
-	//
-	return {Eigen::VectorXd(), Eigen::Tensor<float, 3>()};
+	throw std::runtime_error(sout.str());
       }
+    if (tinit < 0 || tfinal < tinit){
+      std::ostringstream sout;
+      sout << "BasicFactor::IntegrateOrbits: unreasonal input";
+      throw std::runtime_error(sout.str());
+    }
     
-    // Number of steps
-    //
-    int numT = floor( (tfinal - tinit)/h );
+    int numT = 0;
+    double H = 0.0;
+    if (h.has_value() && nout.has_value()){
+      numT = floor( (tfinal - tinit)/ *h ) + 1;
+      if (std::abs(numT - *nout) > 0){
+        std::ostringstream sout;
+        sout << "BasicFactor::IntegrateOrbits: inconsistent step number/size input";
+        throw std::runtime_error(sout.str());
+      } else {
+        H = *h;
+      }
+    } else if (h.has_value()) {
+      numT = floor( (tfinal - tinit)/ *h ) + 1;
+      H = *h;
+    } else if (nout.has_value()) {
+      numT = *nout;
+      H = (tfinal - tinit)/ (*nout - 1);
+    } else {
+      std::ostringstream sout;
+      sout << "BasicFactor::IntegrateOrbits: no step number/size input";
+      throw std::runtime_error(sout.str());
+    }
 
-    // Compute output step
-    //
-    nout = std::min<int>(numT, nout);
-    double H = (tfinal - tinit)/nout;
-
+    // Use numT and H for calculation
     // Return data
     //
     Eigen::Tensor<float, 3> ret;
 
     try {
-      ret.resize(rows, 6, nout);
+      ret.resize(rows, 6, numT);
     }
     catch (const std::bad_alloc& e) {
       std::cout << "BasicFactor::IntegrateOrbits: memory allocation failed: "
 		<< e.what() << std::endl
 		<< "Your requested number of orbits and time steps requires "
-		<< floor(8.0*rows*6*nout/1e9)+1 << " GB free memory"
+		<< floor(8.0*rows*6*numT/1e9)+1 << " GB free memory"
 		<< std::endl;
 
       // Return empty data
@@ -3209,7 +3242,7 @@ namespace BasisClasses
 
     // Time array
     //
-    Eigen::VectorXd times(nout);
+    Eigen::VectorXd times(numT);
     
     // Do the work
     //
@@ -3218,19 +3251,14 @@ namespace BasisClasses
       for (int k=0; k<6; k++) ret(n, k, 0) = ps(n, k);
 
     double tnow = tinit;
-    for (int s=1, cnt=1; s<numT; s++) {
-      std::tie(tnow, ps) = OneStep(tnow, h, ps, accel, bfe, F);
-      if (tnow >= H*cnt-h*1.0e-8) {
-	times(cnt) = tnow;
-	for (int n=0; n<rows; n++)
-	  for (int k=0; k<6; k++) ret(n, k, cnt) = ps(n, k);
-	cnt += 1;
+    for (int cnt=1; cnt<numT; cnt++) {
+      std::tie(tnow, ps) = OneStep(tnow, H, ps, accel, bfe, F);
+      if (tnow >= H*cnt-H*1.0e-8) {
+        times(cnt) = tnow;
+        for (int n=0; n<rows; n++)
+          for (int k=0; k<6; k++) ret(n, k, cnt) = ps(n, k);
       }
     }
-
-    times(nout-1) = tnow;
-    for (int n=0; n<rows; n++)
-      for (int k=0; k<6; k++) ret(n, k, nout-1) = ps(n, k);
     
     return {times, ret};
   }
