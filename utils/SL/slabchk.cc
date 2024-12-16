@@ -29,7 +29,7 @@ main(int argc, char** argv)
     ("K,kmax", "maximum order of in-plane harmonics",
      cxxopts::value<int>(kmax)->default_value("4"))
     ("N,nmax", "maximum number of vertical harmonics",
-     cxxopts::value<int>(nmax)->default_value("10"))
+     cxxopts::value<int>(nmax)->default_value("18"))
     ("n,numz", "size of vertical grid",
      cxxopts::value<int>(numz)->default_value("1000"))
     ("Z,zmax", "maximum extent of vertical grid",

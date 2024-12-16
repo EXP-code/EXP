@@ -57,7 +57,7 @@ main(int argc, char** argv)
   int cmap     = 0;
   double scale = 1.0;
 
-  int Lmax=16, Nmax=10;
+  int Lmax=16, Nmax=18;
   int numr=10000;
   double rmin=0.0001, rmax=1.0;
   double delr=0.01, xmax=1.0, zmax=0.1;
