@@ -115,6 +115,11 @@ namespace Field
     histogram1d(PR::PRptr reader, double rmax, int nbins, std::string proj,
 		std::vector<double> center={0.0, 0.0, 0.0});
 
+    //! Compute spherical log histogram from particles
+    std::tuple<Eigen::VectorXf, Eigen::VectorXf>
+    histo1dlog(PR::PRptr reader, double rmin, double rmax, int nbins,
+		std::vector<double> center={0.0, 0.0, 0.0});
+
     //! Write field slices to files.  This will be VTK your build is
     //! compiled with VTK and ascii tables otherwise.
     void file_slices(BasisClasses::BasisPtr basis, CoefClasses::CoefsPtr coefs,
