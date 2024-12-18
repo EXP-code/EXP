@@ -25,9 +25,6 @@ endif()
 # Required compiler features
 add_compile_options(-D_REENTRANT)
 
-# Bake in library paths (esp. useful for HPC sites with modules)
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 # Check and enforce that we are a git repository.  Necessary for
 # submodules to work correctly.
 if(EXISTS "${PROJECT_SOURCE_DIR}/.git")

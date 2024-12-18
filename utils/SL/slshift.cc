@@ -353,7 +353,7 @@ main(int argc, char** argv)
    ("Lmax", "maximum number of angular harmonics in the expansion",
      cxxopts::value<int>(Lmax)->default_value("2"))
    ("nmax", "maximum number of radial harmonics in the expansion",
-     cxxopts::value<int>(nmax)->default_value("18"))
+     cxxopts::value<int>(nmax)->default_value("10"))
    ("numr", "radial knots in the shift operator",
      cxxopts::value<int>(numr)->default_value("1000"))
    ("rmin", "minimum radius for the shift operator",

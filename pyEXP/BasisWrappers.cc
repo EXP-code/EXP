@@ -2004,7 +2004,7 @@ void BasisFactoryClasses(py::module &m)
   m.def("IntegrateOrbits", 
 	[](double tinit, double tfinal, double h, Eigen::MatrixXd ps,
 	   std::vector<BasisClasses::BasisCoef> bfe,
-	   BasisClasses::AccelFunc& func, int stride)
+	   BasisClasses::AccelFunc& func, int nout)
 	{
 	  Eigen::VectorXd T;
 	  Eigen::Tensor<float, 3> O;
@@ -2012,7 +2012,7 @@ void BasisFactoryClasses(py::module &m)
 	  AccelFunctor F = [&func](double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)->Eigen::MatrixXd& { return func.F(t, ps, accel, mod);};
 
 	  std::tie(T, O) =
-	    BasisClasses::IntegrateOrbits(tinit, tfinal, h, ps, bfe, F, stride);
+	    BasisClasses::IntegrateOrbits(tinit, tfinal, h, ps, bfe, F, nout);
 
 	  py::array_t<float> ret = make_ndarray3<float>(O);
 	  return std::tuple<Eigen::VectorXd, py::array_t<float>>(T, ret);

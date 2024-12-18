@@ -26,7 +26,7 @@
    KEYWORD        EXPLANATION                            DEFAULT
    ----------     ----------------------------           --------
    lmax =         maximum harmonic order                 4
-   nmax =         maximum radial order                   18
+   nmax =         maxinum radial order                   10
    nlog =         interval between log output            10
    nlist =        interval between p-s output            50
    nsteps =       total number of steps to run           500
