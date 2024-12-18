@@ -73,7 +73,7 @@ int main(int argc, char** argv)
     ("N,mc",       "number of particles for Monte Carlo realization",
      cxxopts::value<int>(N)->default_value("10000"))
     ("nmax",       "maximum number of radial harmonics in the expansion",
-     cxxopts::value<int>(nmax)->default_value("10"))
+     cxxopts::value<int>(nmax)->default_value("18"))
     ("r,rmin",     "minimum radius for the SL grid",
      cxxopts::value<double>(rmin)->default_value("0.0001"))
     ("R,rmax",     "maximum radius for the SL grid",
