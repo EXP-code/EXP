@@ -398,9 +398,9 @@ main(int ac, char **av)
     ("LMAX", "Harmonic order for halo expansion",
      cxxopts::value<int>(LMAX)->default_value("18"))
     ("LMAXFID", "Harmonic order for EOF spherical model",
-     cxxopts::value<int>(LMAXFID)->default_value("72"))
+     cxxopts::value<int>(LMAXFID)->default_value("48"))
     ("NMAXFID", "Radial order for EOF spherical model",
-     cxxopts::value<int>(NMAXFID)->default_value("64"))
+     cxxopts::value<int>(NMAXFID)->default_value("48"))
     ("MMAX", "Aximuthal order for Cylindrical expansion",
      cxxopts::value<int>(MMAX)->default_value("6"))
     ("NUMX", "Number of knots in radial dimension of meridional grid",
@@ -434,7 +434,7 @@ main(int ac, char **av)
     ("NOUT", "Number of radial terms in diagnostic basis file for cylinder",
      cxxopts::value<int>(NOUT)->default_value("18"))
     ("NODD", "Number of vertically odd terms in cylindrical expansion",
-     cxxopts::value<int>(NODD)->default_value("9"))
+     cxxopts::value<int>(NODD)->default_value("6"))
     ("NMAXH", "Number of radial terms for spherical expansion",
      cxxopts::value<int>(NMAXH)->default_value("18"))
     ("NMAXD", "Number of radial terms for cylindrical expansion",
@@ -518,7 +518,7 @@ main(int ac, char **av)
     ("SCSPH", "Scale for Spherical SL coordinate mapping",
      cxxopts::value<double>(SCSPH)->default_value("1.0"))
     ("RSPHSL", "Maximum halo expansion radius",
-     cxxopts::value<double>(RSPHSL)->default_value("1.95"))
+     cxxopts::value<double>(RSPHSL)->default_value("47.5"))
     ("ASCALE", "Radial scale length for disk basis construction",
      cxxopts::value<double>(ASCALE)->default_value("1.0"))
     ("ASHIFT", "Fraction of scale length for shift in conditioning function",

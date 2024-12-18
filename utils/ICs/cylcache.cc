@@ -327,7 +327,7 @@ main(int ac, char **av)
     ("ctype", "DiskHalo radial coordinate scaling type (one of: Linear, Log, Rat)",
      cxxopts::value<string>(ctype)->default_value("Log"))
     ("LMAXFID", "Maximum angular order for spherical basis in adaptive construction of the cylindrical basis",
-     cxxopts::value<int>(LMAXFID)->default_value("72"))
+     cxxopts::value<int>(LMAXFID)->default_value("32"))
     ("NMAXFID", "Maximum radial order for the spherical basis in adapative construction of the cylindrical basis",
      cxxopts::value<int>(NMAXFID)->default_value("32"))
     ("MMAX", "Maximum azimuthal order for the cylindrical basis",
@@ -341,7 +341,7 @@ main(int ac, char **av)
     ("NCYLODD", "Number of vertically odd basis functions per harmonic order",
      cxxopts::value<int>(NCYLODD)->default_value("6"))
     ("NMAX", "Total number of basis functions per harmonic order",
-     cxxopts::value<int>(NMAX)->default_value("18"))
+     cxxopts::value<int>(NMAX)->default_value("20"))
     ("VFLAG", "Diagnostic flag for EmpCylSL",
      cxxopts::value<int>(VFLAG)->default_value("31"))
     ("expcond", "Use analytic target density rather than particle distribution",
