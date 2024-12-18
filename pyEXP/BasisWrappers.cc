@@ -2002,9 +2002,9 @@ void BasisFactoryClasses(py::module &m)
          )", py::arg("time"), py::arg("mod"));
   
   m.def("IntegrateOrbits", 
-	[](double tinit, double tfinal, Eigen::MatrixXd ps,
+	[](double tinit, double tfinal, double h, Eigen::MatrixXd ps,
 	   std::vector<BasisClasses::BasisCoef> bfe,
-	   BasisClasses::AccelFunc& func, std::optional<double> h, std::optional<int> nout)
+	   BasisClasses::AccelFunc& func, int nout)
 	{
 	  Eigen::VectorXd T;
 	  Eigen::Tensor<float, 3> O;
@@ -2012,7 +2012,7 @@ void BasisFactoryClasses(py::module &m)
 	  AccelFunctor F = [&func](double t, Eigen::MatrixXd& ps, Eigen::MatrixXd& accel, BasisCoef mod)->Eigen::MatrixXd& { return func.F(t, ps, accel, mod);};
 
 	  std::tie(T, O) =
-	    BasisClasses::IntegrateOrbits(tinit, tfinal, ps, bfe, F, h, nout);
+	    BasisClasses::IntegrateOrbits(tinit, tfinal, h, ps, bfe, F, nout);
 
 	  py::array_t<float> ret = make_ndarray3<float>(O);
 	  return std::tuple<Eigen::VectorXd, py::array_t<float>>(T, ret);
@@ -2049,7 +2049,7 @@ void BasisFactoryClasses(py::module &m)
         tuple(numpy.array, numpy.ndarray)
             time and phase-space arrays
         )",
-	py::arg("tinit"), py::arg("tfinal"), py::arg("h")=std::nullopt,
+	py::arg("tinit"), py::arg("tfinal"), py::arg("h"),
 	py::arg("ps"), py::arg("basiscoef"), py::arg("func"),
-	py::arg("nout")=std::nullopt);
+	py::arg("nout")=std::numeric_limits<int>::max());
 }
