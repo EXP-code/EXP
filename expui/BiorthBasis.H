@@ -3,7 +3,6 @@
 
 #include <functional>
 #include <tuple>
-#include <optional>
 
 #include <Eigen/Eigen>
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
@@ -1034,9 +1033,9 @@ namespace BasisClasses
 
 
   std::tuple<Eigen::VectorXd, Eigen::Tensor<float, 3>>
-  IntegrateOrbits (double tinit, double tfinal,
+  IntegrateOrbits (double tinit, double tfinal, double h,
 		   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe,
-		   AccelFunctor F, std::optional<double> h=std::nullopt, std::optional<int> nout=std::nullopt);
+		   AccelFunctor F, int nout=std::numeric_limits<int>::max());
 
   using BiorthBasisPtr = std::shared_ptr<BiorthBasis>;
 }

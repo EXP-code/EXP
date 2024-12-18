@@ -3147,9 +3147,9 @@ namespace BasisClasses
 
   std::tuple<Eigen::VectorXd, Eigen::Tensor<float, 3>>
   IntegrateOrbits
-  (double tinit, double tfinal,
+  (double tinit, double tfinal, double h,
    Eigen::MatrixXd ps, std::vector<BasisCoef> bfe, AccelFunctor F,
-   std::optional<double> h, std::optional<int> nout)
+   int nout)
   {
     int rows = ps.rows();
     int cols = ps.cols();
@@ -3169,58 +3169,47 @@ namespace BasisClasses
 
     // Sanity check
     //
-    if (h.has_value()){
-      if (*h <= 0.){
-        std::ostringstream sout;
-        sout << "BasicFactor::IntegrateOrbits: unreasonal input";
-        throw std::runtime_error(sout.str());
-      }
+    if (tfinal == tinit){
+      std::ostringstream sout;
+      sout << "BasicFactor::IntegrateOrbits: tinit cannot be equal to tfinal";
+      throw std::runtime_error(sout.str());
     }
-    if (nout.has_value()){
-      if (*nout < 2){
-        std::ostringstream sout;
-        sout << "BasicFactor::IntegrateOrbits: unreasonal input";
-        throw std::runtime_error(sout.str());
-      }
+    if (h < 0. || tfinal >= tinit){
+      std::ostringstream sout;
+      sout << "BasicFactor::IntegrateOrbits: tfinal should be smaller than "
+           << "tinit when step size is negative";
+      throw std::runtime_error(sout.str());
     }
-    if ( (tfinal - tinit)/ *h >
+    if (h > 0. || tfinal <= tinit){
+      std::ostringstream sout;
+      sout << "BasicFactor::IntegrateOrbits: tfinal should be larger than "
+           << "tinit when step size is positive";
+      throw std::runtime_error(sout.str());
+    }
+    if (nout < 2){
+      std::ostringstream sout;
+      sout << "BasicFactor::IntegrateOrbits: nout must be larger than 2";
+      throw std::runtime_error(sout.str());
+    }
+    if ( (tfinal - tinit)/h >
 	 static_cast<double>(std::numeric_limits<int>::max()) )
       {
-    std::ostringstream sout;
+	std::ostringstream sout;
 	sout << "BasicFactor::IntegrateOrbits: step size is too small or "
-		  << "time interval is too large.\n";
+	     << "time interval is too large.\n";
 	throw std::runtime_error(sout.str());
       }
-    if (tinit < 0 || tfinal < tinit){
-      std::ostringstream sout;
-      sout << "BasicFactor::IntegrateOrbits: unreasonal input";
-      throw std::runtime_error(sout.str());
-    }
     
-    int numT = 0;
-    double H = 0.0;
-    if (h.has_value() && nout.has_value()){
-      numT = floor( (tfinal - tinit)/ *h ) + 1;
-      if (std::abs(numT - *nout) > 0){
-        std::ostringstream sout;
-        sout << "BasicFactor::IntegrateOrbits: inconsistent step number/size input";
-        throw std::runtime_error(sout.str());
-      } else {
-        H = *h;
-      }
-    } else if (h.has_value()) {
-      numT = floor( (tfinal - tinit)/ *h ) + 1;
-      H = *h;
-    } else if (nout.has_value()) {
-      numT = *nout;
-      H = (tfinal - tinit)/ (*nout - 1);
-    } else {
-      std::ostringstream sout;
-      sout << "BasicFactor::IntegrateOrbits: no step number/size input";
-      throw std::runtime_error(sout.str());
-    }
+    // Number of steps
+    //
+    int numT = floor( (tfinal - tinit)/h ) + 1;
 
+    // Compute output step
     // Use numT and H for calculation
+    //
+    numT = std::min<int>(numT, nout);
+    double H = (tfinal - tinit)/numT;
+
     // Return data
     //
     Eigen::Tensor<float, 3> ret;
