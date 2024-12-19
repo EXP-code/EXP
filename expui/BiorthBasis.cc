@@ -592,7 +592,7 @@ namespace BasisClasses
     
     double densfac = 1.0/(scale*scale*scale) * 0.25/M_PI;
     double potlfac = 1.0/scale;
-    
+
     return
       {den0 * densfac,		// 0
        den1 * densfac,		// 1
@@ -3653,7 +3653,7 @@ namespace BasisClasses
     for (int n=0; n<rows; n++) {
       auto v = basis->getFields(ps(n, 0), ps(n, 1), ps(n, 2));
       // First 6 fields are density and potential, follewed by acceleration
-      for (int k=0; k<3; k++) accel(n, k) += v[6+k];
+      for (int k=0; k<3; k++) accel(n, k) += v[6+k] - basis->pseudo(k);
     }
 
     return accel;
@@ -3722,6 +3722,10 @@ namespace BasisClasses
     // Install coefficients
     //
     basis->set_coefs(newcoef);
+
+    // Set non-inertial force
+    basis->setNonInertialAccel(t);
+
   }
 
   SingleTimeAccel::SingleTimeAccel(double t, std::vector<BasisCoef> mod)

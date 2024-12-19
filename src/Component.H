@@ -87,6 +87,9 @@ struct loadb_datum
   ensemble used to determine the paramters.  The energy cutoff is
   dynamically adjusted to achieve this target.
 
+  @param nEJwant is the size of the past states used to estimate the
+  the acceleration of the expansion frame
+
   @param EJx0 is the initial EJ center x-coordinate (default: 0)
 
   @param EJy0 is the initial EJ center y-coordinate (default: 0)
@@ -399,10 +402,12 @@ public:
   double *com;
   //! Center of velocity
   double *cov;
-  //! Center of accelration
+  //! Center of acceleration
   double *coa;
   //! Center (e.g. set by Orient)
   double *center;
+  //! Pseudo-accleration (set by Orient)
+  double *accel;
   //! Angular momentum vector
   double *angmom;
   //! Phase space vector
@@ -452,6 +457,9 @@ public:
 
   //! Target number of particles for average
   int nEJwant;
+
+  //! Target number of states for pseudo-acceleration estimation
+  int nEJaccel;
 
   //! Initial EJ center
   //@{
@@ -863,6 +871,15 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
+    tp->second->acc[j] += val - accel[j];
+  }
+  
+  //! Add to accerlation (by component)
+  inline void AddAccExt(int i, int j, double val) {
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+    }
     tp->second->acc[j] += val;
   }
   
@@ -872,11 +889,29 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
+    for (int k=0; k<3; k++) tp->second->acc[k] += val[k] - accel[k];
+  }
+  
+  //! Add to acceleration (by array)
+  inline void AddAccExt(int i, double *val) {
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+    }
     for (int k=0; k<3; k++) tp->second->acc[k] += val[k];
   }
   
   //! Add to accerlation (by vector)
   inline void AddAcc(int i, vector<double>& val) {
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+    }
+    for (int k=0; k<3; k++) tp->second->acc[k] += val[k] - accel[k];
+  }
+  
+  //! Add to accerlation (by vector)
+  inline void AddAccExt(int i, vector<double>& val) {
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
