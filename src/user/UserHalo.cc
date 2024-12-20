@@ -216,7 +216,7 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
 
     // Add external accerlation
     for (int k=0; k<3; k++)
-      cC->AddAcc(i, k, -dpot*pos[k]/(qq[k]*r) );
+      cC->AddAccExt(i, k, -dpot*pos[k]/(qq[k]*r) );
 
     // Add external potential
     cC->AddPotExt(i, pot );

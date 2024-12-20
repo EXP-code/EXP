@@ -283,5 +283,98 @@ namespace BasisClasses
     return makeFromArray(time);
   }
 
+  void Basis::setNonInertial(int N, Eigen::VectorXd& t, Eigen::MatrixXd& pos)
+  {
+    Naccel  = N;
+    t_accel = t;
+    p_accel = pos;
+  }
+
+  void Basis::setNonInertial(int N, const std::string& orient)
+  {
+    std::ifstream in(orient);
+
+    if (not in) {
+      throw std::runtime_error("Cannot open Orient file with centering data: " + orient);
+    }
+
+    const int cbufsiz = 16384;
+    std::unique_ptr<char[]> cbuf(new char [cbufsiz]);
+	
+    // Look for data and write it while
+    // accumlating data for averaging
+    Eigen::Vector3d testread;
+    double time, dummy;
+
+    std::vector<double> times;
+    std::vector<Eigen::Vector3d> centers;
+
+    while (in) {
+
+      in.getline(cbuf.get(), cbufsiz);
+      if (in.rdstate() & (ios::failbit | ios::eofbit)) break;
+
+      // Skip comment lines
+      //
+      if (cbuf[0] == '#') continue;
+
+      std::istringstream line(cbuf.get());
+
+      // Read until current time is reached
+      line >> time;		// 
+      line >> dummy;
+      line >> dummy;
+      
+      bool allRead = true;
+      for (int i=0; i<8; i++) {
+	if (line.eof()) allRead = false;
+	for (int k; k<3; k++) line >> testread(k);
+      }
+      if (allRead) {
+	times.push_back(time);
+	centers.push_back(testread);
+      }
+    }
+
+    // Repack data
+    Naccel = N;
+    t_accel.resize(times.size());
+    p_accel.resize(times.size(), 3);
+    for (int i=0; i<times.size(); i++) {
+      t_accel(i) = times[i];
+      for (int k=0; k<3; k++) p_accel(i, k) = centers[i](k);
+    }
+  }
+
+  
+  Eigen::Vector3d Basis::currentAccel(double time)
+  {
+    Eigen::Vector3d ret;
+
+    if (time < t_accel(0) || time > t_accel(t_accel.size()-1)) {
+      std::cout << "ERROR: " << time << " is outside of range of the non-inertial DB"
+		<< std::endl;
+      ret.setZero();
+      return ret;
+    }
+    else {
+      int imin = 0;
+      int imax = std::lower_bound(t_accel.data(), t_accel.data()+t_accel.size(), time) - t_accel.data();
+      if (imax > Naccel) imin = imax - Naccel;
+
+      int num = imax - imin + 1;
+      Eigen::VectorXd t(num);
+      Eigen::MatrixXd p(num, 3);
+      for (int i=imin; i<=imax; i++) {
+	t(i-imin) = t_accel(i);
+	for (int k=0; k<3; k++)	p(i-imin, k) = p_accel(i, k);
+      }
+      
+      for (int k=0; k<3; k++)
+	ret(k) = 2.0*std::get<0>(QuadLS<Eigen::VectorXd>(t, p.col(k)).coefs());
+    }
+    return ret;
+  }
+
 }
 // END namespace BasisClasses
