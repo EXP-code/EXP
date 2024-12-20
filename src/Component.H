@@ -331,7 +331,7 @@ protected:
   void seq_new_particles();
 
   //! Particle number update is needed
-  unsigned modified;
+  unsigned modified=0;
 
   //! No multistep switching
   bool noswitch;
