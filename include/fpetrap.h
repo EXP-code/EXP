@@ -16,7 +16,7 @@
 #endif
 
 /// Global to hold error code
-volatile int my_err;
+static int my_err;
 
 /// Very lean error handler.  Only good for setting a debugger breakpoint.
 static void my_fpu_handler(int err)
