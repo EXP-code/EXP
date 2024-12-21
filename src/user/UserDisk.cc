@@ -395,9 +395,9 @@ void * UserDisk::determine_acceleration_and_potential_thread(void * arg)
     getTable(rr, zz, pot, fr, fz);
 
 				// Add acceleration by disk
-    cC->AddAcc(i, 0, amp * fr*xx/(rr+1.0e-10) );
-    cC->AddAcc(i, 1, amp * fr*yy/(rr+1.0e-10) );
-    cC->AddAcc(i, 2, amp * fz );
+    cC->AddAccExt(i, 0, amp * fr*xx/(rr+1.0e-10) );
+    cC->AddAccExt(i, 1, amp * fr*yy/(rr+1.0e-10) );
+    cC->AddAccExt(i, 2, amp * fz );
 
 				// Add external potential
     cC->AddPotExt(i, pot);

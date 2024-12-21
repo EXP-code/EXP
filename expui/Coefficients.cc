@@ -259,6 +259,26 @@ namespace CoefClasses
   }
 
 
+  std::shared_ptr<Coefs> TrajectoryData::deepcopy()
+  {
+    auto ret = std::make_shared<TrajectoryData>();
+
+    // Copy the base-class fields
+    copyfields(ret);
+
+    // Copy the local structures from the map to the struct pointers
+    // by copyfing fields, not the pointer
+    for (auto v : coefs)
+      ret->coefs[v.first] =
+	std::dynamic_pointer_cast<TrajStruct>(v.second->deepcopy());
+
+    ret->data  = data;
+    ret->times = times;
+
+    return ret;
+  }
+
+
   SphFldCoefs::SphFldCoefs(HighFive::File& file, int stride,
 			   double Tmin, double Tmax, bool verbose) :
     Coefs("sphere", verbose)
@@ -1879,6 +1899,271 @@ namespace CoefClasses
   }
   
 
+  TrajectoryData::TrajectoryData(const std::vector<double>& Times,
+				 const std::vector<Eigen::MatrixXd>& data,
+				 bool verbose) :
+    data(data), Coefs("table", verbose)
+  {
+    times = Times;
+    int traj = data.size();
+    int ntim = data[0].rows();
+    int rank = data[0].cols();
+
+    if (ntim != times.size()) {
+      std::ostringstream msg;
+      msg << "TrajectoryData ERROR (runtime) ntim [" << ntim
+	  << "] != times.size() [" << times.size() << "]";
+      throw std::runtime_error(msg.str());
+    }
+
+    for (int i=0; i<times.size(); i++) {
+      TrajStrPtr c = std::make_shared<TrajStruct>();
+      c->time = times[i];
+      c->traj = traj;
+      c->rank = rank;
+      c->store.resize(c->traj*c->rank);
+      c->coefs = std::make_shared<TrajStruct::coefType>(c->store.data(), c->traj, c->rank);
+      for (int m=0; m<traj; m++) {
+	for (int n=0; n<rank; n++) {
+	  (*c->coefs)(m, n) = data[m](i, n);
+	}
+      }
+      coefs[roundTime(c->time)] = c;
+    }
+  }
+
+  TrajectoryData::TrajectoryData(std::string& file, bool verbose) :
+    Coefs("trajectory", verbose)
+  {
+    std::ifstream in(file);
+    
+    if (not in) {
+      throw std::runtime_error("TrajectoryData ERROR (runtime) opening file <" + file + ">");
+    }
+    
+    while (in) {
+      TrajStrPtr c = std::make_shared<TrajStruct>();
+      if (not c->read(in, verbose)) break;
+      
+      coefs[roundTime(c->time)] = c;
+    }
+
+    for (auto c : coefs) times.push_back(c.first);
+  }
+    
+
+  TrajectoryData::TrajectoryData(HighFive::File& file, int stride,
+				 double Tmin, double Tmax, bool verbose) :
+    Coefs("trajectory", verbose)
+  {
+    int traj, rank;
+    unsigned count;
+    std::string config;
+    
+    file.getAttribute("name"  ).read(name);
+    file.getAttribute("traj"  ).read(traj);
+    file.getAttribute("rank"  ).read(rank);
+    file.getAttribute("config").read(config);
+    file.getDataSet  ("count" ).read(count);
+
+    auto snaps = file.getGroup("snapshots");
+    
+    snaps.getDataSet("times").read(times);
+    snaps.getDataSet("datatable").read(data);
+      
+    for (unsigned n=0; n<count; n+=stride) {
+      
+      if (times[n] < Tmin or times[n] > Tmax) continue;
+
+      // Pack the data into the coefficient variable
+      //
+      auto coef = std::make_shared<TrajStruct>();
+      coef->traj  = traj;
+      coef->rank  = rank;
+      coef->time  = times[n];
+      coef->store.resize(traj*rank);
+      coef->coefs = std::make_shared<TrajStruct::coefType>
+	(coef->store.data(), traj, rank);
+      *coef->coefs = data[n];
+
+      coefs[roundTime(times[n])] = coef;
+    }
+  }
+  
+  Eigen::VectorXcd& TrajectoryData::getData(double time)
+  {
+    auto it = coefs.find(roundTime(time));
+    
+    if (it == coefs.end()) {
+      
+      arr.resize(0);
+      
+    } else {
+      
+      arr = it->second->store;
+      
+    }
+    
+    return arr;
+  }
+  
+  void TrajectoryData::setData(double time, Eigen::VectorXcd& dat)
+  {
+    auto it = coefs.find(roundTime(time));
+
+    if (it == coefs.end()) {
+      std::ostringstream str;
+      str << "TrajectoryData::setData: requested time=" << time << " not found";
+      throw std::runtime_error(str.str());
+    } else {
+      it->second->store = dat;
+      it->second->coefs = std::make_shared<CoefClasses::TrajStruct::coefType>
+	(it->second->store.data(), it->second->traj, it->second->rank);
+
+    }
+  }
+
+  void TrajectoryData::readNativeCoefs(const std::string& file, int stride,
+				       double tmin, double tmax)
+  {
+    std::ifstream in(file);
+    
+    if (not in) {
+      throw std::runtime_error("TrajectoryData ERROR (runtime) opening file <" + file + ">");
+    }
+    
+    int count = 0;
+    while (in) {
+      TrajStrPtr c = std::make_shared<TrajStruct>();
+      if (not c->read(in, verbose)) break;
+      
+      if (count++ % stride) continue;
+      if (c->time < tmin or c->time > tmax) continue;
+
+      coefs[roundTime(c->time)] = c;
+    }
+
+    times.clear();
+    for (auto t : coefs) times.push_back(t.first);
+
+    if (myid==0)
+      std::cerr << "---- Coefs::factory: "
+		<< "read ascii and created TrajectoryData"
+		<< std::endl;
+  }
+  
+  
+  void TrajectoryData::WriteH5Params(HighFive::File& file)
+  {
+    int traj = coefs.begin()->second->traj;
+    int rank = coefs.begin()->second->rank;
+    
+    std::string geometry = "trajectory";
+
+    file.createAttribute<int>("traj", HighFive::DataSpace::From(traj)).write(traj);
+    file.createAttribute<int>("rank", HighFive::DataSpace::From(rank)).write(rank);
+  }
+  
+  unsigned TrajectoryData::WriteH5Times(HighFive::Group& snaps, unsigned count)
+  {
+    snaps.createDataSet("times", times);
+    snaps.createDataSet("datatable", data);
+    
+    count = times.size();
+
+    return count;
+  }
+  
+  
+  std::string TrajectoryData::getYAML()
+  {
+    std::string ret;
+    if (coefs.size()) {
+      ret = coefs.begin()->second->buf;
+    }
+    return ret;
+  }
+
+  bool TrajectoryData::CompareStanzas(std::shared_ptr<Coefs> check)
+  {
+    bool ret = true;
+    
+    auto other = dynamic_cast<TrajectoryData*>(check.get());
+    
+    // Check that every time in this one is in the other
+    for (auto v : coefs) {
+      if (other->coefs.find(roundTime(v.first)) == other->coefs.end()) {
+	std::cout << "Can't find Time=" << v.first << std::endl;
+	ret = false;
+      }
+    }
+    
+    if (ret) {
+      std::cout << "Times are the same, now checking parameters at each time"
+		<< std::endl;
+      for (auto v : coefs) {
+	auto it = other->coefs.find(v.first);
+	if (v.second->traj != it->second->traj) ret = false;
+	if (v.second->rank != it->second->rank) ret = false;
+      }
+    }
+    
+    if (ret) {
+      std::cout << "Parameters are the same, now checking coefficients time"
+		<< std::endl;
+      for (auto v : coefs) {
+	auto it = other->coefs.find(v.first);
+	for (int m=0; m<v.second->traj; m++) {
+	  for (int n=0; n<v.second->rank; n++) {
+	    if ((*v.second->coefs)(m, n) != (*it->second->coefs)(m, n)) {
+	      ret = false;
+	    }
+	  }
+	}
+      }
+    }
+    
+    return ret;
+  }
+  
+
+  Eigen::Tensor<double, 3>
+  TrajectoryData::getAllCoefs()
+  {
+    Eigen::Tensor<double, 3> ret;
+
+    auto times = Times();
+
+    int traj = coefs.begin()->second->traj;
+    int rank = coefs.begin()->second->rank;
+    int ntim = times.size();
+
+    // Resize the tensor
+    ret.resize(traj, rank, ntim);
+
+    for (int t=0; t<ntim; t++) {
+      auto cof = coefs[roundTime(times[t])];
+      for (int m=0; m<traj; m++) {
+	for (int n=0; n<traj; n++) {
+	  ret(n, m, t) = (*cof->coefs)(m, n).real();
+	}
+      }
+    }
+
+    return ret;
+  }
+
+  std::vector<Key> TrajectoryData::makeKeys()
+  {
+    std::vector<Key> ret;
+    if (coefs.size()==0) return ret;
+
+    unsigned traj = coefs.begin()->second->traj;
+    for (unsigned m=0; m<traj; m++) ret.push_back({m});
+    
+    return ret;
+  }
+
   TableData::TableData(const std::vector<double>& Times,
 		       const std::vector<std::vector<double>>& data,
 		       bool verbose) :
@@ -2404,6 +2689,14 @@ namespace CoefClasses
   {
     auto p = std::dynamic_pointer_cast<TblStruct>(coef);
     if (not p) throw std::runtime_error("TableData::add: Null coefficient structure, nothing added!");
+
+    coefs[roundTime(coef->time)] = p;
+  }
+
+  void TrajectoryData::add(CoefStrPtr coef)
+  {
+    auto p = std::dynamic_pointer_cast<TrajStruct>(coef);
+    if (not p) throw std::runtime_error("TrajectoryData::add: Null coefficient structure, nothing added!");
 
     coefs[roundTime(coef->time)] = p;
   }

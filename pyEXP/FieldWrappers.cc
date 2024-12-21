@@ -304,6 +304,32 @@ void FieldGeneratorClasses(py::module &m) {
 	py::arg("projection"),
 	py::arg("center") = std::vector<double>(3, 0.0));
 
+  f.def("histo1dlog", &Field::FieldGenerator::histo1dlog,
+	R"(
+        Make a 1d density histogram (array) in spherical projection with
+        logarithmic scaling
+
+        Parameters
+        ----------
+        reader : ParticleReader
+            particle reader instance
+        rmin : float
+            minimum radius of the histogram (>0)
+        rmax : float
+            linear extent of the histogram
+        nbins : int
+            number of bins
+        center : list(float, float, float), default=[0, 0, 0]
+            origin for computing the histogram
+
+        Returns
+        -------
+        tuple(numpy.ndarray, numpy.ndarray)
+            the evaluation grid and computed 1d histogram
+        )",
+	py::arg("reader"), py::arg("rmin"), py::arg("rmax"), py::arg("nbins"),
+	py::arg("center") = std::vector<double>(3, 0.0));
+
   f.def("file_lines", &Field::FieldGenerator::file_lines,
 	R"(
         Write field arrays to files using the supplied string prefix.

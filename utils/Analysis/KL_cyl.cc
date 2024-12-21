@@ -436,11 +436,12 @@ main(int argc, char **argv)
   // This is the kd- NN density estimate; skipped by default for Ndens=0
   //
   if (Ndens) {
+
     if (myid==0) std::cout << "Computing KD density estimate for " << nbod
 			   << " points" << std::endl;
 
-    typedef point <double, 3> point3;
-    typedef kdtree<double, 3> tree3;
+    using point3 = KDtree::point<double, 3>;
+    using tree3  = KDtree::kdtree<double, 3>;
 
     std::vector<point3> points;
 

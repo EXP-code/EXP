@@ -894,6 +894,58 @@ namespace Field
   }
   // END histogram1d
 
+  std::tuple<Eigen::VectorXf, Eigen::VectorXf>
+  FieldGenerator::histo1dlog(PR::PRptr reader, double rmin, double rmax,
+			     int nbins, std::vector<double> ctr)
+  {
+    if (rmin <= 0.0)  throw std::runtime_error("FieldGenerator::histo1dlog: rmin must be > 0.0");
+    if (rmax <= rmin) throw std::runtime_error("FieldGenerator::histo1dlog: rmax must be > rmin");
+
+    const double pi = 3.14159265358979323846;
+
+    Eigen::VectorXf rad = Eigen::VectorXf::Zero(nbins);
+    Eigen::VectorXf ret = Eigen::VectorXf::Zero(nbins);
+
+    double lrmin = log(rmin), lrmax = log(rmax);
+    double del = (lrmax - lrmin)/nbins;
+    
+    // Make the histogram
+    //
+    for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
+      double rad = 0.0;
+      for (int k=0; k<3; k++) {
+	double pp = p->pos[k] - ctr[k];
+	rad += pp*pp;
+      }
+
+      int indx = floor((log(sqrt(rad)) - lrmin)/del);
+      if (indx>=0 and indx<nbins) ret[indx] += p->mass;
+    }
+    
+    // Accumulate between MPI nodes; return value to root node
+    //
+    if (use_mpi) {
+      if (myid==0) 
+	MPI_Reduce(MPI_IN_PLACE, ret.data(), ret.size(),
+		   MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+      else
+	MPI_Reduce(ret.data(), NULL, ret.size(),
+		   MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
+
+    // Compute density
+    //
+    double d3 = exp(3.0*del);
+    double rf = 4.0*pi/3.0*(d3 - 1.0);
+    for (int i=0; i<nbins; i++) {
+      rad[i] = exp(lrmin + del*(0.5 + i));
+      ret[i] /= exp(3.0*(lrmin + del*i)) * rf;
+    }
+    
+    return {rad, ret};
+  }
+  // END histo1dlog
+
   std::map<double, std::map<std::string, Eigen::VectorXf>>
   FieldGenerator::points(BasisClasses::BasisPtr basis,
 			 CoefClasses::CoefsPtr coefs)

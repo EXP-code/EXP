@@ -173,7 +173,10 @@ public:
   cacheInfo(const std::string& cachefile, bool verbose=true);
 
 #if HAVE_LIBCUDA==1
-  void initialize_cuda(std::vector<cudaArray_t>& cuArray,
+  //! Initialize CUDA arrays.  'disk' is the model object for the
+  //! background m=0 potential and radial force
+  void initialize_cuda(std::shared_ptr<EmpCyl2d::ModelCyl> disk,
+		       std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);
 
   virtual cudaMappingConstants getCudaMappingConstants()
@@ -201,13 +204,6 @@ public:
   //! Evaluate all orders in matrices; for n-body
   void get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs, double r, double z);
 
-  //! Background evaluation
-  virtual std::tuple<double, double, double> background(double r, double z)
-  {
-    auto [p, dr, d] = emp.background(r);
-    return {p, dr, 0.0};
-  }
-
   //! Get the table bounds
   double getRtable() { return rcylmax*scale; }
 
@@ -220,6 +216,14 @@ public:
   double getYmin() { return ymin; }
   double getYmax() { return ymax; }
 
+  //! Dump the basis for plotting
+  void dump_basis(const string& name);
+
+  //! Get model name
+  const std::string getModelName() { return emp.getModelName(); }
+
+  //! Get biorthogonal function base name
+  const std::string getBiorthName() { return emp.getBiorthName(); }
 };
 
 #endif

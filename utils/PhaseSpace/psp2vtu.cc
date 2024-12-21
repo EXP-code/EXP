@@ -215,8 +215,8 @@ main(int ac, char **av)
       dens->SetName("density");
 
       if (Ndens) {
-	typedef point <double, 3> point3;
-	typedef kdtree<double, 3> tree3;
+	using point3 = KDtree::point <double, 3>;
+	using tree3  = KDtree::kdtree<double, 3>;
 
 	std::vector<double> mass;
 	std::vector<point3> points;

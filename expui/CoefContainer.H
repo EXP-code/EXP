@@ -129,6 +129,13 @@ namespace MSSA
     void pack_table();
     void unpack_table();
     //@}
+
+    //@{
+    //! Trajectories
+    void pack_traj();
+    void unpack_traj();
+    //@}
+
     //@}
 
     //@{
@@ -168,6 +175,8 @@ namespace MSSA
     //! Copy data from backround back to the coefficient database
     void background();
 
+    //! Access to coefficients
+    CoefClasses::CoefsPtr getCoefs() { return coefs; }
   };
 
   /**
@@ -287,7 +296,7 @@ components:
 	std::cout << " (";
 	for (auto l : key) std::cout << l << "|";
 	std::cout << ")" << std::endl;
-	throw std::runtime_error("CoefDB::getData: desired key is not data");
+	throw std::runtime_error("CoefContainer::getData: desired key is not data");
       }
       return comps[c]->data[key];
     }
@@ -322,7 +331,7 @@ components:
       auto it = namemap.find(name);
       if (it == namemap.end()) {
 	throw std::runtime_error
-	  ("CoefDB::isComplex: cannot find component with given name");
+	  ("CoefContainer::isComplex: cannot find component with given name");
       }
 
       return comps[it->second]->complexKey;
@@ -342,6 +351,17 @@ components:
       std::vector<std::string> ret;
       for (auto v : namemap) ret.push_back(v.first);
       return ret;
+    }
+
+    //! Access to coefficients
+    CoefClasses::CoefsPtr getCoefs(const std::string& name) {
+      auto it = namemap.find(name);
+      if (it == namemap.end()) {
+	throw std::runtime_error
+	  ("CoefContainer::getCoefs: cannot find component with given name");
+      }
+
+      return comps[it->second]->coefs;
     }
 
   };

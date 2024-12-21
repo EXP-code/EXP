@@ -106,7 +106,8 @@ Cylinder::valid_keys = {
   "self_consistent",
   "playback",
   "coefCompute",
-  "coefMaster"
+  "coefMaster",
+  "dump"
 };
 
 Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
@@ -551,6 +552,8 @@ void Cylinder::initialize()
 	  std::cout << "---- New coefficients will be computed from particles on playback" << std::endl;
       }
     }
+
+    if (conf["dump"]) dump_basis = true;
 
   }
   catch (YAML::Exception & error) {

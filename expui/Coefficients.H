@@ -853,6 +853,109 @@ namespace CoefClasses
 
   };
   
+  /** Derived class for a collection of trajectories */
+  class TrajectoryData : public Coefs
+  {
+  protected:
+    
+    //! The table DB
+    std::map<double, TrajStrPtr> coefs;
+
+    //! An alternate packing
+    std::vector<Eigen::MatrixXd> data;
+
+    //! Read the coefficients
+    virtual void readNativeCoefs(const std::string& file,
+				 int stride, double tmin, double tmax);
+    
+    //! Get the YAML config
+    virtual std::string getYAML();
+    
+    //! Write parameter attributes
+    virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Write coefficient data in H5
+    virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
+    
+  public:
+    
+    //! Constructor
+    TrajectoryData(bool verbose=false) : Coefs("table", verbose) {}
+
+    //! Constructor from vectors
+    TrajectoryData(const std::vector<double>& time,
+		   const std::vector<Eigen::MatrixXd>& data,
+		   bool verbose=false);
+
+    //! Constructor from file
+    TrajectoryData(std::string& file, bool verbose=false);
+    
+    //! H5 constructor
+    TrajectoryData(HighFive::File& file, int stride=1,
+		   double tmin=-std::numeric_limits<double>::max(),
+		   double tmax= std::numeric_limits<double>::max(),
+		   bool verbose=false);
+    
+    //! Copy constructor
+    TrajectoryData(TrajectoryData& p) : Coefs(p)
+    {
+      coefs = p.coefs;
+      data  = p.data;
+      times = p.times;
+    }
+
+    //! Clear coefficient container
+    virtual void clear() { coefs.clear(); }
+
+    //! Add a coefficient structure to the container
+    virtual void add(CoefStrPtr coef);
+
+    //! Get coefficient data at given time
+    virtual Eigen::VectorXcd& getData(double time);
+    
+    /** Set coefficient matrix at given time.  This is for pybind11,
+	since the operator() will not allow lvalue assignment, it
+	seems. */
+    virtual void setData(double time, Eigen::VectorXcd& arr);
+
+    //! Get coefficient structure at a given time
+    virtual std::shared_ptr<CoefStruct> getCoefStruct(double time)
+    { return coefs[roundTime(time)]; }
+
+    //! Get list of coefficient times
+    virtual std::vector<double> Times() { return times; }
+    
+    //! Get all coefficients indexed in column, time
+    Eigen::Tensor<double, 3> getAllCoefs();
+
+    /** Get power for the series.  Not implemented meaningfully for
+	trajctory data. */
+    virtual Eigen::MatrixXd& Power
+    (int min=0, int max=std::numeric_limits<int>::max())
+    {
+      power.resize(0, 0);
+      return power;
+    }
+
+    //! Make keys for the remaining indices in a subspace
+    virtual std::vector<Key> makeKeys();
+    virtual std::vector<Key> makeKeys(Key k) { return makeKeys(); }
+
+    //! Compare two collections of stanzas (this is for testing only)
+    virtual bool CompareStanzas(std::shared_ptr<Coefs> check);
+
+    //! Copy all of the data; make new instances of shared pointer
+    //! objects.  This will recursively call the deepcopy() functions
+    //! or all dependent objects
+    virtual std::shared_ptr<Coefs> deepcopy();
+
+    virtual void zerodata() {
+      for (auto v : coefs) v.second->zerodata();
+      for (auto & v : data) v.setZero();
+    }
+
+  };
+  
   /** Derived class for spherical field coefficients */
   class SphFldCoefs : public Coefs
   {

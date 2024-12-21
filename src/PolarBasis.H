@@ -380,7 +380,7 @@ protected:
 
   //! Background evaluation
   virtual std::tuple<double, double, double>
-  get_pot_background(double r, double z) { return {0.0, 0.0, 0.0}; }
+  background(double r, double z) { return {0.0, 0.0, 0.0}; }
 
   //! Thread method for accerlation compuation
   virtual void * determine_acceleration_and_potential_thread(void * arg);

@@ -8,10 +8,10 @@ set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc # Hankel.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc stack.cc
   localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc QDHT.cc
   YamlCheck.cc parseVersionString.cc EXPmath.cc laguerre_polynomial.cpp
-  YamlConfig.cc orthoTest.cc OrthoFunction.cc)
+  YamlConfig.cc orthoTest.cc OrthoFunction.cc VtkGrid.cc)
 
 if(HAVE_VTK)
-  list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)
+  list(APPEND UTIL_SRC VtkPCA.cc)
 endif()
 
 set(OPTIMIZATION_SRC SimAnn.cc)

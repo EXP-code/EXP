@@ -15,9 +15,9 @@
 void clean_up(void)
 {
 				// Call for final output to files
-  output->Run(this_step, 0, true);
+  if (output) output->Run(this_step, 0, true);
 				// Cache for restart
-  external->finish();
+  if (external) external->finish();
 
   MPI_Barrier(MPI_COMM_WORLD);
 

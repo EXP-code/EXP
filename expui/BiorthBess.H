@@ -1,6 +1,7 @@
 #ifndef _BiorthBess_H_
 #define _BiorthBess_H_
 
+#include <cassert>
 #include <vector>
 #include <memory>
 #include <cmath>

@@ -70,6 +70,14 @@ namespace CoefClasses
       throw std::runtime_error("TblStruct::create: cols must be >0");
   }
 
+  void TrajStruct::create()
+  {
+    if (traj>0 and rank>0)
+      coefs = std::make_shared<coefType>(store.data(), traj, rank);
+    else
+      throw std::runtime_error("TrajStruct::create: number of trajectories and phase-space size must be >0");
+  }
+
   void SphFldStruct::create()
   {
     if (nfld>0 and nmax>0)
@@ -173,6 +181,23 @@ namespace CoefClasses
 
     ret->coefs = std::make_shared<coefType>(ret->store.data(), cols);
     ret->cols  = cols;
+
+    return ret;
+  }
+
+  std::shared_ptr<CoefStruct> TrajStruct::deepcopy()
+  {
+    auto ret = std::make_shared<TrajStruct>();
+
+    copyfields(ret);
+
+    assert(("TrajStruct::deepcopy dimension mismatch",
+	    traj*rank == store.size()));
+
+
+    ret->coefs = std::make_shared<coefType>(ret->store.data(), traj, rank);
+    ret->traj  = traj;
+    ret->rank  = rank;
 
     return ret;
   }
@@ -507,6 +532,44 @@ namespace CoefClasses
       
       store.resize(cols);
       coefs = std::make_shared<coefType>(store.data(), cols);
+      for (int i=0; i<cols; i++) (*coefs)(i) = row[i];
+
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  bool TrajStruct::read(std::istream& in, bool exp_type, bool verbose)
+  {
+    std::vector<double> row;
+    std::string line;
+
+    if (std::getline(in, line)) {
+
+      std::istringstream sin(line);
+
+      // Read first value as time
+      //
+      sin >> time;
+
+      // If okay, read the rest of the line as columns
+      //
+      double val;
+      while (1) {
+	sin >> val;
+	if (sin) row.push_back(val);
+	else     break;
+      }
+
+      // Number of cols
+      int cols = row.size();
+      
+      if (traj*rank != cols)
+	throw std::runtime_error("TrajStruct::read: data != traj*rank");
+
+      store.resize(cols);
+      coefs = std::make_shared<coefType>(store.data(), traj, rank);
       for (int i=0; i<cols; i++) (*coefs)(i) = row[i];
 
       return true;

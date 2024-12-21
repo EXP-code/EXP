@@ -9,9 +9,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <EXPException.H>
-#include <localmpi.H>
 #include <EmpCyl2d.H>
-#include <EXPmath.H>
 
 // Set to true for orthogonality checking
 //
@@ -331,293 +329,6 @@ EmpCyl2d::Basis2d::createBasis(int mmax, int nmax, double rmax,
   return std::make_shared<CluttonBrock>();
 }
 
-class EmpCyl2d::ExponCyl : public EmpCyl2d::ModelCyl
-{
-
-private:
-
-  double acyl, sigma0;
-
-  // Assign values from YAML
-  //
-  void parse(const YAML::Node& conf)
-  {
-    try {
-      if (conf["acyl"]) 
-	acyl = conf["acyl"].as<double>();
-      else
-	acyl = 1.0;
-    }
-    catch (YAML::Exception & error) {
-      if (myid==0)
-	std::cout << "Error parsing parameters in EmpCyl2d::ExponCyl: "
-		  << error.what() << std::endl
-		  << std::string(60, '-') << std::endl
-		  << "Config node"        << std::endl
-		  << std::string(60, '-') << std::endl
-		  << conf                 << std::endl
-		  << std::string(60, '-') << std::endl;
-      throw std::runtime_error("EmpCyl2d::ExponCyl: error parsing YAML config");
-    }
-  }
-
-public:
-
-  ExponCyl(const YAML::Node& par)
-  {
-    parse(par);
-    sigma0 = 0.5/(M_PI*acyl*acyl);
-    id = "expon";
-  }
-
-  double pot(double r) {
-    double y = 0.5 * r / acyl;
-    return -M_PI*sigma0*r *
-      (EXPmath::cyl_bessel_i(0, y)*EXPmath::cyl_bessel_k(1, y) -
-       EXPmath::cyl_bessel_i(1, y)*EXPmath::cyl_bessel_k(0, y));
-  }
-
-  double dpot(double r) {
-    double y = 0.5 * r / acyl;
-    return 2.0*M_PI*sigma0*y*
-     (EXPmath::cyl_bessel_i(0, y)*EXPmath::cyl_bessel_k(0, y) -
-      EXPmath::cyl_bessel_i(1, y)*EXPmath::cyl_bessel_k(1, y));
-  }
-
-  double dens(double r) {
-    return sigma0*exp(-r/acyl);
-  }
-
-};
-
-class EmpCyl2d::KuzminCyl : public EmpCyl2d::ModelCyl
-{
-private:
-
-  double acyl;
-
-  // Assign values from YAML
-  //
-  void parse(const YAML::Node& conf)
-  {
-    try {
-      if (conf["acyl"]) 
-	acyl = conf["acyl"].as<double>();
-      else
-	acyl = 1.0;
-    }
-    catch (YAML::Exception & error) {
-      if (myid==0)
-	std::cout << "Error parsing parameters in EmpCyl2d::KuzminCyl: "
-		  << error.what() << std::endl
-		  << std::string(60, '-') << std::endl
-		  << "Config node"        << std::endl
-		  << std::string(60, '-') << std::endl
-		  << conf                 << std::endl
-		  << std::string(60, '-') << std::endl;
-      throw std::runtime_error("EmpCyl2d::KuzminCyl: error parsing YAML config");
-    }
-  }
-
-public:
-  
-  KuzminCyl(const YAML::Node& par)
-  {
-    parse(par);
-    id = "kuzmin";
-  }
-
-  double pot(double R) {
-    double a2 = acyl * acyl;
-    return -1.0/sqrt(R*R + a2);
-  }
-
-  double dpot(double R) {
-    double a2 = acyl * acyl;
-    return R/pow(R*R + a2, 1.5);
-  }
-
-  double dens(double R) {
-    double a2 = acyl * acyl;
-    return 4.0*M_PI*acyl/pow(R*R + a2, 1.5)/(2.0*M_PI);
-    //     ^
-    //     |
-    // This 4pi from Poisson's eqn
-  }
-
-};
-
-
-class EmpCyl2d::MestelCyl : public EmpCyl2d::ModelCyl
-{
-protected:
-
-  double vrot, rot;
-
-  // Assign values from YAML
-  //
-  void parse(const YAML::Node& conf)
-  {
-    try {
-      if (conf["vrot"]) 
-	vrot = conf["vrot"].as<double>();
-      else
-	vrot = 1.0;
-    }
-    catch (YAML::Exception & error) {
-      if (myid==0)
-	std::cout << "Error parsing parameters in EmpCyl2d::MestelCyl: "
-		  << error.what() << std::endl
-		  << std::string(60, '-') << std::endl
-		  << "Config node"        << std::endl
-		  << std::string(60, '-') << std::endl
-		  << conf                 << std::endl
-		  << std::string(60, '-') << std::endl;
-      throw std::runtime_error("EmpCyl2d::MestelCyl: error parsing YAML config");
-    }
-  }
-
-public:
-  
-  MestelCyl(const YAML::Node& par)
-  {
-    parse(par);
-    rot = vrot*vrot;
-    id = "mestel";
-  }
-
-  virtual double pot(double R) {
-    if (R>0.0) return rot*log(R);
-    else throw std::runtime_error("MestelCyl::pot: R<=0");
-  }
-
-  virtual double dpot(double R) {
-    if (R>0.0) return rot/R;
-    else throw std::runtime_error("MestelCyl::dpot: R<=0");
-  }
-
-  virtual double dens(double R) {
-    if (R>0.0) return rot/(2.0*M_PI*R);
-    else throw std::runtime_error("MestelCyl::dens: R<=0");
-  }
-};
-
-
-class EmpCyl2d::ZangCyl : public EmpCyl2d::MestelCyl
-{
-  
-private:
-  //! Parameters
-  double mu, nu, ri, ro;
-
-  //! Softening factor (not currently used)
-  double asoft = 1.0e-8;
-
-  //! Ignore inner cut-off for N<0.05
-  bool Inner = true;
-
-  //! Taper factors
-  double Tifac, Tofac;
-
-  //! Inner taper function
-  double Tinner(double Jp)
-  {
-    double fac = pow(Jp, nu);
-    return fac/(Tifac + fac);
-  }
-
-  //! Outer taper function
-  double Touter(double Jp)
-  {
-    return 1.0/(1.0 + pow(Jp/Tofac, mu));
-  }
-
-  //! Deriv of inner taper function
-  double dTinner(double Jp)
-  {
-    double fac  = pow(Jp, nu);
-    double fac2 = Tifac + fac;
-    return nu*fac/Jp/(fac2*fac2);
-  }
-
-  //! Deriv of outer taper function
-  double dTouter(double Jp)
-  {
-    double fac = pow(Jp/Tofac, mu);
-    double fac2 = 1.0 + fac;
-    return -mu*fac/Jp/(fac2*fac2);
-  }
-
-protected:
-
-  //! Assign values from YAML
-  void parse(const YAML::Node& conf)
-  {
-    try {
-      if (conf["Ninner"]) 
-	nu = conf["Ninner"].as<double>();
-      else
-	nu = 2.0;
-
-      if (conf["Mouter"]) 
-	mu = conf["Mouter"].as<double>();
-      else
-	mu = 2.0;
-
-      if (conf["Ri"]) 
-	ri = conf["Ri"].as<double>();
-      else
-	ri = 1.0;
-
-      if (conf["Ro"]) 
-	ro = conf["Ro"].as<double>();
-      else
-	ro = 10.0;
-    }
-    catch (YAML::Exception & error) {
-      if (myid==0)
-	std::cout << "Error parsing parameters in EmpCyl2d::ZangCyl: "
-		  << error.what() << std::endl
-		  << std::string(60, '-') << std::endl
-		  << "Config node"        << std::endl
-		  << std::string(60, '-') << std::endl
-		  << conf                 << std::endl
-		  << std::string(60, '-') << std::endl;
-      throw std::runtime_error("EmpCyl2d::ZangCyl: error parsing YAML config");
-    }
-  }
-
-public:
-  
-  //! Constructor
-  ZangCyl(const YAML::Node& par) : MestelCyl(par)
-  {
-    // Parse the YAML
-    parse(par);
-
-    // Assign the id
-    id = "zang";
-
-    // Cache taper factors
-    Tifac = pow(ri*vrot, nu);
-    Tofac = ro*vrot;
-
-    if (nu<0.05) {
-      // Exponent is now for mapping only
-      Inner = false;
-    }
-  }
-
-  //! Surface density
-  double dens(double R)
-  {
-    double ret = MestelCyl::dens(R) * Touter(R);
-    if (Inner) ret *= Tinner(R);
-    return ret;
-  }
-
-};
-
 std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
 {
   try {
@@ -638,7 +349,7 @@ std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
   if (name.find("kuzmin") != std::string::npos) {
     if (myid==0) {
       std::cout << "---- EmpCyl2d::ModelCyl: Making a Kuzmin disk";
-      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      if (Params["parameters"]) std::cout << " with" << std::endl << Params["parameters"];
       std::cout << std::endl;
     }
     return std::make_shared<KuzminCyl>(Params["parameters"]);
@@ -647,7 +358,7 @@ std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
   if (name.find("mestel") != std::string::npos) {
     if (myid==0) {
       std::cout << "---- EmpCyl2d::ModelCyl: Making a finite Mestel disk";
-      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      if (Params["parameters"]) std::cout << " with" << std::endl << Params["parameters"];
       std::cout << std::endl;
     }
     return std::make_shared<MestelCyl>(Params["parameters"]);
@@ -656,7 +367,9 @@ std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
   if (name.find("zang") != std::string::npos) {
     if (myid==0) {
       std::cout << "---- EmpCyl2d::ModelCyl: Making a double-tapered Zang";
-      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      YAML::Emitter out;
+      out << YAML::Flow << Params["parameters"];
+      if (Params["parameters"]) std::cout << " with " << out.c_str();
       std::cout << std::endl;
     }
     return std::make_shared<ZangCyl>(Params["parameters"]);
@@ -665,7 +378,7 @@ std::shared_ptr<EmpCyl2d::ModelCyl> EmpCyl2d::createModel()
   if (name.find("expon") != std::string::npos) {
     if (myid==0) {
       std::cout << "---- EmpCyl2d::ModelCyl: Making an Exponential disk";
-      if (Params["parameters"]) std::cout << " with " << Params["parameters"];
+      if (Params["parameters"]) std::cout << " with" << std::endl << Params["parameters"];
       std::cout << std::endl;
     }
     return std::make_shared<ExponCyl>(Params["parameters"]);
@@ -767,6 +480,7 @@ EmpCyl2d::EmpCyl2d
   if (cache_name_2d.size()==0) cache_name_2d = default_cache_name;
 
   disk  = createModel();
+  model = disk->ID();
   basis = Basis2d::createBasis(mmax, nmaxfid, rmax, biorth);
 
   basis_test = false;

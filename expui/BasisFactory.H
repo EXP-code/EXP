@@ -9,6 +9,7 @@
 #include <ParticleReader.H>
 #include <OrthoFunction.H>
 #include <Coefficients.H>
+#include <PseudoAccel.H>
 #include <YamlCheck.H>
 #include <localmpi.H>
 #include <exputils.H>
@@ -123,8 +124,22 @@ namespace BasisClasses
     //! Midplane escursion parameter
     double colh = 4.0;
 
-  public:
+    //@
+    //! Pseudo-acceleration db
+    Eigen::VectorXd t_accel;
+    Eigen::MatrixXd p_accel;
+    //@}
     
+    //! Number of center points in acceleration estimator
+    int Naccel = 0;
+
+    //! Get the current pseudo acceleration value
+    Eigen::Vector3d currentAccel(double time);
+
+  public:
+    //! The current pseudo acceleration
+    Eigen::Vector3d pseudo {0, 0, 0};
+
     //! Constructor from YAML node
     Basis(const YAML::Node& conf,     const std::string& name="Basis");
     
@@ -231,6 +246,19 @@ namespace BasisClasses
     //! Height above/below the plane for midplane search in disk scale
     //! lengths
     void setColumnHeight(double value) { colh = value; }
+
+    //@{
+    //! Initialize non-inertial forces
+    void setNonInertial(int N, Eigen::VectorXd& x, Eigen::MatrixXd& pos);
+    void setNonInertial(int N, const std::string& orient);
+    //@}
+
+    //! Set the current pseudo acceleration
+    void setNonInertialAccel(double time)
+    {
+      if (Naccel > 0) pseudo = currentAccel(time);
+    }
+
   };
   
   using BasisPtr = std::shared_ptr<Basis>;

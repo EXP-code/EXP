@@ -343,8 +343,8 @@ main(int argc, char **argv)
   // This is the kd- NN density estimate; skipped by default for Ndens=0
   //
   if (Ndens<=0) Ndens = 2;
-  typedef point <double, 3> point3;
-  typedef kdtree<double, 3> tree3;
+  using point3 = KDtree::point<double, 3>;
+  using tree3  = KDtree::kdtree<double, 3>;
 
   std::vector<point3> points;
 

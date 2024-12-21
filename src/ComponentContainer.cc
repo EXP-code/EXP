@@ -771,7 +771,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	if (timing) itmr->second.start();
 	ext->set_multistep_level(mlevel);
 
-	if (use_cuda and not c->force->cudaAware()) {
+	if (use_cuda and not ext->cudaAware()) {
 #if HAVE_LIBCUDA==1
 	  c->CudaToParticles();
 #endif

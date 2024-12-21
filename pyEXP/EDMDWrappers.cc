@@ -129,7 +129,8 @@ void EDMDtoolkitClasses(py::module &m) {
 
   using namespace MSSA;
 
-  py::class_<MSSA::Koopman, std::shared_ptr<MSSA::Koopman>> f(m, "Koopman");
+  py::class_<MSSA::Koopman, std::shared_ptr<MSSA::Koopman>>
+    f(m, "Koopman");
 
   f.def(py::init<const mssaConfig&, int, const std::string>(),
 	R"(
@@ -292,4 +293,5 @@ void EDMDtoolkitClasses(py::module &m) {
         --------
         Koopman
         )");
+
 }

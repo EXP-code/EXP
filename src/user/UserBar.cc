@@ -478,14 +478,14 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
       nn = pp * pow(rr/b5, 3.0)/(b5*b5);
     }
 
-    cC->AddAcc(i, 0, 
-		    ffac*( 2.0*( xx*cos2p + yy*sin2p)*fac - 5.0*nn*xx ) );
+    cC->AddAccExt(i, 0, 
+		  ffac*( 2.0*( xx*cos2p + yy*sin2p)*fac - 5.0*nn*xx ) );
     
-    cC->AddAcc(i, 1,
-		    ffac*( 2.0*(-yy*cos2p + xx*sin2p)*fac - 5.0*nn*yy ) );
+    cC->AddAccExt(i, 1,
+		  ffac*( 2.0*(-yy*cos2p + xx*sin2p)*fac - 5.0*nn*yy ) );
 
-    cC->AddAcc(i, 2, 
-		    ffac*( -5.0*nn*zz ) );
+    cC->AddAccExt(i, 2, 
+		  ffac*( -5.0*nn*zz ) );
     
 
     cC->AddPotExt(i, -ffac*pp*fac );

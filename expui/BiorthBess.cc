@@ -1,3 +1,5 @@
+#include <cassert>
+
 #include <BiorthBess.H>
 #include <EXPmath.H>
 #include <EXPException.H>

@@ -36,7 +36,7 @@ void EL3::debug() const
   }
 }
 
-Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
+Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
 	       string Logfile, double dt, double damping)
 {
   keep    = n;
@@ -59,6 +59,8 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
   cenvel0.setZero();
   axis   .setZero();
 
+  if (naccel) accel = std::make_shared<PseudoAccel>(naccel);
+
 				// Initialize last time to something
 				// in the near infinite past
   lasttime = -std::numeric_limits<double>::max();
@@ -70,8 +72,7 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 				// Set up identity
   body.setIdentity();
   orig = body;
-
-				// Check for previous state on
+				// check for previous state on
 				// a restart
   int in_ok;
   std::vector<double> in1(4), in2(4);
@@ -124,6 +125,8 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	
 				// Look for data and write it while
 				// accumlating data for averaging
+      Eigen::Vector3d testread;
+
       while (in && restart) {
 
 	in.getline(cbuffer, cbufsiz);
@@ -169,6 +172,14 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	  if (static_cast<int>(sumsC.size()) > keep) sumsC.pop_front();
 	}
 	
+	bool allRead = true;
+	for (int i=0; i<3; i++) {
+	  if (line.eof()) allRead = false;
+	  for (int k; k<3; k++) line >> testread(k);
+	}
+	if (allRead) {
+	  if (accel) accel->add(time, testread);
+	}
       }
 
       cout << "  -- Orient: current log=" << logfile << "  backup=" << backupfile << endl;
@@ -244,12 +255,15 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	    << setw(15) << "| X-com(dif)"	// 22
 	    << setw(15) << "| Y-com(dif)"	// 23
 	    << setw(15) << "| Z-com(dif)"	// 24
+	    << setw(15) << "| X-accel"		// 25
+	    << setw(15) << "| Y-accel"		// 26
+	    << setw(15) << "| Z-accel"		// 27
 	    << endl;
 	out.fill('-');
 
 	int icnt = 1;
 	out << "# " << setw(13) << icnt++;
-	for (int i=0; i<23; i++) out << "| " << setw(13) << icnt++;
+	for (int i=0; i<26; i++) out << "| " << setw(13) << icnt++;
 	out << endl;
 
 	out.close();
@@ -660,6 +674,10 @@ void Orient::accumulate(double time, Component *c)
   } else
     center = center1;
   
+  if (accel) {
+    accel->add(time, center);
+  }
+
   // Increment initial center according 
   // to user specified velocity
   center0 += cenvel0*dtime;
@@ -731,6 +749,10 @@ void Orient::logEntry(double time, Component *c)
 
     // Columns 22 - 24
     for (int k=0; k<3; k++) outl << setw(15) << c->com0[k];
+
+    // Columns 25 - 27
+    pseudo = accel->accel();
+    for (int k=0; k<3; k++) outl << setw(15) << pseudo[k];
 
     outl << endl;
   }
