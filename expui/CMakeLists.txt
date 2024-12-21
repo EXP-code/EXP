@@ -38,7 +38,7 @@ endif()
 set(expui_SOURCES BasisFactory.cc BiorthBasis.cc FieldBasis.cc
   CoefContainer.cc CoefStruct.cc FieldGenerator.cc expMSSA.cc
   Coefficients.cc KMeans.cc Centering.cc ParticleIterator.cc
-  Koopman.cc KoopmanRKHS.cc LiouvilleRKHS.cc BiorthBess.cc)
+  Koopman.cc BiorthBess.cc)
 add_library(expui ${expui_SOURCES})
 set_target_properties(expui PROPERTIES OUTPUT_NAME expui)
 target_include_directories(expui PUBLIC ${common_INCLUDE})
