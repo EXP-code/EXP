@@ -128,7 +128,7 @@ void UserHalo::determine_acceleration_and_potential(void)
 
   exp_thread_fork(false);
 
-  print_timings("UserHalo: accleration timings");
+  print_timings("UserHalo: acceleration timings");
 }
 
 
@@ -214,7 +214,7 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
     */
     // END DEBUG
 
-    // Add external accerlation
+    // Add external acceleration
     for (int k=0; k<3; k++)
       cC->AddAccExt(i, k, -dpot*pos[k]/(qq[k]*r) );
 
