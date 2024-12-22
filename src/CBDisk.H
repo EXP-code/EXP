@@ -6,7 +6,18 @@
 
 #include <PolarBasis.H>
 
-//! Reference implemenation of the Clutton-Brock disk basis
+/** Reference implemenation of the Clutton-Brock disk basis
+
+    Parameters
+
+    \param mmax is the maximum azimuthal order
+
+    \param Lmax alias for mmax
+
+    \param Mmax alias for mmax
+
+    \param scale radius for coordinate scaling.  By default, the core radius of the Clutton-Brock density is 1.
+*/
 class CBDisk : public PolarBasis 
 {
 

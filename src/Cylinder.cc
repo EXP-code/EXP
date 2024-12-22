@@ -107,7 +107,7 @@ Cylinder::valid_keys = {
   "playback",
   "coefCompute",
   "coefMaster",
-  "dump"
+  "dumpbasis"
 };
 
 Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
@@ -553,7 +553,7 @@ void Cylinder::initialize()
       }
     }
 
-    if (conf["dump"]) dump_basis = true;
+    if (conf["dumpbasis"]) dump_basis = true;
 
   }
   catch (YAML::Exception & error) {
