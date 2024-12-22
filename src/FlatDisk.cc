@@ -8,22 +8,22 @@
 
 const std::set<std::string>
 FlatDisk::valid_keys = {
-  "nmaxfid",
-  "numr",
   "rcylmin",
   "rcylmax",
   "mmax",
   "numx",
   "numy",
-  "NQDHT",
   "knots",
   "logr",
   "model",
   "biorth",
-  "diskconf",
   "background",
+  "nmaxfid",
+  "numr",
+  "NQDHT",
+  "diskconf",
   "cachename",
-  "dump"
+  "dumpbasis"
 };
 
 FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
@@ -90,7 +90,7 @@ void FlatDisk::initialize()
 
     if (conf["mmax"]) Lmax = Mmax = mmax; // Override base-class values
 
-    if (conf["dump"])     dump_basis  = conf["dump"].as<bool>();
+    if (conf["dumpbasis"]) dump_basis  = conf["dumpbasis"].as<bool>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in FlatDisk: "
