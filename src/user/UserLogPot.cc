@@ -105,11 +105,11 @@ void * UserLogPot::determine_acceleration_and_potential_thread(void * arg)
     zz = cC->Pos(i, 2);
     rr = R*R + xx*xx + yy*yy/(b*b) + zz*zz/(c*c);
 
-    cC->AddAcc(i, 0,-v2*xx/rr );
+    cC->AddAccExt(i, 0,-v2*xx/rr );
     
-    cC->AddAcc(i, 1, -v2*yy/(rr*b*b) );
+    cC->AddAccExt(i, 1, -v2*yy/(rr*b*b) );
 
-    cC->AddAcc(i, 2, -v2*zz/(rr*c*c) );
+    cC->AddAccExt(i, 2, -v2*zz/(rr*c*c) );
     
     cC->AddPotExt(i, 0.5*v2*log(rr) );
   }
