@@ -1606,38 +1606,36 @@ namespace MSSA {
       n++;
     }
       
-    double Scale = Y1.norm();
-
+    // double Scale = Y1.norm();
     // auto YY = Y1/Scale;
+
     auto YY = Y1;
 
     // Use one of the built-in Eigen3 algorithms
     //
-    /*
-      if (params["Jacobi"]) {
+    if (params["Jacobi"]) {
       // -->Using Jacobi
       Eigen::JacobiSVD<Eigen::MatrixXd>
-      svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
       S1 = svd.singularValues();
       V1 = svd.matrixV();
-      } else if (params["BDCSVD"]) {
-    */
+    }
     // -->Using BDC
+    else if (params["BDCSVD"]) {
     Eigen::BDCSVD<Eigen::MatrixXd>
       svd(YY, Eigen::ComputeFullU | Eigen::ComputeFullV);
       // svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
     S1 = svd.singularValues();
     V1 = svd.matrixV();
-    /*
-      } else {
-      // -->Use Random approximation algorithm from Halko, Martinsson,
-      //    and Tropp
+    }
+    // -->Use Random approximation algorithm from Halko, Martinsson,
+    //    and Tropp
+    else {
       int srank = std::min<int>(YY.cols(), YY.rows());
       RedSVD::RedSVD<Eigen::MatrixXd> svd(YY, srank);
       S1 = svd.singularValues();
       V1 = svd.matrixV();
-      }
-    */
+    }
     
     std::cout << "shape V1 = " << V1.rows() << " x "
 	      << V1.cols() << std::endl;
@@ -1680,19 +1678,17 @@ namespace MSSA {
     // SVD
     // Use one of the built-in Eigen3 algorithms
     //
-    /*
+    // -->Using Jacobi
     if (params["Jacobi"]) {
-      // -->Using Jacobi
       Eigen::JacobiSVD<Eigen::MatrixXd>
 	// svd(VT1, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	svd(VT1, Eigen::ComputeFullU | Eigen::ComputeFullV);
       SS = svd.singularValues();
       UU = svd.matrixU();
       VV = svd.matrixV();
-    } else if (params["BDCSVD"]) {
-    */
-    {
-      // -->Using BDC
+    }
+    // -->Using BDC
+    else if (params["BDCSVD"]) {
       Eigen::BDCSVD<Eigen::MatrixXd>
 	// svd(VT1, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	svd(VT1, Eigen::ComputeFullU | Eigen::ComputeFullV);
@@ -1700,17 +1696,15 @@ namespace MSSA {
       UU = svd.matrixU();
       VV = svd.matrixV();
     }
-      /*
-    } else {
-      // -->Use Random approximation algorithm from Halko, Martinsson,
-      //    and Tropp
+    // -->Use Random approximation algorithm from Halko, Martinsson,
+    //    and Tropp
+    else {
       // RedSVD::RedSVD<Eigen::MatrixXd> svd(VT1, std::min<int>(rank, numK-1));
       RedSVD::RedSVD<Eigen::MatrixXd> svd(VT1, std::max<int>(VT1.rows(), VT2.cols()));
       SS = svd.singularValues();
       UU = svd.matrixU();
       VV = svd.matrixV();
     }
-      */
 
     if (out) out << "Singular values" << std::endl << SS << std::endl;
 
