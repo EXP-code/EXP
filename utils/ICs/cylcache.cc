@@ -165,20 +165,23 @@ void set_fpu_gdb_handler(void)
 
 // Global variables
 //
-enum DiskType { constant, gaussian, mn, exponential, doubleexpon };
+enum DiskType { constant, gaussian, mn, exponential, doubleexpon, diskbulge };
 
 std::map<std::string, DiskType> dtlookup =
   { {"constant",    DiskType::constant},
     {"gaussian",    DiskType::gaussian},
     {"mn",          DiskType::mn},
     {"exponential", DiskType::exponential},
-    {"doubleexpon", DiskType::doubleexpon}
+    {"doubleexpon", DiskType::doubleexpon},
+    {"diskbulge", DiskType::diskbulge}
   };
 
 DiskType     DTYPE;
 double       ASCALE;
 double       ASHIFT;
 double       HSCALE;
+double       HERNA;
+double       Mfac;
 double       RTRUNC  = 1.0;
 double       RWIDTH  = 0.0;
 double       ARATIO  = 1.0;
@@ -228,6 +231,18 @@ double DiskDens(double R, double z, double phi)
       ans =
 	w1*exp(-R/a1)/(4.0*M_PI*a1*a1*h1*f1*f1) +
 	w2*exp(-R/a2)/(4.0*M_PI*a2*a2*h2*f2*f2) ;
+    }
+    break;
+  case DiskType::diskbulge:
+    {
+      double f = cosh(z/HSCALE);
+      double rr = pow(pow(R, 2) + pow(z,2), 0.5);
+      double w1 = Mfac;
+      double w2 = (1-Mfac);
+      double as = HERNA;
+
+      ans = w1*exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f) + 
+            w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0) ; 
     }
     break;
   case DiskType::exponential:
@@ -327,7 +342,7 @@ main(int ac, char **av)
     ("ctype", "DiskHalo radial coordinate scaling type (one of: Linear, Log, Rat)",
      cxxopts::value<string>(ctype)->default_value("Log"))
     ("LMAXFID", "Maximum angular order for spherical basis in adaptive construction of the cylindrical basis",
-     cxxopts::value<int>(LMAXFID)->default_value("72"))
+     cxxopts::value<int>(LMAXFID)->default_value("32"))
     ("NMAXFID", "Maximum radial order for the spherical basis in adapative construction of the cylindrical basis",
      cxxopts::value<int>(NMAXFID)->default_value("32"))
     ("MMAX", "Maximum azimuthal order for the cylindrical basis",
@@ -341,7 +356,7 @@ main(int ac, char **av)
     ("NCYLODD", "Number of vertically odd basis functions per harmonic order",
      cxxopts::value<int>(NCYLODD)->default_value("6"))
     ("NMAX", "Total number of basis functions per harmonic order",
-     cxxopts::value<int>(NMAX)->default_value("18"))
+     cxxopts::value<int>(NMAX)->default_value("20"))
     ("VFLAG", "Diagnostic flag for EmpCylSL",
      cxxopts::value<int>(VFLAG)->default_value("31"))
     ("expcond", "Use analytic target density rather than particle distribution",
@@ -368,6 +383,10 @@ main(int ac, char **av)
      cxxopts::value<double>(PPower)->default_value("4.0"))
     ("DWEIGHT", "Ratio of second disk relative to the first disk for disk basis construction with double-exponential",
      cxxopts::value<double>(DWEIGHT)->default_value("1.0"))
+    ("Mfac", "Mass fraction of the disk for diskbulge model, sets disk/bulge mass (e.g. 0.75 -> 75% of mass in disk, 25% of mass in bulge)",
+     cxxopts::value<double>(Mfac)->default_value("1.0"))
+    ("HERNA", "Hernquist scale a parameter in diskbulge model",
+     cxxopts::value<double>(HERNA)->default_value("0.10"))
     ("RTRUNC", "Maximum disk radius for erf truncation of EOF conditioning density",
      cxxopts::value<double>(RTRUNC)->default_value("0.1"))
     ("RWIDTH", "Width for erf truncation for EOF conditioning density (ignored if zero)",
@@ -384,6 +403,10 @@ main(int ac, char **av)
      cxxopts::value<int>(CMAPR)->default_value("1"))
     ("CMAPZ", "Vertical coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
      cxxopts::value<int>(CMAPZ)->default_value("1"))
+    ("HERNA", "The Hernquist 'a' scale radius, diskbulge model only",
+     cxxopts::value<string>(dmodel)->default_value("0.1"))
+    ("Mfac", "Fraction of mass in the disk, remaining mass will be in the bulge (i.e. Mfac = .75 would have 75% of the mass be disk, 25% bulge). diskbulge model only",
+     cxxopts::value<string>(dmodel)->default_value("0.1"))
     ;
 
   cxxopts::ParseResult vm;
@@ -556,6 +579,8 @@ main(int ac, char **av)
 	     << " rmax="   << EmpCylSL::RMAX
 	     << " a="      << ASCALE
 	     << " h="      << HSCALE
+       << " as="     << HERNA
+       << " Mfac="   << Mfac
 	     << " nmax2="  << NMAXFID
 	     << " lmax2="  << LMAXFID
 	     << " mmax="   << MMAX

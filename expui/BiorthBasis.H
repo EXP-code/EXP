@@ -590,12 +590,12 @@ namespace BasisClasses
 
     //@{
     //! Basis construction parameters
-    double aratio, hratio, dweight, rwidth, ashift, rfactor, rtrunc, ppow;
+    double aratio, hratio, dweight, rwidth, ashift, rfactor, rtrunc, ppow, Mfac, HERNA;
     bool Ignore, deproject;
 
     //! DiskType support
     //
-    enum DiskType { constant, gaussian, mn, exponential, doubleexpon };
+    enum DiskType { constant, gaussian, mn, exponential, doubleexpon, diskbulge };
     DiskType DTYPE;
     std::string mtype, dtype, dmodel;
 
