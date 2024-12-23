@@ -3960,6 +3960,8 @@ Eigen::Vector3d& Component::getPseudoAccel(double* pos, double* vel)
 {
   pseudo.setZero();
 
+  if (EJdryrun) return pseudo;
+
   if (EJ & Orient::CENTER) {
     pseudo += accel;
   }
