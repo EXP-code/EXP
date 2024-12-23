@@ -60,7 +60,7 @@ Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
   axis   .setZero();
 
 				// Instantiate the pseudo-force helper
-				// class
+				// class if naccel>0
   if (naccel) accel = std::make_shared<PseudoAccel>
 		(naccel, oflags & CENTER, oflags & AXIS);
 
@@ -759,7 +759,8 @@ void Orient::logEntry(double time, Component *c)
     // Columns 22 - 24
     for (int k=0; k<3; k++) outl << setw(15) << c->com0[k];
 
-    std::tie(pseudo, omega, domdt) = (*accel)();
+    if (accel) std::tie(pseudo, omega, domdt) = (*accel)();
+
     // Columns 25 - 27
     for (int k=0; k<3; k++) outl << setw(15) << pseudo[k];
 
