@@ -98,7 +98,9 @@ private:
   double damp;
   Eigen::Matrix3d body, orig;
   Eigen::Vector3d axis, center, axis1, center1, center0, cenvel0;
-  Eigen::Vector3d pseudo, omega, domdt;
+  Eigen::Vector3d pseudo = Eigen::Vector3d::Zero();
+  Eigen::Vector3d omega  = Eigen::Vector3d::Zero();
+  Eigen::Vector3d domdt  = Eigen::Vector3d::Zero();
   double sumX, sumX2;
   Eigen::Vector3d sumY, sumY2, sumXY, slope, intercept;
   double sigA, sigC, sigCz;
