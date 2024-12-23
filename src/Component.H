@@ -406,12 +406,16 @@ public:
   double *coa;
   //! Center (e.g. set by Orient)
   double *center;
-  //! Pseudo-accleration (set by Orient)
-  double *accel;
   //! Angular momentum vector
   double *angmom;
   //! Phase space vector
   double *ps;
+  //@}
+
+  //@{
+  //! Pseudo-accleration (set by Orient)
+  Eigen::Vector3d accel, omega, domdt, pseudo;
+  Eigen::Vector3d& getPseudoAccel(double* pos, double* vel);
   //@}
 
   /**
@@ -871,7 +875,8 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    tp->second->acc[j] += val - accel[j];
+    auto acc = getPseudoAccel(tp->second->pos, tp->second->vel);
+    tp->second->acc[j] += val - acc[j];
   }
   
   //! Add to accerlation (by component)
@@ -889,7 +894,9 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second->acc[k] += val[k] - accel[k];
+    auto acc = getPseudoAccel(tp->second->pos, tp->second->vel);
+    for (int k=0; k<3; k++)
+      tp->second->acc[k] += val[k] - acc[k];
   }
   
   //! Add to acceleration (by array)
@@ -907,7 +914,9 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second->acc[k] += val[k] - accel[k];
+    auto acc = getPseudoAccel(tp->second->pos, tp->second->vel);
+    for (int k=0; k<3; k++)
+      tp->second->acc[k] += val[k] - acc[k];
   }
   
   //! Add to accerlation (by vector)

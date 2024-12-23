@@ -59,7 +59,10 @@ Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
   cenvel0.setZero();
   axis   .setZero();
 
-  if (naccel) accel = std::make_shared<PseudoAccel>(naccel);
+				// Instantiate the pseudo-force helper
+				// class
+  if (naccel) accel = std::make_shared<PseudoAccel>
+		(naccel, oflags & CENTER, oflags & AXIS);
 
 				// Initialize last time to something
 				// in the near infinite past
@@ -125,8 +128,6 @@ Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
 	
 				// Look for data and write it while
 				// accumlating data for averaging
-      Eigen::Vector3d testread;
-
       while (in && restart) {
 
 	in.getline(cbuffer, cbufsiz);
@@ -175,10 +176,10 @@ Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
 	bool allRead = true;
 	for (int i=0; i<3; i++) {
 	  if (line.eof()) allRead = false;
-	  for (int k; k<3; k++) line >> testread(k);
+	  for (int k; k<3; k++) line >> pseudo(k);
 	}
 	if (allRead) {
-	  if (accel) accel->add(time, testread);
+	  if (accel) accel->add(time, pseudo, axis1);
 	}
       }
 
@@ -258,12 +259,18 @@ Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
 	    << setw(15) << "| X-accel"		// 25
 	    << setw(15) << "| Y-accel"		// 26
 	    << setw(15) << "| Z-accel"		// 27
+	    << setw(15) << "| Omega_X"		// 28
+	    << setw(15) << "| Omega_Y"		// 29
+	    << setw(15) << "| Omega_Z"		// 30
+	    << setw(15) << "| dOmega/dt_X"	// 31
+	    << setw(15) << "| dOmega/dt_Y"	// 32
+	    << setw(15) << "| dOmega/dt_Z"	// 33
 	    << endl;
 	out.fill('-');
 
 	int icnt = 1;
 	out << "# " << setw(13) << icnt++;
-	for (int i=0; i<26; i++) out << "| " << setw(13) << icnt++;
+	for (int i=0; i<32; i++) out << "| " << setw(13) << icnt++;
 	out << endl;
 
 	out.close();
@@ -674,8 +681,10 @@ void Orient::accumulate(double time, Component *c)
   } else
     center = center1;
   
+  // Add to pseudo-acceleration estimator
+  //
   if (accel) {
-    accel->add(time, center);
+    accel->add(time, center, axis);
   }
 
   // Increment initial center according 
@@ -750,9 +759,15 @@ void Orient::logEntry(double time, Component *c)
     // Columns 22 - 24
     for (int k=0; k<3; k++) outl << setw(15) << c->com0[k];
 
+    std::tie(pseudo, omega, domdt) = (*accel)();
     // Columns 25 - 27
-    pseudo = accel->accel();
     for (int k=0; k<3; k++) outl << setw(15) << pseudo[k];
+
+    // Columns 28 - 30
+    for (int k=0; k<3; k++) outl << setw(15) << omega[k];
+
+    // Columns 31 - 33
+    for (int k=0; k<3; k++) outl << setw(15) << domdt[k];
 
     outl << endl;
   }

@@ -921,7 +921,6 @@ void Component::initialize(void)
 {
   com    = new double [3];
   center = new double [3];
-  accel  = new double [3];
   cov    = new double [3];
   coa    = new double [3];
   angmom = new double [3];
@@ -1152,7 +1151,7 @@ void Component::initialize(void)
     
     if (restart && (EJ & Orient::CENTER)) {
       Eigen::VectorXd::Map(&center[0], 3) = orient->currentCenter();
-      Eigen::VectorXd::Map(&accel [0], 3) = orient->currentAccel();
+      std::tie(accel, omega, domdt) = orient->currentAccel();
     } else {
       if (EJlinear) orient -> set_linear();
       if (not com_system) {
@@ -1248,7 +1247,6 @@ Component::~Component(void)
 
   delete [] com;
   delete [] center;
-  delete [] accel;
   delete [] cov;
   delete [] coa;
   delete [] angmom;
@@ -3122,15 +3120,13 @@ void Component::fix_positions_cpu(unsigned mlevel)
 
   if ((EJ & Orient::CENTER) && !EJdryrun) {
     auto ctr = orient->currentCenter();
-    auto acc = orient->currentAccel();
+    std::tie(accel, omega, domdt) = orient->currentAccel();
     bool ok    = true;
     for (int i=0; i<3; i++) {
       if (std::isnan(ctr[i])) ok = false;
-      if (std::isnan(acc[i])) ok = false;
     } 
     if (ok) {
       for (int i=0; i<3; i++) center[i] += ctr[i];
-      for (int i=0; i<3; i++) accel [i] += acc[i];
     } else if (myid==0) {
       cout << "Orient: center failure, T=" << tnow 
 	   << ", adjustment skipped" << endl;
@@ -3960,3 +3956,21 @@ void Component::AddPart(PartPtr p)
   nbodies = particles.size();
 }
 
+Eigen::Vector3d& Component::getPseudoAccel(double* pos, double* vel)
+{
+  pseudo.setZero();
+
+  if (EJ & Orient::CENTER) {
+    pseudo += accel;
+  }
+
+  if (EJ & Orient::AXIS) {
+    Eigen::Map<const Eigen::Vector3d> P(pos);
+    Eigen::Map<const Eigen::Vector3d> V(vel);
+
+    // Coriolis + Euler + Centrifugal forces
+    pseudo += 2.0*omega.cross(V) + domdt.cross(P) + omega.cross(omega.cross(P));
+  }
+
+  return pseudo;
+}

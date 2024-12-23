@@ -97,7 +97,8 @@ private:
   int keep, current;
   double damp;
   Eigen::Matrix3d body, orig;
-  Eigen::Vector3d axis, center, axis1, center1, center0, cenvel0, pseudo;
+  Eigen::Vector3d axis, center, axis1, center1, center0, cenvel0;
+  Eigen::Vector3d pseudo, omega, domdt;
   double sumX, sumX2;
   Eigen::Vector3d sumY, sumY2, sumXY, slope, intercept;
   double sigA, sigC, sigCz;
@@ -170,12 +171,14 @@ public:
   //! Return current center
   Eigen::Vector3d& currentCenter(void) {return center;};
   
-  //! Return current pseudo force
-  Eigen::Vector3d& currentAccel(void)
+  //! Return current pseudo force, angular velocity, and angular
+  //! velocity derivative
+  const std::tuple<Eigen::Vector3d&, Eigen::Vector3d&, Eigen::Vector3d&>
+  currentAccel(void)
   {
-    pseudo.setZero();
-    if (accel) return pseudo = accel->accel();
-    return pseudo;
+    if (accel) return (*accel)();
+    pseudo.setZero();		// No acceleration or angular velocity
+    return {pseudo, pseudo, pseudo};
   }
 
   //! Return variance of axis determination (linear least squares solution)
