@@ -8,6 +8,7 @@
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
 
+#include <DiskDensityFunc.H>
 #include <ParticleReader.H>
 #include <Coefficients.H>
 #include <BiorthBess.H>
@@ -592,16 +593,18 @@ namespace BasisClasses
     //! Basis construction parameters
     double aratio, hratio, dweight, rwidth, ashift, rfactor, rtrunc, ppow, Mfac, HERNA;
     bool Ignore, deproject;
+    std::string pyname;
 
     //! DiskType support
     //
-    enum DiskType { constant, gaussian, mn, exponential, doubleexpon, diskbulge };
+    enum DiskType { constant, gaussian, mn, exponential, doubleexpon, diskbulge, python };
     DiskType DTYPE;
     std::string mtype, dtype, dmodel;
 
     static const std::map<std::string, DiskType> dtlookup;
     double DiskDens(double R, double z, double phi);
     double dcond(double R, double z, double phi, int M);
+    std::shared_ptr<DiskDensityFunc> pyDens;
 
   protected:
 

@@ -165,7 +165,7 @@ void set_fpu_gdb_handler(void)
 
 // Global variables
 //
-enum DiskType { constant, gaussian, mn, exponential, doubleexpon, diskbulge };
+enum DiskType { constant, gaussian, mn, exponential, doubleexpon, diskbulge, python };
 
 std::map<std::string, DiskType> dtlookup =
   { {"constant",    DiskType::constant},
@@ -173,10 +173,12 @@ std::map<std::string, DiskType> dtlookup =
     {"mn",          DiskType::mn},
     {"exponential", DiskType::exponential},
     {"doubleexpon", DiskType::doubleexpon},
-    {"diskbulge", DiskType::diskbulge}
+    {"diskbulge",   DiskType::diskbulge},
+    {"python",      DiskType::python}
   };
 
 DiskType     DTYPE;
+std::string  pyname;
 double       ASCALE;
 double       ASHIFT;
 double       HSCALE;
@@ -189,6 +191,8 @@ double       HRATIO  = 1.0;
 double       DWEIGHT = 1.0;
 
 #include <Particle.H>
+
+static std::shared_ptr<DiskDensityFunc> pydens;
 
 double DiskDens(double R, double z, double phi)
 {
@@ -245,6 +249,11 @@ double DiskDens(double R, double z, double phi)
             w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0) ; 
     }
     break;
+  case DiskType::python:
+    {
+      if (not pydens) pydens = std::make_shared<DiskDensityFunc>(pyname);
+      ans = (*pydens)(R, z, phi);
+    }
   case DiskType::exponential:
   default:
     {
@@ -407,6 +416,8 @@ main(int ac, char **av)
      cxxopts::value<string>(dmodel)->default_value("0.1"))
     ("Mfac", "Fraction of mass in the disk, remaining mass will be in the bulge (i.e. Mfac = .75 would have 75% of the mass be disk, 25% bulge). diskbulge model only",
      cxxopts::value<string>(dmodel)->default_value("0.1"))
+    ("pyname", "The name of the python module supplying the disk_density",
+     cxxopts::value<std::string>(pyname))
     ;
 
   cxxopts::ParseResult vm;

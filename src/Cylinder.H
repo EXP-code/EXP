@@ -103,6 +103,8 @@ class MixtureBasis;
 
     @param playback file reads a coefficient file and uses it to compute the basis function output for resimiulation
 
+    @param python is the file name of Python module which supplies the 'disk_density' function for conditioning the cylindrical basis.  A non-null string triggers the use of the Python interpreter to evaluate the target density function.
+
 */
 class Cylinder : public Basis
 {
@@ -130,7 +132,7 @@ private:
   int ncylnx, ncylny, ncylr;
   double hcyl, hexp, snr, rem;
   int nmax, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
-  std::string cachename;
+  std::string cachename, pyname;
   bool self_consistent, logarithmic, pcavar, pcainit, pcavtk, pcadiag, pcaeof;
   bool try_cache, firstime, dump_basis, compute, firstime_coef;
 

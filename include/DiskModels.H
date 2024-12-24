@@ -2,7 +2,7 @@
 #define _DISK_MODELS_H
 
 #include <EmpCylSL.H>
-
+#include <DiskDensityFunc.H>
 
 //! A Ferrers Ellipsoid + Evacuated Exponential Disc (semi-realistic
 //! bar+disk model)
@@ -251,6 +251,28 @@ public:
 
     return d1 + d2;
 
+  }
+
+};
+
+
+//! A user-defined Python model
+class PyModel : public EmpCylSL::AxiDisk
+{
+private:
+
+  std::shared_ptr<DiskDensityFunc> pyDens;
+
+public:
+
+  PyModel(std::string& pyname)
+  {
+    pyDens = std::make_shared<DiskDensityFunc>(pyname);
+  }
+
+  double operator()(double R, double z, double phi=0.)
+  {
+    return (*pyDens)(R, z, phi);
   }
 
 };

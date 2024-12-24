@@ -60,6 +60,7 @@ namespace BasisClasses
     "self_consistent",
     "cachename",
     "modelname",
+    "pyname",
     "rnum"
   };
 
@@ -861,7 +862,8 @@ namespace BasisClasses
       {"mn",          DiskType::mn},
       {"exponential", DiskType::exponential},
       {"doubleexpon", DiskType::doubleexpon},
-      {"diskbulge", DiskType::diskbulge}
+      {"diskbulge",   DiskType::diskbulge},
+      {"python",      DiskType::python}
     };
 
   const std::set<std::string>
@@ -924,7 +926,8 @@ namespace BasisClasses
     "self_consistent",
     "playback",
     "coefCompute",
-    "coefMaster"
+    "coefMaster",
+    "pyname"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
@@ -986,15 +989,18 @@ namespace BasisClasses
 
     case DiskType::diskbulge:
       {
-  double f = cosh(z/hcyl);
-  double rr = pow(pow(R, 2) + pow(z,2), 0.5);
-  double w1 = Mfac;
-  double w2 = (1-Mfac);
-  double as = HERNA;
-
-  ans = w1*exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f) + 
-            w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0) ;
+	double f  = cosh(z/hcyl);
+	double rr = pow(pow(R, 2) + pow(z,2), 0.5);
+	double w1 = Mfac;
+	double w2 = 1.0 - Mfac;
+	double as = HERNA;
+	
+	ans = w1*exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f) + 
+	  w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0) ;
       }
+      break;
+    case DiskType::python:
+      ans = (*pyDens)(R, z, phi);
       break;
     case DiskType::exponential:
     default:
@@ -1078,7 +1084,6 @@ namespace BasisClasses
     // Radial scale length ratio for disk basis construction with doubleexpon
     aratio      = 1.0; 
 
-
     // Vertical scale height ratio for disk basis construction with doubleexpon
     hratio      = 1.0;              
 
@@ -1159,6 +1164,7 @@ namespace BasisClasses
       if (conf["mtype"     ])       mtype = conf["mtype"     ].as<std::string>();
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
+      if (conf["pyname"    ])      pyname = conf["pyname"    ].as<std::string>();
 
       // Deprecation warning
       if (conf["density"   ]) {
@@ -1296,6 +1302,12 @@ namespace BasisClasses
 	  std::cout << std::endl;
 	}
 	throw std::runtime_error("Cylindrical::initialize: invalid DiskType");
+      }
+
+      // Check for and initialize the Python density type
+      //
+      if (DTYPE == DiskType::python) {
+	pyDens = std::make_shared<DiskDensityFunc>(pyname);
       }
 
       // Use these user models to deproject for the EOF spherical basis
