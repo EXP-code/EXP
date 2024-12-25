@@ -41,10 +41,14 @@ private:
   //! Interpreter started?
   bool started = false;
 
+  //! Name of density function
+  std::string funcname;
+
 public:
 
   //! Constructor
-  DiskDensityFunc(const std::string& modulename);
+  DiskDensityFunc(const std::string& modulename,
+		  const std::string& funcname="disk_density");
 
   //! Destructor
   ~DiskDensityFunc();
