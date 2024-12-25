@@ -1253,6 +1253,7 @@ YAML::Node EmpCylSL::getHeader_hdf5(const std::string& cachefile)
     node["mmax"]     = getInt("mmax");
     node["numx"]     = getInt("numx");
     node["numy"]     = getInt("numy");
+    node["lmaxfid"]  = getInt("lmaxfid");
     node["nmaxfid"]  = getInt("nmaxfid");
     node["nmax"]     = getInt("nmax");
     node["neven"]    = getInt("neven");
