@@ -1,11 +1,13 @@
 #include <DiskDensityFunc.H>
 
-namespace py = pybind11;	// Convenience
-
+namespace py = pybind11;
 
 DiskDensityFunc::DiskDensityFunc(const std::string& modulename)
 {
-  py::initialize_interpreter();
+  if (Py_IsInitialized() == 0) {
+    py::initialize_interpreter();
+    started = true;
+  }
 
   disk_density =
     py::reinterpret_borrow<py::function>
@@ -14,7 +16,7 @@ DiskDensityFunc::DiskDensityFunc(const std::string& modulename)
 
 DiskDensityFunc::~DiskDensityFunc()
 {
-  py::finalize_interpreter();
+  if (started) py::finalize_interpreter();
 }
 
 double DiskDensityFunc::operator() (double R, double z, double phi)

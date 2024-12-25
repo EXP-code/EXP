@@ -38,6 +38,9 @@ private:
   //! The disk-density function
   pybind11::function disk_density;
 
+  //! Interpreter started?
+  bool started = false;
+
 public:
 
   //! Constructor
