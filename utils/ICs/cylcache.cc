@@ -254,6 +254,7 @@ double DiskDens(double R, double z, double phi)
       if (not pydens) pydens = std::make_shared<DiskDensityFunc>(pyname);
       ans = (*pydens)(R, z, phi);
     }
+    break;
   case DiskType::exponential:
   default:
     {
@@ -412,11 +413,7 @@ main(int ac, char **av)
      cxxopts::value<int>(CMAPR)->default_value("1"))
     ("CMAPZ", "Vertical coordinate mapping type for cylindrical grid  (0=none, 1=rational fct)",
      cxxopts::value<int>(CMAPZ)->default_value("1"))
-    ("HERNA", "The Hernquist 'a' scale radius, diskbulge model only",
-     cxxopts::value<string>(dmodel)->default_value("0.1"))
-    ("Mfac", "Fraction of mass in the disk, remaining mass will be in the bulge (i.e. Mfac = .75 would have 75% of the mass be disk, 25% bulge). diskbulge model only",
-     cxxopts::value<string>(dmodel)->default_value("0.1"))
-    ("pyname", "The name of the python module supplying the disk_density",
+    ("pyname", "The name of the Python module supplying the disk_density function",
      cxxopts::value<std::string>(pyname))
     ;
 
