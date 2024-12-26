@@ -61,8 +61,10 @@ Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
 
 				// Instantiate the pseudo-force helper
 				// class if naccel>0
-  if (naccel) accel = std::make_shared<PseudoAccel>
-		(naccel, oflags & CENTER, oflags & AXIS);
+  if (naccel) {
+    accel = std::make_shared<PseudoAccel>
+      (naccel, oflags & CENTER, oflags & AXIS);
+  }
 
 				// Initialize last time to something
 				// in the near infinite past
@@ -549,12 +551,16 @@ void Orient::accumulate(double time, Component *c)
   }
 
   if ((cflags & DIAG) && myid==0) {
-    cout << " Orient info [" << time << ", " << c->name << "]: " 
-	 << used << " particles used, Ecurr=" << Ecurr 
-	 << " Center=" 
-	 << center1[0] << ", "
-	 << center1[1] << ", "
-	 << center1[2] << endl;
+    std::cout << " Orient info [" << time << ", " << c->name << "]: " 
+	      << used << " particles used, Ecurr=" << Ecurr 
+	      << " Center=" 
+	      << center1[0] << ", "
+	      << center1[1] << ", "
+	      << center1[2]
+	      << " Axis=" 
+	      << axis1[0] << ", "
+	      << axis1[1] << ", "
+	      << axis1[2] << std::endl;
   }
 
   if (static_cast<int>(sumsA.size()) > keep + 1) {
@@ -684,7 +690,7 @@ void Orient::accumulate(double time, Component *c)
   // Add to pseudo-acceleration estimator
   //
   if (accel) {
-    accel->add(time, center, axis);
+    accel->add(time, center1, axis1);
   }
 
   // Increment initial center according 
