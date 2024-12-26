@@ -521,7 +521,7 @@ main(int ac, char **av)
     DTYPE = dtlookup.at(dtype);	// key is not in the map.
 
     if (myid==0)		// Report DiskType
-      std::cout << "DiskType is <" << dtype << ">" << std::endl;
+      std::cout << "---- DiskType is <" << dtype << ">" << std::endl;
   }
   catch (const std::out_of_range& err) {
     if (myid==0) {
