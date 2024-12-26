@@ -265,13 +265,18 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
       std::shared_ptr<DiskDensityFunc> dfunc;
       if (pyname.size()) dfunc = std::make_shared<DiskDensityFunc>(pyname);
 
+      // Use either the user-supplied Python target or the default
+      // exponential disk model
       auto DiskDens = [&](double R, double z, double phi)
       {
 	if (dfunc) return (*dfunc)(R, z, phi);
-	double f = cosh(z/hcyl);
-	return exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f);
+	double f = exp(-fabs(z)/hcyl); // Overflow prevention
+	double s = 2.0*f/(1.0 + f*f);  // in sech computation
+	return exp(-R/acyl)*s*s/(4.0*M_PI*acyl*acyl*hcyl);
       };
 
+      // The conditioning function for the EOF with an optional shift
+      // for M>0
       auto dcond = [&](double R, double z, double phi, int M)
       {
 	//

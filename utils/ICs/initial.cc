@@ -92,6 +92,7 @@
 #include <numerical.H>
 #include <gaussQ.H>
 #include <isothermal.H>
+#include <DiskDensityFunc.H>
 #include <hernquist_model.H>
 #include <model3d.H>
 #include <biorth.H>
@@ -239,7 +240,7 @@ const double f_H = 0.76;
 
 // Global variables
 //
-enum DiskType { constant, gaussian, mn, exponential, doubleexpon, diskbulge };
+enum DiskType { constant, gaussian, mn, exponential, doubleexpon, diskbulge, python };
 
 std::map<std::string, DiskType> dtlookup =
   { {"constant",    DiskType::constant},
@@ -247,10 +248,12 @@ std::map<std::string, DiskType> dtlookup =
     {"mn",          DiskType::mn},
     {"exponential", DiskType::exponential},
     {"doubleexpon", DiskType::doubleexpon},
-    {"diskbulge",   DiskType::diskbulge}
+    {"diskbulge",   DiskType::diskbulge},
+    {"python",      DiskType::python}
   };
 
 DiskType     DTYPE;
+std::string  pyname;
 double       ASCALE;
 double       ASHIFT;
 double       HSCALE;
@@ -267,6 +270,7 @@ double       HERNA = 0.10;
 double DiskDens(double R, double z, double phi)
 {
   double ans = 0.0;
+  static std::shared_ptr<DiskDensityFunc> dfunc;
 
   switch (DTYPE) {
 
@@ -320,6 +324,12 @@ double DiskDens(double R, double z, double phi)
 
       ans = w1*exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f) + 
             w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0);
+    }
+    break;
+  case DiskType::python:
+    {
+      if (!dfunc) dfunc = std::make_shared<DiskDensityFunc>(pyname);
+      ans = (*dfunc)(R, z, phi);
     }
     break;
   case DiskType::exponential:
@@ -598,6 +608,8 @@ main(int ac, char **av)
     ("allow", "Allow multimass algorithm to generature negative masses for testing")
     ("nomono", "Allow non-monotonic mass interpolation")
     ("diskmodel", "Table describing the model for the disk plane")
+    ("pyname", "Name of module with the user-specified target disk density",
+     cxxopts::value<std::string>(pyname))
     ;
 
   cxxopts::ParseResult vm;
