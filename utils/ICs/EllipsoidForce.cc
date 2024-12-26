@@ -54,7 +54,7 @@ EllipsoidForce::EllipsoidForce(double a0, double a1, double a2, double mass,
 
   if (quadr) {
 
-    vector<double> x(3, 0);
+    Eigen::Vector3d x; x.setZero();
     lrmin = log(rmin);
     lrmax = log(rmax);
     ldr = (lrmax - lrmin)/n;
@@ -494,7 +494,7 @@ void EllipsoidForce::MakeTable(int n1, int n2, int n3)
   tmade = true;
 }
 
-bool EllipsoidForce::nindx(vector<double>& x, vector<int>& n)
+bool EllipsoidForce::nindx(Eigen::Vector3d& x, Eigen::Vector3i& n)
 {
   for (int i=0; i<3; i++) {
     if (tlog) {
@@ -536,13 +536,14 @@ void EllipsoidForce::TableEval(vector<double> x, vector<double>& force)
 
   double f;
   int indx;
-  vector<double> x1(x), a(3);
-  vector<int> n(3), n1(3);
+  Eigen::Vector3d x1, a;
+  Eigen::Vector3i n, n1;
 
   //
   //  Put lower limit on the grid interpolation
   //
   for (int i=0; i<3; i++) {
+    x1[i] = x[i];
     if (tlog)
       x1[i] = max<double>(fabs(x1[i]), exp(rtmin));
     else

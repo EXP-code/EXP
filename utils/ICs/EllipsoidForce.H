@@ -7,6 +7,8 @@
 #include <memory>
 #include <vector>
 
+#include <Eigen/Eigen>
+
 #include <interp.H>
 #include <gaussQ.H>
 
@@ -66,7 +68,7 @@ private:
   vector<double> dX, table;
   double rtmin, rtmax;
   bool quadr, tmade, tlog;
-  bool nindx(vector<double>& x, vector<int>& n);
+  bool nindx(Eigen::Vector3d& x, Eigen::Vector3i& n);
 
   void write_cache();
   bool read_cache();
