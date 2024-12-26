@@ -36,9 +36,14 @@ private:
       double Sx2y  = sumx2y - sumx2*sumy/n;
       double Sx2x2 = sumx4  - sumx2*sumx2/n;
       
-      _a = (Sx2y*Sxx  - Sxy*Sxx2 ) / (Sxx*Sx2x2 - Sxx2*Sxx2);
-      _b = (Sxy*Sx2x2 - Sx2y*Sxx2) / (Sxx*Sx2x2 - Sxx2*Sxx2);
-      _c = (sumy - sumx2*_a - sumx*_b) / n;
+      double denom = Sxx*Sx2x2 - Sxx2*Sxx2;
+
+      if (fabs(denom)>0.0) {
+	_a = (Sx2y*Sxx  - Sxy*Sxx2 ) / denom;
+	_b = (Sxy*Sx2x2 - Sx2y*Sxx2) / denom;
+	_c = (sumy - sumx2*_a - sumx*_b) / n;
+      } else _a = _b = _c = 0.0;
+
     }
     else {
       _a = _b = _c = 0.0;
