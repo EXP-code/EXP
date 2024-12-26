@@ -58,32 +58,37 @@ public:
 	}
       }
 
-      if (CENTER) {
-	accel << 
-	  2.0*std::get<0>(QuadLS(t, x).coefs()),
-	  2.0*std::get<0>(QuadLS(t, y).coefs()),
-	  2.0*std::get<0>(QuadLS(t, z).coefs());
-      }
+      // Compute the acceleration only if there are enough elements
+      //
+      if (queue.size()==Nsize) {
 
-      if (AXIS) {
-	auto [a, b, c] = QuadLS(t, u).coefs();
-	auto [d, e, f] = QuadLS(t, v).coefs();
-	auto [g, h, i] = QuadLS(t, w).coefs();
+	if (CENTER) {
+	  accel << 
+	    2.0*std::get<0>(QuadLS(t, x).coefs()),
+	    2.0*std::get<0>(QuadLS(t, y).coefs()),
+	    2.0*std::get<0>(QuadLS(t, z).coefs());
+	}
 	
-	double T = t.back();	// Last eval time
-
-	Eigen::Vector3d n, dndt, d2ndt2;
-	n      << a*T*T+b*T+c, d*T*T+e*T+f, g*T*T+h*T+i;
-	dndt   << 2.0*a*T+b, 2.0*d*T+e, 2.0*g*T+h;
-	d2ndt2 << 2.0*a, 2.0*d, 2.0*g;
-
-	// Get angular acceleration and its derivative
-	omega = n.cross(dndt);
-	domdt = n.cross(d2ndt2);
+	if (AXIS) {
+	  auto [a, b, c] = QuadLS(t, u).coefs();
+	  auto [d, e, f] = QuadLS(t, v).coefs();
+	  auto [g, h, i] = QuadLS(t, w).coefs();
+	  
+	  double T = t.back();	// Last eval time
+	  
+	  Eigen::Vector3d n, dndt, d2ndt2;
+	  n      << a*T*T+b*T+c, d*T*T+e*T+f, g*T*T+h*T+i;
+	  dndt   << 2.0*a*T+b, 2.0*d*T+e, 2.0*g*T+h;
+	  d2ndt2 << 2.0*a, 2.0*d, 2.0*g;
+	  
+	  // Get angular acceleration and its derivative
+	  omega = n.cross(dndt);
+	  domdt = n.cross(d2ndt2);
+	}
       }
-
     }
 
+    // Return center acceleration, angular velocity and its derivative
     return {accel, omega, domdt};
   }
 };
