@@ -1,16 +1,25 @@
 # Configuring and building EXP
 
-We are now using git submodules to provide `yaml-cpp`, which is not
-common in the HPC environments.  So, from the top-level directory, do
-the following:
+We are now using git submodules to provide a number of packages that
+are not common in the HPC environments.  These include
+
+- `HighFive`, a C++ wrapper
+class to HDF5
+- `yaml-cpp`, a C++ class for reading and emitting YAML code
+- `pybind11` which is used for Python bindings to the C++ classes
+- `rapidxml`, used to write VTK files for rendering outside of EXP
+- `png++`, C++ wrappers to the png library [Note: png support is optional]
+
+CMake will automatically download and configure these packages on the
+first call. However, if you would to do this manually, from the
+top-level directory, execute the following command:
 
 ```
    git submodule update --init --recursive
 ```
 
-This will install `yaml-cpp` in the `extern` directory.  The png++ C++
-wrappers to the png library are also installed in `extern`.  Note: png
-support is optional.
+This will install the source packages in the `extern` directory.
+
 
 ## EXP uses CMake for building a configuration
 

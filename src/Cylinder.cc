@@ -1,4 +1,4 @@
-#include <filesystem>
+not#include <filesystem>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -72,7 +72,8 @@ Cylinder::valid_keys = {
   "playback",
   "coefCompute",
   "coefMaster",
-  "pyname"
+  "pyname",
+  "dumpbasis"
 };
 
 Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
@@ -553,6 +554,8 @@ void Cylinder::initialize()
 	  std::cout << "---- New coefficients will be computed from particles on playback" << std::endl;
       }
     }
+
+    if (conf["dumpbasis"]) dump_basis = true;
 
   }
   catch (YAML::Exception & error) {

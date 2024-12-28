@@ -1554,6 +1554,259 @@ namespace MSSA {
 
   }
 
+  std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>
+  expMSSA::getKoopmanModes(double tol, int D, bool debug)
+  {
+    bool use_fullKh = true;	// Use the non-reduced computation of
+				// Koopman/eDMD
+    // Number of channels
+    //
+    nkeys = mean.size();
+
+    // Make sure parameters are sane
+    //
+    if (numW<=0) numW = numT/2;
+    if (numW > numT/2) numW = numT/2;
+
+    numK = numT - numW + 1;
+
+    Eigen::VectorXd S1;
+    Eigen::MatrixXd Y1;
+    Eigen::MatrixXd V1;
+    Eigen::MatrixXd VT1;
+    Eigen::MatrixXd VT2;
+
+    // Make a new trajetory matrix with smoothing
+    //
+    Y1.resize(numK, numW*nkeys + D*(nkeys-1));
+
+    size_t n=0, offset=0;
+    for (auto k : mean) {
+      for (int i=0; i<numK; i++) {
+	if (n > 0) {
+	  // Back blending
+	  for (int j=0; j<D; j++) {
+	    Y1(i, offset-j) += data[k.first][i + j] *
+	      static_cast<double>(D-j)/D;
+	  }
+	}
+	// Main series
+	for (int j=0; j<numW; j++) {
+	  if (i + j < numT) Y1(i, j + offset) = data[k.first][i + j];
+	}
+	// Forward blending
+	if (n<nkeys-1) {
+	  for (int j=0; j<D; j++) {
+	    Y1(i, j + numW + offset) = data[k.first][i + numW - j - 2] *
+	      static_cast<double>(D-j)/D;
+	  }
+	}
+      }
+      offset += numW + D;
+      n++;
+    }
+      
+    // double Scale = Y1.norm();
+    // auto YY = Y1/Scale;
+
+    auto YY = Y1;
+
+    // Use one of the built-in Eigen3 algorithms
+    //
+    if (params["Jacobi"]) {
+      // -->Using Jacobi
+      Eigen::JacobiSVD<Eigen::MatrixXd>
+	svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
+      S1 = svd.singularValues();
+      V1 = svd.matrixV();
+    }
+    // -->Using BDC
+    else if (params["BDCSVD"]) {
+    Eigen::BDCSVD<Eigen::MatrixXd>
+      svd(YY, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      // svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    S1 = svd.singularValues();
+    V1 = svd.matrixV();
+    }
+    // -->Use Random approximation algorithm from Halko, Martinsson,
+    //    and Tropp
+    else {
+      int srank = std::min<int>(YY.cols(), YY.rows());
+      RedSVD::RedSVD<Eigen::MatrixXd> svd(YY, srank);
+      S1 = svd.singularValues();
+      V1 = svd.matrixV();
+    }
+    
+    std::cout << "shape V1 = " << V1.rows() << " x "
+	      << V1.cols() << std::endl;
+    
+    std::cout << "shape Y1 = " << Y1.rows() << " x "
+	      << Y1.cols() << std::endl;
+      
+    int lags = V1.rows();
+    int rank = V1.cols();
+
+    std::ofstream out;
+    if (debug) out.open("debug.txt");
+
+    if (out) out << "rank=" << rank << " lags=" << lags << std::endl;
+
+    VT1.resize(rank, lags-1);
+    VT2.resize(rank, lags-1);
+
+    for (int j=0; j<rank; j++) {
+      std::vector<double> uu;
+      for (int i=0; i<lags-1; i++) {
+	VT1(j, i) = V1(i+0, j);
+	VT2(j, i) = V1(i+1, j);
+      }
+    }
+    
+    // Singular values
+    Eigen::VectorXd SS;
+
+    // Left & right singular vectors
+    Eigen::MatrixXd UU, VV;
+
+    if (out) {
+      out << std::endl << "Y shape: " << YY.rows()
+	  << " x " << YY.cols() << std::endl << std::endl
+	  << "VT1" << std::endl << VT1.transpose() << std::endl << std::endl
+	  << "VT2" << std::endl << VT2.transpose() << std::endl << std::endl;
+    }
+
+    // SVD
+    // Use one of the built-in Eigen3 algorithms
+    //
+    // -->Using Jacobi
+    if (params["Jacobi"]) {
+      Eigen::JacobiSVD<Eigen::MatrixXd>
+	// svd(VT1, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	svd(VT1, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      SS = svd.singularValues();
+      UU = svd.matrixU();
+      VV = svd.matrixV();
+    }
+    // -->Using BDC
+    else if (params["BDCSVD"]) {
+      Eigen::BDCSVD<Eigen::MatrixXd>
+	// svd(VT1, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	svd(VT1, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      SS = svd.singularValues();
+      UU = svd.matrixU();
+      VV = svd.matrixV();
+    }
+    // -->Use Random approximation algorithm from Halko, Martinsson,
+    //    and Tropp
+    else {
+      // RedSVD::RedSVD<Eigen::MatrixXd> svd(VT1, std::min<int>(rank, numK-1));
+      RedSVD::RedSVD<Eigen::MatrixXd> svd(VT1, std::max<int>(VT1.rows(), VT2.cols()));
+      SS = svd.singularValues();
+      UU = svd.matrixU();
+      VV = svd.matrixV();
+    }
+
+    if (out) out << "Singular values" << std::endl << SS << std::endl;
+
+    // Compute inverse
+    for (int i=0; i<SS.size(); i++) {
+      if (std::fabs(SS(i)) > tol) SS(i) = 1.0/SS(i);
+      else                        SS(i) = 0.0;
+    }
+
+    // Compute full Koopman operator
+    if (use_fullKh) {
+
+      Eigen::MatrixXd DD(VV.cols(), UU.cols());
+      DD.setZero();
+      for (int i=0; i<SS.size(); i++) DD(i, i) = SS(i);
+
+      Eigen::MatrixXd AT = VT2 * VV * DD * UU.transpose();
+
+      std::cout << "Size of AT: " << AT.rows() << " x " << AT.cols() << std::endl;
+
+      // Compute spectrum
+      Eigen::EigenSolver<Eigen::MatrixXd> es(AT);
+
+      L    = es.eigenvalues();
+      Phi  = es.eigenvectors();
+      
+      if (out) {
+	out << std::endl << "Eigenvalues"  << std::endl << L   << std::endl
+	    << std::endl << "Eigenvectors" << std::endl << Phi << std::endl;
+      }
+
+    } 
+    // Compute the reduced Koopman operator
+    else {
+
+      Eigen::MatrixXd AT = UU.transpose() * (VT2 * VV) * SS.asDiagonal();
+
+      // Compute spectrum
+      Eigen::EigenSolver<Eigen::MatrixXd> es(AT, true);
+
+      L      = es.eigenvalues();
+      auto W = es.eigenvectors();
+
+      // Compute the EDMD modes
+      //
+      Eigen::VectorXcd Linv(L);
+      for (int i=0; i<L.size(); i++) {
+	if (std::abs(Linv(i)) > tol) Linv(i) = 1.0/Linv(i);
+	else Linv(i) = 0.0;
+      }
+
+      Phi  = VT2 * VV * SS.asDiagonal() * W * Linv.asDiagonal();
+      
+      if (out) {
+	out << std::endl << "Eigenvalues"  << std::endl << L << std::endl
+	    << std::endl << "Eigenvectors" << std::endl << Phi << std::endl;
+      }
+    }
+
+    // Cache window size
+    //
+    window = D;
+
+    return {L, Phi};
+  }
+
+  std::map<std::string, CoefClasses::CoefsPtr>
+  expMSSA::getReconstructedKoopman(int mode)
+  {
+    // Copy the original map for return
+    //
+    auto newdata = data;
+
+    size_t n=0, offset=0;
+
+    for (auto u : mean) {
+      
+      double disp = totVar;
+      if (type == TrendType::totPow) disp = totPow;
+      if (disp==0.0) disp = var[u.first];
+      
+      std::complex phase = 1.0;
+      for (int i=0; i<numW; i++, phase *= L(mode))
+  	newdata[u.first][i] = std::real(Phi(mode, offset+i)*phase)*disp + u.second;
+
+      offset += numW + window;
+      n++;
+    }
+
+    // Copy to the working data
+    //
+    for (auto v : newdata) {
+      if (verbose) std::cout << "Updating for: " << v.first << std::endl;
+      coefDB.setData(v.first, v.second);
+    }
+
+    // Copies working data back to the coefficient structures
+    //
+    return coefDB.endUpdate();
+  }
+
+
   expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC), trajectory(true)
   {
     // Parse the YAML string

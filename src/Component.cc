@@ -13,6 +13,7 @@
 #include <EJcom.H>
 #include <Cylinder.H>
 #include <FlatDisk.H>
+#include <CBDisk.H>
 #include <Cube.H>
 #include <SlabSL.H>
 #include <Direct.H>
@@ -46,6 +47,7 @@ const std::set<std::string> Component::valid_keys_parm =
     "EJ",
     "nEJkeep",
     "nEJwant",
+    "nEJaccel",
     "EJkinE",
     "EJext",
     "EJdiag",
@@ -183,6 +185,7 @@ Component::Component(YAML::Node& CONF)
   EJ          = 0;
   nEJkeep     = 100;
   nEJwant     = 500;
+  nEJaccel    = 0;
   EJkinE      = true;
   EJext       = false;
   EJdiag      = false;
@@ -319,6 +322,7 @@ void Component::set_default_values()
   if (!cconf["EJ"])              cconf["EJ"]          = EJ;
   if (!cconf["nEJkeep"])         cconf["nEJkeep"]     = nEJkeep;
   if (!cconf["nEJwant"])         cconf["nEJwant"]     = nEJwant;
+  if (!cconf["nEJaccel"])        cconf["nEJaccel"]    = nEJaccel;
   if (!cconf["EJkinE"])          cconf["EJkinE"]      = EJkinE;
   if (!cconf["EJext"])           cconf["EJext"]       = EJext;
   if (!cconf["EJdiag"])          cconf["EJdiag"]      = EJdiag;
@@ -682,6 +686,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   EJ          = 0;
   nEJkeep     = 100;
   nEJwant     = 500;
+  nEJaccel    = 0;
   EJkinE      = true;
   EJext       = false;
   EJdiag      = false;
@@ -794,6 +799,7 @@ void Component::configure(void)
       std::cout << "Component: eEJ0 is no longer used, Ecurr is computed from the bodies using the expansion directly" << std::endl;
     if (cconf["nEJkeep" ])    nEJkeep  = cconf["nEJkeep" ].as<int>();
     if (cconf["nEJwant" ])    nEJwant  = cconf["nEJwant" ].as<int>();
+    if (cconf["nEJaccel"])   nEJaccel  = cconf["nEJaccel"].as<int>();
     if (cconf["EJx0"    ])       EJx0  = cconf["EJx0"    ].as<double>();
     if (cconf["EJy0"    ])       EJy0  = cconf["EJy0"    ].as<double>();
     if (cconf["EJz0"    ])       EJz0  = cconf["EJz0"    ].as<double>();
@@ -883,6 +889,9 @@ void Component::configure(void)
   else if ( !id.compare("flatdisk") ) {
     force = new FlatDisk(this, fconf);
   }
+  else if ( !id.compare("CBDisk") ) {
+    force = new CBDisk(this, fconf);
+  }
   else if ( !id.compare("direct") ) {
     force = new Direct(this, fconf);
   }
@@ -925,6 +934,7 @@ void Component::initialize(void)
   for (int k=0; k<3; k++) {
     com[k]  = center[k] = cov[k]  = coa[k]    = 0.0;
     com0[k] = cov0[k]   = acc0[k] = angmom[k] = 0.0;
+    accel[k] = 0.0;
   }  
 
   if (com_system) {
@@ -1109,6 +1119,7 @@ void Component::initialize(void)
     if (EJdiag) cout << "Process " << myid << ": about to create Orient with"
 		     << " nkeep="  << nEJkeep
 		     << " nwant="  << nEJwant
+		     << " naccel=" << nEJaccel
 		     << " EJkinE=" << EJkinE
 		     << " EJext="  << EJext;
     
@@ -1135,10 +1146,12 @@ void Component::initialize(void)
     if (EJkinE)		EJctl |= Orient::KE;
     if (EJext)		EJctl |= Orient::EXTERNAL;
 
-    orient = new Orient(nEJkeep, nEJwant, EJ, EJctl, EJlogfile, EJdT, EJdamp);
+    orient = new Orient(nEJkeep, nEJwant, nEJaccel,
+			EJ, EJctl, EJlogfile, EJdT, EJdamp);
     
     if (restart && (EJ & Orient::CENTER)) {
       Eigen::VectorXd::Map(&center[0], 3) = orient->currentCenter();
+      std::tie(accel, omega, domdt) = orient->currentAccel();
     } else {
       if (EJlinear) orient -> set_linear();
       if (not com_system) {
@@ -3107,6 +3120,7 @@ void Component::fix_positions_cpu(unsigned mlevel)
 
   if ((EJ & Orient::CENTER) && !EJdryrun) {
     auto ctr = orient->currentCenter();
+    std::tie(accel, omega, domdt) = orient->currentAccel();
     bool ok    = true;
     for (int i=0; i<3; i++) {
       if (std::isnan(ctr[i])) ok = false;
@@ -3942,3 +3956,23 @@ void Component::AddPart(PartPtr p)
   nbodies = particles.size();
 }
 
+Eigen::Vector3d& Component::getPseudoAccel(double* pos, double* vel)
+{
+  pseudo.setZero();
+
+  if (EJdryrun) return pseudo;
+
+  if (EJ & Orient::CENTER) {
+    pseudo += accel;
+  }
+
+  if (EJ & Orient::AXIS) {
+    Eigen::Map<const Eigen::Vector3d> P(pos);
+    Eigen::Map<const Eigen::Vector3d> V(vel);
+
+    // Coriolis + Euler + Centrifugal forces
+    pseudo += 2.0*omega.cross(V) + domdt.cross(P) + omega.cross(omega.cross(P));
+  }
+
+  return pseudo;
+}

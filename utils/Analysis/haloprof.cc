@@ -811,8 +811,8 @@ main(int argc, char **argv)
       // Density weight COM
       //
       if (KD) {
-	typedef point <double, 3> point3;
-	typedef kdtree<double, 3> tree3;
+	using point3 = KDtree::point <double, 3>;
+	using tree3  = KDtree::kdtree<double, 3>;
 
 	std::vector<point3> points;
 

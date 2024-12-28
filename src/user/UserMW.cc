@@ -207,9 +207,9 @@ void * UserMW::determine_acceleration_and_potential_thread(void * arg)
     double zacc = az1 + az2 + az3 + az4;
 
 		// Add acceleration to particle
-    cC->AddAcc(i, 0, xacc );
-    cC->AddAcc(i, 1, yacc );
-    cC->AddAcc(i, 2, zacc );
+    cC->AddAccExt(i, 0, xacc );
+    cC->AddAccExt(i, 1, yacc );
+    cC->AddAccExt(i, 2, zacc );
 
 		// Add external potential
     cC->AddPotExt(i, pot);

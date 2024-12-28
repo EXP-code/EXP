@@ -16,8 +16,7 @@ typedef std::shared_ptr<BiorthCyl> CylPtr;
 /** Computes the potential, acceleration and density using an empirical
     function analysis for a flat Bessel basis and a target density
 
-    \param acyltbl is the scale length of target density (default is
-    0.6)
+    Parameters
 
     \param rcylmin is the minimum value in the table for the 
     radial basis functions (default is 0.0)
@@ -28,22 +27,33 @@ typedef std::shared_ptr<BiorthCyl> CylPtr;
     \param scale is the expansion factor to get the physical scale from
     the internal scale (default is 0.01)
 
+    \param mmax is the maximum azimuthal order
+
     \param numx is the number of grid points in the scaled radial direction
 
     \param numy is the number of grid points in the scaled vertical direction
-
-    \param numr is the number radial coordinate knots in the table 
-    (default is 1000)
-
-    \param nfid is the number of basis elements used in the EOF computation
 
     \param knots is the number of quadrature points for EmpCyl2d
 
     \param logr scales the EmpCyl2d grid logarithmically
 
-    \param model name for EmpCyl2d (default: expon)
+    \param model name for conditioning the new basis using EmpCyl2d (default: expon)
 
-    \param biorth set for EmpCyl2d (default: bess)
+    \param biorth is the biorthogonal basis set used by EmpCyl2d for conditioning (default: bess)
+
+    \param background sets a fixed monopole potential and force for the model.  Used for stability analysis of disks with active and inactive tapers, following Zang
+
+    \param nmaxfid is the maximum radial order for the basis used by EmpCyl2d for conditioning
+
+    \param numr is the number of grid points in the radial direction for the numerical basis in EmpCyl2d
+
+    \param NQDHT is the number of grid points for the numerical Hankel transform
+
+    \param diskconf is a YAML configuration for the target disk model in EmpCyl2d
+
+    \param cachename is the name of the cache file for the newly constructed basis
+
+    \param dumpbasis provides the user with a ascii table of the basis potential-density pairs
 */
 class FlatDisk : public PolarBasis 
 {
@@ -65,7 +75,7 @@ private:
   virtual void initialize_cuda()
   {
     sampT = floor(sqrt(component->CurTotal()));
-    ortho->initialize_cuda(cuInterpArray, tex);
+    ortho->initialize_cuda(disk, cuInterpArray, tex);
   }
 
   virtual cudaMappingConstants getCudaMappingConstants()
@@ -74,14 +84,18 @@ private:
   }
 #endif
 
+  //! Background instance
+  using Disk2d = std::shared_ptr<EmpCyl2d::ModelCyl>;
+  Disk2d disk;
+
+  //! Set background from YAML
+  void setBackground();
+
   //! Background evaluation
   virtual std::tuple<double, double, double>
-  get_pot_background(double r, double z)
-  {
-    auto [p, dr, dz] = ortho->background(r, z);
-    return {p, -dr, -dz};
-  }
-
+  background(double r, double z)
+  { return {disk->pot(r), -disk->dpot(r), 0.0}; }
+  
   void get_dens(double r, double z, Eigen::MatrixXd& p, int tid);
 
   void get_potl_dens(double r, double z,
@@ -98,6 +112,8 @@ private:
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  bool   dump_basis;
 
 protected:
 
