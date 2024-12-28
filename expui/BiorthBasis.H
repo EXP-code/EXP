@@ -529,7 +529,7 @@ namespace BasisClasses
 
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
-    std::vector<Eigen::MatrixXd> orthoCheck();
+    std::vector<Eigen::MatrixXd> orthoCheck(int knots=400);
 
     //! Biorthogonality sanity check
     bool orthoTest()
@@ -537,6 +537,157 @@ namespace BasisClasses
       auto [ret, worst, lworst] = orthoCompute(orthoCheck());
       // For the CTest log
       std::cout << "FlatDisk::orthoTest: worst=" << worst << std::endl;
+      return ret;
+    }
+
+  };
+  
+  /**
+     Uses the Clutton-Brock basis to evaluate expansion coeffients and
+     provide potential and density basis fields
+  */
+  class CBDisk : public BiorthBasis
+  {
+
+  public:
+
+    using BasisMap   = std::map<std::string, Eigen::VectorXd>;
+    using BasisArray = std::vector<std::vector<BasisMap>>;
+
+  private:
+    
+    //! Helper for constructor
+    void initialize();
+
+    int mmax, nmax;
+    double scale;
+    
+    bool NO_M0, NO_M1, EVEN_M, M0_only;
+    
+    std::vector<Eigen::MatrixXd> potd, potR, potZ, dend;
+    
+    Eigen::MatrixXd expcoef;
+    int N1, N2;
+    int used;
+    
+    using matT = std::vector<Eigen::MatrixXd>;
+    using vecT = std::vector<Eigen::VectorXd>;
+    
+    double totalMass;
+    int npart;
+    
+    Eigen::VectorXd work;
+    
+    //! For coefficient writing
+    typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
+    EigenColMajor;
+    
+    //! Get potential
+    void get_pot(Eigen::MatrixXd& tab, double r);
+
+    //! Get density
+    void get_dens(Eigen::MatrixXd& tab, double r);
+
+    //! Get force
+    void get_force(Eigen::MatrixXd& tab, double r);
+
+    //@{
+    //! 2D Clutton-Brock basis
+    double phif(const int n, const int m, const double r);
+    double dphi(const int n, const int m, const double r);
+    
+    double potl(const int n, const int m, const double r);
+    double dpot(const int n, const int m, const double r);
+    double dens(const int n, const int m, const double r);
+    
+    double norm(const int n, const int m);
+
+    void potl(const int m, const double r, Eigen::VectorXd& a);
+    void dpot(const int m, const double r, Eigen::VectorXd& a);
+    void dens(const int m, const double r, Eigen::VectorXd& a);
+    //@}
+
+    //! Potential, force, and density scaling
+    double fac1, fac2;
+
+  protected:
+
+    //! Evaluate basis in cylindrical coordinates
+    virtual std::vector<double>
+    cyl_eval(double R, double z, double phi);
+      
+    //! Evaluate basis in spherical coordinates.  Conversion from the
+    //! cylindrical evaluation above.
+    virtual std::vector<double>
+    sph_eval(double r, double costh, double phi);
+    
+    // Cartesian
+    virtual std::vector<double>
+    crt_eval(double x, double y, double z);
+    
+    //! Load coefficients into the new CoefStruct
+    virtual void load_coefs(CoefClasses::CoefStrPtr coefs, double time);
+
+    //! Set coefficients
+    virtual void set_coefs(CoefClasses::CoefStrPtr coefs);
+
+    //! Valid keys for YAML configurations
+    static const std::set<std::string> valid_keys;
+
+    //! Return readable class name
+    virtual const std::string classname() { return "CBDisk";}
+
+    //! Subspace index
+    virtual const std::string harmonic() { return "m";}
+
+  public:
+    
+    //! Constructor from YAML node
+    CBDisk(const YAML::Node& conf);
+    
+    //! Constructor from YAML string
+    CBDisk(const std::string& confstr);
+    
+    //! Destructor
+    virtual ~CBDisk(void) {}
+    
+    //! Print and return the cache parameters
+    static std::map<std::string, std::string>
+    cacheInfo(const std::string& cachefile)
+    {
+      return BiorthCyl::cacheInfo(cachefile);
+    }
+
+    //! Zero out coefficients to prepare for a new expansion
+    void reset_coefs(void);
+    
+    //! Make coefficients after accumulation
+    void make_coefs(void);
+    
+    //! Accumulate new coefficients
+    virtual void accumulate(double x, double y, double z, double mass);
+    
+    //! Return current maximum harmonic order in expansion
+    int getMmax() { return mmax; }
+    
+    //! Return current maximum order in radial expansion
+    int getNmax() { return nmax; }
+
+    //! Return a vector of a vector of 1d basis-function grids for
+    //! CBDisk, logarithmically spaced between [logxmin, logxmax]
+    //! (base 10).
+    BasisArray getBasis(double logxmin=-3.0, double logxmax=0.5, int numgrid=2000);
+
+    //! Compute the orthogonality of the basis by returning inner
+    //! produce matrices
+    std::vector<Eigen::MatrixXd> orthoCheck(int knots=4000);
+
+    //! Biorthogonality sanity check
+    bool orthoTest()
+    {
+      auto [ret, worst, lworst] = orthoCompute(orthoCheck());
+      // For the CTest log
+      std::cout << "CBDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
 
@@ -676,7 +827,7 @@ namespace BasisClasses
 
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
-    std::vector<Eigen::MatrixXd> orthoCheck()
+    std::vector<Eigen::MatrixXd> orthoCheck(int knots=40)
     {
       return sl->orthoCheck();
     }
@@ -813,7 +964,7 @@ namespace BasisClasses
 
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
-    std::vector<Eigen::MatrixXd> orthoCheck();
+    std::vector<Eigen::MatrixXd> orthoCheck(int knots=40);
 
     //! Biorthogonality sanity check
     bool orthoTest()
@@ -937,12 +1088,12 @@ namespace BasisClasses
     
     //! Compute the orthogonality of the basis by returning inner
     //! produce matrices
-    Eigen::MatrixXcd orthoCheck();
+    std::vector<Eigen::MatrixXd> orthoCheck(int knots=40);
 
     //! Biorthogonality sanity check
     bool orthoTest()
     {
-      auto c = orthoCheck();
+      auto c = orthoCheck()[0];
       double worst = 0.0;
       for (int n1=0; n1<c.rows(); n1++) {
 	for (int n2=0; n2<c.cols(); n2++) {

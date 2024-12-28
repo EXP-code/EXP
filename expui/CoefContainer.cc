@@ -107,6 +107,8 @@ namespace MSSA
       pack_cube();
     else if (dynamic_cast<CoefClasses::TableData*>(coefs.get()))
       pack_table();
+    else if (dynamic_cast<CoefClasses::TrajectoryData*>(coefs.get()))
+      pack_traj();
     else if (dynamic_cast<CoefClasses::SphFldCoefs*>(coefs.get()))
       pack_sphfld();
     else if (dynamic_cast<CoefClasses::CylFldCoefs*>(coefs.get()))
@@ -780,6 +782,89 @@ namespace MSSA
       for (unsigned c=0; c<cols; c++) {
 	Key key = {c};
 	(*cf->coefs)(c) = data[key][i];
+      }
+      // End field loop
+    }
+    // END time loop
+
+  }
+
+
+  void CoefDB::pack_traj()
+  {
+    auto cur = dynamic_cast<CoefClasses::TrajectoryData*>(coefs.get());
+
+    times = cur->Times();
+    complexKey = false;
+
+    auto cf = dynamic_cast<CoefClasses::TrajStruct*>
+      ( cur->getCoefStruct(times[0]).get() );
+
+    int traj    = cf->traj;
+    int rank    = cf->rank;
+    int ntimes  = times.size();
+    
+    // Promote desired keys which are the data columns
+    //
+    keys.clear();
+    for (auto v : keys0) {
+      if (v.size() != 1) {
+	std::ostringstream sout;
+	sout << "CoefDB::pack_traj: key vector should have rank 1; "
+	     << "found rank " << v.size() << " instead";
+	throw std::runtime_error(sout.str());
+      }
+      else if (v[0] >= traj) {
+	std::ostringstream sout;
+	sout << "CoefDB::pack_traj: requested key=" << v[0]
+	     << " exceeded the number of trajectories, " << traj;
+	throw std::runtime_error(sout.str());
+      }
+      else keys.push_back(v);	// OKAY
+    }
+
+    // No bkeys for a trajectory
+    //
+    bkeys.clear();
+
+    for (unsigned m=0; m<traj; m++) {
+      Key key {m};
+      data[key].resize(ntimes*rank);
+    }
+
+    for (int t=0; t<ntimes; t++) {
+      for (unsigned m=0; m<traj; m++) {
+	Key key {m};
+
+	cf = dynamic_cast<CoefClasses::TrajStruct*>
+	  ( cur->getCoefStruct(times[t]).get() );
+
+	for (int n=0; n<rank; n++) {
+	  data[key][t*rank+n] = (*cf->coefs)(m, n).real();
+	}
+
+      }
+    }
+  }
+
+  void CoefDB::unpack_traj()
+  {
+    auto cf = dynamic_cast<CoefClasses::TrajStruct*>
+      ( coefs->getCoefStruct(times[0]).get() );
+
+    int traj    = cf->traj;
+    int rank    = cf->rank;
+    int ntimes  = times.size();
+    
+    for (int t=0; t<ntimes; t++) {
+
+      auto cf = dynamic_cast<CoefClasses::TrajStruct*>
+	( coefs->getCoefStruct(times[t]).get() );
+
+      for (unsigned m=0; m<traj; m++) {
+	Key key {m};
+	for (int n=0; n<rank; n++)
+	  (*cf->coefs)(m, n) = data[key][t*rank+n];
       }
       // End field loop
     }

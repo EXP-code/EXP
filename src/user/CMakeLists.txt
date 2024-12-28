@@ -32,8 +32,8 @@ set(halo_SRC      UserHalo.cc)
 set(mndisk_SRC    UserMNdisk.cc)
 set(mwgala_SRC    UserMW.cc)
 
-if (ENABLE_CUDA)
-  set(cudatest_Src UserTestCuda.cc cudaUserTest.cu)
+if(ENABLE_CUDA)
+  set(cudatest_SRC UserTestCuda.cc cudaUserTest.cu)
 endif()
 
 foreach(mlib ${USER_MODULES})

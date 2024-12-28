@@ -541,6 +541,49 @@ void MSSAtoolkitClasses(py::module &m) {
 	    power value
 	)");
 
+
+  f.def("getKoopmanModes", &expMSSA::getKoopmanModes,
+	R"(
+        Compute the Koopman mode estimate from the right-singular vectors
+
+        Uses eDMD to estimate the modes
+
+        Parameters
+        ----------
+        tol : double
+            singular value truncation level
+        window: int
+            Smoothing between serialized channels (0 for no smoothing)
+        debug : bool
+            flag indicating whether to print debug information
+
+        Notes
+        -----
+        Use getReconstructedKoopman() to copy the reconstruction for a
+        particular mode back to the coefficient db
+
+        Returns
+        -------
+        tuple(numpy.ndarray, numpy.ndarray)
+            vector of eigenvalues and modes
+    )", py::arg("tol")=1.0e-12, py::arg("window")=0, py::arg("debug")=false);
+
+  f.def("getReconstructedKoopman", &expMSSA::getReconstructedKoopman,
+	R"(
+        Reconstruct the coefficients for a particular Koopman mode
+
+        Parameters
+        ----------
+        mode: int
+            The index of the mode to be reconstructed
+
+        Returns
+        -------
+        dict({id: Coefs},...)
+             reconstructed time series in the original coefficient form
+
+    )", py::arg("mode"));
+
   f.def("getRC", &expMSSA::getRC,
 	R"(
         Access the detrended reconstructed channel series by internal key

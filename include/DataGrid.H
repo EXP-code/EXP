@@ -8,10 +8,7 @@
 #include <config_exp.h>
 
 #include <TableGrid.H>
-#ifdef HAVE_VTK
 #include <VtkGrid.H>
-#endif
-
 
 /**
    This implementation of ThreeDGrid instantiates at VtkGrid if VTK is
@@ -32,19 +29,22 @@ public:
   DataGrid(int nx, int ny, int nz,
 	   double xmin, double xmax,
 	   double ymin, double ymax,
-	   double zmin, double zmax)
+	   double zmin, double zmax,
+	   std::string type="VTK")
   {
-#ifdef HAVE_VTK
-    ptr = std::make_shared<VtkGrid>(nx, ny, nz,
-				    xmin, xmax,
-				    ymin, ymax,
-				    zmin, zmax);
-#else    
-    ptr = std::make_shared<TableGrid>(nx, ny, nz,
+    std::transform(type.begin(), type.end(), type.begin(), 
+                   [](unsigned char c){ return std::tolower(c); });
+
+    if (type.compare("vtk") == 0)
+      ptr = std::make_shared<VtkGrid>(nx, ny, nz,
 				      xmin, xmax,
 				      ymin, ymax,
 				      zmin, zmax);
-#endif
+    else
+      ptr = std::make_shared<TableGrid>(nx, ny, nz,
+					xmin, xmax,
+					ymin, ymax,
+					zmin, zmax);
   }
     
   //! Add data

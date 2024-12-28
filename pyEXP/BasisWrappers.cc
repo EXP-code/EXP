@@ -33,19 +33,21 @@ void BasisFactoryClasses(py::module &m)
      3. Cylindrical, created created by computing empirical orthogonal functions
         over a densely sampled SphericalSL basis;
 
-     4. FlatDisk, an EOF rotation of the finite Bessel basis; and
+     4. FlatDisk, an EOF rotation of the finite Bessel basis;
 
-     5. Slab, a biorthogonal basis for a slab geometry with a finite
+     5. CBDisk, the Clutton-Brock disk basis for testing;
+
+     6. Slab, a biorthogonal basis for a slab geometry with a finite
         finite vertical extent.  The basis is constructed from direct
         solution of the Sturm-Liouville equation.
 
-     6. Cube, a periodic cube basis whose functions are the Cartesian
+     7. Cube, a periodic cube basis whose functions are the Cartesian
         eigenfunctions of the Cartesian Laplacian: sines and cosines.
 
-     7. FieldBasis, for computing user-provided quantities from a
+     8. FieldBasis, for computing user-provided quantities from a
         phase-space snapshot.
 
-     8. VelocityBasis, for computing the mean field velocity fields from
+     9. VelocityBasis, for computing the mean field velocity fields from
         a phase-space snapshot.  This is a specialized version of FieldBasis.
 
     Each of these bases take a YAML configuration file as input. These parameter
@@ -159,11 +161,13 @@ void BasisFactoryClasses(py::module &m)
 
      3. FlatDisk uses cylindrical coordinates
 
-     4. Slab uses Cartesian coordinates
+     4. CBDisk uses cylindrical coordinates
 
-     5. Cube uses Cartesian coordinates
+     5. Slab uses Cartesian coordinates
 
-     6. FieldBasis and VelocityBasis provides two natural geometries for
+     6. Cube uses Cartesian coordinates
+
+     7. FieldBasis and VelocityBasis provides two natural geometries for
         field evaluation: a two-dimensional (dof=2) polar disk and a
         three-dimensional (dof=3) spherical geometry that are chosen using
         the 'dof' parameter.  These use cylindrical and spherical
@@ -577,6 +581,71 @@ void BasisFactoryClasses(py::module &m)
     void make_coefs(void) override
     {
       PYBIND11_OVERRIDE(void, FlatDisk, make_coefs,);
+    }
+
+  };
+
+
+  class PyCBDisk : public CBDisk
+  {
+  protected:
+
+    std::vector<double> sph_eval(double r, double costh, double phi) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, CBDisk, sph_eval, r, costh, phi);
+    }
+    
+    std::vector<double> cyl_eval(double R, double z, double phi) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, CBDisk, cyl_eval, R, z, phi);
+    }
+    
+    std::vector<double> crt_eval(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, CBDisk, crt_eval, x, y, z);
+    }
+    
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override
+    {
+      PYBIND11_OVERRIDE(void, CBDisk, load_coefs, coefs, time);
+    }
+    
+    void set_coefs(CoefClasses::CoefStrPtr coefs) override
+    {
+      PYBIND11_OVERRIDE(void, CBDisk, set_coefs, coefs);
+    }
+
+    const std::string classname() override {
+      PYBIND11_OVERRIDE(std::string, CBDisk, classname);
+    }
+
+    const std::string harmonic() override {
+      PYBIND11_OVERRIDE(std::string, CBDisk, harmonic);
+    }
+
+  public:
+
+    // Inherit the constructors
+    using CBDisk::CBDisk;
+
+    std::vector<double> getFields(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getFields, x, y, z);
+    }
+
+    void accumulate(double x, double y, double z, double mass) override
+    {
+      PYBIND11_OVERRIDE(void, CBDisk, accumulate, x, y, z, mass);
+    }
+
+    void reset_coefs(void) override
+    {
+      PYBIND11_OVERRIDE(void, CBDisk, reset_coefs,);
+    }
+
+    void make_coefs(void) override
+    {
+      PYBIND11_OVERRIDE(void, CBDisk, make_coefs,);
     }
 
   };
@@ -1064,9 +1133,9 @@ void BasisFactoryClasses(py::module &m)
          Set the coordinate system for force evaluations.  The natural 
          coordinates for the basis class are the default; spherical
          coordinates for SphericalSL and Bessel, cylindrical coordinates for
-         Cylindrical and FlatDisk, and Cartesian coordinates for the Slab
-         and Cube. This member function can be used to override the default.  
-         The available coorindates are: 'spherical', 'cylindrical', 
+         Cylindrical, FlatDisk, and CBDisk, and Cartesian coordinates for the 
+         Slab and Cube. This member function can be used to override the
+         default. The available coorindates are: 'spherical', 'cylindrical', 
          'cartesian'.
 
          Parameters
@@ -1562,6 +1631,94 @@ void BasisFactoryClasses(py::module &m)
     .def_static("cacheInfo", [](std::string cachefile)
     {
       return BasisClasses::FlatDisk::cacheInfo(cachefile);
+    },
+      R"(
+      Report the parameters in a basis cache file and return a dictionary
+
+      Parameters
+      ----------
+      cachefile : str
+          name of cache file
+
+      Returns
+      -------
+      out : dict({tag: value})
+          cache parameters
+      )",
+      py::arg("cachefile"));
+
+  py::class_<BasisClasses::CBDisk, std::shared_ptr<BasisClasses::CBDisk>, PyCBDisk, BasisClasses::BiorthBasis>(m, "CBDisk")
+    .def(py::init<const std::string&>(),
+	 R"(
+         Create a Clutton-Brock 2d disk basis
+
+         Parameters
+         ----------
+         YAMLstring : str
+             The YAML configuration for the razor-thin EOF basis.  The default 
+             parameters will give an exponential disk with scale length of
+             0.01 units. Set the disk scale length using the 'scale'  parameter.
+
+         Returns
+         -------
+         CBDisk
+             the new instance
+         )", py::arg("YAMLstring"))
+    .def("getBasis", &BasisClasses::CBDisk::getBasis,
+	 R"(
+         Evaluate the potential-density basis functions
+
+         Returned functions will linearly spaced 2d-grid for inspection. The 
+         min/max radii are given in log_10 units.  The structure is a two-grid of 
+         dimension mmax by nmax each pointing to a dictionary of 1-d arrays 
+         ('potential', 'density', 'rforce') of dimension numr.
+
+         Parameters
+         ----------
+         logxmin : float, default=-4.0
+             the minimum radius in log10 scaled units
+         logxmax : float, default=-1.0
+             the maximum radius in log10 scaled units
+         numr : int
+             the number of output evaluations
+
+         Returns
+         -------
+         list(dict{str: numpy.ndarray})
+             list of lists of dictionaries in harmonic and radial pointing to 
+             density and potential basis functions
+         )",
+	 py::arg("logxmin")=-4.0,
+	 py::arg("logxmax")=-1.0,
+	 py::arg("numr")=400)
+    // The following member needs to be a lambda capture because
+    // orthoCheck is not in the base class and needs to have different
+    // parameters depending on the basis type.  Here, the quadrature
+    // is determined by the scale of the meridional grid.
+    .def("orthoCheck", [](BasisClasses::CBDisk& A)
+    {
+      return A.orthoCheck();
+    },
+      R"(
+      Check orthgonality of basis functions by quadrature
+
+      Inner-product matrix of Sturm-Liouville solutions indexed by
+      harmonic order used to assess fidelity.
+
+      Parameters
+      ----------
+      knots : int, default=40
+          Number of quadrature knots
+
+      Returns
+      -------
+      list(numpy.ndarray)
+          list of numpy.ndarrays from [0, ... , Mmax]
+       )"
+      )
+    .def_static("cacheInfo", [](std::string cachefile)
+    {
+      return BasisClasses::CBDisk::cacheInfo(cachefile);
     },
       R"(
       Report the parameters in a basis cache file and return a dictionary

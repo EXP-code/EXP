@@ -335,7 +335,8 @@ namespace PR {
 	const H5std_string GROUP_NAME_what ("/Header");
       
 	H5::H5File    file( FILE_NAME, H5F_ACC_RDONLY );
-	H5::Group     what(file.openGroup( GROUP_NAME_what ));
+	// H5::Group     what(file.openGroup( GROUP_NAME_what ));
+	H5::Group     what = file.openGroup( GROUP_NAME_what );
       
 	// Get time
 	{
@@ -415,7 +416,8 @@ namespace PR {
       const H5std_string GROUP_NAME_what ("/Header");
       
       H5::H5File    file( FILE_NAME, H5F_ACC_RDONLY );
-      H5::Group     what(file.openGroup( GROUP_NAME_what ));
+      // H5::Group     what(file.openGroup( GROUP_NAME_what ));
+      H5::Group     what = file.openGroup( GROUP_NAME_what );
       
       // Get time
       {
@@ -448,7 +450,8 @@ namespace PR {
 	totalCount = npart[ptype];
 
 	std::string grpnam = "/" + sout.str();
-	H5::Group grp(file.openGroup(grpnam));
+	// H5::Group grp(file.openGroup(grpnam));
+	H5::Group grp = file.openGroup(grpnam);
 	H5::DataSet dataset = grp.openDataSet("Coordinates");
 	H5::DataSpace dataspace = dataset.getSpace();
 	

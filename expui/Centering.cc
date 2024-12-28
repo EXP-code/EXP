@@ -21,8 +21,8 @@ namespace Utility
 
     std::vector<double> ctr(3, 0.0);
 
-    typedef point <double, 3> point3;
-    typedef kdtree<double, 3> tree3;
+    using point3 = KDtree::point<double, 3>;
+    using tree3  = KDtree::kdtree<double, 3>;
 
     std::vector<point3> points;
 

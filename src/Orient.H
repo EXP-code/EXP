@@ -8,6 +8,7 @@
 
 #include <euler.H>
 #include <Particle.H>
+#include <PseudoAccel.H>
 
 #include <config_exp.h>
 
@@ -97,6 +98,9 @@ private:
   double damp;
   Eigen::Matrix3d body, orig;
   Eigen::Vector3d axis, center, axis1, center1, center0, cenvel0;
+  Eigen::Vector3d pseudo = Eigen::Vector3d::Zero();
+  Eigen::Vector3d omega  = Eigen::Vector3d::Zero();
+  Eigen::Vector3d domdt  = Eigen::Vector3d::Zero();
   double sumX, sumX2;
   Eigen::Vector3d sumY, sumY2, sumXY, slope, intercept;
   double sigA, sigC, sigCz;
@@ -110,8 +114,10 @@ private:
   string logfile;
   bool linear;
   
-  vector<double> pos, psa, vel;
+  std::vector<double> pos, psa, vel;
   
+  std::shared_ptr<PseudoAccel> accel;
+
   void accumulate_cpu(double time, Component* c);
 #if HAVE_LIBCUDA==1
   void accumulate_gpu(double time, Component* c);
@@ -125,7 +131,7 @@ public:
   enum ControlFlags {DIAG=1, KE=2, EXTERNAL=4};
   
   //! Constructor
-  Orient(int number_to_keep, int target,
+  Orient(int number_to_keep, int target, int Naccel,
 	 unsigned orient_flags, unsigned control_flags, string logfile,
 	 double dt=0.0, double damping=1.0);
   
@@ -167,6 +173,16 @@ public:
   //! Return current center
   Eigen::Vector3d& currentCenter(void) {return center;};
   
+  //! Return current pseudo force, angular velocity, and angular
+  //! velocity derivative
+  const std::tuple<Eigen::Vector3d&, Eigen::Vector3d&, Eigen::Vector3d&>
+  currentAccel(void)
+  {
+    if (accel) return (*accel)();
+    pseudo.setZero();		// No acceleration or angular velocity
+    return {pseudo, pseudo, pseudo};
+  }
+
   //! Return variance of axis determination (linear least squares solution)
   double currentAxisVar(void) {return sigA;}
   
