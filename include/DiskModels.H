@@ -2,7 +2,7 @@
 #define _DISK_MODELS_H
 
 #include <EmpCylSL.H>
-
+#include <DiskDensityFunc.H>
 
 //! A Ferrers Ellipsoid + Evacuated Exponential Disc (semi-realistic
 //! bar+disk model)
@@ -223,5 +223,58 @@ public:
 
 };
 
-#endif
 
+//! The usual exponential disk + a Hernquist bulge
+class diskbulge : public EmpCylSL::AxiDisk
+{
+private:
+  double a, h, as, Mfac, d1, d2;
+
+public:
+
+  diskbulge(double a, double h, double as, double Mfac, double M=1) :
+    a(a), h(h), as(as), Mfac(Mfac), EmpCylSL::AxiDisk(M, "diskbulge")
+  {
+    params.push_back(a);
+    params.push_back(h);
+    params.push_back(as);
+    params.push_back(Mfac);
+  }
+
+  double operator()(double R, double z, double phi=0.)
+  {
+    double sh = 1.0/cosh(z/h);
+    d1 = 0.25*M*Mfac/(M_PI*a*a*h) * exp(-R/a) * sh * sh;
+
+    double rr = pow(pow(R, 2) + pow(z,2), 0.5);
+    d2 = M*(1-Mfac)*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0);
+
+    return d1 + d2;
+
+  }
+
+};
+
+
+//! A user-defined Python model
+class PyModel : public EmpCylSL::AxiDisk
+{
+private:
+
+  std::shared_ptr<DiskDensityFunc> pyDens;
+
+public:
+
+  PyModel(std::string& pyname)
+  {
+    pyDens = std::make_shared<DiskDensityFunc>(pyname);
+  }
+
+  double operator()(double R, double z, double phi=0.)
+  {
+    return (*pyDens)(R, z, phi);
+  }
+
+};
+
+#endif

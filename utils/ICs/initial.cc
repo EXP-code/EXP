@@ -92,6 +92,7 @@
 #include <numerical.H>
 #include <gaussQ.H>
 #include <isothermal.H>
+#include <DiskDensityFunc.H>
 #include <hernquist_model.H>
 #include <model3d.H>
 #include <biorth.H>
@@ -239,17 +240,20 @@ const double f_H = 0.76;
 
 // Global variables
 //
-enum DiskType { constant, gaussian, mn, exponential, doubleexpon };
+enum DiskType { constant, gaussian, mn, exponential, doubleexpon, diskbulge, python };
 
 std::map<std::string, DiskType> dtlookup =
   { {"constant",    DiskType::constant},
     {"gaussian",    DiskType::gaussian},
     {"mn",          DiskType::mn},
     {"exponential", DiskType::exponential},
-    {"doubleexpon", DiskType::doubleexpon}
+    {"doubleexpon", DiskType::doubleexpon},
+    {"diskbulge",   DiskType::diskbulge},
+    {"python",      DiskType::python}
   };
 
 DiskType     DTYPE;
+std::string  pyname;
 double       ASCALE;
 double       ASHIFT;
 double       HSCALE;
@@ -258,12 +262,15 @@ double       RWIDTH  = 0.0;
 double       ARATIO  = 1.0;
 double       HRATIO  = 1.0;
 double       DWEIGHT = 1.0;
+double       Mfac  = 1.0;
+double       HERNA = 0.10;
 
 #include <Particle.H>
 
 double DiskDens(double R, double z, double phi)
 {
   double ans = 0.0;
+  static std::shared_ptr<DiskDensityFunc> dfunc;
 
   switch (DTYPE) {
 
@@ -302,6 +309,27 @@ double DiskDens(double R, double z, double phi)
       ans =
 	w1*exp(-R/a1)/(4.0*M_PI*a1*a1*h1*f1*f1) +
 	w2*exp(-R/a2)/(4.0*M_PI*a2*a2*h2*f2*f2) ;
+    }
+    break;
+
+  case DiskType::diskbulge:
+    {
+      double acyl = ASCALE;
+      double hcyl = HSCALE;
+      double f = cosh(z/HSCALE);
+      double rr = pow(pow(R, 2) + pow(z,2), 0.5);
+      double w1 = Mfac;
+      double w2 = (1-Mfac);
+      double as = HERNA;
+
+      ans = w1*exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f) + 
+            w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0);
+    }
+    break;
+  case DiskType::python:
+    {
+      if (!dfunc) dfunc = std::make_shared<DiskDensityFunc>(pyname);
+      ans = (*dfunc)(R, z, phi);
     }
     break;
   case DiskType::exponential:
@@ -529,6 +557,10 @@ main(int ac, char **av)
      cxxopts::value<double>(ARATIO)->default_value("1.0"))
     ("HRATIO", "Vertical scale height ratio for disk basis construction with doubleexpon",
      cxxopts::value<double>(HRATIO)->default_value("1.0"))
+    ("Mfac", "Mass fraction of the disk for diskbulge model, sets disk/bulge mass (e.g. 0.75 -> 75% of mass in disk, 25% of mass in bulge)",
+     cxxopts::value<double>(Mfac)->default_value("1.0"))
+    ("HERNA", "Hernquist scale a parameter in diskbulge model",
+     cxxopts::value<double>(HERNA)->default_value("0.10"))
     ("DWEIGHT", "Ratio of second disk relative to the first disk for disk basis construction with double-exponential",
      cxxopts::value<double>(DWEIGHT)->default_value("1.0"))
     ("RTRUNC", "Maximum disk radius for erf truncation of EOF conditioning density",
@@ -576,6 +608,8 @@ main(int ac, char **av)
     ("allow", "Allow multimass algorithm to generature negative masses for testing")
     ("nomono", "Allow non-monotonic mass interpolation")
     ("diskmodel", "Table describing the model for the disk plane")
+    ("pyname", "Name of module with the user-specified target disk density",
+     cxxopts::value<std::string>(pyname))
     ;
 
   cxxopts::ParseResult vm;
@@ -685,7 +719,7 @@ main(int ac, char **av)
     DTYPE = dtlookup.at(dtype);	// key is not in the map.
 
     if (myid==0)		// Report DiskType
-      std::cout << "DiskType is <" << dtype << ">" << std::endl;
+      std::cout << "---- DiskType is <" << dtype << ">" << std::endl;
   }
   catch (const std::out_of_range& err) {
     if (myid==0) {

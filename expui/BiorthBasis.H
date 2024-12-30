@@ -8,6 +8,7 @@
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
 
+#include <DiskDensityFunc.H>
 #include <ParticleReader.H>
 #include <Coefficients.H>
 #include <BiorthBess.H>
@@ -301,7 +302,7 @@ namespace BasisClasses
     {
       auto [ret, worst, lworst] = orthoCompute(orthoCheck(knots));
       // For the CTest log
-      std::cout << "Spherical::orthoTest: worst=" << worst << std::endl;
+      std::cout << "---- Spherical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
 
@@ -536,7 +537,7 @@ namespace BasisClasses
     {
       auto [ret, worst, lworst] = orthoCompute(orthoCheck());
       // For the CTest log
-      std::cout << "FlatDisk::orthoTest: worst=" << worst << std::endl;
+      std::cout << "---- FlatDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
 
@@ -741,18 +742,20 @@ namespace BasisClasses
 
     //@{
     //! Basis construction parameters
-    double aratio, hratio, dweight, rwidth, ashift, rfactor, rtrunc, ppow;
+    double aratio, hratio, dweight, rwidth, ashift, rfactor, rtrunc, ppow, Mfac, HERNA;
     bool Ignore, deproject;
+    std::string pyname;
 
     //! DiskType support
     //
-    enum DiskType { constant, gaussian, mn, exponential, doubleexpon };
+    enum DiskType { constant, gaussian, mn, exponential, doubleexpon, diskbulge, python };
     DiskType DTYPE;
     std::string mtype, dtype, dmodel;
 
     static const std::map<std::string, DiskType> dtlookup;
     double DiskDens(double R, double z, double phi);
     double dcond(double R, double z, double phi, int M);
+    std::shared_ptr<DiskDensityFunc> pyDens;
 
   protected:
 
@@ -837,7 +840,7 @@ namespace BasisClasses
     {
       auto [ret, worst, lworst] = orthoCompute(sl->orthoCheck());
       // For the CTest log
-      std::cout << "Cylindrical::orthoTest: worst=" << worst << std::endl;
+      std::cout << "---- Cylindrical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
   };
@@ -981,7 +984,7 @@ namespace BasisClasses
 	}
       }
 	
-      std::cout << "Slab::orthoTest: worst=" << worst << std::endl;
+      std::cout << "---- Slab::orthoTest: worst=" << worst << std::endl;
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }
@@ -1103,7 +1106,7 @@ namespace BasisClasses
 	}
       }
 	
-      std::cout << "Cube::orthoTest: worst=" << worst << std::endl;
+      std::cout << "---- Cube::orthoTest: worst=" << worst << std::endl;
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }

@@ -60,6 +60,7 @@ namespace BasisClasses
     "self_consistent",
     "cachename",
     "modelname",
+    "pyname",
     "rnum"
   };
 
@@ -860,7 +861,9 @@ namespace BasisClasses
       {"gaussian",    DiskType::gaussian},
       {"mn",          DiskType::mn},
       {"exponential", DiskType::exponential},
-      {"doubleexpon", DiskType::doubleexpon}
+      {"doubleexpon", DiskType::doubleexpon},
+      {"diskbulge",   DiskType::diskbulge},
+      {"python",      DiskType::python}
     };
 
   const std::set<std::string>
@@ -911,6 +914,8 @@ namespace BasisClasses
     "aratio",
     "hratio",
     "dweight",
+    "Mfac",
+    "HERNA",
     "rwidth",
     "rfactor",
     "rtrunc",
@@ -921,7 +926,8 @@ namespace BasisClasses
     "self_consistent",
     "playback",
     "coefCompute",
-    "coefMaster"
+    "coefMaster",
+    "pyname"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
@@ -979,6 +985,22 @@ namespace BasisClasses
 	  w1*exp(-R/a1)/(4.0*M_PI*a1*a1*h1*f1*f1) +
 	  w2*exp(-R/a2)/(4.0*M_PI*a2*a2*h2*f2*f2) ;
       }
+      break;
+
+    case DiskType::diskbulge:
+      {
+	double f  = cosh(z/hcyl);
+	double rr = pow(pow(R, 2) + pow(z,2), 0.5);
+	double w1 = Mfac;
+	double w2 = 1.0 - Mfac;
+	double as = HERNA;
+	
+	ans = w1*exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f) + 
+	  w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0) ;
+      }
+      break;
+    case DiskType::python:
+      ans = (*pyDens)(R, z, phi);
       break;
     case DiskType::exponential:
     default:
@@ -1068,6 +1090,12 @@ namespace BasisClasses
     // Ratio of second disk relative to the first disk for disk basis construction with double-exponential
     dweight     = 1.0;              
 
+    // mass fraction for disk for diskbulge
+    Mfac      = 1.0; 
+
+    // Hernquist scale a disk basis construction with diskbulge
+    HERNA      = 0.10; 
+
     // Width for erf truncation for EOF conditioning density (ignored if zero)
     rwidth      = 0.0;             
 
@@ -1124,16 +1152,19 @@ namespace BasisClasses
       if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<bool>();
 
       if (conf["aratio"    ])      aratio = conf["aratio"    ].as<double>();
-      if (conf["hratio"    ])      aratio = conf["hratio"    ].as<double>();
-      if (conf["dweight"   ])      aratio = conf["dweight"   ].as<double>();
-      if (conf["rwidth"    ])      aratio = conf["rwidth"    ].as<double>();
-      if (conf["ashift"    ])      aratio = conf["ashift"    ].as<double>();
+      if (conf["hratio"    ])      hratio = conf["hratio"    ].as<double>();
+      if (conf["dweight"   ])      dweight = conf["dweight"   ].as<double>();
+      if (conf["Mfac"   ])         Mfac = conf["Mfac"   ].as<double>();
+      if (conf["HERNA"   ])        HERNA = conf["HERNA"   ].as<double>();
+      if (conf["rwidth"    ])      rwidth = conf["rwidth"    ].as<double>();
+      if (conf["ashift"    ])      ashift = conf["ashift"    ].as<double>();
       if (conf["rfactor"   ])     rfactor = conf["rfactor"   ].as<double>();
       if (conf["rtrunc"    ])      rtrunc = conf["rtrunc"    ].as<double>();
       if (conf["pow"       ])        ppow = conf["ppow"      ].as<double>();
       if (conf["mtype"     ])       mtype = conf["mtype"     ].as<std::string>();
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
+      if (conf["pyname"    ])      pyname = conf["pyname"    ].as<std::string>();
 
       // Deprecation warning
       if (conf["density"   ]) {
@@ -1261,7 +1292,7 @@ namespace BasisClasses
 	DTYPE = dtlookup.at(dtype);	// key is not in the map.
 	
 	if (myid==0)		// Report DiskType
-	  std::cout << "DiskType is <" << dtype << ">" << std::endl;
+	  std::cout << "---- DiskType is <" << dtype << ">" << std::endl;
       }
       catch (const std::out_of_range& err) {
 	if (myid==0) {
@@ -1271,6 +1302,12 @@ namespace BasisClasses
 	  std::cout << std::endl;
 	}
 	throw std::runtime_error("Cylindrical::initialize: invalid DiskType");
+      }
+
+      // Check for and initialize the Python density type
+      //
+      if (DTYPE == DiskType::python) {
+	pyDens = std::make_shared<DiskDensityFunc>(pyname);
       }
 
       // Use these user models to deproject for the EOF spherical basis
