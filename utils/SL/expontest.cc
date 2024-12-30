@@ -11,6 +11,7 @@
 #include <PotRZ.H>		// Hankel computation for potential
 #include <gaussQ.H>		// Gauss-Legendre quadrature
 #include <cxxopts.H>
+#include <EXPmath.H>  // Compatibility for Mac
 
 int main(int argc, char** argv)
 {
@@ -87,8 +88,8 @@ int main(int argc, char** argv)
       
   auto potl = [A](double R) {
     double x = 0.5*R/A;
-    return M_PI*R*(std::cyl_bessel_i(1, x) * std::cyl_bessel_k(0, x) -
-		   std::cyl_bessel_i(0, x) * std::cyl_bessel_k(1, x) );
+    return M_PI*R*(AltMath::cyl_bessel_i(1, x) * AltMath::cyl_bessel_k(0, x) -
+		   AltMath::cyl_bessel_i(0, x) * AltMath::cyl_bessel_k(1, x) );
   };
 
   // Write the results
