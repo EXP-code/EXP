@@ -1,0 +1,52 @@
+name: Bug report
+description: Create a report describing unexpected or incorrect behavior in EXP.
+labels: Bug
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Thanks for taking the time to fill out this bug report! Please provide a clear and concise description of the bug you've encountered.
+  - type: dropdown
+    id: interface
+    attributes:
+      label: Interface
+      description: Which interface of EXP are you using?
+      options:
+        - pyEXP
+        - EXP N-body
+      default: 0
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: Version
+      description: How are you accessing EXP?
+      options:
+        - Docker
+        - Local compile
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: exactversion
+    attributes:
+      label: Exact Version
+      description: Please provide the exact version of EXP you are using. If using pyEXP, please provide the output of `python -c "import pyEXP; pyEXP.util.getVersionInfo()"`; If using N-body, please provide the output of `exp -v`.
+      render: shell
+  - type: textarea
+    attributes:
+      label: Description
+      description: >-
+        A clear and concise description of what the bug is.
+  - type: textarea
+    attributes:
+      label: Expected behavior
+      description: >-
+        A clear and concise description of what you expected to happen.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell
