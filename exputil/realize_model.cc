@@ -607,7 +607,7 @@ AxiSymModel::PSret AxiSymModel::gen_point_3d(double r, double theta, double phi)
     double dr = (get_max_radius() - rmin)/gen_N;
 
     for (int i=0; i<gen_N; i++) {
-      gen_rloc[i] = rmin + dr*i;
+      gen_rloc[i] = rmin + dr*(0.5+i);
       gen_mass[i] = get_mass(gen_rloc[i]);
 
       pot = get_pot(gen_rloc[i]);
@@ -632,6 +632,18 @@ AxiSymModel::PSret AxiSymModel::gen_point_3d(double r, double theta, double phi)
 
     }
     gen_firstime = false;
+
+    std::ofstream out("gen_point_3d.dat");
+    if (out) {
+      out << "# gen_point_3d[" << ModelID << "]" << std::endl
+	  << "# " << std::setw(14) << "r" << std::setw(16) << "mass"
+	  << std::endl;
+      for (int i=0; i<gen_N; i++) {
+	out << std::setw(16) << gen_rloc[i]
+	    << std::setw(16) << gen_mass[i]
+	    << std::endl;
+      }
+    }
   }
 
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
