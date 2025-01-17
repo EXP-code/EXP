@@ -4,7 +4,7 @@
 
 // Machine constant for Legendre
 //
-constexpr double MINEPS = 20.0*std::numeric_limits<double>::min();
+constexpr double MINEPS = 3.0*std::numeric_limits<double>::epsilon();
 
 Basis::Basis(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
