@@ -67,7 +67,7 @@ int
 main(int argc, char **argv)
 {
   int HMODEL, N, NUMDF, NUMR, NUMJ, NUME, NUMG, NREPORT, SEED, ITMAX;
-  int  NUMMODEL, RNUM, DIVERGE, DIVERGE2, LINEAR, NUMINT, NI, ND;
+  int NUMMODEL, RNUM, DIVERGE, DIVERGE2, LINEAR, NUMINT, NI, ND, Vquiet;
   double DIVERGE_RFAC, DIVERGE_RFAC2, NN, MM, RA, RMODMIN, RMOD, EPS;
   double X0, Y0, Z0, U0, V0, W0, TOLE;
   double Emin0, Emax0, Kmin0, Kmax0, RBAR, MBAR, BRATIO, CRATIO, SMOOTH;
@@ -179,6 +179,8 @@ main(int argc, char **argv)
      cxxopts::value<bool>(ELIMIT)->default_value("false"))
     ("VTEST", "Test gen_velocity() generation",
      cxxopts::value<bool>(VTEST)->default_value("false"))
+    ("Vquiet", "Number of angular points on a regular spherical grid (0 means no quiet)",
+     cxxopts::value<int>(Vquiet)->default_value("0"))
     ("Emin0", "Minimum energy (if ELIMIT=true)",
      cxxopts::value<double>(Emin0)->default_value("-3.0"))
     ("Emax0", "Maximum energy (if ELIMIT=true)",
@@ -703,23 +705,72 @@ main(int argc, char **argv)
   std::vector<Eigen::VectorXd> PS;
   Eigen::VectorXd zz = Eigen::VectorXd::Zero(7);
 
+  std::vector<double> rmass;
+  int nradial=0, nphi=0, ncost=0;
+  if (Vquiet) {
+    nphi = 2*Vquiet;
+    ncost = Vquiet;
+    nradial = floor(N/(nphi*ncost));
+    if (nradial*nphi*ncost < N) nradial++;
+    rmass.resize(nradial);
+
+    // Set up mass grid
+    double rmin = hmodel->get_min_radius();
+    double rmax = hmodel->get_max_radius();
+    double mmas = hmodel->get_mass(rmax);
+    double dmas = mmas/nradial;
+    for (int i=0; i<nradial; i++) {
+      double mas = dmas*(0.5+i);
+      auto loc = [&](double r) -> double
+      { return (mas - hmodel->get_mass(r)); };
+      rmass[i] = zbrent(loc, rmin, rmax, 1.0e-8);
+    }
+  }
+
   for (int n=beg; n<end; n++) {
 
     do {
-      if (ELIMIT)
-	ps = rmodel->gen_point(Emin0, Emax0, Kmin0, Kmax0, ierr);
+      if (Vquiet) {
+	// which radial ring
+	int nr = floor(n/(nphi*ncost));
+	int rm = n - nr*nphi*ncost;
+	// which elevational plane
+	int nt = rm/nphi;
+	// which azimuth
+	int np = rm - nt*nphi;
+
+	assert((nr>=0 && nr<nradial));
+	assert((nt>=0 && nt<ncost));
+	assert((np>=0 && np<nphi));
+
+	double r    = rmass[nr];
+	double cost = -1.0 + 2.0*nt/(ncost-1);
+	double phi  = 2.0*M_PI*np/nphi;
+	
+	std::tie(ps, ierr) = rmodel->gen_point(r, acos(cost), phi);
+
+	for (int i=0; i<3; i++) {
+	  if (std::isnan(ps[i+3])) {
+	    std::cout << "Vel NaN with r=" << r << " cost=" << cost << " phi=" << phi << std::endl;
+	  }
+	}
+      }
+      else if (ELIMIT)
+	std::tie(ps, ierr) = rmodel->gen_point(Emin0, Emax0, Kmin0, Kmax0);
       else if (VTEST) {
-	ps = rmodel->gen_point(ierr);
-	rmodel->gen_velocity(&ps[1], &ps[4], ierr);
-	if (ierr) {
-	  std::cout << "gen_velocity failed: "
-		    << ps[0] << " "
-		    << ps[1] << " "
-		    << ps[2] << "\n";
+	std::tie(ps, ierr) = rmodel->gen_point();
+	if (ierr==0) {
+	  ierr = rmodel->gen_velocity(&ps[1], &ps[4]);
+	  if (ierr) {
+	    std::cout << "gen_velocity failed: "
+		      << ps[0] << " "
+		      << ps[1] << " "
+		      << ps[2] << "\n";
+	  }
 	}
       }
       else
-	ps = rmodel->gen_point(ierr);
+	std::tie(ps, ierr) = rmodel->gen_point();
       if (ierr) count++;
     } while (ierr);
 

@@ -411,7 +411,7 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   for (int i=0; i<npart; i++) {
 
     do {
-      ps = multi->gen_point(ierr);
+      std::tie(ps, ierr) = multi->gen_point();
       if (ierr) count1++;
     } while (ierr);
     
@@ -631,7 +631,7 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
     p.pos[2] = r*costh;
 
     do {
-      ps = halo2->gen_point(ierr);
+      std::tie(ps, ierr) = halo2->gen_point();
     } while (ierr);
 
     massp1 += p.mass;
@@ -2560,7 +2560,8 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
 				// Use Eddington
     
     if (DF && 0.5*(1.0+erf((r-R_DF)/DR_DF)) > rndU(gen)) {
-      halo2->gen_velocity(&p.pos[0], &p.vel[0], nok);
+
+      nok = halo2->gen_velocity(&p.pos[0], &p.vel[0]);
       
       if (nok) {
 	std::cout << "gen_velocity failed: "
