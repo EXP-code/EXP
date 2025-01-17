@@ -522,6 +522,16 @@ main(int argc, char **argv)
 
   }
 
+  int nradial=0, nphi=0, ncost=0;
+  if (Vquiet) {
+    nphi = 2*Vquiet;
+    ncost = Vquiet;
+    nradial = floor(N/(nphi*ncost));
+
+    // Reset N
+    N = nradial*nphi*ncost;
+  }
+
   double mass = hmodel->get_mass(hmodel->get_max_radius())/N;
   AxiSymModPtr rmodel = hmodel;
 
@@ -706,12 +716,7 @@ main(int argc, char **argv)
   Eigen::VectorXd zz = Eigen::VectorXd::Zero(7);
 
   std::vector<double> rmass;
-  int nradial=0, nphi=0, ncost=0;
   if (Vquiet) {
-    nphi = 2*Vquiet;
-    ncost = Vquiet;
-    nradial = floor(N/(nphi*ncost));
-    if (nradial*nphi*ncost < N) nradial++;
     rmass.resize(nradial);
 
     // Set up mass grid
