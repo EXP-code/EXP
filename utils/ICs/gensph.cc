@@ -72,7 +72,7 @@ main(int argc, char **argv)
   double X0, Y0, Z0, U0, V0, W0, TOLE;
   double Emin0, Emax0, Kmin0, Kmax0, RBAR, MBAR, BRATIO, CRATIO, SMOOTH;
   bool LOGR, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR, zeropos, zerovel;
-  bool VTEST;
+  bool VTEST, FIB=false;
   std::string INFILE, MMFILE, OUTFILE, OUTPS, config;
 
 #ifdef DEBUG
@@ -94,6 +94,7 @@ main(int argc, char **argv)
   options.add_options()
     ("h,help", "Print this help message")
     ("v,verbose", "Print additional diagnostic information")
+    ("f,Fibonacci", "Use a Fibonacci lattice to tile the spherical shells")
     ("T,template", "Write template options file with current and all default values")
     ("c,config", "Parameter configuration file",
      cxxopts::value<string>(config))
@@ -255,6 +256,8 @@ main(int argc, char **argv)
 
   if (vm.count("verbose")) VERBOSE = true;
   else                     VERBOSE = false;
+
+  if (vm.count("Fibonacci")) FIB = true;
 
   // Prepare output streams and create new files
   //
@@ -524,11 +527,12 @@ main(int argc, char **argv)
 
   int nradial=0, nphi=0, ncost=0;
   if (Vquiet) {
-    nphi = 2*Vquiet;
-    ncost = Vquiet;
+    nphi = 2*Vquiet;		// # of aximuthal angles
+    ncost = Vquiet;		// # of colatitude angles
+				// # of radial shells
     nradial = floor(N/(nphi*ncost));
 
-    // Reset N
+    // Reset N to fill all spherical shells
     N = nradial*nphi*ncost;
   }
 
@@ -736,21 +740,28 @@ main(int argc, char **argv)
 
     do {
       if (Vquiet) {
-	// which radial ring
+	// Which radial ring?
 	int nr = floor(n/(nphi*ncost));
 	int rm = n - nr*nphi*ncost;
-	// which elevational plane
+	// Which elevational plane?
 	int nt = rm/nphi;
-	// which azimuth
+	// Which azimuth?
 	int np = rm - nt*nphi;
 
 	assert((nr>=0 && nr<nradial));
 	assert((nt>=0 && nt<ncost));
 	assert((np>=0 && np<nphi));
 
-	double r    = rmass[nr];
-	double cost = -1.0 + 2.0*nt/(ncost-1);
-	double phi  = 2.0*M_PI*np/nphi;
+	double r = rmass[nr], cost, phi;
+
+	if (FIB) {
+	  constexpr double goldenRatio = 0.5*(1.0 + sqrt(5.0));
+	  phi  = 2.0*M_PI * rm / goldenRatio; // + 2.0*M_PI*nr/nradial;
+	  cost = 1.0 - 2.0*rm/(nphi*ncost);
+	} else {
+	  cost = -1.0 + 2.0*(0.5 + nt)/ncost;
+	  phi  = 2.0*M_PI*np/nphi;
+	}
 	
 	std::tie(ps, ierr) = rmodel->gen_point(r, acos(cost), phi);
 
