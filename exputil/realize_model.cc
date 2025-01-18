@@ -655,10 +655,11 @@ AxiSymModel::PSret AxiSymModel::gen_point_3d(double r, double theta, double phi)
   for (it=0; it<gen_itmax; it++) {
 
     double xxx = pow(Unit(random_gen), 0.3333333333333333);
-    double yyy = 0.5*M_PI*Unit(random_gen);
+    double cosq = 2.0*Unit(random_gen)-1.0;
+    double sinq = sqrt(fabs(1.0 - cosq*cosq));
 
-    vr = vmax*xxx*cos(yyy);
-    vt = vmax*xxx*sin(yyy);
+    vr = vmax*xxx*cosq;
+    vt = vmax*xxx*sinq;
     eee = pot + 0.5*(vr*vr + vt*vt);
 
     if (Unit(random_gen) > distf(eee, r*vt)/fmax ) continue;
