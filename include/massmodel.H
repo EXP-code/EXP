@@ -128,7 +128,7 @@ protected:
   bool gen_firstime_jeans;
   Eigen::VectorXd gen_rloc, gen_mass, gen_fmax;
   SphericalOrbit gen_orb;
-  double gen_fomax, gen_ecut;
+  double gen_fomax, gen_ecut, gen_lastr=-1.0;
   //@}
 
   PSret gen_point_2d();
@@ -137,6 +137,9 @@ protected:
   PSret gen_point_3d(double Emin, double Emax, double Kmin, double Kmax);
   PSret gen_point_jeans_3d();
   PSret gen_point_3d(double r, double theta, double phi);
+  PSret gen_point_3d_iso(double r, double theta, double phi,
+			 int N, int nv, int na,
+			 double PHI=0, double THETA=0, double PSI=0);
   
   double Emin_grid, Emax_grid, dEgrid, dKgrid;
   vector<double> Egrid, Kgrid, EgridMass;
@@ -263,6 +266,22 @@ public:
       bomb( "AxiSymModel: gen_point(r, theta, phi) not implemented!" );
     else if (dof()==3)
       return gen_point_3d(r, theta, phi);
+    else
+      bomb( "AxiSymModel: dof must be 2 or 3" );
+    
+    return {Eigen::VectorXd(), 1};
+  }
+  
+  //! Generate a phase-space point at a particular radius, theta, and phi
+  virtual PSret
+  gen_point_iso(double r, double theta, double phi, int N, int nv, int na,
+		double PHI, double THETA, double PSI)
+  {
+    if (dof()==2)
+      bomb( "AxiSymModel: gen_point(r, theta, phi) not implemented!" );
+    else if (dof()==3)
+      return gen_point_3d_iso(r, theta, phi, N, nv, na,
+			      PHI, THETA, PSI);
     else
       bomb( "AxiSymModel: dof must be 2 or 3" );
     

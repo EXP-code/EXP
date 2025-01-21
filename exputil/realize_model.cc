@@ -37,6 +37,7 @@
 #include <localmpi.H>
 #include <massmodel.H>
 #include <interp.H>
+#include <euler.H>
 
 #ifdef DEBUG
 #include <orbit.H>
@@ -107,9 +108,9 @@ AxiSymModel::PSret AxiSymModel::gen_point_2d()
 
 	  gen_orb.new_orbit(xxx, yyy);
 	    
-	  double zzz = distf(xxx, gen_orb.AngMom())*gen_orb.Jmax()
-	    /gen_orb.get_freq(1);
-	  gen_fomax = zzz>gen_fomax ? zzz : gen_fomax;
+	  double zzz = distf(xxx, gen_orb.AngMom())*gen_orb.Jmax()/gen_orb.get_freq(1);
+
+	  if (zzz>gen_fomax) gen_fomax = zzz;
 	}
       }
 
@@ -203,7 +204,7 @@ AxiSymModel::PSret AxiSymModel::gen_point_2d()
 	    eee = pot + 0.5*(vr*vr + vt*vt);
 
 	    double zzz = distf(eee, gen_rloc[i]*vt);
-	    fmax = zzz>fmax ? zzz : fmax;
+	    if (zzz > fmax) fmax = zzz;
 	  }
 	}
 	gen_fmax[i] = fmax*(1.0 + ftol);
@@ -232,7 +233,7 @@ AxiSymModel::PSret AxiSymModel::gen_point_2d()
 
       if (Unit(random_gen) > distf(eee, r*vt)/fmax ) continue;
 
-      if (Unit(random_gen)<0.5) vr *= -1.0;
+      if (Unit(random_gen) < 0.5) vr *= -1.0;
     
       phi = 2.0*M_PI*Unit(random_gen);
 
@@ -321,7 +322,7 @@ AxiSymModel::PSret AxiSymModel::gen_point_2d(double r)
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
 	  double zzz = distf(eee, gen_rloc[i]*vt);
-	  fmax = zzz>fmax ? zzz : fmax;
+	  if (zzz>fmax) fmax = zzz;
 	}
       }
       gen_fmax[i] = fmax*(1.0 + ftol);
@@ -347,7 +348,7 @@ AxiSymModel::PSret AxiSymModel::gen_point_2d(double r)
 
     if (Unit(random_gen) > distf(eee, r*vt)/fmax ) continue;
     
-    if (Unit(random_gen)<0.5) vr *= -1.0;
+    if (Unit(random_gen) < 0.5) vr *= -1.0;
     
     phi = 2.0*M_PI*Unit(random_gen);
 
@@ -453,7 +454,7 @@ AxiSymModel::PSret AxiSymModel::gen_point_3d()
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
 	  double zzz = distf(eee, r*vt);
-	  fmax = zzz>fmax ? zzz : fmax;
+	  if (zzz>fmax) fmax = zzz;
 	}
       }
       gen_fmax[i] = fmax*(1.0 + ftol);
@@ -625,7 +626,7 @@ AxiSymModel::PSret AxiSymModel::gen_point_3d(double r, double theta, double phi)
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
 	  double zzz = distf(eee, gen_rloc[i]*vt);
-	  fmax = zzz>fmax ? zzz : fmax;
+	  if (zzz>fmax) fmax = zzz;
 	}
       }
       gen_fmax[i] = fmax*(1.0 + ftol);
@@ -696,6 +697,137 @@ AxiSymModel::PSret AxiSymModel::gen_point_3d(double r, double theta, double phi)
   double tv  = 2.0*M_PI*Unit(random_gen);
   double vth = vt*cos(tv);
   double vph = vt*sin(tv);
+
+  double cost = cos(theta);
+  double sint = sin(theta);
+
+  double cosp = cos(phi);
+  double sinp = sin(phi);
+
+  out[0] = 1.0;
+  out[1] = r*sint*cosp;
+  out[2] = r*sint*sinp;
+  out[3] = r*cost;
+  out[4] = vr*sint*cosp - vph*sinp + vth*cost*cosp;
+  out[5] = vr*sint*sinp + vph*cosp + vth*cost*sinp;
+  out[6] = vr*cost - vth*sint;
+    
+  return {out, 0};
+}
+
+AxiSymModel::PSret AxiSymModel::gen_point_3d_iso
+(double r, double theta, double phi, int N, int nv, int na,
+ double PHI, double THETA, double PSI)
+{
+  if (!dist_defined) {
+    throw std::runtime_error("AxiSymModel: must define distribution before realizing!");
+  }
+
+  double Emax = get_pot(get_max_radius());
+  double vpot = get_pot(r);
+  double v3   = pow(2.0*fabs(Emax - vpot), 1.5);
+  int knots   = 20;
+
+  // Sanity check
+  assert((N < nv*na));
+
+  // Rotation matrix
+  static Eigen::Matrix3d rotate;
+
+  // Assume isotropic and generate new r slice
+  if (fabs(gen_lastr-r) > 1.0e-14) {
+    gen_mass.resize(gen_N+1);
+    gen_rloc.resize(gen_N+1);
+    gen_lastr = r;
+
+#ifdef DEBUG
+    std::cout << "gen_point_3d_iso[" << ModelID << "]: " << rmin
+	 << ", " << get_max_radius() << std::endl;
+#endif
+
+    LegeQuad lv(knots);
+
+    double dv3 = v3/gen_N;
+
+    gen_rloc[0] = 0.0;
+    gen_mass[0] = 0.0;
+    for (int i=0; i<gen_N; i++) {
+      double vvv = dv3*(0.5+i);
+      gen_rloc[i+1] = vvv;
+
+      double sum = 0.0;
+      for (int l=0; l<knots; l++) {
+	double v = pow(vvv + dv3*(lv.knot(l)-0.5), 0.3333333333333333);
+	double eee = vpot + 0.5*v*v;
+	sum += dv3*lv.weight(l)*distf(eee, r*v);
+      }
+      gen_mass[i+1] = sum;
+    }
+
+    // Cumulate mass
+    for (int i=1; i<=gen_N; i++) gen_mass[i] += gen_mass[i-1];
+
+    std::ofstream out("gen_point_3d_iso.dat");
+    if (out) {
+      out << "# gen_point_3d_iso[" << ModelID << "]" << std::endl
+	  << "# " << std::setw(14) << "r" << std::setw(16) << "mass"
+	  << std::endl;
+      for (int i=0; i<gen_N; i++) {
+	out << std::setw(16) << gen_rloc[i]
+	    << std::setw(16) << gen_mass[i]
+	    << std::endl;
+	if (gen_rloc[i] <0.0 or gen_mass[i] < 0.0) {
+	  std::cout << "ERROR: gen_point_3d_iso[" << ModelID << "]: "
+		    << "r=" << gen_rloc[i] << " mass=" << gen_mass[i]
+		    << std::endl;
+	}
+      }
+    }
+
+    rotate = return_euler(PHI, THETA, PSI, 1);
+  }
+
+  double dmas = gen_mass[gen_N]/nv;
+
+  int jv = N/na;
+  int ja = N - jv*na;
+
+  // Sanity checks
+  //
+  assert((jv>=0 and jv<nv));
+  assert((ja>=0 and ja<na));
+
+  // Fibonacci lattice for velocities
+  //
+  constexpr double goldenRatio = 0.5*(1.0 + sqrt(5.0));
+  double vphi  = 2.0*M_PI * ja / goldenRatio;
+  double vcost = 1.0 - 2.0*ja/na;
+  double vsint = sqrt(fabs(1.0 - vcost*vcost));
+  
+  double vvv = odd2(dmas*(jv+0.5), gen_mass, gen_rloc);
+  double v   = pow(vvv, 0.3333333333333333);
+
+  Eigen::VectorXd out(7);
+
+  if (std::isnan(v)) {
+    if (verbose) std::cout << "NaN found in AxiSymModel::gen_point_3d_iso with r="
+			   << r << " theta=" << theta << " phi=" << phi
+			   << " v3=" << vvv  << " jv=" << jv << " m="
+			   << dmas*(jv+0.5) << " [" << gen_mass[0]
+			   << ", " <<  gen_mass[gen_N] << "]" << std::endl;
+    out.setZero();
+    return {out, 1};
+  }
+  
+  double vr  = v*vcost;
+  double vph = v*vsint*cos(vphi);
+  double vth = v*vsint*sin(vphi);
+
+  Eigen::Vector3d V = rotate * Eigen::Vector3d(vr, vphi, vth);
+
+  vr  = V[0];
+  vph = V[1];
+  vth = V[2];
 
   double cost = cos(theta);
   double sint = sin(theta);
@@ -1104,7 +1236,7 @@ int AxiSymModel::gen_velocity(double* pos, double* vel)
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
 	  double zzz = distf(eee, r*vt);
-	  fmax = zzz>fmax ? zzz : fmax;
+	  if (zzz>fmax) fmax = zzz;
 	}
       }
       gen_fmax[i] = fmax*(1.0 + ftol);
@@ -1567,7 +1699,8 @@ AxiSymModel::PSret SphericalModelMulti::gen_point(double radius)
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
 	  double zzz = fake->distf(eee, r*vt);
-	  fmax = zzz>fmax ? zzz : fmax;
+
+	  if (zzz>fmax) fmax = zzz;
 	}
       }
       gen_fmax[i] = fmax*(1.0 + ftol);
@@ -1750,7 +1883,8 @@ SphericalModelMulti::gen_point(double radius, double theta, double phi)
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
 	  double zzz = fake->distf(eee, r*vt);
-	  fmax = zzz>fmax ? zzz : fmax;
+
+	  if (zzz>fmax) fmax = zzz;
 	}
       }
       gen_fmax[i] = fmax*(1.0 + ftol);

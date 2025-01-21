@@ -61,18 +61,21 @@ using namespace __EXP__;
 #include <fftw3.h>
 #endif
 
+#include <euler.H>
+
 // Global variables
 
 int
 main(int argc, char **argv)
 {
   int HMODEL, N, NUMDF, NUMR, NUMJ, NUME, NUMG, NREPORT, SEED, ITMAX;
-  int NUMMODEL, RNUM, DIVERGE, DIVERGE2, LINEAR, NUMINT, NI, ND, Vquiet;
+  int NUMMODEL, RNUM, DIVERGE, DIVERGE2, LINEAR, NUMINT, NI, ND, Nangle;
+  int Nrepl=1, Nfib=1;
   double DIVERGE_RFAC, DIVERGE_RFAC2, NN, MM, RA, RMODMIN, RMOD, EPS;
   double X0, Y0, Z0, U0, V0, W0, TOLE;
   double Emin0, Emax0, Kmin0, Kmax0, RBAR, MBAR, BRATIO, CRATIO, SMOOTH;
   bool LOGR, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR, zeropos, zerovel;
-  bool VTEST, FIB=false;
+  bool VTEST;
   std::string INFILE, MMFILE, OUTFILE, OUTPS, config;
 
 #ifdef DEBUG
@@ -94,7 +97,6 @@ main(int argc, char **argv)
   options.add_options()
     ("h,help", "Print this help message")
     ("v,verbose", "Print additional diagnostic information")
-    ("f,Fibonacci", "Use a Fibonacci lattice to tile the spherical shells")
     ("T,template", "Write template options file with current and all default values")
     ("c,config", "Parameter configuration file",
      cxxopts::value<string>(config))
@@ -180,8 +182,12 @@ main(int argc, char **argv)
      cxxopts::value<bool>(ELIMIT)->default_value("false"))
     ("VTEST", "Test gen_velocity() generation",
      cxxopts::value<bool>(VTEST)->default_value("false"))
-    ("Vquiet", "Number of angular points on a regular spherical grid (0 means no quiet)",
-     cxxopts::value<int>(Vquiet)->default_value("0"))
+    ("Nangle", "Number of angular points on a regular spherical grid (0 skips this algorithm).  Nangle>0 takes precidence over other algorithms.",
+     cxxopts::value<int>(Nangle)->default_value("0"))
+    ("Nrepl", "Number of replicates in orbital plane (1 skips the Sellwood 1997 algorithm)",
+     cxxopts::value<int>(Nrepl)->default_value("1"))
+    ("Nfib", "Number of points on the sphere for each orbit. Replicate the orbits by tiling the angular momentum direction on the sphere using a Fibonnaci sequence.  Default value of 1 implies one plane per orbit.",
+     cxxopts::value<int>(Nfib)->default_value("1"))
     ("Emin0", "Minimum energy (if ELIMIT=true)",
      cxxopts::value<double>(Emin0)->default_value("-3.0"))
     ("Emax0", "Maximum energy (if ELIMIT=true)",
@@ -257,7 +263,15 @@ main(int argc, char **argv)
   if (vm.count("verbose")) VERBOSE = true;
   else                     VERBOSE = false;
 
-  if (vm.count("Fibonacci")) FIB = true;
+  // Use Fibonnaci for space-filling grid points
+  //
+  if (Nangle>0) {
+    Nfib = Nrepl = 1;
+  }
+  else {
+    Nfib  = std::max<int>(1, Nfib );
+    Nrepl = std::max<int>(1, Nrepl);
+  }
 
   // Prepare output streams and create new files
   //
@@ -525,15 +539,34 @@ main(int argc, char **argv)
 
   }
 
-  int nradial=0, nphi=0, ncost=0;
-  if (Vquiet) {
-    nphi = 2*Vquiet;		// # of aximuthal angles
-    ncost = Vquiet;		// # of colatitude angles
-				// # of radial shells
-    nradial = floor(N/(nphi*ncost));
+  int nfib=0, nangle=0, nshell=0;
+  if (Nangle) {
+    nangle  = Nangle;
+    nfib    = floor(sqrt(double(N)/(nangle*nangle)));
+    nshell  = nfib*nangle;
 
-    // Reset N to fill all spherical shells
-    N = nradial*nphi*ncost;
+    // Shells in radius and velocity
+    //
+    N = nshell*nshell;
+    if (myid==0)
+    std::cout << std::setw(60) << std::setfill('-') << '-'
+	      << std::setfill(' ') << std::endl
+	      << "Fibonacci: N=" << N << " Nangle=" << Nangle
+	      << " Nmag=" << nfib << " Nshell=" << nshell<< std::endl;
+  }
+
+  // For replication algorithm; Nrepl=1 is the standard algorithm.
+  //
+  Nrepl *= Nfib;
+  int nplane = N/Nrepl;
+  N = Nrepl * nplane;
+  NREPORT = std::max<int>(1, NREPORT/Nrepl);
+
+  if (Nrepl > 1 and myid==0) {
+    std::cout << std::setw(60) << std::setfill('-') << '-'
+	      << std::setfill(' ') << std::endl
+	      << "Replication: N=" << N << " Nrepl=" << Nrepl/Nfib
+	      << " Nfib=" << Nfib << " Norbits=" << nplane << std::endl;
   }
 
   double mass = hmodel->get_mass(hmodel->get_max_radius())/N;
@@ -707,28 +740,29 @@ main(int argc, char **argv)
   double TT=0.0, WW=0.0, VC=0.0;
 
   if (myid==0)
-    std::cout << "-----------" << std::endl
+    std::cout << std::setw(60) << std::setfill('-') << '-' << std::endl
+	      << std::setfill('-')
 	      << "Body count:" << std::endl;
 
-  int npernode = N/numprocs;
+  int npernode = nplane/numprocs;
   int beg = myid*npernode;
   int end = beg + npernode;
 
-  if (myid==numprocs-1) end = N;
+  if (myid==numprocs-1) end = nplane;
 
   std::vector<Eigen::VectorXd> PS;
   Eigen::VectorXd zz = Eigen::VectorXd::Zero(7);
 
   std::vector<double> rmass;
-  if (Vquiet) {
-    rmass.resize(nradial);
+  if (Nangle) {
+    rmass.resize(nfib);
 
     // Set up mass grid
     double rmin = hmodel->get_min_radius();
     double rmax = hmodel->get_max_radius();
     double mmas = hmodel->get_mass(rmax);
-    double dmas = mmas/nradial;
-    for (int i=0; i<nradial; i++) {
+    double dmas = mmas/nfib;
+    for (int i=0; i<nfib; i++) {
       double mas = dmas*(0.5+i);
       auto loc = [&](double r) -> double
       { return (mas - hmodel->get_mass(r)); };
@@ -736,34 +770,38 @@ main(int argc, char **argv)
     }
   }
 
+  constexpr double goldenRatio = 0.5*(1.0 + sqrt(5.0));
+
   for (int n=beg; n<end; n++) {
 
     do {
-      if (Vquiet) {
-	// Which radial ring?
-	int nr = floor(n/(nphi*ncost));
-	int rm = n - nr*nphi*ncost;
-	// Which elevational plane?
-	int nt = rm/nphi;
-	// Which azimuth?
-	int np = rm - nt*nphi;
+      if (Nangle) {
+	// Get space and velocity indices
+	int nspace = n/nshell;
+	int nveloc = n - nspace*nshell;
 
-	assert((nr>=0 && nr<nradial));
-	assert((nt>=0 && nt<ncost));
-	assert((np>=0 && np<nphi));
+	// Break space index into radius and angle
+	int nr     = nspace/nangle;
+	int rm     = nspace - nr*nangle;
 
-	double r = rmass[nr], cost, phi;
+	// Sanity check
+	assert((nspace>=0 && nspace<nshell));
+	assert((nveloc>=0 && nveloc<nshell));
+	assert((rm>=0 && rm<nangle));
 
-	if (FIB) {
-	  constexpr double goldenRatio = 0.5*(1.0 + sqrt(5.0));
-	  phi  = 2.0*M_PI * rm / goldenRatio; // + 2.0*M_PI*nr/nradial;
-	  cost = 1.0 - 2.0*rm/(nphi*ncost);
-	} else {
-	  cost = -1.0 + 2.0*(0.5 + nt)/ncost;
-	  phi  = 2.0*M_PI*np/nphi;
-	}
+	// Get spatial coordinates
+	double r    = rmass[nr];
+	double phi  = 2.0*M_PI * rm / goldenRatio;
+	double cost = 1.0 - 2.0 * rm / nangle;
 	
-	std::tie(ps, ierr) = rmodel->gen_point(r, acos(cost), phi);
+	double PHI   = 2.0*M_PI * nr / goldenRatio;
+	double COST  = 1.0 - 2.0 * nr / nangle;
+	double THETA = acos(COST) + 0.5*M_PI;
+
+	// Get velocity coorindates
+	std::tie(ps, ierr) = rmodel->gen_point_iso(r, acos(cost), phi,
+						   nveloc, nfib, nangle,
+						   PHI, THETA, PHI);
 
 	for (int i=0; i<3; i++) {
 	  if (std::isnan(ps[i+3])) {
@@ -792,39 +830,156 @@ main(int argc, char **argv)
 
     if (ps[0] <= 0.0) negms++;
 
-    double RR=0.0;
-    for (int i=1; i<=3; i++) {
-      RR += ps[i]*ps[i];
-      TT += 0.5*mass*ps[0]*ps[3+i]*ps[3+i];
-    }
-    RR  =  sqrt(RR);
-    if (RR>=rmin) {
-      VC += -mass*ps[0]*rmodel->get_mass(RR)/RR;
-      WW +=  0.5*mass*ps[0]*rmodel->get_pot(RR);
-    }
+    Eigen::Vector3d pos(ps[1], ps[2], ps[3]), pos1;
+    Eigen::Vector3d vel(ps[4], ps[5], ps[6]), vel1;
+    Eigen::Matrix3d proj, Iprj, rot = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d projM, IprjM;
 
-    if (zeropos or zerovel) {
-      ps[0] *= mass;
-      PS.push_back(ps);
-      zz[0] += ps[0];
-      if (zeropos) for (int i=1; i<3; i++) zz[i] -= ps[0]*ps[i];
-      if (zerovel) for (int i=4; i<7; i++) zz[i] -= ps[0]*ps[i];
-    }
-    else {
-      out << std::setw(20) << mass * ps[0];
-      for (int i=1; i<=6; i++) out << std::setw(20) << ps[i]+ps0[i];
+    double dq = 2.0*M_PI * Nfib / Nrepl, mfac = ps[0];
 
-      if (NI) {
-	for (int n=0; n<NI; n++) out << std::setw(10) << 0;
+    // Compute orbital plane basis
+    //
+    if (Nrepl>1) {
+      auto L = pos.cross(vel);	// The angular momentum vector
+      if (pos.norm() < 1.0e-10 or L.norm() < 1.0e-10) {
+	proj = Iprj = Eigen::Matrix3d::Identity();
+      } else {
+	auto X = pos/pos.norm(); // Radial unit vector, X.
+	auto Y = L.cross(X);	 // Choose a right-hand3d coordinate
+	Y = Y/Y.norm();		 // system perpendicular to X and L.
+	auto Z = L/L.norm();     // Unit vector in the ang. mom. direction.
+	
+	// Azimuth of vertical plane containing L
+	double Phi   = atan2(Z(1), Z(0)) + 0.5*M_PI;
+
+	// Tilt of plane w.r.t to polar axis
+	double Theta = acos(Z(2));
+
+	// Location of X in orbital plane w.r.t line of nodes
+	Eigen::Vector3d lon(cos(Phi), sin(Phi), 0.0);
+	double dotp = lon.dot(X);
+	double Psi = acos(dotp);
+	auto dir = lon.cross(X);
+
+	proj.row(0) = X;	// Project to orbital plane frame
+	proj.row(1) = Y;
+	proj.row(2) = Z;
+	
+	Iprj.col(0) = X;	// Project from orbital plane to original
+	Iprj.col(1) = Y;
+	Iprj.col(2) = Z;
+
+	if (Nfib>1) {
+				// Quadrant geometry
+	  int sgn1 = 1, sgn2 = 1;
+	  if (Theta > 0.5*M_PI) sgn1 = -1;
+	  if (dir(2) < 0.0)     sgn2 = -1;
+	  
+				// Sanity check for debugging
+	  if (true) {
+	    double norm = 0.0;
+	    if (sgn1*sgn2==1)
+	      norm = (proj - return_euler(Phi, Theta,  Psi, 0)).norm();
+	    else
+	      norm = (proj - return_euler(Phi, Theta,  -Psi, 0)).norm();
+	    
+	    if (fabs(norm) > 1.0e-10) {
+	      std::cout << "Theta=" << Theta
+			<< " dir(2)=" << dir(2) << std::endl;
+	    }
+	  }
+
+	  if (sgn1*sgn2==1) {
+	    projM = return_euler(Phi, -Theta,  Psi, 0);
+	    IprjM = return_euler(Phi, -Theta,  Psi, 1);
+	  } else {
+	    projM = return_euler(Phi, -Theta,  -Psi, 0);
+	    IprjM = return_euler(Phi, -Theta,  -Psi, 1);
+	  }	  
+	}
       }
-      if (ND) {
-	for (int n=0; n<ND; n++) out << std::setw(20) << 0.0;
-      }
-
-      out << std::endl;
     }
 
-    if (myid==0 and !((n+1)%NREPORT)) cout << '\r' << (n+1)*numprocs << flush;
+    // Orbital plane loop
+    //
+    for (int q=0; q<Nrepl; q++) {
+
+      double RR=0.0;
+      for (int i=1; i<=3; i++) {
+	RR += ps[i]*ps[i];
+	TT += 0.5*mass*ps[0]*ps[3+i]*ps[3+i];
+      }
+      RR  =  sqrt(RR);
+      if (RR>=rmin) {
+	VC += -mass*ps[0]*rmodel->get_mass(RR)/RR;
+	WW +=  0.5*mass*ps[0]*rmodel->get_pot(RR);
+      }
+
+      if (zeropos or zerovel) {
+	ps[0] *= mass;
+	PS.push_back(ps);
+	zz[0] += ps[0];
+	if (zeropos) for (int i=1; i<3; i++) zz[i] -= ps[0]*ps[i];
+	if (zerovel) for (int i=4; i<7; i++) zz[i] -= ps[0]*ps[i];
+      }
+      else {
+	out << std::setw(20) << mass * ps[0];
+	for (int i=1; i<=6; i++) out << std::setw(20) << ps[i]+ps0[i];
+	
+	if (NI) {
+	  for (int n=0; n<NI; n++) out << std::setw(10) << 0;
+	}
+	if (ND) {
+	  for (int n=0; n<ND; n++) out << std::setw(20) << 0.0;
+	}
+
+	out << std::endl;
+      }
+
+      // Rotate particle in orbital plane
+      if (Nrepl>1) {
+
+	Eigen::Matrix3d invt;
+	double Q = dq*(q/Nfib+1), phi=0.0, cost=0.0;
+	int nfib = q % Nfib;
+
+	if (Nfib>1) {
+	  phi  = 2.0*M_PI * nfib / goldenRatio;
+	  cost = 1.0 - 2.0 * nfib/Nfib;
+	  cost = (cost < -1.0 ? -1.0 : (cost > 1.0 ? 1.0 : cost));
+	  invt = return_euler(phi, acos(cost),  0, 1);
+	}
+
+	// Update rotation matrix
+	rot(0, 0) = rot(1, 1) = cos(Q);
+	rot(0, 1) = -sin(Q);
+	rot(1, 0) =  sin(Q);
+
+	// Full rotation matrix
+	Eigen::Matrix3d trans;
+	if (Nfib>1)  trans = invt * rot * proj;
+	else         trans = Iprj * rot * proj;
+
+	// Rotate position and velocity
+	pos1 =  trans * pos;
+	vel1 = -trans * vel;
+
+	// Reset the phase-space vector
+	//
+	ps[0] = mfac;
+	
+	ps[1] = pos1(0);
+	ps[2] = pos1(1);
+	ps[3] = pos1(2);
+
+	ps[4] = vel1(0);
+	ps[5] = vel1(1);
+	ps[6] = vel1(2);
+      }
+    }
+
+    if (myid==0 and !((n+1)%NREPORT)) cout << '\r' << (n+1)*numprocs*Nrepl
+					   << flush;
   }
 
   if (zeropos or zerovel) {
@@ -864,16 +1019,20 @@ main(int argc, char **argv)
     MPI_Reduce(MPI_IN_PLACE, &WW,    1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(MPI_IN_PLACE, &VC,    1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-    cout << std::endl << "-----------" << std::endl << std::endl;
-    cout << std::setw(20) << "States rejected: " << count      << std::endl;
-    cout << std::setw(20) << "Negative masses: " << negms      << std::endl;
-    cout << std::setw(60) << setfill('-') << '-' << std::endl       << setfill(' ');
-    cout << std::setw(20) << "KE="               << TT         << std::endl;
-    cout << std::setw(20) << "PE="               << WW         << std::endl;
-    cout << std::setw(20) << "VC="               << VC         << std::endl;
-    cout << std::setw(20) << "Ratio (-2T/W)="    << -2.0*TT/WW << std::endl;
-    cout << std::setw(20) << "Ratio (-2T/C)="    << -2.0*TT/VC << std::endl;
-    std::cout << std::setw(60) << std::setfill('-') << '-' << std::endl << std::setfill(' ');
+    std::cout << std::endl
+	      << std::setw(60) << std::setfill('-') << '-' << std::endl
+	      << std::setfill(' ')
+	      << std::setw(20) << "States rejected: " << count      << std::endl
+	      << std::setw(20) << "Negative masses: " << negms      << std::endl
+	      << std::setw(60) << setfill('-') << '-' << std::endl
+	      << setfill(' ')
+	      << std::setw(20) << "KE="               << TT         << std::endl
+	      << std::setw(20) << "PE="               << WW         << std::endl
+	      << std::setw(20) << "VC="               << VC         << std::endl
+	      << std::setw(20) << "Ratio (-2T/W)="    << -2.0*TT/WW << std::endl
+	      << std::setw(20) << "Ratio (-2T/C)="    << -2.0*TT/VC << std::endl
+	      << std::setw(60) << std::setfill('-') << '-' << std::endl
+	      << std::setfill(' ');
   }
 
   out.close();

@@ -49,14 +49,14 @@
 #include <massmodel.H>
 #include <interp.H>
 
-#define OFFSET 1.0e-3
-#define OFFTOL 1.2
+const double OFFSET=1.0e-3;
+const double OFFTOL=1.2;
 
 extern double gint_0(double a, double b, std::function<double(double)> f, int NGauss);
 extern double gint_2(double a, double b, std::function<double(double)> f, int NGauss);
 
-#define TSTEP 1.0e-8
-#define NGauss 96
+const double TSTEP=1.0e-8;
+const int    NGauss=96;
 
 static int DIVERGE=0;
 
@@ -109,6 +109,10 @@ void SphericalModelTable::setup_df(int NUM, double RA)
   rhoQy.resize(num);
   rhoQy2.resize(num);
 
+  rhoQx. setZero();
+  rhoQy. setZero();
+  rhoQy2.setZero();
+
   for (int i=0; i<num; i++) {
     x = density.x[i];
     rhoQx[i] = pot.y[i];
@@ -138,6 +142,11 @@ void SphericalModelTable::setup_df(int NUM, double RA)
     dfc.Q  .resize(NUM);
     dfc.fQ .resize(NUM);
     dfc.ffQ.resize(NUM);
+
+    dfc.Q  .setZero();
+    dfc.fQ .setZero();
+    dfc.ffQ.setZero();
+
     dfc.num = NUM;
     dfc.ra2 = ra2;
 
@@ -145,7 +154,8 @@ void SphericalModelTable::setup_df(int NUM, double RA)
     Qmin = get_pot(pot.x[0]);
     dQ = (Qmax - Qmin)/(double)(dfc.num-1);
   
-    foffset = -std::numeric_limits<double>::max();
+    // foffset = -std::numeric_limits<double>::max();
+    foffset = -1.0e42;
     dfc.Q[dfc.num-1] = Qmax;
     dfc.ffQ[dfc.num-1] = 0.0;
     fac = 1.0/(sqrt(8.0)*M_PI*M_PI);
@@ -184,6 +194,13 @@ void SphericalModelTable::setup_df(int NUM, double RA)
     df.ffQ .resize(NUM);
     df.fQ2 .resize(NUM);
     df.ffQ2.resize(NUM);
+
+    df.Q   .setZero();
+    df.fQ  .setZero();
+    df.ffQ .setZero();
+    df.fQ2 .setZero();
+    df.ffQ2.setZero();
+
     df.num = NUM;
     df.ra2 = ra2;
 
@@ -194,7 +211,8 @@ void SphericalModelTable::setup_df(int NUM, double RA)
     df.Q[df.num-1] = Qmax;
     df.ffQ[df.num-1] = 0.0;
     fac = 1.0/(sqrt(8.0)*M_PI*M_PI);
-    foffset = -std::numeric_limits<double>::max();
+    // foffset = -std::numeric_limits<double>::max();
+    foffset = -1.0e42;
     for (int i=df.num-2; i>=0; i--) {
       df.Q[i] = df.Q[i+1] - dQ;
       Q = df.Q[i];
@@ -233,7 +251,7 @@ void SphericalModelTable::setup_df(int NUM, double RA)
 
   dist_defined = true;
 
-  debug_fdist();
+  // debug_fdist();
 }
 
 
@@ -294,7 +312,7 @@ double SphericalModelTable::distf(double E, double L)
 
   if (!dist_defined) bomb("distribution function not defined");
 
-  double d, g;
+  double d=0.0, g=0.0;
 
   if (chebyN) {
 
@@ -341,7 +359,7 @@ double SphericalModelTable::dfde(double E, double L)
 
   if (!dist_defined) bomb("distribution function not defined");
 
-  double d, g, h, d1;
+  double d=0, g=0, h=0, d1=0;
 
   if (chebyN) {
     
@@ -399,7 +417,7 @@ double SphericalModelTable::dfdl(double E, double L)
 
   if (!dist_defined) bomb("distribution function not defined");
 
-  double d, g, h, d1;
+  double d=0, g=0, h=0, d1=0;
 
   if (chebyN) {
     
@@ -451,7 +469,7 @@ double SphericalModelTable::d2fde2(double E, double L)
 {
   if (!dist_defined) bomb("distribution function not defined");
 
-  double d, g, h, k, d2;
+  double d=0, g=0, h=0, k=0, d2=0;
 
   if (chebyN) {
 
