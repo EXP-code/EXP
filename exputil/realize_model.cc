@@ -799,7 +799,8 @@ AxiSymModel::PSret AxiSymModel::gen_point_3d_iso
 
   // Fibonacci lattice for velocities
   //
-  constexpr double goldenRatio = 0.5*(1.0 + sqrt(5.0));
+  const double goldenRatio = 1.618033988749895;
+
   double vphi  = 2.0*M_PI * ja / goldenRatio;
   double vcost = 1.0 - 2.0*ja/na;
   double vsint = sqrt(fabs(1.0 - vcost*vcost));

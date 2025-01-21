@@ -78,6 +78,8 @@ main(int argc, char **argv)
   bool VTEST;
   std::string INFILE, MMFILE, OUTFILE, OUTPS, config;
 
+  const double goldenRatio = 1.618033988749895;
+
 #ifdef DEBUG
   set_fpu_handler();
 #endif
@@ -769,8 +771,6 @@ main(int argc, char **argv)
       rmass[i] = zbrent(loc, rmin, rmax, 1.0e-8);
     }
   }
-
-  constexpr double goldenRatio = 0.5*(1.0 + sqrt(5.0));
 
   for (int n=beg; n<end; n++) {
 
