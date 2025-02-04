@@ -815,8 +815,8 @@ bool EmpCyl2d::ReadH5Cache()
       if (not checkStr(Version, "Version"))  return false;
     } else {
       if (myid==0)
-	std::cout << "---- EmpCyl2d::ReadH5Cache: "
-		  << "recomputing cache for HighFive API change"
+	std::cout << "---- EmpCyl2d::ReadH5Cache: " << "<" << cache_name_2d
+		  << "> recomputing cache for HighFive API change"
 		  << std::endl;
       return false;
     }
