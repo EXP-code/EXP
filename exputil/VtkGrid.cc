@@ -182,9 +182,9 @@ void VtkGrid::Add(const std::vector<double>& data, const std::string& name)
   //
   int I = 0;
 
-  for (int i=0; i<nx; i++) {
+  for (int k=0; k<nz; k++) {
     for (int j=0; j<ny; j++) {
-      for (int k=0; k<nz; k++) {
+      for (int i=0; i<nx; i++) {
 	dataSet[newName][I++] = static_cast<float>(data[(k*ny + j)*nx + i]);
       }
     }

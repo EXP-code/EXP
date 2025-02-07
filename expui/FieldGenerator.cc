@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
@@ -259,6 +260,14 @@ namespace Field
 				  const std::string      prefix,
 				  const std::string      outdir)
   {
+    if (myid==0) {
+      // Verify existence of directory
+      bool filepathExists = std::filesystem::is_directory(outdir);
+      if (not filepathExists)
+	throw std::runtime_error("FieldGenerator::file_lines: directory <" +
+				 outdir + "> does not exist");
+    }
+
     auto db = lines(basis, coefs, beg, end, num);
 
     if (myid==0) {
@@ -505,6 +514,14 @@ namespace Field
 				   const std::string      prefix,
 				   const std::string      outdir)
   {
+    if (myid==0) {
+      // Verify existence of directory
+      bool filepathExists = std::filesystem::is_directory(outdir);
+      if (not filepathExists)
+	throw std::runtime_error("FieldGenerator::file_slices: directory <" +
+				 outdir + "> does not exist");
+    }
+
     auto db = slices(basis, coefs);
 
     if (myid==0) {
@@ -710,6 +727,14 @@ namespace Field
 				    const std::string      prefix,
 				    const std::string      outdir)
   {
+    if (myid==0) {
+      // Verify existence of directory
+      bool filepathExists = std::filesystem::is_directory(outdir);
+      if (not filepathExists)
+	throw std::runtime_error("FieldGenerator::file_volumes: directory <" +
+				 outdir + "> does not exist");
+    }
+
     auto db = volumes(basis, coefs);
 
     int bunch = db.size()/numprocs;
