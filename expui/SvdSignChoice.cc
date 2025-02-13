@@ -31,7 +31,7 @@ namespace MSSA {
   {
     // SDV dimensions
     int I = U.rows();
-    int J = V.cols();
+    int J = V.rows();
     int K = S.size();
     
     // Dimensions
@@ -45,7 +45,7 @@ namespace MSSA {
     if (U.cols() != K)
       throw std::invalid_argument("SvdSignChoice: U has wrong dimensions");
     
-    if (V.rows() != K)
+    if (V.cols() != K)
       throw std::invalid_argument("SvdSignChoice: V has wrong dimensions");
     
     if (X.rows() != I || X.cols() != J)
