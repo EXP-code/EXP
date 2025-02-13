@@ -55,8 +55,6 @@
 
 namespace MSSA {
 
-  const bool useSignChoice = true;
-
   void SvdSignChoice
   (const Eigen::MatrixXd& X,
    Eigen::MatrixXd& U, const Eigen::VectorXd& S, Eigen::MatrixXd& V);
@@ -1281,6 +1279,7 @@ namespace MSSA {
     "Traj",
     "RedSym",
     "rank",
+    "Sign",
     "allchan",
     "distance",
     "flip",
@@ -1841,7 +1840,7 @@ namespace MSSA {
   }
 
 
-  expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC), trajectory(true)
+  expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC), trajectory(true), useSignChoice(false)
   {
     // Parse the YAML string
     //
@@ -1860,7 +1859,8 @@ namespace MSSA {
 
     // Set the SVD strategy for mSSA
     //
-    if (params["Traj"]) trajectory = params["Traj"].as<bool>();
+    if (params["Traj"]) trajectory    = params["Traj"].as<bool>();
+    if (params["Sign"]) useSignChoice = params["Sign"].as<bool>();
 
     // std::cout << "Trajectory is " << std::boolalpha << trajectory
     // << std::endl;

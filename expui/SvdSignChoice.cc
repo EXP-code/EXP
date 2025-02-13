@@ -57,35 +57,37 @@ namespace MSSA {
     sL.setZero();
     sR.setZero();
     
+    // Working, non-const instance
     auto S1 = S;
+    
+    // Get projections from left and right singular vectors onto data
+    // matrix
+    //
+    for (int k=0; k<K; k++) {
+      // Remove all but target dimension for numerical stability
+      S1(k) = 0.0;
+      auto Y = X - U * S1.asDiagonal() * V.transpose();
+
+      // Restore the value
+      S1(k) = S(k);
+
+      // d_j = U^T_k * Y_j
+      Eigen::VectorXd dL = Y.transpose() * U.col(k);
+
+      // sum of sgn(dL_j)*dL_j^2
+      sL(k) += dL.dot(dL.cwiseAbs());
+
+      // d_i = V^T_k * (Y^T)_i
+      Eigen::VectorXd dR = Y * V.col(k);
+
+      // sum of sgn(dR_i)*dR_i^2
+      sR(k) += dR.dot(dR.cwiseAbs());
+    }
     
     auto sgn = [](double val) -> int
     {
       return (0.0 < val) - (val < 0.0);
     };
-    
-    // Get projects from left and right singular vectors onto data matrix
-    //
-    for (int k=0; k<K; k++) {
-      
-      // Remove all but target dimension for numerical stability
-      S1(k) = 0.0;
-      auto Y = X - U * S1.asDiagonal() * V.transpose();
-      S1(k) = S(k);
-      
-      // d_j = U^T_k * Y_j
-      for (int j=0; j<Y.cols(); j++) {
-	double d = U.col(k).dot(Y.col(j));
-	sL(k) += sgn(d) * d*d;
-      }
-      
-      // d_i = V^T_k * (Y^T)_i
-      for (int i=0; i<Y.rows(); i++) {
-	double d = V.col(k).dot(Y.row(i));
-	sR(k) += sgn(d) * d*d;
-      }
-    }
-    
     
     // Determine and apply the sign correction
     //

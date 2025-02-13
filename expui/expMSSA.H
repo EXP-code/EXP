@@ -33,7 +33,8 @@ namespace MSSA
     //! Primary MSSA analysis
     void mssa_analysis();
 
-    bool computed, reconstructed, trajectory;
+    //! MSSA control flags
+    bool computed, reconstructed, trajectory, useSignChoice;
 
     //! The reconstructed coefficients for each PC
     std::map<Key, Eigen::MatrixXd, mSSAkeyCompare> RC;
