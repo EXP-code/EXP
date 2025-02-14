@@ -57,19 +57,14 @@ namespace MSSA {
     sL.setZero();
     sR.setZero();
     
-    // Working, non-const instance
-    auto S1 = S;
-    
     // Get projections from left and right singular vectors onto data
     // matrix
     //
+#pragma omp parallel for
     for (int k=0; k<K; k++) {
       // Remove all but target dimension for numerical stability
-      S1(k) = 0.0;
+      auto S1 = S; S1(k) = 0.0;
       auto Y = X - U * S1.asDiagonal() * V.transpose();
-
-      // Restore the value
-      S1(k) = S(k);
 
       // d_j = U^T_k * Y_j
       Eigen::VectorXd dL = Y.transpose() * U.col(k);
@@ -91,6 +86,7 @@ namespace MSSA {
     
     // Determine and apply the sign correction
     //
+#pragma omp parallel for
     for (int k=0; k<K; k++) {
       // If signs are opposite, flip the one with the smaller absolute
       // value
@@ -142,19 +138,14 @@ namespace MSSA {
     sL.setZero();
     sR.setZero();
     
-    // Working, non-const instance
-    auto S1 = S;
-    
     // Get projections from left and right singular vectors onto data
     // matrix
     //
+#pragma omp parallel for
     for (int k=0; k<K; k++) {
       // Remove all but target dimension for numerical stability
-      S1(k) = 0.0;
+      auto S1 = S; S1(k) = 0.0;
       auto Y = X - U * S1.asDiagonal() * V.transpose();
-
-      // Restore the value
-      S1(k) = S(k);
 
       // d_j = U^T_k * Y_j
       Eigen::VectorXd dL = Y.transpose() * U.col(k);
@@ -176,6 +167,7 @@ namespace MSSA {
     
     // Determine and apply the sign correction
     //
+#pragma omp parallel for
     for (int k=0; k<K; k++) {
       // If signs are opposite, flip the one with the smaller absolute
       // value
@@ -226,19 +218,14 @@ namespace MSSA {
     sL.setZero();
     sR.setZero();
     
-    // Working, non-const instance
-    auto S1 = S;
-    
     // Get projections from left and right singular vectors onto data
     // matrix
     //
+#pragma omp parallel for
     for (int k=0; k<K; k++) {
       // Remove all but target dimension for numerical stability
-      S1(k) = 0.0;
+      auto S1 = S; S1(k) = 0.0;
       auto Y = X - U * S1.asDiagonal() * V.transpose();
-
-      // Restore the value
-      S1(k) = S(k);
 
       // d_j = U^T_k * Y_j
       Eigen::VectorXd dL = Y.transpose() * U.col(k);
@@ -260,6 +247,7 @@ namespace MSSA {
     
     // Determine and apply the sign correction
     //
+#pragma omp parallel for
     for (int k=0; k<K; k++) {
       // If signs are opposite, flip the one with the smaller absolute
       // value
