@@ -55,9 +55,15 @@
 
 namespace MSSA {
 
+  // Update sign of left vectors U only
   void SvdSignChoice
   (const Eigen::MatrixXd& X,
-   Eigen::MatrixXd& U, const Eigen::VectorXd& S, Eigen::MatrixXd& V);
+   Eigen::MatrixXd& U, const Eigen::VectorXd& S, const Eigen::MatrixXd& V);
+
+  // Update sign of right vectors V only
+  void SvdSignChoice
+  (const Eigen::MatrixXd& X,
+   const Eigen::MatrixXd& U, const Eigen::VectorXd& S, Eigen::MatrixXd& V);
 
   Eigen::MatrixXd expMSSA::wCorrKey(const Key& key)
   {
@@ -299,20 +305,14 @@ namespace MSSA {
 	  svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	S = svd.singularValues();
 	U = svd.matrixV();
-	if (useSignChoice) {
-	  auto V = svd.matrixU();
-	  SvdSignChoice(YY, V, S, U);
-	}
+	if (useSignChoice) SvdSignChoice(YY, svd.matrixU(), S, U);
       }
       else {			// Covariance matrix
 	Eigen::JacobiSVD<Eigen::MatrixXd>
 	  svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	S = svd.singularValues();
 	U = svd.matrixU();
-	if (useSignChoice) {
-	  auto V = svd.matrixV();
-	  SvdSignChoice(cov, U, S, V);
-	}
+	if (useSignChoice) SvdSignChoice(cov, U, S, svd.matrixV());
       }
     } else if (params["BDCSVD"]) {
       // -->Using BDC
@@ -322,20 +322,14 @@ namespace MSSA {
 	  svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	S = svd.singularValues();
 	U = svd.matrixV();
-	if (useSignChoice) {
-	  auto V = svd.matrixU();
-	  SvdSignChoice(YY, V, S, U);
-	}
+	if (useSignChoice) SvdSignChoice(YY, svd.matrixU(), S, U);
       }
       else {			// Covariance matrix
 	Eigen::BDCSVD<Eigen::MatrixXd>
 	  svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	S = svd.singularValues();
 	U = svd.matrixU();
-	if (useSignChoice) {
-	  auto V = svd.matrixV();
-	  SvdSignChoice(cov, U, S, V);
-	}
+	if (useSignChoice) SvdSignChoice(cov, U, S, svd.matrixV());
       }
     } else {
       // -->Use Random approximation algorithm from Halko, Martinsson,
@@ -345,28 +339,19 @@ namespace MSSA {
 	RedSVD::RedSVD<Eigen::MatrixXd> svd(YY, srank);
 	S = svd.singularValues();
 	U = svd.matrixV();
-	if (useSignChoice) {
-	  auto V = svd.matrixU();
-	  SvdSignChoice(YY, V, S, U);
-	}
+	if (useSignChoice) SvdSignChoice(YY, svd.matrixU(), S, U);
       }
       else {			// Covariance matrix
 	if (params["RedSym"]) {
 	  RedSVD::RedSymEigen<Eigen::MatrixXd> eigen(cov, srank);
 	  S = eigen.eigenvalues().reverse();
 	  U = eigen.eigenvectors().rowwise().reverse();
-	  if (useSignChoice) {
-	    Eigen::MatrixXd V = U.transpose();
-	    SvdSignChoice(cov, U, S, V);
-	  }
+	  if (useSignChoice) SvdSignChoice(cov, U, S, U.transpose());
 	} else {
 	  RedSVD::RedSVD<Eigen::MatrixXd> svd(cov, srank);
 	  S = svd.singularValues();
 	  U = svd.matrixU();
-	  if (useSignChoice) {
-	    Eigen::MatrixXd V = U.transpose();
-	    SvdSignChoice(cov, U, S, V);
-	  }
+	  if (useSignChoice) SvdSignChoice(cov, U, S, U.transpose());
 	}
       }
     }
@@ -1840,7 +1825,7 @@ namespace MSSA {
   }
 
 
-  expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC), trajectory(true), useSignChoice(false)
+  expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC), trajectory(true), useSignChoice(true)
   {
     // Parse the YAML string
     //
