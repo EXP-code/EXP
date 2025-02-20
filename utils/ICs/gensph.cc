@@ -69,7 +69,7 @@ int
 main(int argc, char **argv)
 {
   int HMODEL, N, NUMDF, NUMR, NUMJ, NUME, NUMG, NREPORT, SEED, ITMAX;
-  int NUMMODEL, RNUM, DIVERGE, DIVERGE2, LINEAR, NUMINT, NI, ND, Nangle;
+  int NUMMODEL, RNUM, DIVERGE, DIVERGE2, LINEAR, NUMINT, NI, ND;
   int Nrepl=1, Nfib=1;
   double DIVERGE_RFAC, DIVERGE_RFAC2, NN, MM, RA, RMODMIN, RMOD, EPS;
   double X0, Y0, Z0, U0, V0, W0, TOLE;
@@ -184,8 +184,6 @@ main(int argc, char **argv)
      cxxopts::value<bool>(ELIMIT)->default_value("false"))
     ("VTEST", "Test gen_velocity() generation",
      cxxopts::value<bool>(VTEST)->default_value("false"))
-    ("Nangle", "Number of angular points on a regular spherical grid (0 skips this algorithm).  Nangle>0 takes precidence over other algorithms.",
-     cxxopts::value<int>(Nangle)->default_value("0"))
     ("Nrepl", "Number of replicates in orbital plane (1 skips the Sellwood 1997 algorithm)",
      cxxopts::value<int>(Nrepl)->default_value("1"))
     ("Nfib", "Number of points on the sphere for each orbit. Replicate the orbits by tiling the angular momentum direction on the sphere using a Fibonnaci sequence.  Default value of 1 implies one plane per orbit.",
@@ -267,13 +265,8 @@ main(int argc, char **argv)
 
   // Use Fibonnaci for space-filling grid points
   //
-  if (Nangle>0) {
-    Nfib = Nrepl = 1;
-  }
-  else {
-    Nfib  = std::max<int>(1, Nfib );
-    Nrepl = std::max<int>(1, Nrepl);
-  }
+  Nfib  = std::max<int>(1, Nfib );
+  Nrepl = std::max<int>(1, Nrepl);
 
   // Prepare output streams and create new files
   //
@@ -542,20 +535,6 @@ main(int argc, char **argv)
   }
 
   int nfib=0, nangle=0, nshell=0;
-  if (Nangle) {
-    nangle  = Nangle;
-    nfib    = floor(sqrt(double(N)/(nangle*nangle)));
-    nshell  = nfib*nangle;
-
-    // Shells in radius and velocity
-    //
-    N = nshell*nshell;
-    if (myid==0)
-    std::cout << std::setw(60) << std::setfill('-') << '-'
-	      << std::setfill(' ') << std::endl
-	      << "Fibonacci: N=" << N << " Nangle=" << Nangle
-	      << " Nmag=" << nfib << " Nshell=" << nshell<< std::endl;
-  }
 
   // For replication algorithm; Nrepl=1 is the standard algorithm.
   //
@@ -756,60 +735,11 @@ main(int argc, char **argv)
   Eigen::VectorXd zz = Eigen::VectorXd::Zero(7);
 
   std::vector<double> rmass;
-  if (Nangle) {
-    rmass.resize(nfib);
-
-    // Set up mass grid
-    double rmin = hmodel->get_min_radius();
-    double rmax = hmodel->get_max_radius();
-    double mmas = hmodel->get_mass(rmax);
-    double dmas = mmas/nfib;
-    for (int i=0; i<nfib; i++) {
-      double mas = dmas*(0.5+i);
-      auto loc = [&](double r) -> double
-      { return (mas - hmodel->get_mass(r)); };
-      rmass[i] = zbrent(loc, rmin, rmax, 1.0e-8);
-    }
-  }
 
   for (int n=beg; n<end; n++) {
 
     do {
-      if (Nangle) {
-	// Get space and velocity indices
-	int nspace = n/nshell;
-	int nveloc = n - nspace*nshell;
-
-	// Break space index into radius and angle
-	int nr     = nspace/nangle;
-	int rm     = nspace - nr*nangle;
-
-	// Sanity check
-	assert((nspace>=0 && nspace<nshell));
-	assert((nveloc>=0 && nveloc<nshell));
-	assert((rm>=0 && rm<nangle));
-
-	// Get spatial coordinates
-	double r    = rmass[nr];
-	double phi  = 2.0*M_PI * rm / goldenRatio;
-	double cost = 1.0 - 2.0 * rm / nangle;
-	
-	double PHI   = 2.0*M_PI * nr / goldenRatio;
-	double COST  = 1.0 - 2.0 * nr / nangle;
-	double THETA = acos(COST) + 0.5*M_PI;
-
-	// Get velocity coorindates
-	std::tie(ps, ierr) = rmodel->gen_point_iso(r, acos(cost), phi,
-						   nveloc, nfib, nangle,
-						   PHI, THETA, PHI);
-
-	for (int i=0; i<3; i++) {
-	  if (std::isnan(ps[i+3])) {
-	    std::cout << "Vel NaN with r=" << r << " cost=" << cost << " phi=" << phi << std::endl;
-	  }
-	}
-      }
-      else if (ELIMIT)
+      if (ELIMIT)
 	std::tie(ps, ierr) = rmodel->gen_point(Emin0, Emax0, Kmin0, Kmax0);
       else if (VTEST) {
 	std::tie(ps, ierr) = rmodel->gen_point();
