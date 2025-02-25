@@ -450,7 +450,8 @@ void MSSAtoolkitClasses(py::module &m) {
         -------
         tuple : (numpy.niarray, numpy.ndarray, double)
             The PC indices of the k-means clusters, distance from the centroid, and the
-            final update error
+            final update error.  A zero update error implies that the k-means algorithm
+            converged.
 
         Notes
         -----
@@ -483,7 +484,8 @@ void MSSAtoolkitClasses(py::module &m) {
         -------
         tuple : (numpy.niarray, numpy.ndarray, double)
             The PC indices of the k-means clusters, distance from the centroid, and the
-            final update error
+            final update error.  A zero update error implies that the k-means algorithm
+            converged.
 
         Notes
         -----

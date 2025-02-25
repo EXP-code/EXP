@@ -1198,7 +1198,8 @@ namespace MSSA {
 
     // Run 100 iterations
     //
-    kMeans.iterate(dist, 1000, clusters, 1);
+    // kMeans.iterate(dist, 1000, clusters, 1);
+    kMeans.iterate(dist, 1000, clusters);
 
     // Retrieve cluster associations
     //
@@ -1253,7 +1254,8 @@ namespace MSSA {
     // Run 100 iterations
     //
     KMeans::WcorrDistMulti dist(numT, numW, sz);
-    kMeans.iterate(dist, 1000, clusters, 1);
+    // kMeans.iterate(dist, 1000, clusters, 1);
+    kMeans.iterate(dist, 1000, clusters);
 
     // Retrieve cluster associations
     //

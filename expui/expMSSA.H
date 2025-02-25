@@ -243,19 +243,31 @@ namespace MSSA
     //! Create wcorrlation matricies and output PNG
     void wcorrPNG();
 
+    //@{
     /**
        Kmean analysis of the trajectories by PC with fixed cluster size
+    */
+
+    /** Perform Kmeans analysis for a given number of clusters and
+       print the results
 
        @param toTerm write to stdout if true
        @param toFile write to file if true
     */
     void kmeansPrint(int clusters, bool toTerm=true, bool toFile=false);
 
-    //! Get Kmeans analysis per channel
+    /** Get Kmeans analysis per channel
+
+	@param clusters is the number of clusters to seed
+	@param key is the channel id vector<int>
+    */
     std::tuple<std::vector<int>, std::vector<double>, double>
     kmeansChannel(int clusters, Key key);
 
-    //! Get Kmeans analysis for all channels
+    /** Get Kmeans analysis for all channels
+
+	@param clusters is the number of clusters to seed
+    */
     std::tuple<std::vector<int>, std::vector<double>, double>
     kmeans(int clusters);
 

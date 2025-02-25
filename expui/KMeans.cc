@@ -13,18 +13,28 @@ namespace MSSA
     //
     cen.clear();
     
-    if (s>0) {			// Seed centers by stride
+    if (s>0) {
+      // Seed centers by stride
       for (int i=0; i<classes.size(); i+=s) {
 	if (cen.size()>=k) break;
 	cen.push_back(classes.at(i)->x);
       }
       k = cen.size();
-    } else {		       // obtain a seed from the system clock
+    } else {
+      // Obtain a seed from the system clock
       unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+      
+      // Make a random generator
       std::mt19937 gen(seed);
-      // Seed centers randomly
+
+      // Randomly shuffle a list of indexes
+      std::vector<int> indx;
+      for (int i=0; i<classes.size(); i++) indx.push_back(i);
+      std::shuffle(indx.begin(), indx.end(), gen);
+
+      // Seed centers randomly from the initial point list
       for (int i=0; i<k; ++i) {
-	cen.push_back(classes.at(gen() % classes.size())->x);
+	cen.push_back(classes.at(indx[i])->x);
       }
     }
     
