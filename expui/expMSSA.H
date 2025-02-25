@@ -251,10 +251,15 @@ namespace MSSA
     /** Perform Kmeans analysis for a given number of clusters and
        print the results
 
+       @param clusters is the maximum number of clusters considered
+       @param stride is the seed strategy.  If positive, it is used to
+       select initial cluster centers by stride from the PC list.  If
+       it is zero, centers are selected randomly from the PC list
        @param toTerm write to stdout if true
        @param toFile write to file if true
     */
-    void kmeansPrint(int clusters, bool toTerm=true, bool toFile=false);
+    void kmeansPrint(int clusters, int stride,
+		     bool toTerm=true, bool toFile=false);
 
     /** Get Kmeans analysis per channel
 
@@ -262,14 +267,15 @@ namespace MSSA
 	@param key is the channel id vector<int>
     */
     std::tuple<std::vector<int>, std::vector<double>, double>
-    kmeansChannel(int clusters, Key key);
+    kmeansChannel(Key key, int clusters, int stride);
 
     /** Get Kmeans analysis for all channels
 
 	@param clusters is the number of clusters to seed
+	@param stride is the seeded strategy for initial centers
     */
     std::tuple<std::vector<int>, std::vector<double>, double>
-    kmeans(int clusters);
+    kmeans(int clusters, int stride);
 
     //! Save current MSSA state to an HDF5 file with the given prefix
     void saveState(const std::string& prefix);

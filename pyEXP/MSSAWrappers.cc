@@ -436,6 +436,7 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("kmeans", &expMSSA::kmeans,
 	py::arg("clusters") = 4,
+	py::arg("stride") = 2,
 	R"(
         Do a k-means analysis on the reconstructed trajectory matrices for a single channel (specified key value) to
         provide grouping insight.  A vector of channel indices that identify clusters is return in a vector ordered by PC
@@ -445,6 +446,9 @@ void MSSAtoolkitClasses(py::module &m) {
         ----------
         clusters : int, default=4
             number of clusters for the k-means analysis
+        stride : int, default=2
+            if positive, the initial cluster centers are stride selected from the PC list.  If zero, the centers are
+            selected randomly from the PC list
 
         Returns
         -------
@@ -466,8 +470,9 @@ void MSSAtoolkitClasses(py::module &m) {
         )");
 
   f.def("kmeansChannel", &expMSSA::kmeansChannel,
-	py::arg("clusters") = 4,
 	py::arg("key"),
+	py::arg("clusters") = 4,
+	py::arg("stride") = 2,
 	R"(
         Do a k-means analysis on the reconstructed trajectory matrices for a single channel (specified key value) to
         provide grouping insight.  In most cases, you will want to use the kmeans() version which analyzes all channels

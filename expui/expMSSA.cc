@@ -1063,7 +1063,7 @@ namespace MSSA {
 #endif
   }
 
-  void expMSSA::kmeansPrint(int clusters, bool toTerm, bool toFile)
+  void expMSSA::kmeansPrint(int clusters, int stride, bool toTerm, bool toFile)
   {
     if (clusters==0) {
       std::cout << "expMSSA::kmeansPrint: you need clusters>0" << std::endl;
@@ -1089,7 +1089,7 @@ namespace MSSA {
 
     for (auto u : mean) {
 
-      auto [id, dd, tol] = kmeansChannel(clusters, u.first);
+      auto [id, dd, tol] = kmeansChannel(u.first, clusters, stride);
 
       // Write to file
       //
@@ -1125,7 +1125,7 @@ namespace MSSA {
 
     if (params["allchan"]) {
 
-      auto [id, dd, tol] = kmeans(clusters);
+      auto [id, dd, tol] = kmeans(clusters, stride);
 
       // Write to file
       //
@@ -1165,15 +1165,18 @@ namespace MSSA {
 	std::cout << "Bad output stream for <" << filename << ">" << std::endl;
     }
     out.close();
-
   }
 
   
   std::tuple<std::vector<int>, std::vector<double>, double>
-  expMSSA::kmeansChannel(int clusters, Key key)
+  expMSSA::kmeansChannel(Key key, int clusters, int stride)
   {
     if (clusters==0) {
       throw std::invalid_argument("expMSSA::kmeansChannel: clusters==0");
+    }
+
+    if (stride<0) {
+      throw std::invalid_argument("expMSSA::kmeansChannel: stride must be >= 0");
     }
 
     if (mean.find(key) == mean.end()) {
@@ -1198,8 +1201,7 @@ namespace MSSA {
 
     // Run 100 iterations
     //
-    // kMeans.iterate(dist, 1000, clusters, 1);
-    kMeans.iterate(dist, 1000, clusters);
+    kMeans.iterate(dist, 1000, clusters, stride);
 
     // Retrieve cluster associations
     //
@@ -1229,10 +1231,14 @@ namespace MSSA {
   }
 
   std::tuple<std::vector<int>, std::vector<double>, double>
-  expMSSA::kmeans(int clusters)
+  expMSSA::kmeans(int clusters, int stride)
   {
     if (clusters==0) {
       throw std::invalid_argument("expMSSA::kmeans: you need clusters>0");
+    }
+
+    if (stride<0) {
+      throw std::invalid_argument("expMSSA::kmeans: stride must be >= 0");
     }
 
     // Pack point array
@@ -1254,8 +1260,7 @@ namespace MSSA {
     // Run 100 iterations
     //
     KMeans::WcorrDistMulti dist(numT, numW, sz);
-    // kMeans.iterate(dist, 1000, clusters, 1);
-    kMeans.iterate(dist, 1000, clusters);
+    kMeans.iterate(dist, 1000, clusters, stride);
 
     // Retrieve cluster associations
     //
