@@ -1063,10 +1063,10 @@ namespace MSSA {
 #endif
   }
 
-  void expMSSA::kmeans(int clusters, bool toTerm, bool toFile)
+  void expMSSA::kmeansPrint(int clusters, int stride, bool toTerm, bool toFile)
   {
     if (clusters==0) {
-      std::cout << "expMSSA::kmeans: you need clusters>0" << std::endl;
+      std::cout << "expMSSA::kmeansPrint: you need clusters>0" << std::endl;
       return;
     }
 
@@ -1087,41 +1087,22 @@ namespace MSSA {
 	std::cerr << "Error opening file <" << filename << ">" << std::endl;
     }
 
-    // W-correlation-based distance functor
-    //
-    KMeans::WcorrDistance dist(numT, numW);
-
     for (auto u : mean) {
-      // Pack point array
-      //
-      std::vector<KMeans::Ptr> data;
-      for (int j=0; j<ncomp; j++) {
-	data.push_back(std::make_shared<KMeans::Point>(numT));
-	for (int i=0; i<numT; i++) data.back()->x[i] = RC[u.first](i, j);
-      }
 
-      // Initialize k-means routine
-      //
-      KMeans::kMeansClustering kMeans(data);
-
-      // Run 100 iterations
-      //
-      kMeans.iterate(dist, 100, clusters, 2, false);
-
-      // Retrieve cluster associations
-      //
-      auto results = kMeans.get_results();
+      auto [id, dd, tol] = kmeansChannel(u.first, clusters, stride);
 
       // Write to file
       //
       if (out) {
 	out << std::string(60, '-') << std::endl
 	    << " *** n=" << u.first << std::endl
+	    << " *** tol=" << tol   << std::endl
 	    << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<results.size(); j++) {
+	for (int j=0; j<id.size(); j++) {
 	  out << std::setw(6)  << j
-	      << std::setw(12) << std::get<1>(results[j])
+	      << std::setw(12) << id[j]
+	      << std::setw(16) << dd[j]
 	      << std::endl;
 	}
       }
@@ -1133,9 +1114,10 @@ namespace MSSA {
 		  << " *** n=" << u.first << std::endl
 		  << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<results.size(); j++) {
-	  std::cout << std::setw(6)  << j
-		    << std::setw(12) << std::get<1>(results[j])
+	for (int j=0; j<id.size(); j++) {
+	  std::cout << std::setw( 6) << j
+		    << std::setw( 9) << id[j]
+		    << std::setw(16) << dd[j]
 		    << std::endl;
 	}
       }
@@ -1143,41 +1125,20 @@ namespace MSSA {
 
     if (params["allchan"]) {
 
-      // Pack point array
-      //
-      std::vector<KMeans::Ptr> data;
-      int sz = mean.size();
-      for (int j=0; j<ncomp; j++) {
-	data.push_back(std::make_shared<KMeans::Point>(numT*sz));
-	int c = 0;
-	for (auto u : mean) {
-	  for (int i=0; i<numT; i++) data.back()->x[c++] = RC[u.first](i, j);
-	}
-      }
-
-      // Initialize k-means routine
-      //
-      KMeans::kMeansClustering kMeans(data);
-
-      // Run 100 iterations
-      //
-      KMeans::WcorrDistMulti dist2(numT, numW, sz);
-      kMeans.iterate(dist2, 100, clusters, 2, false);
-
-      // Retrieve cluster associations
-      //
-      auto results = kMeans.get_results();
+      auto [id, dd, tol] = kmeans(clusters, stride);
 
       // Write to file
       //
       if (out) {
 	out << std::string(60, '-') << std::endl
 	    << " *** total"         << std::endl
+	    << " *** tol=" << tol   << std::endl
 	    << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<results.size(); j++) {
-	  out << std::setw(6) << j
-	      << std::setw(9) << std::get<1>(results[j])
+	for (int j=0; j<id.size(); j++) {
+	  out << std::setw( 6) << j
+	      << std::setw( 9) << id[j]
+	      << std::setw(16) << dd[j]
 	      << std::endl;
 	}
       }
@@ -1189,9 +1150,10 @@ namespace MSSA {
 		  << " *** total"         << std::endl
 		  << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<results.size(); j++) {
-	  std::cout << std::setw(6) << j
-		    << std::setw(9) << std::get<1>(results[j])
+	for (int j=0; j<id.size(); j++) {
+	  std::cout << std::setw( 6) << j
+		    << std::setw( 9) << id[j]
+		    << std::setw(16) << dd[j]
 		    << std::endl;
 	}
       }
@@ -1203,7 +1165,128 @@ namespace MSSA {
 	std::cout << "Bad output stream for <" << filename << ">" << std::endl;
     }
     out.close();
+  }
 
+  
+  std::tuple<std::vector<int>, std::vector<double>, double>
+  expMSSA::kmeansChannel(Key key, int clusters, int stride)
+  {
+    if (clusters==0) {
+      throw std::invalid_argument("expMSSA::kmeansChannel: clusters==0");
+    }
+
+    if (stride<0) {
+      throw std::invalid_argument("expMSSA::kmeansChannel: stride must be >= 0");
+    }
+
+    if (mean.find(key) == mean.end()) {
+      std::ostringstream sout;
+      sout << "expMSSA::kmeansKey: key <" << key << "> not found";
+      throw std::invalid_argument(sout.str());
+    }
+
+    KMeans::WcorrDistance dist(numT, numW);
+
+    // Pack point array
+    //
+    std::vector<KMeans::Ptr> data;
+    for (int j=0; j<ncomp; j++) {
+      data.push_back(std::make_shared<KMeans::Point>(numT));
+      for (int i=0; i<numT; i++) data.back()->x[i] = RC[key](i, j);
+    }
+
+    // Initialize k-means routine
+    //
+    KMeans::kMeansClustering kMeans(data);
+
+    // Run 100 iterations
+    //
+    kMeans.iterate(dist, 1000, clusters, stride);
+
+    // Retrieve cluster associations
+    //
+    auto results = kMeans.get_results();
+    auto centers = kMeans.get_cen();
+
+    // Compute inertia
+    //
+    auto inertia = [&](int j, int id) -> double {
+      auto & cen = centers[id];
+      double d = 0.0;
+      for (int i=0; i<cen.size(); i++)
+	d += (cen[i] - data[j]->x[i])*(cen[i] - data[j]->x[i]);
+      return sqrt(d);
+    };
+
+    // Pack return vector
+    //
+    std::vector<int> retI;
+    std::vector<double> retD;
+    for (int j=0; j<results.size(); j++) {
+      retI.push_back(std::get<1>(results[j]));
+      retD.push_back(inertia(j, std::get<1>(results[j])));
+    }
+
+    return {retI, retD, kMeans.getTol()};
+  }
+
+  std::tuple<std::vector<int>, std::vector<double>, double>
+  expMSSA::kmeans(int clusters, int stride)
+  {
+    if (clusters==0) {
+      throw std::invalid_argument("expMSSA::kmeans: you need clusters>0");
+    }
+
+    if (stride<0) {
+      throw std::invalid_argument("expMSSA::kmeans: stride must be >= 0");
+    }
+
+    // Pack point array
+    //
+    std::vector<KMeans::Ptr> data;
+    int sz = mean.size();
+    for (int j=0; j<ncomp; j++) {
+      data.push_back(std::make_shared<KMeans::Point>(numT*sz));
+      int c = 0;
+      for (auto u : mean) {
+	for (int i=0; i<numT; i++) data.back()->x[c++] = RC[u.first](i, j);
+      }
+    }
+
+    // Initialize k-means routine
+    //
+    KMeans::kMeansClustering kMeans(data);
+    
+    // Run 100 iterations
+    //
+    KMeans::WcorrDistMulti dist(numT, numW, sz);
+    kMeans.iterate(dist, 1000, clusters, stride);
+
+    // Retrieve cluster associations
+    //
+    auto results = kMeans.get_results();
+    auto centers = kMeans.get_cen();
+
+    // Compute inertia
+    //
+    auto inertia = [&](int j, int id) -> double {
+      auto & cen = centers[id];
+      double d = 0.0;
+      for (int i=0; i<cen.size(); i++)
+	d += (cen[i] - data[j]->x[i])*(cen[i] - data[j]->x[i]);
+      return sqrt(d);
+    };
+
+    // Pack return vector
+    //
+    std::vector<int> retI;
+    std::vector<double> retD;
+    for (int j=0; j<results.size(); j++) {
+      retI.push_back(std::get<1>(results[j]));
+      retD.push_back(inertia(j, std::get<1>(results[j])));
+    }
+
+    return {retI, retD, kMeans.getTol()};
   }
 
   std::map<std::string, CoefClasses::CoefsPtr> expMSSA::getReconstructed(bool reconstructmean)

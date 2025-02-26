@@ -436,28 +436,66 @@ void MSSAtoolkitClasses(py::module &m) {
 
   f.def("kmeans", &expMSSA::kmeans,
 	py::arg("clusters") = 4,
-	py::arg("toTerm") = true,
-	py::arg("toFile") = false,
+	py::arg("stride") = 2,
 	R"(
-        Do a k-means analysis on the reconstructed trajectory matrices to provide grouping insight
+        Do a k-means analysis on the reconstructed trajectory matrices for a single channel (specified key value) to
+        provide grouping insight.  A vector of channel indices that identify clusters is return in a vector ordered by PC
+        index.
 
         Parameters
         ----------
         clusters : int, default=4
             number of clusters for the k-means analysis
-        toTerm  : bool, default=True
-            flag indicating whether to output to the terminal (standard output)
-        toFile : bool
-            flag indicating whether to write the output to a file
+        stride : int, default=2
+            if positive, the initial cluster centers are stride selected from the PC list.  If zero, the centers are
+            selected randomly from the PC list
 
         Returns
         -------
-        None
+        tuple : (numpy.niarray, numpy.ndarray, double)
+            The PC indices of the k-means clusters, distance from the centroid, and the
+            final update error.  A zero update error implies that the k-means algorithm
+            converged.
 
         Notes
         -----
-        By default, results are written to the standard output. Set `toFile=True` to write 
-        the output to a file. The file name will be derived from the 'output' parameter.
+        The k-means partitions n vector observations into k clusters in which each observation belongs to the cluster with
+        the nearest centers while minimizing the variance within each cluster.  In this case, the vectors are the full
+        trajectory matrices and the distance is the distance between the trajectory matricies reconstructed from each
+        eigentriple from mSSA.  The distance used here is the Frobenius distance or matrix norm distance: the square root
+        of the sum of squares of all elements in the difference between two matrices.
+
+        This version does the analysis for all channels together, the most useful for estimating groups.  For individual
+        contributions by channel, use kmeansChannel.
+        )");
+
+  f.def("kmeansChannel", &expMSSA::kmeansChannel,
+	py::arg("key"),
+	py::arg("clusters") = 4,
+	py::arg("stride") = 2,
+	R"(
+        Do a k-means analysis on the reconstructed trajectory matrices for a single channel (specified key value) to
+        provide grouping insight.  In most cases, you will want to use the kmeans() version which analyzes all channels
+        together.
+
+        Parameters
+        ----------
+        clusters : int, default=4
+            number of clusters for the k-means analysis
+        key : list(int)
+            identifier indices of the selected data channel
+
+        Returns
+        -------
+        tuple : (numpy.niarray, numpy.ndarray, double)
+            The PC indices of the k-means clusters, distance from the centroid, and the
+            final update error.  A zero update error implies that the k-means algorithm
+            converged.
+
+        Notes
+        -----
+        This version does the analysis channel-by-channel.  You may wish to see all channels together using
+        kmeansTotal.  See kemans() for more details.
         )");
 
   f.def("contrib", &expMSSA::contributions,
