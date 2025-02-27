@@ -51,6 +51,14 @@ namespace CoefClasses
     //! Read-write access to coefficient data (no copy)
     Eigen::Ref<Eigen::VectorXcd> setCoefs() { return store; }
 
+    //! Set new coefficient data (no copy)
+    void setCoefs(Eigen::VectorXcd& STORE)
+    {
+      if (STORE.size() != store.size())
+	throw std::invalid_argument("CoefStruct::setCoefs: coefficient vector size does not match");
+      store = STORE;
+    }
+
     //! Read-only access to coefficient data (no copy)
     Eigen::Ref<const Eigen::VectorXcd> getCoefs() { return store; }
 
