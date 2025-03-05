@@ -24,6 +24,7 @@ namespace BasisClasses
     "pcavar",
     "pcadiag",
     "pcavtk",
+    "pcaeof",
     "subsamp",
     "snr",
     "samplesz",

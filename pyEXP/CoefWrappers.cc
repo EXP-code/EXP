@@ -724,25 +724,53 @@ void CoefficientClasses(py::module &m) {
         Returns
         -------
         numpy.ndarray
-            complex-valued matrix as a NumPy array of complex values
+            complex-valued matrix as a flattened NumPy array of complex values
 
         See also
         --------
         setCoefs : read-write access to Coefs
         )")
-    .def("setCoefs", &CoefStruct::setCoefs,
+  .def("setCoefs",		// Member function overload
+        static_cast<void (CoefStruct::*)(Eigen::VectorXcd&)>(&CoefStruct::setCoefs),
+        py::arg("mat"),
+        R"(
+        Set the coefficient matrix with the coefficient vector in the same form as returned
+        by getCoefs
+
+        Parameters
+        ----------
+        mat  : numpy.ndarray
+             Flattened array of coefficients
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        The rank data array must match the rank of the CoefStruct.  Use getCoefs to create
+        such an array with the correct rank.
+
+        See also
+        --------
+        getCoefs : read-only access to Coefs
+        )")
+  .def("setCoefs",		// Member function overload
+        static_cast<Eigen::Ref<Eigen::VectorXcd>(CoefStruct::*)()>(&CoefStruct::setCoefs),
         R"(
         Read-write access to the underlying data store
 
         Returns
         -------
         numpy.ndarray
-            complex-valued matrix represented as a NumPy array of complex values
+            reference to a complex-valued matrix represented as a NumPy array of complex
+            values
 
         Notes
         -----
-        Changes made to the data array will be automatically mapped
-        back to the C++ CoefStruct instance.
+        Changes made to the data array will be automatically mapped back to the C++
+        CoefStruct instance.  You may use the setCoefs(array) call to set the data array
+        directly.
 
         See also
         --------
