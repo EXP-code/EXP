@@ -19,7 +19,7 @@
 // Global symbols for coordinate transformation in SphericalBasis
 //
 __device__ __constant__
-cuFP_t sphScale, sphRscale, sphHscale, sphXmin, sphXmax, sphDxi, sphCen[3];
+cuFP_t sphScale, sphRscale, sphHscale, sphXmin, sphXmax, sphDxi, sphCen[3], sphEPS;
 
 __device__ __constant__
 int    sphNumr, sphCmap;
@@ -80,7 +80,7 @@ void legendre_v(int lmax, cuFP_t x, cuFP_t* p)
 }
 
 
-__host__ __device__
+__device__
 void legendre_v2(int lmax, cuFP_t x, cuFP_t* p, cuFP_t* dp)
 {
   cuFP_t fact, somx2, pll, pl1, pl2;
@@ -106,9 +106,9 @@ void legendre_v2(int lmax, cuFP_t x, cuFP_t* p, cuFP_t* dp)
     }
   }
 
-  if (1.0-fabs(x) < MINEPS) {
-    if (x>0) x =   1.0 - MINEPS;
-    else     x = -(1.0 - MINEPS);
+  if (1.0-fabs(x) < sphEPS) {
+    if (x>0) x =   1.0 - sphEPS;
+    else     x = -(1.0 - sphEPS);
   }
 
   somx2 = 1.0/(x*x - 1.0);
@@ -134,6 +134,7 @@ void testConstantsSph()
   printf("   Dxi    = %f\n", sphDxi   );
   printf("   Numr   = %d\n", sphNumr  );
   printf("   Cmap   = %d\n", sphCmap  );
+  printf("   Feps   = %d\n", sphEPS   );
   printf("-------------------------\n");
 }
 
@@ -231,6 +232,15 @@ void SphericalBasis::initialize_mapping_constants()
 		 __FILE__, __LINE__, "Error copying sphEVEN_M");
   cuda_safe_call(cudaMemcpyToSymbol(sphM0only, &M0_only,  sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphM0only");
+
+#if cuREAL == 4
+  cuFP_t feps = 3.0*std::numeric_limits<float>::epsilon();
+#else
+  cuFP_t feps = 3.0*std::numeric_limits<double>::epsilon();
+#endif
+
+  cuda_safe_call(cudaMemcpyToSymbol(sphEPS, &feps,  sizeof(cuFP_t),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying sphEPS");
 }
 
 

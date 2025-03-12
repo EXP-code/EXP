@@ -515,7 +515,7 @@ main(int ac, char **av)
   // Report dtype
   //
   if (myid==0)
-    std::cout << "DiskType is <" << disktype << ">" << std::endl;
+    std::cout << "---- DiskType is <" << disktype << ">" << std::endl;
 
   //====================
   // OpenMP control

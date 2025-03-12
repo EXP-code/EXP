@@ -10,51 +10,16 @@
 #include <CylEXP.H>
 #include <Cylinder.H>
 #include <MixtureBasis.H>
+#include <DiskDensityFunc.H>
 #include <Timer.H>
 #include <exputils.H>
 #include <NVTX.H>
-
-Timer timer_debug;
-
-double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
-
 
 //@{
 //! These are for testing exclusively (should be set false for production)
 static bool cudaAccumOverride = false;
 static bool cudaAccelOverride = false;
 //@}
-
-double DiskDens(double R, double z, double phi)
-{
-  double f = cosh(z/HSCALE);
-  return exp(-R/EXPSCALE)/(4.0*M_PI*EXPSCALE*EXPSCALE*HSCALE*f*f);
-}
-
-
-double dcond(double R, double z, double phi, int M)
-{
-  //
-  // No shift for M==0
-  //
-  if (M==0) return DiskDens(R, z, phi);
-
-  //
-  // Fold into [-PI/M, PI/M] for M>=1
-  //
-  double dmult = M_PI/M, phiS;
-  if (phi>M_PI)
-    phiS = phi + dmult*(int)((2.0*M_PI - phi)/dmult);
-  else
-    phiS = phi - dmult*(int)(phi/dmult);
-  
-  //
-  // Apply a shift along the x-axis
-  //
-  double x = R*cos(phiS) - ASHIFT*EXPSCALE;
-  double y = R*sin(phiS);
-  return DiskDens(sqrt(x*x + y*y), z, atan2(y, x));
-}
 
 
 const std::set<std::string>
@@ -106,7 +71,9 @@ Cylinder::valid_keys = {
   "self_consistent",
   "playback",
   "coefCompute",
-  "coefMaster"
+  "coefMaster",
+  "pyname",
+  "dumpbasis"
 };
 
 Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
@@ -237,9 +204,6 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
     // Set parameters for external dcond function
     //
-    EXPSCALE = acyl;
-    HSCALE   = hcyl;
-    ASHIFT   = ashift;
     eof      = 0;
 
     bool cache_ok = false;
@@ -299,6 +263,45 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		  << "this step will take many minutes."
 		  << std::endl;
       
+      std::shared_ptr<DiskDensityFunc> dfunc;
+      if (pyname.size()) dfunc = std::make_shared<DiskDensityFunc>(pyname);
+
+      // Use either the user-supplied Python target or the default
+      // exponential disk model
+      auto DiskDens = [&](double R, double z, double phi)
+      {
+	if (dfunc) return (*dfunc)(R, z, phi);
+	double f = exp(-fabs(z)/hcyl); // Overflow prevention
+	double s = 2.0*f/(1.0 + f*f);  // in sech computation
+	return exp(-R/acyl)*s*s/(4.0*M_PI*acyl*acyl*hcyl);
+      };
+
+      // The conditioning function for the EOF with an optional shift
+      // for M>0
+      auto dcond = [&](double R, double z, double phi, int M)
+      {
+	//
+	// No shift for M==0
+	//
+	if (M==0) return DiskDens(R, z, phi);
+	
+	//
+	// Fold into [-PI/M, PI/M] for M>=1
+	//
+	double dmult = M_PI/M, phiS;
+	if (phi>M_PI)
+	  phiS = phi + dmult*(int)((2.0*M_PI - phi)/dmult);
+	else
+	  phiS = phi - dmult*(int)(phi/dmult);
+  
+	//
+	// Apply a shift along the x-axis
+	//
+	double x = R*cos(phiS) - ashift*acyl;
+	double y = R*sin(phiS);
+	return DiskDens(sqrt(x*x + y*y), z, atan2(y, x));
+      };
+
       ortho->generate_eof(rnum, pnum, tnum, dcond);
     }
 
@@ -551,6 +554,8 @@ void Cylinder::initialize()
 	  std::cout << "---- New coefficients will be computed from particles on playback" << std::endl;
       }
     }
+
+    if (conf["dumpbasis"]) dump_basis = true;
 
   }
   catch (YAML::Exception & error) {

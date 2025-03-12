@@ -51,6 +51,14 @@ namespace CoefClasses
     //! Read-write access to coefficient data (no copy)
     Eigen::Ref<Eigen::VectorXcd> setCoefs() { return store; }
 
+    //! Set new coefficient data (no copy)
+    void setCoefs(Eigen::VectorXcd& STORE)
+    {
+      if (STORE.size() != store.size())
+	throw std::invalid_argument("CoefStruct::setCoefs: coefficient vector size does not match");
+      store = STORE;
+    }
+
     //! Read-only access to coefficient data (no copy)
     Eigen::Ref<const Eigen::VectorXcd> getCoefs() { return store; }
 
@@ -321,6 +329,53 @@ namespace CoefClasses
 
   };
   
+  //! Specialization of CoefStruct for collection of trajectories
+  class TrajStruct : public CoefStruct
+  {
+  public:
+    //! Coefficient map type
+    using coefType = Eigen::Map<Eigen::MatrixXcd>;
+
+    //! Coefficient map
+    std::shared_ptr<coefType> coefs;
+
+    //! Number of trajectories
+    int traj;
+    
+    //! Phase-space rank
+    int rank;
+    
+    //! Constructor
+    TrajStruct() : traj(0), rank(0) { geom = "trajectory"; }
+
+    //! No need to read
+    bool read(std::istream& in, bool exp_type, bool verbose=false);
+
+    //! Create an empty data storage
+    void create();
+
+    //! Copy all of data contents to a new instance
+    std::shared_ptr<CoefStruct> deepcopy();
+
+    //! Assign array
+    void assign(const Eigen::MatrixXd& arr)
+    {
+      traj = arr.rows();
+      rank = arr.cols();
+
+      allocate();
+      *coefs = arr;
+    }
+
+    //! Allocate storage arrays
+    void allocate()
+    {
+      store.resize(traj*rank);
+      coefs = std::make_shared<coefType>(store.data(), traj, rank);
+    }
+
+  };
+  
   //! Specialization of CoefStruct for spheres for general fields
   class SphFldStruct : public CoefStruct
   {
@@ -441,6 +496,7 @@ namespace CoefClasses
   using SlabStrPtr = std::shared_ptr<SlabStruct>   ;  
   using CubeStrPtr = std::shared_ptr<CubeStruct>   ;  
   using TblStrPtr  = std::shared_ptr<TblStruct>    ;  
+  using TrajStrPtr = std::shared_ptr<TrajStruct>   ;  
   using SphFldPtr  = std::shared_ptr<SphFldStruct> ;  
   using PlrFldPtr  = std::shared_ptr<CylFldStruct> ;  
 

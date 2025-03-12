@@ -884,13 +884,11 @@ __global__ void coefKernelPlr3
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const int N   = lohi.second - lohi.first;
 
-  // The inner product of the potential-density pair is 1/(2*pi).  So
-  // the biorthgonal norm is 2*pi*density. The inner product of the
-  // trig functions is 2*pi.  So the norm is 1/sqrt(2*pi).  The total
-  // norm is therefore 2*pi/sqrt(2*pi) = sqrt(2*pi) = 2.5066...
+  // 2d basis are assumed to be normed on input upto the sqrt(2) for
+  // the sine and cosine angular terms.
   // 
-  cuFP_t norm = 2.5066282746310007;
-  if (m) norm = 3.5449077018110322;
+  cuFP_t norm = 1.0;
+  if (m) norm = 1.4142135623730951;
 
   for (int n=0; n<stride; n++) {
 
@@ -1057,8 +1055,8 @@ forceKernelPlr3(dArray<cudaParticle> P, dArray<int> I,
 
   // Normalization constants
   //
-  cuFP_t norm0 = 0.39894228040143270286;
-  cuFP_t norm1 = 0.56418958354775627928;
+  cuFP_t norm0 = 1.0;
+  cuFP_t norm1 = 1.4142135623730951;
   cuFP_t norm;
 
   int muse = mmax > mlim ? mlim : mmax;

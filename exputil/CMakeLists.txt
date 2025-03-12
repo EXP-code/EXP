@@ -8,10 +8,10 @@ set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc # Hankel.cc
   rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc stack.cc
   localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc QDHT.cc
   YamlCheck.cc parseVersionString.cc EXPmath.cc laguerre_polynomial.cpp
-  YamlConfig.cc orthoTest.cc OrthoFunction.cc)
+  YamlConfig.cc orthoTest.cc OrthoFunction.cc VtkGrid.cc)
 
 if(HAVE_VTK)
-  list(APPEND UTIL_SRC VtkGrid.cc VtkPCA.cc)
+  list(APPEND UTIL_SRC VtkPCA.cc)
 endif()
 
 set(OPTIMIZATION_SRC SimAnn.cc)
@@ -35,13 +35,14 @@ set(QPDISTF_SRC QPDistF.cc qld.c)
 set(SLEDGE_SRC sledge.f)
 set(PARTICLE_SRC Particle.cc ParticleReader.cc header.cc)
 set(CUDA_SRC cudaParticle.cu cudaSLGridMP2.cu)
+set(PYWRAP_SRC DiskDensityFunc.cc)
 
 set(exputil_SOURCES ${ODE_SRC} ${ROOT_SRC} ${QUAD_SRC}
   ${RANDOM_SRC} ${UTIL_SRC} ${SPECFUNC_SRC}
   ${PHASE_SRC}  ${SYMP_SRC} ${INTERP_SRC} ${MASSMODEL_SRC}
   ${ORBIT_SRC} ${BIORTH_SRC} ${POLY_SRC} ${GAUSS_SRC}
   ${QPDISTF_SRC} ${BESSEL_SRC} ${OPTIMIZATION_SRC}
-  ${SLEDGE_SRC} ${PARTICLE_SRC} ${CUDA_SRC})
+  ${SLEDGE_SRC} ${PARTICLE_SRC} ${CUDA_SRC} ${PYWRAP_SRC})
 
 set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
@@ -53,7 +54,7 @@ set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
 
 set(common_LINKLIB ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp
   ${VTK_LIBRARIES} ${HDF5_CXX_LIBRARIES} ${HDF5_LIBRARIES}
-  ${HDF5_HL_LIBRARIES} ${FFTW_DOUBLE_LIB})
+  ${HDF5_HL_LIBRARIES} ${FFTW_DOUBLE_LIB} pybind11::embed)
 
 if(ENABLE_CUDA)
   list(APPEND common_LINKLIB CUDA::toolkit CUDA::cudart)

@@ -31,9 +31,8 @@ the following:
    git submodule update --init --recursive
 ```
 
-This will install `yaml-cpp` in the `extern` directory.  The png++ C++
-wrappers to the png library are also installed in `extern`.  Note: png
-support is optional.
+This will install the source packages in the `extern` directory.
+
 
 ## Building using CMake
 

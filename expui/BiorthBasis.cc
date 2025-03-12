@@ -24,6 +24,7 @@ namespace BasisClasses
     "pcavar",
     "pcadiag",
     "pcavtk",
+    "pcaeof",
     "subsamp",
     "snr",
     "samplesz",
@@ -60,6 +61,7 @@ namespace BasisClasses
     "self_consistent",
     "cachename",
     "modelname",
+    "pyname",
     "rnum"
   };
 
@@ -592,7 +594,7 @@ namespace BasisClasses
     
     double densfac = 1.0/(scale*scale*scale) * 0.25/M_PI;
     double potlfac = 1.0/scale;
-    
+
     return
       {den0 * densfac,		// 0
        den1 * densfac,		// 1
@@ -860,7 +862,9 @@ namespace BasisClasses
       {"gaussian",    DiskType::gaussian},
       {"mn",          DiskType::mn},
       {"exponential", DiskType::exponential},
-      {"doubleexpon", DiskType::doubleexpon}
+      {"doubleexpon", DiskType::doubleexpon},
+      {"diskbulge",   DiskType::diskbulge},
+      {"python",      DiskType::python}
     };
 
   const std::set<std::string>
@@ -911,6 +915,8 @@ namespace BasisClasses
     "aratio",
     "hratio",
     "dweight",
+    "Mfac",
+    "HERNA",
     "rwidth",
     "rfactor",
     "rtrunc",
@@ -921,7 +927,8 @@ namespace BasisClasses
     "self_consistent",
     "playback",
     "coefCompute",
-    "coefMaster"
+    "coefMaster",
+    "pyname"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
@@ -979,6 +986,22 @@ namespace BasisClasses
 	  w1*exp(-R/a1)/(4.0*M_PI*a1*a1*h1*f1*f1) +
 	  w2*exp(-R/a2)/(4.0*M_PI*a2*a2*h2*f2*f2) ;
       }
+      break;
+
+    case DiskType::diskbulge:
+      {
+	double f  = cosh(z/hcyl);
+	double rr = pow(pow(R, 2) + pow(z,2), 0.5);
+	double w1 = Mfac;
+	double w2 = 1.0 - Mfac;
+	double as = HERNA;
+	
+	ans = w1*exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f) + 
+	  w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0) ;
+      }
+      break;
+    case DiskType::python:
+      ans = (*pyDens)(R, z, phi);
       break;
     case DiskType::exponential:
     default:
@@ -1068,6 +1091,12 @@ namespace BasisClasses
     // Ratio of second disk relative to the first disk for disk basis construction with double-exponential
     dweight     = 1.0;              
 
+    // mass fraction for disk for diskbulge
+    Mfac      = 1.0; 
+
+    // Hernquist scale a disk basis construction with diskbulge
+    HERNA      = 0.10; 
+
     // Width for erf truncation for EOF conditioning density (ignored if zero)
     rwidth      = 0.0;             
 
@@ -1124,16 +1153,19 @@ namespace BasisClasses
       if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<bool>();
 
       if (conf["aratio"    ])      aratio = conf["aratio"    ].as<double>();
-      if (conf["hratio"    ])      aratio = conf["hratio"    ].as<double>();
-      if (conf["dweight"   ])      aratio = conf["dweight"   ].as<double>();
-      if (conf["rwidth"    ])      aratio = conf["rwidth"    ].as<double>();
-      if (conf["ashift"    ])      aratio = conf["ashift"    ].as<double>();
+      if (conf["hratio"    ])      hratio = conf["hratio"    ].as<double>();
+      if (conf["dweight"   ])      dweight = conf["dweight"   ].as<double>();
+      if (conf["Mfac"   ])         Mfac = conf["Mfac"   ].as<double>();
+      if (conf["HERNA"   ])        HERNA = conf["HERNA"   ].as<double>();
+      if (conf["rwidth"    ])      rwidth = conf["rwidth"    ].as<double>();
+      if (conf["ashift"    ])      ashift = conf["ashift"    ].as<double>();
       if (conf["rfactor"   ])     rfactor = conf["rfactor"   ].as<double>();
       if (conf["rtrunc"    ])      rtrunc = conf["rtrunc"    ].as<double>();
       if (conf["pow"       ])        ppow = conf["ppow"      ].as<double>();
       if (conf["mtype"     ])       mtype = conf["mtype"     ].as<std::string>();
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
+      if (conf["pyname"    ])      pyname = conf["pyname"    ].as<std::string>();
 
       // Deprecation warning
       if (conf["density"   ]) {
@@ -1261,7 +1293,7 @@ namespace BasisClasses
 	DTYPE = dtlookup.at(dtype);	// key is not in the map.
 	
 	if (myid==0)		// Report DiskType
-	  std::cout << "DiskType is <" << dtype << ">" << std::endl;
+	  std::cout << "---- DiskType is <" << dtype << ">" << std::endl;
       }
       catch (const std::out_of_range& err) {
 	if (myid==0) {
@@ -1271,6 +1303,12 @@ namespace BasisClasses
 	  std::cout << std::endl;
 	}
 	throw std::runtime_error("Cylindrical::initialize: invalid DiskType");
+      }
+
+      // Check for and initialize the Python density type
+      //
+      if (DTYPE == DiskType::python) {
+	pyDens = std::make_shared<DiskDensityFunc>(pyname);
       }
 
       // Use these user models to deproject for the EOF spherical basis
@@ -1523,6 +1561,7 @@ namespace BasisClasses
     "M0_ONLY",
     "NO_MONO",
     "diskconf",
+    "background",
     "ssfrac",
     "playback",
     "coefMaster",
@@ -1953,7 +1992,7 @@ namespace BasisClasses
     return {v[0], v[1], v[2], v[3], v[4], v[5], potx, poty, v[7]};
   }
 
-  std::vector<Eigen::MatrixXd> FlatDisk::orthoCheck()
+  std::vector<Eigen::MatrixXd> FlatDisk::orthoCheck(int knots)
   {
     return ortho->orthoCheck();
   }
@@ -1984,6 +2023,677 @@ namespace BasisClasses
       ortho->get_pot   (tabpot, pow(10.0, logxmin + dx*i), 0.0);
       ortho->get_dens  (tabden, pow(10.0, logxmin + dx*i), 0.0);
       ortho->get_rforce(tabrfc, pow(10.0, logxmin + dx*i), 0.0);
+      for (int m=0; m<=mmax; m++) {
+	for (int n=0; n<nmax; n++){
+	  ret[m][n]["potential"](i) = tabpot(m, n);
+	  ret[m][n]["density"  ](i) = tabden(m, n);
+	  ret[m][n]["rforce"   ](i) = tabrfc(m, n);
+	}
+      }
+    }
+    
+    return ret;
+  }
+
+  const std::set<std::string>
+  CBDisk::valid_keys = {
+    "self_consistent",
+    "NO_M0",
+    "NO_M1",
+    "EVEN_M",
+    "M0_BACK",
+    "M0_ONLY",
+    "NO_MONO",
+    "background",
+    "playback",
+    "coefMaster",
+    "scale",
+    "Lmax",
+    "Mmax",
+    "nmax",
+    "mmax",
+    "mlim",
+    "dof",
+    "subsamp",
+    "samplesz",
+    "vtkfreq",
+    "tksmooth",
+    "tkcum",
+    "tk_type"
+  };
+
+  CBDisk::CBDisk(const YAML::Node& CONF) :
+    BiorthBasis(CONF, "CBDisk")
+  {
+    initialize();
+  }
+
+  CBDisk::CBDisk(const std::string& confstr) :
+    BiorthBasis(confstr, "CBDisk")
+  {
+    initialize();
+  }
+
+  void CBDisk::initialize()
+  {
+
+    // Assign some defaults
+    //
+    mmax       = 6;
+    nmax       = 18;
+    scale      = 1.0;
+    
+    // Check for unmatched keys
+    //
+    auto unmatched = YamlCheck(conf, valid_keys);
+    if (unmatched.size())
+      throw YamlConfigError("Basis::Basis::CBDisk", "parameter", unmatched, __FILE__, __LINE__);
+    
+    // Assign values from YAML
+    //
+    try {
+      if (conf["Lmax"])      mmax       = conf["Lmax"].as<int>(); // Proxy
+      if (conf["Mmax"])      mmax       = conf["Mmax"].as<int>(); // Proxy
+      if (conf["mmax"])      mmax       = conf["mmax"].as<int>();
+      if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
+      if (conf["scale"])     scale      = conf["scale"].as<double>();
+      
+      N1 = 0;
+      N2 = std::numeric_limits<int>::max();
+      NO_M0 = NO_M1 = EVEN_M = M0_only = false;
+      
+      if (conf["N1"]   )     N1        = conf["N1"].as<bool>();
+      if (conf["N2"]   )     N2        = conf["N2"].as<bool>();
+      if (conf["NO_M0"])     NO_M0     = conf["NO_M0"].as<bool>();
+      if (conf["NO_M1"])     NO_M1     = conf["NO_M1"].as<bool>();
+      if (conf["EVEN_M"])    EVEN_M    = conf["EVEN_M"].as<bool>();
+      if (conf["M0_ONLY"])   M0_only   = conf["M0_ONLY"].as<bool>();
+    } 
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing parameter stanza for <"
+			     << name << ">: "
+			     << error.what() << std::endl
+			     << std::string(60, '-') << std::endl
+			     << conf                 << std::endl
+			     << std::string(60, '-') << std::endl;
+      
+      throw std::runtime_error("CBDisk: error parsing YAML");
+    }
+    
+    // Set characteristic radius defaults
+    //
+    if (not conf["scale"])   conf["scale"]   = 1.0;
+
+    // Potential, force, and density scaling
+    //
+    fac1 = pow(scale, -0.5);
+    fac2 = pow(scale, -1.5);
+
+    // Orthogonality sanity check
+    //
+    orthoTest();
+
+    // Get max threads
+    //
+    int nthrds = omp_get_max_threads();
+
+    // Allocate memory
+    //
+    potd.resize(nthrds);
+    potR.resize(nthrds);
+    dend.resize(nthrds);
+
+    for (auto & v : potd) v.resize(mmax+1, nmax);
+    for (auto & v : potR) v.resize(mmax+1, nmax);
+    for (auto & v : dend) v.resize(mmax+1, nmax);
+
+    expcoef.resize(2*mmax+1, nmax);
+    expcoef.setZero();
+      
+    work.resize(nmax);
+      
+    used = 0;
+
+    // Set cylindrical coordindates
+    //
+    coordinates = Coord::Cylindrical;
+  }
+  
+  // Get potential
+  void CBDisk::get_pot(Eigen::MatrixXd& tab, double r)
+  {
+    tab.resize(mmax+1, nmax);
+    Eigen::VectorXd a(nmax);
+    for (int m=0; m<=mmax; m++) {
+      potl(m, r/scale, a);
+      tab.row(m) = a;
+    }
+    tab *= fac1;
+  }
+
+  // Get density
+  void CBDisk::get_dens(Eigen::MatrixXd& tab, double r)
+  {
+    tab.resize(mmax+1, nmax);
+    Eigen::VectorXd a(nmax);
+    for (int m=0; m<=mmax; m++) {
+      dens(m, r/scale, a);
+      tab.row(m) = a;
+    }
+    tab *= fac2;
+  }
+
+  // Get force
+  void CBDisk::get_force(Eigen::MatrixXd& tab, double r)
+  {
+    tab.resize(mmax+1, nmax);
+    Eigen::VectorXd a(nmax);
+    for (int m=0; m<=mmax; m++) {
+      dpot(m, r/scale, a);
+      tab.row(m) = a;
+    }
+    tab *= fac1/scale;
+  }
+
+  //  Routines for computing biorthonormal pairs based on 
+  //  Clutton-Brock's 2-dimensional series
+  //
+  double CBDisk::phif(const int n, const int m, const double r)
+  {
+    // By recurrance relation
+    //
+    double r2 = r*r;
+    double fac = 1.0/(1.0 + r2);
+    double cur = sqrt(fac);
+
+    for (int mm=1; mm<=m; mm++) cur *= fac*(2*mm - 1);
+
+    if (n==0) return cur;
+  
+    double curl1 = cur;
+    double curl2;
+  
+    fac *= r2 - 1.0;
+    cur *= fac*(2*m+1);
+
+    if (n==1) return cur;
+
+    for (int nn=2; nn<=n; nn++) {
+      curl2 = curl1;
+      curl1 = cur;
+      cur   = (2.0 + (double)(2*m-1)/nn)*fac*curl1 - 
+	(1.0 + (double)(2*m-1)/nn)*curl2;
+    }
+    
+    return cur;
+  }
+
+  double CBDisk::potl(const int n, const int m, const double r)
+  {
+    return pow(r, m) * phif(n, m, r)/sqrt(norm(n, m));
+  }
+
+  double CBDisk::dpot(const int n, const int m, const double r)
+  {
+    double ret = dphi(n, m, r);
+    if (m) ret = (phif(n, m, r)*m/r + ret) * pow(r, m);
+    return ret/sqrt(norm(n, m));
+  }
+  
+  double CBDisk::dphi(const int n, const int m, const double r)
+  {
+    double ret = phif(n, m+1, r);
+    if (n>0) ret -= 2.0*phif(n-1, m+1, r);
+    if (n>1) ret += phif(n-2, m+1, r);
+    return -r*ret;
+  }
+
+
+  // By recurrance relation
+  //
+  void CBDisk::potl(const int m, const double r, Eigen::VectorXd& a)
+  {
+    a.resize(nmax);
+
+    double pfac = pow(r, m);
+  
+    double r2  = r*r;
+    double fac = 1.0/(1.0 + r2);
+    double cur = sqrt(fac);
+    
+    for (int mm=1; mm<=m; mm++) cur *= fac*(2*mm - 1);
+    
+    a(0) = pfac*cur;
+    
+    if (nmax>0) {
+      
+      double curl1 = cur;
+      double curl2;
+      
+      fac *= r2 - 1.0;
+      cur *= fac*(2*m+1);
+      
+      a(1) = pfac*cur;
+      
+      for (int nn=2; nn<nmax; nn++) {
+	curl2 = curl1;
+	curl1 = cur;
+	cur = (2.0 + (double)(2*m-1)/nn)*fac*curl1 - 
+	  (1.0 + (double)(2*m-1)/nn)*curl2;
+	a(nn) = pfac*cur;
+      }
+    }
+    
+    for (int n=0; n<nmax; n++) a(n) /= sqrt(norm(n, m));
+    
+    return;
+  }
+
+  // By recurrance relation
+  //
+  void CBDisk::dpot(const int m, const double r, Eigen::VectorXd& a)
+  {
+    a.resize(nmax);
+    potl(m, r, a);
+    a *= static_cast<double>(m)/r;
+
+    Eigen::VectorXd b(nmax);
+    potl(m+1, r, b);
+
+    for (int n=0; n<nmax; n++) {
+      a(n) -= b(n);
+      if (n>0) a(n) += 2.0*b(n-1);
+      if (n>1) a(n) -= b(n-2);
+    }
+  }
+  
+  double CBDisk::dens(int n, int m, double r)
+  {
+    double f = 0.5/sqrt(norm(n, m))/M_PI;
+    
+    if (n>=2) 
+      return f*pow(r, m)*(phif(n, m+1, r) - phif(n-2, m+1, r));
+    else
+      return f*pow(r, m)*phif(n, m+1, r);
+  }
+
+  
+  void CBDisk::dens(int mm, double r, Eigen::VectorXd& a)
+  {
+    a.resize(nmax);
+  
+    double pfac = pow(r, (double)mm+1.0e-20);
+    
+    int m = mm + 1;
+    double r2 = r*r;
+    double fac = 1.0/(1.0 + r2);
+    double cur = sqrt(fac);
+    
+    for (int M=1; M<=m; M++) cur *= fac*(2*M - 1);
+
+    a(0) = pfac*cur;
+
+    if (nmax>0) {
+  
+      double curl1 = cur;
+      double curl2;
+      
+      fac *= r2 - 1.0;
+      cur *= fac*(2*m+1);
+      
+      a(1) = pfac*cur;
+      
+      for (int nn=2; nn<nmax; nn++) {
+	curl2 = curl1;
+	curl1 = cur;
+	cur = (2.0 + (double)(2*m-1)/nn)*fac*curl1 - 
+	  (1.0 + (double)(2*m-1)/nn)*curl2;
+	a(nn) = pfac*cur;
+      }
+      
+      for (int nn=nmax-1; nn>1; nn--)
+	a(nn) -= a(nn-2);
+    }
+  
+    for (int n=0; n<nmax; n++) a(n) *= 0.5/sqrt(norm(n, mm))/M_PI;
+
+    return;
+  }
+  
+
+  double CBDisk::norm(int n, int m)
+  {
+  double ans = 1.0;
+  
+  for (int i=n+1; i<=n+2*m; i++) ans *= i;
+
+  return pow(0.5, 2*m+1)*ans;
+  }
+  
+  std::vector<Eigen::MatrixXd> CBDisk::orthoCheck(int num)
+  {
+    const double tol = 1.0e-4;
+    LegeQuad lq(num);
+
+    std::vector<Eigen::MatrixXd> ret(mmax+1);
+    for (auto & v : ret) v.resize(nmax, nmax);
+
+    double Rmax = scale*100.0;
+
+    for (int m=0; m<=mmax; m++) {
+
+      ret[m].setZero();
+
+      for (int i=0; i<num; i++) {
+	double r = lq.knot(i) * Rmax, fac = lq.weight(i) * Rmax;
+	Eigen::VectorXd vpot, vden;
+      
+	potl(m, r/scale, vpot);
+	dens(m, r/scale, vden);
+
+	for (int j=0; j<nmax; j++) {
+	  for (int k=0; k<nmax; k++) {
+	    ret[m](j, k) += fac * vpot(j) * vden(k) * r * 2.0*M_PI * fac1*fac2;
+	  }
+	}
+      }
+    }
+
+    // DEBUG
+    std::ofstream out("orthoCheck.dat");
+    out << "scale=" << scale << " fac1=" << fac1 << " fac2=" << fac2 << std::endl;
+    for (int m=0; m<=mmax; m++) {
+      out << std::string(80, '-') << std::endl
+	  << "---- m=" << m       << std::endl
+	  << std::string(80, '-') << std::endl
+	  << ret[m]               << std::endl
+	  << std::string(80, '-') << std::endl << std::endl;
+    }
+    // END DEBUG
+
+    return ret;
+  }
+
+  void CBDisk::reset_coefs(void)
+  {
+    if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
+    totalMass = 0.0;
+    used = 0;
+  }
+  
+  
+  void CBDisk::load_coefs(CoefClasses::CoefStrPtr coef, double time)
+  {
+    CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
+
+    cf->mmax   = mmax;
+    cf->nmax   = nmax;
+    cf->time   = time;
+
+    cf->store((2*mmax+1)*nmax);
+    cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
+      (cf->store.data(), 2*mmax+1, nmax);
+
+    for (int m=0, m0=0; m<=mmax; m++) {
+      for (int n=0; n<nmax; n++) {
+	if (m==0)
+	  (*cf->coefs)(m, n) = {expcoef(m0, n), 0.0};
+	else
+	  (*cf->coefs)(m, n) = {expcoef(m0, n), expcoef(m0+1, n)};
+      }
+      if (m==0) m0 += 1;
+      else      m0 += 2;
+    }
+  }
+
+  void CBDisk::set_coefs(CoefClasses::CoefStrPtr coef)
+  {
+    // Sanity check on derived class type
+    //
+    if (not dynamic_cast<CoefClasses::CylStruct*>(coef.get()))
+      throw std::runtime_error("CBDisk::set_coefs: you must pass a CoefClasses::CylStruct");
+
+    // Sanity check on dimensionality
+    //
+    {
+      auto cc = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
+      auto cf = cc->coefs;
+      int rows = cf->rows();
+      int cols = cf->cols();
+      if (rows != mmax+1 or cols != nmax) {
+	std::ostringstream sout;
+	sout << "CBDisk::set_coefs: the basis has (mmax+1, nmax)=("
+	     << mmax+1 << ", " << nmax
+	     << "). The coef structure has (rows, cols)=("
+	     << rows << ", " << cols << ")";
+	  
+	throw std::runtime_error(sout.str());
+      }
+    }
+    
+    CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
+    auto & cc = *cf->coefs;
+
+    // Assign internal coefficient table (doubles) from the complex struct
+    //
+    for (int m=0, m0=0; m<=mmax; m++) {
+      for (int n=0; n<nmax; n++) {
+	if (m==0)
+	  expcoef(m0,   n) = cc(m, n).real();
+	else {
+	  expcoef(m0,   n) = cc(m, n).real();
+	  expcoef(m0+1, n) = cc(m, n).imag();
+	}
+      }
+      if (m==0) m0 += 1;
+      else      m0 += 2;
+    }
+
+    // Assign center if need be
+    //
+    if (cf->ctr.size())
+      coefctr = cf->ctr;
+    else
+      coefctr = {0.0, 0.0, 0.0};
+  }
+
+  void CBDisk::accumulate(double x, double y, double z, double mass)
+  {
+    // Normalization factors
+    //
+    constexpr double norm0 = 1.0;
+    constexpr double norm1 = M_SQRT2;
+
+    //======================
+    // Compute coefficients 
+    //======================
+    
+    double R2 = x*x + y*y;
+    double R  = sqrt(R);
+    
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    used++;
+    totalMass += mass;
+    
+    double phi = atan2(y, x);
+
+    get_pot(potd[tid], R);
+    
+    // M loop
+    for (int m=0, moffset=0; m<=mmax; m++) {
+	
+      if (m==0) {
+	for (int n=0; n<nmax; n++) {
+	  expcoef(moffset, n) += potd[tid](m, n)* mass * norm0;
+	}
+	
+	moffset++;
+      }
+      else {
+	double ccos = cos(phi*m);
+	double ssin = sin(phi*m);
+	for (int n=0; n<nmax; n++) {
+	  expcoef(moffset  , n) += ccos * potd[tid](m, n) * mass * norm1;
+	  expcoef(moffset+1, n) += ssin * potd[tid](m, n) * mass * norm1;
+	}
+	moffset+=2;
+      }
+    }
+  }
+  
+  void CBDisk::make_coefs()
+  {
+    if (use_mpi) {
+      
+      MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
+		    MPI_SUM, MPI_COMM_WORLD);
+      
+      for (int m=0; m<2*mmax+1; m++) {
+	work = expcoef.row(m);
+	MPI_Allreduce(MPI_IN_PLACE, work.data(), nmax, MPI_DOUBLE,
+		      MPI_SUM, MPI_COMM_WORLD);
+	expcoef.row(m) = work;
+      }
+    }
+  }
+  
+  std::vector<double>CBDisk::cyl_eval(double R, double z, double phi)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Fixed values
+    constexpr double norm0 = 1.0;
+    constexpr double norm1 = M_SQRT2;
+
+    double den0=0, den1=0, pot0=0, pot1=0, rpot=0, zpot=0, ppot=0;
+
+    // Get the basis fields
+    //
+    get_dens  (dend[tid], R);
+    get_pot   (potd[tid], R);
+    get_force (potR[tid], R);
+    
+    // m loop
+    //
+    for (int m=0, moffset=0; m<=mmax; m++) {
+      
+      if (m==0 and NO_M0)        { moffset++;    continue; }
+      if (m==1 and NO_M1)        { moffset += 2; continue; }
+      if (EVEN_M and m/2*2 != m) { moffset += 2; continue; }
+      if (m>0 and M0_only)       break;
+
+      if (m==0) {
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  den0 += expcoef(0, n) * dend[tid](0, n) * norm0;
+	  pot0 += expcoef(0, n) * potd[tid](0, n) * norm0;
+	  rpot += expcoef(0, n) * potR[tid](0, n) * norm0;
+	}
+	
+	moffset++;
+      } else {
+	double cosm = cos(phi*m), sinm = sin(phi*m);
+	double vc, vs;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * dend[tid](m, n);
+	  vs += expcoef(moffset+1, n) * dend[tid](m, n);
+	}
+	
+	den1 += (vc*cosm + vs*sinm) * norm1;
+      
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potd[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potd[tid](m, n);
+	}
+	
+	pot1 += ( vc*cosm + vs*sinm) * norm1;
+	ppot += (-vc*sinm + vs*cosm) * m * norm1;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potR[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potR[tid](m, n);
+	}
+
+	rpot += (vc*cosm + vs*sinm) * norm1;
+	
+	moffset +=2;
+      }
+    }
+
+    den0 *= -1.0;
+    den1 *= -1.0;
+    pot0 *= -1.0;
+    pot1 *= -1.0;
+    rpot *= -1.0;
+    ppot *= -1.0;
+
+    return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
+  }
+
+
+  std::vector<double> CBDisk::sph_eval(double r, double costh, double phi)
+  {
+    // Cylindrical coords
+    //
+    double sinth = sqrt(fabs(1.0 - costh*costh));
+    double R = r*sinth, z = r*costh;
+
+    auto v = cyl_eval(R, z, phi);
+  
+    // Spherical force element converstion
+    //
+    double potr = v[6]*sinth + v[7]*costh;
+    double pott = v[6]*costh - v[7]*sinth;
+
+    return {v[0], v[1], v[2], v[3], v[4], v[5], potr, pott, v[8]};
+  }
+
+  std::vector<double> CBDisk::crt_eval(double x, double y, double z)
+  {
+    // Cylindrical coords from Cartesian
+    //
+    double R = sqrt(x*x + y*y) + 1.0e-18;
+    double phi = atan2(y, x);
+
+    auto v = cyl_eval(R, z, phi);
+
+    double potx = v[4]*x/R - v[8]*y/R;
+    double poty = v[4]*y/R + v[8]*x/R;
+
+    return {v[0], v[1], v[2], v[3], v[4], v[5], potx, poty, v[7]};
+  }
+
+  CBDisk::BasisArray CBDisk::getBasis
+  (double logxmin, double logxmax, int numgrid)
+  {
+    // Assing return storage
+    BasisArray ret(mmax+1);
+    for (auto & v : ret) {
+      v.resize(nmax);
+      for (auto & u : v) {
+	u["potential"].resize(numgrid); // Potential
+	u["density"  ].resize(numgrid); // Density
+	u["rforce"   ].resize(numgrid); // Radial force
+      }
+    }
+
+    // Radial grid spacing
+    double dx = (logxmax - logxmin)/(numgrid-1);
+
+    // Basis storage
+    Eigen::MatrixXd tabpot, tabden, tabrfc;
+
+    // Evaluate on the plane
+    for (int i=0; i<numgrid; i++) {
+      get_pot  (tabpot, pow(10.0, logxmin + dx*i));
+      get_dens (tabden, pow(10.0, logxmin + dx*i));
+      get_force(tabrfc, pow(10.0, logxmin + dx*i));
       for (int m=0; m<=mmax; m++) {
 	for (int n=0; n<nmax; n++){
 	  ret[m][n]["potential"](i) = tabpot(m, n);
@@ -2442,7 +3152,7 @@ namespace BasisClasses
     return ret;
   }
 
-  std::vector<Eigen::MatrixXd> Slab::orthoCheck()
+  std::vector<Eigen::MatrixXd> Slab::orthoCheck(int knots)
   {
     return ortho->orthoCheck();
   }
@@ -2747,9 +3457,11 @@ namespace BasisClasses
     return {0, den1, den1, 0, pot1, pot1, potr, pott, potp};
   }
 
-  Eigen::MatrixXcd Cube::orthoCheck()
+  std::vector<Eigen::MatrixXd> Cube::orthoCheck(int knots)
   {
-    return ortho->orthoCheck();
+    std::vector<Eigen::MatrixXd> ret;
+    ret.push_back(ortho->orthoCheck().array().abs());
+    return ret;
   }
   
   // Generate coeffients from a particle reader
@@ -2979,7 +3691,7 @@ namespace BasisClasses
     for (int n=0; n<rows; n++) {
       auto v = basis->getFields(ps(n, 0), ps(n, 1), ps(n, 2));
       // First 6 fields are density and potential, follewed by acceleration
-      for (int k=0; k<3; k++) accel(n, k) += v[6+k];
+      for (int k=0; k<3; k++) accel(n, k) += v[6+k] - basis->pseudo(k);
     }
 
     return accel;
@@ -3048,6 +3760,10 @@ namespace BasisClasses
     // Install coefficients
     //
     basis->set_coefs(newcoef);
+
+    // Set non-inertial force
+    basis->setNonInertialAccel(t);
+
   }
 
   SingleTimeAccel::SingleTimeAccel(double t, std::vector<BasisCoef> mod)

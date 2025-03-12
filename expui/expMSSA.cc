@@ -55,6 +55,16 @@
 
 namespace MSSA {
 
+  // Update sign of left vectors U only
+  void SvdSignChoice
+  (const Eigen::MatrixXd& X,
+   Eigen::MatrixXd& U, const Eigen::VectorXd& S, const Eigen::MatrixXd& V);
+
+  // Update sign of right vectors V only
+  void SvdSignChoice
+  (const Eigen::MatrixXd& X,
+   const Eigen::MatrixXd& U, const Eigen::VectorXd& S, Eigen::MatrixXd& V);
+
   Eigen::MatrixXd expMSSA::wCorrKey(const Key& key)
   {
     if (RC.find(key)==RC.end()) {
@@ -289,52 +299,59 @@ namespace MSSA {
     //
     if (params["Jacobi"]) {
       // -->Using Jacobi
-      if (trajectory) {	// Trajectory matrix
+      if (trajectory) {		// Trajectory matrix
 	auto YY = Y/Scale;
 	Eigen::JacobiSVD<Eigen::MatrixXd>
 	  svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	S = svd.singularValues();
 	U = svd.matrixV();
+	if (useSignChoice) SvdSignChoice(YY, svd.matrixU(), S, U);
       }
       else {			// Covariance matrix
 	Eigen::JacobiSVD<Eigen::MatrixXd>
 	  svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	S = svd.singularValues();
 	U = svd.matrixU();
+	if (useSignChoice) SvdSignChoice(cov, U, S, svd.matrixV());
       }
     } else if (params["BDCSVD"]) {
       // -->Using BDC
-      if (trajectory) {	// Trajectory matrix
+      if (trajectory) {		// Trajectory matrix
 	auto YY = Y/Scale;
 	Eigen::BDCSVD<Eigen::MatrixXd>
 	  svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	S = svd.singularValues();
 	U = svd.matrixV();
+	if (useSignChoice) SvdSignChoice(YY, svd.matrixU(), S, U);
       }
       else {			// Covariance matrix
 	Eigen::BDCSVD<Eigen::MatrixXd>
 	  svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	S = svd.singularValues();
 	U = svd.matrixU();
+	if (useSignChoice) SvdSignChoice(cov, U, S, svd.matrixV());
       }
     } else {
       // -->Use Random approximation algorithm from Halko, Martinsson,
       //    and Tropp
-      if (trajectory) {	// Trajectory matrix
+      if (trajectory) {		// Trajectory matrix
 	auto YY = Y/Scale;
 	RedSVD::RedSVD<Eigen::MatrixXd> svd(YY, srank);
 	S = svd.singularValues();
 	U = svd.matrixV();
+	if (useSignChoice) SvdSignChoice(YY, svd.matrixU(), S, U);
       }
       else {			// Covariance matrix
 	if (params["RedSym"]) {
 	  RedSVD::RedSymEigen<Eigen::MatrixXd> eigen(cov, srank);
 	  S = eigen.eigenvalues().reverse();
 	  U = eigen.eigenvectors().rowwise().reverse();
+	  if (useSignChoice) SvdSignChoice(cov, U, S, U.transpose());
 	} else {
 	  RedSVD::RedSVD<Eigen::MatrixXd> svd(cov, srank);
 	  S = svd.singularValues();
 	  U = svd.matrixU();
+	  if (useSignChoice) SvdSignChoice(cov, U, S, U.transpose());
 	}
       }
     }
@@ -1046,10 +1063,10 @@ namespace MSSA {
 #endif
   }
 
-  void expMSSA::kmeans(int clusters, bool toTerm, bool toFile)
+  void expMSSA::kmeansPrint(int clusters, int stride, bool toTerm, bool toFile)
   {
     if (clusters==0) {
-      std::cout << "expMSSA::kmeans: you need clusters>0" << std::endl;
+      std::cout << "expMSSA::kmeansPrint: you need clusters>0" << std::endl;
       return;
     }
 
@@ -1070,41 +1087,22 @@ namespace MSSA {
 	std::cerr << "Error opening file <" << filename << ">" << std::endl;
     }
 
-    // W-correlation-based distance functor
-    //
-    KMeans::WcorrDistance dist(numT, numW);
-
     for (auto u : mean) {
-      // Pack point array
-      //
-      std::vector<KMeans::Ptr> data;
-      for (int j=0; j<ncomp; j++) {
-	data.push_back(std::make_shared<KMeans::Point>(numT));
-	for (int i=0; i<numT; i++) data.back()->x[i] = RC[u.first](i, j);
-      }
 
-      // Initialize k-means routine
-      //
-      KMeans::kMeansClustering kMeans(data);
-
-      // Run 100 iterations
-      //
-      kMeans.iterate(dist, 100, clusters, 2, false);
-
-      // Retrieve cluster associations
-      //
-      auto results = kMeans.get_results();
+      auto [id, dd, tol] = kmeansChannel(u.first, clusters, stride);
 
       // Write to file
       //
       if (out) {
 	out << std::string(60, '-') << std::endl
 	    << " *** n=" << u.first << std::endl
+	    << " *** tol=" << tol   << std::endl
 	    << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<results.size(); j++) {
+	for (int j=0; j<id.size(); j++) {
 	  out << std::setw(6)  << j
-	      << std::setw(12) << std::get<1>(results[j])
+	      << std::setw(12) << id[j]
+	      << std::setw(16) << dd[j]
 	      << std::endl;
 	}
       }
@@ -1116,9 +1114,10 @@ namespace MSSA {
 		  << " *** n=" << u.first << std::endl
 		  << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<results.size(); j++) {
-	  std::cout << std::setw(6)  << j
-		    << std::setw(12) << std::get<1>(results[j])
+	for (int j=0; j<id.size(); j++) {
+	  std::cout << std::setw( 6) << j
+		    << std::setw( 9) << id[j]
+		    << std::setw(16) << dd[j]
 		    << std::endl;
 	}
       }
@@ -1126,41 +1125,20 @@ namespace MSSA {
 
     if (params["allchan"]) {
 
-      // Pack point array
-      //
-      std::vector<KMeans::Ptr> data;
-      int sz = mean.size();
-      for (int j=0; j<ncomp; j++) {
-	data.push_back(std::make_shared<KMeans::Point>(numT*sz));
-	int c = 0;
-	for (auto u : mean) {
-	  for (int i=0; i<numT; i++) data.back()->x[c++] = RC[u.first](i, j);
-	}
-      }
-
-      // Initialize k-means routine
-      //
-      KMeans::kMeansClustering kMeans(data);
-
-      // Run 100 iterations
-      //
-      KMeans::WcorrDistMulti dist2(numT, numW, sz);
-      kMeans.iterate(dist2, 100, clusters, 2, false);
-
-      // Retrieve cluster associations
-      //
-      auto results = kMeans.get_results();
+      auto [id, dd, tol] = kmeans(clusters, stride);
 
       // Write to file
       //
       if (out) {
 	out << std::string(60, '-') << std::endl
 	    << " *** total"         << std::endl
+	    << " *** tol=" << tol   << std::endl
 	    << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<results.size(); j++) {
-	  out << std::setw(6) << j
-	      << std::setw(9) << std::get<1>(results[j])
+	for (int j=0; j<id.size(); j++) {
+	  out << std::setw( 6) << j
+	      << std::setw( 9) << id[j]
+	      << std::setw(16) << dd[j]
 	      << std::endl;
 	}
       }
@@ -1172,9 +1150,10 @@ namespace MSSA {
 		  << " *** total"         << std::endl
 		  << std::string(60, '-') << std::endl;
 
-	for (int j=0; j<results.size(); j++) {
-	  std::cout << std::setw(6) << j
-		    << std::setw(9) << std::get<1>(results[j])
+	for (int j=0; j<id.size(); j++) {
+	  std::cout << std::setw( 6) << j
+		    << std::setw( 9) << id[j]
+		    << std::setw(16) << dd[j]
 		    << std::endl;
 	}
       }
@@ -1186,7 +1165,128 @@ namespace MSSA {
 	std::cout << "Bad output stream for <" << filename << ">" << std::endl;
     }
     out.close();
+  }
 
+  
+  std::tuple<std::vector<int>, std::vector<double>, double>
+  expMSSA::kmeansChannel(Key key, int clusters, int stride)
+  {
+    if (clusters==0) {
+      throw std::invalid_argument("expMSSA::kmeansChannel: clusters==0");
+    }
+
+    if (stride<0) {
+      throw std::invalid_argument("expMSSA::kmeansChannel: stride must be >= 0");
+    }
+
+    if (mean.find(key) == mean.end()) {
+      std::ostringstream sout;
+      sout << "expMSSA::kmeansKey: key <" << key << "> not found";
+      throw std::invalid_argument(sout.str());
+    }
+
+    KMeans::WcorrDistance dist(numT, numW);
+
+    // Pack point array
+    //
+    std::vector<KMeans::Ptr> data;
+    for (int j=0; j<ncomp; j++) {
+      data.push_back(std::make_shared<KMeans::Point>(numT));
+      for (int i=0; i<numT; i++) data.back()->x[i] = RC[key](i, j);
+    }
+
+    // Initialize k-means routine
+    //
+    KMeans::kMeansClustering kMeans(data);
+
+    // Run 100 iterations
+    //
+    kMeans.iterate(dist, 1000, clusters, stride);
+
+    // Retrieve cluster associations
+    //
+    auto results = kMeans.get_results();
+    auto centers = kMeans.get_cen();
+
+    // Compute inertia
+    //
+    auto inertia = [&](int j, int id) -> double {
+      auto & cen = centers[id];
+      double d = 0.0;
+      for (int i=0; i<cen.size(); i++)
+	d += (cen[i] - data[j]->x[i])*(cen[i] - data[j]->x[i]);
+      return sqrt(d);
+    };
+
+    // Pack return vector
+    //
+    std::vector<int> retI;
+    std::vector<double> retD;
+    for (int j=0; j<results.size(); j++) {
+      retI.push_back(std::get<1>(results[j]));
+      retD.push_back(inertia(j, std::get<1>(results[j])));
+    }
+
+    return {retI, retD, kMeans.getTol()};
+  }
+
+  std::tuple<std::vector<int>, std::vector<double>, double>
+  expMSSA::kmeans(int clusters, int stride)
+  {
+    if (clusters==0) {
+      throw std::invalid_argument("expMSSA::kmeans: you need clusters>0");
+    }
+
+    if (stride<0) {
+      throw std::invalid_argument("expMSSA::kmeans: stride must be >= 0");
+    }
+
+    // Pack point array
+    //
+    std::vector<KMeans::Ptr> data;
+    int sz = mean.size();
+    for (int j=0; j<ncomp; j++) {
+      data.push_back(std::make_shared<KMeans::Point>(numT*sz));
+      int c = 0;
+      for (auto u : mean) {
+	for (int i=0; i<numT; i++) data.back()->x[c++] = RC[u.first](i, j);
+      }
+    }
+
+    // Initialize k-means routine
+    //
+    KMeans::kMeansClustering kMeans(data);
+    
+    // Run 100 iterations
+    //
+    KMeans::WcorrDistMulti dist(numT, numW, sz);
+    kMeans.iterate(dist, 1000, clusters, stride);
+
+    // Retrieve cluster associations
+    //
+    auto results = kMeans.get_results();
+    auto centers = kMeans.get_cen();
+
+    // Compute inertia
+    //
+    auto inertia = [&](int j, int id) -> double {
+      auto & cen = centers[id];
+      double d = 0.0;
+      for (int i=0; i<cen.size(); i++)
+	d += (cen[i] - data[j]->x[i])*(cen[i] - data[j]->x[i]);
+      return sqrt(d);
+    };
+
+    // Pack return vector
+    //
+    std::vector<int> retI;
+    std::vector<double> retD;
+    for (int j=0; j<results.size(); j++) {
+      retI.push_back(std::get<1>(results[j]));
+      retD.push_back(inertia(j, std::get<1>(results[j])));
+    }
+
+    return {retI, retD, kMeans.getTol()};
   }
 
   std::map<std::string, CoefClasses::CoefsPtr> expMSSA::getReconstructed(bool reconstructmean)
@@ -1247,6 +1347,7 @@ namespace MSSA {
     "Traj",
     "RedSym",
     "rank",
+    "Sign",
     "allchan",
     "distance",
     "flip",
@@ -1554,7 +1655,260 @@ namespace MSSA {
 
   }
 
-  expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC), trajectory(true)
+  std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>
+  expMSSA::getKoopmanModes(double tol, int D, bool debug)
+  {
+    bool use_fullKh = true;	// Use the non-reduced computation of
+				// Koopman/eDMD
+    // Number of channels
+    //
+    nkeys = mean.size();
+
+    // Make sure parameters are sane
+    //
+    if (numW<=0) numW = numT/2;
+    if (numW > numT/2) numW = numT/2;
+
+    numK = numT - numW + 1;
+
+    Eigen::VectorXd S1;
+    Eigen::MatrixXd Y1;
+    Eigen::MatrixXd V1;
+    Eigen::MatrixXd VT1;
+    Eigen::MatrixXd VT2;
+
+    // Make a new trajetory matrix with smoothing
+    //
+    Y1.resize(numK, numW*nkeys + D*(nkeys-1));
+
+    size_t n=0, offset=0;
+    for (auto k : mean) {
+      for (int i=0; i<numK; i++) {
+	if (n > 0) {
+	  // Back blending
+	  for (int j=0; j<D; j++) {
+	    Y1(i, offset-j) += data[k.first][i + j] *
+	      static_cast<double>(D-j)/D;
+	  }
+	}
+	// Main series
+	for (int j=0; j<numW; j++) {
+	  if (i + j < numT) Y1(i, j + offset) = data[k.first][i + j];
+	}
+	// Forward blending
+	if (n<nkeys-1) {
+	  for (int j=0; j<D; j++) {
+	    Y1(i, j + numW + offset) = data[k.first][i + numW - j - 2] *
+	      static_cast<double>(D-j)/D;
+	  }
+	}
+      }
+      offset += numW + D;
+      n++;
+    }
+      
+    // double Scale = Y1.norm();
+    // auto YY = Y1/Scale;
+
+    auto YY = Y1;
+
+    // Use one of the built-in Eigen3 algorithms
+    //
+    if (params["Jacobi"]) {
+      // -->Using Jacobi
+      Eigen::JacobiSVD<Eigen::MatrixXd>
+	svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
+      S1 = svd.singularValues();
+      V1 = svd.matrixV();
+    }
+    // -->Using BDC
+    else if (params["BDCSVD"]) {
+    Eigen::BDCSVD<Eigen::MatrixXd>
+      svd(YY, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      // svd(YY, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    S1 = svd.singularValues();
+    V1 = svd.matrixV();
+    }
+    // -->Use Random approximation algorithm from Halko, Martinsson,
+    //    and Tropp
+    else {
+      int srank = std::min<int>(YY.cols(), YY.rows());
+      RedSVD::RedSVD<Eigen::MatrixXd> svd(YY, srank);
+      S1 = svd.singularValues();
+      V1 = svd.matrixV();
+    }
+    
+    std::cout << "shape V1 = " << V1.rows() << " x "
+	      << V1.cols() << std::endl;
+    
+    std::cout << "shape Y1 = " << Y1.rows() << " x "
+	      << Y1.cols() << std::endl;
+      
+    int lags = V1.rows();
+    int rank = V1.cols();
+
+    std::ofstream out;
+    if (debug) out.open("debug.txt");
+
+    if (out) out << "rank=" << rank << " lags=" << lags << std::endl;
+
+    VT1.resize(rank, lags-1);
+    VT2.resize(rank, lags-1);
+
+    for (int j=0; j<rank; j++) {
+      std::vector<double> uu;
+      for (int i=0; i<lags-1; i++) {
+	VT1(j, i) = V1(i+0, j);
+	VT2(j, i) = V1(i+1, j);
+      }
+    }
+    
+    // Singular values
+    Eigen::VectorXd SS;
+
+    // Left & right singular vectors
+    Eigen::MatrixXd UU, VV;
+
+    if (out) {
+      out << std::endl << "Y shape: " << YY.rows()
+	  << " x " << YY.cols() << std::endl << std::endl
+	  << "VT1" << std::endl << VT1.transpose() << std::endl << std::endl
+	  << "VT2" << std::endl << VT2.transpose() << std::endl << std::endl;
+    }
+
+    // SVD
+    // Use one of the built-in Eigen3 algorithms
+    //
+    // -->Using Jacobi
+    if (params["Jacobi"]) {
+      Eigen::JacobiSVD<Eigen::MatrixXd>
+	// svd(VT1, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	svd(VT1, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      SS = svd.singularValues();
+      UU = svd.matrixU();
+      VV = svd.matrixV();
+    }
+    // -->Using BDC
+    else if (params["BDCSVD"]) {
+      Eigen::BDCSVD<Eigen::MatrixXd>
+	// svd(VT1, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	svd(VT1, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      SS = svd.singularValues();
+      UU = svd.matrixU();
+      VV = svd.matrixV();
+    }
+    // -->Use Random approximation algorithm from Halko, Martinsson,
+    //    and Tropp
+    else {
+      // RedSVD::RedSVD<Eigen::MatrixXd> svd(VT1, std::min<int>(rank, numK-1));
+      RedSVD::RedSVD<Eigen::MatrixXd> svd(VT1, std::max<int>(VT1.rows(), VT2.cols()));
+      SS = svd.singularValues();
+      UU = svd.matrixU();
+      VV = svd.matrixV();
+    }
+
+    if (out) out << "Singular values" << std::endl << SS << std::endl;
+
+    // Compute inverse
+    for (int i=0; i<SS.size(); i++) {
+      if (std::fabs(SS(i)) > tol) SS(i) = 1.0/SS(i);
+      else                        SS(i) = 0.0;
+    }
+
+    // Compute full Koopman operator
+    if (use_fullKh) {
+
+      Eigen::MatrixXd DD(VV.cols(), UU.cols());
+      DD.setZero();
+      for (int i=0; i<SS.size(); i++) DD(i, i) = SS(i);
+
+      Eigen::MatrixXd AT = VT2 * VV * DD * UU.transpose();
+
+      std::cout << "Size of AT: " << AT.rows() << " x " << AT.cols() << std::endl;
+
+      // Compute spectrum
+      Eigen::EigenSolver<Eigen::MatrixXd> es(AT);
+
+      L    = es.eigenvalues();
+      Phi  = es.eigenvectors();
+      
+      if (out) {
+	out << std::endl << "Eigenvalues"  << std::endl << L   << std::endl
+	    << std::endl << "Eigenvectors" << std::endl << Phi << std::endl;
+      }
+
+    } 
+    // Compute the reduced Koopman operator
+    else {
+
+      Eigen::MatrixXd AT = UU.transpose() * (VT2 * VV) * SS.asDiagonal();
+
+      // Compute spectrum
+      Eigen::EigenSolver<Eigen::MatrixXd> es(AT, true);
+
+      L      = es.eigenvalues();
+      auto W = es.eigenvectors();
+
+      // Compute the EDMD modes
+      //
+      Eigen::VectorXcd Linv(L);
+      for (int i=0; i<L.size(); i++) {
+	if (std::abs(Linv(i)) > tol) Linv(i) = 1.0/Linv(i);
+	else Linv(i) = 0.0;
+      }
+
+      Phi  = VT2 * VV * SS.asDiagonal() * W * Linv.asDiagonal();
+      
+      if (out) {
+	out << std::endl << "Eigenvalues"  << std::endl << L << std::endl
+	    << std::endl << "Eigenvectors" << std::endl << Phi << std::endl;
+      }
+    }
+
+    // Cache window size
+    //
+    window = D;
+
+    return {L, Phi};
+  }
+
+  std::map<std::string, CoefClasses::CoefsPtr>
+  expMSSA::getReconstructedKoopman(int mode)
+  {
+    // Copy the original map for return
+    //
+    auto newdata = data;
+
+    size_t n=0, offset=0;
+
+    for (auto u : mean) {
+      
+      double disp = totVar;
+      if (type == TrendType::totPow) disp = totPow;
+      if (disp==0.0) disp = var[u.first];
+      
+      std::complex phase = 1.0;
+      for (int i=0; i<numW; i++, phase *= L(mode))
+  	newdata[u.first][i] = std::real(Phi(mode, offset+i)*phase)*disp + u.second;
+
+      offset += numW + window;
+      n++;
+    }
+
+    // Copy to the working data
+    //
+    for (auto v : newdata) {
+      if (verbose) std::cout << "Updating for: " << v.first << std::endl;
+      coefDB.setData(v.first, v.second);
+    }
+
+    // Copies working data back to the coefficient structures
+    //
+    return coefDB.endUpdate();
+  }
+
+
+  expMSSA::expMSSA(const mssaConfig& config, int nW, int nPC, const std::string flags) : numW(nW), npc(nPC), trajectory(true), useSignChoice(true)
   {
     // Parse the YAML string
     //
@@ -1573,7 +1927,8 @@ namespace MSSA {
 
     // Set the SVD strategy for mSSA
     //
-    if (params["Traj"]) trajectory = params["Traj"].as<bool>();
+    if (params["Traj"]) trajectory    = params["Traj"].as<bool>();
+    if (params["Sign"]) useSignChoice = params["Sign"].as<bool>();
 
     // std::cout << "Trajectory is " << std::boolalpha << trajectory
     // << std::endl;
