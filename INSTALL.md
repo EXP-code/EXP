@@ -55,6 +55,7 @@ and finally install.
 ```
    make install
 ```
+The `-j 4` flag allows up to 4 processes to compile simulateously. Change 4 to the number of cores you can allot to compiling.
 
 More details are available below, and troubleshooting can be found in the GitHub discussions.
 
