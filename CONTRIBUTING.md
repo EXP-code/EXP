@@ -3,7 +3,7 @@
 There are many ways to contribute to EXP. Here are some of them:
 
 -   Blog about EXP. Cite the EXP published papers (using 
-    the papers in `CITATIONS.bib`). Tell the world how
+    the papers in [`CITATIONS.bib`](https://github.com/EXP-code/EXP/blob/main/CITATIONS.bib)). Tell the world how
     you're using EXP. This will help newcomers with more examples and
     will help the EXP project to increase its visibility.
 -   Report bugs and request features in the [issue
