@@ -31,6 +31,7 @@ SphericalBasis::valid_keys = {
   "rmin",
   "rmax",
   "self_consistent",
+  "FIX_L0",
   "NO_L0",
   "NO_L1",
   "EVEN_L",
@@ -66,6 +67,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
   mix              = m;
   geometry         = sphere;
   coef_dump        = true;
+  FIX_L0           = false;
   NO_L0            = false;
   NO_L1            = false;
   EVEN_L           = false;
@@ -111,6 +113,7 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
     } else
       self_consistent = true;
 
+    if (conf["FIX_L0"])  FIX_L0  = conf["FIX_L0"].as<bool>();
     if (conf["NO_L0"])   NO_L0   = conf["NO_L0"].as<bool>();
     if (conf["NO_L1"])   NO_L1   = conf["NO_L1"].as<bool>();
     if (conf["EVEN_L"])  EVEN_L  = conf["EVEN_L"].as<bool>();
@@ -1644,6 +1647,14 @@ void SphericalBasis::determine_acceleration_and_potential(void)
       compute_multistep_coefficients();
     }
 
+  }
+
+  // This should suffice for both CPU and GPU
+  if (FIX_L0) {
+    // Save the monopole coefficients on the first evaluation
+    if (C0.size() == 0) *C0 = expcoef[0];
+    // Copy the saved coefficients to the active array
+    else *expcoef[0] = C0;
   }
 
 #if HAVE_LIBCUDA==1
