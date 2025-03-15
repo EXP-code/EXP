@@ -1652,7 +1652,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
   // This should suffice for both CPU and GPU
   if (FIX_L0) {
     // Save the monopole coefficients on the first evaluation
-    if (C0.size() == 0) *C0 = expcoef[0];
+    if (C0.size() == 0) C0 = *expcoef[0];
     // Copy the saved coefficients to the active array
     else *expcoef[0] = C0;
   }
