@@ -16,14 +16,38 @@
 
 namespace KDE
 {
+  /**
+     Class for 2D kernel density estimation
+
+     Parameters
+     ----------
+     @param numx:   desired grid size in x
+     @param numy:   desired grid size in y
+     @param xmin:   minimum value in x
+     @param xmax:   maximum value in x
+     @param ymin:   minimum value in y
+     @param ymax:   maximum value in y
+     @param sigmax: smoothing kernel width in x units
+     @param sigmay: smoothing kernel width in y units
+
+     Data input
+     ----------
+     Can be either a vector of pairs (x,y), an array of x and y
+     values, or a precomputed histogram-like grid of size (numx,
+     numy).
+
+     Output
+     ------
+     Smoothed 2D grid in Eigen::MatrixXd format
+   */
   class KDE2d
   {
   protected:
 
     //@{
     //! Parameters
-    bool debug = false;
-    const int minKsize = 7;
+    bool debug = false;		// Set to true for intermediate output
+    const int minKsize = 7;	// Default minimum kernel size
     int numx, numy;
     double xmin, xmax, ymin, ymax, sigmax, sigmay, delx, dely;
     //@}
