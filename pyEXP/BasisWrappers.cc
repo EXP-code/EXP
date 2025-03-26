@@ -1279,9 +1279,9 @@ void BasisFactoryClasses(py::module &m)
     // orthoCheck is not in the base class and needs to have different
     // parameters depending on the basis type.  Here, the quadrature
     // is determined by the scale of the meridional grid.
-    .def("orthoCheck", [](BasisClasses::Cylindrical& A)
+    .def("orthoCheck", [](BasisClasses::Cylindrical& A, int knots)
 	 {
-	   return A.orthoCheck();
+	   return A.orthoCheck(knots);
 	 },
 	R"(
         Check orthgonality of basis functions by quadrature
