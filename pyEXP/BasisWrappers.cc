@@ -1298,7 +1298,7 @@ void BasisFactoryClasses(py::module &m)
         -------
         list(numpy.ndarray)
 	    list of numpy.ndarrays from [0, ... , Mmax]
-        )")
+        )", py::arg("knots")=400)
     .def_static("cacheInfo", [](std::string cachefile)
     {
       return BasisClasses::Cylindrical::cacheInfo(cachefile);
