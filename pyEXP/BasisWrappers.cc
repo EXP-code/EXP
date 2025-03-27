@@ -928,8 +928,25 @@ void BasisFactoryClasses(py::module &m)
          Returns
          -------
          None
-         )");
+         )")
+    .def("getFieldLabels",
+	 [](BasisClasses::Basis& A)
+	 {
+	   return A.getFieldLabels();
+	 },
+	 R"(
+         Provide the field labels for the basis functions
 
+         Parameters
+         ----------
+         None
+
+         Returns
+         -------
+         list: str
+           list of basis function labels
+      )"
+    );
 
   py::class_<BasisClasses::BiorthBasis, std::shared_ptr<BasisClasses::BiorthBasis>, PyBiorthBasis, BasisClasses::Basis>
     (m, "BiorthBasis")
@@ -2044,11 +2061,11 @@ void BasisFactoryClasses(py::module &m)
       // orthoCheck is not in the base class and needs to have
       // different parameters depending on the basis type.  Here the
       // user can and will often need to specify a quadrature value.
-      .def("orthoCheck", [](BasisClasses::FieldBasis& A)
+    .def("orthoCheck", [](BasisClasses::FieldBasis& A)
       {
 	return A.orthoCheck();
       },
-	R"(
+      R"(
         Check orthgonality of basis functions by quadrature
 
         Inner-product matrix of orthogonal functions
@@ -2062,10 +2079,10 @@ void BasisFactoryClasses(py::module &m)
         numpy.ndarray
 	    orthogonality matrix
         )"
-	);
+      );
 
   py::class_<BasisClasses::VelocityBasis, std::shared_ptr<BasisClasses::VelocityBasis>, BasisClasses::FieldBasis>(m, "VelocityBasis")
-      .def(py::init<const std::string&>(),
+    .def(py::init<const std::string&>(),
 	 R"(
          Create a orthogonal velocity-field basis
 
