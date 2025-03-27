@@ -731,8 +731,8 @@ namespace BasisClasses
     double r   = sqrt(R*R + z*z);
     
     double vr  = (u*x + v*y + w*z)/r;
-    double vt  = (u*z*x + v*z*y - w*R)/R/r;
-    double vp  = (u*y - v*x)/R;
+    double vt  = (u*z*x + v*z*y - w*R*R)/R/r;
+    double vp  = (v*x - u*y)/R;
 
     return {vr, vt, vp, vr*vr, vt*vt, vp*vp};
   }
