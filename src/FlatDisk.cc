@@ -109,7 +109,7 @@ void FlatDisk::initialize()
   if (dump_basis) ortho->dump_basis(runtag);
 
   // Set background model
-  if (conf["background"]) setBackground();
+  if (M0_back) setBackground();
 }
 
 FlatDisk::~FlatDisk(void)
@@ -121,8 +121,17 @@ FlatDisk::~FlatDisk(void)
 void FlatDisk::setBackground()
 {
   try {
+    YAML::Node Params;
 
-    YAML::Node Params = conf["background"];
+    if (conf["background"]) Params = conf["background"];
+    else {
+      Params = conf["diskconf"];
+      if (myid==0)		// Log file message
+	std::cout << "---- FlatDisk::setBackground: "
+		  << "M0_BACK set without a 'background' profile" << std::endl
+		  << "---- FlatDisk::setBackground: "
+		  << "using 'diskconf' for 'background' profile" << std::endl;
+    }
 
     std::string name = Params["name"].as<std::string>();
     auto params      = Params["parameters"];
