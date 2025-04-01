@@ -71,6 +71,10 @@ namespace MSSA {
       throw std::runtime_error("expMSSA::wCorrKey: no such key");
     }
 
+    if (nPC<2) {
+      throw std::runtime_error("expMSSA::wCorrKey: nPC must be >= 2 for a meaningful correlation");
+    }
+
     // Get the number of components
     int ncomp = std::min<int>({numW, npc, nPC, static_cast<int>(PC.cols())});
 
@@ -97,17 +101,19 @@ namespace MSSA {
       else                return numT - i + 1;
     };
 
-    Eigen::MatrixXd ret = Eigen::MatrixXd::Zero(numW, numW);
-    for (int m=0; m<numW; m++) {
-      for (int n=m; n<numW; n++) {
+    int rank = std::min<int>(nPC, numW);
+
+    Eigen::MatrixXd ret = Eigen::MatrixXd::Zero(rank, rank);
+    for (int m=0; m<rank; m++) {
+      for (int n=m; n<rank; n++) {
 	for (int i=0; i<numT; i++) ret(m, n) += w(i) * R(i, m)*R(i, n);
       }
     }
 
     // Normalize
     //
-    for (int m=0; m<numW; m++) {
-      for (int n=m+1; n<numW; n++) {
+    for (int m=0; m<rank; m++) {
+      for (int n=m+1; n<rank; n++) {
 	if (ret(m, m)>0.0 and ret(n, n)>0.0)
 	  ret(m, n) /= sqrt(ret(m, m)*ret(n, n));
       }
@@ -115,11 +121,11 @@ namespace MSSA {
 
     // Unit diagonal
     //
-    for (int m=0; m<numW; m++) ret(m, m) = 1.0;
+    for (int m=0; m<rank; m++) ret(m, m) = 1.0;
 
     // Complete
     //
-    for (int m=0; m<numW; m++) {
+    for (int m=0; m<rank; m++) {
       for (int n=0; n<m; n++) ret(m, n) = ret(n, m);
     }
 
@@ -129,6 +135,10 @@ namespace MSSA {
 
   Eigen::MatrixXd expMSSA::wCorrAll(int nPC)
   {
+    if (nPC<2) {
+      throw std::runtime_error("expMSSA::wCorrAll: nPC must be >= 2 for a meaningful correlation");
+    }
+
     // Get the number of components
     int ncomp = std::min<int>({numW, npc, nPC, static_cast<int>(PC.cols())});
 
@@ -153,10 +163,12 @@ namespace MSSA {
       else                return numT - i + 1;
     };
 
-    Eigen::MatrixXd ret = Eigen::MatrixXd::Zero(numW, numW);
+    int rank = std::min<int>(nPC, numW);
+
+    Eigen::MatrixXd ret = Eigen::MatrixXd::Zero(rank, rank);
     for (auto R : RC) {
-      for (int m=0; m<numW; m++) {
-	for (int n=m; n<numW; n++) {
+      for (int m=0; m<rank; m++) {
+	for (int n=m; n<rank; n++) {
 	  for (int i=0; i<numT; i++)
 	    ret(m, n) += w(i) * R.second(i, m)*R.second(i, n);
 	}
@@ -165,8 +177,8 @@ namespace MSSA {
 
     // Normalize
     //
-    for (int m=0; m<numW; m++) {
-      for (int n=m+1; n<numW; n++) {
+    for (int m=0; m<rank; m++) {
+      for (int n=m+1; n<rank; n++) {
 	if (ret(m, m)>0.0 and ret(n, n)>0.0)
 	  ret(m, n) /= sqrt(ret(m, m)*ret(n, n));
       }
@@ -174,11 +186,11 @@ namespace MSSA {
 
     // Unit diagonal
     //
-    for (int m=0; m<numW; m++) ret(m, m) = 1.0;
+    for (int m=0; m<rank; m++) ret(m, m) = 1.0;
 
     // Complete
     //
-    for (int m=0; m<numW; m++) {
+    for (int m=0; m<rank; m++) {
       for (int n=0; n<m; n++) ret(m, n) = ret(n, m);
     }
 
@@ -188,6 +200,10 @@ namespace MSSA {
   Eigen::MatrixXd expMSSA::wCorr
   (const std::string& name, const Key& key, int nPC)
   {
+    if (nPC<2) {
+      throw std::runtime_error("expMSSA::wCorr: nPC must be >= 2 for a meaningful correlation");
+    }
+
     int indx = coefDB.index(name);
     if (indx<0) {
       std::cout << "No such name <" << name << ">" << std::endl
