@@ -34,6 +34,7 @@ set(mwgala_SRC    UserMW.cc)
 
 if(ENABLE_CUDA)
   set(cudatest_SRC UserTestCuda.cc cudaUserTest.cu)
+  list(APPEND barSRC cudauserBar.cu)
 endif()
 
 foreach(mlib ${USER_MODULES})
