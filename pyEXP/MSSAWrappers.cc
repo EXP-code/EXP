@@ -374,6 +374,7 @@ void MSSAtoolkitClasses(py::module &m) {
         )");
 
   f.def("wCorrKey", &expMSSA::wCorrKey, py::arg("key"),
+	py::arg("nPC") = std::numeric_limits<int>::max(),
 	R"(
         Get the w-correlation matrix for the selected component and channel key
 
