@@ -65,10 +65,22 @@ namespace MSSA {
   (const Eigen::MatrixXd& X,
    const Eigen::MatrixXd& U, const Eigen::VectorXd& S, Eigen::MatrixXd& V);
 
-  Eigen::MatrixXd expMSSA::wCorrKey(const Key& key)
+  Eigen::MatrixXd expMSSA::wCorrKey(const Key& key, int nPC)
   {
     if (RC.find(key)==RC.end()) {
       throw std::runtime_error("expMSSA::wCorrKey: no such key");
+    }
+
+    // Get the number of components
+    int ncomp = std::min<int>({numW, npc, nPC, static_cast<int>(PC.cols())});
+
+    // Do the reconstruction
+    if (not fullRecon or ncomp>nlast) {
+      std::vector<int> evlist(ncomp);
+      std::iota(evlist.begin(), evlist.end(), 0);
+      reconstruct(evlist);
+      fullRecon = true;
+      nlast = ncomp;
     }
 
     auto R     = RC[key];
@@ -115,8 +127,20 @@ namespace MSSA {
   }
 
 
-  Eigen::MatrixXd expMSSA::wCorrAll()
+  Eigen::MatrixXd expMSSA::wCorrAll(int nPC)
   {
+    // Get the number of components
+    int ncomp = std::min<int>({numW, npc, nPC, static_cast<int>(PC.cols())});
+
+    // Do the reconstruction
+    if (not fullRecon or ncomp>nlast) {
+      std::vector<int> evlist(ncomp);
+      std::iota(evlist.begin(), evlist.end(), 0);
+      reconstruct(evlist);
+      fullRecon = true;
+      nlast = ncomp;
+    }
+
     int numT   = RC.begin()->second.rows();
     int numW   = RC.begin()->second.cols();
     int Lstar  = std::min<int>(numT - numW, numW);
@@ -161,7 +185,8 @@ namespace MSSA {
     return ret;
   }
 
-  Eigen::MatrixXd expMSSA::wCorr(const std::string& name, const Key& key)
+  Eigen::MatrixXd expMSSA::wCorr
+  (const std::string& name, const Key& key, int nPC)
   {
     int indx = coefDB.index(name);
     if (indx<0) {
@@ -179,11 +204,11 @@ namespace MSSA {
       ekey.push_back(0);
       ekey.push_back(indx);
 
-      auto mat = wCorrKey(ekey);
+      auto mat = wCorrKey(ekey, nPC);
 
       ekey[pos] = 1;
       if (RC.find(ekey)!=RC.end()) {
-	mat += wCorrKey(ekey);
+	mat += wCorrKey(ekey, nPC);
 	mat *= 0.5;
       }
       return mat;
@@ -191,7 +216,7 @@ namespace MSSA {
     else {
       auto ekey = key;
       ekey.push_back(indx);
-      return wCorrKey(ekey);
+      return wCorrKey(ekey, nPC);
     }
 
   }
@@ -378,7 +403,8 @@ namespace MSSA {
     //
     PC = Y * U;
 
-    computed = true;
+    computed      = true;
+    fullRecon     = false;
     reconstructed = false;
   }
 
@@ -533,6 +559,7 @@ namespace MSSA {
       }
     }
 
+    fullRecon = false;
     reconstructed = true;
   }
 
@@ -983,7 +1010,7 @@ namespace MSSA {
     return {fw, pt};
   }
 
-  void expMSSA::wcorrPNG()
+  void expMSSA::wcorrPNG(int nPC)
   {
 #ifdef HAVE_LIBPNGPP
     {
@@ -997,7 +1024,7 @@ namespace MSSA {
       if (params["distance"]) use_dist = true;
 
       for (auto u : RC) {
-	Eigen::MatrixXd wc = wCorrKey(u.first);
+	Eigen::MatrixXd wc = wCorrKey(u.first, nPC);
 
 	png::image< png::rgb_pixel > image(nDim*ndup, nDim*ndup);
 	ColorGradient color;
@@ -1027,7 +1054,7 @@ namespace MSSA {
       }
 
       {
-	Eigen::MatrixXd wc = wCorrAll();
+	Eigen::MatrixXd wc = wCorrAll(nPC);
 
 	png::image< png::rgb_pixel > image(nDim*ndup, nDim*ndup);
 	ColorGradient color;
@@ -1378,6 +1405,7 @@ namespace MSSA {
       // Compute flags
       //
       computed      = false;
+      fullRecon     = false;
       reconstructed = false;
 
       // Top level parameter flags

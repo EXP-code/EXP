@@ -346,6 +346,7 @@ void MSSAtoolkitClasses(py::module &m) {
         )");
 
   f.def("wCorr", &expMSSA::wCorr, py::arg("name"), py::arg("key"),
+	py::arg("nPC") = std::numeric_limits<int>::max(),
 	R"(
         The w-correlation matrix for the selected component and channel key
 
@@ -355,6 +356,8 @@ void MSSAtoolkitClasses(py::module &m) {
             The name of the selected component.
         key : tuple
             The identifier key of the selected channel.
+        nPC : int
+            The maximum rank for reconstruction
 
         Returns
         -------
@@ -398,8 +401,15 @@ void MSSAtoolkitClasses(py::module &m) {
     )");
 
   f.def("wCorrAll", &expMSSA::wCorrAll,
+	py::arg("nPC") = std::numeric_limits<int>::max(),
+
 	R"(
         the w-correlation matrix for all channels in the reconstruction
+
+        Parameters
+        ----------
+        nPC : int
+            The maximum rank for reconstruction
 
         Returns
         -------
@@ -419,8 +429,14 @@ void MSSAtoolkitClasses(py::module &m) {
         )");
 
   f.def("wcorrPNG", &expMSSA::wcorrPNG,
+	py::arg("nPC") = std::numeric_limits<int>::max(),
 	R"(
         w-correlation matrices and output PNG image representations
+
+        Parameters
+        ----------
+        nPC : int
+            The maximum rank for reconstruction
 
         Notes
         -----
