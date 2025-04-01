@@ -259,6 +259,10 @@ namespace BasisClasses
       if (Naccel > 0) pseudo = currentAccel(time);
     }
 
+    //! Get the field label vector
+    std::vector<std::string> getFieldLabels(void)
+    { return getFieldLabels(coordinates); }
+
   };
   
   using BasisPtr = std::shared_ptr<Basis>;

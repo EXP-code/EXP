@@ -98,9 +98,13 @@ namespace BasisClasses
     virtual std::vector<double>
     crt_eval(double x, double y, double z);
 
+    //! Get the field labels
+    std::vector<std::string> getFieldLabels(const Coord ctype)
+    { return fieldLabels; }
+  
   public:
     
-    //! Constructor from YAML node
+   //! Constructor from YAML node
     FieldBasis(const YAML::Node& conf,
 	       const std::string& name="FieldBasis") : Basis(conf, name)
     { configure(); }
@@ -158,10 +162,6 @@ namespace BasisClasses
     {
     }
 
-    //! Get the field labels
-    std::vector<std::string> getFieldLabels(const Coord ctype)
-    { return fieldLabels; }
-  
     //! Return current maximum harmonic order in expansion
     int getLmax() { return lmax; }
     
