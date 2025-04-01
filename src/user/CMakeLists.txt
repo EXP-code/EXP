@@ -31,7 +31,7 @@ if(ENABLE_CUDA)
   #   UserLogPot.cc UserMNdisk.cc UserMW.cc UserTest.cc UserTestCuda.cc 
   #   PROPERTIES LANGUAGE CUDA)
   set(cudatest_SRC UserTestCuda.cc cudaUserTest.cu)
-  list(APPEND barSRC cudaUserBar.cu)
+  list(APPEND bar_SRC cudaUserBar.cu)
 endif()
 
 foreach(mlib ${USER_MODULES})

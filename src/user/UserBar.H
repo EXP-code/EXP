@@ -24,7 +24,7 @@ class UserBar : public ExternalForce
 {
 private:
   
-  string angm_name, ctr_name;
+  std::string angm_name, ctr_name;
   Component *c0, *c1;
 
   void determine_acceleration_and_potential(void);
