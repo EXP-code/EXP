@@ -34,7 +34,10 @@ namespace MSSA
     void mssa_analysis();
 
     //! MSSA control flags
-    bool computed, reconstructed, trajectory, useSignChoice;
+    bool computed, reconstructed, trajectory, useSignChoice, fullRecon;
+
+    //! Last computed number of components
+    int nlast=-1;
 
     //! The reconstructed coefficients for each PC
     std::map<Key, Eigen::MatrixXd, mSSAkeyCompare> RC;
@@ -219,12 +222,14 @@ namespace MSSA
 	@param name is the nmemonic name (see constructor)
 	@param index is one of the specified keys (see constructor)
     */
-    Eigen::MatrixXd wCorrKey(const Key& key);
-    Eigen::MatrixXd wCorr(const std::string& name, const Key& ckey);
+    Eigen::MatrixXd wCorrKey(const Key& key,
+			  int nPC=std::numeric_limits<int>::max());
+    Eigen::MatrixXd wCorr(const std::string& name, const Key& ckey,
+			  int nPC=std::numeric_limits<int>::max());
     //@}
 
     //! Compute w-correlation matrix for all channels
-    Eigen::MatrixXd wCorrAll();
+    Eigen::MatrixXd wCorrAll(int nPC=std::numeric_limits<int>::max());
 
     /** Compute the diagnostic computation of contributions per channel
 	In C++, consider using std::tie to get the unpacked values, e.g.:
@@ -241,7 +246,7 @@ namespace MSSA
     void contributionsPNG();
 
     //! Create wcorrlation matricies and output PNG
-    void wcorrPNG();
+    void wcorrPNG(int nPC=std::numeric_limits<int>::max());
 
     //@{
     /**
