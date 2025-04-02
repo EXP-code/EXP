@@ -4,7 +4,7 @@
 #include <cudaReduce.cuH>
 
 #include <Component.H>
-#include "UserSat.H"
+#include "UserBar.H"
 
 // Global device symbols for CUDA kernel
 //
@@ -55,13 +55,13 @@ userBarForceKernel(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
     
       if (userBarSoft) {
-	fac = 1.0 + rr/b5;
+	fac = 1.0 + rr/userBarB5;
 	ffac = -userBarAmp / pow(fac, 6.0);
-	nn = pp / (b5*rr);
+	nn = pp / (userBarB5*rr);
       } else {
-	fac = 1.0 + pow(rr/b5, 5.0);
+	fac = 1.0 + pow(rr/userBarB5, 5.0);
 	ffac = -userBarAmp / (fac*fac);
-	nn = pp * pow(rr/b5, 3.0)/ (b5*b5);
+	nn = pp * pow(rr/userBarB5, 3.0)/ (userBarB5*userBarB5);
       }
 
       // Add acceleration
@@ -80,14 +80,13 @@ userBarForceKernel(dArray<cudaParticle> P, dArray<int> I,
 
 
 __global__
-void testConstantsUserSat(cuFP_t tnow)
+void testConstantsUserBar(cuFP_t tnow)
 {
   printf("-------------------------\n");
-  printf("---UserSat constants-----\n");
+  printf("---UserBar constants-----\n");
   printf("-------------------------\n");
   printf("   Time   = %e\n", tnow          );
   printf("   Amp    = %e\n", userBarAmp    );
-  printf("   Amp    = %e\n", userBarNumFac );
   printf("   b5     = %e\n", userBarB5     );
   printf("   Center = %e, %e, %e\n",
 	 userBarCen[0], userBarCen[1], userBarCen[2] );
@@ -96,26 +95,17 @@ void testConstantsUserSat(cuFP_t tnow)
   printf("-------------------------\n");
 }
 
-void UserBar::determine_acceration_and_potential_cuda()
+void UserBar::determine_acceleration_and_potential_cuda()
 {
   // Sanity check
   //
   int nbodies = cC->Number();
   if (nbodies != static_cast<int>(cC->Particles().size())) {
-    std::cerr << "UserSat: ooops! number=" << nbodies
+    std::cerr << "UserBar: ooops! number=" << nbodies
 	      << " but particle size=" << cC->Particles().size() << endl;
     nbodies = static_cast<int>(cC->Particles().size());
   }
   
-  if (nbodies==0) {		// Return if there are no particles
-    if (verbose) {
-      cout << "Process " << myid << ": in UserBar, nbodies=0" 
-	   << " for Component <" << cC->name << "> at T=" << tnow
-	   << endl;
-    }
-    return;
-  }
-
   double amp = afac * numfac * amplitude/fabs(amplitude) 
     * 0.5*(1.0 + erf( (tnow - Ton )/DeltaT ))
     * 0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
@@ -133,8 +123,6 @@ void UserBar::determine_acceration_and_potential_cuda()
   auto cn = cC->getCenter();
   cuFP_t ctr[3], dtmp;
   for (int k=0; k<3; k++) ctr[k] = cn[k];
-
-  cuFP_t dtmp;
 
   cuda_safe_call(cudaMemcpyToSymbol(userBarAmp, &(dtmp=amp), sizeof(cuFP_t),
 				    size_t(0), cudaMemcpyHostToDevice),
