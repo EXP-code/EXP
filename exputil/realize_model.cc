@@ -37,6 +37,7 @@
 #include <localmpi.H>
 #include <massmodel.H>
 #include <interp.H>
+#include <euler.H>
 
 #ifdef DEBUG
 #include <orbit.H>
@@ -69,12 +70,10 @@ int      AxiSymModel::gen_itmax = 20000;
 const bool verbose = true;
 const double ftol = 0.01;
 
-Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
+AxiSymModel::PSret AxiSymModel::gen_point_2d()
 {
   if (!dist_defined) {
-    std::cerr << "AxiSymModel: must define distribution before realizing!"
-	      << std::endl;
-    exit (-1);
+    throw std::runtime_error("AxiSymModel: must define distribution before realizing!");
   }
 
   int it;			// Iteration counter
@@ -87,7 +86,6 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
   double Emin = get_pot(rmin);
   double Emax = get_pot(get_max_radius());
 
-
   if (gen_EJ) {
 
     if (gen_firstime) {
@@ -97,8 +95,9 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
       double dx = (Emax - Emin - 2.0*tol)/(numr-1);
       double dy = (1.0 - gen_kmin - 2.0*tol)/(numj-1);
 
+#ifdef DEBUG
       std::cout << "gen_point_2d[" << ModelID << "]: " << get_max_radius() << std::endl;
-      
+#endif
       gen_fomax = 0.0;
 
       for (int j=0; j<numr; j++) {
@@ -109,9 +108,9 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 
 	  gen_orb.new_orbit(xxx, yyy);
 	    
-	  double zzz = distf(xxx, gen_orb.AngMom())*gen_orb.Jmax()
-	    /gen_orb.get_freq(1);
-	  gen_fomax = zzz>gen_fomax ? zzz : gen_fomax;
+	  double zzz = distf(xxx, gen_orb.AngMom())*gen_orb.Jmax()/gen_orb.get_freq(1);
+
+	  if (zzz>gen_fomax) gen_fomax = zzz;
 	}
       }
 
@@ -119,8 +118,8 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
     }
 
     
-				// Trial velocity point
-    
+    // Trial velocity point
+    //
     for (it=0; it<gen_itmax; it++) {
 
       double xxx = Emin + tol + (Emax - Emin - 2.0*tol)*Unit(random_gen);
@@ -166,7 +165,9 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
       gen_rloc.resize(gen_N);
       gen_fmax.resize(gen_N);
 
+#ifdef DEBUG
       std::cout << "gen_point_2d[" << ModelID << "]: " << get_max_radius() << std::endl;
+#endif
 
       if (rmin <= 1.0e-16) gen_logr = 0;
 
@@ -203,7 +204,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 	    eee = pot + 0.5*(vr*vr + vt*vt);
 
 	    double zzz = distf(eee, gen_rloc[i]*vt);
-	    fmax = zzz>fmax ? zzz : fmax;
+	    if (zzz > fmax) fmax = zzz;
 	  }
 	}
 	gen_fmax[i] = fmax*(1.0 + ftol);
@@ -219,8 +220,8 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
     pot = get_pot(r);
     vmax = sqrt(2.0*fabs(Emax - pot));
 
-                                // Trial velocity point
-    
+    // Trial velocity point
+    //
     for (it=0; it<gen_itmax; it++) {
 
       double xxx = sqrt(Unit(random_gen));
@@ -232,7 +233,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 
       if (Unit(random_gen) > distf(eee, r*vt)/fmax ) continue;
 
-      if (Unit(random_gen)<0.5) vr *= -1.0;
+      if (Unit(random_gen) < 0.5) vr *= -1.0;
     
       phi = 2.0*M_PI*Unit(random_gen);
 
@@ -254,13 +255,10 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 		<< std::setw(12) << fmax
 		<< " %=" << std::setw(12)
 		<< static_cast<double>(++toomany)/totcnt << std::endl;
-    ierr = 1;
     out.setZero();
-    return out;
+    return {out, 1};
   }
 
-  ierr = 0;
-  
   cosp = cos(phi);
   sinp = sin(phi);
 
@@ -272,16 +270,14 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
   out[5] = vr * sinp + vt * cosp;
   out[6] = 0.0;
     
-  return out;
+  return {out, 0};
 }
 
 
-Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
+AxiSymModel::PSret AxiSymModel::gen_point_2d(double r)
 {
   if (!dist_defined) {
-    std::cerr << "AxiSymModel: must define distribution before realizing!"
-	      << std::endl;
-    exit (-1);
+    throw std::runtime_error("AxiSymModel: must define distribution before realizing!");
   }
 
   int it;			// Iteration counter
@@ -300,8 +296,10 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
     gen_rloc.resize(gen_N);
     gen_fmax.resize(gen_N);
 
+#ifdef DEBUG
     std::cout << "gen_point_2d[" << ModelID << "]: " << rmin
 	 << ", " << get_max_radius() << std::endl;
+#endif
 
     double dr = (get_max_radius() - rmin)/gen_N;
 
@@ -324,7 +322,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
 	  double zzz = distf(eee, gen_rloc[i]*vt);
-	  fmax = zzz>fmax ? zzz : fmax;
+	  if (zzz>fmax) fmax = zzz;
 	}
       }
       gen_fmax[i] = fmax*(1.0 + ftol);
@@ -337,8 +335,8 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
   pot = get_pot(r);
   vmax = sqrt(2.0*fabs(Emax - pot));
   
-                                // Trial velocity point
-    
+  // Trial velocity point
+  //
   for (it=0; it<gen_itmax; it++) {
 
     double xxx = sqrt(Unit(random_gen));
@@ -350,7 +348,7 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
 
     if (Unit(random_gen) > distf(eee, r*vt)/fmax ) continue;
     
-    if (Unit(random_gen)<0.5) vr *= -1.0;
+    if (Unit(random_gen) < 0.5) vr *= -1.0;
     
     phi = 2.0*M_PI*Unit(random_gen);
 
@@ -370,13 +368,10 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
 		<< std::setw(12) << fmax
 		<< " %=" << std::setw(12)
 		<< static_cast<double>(++toomany)/totcnt << std::endl;
-    ierr = 1;
     out.setZero();
-    return out;
+    return {out, 1};
   }
 
-  ierr = 0;
-  
   cosp = cos(phi);
   sinp = sin(phi);
 
@@ -388,16 +383,14 @@ Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
   out[5] = vr * sinp + vt * cosp;
   out[6] = 0.0;
     
-  return out;
+  return {out, 0};
 }
 
 
-Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
+AxiSymModel::PSret AxiSymModel::gen_point_3d()
 {
   if (!dist_defined) {
-    std::cerr << "AxiSymModel: must define distribution before realizing!"
-	      << std::endl;
-    exit (-1);
+    throw std::runtime_error("AxiSymModel: must define distribution before realizing!");
   }
 
 #ifdef DEBUG
@@ -405,7 +398,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 #endif
 
   double r, pot, vmax, vr=0.0, vt, eee, vt1=0.0, vt2=0.0, fmax;
-  double phi, sint, cost, sinp, cosp, azi;
+  double phi, sint, cost, sinp, cosp;
 
   double rmin = max<double>(get_min_radius(), gen_rmin);
   double Emax = get_pot(get_max_radius());
@@ -461,7 +454,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
 	  double zzz = distf(eee, r*vt);
-	  fmax = zzz>fmax ? zzz : fmax;
+	  if (zzz>fmax) fmax = zzz;
 	}
       }
       gen_fmax[i] = fmax*(1.0 + ftol);
@@ -525,7 +518,9 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 
     if (Unit(random_gen)<0.5) vr *= -1.0;
     
-    azi = 2.0*M_PI*Unit(random_gen);
+    // Orientation of tangential velocity vector
+    //
+    double azi = 2.0*M_PI*Unit(random_gen);
     vt1 = vt*cos(azi);
     vt2 = vt*sin(azi);
 
@@ -544,13 +539,10 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 		<< std::setw(12) << fmax
 		<< " %=" << std::setw(12)
 		<< static_cast<double>(++toomany)/totcnt << std::endl;
-    ierr = 1;
     out.setZero();
-    return out;
+    return {out, 1};
   }
 
-  ierr = 0;
-  
   if (Unit(random_gen)>=0.5) vr *= -1.0;
 
   phi = 2.0*M_PI*Unit(random_gen);
@@ -583,17 +575,284 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 #endif
 
 
-  return out;
+  return {out, 0};
 }
 
 
-Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax, 
-					  double Kmin, double Kmax, int& ierr)
+AxiSymModel::PSret AxiSymModel::gen_point_3d(double r, double theta, double phi)
 {
   if (!dist_defined) {
-    std::cerr << "AxiSymModel: must define distribution before realizing!"
-	      << std::endl;
-    exit (-1);
+    throw std::runtime_error("AxiSymModel: must define distribution before realizing!");
+  }
+
+  int it;			// Iteration counter
+  double pot, vmax, vr=0.0, vt=0.0, eee, fmax;
+  double rmin = max<double>(get_min_radius(), gen_rmin);
+  double Emax = get_pot(get_max_radius());
+
+  if (gen_firstime) {
+
+    double tol = 1.0e-5;
+    double dx = (1.0 - 2.0*tol)/(numr-1);
+    double dy = (1.0 - 2.0*tol)/(numj-1);
+
+    gen_mass.resize(gen_N);
+    gen_rloc.resize(gen_N);
+    gen_fmax.resize(gen_N);
+
+#ifdef DEBUG
+    std::cout << "gen_point_3d[" << ModelID << "]: " << rmin
+	 << ", " << get_max_radius() << std::endl;
+#endif
+
+    double dr = (get_max_radius() - rmin)/gen_N;
+
+    for (int i=0; i<gen_N; i++) {
+      gen_rloc[i] = rmin + dr*(0.5+i);
+      gen_mass[i] = get_mass(gen_rloc[i]);
+
+      pot = get_pot(gen_rloc[i]);
+      vmax = sqrt(2.0*fabs(Emax - pot));
+
+      fmax = 0.0;
+      for (int j=0; j<numr; j++) {
+	double xxx = sqrt(tol + dx*j);
+
+	for (int k=0; k<numj; k++) {
+	  double yyy = 0.5*M_PI*(tol + dy*k);
+
+	  vr = vmax*xxx*cos(yyy);
+	  vt = vmax*xxx*sin(yyy);
+	  eee = pot + 0.5*(vr*vr + vt*vt);
+
+	  double zzz = distf(eee, gen_rloc[i]*vt);
+	  if (zzz>fmax) fmax = zzz;
+	}
+      }
+      gen_fmax[i] = fmax*(1.0 + ftol);
+
+    }
+    gen_firstime = false;
+
+    std::ofstream out("gen_point_3d.dat");
+    if (out) {
+      out << "# gen_point_3d[" << ModelID << "]" << std::endl
+	  << "# " << std::setw(14) << "r" << std::setw(16) << "mass"
+	  << std::endl;
+      for (int i=0; i<gen_N; i++) {
+	out << std::setw(16) << gen_rloc[i]
+	    << std::setw(16) << gen_mass[i]
+	    << std::endl;
+      }
+    }
+  }
+
+  fmax = odd2(r, gen_rloc, gen_fmax, 1);
+  pot  = get_pot(r);
+  vmax = sqrt(2.0*fabs(Emax - pot));
+  
+  // Trial velocity point
+  //
+  for (it=0; it<gen_itmax; it++) {
+
+    double xxx = pow(Unit(random_gen), 0.3333333333333333);
+    double cosq = 2.0*Unit(random_gen)-1.0;
+    double sinq = sqrt(fabs(1.0 - cosq*cosq));
+
+    vr = vmax*xxx*cosq;
+    vt = vmax*xxx*sinq;
+    eee = pot + 0.5*(vr*vr + vt*vt);
+
+    if (Unit(random_gen) > distf(eee, r*vt)/fmax ) continue;
+    
+    if (Unit(random_gen)<0.5) vr *= -1.0;
+    
+    break;
+  }
+
+  Eigen::VectorXd out(7);
+
+  if (std::isnan(vr) or std::isnan(vt)) {
+    if (verbose) std::cout << "NaN found in AxiSymModel::gen_point_3d with r="
+			   << r << " theta=" << theta << " phi=" << phi
+			   << std::endl;
+    out.setZero();
+    return {out, 1};
+  }
+  
+  static unsigned totcnt = 0, toomany = 0;
+  totcnt++;
+
+  if (it==gen_itmax) {
+    if (verbose)
+      std::cerr << "Velocity selection failed [" << myid << "]: r="
+		<< std::setw(12) << r
+		<< std::setw(12) << fmax
+		<< " %=" << std::setw(12)
+		<< static_cast<double>(++toomany)/totcnt << std::endl;
+    out.setZero();
+    return {out, 1};
+  }
+
+  double tv  = 2.0*M_PI*Unit(random_gen);
+  double vth = vt*cos(tv);
+  double vph = vt*sin(tv);
+
+  double cost = cos(theta);
+  double sint = sin(theta);
+
+  double cosp = cos(phi);
+  double sinp = sin(phi);
+
+  out[0] = 1.0;
+  out[1] = r*sint*cosp;
+  out[2] = r*sint*sinp;
+  out[3] = r*cost;
+  out[4] = vr*sint*cosp - vph*sinp + vth*cost*cosp;
+  out[5] = vr*sint*sinp + vph*cosp + vth*cost*sinp;
+  out[6] = vr*cost - vth*sint;
+    
+  return {out, 0};
+}
+
+AxiSymModel::PSret AxiSymModel::gen_point_3d_iso
+(double r, double theta, double phi, int N, int nv, int na,
+ double PHI, double THETA, double PSI)
+{
+  if (!dist_defined) {
+    throw std::runtime_error("AxiSymModel: must define distribution before realizing!");
+  }
+
+  double Emax = get_pot(get_max_radius());
+  double vpot = get_pot(r);
+  double v3   = pow(2.0*fabs(Emax - vpot), 1.5);
+  int knots   = 20;
+
+  // Sanity check
+  assert((N < nv*na));
+
+  // Rotation matrix
+  static Eigen::Matrix3d rotate;
+
+  // Assume isotropic and generate new r slice
+  if (fabs(gen_lastr-r) > 1.0e-14) {
+    gen_mass.resize(gen_N+1);
+    gen_rloc.resize(gen_N+1);
+    gen_lastr = r;
+
+#ifdef DEBUG
+    std::cout << "gen_point_3d_iso[" << ModelID << "]: " << rmin
+	 << ", " << get_max_radius() << std::endl;
+#endif
+
+    LegeQuad lv(knots);
+
+    double dv3 = v3/gen_N;
+
+    gen_rloc[0] = 0.0;
+    gen_mass[0] = 0.0;
+    for (int i=0; i<gen_N; i++) {
+      double vvv = dv3*(0.5+i);
+      gen_rloc[i+1] = vvv;
+
+      double sum = 0.0;
+      for (int l=0; l<knots; l++) {
+	double v = pow(vvv + dv3*(lv.knot(l)-0.5), 0.3333333333333333);
+	double eee = vpot + 0.5*v*v;
+	sum += dv3*lv.weight(l)*distf(eee, r*v);
+      }
+      gen_mass[i+1] = sum;
+    }
+
+    // Cumulate mass
+    for (int i=1; i<=gen_N; i++) gen_mass[i] += gen_mass[i-1];
+
+    std::ofstream out("gen_point_3d_iso.dat");
+    if (out) {
+      out << "# gen_point_3d_iso[" << ModelID << "]" << std::endl
+	  << "# " << std::setw(14) << "r" << std::setw(16) << "mass"
+	  << std::endl;
+      for (int i=0; i<gen_N; i++) {
+	out << std::setw(16) << gen_rloc[i]
+	    << std::setw(16) << gen_mass[i]
+	    << std::endl;
+	if (gen_rloc[i] <0.0 or gen_mass[i] < 0.0) {
+	  std::cout << "ERROR: gen_point_3d_iso[" << ModelID << "]: "
+		    << "r=" << gen_rloc[i] << " mass=" << gen_mass[i]
+		    << std::endl;
+	}
+      }
+    }
+
+    rotate = return_euler(PHI, THETA, PSI, 1);
+  }
+
+  double dmas = gen_mass[gen_N]/nv;
+
+  int jv = N/na;
+  int ja = N - jv*na;
+
+  // Sanity checks
+  //
+  assert((jv>=0 and jv<nv));
+  assert((ja>=0 and ja<na));
+
+  // Fibonacci lattice for velocities
+  //
+  const double goldenRatio = 1.618033988749895;
+
+  double vphi  = 2.0*M_PI * ja / goldenRatio;
+  double vcost = 1.0 - 2.0*ja/na;
+  double vsint = sqrt(fabs(1.0 - vcost*vcost));
+  
+  double vvv = odd2(dmas*(jv+0.5), gen_mass, gen_rloc);
+  double v   = pow(vvv, 0.3333333333333333);
+
+  Eigen::VectorXd out(7);
+
+  if (std::isnan(v)) {
+    if (verbose) std::cout << "NaN found in AxiSymModel::gen_point_3d_iso with r="
+			   << r << " theta=" << theta << " phi=" << phi
+			   << " v3=" << vvv  << " jv=" << jv << " m="
+			   << dmas*(jv+0.5) << " [" << gen_mass[0]
+			   << ", " <<  gen_mass[gen_N] << "]" << std::endl;
+    out.setZero();
+    return {out, 1};
+  }
+  
+  double vr  = v*vcost;
+  double vph = v*vsint*cos(vphi);
+  double vth = v*vsint*sin(vphi);
+
+  Eigen::Vector3d V = rotate * Eigen::Vector3d(vr, vphi, vth);
+
+  vr  = V[0];
+  vph = V[1];
+  vth = V[2];
+
+  double cost = cos(theta);
+  double sint = sin(theta);
+
+  double cosp = cos(phi);
+  double sinp = sin(phi);
+
+  out[0] = 1.0;
+  out[1] = r*sint*cosp;
+  out[2] = r*sint*sinp;
+  out[3] = r*cost;
+  out[4] = vr*sint*cosp - vph*sinp + vth*cost*cosp;
+  out[5] = vr*sint*sinp + vph*cosp + vth*cost*sinp;
+  out[6] = vr*cost - vth*sint;
+    
+  return {out, 0};
+}
+
+
+AxiSymModel::PSret AxiSymModel::gen_point_3d(double Emin, double Emax, 
+				double Kmin, double Kmax)
+{
+  if (!dist_defined) {
+    throw std::runtime_error("AxiSymModel: must define distribution before realizing!");
   }
 
 #ifdef DEBUG
@@ -602,7 +861,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
 #endif
 
   double r, vr, vt, vt1, vt2, E, K, J, jmax, w1t, eee, pot;
-  double phi, sint, cost, sinp, cosp, azi;
+  double phi, sint, cost, sinp, cosp;
   double rmin = max<double>(get_min_radius(), gen_rmin);
   double rmax = get_max_radius();
 
@@ -688,7 +947,8 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
 #endif    
   }
 
-				// Enforce limits
+  // Enforce limits
+  //
   Emin = max<double>(Emin, Emin_grid);
   Emin = min<double>(Emin, Emax_grid);
   Emax = max<double>(Emax, Emin_grid);
@@ -733,9 +993,10 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
       
   pot = get_pot(r);
   vt = J/r;
-  ierr = 0;
-				// Interpolation check (should be rare)
-				// Error condition is set
+  int ierr = 0;
+
+  // Interpolation check (should be rare).  Error condition is set.
+  //
   if (2.0*(E - pot) - vt*vt < 0.0) {
     ierr = 1;
     if (E < pot) E = pot;
@@ -745,7 +1006,9 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
 
   if (Unit(random_gen)<0.5) vr *= -1.0;
     
-  azi = 2.0*M_PI*Unit(random_gen);
+  // Orientation of tangential velocity vector
+  //
+  double azi = 2.0*M_PI*Unit(random_gen);
   vt1 = vt*cos(azi);
   vt2 = vt*sin(azi);
 
@@ -767,7 +1030,7 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
     
 
 #ifdef DEBUG
-  if (ierr) return out;
+  if (ierr) return {out, ierr};
 
   eee = pot + 0.5*(out[4]*out[4]+out[5]*out[5]+out[6]*out[6]);
   orb.new_orbit(eee, 0.5);
@@ -787,15 +1050,15 @@ Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax,
        << std::endl;
 #endif
 
-  return out;
+  return {out, ierr};
 }
 
 
 
-Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
+AxiSymModel::PSret AxiSymModel::gen_point_jeans_3d()
 {
   double r, d, vr, vt, vt1, vt2, vv, vtot;
-  double phi, sint, cost, sinp, cosp, azi;
+  double phi, sint, cost, sinp, cosp;
   double rmin = max<double>(get_min_radius(), gen_rmin);
 
   if (gen_firstime_jeans) {
@@ -838,8 +1101,8 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
 
 
     // Debug
-    
-    ofstream test("test.grid");
+    //
+    std::ofstream test("test.grid");
     if (test) {
 
       test << "# [Jeans] Rmin=" << rmin
@@ -885,7 +1148,9 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
   vr = vtot*xxx;
   vt = vtot*sqrt(yyy);
 
-  azi = 2.0*M_PI*Unit(random_gen);
+  // Orientation of tangential velocity vector
+  //
+  double azi = 2.0*M_PI*Unit(random_gen);
   vt1 = vt*cos(azi);
   vt2 = vt*sin(azi);
 
@@ -907,24 +1172,20 @@ Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
   out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
   out[6] = vr * cost      - vt1 * sint;
     
-  ierr = 0;
-
-  return out;
+  return {out, 0};
 }
 
-void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
+int AxiSymModel::gen_velocity(double* pos, double* vel)
 {
   if (dof()!=3)
       bomb( "AxiSymModel: gen_velocity only implemented for 3d model!" );
-
+  
   if (!dist_defined) {
-    std::cerr << "AxiSymModel: must define distribution before realizing!"
-	      << std::endl;
-    exit (-1);
+    throw std::runtime_error("AxiSymModel: must define distribution before realizing!");
   }
 
   double r, pot, vmax, vr=0.0, vt, eee, vt1=0.0, vt2=0.0, fmax;
-  double phi, sint, cost, sinp, cosp, azi;
+  double phi, sint, cost, sinp, cosp;
   double rmin = max<double>(get_min_radius(), gen_rmin);
 
   double Emax = get_pot(get_max_radius());
@@ -976,7 +1237,7 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
 	  double zzz = distf(eee, r*vt);
-	  fmax = zzz>fmax ? zzz : fmax;
+	  if (zzz>fmax) fmax = zzz;
 	}
       }
       gen_fmax[i] = fmax*(1.0 + ftol);
@@ -1021,7 +1282,9 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
 
     if (Unit(random_gen)<0.5) vr *= -1.0;
     
-    azi = 2.0*M_PI*Unit(random_gen);
+    // Orientation of tangential velocity vector
+    //
+    double azi = 2.0*M_PI*Unit(random_gen);
     vt1 = vt*cos(azi);
     vt2 = vt*sin(azi);
 
@@ -1038,12 +1301,9 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
 		<< std::setw(12) << fmax
 		<< " %=" << std::setw(12)
 		<< static_cast<double>(++toomany)/totcnt << std::endl;
-    ierr = 1;
-    return;
+    return 1;
   }
 
-  ierr = 0;
-  
   if (Unit(random_gen)>=0.5) vr *= -1.0;
 
   phi = atan2(pos[1], pos[0]);
@@ -1055,18 +1315,19 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
   vel[0] = vr * sint*cosp + vt1 * cost*cosp - vt2*sinp;
   vel[1] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
   vel[2] = vr * cost      - vt1 * sint;
+
+  return 0;
 }
 
-Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
+AxiSymModel::PSret SphericalModelMulti::gen_point()
 {
   if (!real->dist_defined || !fake->dist_defined) {
-    std::cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!" << std::endl;
-    exit (-1);
+    throw std::runtime_error("SphericalModelMulti: input distribution functions must be defined before realizing!");
   }
 
   double r, pot, vmax;
   double vr=0.0, vt=0.0, eee=0.0, vt1=0.0, vt2=0.0, fmax, emax;
-  double mass, phi, sint, cost, sinp, cosp, azi;
+  double mass, phi, sint, cost, sinp, cosp;
 
   double Emax = get_pot(get_max_radius());
 
@@ -1271,6 +1532,7 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   for (it=0; it<gen_itmax; it++) {
 #else
   // Trial phase-space point
+  //
   for (it=0; it<gen_itmax; it++) {
 
     // Generate a radius (inside the loop)
@@ -1308,7 +1570,9 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 
     if (Unit(random_gen) < 0.5) vr *= -1.0;
     
-    azi = 2.0*M_PI*Unit(random_gen);
+    // Orientation of tangential velocity vector
+    //
+    double azi = 2.0*M_PI*Unit(random_gen);
     vt1 = vt*cos(azi);
     vt2 = vt*sin(azi);
 
@@ -1320,7 +1584,6 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   static unsigned totcnt = 0, toomany = 0;
   totcnt++;
 
-
   if (it==gen_itmax) {
     if (verbose) {
       std::cerr << "Velocity selection failed [" << myid << "]: r="
@@ -1331,13 +1594,10 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 		<< " %=" << std::setw(12)
 		<< static_cast<double>(++toomany)/totcnt << std::endl;
     }
-    ierr = 1;
     out.setZero();
-    return out;
+    return {out, 1};
   }
 
-  ierr = 0;
-  
   if (Unit(random_gen)>=0.5) vr *= -1.0;
 
   phi  = 2.0*M_PI*Unit(random_gen);
@@ -1375,24 +1635,23 @@ Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
   out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
   out[6] = vr * cost      - vt1 * sint;
     
+  int ierr = 0;
   for (int i=0; i<7; i++) {
     if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
   }
 
-  return out;
+  return {out, ierr};
 }
 
 
-Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
+AxiSymModel::PSret SphericalModelMulti::gen_point(double radius)
 {
   if (!real->dist_defined || !fake->dist_defined) {
-    std::cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!" << std::endl;
-    exit (-1);
+    throw std::runtime_error("SphericalModelMulti: input distribution functions must be defined before realizing!");
   }
 
   double r, pot, vmax;
   double vr=0.0, vt=0.0, eee=0.0, vt1=0.0, vt2=0.0, fmax;
-  double phi, sint, cost, sinp, cosp, azi;
 
   double Emax = get_pot(get_max_radius());
 
@@ -1441,7 +1700,8 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
 	  double zzz = fake->distf(eee, r*vt);
-	  fmax = zzz>fmax ? zzz : fmax;
+
+	  if (zzz>fmax) fmax = zzz;
 	}
       }
       gen_fmax[i] = fmax*(1.0 + ftol);
@@ -1500,7 +1760,9 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
 
     if (Unit(random_gen)<0.5) vr *= -1.0;
     
-    azi = 2.0*M_PI*Unit(random_gen);
+    // Orientation of the tangential velocity vector
+    //
+    double azi = 2.0*M_PI*Unit(random_gen);
     vt1 = vt*cos(azi);
     vt2 = vt*sin(azi);
 
@@ -1519,20 +1781,17 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
 		<< " reject="  << std::setw( 6) << reject
 		<< std::endl;
     }
-    ierr = 1;
     out.setZero();
-    return out;
+    return {out, 1};
   }
 
-  ierr = 0;
-  
   if (Unit(random_gen)>=0.5) vr *= -1.0;
 
-  phi  = 2.0*M_PI*Unit(random_gen);
-  cost = 2.0*(Unit(random_gen) - 0.5);
-  sint = sqrt(1.0 - cost*cost);
-  cosp = cos(phi);
-  sinp = sin(phi);
+  double phi  = 2.0*M_PI*Unit(random_gen);
+  double cost = 2.0*(Unit(random_gen) - 0.5);
+  double sint = sqrt(1.0 - cost*cost);
+  double cosp = cos(phi);
+  double sinp = sin(phi);
 
   double dfr = real->distf(eee, r*vt);
   double dfn = fake->distf(eee, r*vt);
@@ -1560,25 +1819,206 @@ Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
   out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
   out[6] = vr * cost      - vt1 * sint;
     
+  int ierr = 0;
   for (int i=0; i<7; i++) {
     if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
   }
   
-  return out;
+  return {out, ierr};
 }
 
-
-Eigen::VectorXd
-  SphericalModelMulti::gen_point(double Emin, double Emax, double Kmin,
-				 double Kmax, int& ierr)
+AxiSymModel::PSret
+SphericalModelMulti::gen_point(double radius, double theta, double phi)
 {
   if (!real->dist_defined || !fake->dist_defined) {
-    std::cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!" << std::endl;
-    exit (-1);
+    throw std::runtime_error("SphericalModelMulti: input distribution functions must be defined before realizing!");
+  }
+
+  double r, pot, vmax, fmax;
+  double vr=0.0, vt=0.0, eee=0.0, vt1=0.0, vt2=0.0;
+
+  double Emax = get_pot(get_max_radius());
+
+  if (gen_firstime) {
+    double tol = 1.0e-5;
+    double dx = (1.0 - 2.0*tol)/(numr-1);
+    double dy = (1.0 - 2.0*tol)/(numj-1);
+    double dr;
+
+    gen_mass.resize(gen_N);
+    gen_rloc.resize(gen_N);
+    gen_fmax.resize(gen_N);
+
+    if (rmin_gen <= 1.0e-16) gen_logr = 0;
+    
+    if (gen_logr)
+      dr = (log(rmax_gen) - log(rmin_gen))/(gen_N-1);
+    else
+      dr = (rmax_gen - rmin_gen)/(gen_N-1);
+
+    for (int i=0; i<gen_N; i++) {
+
+      if (gen_logr) {
+	gen_rloc[i] = log(rmin_gen) + dr*i;
+	r = exp(gen_rloc[i]);
+      }
+      else {
+	gen_rloc[i] = rmin_gen + dr*i;
+	r = gen_rloc[i];
+      }
+
+      gen_mass[i] = fake->get_mass(r);
+
+      pot = get_pot(r);
+      vmax = sqrt(2.0*fabs(Emax - pot));
+
+      fmax = 0.0;
+      for (int j=0; j<numr; j++) {
+	double xxx = tol + dx*j;
+
+	for (int k=0; k<numj; k++) {
+	  double yyy = tol + dy*k;
+
+	  vr = vmax*xxx;
+	  vt = vmax*sqrt((1.0 - xxx*xxx)*yyy);
+	  eee = pot + 0.5*(vr*vr + vt*vt);
+
+	  double zzz = fake->distf(eee, r*vt);
+
+	  if (zzz>fmax) fmax = zzz;
+	}
+      }
+      gen_fmax[i] = fmax*(1.0 + ftol);
+
+    }
+
+    // Debug
+    //
+    ofstream test("test_multi.grid");
+    if (test) {
+
+      test << "# Rmin=" << rmin_gen
+	   << "  Rmax=" << rmax_gen
+	   << std::endl;
+
+      for (int i=0; i<gen_N; i++) {
+	test << std::setw(15) << gen_rloc[i]
+	     << std::setw(15) << gen_mass[i]
+	     << std::setw(15) << gen_fmax[i]
+	     << std::setw(15) << get_pot(exp(gen_rloc[i]))
+	     << std::setw(15) << fake->distf(get_pot(exp(gen_rloc[i])), 0.5)
+	     << std::endl;
+      }
+    }
+
+    gen_firstime = false;
+  }
+
+  r    = max<double>(rmin_gen, min<double>(rmax_gen, radius));
+  fmax = odd2(r, gen_rloc, gen_fmax, 1);
+  if (gen_logr) r = exp(r);
+  
+  pot  = get_pot(r);
+  vmax = sqrt(2.0*max<double>(Emax - pot, 0.0));
+
+  // Trial velocity point
+  //
+				// Diagnostic counters
+  int reject=0;
+  int it;			// Iteration counter
+  for (it=0; it<gen_itmax; it++) {
+
+    double xxx = 2.0*sin(asin(Unit(random_gen))/3.0);
+    double yyy = (1.0 - xxx*xxx)*Unit(random_gen);
+
+    vr = vmax*xxx;
+    vt = vmax*sqrt(yyy);
+    eee = pot + 0.5*(vr*vr + vt*vt);
+
+    if (fmax<=0.0) continue;
+
+    if (Unit(random_gen) > fake->distf(eee, r*vt)/fmax ) {
+      reject++;
+      continue;
+    }
+
+    if (Unit(random_gen)<0.5) vr *= -1.0;
+    
+    // Orientation of tangential velocity vector
+    //
+    double azi = 2.0*M_PI*Unit(random_gen);
+    vt1 = vt*cos(azi);
+    vt2 = vt*sin(azi);
+
+    break;
+  }
+                
+  Eigen::VectorXd out(7);
+
+  if (it==gen_itmax) {
+    if (verbose) {
+      static unsigned totcnt = 0;
+      std::cerr << "Velocity selection failed [" << std::setw(7) << ++totcnt
+		<< "," << std::setw(4) << myid << "]: r="
+		<< std::setw(12) << r
+		<< std::setw(12) << fmax
+		<< " reject="  << std::setw( 6) << reject
+		<< std::endl;
+    }
+    out.setZero();
+    return {out, 1};
+  }
+
+  if (Unit(random_gen)>=0.5) vr *= -1.0;
+
+  double dfr = real->distf(eee, r*vt);
+  double dfn = fake->distf(eee, r*vt);
+  double rat = dfr/dfn;
+
+  // Deep debug
+  //
+#ifdef DEBUG
+  if (rat <= 0.0) {
+    std::cout << "[" << std::setw(3) << myid << "] Bad mass: rat="
+	      << std::setw(16) << rat
+	      << " df(M)=" << std::setw(16) << dfr
+	      << " df(N)=" << std::setw(16) << dfn
+	      << " r="     << std::setw(16) << r
+	      << " E="     << std::setw(16) << eee
+	      << std::endl;
+  }
+#endif
+
+  double cost = cos(theta);
+  double sint = sin(theta);
+  double cosp = cos(phi);
+  double sinp = sin(phi);
+
+  out[0] = rat;
+  out[1] = r * sint*cosp;
+  out[2] = r * sint*sinp;
+  out[3] = r * cost;
+  out[4] = vr * sint*cosp + vt1 * cost*cosp - vt2*sinp;
+  out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
+  out[6] = vr * cost      - vt1 * sint;
+    
+  int ierr = 0;
+  for (int i=0; i<7; i++) {
+    if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
+  }
+  
+  return {out, ierr};
+}
+
+AxiSymModel::PSret SphericalModelMulti::gen_point
+(double Emin, double Emax, double Kmin,  double Kmax)
+{
+  if (!real->dist_defined || !fake->dist_defined) {
+    throw std::runtime_error("SphericalModelMulti: input distribution functions must be defined before realizing!");
   }
   
   double r, vr, vt, vt1, vt2, E, K, J, jmax, w1t, pot;
-  double phi, sint, cost, sinp, cosp, azi;
+  double phi, sint, cost, sinp, cosp;
   double rmin = max<double>(get_min_radius(), gen_rmin);
   double rmax = get_max_radius();
 
@@ -1619,7 +2059,9 @@ Eigen::VectorXd
 
       vector<WRgrid> wrvec;
       for (int j=0; j<gen_K; j++) {
-				// Trapezoidal rule factor
+
+	// Trapezoidal rule factor
+	//
 	if (j==0 || j==gen_K) tfac = 0.5;
 	else tfac = 1.0;
 
@@ -1669,7 +2111,8 @@ Eigen::VectorXd
     gen_firstime_E = false;
   }
 
-				// Enforce limits
+  // Enforce limits
+  //
   Emin = max<double>(Emin, Emin_grid);
   Emin = min<double>(Emin, Emax_grid);
   Emax = max<double>(Emax, Emin_grid);
@@ -1714,9 +2157,10 @@ Eigen::VectorXd
       
   pot = get_pot(r);
   vt = J/r;
-  ierr = 0;
-				// Interpolation check (should be rare)
-				// Error condition is set
+
+  // Interpolation check (should be rare). Error condition is set.
+  //
+  int ierr = 0;
   if (2.0*(E - pot) - vt*vt < 0.0) {
     ierr = 1;
     if (E < pot) E = pot;
@@ -1726,7 +2170,9 @@ Eigen::VectorXd
 
   if (Unit(random_gen)<0.5) vr *= -1.0;
     
-  azi = 2.0*M_PI*Unit(random_gen);
+  // Orientation of the tangential velocity vector
+  //
+  double azi = 2.0*M_PI*Unit(random_gen);
   vt1 = vt*cos(azi);
   vt2 = vt*sin(azi);
 
@@ -1750,7 +2196,7 @@ Eigen::VectorXd
     if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
   }
 
-  return out;
+  return {out, ierr};
 }
 
 
