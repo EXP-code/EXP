@@ -74,7 +74,7 @@ find_package(OpenMP)
 find_package(FFTW REQUIRED)
 find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
 find_package(TIRPC)	       # Check for alternative Sun rpc support
-find_package(Eigen3 REQUIRED)
+find_package(Eigen3 3.4...<3.5 REQUIRED)
 find_package(PNG)
 find_package(Git)
 

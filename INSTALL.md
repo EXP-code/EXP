@@ -1,18 +1,31 @@
 # Configuring and building EXP
 
-We are now using git submodules to provide a number of packages that
-are not common in the HPC environments.  These include
+EXP uses CMake for building a configuration.
 
-- `HighFive`, a C++ wrapper
-class to HDF5
-- `yaml-cpp`, a C++ class for reading and emitting YAML code
-- `pybind11` which is used for Python bindings to the C++ classes
-- `rapidxml`, used to write VTK files for rendering outside of EXP
-- `png++`, C++ wrappers to the png library [Note: png support is optional]
+We recommend building "out of source" to allow for multiple
+configurations.  This allows one to have build various versions
+available from the same source, such as `Release` and `Debug` (see below). 
 
-CMake will automatically download and configure these packages on the
-first call. However, if you would to do this manually, from the
-top-level directory, execute the following command:
+## Required Libraries for installation
+
+Most required libraries will be available on HPC systems, but a local 
+user may need to install some libraries (e.g. using `apt-get` on linux, 
+and `homebrew` or `macports` on OSX).
+
+| Library | Version   |
+|---------|-----------|
+| Eigen   | >= 3.4    |
+| FFTW    | >= 2.0    |
+| HDF5    | >=1.12    |
+| OpenMPI | >=4.0     |
+
+Other libraries are automatically installed along with EXP using `git submodule` (see next step).
+
+### Obtaining Additional libraries
+
+We are now using git submodules to provide `yaml-cpp`, which is not
+common in the HPC environments.  So, from the top-level directory, do
+the following:
 
 ```
    git submodule update --init --recursive
@@ -21,17 +34,31 @@ top-level directory, execute the following command:
 This will install the source packages in the `extern` directory.
 
 
-## EXP uses CMake for building a configuration
+## Building using CMake
 
-I recommend building "out of source" to allow for multiple
-configurations.  This allows one to have build various versions
-available from the same source, such as `Release` and `Debug`.  To
-begin, make a build directory and change to that:
-
+To begin the CMake configuration, make a build directory and change to that:
 ```
    mkdir -p build
    cd build
 ```
+
+The next step is to create the CMake configuration,
+```
+   cmake ..
+```
+build,
+```
+   make -j 4
+```
+and finally install.
+```
+   make install
+```
+The `-j 4` flag allows up to 4 processes to compile simulateously. Change 4 to the number of cores you can allot to compiling.
+
+More details are available below, and troubleshooting can be found in the GitHub discussions.
+
+## In more detail...
 
 CMake is designed to detect commonly used utilities and libraries
 automatically, but sometimes needs help and hints.  For example, if
@@ -57,7 +84,7 @@ Generally, the install location will need to be changed in the example
 below.  E.g. I would use `-DCMAKE_INSTALL_PREFIX=/home/mdw_umass_edu`
 on the UMass Unity cluster to install in my home directory.
 
-## EXP options
+### EXP options
 
 There are a number of EXP-specific options that control the build.
 The most important of these are:
@@ -123,7 +150,7 @@ Putting these together so far, your CMake call would be:
 ```
 export CUDAARCHS="75;80;86"
 cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=YES -DENABLE_USER=YES -DEigen3_DIR=$EIGEN_BASE/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX=/home/user -Wno-dev ..
-````
+```
 
 ## Configuring without CUDA
 
