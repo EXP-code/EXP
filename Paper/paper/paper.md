@@ -78,7 +78,7 @@ the variation of _any_ field in space.  In the context of galactic
 dynamics, these fields may be density, potential, force, velocity
 fields or any intrinsic field produced by simulations such as
 chemistry data.  By combining the coefficient information through time
-using multichannel singular spectral analysis (mSSA; @SSA), a
+using multichannel singular spectral analysis [mSSA, @SSA], a
 non-parametric spectral technique, `EXP` can deepen our understanding
 by discovering the dynamics of galaxy evolution directly from
 simulated, and by analogy, observed data.
@@ -184,15 +184,15 @@ table above as well as coefficients for an input data set.  Each of
 these tools are Python classes that accept `numpy` [@numpy] arrays for
 immediate interoperability with `matplotlib` [@matplotlib] and
 Astropy.  We include a verified set of stand-alone routines that read
-phase-space files from many major cosmological tree codes (for example,
-@Gadget4) and produce
+phase-space files from many major cosmological tree codes [for example,
+@Gadget4] and produce
 BFE-based analyses.  The code suite includes adapters for reading and
 writing phase space for many of the widely used cosmology codes, with
 a base class for developing new ones.  There are multiple ways to use
 the versatile and modular tools in `pyEXP`, and we anticipate
 pipelines that we have not yet imagined. The flexibility of the basis
 sets available in `EXP` greatly enhances the number of available basis
-sets implemented in Python (see, e.g. @gala).
+sets implemented in Python [see, e.g. @gala].
 
 
 ## Using pyEXP to analyze time series
