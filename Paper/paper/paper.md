@@ -78,7 +78,7 @@ the variation of _any_ field in space.  In the context of galactic
 dynamics, these fields may be density, potential, force, velocity
 fields or any intrinsic field produced by simulations such as
 chemistry data.  By combining the coefficient information through time
-using multichannel singular spectral analysis (mSSA; @SSA), a
+using multichannel singular spectral analysis [mSSA, @SSA], a
 non-parametric spectral technique, `EXP` can deepen our understanding
 by discovering the dynamics of galaxy evolution directly from
 simulated, and by analogy, observed data.
@@ -139,11 +139,21 @@ computed bases and resulting coefficient data are stored in HDF5
 
 ## N-body simulation
 
+Computing the gravitational potential and forces from a collection of
+N particles is typically an expensive endeavour. EXP reduces the cost
+by using BFE to compute the potential and forces such that computational
+effort scales with the number of particles. Other modern N-body codes
+use direct summation [@Wang:15] or tree-based solutions [@Gadget4],
+which have computational effort that scales as N$^2$ and N log N,
+respectively. The trade off for BFE solutions comes in the form of
+restricted degrees of freedom; for many problems in near-equilibrium
+galactic dynamics this is not a problem, but rather a feature.
+
 Our design includes a wide choice of run-time summary diagnostics,
 phase-space output formats, dynamically loadable user libraries, and
 easy extensibility. Stand-alone routines include the EOF and mSSA 
 methods described above, and the modular software architecture of 
-EXP enables users to easily build and maintain extensions. The `EXP` 
+`EXP` enables users to easily build and maintain extensions. The `EXP` 
 code base is described in published papers [@Petersen:22; @Weinberg:23]
 and has been used, enhanced, and rigorously tested for nearly two 
 decades.
@@ -174,12 +184,15 @@ table above as well as coefficients for an input data set.  Each of
 these tools are Python classes that accept `numpy` [@numpy] arrays for
 immediate interoperability with `matplotlib` [@matplotlib] and
 Astropy.  We include a verified set of stand-alone routines that read
-phase-space files from many major cosmological tree codes and produce
+phase-space files from many major cosmological tree codes [for example,
+@Gadget4] and produce
 BFE-based analyses.  The code suite includes adapters for reading and
 writing phase space for many of the widely used cosmology codes, with
 a base class for developing new ones.  There are multiple ways to use
 the versatile and modular tools in `pyEXP`, and we anticipate
-pipelines that we have not yet imagined.
+pipelines that we have not yet imagined. The flexibility of the basis
+sets available in `EXP` greatly enhances the number of available basis
+sets implemented in Python [see, e.g. @gala].
 
 
 ## Using pyEXP to analyze time series
