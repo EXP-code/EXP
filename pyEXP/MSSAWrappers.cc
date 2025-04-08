@@ -367,7 +367,7 @@ void MSSAtoolkitClasses(py::module &m) {
         Notes
         -----
         The w-correlation matrix needs the reconstructed trajectory matrices for each
-        of the eigenvalue, PC pairs.  Calling this method will recompute the reconstruction
+        of the eigenvalue-PC pairs.  Calling this method will recompute the reconstruction
         for all eigenvalues up to 'nPC' and return an nPC x nPC matrix.  If the 'nPC'
         parameter is not specified, it will be set to `numpc` used to construct the 
         instance.  Any previous reconstruction will be overwritten.
@@ -399,13 +399,13 @@ void MSSAtoolkitClasses(py::module &m) {
         The index key here is 'extended' by the prefixed component index.
   
         Computation of the w-correlation matrix needs the reconstructed
-        trajectory matrices for each of the (eigenvalue, PC) pairs.  Calling
+        trajectory matrices for each of the eigenvalue-PC pairs.  Calling
         this method will recompute the reconstruction for all eigenvalues up to
         order 'npc' and return an (nPC x nPC) matrix.  If the 'nPC' parameter is
         not specified, it will be set to the `numpc` used in the original
         construction.  Any prior reconstruction will be overwritten.
 
-        The rows and columns contain distinct cosine and sine indicies if the channel 
+        The rows and columns contain distinct cosine and sine indices if the channel
         is complex valued.
 
         This matrix can be visualized using 'imshow' for plotting.
@@ -436,7 +436,7 @@ void MSSAtoolkitClasses(py::module &m) {
         corresponds to a stronger correlation.
 
         Computation of the w-correlation matrix needs the reconstructed
-        trajectory matrices for each of the (eigenvalue, PC) pairs.  Calling
+        trajectory matrices for each of the eigenvalue-PC pairs.  Calling
         this method will recompute the reconstruction for all eigenvalues up to
         order 'npc' and return an (nPC x nPC) matrix.  If the 'nPC' parameter is
         not specified, it will be set to the `numpc` used in the original
@@ -465,7 +465,7 @@ void MSSAtoolkitClasses(py::module &m) {
         corresponds to a stronger correlation.
 
         Computation of the w-correlation matrix needs the reconstructed
-        trajectory matrices for each of the (eigenvalue, PC) pairs.  Calling
+        trajectory matrices for each of the eigenvalue-PC pairs.  Calling
         this method will recompute the reconstruction for all eigenvalues up to
         order 'npc' and return an (nPC x nPC) matrix.  If the 'nPC' parameter is
         not specified, it will be set to the `numpc` used in the original
@@ -508,7 +508,7 @@ void MSSAtoolkitClasses(py::module &m) {
         each observation belongs to the cluster with the nearest centers while
         minimizing the variance within each cluster.  In this case, the vectors
         are the full trajectory matrices and the distance is the distance
-        between the trajectory matricies reconstructed from each eigentriple
+        between the trajectory matrices reconstructed from each eigentriples
         from mSSA.  The distance used here is the Frobenius distance or matrix
         norm distance: the square root of the sum of squares of all elements in
         the difference between two matrices.
