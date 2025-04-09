@@ -2198,7 +2198,7 @@ void BasisFactoryClasses(py::module &m)
 	step size of h using the list of basis and coefficient pairs. Every
 	step will be included in return unless you provide an explicit
 	value for 'nout', the number of desired output steps.  This will
-	choose the 'nout' points closed to the desired time.
+	choose the 'nout' points closest to the desired time.
 
         Parameters
         ----------
@@ -2216,7 +2216,7 @@ void BasisFactoryClasses(py::module &m)
         func : AccelFunctor
             the force function
         nout : int 
-            the number of output intervals
+            the number of output intervals if (tfinal - tinit) / h > nout
 
         Returns
         -------

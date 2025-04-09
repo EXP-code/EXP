@@ -3899,10 +3899,14 @@ namespace BasisClasses
     //
     int numT = floor( (tfinal - tinit)/h );
 
-    // Compute output step
+    // Number of output steps.  Will attempt to find the best stride...
     //
-    nout = std::min<int>(numT, nout);
-    double H = (tfinal - tinit)/nout;
+    int stride = std::ceil(static_cast<double>(numT)/static_cast<double>(nout));
+    if (stride>1) numT = nout * stride;
+
+    // Compute the interval-matching step
+    //
+    h = (tfinal - tinit)/(numT - 1);
 
     // Return data
     //
@@ -3934,9 +3938,11 @@ namespace BasisClasses
       for (int k=0; k<6; k++) ret(n, k, 0) = ps(n, k);
 
     double tnow = tinit;
-    for (int s=1, cnt=1; s<numT; s++) {
+    int s = 0, cnt = 0;
+    while (s < numT) {
+      if (tfinal - tnow < h) h = tfinal - tnow;
       std::tie(tnow, ps) = OneStep(tnow, h, ps, accel, bfe, F);
-      if (tnow >= H*cnt-h*1.0e-8) {
+      if (s++ % stride == 0) {
 	times(cnt) = tnow;
 	for (int n=0; n<rows; n++)
 	  for (int k=0; k<6; k++) ret(n, k, cnt) = ps(n, k);
