@@ -16,6 +16,7 @@
 #include <thread>
 #include <exp_thread.h>
 #include <EXPException.H>
+#include <exputils.H>
 
 #include <Eigen/Eigenvalues>
 
@@ -390,6 +391,8 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
 
   ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 				      RMIN, RMAX*0.99, false, 1, 1.0);
+
+  orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL[SLGridSph]", "l");
 
   // Resize (should not be necessary) but just in case some future
   // feature changes mulitstep on the fly
@@ -867,6 +870,8 @@ int EmpCylSL::read_eof_file(const string& eof_file)
 
   ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					RMIN, RMAX*0.99, false, 1, 1.0);
+
+  orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL[SLGridSph]", "l");
 
   setup_eof();
   setup_accumulation();
@@ -1434,9 +1439,12 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 {
   // Check for existence of ortho and create if necessary
   //
-  if (not ortho)
+  if (not ortho) {
     ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					  RMIN, RMAX*0.99, false, 1, 1.0);
+
+    orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL[SLGridSph]", "l");
+  }
 
 
   //  Read in coefficient matrix or
@@ -1613,10 +1621,13 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 {
   // check for ortho
   //
-  if (not ortho)
+  if (not ortho) {
     ortho = std::make_shared<SLGridSph>(make_sl(),
 					  LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
 					  false, 1, 1.0);
+
+    orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL[SLGridSph]", "l");
+  }
 
   double dens, potl, potr, pott;
   
@@ -2293,9 +2304,14 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   // Create spherical orthogonal basis if necessary
   //
-  if (not ortho)
+  if (not ortho) {
     ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					  RMIN, RMAX*0.99, false, 1, 1.0);
+
+    orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL[SLGridSph]", "l");
+  }
+
+
   // Initialize fixed variables and storage
   //
   setup_eof();
@@ -2585,9 +2601,13 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass, 
 			      int id, int mlevel)
 {
-  if (not ortho)
+  if (not ortho) {
     ortho = std::make_shared<SLGridSph>
       (make_sl(), LMAX, NMAX, NUMR, RMIN, RMAX*0.99, false, 1, 1.0);
+
+    orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL[SLGridSph]", "l");
+  }
+
   if (eof_made) {
     if (VFLAG & 2)
       cerr << "accumulate_eof: Process " << setw(4) << myid << ", Thread " 

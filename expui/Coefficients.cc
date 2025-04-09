@@ -2792,7 +2792,7 @@ namespace CoefClasses
 
     for (int t=0; t<ntim; t++) {
       auto & cof = *(coefs[roundTime(times[t])]->coefs);
-      for (int i=0; i<4; i++) {
+      for (int i=0; i<Nfld; i++) {
 	for (int l=0; l<(Lmax+2)*(Lmax+1)/2; l++) {
 	  for (int n=0; n<Nmax; n++) {
 	    ret(i, l, n, t) = cof(i, l, n);

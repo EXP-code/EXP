@@ -11,7 +11,7 @@ py::array_t<T> make_ndarray3(Eigen::Tensor<T, 3>& mat)
   // Check rank
   if (dims.size() != 3) {
     std::ostringstream sout;
-    sout << "make_ndarray: tensor rank must be 3, found " << dims.size();
+    sout << "make_ndarray3: tensor rank must be 3, found " << dims.size();
     throw std::runtime_error(sout.str());
   }
   
@@ -37,10 +37,17 @@ py::array_t<T> make_ndarray4(Eigen::Tensor<T, 4>& mat)
   // Check rank
   if (dims.size() != 4) {
     std::ostringstream sout;
-    sout << "make_ndarray: tensor rank must be 4, found " << dims.size();
+    sout << "make_ndarray4: tensor rank must be 4, found " << dims.size();
     throw std::runtime_error(sout.str());
   }
   
+  // Sanity check
+  for (int i=0; i<mat.size(); i++) {
+    if (isnan(std::abs(mat.data()[i]))) {
+      throw std::runtime_error("make_ndarray4: NaN encountered");
+    }
+  }
+
   // Make the memory mapping
   return py::array_t<T>
     (
@@ -107,11 +114,11 @@ Eigen::Tensor<T, 4> make_tensor4(py::array_t<T> array)
 
   // Build result tensor with col-major ordering
   Eigen::Tensor<T, 4> tensor(shape[0], shape[1], shape[2], shape[3]);
-  for (int i=0, l=0; i < shape[0]; i++) {
+  for (int i=0, c=0; i < shape[0]; i++) {
     for (int j=0; j < shape[1]; j++) {
       for (int k=0; k < shape[2]; k++) {
-	for (int l=0; l < shape[3]; k++) {
-	  tensor(i, j, k, l) = data[l++];
+	for (int l=0; l < shape[3]; l++, c++) {
+	  tensor(i, j, k, l) = data[c];
 	}
       }
     }
