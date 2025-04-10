@@ -3891,7 +3891,6 @@ namespace BasisClasses
     }
 
     if (h < 0.0 and tfinal > tinit) {
-      std::ostringstream sout;
       throw std::runtime_error
 	("BasisClasses::IntegrateOrbits: tfinal must be smaller than tinit "
 	 "when step size is negative");
@@ -3943,7 +3942,7 @@ namespace BasisClasses
       std::cout << "BasisClasses::IntegrateOrbits: memory allocation failed: "
 		<< e.what() << std::endl
 		<< "Your requested number of orbits and time steps requires "
-		<< floor(4.0*rows*6*nout/stride/1e9)+1 << " GB free memory"
+		<< std::floor(4.0*rows*6*nout/1e9)+1 << " GB free memory"
 		<< std::endl;
 
       // Return empty data
