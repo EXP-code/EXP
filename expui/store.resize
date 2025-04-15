@@ -1,0 +1,45 @@
+    cf->lmax   = lmax;
+    cf->nmax   = nmax;
+    cf->scale  = scale;
+    cf->time   = time;
+    cf->normed = true;
+    cf->store.resize((lmax+1)*(lmax+2)/2, nmax);
+    cf->coefs = std::make_shared<CoefClasses::SphStruct::coefType>
+      (cf->store.data(), ldim, nmax);
+	    (*cf->coefs)(L0, n) = {expcoef(L1, n), 0.0};
+	    (*cf->coefs)(L0, n) = {expcoef(L1, n), expcoef(L1+1, n)};
+	    expcoef(L1,   n) = (*cf->coefs)(L0, n).real();
+	    expcoef(L1,   n) = (*cf->coefs)(L0, n).real();
+	    expcoef(L1+1, n) = (*cf->coefs)(L0, n).imag();
+    if (cf->ctr.size())
+      coefctr = cf->ctr;
+    cf->mmax   = mmax;
+    cf->nmax   = nmax;
+    cf->time   = time;
+    cf->store.resize((mmax+1)*nmax);
+    cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
+      (cf->store.data(), mmax+1, nmax);
+	(*cf->coefs)(m, n) = {cos1(n), sin1(n)};
+      sl->set_coefs(m, (*cf->coefs).row(m).real(), (*cf->coefs).row(m).imag(), m==0);
+    if (cf->ctr.size())
+      coefctr = cf->ctr;
+    cf->mmax   = mmax;
+    cf->nmax   = nmax;
+    cf->time   = time;
+    cf->store((2*mmax+1)*nmax);
+    cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
+      (cf->store.data(), 2*mmax+1, nmax);
+	  (*cf->coefs)(m, n) = {expcoef(m0, n), 0.0};
+	  (*cf->coefs)(m, n) = {expcoef(m0, n), expcoef(m0+1, n)};
+      int rows = cf->rows();
+      int cols = cf->cols();
+    auto & cc = *cf->coefs;
+    if (cf->ctr.size())
+      coefctr = cf->ctr;
+    cf->nmaxx   = nmaxx;
+    cf->nmaxy   = nmaxy;
+    cf->nmaxz   = nmaxz;
+    cf->time    = time;
+    cf->allocate();
+    *cf->coefs = expcoef;
+    expcoef = *cf->coefs;
