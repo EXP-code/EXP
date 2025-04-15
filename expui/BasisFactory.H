@@ -263,6 +263,8 @@ namespace BasisClasses
     std::vector<std::string> getFieldLabels(void)
     { return getFieldLabels(coordinates); }
 
+    //! Get the basis expansion center
+    std::vector<double> getCenter() { return coefctr; }
   };
   
   using BasisPtr = std::shared_ptr<Basis>;
