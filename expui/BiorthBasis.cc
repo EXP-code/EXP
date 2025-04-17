@@ -3914,22 +3914,32 @@ namespace BasisClasses
     
     // Number of steps
     //
-    int numT = std::ceil( (tfinal - tinit)/h );
+    int numT = std::ceil( (tfinal - tinit)/h + 0.5);
 
     // Want both end points in the output at minimum
     //
     numT = std::max(2, numT);
-    nout = std::max(2, nout);
 
-    // Number of output steps.  Compute a stride>1 if nout<numT.
+    // Number of output steps
     //
-    int stride = std::ceil(static_cast<double>(numT)/static_cast<double>(nout));
-    if (stride>1) numT = (nout-1) * stride + 1;
-    else          nout = numT;
+    int stride = 1;		// Default stride
+    if (nout>0) {		// User has specified output count...
+      nout = std::max(2, nout);
+      stride = std::ceil(static_cast<double>(numT)/static_cast<double>(nout));
+      numT = (nout-1) * stride + 1;
+    } else {			// Otherwise, use the default output number
+      nout = numT;		// with the default stride
+    }
 
     // Compute the interval-matching step
     //
     h = (tfinal - tinit)/(numT-1);
+
+    // DEBUG
+    if (false) 
+      std::cout << "BasisClasses::IntegrateOrbits: choosing nout=" << nout
+		<< " numT=" << numT << " h=" << h << " stride=" << stride
+		<< std::endl;
 
     // Return data
     //

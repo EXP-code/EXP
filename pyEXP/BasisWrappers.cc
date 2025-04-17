@@ -2194,11 +2194,13 @@ void BasisFactoryClasses(py::module &m)
 	R"(
         Compute particle orbits in gravitational field from the bases
 
-        Integrate a list of initial conditions from tinit to tfinal with a
-	step size of h using the list of basis and coefficient pairs. Every
-	step will be included in return unless you provide an explicit
-	value for 'nout', the number of desired output steps.  This will
-	choose the 'nout' points closest to the desired time.
+        Integrate a list of initial conditions from 'tinit' to 'tfinal' with
+	a step size of 'h' using the list of basis and coefficient pairs. The
+        step size will be adjusted to provide uniform sampling.  Every
+	step will be returned unless you provide an explicit value for 'nout',
+        the number of desired output steps.  In this case, the code will
+        choose new set step size equal or smaller to the supplied step size
+        with a stride to provide exactly 'nout' output times.
 
         Parameters
         ----------
@@ -2216,7 +2218,7 @@ void BasisFactoryClasses(py::module &m)
         func : AccelFunctor
             the force function
         nout : int 
-            the number of output intervals if (tfinal - tinit) / h > nout
+            the number of output points, if specified
 
         Returns
         -------
@@ -2225,5 +2227,5 @@ void BasisFactoryClasses(py::module &m)
         )",
 	py::arg("tinit"), py::arg("tfinal"), py::arg("h"),
 	py::arg("ps"), py::arg("basiscoef"), py::arg("func"),
-	py::arg("nout")=std::numeric_limits<int>::max());
+	py::arg("nout")=0);
 }

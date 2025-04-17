@@ -1189,7 +1189,7 @@ namespace BasisClasses
   std::tuple<Eigen::VectorXd, Eigen::Tensor<float, 3>>
   IntegrateOrbits (double tinit, double tfinal, double h,
 		   Eigen::MatrixXd ps, std::vector<BasisCoef> bfe,
-		   AccelFunctor F, int nout=std::numeric_limits<int>::max());
+		   AccelFunctor F, int nout=0);
 
   using BiorthBasisPtr = std::shared_ptr<BiorthBasis>;
 }
