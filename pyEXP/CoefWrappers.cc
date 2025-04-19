@@ -717,6 +717,11 @@ void CoefficientClasses(py::module &m) {
                    float
                        data's time stamp
                    )")
+    .def_readwrite("center", &CoefStruct::ctr,
+    R"(
+                array of floats
+                    the expansion center
+                )")
     .def("getCoefs", &CoefStruct::getCoefs,
         R"(
         Read-only access to the underlying data store
