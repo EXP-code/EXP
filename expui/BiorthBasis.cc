@@ -3885,11 +3885,28 @@ namespace BasisClasses
 
     // Sanity check
     //
+    if (tfinal == tinit) {
+      throw std::runtime_error
+	("BasisClasses::IntegrateOrbits: tinit cannot be equal to tfinal");
+    }
+
+    if (h < 0.0 and tfinal > tinit) {
+      throw std::runtime_error
+	("BasisClasses::IntegrateOrbits: tfinal must be smaller than tinit "
+	 "when step size is negative");
+    }
+
+    if (h > 0.0 and tfinal < tinit) {
+      throw std::runtime_error
+	("BasisClasses::IntegrateOrbits: tfinal must be larger than "
+	 "tinit when step size is positive");
+    }
+
     if ( (tfinal - tinit)/h >
 	 static_cast<double>(std::numeric_limits<int>::max()) )
       {
-	std::cout << "BasicFactor::IntegrateOrbits: step size is too small or "
-		  << "time interval is too large.\n";
+	std::cout << "BasisClasses::IntegrateOrbits: step size is too small or "
+		  << "time interval is too large." << std::endl;
 	// Return empty data
 	//
 	return {Eigen::VectorXd(), Eigen::Tensor<float, 3>()};
@@ -3897,12 +3914,32 @@ namespace BasisClasses
     
     // Number of steps
     //
-    int numT = floor( (tfinal - tinit)/h );
+    int numT = std::ceil( (tfinal - tinit)/h + 0.5);
 
-    // Compute output step
+    // Want both end points in the output at minimum
     //
-    nout = std::min<int>(numT, nout);
-    double H = (tfinal - tinit)/nout;
+    numT = std::max(2, numT);
+
+    // Number of output steps
+    //
+    int stride = 1;		// Default stride
+    if (nout>0) {		// User has specified output count...
+      nout = std::max(2, nout);
+      stride = std::ceil(static_cast<double>(numT)/static_cast<double>(nout));
+      numT = (nout-1) * stride + 1;
+    } else {			// Otherwise, use the default output number
+      nout = numT;		// with the default stride
+    }
+
+    // Compute the interval-matching step
+    //
+    h = (tfinal - tinit)/(numT-1);
+
+    // DEBUG
+    if (false) 
+      std::cout << "BasisClasses::IntegrateOrbits: choosing nout=" << nout
+		<< " numT=" << numT << " h=" << h << " stride=" << stride
+		<< std::endl;
 
     // Return data
     //
@@ -3912,10 +3949,10 @@ namespace BasisClasses
       ret.resize(rows, 6, nout);
     }
     catch (const std::bad_alloc& e) {
-      std::cout << "BasicFactor::IntegrateOrbits: memory allocation failed: "
+      std::cout << "BasisClasses::IntegrateOrbits: memory allocation failed: "
 		<< e.what() << std::endl
 		<< "Your requested number of orbits and time steps requires "
-		<< floor(8.0*rows*6*nout/1e9)+1 << " GB free memory"
+		<< std::floor(4.0*rows*6*nout/1e9)+1 << " GB free memory"
 		<< std::endl;
 
       // Return empty data
@@ -3927,16 +3964,24 @@ namespace BasisClasses
     //
     Eigen::VectorXd times(nout);
     
-    // Do the work
+    // Assign the initial point
     //
     times(0) = tinit;
     for (int n=0; n<rows; n++)
       for (int k=0; k<6; k++) ret(n, k, 0) = ps(n, k);
 
+    // Sign of h
+    int sgn = (0 < h) - (h < 0);
+
+    // Set the counters
     double tnow = tinit;
-    for (int s=1, cnt=1; s<numT; s++) {
+    int s = 0, cnt = 1;
+
+    // Do the integration using stride for output
+    while (s++ < numT) {
+      if ( (tfinal - tnow)*sgn < h*sgn) h = tfinal - tnow;
       std::tie(tnow, ps) = OneStep(tnow, h, ps, accel, bfe, F);
-      if (tnow >= H*cnt-h*1.0e-8) {
+      if (cnt < nout and s % stride == 0) {
 	times(cnt) = tnow;
 	for (int n=0; n<rows; n++)
 	  for (int k=0; k<6; k++) ret(n, k, cnt) = ps(n, k);
@@ -3944,10 +3989,12 @@ namespace BasisClasses
       }
     }
 
+    // Corrects round off at end point
+    //
     times(nout-1) = tnow;
     for (int n=0; n<rows; n++)
       for (int k=0; k<6; k++) ret(n, k, nout-1) = ps(n, k);
-    
+
     return {times, ret};
   }
 
