@@ -62,6 +62,17 @@ namespace CoefClasses
     //! Read-only access to coefficient data (no copy)
     Eigen::Ref<const Eigen::VectorXcd> getCoefs() { return store; }
 
+    //! Set new center data (no copy)
+    void setCenter(std::vector<double>& STORE)
+    {
+      if (STORE.size() != ctr.size())
+        throw std::invalid_argument("CoefStruct::setCenter: center vector size does not match");
+      ctr = STORE;
+    }
+
+    //! Read-only access to center (no copy)
+    std::vector<double> getCenter() { return ctr; }
+
   };
   
   //! Specialization of CoefStruct for spheres
