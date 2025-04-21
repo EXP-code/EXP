@@ -712,11 +712,16 @@ void CoefficientClasses(py::module &m) {
                   str
                       geometry type
                   )")
-    .def_readwrite("time", &CoefStruct::time,
+    .def_readonly("time", &CoefStruct::time,
 		   R"(
                    float
                        data's time stamp
                    )")
+    .def_readonly("center", &CoefStruct::ctr,
+    R"(
+                float
+                    data's center value
+                )") 
     .def("getCoefTime", &CoefStruct::getTime,
         R"(
         Read-only access to the coefficient time
