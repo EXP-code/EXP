@@ -73,6 +73,15 @@ namespace CoefClasses
     //! Read-only access to center (no copy)
     std::vector<double> getCenter() { return ctr; }
 
+    //! Set coefficient time (no copy)
+    void setTime(double& STORE)
+    {
+      time = STORE;
+    }
+
+    //! Read-only access to center (no copy)
+    double getTime() { return time; }
+
   };
   
   //! Specialization of CoefStruct for spheres

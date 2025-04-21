@@ -717,12 +717,42 @@ void CoefficientClasses(py::module &m) {
                    float
                        data's time stamp
                    )")
-    .def_readonly("center", &CoefStruct::ctr,
-    R"(
-        array of floats
-            the expansion center
+    .def("getCoefTime", &CoefStruct::getTime,
+        R"(
+        Read-only access to the coefficient time
+
+        Returns
+        -------
+        numpy.ndarray
+            vector of center data
+
+        See also
+        --------
+        setCenter : read-write access to the coefficient time
         )")
-    .def("getCenter", &CoefStruct::getCenter,
+    .def("setCoefTime",
+        static_cast<void (CoefStruct::*)(double&)>(&CoefStruct::setTime),
+        py::arg("tval"),
+        R"(
+        Set the coefficien time
+
+        Parameters
+        ----------
+        tval  : float
+                time value
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        See also
+        --------
+        getCenter : read-only access to coefficient time
+        )")
+    .def("getCoefCenter", &CoefStruct::getCenter,
           R"(
           Read-only access to the center data
   
@@ -735,7 +765,7 @@ void CoefficientClasses(py::module &m) {
           --------
           setCenter : read-write access to the center data
           )")
-    .def("setCenter",
+    .def("setCoefCenter",
           static_cast<void (CoefStruct::*)(std::vector<double>&)>(&CoefStruct::setCenter),
           py::arg("mat"),
           R"(
