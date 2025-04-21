@@ -366,6 +366,12 @@ void MSSAtoolkitClasses(py::module &m) {
 
         Notes
         -----
+        The w-correlation matrix needs the reconstructed trajectory matrices for each
+        of the eigenvalue-PC pairs.  Calling this method will recompute the reconstruction
+        for all eigenvalues up to 'nPC' and return an nPC x nPC matrix.  If the 'nPC'
+        parameter is not specified, it will be set to `numpc` used to construct the 
+        instance.  Any previous reconstruction will be overwritten.
+
         Returns the combined cosine+sine correlation for complex types for viewing 
         (e.g., with 'imshow').
 
@@ -390,9 +396,16 @@ void MSSAtoolkitClasses(py::module &m) {
 
         Notes
         -----
-        The index key here is 'extended' by the prefixed component index
+        The index key here is 'extended' by the prefixed component index.
   
-        The rows and columns contain distinct cosine and sine indicies if the channel 
+        Computation of the w-correlation matrix needs the reconstructed
+        trajectory matrices for each of the eigenvalue-PC pairs.  Calling
+        this method will recompute the reconstruction for all eigenvalues up to
+        order 'npc' and return an (nPC x nPC) matrix.  If the 'nPC' parameter is
+        not specified, it will be set to the `numpc` used in the original
+        construction.  Any prior reconstruction will be overwritten.
+
+        The rows and columns contain distinct cosine and sine indices if the channel
         is complex valued.
 
         This matrix can be visualized using 'imshow' for plotting.
@@ -419,8 +432,15 @@ void MSSAtoolkitClasses(py::module &m) {
 
         Notes
         -----
-        The w-correlation values range from 0 to 1, where a higher value corresponds to a 
-        stronger correlation.
+        The w-correlation values range from 0 to 1, where a higher value
+        corresponds to a stronger correlation.
+
+        Computation of the w-correlation matrix needs the reconstructed
+        trajectory matrices for each of the eigenvalue-PC pairs.  Calling
+        this method will recompute the reconstruction for all eigenvalues up to
+        order 'npc' and return an (nPC x nPC) matrix.  If the 'nPC' parameter is
+        not specified, it will be set to the `numpc` used in the original
+        construction.  Any prior reconstruction will be overwritten.
 
         See also
         --------
@@ -441,8 +461,15 @@ void MSSAtoolkitClasses(py::module &m) {
 
         Notes
         -----
-        The w-correlation values range from 0 to 1, where a higher value corresponds to a 
-        stronger correlation.
+        The w-correlation values range from 0 to 1, where a higher value
+        corresponds to a stronger correlation.
+
+        Computation of the w-correlation matrix needs the reconstructed
+        trajectory matrices for each of the eigenvalue-PC pairs.  Calling
+        this method will recompute the reconstruction for all eigenvalues up to
+        order 'npc' and return an (nPC x nPC) matrix.  If the 'nPC' parameter is
+        not specified, it will be set to the `numpc` used in the original
+        construction.  Any prior reconstruction will be overwritten.
 
         See also
         --------
@@ -455,17 +482,18 @@ void MSSAtoolkitClasses(py::module &m) {
 	py::arg("clusters") = 4,
 	py::arg("stride") = 2,
 	R"(
-        Do a k-means analysis on the reconstructed trajectory matrices for a single channel (specified key value) to
-        provide grouping insight.  A vector of channel indices that identify clusters is return in a vector ordered by PC
-        index.
+        Do a k-means analysis on the reconstructed trajectory matrices for a
+        single channel (specified key value) to provide grouping insight.  A
+        vector of channel indices that identify clusters is return in a vector
+        ordered by PC index.
 
         Parameters
         ----------
         clusters : int, default=4
             number of clusters for the k-means analysis
         stride : int, default=2
-            if positive, the initial cluster centers are stride selected from the PC list.  If zero, the centers are
-            selected randomly from the PC list
+            if positive, the initial cluster centers are stride selected from the PC list.
+            If zero, the centers are selected randomly from the PC list
 
         Returns
         -------
@@ -476,14 +504,18 @@ void MSSAtoolkitClasses(py::module &m) {
 
         Notes
         -----
-        The k-means partitions n vector observations into k clusters in which each observation belongs to the cluster with
-        the nearest centers while minimizing the variance within each cluster.  In this case, the vectors are the full
-        trajectory matrices and the distance is the distance between the trajectory matricies reconstructed from each
-        eigentriple from mSSA.  The distance used here is the Frobenius distance or matrix norm distance: the square root
-        of the sum of squares of all elements in the difference between two matrices.
+        The k-means partitions n vector observations into k clusters in which
+        each observation belongs to the cluster with the nearest centers while
+        minimizing the variance within each cluster.  In this case, the vectors
+        are the full trajectory matrices and the distance is the distance
+        between the trajectory matrices reconstructed from each eigentriples
+        from mSSA.  The distance used here is the Frobenius distance or matrix
+        norm distance: the square root of the sum of squares of all elements in
+        the difference between two matrices.
 
-        This version does the analysis for all channels together, the most useful for estimating groups.  For individual
-        contributions by channel, use kmeansChannel.
+        This version does the analysis for all channels together, the most
+        useful for estimating groups.  For individual contributions by channel,
+        use kmeansChannel.
         )");
 
   f.def("kmeansChannel", &expMSSA::kmeansChannel,
@@ -491,9 +523,10 @@ void MSSAtoolkitClasses(py::module &m) {
 	py::arg("clusters") = 4,
 	py::arg("stride") = 2,
 	R"(
-        Do a k-means analysis on the reconstructed trajectory matrices for a single channel (specified key value) to
-        provide grouping insight.  In most cases, you will want to use the kmeans() version which analyzes all channels
-        together.
+        Do a k-means analysis on the reconstructed trajectory matrices for a
+        single channel (specified key value) to provide grouping insight.  In
+        most cases, you will want to use the kmeans() version which analyzes all
+        channels together.
 
         Parameters
         ----------
@@ -529,17 +562,17 @@ void MSSAtoolkitClasses(py::module &m) {
             - F: Each PC's contribution to each channel. The columns are L2 normed.
             - G: Each channel's contribution to each PC. The rows are L2 normed.
 
-        By default, channels for non-zero 'm' are split into cosine and sine components 
-        from the real+imaginary values.
+        By default, channels for non-zero 'm' are split into cosine and sine
+        components from the real+imaginary values.
 
-        The L2 norm, or Euclidean norm, computes the length of a vector in a multi-dimensional space.
-        For a vector v = [v1, v2, ..., vn], the L2 norm is calculated as sqrt(v1^2 + v2^2 + ... + vn^2).
+        The L2 norm, or Euclidean norm, computes the length of a vector in a
+        multi-dimensional space.  For a vector v = [v1, v2, ..., vn], the L2
+        norm is calculated as sqrt(v1^2 + v2^2 + ... + vn^2).
 
-        The L2 normed views provide a measure of the relative contribution of each PC to each channel
-        and the relative contribution of each channel to each PC. These contributions can be plotted 
-        using 'imshow'.
+        The L2 normed views provide a measure of the relative contribution of
+        each PC to each channel and the relative contribution of each channel to
+        each PC. These contributions can be plotted using 'imshow'.
         )");
-
 
   f.def("saveState", &expMSSA::saveState,
 	R"(
