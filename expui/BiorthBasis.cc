@@ -3687,7 +3687,8 @@ namespace BasisClasses
 
     // Get expansion center
     //
-    auto ctr = basis->getCenter();
+    std::vector<double> ctr {0, 0, 0};
+    if (basis->usingNonInertial()) ctr = basis->getCenter();
 
     // Get fields
     //

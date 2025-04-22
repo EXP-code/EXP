@@ -249,8 +249,8 @@ namespace BasisClasses
 
     //@{
     //! Initialize non-inertial forces
-    void setNonInertial(int N, Eigen::VectorXd& x, Eigen::MatrixXd& pos);
-    void setNonInertial(int N, const std::string& orient);
+    void setNonInertial(const Eigen::VectorXd& x, const Eigen::MatrixXd& pos);
+    void setNonInertial(const std::string& orient);
     //@}
 
     //! Set the current pseudo acceleration
@@ -258,6 +258,9 @@ namespace BasisClasses
     {
       if (Naccel > 0) pseudo = currentAccel(time);
     }
+
+    //! Returns true if non-intertial forces are active
+    bool usingNonInertial() { return Naccel > 0; }
 
     //! Get the field label vector
     std::vector<std::string> getFieldLabels(void)

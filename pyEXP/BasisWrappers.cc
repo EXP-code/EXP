@@ -199,6 +199,18 @@ void BasisFactoryClasses(py::module &m)
     a fixed potential model.  AccelFunc can be inherited by a native Python
     class and the evalcoefs() may be implemented in Python and passed to
     IntegrateOrbits in the same way as a native C++ class.
+
+    Non-inertial frames of reference
+    --------------------------------
+    Each component of a multiple component simulation may have its own expansion
+    center. Orbit integration in the frame of reference of the expansion is
+    accomplished by defining a moving frame of reference using the setNonInertial()
+    call with either an array of times (N) and center positions (as an Nx3 array)
+    or by initializing with an EXP orient file.
+
+    We provide a member function, setNonInertialAccel(t), to estimate the frame
+    acceleration at a given time.  This may be useful for user-defined acceleration
+    routines.  This is automatically called default C++ evalcoefs() routine.
     )";
 
   using namespace BasisClasses;
@@ -945,9 +957,82 @@ void BasisFactoryClasses(py::module &m)
          -------
          list: str
            list of basis function labels
-      )"
-    );
+         )"
+	 )
+    .def("setNonInertial",
+	 [](BasisClasses::Basis& A,
+	    const Eigen::VectorXd& times, const Eigen::MatrixXd& pos) {
+	   A.setNonInertial(times, pos);
+	 },
+	 R"(
+         Initialize for pseudo-force computation with a time series of positions
+         using (1) a time vector and (2) a center position matrix with rows of three
+         vectors
 
+         Parameters
+         ----------
+         times : list or numpy.ndarray
+           list of time points
+         pos : numpy.ndarray
+           an array with N rows and 3 columns of center positions
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         setNonInertial : set non-inertial data from an Orient file
+         setNonInertialAccel : set the non-inertial acceration
+         )",
+	 py::arg("times"), py::arg("pos")
+         )
+    .def("setNonInertial",
+	 [](BasisClasses::Basis& A, const std::string orient)
+	 {
+	   A.setNonInertial(orient);
+	 },
+	 R"(
+         Initialize for pseudo-force computation with a time series of positions
+         using a EXP orient file
+
+         Parameters
+         ----------
+         orient : str
+           name of the orient file
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         setNonInertial : set non-inertial data from a time series of values
+         setNonInertialAccel : set the non-inertial acceration
+         )",
+	 py::arg("orient")
+         )
+    .def("setNonInertialAccel", &BasisClasses::Basis::setNonInertialAccel,
+	 R"(
+         Set the pseudo acceleration for the non-inertial data at a given time
+
+         Parameters
+         ----------
+         time : float
+           evaluation time
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         setNonInertial : set non-inertial data from a time series of values
+         setNonInertial : set non-inertial data from an EXP orient file
+         )",
+	 py::arg("time")
+         );
+    
   py::class_<BasisClasses::BiorthBasis, std::shared_ptr<BasisClasses::BiorthBasis>, PyBiorthBasis, BasisClasses::Basis>
     (m, "BiorthBasis")
     .def(py::init<const std::string&>(),
