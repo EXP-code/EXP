@@ -733,13 +733,13 @@ void CoefficientClasses(py::module &m) {
 
         See also
         --------
-        setCenter : read-write access to the coefficient time
+        setCoefTime : read-write access to the coefficient time
         )")
     .def("setCoefTime",
         static_cast<void (CoefStruct::*)(double&)>(&CoefStruct::setTime),
         py::arg("tval"),
         R"(
-        Set the coefficien time
+        Set the coefficient time
 
         Parameters
         ----------
