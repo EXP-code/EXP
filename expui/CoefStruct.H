@@ -27,7 +27,7 @@ namespace CoefClasses
     Eigen::VectorXcd store;
     
     //! Center data
-    std::vector<double> ctr;
+    std::vector<double> ctr= {0.0, 0.0, 0.0};
 
     //! Destructor
     virtual ~CoefStruct() {}
