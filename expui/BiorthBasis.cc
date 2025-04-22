@@ -3685,11 +3685,17 @@ namespace BasisClasses
     //
     auto basis = std::get<0>(mod);
 
+    // Get expansion center
+    //
+    auto ctr = basis->getCenter();
+
     // Get fields
     //
     int rows = accel.rows();
     for (int n=0; n<rows; n++) {
-      auto v = basis->getFields(ps(n, 0), ps(n, 1), ps(n, 2));
+      auto v = basis->getFields(ps(n, 0) - ctr[0],
+				ps(n, 1) - ctr[1],
+				ps(n, 2) - ctr[2]);
       // First 6 fields are density and potential, follewed by acceleration
       for (int k=0; k<3; k++) accel(n, k) += v[6+k] - basis->pseudo(k);
     }
