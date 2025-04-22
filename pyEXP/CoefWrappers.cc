@@ -712,11 +712,86 @@ void CoefficientClasses(py::module &m) {
                   str
                       geometry type
                   )")
-    .def_readwrite("time", &CoefStruct::time,
+    .def_readonly("time", &CoefStruct::time,
 		   R"(
                    float
                        data's time stamp
                    )")
+    .def_readonly("center", &CoefStruct::ctr,
+    R"(
+                float
+                    data's center value
+                )") 
+    .def("getCoefTime", &CoefStruct::getTime,
+        R"(
+        Read-only access to the coefficient time
+
+        Returns
+        -------
+        numpy.ndarray
+            vector of center data
+
+        See also
+        --------
+        setCoefTime : read-write access to the coefficient time
+        )")
+    .def("setCoefTime",
+        static_cast<void (CoefStruct::*)(double&)>(&CoefStruct::setTime),
+        py::arg("tval"),
+        R"(
+        Set the coefficient time
+
+        Parameters
+        ----------
+        tval  : float
+                time value
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        See also
+        --------
+        getCenter : read-only access to coefficient time
+        )")
+    .def("getCoefCenter", &CoefStruct::getCenter,
+          R"(
+          Read-only access to the center data
+  
+          Returns
+          -------
+          numpy.ndarray
+              vector of center data
+  
+          See also
+          --------
+          setCenter : read-write access to the center data
+          )")
+    .def("setCoefCenter",
+          static_cast<void (CoefStruct::*)(std::vector<double>&)>(&CoefStruct::setCenter),
+          py::arg("mat"),
+          R"(
+          Set the center vector
+  
+          Parameters
+          ----------
+          mat  : numpy.ndarray
+                center vector
+  
+          Returns
+          -------
+          None
+  
+          Notes
+          -----
+  
+          See also
+          --------
+          getCenter : read-only access to center data
+          )")
     .def("getCoefs", &CoefStruct::getCoefs,
         R"(
         Read-only access to the underlying data store
