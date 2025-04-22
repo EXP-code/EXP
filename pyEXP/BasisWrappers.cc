@@ -205,7 +205,7 @@ void BasisFactoryClasses(py::module &m)
     Each component of a multiple component simulation may have its own expansion
     center. Orbit integration in the frame of reference of the expansion is
     accomplished by defining a moving frame of reference using the setNonInertial()
-    call with either an array of times (N) and center positions (as an Nx3 array)
+    call with either an array of n times and center positions (as an nx3 array)
     or by initializing with an EXP orient file.
 
     We provide a member function, setNonInertialAccel(t), to estimate the frame
@@ -961,8 +961,8 @@ void BasisFactoryClasses(py::module &m)
 	 )
     .def("setNonInertial",
 	 [](BasisClasses::Basis& A,
-	    const Eigen::VectorXd& times, const Eigen::MatrixXd& pos) {
-	   A.setNonInertial(times, pos);
+	    int N, const Eigen::VectorXd& times, const Eigen::MatrixXd& pos) {
+	   A.setNonInertial(N, times, pos);
 	 },
 	 R"(
          Initialize for pseudo-force computation with a time series of positions
@@ -971,6 +971,8 @@ void BasisFactoryClasses(py::module &m)
 
          Parameters
          ----------
+         N : int
+           number of previous positions to use for quadratic fit
          times : list or numpy.ndarray
            list of time points
          pos : numpy.ndarray
@@ -985,12 +987,12 @@ void BasisFactoryClasses(py::module &m)
          setNonInertial : set non-inertial data from an Orient file
          setNonInertialAccel : set the non-inertial acceration
          )",
-	 py::arg("times"), py::arg("pos")
+	 py::arg("N"), py::arg("times"), py::arg("pos")
          )
     .def("setNonInertial",
-	 [](BasisClasses::Basis& A, const std::string orient)
+	 [](BasisClasses::Basis& A, int N, const std::string orient)
 	 {
-	   A.setNonInertial(orient);
+	   A.setNonInertial(N, orient);
 	 },
 	 R"(
          Initialize for pseudo-force computation with a time series of positions
@@ -998,6 +1000,8 @@ void BasisFactoryClasses(py::module &m)
 
          Parameters
          ----------
+         N : int
+           number of previous positions to use for quadratic fit
          orient : str
            name of the orient file
 
@@ -1010,7 +1014,7 @@ void BasisFactoryClasses(py::module &m)
          setNonInertial : set non-inertial data from a time series of values
          setNonInertialAccel : set the non-inertial acceration
          )",
-	 py::arg("orient")
+	 py::arg("N"), py::arg("orient")
          )
     .def("setNonInertialAccel", &BasisClasses::Basis::setNonInertialAccel,
 	 R"(

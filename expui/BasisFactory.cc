@@ -283,7 +283,7 @@ namespace BasisClasses
     return makeFromArray(time);
   }
 
-  void Basis::setNonInertial(const Eigen::VectorXd& t, const Eigen::MatrixXd& pos)
+  void Basis::setNonInertial(int N, const Eigen::VectorXd& t, const Eigen::MatrixXd& pos)
   {
     // Sanity checks
     if (t.size() < 1)
@@ -293,12 +293,12 @@ namespace BasisClasses
       throw std::runtime_error("Basis::setNonInertial: size mismatch in time and position arrays");
 
     // Set the data
-    Naccel  = t.size();
+    Naccel  = N;
     t_accel = t;
     p_accel = pos;
   }
 
-  void Basis::setNonInertial(const std::string& orient)
+  void Basis::setNonInertial(int N, const std::string& orient)
   {
     std::ifstream in(orient);
 
@@ -345,7 +345,7 @@ namespace BasisClasses
     }
 
     // Repack data
-    Naccel = times.size();
+    Naccel = N;
     t_accel.resize(times.size());
     p_accel.resize(times.size(), 3);
     for (int i=0; i<times.size(); i++) {

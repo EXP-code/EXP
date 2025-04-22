@@ -249,8 +249,8 @@ namespace BasisClasses
 
     //@{
     //! Initialize non-inertial forces
-    void setNonInertial(const Eigen::VectorXd& x, const Eigen::MatrixXd& pos);
-    void setNonInertial(const std::string& orient);
+    void setNonInertial(int Naccel, const Eigen::VectorXd& x, const Eigen::MatrixXd& pos);
+    void setNonInertial(int Naccel, const std::string& orient);
     //@}
 
     //! Set the current pseudo acceleration
