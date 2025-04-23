@@ -3697,7 +3697,7 @@ namespace BasisClasses
       auto v = basis->getFields(ps(n, 0) - ctr[0],
 				ps(n, 1) - ctr[1],
 				ps(n, 2) - ctr[2]);
-      // First 6 fields are density and potential, follewed by acceleration
+      // First 6 fields are density and potential, followed by acceleration
       for (int k=0; k<3; k++) accel(n, k) += v[6+k] - basis->pseudo(k);
     }
 
