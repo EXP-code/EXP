@@ -3727,13 +3727,12 @@ namespace BasisClasses
       throw std::runtime_error(sout.str());
     }
     
-    auto it1 = std::lower_bound(times.begin(), times.end(), t);
-    auto it2 = it1 + 1;
+    auto it2 = std::lower_bound(times.begin(), times.end(), t);
+    auto it1 = it2;
 
-    if (it2 == times.end()) {
-      it2--;
-      it1 = it2 - 1;
-    }
+    if (it2 == times.end()) throw std::runtime_error("Basis::AllTimeAccel::evalcoefs: time t=" + std::to_string(t) + " out of bounds");
+    else if (it2 == times.begin()) it2++;
+    else it1--;
 
     double a = (*it2 - t)/(*it2 - *it1);
     double b = (t - *it1)/(*it2 - *it1);
@@ -3791,13 +3790,12 @@ namespace BasisClasses
 	throw std::runtime_error(sout.str());
       }
       
-      auto it1 = std::lower_bound(times.begin(), times.end(), t);
-      auto it2 = it1 + 1;
-      
-      if (it2 == times.end()) {
-	it2--;
-	it1 = it2 - 1;
-      }
+      auto it2 = std::lower_bound(times.begin(), times.end(), t);
+      auto it1 = it2;
+
+      if (it2 == times.end()) throw std::runtime_error("Basis::AllTimeAccel::evalcoefs: time t=" + std::to_string(t) + " out of bounds");
+      else if (it2 == times.begin()) it2++;
+      else it1--;
       
       double a = (*it2 - t)/(*it2 - *it1);
       double b = (t - *it1)/(*it2 - *it1);

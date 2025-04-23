@@ -137,6 +137,7 @@ namespace BasisClasses
     Eigen::Vector3d currentAccel(double time);
 
   public:
+
     //! The current pseudo acceleration
     Eigen::Vector3d pseudo {0, 0, 0};
 
@@ -261,6 +262,13 @@ namespace BasisClasses
 
     //! Returns true if non-intertial forces are active
     bool usingNonInertial() { return Naccel > 0; }
+
+    //! Reset to inertial coordinates
+    void setInertial()
+    {
+      Naccel = 0;
+      pseudo = {0, 0, 0};
+    }
 
     //! Get the field label vector
     std::vector<std::string> getFieldLabels(void)

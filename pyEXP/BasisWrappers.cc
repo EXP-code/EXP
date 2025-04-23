@@ -959,6 +959,24 @@ void BasisFactoryClasses(py::module &m)
            list of basis function labels
          )"
 	 )
+    .def("setInertial", &BasisClasses::Basis::setInertial,
+	 R"(
+         Reset to inertial coordinates
+
+         Parameters
+         ----------
+         None
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         setNonInertial : set non-inertial data
+         setNonInertialAccel : set the non-inertial acceration
+         )"
+	 )
     .def("setNonInertial",
 	 [](BasisClasses::Basis& A,
 	    int N, const Eigen::VectorXd& times, const Eigen::MatrixXd& pos) {
