@@ -396,6 +396,10 @@ namespace BasisClasses
     
     CoefClasses::SphStruct* cf = dynamic_cast<CoefClasses::SphStruct*>(coef.get());
 
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
+
     // Assign internal coefficient table (doubles) from the complex struct
     //
     for (int l=0, L0=0, L1=0; l<=lmax; l++) {
@@ -1474,6 +1478,10 @@ namespace BasisClasses
 
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
 
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
+
     for (int m=0; m<=mmax; m++) { // Set to zero on m=0 call only--------+
       sl->set_coefs(m, (*cf->coefs).row(m).real(), (*cf->coefs).row(m).imag(), m==0);
     }
@@ -1770,6 +1778,10 @@ namespace BasisClasses
     
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
     auto & cc = *cf->coefs;
+
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
 
     // Assign internal coefficient table (doubles) from the complex struct
     //
@@ -2474,6 +2486,10 @@ namespace BasisClasses
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
     auto & cc = *cf->coefs;
 
+    // Cache the cuurent coefficient structure
+    //
+    coefret = coef;
+
     // Assign internal coefficient table (doubles) from the complex struct
     //
     for (int m=0, m0=0; m<=mmax; m++) {
@@ -2873,6 +2889,10 @@ namespace BasisClasses
     
     auto cf = dynamic_cast<CoefClasses::SlabStruct*>(coef.get());
     expcoef = *cf->coefs;
+
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
 
     coefctr = {0.0, 0.0, 0.0};
   }
@@ -3306,6 +3326,10 @@ namespace BasisClasses
     auto cf = dynamic_cast<CoefClasses::CubeStruct*>(coef.get());
     expcoef = *cf->coefs;
 
+    // Cache the cuurent coefficient structure
+    //
+    coefret = coef;
+
     coefctr = {0.0, 0.0, 0.0};
   }
 
@@ -3699,6 +3723,30 @@ namespace BasisClasses
 				ps(n, 2) - ctr[2]);
       // First 6 fields are density and potential, followed by acceleration
       for (int k=0; k<3; k++) accel(n, k) += v[6+k] - basis->pseudo(k);
+    }
+
+    // true for deep debugging
+    //  |
+    //  v
+    if (true and basis->usingNonInertial()) {
+
+      auto coefs = basis->getCoefficients();
+      auto time  = coefs->time;
+      auto ctr   = coefs->ctr;
+
+      std::ofstream tmp;
+      if (time <= 0.0) tmp.open("pseudo.dat");
+      else             tmp.open("pseudo.dat", ios::app);
+
+      if (tmp)
+	tmp << std::setw(16) << std::setprecision(5) << time
+	    << std::setw(16) << std::setprecision(5) << ctr[0]
+	    << std::setw(16) << std::setprecision(5) << ctr[1]
+	    << std::setw(16) << std::setprecision(5) << ctr[2]
+	    << std::setw(16) << std::setprecision(5) << basis->pseudo(0)
+	    << std::setw(16) << std::setprecision(5) << basis->pseudo(1)
+	    << std::setw(16) << std::setprecision(5) << basis->pseudo(2)
+	    << std::endl;
     }
 
     return accel;
