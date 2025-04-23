@@ -368,7 +368,10 @@ namespace BasisClasses
     else {
       int imin = 0;
       int imax = std::lower_bound(t_accel.data(), t_accel.data()+t_accel.size(), time) - t_accel.data();
-      if (imax > Naccel) imin = imax - Naccel;
+
+      // Get a range around the current time of approx size Naccel
+      imax = std::min<int>(t_accel.size()-1, imax + Naccel/2);
+      imin = std::max<int>(imax - Naccel, 0);
 
       int num = imax - imin + 1;
       Eigen::VectorXd t(num);
