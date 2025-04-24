@@ -635,7 +635,7 @@ namespace BasisClasses
   Spherical::crt_eval
   (double x, double y, double z)
   {
-    double R = sqrt(x*x + y*y);
+    double R = sqrt(x*x + y*y) + 1.0e-18;
     double phi = atan2(y, x);
 
     auto v = cyl_eval(R, z, phi);
@@ -3728,7 +3728,7 @@ namespace BasisClasses
     // true for deep debugging
     //  |
     //  v
-    if (true and basis->usingNonInertial()) {
+    if (false and basis->usingNonInertial()) {
 
       auto coefs = basis->getCoefficients();
       auto time  = coefs->time;
@@ -3890,25 +3890,93 @@ namespace BasisClasses
   {
     int rows = ps.rows();
 
-    // Drift 1/2
-    for (int n=0; n<rows; n++) {
-      for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
-    }
+    // Leap frog (set to false for RK4 test)
+    //
+    if (true) {
 
-    // Kick
-    accel.setZero();
-    for (auto mod : bfe) {
-      accel = F(t, ps, accel, mod);
-    }
-    for (int n=0; n<rows; n++) {
-      for (int k=0; k<3; k++) ps(n, 3+k) += accel(n, k)*h;
-    }
-    
-    // Drift 1/2
-    for (int n=0; n<rows; n++) {
-      for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
-    }
+      // Drift 1/2
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
+      }
 
+      // Kick
+      accel.setZero();
+      for (auto mod : bfe) F(t, ps, accel, mod);
+
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) ps(n, 3+k) += accel(n, k)*h;
+      }
+      
+      // Drift 1/2
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
+      }
+    }
+    // RK4
+    else {
+      // Make and clear variables
+      std::vector<Eigen::MatrixXd> kf(4);
+      for (int i=0; i<4; i++) kf[i].resize(rows, 6);
+
+      // Step 1
+      //
+      accel.setZero();
+      for (auto mod : bfe) F(t, ps, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[0](n, 0+k) = ps(n, 3+k);
+	  kf[0](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // Step 2
+      //
+      Eigen::MatrixXd ps1 = ps + kf[0]*0.5*h; // state vector update
+
+      accel.setZero();
+      for (auto mod : bfe) F(t+0.5*h, ps1, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[1](n, 0+k) = ps1(n, 3+k);
+	  kf[1](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // Step 3
+      //
+      ps1 = ps + kf[1]*0.5*h;	// state vector update
+
+      accel.setZero();
+      for (auto mod : bfe) F(t+0.5*h, ps1, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[2](n, 0+k) = ps1(n, 3+k);
+	  kf[2](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // Step 4
+      ps1 = ps + kf[2]*h;	// state vector update
+
+      accel.setZero();
+      for (auto mod : bfe) F(t+h, ps1, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[3](n, 0+k) = ps1(n, 3+k);
+	  kf[3](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // The final lhs
+      //
+      Eigen::MatrixXd acc = (kf[0] + 2.0*kf[1] + 2.0*kf[2] + kf[3])/6.0;
+
+      for (int n=0; n<rows; n++) { // Copy back acceleration for this step
+	for (int k=0; k<3; k++) accel(n, k) = acc(n, 3+k);
+      }
+
+      ps += acc*h;
+    }
 
     return std::tuple<double, Eigen::MatrixXd>(t+h, ps);
   }
