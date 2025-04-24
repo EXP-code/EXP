@@ -974,7 +974,7 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          setNonInertial : set non-inertial data
-         setNonInertialAccel : set the non-inertial acceration
+         setNonInertialAccel : set the non-inertial acceleration
          )"
 	 )
     .def("setNonInertial",

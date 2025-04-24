@@ -260,7 +260,7 @@ namespace BasisClasses
       if (Naccel > 0) pseudo = currentAccel(time);
     }
 
-    //! Returns true if non-intertial forces are active
+    //! Returns true if non-inertial forces are active
     bool usingNonInertial() { return Naccel > 0; }
 
     //! Reset to inertial coordinates

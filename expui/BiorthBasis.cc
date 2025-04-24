@@ -2486,8 +2486,7 @@ namespace BasisClasses
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
     auto & cc = *cf->coefs;
 
-    // Cache the cuurent coefficient structure
-    //
+    // Cache the current coefficient structure
     coefret = coef;
 
     // Assign internal coefficient table (doubles) from the complex struct
