@@ -396,6 +396,10 @@ namespace BasisClasses
     
     CoefClasses::SphStruct* cf = dynamic_cast<CoefClasses::SphStruct*>(coef.get());
 
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
+
     // Assign internal coefficient table (doubles) from the complex struct
     //
     for (int l=0, L0=0, L1=0; l<=lmax; l++) {
@@ -631,7 +635,7 @@ namespace BasisClasses
   Spherical::crt_eval
   (double x, double y, double z)
   {
-    double R = sqrt(x*x + y*y);
+    double R = sqrt(x*x + y*y) + 1.0e-18;
     double phi = atan2(y, x);
 
     auto v = cyl_eval(R, z, phi);
@@ -1474,6 +1478,10 @@ namespace BasisClasses
 
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
 
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
+
     for (int m=0; m<=mmax; m++) { // Set to zero on m=0 call only--------+
       sl->set_coefs(m, (*cf->coefs).row(m).real(), (*cf->coefs).row(m).imag(), m==0);
     }
@@ -1770,6 +1778,10 @@ namespace BasisClasses
     
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
     auto & cc = *cf->coefs;
+
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
 
     // Assign internal coefficient table (doubles) from the complex struct
     //
@@ -2474,6 +2486,9 @@ namespace BasisClasses
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
     auto & cc = *cf->coefs;
 
+    // Cache the current coefficient structure
+    coefret = coef;
+
     // Assign internal coefficient table (doubles) from the complex struct
     //
     for (int m=0, m0=0; m<=mmax; m++) {
@@ -2873,6 +2888,10 @@ namespace BasisClasses
     
     auto cf = dynamic_cast<CoefClasses::SlabStruct*>(coef.get());
     expcoef = *cf->coefs;
+
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
 
     coefctr = {0.0, 0.0, 0.0};
   }
@@ -3306,6 +3325,10 @@ namespace BasisClasses
     auto cf = dynamic_cast<CoefClasses::CubeStruct*>(coef.get());
     expcoef = *cf->coefs;
 
+    // Cache the cuurent coefficient structure
+    //
+    coefret = coef;
+
     coefctr = {0.0, 0.0, 0.0};
   }
 
@@ -3685,13 +3708,44 @@ namespace BasisClasses
     //
     auto basis = std::get<0>(mod);
 
+    // Get expansion center
+    //
+    auto ctr = basis->getCenter();
+    if (basis->usingNonInertial()) ctr = {0, 0, 0};
+
     // Get fields
     //
     int rows = accel.rows();
     for (int n=0; n<rows; n++) {
-      auto v = basis->getFields(ps(n, 0), ps(n, 1), ps(n, 2));
-      // First 6 fields are density and potential, follewed by acceleration
+      auto v = basis->getFields(ps(n, 0) - ctr[0],
+				ps(n, 1) - ctr[1],
+				ps(n, 2) - ctr[2]);
+      // First 6 fields are density and potential, followed by acceleration
       for (int k=0; k<3; k++) accel(n, k) += v[6+k] - basis->pseudo(k);
+    }
+
+    // true for deep debugging
+    //  |
+    //  v
+    if (false and basis->usingNonInertial()) {
+
+      auto coefs = basis->getCoefficients();
+      auto time  = coefs->time;
+      auto ctr   = coefs->ctr;
+
+      std::ofstream tmp;
+      if (time <= 0.0) tmp.open("pseudo.dat");
+      else             tmp.open("pseudo.dat", ios::app);
+
+      if (tmp)
+	tmp << std::setw(16) << std::setprecision(5) << time
+	    << std::setw(16) << std::setprecision(5) << ctr[0]
+	    << std::setw(16) << std::setprecision(5) << ctr[1]
+	    << std::setw(16) << std::setprecision(5) << ctr[2]
+	    << std::setw(16) << std::setprecision(5) << basis->pseudo(0)
+	    << std::setw(16) << std::setprecision(5) << basis->pseudo(1)
+	    << std::setw(16) << std::setprecision(5) << basis->pseudo(2)
+	    << std::endl;
     }
 
     return accel;
@@ -3720,13 +3774,12 @@ namespace BasisClasses
       throw std::runtime_error(sout.str());
     }
     
-    auto it1 = std::lower_bound(times.begin(), times.end(), t);
-    auto it2 = it1 + 1;
+    auto it2 = std::lower_bound(times.begin(), times.end(), t);
+    auto it1 = it2;
 
-    if (it2 == times.end()) {
-      it2--;
-      it1 = it2 - 1;
-    }
+    if (it2 == times.end()) throw std::runtime_error("Basis::AllTimeAccel::evalcoefs: time t=" + std::to_string(t) + " out of bounds");
+    else if (it2 == times.begin()) it2++;
+    else it1--;
 
     double a = (*it2 - t)/(*it2 - *it1);
     double b = (t - *it1)/(*it2 - *it1);
@@ -3784,13 +3837,12 @@ namespace BasisClasses
 	throw std::runtime_error(sout.str());
       }
       
-      auto it1 = std::lower_bound(times.begin(), times.end(), t);
-      auto it2 = it1 + 1;
-      
-      if (it2 == times.end()) {
-	it2--;
-	it1 = it2 - 1;
-      }
+      auto it2 = std::lower_bound(times.begin(), times.end(), t);
+      auto it1 = it2;
+
+      if (it2 == times.end()) throw std::runtime_error("Basis::AllTimeAccel::evalcoefs: time t=" + std::to_string(t) + " out of bounds");
+      else if (it2 == times.begin()) it2++;
+      else it1--;
       
       double a = (*it2 - t)/(*it2 - *it1);
       double b = (t - *it1)/(*it2 - *it1);
@@ -3837,25 +3889,93 @@ namespace BasisClasses
   {
     int rows = ps.rows();
 
-    // Drift 1/2
-    for (int n=0; n<rows; n++) {
-      for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
-    }
+    // Leap frog (set to false for RK4 test)
+    //
+    if (true) {
 
-    // Kick
-    accel.setZero();
-    for (auto mod : bfe) {
-      accel = F(t, ps, accel, mod);
-    }
-    for (int n=0; n<rows; n++) {
-      for (int k=0; k<3; k++) ps(n, 3+k) += accel(n, k)*h;
-    }
-    
-    // Drift 1/2
-    for (int n=0; n<rows; n++) {
-      for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
-    }
+      // Drift 1/2
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
+      }
 
+      // Kick
+      accel.setZero();
+      for (auto mod : bfe) F(t, ps, accel, mod);
+
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) ps(n, 3+k) += accel(n, k)*h;
+      }
+      
+      // Drift 1/2
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
+      }
+    }
+    // RK4
+    else {
+      // Make and clear variables
+      std::vector<Eigen::MatrixXd> kf(4);
+      for (int i=0; i<4; i++) kf[i].resize(rows, 6);
+
+      // Step 1
+      //
+      accel.setZero();
+      for (auto mod : bfe) F(t, ps, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[0](n, 0+k) = ps(n, 3+k);
+	  kf[0](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // Step 2
+      //
+      Eigen::MatrixXd ps1 = ps + kf[0]*0.5*h; // state vector update
+
+      accel.setZero();
+      for (auto mod : bfe) F(t+0.5*h, ps1, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[1](n, 0+k) = ps1(n, 3+k);
+	  kf[1](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // Step 3
+      //
+      ps1 = ps + kf[1]*0.5*h;	// state vector update
+
+      accel.setZero();
+      for (auto mod : bfe) F(t+0.5*h, ps1, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[2](n, 0+k) = ps1(n, 3+k);
+	  kf[2](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // Step 4
+      ps1 = ps + kf[2]*h;	// state vector update
+
+      accel.setZero();
+      for (auto mod : bfe) F(t+h, ps1, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[3](n, 0+k) = ps1(n, 3+k);
+	  kf[3](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // The final lhs
+      //
+      Eigen::MatrixXd acc = (kf[0] + 2.0*kf[1] + 2.0*kf[2] + kf[3])/6.0;
+
+      for (int n=0; n<rows; n++) { // Copy back acceleration for this step
+	for (int k=0; k<3; k++) accel(n, k) = acc(n, 3+k);
+      }
+
+      ps += acc*h;
+    }
 
     return std::tuple<double, Eigen::MatrixXd>(t+h, ps);
   }
