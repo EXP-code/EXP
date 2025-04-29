@@ -7259,6 +7259,22 @@ void EmpCylSL::WriteH5Cache()
 	    << "wrote <" << cachefile << ">" << std::endl;
 }
 
+// Repack order for Eigen3 workaround from old version
+//
+Eigen::MatrixXd repack(const Eigen::MatrixXd& in)
+{
+  Eigen::MatrixXd tmp = in.transpose();
+  double * trn = tmp.data();
+  Eigen::MatrixXd ret(in.rows(), in.cols());
+  for (int j=0, c=0; j<in.cols(); j++) {
+    for (int i=0; i<in.rows(); i++) {
+      ret(i, j) = trn[c++];
+    }
+  }
+  return ret;
+};
+
+
 bool EmpCylSL::ReadH5Cache()
 {
   try {
@@ -7308,11 +7324,13 @@ bool EmpCylSL::ReadH5Cache()
     if (file.hasAttribute("Version")) {
       if (not checkStr(Version, "Version"))  return false;
     } else {
-      if (myid==0)
-	std::cout << "---- EmpCylSL::ReadH5Cache: "
-		  << "recomputing cache for HighFive API change"
-		  << std::endl;
-      return false;
+      if (not allow_old_cache) {
+	if (myid==0)
+	  std::cout << "---- EmpCylSL::ReadH5Cache: "
+		    << "recomputing cache for HighFive API change"
+		    << std::endl;
+	return false;
+      }
     }
 
     if (not checkStr(geometry, "geometry"))  return false;
@@ -7391,10 +7409,10 @@ bool EmpCylSL::ReadH5Cache()
 	densC  [m][n] = order.getDataSet("densC")  .read<Eigen::MatrixXd>();
 
 	if (allow_old_cache) {
-	  potC   [m][n] = potC   [m][n].transpose();
-	  rforceC[m][n] = rforceC[m][n].transpose();
-	  zforceC[m][n] = zforceC[m][n].transpose();
-	  densC  [m][n] = densC  [m][n].transpose();
+	  potC   [m][n] = repack(potC   [m][n]);
+	  rforceC[m][n] = repack(rforceC[m][n]);
+	  zforceC[m][n] = repack(zforceC[m][n]);
+	  densC  [m][n] = repack(densC  [m][n]);
 	}
       }
     }
@@ -7421,10 +7439,10 @@ bool EmpCylSL::ReadH5Cache()
 	densS  [m][n] = order.getDataSet("densS")  .read<Eigen::MatrixXd>();
 
 	if (allow_old_cache) {
-	  potC   [m][n] = potC   [m][n].transpose();
-	  rforceC[m][n] = rforceC[m][n].transpose();
-	  zforceC[m][n] = zforceC[m][n].transpose();
-	  densC  [m][n] = densC  [m][n].transpose();
+	  potS   [m][n] = repack(potS   [m][n]);
+	  rforceS[m][n] = repack(rforceS[m][n]);
+	  zforceS[m][n] = repack(zforceS[m][n]);
+	  densS  [m][n] = repack(densS  [m][n]);;
 	}
       }
     }
