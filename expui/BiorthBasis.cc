@@ -890,6 +890,7 @@ namespace BasisClasses
     "npca0",
     "nvtk",
     "cachename",
+    "oldcache",
     "eof_file",
     "override",
     "samplesz",
@@ -1061,6 +1062,7 @@ namespace BasisClasses
     ncylodd     = 9;
     ncylr       = 2000;
     cachename   = ".eof_cache_file";
+    oldcache    = false;
     Ignore      = false;
     deproject   = false;
     
@@ -1139,6 +1141,7 @@ namespace BasisClasses
       if (conf["ncylodd"   ])    ncylodd  = conf["ncylodd"   ].as<int>();
       if (conf["cachename" ])  cachename  = conf["cachename" ].as<std::string>();
       if (conf["eof_file"  ])  cachename  = conf["eof_file"  ].as<std::string>();
+      if (conf["oldcache"  ])   oldcache  = conf["oldcache"  ].as<bool>();
       if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
       if (conf["pnum"      ])       pnum  = conf["pnum"      ].as<int>();
       if (conf["tnum"      ])       tnum  = conf["tnum"      ].as<int>();
@@ -1238,6 +1241,11 @@ namespace BasisClasses
     if (mlim>=0)  sl->set_mlim(mlim);
     if (EVEN_M)   sl->setEven(EVEN_M);
       
+    // Cache override for old Eigen cache
+    //
+    if (oldcache) sl->AllowOldCache();
+    
+
     // Attempt to read EOF cache
     //
     if (sl->read_cache() == 0) {
