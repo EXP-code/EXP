@@ -340,6 +340,10 @@ protected:
   //! MPI is active
   bool use_mpi;
 
+  //! Allow older cache files with the Eigen3 row-major bug to be read
+  //! with the new Eigen3 API
+  bool allow_old_cache = false;
+
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient
@@ -807,6 +811,11 @@ public:
   //! map/dictionary
   static std::map<std::string, std::string>
   cacheInfo(const std::string& cachefile, bool verbose=true);
+
+  /** Cache versioning override.  Allow read of old cache files
+      without triggering a cache recomputation. */
+  void AllowOldCache(bool allow=true) { allow_old_cache = allow; }
+
 
   //@{
   //! Get potential grid interpolated entries

@@ -729,6 +729,7 @@ namespace BasisClasses
     int used;
     
     std::string cachename;
+    bool oldcache = false;
     
     using matT = std::vector<Eigen::MatrixXd>;
     using vecT = std::vector<Eigen::VectorXd>;

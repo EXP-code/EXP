@@ -264,7 +264,8 @@ EmpCylSL::EmpCylSL(int mlim, std::string cachename)
       if (ver.compare(Version))
 	throw std::runtime_error("EmpCylSL: version mismatch");
     } else {
-      throw std::runtime_error("EmpCylSL: outdated cache");
+      if (not allow_old_cache)
+	throw std::runtime_error("EmpCylSL: outdated cache");
     }
 
     NMAX    = getH5<int>("nmaxfid", file);
@@ -7388,6 +7389,13 @@ bool EmpCylSL::ReadH5Cache()
 	rforceC[m][n] = order.getDataSet("rforceC").read<Eigen::MatrixXd>();
 	zforceC[m][n] = order.getDataSet("zforceC").read<Eigen::MatrixXd>();
 	densC  [m][n] = order.getDataSet("densC")  .read<Eigen::MatrixXd>();
+
+	if (allow_old_cache) {
+	  potC   [m][n] = potC   [m][n].transpose();
+	  rforceC[m][n] = rforceC[m][n].transpose();
+	  zforceC[m][n] = zforceC[m][n].transpose();
+	  densC  [m][n] = densC  [m][n].transpose();
+	}
       }
     }
 
@@ -7411,6 +7419,13 @@ bool EmpCylSL::ReadH5Cache()
 	rforceS[m][n] = order.getDataSet("rforceS").read<Eigen::MatrixXd>();
 	zforceS[m][n] = order.getDataSet("zforceS").read<Eigen::MatrixXd>();
 	densS  [m][n] = order.getDataSet("densS")  .read<Eigen::MatrixXd>();
+
+	if (allow_old_cache) {
+	  potC   [m][n] = potC   [m][n].transpose();
+	  rforceC[m][n] = rforceC[m][n].transpose();
+	  zforceC[m][n] = zforceC[m][n].transpose();
+	  densC  [m][n] = densC  [m][n].transpose();
+	}
       }
     }
 
