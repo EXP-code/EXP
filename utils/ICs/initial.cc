@@ -663,12 +663,6 @@ main(int ac, char **av)
     }
   }
 
-  // Enable new YAML cache header
-  //
-  if (vm.count("newcache")) {
-    EmpCylSL::NewCache = true;
-  }
-
   if (vm.count("spline")) {
     SphericalModelTable::linear = 0;
   } else {

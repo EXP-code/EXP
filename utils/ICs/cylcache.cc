@@ -471,13 +471,6 @@ main(int ac, char **av)
     }
   }
 
-  // Enable new YAML cache header
-  //
-  if (vm.count("newcache")) {
-    EmpCylSL::NewCache = true;
-  }
-
-
   // Convert mtype string to lower case
   //
   std::transform(mtype.begin(), mtype.end(), mtype.begin(),

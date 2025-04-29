@@ -65,7 +65,6 @@ double   EmpCylSL::RMIN            = 0.001;
 double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
 double   EmpCylSL::PPOW            = 4.0;
-bool     EmpCylSL::NewCache        = true;
 bool     EmpCylSL::NewCoefs        = true;
  
 

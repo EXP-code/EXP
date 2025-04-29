@@ -451,9 +451,6 @@ public:
   //! Power exponent for EOF conditioning density function
   static double PPOW;
 
-  //! Use YAML header in cache file
-  static bool NewCache;
-
   //! Use YAML header in coefficient file
   static bool NewCoefs;
 
