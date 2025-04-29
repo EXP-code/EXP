@@ -263,8 +263,14 @@ EmpCylSL::EmpCylSL(int mlim, std::string cachename)
       if (ver.compare(Version))
 	throw std::runtime_error("EmpCylSL: version mismatch");
     } else {
-      if (not allow_old_cache)
-	throw std::runtime_error("EmpCylSL: outdated cache");
+      if (allow_old_cache) {
+	if (myid==0)
+	  std::cout << "---- EmpCylSL::ReadH5Cache: "
+		    << "using a workaround for a HighFive HDF5 wrapper bug. "
+		    << "Please consider rebuilding your cache if possible!"
+		    << std::endl;
+      }
+      else throw std::runtime_error("EmpCylSL: outdated cache");
     }
 
     NMAX    = getH5<int>("nmaxfid", file);
@@ -7323,7 +7329,13 @@ bool EmpCylSL::ReadH5Cache()
     if (file.hasAttribute("Version")) {
       if (not checkStr(Version, "Version"))  return false;
     } else {
-      if (not allow_old_cache) {
+      if (allow_old_cache) {
+	if (myid==0)
+	  std::cout << "---- EmpCylSL::ReadH5Cache: "
+		    << "using a workaround for a HighFive HDF5 wrapper bug. "
+		    << "Please consider rebuilding your cache if possible!" << std::endl;
+      }
+      else {
 	if (myid==0)
 	  std::cout << "---- EmpCylSL::ReadH5Cache: "
 		    << "recomputing cache for HighFive API change"
