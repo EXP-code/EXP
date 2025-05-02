@@ -14,6 +14,7 @@
 #include <BiorthBess.H>
 #include <BasisFactory.H>
 #include <BiorthCube.H>
+#include <sltableMP2.H>
 #include <SLGridMP2.H>
 #include <YamlCheck.H>
 #include <BiorthCyl.H>

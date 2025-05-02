@@ -63,17 +63,17 @@ public:
       if (queue.size()==Nsize) {
 
 	if (CENTER) {
-	  accel << 
-	    2.0*std::get<0>(QuadLS(t, x).coefs()),
-	    2.0*std::get<0>(QuadLS(t, y).coefs()),
-	    2.0*std::get<0>(QuadLS(t, z).coefs());
+	  accel <<
+	    2.0*std::get<0>(QuadLS<std::vector<double>>(t, x).coefs()),
+	    2.0*std::get<0>(QuadLS<std::vector<double>>(t, y).coefs()),
+	    2.0*std::get<0>(QuadLS<std::vector<double>>(t, z).coefs());
 	}
 	
 	if (AXIS) {
-	  auto [a, b, c] = QuadLS(t, u).coefs();
-	  auto [d, e, f] = QuadLS(t, v).coefs();
-	  auto [g, h, i] = QuadLS(t, w).coefs();
-	  
+	  auto [a, b, c] = QuadLS<std::vector<double>>(t, u).coefs();
+	  auto [d, e, f] = QuadLS<std::vector<double>>(t, v).coefs();
+	  auto [g, h, i] = QuadLS<std::vector<double>>(t, w).coefs();
+
 	  double T = t.back();	// Last eval time
 	  
 	  Eigen::Vector3d n, dndt, d2ndt2;
