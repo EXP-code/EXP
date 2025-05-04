@@ -18,7 +18,7 @@ authors:
 affiliations:
  - name: University of Edinburgh, UK
    index: 1
- - name: University of Massachusetts/Amherst, USA
+ - name: University of Massachusetts Amherst, USA
    index: 2
 date: 01 June 2024
 bibliography: paper.bib
@@ -39,16 +39,16 @@ bodies to evolve under their mutual gravity are capable of reproducing
 such complexities but robust links to fundamental theoretical
 explanations are still missing.
 
-Basis Function Expansions (BFE) represent fields as a linear
+Basis Function Expansions (BFEs) represent fields as a linear
 combination of orthogonal functions. BFEs are particularly well-suited
 for studies of perturbations from equilibrium, such as the evolution
 of a galaxy.  For any galaxy simulation, a biorthogonal BFE can fully
 represent the density, potential and forces by time series of
 coefficients.  The coefficients have physical meaning: they represent
-the gravitational potential energy in a given function.  The variation
+the gravitational potential energy in a given function.  The variation of
 the function coefficients in time encodes the dynamical evolution.
-The representation of simulation data by BFE results in huge
-compression of the information in the dynamical fields; for example,
+The representation of simulation data by BFEs results in huge
+compression of the information in the dynamical fields.  For example,
 1.5 TB of phase space data enumerating the positions and velocities of
 millions of particles becomes 200 MB of coefficient data!
 
@@ -73,7 +73,7 @@ The need for methodology that seamlessly connects theoretical
 descriptions of dynamics, N-body simulations, and compact descriptions
 of observed data gave rise to `EXP`. This package provides recent
 developments from applied mathematics and numerical computation to
-represent complete series of _Basis Function Expansions_ that describe
+represent complete series of BFEs that describe
 the variation of _any_ field in space.  In the context of galactic
 dynamics, these fields may be density, potential, force, velocity
 fields or any intrinsic field produced by simulations such as
@@ -85,11 +85,11 @@ simulated, and by analogy, observed data.
 
 `EXP` decomposes a galaxy into multiple bases for a variety of scales
 and geometries and is thus able to represent arbitrarily complex
-simulation with many components (e.g., disk, bulge, dark matter halo,
+simulations with many components (e.g., disk, bulge, dark matter halo,
 satellites).  `EXP` is able to efficiently summarize the degree and
 nature of asymmetries through coefficient amplitudes tracked through
 time and provide details at multiple scales. The
-amplitudes themselves enable ex-post-facto dynamical discovery.  
+amplitudes themselves enable ex-post-facto dynamical discovery.
 `EXP` is a collection of object-oriented C++ libraries with an
 associated modular N-body code and a suite of stand-alone analysis
 applications.
@@ -106,11 +106,11 @@ coefficients and discover dynamical relationships using time series
 analysis such as mSSA.  We provide a [full online
 manual](https://exp-docs.readthedocs.io) hosted by ReadTheDocs.
 
-The software package brings published -- but difficult to implement --
-applied-math technologies into the astronomical mainstream.  `EXP` and
+The software package brings published---but difficult to implement---applied-math
+technologies into the astronomical mainstream.  `EXP` and
 the associated Python interface `pyEXP` accomplish this by providing
 tools integrated with the Python ecosystem, and in particular are
-well-suited for interactive Python [@iPython] use through (e.g.)
+well-suited for interactive Python [@iPython] use through, e.g.,
 Jupyter notebooks [@jupyter]. `EXP` serves as the
 scaffolding for new imaginative applications in galactic dynamics,
 providing a common dynamical language for simulations and analytic
@@ -126,7 +126,7 @@ computed bases and resulting coefficient data are stored in HDF5
 
 | Name        | Description |
 | ----------- | -------------        |
-| sphereSL    | Sturm-Liouville basis function solutions to Poisson's equation for any arbitrary input spherical density |
+| sphereSL    | Sturm--Liouville basis function solutions to Poisson's equation for any arbitrary input spherical density |
 | bessel      | Basis constructed from eigenfunctions of the spherical Laplacian |
 | cylinder    | EOF solutions tabulated on the meridional plane for distributions with cylindrical geometries |
 | flatdisk    | EOF basis solutions for the three-dimensional gravitational field of a razor-thin disk |
@@ -134,28 +134,28 @@ computed bases and resulting coefficient data are stored in HDF5
 | field       | General-purpose EOF solution for scalar profiles |
 | velocity    | EOF solution for velocity flow coefficients |
 
-![Example cylinder basis functions, where the color encodes the amplitude of the function, for an exponential disk with a scalelength of 3 and a scaleheight of 0.3 in arbitrary units. We select three functions at low, medium, and higher order (corresponding to the number of nodes). The color scale has been normalised such that the largest amplitude is unity in each panel. \label{fig:examplecylinder}](examplefunctions.png)
+![Example cylinder basis functions, where the color encodes the amplitude of the function, for an exponential disk with a scale length of 3 and a scale height of 0.3 in arbitrary units. We select three functions at low, medium, and higher order (corresponding to the number of nodes). The color scale has been normalised such that the largest amplitude is unity in each panel. \label{fig:examplecylinder}](examplefunctions.png)
 
 
 ## N-body simulation
 
 Computing the gravitational potential and forces from a collection of
-N particles is typically an expensive endeavour. EXP reduces the cost
+N particles is typically an expensive endeavour. `EXP` reduces the cost
 by using BFE to compute the potential and forces such that computational
 effort scales with the number of particles. Other modern N-body codes
 use direct summation [@Wang:15] or tree-based solutions [@Gadget4],
 which have computational effort that scales as N$^2$ and N log N,
 respectively. The trade off for BFE solutions comes in the form of
-restricted degrees of freedom; for many problems in near-equilibrium
+restricted degrees of freedom. For many problems in near-equilibrium
 galactic dynamics this is not a problem, but rather a feature.
 
 Our design includes a wide choice of run-time summary diagnostics,
 phase-space output formats, dynamically loadable user libraries, and
-easy extensibility. Stand-alone routines include the EOF and mSSA 
-methods described above, and the modular software architecture of 
-`EXP` enables users to easily build and maintain extensions. The `EXP` 
+easy extensibility. Stand-alone routines include the EOF and mSSA
+methods described above, and the modular software architecture of
+`EXP` enables users to easily build and maintain extensions. The `EXP`
 code base is described in published papers [@Petersen:22; @Weinberg:23]
-and has been used, enhanced, and rigorously tested for nearly two 
+and has been used, enhanced, and rigorously tested for nearly two
 decades.
 
 
@@ -181,10 +181,10 @@ can be extended by users.
 `pyEXP` provides an interface to many of the classes in the `EXP` C++
 library, allowing for both the generation of all bases listed in the
 table above as well as coefficients for an input data set.  Each of
-these tools are Python classes that accept `numpy` [@numpy] arrays for
-immediate interoperability with `matplotlib` [@matplotlib] and
+these tools are Python classes that accept NumPy [@numpy] arrays for
+immediate interoperability with Matplotlib [@matplotlib] and
 Astropy.  We include a verified set of stand-alone routines that read
-phase-space files from many major cosmological tree codes [for example,
+phase-space files from many major cosmological tree codes [e.g.,
 @Gadget4] and produce
 BFE-based analyses.  The code suite includes adapters for reading and
 writing phase space for many of the widely used cosmology codes, with
@@ -201,11 +201,11 @@ The `EXP` library includes multiple time series analysis tools,
 documented in the manual. Here, we briefly highlight one technique
 that we have already used in published work: mSSA [@Weinberg:21;
 @Johnson:23].  Beginning with coefficient series from the previous
-tools, mSSA summarizes signals _in time_ that describes dynamically
+tools, mSSA summarizes signals _in time_ that describe dynamically
 correlated responses and patterns.  Essentially, this is BFE in time
 and space.  These temporal and spatial patterns allow users to better
 identify dynamical mechanisms and enable intercomparisons and
-filtering for features in simulation suites; e.g. computing the
+filtering for features in simulation suites, e.g. computing the
 fraction galaxies with grand design structure or hosting
 bars. Random-matrix techniques for singular-value decomposition ensure
 that analyses of large data sets is possible. All mSSA decompositions
@@ -221,4 +221,3 @@ Robert Blackwell for invaluable help with HPC best practices.
 
 
 # References
-
