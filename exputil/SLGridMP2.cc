@@ -696,6 +696,11 @@ SLGridSph::~SLGridSph()
 
 				// Members
 
+double SLGridSph::eigenvalue(int l, int n)
+{
+  return table.get()[l].ev[n];
+}
+
 double SLGridSph::r_to_xi(double r)
 {
   double ret;
@@ -2311,6 +2316,10 @@ void SLGridSlab::WriteH5Cache(void)
 SLGridSlab::~SLGridSlab()
 {
   // Nothing
+}
+
+double SLGridSlab::eigenvalue(int kx, int ky, int n) {
+  return table.get()[kx].get()[ky].ev[n];
 }
 
 // Coordinate transformation member functions for tanh map

@@ -129,7 +129,7 @@ public:
 				// Members
 
   //! Eigenvalue for index and harmonic order l
-  double eigenvalue(int l, int n) {return table[l].ev[n];}
+  double eigenvalue(int l, int n);
 
   //! Map radial coordinate to nondimensional coordinate
   double r_to_xi(double r);
@@ -396,12 +396,12 @@ public:
   //! Destructor
   ~SLGridSlab();
 
-  
+
   //@{
   //! Members
 
   //! Get n^th eigenvalue for given wave number indices
-  double eigenvalue(int kx, int ky, int n) {return table[kx][ky].ev[n];}
+  double eigenvalue(int kx, int ky, int n);
 
   //! Map from vertical coordinate to dimensionless coordinate
   double z_to_xi(double z)   { return mM->z_to_xi(z); }
