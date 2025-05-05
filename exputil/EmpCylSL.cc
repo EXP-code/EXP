@@ -65,7 +65,6 @@ double   EmpCylSL::RMIN            = 0.001;
 double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
 double   EmpCylSL::PPOW            = 4.0;
-bool     EmpCylSL::NewCache        = true;
 bool     EmpCylSL::NewCoefs        = true;
  
 
@@ -264,7 +263,15 @@ EmpCylSL::EmpCylSL(int mlim, std::string cachename)
       if (ver.compare(Version))
 	throw std::runtime_error("EmpCylSL: version mismatch");
     } else {
-      throw std::runtime_error("EmpCylSL: outdated cache");
+      if (allow_old_cache) {
+	if (myid==0)
+	  std::cout << "---- EmpCylSL::ReadH5Cache: "
+		    << "using a workaround for a HighFive HDF5 wrapper bug. "
+                    << "this workaround will be removed in EXP 7.9.0. "
+		    << "Please consider rebuilding your cache if possible!"
+		    << std::endl;
+      }
+      else throw std::runtime_error("EmpCylSL: outdated cache");
     }
 
     NMAX    = getH5<int>("nmaxfid", file);
@@ -7258,6 +7265,22 @@ void EmpCylSL::WriteH5Cache()
 	    << "wrote <" << cachefile << ">" << std::endl;
 }
 
+// Repack order for Eigen3 workaround from old version
+//
+Eigen::MatrixXd repack(const Eigen::MatrixXd& in)
+{
+  Eigen::MatrixXd tmp = in.transpose();
+  double * trn = tmp.data();
+  Eigen::MatrixXd ret(in.rows(), in.cols());
+  for (int j=0, c=0; j<in.cols(); j++) {
+    for (int i=0; i<in.rows(); i++) {
+      ret(i, j) = trn[c++];
+    }
+  }
+  return ret;
+};
+
+
 bool EmpCylSL::ReadH5Cache()
 {
   try {
@@ -7307,11 +7330,20 @@ bool EmpCylSL::ReadH5Cache()
     if (file.hasAttribute("Version")) {
       if (not checkStr(Version, "Version"))  return false;
     } else {
-      if (myid==0)
-	std::cout << "---- EmpCylSL::ReadH5Cache: "
-		  << "recomputing cache for HighFive API change"
-		  << std::endl;
-      return false;
+      if (allow_old_cache) {
+	if (myid==0)
+	  std::cout << "---- EmpCylSL::ReadH5Cache: "
+		    << "using a workaround for a HighFive HDF5 wrapper bug. "
+        << "this workaround will be removed in EXP 7.9.0. "
+		    << "Please consider rebuilding your cache if possible!" << std::endl;
+      }
+      else {
+	if (myid==0)
+	  std::cout << "---- EmpCylSL::ReadH5Cache: "
+		    << "recomputing cache for HighFive API change"
+		    << std::endl;
+	return false;
+      }
     }
 
     if (not checkStr(geometry, "geometry"))  return false;
@@ -7388,6 +7420,13 @@ bool EmpCylSL::ReadH5Cache()
 	rforceC[m][n] = order.getDataSet("rforceC").read<Eigen::MatrixXd>();
 	zforceC[m][n] = order.getDataSet("zforceC").read<Eigen::MatrixXd>();
 	densC  [m][n] = order.getDataSet("densC")  .read<Eigen::MatrixXd>();
+
+	if (allow_old_cache) {
+	  potC   [m][n] = repack(potC   [m][n]);
+	  rforceC[m][n] = repack(rforceC[m][n]);
+	  zforceC[m][n] = repack(zforceC[m][n]);
+	  densC  [m][n] = repack(densC  [m][n]);
+	}
       }
     }
 
@@ -7411,6 +7450,13 @@ bool EmpCylSL::ReadH5Cache()
 	rforceS[m][n] = order.getDataSet("rforceS").read<Eigen::MatrixXd>();
 	zforceS[m][n] = order.getDataSet("zforceS").read<Eigen::MatrixXd>();
 	densS  [m][n] = order.getDataSet("densS")  .read<Eigen::MatrixXd>();
+
+	if (allow_old_cache) {
+	  potS   [m][n] = repack(potS   [m][n]);
+	  rforceS[m][n] = repack(rforceS[m][n]);
+	  zforceS[m][n] = repack(zforceS[m][n]);
+	  densS  [m][n] = repack(densS  [m][n]);;
+	}
       }
     }
 
