@@ -137,6 +137,7 @@ namespace BasisClasses
     Eigen::Vector3d currentAccel(double time);
 
   public:
+
     //! The current pseudo acceleration
     Eigen::Vector3d pseudo {0, 0, 0};
 
@@ -249,14 +250,24 @@ namespace BasisClasses
 
     //@{
     //! Initialize non-inertial forces
-    void setNonInertial(int N, Eigen::VectorXd& x, Eigen::MatrixXd& pos);
-    void setNonInertial(int N, const std::string& orient);
+    void setNonInertial(int Naccel, const Eigen::VectorXd& x, const Eigen::MatrixXd& pos);
+    void setNonInertial(int Naccel, const std::string& orient);
     //@}
 
     //! Set the current pseudo acceleration
     void setNonInertialAccel(double time)
     {
       if (Naccel > 0) pseudo = currentAccel(time);
+    }
+
+    //! Returns true if non-inertial forces are active
+    bool usingNonInertial() { return Naccel > 0; }
+
+    //! Reset to inertial coordinates
+    void setInertial()
+    {
+      Naccel = 0;
+      pseudo = {0, 0, 0};
     }
 
     //! Get the field label vector

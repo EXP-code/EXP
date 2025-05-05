@@ -114,7 +114,7 @@ void OrthoFunction::dumpOrtho(const std::string& filename)
       //
       Eigen::VectorXd p = poly_eval(y, nmax) * W(r);
       fout << std::setw(16) << r;
-      for (int n=0; n<nmax; n++) fout << std::setw(16) << p(n);
+      for (int n=0; n<nmax; n++) fout << std::setw(16) << p(n)/sqrt(norm[n]);
       fout << std::endl;
     }
   }

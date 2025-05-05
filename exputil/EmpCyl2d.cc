@@ -780,19 +780,31 @@ bool EmpCyl2d::ReadH5Cache()
     auto checkInt = [&file](int value, std::string name)
     {
       int v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
-      if (value == v) return true; return false;
+      if (value == v) return true;
+      if (myid==0) std::cout << "---- EmpCyl2d::ReadH5Cache: "
+			     << name << " expected " << value << " but found "
+			     << v << std::endl;
+      return false;
     };
 
     auto checkDbl = [&file](double value, std::string name)
     {
       double v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
-      if (fabs(value - v) < 1.0e-16) return true; return false;
+      if (fabs(value - v) < 1.0e-16) return true;
+      if (myid==0) std::cout << "---- EmpCyl2d::ReadH5Cache: "
+			     << name << " expected " << value << " but found "
+			     << v << std::endl;
+      return false;
     };
 
     auto checkStr = [&file](std::string value, std::string name)
     {
       std::string v; HighFive::Attribute vv = file.getAttribute(name); vv.read(v);
-      if (value.compare(v)==0) return true; return false;
+      if (value.compare(v)==0) return true;
+      if (myid==0) std::cout << "---- EmpCyl2d::ReadH5Cache: "
+			     << name << " expected " << value << " but found "
+			     << v << std::endl;
+      return false;
     };
 
     //
@@ -803,8 +815,8 @@ bool EmpCyl2d::ReadH5Cache()
       if (not checkStr(Version, "Version"))  return false;
     } else {
       if (myid==0)
-	std::cout << "---- EmpCyl2d::ReadH5Cache: "
-		  << "recomputing cache for HighFive API change"
+	std::cout << "---- EmpCyl2d::ReadH5Cache: " << "<" << cache_name_2d
+		  << "> recomputing cache for HighFive API change"
 		  << std::endl;
       return false;
     }

@@ -90,8 +90,12 @@ extern __host__
 std::ostream& operator<< (std::ostream& os, const cudaParticle& p);
 
 //! Functor for extracting level info from cudaParticle structures
+#if CUDART_VERSION < 12040
 struct cuPartToLevel :
   public thrust::unary_function<cudaParticle, unsigned int>
+#else
+struct cuPartToLevel
+#endif
 {
   int _t;
 
@@ -106,8 +110,12 @@ struct cuPartToLevel :
 };
 
 //! Functor for extracting change level info from cudaParticle structures
+#if CUDART_VERSION < 12040
 struct cuPartToChange :
   public thrust::unary_function<cudaParticle, thrust::pair<int, int>>
+#else
+struct cuPartToChange
+#endif
 {
   __host__ __device__
   thrust::pair<int, int> operator()(const cudaParticle& p) const
