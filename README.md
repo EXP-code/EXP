@@ -2,6 +2,7 @@
 
 [![Test Builds](https://github.com/EXP-code/EXP/actions/workflows/build.yml/badge.svg)](https://github.com/EXP-code/EXP/actions/workflows/build.yml)
 [![Documentation](https://readthedocs.org/projects/exp-docs/badge/?version=latest)](https://exp-docs.readthedocs.io/)
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.07302/status.svg)](https://doi.org/10.21105/joss.07302)
 
 
 ## Repo organization
