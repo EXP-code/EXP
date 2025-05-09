@@ -131,7 +131,7 @@ namespace CoefClasses
 	in2.transposeInPlace();
     
 	for (size_t c=0, n=0; c<in.cols(); c++) {
-	  for (size_t r=0, n=0; r<in.rows(); r++) {
+	  for (size_t r=0; r<in.rows(); r++) {
 	    in(r, c) = in2.data()[n++];
 	  }
 	}
