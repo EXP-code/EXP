@@ -2,6 +2,7 @@
 
 [![Test Builds](https://github.com/EXP-code/EXP/actions/workflows/build.yml/badge.svg)](https://github.com/EXP-code/EXP/actions/workflows/build.yml)
 [![Documentation](https://readthedocs.org/projects/exp-docs/badge/?version=latest)](https://exp-docs.readthedocs.io/)
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.07302/status.svg)](https://doi.org/10.21105/joss.07302)
 
 
 ## Repo organization
@@ -96,3 +97,8 @@ This is only one example of many possible uses.  There are many
 variants to this work flow, of course, and I expect that you will
 invent some interesting ones.
 
+## Citation
+
+If you use EXP in your research, please cite the following paper:
+
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.07302/status.svg)](https://doi.org/10.21105/joss.07302)
