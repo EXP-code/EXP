@@ -31,9 +31,6 @@ private:
   //! Degrees of freedom
   int dof;
 
-  //! Orthogonal in x rather than r
-  bool segment;
-
   //! Radial boundaries
   double rmin, rmax;
 
@@ -82,8 +79,7 @@ private:
 public:
 
   //! Constructor
-  OrthoFunction(int nmax, DensFunc W, double rmin, double rmax, double scale,
-		int dof, bool segment=false);
+  OrthoFunction(int nmax, DensFunc W, double rmin, double rmax, double scale, int dof);
 
   //! Destructor
   virtual ~OrthoFunction() {}
@@ -96,6 +92,7 @@ public:
   {
     knots = N;
     lq = std::make_shared<LegeQuad>(N);
+    generate();
   }
 
   //! Test orthogonality

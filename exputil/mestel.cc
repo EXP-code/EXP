@@ -158,7 +158,7 @@ double TaperedMestelDisk::get_mass(double R)
     for (int i=1; i<=N; i++) {
       double rr  = rmin + dr*i;
       double cur = get_density(rr);
-      cum += 0.5*dr*(lst + cur) * 2.0*M_PI*rr;
+      cum += 0.5*dr*(lst*(rr-dr) + cur*rr) * 2.0*M_PI;
       lst = cur;
       
       vecR(i) = rr;

@@ -65,6 +65,12 @@ OutVel::OutVel(const YAML::Node& conf) : Output(conf)
   YAML::Node node;
   node["parameters"] = conf;
 
+  // Remove OutVel only keys
+  //
+  for (auto s : {"nint", "nintsub", "name"}) {
+    if (node["parameters"][s]) node["parameters"].remove(s);
+  }
+  
   basis = std::make_shared<BasisClasses::VelocityBasis>(node);
 
   // Create the coefficient container based on the dimensionality.

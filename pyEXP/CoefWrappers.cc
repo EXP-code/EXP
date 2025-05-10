@@ -1646,7 +1646,7 @@ void CoefficientClasses(py::module &m) {
         Returns
         -------
         numpy.ndarray
-            4-dimensional numpy array containing the spherical coefficients
+            4-dimensional numpy array containing the cylindrical coefficients
         )");
 
 
