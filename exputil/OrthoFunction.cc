@@ -2,8 +2,8 @@
 #include <OrthoFunction.H>
 
 OrthoFunction::OrthoFunction
-(int nmax, DensFunc W, double rmin, double rmax, double scl, int dof, bool seg) :
-  nmax(nmax), W(W), rmin(rmin), rmax(rmax), scale(scl), dof(dof), segment(seg)
+(int nmax, DensFunc W, double rmin, double rmax, double scl, int dof) :
+  nmax(nmax), W(W), rmin(rmin), rmax(rmax), scale(scl), dof(dof)
 {
   // Quadrature knots/weights
   lq = std::make_shared<LegeQuad>(knots);
@@ -27,14 +27,14 @@ void OrthoFunction::generate()
   norm.resize(nmax+1);	
 
   // Initial values
-  beta[0] = norm[0] = scalar_prod(0, 0);
-  alph[0] = scalar_prod(0, 1)/norm[0];
+  beta(0) = norm(0) = scalar_prod(0, 0);
+  alph(0) = scalar_prod(0, 1)/norm(0);
 
   // Remaining values
   for (int i=1; i<=nmax; i++) {
-    norm[i] = scalar_prod(i, 0);
-    alph[i] = scalar_prod(i, 1)/norm[i];
-    beta[i] = norm[i]/norm[i-1];
+    norm(i) = scalar_prod(i, 0);
+    alph(i) = scalar_prod(i, 1)/norm[i];
+    beta(i) = norm(i)/norm(i-1);
   }
 }
 
@@ -45,10 +45,10 @@ double OrthoFunction::scalar_prod(int n, int m)
   for (int i=0; i<knots; i++) {
     double x = xmin + dx*lq->knot(i);
     double r = x_to_r(x);
-    double y = 2.0*r/scale; if (segment) y = x;
-    Eigen::VectorXd p = poly_eval(y, n) * W(r);
+    Eigen::VectorXd p = poly_eval(r, n) * W(r);
+
     ans += dx*lq->weight(i)*d_r_to_x(x)*pow(r, dof-1) *
-      p(n) * p(n) * pow(y, m);
+      p(n) * p(n) * pow(r, m);
   }
 
   return ans;
@@ -81,15 +81,14 @@ Eigen::MatrixXd OrthoFunction::testOrtho()
     double x = xmin + dx*lq->knot(i);
     double r = x_to_r(x);
     double f = dx*lq->weight(i)*d_r_to_x(x)*pow(r, dof-1);
-    double y = 2.0*r/scale; if (segment) y = x;
 
-    // Evaluate the unnormalized polynomial
-    Eigen::VectorXd p = poly_eval(y, nmax) * W(r);
+    // Evaluate the unnnormalized polynomial
+    Eigen::VectorXd p = poly_eval(r, nmax) * W(r);
 
     // Compute scalar products with the normalizations
     for (int n1=0; n1<=nmax; n1++) {
       for (int n2=0; n2<=nmax; n2++) {
-	ret(n1, n2) += f * p(n1) * p(n2) / sqrt(norm[n1]*norm[n2]);
+	ret(n1, n2) += f * p(n1) * p(n2) / sqrt(norm(n1)*norm(n2));
       }
     }
   }
@@ -111,13 +110,12 @@ void OrthoFunction::dumpOrtho(const std::string& filename)
       //
       double x = xmin + dx*i/(number-1);
       double r = x_to_r(x);
-      double y = 2.0*r/scale; if (segment) y = x;
 
       // Evaluate polynomial and apply the normalization
       //
-      Eigen::VectorXd p = poly_eval(y, nmax) * W(r);
+      Eigen::VectorXd p = poly_eval(r, nmax) * W(r);
       fout << std::setw(16) << r;
-      for (int n=0; n<nmax; n++) fout << std::setw(16) << p(n)/sqrt(norm[n]);
+      for (int n=0; n<=nmax; n++) fout << std::setw(16) << p(n)/sqrt(norm(n));
       fout << std::endl;
     }
   }
@@ -131,13 +129,9 @@ Eigen::VectorXd OrthoFunction::operator()(double r)
   // Weight
   double w = W(r);
 
-  // Choose system;
-  double y = 2.0*r/scale;
-  if (segment) y = r_to_x(r);
-
   // Generate normalized orthogonal functions with weighting
-  auto p = poly_eval(y, nmax);
-  for (int i=0; i<=nmax; i++) p(i) *= w/sqrt(norm[i]);
+  auto p = poly_eval(r, nmax);
+  for (int i=0; i<=nmax; i++) p(i) *= w/sqrt(norm(i));
 
   // The inner product of p(i), p(j) is Kronecker delta(i, j)
 
