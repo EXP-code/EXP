@@ -11,6 +11,7 @@ FlatDisk::valid_keys = {
   "rcylmin",
   "rcylmax",
   "mmax",
+  "mlim",
   "numx",
   "numy",
   "knots",
