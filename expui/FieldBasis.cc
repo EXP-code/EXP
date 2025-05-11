@@ -55,7 +55,7 @@ namespace BasisClasses
 
     // Allocate coefficient storage
     //
-    nfld = p.size() + 1;
+    nfld = p.size() + 1;  // Add the density to the phase-space return
     allocateStore();
 
     // Okay to register
@@ -287,7 +287,7 @@ namespace BasisClasses
       // Sanity test dimensions
       if (nfld!=p->nfld || lmax!=p->mmax || nmax!=p->nmax) {
 	std::ostringstream serr;
-	serr << "FieldBasis::set_coefs: dimension error! "
+	serr << "FieldBasis::set_coefs: dimension error for dof=2! "
 	     << " nfld [" << nfld << "!= " << p->nfld << "]"
 	     << " mmax [" << lmax << "!= " << p->mmax << "]"
 	     << " nmax [" << nmax << "!= " << p->nmax << "]";
@@ -302,7 +302,7 @@ namespace BasisClasses
       // Sanity test dimensions
       if (nfld!=p->nfld || lmax!=p->lmax || nmax!=p->nmax) {
 	std::ostringstream serr;
-	serr << "FieldBasis::set_coefs: dimension error! "
+	serr << "FieldBasis::set_coefs: dimension error for dof=3! "
 	     << " nfld [" << nfld << "!= " << p->nfld << "]"
 	     << " lmax [" << lmax << "!= " << p->lmax << "]"
 	     << " nmax [" << nmax << "!= " << p->nmax << "]";
@@ -421,14 +421,10 @@ namespace BasisClasses
     //
     if (dof==2) {
       auto p = dynamic_pointer_cast<CoefClasses::CylFldStruct>(coefret);
-      int rows = lmax + 1;
-      int cols = nmax;
-      p->assign(store[0], nfld, rows, cols);
+      p->assign(store[0], nfld, lmax, nmax);
     } else {
       auto p = dynamic_pointer_cast<CoefClasses::SphFldStruct>(coefret);
-      int rows = (lmax+1)*(lmax+2)/2;
-      int cols = nmax;
-      p->assign(store[0], nfld, rows, cols);
+      p->assign(store[0], nfld, lmax, nmax);
     }
   }
 
@@ -439,13 +435,11 @@ namespace BasisClasses
       auto cstr = std::make_shared<CoefClasses::CylFldStruct>();
       int rows = lmax + 1;
       int cols = nmax;
-      cstr->assign(store[0], nfld, rows, cols);
+      cstr->assign(store[0], nfld, lmax, nmax);
       return cstr;
     } else {
       auto cstr = std::make_shared<CoefClasses::SphFldStruct>();
-      int rows = (lmax+1)*(lmax+2)/2;
-      int cols = nmax;
-      cstr->assign(store[0], nfld, rows, cols);
+      cstr->assign(store[0], nfld, lmax, nmax);
       return cstr;
     }
   }
