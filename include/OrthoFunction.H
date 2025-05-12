@@ -78,16 +78,26 @@ private:
 
 public:
 
-  //! Constructor
-  OrthoFunction(int nmax, DensFunc W, double rmin, double rmax, double scale, int dof);
+  /** Constructor
+  @param norder  Order of the orthogonal polynomial
+  @param W       Density weight function
+  @param rmin    Inner radial bound
+  @param rmax    Outer radial bound
+  @param scale   Mapping scale
+  @param dof     Degrees of freedom (2 or 3)
+  */
+  OrthoFunction(int norder, DensFunc W, double rmin, double rmax, double scale, int dof);
 
   //! Destructor
   virtual ~OrthoFunction() {}
 
   //! Evaluate orthogonal functions at r
+  //! @param r  Radial coordinate
+  //! @return   A vector of the orthogonal functions
   Eigen::VectorXd operator()(double r);
 
   //! Reset Legendre knots and weights for inner product
+  //! @param N  Number of Legendre knots
   void setKnots(int N)
   {
     knots = N;
@@ -99,6 +109,7 @@ public:
   Eigen::MatrixXd testOrtho();
 
   //! Dump the orthogonal function table
+  //! @param filename  Filename for output
   void dumpOrtho(const std::string& filename);
 };
 
