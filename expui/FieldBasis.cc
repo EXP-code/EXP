@@ -437,8 +437,6 @@ namespace BasisClasses
   {
     if (dof==2) {
       auto cstr = std::make_shared<CoefClasses::CylFldStruct>();
-      int rows = lmax + 1;
-      int cols = nmax;
       cstr->assign(store[0], nfld, lmax, nmax);
       return cstr;
     } else {
