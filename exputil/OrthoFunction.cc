@@ -82,7 +82,7 @@ Eigen::MatrixXd OrthoFunction::testOrtho()
     double r = x_to_r(x);
     double f = dx*lq->weight(i)*d_r_to_x(x)*pow(r, dof-1);
 
-    // Evaluate the unnnormalized polynomial
+    // Evaluate the unnormalized polynomial
     Eigen::VectorXd p = poly_eval(r, nmax) * W(r);
 
     // Compute scalar products with the normalizations
