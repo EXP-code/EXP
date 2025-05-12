@@ -33,7 +33,7 @@ void OrthoFunction::generate()
   // Remaining values
   for (int i=1; i<=nmax; i++) {
     norm(i) = scalar_prod(i, 0);
-    alph(i) = scalar_prod(i, 1)/norm[i];
+    alph(i) = scalar_prod(i, 1)/norm(i);
     beta(i) = norm(i)/norm(i-1);
   }
 }
@@ -58,11 +58,11 @@ double OrthoFunction::scalar_prod(int n, int m)
 Eigen::VectorXd OrthoFunction::poly_eval(double t, int n)
 {
   Eigen::VectorXd ret(n+1);
-  ret[0] = 1.0;
+  ret(0) = 1.0;
   if (n) {
-    ret[1] = (t - alph[0])*ret[0];
+    ret(1) = (t - alph(0))*ret(0);
     for (int j=1; j<n; j++) {
-      ret[j+1] = (t - alph[j])*ret[j] - beta[j]*ret[j-1];
+      ret(j+1) = (t - alph(j))*ret(j) - beta(j)*ret(j-1);
     }
   }
 
