@@ -13,7 +13,7 @@ EXP is a Basis Function Expansion C++ library and Python package for running N-b
 | Paper   | The JOSS paper for EXP |
 | cmake   | Helpers for `cmake` installation process |
 | doc     | The doxygen documentation for EXP |
-| expui   | Source for standalone classes used by Python wrappers and other standalone utilities |
+| expui   | Classes used by Python wrappers and by the nbody code and other standalone utilities for coefficient IO support. |
 | exputil | The main EXP function and class library used by both pyEXP and EXP |
 | extern  | The directory for external code needed for installation |
 | include | Include file for all common classes |
