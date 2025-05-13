@@ -52,6 +52,8 @@ public:
 
 
   virtual std::tuple<double, double, int, int> operator()() = 0;
+
+  virtual ~gen2D() = default;
 };
 
 // Generate a 2d exponential distribution

@@ -166,10 +166,10 @@ namespace BasisClasses
     // Generate the orthogonal function instance
     //
     ortho = std::make_shared<OrthoFunction>
-	     (nmax-1, densfunc, rmin, rmax, rmapping, dof);
+	      (nmax-1, densfunc, rmin, rmax, rmapping, dof);
     //        ^
     //        |
-    //        +--- This is the polynmial order, not the rank
+    //        +--- This is the polynomial order, not the rank
 
     // Initialize fieldlabels
     //
