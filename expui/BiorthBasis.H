@@ -718,7 +718,7 @@ namespace BasisClasses
     int rnum, pnum, tnum;
     double rmin, rmax, rcylmin, rcylmax;
     double acyl, hcyl;
-    bool expcond, logarithmic, density, EVEN_M;
+    bool expcond, logarithmic, density, EVEN_M, sech2 = false;
     
     std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
     std::vector<Eigen::MatrixXd> legs, dlegs, d2legs;

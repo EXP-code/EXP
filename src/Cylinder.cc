@@ -29,6 +29,7 @@ Cylinder::valid_keys = {
   "rcylmax",
   "acyl",
   "hcyl",
+  "sech2",
   "hexp",
   "snr",
   "evcut",
@@ -271,9 +272,10 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
       auto DiskDens = [&](double R, double z, double phi)
       {
 	if (dfunc) return (*dfunc)(R, z, phi);
-	double f = exp(-fabs(z)/hcyl); // Overflow prevention
+	double h = sech2 ? 0.5*hcyl : hcyl;
+	double f = exp(-fabs(z)/h); // Overflow prevention
 	double s = 2.0*f/(1.0 + f*f);  // in sech computation
-	return exp(-R/acyl)*s*s/(4.0*M_PI*acyl*acyl*hcyl);
+	return exp(-R/acyl)*s*s/(4.0*M_PI*acyl*acyl*h);
       };
 
       // The conditioning function for the EOF with an optional shift
@@ -339,6 +341,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		<< std::endl << sep << "npca0="       << npca0
 		<< std::endl << sep << "pcadiag="     << pcadiag
 		<< std::endl << sep << "cachename="   << cachename
+		<< std::endl << sep << "sech2="       << std::boolalpha << sech2
 		<< std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 		<< std::endl << sep << "logarithmic=" << logarithmic
 		<< std::endl << sep << "vflag="       << vflag
@@ -367,6 +370,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << std::endl << sep << "npca0="       << npca0
 	      << std::endl << sep << "pcadiag="     << pcadiag
 	      << std::endl << sep << "cachename="   << cachename
+	      << std::endl << sep << "sech2="       << std::boolalpha << sech2
 	      << std::endl << sep << "selfgrav="    << std::boolalpha << self_consistent
 	      << std::endl << sep << "logarithmic=" << logarithmic
 	      << std::endl << sep << "vflag="       << vflag
@@ -414,6 +418,7 @@ void Cylinder::initialize()
 
     if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
     if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
+    if (conf["sech2"     ])      sech2  = conf["sech2"     ].as<bool>();
     if (conf["hexp"      ])       hexp  = conf["hexp"      ].as<double>();
     if (conf["snr"       ])        snr  = conf["snr"       ].as<double>();
     if (conf["evcut"     ])        rem  = conf["evcut"     ].as<double>();

@@ -874,6 +874,7 @@ namespace BasisClasses
     "rcylmax",
     "acyl",
     "hcyl",
+    "sech2",
     "snr",
     "evcut",
     "nmaxfid",
@@ -980,6 +981,8 @@ namespace BasisClasses
 	double w1 = 1.0/(1.0+dweight);
 	double w2 = dweight/(1.0+dweight);
 	
+	if (sech2) { h1 *= 0.5; h2 *= 0.5; }
+
 	double f1 = cosh(z/h1);
 	double f2 = cosh(z/h2);
 	
@@ -991,13 +994,14 @@ namespace BasisClasses
 
     case DiskType::diskbulge:
       {
-	double f  = cosh(z/hcyl);
+	double h  = sech2 ? 0.5*hcyl : hcyl;
+	double f  = cosh(z/h);
 	double rr = pow(pow(R, 2) + pow(z,2), 0.5);
 	double w1 = Mfac;
 	double w2 = 1.0 - Mfac;
 	double as = HERNA;
 	
-	ans = w1*exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f) + 
+	ans = w1*exp(-R/acyl)/(4.0*M_PI*acyl*acyl*h*f*f) + 
 	  w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0) ;
       }
       break;
@@ -1007,8 +1011,9 @@ namespace BasisClasses
     case DiskType::exponential:
     default:
       {
-	double f = cosh(z/hcyl);
-	ans = exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f);
+	double h = sech2 ? 0.5*hcyl : hcyl;
+	double f = cosh(z/h);
+	ans = exp(-R/acyl)/(4.0*M_PI*acyl*acyl*h*f*f);
       }
       break;
     }
@@ -1130,6 +1135,7 @@ namespace BasisClasses
       
       if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
       if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
+      if (conf["sech2"     ])      sech2  = conf["sech2"     ].as<bool>();
       if (conf["lmaxfid"   ])    lmaxfid  = conf["lmaxfid"   ].as<int>();
       if (conf["nmaxfid"   ])    nmaxfid  = conf["nmaxfid"   ].as<int>();
       if (conf["nmax"      ])       nmax  = conf["nmax"      ].as<int>();
@@ -1325,7 +1331,7 @@ namespace BasisClasses
 	// The scale in EmpCylSL is assumed to be 1 so we compute the
 	// height relative to the length
 	//
-	double H = hcyl/acyl;
+	double H = sech2 ? 0.5*hcyl/acyl : hcyl/acyl;
 
 	// The model instance (you can add others in DiskModels.H).
 	// It's MN or Exponential if not MN.
