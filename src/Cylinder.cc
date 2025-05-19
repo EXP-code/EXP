@@ -459,6 +459,14 @@ void Cylinder::initialize()
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
     // Deprecation warning
+    if (not sech2 and not conf["pyname"]) {
+      if (myid==0)
+	std::cout << "---- Cylinder uses sech^2(z/h) rather than the more common sech^2(z/(2h))" << std::endl
+		  << "---- Use the 'sech2: true' in your YAML config to use sech^2(z/(2h))" << std::endl
+		  << "---- Cylinder will assume sech^2(z/(2h)) by default in v 7.9.0 and later" << std::endl;
+    }
+
+    // Deprecation warning
     if (conf["expcond"]) {
       if (myid==0)
 	std::cout << "---- Cylinder: parameter 'expcond' is deprecated. "
