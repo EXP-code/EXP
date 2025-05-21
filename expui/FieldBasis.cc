@@ -33,6 +33,7 @@ namespace BasisClasses
     "ascl",
     "delta",
     "lmax",
+    "mmax",
     "nmax",
     "model"
   };
@@ -54,7 +55,7 @@ namespace BasisClasses
 
     // Allocate coefficient storage
     //
-    nfld = p.size() + 2;
+    nfld = p.size() + 1;  // Add the density to the phase-space return
     allocateStore();
 
     // Okay to register
@@ -67,7 +68,7 @@ namespace BasisClasses
   //
   void FieldBasis::configure()
   {
-    nfld      = 2;		// Weight and density fields by default
+    nfld      = 1;		// Density field by default
     lmax      = 4;
     nmax      = 10;
     rmin      = 1.0e-4;
@@ -137,7 +138,8 @@ namespace BasisClasses
       
       // Compute interpolation functionoid
       //
-      double rmin = r.front(), rmax = r.back();
+      rmin = r.front();
+      rmax = r.back();
       
       interp = std::make_shared<Linear1d>(r, d);
       densfunc = [this](double r)
@@ -163,12 +165,15 @@ namespace BasisClasses
     
     // Generate the orthogonal function instance
     //
-    ortho = std::make_shared<OrthoFunction>(nmax, densfunc, rmin, rmax, rmapping, dof);
+    ortho = std::make_shared<OrthoFunction>
+	      (nmax-1, densfunc, rmin, rmax, rmapping, dof);
+    //        ^
+    //        |
+    //        +--- This is the polynomial order, not the rank
 
     // Initialize fieldlabels
     //
     fieldLabels.clear();
-    fieldLabels.push_back("weight");
     fieldLabels.push_back("density");
 
     // Debug
@@ -204,9 +209,11 @@ namespace BasisClasses
 
   void FieldBasis::initialize()
   {
-    // Remove matched keys
+    // Check for unmatched keys
     //
-    // for (auto v : valid_keys) current_keys.erase(v);
+    auto unmatched = YamlCheck(conf, valid_keys);
+    if (unmatched.size())
+      throw YamlConfigError("Basis::FieldBasis", "parameter", unmatched, __FILE__, __LINE__);
   
     // Assign values from YAML
     //
@@ -215,6 +222,7 @@ namespace BasisClasses
       if (conf["model"    ])    model     = conf["model"    ].as<std::string>();
       if (conf["nfld"     ])    nfld      = conf["nfld"     ].as<int>();
       if (conf["lmax"     ])    lmax      = conf["lmax"     ].as<int>();
+      if (conf["mmax"     ])    lmax      = conf["mmax"     ].as<int>();
       if (conf["nmax"     ])    nmax      = conf["nmax"     ].as<int>();
       if (conf["dof"      ])    dof       = conf["dof"      ].as<int>();
       if (conf["rmin"     ])    rmin      = conf["rmin"     ].as<double>();
@@ -283,7 +291,7 @@ namespace BasisClasses
       // Sanity test dimensions
       if (nfld!=p->nfld || lmax!=p->mmax || nmax!=p->nmax) {
 	std::ostringstream serr;
-	serr << "FieldBasis::set_coefs: dimension error! "
+	serr << "FieldBasis::set_coefs: dimension error for dof=2! "
 	     << " nfld [" << nfld << "!= " << p->nfld << "]"
 	     << " mmax [" << lmax << "!= " << p->mmax << "]"
 	     << " nmax [" << nmax << "!= " << p->nmax << "]";
@@ -298,7 +306,7 @@ namespace BasisClasses
       // Sanity test dimensions
       if (nfld!=p->nfld || lmax!=p->lmax || nmax!=p->nmax) {
 	std::ostringstream serr;
-	serr << "FieldBasis::set_coefs: dimension error! "
+	serr << "FieldBasis::set_coefs: dimension error for dof=3! "
 	     << " nfld [" << nfld << "!= " << p->nfld << "]"
 	     << " lmax [" << lmax << "!= " << p->lmax << "]"
 	     << " nmax [" << nmax << "!= " << p->nmax << "]";
@@ -312,8 +320,7 @@ namespace BasisClasses
 			      double x, double y, double z,
 			      double u, double v, double w)
   {
-    constexpr std::complex<double> I(0, 1);
-    constexpr double fac0 = 0.25*M_2_SQRTPI;
+    constexpr double fac2 = 0.5*M_2_SQRTPI/M_SQRT2; // 1/sqrt(2*pi)=0.3989422804
 
     int tid = omp_get_thread_num();
     PS3 pos{x, y, z}, vel{u, v, w};
@@ -337,18 +344,16 @@ namespace BasisClasses
       
       auto p = (*ortho)(R);
     
-      (*coefs[tid])(0, 0, 0) += mass*p(0)*fac0;
-
       for (int m=0; m<=lmax; m++) {
 	
-	std::complex<double> P = std::exp(-I*(phi*m));
+	auto P = std::exp(std::complex<double>(0, -phi*m))*fac2;
 	
 	for (int n=0; n<nmax; n++) {
 
-	  (*coefs[tid])(1, m, n) += mass*P*p(n);
+	  (*coefs[tid])(0, m, n) += mass*P*p(n);
 
 	  for (int k=0; k<vec.size(); k++)
-	    (*coefs[tid])(k+2, m, n) += mass*P*p(n)*vec[k];
+	    (*coefs[tid])(k+1, m, n) += mass*P*p(n)*vec[k];
 	}
       }	 
       
@@ -356,8 +361,6 @@ namespace BasisClasses
     
       auto p = (*ortho)(r);
       
-      (*coefs[tid])(0, 0, 0) += mass*p(0);
-
       for (int l=0, lm=0; l<=lmax; l++) {
 
 	double s = 1.0;
@@ -365,17 +368,18 @@ namespace BasisClasses
 	for (int m=0; m<=l; m++, lm++) {
 	  
 	  // Spherical harmonic value
-	  std::complex<double> P =
-	    std::exp(-I*(phi*m))*Ylm(l, m)*plgndr(l, m, cth) * s;
-
-	  s *= -1.0;		// Flip sign for next evaluation
+	  auto P = std::exp(std::complex<double>(0, -phi*m)) *
+	    Ylm(l, m)*plgndr(l, m, cth) * s;
+	  
+	  // Flip sign for next evaluation
+	  s *= -1.0;
 
 	  for (int n=0; n<nmax; n++) {
 
-	    (*coefs[tid])(1, lm, n) += mass*P*p(n);
+	    (*coefs[tid])(0, lm, n) += mass*P*p(n);
 
 	    for (int k=0; k<vec.size(); k++)
-	      (*coefs[tid])(k+2, lm, n) += mass*P*p(n)*vec[k];
+	      (*coefs[tid])(k+1, lm, n) += mass*P*p(n)*vec[k];
 	  }
 	}
       }
@@ -407,8 +411,10 @@ namespace BasisClasses
     //
     if (not coefret) {
       if (dof==2) coefret = std::make_shared<CoefClasses::CylFldStruct>();
-      else        coefret = std::make_shared<CoefClasses::SphFldStruct  >();
-				// Add the configuration data
+      else        coefret = std::make_shared<CoefClasses::SphFldStruct>();
+
+      // Add the configuration data
+      //
       std::ostringstream sout; sout << node;
       coefret->buf = sout.str();
     }
@@ -443,18 +449,21 @@ namespace BasisClasses
   std::vector<double>
   FieldBasis::sph_eval(double r, double costh, double phi)
   {
-    constexpr std::complex<double> I(0, 1);
+    constexpr double fac2 = 0.5*M_2_SQRTPI/M_SQRT2; // 1/sqrt(2 pi)
 
     if (dof==2) {
       std::vector<double> ret(nfld, 0);
-      auto p = (*ortho)(r*sqrt(fabs(1.0 - costh*costh)));
+      auto p = (*ortho)(r);
       for (int i=0; i<nfld; i++) {
 	for (int m=0; m<=lmax; m++) {
-	  double fac = m>0 ? 2.0 : 1.0;
+	  auto P = std::exp(std::complex<double>(0, -phi*m));
+
+	  std::complex<double> sum = 0.0;
 	  for (int n=0; n<nmax; n++) {
-	    ret[i] += fac *
-	      std::real((*coefs[0])(i, m, n)*exp(I*(phi*m)))*p[n];
+	    sum += (*coefs[0])(i, m, n)*P * p(n) * fac2;
 	  }
+
+	  ret[i] += std::real(sum);
 	}
       }
       return ret;
@@ -478,9 +487,11 @@ namespace BasisClasses
       for (int i=0; i<nfld; i++) {
 	for (int l=0, L=0; l<=lmax; l++) {
 	  for (int m=0; m<=l; m++, L++) {
+	    auto P = std::exp(std::complex<double>(0, -phi*m));
+
 	    double fac = m>0 ? 2.0 : 1.0;
 	    for (int n=0; n<nmax; n++) {
-	      ret[i] += std::real((*coefs[0])(i, L, n)*exp(I*(phi*m)))*p[n]*
+	      ret[i] += std::real((*coefs[0])(i, L, n)*P)*p(n)*
 		Ylm(l, m)*plgndr(l, m, costh) * fac;
 	    }
 	  }
@@ -751,7 +762,6 @@ namespace BasisClasses
 
     // Field labels (force field labels added below)
     //
-    fieldLabels.push_back("weight");
     fieldLabels.push_back("density");
 
     if (coordinates == Coord::Cylindrical) {

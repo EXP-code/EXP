@@ -36,6 +36,9 @@ namespace Field
 
   public:
     
+    //! Null constructor
+    FieldGenerator() = default;
+
     //! Constructor for a rectangular grid
     FieldGenerator(const std::vector<double> &time,
 		   const std::vector<double> &pmin,

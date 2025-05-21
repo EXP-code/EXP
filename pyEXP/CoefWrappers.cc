@@ -1365,7 +1365,7 @@ void CoefficientClasses(py::module &m) {
     .def("getAllCoefs",
 	 [](CoefClasses::SphCoefs& A)
 	 {
-	   auto M = A.getAllCoefs(); // Need a copy here
+	   Eigen::Tensor<std::complex<double>, 3> M = A.getAllCoefs(); // Need a copy here
 	   py::array_t<std::complex<double>> ret = make_ndarray3<std::complex<double>>(M);
 	   return ret;
 	 },
@@ -1440,7 +1440,7 @@ void CoefficientClasses(py::module &m) {
     .def("getAllCoefs",
 	 [](CoefClasses::CylCoefs& A)
 	 {
-	   auto M = A.getAllCoefs(); // Need a copy here
+	   Eigen::Tensor<std::complex<double>, 3> M = A.getAllCoefs(); // Need a copy here
 	   py::array_t<std::complex<double>> ret = make_ndarray3<std::complex<double>>(M);
 	   return ret;
 	 },
@@ -1552,7 +1552,7 @@ void CoefficientClasses(py::module &m) {
     .def("getAllCoefs",
 	 [](CoefClasses::SphFldCoefs& A)
 	 {
-	   auto M = A.getAllCoefs(); // Need a copy here
+	   Eigen::Tensor<std::complex<double>, 4> M = A.getAllCoefs(); // Need a copy here
 	   py::array_t<std::complex<double>> ret = make_ndarray4<std::complex<double>>(M);
 	   return ret;
 	 },
@@ -1636,7 +1636,7 @@ void CoefficientClasses(py::module &m) {
     .def("getAllCoefs",
 	 [](CoefClasses::CylFldCoefs& A)
 	 {
-	   auto M = A.getAllCoefs(); // Need a copy here
+	   Eigen::Tensor<std::complex<double>, 4> M = A.getAllCoefs(); // Need a copy here
 	   py::array_t<std::complex<double>> ret = make_ndarray4<std::complex<double>>(M);
 	   return ret;
 	 },
@@ -1646,7 +1646,7 @@ void CoefficientClasses(py::module &m) {
         Returns
         -------
         numpy.ndarray
-            4-dimensional numpy array containing the spherical coefficients
+            4-dimensional numpy array containing the cylindrical coefficients
         )");
 
 
@@ -1706,7 +1706,7 @@ void CoefficientClasses(py::module &m) {
     .def("getAllCoefs",
 	 [](CoefClasses::SlabCoefs& A)
 	 {
-	   auto M = A.getAllCoefs(); // Need a copy here
+	   Eigen::Tensor<std::complex<double>, 4> M = A.getAllCoefs(); // Need a copy here
 	   py::array_t<std::complex<double>> ret = make_ndarray4<std::complex<double>>(M);
 	   return ret;
 	 },
@@ -1800,7 +1800,7 @@ void CoefficientClasses(py::module &m) {
     .def("getAllCoefs",
 	 [](CoefClasses::CubeCoefs& A)
 	 {
-	   auto M = A.getAllCoefs(); // Need a copy here
+	   Eigen::Tensor<std::complex<double>, 4> M = A.getAllCoefs(); // Need a copy here
 	   py::array_t<std::complex<double>> ret = make_ndarray4<std::complex<double>>(M);
 	   return ret;
 	 },
@@ -1897,7 +1897,7 @@ void CoefficientClasses(py::module &m) {
          -------
          TableData instance
          )", py::arg("time"), py::arg("array"), py::arg("verbose")=true)
-    .def("getAllCoefs",    &CoefClasses::TableData::getAllCoefs,
+    .def("getAllCoefs", &CoefClasses::TableData::getAllCoefs,
 	 R"(
          Return a 2-dimensional ndarray indexed by column and time
 
@@ -1967,9 +1967,16 @@ void CoefficientClasses(py::module &m) {
          -------
          TrajectoryData instance
          )", py::arg("time"), py::arg("array"), py::arg("verbose")=true)
-    .def("getAllCoefs",    &CoefClasses::TrajectoryData::getAllCoefs,
+    .def("getAllCoefs",
+	 [](CoefClasses::TrajectoryData& A)
+	 {
+	   Eigen::Tensor<double, 3> M = A.getAllCoefs(); // Need a copy here
+	   py::array_t<double> ret = make_ndarray3<double>(M);
+	   return ret;
+	 },
+
 	 R"(
-         Return a 2-dimensional ndarray indexed by column and time
+         Return a 3-dimensional ndarray indexed by column and time
 
          Returns
          -------
