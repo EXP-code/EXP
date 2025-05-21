@@ -4209,7 +4209,8 @@ namespace BasisClasses
       auto it2 = std::lower_bound(times.begin(), times.end(), t);
       auto it1 = it2;
 
-      if (it2 == times.end()) throw std::runtime_error("Basis::AllTimeAccel::evalcoefs: time t=" + std::to_string(t) + " out of bounds");
+      if (it2 == times.end())
+	throw std::runtime_error("Basis::SingleTimeAccel::evalcoefs: time t=" + std::to_string(t) + " out of bounds");
       else if (it2 == times.begin()) it2++;
       else it1--;
       
