@@ -511,10 +511,7 @@ namespace BasisClasses
     // Get thread id
     int tid = omp_get_thread_num();
 
-    double fac1, cosm, sinm;
-    double sinth = -sqrt(fabs(1.0 - costh*costh));
-    
-    fac1 = factorial(0, 0);
+    double fac1 = factorial(0, 0);
     
     get_dens (dend[tid], r/scale);
     get_pot  (potd[tid], r/scale);
@@ -571,8 +568,8 @@ namespace BasisClasses
 	  moffset++;
 	}
 	else {
-	  cosm = cos(phi*m);
-	  sinm = sin(phi*m);
+	  double cosm = cos(phi*m);
+	  double sinm = sin(phi*m);
 	  
 	  double sumR0=0.0, sumP0=0.0, sumD0=0.0;
 	  double sumR1=0.0, sumP1=0.0, sumD1=0.0;
@@ -617,18 +614,18 @@ namespace BasisClasses
   std::vector<double>
   Spherical::getAccel(double x, double y, double z)
   {
+    // Get polar coordinates
     double R     = sqrt(x*x + y*y);
     double r     = sqrt(R*R + z*z);
     double costh = z/r;
+    double sinth = R/r;
     double phi   = atan2(y, x);
 
     // Get thread id
     int tid = omp_get_thread_num();
 
-    double fac1, cosm, sinm;
-    double sinth = -sqrt(fabs(1.0 - costh*costh));
     
-    fac1 = factorial(0, 0);
+    double fac1 = factorial(0, 0);
     
     get_pot  (potd[tid], r/scale);
     get_force(dpot[tid], r/scale);
@@ -681,8 +678,8 @@ namespace BasisClasses
 	  moffset++;
 	}
 	else {
-	  cosm = cos(phi*m);
-	  sinm = sin(phi*m);
+	  double cosm = cos(phi*m);
+	  double sinm = sin(phi*m);
 	  
 	  double sumR0=0.0, sumP0=0.0, sumD0=0.0;
 	  double sumR1=0.0, sumP1=0.0, sumD1=0.0;

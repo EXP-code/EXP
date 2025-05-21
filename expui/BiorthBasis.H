@@ -166,8 +166,7 @@ namespace BasisClasses
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
-    virtual std::vector<double>
-    getAccel(double x, double y, double z) = 0;
+    virtual std::vector<double> getAccel(double x, double y, double z) = 0;
   };
   
   /**
