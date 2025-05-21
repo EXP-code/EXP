@@ -12,6 +12,14 @@ set (common_INCLUDE_DIRS
 set (common_LINKLIB ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX
   exputil EXPlib yaml-cpp)
 
+set(user_SRC      UserTest.cc)
+set(bar_SRC       UserBar.cc)
+set(logpot_SRC    UserLogPot.cc)
+set(disk_SRC      UserDisk.cc)
+set(halo_SRC      UserHalo.cc)
+set(mndisk_SRC    UserMNdisk.cc)
+set(mwgala_SRC    UserMW.cc)
+
 if(ENABLE_CUDA)
   list(APPEND common_LINKLIB CUDA::toolkit CUDA::cudart)
   if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12)
@@ -22,18 +30,8 @@ if(ENABLE_CUDA)
   # set_source_files_properties(UserBar.cc UserDisk.cc UserHalo.cc 
   #   UserLogPot.cc UserMNdisk.cc UserMW.cc UserTest.cc UserTestCuda.cc 
   #   PROPERTIES LANGUAGE CUDA)
-endif()
-
-set(user_SRC      UserTest.cc)
-set(bar_SRC       UserBar.cc)
-set(logpot_SRC    UserLogPot.cc)
-set(disk_SRC      UserDisk.cc)
-set(halo_SRC      UserHalo.cc)
-set(mndisk_SRC    UserMNdisk.cc)
-set(mwgala_SRC    UserMW.cc)
-
-if(ENABLE_CUDA)
   set(cudatest_SRC UserTestCuda.cc cudaUserTest.cu)
+  list(APPEND bar_SRC cudaUserBar.cu)
 endif()
 
 foreach(mlib ${USER_MODULES})

@@ -54,6 +54,7 @@
 #include <EXPini.H>		// Enhanced option parsing
 #include <libvars.H>		// EXP library globals
 #include <interp.H>
+#include "KDE2d.H"		// Kernel density estimation
 
 void p_rec(std::ofstream& out, double E, double K, double V)
 {
@@ -96,6 +97,7 @@ main(int argc, char **argv)
   double       EMAX;
   double       KMIN;
   double       KMAX;
+  double       Sig1, Sig2;
   double       I1min=-1, I1max=-1, I2min=-1, I2max=-1;
   int          NLIMIT;
   int          NSKIP;
@@ -241,6 +243,10 @@ main(int argc, char **argv)
      cxxopts::value<double>(DIVERGE_RFAC)->default_value("1.0"))
     ("Kpow", "Create kappa bins with power scaling",
      cxxopts::value<double>(KPOWER)->default_value("1.0"))
+    ("Sig1", "Bin smoothing in Dimension 1 (must be > 0)",
+     cxxopts::value<double>(Sig1)->default_value("0.0"))
+    ("Sig2", "Bin smoothing in Dimension 2 (must be > 0)",
+     cxxopts::value<double>(Sig2)->default_value("0.0"))
     ("INFILE1", "Fiducial phase-space file",
      cxxopts::value<std::vector<std::string>>(INFILE1))
     ("INFILE2", "Evolved phase-space file",
@@ -513,7 +519,7 @@ main(int argc, char **argv)
     if (myid==0)
       std::cout << std::endl
 		<< std::string(40, '-')  << std::endl
-		<< "---- Action limits"  << std::endl
+		<< "---- Range limits"  << std::endl
 		<< std::string(40, '-')  << std::endl
 		<< "-- I1min: " << I1min << std::endl
 		<< "-- I1max: " << I1max << std::endl
@@ -521,10 +527,21 @@ main(int argc, char **argv)
 		<< "-- I2max: " << I2max << std::endl
 		<< std::string(40, '-')  << std::endl;
   } else {
-    if (I1min<0) I1min = Emin;
-    if (I1max<0) I1max = Emax;
+    if (I1min>0) I1min = Emin;
+    if (I1max>0) I1max = Emax;
     if (I2min<0) I2min = std::max<double>(KTOL, KMIN);
     if (I2max<0) I2max = std::min<double>(1.0 - KTOL, KMAX);
+
+    if (myid==0)
+      std::cout << std::endl
+		<< std::string(40, '-')  << std::endl
+		<< "---- Range limits"  << std::endl
+		<< std::string(40, '-')  << std::endl
+		<< "-- Emin: " << I1min << std::endl
+		<< "-- Emax: " << I1max << std::endl
+		<< "-- Kmin: " << I2min << std::endl
+		<< "-- Kmax: " << I2max << std::endl
+		<< std::string(40, '-')  << std::endl;
   }
 
   double d1 = (I1max - I1min) / NUM1;
@@ -1248,6 +1265,24 @@ main(int argc, char **argv)
 				      << std::endl;
     bool relJ = false;
     if (vm.count("relJ")) relJ = true;
+
+    // Smooth arrays
+    //
+    if (Sig1 > 0.0 and Sig2 > 0.0) {
+
+      KDE::KDE2d kde(NUM1, NUM2,
+		     I1min, I1max, I2min, I2max, Sig1, Sig2);
+
+      histoM  = kde(histoM);
+      histoC  = kde(histoC);
+      histoE  = kde(histoE);
+      histoJ  = kde(histoJ);
+      histoR  = kde(histoR);
+      histoI  = kde(histoI);
+      histoT  = kde(histoT);
+      histoF  = kde(histoF);
+      histoDF = kde(histoDF);
+    }
 
     for (int j=0; j<NUM2; j++) {
 

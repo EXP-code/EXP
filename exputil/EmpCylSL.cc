@@ -267,7 +267,7 @@ EmpCylSL::EmpCylSL(int mlim, std::string cachename)
 	if (myid==0)
 	  std::cout << "---- EmpCylSL::ReadH5Cache: "
 		    << "using a workaround for a HighFive HDF5 wrapper bug. "
-        << "this workaround will be removed in EXP 7.9.0. "
+                    << "this workaround will be removed in EXP 7.9.0. "
 		    << "Please consider rebuilding your cache if possible!"
 		    << std::endl;
       }
