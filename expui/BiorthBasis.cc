@@ -506,8 +506,13 @@ namespace BasisClasses
   }
   
   std::vector<double>
-  Spherical::sph_eval(double r, double costh, double phi)
+  Spherical::getAccel(double x, double y, double z)
   {
+    double R     = sqrt(x*x + y*y);
+    double r     = sqrt(R*R + z*z);
+    double costh = z/r;
+    double phi   = atan2(y, x);
+
     // Get thread id
     int tid = omp_get_thread_num();
 
@@ -516,20 +521,17 @@ namespace BasisClasses
     
     fac1 = factorial(0, 0);
     
-    get_dens (dend[tid], r/scale);
     get_pot  (potd[tid], r/scale);
     get_force(dpot[tid], r/scale);
     
     legendre_R(lmax, costh, legs[tid], dlegs[tid]);
     
-    double den0, pot0, potr;
+    double pot0, potr;
 
     if (NO_L0) {
-      den0 = 0.0;
       pot0 = 0.0;
       potr = 0.0;
     } else {
-      den0 = fac1 * expcoef.row(0).dot(dend[tid].row(0));
       pot0 = fac1 * expcoef.row(0).dot(potd[tid].row(0));
       potr = fac1 * expcoef.row(0).dot(dpot[tid].row(0));
     }
@@ -563,7 +565,6 @@ namespace BasisClasses
 	    sumD += expcoef(loffset+moffset, n) * dpot[tid](l, n);
 	  }
 	  
-	  den1 += fac1*legs[tid] (l, m) * sumR;
 	  pot1 += fac1*legs[tid] (l, m) * sumP;
 	  potr += fac1*legs[tid] (l, m) * sumD;
 	  pott += fac1*dlegs[tid](l, m) * sumP;
@@ -577,15 +578,12 @@ namespace BasisClasses
 	  double sumR0=0.0, sumP0=0.0, sumD0=0.0;
 	  double sumR1=0.0, sumP1=0.0, sumD1=0.0;
 	  for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
-	    sumR0 += expcoef(loffset+moffset+0, n) * dend[tid](l, n);
 	    sumP0 += expcoef(loffset+moffset+0, n) * potd[tid](l, n);
 	    sumD0 += expcoef(loffset+moffset+0, n) * dpot[tid](l, n);
-	    sumR1 += expcoef(loffset+moffset+1, n) * dend[tid](l, n);
 	    sumP1 += expcoef(loffset+moffset+1, n) * potd[tid](l, n);
 	    sumD1 += expcoef(loffset+moffset+1, n) * dpot[tid](l, n);
 	  }
 	  
-	  den1 += fac1 * legs[tid] (l, m) *  ( sumR0*cosm + sumR1*sinm );
 	  pot1 += fac1 * legs[tid] (l, m) *  ( sumP0*cosm + sumP1*sinm );
 	  potr += fac1 * legs[tid] (l, m) *  ( sumD0*cosm + sumD1*sinm );
 	  pott += fac1 * dlegs[tid](l, m) *  ( sumP0*cosm + sumP1*sinm );
@@ -596,22 +594,21 @@ namespace BasisClasses
       }
     }
     
-    double densfac = 1.0/(scale*scale*scale) * 0.25/M_PI;
     double potlfac = 1.0/scale;
 
-    return
-      {den0 * densfac,		// 0
-       den1 * densfac,		// 1
-       (den0 + den1) * densfac,	// 2
-       pot0 * potlfac,		// 3
-       pot1 * potlfac,		// 4
-       (pot0 + pot1) * potlfac,	// 5
-       potr * (-potlfac)/scale,	// 6
-       pott * (-potlfac),	// 7
-       potp * (-potlfac)};	// 8
-    //         ^
-    //         |
+    potr *= (-potlfac)/scale;
+    pott *= (-potlfac);
+    potp *= (-potlfac);
+
+    double potR = potr*sinth + pott*costh;
+    double potz = potr*costh - pott*sinth;
+  
+    double tpotx = potR*x/R - potp*y/R ;
+    double tpoty = potR*y/R + potp*x/R ;
+
     // Return force not potential gradient
+    //
+    return {tpotx, tpoty, potz};
   }
 
 
@@ -646,7 +643,6 @@ namespace BasisClasses
     return {v[0], v[1], v[2], v[3], v[4], v[5], tpotx, tpoty, v[7]};
   }
   
-
   Spherical::BasisArray SphericalSL::getBasis
   (double logxmin, double logxmax, int numgrid)
   {
@@ -1415,6 +1411,24 @@ namespace BasisClasses
        tpotl0, tpotl - tpotl0, tpotl, tpotx, tpoty, tpotz};
   }
   
+  // Evaluate in cartesian coordinates
+  std::vector<double> Cylindrical::getAccel(double x, double y, double z)
+  {
+    double R = sqrt(x*x + y*y);
+    double phi = atan2(y, x);
+
+    double tdens0, tdens, tpotl0, tpotl, tpotR, tpotz, tpotp;
+
+    sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
+    
+    tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
+
+    double tpotx = tpotR*x/R - tpotp*y/R ;
+    double tpoty = tpotR*y/R + tpotp*x/R ;
+
+    return {tpotx, tpoty, tpotz};
+  }
+
   // Evaluate in cylindrical coordinates
   std::vector<double> Cylindrical::cyl_eval(double R, double z, double phi)
   {
@@ -1977,6 +1991,89 @@ namespace BasisClasses
     ppot *= -1.0;
 
     return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
+  }
+
+  std::vector<double>FlatDisk::getAccel(double R, double z, double phi)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Fixed values
+    constexpr double norm0 = 0.5*M_2_SQRTPI/M_SQRT2;
+    constexpr double norm1 = 0.5*M_2_SQRTPI;
+
+    double rpot=0, zpot=0, ppot=0;
+
+    // Off grid evaluation
+    if (R>ortho->getRtable() or fabs(z)>ortho->getRtable()) {
+      double r2 = R*R + z*z;
+      double r  = sqrt(r2);
+
+      rpot = -totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      zpot = -totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      
+      return {rpot, zpot, ppot};
+    }
+
+    // Get the basis fields
+    //
+    ortho->get_pot    (potd[tid],  R, z);
+    ortho->get_rforce (potR[tid],  R, z);
+    ortho->get_zforce (potZ[tid],  R, z);
+    
+    // m loop
+    //
+    for (int m=0, moffset=0; m<=mmax; m++) {
+      
+      if (m==0 and NO_M0)        { moffset++;    continue; }
+      if (m==1 and NO_M1)        { moffset += 2; continue; }
+      if (EVEN_M and m/2*2 != m) { moffset += 2; continue; }
+      if (m>0 and M0_only)       break;
+
+      if (m==0) {
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  rpot += expcoef(0, n) * potR[tid](0, n) * norm0;
+	  zpot += expcoef(0, n) * potZ[tid](0, n) * norm0;
+	}
+	
+	moffset++;
+      } else {
+	double cosm = cos(phi*m), sinm = sin(phi*m);
+	double vc, vs;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potd[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potd[tid](m, n);
+	}
+	
+	ppot += (-vc*sinm + vs*cosm) * m * norm1;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potR[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potR[tid](m, n);
+	}
+
+	rpot += (vc*cosm + vs*sinm) * norm1;
+	
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potZ[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potZ[tid](m, n);
+	}
+
+	zpot += (vc*cosm + vs*sinm) * norm1;
+
+	moffset +=2;
+      }
+    }
+
+    rpot *= -1.0;
+    zpot *= -1.0;
+    ppot *= -1.0;
+
+    return {rpot, zpot, ppot};
   }
 
 
@@ -2660,6 +2757,71 @@ namespace BasisClasses
   }
 
 
+  std::vector<double>CBDisk::getAccel(double x, double y, double z)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Fixed values
+    constexpr double norm0 = 1.0;
+    constexpr double norm1 = M_SQRT2;
+
+    double R   = std::sqrt(x*x + y*y);
+    double phi = std::atan2(y, x);
+
+    double rpot=0, zpot=0, ppot=0;
+
+    // Get the basis fields
+    //
+    get_pot   (potd[tid], R);
+    get_force (potR[tid], R);
+    
+    // m loop
+    //
+    for (int m=0, moffset=0; m<=mmax; m++) {
+      
+      if (m==0 and NO_M0)        { moffset++;    continue; }
+      if (m==1 and NO_M1)        { moffset += 2; continue; }
+      if (EVEN_M and m/2*2 != m) { moffset += 2; continue; }
+      if (m>0 and M0_only)       break;
+
+      if (m==0) {
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  rpot += expcoef(0, n) * potR[tid](0, n) * norm0;
+	}
+	
+	moffset++;
+      } else {
+	double cosm = cos(phi*m), sinm = sin(phi*m);
+	double vc, vs;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potd[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potd[tid](m, n);
+	}
+	
+	ppot += (-vc*sinm + vs*cosm) * m * norm1;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potR[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potR[tid](m, n);
+	}
+
+	rpot += (vc*cosm + vs*sinm) * norm1;
+	
+	moffset +=2;
+      }
+    }
+
+    rpot *= -1.0;
+    ppot *= -1.0;
+
+    return {rpot, zpot, ppot};
+  }
+
+
   std::vector<double> CBDisk::sph_eval(double r, double costh, double phi)
   {
     // Cylindrical coords
@@ -3063,6 +3225,82 @@ namespace BasisClasses
   }
 
 
+  std::vector<double>
+  Slab::getAccel(double x, double y, double z)
+  {
+    // Loop indices
+    //
+    int ix, iy, iz;
+
+    // Working values
+    //
+    std::complex<double> facx, facy, fac, facf, facd;
+
+    // Return values
+    //
+    std::complex<double> accx(0.0), accy(0.0), accz(0.0);
+    
+    // Recursion multipliers
+    //
+    std::complex<double> stepx = exp(kfac*x);
+    std::complex<double> stepy = exp(kfac*y);
+
+    // Initial values (note sign change)
+    //
+    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x);
+    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y);
+    
+    Eigen::VectorXd vpot(nmaxz), vfrc(nmaxz), vden(nmaxz);
+
+    for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+      
+      // Compute wavenumber; recall that the coefficients are stored
+      // as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+      //
+      int ii = ix - nmaxx;
+      int iix = abs(ii);
+      
+      for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+	
+	int jj = iy - nmaxy;
+	int iiy = abs(jj);
+	
+	if (iix > nmaxx) {
+	  std::cerr << "Out of bounds: ii=" << ii << std::endl;
+	}
+	if (iiy > nmaxy) {
+	  std::cerr << "Out of bounds: jj=" << jj << std::endl;
+	}
+	
+	if (iix>=iiy) {
+	  ortho->get_force(vfrc, z, iix, iiy);
+	}
+	else {
+	  ortho->get_force(vfrc, z, iiy, iix);
+	}
+
+	
+	for (int iz=0; iz<imz; iz++) {
+	  
+	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz);
+	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz);
+	  facd = facx*facy*vden[iz]*expcoef(ix, iy, iz);
+	  
+	  // Limit to minimum wave number
+	  //
+	  if (abs(ii)<nminx || abs(jj)<nminy) continue;
+	  
+	  accx += -kfac*static_cast<double>(ii)*fac;
+	  accy += -kfac*static_cast<double>(jj)*fac;
+	  accz += -facf;
+	  
+	}
+      }
+    }
+
+    return {accx.real(), accy.real(), accz.real()};
+  }
+
 
   std::vector<double> Slab::crt_eval(double x, double y, double z)
   {
@@ -3423,6 +3661,20 @@ namespace BasisClasses
     double frcz = -frc(2).real();
 
     return {0, den1, den1, 0, pot1, pot1, frcx, frcy, frcz};
+  }
+
+  std::vector<double> Cube::getAccel(double x, double y, double z)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Position vector
+    Eigen::Vector3d pos {x, y, z};
+
+    // Get the basis fields
+    auto frc = ortho->get_force(expcoef, pos);
+    
+    return {-frc(0).real(), -frc(1).real(), -frc(2).real()};
   }
 
   std::vector<double> Cube::cyl_eval(double R, double z, double phi)
