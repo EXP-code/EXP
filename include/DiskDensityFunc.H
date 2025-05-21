@@ -21,11 +21,11 @@
         creation.
 
         """
-        a = 1.0                         # Scale radius
-        h = 0.2                         # Scale height
-        f = math.exp(-math.fabs(z)/h)   # Prevent overflows
-        sech = 2.0*f / (1.0 + f*f)      # 
-        return math.exp(-R/a)*sech*sech/(4*math.pi*h*a*a)
+        a = 1.0                            # Scale radius
+        h = 0.2                            # Scale height
+        f = math.exp(-0.5*math.fabs(z)/h)  # Prevent overflows
+        sech = 2.0*f / (1.0 + f*f)         # 
+        return math.exp(-R/a)*sech*sech/(8*math.pi*h*a*a)
 	
     --------------------------cut here--------------------------------
 
