@@ -506,6 +506,115 @@ namespace BasisClasses
   }
   
   std::vector<double>
+  Spherical::sph_eval(double r, double costh, double phi)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    double fac1, cosm, sinm;
+    double sinth = -sqrt(fabs(1.0 - costh*costh));
+    
+    fac1 = factorial(0, 0);
+    
+    get_dens (dend[tid], r/scale);
+    get_pot  (potd[tid], r/scale);
+    get_force(dpot[tid], r/scale);
+    
+    legendre_R(lmax, costh, legs[tid], dlegs[tid]);
+    
+    double den0, pot0, potr;
+
+    if (NO_L0) {
+      den0 = 0.0;
+      pot0 = 0.0;
+      potr = 0.0;
+    } else {
+      den0 = fac1 * expcoef.row(0).dot(dend[tid].row(0));
+      pot0 = fac1 * expcoef.row(0).dot(potd[tid].row(0));
+      potr = fac1 * expcoef.row(0).dot(dpot[tid].row(0));
+    }
+
+    double den1 = 0.0;
+    double pot1 = 0.0;
+    double pott = 0.0;
+    double potp = 0.0;
+    
+    // L loop
+    for (int l=1, loffset=1; l<=lmax; loffset+=(2*l+1), l++) {
+      
+      // Check for even l
+      if (EVEN_L and l%2) continue;
+      
+      // No l=1
+      if (NO_L1 and l==1) continue;
+      
+      // M loop
+      for (int m=0, moffset=0; m<=l; m++) {
+	
+	if (M0_only and m) continue;
+	if (EVEN_M and m%2) continue;
+	
+	fac1 = factorial(l, m);
+	if (m==0) {
+	  double sumR=0.0, sumP=0.0, sumD=0.0;
+	  for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	    sumR += expcoef(loffset+moffset, n) * dend[tid](l, n);
+	    sumP += expcoef(loffset+moffset, n) * potd[tid](l, n);
+	    sumD += expcoef(loffset+moffset, n) * dpot[tid](l, n);
+	  }
+	  
+	  den1 += fac1*legs[tid] (l, m) * sumR;
+	  pot1 += fac1*legs[tid] (l, m) * sumP;
+	  potr += fac1*legs[tid] (l, m) * sumD;
+	  pott += fac1*dlegs[tid](l, m) * sumP;
+	  
+	  moffset++;
+	}
+	else {
+	  cosm = cos(phi*m);
+	  sinm = sin(phi*m);
+	  
+	  double sumR0=0.0, sumP0=0.0, sumD0=0.0;
+	  double sumR1=0.0, sumP1=0.0, sumD1=0.0;
+	  for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	    sumR0 += expcoef(loffset+moffset+0, n) * dend[tid](l, n);
+	    sumP0 += expcoef(loffset+moffset+0, n) * potd[tid](l, n);
+	    sumD0 += expcoef(loffset+moffset+0, n) * dpot[tid](l, n);
+	    sumR1 += expcoef(loffset+moffset+1, n) * dend[tid](l, n);
+	    sumP1 += expcoef(loffset+moffset+1, n) * potd[tid](l, n);
+	    sumD1 += expcoef(loffset+moffset+1, n) * dpot[tid](l, n);
+	  }
+	  
+	  den1 += fac1 * legs[tid] (l, m) *  ( sumR0*cosm + sumR1*sinm );
+	  pot1 += fac1 * legs[tid] (l, m) *  ( sumP0*cosm + sumP1*sinm );
+	  potr += fac1 * legs[tid] (l, m) *  ( sumD0*cosm + sumD1*sinm );
+	  pott += fac1 * dlegs[tid](l, m) *  ( sumP0*cosm + sumP1*sinm );
+	  potp += fac1 * legs[tid] (l, m) *  (-sumP0*sinm + sumP1*cosm ) * m;
+	  
+	  moffset +=2;
+	}
+      }
+    }
+    
+    double densfac = 1.0/(scale*scale*scale) * 0.25/M_PI;
+    double potlfac = 1.0/scale;
+
+    return
+      {den0 * densfac,		// 0
+       den1 * densfac,		// 1
+       (den0 + den1) * densfac,	// 2
+       pot0 * potlfac,		// 3
+       pot1 * potlfac,		// 4
+       (pot0 + pot1) * potlfac,	// 5
+       potr * (-potlfac)/scale,	// 6
+       pott * (-potlfac),	// 7
+       potp * (-potlfac)};	// 8
+    //         ^
+    //         |
+    // Return force not potential gradient
+  }
+
+  std::vector<double>
   Spherical::getAccel(double x, double y, double z)
   {
     double R     = sqrt(x*x + y*y);
