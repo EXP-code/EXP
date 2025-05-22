@@ -184,6 +184,7 @@ double       ASHIFT;
 double       HSCALE;
 double       HERNA;
 double       Mfac;
+bool         sech2;
 double       RTRUNC  = 1.0;
 double       RWIDTH  = 0.0;
 double       ARATIO  = 1.0;
@@ -224,8 +225,8 @@ double DiskDens(double R, double z, double phi)
     {
       double a1 = ASCALE;
       double a2 = ASCALE*ARATIO;
-      double h1 = HSCALE;
-      double h2 = HSCALE*HRATIO;
+      double h1 = sech2 ? 0.5*HSCALE : HSCALE;
+      double h2 = h1*HRATIO;
       double w1 = 1.0/(1.0+DWEIGHT);
       double w2 = DWEIGHT/(1.0+DWEIGHT);
 
@@ -239,13 +240,14 @@ double DiskDens(double R, double z, double phi)
     break;
   case DiskType::diskbulge:
     {
-      double f = cosh(z/HSCALE);
+      double h = sech2 ? 0.5*HSCALE : HSCALE;
+      double f = cosh(z/h);
       double rr = pow(pow(R, 2) + pow(z,2), 0.5);
       double w1 = Mfac;
       double w2 = (1-Mfac);
       double as = HERNA;
 
-      ans = w1*exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f) + 
+      ans = w1*exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*h*f*f) + 
             w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0) ; 
     }
     break;
@@ -258,8 +260,9 @@ double DiskDens(double R, double z, double phi)
   case DiskType::exponential:
   default:
     {
-      double f = cosh(z/HSCALE);
-      ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f);
+      double h = sech2 ? 0.5*HSCALE : HSCALE;
+      double f = cosh(z/h);
+      ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*h*f*f);
     }
     break;
   }
@@ -372,7 +375,9 @@ main(int ac, char **av)
     ("expcond", "Use analytic target density rather than particle distribution",
      cxxopts::value<bool>(expcond)->default_value("true"))
     ("LOGR", "Logarithmic scaling for model table in EmpCylSL",
-     cxxopts::value<bool>(LOGR)->default_value("true"))
+     cxxopts::value<bool>(expcond)->default_value("true"))
+    ("sech2", "if true, use hcyl as sech^2(z/(2*hcyl))",
+    cxxopts::value<bool>(sech2)->default_value("false"))
     ("RCYLMIN", "Minimum disk radius for EmpCylSL",
      cxxopts::value<double>(RCYLMIN)->default_value("0.001"))
     ("RCYLMAX", "Maximum disk radius for EmpCylSL",
@@ -580,6 +585,7 @@ main(int ac, char **av)
 	     << " rmax="   << EmpCylSL::RMAX
 	     << " a="      << ASCALE
 	     << " h="      << HSCALE
+       << " sech2="  << sech2
        << " as="     << HERNA
        << " Mfac="   << Mfac
 	     << " nmax2="  << NMAXFID
@@ -597,7 +603,8 @@ main(int ac, char **av)
      // The scale in EmpCylSL is assumed to be 1 so we compute the
      // height relative to the length
      //
-     double H = HSCALE/ASCALE;
+     //double H = HSCALE/ASCALE;
+     double H = sech2 ? 0.5*HSCALE/ASCALE : HSCALE/ASCALE;
 
      // The model instance (you can add others in DiskModels.H).
      // It's MN or Exponential if not MN.
