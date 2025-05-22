@@ -163,6 +163,10 @@ namespace BasisClasses
 
     //! Clear the particle selector callback
     void clrSelector() { ftor = nullptr; }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    virtual std::vector<double> getAccel(double x, double y, double z) = 0;
   };
   
   /**
@@ -307,6 +311,9 @@ namespace BasisClasses
       return ret;
     }
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    virtual std::vector<double> getAccel(double x, double y, double z);
   };
 
   /**
@@ -542,6 +549,10 @@ namespace BasisClasses
       return ret;
     }
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    std::vector<double> getAccel(double x, double y, double z);
+
   };
   
   /**
@@ -692,6 +703,10 @@ namespace BasisClasses
       std::cout << "CBDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -845,6 +860,11 @@ namespace BasisClasses
       std::cout << "---- Cylindrical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    std::vector<double> getAccel(double x, double y, double z);
+
   };
   
   /**
@@ -991,6 +1011,10 @@ namespace BasisClasses
       return true;
     }
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    std::vector<double> getAccel(double x, double y, double z);
+
   };
   
   /**
@@ -1112,6 +1136,10 @@ namespace BasisClasses
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
