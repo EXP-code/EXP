@@ -2099,7 +2099,7 @@ namespace BasisClasses
     return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
   }
 
-  std::vector<double>FlatDisk::getAccel(double R, double z, double phi)
+  std::vector<double> FlatDisk::getAccel(double x, double y, double z)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -2107,6 +2107,11 @@ namespace BasisClasses
     // Fixed values
     constexpr double norm0 = 0.5*M_2_SQRTPI/M_SQRT2;
     constexpr double norm1 = 0.5*M_2_SQRTPI;
+
+    // Compute polar coordinates
+    double R   = std::sqrt(x*x + y*y);
+    double phi = std::atan2(y, x);
+    
 
     double rpot=0, zpot=0, ppot=0;
 
@@ -2179,7 +2184,10 @@ namespace BasisClasses
     zpot *= -1.0;
     ppot *= -1.0;
 
-    return {rpot, zpot, ppot};
+    double potx = rpot*x/R - ppot*y/R;
+    double poty = rpot*y/R + ppot*x/R;
+
+    return {potx, poty, zpot};
   }
 
 
@@ -2209,8 +2217,8 @@ namespace BasisClasses
 
     auto v = cyl_eval(R, z, phi);
 
-    double potx = v[4]*x/R - v[8]*y/R;
-    double poty = v[4]*y/R + v[8]*x/R;
+    double potx = v[6]*x/R - v[8]*y/R;
+    double poty = v[6]*y/R + v[8]*x/R;
 
     return {v[0], v[1], v[2], v[3], v[4], v[5], potx, poty, v[7]};
   }
@@ -2785,7 +2793,7 @@ namespace BasisClasses
     }
   }
   
-  std::vector<double>CBDisk::cyl_eval(double R, double z, double phi)
+  std::vector<double> CBDisk::cyl_eval(double R, double z, double phi)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -2863,7 +2871,7 @@ namespace BasisClasses
   }
 
 
-  std::vector<double>CBDisk::getAccel(double x, double y, double z)
+  std::vector<double> CBDisk::getAccel(double x, double y, double z)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -2924,7 +2932,11 @@ namespace BasisClasses
     rpot *= -1.0;
     ppot *= -1.0;
 
-    return {rpot, zpot, ppot};
+
+    double potx = rpot*x/R - ppot*y/R;
+    double poty = rpot*y/R + ppot*x/R;
+
+    return {potx, poty, zpot};
   }
 
 
@@ -2954,8 +2966,8 @@ namespace BasisClasses
 
     auto v = cyl_eval(R, z, phi);
 
-    double potx = v[4]*x/R - v[8]*y/R;
-    double poty = v[4]*y/R + v[8]*x/R;
+    double potx = v[6]*x/R - v[8]*y/R;
+    double poty = v[6]*y/R + v[8]*x/R;
 
     return {v[0], v[1], v[2], v[3], v[4], v[5], potx, poty, v[7]};
   }
@@ -3340,7 +3352,7 @@ namespace BasisClasses
 
     // Working values
     //
-    std::complex<double> facx, facy, fac, facf, facd;
+    std::complex<double> facx, facy, fac, facf;
 
     // Return values
     //
@@ -3356,7 +3368,7 @@ namespace BasisClasses
     std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x);
     std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y);
     
-    Eigen::VectorXd vpot(nmaxz), vfrc(nmaxz), vden(nmaxz);
+    Eigen::VectorXd vpot(nmaxz), vfrc(nmaxz);
 
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
@@ -3379,9 +3391,11 @@ namespace BasisClasses
 	}
 	
 	if (iix>=iiy) {
+	  ortho->get_pot  (vpot, z, iix, iiy);
 	  ortho->get_force(vfrc, z, iix, iiy);
 	}
 	else {
+	  ortho->get_pot  (vpot, z, iiy, iix);
 	  ortho->get_force(vfrc, z, iiy, iix);
 	}
 
@@ -3390,7 +3404,6 @@ namespace BasisClasses
 	  
 	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz);
 	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz);
-	  facd = facx*facy*vden[iz]*expcoef(ix, iy, iz);
 	  
 	  // Limit to minimum wave number
 	  //
