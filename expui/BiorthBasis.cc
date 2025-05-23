@@ -1994,8 +1994,8 @@ namespace BasisClasses
 
     auto v = cyl_eval(R, z, phi);
 
-    double potx = v[4]*x/R - v[8]*y/R;
-    double poty = v[4]*y/R + v[8]*x/R;
+    double potx = v[6]*x/R - v[8]*y/R;
+    double poty = v[6]*y/R + v[8]*x/R;
 
     return {v[0], v[1], v[2], v[3], v[4], v[5], potx, poty, v[7]};
   }
@@ -2671,8 +2671,8 @@ namespace BasisClasses
 
     auto v = cyl_eval(R, z, phi);
 
-    double potx = v[4]*x/R - v[8]*y/R;
-    double poty = v[4]*y/R + v[8]*x/R;
+    double potx = v[6]*x/R - v[8]*y/R;
+    double poty = v[6]*y/R + v[8]*x/R;
 
     return {v[0], v[1], v[2], v[3], v[4], v[5], potx, poty, v[7]};
   }
