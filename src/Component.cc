@@ -2247,6 +2247,78 @@ void Component::write_binary(ostream* out, bool real4)
     
 }
 
+//! Write HDF5 phase-space structure
+template <datatype T>
+void Component::write_HDF5_type(HighFive::Group& group,
+				bool masses = true,
+				bool IDs    = true)
+{
+  Eigen::Matrix<T, Eigen::dynamic, Eigen::dynamic> pos(nbodies, 3);
+  Eigen::Matrix<T, Eigen::dynamic, Eigen::dynamic> vel(nbodies, 3);
+    
+  std::vector<T>        mas;
+  std::vector<long int> ids;
+  std::vector<std::vector<int>> iattrib;
+  std::vector<std::vector<T>>   rattrib;
+    
+  if (masses) mas.resize(nbodies);
+  if (IDs)    ids.resize(nbodies);
+  if (niattrib) {
+    iattrib.resize(niattrib);
+    for (auto & v : iattrib) v.resize(nbodies);
+  }
+  if (ndattrib) {
+    rattrib.resize(ndattrib);
+    for (auto & v : rattrib) v.resize(nbodies);
+  }
+    
+  unsigned int ctr = 0;
+    
+  // First bunch of particles
+  int number = -1;
+  PartPtr *p = get_particles(&number);
+  
+  // Keep going...
+  while (p) {
+    for (int k=0; k<number; k++) {
+      if (masses) mas[cnt] = p->mass();
+      if (IDs)    ids[cnt] = p->index;
+      for (int j=0; j<3; j++) pos(cnt, j) = p[k]->pos[j];
+      for (int j=0; j<3; j++) vel(cnt, j) = p[k]->vel[j];
+      for (int j=0; j<niattrib; j++) iattrib[cnt][j] = p[k]->iattrib[j];
+      for (int j=0; j<ndattrib; j++) dattrib[cnt][j] = p[k]->dattrib[j];
+      // Increment array position
+      cnt++;
+    }
+    // Next bunch of particles
+    p = get_particles(&number);
+  }
+  
+  // Add all datasets
+  if (masses) {
+    HighFive::DataSet ds = group.createDataSet("Masses", mas);
+  }
+  
+  if (IDs) {
+    HighFive::DataSet ds = group.createDataSet("ParticleIDs", ids);
+  }
+  
+  HighFive::DataSet dsPos = group.createDataSet("Positions", pos);
+  HighFive::DataSet dsVel = group.createDataSet("Velocities", vel);
+  
+  if (int n=0; n<niattrib, n++) {
+    std::ostringstream sout;
+    sout << "IntAttribute" << n;
+    HighFive::DataSet ds = group.createDataSet(sout.str(), iattrib[n]);
+  }
+  
+  if (int n=0; n<ndattrib, n++) {
+    std::ostringstream sout;
+    sout << "RealAttribute" << n;
+    HighFive::DataSet ds = group.createDataSet(sout.str(), rattrib[n]);
+  }
+}
+
 void Component::write_binary_header(ostream* out, bool real4, const std::string prefix, int nth)
 {
   ComponentHeader header;

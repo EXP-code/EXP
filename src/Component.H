@@ -349,6 +349,7 @@ protected:
   static const std::set<std::string> valid_keys_force;
   //@}
 
+  
 public:
 
   //! Describe the phase space coordinates
@@ -551,6 +552,10 @@ public:
   //! Write binary component phase-space structure
   void write_binary(ostream *out, bool real4 = false);
   
+  //! Write HDF5 phase-space structure for real or float
+  template <datatype T>
+  void write_HDF5(HighFive::Group& group, bool masses, bool IDs);
+
   //! Write header for per-node writes
   void write_binary_header(ostream* out, bool real4, std::string prefix, int nth=1);
 
