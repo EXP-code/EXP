@@ -182,40 +182,65 @@ void OutHDF5::Run(int n, int mstep, bool last)
       HighFive::Group config = file->createGroup("Config");
       
       int ncomp = comp->components.size();
-      config.createAttribute<int>("NTYPES", HighFive::DataSpace::From(ncomp)).write(ncomp);
+      config.createAttribute<int>("NTYPES",
+				  HighFive::DataSpace::From(ncomp)).write(ncomp);
+
       std::string gcommit(GIT_COMMIT), gbranch(GIT_BRANCH), gdate(COMPILE_TIME);
-      config.createAttribute<std::string>("Git_commit", HighFive::DataSpace::From(gcommit)).write(gcommit);
-      config.createAttribute<std::string>("Git_branch", HighFive::DataSpace::From(gbranch)).write(gbranch);
-      config.createAttribute<std::string>("Compile_date", HighFive::DataSpace::From(gdate)).write(gdate);
+      config.createAttribute<std::string>("Git_commit",
+					  HighFive::DataSpace::From(gcommit)).write(gcommit);
+
+      config.createAttribute<std::string>("Git_branch",
+					  HighFive::DataSpace::From(gbranch)).write(gbranch);
+
+      config.createAttribute<std::string>("Compile_date",
+					  HighFive::DataSpace::From(gdate)).write(gdate);
 
       // Create a new group for Header
       //
       HighFive::Group header = file->createGroup("Header");
       int dp = 1;
-      header.createAttribute<int>("Flag_DoublePrecision", HighFive::DataSpace::From(dp)).write(dp);
+      header.createAttribute<int>("Flag_DoublePrecision",
+				  HighFive::DataSpace::From(dp)).write(dp);
+
       double hubble = 1, zero = 0;
-      header.createAttribute<double>("HubbleParam", HighFive::DataSpace::From(hubble)).write(hubble);
-      header.createAttribute<double>("Omega0", HighFive::DataSpace::From(zero)).write(zero);
-      header.createAttribute<double>("OmegaBaryon", HighFive::DataSpace::From(zero)).write(zero);
-      header.createAttribute<double>("OmegaLambda", HighFive::DataSpace::From(zero)).write(zero);
-      header.createAttribute<double>("Redshift", HighFive::DataSpace::From(zero)).write(zero);
+      header.createAttribute<double>("HubbleParam",
+				     HighFive::DataSpace::From(hubble)).write(hubble);
+
+      header.createAttribute<double>("Omega0",
+				     HighFive::DataSpace::From(zero)).write(zero);
+
+      header.createAttribute<double>("OmegaBaryon",
+				     HighFive::DataSpace::From(zero)).write(zero);
+
+      header.createAttribute<double>("OmegaLambda",
+				     HighFive::DataSpace::From(zero)).write(zero);
+
+      header.createAttribute<double>("Redshift",
+				     HighFive::DataSpace::From(zero)).write(zero);
+
       std::vector<double> masses(ncomp, 0.0);
-      header.createAttribute<std::vector<double>>("MassTable", HighFive::DataSpace::From(masses)).write(masses);
-      header.createAttribute<int>("NumFilesPerSnapshot", HighFive::DataSpace::From(numprocs)).write(numprocs);
+      header.createAttribute<std::vector<double>>("MassTable",
+						  HighFive::DataSpace::From(masses)).write(masses);
+
+      header.createAttribute<int>("NumFilesPerSnapshot",
+				  HighFive::DataSpace::From(numprocs)).write(numprocs);
       
       std::vector<unsigned> nums(ncomp);
       {
 	int n=0;
 	for (auto c : comp->components) nums[n++] = c->Number();
       }
-      header.createAttribute<std::vector<unsigned>>("NumPart_ThisFile", HighFive::DataSpace::From(nums)).write(nums);
+      header.createAttribute<std::vector<unsigned>>("NumPart_ThisFile",
+						    HighFive::DataSpace::From(nums)).write(nums);
       {
 	int n=0;
 	for (auto c : comp->components) nums[n++] = c->CurTotal();
       }
-      header.createAttribute<std::vector<unsigned>>("NumPart_Total", HighFive::DataSpace::From(nums)).write(nums);
+      header.createAttribute<std::vector<unsigned>>("NumPart_Total",
+						    HighFive::DataSpace::From(nums)).write(nums);
 
-      header.createAttribute<double>("Time", HighFive::DataSpace::From(tnow)).write(tnow);
+      header.createAttribute<double>("Time",
+				     HighFive::DataSpace::From(tnow)).write(tnow);
       
       // Create a new group for Parameters
       //
