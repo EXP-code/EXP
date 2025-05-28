@@ -160,7 +160,7 @@ void OutHDF5::Run(int n, int mstep, bool last)
 
   int nOK = 0;
 
-  HighFive::File file;
+  std::unique_ptr<HighFive::File> file;
 
   // Begin HDF5 file writing
   //
@@ -172,22 +172,54 @@ void OutHDF5::Run(int n, int mstep, bool last)
       
     // Try opening the file as HDF5
     //
-    file = HighFive::File(path,
-			  HighFive::File::ReadWrite |
-			  HighFive::File::Create);
+    file = std::make_unique<HighFive::File>(path,
+					    HighFive::File::ReadWrite |
+					    HighFive::File::Create);
     try {
+
+      // Create a new group for Config
+      //
+      HighFive::Group config = file->createGroup("Config");
+      
+      int ncomp = comp->components.size();
+      config.createAttribute<int>("NTYPES", HighFive::DataSpace::From(ncomp)).write(ncomp);
+      std::string gcommit(GIT_COMMIT), gbranch(GIT_BRANCH), gdate(COMPILE_TIME);
+      config.createAttribute<std::string>("Git_commit", HighFive::DataSpace::From(gcommit)).write(gcommit);
+      config.createAttribute<std::string>("Git_branch", HighFive::DataSpace::From(gbranch)).write(gbranch);
+      config.createAttribute<std::string>("Compile_date", HighFive::DataSpace::From(gdate)).write(gdate);
 
       // Create a new group for Header
       //
-      HighFive::Group header = file.createGroup("Header");
+      HighFive::Group header = file->createGroup("Header");
+      int dp = 1;
+      header.createAttribute<int>("Flag_DoublePrecision", HighFive::DataSpace::From(dp)).write(dp);
+      double hubble = 1, zero = 0;
+      header.createAttribute<double>("HubbleParam", HighFive::DataSpace::From(hubble)).write(hubble);
+      header.createAttribute<double>("Omega0", HighFive::DataSpace::From(zero)).write(zero);
+      header.createAttribute<double>("OmegaBaryon", HighFive::DataSpace::From(zero)).write(zero);
+      header.createAttribute<double>("OmegaLambda", HighFive::DataSpace::From(zero)).write(zero);
+      header.createAttribute<double>("Redshift", HighFive::DataSpace::From(zero)).write(zero);
+      std::vector<double> masses(ncomp, 0.0);
+      header.createAttribute<std::vector<double>>("MassTable", HighFive::DataSpace::From(masses)).write(masses);
+      header.createAttribute<int>("NumFilesPerSnapshot", HighFive::DataSpace::From(numprocs)).write(numprocs);
       
-      // Create a new group for Config
-      //
-      HighFive::Group config = file.createGroup("Config");
+      std::vector<unsigned> nums(ncomp);
+      {
+	int n=0;
+	for (auto c : comp->components) nums[n++] = c->Number();
+      }
+      header.createAttribute<std::vector<unsigned>>("NumPart_ThisFile", HighFive::DataSpace::From(nums)).write(nums);
+      {
+	int n=0;
+	for (auto c : comp->components) nums[n++] = c->CurTotal();
+      }
+      header.createAttribute<std::vector<unsigned>>("NumPart_Total", HighFive::DataSpace::From(nums)).write(nums);
+
+      header.createAttribute<double>("Time", HighFive::DataSpace::From(tnow)).write(tnow);
       
       // Create a new group for Parameters
       //
-      HighFive::Group params = file.createGroup("Parameters");
+      HighFive::Group params = file->createGroup("Parameters");
       
     } catch (HighFive::Exception& err) {
       std::string msg("Coefs::factory: error reading HDF5 file, ");
@@ -225,58 +257,12 @@ void OutHDF5::Run(int n, int mstep, bool last)
     std::ostringstream sout;
     sout << "PartType" << count++;
 
-    file.createGroup(sout.str());
+    auto pgroup = file->createGroup(sout.str());
 
-    
-    if (myid==0) {
-      c->write_binary_header(&out, real4, cname.str());
-    }
-
-    cname << "-" << myid;
-    
-				// Open particle file and write
-    std::string blobfile = outdir + cname.str();
-    std::ofstream pout(blobfile);
-
-    if (pout.fail()) {
-      std::cerr << "[" << myid << "] OutHDF5: can't open file <" << cname.str() 
-		<< "> . . . quitting" << std::endl;
-      nOK = 1;
-    } else {
-      if (threads)
-	c->write_binary_particles(&pout, threads, real4);
-      else
-	c->write_binary_particles(&pout, real4);
-      if (pout.fail()) {
-	std::cout << "OutHDF5: error writing binary particles to <"
-		  << blobfile << std::endl;
-      }
-    }
-
-    
-				// Check for errors in all file opening
-    int sumOK;
-    MPI_Allreduce(&nOK, &sumOK, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-    if (sumOK) {
-      MPI_Finalize();
-      exit(35);
-    }
-  }
-
-  if (myid==0) {
-    if (out.fail()) {
-      std::cout << "OutHDF5: error writing component to master <" << master
-		<< std::endl;
-    }
-
-    try {
-      out.close();
-    }
-    catch (const ofstream::failure& e) {
-      std::cout << "OutHDF5: exception closing file <" << master
-		<< ": " << e.what() << std::endl;
-    }
+    if (real4)
+      c->write_HDF5<float>(pgroup, true, true);
+    else
+      c->write_HDF5<double>(pgroup, true, true);
   }
 
   chktimer.mark();

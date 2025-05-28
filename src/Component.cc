@@ -2248,13 +2248,11 @@ void Component::write_binary(ostream* out, bool real4)
 }
 
 //! Write HDF5 phase-space structure
-template <datatype T>
-void Component::write_HDF5_type(HighFive::Group& group,
-				bool masses = true,
-				bool IDs    = true)
+template <typename T>
+void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
 {
-  Eigen::Matrix<T, Eigen::dynamic, Eigen::dynamic> pos(nbodies, 3);
-  Eigen::Matrix<T, Eigen::dynamic, Eigen::dynamic> vel(nbodies, 3);
+  Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> pos(nbodies, 3);
+  Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> vel(nbodies, 3);
     
   std::vector<T>        mas;
   std::vector<long int> ids;
@@ -2281,14 +2279,15 @@ void Component::write_HDF5_type(HighFive::Group& group,
   // Keep going...
   while (p) {
     for (int k=0; k<number; k++) {
-      if (masses) mas[cnt] = p->mass();
-      if (IDs)    ids[cnt] = p->index;
-      for (int j=0; j<3; j++) pos(cnt, j) = p[k]->pos[j];
-      for (int j=0; j<3; j++) vel(cnt, j) = p[k]->vel[j];
-      for (int j=0; j<niattrib; j++) iattrib[cnt][j] = p[k]->iattrib[j];
-      for (int j=0; j<ndattrib; j++) dattrib[cnt][j] = p[k]->dattrib[j];
+      auto &P = *p;
+      if (masses) mas[ctr] = P->mass;
+      if (IDs)    ids[ctr] = P->indx;
+      for (int j=0; j<3; j++) pos(ctr, j) = p[k]->pos[j];
+      for (int j=0; j<3; j++) vel(ctr, j) = p[k]->vel[j];
+      for (int j=0; j<niattrib; j++) iattrib[ctr][j] = p[k]->iattrib[j];
+      for (int j=0; j<ndattrib; j++) rattrib[ctr][j] = p[k]->dattrib[j];
       // Increment array position
-      cnt++;
+      ctr++;
     }
     // Next bunch of particles
     p = get_particles(&number);
@@ -2318,6 +2317,15 @@ void Component::write_HDF5_type(HighFive::Group& group,
     HighFive::DataSet ds = group.createDataSet(sout.str(), rattrib[n]);
   }
 }
+
+// Explicit instantiations for float and double
+template
+void Component::write_HDF5<float>
+(HighFive::Group& group, bool masses, bool IDs);
+
+template
+void Component::write_HDF5<double>
+(HighFive::Group& group, bool masses, bool IDs);
 
 void Component::write_binary_header(ostream* out, bool real4, const std::string prefix, int nth)
 {

@@ -6,6 +6,11 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+
 #include <EXPException.H>
 #include <global.H>
 #include <Orient.H>
@@ -553,7 +558,7 @@ public:
   void write_binary(ostream *out, bool real4 = false);
   
   //! Write HDF5 phase-space structure for real or float
-  template <datatype T>
+  template <typename T>
   void write_HDF5(HighFive::Group& group, bool masses, bool IDs);
 
   //! Write header for per-node writes
