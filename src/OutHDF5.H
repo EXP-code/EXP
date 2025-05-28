@@ -12,6 +12,7 @@
     @param nbeg is suffix of the first phase space %dump
     @param timer set to true turns on wall-clock timer for PS output
     @param threads number of threads for binary writes
+    @param noids set to true turns off particle id writing
 
 */
 class OutHDF5 : public Output
@@ -20,12 +21,17 @@ class OutHDF5 : public Output
 private:
 
   std::string filename;
-  bool real4=true, real8=false, timer;
+  bool real4=true, real8=false, ids=true, timer;
   int nbeg, threads;
   void initialize(void);
+  std::vector<double> masses;
+  std::vector<bool> multim;
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  //! Check for single particle mass on the first invocation
+  void checkParticleMasses();
 
 public:
 
@@ -41,6 +47,7 @@ public:
     indepentently of whether or not the frequency criterion is met
     \param timer set to true turns on wall-clock timer for PS output
     \param threads is the thread count for binary writes
+    \param noids set to true turns off particle id writing
   */
   void Run(int nstep, int mstep, bool last);
 
