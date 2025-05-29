@@ -227,6 +227,84 @@ namespace PR
     
   };
   
+  class PSPhdf5 : public ParticleReader
+  {
+  protected:
+
+    //@{
+    //! Parameters
+    double time;
+    std::vector<Particle> particles;
+    bool _verbose;
+    std::vector<std::string> _files;
+
+    std::vector<double> mass;
+    std::vector<int> Niattrib, Ndattrib;
+    std::vector<unsigned long> npart, nptot;
+    unsigned long totalCount;
+    int ntypes;
+    bool real4;
+    //@}
+    
+    //! Current file
+    std::vector<std::string>::iterator curfile;
+
+    //! Components
+    std::vector<std::string> comps;
+
+    //@{
+    //! Current component and index
+    std::string curcomp;
+    int curindx;
+    //@}
+
+    unsigned pcount;
+    template <typename Scalar> void read_and_load();
+    void getInfo();
+    void packParticle();
+    bool nextFile();
+
+  public:
+    
+    //! Constructor
+    PSPhdf5(const std::vector<std::string>& file, bool verbose=false);
+    
+    //! Select a particular particle type and reset the iterator
+    virtual void SelectType(const std::string& type) {
+      auto it = std::find(comps.begin(), comps.end(), type);
+      if (it != comps.end()) {
+	curcomp = type;
+	curindx = it - comps.begin();
+      }
+      else {
+	std::cerr << "PSPhdf5 error: could not find particle component <" << type << ">" << std::endl;
+	std::cerr << "Available particle components are:";
+	for (auto s : comps) std::cerr << " " << s;
+	std::cerr << std::endl;
+	throw std::runtime_error("PSPhdf5: non-existent component");
+      }
+
+      curfile = _files.begin();	// Set to first file and open
+      nextFile();
+    }
+    
+    //! Number of particles in the chosen type
+    virtual unsigned long CurrentNumber() { return totalCount; }
+    
+    //! Return list of particle types
+    virtual std::vector<std::string> GetTypes() { return comps; }
+    
+    //! Get current time
+    virtual double CurrentTime() { return time; }
+    
+    //! Reset to beginning of particles for this component
+    virtual const Particle* firstParticle();
+    
+    //! Get the next particle
+    virtual const Particle* nextParticle();
+    
+  };
+  
   class PSPstanza 
   {
   public:

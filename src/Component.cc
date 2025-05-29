@@ -86,7 +86,9 @@ const std::set<std::string> Component::valid_keys_parm =
     "ctr_name",
     "noswitch",
     "freezeL",
-    "dtreset"
+    "dtreset",
+    "H5compress",
+    "H5chunk"
   };
 
 const std::set<std::string> Component::valid_keys_force =
@@ -830,6 +832,9 @@ void Component::configure(void)
     if (cconf["noswitch"])   noswitch  = cconf["noswitch"].as<bool>();
     if (cconf["freezeL"])   freezeLev  = cconf["freezeL" ].as<bool>();
     if (cconf["dtreset"])     dtreset  = cconf["dtreset" ].as<bool>();
+    if (cconf["H5compress"])
+                           H5compress  = cconf["H5compress"].as<int>();
+    if (cconf["H5chunk"])     H5chunk  = cconf["H5chunk"   ].as<int>();
     
     if (cconf["ton"]) {
       ton = cconf["ton"].as<double>();
@@ -2251,24 +2256,19 @@ void Component::write_binary(ostream* out, bool real4)
 template <typename T>
 void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
 {
-  Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> pos(nbodies, 3);
-  Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> vel(nbodies, 3);
+  Eigen::Matrix<T, Eigen::Dynamic, 3> pos(nbodies, 3);
+  Eigen::Matrix<T, Eigen::Dynamic, 3> vel(nbodies, 3);
     
   std::vector<T>        mas;
   std::vector<long int> ids;
-  std::vector<std::vector<int>> iattrib;
-  std::vector<std::vector<T>>   rattrib;
+
+  Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic> iattrib;
+  Eigen::Matrix<T,   Eigen::Dynamic, Eigen::Dynamic> dattrib;
     
-  if (masses) mas.resize(nbodies);
-  if (IDs)    ids.resize(nbodies);
-  if (niattrib) {
-    iattrib.resize(niattrib);
-    for (auto & v : iattrib) v.resize(nbodies);
-  }
-  if (ndattrib) {
-    rattrib.resize(ndattrib);
-    for (auto & v : rattrib) v.resize(nbodies);
-  }
+  if (masses)   mas.resize(nbodies);
+  if (IDs)      ids.resize(nbodies);
+  if (niattrib) iattrib.resize(nbodies, niattrib);
+  if (ndattrib) dattrib.resize(nbodies, niattrib);
     
   unsigned int ctr = 0;
     
@@ -2284,8 +2284,8 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
       if (IDs)    ids[ctr] = P->indx;
       for (int j=0; j<3; j++) pos(ctr, j) = p[k]->pos[j];
       for (int j=0; j<3; j++) vel(ctr, j) = p[k]->vel[j];
-      for (int j=0; j<niattrib; j++) iattrib[ctr][j] = p[k]->iattrib[j];
-      for (int j=0; j<ndattrib; j++) rattrib[ctr][j] = p[k]->dattrib[j];
+      for (int j=0; j<niattrib; j++) iattrib(ctr, j) = p[k]->iattrib[j];
+      for (int j=0; j<ndattrib; j++) dattrib(ctr, j) = p[k]->dattrib[j];
       // Increment array position
       ctr++;
     }
@@ -2293,29 +2293,31 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
     p = get_particles(&number);
   }
   
+  auto dcpl = HighFive::DataSetCreateProps{};
+
+  if (H5compress) {
+    dcpl.add(HighFive::Chunking(H5chunk, 1));
+    dcpl.add(HighFive::Shuffle());
+    dcpl.add(HighFive::Deflate(H5compress));
+  }
+
   // Add all datasets
   if (masses) {
-    HighFive::DataSet ds = group.createDataSet("Masses", mas);
+    HighFive::DataSet ds = group.createDataSet("Masses", mas, dcpl);
   }
   
   if (IDs) {
-    HighFive::DataSet ds = group.createDataSet("ParticleIDs", ids);
+    HighFive::DataSet ds = group.createDataSet("ParticleIDs", ids, dcpl);
   }
   
-  HighFive::DataSet dsPos = group.createDataSet("Positions", pos);
-  HighFive::DataSet dsVel = group.createDataSet("Velocities", vel);
+  HighFive::DataSet dsPos = group.createDataSet("Coordinates", pos, dcpl);
+  HighFive::DataSet dsVel = group.createDataSet("Velocities",  vel);
   
-  if (int n=0; n<niattrib, n++) {
-    std::ostringstream sout;
-    sout << "IntAttribute" << n;
-    HighFive::DataSet ds = group.createDataSet(sout.str(), iattrib[n]);
-  }
-  
-  if (int n=0; n<ndattrib, n++) {
-    std::ostringstream sout;
-    sout << "RealAttribute" << n;
-    HighFive::DataSet ds = group.createDataSet(sout.str(), rattrib[n]);
-  }
+  if (niattrib>0) 
+    HighFive::DataSet dsInt = group.createDataSet("IntAttributes",  iattrib, dcpl);
+
+  if (ndattrib>0) 
+    HighFive::DataSet dsReal = group.createDataSet("RealAttributes",  dattrib, dcpl);
 }
 
 // Explicit instantiations for float and double

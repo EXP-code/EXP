@@ -355,6 +355,12 @@ protected:
   //@}
 
   
+  //@{
+  //! HDF5 compression parameters
+  int H5compress = 0;
+  int H5chunk = 4096;
+  //@}
+
 public:
 
   //! Describe the phase space coordinates

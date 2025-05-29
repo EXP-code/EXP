@@ -4,10 +4,9 @@
 #include <sstream>
 #include <chrono>
 
-#include <highfive/H5File.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5Attribute.hpp>
+// HighFive API for HDF5
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 #include "expand.H"
 #include <global.H>
@@ -212,23 +211,46 @@ void OutHDF5::Run(int n, int mstep, bool last)
       header.createAttribute<int>
 	("NumFilesPerSnapshot", HighFive::DataSpace::From(numprocs)).write(numprocs);
       
-      std::vector<unsigned> nums(masses.size());
+      std::vector<unsigned long> nums(masses.size());
       {
 	int n=0;
 	for (auto c : comp->components) nums[n++] = c->Number();
       }
-      header.createAttribute<std::vector<unsigned>>
+      header.createAttribute<std::vector<unsigned long>>
 	("NumPart_ThisFile", HighFive::DataSpace::From(nums)).write(nums);
       {
 	int n=0;
 	for (auto c : comp->components) nums[n++] = c->CurTotal();
       }
-      header.createAttribute<std::vector<unsigned>>
+      header.createAttribute<std::vector<unsigned long>>
 	("NumPart_Total", HighFive::DataSpace::From(nums)).write(nums);
 
       header.createAttribute<double>
 	("Time", HighFive::DataSpace::From(tnow)).write(tnow);
       
+      // Create a new group for Config
+      //
+      HighFive::Group config = file->createGroup("Config");
+
+      int ntypes = comp->components.size();
+      config.createAttribute<int>
+	("NTYPES", HighFive::DataSpace::From(ntypes)).write(ntypes);
+
+      config.createAttribute<int>
+	("DOUBLEPRECISION", HighFive::DataSpace::From(dp)).write(dp);
+
+      std::vector<int> Niattrib, Ndattrib;
+      for (auto & c : comp->components) {
+	Niattrib.push_back(c->niattrib);
+	Ndattrib.push_back(c->ndattrib);
+      }
+
+      config.createAttribute<std::vector<int>>
+	("Niattrib", HighFive::DataSpace::From(Niattrib)).write(Niattrib);
+
+      config.createAttribute<std::vector<int>>
+	("Ndattrib", HighFive::DataSpace::From(Ndattrib)).write(Ndattrib);
+
       // Create a new group for Parameters
       //
       HighFive::Group params = file->createGroup("Parameters");
@@ -252,15 +274,15 @@ void OutHDF5::Run(int n, int mstep, bool last)
 	configs.push_back(out.c_str());
       }
 
-      params.createAttribute<std::string>
+      params.createAttribute<std::vector<std::string>>
 	("ComponentNames",
 	 HighFive::DataSpace::From(names)).write(names);
 
-      params.createAttribute<std::string>
+      params.createAttribute<std::vector<std::string>>
 	("ForceMethods",
 	 HighFive::DataSpace::From(forces)).write(forces);
 
-      params.createAttribute<std::string>
+      params.createAttribute<std::vector<std::string>>
 	("ForceConfigurations",
 	 HighFive::DataSpace::From(configs)).write(configs);
       

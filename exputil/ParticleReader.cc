@@ -7,7 +7,9 @@
 #include <numeric>
 #include <string>
 #include <vector>
-
+				// HighFive API
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -637,6 +639,219 @@ namespace PR {
   }
   
   
+  PSPhdf5::PSPhdf5(const std::vector<std::string>& files, bool verbose)
+  {
+    _files   = files;
+    _verbose = verbose;
+    
+    getInfo();
+    curfile = _files.begin();
+
+    if (not nextFile()) {
+      std::cerr << "PSPhdf5: no files found" << std::endl;
+    }
+  }
+
+  void PSPhdf5::getInfo()
+  {
+    // Read one file and get metadata
+    //
+    try {
+      // Silence the HDF5 error stack
+      //
+      HighFive::SilenceHDF5 quiet;
+      
+      // Try opening the file
+      //
+      HighFive::File h5file(_files[0], HighFive::File::ReadOnly);
+      
+      try {
+
+	HighFive::Group header = h5file.getGroup("Header");
+	HighFive::Group config = h5file.getGroup("Config");
+	HighFive::Group params = h5file.getGroup("Parameters");
+
+
+	// Get particle numbers
+	//
+	header.getAttribute("NumPart_Total").read(nptot);
+	totalCount = 0;
+	for (auto v : nptot) totalCount += v;
+
+	// Get particle masses
+	//
+	header.getAttribute("MassTable").read(mass);
+
+	// Get component names
+	//
+	params.getAttribute("ComponentNames").read(comps);
+
+	// Get number of types
+	config.getAttribute("NTYPES").read(ntypes);
+
+	config.getAttribute("Niattrib").read(Niattrib);
+
+	config.getAttribute("Ndattrib").read(Ndattrib);
+
+	// Real data type
+	//
+	int dp;
+	config.getAttribute("DOUBLEPRECISION").read(dp);
+	if (dp) real4 = false;
+	else    real4 = true;
+
+      } catch (HighFive::Exception& err) {
+	std::string msg("PSPhdf5: error reading HDF5 file, ");
+	throw std::runtime_error(msg + err.what());
+      }
+	
+    } catch (HighFive::Exception& err) {
+      if (myid==0)
+	std::cerr << "---- Coefs::factory: "
+		  << "error opening as HDF5, trying EXP native and ascii table"
+		  << std::endl;
+    }
+  }
+
+  bool PSPhdf5::nextFile()
+  {
+    if (curfile==_files.end()) return false;
+    if (real4) read_and_load<float>();
+    else       read_and_load<double>();
+    curfile++;
+    return true;
+  }
+
+
+  template <typename Scalar>
+  void PSPhdf5::read_and_load()
+  {
+    // Try to catch and HDF5 and parsing errors
+    //
+    try {
+      // Silence the HDF5 error stack
+      //
+      HighFive::SilenceHDF5 quiet;
+      
+      // Try opening the file
+      //
+      HighFive::File h5file(_files[0], HighFive::File::ReadOnly);
+      
+      try {
+
+	HighFive::Group header = h5file.getGroup("Header");
+
+	// Get time
+	//
+	header.getAttribute("Time").read(time);
+
+	// Get particle counts
+	//
+	header.getAttribute("NumPart_ThisFile").read(npart);
+
+	if (npart[curindx] > 0) {
+	  // Make the group name
+	  //
+	  std::ostringstream sout;
+	  sout << "PartType" << curindx;
+	  
+	  // Open the phase-space group
+	  //
+	  HighFive::Group part = h5file.getGroup(sout.str());
+
+	  Eigen::Matrix<Scalar, Eigen::Dynamic, 3> pos, vel;
+	  std::vector<Scalar> mas;
+
+	  Eigen::Matrix<int,    Eigen::Dynamic, Eigen::Dynamic> iattrib;
+	  Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> rattrib;
+
+	  if (mass[curindx] > 0)
+	    part.getDataSet("Masses").read(mas);
+	  
+	  part.getDataSet("Coordinates").read(pos);
+	  part.getDataSet("Velocities" ).read(vel);
+
+	  if (Niattrib[curindx]>0)
+	    part.getDataSet("IntAttributes" ).read(iattrib);
+
+	  if (Ndattrib[curindx]>0)
+	    part.getDataSet("RealAttributes" ).read(rattrib);
+
+	  // Clear and load the particle vector
+	  //
+	  particles.clear();
+	  
+	  Particle P;		// Working particle will be copied
+
+	  // Load from the HDF5 datasets
+	  //
+	  for (int n=0; n<npart[curindx]; n++) {
+	    if (n % numprocs ==  myid) {
+
+	      if (mass[curindx] > 0) P.mass = mass[curindx];
+	      else P.mass  = mas[n];
+
+	      P.level = 0;
+
+	      for (int k=0; k<3; k++) {
+		P.pos[k] = pos(n, k);
+		P.vel[k] = vel(n, k);
+	      }
+
+	      if (Niattrib[curindx]>0) {
+		P.iattrib.resize(Niattrib[curindx]);
+		for (int j=0; j<Niattrib[curindx]; j++) P.iattrib[j] = iattrib(n, j);
+	      }
+		
+	      if (Ndattrib[curindx]>0) {
+		P.iattrib.resize(Ndattrib[curindx]);
+		for (int j=0; j<Ndattrib[curindx]; j++) P.dattrib[j] = rattrib(n, j);
+	      }
+		
+	      particles.push_back(P);
+	    }
+	    // END: parallel stanza
+	  }
+	  // END: load the particle vector
+	}
+	// END: we have particles
+
+      } catch (HighFive::Exception& err) {
+	std::string msg("PSPhdf5: error reading HDF5 file, ");
+	throw std::runtime_error(msg + err.what());
+      }
+	
+    } catch (HighFive::Exception& err) {
+      if (myid==0)
+	std::cerr << "---- Coefs::factory: "
+		  << "error opening as HDF5, trying EXP native and ascii table"
+		  << std::endl;
+    }
+
+  }
+  
+  // Template specializations
+  template void PSPhdf5::read_and_load<float>();
+  template void PSPhdf5::read_and_load<double>();
+
+  const Particle* PSPhdf5::firstParticle()
+  {
+    pcount = 0;
+    
+    return & particles[pcount++];
+  }
+  
+  const Particle* PSPhdf5::nextParticle()
+  {
+    if (pcount < particles.size()) {
+      return & particles[pcount++];
+    } else {
+      if (nextFile()) return firstParticle();
+      else return 0;
+    }
+  }
+  
+
   bool badstatus(istream& in)
   {
     ios::iostate i = in.rdstate();
@@ -1295,7 +1510,8 @@ namespace PR {
   
   
   std::vector<std::string> ParticleReader::readerTypes
-  {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "TipsyNative", "TipsyXDR", "Bonsai"};
+    {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "PSPhdf5",
+     "TipsyNative", "TipsyXDR", "Bonsai"};
   
   
   std::vector<std::vector<std::string>>
@@ -1373,6 +1589,8 @@ namespace PR {
       ret = std::make_shared<PSPout>(file, verbose);
     else if (reader.find("PSPspl") == 0)
       ret = std::make_shared<PSPspl>(file, verbose);
+    else if (reader.find("PSPhdf5") == 0)
+      ret = std::make_shared<PSPhdf5>(file, verbose);
     else if (reader.find("GadgetNative") == 0)
       ret = std::make_shared<GadgetNative>(file, verbose);
     else if (reader.find("GadgetHDF5") == 0)
