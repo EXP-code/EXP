@@ -2310,8 +2310,6 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
 
     if (niattrib) dcplI.add(HighFive::Chunking(chunk, niattrib));
     if (ndattrib) dcplD.add(HighFive::Chunking(chunk, ndattrib));
-
-    std::cout << "Using compression=" << H5compress << " with chunk size " << chunk << std::endl;
   }
 
   // Add all datasets
