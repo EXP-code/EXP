@@ -832,9 +832,6 @@ void Component::configure(void)
     if (cconf["noswitch"])   noswitch  = cconf["noswitch"].as<bool>();
     if (cconf["freezeL"])   freezeLev  = cconf["freezeL" ].as<bool>();
     if (cconf["dtreset"])     dtreset  = cconf["dtreset" ].as<bool>();
-    if (cconf["H5compress"])
-                           H5compress  = cconf["H5compress"].as<int>();
-    if (cconf["H5chunk"])     H5chunk  = cconf["H5chunk"   ].as<int>();
     
     if (cconf["ton"]) {
       ton = cconf["ton"].as<double>();
@@ -2252,7 +2249,8 @@ void Component::write_binary(ostream* out, bool real4)
     
 }
 
-//! Write HDF5 phase-space structure
+//! Write HDF5 phase-space structure for this nodes particles only.
+//! Use template to specialize to either float or double precision.
 template <typename T>
 void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
 {
@@ -2271,53 +2269,68 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
   if (ndattrib) dattrib.resize(nbodies, niattrib);
     
   unsigned int ctr = 0;
-    
-  // First bunch of particles
-  int number = -1;
-  PartPtr *p = get_particles(&number);
-  
-  // Keep going...
-  while (p) {
-    for (int k=0; k<number; k++) {
-      auto &P = *p;
-      if (masses) mas[ctr] = P->mass;
-      if (IDs)    ids[ctr] = P->indx;
-      for (int j=0; j<3; j++) pos(ctr, j) = p[k]->pos[j];
-      for (int j=0; j<3; j++) vel(ctr, j) = p[k]->vel[j];
-      for (int j=0; j<niattrib; j++) iattrib(ctr, j) = p[k]->iattrib[j];
-      for (int j=0; j<ndattrib; j++) dattrib(ctr, j) = p[k]->dattrib[j];
-      // Increment array position
-      ctr++;
-    }
-    // Next bunch of particles
-    p = get_particles(&number);
+  for (auto it=particles.begin(); it!=particles.end(); it++) {
+
+    // Get the particle pointer
+    auto &P = it->second;
+
+    // Pack HDF5 data
+    if (masses) mas[ctr] = P->mass;
+    if (IDs)    ids[ctr] = P->indx;
+    for (int j=0; j<3; j++) pos(ctr, j) = P->pos[j];
+    for (int j=0; j<3; j++) vel(ctr, j) = P->vel[j];
+    for (int j=0; j<niattrib; j++) iattrib(ctr, j) = P->iattrib[j];
+    for (int j=0; j<ndattrib; j++) dattrib(ctr, j) = P->dattrib[j];
+
+    // Increment array position
+    ctr++;
   }
   
-  auto dcpl = HighFive::DataSetCreateProps{};
+  // Set properties, if requested
+  auto dcpl1 = HighFive::DataSetCreateProps{};
+  auto dcpl3 = HighFive::DataSetCreateProps{};
+  auto dcplI = HighFive::DataSetCreateProps{};
+  auto dcplD = HighFive::DataSetCreateProps{};
 
   if (H5compress) {
-    dcpl.add(HighFive::Chunking(H5chunk, 1));
-    dcpl.add(HighFive::Shuffle());
-    dcpl.add(HighFive::Deflate(H5compress));
+    int chunk = H5chunk;
+
+    // Sanity
+    if (H5chunk >= nbodies) {
+      chunk = nbodies/8;
+    }
+
+    dcpl1.add(HighFive::Chunking(chunk));
+    dcpl1.add(HighFive::Shuffle());
+    dcpl1.add(HighFive::Deflate(H5compress));
+
+    dcpl3.add(HighFive::Chunking(chunk, 3));
+    dcpl3.add(HighFive::Shuffle());
+    dcpl3.add(HighFive::Deflate(H5compress));
+
+    if (niattrib) dcplI.add(HighFive::Chunking(chunk, niattrib));
+    if (ndattrib) dcplD.add(HighFive::Chunking(chunk, ndattrib));
+
+    std::cout << "Using compression=" << H5compress << " with chunk size " << chunk << std::endl;
   }
 
   // Add all datasets
   if (masses) {
-    HighFive::DataSet ds = group.createDataSet("Masses", mas, dcpl);
+    HighFive::DataSet ds = group.createDataSet("Masses", mas, dcpl1);
   }
   
   if (IDs) {
-    HighFive::DataSet ds = group.createDataSet("ParticleIDs", ids, dcpl);
+    HighFive::DataSet ds = group.createDataSet("ParticleIDs", ids, dcpl1);
   }
   
-  HighFive::DataSet dsPos = group.createDataSet("Coordinates", pos, dcpl);
-  HighFive::DataSet dsVel = group.createDataSet("Velocities",  vel);
+  HighFive::DataSet dsPos = group.createDataSet("Coordinates", pos, dcpl3);
+  HighFive::DataSet dsVel = group.createDataSet("Velocities",  vel, dcpl3);
   
   if (niattrib>0) 
-    HighFive::DataSet dsInt = group.createDataSet("IntAttributes",  iattrib, dcpl);
+    HighFive::DataSet dsInt = group.createDataSet("IntAttributes",  iattrib, dcplI);
 
   if (ndattrib>0) 
-    HighFive::DataSet dsReal = group.createDataSet("RealAttributes",  dattrib, dcpl);
+    HighFive::DataSet dsReal = group.createDataSet("RealAttributes",  dattrib, dcplD);
 }
 
 // Explicit instantiations for float and double
