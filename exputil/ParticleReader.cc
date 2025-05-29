@@ -686,7 +686,12 @@ namespace PR {
 	//
 	params.getAttribute("ComponentNames").read(comps);
 
+	// Set some defaults
+	curcomp = comps[0];
+	curindx = 0;
+
 	// Get number of types
+	//
 	config.getAttribute("NTYPES").read(ntypes);
 
 	config.getAttribute("Niattrib").read(Niattrib);
@@ -765,7 +770,7 @@ namespace PR {
 	  Eigen::Matrix<int,    Eigen::Dynamic, Eigen::Dynamic> iattrib;
 	  Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> rattrib;
 
-	  if (mass[curindx] > 0)
+	  if (mass[curindx] == 0)
 	    part.getDataSet("Masses").read(mas);
 	  
 	  part.getDataSet("Coordinates").read(pos);
