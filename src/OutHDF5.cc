@@ -23,7 +23,9 @@ OutHDF5::valid_keys = {
   "real4",
   "real8",
   "timer",
-  "threads"
+  "threads,"
+  "H5compress",
+  "H5chunk"
 };
 
 OutHDF5::OutHDF5(const YAML::Node& conf) : Output(conf)
@@ -95,6 +97,16 @@ void OutHDF5::initialize()
       threads = Output::conf["threads"].as<int>();
     else
       threads = 0;
+
+    int H5compress = 0, H5chunk = 0;
+    if (Output::conf["H5compress"])
+      H5compress  = Output::conf["H5compress"].as<int>();
+
+    if (Output::conf["H5chunk"])
+      H5chunk  = Output::conf["H5chunk"].as<int>();
+
+    if (H5chunk>0) 
+      for (auto c : comp->components) c->setH5(H5compress, H5chunk);
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in OutHDF5: "
@@ -156,7 +168,7 @@ void OutHDF5::Run(int n, int mstep, bool last)
   std::ostringstream fname;
 
   // Output name prefix
-  fname << filename << "." << setw(5) << setfill('0') << nbeg++;
+  fname << filename << "_" << setw(5) << setfill('0') << nbeg++;
   if (numprocs>1) fname << "." << myid+1;
 
   // Master file name
@@ -185,59 +197,46 @@ void OutHDF5::Run(int n, int mstep, bool last)
       //
       HighFive::Group header = file->createGroup("Header");
       int dp = 1;
-      header.createAttribute<int>
-	("Flag_DoublePrecision", HighFive::DataSpace::From(dp)).write(dp);
+      header.createAttribute("Flag_DoublePrecision", dp);
 
       double hubble = 1, zero = 0;
-      header.createAttribute<double>
-	("HubbleParam", HighFive::DataSpace::From(hubble)).write(hubble);
+      header.createAttribute("HubbleParam", hubble);
 
-      header.createAttribute<double>
-	("Omega0", HighFive::DataSpace::From(zero)).write(zero);
+      header.createAttribute("Omega0", zero);
 
-      header.createAttribute<double>
-	("OmegaBaryon", HighFive::DataSpace::From(zero)).write(zero);
+      header.createAttribute("OmegaBaryon", zero);
 
-      header.createAttribute<double>
-	("OmegaLambda", HighFive::DataSpace::From(zero)).write(zero);
+      header.createAttribute("OmegaLambda", zero);
 
-      header.createAttribute<double>
-	("Redshift", HighFive::DataSpace::From(zero)).write(zero);
+      header.createAttribute("Redshift", zero);
 
       if (masses.size()==0) checkParticleMasses();
-      header.createAttribute
-	<std::vector<double>>("MassTable", HighFive::DataSpace::From(masses)).write(masses);
+      header.createAttribute("MassTable", masses);
 
-      header.createAttribute<int>
-	("NumFilesPerSnapshot", HighFive::DataSpace::From(numprocs)).write(numprocs);
+      header.createAttribute("NumFilesPerSnapshot", numprocs);
       
       std::vector<unsigned long> nums(masses.size());
       {
 	int n=0;
 	for (auto c : comp->components) nums[n++] = c->Number();
       }
-      header.createAttribute<std::vector<unsigned long>>
-	("NumPart_ThisFile", HighFive::DataSpace::From(nums)).write(nums);
+      header.createAttribute("NumPart_ThisFile", nums);
       {
 	int n=0;
 	for (auto c : comp->components) nums[n++] = c->CurTotal();
       }
-      header.createAttribute<std::vector<unsigned long>>
-	("NumPart_Total", HighFive::DataSpace::From(nums)).write(nums);
+      header.createAttribute("NumPart_Total", nums);
 
-      header.createAttribute<double>
-	("Time", HighFive::DataSpace::From(tnow)).write(tnow);
+      header.createAttribute("Time", tnow);
       
       // Create a new group for Config
       //
       HighFive::Group config = file->createGroup("Config");
 
       int ntypes = comp->components.size();
-      config.createAttribute<int>
-	("NTYPES", HighFive::DataSpace::From(ntypes)).write(ntypes);
+      config.createAttribute("NTYPES", ntypes);
 
-      config.createAttribute<int>
-	("DOUBLEPRECISION", HighFive::DataSpace::From(dp)).write(dp);
+      config.createAttribute("DOUBLEPRECISION", dp);
 
       std::vector<int> Niattrib, Ndattrib;
       for (auto & c : comp->components) {
@@ -245,25 +244,18 @@ void OutHDF5::Run(int n, int mstep, bool last)
 	Ndattrib.push_back(c->ndattrib);
       }
 
-      config.createAttribute<std::vector<int>>
-	("Niattrib", HighFive::DataSpace::From(Niattrib)).write(Niattrib);
+      config.createAttribute("Niattrib", Niattrib);
 
-      config.createAttribute<std::vector<int>>
-	("Ndattrib", HighFive::DataSpace::From(Ndattrib)).write(Ndattrib);
+      config.createAttribute("Ndattrib", Ndattrib);
 
       // Create a new group for Parameters
       //
       HighFive::Group params = file->createGroup("Parameters");
       
       std::string gcommit(GIT_COMMIT), gbranch(GIT_BRANCH), gdate(COMPILE_TIME);
-      params.createAttribute<std::string>("Git_commit",
-					  HighFive::DataSpace::From(gcommit)).write(gcommit);
-
-      params.createAttribute<std::string>("Git_branch",
-					  HighFive::DataSpace::From(gbranch)).write(gbranch);
-
-      params.createAttribute<std::string>("Compile_date",
-					  HighFive::DataSpace::From(gdate)).write(gdate);
+      params.createAttribute<std::string>("Git_commit", gcommit);
+      params.createAttribute<std::string>("Git_branch", gbranch);
+      params.createAttribute<std::string>("Compile_date", gdate);
 
       std::vector<std::string> names, forces, configs;
       for (auto c : comp->components) {
@@ -274,20 +266,12 @@ void OutHDF5::Run(int n, int mstep, bool last)
 	configs.push_back(out.c_str());
       }
 
-      params.createAttribute<std::vector<std::string>>
-	("ComponentNames",
-	 HighFive::DataSpace::From(names)).write(names);
-
-      params.createAttribute<std::vector<std::string>>
-	("ForceMethods",
-	 HighFive::DataSpace::From(forces)).write(forces);
-
-      params.createAttribute<std::vector<std::string>>
-	("ForceConfigurations",
-	 HighFive::DataSpace::From(configs)).write(configs);
+      params.createAttribute("ComponentNames", names);
+      params.createAttribute("ForceMethods", forces);
+      params.createAttribute("ForceConfigurations", configs);
       
     } catch (HighFive::Exception& err) {
-      std::string msg("Coefs::factory: error writing HDF5 file, ");
+      std::string msg("OutHDF5: error writing HDF5 file, ");
       throw std::runtime_error(msg + err.what());
     }
 	
@@ -364,8 +348,8 @@ void OutHDF5::checkParticleMasses()
       p = c->get_particles(&number);
     }
 
-    MPI_Allreduce(MPI_IN_PLACE, &minMass, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, &maxMass, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Bcast(&minMass, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&maxMass, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     if ( (maxMass - minMass)/maxMass < 1.0e-12) {
       masses.push_back(maxMass);

@@ -986,6 +986,15 @@ public:
   //! Compute level from minimum requested time step from last master step
   inline bool DTreset()  { return dtreset;  }
 
+  //! Set H5 compression parameters; in principle, compression can be
+  //! set per component, although it is set to be the same for all
+  //! components currently.
+  void setH5(int compress, int chunk)
+  {
+    H5compress = compress;
+    H5chunk    = chunk;
+  }
+
 #if HAVE_LIBCUDA==1
   //@{
   //! CUDA utilities for handling host <===> device exchange
