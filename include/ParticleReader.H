@@ -242,8 +242,8 @@ namespace PR
     std::vector<int> Niattrib, Ndattrib;
     std::vector<unsigned long> npart, nptot;
     unsigned long totalCount;
+    bool real4, gadget4;
     int ntypes;
-    bool real4;
     //@}
     
     //! Current file
@@ -260,6 +260,9 @@ namespace PR
 
     unsigned pcount;
     template <typename Scalar> void read_and_load();
+    template <typename Scalar> void read_and_load_gadget4();
+    template <typename Scalar> void read_and_load_psp();
+
     void getInfo();
     void packParticle();
     bool nextFile();

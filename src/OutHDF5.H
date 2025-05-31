@@ -12,6 +12,7 @@
     @param nbeg is suffix of the first phase space %dump
     @param timer set to true turns on wall-clock timer for PS output
     @param threads number of threads for binary writes
+    @param gadget set to true for Gadget-4-type HDF5
     @param noids set to true turns off particle id writing
 
 */
@@ -21,7 +22,7 @@ class OutHDF5 : public Output
 private:
 
   std::string filename;
-  bool real4=true, real8=false, ids=true, timer;
+  bool real4=true, real8=false, ids=true, gadget4=false, timer;
   int nbeg, threads;
   void initialize(void);
   std::vector<double> masses;
@@ -32,6 +33,13 @@ private:
 
   //! Check for single particle mass on the first invocation
   void checkParticleMasses();
+
+  //! Gadget-4 format
+  void RunGadget4(const std::string& path);
+  
+  //! PSP format
+  void RunPSP(const std::string& path);
+  
 
 public:
 
@@ -48,6 +56,7 @@ public:
     \param timer set to true turns on wall-clock timer for PS output
     \param threads is the thread count for binary writes
     \param noids set to true turns off particle id writing
+    \param gadget set to true for Gadget-4-type HDF5
   */
   void Run(int nstep, int mstep, bool last);
 

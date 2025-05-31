@@ -6,6 +6,8 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <H5Cpp.h>
+
 #include <highfive/H5File.hpp>
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5DataSpace.hpp>
@@ -357,8 +359,9 @@ protected:
   
   //@{
   //! HDF5 compression parameters
-  int H5compress = 0;
-  int H5chunk = 4096;
+  int  H5compress = 0;
+  bool H5shuffle = true;
+  int  H5chunk = 4096;
   //@}
 
 public:
@@ -563,9 +566,17 @@ public:
   //! Write binary component phase-space structure
   void write_binary(ostream *out, bool real4 = false);
   
+  //@{
   //! Write HDF5 phase-space structure for real or float
+
+  //! Gadget style
   template <typename T>
   void write_HDF5(HighFive::Group& group, bool masses, bool IDs);
+
+  //! PSP style
+  template <typename T>
+  void write_H5(H5::Group& group);
+  //@}
 
   //! Write header for per-node writes
   void write_binary_header(ostream* out, bool real4, std::string prefix, int nth=1);
@@ -989,9 +1000,10 @@ public:
   //! Set H5 compression parameters; in principle, compression can be
   //! set per component, although it is set to be the same for all
   //! components currently.
-  void setH5(int compress, int chunk)
+  void setH5(int compress, bool shuffle, int chunk)
   {
     H5compress = compress;
+    H5shuffle  = shuffle;
     H5chunk    = chunk;
   }
 

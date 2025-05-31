@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 				// HighFive API
+#include <H5Cpp.h>
 #include <highfive/highfive.hpp>
 #include <highfive/eigen.hpp>
 
@@ -671,7 +672,6 @@ namespace PR {
 	HighFive::Group config = h5file.getGroup("Config");
 	HighFive::Group params = h5file.getGroup("Parameters");
 
-
 	// Get particle numbers
 	//
 	header.getAttribute("NumPart_Total").read(nptot);
@@ -687,8 +687,15 @@ namespace PR {
 	params.getAttribute("ComponentNames").read(comps);
 
 	// Set some defaults
+	//
 	curcomp = comps[0];
 	curindx = 0;
+
+	// Get packing type (PSP or Gadget4; PSP is default)
+	//
+	int style;
+	config.getAttribute("PSPstyle").read(style);
+	gadget4 = (style == 0);
 
 	// Get number of types
 	//
@@ -712,7 +719,7 @@ namespace PR {
 	
     } catch (HighFive::Exception& err) {
       if (myid==0)
-	std::cerr << "---- Coefs::factory: "
+	std::cerr << "---- PSPhdf5: "
 		  << "error opening as HDF5, trying EXP native and ascii table"
 		  << std::endl;
     }
@@ -731,6 +738,13 @@ namespace PR {
   template <typename Scalar>
   void PSPhdf5::read_and_load()
   {
+    if (gadget4) read_and_load_gadget4<Scalar>();
+    else         read_and_load_psp<Scalar>();
+  }
+
+  template <typename Scalar>
+  void PSPhdf5::read_and_load_gadget4()
+  {
     // Try to catch and HDF5 and parsing errors
     //
     try {
@@ -740,7 +754,7 @@ namespace PR {
       
       // Try opening the file
       //
-      HighFive::File h5file(_files[0], HighFive::File::ReadOnly);
+      HighFive::File h5file(*curfile, HighFive::File::ReadOnly);
       
       try {
 
@@ -821,23 +835,277 @@ namespace PR {
 	}
 	// END: we have particles
 
-      } catch (HighFive::Exception& err) {
+      } catch (HighFive::Exception & err) {
 	std::string msg("PSPhdf5: error reading HDF5 file, ");
 	throw std::runtime_error(msg + err.what());
       }
 	
-    } catch (HighFive::Exception& err) {
+    } catch (HighFive::Exception & err) {
       if (myid==0)
-	std::cerr << "---- Coefs::factory: "
+	std::cerr << "---- PSPhdf5 gadget-4 read error: "
 		  << "error opening as HDF5, trying EXP native and ascii table"
 		  << std::endl;
     }
 
   }
   
-  // Template specializations
+  // Helper structure
+  template <typename T>
+  struct H5Particle
+  {
+    unsigned long id;
+    T mass;
+    T pos[3];
+    T vel[3];
+    hvl_t iattrib;
+    hvl_t dattrib;
+  };
+
+  // Read and return a scalar HDF5 attribute
+  template <typename T>
+  T readScalar(H5::Group& group, const std::string& name)
+  {
+    H5::DataType type;
+
+    // Create a int datatype
+    if constexpr (std::is_same_v<T, int>) {
+      type = H5::PredType::NATIVE_INT;
+    }
+    else if constexpr (std::is_same_v<T, unsigned long>) {
+      type = H5::PredType::NATIVE_ULONG;
+    }
+    else if constexpr (std::is_same_v<T, float>) {
+      type = H5::PredType::NATIVE_FLOAT;
+    }
+    else if constexpr (std::is_same_v<T, double>) {
+      type = H5::PredType::NATIVE_DOUBLE;
+    }
+    else if constexpr (std::is_same_v<T, std::string>) {
+      type = H5::StrType(0, H5T_VARIABLE);
+    }
+    else {
+      assert(0);
+    }
+
+    // Create the attribute
+    H5::Attribute attribute = group.openAttribute(name);
+
+    T ret;
+
+    // Treat string separately
+    if constexpr (std::is_same_v<T, std::string>) {
+      attribute.read(type, &ret);
+    } else
+      attribute.read(type, &ret);
+
+    return ret;
+  };
+
+
+  // Read and return a std::vector HDF5 attribute
+  template <typename T>
+  std::vector<T> readVector(H5::Group& group, const std::string& name)
+  {
+    H5::DataType type;
+
+    // Create a int datatype
+    if constexpr (std::is_same_v<T, int>) {
+      type = H5::PredType::NATIVE_INT;
+    }
+    else if constexpr (std::is_same_v<T, unsigned long>) {
+      type = H5::PredType::NATIVE_ULONG;
+    }
+    else if constexpr (std::is_same_v<T, float>) {
+      type = H5::PredType::NATIVE_FLOAT;
+    }
+    else if constexpr (std::is_same_v<T, double>) {
+      type = H5::PredType::NATIVE_DOUBLE;
+    }
+    else if constexpr (std::is_same_v<T, std::string>) {
+      type = H5::StrType(0, H5T_VARIABLE);
+    }
+    else {
+      assert(0);
+    }
+
+    // Create the attribute
+    H5::Attribute attribute = group.openAttribute(name);
+    H5::DataType  attributeType = attribute.getDataType();
+    hsize_t attributeSize = attribute.getSpace().getSimpleExtentNpoints();
+
+    // Create the return value
+    std::vector<T> ret(attributeSize);
+
+
+    // Treat string separately
+    if constexpr (std::is_same_v<T, std::string>) {
+      // Allocate memory for string pointers
+        std::vector<char*> stringPointers(attributeSize);
+
+        // Read the string data
+        attribute.read(attributeType, stringPointers.data());
+
+        // Create std::vector<std::string>
+        for (int i = 0; i < attributeSize; ++i) {
+	  ret.emplace_back(stringPointers[i]);
+        }
+
+        // Release memory allocated by HDF5
+	H5::DataSet::vlenReclaim(stringPointers.data(), attributeType, attribute.getSpace());
+    } else
+      attribute.read(attributeType, ret.data());
+
+    return ret;
+  };
+
+
+  template <typename Scalar>
+  void PSPhdf5::read_and_load_psp()
+  {
+    // Try to catch and HDF5 and parsing errors
+    //
+    try {
+      // Try opening the file
+      //
+      H5::H5File file(*curfile, H5F_ACC_RDONLY);
+
+      try {
+
+	// Define the compound datatype
+	//
+	H5::CompType compound_type(sizeof(H5Particle<Scalar>));
+    
+	H5::DataType type;
+	if constexpr (std::is_same_v<Scalar, double>)
+	  type = H5::PredType::NATIVE_DOUBLE;
+	else if constexpr (std::is_same_v<Scalar, float>)
+	  type = H5::PredType::NATIVE_FLOAT;
+	else assert(0);
+
+	// Add members
+	compound_type.insertMember("id",   HOFFSET(H5Particle<Scalar>, id), H5::PredType::NATIVE_INT);
+	compound_type.insertMember("mass", HOFFSET(H5Particle<Scalar>, mass), type);
+
+	hsize_t dims3[1] = {3};
+	H5::ArrayType array3_type(type, 1, dims3);
+	
+	compound_type.insertMember("pos",     HOFFSET(H5Particle<Scalar>, pos), array3_type);
+	compound_type.insertMember("vel",     HOFFSET(H5Particle<Scalar>, vel), array3_type);
+	compound_type.insertMember("iattrib", HOFFSET(H5Particle<Scalar>, iattrib), H5::VarLenType(H5::PredType::NATIVE_INT));
+	compound_type.insertMember("dattrib", HOFFSET(H5Particle<Scalar>, dattrib), H5::VarLenType(type));
+
+	// Open the particle group
+	//
+	H5::Group header = file.openGroup("Header");
+
+	// Get time
+	//
+	time = readScalar<double>(header, "Time");
+
+	// Get particle counts
+	//
+	npart = readVector<unsigned long>(header, "NumPart_ThisFile");
+
+	if (npart[curindx] > 0) {
+	  // Make the group name
+	  //
+	  std::ostringstream sout;
+	  sout << "PartType" << curindx;
+	  
+	  // Open the phase-space group
+	  //
+	  H5::Group part = file.openGroup(sout.str());
+
+	  // Clear and load the particle vector
+	  //
+	  particles.clear();
+	  
+	  // Working particle; will be copied to particles array
+	  //
+	  Particle P;
+
+	  // Get the particle dataset from HDF5
+	  //
+	  H5::DataSet   dataset   = part.openDataSet("particles");
+	  H5::DataSpace dataspace = dataset.getSpace();
+
+	  // Sanity check
+	  //
+	  hsize_t dims[1];
+	  dataspace.getSimpleExtentDims(dims);
+	  size_t num_elements = dims[0];
+
+	  if (num_elements != npart[curindx])
+	    throw std::runtime_error("PSPhdf5: number of particles in file does not match the number in header");
+
+	  // Read particles
+	  //
+	  std::vector<H5Particle<Scalar>> h5part(num_elements);
+	  dataset.read(h5part.data(), compound_type);
+
+	  // Load from the HDF5 dataset
+	  //
+	  for (int n=0; n<npart[curindx]; n++) {
+
+	    if (n % numprocs ==  myid) {
+
+	      // Assign the standard fields
+	      //
+	      P.mass = h5part[n].mass;
+	      P.level = 0;
+
+	      for (int k=0; k<3; k++) {
+		P.pos[k] = h5part[n].pos[k];
+		P.vel[k] = h5part[n].vel[k];
+	      }
+
+	      // Unpack the variable length attribute arrays
+	      //
+	      if (Niattrib[curindx]>0) {
+		P.iattrib.resize(Niattrib[curindx]);
+		// Access data by pointer
+		int* ptr = (int*)h5part[n].iattrib.p;
+		for (int j=0; j<Niattrib[curindx]; j++)
+		  P.iattrib[j] = ptr[j];
+	      }
+		
+	      if (Ndattrib[curindx]>0) {
+		P.iattrib.resize(Ndattrib[curindx]);
+		// Access data by pointer
+		Scalar* ptr = (Scalar*)h5part[n].dattrib.p;
+		for (int j=0; j<Ndattrib[curindx]; j++)
+		  P.dattrib[j] = ptr[j];
+	      }
+		
+	      particles.push_back(P);
+	    }
+	    // END: parallel stanza
+	  }
+	  // END: load the particle vector
+	}
+	// END: we have particles
+
+      } catch (H5::Exception & err) {
+	std::string msg("PSPpsp: error reading HDF5 file, ");
+	throw std::runtime_error(msg + err.getDetailMsg());
+      }
+	
+    } catch (H5::Exception & err) {
+      if (myid==0)
+	std::cerr << "---- PSPhdf5 HDF5 file error: "
+		  << "error opening as HDF5, trying EXP native and ascii table, "
+		  << err.getDetailMsg()
+		  << std::endl;
+    }
+  }
+  
+  // Template specializations to allow linking from other modules
   template void PSPhdf5::read_and_load<float>();
   template void PSPhdf5::read_and_load<double>();
+  template void PSPhdf5::read_and_load_gadget4<float>();
+  template void PSPhdf5::read_and_load_gadget4<double>();
+  template void PSPhdf5::read_and_load_psp<float>();
+  template void PSPhdf5::read_and_load_psp<double>();
 
   const Particle* PSPhdf5::firstParticle()
   {
@@ -1579,6 +1847,9 @@ namespace PR {
 	}
       }
     }
+
+    // Final batch
+    if (batch.size()) batches.push_back(batch);
 
     return batches;
   }

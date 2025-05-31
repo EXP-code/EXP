@@ -88,7 +88,8 @@ const std::set<std::string> Component::valid_keys_parm =
     "freezeL",
     "dtreset",
     "H5compress",
-    "H5chunk"
+    "H5shuffle",
+    "H5chunk",
   };
 
 const std::set<std::string> Component::valid_keys_force =
@@ -2301,15 +2302,23 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
     }
 
     dcpl1.add(HighFive::Chunking(chunk));
-    dcpl1.add(HighFive::Shuffle());
+    if (H5shuffle) dcpl1.add(HighFive::Shuffle());
     dcpl1.add(HighFive::Deflate(H5compress));
 
     dcpl3.add(HighFive::Chunking(chunk, 3));
-    dcpl3.add(HighFive::Shuffle());
+    if (H5shuffle) dcpl3.add(HighFive::Shuffle());
     dcpl3.add(HighFive::Deflate(H5compress));
 
-    if (niattrib) dcplI.add(HighFive::Chunking(chunk, niattrib));
-    if (ndattrib) dcplD.add(HighFive::Chunking(chunk, ndattrib));
+    if (niattrib) {
+      dcplI.add(HighFive::Chunking(chunk, niattrib));
+      if (H5shuffle) dcplI.add(HighFive::Shuffle());
+      dcplI.add(HighFive::Deflate(H5compress));
+    }
+    if (ndattrib) {
+      dcplD.add(HighFive::Chunking(chunk, ndattrib));
+      if (H5shuffle) dcplD.add(HighFive::Shuffle());
+      dcplD.add(HighFive::Deflate(H5compress));
+    }
   }
 
   // Add all datasets
@@ -2339,6 +2348,118 @@ void Component::write_HDF5<float>
 template
 void Component::write_HDF5<double>
 (HighFive::Group& group, bool masses, bool IDs);
+
+// Helper structure
+template <typename T>
+struct H5Particle
+{
+  unsigned long id;
+  T mass;
+  T pos[3];
+  T vel[3];
+  hvl_t iattrib;
+  hvl_t dattrib;
+};
+
+
+//! Write HDF5 phase-space structure for this nodes particles only.
+template <typename T>
+void Component::write_H5(H5::Group& group)
+{
+  try {
+
+    // Define the compound datatype
+    H5::CompType compound_type(sizeof(H5Particle<T>));
+    
+    H5::DataType type;
+    if constexpr (std::is_same_v<T, double>)
+      type = H5::PredType::NATIVE_DOUBLE;
+    else if constexpr (std::is_same_v<T, float>)
+      type = H5::PredType::NATIVE_FLOAT;
+    else assert(0);
+
+    // Add members to the type
+    compound_type.insertMember("id",   HOFFSET(H5Particle<T>, id), H5::PredType::NATIVE_INT);
+    compound_type.insertMember("mass", HOFFSET(H5Particle<T>, mass), type);
+
+    hsize_t dims3[1] = {3};
+    H5::ArrayType array3_type(type, 1, dims3);
+
+    compound_type.insertMember("pos",     HOFFSET(H5Particle<T>, pos), array3_type);
+    compound_type.insertMember("vel",     HOFFSET(H5Particle<T>, vel), array3_type);
+    compound_type.insertMember("iattrib", HOFFSET(H5Particle<T>, iattrib), H5::VarLenType(H5::PredType::NATIVE_INT));
+    compound_type.insertMember("dattrib", HOFFSET(H5Particle<T>, dattrib), H5::VarLenType(type));
+
+    
+    // Create the data space
+    std::vector<H5Particle<T>> h5_particles(particles.size());
+
+    size_t n = 0;
+    for (auto it=particles.begin(); it!=particles.end(); it++, n++) {
+
+      // Get the particle pointer
+      auto &P = it->second;
+
+      // Load the data
+      h5_particles[n].id = P->indx;
+      h5_particles[n].mass = P->mass;
+      for (int k=0; k<3; k++) {
+	h5_particles[n].pos[k] = P->pos[k];
+	h5_particles[n].vel[k] = P->vel[k];
+      }
+      h5_particles[n].iattrib.len = P->iattrib.size();
+      h5_particles[n].dattrib.len = P->dattrib.size();
+      h5_particles[n].iattrib.p   = P->iattrib.data();
+      h5_particles[n].dattrib.p   = P->dattrib.data();
+    }
+
+    // Set properties, if requested
+    H5::DSetCreatPropList dcpl;
+
+    // This could be generalized by registering a user filter, like
+    // blosc.  Right now, we're using the default (which is gzip)
+    if (H5compress) {
+      int chunk = H5chunk;
+      
+      // Sanity
+      if (H5chunk >= nbodies) {
+	chunk = nbodies/8;
+      }
+      
+      // Set chunking
+      hsize_t chunk_dims[1] = {chunk};
+      dcpl.setChunk(1, chunk_dims);
+
+      // Set compression level
+      dcpl.setDeflate(H5compress);
+
+      // Enable shuffle filter
+      dcpl.setShuffle();
+    }
+
+    // Create dataspace
+    hsize_t dims[1] = {h5_particles.size()};
+    H5::DataSpace dataspace(1, dims);
+
+    // Create dataset
+    H5::DataSet dataset = group.createDataSet("particles", compound_type, dataspace, dcpl);
+
+    // Write data to the dataset
+    dataset.write(h5_particles.data(), compound_type);
+
+  } catch (H5::Exception &error) {
+    throw std::runtime_error("Component::writeH5 error: " + error.getDetailMsg());
+  }
+
+}
+
+// Explicit instantiations for float and double
+template
+void Component::write_H5<float>(H5::Group& group);
+
+template
+void Component::write_H5<double>(H5::Group& group);
+
 
 void Component::write_binary_header(ostream* out, bool real4, const std::string prefix, int nth)
 {

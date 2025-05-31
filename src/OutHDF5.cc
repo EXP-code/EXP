@@ -1,3 +1,4 @@
+#include <type_traits>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -5,6 +6,7 @@
 #include <chrono>
 
 // HighFive API for HDF5
+#include <H5Cpp.h>
 #include <highfive/highfive.hpp>
 #include <highfive/eigen.hpp>
 
@@ -24,6 +26,7 @@ OutHDF5::valid_keys = {
   "real8",
   "timer",
   "threads,"
+  "gadget",
   "H5compress",
   "H5chunk"
 };
@@ -98,15 +101,29 @@ void OutHDF5::initialize()
     else
       threads = 0;
 
+    if (Output::conf["gadget"])
+      gadget4 = Output::conf["gadget"].as<bool>();
+    else
+      gadget4 = false;
+
+    // Default HDF5 compression is no compression.  By default,
+    // shuffle is on unless turned off manually.
+    //
     int H5compress = 0, H5chunk = 0;
+    bool H5shuffle= true;
+
     if (Output::conf["H5compress"])
       H5compress  = Output::conf["H5compress"].as<int>();
+
+    if (Output::conf["H5shuffle"])
+      H5shuffle  = Output::conf["H5shuffle"].as<bool>();
 
     if (Output::conf["H5chunk"])
       H5chunk  = Output::conf["H5chunk"].as<int>();
 
+    // Register compression parameters win the Component instance
     if (H5chunk>0) 
-      for (auto c : comp->components) c->setH5(H5compress, H5chunk);
+      for (auto c : comp->components) c->setH5(H5compress, H5shuffle, H5chunk);
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in OutHDF5: "
@@ -174,6 +191,24 @@ void OutHDF5::Run(int n, int mstep, bool last)
   // Master file name
   std::string path = outdir + fname.str();
 
+  if (gadget4) RunGadget4(path);
+  else         RunPSP(path);
+
+  chktimer.mark();
+
+  dump_signal = 0;
+
+  if (timer) {
+    end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> intvl = end - beg;
+    if (myid==0)
+      std::cout << "OutHDF5 [T=" << tnow << "] timing=" << intvl.count()
+		<< std::endl;
+  }
+}
+
+void OutHDF5::RunGadget4(const std::string& path)
+{
   int nOK = 0;
 
   std::unique_ptr<HighFive::File> file;
@@ -233,6 +268,9 @@ void OutHDF5::Run(int n, int mstep, bool last)
       //
       HighFive::Group config = file->createGroup("Config");
 
+      int style = 0;
+      config.createAttribute("PSPstyle", style);
+
       int ntypes = comp->components.size();
       config.createAttribute("NTYPES", ntypes);
 
@@ -290,10 +328,9 @@ void OutHDF5::Run(int n, int mstep, bool last)
     exit(33);
   }
   
-  
   int count = 0;
   for (auto c : comp->components) {
-
+    
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {
       if (c->force->cudaAware() and not comp->fetched[c]) {
@@ -313,17 +350,209 @@ void OutHDF5::Run(int n, int mstep, bool last)
     else
       c->write_HDF5<double>(pgroup, multim[count], ids);
   }
+}
 
-  chktimer.mark();
 
-  dump_signal = 0;
+// Template to write a scalar attribute for types used here
+template <typename T>
+void writeScalar(H5::Group& group, const std::string& name, T value)
+  {
+    // Create a dataspace for the attribute (scalar in this case)
+    H5::DataSpace space(H5S_SCALAR);
+	
+    H5::DataType type;
 
-  if (timer) {
-    end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> intvl = end - beg;
-    if (myid==0)
-      std::cout << "OutHDF5 [T=" << tnow << "] timing=" << intvl.count()
-		<< std::endl;
+    // Create a int datatype
+    if constexpr (std::is_same_v<T, int>) {
+      type = H5::PredType::NATIVE_INT;
+    }
+    else if constexpr (std::is_same_v<T, unsigned long>) {
+      type = H5::PredType::NATIVE_ULONG;
+    }
+    else if constexpr (std::is_same_v<T, float>) {
+      type = H5::PredType::NATIVE_FLOAT;
+    }
+    else if constexpr (std::is_same_v<T, double>) {
+      type = H5::PredType::NATIVE_DOUBLE;
+    }
+    else if constexpr (std::is_same_v<T, std::string>) {
+      type = H5::StrType(0, H5T_VARIABLE);
+    }
+    else {
+      assert(0);
+    }
+
+    // Create the attribute
+    H5::Attribute attribute = group.createAttribute(name, type, space);
+
+    // Treat string separately
+    if constexpr (std::is_same_v<T, std::string>) {
+      const char* strPtr = value.c_str();
+      attribute.write(type, &strPtr);
+    } else
+      attribute.write(type, &value);
+  };
+
+
+// Template to write a std::vector attribute for types used here
+template <typename T>
+void writeVector(H5::Group& group, const std::string& name, std::vector<T>& value)
+  {
+    // Create a dataspace for the attribute
+    hsize_t attrDims[1] = {value.size()};
+    H5::DataSpace attribute_space(1, attrDims);
+
+    H5::DataType type;
+
+    // Create a int datatype
+    if constexpr (std::is_same_v<T, int>) {
+      type = H5::PredType::NATIVE_INT;
+    }
+    else if constexpr (std::is_same_v<T, unsigned long>) {
+      type = H5::PredType::NATIVE_ULONG;
+    }
+    else if constexpr (std::is_same_v<T, float>) {
+      type = H5::PredType::NATIVE_FLOAT;
+    }
+    else if constexpr (std::is_same_v<T, double>) {
+      type = H5::PredType::NATIVE_DOUBLE;
+    }
+    else if constexpr (std::is_same_v<T, std::string>) {
+      type = H5::StrType(0, H5T_VARIABLE);
+    }
+    else {
+      assert(0);
+    }
+
+    // Create the attribute
+    H5::Attribute attribute = group.createAttribute(name, type, attribute_space);
+
+    // Treat string separately
+    if constexpr (std::is_same_v<T, std::string>) {
+      std::vector<const char*> strVec;
+      for (auto & v : value) strVec.push_back(v.c_str());
+      attribute.write(type, strVec.data());
+    } else
+      attribute.write(type, value.data());
+  };
+
+
+void OutHDF5::RunPSP(const std::string& path)
+{
+  int nOK = 0;
+
+  // Begin HDF5 file writing
+  //
+  try {
+    // Create a file
+    H5::H5File file(path.c_str(), H5F_ACC_EXCL);
+
+    try {
+
+      // Create a new group for Header
+      //
+      H5::Group header = file.createGroup("Header");
+
+      int dp = real4 ? 0 : 1;
+      writeScalar(header, "Flag_DoublePrecision", dp);
+
+      double hubble = 1, zero = 0;
+
+      writeScalar(header, "HubbleParam", hubble);
+      writeScalar(header, "Omega0",      zero  );
+      writeScalar(header, "OmegaBaryon", zero  );
+      writeScalar(header, "OmegaLambda", zero  );
+      writeScalar(header, "Redshift",    zero  );
+
+      if (masses.size()==0) checkParticleMasses();
+      writeVector(header, "MassTable", masses);
+
+      writeScalar(header, "NumFilesPerSnapshot", numprocs);
+      
+      std::vector<unsigned long> nums(masses.size());
+      {
+	int n=0;
+	for (auto c : comp->components) nums[n++] = c->Number();
+      }
+      writeVector(header, "NumPart_ThisFile", nums);
+      {
+	int n=0;
+	for (auto c : comp->components) nums[n++] = c->CurTotal();
+      }
+      writeVector(header, "NumPart_Total", nums);
+
+      writeScalar(header, "Time", tnow);
+      
+      // Create a new group for Config
+      //
+      H5::Group config = file.createGroup("Config");
+
+      int style = 1;
+      writeScalar(config, "PSPstyle", style);
+
+      int ntypes = comp->components.size();
+      writeScalar(config, "NTYPES", ntypes);
+
+      writeScalar(config, "DOUBLEPRECISION", dp);
+
+      std::vector<int> Niattrib, Ndattrib;
+      for (auto & c : comp->components) {
+	Niattrib.push_back(c->niattrib);
+	Ndattrib.push_back(c->ndattrib);
+      }
+      writeVector(config, "Niattrib", Niattrib);
+      writeVector(config, "Ndattrib", Ndattrib);
+
+      // Create a new group for Parameters
+      //
+      H5::Group params = file.createGroup("Parameters");
+      
+      std::string gcommit(GIT_COMMIT), gbranch(GIT_BRANCH), gdate(COMPILE_TIME);
+      writeScalar(params, "Git_commit",   gcommit);
+      writeScalar(params, "Git_branch",   gbranch);
+      writeScalar(params, "Compile_data", gdate  );
+
+      std::vector<std::string> names, forces, configs;
+      for (auto c : comp->components) {
+	names.push_back(c->name);
+	forces.push_back(c->id);
+	YAML::Emitter out;
+	out << c->fconf; // where node is your YAML::Node
+	configs.push_back(out.c_str());
+      }
+
+      writeVector(params, "ComponentNames", names);
+      writeVector(params, "ForceMethods",  forces);
+      writeVector(params, "ForceConfigurations", configs);
+      
+    } catch (H5::Exception& error) {
+      throw std::runtime_error(std::string("OutHDF5: error writing HDF5 file ") + error.getDetailMsg());
+    }
+
+    int count = 0;
+    for (auto c : comp->components) {
+
+#ifdef HAVE_LIBCUDA
+      if (use_cuda) {
+	if (c->force->cudaAware() and not comp->fetched[c]) {
+	  comp->fetched[c] = true;
+	  c->CudaToParticles();
+	}
+      }
+#endif
+
+      std::ostringstream sout;
+      sout << "PartType" << count++;
+
+      H5::Group group = file.createGroup(sout.str());
+
+      if (real4)
+	c->write_H5<float>(group);
+      else
+	c->write_H5<double>(group);
+    }
+  } catch (H5::Exception& error) {
+    throw std::runtime_error(std::string("OutHDF5: error writing HDF5 file ") + error.getDetailMsg());
   }
 }
 
