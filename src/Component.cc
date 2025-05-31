@@ -2434,7 +2434,7 @@ void Component::write_H5(H5::Group& group)
       }
       
       // Set chunking
-      hsize_t chunk_dims[1] = {chunk};
+      hsize_t chunk_dims[1] = {static_cast<hsize_t>(chunk)};
       dcpl.setChunk(1, chunk_dims);
 
       // Set compression level
