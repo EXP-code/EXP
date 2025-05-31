@@ -2426,22 +2426,22 @@ void Component::write_H5(H5::Group& group)
     // This could be generalized by registering a user filter, like
     // blosc.  Right now, we're using the default (which is gzip)
     if (H5compress or H5chunk) {
-      int chunk = H5chunk;
-      
-      // Sanity
-      if (H5chunk >= nbodies) {
-	chunk = nbodies/8;
-      }
-      
       // Set chunking
-      hsize_t chunk_dims[1] = {static_cast<hsize_t>(chunk)};
-      dcpl.setChunk(1, chunk_dims);
+      if (H5chunk) {
+	// Sanity
+	int chunk = H5chunk;
+	if (H5chunk >= nbodies) {
+	  chunk = nbodies/8;
+	}
+	hsize_t chunk_dims[1] = {static_cast<hsize_t>(chunk)};
+	dcpl.setChunk(1, chunk_dims);
+      }
 
       // Set compression level
-      dcpl.setDeflate(H5compress);
+      if (H5compress) dcpl.setDeflate(H5compress);
 
       // Enable shuffle filter
-      dcpl.setShuffle();
+      if (H5shuffle) dcpl.setShuffle();
     }
 
     // Create dataspace
