@@ -2293,7 +2293,7 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
   auto dcplI = HighFive::DataSetCreateProps{};
   auto dcplD = HighFive::DataSetCreateProps{};
 
-  if (H5compress) {
+  if (H5compress or H5chunk) {
     int chunk = H5chunk;
 
     // Sanity
@@ -2349,7 +2349,8 @@ template
 void Component::write_HDF5<double>
 (HighFive::Group& group, bool masses, bool IDs);
 
-// Helper structure
+// Helper structure for reading and writing the HDF5 compound data
+// type.  Used by Component and ParticleReader.
 template <typename T>
 struct H5Particle
 {
@@ -2357,12 +2358,14 @@ struct H5Particle
   T mass;
   T pos[3];
   T vel[3];
-  hvl_t iattrib;
-  hvl_t dattrib;
+  T pot;
+  T potext;
+  hvl_t iattrib;		// HDF5 variable length
+  hvl_t dattrib;		// HDF5 variable length
 };
 
-
-//! Write HDF5 phase-space structure for this nodes particles only.
+// Write HDF5 phase-space structure for this nodes particles only in
+// PSP style
 template <typename T>
 void Component::write_H5(H5::Group& group)
 {
@@ -2385,8 +2388,10 @@ void Component::write_H5(H5::Group& group)
     hsize_t dims3[1] = {3};
     H5::ArrayType array3_type(type, 1, dims3);
 
-    compound_type.insertMember("pos",     HOFFSET(H5Particle<T>, pos), array3_type);
-    compound_type.insertMember("vel",     HOFFSET(H5Particle<T>, vel), array3_type);
+    compound_type.insertMember("pos",     HOFFSET(H5Particle<T>, pos   ), array3_type);
+    compound_type.insertMember("vel",     HOFFSET(H5Particle<T>, vel   ), array3_type);
+    compound_type.insertMember("pot",     HOFFSET(H5Particle<T>, pot   ), type);
+    compound_type.insertMember("potext",  HOFFSET(H5Particle<T>, potext), type);
     compound_type.insertMember("iattrib", HOFFSET(H5Particle<T>, iattrib), H5::VarLenType(H5::PredType::NATIVE_INT));
     compound_type.insertMember("dattrib", HOFFSET(H5Particle<T>, dattrib), H5::VarLenType(type));
 
@@ -2407,18 +2412,20 @@ void Component::write_H5(H5::Group& group)
 	h5_particles[n].pos[k] = P->pos[k];
 	h5_particles[n].vel[k] = P->vel[k];
       }
+      h5_particles[n].pot         = P->pot;
+      h5_particles[n].potext      = P->potext;
       h5_particles[n].iattrib.len = P->iattrib.size();
       h5_particles[n].dattrib.len = P->dattrib.size();
       h5_particles[n].iattrib.p   = P->iattrib.data();
       h5_particles[n].dattrib.p   = P->dattrib.data();
     }
 
-    // Set properties, if requested
+    // Set properties, if requested for chunking and compression
     H5::DSetCreatPropList dcpl;
 
     // This could be generalized by registering a user filter, like
     // blosc.  Right now, we're using the default (which is gzip)
-    if (H5compress) {
+    if (H5compress or H5chunk) {
       int chunk = H5chunk;
       
       // Sanity

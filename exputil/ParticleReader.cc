@@ -857,6 +857,8 @@ namespace PR {
     T mass;
     T pos[3];
     T vel[3];
+    T pot;
+    T potext;
     hvl_t iattrib;
     hvl_t dattrib;
   };
@@ -989,8 +991,10 @@ namespace PR {
 	hsize_t dims3[1] = {3};
 	H5::ArrayType array3_type(type, 1, dims3);
 	
-	compound_type.insertMember("pos",     HOFFSET(H5Particle<Scalar>, pos), array3_type);
-	compound_type.insertMember("vel",     HOFFSET(H5Particle<Scalar>, vel), array3_type);
+	compound_type.insertMember("pos",     HOFFSET(H5Particle<Scalar>, pos   ), array3_type);
+	compound_type.insertMember("vel",     HOFFSET(H5Particle<Scalar>, vel   ), array3_type);
+	compound_type.insertMember("pot",     HOFFSET(H5Particle<Scalar>, pot   ), type);
+	compound_type.insertMember("potext",  HOFFSET(H5Particle<Scalar>, potext), type);
 	compound_type.insertMember("iattrib", HOFFSET(H5Particle<Scalar>, iattrib), H5::VarLenType(H5::PredType::NATIVE_INT));
 	compound_type.insertMember("dattrib", HOFFSET(H5Particle<Scalar>, dattrib), H5::VarLenType(type));
 
@@ -1058,6 +1062,9 @@ namespace PR {
 		P.pos[k] = h5part[n].pos[k];
 		P.vel[k] = h5part[n].vel[k];
 	      }
+
+	      P.pot    = h5part[n].pot;
+	      P.potext = h5part[n].potext;
 
 	      // Unpack the variable length attribute arrays
 	      //
