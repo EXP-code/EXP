@@ -243,7 +243,7 @@ namespace PR
     std::vector<unsigned long> npart, nptot;
     unsigned long totalCount;
     bool real4, gadget4;
-    int ntypes;
+    int ntypes, nfiles;
     //@}
     
     //! Current file
@@ -306,6 +306,9 @@ namespace PR
     //! Get the next particle
     virtual const Particle* nextParticle();
     
+    //! Get file cound per snapshot
+    virtual int NumFiles() { return nfiles; }
+
   };
   
   class PSPstanza 
