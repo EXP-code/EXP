@@ -14,6 +14,7 @@
     @param threads number of threads for binary writes
     @param gadget set to true for Gadget-4-type HDF5
     @param noids set to true turns off particle id writing
+    @param checkpt sets checkpoint mode: write a real8 snapshot with a unique filename
 
 */
 class OutHDF5 : public Output
@@ -22,7 +23,7 @@ class OutHDF5 : public Output
 private:
 
   std::string filename;
-  bool real4=true, real8=false, ids=true, gadget4=false, timer;
+  bool real4=true, real8=false, ids=true, gadget4=false, chkpt=false, timer;
   int nbeg, threads;
   void initialize(void);
   std::vector<double> masses;
@@ -57,6 +58,7 @@ public:
     \param threads is the thread count for binary writes
     \param noids set to true turns off particle id writing
     \param gadget set to true for Gadget-4-type HDF5
+    \param checkpt set to true for checkpoint mode
   */
   void Run(int nstep, int mstep, bool last);
 

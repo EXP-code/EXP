@@ -5,8 +5,13 @@
 #include <sstream>
 #include <chrono>
 
-// HighFive API for HDF5
+// For unlink
+#include <unistd.h>
+
+// H5 API
 #include <H5Cpp.h>
+
+// HighFive API for HDF5
 #include <highfive/highfive.hpp>
 #include <highfive/eigen.hpp>
 
@@ -27,6 +32,7 @@ OutHDF5::valid_keys = {
   "timer",
   "threads,"
   "gadget",
+  "checkpt",
   "H5compress",
   "H5chunk"
 };
@@ -85,6 +91,13 @@ void OutHDF5::initialize()
     if (Output::conf["real8"]) {
       real8 = Output::conf["real8"].as<bool>();
       real4 = not real8;
+    }
+
+    // This will override user setting of real4...
+    if (Output::conf["checkpt"]) {
+      chkpt = true;
+      real8 = true;
+      real4 = false;
     }
 
     if (Output::conf["noids"]) {
@@ -184,11 +197,47 @@ void OutHDF5::Run(int n, int mstep, bool last)
   std::ofstream out;
   std::ostringstream fname;
 
-  // Output name prefix
-  fname << filename << "_" << setw(5) << setfill('0') << nbeg++;
-  if (numprocs>1) fname << "." << myid+1;
+  // Checkpoint mode
+  if (chkpt) {
+    // Create checkpoint filename
+    fname << "checkpoint_" << runtag;
+    if (numprocs>1) fname << "." << myid+1;
 
-  // Master file name
+    // Create backup filename
+    std::string currfile = outdir + fname.str();
+    std::string backfile = currfile + ".bak";
+
+    // Remove old backup file
+    if (unlink(backfile.c_str())) {
+      if (VERBOSE>5) perror("OutHDF5::Run()");
+      std::cout << "OutHDF5::Run(): error unlinking old backup file <" 
+		<< backfile << ">, it may not exist" << std::endl;
+    } else {
+      if (VERBOSE>5) {
+	std::cout << "OutHDF5::Run(): successfully unlinked <"
+		  << backfile << ">" << std::endl;
+      }
+    }
+
+    // Rename current file to backup file
+    if (rename(currfile.c_str(), backfile.c_str())) {
+      if (VERBOSE>5) perror("OutHDF5::Run()");
+      std::cout << "OutHDF5: renaming backup file <" 
+		<< backfile << ">, it may not exist" << std::endl;
+    } else {
+      if (VERBOSE>5) {
+	std::cout << "OutHDF5::Run(): successfully renamed <"
+		  << currfile << "> to <" << backfile << ">" << std::endl;
+      }
+    }
+  }
+  // Standard snapshot mode
+  else {
+    fname << filename << "_" << setw(5) << setfill('0') << nbeg++;
+    if (numprocs>1) fname << "." << myid+1;
+  }
+
+  // Full path
   std::string path = outdir + fname.str();
 
   if (gadget4) RunGadget4(path);
