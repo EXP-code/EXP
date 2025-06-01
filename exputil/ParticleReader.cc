@@ -646,6 +646,11 @@ namespace PR {
     _verbose = verbose;
     
     getInfo();
+
+    // Sanity check
+    if (nfiles != files.size())
+      throw GenericError("PSPhdf5: number of files does not match number expected for this snapshot", __FILE__, __LINE__, 1042, true);
+
     curfile = _files.begin();
 
     if (not nextFile()) {
@@ -681,6 +686,10 @@ namespace PR {
 	// Get particle masses
 	//
 	header.getAttribute("MassTable").read(mass);
+
+	// Number of files
+	//
+	header.getAttribute("NumFilesPerSnapshot").read(nfiles);
 
 	// Get component names
 	//
