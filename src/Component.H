@@ -18,6 +18,7 @@
 #include <Orient.H>
 #include <header.H>
 #include <localmpi.H>
+#include <ParticleReader.H>
 #include <ParticleFerry.H>
 #include <CenterFile.H>
 #include <PotAccel.H>
@@ -547,6 +548,9 @@ public:
 
   //! Initialize from file
   Component(YAML::Node&, istream *in, bool SPL);
+
+  //! Initialize from HDF5
+  Component(YAML::Node&, PR::PSPhdf5& reader);
 
   //! Destructor
   ~Component();

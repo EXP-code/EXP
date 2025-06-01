@@ -4,12 +4,14 @@
 
 #include <expand.H>
 
+#include <filesystem>
 #include <algorithm>
 #include <vector>
 #include <memory>
 
 #include <ComponentContainer.H>
 #include <ExternalCollection.H>
+#include <ParticleReader.H>
 #include <StringTok.H>
 
 #ifdef USE_GPTL
@@ -46,27 +48,50 @@ void ComponentContainer::initialize(void)
   read_rates();			// Read initial processor rates
 
 
-  bool SPL = false;		// Indicate whether file has SPL prefix
-  unsigned char ir  = 0;
-  unsigned char is = 0;
+  bool SPL  = false;		// Indicates whether file has the SPL prefix
+  bool HDF5 = false;		// Indicates an HDF5 restart directory
+
+  unsigned short ir = 0;
+  unsigned short is = 0;
+  unsigned short ih = 0;
 				// Look for a restart file
   if (myid==0) {
-    string resfile = outdir + infile;
-    ifstream in(resfile.c_str());
-    if (in) {
-      if (ignore_info)
-	cerr << "---- ComponentContainer successfully opened <"
-	     << resfile << ">, assuming a new run using a previous phase space as initial conditions" << endl;
-      else
-	cerr << "---- ComponentContainer successfully opened <"
-	     << resfile << ">, assuming a restart" << endl;
-      ir = 1;
+    std::string resfile = outdir + infile;
+
+    std::filesystem::path dir_path = resfile;
+				// If restart path is a directory,
+				// assume HDF5
+    if (std::filesystem::is_directory(dir_path)) {
+      HDF5 = true;
+      try {
+        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
+	  if (std::filesystem::is_regular_file(entry)) {
+	    ir++;
+	    auto filename = entry.path().filename().string();
+	    if (H5::H5File::isHdf5(filename.c_str())) ih++;
+	  }
+        }
+      } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "Component::initialize error: " << e.what() << std::endl;
+      }
+
     } else {
-      cerr << "---- ComponentContainer could not open <"
-	   << resfile << ">, assuming a new run" << endl;
-      ir = 0;
+      std::ifstream in(resfile.c_str());
+      if (in) {
+	if (ignore_info)
+	  cerr << "---- ComponentContainer successfully opened <"
+	       << resfile << ">, assuming a new run using a previous phase space as initial conditions" << endl;
+	else
+	  cerr << "---- ComponentContainer successfully opened <"
+	       << resfile << ">, assuming a restart" << endl;
+	ir = 1;
+      } else {
+	cerr << "---- ComponentContainer could not open <"
+	     << resfile << ">, assuming a new run" << endl;
+	ir = 0;
+      }
+      if (infile.find("SPL") != std::string::npos) is = 1;
     }
-    if (infile.find("SPL") != std::string::npos) is = 1;
   }
 
   MPI_Bcast(&ir, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
@@ -77,68 +102,116 @@ void ComponentContainer::initialize(void)
 
   if (restart) {
 
-    struct MasterHeader master;
-    ifstream in;
+    if (HDF5) {
+      if (ir != ih)
+	throw std::runtime_error("ComponentContainer::initialize HDF5 restart file count mismatch");
+
+      std::filesystem::path dir_path = outdir + infile;
+      std::vector<std::string> files;
+      try {
+        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
+	  if (std::filesystem::is_regular_file(entry)) files.push_back(entry.path().filename().string());
+        }
+      } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "ComponentContainer::initialize HDF5 file listing error: " << e.what() << std::endl;
+      }
+
+      PR::PSPhdf5 reader(files, true);
+
+      auto types = reader.GetTypes();
+
+      if (not ignore_info) tnow = reader.CurrentTime();
+
+
+      if (myid==0) {
+	if (ignore_info) {
+	  cout << "Found: "
+	       << "  Ntot="  << reader.CurrentNumber()
+	       << "  Ncomp=" << types.size() << std::endl;
+	  
+	} else {
+	  cout << "Recovering from: "
+	       << "  Tnow="  << tnow
+	       << "  Ntot="  << reader.CurrentNumber()
+	       << "  Ncomp=" << types.size() << endl;
+	}
+      }
+
+      YAML::Node comp = parse["Components"];
+
+      // Will use ParticleReader to load particles without the usual
+      // ParticleFerry
+      if (comp.IsSequence()) {
+	for (int i=0; i<ncomp; i++) {
+	  YAML::Node cur = comp[i];
+	  components.push_back(new Component(cur, reader));
+	}
+      }
+      
+    } else {
+      struct MasterHeader master;
+      std::ifstream in;
 
 				// Open file
-    if (myid==0) {
+      if (myid==0) {
 
-      string resfile = outdir + infile;
-      in.open(resfile);
-      if (in.fail()) {
-	throw FileOpenError(resfile, __FILE__, __LINE__);
+	std::string resfile = outdir + infile;
+	in.open(resfile);
+	if (in.fail()) {
+	  throw FileOpenError(resfile, __FILE__, __LINE__);
+	}
+
+	in.read((char *)&master, sizeof(MasterHeader));
+	if (in.fail()) {
+	  std::ostringstream sout;
+	  sout << "ComponentContainer::initialize: "
+	       << "could not read master header from <"
+	       << resfile << ">";
+	  throw GenericError(sout.str(), __FILE__, __LINE__);
+	}
+	
+	if (ignore_info) {
+	  cout << "Found: "
+	       << "  Ntot="  << master.ntot
+	       << "  Ncomp=" << master.ncomp << endl;
+	  
+	} else {
+	  cout << "Recovering from: "
+	       << "  Tnow="  << master.time
+	       << "  Ntot="  << master.ntot
+	       << "  Ncomp=" << master.ncomp << endl;
+
+	  tnow  = master.time;
+	}
+      
+	ntot  = master.ntot;
+	ncomp = master.ncomp;
       }
 
-      in.read((char *)&master, sizeof(MasterHeader));
-      if (in.fail()) {
-	std::ostringstream sout;
-	sout << "ComponentContainer::initialize: "
-	     << "could not read master header from <"
-	     << resfile << ">";
-	throw GenericError(sout.str(), __FILE__, __LINE__);
-      }
+      MPI_Bcast(&tnow,  1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-      if (ignore_info) {
-	cout << "Found: "
-	     << "  Ntot="  << master.ntot
-	     << "  Ncomp=" << master.ncomp << endl;
+      MPI_Bcast(&ntot,  1, MPI_INT,    0, MPI_COMM_WORLD);
+      
+      MPI_Bcast(&ncomp, 1, MPI_INT,    0, MPI_COMM_WORLD);
+      
 
-      } else {
-	cout << "Recovering from: "
-	     << "  Tnow="  << master.time
-	     << "  Ntot="  << master.ntot
-	     << "  Ncomp=" << master.ncomp << endl;
+      YAML::Node comp = parse["Components"];
 
-	tnow  = master.time;
+      if (comp.IsSequence()) {
+	for (int i=0; i<ncomp; i++) {
+	  YAML::Node cur = comp[i];
+	  components.push_back(new Component(cur, &in, SPL));
+	  // Could reassign "comp[ncomp] = cur" to capture defaults
+	}
       }
       
-      ntot  = master.ntot;
-      ncomp = master.ncomp;
-    }
-
-    MPI_Bcast(&tnow,  1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-    MPI_Bcast(&ntot,  1, MPI_INT,    0, MPI_COMM_WORLD);
-      
-    MPI_Bcast(&ncomp, 1, MPI_INT,    0, MPI_COMM_WORLD);
-      
-
-    YAML::Node comp = parse["Components"];
-
-    if (comp.IsSequence()) {
-      for (int i=0; i<ncomp; i++) {
-	YAML::Node cur = comp[i];
-	components.push_back(new Component(cur, &in, SPL));
-	// Could reassign "comp[ncomp] = cur" to capture defaults
+      try {
+	in.close();
       }
-    }
-      
-    try {
-      in.close();
-    }
-    catch (const ifstream::failure& e) {
-      std::cout << "ComponentContainer: exception closing file <"
-		<< outdir + infile << ">: " << e.what() << std::endl;
+      catch (const ifstream::failure& e) {
+	std::cout << "ComponentContainer: exception closing file <"
+		  << outdir + infile << ">: " << e.what() << std::endl;
+      }
     }
 
   } else {

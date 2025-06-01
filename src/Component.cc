@@ -779,6 +779,180 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   pbuf.resize(PFbufsz);
 }
 
+Component::Component(YAML::Node& CONF, PR::PSPhdf5& reader) : conf(CONF)
+{
+  // Make a copy
+  conf = CONF;
+
+  try {
+    name = conf["name"].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << __FILE__ << ": " << __LINE__ << std::endl
+			   << "Error parsing component 'name': "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    throw std::runtime_error("Component: error parsing component <name>");
+  }
+
+  try {
+    cconf = conf["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing 'parameters' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf
+			   << std::string(60, '-') << std::endl;
+
+    throw std::runtime_error("Component: error parsing <parameters>");
+  }
+  
+  pfile = conf["bodyfile"].as<std::string>();
+
+  YAML::Node cforce;
+  try {
+    cforce = conf["force"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing 'force' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    throw std::runtime_error("Component: error parsing <force>");
+  }
+
+  id = cforce["id"].as<std::string>();
+
+  try {
+    fconf = cforce["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing force 'parameters' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << cforce                << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    throw std::runtime_error("Component: error parsing force <parameters>");
+  }
+
+  // Defaults
+  //
+  EJ          = 0;
+  nEJkeep     = 100;
+  nEJwant     = 500;
+  nEJaccel    = 0;
+  EJkinE      = true;
+  EJext       = false;
+  EJdiag      = false;
+  EJdryrun    = false;
+  EJx0        = 0.0;
+  EJy0        = 0.0;
+  EJz0        = 0.0;
+  EJu0        = 0.0;
+  EJv0        = 0.0;
+  EJw0        = 0.0;
+  EJdT        = 0.0;
+  EJlinear    = false;
+  EJdamp      = 1.0;
+
+  binary      = true;
+
+  adiabatic   = false;
+  ton         = -1.0e20;
+  toff        =  1.0e20;
+  twid        = 0.1;
+
+  rtrunc      = 1.0e20;
+  rcom        = 1.0e20;
+  consp       = false;
+  tidal       = -1;
+
+  com_system  = false;
+  com_log     = false;
+  com_restart = 0;
+  c0          = NULL;		// Component for centering (null by
+				// default)
+#if HAVE_LIBCUDA==1
+  bunchSize   = 100000;
+#endif
+
+  timers      = false;
+
+  force       = 0;		// Null out pointers
+  orient      = 0;
+
+  com         = 0;
+  cov         = 0;
+  coa         = 0;
+  center      = 0;
+  angmom      = 0;
+  ps          = 0;
+
+  com0        = 0;
+  cov0        = 0;
+  acc0        = 0;
+
+  indexing    = true;
+  aindex      = false;
+  umagic      = true;
+
+  keyPos      = -1;
+  nlevel      = -1;
+  top_seq     = 0;
+
+  pBufSiz     = 100000;
+  blocking    = false;
+  buffered    = true;		// Use buffered writes for POSIX binary
+  noswitch    = false;		// Allow multistep switching at master step only
+  dtreset     = true;		// Select level from criteria over last step
+  freezeLev   = false;		// Only compute new levels on first step
+
+  configure();
+
+  find_ctr_component();
+
+  initialize_cuda();
+
+  particles.clear();
+
+  // Read bodies
+  //
+  for (auto p=reader.firstParticle(); p!=0; p=reader.nextParticle()) {
+    particles[p->indx] = std::make_shared<Particle>(*p);
+  }
+
+  mdt_ctr = std::vector< std::vector<unsigned> > (multistep+1);
+  for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = std::vector<unsigned>(mdtDim, 0);
+
+  angmom_lev  = std::vector<double>(3*(multistep+1), 0);
+  com_lev     = std::vector<double>(3*(multistep+1), 0);
+  cov_lev     = std::vector<double>(3*(multistep+1), 0);
+  coa_lev     = std::vector<double>(3*(multistep+1), 0);
+  com_mas     = std::vector<double>(   multistep+1,  0);
+
+  reset_level_lists();
+
+  pbuf.resize(PFbufsz);
+}
+
 void Component::configure(void)
 {
   // Check for unmatched keys
