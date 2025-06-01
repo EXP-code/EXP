@@ -49,7 +49,7 @@ void ComponentContainer::initialize(void)
 
 
   bool SPL  = false;		// Indicates whether file has the SPL prefix
-  bool HDF5 = false;		// Indicates an HDF5 restart directory
+  bool HDF5 = false;		// Indicates whether file is an HDF5 file
 
   unsigned short ir = 0;
   unsigned short is = 0;
@@ -67,8 +67,7 @@ void ComponentContainer::initialize(void)
         for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
 	  if (std::filesystem::is_regular_file(entry)) {
 	    ir++;
-	    auto filename = entry.path().filename().string();
-	    if (H5::H5File::isHdf5(filename.c_str())) ih++;
+	    if (H5::H5File::isHdf5(entry.path().string())) ih++;
 	  }
         }
       } catch (const std::filesystem::filesystem_error& e) {
@@ -94,8 +93,10 @@ void ComponentContainer::initialize(void)
     }
   }
 
-  MPI_Bcast(&ir, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&is, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ir,   1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&is,   1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ih,   1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&HDF5, 1, MPI_CXX_BOOL,      0, MPI_COMM_WORLD);
 
   restart = ir ? true : false;
   SPL     = is ? true : false;
@@ -103,15 +104,19 @@ void ComponentContainer::initialize(void)
   if (restart) {
 
     if (HDF5) {
-      if (ir != ih)
-	throw std::runtime_error("ComponentContainer::initialize HDF5 restart file count mismatch");
+
+      // Sanity check: must have at least one HDF5 file in the
+      // directory
+      if (ih<1)
+	throw std::runtime_error("ComponentContainer::initialize HDF5 restart directory found but no HDF5 files found");
 
       std::filesystem::path dir_path = outdir + infile;
       std::vector<std::string> files;
       try {
         for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
-	  if (std::filesystem::is_regular_file(entry)) files.push_back(entry.path().filename().string());
-        }
+	  auto file = entry.path().string();
+	  if (H5::H5File::isHdf5(file)) files.push_back(file);
+	}
       } catch (const std::filesystem::filesystem_error& e) {
         std::cerr << "ComponentContainer::initialize HDF5 file listing error: " << e.what() << std::endl;
       }
@@ -119,6 +124,7 @@ void ComponentContainer::initialize(void)
       PR::PSPhdf5 reader(files, true);
 
       auto types = reader.GetTypes();
+      ncomp = types.size();
 
       if (not ignore_info) tnow = reader.CurrentTime();
 
@@ -144,6 +150,7 @@ void ComponentContainer::initialize(void)
       if (comp.IsSequence()) {
 	for (int i=0; i<ncomp; i++) {
 	  YAML::Node cur = comp[i];
+	  reader.SelectType(types[i]);
 	  components.push_back(new Component(cur, reader));
 	}
       }

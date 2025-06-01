@@ -935,9 +935,38 @@ Component::Component(YAML::Node& CONF, PR::PSPhdf5& reader) : conf(CONF)
 
   // Read bodies
   //
+  double rmax1=0.0;
+  niattrib=-1;
   for (auto p=reader.firstParticle(); p!=0; p=reader.nextParticle()) {
+    // Assign attribute sizes
+    if (niattrib<0) {
+      niattrib = p->iattrib.size();
+      ndattrib = p->dattrib.size();
+    }
+
+    // Make the particle
     particles[p->indx] = std::make_shared<Particle>(*p);
+
+    // Get limits
+    double r2 = 0.0;
+    for (int k=0; k<3; k++) r2 += p->pos[k]*p->pos[k];
+    rmax1 = std::max<double>(r2, rmax1);
+    top_seq = std::max<unsigned long>(top_seq, p->indx);
   }
+
+				// Default: set to max radius
+  rmax = sqrt(fabs(rmax1));
+  MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+				// Send top_seq to all nodes
+  MPI_Bcast(&top_seq, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+
+  initialize();
+
+				// Initialize the particle ferry
+				// instance with dynamic attribute
+				// sizes
+  if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
 
   mdt_ctr = std::vector< std::vector<unsigned> > (multistep+1);
   for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = std::vector<unsigned>(mdtDim, 0);

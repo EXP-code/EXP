@@ -779,10 +779,13 @@ namespace PR {
 	  HighFive::Group part = h5file.getGroup(sout.str());
 
 	  Eigen::Matrix<Scalar, Eigen::Dynamic, 3> pos, vel;
+	  std::vector<unsigned long> idx;
 	  std::vector<Scalar> mas;
 
 	  Eigen::Matrix<int,    Eigen::Dynamic, Eigen::Dynamic> iattrib;
 	  Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> rattrib;
+
+	  part.getDataSet("ParticleIDs" ).read(idx);
 
 	  if (mass[curindx] == 0)
 	    part.getDataSet("Masses").read(mas);
@@ -806,6 +809,8 @@ namespace PR {
 	  //
 	  for (int n=0; n<npart[curindx]; n++) {
 	    if (n % numprocs ==  myid) {
+
+	      P.indx = idx[n];
 
 	      if (mass[curindx] > 0) P.mass = mass[curindx];
 	      else P.mass  = mas[n];
@@ -1055,6 +1060,7 @@ namespace PR {
 
 	      // Assign the standard fields
 	      //
+	      P.indx = h5part[n].id;
 	      P.mass = h5part[n].mass;
 	      P.level = 0;
 
