@@ -47,6 +47,8 @@
 
 #include <Eigen/Eigen>
 
+#include <H5Cpp.h>
+
 #include <ParticleReader.H>
 #include <Centering.H>
 #include <massmodel.H>
@@ -173,7 +175,7 @@ main(int argc, char **argv)
     ("jaco", "Compute phase-space Jacobian for DF computation")
     ("Emass", "Create energy bins approximately uniform in mass using potential from the mass model")
     ("actions", "Print output in action space rather than E-kappa space.  The default is Energy-Kappa.")
-    ("F,filetype", "input file type (one of: PSPout, PSPspl, GadgetNative, GadgetHDF5)",
+    ("F,filetype", "input file type (one of: PSPout, PSPspl, PSPhdf5, GadgetNative, GadgetHDF5)",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("I1min", "Minimum grid value for E (or I1 for actions)",
      cxxopts::value<double>(I1min))
@@ -327,8 +329,30 @@ main(int argc, char **argv)
   // Check for existence of files in INFILE1 and INFILE2 lists
   //
   unsigned bad = 0;
-  for (auto file : INFILE1) {
-    if (not std::filesystem::exists(std::filesystem::path(file))) bad++;
+  std::string path1, path2;
+  if (fileType == "PSPhdf5") {
+    path1 = CURDIR + INFILE1[0];
+    std::filesystem::path dir_path = path1;
+    if (std::filesystem::is_directory(dir_path)) {
+      INFILE1.clear();
+      try {
+        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
+	  if (std::filesystem::is_regular_file(entry)) {
+	    std::string file = entry.path().string();
+	    if (H5::H5File::isHdf5(file)) INFILE1.push_back(file);
+	  }
+        }
+      } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "diffpsp error: " << e.what() << std::endl;
+      }
+
+      if (INFILE1.size()==0) bad++;
+    }
+  }
+  else {
+    for (auto file : INFILE1) {
+      if (not std::filesystem::exists(std::filesystem::path(file))) bad++;
+    }
   }
 
   if (bad) {
@@ -339,8 +363,29 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  for (auto file : INFILE2) {
-    if (not std::filesystem::exists(std::filesystem::path(file))) bad++;
+  if (fileType == "PSPhdf5") {
+    path2 = CURDIR + INFILE2[0];
+    std::filesystem::path dir_path = path2;
+    if (std::filesystem::is_directory(dir_path)) {
+      INFILE2.clear();
+      try {
+        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
+	  if (std::filesystem::is_regular_file(entry)) {
+	    std::string file = entry.path().string();
+	    if (H5::H5File::isHdf5(file)) INFILE2.push_back(file);
+	  }
+        }
+      } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "diffpsp error: " << e.what() << std::endl;
+      }
+
+      if (INFILE2.size()==0) bad++;
+    }
+  }
+  else {
+    for (auto file : INFILE2) {
+      if (not std::filesystem::exists(std::filesystem::path(file))) bad++;
+    }
   }
 
   if (bad) {
@@ -579,15 +624,27 @@ main(int argc, char **argv)
   //
   double initl_time, final_time;
 
+  // Number of paths
+  //
+  int npath1 = 1, npath2 = 1;
+  if (fileType != "PSPhdf5") {
+    npath1 = INFILE1.size();
+    npath2 = INFILE1.size();
+  }
 
   // Iterate through file list
   //
-  for (size_t n=0; n<INFILE1.size(); n++) {
+  for (size_t n=0; n<npath1; n++) {
 
     PR::PRptr psp1, psp2;
 
     try {
-      psp1 = PR::ParticleReader::createReader(fileType, {INFILE1[n]}, myid, true);
+
+      if (fileType == "PSPhdf5") {
+	psp1 = PR::ParticleReader::createReader(fileType, INFILE1, myid, true);
+      } else {
+	psp1 = PR::ParticleReader::createReader(fileType, {INFILE1[n]}, myid, true);
+      }
   
       initl_time = psp1->CurrentTime();
 
@@ -595,7 +652,10 @@ main(int argc, char **argv)
 
       if (myid==0) {
 	std::cout << std::endl << std::string(40, '-') << std::endl;
-	std::cout << "File 1: " << INFILE1[n] << std::endl;
+	if (fileType == "PSPhdf5")
+	  std::cout << "Path 1: " << path1 << std::endl;
+	else
+	  std::cout << "File 1: " << CURDIR + INFILE1[n] << std::endl;
 	std::cout << "Found dump at time: " << initl_time << std::endl;
       }
     }
@@ -610,14 +670,22 @@ main(int argc, char **argv)
     }
     
     try {
-      psp2 = PR::ParticleReader::createReader(fileType, {INFILE2[n]}, myid, true);
+      if (fileType == "PSPhdf5") {
+	std::string path = CURDIR + INFILE2[0];
+	psp2 = PR::ParticleReader::createReader(fileType, INFILE2, myid, true);
+      } else {
+	psp2 = PR::ParticleReader::createReader(fileType, {INFILE2[n]}, myid, true);
+      }
   
       final_time = psp2->CurrentTime();
 
       psp2->SelectType(COMP);
 
       if (myid==0) {
-	std::cout << "File 2: " << INFILE2[n] << endl;
+	if (fileType == "PSPhdf5")
+	  std::cout << "Path 2: " << path2 << endl;
+	else
+	  std::cout << "File 2: " << INFILE2[n] << endl;
 	std::cout << "Found dump at time: " << final_time << std::endl;
 	std::cout << std::string(40, '-') << std::endl;
       }
