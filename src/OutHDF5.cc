@@ -34,7 +34,8 @@ OutHDF5::valid_keys = {
   "checkpt",
   "preserve",
   "H5compress",
-  "H5chunk"
+  "H5chunk",
+  "expconfig"
 };
 
 OutHDF5::OutHDF5(const YAML::Node& conf) : Output(conf)
@@ -119,6 +120,9 @@ void OutHDF5::initialize()
       gadget4 = Output::conf["gadget"].as<bool>();
     else
       gadget4 = false;
+
+    if (Output::conf["expconfig"])
+      expconfg = Output::conf["expconfig"].as<bool>();
 
     // Default HDF5 compression is no compression.  By default,
     // shuffle is on unless turned off manually.
@@ -358,6 +362,15 @@ void OutHDF5::RunGadget4(const std::string& path)
       params.createAttribute("ForceMethods", forces);
       params.createAttribute("ForceConfigurations", configs);
       
+      if (expconfig) {
+	// Save the entire EXP YAML configuration
+	YAML::Emitter cparse;
+	cparse << parse;
+      
+	std::string cyml(cparse.c_str());
+	params.createAttribute("EXPConfiguration", cyml);
+      }
+
     } catch (HighFive::Exception& err) {
       std::string msg("OutHDF5: error writing HDF5 file, ");
       throw std::runtime_error(msg + err.what());
@@ -575,6 +588,14 @@ void OutHDF5::RunPSP(const std::string& path)
       writeVector(params, "ForceMethods",  forces);
       writeVector(params, "ForceConfigurations", configs);
       
+      if (expconfig) {
+	// Save the entire EXP YAML configuration
+	YAML::Emitter cparse;
+	cparse << parse;
+
+	writeScalar(params, "EXPConfiguration", std::string(cparse.c_str()));
+      }
+
     } catch (H5::Exception& error) {
       throw std::runtime_error(std::string("OutHDF5: error writing HDF5 file ") + error.getDetailMsg());
     }
