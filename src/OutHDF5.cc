@@ -35,7 +35,8 @@ OutHDF5::valid_keys = {
   "preserve",
   "H5compress",
   "H5chunk",
-  "expconfig"
+  "expconfig",
+  "allmeta"
 };
 
 OutHDF5::OutHDF5(const YAML::Node& conf) : Output(conf)
@@ -123,6 +124,9 @@ void OutHDF5::initialize()
 
     if (Output::conf["expconfig"])
       expconfig = Output::conf["expconfig"].as<bool>();
+
+    if (Output::conf["allmeta"])
+      allmeta = Output::conf["allmeta"].as<bool>();
 
     // Default HDF5 compression is no compression.  By default,
     // shuffle is on unless turned off manually.
@@ -298,7 +302,7 @@ void OutHDF5::RunGadget4(const std::string& path)
       
       // Only attach metadata to the first file
       //
-      if (myid==0) {
+      if (allmeta or myid==0) {
 
 	int dp = 1;
 	header.createAttribute("Flag_DoublePrecision", dp);
@@ -535,7 +539,7 @@ void OutHDF5::RunPSP(const std::string& path)
 
       // Only attach metadata to first process
       //
-      if (myid==0) {
+      if (allmeta or myid==0) {
 	int dp = real4 ? 0 : 1;
 	writeScalar(header, "Flag_DoublePrecision", dp);
 

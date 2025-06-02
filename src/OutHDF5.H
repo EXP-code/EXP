@@ -16,7 +16,7 @@
     @param checkpt sets checkpoint mode: write a real8 snapshot with a unique filename
     @param preserve prevents overwrite of snapshot files
     @param expconfig set to true stashes the YAML configuration file in the HDF5 file
-
+    @param allmeta set to true writes all meta data to each HDF5 file
 */
 class OutHDF5 : public Output
 {
@@ -25,7 +25,7 @@ private:
 
   std::string filename;
   bool real4=true, real8=false, ids=true, gadget4=false, chkpt=false;
-  bool overwrite=false, expconfig=true, timer;
+  bool overwrite=false, expconfig=true, allmeta=false, timer;
   unsigned write_flags;
   int nbeg;
   void initialize(void);
@@ -63,6 +63,7 @@ public:
     \param checkpt set to true for checkpoint mode
     \param preserve set to true prevents overwrite of snapshot files
     \param expconfig set to true stashes the YAML configuration file in the HDF5 file
+    \param allmeta set to true writes all meta data to each HDF5 file
   */
   void Run(int nstep, int mstep, bool last);
 
