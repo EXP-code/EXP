@@ -78,15 +78,15 @@ void ComponentContainer::initialize(void)
       std::ifstream in(resfile.c_str());
       if (in) {
 	if (ignore_info)
-	  cerr << "---- ComponentContainer successfully opened <"
-	       << resfile << ">, assuming a new run using a previous phase space as initial conditions" << endl;
+	  std::cerr << "---- ComponentContainer successfully opened <"
+		    << resfile << ">, assuming a new run using a previous phase space as initial conditions" << std::endl;
 	else
-	  cerr << "---- ComponentContainer successfully opened <"
-	       << resfile << ">, assuming a restart" << endl;
+	  std::cerr << "---- ComponentContainer successfully opened <"
+		    << resfile << ">, assuming a restart" << std::endl;
 	ir = 1;
       } else {
-	cerr << "---- ComponentContainer could not open <"
-	     << resfile << ">, assuming a new run" << endl;
+	std::cerr << "---- ComponentContainer could not open <"
+		  << resfile << ">, assuming a new run" << std::endl;
 	ir = 0;
       }
       if (infile.find("SPL") != std::string::npos) is = 1;
@@ -131,15 +131,15 @@ void ComponentContainer::initialize(void)
 
       if (myid==0) {
 	if (ignore_info) {
-	  cout << "Found: "
+	  cout << "---- ComponentContainer found: "
 	       << "  Ntot="  << reader.CurrentNumber()
 	       << "  Ncomp=" << types.size() << std::endl;
 	  
 	} else {
-	  cout << "Recovering from: "
+	  cout << "---- ComponentContainer recovering from: "
 	       << "  Tnow="  << tnow
 	       << "  Ntot="  << reader.CurrentNumber()
-	       << "  Ncomp=" << types.size() << endl;
+	       << "  Ncomp=" << types.size() << std::endl;
 	}
       }
 
@@ -178,15 +178,15 @@ void ComponentContainer::initialize(void)
 	}
 	
 	if (ignore_info) {
-	  cout << "Found: "
+	  cout << "---- ComponentContainer found: "
 	       << "  Ntot="  << master.ntot
-	       << "  Ncomp=" << master.ncomp << endl;
+	       << "  Ncomp=" << master.ncomp << std::endl;
 	  
 	} else {
-	  cout << "Recovering from: "
+	  cout << "---- ComponentContainer recovering from: "
 	       << "  Tnow="  << master.time
 	       << "  Ntot="  << master.ntot
-	       << "  Ncomp=" << master.ncomp << endl;
+	       << "  Ncomp=" << master.ncomp << std::endl;
 
 	  tnow  = master.time;
 	}
