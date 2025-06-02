@@ -11,7 +11,6 @@
     @param nint is the number of steps between dumps
     @param nbeg is suffix of the first phase space %dump
     @param timer set to true turns on wall-clock timer for PS output
-    @param threads number of threads for binary writes
     @param gadget set to true for Gadget-4-type HDF5
     @param noids set to true turns off particle id writing
     @param checkpt sets checkpoint mode: write a real8 snapshot with a unique filename
@@ -27,7 +26,7 @@ private:
   bool real4=true, real8=false, ids=true, gadget4=false, chkpt=false;
   bool overwrite=false, timer;
   unsigned write_flags;
-  int nbeg, threads;
+  int nbeg;
   void initialize(void);
   std::vector<double> masses;
   std::vector<bool> multim;
@@ -58,7 +57,6 @@ public:
     \param last should be true on final step to force phase space %dump
     indepentently of whether or not the frequency criterion is met
     \param timer set to true turns on wall-clock timer for PS output
-    \param threads is the thread count for binary writes
     \param noids set to true turns off particle id writing
     \param gadget set to true for Gadget-4-type HDF5
     \param checkpt set to true for checkpoint mode

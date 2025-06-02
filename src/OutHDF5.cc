@@ -30,7 +30,6 @@ OutHDF5::valid_keys = {
   "real4",
   "real8",
   "timer",
-  "threads,"
   "gadget",
   "checkpt",
   "preserve",
@@ -103,7 +102,7 @@ void OutHDF5::initialize()
 
     write_flags = H5F_ACC_TRUNC;
     if (Output::conf["preserve"]) {
-      bool overwrite = Output::conf["preserve"].as<bool>();
+      bool preserve = Output::conf["preserve"].as<bool>();
       write_flags = preserve ? H5F_ACC_EXCL : H5F_ACC_TRUNC;
     }
 
@@ -115,11 +114,6 @@ void OutHDF5::initialize()
       timer = Output::conf["timer"].as<bool>();
     else
       timer = false;
-
-    if (Output::conf["threads"])
-      threads = Output::conf["threads"].as<int>();
-    else
-      threads = 0;
 
     if (Output::conf["gadget"])
       gadget4 = Output::conf["gadget"].as<bool>();
