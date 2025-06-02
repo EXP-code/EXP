@@ -122,7 +122,7 @@ void OutHDF5::initialize()
       gadget4 = false;
 
     if (Output::conf["expconfig"])
-      expconfg = Output::conf["expconfig"].as<bool>();
+      expconfig = Output::conf["expconfig"].as<bool>();
 
     // Default HDF5 compression is no compression.  By default,
     // shuffle is on unless turned off manually.
@@ -281,94 +281,99 @@ void OutHDF5::RunGadget4(const std::string& path)
 					    HighFive::File::ReadWrite |
 					    HighFive::File::Create);
     try {
-
       // Create a new group for Header
       //
       HighFive::Group header = file->createGroup("Header");
-      int dp = 1;
-      header.createAttribute("Flag_DoublePrecision", dp);
-
-      double hubble = 1, zero = 0;
-      header.createAttribute("HubbleParam", hubble);
-
-      header.createAttribute("Omega0", zero);
-
-      header.createAttribute("OmegaBaryon", zero);
-
-      header.createAttribute("OmegaLambda", zero);
-
-      header.createAttribute("Redshift", zero);
 
       if (masses.size()==0) checkParticleMasses();
       header.createAttribute("MassTable", masses);
-
-      header.createAttribute("NumFilesPerSnapshot", numprocs);
-      
+	
       std::vector<unsigned long> nums(masses.size());
       {
 	int n=0;
 	for (auto c : comp->components) nums[n++] = c->Number();
       }
       header.createAttribute("NumPart_ThisFile", nums);
-      {
-	int n=0;
-	for (auto c : comp->components) nums[n++] = c->CurTotal();
-      }
-      header.createAttribute("NumPart_Total", nums);
-
       header.createAttribute("Time", tnow);
       
-      // Create a new group for Config
+      // Only attach metadata to the first file
       //
-      HighFive::Group config = file->createGroup("Config");
+      if (myid==0) {
 
-      int style = 0;
-      config.createAttribute("PSPstyle", style);
+	int dp = 1;
+	header.createAttribute("Flag_DoublePrecision", dp);
 
-      int ntypes = comp->components.size();
-      config.createAttribute("NTYPES", ntypes);
+	double hubble = 1, zero = 0;
+	header.createAttribute("HubbleParam", hubble);
+	
+	header.createAttribute("Omega0", zero);
+	
+	header.createAttribute("OmegaBaryon", zero);
+	
+	header.createAttribute("OmegaLambda", zero);
+	
+	header.createAttribute("Redshift", zero);
+	
+	header.createAttribute("NumFilesPerSnapshot", numprocs);
+	
+	{
+	  int n=0;
+	  for (auto c : comp->components) nums[n++] = c->CurTotal();
+	}
+	header.createAttribute("NumPart_Total", nums);
+	
+	// Create a new group for Config
+	//
+	HighFive::Group config = file->createGroup("Config");
 
-      config.createAttribute("DOUBLEPRECISION", dp);
+	int style = 0;
+	config.createAttribute("PSPstyle", style);
+	
+	int ntypes = comp->components.size();
+	config.createAttribute("NTYPES", ntypes);
+	
+	config.createAttribute("DOUBLEPRECISION", dp);
 
-      std::vector<int> Niattrib, Ndattrib;
-      for (auto & c : comp->components) {
-	Niattrib.push_back(c->niattrib);
-	Ndattrib.push_back(c->ndattrib);
-      }
+	std::vector<int> Niattrib, Ndattrib;
+	for (auto & c : comp->components) {
+	  Niattrib.push_back(c->niattrib);
+	  Ndattrib.push_back(c->ndattrib);
+	}
 
-      config.createAttribute("Niattrib", Niattrib);
+	config.createAttribute("Niattrib", Niattrib);
 
-      config.createAttribute("Ndattrib", Ndattrib);
-
-      // Create a new group for Parameters
-      //
-      HighFive::Group params = file->createGroup("Parameters");
+	config.createAttribute("Ndattrib", Ndattrib);
+	
+	// Create a new group for Parameters
+	//
+	HighFive::Group params = file->createGroup("Parameters");
       
-      std::string gcommit(GIT_COMMIT), gbranch(GIT_BRANCH), gdate(COMPILE_TIME);
-      params.createAttribute<std::string>("Git_commit", gcommit);
-      params.createAttribute<std::string>("Git_branch", gbranch);
-      params.createAttribute<std::string>("Compile_date", gdate);
+	std::string gcommit(GIT_COMMIT), gbranch(GIT_BRANCH), gdate(COMPILE_TIME);
+	params.createAttribute<std::string>("Git_commit", gcommit);
+	params.createAttribute<std::string>("Git_branch", gbranch);
+	params.createAttribute<std::string>("Compile_date", gdate);
 
-      std::vector<std::string> names, forces, configs;
-      for (auto c : comp->components) {
-	names.push_back(c->name);
-	forces.push_back(c->id);
-	YAML::Emitter out;
-	out << c->fconf; // where node is your YAML::Node
-	configs.push_back(out.c_str());
-      }
-
-      params.createAttribute("ComponentNames", names);
-      params.createAttribute("ForceMethods", forces);
-      params.createAttribute("ForceConfigurations", configs);
-      
-      if (expconfig) {
-	// Save the entire EXP YAML configuration
-	YAML::Emitter cparse;
-	cparse << parse;
-      
-	std::string cyml(cparse.c_str());
-	params.createAttribute("EXPConfiguration", cyml);
+	std::vector<std::string> names, forces, configs;
+	for (auto c : comp->components) {
+	  names.push_back(c->name);
+	  forces.push_back(c->id);
+	  YAML::Emitter out;
+	  out << c->fconf; // where node is your YAML::Node
+	  configs.push_back(out.c_str());
+	}
+	
+	params.createAttribute("ComponentNames", names);
+	params.createAttribute("ForceMethods", forces);
+	params.createAttribute("ForceConfigurations", configs);
+	
+	if (expconfig) {
+	  // Save the entire EXP YAML configuration
+	  YAML::Emitter cparse;
+	  cparse << parse;
+	  
+	  std::string cyml(cparse.c_str());
+	  params.createAttribute("EXPConfiguration", cyml);
+	}
       }
 
     } catch (HighFive::Exception& err) {
@@ -516,86 +521,90 @@ void OutHDF5::RunPSP(const std::string& path)
       //
       H5::Group header = file.createGroup("Header");
 
-      int dp = real4 ? 0 : 1;
-      writeScalar(header, "Flag_DoublePrecision", dp);
-
-      double hubble = 1, zero = 0;
-
-      writeScalar(header, "HubbleParam", hubble);
-      writeScalar(header, "Omega0",      zero  );
-      writeScalar(header, "OmegaBaryon", zero  );
-      writeScalar(header, "OmegaLambda", zero  );
-      writeScalar(header, "Redshift",    zero  );
-
       if (masses.size()==0) checkParticleMasses();
       writeVector(header, "MassTable", masses);
 
-      writeScalar(header, "NumFilesPerSnapshot", numprocs);
-      
       std::vector<unsigned long> nums(masses.size());
       {
 	int n=0;
 	for (auto c : comp->components) nums[n++] = c->Number();
       }
       writeVector(header, "NumPart_ThisFile", nums);
-      {
-	int n=0;
-	for (auto c : comp->components) nums[n++] = c->CurTotal();
-      }
-      writeVector(header, "NumPart_Total", nums);
 
       writeScalar(header, "Time", tnow);
-      
-      // Create a new group for Config
+
+      // Only attach metadata to first process
       //
-      H5::Group config = file.createGroup("Config");
+      if (myid==0) {
+	int dp = real4 ? 0 : 1;
+	writeScalar(header, "Flag_DoublePrecision", dp);
 
-      int style = 1;
-      writeScalar(config, "PSPstyle", style);
+	double hubble = 1, zero = 0;
 
-      int ntypes = comp->components.size();
-      writeScalar(config, "NTYPES", ntypes);
-
-      writeScalar(config, "DOUBLEPRECISION", dp);
-
-      std::vector<int> Niattrib, Ndattrib;
-      for (auto & c : comp->components) {
-	Niattrib.push_back(c->niattrib);
-	Ndattrib.push_back(c->ndattrib);
-      }
-      writeVector(config, "Niattrib", Niattrib);
-      writeVector(config, "Ndattrib", Ndattrib);
-
-      // Create a new group for Parameters
-      //
-      H5::Group params = file.createGroup("Parameters");
+	writeScalar(header, "HubbleParam", hubble);
+	writeScalar(header, "Omega0",      zero  );
+	writeScalar(header, "OmegaBaryon", zero  );
+	writeScalar(header, "OmegaLambda", zero  );
+	writeScalar(header, "Redshift",    zero  );
+	
+	writeScalar(header, "NumFilesPerSnapshot", numprocs);
       
-      std::string gcommit(GIT_COMMIT), gbranch(GIT_BRANCH), gdate(COMPILE_TIME);
-      writeScalar(params, "Git_commit",   gcommit);
-      writeScalar(params, "Git_branch",   gbranch);
-      writeScalar(params, "Compile_data", gdate  );
+	{
+	  int n=0;
+	  for (auto c : comp->components) nums[n++] = c->CurTotal();
+	}
+	writeVector(header, "NumPart_Total", nums);
 
-      std::vector<std::string> names, forces, configs;
-      for (auto c : comp->components) {
-	names.push_back(c->name);
-	forces.push_back(c->id);
-	YAML::Emitter out;
-	out << c->fconf; // where node is your YAML::Node
-	configs.push_back(out.c_str());
-      }
+	// Create a new group for Config
+	//
+	H5::Group config = file.createGroup("Config");
+	
+	int style = 1;
+	writeScalar(config, "PSPstyle", style);
+	
+	int ntypes = comp->components.size();
+	writeScalar(config, "NTYPES", ntypes);
 
-      writeVector(params, "ComponentNames", names);
-      writeVector(params, "ForceMethods",  forces);
-      writeVector(params, "ForceConfigurations", configs);
+	writeScalar(config, "DOUBLEPRECISION", dp);
+
+	std::vector<int> Niattrib, Ndattrib;
+	for (auto & c : comp->components) {
+	  Niattrib.push_back(c->niattrib);
+	  Ndattrib.push_back(c->ndattrib);
+	}
+	writeVector(config, "Niattrib", Niattrib);
+	writeVector(config, "Ndattrib", Ndattrib);
+	
+	// Create a new group for Parameters
+	//
+	H5::Group params = file.createGroup("Parameters");
       
-      if (expconfig) {
-	// Save the entire EXP YAML configuration
-	YAML::Emitter cparse;
-	cparse << parse;
+	std::string gcommit(GIT_COMMIT), gbranch(GIT_BRANCH), gdate(COMPILE_TIME);
+	writeScalar(params, "Git_commit",   gcommit);
+	writeScalar(params, "Git_branch",   gbranch);
+	writeScalar(params, "Compile_data", gdate  );
 
-	writeScalar(params, "EXPConfiguration", std::string(cparse.c_str()));
+	std::vector<std::string> names, forces, configs;
+	for (auto c : comp->components) {
+	  names.push_back(c->name);
+	  forces.push_back(c->id);
+	  YAML::Emitter out;
+	  out << c->fconf; // where node is your YAML::Node
+	  configs.push_back(out.c_str());
+	}
+	
+	writeVector(params, "ComponentNames", names);
+	writeVector(params, "ForceMethods",  forces);
+	writeVector(params, "ForceConfigurations", configs);
+      
+	if (expconfig) {
+	  // Save the entire EXP YAML configuration
+	  YAML::Emitter cparse;
+	  cparse << parse;
+	  
+	  writeScalar(params, "EXPConfiguration", std::string(cparse.c_str()));
+	}
       }
-
     } catch (H5::Exception& error) {
       throw std::runtime_error(std::string("OutHDF5: error writing HDF5 file ") + error.getDetailMsg());
     }
