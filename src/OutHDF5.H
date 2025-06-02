@@ -15,6 +15,7 @@
     @param gadget set to true for Gadget-4-type HDF5
     @param noids set to true turns off particle id writing
     @param checkpt sets checkpoint mode: write a real8 snapshot with a unique filename
+    @param preserve prevents overwrite of snapshot files
 
 */
 class OutHDF5 : public Output
@@ -23,7 +24,9 @@ class OutHDF5 : public Output
 private:
 
   std::string filename;
-  bool real4=true, real8=false, ids=true, gadget4=false, chkpt=false, timer;
+  bool real4=true, real8=false, ids=true, gadget4=false, chkpt=false;
+  bool overwrite=false, timer;
+  unsigned write_flags;
   int nbeg, threads;
   void initialize(void);
   std::vector<double> masses;
@@ -59,6 +62,7 @@ public:
     \param noids set to true turns off particle id writing
     \param gadget set to true for Gadget-4-type HDF5
     \param checkpt set to true for checkpoint mode
+    \param preserve set to true prevents overwrite of snapshot files
   */
   void Run(int nstep, int mstep, bool last);
 

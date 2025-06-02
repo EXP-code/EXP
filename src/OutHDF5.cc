@@ -33,6 +33,7 @@ OutHDF5::valid_keys = {
   "threads,"
   "gadget",
   "checkpt",
+  "preserve",
   "H5compress",
   "H5chunk"
 };
@@ -98,6 +99,12 @@ void OutHDF5::initialize()
       chkpt = true;
       real8 = true;
       real4 = false;
+    }
+
+    write_flags = H5F_ACC_TRUNC;
+    if (Output::conf["preserve"]) {
+      bool overwrite = Output::conf["preserve"].as<bool>();
+      write_flags = preserve ? H5F_ACC_EXCL : H5F_ACC_TRUNC;
     }
 
     if (Output::conf["noids"]) {
@@ -494,7 +501,7 @@ void OutHDF5::RunPSP(const std::string& path)
   //
   try {
     // Create a file
-    H5::H5File file(path.c_str(), H5F_ACC_EXCL);
+    H5::H5File file(path.c_str(), write_flags);
 
     try {
 
