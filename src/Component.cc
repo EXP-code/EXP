@@ -2461,7 +2461,7 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
   Eigen::Matrix<T, Eigen::Dynamic, 3> pos(nbodies, 3);
   Eigen::Matrix<T, Eigen::Dynamic, 3> vel(nbodies, 3);
     
-  std::vector<T>        mas;
+  std::vector<T>        mas, pot, potext;
   std::vector<long int> ids;
 
   Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic> iattrib;
@@ -2472,6 +2472,9 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
   if (niattrib) iattrib.resize(nbodies, niattrib);
   if (ndattrib) dattrib.resize(nbodies, niattrib);
     
+  pot.   resize(nbodies);
+  potext.resize(nbodies);
+
   unsigned int ctr = 0;
   for (auto it=particles.begin(); it!=particles.end(); it++) {
 
@@ -2483,6 +2486,8 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
     if (IDs)    ids[ctr] = P->indx;
     for (int j=0; j<3; j++) pos(ctr, j) = P->pos[j];
     for (int j=0; j<3; j++) vel(ctr, j) = P->vel[j];
+    pot   [ctr] = P->pot;
+    potext[ctr] = P->potext;
     for (int j=0; j<niattrib; j++) iattrib(ctr, j) = P->iattrib[j];
     for (int j=0; j<ndattrib; j++) dattrib(ctr, j) = P->dattrib[j];
 
@@ -2536,6 +2541,9 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
   HighFive::DataSet dsPos = group.createDataSet("Coordinates", pos, dcpl3);
   HighFive::DataSet dsVel = group.createDataSet("Velocities",  vel, dcpl3);
   
+  HighFive::DataSet dsPot = group.createDataSet("Potential",    pot,    dcpl1);
+  HighFive::DataSet dsExt = group.createDataSet("PotentialExt", potext, dcpl1);
+
   if (niattrib>0) 
     HighFive::DataSet dsInt = group.createDataSet("IntAttributes",  iattrib, dcplI);
 

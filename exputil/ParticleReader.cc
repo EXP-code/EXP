@@ -789,7 +789,7 @@ namespace PR {
 
 	  Eigen::Matrix<Scalar, Eigen::Dynamic, 3> pos, vel;
 	  std::vector<unsigned long> idx;
-	  std::vector<Scalar> mas;
+	  std::vector<Scalar> mas, pot, potext;
 
 	  Eigen::Matrix<int,    Eigen::Dynamic, Eigen::Dynamic> iattrib;
 	  Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> rattrib;
@@ -799,8 +799,11 @@ namespace PR {
 	  if (mass[curindx] == 0)
 	    part.getDataSet("Masses").read(mas);
 	  
-	  part.getDataSet("Coordinates").read(pos);
-	  part.getDataSet("Velocities" ).read(vel);
+	  part.getDataSet("Coordinates" ).read(pos);
+	  part.getDataSet("Velocities"  ).read(vel);
+
+	  part.getDataSet("Potential"   ).read(pot);
+	  part.getDataSet("PotentialExt").read(potext);
 
 	  if (Niattrib[curindx]>0)
 	    part.getDataSet("IntAttributes" ).read(iattrib);
@@ -830,6 +833,9 @@ namespace PR {
 		P.pos[k] = pos(n, k);
 		P.vel[k] = vel(n, k);
 	      }
+
+	      P.pot    = pot[n];
+	      P.potext = potext[n];
 
 	      if (Niattrib[curindx]>0) {
 		P.iattrib.resize(Niattrib[curindx]);
