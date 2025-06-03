@@ -17,6 +17,7 @@
     @param preserve prevents overwrite of snapshot files
     @param expconfig set to true stashes the YAML configuration file in the HDF5 file
     @param allmeta set to true writes all meta data to each HDF5 file
+    @param directory set to true stores all HDF5 files in a named directory
 */
 class OutHDF5 : public Output
 {
@@ -25,12 +26,13 @@ private:
 
   std::string filename;
   bool real4=true, real8=false, ids=true, gadget4=false, chkpt=false;
-  bool overwrite=false, expconfig=true, allmeta=false, timer;
+  bool overwrite=false, expconfig=true, allmeta=false, directory=true, timer;
   unsigned write_flags;
   int nbeg;
   void initialize(void);
   std::vector<double> masses;
   std::vector<bool> multim;
+  std::string hdf_dir, chkpt_dir;
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
@@ -64,6 +66,7 @@ public:
     \param preserve set to true prevents overwrite of snapshot files
     \param expconfig set to true stashes the YAML configuration file in the HDF5 file
     \param allmeta set to true writes all meta data to each HDF5 file
+    \param directory set to true stores all HDF5 files in a named directory
   */
   void Run(int nstep, int mstep, bool last);
 

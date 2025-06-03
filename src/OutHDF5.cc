@@ -1,4 +1,5 @@
 #include <type_traits>
+#include <filesystem>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -128,6 +129,9 @@ void OutHDF5::initialize()
     if (Output::conf["allmeta"])
       allmeta = Output::conf["allmeta"].as<bool>();
 
+    if (Output::conf["directory"])
+      directory = Output::conf["directory"].as<bool>();
+
     // Default HDF5 compression is no compression.  By default,
     // shuffle is on unless turned off manually.
     //
@@ -158,30 +162,60 @@ void OutHDF5::initialize()
     throw std::runtime_error("OutHDF5::initialize: error parsing YAML");
   }
 
+
   // Determine last file
   // 
   if (restart && nbeg==0) {
 
-    // Only root node looks for files
+    // Only root node looks for paths
     //
     if (myid==0) {
 
-      for (nbeg=0; nbeg<100000; nbeg++) {
-	// Output name
-	//
-	ostringstream fname;
+      // First check for a directory
+      //
+      if (directory) {
+	std::ostringstream dname;
+	dname << outdir
+	      <<  filename << "_" << setw(5) << setfill('0') << nbeg;
+
+	std::filesystem::path dir_path = dname.str();
+      
+	// Sanity check
+	if (not std::filesystem::is_directory(dir_path)) {
+	  throw std::runtime_error("Component::initialize error: you specified directory organization of output but the directory " + dir_path.string() + " does not exist");
+	}
+      }
+      else {
+	std::ostringstream fname;
 	fname << outdir
 	      <<  filename << "_" << setw(5) << setfill('0') << nbeg
 	      << ".1";
 
-	// See if we can open file
-	//
-	ifstream in(fname.str().c_str());
+	std::filesystem::path file_path = fname.str();
 
-	if (!in) {
-	  cout << "OutHDF5: will begin with nbeg=" << nbeg << endl;
-	  break;
+	if (not std::filesystem::is_regular_file(file_path)) {
+	  throw std::runtime_error("Component::initialize error: you specified file organization of output but the file " + fname.str() + " does not exist");
 	}
+      }
+      
+      // Find starting point
+      for (; nbeg<100000; nbeg++) {
+	// Path name
+	//
+	std::ostringstream fname;
+	fname << outdir
+	      <<  filename << "_" << setw(5) << setfill('0') << nbeg;
+
+	if (not directory) fname << ".1";
+
+	std::filesystem::path path = fname.str();
+
+	// See if we can open
+	//
+	if (directory) 
+	  if (not std::filesystem::is_directory(path)) break;
+	else
+	  if (not std::filesystem::is_regular_file(path)) break;
       }
     }
 
@@ -189,6 +223,8 @@ void OutHDF5::initialize()
     //
     MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
   }
+
+  return;
 }
 
 
@@ -204,55 +240,141 @@ void OutHDF5::Run(int n, int mstep, bool last)
   if (timer) beg = std::chrono::high_resolution_clock::now();
   
   std::ofstream out;
+  std::string h5_dir;
   std::ostringstream fname;
 
   // Checkpoint mode
   if (chkpt) {
+
+    // On first call, create checkpoint directory
+    if (directory and chkpt_dir.size()==0) {
+      std::ostringstream dname;
+      dname << outdir << "checkpoint_" << runtag;
+    
+      std::filesystem::path dir_path = dname.str();
+
+      chkpt_dir = dir_path.string() + "/";
+  
+      bool okay = true;
+      if (myid==0) {
+	if (not std::filesystem::is_directory(dir_path)) {
+	  if (std::filesystem::create_directory(dir_path)) {
+	    std::cout << "---- OutHDF5: checkpoint directory <"
+		      << dir_path.string() << "> created successfully"
+		      << std::endl;
+	    okay = true;
+	  } else {
+	    std::cout << "---- OutHDF5: checkpoint directory <"
+		      << dir_path.string() << "> creation failed"
+		      << std::endl;
+	    okay = false;
+	  }
+	}
+      }
+
+      MPI_Bcast(&okay, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
+
+      if (not okay)
+	throw std::runtime_error
+	  ("OutHDF5: Failed to create checkpoint directory " +
+	   dir_path.string());
+      
+    }
+
     // Create checkpoint filename
+    //
     fname << "checkpoint_" << runtag;
     if (numprocs>1) fname << "." << myid+1;
 
     // Create backup filename
-    std::string currfile = outdir + fname.str();
+    //
+    std::string currfile = chkpt_dir + fname.str();
     std::string backfile = currfile + ".bak";
 
     // Remove old backup file
+    //
     if (unlink(backfile.c_str())) {
       if (VERBOSE>5) perror("OutHDF5::Run()");
-      std::cout << "OutHDF5::Run(): error unlinking old backup file <" 
+      std::cout << "---- OutHDF5::Run(): error unlinking old backup file <" 
 		<< backfile << ">, it may not exist" << std::endl;
     } else {
       if (VERBOSE>5) {
-	std::cout << "OutHDF5::Run(): successfully unlinked <"
+	std::cout << "---- OutHDF5::Run(): successfully unlinked <"
 		  << backfile << ">" << std::endl;
       }
     }
 
     // Rename current file to backup file
+    //
     if (rename(currfile.c_str(), backfile.c_str())) {
       if (VERBOSE>5) perror("OutHDF5::Run()");
-      std::cout << "OutHDF5: renaming backup file <" 
+      std::cout << "---- OutHDF5: renaming backup file <" 
 		<< backfile << ">, it may not exist" << std::endl;
     } else {
       if (VERBOSE>5) {
-	std::cout << "OutHDF5::Run(): successfully renamed <"
+	std::cout << "---- OutHDF5::Run(): successfully renamed <"
 		  << currfile << "> to <" << backfile << ">" << std::endl;
       }
     }
   }
   // Standard snapshot mode
   else {
+
+    // Create filename prefix
+    //
     fname << filename << "_" << setw(5) << setfill('0') << nbeg++;
+
+    if (directory) {
+      bool okay = true;
+
+      // The prefix becomes the directory name
+      //
+      std::ostringstream dname;
+      dname << outdir << fname.str();
+
+      // Root process creates the directory
+      //
+      if (myid==0) {
+	std::filesystem::path dir_path = dname.str();
+
+	if (not std::filesystem::is_directory(dir_path)) {
+	  if (std::filesystem::create_directory(dir_path)) {
+	    std::cout << "HDF5 directory <" << dir_path.string()
+		      << "> created successfully" << std::endl;
+	    okay = true;
+	  } else {
+	    std::cout << "HDF5 directory <" << dir_path.string()
+		      << "> creation failed" << std::endl;
+	    okay = false;
+	  }
+	}
+      }
+
+      MPI_Bcast(&okay, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
+
+      if (not okay)
+	throw std::runtime_error
+	  ("OutHDF5: Failed to create HDF5 file directory " + dname.str());
+      
+      h5_dir = fname.str() + "/";
+    }
     if (numprocs>1) fname << "." << myid+1;
   }
 
   // Full path
-  std::string path = outdir + fname.str();
+  std::string path;
+  
+  if (directory) {		// Append directory mode path
+    if (chkpt) path = chkpt_dir;
+    else       path = outdir + h5_dir;
+  }
+  path += fname.str();		// Append filename
 
   if (gadget4) RunGadget4(path);
   else         RunPSP(path);
 
   chktimer.mark();
+      if (VERBOSE>5) perror("OutHDF5::Run()");
 
   dump_signal = 0;
 
