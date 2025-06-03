@@ -155,6 +155,8 @@ main(int argc, char **argv)
     "   OUTFILE.rp       Pericentric radius             [2d]\n"         \
     "   OUTFILE.O1       Radial frequency               [2d]\n"         \
     "   OUTFILE.O2       Azimuthal frequency            [2d]\n"         \
+    "   OUTFILE.F1       Two dimensional DF info (1)    [2d]\n"		\
+    "   OUTFILE.F2       Two dimensional DF info (2)    [2d]\n"		\
     "   OUTFILE.DR       Run mass, J, Delta J (R)       [1d]\n"		\
     "   OUTFILE.df1      One dimensional DF info (1)    [1d]\n"		\
     "   OUTFILE.df2      One dimensional DF info (2)    [1d]\n"		\
@@ -456,7 +458,7 @@ main(int argc, char **argv)
   // Open output file
   //
     
-  const int nfiles = 19;
+  const int nfiles = 21;
   const char *suffix[] = {
     ".DM", 			// Mass per bin (E, K)		#0
     ".DE", 			// Delta E(E, K)		#1
@@ -469,14 +471,16 @@ main(int argc, char **argv)
     ".DF", 			// Delta DF (E, K)              #8
     ".ra", 			// Apocentric radius (E, K)     #9
     ".rp", 			// Pericentric radius (E, K)    #10
-    ".O1", 			// Apocentric radius (E, K)     #11
-    ".O2", 			// Pericentric radius (E, K)    #12
-    ".Df", 			// Delta DF/F (E, K)            #13
-    ".DN", 			// Counts per (E, K) bin        #14
-    ".DR", 			// Run mass, J, Delta J (R)	#15
-    ".chk",			// Orbital element check	#16
-    ".df1",			// One dimensional DF info	#17
-    ".df2"			// One dimensional DF info	#18
+    ".O1", 			// Radial frequency (E, K)      #11
+    ".O2", 			// Azimuthal frequency (E, K)   #12
+    ".F1", 			// DF for PS 1 (E, K)           #13
+    ".F2", 			// DF for PS 2 (E, K)           #14
+    ".Df", 			// Delta DF/F (E, K)            #15
+    ".DN", 			// Counts per (E, K) bin        #16
+    ".DR", 			// Run mass, J, Delta J (R)	#17
+    ".chk",			// Orbital element check	#18
+    ".df1",			// One dimensional DF info	#19
+    ".df2"			// One dimensional DF info	#20
   };
   std::vector<string> filename(nfiles);
   for (int i=0; i<nfiles; i++) filename[i] = OUTFILE + suffix[i];
@@ -1328,7 +1332,7 @@ main(int argc, char **argv)
     double mfac = d1*d2;
     
     if (meshgrid)
-      for (int k=0; k<15; k++) out[k] << std::setw(8) << NUM1
+      for (int k=0; k<17; k++) out[k] << std::setw(8) << NUM1
 				      << std::setw(8) << NUM2
 				      << std::endl;
     bool relJ = false;
@@ -1349,6 +1353,8 @@ main(int argc, char **argv)
       histoI  = kde(histoI);
       histoT  = kde(histoT);
       histoF  = kde(histoF);
+      histo1  = kde(histo1);
+      histo2  = kde(histo2);
       histoDF = kde(histoDF);
     }
 
@@ -1408,16 +1414,20 @@ main(int argc, char **argv)
 	}
 	  
 	if (totMass>0.0) {
-	  p_rec(out[8], I1, I2, histoF(i, j)*jfac/totMass);
+	  p_rec(out[8 ], I1, I2, histoF(i, j)*jfac/totMass);
+	  p_rec(out[13], I1, I2, histo1(i, j)*jfac/totMass);
+	  p_rec(out[14], I1, I2, histo2(i, j)*jfac/totMass);
 	}
 	else {
-	  p_rec(out[8], I1, I2, 0.0);
+	  p_rec(out[8 ], I1, I2, 0.0);
+	  p_rec(out[13], I1, I2, 0.0);
+	  p_rec(out[14], I1, I2, 0.0);
 	}
 
-	p_rec(out[13], I1, I2, histoDF(i, j));
-	p_rec(out[14], I1, I2, histoC (i, j));
+	p_rec(out[15], I1, I2, histoDF(i, j));
+	p_rec(out[16], I1, I2, histoC (i, j));
       }
-      if (not meshgrid) for (int k=0; k<15; k++) out[k] << endl;
+      if (not meshgrid) for (int k=0; k<17; k++) out[k] << endl;
     }
     
     if (CUMULATE) {
@@ -1460,36 +1470,36 @@ main(int argc, char **argv)
     };
     
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[15] << "#";
-      else      out[15] << "+";
-      out[15] << setw(fieldsz-1) << left << setfill('-') << '-';
+      if (j==0) out[17] << "#";
+      else      out[17] << "+";
+      out[17] << setw(fieldsz-1) << left << setfill('-') << '-';
     }
-    out[15] << endl << setfill(' ');
+    out[17] << endl << setfill(' ');
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[15] << "# ";
-      else      out[15] << "+ ";
-      out[15] << setw(fieldsz-2) << left << rlabels[j];
+      if (j==0) out[17] << "# ";
+      else      out[17] << "+ ";
+      out[17] << setw(fieldsz-2) << left << rlabels[j];
     }
-    out[15] << endl;
+    out[17] << endl;
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[15] << "# ";
-      else      out[15] << "+ ";
-      out[15] << setw(fieldsz-2) << left << j+1;
+      if (j==0) out[17] << "# ";
+      else      out[17] << "+ ";
+      out[17] << setw(fieldsz-2) << left << j+1;
     }
-    out[15] << endl;
+    out[17] << endl;
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[15] << "#";
-      else      out[15] << "+";
-      out[15] << setw(fieldsz-1) << left << setfill('-') << '-';
+      if (j==0) out[17] << "#";
+      else      out[17] << "+";
+      out[17] << setw(fieldsz-1) << left << setfill('-') << '-';
     }
-    out[15] << endl << setfill(' ');
+    out[17] << endl << setfill(' ');
     
     for (int i=0; i<NUMR; i++) {
       
       double rr = rhmin + dR*(0.5+i);
       if (LOGR) rr = exp(rr);
       
-      out[16] << setw(fieldsz) << rr 
+      out[18] << setw(fieldsz) << rr 
 	      << setw(fieldsz) << histoP[i]
 	      << setw(fieldsz) << histoL[i]
 	      << setw(fieldsz) << histPr[i]
@@ -1514,39 +1524,39 @@ main(int argc, char **argv)
       for (int l=0; l<2; l++) {
 
 	for (int j=0; j<nrlabs; j++) {
-	  if (j==0) out[17+l] << "#";
-	  else      out[17+l] << "+";
-	  out[17+l] << setw(fieldsz-1) << left << setfill('-') << '-';
+	  if (j==0) out[19+l] << "#";
+	  else      out[19+l] << "+";
+	  out[19+l] << setw(fieldsz-1) << left << setfill('-') << '-';
 	}
 
-	out[17+l] << endl << setfill(' ');
+	out[19+l] << endl << setfill(' ');
 	
 	for (int j=0; j<nrlabs; j++) {
-	  if (j==0) out[17+l] << "# ";
-	  else      out[17+l] << "+ ";
-	  out[17+l] << setw(fieldsz-2) << left << labels[l][j];
+	  if (j==0) out[19+l] << "# ";
+	  else      out[19+l] << "+ ";
+	  out[19+l] << setw(fieldsz-2) << left << labels[l][j];
 	}
 	
-	out[17+l] << endl;
+	out[19+l] << endl;
 	for (int j=0; j<nrlabs; j++) {
-	  if (j==0) out[17+l] << "# ";
-	  else      out[17+l] << "+ ";
-	  out[17+l] << setw(fieldsz-2) << left << j+1;
+	  if (j==0) out[19+l] << "# ";
+	  else      out[19+l] << "+ ";
+	  out[19+l] << setw(fieldsz-2) << left << j+1;
 	}
-	out[17+l] << endl;
+	out[19+l] << endl;
 
 	for (int j=0; j<nrlabs; j++) {
-	  if (j==0) out[17+l] << "#";
-	  else      out[17+l] << "+";
-	  out[17+l] << setw(fieldsz-1) << left << setfill('-') << '-';
+	  if (j==0) out[19+l] << "#";
+	  else      out[19+l] << "+";
+	  out[19+l] << setw(fieldsz-1) << left << setfill('-') << '-';
 	}
-	out[17+l] << endl << setfill(' ');
+	out[19+l] << endl << setfill(' ');
 	
 	for (int j=0; j<histo1_1d[l].size(); j++) {
-	  if (l==0) out[17+l] << setw(fieldsz) << left << I1min + d1*j;
-	  else      out[17+l] << setw(fieldsz) << left << I2min + d2*j;
+	  if (l==0) out[19+l] << setw(fieldsz) << left << I1min + d1*j;
+	  else      out[19+l] << setw(fieldsz) << left << I2min + d2*j;
 	  
-	  out[17+l] << setw(fieldsz) << left << histo1_1d[l][j]
+	  out[19+l] << setw(fieldsz) << left << histo1_1d[l][j]
 		    << setw(fieldsz) << left << histo2_1d[l][j]
 		    << setw(fieldsz) << left << histoF_1d[l][j]
 		    << setw(fieldsz) << left << histoDF_1d[l][j]
