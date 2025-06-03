@@ -110,15 +110,53 @@ void ComponentContainer::initialize(void)
       if (ih<1)
 	throw std::runtime_error("ComponentContainer::initialize HDF5 restart directory found but no HDF5 files found");
 
+      auto hasEnding = [](const std::string& fullStr,
+			  const std::string& ending) -> bool
+      {
+	if (fullStr.length() >= ending.length()) {
+	  return fullStr.compare(fullStr.length() - ending.length(),
+				 ending.length(), ending) == 0;
+	} else {
+	  return false;
+	}
+      };
+
       std::filesystem::path dir_path = outdir + infile;
       std::vector<std::string> files;
       try {
         for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
 	  auto file = entry.path().string();
-	  if (H5::H5File::isHdf5(file)) files.push_back(file);
+	  if (H5::H5File::isHdf5(file)) {
+	    // Ignore checkpoint backup files
+	    if (not hasEnding(file, ".bak")) files.push_back(file);
+	  }
 	}
       } catch (const std::filesystem::filesystem_error& e) {
         std::cerr << "ComponentContainer::initialize HDF5 file listing error: " << e.what() << std::endl;
+      }
+
+      // Need to sort these files so that ".1" is first in the list so
+      // we can elide the metadata from the other HDF5 files
+      if (files.size() > 1) {
+	      
+	// Function to extract the numerical substring and convert to
+	// an integer
+	auto getIndex = [](const std::string& str) -> int
+	{
+	  auto pos = str.find_last_of(".");	    // File ends in .int
+	  if (pos == std::string::npos) return 0;   // No index
+	  else return std::stoi(str.substr(pos+1)); // Extract index
+	};
+
+	// Custom comparison function
+	auto compareStringsByIndex =
+	  [&getIndex](const std::string& a, const std::string& b) -> bool
+	  {
+	    return getIndex(a) < getIndex(b);
+	  };
+
+	// Sort the files by index
+	std::sort(files.begin(), files.end(), compareStringsByIndex);
       }
 
       PR::PSPhdf5 reader(files, true);
@@ -127,7 +165,6 @@ void ComponentContainer::initialize(void)
       ncomp = types.size();
 
       if (not ignore_info) tnow = reader.CurrentTime();
-
 
       if (myid==0) {
 	if (ignore_info) {
