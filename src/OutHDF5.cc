@@ -166,7 +166,7 @@ void OutHDF5::initialize()
   // Determine last file
   // 
   if (restart && nbeg==0) {
-
+    
     // Only root node looks for paths
     //
     if (myid==0) {
@@ -198,7 +198,8 @@ void OutHDF5::initialize()
 	}
       }
       
-      // Find starting point
+      // Find starting index
+      //
       for (; nbeg<100000; nbeg++) {
 	// Path name
 	//
@@ -210,16 +211,18 @@ void OutHDF5::initialize()
 
 	std::filesystem::path path = fname.str();
 
-	// See if we can open
+	// See if we can open the directory or file
 	//
-	if (directory) 
+	if (directory) {
 	  if (not std::filesystem::is_directory(path)) break;
-	else
+	} else
 	  if (not std::filesystem::is_regular_file(path)) break;
       }
+
+      std::cout << "---- OutHDF5: found last file <" << nbeg << ">" << std::endl;
     }
 
-    // Communicate starting file to all nodes
+    // Communicate starting file index to all nodes
     //
     MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
   }
@@ -259,14 +262,16 @@ void OutHDF5::Run(int n, int mstep, bool last)
       if (myid==0) {
 	if (not std::filesystem::is_directory(dir_path)) {
 	  if (std::filesystem::create_directory(dir_path)) {
-	    std::cout << "---- OutHDF5: checkpoint directory <"
-		      << dir_path.string() << "> created successfully"
-		      << std::endl;
+	    if (VERBOSE>5)
+	      std::cout << "---- OutHDF5: checkpoint directory <"
+			<< dir_path.string() << "> created successfully"
+			<< std::endl;
 	    okay = true;
 	  } else {
-	    std::cout << "---- OutHDF5: checkpoint directory <"
-		      << dir_path.string() << "> creation failed"
-		      << std::endl;
+	    if (VERBOSE>5)
+	      std::cout << "---- OutHDF5: checkpoint directory <"
+			<< dir_path.string() << "> creation failed"
+			<< std::endl;
 	    okay = false;
 	  }
 	}
@@ -294,9 +299,11 @@ void OutHDF5::Run(int n, int mstep, bool last)
     // Remove old backup file
     //
     if (unlink(backfile.c_str())) {
-      if (VERBOSE>5) perror("OutHDF5::Run()");
-      std::cout << "---- OutHDF5::Run(): error unlinking old backup file <" 
-		<< backfile << ">, it may not exist" << std::endl;
+      if (VERBOSE>5) {
+	perror("OutHDF5::Run()");
+	std::cout << "---- OutHDF5::Run(): error unlinking old backup file <" 
+		  << backfile << ">, it may not exist" << std::endl;
+      }
     } else {
       if (VERBOSE>5) {
 	std::cout << "---- OutHDF5::Run(): successfully unlinked <"
@@ -307,9 +314,11 @@ void OutHDF5::Run(int n, int mstep, bool last)
     // Rename current file to backup file
     //
     if (rename(currfile.c_str(), backfile.c_str())) {
-      if (VERBOSE>5) perror("OutHDF5::Run()");
-      std::cout << "---- OutHDF5: renaming backup file <" 
-		<< backfile << ">, it may not exist" << std::endl;
+      if (VERBOSE>5) {
+	perror("OutHDF5::Run()");
+	std::cout << "---- OutHDF5: renaming backup file <" 
+		  << backfile << ">, it may not exist" << std::endl;
+      }
     } else {
       if (VERBOSE>5) {
 	std::cout << "---- OutHDF5::Run(): successfully renamed <"
@@ -339,12 +348,14 @@ void OutHDF5::Run(int n, int mstep, bool last)
 
 	if (not std::filesystem::is_directory(dir_path)) {
 	  if (std::filesystem::create_directory(dir_path)) {
-	    std::cout << "HDF5 directory <" << dir_path.string()
-		      << "> created successfully" << std::endl;
+	    if (VERBOSE>5)
+	      std::cout << "HDF5 directory <" << dir_path.string()
+			<< "> created successfully" << std::endl;
 	    okay = true;
 	  } else {
-	    std::cout << "HDF5 directory <" << dir_path.string()
-		      << "> creation failed" << std::endl;
+	    if (VERBOSE>5)
+	      std::cout << "HDF5 directory <" << dir_path.string()
+			<< "> creation failed" << std::endl;
 	    okay = false;
 	  }
 	}
