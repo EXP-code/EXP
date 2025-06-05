@@ -300,7 +300,7 @@ void OutHDF5::Run(int n, int mstep, bool last)
     //
     if (unlink(backfile.c_str())) {
       if (VERBOSE>5) {
-	perror("OutHDF5::Run()");
+	perror("---- OutHDF5::Run() perror");
 	std::cout << "---- OutHDF5::Run(): error unlinking old backup file <" 
 		  << backfile << ">, it may not exist" << std::endl;
       }
@@ -315,7 +315,7 @@ void OutHDF5::Run(int n, int mstep, bool last)
     //
     if (rename(currfile.c_str(), backfile.c_str())) {
       if (VERBOSE>5) {
-	perror("OutHDF5::Run()");
+	perror("---- OutHDF5::Run() perror");
 	std::cout << "---- OutHDF5: renaming backup file <" 
 		  << backfile << ">, it may not exist" << std::endl;
       }
@@ -385,7 +385,7 @@ void OutHDF5::Run(int n, int mstep, bool last)
   else         RunPSP(path);
 
   chktimer.mark();
-      if (VERBOSE>5) perror("OutHDF5::Run()");
+  if (VERBOSE>5) perror("---- OutHDF5::Run() perror");
 
   dump_signal = 0;
 
