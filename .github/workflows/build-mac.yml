@@ -31,6 +31,10 @@ jobs:
           echo OMPI_CC="clang" >> $GITHUB_ENV
           echo OMPI_CXX="clang++" >> $GITHUB_ENV
 
+          echo OMP_HOME=${HOMEBREW_PATH}/opt/libomp/ >> $GITHUB_ENV
+          echo LDFLAGS="-L${OMP_HOME}/lib" >> $GITHUB_ENV
+          echo CPPFLAGS="-I${OMP_HOME}/include" >> $GITHUB_ENV
+
       - name: Build EXP
         run: |
           # Get Python version info
@@ -52,7 +56,9 @@ jobs:
             -DENABLE_PYEXP=YES \
             -DDISABLE_OPENMP_COMPILE_FLAGS=YES \
             -DPYTHON_EXECUTABLE=${PYTHON_EXEC} \
-            -DPYTHON_LIBRARY=${PYTHON_LIBRARY}
+            -DPYTHON_LIBRARY=${PYTHON_LIBRARY} \
+            -DOpenMP_CXX_INCLUDE_DIR=${OMP_HOME}/include \
+            -DOpenMP_C_INCLUDE_DIR=${OMP_HOME}/include
 
           # Build and install EXP
           cmake --build build
