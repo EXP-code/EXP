@@ -50,6 +50,7 @@ jobs:
             --install-prefix $PWD/install \
             -DENABLE_NBODY=YES \
             -DENABLE_PYEXP=YES \
+            -DDISABLE_OPENMP_COMPILE_FLAGS=YES \
             -DPYTHON_EXECUTABLE=${PYTHON_EXEC} \
             -DPYTHON_LIBRARY=${PYTHON_LIBRARY}
 
