@@ -40,6 +40,18 @@ namespace PR {
     _files   = files;		// Copy file list (bunch)
     _verbose = verbose;
     
+    // Do we have a directory of snapshot files?
+    //
+    if (_files.size()==1) {
+      std::vector<std::string> fscan = scanDirectory(_files[0]);
+
+      // Did we find files?
+      //
+      if (fscan.size() != 0) {
+	_files = fscan;
+      }
+    }
+
     ptype = 1;			// Default is halo particles
 
     getNumbers();		// Get the number of particles in all
@@ -310,6 +322,18 @@ namespace PR {
     _files   = files;
     _verbose = verbose;
     
+    // Do we have a directory of snapshot files?
+    //
+    if (_files.size()==1) {
+      std::vector<std::string> fscan = scanDirectory(_files[0]);
+
+      // Did we find files?
+      //
+      if (fscan.size() != 0) {
+	_files = fscan;
+      }
+    }
+
     ptype = 1;			// Default is halo particles
 
     totalCount = 0;		// Initialization of particles read
@@ -318,7 +342,7 @@ namespace PR {
     curfile = _files.begin();
 
     if (not nextFile()) {
-      std::cerr << "GadgetNative: no files found" << std::endl;
+      std::cerr << "GadgetHDF5: no files found" << std::endl;
     }
   }
 
@@ -2115,8 +2139,21 @@ namespace PR {
   Tipsy::Tipsy(const std::vector<std::string>& filelist, TipsyType Type,
 	       bool verbose)
   {
-    ttype = Type;
     files = filelist;
+
+    // Do we have a directory of snapshot files?
+    //
+    if (files.size()==1) {
+      std::vector<std::string> fscan = scanDirectory(files[0]);
+
+      // Did we find files?
+      //
+      if (fscan.size() != 0) {
+	files = fscan;
+      }
+    }
+
+    ttype = Type;
     getNumbers();
     curfile = files.begin();
     if (not nextFile()) {
