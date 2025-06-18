@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
@@ -7,6 +8,7 @@
 #include <numeric>
 #include <string>
 #include <vector>
+#include <cctype>
 				// HighFive API
 #include <H5Cpp.h>
 #include <highfive/highfive.hpp>
@@ -638,17 +640,66 @@ namespace PR {
       else return 0;
     }
   }
+   
+  std::vector<std::string>
+  ParticleReader::scanDirectory(const std::string& dir)
+  {
+    // Will contain the filenames from the directory scan
+    std::vector<std::string> ret;
+
+    // Check if the directory exists
+    std::filesystem::path p(dir);
+
+    // If the directory does not exist, ret will be returned with zero
+    // length
+    if (std::filesystem::is_directory(p)) {
+
+      // Iterate over the directory entries
+      for (const auto& entry : std::filesystem::directory_iterator(p)) {
+	
+	// Check if the entry is a regular file
+	if (std::filesystem::is_regular_file(entry.status())) {
+	  
+	  // Get the filename
+	  std::string filename = entry.path().string();
+	  
+	  // Check if the last character is a digit
+	  if (std::isdigit(filename.back())) {
+	    
+	    // Assume that this is a snapshot file.  We could check if
+	    // this is HDF5 here but I'd rather that this procedure be
+	    // file-type agnostic.
+	    ret.push_back(filename);
+	  }
+	}
+      }
+    }
+
+    return ret;
+  }
   
-  
+
   PSPhdf5::PSPhdf5(const std::vector<std::string>& files, bool verbose)
   {
     _files   = files;
     _verbose = verbose;
     
+    // Do we have a directory of snapshot files?
+    //
+    if (_files.size()==1) {
+      std::vector<std::string> fscan = scanDirectory(_files[0]);
+      if (fscan.size() != 0) _files = fscan;
+      // Put the first file at the top of the list
+      std::partial_sort(_files.begin(), _files.begin()+1, _files.end()); 
+    }
+
+    // Read metadata from the first file
+    //
     getInfo();
 
     // Sanity check
-    if (nfiles != files.size())
+    //
+    if (nfiles != _files.size())
       throw GenericError("PSPhdf5: number of files does not match number expected for this snapshot", __FILE__, __LINE__, 1042, true);
 
     curfile = _files.begin();
@@ -1832,6 +1883,28 @@ namespace PR {
     return parseStringList(files, delimit);
   }
       
+  // Are all the files in the list directories?
+  bool
+  ParticleReader::parseDirectoryList(const std::vector<std::string>& files)
+  {
+    int dcount = 0;		// The directory count
+    int fcount = 0;		// The file count
+
+    for (auto f : files) {
+      if (std::filesystem::is_directory(f))
+	dcount++;
+      else 
+	fcount++;
+    }
+
+    if (dcount>0 and fcount>0)
+	  throw std::runtime_error("ParticleReader::parseDirectoryList: "
+				   "cannot mix directories and files");
+
+    return dcount>0;
+  }
+
+
   std::vector<std::vector<std::string>>
   ParticleReader::parseStringList
   (const std::vector<std::string>& infiles, const std::string& delimit)
@@ -1842,6 +1915,14 @@ namespace PR {
     auto files = infiles;
     std::sort(files.begin(), files.end());
       
+    // Check to see if these are all directories
+    if (parseDirectoryList(files)) {
+      for (auto d : files) {
+	batches.push_back(std::vector<std::string>{d});
+      }
+      return batches;
+    }
+
     std::vector<std::string> batch;
     std::string templ;
       

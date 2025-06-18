@@ -36,6 +36,9 @@ namespace PR
     int numprocs, myid;
     bool use_mpi;
     
+    static bool parseDirectoryList(const std::vector<std::string>& files);
+    static std::vector<std::string> scanDirectory(const std::string& dir);
+
   public:
     
     //! Constructor: check for and set up MPI
