@@ -36,7 +36,11 @@ namespace PR
     int numprocs, myid;
     bool use_mpi;
     
+    //! Check for a list of directories or files and not both
     static bool parseDirectoryList(const std::vector<std::string>& files);
+
+    //! Scan a directory for partial phase-space writes ending in a
+    //! integer index
     static std::vector<std::string> scanDirectory(const std::string& dir);
 
   public:

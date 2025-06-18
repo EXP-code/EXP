@@ -644,14 +644,14 @@ namespace PR {
   std::vector<std::string>
   ParticleReader::scanDirectory(const std::string& dir)
   {
-    // Will contain the filenames from the directory scan
+    // 'ret' will contain the filenames from the directory scan
     std::vector<std::string> ret;
 
-    // Check if the directory exists
+    // The directory path
     std::filesystem::path p(dir);
 
-    // If the directory does not exist, ret will be returned with zero
-    // length
+    // Check if the directory exists.  If the directory does not
+    // exist, then 'ret' will be returned with zero length
     if (std::filesystem::is_directory(p)) {
 
       // Iterate over the directory entries
@@ -660,10 +660,12 @@ namespace PR {
 	// Check if the entry is a regular file
 	if (std::filesystem::is_regular_file(entry.status())) {
 	  
-	  // Get the filename
+	  // Get the full path name
 	  std::string filename = entry.path().string();
 	  
-	  // Check if the last character is a digit
+	  // Check if the last character is a digit, consistent with a
+	  // partial phase-space write and not a backup or metadata
+	  // file
 	  if (std::isdigit(filename.back())) {
 	    
 	    // Assume that this is a snapshot file.  We could check if
@@ -688,9 +690,16 @@ namespace PR {
     //
     if (_files.size()==1) {
       std::vector<std::string> fscan = scanDirectory(_files[0]);
-      if (fscan.size() != 0) _files = fscan;
-      // Put the first file at the top of the list
-      std::partial_sort(_files.begin(), _files.begin()+1, _files.end()); 
+
+      // Did we find files?
+      //
+      if (fscan.size() != 0) {
+	_files = fscan;
+
+	// Put the first file at the top of the list for metadata
+	// reading
+	std::partial_sort(_files.begin(), _files.begin()+1, _files.end()); 
+      }
     }
 
     // Read metadata from the first file
