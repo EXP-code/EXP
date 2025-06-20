@@ -93,10 +93,10 @@ void ComponentContainer::initialize(void)
     }
   }
 
-  MPI_Bcast(&ir,   1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&is,   1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&ih,   1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&HDF5, 1, MPI_CXX_BOOL,      0, MPI_COMM_WORLD);
+  MPI_Bcast(&ir,   1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&is,   1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ih,   1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&HDF5, 1, MPI_CXX_BOOL,       0, MPI_COMM_WORLD);
 
   restart = ir ? true : false;
   SPL     = is ? true : false;
