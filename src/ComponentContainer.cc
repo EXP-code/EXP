@@ -51,10 +51,12 @@ void ComponentContainer::initialize(void)
   bool SPL  = false;		// Indicates whether file has the SPL prefix
   bool HDF5 = false;		// Indicates whether file is an HDF5 file
 
-  unsigned short ir = 0;
-  unsigned short is = 0;
-  unsigned short ih = 0;
-				// Look for a restart file
+  unsigned short ir = 0;	// Number of restart files
+  unsigned short is = 0;	// Number of SPL files
+  unsigned short ih = 0;	// Number of HDF5 files
+  
+  // Look for a restart file
+  //
   if (myid==0) {
     std::string resfile = outdir + infile;
 
@@ -93,14 +95,21 @@ void ComponentContainer::initialize(void)
     }
   }
 
+  // Share file counts and HDF5 detection
+  //
   MPI_Bcast(&ir,   1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&is,   1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ih,   1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&HDF5, 1, MPI_CXX_BOOL,       0, MPI_COMM_WORLD);
 
+  // Set restart flags.  'restart' is an EXP global.  'SPL' and 'HDF5'
+  // are local to this member function.
+  //
   restart = ir ? true : false;
   SPL     = is ? true : false;
 
+  // Begin phase space recovery
+  //
   if (restart) {
 
     if (HDF5) {
