@@ -426,6 +426,12 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, set_coefs, coefs);
     }
 
+    std::vector<double> getAccel(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE_PURE(std::vector<double>, BiorthBasis,
+			     getAccel, x, y, z);
+    }
+
   };
 
   class PySpherical : public Spherical
@@ -468,6 +474,10 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override {
       PYBIND11_OVERRIDE(std::vector<double>, Spherical, getFields, x, y, z);
+    }
+
+    std::vector<double> getAccel(double x, double y, double z) override {
+      PYBIND11_OVERRIDE(std::vector<double>, Spherical, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -516,6 +526,10 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override {
       PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getFields, x, y, z);
+    }
+
+    std::vector<double> getAccel(double x, double y, double z) override {
+      PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -578,6 +592,11 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getFields, x, y, z);
+    }
+
+    std::vector<double> getAccel(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -643,6 +662,11 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getFields, x, y, z);
+    }
+
+    std::vector<double> getAccel(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -713,6 +737,11 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, Slab, getFields, x, y, z);
     }
 
+    std::vector<double> getAccel(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Slab, getAccel, x, y, z);
+    }
+
     void accumulate(double x, double y, double z, double mass) override
     {
       PYBIND11_OVERRIDE(void, Slab, accumulate, x, y, z, mass);
@@ -779,6 +808,11 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, Cube, getFields, x, y, z);
+    }
+
+    std::vector<double> getAccel(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Cube, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -1217,7 +1251,31 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          getFieldsCoefs : get fields for each coefficient set
-         __call__       : same getFields() but provides field labels in a tuple
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getAccel", &BasisClasses::BiorthBasis::getAccel,
+	 R"(
+         Return the acceleration for a given cartesian position
+
+         Parameters
+         ----------
+         x : float
+             x-axis position
+         y : float
+             y-axis position
+         z : float
+             z-axis position
+
+         Returns
+         -------
+         fields: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
     .def("getFieldsCoefs", &BasisClasses::BiorthBasis::getFieldsCoefs,
