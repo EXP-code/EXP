@@ -294,7 +294,7 @@ namespace BasisClasses
        0, 1, cachename);
     
     // Test basis for consistency
-    orthoTest(200);
+    if (myid==0) orthoTest(200);
   }
   
   void Bessel::initialize()
@@ -320,7 +320,7 @@ namespace BasisClasses
     bess = std::make_shared<BiorthBess>(rmax, lmax, nmax, rnum);
 
     // Test basis for consistency
-    orthoTest(200);
+    if (myid==0) orthoTest(200);
   }
   
   void Spherical::reset_coefs(void)
@@ -1366,7 +1366,7 @@ namespace BasisClasses
 
     // Orthogonality sanity check
     //
-    orthoTest();
+    if (myid==0) orthoTest();
 
     // Set cylindrical coordindates
     //
@@ -1557,7 +1557,6 @@ namespace BasisClasses
     "nmaxfid",
     "rcylmin",
     "rcylmax",
-    "acyltbl",
     "numx",
     "numy",
     "numr",
@@ -1675,9 +1674,7 @@ namespace BasisClasses
     
     // Set characteristic radius defaults
     //
-    if (not conf["acyltbl"]) conf["acyltbl"] = 0.6;
     if (not conf["scale"])   conf["scale"]   = 1.0;
-
 
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
@@ -1697,7 +1694,7 @@ namespace BasisClasses
     
     // Orthogonality sanity check
     //
-    orthoTest();
+    if (myid==0) orthoTest();
 
     // Get max threads
     //
@@ -1743,9 +1740,12 @@ namespace BasisClasses
     cf->nmax   = nmax;
     cf->time   = time;
 
-    cf->store((2*mmax+1)*nmax);
+    // Allocate the coefficient storage
+    cf->store.resize((mmax+1)*nmax);
+
+    // Make the coefficient map
     cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
-      (cf->store.data(), 2*mmax+1, nmax);
+      (cf->store.data(), mmax+1, nmax);
 
     for (int m=0, m0=0; m<=mmax; m++) {
       for (int n=0; n<nmax; n++) {
@@ -1818,15 +1818,15 @@ namespace BasisClasses
   {
     // Normalization factors
     //
-    constexpr double norm0 = 2.0*M_PI * 0.5*M_2_SQRTPI/M_SQRT2;
-    constexpr double norm1 = 2.0*M_PI * 0.5*M_2_SQRTPI;
+    constexpr double norm0 = 1.0;
+    constexpr double norm1 = M_SQRT2;
 
     //======================
     // Compute coefficients 
     //======================
     
     double R2 = x*x + y*y;
-    double R  = sqrt(R);
+    double R  = sqrt(R2);
     
     // Get thread id
     int tid = omp_get_thread_num();
@@ -1886,8 +1886,8 @@ namespace BasisClasses
     int tid = omp_get_thread_num();
 
     // Fixed values
-    constexpr double norm0 = 0.5*M_2_SQRTPI/M_SQRT2;
-    constexpr double norm1 = 0.5*M_2_SQRTPI;
+    constexpr double norm0 = 1.0;
+    constexpr double norm1 = M_SQRT2;
 
     double den0=0, den1=0, pot0=0, pot1=0, rpot=0, zpot=0, ppot=0;
 
@@ -2151,7 +2151,7 @@ namespace BasisClasses
 
     // Orthogonality sanity check
     //
-    orthoTest();
+    if (myid==0) orthoTest();
 
     // Get max threads
     //
@@ -2450,9 +2450,12 @@ namespace BasisClasses
     cf->nmax   = nmax;
     cf->time   = time;
 
-    cf->store((2*mmax+1)*nmax);
+    // Allocate the coefficient storage
+    cf->store.resize((mmax+1)*nmax);
+
+    // Make the coefficient map
     cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
-      (cf->store.data(), 2*mmax+1, nmax);
+      (cf->store.data(), mmax+1, nmax);
 
     for (int m=0, m0=0; m<=mmax; m++) {
       for (int n=0; n<nmax; n++) {
@@ -2532,7 +2535,7 @@ namespace BasisClasses
     //======================
     
     double R2 = x*x + y*y;
-    double R  = sqrt(R);
+    double R  = sqrt(R2);
     
     // Get thread id
     int tid = omp_get_thread_num();
@@ -2825,7 +2828,7 @@ namespace BasisClasses
 
     // Orthogonality sanity check
     //
-    if (check) orthoTest();
+    if (check and myid==0) orthoTest();
 
     // Get max threads
     //
@@ -3267,7 +3270,7 @@ namespace BasisClasses
     
     // Orthogonality sanity check
     //
-    if (check) orthoTest();
+    if (check and myid==0) orthoTest();
 
     // Get max threads
     //
