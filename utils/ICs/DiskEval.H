@@ -129,7 +129,7 @@ private:
     int M = abs(m);
   
     // Initial value precompile
-    constexpr double ylm00 = 0.5/sqrt(M_PI);
+    constexpr double ylm00 = 0.25/M_2_SQRTPI;
   
     // Assign initial value
     double pmm = ylm00;

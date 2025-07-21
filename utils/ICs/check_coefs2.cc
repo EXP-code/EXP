@@ -341,6 +341,7 @@ main(int ac, char **av)
   options.add_options()
     ("h,help", "Print this help message")
     ("t,template", "Write template options file with current and all default values")
+    ("contour", "Write contour-style surface matrices for matplotlib visualization")
     ("c,config", "Parameter configuration file",
      cxxopts::value<string>(config))
     ("condition", "Condition EmpCylSL deprojection from specified disk model (EXP or MN)",
@@ -1018,7 +1019,38 @@ main(int ac, char **av)
   }
 
 
-  std::ofstream zout(prefix + ".plane");
+  std::ofstream zout(prefix + ".plane"), zout2;
+
+  bool contour = false;
+  if (vm.count("contour")) {
+    contour = true;
+    zout2.open(prefix + ".surface");
+
+    zout2 << "# Radius                      1" << std::endl
+	  << "# Height                      2" << std::endl
+	  << "# radial force-exp            3" << std::endl
+	  << "# radial force-thr            4" << std::endl
+	  << "# radial force-reldif         5" << std::endl
+	  << "# vertical force-exp          6" << std::endl
+	  << "# vertical force-thr          7" << std::endl
+	  << "# vertical force-reldif       8" << std::endl
+	  << "# potential-exp               9" << std::endl
+	  << "# potential-thr              10" << std::endl
+	  << "# potential-reldif           11" << std::endl
+	  << "# n-restriced potential      12" << std::endl
+	  << "# n-restriced density        13" << std::endl
+	  << "# potl basis function 0      14" << std::endl
+	  << "# dens basis function 0      15" << std::endl
+	  << "# potl basis function 1      16" << std::endl
+	  << "# dens basis function 1      17" << std::endl
+	  << "# potl basis function 2      18" << std::endl
+	  << "# dens basis function 2      19" << std::endl
+	  << "# and so on                  .." << std::endl
+	  << "#"                               << std::endl
+	  << std::setw(10) << NFRC2D
+	  << std::setw(10) << NFRC2D
+	  << std::endl;
+  }
 
   // File column descriptions
   //
@@ -1146,6 +1178,23 @@ main(int ac, char **av)
 	  zout << std::setw(18) << pp[nn]         // 12+2*nn
 	       << std::setw(18) << dd[nn];	  // 12+2*nn+1
       zout << std::endl;
+
+      if (contour)
+	zout2 << std::setw(18) << r	          // 1
+	      << std::setw(18) << z	          // 2
+	      << std::setw(18) << fR	          // 3
+	      << std::setw(18) << FR	          // 4
+	      << std::setw(18) << (fR - FR)/FR	  // 5
+	      << std::setw(18) << fz	          // 6
+	      << std::setw(18) << Fz	          // 7
+	      << std::setw(18) << (fz - Fz)/Fz	  // 8
+	      << std::setw(18) << p		  // 9
+	      << std::setw(18) << P		  // 10
+	      << std::setw(18) << (p - P)/P;	  // 11
+      for (int nn=0; nn<nmin; nn++)
+	zout2 << std::setw(18) << pp[nn]         // 12+2*nn
+	     << std::setw(18) << dd[nn];	  // 12+2*nn+1
+      zout2 << std::endl;
     }
     zout << std::endl;
 
