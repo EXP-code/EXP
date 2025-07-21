@@ -5,6 +5,7 @@
 #include <yaml-cpp/yaml.h>	// YAML support
 
 #include <Progress.H>		// Progress bar
+#include <localmpi.H>		// MPI variables
 
 #include <DiskEval.H>
 
@@ -72,14 +73,14 @@ DiskEval::DiskEval
 #pragma omp parallel
   {
     numthrd = omp_get_num_threads();
-    int myid = omp_get_thread_num();
-    if (myid==0)
+    int tid = omp_get_thread_num();
+    if (myid==0 and tid==0)
       std::cout << "Number of threads=" << numthrd << std::endl;
   }
 #endif
 
   std::shared_ptr<progress::progress_display> progress;
-  if (use_progress) {
+  if (use_progress and myid==0 and tid==0) {
     std::cout << std::endl << "Begin: exact force evaluation"
 	      << std::endl << "-----------------------------"
 	      << std::endl;
@@ -509,14 +510,16 @@ void DiskEval::write_cache()
     }
     
   } else {
-    std::cerr << std::endl
-	      << "DiskEval: could not open cache file <"
-	      << cachefile << "> for writing" << std::endl;
+    if (myid==0)
+      std::cerr << std::endl
+		<< "DiskEval: could not open cache file <"
+		<< cachefile << "> for writing" << std::endl;
   }
 
-  std::cerr << std::endl
-	    << "DiskEval: wrote cache file <"
-	    << cachefile << ">" << std::endl;
+  if (myid==0)
+    std::cerr << std::endl
+	      << "DiskEval: wrote cache file <"
+	      << cachefile << ">" << std::endl;
 }
 
 bool DiskEval::read_cache()

@@ -1,3 +1,5 @@
+#define DEBUG
+
 /*
   Check coefficient expansion for cylindrical basis and compare to a
   high-order multipole expansion for force and potential
@@ -288,8 +290,8 @@ main(int ac, char **av)
   // Begin opt parsing
   //====================
 
-  int          LMAX;
-  int          NMAX;
+  int          LMAXFID;
+  int          NMAXFID;
   int          NUMR;
   int          SCMAP;
   double       RCYLMIN;
@@ -315,7 +317,7 @@ main(int ac, char **av)
   int          NOUT;
   int          NFRC1D;
   int          NFRC2D;
-  int          NORDER;
+  int          NMAX;
   int          NODD;
   double       scale_height;
   double       scale_length;
@@ -338,17 +340,17 @@ main(int ac, char **av)
 
   options.add_options()
     ("h,help", "Print this help message")
-    ("T,template", "Write template options file with current and all default values")
+    ("t,template", "Write template options file with current and all default values")
     ("c,config", "Parameter configuration file",
      cxxopts::value<string>(config))
     ("condition", "Condition EmpCylSL deprojection from specified disk model (EXP or MN)",
      cxxopts::value<string>(dmodel))
-    ("LMAX", "Maximum harmonic order",
-     cxxopts::value<int>(LMAX)->default_value("4"))
-    ("NMAX", "Maximum radial order",
-     cxxopts::value<int>(NMAX)->default_value("8"))
+    ("LMAXFID", "Maximum harmonic order",
+     cxxopts::value<int>(LMAXFID)->default_value("48"))
+    ("NMAXFID", "Maximum radial order",
+     cxxopts::value<int>(NMAXFID)->default_value("36"))
     ("MMAX", "Maximum azimuthal order",
-     cxxopts::value<int>(MMAX)->default_value("y"))
+     cxxopts::value<int>(MMAX)->default_value("8"))
     ("NUMX", "Size of the (mapped) cylindrical radial grid",
      cxxopts::value<int>(NUMX)->default_value("256"))
     ("NUMY", "Size of the (mapped) cylindrical vertical grid",
@@ -361,8 +363,8 @@ main(int ac, char **av)
      cxxopts::value<int>(NUMR)->default_value("2000"))
     ("NODD", "Number of vertically odd basis functions per harmonic order",
      cxxopts::value<int>(NODD)->default_value("6"))
-    ("NORDER", "Total number of basis functions per harmonic order",
-     cxxopts::value<int>(NORDER)->default_value("32"))
+    ("NMAX", "Total number of basis functions per harmonic order",
+     cxxopts::value<int>(NMAX)->default_value("32"))
     ("NFRC1D", "Number of force evaluations in radius for 1-d test",
      cxxopts::value<int>(NFRC1D)->default_value("32"))
     ("NFRC2D", "Number of force evaluations in radius for 2-d test",
@@ -398,7 +400,7 @@ main(int ac, char **av)
     ("orthotst", "Compute orthgonality of basis functions",
      cxxopts::value<bool>(orthotst)->default_value("false"))
     ("progress", "Show a progress bar",
-     cxxopts::value<bool>(use_progress)->default_value("false"))
+      cxxopts::value<bool>(use_progress)->default_value("false"))
     ("LOGR", "Logarithmc mapping for radial profile in EmpCylSL",
      cxxopts::value<bool>(LOGR)->default_value("false"))
     ("LOGR2", "Logarithmc mapping for radial profile in coefficient evaluation",
@@ -429,7 +431,6 @@ main(int ac, char **av)
      cxxopts::value<std::string>(prefix)->default_value("checkcoefs2"))
      ;
 
-
   // Parse command line for control and critical parameters
   //
   cxxopts::ParseResult vm;
@@ -451,12 +452,12 @@ main(int ac, char **av)
     MPI_Finalize();
     return 1;
   }
-
+  
   // Write YAML template config file and exit
   //
   if (vm.count("template")) {
-
-    NOUT = std::min<int>(NOUT, NORDER);
+    
+    NOUT = std::min<int>(NOUT, NMAX);
 
     // Write template file
     //
@@ -468,7 +469,7 @@ main(int ac, char **av)
 
   // Read parameters fron the YAML config file
   //
-  if (vm.count("input")) {
+  if (vm.count("config")) {
     try {
       vm = LoadConfig(options, config);
     } catch (cxxopts::OptionException& e) {
@@ -534,8 +535,8 @@ main(int ac, char **av)
 #pragma omp parallel
   {
     int numthrd = omp_get_num_threads();
-    int myid = omp_get_thread_num();
-    if (myid==0)
+    int tid = omp_get_thread_num();
+    if (myid==0 and tid==0)
       std::cout << "Number of threads=" << numthrd << std::endl;
   }
 #endif
@@ -558,7 +559,7 @@ main(int ac, char **av)
   if (not ignore) {
 
     std::ifstream in(cachefile);
-    if (!in) {
+    if (!in and myid==0) {
       std::cerr << "Error opening cachefile named <"
 		<< cachefile << "> . . ."
 		<< std::endl
@@ -568,91 +569,12 @@ main(int ac, char **av)
 		<< "If this is NOT what you want, "
 		<< "stop this routine and specify the correct file."
 		<< std::endl;
-    } else {
-
-      // Attempt to read magic number
-      //
-      const unsigned int hmagic = 0xc0a57a1; // Basis magic #
-      unsigned int tmagic;
-      in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
-
-      if (tmagic == hmagic) {
-
-	// YAML size
-	//
-	unsigned ssize;
-	in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
-
-	// Make and read char buffer
-	//
-	auto buf = std::make_unique<char[]>(ssize+1);
-	in.read(buf.get(), ssize);
-	buf[ssize] = 0;		// Null terminate
-
-	YAML::Node node;
-
-	try {
-	  node = YAML::Load(buf.get());
-	}
-	catch (YAML::Exception& error) {
-	  if (myid==0)
-	    std::cerr << "YAML: error parsing <" << buf.get() << "> "
-		      << "in " << __FILE__ << ":" << __LINE__ << std::endl
-		      << "YAML error: " << error.what() << std::endl;
-	  throw error;
-	}
-
-	// Get parameters
-	//
-	MMAX   = node["mmax"  ].as<int>();
-	NUMX   = node["numx"  ].as<int>();
-	NUMY   = node["numy"  ].as<int>();
-	NMAX   = node["nmax"  ].as<int>();
-	NORDER = node["norder"].as<int>();
-	// RMIN   = node["rmin"  ].as<double>();
-	// RMAX   = node["rmax"  ].as<double>();
-	ASCALE = node["ascl"  ].as<double>();
-	HSCALE = node["hscl"  ].as<double>();
-
-	if (node["nodd"])		// Backwards compatibility
-	  NODD   = node["cmap"  ].as<int>();
-
-	if (node["cmap"])		// Backwards compatibility
-	  CMAPR  = node["cmap"  ].as<int>();
-	else
-	  CMAPR  = node["cmapr" ].as<int>();
-
-	if (node["cmapz"])	// Backwards compatibility
-	  CMAPZ  = node["cmapz" ].as<int>();
-
-      } else {
-
-	// Rewind file
-	//
-	in.clear();
-	in.seekg(0);
-
-	int tmp;
-
-	in.read((char *)&MMAX,    sizeof(int));
-	in.read((char *)&NUMX,    sizeof(int));
-	in.read((char *)&NUMY,    sizeof(int));
-	in.read((char *)&NMAX,    sizeof(int));
-	in.read((char *)&NORDER,  sizeof(int));
-	in.read((char *)&tmp,     sizeof(int));
-	in.read((char *)&CMTYPE,  sizeof(int));
-	in.read((char *)&RCYLMIN, sizeof(double));
-	in.read((char *)&RCYLMAX, sizeof(double));
-	in.read((char *)&ASCALE,  sizeof(double));
-	in.read((char *)&HSCALE,  sizeof(double));
-      }
     }
   }
 
   // Limit value of NOUT
   //
-  NOUT = std::min<int>(NOUT, NORDER);
-
+  NOUT = std::min<int>(NOUT, NMAX);
 
   // Assign parameters
   //
@@ -675,8 +597,8 @@ main(int ac, char **av)
   bool save_eof = false;
 
   std::shared_ptr<EmpCylSL> expandd =
-    std::make_shared<EmpCylSL>(NMAX, LMAX, MMAX, NORDER, ASCALE, HSCALE,
-			       NODD, cachefile);
+     std::make_shared<EmpCylSL>(NMAXFID, LMAXFID, MMAX, NMAX, ASCALE, HSCALE,
+				NODD, cachefile);
 
   // Try to read existing cache to get EOF
   //
@@ -736,14 +658,15 @@ main(int ac, char **av)
   AA = AEXP;
   HH = HEXP;
 
-  std::cout << "A    = " << ASCALE  << std::endl
-	    << "H    = " << HSCALE  << std::endl
-	    << "AA   = " << AA      << std::endl
-	    << "HH   = " << HH      << std::endl
-	    << "Rmin = " << RCYLMIN << std::endl
-	    << "Rmax = " << RCYLMAX << std::endl
-	    << "Nord = " << NORDER  << std::endl
-	    << "Nout = " << NOUT    << std::endl;
+  if (myid==0)
+    std::cout << "A    = " << ASCALE  << std::endl
+	      << "H    = " << HSCALE  << std::endl
+	      << "AA   = " << AA      << std::endl
+	      << "HH   = " << HH      << std::endl
+	      << "Rmin = " << RCYLMIN << std::endl
+	      << "Rmax = " << RCYLMAX << std::endl
+	      << "Nmax = " << NMAX    << std::endl
+	      << "Nout = " << NOUT    << std::endl;
 
   double xmin = r_to_x(RCYLMIN*AA, AA);
   double xmax = r_to_x(RCYLMAX*AA, AA);
@@ -752,23 +675,26 @@ main(int ac, char **av)
 
   std::map<std::pair<int, int>, double> orthochk;
 
-  switch (dtype) {
-  case DiskType::constant:
-    std::cout << "Dens = constant" << std::endl;
-    break;
+  if (myid==0) {
 
-  case DiskType::gaussian:
-    std::cout << "Dens = gaussian" << std::endl;
-    break;
+    switch (dtype) {
+    case DiskType::constant:
+      std::cout << "Dens = constant" << std::endl;
+      break;
 
-  case DiskType::mn:
-    std::cout << "Dens = mn" << std::endl;
-    break;
+    case DiskType::gaussian:
+      std::cout << "Dens = gaussian" << std::endl;
+      break;
 
-  default:
-  case DiskType::exponential:
-    std::cout << "Dens = exponential" << std::endl;
-    break;
+    case DiskType::mn:
+      std::cout << "Dens = mn" << std::endl;
+      break;
+
+    default:
+    case DiskType::exponential:
+      std::cout << "Dens = exponential" << std::endl;
+      break;
+    }
   }
 
   double totM = 0.0;
@@ -784,7 +710,7 @@ main(int ac, char **av)
 #endif
 
   std::shared_ptr<progress::progress_display> progress;
-  if (use_progress) {
+  if (myid==0 and use_progress) {
     std::cout << std::endl << "Begin: coefficient eval"
 	      << std::endl << "-----------------------"
 	      << std::endl;
@@ -906,32 +832,33 @@ main(int ac, char **av)
     }
   }
 
-  std::cout << std::endl << "Total integrated mass: " << totM
-	    << std::endl << std::endl;
+  if (myid==0) {
+    std::cout << std::endl << "Total integrated mass: " << totM
+	      << std::endl << std::endl;
 
-  double cum = 0.0;
-  for (int n=0; n<NOUT; n++) {
-    cum += coefs[n]*coefs[n];
-    std::cout << std::setw( 8) << n
-	      << std::setw(18) << coefs[n]
-	      << std::setw(18) << coefs[n]*coefs[n]
-	      << std::setw(18) << cum
-	      << std::endl;
+    double cum = 0.0;
+    for (int n=0; n<NOUT; n++) {
+      cum += coefs[n]*coefs[n];
+      std::cout << std::setw( 8) << n
+		<< std::setw(18) << coefs[n]
+		<< std::setw(18) << coefs[n]*coefs[n]
+		<< std::setw(18) << cum
+		<< std::endl;
+    }
+    
+    std::cout << std::endl;
+    
+    for (auto v : orthochk)
+      std::cout << std::setw( 3) << v.first.first
+		<< std::setw( 3) << v.first.second
+		<< std::setw(18) << v.second
+		<< std::endl;
   }
-
-  std::cout << std::endl;
-
-  for (auto v : orthochk)
-    std::cout << std::setw( 3) << v.first.first
-	      << std::setw( 3) << v.first.second
-	      << std::setw(18) << v.second
-	      << std::endl;
 
   // Set coefficients from std::vectors
   //
   std::vector<double> zero(NOUT, 0.0);
   expandd->set_coefs(0, coefs, zero, true);
-
 
   // Evaluate force using multipole expansion
   //
