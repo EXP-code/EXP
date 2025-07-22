@@ -20,14 +20,6 @@ DiskEval::DiskEval
  int lmax, int numr, int nint, bool use_progress, int mmax, int nump, bool cache) :
   model(model), ascl(ascl), lmax(lmax), numr(numr)
 {
-
-
-  cout << "MMAX=" << mmax << "  NUMP=" << nump << "  ascl=" << ascl << endl;
-
-  // choose a maximum m order. pass this in later.
-  //int mmax = 16;
-
-  
   if (ascl>0.0) xscl = true;
   else          xscl = false;
 
@@ -45,7 +37,7 @@ DiskEval::DiskEval
     } else {			// Linear scaling
       xmin = rmin;
       xmax = rmax;
-      logr = false;
+     logr = false;
     }
   }
 
@@ -144,8 +136,6 @@ DiskEval::DiskEval
 	  //             v
 	  for (int m=0; m<=maxm; m++) {
 	
-	    //if ((p==0) && (n<10)) std::cout << setw(14) << p << setw(14) << n << setw(14) << dens << endl;
-
 	    rho[ll][m][i] += Ylm(l, m, cosx) * dens * fac * cos(m*phi);
 
 	  } // end m loop for Ylm
@@ -177,7 +167,7 @@ DiskEval::DiskEval
   numrads *= numr;
   numrads /= numthrd;
 
-  if (use_progress) {
+  if (myid==0 and use_progress) {
     std::cout << std::endl << "Quadrature loop multipole expansion"
 	      << std::endl;
     progress = std::make_shared<progress::progress_display>(numrads);
@@ -592,10 +582,11 @@ bool DiskEval::read_cache()
    
       if (model1.compare(model->getID()))  {
 	okay = false;
-	std::cout << std::endl
-		  << "DiskEval:read_cache: model ID mismatch <"
-		  << model1 << "> != <" << model->getID() << ">"
-		  << std::endl;
+	if (myid==0)
+	  std::cout << std::endl
+		    << "DiskEval:read_cache: model ID mismatch <"
+		    << model1 << "> != <" << model->getID() << ">"
+		    << std::endl;
       }
 
       // Get parameters
@@ -603,10 +594,11 @@ bool DiskEval::read_cache()
 
       if (fabs(mass1 - model->getMass()) > 1.0e-18) {
 	okay = false;
-	std::cout << std::endl
-		  << "DiskEval:read_cache: model mass mismatch <"
-		  << mass1 << "> != <" << model->getMass() << ">"
-		  << std::endl;
+	if (myid==0)
+	  std::cout << std::endl
+		    << "DiskEval:read_cache: model mass mismatch <"
+		    << mass1 << "> != <" << model->getMass() << ">"
+		    << std::endl;
       }
     
 
@@ -616,59 +608,66 @@ bool DiskEval::read_cache()
 	for (int i=0; i<params.size(); i++) {
 	  if (fabs(params1[i] - params[i]) > 1.0e-18) {
 	    okay = false;
-	    std::cout << std::endl
-		      << "DiskEval:read_cache: model parameter ("
-		      << i+1 << ") mismatch<" << params1[i] << "> != <"
-		      << params[i] << ">" << std::endl;
+	    if (myid==0)
+	      std::cout << std::endl
+			<< "DiskEval:read_cache: model parameter ("
+			<< i+1 << ") mismatch<" << params1[i] << "> != <"
+			<< params[i] << ">" << std::endl;
 	  }
 	}
       } else {
-	    okay = false;
-	    std::cout << std::endl
-		      << "DiskEval:read_cache: parameter size mismatch<"
-		      << params1.size() << "> != <" << params.size() << ">"
-		      << std::endl;
+	okay = false;
+	if (myid==0)
+	  std::cout << std::endl
+		    << "DiskEval:read_cache: parameter size mismatch<"
+		    << params1.size() << "> != <" << params.size() << ">"
+		    << std::endl;
       }
 
       if (fabs(dx1 - dx)     > 1.0e-18) {
 	okay = false;
-	std::cout << std::endl
-		  << "DiskEval:read_cache: dx mismatch <"
-		  << dx1 << "> != <" << dx << ">"
-		  << std::endl;
+	if (myid==0)
+	  std::cout << std::endl
+		    << "DiskEval:read_cache: dx mismatch <"
+		    << dx1 << "> != <" << dx << ">"
+		    << std::endl;
       }
-    
+      
       if (lmax1 != lmax) {
 	okay = false;
-	std::cout << std::endl
-		  << "DiskEval:read_cache: lmax mismatch <"
-		  << lmax1 << "> != <" << lmax << ">"
-		  << std::endl;
+	if (myid==0)
+	  std::cout << std::endl
+		    << "DiskEval:read_cache: lmax mismatch <"
+		    << lmax1 << "> != <" << lmax << ">"
+		    << std::endl;
       }
     
       if (numr1 != numr) {
 	okay = false;
-	std::cout << std::endl
-		  << "DiskEval:read_cache: numr mismatch <"
-		  << numr1 << "> != <" << numr << ">"
-		  << std::endl;
+	if (myid==0)
+	  std::cout << std::endl
+		    << "DiskEval:read_cache: numr mismatch <"
+		    << numr1 << "> != <" << numr << ">"
+		    << std::endl;
       }
     
       if ((logr1 and not logr) or (not logr1 and logr)) {
 	okay = false;
-	std::cout << std::endl
-		  << "DiskEval:read_cache: logr mismatch <"
-		  << std::boolalpha << logr1 << "> != <"
-		  << std::boolalpha << logr << ">" << std::endl;
+	if (myid==0)
+	  std::cout << std::endl
+		    << "DiskEval:read_cache: logr mismatch <"
+		    << std::boolalpha << logr1 << "> != <"
+		    << std::boolalpha << logr << ">" << std::endl;
 	
       }
       
       if ((xscl1 and not xscl) or (not xscl1 and xscl)) {
 	okay = false;
-	std::cout << std::endl
-		  << "DiskEval:read_cache: xscl mismatch <"
-		  << std::boolalpha << xscl1 << "> != <"
-		  << std::boolalpha << xscl << ">" << std::endl;
+	if (myid==0)
+	  std::cout << std::endl
+		    << "DiskEval:read_cache: xscl mismatch <"
+		    << std::boolalpha << xscl1 << "> != <"
+		    << std::boolalpha << xscl << ">" << std::endl;
       }
       
       if (not okay) return false;
