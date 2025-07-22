@@ -1182,7 +1182,7 @@ namespace PR {
 	      }
 		
 	      if (Ndattrib[curindx]>0) {
-		P.iattrib.resize(Ndattrib[curindx]);
+		P.dattrib.resize(Ndattrib[curindx]);
 		// Access data by pointer
 		Scalar* ptr = (Scalar*)h5part[n].dattrib.p;
 		for (int j=0; j<Ndattrib[curindx]; j++)
