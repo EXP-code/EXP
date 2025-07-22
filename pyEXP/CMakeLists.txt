@@ -40,7 +40,9 @@ pybind11_add_module(pyEXP PyWrappers.cc CoefWrappers.cc
   ParticleReaderWrappers.cc MSSAWrappers.cc EDMDWrappers.cc)
 target_link_libraries(pyEXP PUBLIC expui exputil ${common_LINKLIB})
 target_include_directories(pyEXP PUBLIC ${common_INCLUDE})
-target_compile_options(pyEXP PUBLIC ${OpenMP_CXX_FLAGS})
+if(NOT DISABLE_OPENMP_COMPILE_FLAGS)
+  target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
+endif()
 get_target_property(cxxflags pyEXP COMPILE_OPTIONS)
 message("The project has set the following flags: ${cxxflags}")
 
