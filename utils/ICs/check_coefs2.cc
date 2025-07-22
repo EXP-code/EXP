@@ -172,14 +172,6 @@ void set_fpu_gdb_handler(void)
                                 // Local headers
 #include <localmpi.H>
 
-
-// Hydrogen fraction
-//
-const double f_H = 0.76;
-
-
-// Global variables
-//
 enum DiskType { constant, gaussian, mn, exponential };
 
 std::map<std::string, DiskType> dtlookup =
@@ -878,9 +870,9 @@ main(int ac, char **av)
 
   // Overkill accuracy
   //
-  // DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 400, 8000, 400, use_progress);
-
-  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 200, 1000, 800, use_progress);
+  // DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 200, 1000, 800, use_progress);
+  // DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 400, 8000, 800, use_progress);
+  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 400, 2000, 800, use_progress);
   //                                          ^    ^    ^     ^
   //                                          |    |    |     |
   // Disk scale for mapping-------------------+    |    |     |
