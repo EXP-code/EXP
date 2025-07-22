@@ -1,8 +1,6 @@
 #ifndef _OutHDF5_H
 #define _OutHDF5_H
 
-#include <OutHDF5.H>
-
 /** Write phase-space dumps at regular intervals from each node in
     component pieces.  This writer is indended to be Gadget-4 HDF5
     compliant.
