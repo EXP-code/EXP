@@ -927,7 +927,7 @@ namespace PR {
 	      }
 		
 	      if (Ndattrib[curindx]>0) {
-		P.iattrib.resize(Ndattrib[curindx]);
+		P.dattrib.resize(Ndattrib[curindx]);
 		for (int j=0; j<Ndattrib[curindx]; j++) P.dattrib[j] = rattrib(n, j);
 	      }
 		
