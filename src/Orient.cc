@@ -182,7 +182,7 @@ Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
 	    break;
 	  }
 	  else {
-	    for (int k; k<3; k++) line >> pseudo(k);
+	    for (int k=0; k<3; k++) line >> pseudo(k);
 	  }
 	}
 	if (allRead) {
