@@ -794,8 +794,8 @@ void OutHDF5::checkParticleMasses()
       p = c->get_particles(&number);
     }
 
-    MPI_Bcast(&minMass, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&maxMass, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &minMass, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &maxMass, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
     if ( (maxMass - minMass)/maxMass < 1.0e-12) {
       masses.push_back(maxMass);
