@@ -719,7 +719,7 @@ void OutHDF5::RunPSP(const std::string& path)
 	std::string gcommit(GIT_COMMIT), gbranch(GIT_BRANCH), gdate(COMPILE_TIME);
 	writeScalar(params, "Git_commit",   gcommit);
 	writeScalar(params, "Git_branch",   gbranch);
-	writeScalar(params, "Compile_data", gdate  );
+	writeScalar(params, "Compile_date", gdate  );
 
 	std::vector<std::string> names, forces, configs;
 	for (auto c : comp->components) {
