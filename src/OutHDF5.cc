@@ -794,9 +794,14 @@ void OutHDF5::checkParticleMasses()
       p = c->get_particles(&number);
     }
 
-    MPI_Allreduce(MPI_IN_PLACE, &minMass, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, &maxMass, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    // Get the min and max mass for all processes
+    MPI_Allreduce(MPI_IN_PLACE, &minMass, 1, MPI_DOUBLE, MPI_MIN,
+		  MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &maxMass, 1, MPI_DOUBLE, MPI_MAX,
+		  MPI_COMM_WORLD);
 
+    // All processes generate masses and multim from the globally
+    // reduced values
     if ( (maxMass - minMass)/maxMass < 1.0e-12) {
       masses.push_back(maxMass);
       multim.push_back(true);
