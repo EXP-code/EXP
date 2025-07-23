@@ -72,7 +72,7 @@ DiskEval::DiskEval
 #endif
 
   std::shared_ptr<progress::progress_display> progress;
-  if (use_progress and myid==0 and tid==0) {
+  if (use_progress and myid==0) {
     std::cout << std::endl << "Begin: exact force evaluation"
 	      << std::endl << "-----------------------------"
 	      << std::endl;
