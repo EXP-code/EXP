@@ -101,7 +101,7 @@ private:
   {
     int M = abs(m);
     double plm = plgndr(l, M, cosx);
-    if (std::isnan(plm) or std::isinf(plm))
+    if (std::isnan(plm) or std::isinf(plm)) // Check for failure in plgndr
       std::cout << "Failure in plgndr at l=" << l
 		<< " m=" << m << " cosx=" << cosx << std::endl;
     return Nlm(l, M) * plm * pow(-1.0, M);
