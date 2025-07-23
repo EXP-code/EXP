@@ -117,7 +117,7 @@ private:
     double dplm = dplgndr(l, M, cosx);
     if (std::isnan(dplm) or std::isinf(dplm))
       std::cout << "Failure in dplgndr at l=" << l
-		<< " m=" << m << " cosx=" << cosx << std::endl;
+		<< " m=" << m << " cosx=" << cosx << std::endl; // Correct function name is dplgndr
 
     return -Nlm(l, M) * dplm * pow(-1.0, M) * sqrt(1.0 - cosx*cosx);
   }
