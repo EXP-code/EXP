@@ -1,4 +1,4 @@
-#define DEBUG
+#define DEBUG  // Enables debugging-related code, such as signal handlers and floating-point exception traps.
 
 /*
   Check coefficient expansion for cylindrical basis and compare to a
