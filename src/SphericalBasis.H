@@ -30,25 +30,67 @@ class MixtureBasis;
 
 
     @details **YAML configuration**
-    @param scale Radial scale factor between particle coordinates and the basis coorindates.  The default is 1 and should be 1 if the input basis model matches the phase-space coordinates of the particles.
-    @param rmin is the lower-bound of the target basis.  This will be set to minimum radius in the input model by default.
-    @param rmax  is the upper-bound of the target basis.  This will be set to maximum radius in the input model by default.
-    @param self_consistent set to true allows the particles to evolve under the time-dependent basis expansion. For a basis fixed in time to the initial time: set to false.
-    @param FIX_L0 set to true saves the monopole coefficients on the first evaluation
-    @param NO_L0 set to true disables the monopole coefficients altogehter for all time
-    @param NO_L1 set to true disables the dipole coefficients altogehter for all time
-    @param EVEN_L set to true eliminates all \f$l\f$ harmonic coefficients of odd order for all time
-    @param EVEN_M set to true eliminates all \f$m\f$ harmonic coefficients of odd order for all time
-    @param M0_ONLY set to true eliminates all \f$|m|>0\f$ harmonic coefficients for all time
-    @param NOISE set to true enables the signal-to-noise ratio computation for diagnostic purposes
-    @param noiseN is the variance scale factor for estimating the RMS noise (1.0e-6 by default; \f$1/N\f$ is a good choice for the standard deviation of the noise)
-    @param noise_model_file is the filename for the background model model used to estimate the noise
-    @param seedN is the random number generator seed for the noise computation
-    @param ssfrac sets a fraction of the total phase space used for coefficient estimation (this is an experimental feature)
-    @param "playback set to true uses a coefficient file to evaluate the coefficients rather than direct expansion
-    @param coefCompute set to true computes a new set of coefficients during playback for comparison
-    @param coefMaster set to true evaluates the playback coefficients on a single node which are then broadcast to all nodes
-    @param orthocheck set to true computed the basis biorthgoonal check by direct quadrature
+
+    @param scale Radial scale factor between particle coordinates and
+    the basis coorindates.  The default is 1 and should be 1 if the
+    input basis model matches the phase-space coordinates of the
+    particles.
+
+    @param rmin is the lower-bound of the target basis.  This will be
+    set to minimum radius in the input model by default.
+
+    @param rmax is the upper-bound of the target basis.  This will be
+    set to maximum radius in the input model by default.
+
+    @param self_consistent set to true allows the particles to evolve
+    under the time-dependent basis expansion. For a basis fixed in
+    time to the initial time: set to false.
+
+    @param FIX_L0 set to true saves the monopole coefficients on the
+    first evaluation
+
+    @param NO_L0 set to true disables the monopole coefficients
+    altogehter for all time
+
+    @param NO_L1 set to true disables the dipole coefficients
+    altogehter for all time
+
+    @param EVEN_L set to true eliminates all \f$l\f$ harmonic
+    coefficients of odd order for all time
+
+    @param EVEN_M set to true eliminates all \f$m\f$ harmonic
+    coefficients of odd order for all time
+
+    @param M0_ONLY set to true eliminates all \f$|m|>0\f$ harmonic
+    coefficients for all time
+
+    @param NOISE set to true enables the signal-to-noise ratio
+    computation for diagnostic purposes
+
+    @param noiseN is the variance scale factor for estimating the RMS
+    noise (1.0e-6 by default; \f$1/N\f$ is a good choice for the
+    standard deviation of the noise)
+
+    @param noise_model_file is the filename for the background model
+    model used to estimate the noise
+
+    @param seedN is the random number generator seed for the noise
+    computation
+
+    @param ssfrac sets a fraction of the total phase space used for
+    coefficient estimation (this is an experimental feature)
+
+    @param "playback set to true uses a coefficient file to evaluate
+    the coefficients rather than direct expansion
+
+    @param coefCompute set to true computes a new set of coefficients
+    during playback for comparison
+
+    @param coefMaster set to true evaluates the playback coefficients
+    on a single node which are then broadcast to all nodes
+
+    @param orthocheck set to true computed the basis biorthgoonal
+    check by direct quadrature
 */
 class SphericalBasis : public AxisymmetricBasis
 {

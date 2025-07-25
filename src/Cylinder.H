@@ -22,10 +22,11 @@
 
 class MixtureBasis;
 
-/** This routine computes the potential, acceleration and density 
+/** @class Cylinder
+    @brief This routine computes the potential, acceleration and density 
     using the Cylindrical biorthogonal expansion 
 
-    Configuration parameters:
+    @details **YAML parameters**
 
     @param rcylmin is the minimum cylindrical grid radius in scale-length units
 
@@ -35,7 +36,9 @@ class MixtureBasis;
 
     @param hcyl is the scale height
 
-    @param lmax is the maximum spherical harmonic index for EOF construction
+    @param lmaxfid is the maximum spherical harmonic index for EOF construction
+
+    @param nmaxfid is the maximum radial index for EOF construction
 
     @param mmax is the maximum azimuthal order for the resulting basis
 
@@ -87,24 +90,34 @@ class MixtureBasis;
 
     @param snr is the signal-to-noise prefactor for sharpness computation
 
-    @param evcut is the cumulative trim remainder on the covariance eigenvalues (default: -1, which implies no trimming).  Set to small positive value for trimming.
+    @param evcut is the cumulative trim remainder on the covariance
+    eigenvalues (default: -1, which implies no trimming).  Set to
+    small positive value for trimming.
     
     @param try_cache false suppresses cache reading on restart (default: true)
 
     @param EVEN_M true uses even harmonic orders only
 
-    @param cmap is the coordinate mapping type (deprecated but kept for backward consistency)
+    @param cmap is the coordinate mapping type (deprecated but kept
+    for backward consistency)
 
     @param cmapr is the radial coordinate mapping type
 
     @param cmapz is the vertical coordinate mapping type
 
-    @param self_consistent set to false turns off potential expansion; only performed the first time
+    @param self_consistent set to false turns off potential expansion;
+    only performed the first time
 
-    @param playback file reads a coefficient file and uses it to compute the basis function output for resimiulation
+    @param playback file reads a coefficient file and uses it to
+    compute the basis function output for resimiulation
 
-    @param python is the file name of Python module which supplies the 'disk_density' function for conditioning the cylindrical basis.  A non-null string triggers the use of the Python interpreter to evaluate the target density function.
+    @param pyname is the file name of Python module which supplies the
+    'disk_density' function for conditioning the cylindrical basis.  A
+    non-null string triggers the use of the Python interpreter to
+    evaluate the target density function.
 
+    @param dumpbasis set to true dumps the basis to a file for
+    diagnostic examination (default: false)
 */
 class Cylinder : public Basis
 {
