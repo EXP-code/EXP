@@ -177,8 +177,13 @@ Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
 	
 	bool allRead = true;
 	for (int i=0; i<3; i++) {
-	  if (line.eof()) allRead = false;
-	  for (int k; k<3; k++) line >> pseudo(k);
+	  if (line.eof()) {
+	    allRead = false;
+	    break;
+	  }
+	  else {
+	    for (int k=0; k<3; k++) line >> pseudo(k);
+	  }
 	}
 	if (allRead) {
 	  if (accel) accel->add(time, pseudo, axis1);

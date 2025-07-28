@@ -399,7 +399,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 				      RMIN, RMAX*0.99, false, 1, 1.0);
 
-  orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL[SLGridSph]", "l");
+  orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL [SLGridSph]", "l");
 
   // Resize (should not be necessary) but just in case some future
   // feature changes mulitstep on the fly
@@ -878,7 +878,7 @@ int EmpCylSL::read_eof_file(const string& eof_file)
   ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					RMIN, RMAX*0.99, false, 1, 1.0);
 
-  orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL[SLGridSph]", "l");
+  orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL [SLGridSph]", "l");
 
   setup_eof();
   setup_accumulation();
@@ -1450,7 +1450,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     ortho = std::make_shared<SLGridSph>(make_sl(), LMAX, NMAX, NUMR,
 					  RMIN, RMAX*0.99, false, 1, 1.0);
 
-    orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL[SLGridSph]", "l");
+    orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL [SLGridSph]", "l");
   }
 
 
@@ -1633,7 +1633,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 					  LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
 					  false, 1, 1.0);
 
-    orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL[SLGridSph]", "l");
+    orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL [SLGridSph]", "l");
   }
 
   double dens, potl, potr, pott;

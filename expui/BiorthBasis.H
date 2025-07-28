@@ -856,8 +856,11 @@ namespace BasisClasses
     bool orthoTest()
     {
       auto [ret, worst, lworst] = orthoCompute(sl->orthoCheck());
-      // For the CTest log
-      std::cout << "---- Cylindrical::orthoTest: worst=" << worst << std::endl;
+      if (myid==0) {
+	// For the CTest log
+	std::cout << "---- Cylindrical::orthoTest: worst=" << worst
+		  << std::endl;
+      }
       return ret;
     }
 
