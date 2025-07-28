@@ -2573,6 +2573,18 @@ namespace CoefClasses
   
   void Coefs::WriteH5Coefs(const std::string& prefix)
   {
+    // Sanity check: throw runtime error if there are no coefficient
+    // sets
+    //
+    if (Times().size() == 0) {
+      throw std::runtime_error
+	("Coefs::WriteH5Coefs: "
+	 "we have NO coefficient sets...continuing without writing"
+	 );
+    }
+
+    // Write coefficients
+    //
     try {
       // Create a new hdf5 file
       //

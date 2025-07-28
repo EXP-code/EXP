@@ -919,7 +919,7 @@ namespace Field
   }
   // END histogram1d
 
-  std::tuple<Eigen::VectorXf, Eigen::VectorXf>
+  std::tuple<Eigen::VectorXf, Eigen::VectorXf, Eigen::VectorXf>
   FieldGenerator::histo1dlog(PR::PRptr reader, double rmin, double rmax,
 			     int nbins, std::vector<double> ctr)
   {
@@ -930,6 +930,9 @@ namespace Field
 
     Eigen::VectorXf rad = Eigen::VectorXf::Zero(nbins);
     Eigen::VectorXf ret = Eigen::VectorXf::Zero(nbins);
+    Eigen::VectorXf vel = Eigen::VectorXf::Zero(nbins);
+    Eigen::MatrixXf vc2 = Eigen::MatrixXf::Zero(nbins, 3);
+    Eigen::MatrixXf vc1 = Eigen::MatrixXf::Zero(nbins, 3);
 
     double lrmin = log(rmin), lrmax = log(rmax);
     double del = (lrmax - lrmin)/nbins;
@@ -944,18 +947,35 @@ namespace Field
       }
 
       int indx = floor((log(sqrt(rad)) - lrmin)/del);
-      if (indx>=0 and indx<nbins) ret[indx] += p->mass;
+      if (indx>=0 and indx<nbins) {
+	ret[indx] += p->mass;
+	for (int k=0; k<3; k++) {
+	  double v = p->vel[k];
+	  vc1(indx, k) += p->mass * v;
+	  vc2(indx, k) += p->mass * v*v;
+	}
+      }
     }
     
     // Accumulate between MPI nodes; return value to root node
     //
     if (use_mpi) {
-      if (myid==0) 
+      if (myid==0) {
 	MPI_Reduce(MPI_IN_PLACE, ret.data(), ret.size(),
 		   MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-      else
+	MPI_Reduce(MPI_IN_PLACE, vc1.data(), vc1.size(),
+		   MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(MPI_IN_PLACE, vc2.data(), vc2.size(),
+		   MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+      }
+      else {
 	MPI_Reduce(ret.data(), NULL, ret.size(),
 		   MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(vc1.data(), NULL, vc1.size(),
+		   MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(vc2.data(), NULL, vc2.size(),
+		   MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+      }
     }
 
     // Compute density
@@ -963,11 +983,19 @@ namespace Field
     double d3 = exp(3.0*del);
     double rf = 4.0*pi/3.0*(d3 - 1.0);
     for (int i=0; i<nbins; i++) {
+      double sig = 0.0;
+      for (int k=0; k<3; k++) {
+	vc1(i, k) /= ret[i];
+	vc2(i, k) /= ret[i];
+	sig += vc2(i, k) - vc1(i, k)*vc1(i, k);
+      }
+
       rad[i] = exp(lrmin + del*(0.5 + i));
       ret[i] /= exp(3.0*(lrmin + del*i)) * rf;
+      vel[i] = sqrt(fabs(sig));
     }
     
-    return {rad, ret};
+    return {rad, ret, vel};
   }
   // END histo1dlog
 
