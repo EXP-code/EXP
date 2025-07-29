@@ -4205,28 +4205,18 @@ namespace BasisClasses
 
     // Interpolate center
     //
-    if (coefsA->ctr.size() and coefsB->ctr.size()) {
-      newcoef->ctr.resize(3);
-      for (int k=0; k<3; k++)
-	newcoef->ctr[k] = a * coefsA->ctr[k] + b * coefsB->ctr[k];
-    }
+    newcoef->ctr = a * coefsA->ctr + b * coefsB->ctr;
 
     // Interpolate rotation matrix followed by unitarization
     //
-    Eigen::Matrix3d newrot;
-    for (int k=0; k<9; k++) {
-      newrot.data()[k] = 
-	a * coefsA->rot.data()[k] + b * coefsB->rot.data()[k];
-    }
-    
+    Eigen::Matrix3d newrot = a * coefsA->rot + b * coefsB->rot;
+
     // Closest unitary matrix in the Frobenius norm sense
     //
-    Eigen::BDCSVD<Eigen::Matrix3d> svd(newrot,
-				       Eigen::ComputeFullU | Eigen::ComputeFullV);
-    auto U = svd.matrixU();
-    auto V = svd.matrixV();
+    Eigen::BDCSVD<Eigen::Matrix3d> svd
+      (newrot, Eigen::ComputeFullU | Eigen::ComputeFullV);
 
-    newcoef->rot = U * V.adjoint();
+    newcoef->rot = svd.matrixU() * svd.matrixV().adjoint();
 
     // Install coefficients
     //
