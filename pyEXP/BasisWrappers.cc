@@ -292,13 +292,15 @@ void BasisFactoryClasses(py::module &m)
     }
 
     virtual CoefClasses::CoefStrPtr
-    createFromReader(PR::PRptr reader, std::vector<double> ctr) override {
-      PYBIND11_OVERRIDE_PURE(CoefClasses::CoefStrPtr, Basis, createFromReader, reader, ctr);
+    createFromReader(PR::PRptr reader, std::vector<double> ctr,
+		     Eigen::Matrix3d rot) override {
+      PYBIND11_OVERRIDE_PURE(CoefClasses::CoefStrPtr, Basis, createFromReader, reader, ctr, rot);
     }
 
 
-    virtual void initFromArray(std::vector<double> ctr) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, initFromArray, ctr);
+    virtual void initFromArray
+    (std::vector<double> ctr, Eigen::MatrixXd rot) {
+      PYBIND11_OVERRIDE_PURE(void, Basis, initFromArray, ctr, rot);
     }
 
     virtual void
@@ -886,10 +888,10 @@ void BasisFactoryClasses(py::module &m)
       )
     .def("createFromArray",
 	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& ps,
-	    double time, std::vector<double> center,
+	    double time, std::vector<double> center, Eigen::Matrix3d rot,
 	    bool roundrobin, bool posvelrows)
 	 {
-	   return A.createFromArray(mass, ps, time, center,
+	   return A.createFromArray(mass, ps, time, center, rot,
 				    roundrobin, posvelrows);
 	 },
 	 R"(
@@ -926,6 +928,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("rotation") = Eigen::Matrix3d::Identity(),
 	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
     .def("makeFromArray",
 	 [](BasisClasses::Basis& A, double time)
@@ -1127,13 +1130,14 @@ void BasisFactoryClasses(py::module &m)
              the basis coefficients computed from the particles
          )",
 	 py::arg("reader"), 
-	 py::arg("center") = std::vector<double>(3, 0.0))
+	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("rotation") = Eigen::Matrix3d::Identity())
     .def("createFromArray",
 	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
-	    double time, std::vector<double> center,
+	    double time, std::vector<double> center, Eigen::Matrix3d rot,
 	    bool roundrobin, bool posvelrows)
 	 {
-	   return A.createFromArray(mass, pos, time, center,
+	   return A.createFromArray(mass, pos, time, center, rot,
 				    roundrobin, posvelrows);
 	 },
 	 R"(
@@ -1169,6 +1173,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("rotation") = Eigen::Matrix3d::Identity(),	 
 	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
     .def("initFromArray",
 	 [](BasisClasses::BiorthBasis& A, std::vector<double> center)
@@ -2112,11 +2117,13 @@ void BasisFactoryClasses(py::module &m)
              the basis coefficients computed from the particles
          )",
 	 py::arg("reader"), 
-	 py::arg("center") = std::vector<double>(3, 0.0))
+	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("rotation") = Eigen::Matrix3d::Identity())
     .def("initFromArray",
-	 [](BasisClasses::FieldBasis& A, std::vector<double> center)
+	 [](BasisClasses::FieldBasis& A, std::vector<double> center,
+	    Eigen::MatrixXd rotation)
 	 {
-	   return A.initFromArray(center);
+	   return A.initFromArray(center, rotation);
 	 },
 	 R"(
          Initialize coefficient accumulation
@@ -2125,6 +2132,8 @@ void BasisFactoryClasses(py::module &m)
          ----------
          center : list, default=[0, 0, 0]
              vector of center positions
+         rotation : numpy.ndarray, default=Identity
+             rotation matrix to apply to the phase-space coordinates
 
          Returns
          -------
@@ -2141,7 +2150,8 @@ void BasisFactoryClasses(py::module &m)
          phase space arrays but allows for generation from very large 
          phase-space sets that can not be stored in physical memory.
          )",
-	 py::arg("center") = std::vector<double>(3, 0.0))
+	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("rotation") = Eigen::Matrix3d::Identity())
     .def("addFromArray",
 	 [](BasisClasses::FieldBasis& A, Eigen::VectorXd& mass, RowMatrixXd& ps)
 	 {

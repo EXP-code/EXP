@@ -276,9 +276,9 @@ namespace BasisClasses
   //
   CoefClasses::CoefStrPtr Basis::createFromArray
   (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
-   bool roundrobin, bool posvelrows)
+   Eigen::Matrix3d rot, bool roundrobin, bool posvelrows)
   {
-    initFromArray(ctr);
+    initFromArray(ctr, rot);
     addFromArray(m, p, roundrobin, posvelrows);
     return makeFromArray(time);
   }

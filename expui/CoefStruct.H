@@ -29,6 +29,9 @@ namespace CoefClasses
     //! Center data
     std::vector<double> ctr= {0.0, 0.0, 0.0};
 
+    //! Orientation data
+    Eigen::Matrix3d rot= Eigen::Matrix3d::Identity();
+
     //! Destructor
     virtual ~CoefStruct() {}
 
@@ -72,6 +75,12 @@ namespace CoefClasses
 
     //! Read-only access to center (no copy)
     std::vector<double> getCenter() { return ctr; }
+
+    //! Set new rotation matrix
+    void setRotation(Eigen::Matrix3d& ROT) { rot = ROT; }
+
+    //! Read-only access to orientation
+    Eigen::Matrix3d getRotation() { return rot; }
 
     //! Set coefficient time (no copy)
     void setTime(double& STORE)

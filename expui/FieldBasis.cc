@@ -539,7 +539,7 @@ namespace BasisClasses
 
   // Generate coeffients from a particle reader
   CoefClasses::CoefStrPtr FieldBasis::createFromReader
-  (PR::PRptr reader, std::vector<double> ctr)
+  (PR::PRptr reader, std::vector<double> ctr, Eigen::Matrix3d rot)
   {
     CoefClasses::CoefStrPtr coef;
     
@@ -595,7 +595,7 @@ namespace BasisClasses
   }
 
   // Generate coefficients from a phase-space table
-  void FieldBasis::initFromArray(std::vector<double> ctr)
+  void FieldBasis::initFromArray(std::vector<double> ctr, Eigen::Matrix3d rot)
   {
     if (dof==3)
       coefret = std::make_shared<CoefClasses::SphFldStruct>();

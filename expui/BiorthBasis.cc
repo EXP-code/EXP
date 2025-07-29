@@ -3871,7 +3871,7 @@ namespace BasisClasses
   
   // Generate coeffients from a particle reader
   CoefClasses::CoefStrPtr BiorthBasis::createFromReader
-  (PR::PRptr reader, std::vector<double> ctr)
+  (PR::PRptr reader, std::vector<double> ctr, Eigen::Matrix3d rot)
   {
     CoefClasses::CoefStrPtr coef;
 
@@ -3901,6 +3901,10 @@ namespace BasisClasses
     //
     if (addCenter) coef->ctr = ctr;
 
+    // Add the rotation matrix
+    //
+    coef->rot = rot;
+
     std::vector<double> pp(3), vv(3);
 
     reset_coefs();
@@ -3916,10 +3920,13 @@ namespace BasisClasses
 	use = true;
       }
 
-      if (use) accumulate(p->pos[0]-ctr[0],
-			  p->pos[1]-ctr[1],
-			  p->pos[2]-ctr[2],
-			  p->mass);
+      if (use) {
+	Eigen::Vector3d pp;
+	for (int k=0; k<3; k++) pp(k) = p->pos[k] - coefctr[k];
+	pp = coefrot * pp;
+	
+	accumulate(pp(0), pp(1), pp(2), p->mass);
+      }
     }
     make_coefs();
     load_coefs(coef, reader->CurrentTime());
@@ -3927,7 +3934,7 @@ namespace BasisClasses
   }
 
   // Generate coefficients from a phase-space table
-  void BiorthBasis::initFromArray(std::vector<double> ctr)
+  void BiorthBasis::initFromArray(std::vector<double> ctr, Eigen::Matrix3d rot)
   {
     if (name.compare("sphereSL") == 0)
       coefret = std::make_shared<CoefClasses::SphStruct>();
@@ -3956,6 +3963,9 @@ namespace BasisClasses
     // Register the center
     //
     coefctr = ctr;
+
+    // Register the rotation matrix
+    coefret->rot = rot;
 
     // Clean up for accumulation
     //
@@ -4027,9 +4037,13 @@ namespace BasisClasses
 	  }
 	  coefindx++;
 	  
-	  if (use) accumulate(p(0, n)-coefctr[0],
-			      p(1, n)-coefctr[1],
-			      p(2, n)-coefctr[2], m(n));
+	  if (use) {
+	    Eigen::Vector3d pp;
+	    for (int k=0; k<3; k++) pp(k) = p(k, n) - coefctr[k];
+	    pp = coefrot * pp;
+
+	    accumulate(pp(0), pp(1), pp(2), m(n));
+	  }
 	}
       }
       
@@ -4055,9 +4069,13 @@ namespace BasisClasses
 	  }
 	  coefindx++;
 	  
-	  if (use) accumulate(p(n, 0)-coefctr[0],
-			      p(n, 1)-coefctr[1],
-			      p(n, 2)-coefctr[2], m(n));
+	  if (use) {
+	    Eigen::Vector3d pp;
+	    for (int k=0; k<3; k++) pp(k) = p(k, n) - coefctr[0];
+	    pp = coefrot * pp;
+
+	    accumulate(pp(0), pp(1), pp(2), m(n));
+	  }
 	}
       }
     }
@@ -4075,9 +4093,9 @@ namespace BasisClasses
   //
   CoefClasses::CoefStrPtr BiorthBasis::createFromArray
   (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
-   bool RoundRobin, bool PosVelRows)
+   Eigen::Matrix3d rot, bool RoundRobin, bool PosVelRows)
   {
-    initFromArray(ctr);
+    initFromArray(ctr, rot);
     addFromArray(m, p, RoundRobin, PosVelRows);
     return makeFromArray(time);
   }
@@ -4095,13 +4113,20 @@ namespace BasisClasses
     auto ctr = basis->getCenter();
     if (basis->usingNonInertial()) ctr = {0, 0, 0};
 
+    // Get rotation matrix
+    //
+    auto rot = basis->getRotation();
+
     // Get fields
     //
     int rows = accel.rows();
     for (int n=0; n<rows; n++) {
-      auto v = basis->getFields(ps(n, 0) - ctr[0],
-				ps(n, 1) - ctr[1],
-				ps(n, 2) - ctr[2]);
+      Eigen::Vector3d pp;
+      for (int k=0; k<3; k++) pp(k) = ps(n, k) - ctr[k];
+      pp = rot * pp;
+
+      auto v = basis->getFields(pp(0), pp(1), pp(2));
+
       // First 6 fields are density and potential, followed by acceleration
       for (int k=0; k<3; k++) accel(n, k) += v[6+k] - basis->pseudo(k);
     }
@@ -4191,6 +4216,23 @@ namespace BasisClasses
       for (int k=0; k<3; k++)
 	newcoef->ctr[k] = a * coefsA->ctr[k] + b * coefsB->ctr[k];
     }
+
+    // Interpolate rotation matrix followed by unitarization
+    //
+    Eigen::Matrix3d newrot;
+    for (int k=0; k<9; k++) {
+      newrot.data()[k] = 
+	a * coefsA->rot.data()[k] + b * coefsB->rot.data()[k];
+    }
+    
+    // Closest unitary matrix in the Frobenius norm sense
+    //
+    Eigen::BDCSVD<Eigen::Matrix3d> svd(newrot,
+				       Eigen::ComputeFullU | Eigen::ComputeFullV);
+    auto U = svd.matrixU();
+    auto V = svd.matrixV();
+
+    newcoef->rot = U * V.adjoint();
 
     // Install coefficients
     //

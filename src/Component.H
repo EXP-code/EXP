@@ -311,7 +311,7 @@ protected:
   //! Use center from this component
   Component *c0;
 
-  //! Locagte centering component
+  //! Locate centering component
   void find_ctr_component();
 
   //! Name of the centering component
@@ -763,6 +763,14 @@ public:
       if (flags & Centered) ret[j] += center[j];
     }
 
+    return ret;
+  }
+
+  //! Get rotation matrix
+  Eigen::Matrix3d getRotation()
+  {
+    Eigen::Matrix3d ret = Eigen::Matrix3d::Identity();
+    if ( (EJ & Orient::AXIS) and !EJdryrun) ret = orient->transformBody();
     return ret;
   }
 

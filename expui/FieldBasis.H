@@ -135,7 +135,8 @@ namespace BasisClasses
     //! Generate coeffients from a particle reader and optional center
     //! location for the expansion
     CoefClasses::CoefStrPtr createFromReader
-    (PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
+    (PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0}, 
+     Eigen::Matrix3d rot=Eigen::Matrix3d::Identity());
     
     
     //! Generate coeffients from an array and optional center location
@@ -145,7 +146,9 @@ namespace BasisClasses
     //! Initialize accumulating coefficients from arrays with an optional
     //! center vector.  This is called once to initialize the accumulation.
     void initFromArray
-    (std::vector<double> center={0.0, 0.0, 0.0});
+    (std::vector<double> center={0.0, 0.0, 0.0}, 
+     Eigen::Matrix3d rot=Eigen::Matrix3d::Identity());
+    
     
     //! Initialize accumulating coefficients from arrays.  This is
     //! called once to initialize the accumulation.

@@ -68,6 +68,9 @@ namespace BasisClasses
     //! The expansion center
     std::vector<double> coefctr;
 
+    //! Rotation matrix
+    Eigen::Matrix3d coefrot;
+
     //! Contains contructor and BFE parameter database
     YAML::Node node, conf;
     
@@ -151,8 +154,10 @@ namespace BasisClasses
     virtual ~Basis(void) {}
     
     //! Set the expansion center
-    void setCenter(std::vector<double> center)
-    { coefctr = center; }
+    void setCenter(std::vector<double> center) { coefctr = center; }
+    
+    //! Set the rotation matrix
+    void setRotation(Eigen::Matrix3d rot) { coefrot = rot; }
     
     //! Evaluate basis in desired coordinates
     virtual std::vector<double>
@@ -213,11 +218,12 @@ namespace BasisClasses
     
     //! Generate coeffients from a particle reader
     virtual CoefClasses::CoefStrPtr
-    createFromReader(PR::PRptr reader, std::vector<double> ctr) = 0;
+    createFromReader(PR::PRptr reader, std::vector<double> ctr,
+		     Eigen::Matrix3d rot) = 0;
 
     //! Generate coefficients from a phase-space table
     virtual void
-    initFromArray(std::vector<double> ctr) = 0;
+    initFromArray(std::vector<double> ctr, Eigen::Matrix3d rot) = 0;
 
     //! Accumulate coefficient contributions from arrays
     virtual void
@@ -229,6 +235,7 @@ namespace BasisClasses
     CoefClasses::CoefStrPtr createFromArray
     (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
      std::vector<double> center={0.0, 0.0, 0.0},
+     Eigen::Matrix3d rot=Eigen::Matrix3d::Identity(),
      bool roundrobin=true, bool posvelrows=false);
 
     //! Create and the coefficients from the array accumulation with the
@@ -276,6 +283,9 @@ namespace BasisClasses
 
     //! Get the basis expansion center
     std::vector<double> getCenter() { return coefctr; }
+
+    //! Get the basis expansion center
+    Eigen::Matrix3d getRotation() { return coefrot; }
   };
   
   using BasisPtr = std::shared_ptr<Basis>;
