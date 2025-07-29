@@ -26,7 +26,7 @@ class MixtureBasis;
     @brief This routine computes the potential, acceleration and density 
     using the Cylindrical biorthogonal expansion 
 
-    @details **YAML parameters**
+    @details **YAML configuration**
 
     @param rcylmin is the minimum cylindrical grid radius in scale-length units
 
