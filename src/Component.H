@@ -6,11 +6,19 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <H5Cpp.h>
+
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+
 #include <EXPException.H>
 #include <global.H>
 #include <Orient.H>
 #include <header.H>
 #include <localmpi.H>
+#include <ParticleReader.H>
 #include <ParticleFerry.H>
 #include <CenterFile.H>
 #include <PotAccel.H>
@@ -349,6 +357,14 @@ protected:
   static const std::set<std::string> valid_keys_force;
   //@}
 
+  
+  //@{
+  //! HDF5 compression parameters
+  int  H5compress = 0;
+  bool H5shuffle = true;
+  int  H5chunk = 4096;
+  //@}
+
 public:
 
   //! Describe the phase space coordinates
@@ -533,6 +549,9 @@ public:
   //! Initialize from file
   Component(YAML::Node&, istream *in, bool SPL);
 
+  //! Initialize from HDF5
+  Component(YAML::Node&, PR::PSPhdf5& reader);
+
   //! Destructor
   ~Component();
 
@@ -551,6 +570,18 @@ public:
   //! Write binary component phase-space structure
   void write_binary(ostream *out, bool real4 = false);
   
+  //@{
+  //! Write HDF5 phase-space structure for real or float
+
+  //! Gadget style
+  template <typename T>
+  void write_HDF5(HighFive::Group& group, bool masses, bool IDs);
+
+  //! PSP style
+  template <typename T>
+  void write_H5(H5::Group& group);
+  //@}
+
   //! Write header for per-node writes
   void write_binary_header(ostream* out, bool real4, std::string prefix, int nth=1);
 
@@ -969,6 +1000,16 @@ public:
 
   //! Compute level from minimum requested time step from last master step
   inline bool DTreset()  { return dtreset;  }
+
+  //! Set H5 compression parameters; in principle, compression can be
+  //! set per component, although it is set to be the same for all
+  //! components currently.
+  void setH5(int compress, bool shuffle, int chunk)
+  {
+    H5compress = compress;
+    H5shuffle  = shuffle;
+    H5chunk    = chunk;
+  }
 
 #if HAVE_LIBCUDA==1
   //@{
