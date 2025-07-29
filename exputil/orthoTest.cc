@@ -81,6 +81,7 @@ void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
   } else {
     // Success message
     if (myid==0) 
-      std::cout << classname + ": biorthogonal check passed" << std::endl;
+      std::cout << "---- " << classname + ": biorthogonal check passed"
+		<< std::endl;
   }
 }

@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
@@ -7,7 +8,11 @@
 #include <numeric>
 #include <string>
 #include <vector>
-
+#include <cctype>
+				// HighFive API
+#include <H5Cpp.h>
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -35,6 +40,18 @@ namespace PR {
     _files   = files;		// Copy file list (bunch)
     _verbose = verbose;
     
+    // Do we have a directory of snapshot files?
+    //
+    if (_files.size()==1) {
+      std::vector<std::string> fscan = scanDirectory(_files[0]);
+
+      // Did we find files?
+      //
+      if (fscan.size() != 0) {
+	_files = fscan;
+      }
+    }
+
     ptype = 1;			// Default is halo particles
 
     getNumbers();		// Get the number of particles in all
@@ -305,6 +322,18 @@ namespace PR {
     _files   = files;
     _verbose = verbose;
     
+    // Do we have a directory of snapshot files?
+    //
+    if (_files.size()==1) {
+      std::vector<std::string> fscan = scanDirectory(_files[0]);
+
+      // Did we find files?
+      //
+      if (fscan.size() != 0) {
+	_files = fscan;
+      }
+    }
+
     ptype = 1;			// Default is halo particles
 
     totalCount = 0;		// Initialization of particles read
@@ -313,7 +342,7 @@ namespace PR {
     curfile = _files.begin();
 
     if (not nextFile()) {
-      std::cerr << "GadgetNative: no files found" << std::endl;
+      std::cerr << "GadgetHDF5: no files found" << std::endl;
     }
   }
 
@@ -635,8 +664,579 @@ namespace PR {
       else return 0;
     }
   }
+   
+  std::vector<std::string>
+  ParticleReader::scanDirectory(const std::string& dir)
+  {
+    // 'ret' will contain the filenames from the directory scan
+    std::vector<std::string> ret;
+
+    // The directory path
+    std::filesystem::path p(dir);
+
+    // Check if the directory exists.  If the directory does not
+    // exist, then 'ret' will be returned with zero length
+    if (std::filesystem::is_directory(p)) {
+
+      // Iterate over the directory entries
+      for (const auto& entry : std::filesystem::directory_iterator(p)) {
+	
+	// Check if the entry is a regular file
+	if (std::filesystem::is_regular_file(entry.status())) {
+	  
+	  // Get the full path name
+	  std::string filename = entry.path().string();
+	  
+	  // Check if the last character is a digit, consistent with a
+	  // partial phase-space write and not a backup or metadata
+	  // file
+	  if (std::isdigit(filename.back())) {
+	    
+	    // Assume that this is a snapshot file.  We could check if
+	    // this is HDF5 here but I'd rather that this procedure be
+	    // file-type agnostic.
+	    ret.push_back(filename);
+	  }
+	}
+      }
+    }
+
+    return ret;
+  }
   
+
+  PSPhdf5::PSPhdf5(const std::vector<std::string>& files, bool verbose)
+  {
+    _files   = files;
+    _verbose = verbose;
+    
+    // Do we have a directory of snapshot files?
+    //
+    if (_files.size()==1) {
+      std::vector<std::string> fscan = scanDirectory(_files[0]);
+
+      // Did we find files?
+      //
+      if (fscan.size() != 0) {
+	_files = fscan;
+
+	// Put the first file at the top of the list for metadata
+	// reading
+	std::partial_sort(_files.begin(), _files.begin()+1, _files.end()); 
+      }
+    }
+
+    // Read metadata from the first file
+    //
+    getInfo();
+
+    // Sanity check
+    //
+    if (nfiles != _files.size())
+      throw GenericError("PSPhdf5: number of files does not match number expected for this snapshot", __FILE__, __LINE__, 1042, true);
+
+    curfile = _files.begin();
+
+    if (not nextFile()) {
+      std::cerr << "PSPhdf5: no files found" << std::endl;
+    }
+  }
+
+  void PSPhdf5::getInfo()
+  {
+    // Read one file and get metadata
+    //
+    try {
+      // Silence the HDF5 error stack
+      //
+      HighFive::SilenceHDF5 quiet;
+      
+      // Try opening the file
+      //
+      HighFive::File h5file(_files[0], HighFive::File::ReadOnly);
+      
+      try {
+
+	HighFive::Group header = h5file.getGroup("Header");
+	HighFive::Group config = h5file.getGroup("Config");
+	HighFive::Group params = h5file.getGroup("Parameters");
+
+	// Get particle numbers
+	//
+	header.getAttribute("NumPart_Total").read(nptot);
+	totalCount = 0;
+	for (auto v : nptot) totalCount += v;
+
+	// Get particle masses
+	//
+	header.getAttribute("MassTable").read(mass);
+
+	// Number of files
+	//
+	header.getAttribute("NumFilesPerSnapshot").read(nfiles);
+
+	// Get component names
+	//
+	params.getAttribute("ComponentNames").read(comps);
+
+	// Set some defaults
+	//
+	curcomp = comps[0];
+	curindx = 0;
+
+	// Get packing type (PSP or Gadget4; PSP is default)
+	//
+	int style;
+	config.getAttribute("PSPstyle").read(style);
+	gadget4 = (style == 0);
+
+	// Get number of types
+	//
+	config.getAttribute("NTYPES").read(ntypes);
+
+	config.getAttribute("Niattrib").read(Niattrib);
+
+	config.getAttribute("Ndattrib").read(Ndattrib);
+
+	// Real data type
+	//
+	int dp;
+	config.getAttribute("DOUBLEPRECISION").read(dp);
+	if (dp) real4 = false;
+	else    real4 = true;
+
+      } catch (HighFive::Exception& err) {
+	std::string msg("PSPhdf5: error reading HDF5 file, ");
+	throw std::runtime_error(msg + err.what());
+      }
+	
+    } catch (HighFive::Exception& err) {
+      if (myid==0)
+	std::cerr << "---- PSPhdf5: "
+		  << "error opening as HDF5, trying EXP native and ascii table"
+		  << std::endl;
+    }
+  }
+
+  bool PSPhdf5::nextFile()
+  {
+    if (curfile==_files.end()) return false;
+    if (real4) read_and_load<float>();
+    else       read_and_load<double>();
+    curfile++;
+    return true;
+  }
+
+
+  template <typename Scalar>
+  void PSPhdf5::read_and_load()
+  {
+    if (gadget4) read_and_load_gadget4<Scalar>();
+    else         read_and_load_psp<Scalar>();
+  }
+
+  template <typename Scalar>
+  void PSPhdf5::read_and_load_gadget4()
+  {
+    // Try to catch and HDF5 and parsing errors
+    //
+    try {
+      // Silence the HDF5 error stack
+      //
+      HighFive::SilenceHDF5 quiet;
+      
+      // Try opening the file
+      //
+      HighFive::File h5file(*curfile, HighFive::File::ReadOnly);
+      
+      try {
+
+	HighFive::Group header = h5file.getGroup("Header");
+
+	// Get time
+	//
+	header.getAttribute("Time").read(time);
+
+	// Get particle counts
+	//
+	header.getAttribute("NumPart_ThisFile").read(npart);
+
+	if (npart[curindx] > 0) {
+	  // Make the group name
+	  //
+	  std::ostringstream sout;
+	  sout << "PartType" << curindx;
+	  
+	  // Open the phase-space group
+	  //
+	  HighFive::Group part = h5file.getGroup(sout.str());
+
+	  Eigen::Matrix<Scalar, Eigen::Dynamic, 3> pos, vel;
+	  std::vector<unsigned long> idx;
+	  std::vector<Scalar> mas, pot, potext;
+
+	  Eigen::Matrix<int,    Eigen::Dynamic, Eigen::Dynamic> iattrib;
+	  Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> rattrib;
+
+	  part.getDataSet("ParticleIDs" ).read(idx);
+
+	  if (mass[curindx] == 0)
+	    part.getDataSet("Masses").read(mas);
+	  
+	  part.getDataSet("Coordinates" ).read(pos);
+	  part.getDataSet("Velocities"  ).read(vel);
+
+	  part.getDataSet("Potential"   ).read(pot);
+	  part.getDataSet("PotentialExt").read(potext);
+
+	  if (Niattrib[curindx]>0)
+	    part.getDataSet("IntAttributes" ).read(iattrib);
+
+	  if (Ndattrib[curindx]>0)
+	    part.getDataSet("RealAttributes" ).read(rattrib);
+
+	  // Clear and load the particle vector
+	  //
+	  particles.clear();
+	  
+	  Particle P;		// Working particle will be copied
+
+	  // Load from the HDF5 datasets
+	  //
+	  for (int n=0; n<npart[curindx]; n++) {
+	    if (n % numprocs ==  myid) {
+
+	      P.indx = idx[n];
+
+	      if (mass[curindx] > 0) P.mass = mass[curindx];
+	      else P.mass  = mas[n];
+
+	      P.level = 0;
+
+	      for (int k=0; k<3; k++) {
+		P.pos[k] = pos(n, k);
+		P.vel[k] = vel(n, k);
+	      }
+
+	      P.pot    = pot[n];
+	      P.potext = potext[n];
+
+	      if (Niattrib[curindx]>0) {
+		P.iattrib.resize(Niattrib[curindx]);
+		for (int j=0; j<Niattrib[curindx]; j++) P.iattrib[j] = iattrib(n, j);
+	      }
+		
+	      if (Ndattrib[curindx]>0) {
+		P.dattrib.resize(Ndattrib[curindx]);
+		for (int j=0; j<Ndattrib[curindx]; j++) P.dattrib[j] = rattrib(n, j);
+	      }
+		
+	      particles.push_back(P);
+	    }
+	    // END: parallel stanza
+	  }
+	  // END: load the particle vector
+	}
+	// END: we have particles
+
+      } catch (HighFive::Exception & err) {
+	std::string msg("PSPhdf5: error reading HDF5 file, ");
+	throw std::runtime_error(msg + err.what());
+      }
+	
+    } catch (HighFive::Exception & err) {
+      if (myid==0)
+	std::cerr << "---- PSPhdf5 gadget-4 read error: "
+		  << "error opening as HDF5, trying EXP native and ascii table"
+		  << std::endl;
+    }
+
+  }
   
+  // Helper structure
+  template <typename T>
+  struct H5Particle
+  {
+    unsigned long id;
+    T mass;
+    T pos[3];
+    T vel[3];
+    T pot;
+    T potext;
+    hvl_t iattrib;
+    hvl_t dattrib;
+  };
+
+  // Read and return a scalar HDF5 attribute
+  template <typename T>
+  T readScalar(H5::Group& group, const std::string& name)
+  {
+    H5::DataType type;
+
+    // Create a int datatype
+    if constexpr (std::is_same_v<T, int>) {
+      type = H5::PredType::NATIVE_INT;
+    }
+    else if constexpr (std::is_same_v<T, unsigned long>) {
+      type = H5::PredType::NATIVE_ULONG;
+    }
+    else if constexpr (std::is_same_v<T, float>) {
+      type = H5::PredType::NATIVE_FLOAT;
+    }
+    else if constexpr (std::is_same_v<T, double>) {
+      type = H5::PredType::NATIVE_DOUBLE;
+    }
+    else if constexpr (std::is_same_v<T, std::string>) {
+      type = H5::StrType(0, H5T_VARIABLE);
+    }
+    else {
+      assert(0);
+    }
+
+    // Create the attribute
+    H5::Attribute attribute = group.openAttribute(name);
+
+    T ret;
+
+    // Treat string separately
+    if constexpr (std::is_same_v<T, std::string>) {
+      attribute.read(type, &ret);
+    } else
+      attribute.read(type, &ret);
+
+    return ret;
+  };
+
+
+  // Read and return a std::vector HDF5 attribute
+  template <typename T>
+  std::vector<T> readVector(H5::Group& group, const std::string& name)
+  {
+    H5::DataType type;
+
+    // Create a int datatype
+    if constexpr (std::is_same_v<T, int>) {
+      type = H5::PredType::NATIVE_INT;
+    }
+    else if constexpr (std::is_same_v<T, unsigned long>) {
+      type = H5::PredType::NATIVE_ULONG;
+    }
+    else if constexpr (std::is_same_v<T, float>) {
+      type = H5::PredType::NATIVE_FLOAT;
+    }
+    else if constexpr (std::is_same_v<T, double>) {
+      type = H5::PredType::NATIVE_DOUBLE;
+    }
+    else if constexpr (std::is_same_v<T, std::string>) {
+      type = H5::StrType(0, H5T_VARIABLE);
+    }
+    else {
+      assert(0);
+    }
+
+    // Create the attribute
+    H5::Attribute attribute = group.openAttribute(name);
+    H5::DataType  attributeType = attribute.getDataType();
+    hsize_t attributeSize = attribute.getSpace().getSimpleExtentNpoints();
+
+    // Create the return value
+    std::vector<T> ret(attributeSize);
+
+
+    // Treat string separately
+    if constexpr (std::is_same_v<T, std::string>) {
+      // Allocate memory for string pointers
+        std::vector<char*> stringPointers(attributeSize);
+
+        // Read the string data
+        attribute.read(attributeType, stringPointers.data());
+
+        // Create std::vector<std::string>
+        for (int i = 0; i < attributeSize; ++i) {
+	  ret.emplace_back(stringPointers[i]);
+        }
+
+        // Release memory allocated by HDF5
+	H5::DataSet::vlenReclaim(stringPointers.data(), attributeType, attribute.getSpace());
+    } else
+      attribute.read(attributeType, ret.data());
+
+    return ret;
+  };
+
+
+  template <typename Scalar>
+  void PSPhdf5::read_and_load_psp()
+  {
+    // Try to catch and HDF5 and parsing errors
+    //
+    try {
+      // Try opening the file
+      //
+      H5::H5File file(*curfile, H5F_ACC_RDONLY);
+
+      try {
+
+	// Define the compound datatype
+	//
+	H5::CompType compound_type(sizeof(H5Particle<Scalar>));
+    
+	H5::DataType type;
+	if constexpr (std::is_same_v<Scalar, double>)
+	  type = H5::PredType::NATIVE_DOUBLE;
+	else if constexpr (std::is_same_v<Scalar, float>)
+	  type = H5::PredType::NATIVE_FLOAT;
+	else assert(0);
+
+	// Add members
+	compound_type.insertMember("id",   HOFFSET(H5Particle<Scalar>, id), H5::PredType::NATIVE_INT);
+	compound_type.insertMember("mass", HOFFSET(H5Particle<Scalar>, mass), type);
+
+	hsize_t dims3[1] = {3};
+	H5::ArrayType array3_type(type, 1, dims3);
+	
+	compound_type.insertMember("pos",     HOFFSET(H5Particle<Scalar>, pos   ), array3_type);
+	compound_type.insertMember("vel",     HOFFSET(H5Particle<Scalar>, vel   ), array3_type);
+	compound_type.insertMember("pot",     HOFFSET(H5Particle<Scalar>, pot   ), type);
+	compound_type.insertMember("potext",  HOFFSET(H5Particle<Scalar>, potext), type);
+	compound_type.insertMember("iattrib", HOFFSET(H5Particle<Scalar>, iattrib), H5::VarLenType(H5::PredType::NATIVE_INT));
+	compound_type.insertMember("dattrib", HOFFSET(H5Particle<Scalar>, dattrib), H5::VarLenType(type));
+
+	// Open the particle group
+	//
+	H5::Group header = file.openGroup("Header");
+
+	// Get time
+	//
+	time = readScalar<double>(header, "Time");
+
+	// Get particle counts
+	//
+	npart = readVector<unsigned long>(header, "NumPart_ThisFile");
+
+	if (npart[curindx] > 0) {
+	  // Make the group name
+	  //
+	  std::ostringstream sout;
+	  sout << "PartType" << curindx;
+	  
+	  // Open the phase-space group
+	  //
+	  H5::Group part = file.openGroup(sout.str());
+
+	  // Clear and load the particle vector
+	  //
+	  particles.clear();
+	  
+	  // Working particle; will be copied to particles array
+	  //
+	  Particle P;
+
+	  // Get the particle dataset from HDF5
+	  //
+	  H5::DataSet   dataset   = part.openDataSet("particles");
+	  H5::DataSpace dataspace = dataset.getSpace();
+
+	  // Sanity check
+	  //
+	  hsize_t dims[1];
+	  dataspace.getSimpleExtentDims(dims);
+	  size_t num_elements = dims[0];
+
+	  if (num_elements != npart[curindx])
+	    throw std::runtime_error("PSPhdf5: number of particles in file does not match the number in header");
+
+	  // Read particles
+	  //
+	  std::vector<H5Particle<Scalar>> h5part(num_elements);
+	  dataset.read(h5part.data(), compound_type);
+
+	  // Load from the HDF5 dataset
+	  //
+	  for (int n=0; n<npart[curindx]; n++) {
+
+	    if (n % numprocs ==  myid) {
+
+	      // Assign the standard fields
+	      //
+	      P.indx = h5part[n].id;
+	      P.mass = h5part[n].mass;
+	      P.level = 0;
+
+	      for (int k=0; k<3; k++) {
+		P.pos[k] = h5part[n].pos[k];
+		P.vel[k] = h5part[n].vel[k];
+	      }
+
+	      P.pot    = h5part[n].pot;
+	      P.potext = h5part[n].potext;
+
+	      // Unpack the variable length attribute arrays
+	      //
+	      if (Niattrib[curindx]>0) {
+		P.iattrib.resize(Niattrib[curindx]);
+		// Access data by pointer
+		int* ptr = (int*)h5part[n].iattrib.p;
+		for (int j=0; j<Niattrib[curindx]; j++)
+		  P.iattrib[j] = ptr[j];
+	      }
+		
+	      if (Ndattrib[curindx]>0) {
+		P.dattrib.resize(Ndattrib[curindx]);
+		// Access data by pointer
+		Scalar* ptr = (Scalar*)h5part[n].dattrib.p;
+		for (int j=0; j<Ndattrib[curindx]; j++)
+		  P.dattrib[j] = ptr[j];
+	      }
+		
+	      particles.push_back(P);
+	    }
+	    // END: parallel stanza
+	  }
+	  // END: load the particle vector
+	}
+	// END: we have particles
+
+      } catch (H5::Exception & err) {
+	std::string msg("PSPpsp: error reading HDF5 file, ");
+	throw std::runtime_error(msg + err.getDetailMsg());
+      }
+	
+    } catch (H5::Exception & err) {
+      if (myid==0)
+	std::cerr << "---- PSPhdf5 HDF5 file error: "
+		  << "error opening as HDF5, trying EXP native and ascii table, "
+		  << err.getDetailMsg()
+		  << std::endl;
+    }
+  }
+  
+  // Template specializations to allow linking from other modules
+  template void PSPhdf5::read_and_load<float>();
+  template void PSPhdf5::read_and_load<double>();
+  template void PSPhdf5::read_and_load_gadget4<float>();
+  template void PSPhdf5::read_and_load_gadget4<double>();
+  template void PSPhdf5::read_and_load_psp<float>();
+  template void PSPhdf5::read_and_load_psp<double>();
+
+  const Particle* PSPhdf5::firstParticle()
+  {
+    pcount = 0;
+    
+    return & particles[pcount++];
+  }
+  
+  const Particle* PSPhdf5::nextParticle()
+  {
+    if (pcount < particles.size()) {
+      return & particles[pcount++];
+    } else {
+      if (nextFile()) return firstParticle();
+      else return 0;
+    }
+  }
+  
+
   bool badstatus(istream& in)
   {
     ios::iostate i = in.rdstate();
@@ -1295,7 +1895,8 @@ namespace PR {
   
   
   std::vector<std::string> ParticleReader::readerTypes
-  {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "TipsyNative", "TipsyXDR", "Bonsai"};
+    {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "PSPhdf5",
+     "TipsyNative", "TipsyXDR", "Bonsai"};
   
   
   std::vector<std::vector<std::string>>
@@ -1315,6 +1916,28 @@ namespace PR {
     return parseStringList(files, delimit);
   }
       
+  // Are all the files in the list directories?
+  bool
+  ParticleReader::parseDirectoryList(const std::vector<std::string>& files)
+  {
+    int dcount = 0;		// The directory count
+    int fcount = 0;		// The file count
+
+    for (auto f : files) {
+      if (std::filesystem::is_directory(f))
+	dcount++;
+      else 
+	fcount++;
+    }
+
+    if (dcount>0 and fcount>0)
+	  throw std::runtime_error("ParticleReader::parseDirectoryList: "
+				   "cannot mix directories and files");
+
+    return dcount>0;
+  }
+
+
   std::vector<std::vector<std::string>>
   ParticleReader::parseStringList
   (const std::vector<std::string>& infiles, const std::string& delimit)
@@ -1325,6 +1948,14 @@ namespace PR {
     auto files = infiles;
     std::sort(files.begin(), files.end());
       
+    // Check to see if these are all directories
+    if (parseDirectoryList(files)) {
+      for (auto d : files) {
+	batches.push_back(std::vector<std::string>{d});
+      }
+      return batches;
+    }
+
     std::vector<std::string> batch;
     std::string templ;
       
@@ -1359,6 +1990,9 @@ namespace PR {
       }
     }
 
+    // Final batch
+    if (batch.size()) batches.push_back(batch);
+
     return batches;
   }
 
@@ -1373,6 +2007,8 @@ namespace PR {
       ret = std::make_shared<PSPout>(file, verbose);
     else if (reader.find("PSPspl") == 0)
       ret = std::make_shared<PSPspl>(file, verbose);
+    else if (reader.find("PSPhdf5") == 0)
+      ret = std::make_shared<PSPhdf5>(file, verbose);
     else if (reader.find("GadgetNative") == 0)
       ret = std::make_shared<GadgetNative>(file, verbose);
     else if (reader.find("GadgetHDF5") == 0)
@@ -1503,8 +2139,21 @@ namespace PR {
   Tipsy::Tipsy(const std::vector<std::string>& filelist, TipsyType Type,
 	       bool verbose)
   {
-    ttype = Type;
     files = filelist;
+
+    // Do we have a directory of snapshot files?
+    //
+    if (files.size()==1) {
+      std::vector<std::string> fscan = scanDirectory(files[0]);
+
+      // Did we find files?
+      //
+      if (fscan.size() != 0) {
+	files = fscan;
+      }
+    }
+
+    ttype = Type;
     getNumbers();
     curfile = files.begin();
     if (not nextFile()) {

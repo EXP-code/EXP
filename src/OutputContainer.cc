@@ -12,6 +12,7 @@
 #include <OutPSQ.H>
 #include <OutPSR.H>
 #include <OutVel.H>
+#include <OutHDF5.H>
 #include <OutAscii.H>
 #include <OutCHKPT.H>
 #include <OutCHKPTQ.H>
@@ -69,6 +70,10 @@ void OutputContainer::initialize(void)
     
       else if ( !name.compare("outpsq") ) {
 	out.push_back(new OutPSQ (node));
+      }
+    
+      else if ( !name.compare("outhdf5") ) {
+	out.push_back(new OutHDF5 (node));
       }
     
       else if ( !name.compare("outpsr") ) {
