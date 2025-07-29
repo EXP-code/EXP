@@ -66,10 +66,10 @@ namespace BasisClasses
     unsigned long coefindx;
     
     //! The expansion center
-    std::vector<double> coefctr;
+    Eigen::Vector3d coefctr = Eigen::Vector3d::Zero();
 
     //! Rotation matrix
-    Eigen::Matrix3d coefrot;
+    Eigen::Matrix3d coefrot = Eigen::Matrix3d::Identity();
 
     //! Contains contructor and BFE parameter database
     YAML::Node node, conf;
@@ -154,7 +154,7 @@ namespace BasisClasses
     virtual ~Basis(void) {}
     
     //! Set the expansion center
-    void setCenter(std::vector<double> center) { coefctr = center; }
+    void setCenter(Eigen::Vector3d center) { coefctr = center; }
     
     //! Set the rotation matrix
     void setRotation(Eigen::Matrix3d rot) { coefrot = rot; }
@@ -218,12 +218,12 @@ namespace BasisClasses
     
     //! Generate coeffients from a particle reader
     virtual CoefClasses::CoefStrPtr
-    createFromReader(PR::PRptr reader, std::vector<double> ctr,
+    createFromReader(PR::PRptr reader, Eigen::Vector3d ctr,
 		     Eigen::Matrix3d rot) = 0;
 
     //! Generate coefficients from a phase-space table
     virtual void
-    initFromArray(std::vector<double> ctr, Eigen::Matrix3d rot) = 0;
+    initFromArray(Eigen::Vector3d ctr, Eigen::Matrix3d rot) = 0;
 
     //! Accumulate coefficient contributions from arrays
     virtual void
@@ -234,7 +234,7 @@ namespace BasisClasses
     //! for the expansion
     CoefClasses::CoefStrPtr createFromArray
     (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
-     std::vector<double> center={0.0, 0.0, 0.0},
+     Eigen::Vector3d center=Eigen::Vector3d::Zero(),
      Eigen::Matrix3d rot=Eigen::Matrix3d::Identity(),
      bool roundrobin=true, bool posvelrows=false);
 
@@ -282,7 +282,7 @@ namespace BasisClasses
     { return getFieldLabels(coordinates); }
 
     //! Get the basis expansion center
-    std::vector<double> getCenter() { return coefctr; }
+    Eigen::Vector3d getCenter() { return coefctr; }
 
     //! Get the basis expansion center
     Eigen::Matrix3d getRotation() { return coefrot; }

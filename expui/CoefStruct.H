@@ -27,7 +27,7 @@ namespace CoefClasses
     Eigen::VectorXcd store;
     
     //! Center data
-    std::vector<double> ctr= {0.0, 0.0, 0.0};
+    Eigen::Vector3d ctr= Eigen::Vector3d::Zero();
 
     //! Orientation data
     Eigen::Matrix3d rot= Eigen::Matrix3d::Identity();
@@ -65,16 +65,11 @@ namespace CoefClasses
     //! Read-only access to coefficient data (no copy)
     Eigen::Ref<const Eigen::VectorXcd> getCoefs() { return store; }
 
-    //! Set new center data (no copy)
-    void setCenter(std::vector<double>& STORE)
-    {
-      if (STORE.size() != ctr.size())
-        throw std::invalid_argument("CoefStruct::setCenter: center vector size does not match");
-      ctr = STORE;
-    }
+    //! Set new center data
+    void setCenter(Eigen::Vector3d& CTR) {ctr = CTR; }
 
-    //! Read-only access to center (no copy)
-    std::vector<double> getCenter() { return ctr; }
+    //! Read-only access to center
+    Eigen::Vector3d getCenter() { return ctr; }
 
     //! Set new rotation matrix
     void setRotation(Eigen::Matrix3d& ROT) { rot = ROT; }

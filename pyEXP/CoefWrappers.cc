@@ -776,7 +776,7 @@ void CoefficientClasses(py::module &m) {
           setCenter : read-write access to the center data
           )")
     .def("setCoefCenter",
-          static_cast<void (CoefStruct::*)(std::vector<double>&)>(&CoefStruct::setCenter),
+	 static_cast<void (CoefStruct::*)(Eigen::Vector3d&)>(&CoefStruct::setCenter),
           py::arg("mat"),
           R"(
           Set the center vector

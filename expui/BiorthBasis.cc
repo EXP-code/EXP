@@ -3871,7 +3871,7 @@ namespace BasisClasses
   
   // Generate coeffients from a particle reader
   CoefClasses::CoefStrPtr BiorthBasis::createFromReader
-  (PR::PRptr reader, std::vector<double> ctr, Eigen::Matrix3d rot)
+  (PR::PRptr reader, Eigen::Vector3d ctr, Eigen::Matrix3d rot)
   {
     CoefClasses::CoefStrPtr coef;
 
@@ -3922,7 +3922,7 @@ namespace BasisClasses
 
       if (use) {
 	Eigen::Vector3d pp;
-	for (int k=0; k<3; k++) pp(k) = p->pos[k] - coefctr[k];
+	for (int k=0; k<3; k++) pp(k) = p->pos[k] - coefctr(k);
 	pp = coefrot * pp;
 	
 	accumulate(pp(0), pp(1), pp(2), p->mass);
@@ -3934,7 +3934,7 @@ namespace BasisClasses
   }
 
   // Generate coefficients from a phase-space table
-  void BiorthBasis::initFromArray(std::vector<double> ctr, Eigen::Matrix3d rot)
+  void BiorthBasis::initFromArray(Eigen::Vector3d ctr, Eigen::Matrix3d rot)
   {
     if (name.compare("sphereSL") == 0)
       coefret = std::make_shared<CoefClasses::SphStruct>();
@@ -4038,10 +4038,7 @@ namespace BasisClasses
 	  coefindx++;
 	  
 	  if (use) {
-	    Eigen::Vector3d pp;
-	    for (int k=0; k<3; k++) pp(k) = p(k, n) - coefctr[k];
-	    pp = coefrot * pp;
-
+	    auto pp = coefrot * (p.col(n) - coefctr);
 	    accumulate(pp(0), pp(1), pp(2), m(n));
 	  }
 	}
@@ -4070,10 +4067,7 @@ namespace BasisClasses
 	  coefindx++;
 	  
 	  if (use) {
-	    Eigen::Vector3d pp;
-	    for (int k=0; k<3; k++) pp(k) = p(k, n) - coefctr[0];
-	    pp = coefrot * pp;
-
+	    auto pp = coefrot * (p.col(n) - coefctr);
 	    accumulate(pp(0), pp(1), pp(2), m(n));
 	  }
 	}
@@ -4092,7 +4086,7 @@ namespace BasisClasses
   // Generate coefficients from a phase-space table
   //
   CoefClasses::CoefStrPtr BiorthBasis::createFromArray
-  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, Eigen::Vector3d ctr,
    Eigen::Matrix3d rot, bool RoundRobin, bool PosVelRows)
   {
     initFromArray(ctr, rot);

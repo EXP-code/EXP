@@ -755,9 +755,9 @@ public:
   }
 
   //! Get rectified component center
-  std::vector<double> getCenter(unsigned flags=Inertial)
+  Eigen::Vector3d getCenter(unsigned flags=Inertial)
   {
-    std::vector<double> ret(3, 0.0);
+    Eigen::Vector3d ret = Eigen::Vector3d::Zero();
     for (int j=0; j<3; j++) {
       if (com_system and flags & Local) ret[j] += com0[j];
       if (flags & Centered) ret[j] += center[j];
