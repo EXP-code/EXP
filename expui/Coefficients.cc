@@ -115,7 +115,9 @@ namespace CoefClasses
       //
       Eigen::VectorXd ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	std::vector<double> ctrvec;
+	stanza.getAttribute("Center").read(ctrvec);
+	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
       }
 
       // Check for rotation matrix
@@ -322,7 +324,9 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr;
       if (stanza.hasAttribute("Center")) {
+	std::vector<double> ctrvec;
 	stanza.getAttribute("Center").read(ctr);
+	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
       }
 
       // Check for rotation matrix
@@ -420,7 +424,9 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr;
       if (stanza.hasAttribute("Center")) {
+	std::vector<double> ctrvec;
 	stanza.getAttribute("Center").read(ctr);
+	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
       }
 
       // Check for rotation matrix
@@ -868,7 +874,9 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
+	std::vector<double> ctrvec;
 	stanza.getAttribute("Center").read(ctr);
+	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
       }
 
       // Check for rotation data
@@ -1268,7 +1276,9 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
+	std::vector<double> ctrvec;
 	stanza.getAttribute("Center").read(ctr);
+	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -1620,7 +1630,9 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
+	std::vector<double> ctrvec;
 	stanza.getAttribute("Center").read(ctr);
+	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
       }
 
       if (Time < Tmin or Time > Tmax) continue;
