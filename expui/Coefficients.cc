@@ -115,6 +115,10 @@ namespace CoefClasses
       //
       Eigen::VectorXd ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
+	// The previous version used a std::vector<double> for the
+	// center which HighFive autodeduced to a 1D data space, so we
+	// need to read it with a std::vector for backwards
+	// compatibility
 	std::vector<double> ctrvec;
 	stanza.getAttribute("Center").read(ctrvec);
 	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
@@ -324,6 +328,10 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr;
       if (stanza.hasAttribute("Center")) {
+	// The previous version used a std::vector<double> for the
+	// center which HighFive autodeduced to a 1D data space, so we
+	// need to read it with a std::vector for backwards
+	// compatibility
 	std::vector<double> ctrvec;
 	stanza.getAttribute("Center").read(ctr);
 	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
@@ -424,6 +432,10 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr;
       if (stanza.hasAttribute("Center")) {
+	// The previous version used a std::vector<double> for the
+	// center which HighFive autodeduced to a 1D data space, so we
+	// need to read it with a std::vector for backwards
+	// compatibility
 	std::vector<double> ctrvec;
 	stanza.getAttribute("Center").read(ctr);
 	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
@@ -874,6 +886,10 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
+	// The previous version used a std::vector<double> for the
+	// center which HighFive autodeduced to a 1D data space, so we
+	// need to read it with a std::vector for backwards
+	// compatibility
 	std::vector<double> ctrvec;
 	stanza.getAttribute("Center").read(ctr);
 	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
@@ -1276,6 +1292,10 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
+	// The previous version used a std::vector<double> for the
+	// center which HighFive autodeduced to a 1D data space, so we
+	// need to read it with a std::vector for backwards
+	// compatibility
 	std::vector<double> ctrvec;
 	stanza.getAttribute("Center").read(ctr);
 	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
@@ -1630,6 +1650,9 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
+	// The previous version used a std::vector<double> for the
+	// center which autodeduced to a 1D vector, so we need to read
+	// it with a std::vector for backwards compatibility
 	std::vector<double> ctrvec;
 	stanza.getAttribute("Center").read(ctr);
 	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
