@@ -113,15 +113,10 @@ namespace CoefClasses
       
       // Check for center data
       //
-      Eigen::VectorXd ctr = Eigen::Vector3d::Zero();
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	// The previous version used a std::vector<double> for the
-	// center which HighFive autodeduced to a 1D data space, so we
-	// need to read it with a std::vector for backwards
-	// compatibility
-	std::vector<double> ctrvec;
-	stanza.getAttribute("Center").read(ctrvec);
-	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
 
       // Check for rotation matrix
@@ -326,15 +321,10 @@ namespace CoefClasses
       
       // Check for center data
       //
-      Eigen::Vector3d ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	// The previous version used a std::vector<double> for the
-	// center which HighFive autodeduced to a 1D data space, so we
-	// need to read it with a std::vector for backwards
-	// compatibility
-	std::vector<double> ctrvec;
-	stanza.getAttribute("Center").read(ctr);
-	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
 
       // Check for rotation matrix
@@ -430,15 +420,10 @@ namespace CoefClasses
       
       // Check for center data
       //
-      Eigen::Vector3d ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	// The previous version used a std::vector<double> for the
-	// center which HighFive autodeduced to a 1D data space, so we
-	// need to read it with a std::vector for backwards
-	// compatibility
-	std::vector<double> ctrvec;
-	stanza.getAttribute("Center").read(ctr);
-	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
 
       // Check for rotation matrix
@@ -886,13 +871,8 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	// The previous version used a std::vector<double> for the
-	// center which HighFive autodeduced to a 1D data space, so we
-	// need to read it with a std::vector for backwards
-	// compatibility
-	std::vector<double> ctrvec;
-	stanza.getAttribute("Center").read(ctr);
-	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
 
       // Check for rotation data
@@ -1292,13 +1272,8 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	// The previous version used a std::vector<double> for the
-	// center which HighFive autodeduced to a 1D data space, so we
-	// need to read it with a std::vector for backwards
-	// compatibility
-	std::vector<double> ctrvec;
-	stanza.getAttribute("Center").read(ctr);
-	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -1650,12 +1625,8 @@ namespace CoefClasses
       //
       Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	// The previous version used a std::vector<double> for the
-	// center which autodeduced to a 1D vector, so we need to read
-	// it with a std::vector for backwards compatibility
-	std::vector<double> ctrvec;
-	stanza.getAttribute("Center").read(ctr);
-	for (int k=0; k<3; k++) ctr(k) = ctrvec[k];
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
 
       if (Time < Tmin or Time > Tmax) continue;
