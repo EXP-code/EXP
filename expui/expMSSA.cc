@@ -1531,7 +1531,7 @@ namespace MSSA {
 	recon.createAttribute<bool>("varFlag", HighFive::DataSpace::From(varFlag)).write(varFlag);
 	recon.createAttribute<bool>("powFlag", HighFive::DataSpace::From(powFlag)).write(powFlag);
 	recon.createAttribute<bool>("totVar",  HighFive::DataSpace::From(totVar)).write(totVar);
-	recon.createAttribute<bool>("totPow",  HighFive::DataSpace::From(totPow)).write(totPow);
+	recon.createAttribute<double>("totPow",  HighFive::DataSpace::From(totPow)).write(totPow);
 
 	for (int n=0; n<keylist.size(); n++) {
 	  std::ostringstream scnt;
