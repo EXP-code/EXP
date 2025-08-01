@@ -1980,10 +1980,6 @@ namespace MSSA {
     if (params["totVar"]) varFlag = params["totVar"].as<bool>();
     if (params["totPow"]) powFlag = params["totPow"].as<bool>();
 
-    std::cout << "Flags: totVar=" << std::boolalpha << varFlag
-	      << " totPow=" << std::boolalpha << powFlag << std::endl;
-    std::cout << "Flag string=" << flags << std::endl;
-
     if (powFlag==true) {
       if (varFlag==true) {
         std::cerr << "expMSSA: both totVar and totPow are set to true. "
