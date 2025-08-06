@@ -1095,7 +1095,7 @@ namespace CoefClasses
       // Add a rotation matrix attribute
       //
       Eigen::Matrix3d rot = C->getRotation();
-      stanza.createAttribute<Eigen::Matrix3d>("Rotation", HighFive::DataSpace::From(rot)).write(rot);
+      stanza.createAttribute<double>("Rotation", HighFive::DataSpace::From(rot)).write(rot);
 
       // Add coefficient data
       //
@@ -2965,7 +2965,7 @@ namespace CoefClasses
       // Add a rotation matrix attribute
       //
       Eigen::Matrix3d rot = C->getRotation();
-      stanza.createAttribute<Eigen::Matrix3d>("Rotation", HighFive::DataSpace::From(rot)).write(rot);
+      stanza.createAttribute<double>("Rotation", HighFive::DataSpace::From(rot)).write(rot);
 
       // Coefficient size (allow Eigen::Tensor to be easily recontructed from metadata)
       //
